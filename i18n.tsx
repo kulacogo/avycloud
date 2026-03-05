@@ -1730,7 +1730,7 @@ const detectLocale = (): Locale => {
     if (lang.startsWith('de')) return 'de';
     if (lang.startsWith('tr')) return 'tr';
   }
-  return 'en';
+  return 'de';
 };
 
 export const I18nProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {

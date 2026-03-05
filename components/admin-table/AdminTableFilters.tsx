@@ -225,7 +225,7 @@ const AdminTableFilters: React.FC<AdminTableFiltersProps> = ({
           >
             {filterCategorySelection.length === 0
               ? "Kategorie: Alle"
-              : `Kategorie: ${filterCategorySelection.length} ausgew\u00E4hlt`}
+              : `Kategorie: ${filterCategorySelection.length} ausgewählt`}
           </button>
           {categoryFilterOpen && (
             <div className="absolute z-30 mt-2 w-[360px] max-w-[90vw] rounded-xl border border-app-border bg-app-bg p-3 shadow-lg">
@@ -246,7 +246,7 @@ const AdminTableFilters: React.FC<AdminTableFiltersProps> = ({
                     onClick={() => setCategoryFilterOpen(false)}
                     className="text-xs text-txt-secondary hover:underline"
                   >
-                    Schlie\u00DFen
+                    Schließen
                   </button>
                 </div>
               </div>
@@ -340,8 +340,8 @@ const AdminTableFilters: React.FC<AdminTableFiltersProps> = ({
             className={filterControlClass}
           >
             <option value="all">EAN/GTIN: Alle</option>
-            <option value="valid">G\u00FCltige EAN/GTIN</option>
-            <option value="invalid">Ung\u00FCltige EAN/GTIN</option>
+            <option value="valid">Gültige EAN/GTIN</option>
+            <option value="invalid">Ungültige EAN/GTIN</option>
             <option value="missing">Keine EAN/GTIN</option>
           </select>
           <select
@@ -351,8 +351,8 @@ const AdminTableFilters: React.FC<AdminTableFiltersProps> = ({
             className={filterControlClass}
           >
             <option value="all">GPSR: Alle</option>
-            <option value="complete">GPSR: Vollst\u00E4ndig</option>
-            <option value="incomplete">GPSR: Unvollst\u00E4ndig</option>
+            <option value="complete">GPSR: Vollständig</option>
+            <option value="incomplete">GPSR: Unvollständig</option>
           </select>
           <select
             id="table-filter-baselinker-link"
@@ -361,8 +361,8 @@ const AdminTableFilters: React.FC<AdminTableFiltersProps> = ({
             className={filterControlClass}
           >
             <option value="all">BaseLinker: Alle</option>
-            <option value="linked">BaseLinker: Verkn\u00FCpft</option>
-            <option value="unlinked">BaseLinker: Nicht verkn\u00FCpft</option>
+            <option value="linked">BaseLinker: Verknüpft</option>
+            <option value="unlinked">BaseLinker: Nicht verknüpft</option>
           </select>
           <select
             id="table-filter-ebay"
@@ -494,7 +494,7 @@ const AdminTableFilters: React.FC<AdminTableFiltersProps> = ({
                       title: "Alle Produkte verbessern?",
                       tone: "default",
                       description:
-                        "Startet KI/Improve-Jobs f\u00FCr alle Produkte. Das kann viele Jobs erzeugen und je nach Menge dauern.",
+                        "Startet KI/Improve-Jobs für alle Produkte. Das kann viele Jobs erzeugen und je nach Menge dauern.",
                       confirmLabel: "Verbessern (alle) starten",
                       onConfirm: () => {
                         setConfirmDialog(null);
@@ -519,10 +519,10 @@ const AdminTableFilters: React.FC<AdminTableFiltersProps> = ({
                   type="button"
                   onClick={() => {
                     setConfirmDialog({
-                      title: "Titel-Fix f\u00FCr alle Inventory-Produkte?",
+                      title: "Titel-Fix für alle Inventory-Produkte?",
                       tone: "default",
                       description:
-                        "Entfernt einen Bindestrich am Ende (inkl. Leerzeichen) und st\u00F6\u00DFt anschlie\u00DFend einen BaseLinker Text-Sync an.",
+                        "Entfernt einen Bindestrich am Ende (inkl. Leerzeichen) und stößt anschließend einen BaseLinker Text-Sync an.",
                       confirmLabel: "Starten",
                       onConfirm: async () => {
                         setConfirmDialog(null);
@@ -560,7 +560,7 @@ const AdminTableFilters: React.FC<AdminTableFiltersProps> = ({
                       title: "Beschreibung als HTML formatieren?",
                       tone: "default",
                       description:
-                        'Formatiert Abs\u00E4tze zu <p>\u2026</p> und Label wie \u201EZustand:\u201C zu <strong>\u2026</strong>. Danach Text-Only Sync nach BaseLinker.',
+                        'Formatiert Absätze zu <p>\u2026</p> und Label wie \u201EZustand:\u201C zu <strong>\u2026</strong>. Danach Text-Only Sync nach BaseLinker.',
                       confirmLabel: "Starten",
                       onConfirm: async () => {
                         setConfirmDialog(null);
@@ -578,10 +578,10 @@ const AdminTableFilters: React.FC<AdminTableFiltersProps> = ({
                   type="button"
                   onClick={() => {
                     setConfirmDialog({
-                      title: "Listing-Readiness Audit ausf\u00FChren?",
+                      title: "Listing-Readiness Audit ausführen?",
                       tone: "default",
                       description:
-                        "Korrigiert/vereinheitlicht Titel/Highlights/Beschreibung/Attribute und st\u00F6\u00DFt anschlie\u00DFend Text-Only Sync nach BaseLinker an.",
+                        "Korrigiert/vereinheitlicht Titel/Highlights/Beschreibung/Attribute und stößt anschließend Text-Only Sync nach BaseLinker an.",
                       confirmLabel: "Starten",
                       onConfirm: async () => {
                         setConfirmDialog(null);

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useI18n, type Locale } from "../i18n";
+import { useI18n } from "../i18n";
 import { useAuth } from "../context/AuthContext";
 
 type View =
@@ -48,16 +48,8 @@ const VIEW_TITLES: Record<string, string> = {
   sheet: "nav.products",
 };
 
-const LOCALE_LABELS: Record<Locale, string> = {
-  de: "DE",
-  en: "EN",
-  tr: "TR",
-};
-
-const LOCALES: Locale[] = ["de", "en", "tr"];
-
 export const Topbar: React.FC<TopbarProps> = ({ currentView, theme, onToggleTheme, onNavigate }) => {
-  const { t, locale, setLocale } = useI18n();
+  const { t } = useI18n();
   const { user } = useAuth();
   const titleKey = VIEW_TITLES[currentView] || "nav.dashboard";
   const userInitial = user?.email?.charAt(0)?.toUpperCase() || "?";
@@ -109,24 +101,7 @@ export const Topbar: React.FC<TopbarProps> = ({ currentView, theme, onToggleThem
 
       <div className="flex-1 md:hidden" />
 
-      {/* Language selector */}
-      <div className="hidden sm:flex items-center gap-0.5 bg-app-elevated rounded-md p-0.5">
-        {LOCALES.map((loc) => (
-          <button
-            key={loc}
-            type="button"
-            onClick={() => setLocale(loc)}
-            className={`px-2 py-1 rounded text-[11px] font-semibold transition-colors ${
-              locale === loc
-                ? "bg-accent text-white"
-                : "text-txt-muted hover:text-txt-primary"
-            }`}
-            aria-label={`${t("lang.label")}: ${LOCALE_LABELS[loc]}`}
-          >
-            {LOCALE_LABELS[loc]}
-          </button>
-        ))}
-      </div>
+      {/* Language selector removed — app is German-only. i18n infra kept for future use. */}
 
       {/* Settings gear */}
       <button
@@ -150,8 +125,8 @@ export const Topbar: React.FC<TopbarProps> = ({ currentView, theme, onToggleThem
           strokeLinejoin="round"
           aria-hidden="true"
         >
+          <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
           <circle cx="12" cy="12" r="3" />
-          <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
         </svg>
       </button>
 

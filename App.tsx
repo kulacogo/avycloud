@@ -413,7 +413,7 @@ const AppInner: React.FC = () => {
   // keep hash + storage in sync when view changes (for back/forward navigation)
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    const target = viewToHashPath(view, currentProduct?.id).replace(/^#/, '').replace(/^\/+/, '');
+    const target = viewToHashPath(view).replace(/^#/, '').replace(/^\/+/, '');
     const current = window.location.hash.replace(/^#/, '').replace(/^\/+/, '');
     const currentPath = current.split('?')[0] || '';
     const targetPath = target.split('?')[0] || '';
@@ -426,7 +426,7 @@ const AppInner: React.FC = () => {
     } catch {
       // ignore storage errors
     }
-  }, [view, currentProduct?.id]);
+  }, [view]);
 
   // Handle deep linking for products once loaded
   useEffect(() => {
@@ -541,7 +541,7 @@ const AppInner: React.FC = () => {
     if (product) {
       setCurrentProduct(product);
       setInventoryFocusId(product.id);
-      setView('sheet');
+      // Don't setView('sheet') — ProductSheet renders as overlay, keeping current view
     }
   };
 
@@ -602,14 +602,16 @@ const AppInner: React.FC = () => {
       const { view: nextView, productId } = parseHash();
       const q = window.location.hash.replace(/^#/, '').replace(/^\/+/, '').split('?')[1] || '';
       setHashQueryString((prev) => (prev === q ? prev : q));
-      if (nextView !== viewRef.current) {
-        setView(nextView);
+      // Deep-link #/sheet/xxx → open ProductSheet overlay on products view instead of dedicated sheet view
+      const resolvedView = nextView === 'sheet' ? 'products' : nextView;
+      if (resolvedView !== viewRef.current) {
+        setView(resolvedView);
       }
       if (productId) {
         const product = productsRef.current.find((p) => p.id === productId) || null;
         setCurrentProduct(product);
         if (product) setInventoryFocusId(product.id);
-      } else if (nextView !== 'sheet') {
+      } else {
         setCurrentProduct(null);
       }
     };
@@ -968,6 +970,28 @@ const AppInner: React.FC = () => {
           )}
           {renderLoadState()}
         </main>
+
+        {/* ProductSheet overlay — slides in from right, independent of route */}
+        {currentProduct && (view === 'inventory' || view === 'products') && (
+          <div className="fixed inset-0 z-50 flex justify-end">
+            {/* Backdrop */}
+            <div
+              className="absolute inset-0 bg-black/40 transition-opacity"
+              onClick={() => setCurrentProduct(null)}
+              aria-label="Close product sheet"
+            />
+            {/* Sheet panel */}
+            <div className="relative w-full max-w-[540px] bg-app-surface border-l border-app-border overflow-y-auto shadow-2xl animate-slide-in-right">
+              <ProductSheet
+                product={currentProduct}
+                onUpdate={handleUpdateProduct}
+                onImprove={handleImproveProduct}
+                isImproving={Boolean(currentProduct && activeProductIds.has(currentProduct.id))}
+                onClose={() => setCurrentProduct(null)}
+              />
+            </div>
+          </div>
+        )}
 
         {/* Mobile bottom nav */}
         {isMobile && (

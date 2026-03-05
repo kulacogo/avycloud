@@ -75,7 +75,7 @@ const AdminTableHeader: React.FC<AdminTableHeaderProps> = ({
           <input
             type="checkbox"
             name="select-all-products"
-            aria-label="Alle ausw\u00E4hlen"
+            aria-label="Alle auswählen"
             onChange={onSelectAll}
             checked={
               selectedIds.size > 0 &&

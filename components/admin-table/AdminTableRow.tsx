@@ -28,7 +28,7 @@ const AdminTableRow: React.FC<AdminTableRowProps> = ({
         <input
           type="checkbox"
           name={`select-product-${product.id}`}
-          aria-label="Produkt ausw\u00E4hlen"
+          aria-label="Produkt auswählen"
           checked={isSelected}
           onChange={() => onSelect(product.id)}
           className="bg-app-border border-app-border"

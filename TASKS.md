@@ -1,136 +1,457 @@
 # Tasks
 
+> **ZIEL: AvyCloud marktreif machen.** Enterprise-Grade Multi-Channel E-Commerce Hub.
+> Benchmark: ChannelEngine, Channable, Linnworks, Plentymarkets, Billbee.
+> AvyCloud-Vorteil: KI-gestützte Produkterkennung + Enrichment (kein Wettbewerber hat das).
+
+---
+
 ## Active
+
+### Sofort-Bugfixes (vor allem anderen)
+
+- [x] **BUG-001: Umlaut/Unicode-Encoding in BulkActions** ~~since 2026-03-05~~ (2026-03-05)
+  - Fix: Alle `\u00xx` Unicode-Escapes durch echte UTF-8-Zeichen ersetzt in BulkActions.tsx, AdminTableFilters.tsx, AdminTableHeader.tsx, AdminTableRow.tsx
+
+- [x] **BUG-002: Doppelter Dark/Light-Mode Toggle** ~~since 2026-03-05~~ (2026-03-05)
+  - Fix: Settings-Button in Topbar.tsx hatte Sonnen-SVG statt Zahnrad → durch echtes Gear-Icon ersetzt
+
+- [x] **BUG-003: Sprach-Selector entfernen** ~~since 2026-03-05~~ (2026-03-05)
+  - Fix: Language-Selector aus Topbar.tsx entfernt. Default-Locale in i18n.tsx auf `de` geändert. i18n-Infrastruktur (EN/TR Keys) bleibt erhalten
+
+- [x] **BUG-004: ProductSheet wechselt Kontext (Inventory → Products)** ~~since 2026-03-05~~ (2026-03-05)
+  - Fix: ProductSheet als Overlay (slide-in Panel) gerendert statt als eigene Route. `handleSelectProduct()` setzt nur `currentProduct`, kein `setView('sheet')`. Hash bleibt auf aktueller View. Close-Button + Backdrop-Click zum Schließen
+
+- [x] **BUG-005: eBay/Kaufland Sync im Bulk-Dropdown conditional** ~~since 2026-03-05~~ (2026-03-05)
+  - Fix: eBay Update und Kaufland Update Buttons in BulkActions.tsx immer sichtbar, nicht mehr conditional hinter `hasSelectedEbayListings`/`hasSelectedKauflandListings`
+
+---
+
+### Modul 1: UI/UX Design-System Foundation
+
+- [ ] **M1: Komponentenbibliothek (`components/ui/`)** since 2026-03-05
+  - ⚠️ **KONTEXT:** Bisheriges "Redesign" war NUR CSS-Variable-Umbenennung (slate-800 → app-elevated). Kein visueller Unterschied. Alle Komponenten sehen identisch aus wie vorher. Filter, Buttons, Tables, Modals — alles inkonsistent.
+  - **Design Tokens (bereits definiert):** `--bg: #1a1d23`, `--sidebar: #15171c`, `--surface: #21242b`, `--elevated: #282c34`, `--border: #2a2d35`, `--accent: #7c75ff`, `--success: #34d399`, `--warning: #fbbf24`, `--danger: #f87171`, `--info: #60a5fa`
+  - **Referenz:** `prototype.html` (14 Seiten, interaktiver Mockup)
+  - **Base-Components erstellen:**
+    - [ ] `ui/Button.tsx` — Varianten: Primary (accent bg), Secondary (border only), Ghost (transparent), Danger (rot). Sizes: sm (32px), md (40px), lg (48px). States: Default, Hover, Active, Disabled, Loading (Spinner). Icon-Support (left/right). ALLE Buttons in der App müssen diese Component nutzen
+    - [ ] `ui/Input.tsx` — Types: Text, Number, Search, Password, Textarea. Label (floating oder above), Placeholder, Error-State (roter Border + Fehlermeldung), Help-Text, Disabled-State, Character-Counter. Prefix/Suffix-Icons. Konsistentes Padding: 12px horizontal, 10px vertikal
+    - [ ] `ui/Select.tsx` — Dropdown mit Search-Funktion (filterbarer Options-List). Single-Select + Multi-Select. Placeholder, Clear-Button, Disabled-State. Konsistentes Styling mit Input.tsx
+    - [ ] `ui/Badge.tsx` — Varianten: Success (grün), Warning (gelb), Danger (rot), Info (blau), Neutral (grau), Accent (lila). Sizes: sm (inline), md (standalone). Optional: Dot-Indikator, Close-Button. Verwendung: Status-Anzeigen, Tags, Labels
+    - [ ] `ui/Card.tsx` — Varianten: Surface (--surface bg), Elevated (--elevated bg), Outlined (border only). Padding: sm (16px), md (24px), lg (32px). Optional Header, Footer, Divider. Hover-State für klickbare Cards
+    - [ ] `ui/Table.tsx` — Sortierbare Spalten (Asc/Desc/None, klare Indikatoren). Sticky Header bei Scroll. Row-Hover (subtle --elevated). Row-Selection (Checkbox). Pagination (Page-Size: 25/50/100, Prev/Next, Page-Info "1-25 von 342"). Spalten-Konfiguration (User kann Spalten ein-/ausblenden via Dropdown). Loading-State (Skeleton-Rows). Empty-State (EmptyState-Component). Responsive: Horizontaler Scroll auf kleinen Screens mit fixierter erster Spalte
+    - [ ] `ui/Modal.tsx` — Sizes: sm (400px), md (560px), lg (720px), full (90vw). Backdrop (--bg mit 60% Opacity), Click-Outside-Close. Close-Button (X oben rechts). Header/Body/Footer-Sections. Animation: Fade + Scale. Focus-Trap (Accessibility). Escape-Key schließt
+    - [ ] `ui/Tabs.tsx` — Horizontal Tab-Bar. Active-Tab: Accent-Underline (2px). Inactive: Muted Text. Hover: Subtle Background. Optional: Tab-Count-Badge. Keyboard-Navigation (Arrow-Keys)
+    - [ ] `ui/Tooltip.tsx` — Positionen: Top, Bottom, Left, Right (auto-flip). Trigger: Hover + Focus. Delay: 300ms show, 100ms hide. Max-Width: 250px. Arrow-Pointer
+    - [ ] `ui/EmptyState.tsx` — Zentriert. Icon (64px, muted). Titel (h3). Beschreibung (text-secondary). CTA-Button (optional). Verwendung: Leere Tabellen, leere Listen, keine Suchergebnisse, keine Daten
+    - [ ] `ui/Skeleton.tsx` — Shimmer-Animation. Varianten: Text (Zeilen), Card (Rechteck), Table-Row, Avatar (Kreis). Verwendet als Loading-Placeholder statt Spinner
+    - [ ] `ui/Alert.tsx` — Varianten: Info, Success, Warning, Error. Icon links, Text, optional Close-Button. Sticky-Variante (Toast, auto-dismiss nach 5s)
+    - [ ] `ui/Dropdown.tsx` — Trigger-Element + Flyout-Menu. Positionen: Bottom-Start, Bottom-End. Divider zwischen Gruppen. Icon + Label pro Item. Keyboard-Navigation
+    - [ ] `ui/Breadcrumb.tsx` — Separator: "/". Letzer Eintrag: Muted (aktuelle Seite). Klickbare Links für Navigation
+    - [ ] `ui/ProgressBar.tsx` — Horizontal. Varianten: Default (accent), Success, Warning, Danger. Labels: Prozent, Text. Indeterminate-Mode (animiert)
+    - [ ] `ui/Avatar.tsx` — Sizes: sm (32px), md (40px), lg (56px). Fallback: Initialen auf farbigem Hintergrund. Optional: Status-Dot (Online/Offline)
+    - [ ] `ui/Stepper.tsx` — Horizontaler oder vertikaler Step-Indicator. States: Completed (check), Active (accent), Upcoming (muted). Für Wizards (Erfassen, Integration-Setup, etc.)
+  - **Nach Erstellung: Migration aller bestehenden Komponenten auf ui/* Base-Components**
+    - [ ] Alle `<button>` Tags → `<Button>` Component
+    - [ ] Alle `<input>` Tags → `<Input>` Component
+    - [ ] Alle `<select>` Tags → `<Select>` Component
+    - [ ] Alle inline Status-Badges → `<Badge>` Component
+    - [ ] Alle Modal/Dialog-Elemente → `<Modal>` Component
+    - [ ] Alle Tab-Navigationen → `<Tabs>` Component
+  - **Spacing-System:** 4px Grid (4, 8, 12, 16, 24, 32, 48, 64) konsequent in allen Components
+  - **Typography-Scale definieren und durchsetzen:**
+    - [ ] h1: 28px/700 (Page-Title)
+    - [ ] h2: 22px/600 (Section-Title)
+    - [ ] h3: 18px/600 (Card-Title)
+    - [ ] h4: 16px/600 (Sub-Section)
+    - [ ] body: 14px/400 (Default Text)
+    - [ ] caption: 12px/400 (Help-Text, Timestamps)
+    - [ ] label: 12px/500 uppercase tracking-wide (Form-Labels, Section-Labels)
+  - **Dateien:** Neuer Ordner `components/ui/`, Index-Export `components/ui/index.ts`
+
+---
+
+### Modul 2: Navigation & Layout
+
+- [ ] **M2: Sidebar, Topbar & Routing komplett überarbeiten** since 2026-03-05
+  - **Sidebar — Neue Struktur:**
+    - **ÜBERSICHT**
+      - [ ] Dashboard (Icon: LayoutDashboard)
+    - **KATALOG**
+      - [ ] Produkte (Icon: Package) — Produktstammdaten, Enrichment, KI
+      - [ ] Bestand (Icon: Warehouse) — Lagerbestand, Bins, Mengen, NUR Marketplace-Indikatoren (Badges)
+      - [ ] Kategorien (Icon: FolderTree)
+    - **MARKTPLÄTZE** (dynamisch — nur verbundene Marktplätze anzeigen)
+      - [ ] eBay (Icon: ShoppingBag) — NUR wenn eBay-Integration aktiv. Listing-Management, Sync, Performance
+      - [ ] Kaufland (Icon: Store) — NUR wenn Kaufland-Integration aktiv
+      - [ ] (Amazon, Otto, Zalando — erscheinen automatisch wenn Integration verbunden)
+      - [ ] ⚠️ **"eBay (Gap Analysis)" Link ENTFERNEN** — wird nicht mehr benötigt, Gap-Infos in die jeweilige Listing-View integrieren
+    - **AUFTRÄGE**
+      - [ ] Aufträge (Icon: ClipboardList) — Multi-Channel Order Management
+      - [ ] Retouren (Icon: RotateCcw) — Return Management
+      - [ ] Versand (Icon: Truck) — Carrier-Management, Labels, Tracking
+    - **LAGER**
+      - [ ] Lager (Icon: MapPin) — Zonen, Bins, Auslastung
+      - [ ] Erfassen (Icon: ScanLine) — KI-Produkterkennung
+      - [ ] Operationen (Icon: PackageCheck) — Einlagern, Kommissionieren, Verpacken
+    - **SYSTEM**
+      - [ ] Integrationen (Icon: Plug) — Marketplace-/Shipping-/Accounting-Verbindungen
+      - [ ] Einstellungen (Icon: Settings) — Admin, User, Rollen, Regeln
+  - **Sidebar — UI/UX Details:**
+    - [ ] Breite: 240px (expanded), 64px (collapsed, Icon-Only)
+    - [ ] Collapse-Toggle: Button oben (Hamburger oder Chevron)
+    - [ ] Aktiver Nav-Punkt: Accent-Left-Border (3px) + leichter Background (--accent mit 10% opacity)
+    - [ ] Gruppen-Labels: 11px, Uppercase, Letter-Spacing 0.05em, --text-muted, 24px Margin-Top
+    - [ ] Nav-Items: 14px, 400 weight, 40px Höhe, 12px Padding-Left, Lucide-Icons (20px, 1.5 Stroke)
+    - [ ] Hover: Background --surface, Transition 150ms
+    - [ ] Footer: User-Avatar (32px) + Name + Logout-Button, fixed am unteren Rand
+    - [ ] Scroll: Wenn Nav-Items Viewport überschreiten → Scroll innerhalb Sidebar, Footer bleibt fixed
+  - **Topbar — Bereinigung:**
+    - [ ] Links: Page-Title (h2) oder Breadcrumb (Dashboard > Produkte > iPhone 13)
+    - [ ] Mitte: Such-Input (max-width 480px, `ui/Input` mit Search-Icon, Cmd+K Shortcut)
+    - [ ] Rechts: NUR Theme-Toggle (1x!) + Notification-Bell + User-Avatar mit Dropdown (Profil, Einstellungen, Logout)
+    - [ ] Kein Sprach-Selector. Keine doppelten Elemente.
+    - [ ] Höhe: 56px, Border-Bottom: 1px --border
+  - **Routing anpassen:**
+    - [ ] Neue Routes: `#/inventory`, `#/orders`, `#/returns`, `#/shipping`, `#/integrations`
+    - [ ] Marketplace-Routes dynamisch: `#/marketplace/ebay`, `#/marketplace/kaufland`, etc.
+    - [ ] Route `#/ebay` (alte Gap Analysis) → Redirect zu `#/marketplace/ebay` oder entfernen
+  - **Dateien:** `components/Sidebar.tsx`, `components/Topbar.tsx`, `App.tsx` (Routing), `i18n.tsx`
+
+---
+
+### Modul 3: Produkte (Katalog)
+
+- [ ] **M3: Produkte-View Enterprise-tauglich** since 2026-03-05
+  - **Page-Header:**
+    - [ ] Titel "Produkte" (h1) + Counter "{gefiltert} von {gesamt} Produkte"
+    - [ ] Action-Buttons rechts: "Produkt anlegen" (Primary), "Import" (Secondary), "Export" (Secondary)
+  - **Filter-System komplett neu:**
+    - [ ] Filter-Bar unterhalb Header: Horizontale Chip-Leiste mit aktiven Filtern
+    - [ ] Jeder Chip: Label + Wert + X-Close (z.B. "Marke: Apple ✕", "Status: Aktiv ✕")
+    - [ ] "Filter hinzufügen" Button → Dropdown mit allen Filteroptionen:
+      - Marke, Kategorie, Status (Aktiv/Inaktiv/Entwurf), Zustand (Neu/Gebraucht), Marketplace (eBay ✓/✕, Kaufland ✓/✕), Preisbereich, EAN (vorhanden/fehlend), Bilder (vorhanden/fehlend), Qualitätsscore-Bereich, Lagerort/Bin, Erstellt (Datumsbereich), Letzte Änderung (Datumsbereich)
+    - [ ] "Alle Filter zurücksetzen" Link (nur sichtbar wenn Filter aktiv)
+    - [ ] Saved Filter Presets: Dropdown "Gespeicherte Filter" (z.B. "Ohne EAN", "eBay-ready", "Niedrig-Bestand", "Neue Produkte 7 Tage")
+    - [ ] User kann eigene Filter-Presets speichern (Name + Filterkombination → localStorage oder Firestore)
+  - **Tabelle (AdminTable mit `ui/Table`):**
+    - [ ] Standard-Spalten: Checkbox, Thumbnail (40x40), Name (truncated, max 2 Zeilen), SKU, EAN, Marke, Kategorie (Badge), Preis (VK), Bestand (Menge + Bin), Qualität (Score-Badge), Marketplace-Status (eBay ✓/✕ + Kaufland ✓/✕ Icons), Aktionen (3-Dot Menu)
+    - [ ] Spalten-Konfiguration: Zahnrad-Icon → Dropdown-Checklist aller verfügbaren Spalten, User wählt welche sichtbar
+    - [ ] Sortierung: Klick auf Spalten-Header, 3-State (Asc → Desc → None), visueller Pfeil-Indikator
+    - [ ] Sticky Header bei Scroll
+    - [ ] Row-Hover: Subtle --elevated Background
+    - [ ] Row-Click: Öffnet ProductSheet (Overlay, KEIN Route-Wechsel)
+    - [ ] Pagination: "25 / 50 / 100 pro Seite", Prev/Next, "Zeige 1-25 von 342"
+    - [ ] Empty-State: `ui/EmptyState` — "Keine Produkte gefunden. Passe deine Filter an oder erfasse ein neues Produkt."
+    - [ ] Loading: Skeleton-Rows (5 Zeilen) statt Spinner
+  - **Bulk-Actions (bei Selektion):**
+    - [ ] Sticky-Bar am unteren Rand: "{n} ausgewählt" + Action-Buttons
+    - [ ] Primär-Buttons (immer sichtbar): "Verbessern" (KI), "Löschen", "Exportieren"
+    - [ ] Sekundär-Buttons: "Preis aktualisieren", "Kategorie zuweisen", "eBay listen", "Kaufland listen"
+    - [ ] ALLE Buttons immer sichtbar (nicht in verschachteltem "Mehr"-Dropdown verstecken)
+    - [ ] Destruktive Aktionen: Bestätigungs-Modal ("Möchtest du {n} Produkte wirklich löschen?")
+  - **ProductSheet (Detail-Panel) KOMPLETT NEU:**
+    - [ ] Slide-in von rechts, 520px Breite, --surface Background, 1px --border links
+    - [ ] Header: Close-Button (X) links, Thumbnail (48px), Produktname (h3, truncated), SKU (caption), Status-Badge
+    - [ ] Tab-Bar (`ui/Tabs`): Übersicht | Bilder | Preise | Attribute | Marktplätze | Aktivität
+    - [ ] **Übersicht-Tab:**
+      - [ ] Hero-Image (200px, klickbar → Lightbox)
+      - [ ] Produkt-Info-Grid: Name (editierbar), Brand, SKU, EAN (mit Valid/Invalid Badge), Kategorie (Badge + Link), Zustand, Beschreibung (Textarea)
+      - [ ] Status-Section: Qualitätsscore (Fortschrittsbalken + Prozent), Marketplace-Status (eBay ✓/✕, Kaufland ✓/✕ mit letztem Sync-Datum)
+      - [ ] Quick-Actions-Row: "Verbessern" (Primary), "Quality Check" (Secondary), "Label drucken" (Ghost)
+    - [ ] **Bilder-Tab:**
+      - [ ] Gallery-Grid (3 Spalten), Drag-Reorder
+      - [ ] Upload-Zone (Drag & Drop oder Click)
+      - [ ] Pro Bild: Löschen, als Hauptbild setzen, KI-Hintergrund entfernen
+      - [ ] Bildoptimierung: Auto-Crop, Weißabgleich (existierende Backend-Funktionen)
+    - [ ] **Preise-Tab:**
+      - [ ] KI-Preisvorschlag: Vorgeschlagener Preis + Konfidenz-Badge (Hoch/Mittel/Niedrig) + "Übernehmen" Button
+      - [ ] Manuell: EK-Feld, VK-Feld, Marge (automatisch berechnet, angezeigt als Prozent + Betrag)
+      - [ ] Marketplace-Preise: Pro Marktplatz (eBay VK, Kaufland VK) — editierbar, Sync-Button
+      - [ ] Competitor-Vergleich: Mini-Tabelle (Top 5 Konkurrenten: Quelle, Preis, Zustand, Datum)
+    - [ ] **Attribute-Tab:**
+      - [ ] Key-Value Grid (2 Spalten): Marke, Modell, Farbe, Speicher, Zustand, Gewicht, Maße, etc.
+      - [ ] Edit-in-Place: Click auf Wert → Input, Enter speichert, Escape cancelt
+      - [ ] "Attribut hinzufügen" Button am Ende
+      - [ ] KI-Vorschläge: Badge "KI" neben automatisch erkannten Attributen
+    - [ ] **Marktplätze-Tab (NEU — ersetzt alten eBay-Tab):**
+      - [ ] Pro verbundenem Marktplatz eine Card:
+        - Marktplatz-Name + Logo
+        - Status: "Aktiv", "Inaktiv", "Nicht gelistet", "Fehler"
+        - Listing-URL (klickbar)
+        - Letzter Sync + Sync-Button
+        - Marketplace-spezifische Felder (eBay: Item-ID, Kategorie; Kaufland: Offer-ID, etc.)
+        - "Auf {Marktplatz} listen" Button (wenn nicht gelistet)
+        - Readiness-Check: Fehlende Pflichtfelder als Gap-Liste
+    - [ ] **Aktivität-Tab (NEU):**
+      - [ ] Timeline: Chronologische Liste aller Änderungen (Erstellt, Bearbeitet, Gelistet, Preis geändert, Verbessert, etc.)
+      - [ ] Pro Eintrag: Timestamp, User/System, Beschreibung, Vorher→Nachher bei Wertänderungen
+    - [ ] KI-Chat (GeminiChat): Minimiert am unteren Rand des Sheets. Click → Expand. Quick-Prompt-Buttons: "Beschreibung verbessern", "Titel optimieren", "Fehlende Attribute ergänzen"
+  - **Dateien:** `components/admin-table/AdminTable.tsx`, `components/admin-table/AdminTableHeader.tsx`, `components/admin-table/AdminTableRow.tsx`, `components/admin-table/AdminTableFilters.tsx`, `components/admin-table/BulkActions.tsx`, `components/ProductSheet.tsx`, `components/GeminiChat.tsx`
+
+---
+
+### Modul 4: Bestand (Inventar)
+
+- [ ] **M4: Bestand-View — Lager-fokussiert, OHNE Marketplace-Listing-Features** since 2026-03-05
+  - **Konzept:** Bestand = physischer Lagerbestand. KEIN Listing-Management hier. Nur Indikatoren welche Marktplätze aktiv sind (als Badges). Listings werden in den jeweiligen Marktplatz-Views verwaltet.
+  - **Page-Header:**
+    - [ ] Titel "Bestand" + Counter "{n} Artikel im Lager"
+    - [ ] KPI-Cards (4er Row): Gesamtartikel, Gesamteinheiten, Bestandswert (Σ EK), Niedrig-Bestand Alerts
+    - [ ] Action-Buttons: "Einlagern" (Primary, → Stow-Flow), "Export" (Secondary)
+  - **Filter-System:**
+    - [ ] Filter-Chips: Lagerzone, Bin, Bestandsmenge (Range), Zustand (Neu/Gebraucht/Defekt), Letzte Bewegung (Datumsbereich), Marketplace-Status (Auf eBay ✓/✕, Auf Kaufland ✓/✕)
+    - [ ] Quick-Filters: "Niedrig-Bestand" (< Reorder-Point), "Kein Lagerplatz", "Seit 30 Tagen unbewegt"
+  - **Tabelle:**
+    - [ ] Spalten: Checkbox, Thumbnail, Produktname, SKU, Bin (Lagerplatz-Badge), Menge, Zustand, EK, Bestandswert (Menge × EK), Letzte Bewegung (Datum), Marketplace-Indikatoren (kleine Icons: eBay ✓, Kaufland ✓ — NUR als Anzeige, nicht klickbar), Aktionen
+    - [ ] Aktionen pro Row: "Umlagern" (Bin ändern), "Menge anpassen", "Details" (→ ProductSheet Overlay)
+    - [ ] Row-Click → ProductSheet (Overlay, Kontext bleibt "Bestand")
+  - **Bulk-Actions:**
+    - [ ] "Umlagern" (Bin-Zuweisung für mehrere), "Inventur" (Mengen prüfen), "Export"
+    - [ ] KEINE Marketplace-Aktionen hier — die gehören in die Marktplatz-Views
+  - **Dateien:** `components/InventoryView.tsx` (komplett überarbeiten oder neu erstellen)
+
+---
+
+### Modul 5: Marktplatz-Listings (pro Marktplatz)
+
+- [ ] **M5: Dynamische Marktplatz-Views** since 2026-03-05
+  - **Konzept:** Pro verbundenem Marktplatz ein eigener Nav-Link und eine eigene View. Wenn eBay verbunden → "eBay" in Sidebar unter MARKTPLÄTZE. Wenn Kaufland verbunden → "Kaufland" erscheint. Nicht verbundene Marktplätze erscheinen NICHT in der Sidebar (nur im Integrations-Hub).
+  - **eBay Listings View (`#/marketplace/ebay`):**
+    - [ ] Page-Header: "eBay Listings" + eBay-Logo + Connection-Status (Grüner Dot + "Verbunden")
+    - [ ] KPI-Cards: Aktive Listings, Entwürfe, Fehler/Gaps, Umsatz 30 Tage, Ø Verkaufspreis
+    - [ ] Tab-Bar: Alle Listings | Aktiv | Inaktiv | Entwürfe | Fehler
+    - [ ] Tabelle: Thumbnail, Titel, eBay-Item-ID (Link zum Listing), Preis, Menge, Status (Aktiv/Inaktiv/Fehler Badge), Kategorie, Watchers, Verkäufe 30d, Letzter Sync, Aktionen
+    - [ ] Aktionen: "Bearbeiten", "Deaktivieren", "Preis ändern", "Sync erzwingen"
+    - [ ] Bulk: "Preis aktualisieren", "Deaktivieren", "Sync alle"
+    - [ ] "Neues Listing erstellen" Button → Produkt aus Katalog wählen → Listing-Felder ausfüllen → Publish
+    - [ ] Gap-Analyse INTEGRIERT: Bei Listings mit Fehlern → Expandable Row mit Gap-Details (fehlende Felder, Kategorie-Fehler, etc.)
+    - [ ] Sync-Status-Banner oben: "Letzter Sync: vor 5min | Nächster Sync: in 10min | {n} Fehler"
+  - **Kaufland Listings View (`#/marketplace/kaufland`):**
+    - [ ] Gleiche Struktur wie eBay, aber Kaufland-spezifische Felder (Offer-ID, Kaufland-Kategorie, etc.)
+    - [ ] KPIs, Filter, Tabelle, Bulk-Actions analog zu eBay
+  - **Generisches Marketplace-View-Pattern:**
+    - [ ] `components/MarketplaceListingsView.tsx` — Generische Component die per Props den Marktplatz erhält
+    - [ ] Marktplatz-spezifische Konfiguration: Welche Spalten, welche Aktionen, welche API-Calls
+    - [ ] Neue Marktplätze (Amazon, Otto, Zalando) können durch Config hinzugefügt werden ohne neue View-Component
+  - **Alte eBay Gap Analysis View ENTFERNEN:**
+    - [ ] `EbayListingsView.tsx` → Replace mit neuem `MarketplaceListingsView.tsx`
+    - [ ] Route `#/ebay` → Redirect zu `#/marketplace/ebay` oder entfernen
+    - [ ] Sidebar-Link "eBay" aktualisieren
+  - **Dateien:** `components/MarketplaceListingsView.tsx` (neu), `components/EbayListingsView.tsx` (ersetzen), `App.tsx` (Routes), `Sidebar.tsx`
+
+---
+
+### Modul 6: Aufträge (Order Management)
+
+- [ ] **M6: Multi-Channel Order Management** since 2026-03-05
+  - **Konzept:** Zentrale Auftragsansicht über ALLE Marktplätze. Jeder Auftrag hat eine Fulfillment-Pipeline: Neu → Bestätigt → Kommissioniert → Verpackt → Versendet → Zugestellt.
+  - **Page-Header:**
+    - [ ] Titel "Aufträge" + Counter "{offen} offen, {heute} heute"
+    - [ ] KPI-Cards: Offene Aufträge, Heute eingegangen, Heute versendet, Ø Bearbeitungszeit, Umsatz heute
+    - [ ] Sync-Button: "Aufträge synchronisieren" (alle Marktplätze)
+  - **Pipeline-Visualisierung (NEU):**
+    - [ ] Horizontale Pipeline-Bar: Neu (n) → Bestätigt (n) → Kommissionierung (n) → Verpackung (n) → Versendet (n)
+    - [ ] Klick auf Stage → Filtert Tabelle auf diesen Status
+    - [ ] Farbcodierung: Neu=Info, Bestätigt=Warning, Komm.=Accent, Verpackt=Success, Versendet=Muted
+  - **Filter:**
+    - [ ] Status, Marktplatz (eBay/Kaufland/Amazon/...), Datumsbereich, Kunde, Zahlungsstatus (Bezahlt/Offen/Erstattet)
+  - **Tabelle:**
+    - [ ] Spalten: Auftrag-ID (Marketplace-Ref), Datum, Kunde (Name, abgekürzt), Artikel (Produktname × Menge, mehrere Zeilen bei Multi-Item), Gesamt (Betrag + Währung), Quelle (Marketplace-Badge: eBay blau, Kaufland orange, etc.), Zahlungsstatus, Fulfillment-Status (Badge), Aktionen
+    - [ ] Row-Expand: Klick → Auftragsdetails (alle Positionen, Versandadresse, Notizen)
+    - [ ] Aktionen: "Kommissionieren starten", "Versandlabel drucken", "Details", "Stornieren"
+  - **Auftragsdetail-Panel (Slide-in oder Seite):**
+    - [ ] Kundendaten: Name, Adresse, E-Mail, Telefon
+    - [ ] Positionen: Produktbild, Name, SKU, Menge, Einzelpreis, Gesamtpreis
+    - [ ] Zahlungsinfo: Methode, Status, Transaktions-ID
+    - [ ] Versandinfo: Carrier, Tracking-Nummer (klickbar), Status, Versandkosten
+    - [ ] Timeline: Auftragshistorie (Bestellt → Bezahlt → Kommissioniert → Verpackt → Versendet → Zugestellt)
+    - [ ] Aktionen: "Rechnung generieren", "Lieferschein drucken", "Versandlabel drucken", "Nachricht an Kunden"
+  - **Backend:**
+    - [ ] Existiert: `routes/orders.js`, `lib/firestore.js::listOrders()`
+    - [ ] Erweitern: Fulfillment-Status-Updates (PATCH `/api/orders/:id/status`), Multi-Channel-Aggregation
+    - [ ] Webhook: Bei Status-Änderung → Marketplace-API (eBay: Mark as Shipped, Kaufland: Confirm Shipment)
+  - **Dateien:** `components/OrdersView.tsx` (überarbeiten), `components/OrderDetail.tsx` (neu), `backend/routes/orders.js`
+
+---
+
+### Modul 7: Versand (Courier Integration)
+
+- [ ] **M7: Multi-Carrier Versand-Management** since 2026-03-05
+  - **Konzept:** Zentrale Versandverwaltung. Mehrere Carrier (DHL, DPD, GLS, Hermes, UPS, Deutsche Post), Label-Druck, Tracking, automatische Carrier-Wahl basierend auf Regeln.
+  - **Versand-View (`#/shipping`):**
+    - [ ] KPI-Cards: Heute versendet, Pakete in Zustellung, Zustellquote, Ø Versandkosten
+    - [ ] Tab-Bar: Ausstehend (zu versenden) | In Zustellung | Zugestellt | Probleme
+    - [ ] Tabelle: Auftrag-ID, Kunde, Carrier (Logo-Badge), Tracking-Nummer (klickbar → Tracking-URL), Status, Versanddatum, Zustelldatum (geschätzt), Versandkosten
+    - [ ] "Label drucken" — Einzel oder Bulk (Multi-Label-PDF)
+    - [ ] Carrier-Auswahl: Bei Einzelversand → Dropdown mit konfigurierten Carriern + geschätzten Kosten
+  - **Versand-Regeln (Automatisierung):**
+    - [ ] Rule-Engine: "Wenn Gewicht < 1kg UND Inland → Deutsche Post Warenpost"
+    - [ ] "Wenn Gewicht > 5kg → DHL Paket"
+    - [ ] "Wenn Expressversand → DPD Express"
+    - [ ] Default-Carrier konfigurierbar
+  - **Tracking-Integration:**
+    - [ ] Tracking-Status automatisch von Carrier-API abrufen (Polling oder Webhook)
+    - [ ] Status-Updates an Marktplatz-API weiterleiten (eBay: Upload Tracking, Kaufland: Confirm Shipment)
+    - [ ] Kunde erhält Tracking-Info automatisch
+  - **Backend:**
+    - [ ] Existiert: `lib/sendcloud.js` (nur SendCloud, hardcoded)
+    - [ ] Erweitern: Multi-Carrier-Abstraction-Layer
+    - [ ] `services/shipping.js` — `createShipment()`, `getLabel()`, `getTracking()`, `listCarriers()`
+    - [ ] Carrier-Adapter: `lib/carrier-dhl.js`, `lib/carrier-dpd.js`, `lib/carrier-gls.js`, etc.
+    - [ ] Carrier-Config aus Firestore (nicht ENV) — via Integrations-Management
+  - **Dateien:** `components/ShippingView.tsx` (neu), `components/ShippingRules.tsx` (neu), `backend/services/shipping.js` (neu), `backend/lib/carrier-*.js` (neu)
+
+---
+
+### Modul 8: Retouren (Returns Management)
+
+- [ ] **M8: Retouren-Management** since 2026-03-05
+  - **Konzept:** Return-Requests entgegennehmen, Grund kategorisieren, Rückerstattung auslösen, Ware prüfen, wieder einlagern oder entsorgen.
+  - **Retouren-View (`#/returns`):**
+    - [ ] KPI-Cards: Offene Retouren, Retourenquote (%), Erstattungen diese Woche, Ø Bearbeitungszeit
+    - [ ] Tab-Bar: Neu eingegangen | In Prüfung | Erstattet | Abgeschlossen | Abgelehnt
+    - [ ] Tabelle: Retoure-ID, Auftrag-ID, Kunde, Produkt(e), Retourengrund (Badge), Eingang-Datum, Status, Erstattungsbetrag, Aktionen
+  - **Retouren-Gründe (kategorisiert):**
+    - [ ] "Defekt/Beschädigt", "Falsche Lieferung", "Nicht wie beschrieben", "Zu spät geliefert", "Meinungsänderung", "Doppelbestellung", "Sonstiges"
+    - [ ] Pro Marktplatz: Marketplace-spezifische Gründe mappen (eBay Return Reasons → interne Kategorien)
+  - **Retouren-Workflow:**
+    - [ ] Schritt 1: Retoure eingeht (automatisch via Marketplace-API oder manuell)
+    - [ ] Schritt 2: Ware prüfen — Zustand bewerten (A-Ware → Wiederverkauf, B-Ware → Reduziert, C-Ware → Entsorgung)
+    - [ ] Schritt 3: Erstattung — Voll, Teilweise, oder Ablehnung (mit Begründung)
+    - [ ] Schritt 4: Wiedereinlagerung — Wenn A/B-Ware: Zurück ins Inventar mit neuem Zustand
+    - [ ] Schritt 5: Abschluss — Marketplace-API-Update (Refund Issued, Return Closed)
+  - **Backend:**
+    - [ ] `backend/routes/returns.js` (neu) — CRUD für Retouren
+    - [ ] `backend/services/returns.js` (neu) — processReturn(), issueRefund(), restockItem()
+    - [ ] Firestore Collection: `returns` — {returnId, orderId, items, reason, status, refundAmount, condition, ...}
+    - [ ] Marketplace-Integration: eBay GetReturnRequests, Kaufland Returns-API
+  - **Dateien:** `components/ReturnsView.tsx` (neu), `components/ReturnDetail.tsx` (neu), `backend/routes/returns.js` (neu), `backend/services/returns.js` (neu)
+
+---
+
+### Modul 9: Integrationen
+
+- [ ] **M9: Integrations-Hub — User kann selbst Marktplätze & Services verbinden** since 2026-03-05
+  - ⚠️ **KRITISCHSTER GAP:** Ohne Self-Service-Integrationen ist AvyCloud nicht als Produkt nutzbar. Aktuell alles hardcoded via ENV-Variablen.
+  - **Integrations-Hub View (`#/integrations`):**
+    - [ ] Page-Header: "Integrationen" + "Verbundene Services: {n}"
+    - [ ] Tab-Bar: Marktplätze | Versand | Buchhaltung | Sonstiges
+    - [ ] **Marktplätze-Tab:**
+      - [ ] Grid von Marketplace-Cards (3 pro Reihe):
+        - eBay (Logo, "Verbunden ✓" oder "Nicht verbunden", Letzer Sync, "Konfigurieren" / "Verbinden" Button)
+        - Kaufland (analog)
+        - Amazon (Coming Soon Badge)
+        - Otto (Coming Soon Badge)
+        - Zalando (Coming Soon Badge)
+        - Kleinanzeigen (Coming Soon Badge)
+      - [ ] Verbundene Cards: Grüner Border-Top, Connection-Info, "Konfigurieren" → Settings-Modal
+      - [ ] Nicht verbundene Cards: Muted, "Verbinden" Button → Wizard
+      - [ ] Coming Soon Cards: Disabled, Muted, "Benachrichtigen" Button (E-Mail-Interesse)
+    - [ ] **Versand-Tab:**
+      - [ ] DHL, DPD, GLS, Hermes, UPS, Deutsche Post, SendCloud
+      - [ ] Gleiche Card-Struktur: Verbunden/Nicht verbunden
+    - [ ] **Buchhaltung-Tab:**
+      - [ ] SevDesk, lexoffice, DATEV
+    - [ ] **Sonstiges-Tab:**
+      - [ ] BaseLinker, Zapier, Make.com (Webhook)
+  - **Integration-Wizard (pro Integration):**
+    - [ ] Step 1: Marktplatz/Service Übersicht (Was kann diese Integration? Feature-Liste)
+    - [ ] Step 2: Authentifizierung (OAuth-Flow mit Redirect ODER API-Key/Secret-Eingabe — je nach Service)
+    - [ ] Step 3: Sync-Konfiguration (Was syncen: Produkte ✓, Aufträge ✓, Preise ✓. Wie oft: Echtzeit / 15min / 30min / 1h / Manuell)
+    - [ ] Step 4: Test-Verbindung (API-Call, Ergebnis anzeigen: "Verbindung erfolgreich! 342 Produkte gefunden." oder Fehler)
+    - [ ] Step 5: Aktivieren — Integration ist live
+  - **Integration-Settings (pro verbundener Integration):**
+    - [ ] Connection-Status: Verbunden seit {Datum}, Letzter Sync {Datum/Uhrzeit}, Nächster Sync {Datum/Uhrzeit}
+    - [ ] Sync-Einstellungen: Intervall ändern, was wird gesynct, Richtung (bidirektional/nur Import/nur Export)
+    - [ ] Kategorie-Mapping: AvyCloud-Kategorie → Marktplatz-Kategorie (Tabelle mit Dropdown-Mapping)
+    - [ ] Preis-Regeln pro Marktplatz: Aufschlag/Abzug (%, €), Mindestpreis, Rundung
+    - [ ] Fehler-Log: Letzte Sync-Fehler mit Timestamp, Error-Message, betroffenes Produkt
+    - [ ] "Trennen" Button (Disconnect) mit Bestätigung
+  - **Backend:**
+    - [ ] `backend/routes/integrations.js` (neu) — CRUD für Integrationen
+    - [ ] `backend/services/integration-store.js` (neu) — Credentials verschlüsselt in Firestore speichern/lesen
+    - [ ] Firestore Collection: `integrations` — {id, type: "ebay"|"kaufland"|..., credentials: {encrypted}, settings: {syncInterval, syncProducts, syncOrders, ...}, status: "active"|"error"|"disconnected", lastSync, lastError}
+    - [ ] Credential-Verschlüsselung: AES-256-GCM mit Key aus Google Secret Manager (nicht im Code)
+    - [ ] Migration: Bestehende ENV-Variablen → Firestore, ENV als Fallback
+    - [ ] Alle bestehenden API-Clients refactorn: `lib/ebay-oauth.js`, `lib/kaufland-api.js`, `lib/baselinker-*.js`, `lib/sendcloud.js`, `lib/sevdesk.js` → Credentials aus integration-store lesen statt process.env
+  - **Dateien:** `components/IntegrationsHub.tsx` (neu), `components/IntegrationWizard.tsx` (neu), `components/IntegrationSettings.tsx` (neu), `backend/routes/integrations.js` (neu), `backend/services/integration-store.js` (neu)
+
+---
+
+### Modul 10: Analytics & Reporting
+
+- [ ] **M10: Dashboard & Reporting Enterprise-Grade** since 2026-03-05
+  - **Dashboard überarbeiten:**
+    - [ ] Revenue-KPIs: Umsatz heute, Umsatz Monat, Umsatz YTD — mit Trend-Pfeil (↑ +12% vs. Vormonat)
+    - [ ] Order-KPIs: Aufträge heute, Offene Aufträge, Ø Bestellwert, Retourenquote
+    - [ ] Inventory-KPIs: Artikel im Bestand, Gesamtwert, Niedrig-Bestand Alerts, Out-of-Stock
+    - [ ] Umsatz-Chart: Dual-Axis (Umsatz + Auftragsanzahl) mit Zeitraum-Selector (7T/30T/90T/YTD/Custom)
+    - [ ] Umsatz nach Marktplatz: Stacked Bar-Chart oder Pie-Chart (eBay vs. Kaufland vs. Direkt)
+    - [ ] Aktivitäts-Feed: Letzte Aktionen (Produkt erstellt, Auftrag eingegangen, Listing gesynct, etc.) — Live-Updates
+    - [ ] Marktplatz-Übersicht: Mini-Cards pro verbundenem Marktplatz (Status, Aktive Listings, Umsatz 30d)
+  - **Reporting-Seite (NEU, unter Einstellungen oder eigener Nav-Punkt):**
+    - [ ] Vordefinierte Reports:
+      - "Umsatzreport" (Zeitraum, pro Marktplatz, pro Kategorie)
+      - "Bestandsreport" (Aktueller Bestand, Wert, Bewegungen)
+      - "Margenreport" (EK vs. VK vs. Gebühren vs. Versand = Nettomarge)
+      - "Bestseller/Slowmover" (Top 20 Verkäufe, Bottom 20 ohne Verkäufe seit X Tagen)
+      - "Retourenreport" (Quoten pro Marktplatz, Top-Retourengründe)
+    - [ ] Export: CSV, Excel (.xlsx), PDF
+    - [ ] Zeitraum wählbar, Marktplatz filterbar
+  - **Backend:**
+    - [ ] `backend/routes/reports.js` (neu) — GET `/api/reports/:type?from=&to=&marketplace=`
+    - [ ] `backend/services/analytics.js` (neu) — Aggregation-Queries auf Firestore (oder BigQuery-Export für Performance)
+  - **Dateien:** `components/DashboardView.tsx` (überarbeiten), `components/ReportsView.tsx` (neu), `backend/routes/reports.js` (neu), `backend/services/analytics.js` (neu)
+
+---
+
+### Modul Bonus: Automatisierung & Bulk-Operationen
+
+- [ ] **M-AUTO: Workflow-Automatisierung & Bulk-Import/Export** since 2026-03-05
+  - **Bulk-Import/Export:**
+    - [ ] Import: CSV/Excel Upload → Produkte, Preise oder Bestände aktualisieren
+    - [ ] Template-Download: Leere Excel-Vorlage mit korrekten Spalten
+    - [ ] Import-Preview: Vorschau der Änderungen vor Ausführung (Zeile für Zeile, Fehler markiert)
+    - [ ] Export: Produkte, Bestand, Aufträge als CSV/Excel mit konfigurierbaren Spalten
+  - **Repricing-Engine (existiert Backend-only, braucht UI):**
+    - [ ] Repricing-Dashboard: Aktive Regeln, letzte Preisänderungen, Savings
+    - [ ] Regel-Editor: "Wenn Wettbewerber-Preis < mein Preis → unterbiete um X€/X%"
+    - [ ] Mindestmarge-Schutz: Nie unter EK + definierte Marge verkaufen
+    - [ ] Pro Marktplatz: Separate Pricing-Regeln
+    - [ ] Schedule: Repricing alle X Stunden oder manuell
+  - **Workflow-Builder (Phase 2 — nach Launch):**
+    - [ ] Visueller Editor (If-Then Regeln, kein Code): Trigger → Bedingung → Aktion
+    - [ ] Beispiele: "Wenn Bestand < 5 → eBay-Listing pausieren", "Wenn neues Produkt erfasst → Auto-Improve starten"
+    - [ ] Dies ist ein Phase-2-Feature nach dem initialen Launch
+  - **Dateien:** `components/BulkImportView.tsx` (neu), `components/RepricingDashboard.tsx` (neu), `backend/routes/bulk.js` (erweitern), `backend/services/pricing-engine.js` (existiert, UI anbinden)
+
+---
+
+### Bestehende Tasks (beibehalten)
 
 - [ ] **P0: Identify-Modul stärken — API-Nutzung koordinieren**
   - ✅ Preisanreicherung Doppel-Gate aufgetrennt (2026-03-03)
-  - ✅ eBay Title Insights: Keyword-Fallback wenn keine Kategorie bekannt (2026-03-03)
-  - ✅ Dedizierte `image-search.js` erstellt (2026-03-04) — SerpAPI google_images + bing_images Fallback
-  - ✅ `enrichment.js::runSmartImageRecovery()` nutzt jetzt `image-search.js` (2026-03-04)
-  - **Offen — API-Nutzung nicht koordiniert:**
-    - Orchestrierte Enrichment-Pipeline: Vision → Barcode → Web-Recherche → Title Insights → LLM-Synthese
+  - ✅ eBay Title Insights: Keyword-Fallback (2026-03-03)
+  - ✅ Dedizierte `image-search.js` (2026-03-04)
+  - ✅ `enrichment.js::runSmartImageRecovery()` nutzt `image-search.js` (2026-03-04)
+  - **Offen:** Orchestrierte Enrichment-Pipeline: Vision → Barcode → Web-Recherche → Title Insights → LLM-Synthese
   - **Dateien:** `enrichment.js`, `image-search.js`
 
 - [ ] **P1: Monitoring & Error-Tracking** — Wenn ein Runner hängt merkt das niemand
   - Sentry, Uptime-Monitoring, Job-Health-Dashboard, Alerts
 
 - [ ] **P1: UI/UX — Accessibility (WCAG 2.1 AA)** — In Arbeit
-  - ✅ AdminTable: aria-label, aria-sort, Checkbox-Labels (2026-03-04)
-  - ✅ GeminiChat: role=log, aria-live, aria-label (2026-03-04)
-  - ✅ ProductSheet: role=alert, aria-label auf Inputs/Buttons (2026-03-04)
-  - ✅ EbayListingsView, MobileOperationsView, OperationsView (2026-03-04)
-  - ✅ Keyboard-Navigation (2026-03-05):
-    - [x] AdminTableHeader: tabIndex + Enter/Space onKeyDown für sortierbare Spalten
-    - [x] ImageGallery Lightbox: Escape schließt, Pfeiltasten navigieren, role=dialog, aria-modal, Backdrop-Click
-    - [x] ScannerOverlay: Escape schließt, role=dialog, aria-modal, aria-label
-  - ✅ Sidebar Arrow-Key-Navigation (ArrowUp/Down/Home/End, wrap-around) (2026-03-05)
-  - **Offen:** MobileTabBar tablist-Pattern (niedrige Prio — mobile-first)
+  - ✅ AdminTable, GeminiChat, ProductSheet, EbayListingsView, MobileOperationsView (2026-03-04)
+  - ✅ Keyboard-Navigation, Sidebar Arrow-Keys (2026-03-05)
+  - **Offen:** MobileTabBar tablist-Pattern
 
-- [x] **P1: UI/UX — AdminTable aufteilen** — ✅ (2026-03-05)
-  - [x] Extrahiert: AdminTableHeader, AdminTableRow, BulkActions, AdminTableFilters → `components/admin-table/`
-  - [x] AdminTable.tsx als Container, Sub-Komponenten via `admin-table/index.ts` exportiert
-
-- [ ] **P1: UI Redesign — Soft Slate Dark Theme implementieren** since 2026-03-05
-  - Referenz-Prototype: `prototype.html` (14 Seiten, interaktiv, Soft Slate Dark Theme)
-  - **Cross-Check Ergebnis (Prototype vs. aktuelle App — 2026-03-05):**
-  - **Design Tokens:** `--bg: #1a1d23`, `--sidebar: #15171c`, `--surface: #21242b`, `--elevated: #282c34`, `--border: #2a2d35`, `--accent: #7c75ff`, `--success: #34d399`, `--warning: #fbbf24`, `--danger: #f87171`, `--info: #60a5fa`
-  - **Schritt 1 — Design-System (Tailwind Config + CSS-Variablen):** ✅ (2026-03-05)
-    - [x] Tailwind `tailwind.config.cjs` mit Soft Slate Token-Palette erweitern (app, txt, accent, success, warning, danger, info)
-    - [x] Globale CSS-Variablen in `styles/main.css` definieren (Dark Theme als Default, Light Theme aktualisiert)
-    - [x] Inter-Font einbinden (Google Fonts, preconnect)
-    - [x] Bestehende Farb-Referenzen (slate-800, sky-600 etc.) auf neue Tokens migriert — alle ~50 Komponentendateien (2026-03-05)
-  - **Schritt 2 — Layout-Redesign:** ✅ (2026-03-05)
-    - [x] Sidebar (220px, `--sidebar` Hintergrund, grouped sections: Haupt, Katalog, Lager, Marktplatz, Einstellungen) → `components/Sidebar.tsx`
-    - [x] Topbar (56px, Sprach-Selector DE/EN/TR, Theme-Toggle, User-Avatar) → `components/Topbar.tsx`
-    - [x] App.tsx Layout: Sidebar + Topbar (Desktop), Header + MobileTabBar (Mobile)
-    - [x] MobileTabBar auf neue Design-Tokens migriert
-    - [x] Responsive Breakpoint 768px (md): Sidebar hidden → Mobile Nav sichtbar
-  - **Schritt 3 — Dashboard Redesign:** ✅ (2026-03-05)
-    - [x] Revenue & Order KPIs mit Soft Slate Tokens (Umsatz YTD, Monat, Aufträge, Retouren)
-    - [x] Order-Pipeline Visualisierung (5 Stufen) mit neuen Token-Farben
-    - [x] Inventory KPIs (Im Bestand, Einheiten, Bestandswert, Synchronisierung)
-    - [x] Zeitraum-Selector mit Soft Slate Dropdown
-    - [x] Umsatz-Chart (Dual-Axis: Auftragsvolumen + Umsatz) mit Accent-Farben
-    - [x] Finance-Card (Kontostand, Versandkosten YTD, Versand Zeitraum)
-    - [ ] Aktivitäts-Feed (nicht vorhanden — neues Feature)
-    - [ ] Marktplatz-Übersicht (nicht vorhanden — neues Feature)
-  - **Schritt 4 — Aufträge-Seite (NEU):** ✅ (2026-03-05)
-    - [x] Route `#/orders` + `OrdersView.tsx` erstellt (lazy-loaded, code-split 9kB)
-    - [x] KPIs: Offene Aufträge, Heute kommissioniert, Verpackt, Ø Bearbeitungszeit
-    - [x] Filter-Pills: Alle, Neu, In Bearbeitung, Kommissioniert, Verpackt, Sonstige
-    - [x] Order-Tabelle: Auftrag-ID, Kunde, Artikel, Gesamt, Quelle (eBay/Kaufland Badge), Status, Datum
-    - [x] Sidebar-Navigation + Permission-Check (orders:read/pick/pack)
-    - [x] i18n: DE/EN/TR Übersetzungen
-    - [x] Sync-Button (BaseLinker Auftragssync)
-    - [x] Sortierbar nach Datum, Betrag, Status
-    - [x] **Backend:** GET `/api/orders` bereits vorhanden (routes/orders.js)
-  - **Schritt 5 — eBay Listings-Seite Redesign:** ✅ (2026-03-05)
-    - [x] EbayListingsView mit neuem Theme restylen (95 Farb-Referenzen migriert)
-    - [ ] Tab-Bar: Listings, Gaps, Kategorien, Sync (neues Feature)
-    - [ ] KPIs: Aktive Listings, Gaps, Umsatz 30d, Sync-Status (neues Feature)
-    - [x] Sync-Button prominent platziert
-  - **Schritt 6 — Produkte/AdminTable Redesign:** Color-Migration ✅ (2026-03-05)
-    - [x] Tabellenansicht mit Soft Slate Styles (79 Refs AdminTable + Sub-Komponenten migriert)
-    - [x] Bulk-Action-Bar redesignen — Farb-Tokens migriert (BulkActions.tsx)
-    - [x] Filter-System visuell angepasst (AdminTableFilters.tsx)
-    - [x] Checkbox-Selection restyled (AdminTableRow.tsx, AdminTableHeader.tsx)
-  - **Schritt 7 — Produkt-Detail Panel Redesign:** Color-Migration ✅ (2026-03-05)
-    - [x] Slide-in Panel mit neuem Theme (136 Farb-Referenzen migriert)
-    - [x] Tab-Bar, Übersicht, Bilder, Preise, Attribute, eBay — alle Soft Slate Tokens
-    - [ ] Bilder: KI-Hintergrund-Entfernung, Rotation (neues Feature)
-    - [ ] Preise: Competitor-Tabelle Integration (neues Feature)
-  - **Schritt 8 — Lagerverwaltung Redesign:** Color-Migration ✅ (2026-03-05)
-    - [x] WarehouseView mit Soft Slate Tokens migriert (46 Farb-Referenzen)
-    - [x] Zone-Chips, Bin-Grid, Bin-Detail Card — alle Farb-Tokens
-  - **Schritt 9 — Kategorien Redesign:** Color-Migration ✅ (2026-03-05)
-    - [x] CategoryManagement mit Soft Slate Tokens migriert (28 Farb-Referenzen)
-    - [x] Profil-Editor (Kanonische Attribute, Aliase, Notizen) — Farben migriert
-  - **Schritt 10 — Admin-Bereich Redesign:** Color-Migration ✅ (2026-03-05)
-    - [x] Alle 11 Admin-Dateien migriert (325 Farb-Referenzen gesamt)
-    - [x] AdminPanel, AdminBulkActions, AdminEbayTaxonomy, AdminGroupManagement
-    - [x] AdminIntegrations, AdminJobsManagement, AdminLlmManagement
-    - [x] AdminProductCoverageDashboard, AdminRoleManagement, AdminRulebookManagement, AdminUserManagement
-  - **Schritt 11 — Mobile UI (Responsive):** teilweise vorhanden
-    - [x] Dashboard Mobile: KPI-Tiles existieren (DashboardMobile.tsx, Soft Slate Tokens migriert)
-    - [x] Mobile Suche: MobileSearchView.tsx mit Produkt-Suche (Soft Slate Tokens migriert)
-    - [x] Aktionen: MobileOperationsView.tsx mit Identify/Stow/Pick/Pack (Soft Slate Tokens migriert)
-    - [x] MobileTabBar: Responsive Navigation (Soft Slate Tokens migriert)
-    - [ ] Einlagern-Flow: Scan → Produkt erkennen → Bin wählen → Menge → Bestätigen (verbesserungsfähig)
-    - [ ] Verpacken-Flow: Auftrag → Verpackung wählen → Label drucken (neues Feature)
-    - [ ] Touch-Targets: Audit min 44px auf allen Buttons/Inputs
-  - **Schritt 12 — Globale UI-Elemente:** teilweise ✅ (2026-03-05)
-    - [x] Job-Status-Dock (StatusDock.tsx, fixed bottom-right): Aktive Identify + Improve Jobs
-    - [x] JobStatusPopup mit Cancel/Dismiss
-    - [ ] Notification-Bell mit Badge (neues Feature — benötigt Backend-Notification-System)
-    - [x] Theme-Toggle (Dark/Light) in Topbar
-    - [x] Sprach-Umschaltung (DE/EN/TR) in Topbar
-  - **Dateien Referenz:** `prototype.html` (interaktiver Mockup mit allen 14 Seiten)
-  - **Schritt 13 — Gaps aus Live-App Cross-Check (2026-03-05):** ✅ (2026-03-05)
-    - **Sidebar-Struktur:**
-      - [x] **"Bestand/Inventory" Nav-Punkt** unter KATALOG eingefügt (Sidebar.tsx, zwischen Produkte und Kategorien)
-      - [x] **"Erkennen" → "Erfassen"** — Naming vereinheitlicht (i18n DE/EN/TR)
-      - [x] **Kategorien unter KATALOG** — war bereits korrekt in Live-App
-      - [x] **Operationen in Desktop-Sidebar** — bleibt unter LAGER (bewusste Entscheidung, Desktop braucht Zugang zu Pick/Pack)
-      - [x] **Sidebar User-Bereich** — Avatar + Logout-Icon war bereits vorhanden
-    - **Produkte-Tabelle:** Alle Spalten bereits in AdminTable vorhanden ✅
-      - [x] `pendingIntake` — Offene Einlagerungen Spalte existiert
-      - [x] `kaufland` — eigene Spalte existiert (mit Listing-Status + URL)
-      - [x] `lastSaved` — Zuletzt gespeichert Spalte existiert
-      - [x] `baselinker` — BaseLinker Verknüpfungs-Status existiert
-      - [x] `thumbnail` — Echte Produktbilder als Thumbnails existieren
-      - [x] `category` — Breadcrumb via `getProductDisplayCategory()` existiert
-      - [x] Produkt-Counter `{filtered} / {total}` existiert (Zeile 2219)
-      - [x] Filter-Button mit Counter existiert
-    - **Topbar:** ✅
-      - [x] **Suchfeld** in Topbar-Mitte eingefügt (max-w-md, navigiert zu #/products mit sessionStorage-Term)
-      - [x] **Zahnrad-Icon** für Admin-Navigation eingefügt
-    - **Hinweis:** GAPs bezogen sich auf Prototype vs. Live-App-Vergleich — die meisten Features waren in der Live-App bereits vorhanden, nur der Prototype hatte sie nicht abgebildet.
+---
 
 ## Waiting On
 
 - [ ] **Multi-Tenancy (P3)** — Blocker für SaaS. Nur mit expliziter Anweisung. since 2026-03-01
 - [ ] **Stripe Billing (P3)** — Blocker für SaaS. Nur mit expliziter Anweisung. since 2026-03-01
-- [ ] **Amazon SP-API Integration** — Größter DE-Marktplatz fehlt. since 2026-03-01
 
 ## Someday
 
@@ -147,34 +468,35 @@
 
 ## Done
 
-- [x] ~~P0: Listing-Status Frontend-Badge~~ (2026-03-04) — AdminTable + ProductSheet nutzen ops.listingStatus.ebay/kaufland, Inaktiv-Badge, Sync-Timestamp
-- [x] ~~P1: Chat Intent-Detection per LLM~~ (2026-03-04) — Gemini-basiert mit 3s Timeout, Regex-Fallback
-- [x] ~~P2: Formular-Validierung~~ (2026-03-04) — React Hook Form für LoginScreen + ResetPasswordScreen, Domain-/Passwort-Validierung
-- [x] ~~P2: Polling durch SSE ersetzen~~ (2026-03-04) — SSE Endpoint (Firestore onSnapshot), useProductStream.ts, ProductContext mit SSE + Polling-Fallback
-- [x] ~~P0: Image-Generator Background Removal~~ (2026-03-04) — Sharp-basiertes BG-Removal + Gradient-Composite als Primärmethode, Gemini als Fallback
-- [x] ~~P1: Job-Timeout + Dead-Letter-Queue~~ (2026-03-04) — 5min Timeout, Dead-Letter-Collection, Exponential Backoff, Stale-Job-Erkennung
-- [x] ~~P1: Code-Splitting~~ (2026-03-04) — React.lazy() + Suspense für 7 View-Komponenten
-- [x] ~~P1: Chat-Qualität verbessern~~ (2026-03-04) — QUALITY RULES, CHAT_STRICT_RULES_ENABLED=ON, Web-Evidence 20KB, LLM Intent-Detection
-- [x] ~~P2: Error Boundary~~ (2026-03-04) — ErrorBoundary.tsx mit Reload-Button + Sentry-ready
-- [x] ~~P2: State Management~~ (2026-03-04) — ProductContext + useProducts() Hook erstellt (`context/ProductContext.tsx`)
-- [x] ~~P0: Listing-Status Realtime-Sync~~ (2026-03-04) — Runner mit Kaufland API, LISTING_SYNC_ENABLED=ON, 10min Intervall
-- [x] ~~P0: Schreibpfade auf saveProductV2()~~ (2026-03) — Alle aktiven Pfade migriert
-- [x] ~~P0: Pricing Engine produktionsreif~~ (2026-03) — Runner, Neu/Gebraucht-Filter, 3-Tier-Fallback, Frontend
-- [x] ~~P0: eBay/Kaufland Update synct Preis~~ (2026-03) — Preis wird jetzt zum Marktplatz gepusht
-- [x] ~~P0: Marketplace Listing-Status automatisch~~ (2026-03) — 20min-Intervall Runner
-- [x] ~~P0: Konkurrenzpreise-System~~ (2026-03) — BrightData, 7 Marketplaces, 72h-Runner, Frontend
-- [x] ~~P0: LLM Titel-Generierung~~ (2026-03) — LLM_POLICY ON, RULEBOOK ON, Few-Shot Top-Titel, Bugfix sampleTitles→titles
-- [x] ~~P1: Integration-Tests~~ (2026-03) — 119 Tests, 7 Suiten, require.cache-Patching
-- [x] ~~P1: CLAUDE.md aktualisieren~~ (2026-03) — 850→179 Zeilen
+- [x] ~~P1: UI/UX — AdminTable aufteilen~~ (2026-03-05) — AdminTableHeader, AdminTableRow, BulkActions, AdminTableFilters extrahiert
+- [x] ~~P0: Listing-Status Frontend-Badge~~ (2026-03-04)
+- [x] ~~P1: Chat Intent-Detection per LLM~~ (2026-03-04)
+- [x] ~~P2: Formular-Validierung~~ (2026-03-04)
+- [x] ~~P2: Polling durch SSE ersetzen~~ (2026-03-04)
+- [x] ~~P0: Image-Generator Background Removal~~ (2026-03-04)
+- [x] ~~P1: Job-Timeout + Dead-Letter-Queue~~ (2026-03-04)
+- [x] ~~P1: Code-Splitting~~ (2026-03-04)
+- [x] ~~P1: Chat-Qualität verbessern~~ (2026-03-04)
+- [x] ~~P2: Error Boundary~~ (2026-03-04)
+- [x] ~~P2: State Management~~ (2026-03-04)
+- [x] ~~P0: Listing-Status Realtime-Sync~~ (2026-03-04)
+- [x] ~~P0: Schreibpfade auf saveProductV2()~~ (2026-03)
+- [x] ~~P0: Pricing Engine produktionsreif~~ (2026-03)
+- [x] ~~P0: eBay/Kaufland Update synct Preis~~ (2026-03)
+- [x] ~~P0: Marketplace Listing-Status automatisch~~ (2026-03)
+- [x] ~~P0: Konkurrenzpreise-System~~ (2026-03)
+- [x] ~~P0: LLM Titel-Generierung~~ (2026-03)
+- [x] ~~P1: Integration-Tests~~ (2026-03)
+- [x] ~~P1: CLAUDE.md aktualisieren~~ (2026-03)
 - [x] ~~P0-001: Security Headers (Helmet.js)~~ (2026-02)
-- [x] ~~P0-002: Rate-Limiting~~ (2026-02) — identify: 30/15min, general: 120/min
+- [x] ~~P0-002: Rate-Limiting~~ (2026-02)
 - [x] ~~P0-003: .env.local aus Git-Historie~~ (2026-02)
-- [x] ~~P0-004: Firestore Normalisierung~~ (2026-02) — products_v2 live, 786 Produkte migriert
+- [x] ~~P0-004: Firestore Normalisierung~~ (2026-02)
 - [x] ~~P1-001: Structured Logging (Pino)~~ (2026-02)
 - [x] ~~P1-002: Health-Check & Graceful Shutdown~~ (2026-02)
 - [x] ~~P1-003: Vitest Infrastruktur~~ (2026-02)
 - [x] ~~P1-004: Error Response Standardisierung~~ (2026-02)
-- [x] ~~P1-005: Express Router Splitting~~ (2026-02) — 7.571→280 Zeilen
+- [x] ~~P1-005: Express Router Splitting~~ (2026-02)
 - [x] ~~P1-006: API Versioning~~ (2026-02)
 - [x] ~~P2-001: SSE für Job-Status~~ (2026-02)
 - [x] ~~P2-002: Pricing Engine~~ (2026-02)

@@ -140,7 +140,7 @@ const BulkActions: React.FC<BulkActionsProps> = ({
           <span className="inline-flex items-center justify-center min-w-[24px] h-6 rounded-md bg-accent-dim px-1.5 text-xs font-bold text-accent">
             {selectedIds.size}
           </span>
-          ausgew\u00E4hlt
+          ausgewählt
         </div>
         <button
           type="button"
@@ -154,8 +154,8 @@ const BulkActions: React.FC<BulkActionsProps> = ({
         {/* BaseLinker */}
         <ActionButton
           icon={<SyncIcon className="w-3.5 h-3.5" />}
-          label={syncInProgress ? "Sync l\u00E4uft..." : "BL Sync"}
-          ariaLabel="Ausgew\u00E4hlte Produkte mit BaseLinker synchronisieren"
+          label={syncInProgress ? "Sync läuft..." : "BL Sync"}
+          ariaLabel="Ausgewählte Produkte mit BaseLinker synchronisieren"
           onClick={handleBatchSync}
           disabled={selectedIds.size === 0 || syncInProgress}
           tone="primary"
@@ -167,52 +167,48 @@ const BulkActions: React.FC<BulkActionsProps> = ({
           label={
             ebayPublishInProgress ? "Wird gelistet..." : "eBay Listen"
           }
-          ariaLabel="Ausgew\u00E4hlte Produkte auf eBay listen"
+          ariaLabel="Ausgewählte Produkte auf eBay listen"
           onClick={handleBatchPublishEbay}
           disabled={selectedIds.size === 0 || ebayPublishInProgress}
           tone="ebay"
         />
-        {hasSelectedEbayListings && (
-          <ActionButton
-            icon={refreshIcon}
-            label={ebayUpdateInProgress ? "Aktualisiert..." : "eBay Update"}
-            ariaLabel="eBay-Listings aktualisieren"
-            onClick={handleBatchUpdateEbay}
-            disabled={ebayUpdateInProgress || ebayPublishInProgress}
-            tone="ebay"
-          />
-        )}
+        <ActionButton
+          icon={refreshIcon}
+          label={ebayUpdateInProgress ? "Aktualisiert..." : "eBay Update"}
+          ariaLabel="eBay-Listings aktualisieren"
+          onClick={handleBatchUpdateEbay}
+          disabled={selectedIds.size === 0 || ebayUpdateInProgress || ebayPublishInProgress}
+          tone="ebay"
+        />
         <div className="w-px h-5 bg-app-elevated mx-1" />
         {/* Kaufland */}
         <ActionButton
           icon={globeIcon}
-          label={bulkJobLoading ? "Job l\u00E4uft..." : "Kaufland Listen"}
-          ariaLabel="Ausgew\u00E4hlte Produkte auf Kaufland listen"
+          label={bulkJobLoading ? "Job läuft..." : "Kaufland Listen"}
+          ariaLabel="Ausgewählte Produkte auf Kaufland listen"
           onClick={() =>
             enqueueBulkForSelection("kaufland_create", { apply: true })
           }
           disabled={selectedIds.size === 0 || bulkJobLoading}
           tone="kaufland"
         />
-        {hasSelectedKauflandListings && (
-          <ActionButton
-            icon={refreshIcon}
-            label={bulkJobLoading ? "Job l\u00E4uft..." : "Kaufland Update"}
-            ariaLabel="Kaufland-Listings aktualisieren"
-            onClick={() =>
-              enqueueBulkForSelection("kaufland_update", { apply: true })
-            }
-            disabled={bulkJobLoading}
-            tone="kaufland"
-          />
-        )}
+        <ActionButton
+          icon={refreshIcon}
+          label={bulkJobLoading ? "Job läuft..." : "Kaufland Update"}
+          ariaLabel="Kaufland-Listings aktualisieren"
+          onClick={() =>
+            enqueueBulkForSelection("kaufland_update", { apply: true })
+          }
+          disabled={selectedIds.size === 0 || bulkJobLoading}
+          tone="kaufland"
+        />
         {onImproveSelected ? (
           <>
             <div className="w-px h-5 bg-app-elevated mx-1" />
             <ActionButton
               icon={<OperationsIcon className="w-3.5 h-3.5" />}
               label="KI Verbessern"
-              ariaLabel="Ausgew\u00E4hlte Produkte mit KI verbessern"
+              ariaLabel="Ausgewählte Produkte mit KI verbessern"
               onClick={() => {
                 const ids = Array.from(selectedIds);
                 if (!ids.length) return;
@@ -241,8 +237,8 @@ const BulkActions: React.FC<BulkActionsProps> = ({
         <div className="w-px h-5 bg-app-elevated mx-1" />
         <ActionButton
           icon={<TrashIcon className="w-3.5 h-3.5" />}
-          label="L\u00F6schen"
-          ariaLabel="Ausgew\u00E4hlte Produkte l\u00F6schen"
+          label="Löschen"
+          ariaLabel="Ausgewählte Produkte löschen"
           onClick={handleBatchDelete}
           disabled={selectedIds.size === 0}
           tone="danger"
@@ -313,7 +309,7 @@ const BulkActions: React.FC<BulkActionsProps> = ({
               className={menuItemClass}
             >
               {ebayPublishInProgress
-                ? "eBay Publish l\u00E4uft..."
+                ? "eBay Publish läuft..."
                 : "Listings erstellen"}
             </button>
             <button
@@ -323,7 +319,7 @@ const BulkActions: React.FC<BulkActionsProps> = ({
               className={menuItemClass}
             >
               {ebaySyncInProgress
-                ? "Sync l\u00E4uft..."
+                ? "Sync läuft..."
                 : "Listings synchronisieren"}
             </button>
 
@@ -338,7 +334,7 @@ const BulkActions: React.FC<BulkActionsProps> = ({
               className={menuItemClass}
             >
               {kauflandSyncInProgress
-                ? "Sync l\u00E4uft..."
+                ? "Sync läuft..."
                 : "Listings synchronisieren"}
             </button>
             <button
@@ -380,7 +376,7 @@ const BulkActions: React.FC<BulkActionsProps> = ({
               disabled={selectedIds.size === 0}
               className={`${menuItemClass} text-danger hover:bg-danger-dim`}
             >
-              Auswahl l\u00F6schen
+              Auswahl löschen
             </button>
           </div>
         </details>

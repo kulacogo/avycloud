@@ -41,6 +41,7 @@ interface ProductSheetProps {
   onUpdate: (updatedProduct: Product) => void;
   onImprove?: (productId: string) => void;
   isImproving?: boolean;
+  onClose?: () => void;
 }
 
 const GENERATED_IMAGE_PATTERN = /(generated|gpt|gemini|ai[-\s]?image|ai[-\s]?render|ai[-\s]?derived)/i;
@@ -70,7 +71,7 @@ const isTrustedAiImage = (image?: ProductImage) => {
 const filterReferenceCandidates = (images: ProductImage[] = []) =>
   images.filter((image) => !isGeneratedImageMeta(image));
 
-const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprove, isImproving }) => {
+const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprove, isImproving, onClose }) => {
   const { t } = useI18n();
   const {
     inventories,
@@ -1216,6 +1217,20 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
 
       <div className="space-y-5">
         <header className="p-5 bg-app-surface border border-app-border rounded-2xl">
+          {onClose && (
+            <div className="flex justify-end mb-2">
+              <button
+                type="button"
+                onClick={onClose}
+                className="flex items-center justify-center w-8 h-8 rounded-lg text-txt-muted hover:text-txt-primary hover:bg-app-elevated transition-colors"
+                aria-label="Schließen"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M18 6L6 18M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          )}
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div className="flex-1 min-w-0">
               {isEditing ? (
