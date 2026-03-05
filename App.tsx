@@ -25,13 +25,41 @@ const MobileOperationsView = React.lazy(() => import('./components/MobileOperati
 const CategoryManagement = React.lazy(() =>
   import('./components/CategoryManagement').then(m => ({ default: m.CategoryManagement }))
 );
-const EbayListingsView = React.lazy(() =>
-  import('./components/EbayListingsView').then(m => ({ default: m.EbayListingsView }))
-);
 const AdminPanel = React.lazy(() =>
   import('./components/admin/AdminPanel').then(m => ({ default: m.AdminPanel }))
 );
 const OrdersView = React.lazy(() => import('./components/OrdersView'));
+const MarketplaceListingsView = React.lazy(() => import('./components/MarketplaceListingsView'));
+const IntegrationsHub = React.lazy(() =>
+  import('./components/IntegrationsHub').then(m => ({ default: m.IntegrationsHub }))
+);
+const ReturnsView = React.lazy(() =>
+  import('./components/orders/ReturnsView').then(m => ({ default: m.ReturnsView }))
+);
+const ShippingView = React.lazy(() =>
+  import('./components/orders/ShippingView').then(m => ({ default: m.ShippingView }))
+);
+const InvoicesView = React.lazy(() =>
+  import('./components/orders/InvoicesView').then(m => ({ default: m.InvoicesView }))
+);
+const OrderSettingsView = React.lazy(() =>
+  import('./components/orders/OrderSettingsView').then(m => ({ default: m.OrderSettingsView }))
+);
+const WarehouseSettingsView = React.lazy(() =>
+  import('./components/warehouse/WarehouseSettingsView').then(m => ({ default: m.WarehouseSettingsView }))
+);
+const CompanySettings = React.lazy(() =>
+  import('./components/settings/CompanySettings').then(m => ({ default: m.CompanySettings }))
+);
+const ProfileSettings = React.lazy(() =>
+  import('./components/settings/ProfileSettings').then(m => ({ default: m.ProfileSettings }))
+);
+const ApiSettings = React.lazy(() =>
+  import('./components/settings/ApiSettings').then(m => ({ default: m.ApiSettings }))
+);
+const BillingSettings = React.lazy(() =>
+  import('./components/settings/BillingSettings').then(m => ({ default: m.BillingSettings }))
+);
 import { fetchOrders, fetchProducts, refreshPrice } from './api/client';
 import { useI18n } from './i18n';
 import { addMediaQueryListener } from './utils/mediaQuery';
@@ -840,20 +868,6 @@ const AppInner: React.FC = () => {
     setInventoryFocusId(updated.id);
   }, [products, currentProduct?.id]);
 
-  const PlaceholderView: React.FC<{ title: string; description?: string }> = ({ title, description }) => (
-    <div className="flex items-center justify-center min-h-[60vh]">
-      <div className="text-center space-y-3 max-w-md px-6">
-        <div className="w-16 h-16 rounded-2xl bg-accent/10 flex items-center justify-center mx-auto">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M12 6v6l4 2" /><circle cx="12" cy="12" r="10" />
-          </svg>
-        </div>
-        <h2 className="text-xl font-bold text-txt-primary">{title}</h2>
-        <p className="text-sm text-txt-muted">{description || "Dieses Modul wird in einer zukünftigen Version verfügbar sein."}</p>
-      </div>
-    </div>
-  );
-
   const renderView = () => {
     switch (view) {
       case 'home':
@@ -955,7 +969,7 @@ const AppInner: React.FC = () => {
         if (!(hasPermission('products', 'read') || hasPermission('products', 'write'))) {
           return <div className="text-center p-8 text-txt-muted">{t('error.forbidden')}</div>;
         }
-        return <EbayListingsView />;
+        return <MarketplaceListingsView marketplace="ebay" products={products} />;
       case 'admin':
         if (
           !(
@@ -980,23 +994,23 @@ const AppInner: React.FC = () => {
         }
         return <WarehouseView refreshBin={warehouseRefresh} onRefreshBinConsumed={() => setWarehouseRefresh(null)} />;
       case 'orders-returns':
-        return <PlaceholderView title="Retouren" description="Retouren-Management mit automatischer Verarbeitung, Zustandsprüfung und Erstattung." />;
+        return <ReturnsView />;
       case 'orders-shipping':
-        return <PlaceholderView title="Versand & Labels" description="Multi-Carrier Versand-Management mit Label-Druck und Tracking." />;
+        return <ShippingView />;
       case 'orders-invoices':
-        return <PlaceholderView title="Rechnungen" description="Rechnungserstellung, PDF-Export und automatische Nummernkreise." />;
+        return <InvoicesView />;
       case 'orders-settings':
-        return <PlaceholderView title="Auftrags-Einstellungen" description="Automatisierung, Status-Konfiguration, Nummernkreise und Dokumenten-Templates." />;
+        return <OrderSettingsView />;
       case 'warehouse-settings':
-        return <PlaceholderView title="Lager-Einstellungen" description="Lagerzonen, Bin-Konfiguration und Bestandsregeln." />;
+        return <WarehouseSettingsView />;
       case 'marketplace-kaufland':
-        return <PlaceholderView title="Kaufland Listings" description="Kaufland Marketplace-Integration mit Listing-Verwaltung und Sync." />;
+        return <MarketplaceListingsView marketplace="kaufland" products={products} />;
       case 'integrations':
-        return <PlaceholderView title="Integrationen" description="Self-Service Integration Hub — Marktplätze, Versand und Services verbinden." />;
+        return <IntegrationsHub />;
       case 'settings':
-        return <PlaceholderView title="Unternehmensdaten" description="Firmenprofil, Logo, Adresse und USt-IdNr. verwalten." />;
+        return <CompanySettings />;
       case 'settings-profile':
-        return <PlaceholderView title="Persönliche Daten" description="Dein Profil, E-Mail-Adresse und Passwort verwalten." />;
+        return <ProfileSettings />;
       case 'settings-team':
         if (!(
           hasPermission('admin', 'users.read') ||
@@ -1007,9 +1021,9 @@ const AppInner: React.FC = () => {
         }
         return <AdminPanel />;
       case 'settings-api':
-        return <PlaceholderView title="API" description="API-Schlüssel verwalten, Webhooks konfigurieren und Dokumentation." />;
+        return <ApiSettings />;
       case 'settings-billing':
-        return <PlaceholderView title="Plan & Abrechnung" description="Aktueller Plan, Rechnungshistorie und Zahlungsmethoden." />;
+        return <BillingSettings />;
       case 'dashboard':
         return isMobile ? (
           <DashboardMobile

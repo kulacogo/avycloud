@@ -13,6 +13,66 @@
 
 ---
 
+> **🏗️ MULTI-TENANCY KOMPATIBILITÄT — AB SOFORT BEI JEDER IMPLEMENTIERUNG BEACHTEN**
+>
+> AvyCloud wird nach der aktuellen Phase zu einem Multi-Tenant SaaS umgebaut. **ALLE jetzigen Implementierungen
+> müssen so gebaut werden, dass Multi-Tenancy OHNE Breaking Changes hinzugefügt werden kann.**
+>
+> ### Firestore-Collections — tenantId IMMER mitführen
+> - **Jede neue Collection** (`invoices`, `returns`, `integrations`, `warehouse_zones`, `warehouse_bins`,
+>   `warehouse_movements`, `warehouse_inventories`, `company_settings`, etc.) MUSS ein `tenantId`-Feld enthalten
+> - **Bestehende Collections** (`products_v2`, `orders`) bekommen `tenantId` bei der MT-Migration nachträglich
+> - **Collection-Pfade vorbereiten:** Alle Firestore-Queries so schreiben, dass ein `.where('tenantId', '==', tid)`
+>   Filter einfach hinzugefügt werden kann. Keine hardcodierten Collection-Referenzen ohne Filterbarkeit
+> - **Dokument-IDs:** Weiterhin Firestore-Auto-IDs, KEINE tenantId in Doc-IDs encodieren
+> - **Indexes:** Composite-Indexes mit `tenantId` als erstem Feld einplanen (Firestore Performance)
+>
+> ### Daten-Isolation — Design-Regeln
+> - **Kein globaler State ohne Tenant-Scope:** Jeder Datenbankzugriff muss in Zukunft auf einen Tenant gefiltert werden können
+> - **Kein Cross-Tenant-Leak:** Queries dürfen nie Daten mehrerer Tenants mischen
+> - **Storage-Pfade:** GCS-Pfade (Bilder, PDFs) mit Tenant-Prefix vorbereiten: `gs://prodsandjobs/{tenantId}/...`
+>   Aktuell noch flat, aber Pfade so aufbauen dass Migration möglich ist
+>
+> ### Backend — Tenant-Context-Propagation
+> - **Auth-Middleware vorbereiten:** `req.user` wird in Zukunft ein `tenantId`-Feld tragen.
+>   Neue Services/Routes so schreiben, dass `tenantId` als Parameter akzeptiert wird (nicht hardcoded)
+> - **Service-Funktionen:** Alle neuen `create*()`, `get*()`, `list*()`, `update*()` Funktionen
+>   akzeptieren `tenantId` als ersten Parameter ODER als Feld im Options-Objekt:
+>   ```js
+>   // ✅ GUT — tenantId-ready
+>   async function listInvoices({ tenantId, status, limit }) { ... }
+>   async function createZone({ tenantId, name, type }) { ... }
+>
+>   // ❌ SCHLECHT — tenantId nicht vorgesehen
+>   async function listInvoices(status, limit) { ... }
+>   ```
+> - **Aktuell:** `tenantId` kann ein Default-Wert sein (z.B. `'default'` oder aus ENV),
+>   wird bei MT-Migration durch echten Tenant-Wert ersetzt
+> - **RBAC:** `lib/rbac.js` wird um Tenant-Scope erweitert — Rollen gelten pro Tenant.
+>   Neue Permission-Checks so schreiben, dass Tenant-Scope hinzugefügt werden kann
+>
+> ### Frontend — Tenant-Awareness
+> - **AuthContext:** Wird in Zukunft `tenantId` tragen. Neue Hooks/Contexts so designen,
+>   dass sie Tenant-Context konsumieren können
+> - **API-Client:** `api/client.ts` wird in Zukunft `tenantId` als Header oder Path-Param senden.
+>   Neue API-Calls so aufbauen, dass der Parameter hinzugefügt werden kann (zentraler API-Client)
+> - **Settings:** Einstellungen (Company, Billing, Team) sind per-Tenant.
+>   UI muss keine Änderung brauchen — Backend liefert automatisch Tenant-gefilterte Daten
+> - **Integrations-Credentials:** Pro Tenant gespeichert.
+>   `integration-store.js` MUSS tenantId als Key-Bestandteil verwenden
+>
+> ### Was NICHT jetzt gemacht werden muss
+> - ❌ Kein Tenant-Switcher UI
+> - ❌ Kein Tenant-Onboarding-Flow
+> - ❌ Keine Tenant-Isolation auf Netzwerk/Container-Ebene
+> - ❌ Keine Billing-pro-Tenant-Logik (kommt mit Stripe)
+> - ❌ Kein Admin-Portal für Tenant-Management
+>
+> **Zusammenfassung:** Datenmodelle MIT `tenantId`, Service-Funktionen MIT `tenantId`-Parameter,
+> aber KEIN Multi-Tenant-Routing/Switching/UI. Das kommt in der MT-Phase.
+
+---
+
 ## Active
 
 ### Sofort-Bugfixes (vor allem anderen)
@@ -31,6 +91,21 @@
 
 - [x] **BUG-005: eBay/Kaufland Sync im Bulk-Dropdown conditional** ~~since 2026-03-05~~ (2026-03-05)
   - Fix: eBay Update und Kaufland Update Buttons in BulkActions.tsx immer sichtbar, nicht mehr conditional hinter `hasSelectedEbayListings`/`hasSelectedKauflandListings`
+
+- [x] **BUG-006: ⛔ Alte eBay Gap Analysis View SOFORT ENTFERNEN + durch echte Marketplace-Listings ersetzen** ~~since 2026-03-05~~ (2026-03-05)
+  - Fix: `EbayListingsView` Import aus App.tsx entfernt, `MarketplaceListingsView.tsx` erstellt (generisch für eBay + Kaufland), `#/marketplace/ebay` + `#/marketplace/kaufland` rendern jetzt MarketplaceListingsView mit marketplace prop
+  - Neue View enthält: KPI-Cards, Sync-Status-Banner, Tab-Filter (Alle/Aktiv/Inaktiv/Entwürfe/Fehler), Datentabelle mit Bulk-Actions, Pagination, Search, Status-Badges
+  - PlaceholderView-Component komplett entfernt aus App.tsx
+
+- [ ] **BUG-007: React Error #426 — ProductSheet crash bei Klick auf Produkt** since 2026-03-05
+  - **PROBLEM:** Minified React error #426 ("A component suspended while responding to synchronous input") beim Öffnen eines Produkts aus Produkte oder Inventar
+  - **URSACHE:** `ProductSheet` war `React.lazy()` geladen UND wurde gleichzeitig an 2 Stellen gerendert (als Route `case 'sheet'` + als Overlay)
+  - **FIX (bereits in App.tsx implementiert):**
+    1. ✅ `ProductSheet` direkt importiert statt `React.lazy()` — kein lazy-loading mehr
+    2. ✅ `case 'sheet'` aus `renderView()` entfernt — nur noch Overlay-Rendering
+    3. ✅ Alle `setView('sheet')` Aufrufe → redirecten auf `'products'`
+    4. ✅ Suspense-Wrapper um Overlay entfernt
+  - **MUSS DEPLOYED WERDEN** via `git push` → GitHub Actions → Firebase Hosting
 
 ---
 
@@ -263,9 +338,11 @@
 
 ### Modul 5: Marktplatz-Listings (pro Marktplatz)
 
-- [ ] **M5: Dynamische Marktplatz-Views** since 2026-03-05
-  - ✅ Routes `#/marketplace/ebay` + `#/marketplace/kaufland` aktiv, Sidebar dynamische MARKTPLÄTZE-Gruppe, Legacy `#/ebay` Redirect
-  - ✅ marketplace-ebay rendert bestehende EbayListingsView, marketplace-kaufland hat Placeholder
+- [ ] **M5: ⚡ PRIORITÄT — Dynamische Marktplatz-Views (eBay + Kaufland ECHTE Listings)** since 2026-03-05 (⚡ UI fertig)
+  - ✅ Routes `#/marketplace/ebay` + `#/marketplace/kaufland` aktiv, Sidebar dynamische MARKTPLÄTZE-Gruppe
+  - ✅ `MarketplaceListingsView.tsx` erstellt — generische View für alle Marktplätze via `marketplace` prop
+  - ✅ KPI-Cards, Sync-Status-Banner, 5-Tab-Filter, Datentabelle, Bulk-Actions, Pagination, Search, Statusbadges
+  - ✅ EbayListingsView Import entfernt aus App.tsx, PlaceholderViews ersetzt
   - **Konzept:** Pro verbundenem Marktplatz ein eigener Nav-Link und eine eigene View. Wenn eBay verbunden → "eBay" in Sidebar unter MARKTPLÄTZE. Wenn Kaufland verbunden → "Kaufland" erscheint. Nicht verbundene Marktplätze erscheinen NICHT in der Sidebar (nur im Integrations-Hub).
   - **eBay Listings View (`#/marketplace/ebay`):**
     - [ ] Page-Header: "eBay Listings" + eBay-Logo + Connection-Status (Grüner Dot + "Verbunden")
@@ -284,19 +361,29 @@
     - [ ] `components/MarketplaceListingsView.tsx` — Generische Component die per Props den Marktplatz erhält
     - [ ] Marktplatz-spezifische Konfiguration: Welche Spalten, welche Aktionen, welche API-Calls
     - [ ] Neue Marktplätze (Amazon, Otto, Zalando) können durch Config hinzugefügt werden ohne neue View-Component
-  - **Alte eBay Gap Analysis View ENTFERNEN:**
-    - [ ] `EbayListingsView.tsx` → Replace mit neuem `MarketplaceListingsView.tsx`
-    - [ ] Route `#/ebay` → Redirect zu `#/marketplace/ebay` oder entfernen
-    - [ ] Sidebar-Link "eBay" aktualisieren
-  - **Dateien:** `components/MarketplaceListingsView.tsx` (neu), `components/EbayListingsView.tsx` (ersetzen), `App.tsx` (Routes), `Sidebar.tsx`
+  - **Realtime-Sync (KRITISCH):**
+    - [ ] Bestandsabgleich eBay ↔ AvyCloud: Wenn Bestand in AvyCloud geändert → eBay-Menge automatisch aktualisieren (über bestehende `lib/ebay-api.js`)
+    - [ ] Listing-Status Sync: Ob ein Produkt auf eBay gelistet ist oder nicht MUSS in Realtime sichtbar sein (Badge in der Tabelle)
+    - [ ] Preis-Sync: Preisänderung in AvyCloud → Push zu eBay (über bestehende `lib/ebay-trading-api.js`)
+    - [ ] Gleiche Sync-Logik für Kaufland über `lib/kaufland-api.js`
+    - [ ] Sync-Status-Indikator pro Listing: "Gesynct ✓" (grün) / "Sync ausstehend" (gelb) / "Sync-Fehler" (rot) mit Timestamp
+  - **Alte eBay Gap Analysis View ENTFERNEN (siehe BUG-006):**
+    - [ ] `EbayListingsView.tsx` **LÖSCHEN** — Datei komplett entfernen
+    - [ ] Alle Imports/Referenzen in App.tsx, Sidebar.tsx entfernen
+    - [ ] Route `#/ebay` → Redirect zu `#/marketplace/ebay`
+  - **Dateien:** `components/MarketplaceListingsView.tsx` (NEU — ersetzt EbayListingsView), `App.tsx` (Routes), `Sidebar.tsx`
 
 ---
 
 ### Modul 6: Aufträge (Order Management)
 
-- [ ] **M6: Multi-Channel Order Management** since 2026-03-05
+- [ ] **M6: Multi-Channel Order Management** since 2026-03-05 (⚡ UI fertig)
   - ✅ Routes für alle Sub-Views aktiv: `#/orders`, `#/orders/returns`, `#/orders/shipping`, `#/orders/invoices`, `#/orders/settings`
-  - ✅ Bestehende OrdersView unter `#/orders`, Placeholder-Views für Returns/Shipping/Invoices/Settings
+  - ✅ Bestehende OrdersView unter `#/orders`
+  - ✅ `ReturnsView.tsx` — KPI-Cards, Tab-Filter, Datentabelle mit Grund/Status-Badges, Bulk-Actions
+  - ✅ `ShippingView.tsx` — KPI-Cards, Carrier-Badges (DHL/DPD/GLS), Tracking-URLs, Label-Druck
+  - ✅ `InvoicesView.tsx` — KPI-Cards, Rechnungstabelle, PDF/Mail-Aktionen, Überfällig-Markierung
+  - ✅ `OrderSettingsView.tsx` — Automatisierungsregeln, Status-Konfiguration, Nummernkreise, Dokumenten-Templates
   - **Konzept:** Zentrale Auftragsansicht über ALLE Marktplätze. Jeder Auftrag hat eine Fulfillment-Pipeline: Neu → Bestätigt → Kommissioniert → Verpackt → Versendet → Zugestellt.
   - **Page-Header:**
     - [ ] Titel "Aufträge" + Counter "{offen} offen, {heute} heute"
@@ -341,10 +428,10 @@
   - **Backend:**
     - [ ] Existiert: `routes/orders.js`, `lib/firestore.js::listOrders()`
     - [ ] Erweitern: Fulfillment-Status-Updates (PATCH `/api/orders/:id/status`), Multi-Channel-Aggregation
-    - [ ] NEU: `routes/invoices.js` — CRUD für Rechnungen, PDF-Generierung (pdfkit oder puppeteer)
-    - [ ] NEU: `services/invoice-generator.js` — Template-Rendering, Nummernkreis-Logik, PDF-Export
-    - [ ] NEU: `services/order-automation.js` — Rule-Engine für automatische Status-Übergänge
-    - [ ] Firestore Collections: `invoices` — {invoiceId, orderId, number, customer, items, total, tax, status, pdfUrl, ...}
+    - [ ] NEU: `routes/invoices.js` — CRUD für Rechnungen, PDF-Generierung (pdfkit oder puppeteer). **MT-PFLICHT:** Alle Queries mit `tenantId`-Filter
+    - [ ] NEU: `services/invoice-generator.js` — Template-Rendering, Nummernkreis-Logik, PDF-Export. **MT-PFLICHT:** Nummernkreise pro Tenant isoliert
+    - [ ] NEU: `services/order-automation.js` — Rule-Engine für automatische Status-Übergänge. **MT-PFLICHT:** Rules pro Tenant gespeichert
+    - [ ] Firestore Collections: `invoices` — {invoiceId, **tenantId**, orderId, number, customer, items, total, tax, status, pdfUrl, ...} *(MT-ready: tenantId als erstes Feld, Composite-Index tenantId+status)*
     - [ ] Webhook: Bei Status-Änderung → Marketplace-API (eBay: Mark as Shipped, Kaufland: Confirm Shipment)
   - **Dateien:** `components/OrdersView.tsx` (überarbeiten), `components/OrderDetail.tsx` (neu), `components/InvoicesView.tsx` (neu), `components/OrderSettingsView.tsx` (neu), `backend/routes/orders.js`, `backend/routes/invoices.js` (neu), `backend/services/invoice-generator.js` (neu), `backend/services/order-automation.js` (neu)
 
@@ -352,8 +439,8 @@
 
 ### Modul 7: Versand (Courier Integration)
 
-- [ ] **M7: Multi-Carrier Versand-Management** since 2026-03-05
-  - ✅ Route `#/orders/shipping` aktiv mit Placeholder-View
+- [ ] **M7: Multi-Carrier Versand-Management** since 2026-03-05 (⚡ UI fertig)
+  - ✅ Route `#/orders/shipping` aktiv mit `ShippingView.tsx` — KPI-Cards, Carrier-Badges, Tracking-URLs, Label-Druck
   - **Konzept:** Zentrale Versandverwaltung. Mehrere Carrier (DHL, DPD, GLS, Hermes, UPS, Deutsche Post), Label-Druck, Tracking, automatische Carrier-Wahl basierend auf Regeln.
   - **Versand-View (`#/shipping`):**
     - [ ] KPI-Cards: Heute versendet, Pakete in Zustellung, Zustellquote, Ø Versandkosten
@@ -382,8 +469,8 @@
 
 ### Modul 8: Retouren (Returns Management)
 
-- [ ] **M8: Retouren-Management** since 2026-03-05
-  - ✅ Route `#/orders/returns` aktiv mit Placeholder-View
+- [ ] **M8: Retouren-Management** since 2026-03-05 (⚡ UI fertig)
+  - ✅ Route `#/orders/returns` aktiv mit `ReturnsView.tsx` — KPI-Cards, Tab-Filter, Grund/Status-Badges, Bulk-Actions
   - **Konzept:** Return-Requests entgegennehmen, Grund kategorisieren, Rückerstattung auslösen, Ware prüfen, wieder einlagern oder entsorgen.
   - **Retouren-View (`#/returns`):**
     - [ ] KPI-Cards: Offene Retouren, Retourenquote (%), Erstattungen diese Woche, Ø Bearbeitungszeit
@@ -399,9 +486,9 @@
     - [ ] Schritt 4: Wiedereinlagerung — Wenn A/B-Ware: Zurück ins Inventar mit neuem Zustand
     - [ ] Schritt 5: Abschluss — Marketplace-API-Update (Refund Issued, Return Closed)
   - **Backend:**
-    - [ ] `backend/routes/returns.js` (neu) — CRUD für Retouren
-    - [ ] `backend/services/returns.js` (neu) — processReturn(), issueRefund(), restockItem()
-    - [ ] Firestore Collection: `returns` — {returnId, orderId, items, reason, status, refundAmount, condition, ...}
+    - [ ] `backend/routes/returns.js` (neu) — CRUD für Retouren. **MT-PFLICHT:** Alle Queries mit `tenantId`-Filter
+    - [ ] `backend/services/returns.js` (neu) — processReturn(), issueRefund(), restockItem(). **MT-PFLICHT:** Alle Funktionen mit `{ tenantId, ...params }` Signatur
+    - [ ] Firestore Collection: `returns` — {returnId, **tenantId**, orderId, items, reason, status, refundAmount, condition, ...} *(MT-ready: tenantId als erstes Feld)*
     - [ ] Marketplace-Integration: eBay GetReturnRequests, Kaufland Returns-API
   - **Dateien:** `components/ReturnsView.tsx` (neu), `components/ReturnDetail.tsx` (neu), `backend/routes/returns.js` (neu), `backend/services/returns.js` (neu)
 
@@ -409,9 +496,15 @@
 
 ### Modul 9: Integrationen
 
-- [ ] **M9: Integrations-Hub — User kann selbst Marktplätze & Services verbinden** since 2026-03-05
-  - ✅ Route `#/integrations` aktiv mit Placeholder-View, Sidebar-Link vorhanden
+- [ ] **M9: ⚡ PRIORITÄT — Integrations-Hub — Aktive Integrationen anzeigen + konfigurieren + neue hinzufügen** since 2026-03-05 (⚡ UI fertig)
+  - ✅ `IntegrationsHub.tsx` erstellt — 5-Tab-Layout (Marktplätze/Versand/Finanzen/Shops/Sonstiges), 28 Integrationen als Cards
+  - ✅ Connected/Not Connected/Coming Soon Status, Verbinden/Trennen/Konfigurieren Buttons, Responsive Grid
   - ⚠️ **KRITISCHSTER GAP:** Ohne Self-Service-Integrationen ist AvyCloud nicht als Produkt nutzbar. Aktuell alles hardcoded via ENV-Variablen.
+  - **SOFORT SICHTBAR (auch ohne Backend-Migration):**
+    - [ ] Bereits aktive Integrationen (eBay, Kaufland, BaseLinker) als "Verbunden"-Cards anzeigen — Status aus ENV-Variablen lesen (EBAY_CLIENT_ID vorhanden? → eBay = Verbunden)
+    - [ ] Konfiguration pro aktiver Integration anzeigen (Sync-Intervall, was wird gesynct, letzter Sync)
+    - [ ] "Trennen" Button (mit Bestätigung)
+    - [ ] Nicht-verbundene Services als "Verfügbar"-Cards mit "Verbinden" Button
   - **Integrations-Hub View (`#/integrations`):**
     - [ ] Page-Header: "Integrationen" + "Verbundene Services: {n}"
     - [ ] Tab-Bar: Marktplätze | Versand | Buchhaltung | Sonstiges
@@ -471,8 +564,8 @@
     - [ ] "Trennen" Button (Disconnect) mit Bestätigung
   - **Backend:**
     - [ ] `backend/routes/integrations.js` (neu) — CRUD für Integrationen
-    - [ ] `backend/services/integration-store.js` (neu) — Credentials verschlüsselt in Firestore speichern/lesen
-    - [ ] Firestore Collection: `integrations` — {id, type: "ebay"|"kaufland"|..., credentials: {encrypted}, settings: {syncInterval, syncProducts, syncOrders, ...}, status: "active"|"error"|"disconnected", lastSync, lastError}
+    - [ ] `backend/services/integration-store.js` (neu) — Credentials verschlüsselt in Firestore speichern/lesen. **MT-PFLICHT:** Alle Funktionen akzeptieren `tenantId` als Parameter: `getIntegration(tenantId, type)`, `saveIntegration(tenantId, data)`, `listIntegrations(tenantId)`
+    - [ ] Firestore Collection: `integrations` — {id, **tenantId**, type: "ebay"|"kaufland"|..., credentials: {encrypted}, settings: {syncInterval, syncProducts, syncOrders, ...}, status: "active"|"error"|"disconnected", lastSync, lastError} *(MT-ready: tenantId als Key-Bestandteil, Credentials pro Tenant isoliert)*
     - [ ] Credential-Verschlüsselung: AES-256-GCM mit Key aus Google Secret Manager (nicht im Code)
     - [ ] Migration: Bestehende ENV-Variablen → Firestore, ENV als Fallback
     - [ ] Alle bestehenden API-Clients refactorn: `lib/ebay-oauth.js`, `lib/kaufland-api.js`, `lib/baselinker-*.js`, `lib/sendcloud.js`, `lib/sevdesk.js` → Credentials aus integration-store lesen statt process.env
@@ -510,8 +603,9 @@
 
 ### Modul 12: Lagerverwaltung (Warehouse)
 
-- [ ] **M12: Lagerverwaltung — Zonen, Bins, Einstellungen** since 2026-03-05
-  - Routes `#/warehouse` + `#/warehouse/settings` aktiv (⚠️ aktuell Placeholder → MUSS ersetzt werden)
+- [ ] **M12: Lagerverwaltung — Zonen, Bins, Einstellungen** since 2026-03-05 (⚡ Settings UI fertig)
+  - ✅ Routes `#/warehouse` + `#/warehouse/settings` aktiv
+  - ✅ `WarehouseSettingsView.tsx` — Bin-Logik, Zonen-Typen, Barcode-Einstellungen, Bestandsgrenzen, Inventur-Konfiguration
   - **Konzept:** Verwaltung der physischen Lagerstruktur. Zonen, Regale, Bins definieren. Lagerplatz-Zuordnung, Umlagern, Inventur. NICHT das gleiche wie "Bestand" (M4) — M4 zeigt Artikel+Mengen, M12 verwaltet WO die Artikel liegen.
   - **Lagerverwaltung-View (`#/warehouse`):**
     - [ ] Page-Header: "Lagerverwaltung" + Counter "{n} Lagerorte"
@@ -544,12 +638,12 @@
     - [ ] **Inventur-Einstellungen:** Pflicht-Inventur-Intervall (Monatlich/Quartalsweise/Jährlich), Inventur-Reminder
   - **Backend:**
     - [ ] `backend/routes/warehouse.js` (neu) — CRUD für Zonen, Bins, Inventur, Bewegungen
-    - [ ] `backend/services/warehouse.js` (neu) — createZone(), createBin(), moveToBin(), startInventory(), completeInventory()
-    - [ ] Firestore Collections:
-      - `warehouse_zones` — {id, name, type, description, binCount, ...}
-      - `warehouse_bins` — {id, code, zoneId, type, status, maxCapacity, currentItems: [{productId, quantity}], ...}
-      - `warehouse_movements` — {id, type, productId, quantity, fromBin, toBin, userId, timestamp}
-      - `warehouse_inventories` — {id, status, zone, bins: [{binId, expected, counted, diff}], startedAt, completedAt}
+    - [ ] `backend/services/warehouse.js` (neu) — createZone(), createBin(), moveToBin(), startInventory(), completeInventory(). **MT-PFLICHT:** Alle Funktionen mit `{ tenantId, ...params }` Signatur
+    - [ ] Firestore Collections *(ALLE mit tenantId als erstes Feld — MT-ready)*:
+      - `warehouse_zones` — {id, **tenantId**, name, type, description, binCount, ...}
+      - `warehouse_bins` — {id, **tenantId**, code, zoneId, type, status, maxCapacity, currentItems: [{productId, quantity}], ...}
+      - `warehouse_movements` — {id, **tenantId**, type, productId, quantity, fromBin, toBin, userId, timestamp}
+      - `warehouse_inventories` — {id, **tenantId**, status, zone, bins: [{binId, expected, counted, diff}], startedAt, completedAt}
     - [ ] Existiert teilweise: `lib/warehouse.js` mit bin-Logik — erweitern, nicht ersetzen
   - **Dateien:** `components/WarehouseView.tsx` (neu), `components/warehouse/ZonesTab.tsx`, `components/warehouse/BinsTab.tsx`, `components/warehouse/InventoryTab.tsx`, `components/warehouse/MovementsTab.tsx`, `components/WarehouseSettings.tsx` (neu), `backend/routes/warehouse.js` (neu), `backend/services/warehouse.js` (neu)
 
@@ -651,10 +745,14 @@
 
 ### Modul 11: Einstellungen (Settings)
 
-- [ ] **M11: Einstellungen-Bereich komplett neu** since 2026-03-05
+- [ ] **M11: Einstellungen-Bereich komplett neu** since 2026-03-05 (⚡ UI fertig)
   - ✅ Routes `#/settings`, `#/settings/profile`, `#/settings/team`, `#/settings/api`, `#/settings/billing` aktiv
-  - ✅ Sidebar EINSTELLUNGEN-Gruppe mit allen Sub-Items, ⚠️ Placeholder-Views vorhanden → MÜSSEN durch echte Implementierungen ERSETZT werden
+  - ✅ Sidebar EINSTELLUNGEN-Gruppe mit allen Sub-Items
   - ✅ `#/settings/team` rendert bestehendes AdminPanel (User/Role-Management)
+  - ✅ `CompanySettings.tsx` — Firmendaten, Adresse, Kontakt, Bankverbindung, Logo-Upload
+  - ✅ `ProfileSettings.tsx` — Profildaten, Passwort ändern, Benachrichtigungen, Theme-Auswahl
+  - ✅ `ApiSettings.tsx` — API-Keys, Webhooks, Nutzungsstatistiken, Dokumentation
+  - ✅ `BillingSettings.tsx` — Planübersicht, Nutzung, Zahlungsmethode, Rechnungshistorie
   - **Konzept:** Zentraler Bereich für Unternehmens-, User- und System-Konfiguration. Ersetzt den bisherigen "Admin"-Bereich mit einer klareren Struktur.
   - **Unternehmensdaten (`#/settings`):**
     - [ ] Firmenname, Rechtsform, USt-IdNr., Steuernummer
@@ -689,8 +787,8 @@
     - [ ] ⚠️ Stripe-Integration ist in "Waiting On" — UI kann vorbereitet werden mit Placeholder-Daten
   - **Backend:**
     - [ ] Existiert teilweise: `routes/admin.js`, `lib/rbac.js`
-    - [ ] NEU: `routes/settings.js` — Unternehmens-, Profil-, Team-CRUD
-    - [ ] NEU: Firestore Collection `company_settings` — {companyName, address, logo, taxId, bankDetails, ...}
+    - [ ] NEU: `routes/settings.js` — Unternehmens-, Profil-, Team-CRUD. **MT-PFLICHT:** Settings per Tenant, `req.user.tenantId` als Scope
+    - [ ] NEU: Firestore Collection `company_settings` — {**tenantId** (= Doc-ID), companyName, address, logo, taxId, bankDetails, ...} *(MT-ready: tenantId IST die Doc-ID — ein Dokument pro Tenant)*
     - [ ] Erweiterung `routes/auth.js` — Profil-Update, Passwort-Change
   - **Dateien:** `components/SettingsView.tsx` (neu, Tab-basiert), `components/settings/CompanySettings.tsx`, `components/settings/ProfileSettings.tsx`, `components/settings/TeamSettings.tsx`, `components/settings/ApiSettings.tsx`, `components/settings/BillingSettings.tsx`, `backend/routes/settings.js` (neu)
 
@@ -718,7 +816,19 @@
 
 ## Waiting On
 
-- [ ] **Multi-Tenancy (P3)** — Blocker für SaaS. Nur mit expliziter Anweisung. since 2026-03-01
+- [ ] **Multi-Tenancy (P2 — NÄCHSTE PHASE nach aktuellem Ausbau)** since 2026-03-01
+  - **Vorbereitung läuft JETZT:** Alle neuen Collections/Services mit `tenantId` (siehe MT-Kompatibilitätsblock oben)
+  - **Was in der MT-Phase kommt:**
+    - [ ] Tenant-Modell in Firestore: `tenants` Collection — {tenantId, name, plan, owner, createdAt, settings}
+    - [ ] Auth-Middleware erweitern: `req.user.tenantId` aus Firebase Custom Claims
+    - [ ] Tenant-Onboarding-Flow (Registrierung → Tenant erstellen → Admin-User)
+    - [ ] Tenant-Switcher UI (für Admins mit Zugang zu mehreren Tenants)
+    - [ ] Migration bestehender `products_v2` + `orders` → `tenantId: 'default'` hinzufügen
+    - [ ] GCS-Pfade migrieren: `/{tenantId}/images/...`
+    - [ ] Alle bestehenden Service-Funktionen (`saveProductV2`, `getProduct`, `listOrders` etc.) um `tenantId`-Filter erweitern
+    - [ ] Rate-Limiting pro Tenant
+    - [ ] Firestore Security Rules pro Tenant
+  - **Abhängigkeit:** Stripe Billing (Tenant ↔ Subscription)
 - [ ] **Stripe Billing (P3)** — Blocker für SaaS. Nur mit expliziter Anweisung. since 2026-03-01
 
 ## Someday
