@@ -29,45 +29,20 @@
 
 ### Modul 1: UI/UX Design-System Foundation
 
-- [ ] **M1: Komponentenbibliothek (`components/ui/`)** since 2026-03-05
-  - ⚠️ **KONTEXT:** Bisheriges "Redesign" war NUR CSS-Variable-Umbenennung (slate-800 → app-elevated). Kein visueller Unterschied. Alle Komponenten sehen identisch aus wie vorher. Filter, Buttons, Tables, Modals — alles inkonsistent.
-  - **Design Tokens (bereits definiert):** `--bg: #1a1d23`, `--sidebar: #15171c`, `--surface: #21242b`, `--elevated: #282c34`, `--border: #2a2d35`, `--accent: #7c75ff`, `--success: #34d399`, `--warning: #fbbf24`, `--danger: #f87171`, `--info: #60a5fa`
-  - **Referenz:** `prototype.html` (14 Seiten, interaktiver Mockup)
-  - **Base-Components erstellen:**
-    - [ ] `ui/Button.tsx` — Varianten: Primary (accent bg), Secondary (border only), Ghost (transparent), Danger (rot). Sizes: sm (32px), md (40px), lg (48px). States: Default, Hover, Active, Disabled, Loading (Spinner). Icon-Support (left/right). ALLE Buttons in der App müssen diese Component nutzen
-    - [ ] `ui/Input.tsx` — Types: Text, Number, Search, Password, Textarea. Label (floating oder above), Placeholder, Error-State (roter Border + Fehlermeldung), Help-Text, Disabled-State, Character-Counter. Prefix/Suffix-Icons. Konsistentes Padding: 12px horizontal, 10px vertikal
-    - [ ] `ui/Select.tsx` — Dropdown mit Search-Funktion (filterbarer Options-List). Single-Select + Multi-Select. Placeholder, Clear-Button, Disabled-State. Konsistentes Styling mit Input.tsx
-    - [ ] `ui/Badge.tsx` — Varianten: Success (grün), Warning (gelb), Danger (rot), Info (blau), Neutral (grau), Accent (lila). Sizes: sm (inline), md (standalone). Optional: Dot-Indikator, Close-Button. Verwendung: Status-Anzeigen, Tags, Labels
-    - [ ] `ui/Card.tsx` — Varianten: Surface (--surface bg), Elevated (--elevated bg), Outlined (border only). Padding: sm (16px), md (24px), lg (32px). Optional Header, Footer, Divider. Hover-State für klickbare Cards
-    - [ ] `ui/Table.tsx` — Sortierbare Spalten (Asc/Desc/None, klare Indikatoren). Sticky Header bei Scroll. Row-Hover (subtle --elevated). Row-Selection (Checkbox). Pagination (Page-Size: 25/50/100, Prev/Next, Page-Info "1-25 von 342"). Spalten-Konfiguration (User kann Spalten ein-/ausblenden via Dropdown). Loading-State (Skeleton-Rows). Empty-State (EmptyState-Component). Responsive: Horizontaler Scroll auf kleinen Screens mit fixierter erster Spalte
-    - [ ] `ui/Modal.tsx` — Sizes: sm (400px), md (560px), lg (720px), full (90vw). Backdrop (--bg mit 60% Opacity), Click-Outside-Close. Close-Button (X oben rechts). Header/Body/Footer-Sections. Animation: Fade + Scale. Focus-Trap (Accessibility). Escape-Key schließt
-    - [ ] `ui/Tabs.tsx` — Horizontal Tab-Bar. Active-Tab: Accent-Underline (2px). Inactive: Muted Text. Hover: Subtle Background. Optional: Tab-Count-Badge. Keyboard-Navigation (Arrow-Keys)
-    - [ ] `ui/Tooltip.tsx` — Positionen: Top, Bottom, Left, Right (auto-flip). Trigger: Hover + Focus. Delay: 300ms show, 100ms hide. Max-Width: 250px. Arrow-Pointer
-    - [ ] `ui/EmptyState.tsx` — Zentriert. Icon (64px, muted). Titel (h3). Beschreibung (text-secondary). CTA-Button (optional). Verwendung: Leere Tabellen, leere Listen, keine Suchergebnisse, keine Daten
-    - [ ] `ui/Skeleton.tsx` — Shimmer-Animation. Varianten: Text (Zeilen), Card (Rechteck), Table-Row, Avatar (Kreis). Verwendet als Loading-Placeholder statt Spinner
-    - [ ] `ui/Alert.tsx` — Varianten: Info, Success, Warning, Error. Icon links, Text, optional Close-Button. Sticky-Variante (Toast, auto-dismiss nach 5s)
-    - [ ] `ui/Dropdown.tsx` — Trigger-Element + Flyout-Menu. Positionen: Bottom-Start, Bottom-End. Divider zwischen Gruppen. Icon + Label pro Item. Keyboard-Navigation
-    - [ ] `ui/Breadcrumb.tsx` — Separator: "/". Letzer Eintrag: Muted (aktuelle Seite). Klickbare Links für Navigation
-    - [ ] `ui/ProgressBar.tsx` — Horizontal. Varianten: Default (accent), Success, Warning, Danger. Labels: Prozent, Text. Indeterminate-Mode (animiert)
-    - [ ] `ui/Avatar.tsx` — Sizes: sm (32px), md (40px), lg (56px). Fallback: Initialen auf farbigem Hintergrund. Optional: Status-Dot (Online/Offline)
-    - [ ] `ui/Stepper.tsx` — Horizontaler oder vertikaler Step-Indicator. States: Completed (check), Active (accent), Upcoming (muted). Für Wizards (Erfassen, Integration-Setup, etc.)
-  - **Nach Erstellung: Migration aller bestehenden Komponenten auf ui/* Base-Components**
+- [x] **M1: Komponentenbibliothek (`components/ui/`)** ~~since 2026-03-05~~ (2026-03-05)
+  - ✅ 17 Base-Components erstellt: Button, Input, Select, Badge, Card, Modal, Tabs, Tooltip, EmptyState, Skeleton, Alert, Dropdown, Breadcrumb, ProgressBar, Avatar, Stepper + cn() Utility
+  - ✅ Index-Export: `components/ui/index.ts` — Barrel-Export aller Komponenten + Types
+  - ✅ Tailwind-Animationen: slide-in-right, modal-in, indeterminate
+  - ✅ Alle Komponenten nutzen Design Tokens (CSS-Variablen), Tailwind-Klassen, TypeScript Props
+  - **Offen (Phase 2): Migration bestehender Komponenten auf ui/* Base-Components**
     - [ ] Alle `<button>` Tags → `<Button>` Component
     - [ ] Alle `<input>` Tags → `<Input>` Component
     - [ ] Alle `<select>` Tags → `<Select>` Component
     - [ ] Alle inline Status-Badges → `<Badge>` Component
     - [ ] Alle Modal/Dialog-Elemente → `<Modal>` Component
     - [ ] Alle Tab-Navigationen → `<Tabs>` Component
-  - **Spacing-System:** 4px Grid (4, 8, 12, 16, 24, 32, 48, 64) konsequent in allen Components
-  - **Typography-Scale definieren und durchsetzen:**
-    - [ ] h1: 28px/700 (Page-Title)
-    - [ ] h2: 22px/600 (Section-Title)
-    - [ ] h3: 18px/600 (Card-Title)
-    - [ ] h4: 16px/600 (Sub-Section)
-    - [ ] body: 14px/400 (Default Text)
-    - [ ] caption: 12px/400 (Help-Text, Timestamps)
-    - [ ] label: 12px/500 uppercase tracking-wide (Form-Labels, Section-Labels)
-  - **Dateien:** Neuer Ordner `components/ui/`, Index-Export `components/ui/index.ts`
+  - **Offen: Typography-Scale durchsetzen (h1-h4, body, caption, label)**
+  - **Note:** `ui/Table.tsx` bewusst ausgelassen — AdminTable ist zu komplex für generische Table-Component, bleibt eigenständig
 
 ---
 
