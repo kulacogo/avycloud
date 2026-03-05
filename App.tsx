@@ -14,8 +14,8 @@ import MobileSearchView from './components/MobileSearchView';
 import MobileTabBar from './components/MobileTabBar';
 import ProductsPageHeader from './components/ProductsPageHeader';
 
+import ProductSheet from './components/ProductSheet';
 // ─── Lazy-loaded view components (route-based code splitting) ─────────────────
-const ProductSheet = React.lazy(() => import('./components/ProductSheet'));
 const AdminTable = React.lazy(() => import('./components/AdminTable'));
 const WarehouseView = React.lazy(() => import('./components/WarehouseView'));
 const Dashboard = React.lazy(() => import('./components/Dashboard'));
@@ -440,7 +440,10 @@ const AppInner: React.FC = () => {
       if (focusProduct) {
         setCurrentProduct(focusProduct);
         setInventoryFocusId(focusProduct.id);
-        setView('sheet');
+        // ProductSheet is now overlay-only — stay on products view
+        if (view !== 'products' && view !== 'inventory') {
+          setView('products');
+        }
       }
     },
   });
@@ -513,6 +516,8 @@ const AppInner: React.FC = () => {
         if (product) {
           setCurrentProduct(product);
           setInventoryFocusId(product.id);
+          // Redirect legacy #/sheet/xxx → #/products (overlay will show)
+          setView('products');
       }
     }
   }, [products]);
@@ -814,10 +819,9 @@ const AppInner: React.FC = () => {
     if (product) {
       setCurrentProduct(product);
       setInventoryFocusId(product.id);
-      if (view === 'sheet') {
-        // keep sheet
-      } else {
-        // if stored view was different, keep it; we only set product, not force view
+      // ProductSheet is overlay-only — ensure we're on a view that shows the overlay
+      if (view !== 'products' && view !== 'inventory' && view !== 'marketplace-ebay' && view !== 'marketplace-kaufland') {
+        setView('products');
       }
     }
     initialProductHydratedRef.current = true;
@@ -910,17 +914,7 @@ const AppInner: React.FC = () => {
             onSwitchView={setView}
           />
         );
-      case 'sheet':
-        return currentProduct ? (
-          <ProductSheet
-            product={currentProduct}
-            onUpdate={handleUpdateProduct}
-            onImprove={handleImproveProduct}
-            isImproving={Boolean(currentProduct && activeProductIds.has(currentProduct.id))}
-          />
-        ) : (
-          <div className="text-center p-8 text-txt-muted">{t('app.sheet.empty')}</div>
-        );
+      // 'sheet' view removed — ProductSheet is now overlay-only (see below in JSX)
       case 'inventory':
       case 'products':
         if (!hasPermission('products', 'read')) {

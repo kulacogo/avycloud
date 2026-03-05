@@ -4,6 +4,13 @@
 > Benchmark: ChannelEngine, Channable, Linnworks, Plentymarkets, Billbee.
 > AvyCloud-Vorteil: KI-gestützte Produkterkennung + Enrichment (kein Wettbewerber hat das).
 
+> **⛔ KEINE PLACEHOLDER-VIEWS. NIEMALS.**
+> Jedes Modul muss ECHTE, FUNKTIONALE Views implementieren — mit echten Daten, echten API-Calls, echten Interaktionen.
+> Ein `PlaceholderView` oder `ComingSoon`-Component ist VERBOTEN. Wenn ein Modul noch nicht implementiert werden kann
+> (z.B. fehlende API-Route), dann die View mit realistischem UI bauen und API-Calls als TODO markieren — aber das UI
+> muss VOLLSTÄNDIG sein: Tabelle, Filter, KPI-Cards, Buttons, Modals, alles. KEIN leerer Screen mit "Demnächst verfügbar".
+> **Bestehende PlaceholderViews müssen beim Implementieren des jeweiligen Moduls ERSETZT werden durch echte Implementierungen.**
+
 ---
 
 ## Active
@@ -52,7 +59,7 @@
   - ✅ Sidebar komplett neu: Collapsible Sections (AUFTRÄGE, PRODUKTE, LAGER, MARKTPLÄTZE, EINSTELLUNGEN), 240px/64px Collapse-Mode, localStorage-Persistenz, Accent-Left-Border Active-Indicator, Permission-basierte Sichtbarkeit
   - ✅ Topbar bereinigt: Breadcrumbs für verschachtelte Views, Ctrl+K Shortcut für Suche, Notification-Bell Placeholder, Settings-Gear entfernt (jetzt via Sidebar)
   - ✅ Routing komplett neu: 15+ neue Routes (#/orders/returns, #/orders/shipping, #/marketplace/ebay, #/settings/*, etc.), parseHash mit verschachtelten Pfaden, viewToHashPath aktualisiert, Legacy-Route-Redirects (#/ebay → #/marketplace/ebay)
-  - ✅ Placeholder-Views für noch nicht implementierte Module (M3-M10): Retouren, Versand, Rechnungen, Kaufland, Integrationen, Settings-Unterseiten
+  - ✅ ⚠️ Placeholder-Views für M3-M10 existieren → MÜSSEN beim Implementieren des jeweiligen Moduls durch echte Views ERSETZT werden
   - ✅ View-Type-Union erweitert auf 30 Views, ALLOWED_VIEWS aktualisiert, VIEW_MIGRATIONS für Legacy-Kompatibilität
   - **Offen (für spätere Module): EbayListingsView.tsx löschen (wenn MarketplaceListingsView.tsx in M5 fertig), Mobile-Navigation anpassen**
   - **Sidebar — FINALE Navigationsstruktur (bestätigt 2026-03-05):**
@@ -160,6 +167,12 @@
   - **Page-Header:**
     - [ ] Titel "Produkte" (h1) + Counter "{gefiltert} von {gesamt} Produkte"
     - [ ] Action-Buttons rechts: "Produkt anlegen" (Primary), "Import" (Secondary), "Export" (Secondary)
+  - **Kategorien-Management (in Produktdaten integriert, KEIN eigener Nav-Punkt):**
+    - [ ] Kategorie als Filter-Dimension in der Produkte-Tabelle (Dropdown-Filter)
+    - [ ] Kategorie-Spalte in Tabelle: Badge mit Kategorie-Name, klickbar → filtert auf diese Kategorie
+    - [ ] Kategorie-Verwaltung: Settings-Modal oder Section in `#/settings` → Kategorie-Baum (Hierarchisch: Elektronik > Smartphones > Apple), Erstellen/Bearbeiten/Löschen, Drag-Reorder
+    - [ ] Kategorie-Zuordnung: Im ProductSheet (Attribute-Tab) + Bulk-Aktion "Kategorie zuweisen"
+    - [ ] Marketplace-Kategorie-Mapping: Pro Marktplatz eine Zuordnung (AvyCloud-Kategorie → eBay-Kategorie-ID, Kaufland-Kategorie) — konfigurierbar im Integrations-Hub (M9)
   - **Filter-System komplett neu:**
     - [ ] Filter-Bar unterhalb Header: Horizontale Chip-Leiste mit aktiven Filtern
     - [ ] Jeder Chip: Label + Wert + X-Close (z.B. "Marke: Apple ✕", "Status: Aktiv ✕")
@@ -228,7 +241,7 @@
 ### Modul 4: Bestand (Inventar)
 
 - [ ] **M4: Bestand-View — Lager-fokussiert, OHNE Marketplace-Listing-Features** since 2026-03-05
-  - ✅ Route `#/products/inventory` aktiv, Placeholder-View vorhanden, ProductsPageHeader mit "Inventar"-Modus
+  - ✅ Route `#/products/inventory` aktiv, ⚠️ Placeholder-View vorhanden → MUSS durch echte Implementierung ERSETZT werden, ProductsPageHeader mit "Inventar"-Modus
   - **Konzept:** Bestand = physischer Lagerbestand. KEIN Listing-Management hier. Nur Indikatoren welche Marktplätze aktiv sind (als Badges). Listings werden in den jeweiligen Marktplatz-Views verwaltet.
   - **Page-Header:**
     - [ ] Titel "Bestand" + Counter "{n} Artikel im Lager"
@@ -495,6 +508,124 @@
 
 ---
 
+### Modul 12: Lagerverwaltung (Warehouse)
+
+- [ ] **M12: Lagerverwaltung — Zonen, Bins, Einstellungen** since 2026-03-05
+  - Routes `#/warehouse` + `#/warehouse/settings` aktiv (⚠️ aktuell Placeholder → MUSS ersetzt werden)
+  - **Konzept:** Verwaltung der physischen Lagerstruktur. Zonen, Regale, Bins definieren. Lagerplatz-Zuordnung, Umlagern, Inventur. NICHT das gleiche wie "Bestand" (M4) — M4 zeigt Artikel+Mengen, M12 verwaltet WO die Artikel liegen.
+  - **Lagerverwaltung-View (`#/warehouse`):**
+    - [ ] Page-Header: "Lagerverwaltung" + Counter "{n} Lagerorte"
+    - [ ] KPI-Cards: Gesamte Bins, Belegte Bins (%), Freie Bins, Lagerbewegungen heute
+    - [ ] Tab-Bar: Zonen | Bins | Inventur | Bewegungen
+    - [ ] **Zonen-Tab:**
+      - [ ] Grid von Zone-Cards: Zone-Name (z.B. "Regal A", "Hochregal 1", "Kleinteile"), Anzahl Bins, Belegung (%), Erstellt-Datum
+      - [ ] "Zone anlegen" Button → Modal: Name, Beschreibung, Typ (Regal/Palette/Kleinteile/Kühlung)
+      - [ ] Klick auf Zone → Zeigt Bins innerhalb dieser Zone
+    - [ ] **Bins-Tab:**
+      - [ ] Tabelle: Bin-Code (z.B. "A-01-03"), Zone, Typ (Standard/Palette/Kleinteile), Status (Frei/Belegt/Gesperrt), Inhalt (Produktname + Menge oder "Leer"), Kapazität (%), Letzte Bewegung
+      - [ ] Filter: Zone, Status (Frei/Belegt/Gesperrt), Typ
+      - [ ] "Bin anlegen" Button → Modal: Code (Auto-Generierung oder manuell), Zone (Dropdown), Typ, Max-Kapazität
+      - [ ] Aktionen pro Bin: "Inhalt anzeigen", "Sperren/Freigeben", "Umbenennen", "Löschen" (nur wenn leer)
+    - [ ] **Inventur-Tab:**
+      - [ ] Inventur starten: Zone oder Bin-Bereich wählen → Inventur-Auftrag erstellen
+      - [ ] Inventur-Liste: Bin-Code, Soll-Bestand (System), Ist-Bestand (gezählt), Differenz, Status (Offen/Geprüft/Abgeschlossen)
+      - [ ] Ist-Bestand Eingabe: Inline-Edit in Tabelle oder per Barcode-Scanner (Mobile)
+      - [ ] Abschluss: Differenzen bestätigen → Bestand automatisch korrigiert
+      - [ ] Inventur-Protokoll als PDF exportieren
+    - [ ] **Bewegungen-Tab:**
+      - [ ] Timeline/Tabelle: Zeitstempel, Typ (Einlagerung/Auslagerung/Umlagerung/Korrektur), Produkt, Menge, Von-Bin, Nach-Bin, User
+      - [ ] Filter: Typ, Zeitraum, Produkt, Zone
+      - [ ] Export als CSV
+  - **Lager-Einstellungen (`#/warehouse/settings`):**
+    - [ ] **Bin-Logik:** Auto-Zuweisung aktivieren (ja/nein), Vergabe-Strategie (FIFO, nächste freie, gleicher Artikel zusammen)
+    - [ ] **Zonen-Typen:** Custom Zonen-Typen definieren (Name, Icon, Standard-Kapazität)
+    - [ ] **Barcode-Einstellungen:** Barcode-Format für Bins (Code128, QR), Prefix, Label-Druck-Template
+    - [ ] **Reorder-Thresholds:** Default-Mindestbestand pro Zone oder Global, Alarm-Schwelle (z.B. < 5 Einheiten)
+    - [ ] **Inventur-Einstellungen:** Pflicht-Inventur-Intervall (Monatlich/Quartalsweise/Jährlich), Inventur-Reminder
+  - **Backend:**
+    - [ ] `backend/routes/warehouse.js` (neu) — CRUD für Zonen, Bins, Inventur, Bewegungen
+    - [ ] `backend/services/warehouse.js` (neu) — createZone(), createBin(), moveToBin(), startInventory(), completeInventory()
+    - [ ] Firestore Collections:
+      - `warehouse_zones` — {id, name, type, description, binCount, ...}
+      - `warehouse_bins` — {id, code, zoneId, type, status, maxCapacity, currentItems: [{productId, quantity}], ...}
+      - `warehouse_movements` — {id, type, productId, quantity, fromBin, toBin, userId, timestamp}
+      - `warehouse_inventories` — {id, status, zone, bins: [{binId, expected, counted, diff}], startedAt, completedAt}
+    - [ ] Existiert teilweise: `lib/warehouse.js` mit bin-Logik — erweitern, nicht ersetzen
+  - **Dateien:** `components/WarehouseView.tsx` (neu), `components/warehouse/ZonesTab.tsx`, `components/warehouse/BinsTab.tsx`, `components/warehouse/InventoryTab.tsx`, `components/warehouse/MovementsTab.tsx`, `components/WarehouseSettings.tsx` (neu), `backend/routes/warehouse.js` (neu), `backend/services/warehouse.js` (neu)
+
+---
+
+### Modul 13: Erfassen (KI-Identify Flow)
+
+- [ ] **M13: Erfassen — KI-gestützte Produkterkennung als geführter Flow** since 2026-03-05
+  - Route `#/products/identify` aktiv (⚠️ aktuell Placeholder → MUSS ersetzt werden)
+  - ✅ Backend komplett vorhanden: `services/enrichment.js`, `services/improve.js`, `lib/gemini-structured.js`, `lib/image-search.js`, `services/job-runner.js`
+  - **Konzept:** AvyClouds USP. Benutzer fotografiert/uploaded ein Produkt → KI erkennt automatisch: Was ist es? Marke? Modell? EAN? Preis? Der User bestätigt/korrigiert → Produkt wird im Katalog angelegt. Dies ist der Haupt-Workflow für Eingangsware.
+  - **Erfassen-View (`#/products/identify`) — Stepper-Flow:**
+    - [ ] **`ui/Stepper`-Component:** 5 Schritte, horizontal, aktiver Schritt hervorgehoben
+    - [ ] **Schritt 1: Bild hochladen**
+      - [ ] Drag & Drop Zone (zentral, groß, mind. 300px Höhe)
+      - [ ] "Datei wählen" Button als Alternative
+      - [ ] Kamera-Button (Mobile: öffnet Kamera direkt)
+      - [ ] Mehrere Bilder möglich (Thumbnails unterhalb)
+      - [ ] Akzeptierte Formate: JPG, PNG, WEBP, max 20MB
+      - [ ] Upload-Progress-Bar
+      - [ ] "Weiter" Button (Primary, nur aktiv wenn mind. 1 Bild)
+    - [ ] **Schritt 2: KI-Erkennung (automatisch)**
+      - [ ] Progress-Screen: "Produkt wird analysiert..."
+      - [ ] Animierter Fortschritt: Bild-Analyse → Barcode-Scan → Web-Recherche → Preisermittlung → Zusammenfassung
+      - [ ] Jeder Sub-Schritt mit Status-Icon (Spinner → Checkmark → Error)
+      - [ ] SSE-Stream vom Backend (`useJobStream` Hook) für Live-Progress
+      - [ ] Backend-Pipeline: Vision-API → Barcode-Detection → Web-Search → Title Insights → LLM-Synthese → Pricing
+      - [ ] Dauer: 15-45 Sekunden typisch
+      - [ ] Bei Fehler: Retry-Button + Fallback auf manuelle Eingabe
+    - [ ] **Schritt 3: Ergebnisse prüfen & korrigieren**
+      - [ ] Erkanntes Hero-Image links (200px)
+      - [ ] Rechts: Formular mit vorausgefüllten KI-Ergebnissen:
+        - Produktname (editierbar, Input)
+        - Marke (editierbar, Input mit Autocomplete aus bestehendem Katalog)
+        - Modell (editierbar)
+        - EAN/UPC (editierbar, Validierung: 13-stellig, Prüfziffer)
+        - Kategorie (Dropdown, vorausgewählt)
+        - Zustand (Dropdown: Neu / Gebraucht - Sehr gut / Gebraucht - Gut / Gebraucht - Akzeptabel / Defekt)
+        - Beschreibung (Textarea, KI-generiert, editierbar)
+      - [ ] KI-Konfidenz pro Feld: Badge "Sicher" (grün, >80%) / "Unsicher" (gelb, 50-80%) / "Geschätzt" (rot, <50%)
+      - [ ] Felder mit niedriger Konfidenz: Orange Umrandung, User soll prüfen
+      - [ ] "Titel verbessern" Button (KI-Re-Generate mit editiertem Input)
+    - [ ] **Schritt 4: Preis & Lager**
+      - [ ] KI-Preisvorschlag: Angezeigter Preis + Quelle (eBay Sold, Amazon, etc.) + Konfidenz
+      - [ ] Manueller VK-Override (Input)
+      - [ ] EK-Eingabe (Input, Pflichtfeld falls bekannt)
+      - [ ] Marge (automatisch berechnet: VK - EK, angezeigt als € + %)
+      - [ ] Bestand: Menge (Input, Default: 1), Zustand (Dropdown), Lagerplatz/Bin (Dropdown aus existierenden Bins)
+      - [ ] Marketplace-Quick-Select: "Direkt auf eBay listen" (Checkbox), "Direkt auf Kaufland listen" (Checkbox)
+    - [ ] **Schritt 5: Zusammenfassung & Speichern**
+      - [ ] Kompakte Übersicht aller eingegebenen Daten (Read-only)
+      - [ ] Hero-Image + Thumbnails
+      - [ ] Alle Attribute in 2-Spalten-Grid
+      - [ ] Preis + Marge + Lagerplatz
+      - [ ] Marktplatz-Optionen
+      - [ ] "Speichern" Button (Primary) → `POST /api/v1/products` via `saveProductV2()`
+      - [ ] "Speichern & Nächstes erfassen" Button (Secondary) → Speichert + Reset auf Schritt 1
+      - [ ] Erfolgs-Toast: "Produkt '{Name}' erfolgreich angelegt!" mit Link zum ProductSheet
+  - **Schnell-Erfassung (Alternative zum Stepper):**
+    - [ ] Toggle oben: "Geführt" (Stepper, Default) / "Schnell" (Single-Page)
+    - [ ] Schnell-Modus: Bild-Upload + Mini-Formular auf einer Seite, KI läuft im Hintergrund, Felder füllen sich live
+    - [ ] Für erfahrene User die viele Produkte hintereinander erfassen
+  - **Mobile-Optimierung:**
+    - [ ] Camera-First: Upload-Zone ist auf Mobile ein großer Kamera-Button
+    - [ ] Swipe-Navigation zwischen Stepper-Schritten
+    - [ ] Barcode-Scanner-Button (Mobile Kamera → Barcode erkennen → EAN ausfüllen)
+  - **Backend (existiert, Verbindung herstellen):**
+    - [ ] `POST /api/v1/identify` → startet Job → SSE-Stream über `GET /api/v1/identify/:jobId/stream`
+    - [ ] Pipeline in `services/enrichment.js`: `runFullIdentification()` → Vision + Barcode + Web + Pricing
+    - [ ] `services/improve.js`: `improveProduct()` für Titel/Beschreibung-Optimierung
+    - [ ] `saveProductV2()` am Ende des Flows
+    - [ ] Existierende Hooks: `useJobStream.ts` für SSE-Progress
+  - **Dateien:** `components/IdentifyView.tsx` (komplett neu als Stepper-Flow), `components/identify/StepUpload.tsx`, `components/identify/StepAnalysis.tsx`, `components/identify/StepReview.tsx`, `components/identify/StepPricing.tsx`, `components/identify/StepSummary.tsx`
+
+---
+
 ### Modul Bonus: Automatisierung & Bulk-Operationen
 
 - [ ] **M-AUTO: Workflow-Automatisierung & Bulk-Import/Export** since 2026-03-05
@@ -522,7 +653,7 @@
 
 - [ ] **M11: Einstellungen-Bereich komplett neu** since 2026-03-05
   - ✅ Routes `#/settings`, `#/settings/profile`, `#/settings/team`, `#/settings/api`, `#/settings/billing` aktiv
-  - ✅ Sidebar EINSTELLUNGEN-Gruppe mit allen Sub-Items, Placeholder-Views für alle Settings-Pages
+  - ✅ Sidebar EINSTELLUNGEN-Gruppe mit allen Sub-Items, ⚠️ Placeholder-Views vorhanden → MÜSSEN durch echte Implementierungen ERSETZT werden
   - ✅ `#/settings/team` rendert bestehendes AdminPanel (User/Role-Management)
   - **Konzept:** Zentraler Bereich für Unternehmens-, User- und System-Konfiguration. Ersetzt den bisherigen "Admin"-Bereich mit einer klareren Struktur.
   - **Unternehmensdaten (`#/settings`):**
