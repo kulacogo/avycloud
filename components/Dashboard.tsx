@@ -48,7 +48,7 @@ const fmtNum = (n: number) => new Intl.NumberFormat('de-DE').format(n);
 // ─── Skeleton ─────────────────────────────────────────────────────────────────
 const Skel: React.FC<{ w?: string; h?: string; className?: string }> = ({
   w = 'w-24', h = 'h-8', className = '',
-}) => <div className={`animate-pulse rounded bg-white/5 ${w} ${h} ${className}`} />;
+}) => <div className={`animate-pulse rounded bg-app-border/50 ${w} ${h} ${className}`} />;
 
 // ─── Metric card ──────────────────────────────────────────────────────────────
 interface CardProps {
@@ -63,28 +63,28 @@ interface CardProps {
 }
 
 const colorVal: Record<NonNullable<CardProps['color']>, string> = {
-  green: 'text-emerald-400',
-  blue: 'text-sky-400',
-  amber: 'text-amber-400',
-  violet: 'text-violet-400',
-  red: 'text-rose-400',
-  neutral: 'text-white',
+  green: 'text-success',
+  blue: 'text-info',
+  amber: 'text-warning',
+  violet: 'text-accent',
+  red: 'text-danger',
+  neutral: 'text-txt-primary',
 };
 const colorBorder: Record<NonNullable<CardProps['color']>, string> = {
-  green: 'border-emerald-500/20',
-  blue: 'border-sky-500/20',
-  amber: 'border-amber-500/20',
-  violet: 'border-violet-500/20',
-  red: 'border-rose-500/20',
-  neutral: 'border-white/8',
+  green: 'border-success/20',
+  blue: 'border-info/20',
+  amber: 'border-warning/20',
+  violet: 'border-accent/20',
+  red: 'border-danger/20',
+  neutral: 'border-app-border',
 };
 const colorBg: Record<NonNullable<CardProps['color']>, string> = {
-  green: 'bg-emerald-500/5',
-  blue: 'bg-sky-500/5',
-  amber: 'bg-amber-500/5',
-  violet: 'bg-violet-500/5',
-  red: 'bg-rose-500/5',
-  neutral: 'bg-slate-800/40',
+  green: 'bg-success-dim',
+  blue: 'bg-info-dim',
+  amber: 'bg-warning-dim',
+  violet: 'bg-accent-dim',
+  red: 'bg-danger-dim',
+  neutral: 'bg-app-surface',
 };
 
 const Card: React.FC<CardProps> = ({
@@ -101,18 +101,18 @@ const Card: React.FC<CardProps> = ({
       `}
     >
       {badge && (
-        <span className="absolute top-3 right-3 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-white/10 text-slate-400">
+        <span className="absolute top-3 right-3 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-app-elevated text-txt-muted">
           {badge}
         </span>
       )}
-      <p className="text-[11px] uppercase tracking-widest text-slate-500 font-semibold">{label}</p>
+      <p className="text-[11px] uppercase tracking-widest text-txt-muted font-semibold">{label}</p>
       {loading ? (
         <Skel w="w-28" h={size === 'hero' ? 'h-10' : 'h-8'} />
       ) : (
         <p className={`font-bold ${valClass} ${colorVal[color]} tabular-nums leading-none`}>{value}</p>
       )}
       {!loading && sub && (
-        <p className="text-xs text-slate-500 leading-snug mt-0.5">{sub}</p>
+        <p className="text-xs text-txt-muted leading-snug mt-0.5">{sub}</p>
       )}
       {loading && <Skel w="w-16" h="h-3" />}
     </Tag>
@@ -125,7 +125,7 @@ const STEPS = [
   { key: 'kommissioniert', label: 'Komm.', dot: 'bg-blue-400', text: 'text-blue-400' },
   { key: 'verpackt', label: 'Verpackt', dot: 'bg-violet-400', text: 'text-violet-400' },
   { key: 'versendet', label: 'Versendet', dot: 'bg-violet-400', text: 'text-violet-400' },
-  { key: 'zugestellt', label: 'Zugestellt', dot: 'bg-emerald-400', text: 'text-emerald-400' },
+  { key: 'zugestellt', label: 'Zugestellt', dot: 'bg-success', text: 'text-success' },
 ];
 
 const Pipeline: React.FC<{
@@ -137,7 +137,7 @@ const Pipeline: React.FC<{
   return (
     <div className="space-y-3">
       {!loading && total > 0 && (
-        <div className="flex h-1 rounded-full overflow-hidden gap-px bg-slate-700/50">
+        <div className="flex h-1 rounded-full overflow-hidden gap-px bg-app-border">
           {STEPS.map(st => {
             const pct = total > 0 ? ((bd[st.key] || 0) / total) * 100 : 0;
             if (!pct) return null;
@@ -145,14 +145,14 @@ const Pipeline: React.FC<{
           })}
         </div>
       )}
-      {loading && <div className="h-1 w-full rounded-full bg-white/5 animate-pulse" />}
+      {loading && <div className="h-1 w-full rounded-full bg-app-border/50 animate-pulse" />}
       <div className="grid grid-cols-5 gap-2">
         {STEPS.map((st, i) => (
           <button
             key={st.key}
             type="button"
             onClick={() => onClickStatus(st.key)}
-            className="group flex flex-col items-center gap-2 rounded-xl bg-slate-900/50 hover:bg-slate-900/80 border border-white/5 py-3 px-2 transition-colors cursor-pointer"
+            className="group flex flex-col items-center gap-2 rounded-lg bg-app-bg hover:bg-app-elevated border border-app-border py-3 px-2 transition-colors cursor-pointer"
           >
             <div className={`flex items-center gap-1.5 text-[10px] uppercase tracking-wider ${st.text} font-semibold`}>
               <span className={`w-1.5 h-1.5 rounded-full ${st.dot}`} />
@@ -161,10 +161,10 @@ const Pipeline: React.FC<{
             {loading ? (
               <Skel w="w-8" h="h-7" />
             ) : (
-              <span className="text-2xl font-bold text-white tabular-nums">{fmtNum(bd[st.key] || 0)}</span>
+              <span className="text-2xl font-bold text-txt-primary tabular-nums">{fmtNum(bd[st.key] || 0)}</span>
             )}
             {i < STEPS.length - 1 && (
-              <span className="text-slate-700 text-xs">→</span>
+              <span className="text-app-border text-xs">→</span>
             )}
           </button>
         ))}
@@ -232,7 +232,7 @@ const DualChart: React.FC<{
     return (
       <div className="w-full h-40 flex items-end gap-1.5 px-2 pb-4">
         {Array.from({ length: 7 }).map((_, i) => (
-          <div key={i} className="flex-1 animate-pulse rounded-t bg-white/5"
+          <div key={i} className="flex-1 animate-pulse rounded-t bg-app-border/50"
             style={{ height: `${Math.random() * 60 + 20}%` }} />
         ))}
       </div>
@@ -241,7 +241,7 @@ const DualChart: React.FC<{
 
   if (!data.length) {
     return (
-      <div className="w-full h-40 flex items-center justify-center text-sm text-slate-600">
+      <div className="w-full h-40 flex items-center justify-center text-sm text-txt-muted">
         Keine Daten für diesen Zeitraum
       </div>
     );
@@ -297,7 +297,7 @@ const DualChart: React.FC<{
             )}
             {/* Order bar */}
             <rect x={barX(i)} y={barTop(d.count)} width={barW} height={barH(d.count)}
-              fill={hovered === i ? '#7dd3fc' : '#38bdf8'} rx="2"
+              fill={hovered === i ? '#93a3ff' : '#7c75ff'} rx="2"
               style={{ transition: 'fill 0.1s' }} />
           </g>
         ))}
@@ -354,16 +354,16 @@ const DualChart: React.FC<{
       {/* Hover tooltip */}
       {hovered !== null && data[hovered] && (
         <div
-          className="absolute pointer-events-none z-10 bg-slate-900 border border-white/10 rounded-lg px-3 py-2 text-xs shadow-xl"
+          className="absolute pointer-events-none z-10 bg-app-elevated border border-app-border rounded-lg px-3 py-2 text-xs shadow-app"
           style={{
             left: `${((hovered + 0.5) / n) * 100}%`,
             top: '4px',
             transform: hovered > n / 2 ? 'translateX(-110%)' : 'translateX(10%)',
           }}
         >
-          <p className="text-slate-300 font-semibold mb-1">{data[hovered].label}</p>
-          <p className="text-sky-400">{fmtNum(data[hovered].count)} Aufträge</p>
-          <p className="text-emerald-400">{fmtCur(data[hovered].revenue, currency)}</p>
+          <p className="text-txt-primary font-semibold mb-1">{data[hovered].label}</p>
+          <p className="text-info">{fmtNum(data[hovered].count)} Aufträge</p>
+          <p className="text-success">{fmtCur(data[hovered].revenue, currency)}</p>
         </div>
       )}
     </div>
@@ -376,11 +376,11 @@ const Section: React.FC<{ title: string; badge?: string; children: React.ReactNo
 }) => (
   <div>
     <div className="flex items-center gap-2 mb-3">
-      <h2 className="text-[11px] uppercase tracking-[0.15em] font-bold text-slate-500">{title}</h2>
+      <h2 className="text-[11px] uppercase tracking-[0.15em] font-bold text-txt-muted">{title}</h2>
       {badge && (
-        <span className="text-[10px] text-slate-600 font-medium px-1.5 py-0.5 rounded bg-white/5">{badge}</span>
+        <span className="text-[10px] text-txt-muted font-medium px-1.5 py-0.5 rounded bg-app-elevated">{badge}</span>
       )}
-      <div className="flex-1 h-px bg-slate-700/50" />
+      <div className="flex-1 h-px bg-app-border" />
     </div>
     {children}
   </div>
@@ -419,14 +419,14 @@ const DateRangePicker: React.FC<{
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-800/80 border border-white/[0.08] hover:bg-slate-700/80 transition-all text-sm text-slate-200 font-medium"
+        className="inline-flex items-center gap-2 px-3 py-2 rounded-md bg-app-surface border border-app-border hover:bg-app-elevated transition-all text-sm text-txt-primary font-medium"
       >
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" className="w-4 h-4 text-slate-400 flex-shrink-0">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" className="w-4 h-4 text-txt-muted flex-shrink-0">
           <rect x="3" y="4" width="18" height="18" rx="2" />
           <path d="M16 2v4M8 2v4M3 10h18" />
         </svg>
         <span className="max-w-[13rem] truncate">{presetLabel}</span>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`w-3.5 h-3.5 text-slate-400 transition-transform flex-shrink-0 ${open ? 'rotate-180' : ''}`}>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`w-3.5 h-3.5 text-txt-muted transition-transform flex-shrink-0 ${open ? 'rotate-180' : ''}`}>
           <path d="M6 9l6 6 6-6" />
         </svg>
       </button>
@@ -436,7 +436,7 @@ const DateRangePicker: React.FC<{
         type="button"
         onClick={onRefresh}
         title="Aktualisieren"
-        className="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-800/80 border border-white/[0.08] text-slate-500 hover:text-slate-200 hover:bg-slate-700/80 transition-all"
+        className="w-9 h-9 flex items-center justify-center rounded-md bg-app-surface border border-app-border text-txt-muted hover:text-txt-primary hover:bg-app-elevated transition-all"
       >
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
           <path d="M1 4v6h6M23 20v-6h-6" />
@@ -447,24 +447,24 @@ const DateRangePicker: React.FC<{
       {/* Dropdown panel */}
       {open && (
         <div
-          className="absolute right-0 top-full mt-2 z-50 bg-slate-900 border border-white/10 rounded-2xl shadow-2xl shadow-black/50 overflow-hidden"
+          className="absolute right-0 top-full mt-2 z-50 bg-app-elevated border border-app-border rounded-lg shadow-app overflow-hidden"
           style={{ minWidth: '16rem' }}
         >
           <div className="p-2">
-            <p className="text-[10px] uppercase tracking-widest text-slate-600 font-semibold px-2 pt-1 pb-1.5">Zeitraum</p>
+            <p className="text-[10px] uppercase tracking-widest text-txt-muted font-semibold px-2 pt-1 pb-1.5">Zeitraum</p>
             {PRESETS.map(p => (
               <button
                 key={p.id}
                 type="button"
                 onClick={() => handleSelect(p.id)}
-                className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-all text-left ${
+                className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-sm transition-all text-left ${
                   activePreset === p.id
-                    ? 'bg-sky-600/20 text-sky-300 font-medium'
-                    : 'text-slate-300 hover:bg-white/5 hover:text-white'
+                    ? 'bg-accent-dim text-accent font-medium'
+                    : 'text-txt-secondary hover:bg-app-surface hover:text-txt-primary'
                 }`}
               >
                 {activePreset === p.id ? (
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5 text-sky-400 flex-shrink-0">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5 text-accent flex-shrink-0">
                     <path d="M20 6L9 17l-5-5" />
                   </svg>
                 ) : <span className="w-3.5 inline-block" />}
@@ -475,27 +475,27 @@ const DateRangePicker: React.FC<{
 
           {/* Custom date range inputs */}
           {activePreset === 'custom' && (
-            <div className="border-t border-white/[0.06] p-3 space-y-2">
-              <p className="text-[10px] uppercase tracking-widest text-slate-600 font-semibold px-1">Von – Bis</p>
+            <div className="border-t border-app-border p-3 space-y-2">
+              <p className="text-[10px] uppercase tracking-widest text-txt-muted font-semibold px-1">Von – Bis</p>
               <div className="flex gap-2">
                 <input
                   type="date"
                   value={customFrom}
                   onChange={e => onCustomChange(e.target.value, customTo)}
-                  className="flex-1 bg-slate-800 border border-white/10 rounded-lg px-2 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-sky-500/50"
+                  className="flex-1 bg-app-surface border border-app-border rounded-md px-2 py-1.5 text-xs text-txt-primary focus:outline-none focus:border-accent/50"
                 />
                 <input
                   type="date"
                   value={customTo}
                   onChange={e => onCustomChange(customFrom, e.target.value)}
-                  className="flex-1 bg-slate-800 border border-white/10 rounded-lg px-2 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-sky-500/50"
+                  className="flex-1 bg-app-surface border border-app-border rounded-md px-2 py-1.5 text-xs text-txt-primary focus:outline-none focus:border-accent/50"
                 />
               </div>
               <button
                 type="button"
                 onClick={() => { if (customFrom && customTo) setOpen(false); onRefresh(); }}
                 disabled={!customFrom || !customTo}
-                className="w-full py-1.5 rounded-lg bg-sky-600/20 text-sky-300 text-xs font-semibold hover:bg-sky-600/30 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                className="w-full py-1.5 rounded-md bg-accent-dim text-accent text-xs font-semibold hover:bg-accent/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 Anwenden
               </button>
@@ -668,7 +668,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
       {/* ══ Header ══════════════════════════════════════════════════════ */}
       <div className="flex items-center justify-between">
-        <p className="text-xs text-slate-600">
+        <p className="text-xs text-txt-muted">
           {nowStr ? `Stand: ${nowStr}` : 'Wird geladen…'}
         </p>
         <DateRangePicker
@@ -683,7 +683,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
       </div>
 
       {metricsError && (
-        <div className="rounded-xl border border-rose-500/20 bg-rose-950/40 px-4 py-2.5 text-sm text-rose-400">
+        <div className="rounded-md border border-danger/20 bg-danger-dim px-4 py-2.5 text-sm text-danger">
           {metricsError}
         </div>
       )}
@@ -714,7 +714,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               <span className="flex flex-col gap-0.5">
                 <span>{fmtNum(finance?.shipping_ytd?.parcel_count ?? 0)} Sendungen</span>
                 {((finance?.shipping_ytd?.dhl_count ?? 0) > 0 || (finance?.shipping_ytd?.dpd_count ?? 0) > 0) && (
-                  <span className="text-[10px] text-slate-500">
+                  <span className="text-[10px] text-txt-muted">
                     {(finance?.shipping_ytd?.dhl_count ?? 0) > 0 && `DHL ${fmtNum(finance.shipping_ytd.dhl_count)}`}
                     {(finance?.shipping_ytd?.dhl_count ?? 0) > 0 && (finance?.shipping_ytd?.dpd_count ?? 0) > 0 && ' · '}
                     {(finance?.shipping_ytd?.dpd_count ?? 0) > 0 && `DPD ${fmtNum(finance.shipping_ytd.dpd_count)}`}
@@ -737,7 +737,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
         {finance?.errors && finance.errors.length > 0 && (
           <div className="mt-2 flex flex-wrap gap-2">
             {finance.errors.map((e, i) => (
-              <span key={i} className="text-[11px] text-amber-600 bg-amber-950/40 border border-amber-700/20 px-2 py-0.5 rounded">
+              <span key={i} className="text-[11px] text-warning bg-warning-dim border border-warning/20 px-2 py-0.5 rounded">
                 {e}
               </span>
             ))}
@@ -776,7 +776,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
       {/* ══ 3. AUFTRAGSFLUSS ═══════════════════════════════════════════ */}
       <Section title="Auftragsfluss" badge={!metricsLoading && ord.neu > 0 ? `${ord.neu} offen` : undefined}>
-        <div className="rounded-2xl border border-white/5 bg-slate-800/40 p-5">
+        <div className="rounded-lg border border-app-border bg-app-surface p-5">
           <Pipeline
             bd={{ neu: ord.neu, kommissioniert: ord.kommissioniert, verpackt: ord.verpackt, versendet: ord.versendet, zugestellt: ord.zugestellt }}
             loading={metricsLoading}
@@ -802,7 +802,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               <span className="flex flex-col gap-0.5">
                 <span>{fmtNum(finance?.shipping?.parcel_count ?? 0)} Sendungen</span>
                 {((finance?.shipping?.dhl_count ?? 0) > 0 || (finance?.shipping?.dpd_count ?? 0) > 0) && (
-                  <span className="text-[10px] text-slate-500">
+                  <span className="text-[10px] text-txt-muted">
                     {(finance?.shipping?.dhl_count ?? 0) > 0 && `DHL ${finance.shipping.dhl_count}`}
                     {(finance?.shipping?.dhl_count ?? 0) > 0 && (finance?.shipping?.dpd_count ?? 0) > 0 && ' · '}
                     {(finance?.shipping?.dpd_count ?? 0) > 0 && `DPD ${finance.shipping.dpd_count}`}
@@ -822,19 +822,19 @@ export const Dashboard: React.FC<DashboardProps> = ({
         </div>
 
         {/* Chart */}
-        <div className="rounded-2xl border border-white/5 bg-slate-800/40 p-5">
+        <div className="rounded-lg border border-app-border bg-app-surface p-5">
           <div className="flex items-center justify-between mb-3">
             <div>
-              <p className="text-xs font-semibold text-white">Auftragsvolumen & Umsatz</p>
-              <p className="text-[10px] text-slate-600">{presetLabel}</p>
+              <p className="text-xs font-semibold text-txt-primary">Auftragsvolumen & Umsatz</p>
+              <p className="text-[10px] text-txt-muted">{presetLabel}</p>
             </div>
-            <div className="flex items-center gap-4 text-[10px] text-slate-500">
+            <div className="flex items-center gap-4 text-[10px] text-txt-muted">
               <span className="flex items-center gap-1.5">
-                <span className="inline-block w-3 h-3 rounded-sm bg-sky-500" />
+                <span className="inline-block w-3 h-3 rounded-sm bg-info" />
                 Aufträge (links)
               </span>
               <span className="flex items-center gap-1.5">
-                <span className="inline-block w-3 h-1.5 rounded-full bg-emerald-500" />
+                <span className="inline-block w-3 h-1.5 rounded-full bg-success" />
                 Umsatz (rechts)
               </span>
             </div>

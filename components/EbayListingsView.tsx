@@ -187,12 +187,12 @@ const formatDateTime = (value?: any): string => {
 
 const statusBadgeClass = (status?: string | null): string => {
   const key = safeString(status).toLowerCase();
-  if (key === 'matched' || key === 'synced') return 'bg-emerald-500/20 text-emerald-200 border-emerald-500/40';
-  if (key === 'ready_to_sync' || key === 'reviewed') return 'bg-sky-500/20 text-sky-200 border-sky-500/40';
-  if (key === 'new' || key === 'warn') return 'bg-amber-500/20 text-amber-100 border-amber-500/40';
-  if (key === 'critical' || key === 'failed' || key === 'unmatched') return 'bg-rose-500/20 text-rose-100 border-rose-500/40';
-  if (key === 'ignored') return 'bg-slate-600/30 text-slate-200 border-slate-500/50';
-  return 'bg-slate-700/40 text-slate-200 border-slate-500/40';
+  if (key === 'matched' || key === 'synced') return 'bg-success-dim text-success border-success/40';
+  if (key === 'ready_to_sync' || key === 'reviewed') return 'bg-accent-dim text-accent border-accent/40';
+  if (key === 'new' || key === 'warn') return 'bg-warning-dim text-warning border-warning/40';
+  if (key === 'critical' || key === 'failed' || key === 'unmatched') return 'bg-danger-dim text-danger border-danger/40';
+  if (key === 'ignored') return 'bg-app-elevated text-txt-primary border-app-border';
+  return 'bg-app-elevated text-txt-primary border-app-border';
 };
 
 const extractProductSpecifics = (product: Record<string, any> | null | undefined): Record<string, string> => {
@@ -1189,11 +1189,11 @@ export const EbayListingsView: React.FC = () => {
 
   return (
     <div className="w-full max-w-[1800px] mx-auto px-2 lg:px-4 space-y-5">
-      <div className="rounded-2xl border border-white/10 bg-slate-800/40 p-5 space-y-3">
+      <div className="rounded-2xl border border-app-border bg-app-surface p-5 space-y-3">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-bold text-white">eBay Listings</h1>
-            <p className="text-sm text-slate-400">
+            <h1 className="text-2xl font-bold text-txt-primary">eBay Listings</h1>
+            <p className="text-sm text-txt-muted">
               Audit fuer Kategorie, Item Specifics und Content. Gap-Workflow mit kontrolliertem Sync zu eBay.
             </p>
           </div>
@@ -1201,7 +1201,7 @@ export const EbayListingsView: React.FC = () => {
             <span className={`rounded-xl border px-2 py-1 text-xs ${statusBadgeClass(tradingStatus?.connected ? 'synced' : 'failed')}`}>
               Trading API: {tradingStatus?.connected ? 'verbunden' : 'offline'}
             </span>
-            <span className="rounded-xl border border-white/10 px-2 py-1 text-xs text-slate-300">
+            <span className="rounded-xl border border-app-border px-2 py-1 text-xs text-txt-secondary">
               Mode: {safeString(tradingStatus?.mode) || '-'}
             </span>
           </div>
@@ -1214,7 +1214,7 @@ export const EbayListingsView: React.FC = () => {
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Suche nach Item ID, SKU oder Titel"
               aria-label="Suche nach Item ID, SKU oder Titel"
-              className="w-full rounded-xl bg-slate-950 border border-white/10 px-4 py-3 text-white"
+              className="w-full rounded-xl bg-app-bg border border-app-border px-4 py-3 text-txt-primary"
             />
           </div>
           <div className="lg:col-span-2">
@@ -1222,7 +1222,7 @@ export const EbayListingsView: React.FC = () => {
               value={matchStatus}
               onChange={(event) => setMatchStatus(event.target.value as any)}
               aria-label="Match-Status filtern"
-              className="w-full rounded-xl bg-slate-950 border border-white/10 px-3 py-3 text-white"
+              className="w-full rounded-xl bg-app-bg border border-app-border px-3 py-3 text-txt-primary"
             >
               <option value="all">Match: Alle</option>
               <option value="matched">Matched</option>
@@ -1231,7 +1231,7 @@ export const EbayListingsView: React.FC = () => {
             </select>
           </div>
           <div className="lg:col-span-2 flex items-center">
-            <label className="inline-flex items-center gap-2 text-sm text-slate-300">
+            <label className="inline-flex items-center gap-2 text-sm text-txt-secondary">
               <input
                 type="checkbox"
                 checked={includeInactive}
@@ -1252,7 +1252,7 @@ export const EbayListingsView: React.FC = () => {
               }
               disabled={busyAction === 'sync:listings'}
               aria-label="Live Sync und Audit starten"
-              className="rounded-xl bg-sky-600/20 hover:bg-sky-600/30 px-3 py-2 text-sm font-semibold text-sky-300 disabled:opacity-50 transition"
+              className="rounded-xl bg-accent-dim hover:bg-accent/20 px-3 py-2 text-sm font-semibold text-accent disabled:opacity-50 transition"
             >
               Live Sync + Audit
             </button>
@@ -1274,7 +1274,7 @@ export const EbayListingsView: React.FC = () => {
               }
               disabled={busyAction === 'gaps:bulk-missing'}
               aria-label="Bulk fehlende Parameter synchronisieren"
-              className="rounded-xl border border-emerald-600/70 bg-emerald-900/25 px-3 py-2 text-sm font-semibold text-emerald-100 hover:bg-emerald-800/35 disabled:opacity-50"
+              className="rounded-xl border border-success/40 bg-success-dim px-3 py-2 text-sm font-semibold text-success hover:bg-success/20 disabled:opacity-50"
             >
               Bulk fehlende Parameter{' '}
               {selectedListingIdList.length ? `(${selectedListingIdList.length} Auswahl)` : selectedItemId ? '(Auswahl)' : '(alle)'}
@@ -1292,7 +1292,7 @@ export const EbayListingsView: React.FC = () => {
               }
               disabled={busyAction === 'sync:apply'}
               aria-label="Sync Apply ausfuehren"
-              className="rounded-xl border border-emerald-500/60 bg-emerald-900/30 px-3 py-2 text-sm font-semibold text-emerald-100 hover:bg-emerald-800/40 disabled:opacity-50"
+              className="rounded-xl border border-success/40 bg-success-dim px-3 py-2 text-sm font-semibold text-success hover:bg-success/20 disabled:opacity-50"
             >
               Sync Apply{' '}
               {selectedListingIdList.length ? `(${selectedListingIdList.length} Auswahl)` : selectedItemId ? '(Auswahl)' : '(alle ready)'}
@@ -1300,13 +1300,13 @@ export const EbayListingsView: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-white/10 bg-slate-900/35 px-3 py-2">
-          <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">Weitere Aktionen</span>
+        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-app-border bg-app-bg px-3 py-2">
+          <span className="text-xs font-semibold uppercase tracking-wide text-txt-muted">Weitere Aktionen</span>
           <select
             value={advancedAction}
             onChange={(event) => setAdvancedAction(event.target.value as AdvancedActionKey)}
             aria-label="Weitere Aktionen auswaehlen"
-            className="rounded-xl bg-slate-950 border border-white/10 px-2 py-1.5 text-xs text-white min-w-[220px]"
+            className="rounded-xl bg-app-bg border border-app-border px-2 py-1.5 text-xs text-txt-primary min-w-[220px]"
           >
             {ADVANCED_ACTION_OPTIONS.map((option) => (
               <option key={option.id} value={option.id}>
@@ -1319,7 +1319,7 @@ export const EbayListingsView: React.FC = () => {
             onClick={() => void runAction(`advanced:${advancedAction}`, executeAdvancedAction)}
             disabled={Boolean(busyAction && busyAction.startsWith('advanced:'))}
             aria-label="Ausgewaehlte Aktion ausfuehren"
-            className="rounded-xl border border-white/10 bg-slate-800/40 px-3 py-1.5 text-xs text-slate-100 hover:bg-slate-800/40 disabled:opacity-50"
+            className="rounded-xl border border-app-border bg-app-surface px-3 py-1.5 text-xs text-txt-primary hover:bg-app-elevated disabled:opacity-50"
           >
             Ausfuehren
           </button>
@@ -1327,23 +1327,23 @@ export const EbayListingsView: React.FC = () => {
       </div>
 
       {error && (
-        <div role="alert" className="rounded-xl border border-rose-700 bg-rose-900/40 px-4 py-3 text-sm text-rose-50">
+        <div role="alert" className="rounded-xl border border-danger/30 bg-danger-dim px-4 py-3 text-sm text-danger">
           {safeString(error)}
         </div>
       )}
       {notice && (
-        <div role="status" aria-live="polite" className="rounded-xl border border-emerald-700 bg-emerald-900/30 px-4 py-3 text-sm text-emerald-50">
+        <div role="status" aria-live="polite" className="rounded-xl border border-success/30 bg-success-dim px-4 py-3 text-sm text-success">
           {notice}
         </div>
       )}
 
       <div className="grid grid-cols-1 xl:grid-cols-[380px_minmax(0,1fr)] gap-4">
-        <div className="rounded-2xl border border-white/10 bg-slate-800/40 p-3">
+        <div className="rounded-2xl border border-app-border bg-app-surface p-3">
           <div className="flex items-center justify-between mb-2">
-            <p className="text-sm font-semibold text-slate-100">
+            <p className="text-sm font-semibold text-txt-primary">
               Listings ({filteredSortedListings.length}/{listings.length})
             </p>
-            {loadingListings && <p role="status" aria-live="polite" className="text-xs text-slate-400">Lade...</p>}
+            {loadingListings && <p role="status" aria-live="polite" className="text-xs text-txt-muted">Lade...</p>}
           </div>
           <div className="space-y-2 mb-3">
             <input
@@ -1351,14 +1351,14 @@ export const EbayListingsView: React.FC = () => {
               onChange={(event) => setListingListSearch(event.target.value)}
               placeholder="In Liste filtern (Item ID, SKU, Titel)"
               aria-label="Listings in der Liste filtern"
-              className="w-full rounded-xl bg-slate-950 border border-white/10 px-3 py-2 text-xs text-white"
+              className="w-full rounded-xl bg-app-bg border border-app-border px-3 py-2 text-xs text-txt-primary"
             />
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <select
                 value={listingListFilter}
                 onChange={(event) => setListingListFilter(event.target.value as ListingListFilter)}
                 aria-label="Listing-Filter"
-                className="w-full rounded-xl bg-slate-950 border border-white/10 px-2 py-2 text-xs text-white"
+                className="w-full rounded-xl bg-app-bg border border-app-border px-2 py-2 text-xs text-txt-primary"
               >
                 {LISTING_FILTER_OPTIONS.map((option) => (
                   <option key={option.id} value={option.id}>
@@ -1370,7 +1370,7 @@ export const EbayListingsView: React.FC = () => {
                 value={listingSortBy}
                 onChange={(event) => setListingSortBy(event.target.value as ListingSortBy)}
                 aria-label="Listing-Sortierung"
-                className="w-full rounded-xl bg-slate-950 border border-white/10 px-2 py-2 text-xs text-white"
+                className="w-full rounded-xl bg-app-bg border border-app-border px-2 py-2 text-xs text-txt-primary"
               >
                 {LISTING_SORT_OPTIONS.map((option) => (
                   <option key={option.id} value={option.id}>
@@ -1400,7 +1400,7 @@ export const EbayListingsView: React.FC = () => {
                 }
                 disabled={visibleListingIds.length === 0}
                 aria-label={allVisibleListingsSelected ? 'Alle sichtbaren Listings abwaehlen' : 'Alle sichtbaren Listings markieren'}
-                className="rounded-lg border border-white/10 bg-slate-800/40 px-2 py-1 text-[11px] text-slate-100 hover:bg-slate-800/40 disabled:opacity-50"
+                className="rounded-lg border border-app-border bg-app-surface px-2 py-1 text-[11px] text-txt-primary hover:bg-app-elevated disabled:opacity-50"
               >
                 {allVisibleListingsSelected ? 'Sichtbare abwaehlen' : 'Sichtbare markieren'}
               </button>
@@ -1409,11 +1409,11 @@ export const EbayListingsView: React.FC = () => {
                 onClick={() => setSelectedListingIds({})}
                 aria-label="Listing-Auswahl leeren"
                 disabled={selectedListingIdList.length === 0}
-                className="rounded-lg border border-white/10 bg-slate-800/40 px-2 py-1 text-[11px] text-slate-100 hover:bg-slate-800/40 disabled:opacity-50"
+                className="rounded-lg border border-app-border bg-app-surface px-2 py-1 text-[11px] text-txt-primary hover:bg-app-elevated disabled:opacity-50"
               >
                 Auswahl leeren
               </button>
-              <span className="text-[11px] text-slate-300">
+              <span className="text-[11px] text-txt-secondary">
                 Multi-Auswahl: {selectedListingIdList.length}
               </span>
             </div>
@@ -1426,11 +1426,11 @@ export const EbayListingsView: React.FC = () => {
                 <div
                   key={row.itemId}
                   className={`w-full rounded-xl border px-3 py-2 text-left transition ${
-                    active ? 'border-sky-500 bg-sky-500/10' : 'border-white/10 bg-slate-900/40 hover:border-slate-500'
+                    active ? 'border-accent bg-accent-dim' : 'border-app-border bg-app-bg hover:border-app-border'
                   }`}
                 >
                   <div className="mb-2 flex items-center justify-between gap-2">
-                    <label className="inline-flex items-center gap-2 text-[11px] text-slate-300">
+                    <label className="inline-flex items-center gap-2 text-[11px] text-txt-secondary">
                       <input
                         type="checkbox"
                         checked={checked}
@@ -1441,7 +1441,7 @@ export const EbayListingsView: React.FC = () => {
                           }))
                         }
                         aria-label={`Listing ${safeString(row.title) || row.itemId} auswaehlen`}
-                        className="accent-sky-500"
+                        className="accent-accent"
                       />
                       Auswaehlen
                     </label>
@@ -1449,29 +1449,29 @@ export const EbayListingsView: React.FC = () => {
                       type="button"
                       onClick={() => setSelectedItemId(row.itemId)}
                       aria-label={`Details fuer Listing ${safeString(row.title) || row.itemId} anzeigen`}
-                      className="rounded-lg border border-white/10 bg-slate-800/40 px-2 py-0.5 text-[10px] text-slate-100 hover:bg-slate-800/40"
+                      className="rounded-lg border border-app-border bg-app-surface px-2 py-0.5 text-[10px] text-txt-primary hover:bg-app-elevated"
                     >
                       Details
                     </button>
                   </div>
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
-                      <p className="text-xs text-slate-400 truncate">Item ID: {row.itemId}</p>
-                      <p className="text-sm font-semibold text-white truncate">{safeString(row.title) || '-'}</p>
-                      <p className="text-xs text-slate-400 truncate">SKU: {safeString(row.sku) || '-'}</p>
+                      <p className="text-xs text-txt-muted truncate">Item ID: {row.itemId}</p>
+                      <p className="text-sm font-semibold text-txt-primary truncate">{safeString(row.title) || '-'}</p>
+                      <p className="text-xs text-txt-muted truncate">SKU: {safeString(row.sku) || '-'}</p>
                     </div>
                     <span className={`rounded-md border px-2 py-0.5 text-[10px] uppercase tracking-wide ${statusBadgeClass(row.matchStatus)}`}>
                       {safeString(row.matchStatus) || 'n/a'}
                     </span>
                   </div>
                   <div className="mt-2 flex flex-wrap gap-1">
-                    <span className="rounded-lg border border-white/10 px-1.5 py-0.5 text-[10px] text-slate-300">
+                    <span className="rounded-lg border border-app-border px-1.5 py-0.5 text-[10px] text-txt-secondary">
                       Gaps: {row.gapCount ?? 0}
                     </span>
-                    <span className="rounded border border-rose-700/70 px-1.5 py-0.5 text-[10px] text-rose-200">
+                    <span className="rounded border border-danger/40 px-1.5 py-0.5 text-[10px] text-danger">
                       Crit: {row.gapCriticalCount ?? 0}
                     </span>
-                    <span className="rounded border border-sky-700/70 px-1.5 py-0.5 text-[10px] text-sky-200">
+                    <span className="rounded border border-accent/40 px-1.5 py-0.5 text-[10px] text-accent">
                       Ready: {row.gapReadyCount ?? 0}
                     </span>
                   </div>
@@ -1479,59 +1479,59 @@ export const EbayListingsView: React.FC = () => {
               );
             })}
             {!loadingListings && filteredSortedListings.length === 0 && (
-              <p className="rounded-xl border border-white/10 bg-slate-900/40 px-3 py-3 text-sm text-slate-400">
+              <p className="rounded-xl border border-app-border bg-app-bg px-3 py-3 text-sm text-txt-muted">
                 Keine Listings fuer die aktuellen Filter gefunden.
               </p>
             )}
           </div>
         </div>
 
-        <div className="rounded-2xl border border-white/10 bg-slate-800/40 p-5 space-y-4">
+        <div className="rounded-2xl border border-app-border bg-app-surface p-5 space-y-4">
           {!selectedItemId ? (
-            <p className="text-sm text-slate-400">Bitte ein Listing auswaehlen.</p>
+            <p className="text-sm text-txt-muted">Bitte ein Listing auswaehlen.</p>
           ) : loadingDetail ? (
-            <p role="status" aria-live="polite" className="text-sm text-slate-400">Lade Listing-Details...</p>
+            <p role="status" aria-live="polite" className="text-sm text-txt-muted">Lade Listing-Details...</p>
           ) : !detail ? (
-            <p className="text-sm text-slate-400">Keine Detaildaten verfuegbar.</p>
+            <p className="text-sm text-txt-muted">Keine Detaildaten verfuegbar.</p>
           ) : (
             <>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div className="rounded-xl border border-white/10 bg-slate-900/50 p-3 space-y-1">
-                  <p className="text-xs uppercase tracking-wider text-slate-400">Listing</p>
-                  <p className="text-sm text-white font-semibold">{ebayTitle || '-'}</p>
-                  <p className="text-xs text-slate-300">Item ID: {safeString(detail.listing?.itemId) || '-'}</p>
-                  <p className="text-xs text-slate-300">SKU: {safeString(detail.listing?.sku) || '-'}</p>
-                  <p className="text-xs text-slate-300">Kategorie: {ebayCategoryText}</p>
-                  <p className="text-xs text-slate-400">Zuletzt aktualisiert: {formatDateTime(detail.listing?.updatedAt)}</p>
+                <div className="rounded-xl border border-app-border bg-app-bg p-3 space-y-1">
+                  <p className="text-xs uppercase tracking-wider text-txt-muted">Listing</p>
+                  <p className="text-sm text-txt-primary font-semibold">{ebayTitle || '-'}</p>
+                  <p className="text-xs text-txt-secondary">Item ID: {safeString(detail.listing?.itemId) || '-'}</p>
+                  <p className="text-xs text-txt-secondary">SKU: {safeString(detail.listing?.sku) || '-'}</p>
+                  <p className="text-xs text-txt-secondary">Kategorie: {ebayCategoryText}</p>
+                  <p className="text-xs text-txt-muted">Zuletzt aktualisiert: {formatDateTime(detail.listing?.updatedAt)}</p>
                   {ebayViewItemUrl && (
                     <a
                       href={ebayViewItemUrl}
                       target="_blank"
                       rel="noreferrer"
                       aria-label="Listing auf eBay oeffnen (neues Fenster)"
-                      className="inline-flex items-center rounded-md border border-sky-700/70 bg-sky-900/20 px-2 py-1 text-[11px] text-sky-100 hover:bg-sky-800/30"
+                      className="inline-flex items-center rounded-md border border-accent/40 bg-accent-dim px-2 py-1 text-[11px] text-accent hover:bg-accent/20"
                     >
                       Auf eBay oeffnen
                     </a>
                   )}
                 </div>
-                <div className="rounded-xl border border-white/10 bg-slate-900/50 p-3 space-y-1">
-                  <p className="text-xs uppercase tracking-wider text-slate-400">Linking</p>
+                <div className="rounded-xl border border-app-border bg-app-bg p-3 space-y-1">
+                  <p className="text-xs uppercase tracking-wider text-txt-muted">Linking</p>
                   <div className="flex items-center gap-2">
                     <span className={`rounded-md border px-2 py-0.5 text-[10px] uppercase tracking-wide ${statusBadgeClass(detail.link?.status)}`}>
                       {safeString(detail.link?.status) || 'n/a'}
                     </span>
-                    <span className="text-xs text-slate-300">Method: {safeString(detail.link?.method) || '-'}</span>
+                    <span className="text-xs text-txt-secondary">Method: {safeString(detail.link?.method) || '-'}</span>
                   </div>
-                  <p className="text-xs text-slate-300">Product ID: {safeString(detail.link?.productId) || '-'}</p>
-                  <p className="text-xs text-slate-300">Confidence: {toDisplayValue(detail.link?.confidence)}</p>
+                  <p className="text-xs text-txt-secondary">Product ID: {safeString(detail.link?.productId) || '-'}</p>
+                  <p className="text-xs text-txt-secondary">Confidence: {toDisplayValue(detail.link?.confidence)}</p>
                 </div>
               </div>
 
-              <div className="rounded-xl border border-white/10 bg-slate-900/40 p-3 space-y-2">
+              <div className="rounded-xl border border-app-border bg-app-bg p-3 space-y-2">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="text-sm font-semibold text-slate-100">Direktvergleich (eBay vs AvyCloud)</p>
-                  <p className="text-xs text-slate-400">Kernaussagen auf einen Blick</p>
+                  <p className="text-sm font-semibold text-txt-primary">Direktvergleich (eBay vs AvyCloud)</p>
+                  <p className="text-xs text-txt-muted">Kernaussagen auf einen Blick</p>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                   {fieldComparisonRows.map((row) => (
@@ -1539,16 +1539,16 @@ export const EbayListingsView: React.FC = () => {
                       key={row.key}
                       className={`rounded-xl border p-2 ${
                         row.equal
-                          ? 'border-emerald-700/60 bg-emerald-900/15'
+                          ? 'border-success/30 bg-success-dim'
                           : 'border-amber-700/60 bg-amber-900/15'
                       }`}
                     >
                       <div className="mb-1 flex items-center justify-between gap-2">
-                        <p className="text-xs font-semibold text-slate-100">{row.label}</p>
+                        <p className="text-xs font-semibold text-txt-primary">{row.label}</p>
                         <span
                           className={`rounded border px-1.5 py-0.5 text-[10px] uppercase ${
                             row.equal
-                              ? 'border-emerald-600/70 text-emerald-200'
+                              ? 'border-success/40 text-success'
                               : 'border-amber-600/70 text-amber-200'
                           }`}
                         >
@@ -1556,12 +1556,12 @@ export const EbayListingsView: React.FC = () => {
                         </span>
                       </div>
                       <div className="grid grid-cols-1 gap-1 text-[11px]">
-                        <div className="rounded-lg border border-white/10 bg-slate-950/60 px-2 py-1 text-slate-200">
-                          <span className="text-slate-400">eBay: </span>
+                        <div className="rounded-lg border border-app-border bg-app-bg px-2 py-1 text-txt-primary">
+                          <span className="text-txt-muted">eBay: </span>
                           {row.ebayValue}
                         </div>
-                        <div className="rounded-lg border border-white/10 bg-slate-950/60 px-2 py-1 text-slate-200">
-                          <span className="text-slate-400">AvyCloud: </span>
+                        <div className="rounded-lg border border-app-border bg-app-bg px-2 py-1 text-txt-primary">
+                          <span className="text-txt-muted">AvyCloud: </span>
                           {row.avyValue}
                         </div>
                       </div>
@@ -1570,11 +1570,11 @@ export const EbayListingsView: React.FC = () => {
                 </div>
               </div>
 
-              <div className="rounded-xl border border-white/10 bg-slate-900/40 p-3 space-y-2">
+              <div className="rounded-xl border border-app-border bg-app-bg p-3 space-y-2">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="text-sm font-semibold text-slate-100">Item Specifics Vergleich ({specificsComparisonRows.length})</p>
+                  <p className="text-sm font-semibold text-txt-primary">Item Specifics Vergleich ({specificsComparisonRows.length})</p>
                   <div className="flex flex-wrap gap-1.5 text-[10px]">
-                    <span className="rounded border border-rose-700/70 px-1.5 py-0.5 text-rose-200">
+                    <span className="rounded border border-danger/40 px-1.5 py-0.5 text-danger">
                       Fehlt auf eBay: {specificsStats.missing_ebay}
                     </span>
                     <span className="rounded border border-fuchsia-700/70 px-1.5 py-0.5 text-fuchsia-200">
@@ -1586,23 +1586,23 @@ export const EbayListingsView: React.FC = () => {
                     <span className="rounded border border-violet-700/70 px-1.5 py-0.5 text-violet-200">
                       Nicht eBay-Attribut: {specificsStats.not_applicable}
                     </span>
-                    <span className="rounded-lg border border-white/10 px-1.5 py-0.5 text-slate-200">
+                    <span className="rounded-lg border border-app-border px-1.5 py-0.5 text-txt-primary">
                       Nur eBay: {specificsStats.missing_avy}
                     </span>
-                    <span className="rounded border border-emerald-700/70 px-1.5 py-0.5 text-emerald-200">
+                    <span className="rounded border border-success/40 px-1.5 py-0.5 text-success">
                       Gleich: {specificsStats.match}
                     </span>
                   </div>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-2 rounded-xl border border-white/10 bg-slate-950/45 px-2.5 py-2">
-                  <span className="text-[11px] font-semibold text-slate-300">Direktaktion:</span>
+                <div className="flex flex-wrap items-center gap-2 rounded-xl border border-app-border bg-app-bg px-2.5 py-2">
+                  <span className="text-[11px] font-semibold text-txt-secondary">Direktaktion:</span>
                   <button
                     type="button"
                     onClick={() => void runItemSpecificSyncFlow('missing_ebay', 'Fehlende Item Specifics')}
                     disabled={itemSpecificGapModes.missing_ebay.length === 0 || Boolean(busyAction)}
                     aria-label={`Fehlende Item Specifics auf eBay syncen (${itemSpecificGapModes.missing_ebay.length})`}
-                    className="rounded border border-rose-600/70 bg-rose-900/20 px-2 py-1 text-[11px] text-rose-100 hover:bg-rose-800/30 disabled:opacity-50"
+                    className="rounded border border-danger/40 bg-danger-dim px-2 py-1 text-[11px] text-danger hover:bg-danger/20 disabled:opacity-50"
                   >
                     Fehlende auf eBay syncen ({itemSpecificGapModes.missing_ebay.length})
                   </button>
@@ -1620,37 +1620,37 @@ export const EbayListingsView: React.FC = () => {
                     onClick={() => void runItemSpecificSyncFlow('all', 'Alle Item Specifics')}
                     disabled={itemSpecificGapModes.all.length === 0 || Boolean(busyAction)}
                     aria-label={`Alle Item Specifics syncen (${itemSpecificGapModes.all.length})`}
-                    className="rounded border border-emerald-600/70 bg-emerald-900/20 px-2 py-1 text-[11px] text-emerald-100 hover:bg-emerald-800/30 disabled:opacity-50"
+                    className="rounded border border-success/40 bg-success-dim px-2 py-1 text-[11px] text-success hover:bg-success/20 disabled:opacity-50"
                   >
                     Alle Item Specifics syncen ({itemSpecificGapModes.all.length})
                   </button>
                 </div>
 
-                <div className="max-h-[34vh] overflow-auto rounded-xl border border-white/10">
+                <div className="max-h-[34vh] overflow-auto rounded-xl border border-app-border">
                   <table aria-label="Item Specifics Vergleich zwischen eBay und AvyCloud" className="w-full border-collapse text-[11px]">
-                    <thead className="sticky top-0 z-10 bg-slate-900/95 text-slate-300">
+                    <thead className="sticky top-0 z-10 bg-app-surface text-txt-secondary">
                       <tr>
-                        <th scope="col" className="border-b border-white/10 px-2 py-1.5 text-left font-medium">Attribut</th>
-                        <th scope="col" className="border-b border-white/10 px-2 py-1.5 text-left font-medium">Status</th>
-                        <th scope="col" className="border-b border-white/10 px-2 py-1.5 text-left font-medium">eBay</th>
-                        <th scope="col" className="border-b border-white/10 px-2 py-1.5 text-left font-medium">AvyCloud</th>
+                        <th scope="col" className="border-b border-app-border px-2 py-1.5 text-left font-medium">Attribut</th>
+                        <th scope="col" className="border-b border-app-border px-2 py-1.5 text-left font-medium">Status</th>
+                        <th scope="col" className="border-b border-app-border px-2 py-1.5 text-left font-medium">eBay</th>
+                        <th scope="col" className="border-b border-app-border px-2 py-1.5 text-left font-medium">AvyCloud</th>
                       </tr>
                     </thead>
                     <tbody>
                       {specificsComparisonRows.map((row) => (
-                        <tr key={row.keyToken} className="odd:bg-slate-950/25">
-                          <td className="border-b border-slate-800 px-2 py-1.5 text-slate-100">{row.keyLabel}</td>
-                          <td className="border-b border-slate-800 px-2 py-1.5">
+                        <tr key={row.keyToken} className="odd:bg-app-bg/50">
+                          <td className="border-b border-app-border px-2 py-1.5 text-txt-primary">{row.keyLabel}</td>
+                          <td className="border-b border-app-border px-2 py-1.5">
                             <span
                               className={`rounded border px-1.5 py-0.5 text-[10px] uppercase ${
                                 row.status === 'match'
-                                  ? 'border-emerald-600/70 text-emerald-200'
+                                  ? 'border-success/40 text-success'
                                   : row.status === 'missing_ebay'
-                                    ? 'border-rose-600/70 text-rose-200'
+                                    ? 'border-danger/40 text-danger'
                                     : row.status === 'missing_both'
                                       ? 'border-fuchsia-600/70 text-fuchsia-200'
                                     : row.status === 'missing_avy'
-                                      ? 'border-slate-500/70 text-slate-200'
+                                      ? 'border-app-border text-txt-primary'
                                       : row.status === 'not_applicable'
                                         ? 'border-violet-600/70 text-violet-200'
                                       : 'border-amber-600/70 text-amber-200'
@@ -1669,13 +1669,13 @@ export const EbayListingsView: React.FC = () => {
                                     : 'abweichend'}
                             </span>
                           </td>
-                          <td className="border-b border-slate-800 px-2 py-1.5 text-slate-200">{clipText(row.ebayValue, 180)}</td>
-                          <td className="border-b border-slate-800 px-2 py-1.5 text-slate-200">{clipText(row.avyValue, 180)}</td>
+                          <td className="border-b border-app-border px-2 py-1.5 text-txt-primary">{clipText(row.ebayValue, 180)}</td>
+                          <td className="border-b border-app-border px-2 py-1.5 text-txt-primary">{clipText(row.avyValue, 180)}</td>
                         </tr>
                       ))}
                       {specificsComparisonRows.length === 0 && (
                         <tr>
-                          <td className="px-3 py-2 text-slate-400" colSpan={4}>
+                          <td className="px-3 py-2 text-txt-muted" colSpan={4}>
                             Keine Item Specifics zum Vergleichen vorhanden.
                           </td>
                         </tr>
@@ -1685,12 +1685,12 @@ export const EbayListingsView: React.FC = () => {
                 </div>
               </div>
 
-              <div className="rounded-xl border border-white/10 bg-slate-900/40 p-3 space-y-2">
+              <div className="rounded-xl border border-app-border bg-app-bg p-3 space-y-2">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="text-sm font-semibold text-slate-100">
+                  <p className="text-sm font-semibold text-txt-primary">
                     Gaps ({filteredGapList.length}/{gapList.length})
                   </p>
-                  <p className="text-xs text-slate-400">
+                  <p className="text-xs text-txt-muted">
                     Letztes Audit: {formatDateTime(detail.gaps?.updatedAtIso || (detail.gaps?.updatedAt as any))}
                   </p>
                 </div>
@@ -1703,7 +1703,7 @@ export const EbayListingsView: React.FC = () => {
                       setGapVisibleCount(25);
                     }}
                     aria-label="Gap-Status filtern"
-                    className="rounded-xl bg-slate-950 border border-white/10 px-2 py-2 text-xs text-slate-100"
+                    className="rounded-xl bg-app-bg border border-app-border px-2 py-2 text-xs text-txt-primary"
                   >
                     {GAP_STATUS_FILTER_OPTIONS.map((option) => (
                       <option key={option.id} value={option.id}>
@@ -1718,7 +1718,7 @@ export const EbayListingsView: React.FC = () => {
                       setGapVisibleCount(25);
                     }}
                     aria-label="Gap-Schweregrad filtern"
-                    className="rounded-xl bg-slate-950 border border-white/10 px-2 py-2 text-xs text-slate-100"
+                    className="rounded-xl bg-app-bg border border-app-border px-2 py-2 text-xs text-txt-primary"
                   >
                     {GAP_SEVERITY_FILTER_OPTIONS.map((option) => (
                       <option key={option.id} value={option.id}>
@@ -1734,11 +1734,11 @@ export const EbayListingsView: React.FC = () => {
                     }}
                     placeholder="Gap suchen (Feld, Text, Wert)"
                     aria-label="Gaps durchsuchen"
-                    className="rounded-xl bg-slate-950 border border-white/10 px-3 py-2 text-xs text-slate-100"
+                    className="rounded-xl bg-app-bg border border-app-border px-3 py-2 text-xs text-txt-primary"
                   />
                 </div>
 
-                <div className="flex flex-wrap items-center gap-2 rounded-xl border border-white/10 bg-slate-950/45 px-2.5 py-2">
+                <div className="flex flex-wrap items-center gap-2 rounded-xl border border-app-border bg-app-bg px-2.5 py-2">
                   <button
                     type="button"
                     onClick={() =>
@@ -1759,18 +1759,18 @@ export const EbayListingsView: React.FC = () => {
                     }
                     disabled={selectableGapCount === 0}
                     aria-label={allVisibleSelected ? 'Alle sichtbaren Gaps abwaehlen' : 'Alle sichtbaren Gaps markieren'}
-                    className="rounded-lg border border-white/10 bg-slate-800/40 px-2 py-1 text-[11px] text-slate-100 hover:bg-slate-800/40 disabled:opacity-50"
+                    className="rounded-lg border border-app-border bg-app-surface px-2 py-1 text-[11px] text-txt-primary hover:bg-app-elevated disabled:opacity-50"
                   >
                     {allVisibleSelected ? 'Sichtbare abwaehlen' : 'Sichtbare markieren'}
                   </button>
-                  <span className="text-[11px] text-slate-300">
+                  <span className="text-[11px] text-txt-secondary">
                     Ausgewaehlt: {selectedVisibleGapIds.length}/{selectableGapCount}
                   </span>
                   <select
                     value={gapBulkAction}
                     onChange={(event) => setGapBulkAction(event.target.value as GapBulkAction)}
                     aria-label="Gap-Massenaktion auswaehlen"
-                    className="rounded-lg border border-white/10 bg-slate-800/40px-2 py-1 text-[11px] text-slate-100"
+                    className="rounded-lg border border-app-border bg-app-surfacepx-2 py-1 text-[11px] text-txt-primary"
                   >
                     {GAP_BULK_ACTION_OPTIONS.map((option) => (
                       <option key={option.id} value={option.id}>
@@ -1783,7 +1783,7 @@ export const EbayListingsView: React.FC = () => {
                     onClick={() => void executeSelectedGapBulkAction(selectedVisibleGapIds, gapBulkAction)}
                     disabled={!selectedVisibleGapIds.length || Boolean(busyAction)}
                     aria-label="Massenaktion auf ausgewaehlte Gaps ausfuehren"
-                    className="rounded border border-sky-600/70 bg-sky-900/25 px-2 py-1 text-[11px] text-sky-100 hover:bg-sky-800/35 disabled:opacity-50"
+                    className="rounded border border-accent/40 bg-accent-dim px-2 py-1 text-[11px] text-accent hover:bg-accent/20 disabled:opacity-50"
                   >
                     Aktion auf Auswahl ausfuehren
                   </button>
@@ -1792,23 +1792,23 @@ export const EbayListingsView: React.FC = () => {
                     onClick={() => setSelectedGapIds({})}
                     disabled={!selectedVisibleGapIds.length}
                     aria-label="Gap-Auswahl leeren"
-                    className="rounded-lg border border-white/10 bg-slate-800/40 px-2 py-1 text-[11px] text-slate-100 hover:bg-slate-800/40 disabled:opacity-50"
+                    className="rounded-lg border border-app-border bg-app-surface px-2 py-1 text-[11px] text-txt-primary hover:bg-app-elevated disabled:opacity-50"
                   >
                     Auswahl leeren
                   </button>
                 </div>
 
-                <div className="max-h-[42vh] overflow-auto rounded-xl border border-white/10">
+                <div className="max-h-[42vh] overflow-auto rounded-xl border border-app-border">
                   <table aria-label="Gap-Liste fuer das ausgewaehlte Listing" className="w-full border-collapse text-[11px]">
-                    <thead className="sticky top-0 z-10 bg-slate-900/95 text-slate-300">
+                    <thead className="sticky top-0 z-10 bg-app-surface text-txt-secondary">
                       <tr>
-                        <th scope="col" className="border-b border-white/10 px-2 py-1.5 text-left font-medium w-8">#</th>
-                        <th scope="col" className="border-b border-white/10 px-2 py-1.5 text-left font-medium">Feld</th>
-                        <th scope="col" className="border-b border-white/10 px-2 py-1.5 text-left font-medium">Status</th>
-                        <th scope="col" className="border-b border-white/10 px-2 py-1.5 text-left font-medium">Severity</th>
-                        <th scope="col" className="border-b border-white/10 px-2 py-1.5 text-left font-medium">Typ</th>
-                        <th scope="col" className="border-b border-white/10 px-2 py-1.5 text-left font-medium">eBay</th>
-                        <th scope="col" className="border-b border-white/10 px-2 py-1.5 text-left font-medium">AvyCloud</th>
+                        <th scope="col" className="border-b border-app-border px-2 py-1.5 text-left font-medium w-8">#</th>
+                        <th scope="col" className="border-b border-app-border px-2 py-1.5 text-left font-medium">Feld</th>
+                        <th scope="col" className="border-b border-app-border px-2 py-1.5 text-left font-medium">Status</th>
+                        <th scope="col" className="border-b border-app-border px-2 py-1.5 text-left font-medium">Severity</th>
+                        <th scope="col" className="border-b border-app-border px-2 py-1.5 text-left font-medium">Typ</th>
+                        <th scope="col" className="border-b border-app-border px-2 py-1.5 text-left font-medium">eBay</th>
+                        <th scope="col" className="border-b border-app-border px-2 py-1.5 text-left font-medium">AvyCloud</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1816,8 +1816,8 @@ export const EbayListingsView: React.FC = () => {
                         const gapId = safeString(gap.id);
                         const rowKey = gapId || `gap-${index}`;
                         return (
-                          <tr key={rowKey} className="odd:bg-slate-950/25">
-                            <td className="border-b border-slate-800 px-2 py-1.5 align-top">
+                          <tr key={rowKey} className="odd:bg-app-bg/50">
+                            <td className="border-b border-app-border px-2 py-1.5 align-top">
                               {gapId ? (
                                 <input
                                   type="checkbox"
@@ -1829,31 +1829,31 @@ export const EbayListingsView: React.FC = () => {
                                     }))
                                   }
                                   aria-label={`Gap ${safeString(gap.field) || gapId} auswaehlen`}
-                                  className="accent-sky-500"
+                                  className="accent-accent"
                                 />
                               ) : (
-                                <span className="text-slate-500">-</span>
+                                <span className="text-txt-muted">-</span>
                               )}
                             </td>
-                            <td className="border-b border-slate-800 px-2 py-1.5 align-top text-slate-100">
+                            <td className="border-b border-app-border px-2 py-1.5 align-top text-txt-primary">
                               <p className="font-semibold">{safeString(gap.field) || '-'}</p>
-                              {safeString(gap.message) && <p className="text-[10px] text-slate-400 mt-0.5">{clipText(gap.message, 140)}</p>}
+                              {safeString(gap.message) && <p className="text-[10px] text-txt-muted mt-0.5">{clipText(gap.message, 140)}</p>}
                             </td>
-                            <td className="border-b border-slate-800 px-2 py-1.5 align-top">
+                            <td className="border-b border-app-border px-2 py-1.5 align-top">
                               <span className={`rounded border px-1.5 py-0.5 uppercase ${statusBadgeClass(gap.status)}`}>
                                 {safeString(gap.status) || '-'}
                               </span>
                             </td>
-                            <td className="border-b border-slate-800 px-2 py-1.5 align-top">
+                            <td className="border-b border-app-border px-2 py-1.5 align-top">
                               <span className={`rounded border px-1.5 py-0.5 uppercase ${statusBadgeClass(gap.severity)}`}>
                                 {safeString(gap.severity) || '-'}
                               </span>
                             </td>
-                            <td className="border-b border-slate-800 px-2 py-1.5 align-top text-slate-300">{safeString(gap.type) || '-'}</td>
-                            <td className="border-b border-slate-800 px-2 py-1.5 align-top text-slate-200">
+                            <td className="border-b border-app-border px-2 py-1.5 align-top text-txt-secondary">{safeString(gap.type) || '-'}</td>
+                            <td className="border-b border-app-border px-2 py-1.5 align-top text-txt-primary">
                               {clipText(toDisplayValue(gap.listingValue), 120)}
                             </td>
-                            <td className="border-b border-slate-800 px-2 py-1.5 align-top text-slate-200">
+                            <td className="border-b border-app-border px-2 py-1.5 align-top text-txt-primary">
                               {clipText(toDisplayValue(gap.avyValue), 120)}
                             </td>
                           </tr>
@@ -1861,7 +1861,7 @@ export const EbayListingsView: React.FC = () => {
                       })}
                       {filteredGapList.length === 0 && (
                         <tr>
-                          <td className="px-3 py-2 text-slate-400" colSpan={7}>
+                          <td className="px-3 py-2 text-txt-muted" colSpan={7}>
                             Keine Gaps fuer diese Filter gefunden.
                           </td>
                         </tr>
@@ -1875,7 +1875,7 @@ export const EbayListingsView: React.FC = () => {
                     type="button"
                     onClick={() => setGapVisibleCount((prev) => prev + 25)}
                     aria-label={`${hiddenGapCount} weitere Gaps laden`}
-                    className="w-full rounded-lg border border-white/10 bg-slate-800/40 px-3 py-2 text-xs text-slate-100 hover:bg-slate-800/40"
+                    className="w-full rounded-lg border border-app-border bg-app-surface px-3 py-2 text-xs text-txt-primary hover:bg-app-elevated"
                   >
                     Mehr laden ({hiddenGapCount} weitere Gaps)
                   </button>
@@ -1887,17 +1887,17 @@ export const EbayListingsView: React.FC = () => {
       </div>
 
       {(dryRunResult || applyResult) && (
-        <div className="rounded-2xl border border-white/10 bg-slate-800/40 p-5 space-y-3">
+        <div className="rounded-2xl border border-app-border bg-app-surface p-5 space-y-3">
           {dryRunResult && (
             <div className="space-y-2">
-              <p className="text-sm font-semibold text-slate-100">Dry-Run Ergebnis</p>
-              <p className="text-xs text-slate-300">
+              <p className="text-sm font-semibold text-txt-primary">Dry-Run Ergebnis</p>
+              <p className="text-xs text-txt-secondary">
                 Total: {dryRunResult.summary.total} | Ready: {dryRunResult.summary.ready} | Blocked:{' '}
                 {dryRunResult.summary.blocked}
               </p>
               <div className="max-h-48 overflow-auto space-y-1">
                 {dryRunResult.items.map((item) => (
-                  <div key={item.itemId} className="rounded-lg border border-white/10 bg-slate-800/40 px-2 py-1 text-xs text-slate-200">
+                  <div key={item.itemId} className="rounded-lg border border-app-border bg-app-surface px-2 py-1 text-xs text-txt-primary">
                     {item.itemId} | {item.canApply ? 'ready' : 'blocked'} | {item.blockers.join('; ') || '-'}
                   </div>
                 ))}
@@ -1906,14 +1906,14 @@ export const EbayListingsView: React.FC = () => {
           )}
           {applyResult && (
             <div className="space-y-2">
-              <p className="text-sm font-semibold text-slate-100">Apply Ergebnis</p>
-              <p className="text-xs text-slate-300">
+              <p className="text-sm font-semibold text-txt-primary">Apply Ergebnis</p>
+              <p className="text-xs text-txt-secondary">
                 Total: {applyResult.summary.total} | Success: {applyResult.summary.success} | Failed:{' '}
                 {applyResult.summary.failed} | Skipped: {applyResult.summary.skipped}
               </p>
               <div className="max-h-48 overflow-auto space-y-1">
                 {applyResult.results.map((item) => (
-                  <div key={item.itemId} className="rounded-lg border border-white/10 bg-slate-800/40 px-2 py-1 text-xs text-slate-200">
+                  <div key={item.itemId} className="rounded-lg border border-app-border bg-app-surface px-2 py-1 text-xs text-txt-primary">
                     {item.itemId} | {item.ok ? 'ok' : item.skipped ? 'skipped' : 'failed'} | {safeString(item.message) || '-'}
                   </div>
                 ))}

@@ -1,0 +1,217 @@
+<svg width="1440" height="1024" viewBox="0 0 1440 1024" xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    text { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+  </style>
+</defs>
+
+<!-- Page Background -->
+<rect width="1440" height="1024" fill="#1a1d23"/>
+
+<!-- ===== SIDEBAR ===== -->
+<rect x="0" y="0" width="220" height="1024" fill="#15171c"/>
+<line x1="220" y1="0" x2="220" y2="1024" stroke="#2a2d35" stroke-width="1"/>
+
+<!-- Logo -->
+<rect x="16" y="16" width="36" height="36" rx="10" fill="#7c75ff"/>
+<text x="58" y="40" fill="#ebeef5" font-size="16" font-weight="700">AvyCloud</text>
+
+<!-- Nav Section Label -->
+<text x="16" y="80" fill="#7a8090" font-size="10" font-weight="600" letter-spacing="0.5">NAVIGATION</text>
+
+<!-- Nav: Dashboard (INACTIVE) -->
+<g>
+  <circle cx="24" cy="98" r="4" fill="none" stroke="#8a8f9e" stroke-width="1.5"/>
+  <path d="M24 94 L28 94 L28 105 L20 105 L20 99" fill="none" stroke="#8a8f9e" stroke-width="1.5"/>
+  <text x="44" y="103" fill="#8a8f9e" font-size="12" font-weight="500">Dashboard</text>
+</g>
+
+<!-- Nav: Identify (INACTIVE) -->
+<g>
+  <path d="M24 138 C20 138 20 142 20 142 L20 152 C20 152 20 156 24 156 L28 156 C32 156 32 152 32 152 L32 142 C32 142 32 138 28 138 Z" fill="none" stroke="#8a8f9e" stroke-width="1.5"/>
+  <line x1="24" y1="145" x2="28" y2="145" stroke="#8a8f9e" stroke-width="1.5"/>
+  <text x="44" y="153" fill="#8a8f9e" font-size="12" font-weight="500">Identify</text>
+</g>
+
+<!-- Nav: Inventory (INACTIVE) -->
+<g>
+  <rect x="20" y="170" width="8" height="3" fill="#8a8f9e"/>
+  <rect x="20" y="176" width="8" height="3" fill="#8a8f9e"/>
+  <rect x="20" y="182" width="8" height="3" fill="#8a8f9e"/>
+  <rect x="28" y="170" width="2" height="2" fill="#8a8f9e"/>
+  <text x="44" y="185" fill="#8a8f9e" font-size="12" font-weight="500">Inventory</text>
+  <!-- Badge -->
+  <rect x="152" y="172" width="20" height="16" rx="4" fill="#f87171"/>
+  <text x="157" y="183" fill="#fff" font-size="10" font-weight="600">18</text>
+</g>
+
+<!-- Nav: Products (ACTIVE) -->
+<rect x="8" y="194" width="204" height="36" rx="8" fill="rgba(124,117,255,0.10)"/>
+<g>
+  <rect x="20" y="202" width="8" height="10" rx="1" fill="none" stroke="#7c75ff" stroke-width="1.5"/>
+  <rect x="22" y="204" width="4" height="6" fill="#7c75ff"/>
+  <text x="44" y="217" fill="#7c75ff" font-size="12" font-weight="600">Products</text>
+  <!-- Badge -->
+  <rect x="152" y="204" width="28" height="16" rx="4" fill="#7c75ff"/>
+  <text x="158" y="215" fill="#fff" font-size="10" font-weight="600">784</text>
+</g>
+
+<!-- Nav: Categories (INACTIVE) -->
+<g>
+  <rect x="20" y="234" width="8" height="8" rx="1" fill="none" stroke="#8a8f9e" stroke-width="1.5"/>
+  <rect x="28" y="234" width="8" height="8" rx="1" fill="none" stroke="#8a8f9e" stroke-width="1.5"/>
+  <rect x="20" y="242" width="8" height="8" rx="1" fill="none" stroke="#8a8f9e" stroke-width="1.5"/>
+  <rect x="28" y="242" width="8" height="8" rx="1" fill="none" stroke="#8a8f9e" stroke-width="1.5"/>
+  <text x="44" y="249" fill="#8a8f9e" font-size="12" font-weight="500">Categories</text>
+</g>
+
+<!-- Nav: Warehouse (INACTIVE) -->
+<g>
+  <rect x="20" y="266" width="12" height="10" rx="1" fill="none" stroke="#8a8f9e" stroke-width="1.5"/>
+  <line x1="24" y1="266" x2="24" y2="276" stroke="#8a8f9e" stroke-width="1.5"/>
+  <line x1="28" y1="266" x2="28" y2="276" stroke="#8a8f9e" stroke-width="1.5"/>
+  <text x="44" y="281" fill="#8a8f9e" font-size="12" font-weight="500">Warehouse</text>
+</g>
+
+<!-- Nav: Admin (INACTIVE) -->
+<g>
+  <circle cx="24" cy="298" r="3" fill="none" stroke="#8a8f9e" stroke-width="1.5"/>
+  <path d="M20 308 L28 308 L28 306 C28 303.8 26.2 302 24 302 C21.8 302 20 303.8 20 306 Z" fill="none" stroke="#8a8f9e" stroke-width="1.5"/>
+  <text x="44" y="313" fill="#8a8f9e" font-size="12" font-weight="500">Admin</text>
+</g>
+
+<!-- Dark/Light toggle -->
+<rect x="16" y="944" width="188" height="28" rx="8" fill="#282c34"/>
+<rect x="16" y="944" width="94" height="28" rx="8" fill="#7c75ff"/>
+<text x="38" y="963" fill="#fff" font-size="10" font-weight="600">Dark</text>
+<text x="132" y="963" fill="#7a8090" font-size="10" font-weight="500">Light</text>
+
+<!-- User Avatar -->
+<circle cx="32" cy="992" r="16" fill="#7c75ff"/>
+<text x="25" y="997" fill="#fff" font-size="11" font-weight="700">OK</text>
+<text x="56" y="988" fill="#ebeef5" font-size="12" font-weight="600">Oguzhan K.</text>
+<text x="56" y="1004" fill="#7a8090" font-size="10">Administrator</text>
+
+<!-- ===== TOP BAR ===== -->
+<rect x="220" y="0" width="1220" height="56" fill="#21242b" border-bottom="1px solid #2a2d35"/>
+<line x1="220" y1="56" x2="1440" y2="56" stroke="#2a2d35" stroke-width="1"/>
+
+<!-- Breadcrumb -->
+<text x="240" y="30" fill="#7a8090" font-size="12">AvyCloud</text>
+<text x="264" y="30" fill="#7a8090" font-size="12">›</text>
+<text x="280" y="30" fill="#7a8090" font-size="12">Products</text>
+<text x="372" y="30" fill="#7a8090" font-size="12">›</text>
+<text x="388" y="30" fill="#ebeef5" font-size="12" font-weight="500">Samsung Galaxy S24 Ultra</text>
+
+<!-- Search Bar -->
+<rect x="920" y="12" width="200" height="32" rx="8" fill="#282c34" stroke="#2a2d35" stroke-width="1"/>
+<text x="935" y="32" fill="#7a8090" font-size="12">Search products...</text>
+
+<!-- Top Bar Icons -->
+<circle cx="1340" cy="28" r="14" fill="#282c34"/>
+<text x="1336" y="32" fill="#ebeef5" font-size="14">👤</text>
+
+<!-- ===== MAIN CONTENT AREA ===== -->
+
+<!-- Left Panel (65%) -->
+<g>
+  <!-- Product Image -->
+  <rect x="240" y="80" width="200" height="200" rx="8" fill="#21242b" stroke="#2a2d35" stroke-width="1"/>
+  <text x="335" y="175" fill="#7a8090" font-size="24" text-anchor="middle">📱</text>
+
+  <!-- Product Info -->
+  <text x="240" y="305" fill="#ebeef5" font-size="20" font-weight="700">Samsung Galaxy S24 Ultra</text>
+  <text x="240" y="325" fill="#7a8090" font-size="12">256GB Titanium Black</text>
+  <text x="240" y="345" fill="#7a8090" font-size="11">Brand: Samsung</text>
+  <text x="240" y="361" fill="#7a8090" font-size="11">SKU: SKU-20834</text>
+
+  <!-- Status Badges -->
+  <rect x="240" y="375" width="70" height="20" rx="4" fill="rgba(52,211,153,0.15)"/>
+  <text x="250" y="389" fill="#34d399" font-size="10" font-weight="600">Optimiert</text>
+
+  <rect x="320" y="375" width="50" height="20" rx="4" fill="rgba(124,117,255,0.2)"/>
+  <text x="328" y="389" fill="#818cf8" font-size="9" font-weight="600">eBay</text>
+
+  <rect x="380" y="375" width="60" height="20" rx="4" fill="rgba(124,117,255,0.2)"/>
+  <text x="387" y="389" fill="#818cf8" font-size="9" font-weight="600">Kaufland</text>
+
+  <!-- Action Buttons -->
+  <rect x="240" y="410" width="100" height="36" rx="8" fill="#282c34" stroke="#2a2d35" stroke-width="1"/>
+  <text x="255" y="432" fill="#ebeef5" font-size="12" font-weight="600">Bearbeiten</text>
+
+  <rect x="355" y="410" width="100" height="36" rx="8" fill="#282c34" stroke="#2a2d35" stroke-width="1"/>
+  <text x="365" y="432" fill="#ebeef5" font-size="12" font-weight="600">Verbessern</text>
+
+  <rect x="470" y="410" width="100" height="36" rx="8" fill="#7c75ff"/>
+  <text x="485" y="432" fill="#fff" font-size="12" font-weight="600">Sync</text>
+
+  <!-- Tab Bar -->
+  <line x1="240" y1="460" x2="600" y2="460" stroke="#2a2d35" stroke-width="1"/>
+
+  <text x="240" y="480" fill="#7c75ff" font-size="12" font-weight="600">Übersicht</text>
+  <line x1="240" y1="485" x2="310" y2="485" stroke="#7c75ff" stroke-width="2"/>
+
+  <text x="330" y="480" fill="#7a8090" font-size="12" font-weight="500">Bilder</text>
+  <text x="390" y="480" fill="#7a8090" font-size="12" font-weight="500">Preise</text>
+  <text x="445" y="480" fill="#7a8090" font-size="12" font-weight="500">Wettbewerber</text>
+  <text x="560" y="480" fill="#7a8090" font-size="12" font-weight="500">Attribute</text>
+
+  <!-- Identification Section -->
+  <text x="240" y="530" fill="#ebeef5" font-size="13" font-weight="600">Identifikation</text>
+  <rect x="240" y="540" width="350" height="32" rx="6" fill="#282c34" stroke="#2a2d35" stroke-width="1"/>
+  <text x="255" y="562" fill="#7a8090" font-size="11">Name: Samsung Galaxy S24 Ultra</text>
+
+  <rect x="240" y="585" width="350" height="32" rx="6" fill="#282c34" stroke="#2a2d35" stroke-width="1"/>
+  <text x="255" y="607" fill="#7a8090" font-size="11">Brand: Samsung</text>
+
+  <rect x="240" y="630" width="350" height="32" rx="6" fill="#282c34" stroke="#2a2d35" stroke-width="1"/>
+  <text x="255" y="652" fill="#7a8090" font-size="11">SKU: SKU-20834</text>
+
+  <!-- Stock Section -->
+  <text x="240" y="705" fill="#ebeef5" font-size="13" font-weight="600">Bestand</text>
+
+  <text x="240" y="730" fill="#7a8090" font-size="11" font-weight="600">Menge</text>
+  <rect x="240" y="738" width="100" height="32" rx="6" fill="#282c34" stroke="#2a2d35" stroke-width="1"/>
+  <text x="250" y="760" fill="#ebeef5" font-size="12" font-weight="600">17</text>
+
+  <text x="360" y="730" fill="#7a8090" font-size="11" font-weight="600">Verfügbar</text>
+  <rect x="360" y="738" width="100" height="32" rx="6" fill="#282c34" stroke="#2a2d35" stroke-width="1"/>
+  <text x="370" y="760" fill="#34d399" font-size="12" font-weight="600">14 / 17</text>
+
+  <!-- Category Section -->
+  <text x="240" y="810" fill="#ebeef5" font-size="13" font-weight="600">Kategorie</text>
+  <text x="240" y="835" fill="#7a8090" font-size="11">Elektronik › Smartphones › Flaggschiffe</text>
+</g>
+
+<!-- Right Sidebar (35%) — Gemini Chat -->
+<g>
+  <rect x="920" y="80" width="360" height="560" rx="12" fill="#21242b" border="#2a2d35"/>
+
+  <!-- Header -->
+  <rect x="920" y="80" width="360" height="50" rx="12" fill="#282c34"/>
+  <text x="940" y="110" fill="#ebeef5" font-size="14" font-weight="600">Gemini Chat</text>
+
+  <!-- Chat Messages -->
+  <!-- AI Message -->
+  <rect x="935" y="150" width="300" height="60" rx="8" fill="rgba(124,117,255,0.15)"/>
+  <text x="945" y="170" fill="#7c75ff" font-size="11" font-weight="600">Gemini Assistant</text>
+  <text x="945" y="190" fill="#ebeef5" font-size="10">Basierend auf aktuellen Daten sollte die Preisempfehlung €849,99 betragen.</text>
+  <text x="945" y="205" fill="#ebeef5" font-size="10">Das entspricht dem Marktdurchschnitt.</text>
+
+  <!-- User Message -->
+  <rect x="945" y="225" width="280" height="45" rx="8" fill="rgba(124,117,255,0.25)"/>
+  <text x="960" y="250" fill="#ebeef5" font-size="10">Wie ist die beste Preisempfehlung basierend</text>
+  <text x="960" y="265" fill="#ebeef5" font-size="10">auf der Konkurrenz?</text>
+
+  <!-- AI Message 2 -->
+  <rect x="935" y="285" width="300" height="50" rx="8" fill="rgba(124,117,255,0.15)"/>
+  <text x="945" y="305" fill="#7c75ff" font-size="11" font-weight="600">Gemini Assistant</text>
+  <text x="945" y="325" fill="#ebeef5" font-size="10">Empfehlung: €849,99 — optimal positioniert.</text>
+
+  <!-- Input Field -->
+  <rect x="930" y="590" width="340" height="36" rx="8" fill="#282c34" stroke="#2a2d35" stroke-width="1"/>
+  <text x="945" y="612" fill="#7a8090" font-size="11">Frage zu diesem Produkt...</text>
+</g>
+
+</svg>

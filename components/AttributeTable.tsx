@@ -176,9 +176,9 @@ const AttributeTable: React.FC<AttributeTableProps> = ({ attributes, isEditing =
   if (displayEntries.length === 0) {
     return (
       <div>
-        <p className="text-slate-400">No specific attributes available.</p>
+        <p className="text-txt-muted">No specific attributes available.</p>
         {isEditing && (
-          <button onClick={addRow} className="mt-3 px-3 py-1.5 text-sm bg-slate-600 text-white rounded-md">+ Add Attribute</button>
+          <button onClick={addRow} className="mt-3 px-3 py-1.5 text-sm bg-app-border text-txt-primary rounded-md">+ Add Attribute</button>
         )}
       </div>
     );
@@ -187,11 +187,11 @@ const AttributeTable: React.FC<AttributeTableProps> = ({ attributes, isEditing =
   return (
     <div className="overflow-x-auto">
       <table className="w-full">
-        <tbody className="divide-y divide-slate-700">
+        <tbody className="divide-y divide-app-border">
           {displayEntries.map(([key, value]) => (
             <tr key={key} className={highlightSet.has(String(key || '').toLowerCase()) ? 'bg-amber-500/10' : ''}>
               <td
-                className={`py-3 pr-4 font-medium w-1/3 ${highlightSet.has(String(key || '').toLowerCase()) ? 'text-amber-200' : 'text-slate-400'
+                className={`py-3 pr-4 font-medium w-1/3 ${highlightSet.has(String(key || '').toLowerCase()) ? 'text-amber-200' : 'text-txt-muted'
                   }`}
               >
                 {isEditing ? (
@@ -205,24 +205,24 @@ const AttributeTable: React.FC<AttributeTableProps> = ({ attributes, isEditing =
                       }
                       renameKey(key, nextKey);
                     }}
-                    className={`w-full bg-slate-700 border rounded px-2 py-1 text-slate-200 ${highlightSet.has(String(key || '').toLowerCase()) ? 'border-amber-400' : 'border-white/10'
+                    className={`w-full bg-app-elevated border rounded px-2 py-1 text-txt-secondary ${highlightSet.has(String(key || '').toLowerCase()) ? 'border-amber-400' : 'border-app-border'
                       }`}
                   />
                 ) : formatKeyLabel(key)}
               </td>
-              <td className="py-3 pl-4 text-slate-200">
+              <td className="py-3 pl-4 text-txt-secondary">
                 {isEditing ? (
                   <input
                     defaultValue={formatValue(value)}
                     onBlur={(e) => updateAttr(key, e.target.value)}
-                    className={`w-full bg-slate-700 border rounded px-2 py-1 text-slate-200 ${highlightSet.has(String(key || '').toLowerCase()) ? 'border-amber-400' : 'border-white/10'
+                    className={`w-full bg-app-elevated border rounded px-2 py-1 text-txt-secondary ${highlightSet.has(String(key || '').toLowerCase()) ? 'border-amber-400' : 'border-app-border'
                       }`}
                   />
                 ) : formatValue(value)}
               </td>
               {isEditing && (
                 <td className="py-3 pl-4 text-right w-24">
-                  <button onClick={() => removeKey(key)} className="px-2 py-1 text-xs bg-red-600 text-white rounded-md">Remove</button>
+                  <button onClick={() => removeKey(key)} className="px-2 py-1 text-xs bg-danger text-txt-primary rounded-md">Remove</button>
                 </td>
               )}
             </tr>
@@ -231,7 +231,7 @@ const AttributeTable: React.FC<AttributeTableProps> = ({ attributes, isEditing =
       </table>
       {isEditing && (
         <div className="mt-3">
-          <button onClick={addRow} className="px-3 py-1.5 text-sm bg-slate-600 text-white rounded-md">+ Add Attribute</button>
+          <button onClick={addRow} className="px-3 py-1.5 text-sm bg-app-border text-txt-primary rounded-md">+ Add Attribute</button>
         </div>
       )}
     </div>

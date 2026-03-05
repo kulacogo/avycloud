@@ -49,7 +49,7 @@ const MobileTabBar: React.FC<MobileTabBarProps> = ({ currentView, onNavigate, th
     return tabs.filter((tab) => (tab.id === 'operations' ? canOps : true));
   }, [hasPermission]);
   return (
-    <nav className="bg-slate-900/95 backdrop-blur-lg border-t border-slate-800 px-4 py-2 flex justify-around gap-2 pb-4 safe-area-bottom shadow-2xl shadow-black/40">
+    <nav className="bg-app-sidebar/95 backdrop-blur-lg border-t border-app-border px-4 py-2 flex justify-around gap-2 pb-4 safe-area-bottom shadow-app">
       {visibleTabs.map((tab) => {
         const active = isActive(currentView, tab.id);
         const iconSrc = theme === 'dark' ? tabIcons[tab.id].dark : tabIcons[tab.id].light;
@@ -58,8 +58,8 @@ const MobileTabBar: React.FC<MobileTabBarProps> = ({ currentView, onNavigate, th
             key={tab.id}
             type="button"
             onClick={() => onNavigate(tab.id)}
-            className={`flex flex-col items-center justify-center flex-1 rounded-[8px] px-3 py-2 text-xs font-semibold transition ${
-              active ? 'bg-sky-600/20 text-sky-300' : 'text-slate-200 bg-slate-800/40'
+            className={`flex flex-col items-center justify-center flex-1 rounded-md px-3 py-2 text-xs font-semibold transition ${
+              active ? 'bg-accent-dim text-accent' : 'text-txt-secondary bg-app-elevated/40'
             }`}
             aria-current={active ? 'page' : undefined}
             aria-label={t(tab.labelKey)}

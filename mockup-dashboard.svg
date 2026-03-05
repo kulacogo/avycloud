@@ -1,0 +1,371 @@
+<svg viewBox="0 0 1440 1024" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <style>
+      text { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+      .sidebar-label { font-size: 10px; font-weight: 500; letter-spacing: 0.5px; fill: #7a8090; text-transform: uppercase; }
+      .nav-item-active { font-size: 14px; font-weight: 600; fill: #7c75ff; }
+      .nav-item-inactive { font-size: 14px; font-weight: 500; fill: #8a8f9e; }
+      .breadcrumb { font-size: 13px; fill: #8a8f9e; }
+      .page-title { font-size: 28px; font-weight: 700; fill: #ebeef5; }
+      .page-subtitle { font-size: 13px; fill: #7a8090; }
+      .stat-label { font-size: 11px; font-weight: 600; letter-spacing: 0.3px; fill: #7a8090; text-transform: uppercase; }
+      .stat-value { font-size: 32px; font-weight: 700; fill: #ebeef5; }
+      .stat-change { font-size: 12px; font-weight: 500; }
+      .card-title { font-size: 15px; font-weight: 600; fill: #ebeef5; }
+      .activity-text { font-size: 13px; fill: #ebeef5; }
+      .activity-time { font-size: 12px; fill: #7a8090; }
+      .table-header { font-size: 12px; font-weight: 600; letter-spacing: 0.3px; fill: #7a8090; text-transform: uppercase; }
+      .table-cell { font-size: 13px; fill: #ebeef5; }
+      .table-secondary { font-size: 12px; fill: #7a8090; }
+      .badge { font-size: 12px; font-weight: 600; }
+    </style>
+  </defs>
+
+  <!-- Page Background -->
+  <rect width="1440" height="1024" fill="#1a1d23"/>
+
+  <!-- SIDEBAR (220px wide) -->
+  <rect width="220" height="1024" fill="#15171c"/>
+
+  <!-- Sidebar Border -->
+  <line x1="220" y1="0" x2="220" y2="1024" stroke="#2a2d35" stroke-width="1"/>
+
+  <!-- Sidebar Logo/Brand -->
+  <circle cx="30" cy="30" r="12" fill="#7c75ff"/>
+  <text x="50" y="35" font-size="18" font-weight="700" fill="#ebeef5">AvyCloud</text>
+
+  <!-- Navigation Section Label -->
+  <text x="20" y="90" class="sidebar-label">Navigation</text>
+
+  <!-- Nav Item 1: Dashboard (ACTIVE) -->
+  <rect x="12" y="105" width="196" height="36" rx="6" fill="rgba(124, 117, 255, 0.1)"/>
+  <g>
+    <circle cx="30" cy="123" r="8" fill="none" stroke="#7c75ff" stroke-width="2"/>
+    <circle cx="30" cy="123" r="3" fill="#7c75ff"/>
+  </g>
+  <text x="50" y="128" class="nav-item-active">Dashboard</text>
+
+  <!-- Nav Item 2: Erfassen -->
+  <g>
+    <rect x="30" y="156" width="12" height="12" rx="2" fill="none" stroke="#8a8f9e" stroke-width="1.5"/>
+    <line x1="33" y1="159" x2="39" y2="165" stroke="#8a8f9e" stroke-width="1.5"/>
+  </g>
+  <text x="50" y="167" class="nav-item-inactive">Erfassen</text>
+
+  <!-- Nav Item 3: Produkte -->
+  <g>
+    <path d="M 30 176 L 36 172 L 36 182 Q 36 185 33 185 Q 30 185 30 182" fill="none" stroke="#8a8f9e" stroke-width="1.5"/>
+    <path d="M 36 176 L 42 172 L 42 182 Q 42 185 39 185 Q 36 185 36 182" fill="none" stroke="#8a8f9e" stroke-width="1.5"/>
+  </g>
+  <text x="50" y="197" class="nav-item-inactive">Produkte</text>
+
+  <!-- Nav Item 4: Bestand -->
+  <g>
+    <rect x="30" y="208" width="12" height="12" rx="1" fill="none" stroke="#8a8f9e" stroke-width="1.5"/>
+    <line x1="32" y1="210" x2="40" y2="218" stroke="#8a8f9e" stroke-width="1"/>
+  </g>
+  <text x="50" y="224" class="nav-item-inactive">Bestand</text>
+  <rect x="164" y="212" width="28" height="18" rx="4" fill="#fbbf24"/>
+  <text x="178" y="223" text-anchor="middle" font-size="12" font-weight="700" fill="#1a1d23" class="badge">18</text>
+
+  <!-- Nav Item 5: Lager -->
+  <g>
+    <rect x="30" y="242" width="12" height="12" fill="none" stroke="#8a8f9e" stroke-width="1.5"/>
+    <line x1="33" y1="244" x2="33" y2="250" stroke="#8a8f9e" stroke-width="1"/>
+    <line x1="30" y1="248" x2="42" y2="248" stroke="#8a8f9e" stroke-width="1"/>
+  </g>
+  <text x="50" y="254" class="nav-item-inactive">Lager</text>
+
+  <!-- Nav Item 6: Kategorien -->
+  <g>
+    <path d="M 30 268 L 30 280 M 36 268 L 36 280 M 42 268 L 42 280" stroke="#8a8f9e" stroke-width="1.5" fill="none"/>
+    <line x1="28" y1="274" x2="44" y2="274" stroke="#8a8f9e" stroke-width="1.5"/>
+  </g>
+  <text x="50" y="281" class="nav-item-inactive">Kategorien</text>
+
+  <!-- Nav Item 7: Admin -->
+  <g>
+    <circle cx="36" cy="302" r="3" fill="none" stroke="#8a8f9e" stroke-width="1.5"/>
+    <path d="M 31 307 Q 31 305 36 305 Q 41 305 41 307" fill="none" stroke="#8a8f9e" stroke-width="1.5"/>
+  </g>
+  <text x="50" y="311" class="nav-item-inactive">Admin</text>
+
+  <!-- Sidebar Bottom Separator -->
+  <line x1="12" y1="900" x2="208" y2="900" stroke="#2a2d35" stroke-width="1"/>
+
+  <!-- Dark/Light Toggle -->
+  <g>
+    <circle cx="30" cy="944" r="6" fill="none" stroke="#8a8f9e" stroke-width="1.5"/>
+    <line x1="30" y1="938" x2="30" y2="932" stroke="#8a8f9e" stroke-width="1.5"/>
+    <circle cx="44" cy="944" r="6" fill="none" stroke="#8a8f9e" stroke-width="1.5"/>
+    <line x1="44" y1="950" x2="44" y2="956" stroke="#8a8f9e" stroke-width="1.5"/>
+  </g>
+
+  <!-- User Avatar -->
+  <circle cx="30" cy="990" r="16" fill="#7c75ff"/>
+  <text x="30" y="995" text-anchor="middle" font-size="12" font-weight="700" fill="#ffffff">OK</text>
+
+  <!-- User Info -->
+  <text x="54" y="986" font-size="13" font-weight="600" fill="#ebeef5">Oguzhan K.</text>
+  <text x="54" y="1002" font-size="11" fill="#7a8090">Administrator</text>
+
+  <!-- TOP BAR (y=0, x=220, height=56) -->
+  <rect x="220" y="0" width="1220" height="56" fill="#15171c"/>
+  <line x1="220" y1="56" x2="1440" y2="56" stroke="#2a2d35" stroke-width="1"/>
+
+  <!-- Breadcrumb -->
+  <text x="244" y="32" class="breadcrumb">AvyCloud</text>
+  <text x="308" y="32" class="breadcrumb">›</text>
+  <text x="324" y="32" font-size="13" font-weight="600" fill="#ebeef5">Dashboard</text>
+
+  <!-- Search Bar -->
+  <rect x="820" y="12" width="280" height="32" rx="6" fill="#21242b" stroke="#2a2d35" stroke-width="1"/>
+  <text x="835" y="35" font-size="13" fill="#7a8090">🔍 Suchen...</text>
+
+  <!-- Status Indicators -->
+  <g>
+    <!-- Sync Status -->
+    <circle cx="1190" cy="24" r="4" fill="#34d399"/>
+    <text x="1202" y="29" font-size="12" fill="#ebeef5">Sync aktiv</text>
+
+    <!-- Pricing Runner Status -->
+    <circle cx="1310" cy="24" r="4" fill="#7c75ff"/>
+    <text x="1322" y="29" font-size="12" fill="#ebeef5">Pricing-Runner</text>
+  </g>
+
+  <!-- MAIN CONTENT AREA (x=244, y=68) -->
+
+  <!-- Page Header Section -->
+  <text x="244" y="104" class="page-title">Dashboard</text>
+  <text x="244" y="128" class="page-subtitle">Letztes Update: vor 2 Minuten</text>
+
+  <!-- Header Controls Row -->
+  <rect x="1120" y="108" width="120" height="32" rx="6" fill="#21242b" stroke="#2a2d35" stroke-width="1"/>
+  <text x="1135" y="130" font-size="12" fill="#7a8090">📅 Zeitraum</text>
+
+  <g>
+    <!-- Refresh Button -->
+    <circle cx="1330" cy="124" r="14" fill="none" stroke="#2a2d35" stroke-width="1"/>
+    <path d="M 1324 124 Q 1324 120 1328 120 Q 1332 120 1332 124" fill="none" stroke="#8a8f9e" stroke-width="1.5" stroke-linecap="round"/>
+  </g>
+
+  <!-- KPI STAT CARDS (Grid 4 cols, y=156) -->
+  <!-- Card 1: Produkte Gesamt -->
+  <g>
+    <rect x="244" y="156" width="265" height="110" rx="8" fill="#21242b" stroke="#2a2d35" stroke-width="1"/>
+    <text x="264" y="180" class="stat-label">Produkte Gesamt</text>
+    <text x="264" y="222" class="stat-value">784</text>
+    <text x="264" y="245" class="stat-change" fill="#34d399">↑ 12 diese Woche</text>
+  </g>
+
+  <!-- Card 2: Aktive Listings -->
+  <g>
+    <rect x="537" y="156" width="265" height="110" rx="8" fill="#21242b" stroke="#2a2d35" stroke-width="1"/>
+    <text x="557" y="180" class="stat-label">Aktive Listings</text>
+    <text x="557" y="222" class="stat-value">892</text>
+    <text x="557" y="245" class="stat-change" fill="#34d399">↑ 94% Sync-Rate</text>
+  </g>
+
+  <!-- Card 3: Umsatz 30 Tage -->
+  <g>
+    <rect x="830" y="156" width="265" height="110" rx="8" fill="#21242b" stroke="#2a2d35" stroke-width="1"/>
+    <text x="850" y="180" class="stat-label">Umsatz (30 Tage)</text>
+    <text x="850" y="222" class="stat-value">€12.847</text>
+    <text x="850" y="245" class="stat-change" fill="#34d399">↑ 8,3% vs. Vormonat</text>
+  </g>
+
+  <!-- Card 4: Offene Aufträge -->
+  <g>
+    <rect x="1123" y="156" width="253" height="110" rx="8" fill="#21242b" stroke="#2a2d35" stroke-width="1"/>
+    <text x="1143" y="180" class="stat-label">Offene Aufträge</text>
+    <text x="1143" y="222" class="stat-value">23</text>
+    <text x="1143" y="245" class="stat-change" fill="#fbbf24">↑ 3 seit gestern</text>
+  </g>
+
+  <!-- CHARTS AND ACTIVITY SECTION (y=290) -->
+
+  <!-- Left Card: Umsatz & Bestellungen Chart -->
+  <g>
+    <rect x="244" y="290" width="750" height="280" rx="8" fill="#21242b" stroke="#2a2d35" stroke-width="1"/>
+
+    <!-- Card Header -->
+    <text x="264" y="318" class="card-title">Umsatz &amp; Bestellungen</text>
+
+    <!-- Time Pills -->
+    <rect x="264" y="332" width="44" height="28" rx="6" fill="rgba(124, 117, 255, 0.15)" stroke="#7c75ff" stroke-width="1"/>
+    <text x="286" y="352" text-anchor="middle" font-size="12" font-weight="600" fill="#7c75ff">7 Tage</text>
+
+    <rect x="320" y="332" width="44" height="28" rx="6" fill="#21242b" stroke="#2a2d35" stroke-width="1"/>
+    <text x="342" y="352" text-anchor="middle" font-size="12" fill="#8a8f9e">30 Tage</text>
+
+    <rect x="376" y="332" width="44" height="28" rx="6" fill="#21242b" stroke="#2a2d35" stroke-width="1"/>
+    <text x="398" y="352" text-anchor="middle" font-size="12" fill="#8a8f9e">90 Tage</text>
+
+    <!-- Chart Legend -->
+    <circle cx="620" cy="346" r="3" fill="#7c75ff"/>
+    <text x="632" y="350" font-size="12" fill="#8a8f9e">Umsatz</text>
+
+    <circle cx="720" cy="346" r="3" fill="#34d399"/>
+    <text x="732" y="350" font-size="12" fill="#8a8f9e">Bestellungen</text>
+
+    <!-- Chart Area -->
+    <rect x="264" y="376" width="710" height="180" fill="rgba(124, 117, 255, 0.05)" rx="4"/>
+
+    <!-- Grid Lines -->
+    <line x1="264" y1="406" x2="974" y2="406" stroke="#2a2d35" stroke-width="1" opacity="0.5"/>
+    <line x1="264" y1="436" x2="974" y2="436" stroke="#2a2d35" stroke-width="1" opacity="0.5"/>
+    <line x1="264" y1="466" x2="974" y2="466" stroke="#2a2d35" stroke-width="1" opacity="0.5"/>
+    <line x1="264" y1="496" x2="974" y2="496" stroke="#2a2d35" stroke-width="1" opacity="0.5"/>
+
+    <!-- Revenue Line (Purple) -->
+    <polyline points="285,480 350,420 415,445 480,380 545,410 610,360 675,390 740,320 805,350 870,300 935,340 974,280"
+              fill="none" stroke="#7c75ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+
+    <!-- Orders Line (Green) -->
+    <polyline points="285,510 350,460 415,485 480,430 545,455 610,410 675,435 740,375 805,410 870,360 935,395 974,340"
+              fill="none" stroke="#34d399" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+
+    <!-- Y-Axis Labels -->
+    <text x="250" y="411" font-size="11" fill="#7a8090" text-anchor="end">€50k</text>
+    <text x="250" y="441" font-size="11" fill="#7a8090" text-anchor="end">€37k</text>
+    <text x="250" y="471" font-size="11" fill="#7a8090" text-anchor="end">€25k</text>
+    <text x="250" y="501" font-size="11" fill="#7a8090" text-anchor="end">€12k</text>
+
+    <!-- X-Axis Labels -->
+    <text x="285" y="575" font-size="11" fill="#7a8090" text-anchor="middle">Mo</text>
+    <text x="415" y="575" font-size="11" fill="#7a8090" text-anchor="middle">Mi</text>
+    <text x="545" y="575" font-size="11" fill="#7a8090" text-anchor="middle">Fr</text>
+    <text x="675" y="575" font-size="11" fill="#7a8090" text-anchor="middle">So</text>
+    <text x="805" y="575" font-size="11" fill="#7a8090" text-anchor="middle">Di</text>
+    <text x="935" y="575" font-size="11" fill="#7a8090" text-anchor="middle">Do</text>
+  </g>
+
+  <!-- Right Card: Letzte Aktivitäten -->
+  <g>
+    <rect x="1022" y="290" width="354" height="280" rx="8" fill="#21242b" stroke="#2a2d35" stroke-width="1"/>
+
+    <!-- Card Header -->
+    <text x="1042" y="318" class="card-title">Letzte Aktivitäten</text>
+
+    <!-- Activity Item 1 -->
+    <circle cx="1042" cy="366" r="4" fill="#7c75ff"/>
+    <text x="1060" y="371" class="activity-text">Produkt "Sony WH-1000" erfasst</text>
+    <text x="1060" y="388" class="activity-time">vor 12 Minuten</text>
+
+    <!-- Activity Item 2 -->
+    <circle cx="1042" cy="426" r="4" fill="#34d399"/>
+    <text x="1060" y="431" class="activity-text">Bestand von "Canon EOS R6" angepasst</text>
+    <text x="1060" y="448" class="activity-time">vor 34 Minuten</text>
+
+    <!-- Activity Item 3 -->
+    <circle cx="1042" cy="486" r="4" fill="#fbbf24"/>
+    <text x="1060" y="491" class="activity-text">eBay Sync für 24 Produkte abgeschlossen</text>
+    <text x="1060" y="508" class="activity-time">vor 1 Stunde</text>
+
+    <!-- View More Link -->
+    <text x="1042" y="545" font-size="12" fill="#7c75ff" style="cursor: pointer; text-decoration: underline;">Alle Aktivitäten anzeigen →</text>
+  </g>
+
+  <!-- PRODUCT TABLE SECTION (y=596) -->
+  <g>
+    <rect x="244" y="596" width="1132" height="380" rx="8" fill="#21242b" stroke="#2a2d35" stroke-width="1"/>
+
+    <!-- Table Header -->
+    <text x="264" y="624" class="card-title">Produkte</text>
+
+    <!-- Search Bar -->
+    <rect x="264" y="636" width="200" height="32" rx="6" fill="#15171c" stroke="#2a2d35" stroke-width="1"/>
+    <text x="279" y="659" font-size="12" fill="#7a8090">🔍 Produkt-Suche</text>
+
+    <!-- Filter Button -->
+    <rect x="480" y="636" width="80" height="32" rx="6" fill="#15171c" stroke="#2a2d35" stroke-width="1"/>
+    <text x="520" y="659" text-anchor="middle" font-size="12" fill="#8a8f9e">⚙️ Filter</text>
+
+    <!-- Columns Button -->
+    <rect x="576" y="636" width="100" height="32" rx="6" fill="#15171c" stroke="#2a2d35" stroke-width="1"/>
+    <text x="626" y="659" text-anchor="middle" font-size="12" fill="#8a8f9e">📋 Spalten</text>
+
+    <!-- Table Header Row -->
+    <line x1="264" y1="684" x2="1360" y2="684" stroke="#2a2d35" stroke-width="1"/>
+
+    <text x="264" y="703" class="table-header">Produkt</text>
+    <text x="640" y="703" class="table-header">Status</text>
+    <text x="800" y="703" class="table-header">Preis</text>
+    <text x="920" y="703" class="table-header">Bestand</text>
+    <text x="1080" y="703" class="table-header">Marktplätze</text>
+
+    <!-- Table Row 1 -->
+    <line x1="264" y1="724" x2="1360" y2="724" stroke="#2a2d35" stroke-width="1" opacity="0.3"/>
+    <text x="264" y="741" class="table-cell">Sony WH-1000XM5 Kopfhörer</text>
+    <text x="640" y="741" font-size="12" fill="#34d399" font-weight="600">● Aktiv</text>
+    <text x="800" y="741" class="table-cell">€349,99</text>
+    <text x="920" y="741" class="table-cell">247</text>
+    <g>
+      <rect x="1080" y="729" width="18" height="18" rx="2" fill="rgba(124, 117, 255, 0.2)" stroke="#7c75ff" stroke-width="0.5"/>
+      <text x="1089" y="741" text-anchor="middle" font-size="10" fill="#7c75ff">e</text>
+      <rect x="1108" y="729" width="18" height="18" rx="2" fill="rgba(52, 211, 153, 0.2)" stroke="#34d399" stroke-width="0.5"/>
+      <text x="1117" y="741" text-anchor="middle" font-size="10" fill="#34d399">k</text>
+    </g>
+
+    <!-- Table Row 2 -->
+    <line x1="264" y1="764" x2="1360" y2="764" stroke="#2a2d35" stroke-width="1" opacity="0.3"/>
+    <text x="264" y="781" class="table-cell">Canon EOS R6 Spiegelreflex</text>
+    <text x="640" y="781" font-size="12" fill="#34d399" font-weight="600">● Aktiv</text>
+    <text x="800" y="781" class="table-cell">€2.549,00</text>
+    <text x="920" y="781" class="table-cell">12</text>
+    <g>
+      <rect x="1080" y="769" width="18" height="18" rx="2" fill="rgba(124, 117, 255, 0.2)" stroke="#7c75ff" stroke-width="0.5"/>
+      <text x="1089" y="781" text-anchor="middle" font-size="10" fill="#7c75ff">e</text>
+      <rect x="1108" y="769" width="18" height="18" rx="2" fill="rgba(52, 211, 153, 0.2)" stroke="#34d399" stroke-width="0.5"/>
+      <text x="1117" y="781" text-anchor="middle" font-size="10" fill="#34d399">k</text>
+      <rect x="1136" y="769" width="18" height="18" rx="2" fill="rgba(251, 191, 36, 0.2)" stroke="#fbbf24" stroke-width="0.5"/>
+      <text x="1145" y="781" text-anchor="middle" font-size="10" fill="#fbbf24">b</text>
+    </g>
+
+    <!-- Table Row 3 -->
+    <line x1="264" y1="804" x2="1360" y2="804" stroke="#2a2d35" stroke-width="1" opacity="0.3"/>
+    <text x="264" y="821" class="table-cell">Apple AirPods Pro (2. Generation)</text>
+    <text x="640" y="821" font-size="12" fill="#34d399" font-weight="600">● Aktiv</text>
+    <text x="800" y="821" class="table-cell">€249,00</text>
+    <text x="920" y="821" class="table-cell">184</text>
+    <g>
+      <rect x="1080" y="809" width="18" height="18" rx="2" fill="rgba(124, 117, 255, 0.2)" stroke="#7c75ff" stroke-width="0.5"/>
+      <text x="1089" y="821" text-anchor="middle" font-size="10" fill="#7c75ff">e</text>
+      <rect x="1108" y="809" width="18" height="18" rx="2" fill="rgba(52, 211, 153, 0.2)" stroke="#34d399" stroke-width="0.5"/>
+      <text x="1117" y="821" text-anchor="middle" font-size="10" fill="#34d399">k</text>
+    </g>
+
+    <!-- Table Row 4 -->
+    <line x1="264" y1="844" x2="1360" y2="844" stroke="#2a2d35" stroke-width="1" opacity="0.3"/>
+    <text x="264" y="861" class="table-cell">Samsung Galaxy S24 Ultra 256GB</text>
+    <text x="640" y="861" font-size="12" fill="#fbbf24" font-weight="600">● Entwurf</text>
+    <text x="800" y="861" class="table-cell">€1.299,99</text>
+    <text x="920" y="861" class="table-secondary">0</text>
+    <g>
+      <rect x="1080" y="849" width="18" height="18" rx="2" fill="rgba(52, 211, 153, 0.2)" stroke="#34d399" stroke-width="0.5"/>
+      <text x="1089" y="861" text-anchor="middle" font-size="10" fill="#34d399">k</text>
+    </g>
+
+    <!-- Pagination -->
+    <text x="264" y="925" font-size="12" fill="#7a8090">Zeige 1–25 von 784 Produkten</text>
+
+    <!-- Pagination Controls -->
+    <g>
+      <rect x="1080" y="905" width="30" height="28" rx="4" fill="rgba(124, 117, 255, 0.1)" stroke="#7c75ff" stroke-width="1"/>
+      <text x="1095" y="925" text-anchor="middle" font-size="14" fill="#7c75ff">←</text>
+
+      <rect x="1118" y="905" width="30" height="28" rx="4" fill="#15171c" stroke="#2a2d35" stroke-width="1"/>
+      <text x="1133" y="925" text-anchor="middle" font-size="14" fill="#8a8f9e">→</text>
+    </g>
+
+    <!-- Legend: eBay (e), Kaufland (k), BaseLinker (b) -->
+    <text x="264" y="968" font-size="10" fill="#7a8090">Legende:</text>
+    <circle cx="340" cy="963" r="2.5" fill="#7c75ff"/>
+    <text x="350" y="968" font-size="10" fill="#7a8090">eBay</text>
+    <circle cx="420" cy="963" r="2.5" fill="#34d399"/>
+    <text x="430" y="968" font-size="10" fill="#7a8090">Kaufland</text>
+    <circle cx="540" cy="963" r="2.5" fill="#fbbf24"/>
+    <text x="550" y="968" font-size="10" fill="#7a8090">BaseLinker</text>
+  </g>
+
+</svg>

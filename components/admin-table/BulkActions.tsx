@@ -12,16 +12,16 @@ const ActionButton: React.FC<{
 }> = ({ icon, label, onClick, disabled, tone = "secondary", ariaLabel }) => {
   const toneClasses = {
     primary:
-      "bg-sky-600/90 text-white hover:bg-sky-500 border border-sky-500/30",
+      "bg-accent/90 text-white hover:bg-accent border border-accent/30",
     secondary:
-      "bg-slate-700/80 text-slate-100 hover:bg-slate-600 border border-slate-600/40",
+      "bg-app-elevated/80 text-txt-primary hover:bg-app-border border border-app-border/40",
     danger:
-      "bg-rose-600/90 text-white hover:bg-rose-500 border border-rose-500/30",
+      "bg-danger/90 text-white hover:bg-danger border border-danger/30",
     accent:
       "bg-violet-600/90 text-white hover:bg-violet-500 border border-violet-500/30",
     ebay: "bg-amber-600/90 text-white hover:bg-amber-500 border border-amber-500/30",
     kaufland:
-      "bg-rose-600/90 text-white hover:bg-rose-500 border border-rose-500/30",
+      "bg-danger/90 text-white hover:bg-danger border border-danger/30",
   };
   return (
     <button
@@ -78,7 +78,7 @@ interface BulkActionsProps {
 }
 
 const menuItemClass =
-  "w-full text-left px-3 py-2 text-sm text-slate-100 hover:bg-slate-800/60 rounded-xl transition";
+  "w-full text-left px-3 py-2 text-sm text-txt-primary hover:bg-app-elevated/60 rounded-xl transition";
 
 const BulkActions: React.FC<BulkActionsProps> = ({
   selectedIds,
@@ -134,10 +134,10 @@ const BulkActions: React.FC<BulkActionsProps> = ({
   );
 
   return (
-    <div className="rounded-xl border border-indigo-500/20 bg-indigo-500/5 p-3 space-y-2">
+    <div className="rounded-xl border border-accent/20 bg-accent/5 p-3 space-y-2">
       <div className="flex items-center justify-between">
-        <div className="inline-flex items-center gap-2 text-sm font-semibold text-slate-100">
-          <span className="inline-flex items-center justify-center min-w-[24px] h-6 rounded-md bg-indigo-500/20 px-1.5 text-xs font-bold text-indigo-300">
+        <div className="inline-flex items-center gap-2 text-sm font-semibold text-txt-primary">
+          <span className="inline-flex items-center justify-center min-w-[24px] h-6 rounded-md bg-accent-dim px-1.5 text-xs font-bold text-accent">
             {selectedIds.size}
           </span>
           ausgew\u00E4hlt
@@ -145,7 +145,7 @@ const BulkActions: React.FC<BulkActionsProps> = ({
         <button
           type="button"
           onClick={() => setSelectedIds(new Set())}
-          className="text-xs text-slate-400 hover:text-slate-200 transition"
+          className="text-xs text-txt-muted hover:text-txt-secondary transition"
         >
           Auswahl aufheben
         </button>
@@ -160,7 +160,7 @@ const BulkActions: React.FC<BulkActionsProps> = ({
           disabled={selectedIds.size === 0 || syncInProgress}
           tone="primary"
         />
-        <div className="w-px h-5 bg-slate-700 mx-1" />
+        <div className="w-px h-5 bg-app-elevated mx-1" />
         {/* eBay */}
         <ActionButton
           icon={globeIcon}
@@ -182,7 +182,7 @@ const BulkActions: React.FC<BulkActionsProps> = ({
             tone="ebay"
           />
         )}
-        <div className="w-px h-5 bg-slate-700 mx-1" />
+        <div className="w-px h-5 bg-app-elevated mx-1" />
         {/* Kaufland */}
         <ActionButton
           icon={globeIcon}
@@ -208,7 +208,7 @@ const BulkActions: React.FC<BulkActionsProps> = ({
         )}
         {onImproveSelected ? (
           <>
-            <div className="w-px h-5 bg-slate-700 mx-1" />
+            <div className="w-px h-5 bg-app-elevated mx-1" />
             <ActionButton
               icon={<OperationsIcon className="w-3.5 h-3.5" />}
               label="KI Verbessern"
@@ -238,7 +238,7 @@ const BulkActions: React.FC<BulkActionsProps> = ({
           </>
         ) : null}
 
-        <div className="w-px h-5 bg-slate-700 mx-1" />
+        <div className="w-px h-5 bg-app-elevated mx-1" />
         <ActionButton
           icon={<TrashIcon className="w-3.5 h-3.5" />}
           label="L\u00F6schen"
@@ -248,10 +248,10 @@ const BulkActions: React.FC<BulkActionsProps> = ({
           tone="danger"
         />
 
-        <div className="w-px h-5 bg-slate-700 mx-1" />
+        <div className="w-px h-5 bg-app-elevated mx-1" />
 
         <details className="relative">
-          <summary className="cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden inline-flex items-center gap-1 rounded-lg bg-slate-700/80 border border-slate-600/40 px-3 py-1.5 text-xs font-semibold text-slate-100 hover:bg-slate-600 transition shadow-sm">
+          <summary className="cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden inline-flex items-center gap-1 rounded-lg bg-app-elevated/80 border border-app-border/40 px-3 py-1.5 text-xs font-semibold text-txt-primary hover:bg-app-border transition shadow-sm">
             <svg
               className="w-3.5 h-3.5"
               fill="none"
@@ -265,8 +265,8 @@ const BulkActions: React.FC<BulkActionsProps> = ({
             </svg>
             Mehr
           </summary>
-          <div className="absolute right-0 mt-2 w-[300px] max-w-[90vw] rounded-xl border border-white/10 bg-slate-950 p-1.5 shadow-xl shadow-black/40 z-30">
-            <div className="px-2.5 pt-1.5 pb-1 text-[10px] uppercase tracking-wider font-semibold text-slate-500">
+          <div className="absolute right-0 mt-2 w-[300px] max-w-[90vw] rounded-xl border border-app-border bg-app-bg p-1.5 shadow-xl shadow-black/40 z-30">
+            <div className="px-2.5 pt-1.5 pb-1 text-[10px] uppercase tracking-wider font-semibold text-txt-muted">
               Daten-Fix
             </div>
             <button
@@ -302,7 +302,7 @@ const BulkActions: React.FC<BulkActionsProps> = ({
               K\u2011Typ enrich
             </button>
 
-            <div className="my-1.5 border-t border-slate-800/60" />
+            <div className="my-1.5 border-t border-app-border/60" />
             <div className="px-2.5 pt-1 pb-1 text-[10px] uppercase tracking-wider font-semibold text-amber-500/80">
               eBay
             </div>
@@ -327,8 +327,8 @@ const BulkActions: React.FC<BulkActionsProps> = ({
                 : "Listings synchronisieren"}
             </button>
 
-            <div className="my-1.5 border-t border-slate-800/60" />
-            <div className="px-2.5 pt-1 pb-1 text-[10px] uppercase tracking-wider font-semibold text-rose-400/80">
+            <div className="my-1.5 border-t border-app-border/60" />
+            <div className="px-2.5 pt-1 pb-1 text-[10px] uppercase tracking-wider font-semibold text-danger/80">
               Kaufland
             </div>
             <button
@@ -362,8 +362,8 @@ const BulkActions: React.FC<BulkActionsProps> = ({
               Listings aktualisieren
             </button>
 
-            <div className="my-1.5 border-t border-slate-800/60" />
-            <div className="px-2.5 pt-1 pb-1 text-[10px] uppercase tracking-wider font-semibold text-slate-500">
+            <div className="my-1.5 border-t border-app-border/60" />
+            <div className="px-2.5 pt-1 pb-1 text-[10px] uppercase tracking-wider font-semibold text-txt-muted">
               Sonstiges
             </div>
             <button
@@ -378,7 +378,7 @@ const BulkActions: React.FC<BulkActionsProps> = ({
               type="button"
               onClick={handleBatchDelete}
               disabled={selectedIds.size === 0}
-              className={`${menuItemClass} text-rose-300 hover:bg-rose-900/30`}
+              className={`${menuItemClass} text-danger hover:bg-danger-dim`}
             >
               Auswahl l\u00F6schen
             </button>

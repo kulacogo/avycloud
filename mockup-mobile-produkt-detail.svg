@@ -1,0 +1,279 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg viewBox="0 0 390 844" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+      * {
+        font-family: 'Inter', -apple-system, sans-serif;
+      }
+
+      .page-bg { fill: #1a1d23; }
+      .surface { fill: #21242b; }
+      .elevated { fill: #282c34; }
+      .border { stroke: #2a2d35; }
+
+      .text-primary { fill: #ebeef5; font-size: 16px; font-weight: 400; }
+      .text-secondary { fill: #7a8090; font-size: 13px; font-weight: 400; }
+      .text-muted { fill: #8a8f9e; font-size: 11px; font-weight: 400; }
+      .text-small { fill: #7a8090; font-size: 12px; font-weight: 400; }
+
+      .accent-text { fill: #7c75ff; }
+      .success-text { fill: #34d399; }
+      .warning-text { fill: #fbbf24; }
+      .danger-text { fill: #f87171; }
+      .info-text { fill: #60a5fa; }
+
+      .title-16 { font-size: 16px; font-weight: 600; fill: #ebeef5; }
+      .title-20 { font-size: 20px; font-weight: 700; fill: #ebeef5; }
+      .title-28 { font-size: 28px; font-weight: 700; fill: #7c75ff; }
+      .label-14 { font-size: 14px; font-weight: 500; fill: #ebeef5; }
+      .label-12 { font-size: 12px; font-weight: 500; }
+      .label-11 { font-size: 11px; font-weight: 500; }
+
+      .nav-item { font-size: 12px; font-weight: 500; }
+    </style>
+  </defs>
+
+  <!-- Page Background -->
+  <rect class="page-bg" width="390" height="844"/>
+
+  <!-- ===== STATUS BAR (y=0-44) ===== -->
+  <rect class="surface" width="390" height="44"/>
+  <line class="border" x1="0" y1="44" x2="390" y2="44" stroke-width="1"/>
+
+  <!-- Time -->
+  <text x="16" y="28" class="label-12" fill="#ebeef5">9:41</text>
+
+  <!-- Signal Icons (right side) -->
+  <g transform="translate(334, 16)">
+    <!-- WiFi icon -->
+    <path d="M 0 8 Q 3 5 6 5 Q 9 5 12 8" stroke="#ebeef5" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+    <path d="M 1 4 Q 6 0 11 4" stroke="#ebeef5" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+    <circle cx="6" cy="11" r="1" fill="#ebeef5"/>
+  </g>
+
+  <!-- Signal bars -->
+  <g transform="translate(354, 14)">
+    <rect x="0" y="8" width="2" height="8" fill="#ebeef5"/>
+    <rect x="4" y="5" width="2" height="11" fill="#ebeef5"/>
+    <rect x="8" y="2" width="2" height="14" fill="#ebeef5"/>
+  </g>
+
+  <!-- Battery icon -->
+  <g transform="translate(369, 16)">
+    <rect width="16" height="10" rx="2" fill="none" stroke="#ebeef5" stroke-width="1"/>
+    <rect width="2" height="4" x="16" y="3" fill="#ebeef5"/>
+    <rect width="14" height="8" x="1" y="1" fill="#34d399"/>
+  </g>
+
+  <!-- ===== HEADER (y=44-88) ===== -->
+  <rect class="surface" y="44" width="390" height="44"/>
+  <line class="border" x1="0" y1="88" x2="390" y2="88" stroke-width="1"/>
+
+  <!-- Back Arrow -->
+  <text x="16" y="70" class="label-14 accent-text">←</text>
+
+  <!-- Title -->
+  <text x="195" y="70" class="label-14" text-anchor="middle">Produkt</text>
+
+  <!-- More Menu -->
+  <g transform="translate(368, 66)">
+    <circle cx="0" cy="0" r="2" fill="#ebeef5"/>
+    <circle cx="0" cy="6" r="2" fill="#ebeef5"/>
+    <circle cx="0" cy="12" r="2" fill="#ebeef5"/>
+  </g>
+
+  <!-- ===== PRODUCT HERO (y=96-200) ===== -->
+  <!-- Image placeholder -->
+  <rect x="16" y="96" width="358" height="120" rx="12" class="elevated"/>
+  <rect x="16" y="96" width="358" height="120" rx="12" fill="none" class="border" stroke-width="1"/>
+
+  <!-- Placeholder image text -->
+  <text x="195" y="156" class="text-secondary" text-anchor="middle" font-size="14">Product Image</text>
+
+  <!-- Carousel dots -->
+  <g transform="translate(195, 220)" text-anchor="middle">
+    <circle cx="-8" cy="0" r="4" class="elevated"/>
+    <circle cx="-8" cy="0" r="4" fill="none" class="border" stroke-width="1"/>
+
+    <circle cx="0" cy="0" r="4" fill="#7c75ff"/>
+
+    <circle cx="8" cy="0" r="4" class="elevated"/>
+    <circle cx="8" cy="0" r="4" fill="none" class="border" stroke-width="1"/>
+  </g>
+
+  <!-- ===== PRODUCT INFO (y=212-310) ===== -->
+  <!-- Product Name -->
+  <text x="16" y="246" class="title-20">Samsung Galaxy S24 Ultra</text>
+
+  <!-- Subtitle -->
+  <text x="16" y="267" class="text-secondary">256GB Titanium Black</text>
+
+  <!-- Badges Row -->
+  <g transform="translate(16, 282)">
+    <!-- "Optimiert" badge (success) -->
+    <rect width="72" height="22" rx="6" fill="#34d399" opacity="0.15"/>
+    <text x="36" y="15" class="label-12 success-text" text-anchor="middle">Optimiert</text>
+
+    <!-- "eBay" badge (green) -->
+    <rect x="80" width="52" height="22" rx="6" fill="#34d399" opacity="0.15"/>
+    <text x="106" y="15" class="label-12 success-text" text-anchor="middle">eBay</text>
+
+    <!-- "KL" badge (blue) -->
+    <rect x="140" width="48" height="22" rx="6" fill="#60a5fa" opacity="0.15"/>
+    <text x="164" y="15" class="label-12 info-text" text-anchor="middle">KL</text>
+  </g>
+
+  <!-- Price -->
+  <text x="16" y="330" class="title-20">€1.249,00</text>
+
+  <!-- SKU & EAN -->
+  <text x="16" y="349" class="text-muted">SKU: SM-S928B/DS · EAN: 8806096371248</text>
+
+  <!-- ===== ACTION BUTTONS (y=318-358) ===== -->
+  <!-- "Bearbeiten" button -->
+  <rect x="16" y="358" width="106" height="36" rx="6" class="elevated"/>
+  <rect x="16" y="358" width="106" height="36" rx="6" fill="none" class="border" stroke-width="1"/>
+  <text x="69" y="381" class="label-12 accent-text" text-anchor="middle">Bearbeiten</text>
+
+  <!-- "KI Verbessern" button -->
+  <rect x="130" y="358" width="130" height="36" rx="6" fill="#7c75ff"/>
+  <text x="195" y="381" class="label-12" fill="#1a1d23" text-anchor="middle">KI Verbessern</text>
+
+  <!-- "Sync" button -->
+  <rect x="268" y="358" width="106" height="36" rx="6" class="elevated"/>
+  <rect x="268" y="358" width="106" height="36" rx="6" fill="none" class="border" stroke-width="1"/>
+  <text x="321" y="381" class="label-12 accent-text" text-anchor="middle">Sync</text>
+
+  <!-- ===== TAB BAR (y=366-398) ===== -->
+  <rect class="surface" y="398" width="390" height="40"/>
+  <line class="border" x1="0" y1="398" x2="390" y2="398" stroke-width="1"/>
+
+  <!-- Tab items -->
+  <!-- Übersicht (ACTIVE) -->
+  <text x="48" y="424" class="nav-item accent-text" text-anchor="middle">Übersicht</text>
+  <line x1="16" y1="432" x2="80" y2="432" stroke="#7c75ff" stroke-width="2"/>
+
+  <!-- Bilder -->
+  <text x="145" y="424" class="nav-item text-muted" text-anchor="middle">Bilder</text>
+
+  <!-- Preise -->
+  <text x="235" y="424" class="nav-item text-muted" text-anchor="middle">Preise</text>
+
+  <!-- Attribute -->
+  <text x="328" y="424" class="nav-item text-muted" text-anchor="middle">Attribute</text>
+
+  <!-- ===== CONTENT SECTION (y=406-740) ===== -->
+  <!-- Scrollable content area indicator -->
+  <g id="content">
+    <!-- Section: Identifikation (y=406) -->
+    <rect x="16" y="438" width="358" height="164" rx="10" class="elevated"/>
+    <rect x="16" y="438" width="358" height="164" rx="10" fill="none" class="border" stroke-width="1"/>
+
+    <text x="24" y="462" class="label-14">Identifikation</text>
+
+    <!-- Brand -->
+    <text x="24" y="490" class="text-secondary">Brand</text>
+    <text x="24" y="508" class="text-primary">Samsung</text>
+
+    <!-- Modell -->
+    <text x="24" y="535" class="text-secondary">Modell</text>
+    <text x="24" y="553" class="text-primary">Galaxy S24 Ultra</text>
+
+    <!-- Kategorie -->
+    <text x="24" y="580" class="text-secondary">Kategorie</text>
+    <text x="24" y="598" class="text-primary" font-size="13">Elektronik › Smartphones</text>
+
+    <!-- Section: Bestand & Lager (y=612) -->
+    <rect x="16" y="612" width="358" height="234" rx="10" class="elevated"/>
+    <rect x="16" y="612" width="358" height="234" rx="10" fill="none" class="border" stroke-width="1"/>
+
+    <text x="24" y="636" class="label-14">Bestand & Lager</text>
+
+    <!-- Large stock number -->
+    <text x="195" y="686" class="title-28" text-anchor="middle">17</text>
+    <text x="195" y="704" class="text-secondary" text-anchor="middle">Einheiten</text>
+
+    <!-- Stock bar (green, 85% fill) -->
+    <rect x="24" y="722" width="326" height="8" rx="4" class="elevated"/>
+    <rect x="24" y="722" width="326" height="8" rx="4" fill="none" class="border" stroke-width="1"/>
+    <rect x="24" y="722" width="277" height="8" rx="4" fill="#34d399"/>
+
+    <!-- Lagerplatz pill -->
+    <rect x="24" y="744" width="100" height="24" rx="6" fill="#7c75ff" opacity="0.15"/>
+    <text x="74" y="759" class="label-11 accent-text" text-anchor="middle">Lagerplatz: M-02-A-3</text>
+
+    <!-- Min/Max -->
+    <text x="24" y="824" class="text-muted">Min: 5 · Max: 50</text>
+
+    <!-- Section: Marktplätze (y=856, off-screen for scrolling indication) -->
+    <rect x="16" y="856" width="358" height="150" rx="10" class="elevated"/>
+    <rect x="16" y="856" width="358" height="150" rx="10" fill="none" class="border" stroke-width="1"/>
+
+    <text x="24" y="880" class="label-14">Marktplätze</text>
+
+    <!-- eBay -->
+    <circle cx="24" cy="906" r="4" fill="#34d399"/>
+    <text x="36" y="912" class="text-primary">eBay: Aktiv</text>
+    <text x="168" y="912" class="title-20">€1.249,00</text>
+    <text x="24" y="930" class="text-muted">ID: 12847392</text>
+
+    <!-- Kaufland -->
+    <circle cx="24" cy="956" r="4" fill="#34d399"/>
+    <text x="36" y="962" class="text-primary">Kaufland: Aktiv</text>
+    <text x="168" y="962" class="title-20">€1.269,00</text>
+    <text x="24" y="980" class="text-muted">ID: 98273641</text>
+  </g>
+
+  <!-- ===== BOTTOM NAVIGATION BAR (y=764-844) ===== -->
+  <rect y="764" width="390" height="80" fill="#15171c"/>
+  <line class="border" x1="0" y1="764" x2="390" y2="764" stroke-width="1"/>
+
+  <!-- Dashboard -->
+  <g transform="translate(39, 788)">
+    <circle cx="0" cy="0" r="6" class="elevated"/>
+    <circle cx="0" cy="0" r="6" fill="none" class="border" stroke-width="1"/>
+    <text x="0" y="18" class="nav-item text-muted" text-anchor="middle" font-size="11">Dashboard</text>
+  </g>
+
+  <!-- Erfassen -->
+  <g transform="translate(107, 788)">
+    <path d="M -4 -4 L 4 -4 L 4 4 L -4 4 Z M 0 -2 L 0 2 M -2 0 L 2 0" stroke="#7a8090" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+    <text x="0" y="18" class="nav-item text-muted" text-anchor="middle" font-size="11">Erfassen</text>
+  </g>
+
+  <!-- Produkte -->
+  <g transform="translate(195, 788)">
+    <rect x="-4" y="-4" width="8" height="8" class="elevated" rx="1"/>
+    <rect x="-4" y="-4" width="8" height="8" fill="none" class="border" stroke-width="1" rx="1"/>
+    <rect x="1" y="-2" width="2" height="2" class="elevated" rx="1"/>
+    <rect x="1" y="-2" width="2" height="2" fill="none" class="border" stroke-width="1" rx="1"/>
+    <rect x="-3" y="1" width="2" height="2" class="elevated" rx="1"/>
+    <rect x="-3" y="1" width="2" height="2" fill="none" class="border" stroke-width="1" rx="1"/>
+    <rect x="1" y="1" width="2" height="2" class="elevated" rx="1"/>
+    <rect x="1" y="1" width="2" height="2" fill="none" class="border" stroke-width="1" rx="1"/>
+    <text x="0" y="18" class="nav-item text-muted" text-anchor="middle" font-size="11">Produkte</text>
+  </g>
+
+  <!-- Bestand (with badge) -->
+  <g transform="translate(263, 788)">
+    <path d="M -3 -4 L 3 -4 Q 4 -4 4 -3 L 4 3 Q 4 4 3 4 L -3 4 Q -4 4 -4 3 L -4 -3 Q -4 -4 -3 -4" stroke="#7a8090" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="0" y="2" class="label-11 text-muted" text-anchor="middle">B</text>
+
+    <!-- Badge "18" -->
+    <circle cx="5" cy="-6" r="6" fill="#f87171"/>
+    <text x="5" y="-2" class="label-11" fill="#fff" text-anchor="middle" font-weight="600">18</text>
+
+    <text x="0" y="18" class="nav-item text-muted" text-anchor="middle" font-size="11">Bestand</text>
+  </g>
+
+  <!-- Mehr -->
+  <g transform="translate(331, 788)">
+    <circle cx="0" cy="-2" r="1.5" fill="#7a8090"/>
+    <circle cx="0" cy="0" r="1.5" fill="#7a8090"/>
+    <circle cx="0" cy="2" r="1.5" fill="#7a8090"/>
+    <text x="0" y="18" class="nav-item text-muted" text-anchor="middle" font-size="11">Mehr</text>
+  </g>
+
+</svg>

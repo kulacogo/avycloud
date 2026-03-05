@@ -116,13 +116,13 @@ export const AdminLlmManagement: React.FC = () => {
     <div className="space-y-5">
       <div>
         <h2 className="text-xl font-bold">Admin: LLM Management</h2>
-        <p className="text-sm text-slate-400">
+        <p className="text-sm text-txt-muted">
           Listet die vorhandenen LLM-Einsatzbereiche (Scopes) und erlaubt Prompt/Rules Edits mit Versionierung.
         </p>
       </div>
 
       {error && (
-        <div className="rounded-xl border border-rose-500/20 bg-rose-950/40 px-4 py-3 text-sm text-rose-400">
+        <div className="rounded-xl border border-danger/20 bg-danger-dim px-4 py-3 text-sm text-danger">
           {error}
         </div>
       )}
@@ -131,14 +131,14 @@ export const AdminLlmManagement: React.FC = () => {
       ) : null}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        <div className="rounded-2xl border border-white/10 bg-slate-800/40 p-5 space-y-3">
+        <div className="rounded-2xl border border-app-border bg-app-surface p-5 space-y-3">
           <div className="flex items-center justify-between">
             <h3 className="font-semibold">Scopes</h3>
             <button
               type="button"
               onClick={loadScopes}
               disabled={loading}
-              className="rounded-xl bg-slate-800/80 border border-white/[0.08] hover:bg-white/10 disabled:opacity-60 px-3 py-2 text-sm font-semibold text-white"
+              className="rounded-xl bg-app-elevated border border-white/[0.08] hover:bg-white/10 disabled:opacity-60 px-3 py-2 text-sm font-semibold text-txt-primary"
             >
               Refresh
             </button>
@@ -150,46 +150,46 @@ export const AdminLlmManagement: React.FC = () => {
                 type="button"
                 onClick={() => setSelectedScopeId(s.id)}
                 className={`w-full text-left rounded-xl px-3 py-2 text-sm transition-colors ${
-                  selectedScopeId === s.id ? 'bg-sky-700/50 text-white' : 'bg-slate-900/30 text-slate-200 hover:bg-slate-700/40'
+                  selectedScopeId === s.id ? 'bg-accent/50 text-txt-primary' : 'bg-app-bg/30 text-txt-secondary hover:bg-app-elevated/40'
                 }`}
               >
                 <div className="font-semibold">{s.name || s.id}</div>
-                <div className="text-xs text-slate-400">{s.id}</div>
+                <div className="text-xs text-txt-muted">{s.id}</div>
               </button>
             ))}
-            {scopes.length === 0 && <div className="text-sm text-slate-400">Keine Scopes.</div>}
+            {scopes.length === 0 && <div className="text-sm text-txt-muted">Keine Scopes.</div>}
           </div>
         </div>
 
-        <div className="lg:col-span-2 rounded-2xl border border-white/10 bg-slate-800/40 p-5 space-y-4">
+        <div className="lg:col-span-2 rounded-2xl border border-app-border bg-app-surface p-5 space-y-4">
           <div className="space-y-1">
             <div className="text-sm font-semibold">{scope?.name || scope?.id || '—'}</div>
-            <div className="text-xs text-slate-400">{scope?.purpose || ''}</div>
-            <div className="text-xs text-slate-500">
+            <div className="text-xs text-txt-muted">{scope?.purpose || ''}</div>
+            <div className="text-xs text-txt-muted">
               Default Model Env: <code>{scope?.defaultModelEnvKey || '—'}</code> · Active Version:{' '}
               <code>{scope?.activeVersionId || '—'}</code>
             </div>
           </div>
 
           {scope?.activeVersionId && (
-            <div className="rounded-xl border border-white/10 bg-slate-900/40 p-3 text-xs text-slate-300">
+            <div className="rounded-xl border border-app-border bg-app-bg/40 p-3 text-xs text-txt-secondary">
               <div className="flex flex-wrap gap-3 items-center">
-                <span className="font-semibold text-slate-100">Aktive Version:</span>
-                <span className="text-slate-100">{scope.activeVersionId}</span>
+                <span className="font-semibold text-txt-primary">Aktive Version:</span>
+                <span className="text-txt-primary">{scope.activeVersionId}</span>
               </div>
-              <p className="mt-2 text-slate-400">
+              <p className="mt-2 text-txt-muted">
                 Felder unten sind mit der aktuell aktiven Version vorbelegt. Änderungen werden als neue Version gespeichert
                 und automatisch aktiviert.
               </p>
             </div>
           )}
 
-          <div className="rounded-xl border border-white/10 bg-slate-900/20 p-4 space-y-3">
+          <div className="rounded-xl border border-app-border bg-app-bg/20 p-4 space-y-3">
             <div className="flex flex-wrap gap-3">
-              <label className="text-xs text-slate-300">
+              <label className="text-xs text-txt-secondary">
                 Prompt Mode
                 <select
-                  className="ml-2 bg-slate-900/60 border border-white/10 rounded-xl px-2 py-1 text-slate-100"
+                  className="ml-2 bg-app-bg/60 border border-app-border rounded-xl px-2 py-1 text-txt-primary"
                   value={promptMode}
                   onChange={(e) => setPromptMode(e.target.value as any)}
                 >
@@ -197,10 +197,10 @@ export const AdminLlmManagement: React.FC = () => {
                   <option value="replace">replace</option>
                 </select>
               </label>
-              <label className="text-xs text-slate-300">
+              <label className="text-xs text-txt-secondary">
                 Rules Mode
                 <select
-                  className="ml-2 bg-slate-900/60 border border-white/10 rounded-xl px-2 py-1 text-slate-100"
+                  className="ml-2 bg-app-bg/60 border border-app-border rounded-xl px-2 py-1 text-txt-primary"
                   value={rulesMode}
                   onChange={(e) => setRulesMode(e.target.value as any)}
                 >
@@ -209,37 +209,37 @@ export const AdminLlmManagement: React.FC = () => {
                 </select>
               </label>
             </div>
-            <label className="block text-xs text-slate-300 space-y-1">
+            <label className="block text-xs text-txt-secondary space-y-1">
               <span>Prompt Text (delta)</span>
               <textarea
                 value={promptText}
                 onChange={(e) => setPromptText(e.target.value)}
                 rows={6}
-                className="w-full rounded-xl bg-slate-900/60 border border-white/10 px-3 py-2 text-slate-100 outline-none focus:border-sky-500 font-mono text-xs"
+                className="w-full rounded-xl bg-app-bg/60 border border-app-border px-3 py-2 text-txt-primary outline-none focus:border-accent font-mono text-xs"
               />
             </label>
-            <label className="block text-xs text-slate-300 space-y-1">
+            <label className="block text-xs text-txt-secondary space-y-1">
               <span>Rules Text (delta)</span>
               <textarea
                 value={rulesText}
                 onChange={(e) => setRulesText(e.target.value)}
                 rows={6}
-                className="w-full rounded-xl bg-slate-900/60 border border-white/10 px-3 py-2 text-slate-100 outline-none focus:border-sky-500 font-mono text-xs"
+                className="w-full rounded-xl bg-app-bg/60 border border-app-border px-3 py-2 text-txt-primary outline-none focus:border-accent font-mono text-xs"
               />
             </label>
-            <label className="block text-xs text-slate-300 space-y-1">
+            <label className="block text-xs text-txt-secondary space-y-1">
               <span>Note (optional)</span>
               <input
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
-                className="w-full rounded-xl bg-slate-900/60 border border-white/10 px-3 py-2 text-slate-100 outline-none focus:border-sky-500"
+                className="w-full rounded-xl bg-app-bg/60 border border-app-border px-3 py-2 text-txt-primary outline-none focus:border-accent"
               />
             </label>
             <button
               type="button"
               onClick={createVersion}
               disabled={!selectedScopeId || saving}
-              className="rounded-xl bg-sky-600 hover:bg-sky-500 disabled:opacity-60 px-4 py-2 text-sm font-semibold text-white"
+              className="rounded-xl bg-accent hover:bg-accent/80 disabled:opacity-60 px-4 py-2 text-sm font-semibold text-txt-primary"
             >
               {saving ? 'Speichere…' : 'Neue Version speichern & aktivieren'}
             </button>
@@ -249,34 +249,34 @@ export const AdminLlmManagement: React.FC = () => {
             <div className="text-sm font-semibold">Versions</div>
             <div className="space-y-2 max-h-[260px] overflow-auto">
               {versions.map((v: any) => (
-                <div key={v.id} className="rounded-xl border border-white/10 bg-slate-900/20 p-3">
+                <div key={v.id} className="rounded-xl border border-app-border bg-app-bg/20 p-3">
                   <div className="flex items-center justify-between gap-3">
-                    <div className="text-xs text-slate-300">
+                    <div className="text-xs text-txt-secondary">
                       <div>
-                        <code>{v.id}</code> {scope?.activeVersionId === v.id ? <span className="text-sky-300">ACTIVE</span> : null}
+                        <code>{v.id}</code> {scope?.activeVersionId === v.id ? <span className="text-accent">ACTIVE</span> : null}
                       </div>
-                      {v.note ? <div className="text-slate-400">{v.note}</div> : null}
+                      {v.note ? <div className="text-txt-muted">{v.note}</div> : null}
                     </div>
                     <button
                       type="button"
                       onClick={() => activate(v.id)}
                       disabled={saving || scope?.activeVersionId === v.id}
-                      className="rounded-xl bg-slate-800/80 border border-white/[0.08] hover:bg-white/10 disabled:opacity-60 px-3 py-1.5 text-xs font-semibold text-white"
+                      className="rounded-xl bg-app-elevated border border-white/[0.08] hover:bg-white/10 disabled:opacity-60 px-3 py-1.5 text-xs font-semibold text-txt-primary"
                     >
                       Activate
                     </button>
                   </div>
                   <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
-                    <div className="text-slate-400">
+                    <div className="text-txt-muted">
                       promptMode: <code>{v.promptMode || 'append'}</code>
                     </div>
-                    <div className="text-slate-400">
+                    <div className="text-txt-muted">
                       rulesMode: <code>{v.rulesMode || 'append'}</code>
                     </div>
                   </div>
                 </div>
               ))}
-              {versions.length === 0 && <div className="text-sm text-slate-400">Noch keine Versionen.</div>}
+              {versions.length === 0 && <div className="text-sm text-txt-muted">Noch keine Versionen.</div>}
             </div>
           </div>
         </div>

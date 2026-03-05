@@ -1,0 +1,234 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg viewBox="0 0 390 844" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+  <defs>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+      body, svg { font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+
+      .page-bg { fill: #1a1d23; }
+      .surface { fill: #21242b; }
+      .elevated { fill: #282c34; }
+      .border { stroke: #2a2d35; stroke-width: 1; }
+
+      .text-primary { fill: #ebeef5; font-weight: 400; }
+      .text-secondary { fill: #7a8090; font-weight: 400; }
+      .text-muted { fill: #8a8f9e; font-weight: 400; }
+      .text-bold { font-weight: 600; }
+      .text-accent { fill: #7c75ff; font-weight: 500; }
+
+      .icon-primary { fill: #ebeef5; }
+      .icon-secondary { fill: #7a8090; }
+      .icon-accent { fill: #7c75ff; }
+      .icon-success { fill: #34d399; }
+      .icon-danger { fill: #f87171; }
+
+      .heading-lg { font-size: 18px; font-weight: 600; }
+      .heading-sm { font-size: 12px; font-weight: 500; }
+      .body-base { font-size: 14px; }
+      .body-sm { font-size: 12px; }
+      .body-xs { font-size: 11px; }
+      .mono { font-family: "Courier New", monospace; font-size: 12px; }
+
+      .rounded-4 { rx: 4; ry: 4; }
+      .rounded-6 { rx: 6; ry: 6; }
+      .rounded-8 { rx: 8; ry: 8; }
+      .rounded-12 { rx: 12; ry: 12; }
+
+      .dashed { stroke-dasharray: 4, 4; }
+    </style>
+  </defs>
+
+  <!-- Page Background -->
+  <rect width="390" height="844" class="page-bg"/>
+
+  <!-- STATUS BAR (0-44) -->
+  <rect width="390" height="44" class="surface" y="0"/>
+
+  <!-- Time -->
+  <text x="20" y="28" class="text-primary body-sm" font-weight="600">9:41</text>
+
+  <!-- Status Icons (Right side) -->
+  <g transform="translate(340, 14)">
+    <!-- Wifi Icon -->
+    <circle cx="0" cy="0" r="1.5" class="icon-secondary"/>
+    <path d="M -2 2 Q -4 1 -5 3" stroke="#7a8090" stroke-width="1" fill="none" stroke-linecap="round"/>
+    <path d="M 2 2 Q 4 1 5 3" stroke="#7a8090" stroke-width="1" fill="none" stroke-linecap="round"/>
+  </g>
+
+  <!-- Signal Bars -->
+  <g transform="translate(355, 24)">
+    <rect x="0" y="8" width="2" height="2" class="icon-secondary"/>
+    <rect x="4" y="6" width="2" height="4" class="icon-secondary"/>
+    <rect x="8" y="4" width="2" height="6" class="icon-secondary"/>
+  </g>
+
+  <!-- Battery -->
+  <rect x="368" y="16" width="16" height="8" class="border" fill="none"/>
+  <rect x="368" y="16" width="12" height="8" class="icon-secondary"/>
+  <rect x="384" y="19" width="2" height="2" class="icon-secondary"/>
+
+  <!-- HEADER (44-88) -->
+  <rect width="390" height="44" y="44" class="surface"/>
+
+  <text x="20" y="68" class="text-primary heading-lg">Erfassen</text>
+  <text x="20" y="82" class="text-secondary heading-sm">KI-gestützte Identifikation</text>
+
+  <!-- CAMERA/SCAN AREA (100-340) -->
+  <rect x="16" y="100" width="358" height="240" rx="12" ry="12" class="elevated" stroke="#2a2d35" stroke-width="2" stroke-dasharray="8,4" fill="none"/>
+
+  <!-- Camera Icon (centered) -->
+  <g transform="translate(195, 180)">
+    <!-- Camera body -->
+    <rect x="-20" y="-14" width="40" height="28" rx="3" ry="3" class="icon-secondary" fill="none" stroke-width="2" stroke="#7a8090"/>
+    <!-- Lens -->
+    <circle cx="0" cy="0" r="8" class="icon-secondary" fill="none" stroke-width="2" stroke="#7a8090"/>
+    <!-- Flash -->
+    <rect x="8" y="-12" width="4" height="4" class="icon-secondary" fill="#7a8090"/>
+  </g>
+
+  <!-- Scan prompt text -->
+  <text x="195" y="242" class="text-primary body-base text-bold" text-anchor="middle">Tippen zum Scannen</text>
+  <text x="195" y="260" class="text-secondary body-sm" text-anchor="middle">Barcode, QR-Code oder Foto</text>
+
+  <!-- Kamera/Galerie toggle buttons -->
+  <g transform="translate(195, 290)">
+    <!-- Kamera button -->
+    <rect x="-70" y="0" width="60" height="28" rx="6" ry="6" class="elevated" stroke="#2a2d35" stroke-width="1"/>
+    <text x="-40" y="18" class="text-primary body-sm" text-anchor="middle" font-weight="500">Kamera</text>
+
+    <!-- Galerie button -->
+    <rect x="10" y="0" width="60" height="28" rx="6" ry="6" class="surface" stroke="#2a2d35" stroke-width="1"/>
+    <text x="40" y="18" class="text-secondary body-sm" text-anchor="middle" font-weight="500">Galerie</text>
+  </g>
+
+  <!-- BARCODE INPUT (352-440) -->
+  <text x="20" y="366" class="text-primary heading-sm text-bold">Manuell eingeben</text>
+
+  <!-- Input field background -->
+  <rect x="16" y="378" width="328" height="44" rx="8" ry="8" class="elevated" stroke="#2a2d35" stroke-width="1"/>
+
+  <!-- Input placeholder text -->
+  <text x="24" y="405" class="text-muted body-base">EAN / UPC / GTIN eingeben...</text>
+
+  <!-- Add button (right side of input) -->
+  <g transform="translate(338, 378)">
+    <rect x="-28" y="0" width="48" height="44" rx="8" ry="8" class="elevated" stroke="#2a2d35" stroke-width="1"/>
+    <text x="-4" y="28" class="text-accent body-sm text-bold" text-anchor="middle" font-weight="600">Hinzufügen</text>
+  </g>
+
+  <!-- WARTESCHLANGE (452-600) -->
+  <text x="20" y="470" class="text-primary heading-sm text-bold">Warteschlange</text>
+
+  <!-- Badge count -->
+  <circle cx="138" cy="462" r="10" class="elevated" stroke="#2a2d35" stroke-width="1"/>
+  <text x="138" y="468" class="text-accent body-xs text-bold" text-anchor="middle">3</text>
+
+  <!-- Queue items container -->
+  <rect x="16" y="484" width="358" height="104" rx="8" ry="8" class="elevated" stroke="#2a2d35" stroke-width="1"/>
+
+  <!-- Item 1 -->
+  <text x="24" y="506" class="text-primary mono">4012345678901</text>
+  <circle cx="354" cy="500" r="8" class="surface" stroke="#2a2d35" stroke-width="1"/>
+  <line x1="350" y1="496" x2="358" y2="504" class="icon-danger" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="358" y1="496" x2="350" y2="504" class="icon-danger" stroke-width="1.5" stroke-linecap="round"/>
+
+  <!-- Divider 1 -->
+  <line x1="24" y1="518" x2="366" y2="518" stroke="#2a2d35" stroke-width="1"/>
+
+  <!-- Item 2 -->
+  <text x="24" y="541" class="text-primary mono">5702016116977</text>
+  <circle cx="354" cy="535" r="8" class="surface" stroke="#2a2d35" stroke-width="1"/>
+  <line x1="350" y1="531" x2="358" y2="539" class="icon-danger" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="358" y1="531" x2="350" y2="539" class="icon-danger" stroke-width="1.5" stroke-linecap="round"/>
+
+  <!-- Divider 2 -->
+  <line x1="24" y1="553" x2="366" y2="553" stroke="#2a2d35" stroke-width="1"/>
+
+  <!-- Item 3 -->
+  <text x="24" y="576" class="text-primary mono">8806096371248</text>
+  <circle cx="354" cy="570" r="8" class="surface" stroke="#2a2d35" stroke-width="1"/>
+  <line x1="350" y1="566" x2="358" y2="574" class="icon-danger" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="358" y1="566" x2="350" y2="574" class="icon-danger" stroke-width="1.5" stroke-linecap="round"/>
+
+  <!-- BILDER (612-700) -->
+  <g transform="translate(20, 612)">
+    <!-- Header -->
+    <text x="0" y="20" class="text-primary heading-sm text-bold">Bilder</text>
+    <text x="280" y="20" class="text-accent body-sm text-bold">+ Hinzufügen</text>
+
+    <!-- Thumbnails -->
+    <g transform="translate(0, 32)">
+      <!-- Bild 1 -->
+      <rect x="0" y="0" width="64" height="64" rx="6" ry="6" class="surface" stroke="#2a2d35" stroke-width="1"/>
+      <text x="32" y="72" class="text-secondary body-xs" text-anchor="middle">Bild 1</text>
+
+      <!-- Bild 2 -->
+      <rect x="74" y="0" width="64" height="64" rx="6" ry="6" class="surface" stroke="#2a2d35" stroke-width="1"/>
+      <text x="106" y="72" class="text-secondary body-xs" text-anchor="middle">Bild 2</text>
+
+      <!-- Add button (dashed) -->
+      <rect x="148" y="0" width="64" height="64" rx="6" ry="6" class="surface" stroke="#2a2d35" stroke-width="2" stroke-dasharray="4,4" fill="none"/>
+      <text x="180" y="34" class="text-secondary body-xs text-bold" text-anchor="middle" font-size="24">+</text>
+    </g>
+  </g>
+
+  <!-- IDENTIFY BUTTON (712-756) -->
+  <rect x="16" y="712" width="358" height="44" rx="8" ry="8" class="elevated" style="fill: #7c75ff;"/>
+  <text x="195" y="740" class="body-base text-bold" text-anchor="middle" fill="#1a1d23">Identifizieren</text>
+  <text x="195" y="758" class="body-xs" text-anchor="middle" fill="#1a1d23" opacity="0.8">3 Barcodes · 2 Bilder</text>
+
+  <!-- BOTTOM NAVIGATION (764-844) -->
+  <rect x="0" y="764" width="390" height="80" style="fill: #15171c;"/>
+  <line x1="0" y1="764" x2="390" y2="764" stroke="#2a2d35" stroke-width="1"/>
+
+  <!-- Safe area padding consideration -->
+  <g transform="translate(0, 774)">
+    <!-- Dashboard -->
+    <g transform="translate(20, 0)">
+      <!-- Icon -->
+      <rect x="-8" y="-8" width="16" height="16" rx="2" ry="2" class="icon-secondary" fill="none" stroke-width="1.5" stroke="#7a8090"/>
+      <text x="0" y="38" class="text-secondary body-xs" text-anchor="middle" font-weight="500">Dashboard</text>
+    </g>
+
+    <!-- Erfassen (ACTIVE) -->
+    <g transform="translate(98, 0)">
+      <!-- Icon -->
+      <circle cx="0" cy="-2" r="10" class="icon-accent" fill="none" stroke-width="2" stroke="#7c75ff"/>
+      <line x1="-3" y1="-2" x2="3" y2="-2" stroke="#7c75ff" stroke-width="1.5" stroke-linecap="round"/>
+      <text x="0" y="38" class="text-accent body-xs text-bold" text-anchor="middle">Erfassen</text>
+    </g>
+
+    <!-- Produkte -->
+    <g transform="translate(176, 0)">
+      <!-- Icon -->
+      <rect x="-6" y="-8" width="12" height="16" rx="2" ry="2" class="icon-secondary" fill="none" stroke-width="1.5" stroke="#7a8090"/>
+      <line x1="-6" y1="-2" x2="6" y2="-2" stroke="#7a8090" stroke-width="1"/>
+      <text x="0" y="38" class="text-secondary body-xs" text-anchor="middle" font-weight="500">Produkte</text>
+    </g>
+
+    <!-- Bestand -->
+    <g transform="translate(254, 0)">
+      <!-- Icon -->
+      <rect x="-7" y="-7" width="14" height="14" rx="2" ry="2" class="icon-secondary" fill="none" stroke-width="1.5" stroke="#7a8090"/>
+      <line x1="-3" y1="-3" x2="3" y2="-3" stroke="#7a8090" stroke-width="1"/>
+      <line x1="-3" y1="0" x2="3" y2="0" stroke="#7a8090" stroke-width="1"/>
+      <line x1="-3" y1="3" x2="3" y2="3" stroke="#7a8090" stroke-width="1"/>
+
+      <!-- Badge -->
+      <circle cx="8" cy="-8" r="7" style="fill: #f87171;"/>
+      <text x="8" y="-4" class="body-xs text-bold" text-anchor="middle" fill="#ffffff" font-weight="600">18</text>
+
+      <text x="0" y="38" class="text-secondary body-xs" text-anchor="middle" font-weight="500">Bestand</text>
+    </g>
+
+    <!-- Mehr -->
+    <g transform="translate(332, 0)">
+      <!-- Icon (three dots) -->
+      <circle cx="-4" cy="0" r="1.5" class="icon-secondary"/>
+      <circle cx="0" cy="0" r="1.5" class="icon-secondary"/>
+      <circle cx="4" cy="0" r="1.5" class="icon-secondary"/>
+      <text x="0" y="38" class="text-secondary body-xs" text-anchor="middle" font-weight="500">Mehr</text>
+    </g>
+  </g>
+</svg>

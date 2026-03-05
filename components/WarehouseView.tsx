@@ -463,9 +463,9 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
 
       {/* Header moved to PageHeader above */}
 
-      <div className="bg-slate-800/40 rounded-2xl p-5 border border-white/10 space-y-3">
-        <h3 className="text-lg font-semibold text-white">BIN-Auswahl & Druck</h3>
-        <div className="text-xs text-slate-400">
+      <div className="bg-app-surface rounded-2xl p-5 border border-app-border space-y-3">
+        <h3 className="text-lg font-semibold text-txt-primary">BIN-Auswahl & Druck</h3>
+        <div className="text-xs text-txt-muted">
           Bereich: {selectedZone ? `${selectedZone.zone}/${selectedZone.etage}` : '—'}
           {selectedGang != null ? ` · Gang ${selectedGang}` : ''}
           {selectedRegal != null ? ` · Regal ${selectedRegal}` : ''}
@@ -474,7 +474,7 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
           <button
             type="button"
             onClick={selectAllInZone}
-            className="px-3 py-1.5 rounded-xl bg-slate-800/40 text-sm text-white hover:bg-slate-700/60"
+            className="px-3 py-1.5 rounded-xl bg-app-surface text-sm text-txt-primary hover:bg-app-elevated/60"
           >
             Zone markieren
           </button>
@@ -482,7 +482,7 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
             type="button"
             onClick={selectCurrentGang}
             disabled={selectedGang == null}
-            className="px-3 py-1.5 rounded-xl text-sm text-white disabled:opacity-40 bg-slate-800/80 hover:bg-slate-700"
+            className="px-3 py-1.5 rounded-xl text-sm text-txt-primary disabled:opacity-40 bg-app-elevated hover:bg-app-elevated/80"
           >
             Gang markieren
           </button>
@@ -490,25 +490,25 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
             type="button"
             onClick={selectCurrentRegal}
             disabled={selectedGang == null || selectedRegal == null}
-            className="px-3 py-1.5 rounded-xl text-sm text-white disabled:opacity-40 bg-slate-800/80 hover:bg-slate-700"
+            className="px-3 py-1.5 rounded-xl text-sm text-txt-primary disabled:opacity-40 bg-app-elevated hover:bg-app-elevated/80"
           >
             Regal markieren
           </button>
           <button
             type="button"
             onClick={clearSelection}
-            className="px-3 py-1.5 rounded-xl bg-slate-800/40 text-sm text-white hover:bg-slate-700/60"
+            className="px-3 py-1.5 rounded-xl bg-app-surface text-sm text-txt-primary hover:bg-app-elevated/60"
           >
             Auswahl leeren
           </button>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          <span className="text-sm text-slate-300">Ausgewählte Bins: {selectedCount}</span>
+          <span className="text-sm text-txt-secondary">Ausgewählte Bins: {selectedCount}</span>
           <button
             type="button"
             onClick={handlePrintSelectedBins}
             disabled={!selectedCount && !selectedZone}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600/20 text-emerald-300 disabled:opacity-40 hover:bg-emerald-600/30 transition"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-success-dim text-success disabled:opacity-40 hover:bg-success/20 transition"
           >
             <PrintIcon className="w-4 h-4" />
             BIN Labels drucken
@@ -516,15 +516,15 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
         </div>
       </div>
 
-      <div className="bg-slate-800/40 rounded-2xl p-5 border border-white/10">
-        <h3 className="text-xl font-semibold text-white mb-3">Neue Lagerstruktur anlegen</h3>
+      <div className="bg-app-surface rounded-2xl p-5 border border-app-border">
+        <h3 className="text-xl font-semibold text-txt-primary mb-3">Neue Lagerstruktur anlegen</h3>
         <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
           <div>
-            <label className="block text-sm text-slate-400 mb-1">Zone</label>
+            <label className="block text-sm text-txt-muted mb-1">Zone</label>
             <select
               value={layoutForm.zone}
               onChange={(e) => setLayoutForm((prev) => ({ ...prev, zone: e.target.value }))}
-              className="w-full bg-slate-800 border border-white/10 rounded-lg px-3 py-2"
+              className="w-full bg-app-elevated border border-app-border rounded-lg px-3 py-2"
             >
               {ZONE_OPTIONS.map((z) => (
                 <option key={z} value={z}>
@@ -534,11 +534,11 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
             </select>
           </div>
           <div>
-            <label className="block text-sm text-slate-400 mb-1">Etage</label>
+            <label className="block text-sm text-txt-muted mb-1">Etage</label>
             <select
               value={layoutForm.etage}
               onChange={(e) => setLayoutForm((prev) => ({ ...prev, etage: e.target.value }))}
-              className="w-full bg-slate-800 border border-white/10 rounded-lg px-3 py-2"
+              className="w-full bg-app-elevated border border-app-border rounded-lg px-3 py-2"
             >
               {ETAGE_OPTIONS.map((e) => (
                 <option key={e} value={e}>
@@ -548,54 +548,54 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
             </select>
           </div>
           <div>
-            <label className="block text-sm text-slate-400 mb-1">Gänge (z.B. 1-3)</label>
+            <label className="block text-sm text-txt-muted mb-1">Gänge (z.B. 1-3)</label>
             <input
               value={layoutForm.gangs}
               onChange={(e) => setLayoutForm((prev) => ({ ...prev, gangs: e.target.value }))}
-              className="w-full bg-slate-800 border border-white/10 rounded-lg px-3 py-2"
+              className="w-full bg-app-elevated border border-app-border rounded-lg px-3 py-2"
             />
           </div>
           <div>
-            <label className="block text-sm text-slate-400 mb-1">Regale (z.B. 1-4)</label>
+            <label className="block text-sm text-txt-muted mb-1">Regale (z.B. 1-4)</label>
             <input
               value={layoutForm.regale}
               onChange={(e) => setLayoutForm((prev) => ({ ...prev, regale: e.target.value }))}
-              className="w-full bg-slate-800 border border-white/10 rounded-lg px-3 py-2"
+              className="w-full bg-app-elevated border border-app-border rounded-lg px-3 py-2"
             />
           </div>
           <div>
-            <label className="block text-sm text-slate-400 mb-1">Ebenen (z.B. A-E)</label>
+            <label className="block text-sm text-txt-muted mb-1">Ebenen (z.B. A-E)</label>
             <input
               value={layoutForm.ebenen}
               onChange={(e) => setLayoutForm((prev) => ({ ...prev, ebenen: e.target.value }))}
-              className="w-full bg-slate-800 border border-white/10 rounded-lg px-3 py-2"
+              className="w-full bg-app-elevated border border-app-border rounded-lg px-3 py-2"
             />
           </div>
         </div>
         <button
           onClick={handleCreateLayout}
-          className="mt-4 px-4 py-2 bg-sky-600/20 text-sky-300 rounded-xl hover:bg-sky-600/30 transition"
+          className="mt-4 px-4 py-2 bg-accent-dim text-accent rounded-xl hover:bg-accent/20 transition"
         >
           Bins generieren
         </button>
       </div>
 
-      <div className="bg-slate-800/40 rounded-2xl p-5 border border-white/10">
-        <h3 className="text-xl font-semibold text-white mb-3">Zonenübersicht</h3>
+      <div className="bg-app-surface rounded-2xl p-5 border border-app-border">
+        <h3 className="text-xl font-semibold text-txt-primary mb-3">Zonenübersicht</h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           {zones.map((zone) => (
             <button
               key={zone.id}
               onClick={() => setSelectedZone(zone)}
               className={`text-left p-3 rounded-xl border transition ${
-                selectedZone?.id === zone.id ? 'border-sky-500 bg-sky-500/10' : 'border-white/10 hover:border-sky-600/50'
+                selectedZone?.id === zone.id ? 'border-accent bg-accent-dim' : 'border-app-border hover:border-accent/50'
               }`}
             >
-              <div className="text-lg font-semibold text-white">
+              <div className="text-lg font-semibold text-txt-primary">
                 Zone {zone.zone} / {zone.etage}
               </div>
-              <div className="text-sm text-slate-300">{zone.binCount} Bins · {zone.totalProducts || 0} Produkte</div>
-              <div className="text-xs text-slate-500">
+              <div className="text-sm text-txt-secondary">{zone.binCount} Bins · {zone.totalProducts || 0} Produkte</div>
+              <div className="text-xs text-txt-muted">
                 Gänge {zone.gangs?.join(', ')} · Regale {zone.regale?.join(', ')} · Ebenen {zone.ebenen?.join(', ')}
               </div>
             </button>
@@ -604,18 +604,18 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
       </div>
 
       {selectedZone && (
-        <div className="bg-slate-800/40 rounded-2xl p-5 border border-white/10">
+        <div className="bg-app-surface rounded-2xl p-5 border border-app-border">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h3 className="text-xl font-semibold text-white">
+              <h3 className="text-xl font-semibold text-txt-primary">
                 Zone {selectedZone.zone} / {selectedZone.etage}
               </h3>
-              <p className="text-slate-400 text-sm">{bins.length} Bins insgesamt</p>
+              <p className="text-txt-muted text-sm">{bins.length} Bins insgesamt</p>
             </div>
             {selectedBin && (
               <button
                 onClick={() => openBinLabelWindow(selectedBin.code)}
-                className="flex items-center px-3 py-1.5 text-sm bg-emerald-600/20 text-emerald-300 rounded-xl hover:bg-emerald-600/30 transition"
+                className="flex items-center px-3 py-1.5 text-sm bg-success-dim text-success rounded-xl hover:bg-success/20 transition"
               >
                 <PrintIcon className="w-4 h-4 mr-1.5" /> BIN Label
               </button>
@@ -635,7 +635,7 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
                     setBinDetail(null);
                   }}
                   className={`px-3 py-1 rounded-lg transition ${
-                    selectedGang === gang ? 'bg-sky-600/20 text-sky-300' : 'bg-slate-800/60 text-slate-200 hover:bg-slate-700/60'
+                    selectedGang === gang ? 'bg-accent-dim text-accent' : 'bg-app-elevated/60 text-txt-secondary hover:bg-app-elevated/60'
                   }`}
                 >
                   Gang {gang}
@@ -648,7 +648,7 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
               type="button"
               disabled={!selectedZone || selectedGang == null || deletingStructure}
               onClick={handleDeleteGang}
-              className="px-3 py-1.5 rounded-xl bg-rose-600/20 text-sm text-rose-300 disabled:opacity-40 hover:bg-rose-600/30 transition"
+              className="px-3 py-1.5 rounded-xl bg-danger-dim text-sm text-danger disabled:opacity-40 hover:bg-danger/20 transition"
               title="Löscht alle leeren Bins in diesem Gang."
             >
               Gang löschen
@@ -657,7 +657,7 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
               type="button"
               disabled={!selectedZone || selectedGang == null || selectedRegal == null || deletingStructure}
               onClick={handleDeleteRegal}
-              className="px-3 py-1.5 rounded-xl bg-rose-600/20 text-sm text-rose-300 disabled:opacity-40 hover:bg-rose-600/30 transition"
+              className="px-3 py-1.5 rounded-xl bg-danger-dim text-sm text-danger disabled:opacity-40 hover:bg-danger/20 transition"
               title="Löscht alle leeren Bins in diesem Regal (innerhalb des gewählten Gangs)."
             >
               Regal löschen
@@ -666,27 +666,27 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
               type="button"
               disabled={!selectedZone || !selectedBin || deletingStructure}
               onClick={handleDeleteEbene}
-              className="px-3 py-1.5 rounded-xl bg-rose-600/20 text-sm text-rose-300 disabled:opacity-40 hover:bg-rose-600/30 transition"
+              className="px-3 py-1.5 rounded-xl bg-danger-dim text-sm text-danger disabled:opacity-40 hover:bg-danger/20 transition"
               title="Löscht den aktuell ausgewählten BIN (Ebene)."
             >
               Ebene löschen
             </button>
-            <span className="text-xs text-slate-400">
+            <span className="text-xs text-txt-muted">
               Löschen ist nur möglich, wenn die betroffenen Bins leer sind.
             </span>
           </div>
 
           {isLoadingBins ? (
-            <div className="text-slate-300">Lade Bins...</div>
+            <div className="text-txt-secondary">Lade Bins...</div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <h4 className="text-lg text-white mb-2">Regale & Ebenen</h4>
+                <h4 className="text-lg text-txt-primary mb-2">Regale & Ebenen</h4>
                 <div className="space-y-3 max-h-[480px] overflow-y-auto pr-2">
                   {regaleForSelectedGang.map(({ regal, bins: binList }) => (
-                    <div key={regal} className="border border-white/10 rounded-xl overflow-hidden">
+                    <div key={regal} className="border border-app-border rounded-xl overflow-hidden">
                       <button
-                        className="w-full text-left px-3 py-2 bg-slate-800/60 text-white"
+                        className="w-full text-left px-3 py-2 bg-app-elevated/60 text-txt-primary"
                         onClick={() => {
                           setSelectedRegal(regal);
                           setSelectedBin(null);
@@ -704,8 +704,8 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
                               <button
                                 onClick={() => handleSelectBin(bin)}
                                 className={`w-full px-2 py-2 rounded-lg text-xs transition ${
-                                  isActive ? 'bg-sky-600/20 text-sky-300' : 'bg-slate-800/60 text-slate-200 hover:bg-slate-700/60'
-                                } ${isMarked ? 'ring-2 ring-emerald-400' : ''}`}
+                                  isActive ? 'bg-accent-dim text-accent' : 'bg-app-elevated/60 text-txt-secondary hover:bg-app-elevated/60'
+                                } ${isMarked ? 'ring-2 ring-success' : ''}`}
                               >
                                 <div className="font-semibold">{bin.ebene}</div>
                                 <div>{bin.productCount} Stk</div>
@@ -717,7 +717,7 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
                                   toggleBinSelection(bin.code);
                                 }}
                                 className={`absolute -top-2 -right-2 w-6 h-6 rounded-full text-xs font-bold ${
-                                  isMarked ? 'bg-emerald-500 text-white' : 'bg-slate-600 text-white'
+                                  isMarked ? 'bg-success text-txt-primary' : 'bg-app-border text-txt-primary'
                                 }`}
                                 title={isMarked ? 'Aus Auswahl entfernen' : 'Zur Auswahl hinzufügen'}
                               >
@@ -733,14 +733,14 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
               </div>
 
               <div>
-                <h4 className="text-lg text-white mb-2">BIN Detail</h4>
+                <h4 className="text-lg text-txt-primary mb-2">BIN Detail</h4>
                 {binDetail ? (
-                  <div className="bg-slate-800/40 rounded-2xl border border-white/10 p-5 space-y-3">
+                  <div className="bg-app-surface rounded-2xl border border-app-border p-5 space-y-3">
                     <div className="text-2xl font-semibold">{binDetail.code}</div>
-                    <div className="text-slate-300 text-sm">
+                    <div className="text-txt-secondary text-sm">
                       Gang {binDetail.gang} · Regal {binDetail.regal} · Ebene {binDetail.ebene}
                     </div>
-                    <div className="text-slate-200">
+                    <div className="text-txt-secondary">
                       {binDetail.productCount || 0} Produkte ·{' '}
                       {binDetail.firstStoredAt ? `seit ${new Date(binDetail.firstStoredAt).toLocaleString('de-DE')}` : 'leer'}
                     </div>
@@ -749,30 +749,30 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
                         type="button"
                         disabled={!selectedBin || deletingStructure}
                         onClick={handleDeleteEbene}
-                        className="px-3 py-1.5 rounded-xl bg-rose-600/20 text-rose-300 text-sm disabled:opacity-40 hover:bg-rose-600/30 transition"
+                        className="px-3 py-1.5 rounded-xl bg-danger-dim text-danger text-sm disabled:opacity-40 hover:bg-danger/20 transition"
                         title="Löscht diesen BIN (nur wenn leer)"
                       >
                         Ebene löschen
                       </button>
-                      <span className="text-xs text-slate-300">Nur möglich, wenn der BIN leer ist.</span>
+                      <span className="text-xs text-txt-secondary">Nur möglich, wenn der BIN leer ist.</span>
                     </div>
 
-                    <div className="border-t border-white/10 pt-3">
-                      <h5 className="text-white font-semibold mb-2">Produkte</h5>
+                    <div className="border-t border-app-border pt-3">
+                      <h5 className="text-txt-primary font-semibold mb-2">Produkte</h5>
                       {binDetail.products?.length ? (
                         <ul className="space-y-2 max-h-48 overflow-y-auto">
                           {binDetail.products.map((item: any) => (
-                            <li key={item.productId} className="flex justify-between items-center bg-slate-800/60 px-3 py-2 rounded-lg">
+                            <li key={item.productId} className="flex justify-between items-center bg-app-elevated/60 px-3 py-2 rounded-lg">
                               <div>
-                                <div className="text-white text-sm">{item.name}</div>
-                                <div className="text-xs text-slate-400">
+                                <div className="text-txt-primary text-sm">{item.name}</div>
+                                <div className="text-xs text-txt-muted">
                                   SKU {item.sku} · Menge {item.quantity}
                                 </div>
                               </div>
                               <button
                                 onClick={() => handleRemoveProduct(item.productId)}
                                 disabled={removingProductId === item.productId}
-                                className="text-xs text-red-300 hover:text-red-200"
+                                className="text-xs text-danger hover:text-danger/80"
                               >
                                 {removingProductId === item.productId ? '...' : 'Entfernen'}
                               </button>
@@ -780,13 +780,13 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
                           ))}
                         </ul>
                       ) : (
-                        <div className="text-slate-400 text-sm">Keine Produkte eingelagert.</div>
+                        <div className="text-txt-muted text-sm">Keine Produkte eingelagert.</div>
                       )}
                     </div>
 
                   </div>
                 ) : (
-                  <div className="text-slate-400">Bitte einen BIN auswählen.</div>
+                  <div className="text-txt-muted">Bitte einen BIN auswählen.</div>
                 )}
               </div>
             </div>

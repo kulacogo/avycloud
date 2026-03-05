@@ -1,0 +1,273 @@
+<svg width="1440" height="1024" viewBox="0 0 1440 1024" xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    text { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+  </style>
+</defs>
+
+<!-- Page Background -->
+<rect width="1440" height="1024" fill="#1a1d23"/>
+
+<!-- ===== SIDEBAR ===== -->
+<rect x="0" y="0" width="220" height="1024" fill="#15171c"/>
+<line x1="220" y1="0" x2="220" y2="1024" stroke="#2a2d35" stroke-width="1"/>
+
+<!-- Logo -->
+<rect x="16" y="16" width="36" height="36" rx="10" fill="#7c75ff"/>
+<text x="58" y="40" fill="#ebeef5" font-size="16" font-weight="700">AvyCloud</text>
+
+<!-- Nav Section Label -->
+<text x="16" y="80" fill="#7a8090" font-size="10" font-weight="600" letter-spacing="0.5">NAVIGATION</text>
+
+<!-- Nav: Dashboard (INACTIVE) -->
+<g>
+  <circle cx="24" cy="98" r="4" fill="none" stroke="#8a8f9e" stroke-width="1.5"/>
+  <path d="M24 94 L28 94 L28 105 L20 105 L20 99" fill="none" stroke="#8a8f9e" stroke-width="1.5"/>
+  <text x="44" y="103" fill="#8a8f9e" font-size="12" font-weight="500">Dashboard</text>
+</g>
+
+<!-- Nav: Identify (INACTIVE) -->
+<g>
+  <path d="M24 138 C20 138 20 142 20 142 L20 152 C20 152 20 156 24 156 L28 156 C32 156 32 152 32 152 L32 142 C32 142 32 138 28 138 Z" fill="none" stroke="#8a8f9e" stroke-width="1.5"/>
+  <line x1="24" y1="145" x2="28" y2="145" stroke="#8a8f9e" stroke-width="1.5"/>
+  <text x="44" y="153" fill="#8a8f9e" font-size="12" font-weight="500">Identify</text>
+</g>
+
+<!-- Nav: Inventory (INACTIVE) -->
+<g>
+  <rect x="20" y="170" width="8" height="3" fill="#8a8f9e"/>
+  <rect x="20" y="176" width="8" height="3" fill="#8a8f9e"/>
+  <rect x="20" y="182" width="8" height="3" fill="#8a8f9e"/>
+  <rect x="28" y="170" width="2" height="2" fill="#8a8f9e"/>
+  <text x="44" y="185" fill="#8a8f9e" font-size="12" font-weight="500">Inventory</text>
+  <!-- Badge -->
+  <rect x="152" y="172" width="20" height="16" rx="4" fill="#f87171"/>
+  <text x="157" y="183" fill="#fff" font-size="10" font-weight="600">18</text>
+</g>
+
+<!-- Nav: Products (INACTIVE) -->
+<g>
+  <rect x="20" y="202" width="8" height="10" rx="1" fill="none" stroke="#8a8f9e" stroke-width="1.5"/>
+  <rect x="22" y="204" width="4" height="6" fill="none" stroke="#8a8f9e" stroke-width="1.5"/>
+  <text x="44" y="217" fill="#8a8f9e" font-size="12" font-weight="500">Products</text>
+  <!-- Badge -->
+  <rect x="152" y="204" width="28" height="16" rx="4" fill="#7a8090"/>
+  <text x="158" y="215" fill="#fff" font-size="10" font-weight="600">784</text>
+</g>
+
+<!-- Nav: Categories (INACTIVE) -->
+<g>
+  <rect x="20" y="234" width="8" height="8" rx="1" fill="none" stroke="#8a8f9e" stroke-width="1.5"/>
+  <rect x="28" y="234" width="8" height="8" rx="1" fill="none" stroke="#8a8f9e" stroke-width="1.5"/>
+  <rect x="20" y="242" width="8" height="8" rx="1" fill="none" stroke="#8a8f9e" stroke-width="1.5"/>
+  <rect x="28" y="242" width="8" height="8" rx="1" fill="none" stroke="#8a8f9e" stroke-width="1.5"/>
+  <text x="44" y="249" fill="#8a8f9e" font-size="12" font-weight="500">Categories</text>
+</g>
+
+<!-- Nav: Warehouse (ACTIVE) -->
+<rect x="8" y="258" width="204" height="36" rx="8" fill="rgba(124,117,255,0.10)"/>
+<g>
+  <rect x="20" y="266" width="12" height="10" rx="1" fill="#7c75ff"/>
+  <line x1="24" y1="266" x2="24" y2="276" stroke="#7c75ff" stroke-width="1.5"/>
+  <line x1="28" y1="266" x2="28" y2="276" stroke="#7c75ff" stroke-width="1.5"/>
+  <text x="44" y="281" fill="#7c75ff" font-size="12" font-weight="600">Warehouse</text>
+</g>
+
+<!-- Nav: Admin (INACTIVE) -->
+<g>
+  <circle cx="24" cy="298" r="3" fill="none" stroke="#8a8f9e" stroke-width="1.5"/>
+  <path d="M20 308 L28 308 L28 306 C28 303.8 26.2 302 24 302 C21.8 302 20 303.8 20 306 Z" fill="none" stroke="#8a8f9e" stroke-width="1.5"/>
+  <text x="44" y="313" fill="#8a8f9e" font-size="12" font-weight="500">Admin</text>
+</g>
+
+<!-- Dark/Light toggle -->
+<rect x="16" y="944" width="188" height="28" rx="8" fill="#282c34"/>
+<rect x="16" y="944" width="94" height="28" rx="8" fill="#7c75ff"/>
+<text x="38" y="963" fill="#fff" font-size="10" font-weight="600">Dark</text>
+<text x="132" y="963" fill="#7a8090" font-size="10" font-weight="500">Light</text>
+
+<!-- User Avatar -->
+<circle cx="32" cy="992" r="16" fill="#7c75ff"/>
+<text x="25" y="997" fill="#fff" font-size="11" font-weight="700">OK</text>
+<text x="56" y="988" fill="#ebeef5" font-size="12" font-weight="600">Oguzhan K.</text>
+<text x="56" y="1004" fill="#7a8090" font-size="10">Administrator</text>
+
+<!-- ===== TOP BAR ===== -->
+<rect x="220" y="0" width="1220" height="56" fill="#21242b" border-bottom="1px solid #2a2d35"/>
+<line x1="220" y1="56" x2="1440" y2="56" stroke="#2a2d35" stroke-width="1"/>
+
+<!-- Breadcrumb -->
+<text x="240" y="30" fill="#7a8090" font-size="12">AvyCloud</text>
+<text x="264" y="30" fill="#7a8090" font-size="12">›</text>
+<text x="280" y="30" fill="#ebeef5" font-size="12" font-weight="500">Warehouse</text>
+
+<!-- Search Bar -->
+<rect x="920" y="12" width="200" height="32" rx="8" fill="#282c34" stroke="#2a2d35" stroke-width="1"/>
+<text x="935" y="32" fill="#7a8090" font-size="12">Search products...</text>
+
+<!-- Top Bar Icons -->
+<circle cx="1340" cy="28" r="14" fill="#282c34"/>
+<text x="1336" y="32" fill="#ebeef5" font-size="14">👤</text>
+
+<!-- ===== MAIN CONTENT AREA ===== -->
+
+<!-- Page Title -->
+<text x="240" y="90" fill="#ebeef5" font-size="28" font-weight="700">Lagerverwaltung</text>
+
+<!-- Zone Create Button -->
+<rect x="1150" y="75" width="120" height="36" rx="8" fill="#7c75ff"/>
+<text x="1175" y="97" fill="#fff" font-size="12" font-weight="600">Zone erstellen</text>
+
+<!-- Left Sidebar (280px) — Zone Tree -->
+<g>
+  <!-- Zonen Header -->
+  <text x="240" y="130" fill="#7a8090" font-size="11" font-weight="600">ZONEN</text>
+
+  <!-- Zone X -->
+  <rect x="240" y="145" width="260" height="36" rx="6" fill="#282c34" stroke="#2a2d35" stroke-width="1"/>
+  <text x="255" y="167" fill="#ebeef5" font-size="11" font-weight="600">X</text>
+
+  <!-- Zone XS -->
+  <rect x="240" y="190" width="260" height="36" rx="6" fill="#282c34" stroke="#2a2d35" stroke-width="1"/>
+  <text x="255" y="212" fill="#ebeef5" font-size="11" font-weight="600">XS</text>
+
+  <!-- Zone S -->
+  <rect x="240" y="235" width="260" height="36" rx="6" fill="#282c34" stroke="#2a2d35" stroke-width="1"/>
+  <text x="255" y="257" fill="#ebeef5" font-size="11" font-weight="600">S</text>
+
+  <!-- Zone M (Selected) -->
+  <rect x="240" y="280" width="260" height="36" rx="6" fill="#7c75ff"/>
+  <text x="255" y="302" fill="#fff" font-size="11" font-weight="600">M</text>
+
+  <!-- Zone M Tree (Expanded) -->
+  <!-- Etage 1 -->
+  <text x="260" y="337" fill="#7a8090" font-size="10" font-weight="600">▼ Etage 1</text>
+
+  <!-- Gang 01 -->
+  <text x="280" y="360" fill="#7a8090" font-size="10">▼ Gang 01</text>
+
+  <!-- Regal A (Expanded) -->
+  <text x="300" y="383" fill="#7a8090" font-size="10">▼ Regal A</text>
+
+  <!-- Ebenen -->
+  <text x="320" y="403" fill="#7a8090" font-size="9">Ebene 1</text>
+  <text x="320" y="419" fill="#7a8090" font-size="9">Ebene 2</text>
+  <text x="320" y="435" fill="#7a8090" font-size="9">Ebene 3</text>
+  <text x="320" y="451" fill="#7a8090" font-size="9">Ebene 4</text>
+
+  <!-- Zone L -->
+  <rect x="240" y="478" width="260" height="36" rx="6" fill="#282c34" stroke="#2a2d35" stroke-width="1"/>
+  <text x="255" y="500" fill="#ebeef5" font-size="11" font-weight="600">L</text>
+
+  <!-- Zone XL -->
+  <rect x="240" y="523" width="260" height="36" rx="6" fill="#282c34" stroke="#2a2d35" stroke-width="1"/>
+  <text x="255" y="545" fill="#ebeef5" font-size="11" font-weight="600">XL</text>
+
+  <!-- Zone XQ -->
+  <rect x="240" y="568" width="260" height="36" rx="6" fill="#282c34" stroke="#2a2d35" stroke-width="1"/>
+  <text x="255" y="590" fill="#ebeef5" font-size="11" font-weight="600">XQ</text>
+</g>
+
+<!-- Right Panel (Main Area) — Bin Grid -->
+<g>
+  <!-- Zone Header -->
+  <text x="540" y="130" fill="#ebeef5" font-size="16" font-weight="600">Zone M — Etage 1, Gang 01, Regal A</text>
+
+  <!-- Bin Grid (4 columns) -->
+  <!-- Bin M-01-A-1 (Full) -->
+  <rect x="540" y="160" width="140" height="140" rx="8" fill="#282c34" stroke="#2a2d35" stroke-width="1"/>
+  <rect x="545" y="165" width="130" height="85" rx="6" fill="#21242b"/>
+  <rect x="545" y="165" width="130" height="50" rx="6" fill="#34d399"/>
+  <text x="610" y="197" fill="#7a8090" font-size="10" text-anchor="middle">50%</text>
+  <text x="610" y="275" fill="#ebeef5" font-size="11" font-weight="600" text-anchor="middle">M-01-A-1</text>
+  <text x="610" y="291" fill="#7a8090" font-size="9" text-anchor="middle">3 Produkte</text>
+
+  <!-- Bin M-01-A-2 (Full) -->
+  <rect x="710" y="160" width="140" height="140" rx="8" fill="#282c34" stroke="#2a2d35" stroke-width="1"/>
+  <rect x="715" y="165" width="130" height="85" rx="6" fill="#21242b"/>
+  <rect x="715" y="165" width="130" height="75" rx="6" fill="#34d399"/>
+  <text x="780" y="207" fill="#7a8090" font-size="10" text-anchor="middle">75%</text>
+  <text x="780" y="275" fill="#ebeef5" font-size="11" font-weight="600" text-anchor="middle">M-01-A-2</text>
+  <text x="780" y="291" fill="#7a8090" font-size="9" text-anchor="middle">5 Produkte</text>
+
+  <!-- Bin M-01-A-3 (Full) -->
+  <rect x="880" y="160" width="140" height="140" rx="8" fill="#282c34" stroke="#2a2d35" stroke-width="1"/>
+  <rect x="885" y="165" width="130" height="85" rx="6" fill="#21242b"/>
+  <rect x="885" y="165" width="130" height="85" rx="6" fill="#34d399"/>
+  <text x="950" y="212" fill="#7a8090" font-size="10" text-anchor="middle">100%</text>
+  <text x="950" y="275" fill="#ebeef5" font-size="11" font-weight="600" text-anchor="middle">M-01-A-3</text>
+  <text x="950" y="291" fill="#7a8090" font-size="9" text-anchor="middle">7 Produkte</text>
+
+  <!-- Bin M-01-A-4 (Empty) -->
+  <rect x="1050" y="160" width="140" height="140" rx="8" fill="#282c34" stroke="#2a2d35" stroke-width="2" stroke-dasharray="4,4"/>
+  <rect x="1055" y="165" width="130" height="85" rx="6" fill="none" stroke="#2a2d35" stroke-width="1" stroke-dasharray="2,2"/>
+  <text x="1120" y="212" fill="#7a8090" font-size="10" text-anchor="middle">0%</text>
+  <text x="1120" y="275" fill="#7a8090" font-size="11" font-weight="600" text-anchor="middle">M-01-A-4</text>
+  <text x="1120" y="291" fill="#7a8090" font-size="9" text-anchor="middle">Leer</text>
+
+  <!-- Second Row -->
+  <!-- Bin M-02-A-1 (Partial) -->
+  <rect x="540" y="330" width="140" height="140" rx="8" fill="#282c34" stroke="#2a2d35" stroke-width="1"/>
+  <rect x="545" y="335" width="130" height="85" rx="6" fill="#21242b"/>
+  <rect x="545" y="335" width="130" height="40" rx="6" fill="#34d399"/>
+  <text x="610" y="363" fill="#7a8090" font-size="10" text-anchor="middle">35%</text>
+  <text x="610" y="445" fill="#ebeef5" font-size="11" font-weight="600" text-anchor="middle">M-02-A-1</text>
+  <text x="610" y="461" fill="#7a8090" font-size="9" text-anchor="middle">2 Produkte</text>
+
+  <!-- Bin M-02-A-2 (Partial) -->
+  <rect x="710" y="330" width="140" height="140" rx="8" fill="#282c34" stroke="#2a2d35" stroke-width="1"/>
+  <rect x="715" y="335" width="130" height="85" rx="6" fill="#21242b"/>
+  <rect x="715" y="335" width="130" height="25" rx="6" fill="#fbbf24"/>
+  <text x="780" y="363" fill="#7a8090" font-size="10" text-anchor="middle">20%</text>
+  <text x="780" y="445" fill="#ebeef5" font-size="11" font-weight="600" text-anchor="middle">M-02-A-2</text>
+  <text x="780" y="461" fill="#7a8090" font-size="9" text-anchor="middle">1 Produkt</text>
+
+  <!-- Bin M-02-A-3 (Empty) -->
+  <rect x="880" y="330" width="140" height="140" rx="8" fill="#282c34" stroke="#2a2d35" stroke-width="2" stroke-dasharray="4,4"/>
+  <rect x="885" y="335" width="130" height="85" rx="6" fill="none" stroke="#2a2d35" stroke-width="1" stroke-dasharray="2,2"/>
+  <text x="950" y="363" fill="#7a8090" font-size="10" text-anchor="middle">0%</text>
+  <text x="950" y="445" fill="#7a8090" font-size="11" font-weight="600" text-anchor="middle">M-02-A-3</text>
+  <text x="950" y="461" fill="#7a8090" font-size="9" text-anchor="middle">Leer</text>
+
+  <!-- Bin M-02-A-4 (Full) -->
+  <rect x="1050" y="330" width="140" height="140" rx="8" fill="#282c34" stroke="#2a2d35" stroke-width="1"/>
+  <rect x="1055" y="335" width="130" height="85" rx="6" fill="#21242b"/>
+  <rect x="1055" y="335" width="130" height="80" rx="6" fill="#34d399"/>
+  <text x="1120" y="375" fill="#7a8090" font-size="10" text-anchor="middle">90%</text>
+  <text x="1120" y="445" fill="#ebeef5" font-size="11" font-weight="600" text-anchor="middle">M-02-A-4</text>
+  <text x="1120" y="461" fill="#7a8090" font-size="9" text-anchor="middle">9 Produkte</text>
+</g>
+
+<!-- Right Slide-Out Panel — Bin Details -->
+<rect x="1230" y="100" width="180" height="450" rx="8" fill="#21242b" stroke="#2a2d35" stroke-width="1"/>
+
+<!-- Panel Header -->
+<text x="1245" y="125" fill="#ebeef5" font-size="13" font-weight="600">Bin M-01-A-3</text>
+
+<!-- Product List -->
+<text x="1245" y="155" fill="#7a8090" font-size="10" font-weight="600">PRODUKTE</text>
+
+<!-- Product 1 -->
+<rect x="1235" y="165" width="170" height="40" rx="4" fill="#282c34"/>
+<text x="1245" y="180" fill="#ebeef5" font-size="9" font-weight="600">Samsung Galaxy</text>
+<text x="1245" y="193" fill="#7a8090" font-size="8">SKU-20834 • 3x</text>
+
+<!-- Product 2 -->
+<rect x="1235" y="215" width="170" height="40" rx="4" fill="#282c34"/>
+<text x="1245" y="230" fill="#ebeef5" font-size="9" font-weight="600">Nike Air Max 90</text>
+<text x="1245" y="243" fill="#7a8090" font-size="8">SKU-21045 • 2x</text>
+
+<!-- Product 3 -->
+<rect x="1235" y="265" width="170" height="40" rx="4" fill="#282c34"/>
+<text x="1245" y="280" fill="#ebeef5" font-size="9" font-weight="600">Bosch Bohrmasch.</text>
+<text x="1245" y="293" fill="#7a8090" font-size="8">SKU-19234 • 2x</text>
+
+<!-- Actions -->
+<rect x="1235" y="320" width="170" height="28" rx="4" fill="#282c34" stroke="#2a2d35" stroke-width="1"/>
+<text x="1245" y="339" fill="#ebeef5" font-size="9" font-weight="600">Label drucken</text>
+
+<rect x="1235" y="360" width="170" height="28" rx="4" fill="#282c34" stroke="#2a2d35" stroke-width="1"/>
+<text x="1245" y="379" fill="#ebeef5" font-size="9" font-weight="600">Produkt entfernen</text>
+
+</svg>

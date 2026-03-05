@@ -120,28 +120,28 @@ export const ResetPasswordScreen: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-200 flex items-center justify-center px-4">
-      <div className="w-full max-w-md rounded-2xl border border-white/10 bg-slate-800/60 shadow-2xl shadow-black/40 p-6 space-y-5">
+    <div className="min-h-screen bg-app-bg text-txt-secondary flex items-center justify-center px-4">
+      <div className="w-full max-w-md rounded-2xl border border-app-border bg-app-surface shadow-2xl shadow-black/40 p-6 space-y-5">
         <div className="space-y-1">
           <h1 className="text-xl font-bold">{t('auth.reset.title')}</h1>
-          <p className="text-sm text-slate-400">{t('auth.reset.subtitle')}</p>
+          <p className="text-sm text-txt-muted">{t('auth.reset.subtitle')}</p>
         </div>
 
-        {loading && <p className="text-sm text-slate-300" role="status">{t('auth.reset.checking')}</p>}
+        {loading && <p className="text-sm text-txt-secondary" role="status">{t('auth.reset.checking')}</p>}
 
         {!loading && email && (
-          <div className="text-xs text-slate-500">
-            {t('auth.reset.accountLabel')} <span className="text-slate-200">{email}</span>
+          <div className="text-xs text-txt-muted">
+            {t('auth.reset.accountLabel')} <span className="text-txt-secondary">{email}</span>
           </div>
         )}
 
         {error && (
-          <div role="alert" className="rounded-xl border border-rose-800 bg-rose-900/40 px-4 py-3 text-sm text-rose-50">
+          <div role="alert" className="rounded-xl border border-danger/30 bg-danger-dim px-4 py-3 text-sm text-danger">
             {error}
           </div>
         )}
         {success && (
-          <div role="status" className="rounded-xl border border-emerald-800 bg-emerald-900/30 px-4 py-3 text-sm text-emerald-50">
+          <div role="status" className="rounded-xl border border-success/30 bg-success-dim px-4 py-3 text-sm text-success">
             {success}
           </div>
         )}
@@ -149,7 +149,7 @@ export const ResetPasswordScreen: React.FC = () => {
         {!loading && !success && (
           <form onSubmit={handleResetSubmit(onSubmit)} className="space-y-4" noValidate>
             <label className="block space-y-1">
-              <span className="text-sm text-slate-300">{t('auth.reset.newPasswordLabel')}</span>
+              <span className="text-sm text-txt-secondary">{t('auth.reset.newPasswordLabel')}</span>
               <input
                 type="password"
                 {...registerReset('newPassword', {
@@ -160,14 +160,14 @@ export const ResetPasswordScreen: React.FC = () => {
                   },
                 })}
                 autoComplete="new-password"
-                className="w-full rounded-xl bg-slate-900/60 border border-white/10 px-3 py-2.5 text-slate-100 outline-none focus:border-sky-500"
+                className="w-full rounded-xl bg-app-bg/60 border border-app-border px-3 py-2.5 text-txt-primary outline-none focus:border-accent"
               />
               {resetErrors.newPassword?.message && (
-                <p className="text-xs text-rose-400">{resetErrors.newPassword.message}</p>
+                <p className="text-xs text-danger">{resetErrors.newPassword.message}</p>
               )}
             </label>
             <label className="block space-y-1">
-              <span className="text-sm text-slate-300">{t('auth.reset.confirmPasswordLabel')}</span>
+              <span className="text-sm text-txt-secondary">{t('auth.reset.confirmPasswordLabel')}</span>
               <input
                 type="password"
                 {...registerReset('confirmPassword', {
@@ -177,30 +177,30 @@ export const ResetPasswordScreen: React.FC = () => {
                     (t('auth.reset.passwordMismatch') as string),
                 })}
                 autoComplete="new-password"
-                className="w-full rounded-xl bg-slate-900/60 border border-white/10 px-3 py-2.5 text-slate-100 outline-none focus:border-sky-500"
+                className="w-full rounded-xl bg-app-bg/60 border border-app-border px-3 py-2.5 text-txt-primary outline-none focus:border-accent"
               />
               {resetErrors.confirmPassword?.message && (
-                <p className="text-xs text-rose-400">{resetErrors.confirmPassword.message}</p>
+                <p className="text-xs text-danger">{resetErrors.confirmPassword.message}</p>
               )}
             </label>
 
             <button
               type="submit"
               disabled={resetSubmitting || !oobCode}
-              className="w-full rounded-xl bg-sky-600 hover:bg-sky-500 disabled:opacity-60 disabled:hover:bg-sky-600 px-4 py-2.5 font-semibold text-white transition-colors"
+              className="w-full rounded-xl bg-accent hover:bg-accent/80 disabled:opacity-60 disabled:hover:bg-accent px-4 py-2.5 font-semibold text-txt-primary transition-colors"
             >
               {resetSubmitting ? t('auth.reset.submitting') : t('auth.reset.submit')}
             </button>
           </form>
         )}
 
-        <div className="border-t border-white/10 pt-4 space-y-3">
-          <div className="text-xs text-slate-500">
+        <div className="border-t border-app-border pt-4 space-y-3">
+          <div className="text-xs text-txt-muted">
             {t('auth.reset.resend.hint')}
           </div>
           <form onSubmit={handleResendSubmit(onResend)} className="space-y-2" noValidate>
             <label className="block space-y-1">
-              <span className="text-xs text-slate-300">{t('auth.reset.resend.emailLabel')}</span>
+              <span className="text-xs text-txt-secondary">{t('auth.reset.resend.emailLabel')}</span>
               <input
                 type="email"
                 {...registerResend('resendEmail', {
@@ -212,20 +212,20 @@ export const ResetPasswordScreen: React.FC = () => {
                 defaultValue={email || ''}
                 placeholder="name@trendocean.de"
                 autoComplete="email"
-                className="w-full rounded-xl bg-slate-900/60 border border-white/10 px-3 py-2.5 text-slate-100 outline-none focus:border-sky-500"
+                className="w-full rounded-xl bg-app-bg/60 border border-app-border px-3 py-2.5 text-txt-primary outline-none focus:border-accent"
               />
               {resendErrors.resendEmail?.message && (
-                <p className="text-xs text-rose-400">{resendErrors.resendEmail.message}</p>
+                <p className="text-xs text-danger">{resendErrors.resendEmail.message}</p>
               )}
             </label>
             <button
               type="submit"
               disabled={resendSubmitting}
-              className="w-full rounded-xl bg-slate-700 hover:bg-slate-600 disabled:opacity-60 disabled:hover:bg-slate-700 px-4 py-2.5 font-semibold text-white transition-colors"
+              className="w-full rounded-xl bg-app-elevated hover:bg-app-border disabled:opacity-60 disabled:hover:bg-app-elevated px-4 py-2.5 font-semibold text-txt-primary transition-colors"
             >
               {resendSubmitting ? t('auth.reset.resend.submitting') : t('auth.reset.resend.submit')}
             </button>
-            {resendMessage && <p className="text-xs text-slate-400">{resendMessage}</p>}
+            {resendMessage && <p className="text-xs text-txt-muted">{resendMessage}</p>}
           </form>
         </div>
 
@@ -234,7 +234,7 @@ export const ResetPasswordScreen: React.FC = () => {
           onClick={() => {
             window.location.href = '/';
           }}
-          className="text-left text-xs text-slate-400 hover:text-slate-200 underline underline-offset-4"
+          className="text-left text-xs text-txt-muted hover:text-txt-secondary underline underline-offset-4"
         >
           {t('auth.reset.backToLogin')}
         </button>

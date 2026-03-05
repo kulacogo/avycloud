@@ -2,68 +2,120 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Alle div-Ecken global auf 8px abrunden */
-@layer base {
-  div {
-    border-radius: 8px !important;
-  }
-}
-
+/* ========================================
+   DESIGN TOKENS — Soft Slate Dark (Default)
+   ======================================== */
 :root {
-  /* Globale Textgröße: 14px — bessere Lesbarkeit */
   font-size: 14px;
   color-scheme: dark;
-  --page-bg: #0f172a;
-  --surface-primary: #1e293b;
-  --surface-secondary: #1f2937;
-  --text-color: #e2e8f0;
-  --text-muted: #94a3b8;
-  --border-color: #1f2a37;
+
+  /* Backgrounds */
+  --bg: #1a1d23;
+  --sidebar: #15171c;
+  --surface: #21242b;
+  --elevated: #282c34;
+  --border: #2a2d35;
+
+  /* Text */
+  --text-primary: #ebeef5;
+  --text-secondary: #7a8090;
+  --text-muted: #8a8f9e;
+
+  /* Accent (Brand Purple) */
+  --accent: #7c75ff;
+  --accent-dim: rgba(124, 117, 255, 0.15);
+
+  /* Semantic Colors */
+  --success: #34d399;
+  --success-dim: rgba(52, 211, 153, 0.15);
+  --warning: #fbbf24;
+  --warning-dim: rgba(251, 191, 36, 0.15);
+  --danger: #f87171;
+  --danger-dim: rgba(248, 113, 113, 0.15);
+  --info: #60a5fa;
+  --info-dim: rgba(96, 165, 250, 0.15);
+
+  /* Radii */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+
+  /* Shadows */
+  --shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+
+  /* Legacy aliases (keep for backward compat during migration) */
+  --page-bg: var(--bg);
+  --surface-primary: var(--surface);
+  --surface-secondary: var(--elevated);
+  --text-color: var(--text-primary);
+  --border-color: var(--border);
 }
 
 @media (max-width: 768px) {
   :root {
-    /* Better readability + touch UX on handheld scanners / phones */
     font-size: 15px;
   }
 }
 
+/* ========================================
+   LIGHT THEME
+   ======================================== */
 [data-theme='light'] {
   color-scheme: light;
-  --page-bg: #f8fafc;
-  --surface-primary: #ffffff;
-  --surface-secondary: #f1f5f9;
-  --text-color: #0f172a;
-  --text-muted: #475569;
-  --border-color: #d2d9e5;
+
+  --bg: #f5f6f8;
+  --sidebar: #ffffff;
+  --surface: #ffffff;
+  --elevated: #f0f1f3;
+  --border: #e2e4e9;
+
+  --text-primary: #1a1d23;
+  --text-secondary: #5a5f70;
+  --text-muted: #8a8f9e;
+
+  --accent: #635bff;
+  --accent-dim: rgba(99, 91, 255, 0.1);
+
+  --shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
+/* ========================================
+   SCROLLBAR
+   ======================================== */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--surface-secondary);
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #475569;
-  border-radius: 8px;
+  background: var(--border);
+  border-radius: var(--radius-md);
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #64748b;
+  background: var(--text-muted);
 }
 
+/* ========================================
+   BASE STYLES
+   ======================================== */
 body {
-  background-color: var(--page-bg);
-  color: var(--text-color);
+  background-color: var(--bg);
+  color: var(--text-primary);
   min-height: 100vh;
   margin: 0;
-  transition: background-color 0.25s ease, color 0.25s ease;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
+/* ========================================
+   LIGHT THEME — Legacy Tailwind class overrides
+   (phased out as components migrate to token classes)
+   ======================================== */
 [data-theme='light'] .bg-slate-900,
 [data-theme='light'] .bg-slate-900\/80,
 [data-theme='light'] .bg-slate-900\/70,
@@ -76,20 +128,20 @@ body {
 [data-theme='light'] .bg-slate-600,
 [data-theme='light'] .bg-slate-600\/80,
 [data-theme='light'] .bg-slate-600\/70 {
-  background-color: var(--surface-primary) !important;
-  color: var(--text-color) !important;
+  background-color: var(--surface) !important;
+  color: var(--text-primary) !important;
 }
 
 [data-theme='light'] .bg-slate-800\/70,
 [data-theme='light'] .bg-slate-800\/50,
 [data-theme='light'] .bg-slate-700\/30 {
-  background-color: var(--surface-secondary) !important;
+  background-color: var(--elevated) !important;
 }
 
 [data-theme='light'] .text-white,
 [data-theme='light'] .text-slate-100,
 [data-theme='light'] .text-slate-200 {
-  color: var(--text-color) !important;
+  color: var(--text-primary) !important;
 }
 
 [data-theme='light'] .text-slate-300,
@@ -102,17 +154,20 @@ body {
 [data-theme='light'] .border-slate-600,
 [data-theme='light'] .border-slate-500,
 [data-theme='light'] .border-white\/5 {
-  border-color: var(--border-color) !important;
+  border-color: var(--border) !important;
 }
 
 [data-theme='light'] input,
 [data-theme='light'] textarea,
 [data-theme='light'] select {
-  background-color: var(--surface-secondary);
-  color: var(--text-color);
-  border-color: var(--border-color);
+  background-color: var(--elevated);
+  color: var(--text-primary);
+  border-color: var(--border);
 }
 
+/* ========================================
+   SAFE AREA (iOS notch/home indicator)
+   ======================================== */
 .safe-area-header {
   padding-top: calc(constant(safe-area-inset-top) + 0.5rem);
   padding-top: calc(env(safe-area-inset-top) + 0.5rem);

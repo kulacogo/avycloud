@@ -22,7 +22,7 @@ const AdminTableRow: React.FC<AdminTableRowProps> = ({
     <tr
       ref={rowRef}
       data-product-row={product.id}
-      className="border-b border-white/10 hover:bg-slate-700/50 transition-colors"
+      className="border-b border-app-border hover:bg-app-elevated/50 transition-colors"
     >
       <td className="p-3">
         <input
@@ -31,7 +31,7 @@ const AdminTableRow: React.FC<AdminTableRowProps> = ({
           aria-label="Produkt ausw\u00E4hlen"
           checked={isSelected}
           onChange={() => onSelect(product.id)}
-          className="bg-slate-600 border-slate-500"
+          className="bg-app-border border-app-border"
         />
       </td>
       {visibleColumnDefinitions.map((column) => (

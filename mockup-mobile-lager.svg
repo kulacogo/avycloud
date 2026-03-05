@@ -1,0 +1,378 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg viewBox="0 0 390 844" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+      * {
+        font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      .page-bg { fill: #1a1d23; }
+      .surface { fill: #21242b; }
+      .elevated { fill: #282c34; }
+      .border { fill: none; stroke: #2a2d35; stroke-width: 1; }
+
+      .text-primary { fill: #ebeef5; font-size: 18px; font-weight: 600; }
+      .text-subtitle { fill: #7a8090; font-size: 12px; font-weight: 400; }
+      .text-label { fill: #ebeef5; font-size: 10px; font-weight: 500; }
+      .text-small { fill: #7a8090; font-size: 11px; font-weight: 400; }
+      .text-small-accent { fill: #7c75ff; font-size: 11px; font-weight: 500; }
+
+      .zone-card { fill: #282c34; rx: 8; }
+      .zone-card-muted { fill: #282c34; stroke: #2a2d35; stroke-width: 1; }
+      .zone-card-active { fill: #282c34; stroke: #7c75ff; stroke-width: 2; }
+
+      .bin-cell { fill: #282c34; stroke: #2a2d35; stroke-width: 1; rx: 6; }
+      .bin-cell-empty { fill: none; stroke: #2a2d35; stroke-width: 1.5; stroke-dasharray: 4,3; rx: 6; }
+
+      .fill-bar-success { fill: #34d399; }
+      .fill-bar-warning { fill: #fbbf24; }
+      .fill-bar-danger { fill: #f87171; }
+      .fill-bar-accent { fill: #7c75ff; }
+
+      .nav-item-icon { fill: #7a8090; }
+      .nav-item-active { fill: #7c75ff; }
+
+      .icon-wifi { fill: #7a8090; }
+      .icon-signal { fill: #7a8090; }
+      .icon-battery { fill: #7a8090; stroke: #7a8090; stroke-width: 0.5; }
+    </style>
+
+    <!-- SVG Icons -->
+    <symbol id="icon-wifi" viewBox="0 0 24 24">
+      <path class="icon-wifi" d="M1 9l2 2c4.97-4.97 13.03-4.97 18 0l2-2C16.93 2.93 7.08 2.93 1 9zm8 8l3 3 3-3c-1.65-1.66-4.34-1.66-6 0zm-4-4l2 2c2.76-2.76 7.24-2.76 10 0l2-2C15.14 9.14 8.87 9.14 5 13z"/>
+    </symbol>
+
+    <symbol id="icon-signal" viewBox="0 0 24 24">
+      <path class="icon-signal" d="M1 9l2 2c4.97-4.97 13.03-4.97 18 0l2-2C16.93 2.93 7.08 2.93 1 9zm8 8l3 3 3-3c-1.65-1.66-4.34-1.66-6 0z"/>
+    </symbol>
+
+    <symbol id="icon-battery" viewBox="0 0 24 24">
+      <rect x="2" y="4" width="16" height="16" rx="2" class="icon-battery"/>
+      <rect x="19" y="7" width="2" height="10" class="icon-battery"/>
+    </symbol>
+
+    <symbol id="icon-dashboard" viewBox="0 0 24 24">
+      <rect x="3" y="3" width="8" height="8" fill="currentColor"/>
+      <rect x="13" y="3" width="8" height="8" fill="currentColor"/>
+      <rect x="3" y="13" width="8" height="8" fill="currentColor"/>
+      <rect x="13" y="13" width="8" height="8" fill="currentColor"/>
+    </symbol>
+
+    <symbol id="icon-erfassen" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/>
+      <line x1="12" y1="7" x2="12" y2="17" stroke="currentColor" stroke-width="2"/>
+      <line x1="7" y1="12" x2="17" y2="12" stroke="currentColor" stroke-width="2"/>
+    </symbol>
+
+    <symbol id="icon-produkte" viewBox="0 0 24 24">
+      <rect x="3" y="4" width="6" height="6" fill="currentColor"/>
+      <rect x="11" y="4" width="6" height="6" fill="currentColor"/>
+      <rect x="3" y="12" width="6" height="6" fill="currentColor"/>
+      <rect x="11" y="12" width="6" height="6" fill="currentColor"/>
+    </symbol>
+
+    <symbol id="icon-bestand" viewBox="0 0 24 24">
+      <path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm3.5-9c.83 0 1.5-.67 1.5-1.5S16.33 8 15.5 8 14 8.67 14 9.5s.67 1.5 1.5 1.5zm-7 0c.83 0 1.5-.67 1.5-1.5S9.33 8 8.5 8 7 8.67 7 9.5 7.67 11 8.5 11zm3.5 6.5c2.33 0 4.31-1.46 5.11-3.5H6.89c.8 2.04 2.78 3.5 5.11 3.5z"/>
+    </symbol>
+
+    <symbol id="icon-mehr" viewBox="0 0 24 24">
+      <circle cx="12" cy="5" r="2" fill="currentColor"/>
+      <circle cx="12" cy="12" r="2" fill="currentColor"/>
+      <circle cx="12" cy="19" r="2" fill="currentColor"/>
+    </symbol>
+
+    <symbol id="icon-plus" viewBox="0 0 24 24">
+      <line x1="12" y1="5" x2="12" y2="19" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      <line x1="5" y1="12" x2="19" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+    </symbol>
+  </defs>
+
+  <!-- Background -->
+  <rect width="390" height="844" class="page-bg"/>
+
+  <!-- ===== STATUS BAR (0-44) ===== -->
+  <rect y="0" width="390" height="44" class="surface"/>
+  <text x="20" y="28" font-size="14" font-weight="600" fill="#ebeef5">9:41</text>
+
+  <!-- Status icons right -->
+  <g transform="translate(340, 20)">
+    <use href="#icon-wifi" width="16" height="16"/>
+  </g>
+  <g transform="translate(360, 20)">
+    <use href="#icon-signal" width="16" height="16"/>
+  </g>
+  <rect x="362" y="18" width="14" height="8" rx="1.5" class="icon-battery" fill="none"/>
+  <rect x="363" y="19" width="11" height="6" fill="#7a8090"/>
+
+  <!-- ===== HEADER (44-100) ===== -->
+  <rect y="44" width="390" height="56" class="surface"/>
+  <text x="20" y="76" class="text-primary">Lager</text>
+  <text x="20" y="93" class="text-subtitle">7 Zonen · 156 Bins</text>
+
+  <!-- ===== ZONE SELECTOR (108-170) ===== -->
+  <rect y="108" width="390" height="62" class="page-bg"/>
+
+  <!-- Zone cards -->
+  <!-- X (muted) -->
+  <rect x="16" y="118" width="44" height="44" class="zone-card-muted"/>
+  <text x="38" y="148" class="text-label" text-anchor="middle" fill="#7a8090">X</text>
+
+  <!-- XS (muted) -->
+  <rect x="68" y="118" width="44" height="44" class="zone-card-muted"/>
+  <text x="90" y="148" class="text-label" text-anchor="middle" fill="#7a8090">XS</text>
+
+  <!-- S (muted) -->
+  <rect x="120" y="118" width="44" height="44" class="zone-card-muted"/>
+  <text x="142" y="148" class="text-label" text-anchor="middle" fill="#7a8090">S</text>
+
+  <!-- M (ACTIVE) -->
+  <rect x="172" y="118" width="44" height="44" class="zone-card-active"/>
+  <text x="194" y="148" class="text-label" text-anchor="middle" fill="#7c75ff">M</text>
+
+  <!-- L (muted) -->
+  <rect x="224" y="118" width="44" height="44" class="zone-card-muted"/>
+  <text x="246" y="148" class="text-label" text-anchor="middle" fill="#7a8090">L</text>
+
+  <!-- XL (muted) -->
+  <rect x="276" y="118" width="44" height="44" class="zone-card-muted"/>
+  <text x="298" y="148" class="text-label" text-anchor="middle" fill="#7a8090">XL</text>
+
+  <!-- XQ (muted) -->
+  <rect x="328" y="118" width="44" height="44" class="zone-card-muted"/>
+  <text x="350" y="148" class="text-label" text-anchor="middle" fill="#7a8090">XQ</text>
+
+  <!-- Active zone info -->
+  <text x="20" y="170" font-size="11" fill="#7a8090">Zone M · 48 Bins · 82% belegt</text>
+
+  <!-- ===== BIN GRID (180-520) ===== -->
+  <rect y="180" width="390" height="340" class="page-bg"/>
+
+  <!-- Section header -->
+  <text x="20" y="202" font-size="13" font-weight="600" fill="#ebeef5">Zone M — Bins</text>
+
+  <!-- BIN GRID: 4 columns × 3 rows, 80×80 each, 6px gap -->
+  <!-- Row 1 -->
+  <!-- M-01-A-1 (85%, Green) -->
+  <g transform="translate(20, 220)">
+    <rect width="80" height="80" class="bin-cell"/>
+    <text x="40" y="15" class="text-label" text-anchor="middle">M-01-A-1</text>
+    <text x="40" y="50" font-size="11" fill="#7a8090" text-anchor="middle">12</text>
+    <rect y="72" width="80" height="4" fill="#2a2d35"/>
+    <rect y="72" width="68" height="4" class="fill-bar-success"/>
+  </g>
+
+  <!-- M-01-A-2 (50%, Yellow) -->
+  <g transform="translate(106, 220)">
+    <rect width="80" height="80" class="bin-cell"/>
+    <text x="40" y="15" class="text-label" text-anchor="middle">M-01-A-2</text>
+    <text x="40" y="50" font-size="11" fill="#7a8090" text-anchor="middle">8</text>
+    <rect y="72" width="80" height="4" fill="#2a2d35"/>
+    <rect y="72" width="40" height="4" class="fill-bar-warning"/>
+  </g>
+
+  <!-- M-01-A-3 (20%, Red) -->
+  <g transform="translate(192, 220)">
+    <rect width="80" height="80" class="bin-cell"/>
+    <text x="40" y="15" class="text-label" text-anchor="middle">M-01-A-3</text>
+    <text x="40" y="50" font-size="11" fill="#7a8090" text-anchor="middle">3</text>
+    <rect y="72" width="80" height="4" fill="#2a2d35"/>
+    <rect y="72" width="16" height="4" class="fill-bar-danger"/>
+  </g>
+
+  <!-- M-01-A-4 (Empty) -->
+  <g transform="translate(278, 220)">
+    <rect width="80" height="80" class="bin-cell-empty"/>
+    <circle cx="40" cy="50" r="12" fill="none" stroke="#2a2d35" stroke-width="1.5"/>
+    <line x1="34" y1="50" x2="46" y2="50" stroke="#7a8090" stroke-width="1.5" stroke-linecap="round"/>
+    <line x1="40" y1="44" x2="40" y2="56" stroke="#7a8090" stroke-width="1.5" stroke-linecap="round"/>
+  </g>
+
+  <!-- Row 2 -->
+  <!-- M-02-A-1 (75%, Green) -->
+  <g transform="translate(20, 306)">
+    <rect width="80" height="80" class="bin-cell"/>
+    <text x="40" y="15" class="text-label" text-anchor="middle">M-02-A-1</text>
+    <text x="40" y="50" font-size="11" fill="#7a8090" text-anchor="middle">15</text>
+    <rect y="72" width="80" height="4" fill="#2a2d35"/>
+    <rect y="72" width="60" height="4" class="fill-bar-success"/>
+  </g>
+
+  <!-- M-02-A-2 (60%, Green) -->
+  <g transform="translate(106, 306)">
+    <rect width="80" height="80" class="bin-cell"/>
+    <text x="40" y="15" class="text-label" text-anchor="middle">M-02-A-2</text>
+    <text x="40" y="50" font-size="11" fill="#7a8090" text-anchor="middle">19</text>
+    <rect y="72" width="80" height="4" fill="#2a2d35"/>
+    <rect y="72" width="48" height="4" class="fill-bar-success"/>
+  </g>
+
+  <!-- M-02-A-3 (85%, Green) - SELECTED BIN -->
+  <g transform="translate(192, 306)">
+    <rect width="80" height="80" class="bin-cell" stroke="#7c75ff" stroke-width="2"/>
+    <text x="40" y="15" class="text-label" text-anchor="middle" fill="#7c75ff">M-02-A-3</text>
+    <text x="40" y="50" font-size="11" fill="#7a8090" text-anchor="middle">23</text>
+    <rect y="72" width="80" height="4" fill="#2a2d35"/>
+    <rect y="72" width="68" height="4" class="fill-bar-success"/>
+  </g>
+
+  <!-- M-02-A-4 (35%, Yellow) -->
+  <g transform="translate(278, 306)">
+    <rect width="80" height="80" class="bin-cell"/>
+    <text x="40" y="15" class="text-label" text-anchor="middle">M-02-A-4</text>
+    <text x="40" y="50" font-size="11" fill="#7a8090" text-anchor="middle">5</text>
+    <rect y="72" width="80" height="4" fill="#2a2d35"/>
+    <rect y="72" width="28" height="4" class="fill-bar-warning"/>
+  </g>
+
+  <!-- Row 3 -->
+  <!-- M-03-A-1 (90%, Green) -->
+  <g transform="translate(20, 392)">
+    <rect width="80" height="80" class="bin-cell"/>
+    <text x="40" y="15" class="text-label" text-anchor="middle">M-03-A-1</text>
+    <text x="40" y="50" font-size="11" fill="#7a8090" text-anchor="middle">25</text>
+    <rect y="72" width="80" height="4" fill="#2a2d35"/>
+    <rect y="72" width="72" height="4" class="fill-bar-success"/>
+  </g>
+
+  <!-- M-03-A-2 (Empty) -->
+  <g transform="translate(106, 392)">
+    <rect width="80" height="80" class="bin-cell-empty"/>
+    <circle cx="40" cy="50" r="12" fill="none" stroke="#2a2d35" stroke-width="1.5"/>
+    <line x1="34" y1="50" x2="46" y2="50" stroke="#7a8090" stroke-width="1.5" stroke-linecap="round"/>
+    <line x1="40" y1="44" x2="40" y2="56" stroke="#7a8090" stroke-width="1.5" stroke-linecap="round"/>
+  </g>
+
+  <!-- M-03-A-3 (45%, Yellow) -->
+  <g transform="translate(192, 392)">
+    <rect width="80" height="80" class="bin-cell"/>
+    <text x="40" y="15" class="text-label" text-anchor="middle">M-03-A-3</text>
+    <text x="40" y="50" font-size="11" fill="#7a8090" text-anchor="middle">7</text>
+    <rect y="72" width="80" height="4" fill="#2a2d35"/>
+    <rect y="72" width="36" height="4" class="fill-bar-warning"/>
+  </g>
+
+  <!-- M-03-A-4 (Special, Accent) -->
+  <g transform="translate(278, 392)">
+    <rect width="80" height="80" class="bin-cell"/>
+    <text x="40" y="15" class="text-label" text-anchor="middle" fill="#7c75ff">M-03-A-4</text>
+    <text x="40" y="50" font-size="11" fill="#7a8090" text-anchor="middle">6</text>
+    <rect y="72" width="80" height="4" fill="#2a2d35"/>
+    <rect y="72" width="52" height="4" class="fill-bar-accent"/>
+  </g>
+
+  <!-- ===== SELECTED BIN DETAIL (532-740) ===== -->
+  <rect y="532" width="390" height="208" class="page-bg"/>
+
+  <!-- Detail card -->
+  <rect x="12" y="544" width="366" height="196" class="elevated" rx="8"/>
+
+  <!-- Card header -->
+  <text x="24" y="570" font-size="13" font-weight="600" fill="#ebeef5">Bin M-02-A-3</text>
+
+  <!-- Capacity pill -->
+  <rect x="312" y="557" width="54" height="24" rx="12" fill="#1a1d23"/>
+  <rect x="314" y="559" width="50" height="20" rx="10" fill="#34d399" opacity="0.15"/>
+  <text x="339" y="574" font-size="10" font-weight="600" fill="#34d399" text-anchor="middle">85%</text>
+
+  <!-- Product items -->
+  <!-- Item 1: Samsung Galaxy S24 Ultra -->
+  <g transform="translate(24, 590)">
+    <text y="0" font-size="12" font-weight="500" fill="#ebeef5">Samsung Galaxy S24 Ultra</text>
+    <text y="18" font-size="11" fill="#7a8090">SM-S928B</text>
+    <text y="33" class="text-small-accent">×17</text>
+  </g>
+
+  <!-- Item 2: Samsung Galaxy S24 -->
+  <g transform="translate(24, 631)">
+    <text y="0" font-size="12" font-weight="500" fill="#ebeef5">Samsung Galaxy S24</text>
+    <text y="18" font-size="11" fill="#7a8090">SM-S921B</text>
+    <text y="33" class="text-small-accent">×8</text>
+  </g>
+
+  <!-- Item 3: Galaxy S24 Hülle -->
+  <g transform="translate(24, 672)">
+    <text y="0" font-size="12" font-weight="500" fill="#ebeef5">Galaxy S24 Hülle</text>
+    <text y="18" font-size="11" fill="#7a8090">ACC-S24-BLK</text>
+    <text y="33" class="text-small-accent">×23</text>
+  </g>
+
+  <!-- Action buttons -->
+  <!-- Label drucken -->
+  <rect x="24" y="698" width="160" height="36" class="page-bg" rx="6" stroke="#7c75ff" stroke-width="1.5"/>
+  <text x="104" y="722" font-size="12" font-weight="600" fill="#7c75ff" text-anchor="middle">Label drucken</text>
+
+  <!-- Umlagern -->
+  <rect x="202" y="698" width="160" height="36" class="page-bg" rx="6" stroke="#7c75ff" stroke-width="1.5"/>
+  <text x="282" y="722" font-size="12" font-weight="600" fill="#7c75ff" text-anchor="middle">Umlagern</text>
+
+  <!-- ===== BOTTOM NAVIGATION BAR (764-844) ===== -->
+  <rect y="764" width="390" height="80" fill="#15171c"/>
+  <line x1="0" y1="764" x2="390" y2="764" stroke="#2a2d35" stroke-width="1"/>
+
+  <!-- Nav item: Dashboard -->
+  <g transform="translate(0, 764)" opacity="0.7">
+    <rect width="78" height="80" class="page-bg" opacity="0"/>
+    <g transform="translate(39, 16)">
+      <circle cx="0" cy="0" r="12" fill="none" stroke="#7a8090" stroke-width="1.5"/>
+      <circle cx="-3" cy="-4" r="2.5" fill="#7a8090"/>
+      <circle cx="3" cy="-4" r="2.5" fill="#7a8090"/>
+      <circle cx="-3" cy="4" r="2.5" fill="#7a8090"/>
+      <circle cx="3" cy="4" r="2.5" fill="#7a8090"/>
+    </g>
+    <text x="39" y="66" font-size="10" fill="#7a8090" text-anchor="middle">Dashboard</text>
+  </g>
+
+  <!-- Nav item: Erfassen -->
+  <g transform="translate(78, 764)" opacity="0.7">
+    <rect width="78" height="80" class="page-bg" opacity="0"/>
+    <g transform="translate(39, 16)">
+      <circle cx="0" cy="0" r="12" fill="none" stroke="#7a8090" stroke-width="1.5"/>
+      <line x1="0" y1="-6" x2="0" y2="6" stroke="#7a8090" stroke-width="1.5" stroke-linecap="round"/>
+      <line x1="-6" y1="0" x2="6" y2="0" stroke="#7a8090" stroke-width="1.5" stroke-linecap="round"/>
+    </g>
+    <text x="39" y="66" font-size="10" fill="#7a8090" text-anchor="middle">Erfassen</text>
+  </g>
+
+  <!-- Nav item: Produkte -->
+  <g transform="translate(156, 764)" opacity="0.7">
+    <rect width="78" height="80" class="page-bg" opacity="0"/>
+    <g transform="translate(39, 16)">
+      <rect x="-6" y="-6" width="4" height="4" fill="#7a8090"/>
+      <rect x="2" y="-6" width="4" height="4" fill="#7a8090"/>
+      <rect x="-6" y="2" width="4" height="4" fill="#7a8090"/>
+      <rect x="2" y="2" width="4" height="4" fill="#7a8090"/>
+    </g>
+    <text x="39" y="66" font-size="10" fill="#7a8090" text-anchor="middle">Produkte</text>
+  </g>
+
+  <!-- Nav item: Bestand -->
+  <g transform="translate(234, 764)" opacity="0.7">
+    <rect width="78" height="80" class="page-bg" opacity="0"/>
+    <g transform="translate(39, 16)">
+      <circle cx="0" cy="0" r="10" fill="none" stroke="#7a8090" stroke-width="1.5"/>
+      <circle cx="-2" cy="-3" r="1.5" fill="#7a8090"/>
+      <circle cx="2" cy="-3" r="1.5" fill="#7a8090"/>
+      <path d="M -4 2 Q 0 5 4 2" fill="none" stroke="#7a8090" stroke-width="1.5" stroke-linecap="round"/>
+    </g>
+    <text x="39" y="66" font-size="10" fill="#7a8090" text-anchor="middle">Bestand</text>
+    <!-- Badge "18" -->
+    <circle cx="53" cy="30" r="8" fill="#f87171"/>
+    <text x="53" y="34" font-size="9" font-weight="600" fill="#1a1d23" text-anchor="middle">18</text>
+  </g>
+
+  <!-- Nav item: Mehr (ACTIVE - since Lager is under Mehr) -->
+  <g transform="translate(312, 764)">
+    <rect width="78" height="80" class="page-bg" opacity="0"/>
+    <g transform="translate(39, 16)">
+      <circle cx="0" cy="-5" r="1.5" fill="#7c75ff"/>
+      <circle cx="0" cy="0" r="1.5" fill="#7c75ff"/>
+      <circle cx="0" cy="5" r="1.5" fill="#7c75ff"/>
+    </g>
+    <text x="39" y="66" font-size="10" fill="#7c75ff" text-anchor="middle">Mehr</text>
+  </g>
+
+  <!-- Safe area indicator (subtle) -->
+  <rect y="824" width="390" height="20" fill="#15171c" opacity="0.5"/>
+</svg>

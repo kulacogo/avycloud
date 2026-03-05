@@ -1208,14 +1208,14 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
         <div
           role="alert"
           aria-live="assertive"
-          className={`fixed top-20 right-8 p-4 rounded-xl z-50 ${notification.type === 'success' ? 'bg-emerald-600' : 'bg-rose-600'} text-white`}
+          className={`fixed top-20 right-8 p-4 rounded-xl z-50 ${notification.type === 'success' ? 'bg-success' : 'bg-danger'} text-txt-primary`}
         >
           {notification.message}
         </div>
       )}
 
       <div className="space-y-5">
-        <header className="p-5 bg-slate-800/40 border border-white/10 rounded-2xl">
+        <header className="p-5 bg-app-surface border border-app-border rounded-2xl">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div className="flex-1 min-w-0">
               {isEditing ? (
@@ -1226,7 +1226,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                     value={localProduct.identification.name}
                     onChange={(e) => handleFieldChange('identification.name', e.target.value)}
                     className={`w-full text-2xl sm:text-3xl font-bold bg-transparent outline-none border-b resize-y min-h-[3.5rem] leading-tight ${
-                      hasQualityIssue('identification.name') ? 'border-red-400' : 'border-sky-500'
+                      hasQualityIssue('identification.name') ? 'border-danger' : 'border-accent'
                     }`}
                     rows={2}
                     style={{ wordBreak: 'break-word' }}
@@ -1234,10 +1234,10 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                   <div className="flex justify-end mt-0.5">
                     <span className={`text-xs tabular-nums ${
                       (localProduct.identification.name?.length || 0) > 80
-                        ? 'text-red-400 font-semibold'
+                        ? 'text-danger font-semibold'
                         : (localProduct.identification.name?.length || 0) >= 70
                         ? 'text-amber-400'
-                        : 'text-slate-500'
+                        : 'text-txt-muted'
                     }`}>
                       {localProduct.identification.name?.length || 0}/80
                     </span>
@@ -1246,32 +1246,32 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
               ) : (
                 <h1
                   className={`text-2xl sm:text-3xl font-bold break-words leading-tight ${
-                    hasQualityIssue('identification.name') ? 'text-red-200' : ''
+                    hasQualityIssue('identification.name') ? 'text-danger' : ''
                   }`}
                   style={{ wordBreak: 'break-word' }}
                 >
                   {localProduct.identification.name}
                 </h1>
               )}
-              <p id="p-brand-cat" className="text-slate-400 mt-1">
+              <p id="p-brand-cat" className="text-txt-muted mt-1">
                 <input
                   aria-label="Marke"
                   value={localProduct.identification.brand}
                   onChange={(e) => handleFieldChange('identification.brand', e.target.value)}
                   readOnly={!isEditing}
                   className={`bg-transparent inline-block outline-none ${
-                    isEditing ? (hasQualityIssue('identification.brand') ? 'border-b border-red-400' : 'border-b border-sky-500') : ''
+                    isEditing ? (hasQualityIssue('identification.brand') ? 'border-b border-danger' : 'border-b border-accent') : ''
                   }`}
                 />
                 {' · '}
                 {isEditing ? (
-                  <span className="inline-flex flex-col gap-1 text-xs text-slate-200">
+                  <span className="inline-flex flex-col gap-1 text-xs text-txt-secondary">
                     <input
                       aria-label="eBay Kategorie suchen"
                       value={categoryQuery}
                       onChange={(e) => setCategoryQuery(e.target.value)}
                       className={`bg-transparent border-b outline-none ${
-                        hasQualityIssue('details.categoryId') ? 'border-red-400' : 'border-sky-500'
+                        hasQualityIssue('details.categoryId') ? 'border-danger' : 'border-accent'
                       }`}
                       placeholder="eBay Kategorie suchen..."
                     />
@@ -1282,7 +1282,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                         ''
                       }
                       onChange={(e) => handleCategorySelect(e.target.value)}
-                      className="bg-slate-800 border border-white/10 rounded-md px-2 py-1 text-xs text-slate-200"
+                      className="bg-app-elevated border border-app-border rounded-md px-2 py-1 text-xs text-txt-secondary"
                     >
                       <option value="">eBay Kategorie auswählen...</option>
                       {categorySelectOptions.map((option) => (
@@ -1291,20 +1291,20 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                         </option>
                       ))}
                     </select>
-                    {categoryLoading && <span role="status" aria-live="polite" className="text-[10px] text-slate-500">Lade Kategorien…</span>}
-                    {categoryError && <span className="text-[10px] text-red-400">{categoryError}</span>}
+                    {categoryLoading && <span role="status" aria-live="polite" className="text-[10px] text-txt-muted">Lade Kategorien…</span>}
+                    {categoryError && <span className="text-[10px] text-danger">{categoryError}</span>}
                   </span>
                 ) : (
-                  <span className="text-sky-400">
+                  <span className="text-accent">
                     {getProductDisplayCategory(localProduct)}
                     {localProduct.details?.categoryId ? (
-                      <span className="text-slate-500"> ({localProduct.details.categoryId})</span>
+                      <span className="text-txt-muted"> ({localProduct.details.categoryId})</span>
                     ) : null}
                   </span>
                 )}
               </p>
 
-              <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-400 mt-2">
+              <div className="flex flex-wrap items-center gap-2 text-[11px] text-txt-muted mt-2">
                 <span>
                   SKU:{' '}
                   {localProduct.identification.sku || localProduct.details.identifiers?.sku || t('common.skuFallback')}
@@ -1313,7 +1313,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                   id="btn-print-label"
                   onClick={handlePrintLabel}
                   disabled={!localProduct.identification.sku || isPrintingLabel}
-                  className="flex items-center px-3 py-1.5 bg-slate-700 text-white rounded-full hover:bg-slate-600 disabled:opacity-40"
+                  className="flex items-center px-3 py-1.5 bg-app-elevated text-txt-primary rounded-full hover:bg-app-border disabled:opacity-40"
                   title={t('sheet.buttons.printLabelTitle')}
                   aria-label={t('sheet.buttons.printLabelTitle') || 'SKU-Label drucken'}
                 >
@@ -1323,7 +1323,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
               </div>
               {isEditing ? (
                 <div className="mt-3">
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                  <label className="block text-xs font-semibold text-txt-secondary mb-1">
                     {t('common.barcodeLabel')}
                   </label>
                   <textarea
@@ -1334,15 +1334,15 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                       setIsDirty(true);
                     }}
                     rows={Math.min(4, Math.max(2, barcodeInput.split('\n').length || 2))}
-                    className={`w-full bg-slate-800 border rounded-lg p-2 text-xs text-slate-200 ${
-                      hasQualityIssue('identification.barcodes') || hasQualityIssue('details.identifiers') ? 'border-red-500/60' : 'border-white/10'
+                    className={`w-full bg-app-elevated border rounded-lg p-2 text-xs text-txt-secondary ${
+                      hasQualityIssue('identification.barcodes') || hasQualityIssue('details.identifiers') ? 'border-danger/60' : 'border-app-border'
                     }`}
                     placeholder={t('input.barcodes.placeholder')}
                   />
-                  <p className="text-[11px] text-slate-500 mt-1">{t('input.barcodes.hint')}</p>
+                  <p className="text-[11px] text-txt-muted mt-1">{t('input.barcodes.hint')}</p>
                   <div className="text-[11px] mt-1">
                     {editingBarcodeSummary.hasValid ? (
-                      <span className="text-emerald-300">
+                      <span className="text-success">
                         {editingBarcodeSummary.gtin
                           ? t('sheet.barcodes.statusValidGtin', { code: editingBarcodeSummary.gtin })
                           : t('sheet.barcodes.statusValidEan', { code: editingBarcodeSummary.ean })}
@@ -1354,17 +1354,17 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                 </div>
               ) : (
                 <div className="mt-1">
-                  <p id="p-barcodes" className="text-xs text-slate-500">
+                  <p id="p-barcodes" className="text-xs text-txt-muted">
                     {t('common.barcodeLabel')}: {localProduct.identification.barcodes?.join(', ') || t('common.na')}
                   </p>
-                  <div className="flex flex-wrap gap-2 text-[11px] text-slate-400 mt-1">
+                  <div className="flex flex-wrap gap-2 text-[11px] text-txt-muted mt-1">
                     {currentBarcodeSummary.gtin && (
-                      <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-200 border border-emerald-500/30">
+                      <span className="px-2 py-0.5 rounded-full bg-success-dim text-success border border-success/30">
                         {t('sheet.barcodes.statusValidGtin', { code: currentBarcodeSummary.gtin })}
                       </span>
                     )}
                     {!currentBarcodeSummary.gtin && currentBarcodeSummary.ean && (
-                      <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-200 border border-emerald-500/30">
+                      <span className="px-2 py-0.5 rounded-full bg-success-dim text-success border border-success/30">
                         {t('sheet.barcodes.statusValidEan', { code: currentBarcodeSummary.ean })}
                       </span>
                     )}
@@ -1375,20 +1375,20 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                 </div>
               )}
 
-              <div className="mt-4 border border-slate-800 rounded-lg bg-slate-950/40 p-3">
+              <div className="mt-4 border border-app-border rounded-lg bg-app-bg/40 p-3">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
-                      <span className="text-xs font-semibold text-slate-200">Quality Gate</span>
+                      <span className="text-xs font-semibold text-txt-secondary">Quality Gate</span>
                       {qualityGate?.checked_at_iso ? (
-                        <span className="text-[11px] text-slate-500">
+                        <span className="text-[11px] text-txt-muted">
                           {new Date(qualityGate.checked_at_iso).toLocaleString('de-DE')}
                         </span>
                       ) : (
-                        <span className="text-[11px] text-slate-500">noch nicht geprüft</span>
+                        <span className="text-[11px] text-txt-muted">noch nicht geprüft</span>
                       )}
                       {qualityGate && qualityErrorCount === 0 && qualityWarnCount === 0 && qualityIssues.length === 0 && (
-                        <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-200 border border-emerald-500/30 text-[11px]">
+                        <span className="px-2 py-0.5 rounded-full bg-success-dim text-success border border-success/30 text-[11px]">
                           OK
                         </span>
                       )}
@@ -1398,12 +1398,12 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                         </span>
                       )}
                       {qualityGate && qualityHasErrors && (
-                        <span className="px-2 py-0.5 rounded-full bg-red-500/15 text-red-200 border border-red-500/30 text-[11px]">
+                        <span className="px-2 py-0.5 rounded-full bg-danger-dim text-danger border border-danger/30 text-[11px]">
                           E{qualityErrorCount}{qualityWarnCount ? ` W${qualityWarnCount}` : ''}
                         </span>
                       )}
                     </div>
-                    {qualityGate?.summary && <div className="text-[12px] text-slate-300 mt-1">{qualityGate.summary}</div>}
+                    {qualityGate?.summary && <div className="text-[12px] text-txt-secondary mt-1">{qualityGate.summary}</div>}
                   </div>
                   <button
                     type="button"
@@ -1411,10 +1411,10 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                     disabled={qualityBusy}
                     className={`px-3 py-1.5 rounded-md text-xs font-semibold ${
                       qualityHasErrors
-                        ? 'bg-red-600 text-white hover:bg-red-500'
+                        ? 'bg-danger text-txt-primary hover:bg-danger/80'
                         : qualityHasWarns
-                          ? 'bg-amber-600 text-white hover:bg-amber-500'
-                          : 'bg-slate-700 text-slate-100 hover:bg-slate-600'
+                          ? 'bg-warning text-txt-primary hover:bg-warning/80'
+                          : 'bg-app-elevated text-txt-primary hover:bg-app-border'
                     } ${qualityBusy ? 'opacity-50 cursor-not-allowed' : ''}`}
                     title="Quality Gate manuell ausführen"
                     aria-label="Quality Gate manuell ausführen"
@@ -1423,7 +1423,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                   </button>
                 </div>
 
-                {qualityMessage && <div role="status" aria-live="polite" className="text-[11px] text-slate-400 mt-2">{qualityMessage}</div>}
+                {qualityMessage && <div role="status" aria-live="polite" className="text-[11px] text-txt-muted mt-2">{qualityMessage}</div>}
 
                 {qualityIssues.length > 0 && (
                   <div className="mt-2 space-y-1">
@@ -1432,47 +1432,47 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                         <span
                           className={`mt-0.5 px-1.5 py-0.5 rounded border text-[10px] uppercase ${
                             issue?.severity === 'error'
-                              ? 'bg-red-500/15 text-red-200 border-red-500/30'
+                              ? 'bg-danger-dim text-danger border-danger/30'
                               : issue?.severity === 'warn'
                                 ? 'bg-amber-500/15 text-amber-200 border-amber-500/30'
-                                : 'bg-slate-600/20 text-slate-200 border-white/10'
+                                : 'bg-app-border/20 text-txt-secondary border-app-border'
                           }`}
                         >
                           {issue?.severity || 'info'}
                         </span>
-                        <div className="text-slate-200">
+                        <div className="text-txt-secondary">
                           <span className="font-semibold">{issue?.code}</span>: {issue?.message}
                         </div>
                       </div>
                     ))}
                     {qualityIssues.length > 6 && (
-                      <div className="text-[11px] text-slate-500">… und {qualityIssues.length - 6} weitere</div>
+                      <div className="text-[11px] text-txt-muted">… und {qualityIssues.length - 6} weitere</div>
                     )}
                   </div>
                 )}
 
                 {qualityGate?.evidence?.query && (
-                  <div className="mt-3 border-t border-slate-800 pt-2">
-                    <div className="text-[11px] text-slate-500">Web-Evidenz Query:</div>
-                    <div className="text-[12px] text-slate-200 font-mono break-words">{qualityGate.evidence.query}</div>
+                  <div className="mt-3 border-t border-app-border pt-2">
+                    <div className="text-[11px] text-txt-muted">Web-Evidenz Query:</div>
+                    <div className="text-[12px] text-txt-secondary font-mono break-words">{qualityGate.evidence.query}</div>
                     {Array.isArray(qualityGate?.evidence?.pages) && qualityGate.evidence.pages.length > 0 && (
                       <div className="mt-2 space-y-1">
-                        <div className="text-[11px] text-slate-500">Quellen:</div>
+                        <div className="text-[11px] text-txt-muted">Quellen:</div>
                         {qualityGate.evidence.pages.slice(0, 3).map((p: any, idx: number) => (
                           <div key={`qg-evidence-${idx}`} className="text-[12px]">
                             <a
                               href={p?.url}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="text-sky-400 hover:underline break-words"
+                              className="text-accent hover:underline break-words"
                             >
                               {p?.title || p?.url}
                             </a>
-                            {p?.via && <span className="ml-2 text-[11px] text-slate-500">({p.via})</span>}
+                            {p?.via && <span className="ml-2 text-[11px] text-txt-muted">({p.via})</span>}
                           </div>
                         ))}
                         {qualityGate.evidence.pages.length > 3 && (
-                          <div className="text-[11px] text-slate-500">… und {qualityGate.evidence.pages.length - 3} weitere</div>
+                          <div className="text-[11px] text-txt-muted">… und {qualityGate.evidence.pages.length - 3} weitere</div>
                         )}
                       </div>
                     )}
@@ -1486,7 +1486,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                 onClick={() => setIsEditing(v => !v)}
                 aria-label={isEditing ? t('common.editing') || 'Bearbeitung aktiv' : t('common.edit') || 'Produkt bearbeiten'}
                 aria-pressed={isEditing}
-                className={`flex items-center justify-center px-4 py-2 font-medium rounded-xl transition-colors w-full sm:w-auto ${isEditing ? 'bg-slate-700 text-white hover:bg-slate-600' : 'bg-sky-600/20 text-sky-300 hover:bg-sky-600/30'
+                className={`flex items-center justify-center px-4 py-2 font-medium rounded-xl transition-colors w-full sm:w-auto ${isEditing ? 'bg-app-elevated text-txt-primary hover:bg-app-border' : 'bg-accent-dim text-accent hover:bg-accent/20'
                   }`}
               >
                 <EditIcon /><span className="ml-2">{isEditing ? t('common.editing') : t('common.edit')}</span>
@@ -1496,7 +1496,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                 onClick={handleSave}
                 disabled={isSaving}
                 aria-label={isSaving ? t('common.saving') || 'Wird gespeichert' : t('common.save') || 'Produkt speichern'}
-                className="flex items-center justify-center px-4 py-2 bg-emerald-600/20 text-emerald-300 font-medium rounded-xl hover:bg-emerald-600/30 transition-colors disabled:opacity-40 disabled:cursor-not-allowed w-full sm:w-auto"
+                className="flex items-center justify-center px-4 py-2 bg-success/20 text-success font-medium rounded-xl hover:bg-success/30 transition-colors disabled:opacity-40 disabled:cursor-not-allowed w-full sm:w-auto"
               >
                 <SaveIcon /><span className="ml-2">{isSaving ? t('common.saving') : t('common.save')}</span>
               </button>
@@ -1516,7 +1516,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                 onClick={handlePublishToEbay}
                 disabled={isPublishingEbay}
                 aria-label="Produkt auf eBay veröffentlichen"
-                className="flex items-center justify-center gap-2 px-4 py-2 bg-sky-600/20 text-sky-300 font-medium rounded-xl hover:bg-sky-600/30 transition-colors disabled:opacity-40 disabled:cursor-wait w-full sm:w-auto"
+                className="flex items-center justify-center gap-2 px-4 py-2 bg-accent-dim text-accent font-medium rounded-xl hover:bg-accent/20 transition-colors disabled:opacity-40 disabled:cursor-wait w-full sm:w-auto"
               >
                 {isPublishingEbay ? (
                   <Spinner className="w-4 h-4" />
@@ -1553,7 +1553,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                     type="text"
                     aria-label={t('sheet.upload.urlPlaceholder') || 'Bild-URL eingeben'}
                     placeholder={t('sheet.upload.urlPlaceholder')}
-                    className="flex-1 bg-slate-800 border border-white/10 rounded-lg p-2 text-slate-200"
+                    className="flex-1 bg-app-elevated border border-app-border rounded-lg p-2 text-txt-secondary"
                     value={newImageUrl}
                     onChange={(e) => setNewImageUrl(e.target.value)}
                     onKeyDown={(e) => {
@@ -1567,7 +1567,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                     type="button"
                     onClick={handleAddImageFromUrl}
                     aria-label={t('sheet.upload.urlButton') || 'Bild von URL hinzufügen'}
-                    className="px-4 py-2 bg-slate-700 rounded-xl text-white font-semibold hover:bg-slate-600 transition-colors disabled:opacity-50"
+                    className="px-4 py-2 bg-app-elevated rounded-xl text-txt-primary font-semibold hover:bg-app-border transition-colors disabled:opacity-50"
                     disabled={!newImageUrl.trim()}
                   >
                     {t('sheet.upload.urlButton')}
@@ -1576,17 +1576,17 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                 <div
                   role="region"
                   aria-label="Bilder per Drag-and-Drop hochladen"
-                  className={`rounded-xl border-2 border-dashed p-4 text-center text-xs sm:text-sm transition-colors ${isUploadDragActive ? 'border-sky-500 bg-slate-800/60' : 'border-white/10 bg-slate-900/40'}`}
+                  className={`rounded-xl border-2 border-dashed p-4 text-center text-xs sm:text-sm transition-colors ${isUploadDragActive ? 'border-accent bg-app-elevated/60' : 'border-app-border bg-app-bg/40'}`}
                   onDragOver={handleUploadDragOver}
                   onDragEnter={handleUploadDragOver}
                   onDragLeave={handleUploadDragLeave}
                   onDrop={handleUploadDrop}
                 >
-                  <p className="text-sm font-semibold text-white">{t('sheet.upload.dragTitle')}</p>
-                  <p className="text-slate-400 mt-1">{t('sheet.upload.dragHint')}</p>
-                  <div className="mt-3 flex items-center justify-center gap-2 text-slate-400 text-xs uppercase tracking-wide">
+                  <p className="text-sm font-semibold text-txt-primary">{t('sheet.upload.dragTitle')}</p>
+                  <p className="text-txt-muted mt-1">{t('sheet.upload.dragHint')}</p>
+                  <div className="mt-3 flex items-center justify-center gap-2 text-txt-muted text-xs uppercase tracking-wide">
                     <span>{t('sheet.upload.or')}</span>
-                    <label className="cursor-pointer rounded-full border border-white/10 px-3 py-1 text-white">
+                    <label className="cursor-pointer rounded-full border border-app-border px-3 py-1 text-txt-primary">
                       {t('sheet.upload.fileBtn')}
                       <input
                         type="file"
@@ -1604,20 +1604,20 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                       />
                     </label>
                   </div>
-                  <p className="text-[11px] text-slate-500 mt-2">{t('sheet.upload.support')}</p>
+                  <p className="text-[11px] text-txt-muted mt-2">{t('sheet.upload.support')}</p>
                 </div>
               </div>
             )}
             {isEditing && (
-              <div className="mt-4 pt-4 border-t border-white/10 space-y-3">
+              <div className="mt-4 pt-4 border-t border-app-border space-y-3">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                  <label className="block text-xs font-semibold text-txt-secondary mb-1">
                     {t('sheet.ai.referenceLabel')}
                   </label>
                   {referenceImages.length ? (
                     <select
                       aria-label="Referenzbild für KI-Generierung auswählen"
-                      className="w-full bg-slate-800 border border-white/10 rounded-lg px-3 py-2 text-sm text-slate-100"
+                      className="w-full bg-app-elevated border border-app-border rounded-lg px-3 py-2 text-sm text-txt-primary"
                       value={selectedReferenceIndex >= 0 ? selectedReferenceIndex : ''}
                       onChange={(e) => setSelectedReferenceIndex(Number(e.target.value))}
                     >
@@ -1638,17 +1638,17 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                   onClick={handleGenerateImages}
                   disabled={isGeneratingImages || !selectedReferenceImage}
                   aria-label={isGeneratingImages ? t('sheet.ai.running') || 'Bilder werden generiert' : t('sheet.ai.cta') || 'KI-Bilder generieren'}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-violet-600 to-violet-500 text-white font-semibold rounded-xl hover:from-violet-500 hover:to-violet-400 transition-all disabled:opacity-40 shadow-lg shadow-violet-900/20"
+                  className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-violet-600 to-violet-500 text-txt-primary font-semibold rounded-xl hover:from-violet-500 hover:to-violet-400 transition-all disabled:opacity-40 shadow-lg shadow-violet-900/20"
                 >
-                  {isGeneratingImages ? <Spinner className="w-5 h-5 text-white" /> : <MagicIcon className="w-5 h-5" />}
+                  {isGeneratingImages ? <Spinner className="w-5 h-5 text-txt-primary" /> : <MagicIcon className="w-5 h-5" />}
                   <span>{isGeneratingImages ? t('sheet.ai.running') : t('sheet.ai.cta')}</span>
                 </button>
-                <p className="text-xs text-slate-400 text-center">{t('sheet.ai.helper')}</p>
+                <p className="text-xs text-txt-muted text-center">{t('sheet.ai.helper')}</p>
               </div>
             )}
           </div>
-          <section id="highlights" className="md:col-span-3 p-5 bg-slate-800/40 border border-white/10 rounded-2xl">
-            <h3 className="text-lg font-semibold mb-2 text-white">{t('sheet.highlights')}</h3>
+          <section id="highlights" className="md:col-span-3 p-5 bg-app-surface border border-app-border rounded-2xl">
+            <h3 className="text-lg font-semibold mb-2 text-txt-primary">{t('sheet.highlights')}</h3>
             {isEditing ? (
               <textarea
                 aria-label={t('sheet.highlights') || 'Highlights bearbeiten'}
@@ -1662,46 +1662,46 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                   setIsDirty(true);
                 }}
                 placeholder={t('sheet.highlights.placeholder')}
-                className="w-full min-h-[110px] bg-slate-800 border border-white/10 rounded-lg p-3 text-slate-200"
+                className="w-full min-h-[110px] bg-app-elevated border border-app-border rounded-lg p-3 text-txt-secondary"
               />
             ) : highlightList.length ? (
-              <ul className="space-y-2 list-disc list-inside text-slate-300 text-sm">
+              <ul className="space-y-2 list-disc list-inside text-txt-secondary text-sm">
                 {highlightList.map((feature, index) => (
                   <li key={index}>{feature}</li>
                 ))}
               </ul>
             ) : (
-              <p className="text-sm text-slate-400">{t('sheet.highlights.empty')}</p>
+              <p className="text-sm text-txt-muted">{t('sheet.highlights.empty')}</p>
             )}
           </section>
         </div>
 
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-          <section id="description" className="p-5 bg-slate-800/40 border border-white/10 rounded-2xl h-full">
-            <h3 className="text-xl font-semibold mb-3 text-white">{t('sheet.description')}</h3>
+          <section id="description" className="p-5 bg-app-surface border border-app-border rounded-2xl h-full">
+            <h3 className="text-xl font-semibold mb-3 text-txt-primary">{t('sheet.description')}</h3>
             {isEditing ? (
               <textarea
                 aria-label={t('sheet.description') || 'Produktbeschreibung bearbeiten'}
                 defaultValue={localProduct.details.short_description}
                 onBlur={(e) => handleFieldChange('details.short_description', e.target.value)}
-                className="w-full min-h-[120px] bg-slate-800 border border-white/10 rounded-lg p-3 text-slate-200"
+                className="w-full min-h-[120px] bg-app-elevated border border-app-border rounded-lg p-3 text-txt-secondary"
               />
             ) : (
-              <p className="text-slate-300 leading-relaxed text-sm sm:text-base">{descriptionText}</p>
+              <p className="text-txt-secondary leading-relaxed text-sm sm:text-base">{descriptionText}</p>
             )}
           </section>
 
-          <section id="gpsr" className="p-5 bg-slate-800/40 border border-white/10 rounded-2xl h-full">
+          <section id="gpsr" className="p-5 bg-app-surface border border-app-border rounded-2xl h-full">
             <div className="flex items-center justify-between gap-3">
-              <h3 className="text-xl font-semibold mb-3 text-white">GPSR</h3>
+              <h3 className="text-xl font-semibold mb-3 text-txt-primary">GPSR</h3>
               {!hasAnyGpsr && !isEditing ? (
-                <span className="text-[11px] px-2 py-0.5 rounded-full bg-slate-700/60 text-slate-300 border border-white/10">
+                <span className="text-[11px] px-2 py-0.5 rounded-full bg-app-elevated/60 text-txt-secondary border border-app-border">
                   leer
                 </span>
               ) : null}
             </div>
 
-            <p className="text-xs text-slate-400 mb-3">
+            <p className="text-xs text-txt-muted mb-3">
               GPSR/Compliance Herstellerdaten (wird aus Identify/Jobs strukturiert unter <span className="font-mono">details.gpsr</span> gespeichert).
             </p>
 
@@ -1721,18 +1721,18 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                 const value = typeof gpsr?.[key] === 'string' ? gpsr[key] : '';
                 return (
                   <div key={key} className="flex flex-col gap-1">
-                    <div className="text-xs font-semibold text-slate-300">{label}</div>
+                    <div className="text-xs font-semibold text-txt-secondary">{label}</div>
                     {isEditing ? (
                       <input
                         aria-label={`GPSR ${label}`}
                         value={value}
                         onChange={(e) => updateGpsrField(String(key), e.target.value)}
-                        className="w-full bg-slate-800 border border-white/10 rounded-lg px-3 py-2 text-slate-200 text-sm"
+                        className="w-full bg-app-elevated border border-app-border rounded-lg px-3 py-2 text-txt-secondary text-sm"
                         placeholder="—"
                       />
                     ) : (
-                      <div className="text-sm text-slate-200 break-words">
-                        {value ? value : <span className="text-slate-500">—</span>}
+                      <div className="text-sm text-txt-secondary break-words">
+                        {value ? value : <span className="text-txt-muted">—</span>}
                       </div>
                     )}
                   </div>
@@ -1741,21 +1741,21 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
             </div>
           </section>
 
-          <section id="attributes" className="p-5 bg-slate-800/40 border border-white/10 rounded-2xl h-full">
-            <h3 className="text-xl font-semibold mb-4 text-white">{t('sheet.attributes')}</h3>
+          <section id="attributes" className="p-5 bg-app-surface border border-app-border rounded-2xl h-full">
+            <h3 className="text-xl font-semibold mb-4 text-txt-primary">{t('sheet.attributes')}</h3>
 
-            <div className="mb-4 rounded-lg border border-white/10 bg-slate-900/60 p-3">
+            <div className="mb-4 rounded-lg border border-app-border bg-app-bg/60 p-3">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <div className="flex items-center gap-2">
-                    <div className="text-sm font-semibold text-slate-200">K-Typ</div>
+                    <div className="text-sm font-semibold text-txt-secondary">K-Typ</div>
                     {requiresKTyp && !ktypValue && (
-                      <span className="text-[11px] px-2 py-0.5 rounded-full bg-amber-600/30 text-amber-200 border border-amber-500/30">
+                      <span className="text-[11px] px-2 py-0.5 rounded-full bg-warning/30 text-amber-200 border border-amber-500/30">
                         Pflicht (Auto/KFZ/Motorrad)
                       </span>
                     )}
                   </div>
-                  <p className="mt-1 text-[11px] text-slate-400">
+                  <p className="mt-1 text-[11px] text-txt-muted">
                     Format: <span className="font-mono">19974|57446|57448</span> (optional mit Kommentar nach Komma je Eintrag).
                   </p>
                 </div>
@@ -1784,21 +1784,21 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                     });
                     setIsDirty(true);
                   }}
-                  className="mt-3 w-full min-h-[70px] bg-slate-800 border border-white/10 rounded-lg p-2 text-slate-200"
+                  className="mt-3 w-full min-h-[70px] bg-app-elevated border border-app-border rounded-lg p-2 text-txt-secondary"
                 />
               ) : (
-                <div className="mt-3 text-sm text-slate-200 whitespace-pre-wrap break-words">
-                  {ktypValue ? ktypValue : <span className="text-slate-500">—</span>}
+                <div className="mt-3 text-sm text-txt-secondary whitespace-pre-wrap break-words">
+                  {ktypValue ? ktypValue : <span className="text-txt-muted">—</span>}
                 </div>
               )}
             </div>
 
             {localProduct?.ops?.data_quality?.ktype_enrich_v1 ? (
-              <details className="mb-4 rounded-lg border border-white/10 bg-slate-900/60 p-3">
-                <summary className="cursor-pointer text-sm font-semibold text-slate-200">
+              <details className="mb-4 rounded-lg border border-app-border bg-app-bg/60 p-3">
+                <summary className="cursor-pointer text-sm font-semibold text-txt-secondary">
                   K-Typ Trace (ops.data_quality.ktype_enrich_v1)
                 </summary>
-                <pre className="mt-3 overflow-auto whitespace-pre-wrap text-xs text-slate-200">
+                <pre className="mt-3 overflow-auto whitespace-pre-wrap text-xs text-txt-secondary">
                   {JSON.stringify(localProduct.ops.data_quality.ktype_enrich_v1, null, 2)}
                 </pre>
               </details>
@@ -1818,8 +1818,8 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
         </div>
 
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-          <section id="pricing" className="p-5 bg-slate-800/40 border border-white/10 rounded-2xl h-full">
-            <h3 className="text-xl font-semibold mb-4 text-white">{t('sheet.pricing')}</h3>
+          <section id="pricing" className="p-5 bg-app-surface border border-app-border rounded-2xl h-full">
+            <h3 className="text-xl font-semibold mb-4 text-txt-primary">{t('sheet.pricing')}</h3>
             <PricingInfo
               pricing={localProduct.details?.pricing}
               isEditing={isEditing}
@@ -1837,29 +1837,29 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
               const matchBasis = pricing?.pricingMatchBasis;
               const currentAmount = pricing?.lowest_price?.amount;
               const tierConfig: Record<number, { label: string; cls: string }> = {
-                1: { label: 'Tier 1 · Sicher', cls: 'bg-emerald-900/40 text-emerald-400' },
+                1: { label: 'Tier 1 · Sicher', cls: 'bg-success-dim text-success' },
                 2: { label: 'Tier 2 · Ähnlich', cls: 'bg-yellow-900/40 text-yellow-400' },
-                0: { label: 'Kostenbasis', cls: 'bg-slate-700/40 text-slate-400' },
+                0: { label: 'Kostenbasis', cls: 'bg-app-elevated/40 text-txt-muted' },
               };
               const cfg = tier != null ? (tierConfig[tier] ?? tierConfig[0]) : null;
               const diff = currentAmount && currentAmount > 0
                 ? Math.round(((suggestedPrice - currentAmount) / currentAmount) * 100)
                 : null;
               return (
-                <div className="mt-4 pt-4 border-t border-white/10">
+                <div className="mt-4 pt-4 border-t border-app-border">
                   <div className="flex items-center gap-2 mb-2">
-                    <span className="text-xs text-slate-400 font-medium uppercase tracking-wide">Preisvorschlag</span>
+                    <span className="text-xs text-txt-muted font-medium uppercase tracking-wide">Preisvorschlag</span>
                     {cfg && (
                       <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${cfg.cls}`}>{cfg.label}</span>
                     )}
                     {diff != null && (
-                      <span className={`text-xs font-medium ${diff > 0 ? 'text-emerald-400' : diff < 0 ? 'text-rose-400' : 'text-slate-400'}`}>
+                      <span className={`text-xs font-medium ${diff > 0 ? 'text-success' : diff < 0 ? 'text-danger' : 'text-txt-muted'}`}>
                         {diff > 0 ? `+${diff}%` : `${diff}%`} zum aktuellen Preis
                       </span>
                     )}
                   </div>
                   <div className="flex items-center gap-3">
-                    <span className="text-2xl font-bold text-white">
+                    <span className="text-2xl font-bold text-txt-primary">
                       {suggestedPrice.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
                     </span>
                     <button
@@ -1883,20 +1883,20 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                         }));
                         setIsDirty(true);
                       }}
-                      className="rounded-lg bg-sky-700 px-3 py-1.5 text-sm font-semibold text-white hover:bg-sky-600 transition-colors"
+                      className="rounded-lg bg-accent px-3 py-1.5 text-sm font-semibold text-txt-primary hover:bg-accent/80 transition-colors"
                     >
                       Preis übernehmen
                     </button>
                   </div>
                   {matchBasis && (
-                    <p className="text-xs text-slate-500 mt-1">{matchBasis}</p>
+                    <p className="text-xs text-txt-muted mt-1">{matchBasis}</p>
                   )}
                 </div>
               );
             })()}
             {/* Competitor prices — only show when a valid EAN/GTIN exists */}
             {(currentBarcodeSummary.ean || currentBarcodeSummary.gtin) && (
-              <div className="mt-5 pt-5 border-t border-white/10">
+              <div className="mt-5 pt-5 border-t border-app-border">
                 <CompetitorPrices
                   ean={currentBarcodeSummary.ean || currentBarcodeSummary.gtin || ''}
                   ownPrice={localProduct.details?.pricing?.lowest_price?.amount}
@@ -1907,47 +1907,47 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
             )}
           </section>
 
-          <section id="storage" className="p-5 bg-slate-800/40 border border-white/10 rounded-2xl h-full">
-            <h3 className="text-xl font-semibold mb-4 text-white">{t('sheet.storage')}</h3>
+          <section id="storage" className="p-5 bg-app-surface border border-app-border rounded-2xl h-full">
+            <h3 className="text-xl font-semibold mb-4 text-txt-primary">{t('sheet.storage')}</h3>
             {binsLoading ? (
-              <p role="status" aria-live="polite" className="text-slate-400 text-sm mb-3">{t('sheet.storage.loading')}</p>
+              <p role="status" aria-live="polite" className="text-txt-muted text-sm mb-3">{t('sheet.storage.loading')}</p>
             ) : binsError ? (
-              <p role="alert" className="text-rose-300 text-sm mb-3">{binsError}</p>
+              <p role="alert" className="text-danger text-sm mb-3">{binsError}</p>
             ) : productBins.length ? (
               <div className="mb-4 space-y-2 max-h-56 overflow-auto pr-1">
                 {productBins.map((bin) => (
-                  <div key={bin.code} className="rounded border border-white/10 bg-slate-900/60 px-3 py-2 text-sm text-slate-200">
+                  <div key={bin.code} className="rounded border border-app-border bg-app-bg/60 px-3 py-2 text-sm text-txt-secondary">
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div className="font-semibold text-white">{bin.code}</div>
-                      <div className="text-xs text-slate-400">
+                      <div className="font-semibold text-txt-primary">{bin.code}</div>
+                      <div className="text-xs text-txt-muted">
                         Zone {bin.zone} · Etage {bin.etage} · Gang {bin.gang} · Regal {bin.regal} · Ebene {bin.ebene}
                       </div>
-                      <div className="text-xs text-slate-300">Menge {bin.quantity ?? bin.productCount ?? 0}</div>
+                      <div className="text-xs text-txt-secondary">Menge {bin.quantity ?? bin.productCount ?? 0}</div>
                     </div>
                   </div>
                 ))}
               </div>
             ) : (
-              <p className="text-slate-400 text-sm mb-3">{t('sheet.storage.none')}</p>
+              <p className="text-txt-muted text-sm mb-3">{t('sheet.storage.none')}</p>
             )}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs text-slate-400 mb-1">{t('sheet.storage.binLabel')}</label>
+                <label className="block text-xs text-txt-muted mb-1">{t('sheet.storage.binLabel')}</label>
                 <input
                   value={binCodeInput}
                   onChange={(e) => setBinCodeInput(e.target.value.toUpperCase())}
                   placeholder={t('sheet.storage.binPlaceholder')}
-                  className="w-full bg-slate-800 border border-white/10 rounded-lg px-3 py-2 text-sm"
+                  className="w-full bg-app-elevated border border-app-border rounded-lg px-3 py-2 text-sm"
                 />
               </div>
               <div>
-                <label className="block text-xs text-slate-400 mb-1">{t('sheet.storage.quantity')}</label>
+                <label className="block text-xs text-txt-muted mb-1">{t('sheet.storage.quantity')}</label>
                 <input
                   type="number"
                   min={1}
                   value={binQuantity}
                   onChange={(e) => setBinQuantity(Number(e.target.value))}
-                  className="w-full bg-slate-800 border border-white/10 rounded-lg px-3 py-2 text-sm"
+                  className="w-full bg-app-elevated border border-app-border rounded-lg px-3 py-2 text-sm"
                 />
               </div>
             </div>
@@ -1956,7 +1956,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                 onClick={handleAssignBin}
                 disabled={isAssigningBin}
                 aria-label={t('sheet.storage.assign') || 'Lagerplatz zuweisen (Stock-In)'}
-                className="px-4 py-2 bg-sky-600/20 text-sky-300 rounded-xl hover:bg-sky-600/30 disabled:opacity-40"
+                className="px-4 py-2 bg-accent-dim text-accent rounded-xl hover:bg-accent/20 disabled:opacity-40"
               >
                 {isAssigningBin ? t('sheet.storage.assigning') : t('sheet.storage.assign')}
               </button>
@@ -1964,7 +1964,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                 <button
                   onClick={handleRemoveBin}
                   aria-label={t('sheet.storage.remove') || 'Lagerplatz entfernen (Stock-Out)'}
-                  className="px-4 py-2 bg-rose-600/20 text-rose-300 rounded-xl hover:bg-rose-600/30"
+                  className="px-4 py-2 bg-danger/20 text-danger rounded-xl hover:bg-danger/30"
                 >
                   {t('sheet.storage.remove')}
                 </button>
@@ -1974,14 +1974,14 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
         </div>
 
         {false && (
-        <section className="p-5 bg-slate-800/40 rounded-2xl border border-white/10 space-y-3">
+        <section className="p-5 bg-app-elevated/40 rounded-2xl border border-app-border space-y-3">
           <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
             <div>
-              <h3 className="text-xl font-semibold text-white">{t('sheet.inventory.title')}</h3>
-              <p className="text-sm text-slate-200">
+              <h3 className="text-xl font-semibold text-txt-primary">{t('sheet.inventory.title')}</h3>
+              <p className="text-sm text-txt-secondary">
                 {localProduct.inventory?.inventoryName || t('sheet.inventory.none')}
               </p>
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-txt-muted">
                 {localProduct.inventory?.inventoryId || t('sheet.inventory.helper')}
               </p>
             </div>
@@ -1991,7 +1991,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                 onClick={handleInventoryLabel}
                 disabled={!localProduct.inventory?.inventoryId}
                 aria-label={t('sheet.inventory.printLabel') || 'Inventar-Label drucken'}
-                className="inline-flex items-center gap-2 rounded-xl border border-white/10 px-3 py-1.5 text-sm font-semibold text-slate-100 hover:bg-slate-700 transition-colors disabled:opacity-50"
+                className="inline-flex items-center gap-2 rounded-xl border border-app-border px-3 py-1.5 text-sm font-semibold text-txt-primary hover:bg-app-elevated transition-colors disabled:opacity-50"
               >
                 <PrintIcon className="w-4 h-4" />
                 {t('sheet.inventory.printLabel')}
@@ -2001,7 +2001,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                 onClick={() => syncInventoryList()}
                 disabled={inventorySyncing}
                 aria-label={t('sheet.inventory.sync') || 'Inventar synchronisieren'}
-                className="inline-flex items-center gap-2 rounded-xl border border-white/10 px-3 py-1.5 text-sm font-semibold text-slate-100 hover:bg-slate-700 transition-colors disabled:opacity-60"
+                className="inline-flex items-center gap-2 rounded-xl border border-app-border px-3 py-1.5 text-sm font-semibold text-txt-primary hover:bg-app-elevated transition-colors disabled:opacity-60"
               >
                 {inventorySyncing ? <Spinner className="w-4 h-4" /> : <RefreshIcon className="w-4 h-4" />}
                 {inventorySyncing ? t('sheet.inventory.syncing') : t('sheet.inventory.sync')}
@@ -2009,7 +2009,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
             </div>
           </div>
           <div className="space-y-2">
-            <label className="block text-xs text-slate-400 uppercase tracking-wide">
+            <label className="block text-xs text-txt-muted uppercase tracking-wide">
               {t('sheet.inventory.selectLabel')}
             </label>
             <select
@@ -2017,7 +2017,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
               value={localProduct.inventory?.inventoryId || ''}
               onChange={(event) => handleInventoryAssign(event.target.value)}
               disabled={assigningInventory}
-              className="w-full rounded-xl border border-white/10 bg-slate-900 px-3 py-2 text-sm text-slate-100 disabled:opacity-50"
+              className="w-full rounded-xl border border-app-border bg-app-bg px-3 py-2 text-sm text-txt-primary disabled:opacity-50"
             >
               <option value="">{t('sheet.inventory.selectPlaceholder')}</option>
               {inventories.map((inv) => (
@@ -2037,18 +2037,18 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
               }
               disabled={!localProduct.inventory?.inventoryId}
               aria-label={t('sheet.inventory.setActive') || 'Inventar als aktiv setzen'}
-              className="inline-flex items-center gap-2 rounded-xl border border-white/10 px-3 py-1.5 text-sm font-semibold text-slate-100 hover:bg-slate-700 transition-colors disabled:opacity-50"
+              className="inline-flex items-center gap-2 rounded-xl border border-app-border px-3 py-1.5 text-sm font-semibold text-txt-primary hover:bg-app-elevated transition-colors disabled:opacity-50"
             >
               <BarcodeIcon className="w-4 h-4" />
               {t('sheet.inventory.setActive')}
             </button>
           </div>
-          {inventoryMessage && <p role="status" aria-live="polite" className="text-xs text-slate-400">{inventoryMessage}</p>}
+          {inventoryMessage && <p role="status" aria-live="polite" className="text-xs text-txt-muted">{inventoryMessage}</p>}
         </section>
         )}
 
-        <section className="p-5 bg-slate-800/40 rounded-2xl border border-white/10">
-          <h3 className="text-xl font-semibold mb-4 text-white">{t('sheet.actions.title')}</h3>
+        <section className="p-5 bg-app-elevated/40 rounded-2xl border border-app-border">
+          <h3 className="text-xl font-semibold mb-4 text-txt-primary">{t('sheet.actions.title')}</h3>
           {/* Listing Status Badges */}
           {((localProduct as any)?.ops?.listingStatus?.ebay || (localProduct as any)?.ops?.listingStatus?.kaufland) && (
             <div className="flex flex-wrap gap-2 mb-4" role="status" aria-label="Listing-Status">
@@ -2063,17 +2063,17 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                 </span>
               )}
               {(localProduct as any)?.ops?.listingStatus?.kaufland === 'active' && (
-                <span className="inline-flex items-center rounded-full bg-rose-500/20 px-3 py-1 text-xs font-semibold text-rose-200">
+                <span className="inline-flex items-center rounded-full bg-danger-dim px-3 py-1 text-xs font-semibold text-danger">
                   Kaufland: Gelistet
                 </span>
               )}
               {(localProduct as any)?.ops?.listingStatus?.kaufland === 'inactive' && (
-                <span className="inline-flex items-center rounded-full bg-rose-800/30 px-3 py-1 text-xs font-semibold text-rose-400">
+                <span className="inline-flex items-center rounded-full bg-danger-dim px-3 py-1 text-xs font-semibold text-danger">
                   Kaufland: Inaktiv
                 </span>
               )}
               {(localProduct as any)?.ops?.listingStatus?.lastSyncAt && (
-                <span className="text-xs text-slate-500">
+                <span className="text-xs text-txt-muted">
                   Sync: {new Date((localProduct as any).ops.listingStatus.lastSyncAt).toLocaleString('de-DE')}
                 </span>
               )}
@@ -2086,7 +2086,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
               onClick={handleSync}
               disabled={isSyncing}
               aria-label={t('sheet.actions.sync') || 'Mit BaseLinker synchronisieren'}
-              className="flex items-center justify-center px-4 py-2 bg-slate-800/60 text-slate-200 font-semibold rounded-xl hover:bg-slate-700/60 transition-colors disabled:opacity-40 disabled:cursor-wait border border-white/10"
+              className="flex items-center justify-center px-4 py-2 bg-app-elevated/60 text-txt-secondary font-semibold rounded-xl hover:bg-app-elevated/60 transition-colors disabled:opacity-40 disabled:cursor-wait border border-app-border"
             >
               {isSyncing ? <Spinner className="w-5 h-5" /> : <SyncIcon />}
               <span className="ml-2">{t('sheet.actions.sync')}</span>
@@ -2096,7 +2096,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
               onClick={handlePublishToEbay}
               disabled={isPublishingEbay}
               aria-label="Auf eBay listen"
-              className="flex items-center justify-center px-4 py-2 bg-sky-600/20 text-sky-300 font-semibold rounded-xl hover:bg-sky-600/30 transition-colors disabled:opacity-40 disabled:cursor-wait"
+              className="flex items-center justify-center px-4 py-2 bg-accent-dim text-accent font-semibold rounded-xl hover:bg-accent/20 transition-colors disabled:opacity-40 disabled:cursor-wait"
             >
               {isPublishingEbay ? (
                 <Spinner className="w-5 h-5" />

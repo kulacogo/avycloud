@@ -98,9 +98,9 @@ const computeVisibleSet = (items: EbayCategoryTaxonomyEntry[], search: string): 
 };
 
 const classForBadge = (tone: 'required' | 'recommended' | 'optional'): string => {
-  if (tone === 'required') return 'border-rose-500/40 bg-rose-900/20 text-rose-100';
+  if (tone === 'required') return 'border-danger/40 bg-danger-dim text-danger';
   if (tone === 'recommended') return 'border-amber-500/40 bg-amber-900/20 text-amber-100';
-  return 'border-slate-500/40 bg-slate-900/30 text-slate-100';
+  return 'border-app-border/40 bg-app-bg/30 text-txt-primary';
 };
 
 export const AdminEbayTaxonomy: React.FC = () => {
@@ -198,8 +198,8 @@ export const AdminEbayTaxonomy: React.FC = () => {
         <div
           className={`w-full rounded-lg border px-3 py-1.5 text-sm transition ${
             isSelected
-              ? 'border-sky-500 bg-sky-500/10'
-              : 'border-white/10 bg-slate-950/20 hover:bg-slate-950/35 hover:border-white/20'
+              ? 'border-accent bg-accent-dim'
+              : 'border-app-border bg-app-bg/20 hover:bg-app-bg/35 hover:border-app-border/80'
           } ${node.banned ? 'opacity-60' : ''}`}
           style={{ paddingLeft: `${10 + indentPx}px` }}
           title={node.breadcrumb}
@@ -210,7 +210,7 @@ export const AdminEbayTaxonomy: React.FC = () => {
               onClick={() => toggleExpanded(node.breadcrumb)}
               disabled={!hasChildren}
               className={`shrink-0 rounded-md border px-1.5 py-0.5 text-[11px] font-semibold ${
-                hasChildren ? 'border-white/10 bg-slate-900/40 text-slate-200 hover:bg-slate-900/60' : 'border-transparent text-slate-600'
+                hasChildren ? 'border-app-border bg-app-bg/40 text-txt-secondary hover:bg-app-bg/60' : 'border-transparent text-txt-muted'
               }`}
               aria-label={hasChildren ? (isExpanded ? 'Collapse' : 'Expand') : 'No children'}
             >
@@ -229,22 +229,22 @@ export const AdminEbayTaxonomy: React.FC = () => {
               <div className="flex items-center justify-between gap-2">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="truncate text-slate-100">{node.name}</span>
+                    <span className="truncate text-txt-primary">{node.name}</span>
                     {node.leaf ? (
-                      <span className="rounded border border-emerald-600/40 bg-emerald-900/20 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-100">
+                      <span className="rounded border border-success/40 bg-success-dim px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-success">
                         leaf
                       </span>
                     ) : null}
                     {node.banned ? (
-                      <span className="rounded border border-rose-600/40 bg-rose-900/20 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-rose-100">
+                      <span className="rounded border border-danger/40 bg-danger-dim px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-danger">
                         banned
                       </span>
                     ) : null}
                   </div>
-                  {node.id ? <div className="mt-0.5 text-[11px] text-slate-500">ID: {node.id}</div> : null}
+                  {node.id ? <div className="mt-0.5 text-[11px] text-txt-muted">ID: {node.id}</div> : null}
                 </div>
                 {hasChildren ? (
-                  <span className="shrink-0 text-[11px] text-slate-400">{node.children.length}</span>
+                  <span className="shrink-0 text-[11px] text-txt-muted">{node.children.length}</span>
                 ) : null}
               </div>
             </button>
@@ -272,7 +272,7 @@ export const AdminEbayTaxonomy: React.FC = () => {
           <button
             type="button"
             onClick={() => void loadCategories()}
-            className="rounded-xl bg-slate-800/80 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-700 transition-colors"
+            className="rounded-xl bg-app-elevated px-4 py-2 text-sm font-semibold text-txt-secondary hover:bg-app-elevated transition-colors"
             disabled={loadingCategories}
           >
             Aktualisieren
@@ -280,12 +280,12 @@ export const AdminEbayTaxonomy: React.FC = () => {
         }
       >
         <HelpDisclosure title="Wichtig: Governance (LLM & Datenblatt)">
-          <div className="space-y-2 text-sm text-slate-200">
+          <div className="space-y-2 text-sm text-txt-secondary">
             <p>
               Diese Ansicht zeigt die offiziellen eBay Item Specifics (Aspects) pro Kategorie. Alle AvyCloud-LLMs sollen
               <b> nur diese Keys</b> verwenden (de-DE Bezeichnungen) und keine neuen/anderen Parameter erfinden.
             </p>
-            <ul className="list-disc pl-5 space-y-1 text-sm text-slate-300">
+            <ul className="list-disc pl-5 space-y-1 text-sm text-txt-secondary">
               <li>
                 Pflichtfelder erkennt man an <b>required</b> (eBay: <code>aspectRequired: true</code>).
               </li>
@@ -303,15 +303,15 @@ export const AdminEbayTaxonomy: React.FC = () => {
       {categoriesError ? <Notice tone="error" title="Kategorien konnten nicht geladen werden" details={categoriesError} /> : null}
 
       <div className="grid grid-cols-1 xl:grid-cols-[520px_minmax(0,1fr)] gap-4">
-        <div className="rounded-2xl border border-white/10 bg-slate-900/40 p-5 space-y-3">
+        <div className="rounded-2xl border border-app-border bg-app-bg/40 p-5 space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
-              <p className="text-sm font-semibold text-slate-100">Kategoriebaum</p>
-              <p className="text-xs text-slate-400">
+              <p className="text-sm font-semibold text-txt-primary">Kategoriebaum</p>
+              <p className="text-xs text-txt-muted">
                 {loadingCategories ? 'Lade…' : `Kategorien: ${categoryItems.length}`}
               </p>
             </div>
-            <label className="inline-flex items-center gap-2 text-xs text-slate-300">
+            <label className="inline-flex items-center gap-2 text-xs text-txt-secondary">
               <input
                 type="checkbox"
                 checked={includeBanned}
@@ -325,25 +325,25 @@ export const AdminEbayTaxonomy: React.FC = () => {
             value={categorySearch}
             onChange={(e) => setCategorySearch(e.target.value)}
             placeholder="Kategorie suchen (z.B. 'Autoelektrik', 'Motorrad', 'Batterie')"
-            className="w-full rounded-xl bg-slate-950/60 border border-white/10 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-sky-600/50"
+            className="w-full rounded-xl bg-app-bg/60 border border-app-border px-3 py-2 text-sm text-txt-primary focus:outline-none focus:ring-2 focus:ring-accent/50"
           />
 
           <div className="max-h-[72vh] overflow-auto space-y-1 pr-1">
             {treeRoots.map((node) => renderTreeNode(node, 0))}
             {!loadingCategories && categoryItems.length === 0 ? (
-              <div className="text-sm text-slate-400">Keine Kategorien verfügbar.</div>
+              <div className="text-sm text-txt-muted">Keine Kategorien verfügbar.</div>
             ) : null}
             {!loadingCategories && categoryItems.length > 0 && visibleSet && visibleSet.size === 0 ? (
-              <div className="text-sm text-slate-400">Keine Treffer.</div>
+              <div className="text-sm text-txt-muted">Keine Treffer.</div>
             ) : null}
           </div>
         </div>
 
-        <div className="rounded-2xl border border-white/10 bg-slate-900/40 p-5 space-y-4">
+        <div className="rounded-2xl border border-app-border bg-app-bg/40 p-5 space-y-4">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="space-y-1">
-              <p className="text-sm font-semibold text-slate-100">Parameter (Aspects)</p>
-              <p className="text-xs text-slate-400">
+              <p className="text-sm font-semibold text-txt-primary">Parameter (Aspects)</p>
+              <p className="text-xs text-txt-muted">
                 {selectedCategoryId ? (
                   <>
                     <span className="font-mono">ID {selectedCategoryId}</span>
@@ -364,7 +364,7 @@ export const AdminEbayTaxonomy: React.FC = () => {
                   <span className={`rounded border px-2 py-0.5 font-semibold uppercase tracking-wide ${classForBadge('optional')}`}>
                     optional: {optionalCount}
                   </span>
-                  <span className="rounded border border-sky-500/40 bg-sky-900/20 px-2 py-0.5 text-sky-100 font-semibold uppercase tracking-wide">
+                  <span className="rounded border border-accent/40 bg-accent-dim px-2 py-0.5 text-accent font-semibold uppercase tracking-wide">
                     all: {allCount}
                   </span>
                 </div>
@@ -376,7 +376,7 @@ export const AdminEbayTaxonomy: React.FC = () => {
                 value={aspectSearch}
                 onChange={(e) => setAspectSearch(e.target.value)}
                 placeholder="Aspects filtern (z.B. 'Marke', 'EAN')"
-                className="w-full rounded-xl bg-slate-950/60 border border-white/10 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-sky-600/50"
+                className="w-full rounded-xl bg-app-bg/60 border border-app-border px-3 py-2 text-sm text-txt-primary focus:outline-none focus:ring-2 focus:ring-accent/50"
                 disabled={!catalog}
               />
             </div>
@@ -385,57 +385,57 @@ export const AdminEbayTaxonomy: React.FC = () => {
           {catalogError ? <Notice tone="error" title="Aspects konnten nicht geladen werden" details={catalogError} /> : null}
 
           {!selectedCategoryId ? (
-            <div className="rounded-xl border border-white/10 bg-slate-950/20 p-4 text-sm text-slate-300">
+            <div className="rounded-xl border border-app-border bg-app-bg/20 p-4 text-sm text-txt-secondary">
               Wähle links eine Kategorie aus, um Pflicht/Empfohlen/Optional zu sehen.
             </div>
           ) : loadingCatalog ? (
-            <div className="rounded-xl border border-white/10 bg-slate-950/20 p-4 text-sm text-slate-300">
+            <div className="rounded-xl border border-app-border bg-app-bg/20 p-4 text-sm text-txt-secondary">
               Lade Aspects…
             </div>
           ) : !catalog ? (
-            <div className="rounded-xl border border-white/10 bg-slate-950/20 p-4 text-sm text-slate-300">
+            <div className="rounded-xl border border-app-border bg-app-bg/20 p-4 text-sm text-txt-secondary">
               Keine Aspect-Daten verfügbar.
             </div>
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
-              <div className="rounded-xl border border-white/10 bg-slate-950/20 p-3">
-                <p className="text-xs font-semibold uppercase tracking-wide text-rose-200">Pflicht</p>
+              <div className="rounded-xl border border-app-border bg-app-bg/20 p-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-danger">Pflicht</p>
                 <div className="mt-2 space-y-1 max-h-[52vh] overflow-auto pr-1">
                   {(filteredCatalog?.requiredAspects || []).map((name) => (
-                    <div key={name} className="rounded border border-rose-500/30 bg-rose-900/10 px-2 py-1 text-sm text-slate-100">
+                    <div key={name} className="rounded border border-danger/30 bg-danger-dim px-2 py-1 text-sm text-txt-primary">
                       {name}
                     </div>
                   ))}
                   {filteredCatalog?.requiredAspects?.length === 0 ? (
-                    <div className="text-sm text-slate-400">-</div>
+                    <div className="text-sm text-txt-muted">-</div>
                   ) : null}
                 </div>
               </div>
 
-              <div className="rounded-xl border border-white/10 bg-slate-950/20 p-3">
+              <div className="rounded-xl border border-app-border bg-app-bg/20 p-3">
                 <p className="text-xs font-semibold uppercase tracking-wide text-amber-200">Empfohlen</p>
                 <div className="mt-2 space-y-1 max-h-[52vh] overflow-auto pr-1">
                   {(filteredCatalog?.recommendedAspects || []).map((name) => (
-                    <div key={name} className="rounded border border-amber-500/30 bg-amber-900/10 px-2 py-1 text-sm text-slate-100">
+                    <div key={name} className="rounded border border-amber-500/30 bg-amber-900/10 px-2 py-1 text-sm text-txt-primary">
                       {name}
                     </div>
                   ))}
                   {filteredCatalog?.recommendedAspects?.length === 0 ? (
-                    <div className="text-sm text-slate-400">-</div>
+                    <div className="text-sm text-txt-muted">-</div>
                   ) : null}
                 </div>
               </div>
 
-              <div className="rounded-xl border border-white/10 bg-slate-950/20 p-3">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-200">Optional</p>
+              <div className="rounded-xl border border-app-border bg-app-bg/20 p-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-txt-secondary">Optional</p>
                 <div className="mt-2 space-y-1 max-h-[52vh] overflow-auto pr-1">
                   {(filteredCatalog?.optionalAspects || []).map((name) => (
-                    <div key={name} className="rounded border border-white/10 bg-slate-900/20 px-2 py-1 text-sm text-slate-100">
+                    <div key={name} className="rounded border border-app-border bg-app-bg/20 px-2 py-1 text-sm text-txt-primary">
                       {name}
                     </div>
                   ))}
                   {filteredCatalog?.optionalAspects?.length === 0 ? (
-                    <div className="text-sm text-slate-400">-</div>
+                    <div className="text-sm text-txt-muted">-</div>
                   ) : null}
                 </div>
               </div>

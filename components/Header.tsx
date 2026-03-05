@@ -170,8 +170,8 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onT
         }}
         className={`hidden sm:inline-flex items-center justify-center rounded-xl transition-all ${
           isActive
-            ? 'bg-sky-600 text-white shadow-md shadow-sky-900/40'
-            : 'bg-slate-800/60 text-slate-400 hover:bg-slate-700 hover:text-white'
+            ? 'bg-accent text-txt-primary shadow-md shadow-accent/20'
+            : 'bg-app-surface text-txt-muted hover:bg-app-elevated hover:text-txt-primary'
         }`}
         style={{ width: '3.5rem', height: '3.5rem' }}
         aria-current={isActive ? 'page' : undefined}
@@ -220,7 +220,7 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onT
 
   return (
     <>
-      <header className="safe-area-header bg-slate-900/90 backdrop-blur-xl sticky top-0 z-40 shadow-lg shadow-black/50 border-b border-white/[0.06]">
+      <header className="safe-area-header bg-app-bg/90 backdrop-blur-xl sticky top-0 z-40 shadow-lg shadow-black/50 border-b border-white/[0.06]">
         <div className="w-full px-3 sm:px-5 lg:px-8 py-1.5">
           <div className="flex items-center gap-4 w-full h-[50px]">
 
@@ -252,7 +252,7 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onT
               <button
                 type="button"
                 onClick={onToggleTheme}
-                className="flex items-center justify-center rounded-lg bg-[var(--page-bg)] border-0 border-transparent text-slate-400 hover:text-white hover:bg-slate-700 transition-all"
+                className="flex items-center justify-center rounded-lg bg-[var(--page-bg)] border-0 border-transparent text-txt-muted hover:text-txt-primary hover:bg-app-elevated transition-all"
                 style={{ width: '2.25rem', height: '2.25rem', borderImage: 'none' }}
                 aria-label={theme === 'dark' ? t('theme.switchToLight') : t('theme.switchToDark')}
                 title={theme === 'dark' ? t('theme.switchToLight') : t('theme.switchToDark')}
@@ -273,7 +273,7 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onT
               <button
                 type="button"
                 onClick={() => logout()}
-                className="hidden sm:inline-flex items-center justify-center rounded-xl bg-transparent border-0 border-transparent text-slate-400 hover:text-white hover:bg-slate-700 transition-all"
+                className="hidden sm:inline-flex items-center justify-center rounded-xl bg-transparent border-0 border-transparent text-txt-muted hover:text-txt-primary hover:bg-app-elevated transition-all"
                 style={{ width: '3.5rem', height: '3.5rem', borderImage: 'none' }}
                 aria-label={t('common.logout')}
                 title={t('common.logout')}

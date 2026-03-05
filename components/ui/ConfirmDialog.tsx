@@ -111,8 +111,8 @@ export const ConfirmDialog: React.FC<{
 
   const confirmClasses =
     tone === 'danger'
-      ? 'bg-red-600 hover:bg-red-500 text-white'
-      : 'bg-sky-600 hover:bg-sky-500 text-white';
+      ? 'bg-danger hover:bg-danger/80 text-txt-primary'
+      : 'bg-accent hover:bg-accent/80 text-txt-primary';
   const cancelText = cancelLabel ?? t('common.cancel');
 
   return (
@@ -123,17 +123,17 @@ export const ConfirmDialog: React.FC<{
         aria-modal="true"
         aria-labelledby={titleId}
         aria-describedby={description ? descId : undefined}
-        className="w-full max-w-lg rounded-2xl border border-white/10 bg-slate-900 p-5"
+        className="w-full max-w-lg rounded-2xl border border-app-border bg-app-bg p-5"
       >
         <div className="space-y-3">
           <div className="flex items-start justify-between gap-3">
-            <h3 id={titleId} className="text-lg font-semibold text-white">
+            <h3 id={titleId} className="text-lg font-semibold text-txt-primary">
               {title}
             </h3>
             <button
               type="button"
               onClick={onCancel}
-              className="rounded-md px-2 py-1 text-xs font-semibold text-slate-200 hover:bg-white/10"
+              className="rounded-md px-2 py-1 text-xs font-semibold text-txt-secondary hover:bg-white/10"
               aria-label={t('common.close')}
             >
               ✕
@@ -141,14 +141,14 @@ export const ConfirmDialog: React.FC<{
           </div>
 
           {description ? (
-            <div id={descId} className="text-sm text-slate-200">
+            <div id={descId} className="text-sm text-txt-secondary">
               {description}
             </div>
           ) : null}
 
           {details ? (
-            <details className="rounded-xl border border-white/10 bg-slate-950/40 p-3 text-xs text-slate-200">
-              <summary className="cursor-pointer select-none text-slate-200">{t('common.showDetails')}</summary>
+            <details className="rounded-xl border border-app-border bg-app-bg/40 p-3 text-xs text-txt-secondary">
+              <summary className="cursor-pointer select-none text-txt-secondary">{t('common.showDetails')}</summary>
               <div className="mt-2 whitespace-pre-wrap break-words">{details}</div>
             </details>
           ) : null}
@@ -158,7 +158,7 @@ export const ConfirmDialog: React.FC<{
               ref={cancelRef}
               type="button"
               onClick={onCancel}
-              className="rounded-xl border border-white/10 bg-slate-800/80 px-3 py-1.5 text-sm font-semibold text-slate-100 hover:bg-white/10"
+              className="rounded-xl border border-app-border bg-app-elevated px-3 py-1.5 text-sm font-semibold text-txt-primary hover:bg-white/10"
             >
               {cancelText}
             </button>

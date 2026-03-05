@@ -11,21 +11,71 @@ module.exports = {
   theme: {
     borderRadius: {
       none: '0px',
-      sm: '8px',
-      DEFAULT: '8px',
-      md: '8px',
-      lg: '8px',
-      xl: '8px',
-      '2xl': '8px',
-      '3xl': '8px',
-      full: '8px',
+      sm: 'var(--radius-sm, 6px)',
+      DEFAULT: 'var(--radius-md, 8px)',
+      md: 'var(--radius-md, 8px)',
+      lg: 'var(--radius-lg, 12px)',
+      xl: 'var(--radius-xl, 16px)',
+      '2xl': 'var(--radius-xl, 16px)',
+      '3xl': 'var(--radius-xl, 16px)',
+      full: '9999px',
     },
     fontFamily: {
-      // Override Tailwind default font-sans stack to remove "Apple Color Emoji".
-      // See: https://tailwindcss.com/docs/font-family
-      sans: ['ui-sans-serif', 'system-ui', 'sans-serif', '"Segoe UI Emoji"', '"Segoe UI Symbol"', '"Noto Color Emoji"'],
+      sans: ['Inter', 'ui-sans-serif', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
     },
-    extend: {},
+    extend: {
+      colors: {
+        // Soft Slate Dark Theme — mapped to CSS variables for theme-awareness
+        app: {
+          bg: 'var(--bg)',
+          sidebar: 'var(--sidebar)',
+          surface: 'var(--surface)',
+          elevated: 'var(--elevated)',
+          border: 'var(--border)',
+        },
+        txt: {
+          primary: 'var(--text-primary)',
+          secondary: 'var(--text-secondary)',
+          muted: 'var(--text-muted)',
+        },
+        accent: {
+          DEFAULT: 'var(--accent)',
+          dim: 'var(--accent-dim)',
+        },
+        success: {
+          DEFAULT: 'var(--success)',
+          dim: 'var(--success-dim)',
+        },
+        warning: {
+          DEFAULT: 'var(--warning)',
+          dim: 'var(--warning-dim)',
+        },
+        danger: {
+          DEFAULT: 'var(--danger)',
+          dim: 'var(--danger-dim)',
+        },
+        info: {
+          DEFAULT: 'var(--info)',
+          dim: 'var(--info-dim)',
+        },
+      },
+      boxShadow: {
+        'app': 'var(--shadow)',
+      },
+      width: {
+        'sidebar': '220px',
+      },
+      minWidth: {
+        'sidebar': '220px',
+      },
+      height: {
+        'topbar': '56px',
+        'mobile-nav': '64px',
+      },
+      minHeight: {
+        'topbar': '56px',
+      },
+    },
   },
   plugins: [],
 };

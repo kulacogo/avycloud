@@ -1,0 +1,377 @@
+<svg width="1440" height="1024" viewBox="0 0 1440 1024" xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    text { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+  </style>
+</defs>
+
+<!-- Page Background -->
+<rect width="1440" height="1024" fill="#1a1d23"/>
+
+<!-- ===== SIDEBAR ===== -->
+<rect x="0" y="0" width="220" height="1024" fill="#15171c"/>
+<line x1="220" y1="0" x2="220" y2="1024" stroke="#2a2d35" stroke-width="1"/>
+
+<!-- Logo -->
+<rect x="16" y="16" width="36" height="36" rx="10" fill="#7c75ff"/>
+<text x="58" y="40" fill="#ebeef5" font-size="16" font-weight="700">AvyCloud</text>
+
+<!-- Nav Section Label -->
+<text x="16" y="80" fill="#7a8090" font-size="10" font-weight="600" letter-spacing="0.5">NAVIGATION</text>
+
+<!-- Nav: Dashboard (INACTIVE) -->
+<g>
+  <circle cx="24" cy="98" r="4" fill="none" stroke="#8a8f9e" stroke-width="1.5"/>
+  <path d="M24 94 L28 94 L28 105 L20 105 L20 99" fill="none" stroke="#8a8f9e" stroke-width="1.5"/>
+  <text x="44" y="103" fill="#8a8f9e" font-size="12" font-weight="500">Dashboard</text>
+</g>
+
+<!-- Nav: Identify (INACTIVE) -->
+<g>
+  <path d="M24 138 C20 138 20 142 20 142 L20 152 C20 152 20 156 24 156 L28 156 C32 156 32 152 32 152 L32 142 C32 142 32 138 28 138 Z" fill="none" stroke="#8a8f9e" stroke-width="1.5"/>
+  <line x1="24" y1="145" x2="28" y2="145" stroke="#8a8f9e" stroke-width="1.5"/>
+  <text x="44" y="153" fill="#8a8f9e" font-size="12" font-weight="500">Identify</text>
+</g>
+
+<!-- Nav: Inventory (INACTIVE) -->
+<g>
+  <rect x="20" y="170" width="8" height="3" fill="#8a8f9e"/>
+  <rect x="20" y="176" width="8" height="3" fill="#8a8f9e"/>
+  <rect x="20" y="182" width="8" height="3" fill="#8a8f9e"/>
+  <rect x="28" y="170" width="2" height="2" fill="#8a8f9e"/>
+  <text x="44" y="185" fill="#8a8f9e" font-size="12" font-weight="500">Inventory</text>
+  <!-- Badge -->
+  <rect x="152" y="172" width="20" height="16" rx="4" fill="#f87171"/>
+  <text x="157" y="183" fill="#fff" font-size="10" font-weight="600">18</text>
+</g>
+
+<!-- Nav: Products (ACTIVE) -->
+<rect x="8" y="194" width="204" height="36" rx="8" fill="rgba(124,117,255,0.10)"/>
+<g>
+  <rect x="20" y="202" width="8" height="10" rx="1" fill="none" stroke="#7c75ff" stroke-width="1.5"/>
+  <rect x="22" y="204" width="4" height="6" fill="#7c75ff"/>
+  <text x="44" y="217" fill="#7c75ff" font-size="12" font-weight="600">Products</text>
+  <!-- Badge -->
+  <rect x="152" y="204" width="28" height="16" rx="4" fill="#7c75ff"/>
+  <text x="158" y="215" fill="#fff" font-size="10" font-weight="600">784</text>
+</g>
+
+<!-- Nav: Categories (INACTIVE) -->
+<g>
+  <rect x="20" y="234" width="8" height="8" rx="1" fill="none" stroke="#8a8f9e" stroke-width="1.5"/>
+  <rect x="28" y="234" width="8" height="8" rx="1" fill="none" stroke="#8a8f9e" stroke-width="1.5"/>
+  <rect x="20" y="242" width="8" height="8" rx="1" fill="none" stroke="#8a8f9e" stroke-width="1.5"/>
+  <rect x="28" y="242" width="8" height="8" rx="1" fill="none" stroke="#8a8f9e" stroke-width="1.5"/>
+  <text x="44" y="249" fill="#8a8f9e" font-size="12" font-weight="500">Categories</text>
+</g>
+
+<!-- Nav: Warehouse (INACTIVE) -->
+<g>
+  <rect x="20" y="266" width="12" height="10" rx="1" fill="none" stroke="#8a8f9e" stroke-width="1.5"/>
+  <line x1="24" y1="266" x2="24" y2="276" stroke="#8a8f9e" stroke-width="1.5"/>
+  <line x1="28" y1="266" x2="28" y2="276" stroke="#8a8f9e" stroke-width="1.5"/>
+  <text x="44" y="281" fill="#8a8f9e" font-size="12" font-weight="500">Warehouse</text>
+</g>
+
+<!-- Nav: Admin (INACTIVE) -->
+<g>
+  <circle cx="24" cy="298" r="3" fill="none" stroke="#8a8f9e" stroke-width="1.5"/>
+  <path d="M20 308 L28 308 L28 306 C28 303.8 26.2 302 24 302 C21.8 302 20 303.8 20 306 Z" fill="none" stroke="#8a8f9e" stroke-width="1.5"/>
+  <text x="44" y="313" fill="#8a8f9e" font-size="12" font-weight="500">Admin</text>
+</g>
+
+<!-- Dark/Light toggle -->
+<rect x="16" y="944" width="188" height="28" rx="8" fill="#282c34"/>
+<rect x="16" y="944" width="94" height="28" rx="8" fill="#7c75ff"/>
+<text x="38" y="963" fill="#fff" font-size="10" font-weight="600">Dark</text>
+<text x="132" y="963" fill="#7a8090" font-size="10" font-weight="500">Light</text>
+
+<!-- User Avatar -->
+<circle cx="32" cy="992" r="16" fill="#7c75ff"/>
+<text x="25" y="997" fill="#fff" font-size="11" font-weight="700">OK</text>
+<text x="56" y="988" fill="#ebeef5" font-size="12" font-weight="600">Oguzhan K.</text>
+<text x="56" y="1004" fill="#7a8090" font-size="10">Administrator</text>
+
+<!-- ===== TOP BAR ===== -->
+<rect x="220" y="0" width="1220" height="56" fill="#21242b" border-bottom="1px solid #2a2d35"/>
+<line x1="220" y1="56" x2="1440" y2="56" stroke="#2a2d35" stroke-width="1"/>
+
+<!-- Breadcrumb -->
+<text x="240" y="30" fill="#7a8090" font-size="12">AvyCloud</text>
+<text x="264" y="30" fill="#7a8090" font-size="12">›</text>
+<text x="280" y="30" fill="#ebeef5" font-size="12" font-weight="500">Products</text>
+
+<!-- Search Bar -->
+<rect x="920" y="12" width="200" height="32" rx="8" fill="#282c34" stroke="#2a2d35" stroke-width="1"/>
+<text x="935" y="32" fill="#7a8090" font-size="12">Search products...</text>
+
+<!-- Top Bar Icons -->
+<circle cx="1340" cy="28" r="14" fill="#282c34"/>
+<text x="1336" y="32" fill="#ebeef5" font-size="14">👤</text>
+
+<!-- ===== MAIN CONTENT AREA ===== -->
+
+<!-- Page Title & Count -->
+<text x="240" y="90" fill="#ebeef5" font-size="28" font-weight="700">Products</text>
+<text x="240" y="115" fill="#7a8090" font-size="13">784 Produkte</text>
+
+<!-- Toolbar -->
+<g>
+  <!-- Search & Filter Bar -->
+  <rect x="240" y="130" width="320" height="36" rx="8" fill="#282c34" stroke="#2a2d35" stroke-width="1"/>
+  <text x="255" y="152" fill="#7a8090" font-size="12">Search products, SKU, EAN...</text>
+
+  <!-- Filter Button -->
+  <rect x="580" y="130" width="100" height="36" rx="8" fill="#282c34" stroke="#2a2d35" stroke-width="1"/>
+  <text x="600" y="152" fill="#ebeef5" font-size="12" font-weight="500">Filter</text>
+
+  <!-- Columns Button -->
+  <rect x="700" y="130" width="100" height="36" rx="8" fill="#282c34" stroke="#2a2d35" stroke-width="1"/>
+  <text x="715" y="152" fill="#ebeef5" font-size="12" font-weight="500">Columns</text>
+
+  <!-- Sort Dropdown -->
+  <rect x="820" y="130" width="140" height="36" rx="8" fill="#282c34" stroke="#2a2d35" stroke-width="1"/>
+  <text x="835" y="152" fill="#ebeef5" font-size="12" font-weight="500">Sort: Newest</text>
+</g>
+
+<!-- Filter Chips -->
+<g>
+  <rect x="240" y="178" width="90" height="28" rx="6" fill="#282c34" stroke="#2a2d35" stroke-width="1"/>
+  <text x="255" y="197" fill="#ebeef5" font-size="11" font-weight="500">Alle Status</text>
+
+  <rect x="345" y="178" width="130" height="28" rx="6" fill="#282c34" stroke="#2a2d35" stroke-width="1"/>
+  <text x="360" y="197" fill="#ebeef5" font-size="11" font-weight="500">Alle Kategorien</text>
+
+  <rect x="490" y="178" width="80" height="28" rx="6" fill="#282c34" stroke="#2a2d35" stroke-width="1"/>
+  <text x="505" y="197" fill="#ebeef5" font-size="11" font-weight="500">In Stock</text>
+</g>
+
+<!-- Bulk Action Bar -->
+<rect x="240" y="220" width="900" height="40" rx="8" fill="rgba(124,117,255,0.08)" stroke="#2a2d35" stroke-width="1"/>
+<text x="255" y="243" fill="#7c75ff" font-size="13" font-weight="600">12 ausgewählt</text>
+
+<rect x="580" y="228" width="80" height="24" rx="6" fill="#7c75ff"/>
+<text x="595" y="243" fill="#fff" font-size="11" font-weight="600">Improve</text>
+
+<rect x="680" y="228" width="70" height="24" rx="6" fill="#7c75ff"/>
+<text x="691" y="243" fill="#fff" font-size="11" font-weight="600">Sync</text>
+
+<rect x="770" y="228" width="80" height="24" rx="6" fill="#f87171"/>
+<text x="782" y="243" fill="#fff" font-size="11" font-weight="600">Delete</text>
+
+<!-- Table Header -->
+<g fill="#7a8090" font-size="11" font-weight="600">
+  <rect x="240" y="280" width="20" height="32" rx="4" fill="#282c34" stroke="#2a2d35" stroke-width="1"/>
+  <text x="248" y="300" font-size="13">✓</text>
+
+  <text x="275" y="300">Image</text>
+  <text x="335" y="300">Product</text>
+  <text x="600" y="300">Category</text>
+  <text x="750" y="300">Price</text>
+  <text x="850" y="300">Stock</text>
+  <text x="950" y="300">Bin</text>
+  <text x="1020" y="300">Status</text>
+  <text x="1130" y="300">Markets</text>
+</g>
+
+<!-- Table Rows -->
+<!-- Row 1: Samsung Galaxy -->
+<g>
+  <rect x="240" y="320" width="1100" height="60" rx="4" fill="#282c34" stroke="#2a2d35" stroke-width="1"/>
+  <rect x="248" y="337" width="16" height="16" rx="3" fill="#7c75ff"/>
+
+  <!-- Image Placeholder -->
+  <rect x="275" y="327" width="48" height="48" rx="4" fill="#21242b"/>
+  <text x="295" y="355" fill="#7a8090" font-size="10">IMG</text>
+
+  <!-- Product Info -->
+  <text x="335" y="345" fill="#ebeef5" font-size="12" font-weight="600">Samsung Galaxy S24</text>
+  <text x="335" y="360" fill="#7a8090" font-size="10">SKU-20834 • EAN: 8806095625219</text>
+  <text x="335" y="373" fill="#7a8090" font-size="9">Brand: Samsung</text>
+
+  <!-- Category -->
+  <text x="600" y="355" fill="#ebeef5" font-size="11">Elektronik</text>
+
+  <!-- Price -->
+  <text x="750" y="355" fill="#ebeef5" font-size="12" font-weight="600">€899,99</text>
+
+  <!-- Stock -->
+  <rect x="850" y="342" width="60" height="6" rx="2" fill="#282c34" stroke="#2a2d35" stroke-width="1"/>
+  <rect x="850" y="342" width="42" height="6" rx="2" fill="#34d399"/>
+  <text x="920" y="355" fill="#ebeef5" font-size="11">17</text>
+
+  <!-- Bin -->
+  <text x="950" y="355" fill="#7a8090" font-size="11">M-02-A-3</text>
+
+  <!-- Status -->
+  <rect x="1020" y="342" width="70" height="20" rx="4" fill="rgba(52,211,153,0.15)"/>
+  <text x="1030" y="357" fill="#34d399" font-size="10" font-weight="600">Optimiert</text>
+
+  <!-- Markets -->
+  <rect x="1130" y="345" width="24" height="20" rx="3" fill="rgba(124,117,255,0.2)"/>
+  <text x="1135" y="358" fill="#818cf8" font-size="9" font-weight="600">eBay</text>
+  <rect x="1160" y="345" width="24" height="20" rx="3" fill="rgba(124,117,255,0.2)"/>
+  <text x="1165" y="358" fill="#818cf8" font-size="9" font-weight="600">KL</text>
+</g>
+
+<!-- Row 2: Nike Air Max -->
+<g>
+  <rect x="240" y="390" width="1100" height="60" rx="4" fill="#282c34" stroke="#2a2d35" stroke-width="1"/>
+  <rect x="248" y="407" width="16" height="16" rx="3" fill="#7c75ff"/>
+
+  <rect x="275" y="397" width="48" height="48" rx="4" fill="#21242b"/>
+  <text x="295" y="425" fill="#7a8090" font-size="10">IMG</text>
+
+  <text x="335" y="415" fill="#ebeef5" font-size="12" font-weight="600">Nike Air Max 90</text>
+  <text x="335" y="430" fill="#7a8090" font-size="10">SKU-21045 • EAN: 194271426459</text>
+  <text x="335" y="443" fill="#7a8090" font-size="9">Brand: Nike</text>
+
+  <text x="600" y="425" fill="#ebeef5" font-size="11">Schuhe</text>
+  <text x="750" y="425" fill="#ebeef5" font-size="12" font-weight="600">€129,95</text>
+
+  <rect x="850" y="412" width="60" height="6" rx="2" fill="#282c34" stroke="#2a2d35" stroke-width="1"/>
+  <rect x="850" y="412" width="54" height="6" rx="2" fill="#34d399"/>
+  <text x="920" y="425" fill="#ebeef5" font-size="11">45</text>
+
+  <text x="950" y="425" fill="#7a8090" font-size="11">L-03-B-2</text>
+
+  <rect x="1020" y="412" width="70" height="20" rx="4" fill="rgba(251,191,36,0.15)"/>
+  <text x="1030" y="427" fill="#fbbf24" font-size="10" font-weight="600">Gelistet</text>
+
+  <rect x="1130" y="415" width="24" height="20" rx="3" fill="rgba(124,117,255,0.2)"/>
+  <text x="1135" y="428" fill="#818cf8" font-size="9" font-weight="600">eBay</text>
+</g>
+
+<!-- Row 3: Bosch Bohrmaschine -->
+<g>
+  <rect x="240" y="460" width="1100" height="60" rx="4" fill="#282c34" stroke="#2a2d35" stroke-width="1"/>
+
+  <rect x="275" y="467" width="48" height="48" rx="4" fill="#21242b"/>
+  <text x="295" y="495" fill="#7a8090" font-size="10">IMG</text>
+
+  <text x="335" y="485" fill="#ebeef5" font-size="12" font-weight="600">Bosch GSB 21-2 RE</text>
+  <text x="335" y="500" fill="#7a8090" font-size="10">SKU-19234 • EAN: 3165140619327</text>
+  <text x="335" y="513" fill="#7a8090" font-size="9">Brand: Bosch</text>
+
+  <text x="600" y="495" fill="#ebeef5" font-size="11">Werkzeuge</text>
+  <text x="750" y="495" fill="#ebeef5" font-size="12" font-weight="600">€79,99</text>
+
+  <rect x="850" y="482" width="60" height="6" rx="2" fill="#282c34" stroke="#2a2d35" stroke-width="1"/>
+  <rect x="850" y="482" width="36" height="6" rx="2" fill="#fbbf24"/>
+  <text x="920" y="495" fill="#ebeef5" font-size="11">8</text>
+
+  <text x="950" y="495" fill="#7a8090" font-size="11">S-01-C-1</text>
+
+  <rect x="1020" y="482" width="70" height="20" rx="4" fill="rgba(251,191,36,0.15)"/>
+  <text x="1032" y="497" fill="#fbbf24" font-size="10" font-weight="600">Niedrig</text>
+
+  <rect x="1130" y="485" width="24" height="20" rx="3" fill="rgba(124,117,255,0.2)"/>
+  <text x="1133" y="498" fill="#818cf8" font-size="9" font-weight="600">KL</text>
+</g>
+
+<!-- Row 4: Apple AirPods -->
+<g>
+  <rect x="240" y="530" width="1100" height="60" rx="4" fill="#282c34" stroke="#2a2d35" stroke-width="1"/>
+
+  <rect x="275" y="537" width="48" height="48" rx="4" fill="#21242b"/>
+  <text x="295" y="565" fill="#7a8090" font-size="10">IMG</text>
+
+  <text x="335" y="555" fill="#ebeef5" font-size="12" font-weight="600">Apple AirPods Pro (2nd Gen)</text>
+  <text x="335" y="570" fill="#7a8090" font-size="10">SKU-20156 • EAN: 194252065405</text>
+  <text x="335" y="583" fill="#7a8090" font-size="9">Brand: Apple</text>
+
+  <text x="600" y="565" fill="#ebeef5" font-size="11">Audio</text>
+  <text x="750" y="565" fill="#ebeef5" font-size="12" font-weight="600">€249,00</text>
+
+  <rect x="850" y="552" width="60" height="6" rx="2" fill="#282c34" stroke="#2a2d35" stroke-width="1"/>
+  <rect x="850" y="552" width="6" height="6" rx="2" fill="#f87171"/>
+  <text x="920" y="565" fill="#ebeef5" font-size="11">1</text>
+
+  <text x="950" y="565" fill="#7a8090" font-size="11">M-01-A-5</text>
+
+  <rect x="1020" y="552" width="70" height="20" rx="4" fill="rgba(248,113,113,0.15)"/>
+  <text x="1035" y="567" fill="#f87171" font-size="10" font-weight="600">Kritisch</text>
+
+  <rect x="1130" y="555" width="24" height="20" rx="3" fill="rgba(124,117,255,0.2)"/>
+  <text x="1134" y="568" fill="#818cf8" font-size="9" font-weight="600">eBay</text>
+</g>
+
+<!-- Row 5: Dyson Staubsauger -->
+<g>
+  <rect x="240" y="600" width="1100" height="60" rx="4" fill="#282c34" stroke="#2a2d35" stroke-width="1"/>
+
+  <rect x="275" y="607" width="48" height="48" rx="4" fill="#21242b"/>
+  <text x="295" y="635" fill="#7a8090" font-size="10">IMG</text>
+
+  <text x="335" y="625" fill="#ebeef5" font-size="12" font-weight="600">Dyson V15 Detect</text>
+  <text x="335" y="640" fill="#7a8090" font-size="10">SKU-21567 • EAN: 5391051022959</text>
+  <text x="335" y="653" fill="#7a8090" font-size="9">Brand: Dyson</text>
+
+  <text x="600" y="635" fill="#ebeef5" font-size="11">Haushalt</text>
+  <text x="750" y="635" fill="#ebeef5" font-size="12" font-weight="600">€599,99</text>
+
+  <rect x="850" y="622" width="60" height="6" rx="2" fill="#282c34" stroke="#2a2d35" stroke-width="1"/>
+  <rect x="850" y="622" width="48" height="6" rx="2" fill="#34d399"/>
+  <text x="920" y="635" fill="#ebeef5" font-size="11">32</text>
+
+  <text x="950" y="635" fill="#7a8090" font-size="11">XL-01-A-1</text>
+
+  <rect x="1020" y="622" width="70" height="20" rx="4" fill="rgba(52,211,153,0.15)"/>
+  <text x="1030" y="637" fill="#34d399" font-size="10" font-weight="600">Optimiert</text>
+
+  <rect x="1130" y="625" width="24" height="20" rx="3" fill="rgba(124,117,255,0.2)"/>
+  <text x="1135" y="638" fill="#818cf8" font-size="9" font-weight="600">eBay</text>
+  <rect x="1160" y="625" width="24" height="20" rx="3" fill="rgba(124,117,255,0.2)"/>
+  <text x="1165" y="638" fill="#818cf8" font-size="9" font-weight="600">KL</text>
+</g>
+
+<!-- Row 6: Hukla Sessel -->
+<g>
+  <rect x="240" y="670" width="1100" height="60" rx="4" fill="#282c34" stroke="#2a2d35" stroke-width="1"/>
+
+  <rect x="275" y="677" width="48" height="48" rx="4" fill="#21242b"/>
+  <text x="295" y="705" fill="#7a8090" font-size="10">IMG</text>
+
+  <text x="335" y="695" fill="#ebeef5" font-size="12" font-weight="600">HUKLA Premium Relaxsessel</text>
+  <text x="335" y="710" fill="#7a8090" font-size="10">SKU-19876 • EAN: 4003432847593</text>
+  <text x="335" y="723" fill="#7a8090" font-size="9">Brand: HUKLA</text>
+
+  <text x="600" y="705" fill="#ebeef5" font-size="11">Möbel</text>
+  <text x="750" y="705" fill="#ebeef5" font-size="12" font-weight="600">€449,95</text>
+
+  <rect x="850" y="692" width="60" height="6" rx="2" fill="#282c34" stroke="#2a2d35" stroke-width="1"/>
+  <rect x="850" y="692" width="54" height="6" rx="2" fill="#34d399"/>
+  <text x="920" y="705" fill="#ebeef5" font-size="11">12</text>
+
+  <text x="950" y="705" fill="#7a8090" font-size="11">XL-02-B-2</text>
+
+  <rect x="1020" y="692" width="70" height="20" rx="4" fill="rgba(52,211,153,0.15)"/>
+  <text x="1028" y="707" fill="#34d399" font-size="10" font-weight="600">Entwurf</text>
+
+  <rect x="1130" y="695" width="24" height="20" rx="3" fill="rgba(124,117,255,0.2)"/>
+  <text x="1133" y="708" fill="#818cf8" font-size="9" font-weight="600">KL</text>
+</g>
+
+<!-- Pagination -->
+<g fill="#7a8090" font-size="11">
+  <text x="240" y="810">Zeige 1-25 von 784</text>
+
+  <!-- Page Numbers -->
+  <rect x="520" y="795" width="24" height="24" rx="4" fill="rgba(124,117,255,0.2)"/>
+  <text x="528" y="812" fill="#7c75ff" font-weight="600">1</text>
+
+  <rect x="550" y="795" width="24" height="24" rx="4" fill="#282c34" stroke="#2a2d35" stroke-width="1"/>
+  <text x="558" y="812" fill="#ebeef5">2</text>
+
+  <rect x="580" y="795" width="24" height="24" rx="4" fill="#282c34" stroke="#2a2d35" stroke-width="1"/>
+  <text x="588" y="812" fill="#ebeef5">3</text>
+
+  <rect x="610" y="795" width="24" height="24" rx="4" fill="#282c34" stroke="#2a2d35" stroke-width="1"/>
+  <text x="618" y="812" fill="#ebeef5">...</text>
+
+  <rect x="640" y="795" width="24" height="24" rx="4" fill="#282c34" stroke="#2a2d35" stroke-width="1"/>
+  <text x="645" y="812" fill="#ebeef5">32</text>
+</g>
+
+</svg>

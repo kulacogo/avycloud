@@ -269,8 +269,8 @@ const TOOL_LABELS: Record<string, string> = {
 const StreamProgressLine: React.FC<{ event: StreamEvent }> = ({ event }) => {
   if (event.type === 'start') {
     return (
-      <div className="flex items-center gap-2 text-slate-400">
-        <span className="inline-block h-2 w-2 rounded-full bg-sky-400 animate-pulse" />
+      <div className="flex items-center gap-2 text-txt-muted">
+        <span className="inline-block h-2 w-2 rounded-full bg-accent animate-pulse" />
         <span>{event.text || 'Starte…'}</span>
       </div>
     );
@@ -279,9 +279,9 @@ const StreamProgressLine: React.FC<{ event: StreamEvent }> = ({ event }) => {
     const label = TOOL_LABELS[event.tool] || event.tool;
     const detail = event.query || event.url || '';
     return (
-      <div className="flex items-center gap-2 text-slate-300">
+      <div className="flex items-center gap-2 text-txt-secondary">
         <span className="inline-block h-2 w-2 rounded-full bg-amber-400 animate-pulse" />
-        <span>{label}{detail ? <span className="ml-1 text-slate-500 truncate max-w-[180px] inline-block align-bottom">"{detail}"</span> : null}</span>
+        <span>{label}{detail ? <span className="ml-1 text-txt-muted truncate max-w-[180px] inline-block align-bottom">"{detail}"</span> : null}</span>
       </div>
     );
   }
@@ -289,8 +289,8 @@ const StreamProgressLine: React.FC<{ event: StreamEvent }> = ({ event }) => {
     const label = TOOL_LABELS[event.tool] || event.tool;
     const detail = event.count != null ? `${event.count} Ergebnisse` : event.fields != null ? `${event.fields} Felder` : '';
     return (
-      <div className="flex items-center gap-2 text-slate-500">
-        <span className="text-emerald-500">✓</span>
+      <div className="flex items-center gap-2 text-txt-muted">
+        <span className="text-success">✓</span>
         <span>{label}{detail ? <span className="ml-1">({detail})</span> : null}</span>
       </div>
     );
@@ -795,18 +795,18 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
 
   return (
     <ChatContainer onFilesDropped={handleFilesAdded}>
-      <header className="flex items-center justify-between border-b border-slate-800 px-4 py-3 text-xs uppercase tracking-wide text-slate-400">
-        <div className="flex items-center gap-2 text-slate-100">
-          <SparklesIcon className="h-4 w-4 text-sky-400" />
-          <span className="font-semibold text-sm text-white">{t('chat.header.title')}</span>
-          <span className="text-[11px] text-slate-500">{t('chat.header.subtitle')}</span>
+      <header className="flex items-center justify-between border-b border-app-border px-4 py-3 text-xs uppercase tracking-wide text-txt-muted">
+        <div className="flex items-center gap-2 text-txt-primary">
+          <SparklesIcon className="h-4 w-4 text-accent" />
+          <span className="font-semibold text-sm text-txt-primary">{t('chat.header.title')}</span>
+          <span className="text-[11px] text-txt-muted">{t('chat.header.subtitle')}</span>
         </div>
         <button
           type="button"
           onClick={() => {
             setInput(buildSmartPrompt());
           }}
-          className="rounded-full border border-white/10 px-3 py-1 text-[11px] text-slate-200 hover:border-sky-500 hover:text-white"
+          className="rounded-full border border-app-border px-3 py-1 text-[11px] text-txt-secondary hover:border-accent hover:text-txt-primary"
           aria-label="Smarten Prompt aus Optionen erzeugen"
           title="Erzeugt einen smarten Prompt aus den Optionen."
         >
@@ -830,10 +830,10 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
           ))}
           {isStreaming && (
             <div className="flex justify-start" role="status" aria-live="polite" aria-label="Verarbeitungsstatus">
-              <div className="rounded-2xl bg-slate-800/80 px-4 py-3 text-sm text-slate-200 space-y-1 min-w-[200px]">
+              <div className="rounded-2xl bg-app-elevated px-4 py-3 text-sm text-txt-secondary space-y-1 min-w-[200px]">
                 {streamEvents.length === 0 ? (
                   <div className="flex items-center gap-2">
-                    <span className="inline-block h-2 w-2 rounded-full bg-sky-400 animate-pulse" />
+                    <span className="inline-block h-2 w-2 rounded-full bg-accent animate-pulse" />
                     {t('chat.ui.thinking')}
                   </div>
                 ) : (
@@ -847,24 +847,24 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
         </div>
 
         {(pendingChanges.length > 0 || pendingImages.length > 0 || serpInsights.length > 0) && (
-          <div className="space-y-4 border-t border-slate-800 pt-3 text-xs text-slate-200">
+          <div className="space-y-4 border-t border-app-border pt-3 text-xs text-txt-secondary">
             {pendingChanges.length > 0 && (
-              <details className="rounded-xl border border-white/10 bg-slate-900/60">
-                <summary className="flex cursor-pointer items-center justify-between px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-slate-200">
+              <details className="rounded-xl border border-app-border bg-app-bg/60">
+                <summary className="flex cursor-pointer items-center justify-between px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-txt-secondary">
                   <span>{t('chat.ui.pendingChanges')}</span>
                   <span>{pendingChanges.length}</span>
                 </summary>
                 <div className="space-y-2 p-3">
                   {pendingChanges.map((item) => (
-                    <div key={item.id} className="rounded-xl border border-white/10 bg-slate-900/70 p-3">
-                      <p className="text-sm font-semibold text-white">
+                    <div key={item.id} className="rounded-xl border border-app-border bg-app-bg/70 p-3">
+                      <p className="text-sm font-semibold text-txt-primary">
                         {item.change.summary || t('chat.ui.changeFallback')}
                       </p>
                       <button
                         type="button"
                         onClick={() => handleApplyChange(item.id, item.change)}
                         disabled={applyingChangeIds.has(item.id)}
-                        className="mt-2 rounded-full bg-sky-600 px-3 py-1 text-[11px] font-semibold text-white hover:bg-sky-500 disabled:cursor-wait disabled:opacity-60"
+                        className="mt-2 rounded-full bg-accent px-3 py-1 text-[11px] font-semibold text-txt-primary hover:bg-accent/80 disabled:cursor-wait disabled:opacity-60"
                       >
                         {applyingChangeIds.has(item.id) ? 'Übernehme…' : t('chat.ui.apply')}
                       </button>
@@ -875,21 +875,21 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
             )}
 
             {pendingImages.length > 0 && (
-              <details className="rounded-xl border border-white/10 bg-slate-900/60">
-                <summary className="flex cursor-pointer items-center justify-between px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-slate-200">
+              <details className="rounded-xl border border-app-border bg-app-bg/60">
+                <summary className="flex cursor-pointer items-center justify-between px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-txt-secondary">
                   <span>{t('chat.ui.imageSuggestions')}</span>
                   <span>{pendingImages.length}</span>
                 </summary>
                 <div className="space-y-2 p-3">
                   <div className="flex items-center justify-between">
-                    <p className="text-[11px] text-slate-400">
+                    <p className="text-[11px] text-txt-muted">
                       Tipp: Du kannst alle Vorschläge mit einem Klick übernehmen.
                     </p>
                     <button
                       type="button"
                       aria-label="Alle Bildvorschläge hinzufügen"
                       onClick={handleApplyAllImages}
-                      className="rounded-full bg-sky-600 px-3 py-1 text-[11px] font-semibold text-white hover:bg-sky-500"
+                      className="rounded-full bg-accent px-3 py-1 text-[11px] font-semibold text-txt-primary hover:bg-accent/80"
                     >
                       Alle hinzufügen
                     </button>
@@ -898,7 +898,7 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
                   {pendingImages.map((item) => (
                     <div
                       key={item.id}
-                      className="flex min-w-[160px] max-w-[160px] flex-col gap-2 rounded-xl border border-white/10 bg-slate-900/70 p-2"
+                      className="flex min-w-[160px] max-w-[160px] flex-col gap-2 rounded-xl border border-app-border bg-app-bg/70 p-2"
                     >
                       <img
                         src={resolveImageSrc(item.image.url_or_base64)}
@@ -912,11 +912,11 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
                           )}`;
                         }}
                       />
-                      {item.rationale && <p className="text-[11px] text-slate-400 line-clamp-2">{item.rationale}</p>}
+                      {item.rationale && <p className="text-[11px] text-txt-muted line-clamp-2">{item.rationale}</p>}
                       <button
                         type="button"
                         onClick={() => handleApplyImage(item.id)}
-                        className="rounded-full bg-sky-600 px-3 py-1 text-[11px] font-semibold text-white hover:bg-sky-500"
+                        className="rounded-full bg-accent px-3 py-1 text-[11px] font-semibold text-txt-primary hover:bg-accent/80"
                       >
                         {t('chat.ui.addImage')}
                       </button>
@@ -928,19 +928,19 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
             )}
 
             {serpInsights.length > 0 && (
-              <details className="rounded-xl border border-white/10 bg-slate-900/60">
-                <summary className="flex cursor-pointer items-center justify-between px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-slate-200">
+              <details className="rounded-xl border border-app-border bg-app-bg/60">
+                <summary className="flex cursor-pointer items-center justify-between px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-txt-secondary">
                   <span>{t('chat.ui.serpInsights')}</span>
                   <span>{serpInsights.length}</span>
                 </summary>
-                <div className="space-y-2 p-3 text-[11px] text-slate-200">
+                <div className="space-y-2 p-3 text-[11px] text-txt-secondary">
                   {serpInsights.map((entry, index) => (
-                    <div key={`${entry.engine}-${index}`} className="rounded-xl border border-white/10 bg-slate-900/70 p-3">
-                      <div className="flex items-center justify-between text-slate-100">
+                    <div key={`${entry.engine}-${index}`} className="rounded-xl border border-app-border bg-app-bg/70 p-3">
+                      <div className="flex items-center justify-between text-txt-primary">
                         <span className="font-semibold">{entry.engine}</span>
-                        <span className="text-slate-400">{entry.query}</span>
+                        <span className="text-txt-muted">{entry.query}</span>
                       </div>
-                      {entry.error && <p className="mt-1 text-red-400">{entry.error}</p>}
+                      {entry.error && <p className="mt-1 text-danger">{entry.error}</p>}
                       {!entry.error &&
                         entry.summary?.slice(0, 2).map((item, idx) => (
                           <div key={idx} className="mt-1">
@@ -948,12 +948,12 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
                               href={item.url}
                               target="_blank"
                               rel="noreferrer"
-                              className="text-sky-400 underline hover:text-sky-200"
+                              className="text-accent underline hover:text-accent"
                             >
                               {item.title || item.url}
                             </a>
-                            {item.price && <span className="ml-1 text-slate-300">{String(item.price)}</span>}
-                            {item.source && <span className="ml-1 text-slate-400">({item.source})</span>}
+                            {item.price && <span className="ml-1 text-txt-secondary">{String(item.price)}</span>}
+                            {item.source && <span className="ml-1 text-txt-muted">({item.source})</span>}
                           </div>
                         ))}
                     </div>
@@ -965,9 +965,9 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
         )}
       </div>
 
-      <div className="space-y-3 border-t border-slate-800 px-4 py-4">
-        <details className="rounded-2xl border border-slate-800 bg-slate-950/30 p-3">
-          <summary className="cursor-pointer select-none text-[11px] font-semibold uppercase tracking-wide text-slate-300">
+      <div className="space-y-3 border-t border-app-border px-4 py-4">
+        <details className="rounded-2xl border border-app-border bg-app-bg/30 p-3">
+          <summary className="cursor-pointer select-none text-[11px] font-semibold uppercase tracking-wide text-txt-secondary">
             Assistant Optionen
           </summary>
           <div className="mt-3 grid grid-cols-1 gap-3">
@@ -986,7 +986,7 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
                     key={key}
                     type="button"
                     onClick={() => applyPromptScene(String(key))}
-                    className="rounded-full border border-white/10 bg-slate-900/40 px-3 py-1 text-slate-200 hover:border-sky-500 hover:text-white"
+                    className="rounded-full border border-app-border bg-app-bg/40 px-3 py-1 text-txt-secondary hover:border-accent hover:text-txt-primary"
                     title="Setzt nur die Optionen (kein starrer Prompt)."
                   >
                     {label}
@@ -999,7 +999,7 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
                   const smart = buildSmartPrompt();
                   setInput(smart);
                 }}
-                className="rounded-full bg-slate-800/60 px-3 py-1 text-[12px] text-slate-200 hover:bg-slate-700/60"
+                className="rounded-full bg-app-surface px-3 py-1 text-[12px] text-txt-secondary hover:bg-app-elevated/60"
                 title="Schreibt den smarten Prompt in die Eingabe."
               >
                 Vorschau in Eingabe
@@ -1020,7 +1020,7 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
               ].map(([key, label]) => (
                 <label
                   key={key}
-                  className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-slate-900/40 px-3 py-1 text-slate-200 hover:border-sky-500"
+                  className="inline-flex items-center gap-2 rounded-full border border-app-border bg-app-bg/40 px-3 py-1 text-txt-secondary hover:border-accent"
                 >
                   <input
                     type="checkbox"
@@ -1033,12 +1033,12 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
             </div>
 
             <div className="flex flex-wrap gap-2 text-[12px]">
-              <label className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-slate-900/40 px-3 py-1 text-slate-200 hover:border-sky-500">
+              <label className="inline-flex items-center gap-2 rounded-full border border-app-border bg-app-bg/40 px-3 py-1 text-txt-secondary hover:border-accent">
                 Fetch-Seiten
                 <select
                   value={promptConfig.maxPagesToFetch}
                   onChange={(e) => setPromptConfig((prev) => ({ ...prev, maxPagesToFetch: Number(e.target.value) }))}
-                  className="rounded-lg bg-slate-800/60 px-2 py-1 text-slate-200"
+                  className="rounded-lg bg-app-surface px-2 py-1 text-txt-secondary"
                 >
                   <option value={1}>1</option>
                   <option value={2}>2</option>
@@ -1054,7 +1054,7 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
                   void handleSend(smart, derivedScope);
                 }}
                 disabled={isStreaming}
-                className="rounded-full bg-sky-600 px-3 py-1 text-[12px] font-semibold text-white hover:bg-sky-500 disabled:opacity-50 disabled:cursor-wait"
+                className="rounded-full bg-accent px-3 py-1 text-[12px] font-semibold text-txt-primary hover:bg-accent/80 disabled:opacity-50 disabled:cursor-wait"
               >
                 Jetzt ausführen
               </button>

@@ -1,0 +1,243 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1024" viewBox="0 0 1440 1024">
+<defs>
+<style>
+text { font-family: 'Inter', -apple-system, sans-serif; }
+.page-bg { fill: #1a1d23; }
+.sidebar { fill: #15171c; }
+.surface { fill: #21242b; }
+.elevated { fill: #282c34; }
+.border { stroke: #2a2d35; stroke-width: 1; fill: none; }
+.text-primary { fill: #ebeef5; font-size: 14px; }
+.text-secondary { fill: #7a8090; font-size: 12px; }
+.text-muted { fill: #8a8f9e; font-size: 12px; }
+.accent { fill: #7c75ff; }
+.accent-text { fill: #7c75ff; }
+.success { fill: #34d399; }
+.warning { fill: #fbbf24; }
+.danger { fill: #f87171; }
+.btn-primary { fill: #7c75ff; }
+.nav-active-bg { fill: rgba(124, 117, 255, 0.10); }
+.nav-active-text { fill: #7c75ff; font-weight: 600; }
+.nav-inactive-text { fill: #8a8f9e; font-weight: 500; }
+.heading-lg { font-size: 28px; font-weight: 600; fill: #ebeef5; }
+.heading-sm { font-size: 14px; font-weight: 600; fill: #ebeef5; }
+.label { font-size: 12px; font-weight: 500; fill: #7a8090; }
+.placeholder-text { fill: #5a6370; font-size: 13px; }
+</style>
+</defs>
+
+<!-- Page Background -->
+<rect class="page-bg" width="1440" height="1024"/>
+
+<!-- Sidebar -->
+<rect class="sidebar" width="220" height="1024"/>
+
+<!-- Sidebar divider -->
+<line x1="220" y1="0" x2="220" y2="1024" class="border"/>
+
+<!-- Sidebar Logo/Brand -->
+<text x="20" y="35" class="heading-sm">AvyCloud</text>
+
+<!-- Navigation Items -->
+<!-- Dashboard (y=90) -->
+<g>
+  <rect x="20" y="90" width="180" height="36" rx="6" fill="none"/>
+  <g transform="translate(30, 96)">
+    <rect x="0" y="0" width="18" height="18" rx="2" fill="none" stroke="#8a8f9e" stroke-width="1.5"/>
+    <rect x="3" y="3" width="3" height="3" fill="#8a8f9e"/>
+    <rect x="9" y="3" width="3" height="3" fill="#8a8f9e"/>
+    <rect x="3" y="9" width="3" height="3" fill="#8a8f9e"/>
+    <rect x="9" y="9" width="3" height="3" fill="#8a8f9e"/>
+  </g>
+  <text x="56" y="112" class="nav-inactive-text">Dashboard</text>
+</g>
+
+<!-- Erfassen (active, y=126) -->
+<g>
+  <rect x="20" y="126" width="180" height="36" rx="6" class="nav-active-bg"/>
+  <g transform="translate(30, 132)">
+    <rect x="0" y="0" width="18" height="18" rx="1" stroke="#7c75ff" stroke-width="1.5" fill="none"/>
+    <line x1="4" y1="9" x2="14" y2="9" stroke="#7c75ff" stroke-width="1"/>
+    <line x1="9" y1="4" x2="9" y2="14" stroke="#7c75ff" stroke-width="1"/>
+  </g>
+  <text x="56" y="148" class="nav-active-text">Erfassen</text>
+</g>
+
+<!-- Produkte (y=162) -->
+<g>
+  <rect x="20" y="162" width="180" height="36" rx="6" fill="none"/>
+  <g transform="translate(30, 168)">
+    <rect x="0" y="0" width="16" height="18" rx="1" fill="none" stroke="#8a8f9e" stroke-width="1.5"/>
+    <line x1="2" y1="6" x2="14" y2="6" stroke="#8a8f9e" stroke-width="1"/>
+    <line x1="2" y1="10" x2="14" y2="10" stroke="#8a8f9e" stroke-width="1"/>
+    <line x1="2" y1="14" x2="10" y2="14" stroke="#8a8f9e" stroke-width="1"/>
+  </g>
+  <text x="56" y="184" class="nav-inactive-text">Produkte</text>
+</g>
+
+<!-- Bestand (y=198) with badge -->
+<g>
+  <rect x="20" y="198" width="180" height="36" rx="6" fill="none"/>
+  <g transform="translate(30, 204)">
+    <rect x="0" y="0" width="18" height="14" rx="1" fill="none" stroke="#8a8f9e" stroke-width="1.5"/>
+    <rect x="0" y="5" width="5" height="9" fill="#8a8f9e"/>
+    <rect x="6.5" y="5" width="5" height="9" fill="#8a8f9e"/>
+    <rect x="13" y="5" width="5" height="9" fill="#8a8f9e"/>
+  </g>
+  <text x="56" y="220" class="nav-inactive-text">Bestand</text>
+  <circle cx="170" cy="210" r="10" class="warning"/>
+  <text x="166" y="216" style="font-size: 11px; font-weight: 600; fill: #1a1d23;">18</text>
+</g>
+
+<!-- Lager (y=234) -->
+<g>
+  <rect x="20" y="234" width="180" height="36" rx="6" fill="none"/>
+  <g transform="translate(30, 240)">
+    <rect x="1" y="4" width="16" height="14" rx="1" fill="none" stroke="#8a8f9e" stroke-width="1.5"/>
+    <line x1="6" y1="4" x2="6" y2="18" stroke="#8a8f9e" stroke-width="1"/>
+    <line x1="11" y1="4" x2="11" y2="18" stroke="#8a8f9e" stroke-width="1"/>
+  </g>
+  <text x="56" y="256" class="nav-inactive-text">Lager</text>
+</g>
+
+<!-- Kategorien (y=270) -->
+<g>
+  <rect x="20" y="270" width="180" height="36" rx="6" fill="none"/>
+  <g transform="translate(30, 276)">
+    <rect x="0" y="2" width="7" height="7" rx="1" fill="none" stroke="#8a8f9e" stroke-width="1.5"/>
+    <rect x="11" y="2" width="7" height="7" rx="1" fill="none" stroke="#8a8f9e" stroke-width="1.5"/>
+    <rect x="0" y="11" width="7" height="7" rx="1" fill="none" stroke="#8a8f9e" stroke-width="1.5"/>
+    <rect x="11" y="11" width="7" height="7" rx="1" fill="none" stroke="#8a8f9e" stroke-width="1.5"/>
+  </g>
+  <text x="56" y="292" class="nav-inactive-text">Kategorien</text>
+</g>
+
+<!-- Admin (y=306) -->
+<g>
+  <rect x="20" y="306" width="180" height="36" rx="6" fill="none"/>
+  <g transform="translate(30, 312)">
+    <polygon points="9,0 18,4.5 18,13.5 9,18 0,13.5 0,4.5" fill="none" stroke="#8a8f9e" stroke-width="1.5"/>
+  </g>
+  <text x="56" y="328" class="nav-inactive-text">Admin</text>
+</g>
+
+<!-- Theme Toggle (y=944) -->
+<g>
+  <circle cx="35" cy="952" r="6" fill="none" stroke="#7a8090" stroke-width="1.5"/>
+  <circle cx="55" cy="952" r="6" fill="none" stroke="#7a8090" stroke-width="1.5"/>
+  <circle cx="50" cy="952" r="5" fill="#7a8090"/>
+</g>
+
+<!-- User Profile (y=980) -->
+<circle cx="30" cy="992" r="12" fill="#7c75ff"/>
+<text x="48" y="996" style="font-size: 12px; font-weight: 600; fill: #ebeef5;">OK</text>
+<text x="48" y="1008" style="font-size: 11px; fill: #7a8090;">Oguzhan K.</text>
+
+<!-- Top Bar -->
+<rect x="220" y="0" width="1220" height="56" class="surface"/>
+<line x1="220" y1="56" x2="1440" y2="56" class="border"/>
+
+<!-- Breadcrumb -->
+<text x="240" y="32" style="font-size: 13px; fill: #7a8090;">AvyCloud</text>
+<text x="280" y="32" style="font-size: 13px; fill: #7a8090;">›</text>
+<text x="295" y="32" style="font-size: 13px; fill: #ebeef5; font-weight: 500;">Erfassen</text>
+
+<!-- Search Bar -->
+<rect x="980" y="12" width="200" height="32" rx="6" class="elevated" class="border"/>
+<text x="995" y="33" class="text-muted">Suchen...</text>
+
+<!-- Main Content Area -->
+<rect x="244" y="80" width="1176" height="944" class="page-bg"/>
+
+<!-- Page Title -->
+<text x="244" y="130" class="heading-lg">Produkte erfassen</text>
+<text x="244" y="152" style="font-size: 13px; fill: #7a8090;">KI-gestützte Identifikation via Gemini</text>
+
+<!-- Left Column (60%) -->
+<!-- Barcodes Section -->
+<g>
+  <!-- Label -->
+  <text x="244" y="210" class="heading-sm">Barcodes</text>
+
+  <!-- Input Area -->
+  <rect x="244" y="225" width="696" height="160" rx="8" class="elevated" class="border"/>
+  <text x="260" y="315" class="placeholder-text">4012345678901
+5702016116977
+8806096371248
+...</text>
+</g>
+
+<!-- Bilder hochladen Section -->
+<g>
+  <!-- Label -->
+  <text x="244" y="430" class="heading-sm">Bilder hochladen</text>
+
+  <!-- Drop Zone -->
+  <rect x="244" y="445" width="696" height="300" rx="12" class="elevated"/>
+  <line x1="254" y1="455" x2="930" y2="455" class="border" stroke-dasharray="5,5"/>
+  <line x1="254" y1="740" x2="930" y2="740" class="border" stroke-dasharray="5,5"/>
+  <line x1="254" y1="455" x2="254" y2="740" class="border" stroke-dasharray="5,5"/>
+  <line x1="930" y1="455" x2="930" y2="740" class="border" stroke-dasharray="5,5"/>
+
+  <!-- Cloud Icon -->
+  <g transform="translate(550, 520)">
+    <path d="M 20 10 Q 30 5 38 10 Q 42 6 45 12 Q 42 20 38 22 L 2 22 Q -2 20 0 12 Q 8 5 20 10" fill="none" stroke="#7a8090" stroke-width="1.5"/>
+    <line x1="20" y1="18" x2="20" y2="28" stroke="#7a8090" stroke-width="1.5"/>
+    <line x1="15" y1="23" x2="25" y2="33" stroke="#7a8090" stroke-width="1.5"/>
+    <line x1="25" y1="23" x2="15" y2="33" stroke="#7a8090" stroke-width="1.5"/>
+  </g>
+
+  <!-- Text -->
+  <text x="592" y="575" style="font-size: 14px; font-weight: 500; fill: #ebeef5; text-anchor: middle;">Bilder hier ablegen oder klicken</text>
+  <text x="592" y="597" class="text-secondary" style="text-anchor: middle;">JPG, PNG bis 10MB · Mehrere Dateien möglich</text>
+
+  <!-- Thumbnails -->
+  <rect x="244" y="760" width="64" height="64" rx="6" class="surface" class="border"/>
+  <text x="276" y="798" style="font-size: 11px; fill: #7a8090; text-anchor: middle;">Bild 1</text>
+
+  <rect x="320" y="760" width="64" height="64" rx="6" class="surface" class="border"/>
+  <text x="352" y="798" style="font-size: 11px; fill: #7a8090; text-anchor: middle;">Bild 2</text>
+
+  <rect x="396" y="760" width="64" height="64" rx="6" class="surface" class="border"/>
+  <text x="428" y="798" style="font-size: 11px; fill: #7a8090; text-anchor: middle;">Bild 3</text>
+
+  <!-- Add Group Link -->
+  <text x="480" y="798" style="font-size: 12px; fill: #7c75ff; cursor: pointer;">+ Gruppe 2 hinzufügen</text>
+</g>
+
+<!-- Right Column (40%) -->
+<!-- Zusammenfassung Card -->
+<g>
+  <rect x="960" y="190" width="456" height="140" rx="8" class="elevated" class="border"/>
+  <text x="980" y="220" class="heading-sm">Zusammenfassung</text>
+
+  <text x="980" y="255" style="font-size: 13px; fill: #ebeef5;">3 Barcodes</text>
+  <text x="980" y="275" style="font-size: 13px; fill: #ebeef5;">3 Bilder</text>
+  <text x="980" y="295" style="font-size: 13px; fill: #ebeef5;">1 Gruppe</text>
+  <text x="980" y="320" style="font-size: 11px; fill: #7a8090;">Bereit zur Verarbeitung</text>
+</g>
+
+<!-- Letzte Ergebnisse Card -->
+<g>
+  <rect x="960" y="350" width="456" height="240" rx="8" class="elevated" class="border"/>
+  <text x="980" y="380" class="heading-sm">Letzte Ergebnisse</text>
+
+  <!-- Product 1 -->
+  <rect x="980" y="405" width="36" height="36" rx="4" class="surface"/>
+  <text x="1030" y="428" style="font-size: 13px; fill: #ebeef5;">Samsung Galaxy S24</text>
+  <text x="1030" y="444" class="text-secondary">EAN: 8806096371248</text>
+
+  <!-- Product 2 -->
+  <rect x="980" y="465" width="36" height="36" rx="4" class="surface"/>
+  <text x="1030" y="488" style="font-size: 13px; fill: #ebeef5;">Apple AirPods Pro 2</text>
+  <text x="1030" y="504" class="text-secondary">EAN: 194253178951</text>
+</g>
+
+<!-- Primary Button -->
+<rect x="960" y="610" width="456" height="44" rx="8" class="accent"/>
+<text x="1188" y="638" style="font-size: 14px; font-weight: 600; fill: #1a1d23; text-anchor: middle;">Identifizieren</text>
+
+<!-- Info Text -->
+<text x="960" y="680" style="font-size: 12px; fill: #7a8090;">Verarbeitung dauert ca. 15-30 Sekunden pro Gruppe</text>
+
+</svg>

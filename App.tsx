@@ -5,6 +5,8 @@ import { useIdentification, UploadGroupPayload } from './hooks/useIdentification
 import { useImproveQueue } from './hooks/useImproveQueue';
 import ProductInput from './components/ProductInput';
 import { Header } from './components/Header';
+import { Sidebar } from './components/Sidebar';
+import { Topbar } from './components/Topbar';
 import { Spinner } from './components/Spinner';
 import JobStatusPopup from './components/JobStatusPopup';
 import StatusDock from './components/StatusDock';
@@ -28,6 +30,7 @@ const EbayListingsView = React.lazy(() =>
 const AdminPanel = React.lazy(() =>
   import('./components/admin/AdminPanel').then(m => ({ default: m.AdminPanel }))
 );
+const OrdersView = React.lazy(() => import('./components/OrdersView'));
 import { fetchOrders, fetchProducts, refreshPrice } from './api/client';
 import { useI18n } from './i18n';
 import { addMediaQueryListener } from './utils/mediaQuery';
@@ -54,6 +57,7 @@ type View =
   | 'sheet'
   | 'inventory'
   | 'products'
+  | 'orders'
   | 'warehouse';
 const VIEW_STORAGE_KEY = 'avystock:view';
 const VIEW_PRODUCT_KEY = 'avystock:view:productId';
@@ -75,6 +79,7 @@ const ALLOWED_VIEWS: View[] = [
   'sheet',
   'inventory',
   'products',
+  'orders',
   'warehouse',
 ];
 type Theme = 'light' | 'dark';
@@ -822,12 +827,12 @@ const AppInner: React.FC = () => {
             isImproving={Boolean(currentProduct && activeProductIds.has(currentProduct.id))}
           />
         ) : (
-          <div className="text-center p-8 text-slate-400">{t('app.sheet.empty')}</div>
+          <div className="text-center p-8 text-txt-muted">{t('app.sheet.empty')}</div>
         );
       case 'inventory':
       case 'products':
         if (!hasPermission('products', 'read')) {
-          return <div className="text-center p-8 text-slate-400">{t('error.forbidden')}</div>;
+          return <div className="text-center p-8 text-txt-muted">{t('error.forbidden')}</div>;
         }
         return (
           <AdminTable
@@ -845,12 +850,12 @@ const AppInner: React.FC = () => {
         );
       case 'categories':
         if (!(hasPermission('categories', 'read') || hasPermission('categories', 'write'))) {
-          return <div className="text-center p-8 text-slate-400">{t('error.forbidden')}</div>;
+          return <div className="text-center p-8 text-txt-muted">{t('error.forbidden')}</div>;
         }
         return <CategoryManagement />;
       case 'ebay-listings':
         if (!(hasPermission('products', 'read') || hasPermission('products', 'write'))) {
-          return <div className="text-center p-8 text-slate-400">{t('error.forbidden')}</div>;
+          return <div className="text-center p-8 text-txt-muted">{t('error.forbidden')}</div>;
         }
         return <EbayListingsView />;
       case 'admin':
@@ -863,12 +868,17 @@ const AppInner: React.FC = () => {
             hasPermission('admin', 'reports.read')
           )
         ) {
-          return <div className="text-center p-8 text-slate-400">{t('error.forbidden')}</div>;
+          return <div className="text-center p-8 text-txt-muted">{t('error.forbidden')}</div>;
         }
         return <AdminPanel />;
+      case 'orders':
+        if (!(hasPermission('orders', 'read') || hasPermission('orders', 'pick') || hasPermission('orders', 'pack'))) {
+          return <div className="text-center p-8 text-txt-muted">{t('error.forbidden')}</div>;
+        }
+        return <OrdersView />;
       case 'warehouse':
         if (!(hasPermission('warehouse', 'read') || hasPermission('warehouse', 'write'))) {
-          return <div className="text-center p-8 text-slate-400">{t('error.forbidden')}</div>;
+          return <div className="text-center p-8 text-txt-muted">{t('error.forbidden')}</div>;
         }
         return <WarehouseView refreshBin={warehouseRefresh} onRefreshBinConsumed={() => setWarehouseRefresh(null)} />;
       case 'dashboard':
@@ -893,7 +903,7 @@ const AppInner: React.FC = () => {
       case 'input':
       default:
         if (!hasPermission('identify', 'run')) {
-          return <div className="text-center p-8 text-slate-400">{t('error.forbidden')}</div>;
+          return <div className="text-center p-8 text-txt-muted">{t('error.forbidden')}</div>;
         }
         return <ProductInput onIdentify={handleIdentification} />;
     }
@@ -902,10 +912,10 @@ const AppInner: React.FC = () => {
   const renderLoadState = () => {
     if (productsLoading && products.length === 0) {
       return (
-        <div className="flex items-center justify-center h-[calc(100vh-10rem)] text-slate-200">
-          <div className="bg-slate-800/80 border border-white/10 rounded-2xl px-6 py-5 shadow-xl text-center space-y-2">
+        <div className="flex items-center justify-center h-[calc(100vh-10rem)] text-txt-primary">
+          <div className="bg-app-surface border border-app-border rounded-lg px-6 py-5 shadow-app text-center space-y-2">
             <p className="text-lg font-semibold">{t('status.loading.products')}</p>
-            <p className="text-sm text-slate-400">{t('status.loading.hint')}</p>
+            <p className="text-sm text-txt-muted">{t('status.loading.hint')}</p>
           </div>
         </div>
       );
@@ -918,56 +928,70 @@ const AppInner: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-200 font-sans flex flex-col">
-      <Header currentView={view} setView={setView} theme={theme} onToggleTheme={toggleTheme} />
-      <main
-        className="flex-1 w-full px-4 sm:px-6 lg:px-10 xl:px-16 py-4 safe-area-content"
-      >
-        {productsError && (
-          <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-rose-800 bg-rose-900/50 px-4 py-3 text-sm text-rose-50">
-            <span>{productsError}</span>
-            <button
-              type="button"
-              onClick={loadProducts}
-              className="inline-flex items-center rounded-lg bg-rose-700 px-3 py-1.5 font-semibold text-white hover:bg-rose-600 transition-colors"
-            >
-              {t('error.reload')}
-            </button>
+    <div className="min-h-screen bg-app-bg text-txt-primary font-sans flex">
+      {/* Desktop Sidebar */}
+      <Sidebar currentView={view} setView={setView} />
+
+      {/* Main area (topbar + content) */}
+      <div className="flex-1 flex flex-col min-h-screen overflow-hidden">
+        {/* Mobile: keep legacy header for nav icons; Desktop: new topbar */}
+        {isMobile ? (
+          <Header currentView={view} setView={setView} theme={theme} onToggleTheme={toggleTheme} />
+        ) : (
+          <Topbar currentView={view} theme={theme} onToggleTheme={toggleTheme} />
+        )}
+
+        <main className="flex-1 overflow-y-auto px-4 sm:px-6 lg:px-8 py-6 safe-area-content">
+          {productsError && (
+            <div className="mb-4 flex flex-wrap items-center gap-3 rounded-lg border border-danger/30 bg-danger-dim px-4 py-3 text-sm text-danger">
+              <span>{productsError}</span>
+              <button
+                type="button"
+                onClick={loadProducts}
+                className="inline-flex items-center rounded-md bg-danger px-3 py-1.5 font-semibold text-white hover:opacity-90 transition-opacity"
+              >
+                {t('error.reload')}
+              </button>
+            </div>
+          )}
+          {identificationError && (
+            <div className="mb-4 flex flex-wrap items-center gap-3 rounded-lg border border-danger/30 bg-danger-dim px-4 py-3 text-sm text-danger">
+              <span>{identificationError}</span>
+              <button
+                type="button"
+                onClick={clearError}
+                className="inline-flex items-center rounded-md bg-danger px-3 py-1.5 font-semibold text-white hover:opacity-90 transition-opacity"
+              >
+                {t('common.close')}
+              </button>
+            </div>
+          )}
+          {renderLoadState()}
+        </main>
+
+        {/* Mobile bottom nav */}
+        {isMobile && (
+          <div className="md:hidden fixed left-0 right-0 bottom-0 z-40">
+            <MobileTabBar
+              currentView={view}
+              onNavigate={(next) => {
+                setView(next as View);
+              }}
+              theme={theme}
+            />
           </div>
         )}
-        {identificationError && (
-          <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-rose-800 bg-rose-900/50 px-4 py-3 text-sm text-rose-50">
-            <span>{identificationError}</span>
-            <button
-              type="button"
-              onClick={clearError}
-              className="inline-flex items-center rounded-lg bg-rose-700 px-3 py-1.5 font-semibold text-white hover:bg-rose-600 transition-colors"
-            >
-              {t('common.close')}
-            </button>
-          </div>
-        )}
-        {renderLoadState()}
-      </main>
-      {isMobile && (
-        <div className="sm:hidden fixed left-0 right-0 bottom-0 z-40">
-          <MobileTabBar
-            currentView={view}
-            onNavigate={(next) => {
-              setView(next as View);
-            }}
-            theme={theme}
-          />
-        </div>
-      )}
+      </div>
+
+      {/* Floating elements (job status, uploads) */}
       {(jobsRunning || jobStatuses.length > 0 || improveJobStatuses.length > 0) && (
         <>
           {jobsRunning && (
-            <div className="fixed bottom-6 left-6 z-40 flex items-center gap-3 rounded-2xl bg-slate-900/90 border border-white/10 px-4 py-3 shadow-xl shadow-black/40 max-w-sm">
-              <Spinner className="w-6 h-6 text-sky-300" />
-              <div className="text-sm text-slate-100">
+            <div className="fixed bottom-6 left-6 z-40 flex items-center gap-3 rounded-lg bg-app-surface border border-app-border px-4 py-3 shadow-app max-w-sm">
+              <Spinner className="w-6 h-6 text-accent" />
+              <div className="text-sm text-txt-primary">
                 <p className="font-semibold">{t('status.backgroundUploads.title')}</p>
-                <p className="text-slate-400 text-xs">{t('status.backgroundUploads.subtitle')}</p>
+                <p className="text-txt-muted text-xs">{t('status.backgroundUploads.subtitle')}</p>
               </div>
             </div>
           )}
@@ -1005,12 +1029,12 @@ const AuthGate: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-900 text-slate-200 flex items-center justify-center">
-        <div className="flex items-center gap-3 rounded-2xl bg-slate-800/70 border border-white/10 px-6 py-5 shadow-xl">
-          <Spinner className="w-6 h-6 text-sky-300" />
+      <div className="min-h-screen bg-app-bg text-txt-primary flex items-center justify-center">
+        <div className="flex items-center gap-3 rounded-lg bg-app-surface border border-app-border px-6 py-5 shadow-app">
+          <Spinner className="w-6 h-6 text-accent" />
           <div className="text-sm">
             <p className="font-semibold">{t('auth.loading.title')}</p>
-            <p className="text-slate-400 text-xs">{t('auth.loading.subtitle')}</p>
+            <p className="text-txt-muted text-xs">{t('auth.loading.subtitle')}</p>
           </div>
         </div>
       </div>
@@ -1019,18 +1043,18 @@ const AuthGate: React.FC = () => {
 
   if (initError) {
     return (
-      <div className="min-h-screen bg-slate-900 text-slate-200 flex items-center justify-center px-4">
-        <div className="w-full max-w-2xl rounded-2xl border border-white/10 bg-slate-800/60 shadow-2xl shadow-black/40 p-6 space-y-4">
+      <div className="min-h-screen bg-app-bg text-txt-primary flex items-center justify-center px-4">
+        <div className="w-full max-w-2xl rounded-lg border border-app-border bg-app-surface shadow-app p-6 space-y-4">
           <h1 className="text-xl font-bold">{t('auth.devSetup.title')}</h1>
-          <p className="text-sm text-slate-300">
+          <p className="text-sm text-txt-secondary">
             {t('auth.devSetup.description')}
           </p>
-          <div className="rounded-xl border border-rose-800 bg-rose-900/40 px-4 py-3 text-sm text-rose-50">
+          <div className="rounded-md border border-danger/30 bg-danger-dim px-4 py-3 text-sm text-danger">
             {initError}
           </div>
-          <div className="text-sm text-slate-200 space-y-2">
+          <div className="text-sm text-txt-primary space-y-2">
             <p className="font-semibold">{t('auth.devSetup.fixTitle')}</p>
-            <ol className="list-decimal list-inside text-slate-300 space-y-1">
+            <ol className="list-decimal list-inside text-txt-secondary space-y-1">
               <li>
                 {t('auth.devSetup.fix.step1.before')}{' '}
                 <span className="font-mono">.env.local</span> {t('auth.devSetup.fix.step1.after')}
@@ -1056,19 +1080,19 @@ const AuthGate: React.FC = () => {
 
   if (!isAdmin && !user.emailVerified) {
     return (
-      <div className="min-h-screen bg-slate-900 text-slate-200 flex items-center justify-center px-4">
-        <div className="w-full max-w-lg rounded-2xl border border-white/10 bg-slate-800/60 shadow-2xl shadow-black/40 p-6 space-y-4">
+      <div className="min-h-screen bg-app-bg text-txt-primary flex items-center justify-center px-4">
+        <div className="w-full max-w-lg rounded-lg border border-app-border bg-app-surface shadow-app p-6 space-y-4">
           <h1 className="text-xl font-bold">{t('auth.verifyEmail.title')}</h1>
-          <p className="text-sm text-slate-300">
+          <p className="text-sm text-txt-secondary">
             {t('auth.verifyEmail.description')}
           </p>
-          <div className="text-xs text-slate-500">
-            {t('auth.verifyEmail.signedInAs')}: <span className="text-slate-200">{user.email}</span>
+          <div className="text-xs text-txt-muted">
+            {t('auth.verifyEmail.signedInAs')}: <span className="text-txt-primary">{user.email}</span>
           </div>
           <button
             type="button"
             onClick={() => logout()}
-            className="rounded-xl bg-slate-700 hover:bg-slate-600 px-4 py-2.5 font-semibold text-white transition-colors"
+            className="rounded-md bg-app-elevated hover:bg-app-border px-4 py-2.5 font-semibold text-txt-primary transition-colors"
           >
             {t('common.logout')}
           </button>

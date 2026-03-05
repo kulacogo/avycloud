@@ -31,19 +31,19 @@ export const ProcessStatusBar: React.FC<ProcessStatusBarProps> = ({ status, onCa
 
   return (
     <div className="mb-4">
-      <div className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-slate-800/80 px-4 py-3 shadow-lg shadow-black/10 backdrop-blur">
+      <div className="flex flex-col gap-3 rounded-2xl border border-app-border bg-app-elevated px-4 py-3 shadow-lg shadow-black/10 backdrop-blur">
         <div className="flex items-center gap-3">
-          {ACTIVE_PHASES.has(status.phase) && <Spinner className="w-4 h-4 text-sky-400" />}
+          {ACTIVE_PHASES.has(status.phase) && <Spinner className="w-4 h-4 text-accent" />}
           <div>
-            <p className="text-sm font-semibold text-slate-100">{label}</p>
-            <p className="text-xs text-slate-400">{detail}</p>
+            <p className="text-sm font-semibold text-txt-primary">{label}</p>
+            <p className="text-xs text-txt-muted">{detail}</p>
           </div>
         </div>
-        <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-slate-400">
+        <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-txt-muted">
           {status.model && (
             <span>
               Modell:{' '}
-              <span className="font-mono text-slate-100">
+              <span className="font-mono text-txt-primary">
                 {status.model}
               </span>
             </span>
@@ -52,7 +52,7 @@ export const ProcessStatusBar: React.FC<ProcessStatusBarProps> = ({ status, onCa
             <button
               type="button"
               onClick={onCancel}
-              className="inline-flex items-center rounded-full border border-slate-500 px-3 py-1 text-xs font-semibold text-slate-100 hover:border-red-400 hover:text-red-200 transition-colors"
+              className="inline-flex items-center rounded-full border border-app-border px-3 py-1 text-xs font-semibold text-txt-primary hover:border-danger hover:text-danger transition-colors"
             >
               Vorgang abbrechen
             </button>

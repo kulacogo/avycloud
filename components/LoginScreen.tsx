@@ -54,43 +54,43 @@ export const LoginScreen: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-200 flex items-center justify-center px-4">
-      <div className="w-full max-w-md rounded-2xl border border-white/10 bg-slate-800/60 shadow-2xl shadow-black/40 p-6 space-y-5">
+    <div className="min-h-screen bg-app-bg text-txt-secondary flex items-center justify-center px-4">
+      <div className="w-full max-w-md rounded-2xl border border-app-border bg-app-surface shadow-2xl shadow-black/40 p-6 space-y-5">
         <div className="space-y-1">
           <h1 className="text-xl font-bold">{t('auth.login.title')}</h1>
-          <p className="text-sm text-slate-400">{t('auth.login.subtitle', { domain: '@trendocean.de' })}</p>
+          <p className="text-sm text-txt-muted">{t('auth.login.subtitle', { domain: '@trendocean.de' })}</p>
         </div>
 
         {error && (
-          <div role="alert" className="rounded-xl border border-rose-800 bg-rose-900/40 px-4 py-3 text-sm text-rose-50">
+          <div role="alert" className="rounded-xl border border-danger/30 bg-danger-dim px-4 py-3 text-sm text-danger">
             {error}
           </div>
         )}
 
         <form onSubmit={handleLoginSubmit(onLogin)} className="space-y-4" noValidate>
           <label className="block space-y-1">
-            <span className="text-sm text-slate-300">{t('auth.login.emailLabel')}</span>
+            <span className="text-sm text-txt-secondary">{t('auth.login.emailLabel')}</span>
             <input
               type="email"
               {...registerLogin('email', { required: true })}
               placeholder="name@trendocean.de"
               autoComplete="email"
-              className="w-full rounded-xl bg-slate-900/60 border border-white/10 px-3 py-2.5 text-slate-100 outline-none focus:border-sky-500"
+              className="w-full rounded-xl bg-app-bg/60 border border-app-border px-3 py-2.5 text-txt-primary outline-none focus:border-accent"
             />
           </label>
           <label className="block space-y-1">
-            <span className="text-sm text-slate-300">{t('auth.login.passwordLabel')}</span>
+            <span className="text-sm text-txt-secondary">{t('auth.login.passwordLabel')}</span>
             <input
               type="password"
               {...registerLogin('password', { required: true })}
               autoComplete="current-password"
-              className="w-full rounded-xl bg-slate-900/60 border border-white/10 px-3 py-2.5 text-slate-100 outline-none focus:border-sky-500"
+              className="w-full rounded-xl bg-app-bg/60 border border-app-border px-3 py-2.5 text-txt-primary outline-none focus:border-accent"
             />
           </label>
           <button
             type="submit"
             disabled={loginSubmitting}
-            className="w-full rounded-xl bg-sky-600 hover:bg-sky-500 disabled:opacity-60 disabled:hover:bg-sky-600 px-4 py-2.5 font-semibold text-white transition-colors"
+            className="w-full rounded-xl bg-accent hover:bg-accent/80 disabled:opacity-60 disabled:hover:bg-accent px-4 py-2.5 font-semibold text-txt-primary transition-colors"
           >
             {loginSubmitting ? t('auth.login.submitting') : t('auth.login.submit')}
           </button>
@@ -103,7 +103,7 @@ export const LoginScreen: React.FC = () => {
               setShowReset((v) => !v);
               setResetMessage(null);
             }}
-            className="text-left text-xs text-slate-400 hover:text-slate-200 underline underline-offset-4"
+            className="text-left text-xs text-txt-muted hover:text-txt-secondary underline underline-offset-4"
           >
             {t('auth.login.forgotPassword')}
           </button>
@@ -111,7 +111,7 @@ export const LoginScreen: React.FC = () => {
           {showReset && (
             <form onSubmit={handleResetSubmit(onRequestReset)} className="space-y-2" noValidate>
               <label className="block space-y-1">
-                <span className="text-xs text-slate-300">{t('auth.login.reset.emailLabel')}</span>
+                <span className="text-xs text-txt-secondary">{t('auth.login.reset.emailLabel')}</span>
                 <input
                   type="email"
                   {...registerReset('resetEmail', {
@@ -123,22 +123,22 @@ export const LoginScreen: React.FC = () => {
                   defaultValue={getValues('email') || ''}
                   placeholder="name@trendocean.de"
                   autoComplete="email"
-                  className="w-full rounded-xl bg-slate-900/60 border border-white/10 px-3 py-2.5 text-slate-100 outline-none focus:border-sky-500"
+                  className="w-full rounded-xl bg-app-bg/60 border border-app-border px-3 py-2.5 text-txt-primary outline-none focus:border-accent"
                 />
                 {resetErrors.resetEmail?.message && (
-                  <p className="text-xs text-rose-400">{resetErrors.resetEmail.message}</p>
+                  <p className="text-xs text-danger">{resetErrors.resetEmail.message}</p>
                 )}
               </label>
 
               <button
                 type="submit"
                 disabled={resetSubmitting}
-                className="w-full rounded-xl bg-slate-700 hover:bg-slate-600 disabled:opacity-60 disabled:hover:bg-slate-700 px-4 py-2.5 font-semibold text-white transition-colors"
+                className="w-full rounded-xl bg-app-elevated hover:bg-app-border disabled:opacity-60 disabled:hover:bg-app-elevated px-4 py-2.5 font-semibold text-txt-primary transition-colors"
               >
                 {resetSubmitting ? t('auth.login.reset.submitting') : t('auth.login.reset.submit')}
               </button>
 
-              {resetMessage && <p className="text-xs text-slate-400">{resetMessage}</p>}
+              {resetMessage && <p className="text-xs text-txt-muted">{resetMessage}</p>}
             </form>
           )}
         </div>

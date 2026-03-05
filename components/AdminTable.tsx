@@ -62,9 +62,9 @@ interface AdminTableProps {
 const SyncStatusBadge: React.FC<{ status: SyncStatus }> = ({ status }) => {
   const baseClasses = 'px-2 py-1 text-xs font-bold rounded-full';
   const statusMap = {
-    synced: 'bg-emerald-500/20 text-emerald-300',
-    pending: 'bg-amber-500/20 text-amber-300',
-    failed: 'bg-red-500/20 text-red-300',
+    synced: 'bg-success-dim text-success',
+    pending: 'bg-warning-dim text-warning',
+    failed: 'bg-danger-dim text-danger',
   };
   const labelMap: Record<SyncStatus, string> = { synced: 'Synced', pending: 'Pending', failed: 'Failed' };
   return <span className={`${baseClasses} ${statusMap[status]}`}>{labelMap[status]}</span>;
@@ -73,7 +73,7 @@ const SyncStatusBadge: React.FC<{ status: SyncStatus }> = ({ status }) => {
 const SaveStatusBadge: React.FC<{ saved: boolean }> = ({ saved }) => {
   return (
     <span
-      className={`inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full ${saved ? 'bg-emerald-500/15 text-emerald-300' : 'bg-amber-500/15 text-amber-200'
+      className={`inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full ${saved ? 'bg-success-dim text-success' : 'bg-warning-dim text-warning'
         }`}
     >
       {saved ? 'Gespeichert' : 'Nicht gespeichert'}
@@ -490,7 +490,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
         defaultVisible: true,
         widthClass: 'w-20',
         render: ({ product }) => (
-          <div className="w-12 h-12 rounded-md overflow-hidden bg-slate-700 flex items-center justify-center text-xs text-slate-400">
+          <div className="w-12 h-12 rounded-md overflow-hidden bg-app-elevated flex items-center justify-center text-xs text-txt-muted">
             {primaryImage(product) ? (
               <img
                 src={primaryImage(product)!.url_or_base64}
@@ -522,11 +522,11 @@ const AdminTable: React.FC<AdminTableProps> = ({
                 // URL aktualisieren, damit Reload/Copy funktioniert
                 window.location.hash = `#/sheet/${product.id}`;
               }}
-              className="font-medium text-sky-400 hover:underline"
+              className="font-medium text-accent hover:underline"
             >
               {product.identification?.name || '—'}
             </a>
-            <div className="text-sm text-slate-400">{product.identification?.brand || '—'}</div>
+            <div className="text-sm text-txt-muted">{product.identification?.brand || '—'}</div>
           </div>
         ),
       },
@@ -535,7 +535,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
         label: t('table.category'),
         sortKey: 'category.display',
         defaultVisible: true,
-        render: ({ product }) => <span className="text-slate-300">{getProductDisplayCategory(product)}</span>,
+        render: ({ product }) => <span className="text-txt-secondary">{getProductDisplayCategory(product)}</span>,
       },
       {
         id: 'sku',
@@ -543,7 +543,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
         sortKey: 'details.identifiers.sku',
         defaultVisible: true,
         render: ({ product }) => (
-          <div className="text-slate-300 text-sm font-mono leading-tight whitespace-nowrap">
+          <div className="text-txt-secondary text-sm font-mono leading-tight whitespace-nowrap">
             {product.details?.identifiers?.sku || product.identification?.sku || '—'}
           </div>
         ),
@@ -560,7 +560,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
           return (
             <div
               className={`text-sm font-mono leading-tight ${
-                isMissing ? 'text-slate-300' : isValid ? 'text-emerald-300' : 'text-rose-300'
+                isMissing ? 'text-txt-secondary' : isValid ? 'text-success' : 'text-danger'
               }`}
             >
               {barcode}
@@ -588,7 +588,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
         defaultVisible: true,
         render: ({ product }) => (
           <div className="flex flex-col leading-tight">
-            <span className="font-semibold text-slate-100 text-center block">{getProductQuantity(product)}</span>
+            <span className="font-semibold text-txt-primary text-center block">{getProductQuantity(product)}</span>
           </div>
         ),
       },
@@ -600,7 +600,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
         render: ({ product }) => {
           const pending = Number(product.ops?.pending_intake_quantity) || 0;
           if (pending <= 0) {
-            return <span className="text-slate-500 text-sm">0</span>;
+            return <span className="text-txt-muted text-sm">0</span>;
           }
           return (
             <span className="inline-flex items-center justify-center rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-semibold text-amber-200">
@@ -616,11 +616,11 @@ const AdminTable: React.FC<AdminTableProps> = ({
         defaultVisible: false,
         render: ({ product }) =>
           primaryBin(product) ? (
-            <div className="flex flex-col text-sm text-slate-300">
-              <span className="font-mono text-base text-white">{primaryBin(product)}</span>
+            <div className="flex flex-col text-sm text-txt-secondary">
+              <span className="font-mono text-base text-txt-primary">{primaryBin(product)}</span>
             </div>
           ) : (
-            <span className="text-slate-500">{t('table.noBin')}</span>
+            <span className="text-txt-muted">{t('table.noBin')}</span>
           ),
       },
       {
@@ -634,8 +634,8 @@ const AdminTable: React.FC<AdminTableProps> = ({
           return (
             <span
               className={`inline-flex items-center justify-center rounded-full px-2 py-0.5 text-xs font-semibold ${linked
-                  ? 'bg-emerald-500/20 text-emerald-200'
-                  : 'bg-slate-700 text-slate-200'
+                  ? 'bg-success-dim text-success'
+                  : 'bg-app-elevated text-txt-secondary'
                 }`}
             >
               {linked ? 'Verknüpft' : 'Nicht in BL'}
@@ -701,7 +701,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
             ) : (
               <span
                 title="Nicht auf eBay gelistet"
-                className="inline-flex items-center justify-center rounded-full bg-slate-700 px-2 py-0.5 text-xs font-semibold text-slate-500"
+                className="inline-flex items-center justify-center rounded-full bg-app-elevated px-2 py-0.5 text-xs font-semibold text-txt-muted"
               >
                 —
               </span>
@@ -752,7 +752,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
             failed ? (
               <span
                 title="Kaufland-Sync fehlgeschlagen"
-                className="inline-flex items-center justify-center rounded-full bg-rose-500/20 px-2 py-0.5 text-xs font-semibold text-rose-200"
+                className="inline-flex items-center justify-center rounded-full bg-danger-dim px-2 py-0.5 text-xs font-semibold text-danger"
               >
                 Fehler
               </span>
@@ -763,21 +763,21 @@ const AdminTable: React.FC<AdminTableProps> = ({
                 rel="noreferrer"
                 onClick={(e) => e.stopPropagation()}
                 title="Kaufland-Listing öffnen"
-                className="inline-flex items-center justify-center rounded-full bg-rose-500/20 px-2 py-0.5 text-xs font-semibold text-rose-200 hover:bg-rose-500/30 hover:text-rose-100"
+                className="inline-flex items-center justify-center rounded-full bg-danger-dim px-2 py-0.5 text-xs font-semibold text-danger hover:bg-danger/20 hover:text-danger"
               >
                 Gelistet
               </a>
             ) : isActive ? (
               <span
                 title="Auf Kaufland gelistet (kein Link verfügbar)"
-                className="inline-flex items-center justify-center rounded-full bg-rose-500/20 px-2 py-0.5 text-xs font-semibold text-rose-200"
+                className="inline-flex items-center justify-center rounded-full bg-danger-dim px-2 py-0.5 text-xs font-semibold text-danger"
               >
                 Gelistet
               </span>
             ) : isInactive ? (
               <span
                 title="Kaufland-Listing inaktiv"
-                className="inline-flex items-center justify-center rounded-full bg-rose-800/30 px-2 py-0.5 text-xs font-semibold text-rose-400"
+                className="inline-flex items-center justify-center rounded-full bg-danger-dim px-2 py-0.5 text-xs font-semibold text-danger"
               >
                 Inaktiv
               </span>
@@ -791,7 +791,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
             ) : (
               <span
                 title="Nicht auf Kaufland gelistet"
-                className="inline-flex items-center justify-center rounded-full bg-slate-700 px-2 py-0.5 text-xs font-semibold text-slate-500"
+                className="inline-flex items-center justify-center rounded-full bg-app-elevated px-2 py-0.5 text-xs font-semibold text-txt-muted"
               >
                 —
               </span>
@@ -811,10 +811,10 @@ const AdminTable: React.FC<AdminTableProps> = ({
             (attrs.last_sold_at as string) ||
             (attrs.lastSold as string) ||
             null;
-          if (!raw) return <span className="text-slate-500">Keine Daten</span>;
+          if (!raw) return <span className="text-txt-muted">Keine Daten</span>;
           const date = new Date(raw);
-          if (Number.isNaN(date.getTime())) return <span className="text-slate-500">Unbekannt</span>;
-          return <span className="text-slate-300 text-sm">{date.toLocaleString('de-DE')}</span>;
+          if (Number.isNaN(date.getTime())) return <span className="text-txt-muted">Unbekannt</span>;
+          return <span className="text-txt-secondary text-sm">{date.toLocaleString('de-DE')}</span>;
         },
       },
       {
@@ -838,7 +838,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
         sortKey: 'ops.last_saved_iso',
         defaultVisible: true,
         render: ({ product }) => (
-          <span className="text-slate-400 text-sm">
+          <span className="text-txt-muted text-sm">
             {product.ops.last_saved_iso ? new Date(product.ops.last_saved_iso).toLocaleString('de-DE') : 'N/A'}
           </span>
         ),
@@ -849,7 +849,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
         sortKey: 'ops.last_synced_iso',
         defaultVisible: true,
         render: ({ product }) => (
-          <span className="text-slate-400 text-sm">
+          <span className="text-txt-muted text-sm">
             {product.ops.last_synced_iso ? new Date(product.ops.last_synced_iso).toLocaleString('de-DE') : 'N/A'}
           </span>
         ),
@@ -860,7 +860,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
         sortKey: 'ops.revision',
         defaultVisible: false,
         widthClass: 'text-center',
-        render: ({ product }) => <span className="text-slate-200 text-sm">{product.ops.revision}</span>,
+        render: ({ product }) => <span className="text-txt-secondary text-sm">{product.ops.revision}</span>,
       },
     ];
     return baseRenderers;
@@ -1892,13 +1892,13 @@ const AdminTable: React.FC<AdminTableProps> = ({
     const row = rowRefs.current[focusProductId];
     if (!row) return;
     row.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    row.classList.add('ring-2', 'ring-sky-400', 'ring-offset-2', 'ring-offset-slate-800');
+    row.classList.add('ring-2', 'ring-accent', 'ring-offset-2', 'ring-offset-app-surface');
     const timeout = window.setTimeout(() => {
-      row.classList.remove('ring-2', 'ring-sky-400', 'ring-offset-2', 'ring-offset-slate-800');
+      row.classList.remove('ring-2', 'ring-accent', 'ring-offset-2', 'ring-offset-app-surface');
     }, 2000);
     return () => {
       window.clearTimeout(timeout);
-      row.classList.remove('ring-2', 'ring-sky-400', 'ring-offset-2', 'ring-offset-slate-800');
+      row.classList.remove('ring-2', 'ring-accent', 'ring-offset-2', 'ring-offset-app-surface');
     };
   }, [focusProductId, filteredAndSortedProducts]);
 
@@ -2178,10 +2178,10 @@ const AdminTable: React.FC<AdminTableProps> = ({
           />
         ) : null}
 
-        <div className="rounded-2xl border border-white/10 bg-slate-800/40 p-5 space-y-4">
+        <div className="rounded-2xl border border-app-border bg-app-surface p-5 space-y-4">
           <div className="flex flex-wrap items-center gap-2">
             <div className="relative flex-1 min-w-[180px]">
-              <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-txt-muted" />
               <input
                 id="table-search"
                 type="text"
@@ -2189,7 +2189,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
                 aria-label="Produkte durchsuchen"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 bg-slate-800/40 border border-white/10 rounded-lg focus:ring-2 focus:ring-sky-500 text-sm"
+                className="w-full pl-9 pr-3 py-2 bg-app-surface border border-app-border rounded-lg focus:ring-2 focus:ring-accent text-sm"
               />
             </div>
             <button
@@ -2199,10 +2199,10 @@ const AdminTable: React.FC<AdminTableProps> = ({
               aria-label="Filter ein-/ausblenden"
               className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition ${
                 filterPanelOpen
-                  ? 'border-indigo-500/40 bg-indigo-500/10 text-indigo-300'
+                  ? 'border-accent/40 bg-accent-dim text-accent'
                   : activeFilterCount > 0
-                    ? 'border-indigo-500/30 bg-slate-800/40 text-indigo-300 hover:border-indigo-500/50'
-                    : 'border-white/10 bg-slate-800/40 text-slate-200 hover:border-white/20'
+                    ? 'border-accent/30 bg-app-surface text-accent hover:border-accent/50'
+                    : 'border-app-border bg-app-surface text-txt-secondary hover:border-app-border/80'
               }`}
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
@@ -2210,22 +2210,22 @@ const AdminTable: React.FC<AdminTableProps> = ({
               </svg>
               Filter
               {activeFilterCount > 0 && (
-                <span className="inline-flex items-center justify-center min-w-[20px] h-5 rounded-full bg-indigo-500 text-white text-[11px] font-bold px-1">
+                <span className="inline-flex items-center justify-center min-w-[20px] h-5 rounded-full bg-accent text-txt-primary text-[11px] font-bold px-1">
                   {activeFilterCount}
                 </span>
               )}
             </button>
-            <span className="text-xs text-slate-400 whitespace-nowrap">
+            <span className="text-xs text-txt-muted whitespace-nowrap">
               {filteredAndSortedProducts.length} / {products.length}
             </span>
             {activeFilterCount > 0 && (
-              <button type="button" onClick={resetFilters} className="text-xs text-sky-400 hover:underline whitespace-nowrap">
+              <button type="button" onClick={resetFilters} className="text-xs text-accent hover:underline whitespace-nowrap">
                 Zurücksetzen
               </button>
             )}
           </div>
           {filterPanelOpen && (
-            <div className="rounded-xl border border-white/10 bg-slate-900/40 p-4 space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
+            <div className="rounded-xl border border-app-border bg-app-bg/40 p-4 space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
               <AdminTableFilters
                 filterStatus={filterStatus}
                 setFilterStatus={setFilterStatus}
@@ -2287,17 +2287,17 @@ const AdminTable: React.FC<AdminTableProps> = ({
                   key={chip.key}
                   type="button"
                   onClick={chip.onClear}
-                  className="group inline-flex items-center gap-1.5 rounded-lg border border-indigo-500/20 bg-indigo-500/10 px-2.5 py-1 text-xs font-medium text-indigo-200 hover:bg-indigo-500/20 hover:border-indigo-500/30 transition"
+                  className="group inline-flex items-center gap-1.5 rounded-lg border border-accent/20 bg-accent/10 px-2.5 py-1 text-xs font-medium text-accent hover:bg-accent/20 hover:border-accent/30 transition"
                   title="Filter entfernen"
                 >
                   <span className="whitespace-nowrap">{chip.label}</span>
-                  <span className="text-indigo-400 group-hover:text-indigo-200 text-sm leading-none">×</span>
+                  <span className="text-accent/70 group-hover:text-accent text-sm leading-none">×</span>
                 </button>
               ))}
               <button
                 type="button"
                 onClick={resetFilters}
-                className="text-xs text-slate-400 hover:text-slate-200 ml-1 transition"
+                className="text-xs text-txt-muted hover:text-txt-secondary ml-1 transition"
               >
                 Alle entfernen
               </button>
@@ -2333,18 +2333,18 @@ const AdminTable: React.FC<AdminTableProps> = ({
         </div>
 
         {filteredAndSortedProducts.length === 0 ? (
-          <div className="rounded-2xl bg-slate-800/40 p-5 text-sm text-slate-300 border border-white/10">
+          <div className="rounded-2xl bg-app-surface p-5 text-sm text-txt-secondary border border-app-border">
             {mode === 'inventory' ? (
               <>
                 <b>Keine Inventory-Artikel gefunden.</b>
-                <div className="mt-1 text-slate-400">
+                <div className="mt-1 text-txt-muted">
                   Typische Ursachen: kein Bestand oder kein BIN. (Sync/Listing/Bilder/Vollständigkeit kannst du über Filter zusätzlich einschränken.)
                 </div>
               </>
             ) : mode === 'products' ? (
               <>
                 <b>Keine Products (Backlog) gefunden.</b>
-                <div className="mt-1 text-slate-400">Prüfe Suche/Filter oder ob alle Produkte bereits Inventory-Kriterien erfüllen.</div>
+                <div className="mt-1 text-txt-muted">Prüfe Suche/Filter oder ob alle Produkte bereits Inventory-Kriterien erfüllen.</div>
               </>
             ) : (
               <b>Keine Produkte gefunden.</b>
@@ -2380,7 +2380,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
           </table>
         </div>
 
-        <div className="mt-4 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-slate-400">
+        <div className="mt-4 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-txt-muted">
           <div className="flex items-center gap-2">
             <span>Zeige</span>
             <select
@@ -2392,7 +2392,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
                   window.sessionStorage.setItem('avystock:admin-table:pageSize', e.target.value);
                 }
               }}
-              className="bg-slate-700 border border-white/10 rounded px-2 py-1 text-slate-200 focus:ring-2 focus:ring-sky-500 outline-none"
+              className="bg-app-elevated border border-app-border rounded px-2 py-1 text-txt-secondary focus:ring-2 focus:ring-accent outline-none"
             >
               <option value={50}>50</option>
               <option value={100}>100</option>
@@ -2411,7 +2411,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
                 onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                 disabled={currentPage === 1}
                 aria-label="Vorherige Seite"
-                className="px-3 py-1 rounded bg-slate-700 hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-slate-200"
+                className="px-3 py-1 rounded bg-app-elevated hover:bg-app-border disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-txt-secondary"
               >
                 Zurück
               </button>
@@ -2420,7 +2420,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
                 onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                 disabled={currentPage === totalPages}
                 aria-label="Nächste Seite"
-                className="px-3 py-1 rounded bg-slate-700 hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-slate-200"
+                className="px-3 py-1 rounded bg-app-elevated hover:bg-app-border disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-txt-secondary"
               >
                 Weiter
               </button>
@@ -2430,12 +2430,12 @@ const AdminTable: React.FC<AdminTableProps> = ({
       </section >
       {inventoryModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
-          <div className="w-full max-w-md rounded-2xl bg-slate-900 border border-white/10 p-5 space-y-4">
+          <div className="w-full max-w-md rounded-2xl bg-app-bg border border-app-border p-5 space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-white">{t('table.inventory.assignTitle')}</h3>
+              <h3 className="text-lg font-semibold text-txt-primary">{t('table.inventory.assignTitle')}</h3>
               <button
                 type="button"
-                className="text-slate-400 hover:text-white"
+                className="text-txt-muted hover:text-txt-primary"
                 onClick={() => {
                   setInventoryModalOpen(false);
                   setInventoryAssignMessage(null);
@@ -2445,13 +2445,13 @@ const AdminTable: React.FC<AdminTableProps> = ({
               </button>
             </div>
             <div className="space-y-2">
-              <label className="block text-xs uppercase tracking-wide text-slate-400">
+              <label className="block text-xs uppercase tracking-wide text-txt-muted">
                 {t('table.inventory.selectLabel')}
               </label>
               <select
                 value={inventorySelection}
                 onChange={(event) => setInventorySelection(event.target.value)}
-                className="w-full rounded-xl border border-white/10 bg-slate-800 px-3 py-2 text-sm text-slate-100"
+                className="w-full rounded-xl border border-app-border bg-app-elevated px-3 py-2 text-sm text-txt-primary"
               >
                 <option value="">{t('table.inventory.selectPlaceholder')}</option>
                 {inventories.map((inv) => (
@@ -2462,7 +2462,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
               </select>
             </div>
             {inventoryAssignMessage && (
-              <p className="text-xs text-slate-300">{inventoryAssignMessage}</p>
+              <p className="text-xs text-txt-secondary">{inventoryAssignMessage}</p>
             )}
             <div className="flex justify-end gap-2">
               <button
@@ -2471,7 +2471,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
                   setInventoryModalOpen(false);
                   setInventoryAssignMessage(null);
                 }}
-                className="px-3 py-1.5 rounded-xl border border-white/10 text-sm text-slate-200"
+                className="px-3 py-1.5 rounded-xl border border-app-border text-sm text-txt-secondary"
               >
                 {t('table.inventory.cancel')}
               </button>
@@ -2479,7 +2479,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
                 type="button"
                 onClick={handleAssignInventory}
                 disabled={inventoryAssigning}
-                className="px-4 py-1.5 rounded-xl bg-sky-600/20 text-sm font-semibold text-sky-300 hover:bg-sky-600/30 disabled:opacity-60"
+                className="px-4 py-1.5 rounded-xl bg-accent-dim text-sm font-semibold text-accent hover:bg-accent/20 disabled:opacity-60"
               >
                 {inventoryAssigning ? t('table.inventory.assigning') : t('table.inventory.assign')}
               </button>
@@ -2490,12 +2490,12 @@ const AdminTable: React.FC<AdminTableProps> = ({
       }
       {ktypeModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
-          <div className="w-full max-w-2xl rounded-2xl bg-slate-900 border border-white/10 p-5 space-y-4">
+          <div className="w-full max-w-2xl rounded-2xl bg-app-bg border border-app-border p-5 space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-white">K‑Typ Import (CSV)</h3>
+              <h3 className="text-lg font-semibold text-txt-primary">K‑Typ Import (CSV)</h3>
               <button
                 type="button"
-                className="text-slate-400 hover:text-white"
+                className="text-txt-muted hover:text-txt-primary"
                 onClick={() => {
                   setKtypeModalOpen(false);
                   setKtypeFile(null);
@@ -2507,12 +2507,12 @@ const AdminTable: React.FC<AdminTableProps> = ({
               </button>
             </div>
 
-            <div className="text-xs text-slate-400">
+            <div className="text-xs text-txt-muted">
               Format: eBay Export (Revise + Compatibility Zeilen, z. B. <span className="font-mono">Ktype=12345|Notes=...</span>).
             </div>
 
             <div className="space-y-2">
-              <label className="block text-xs uppercase tracking-wide text-slate-400">
+              <label className="block text-xs uppercase tracking-wide text-txt-muted">
                 CSV Datei auswählen
               </label>
               <input
@@ -2524,17 +2524,17 @@ const AdminTable: React.FC<AdminTableProps> = ({
                   setKtypeReport(null);
                   setKtypeMessage(null);
                 }}
-                className="w-full rounded-xl border border-white/10 bg-slate-800 px-3 py-2 text-sm text-slate-100"
+                className="w-full rounded-xl border border-app-border bg-app-elevated px-3 py-2 text-sm text-txt-primary"
               />
               {ktypeFile && (
-                <div className="text-xs text-slate-300">
+                <div className="text-xs text-txt-secondary">
                   Datei: <span className="font-mono">{ktypeFile.name}</span> ({Math.round(ktypeFile.size / 1024)} KB)
                 </div>
               )}
             </div>
 
             {ktypeMessage && (
-              <p className="text-xs text-slate-200">{ktypeMessage}</p>
+              <p className="text-xs text-txt-secondary">{ktypeMessage}</p>
             )}
 
             <div className="flex justify-end gap-2">
@@ -2542,7 +2542,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
                 type="button"
                 onClick={() => runKTypeUpload(true)}
                 disabled={ktypeBusy || !ktypeFile}
-                className="px-3 py-1.5 rounded-xl border border-white/10 text-sm text-slate-200 disabled:opacity-60"
+                className="px-3 py-1.5 rounded-xl border border-app-border text-sm text-txt-secondary disabled:opacity-60"
               >
                 Dry-Run
               </button>
@@ -2550,38 +2550,38 @@ const AdminTable: React.FC<AdminTableProps> = ({
                 type="button"
                 onClick={() => runKTypeUpload(false)}
                 disabled={ktypeBusy || !ktypeFile}
-                className="px-4 py-1.5 rounded-xl bg-sky-600/20 text-sm font-semibold text-sky-300 hover:bg-sky-600/30 disabled:opacity-60"
+                className="px-4 py-1.5 rounded-xl bg-accent-dim text-sm font-semibold text-accent hover:bg-accent/20 disabled:opacity-60"
               >
                 {ktypeBusy ? 'Läuft …' : 'Übernehmen'}
               </button>
             </div>
 
             {ktypeReport && (
-              <div className="rounded-xl border border-white/10 bg-slate-950/40 p-3 space-y-2">
+              <div className="rounded-xl border border-app-border bg-app-bg/40 p-3 space-y-2">
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
-                  <div className="text-slate-300">
-                    <div className="text-slate-500">SKUs</div>
-                    <div className="font-semibold text-white">{ktypeReport.parsed?.skus ?? '—'}</div>
+                  <div className="text-txt-secondary">
+                    <div className="text-txt-muted">SKUs</div>
+                    <div className="font-semibold text-txt-primary">{ktypeReport.parsed?.skus ?? '—'}</div>
                   </div>
-                  <div className="text-slate-300">
-                    <div className="text-slate-500">Einträge</div>
-                    <div className="font-semibold text-white">{ktypeReport.parsed?.entries ?? '—'}</div>
+                  <div className="text-txt-secondary">
+                    <div className="text-txt-muted">Einträge</div>
+                    <div className="font-semibold text-txt-primary">{ktypeReport.parsed?.entries ?? '—'}</div>
                   </div>
-                  <div className="text-slate-300">
-                    <div className="text-slate-500">Updated</div>
-                    <div className="font-semibold text-white">{ktypeReport.updated ?? 0}</div>
+                  <div className="text-txt-secondary">
+                    <div className="text-txt-muted">Updated</div>
+                    <div className="font-semibold text-txt-primary">{ktypeReport.updated ?? 0}</div>
                   </div>
-                  <div className="text-slate-300">
-                    <div className="text-slate-500">Not found</div>
-                    <div className="font-semibold text-white">{(ktypeReport.notFound || []).length}</div>
+                  <div className="text-txt-secondary">
+                    <div className="text-txt-muted">Not found</div>
+                    <div className="font-semibold text-txt-primary">{(ktypeReport.notFound || []).length}</div>
                   </div>
                 </div>
 
                 <details className="text-xs">
-                  <summary className="cursor-pointer select-none text-slate-200">
+                  <summary className="cursor-pointer select-none text-txt-secondary">
                     Report JSON anzeigen
                   </summary>
-                  <pre className="mt-2 max-h-72 overflow-auto whitespace-pre-wrap break-words text-[11px] text-slate-200">
+                  <pre className="mt-2 max-h-72 overflow-auto whitespace-pre-wrap break-words text-[11px] text-txt-secondary">
                     {JSON.stringify(ktypeReport, null, 2)}
                   </pre>
                 </details>
@@ -2591,20 +2591,20 @@ const AdminTable: React.FC<AdminTableProps> = ({
         </div>
       )}
       {syncInProgress && (
-        <div role="status" aria-live="polite" aria-busy="true" className="fixed bottom-6 right-6 z-40 flex items-center gap-3 rounded-2xl bg-slate-900/90 border border-white/10 px-4 py-3 shadow-lg shadow-black/40 max-w-sm">
-          <Spinner className="w-6 h-6 text-sky-300" />
-          <div className="text-sm text-slate-100">
+        <div role="status" aria-live="polite" aria-busy="true" className="fixed bottom-6 right-6 z-40 flex items-center gap-3 rounded-2xl bg-app-bg/90 border border-app-border px-4 py-3 shadow-lg shadow-black/40 max-w-sm">
+          <Spinner className="w-6 h-6 text-accent" />
+          <div className="text-sm text-txt-primary">
             <p className="font-semibold">Sync läuft …</p>
-            <p className="text-slate-400 text-xs">{syncMessage || 'Produkte werden übertragen'}</p>
+            <p className="text-txt-muted text-xs">{syncMessage || 'Produkte werden übertragen'}</p>
           </div>
         </div>
       )}
       {improveInProgress && (
-        <div role="status" aria-live="polite" aria-busy="true" className="fixed bottom-20 right-6 z-40 flex items-center gap-3 rounded-2xl bg-slate-900/90 border border-white/10 px-4 py-3 shadow-lg shadow-black/40 max-w-sm">
+        <div role="status" aria-live="polite" aria-busy="true" className="fixed bottom-20 right-6 z-40 flex items-center gap-3 rounded-2xl bg-app-bg/90 border border-app-border px-4 py-3 shadow-lg shadow-black/40 max-w-sm">
           <Spinner className="w-6 h-6 text-purple-300" />
-          <div className="text-sm text-slate-100">
+          <div className="text-sm text-txt-primary">
             <p className="font-semibold">Improve läuft …</p>
-            <p className="text-slate-400 text-xs">{improveMessage || 'Produkte werden verbessert'}</p>
+            <p className="text-txt-muted text-xs">{improveMessage || 'Produkte werden verbessert'}</p>
           </div>
         </div>
       )}

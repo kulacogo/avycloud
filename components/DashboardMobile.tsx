@@ -60,12 +60,12 @@ interface TileProps {
 }
 
 const toneBase: Record<NonNullable<TileProps['color']>, string> = {
-  default: 'bg-slate-800/80 border border-white/6',
+  default: 'bg-app-elevated border border-app-border',
   warn: 'bg-amber-600/90 border border-amber-500/30',
-  success: 'bg-emerald-700/80 border border-emerald-500/30',
+  success: 'bg-success border border-success/30',
   violet: 'bg-violet-800/60 border border-violet-500/20',
-  red: 'bg-rose-800/50 border border-rose-500/20',
-  blue: 'bg-sky-800/60 border border-sky-500/20',
+  red: 'bg-danger-dim border border-danger/30',
+  blue: 'bg-accent-dim border border-accent/20',
 };
 
 const Tile: React.FC<TileProps> = ({ label, value, sub, color = 'default', onClick, loading }) => {
@@ -77,7 +77,7 @@ const Tile: React.FC<TileProps> = ({ label, value, sub, color = 'default', onCli
     >
       <p className="text-[10px] uppercase tracking-widest opacity-60 font-semibold">{label}</p>
       {loading ? <Skel /> : (
-        <p className="text-2xl font-bold text-white mt-1 tabular-nums leading-tight">{value}</p>
+        <p className="text-2xl font-bold text-txt-primary mt-1 tabular-nums leading-tight">{value}</p>
       )}
       {sub && !loading && (
         <p className="text-[11px] mt-1 opacity-70 leading-snug">{sub}</p>
@@ -89,8 +89,8 @@ const Tile: React.FC<TileProps> = ({ label, value, sub, color = 'default', onCli
 // ─── Row divider ──────────────────────────────────────────────────────────────
 const RowLabel: React.FC<{ label: string }> = ({ label }) => (
   <div className="flex items-center gap-2 mt-1">
-    <span className="text-[10px] uppercase tracking-widest text-slate-600 font-bold">{label}</span>
-    <div className="flex-1 h-px bg-slate-800" />
+    <span className="text-[10px] uppercase tracking-widest text-txt-muted font-bold">{label}</span>
+    <div className="flex-1 h-px bg-app-elevated" />
   </div>
 );
 
@@ -109,7 +109,7 @@ const MiniChart: React.FC<{
     <div>
       {/* Selected bar detail */}
       {sel && (
-        <div className="mb-2 flex items-center justify-between rounded-lg bg-sky-900/60 border border-sky-500/20 px-3 py-2 text-[11px] font-semibold text-sky-200">
+        <div className="mb-2 flex items-center justify-between rounded-lg bg-accent-dim border border-accent/20 px-3 py-2 text-[11px] font-semibold text-accent">
           <span>{sel.date}</span>
           <span>{Number(sel.orders || 0)} Aufträge · {fmtCur(Number(sel.revenue || 0), currency)}</span>
         </div>
@@ -133,7 +133,7 @@ const MiniChart: React.FC<{
               onClick={() => setSelectedIdx(isSelected ? null : idx)}
               onTouchEnd={(e) => { e.preventDefault(); setSelectedIdx(isSelected ? null : idx); }}
             >
-              <div className="absolute bottom-0 w-full bg-emerald-500/15 rounded-t transition-opacity duration-200"
+              <div className="absolute bottom-0 w-full bg-success-dim rounded-t transition-opacity duration-200"
                 style={{ height: `${rh}%`, opacity: selectedIdx !== null && !isSelected ? 0.3 : 1 }} />
               <div className="relative w-full rounded-t transition-all duration-200"
                 style={{
@@ -146,7 +146,7 @@ const MiniChart: React.FC<{
         })}
       </div>
       <div className="mt-1.5">
-        <span className="text-[10px] text-slate-600">{total} Aufträge</span>
+        <span className="text-[10px] text-txt-muted">{total} Aufträge</span>
       </div>
     </div>
   );
@@ -316,9 +316,9 @@ const DashboardMobile: React.FC<DashboardMobileProps> = ({
       {/* Header */}
       <div className="flex items-center justify-between gap-2 pt-1">
         <div>
-          <h1 className="text-xl font-bold text-white">Dashboard</h1>
+          <h1 className="text-xl font-bold text-txt-primary">Dashboard</h1>
           {lastUpdated && (
-            <p className="text-[10px] text-slate-600">
+            <p className="text-[10px] text-txt-muted">
               {lastUpdated.toLocaleTimeString(intlLocale, { hour: '2-digit', minute: '2-digit' })}
               {' · BaseLinker'}
             </p>
@@ -327,21 +327,21 @@ const DashboardMobile: React.FC<DashboardMobileProps> = ({
         <select
           value={activePreset}
           onChange={e => setPreset(e.target.value)}
-          className="text-xs rounded-lg bg-slate-800 border border-white/10 px-2 py-1.5 text-slate-200 outline-none"
+          className="text-xs rounded-lg bg-app-elevated border border-app-border px-2 py-1.5 text-txt-secondary outline-none"
         >
           {PRESETS.map(p => (
-            <option key={p.id} value={p.id} className="bg-slate-900">{p.label}</option>
+            <option key={p.id} value={p.id} className="bg-app-bg">{p.label}</option>
           ))}
-          <optgroup label="── Monat ──" className="bg-slate-900">
+          <optgroup label="── Monat ──" className="bg-app-bg">
             {monthOptions.map(m => (
-              <option key={m.id} value={m.id} className="bg-slate-900">{m.label}</option>
+              <option key={m.id} value={m.id} className="bg-app-bg">{m.label}</option>
             ))}
           </optgroup>
         </select>
       </div>
 
       {products.length === 0 && (
-        <div className="rounded-2xl border border-white/8 bg-slate-800/60 p-4 text-sm text-slate-400">
+        <div className="rounded-2xl border border-app-border bg-app-surface p-4 text-sm text-txt-muted">
           {isLoading ? 'Lade Produkte…' : 'Keine Produkte geladen.'}
         </div>
       )}
@@ -387,7 +387,7 @@ const DashboardMobile: React.FC<DashboardMobileProps> = ({
       <div className="rounded-2xl border border-violet-500/20 bg-violet-800/30 p-4">
         <p className="text-[10px] uppercase tracking-widest text-violet-400/70 font-bold">Gesamtsaldo</p>
         {financeLoading ? <Skel w="w-32" h="h-8" /> : (
-          <p className={`text-3xl font-bold tabular-nums mt-1 ${totalBalance !== null && totalBalance < 0 ? 'text-rose-300' : 'text-violet-300'}`}>
+          <p className={`text-3xl font-bold tabular-nums mt-1 ${totalBalance !== null && totalBalance < 0 ? 'text-danger' : 'text-violet-300'}`}>
             {totalBalance !== null ? fmtCur(totalBalance, 'EUR') : '—'}
           </p>
         )}
@@ -422,7 +422,7 @@ const DashboardMobile: React.FC<DashboardMobileProps> = ({
           sub={<span className="flex flex-col gap-0.5">
             <span>{fmtNum(finance?.shipping?.parcel_count ?? 0)} Sendungen</span>
             {((finance?.shipping?.dhl_count ?? 0) > 0 || (finance?.shipping?.dpd_count ?? 0) > 0) && (
-              <span className="text-[10px] text-slate-500">
+              <span className="text-[10px] text-txt-muted">
                 {(finance?.shipping?.dhl_count ?? 0) > 0 && `DHL ${finance.shipping.dhl_count}`}
                 {(finance?.shipping?.dhl_count ?? 0) > 0 && (finance?.shipping?.dpd_count ?? 0) > 0 && ' · '}
                 {(finance?.shipping?.dpd_count ?? 0) > 0 && `DPD ${finance.shipping.dpd_count}`}
@@ -435,7 +435,7 @@ const DashboardMobile: React.FC<DashboardMobileProps> = ({
 
       {/* Mini chart */}
       {chartDays.length > 0 && (
-        <div className="rounded-2xl bg-slate-800/60 border border-white/5 px-4 py-3">
+        <div className="rounded-2xl bg-app-surface border border-app-border px-4 py-3">
           <MiniChart days={chartDays as any} currency={currency} />
         </div>
       )}
@@ -455,7 +455,7 @@ const DashboardMobile: React.FC<DashboardMobileProps> = ({
           sub={<span className="flex flex-col gap-0.5">
             <span>{fmtNum(finance?.shipping_ytd?.parcel_count ?? 0)} Sendungen</span>
             {((finance?.shipping_ytd?.dhl_count ?? 0) > 0 || (finance?.shipping_ytd?.dpd_count ?? 0) > 0) && (
-              <span className="text-[10px] text-slate-500">
+              <span className="text-[10px] text-txt-muted">
                 {(finance?.shipping_ytd?.dhl_count ?? 0) > 0 && `DHL ${fmtNum(finance.shipping_ytd.dhl_count)}`}
                 {(finance?.shipping_ytd?.dhl_count ?? 0) > 0 && (finance?.shipping_ytd?.dpd_count ?? 0) > 0 && ' · '}
                 {(finance?.shipping_ytd?.dpd_count ?? 0) > 0 && `DPD ${fmtNum(finance.shipping_ytd.dpd_count)}`}

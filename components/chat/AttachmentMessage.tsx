@@ -24,7 +24,7 @@ const AttachmentMessage: React.FC<AttachmentMessageProps> = ({
 }) => {
   if (isImage && url) {
     return (
-      <figure className="overflow-hidden rounded-lg border border-white/10 bg-slate-900/70">
+      <figure className="overflow-hidden rounded-lg border border-app-border bg-app-bg/70">
         <img
           src={url}
           alt={name}
@@ -35,7 +35,7 @@ const AttachmentMessage: React.FC<AttachmentMessageProps> = ({
             (event.currentTarget as HTMLImageElement).style.display = 'none';
           }}
         />
-        <figcaption className="flex items-center justify-between px-3 py-2 text-xs text-slate-200">
+        <figcaption className="flex items-center justify-between px-3 py-2 text-xs text-txt-secondary">
           <span className="truncate">{name}</span>
           {url && (
             <a
@@ -43,7 +43,7 @@ const AttachmentMessage: React.FC<AttachmentMessageProps> = ({
               download={name}
               target="_blank"
               rel="noreferrer"
-              className="text-sky-400 hover:text-sky-200"
+              className="text-accent hover:text-accent"
             >
               Download
             </a>
@@ -54,11 +54,11 @@ const AttachmentMessage: React.FC<AttachmentMessageProps> = ({
   }
 
   return (
-    <div className="rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2 text-xs text-slate-200">
+    <div className="rounded-lg border border-app-border bg-app-bg/70 px-3 py-2 text-xs text-txt-secondary">
       <div className="flex items-center justify-between">
         <div>
           <p className="font-semibold truncate">{name}</p>
-          <p className="text-slate-400">{type || 'Datei'} {size ? `· ${formatSize(size)}` : ''}</p>
+          <p className="text-txt-muted">{type || 'Datei'} {size ? `· ${formatSize(size)}` : ''}</p>
         </div>
         {url && (
           <a
@@ -66,7 +66,7 @@ const AttachmentMessage: React.FC<AttachmentMessageProps> = ({
             download={name}
             target="_blank"
             rel="noreferrer"
-            className="ml-3 whitespace-nowrap text-sky-400 hover:text-sky-200"
+            className="ml-3 whitespace-nowrap text-accent hover:text-accent"
           >
             Download
           </a>

@@ -1,0 +1,321 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1024" viewBox="0 0 1440 1024">
+<defs>
+<style>
+text { font-family: 'Inter', -apple-system, sans-serif; }
+.page-bg { fill: #1a1d23; }
+.sidebar { fill: #15171c; }
+.surface { fill: #21242b; }
+.elevated { fill: #282c34; }
+.border { stroke: #2a2d35; stroke-width: 1; fill: none; }
+.text-primary { fill: #ebeef5; font-size: 14px; }
+.text-secondary { fill: #7a8090; font-size: 12px; }
+.text-muted { fill: #8a8f9e; font-size: 12px; }
+.accent { fill: #7c75ff; }
+.accent-text { fill: #7c75ff; }
+.success { fill: #34d399; }
+.warning { fill: #fbbf24; }
+.danger { fill: #f87171; }
+.btn-primary { fill: #7c75ff; }
+.btn-outline { fill: none; stroke: #7c75ff; stroke-width: 1.5; }
+.nav-active-bg { fill: rgba(124, 117, 255, 0.10); }
+.nav-active-text { fill: #7c75ff; font-weight: 600; }
+.nav-inactive-text { fill: #8a8f9e; font-weight: 500; }
+.heading-lg { font-size: 28px; font-weight: 600; fill: #ebeef5; }
+.heading-sm { font-size: 14px; font-weight: 600; fill: #ebeef5; }
+.heading-xs { font-size: 12px; font-weight: 600; fill: #ebeef5; }
+.label { font-size: 12px; font-weight: 500; fill: #7a8090; }
+.placeholder-text { fill: #5a6370; font-size: 13px; }
+</style>
+</defs>
+
+<!-- Page Background -->
+<rect class="page-bg" width="1440" height="1024"/>
+
+<!-- Sidebar -->
+<rect class="sidebar" width="220" height="1024"/>
+<line x1="220" y1="0" x2="220" y2="1024" class="border"/>
+
+<!-- Sidebar Logo/Brand -->
+<text x="20" y="35" class="heading-sm">AvyCloud</text>
+
+<!-- Navigation Items -->
+<!-- Dashboard -->
+<g>
+  <g transform="translate(30, 96)">
+    <rect x="0" y="0" width="18" height="18" rx="2" fill="none" stroke="#8a8f9e" stroke-width="1.5"/>
+    <rect x="3" y="3" width="3" height="3" fill="#8a8f9e"/>
+    <rect x="9" y="3" width="3" height="3" fill="#8a8f9e"/>
+    <rect x="3" y="9" width="3" height="3" fill="#8a8f9e"/>
+    <rect x="9" y="9" width="3" height="3" fill="#8a8f9e"/>
+  </g>
+  <text x="56" y="112" class="nav-inactive-text">Dashboard</text>
+</g>
+
+<!-- Erfassen -->
+<g>
+  <g transform="translate(30, 132)">
+    <rect x="0" y="0" width="18" height="18" rx="1" stroke="#8a8f9e" stroke-width="1.5" fill="none"/>
+    <line x1="4" y1="9" x2="14" y2="9" stroke="#8a8f9e" stroke-width="1"/>
+    <line x1="9" y1="4" x2="9" y2="14" stroke="#8a8f9e" stroke-width="1"/>
+  </g>
+  <text x="56" y="148" class="nav-inactive-text">Erfassen</text>
+</g>
+
+<!-- Produkte -->
+<g>
+  <g transform="translate(30, 168)">
+    <rect x="0" y="0" width="16" height="18" rx="1" fill="none" stroke="#8a8f9e" stroke-width="1.5"/>
+    <line x1="2" y1="6" x2="14" y2="6" stroke="#8a8f9e" stroke-width="1"/>
+    <line x1="2" y1="10" x2="14" y2="10" stroke="#8a8f9e" stroke-width="1"/>
+    <line x1="2" y1="14" x2="10" y2="14" stroke="#8a8f9e" stroke-width="1"/>
+  </g>
+  <text x="56" y="184" class="nav-inactive-text">Produkte</text>
+</g>
+
+<!-- Bestand -->
+<g>
+  <g transform="translate(30, 204)">
+    <rect x="0" y="0" width="18" height="14" rx="1" fill="none" stroke="#8a8f9e" stroke-width="1.5"/>
+    <rect x="0" y="5" width="5" height="9" fill="#8a8f9e"/>
+    <rect x="6.5" y="5" width="5" height="9" fill="#8a8f9e"/>
+    <rect x="13" y="5" width="5" height="9" fill="#8a8f9e"/>
+  </g>
+  <text x="56" y="220" class="nav-inactive-text">Bestand</text>
+  <circle cx="170" cy="210" r="10" class="warning"/>
+  <text x="166" y="216" style="font-size: 11px; font-weight: 600; fill: #1a1d23;">18</text>
+</g>
+
+<!-- Lager (active) -->
+<g>
+  <rect x="20" y="234" width="180" height="36" rx="6" class="nav-active-bg"/>
+  <g transform="translate(30, 240)">
+    <rect x="1" y="4" width="16" height="14" rx="1" fill="none" stroke="#7c75ff" stroke-width="1.5"/>
+    <line x1="6" y1="4" x2="6" y2="18" stroke="#7c75ff" stroke-width="1"/>
+    <line x1="11" y1="4" x2="11" y2="18" stroke="#7c75ff" stroke-width="1"/>
+  </g>
+  <text x="56" y="256" class="nav-active-text">Lager</text>
+</g>
+
+<!-- Kategorien -->
+<g>
+  <g transform="translate(30, 276)">
+    <rect x="0" y="2" width="7" height="7" rx="1" fill="none" stroke="#8a8f9e" stroke-width="1.5"/>
+    <rect x="11" y="2" width="7" height="7" rx="1" fill="none" stroke="#8a8f9e" stroke-width="1.5"/>
+    <rect x="0" y="11" width="7" height="7" rx="1" fill="none" stroke="#8a8f9e" stroke-width="1.5"/>
+    <rect x="11" y="11" width="7" height="7" rx="1" fill="none" stroke="#8a8f9e" stroke-width="1.5"/>
+  </g>
+  <text x="56" y="292" class="nav-inactive-text">Kategorien</text>
+</g>
+
+<!-- Admin -->
+<g>
+  <g transform="translate(30, 312)">
+    <polygon points="9,0 18,4.5 18,13.5 9,18 0,13.5 0,4.5" fill="none" stroke="#8a8f9e" stroke-width="1.5"/>
+  </g>
+  <text x="56" y="328" class="nav-inactive-text">Admin</text>
+</g>
+
+<!-- Theme Toggle -->
+<g>
+  <circle cx="35" cy="952" r="6" fill="none" stroke="#7a8090" stroke-width="1.5"/>
+  <circle cx="55" cy="952" r="6" fill="none" stroke="#7a8090" stroke-width="1.5"/>
+  <circle cx="50" cy="952" r="5" fill="#7a8090"/>
+</g>
+
+<!-- User Profile -->
+<circle cx="30" cy="992" r="12" fill="#7c75ff"/>
+<text x="48" y="996" style="font-size: 12px; font-weight: 600; fill: #ebeef5;">OK</text>
+<text x="48" y="1008" style="font-size: 11px; fill: #7a8090;">Oguzhan K.</text>
+
+<!-- Top Bar -->
+<rect x="220" y="0" width="1220" height="56" class="surface"/>
+<line x1="220" y1="56" x2="1440" y2="56" class="border"/>
+
+<!-- Breadcrumb -->
+<text x="240" y="32" style="font-size: 13px; fill: #7a8090;">AvyCloud</text>
+<text x="280" y="32" style="font-size: 13px; fill: #7a8090;">›</text>
+<text x="295" y="32" style="font-size: 13px; fill: #ebeef5; font-weight: 500;">Lager</text>
+
+<!-- Search Bar -->
+<rect x="980" y="12" width="200" height="32" rx="6" class="elevated" class="border"/>
+<text x="995" y="33" class="text-muted">Suchen...</text>
+
+<!-- Main Content -->
+<!-- Page Title and Button -->
+<text x="244" y="130" class="heading-lg">Lagerverwaltung</text>
+
+<!-- Create Zone Button -->
+<rect x="1224" y="108" width="120" height="36" rx="6" class="btn-outline"/>
+<text x="1284" y="131" style="font-size: 13px; font-weight: 600; fill: #7c75ff; text-anchor: middle;">+ Zone erstellen</text>
+
+<!-- Left Panel: Zones -->
+<rect x="244" y="160" width="220" height="800" class="elevated" class="border" rx="8"/>
+
+<!-- Zones Header -->
+<text x="260" y="190" class="heading-xs">Zonen</text>
+
+<!-- Zone List Items -->
+<!-- Zone X -->
+<rect x="254" y="210" width="200" height="32" rx="6" fill="rgba(124, 117, 255, 0.05)"/>
+<text x="270" y="234" style="font-size: 12px; fill: #ebeef5;">X</text>
+
+<!-- Zone XS -->
+<rect x="254" y="250" width="200" height="32" rx="6" fill="none"/>
+<text x="270" y="274" style="font-size: 12px; fill: #8a8f9e;">XS</text>
+
+<!-- Zone S -->
+<rect x="254" y="290" width="200" height="32" rx="6" fill="none"/>
+<text x="270" y="314" style="font-size: 12px; fill: #8a8f9e;">S</text>
+
+<!-- Zone M (selected) -->
+<rect x="254" y="330" width="200" height="32" rx="6" class="nav-active-bg"/>
+<text x="270" y="354" class="nav-active-text">M</text>
+
+<!-- Zone M - Tree structure -->
+<g>
+  <!-- Expand arrow -->
+  <polygon points="268,372 273,377 268,382" fill="#7c75ff" opacity="0.7"/>
+  <text x="280" y="381" style="font-size: 11px; fill: #8a8f9e;">Etage 1</text>
+
+  <!-- Expand arrow -->
+  <polygon points="278,398 283,403 278,408" fill="#7c75ff"/>
+  <line x1="275" y1="372" x2="275" y2="405" stroke="#2a2d35" stroke-width="1"/>
+  <text x="290" y="407" style="font-size: 11px; fill: #7c75ff;">Gang 01</text>
+
+  <!-- Expand arrow -->
+  <polygon points="288,424 293,429 288,434" fill="#7c75ff"/>
+  <line x1="285" y1="398" x2="285" y2="431" stroke="#2a2d35" stroke-width="1"/>
+  <text x="300" y="433" style="font-size: 11px; fill: #7c75ff;">Regal A</text>
+
+  <!-- Shelf items -->
+  <line x1="295" y1="424" x2="295" y2="500" stroke="#2a2d35" stroke-width="1"/>
+  <text x="305" y="445" style="font-size: 10px; fill: #7a8090;">Ebene 1</text>
+  <text x="305" y="460" style="font-size: 10px; fill: #7a8090;">Ebene 2</text>
+  <text x="305" y="475" style="font-size: 10px; fill: #7a8090;">Ebene 3</text>
+  <text x="305" y="490" style="font-size: 10px; fill: #7a8090;">Ebene 4</text>
+</g>
+
+<!-- Zone L -->
+<rect x="254" y="520" width="200" height="32" rx="6" fill="none"/>
+<text x="270" y="544" style="font-size: 12px; fill: #8a8f9e;">L</text>
+
+<!-- Zone XL -->
+<rect x="254" y="560" width="200" height="32" rx="6" fill="none"/>
+<text x="270" y="584" style="font-size: 12px; fill: #8a8f9e;">XL</text>
+
+<!-- Zone XQ -->
+<rect x="254" y="600" width="200" height="32" rx="6" fill="none"/>
+<text x="270" y="624" style="font-size: 12px; fill: #8a8f9e;">XQ</text>
+
+<!-- Middle Panel: Bins -->
+<rect x="484" y="160" width="720" height="800" class="elevated" class="border" rx="8"/>
+
+<!-- Header -->
+<text x="504" y="190" class="heading-xs">Zone M · Etage 1 · Gang 01 · Regal A</text>
+
+<!-- Bin Grid (4x2) -->
+<!-- Bin 1: M-01-A-1 (3 Produkte) - Full -->
+<g>
+  <rect x="504" y="220" width="160" height="120" rx="6" class="surface" class="border"/>
+  <text x="584" y="250" style="font-size: 16px; font-weight: 600; fill: #ebeef5; text-anchor: middle;">M-01-A-1</text>
+  <text x="584" y="275" style="font-size: 12px; fill: #7a8090; text-anchor: middle;">3 Produkte</text>
+  <!-- Fill bar -->
+  <rect x="510" y="290" width="148" height="4" rx="2" class="surface"/>
+  <rect x="510" y="290" width="125" height="4" rx="2" class="success"/>
+</g>
+
+<!-- Bin 2: M-01-A-2 (1 Produkt) - Partial -->
+<g>
+  <rect x="684" y="220" width="160" height="120" rx="6" class="surface" class="border"/>
+  <text x="764" y="250" style="font-size: 16px; font-weight: 600; fill: #ebeef5; text-anchor: middle;">M-01-A-2</text>
+  <text x="764" y="275" style="font-size: 12px; fill: #7a8090; text-anchor: middle;">1 Produkt</text>
+  <!-- Fill bar -->
+  <rect x="690" y="290" width="148" height="4" rx="2" class="surface"/>
+  <rect x="690" y="290" width="42" height="4" rx="2" class="warning"/>
+</g>
+
+<!-- Bin 3: M-01-A-3 (selected) -->
+<g>
+  <rect x="864" y="220" width="160" height="120" rx="6" class="nav-active-bg" class="border"/>
+  <text x="944" y="250" style="font-size: 16px; font-weight: 600; fill: #7c75ff; text-anchor: middle;">M-01-A-3</text>
+  <text x="944" y="275" style="font-size: 12px; fill: #7a8090; text-anchor: middle;">2 Produkte</text>
+  <!-- Fill bar -->
+  <rect x="870" y="290" width="148" height="4" rx="2" class="surface"/>
+  <rect x="870" y="290" width="84" height="4" rx="2" class="accent"/>
+</g>
+
+<!-- Bin 4: Empty -->
+<g>
+  <rect x="504" y="360" width="160" height="120" rx="6" class="elevated" class="border" stroke-dasharray="4,4"/>
+  <text x="584" y="390" style="font-size: 12px; fill: #7a8090; text-anchor: middle;">Leer</text>
+  <text x="584" y="430" style="font-size: 28px; fill: #7a8090; text-anchor: middle; opacity: 0.3;">+</text>
+</g>
+
+<!-- Bin 5: Full -->
+<g>
+  <rect x="684" y="360" width="160" height="120" rx="6" class="surface" class="border"/>
+  <text x="764" y="390" style="font-size: 16px; font-weight: 600; fill: #ebeef5; text-anchor: middle;">M-01-B-1</text>
+  <text x="764" y="415" style="font-size: 12px; fill: #7a8090; text-anchor: middle;">5 Produkte</text>
+  <!-- Fill bar -->
+  <rect x="690" y="430" width="148" height="4" rx="2" class="surface"/>
+  <rect x="690" y="430" width="148" height="4" rx="2" class="danger"/>
+</g>
+
+<!-- Bin 6: Partial -->
+<g>
+  <rect x="864" y="360" width="160" height="120" rx="6" class="surface" class="border"/>
+  <text x="944" y="390" style="font-size: 16px; font-weight: 600; fill: #ebeef5; text-anchor: middle;">M-01-B-2</text>
+  <text x="944" y="415" style="font-size: 12px; fill: #7a8090; text-anchor: middle;">4 Produkte</text>
+  <!-- Fill bar -->
+  <rect x="870" y="430" width="148" height="4" rx="2" class="surface"/>
+  <rect x="870" y="430" width="111" height="4" rx="2" class="warning"/>
+</g>
+
+<!-- Bin 7: Empty -->
+<g>
+  <rect x="504" y="500" width="160" height="120" rx="6" class="elevated" class="border" stroke-dasharray="4,4"/>
+  <text x="584" y="530" style="font-size: 12px; fill: #7a8090; text-anchor: middle;">Leer</text>
+  <text x="584" y="570" style="font-size: 28px; fill: #7a8090; text-anchor: middle; opacity: 0.3;">+</text>
+</g>
+
+<!-- Bin 8: Full -->
+<g>
+  <rect x="684" y="500" width="160" height="120" rx="6" class="surface" class="border"/>
+  <text x="764" y="530" style="font-size: 16px; font-weight: 600; fill: #ebeef5; text-anchor: middle;">M-01-C-1</text>
+  <text x="764" y="555" style="font-size: 12px; fill: #7a8090; text-anchor: middle;">6 Produkte</text>
+  <!-- Fill bar -->
+  <rect x="690" y="570" width="148" height="4" rx="2" class="surface"/>
+  <rect x="690" y="570" width="148" height="4" rx="2" class="success"/>
+</g>
+
+<!-- Right Panel: Bin Details (slide-out) -->
+<rect x="1224" y="160" width="196" height="800" class="elevated" class="border" rx="8"/>
+
+<!-- Bin Header -->
+<text x="1244" y="190" class="heading-xs">Bin M-01-A-3</text>
+
+<!-- Products in Bin -->
+<!-- Product 1 -->
+<g>
+  <rect x="1244" y="215" width="156" height="50" rx="4" class="surface" class="border"/>
+  <text x="1254" y="235" style="font-size: 11px; font-weight: 500; fill: #ebeef5;">Samsung Galaxy S24</text>
+  <text x="1254" y="251" style="font-size: 10px; fill: #7a8090;">SKU-20834</text>
+  <text x="1254" y="264" style="font-size: 10px; fill: #7c75ff;">Qty: 1</text>
+</g>
+
+<!-- Product 2 -->
+<g>
+  <rect x="1244" y="280" width="156" height="50" rx="4" class="surface" class="border"/>
+  <text x="1254" y="300" style="font-size: 11px; font-weight: 500; fill: #ebeef5;">Apple AirPods Pro 2</text>
+  <text x="1254" y="316" style="font-size: 10px; fill: #7a8090;">SKU-20835</text>
+  <text x="1254" y="329" style="font-size: 10px; fill: #7c75ff;">Qty: 1</text>
+</g>
+
+<!-- Action Buttons -->
+<rect x="1244" y="350" width="156" height="32" rx="6" class="btn-outline"/>
+<text x="1322" y="371" style="font-size: 11px; font-weight: 600; fill: #7c75ff; text-anchor: middle;">Label drucken</text>
+
+<rect x="1244" y="392" width="156" height="32" rx="6" class="btn-outline"/>
+<text x="1322" y="413" style="font-size: 11px; font-weight: 600; fill: #7c75ff; text-anchor: middle;">Produkt umlagern</text>
+
+</svg>

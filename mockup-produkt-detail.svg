@@ -1,0 +1,349 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1024" viewBox="0 0 1440 1024">
+<defs>
+<style>
+text { font-family: 'Inter', -apple-system, sans-serif; }
+.page-bg { fill: #1a1d23; }
+.sidebar { fill: #15171c; }
+.surface { fill: #21242b; }
+.elevated { fill: #282c34; }
+.border { stroke: #2a2d35; stroke-width: 1; fill: none; }
+.text-primary { fill: #ebeef5; font-size: 14px; }
+.text-secondary { fill: #7a8090; font-size: 12px; }
+.text-muted { fill: #8a8f9e; font-size: 12px; }
+.accent { fill: #7c75ff; }
+.accent-text { fill: #7c75ff; }
+.success { fill: #34d399; }
+.warning { fill: #fbbf24; }
+.nav-active-bg { fill: rgba(124, 117, 255, 0.10); }
+.nav-active-text { fill: #7c75ff; font-weight: 600; }
+.nav-inactive-text { fill: #8a8f9e; font-weight: 500; }
+.heading-lg { font-size: 28px; font-weight: 600; fill: #ebeef5; }
+.heading-md { font-size: 18px; font-weight: 600; fill: #ebeef5; }
+.heading-sm { font-size: 14px; font-weight: 600; fill: #ebeef5; }
+.heading-xs { font-size: 12px; font-weight: 600; fill: #ebeef5; }
+.label { font-size: 12px; font-weight: 500; fill: #7a8090; }
+.placeholder-text { fill: #5a6370; font-size: 13px; }
+.badge-optimiert { fill: #34d399; font-size: 11px; font-weight: 600; }
+.badge-accent { fill: #7c75ff; font-size: 11px; font-weight: 600; }
+.pill { rx: 12px; }
+</style>
+</defs>
+
+<!-- Page Background -->
+<rect class="page-bg" width="1440" height="1024"/>
+
+<!-- Sidebar -->
+<rect class="sidebar" width="220" height="1024"/>
+<line x1="220" y1="0" x2="220" y2="1024" class="border"/>
+
+<!-- Sidebar Logo -->
+<text x="20" y="35" class="heading-sm">AvyCloud</text>
+
+<!-- Navigation -->
+<!-- Dashboard -->
+<g>
+  <g transform="translate(30, 96)">
+    <rect x="0" y="0" width="18" height="18" rx="2" fill="none" stroke="#8a8f9e" stroke-width="1.5"/>
+    <rect x="3" y="3" width="3" height="3" fill="#8a8f9e"/>
+    <rect x="9" y="3" width="3" height="3" fill="#8a8f9e"/>
+    <rect x="3" y="9" width="3" height="3" fill="#8a8f9e"/>
+    <rect x="9" y="9" width="3" height="3" fill="#8a8f9e"/>
+  </g>
+  <text x="56" y="112" class="nav-inactive-text">Dashboard</text>
+</g>
+
+<!-- Erfassen -->
+<g>
+  <g transform="translate(30, 132)">
+    <rect x="0" y="0" width="18" height="18" rx="1" stroke="#8a8f9e" stroke-width="1.5" fill="none"/>
+    <line x1="4" y1="9" x2="14" y2="9" stroke="#8a8f9e" stroke-width="1"/>
+    <line x1="9" y1="4" x2="9" y2="14" stroke="#8a8f9e" stroke-width="1"/>
+  </g>
+  <text x="56" y="148" class="nav-inactive-text">Erfassen</text>
+</g>
+
+<!-- Produkte -->
+<g>
+  <g transform="translate(30, 168)">
+    <rect x="0" y="0" width="16" height="18" rx="1" fill="none" stroke="#8a8f9e" stroke-width="1.5"/>
+    <line x1="2" y1="6" x2="14" y2="6" stroke="#8a8f9e" stroke-width="1"/>
+    <line x1="2" y1="10" x2="14" y2="10" stroke="#8a8f9e" stroke-width="1"/>
+    <line x1="2" y1="14" x2="10" y2="14" stroke="#8a8f9e" stroke-width="1"/>
+  </g>
+  <text x="56" y="184" class="nav-inactive-text">Produkte</text>
+</g>
+
+<!-- Bestand (active) -->
+<g>
+  <rect x="20" y="198" width="180" height="36" rx="6" class="nav-active-bg"/>
+  <g transform="translate(30, 204)">
+    <rect x="0" y="0" width="18" height="14" rx="1" fill="none" stroke="#7c75ff" stroke-width="1.5"/>
+    <rect x="0" y="5" width="5" height="9" fill="#7c75ff"/>
+    <rect x="6.5" y="5" width="5" height="9" fill="#7c75ff"/>
+    <rect x="13" y="5" width="5" height="9" fill="#7c75ff"/>
+  </g>
+  <text x="56" y="220" class="nav-active-text">Bestand</text>
+  <circle cx="170" cy="210" r="10" class="warning"/>
+  <text x="166" y="216" style="font-size: 11px; font-weight: 600; fill: #1a1d23;">18</text>
+</g>
+
+<!-- Lager -->
+<g>
+  <g transform="translate(30, 240)">
+    <rect x="1" y="4" width="16" height="14" rx="1" fill="none" stroke="#8a8f9e" stroke-width="1.5"/>
+    <line x1="6" y1="4" x2="6" y2="18" stroke="#8a8f9e" stroke-width="1"/>
+    <line x1="11" y1="4" x2="11" y2="18" stroke="#8a8f9e" stroke-width="1"/>
+  </g>
+  <text x="56" y="256" class="nav-inactive-text">Lager</text>
+</g>
+
+<!-- Kategorien -->
+<g>
+  <g transform="translate(30, 276)">
+    <rect x="0" y="2" width="7" height="7" rx="1" fill="none" stroke="#8a8f9e" stroke-width="1.5"/>
+    <rect x="11" y="2" width="7" height="7" rx="1" fill="none" stroke="#8a8f9e" stroke-width="1.5"/>
+    <rect x="0" y="11" width="7" height="7" rx="1" fill="none" stroke="#8a8f9e" stroke-width="1.5"/>
+    <rect x="11" y="11" width="7" height="7" rx="1" fill="none" stroke="#8a8f9e" stroke-width="1.5"/>
+  </g>
+  <text x="56" y="292" class="nav-inactive-text">Kategorien</text>
+</g>
+
+<!-- Admin -->
+<g>
+  <g transform="translate(30, 312)">
+    <polygon points="9,0 18,4.5 18,13.5 9,18 0,13.5 0,4.5" fill="none" stroke="#8a8f9e" stroke-width="1.5"/>
+  </g>
+  <text x="56" y="328" class="nav-inactive-text">Admin</text>
+</g>
+
+<!-- Theme Toggle -->
+<g>
+  <circle cx="35" cy="952" r="6" fill="none" stroke="#7a8090" stroke-width="1.5"/>
+  <circle cx="55" cy="952" r="6" fill="none" stroke="#7a8090" stroke-width="1.5"/>
+  <circle cx="50" cy="952" r="5" fill="#7a8090"/>
+</g>
+
+<!-- User Profile -->
+<circle cx="30" cy="992" r="12" fill="#7c75ff"/>
+<text x="48" y="996" style="font-size: 12px; font-weight: 600; fill: #ebeef5;">OK</text>
+<text x="48" y="1008" style="font-size: 11px; fill: #7a8090;">Oguzhan K.</text>
+
+<!-- Top Bar -->
+<rect x="220" y="0" width="1220" height="56" class="surface"/>
+<line x1="220" y1="56" x2="1440" y2="56" class="border"/>
+
+<!-- Breadcrumb -->
+<text x="240" y="32" style="font-size: 13px; fill: #7a8090;">AvyCloud</text>
+<text x="280" y="32" style="font-size: 13px; fill: #7a8090;">›</text>
+<text x="295" y="32" style="font-size: 13px; fill: #7a8090;">Bestand</text>
+<text x="360" y="32" style="font-size: 13px; fill: #7a8090;">›</text>
+<text x="375" y="32" style="font-size: 13px; fill: #ebeef5; font-weight: 500;">Samsung Galaxy S24 Ultra</text>
+
+<!-- Search Bar -->
+<rect x="980" y="12" width="200" height="32" rx="6" class="elevated" class="border"/>
+<text x="995" y="33" class="text-muted">Suchen...</text>
+
+<!-- Main Content (Split: 65% left, 35% right) -->
+
+<!-- LEFT PANEL (65%) -->
+
+<!-- Product Image Placeholder -->
+<g>
+  <rect x="244" y="80" width="180" height="180" rx="12" class="surface" class="border"/>
+  <text x="334" y="175" style="font-size: 14px; fill: #7a8090; text-anchor: middle;">Produktbild</text>
+</g>
+
+<!-- Product Info Section -->
+<g>
+  <!-- Product Name -->
+  <text x="444" y="105" style="font-size: 24px; font-weight: 600; fill: #ebeef5;">Samsung Galaxy S24 Ultra 256GB</text>
+  <text x="444" y="125" style="font-size: 24px; font-weight: 600; fill: #ebeef5;">Titanium Black</text>
+
+  <!-- Brand -->
+  <text x="444" y="150" style="font-size: 13px; fill: #7a8090;">Samsung</text>
+
+  <!-- SKU & EAN -->
+  <text x="444" y="175" style="font-size: 12px; fill: #ebeef5;">SKU: SKU-20834</text>
+  <text x="444" y="193" style="font-size: 12px; fill: #ebeef5;">EAN: 8806096371248 ✓</text>
+
+  <!-- Status Badges -->
+  <g>
+    <!-- Optimiert -->
+    <rect x="444" y="210" width="80" height="24" rx="12" fill="rgba(52, 211, 153, 0.15)"/>
+    <text x="484" y="227" class="badge-optimiert" style="text-anchor: middle;">Optimiert</text>
+
+    <!-- eBay -->
+    <rect x="536" y="210" width="60" height="24" rx="12" fill="rgba(124, 117, 255, 0.15)"/>
+    <text x="566" y="227" class="badge-accent" style="text-anchor: middle;">eBay</text>
+
+    <!-- Kaufland -->
+    <rect x="608" y="210" width="80" height="24" rx="12" fill="rgba(124, 117, 255, 0.15)"/>
+    <text x="648" y="227" class="badge-accent" style="text-anchor: middle;">Kaufland</text>
+  </g>
+
+  <!-- Action Buttons -->
+  <g>
+    <!-- Bearbeiten -->
+    <rect x="444" y="250" width="100" height="32" rx="6" fill="none" stroke="#7c75ff" stroke-width="1.5"/>
+    <text x="494" y="271" style="font-size: 12px; font-weight: 600; fill: #7c75ff; text-anchor: middle;">Bearbeiten</text>
+
+    <!-- KI Verbessern -->
+    <rect x="556" y="250" width="120" height="32" rx="6" fill="none" stroke="#7c75ff" stroke-width="1.5"/>
+    <text x="616" y="271" style="font-size: 12px; font-weight: 600; fill: #7c75ff; text-anchor: middle;">KI Verbessern</text>
+
+    <!-- Synchronisieren -->
+    <rect x="688" y="250" width="120" height="32" rx="6" fill="#7c75ff"/>
+    <text x="748" y="271" style="font-size: 12px; font-weight: 600; fill: #1a1d23; text-anchor: middle;">Synchronisieren</text>
+  </g>
+</g>
+
+<!-- Tab Bar -->
+<g>
+  <!-- Übersicht Tab (active) -->
+  <rect x="244" y="300" width="80" height="28" rx="4" fill="rgba(124, 117, 255, 0.1)"/>
+  <text x="284" y="320" style="font-size: 12px; font-weight: 600; fill: #7c75ff; text-anchor: middle;">Übersicht</text>
+  <line x1="244" y1="328" x2="324" y2="328" stroke="#7c75ff" stroke-width="2"/>
+
+  <!-- Other tabs -->
+  <text x="345" y="320" style="font-size: 12px; fill: #7a8090;">Bilder</text>
+  <text x="400" y="320" style="font-size: 12px; fill: #7a8090;">Preise</text>
+  <text x="470" y="320" style="font-size: 12px; fill: #7a8090;">Wettbewerber</text>
+  <text x="600" y="320" style="font-size: 12px; fill: #7a8090;">Attribute</text>
+</g>
+
+<!-- Tab Content -->
+
+<!-- Identifikation Section -->
+<g>
+  <text x="244" y="370" class="heading-xs">Identifikation</text>
+
+  <!-- Name Field -->
+  <g>
+    <text x="244" y="395" class="label">Name</text>
+    <rect x="244" y="405" width="350" height="32" rx="6" class="surface" class="border"/>
+    <text x="260" y="427" class="text-primary">Samsung Galaxy S24 Ultra 256GB Titanium Black</text>
+  </g>
+
+  <!-- Brand Field -->
+  <g>
+    <text x="610" y="395" class="label">Brand</text>
+    <rect x="610" y="405" width="210" height="32" rx="6" class="surface" class="border"/>
+    <text x="626" y="427" class="text-primary">Samsung</text>
+  </g>
+
+  <!-- SKU Field -->
+  <g>
+    <text x="244" y="470" class="label">SKU</text>
+    <rect x="244" y="480" width="350" height="32" rx="6" class="surface" class="border"/>
+    <text x="260" y="502" class="text-primary">SKU-20834</text>
+  </g>
+
+  <!-- Barcodes Field -->
+  <g>
+    <text x="610" y="470" class="label">Barcodes</text>
+    <rect x="610" y="480" width="210" height="32" rx="6" class="surface" class="border"/>
+    <text x="626" y="502" class="text-primary">8806096371248</text>
+  </g>
+</g>
+
+<!-- Bestand & Lager Section -->
+<g>
+  <text x="244" y="560" class="heading-xs">Bestand & Lager</text>
+
+  <!-- Qty Large Display -->
+  <g>
+    <text x="244" y="585" class="label">Verfügbarer Bestand</text>
+    <text x="260" y="625" style="font-size: 48px; font-weight: 700; fill: #7c75ff;">17</text>
+  </g>
+
+  <!-- Breakdown -->
+  <g>
+    <text x="380" y="585" class="label">Bestand Breakdown</text>
+    <text x="380" y="610" style="font-size: 13px; fill: #ebeef5;">Physisch: <span style="font-weight: 600;">17</span></text>
+    <text x="380" y="630" style="font-size: 13px; fill: #ebeef5;">Reserviert: <span style="font-weight: 600;">3</span></text>
+    <text x="380" y="650" style="font-size: 13px; fill: #34d399; font-weight: 600;">Verfügbar: 14</text>
+  </g>
+
+  <!-- Lagerplatz -->
+  <g>
+    <text x="610" y="585" class="label">Lagerplatz</text>
+    <rect x="610" y="600" width="210" height="40" rx="6" class="surface" class="border"/>
+    <g transform="translate(622, 609)">
+      <rect x="0" y="0" width="14" height="10" rx="1" fill="none" stroke="#7c75ff" stroke-width="1"/>
+      <rect x="3" y="2" width="3" height="6" fill="#7c75ff"/>
+    </g>
+    <text x="642" y="625" style="font-size: 12px; fill: #ebeef5;">M-02-A-3</text>
+  </g>
+</g>
+
+<!-- Kategorie & GPSR Section -->
+<g>
+  <text x="244" y="700" class="heading-xs">Kategorie & GPSR</text>
+
+  <!-- eBay Category -->
+  <g>
+    <text x="244" y="725" class="label">eBay-Kategorie</text>
+    <rect x="244" y="735" width="576" height="32" rx="6" class="surface" class="border"/>
+    <text x="260" y="757" style="font-size: 12px; fill: #7a8090;">Elektronik › Handys & Smartphones</text>
+  </g>
+
+  <!-- GPSR Fields -->
+  <g>
+    <text x="244" y="790" class="label">GPSR Hersteller</text>
+    <rect x="244" y="800" width="280" height="32" rx="6" class="surface" class="border"/>
+    <text x="260" y="822" style="font-size: 12px; fill: #7a8090;">Samsung Electronics</text>
+
+    <text x="540" y="790" class="label">GPSR Adresse</text>
+    <rect x="540" y="800" width="280" height="32" rx="6" class="surface" class="border"/>
+    <text x="556" y="822" style="font-size: 12px; fill: #7a8090;">Seoul, Südkorea</text>
+  </g>
+</g>
+
+<!-- RIGHT PANEL (35%) - Gemini Chat -->
+<rect x="920" y="80" width="496" height="790" class="elevated" class="border" rx="8"/>
+
+<!-- Chat Header -->
+<g>
+  <text x="940" y="110" class="heading-sm">Gemini Assistant</text>
+  <g transform="translate(1360, 98)">
+    <path d="M 0 0 L 3 -2 L 2 2 L -1 3 Z" fill="#7c75ff"/>
+    <circle cx="0" cy="0" r="3" fill="none" stroke="#7c75ff" stroke-width="0.5"/>
+  </g>
+</g>
+
+<!-- Chat Divider -->
+<line x1="920" y1="125" x2="1416" y2="125" class="border"/>
+
+<!-- Chat Messages -->
+
+<!-- AI Message -->
+<g>
+  <rect x="940" y="145" width="440" height="140" rx="8" fill="rgba(124, 117, 255, 0.1)"/>
+  <text x="960" y="170" style="font-size: 11px; font-weight: 600; fill: #7c75ff;">Gemini AI</text>
+  <text x="960" y="192" style="font-size: 12px; fill: #ebeef5; word-wrap: break-word;">Dieses Produkt hat 5 hochwertige Bilder und vollständige Attribute. Ich empfehle, den Titel für eBay zu optimieren:</text>
+  <text x="960" y="215" style="font-size: 11px; fill: #7c75ff; font-style: italic; word-wrap: break-word;">"Samsung Galaxy S24 Ultra 256GB Titanium Black - NEU & OVP"</text>
+  <text x="960" y="235" style="font-size: 12px; fill: #ebeef5;">Dies erhöht die Suchbarkeit.</text>
+  <text x="960" y="255" style="font-size: 11px; fill: #7a8090;">vor 2 Minuten</text>
+</g>
+
+<!-- User Message -->
+<g>
+  <rect x="940" y="305" width="440" height="60" rx="8" fill="rgba(124, 117, 255, 0.05)"/>
+  <text x="960" y="330" style="font-size: 11px; font-weight: 600; fill: #ebeef5;">Du</text>
+  <text x="960" y="352" style="font-size: 12px; fill: #ebeef5;">Titel aktualisieren und Listing synchronisieren</text>
+  <text x="960" y="372" style="font-size: 11px; fill: #7a8090;">vor 1 Minute</text>
+</g>
+
+<!-- Chat Input -->
+<g>
+  <rect x="940" y="735" width="440" height="40" rx="6" class="surface" class="border"/>
+  <text x="960" y="760" class="placeholder-text">Frage zu diesem Produkt...</text>
+
+  <!-- Send Button -->
+  <g transform="translate(1370, 752)">
+    <rect x="0" y="0" width="24" height="24" rx="4" fill="#7c75ff"/>
+    <path d="M 6 12 L 14 12 M 12 10 L 14 12 L 12 14" stroke="#1a1d23" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</g>
+
+</svg>

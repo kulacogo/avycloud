@@ -288,7 +288,7 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
 
   if (!images || images.length === 0) {
     return (
-      <div className="flex items-center justify-center w-full h-48 sm:h-56 bg-slate-800/40 rounded-2xl border border-white/10 text-slate-400 text-sm">
+      <div className="flex items-center justify-center w-full h-48 sm:h-56 bg-app-surface rounded-2xl border border-app-border text-txt-muted text-sm">
         {t('sheet.gallery.empty')}
       </div>
     );
@@ -494,21 +494,21 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
     if (!isEditing || !isActiveReal || typeof onUpdateImage !== 'function') return null;
     const elapsedSeconds = improving ? Math.max(0, Math.round((Date.now() - improveStartedAtRef.current) / 1000)) : 0;
     return (
-      <div className="mt-3 rounded-xl border border-white/10 bg-slate-800/40 p-3">
+      <div className="mt-3 rounded-xl border border-app-border bg-app-surface p-3">
         <div className="flex items-center justify-between gap-3">
-          <div className="text-xs font-semibold text-slate-200">{t('sheet.gallery.improve.title')}</div>
+          <div className="text-xs font-semibold text-txt-secondary">{t('sheet.gallery.improve.title')}</div>
           {improving ? (
-            <div className="flex items-center gap-2 text-xs text-slate-400">
+            <div className="flex items-center gap-2 text-xs text-txt-muted">
               <Spinner className="w-4 h-4" />
               <span>{improveStatus || t('sheet.gallery.improve.working')}</span>
-              {elapsedSeconds >= 10 ? <span className="text-[11px] text-slate-500">({elapsedSeconds}s)</span> : null}
+              {elapsedSeconds >= 10 ? <span className="text-[11px] text-txt-muted">({elapsedSeconds}s)</span> : null}
             </div>
           ) : null}
         </div>
         {improving && typeof improvePercent === 'number' ? (
           <div className="mt-2">
-            <div className="h-1.5 w-full rounded-full bg-slate-800 overflow-hidden">
-              <div className="h-full bg-sky-500/80" style={{ width: `${improvePercent}%` }} />
+            <div className="h-1.5 w-full rounded-full bg-app-elevated overflow-hidden">
+              <div className="h-full bg-accent" style={{ width: `${improvePercent}%` }} />
             </div>
           </div>
         ) : null}
@@ -517,7 +517,7 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
             type="button"
             onClick={handleRemoveBackground}
             disabled={improving}
-            className="px-3 py-1.5 rounded-full text-xs font-semibold bg-slate-800/60 text-slate-100 hover:bg-slate-700/60 disabled:opacity-50"
+            className="px-3 py-1.5 rounded-full text-xs font-semibold bg-app-surface text-txt-primary hover:bg-app-elevated/60 disabled:opacity-50"
             title={t('sheet.gallery.improve.removeBg')}
           >
             {t('sheet.gallery.improve.removeBg')}
@@ -526,7 +526,7 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
             type="button"
             onClick={handleAutoAdjust}
             disabled={improving}
-            className="px-3 py-1.5 rounded-full text-xs font-semibold bg-slate-800/60 text-slate-100 hover:bg-slate-700/60 disabled:opacity-50"
+            className="px-3 py-1.5 rounded-full text-xs font-semibold bg-app-surface text-txt-primary hover:bg-app-elevated/60 disabled:opacity-50"
             title={t('sheet.gallery.improve.auto')}
           >
             {t('sheet.gallery.improve.auto')}
@@ -535,7 +535,7 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
             type="button"
             onClick={handleRotate90}
             disabled={improving}
-            className="px-3 py-1.5 rounded-full text-xs font-semibold bg-slate-800/60 text-slate-100 hover:bg-slate-700/60 disabled:opacity-50"
+            className="px-3 py-1.5 rounded-full text-xs font-semibold bg-app-surface text-txt-primary hover:bg-app-elevated/60 disabled:opacity-50"
             title={t('sheet.gallery.improve.rotate90')}
           >
             {t('sheet.gallery.improve.rotate90')}
@@ -544,7 +544,7 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
             type="button"
             onClick={handleRotate180}
             disabled={improving}
-            className="px-3 py-1.5 rounded-full text-xs font-semibold bg-slate-800/60 text-slate-100 hover:bg-slate-700/60 disabled:opacity-50"
+            className="px-3 py-1.5 rounded-full text-xs font-semibold bg-app-surface text-txt-primary hover:bg-app-elevated/60 disabled:opacity-50"
             title={t('sheet.gallery.improve.rotate180')}
           >
             {t('sheet.gallery.improve.rotate180')}
@@ -553,18 +553,18 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
             type="button"
             onClick={handleBrighten}
             disabled={improving}
-            className="px-3 py-1.5 rounded-full text-xs font-semibold bg-slate-800/60 text-slate-100 hover:bg-slate-700/60 disabled:opacity-50"
+            className="px-3 py-1.5 rounded-full text-xs font-semibold bg-app-surface text-txt-primary hover:bg-app-elevated/60 disabled:opacity-50"
             title={t('sheet.gallery.improve.brighten')}
           >
             {t('sheet.gallery.improve.brighten')}
           </button>
         </div>
-        {improveError ? <div className="mt-2 text-xs text-rose-300">{improveError}</div> : null}
+        {improveError ? <div className="mt-2 text-xs text-danger">{improveError}</div> : null}
         {improving && improveAction === 'removeBg' && !isCrossOriginIsolated ? (
-          <div className="mt-2 text-[11px] text-slate-500">{t('sheet.gallery.improve.hint.performance')}</div>
+          <div className="mt-2 text-[11px] text-txt-muted">{t('sheet.gallery.improve.hint.performance')}</div>
         ) : null}
         {improving && improveAction === 'removeBg' ? (
-          <div className="mt-1 text-[11px] text-slate-500">{t('sheet.gallery.improve.hint.firstRun')}</div>
+          <div className="mt-1 text-[11px] text-txt-muted">{t('sheet.gallery.improve.hint.firstRun')}</div>
         ) : null}
       </div>
     );
@@ -588,7 +588,7 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
 
   return (
     <div>
-      <div className="relative w-full aspect-[4/3] max-h-[420px] md:max-h-[360px] bg-slate-800/40 rounded-2xl border border-white/10 overflow-hidden group">
+      <div className="relative w-full aspect-[4/3] max-h-[420px] md:max-h-[360px] bg-app-surface rounded-2xl border border-app-border overflow-hidden group">
         <img
           src={resolveSrc(activeImage) || placeholder}
           alt={`Product image ${activeIndex + 1}`}
@@ -600,7 +600,7 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
           <button
             aria-label="Delete selected image"
             onClick={() => onDeleteImage(activeIndex)}
-            className="absolute top-2 left-2 px-2 py-1 text-xs bg-red-600 text-white rounded opacity-0 group-hover:opacity-100 transition-opacity"
+            className="absolute top-2 left-2 px-2 py-1 text-xs bg-danger text-txt-primary rounded opacity-0 group-hover:opacity-100 transition-opacity"
           >
             Delete
           </button>
@@ -609,7 +609,7 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
           <button
             type="button"
             onClick={() => openLightbox(activeIndex)}
-            className="p-2 bg-black/50 text-white rounded-full"
+            className="p-2 bg-black/50 text-txt-primary rounded-full"
             aria-label={t('sheet.gallery.open')}
           >
             🔍
@@ -617,7 +617,7 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
           <a
             href={resolveSrc(activeImage) || '#'}
             download={`product-image-${activeIndex + 1}`}
-            className="p-2 bg-black/50 text-white rounded-full"
+            className="p-2 bg-black/50 text-txt-primary rounded-full"
             aria-label={t('sheet.gallery.download')}
           >
             <DownloadIcon />
@@ -626,7 +626,7 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
             <button
               type="button"
               onClick={() => onRegenerateImage(activeIndex)}
-              className="px-3 py-1 bg-sky-600 text-xs rounded-full text-white"
+              className="px-3 py-1 bg-accent text-xs rounded-full text-txt-primary"
               disabled={regeneratingIndex === activeIndex}
             >
               {regeneratingIndex === activeIndex ? t('sheet.gallery.rerendering') : t('sheet.gallery.rerender')}
@@ -634,7 +634,7 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
           )}
         </div>
         {activeImage.source === 'generated' && (
-            <span className="absolute bottom-2 left-2 px-2 py-1 text-xs bg-sky-500/80 text-white rounded">{t('sheet.gallery.aiBadge')}</span>
+            <span className="absolute bottom-2 left-2 px-2 py-1 text-xs bg-accent text-txt-primary rounded">{t('sheet.gallery.aiBadge')}</span>
         )}
       </div>
       {improveButtons}
@@ -649,7 +649,7 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
             onClick={() => setActiveIndex(index)}
             onKeyDown={(e) => e.key === 'Enter' && setActiveIndex(index)}
             className={`relative aspect-square rounded-md overflow-hidden border-2 transition-colors cursor-pointer ${
-              index === activeIndex ? 'border-sky-500' : 'border-transparent hover:border-slate-500'
+              index === activeIndex ? 'border-accent' : 'border-transparent hover:border-app-border'
             }`}
             draggable={isEditing && isReal}
             onDragStart={() => handleDragStart(index)}
@@ -685,7 +685,7 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
                     onDeleteImage(index);
                   }
                 }}
-                className="absolute top-1 right-1 px-1 py-0.5 text-[10px] bg-red-600 text-white rounded opacity-0 hover:opacity-100 transition-opacity"
+                className="absolute top-1 right-1 px-1 py-0.5 text-[10px] bg-danger text-txt-primary rounded opacity-0 hover:opacity-100 transition-opacity"
               >
                 ×
               </span>
@@ -694,11 +694,25 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
         );})}
       </div>
       {lightboxIndex !== null && (
-        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
+        <div
+          className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-label={`Großansicht ${lightboxIndex + 1}`}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") { e.preventDefault(); closeLightbox(); }
+            if (e.key === "ArrowRight" && lightboxIndex < padded.length - 1) { setLightboxIndex(lightboxIndex + 1); }
+            if (e.key === "ArrowLeft" && lightboxIndex > 0) { setLightboxIndex(lightboxIndex - 1); }
+          }}
+          onClick={(e) => { if (e.target === e.currentTarget) closeLightbox(); }}
+          tabIndex={-1}
+          ref={(el) => el?.focus()}
+        >
           <button
             type="button"
-            className="absolute top-4 right-4 px-3 py-1 text-sm rounded-full bg-white/80 text-slate-900"
+            className="absolute top-4 right-4 px-3 py-1 text-sm rounded-full bg-white/80 text-txt-primary"
             onClick={closeLightbox}
+            aria-label="Bildansicht schließen"
           >
             Schließen
           </button>

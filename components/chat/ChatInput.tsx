@@ -79,12 +79,12 @@ const ChatInput: React.FC<ChatInputProps> = ({
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center gap-2 text-[11px] uppercase tracking-wide text-slate-500">
+      <div className="flex items-center gap-2 text-[11px] uppercase tracking-wide text-txt-muted">
         <button
           type="button"
           aria-label={t('chat.input.clear')}
           onClick={onClearChat}
-          className="rounded-full border border-white/10 px-3 py-1 text-slate-300 hover:border-sky-500 hover:text-white"
+          className="rounded-full border border-app-border px-3 py-1 text-txt-secondary hover:border-accent hover:text-txt-primary"
         >
           {t('chat.input.clear')}
         </button>
@@ -92,7 +92,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
           type="button"
           aria-label={t('chat.input.upload')}
           onClick={handleAttachClick}
-          className="rounded-full border border-white/10 px-3 py-1 text-slate-300 hover:border-sky-500 hover:text-white"
+          className="rounded-full border border-app-border px-3 py-1 text-txt-secondary hover:border-accent hover:text-txt-primary"
         >
           {t('chat.input.upload')}
         </button>
@@ -100,17 +100,17 @@ const ChatInput: React.FC<ChatInputProps> = ({
           type="button"
           aria-label={t('chat.input.context')}
           onClick={onInsertContext}
-          className="rounded-full border border-white/10 px-3 py-1 text-slate-300 hover:border-sky-500 hover:text-white"
+          className="rounded-full border border-app-border px-3 py-1 text-txt-secondary hover:border-accent hover:text-txt-primary"
         >
           {t('chat.input.context')}
         </button>
-        <span className="ml-auto text-[10px] text-slate-500">
+        <span className="ml-auto text-[10px] text-txt-muted">
           {characters}/{charLimit}
         </span>
       </div>
 
       {attachments.length > 0 && (
-        <details className="rounded-2xl border border-white/10 bg-slate-900/60 px-3 py-2 text-xs text-slate-300">
+        <details className="rounded-2xl border border-app-border bg-app-bg/60 px-3 py-2 text-xs text-txt-secondary">
           <summary className="cursor-pointer select-none text-[11px] font-semibold uppercase tracking-wide">
             {t('chat.input.attachments', { count: attachments.length })}
           </summary>
@@ -140,14 +140,14 @@ const ChatInput: React.FC<ChatInputProps> = ({
           value={value}
           onChange={(event) => onChange(event.target.value.slice(0, charLimit))}
           onKeyDown={handleKeyDown}
-          className="h-12 flex-1 resize-none rounded-2xl bg-slate-800/80 px-4 py-3 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-sky-500"
+          className="h-12 flex-1 resize-none rounded-2xl bg-app-elevated px-4 py-3 text-sm text-txt-primary placeholder-txt-muted focus:outline-none focus:ring-2 focus:ring-accent"
         />
         <div className="flex flex-col gap-2">
           <button
             type="button"
           aria-label={t('chat.input.attachButton')}
             onClick={handleAttachClick}
-            className="flex items-center justify-center rounded-2xl border border-white/10 bg-slate-800/40 px-3 py-2 text-slate-200 hover:border-sky-400 hover:text-white"
+            className="flex items-center justify-center rounded-2xl border border-app-border bg-app-surface px-3 py-2 text-txt-secondary hover:border-accent hover:text-txt-primary"
           >
             <PaperClipIcon className="h-4 w-4" />
             <span className="ml-2 text-xs uppercase tracking-wide">{t('chat.input.attachButton')}</span>
@@ -157,7 +157,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
             aria-label="Nachricht senden"
             onClick={onSend}
             disabled={disabled || (!value.trim() && attachments.length === 0)}
-            className="flex items-center justify-center rounded-2xl bg-sky-600 px-4 py-3 text-sm font-semibold text-white hover:bg-sky-500 disabled:cursor-not-allowed disabled:bg-slate-600"
+            className="flex items-center justify-center rounded-2xl bg-accent px-4 py-3 text-sm font-semibold text-txt-primary hover:bg-accent/80 disabled:cursor-not-allowed disabled:bg-app-border"
           >
             <SendIcon className="h-4 w-4" />
           </button>

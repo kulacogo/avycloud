@@ -109,14 +109,23 @@ export const ScannerOverlay: React.FC<ScannerOverlayProps> = ({
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center px-4">
-      <div className="bg-slate-900 rounded-2xl border border-white/10 w-full max-w-lg">
-        <div className="flex items-center justify-between px-5 py-3 border-b border-white/10">
-          <h3 className="text-white font-semibold">{title}</h3>
+    <div
+      className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center px-4"
+      role="dialog"
+      aria-modal="true"
+      aria-label={title}
+      onKeyDown={(e) => { if (e.key === "Escape") { e.preventDefault(); onClose(); } }}
+      tabIndex={-1}
+      ref={(el) => el?.focus()}
+    >
+      <div className="bg-app-bg rounded-2xl border border-app-border w-full max-w-lg">
+        <div className="flex items-center justify-between px-5 py-3 border-b border-app-border">
+          <h3 className="text-txt-primary font-semibold">{title}</h3>
           <button
             type="button"
             onClick={onClose}
-            className="text-slate-300 hover:text-white text-sm px-3 py-1 border border-white/10 rounded-full"
+            aria-label="Scanner schließen"
+            className="text-txt-secondary hover:text-txt-primary text-sm px-3 py-1 border border-app-border rounded-full"
           >
             Schließen
           </button>
@@ -125,24 +134,24 @@ export const ScannerOverlay: React.FC<ScannerOverlayProps> = ({
           {isSupported ? (
             <div className="relative bg-black rounded-xl overflow-hidden min-h-[240px]">
               <video ref={videoRef} className="w-full h-full object-cover" muted playsInline />
-              <div className="absolute inset-0 border-2 border-sky-500/70 rounded-xl pointer-events-none" />
+              <div className="absolute inset-0 border-2 border-accent/70 rounded-xl pointer-events-none" />
             </div>
           ) : (
             <div className="space-y-4">
-              <div className="relative bg-slate-900 rounded-xl overflow-hidden min-h-[260px] flex items-center justify-center">
+              <div className="relative bg-app-bg rounded-xl overflow-hidden min-h-[260px] flex items-center justify-center">
                 <div id={html5Id} className="w-full h-full" />
                 {html5Status === 'starting' && (
-                  <div className="absolute inset-0 flex items-center justify-center text-slate-300 text-sm bg-slate-900/80">
+                  <div className="absolute inset-0 flex items-center justify-center text-txt-secondary text-sm bg-app-bg/80">
                     Kamera wird initialisiert …
                   </div>
                 )}
                 {html5Status === 'error' && (
-                  <div className="absolute inset-0 flex items-center justify-center text-rose-300 text-sm bg-slate-900/80 px-4 text-center">
+                  <div className="absolute inset-0 flex items-center justify-center text-danger text-sm bg-app-bg/80 px-4 text-center">
                     {html5Error || 'Scanner nicht verfügbar.'}
                   </div>
                 )}
               </div>
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-txt-muted">
                 {html5Status === 'active'
                   ? 'Richte den Code auf den Rahmen aus, er wird automatisch übernommen.'
                   : 'Falls der Live-Scanner nicht startet, kannst du alternativ ein Foto aufnehmen.'}
@@ -151,18 +160,18 @@ export const ScannerOverlay: React.FC<ScannerOverlayProps> = ({
                 <button
                   type="button"
                   onClick={onFallbackCapture}
-                  className="px-4 py-2 rounded-xl bg-sky-600 text-white font-semibold hover:bg-sky-500 disabled:opacity-60"
+                  className="px-4 py-2 rounded-xl bg-accent text-txt-primary font-semibold hover:bg-accent/80 disabled:opacity-60"
                   disabled={fallbackBusy}
                 >
                   {fallbackBusy ? 'Bild wird ausgewertet …' : 'Foto aufnehmen'}
                 </button>
               )}
-              {fallbackHint && <p className="text-xs text-slate-400">{fallbackHint}</p>}
+              {fallbackHint && <p className="text-xs text-txt-muted">{fallbackHint}</p>}
             </div>
           )}
-          {error && <p className="text-rose-300 text-sm">{error}</p>}
+          {error && <p className="text-danger text-sm">{error}</p>}
           {isSupported && (
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-txt-muted">
               {isScanning ? 'Scanner aktiv … bitte Code zentrieren.' : 'Scanner wird gestartet …'}
             </p>
           )}

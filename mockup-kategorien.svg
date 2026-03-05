@@ -1,0 +1,255 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1024" viewBox="0 0 1440 1024">
+<defs>
+<style>
+text { font-family: 'Inter', -apple-system, sans-serif; }
+.page-bg { fill: #1a1d23; }
+.sidebar { fill: #15171c; }
+.surface { fill: #21242b; }
+.elevated { fill: #282c34; }
+.border { stroke: #2a2d35; stroke-width: 1; fill: none; }
+.text-primary { fill: #ebeef5; font-size: 14px; }
+.text-secondary { fill: #7a8090; font-size: 12px; }
+.text-muted { fill: #8a8f9e; font-size: 12px; }
+.accent { fill: #7c75ff; }
+.accent-text { fill: #7c75ff; }
+.success { fill: #34d399; }
+.warning { fill: #fbbf24; }
+.nav-active-bg { fill: rgba(124, 117, 255, 0.10); }
+.nav-active-text { fill: #7c75ff; font-weight: 600; }
+.nav-inactive-text { fill: #8a8f9e; font-weight: 500; }
+.heading-lg { font-size: 28px; font-weight: 600; fill: #ebeef5; }
+.heading-sm { font-size: 14px; font-weight: 600; fill: #ebeef5; }
+.heading-xs { font-size: 12px; font-weight: 600; fill: #ebeef5; }
+.label { font-size: 12px; font-weight: 500; fill: #7a8090; }
+.placeholder-text { fill: #5a6370; font-size: 13px; }
+</style>
+</defs>
+
+<!-- Page Background -->
+<rect class="page-bg" width="1440" height="1024"/>
+
+<!-- Sidebar -->
+<rect class="sidebar" width="220" height="1024"/>
+<line x1="220" y1="0" x2="220" y2="1024" class="border"/>
+
+<!-- Sidebar Logo -->
+<text x="20" y="35" class="heading-sm">AvyCloud</text>
+
+<!-- Navigation -->
+<!-- Dashboard -->
+<g>
+  <g transform="translate(30, 96)">
+    <rect x="0" y="0" width="18" height="18" rx="2" fill="none" stroke="#8a8f9e" stroke-width="1.5"/>
+    <rect x="3" y="3" width="3" height="3" fill="#8a8f9e"/>
+    <rect x="9" y="3" width="3" height="3" fill="#8a8f9e"/>
+    <rect x="3" y="9" width="3" height="3" fill="#8a8f9e"/>
+    <rect x="9" y="9" width="3" height="3" fill="#8a8f9e"/>
+  </g>
+  <text x="56" y="112" class="nav-inactive-text">Dashboard</text>
+</g>
+
+<!-- Erfassen -->
+<g>
+  <g transform="translate(30, 132)">
+    <rect x="0" y="0" width="18" height="18" rx="1" stroke="#8a8f9e" stroke-width="1.5" fill="none"/>
+    <line x1="4" y1="9" x2="14" y2="9" stroke="#8a8f9e" stroke-width="1"/>
+    <line x1="9" y1="4" x2="9" y2="14" stroke="#8a8f9e" stroke-width="1"/>
+  </g>
+  <text x="56" y="148" class="nav-inactive-text">Erfassen</text>
+</g>
+
+<!-- Produkte -->
+<g>
+  <g transform="translate(30, 168)">
+    <rect x="0" y="0" width="16" height="18" rx="1" fill="none" stroke="#8a8f9e" stroke-width="1.5"/>
+    <line x1="2" y1="6" x2="14" y2="6" stroke="#8a8f9e" stroke-width="1"/>
+    <line x1="2" y1="10" x2="14" y2="10" stroke="#8a8f9e" stroke-width="1"/>
+    <line x1="2" y1="14" x2="10" y2="14" stroke="#8a8f9e" stroke-width="1"/>
+  </g>
+  <text x="56" y="184" class="nav-inactive-text">Produkte</text>
+</g>
+
+<!-- Bestand -->
+<g>
+  <g transform="translate(30, 204)">
+    <rect x="0" y="0" width="18" height="14" rx="1" fill="none" stroke="#8a8f9e" stroke-width="1.5"/>
+    <rect x="0" y="5" width="5" height="9" fill="#8a8f9e"/>
+    <rect x="6.5" y="5" width="5" height="9" fill="#8a8f9e"/>
+    <rect x="13" y="5" width="5" height="9" fill="#8a8f9e"/>
+  </g>
+  <text x="56" y="220" class="nav-inactive-text">Bestand</text>
+  <circle cx="170" cy="210" r="10" class="warning"/>
+  <text x="166" y="216" style="font-size: 11px; font-weight: 600; fill: #1a1d23;">18</text>
+</g>
+
+<!-- Lager -->
+<g>
+  <g transform="translate(30, 240)">
+    <rect x="1" y="4" width="16" height="14" rx="1" fill="none" stroke="#8a8f9e" stroke-width="1.5"/>
+    <line x1="6" y1="4" x2="6" y2="18" stroke="#8a8f9e" stroke-width="1"/>
+    <line x1="11" y1="4" x2="11" y2="18" stroke="#8a8f9e" stroke-width="1"/>
+  </g>
+  <text x="56" y="256" class="nav-inactive-text">Lager</text>
+</g>
+
+<!-- Kategorien (active) -->
+<g>
+  <rect x="20" y="270" width="180" height="36" rx="6" class="nav-active-bg"/>
+  <g transform="translate(30, 276)">
+    <rect x="0" y="2" width="7" height="7" rx="1" fill="none" stroke="#7c75ff" stroke-width="1.5"/>
+    <rect x="11" y="2" width="7" height="7" rx="1" fill="none" stroke="#7c75ff" stroke-width="1.5"/>
+    <rect x="0" y="11" width="7" height="7" rx="1" fill="none" stroke="#7c75ff" stroke-width="1.5"/>
+    <rect x="11" y="11" width="7" height="7" rx="1" fill="none" stroke="#7c75ff" stroke-width="1.5"/>
+  </g>
+  <text x="56" y="292" class="nav-active-text">Kategorien</text>
+</g>
+
+<!-- Admin -->
+<g>
+  <g transform="translate(30, 312)">
+    <polygon points="9,0 18,4.5 18,13.5 9,18 0,13.5 0,4.5" fill="none" stroke="#8a8f9e" stroke-width="1.5"/>
+  </g>
+  <text x="56" y="328" class="nav-inactive-text">Admin</text>
+</g>
+
+<!-- Theme Toggle -->
+<g>
+  <circle cx="35" cy="952" r="6" fill="none" stroke="#7a8090" stroke-width="1.5"/>
+  <circle cx="55" cy="952" r="6" fill="none" stroke="#7a8090" stroke-width="1.5"/>
+  <circle cx="50" cy="952" r="5" fill="#7a8090"/>
+</g>
+
+<!-- User Profile -->
+<circle cx="30" cy="992" r="12" fill="#7c75ff"/>
+<text x="48" y="996" style="font-size: 12px; font-weight: 600; fill: #ebeef5;">OK</text>
+<text x="48" y="1008" style="font-size: 11px; fill: #7a8090;">Oguzhan K.</text>
+
+<!-- Top Bar -->
+<rect x="220" y="0" width="1220" height="56" class="surface"/>
+<line x1="220" y1="56" x2="1440" y2="56" class="border"/>
+
+<!-- Breadcrumb -->
+<text x="240" y="32" style="font-size: 13px; fill: #7a8090;">AvyCloud</text>
+<text x="280" y="32" style="font-size: 13px; fill: #7a8090;">›</text>
+<text x="295" y="32" style="font-size: 13px; fill: #ebeef5; font-weight: 500;">Kategorien</text>
+
+<!-- Search Bar -->
+<rect x="980" y="12" width="200" height="32" rx="6" class="elevated" class="border"/>
+<text x="995" y="33" class="text-muted">Suchen...</text>
+
+<!-- Main Content -->
+<!-- Page Title -->
+<text x="244" y="130" class="heading-lg">Kategorien verwalten</text>
+<text x="244" y="152" style="font-size: 13px; fill: #7a8090;">eBay-Kategorie-Profile für optimale Listings</text>
+
+<!-- Left Panel: Category Search & List (40%) -->
+<rect x="244" y="180" width="520" height="780" class="elevated" class="border" rx="8"/>
+
+<!-- Search Input -->
+<rect x="264" y="200" width="480" height="36" rx="6" class="surface" class="border"/>
+<text x="280" y="226" class="placeholder-text">Kategorie suchen...</text>
+
+<!-- Search Icon -->
+<g transform="translate(755, 213)">
+  <circle cx="0" cy="0" r="6" fill="none" stroke="#7a8090" stroke-width="1"/>
+  <line x1="4" y1="4" x2="7" y2="7" stroke="#7a8090" stroke-width="1"/>
+</g>
+
+<!-- Category Results -->
+<!-- Result 1 -->
+<g>
+  <rect x="264" y="256" width="480" height="50" rx="6" class="surface" class="border"/>
+  <text x="280" y="275" style="font-size: 12px; fill: #ebeef5;">Elektronik › Handys › Smartphones</text>
+  <text x="280" y="293" style="font-size: 11px; fill: #7a8090;">47 Produkte</text>
+  <!-- Toggle -->
+  <rect x="730" y="273" width="36" height="20" rx="10" fill="#34d399"/>
+  <circle cx="745" cy="283" r="8" fill="#1a1d23"/>
+</g>
+
+<!-- Result 2 -->
+<g>
+  <rect x="264" y="320" width="480" height="50" rx="6" class="surface" class="border"/>
+  <text x="280" y="339" style="font-size: 12px; fill: #ebeef5;">Elektronik › Tablets › iPad</text>
+  <text x="280" y="357" style="font-size: 11px; fill: #7a8090;">23 Produkte</text>
+  <!-- Toggle -->
+  <rect x="730" y="337" width="36" height="20" rx="10" fill="rgba(124, 117, 255, 0.3)"/>
+  <circle cx="738" cy="347" r="8" fill="#1a1d23"/>
+</g>
+
+<!-- Result 3 -->
+<g>
+  <rect x="264" y="384" width="480" height="50" rx="6" class="surface" class="border"/>
+  <text x="280" y="403" style="font-size: 12px; fill: #ebeef5;">Elektronik › Zubehör › Ladegeräte</text>
+  <text x="280" y="421" style="font-size: 11px; fill: #7a8090;">156 Produkte</text>
+  <!-- Toggle -->
+  <rect x="730" y="401" width="36" height="20" rx="10" fill="rgba(124, 117, 255, 0.3)"/>
+  <circle cx="738" cy="411" r="8" fill="#1a1d23"/>
+</g>
+
+<!-- Result 4 -->
+<g>
+  <rect x="264" y="448" width="480" height="50" rx="6" class="surface" class="border"/>
+  <text x="280" y="467" style="font-size: 12px; fill: #ebeef5;">Fashion › Damen › Bekleidung › Jacken</text>
+  <text x="280" y="485" style="font-size: 11px; fill: #7a8090;">89 Produkte</text>
+  <!-- Toggle -->
+  <rect x="730" y="465" width="36" height="20" rx="10" fill="rgba(124, 117, 255, 0.3)"/>
+  <circle cx="738" cy="475" r="8" fill="#1a1d23"/>
+</g>
+
+<!-- Result 5 -->
+<g>
+  <rect x="264" y="512" width="480" height="50" rx="6" class="surface" class="border"/>
+  <text x="280" y="531" style="font-size: 12px; fill: #ebeef5;">Möbel › Wohnzimmer › Sofas › Ecksofa</text>
+  <text x="280" y="549" style="font-size: 11px; fill: #7a8090;">34 Produkte</text>
+  <!-- Toggle -->
+  <rect x="730" y="529" width="36" height="20" rx="10" fill="rgba(124, 117, 255, 0.3)"/>
+  <circle cx="738" cy="539" r="8" fill="#1a1d23"/>
+</g>
+
+<!-- Right Panel: Category Details (60%) -->
+<rect x="784" y="180" width="632" height="780" class="elevated" class="border" rx="8"/>
+
+<!-- Category Header -->
+<text x="804" y="210" class="heading-sm">Elektronik › Handys & Smartphones</text>
+
+<!-- Active Toggle -->
+<g>
+  <text x="804" y="250" style="font-size: 12px; font-weight: 600; fill: #ebeef5;">Aktiv</text>
+  <rect x="840" y="240" width="36" height="20" rx="10" fill="#34d399"/>
+  <circle cx="855" cy="250" r="8" fill="#1a1d23"/>
+</g>
+
+<!-- Kanonische Attribute -->
+<g>
+  <text x="804" y="290" class="heading-xs">Kanonische Attribute</text>
+  <rect x="804" y="305" width="596" height="120" rx="6" class="surface" class="border"/>
+  <text x="820" y="360" class="placeholder-text">{
+  "brand": "Samsung",
+  "model": "Galaxy S24 Ultra",
+  "memory": "256GB",
+  "condition": "Neu",
+  "color": "Titanium Black"
+}</text>
+</g>
+
+<!-- Attribut-Aliase -->
+<g>
+  <text x="804" y="460" class="heading-xs">Attribut-Aliase</text>
+  <rect x="804" y="475" width="596" height="100" rx="6" class="surface" class="border"/>
+  <text x="820" y="520" class="placeholder-text">"SKU" → "Hersteller-SKU"
+"UPC" → "Barcode"
+"Zustand" → "Condition"</text>
+</g>
+
+<!-- Notizen -->
+<g>
+  <text x="804" y="610" class="heading-xs">Notizen</text>
+  <rect x="804" y="625" width="596" height="90" rx="6" class="surface" class="border"/>
+  <text x="820" y="670" class="placeholder-text">Hochwertige Elektronik. Immer Originalbilder mit Verpackung verwenden. Shipping zeit beachten.</text>
+</g>
+
+<!-- Speichern Button -->
+<rect x="804" y="735" width="596" height="40" rx="6" class="accent"/>
+<text x="1102" y="762" style="font-size: 14px; font-weight: 600; fill: #1a1d23; text-anchor: middle;">Speichern</text>
+
+</svg>

@@ -70,13 +70,13 @@ export const InventoryDrilldownPanel: React.FC<{
   }, [products, idSet, q]);
 
   return (
-    <div className="rounded-2xl bg-slate-900/60 p-4 border border-white/10">
+    <div className="rounded-2xl bg-app-bg/60 p-4 border border-app-border">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <div className="text-sm font-semibold text-slate-100">{title}</div>
-          <div className="text-xs text-slate-400">
-            Treffer: <span className="text-slate-200">{filtered.length}</span> /{' '}
-            <span className="text-slate-200">{ids.length}</span>
+          <div className="text-sm font-semibold text-txt-primary">{title}</div>
+          <div className="text-xs text-txt-muted">
+            Treffer: <span className="text-txt-secondary">{filtered.length}</span> /{' '}
+            <span className="text-txt-secondary">{ids.length}</span>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -84,12 +84,12 @@ export const InventoryDrilldownPanel: React.FC<{
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="Suchen (Name, Marke, SKU, Kategorie)…"
-            className="w-56 rounded-xl bg-slate-800/40 px-3 py-2 text-xs text-slate-100 border border-white/10 placeholder:text-slate-500"
+            className="w-56 rounded-xl bg-app-surface px-3 py-2 text-xs text-txt-primary border border-app-border placeholder:text-txt-muted"
           />
           <button
             type="button"
             onClick={onClose}
-            className="rounded-xl bg-slate-800/40 px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-700/60 border border-white/10"
+            className="rounded-xl bg-app-surface px-3 py-2 text-xs font-semibold text-txt-secondary hover:bg-app-elevated/60 border border-app-border"
             title="Schließen"
           >
             ✕
@@ -97,9 +97,9 @@ export const InventoryDrilldownPanel: React.FC<{
         </div>
       </div>
 
-      <div className="mt-3 overflow-auto rounded-xl border border-white/10">
+      <div className="mt-3 overflow-auto rounded-xl border border-app-border">
         <table className="min-w-full text-left text-xs">
-          <thead className="bg-slate-900/60 text-slate-300">
+          <thead className="bg-app-bg/60 text-txt-secondary">
             <tr>
               <th className="px-3 py-2 font-semibold">Produkt</th>
               <th className="px-3 py-2 font-semibold">SKU</th>
@@ -109,28 +109,28 @@ export const InventoryDrilldownPanel: React.FC<{
               <th className="px-3 py-2 font-semibold">K‑Typ</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-800/60 bg-slate-950/20">
+          <tbody className="divide-y divide-slate-800/60 bg-app-bg/20">
             {filtered.map((p) => {
               const price = pickPrice(p);
               const gpsr = gpsrFilledNoPlaceholder(p);
               return (
                 <tr
                   key={p.id}
-                  className="cursor-pointer hover:bg-slate-900/40"
+                  className="cursor-pointer hover:bg-app-bg/40"
                   onClick={() => onOpenProductInNewTab(p.id)}
                   title="Produktdetails in neuem Tab öffnen"
                 >
                   <td className="px-3 py-2">
-                    <div className="font-semibold text-slate-100">{safe(p?.identification?.name) || '—'}</div>
-                    <div className="text-[11px] text-slate-400">{safe(p?.identification?.brand) || '—'}</div>
+                    <div className="font-semibold text-txt-primary">{safe(p?.identification?.name) || '—'}</div>
+                    <div className="text-[11px] text-txt-muted">{safe(p?.identification?.brand) || '—'}</div>
                   </td>
-                  <td className="px-3 py-2 font-mono text-slate-200">{pickSku(p) || '—'}</td>
-                  <td className="px-3 py-2 text-slate-300">{safe(getProductDisplayCategory(p)) || '—'}</td>
-                  <td className="px-3 py-2 text-slate-300">{price == null ? '—' : `${price.toFixed(2)} €`}</td>
+                  <td className="px-3 py-2 font-mono text-txt-secondary">{pickSku(p) || '—'}</td>
+                  <td className="px-3 py-2 text-txt-secondary">{safe(getProductDisplayCategory(p)) || '—'}</td>
+                  <td className="px-3 py-2 text-txt-secondary">{price == null ? '—' : `${price.toFixed(2)} €`}</td>
                   <td className="px-3 py-2">
                     <span
                       className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ${
-                        gpsr === 8 ? 'bg-emerald-500/15 text-emerald-300' : 'bg-amber-500/15 text-amber-200'
+                        gpsr === 8 ? 'bg-success-dim text-success' : 'bg-amber-500/15 text-amber-200'
                       }`}
                     >
                       {gpsr}/8
@@ -139,7 +139,7 @@ export const InventoryDrilldownPanel: React.FC<{
                   <td className="px-3 py-2">
                     <span
                       className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ${
-                        hasKtyp(p) ? 'bg-emerald-500/15 text-emerald-300' : 'bg-slate-700/60 text-slate-300'
+                        hasKtyp(p) ? 'bg-success-dim text-success' : 'bg-app-elevated/60 text-txt-secondary'
                       }`}
                     >
                       {hasKtyp(p) ? 'set' : '—'}
@@ -150,7 +150,7 @@ export const InventoryDrilldownPanel: React.FC<{
             })}
             {filtered.length === 0 ? (
               <tr>
-                <td className="px-3 py-6 text-center text-slate-500" colSpan={6}>
+                <td className="px-3 py-6 text-center text-txt-muted" colSpan={6}>
                   Keine Treffer. Tipp: Suche nach SKU oder Marke.
                 </td>
               </tr>
@@ -159,7 +159,7 @@ export const InventoryDrilldownPanel: React.FC<{
         </table>
       </div>
 
-      <div className="mt-2 text-[11px] text-slate-500">
+      <div className="mt-2 text-[11px] text-txt-muted">
         Tipp: Klick auf eine Zeile öffnet das Produkt in einem neuen Tab. Die Liste aktualisiert sich automatisch, wenn du oben einen anderen KPI auswählst.
       </div>
     </div>

@@ -1,0 +1,276 @@
+<svg width="1440" height="1024" viewBox="0 0 1440 1024" xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    text { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+  </style>
+</defs>
+
+<!-- Page Background -->
+<rect width="1440" height="1024" fill="#1a1d23"/>
+
+<!-- ===== SIDEBAR ===== -->
+<rect x="0" y="0" width="220" height="1024" fill="#15171c"/>
+<line x1="220" y1="0" x2="220" y2="1024" stroke="#2a2d35" stroke-width="1"/>
+
+<!-- Logo -->
+<rect x="16" y="16" width="36" height="36" rx="10" fill="#7c75ff"/>
+<text x="58" y="40" fill="#ebeef5" font-size="16" font-weight="700">AvyCloud</text>
+
+<!-- Nav Section Label -->
+<text x="16" y="80" fill="#7a8090" font-size="10" font-weight="600" letter-spacing="0.5">NAVIGATION</text>
+
+<!-- Nav: Dashboard (INACTIVE) -->
+<g>
+  <circle cx="24" cy="98" r="4" fill="none" stroke="#8a8f9e" stroke-width="1.5"/>
+  <path d="M24 94 L28 94 L28 105 L20 105 L20 99" fill="none" stroke="#8a8f9e" stroke-width="1.5"/>
+  <text x="44" y="103" fill="#8a8f9e" font-size="12" font-weight="500">Dashboard</text>
+</g>
+
+<!-- Nav: Identify (INACTIVE) -->
+<g>
+  <path d="M24 138 C20 138 20 142 20 142 L20 152 C20 152 20 156 24 156 L28 156 C32 156 32 152 32 152 L32 142 C32 142 32 138 28 138 Z" fill="none" stroke="#8a8f9e" stroke-width="1.5"/>
+  <line x1="24" y1="145" x2="28" y2="145" stroke="#8a8f9e" stroke-width="1.5"/>
+  <text x="44" y="153" fill="#8a8f9e" font-size="12" font-weight="500">Identify</text>
+</g>
+
+<!-- Nav: Inventory (ACTIVE) -->
+<rect x="8" y="162" width="204" height="36" rx="8" fill="rgba(124,117,255,0.10)"/>
+<g>
+  <rect x="20" y="170" width="8" height="3" fill="#7c75ff"/>
+  <rect x="20" y="176" width="8" height="3" fill="#7c75ff"/>
+  <rect x="20" y="182" width="8" height="3" fill="#7c75ff"/>
+  <rect x="28" y="170" width="2" height="2" fill="#7c75ff"/>
+  <text x="44" y="185" fill="#7c75ff" font-size="12" font-weight="600">Inventory</text>
+  <!-- Badge -->
+  <rect x="152" y="172" width="20" height="16" rx="4" fill="#f87171"/>
+  <text x="157" y="183" fill="#fff" font-size="10" font-weight="600">18</text>
+</g>
+
+<!-- Nav: Products (INACTIVE) -->
+<g>
+  <rect x="20" y="202" width="8" height="10" rx="1" fill="none" stroke="#8a8f9e" stroke-width="1.5"/>
+  <rect x="22" y="204" width="4" height="6" fill="none" stroke="#8a8f9e" stroke-width="1.5"/>
+  <text x="44" y="217" fill="#8a8f9e" font-size="12" font-weight="500">Products</text>
+  <!-- Badge -->
+  <rect x="152" y="204" width="28" height="16" rx="4" fill="#7a8090"/>
+  <text x="158" y="215" fill="#fff" font-size="10" font-weight="600">784</text>
+</g>
+
+<!-- Nav: Categories (INACTIVE) -->
+<g>
+  <rect x="20" y="234" width="8" height="8" rx="1" fill="none" stroke="#8a8f9e" stroke-width="1.5"/>
+  <rect x="28" y="234" width="8" height="8" rx="1" fill="none" stroke="#8a8f9e" stroke-width="1.5"/>
+  <rect x="20" y="242" width="8" height="8" rx="1" fill="none" stroke="#8a8f9e" stroke-width="1.5"/>
+  <rect x="28" y="242" width="8" height="8" rx="1" fill="none" stroke="#8a8f9e" stroke-width="1.5"/>
+  <text x="44" y="249" fill="#8a8f9e" font-size="12" font-weight="500">Categories</text>
+</g>
+
+<!-- Nav: Warehouse (INACTIVE) -->
+<g>
+  <rect x="20" y="266" width="12" height="10" rx="1" fill="none" stroke="#8a8f9e" stroke-width="1.5"/>
+  <line x1="24" y1="266" x2="24" y2="276" stroke="#8a8f9e" stroke-width="1.5"/>
+  <line x1="28" y1="266" x2="28" y2="276" stroke="#8a8f9e" stroke-width="1.5"/>
+  <text x="44" y="281" fill="#8a8f9e" font-size="12" font-weight="500">Warehouse</text>
+</g>
+
+<!-- Nav: Admin (INACTIVE) -->
+<g>
+  <circle cx="24" cy="298" r="3" fill="none" stroke="#8a8f9e" stroke-width="1.5"/>
+  <path d="M20 308 L28 308 L28 306 C28 303.8 26.2 302 24 302 C21.8 302 20 303.8 20 306 Z" fill="none" stroke="#8a8f9e" stroke-width="1.5"/>
+  <text x="44" y="313" fill="#8a8f9e" font-size="12" font-weight="500">Admin</text>
+</g>
+
+<!-- Dark/Light toggle -->
+<rect x="16" y="944" width="188" height="28" rx="8" fill="#282c34"/>
+<rect x="16" y="944" width="94" height="28" rx="8" fill="#7c75ff"/>
+<text x="38" y="963" fill="#fff" font-size="10" font-weight="600">Dark</text>
+<text x="132" y="963" fill="#7a8090" font-size="10" font-weight="500">Light</text>
+
+<!-- User Avatar -->
+<circle cx="32" cy="992" r="16" fill="#7c75ff"/>
+<text x="25" y="997" fill="#fff" font-size="11" font-weight="700">OK</text>
+<text x="56" y="988" fill="#ebeef5" font-size="12" font-weight="600">Oguzhan K.</text>
+<text x="56" y="1004" fill="#7a8090" font-size="10">Administrator</text>
+
+<!-- ===== TOP BAR ===== -->
+<rect x="220" y="0" width="1220" height="56" fill="#21242b" border-bottom="1px solid #2a2d35"/>
+<line x1="220" y1="56" x2="1440" y2="56" stroke="#2a2d35" stroke-width="1"/>
+
+<!-- Breadcrumb -->
+<text x="240" y="30" fill="#7a8090" font-size="12">AvyCloud</text>
+<text x="264" y="30" fill="#7a8090" font-size="12">›</text>
+<text x="280" y="30" fill="#ebeef5" font-size="12" font-weight="500">Inventory</text>
+
+<!-- Search Bar -->
+<rect x="920" y="12" width="200" height="32" rx="8" fill="#282c34" stroke="#2a2d35" stroke-width="1"/>
+<text x="935" y="32" fill="#7a8090" font-size="12">Search products...</text>
+
+<!-- Top Bar Icons -->
+<circle cx="1340" cy="28" r="14" fill="#282c34"/>
+<text x="1336" y="32" fill="#ebeef5" font-size="14">👤</text>
+
+<!-- ===== MAIN CONTENT AREA ===== -->
+
+<!-- Page Title & Subtitle -->
+<text x="240" y="90" fill="#ebeef5" font-size="28" font-weight="700">Inventory</text>
+<text x="240" y="115" fill="#7a8090" font-size="13">Bestandsübersicht und Lagerverwaltung</text>
+
+<!-- Stat Cards Row -->
+<g font-size="11" font-weight="600">
+  <!-- Card 1: Im Bestand -->
+  <rect x="240" y="130" width="240" height="80" rx="8" fill="#282c34" stroke="#2a2d35" stroke-width="1"/>
+  <text x="260" y="150" fill="#7a8090" font-size="10" font-weight="600">IM BESTAND</text>
+  <text x="260" y="185" fill="#ebeef5" font-size="28" font-weight="700">784</text>
+  <text x="260" y="205" fill="#7a8090" font-size="10">Einzigartiger Artikel</text>
+
+  <!-- Card 2: Einheiten gesamt -->
+  <rect x="500" y="130" width="240" height="80" rx="8" fill="#282c34" stroke="#2a2d35" stroke-width="1"/>
+  <text x="520" y="150" fill="#7a8090" font-size="10" font-weight="600">EINHEITEN GESAMT</text>
+  <text x="520" y="185" fill="#ebeef5" font-size="28" font-weight="700">2.847</text>
+  <text x="520" y="205" fill="#7a8090" font-size="10">Gesamte Menge</text>
+
+  <!-- Card 3: Bestandswert -->
+  <rect x="760" y="130" width="240" height="80" rx="8" fill="#282c34" stroke="#2a2d35" stroke-width="1"/>
+  <text x="780" y="150" fill="#7a8090" font-size="10" font-weight="600">BESTANDSWERT</text>
+  <text x="780" y="185" fill="#ebeef5" font-size="28" font-weight="700">€124.580</text>
+  <text x="780" y="205" fill="#7a8090" font-size="10">Geschätzter Wert</text>
+
+  <!-- Card 4: Nachbestellung nötig -->
+  <rect x="1020" y="130" width="240" height="80" rx="8" fill="#282c34" stroke="#2a2d35" stroke-width="1"/>
+  <text x="1040" y="150" fill="#7a8090" font-size="10" font-weight="600">NACHBESTELLUNG</text>
+  <text x="1040" y="185" fill="#ebeef5" font-size="28" font-weight="700">18</text>
+  <rect x="1040" y="192" width="40" height="16" rx="3" fill="#f87171"/>
+  <text x="1050" y="202" fill="#fff" font-size="9" font-weight="600">Kritisch</text>
+</g>
+
+<!-- Filter Bar -->
+<g>
+  <!-- Search -->
+  <rect x="240" y="230" width="280" height="36" rx="8" fill="#282c34" stroke="#2a2d35" stroke-width="1"/>
+  <text x="255" y="252" fill="#7a8090" font-size="12">Search products...</text>
+
+  <!-- Category Filter -->
+  <rect x="540" y="230" width="160" height="36" rx="8" fill="#282c34" stroke="#2a2d35" stroke-width="1"/>
+  <text x="555" y="252" fill="#ebeef5" font-size="12" font-weight="500">Alle Kategorien ▼</text>
+
+  <!-- Stock Level Filter -->
+  <rect x="720" y="230" width="160" height="36" rx="8" fill="#282c34" stroke="#2a2d35" stroke-width="1"/>
+  <text x="735" y="252" fill="#ebeef5" font-size="12" font-weight="500">Alle Bestände ▼</text>
+</g>
+
+<!-- Table Header -->
+<g fill="#7a8090" font-size="11" font-weight="600">
+  <text x="240" y="300">Produkt</text>
+  <text x="500" y="300">SKU</text>
+  <text x="600" y="300">EAN</text>
+  <text x="700" y="300">Bestand</text>
+  <text x="850" y="300">Lagerplatz</text>
+  <text x="980" y="300">Prognose</text>
+  <text x="1100" y="300">Nachbestellung</text>
+</g>
+
+<!-- Table Row 1 -->
+<g>
+  <rect x="240" y="315" width="1100" height="50" rx="4" fill="#282c34" stroke="#2a2d35" stroke-width="1"/>
+  <text x="240" y="335" fill="#ebeef5" font-size="12" font-weight="600">Samsung Galaxy S24 Ultra</text>
+  <text x="240" y="352" fill="#7a8090" font-size="10">Samsung</text>
+
+  <text x="500" y="345" fill="#ebeef5" font-size="11">SKU-20834</text>
+
+  <text x="600" y="345" fill="#7a8090" font-size="11">8806095625219</text>
+
+  <!-- Stock Bar -->
+  <rect x="700" y="335" width="80" height="8" rx="2" fill="#282c34" stroke="#2a2d35" stroke-width="1"/>
+  <rect x="700" y="335" width="56" height="8" rx="2" fill="#34d399"/>
+  <text x="795" y="345" fill="#ebeef5" font-size="11">17</text>
+
+  <text x="850" y="345" fill="#7a8090" font-size="11">M-02-A-3</text>
+
+  <text x="980" y="345" fill="#ebeef5" font-size="11">~45 Tage</text>
+
+  <rect x="1100" y="333" width="70" height="20" rx="4" fill="rgba(52,211,153,0.15)"/>
+  <text x="1110" y="348" fill="#34d399" font-size="10" font-weight="600">Ausreichend</text>
+</g>
+
+<!-- Table Row 2 -->
+<g>
+  <rect x="240" y="375" width="1100" height="50" rx="4" fill="#282c34" stroke="#2a2d35" stroke-width="1"/>
+  <text x="240" y="395" fill="#ebeef5" font-size="12" font-weight="600">Nike Air Max 90</text>
+  <text x="240" y="412" fill="#7a8090" font-size="10">Nike</text>
+
+  <text x="500" y="405" fill="#ebeef5" font-size="11">SKU-21045</text>
+  <text x="600" y="405" fill="#7a8090" font-size="11">194271426459</text>
+
+  <rect x="700" y="395" width="80" height="8" rx="2" fill="#282c34" stroke="#2a2d35" stroke-width="1"/>
+  <rect x="700" y="395" width="72" height="8" rx="2" fill="#34d399"/>
+  <text x="795" y="405" fill="#ebeef5" font-size="11">45</text>
+
+  <text x="850" y="405" fill="#7a8090" font-size="11">L-03-B-2</text>
+  <text x="980" y="405" fill="#ebeef5" font-size="11">~120 Tage</text>
+
+  <rect x="1100" y="393" width="70" height="20" rx="4" fill="rgba(52,211,153,0.15)"/>
+  <text x="1110" y="408" fill="#34d399" font-size="10" font-weight="600">Ausreichend</text>
+</g>
+
+<!-- Table Row 3 -->
+<g>
+  <rect x="240" y="435" width="1100" height="50" rx="4" fill="#282c34" stroke="#2a2d35" stroke-width="1"/>
+  <text x="240" y="455" fill="#ebeef5" font-size="12" font-weight="600">Bosch GSB 21-2 RE Bohrmaschine</text>
+  <text x="240" y="472" fill="#7a8090" font-size="10">Bosch</text>
+
+  <text x="500" y="465" fill="#ebeef5" font-size="11">SKU-19234</text>
+  <text x="600" y="465" fill="#7a8090" font-size="11">3165140619327</text>
+
+  <rect x="700" y="455" width="80" height="8" rx="2" fill="#282c34" stroke="#2a2d35" stroke-width="1"/>
+  <rect x="700" y="455" width="36" height="8" rx="2" fill="#fbbf24"/>
+  <text x="795" y="465" fill="#ebeef5" font-size="11">8</text>
+
+  <text x="850" y="465" fill="#7a8090" font-size="11">S-01-C-1</text>
+  <text x="980" y="465" fill="#fbbf24" font-size="11" font-weight="600">~12 Tage</text>
+
+  <rect x="1100" y="453" width="70" height="20" rx="4" fill="rgba(251,191,36,0.15)"/>
+  <text x="1112" y="468" fill="#fbbf24" font-size="10" font-weight="600">Niedrig</text>
+</g>
+
+<!-- Table Row 4 -->
+<g>
+  <rect x="240" y="495" width="1100" height="50" rx="4" fill="#282c34" stroke="#2a2d35" stroke-width="1"/>
+  <text x="240" y="515" fill="#ebeef5" font-size="12" font-weight="600">Apple AirPods Pro (2nd Gen)</text>
+  <text x="240" y="532" fill="#7a8090" font-size="10">Apple</text>
+
+  <text x="500" y="525" fill="#ebeef5" font-size="11">SKU-20156</text>
+  <text x="600" y="525" fill="#7a8090" font-size="11">194252065405</text>
+
+  <rect x="700" y="515" width="80" height="8" rx="2" fill="#282c34" stroke="#2a2d35" stroke-width="1"/>
+  <rect x="700" y="515" width="6" height="8" rx="2" fill="#f87171"/>
+  <text x="795" y="525" fill="#ebeef5" font-size="11">1</text>
+
+  <text x="850" y="525" fill="#7a8090" font-size="11">M-01-A-5</text>
+  <text x="980" y="525" fill="#f87171" font-size="11" font-weight="600">~2 Tage</text>
+
+  <rect x="1100" y="513" width="70" height="20" rx="4" fill="rgba(248,113,113,0.15)"/>
+  <text x="1113" y="528" fill="#f87171" font-size="10" font-weight="600">Kritisch</text>
+</g>
+
+<!-- Table Row 5 -->
+<g>
+  <rect x="240" y="555" width="1100" height="50" rx="4" fill="#282c34" stroke="#2a2d35" stroke-width="1"/>
+  <text x="240" y="575" fill="#ebeef5" font-size="12" font-weight="600">Dyson V15 Detect Staubsauger</text>
+  <text x="240" y="592" fill="#7a8090" font-size="10">Dyson</text>
+
+  <text x="500" y="585" fill="#ebeef5" font-size="11">SKU-21567</text>
+  <text x="600" y="585" fill="#7a8090" font-size="11">5391051022959</text>
+
+  <rect x="700" y="575" width="80" height="8" rx="2" fill="#282c34" stroke="#2a2d35" stroke-width="1"/>
+  <rect x="700" y="575" width="64" height="8" rx="2" fill="#34d399"/>
+  <text x="795" y="585" fill="#ebeef5" font-size="11">32</text>
+
+  <text x="850" y="585" fill="#7a8090" font-size="11">XL-01-A-1</text>
+  <text x="980" y="585" fill="#ebeef5" font-size="11">~90 Tage</text>
+
+  <rect x="1100" y="573" width="70" height="20" rx="4" fill="rgba(52,211,153,0.15)"/>
+  <text x="1110" y="588" fill="#34d399" font-size="10" font-weight="600">Ausreichend</text>
+</g>
+
+</svg>

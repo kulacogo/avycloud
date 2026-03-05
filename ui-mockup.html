@@ -13,7 +13,7 @@
     --bg-surface-raised: #282c34;
     --bg-surface-hover: #2e323b;
     --bg-sidebar: #15171c;
-    --bg-sidebar-active: rgba(99, 91, 255, 0.10);
+    --bg-sidebar-active: rgba(124, 117, 255, 0.10);
     --bg-input: #1e2128;
 
     --border-default: #2a2d35;
@@ -21,11 +21,11 @@
 
     --text-primary: #ebeef5;
     --text-secondary: #8a8f9e;
-    --text-tertiary: #5c6070;
+    --text-tertiary: #7a8090;
     --text-link: #818cf8;
 
-    --accent-primary: #635bff;
-    --accent-primary-hover: #7c75ff;
+    --accent-primary: #7c75ff;
+    --accent-primary-hover: #9590ff;
     --accent-success: #34d399;
     --accent-warning: #fbbf24;
     --accent-danger: #f87171;
@@ -920,10 +920,11 @@
   }
 
   .checkbox.checked::after {
-    content: '✓';
-    color: #fff;
-    font-size: 11px;
-    font-weight: 700;
+    content: '';
+    display: block;
+    width: 10px;
+    height: 10px;
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' fill='none' stroke='%23fff' stroke-width='2'%3E%3Cpath d='M2 6l3 3 5-5'/%3E%3C/svg%3E") no-repeat center/contain;
   }
 
   /* === ROW ACTIONS === */
@@ -1045,8 +1046,8 @@
         <span class="cmd-kbd">⌘K</span>
       </div>
       <div class="theme-switch">
-        <button class="theme-option" onclick="setTheme('light')" title="Light">☀</button>
-        <button class="theme-option active" onclick="setTheme('dark')" title="Dark">☾</button>
+        <button class="theme-option" onclick="setTheme('light')" title="Light"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="7" cy="7" r="3"/><path d="M7 1v1.5M7 11.5V13M1 7h1.5M11.5 7H13M2.75 2.75l1.06 1.06M10.19 10.19l1.06 1.06M11.25 2.75l-1.06 1.06M3.81 10.19l-1.06 1.06"/></svg></button>
+        <button class="theme-option active" onclick="setTheme('dark')" title="Dark"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12.5 7.5a5.5 5.5 0 01-7-7 5.5 5.5 0 107 7z"/></svg></button>
       </div>
       <button class="topbar-btn" title="Benachrichtigungen">
         <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13.5 6.5a4.5 4.5 0 00-9 0c0 5-2 6.5-2 6.5h13s-2-1.5-2-6.5M10.3 15a1.5 1.5 0 01-2.6 0"/></svg>
@@ -1119,21 +1120,21 @@
             <div class="chart-title">Letzte Aktivitäten</div>
           </div>
           <div class="activity-item">
-            <div class="activity-icon sync">↻</div>
+            <div class="activity-icon sync"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1.5 7a5.5 5.5 0 019.4-3.9M12.5 7a5.5 5.5 0 01-9.4 3.9"/><path d="M11 1v3h-3M3 13v-3h3"/></svg></div>
             <div>
               <div class="activity-text"><strong>eBay Sync</strong> — 892 Listings aktualisiert</div>
               <div class="activity-time">vor 2 Minuten</div>
             </div>
           </div>
           <div class="activity-item">
-            <div class="activity-icon price">€</div>
+            <div class="activity-icon price"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M7 1v12M4 4.5a2.5 2.5 0 012.5-2.5h1.5a2.5 2.5 0 010 5H5.5a2.5 2.5 0 000 5H8a2.5 2.5 0 002.5-2.5"/></svg></div>
             <div>
               <div class="activity-text"><strong>Preisanpassung</strong> — 47 Produkte repriced</div>
               <div class="activity-time">vor 15 Minuten</div>
             </div>
           </div>
           <div class="activity-item">
-            <div class="activity-icon warn">!</div>
+            <div class="activity-icon warn"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M7 1L1 13h12L7 1z"/><path d="M7 5.5v3M7 10.5v.5"/></svg></div>
             <div>
               <div class="activity-text"><strong>Lagerwarnung</strong> — 5 Artikel unter Mindestbestand</div>
               <div class="activity-time">vor 1 Stunde</div>
@@ -1174,7 +1175,7 @@
               <td><div class="checkbox"></div></td>
               <td>
                 <div class="product-cell">
-                  <div class="product-thumb">📦</div>
+                  <div class="product-thumb"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="2" y="5" width="14" height="10" rx="1.5"/><path d="M2 8.5h14M9 5v13M5 2h8l3 3H2l3-3z"/></svg></div>
                   <div>
                     <div class="product-name">Samsung Galaxy S24 Ultra 256GB Titanium Black Smartphone</div>
                     <div class="product-sku">SKU-20834 · EAN 8806095373249</div>
@@ -1198,13 +1199,13 @@
                   <span class="mp-badge mp-kaufland">KL</span>
                 </div>
               </td>
-              <td><div class="row-actions"><button class="row-action-btn" title="Bearbeiten">✎</button><button class="row-action-btn" title="Mehr">⋯</button></div></td>
+              <td><div class="row-actions"><button class="row-action-btn" title="Bearbeiten"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M8.5 2.5l3 3L4.5 12.5H1.5v-3l7-7z"/></svg></button><button class="row-action-btn" title="Mehr"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="3" cy="7" r="1"/><circle cx="7" cy="7" r="1"/><circle cx="11" cy="7" r="1"/></svg></button></div></td>
             </tr>
             <tr>
               <td><div class="checkbox"></div></td>
               <td>
                 <div class="product-cell">
-                  <div class="product-thumb">👟</div>
+                  <div class="product-thumb"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="2" y="5" width="14" height="10" rx="1.5"/><path d="M2 8.5h14M9 5v13M5 2h8l3 3H2l3-3z"/></svg></div>
                   <div>
                     <div class="product-name">Nike Air Max 90 Essential White/Black Gr. 43</div>
                     <div class="product-sku">SKU-10472 · EAN 0194956623198</div>
@@ -1226,13 +1227,13 @@
                   <span class="mp-badge mp-ebay">eBay</span>
                 </div>
               </td>
-              <td><div class="row-actions"><button class="row-action-btn" title="Bearbeiten">✎</button><button class="row-action-btn" title="Mehr">⋯</button></div></td>
+              <td><div class="row-actions"><button class="row-action-btn" title="Bearbeiten"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M8.5 2.5l3 3L4.5 12.5H1.5v-3l7-7z"/></svg></button><button class="row-action-btn" title="Mehr"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="3" cy="7" r="1"/><circle cx="7" cy="7" r="1"/><circle cx="11" cy="7" r="1"/></svg></button></div></td>
             </tr>
             <tr>
               <td><div class="checkbox"></div></td>
               <td>
                 <div class="product-cell">
-                  <div class="product-thumb">🛋</div>
+                  <div class="product-thumb"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="2" y="5" width="14" height="10" rx="1.5"/><path d="M2 8.5h14M9 5v13M5 2h8l3 3H2l3-3z"/></svg></div>
                   <div>
                     <div class="product-name">HUKLA Relaxsessel Premium Leder Grau mit Aufstehhilfe</div>
                     <div class="product-sku">SKU-30291 · MPN RS-4500-GR</div>
@@ -1257,13 +1258,13 @@
                   <span class="mp-badge mp-amazon">AMZ</span>
                 </div>
               </td>
-              <td><div class="row-actions"><button class="row-action-btn" title="Bearbeiten">✎</button><button class="row-action-btn" title="Mehr">⋯</button></div></td>
+              <td><div class="row-actions"><button class="row-action-btn" title="Bearbeiten"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M8.5 2.5l3 3L4.5 12.5H1.5v-3l7-7z"/></svg></button><button class="row-action-btn" title="Mehr"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="3" cy="7" r="1"/><circle cx="7" cy="7" r="1"/><circle cx="11" cy="7" r="1"/></svg></button></div></td>
             </tr>
             <tr>
               <td><div class="checkbox"></div></td>
               <td>
                 <div class="product-cell">
-                  <div class="product-thumb">🔧</div>
+                  <div class="product-thumb"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="2" y="5" width="14" height="10" rx="1.5"/><path d="M2 8.5h14M9 5v13M5 2h8l3 3H2l3-3z"/></svg></div>
                   <div>
                     <div class="product-name">Bosch Professional GSR 18V-60 C Akku-Bohrschrauber</div>
                     <div class="product-sku">SKU-50123 · EAN 3165140928724</div>
@@ -1285,7 +1286,7 @@
                   <span class="mp-badge" style="background:rgba(139,154,184,0.12);color:var(--text-tertiary);">—</span>
                 </div>
               </td>
-              <td><div class="row-actions"><button class="row-action-btn" title="Bearbeiten">✎</button><button class="row-action-btn" title="Mehr">⋯</button></div></td>
+              <td><div class="row-actions"><button class="row-action-btn" title="Bearbeiten"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M8.5 2.5l3 3L4.5 12.5H1.5v-3l7-7z"/></svg></button><button class="row-action-btn" title="Mehr"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="3" cy="7" r="1"/><circle cx="7" cy="7" r="1"/><circle cx="11" cy="7" r="1"/></svg></button></div></td>
             </tr>
           </tbody>
         </table>

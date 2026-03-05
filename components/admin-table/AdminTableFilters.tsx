@@ -141,11 +141,11 @@ interface AdminTableFiltersProps {
 }
 
 const filterControlClass =
-  "p-2 text-sm bg-slate-800/40 border border-white/10 rounded-xl text-slate-100";
+  "p-2 text-sm bg-app-surface border border-app-border rounded-xl text-txt-primary";
 const filterButtonClass =
-  "w-full p-2 text-sm bg-slate-800/40 border border-white/10 rounded-xl text-slate-100 text-left";
+  "w-full p-2 text-sm bg-app-surface border border-app-border rounded-xl text-txt-primary text-left";
 const menuItemClass =
-  "w-full text-left px-3 py-2 text-sm text-slate-100 hover:bg-slate-800/60 rounded-xl transition";
+  "w-full text-left px-3 py-2 text-sm text-txt-primary hover:bg-app-elevated/60 rounded-xl transition";
 
 const AdminTableFilters: React.FC<AdminTableFiltersProps> = ({
   filterStatus,
@@ -228,23 +228,23 @@ const AdminTableFilters: React.FC<AdminTableFiltersProps> = ({
               : `Kategorie: ${filterCategorySelection.length} ausgew\u00E4hlt`}
           </button>
           {categoryFilterOpen && (
-            <div className="absolute z-30 mt-2 w-[360px] max-w-[90vw] rounded-xl border border-white/10 bg-slate-950 p-3 shadow-lg">
+            <div className="absolute z-30 mt-2 w-[360px] max-w-[90vw] rounded-xl border border-app-border bg-app-bg p-3 shadow-lg">
               <div className="flex items-center justify-between mb-2">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-200">
+                <p className="text-xs font-semibold uppercase tracking-wide text-txt-secondary">
                   Kategorien
                 </p>
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
                     onClick={() => setFilterCategorySelection([])}
-                    className="text-xs text-sky-400 hover:underline"
+                    className="text-xs text-accent hover:underline"
                   >
                     Alle
                   </button>
                   <button
                     type="button"
                     onClick={() => setCategoryFilterOpen(false)}
-                    className="text-xs text-slate-300 hover:underline"
+                    className="text-xs text-txt-secondary hover:underline"
                   >
                     Schlie\u00DFen
                   </button>
@@ -267,9 +267,9 @@ const AdminTableFilters: React.FC<AdminTableFiltersProps> = ({
                   return (
                     <div
                       key={node.top}
-                      className="rounded-xl border border-white/10 bg-slate-800/40"
+                      className="rounded-xl border border-app-border bg-app-surface"
                     >
-                      <label className="flex items-center gap-2 px-2 py-2 text-sm text-slate-100">
+                      <label className="flex items-center gap-2 px-2 py-2 text-sm text-txt-primary">
                         <input
                           type="checkbox"
                           checked={isAllSelected}
@@ -279,18 +279,18 @@ const AdminTableFilters: React.FC<AdminTableFiltersProps> = ({
                           onChange={() => toggleTopCategory(node.top)}
                         />
                         <span className="flex-1">{node.top}</span>
-                        <span className="text-xs text-slate-400">
+                        <span className="text-xs text-txt-muted">
                           ({node.count})
                         </span>
                       </label>
                       {node.children.length > 0 && (
-                        <div className="border-t border-slate-800 px-2 py-2 space-y-1">
+                        <div className="border-t border-app-border px-2 py-2 space-y-1">
                           {node.children.map((c) => {
                             const key = `${node.top} > ${c.sub}`;
                             return (
                               <label
                                 key={key}
-                                className="flex items-center gap-2 pl-5 pr-2 py-1 text-sm text-slate-200"
+                                className="flex items-center gap-2 pl-5 pr-2 py-1 text-sm text-txt-secondary"
                               >
                                 <input
                                   type="checkbox"
@@ -298,7 +298,7 @@ const AdminTableFilters: React.FC<AdminTableFiltersProps> = ({
                                   onChange={() => toggleCategoryKey(key)}
                                 />
                                 <span className="flex-1">{c.sub}</span>
-                                <span className="text-xs text-slate-500">
+                                <span className="text-xs text-txt-muted">
                                   ({c.count})
                                 </span>
                               </label>
@@ -328,8 +328,8 @@ const AdminTableFilters: React.FC<AdminTableFiltersProps> = ({
         </select>
       </div>
 
-      <div className="rounded-xl border border-white/10 bg-slate-800/40 p-3 space-y-3">
-        <p className="text-[10px] uppercase tracking-wider font-semibold text-slate-400">
+      <div className="rounded-xl border border-app-border bg-app-surface p-3 space-y-3">
+        <p className="text-[10px] uppercase tracking-wider font-semibold text-txt-muted">
           Erweiterte Filter
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
@@ -428,7 +428,7 @@ const AdminTableFilters: React.FC<AdminTableFiltersProps> = ({
           <button
             type="button"
             onClick={() => setIsColumnPanelOpen(!isColumnPanelOpen)}
-            className={`inline-flex items-center gap-1 rounded-xl border px-3 py-2 text-xs font-semibold transition ${isColumnPanelOpen ? "border-indigo-500/30 bg-indigo-500/10 text-indigo-300" : "border-white/10 bg-slate-800/40 text-slate-100 hover:border-white/20"}`}
+            className={`inline-flex items-center gap-1 rounded-xl border px-3 py-2 text-xs font-semibold transition ${isColumnPanelOpen ? "border-accent/30 bg-accent-dim text-accent" : "border-app-border bg-app-surface text-txt-primary hover:border-app-border/80"}`}
           >
             <svg
               className="w-3.5 h-3.5"
@@ -444,7 +444,7 @@ const AdminTableFilters: React.FC<AdminTableFiltersProps> = ({
         </div>
 
         <details className="relative">
-          <summary className="cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden inline-flex items-center gap-1 rounded-xl border border-white/10 bg-slate-800/40 px-3 py-2 text-xs font-semibold text-slate-100 hover:border-white/20 transition">
+          <summary className="cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden inline-flex items-center gap-1 rounded-xl border border-app-border bg-app-surface px-3 py-2 text-xs font-semibold text-txt-primary hover:border-app-border/80 transition">
             <svg
               className="w-3.5 h-3.5"
               fill="none"
@@ -457,8 +457,8 @@ const AdminTableFilters: React.FC<AdminTableFiltersProps> = ({
             </svg>
             Tools
           </summary>
-          <div className="absolute right-0 mt-2 w-[340px] max-w-[90vw] rounded-xl border border-white/10 bg-slate-950 p-1.5 shadow-xl shadow-black/40 z-30">
-            <div className="px-2.5 pt-1 pb-1 text-[10px] uppercase tracking-wider font-semibold text-slate-500">
+          <div className="absolute right-0 mt-2 w-[340px] max-w-[90vw] rounded-xl border border-app-border bg-app-bg p-1.5 shadow-xl shadow-black/40 z-30">
+            <div className="px-2.5 pt-1 pb-1 text-[10px] uppercase tracking-wider font-semibold text-txt-muted">
               Export &amp; Import
             </div>
             <button
@@ -483,7 +483,7 @@ const AdminTableFilters: React.FC<AdminTableFiltersProps> = ({
 
             {onBulkImprove ? (
               <>
-                <div className="my-1.5 border-t border-slate-800/60" />
+                <div className="my-1.5 border-t border-app-border/60" />
                 <div className="px-2.5 pt-1 pb-1 text-[10px] uppercase tracking-wider font-semibold text-violet-400/80">
                   KI
                 </div>
@@ -511,8 +511,8 @@ const AdminTableFilters: React.FC<AdminTableFiltersProps> = ({
 
             {mode === "inventory" ? (
               <>
-                <div className="my-1.5 border-t border-slate-800/60" />
-                <div className="px-2.5 pt-1 pb-1 text-[10px] uppercase tracking-wider font-semibold text-slate-500">
+                <div className="my-1.5 border-t border-app-border/60" />
+                <div className="px-2.5 pt-1 pb-1 text-[10px] uppercase tracking-wider font-semibold text-txt-muted">
                   Inventory Fix + Sync
                 </div>
                 <button
@@ -602,14 +602,14 @@ const AdminTableFilters: React.FC<AdminTableFiltersProps> = ({
       </div>
 
       {isColumnPanelOpen && (
-        <div className="rounded-2xl border border-white/10 bg-slate-800/40 p-5 space-y-3">
+        <div className="rounded-2xl border border-app-border bg-app-surface p-5 space-y-3">
           <div className="flex items-center justify-between">
             <p className="text-sm font-semibold text-white">
               {t("table.columns.visible")}
             </p>
             <button
               type="button"
-              className="text-xs text-sky-400 hover:underline"
+              className="text-xs text-accent hover:underline"
               onClick={resetColumns}
             >
               {t("table.columns.reset")}
@@ -622,21 +622,21 @@ const AdminTableFilters: React.FC<AdminTableFiltersProps> = ({
               return (
                 <div
                   key={col.id}
-                  className="flex items-center gap-2 rounded-lg bg-slate-700/40 px-2 py-1.5 text-sm text-slate-100"
+                  className="flex items-center gap-2 rounded-lg bg-app-elevated/40 px-2 py-1.5 text-sm text-txt-primary"
                 >
                   <input
                     type="checkbox"
                     checked
                     onChange={() => toggleColumnVisibility(col.id)}
                     disabled={visibleColumns.length === 1}
-                    className="bg-slate-600 border-slate-500 shrink-0"
+                    className="bg-app-border border-app-border shrink-0"
                   />
                   <span className="flex-1 truncate">{col.label}</span>
                   <button
                     type="button"
                     onClick={() => moveColumn(col.id, "up")}
                     disabled={idx === 0}
-                    className="p-0.5 text-slate-400 hover:text-white disabled:opacity-20"
+                    className="p-0.5 text-txt-muted hover:text-txt-primary disabled:opacity-20"
                     title="Nach oben"
                   >
                     <svg
@@ -653,7 +653,7 @@ const AdminTableFilters: React.FC<AdminTableFiltersProps> = ({
                     type="button"
                     onClick={() => moveColumn(col.id, "down")}
                     disabled={idx === visibleColumns.length - 1}
-                    className="p-0.5 text-slate-400 hover:text-white disabled:opacity-20"
+                    className="p-0.5 text-txt-muted hover:text-txt-primary disabled:opacity-20"
                     title="Nach unten"
                   >
                     <svg
@@ -671,8 +671,8 @@ const AdminTableFilters: React.FC<AdminTableFiltersProps> = ({
             })}
           </div>
           {columnDefinitions.some((c) => !visibleColumns.includes(c.id)) && (
-            <div className="space-y-1 border-t border-white/10 pt-3">
-              <p className="text-[10px] uppercase tracking-wider font-semibold text-slate-500">
+            <div className="space-y-1 border-t border-app-border pt-3">
+              <p className="text-[10px] uppercase tracking-wider font-semibold text-txt-muted">
                 Ausgeblendet
               </p>
               {columnDefinitions
@@ -680,13 +680,13 @@ const AdminTableFilters: React.FC<AdminTableFiltersProps> = ({
                 .map((col) => (
                   <label
                     key={col.id}
-                    className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-slate-400 hover:text-slate-200 cursor-pointer"
+                    className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-txt-muted hover:text-txt-secondary cursor-pointer"
                   >
                     <input
                       type="checkbox"
                       checked={false}
                       onChange={() => toggleColumnVisibility(col.id)}
-                      className="bg-slate-600 border-slate-500 shrink-0"
+                      className="bg-app-border border-app-border shrink-0"
                     />
                     <span className="truncate">{col.label}</span>
                   </label>

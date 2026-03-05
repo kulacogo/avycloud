@@ -1,0 +1,363 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg viewBox="0 0 390 844" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+  <defs>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+      * {
+        font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      .status-bar-text {
+        font-size: 14px;
+        font-weight: 600;
+        fill: #ebeef5;
+      }
+
+      .heading {
+        font-size: 18px;
+        font-weight: 700;
+        fill: #ebeef5;
+      }
+
+      .subtitle {
+        font-size: 12px;
+        font-weight: 500;
+        fill: #7a8090;
+      }
+
+      .search-placeholder {
+        font-size: 14px;
+        font-weight: 400;
+        fill: #8a8f9e;
+      }
+
+      .pill-text {
+        font-size: 13px;
+        font-weight: 500;
+        fill: #7a8090;
+      }
+
+      .pill-text-active {
+        font-size: 13px;
+        font-weight: 500;
+        fill: #7c75ff;
+      }
+
+      .card-title {
+        font-size: 13px;
+        font-weight: 600;
+        fill: #ebeef5;
+      }
+
+      .card-category {
+        font-size: 11px;
+        font-weight: 400;
+        fill: #7a8090;
+      }
+
+      .card-meta {
+        font-size: 11px;
+        font-weight: 400;
+        fill: #7a8090;
+      }
+
+      .badge-text {
+        font-size: 10px;
+        font-weight: 600;
+      }
+
+      .badge-optimiert {
+        fill: #34d399;
+      }
+
+      .badge-identifiziert {
+        fill: #7c75ff;
+      }
+
+      .badge-entwurf {
+        fill: #8a8f9e;
+      }
+
+      .nav-text {
+        font-size: 11px;
+        font-weight: 500;
+      }
+
+      .nav-text-active {
+        font-size: 11px;
+        font-weight: 600;
+        fill: #7c75ff;
+      }
+
+      .nav-text-inactive {
+        fill: #7a8090;
+      }
+    </style>
+
+    <!-- Search icon -->
+    <symbol id="search-icon" viewBox="0 0 24 24">
+      <circle cx="10" cy="10" r="6" fill="none" stroke="#7a8090" stroke-width="2"/>
+      <path d="M14 14l4 4" stroke="#7a8090" stroke-width="2" stroke-linecap="round"/>
+    </symbol>
+
+    <!-- Filter icon -->
+    <symbol id="filter-icon" viewBox="0 0 24 24">
+      <path d="M4 6h16M6 12h12M8 18h8" stroke="#ebeef5" stroke-width="2" stroke-linecap="round"/>
+    </symbol>
+
+    <!-- Chevron right icon -->
+    <symbol id="chevron-right" viewBox="0 0 24 24">
+      <path d="M9 5l7 7-7 7" stroke="#7a8090" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    </symbol>
+
+    <!-- Dashboard icon -->
+    <symbol id="icon-dashboard" viewBox="0 0 24 24">
+      <rect x="3" y="3" width="8" height="8" stroke="#7a8090" stroke-width="2" fill="none" rx="1"/>
+      <rect x="13" y="3" width="8" height="8" stroke="#7a8090" stroke-width="2" fill="none" rx="1"/>
+      <rect x="3" y="13" width="8" height="8" stroke="#7a8090" stroke-width="2" fill="none" rx="1"/>
+      <rect x="13" y="13" width="8" height="8" stroke="#7a8090" stroke-width="2" fill="none" rx="1"/>
+    </symbol>
+
+    <symbol id="icon-dashboard-active" viewBox="0 0 24 24">
+      <rect x="3" y="3" width="8" height="8" stroke="#7c75ff" stroke-width="2" fill="none" rx="1"/>
+      <rect x="13" y="3" width="8" height="8" stroke="#7c75ff" stroke-width="2" fill="none" rx="1"/>
+      <rect x="3" y="13" width="8" height="8" stroke="#7c75ff" stroke-width="2" fill="none" rx="1"/>
+      <rect x="13" y="13" width="8" height="8" stroke="#7c75ff" stroke-width="2" fill="none" rx="1"/>
+    </symbol>
+
+    <!-- Plus/Erfassen icon -->
+    <symbol id="icon-plus" viewBox="0 0 24 24">
+      <path d="M12 5v14M5 12h14" stroke="#7a8090" stroke-width="2" stroke-linecap="round"/>
+    </symbol>
+
+    <symbol id="icon-plus-active" viewBox="0 0 24 24">
+      <path d="M12 5v14M5 12h14" stroke="#7c75ff" stroke-width="2" stroke-linecap="round"/>
+    </symbol>
+
+    <!-- Produkte/Catalog icon -->
+    <symbol id="icon-produkte" viewBox="0 0 24 24">
+      <path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z" stroke="#7c75ff" stroke-width="2" fill="none" rx="1"/>
+    </symbol>
+
+    <!-- Bestand/Inventory icon -->
+    <symbol id="icon-bestand" viewBox="0 0 24 24">
+      <rect x="2" y="3" width="20" height="18" stroke="#7a8090" stroke-width="2" fill="none" rx="1"/>
+      <path d="M2 9h20M6 3v14" stroke="#7a8090" stroke-width="2"/>
+    </symbol>
+
+    <!-- More icon (three dots) -->
+    <symbol id="icon-more" viewBox="0 0 24 24">
+      <circle cx="6" cy="12" r="2" fill="#7a8090"/>
+      <circle cx="12" cy="12" r="2" fill="#7a8090"/>
+      <circle cx="18" cy="12" r="2" fill="#7a8090"/>
+    </symbol>
+
+    <!-- WiFi icon -->
+    <symbol id="wifi-icon" viewBox="0 0 24 24">
+      <path d="M1 9l6 6 6-6M4 12l3 3 3-3M8 16l2 2" stroke="#ebeef5" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+    </symbol>
+
+    <!-- Signal icon -->
+    <symbol id="signal-icon" viewBox="0 0 24 24">
+      <path d="M2 20h2V14h-2zm4 0h2V8h-2zm4 0h2V2h-2zm4 0h2v-6h-2zm4 0h2v-3h-2z" fill="#ebeef5"/>
+    </symbol>
+
+    <!-- Battery icon -->
+    <symbol id="battery-icon" viewBox="0 0 24 24">
+      <rect x="2" y="4" width="18" height="10" rx="2" stroke="#ebeef5" stroke-width="1.5" fill="none"/>
+      <rect x="20" y="7" width="2" height="4" fill="#ebeef5"/>
+      <rect x="3" y="5" width="14" height="8" rx="1" fill="#ebeef5"/>
+    </symbol>
+  </defs>
+
+  <!-- Page background -->
+  <rect width="390" height="844" fill="#1a1d23"/>
+
+  <!-- STATUS BAR (y=0-44) -->
+  <rect width="390" height="44" fill="#1a1d23"/>
+  <text x="16" y="28" class="status-bar-text">9:41</text>
+
+  <!-- Status icons (right side) -->
+  <g transform="translate(354, 16)">
+    <use xlink:href="#wifi-icon" width="16" height="16"/>
+  </g>
+  <g transform="translate(370, 16)">
+    <use xlink:href="#signal-icon" width="16" height="16"/>
+  </g>
+  <!-- Battery: skipped for simplicity, would go here -->
+
+  <!-- HEADER (y=44-100) -->
+  <rect y="44" width="390" height="56" fill="#1a1d23"/>
+  <text x="16" y="72" class="heading">Produkte</text>
+  <text x="16" y="92" class="subtitle">423 im Katalog</text>
+
+  <!-- Filter icon button -->
+  <circle cx="358" cy="72" r="20" fill="#21242b"/>
+  <g transform="translate(350, 64)">
+    <use xlink:href="#filter-icon" width="16" height="16"/>
+  </g>
+
+  <!-- SEARCH BAR (y=108-148) -->
+  <rect x="12" y="108" width="366" height="40" rx="8" fill="#21242b" stroke="#2a2d35" stroke-width="1"/>
+  <g transform="translate(20, 118)">
+    <use xlink:href="#search-icon" width="16" height="16"/>
+  </g>
+  <text x="44" y="135" class="search-placeholder">Produkt suchen...</text>
+
+  <!-- FILTER PILLS (y=156-188) -->
+  <!-- "Alle" - active -->
+  <rect x="12" y="156" width="52" height="32" rx="16" fill="#7c75ff" fill-opacity="0.15" stroke="#7c75ff" stroke-width="1"/>
+  <text x="38" y="176" class="pill-text-active" text-anchor="middle">Alle</text>
+
+  <!-- "Entwurf" -->
+  <rect x="76" y="156" width="72" height="32" rx="16" fill="#21242b" stroke="#2a2d35" stroke-width="1"/>
+  <text x="112" y="176" class="pill-text" text-anchor="middle">Entwurf</text>
+
+  <!-- "Identifiziert" -->
+  <rect x="160" y="156" width="100" height="32" rx="16" fill="#21242b" stroke="#2a2d35" stroke-width="1"/>
+  <text x="210" y="176" class="pill-text" text-anchor="middle">Identifiziert</text>
+
+  <!-- "Optimiert" -->
+  <rect x="272" y="156" width="90" height="32" rx="16" fill="#21242b" stroke="#2a2d35" stroke-width="1"/>
+  <text x="317" y="176" class="pill-text" text-anchor="middle">Optimiert</text>
+
+  <!-- PRODUCT CARDS LIST -->
+
+  <!-- CARD 1: Samsung Galaxy S24 Ultra -->
+  <rect x="12" y="196" width="366" height="84" rx="12" fill="#21242b" stroke="#2a2d35" stroke-width="1"/>
+
+  <!-- Image placeholder -->
+  <rect x="24" y="208" width="56" height="56" rx="6" fill="#282c34"/>
+
+  <!-- Right content -->
+  <text x="92" y="228" class="card-title">Samsung Galaxy S24 Ultra</text>
+  <text x="92" y="245" class="card-category">Elektronik › Smartphones</text>
+  <text x="92" y="260" class="card-meta">SKU: SM-S928B · EAN: 8806096371248</text>
+
+  <!-- Status badge "Optimiert" (green) -->
+  <rect x="92" y="264" width="72" height="20" rx="10" fill="#34d399" fill-opacity="0.15"/>
+  <text x="128" y="277" class="badge-text badge-optimiert" text-anchor="middle">Optimiert</text>
+
+  <!-- Chevron right -->
+  <g transform="translate(334, 228)">
+    <use xlink:href="#chevron-right" width="20" height="20"/>
+  </g>
+
+  <!-- CARD 2: Apple AirPods Pro 2 -->
+  <rect x="12" y="292" width="366" height="84" rx="12" fill="#21242b" stroke="#2a2d35" stroke-width="1"/>
+
+  <!-- Image placeholder -->
+  <rect x="24" y="304" width="56" height="56" rx="6" fill="#282c34"/>
+
+  <!-- Right content -->
+  <text x="92" y="324" class="card-title">Apple AirPods Pro 2</text>
+  <text x="92" y="341" class="card-category">Elektronik › Kopfhörer</text>
+  <text x="92" y="356" class="card-meta">SKU: MTJV3ZM/A · EAN: 194253178951</text>
+
+  <!-- Status badge "Identifiziert" (accent/purple) -->
+  <rect x="92" y="360" width="88" height="20" rx="10" fill="#7c75ff" fill-opacity="0.15"/>
+  <text x="136" y="373" class="badge-text badge-identifiziert" text-anchor="middle">Identifiziert</text>
+
+  <!-- Chevron right -->
+  <g transform="translate(334, 324)">
+    <use xlink:href="#chevron-right" width="20" height="20"/>
+  </g>
+
+  <!-- CARD 3: LEGO Technic Bugatti Chiron -->
+  <rect x="12" y="388" width="366" height="84" rx="12" fill="#21242b" stroke="#2a2d35" stroke-width="1"/>
+
+  <!-- Image placeholder -->
+  <rect x="24" y="400" width="56" height="56" rx="6" fill="#282c34"/>
+
+  <!-- Right content -->
+  <text x="92" y="420" class="card-title">LEGO Technic Bugatti Chiron</text>
+  <text x="92" y="437" class="card-category">Spielzeug › Bausteine</text>
+  <text x="92" y="452" class="card-meta">SKU: 42083 · EAN: 5702016116977</text>
+
+  <!-- Status badge "Optimiert" (green) -->
+  <rect x="92" y="456" width="72" height="20" rx="10" fill="#34d399" fill-opacity="0.15"/>
+  <text x="128" y="469" class="badge-text badge-optimiert" text-anchor="middle">Optimiert</text>
+
+  <!-- Chevron right -->
+  <g transform="translate(334, 420)">
+    <use xlink:href="#chevron-right" width="20" height="20"/>
+  </g>
+
+  <!-- CARD 4: Dyson V15 Detect -->
+  <rect x="12" y="484" width="366" height="84" rx="12" fill="#21242b" stroke="#2a2d35" stroke-width="1"/>
+
+  <!-- Image placeholder -->
+  <rect x="24" y="496" width="56" height="56" rx="6" fill="#282c34"/>
+
+  <!-- Right content -->
+  <text x="92" y="516" class="card-title">Dyson V15 Detect</text>
+  <text x="92" y="533" class="card-category">Haushalt › Staubsauger</text>
+  <text x="92" y="548" class="card-meta">SKU: 447033-01 · EAN: 5025155073827</text>
+
+  <!-- Status badge "Entwurf" (gray) -->
+  <rect x="92" y="552" width="66" height="20" rx="10" fill="#8a8f9e" fill-opacity="0.15"/>
+  <text x="125" y="565" class="badge-text badge-entwurf" text-anchor="middle">Entwurf</text>
+
+  <!-- Chevron right -->
+  <g transform="translate(334, 516)">
+    <use xlink:href="#chevron-right" width="20" height="20"/>
+  </g>
+
+  <!-- CARD 5: Nike Air Max 90 (partially visible) -->
+  <rect x="12" y="580" width="366" height="84" rx="12" fill="#21242b" stroke="#2a2d35" stroke-width="1"/>
+
+  <!-- Image placeholder -->
+  <rect x="24" y="592" width="56" height="56" rx="6" fill="#282c34"/>
+
+  <!-- Right content -->
+  <text x="92" y="612" class="card-title">Nike Air Max 90</text>
+  <text x="92" y="629" class="card-category">Fashion › Schuhe</text>
+  <text x="92" y="644" class="card-meta">SKU: CI2974-001 · EAN: 195244090678</text>
+
+  <!-- Status badge "Identifiziert" (accent/purple) -->
+  <rect x="92" y="648" width="88" height="20" rx="10" fill="#7c75ff" fill-opacity="0.15"/>
+  <text x="136" y="661" class="badge-text badge-identifiziert" text-anchor="middle">Identifiziert</text>
+
+  <!-- Chevron right -->
+  <g transform="translate(334, 612)">
+    <use xlink:href="#chevron-right" width="20" height="20"/>
+  </g>
+
+  <!-- BOTTOM NAVIGATION BAR (y=764-844) -->
+  <rect y="764" width="390" height="80" fill="#15171c" stroke="#2a2d35" stroke-width="1" stroke-top="1px"/>
+
+  <!-- Dashboard -->
+  <g transform="translate(24, 774)">
+    <use xlink:href="#icon-dashboard" width="24" height="24"/>
+    <text x="12" y="50" class="nav-text nav-text-inactive" text-anchor="middle">Dashboard</text>
+  </g>
+
+  <!-- Erfassen -->
+  <g transform="translate(102, 774)">
+    <use xlink:href="#icon-plus" width="24" height="24"/>
+    <text x="12" y="50" class="nav-text nav-text-inactive" text-anchor="middle">Erfassen</text>
+  </g>
+
+  <!-- Produkte (ACTIVE) -->
+  <g transform="translate(180, 774)">
+    <use xlink:href="#icon-produkte" width="24" height="24"/>
+    <text x="12" y="50" class="nav-text-active" text-anchor="middle">Produkte</text>
+  </g>
+
+  <!-- Bestand -->
+  <g transform="translate(278, 774)">
+    <use xlink:href="#icon-bestand" width="24" height="24"/>
+    <!-- Badge "18" -->
+    <circle cx="18" cy="-2" r="10" fill="#f87171"/>
+    <text x="18" y="5" class="badge-text" fill="#fff" text-anchor="middle" font-size="9">18</text>
+    <text x="12" y="50" class="nav-text nav-text-inactive" text-anchor="middle">Bestand</text>
+  </g>
+
+  <!-- Mehr -->
+  <g transform="translate(346, 774)">
+    <use xlink:href="#icon-more" width="24" height="24"/>
+    <text x="12" y="50" class="nav-text nav-text-inactive" text-anchor="middle">Mehr</text>
+  </g>
+
+</svg>

@@ -80,8 +80,8 @@ const ChatContainer: React.FC<ChatContainerProps> = ({ children, onFilesDropped 
     <aside
       ref={containerRef}
       aria-label="KI-Assistent Chat"
-      className={`relative flex min-h-[420px] h-full flex-col overflow-hidden rounded-xl border border-slate-800/80 bg-slate-900/80 text-slate-100 ${
-        isDragActive ? 'ring-2 ring-sky-500' : ''
+      className={`relative flex min-h-[420px] h-full flex-col overflow-hidden rounded-xl border border-app-border bg-app-bg/80 text-txt-primary ${
+        isDragActive ? 'ring-2 ring-accent' : ''
       }`}
       style={{
         width: isCompact ? '100%' : `${width}px`,
@@ -98,7 +98,7 @@ const ChatContainer: React.FC<ChatContainerProps> = ({ children, onFilesDropped 
           tabIndex={0}
           aria-orientation="vertical"
           aria-label="Chat-Breite anpassen"
-          className="absolute left-0 top-0 h-full w-1 cursor-col-resize rounded-l-xl bg-transparent transition hover:bg-sky-500/40"
+          className="absolute left-0 top-0 h-full w-1 cursor-col-resize rounded-l-xl bg-transparent transition hover:bg-accent/40"
           onMouseDown={handleResizeStart}
         />
       )}

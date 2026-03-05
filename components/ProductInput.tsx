@@ -283,7 +283,7 @@ const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
   }, []);
 
   return (
-    <div className="w-full p-5 sm:p-8 bg-slate-800/40 rounded-2xl border border-white/10 mt-4 space-y-6 pb-16 sm:pb-8 safe-area-bottom">
+    <div className="w-full p-5 sm:p-8 bg-app-surface rounded-2xl border border-app-border mt-4 space-y-6 pb-16 sm:pb-8 safe-area-bottom">
       {notice ? (
         <Notice tone={notice.tone} title={notice.title} details={notice.details} onDismiss={() => setNotice(null)} />
       ) : null}
@@ -291,32 +291,32 @@ const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
         
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-slate-200">
+            <div className="flex items-center gap-2 text-txt-secondary">
               <CameraIcon className="w-7 h-7" />
               <span className="font-semibold">{t('input.groups.title')}</span>
             </div>
             <button
               type="button"
               onClick={addGroup}
-              className="inline-flex items-center gap-2 rounded-xl border border-white/10 px-3 py-2 text-sm font-semibold text-slate-100 hover:bg-white/10 transition-colors"
+              className="inline-flex items-center gap-2 rounded-xl border border-app-border px-3 py-2 text-sm font-semibold text-txt-primary hover:bg-white/10 transition-colors"
             >
               <span className="text-lg leading-none">＋</span>
               {t('input.groups.add')}
             </button>
           </div>
-          <p className="text-xs text-slate-400">
-            Tipp: <span className="text-slate-200 font-semibold">pro Produkt eine Gruppe</span>. Wenn in einer Gruppe mehrere verschiedene Produkte gemischt sind, kann Identify sie nicht zuverlässig auseinanderhalten.
+          <p className="text-xs text-txt-muted">
+            Tipp: <span className="text-txt-secondary font-semibold">pro Produkt eine Gruppe</span>. Wenn in einer Gruppe mehrere verschiedene Produkte gemischt sind, kann Identify sie nicht zuverlässig auseinanderhalten.
           </p>
           <div className="space-y-4">
             {groups.map((group, index) => (
-              <div key={group.id} className="rounded-2xl border border-white/10 bg-slate-900/50 p-4 space-y-4">
+              <div key={group.id} className="rounded-2xl border border-app-border bg-app-bg/50 p-4 space-y-4">
                 <div className="flex items-center justify-between">
-                  <p className="text-sm font-semibold text-slate-200">{group.name}</p>
+                  <p className="text-sm font-semibold text-txt-secondary">{group.name}</p>
                   {groups.length > 1 && (
                     <button
                       type="button"
                       onClick={() => removeGroup(group.id)}
-                      className="text-xs text-rose-300 hover:text-rose-100 transition-colors"
+                      className="text-xs text-danger hover:text-danger transition-colors"
                     >
                       {t('input.groups.remove')}
                     </button>
@@ -325,7 +325,7 @@ const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
           <div
                   onDragOver={(e) => e.preventDefault()}
                   onDrop={(e) => handleDrop(group.id, e)}
-                  className="flex flex-col gap-4 rounded-xl border-2 border-dashed border-white/10 bg-slate-900/40 p-4 transition-colors hover:border-sky-500"
+                  className="flex flex-col gap-4 rounded-xl border-2 border-dashed border-app-border bg-app-bg/40 p-4 transition-colors hover:border-accent"
                 >
                   <div className="flex flex-col lg:flex-row gap-3">
                     {/* Mobile-safe file picker: label(htmlFor)+input(sr-only) is the most reliable across iOS/PWA shells */}
@@ -339,7 +339,7 @@ const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
                     />
                     <label
                       htmlFor={`group-files-${group.id}`}
-                      className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-slate-800/80 border border-white/[0.08] px-4 py-3 text-slate-100 font-semibold hover:bg-slate-700 transition-colors cursor-pointer"
+                      className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-app-elevated border border-white/[0.08] px-4 py-3 text-txt-primary font-semibold hover:bg-app-elevated transition-colors cursor-pointer"
                     >
                       <UploadIcon className="w-5 h-5" />
                       {t('input.groups.files')}
@@ -358,7 +358,7 @@ const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
                         />
                         <label
                           htmlFor={`group-camera-${group.id}`}
-                          className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-slate-800/80 border border-white/[0.08] px-4 py-3 text-slate-100 font-semibold hover:bg-slate-700 transition-colors cursor-pointer"
+                          className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-app-elevated border border-white/[0.08] px-4 py-3 text-txt-primary font-semibold hover:bg-app-elevated transition-colors cursor-pointer"
                         >
                           <CameraIcon className="w-5 h-5" />
                           {t('input.groups.cameraOpen')}
@@ -368,7 +368,7 @@ const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
                       <button
                         type="button"
                         onClick={() => handleCameraButtonClick(group.id)}
-                        className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-slate-800/80 border border-white/[0.08] px-4 py-3 text-slate-100 font-semibold hover:bg-slate-700 transition-colors"
+                        className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-app-elevated border border-white/[0.08] px-4 py-3 text-txt-primary font-semibold hover:bg-app-elevated transition-colors"
                       >
                         <CameraIcon className="w-5 h-5" />
                         {isCameraOn && cameraTargetGroup === group.id
@@ -383,7 +383,7 @@ const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
                         key={image.id}
                         draggable
                         onDragStart={(event) => handleDragStart(event, group.id, image.id)}
-                        className="relative group rounded-xl overflow-hidden border border-white/10"
+                        className="relative group rounded-xl overflow-hidden border border-app-border"
                       >
                         <img
                           src={image.preview}
@@ -393,21 +393,21 @@ const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
                         <button
                           type="button"
                           onClick={() => removeImage(group.id, image.id)}
-                          className="absolute top-2 right-2 rounded-full bg-black/70 text-white w-6 h-6 flex items-center justify-center text-sm opacity-0 group-hover:opacity-100 transition-opacity"
+                          className="absolute top-2 right-2 rounded-full bg-black/70 text-txt-primary w-6 h-6 flex items-center justify-center text-sm opacity-0 group-hover:opacity-100 transition-opacity"
                         >
                           &times;
                         </button>
                       </div>
                     ))}
                     {!group.images.length && (
-                      <div className="h-28 rounded-xl border border-white/10 border-dashed flex items-center justify-center text-slate-500 text-sm">
+                      <div className="h-28 rounded-xl border border-app-border border-dashed flex items-center justify-center text-txt-muted text-sm">
                         {t('input.groups.dropHint')}
                       </div>
                     )}
                   </div>
                 </div>
                 {cameraError && cameraTargetGroup === group.id && (
-                  <p className="text-xs text-rose-400">{cameraError}</p>
+                  <p className="text-xs text-danger">{cameraError}</p>
                 )}
               </div>
             ))}
@@ -415,8 +415,8 @@ const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
         </div>
 
           {isCameraOn && !isIOSDevice && (
-          <div className="rounded-2xl border border-white/10 bg-slate-900/70 p-4 space-y-3">
-            <p className="text-sm text-slate-200">
+          <div className="rounded-2xl border border-app-border bg-app-bg/70 p-4 space-y-3">
+            <p className="text-sm text-txt-secondary">
               {t('input.camera.active', {
                 name: groups.find((g) => g.id === cameraTargetGroup)?.name || t('input.groups.unknown'),
               })}
@@ -426,7 +426,7 @@ const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
               <button
                 type="button"
                 onClick={captureImage}
-                className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full bg-sky-600 px-5 py-2 text-sm font-semibold text-white shadow-lg hover:bg-sky-500 transition-colors"
+                className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full bg-accent px-5 py-2 text-sm font-semibold text-txt-primary shadow-lg hover:bg-accent/80 transition-colors"
               >
                 {t('input.camera.capture')}
               </button>
@@ -434,11 +434,11 @@ const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
             </div>
           )}
           {isIOSDevice && (
-          <p className="text-xs text-slate-400 text-center">{t('input.camera.iosNote')}</p>
+          <p className="text-xs text-txt-muted text-center">{t('input.camera.iosNote')}</p>
           )}
 
         <div>
-          <div className="flex items-center mb-2 text-slate-200">
+          <div className="flex items-center mb-2 text-txt-secondary">
             <BarcodeIcon className="w-6 h-6 mr-2" />
             <span className="font-semibold">{t('input.barcodes.label')}</span>
           </div>
@@ -446,13 +446,13 @@ const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
             value={barcodes}
             onChange={(e) => setBarcodes(e.target.value)}
             placeholder={t('input.barcodes.placeholder')}
-            className="w-full rounded-xl border border-white/10 bg-slate-900/60 p-3 text-sm text-slate-100 focus:border-sky-500 focus:ring-2 focus:ring-sky-500"
+            className="w-full rounded-xl border border-app-border bg-app-bg/60 p-3 text-sm text-txt-primary focus:border-accent focus:ring-2 focus:ring-accent"
             rows={3}
           />
-          <p className="text-xs text-slate-500 mt-1">{t('input.barcodes.hint')}</p>
+          <p className="text-xs text-txt-muted mt-1">{t('input.barcodes.hint')}</p>
           <div className="text-xs mt-1">
             {manualBarcodeSummary.hasValid ? (
-              <span className="text-emerald-300">
+              <span className="text-success">
                 {manualBarcodeSummary.gtin
                   ? t('input.barcodes.statusValidGtin', { code: manualBarcodeSummary.gtin })
                   : t('input.barcodes.statusValidEan', { code: manualBarcodeSummary.ean })}
@@ -466,7 +466,7 @@ const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
         <div className="text-center pt-2">
           <button
             type="submit"
-            className="w-full sm:w-auto px-12 py-4 bg-sky-600 text-white text-lg font-bold rounded-xl hover:bg-sky-500 transition-transform transform hover:scale-105"
+            className="w-full sm:w-auto px-12 py-4 bg-accent text-txt-primary text-lg font-bold rounded-xl hover:bg-accent/80 transition-transform transform hover:scale-105"
           >
             {t('input.submit')}
           </button>

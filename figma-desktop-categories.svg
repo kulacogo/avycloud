@@ -1,0 +1,195 @@
+<svg width="1440" height="1024" viewBox="0 0 1440 1024" xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    text { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+  </style>
+</defs>
+
+<!-- Page Background -->
+<rect width="1440" height="1024" fill="#1a1d23"/>
+
+<!-- ===== SIDEBAR ===== -->
+<rect x="0" y="0" width="220" height="1024" fill="#15171c"/>
+<line x1="220" y1="0" x2="220" y2="1024" stroke="#2a2d35" stroke-width="1"/>
+
+<!-- Logo -->
+<rect x="16" y="16" width="36" height="36" rx="10" fill="#7c75ff"/>
+<text x="58" y="40" fill="#ebeef5" font-size="16" font-weight="700">AvyCloud</text>
+
+<!-- Nav Section Label -->
+<text x="16" y="80" fill="#7a8090" font-size="10" font-weight="600" letter-spacing="0.5">NAVIGATION</text>
+
+<!-- Nav: Dashboard (INACTIVE) -->
+<g>
+  <circle cx="24" cy="98" r="4" fill="none" stroke="#8a8f9e" stroke-width="1.5"/>
+  <path d="M24 94 L28 94 L28 105 L20 105 L20 99" fill="none" stroke="#8a8f9e" stroke-width="1.5"/>
+  <text x="44" y="103" fill="#8a8f9e" font-size="12" font-weight="500">Dashboard</text>
+</g>
+
+<!-- Nav: Identify (INACTIVE) -->
+<g>
+  <path d="M24 138 C20 138 20 142 20 142 L20 152 C20 152 20 156 24 156 L28 156 C32 156 32 152 32 152 L32 142 C32 142 32 138 28 138 Z" fill="none" stroke="#8a8f9e" stroke-width="1.5"/>
+  <line x1="24" y1="145" x2="28" y2="145" stroke="#8a8f9e" stroke-width="1.5"/>
+  <text x="44" y="153" fill="#8a8f9e" font-size="12" font-weight="500">Identify</text>
+</g>
+
+<!-- Nav: Inventory (INACTIVE) -->
+<g>
+  <rect x="20" y="170" width="8" height="3" fill="#8a8f9e"/>
+  <rect x="20" y="176" width="8" height="3" fill="#8a8f9e"/>
+  <rect x="20" y="182" width="8" height="3" fill="#8a8f9e"/>
+  <rect x="28" y="170" width="2" height="2" fill="#8a8f9e"/>
+  <text x="44" y="185" fill="#8a8f9e" font-size="12" font-weight="500">Inventory</text>
+  <!-- Badge -->
+  <rect x="152" y="172" width="20" height="16" rx="4" fill="#f87171"/>
+  <text x="157" y="183" fill="#fff" font-size="10" font-weight="600">18</text>
+</g>
+
+<!-- Nav: Products (INACTIVE) -->
+<g>
+  <rect x="20" y="202" width="8" height="10" rx="1" fill="none" stroke="#8a8f9e" stroke-width="1.5"/>
+  <rect x="22" y="204" width="4" height="6" fill="none" stroke="#8a8f9e" stroke-width="1.5"/>
+  <text x="44" y="217" fill="#8a8f9e" font-size="12" font-weight="500">Products</text>
+  <!-- Badge -->
+  <rect x="152" y="204" width="28" height="16" rx="4" fill="#7a8090"/>
+  <text x="158" y="215" fill="#fff" font-size="10" font-weight="600">784</text>
+</g>
+
+<!-- Nav: Categories (ACTIVE) -->
+<rect x="8" y="226" width="204" height="36" rx="8" fill="rgba(124,117,255,0.10)"/>
+<g>
+  <rect x="20" y="234" width="8" height="8" rx="1" fill="#7c75ff"/>
+  <rect x="28" y="234" width="8" height="8" rx="1" fill="#7c75ff"/>
+  <rect x="20" y="242" width="8" height="8" rx="1" fill="#7c75ff"/>
+  <rect x="28" y="242" width="8" height="8" rx="1" fill="#7c75ff"/>
+  <text x="44" y="249" fill="#7c75ff" font-size="12" font-weight="600">Categories</text>
+</g>
+
+<!-- Nav: Warehouse (INACTIVE) -->
+<g>
+  <rect x="20" y="266" width="12" height="10" rx="1" fill="none" stroke="#8a8f9e" stroke-width="1.5"/>
+  <line x1="24" y1="266" x2="24" y2="276" stroke="#8a8f9e" stroke-width="1.5"/>
+  <line x1="28" y1="266" x2="28" y2="276" stroke="#8a8f9e" stroke-width="1.5"/>
+  <text x="44" y="281" fill="#8a8f9e" font-size="12" font-weight="500">Warehouse</text>
+</g>
+
+<!-- Nav: Admin (INACTIVE) -->
+<g>
+  <circle cx="24" cy="298" r="3" fill="none" stroke="#8a8f9e" stroke-width="1.5"/>
+  <path d="M20 308 L28 308 L28 306 C28 303.8 26.2 302 24 302 C21.8 302 20 303.8 20 306 Z" fill="none" stroke="#8a8f9e" stroke-width="1.5"/>
+  <text x="44" y="313" fill="#8a8f9e" font-size="12" font-weight="500">Admin</text>
+</g>
+
+<!-- Dark/Light toggle -->
+<rect x="16" y="944" width="188" height="28" rx="8" fill="#282c34"/>
+<rect x="16" y="944" width="94" height="28" rx="8" fill="#7c75ff"/>
+<text x="38" y="963" fill="#fff" font-size="10" font-weight="600">Dark</text>
+<text x="132" y="963" fill="#7a8090" font-size="10" font-weight="500">Light</text>
+
+<!-- User Avatar -->
+<circle cx="32" cy="992" r="16" fill="#7c75ff"/>
+<text x="25" y="997" fill="#fff" font-size="11" font-weight="700">OK</text>
+<text x="56" y="988" fill="#ebeef5" font-size="12" font-weight="600">Oguzhan K.</text>
+<text x="56" y="1004" fill="#7a8090" font-size="10">Administrator</text>
+
+<!-- ===== TOP BAR ===== -->
+<rect x="220" y="0" width="1220" height="56" fill="#21242b" border-bottom="1px solid #2a2d35"/>
+<line x1="220" y1="56" x2="1440" y2="56" stroke="#2a2d35" stroke-width="1"/>
+
+<!-- Breadcrumb -->
+<text x="240" y="30" fill="#7a8090" font-size="12">AvyCloud</text>
+<text x="264" y="30" fill="#7a8090" font-size="12">›</text>
+<text x="280" y="30" fill="#ebeef5" font-size="12" font-weight="500">Categories</text>
+
+<!-- Search Bar -->
+<rect x="920" y="12" width="200" height="32" rx="8" fill="#282c34" stroke="#2a2d35" stroke-width="1"/>
+<text x="935" y="32" fill="#7a8090" font-size="12">Search products...</text>
+
+<!-- Top Bar Icons -->
+<circle cx="1340" cy="28" r="14" fill="#282c34"/>
+<text x="1336" y="32" fill="#ebeef5" font-size="14">👤</text>
+
+<!-- ===== MAIN CONTENT AREA ===== -->
+
+<!-- Page Title -->
+<text x="240" y="90" fill="#ebeef5" font-size="28" font-weight="700">eBay-Kategorien verwalten</text>
+
+<!-- Left Panel (40%) — Category List -->
+<g>
+  <!-- Search Input -->
+  <rect x="240" y="120" width="360" height="36" rx="8" fill="#282c34" stroke="#2a2d35" stroke-width="1"/>
+  <text x="255" y="142" fill="#7a8090" font-size="12">Kategorie suchen...</text>
+
+  <!-- Category Results List -->
+  <!-- Item 1 -->
+  <rect x="240" y="170" width="360" height="50" rx="6" fill="#282c34" stroke="#2a2d35" stroke-width="1"/>
+  <text x="255" y="190" fill="#ebeef5" font-size="11" font-weight="600">Elektronik › Handys › Smartphones</text>
+  <text x="255" y="208" fill="#7a8090" font-size="10">147 Produkte</text>
+  <circle cx="585" cy="195" r="8" fill="#34d399"/>
+
+  <!-- Item 2 -->
+  <rect x="240" y="230" width="360" height="50" rx="6" fill="#282c34" stroke="#2a2d35" stroke-width="1"/>
+  <text x="255" y="250" fill="#ebeef5" font-size="11" font-weight="600">Elektronik › Laptops & Computer</text>
+  <text x="255" y="268" fill="#7a8090" font-size="10">89 Produkte</text>
+  <circle cx="585" cy="255" r="8" fill="#34d399"/>
+
+  <!-- Item 3 -->
+  <rect x="240" y="290" width="360" height="50" rx="6" fill="#282c34" stroke="#2a2d35" stroke-width="1"/>
+  <text x="255" y="310" fill="#ebeef5" font-size="11" font-weight="600">Mode › Schuhe › Laufschuhe</text>
+  <text x="255" y="328" fill="#7a8090" font-size="10">234 Produkte</text>
+  <circle cx="585" cy="315" r="8" fill="#34d399"/>
+
+  <!-- Item 4 -->
+  <rect x="240" y="350" width="360" height="50" rx="6" fill="#282c34" stroke="#2a2d35" stroke-width="1"/>
+  <text x="255" y="370" fill="#ebeef5" font-size="11" font-weight="600">Haushalt › Werkzeuge › Bohrmaschinen</text>
+  <text x="255" y="388" fill="#7a8090" font-size="10">76 Produkte</text>
+  <circle cx="585" cy="375" r="8" fill="#34d399"/>
+
+  <!-- Item 5 (Selected) -->
+  <rect x="240" y="410" width="360" height="50" rx="6" fill="#7c75ff" stroke="#7c75ff" stroke-width="1"/>
+  <text x="255" y="430" fill="#fff" font-size="11" font-weight="600">Möbel › Sitzmöbel › Sessel</text>
+  <text x="255" y="448" fill="rgba(255,255,255,0.7)" font-size="10">156 Produkte</text>
+  <circle cx="585" cy="435" r="8" fill="#fff"/>
+</g>
+
+<!-- Right Panel (60%) — Category Details -->
+<g>
+  <!-- Category Header -->
+  <text x="640" y="130" fill="#ebeef5" font-size="18" font-weight="700">Elektronik › Handys & Smartphones</text>
+
+  <!-- Active Toggle -->
+  <text x="640" y="165" fill="#7a8090" font-size="11" font-weight="600">STATUS</text>
+  <rect x="640" y="173" width="44" height="24" rx="12" fill="#34d399"/>
+  <circle cx="658" cy="185" r="10" fill="#fff"/>
+  <text x="695" y="186" fill="#34d399" font-size="11" font-weight="600">Aktiv</text>
+
+  <!-- Kanonische Attribute Section -->
+  <text x="640" y="230" fill="#ebeef5" font-size="13" font-weight="600">Kanonische Attribute</text>
+  <rect x="640" y="245" width="560" height="100" rx="6" fill="#282c34" stroke="#2a2d35" stroke-width="1"/>
+  <text x="655" y="265" fill="#7a8090" font-size="10">- Displaygröße</text>
+  <text x="655" y="282" fill="#7a8090" font-size="10">- Prozessor</text>
+  <text x="655" y="299" fill="#7a8090" font-size="10">- RAM</text>
+  <text x="655" y="316" fill="#7a8090" font-size="10">- Speicher</text>
+  <text x="655" y="333" fill="#7a8090" font-size="10">- Akkulaufzeit</text>
+
+  <!-- Attribut-Aliase Section -->
+  <text x="640" y="375" fill="#ebeef5" font-size="13" font-weight="600">Attribut-Aliase</text>
+  <rect x="640" y="390" width="560" height="80" rx="6" fill="#282c34" stroke="#2a2d35" stroke-width="1"/>
+  <text x="655" y="410" fill="#7a8090" font-size="9">&#123; "displaySize": ["screen_size", "display"], </text>
+  <text x="655" y="425" fill="#7a8090" font-size="9">"processor": ["cpu", "chipset"], ... &#125;</text>
+
+  <!-- Notizen Section -->
+  <text x="640" y="490" fill="#ebeef5" font-size="13" font-weight="600">Notizen</text>
+  <rect x="640" y="505" width="560" height="60" rx="6" fill="#282c34" stroke="#2a2d35" stroke-width="1"/>
+  <text x="655" y="527" fill="#7a8090" font-size="10">Häufig aktualisiert. Neue Modelle monatlich.</text>
+
+  <!-- Save Button -->
+  <rect x="640" y="585" width="100" height="36" rx="6" fill="#7c75ff"/>
+  <text x="665" y="607" fill="#fff" font-size="12" font-weight="600">Speichern</text>
+
+  <!-- Last Updated -->
+  <text x="640" y="650" fill="#7a8090" font-size="10">Zuletzt aktualisiert: vor 3 Tagen von admin@avycloud.de</text>
+</g>
+
+</svg>

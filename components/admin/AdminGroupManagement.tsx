@@ -141,14 +141,14 @@ export const AdminGroupManagement: React.FC = () => {
     <div className="space-y-5">
       <div>
         <h2 className="text-xl font-bold">Admin: Groups</h2>
-        <p className="text-sm text-slate-400">
+        <p className="text-sm text-txt-muted">
           Best practice: Rechte werden primär über Rollen vergeben. Gruppen bündeln Rollen; User können zusätzlich direkte
           Overrides bekommen (sparsam nutzen).
         </p>
       </div>
 
       {error && (
-        <div className="rounded-xl border border-rose-500/20 bg-rose-950/40 px-4 py-3 text-sm text-rose-400">
+        <div className="rounded-xl border border-danger/20 bg-danger-dim px-4 py-3 text-sm text-danger">
           {error}
         </div>
       )}
@@ -178,14 +178,14 @@ export const AdminGroupManagement: React.FC = () => {
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        <div className="rounded-2xl border border-white/10 bg-slate-800/40 p-5 space-y-4">
+        <div className="rounded-2xl border border-app-border bg-app-surface p-5 space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="font-semibold">Gruppen</h3>
             <button
               type="button"
               onClick={load}
               disabled={loading}
-              className="rounded-xl bg-slate-800/80 border border-white/[0.08] hover:bg-white/10 disabled:opacity-60 px-3 py-2 text-sm font-semibold text-white"
+              className="rounded-xl bg-app-elevated border border-white/[0.08] hover:bg-white/10 disabled:opacity-60 px-3 py-2 text-sm font-semibold text-txt-primary"
             >
               Refresh
             </button>
@@ -199,19 +199,19 @@ export const AdminGroupManagement: React.FC = () => {
                 if (!newGroupId.trim()) setNewGroupId(normalizeId(e.target.value));
               }}
               placeholder="Group name (z.B. Lager-Team)"
-              className="w-full rounded-xl bg-slate-900/60 border border-white/10 px-3 py-2.5 text-slate-100 outline-none focus:border-sky-500"
+              className="w-full rounded-xl bg-app-bg/60 border border-app-border px-3 py-2.5 text-txt-primary outline-none focus:border-accent"
             />
             <input
               value={newGroupId}
               onChange={(e) => setNewGroupId(e.target.value)}
               placeholder="groupId (optional, z.B. lager-team)"
-              className="w-full rounded-xl bg-slate-900/60 border border-white/10 px-3 py-2.5 text-slate-100 outline-none focus:border-sky-500"
+              className="w-full rounded-xl bg-app-bg/60 border border-app-border px-3 py-2.5 text-txt-primary outline-none focus:border-accent"
             />
             <button
               type="button"
               onClick={create}
               disabled={!newGroupName.trim()}
-              className="w-full rounded-xl bg-sky-600 hover:bg-sky-500 disabled:opacity-60 px-4 py-2.5 font-semibold text-white"
+              className="w-full rounded-xl bg-accent hover:bg-accent/80 disabled:opacity-60 px-4 py-2.5 font-semibold text-txt-primary"
             >
               Gruppe erstellen
             </button>
@@ -224,28 +224,28 @@ export const AdminGroupManagement: React.FC = () => {
                 type="button"
                 onClick={() => setSelectedGroupId(g.id)}
                 className={`w-full text-left rounded-xl px-3 py-2 text-sm transition-colors ${
-                  selectedGroupId === g.id ? 'bg-sky-700/50 text-white' : 'bg-slate-900/30 text-slate-200 hover:bg-slate-700/40'
+                  selectedGroupId === g.id ? 'bg-accent/50 text-txt-primary' : 'bg-app-bg/30 text-txt-secondary hover:bg-app-elevated/40'
                 }`}
               >
                 <div className="font-semibold">{g.name || g.id}</div>
-                <div className="text-xs text-slate-400">{g.id}</div>
+                <div className="text-xs text-txt-muted">{g.id}</div>
               </button>
             ))}
-            {groups.length === 0 && <div className="text-sm text-slate-400">Keine Gruppen.</div>}
+            {groups.length === 0 && <div className="text-sm text-txt-muted">Keine Gruppen.</div>}
           </div>
         </div>
 
-        <div className="lg:col-span-2 rounded-2xl border border-white/10 bg-slate-800/40 p-5 space-y-4">
+        <div className="lg:col-span-2 rounded-2xl border border-app-border bg-app-surface p-5 space-y-4">
           <div className="flex items-start justify-between gap-4">
             <div>
               <h3 className="font-semibold">Details</h3>
-              <p className="text-xs text-slate-400">Gruppe: {selectedGroup?.id || '—'}</p>
+              <p className="text-xs text-txt-muted">Gruppe: {selectedGroup?.id || '—'}</p>
             </div>
             <button
               type="button"
               onClick={deleteSelectedGroup}
               disabled={!selectedGroupId}
-              className="rounded-xl bg-rose-700 hover:bg-rose-600 disabled:opacity-60 px-4 py-2 text-sm font-semibold text-white"
+              className="rounded-xl bg-danger hover:bg-danger/80 disabled:opacity-60 px-4 py-2 text-sm font-semibold text-txt-primary"
             >
               Gruppe löschen
             </button>
@@ -255,7 +255,7 @@ export const AdminGroupManagement: React.FC = () => {
             <div className="text-sm font-semibold">Rollen der Gruppe</div>
             <div className="flex flex-wrap gap-3">
               {ROLE_OPTIONS.map((role) => (
-                <label key={role} className="flex items-center gap-2 text-sm text-slate-200">
+                <label key={role} className="flex items-center gap-2 text-sm text-txt-secondary">
                   <input
                     type="checkbox"
                     checked={Boolean(selectedGroup?.roleIds?.includes(role))}
@@ -275,15 +275,15 @@ export const AdminGroupManagement: React.FC = () => {
                 {members.map((u) => {
                   const uid = (u.uid as string) || u.id;
                   return (
-                    <div key={uid} className="flex items-center justify-between gap-2 rounded-xl bg-slate-900/30 px-3 py-2">
+                    <div key={uid} className="flex items-center justify-between gap-2 rounded-xl bg-app-bg/30 px-3 py-2">
                       <div className="min-w-0">
-                        <div className="text-sm text-slate-100 truncate">{u.email || uid}</div>
-                        <div className="text-xs text-slate-400 truncate">{uid}</div>
+                        <div className="text-sm text-txt-primary truncate">{u.email || uid}</div>
+                        <div className="text-xs text-txt-muted truncate">{uid}</div>
                       </div>
                       <button
                         type="button"
                         onClick={() => removeUserFromGroup(uid)}
-                        className="rounded-xl bg-slate-800/80 border border-white/[0.08] hover:bg-white/10 px-3 py-1.5 text-xs font-semibold text-white"
+                        className="rounded-xl bg-app-elevated border border-white/[0.08] hover:bg-white/10 px-3 py-1.5 text-xs font-semibold text-txt-primary"
                       >
                         Entfernen
                       </button>
@@ -291,7 +291,7 @@ export const AdminGroupManagement: React.FC = () => {
                   );
                 })}
                 {selectedGroupId && members.length === 0 && (
-                  <div className="text-sm text-slate-400">Keine Members.</div>
+                  <div className="text-sm text-txt-muted">Keine Members.</div>
                 )}
               </div>
             </div>
@@ -303,23 +303,23 @@ export const AdminGroupManagement: React.FC = () => {
                   const uid = (u.uid as string) || u.id;
                   const inGroup = Boolean(selectedGroupId && Array.isArray((u as any).groupIds) && (u as any).groupIds.includes(selectedGroupId));
                   return (
-                    <div key={uid} className="flex items-center justify-between gap-2 rounded-xl bg-slate-900/20 px-3 py-2">
+                    <div key={uid} className="flex items-center justify-between gap-2 rounded-xl bg-app-bg/20 px-3 py-2">
                       <div className="min-w-0">
-                        <div className="text-sm text-slate-100 truncate">{u.email || uid}</div>
-                        <div className="text-xs text-slate-400 truncate">{uid}</div>
+                        <div className="text-sm text-txt-primary truncate">{u.email || uid}</div>
+                        <div className="text-xs text-txt-muted truncate">{uid}</div>
                       </div>
                       <button
                         type="button"
                         disabled={!selectedGroupId || inGroup}
                         onClick={() => addUserToGroup(uid)}
-                        className="rounded-xl bg-sky-700 hover:bg-sky-600 disabled:opacity-60 px-3 py-1.5 text-xs font-semibold text-white"
+                        className="rounded-xl bg-accent hover:bg-accent disabled:opacity-60 px-3 py-1.5 text-xs font-semibold text-txt-primary"
                       >
                         {inGroup ? '✓' : 'Add'}
                       </button>
                     </div>
                   );
                 })}
-                {users.length === 0 && <div className="text-sm text-slate-400">Keine Users geladen.</div>}
+                {users.length === 0 && <div className="text-sm text-txt-muted">Keine Users geladen.</div>}
               </div>
             </div>
           </div>

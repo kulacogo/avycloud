@@ -1,0 +1,196 @@
+<svg width="1440" height="1024" viewBox="0 0 1440 1024" xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    text { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+  </style>
+</defs>
+
+<!-- Page Background -->
+<rect width="1440" height="1024" fill="#1a1d23"/>
+
+<!-- ===== SIDEBAR ===== -->
+<rect x="0" y="0" width="220" height="1024" fill="#15171c"/>
+<line x1="220" y1="0" x2="220" y2="1024" stroke="#2a2d35" stroke-width="1"/>
+
+<!-- Logo -->
+<rect x="16" y="16" width="36" height="36" rx="10" fill="#7c75ff"/>
+<text x="58" y="40" fill="#ebeef5" font-size="16" font-weight="700">AvyCloud</text>
+
+<!-- Nav Section Label -->
+<text x="16" y="80" fill="#7a8090" font-size="10" font-weight="600" letter-spacing="0.5">NAVIGATION</text>
+
+<!-- Nav: Dashboard (INACTIVE) -->
+<g>
+  <circle cx="24" cy="98" r="4" fill="none" stroke="#8a8f9e" stroke-width="1.5"/>
+  <path d="M24 94 L28 94 L28 105 L20 105 L20 99" fill="none" stroke="#8a8f9e" stroke-width="1.5"/>
+  <text x="44" y="103" fill="#8a8f9e" font-size="12" font-weight="500">Dashboard</text>
+</g>
+
+<!-- Nav: Identify (ACTIVE) -->
+<rect x="8" y="130" width="204" height="36" rx="8" fill="rgba(124,117,255,0.10)"/>
+<g>
+  <path d="M24 138 C20 138 20 142 20 142 L20 152 C20 152 20 156 24 156 L28 156 C32 156 32 152 32 152 L32 142 C32 142 32 138 28 138 Z" fill="none" stroke="#7c75ff" stroke-width="1.5"/>
+  <line x1="24" y1="145" x2="28" y2="145" stroke="#7c75ff" stroke-width="1.5"/>
+  <text x="44" y="153" fill="#7c75ff" font-size="12" font-weight="600">Identify</text>
+</g>
+
+<!-- Nav: Inventory (INACTIVE) -->
+<g>
+  <rect x="20" y="170" width="8" height="3" fill="#8a8f9e"/>
+  <rect x="20" y="176" width="8" height="3" fill="#8a8f9e"/>
+  <rect x="20" y="182" width="8" height="3" fill="#8a8f9e"/>
+  <rect x="28" y="170" width="2" height="2" fill="#8a8f9e"/>
+  <text x="44" y="185" fill="#8a8f9e" font-size="12" font-weight="500">Inventory</text>
+  <!-- Badge -->
+  <rect x="152" y="172" width="20" height="16" rx="4" fill="#f87171"/>
+  <text x="157" y="183" fill="#fff" font-size="10" font-weight="600">18</text>
+</g>
+
+<!-- Nav: Products (INACTIVE) -->
+<g>
+  <rect x="20" y="202" width="8" height="10" rx="1" fill="none" stroke="#8a8f9e" stroke-width="1.5"/>
+  <rect x="22" y="204" width="4" height="6" fill="none" stroke="#8a8f9e" stroke-width="1.5"/>
+  <text x="44" y="217" fill="#8a8f9e" font-size="12" font-weight="500">Products</text>
+  <!-- Badge -->
+  <rect x="152" y="204" width="28" height="16" rx="4" fill="#7a8090"/>
+  <text x="158" y="215" fill="#fff" font-size="10" font-weight="600">784</text>
+</g>
+
+<!-- Nav: Categories (INACTIVE) -->
+<g>
+  <rect x="20" y="234" width="8" height="8" rx="1" fill="none" stroke="#8a8f9e" stroke-width="1.5"/>
+  <rect x="28" y="234" width="8" height="8" rx="1" fill="none" stroke="#8a8f9e" stroke-width="1.5"/>
+  <rect x="20" y="242" width="8" height="8" rx="1" fill="none" stroke="#8a8f9e" stroke-width="1.5"/>
+  <rect x="28" y="242" width="8" height="8" rx="1" fill="none" stroke="#8a8f9e" stroke-width="1.5"/>
+  <text x="44" y="249" fill="#8a8f9e" font-size="12" font-weight="500">Categories</text>
+</g>
+
+<!-- Nav: Warehouse (INACTIVE) -->
+<g>
+  <rect x="20" y="266" width="12" height="10" rx="1" fill="none" stroke="#8a8f9e" stroke-width="1.5"/>
+  <line x1="24" y1="266" x2="24" y2="276" stroke="#8a8f9e" stroke-width="1.5"/>
+  <line x1="28" y1="266" x2="28" y2="276" stroke="#8a8f9e" stroke-width="1.5"/>
+  <text x="44" y="281" fill="#8a8f9e" font-size="12" font-weight="500">Warehouse</text>
+</g>
+
+<!-- Nav: Admin (INACTIVE) -->
+<g>
+  <circle cx="24" cy="298" r="3" fill="none" stroke="#8a8f9e" stroke-width="1.5"/>
+  <path d="M20 308 L28 308 L28 306 C28 303.8 26.2 302 24 302 C21.8 302 20 303.8 20 306 Z" fill="none" stroke="#8a8f9e" stroke-width="1.5"/>
+  <text x="44" y="313" fill="#8a8f9e" font-size="12" font-weight="500">Admin</text>
+</g>
+
+<!-- Dark/Light toggle -->
+<rect x="16" y="944" width="188" height="28" rx="8" fill="#282c34"/>
+<rect x="16" y="944" width="94" height="28" rx="8" fill="#7c75ff"/>
+<text x="38" y="963" fill="#fff" font-size="10" font-weight="600">Dark</text>
+<text x="132" y="963" fill="#7a8090" font-size="10" font-weight="500">Light</text>
+
+<!-- User Avatar -->
+<circle cx="32" cy="992" r="16" fill="#7c75ff"/>
+<text x="25" y="997" fill="#fff" font-size="11" font-weight="700">OK</text>
+<text x="56" y="988" fill="#ebeef5" font-size="12" font-weight="600">Oguzhan K.</text>
+<text x="56" y="1004" fill="#7a8090" font-size="10">Administrator</text>
+
+<!-- ===== TOP BAR ===== -->
+<rect x="220" y="0" width="1220" height="56" fill="#21242b" border-bottom="1px solid #2a2d35"/>
+<line x1="220" y1="56" x2="1440" y2="56" stroke="#2a2d35" stroke-width="1"/>
+
+<!-- Breadcrumb -->
+<text x="240" y="30" fill="#7a8090" font-size="12">AvyCloud</text>
+<text x="264" y="30" fill="#7a8090" font-size="12">›</text>
+<text x="280" y="30" fill="#ebeef5" font-size="12" font-weight="500">Identify</text>
+
+<!-- Search Bar -->
+<rect x="920" y="12" width="200" height="32" rx="8" fill="#282c34" stroke="#2a2d35" stroke-width="1"/>
+<text x="935" y="32" fill="#7a8090" font-size="12">Search products...</text>
+
+<!-- Top Bar Icons -->
+<circle cx="1340" cy="28" r="14" fill="#282c34"/>
+<text x="1336" y="32" fill="#ebeef5" font-size="14">👤</text>
+
+<!-- ===== MAIN CONTENT AREA ===== -->
+
+<!-- Page Title & Subtitle -->
+<text x="240" y="90" fill="#ebeef5" font-size="28" font-weight="700">Produkte identifizieren</text>
+<text x="240" y="115" fill="#7a8090" font-size="13">Bilder und Barcodes hochladen zur KI-gestützten Identifikation</text>
+
+<!-- Main Content Container -->
+<g>
+  <!-- Left Panel (60%) -->
+  <g>
+    <!-- Barcodes Section -->
+    <text x="240" y="155" fill="#ebeef5" font-size="14" font-weight="600">Barcodes</text>
+    <rect x="240" y="168" width="600" height="100" rx="8" fill="#282c34" stroke="#2a2d35" stroke-width="1"/>
+    <text x="255" y="190" fill="#7a8090" font-size="11">8901234567890</text>
+    <text x="255" y="206" fill="#7a8090" font-size="11">5901234123457</text>
+    <text x="255" y="222" fill="#7a8090" font-size="11">3901234567012</text>
+    <text x="255" y="238" fill="#7a8090" font-size="11">(ein Barcode pro Zeile)</text>
+
+    <!-- Image Upload Section -->
+    <text x="240" y="305" fill="#ebeef5" font-size="14" font-weight="600">Bilder hochladen</text>
+
+    <!-- Drag & Drop Zone -->
+    <rect x="240" y="318" width="600" height="160" rx="8" fill="#282c34" stroke="#2a2d35" stroke-width="2" stroke-dasharray="4,4"/>
+
+    <!-- Cloud Icon -->
+    <circle cx="540" cy="360" r="20" fill="none" stroke="#7c75ff" stroke-width="1.5"/>
+    <path d="M535 360 Q535 355 540 355 Q545 355 545 360" fill="none" stroke="#7c75ff" stroke-width="1.5"/>
+    <line x1="540" y1="365" x2="540" y2="380" stroke="#7c75ff" stroke-width="1.5"/>
+    <path d="M535 380 L540 375 L545 380" fill="none" stroke="#7c75ff" stroke-width="1.5"/>
+
+    <text x="420" y="410" fill="#7c75ff" font-size="13" font-weight="600">Bilder hier ablegen</text>
+    <text x="405" y="428" fill="#7a8090" font-size="12">oder klicken zum Auswählen</text>
+
+    <!-- Uploaded Images -->
+    <text x="240" y="515" fill="#ebeef5" font-size="12" font-weight="600">Hochgeladene Bilder</text>
+
+    <rect x="240" y="528" width="80" height="80" rx="6" fill="#21242b" stroke="#2a2d35" stroke-width="1"/>
+    <rect x="245" y="533" width="70" height="70" rx="4" fill="#282c34"/>
+    <text x="275" y="575" fill="#7a8090" font-size="10">IMG1</text>
+
+    <rect x="330" y="528" width="80" height="80" rx="6" fill="#21242b" stroke="#2a2d35" stroke-width="1"/>
+    <rect x="335" y="533" width="70" height="70" rx="4" fill="#282c34"/>
+    <text x="365" y="575" fill="#7a8090" font-size="10">IMG2</text>
+
+    <rect x="420" y="528" width="80" height="80" rx="6" fill="#21242b" stroke="#2a2d35" stroke-width="1"/>
+    <rect x="425" y="533" width="70" height="70" rx="4" fill="#282c34"/>
+    <text x="455" y="575" fill="#7a8090" font-size="10">IMG3</text>
+
+    <!-- Add Group Button -->
+    <rect x="240" y="630" width="180" height="36" rx="8" fill="#282c34" stroke="#2a2d35" stroke-width="1"/>
+    <text x="260" y="651" fill="#ebeef5" font-size="12" font-weight="500">+ Gruppe 2 hinzufügen</text>
+  </g>
+
+  <!-- Right Panel (40%) -->
+  <g>
+    <!-- Preview Card -->
+    <rect x="880" y="150" width="340" height="280" rx="12" fill="#21242b" stroke="#2a2d35" stroke-width="1"/>
+
+    <!-- Card Header -->
+    <rect x="880" y="150" width="340" height="50" rx="12" fill="#282c34"/>
+    <text x="900" y="180" fill="#ebeef5" font-size="14" font-weight="600">Vorschau</text>
+
+    <!-- Status Section -->
+    <text x="900" y="220" fill="#7a8090" font-size="11" font-weight="600">STATUS</text>
+    <g>
+      <circle cx="900" cy="240" r="3" fill="#7c75ff"/>
+      <text x="910" y="244" fill="#ebeef5" font-size="12">Bereit zu identifizieren</text>
+    </g>
+
+    <!-- Input Count -->
+    <text x="900" y="275" fill="#7a8090" font-size="11" font-weight="600">EINGABEN</text>
+    <text x="900" y="295" fill="#ebeef5" font-size="12">3 Bilder</text>
+    <text x="900" y="313" fill="#ebeef5" font-size="12">3 Barcodes</text>
+
+    <!-- Identify Button -->
+    <rect x="880" y="450" width="340" height="48" rx="8" fill="#7c75ff"/>
+    <text x="1090" y="479" fill="#fff" font-size="14" font-weight="600" text-anchor="middle">Identifizieren</text>
+
+    <!-- Info Text -->
+    <text x="900" y="535" fill="#7a8090" font-size="10">KI-gestützte Produkterkennung via Gemini</text>
+  </g>
+</g>
+
+</svg>

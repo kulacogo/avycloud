@@ -230,17 +230,17 @@ export const AdminRulebookManagement: React.FC = () => {
       <div className="flex items-start justify-between gap-4">
         <div>
           <h2 className="text-xl font-bold">Admin: Regelverwaltung (Rulebook)</h2>
-          <p className="text-sm text-slate-400">
+          <p className="text-sm text-txt-muted">
             Zentraler, zwingender Rulebook-Config für Titel/Highlights/Attribute (wirkt auf Identify/Improve/Chat + Delta-Sync).
           </p>
           {meta && (
-            <p className="text-xs text-slate-500 mt-1">
+            <p className="text-xs text-txt-muted mt-1">
               Version: {meta.versionId || '—'} · Updated: {meta.updatedAt || '—'} · By: {meta.updatedBy || '—'}
             </p>
           )}
         </div>
         <div className="flex items-center gap-2">
-          <label className="text-xs text-slate-300 flex items-center gap-2 mr-1">
+          <label className="text-xs text-txt-secondary flex items-center gap-2 mr-1">
             <input type="checkbox" checked={runAfterSave} onChange={(e) => setRunAfterSave(e.target.checked)} />
             Run now after Save
           </label>
@@ -248,7 +248,7 @@ export const AdminRulebookManagement: React.FC = () => {
             type="button"
             disabled={loading || saving}
             onClick={load}
-            className="rounded-xl bg-slate-800/40 px-3 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-700 disabled:opacity-50"
+            className="rounded-xl bg-app-surface px-3 py-2 text-sm font-semibold text-txt-secondary hover:bg-app-elevated disabled:opacity-50"
           >
             Refresh
           </button>
@@ -256,33 +256,33 @@ export const AdminRulebookManagement: React.FC = () => {
             type="button"
             disabled={loading || saving}
             onClick={save}
-            className="rounded-xl bg-sky-600 px-3 py-2 text-sm font-semibold text-white hover:bg-sky-500 disabled:opacity-50"
+            className="rounded-xl bg-accent px-3 py-2 text-sm font-semibold text-txt-primary hover:bg-accent/80 disabled:opacity-50"
           >
             Save
           </button>
         </div>
       </div>
 
-      {error && <div className="rounded-xl border border-rose-500/20 bg-rose-950/40 px-4 py-3 text-sm text-rose-400">{error}</div>}
-      {loading && <div className="text-sm text-slate-300">Loading…</div>}
+      {error && <div className="rounded-xl border border-danger/20 bg-danger-dim px-4 py-3 text-sm text-danger">{error}</div>}
+      {loading && <div className="text-sm text-txt-secondary">Loading…</div>}
 
-      <section className="rounded-2xl border border-white/10 bg-slate-900/40 p-5 space-y-3">
-        <h3 className="text-sm font-semibold text-slate-200">Titel Regeln (Längen + Marketing Wörter)</h3>
+      <section className="rounded-2xl border border-app-border bg-app-bg/40 p-5 space-y-3">
+        <h3 className="text-sm font-semibold text-txt-secondary">Titel Regeln (Längen + Marketing Wörter)</h3>
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           {(['minLen', 'softMaxLen', 'maxLen', 'mobileMaxLen'] as const).map((k) => (
-            <label key={k} className="text-xs text-slate-300 space-y-1">
+            <label key={k} className="text-xs text-txt-secondary space-y-1">
               <span>{k}</span>
               <input
-                className="w-full rounded-xl bg-slate-950/40 border border-white/10 px-3 py-2 text-slate-100"
+                className="w-full rounded-xl bg-app-bg/40 border border-app-border px-3 py-2 text-txt-primary"
                 value={(cfg.title as any)?.[k] ?? ''}
                 onChange={(e) => setCfg((prev) => ({ ...prev, title: { ...(prev.title || {}), [k]: Number(e.target.value) } }))}
               />
             </label>
           ))}
-          <label className="text-xs text-slate-300 space-y-1 md:col-span-2">
+          <label className="text-xs text-txt-secondary space-y-1 md:col-span-2">
             <span>marketingWords (comma-separated)</span>
             <input
-              className="w-full rounded-xl bg-slate-950/40 border border-white/10 px-3 py-2 text-slate-100"
+              className="w-full rounded-xl bg-app-bg/40 border border-app-border px-3 py-2 text-txt-primary"
               value={Array.isArray(cfg?.title?.marketingWords) ? cfg.title!.marketingWords!.join(', ') : ''}
               onChange={(e) =>
                 setCfg((prev) => ({
@@ -301,12 +301,12 @@ export const AdminRulebookManagement: React.FC = () => {
         </div>
       </section>
 
-      <section className="rounded-2xl border border-white/10 bg-slate-900/40 p-5 space-y-3">
+      <section className="rounded-2xl border border-app-border bg-app-bg/40 p-5 space-y-3">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-slate-200">Titel Kategorien (pro Titel-Kategorie)</h3>
+          <h3 className="text-sm font-semibold text-txt-secondary">Titel Kategorien (pro Titel-Kategorie)</h3>
           <button
             type="button"
-            className="rounded-xl bg-slate-800/40 px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-700"
+            className="rounded-xl bg-app-surface px-3 py-2 text-xs font-semibold text-txt-secondary hover:bg-app-elevated"
             onClick={() =>
               setTitleRows((prev) => [
                 ...prev,
@@ -317,12 +317,12 @@ export const AdminRulebookManagement: React.FC = () => {
             + Add row
           </button>
         </div>
-        <p className="text-xs text-slate-400">
+        <p className="text-xs text-txt-muted">
           Diese Titel-Kategorien sind grobe Buckets (nicht Produkt-Kategorien). Jedes Produkt wird deterministisch einem Bucket zugeordnet (Fallback: generic).
         </p>
-        <div className="overflow-auto rounded-xl ring-1 ring-white/10">
+        <div className="overflow-auto rounded-xl ring-1 ring-app-border">
           <table className="min-w-full text-xs">
-            <thead className="bg-slate-950/40 text-slate-300">
+            <thead className="bg-app-bg/40 text-txt-secondary">
               <tr>
                 <th className="px-3 py-2 text-left font-semibold">schemaId</th>
                 <th className="px-3 py-2 text-left font-semibold">minLen</th>
@@ -332,12 +332,12 @@ export const AdminRulebookManagement: React.FC = () => {
                 <th className="px-3 py-2 text-left font-semibold">Remove</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-white/10">
+            <tbody className="divide-y divide-app-border">
               {titleRows.map((r, idx) => (
-                <tr key={`${r.schemaId}-${idx}`} className="bg-slate-900/20">
+                <tr key={`${r.schemaId}-${idx}`} className="bg-app-bg/20">
                   <td className="px-3 py-2">
                     <input
-                      className="w-44 rounded-xl bg-slate-950/40 border border-white/10 px-3 py-2 text-slate-100"
+                      className="w-44 rounded-xl bg-app-bg/40 border border-app-border px-3 py-2 text-txt-primary"
                       value={r.schemaId}
                       onChange={(e) => updateTitleCell(idx, 'schemaId', e.target.value)}
                     />
@@ -345,7 +345,7 @@ export const AdminRulebookManagement: React.FC = () => {
                   {(['minLen', 'softMaxLen', 'maxLen', 'mobileMaxLen'] as const).map((k) => (
                     <td key={k} className="px-3 py-2">
                       <input
-                        className="w-24 rounded-xl bg-slate-950/40 border border-white/10 px-3 py-2 text-slate-100"
+                        className="w-24 rounded-xl bg-app-bg/40 border border-app-border px-3 py-2 text-txt-primary"
                         value={(r as any)[k]}
                         onChange={(e) => updateTitleCell(idx, k, e.target.value)}
                       />
@@ -354,7 +354,7 @@ export const AdminRulebookManagement: React.FC = () => {
                   <td className="px-3 py-2">
                     <button
                       type="button"
-                      className="rounded-xl bg-red-600/80 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-600"
+                      className="rounded-xl bg-danger/80 px-3 py-1.5 text-xs font-semibold text-txt-primary hover:bg-danger"
                       onClick={() => setTitleRows((prev) => prev.filter((_, i) => i !== idx))}
                     >
                       Remove
@@ -364,7 +364,7 @@ export const AdminRulebookManagement: React.FC = () => {
               ))}
               {titleRows.length === 0 ? (
                 <tr>
-                  <td className="px-3 py-6 text-center text-slate-500" colSpan={6}>
+                  <td className="px-3 py-6 text-center text-txt-muted" colSpan={6}>
                     No title category rules configured.
                   </td>
                 </tr>
@@ -374,18 +374,18 @@ export const AdminRulebookManagement: React.FC = () => {
         </div>
       </section>
 
-      <section className="rounded-2xl border border-white/10 bg-slate-900/40 p-5 space-y-3">
+      <section className="rounded-2xl border border-app-border bg-app-bg/40 p-5 space-y-3">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-slate-200">Highlights Regeln (pro Schema)</h3>
+          <h3 className="text-sm font-semibold text-txt-secondary">Highlights Regeln (pro Schema)</h3>
           <button
             type="button"
-            className="rounded-xl bg-slate-800/40 px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-700"
+            className="rounded-xl bg-app-surface px-3 py-2 text-xs font-semibold text-txt-secondary hover:bg-app-elevated"
             onClick={() => setHighlightRows((p) => [...p, { schemaId: 'generic', min: 4, max: 6, minLen: 70, maxLen: 110 }])}
           >
             + Add row
           </button>
         </div>
-        <label className="text-xs text-slate-300 flex items-center gap-2">
+        <label className="text-xs text-txt-secondary flex items-center gap-2">
           <input
             type="checkbox"
             checked={cfg?.highlights?.requireDashTemplate !== false}
@@ -394,9 +394,9 @@ export const AdminRulebookManagement: React.FC = () => {
           Require “[Nutzen] – [Spec]” dash template
         </label>
 
-        <div className="overflow-auto rounded-xl border border-white/10">
+        <div className="overflow-auto rounded-xl border border-app-border">
           <table className="min-w-[760px] w-full text-sm">
-            <thead className="bg-slate-950/40 text-slate-300">
+            <thead className="bg-app-bg/40 text-txt-secondary">
               <tr>
                 <th className="text-left px-3 py-2">schemaId</th>
                 <th className="text-left px-3 py-2">min</th>
@@ -406,13 +406,13 @@ export const AdminRulebookManagement: React.FC = () => {
                 <th className="text-left px-3 py-2">Remove</th>
               </tr>
             </thead>
-            <tbody className="text-slate-100">
+            <tbody className="text-txt-primary">
               {highlightRows.map((row, idx) => (
-                <tr key={`${row.schemaId}-${idx}`} className="border-t border-white/10">
+                <tr key={`${row.schemaId}-${idx}`} className="border-t border-app-border">
                   {(['schemaId', 'min', 'max', 'minLen', 'maxLen'] as const).map((k) => (
                     <td key={k} className="px-3 py-2">
                       <input
-                        className="w-full rounded-lg bg-slate-950/40 border border-white/10 px-2 py-1 text-slate-100"
+                        className="w-full rounded-lg bg-app-bg/40 border border-app-border px-2 py-1 text-txt-primary"
                         value={(row as any)[k]}
                         onChange={(e) => updateHighlightCell(idx, k, e.target.value)}
                       />
@@ -421,7 +421,7 @@ export const AdminRulebookManagement: React.FC = () => {
                   <td className="px-3 py-2">
                     <button
                       type="button"
-                      className="rounded-lg bg-red-600/20 border border-red-500/30 px-2 py-1 text-xs text-red-200 hover:bg-red-600/30"
+                      className="rounded-lg bg-danger-dim border border-danger/30 px-2 py-1 text-xs text-danger hover:bg-danger/30"
                       onClick={() => setHighlightRows((p) => p.filter((_, i) => i !== idx))}
                     >
                       Remove
@@ -431,7 +431,7 @@ export const AdminRulebookManagement: React.FC = () => {
               ))}
               {!highlightRows.length && (
                 <tr>
-                  <td className="px-3 py-3 text-slate-400" colSpan={6}>
+                  <td className="px-3 py-3 text-txt-muted" colSpan={6}>
                     No highlight rules configured.
                   </td>
                 </tr>
@@ -441,39 +441,39 @@ export const AdminRulebookManagement: React.FC = () => {
         </div>
       </section>
 
-      <section className="rounded-2xl border border-white/10 bg-slate-900/40 p-5 space-y-3">
+      <section className="rounded-2xl border border-app-border bg-app-bg/40 p-5 space-y-3">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-slate-200">Attribute Canonical Map (Synonyme → Canonical Key)</h3>
+          <h3 className="text-sm font-semibold text-txt-secondary">Attribute Canonical Map (Synonyme → Canonical Key)</h3>
           <button
             type="button"
-            className="rounded-xl bg-slate-800/40 px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-700"
+            className="rounded-xl bg-app-surface px-3 py-2 text-xs font-semibold text-txt-secondary hover:bg-app-elevated"
             onClick={() => setCanonRows((p) => [...p, { from: '', to: '' }])}
           >
             + Add row
           </button>
         </div>
-        <div className="overflow-auto rounded-xl border border-white/10">
+        <div className="overflow-auto rounded-xl border border-app-border">
           <table className="min-w-[760px] w-full text-sm">
-            <thead className="bg-slate-950/40 text-slate-300">
+            <thead className="bg-app-bg/40 text-txt-secondary">
               <tr>
                 <th className="text-left px-3 py-2">from (lowercase input key)</th>
                 <th className="text-left px-3 py-2">to (canonical key)</th>
                 <th className="text-left px-3 py-2">Remove</th>
               </tr>
             </thead>
-            <tbody className="text-slate-100">
+            <tbody className="text-txt-primary">
               {canonRows.map((row, idx) => (
-                <tr key={`${row.from}-${idx}`} className="border-t border-white/10">
+                <tr key={`${row.from}-${idx}`} className="border-t border-app-border">
                   <td className="px-3 py-2">
                     <input
-                      className="w-full rounded-lg bg-slate-950/40 border border-white/10 px-2 py-1 text-slate-100"
+                      className="w-full rounded-lg bg-app-bg/40 border border-app-border px-2 py-1 text-txt-primary"
                       value={row.from}
                       onChange={(e) => updateCanonCell(idx, 'from', e.target.value)}
                     />
                   </td>
                   <td className="px-3 py-2">
                     <input
-                      className="w-full rounded-lg bg-slate-950/40 border border-white/10 px-2 py-1 text-slate-100"
+                      className="w-full rounded-lg bg-app-bg/40 border border-app-border px-2 py-1 text-txt-primary"
                       value={row.to}
                       onChange={(e) => updateCanonCell(idx, 'to', e.target.value)}
                     />
@@ -481,7 +481,7 @@ export const AdminRulebookManagement: React.FC = () => {
                   <td className="px-3 py-2">
                     <button
                       type="button"
-                      className="rounded-lg bg-red-600/20 border border-red-500/30 px-2 py-1 text-xs text-red-200 hover:bg-red-600/30"
+                      className="rounded-lg bg-danger-dim border border-danger/30 px-2 py-1 text-xs text-danger hover:bg-danger/30"
                       onClick={() => setCanonRows((p) => p.filter((_, i) => i !== idx))}
                     >
                       Remove
@@ -491,7 +491,7 @@ export const AdminRulebookManagement: React.FC = () => {
               ))}
               {!canonRows.length && (
                 <tr>
-                  <td className="px-3 py-3 text-slate-400" colSpan={3}>
+                  <td className="px-3 py-3 text-txt-muted" colSpan={3}>
                     No canonical mappings configured.
                   </td>
                 </tr>
@@ -501,22 +501,22 @@ export const AdminRulebookManagement: React.FC = () => {
         </div>
       </section>
 
-      <section className="rounded-2xl border border-white/10 bg-slate-900/40 p-5 space-y-3">
-        <h3 className="text-sm font-semibold text-slate-200">Version Note</h3>
+      <section className="rounded-2xl border border-app-border bg-app-bg/40 p-5 space-y-3">
+        <h3 className="text-sm font-semibold text-txt-secondary">Version Note</h3>
         <textarea
           rows={2}
-          className="w-full rounded-xl bg-slate-950/40 border border-white/10 px-3 py-2 text-slate-100 outline-none focus:border-sky-500"
+          className="w-full rounded-xl bg-app-bg/40 border border-app-border px-3 py-2 text-txt-primary outline-none focus:border-accent"
           placeholder="Optional note (why changed)"
           value={note}
           onChange={(e) => setNote(e.target.value)}
         />
       </section>
 
-      <section className="rounded-2xl border border-white/10 bg-slate-900/40 p-5 space-y-3">
+      <section className="rounded-2xl border border-app-border bg-app-bg/40 p-5 space-y-3">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-sm font-semibold text-slate-200">Pflicht: Initial Run + Delta Sync</h3>
-            <p className="text-xs text-slate-400">
+            <h3 className="text-sm font-semibold text-txt-secondary">Pflicht: Initial Run + Delta Sync</h3>
+            <p className="text-xs text-txt-muted">
               Startet den serverseitigen Rulebook-Apply Job und enqueued BaseLinker <code>text_only</code> Sync-Jobs für geänderte Produkte.
             </p>
           </div>
@@ -525,7 +525,7 @@ export const AdminRulebookManagement: React.FC = () => {
               type="button"
               disabled={saving}
               onClick={runApply}
-              className="rounded-xl bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-500 disabled:opacity-50"
+              className="rounded-xl bg-success px-3 py-2 text-sm font-semibold text-txt-primary hover:bg-success/80 disabled:opacity-50"
             >
               Run now
             </button>
@@ -533,7 +533,7 @@ export const AdminRulebookManagement: React.FC = () => {
               type="button"
               disabled={saving || !applyJobId}
               onClick={refreshApplyJob}
-              className="rounded-xl bg-slate-800/40 px-3 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-700 disabled:opacity-50"
+              className="rounded-xl bg-app-surface px-3 py-2 text-sm font-semibold text-txt-secondary hover:bg-app-elevated disabled:opacity-50"
             >
               Refresh status
             </button>
@@ -541,32 +541,32 @@ export const AdminRulebookManagement: React.FC = () => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <label className="flex flex-col gap-1 text-sm text-slate-200">
-            <span className="text-[11px] uppercase tracking-wide text-slate-400">minQty (available)</span>
+          <label className="flex flex-col gap-1 text-sm text-txt-secondary">
+            <span className="text-[11px] uppercase tracking-wide text-txt-muted">minQty (available)</span>
             <input
               type="number"
               min={1}
               max={9999}
               value={applyMinQty}
               onChange={(e) => setApplyMinQty(Number(e.target.value) || 1)}
-              className="rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-sm text-slate-100"
+              className="rounded-xl border border-app-border bg-app-bg px-3 py-2 text-sm text-txt-primary"
             />
           </label>
 
-          <label className="flex items-center gap-2 text-sm text-slate-200">
+          <label className="flex items-center gap-2 text-sm text-txt-secondary">
             <input type="checkbox" checked={applyRequireBin} onChange={(e) => setApplyRequireBin(e.target.checked)} />
             Require BIN
           </label>
 
-          <div className="text-xs text-slate-400">
+          <div className="text-xs text-txt-muted">
             Filter wirkt nur auf diesen Apply-Run: verarbeitet nur Produkte mit Menge ≥ minQty (und optional BIN gesetzt). Ideal, um nur “verfügbare” Artikel zu korrigieren.
           </div>
         </div>
 
-        <div className="text-xs text-slate-300">
+        <div className="text-xs text-txt-secondary">
           JobId:{' '}
           <input
-            className="ml-2 rounded-lg bg-slate-950/40 border border-white/10 px-2 py-1 text-slate-100"
+            className="ml-2 rounded-lg bg-app-bg/40 border border-app-border px-2 py-1 text-txt-primary"
             value={applyJobId}
             onChange={(e) => setApplyJobId(e.target.value)}
             placeholder="job id"
@@ -575,7 +575,7 @@ export const AdminRulebookManagement: React.FC = () => {
         </div>
 
         {applyJob && (
-          <pre className="rounded-xl bg-slate-950/40 border border-white/10 p-3 text-xs text-slate-200 overflow-auto">
+          <pre className="rounded-xl bg-app-bg/40 border border-app-border p-3 text-xs text-txt-secondary overflow-auto">
             {JSON.stringify(applyJob, null, 2)}
           </pre>
         )}

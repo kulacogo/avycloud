@@ -27,7 +27,7 @@ const FileAttachmentPreview: React.FC<FileAttachmentPreviewProps> = ({
   onRemove,
 }) => {
   return (
-    <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-slate-900/80 px-3 py-2 text-xs text-slate-200">
+    <div className="flex items-center gap-2 rounded-xl border border-app-border bg-app-bg/80 px-3 py-2 text-xs text-txt-secondary">
       {isImage ? (
         <img
           src={previewUrl}
@@ -37,13 +37,13 @@ const FileAttachmentPreview: React.FC<FileAttachmentPreviewProps> = ({
           decoding="async"
         />
       ) : (
-        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-800/60 text-[10px] uppercase text-slate-400">
+        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-app-surface text-[10px] uppercase text-txt-muted">
           {type?.slice(0, 3) || 'file'}
         </div>
       )}
       <div className="flex-1 truncate">
         <p className="truncate font-semibold">{name}</p>
-        <p className="text-slate-400">
+        <p className="text-txt-muted">
           {type || 'Datei'} · {formatSize(size)}
         </p>
       </div>
@@ -51,7 +51,7 @@ const FileAttachmentPreview: React.FC<FileAttachmentPreviewProps> = ({
         type="button"
         aria-label={`${name} entfernen`}
         onClick={() => onRemove(id)}
-        className="rounded-full bg-slate-800/60 px-2 py-1 text-[11px] text-slate-200 hover:bg-slate-700/60"
+        className="rounded-full bg-app-surface px-2 py-1 text-[11px] text-txt-secondary hover:bg-app-elevated/60"
       >
         Entfernen
       </button>

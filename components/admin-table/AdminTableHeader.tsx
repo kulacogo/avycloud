@@ -19,7 +19,7 @@ const SortableHeader: React.FC<SortableHeaderProps> = ({
   if (!sortKey) {
     return (
       <th
-        className={`p-3 text-xs font-semibold uppercase tracking-wide text-slate-300 whitespace-nowrap ${widthClass || ""}`}
+        className={`p-3 text-xs font-semibold uppercase tracking-wide text-txt-secondary whitespace-nowrap ${widthClass || ""}`}
       >
         {children}
       </th>
@@ -33,8 +33,15 @@ const SortableHeader: React.FC<SortableHeaderProps> = ({
       : "none";
   return (
     <th
-      className={`p-3 cursor-pointer text-xs font-semibold uppercase tracking-wide text-slate-300 whitespace-nowrap ${widthClass || ""}`}
+      className={`p-3 cursor-pointer text-xs font-semibold uppercase tracking-wide text-txt-secondary whitespace-nowrap ${widthClass || ""}`}
       onClick={() => onSort(sortKey)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onSort(sortKey);
+        }
+      }}
+      tabIndex={0}
       aria-sort={ariaSortValue}
     >
       {children}
@@ -62,9 +69,9 @@ const AdminTableHeader: React.FC<AdminTableHeaderProps> = ({
   onSelectAll,
 }) => {
   return (
-    <thead className="bg-slate-800/60">
+    <thead className="bg-app-surface">
       <tr>
-        <th className="p-3 w-12 text-xs font-semibold uppercase tracking-wide text-slate-300">
+        <th className="p-3 w-12 text-xs font-semibold uppercase tracking-wide text-txt-secondary">
           <input
             type="checkbox"
             name="select-all-products"
@@ -75,7 +82,7 @@ const AdminTableHeader: React.FC<AdminTableHeaderProps> = ({
               selectedIds.size === pageProducts.length &&
               pageProducts.length > 0
             }
-            className="bg-slate-600 border-slate-500"
+            className="bg-app-border border-app-border"
           />
         </th>
         {visibleColumnDefinitions.map((column) => {
