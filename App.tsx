@@ -969,7 +969,7 @@ const AppInner: React.FC = () => {
         if (!(hasPermission('products', 'read') || hasPermission('products', 'write'))) {
           return <div className="text-center p-8 text-txt-muted">{t('error.forbidden')}</div>;
         }
-        return <MarketplaceListingsView marketplace="ebay" products={products} />;
+        return <MarketplaceListingsView marketplace="ebay" />;
       case 'admin':
         if (
           !(
@@ -1004,7 +1004,7 @@ const AppInner: React.FC = () => {
       case 'warehouse-settings':
         return <WarehouseSettingsView />;
       case 'marketplace-kaufland':
-        return <MarketplaceListingsView marketplace="kaufland" products={products} />;
+        return <MarketplaceListingsView marketplace="kaufland" />;
       case 'integrations':
         return <IntegrationsHub />;
       case 'settings':

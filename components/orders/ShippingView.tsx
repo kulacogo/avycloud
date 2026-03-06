@@ -1,29 +1,14 @@
-import React, { useMemo, useState } from "react";
-
-/* ─── Types ─── */
-type ShipmentStatus = "ausstehend" | "in_zustellung" | "zugestellt" | "problem";
-type Carrier = "DHL" | "DPD" | "GLS";
-
-interface Shipment {
-  id: string;
-  orderId: string;
-  customer: string;
-  carrier: Carrier;
-  trackingNumber: string;
-  status: ShipmentStatus;
-  shippedAt: string | null;
-  deliveredAt: string | null;
-  cost: number;
-}
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { fetchShipments, type ShipmentData } from "../../api/client";
 
 /* ─── Config ─── */
-const CARRIER_STYLE: Record<Carrier, { cls: string; initial: string }> = {
+const CARRIER_STYLE: Record<string, { cls: string; initial: string }> = {
   DHL: { cls: "bg-yellow-100 text-yellow-800", initial: "D" },
   DPD: { cls: "bg-red-100 text-red-800", initial: "P" },
   GLS: { cls: "bg-blue-100 text-blue-800", initial: "G" },
 };
 
-const STATUS_CONFIG: Record<ShipmentStatus, { label: string; cls: string }> = {
+const STATUS_CONFIG: Record<string, { label: string; cls: string }> = {
   ausstehend: { label: "Ausstehend", cls: "bg-warning-dim text-warning" },
   in_zustellung: { label: "In Zustellung", cls: "bg-info-dim text-info" },
   zugestellt: { label: "Zugestellt", cls: "bg-success-dim text-success" },
@@ -39,76 +24,6 @@ const TABS: { key: TabKey | "alle"; label: string }[] = [
   { key: "problem", label: "Probleme" },
 ];
 
-/* ─── Mock Data ─── */
-const MOCK_SHIPMENTS: Shipment[] = [
-  {
-    id: "SHP-0041",
-    orderId: "ORD-2026-1210",
-    customer: "Markus Braun",
-    carrier: "DHL",
-    trackingNumber: "00340434161094042557",
-    status: "in_zustellung",
-    shippedAt: "2026-03-04",
-    deliveredAt: null,
-    cost: 4.99,
-  },
-  {
-    id: "SHP-0040",
-    orderId: "ORD-2026-1208",
-    customer: "Sabine Keller",
-    carrier: "DPD",
-    trackingNumber: "01529014884329",
-    status: "zugestellt",
-    shippedAt: "2026-03-03",
-    deliveredAt: "2026-03-04",
-    cost: 5.49,
-  },
-  {
-    id: "SHP-0039",
-    orderId: "ORD-2026-1205",
-    customer: "Florian Mayer",
-    carrier: "DHL",
-    trackingNumber: "00340434161094042564",
-    status: "ausstehend",
-    shippedAt: null,
-    deliveredAt: null,
-    cost: 4.99,
-  },
-  {
-    id: "SHP-0038",
-    orderId: "ORD-2026-1203",
-    customer: "Katharina Wolf",
-    carrier: "GLS",
-    trackingNumber: "GLS82941723847",
-    status: "in_zustellung",
-    shippedAt: "2026-03-03",
-    deliveredAt: null,
-    cost: 4.49,
-  },
-  {
-    id: "SHP-0037",
-    orderId: "ORD-2026-1199",
-    customer: "Stefan Richter",
-    carrier: "DHL",
-    trackingNumber: "00340434161094042571",
-    status: "problem",
-    shippedAt: "2026-03-02",
-    deliveredAt: null,
-    cost: 6.99,
-  },
-  {
-    id: "SHP-0036",
-    orderId: "ORD-2026-1195",
-    customer: "Anna Schmitt",
-    carrier: "DPD",
-    trackingNumber: "01529014884336",
-    status: "zugestellt",
-    shippedAt: "2026-03-01",
-    deliveredAt: "2026-03-03",
-    cost: 3.99,
-  },
-];
-
 /* ─── KPI Card ─── */
 const KpiCard: React.FC<{ label: string; value: string | number; tone?: string }> = ({
   label,
@@ -121,13 +36,45 @@ const KpiCard: React.FC<{ label: string; value: string | number; tone?: string }
   </div>
 );
 
+/* ─── Tracking URL builder ─── */
+function trackingUrl(carrier: string, trackingNr: string): string {
+  switch (carrier) {
+    case "DHL":
+      return `https://www.dhl.de/de/privatkunden/pakete-empfangen/verfolgen.html?piececode=${trackingNr}`;
+    case "DPD":
+      return `https://tracking.dpd.de/parcelstatus?query=${trackingNr}`;
+    case "GLS":
+      return `https://gls-group.com/DE/de/paketverfolgung?match=${trackingNr}`;
+    default:
+      return "#";
+  }
+}
+
 /* ─── Main Component ─── */
 export const ShippingView: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabKey | "alle">("ausstehend");
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [shipments, setShipments] = useState<ShipmentData[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // TODO: fetch shipments from API — GET /api/orders/shipments
-  const shipments = MOCK_SHIPMENTS;
+  const loadShipments = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await fetchShipments({ limit: 200 });
+      setShipments(data);
+    } catch (err: any) {
+      console.error("[ShippingView] load failed:", err);
+      setError(err?.message || "Sendungen konnten nicht geladen werden");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadShipments();
+  }, [loadShipments]);
 
   const filtered = useMemo(() => {
     if (activeTab === "alle") return shipments;
@@ -137,9 +84,22 @@ export const ShippingView: React.FC = () => {
   const tabCounts = useMemo(() => {
     const counts: Record<string, number> = {};
     for (const s of shipments) {
-      counts[s.status] = (counts[s.status] || 0) + 1;
+      if (s.status) counts[s.status] = (counts[s.status] || 0) + 1;
     }
     return counts;
+  }, [shipments]);
+
+  /* KPI computations from real data */
+  const kpis = useMemo(() => {
+    const today = new Date().toISOString().slice(0, 10);
+    const shippedToday = shipments.filter((s) => s.shippedAt?.startsWith(today)).length;
+    const inTransit = shipments.filter((s) => s.status === "in_zustellung").length;
+    const delivered = shipments.filter((s) => s.status === "zugestellt").length;
+    const total = shipments.length;
+    const deliveryRate = total > 0 ? ((delivered / total) * 100).toFixed(1) : "—";
+    const totalCost = shipments.reduce((sum, s) => sum + (s.cost || 0), 0);
+    const avgCost = total > 0 ? (totalCost / total).toFixed(2) : "—";
+    return { shippedToday, inTransit, deliveryRate, avgCost };
   }, [shipments]);
 
   const toggleSelect = (id: string) => {
@@ -159,33 +119,23 @@ export const ShippingView: React.FC = () => {
     }
   };
 
-  const handlePrintLabel = (_id: string) => {
-    // TODO: POST /api/orders/shipments/:id/label — open print window
-  };
-
-  const handleCreateLabel = () => {
-    // TODO: open create-label modal / POST /api/orders/shipments/create-label
-  };
-
-  const handleBulkPrint = () => {
-    // TODO: POST /api/orders/shipments/bulk-labels { ids: [...selected] }
-  };
-
-  const handleBulkChangeCarrier = () => {
-    // TODO: open carrier-change modal for selected shipments
-  };
-
-  const trackingUrl = (carrier: Carrier, trackingNr: string): string => {
-    // TODO: generate real tracking URLs per carrier
-    switch (carrier) {
-      case "DHL":
-        return `https://www.dhl.de/de/privatkunden/pakete-empfangen/verfolgen.html?piececode=${trackingNr}`;
-      case "DPD":
-        return `https://tracking.dpd.de/parcelstatus?query=${trackingNr}`;
-      case "GLS":
-        return `https://gls-group.com/DE/de/paketverfolgung?match=${trackingNr}`;
-    }
-  };
+  /* ─── Loading / Error ─── */
+  if (loading) {
+    return (
+      <div className="max-w-7xl mx-auto space-y-5">
+        <div>
+          <h1 className="text-2xl font-bold text-txt-primary">Versand & Labels</h1>
+          <p className="text-sm text-txt-muted">Sendungen verfolgen und Versandlabels verwalten</p>
+        </div>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="rounded-xl border border-app-border bg-app-surface p-4 h-20 animate-pulse" />
+          ))}
+        </div>
+        <div className="rounded-xl border border-app-border bg-app-surface h-64 animate-pulse" />
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-7xl mx-auto space-y-5">
@@ -197,22 +147,29 @@ export const ShippingView: React.FC = () => {
         </div>
         <button
           type="button"
-          onClick={handleCreateLabel}
-          className="inline-flex items-center gap-2 rounded-lg bg-accent text-white px-4 py-2.5 text-sm font-semibold hover:bg-accent/80 transition"
+          onClick={loadShipments}
+          className="inline-flex items-center gap-2 rounded-lg bg-app-elevated text-txt-secondary px-4 py-2.5 text-sm font-semibold hover:text-txt-primary transition"
         >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+            <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
           </svg>
-          Versandlabel erstellen
+          Aktualisieren
         </button>
       </div>
 
+      {/* Error */}
+      {error && (
+        <div className="rounded-xl border border-danger/20 bg-danger-dim px-4 py-3 text-sm text-danger">
+          {error}
+        </div>
+      )}
+
       {/* KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <KpiCard label="Heute versendet" value={18} tone="text-success" />
-        <KpiCard label="In Zustellung" value={42} tone="text-info" />
-        <KpiCard label="Zustellquote" value="96,8%" tone="text-accent" />
-        <KpiCard label="Oe Versandkosten" value="4,85 EUR" tone="text-txt-primary" />
+        <KpiCard label="Heute versendet" value={kpis.shippedToday} tone="text-success" />
+        <KpiCard label="In Zustellung" value={kpis.inTransit} tone="text-info" />
+        <KpiCard label="Zustellquote" value={kpis.deliveryRate === "—" ? "—" : `${kpis.deliveryRate}%`} tone="text-accent" />
+        <KpiCard label="Ø Versandkosten" value={kpis.avgCost === "—" ? "—" : `${kpis.avgCost} EUR`} tone="text-txt-primary" />
       </div>
 
       {/* Tabs */}
@@ -241,134 +198,132 @@ export const ShippingView: React.FC = () => {
       {/* Bulk Actions */}
       {selected.size > 0 && (
         <div className="flex items-center gap-2 rounded-xl border border-accent/20 bg-accent-dim px-4 py-2.5">
-          <span className="text-sm font-medium text-accent">{selected.size} ausgewaehlt</span>
+          <span className="text-sm font-medium text-accent">{selected.size} ausgewählt</span>
           <div className="ml-auto flex gap-2">
             <button
               type="button"
-              onClick={handleBulkPrint}
-              className="rounded-lg bg-accent text-white px-3 py-1.5 text-xs font-semibold hover:bg-accent/80 transition"
-            >
-              Labels drucken
-            </button>
-            <button
-              type="button"
-              onClick={handleBulkChangeCarrier}
+              onClick={() => setSelected(new Set())}
               className="rounded-lg bg-app-elevated text-txt-secondary px-3 py-1.5 text-xs font-semibold hover:text-txt-primary transition"
             >
-              Carrier aendern
+              Auswahl aufheben
             </button>
           </div>
         </div>
       )}
 
-      {/* Table */}
-      <div className="rounded-xl border border-app-border bg-app-surface overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-app-border bg-app-bg/50">
-                <th className="px-4 py-3 w-10">
-                  <input
-                    type="checkbox"
-                    checked={selected.size === filtered.length && filtered.length > 0}
-                    onChange={toggleAll}
-                    className="rounded border-app-border"
-                  />
-                </th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-txt-muted uppercase tracking-wider">Auftrag-ID</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-txt-muted uppercase tracking-wider">Kunde</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-txt-muted uppercase tracking-wider">Carrier</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-txt-muted uppercase tracking-wider">Tracking-Nr</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-txt-muted uppercase tracking-wider">Status</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-txt-muted uppercase tracking-wider">Versanddatum</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-txt-muted uppercase tracking-wider">Zustelldatum</th>
-                <th className="text-right px-4 py-3 text-xs font-semibold text-txt-muted uppercase tracking-wider">Kosten</th>
-                <th className="text-right px-4 py-3 text-xs font-semibold text-txt-muted uppercase tracking-wider">Aktionen</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((shp) => {
-                const carrier = CARRIER_STYLE[shp.carrier];
-                const status = STATUS_CONFIG[shp.status];
-                return (
-                  <tr
-                    key={shp.id}
-                    className="border-b border-app-border last:border-b-0 hover:bg-app-elevated/40 transition"
-                  >
-                    <td className="px-4 py-3">
-                      <input
-                        type="checkbox"
-                        checked={selected.has(shp.id)}
-                        onChange={() => toggleSelect(shp.id)}
-                        className="rounded border-app-border"
-                      />
-                    </td>
-                    <td className="px-4 py-3 font-mono text-xs text-txt-primary font-medium">{shp.orderId}</td>
-                    <td className="px-4 py-3 text-txt-primary font-medium">{shp.customer}</td>
-                    <td className="px-4 py-3">
-                      <span className={`inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[11px] font-semibold ${carrier.cls}`}>
-                        <span className="w-4 h-4 rounded-full bg-current/10 flex items-center justify-center text-[9px] font-bold">
-                          {carrier.initial}
-                        </span>
-                        {shp.carrier}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <a
-                        href={trackingUrl(shp.carrier, shp.trackingNumber)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="font-mono text-xs text-accent hover:underline"
-                      >
-                        {shp.trackingNumber}
-                      </a>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className={`inline-flex rounded-md px-2 py-0.5 text-[11px] font-semibold ${status.cls}`}>
-                        {status.label}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-xs text-txt-muted whitespace-nowrap">
-                      {shp.shippedAt ? new Date(shp.shippedAt).toLocaleDateString("de-DE") : "\u2014"}
-                    </td>
-                    <td className="px-4 py-3 text-xs text-txt-muted whitespace-nowrap">
-                      {shp.deliveredAt ? new Date(shp.deliveredAt).toLocaleDateString("de-DE") : "\u2014"}
-                    </td>
-                    <td className="px-4 py-3 text-right font-semibold text-txt-primary">
-                      {shp.cost.toLocaleString("de-DE", { minimumFractionDigits: 2 })} EUR
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center justify-end gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => handlePrintLabel(shp.id)}
-                          className="rounded-lg bg-app-elevated p-1.5 text-txt-muted hover:text-txt-primary transition"
-                          title="Label drucken"
-                        >
-                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-                          </svg>
-                        </button>
-                        <a
-                          href={trackingUrl(shp.carrier, shp.trackingNumber)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="rounded-lg bg-app-elevated p-1.5 text-txt-muted hover:text-txt-primary transition"
-                          title="Tracking oeffnen"
-                        >
-                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                          </svg>
-                        </a>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+      {/* Empty state */}
+      {!loading && shipments.length === 0 && !error && (
+        <div className="rounded-xl border border-app-border bg-app-surface p-12 text-center">
+          <p className="text-txt-muted">Keine Sendungen vorhanden.</p>
         </div>
-      </div>
+      )}
+
+      {/* Table */}
+      {filtered.length > 0 && (
+        <div className="rounded-xl border border-app-border bg-app-surface overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-app-border bg-app-bg/50">
+                  <th className="px-4 py-3 w-10">
+                    <input
+                      type="checkbox"
+                      checked={selected.size === filtered.length && filtered.length > 0}
+                      onChange={toggleAll}
+                      className="rounded border-app-border"
+                    />
+                  </th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-txt-muted uppercase tracking-wider">Auftrag-ID</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-txt-muted uppercase tracking-wider">Kunde</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-txt-muted uppercase tracking-wider">Carrier</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-txt-muted uppercase tracking-wider">Tracking-Nr</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-txt-muted uppercase tracking-wider">Status</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-txt-muted uppercase tracking-wider">Versanddatum</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-txt-muted uppercase tracking-wider">Zustelldatum</th>
+                  <th className="text-right px-4 py-3 text-xs font-semibold text-txt-muted uppercase tracking-wider">Kosten</th>
+                  <th className="text-right px-4 py-3 text-xs font-semibold text-txt-muted uppercase tracking-wider">Aktionen</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((shp) => {
+                  const carrier = CARRIER_STYLE[shp.carrier || ""] || { cls: "bg-gray-100 text-gray-800", initial: "?" };
+                  const status = STATUS_CONFIG[shp.status || ""] || { label: shp.status || "—", cls: "bg-app-elevated text-txt-muted" };
+                  return (
+                    <tr
+                      key={shp.id}
+                      className="border-b border-app-border last:border-b-0 hover:bg-app-elevated/40 transition"
+                    >
+                      <td className="px-4 py-3">
+                        <input
+                          type="checkbox"
+                          checked={selected.has(shp.id)}
+                          onChange={() => toggleSelect(shp.id)}
+                          className="rounded border-app-border"
+                        />
+                      </td>
+                      <td className="px-4 py-3 font-mono text-xs text-txt-primary font-medium">{shp.orderId}</td>
+                      <td className="px-4 py-3 text-txt-primary font-medium">{shp.customer || "—"}</td>
+                      <td className="px-4 py-3">
+                        <span className={`inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[11px] font-semibold ${carrier.cls}`}>
+                          <span className="w-4 h-4 rounded-full bg-current/10 flex items-center justify-center text-[9px] font-bold">
+                            {carrier.initial}
+                          </span>
+                          {shp.carrier || "—"}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        {shp.trackingNumber ? (
+                          <a
+                            href={trackingUrl(shp.carrier || "", shp.trackingNumber)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="font-mono text-xs text-accent hover:underline"
+                          >
+                            {shp.trackingNumber}
+                          </a>
+                        ) : (
+                          <span className="text-xs text-txt-muted">—</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`inline-flex rounded-md px-2 py-0.5 text-[11px] font-semibold ${status.cls}`}>
+                          {status.label}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-xs text-txt-muted whitespace-nowrap">
+                        {shp.shippedAt ? new Date(shp.shippedAt).toLocaleDateString("de-DE") : "—"}
+                      </td>
+                      <td className="px-4 py-3 text-xs text-txt-muted whitespace-nowrap">
+                        {shp.deliveredAt ? new Date(shp.deliveredAt).toLocaleDateString("de-DE") : "—"}
+                      </td>
+                      <td className="px-4 py-3 text-right font-semibold text-txt-primary">
+                        {typeof shp.cost === "number" ? `${shp.cost.toLocaleString("de-DE", { minimumFractionDigits: 2 })} EUR` : "—"}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center justify-end gap-1.5">
+                          {shp.trackingNumber && (
+                            <a
+                              href={trackingUrl(shp.carrier || "", shp.trackingNumber)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="rounded-lg bg-app-elevated p-1.5 text-txt-muted hover:text-txt-primary transition"
+                              title="Tracking öffnen"
+                            >
+                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                              </svg>
+                            </a>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* Footer */}
       <div className="text-xs text-txt-muted text-right">

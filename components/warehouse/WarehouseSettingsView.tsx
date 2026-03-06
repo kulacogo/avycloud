@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
+import { fetchWarehouseSettings, saveWarehouseSettings } from "../../api/client";
 
 /* ─── Types ─── */
 interface ZoneType {
@@ -28,6 +29,21 @@ interface WarehouseSettings {
   inventoryReminder: boolean;
   reminderDaysBefore: number;
 }
+
+const DEFAULT_SETTINGS: WarehouseSettings = {
+  autoBinAssignment: true,
+  binStrategy: "fifo",
+  barcodeFormat: "code128",
+  binPrefix: "BIN-",
+  labelSize: "standard",
+  defaultMinStock: 5,
+  alarmThreshold: 3,
+  lowStockNotification: true,
+  notificationChannel: "both",
+  inventoryInterval: "quarterly",
+  inventoryReminder: true,
+  reminderDaysBefore: 7,
+};
 
 const DEFAULT_ZONE_TYPES: ZoneType[] = [
   { id: "regal", name: "Regal", description: "Standard", capacity: 50 },
@@ -75,23 +91,32 @@ const HelpText: React.FC<{ children: React.ReactNode }> = ({ children }) => (
 
 /* ─── Main Component ─── */
 export const WarehouseSettingsView: React.FC = () => {
-  const [settings, setSettings] = useState<WarehouseSettings>({
-    autoBinAssignment: true,
-    binStrategy: "fifo",
-    barcodeFormat: "code128",
-    binPrefix: "BIN-",
-    labelSize: "standard",
-    defaultMinStock: 5,
-    alarmThreshold: 3,
-    lowStockNotification: true,
-    notificationChannel: "both",
-    inventoryInterval: "quarterly",
-    inventoryReminder: true,
-    reminderDaysBefore: 7,
-  });
-
-  const [zoneTypes, setZoneTypes] = useState<ZoneType[]>(DEFAULT_ZONE_TYPES);
+  const [settings, setSettings] = useState<WarehouseSettings>(DEFAULT_SETTINGS);
+  const [zoneTypes, setZoneTypes] = useState<ZoneType[]>([]);
   const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+
+  const loadSettings = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await fetchWarehouseSettings();
+      if (data.settings) {
+        setSettings({ ...DEFAULT_SETTINGS, ...data.settings });
+      }
+      setZoneTypes(data.zoneTypes?.length ? data.zoneTypes : DEFAULT_ZONE_TYPES);
+    } catch (err: any) {
+      setError(err.message || "Fehler beim Laden der Lager-Einstellungen");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadSettings();
+  }, [loadSettings]);
 
   const update = <K extends keyof WarehouseSettings>(key: K, value: WarehouseSettings[K]) => {
     setSettings((prev) => ({ ...prev, [key]: value }));
@@ -112,9 +137,14 @@ export const WarehouseSettingsView: React.FC = () => {
 
   const handleSave = async () => {
     setSaving(true);
+    setError(null);
+    setSaveSuccess(false);
     try {
-      // TODO: POST /api/warehouse/settings — save settings + zoneTypes to backend
-      await new Promise((r) => setTimeout(r, 400));
+      await saveWarehouseSettings({ settings, zoneTypes });
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3000);
+    } catch (err: any) {
+      setError(err.message || "Fehler beim Speichern der Lager-Einstellungen");
     } finally {
       setSaving(false);
     }
@@ -123,9 +153,32 @@ export const WarehouseSettingsView: React.FC = () => {
   const selectCls = "w-full rounded-lg border border-app-border bg-app-bg px-3 py-2 text-sm text-txt-primary focus:outline-none focus:ring-2 focus:ring-accent/40";
   const inputCls = selectCls;
 
+  if (loading) {
+    return (
+      <div className="max-w-3xl mx-auto flex flex-col gap-6 pb-10 animate-pulse">
+        {[1, 2, 3, 4, 5].map((i) => (
+          <div key={i} className="rounded-xl border border-app-border bg-app-surface p-6 h-40" />
+        ))}
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-3xl mx-auto flex flex-col gap-6 pb-10">
       <h2 className="text-xl font-bold text-txt-primary">Lager-Einstellungen</h2>
+
+      {/* Error / Success Banners */}
+      {error && (
+        <div className="bg-danger-dim border border-app-border rounded-xl px-4 py-3 flex items-center gap-3">
+          <span className="text-sm text-danger flex-1">{error}</span>
+          <button onClick={() => setError(null)} className="text-txt-muted hover:text-txt-primary text-sm">Schließen</button>
+        </div>
+      )}
+      {saveSuccess && (
+        <div className="bg-success-dim border border-app-border rounded-xl px-4 py-3 text-sm text-success font-medium">
+          Einstellungen erfolgreich gespeichert.
+        </div>
+      )}
 
       {/* ── Section 1: Bin-Logik ── */}
       <SectionCard title="Bin-Logik">
@@ -202,7 +255,6 @@ export const WarehouseSettingsView: React.FC = () => {
             </select>
           </div>
           <div className="flex items-end">
-            {/* TODO: POST /api/warehouse/label/test — trigger test label print */}
             <button type="button" className="rounded-lg border border-app-border bg-app-elevated px-4 py-2 text-sm text-txt-secondary hover:bg-app-bg transition-colors">
               Test-Label drucken
             </button>
@@ -264,7 +316,6 @@ export const WarehouseSettingsView: React.FC = () => {
       </SectionCard>
 
       {/* ── Save ── */}
-      {/* TODO: GET /api/warehouse/settings on mount to hydrate initial state */}
       <div className="flex justify-end">
         <button type="button" onClick={handleSave} disabled={saving} className="rounded-lg bg-accent px-6 py-2.5 text-sm font-medium text-white hover:bg-accent/90 disabled:opacity-50 transition-colors">
           {saving ? "Speichern..." : "Einstellungen speichern"}

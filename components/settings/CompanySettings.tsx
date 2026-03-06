@@ -1,8 +1,9 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import { Card } from "../ui/Card";
 import { Input } from "../ui/Input";
 import { Select } from "../ui/Select";
 import { Button } from "../ui/Button";
+import { fetchCompanySettings, saveCompanySettings } from "../../api/client";
 
 const SaveIcon: React.FC = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -22,7 +23,7 @@ const UploadIcon: React.FC = () => (
 
 const rechtsformOptions = [
   { value: "gmbh", label: "GmbH" },
-  { value: "ug", label: "UG (haftungsbeschrankt)" },
+  { value: "ug", label: "UG (haftungsbeschränkt)" },
   { value: "gbr", label: "GbR" },
   { value: "einzelunternehmen", label: "Einzelunternehmen" },
   { value: "ag", label: "AG" },
@@ -32,34 +33,80 @@ const rechtsformOptions = [
 
 const landOptions = [
   { value: "de", label: "Deutschland" },
-  { value: "at", label: "Osterreich" },
+  { value: "at", label: "Österreich" },
   { value: "ch", label: "Schweiz" },
 ];
 
 export const CompanySettings: React.FC = () => {
-  const [firmenname, setFirmenname] = useState("Muster GmbH");
-  const [rechtsform, setRechtsform] = useState("gmbh");
-  const [ustIdNr, setUstIdNr] = useState("DE298745123");
-  const [steuernummer, setSteuernummer] = useState("123/456/78901");
-  const [strasse, setStrasse] = useState("Musterstrasse 42");
-  const [plz, setPlz] = useState("10115");
-  const [ort, setOrt] = useState("Berlin");
+  const [firmenname, setFirmenname] = useState("");
+  const [rechtsform, setRechtsform] = useState("");
+  const [ustIdNr, setUstIdNr] = useState("");
+  const [steuernummer, setSteuernummer] = useState("");
+  const [strasse, setStrasse] = useState("");
+  const [plz, setPlz] = useState("");
+  const [ort, setOrt] = useState("");
   const [land, setLand] = useState("de");
-  const [email, setEmail] = useState("info@muster-gmbh.de");
-  const [telefon, setTelefon] = useState("+49 30 12345678");
-  const [website, setWebsite] = useState("https://www.muster-gmbh.de");
-  const [iban, setIban] = useState("DE89 3704 0044 0532 0130 00");
-  const [bic, setBic] = useState("COBADEFFXXX");
-  const [bank, setBank] = useState("Commerzbank AG");
+  const [email, setEmail] = useState("");
+  const [telefon, setTelefon] = useState("");
+  const [website, setWebsite] = useState("");
+  const [iban, setIban] = useState("");
+  const [bic, setBic] = useState("");
+  const [bank, setBank] = useState("");
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [saveSuccess, setSaveSuccess] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const loadSettings = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await fetchCompanySettings();
+      if (data.firmenname) setFirmenname(data.firmenname);
+      if (data.rechtsform) setRechtsform(data.rechtsform);
+      if (data.ustIdNr) setUstIdNr(data.ustIdNr);
+      if (data.steuernummer) setSteuernummer(data.steuernummer);
+      if (data.strasse) setStrasse(data.strasse);
+      if (data.plz) setPlz(data.plz);
+      if (data.ort) setOrt(data.ort);
+      if (data.land) setLand(data.land);
+      if (data.email) setEmail(data.email);
+      if (data.telefon) setTelefon(data.telefon);
+      if (data.website) setWebsite(data.website);
+      if (data.iban) setIban(data.iban);
+      if (data.bic) setBic(data.bic);
+      if (data.bank) setBank(data.bank);
+    } catch (err: any) {
+      setError(err.message || "Fehler beim Laden der Firmendaten");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadSettings();
+  }, [loadSettings]);
 
   const handleSave = async () => {
     setSaving(true);
-    // TODO: API call to save company settings (POST /api/settings/company)
-    await new Promise((r) => setTimeout(r, 800));
-    setSaving(false);
+    setError(null);
+    setSaveSuccess(false);
+    try {
+      await saveCompanySettings({
+        firmenname, rechtsform, ustIdNr, steuernummer,
+        strasse, plz, ort, land,
+        email, telefon, website,
+        iban, bic, bank,
+      });
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3000);
+    } catch (err: any) {
+      setError(err.message || "Fehler beim Speichern");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleLogoDrop = (e: React.DragEvent) => {
@@ -73,8 +120,35 @@ export const CompanySettings: React.FC = () => {
     if (file) setLogoFile(file);
   };
 
+  if (loading) {
+    return (
+      <div className="space-y-6 animate-pulse">
+        {[1, 2, 3, 4].map((i) => (
+          <div key={i} className="bg-app-surface border border-app-border rounded-xl p-6 h-32" />
+        ))}
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
+      {/* Error Banner */}
+      {error && (
+        <div className="bg-danger-dim border border-app-border rounded-xl px-4 py-3 flex items-center gap-3">
+          <span className="text-sm text-danger flex-1">{error}</span>
+          <button onClick={() => setError(null)} className="text-txt-muted hover:text-txt-primary text-sm">
+            Schließen
+          </button>
+        </div>
+      )}
+
+      {/* Success Banner */}
+      {saveSuccess && (
+        <div className="bg-success-dim border border-app-border rounded-xl px-4 py-3 text-sm text-success font-medium">
+          Firmendaten erfolgreich gespeichert.
+        </div>
+      )}
+
       {/* Firmendaten */}
       <Card>
         <h3 className="text-sm font-semibold text-txt-primary mb-4">Firmendaten</h3>
@@ -91,7 +165,7 @@ export const CompanySettings: React.FC = () => {
         <h3 className="text-sm font-semibold text-txt-primary mb-4">Adresse</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="sm:col-span-2">
-            <Input label="Strasse" value={strasse} onChange={(e) => setStrasse(e.target.value)} />
+            <Input label="Straße" value={strasse} onChange={(e) => setStrasse(e.target.value)} />
           </div>
           <div className="grid grid-cols-3 gap-4 sm:col-span-2">
             <Input label="PLZ" value={plz} onChange={(e) => setPlz(e.target.value)} />
@@ -161,7 +235,7 @@ export const CompanySettings: React.FC = () => {
           onClick={handleSave}
           className="w-full sm:w-auto"
         >
-          Anderungen speichern
+          Änderungen speichern
         </Button>
       </div>
     </div>

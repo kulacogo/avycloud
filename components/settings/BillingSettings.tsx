@@ -1,8 +1,10 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Card } from "../ui/Card";
 import { Button } from "../ui/Button";
 import { Badge } from "../ui/Badge";
 import { ProgressBar } from "../ui/ProgressBar";
+import { Skeleton } from "../ui/Skeleton";
+import { fetchBillingUsage, type BillingUsageData } from "../../api/client";
 
 const CheckIcon: React.FC = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-success shrink-0">
@@ -32,26 +34,13 @@ const EditIcon: React.FC = () => (
   </svg>
 );
 
+/* Plan features — placeholder until Stripe integration */
 const planFeatures = [
   "Bis zu 5.000 Produkte",
   "3 Marktplatz-Integrationen",
   "5 Teammitglieder",
   "API-Zugang",
   "E-Mail-Support",
-];
-
-interface UsageItem {
-  label: string;
-  current: number;
-  max: number;
-  display: string;
-}
-
-const usageItems: UsageItem[] = [
-  { label: "Produkte", current: 342, max: 5000, display: "342 / 5.000" },
-  { label: "Auftrage/Monat", current: 89, max: 2000, display: "89 / 2.000" },
-  { label: "Integrationen", current: 3, max: 5, display: "3 / 5" },
-  { label: "API-Calls/Monat", current: 28432, max: 100000, display: "28.432 / 100.000" },
 ];
 
 interface Invoice {
@@ -62,30 +51,99 @@ interface Invoice {
   status: "paid" | "pending";
 }
 
-const invoices: Invoice[] = [
-  { id: "INV-2026-003", date: "01.03.2026", description: "Professional Plan -- Marz 2026", amount: "49,00 EUR", status: "paid" },
-  { id: "INV-2026-002", date: "01.02.2026", description: "Professional Plan -- Februar 2026", amount: "49,00 EUR", status: "paid" },
-  { id: "INV-2026-001", date: "01.01.2026", description: "Professional Plan -- Januar 2026", amount: "49,00 EUR", status: "paid" },
-];
+function formatNumber(n: number): string {
+  return n.toLocaleString("de-DE");
+}
+
+interface UsageRow {
+  label: string;
+  current: number;
+  max: number;
+}
+
+function buildUsageRows(data: BillingUsageData): UsageRow[] {
+  return [
+    { label: "Produkte", current: data.products.current, max: data.products.max },
+    { label: "Aufträge/Monat", current: data.orders.current, max: data.orders.max },
+    { label: "Integrationen", current: data.integrations.current, max: data.integrations.max },
+  ];
+}
+
+function getProgressVariant(pct: number): "accent" | "warning" | "danger" {
+  if (pct > 95) return "danger";
+  if (pct > 80) return "warning";
+  return "accent";
+}
+
+function UsageLoadingSkeleton(): React.ReactElement {
+  return (
+    <div className="space-y-5">
+      {[1, 2, 3].map((i) => (
+        <div key={i}>
+          <div className="flex items-center justify-between mb-1.5">
+            <Skeleton width="80px" height="14px" />
+            <Skeleton width="60px" height="14px" />
+          </div>
+          <Skeleton width="100%" height="8px" />
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export const BillingSettings: React.FC = () => {
   const [changingPlan] = useState(false);
+  const [usage, setUsage] = useState<BillingUsageData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleChangePlan = () => {
+  /* Invoices — empty until API is available (Stripe integration pending) */
+  const [invoices] = useState<Invoice[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadUsage(): Promise<void> {
+      try {
+        setLoading(true);
+        setError(null);
+        const data = await fetchBillingUsage();
+        if (!cancelled) {
+          setUsage(data);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          const message = err instanceof Error ? err.message : "Nutzungsdaten konnten nicht geladen werden";
+          setError(message);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    }
+
+    loadUsage();
+    return () => { cancelled = true; };
+  }, []);
+
+  const handleChangePlan = (): void => {
     // TODO: Open plan selection modal or navigate to plan page
   };
 
-  const handleChangePayment = () => {
+  const handleChangePayment = (): void => {
     // TODO: Open Stripe payment method update (POST /api/billing/update-payment-method)
   };
 
-  const handleDownloadInvoice = (_invoiceId: string) => {
+  const handleDownloadInvoice = (_invoiceId: string): void => {
     // TODO: API call to download invoice PDF (GET /api/billing/invoices/:id/pdf)
   };
 
+  const usageRows = usage ? buildUsageRows(usage) : [];
+
   return (
     <div className="space-y-6">
-      {/* Aktueller Plan */}
+      {/* Aktueller Plan — Placeholder bis Stripe-Integration */}
       <Card className="border-accent/30">
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
           <div>
@@ -113,7 +171,7 @@ export const BillingSettings: React.FC = () => {
             onClick={handleChangePlan}
             className="shrink-0"
           >
-            Plan andern
+            Plan ändern
           </Button>
         </div>
       </Card>
@@ -121,24 +179,40 @@ export const BillingSettings: React.FC = () => {
       {/* Nutzung */}
       <Card>
         <h3 className="text-sm font-semibold text-txt-primary mb-4">Nutzung</h3>
-        <div className="space-y-5">
-          {usageItems.map((item) => {
-            const pct = (item.current / item.max) * 100;
-            const variant = pct > 80 ? "warning" : pct > 95 ? "danger" : "accent";
-            return (
-              <div key={item.label}>
-                <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-sm text-txt-secondary">{item.label}</span>
-                  <span className="text-sm font-medium text-txt-primary">{item.display}</span>
+
+        {loading && <UsageLoadingSkeleton />}
+
+        {error && !loading && (
+          <div className="flex items-center justify-between rounded-lg bg-danger/10 px-4 py-3">
+            <p className="text-sm text-danger">{error}</p>
+            <Button variant="secondary" size="sm" onClick={() => window.location.reload()}>
+              Erneut versuchen
+            </Button>
+          </div>
+        )}
+
+        {!loading && !error && usage && (
+          <div className="space-y-5">
+            {usageRows.map((item) => {
+              const pct = (item.current / item.max) * 100;
+              const variant = getProgressVariant(pct);
+              return (
+                <div key={item.label}>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-sm text-txt-secondary">{item.label}</span>
+                    <span className="text-sm font-medium text-txt-primary">
+                      {formatNumber(item.current)} / {formatNumber(item.max)}
+                    </span>
+                  </div>
+                  <ProgressBar value={pct} variant={variant} />
                 </div>
-                <ProgressBar value={pct} variant={variant} />
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        )}
       </Card>
 
-      {/* Zahlungsmethode */}
+      {/* Zahlungsmethode — Placeholder bis Stripe-Integration */}
       <Card>
         <h3 className="text-sm font-semibold text-txt-primary mb-4">Zahlungsmethode</h3>
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -147,12 +221,11 @@ export const BillingSettings: React.FC = () => {
               <CreditCardIcon />
             </div>
             <div>
-              <p className="text-sm font-medium text-txt-primary">Visa •••• 4242</p>
-              <p className="text-xs text-txt-muted">Ablauf: 12/2027</p>
+              <p className="text-sm text-txt-muted italic">Noch keine Zahlungsmethode hinterlegt</p>
             </div>
           </div>
           <Button variant="secondary" size="sm" onClick={handleChangePayment}>
-            Zahlungsmethode andern
+            Zahlungsmethode ändern
           </Button>
         </div>
       </Card>
@@ -160,41 +233,50 @@ export const BillingSettings: React.FC = () => {
       {/* Rechnungshistorie */}
       <Card>
         <h3 className="text-sm font-semibold text-txt-primary mb-4">Rechnungshistorie</h3>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-app-border">
-                <th className="text-left py-2.5 px-3 text-xs font-medium uppercase tracking-wide text-txt-muted">Datum</th>
-                <th className="text-left py-2.5 px-3 text-xs font-medium uppercase tracking-wide text-txt-muted">Beschreibung</th>
-                <th className="text-right py-2.5 px-3 text-xs font-medium uppercase tracking-wide text-txt-muted">Betrag</th>
-                <th className="text-center py-2.5 px-3 text-xs font-medium uppercase tracking-wide text-txt-muted">Status</th>
-                <th className="text-right py-2.5 px-3 text-xs font-medium uppercase tracking-wide text-txt-muted">PDF</th>
-              </tr>
-            </thead>
-            <tbody>
-              {invoices.map((invoice) => (
-                <tr key={invoice.id} className="border-b border-app-border/50 last:border-0">
-                  <td className="py-3 px-3 text-txt-secondary whitespace-nowrap">{invoice.date}</td>
-                  <td className="py-3 px-3 text-txt-primary">{invoice.description}</td>
-                  <td className="py-3 px-3 text-txt-primary text-right font-medium whitespace-nowrap">{invoice.amount}</td>
-                  <td className="py-3 px-3 text-center">
-                    <Badge variant="success" size="sm">Bezahlt</Badge>
-                  </td>
-                  <td className="py-3 px-3 text-right">
-                    <button
-                      type="button"
-                      onClick={() => handleDownloadInvoice(invoice.id)}
-                      className="p-1.5 rounded-lg text-txt-muted hover:text-txt-primary hover:bg-app-elevated transition-colors inline-flex"
-                      title="PDF herunterladen"
-                    >
-                      <DownloadIcon />
-                    </button>
-                  </td>
+
+        {invoices.length === 0 ? (
+          <p className="text-sm text-txt-muted py-4 text-center">
+            Noch keine Rechnungen vorhanden.
+          </p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-app-border">
+                  <th className="text-left py-2.5 px-3 text-xs font-medium uppercase tracking-wide text-txt-muted">Datum</th>
+                  <th className="text-left py-2.5 px-3 text-xs font-medium uppercase tracking-wide text-txt-muted">Beschreibung</th>
+                  <th className="text-right py-2.5 px-3 text-xs font-medium uppercase tracking-wide text-txt-muted">Betrag</th>
+                  <th className="text-center py-2.5 px-3 text-xs font-medium uppercase tracking-wide text-txt-muted">Status</th>
+                  <th className="text-right py-2.5 px-3 text-xs font-medium uppercase tracking-wide text-txt-muted">PDF</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {invoices.map((invoice) => (
+                  <tr key={invoice.id} className="border-b border-app-border/50 last:border-0">
+                    <td className="py-3 px-3 text-txt-secondary whitespace-nowrap">{invoice.date}</td>
+                    <td className="py-3 px-3 text-txt-primary">{invoice.description}</td>
+                    <td className="py-3 px-3 text-txt-primary text-right font-medium whitespace-nowrap">{invoice.amount}</td>
+                    <td className="py-3 px-3 text-center">
+                      <Badge variant={invoice.status === "paid" ? "success" : "warning"} size="sm">
+                        {invoice.status === "paid" ? "Bezahlt" : "Ausstehend"}
+                      </Badge>
+                    </td>
+                    <td className="py-3 px-3 text-right">
+                      <button
+                        type="button"
+                        onClick={() => handleDownloadInvoice(invoice.id)}
+                        className="p-1.5 rounded-lg text-txt-muted hover:text-txt-primary hover:bg-app-elevated transition-colors inline-flex"
+                        title="PDF herunterladen"
+                      >
+                        <DownloadIcon />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </Card>
     </div>
   );

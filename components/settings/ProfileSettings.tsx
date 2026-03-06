@@ -1,8 +1,9 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Card } from "../ui/Card";
 import { Input } from "../ui/Input";
 import { Button } from "../ui/Button";
 import { Avatar } from "../ui/Avatar";
+import { fetchProfile, saveProfile } from "../../api/client";
 
 const SaveIcon: React.FC = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -29,75 +30,115 @@ const notificationOptions: NotificationOption[] = [
   { key: "lowStock", label: "Niedrig-Bestand Warnung" },
   { key: "syncError", label: "Sync-Fehler" },
   { key: "returnReceived", label: "Retoure eingegangen" },
-  { key: "dailySummary", label: "Tagliche Zusammenfassung" },
+  { key: "dailySummary", label: "Tägliche Zusammenfassung" },
 ];
 
 type ThemeOption = "light" | "dark" | "system";
 
 export const ProfileSettings: React.FC = () => {
-  const [vorname, setVorname] = useState("Max");
-  const [nachname, setNachname] = useState("Mustermann");
-  const [email] = useState("max@muster-gmbh.de");
-  const [currentPassword, setCurrentPassword] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [changingPassword, setChangingPassword] = useState(false);
-  const [notifications, setNotifications] = useState<Record<string, boolean>>({
-    newOrder: true,
-    lowStock: true,
-    syncError: true,
-    returnReceived: false,
-    dailySummary: true,
-  });
+  const [vorname, setVorname] = useState("");
+  const [nachname, setNachname] = useState("");
+  const [email, setEmail] = useState("");
+  const [notifications, setNotifications] = useState<Record<string, boolean>>({});
   const [theme, setTheme] = useState<ThemeOption>("system");
   const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+
+  const loadProfile = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await fetchProfile();
+      if (data.vorname) setVorname(data.vorname);
+      if (data.nachname) setNachname(data.nachname);
+      if (data.email) setEmail(data.email);
+      if (data.notifications) setNotifications(data.notifications);
+      if (data.theme) setTheme(data.theme as ThemeOption);
+      // Fallback: use displayName if vorname/nachname not set
+      if (!data.vorname && !data.nachname && data.displayName) {
+        const parts = data.displayName.split(" ");
+        setVorname(parts[0] || "");
+        setNachname(parts.slice(1).join(" ") || "");
+      }
+    } catch (err: any) {
+      setError(err.message || "Fehler beim Laden des Profils");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadProfile();
+  }, [loadProfile]);
 
   const toggleNotification = (key: string) => {
     setNotifications((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
-  const handleChangePassword = async () => {
-    if (!currentPassword || !newPassword || newPassword !== confirmPassword) return;
-    setChangingPassword(true);
-    // TODO: API call to change password (POST /api/auth/change-password)
-    await new Promise((r) => setTimeout(r, 800));
-    setCurrentPassword("");
-    setNewPassword("");
-    setConfirmPassword("");
-    setChangingPassword(false);
-  };
-
   const handleSave = async () => {
     setSaving(true);
-    // TODO: API call to save profile settings (PUT /api/settings/profile)
-    await new Promise((r) => setTimeout(r, 800));
-    setSaving(false);
+    setError(null);
+    setSaveSuccess(false);
+    try {
+      await saveProfile({ vorname, nachname, notifications, theme });
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3000);
+    } catch (err: any) {
+      setError(err.message || "Fehler beim Speichern");
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const initials = `${vorname.charAt(0)}${nachname.charAt(0)}`;
+  const initials = `${vorname.charAt(0)}${nachname.charAt(0)}`.toUpperCase() || "?";
+
+  if (loading) {
+    return (
+      <div className="space-y-6 animate-pulse">
+        {[1, 2, 3, 4].map((i) => (
+          <div key={i} className="bg-app-surface border border-app-border rounded-xl p-6 h-24" />
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
+      {/* Error Banner */}
+      {error && (
+        <div className="bg-danger-dim border border-app-border rounded-xl px-4 py-3 flex items-center gap-3">
+          <span className="text-sm text-danger flex-1">{error}</span>
+          <button onClick={() => setError(null)} className="text-txt-muted hover:text-txt-primary text-sm">
+            Schließen
+          </button>
+        </div>
+      )}
+
+      {/* Success Banner */}
+      {saveSuccess && (
+        <div className="bg-success-dim border border-app-border rounded-xl px-4 py-3 text-sm text-success font-medium">
+          Profil erfolgreich gespeichert.
+        </div>
+      )}
+
       {/* Avatar */}
       <Card>
         <div className="flex items-center gap-4">
           <Avatar initials={initials} size="lg" />
           <div>
-            <p className="text-sm font-semibold text-txt-primary">{vorname} {nachname}</p>
-            <button
-              type="button"
-              className="text-xs text-accent hover:text-accent/80 transition-colors mt-1"
-            >
-              {/* TODO: Implement avatar upload */}
-              Profilbild andern
-            </button>
+            <p className="text-sm font-semibold text-txt-primary">
+              {vorname || nachname ? `${vorname} ${nachname}`.trim() : email || "Benutzer"}
+            </p>
+            <p className="text-xs text-txt-muted mt-0.5">{email}</p>
           </div>
         </div>
       </Card>
 
-      {/* Persoenliche Daten */}
+      {/* Persönliche Daten */}
       <Card>
-        <h3 className="text-sm font-semibold text-txt-primary mb-4">Personliche Daten</h3>
+        <h3 className="text-sm font-semibold text-txt-primary mb-4">Persönliche Daten</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Input label="Vorname" value={vorname} onChange={(e) => setVorname(e.target.value)} />
           <Input label="Nachname" value={nachname} onChange={(e) => setNachname(e.target.value)} />
@@ -108,47 +149,9 @@ export const ProfileSettings: React.FC = () => {
               value={email}
               disabled
               iconRight={<LockIcon />}
-              helpText="Kontaktiere den Admin um die E-Mail zu andern"
+              helpText="E-Mail kann nur über Firebase Authentication geändert werden"
             />
           </div>
-        </div>
-      </Card>
-
-      {/* Passwort aendern */}
-      <Card>
-        <h3 className="text-sm font-semibold text-txt-primary mb-4">Passwort andern</h3>
-        <div className="space-y-4 max-w-md">
-          <Input
-            label="Aktuelles Passwort"
-            type="password"
-            value={currentPassword}
-            onChange={(e) => setCurrentPassword(e.target.value)}
-            placeholder="********"
-          />
-          <Input
-            label="Neues Passwort"
-            type="password"
-            value={newPassword}
-            onChange={(e) => setNewPassword(e.target.value)}
-            placeholder="********"
-          />
-          <Input
-            label="Neues Passwort bestatigen"
-            type="password"
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            placeholder="********"
-            error={confirmPassword && newPassword !== confirmPassword ? "Passworter stimmen nicht uberein" : undefined}
-          />
-          <Button
-            variant="secondary"
-            size="md"
-            loading={changingPassword}
-            onClick={handleChangePassword}
-            disabled={!currentPassword || !newPassword || newPassword !== confirmPassword}
-          >
-            Passwort andern
-          </Button>
         </div>
       </Card>
 
@@ -226,7 +229,7 @@ export const ProfileSettings: React.FC = () => {
           onClick={handleSave}
           className="w-full sm:w-auto"
         >
-          Anderungen speichern
+          Änderungen speichern
         </Button>
       </div>
     </div>

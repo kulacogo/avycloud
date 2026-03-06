@@ -559,6 +559,345 @@ export async function startEbayOAuth(opts?: { locale?: string; promptLogin?: boo
   return String(out);
 }
 
+// ─── Settings API ────────────────────────────────────────────
+
+export interface CompanySettingsData {
+  firmenname?: string;
+  rechtsform?: string;
+  ustIdNr?: string;
+  steuernummer?: string;
+  strasse?: string;
+  plz?: string;
+  ort?: string;
+  land?: string;
+  email?: string;
+  telefon?: string;
+  website?: string;
+  iban?: string;
+  bic?: string;
+  bank?: string;
+  [key: string]: any;
+}
+
+export async function fetchCompanySettings(): Promise<CompanySettingsData> {
+  const res = await fetchApi(`${BACKEND_URL}/api/settings/company`, { method: 'GET' });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) {
+    throw new Error(data?.error?.message || 'Failed to load company settings');
+  }
+  return data?.data || {};
+}
+
+export async function saveCompanySettings(settings: CompanySettingsData): Promise<CompanySettingsData> {
+  const res = await fetchApi(`${BACKEND_URL}/api/settings/company`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(settings),
+  });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) {
+    throw new Error(data?.error?.message || 'Failed to save company settings');
+  }
+  return data?.data || {};
+}
+
+export interface ProfileData {
+  vorname?: string;
+  nachname?: string;
+  email?: string;
+  displayName?: string;
+  notifications?: Record<string, boolean>;
+  theme?: string;
+  [key: string]: any;
+}
+
+export async function fetchProfile(): Promise<ProfileData> {
+  const res = await fetchApi(`${BACKEND_URL}/api/settings/profile`, { method: 'GET' });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) {
+    throw new Error(data?.error?.message || 'Failed to load profile');
+  }
+  return data?.data || {};
+}
+
+export async function saveProfile(profile: ProfileData): Promise<ProfileData> {
+  const res = await fetchApi(`${BACKEND_URL}/api/settings/profile`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(profile),
+  });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) {
+    throw new Error(data?.error?.message || 'Failed to save profile');
+  }
+  return data?.data || {};
+}
+
+export interface IntegrationStatusEntry {
+  id: string;
+  name: string;
+  description: string;
+  category: string;
+  status: 'connected' | 'not_connected';
+  connectedAt?: string | null;
+  updatedAt?: string | null;
+  lastRefreshedAt?: string | null;
+  details?: Record<string, any>;
+}
+
+// ─── Order Settings API ──────────────────────────────────────
+
+export interface OrderSettingsData {
+  rules?: Array<{ id: string; label: string; enabled: boolean }>;
+  statuses?: Array<{ id: string; name: string; description: string; color: string }>;
+  numberRanges?: Record<string, { prefix: string; startNumber: string }>;
+  templates?: Array<{ id: string; name: string; lastEdited: string }>;
+  [key: string]: any;
+}
+
+export async function fetchOrderSettings(): Promise<OrderSettingsData> {
+  const res = await fetchApi(`${BACKEND_URL}/api/orders/settings`, { method: 'GET' });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) {
+    throw new Error(data?.error?.message || 'Failed to load order settings');
+  }
+  return data?.data || {};
+}
+
+export async function saveOrderSettings(settings: OrderSettingsData): Promise<OrderSettingsData> {
+  const res = await fetchApi(`${BACKEND_URL}/api/orders/settings`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(settings),
+  });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) {
+    throw new Error(data?.error?.message || 'Failed to save order settings');
+  }
+  return data?.data || {};
+}
+
+// ─── Warehouse Settings API ──────────────────────────────────
+
+export interface WarehouseSettingsData {
+  zones?: Array<{ id: string; name: string; type: string; description?: string }>;
+  bins?: Array<{ id: string; zone: string; label: string }>;
+  [key: string]: any;
+}
+
+export async function fetchWarehouseSettings(): Promise<WarehouseSettingsData> {
+  const res = await fetchApi(`${BACKEND_URL}/api/warehouse/settings`, { method: 'GET' });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) {
+    throw new Error(data?.error?.message || 'Failed to load warehouse settings');
+  }
+  return data?.data || {};
+}
+
+export async function saveWarehouseSettings(settings: WarehouseSettingsData): Promise<WarehouseSettingsData> {
+  const res = await fetchApi(`${BACKEND_URL}/api/warehouse/settings`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(settings),
+  });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) {
+    throw new Error(data?.error?.message || 'Failed to save warehouse settings');
+  }
+  return data?.data || {};
+}
+
+// ─── API Keys API ────────────────────────────────────────────
+
+export interface ApiKeyData {
+  id: string;
+  name: string;
+  key: string;
+  createdAt?: string;
+  lastAccess?: string | null;
+}
+
+export async function fetchApiKeys(): Promise<ApiKeyData[]> {
+  const res = await fetchApi(`${BACKEND_URL}/api/settings/api-keys`, { method: 'GET' });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) throw new Error(data?.error?.message || 'Failed to load API keys');
+  return Array.isArray(data?.data) ? data.data : [];
+}
+
+export async function createApiKey(name: string): Promise<ApiKeyData> {
+  const res = await fetchApi(`${BACKEND_URL}/api/settings/api-keys`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name }),
+  });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) throw new Error(data?.error?.message || 'Failed to create API key');
+  return data?.data;
+}
+
+export async function revokeApiKey(id: string): Promise<void> {
+  const res = await fetchApi(`${BACKEND_URL}/api/settings/api-keys/${encodeURIComponent(id)}`, { method: 'DELETE' });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) throw new Error(data?.error?.message || 'Failed to revoke API key');
+}
+
+// ─── Webhooks API ────────────────────────────────────────────
+
+export interface WebhookData {
+  id: string;
+  url: string;
+  events: string[];
+  active: boolean;
+  secret?: string;
+  createdAt?: string;
+}
+
+export async function fetchWebhooks(): Promise<WebhookData[]> {
+  const res = await fetchApi(`${BACKEND_URL}/api/settings/webhooks`, { method: 'GET' });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) throw new Error(data?.error?.message || 'Failed to load webhooks');
+  return Array.isArray(data?.data) ? data.data : [];
+}
+
+export async function createWebhook(webhook: { url: string; events: string[]; active?: boolean }): Promise<WebhookData> {
+  const res = await fetchApi(`${BACKEND_URL}/api/settings/webhooks`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(webhook),
+  });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) throw new Error(data?.error?.message || 'Failed to create webhook');
+  return data?.data;
+}
+
+export async function deleteWebhook(id: string): Promise<void> {
+  const res = await fetchApi(`${BACKEND_URL}/api/settings/webhooks/${encodeURIComponent(id)}`, { method: 'DELETE' });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) throw new Error(data?.error?.message || 'Failed to delete webhook');
+}
+
+// ─── Billing Usage API ──────────────────────────────────────
+
+export interface BillingUsageData {
+  products: { current: number; max: number };
+  orders: { current: number; max: number };
+  integrations: { current: number; max: number };
+}
+
+export async function fetchBillingUsage(): Promise<BillingUsageData> {
+  const res = await fetchApi(`${BACKEND_URL}/api/settings/billing/usage`, { method: 'GET' });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) throw new Error(data?.error?.message || 'Failed to load billing usage');
+  return data?.data || { products: { current: 0, max: 5000 }, orders: { current: 0, max: 2000 }, integrations: { current: 0, max: 10 } };
+}
+
+export async function fetchIntegrationStatus(): Promise<IntegrationStatusEntry[]> {
+  const res = await fetchApi(`${BACKEND_URL}/api/integrations/status?t=${Date.now()}`, { method: 'GET' });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) {
+    throw new Error(data?.error?.message || 'Failed to load integration status');
+  }
+  return Array.isArray(data?.data) ? data.data : [];
+}
+
+// ─── Shipments API ───────────────────────────────────────────
+
+export interface ShipmentData {
+  id: string;
+  orderId: string;
+  customer?: string | null;
+  carrier?: string;
+  trackingNumber?: string | null;
+  status?: string;
+  cost?: number;
+  shippedAt?: string | null;
+  deliveredAt?: string | null;
+  createdAt?: string;
+  [key: string]: any;
+}
+
+export async function fetchShipments(params?: { status?: string; limit?: number }): Promise<ShipmentData[]> {
+  const url = new URL(`${BACKEND_URL}/api/shipments`);
+  if (params?.status) url.searchParams.set('status', params.status);
+  if (params?.limit) url.searchParams.set('limit', String(params.limit));
+  const res = await fetchApi(url.toString(), { method: 'GET' });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) throw new Error(data?.error?.message || 'Failed to load shipments');
+  return Array.isArray(data?.data) ? data.data : [];
+}
+
+// ─── Returns API ─────────────────────────────────────────────
+
+export interface ReturnData {
+  id: string;
+  orderId: string;
+  customer?: string | null;
+  product?: string | null;
+  reason?: string;
+  status?: string;
+  refundAmount?: number;
+  createdAt?: string;
+  [key: string]: any;
+}
+
+export async function fetchReturns(params?: { status?: string; limit?: number }): Promise<ReturnData[]> {
+  const url = new URL(`${BACKEND_URL}/api/returns`);
+  if (params?.status) url.searchParams.set('status', params.status);
+  if (params?.limit) url.searchParams.set('limit', String(params.limit));
+  const res = await fetchApi(url.toString(), { method: 'GET' });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) throw new Error(data?.error?.message || 'Failed to load returns');
+  return Array.isArray(data?.data) ? data.data : [];
+}
+
+export async function updateReturn(id: string, update: { status?: string; refundAmount?: number }): Promise<any> {
+  const res = await fetchApi(`${BACKEND_URL}/api/returns/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(update),
+  });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) throw new Error(data?.error?.message || 'Failed to update return');
+  return data?.data;
+}
+
+// ─── Invoices API ────────────────────────────────────────────
+
+export interface InvoiceData {
+  id: string;
+  orderId?: string;
+  invoiceNumber?: string;
+  date?: string;
+  customer?: string | null;
+  amountNet?: number;
+  amountGross?: number;
+  status?: string;
+  dueDate?: string | null;
+  createdAt?: string;
+  [key: string]: any;
+}
+
+export async function fetchInvoices(params?: { status?: string; limit?: number }): Promise<InvoiceData[]> {
+  const url = new URL(`${BACKEND_URL}/api/invoices`);
+  if (params?.status) url.searchParams.set('status', params.status);
+  if (params?.limit) url.searchParams.set('limit', String(params.limit));
+  const res = await fetchApi(url.toString(), { method: 'GET' });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) throw new Error(data?.error?.message || 'Failed to load invoices');
+  return Array.isArray(data?.data) ? data.data : [];
+}
+
+export async function updateInvoiceStatus(id: string, status: string): Promise<any> {
+  const res = await fetchApi(`${BACKEND_URL}/api/invoices/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ status }),
+  });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) throw new Error(data?.error?.message || 'Failed to update invoice');
+  return data?.data;
+}
+
 export async function fetchEbayStatus(): Promise<EbayConnectionStatus> {
   const res = await fetchApi(`${BACKEND_URL}/api/ebay/status?t=${Date.now()}`, { method: 'GET' });
   const data = await parseResponse(res);

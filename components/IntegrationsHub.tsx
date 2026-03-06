@@ -1,71 +1,29 @@
-import React, { useState, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
+import { fetchIntegrationStatus } from "../api/client";
+import type { IntegrationStatusEntry } from "../api/client";
 
 /* ─── Types ─── */
-type IntegrationStatus = "connected" | "not_connected" | "coming_soon";
-type Category = "marketplaces" | "shipping" | "finance" | "shops" | "other";
+type Category = "all" | "marketplaces" | "shipping" | "finance" | "other";
 
-interface Integration {
-  id: string;
-  name: string;
-  description: string;
-  status: IntegrationStatus;
-  category: Category;
-  lastSync?: string;
-  logoLetter?: string;
-  logoColor?: string;
-}
-
-/* ─── Tab config ─── */
 const TABS: { key: Category; label: string }[] = [
-  { key: "marketplaces", label: "Marktpl\u00e4tze" },
+  { key: "all", label: "Alle" },
+  { key: "marketplaces", label: "Marktplätze" },
   { key: "shipping", label: "Versand" },
-  { key: "finance", label: "Finanzen & Steuern" },
-  { key: "shops", label: "Shops" },
+  { key: "finance", label: "Finanzen" },
   { key: "other", label: "Sonstiges" },
 ];
 
-/* ─── Integration data ─── */
-const INTEGRATIONS: Integration[] = [
-  // Marktpl\u00e4tze
-  { id: "ebay", name: "eBay", description: "Online-Marktplatz f\u00fcr Auktionen und Sofortkauf", status: "connected", category: "marketplaces", lastSync: "vor 3 Minuten", logoLetter: "E", logoColor: "bg-blue-600" },
-  { id: "kaufland", name: "Kaufland", description: "Deutscher Online-Marktplatz", status: "connected", category: "marketplaces", lastSync: "vor 8 Minuten", logoLetter: "K", logoColor: "bg-red-600" },
-  { id: "amazon", name: "Amazon", description: "Weltgr\u00f6\u00dfter Online-Marktplatz", status: "coming_soon", category: "marketplaces", logoLetter: "A", logoColor: "bg-amber-600" },
-  { id: "otto", name: "Otto Market", description: "Deutscher Premium-Marktplatz", status: "coming_soon", category: "marketplaces", logoLetter: "O", logoColor: "bg-orange-600" },
-  { id: "zalando", name: "Zalando", description: "Fashion- und Lifestyle-Marktplatz", status: "coming_soon", category: "marketplaces", logoLetter: "Z", logoColor: "bg-orange-500" },
-  { id: "kleinanzeigen", name: "Kleinanzeigen", description: "Lokaler Anzeigenmarkt", status: "coming_soon", category: "marketplaces", logoLetter: "K", logoColor: "bg-green-600" },
-  { id: "hood", name: "Hood.de", description: "Deutscher Online-Marktplatz", status: "coming_soon", category: "marketplaces", logoLetter: "H", logoColor: "bg-indigo-600" },
-  { id: "avocadostore", name: "Avocadostore", description: "Nachhaltiger Online-Marktplatz", status: "coming_soon", category: "marketplaces", logoLetter: "A", logoColor: "bg-green-500" },
-  { id: "etsy", name: "Etsy DE", description: "Marktplatz f\u00fcr Handgemachtes und Vintage", status: "coming_soon", category: "marketplaces", logoLetter: "E", logoColor: "bg-orange-600" },
+const LOGO_CONFIG: Record<string, { letter: string; color: string }> = {
+  ebay: { letter: "eB", color: "bg-blue-600" },
+  kaufland: { letter: "KL", color: "bg-red-600" },
+  baselinker: { letter: "BL", color: "bg-sky-600" },
+  sendcloud: { letter: "SC", color: "bg-blue-500" },
+  sevdesk: { letter: "SD", color: "bg-emerald-600" },
+  dhl: { letter: "DHL", color: "bg-yellow-500" },
+};
 
-  // Versand
-  { id: "dhl", name: "DHL", description: "Pakete bis 31,5 kg, DE + International", status: "connected", category: "shipping", lastSync: "vor 12 Minuten", logoLetter: "D", logoColor: "bg-yellow-500" },
-  { id: "dpd", name: "DPD", description: "Express und Standard Paketversand", status: "not_connected", category: "shipping", logoLetter: "D", logoColor: "bg-red-700" },
-  { id: "gls", name: "GLS", description: "Flexibler Paketversand in Europa", status: "not_connected", category: "shipping", logoLetter: "G", logoColor: "bg-blue-700" },
-  { id: "hermes", name: "Hermes", description: "Paketversand mit Paketshop-Netzwerk", status: "not_connected", category: "shipping", logoLetter: "H", logoColor: "bg-cyan-600" },
-  { id: "ups", name: "UPS", description: "Weltweiter Express- und Paketversand", status: "not_connected", category: "shipping", logoLetter: "U", logoColor: "bg-amber-800" },
-  { id: "deutschepost", name: "Deutsche Post", description: "Warenpost und Briefe", status: "not_connected", category: "shipping", logoLetter: "P", logoColor: "bg-yellow-600" },
-  { id: "sendcloud", name: "SendCloud", description: "Multi-Carrier Versandplattform", status: "connected", category: "shipping", lastSync: "vor 5 Minuten", logoLetter: "S", logoColor: "bg-blue-500" },
-
-  // Finanzen & Steuern
-  { id: "sevdesk", name: "SevDesk", description: "Online-Buchhaltung und Rechnungen", status: "connected", category: "finance", lastSync: "vor 15 Minuten", logoLetter: "S", logoColor: "bg-emerald-600" },
-  { id: "lexoffice", name: "lexoffice", description: "Buchhaltung und Steuern f\u00fcr KMU", status: "not_connected", category: "finance", logoLetter: "L", logoColor: "bg-blue-600" },
-  { id: "datev", name: "DATEV", description: "Steuerberater-Schnittstelle", status: "coming_soon", category: "finance", logoLetter: "D", logoColor: "bg-green-700" },
-  { id: "stripe", name: "Stripe", description: "Online-Zahlungsabwicklung", status: "coming_soon", category: "finance", logoLetter: "S", logoColor: "bg-violet-600" },
-
-  // Shops
-  { id: "shopify", name: "Shopify", description: "E-Commerce Plattform f\u00fcr Online-Shops", status: "coming_soon", category: "shops", logoLetter: "S", logoColor: "bg-green-600" },
-  { id: "woocommerce", name: "WooCommerce", description: "WordPress E-Commerce Plugin", status: "coming_soon", category: "shops", logoLetter: "W", logoColor: "bg-purple-600" },
-  { id: "shopware", name: "Shopware", description: "Deutsche E-Commerce Plattform", status: "coming_soon", category: "shops", logoLetter: "S", logoColor: "bg-blue-500" },
-
-  // Sonstiges
-  { id: "baselinker", name: "BaseLinker", description: "Multi-Channel E-Commerce Middleware", status: "connected", category: "other", lastSync: "vor 2 Minuten", logoLetter: "B", logoColor: "bg-sky-600" },
-  { id: "zapier", name: "Zapier", description: "Workflow-Automatisierung", status: "coming_soon", category: "other", logoLetter: "Z", logoColor: "bg-orange-500" },
-  { id: "make", name: "Make.com", description: "Visuelle Automatisierungsplattform", status: "coming_soon", category: "other", logoLetter: "M", logoColor: "bg-violet-500" },
-  { id: "slack", name: "Slack", description: "Team-Kommunikation und Benachrichtigungen", status: "coming_soon", category: "other", logoLetter: "S", logoColor: "bg-purple-700" },
-];
-
-/* ─── Status helpers ─── */
-const StatusIndicator: React.FC<{ status: IntegrationStatus; lastSync?: string }> = ({ status, lastSync }) => {
+/* ─── Status Indicator ─── */
+const StatusIndicator: React.FC<{ status: string; connectedAt?: string | null }> = ({ status, connectedAt }) => {
   if (status === "connected") {
     return (
       <div className="flex flex-col gap-0.5">
@@ -73,92 +31,83 @@ const StatusIndicator: React.FC<{ status: IntegrationStatus; lastSync?: string }
           <span className="inline-block w-2 h-2 rounded-full bg-success" />
           <span className="text-xs font-medium text-success">Verbunden</span>
         </div>
-        {lastSync && (
-          <span className="text-[11px] text-txt-muted ml-3.5">Letzter Sync: {lastSync}</span>
+        {connectedAt && (
+          <span className="text-[11px] text-txt-muted ml-3.5">
+            Seit {new Date(connectedAt).toLocaleDateString("de-DE")}
+          </span>
         )}
       </div>
     );
   }
-  if (status === "not_connected") {
-    return (
-      <div className="flex items-center gap-1.5">
-        <span className="inline-block w-2 h-2 rounded-full bg-txt-muted/40" />
-        <span className="text-xs text-txt-muted">Nicht verbunden</span>
-      </div>
-    );
-  }
   return (
-    <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-app-elevated text-txt-muted">
-      Demn\u00e4chst verf\u00fcgbar
-    </span>
+    <div className="flex items-center gap-1.5">
+      <span className="inline-block w-2 h-2 rounded-full bg-txt-muted/40" />
+      <span className="text-xs text-txt-muted">Nicht verbunden</span>
+    </div>
   );
 };
 
 /* ─── Integration Card ─── */
-const IntegrationCard: React.FC<{
-  integration: Integration;
-  onDisconnect: (id: string, name: string) => void;
-}> = ({ integration, onDisconnect }) => {
-  const { id, name, description, status, logoLetter, logoColor } = integration;
-  const isComingSoon = status === "coming_soon";
+const IntegrationCard: React.FC<{ integration: IntegrationStatusEntry }> = ({ integration }) => {
+  const logo = LOGO_CONFIG[integration.id] || { letter: integration.name.charAt(0), color: "bg-accent" };
+  const isConnected = integration.status === "connected";
 
   return (
     <div
       className={`
-        relative bg-app-surface rounded-xl border transition-all
-        ${status === "connected" ? "border-success/30 border-t-2 border-t-success" : "border-app-border"}
-        ${isComingSoon ? "opacity-60" : "hover:border-accent/40 hover:shadow-md"}
+        relative bg-app-surface rounded-xl border transition-all hover:shadow-md
+        ${isConnected ? "border-success/30 border-t-2 border-t-success" : "border-app-border hover:border-accent/40"}
       `}
     >
       <div className="p-5">
         {/* Logo + Name + Description */}
         <div className="flex items-start gap-3 mb-4">
           <div
-            className={`
-              w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold text-sm shrink-0
-              ${isComingSoon ? "bg-app-elevated text-txt-muted" : (logoColor || "bg-accent")}
-            `}
+            className={`w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold text-sm shrink-0 ${logo.color}`}
           >
-            {logoLetter || name.charAt(0)}
+            {logo.letter}
           </div>
           <div className="min-w-0">
-            <h3 className="text-sm font-semibold text-txt-primary truncate">{name}</h3>
-            <p className="text-xs text-txt-muted mt-0.5 line-clamp-1">{description}</p>
+            <h3 className="text-sm font-semibold text-txt-primary truncate">{integration.name}</h3>
+            <p className="text-xs text-txt-muted mt-0.5 line-clamp-2">{integration.description}</p>
           </div>
         </div>
 
         {/* Status */}
         <div className="mb-4">
-          <StatusIndicator status={status} lastSync={integration.lastSync} />
+          <StatusIndicator status={integration.status} connectedAt={integration.connectedAt} />
         </div>
 
-        {/* Actions */}
+        {/* Details for connected integrations */}
+        {isConnected && integration.details && (
+          <div className="mb-4 space-y-1">
+            {integration.details.env && (
+              <div className="flex items-center gap-2 text-[11px]">
+                <span className="text-txt-muted">Umgebung:</span>
+                <span className="text-txt-secondary font-medium uppercase">{integration.details.env}</span>
+              </div>
+            )}
+            {integration.details.accessTokenExpiresAt && (
+              <div className="flex items-center gap-2 text-[11px]">
+                <span className="text-txt-muted">Token läuft ab:</span>
+                <span className="text-txt-secondary font-medium">
+                  {new Date(integration.details.accessTokenExpiresAt).toLocaleString("de-DE")}
+                </span>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Action */}
         <div className="flex items-center gap-2">
-          {status === "connected" && (
-            <>
-              <button className="flex-1 px-3 py-1.5 text-xs font-medium rounded-lg bg-accent text-white hover:bg-accent/90 transition-colors">
-                Konfigurieren
-              </button>
-              <button
-                onClick={() => onDisconnect(id, name)}
-                className="px-3 py-1.5 text-xs font-medium rounded-lg text-danger hover:bg-danger-dim transition-colors"
-              >
-                Trennen
-              </button>
-            </>
-          )}
-          {status === "not_connected" && (
-            <button
-              // TODO: Open integration wizard / OAuth flow for this service
-              className="flex-1 px-3 py-1.5 text-xs font-medium rounded-lg bg-accent text-white hover:bg-accent/90 transition-colors"
-            >
-              Verbinden
-            </button>
-          )}
-          {status === "coming_soon" && (
-            <button className="flex-1 px-3 py-1.5 text-xs font-medium rounded-lg border border-app-border text-txt-secondary hover:bg-app-elevated transition-colors">
-              Benachrichtigen
-            </button>
+          {isConnected ? (
+            <span className="flex-1 px-3 py-1.5 text-xs font-medium rounded-lg bg-success-dim text-success text-center">
+              Aktiv
+            </span>
+          ) : (
+            <span className="flex-1 px-3 py-1.5 text-xs font-medium rounded-lg bg-app-elevated text-txt-muted text-center">
+              Nicht konfiguriert
+            </span>
           )}
         </div>
       </div>
@@ -168,8 +117,27 @@ const IntegrationCard: React.FC<{
 
 /* ─── Main Component ─── */
 export const IntegrationsHub: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<Category>("marketplaces");
-  const [integrations, setIntegrations] = useState<Integration[]>(INTEGRATIONS);
+  const [activeTab, setActiveTab] = useState<Category>("all");
+  const [integrations, setIntegrations] = useState<IntegrationStatusEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadStatus = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await fetchIntegrationStatus();
+      setIntegrations(data);
+    } catch (err: any) {
+      setError(err.message || "Fehler beim Laden der Integrationen");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadStatus();
+  }, [loadStatus]);
 
   const connectedCount = useMemo(
     () => integrations.filter((i) => i.status === "connected").length,
@@ -177,39 +145,59 @@ export const IntegrationsHub: React.FC = () => {
   );
 
   const filtered = useMemo(
-    () => integrations.filter((i) => i.category === activeTab),
+    () => activeTab === "all" ? integrations : integrations.filter((i) => i.category === activeTab),
     [integrations, activeTab]
   );
 
-  const handleDisconnect = useCallback(
-    (id: string, name: string) => {
-      const confirmed = window.confirm(`M\u00f6chtest du ${name} wirklich trennen?`);
-      if (!confirmed) return;
-      setIntegrations((prev) =>
-        prev.map((i) =>
-          i.id === id ? { ...i, status: "not_connected" as IntegrationStatus, lastSync: undefined } : i
-        )
-      );
-    },
-    []
-  );
+  // Loading state
+  if (loading) {
+    return (
+      <div className="min-h-full bg-app-bg p-6 space-y-6 animate-pulse">
+        <div className="h-8 w-48 bg-app-elevated rounded-lg" />
+        <div className="h-10 w-full bg-app-elevated rounded-xl" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {[1, 2, 3, 4, 5, 6].map((i) => (
+            <div key={i} className="bg-app-surface border border-app-border rounded-xl p-5 h-40" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error && integrations.length === 0) {
+    return (
+      <div className="min-h-full bg-app-bg p-6">
+        <div className="bg-danger-dim border border-app-border rounded-xl p-6 text-center">
+          <p className="text-danger font-semibold mb-2">Fehler beim Laden der Integrationen</p>
+          <p className="text-txt-secondary text-sm mb-4">{error}</p>
+          <button
+            onClick={loadStatus}
+            className="px-4 py-2 bg-accent text-white rounded-lg text-sm font-medium hover:opacity-90 transition-opacity"
+          >
+            Erneut versuchen
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-full bg-app-bg">
-      {/* ─── Page Header ─── */}
+      {/* Page Header */}
       <div className="px-6 pt-6 pb-4">
         <div className="flex items-center gap-3">
           <h1 className="text-2xl font-bold text-txt-primary">Integrationen</h1>
           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-success-dim text-success">
-            Verbundene Services: {connectedCount}
+            {connectedCount} verbunden
           </span>
         </div>
         <p className="mt-1 text-sm text-txt-secondary">
-          Verwalte deine verbundenen Services und f\u00fcge neue hinzu.
+          Übersicht aller aktiven Integrationen und deren Verbindungsstatus.
         </p>
       </div>
 
-      {/* ─── Tab Bar ─── */}
+      {/* Tab Bar */}
       <div className="px-6 mb-6">
         <div className="flex items-center gap-1 p-1 bg-app-elevated rounded-xl overflow-x-auto">
           {TABS.map((tab) => (
@@ -230,15 +218,11 @@ export const IntegrationsHub: React.FC = () => {
         </div>
       </div>
 
-      {/* ─── Integration Cards Grid ─── */}
+      {/* Integration Cards Grid */}
       <div className="px-6 pb-8">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {filtered.map((integration) => (
-            <IntegrationCard
-              key={integration.id}
-              integration={integration}
-              onDisconnect={handleDisconnect}
-            />
+            <IntegrationCard key={integration.id} integration={integration} />
           ))}
         </div>
 

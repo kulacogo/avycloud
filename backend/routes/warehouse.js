@@ -478,4 +478,41 @@ router.post('/refresh-inventory', requirePermission('warehouse', 'write'), async
   }
 });
 
+// ── Warehouse Settings ──────────────────────────────────────
+
+const { firestore } = require('../lib/firestore');
+
+function getWarehouseTenantId(req) {
+  return req.user?.tenantId || 'default';
+}
+
+router.get('/settings', async (req, res) => {
+  try {
+    const tenantId = getWarehouseTenantId(req);
+    const doc = await firestore.collection('warehouse_settings').doc(tenantId).get();
+    const data = doc.exists ? doc.data() : {};
+    res.json({ ok: true, data });
+  } catch (err) {
+    console.error(`[GET /api/warehouse/settings] ${err.message}`, err);
+    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: err.message } });
+  }
+});
+
+router.put('/settings', async (req, res) => {
+  try {
+    const tenantId = getWarehouseTenantId(req);
+    const { zones, bins, ...rest } = req.body;
+    const data = { tenantId, updatedAt: new Date().toISOString(), updatedBy: req.user?.uid || null };
+    if (zones !== undefined) data.zones = zones;
+    if (bins !== undefined) data.bins = bins;
+    Object.assign(data, rest);
+
+    await firestore.collection('warehouse_settings').doc(tenantId).set(data, { merge: true });
+    res.json({ ok: true, data });
+  } catch (err) {
+    console.error(`[PUT /api/warehouse/settings] ${err.message}`, err);
+    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: err.message } });
+  }
+});
+
 module.exports = { router, setBackgroundSync };

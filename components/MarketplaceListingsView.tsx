@@ -1,154 +1,53 @@
 import React, { useState, useCallback, useEffect, useMemo } from "react";
-import { Product } from "../types";
+import {
+  fetchEbayLiveListings,
+  syncEbayLiveListings,
+  fetchEbayStatus,
+  fetchEbayGaps,
+  bulkUpdateEbayListings,
+  syncKauflandListings,
+  fetchKauflandSkuIndex,
+} from "../api/client";
+import type { EbayListingRow, EbayGapDoc } from "../types";
+import type { EbayConnectionStatus } from "../api/client";
 
-// Types
+// ─── Types ───────────────────────────────────────────────────
+
 interface MarketplaceListingsViewProps {
   marketplace: "ebay" | "kaufland";
-  products?: Product[];
-  onNavigateToProduct?: (product: Product) => void;
 }
 
-type ListingStatus = "active" | "inactive" | "draft" | "error";
-type TabFilter = "all" | "active" | "inactive" | "draft" | "error";
+type ListingStatus = "active" | "inactive" | "error" | "unknown";
+type TabFilter = "all" | "active" | "inactive" | "error";
 
-interface MarketplaceListing {
+interface NormalizedListing {
   id: string;
-  productId: string;
   title: string;
-  imageUrl?: string;
-  itemId?: string;
-  price: number;
-  quantity: number;
+  sku: string | null;
+  price?: number | null;
+  quantity?: number | null;
   status: ListingStatus;
-  category?: string;
-  watchers?: number;
-  sales30d?: number;
-  lastSync?: string;
-  listingUrl?: string;
+  matchStatus?: string | null;
+  gapCount?: number;
+  gapCriticalCount?: number;
+  viewItemUrl: string | null;
+  lastSync?: string | null;
   errors?: string[];
 }
 
-// Mock Data
-const MOCK_LISTINGS: MarketplaceListing[] = [
-  {
-    id: "ml-1",
-    productId: "p-001",
-    title: "Samsung Galaxy S24 Ultra 256GB Titanium Black - Neu & OVP",
-    imageUrl: "",
-    itemId: "1849572630",
-    price: 1149.99,
-    quantity: 3,
-    status: "active",
-    category: "Handys & Smartphones",
-    watchers: 24,
-    sales30d: 7,
-    lastSync: "2026-03-05T14:30:00Z",
-    listingUrl: "https://www.ebay.de/itm/1849572630",
-  },
-  {
-    id: "ml-2",
-    productId: "p-002",
-    title: "Apple AirPods Pro 2. Generation mit MagSafe Ladecase USB-C",
-    imageUrl: "",
-    itemId: "1849572631",
-    price: 229.0,
-    quantity: 12,
-    status: "active",
-    category: "Kopfhörer",
-    watchers: 18,
-    sales30d: 15,
-    lastSync: "2026-03-05T14:30:00Z",
-    listingUrl: "https://www.ebay.de/itm/1849572631",
-  },
-  {
-    id: "ml-3",
-    productId: "p-003",
-    title: "Dyson V15 Detect Absolute Akku-Staubsauger - Generalüberholt",
-    imageUrl: "",
-    itemId: "1849572632",
-    price: 449.95,
-    quantity: 1,
-    status: "active",
-    category: "Staubsauger",
-    watchers: 9,
-    sales30d: 2,
-    lastSync: "2026-03-05T14:28:00Z",
-    listingUrl: "https://www.ebay.de/itm/1849572632",
-  },
-  {
-    id: "ml-4",
-    productId: "p-004",
-    title: "LEGO Technic 42151 Bugatti Bolide - Neu versiegelt",
-    imageUrl: "",
-    itemId: "1849572633",
-    price: 39.99,
-    quantity: 5,
-    status: "inactive",
-    category: "LEGO Baukästen & Sets",
-    watchers: 3,
-    sales30d: 0,
-    lastSync: "2026-03-05T12:00:00Z",
-    listingUrl: "https://www.ebay.de/itm/1849572633",
-  },
-  {
-    id: "ml-5",
-    productId: "p-005",
-    title: "Sony WH-1000XM5 Bluetooth Kopfhörer Noise Cancelling Silber",
-    imageUrl: "",
-    itemId: undefined,
-    price: 289.0,
-    quantity: 4,
-    status: "draft",
-    category: "Kopfhörer",
-    watchers: 0,
-    sales30d: 0,
-    lastSync: undefined,
-  },
-  {
-    id: "ml-6",
-    productId: "p-006",
-    title: "Bosch Professional GSR 18V-90 Akku-Bohrschrauber Set",
-    imageUrl: "",
-    itemId: "1849572635",
-    price: 319.0,
-    quantity: 0,
-    status: "error",
-    category: "Akkuschrauber",
-    watchers: 6,
-    sales30d: 1,
-    lastSync: "2026-03-05T10:15:00Z",
-    listingUrl: "https://www.ebay.de/itm/1849572635",
-    errors: ["Bestand ist 0 - Listing automatisch deaktiviert", "Preisabweichung erkannt"],
-  },
-  {
-    id: "ml-7",
-    productId: "p-007",
-    title: "Nintendo Switch OLED Modell Weiss inkl. Mario Kart 8 Deluxe",
-    imageUrl: "",
-    itemId: "1849572636",
-    price: 349.99,
-    quantity: 2,
-    status: "active",
-    category: "Spielekonsolen",
-    watchers: 31,
-    sales30d: 4,
-    lastSync: "2026-03-05T14:30:00Z",
-    listingUrl: "https://www.ebay.de/itm/1849572636",
-  },
-];
+// ─── Constants ───────────────────────────────────────────────
 
 const STATUS_CONFIG: Record<ListingStatus, { label: string; bg: string; text: string }> = {
   active: { label: "Aktiv", bg: "bg-success-dim", text: "text-success" },
   inactive: { label: "Inaktiv", bg: "bg-warning-dim", text: "text-warning" },
-  draft: { label: "Entwurf", bg: "bg-info-dim", text: "text-info" },
   error: { label: "Fehler", bg: "bg-danger-dim", text: "text-danger" },
+  unknown: { label: "Unbekannt", bg: "bg-app-elevated", text: "text-txt-muted" },
 };
 
 const TAB_LABELS: Record<TabFilter, string> = {
   all: "Alle",
   active: "Aktiv",
   inactive: "Inaktiv",
-  draft: "Entwürfe",
   error: "Fehler",
 };
 
@@ -157,11 +56,16 @@ const MARKETPLACE_LABELS = {
   kaufland: "Kaufland",
 };
 
-function formatPrice(price: number): string {
+const PAGE_SIZE = 50;
+
+// ─── Helpers ─────────────────────────────────────────────────
+
+function formatPrice(price?: number | null): string {
+  if (price == null) return "—";
   return price.toLocaleString("de-DE", { style: "currency", currency: "EUR" });
 }
 
-function formatRelativeTime(iso?: string): string {
+function formatRelativeTime(iso?: string | null): string {
   if (!iso) return "—";
   const diff = Date.now() - new Date(iso).getTime();
   const mins = Math.floor(diff / 60000);
@@ -172,12 +76,64 @@ function formatRelativeTime(iso?: string): string {
   return `vor ${Math.floor(hours / 24)} Tagen`;
 }
 
-// Icons as inline SVGs
-const IconEdit = () => (
-  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-  </svg>
-);
+function normalizeEbayStatus(row: EbayListingRow): ListingStatus {
+  if (row.gapCriticalCount && row.gapCriticalCount > 0) return "error";
+  if (row.active === false || row.listingStatus === "Completed" || row.listingStatus === "Ended") return "inactive";
+  if (row.active === true || row.listingStatus === "Active") return "active";
+  return "unknown";
+}
+
+function normalizeEbayRow(row: EbayListingRow, gapMap: Map<string, EbayGapDoc>): NormalizedListing {
+  const gap = gapMap.get(row.itemId);
+  const errors: string[] = [];
+  if (gap?.gaps) {
+    for (const g of gap.gaps) {
+      if (g.severity === "critical" || g.severity === "error") {
+        errors.push(g.message || g.field || "Unbekannter Fehler");
+      }
+    }
+  }
+  return {
+    id: row.itemId,
+    title: row.title || row.sku || row.itemId,
+    sku: row.sku || null,
+    status: normalizeEbayStatus(row),
+    matchStatus: row.matchStatus,
+    gapCount: row.gapCount ?? gap?.summary?.total ?? 0,
+    gapCriticalCount: row.gapCriticalCount ?? gap?.summary?.critical ?? 0,
+    viewItemUrl: row.viewItemUrl || null,
+    lastSync: row.updatedAt || row.gapDocUpdatedAt || null,
+    errors: errors.length > 0 ? errors : undefined,
+  };
+}
+
+interface KauflandUnit {
+  idUnit: string;
+  sku: string | null;
+  skuNormalized: string | null;
+  ean: string | null;
+  eans: string[];
+  status: string | null;
+  idProduct: number | null;
+  viewItemUrl: string | null;
+}
+
+function normalizeKauflandUnit(unit: KauflandUnit): NormalizedListing {
+  const statusLower = (unit.status || "").toLowerCase();
+  let status: ListingStatus = "unknown";
+  if (statusLower === "active" || statusLower === "200") status = "active";
+  else if (statusLower === "inactive" || statusLower === "blocked" || statusLower === "403") status = "inactive";
+
+  return {
+    id: unit.idUnit,
+    title: unit.sku || unit.ean || unit.idUnit,
+    sku: unit.sku || null,
+    status,
+    viewItemUrl: unit.viewItemUrl || null,
+  };
+}
+
+// ─── Icons ───────────────────────────────────────────────────
 
 const IconSync = () => (
   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -209,54 +165,140 @@ const IconChevronRight = () => (
   </svg>
 );
 
-const PAGE_SIZE = 25;
+const IconWarning = () => (
+  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+  </svg>
+);
 
-export function MarketplaceListingsView({
-  marketplace,
-  products,
-  onNavigateToProduct,
-}: MarketplaceListingsViewProps) {
-  const [listings, setListings] = useState<MarketplaceListing[]>(MOCK_LISTINGS);
-  const [loading, setLoading] = useState(false);
+// ─── Component ───────────────────────────────────────────────
+
+export function MarketplaceListingsView({ marketplace }: MarketplaceListingsViewProps) {
+  const [listings, setListings] = useState<NormalizedListing[]>([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabFilter>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [currentPage, setCurrentPage] = useState(1);
   const [syncing, setSyncing] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState<EbayConnectionStatus | null>(null);
+  const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
+  const [bulkUpdating, setBulkUpdating] = useState(false);
 
   const label = MARKETPLACE_LABELS[marketplace];
 
-  // TODO: API call — fetch listings from backend
-  // useEffect(() => {
-  //   setLoading(true);
-  //   fetch(`/api/v1/marketplace/${marketplace}/listings`)
-  //     .then(r => r.json())
-  //     .then(data => { setListings(data.listings); setLoading(false); })
-  //     .catch(err => { setError(err.message); setLoading(false); });
-  // }, [marketplace]);
+  // ─── Data Loading ────────────────────────────────────────
+
+  const loadEbayListings = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [rows, gaps, status] = await Promise.all([
+        fetchEbayLiveListings({ limit: 500, includeInactive: true }),
+        fetchEbayGaps({ limit: 500 }).catch(() => [] as EbayGapDoc[]),
+        fetchEbayStatus().catch(() => null),
+      ]);
+      const gapMap = new Map<string, EbayGapDoc>();
+      for (const g of gaps) {
+        gapMap.set(g.itemId, g);
+      }
+      const normalized = rows.map((r) => normalizeEbayRow(r, gapMap));
+      setListings(normalized);
+      if (status) setConnectionStatus(status);
+      setLastSyncTime(new Date().toISOString());
+    } catch (err: any) {
+      setError(err.message || "Fehler beim Laden der eBay-Listings");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const loadKauflandListings = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const units = await fetchKauflandSkuIndex("de");
+      const normalized = units.map(normalizeKauflandUnit);
+      setListings(normalized);
+      setLastSyncTime(new Date().toISOString());
+    } catch (err: any) {
+      setError(err.message || "Fehler beim Laden der Kaufland-Listings");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (marketplace === "ebay") {
+      loadEbayListings();
+    } else {
+      loadKauflandListings();
+    }
+  }, [marketplace, loadEbayListings, loadKauflandListings]);
+
+  // ─── Actions ─────────────────────────────────────────────
+
+  const handleSync = useCallback(async () => {
+    setSyncing(true);
+    setError(null);
+    try {
+      if (marketplace === "ebay") {
+        await syncEbayLiveListings();
+        await loadEbayListings();
+      } else {
+        await syncKauflandListings("de");
+        await loadKauflandListings();
+      }
+    } catch (err: any) {
+      setError(err.message || "Synchronisierung fehlgeschlagen");
+    } finally {
+      setSyncing(false);
+    }
+  }, [marketplace, loadEbayListings, loadKauflandListings]);
+
+  const handleBulkUpdate = useCallback(async () => {
+    if (marketplace !== "ebay" || selectedIds.size === 0) return;
+    setBulkUpdating(true);
+    setError(null);
+    try {
+      const result = await bulkUpdateEbayListings({ itemIds: [...selectedIds] });
+      setSelectedIds(new Set());
+      await loadEbayListings();
+      console.log("Bulk update result:", result.summary);
+    } catch (err: any) {
+      setError(err.message || "Bulk-Update fehlgeschlagen");
+    } finally {
+      setBulkUpdating(false);
+    }
+  }, [marketplace, selectedIds, loadEbayListings]);
+
+  // ─── Computed Data ───────────────────────────────────────
 
   const tabCounts = useMemo(() => {
-    const counts: Record<TabFilter, number> = { all: 0, active: 0, inactive: 0, draft: 0, error: 0 };
+    const counts: Record<TabFilter, number> = { all: 0, active: 0, inactive: 0, error: 0 };
     listings.forEach((l) => {
       counts.all++;
-      counts[l.status]++;
+      if (l.status === "active") counts.active++;
+      else if (l.status === "inactive" || l.status === "unknown") counts.inactive++;
+      if (l.status === "error" || (l.gapCriticalCount && l.gapCriticalCount > 0)) counts.error++;
     });
     return counts;
   }, [listings]);
 
   const filteredListings = useMemo(() => {
     let result = listings;
-    if (activeTab !== "all") {
-      result = result.filter((l) => l.status === activeTab);
-    }
+    if (activeTab === "active") result = result.filter((l) => l.status === "active");
+    else if (activeTab === "inactive") result = result.filter((l) => l.status === "inactive" || l.status === "unknown");
+    else if (activeTab === "error") result = result.filter((l) => l.status === "error" || (l.gapCriticalCount && l.gapCriticalCount > 0));
+
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       result = result.filter(
         (l) =>
           l.title.toLowerCase().includes(q) ||
-          l.itemId?.toLowerCase().includes(q) ||
-          l.category?.toLowerCase().includes(q)
+          l.id.toLowerCase().includes(q) ||
+          l.sku?.toLowerCase().includes(q)
       );
     }
     return result;
@@ -267,14 +309,6 @@ export function MarketplaceListingsView({
     (currentPage - 1) * PAGE_SIZE,
     currentPage * PAGE_SIZE
   );
-
-  const kpis = useMemo(() => {
-    const active = listings.filter((l) => l.status === "active").length;
-    const drafts = listings.filter((l) => l.status === "draft").length;
-    const errors = listings.filter((l) => l.status === "error").length;
-    const revenue = listings.reduce((sum, l) => sum + (l.sales30d ?? 0) * l.price, 0);
-    return { active, drafts, errors, revenue };
-  }, [listings]);
 
   const allVisibleSelected =
     paginatedListings.length > 0 && paginatedListings.every((l) => selectedIds.has(l.id));
@@ -300,34 +334,13 @@ export function MarketplaceListingsView({
     });
   }, []);
 
-  const handleSync = useCallback(async () => {
-    setSyncing(true);
-    // TODO: API call — POST /api/v1/marketplace/${marketplace}/sync
-    await new Promise((r) => setTimeout(r, 1500));
-    setSyncing(false);
-  }, [marketplace]);
-
-  const handleBulkPriceUpdate = useCallback(() => {
-    // TODO: API call — POST /api/v1/marketplace/${marketplace}/bulk/price
-    console.log("Bulk price update for:", [...selectedIds]);
-  }, [marketplace, selectedIds]);
-
-  const handleBulkDeactivate = useCallback(() => {
-    // TODO: API call — POST /api/v1/marketplace/${marketplace}/bulk/deactivate
-    console.log("Bulk deactivate for:", [...selectedIds]);
-  }, [marketplace, selectedIds]);
-
-  const handleBulkSync = useCallback(() => {
-    // TODO: API call — POST /api/v1/marketplace/${marketplace}/bulk/sync
-    console.log("Bulk sync for:", [...selectedIds]);
-  }, [marketplace, selectedIds]);
-
   useEffect(() => {
     setCurrentPage(1);
     setSelectedIds(new Set());
   }, [activeTab, searchQuery]);
 
-  // Loading skeleton
+  // ─── Loading State ───────────────────────────────────────
+
   if (loading) {
     return (
       <div className="p-6 space-y-6 animate-pulse">
@@ -343,15 +356,20 @@ export function MarketplaceListingsView({
     );
   }
 
-  // Error state
-  if (error) {
+  // ─── Error State ─────────────────────────────────────────
+
+  if (error && listings.length === 0) {
     return (
       <div className="p-6">
         <div className="bg-danger-dim border border-app-border rounded-xl p-6 text-center">
-          <p className="text-danger font-semibold mb-2">Fehler beim Laden der Listings</p>
+          <p className="text-danger font-semibold mb-2">Fehler beim Laden der {label}-Listings</p>
           <p className="text-txt-secondary text-sm mb-4">{error}</p>
           <button
-            onClick={() => setError(null)}
+            onClick={() => {
+              setError(null);
+              if (marketplace === "ebay") loadEbayListings();
+              else loadKauflandListings();
+            }}
             className="px-4 py-2 bg-accent text-white rounded-lg text-sm font-medium hover:opacity-90 transition-opacity"
           >
             Erneut versuchen
@@ -360,6 +378,8 @@ export function MarketplaceListingsView({
       </div>
     );
   }
+
+  // ─── Render ──────────────────────────────────────────────
 
   return (
     <div className="p-6 space-y-6">
@@ -371,34 +391,53 @@ export function MarketplaceListingsView({
           </div>
           <div>
             <h1 className="text-xl font-bold text-txt-primary">{label} Listings</h1>
-            <p className="text-sm text-txt-muted">Verwalte deine {label}-Angebote</p>
+            <p className="text-sm text-txt-muted">
+              {listings.length} Listings geladen
+            </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-success-dim text-success">
-            <span className="w-2 h-2 rounded-full bg-current" />
-            Verbunden
-          </span>
+          {marketplace === "ebay" && connectionStatus && (
+            <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium ${
+              connectionStatus.connected
+                ? "bg-success-dim text-success"
+                : "bg-danger-dim text-danger"
+            }`}>
+              <span className="w-2 h-2 rounded-full bg-current" />
+              {connectionStatus.connected ? "Verbunden" : "Nicht verbunden"}
+            </span>
+          )}
         </div>
       </div>
+
+      {/* Inline error banner (when we have listings but got an error on action) */}
+      {error && listings.length > 0 && (
+        <div className="bg-danger-dim border border-app-border rounded-xl px-4 py-3 flex items-center gap-3">
+          <span className="text-danger"><IconWarning /></span>
+          <span className="text-sm text-danger flex-1">{error}</span>
+          <button onClick={() => setError(null)} className="text-txt-muted hover:text-txt-primary text-sm">
+            Schließen
+          </button>
+        </div>
+      )}
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-app-surface border border-app-border rounded-xl p-4">
-          <div className="text-sm text-txt-muted mb-1">Aktive Listings</div>
-          <div className="text-2xl font-bold text-txt-primary">{kpis.active}</div>
+          <div className="text-sm text-txt-muted mb-1">Gesamt</div>
+          <div className="text-2xl font-bold text-txt-primary">{listings.length}</div>
         </div>
         <div className="bg-app-surface border border-app-border rounded-xl p-4">
-          <div className="text-sm text-txt-muted mb-1">Entwürfe</div>
-          <div className="text-2xl font-bold text-txt-primary">{kpis.drafts}</div>
+          <div className="text-sm text-txt-muted mb-1">Aktiv</div>
+          <div className="text-2xl font-bold text-success">{tabCounts.active}</div>
+        </div>
+        <div className="bg-app-surface border border-app-border rounded-xl p-4">
+          <div className="text-sm text-txt-muted mb-1">Inaktiv</div>
+          <div className="text-2xl font-bold text-txt-primary">{tabCounts.inactive}</div>
         </div>
         <div className="bg-app-surface border border-app-border rounded-xl p-4">
           <div className="text-sm text-txt-muted mb-1">Fehler</div>
-          <div className="text-2xl font-bold text-danger">{kpis.errors}</div>
-        </div>
-        <div className="bg-app-surface border border-app-border rounded-xl p-4">
-          <div className="text-sm text-txt-muted mb-1">Umsatz 30 Tage</div>
-          <div className="text-2xl font-bold text-txt-primary">{formatPrice(kpis.revenue)}</div>
+          <div className="text-2xl font-bold text-danger">{tabCounts.error}</div>
         </div>
       </div>
 
@@ -406,16 +445,26 @@ export function MarketplaceListingsView({
       <div className="bg-app-surface border border-app-border rounded-xl px-4 py-3 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-4 text-sm text-txt-secondary">
           <span>
-            Letzter Sync: <span className="text-txt-primary font-medium">vor 5 Min.</span>
+            Letzter Sync:{" "}
+            <span className="text-txt-primary font-medium">
+              {formatRelativeTime(lastSyncTime)}
+            </span>
           </span>
-          <span className="hidden sm:inline text-app-border">|</span>
-          <span className="hidden sm:inline">
-            Nächster: <span className="text-txt-primary font-medium">in 10 Min.</span>
-          </span>
-          {kpis.errors > 0 && (
+          {marketplace === "ebay" && connectionStatus?.connectedAt && (
             <>
               <span className="hidden sm:inline text-app-border">|</span>
-              <span className="text-danger font-medium">{kpis.errors} Fehler</span>
+              <span className="hidden sm:inline">
+                Verbunden seit:{" "}
+                <span className="text-txt-primary font-medium">
+                  {new Date(connectionStatus.connectedAt).toLocaleDateString("de-DE")}
+                </span>
+              </span>
+            </>
+          )}
+          {tabCounts.error > 0 && (
+            <>
+              <span className="hidden sm:inline text-app-border">|</span>
+              <span className="text-danger font-medium">{tabCounts.error} Fehler</span>
             </>
           )}
         </div>
@@ -455,7 +504,7 @@ export function MarketplaceListingsView({
         ))}
       </div>
 
-      {/* Search + Filter Row */}
+      {/* Search Row */}
       <div className="flex flex-wrap items-center gap-3">
         <div className="relative flex-1 min-w-[200px]">
           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-txt-muted">
@@ -465,13 +514,10 @@ export function MarketplaceListingsView({
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder={`${label} Listings durchsuchen...`}
+            placeholder={`${label} Listings durchsuchen (Titel, ID, SKU)...`}
             className="w-full pl-10 pr-4 py-2 bg-app-surface border border-app-border rounded-lg text-sm text-txt-primary placeholder:text-txt-muted focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-colors"
           />
         </div>
-        <button className="px-4 py-2 bg-accent text-white rounded-lg text-sm font-medium hover:opacity-90 transition-opacity whitespace-nowrap">
-          + Neues Listing
-        </button>
       </div>
 
       {/* Bulk Actions Bar */}
@@ -479,23 +525,20 @@ export function MarketplaceListingsView({
         <div className="bg-accent-dim border border-app-border rounded-xl px-4 py-3 flex flex-wrap items-center gap-3">
           <span className="text-sm font-medium text-accent">{selectedIds.size} ausgewählt</span>
           <div className="flex items-center gap-2 ml-auto">
+            {marketplace === "ebay" && (
+              <button
+                onClick={handleBulkUpdate}
+                disabled={bulkUpdating}
+                className="px-3 py-1.5 text-sm font-medium text-txt-primary bg-app-surface border border-app-border rounded-lg hover:bg-app-elevated transition-colors disabled:opacity-50"
+              >
+                {bulkUpdating ? "Aktualisiere..." : "eBay aktualisieren"}
+              </button>
+            )}
             <button
-              onClick={handleBulkPriceUpdate}
-              className="px-3 py-1.5 text-sm font-medium text-txt-primary bg-app-surface border border-app-border rounded-lg hover:bg-app-elevated transition-colors"
+              onClick={() => setSelectedIds(new Set())}
+              className="px-3 py-1.5 text-sm font-medium text-txt-muted bg-app-surface border border-app-border rounded-lg hover:bg-app-elevated transition-colors"
             >
-              Preis aktualisieren
-            </button>
-            <button
-              onClick={handleBulkDeactivate}
-              className="px-3 py-1.5 text-sm font-medium text-warning bg-warning-dim border border-app-border rounded-lg hover:opacity-80 transition-opacity"
-            >
-              Deaktivieren
-            </button>
-            <button
-              onClick={handleBulkSync}
-              className="px-3 py-1.5 text-sm font-medium text-accent bg-app-surface border border-app-border rounded-lg hover:bg-app-elevated transition-colors"
-            >
-              Sync alle
+              Auswahl aufheben
             </button>
           </div>
         </div>
@@ -510,9 +553,18 @@ export function MarketplaceListingsView({
             </svg>
           </div>
           <p className="text-txt-primary font-medium mb-1">Keine {label} Listings gefunden</p>
-          <p className="text-txt-muted text-sm">
-            Erstelle ein neues Listing aus deinem Produktkatalog.
+          <p className="text-txt-muted text-sm mb-4">
+            {searchQuery ? "Versuche eine andere Suchanfrage." : "Klicke auf \"Jetzt synchronisieren\" um Listings zu laden."}
           </p>
+          {!searchQuery && (
+            <button
+              onClick={handleSync}
+              disabled={syncing}
+              className="px-4 py-2 bg-accent text-white rounded-lg text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
+            >
+              {syncing ? "Synchronisiere..." : "Jetzt synchronisieren"}
+            </button>
+          )}
         </div>
       ) : (
         <div className="bg-app-surface border border-app-border rounded-xl overflow-hidden">
@@ -528,30 +580,26 @@ export function MarketplaceListingsView({
                       className="rounded border-app-border accent-accent"
                     />
                   </th>
-                  <th className="px-4 py-3 text-left w-12" />
-                  <th className="px-4 py-3 text-left text-txt-muted font-medium">Titel</th>
+                  <th className="px-4 py-3 text-left text-txt-muted font-medium">Titel / SKU</th>
                   <th className="px-4 py-3 text-left text-txt-muted font-medium hidden md:table-cell">
-                    Item-ID
-                  </th>
-                  <th className="px-4 py-3 text-right text-txt-muted font-medium">Preis</th>
-                  <th className="px-4 py-3 text-right text-txt-muted font-medium hidden sm:table-cell">
-                    Menge
+                    {marketplace === "ebay" ? "Item-ID" : "Unit-ID"}
                   </th>
                   <th className="px-4 py-3 text-left text-txt-muted font-medium">Status</th>
+                  {marketplace === "ebay" && (
+                    <th className="px-4 py-3 text-left text-txt-muted font-medium hidden lg:table-cell">
+                      Match
+                    </th>
+                  )}
+                  {marketplace === "ebay" && (
+                    <th className="px-4 py-3 text-right text-txt-muted font-medium hidden lg:table-cell">
+                      Gaps
+                    </th>
+                  )}
                   <th className="px-4 py-3 text-left text-txt-muted font-medium hidden lg:table-cell">
-                    Kategorie
+                    Letztes Update
                   </th>
-                  <th className="px-4 py-3 text-right text-txt-muted font-medium hidden xl:table-cell">
-                    Watchers
-                  </th>
-                  <th className="px-4 py-3 text-right text-txt-muted font-medium hidden xl:table-cell">
-                    Verkäufe 30d
-                  </th>
-                  <th className="px-4 py-3 text-left text-txt-muted font-medium hidden lg:table-cell">
-                    Letzter Sync
-                  </th>
-                  <th className="px-4 py-3 text-right text-txt-muted font-medium w-28">
-                    Aktionen
+                  <th className="px-4 py-3 text-right text-txt-muted font-medium w-20">
+                    Link
                   </th>
                 </tr>
               </thead>
@@ -572,58 +620,27 @@ export function MarketplaceListingsView({
                         />
                       </td>
                       <td className="px-4 py-3">
-                        <div className="w-10 h-10 rounded-lg bg-app-elevated border border-app-border flex items-center justify-center text-txt-muted text-xs overflow-hidden">
-                          {listing.imageUrl ? (
-                            <img
-                              src={listing.imageUrl}
-                              alt=""
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.41a2.25 2.25 0 013.182 0l2.909 2.91m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
-                            </svg>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3">
                         <div
-                          className="text-txt-primary font-medium truncate max-w-[280px] cursor-pointer hover:text-accent transition-colors"
+                          className="text-txt-primary font-medium truncate max-w-[320px]"
                           title={listing.title}
                         >
                           {listing.title}
                         </div>
+                        {listing.sku && (
+                          <div className="text-xs text-txt-muted mt-0.5 font-mono truncate max-w-[320px]">
+                            SKU: {listing.sku}
+                          </div>
+                        )}
                         {listing.errors && listing.errors.length > 0 && (
-                          <div className="text-xs text-danger mt-0.5 truncate max-w-[280px]">
+                          <div className="text-xs text-danger mt-0.5 truncate max-w-[320px]">
                             {listing.errors[0]}
                           </div>
                         )}
                       </td>
                       <td className="px-4 py-3 hidden md:table-cell">
-                        {listing.itemId ? (
-                          listing.listingUrl ? (
-                            <a
-                              href={listing.listingUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-accent hover:underline text-xs font-mono"
-                            >
-                              {listing.itemId}
-                            </a>
-                          ) : (
-                            <span className="text-txt-secondary text-xs font-mono">
-                              {listing.itemId}
-                            </span>
-                          )
-                        ) : (
-                          <span className="text-txt-muted text-xs">—</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-right text-txt-primary font-medium whitespace-nowrap">
-                        {formatPrice(listing.price)}
-                      </td>
-                      <td className="px-4 py-3 text-right text-txt-secondary hidden sm:table-cell">
-                        {listing.quantity}
+                        <span className="text-txt-secondary text-xs font-mono">
+                          {listing.id}
+                        </span>
                       </td>
                       <td className="px-4 py-3">
                         <span
@@ -632,35 +649,43 @@ export function MarketplaceListingsView({
                           {statusCfg.label}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-txt-secondary text-xs hidden lg:table-cell truncate max-w-[160px]">
-                        {listing.category ?? "—"}
-                      </td>
-                      <td className="px-4 py-3 text-right text-txt-secondary hidden xl:table-cell">
-                        {listing.watchers ?? 0}
-                      </td>
-                      <td className="px-4 py-3 text-right text-txt-secondary hidden xl:table-cell">
-                        {listing.sales30d ?? 0}
-                      </td>
+                      {marketplace === "ebay" && (
+                        <td className="px-4 py-3 hidden lg:table-cell">
+                          {listing.matchStatus && (
+                            <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${
+                              listing.matchStatus === "matched"
+                                ? "bg-success-dim text-success"
+                                : listing.matchStatus === "ambiguous"
+                                ? "bg-warning-dim text-warning"
+                                : "bg-app-elevated text-txt-muted"
+                            }`}>
+                              {listing.matchStatus === "matched" ? "Zugeordnet" : listing.matchStatus === "ambiguous" ? "Mehrdeutig" : "Nicht zugeordnet"}
+                            </span>
+                          )}
+                        </td>
+                      )}
+                      {marketplace === "ebay" && (
+                        <td className="px-4 py-3 text-right hidden lg:table-cell">
+                          {(listing.gapCount ?? 0) > 0 ? (
+                            <span className={`text-xs font-medium ${(listing.gapCriticalCount ?? 0) > 0 ? "text-danger" : "text-warning"}`}>
+                              {listing.gapCount}
+                              {(listing.gapCriticalCount ?? 0) > 0 && (
+                                <span className="text-danger"> ({listing.gapCriticalCount} krit.)</span>
+                              )}
+                            </span>
+                          ) : (
+                            <span className="text-xs text-txt-muted">0</span>
+                          )}
+                        </td>
+                      )}
                       <td className="px-4 py-3 text-xs text-txt-muted hidden lg:table-cell whitespace-nowrap">
                         {formatRelativeTime(listing.lastSync)}
                       </td>
                       <td className="px-4 py-3">
-                        <div className="flex items-center justify-end gap-1">
-                          <button
-                            title="Bearbeiten"
-                            className="p-1.5 rounded-lg text-txt-muted hover:text-txt-primary hover:bg-app-elevated transition-colors"
-                          >
-                            <IconEdit />
-                          </button>
-                          <button
-                            title="Synchronisieren"
-                            className="p-1.5 rounded-lg text-txt-muted hover:text-accent hover:bg-accent-dim transition-colors"
-                          >
-                            <IconSync />
-                          </button>
-                          {listing.listingUrl && (
+                        <div className="flex items-center justify-end">
+                          {listing.viewItemUrl && (
                             <a
-                              href={listing.listingUrl}
+                              href={listing.viewItemUrl}
                               target="_blank"
                               rel="noopener noreferrer"
                               title="Auf Marktplatz ansehen"
@@ -681,7 +706,7 @@ export function MarketplaceListingsView({
           {/* Pagination */}
           <div className="flex items-center justify-between px-4 py-3 border-t border-app-border">
             <span className="text-sm text-txt-muted">
-              Zeige {(currentPage - 1) * PAGE_SIZE + 1}-
+              Zeige {(currentPage - 1) * PAGE_SIZE + 1}–
               {Math.min(currentPage * PAGE_SIZE, filteredListings.length)} von{" "}
               {filteredListings.length}
             </span>

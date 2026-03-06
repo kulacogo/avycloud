@@ -4,12 +4,27 @@
 > Benchmark: ChannelEngine, Channable, Linnworks, Plentymarkets, Billbee.
 > AvyCloud-Vorteil: KI-gestützte Produkterkennung + Enrichment (kein Wettbewerber hat das).
 
-> **⛔ KEINE PLACEHOLDER-VIEWS. NIEMALS.**
-> Jedes Modul muss ECHTE, FUNKTIONALE Views implementieren — mit echten Daten, echten API-Calls, echten Interaktionen.
-> Ein `PlaceholderView` oder `ComingSoon`-Component ist VERBOTEN. Wenn ein Modul noch nicht implementiert werden kann
-> (z.B. fehlende API-Route), dann die View mit realistischem UI bauen und API-Calls als TODO markieren — aber das UI
-> muss VOLLSTÄNDIG sein: Tabelle, Filter, KPI-Cards, Buttons, Modals, alles. KEIN leerer Screen mit "Demnächst verfügbar".
-> **Bestehende PlaceholderViews müssen beim Implementieren des jeweiligen Moduls ERSETZT werden durch echte Implementierungen.**
+> **⛔ KEINE PLACEHOLDER-VIEWS. KEINE MOCK-DATEN. KEINE FAKE-HANDLER. NIEMALS.**
+> - Jede View MUSS echte API-Calls machen (import aus `api/client.ts`)
+> - Jede View MUSS echte Daten aus dem Backend laden (useEffect + fetch)
+> - KEINE hardcodierten `MOCK_*` Arrays. KEINE `setTimeout()`-Fake-Handler
+> - Wenn ein Backend-Endpoint noch nicht existiert: **ZUERST Backend bauen, DANN Frontend anbinden**
+> - "Demnächst verfügbar" / "Coming Soon" ist VERBOTEN in der UI
+> - **Bestehende Fake-Views (mit Mock-Daten) MÜSSEN auf echte API-Calls umgebaut werden**
+
+> **⚠️ AKTUELLER ZUSTAND (Stand 2026-03-05): MEHR SCHEIN ALS SEIN**
+>
+> **ECHT (API-Connected, echte Daten):** Dashboard, OrdersView, OperationsView, WarehouseView, EbayListingsView, IdentifyQueueView
+>
+> **FAKE (Hardcodierte MOCK_* Arrays, setTimeout()-Fake-Handler, KEINE API-Calls):**
+> MarketplaceListingsView, ReturnsView, ShippingView, InvoicesView, OrderSettingsView,
+> CompanySettings, ProfileSettings, ApiSettings, BillingSettings, WarehouseSettingsView, IntegrationsHub
+>
+> **FAKT: Das Backend hat 94+ API-Funktionen in `api/client.ts` die BEREIT sind.
+> eBay, Kaufland, BaseLinker, SendCloud, SevDesk sind in Production AKTIV und VERBUNDEN (Credentials via Google Secret Manager).
+> Die Fake-Views müssen NUR die existierenden Funktionen AUFRUFEN.**
+>
+> **→ ABSOLUTE PRIORITÄT: Phase 4 (FAKE→REAL) — vor ALLEM anderen. Keine neuen Features bis alle Views echte Daten zeigen.**
 
 ---
 
@@ -106,6 +121,234 @@
     3. ✅ Alle `setView('sheet')` Aufrufe → redirecten auf `'products'`
     4. ✅ Suspense-Wrapper um Overlay entfernt
   - **MUSS DEPLOYED WERDEN** via `git push` → GitHub Actions → Firebase Hosting
+
+---
+
+### ⚡⚡⚡ Phase 4: FAKE→REAL — Mock-Daten raus, echte API-Calls rein
+
+> **⛔ ABSOLUTE PRIORITÄT. VOR ALLEM ANDEREN. KEINE NEUEN FEATURES BIS DIES ERLEDIGT IST.**
+>
+> **PROBLEM:** 11 Views haben hardcodierte `MOCK_*` Arrays und `setTimeout()`-Fake-Handler.
+> Das Backend hat **94+ exportierte API-Funktionen in `api/client.ts`** die NICHT genutzt werden.
+> eBay allein hat 22 Funktionen, Kaufland hat Sync + SKU-Index, Orders hat Metrics.
+> Die Funktionen EXISTIEREN — sie wurden nur nie aufgerufen.
+>
+> **⛔ ABSOLUTES VERBOT:**
+> - KEINE neuen `MOCK_*` Arrays erstellen
+> - KEINE `setTimeout()` als Fake-Handler
+> - KEINE hardcodierten Beispiel-Daten (Samsung Galaxy S24, Apple AirPods, etc.)
+> - KEIN `// TODO: API call` — der Call wird JETZT gemacht
+> - KEIN "Demnächst verfügbar" / "Coming Soon" Text
+>
+> **VORGEHEN pro View:** 1) Prüfe ob Backend-Route + api/client.ts-Funktion existiert → 2) Wenn ja: Frontend direkt umbauen → 3) Wenn nein: Backend-Route bauen → api/client.ts erweitern → Frontend umbauen → 4) `MOCK_*` Array LÖSCHEN
+
+- [ ] **FAKE→REAL #1: MarketplaceListingsView.tsx — ECHTE Listings laden (Backend existiert KOMPLETT!)** since 2026-03-05
+  - **Aktuell KAPUTT:** `MOCK_LISTINGS` Array mit Fake-Daten (Samsung Galaxy S24 etc.), KEIN API-Call
+  - **⚡ ALLES existiert bereits — NUR Frontend umbauen:**
+    - **eBay-Listings laden:** `import { fetchEbayLiveListings } from '../api/client'` → EXISTIERT in api/client.ts
+    - **eBay-Listings syncen:** `import { syncEbayLiveListings } from '../api/client'` → EXISTIERT
+    - **eBay-Listing-Details:** `import { fetchEbayLiveListingDetail } from '../api/client'` → EXISTIERT
+    - **eBay Bulk-Update:** `import { bulkUpdateEbayListings } from '../api/client'` → EXISTIERT
+    - **eBay Publish:** `import { publishToEbay, verifyEbayPublish } from '../api/client'` → EXISTIERT
+    - **eBay Gaps:** `import { fetchEbayGaps } from '../api/client'` → EXISTIERT
+    - **Kaufland-Sync:** `import { syncKauflandListings } from '../api/client'` → EXISTIERT
+    - **Kaufland SKU-Index:** `import { fetchKauflandSkuIndex } from '../api/client'` → EXISTIERT
+  - **Backend-Routes (EXISTIEREN BEREITS in `backend/routes/marketplace.js`):**
+    - `GET /api/marketplace/ebay/listings` — Query Listings (pageNumber, limit, filter, sort)
+    - `POST /api/marketplace/ebay/listings/sync` — Sync von eBay
+    - `POST /api/marketplace/ebay/listings/light-sync` — Light-Sync
+    - `GET /api/marketplace/ebay/listings/:itemId/detail` — Detail
+    - `POST /api/marketplace/ebay/sync/dry-run` — Preview
+    - `POST /api/marketplace/ebay/sync/apply` — Apply
+    - `POST /api/marketplace/ebay/update/bulk` — Bulk Update
+    - `POST /api/marketplace/ebay/publish` — Publish
+    - `POST /api/marketplace/ebay/publish/bulk` — Bulk Publish
+    - `POST /api/marketplace/kaufland/listings/sync` — Kaufland Sync
+    - `GET /api/marketplace/kaufland/sku-index` — Kaufland SKU Index
+  - **TODO (NUR Frontend-Arbeit):**
+    - [ ] `MOCK_LISTINGS` Array KOMPLETT LÖSCHEN
+    - [ ] eBay-View: `useEffect → fetchEbayLiveListings({ pageNumber: 1, limit: 50 })` → Tabelle befüllen
+    - [ ] Kaufland-View: `useEffect → syncKauflandListings()` dann `fetchKauflandSkuIndex()` → Tabelle befüllen
+    - [ ] "Jetzt synchronisieren" Button → `syncEbayLiveListings()` bzw. `syncKauflandListings()`
+    - [ ] Bulk-Aktionen: Preis → `bulkUpdateEbayListings()`, Publish → `bulkPublishToEbay()`
+    - [ ] KPI-Cards: Aus echten Listing-Daten berechnen (activeCount, draftCount, errorCount, etc.)
+    - [ ] Sync-Status-Banner: Aus `fetchEbayStatus()` (EXISTIERT) → letzter Sync, Verbindungsstatus
+    - [ ] Fehler-Tab: Aus `fetchEbayGaps()` → echte Gap-Daten
+    - [ ] Loading-State: Skeleton-Rows während Fetch
+    - [ ] Error-State: Toast/Alert bei API-Fehler
+  - **Dateien:** `components/MarketplaceListingsView.tsx` (NUR Frontend-Umbau, KEIN neues Backend nötig)
+
+- [ ] **FAKE→REAL #2: IntegrationsHub.tsx — ECHTE Verbindungsstatus anzeigen (ALLES ist verbunden!)** since 2026-03-05
+  - **Aktuell KAPUTT:** 30+ hardcodierte Cards mit Fake-Status, "Demnächst verfügbar" überall
+  - **⚡ FAKT: ALLE Integrationen sind in Production AKTIV und VERBUNDEN:**
+    - eBay → OAuth + Trading API, Credentials via Google Secret Manager (`EBAY_CLIENT_ID`, `EBAY_CLIENT_SECRET`, `EBAY_TRADING_*`)
+    - Kaufland → HMAC-SHA256 Auth, Credentials via Secret Manager (`KAUFLAND_CLIENT_KEY`, `KAUFLAND_SECRET_KEY`)
+    - BaseLinker → Token-Auth, `BASELINKER_TOKEN` via Secret Manager, `BASELINKER_INVENTORY_ID=78659`, Auto-Stock-Sync AKTIV
+    - SendCloud → Basic Auth, `SENDCLOUD_PUBLIC_KEY` + `SENDCLOUD_SECRET_KEY` via Secret Manager
+    - SevDesk → Token-Auth, `SEVDESK_API_TOKEN` via Secret Manager
+    - DHL → via SendCloud (Aggregator) oder BaseLinker Shipping
+  - **Existierende api/client.ts Funktionen die den ECHTEN Status liefern:**
+    - `fetchEbayStatus()` → eBay OAuth Status (verbunden seit wann, Token-Ablauf, Scopes)
+    - `fetchEbayTradingStatus()` → eBay Trading API Status (Endpoint, Compatibility Level)
+    - `startEbayOAuth()` → eBay OAuth Re-Connect starten
+  - **Backend-Route EXISTIERT:** `GET /api/marketplace/ebay/status` → echter Connection-Status
+  - **Backend NEU (minimal — 1 Endpoint):**
+    - [ ] `GET /api/v1/integrations/status` in neuer `backend/routes/integrations.js`:
+      ```js
+      // Prüft Secret Manager Credentials und gibt ECHTEN Status zurück
+      const { getSecretValue } = require('../lib/secret-manager');
+      const integrations = [];
+      // eBay: OAuth-Token in Firestore prüfen
+      const ebayIntegration = await getEbayIntegration(); // lib/ebay-oauth.js — EXISTIERT
+      integrations.push({ type: 'ebay', status: ebayIntegration ? 'active' : 'inactive', name: 'eBay', lastSync: ebayIntegration?.updatedAt });
+      // Kaufland: Secret Manager Key prüfen
+      const kauflandKey = await getSecretValue('KAUFLAND_CLIENT_KEY').catch(() => null);
+      integrations.push({ type: 'kaufland', status: kauflandKey ? 'active' : 'inactive', name: 'Kaufland' });
+      // BaseLinker: Token prüfen
+      const blToken = await getSecretValue('BASELINKER_TOKEN').catch(() => null);
+      integrations.push({ type: 'baselinker', status: blToken ? 'active' : 'inactive', name: 'BaseLinker' });
+      // SendCloud + SevDesk analog
+      ```
+    - [ ] Route in `backend/index.js` einbinden
+    - [ ] `fetchIntegrationStatus()` in api/client.ts
+  - **Frontend IntegrationsHub.tsx:**
+    - [ ] `INTEGRATIONS` hardcodiertes Array KOMPLETT LÖSCHEN
+    - [ ] `useEffect → fetchIntegrationStatus()` → echte Daten
+    - [ ] Für eBay Detail: `fetchEbayStatus()` → OAuth-Ablauf, Scopes, letzter Sync
+    - [ ] **ALLE "Demnächst verfügbar" / "Coming Soon" / `status: 'coming_soon'` ENTFERNEN**
+    - [ ] **NUR die 6 aktiven Integrationen anzeigen:** eBay, Kaufland, BaseLinker, SendCloud, SevDesk, DHL
+    - [ ] Alle sind "Verbunden" (grüner Status) mit echten Daten aus dem Backend
+    - [ ] "Konfigurieren" Button → Sync-Intervall, letzte Sync-Zeit, Fehler-Log
+    - [ ] Amazon, Otto, Zalando etc. werden NICHT angezeigt — die existieren nicht
+    - [ ] Anbieter-Logos als SVG/PNG
+  - **Dateien:** `components/IntegrationsHub.tsx`, `backend/routes/integrations.js` (neu), `api/client.ts`
+
+- [ ] **FAKE→REAL #3: CompanySettings.tsx — Firmendaten speichern/laden** since 2026-03-05
+  - **Aktuell KAPUTT:** Alle Felder mit Beispieldaten vorausgefüllt, Save = `setTimeout(800)` Fake
+  - **Backend NEU (1 Route, 1 Firestore-Collection):**
+    - [ ] `backend/routes/settings.js` (neu) — im `backend/index.js` einbinden:
+      - `GET /api/v1/settings/company` → `db.collection('company_settings').doc(tenantId).get()`
+      - `PUT /api/v1/settings/company` → `db.collection('company_settings').doc(tenantId).set(data, {merge:true})`
+    - [ ] Alle Funktionen mit `tenantId` Parameter (aktuell `'default'` aus `req.user` oder Fallback)
+  - **api/client.ts:**
+    - [ ] `fetchCompanySettings()`, `saveCompanySettings(data)` hinzufügen
+  - **Frontend:**
+    - [ ] Hardcodierte Werte LÖSCHEN → `useEffect → fetchCompanySettings()` → Formular befüllen
+    - [ ] Save → `saveCompanySettings(formData)` → Erfolgs-Toast
+  - **Dateien:** `backend/routes/settings.js` (neu), `api/client.ts`, `components/CompanySettings.tsx`
+
+- [ ] **FAKE→REAL #4: ProfileSettings.tsx — Profil speichern + Passwort ändern** since 2026-03-05
+  - **Aktuell KAPUTT:** Hardcodierte Profil-Daten, Save + Passwort-Change sind Stubs
+  - **Existiert teilweise:** `requestPasswordReset(email)` in api/client.ts
+  - **Backend NEU:**
+    - [ ] In `backend/routes/settings.js` oder `backend/routes/auth.js`:
+      - `GET /api/v1/settings/profile` → Firebase Auth User-Daten + Firestore `user_profiles/{uid}`
+      - `PUT /api/v1/settings/profile` → Firestore Update + Firebase Auth displayName
+      - `POST /api/v1/auth/change-password` → Firebase Auth `updatePassword()` (oder Re-Auth Flow)
+  - **api/client.ts:**
+    - [ ] `fetchProfile()`, `saveProfile(data)`, `changePassword(currentPw, newPw)`
+  - **Frontend:**
+    - [ ] Hardcodierte Werte LÖSCHEN → echte Daten laden → echtes Speichern
+  - **Dateien:** `backend/routes/settings.js` oder `auth.js`, `api/client.ts`, `components/ProfileSettings.tsx`
+
+- [ ] **FAKE→REAL #5: OrderSettingsView.tsx — Auftrags-Einstellungen speichern** since 2026-03-05
+  - **Aktuell KAPUTT:** `INITIAL_RULES`, `INITIAL_STATUSES`, `INITIAL_NUMBER_RANGES` hardcodiert
+  - **Backend NEU (1 Route):**
+    - [ ] In `backend/routes/orders.js` (bestehend):
+      - `GET /api/orders/settings` → Firestore `order_settings/{tenantId}`
+      - `PUT /api/orders/settings` → Firestore speichern
+  - **api/client.ts:**
+    - [ ] `fetchOrderSettings()`, `saveOrderSettings(data)`
+  - **Frontend:**
+    - [ ] Mock-Daten LÖSCHEN → useEffect → fetchOrderSettings() → echtes Speichern
+  - **Dateien:** `backend/routes/orders.js` (erweitern), `api/client.ts`, `components/OrderSettingsView.tsx`
+
+- [ ] **FAKE→REAL #6: WarehouseSettingsView.tsx — Lager-Einstellungen speichern** since 2026-03-05
+  - **Aktuell KAPUTT:** `DEFAULT_ZONE_TYPES` hardcodiert, Save = `setTimeout()` Fake
+  - **Backend (Warehouse-Routes existieren teilweise):**
+    - Existiert: `GET /api/warehouse/zones`, `POST /api/warehouse/layouts`, `GET /api/warehouse/zones/:zone/:etage`
+    - [ ] NEU in `backend/routes/warehouse.js`: `GET /api/warehouse/settings`, `PUT /api/warehouse/settings`
+  - **api/client.ts:**
+    - [ ] `fetchWarehouseSettings()`, `saveWarehouseSettings(data)` hinzufügen
+  - **Frontend:**
+    - [ ] Mock-Daten LÖSCHEN → echte Daten laden → echtes Speichern
+  - **Dateien:** `backend/routes/warehouse.js` (erweitern), `api/client.ts`, `components/WarehouseSettingsView.tsx`
+
+- [ ] **FAKE→REAL #7: ApiSettings.tsx — API-Keys + Webhooks** since 2026-03-05
+  - **Aktuell KAPUTT:** `initialKeys`, `initialWebhooks` hardcodiert, alle Handler Stubs
+  - **Existiert teilweise:** Webhook-System in `backend/services/webhooks.js` (HMAC-SHA256, dispatchWebhook)
+  - **Backend NEU:**
+    - [ ] In `backend/routes/settings.js`:
+      - `GET /api/v1/settings/api-keys` → Firestore `api_keys` (gefiltert nach tenantId)
+      - `POST /api/v1/settings/api-keys` → Key generieren (`crypto.randomUUID()`)
+      - `DELETE /api/v1/settings/api-keys/:id` → Key widerrufen
+      - `GET /api/v1/settings/webhooks` → Webhook-Config aus Firestore
+      - `POST /api/v1/settings/webhooks` → Webhook erstellen (nutzt `services/webhooks.js`)
+      - `DELETE /api/v1/settings/webhooks/:id` → Webhook löschen
+  - **api/client.ts:**
+    - [ ] `fetchApiKeys()`, `createApiKey(name)`, `revokeApiKey(id)`, `fetchWebhooks()`, `createWebhook(data)`, `deleteWebhook(id)`
+  - **Frontend:** Mock-Daten LÖSCHEN → echte API-Calls
+  - **Dateien:** `backend/routes/settings.js`, `api/client.ts`, `components/ApiSettings.tsx`
+
+- [ ] **FAKE→REAL #8: ShippingView.tsx — Echte Versanddaten** since 2026-03-05
+  - **Aktuell KAPUTT:** `MOCK_SHIPMENTS` mit 6 Fake-Sendungen
+  - **Existiert:** `lib/sendcloud.js` (getShippingCostsSummary, loadPriceTable), `lib/baselinker-shipping.js` (getShippingCostsSummaryFromBaseLinker)
+  - **Existiert:** Dashboard Finance-Route aggregiert bereits Versandkosten: `GET /api/orders/dashboard/finance`
+  - **Backend NEU:**
+    - [ ] In `backend/routes/orders.js` oder neuer `routes/shipping.js`:
+      - `GET /api/v1/shipments` → Sendungen aus BaseLinker Orders (Status=Versendet) oder Firestore
+      - `POST /api/v1/shipments/label` → Label via SendCloud `lib/sendcloud.js` erstellen
+  - **api/client.ts:**
+    - [ ] `fetchShipments(params)`, `createShipmentLabel(data)`
+  - **Frontend:** `MOCK_SHIPMENTS` LÖSCHEN → echte Daten
+  - **Dateien:** `backend/routes/orders.js` oder `shipping.js`, `api/client.ts`, `components/ShippingView.tsx`
+
+- [ ] **FAKE→REAL #9: InvoicesView.tsx — Rechnungen** since 2026-03-05
+  - **Aktuell KAPUTT:** `MOCK_INVOICES` mit 6 Fake-Rechnungen
+  - **Existiert:** `lib/sevdesk.js` hat Rechnungs-relevante Funktionen
+  - **Backend NEU:**
+    - [ ] `backend/routes/invoices.js`:
+      - `GET /api/v1/invoices` → Firestore `invoices` Collection (tenantId-gefiltert)
+      - `POST /api/v1/invoices` → Rechnung aus Order generieren
+      - `GET /api/v1/invoices/:id/pdf` → PDF generieren
+      - `PATCH /api/v1/invoices/:id` → Status ändern
+    - [ ] `backend/services/invoice-generator.js` — PDF-Template mit pdfkit
+  - **api/client.ts:**
+    - [ ] `fetchInvoices(params)`, `createInvoice(orderId)`, `downloadInvoicePdf(id)`, `updateInvoiceStatus(id, status)`
+  - **Frontend:** `MOCK_INVOICES` LÖSCHEN → echte API-Calls
+  - **Dateien:** `backend/routes/invoices.js` (neu), `backend/services/invoice-generator.js` (neu), `api/client.ts`, `components/InvoicesView.tsx`
+
+- [ ] **FAKE→REAL #10: ReturnsView.tsx — Retouren** since 2026-03-05
+  - **Aktuell KAPUTT:** `MOCK_RETURNS` mit 5 Fake-Retouren
+  - **Backend NEU:**
+    - [ ] `backend/routes/returns.js`:
+      - `GET /api/v1/returns` → Firestore `returns` Collection (tenantId-gefiltert)
+      - `POST /api/v1/returns` → Retoure anlegen
+      - `PATCH /api/v1/returns/:id` → Status ändern (erstatten, ablehnen)
+  - **api/client.ts:**
+    - [ ] `fetchReturns(params)`, `createReturn(data)`, `updateReturn(id, data)`
+  - **Frontend:** `MOCK_RETURNS` LÖSCHEN → echte API-Calls
+  - **Dateien:** `backend/routes/returns.js` (neu), `api/client.ts`, `components/ReturnsView.tsx`
+
+- [ ] **FAKE→REAL #11: BillingSettings.tsx — Echte Usage-Stats** since 2026-03-05
+  - **Aktuell KAPUTT:** Hardcodierte Plan/Usage/Rechnungsdaten
+  - **Existiert:** `adminGetProductCoverageMetrics()` in api/client.ts → Produkt-Counts
+  - **Backend NEU (minimal):**
+    - [ ] `GET /api/v1/settings/billing/usage` → Aggregation: Produkt-Count, Order-Count/Monat, Integration-Count
+    - [ ] Nutzt existierende Firestore-Queries (products_v2 count, orders count)
+  - **api/client.ts:** `fetchBillingUsage()`
+  - **Frontend:** Hardcodierte Daten LÖSCHEN → echte Usage-Zahlen
+  - **⚠️ Stripe/Payment kommt später — Usage-Anzeige geht JETZT**
+  - **Dateien:** `backend/routes/settings.js`, `api/client.ts`, `components/BillingSettings.tsx`
+
+- [ ] **FAKE→REAL #12: "Demnächst verfügbar" GLOBAL entfernen** since 2026-03-05
+  - [ ] `grep -r "Demnächst" components/` → JEDES Vorkommen LÖSCHEN
+  - [ ] `grep -r "Coming Soon" components/` → JEDES Vorkommen LÖSCHEN
+  - [ ] `grep -r "coming_soon" components/` → JEDES Vorkommen LÖSCHEN
+  - [ ] `grep -r "MOCK_" components/` → JEDES `MOCK_*` Array LÖSCHEN und durch echte API-Calls ersetzen
+  - [ ] `grep -r "setTimeout" components/` → JEDE Fake-Handler ersetzen durch echte API-Calls
+  - [ ] Integrationen die nicht existieren (Amazon, Otto, Zalando, Kleinanzeigen, Hood.de, Avocadostore, Etsy, DATEV, Stripe, Shopify, WooCommerce, Shopware, Zapier, Make.com, Slack) werden NICHT in der UI angezeigt
+  - **Dateien:** Alle `components/*.tsx`
 
 ---
 
@@ -494,82 +737,194 @@
 
 ---
 
-### Modul 9: Integrationen
+### Modul 9: Integrationen — Self-Service Integration Hub
 
-- [ ] **M9: ⚡ PRIORITÄT — Integrations-Hub — Aktive Integrationen anzeigen + konfigurieren + neue hinzufügen** since 2026-03-05 (⚡ UI fertig)
-  - ✅ `IntegrationsHub.tsx` erstellt — 5-Tab-Layout (Marktplätze/Versand/Finanzen/Shops/Sonstiges), 28 Integrationen als Cards
-  - ✅ Connected/Not Connected/Coming Soon Status, Verbinden/Trennen/Konfigurieren Buttons, Responsive Grid
-  - ⚠️ **KRITISCHSTER GAP:** Ohne Self-Service-Integrationen ist AvyCloud nicht als Produkt nutzbar. Aktuell alles hardcoded via ENV-Variablen.
-  - **SOFORT SICHTBAR (auch ohne Backend-Migration):**
-    - [ ] Bereits aktive Integrationen (eBay, Kaufland, BaseLinker) als "Verbunden"-Cards anzeigen — Status aus ENV-Variablen lesen (EBAY_CLIENT_ID vorhanden? → eBay = Verbunden)
-    - [ ] Konfiguration pro aktiver Integration anzeigen (Sync-Intervall, was wird gesynct, letzter Sync)
-    - [ ] "Trennen" Button (mit Bestätigung)
-    - [ ] Nicht-verbundene Services als "Verfügbar"-Cards mit "Verbinden" Button
-  - **Integrations-Hub View (`#/integrations`):**
-    - [ ] Page-Header: "Integrationen" + "Verbundene Services: {n}"
-    - [ ] Tab-Bar: Marktplätze | Versand | Buchhaltung | Sonstiges
-    - [ ] **Marktplätze-Tab:**
-      - [ ] Grid von Integration-Cards (3 pro Reihe, responsive 2 auf Tablet, 1 auf Mobile):
-        - eBay (Logo, "Verbunden ✓" oder "Nicht verbunden", Letzter Sync, "Konfigurieren" / "Verbinden" Button)
-        - Kaufland (analog)
-        - Amazon (Coming Soon Badge)
-        - Otto Market (Coming Soon Badge)
-        - Zalando (Coming Soon Badge)
-        - Kleinanzeigen (Coming Soon Badge)
-        - Hood.de (Coming Soon Badge)
-        - Avocadostore (Coming Soon Badge)
-        - Etsy DE (Coming Soon Badge)
-      - [ ] Card-Design:
-        - Verbunden: Grüner Border-Top (2px --success), Service-Logo (40px), Name, Status "Verbunden" (grüner Dot), Letzter Sync Timestamp, Buttons: "Konfigurieren" (Primary) + "Trennen" (Ghost Danger)
-        - Nicht verbunden: Default Border, Service-Logo (40px, leicht muted), Name, Status "Nicht verbunden" (grauer Dot), Button: "Verbinden" (Primary)
-        - Coming Soon: Grauer Border, Logo (muted, 40% opacity), Name, "Demnächst verfügbar" Badge, Button: "Benachrichtigen" (Ghost) → E-Mail-Interesse speichern
-    - [ ] **Versanddienstleister-Tab:**
-      - [ ] DHL (Geschäftskundenportal API), DPD, GLS, Hermes, UPS, Deutsche Post (Warenpost), SendCloud (Aggregator)
-      - [ ] Pro Carrier: Logo, Name, Beschreibung ("Pakete bis 31.5kg, DE + International"), Status, API-Key-Felder
-      - [ ] Gleiche Card-Struktur wie Marktplätze (Verbunden/Nicht verbunden)
-    - [ ] **Finanzen & Steuern-Tab:**
-      - [ ] SevDesk (Buchhaltung + Rechnungen)
-      - [ ] lexoffice (Buchhaltung)
-      - [ ] DATEV (Steuerberater-Export)
-      - [ ] Xero (International)
-      - [ ] invoiceFetcher / GetMyInvoices (Belegerfassung)
-      - [ ] Stripe (Payment Processing — für eigenen Webshop)
-    - [ ] **Shops-Tab (NEU):**
-      - [ ] Shopify (API, Produkt-Sync, Order-Import)
-      - [ ] WooCommerce (REST API, bidirektionaler Sync)
-      - [ ] Wix (eCommerce API)
-      - [ ] Shopware (REST API)
-      - [ ] PrestaShop
-      - [ ] Alle Coming Soon außer die bereits integrierten
-    - [ ] **Andere-Tab (NEU):**
-      - [ ] BaseLinker (Middleware, bereits integriert)
-      - [ ] Make.com / Zapier (Webhook-basierte Automation)
-      - [ ] Slack (Benachrichtigungen: Neuer Auftrag, Niedrig-Bestand, Sync-Fehler)
-      - [ ] Zendesk (Kunden-Support-Tickets aus Aufträgen erstellen)
-      - [ ] Stripe (Payment Gateway)
-      - [ ] Google Sheets (Export/Import)
-      - [ ] Webhook (Generisch — eigene Endpoints konfigurieren)
-  - **Integration-Wizard (pro Integration):**
-    - [ ] Step 1: Marktplatz/Service Übersicht (Was kann diese Integration? Feature-Liste)
-    - [ ] Step 2: Authentifizierung (OAuth-Flow mit Redirect ODER API-Key/Secret-Eingabe — je nach Service)
-    - [ ] Step 3: Sync-Konfiguration (Was syncen: Produkte ✓, Aufträge ✓, Preise ✓. Wie oft: Echtzeit / 15min / 30min / 1h / Manuell)
-    - [ ] Step 4: Test-Verbindung (API-Call, Ergebnis anzeigen: "Verbindung erfolgreich! 342 Produkte gefunden." oder Fehler)
-    - [ ] Step 5: Aktivieren — Integration ist live
-  - **Integration-Settings (pro verbundener Integration):**
-    - [ ] Connection-Status: Verbunden seit {Datum}, Letzter Sync {Datum/Uhrzeit}, Nächster Sync {Datum/Uhrzeit}
-    - [ ] Sync-Einstellungen: Intervall ändern, was wird gesynct, Richtung (bidirektional/nur Import/nur Export)
-    - [ ] Kategorie-Mapping: AvyCloud-Kategorie → Marktplatz-Kategorie (Tabelle mit Dropdown-Mapping)
-    - [ ] Preis-Regeln pro Marktplatz: Aufschlag/Abzug (%, €), Mindestpreis, Rundung
-    - [ ] Fehler-Log: Letzte Sync-Fehler mit Timestamp, Error-Message, betroffenes Produkt
-    - [ ] "Trennen" Button (Disconnect) mit Bestätigung
-  - **Backend:**
-    - [ ] `backend/routes/integrations.js` (neu) — CRUD für Integrationen
-    - [ ] `backend/services/integration-store.js` (neu) — Credentials verschlüsselt in Firestore speichern/lesen. **MT-PFLICHT:** Alle Funktionen akzeptieren `tenantId` als Parameter: `getIntegration(tenantId, type)`, `saveIntegration(tenantId, data)`, `listIntegrations(tenantId)`
-    - [ ] Firestore Collection: `integrations` — {id, **tenantId**, type: "ebay"|"kaufland"|..., credentials: {encrypted}, settings: {syncInterval, syncProducts, syncOrders, ...}, status: "active"|"error"|"disconnected", lastSync, lastError} *(MT-ready: tenantId als Key-Bestandteil, Credentials pro Tenant isoliert)*
-    - [ ] Credential-Verschlüsselung: AES-256-GCM mit Key aus Google Secret Manager (nicht im Code)
-    - [ ] Migration: Bestehende ENV-Variablen → Firestore, ENV als Fallback
-    - [ ] Alle bestehenden API-Clients refactorn: `lib/ebay-oauth.js`, `lib/kaufland-api.js`, `lib/baselinker-*.js`, `lib/sendcloud.js`, `lib/sevdesk.js` → Credentials aus integration-store lesen statt process.env
-  - **Dateien:** `components/IntegrationsHub.tsx` (neu), `components/IntegrationWizard.tsx` (neu), `components/IntegrationSettings.tsx` (neu), `backend/routes/integrations.js` (neu), `backend/services/integration-store.js` (neu)
+- [ ] **M9: Integrations-Hub — Echte Verbindungen, echte Auth-Flows, kein Fake** since 2026-03-05 (⚠️ UI existiert aber FAKE — Phase 4 #2 muss zuerst)
+  - ✅ `IntegrationsHub.tsx` erstellt — aber mit hardcodierten Cards und "Demnächst verfügbar"
+  - ⚠️ **Phase 4 #2 zuerst:** IntegrationsHub auf echte API-Calls umbauen (aktive Integrationen aus Backend)
+  - ⚠️ **KRITISCHSTER GAP FÜR SAAS:** Ohne Self-Service-Integrationen kann kein neuer Kunde AvyCloud nutzen
+
+  ---
+
+  #### Architektur: 3 Auth-Patterns für ALLE Integrationen
+
+  > **Jede Integration in AvyCloud fällt in eine von 3 Kategorien. Der Integration-Wizard erkennt den Typ und zeigt den passenden Flow:**
+
+  **Pattern A: OAuth 2.0 (Authorization Code Grant) — Seller wird zur Login-Seite weitergeleitet**
+  ```
+  Flow: User klickt "Verbinden" → Redirect zu Provider Login → User autorisiert → Callback mit Code → Backend tauscht Code gegen Token
+  Credentials gespeichert: access_token + refresh_token (automatisch refreshed)
+  User-Eingabe: KEINE (alles automatisch über OAuth)
+  ```
+  **Anbieter:** eBay, Amazon SP-API, OTTO Market, Etsy, Shopify, lexoffice, Xero, Stripe Connect, DHL Paket, UPS
+
+  **Pattern B: API-Key/Secret (Seller generiert Credentials in seinem Dashboard)**
+  ```
+  Flow: User klickt "Verbinden" → Modal mit Input-Feldern → User gibt Key/Secret ein → Backend validiert mit Test-Call → Gespeichert
+  Credentials gespeichert: api_key + api_secret (verschlüsselt in Firestore)
+  User-Eingabe: 1-2 Felder (Key, Secret)
+  ```
+  **Anbieter:** Kaufland (Client Key + Secret Key), BaseLinker (API Token), SevDesk (API Token), SendCloud (Public Key + Secret Key), WooCommerce (Consumer Key + Consumer Secret), Shopware 6 (Access Key + Secret), PrestaShop (API Key), Hood.de (API Password), Avocadostore (API Key), GLS (MyGLS Email + Password), DPD (Delis ID + Password), Stripe (Secret Key + Publishable Key)
+
+  **Pattern C: Datei-basiert / Portal-basiert (kein Standard-API-Zugang)**
+  ```
+  Flow: Konfiguration + Export/Import statt Live-API
+  ```
+  **Anbieter:** DATEV (CSV/XML-Export), Zalando ZFS (Portal-Einladung, Vertragsbasis)
+
+  ---
+
+  #### Integrations-Katalog (nach Priorität — was bringt die meisten User)
+
+  **Tier 1 — MUSS zum Launch (Backend existiert bereits, nur Self-Service-Setup fehlt):**
+
+  | Integration | Auth | Credentials | Status in AvyCloud |
+  |---|---|---|---|
+  | **eBay** | OAuth 2.0 | Client ID + Secret (App), User autorisiert | ✅ Backend KOMPLETT (`lib/ebay-oauth.js`, `ebay-api.js`, `ebay-trading-api.js`, `ebay-direct.js`) |
+  | **Kaufland** | HMAC-SHA256 | Client Key (32 Zeichen) + Secret Key (64 Zeichen) | ✅ Backend KOMPLETT (`lib/kaufland-api.js`) |
+  | **BaseLinker** | API Token | Token aus BaseLinker Dashboard | ✅ Backend KOMPLETT (`lib/baselinker.js`, `services/baselinker-sync-runner.js`) |
+  | **SendCloud** | Basic Auth | Public Key + Secret Key | ✅ Backend KOMPLETT (`lib/sendcloud.js`) |
+  | **SevDesk** | API Token | 32-Zeichen Hex-Token aus SevDesk Dashboard | ✅ Backend KOMPLETT (`lib/sevdesk.js`) |
+  | **DHL Paket** | OAuth 2.0 | API Key + Secret + Geschäftskunden-Vertrag | ⚠️ Teilweise via SendCloud |
+
+  **Tier 2 — Nächste Welle (maximale Marktabdeckung DE):**
+
+  | Integration | Auth | Was der User eingeben/tun muss | Aufwand |
+  |---|---|---|---|
+  | **Amazon SP-API** | OAuth 2.0 (LWA) | User klickt "Verbinden" → Amazon Login → Autorisiert App | Mittel — OAuth + LWA Token Exchange + Refresh |
+  | **OTTO Market** | OAuth 2.0 (Client Credentials) | User erstellt Self-App im OPC Portal → gibt Client ID + Secret ein | Mittel — Client Credentials Grant |
+  | **Shopify** | OAuth 2.0 | User klickt "Installieren" → Shopify Login → Autorisiert Scopes | Mittel — Standard OAuth, gut dokumentiert |
+  | **WooCommerce** | API Keys | User gibt Consumer Key + Consumer Secret ein (aus WP Dashboard) | Klein — REST API mit Basic Auth |
+  | **lexoffice** | OAuth 2.0 | User klickt "Verbinden" → Lexware Login → Autorisiert | Mittel — OAuth 2.0 mit Domain-Migration beachten |
+  | **Etsy** | OAuth 2.0 + PKCE | User klickt "Verbinden" → Etsy Login → Autorisiert Scopes | Mittel — OAuth 2.0 mit PKCE |
+  | **Shopware 6** | OAuth 2.0 (Client Credentials) | User gibt Access Key ID + Secret Access Key ein (aus Admin) | Klein — Token TTL nur 10min, muss refreshed werden |
+
+  **Tier 3 — Erweiterung (Nischen, spezielle Anforderungen):**
+
+  | Integration | Auth | Besonderheit |
+  |---|---|---|
+  | **DPD** | JWT Bearer | Delis ID + Password aus DPD-Vertrag, kein Self-Service-Portal |
+  | **GLS** | Basic Auth + SHA512 | MyGLS Account, Password wird SHA512-gehasht |
+  | **UPS** | OAuth 2.0 | Client Credentials, gute Doku |
+  | **Stripe** | API Keys | Secret + Publishable Key aus Dashboard |
+  | **Xero** | OAuth 2.0 | Multi-Org Support via tenant_id Header |
+  | **PrestaShop** | API Key | 32-Zeichen Key aus PrestaShop Backend |
+  | **Hood.de** | Basic Auth | API Password, erfordert Platin Shop (kostenpflichtig) |
+  | **Avocadostore** | API Key | API Key aus Seller Dashboard |
+  | **DATEV** | Datei-Export | CSV/XML Export, kein Live-API — Steuerberater-Schnittstelle |
+
+  **NICHT integrieren (kein API-Zugang):**
+  - ❌ **Kleinanzeigen** — Kein offizielles API für Seller, nur inoffizielle Scraper
+  - ❌ **Zalando ZFS** — Portal-basiert, erfordert Partnervertrag + Integrator-Einladung, kein Self-Service
+
+  ---
+
+  #### Integration-Wizard (3 Varianten je Auth-Pattern)
+
+  - [ ] **Wizard Variante A — OAuth 2.0 Flow (eBay, Amazon, Shopify, Etsy, lexoffice, Xero, DHL, UPS, OTTO):**
+    - [ ] Step 1: Übersicht — Was kann diese Integration? Feature-Liste, Voraussetzungen
+    - [ ] Step 2: "Jetzt verbinden" Button → **Redirect zu Provider** (z.B. `https://auth.ebay.com/oauth2/authorize?...`)
+      - Backend generiert State-Token (CSRF-Schutz) + speichert in Firestore
+      - Callback-URL: `https://product-hub-backend-xxx.run.app/api/marketplace/{provider}/oauth/callback`
+      - Nach Autorisierung: Provider redirected zurück → Backend tauscht Code gegen Tokens
+      - Tokens verschlüsselt in Firestore `integrations/{tenantId}/{provider}` gespeichert
+    - [ ] Step 3: "Verbindung erfolgreich!" → Sync-Konfiguration (Was syncen, wie oft)
+    - [ ] Step 4: Test-Verbindung (API-Call → "Verbunden! 342 Produkte gefunden.")
+    - [ ] Step 5: Aktivieren
+    - **eBay existiert bereits:** `startEbayOAuth()` → `GET /api/marketplace/ebay/oauth/start` → `GET /api/marketplace/ebay/oauth/callback`
+    - **Für neue OAuth-Provider:** Gleiche Architektur wie `lib/ebay-oauth.js` — pro Provider ein `lib/{provider}-oauth.js`
+
+  - [ ] **Wizard Variante B — API-Key Input (Kaufland, BaseLinker, SevDesk, SendCloud, WooCommerce, Shopware, PrestaShop):**
+    - [ ] Step 1: Übersicht — Was kann diese Integration? + Anleitung wo man die Keys findet (Screenshot/Link)
+    - [ ] Step 2: Input-Formular:
+      - Kaufland: "Client Key" (Input, 32 Zeichen) + "Secret Key" (Input/Password, 64 Zeichen)
+      - BaseLinker: "API Token" (Input)
+      - SevDesk: "API Token" (Input, 32 Zeichen Hex)
+      - SendCloud: "Public Key" (Input) + "Secret Key" (Input/Password)
+      - WooCommerce: "Shop-URL" (Input, z.B. https://meinshop.de) + "Consumer Key" (Input) + "Consumer Secret" (Input/Password)
+      - Shopware: "Shop-URL" + "Access Key ID" + "Secret Access Key"
+      - PrestaShop: "Shop-URL" + "API Key" (32 Zeichen)
+    - [ ] Step 3: "Verbindung testen" → Backend macht Test-API-Call mit eingegebenen Credentials
+      - Kaufland: `GET /v2/info/locale` → wenn 200 OK → "Verbindung erfolgreich!"
+      - BaseLinker: `getInventoryProductsList` → wenn ok → "Verbunden! {n} Produkte gefunden."
+      - SevDesk: Kontostände abrufen → wenn ok → "Verbunden!"
+      - Bei Fehler: Klare Fehlermeldung ("Ungültiger API-Key", "Verbindung verweigert", etc.)
+    - [ ] Step 4: Sync-Konfiguration
+    - [ ] Step 5: Aktivieren + Credentials verschlüsselt speichern
+
+  - [ ] **Wizard Variante C — Export-Integration (DATEV):**
+    - [ ] Step 1: Übersicht — "DATEV Export generiert CSV/XML Dateien die Ihr Steuerberater importieren kann"
+    - [ ] Step 2: Konfiguration — Export-Format (DATEV EXTF CSV / XML), Buchungszeitraum, Kontenrahmen (SKR03/SKR04)
+    - [ ] Step 3: Test-Export — Generiert Beispiel-Datei zum Download
+    - [ ] Step 4: Aktivieren — Automatischer Export konfigurierbar (Monatlich nach Monatsabschluss)
+
+  ---
+
+  #### Integration-Settings (pro verbundener Integration)
+
+  - [ ] Connection-Status: Verbunden seit {Datum}, Auth-Typ (OAuth/API-Key), Token-Ablauf (bei OAuth)
+  - [ ] Letzter Sync {Datum/Uhrzeit}, Nächster Sync {Datum/Uhrzeit}, Sync-Intervall änderbar
+  - [ ] Was wird gesynct: Produkte ✓/✕, Aufträge ✓/✕, Preise ✓/✕, Bestand ✓/✕ (Toggle pro Kategorie)
+  - [ ] Sync-Richtung: AvyCloud → Marktplatz / Marktplatz → AvyCloud / Bidirektional
+  - [ ] Kategorie-Mapping: AvyCloud-Kategorie → Provider-Kategorie (Dropdown-Mapping-Tabelle)
+  - [ ] Preis-Regeln: Aufschlag/Abzug (%, €), Mindestpreis, Rundung (pro Integration)
+  - [ ] Fehler-Log: Letzte 50 Sync-Fehler mit Timestamp, Error-Message, betroffenes Produkt/Auftrag
+  - [ ] "Credentials aktualisieren" Button (bei API-Key-Rotation oder OAuth Re-Auth)
+  - [ ] "Trennen" Button (Disconnect) mit Bestätigungsdialog + Warnung
+
+  ---
+
+  #### Backend-Architektur
+
+  - [ ] `backend/routes/integrations.js` (neu) — REST-CRUD für Integrationen:
+    - `GET /api/v1/integrations` → Liste aller Integrationen (tenantId-gefiltert)
+    - `GET /api/v1/integrations/:type` → Detail einer Integration
+    - `POST /api/v1/integrations/:type/connect` → Neue Integration starten (OAuth redirect oder Key speichern)
+    - `POST /api/v1/integrations/:type/test` → Test-Verbindung
+    - `PUT /api/v1/integrations/:type/settings` → Sync-Settings aktualisieren
+    - `DELETE /api/v1/integrations/:type` → Integration trennen
+    - `GET /api/v1/integrations/:type/oauth/callback` → OAuth Callback Handler
+    - `GET /api/v1/integrations/:type/errors` → Fehler-Log
+
+  - [ ] `backend/services/integration-store.js` (neu) — Credentials-Management:
+    - `listIntegrations({ tenantId })` → Alle Integrationen mit Status
+    - `getIntegration({ tenantId, type })` → Einzelne Integration + decrypted Credentials
+    - `saveIntegration({ tenantId, type, credentials, settings })` → Verschlüsselt speichern
+    - `deleteIntegration({ tenantId, type })` → Löschen + Cleanup
+    - `testConnection({ tenantId, type })` → Provider-spezifischer Health-Check
+    - **Verschlüsselung:** AES-256-GCM, Encryption Key aus Google Secret Manager (`INTEGRATION_ENCRYPTION_KEY`)
+    - **Fallback:** Wenn Firestore-Integration nicht existiert → ENV-Variablen als Fallback (Rückwärtskompatibilität)
+
+  - [ ] `backend/lib/integration-registry.js` (neu) — Provider-Konfiguration:
+    ```js
+    // Jeder Provider definiert: Auth-Typ, benötigte Felder, Test-Funktion, Logo-URL
+    const PROVIDERS = {
+      ebay: { authType: 'oauth2', name: 'eBay', category: 'marketplace', logo: 'ebay.svg',
+              testFn: async (creds) => { /* fetchEbayStatus() */ },
+              oauthConfig: { authUrl: '...', tokenUrl: '...', scopes: [...] } },
+      kaufland: { authType: 'api_key', name: 'Kaufland', category: 'marketplace', logo: 'kaufland.svg',
+                  fields: [{ key: 'clientKey', label: 'Client Key', type: 'text' },
+                           { key: 'secretKey', label: 'Secret Key', type: 'password' }],
+                  testFn: async (creds) => { /* kauflandRequest('GET', '/v2/info/locale') */ } },
+      // ... alle weiteren Provider
+    };
+    ```
+
+  - [ ] Firestore Collection: `integrations` — {id, **tenantId**, type, authType, credentials: {encrypted}, settings: {syncInterval, syncProducts, syncOrders, syncPrices, syncStock, direction}, status: 'active'|'error'|'disconnected', connectedAt, lastSync, lastError}
+
+  - [ ] **Migration (Rückwärtskompatibel):** Bestehende `lib/ebay-oauth.js`, `lib/kaufland-api.js`, `lib/baselinker.js`, `lib/sendcloud.js`, `lib/sevdesk.js` bekommen einen Wrapper:
+    ```js
+    // In jedem bestehenden API-Client:
+    async function getCredentials() {
+      // Erst Firestore (integration-store), dann ENV als Fallback
+      const stored = await integrationStore.getIntegration({ tenantId: 'default', type: 'kaufland' });
+      if (stored?.credentials) return stored.credentials;
+      // Fallback auf Secret Manager / ENV (Rückwärtskompatibilität)
+      return { clientKey: await getSecretValue('KAUFLAND_CLIENT_KEY'), secretKey: await getSecretValue('KAUFLAND_SECRET_KEY') };
+    }
+    ```
+
+  - **Dateien:** `components/IntegrationsHub.tsx` (umbauen), `components/IntegrationWizard.tsx` (neu), `components/IntegrationSettings.tsx` (neu), `backend/routes/integrations.js` (neu), `backend/services/integration-store.js` (neu), `backend/lib/integration-registry.js` (neu)
 
 ---
 

@@ -1,105 +1,31 @@
-import React, { useMemo, useState } from "react";
-
-/* ─── Types ─── */
-type ReturnReason = "defekt" | "falsche_lieferung" | "nicht_wie_beschrieben" | "meinungsaenderung";
-type ReturnStatus = "neu" | "in_pruefung" | "erstattet" | "abgeschlossen" | "abgelehnt";
-
-interface ReturnItem {
-  id: string;
-  orderId: string;
-  customer: string;
-  product: string;
-  thumbnail: string;
-  reason: ReturnReason;
-  receivedAt: string;
-  status: ReturnStatus;
-  refundAmount: number;
-}
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { fetchReturns, updateReturn, type ReturnData } from "../../api/client";
 
 /* ─── Config ─── */
-const REASON_LABELS: Record<ReturnReason, { label: string; cls: string }> = {
+const REASON_LABELS: Record<string, { label: string; cls: string }> = {
   defekt: { label: "Defekt", cls: "bg-danger-dim text-danger" },
   falsche_lieferung: { label: "Falsche Lieferung", cls: "bg-warning-dim text-warning" },
   nicht_wie_beschrieben: { label: "Nicht wie beschrieben", cls: "bg-warning-dim text-warning" },
-  meinungsaenderung: { label: "Meinungsaenderung", cls: "bg-info-dim text-info" },
+  meinungsaenderung: { label: "Meinungsänderung", cls: "bg-info-dim text-info" },
 };
 
-const STATUS_CONFIG: Record<ReturnStatus, { label: string; cls: string }> = {
+const STATUS_CONFIG: Record<string, { label: string; cls: string }> = {
   neu: { label: "Neu", cls: "bg-info-dim text-info" },
-  in_pruefung: { label: "In Pruefung", cls: "bg-warning-dim text-warning" },
+  in_pruefung: { label: "In Prüfung", cls: "bg-warning-dim text-warning" },
   erstattet: { label: "Erstattet", cls: "bg-success-dim text-success" },
   abgeschlossen: { label: "Abgeschlossen", cls: "bg-app-elevated text-txt-muted" },
   abgelehnt: { label: "Abgelehnt", cls: "bg-danger-dim text-danger" },
 };
 
-type TabKey = "alle" | ReturnStatus;
+type TabKey = "alle" | string;
 
 const TABS: { key: TabKey; label: string }[] = [
   { key: "alle", label: "Alle" },
   { key: "neu", label: "Neu eingegangen" },
-  { key: "in_pruefung", label: "In Pruefung" },
+  { key: "in_pruefung", label: "In Prüfung" },
   { key: "erstattet", label: "Erstattet" },
   { key: "abgeschlossen", label: "Abgeschlossen" },
   { key: "abgelehnt", label: "Abgelehnt" },
-];
-
-/* ─── Mock Data ─── */
-const MOCK_RETURNS: ReturnItem[] = [
-  {
-    id: "RET-2026-0087",
-    orderId: "ORD-2026-1204",
-    customer: "Maximilian Huber",
-    product: "Samsung Galaxy S24 Ultra 256GB",
-    thumbnail: "https://placehold.co/40x40/1a1a2e/ffffff?text=S24",
-    reason: "defekt",
-    receivedAt: "2026-03-03",
-    status: "neu",
-    refundAmount: 1149.0,
-  },
-  {
-    id: "RET-2026-0086",
-    orderId: "ORD-2026-1198",
-    customer: "Lena Schneider",
-    product: "Apple AirPods Pro 2. Generation",
-    thumbnail: "https://placehold.co/40x40/1a1a2e/ffffff?text=AP",
-    reason: "falsche_lieferung",
-    receivedAt: "2026-03-02",
-    status: "in_pruefung",
-    refundAmount: 279.0,
-  },
-  {
-    id: "RET-2026-0085",
-    orderId: "ORD-2026-1190",
-    customer: "Thomas Wagner",
-    product: "Dyson V15 Detect Absolute",
-    thumbnail: "https://placehold.co/40x40/1a1a2e/ffffff?text=DY",
-    reason: "nicht_wie_beschrieben",
-    receivedAt: "2026-03-01",
-    status: "erstattet",
-    refundAmount: 649.0,
-  },
-  {
-    id: "RET-2026-0084",
-    orderId: "ORD-2026-1185",
-    customer: "Julia Becker",
-    product: "Sony WH-1000XM5 Kopfhoerer",
-    thumbnail: "https://placehold.co/40x40/1a1a2e/ffffff?text=XM",
-    reason: "meinungsaenderung",
-    receivedAt: "2026-02-28",
-    status: "abgeschlossen",
-    refundAmount: 329.0,
-  },
-  {
-    id: "RET-2026-0083",
-    orderId: "ORD-2026-1170",
-    customer: "Andreas Fischer",
-    product: "Nintendo Switch OLED",
-    thumbnail: "https://placehold.co/40x40/1a1a2e/ffffff?text=NS",
-    reason: "defekt",
-    receivedAt: "2026-02-27",
-    status: "abgelehnt",
-    refundAmount: 349.0,
-  },
 ];
 
 /* ─── KPI Card ─── */
@@ -118,9 +44,27 @@ const KpiCard: React.FC<{ label: string; value: string | number; tone?: string }
 export const ReturnsView: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabKey>("alle");
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [returns, setReturns] = useState<ReturnData[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // TODO: fetch returns from API — GET /api/orders/returns
-  const returns = MOCK_RETURNS;
+  const loadReturns = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await fetchReturns({ limit: 200 });
+      setReturns(data);
+    } catch (err: any) {
+      console.error("[ReturnsView] load failed:", err);
+      setError(err?.message || "Retouren konnten nicht geladen werden");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadReturns();
+  }, [loadReturns]);
 
   const filtered = useMemo(() => {
     if (activeTab === "alle") return returns;
@@ -130,9 +74,17 @@ export const ReturnsView: React.FC = () => {
   const tabCounts = useMemo(() => {
     const counts: Record<string, number> = { alle: returns.length };
     for (const r of returns) {
-      counts[r.status] = (counts[r.status] || 0) + 1;
+      if (r.status) counts[r.status] = (counts[r.status] || 0) + 1;
     }
     return counts;
+  }, [returns]);
+
+  /* KPIs from real data */
+  const kpis = useMemo(() => {
+    const open = returns.filter((r) => r.status === "neu" || r.status === "in_pruefung").length;
+    const refunded = returns.filter((r) => r.status === "erstattet");
+    const totalRefunded = refunded.reduce((sum, r) => sum + (r.refundAmount || 0), 0);
+    return { open, totalRefunded: totalRefunded.toLocaleString("de-DE", { minimumFractionDigits: 2 }) };
   }, [returns]);
 
   const toggleSelect = (id: string) => {
@@ -152,40 +104,67 @@ export const ReturnsView: React.FC = () => {
     }
   };
 
-  const handleRefund = (_id: string) => {
-    // TODO: POST /api/orders/returns/:id/refund
+  const handleStatusChange = async (id: string, newStatus: string) => {
+    try {
+      await updateReturn(id, { status: newStatus });
+      setReturns((prev) => prev.map((r) => (r.id === id ? { ...r, status: newStatus } : r)));
+    } catch (err: any) {
+      console.error("[ReturnsView] status update failed:", err);
+      setError(err?.message || "Status konnte nicht geändert werden");
+    }
   };
 
-  const handleReview = (_id: string) => {
-    // TODO: PATCH /api/orders/returns/:id { status: 'in_pruefung' }
-  };
-
-  const handleBulkRefund = () => {
-    // TODO: POST /api/orders/returns/bulk-refund { ids: [...selected] }
-  };
-
-  const handleBulkReject = () => {
-    // TODO: POST /api/orders/returns/bulk-reject { ids: [...selected] }
-  };
-
-  const handleBulkMarkReviewed = () => {
-    // TODO: POST /api/orders/returns/bulk-review { ids: [...selected] }
-  };
+  /* ─── Loading ─── */
+  if (loading) {
+    return (
+      <div className="max-w-7xl mx-auto space-y-5">
+        <div>
+          <h1 className="text-2xl font-bold text-txt-primary">Retouren</h1>
+          <p className="text-sm text-txt-muted">Retouren verwalten, prüfen und erstatten</p>
+        </div>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="rounded-xl border border-app-border bg-app-surface p-4 h-20 animate-pulse" />
+          ))}
+        </div>
+        <div className="rounded-xl border border-app-border bg-app-surface h-64 animate-pulse" />
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-7xl mx-auto space-y-5">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-txt-primary">Retouren</h1>
-        <p className="text-sm text-txt-muted">Retouren verwalten, pruefen und erstatten</p>
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-txt-primary">Retouren</h1>
+          <p className="text-sm text-txt-muted">Retouren verwalten, prüfen und erstatten</p>
+        </div>
+        <button
+          type="button"
+          onClick={loadReturns}
+          className="inline-flex items-center gap-2 rounded-lg bg-app-elevated text-txt-secondary px-4 py-2.5 text-sm font-semibold hover:text-txt-primary transition"
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+          Aktualisieren
+        </button>
       </div>
+
+      {/* Error */}
+      {error && (
+        <div className="rounded-xl border border-danger/20 bg-danger-dim px-4 py-3 text-sm text-danger">
+          {error}
+        </div>
+      )}
 
       {/* KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <KpiCard label="Offene Retouren" value={12} tone="text-info" />
-        <KpiCard label="Retourenquote" value="4,2%" tone="text-warning" />
-        <KpiCard label="Erstattungen diese Woche" value="847,00 EUR" tone="text-accent" />
-        <KpiCard label="Oe Bearbeitungszeit" value="2,3 Tage" tone="text-txt-primary" />
+        <KpiCard label="Offene Retouren" value={kpis.open} tone="text-info" />
+        <KpiCard label="Gesamt Retouren" value={returns.length} tone="text-warning" />
+        <KpiCard label="Erstattungen gesamt" value={`${kpis.totalRefunded} EUR`} tone="text-accent" />
+        <KpiCard label="Abgelehnt" value={returns.filter((r) => r.status === "abgelehnt").length} tone="text-danger" />
       </div>
 
       {/* Tabs */}
@@ -214,138 +193,132 @@ export const ReturnsView: React.FC = () => {
       {/* Bulk Actions */}
       {selected.size > 0 && (
         <div className="flex items-center gap-2 rounded-xl border border-accent/20 bg-accent-dim px-4 py-2.5">
-          <span className="text-sm font-medium text-accent">{selected.size} ausgewaehlt</span>
+          <span className="text-sm font-medium text-accent">{selected.size} ausgewählt</span>
           <div className="ml-auto flex gap-2">
             <button
               type="button"
-              onClick={handleBulkRefund}
-              className="rounded-lg bg-success-dim text-success px-3 py-1.5 text-xs font-semibold hover:opacity-80 transition"
+              onClick={() => setSelected(new Set())}
+              className="rounded-lg bg-app-elevated text-txt-secondary px-3 py-1.5 text-xs font-semibold hover:text-txt-primary transition"
             >
-              Erstatten
-            </button>
-            <button
-              type="button"
-              onClick={handleBulkReject}
-              className="rounded-lg bg-danger-dim text-danger px-3 py-1.5 text-xs font-semibold hover:opacity-80 transition"
-            >
-              Ablehnen
-            </button>
-            <button
-              type="button"
-              onClick={handleBulkMarkReviewed}
-              className="rounded-lg bg-warning-dim text-warning px-3 py-1.5 text-xs font-semibold hover:opacity-80 transition"
-            >
-              Als geprueft markieren
+              Auswahl aufheben
             </button>
           </div>
         </div>
       )}
 
-      {/* Table */}
-      <div className="rounded-xl border border-app-border bg-app-surface overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-app-border bg-app-bg/50">
-                <th className="px-4 py-3 w-10">
-                  <input
-                    type="checkbox"
-                    checked={selected.size === filtered.length && filtered.length > 0}
-                    onChange={toggleAll}
-                    className="rounded border-app-border"
-                  />
-                </th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-txt-muted uppercase tracking-wider">Retoure-ID</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-txt-muted uppercase tracking-wider">Auftrag-Ref</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-txt-muted uppercase tracking-wider">Kunde</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-txt-muted uppercase tracking-wider">Produkt</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-txt-muted uppercase tracking-wider">Grund</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-txt-muted uppercase tracking-wider">Eingang</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-txt-muted uppercase tracking-wider">Status</th>
-                <th className="text-right px-4 py-3 text-xs font-semibold text-txt-muted uppercase tracking-wider">Erstattung</th>
-                <th className="text-right px-4 py-3 text-xs font-semibold text-txt-muted uppercase tracking-wider">Aktionen</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((ret) => {
-                const reason = REASON_LABELS[ret.reason];
-                const status = STATUS_CONFIG[ret.status];
-                return (
-                  <tr
-                    key={ret.id}
-                    className="border-b border-app-border last:border-b-0 hover:bg-app-elevated/40 transition"
-                  >
-                    <td className="px-4 py-3">
-                      <input
-                        type="checkbox"
-                        checked={selected.has(ret.id)}
-                        onChange={() => toggleSelect(ret.id)}
-                        className="rounded border-app-border"
-                      />
-                    </td>
-                    <td className="px-4 py-3 font-mono text-xs text-txt-primary font-medium">{ret.id}</td>
-                    <td className="px-4 py-3 font-mono text-xs text-txt-secondary">{ret.orderId}</td>
-                    <td className="px-4 py-3 text-txt-primary font-medium">{ret.customer}</td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <img
-                          src={ret.thumbnail}
-                          alt=""
-                          className="w-8 h-8 rounded-lg object-cover bg-app-elevated flex-shrink-0"
-                        />
-                        <span className="text-txt-primary truncate max-w-[180px]">{ret.product}</span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className={`inline-flex rounded-md px-2 py-0.5 text-[11px] font-semibold ${reason.cls}`}>
-                        {reason.label}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-xs text-txt-muted whitespace-nowrap">
-                      {new Date(ret.receivedAt).toLocaleDateString("de-DE")}
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className={`inline-flex rounded-md px-2 py-0.5 text-[11px] font-semibold ${status.cls}`}>
-                        {status.label}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-right font-semibold text-txt-primary">
-                      {ret.refundAmount.toLocaleString("de-DE", { minimumFractionDigits: 2 })} EUR
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center justify-end gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => handleReview(ret.id)}
-                          className="rounded-lg bg-app-elevated px-2.5 py-1.5 text-xs font-semibold text-txt-secondary hover:text-txt-primary transition"
-                        >
-                          Pruefen
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleRefund(ret.id)}
-                          className="rounded-lg bg-success-dim px-2.5 py-1.5 text-xs font-semibold text-success hover:opacity-80 transition"
-                        >
-                          Erstatten
-                        </button>
-                        <button
-                          type="button"
-                          className="rounded-lg bg-app-elevated p-1.5 text-txt-muted hover:text-txt-primary transition"
-                          title="Details"
-                        >
-                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                          </svg>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+      {/* Empty state */}
+      {!loading && returns.length === 0 && !error && (
+        <div className="rounded-xl border border-app-border bg-app-surface p-12 text-center">
+          <p className="text-txt-muted">Keine Retouren vorhanden.</p>
         </div>
-      </div>
+      )}
+
+      {/* Table */}
+      {filtered.length > 0 && (
+        <div className="rounded-xl border border-app-border bg-app-surface overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-app-border bg-app-bg/50">
+                  <th className="px-4 py-3 w-10">
+                    <input
+                      type="checkbox"
+                      checked={selected.size === filtered.length && filtered.length > 0}
+                      onChange={toggleAll}
+                      className="rounded border-app-border"
+                    />
+                  </th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-txt-muted uppercase tracking-wider">Retoure-ID</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-txt-muted uppercase tracking-wider">Auftrag-Ref</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-txt-muted uppercase tracking-wider">Kunde</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-txt-muted uppercase tracking-wider">Produkt</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-txt-muted uppercase tracking-wider">Grund</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-txt-muted uppercase tracking-wider">Eingang</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-txt-muted uppercase tracking-wider">Status</th>
+                  <th className="text-right px-4 py-3 text-xs font-semibold text-txt-muted uppercase tracking-wider">Erstattung</th>
+                  <th className="text-right px-4 py-3 text-xs font-semibold text-txt-muted uppercase tracking-wider">Aktionen</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((ret) => {
+                  const reason = REASON_LABELS[ret.reason || ""] || { label: ret.reason || "—", cls: "bg-app-elevated text-txt-muted" };
+                  const status = STATUS_CONFIG[ret.status || ""] || { label: ret.status || "—", cls: "bg-app-elevated text-txt-muted" };
+                  return (
+                    <tr
+                      key={ret.id}
+                      className="border-b border-app-border last:border-b-0 hover:bg-app-elevated/40 transition"
+                    >
+                      <td className="px-4 py-3">
+                        <input
+                          type="checkbox"
+                          checked={selected.has(ret.id)}
+                          onChange={() => toggleSelect(ret.id)}
+                          className="rounded border-app-border"
+                        />
+                      </td>
+                      <td className="px-4 py-3 font-mono text-xs text-txt-primary font-medium">{ret.id}</td>
+                      <td className="px-4 py-3 font-mono text-xs text-txt-secondary">{ret.orderId}</td>
+                      <td className="px-4 py-3 text-txt-primary font-medium">{ret.customer || "—"}</td>
+                      <td className="px-4 py-3">
+                        <span className="text-txt-primary truncate max-w-[180px] inline-block">{ret.product || "—"}</span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`inline-flex rounded-md px-2 py-0.5 text-[11px] font-semibold ${reason.cls}`}>
+                          {reason.label}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-xs text-txt-muted whitespace-nowrap">
+                        {ret.createdAt ? new Date(ret.createdAt).toLocaleDateString("de-DE") : "—"}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`inline-flex rounded-md px-2 py-0.5 text-[11px] font-semibold ${status.cls}`}>
+                          {status.label}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-right font-semibold text-txt-primary">
+                        {typeof ret.refundAmount === "number"
+                          ? `${ret.refundAmount.toLocaleString("de-DE", { minimumFractionDigits: 2 })} EUR`
+                          : "—"}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center justify-end gap-1.5">
+                          {(ret.status === "neu") && (
+                            <button
+                              type="button"
+                              onClick={() => handleStatusChange(ret.id, "in_pruefung")}
+                              className="rounded-lg bg-app-elevated px-2.5 py-1.5 text-xs font-semibold text-txt-secondary hover:text-txt-primary transition"
+                            >
+                              Prüfen
+                            </button>
+                          )}
+                          {(ret.status === "neu" || ret.status === "in_pruefung") && (
+                            <button
+                              type="button"
+                              onClick={() => handleStatusChange(ret.id, "erstattet")}
+                              className="rounded-lg bg-success-dim px-2.5 py-1.5 text-xs font-semibold text-success hover:opacity-80 transition"
+                            >
+                              Erstatten
+                            </button>
+                          )}
+                          {(ret.status === "neu" || ret.status === "in_pruefung") && (
+                            <button
+                              type="button"
+                              onClick={() => handleStatusChange(ret.id, "abgelehnt")}
+                              className="rounded-lg bg-danger-dim px-2.5 py-1.5 text-xs font-semibold text-danger hover:opacity-80 transition"
+                            >
+                              Ablehnen
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* Footer */}
       <div className="text-xs text-txt-muted text-right">

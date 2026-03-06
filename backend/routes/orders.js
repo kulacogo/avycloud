@@ -930,4 +930,88 @@ router.post('/orders/:orderId/pack', requirePermission('orders', 'pack'), async 
   }
 });
 
+// ── Order Settings (CRUD for automation rules, statuses, number ranges) ──
+
+const { firestore } = require('../lib/firestore');
+
+function getOrderSettingsTenantId(req) {
+  return req.user?.tenantId || 'default';
+}
+
+router.get('/orders/settings', async (req, res) => {
+  try {
+    const tenantId = getOrderSettingsTenantId(req);
+    const doc = await firestore.collection('order_settings').doc(tenantId).get();
+    const data = doc.exists ? doc.data() : {};
+    res.json({ ok: true, data });
+  } catch (err) {
+    console.error(`[GET /api/orders/settings] ${err.message}`, err);
+    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: err.message } });
+  }
+});
+
+router.put('/orders/settings', async (req, res) => {
+  try {
+    const tenantId = getOrderSettingsTenantId(req);
+    const { rules, statuses, numberRanges, templates } = req.body;
+    const data = { tenantId, updatedAt: new Date().toISOString(), updatedBy: req.user?.uid || null };
+    if (rules !== undefined) data.rules = rules;
+    if (statuses !== undefined) data.statuses = statuses;
+    if (numberRanges !== undefined) data.numberRanges = numberRanges;
+    if (templates !== undefined) data.templates = templates;
+
+    await firestore.collection('order_settings').doc(tenantId).set(data, { merge: true });
+    res.json({ ok: true, data });
+  } catch (err) {
+    console.error(`[PUT /api/orders/settings] ${err.message}`, err);
+    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: err.message } });
+  }
+});
+
+// ── Shipments (read from BaseLinker orders with tracking) ──
+
+router.get('/shipments', async (req, res) => {
+  try {
+    const tenantId = getOrderSettingsTenantId(req);
+    // Try Firestore shipments collection first
+    let query = firestore.collection('shipments').where('tenantId', '==', tenantId);
+    if (req.query.status) {
+      query = query.where('status', '==', req.query.status);
+    }
+    query = query.orderBy('createdAt', 'desc').limit(parseInt(req.query.limit || '100', 10));
+    const snap = await query.get();
+    const shipments = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    res.json({ ok: true, data: shipments });
+  } catch (err) {
+    console.error(`[GET /api/shipments] ${err.message}`, err);
+    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: err.message } });
+  }
+});
+
+router.post('/shipments', async (req, res) => {
+  try {
+    const tenantId = getOrderSettingsTenantId(req);
+    const { orderId, customer, carrier, trackingNumber, cost } = req.body;
+    if (!orderId) return res.status(400).json({ ok: false, error: { code: 'VALIDATION', message: 'orderId required' } });
+    const data = {
+      tenantId,
+      orderId,
+      customer: customer || null,
+      carrier: carrier || 'DHL',
+      trackingNumber: trackingNumber || null,
+      cost: cost || 0,
+      status: 'ausstehend',
+      shippedAt: null,
+      deliveredAt: null,
+      createdAt: new Date().toISOString(),
+      createdBy: req.user?.uid || null,
+    };
+    const ref = await firestore.collection('shipments').add(data);
+    res.json({ ok: true, data: { id: ref.id, ...data } });
+  } catch (err) {
+    console.error(`[POST /api/shipments] ${err.message}`, err);
+    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: err.message } });
+  }
+});
+
 module.exports = { router, setBackgroundSyncOrders };

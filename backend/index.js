@@ -21,6 +21,10 @@ const { router: ordersRouter, setBackgroundSyncOrders } = require('./routes/orde
 const identifyRouter = require('./routes/identify');
 const { router: productsRouter, setBackgroundSyncProductStock } = require('./routes/products');
 const marketplaceRouter = require('./routes/marketplace');
+const integrationsRouter = require('./routes/integrations');
+const settingsRouter = require('./routes/settings');
+const returnsRouter = require('./routes/returns');
+const invoicesRouter = require('./routes/invoices');
 const { syncNewOrders } = require('./services/order-sync');
 const { requireAuth } = require('./lib/auth');
 const { ensureDefaultRoles } = require('./lib/rbac');
@@ -262,6 +266,10 @@ app.use('/api', ordersRouter);
 app.use('/api', identifyRouter);
 app.use('/api', productsRouter);
 app.use('/api', marketplaceRouter);
+app.use('/api', integrationsRouter);
+app.use('/api', settingsRouter);
+app.use('/api', returnsRouter);
+app.use('/api', invoicesRouter);
 setBackgroundSyncOrders(backgroundSyncOrders);
 setBackgroundSyncProductStock(backgroundSyncProductStockToBaseLinker);
 

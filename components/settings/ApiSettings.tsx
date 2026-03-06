@@ -1,8 +1,17 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Card } from "../ui/Card";
 import { Button } from "../ui/Button";
 import { Badge } from "../ui/Badge";
 import { ProgressBar } from "../ui/ProgressBar";
+import {
+  fetchApiKeys,
+  createApiKey,
+  revokeApiKey,
+  fetchWebhooks,
+  createWebhook,
+  deleteWebhook,
+} from "../../api/client";
+import type { ApiKeyData, WebhookData } from "../../api/client";
 
 const CopyIcon: React.FC = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -39,140 +48,226 @@ const PlusIcon: React.FC = () => (
   </svg>
 );
 
-interface ApiKey {
-  id: string;
-  name: string;
-  key: string;
-  created: string;
-  lastAccess: string;
+function maskKey(key: string): string {
+  return key.substring(0, 12) + "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022";
 }
 
-interface Webhook {
-  id: string;
-  url: string;
-  events: string[];
-  active: boolean;
+function SkeletonRow({ cols }: { cols: number }): React.ReactElement {
+  return (
+    <tr className="border-b border-app-border/50 last:border-0">
+      {Array.from({ length: cols }, (_, i) => (
+        <td key={i} className="py-3 px-3">
+          <div className="h-4 bg-app-elevated rounded-lg animate-pulse w-24" />
+        </td>
+      ))}
+    </tr>
+  );
 }
 
-const initialKeys: ApiKey[] = [
-  {
-    id: "1",
-    name: "Production Backend",
-    key: "avyc_pk_8f3a2b1c9d4e5f6a7b8c9d0e1f2a3b4c",
-    created: "12.01.2026",
-    lastAccess: "05.03.2026",
-  },
-  {
-    id: "2",
-    name: "Staging Integration",
-    key: "avyc_sk_1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d",
-    created: "28.02.2026",
-    lastAccess: "04.03.2026",
-  },
-];
-
-const initialWebhooks: Webhook[] = [
-  {
-    id: "1",
-    url: "https://hooks.muster-gmbh.de/avycloud/orders",
-    events: ["order.created", "order.shipped"],
-    active: true,
-  },
-];
-
-const maskKey = (key: string): string => {
-  return key.substring(0, 12) + "••••••••••••••••••••";
-};
+function ErrorBanner({ message, onRetry }: { message: string; onRetry: () => void }): React.ReactElement {
+  return (
+    <div className="flex items-center justify-between p-3 rounded-xl bg-danger-dim text-danger text-sm">
+      <span>{message}</span>
+      <Button variant="ghost" size="sm" onClick={onRetry}>
+        Erneut versuchen
+      </Button>
+    </div>
+  );
+}
 
 export const ApiSettings: React.FC = () => {
-  const [apiKeys, setApiKeys] = useState<ApiKey[]>(initialKeys);
-  const [webhooks] = useState<Webhook[]>(initialWebhooks);
+  const [apiKeys, setApiKeys] = useState<ApiKeyData[]>([]);
+  const [webhooks, setWebhooks] = useState<WebhookData[]>([]);
+  const [loadingKeys, setLoadingKeys] = useState(true);
+  const [loadingWebhooks, setLoadingWebhooks] = useState(true);
+  const [errorKeys, setErrorKeys] = useState<string | null>(null);
+  const [errorWebhooks, setErrorWebhooks] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+
+  const loadKeys = useCallback(async () => {
+    setLoadingKeys(true);
+    setErrorKeys(null);
+    try {
+      const keys = await fetchApiKeys();
+      setApiKeys(keys);
+    } catch (err) {
+      setErrorKeys(err instanceof Error ? err.message : "API-Schlüssel konnten nicht geladen werden");
+    } finally {
+      setLoadingKeys(false);
+    }
+  }, []);
+
+  const loadWebhooks = useCallback(async () => {
+    setLoadingWebhooks(true);
+    setErrorWebhooks(null);
+    try {
+      const hooks = await fetchWebhooks();
+      setWebhooks(hooks);
+    } catch (err) {
+      setErrorWebhooks(err instanceof Error ? err.message : "Webhooks konnten nicht geladen werden");
+    } finally {
+      setLoadingWebhooks(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadKeys();
+    loadWebhooks();
+  }, [loadKeys, loadWebhooks]);
 
   const handleCopy = async (key: string, id: string) => {
-    // TODO: In production, fetch the full key from the API (GET /api/settings/api-keys/:id)
     await navigator.clipboard.writeText(key);
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 2000);
   };
 
-  const handleRevoke = (id: string) => {
-    // TODO: API call to revoke key (DELETE /api/settings/api-keys/:id)
-    setApiKeys((prev) => prev.filter((k) => k.id !== id));
+  const handleRevoke = async (id: string) => {
+    const confirmed = window.confirm("Möchten Sie diesen API-Schlüssel wirklich widerrufen? Diese Aktion kann nicht rückgängig gemacht werden.");
+    if (!confirmed) return;
+
+    setActionLoading(id);
+    try {
+      await revokeApiKey(id);
+      await loadKeys();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Fehler beim Widerrufen des Schlüssels");
+    } finally {
+      setActionLoading(null);
+    }
   };
 
-  const handleCreateKey = () => {
-    // TODO: API call to create new key (POST /api/settings/api-keys)
+  const handleCreateKey = async () => {
+    const name = window.prompt("Name für den neuen API-Schlüssel:");
+    if (!name?.trim()) return;
+
+    setActionLoading("create-key");
+    try {
+      await createApiKey(name.trim());
+      await loadKeys();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Fehler beim Erstellen des Schlüssels");
+    } finally {
+      setActionLoading(null);
+    }
   };
 
-  const handleAddWebhook = () => {
-    // TODO: Open modal to add webhook (POST /api/settings/webhooks)
+  const handleAddWebhook = async () => {
+    const url = window.prompt("Webhook-URL:");
+    if (!url?.trim()) return;
+
+    setActionLoading("create-webhook");
+    try {
+      await createWebhook({ url: url.trim(), events: ["order.created", "order.shipped"] });
+      await loadWebhooks();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Fehler beim Erstellen des Webhooks");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleDeleteWebhook = async (id: string) => {
+    const confirmed = window.confirm("Möchten Sie diesen Webhook wirklich löschen?");
+    if (!confirmed) return;
+
+    setActionLoading(id);
+    try {
+      await deleteWebhook(id);
+      await loadWebhooks();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Fehler beim Löschen des Webhooks");
+    } finally {
+      setActionLoading(null);
+    }
   };
 
   return (
     <div className="space-y-6">
-      {/* API-Schlussel */}
+      {/* API-Schlüssel */}
       <Card>
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-sm font-semibold text-txt-primary flex items-center gap-2">
             <KeyIcon />
-            API-Schlussel
+            API-Schlüssel
           </h3>
-          <Button variant="primary" size="sm" iconLeft={<PlusIcon />} onClick={handleCreateKey}>
-            Neuen API-Schlussel erstellen
+          <Button
+            variant="primary"
+            size="sm"
+            iconLeft={<PlusIcon />}
+            onClick={handleCreateKey}
+            disabled={actionLoading === "create-key"}
+          >
+            {actionLoading === "create-key" ? "Wird erstellt..." : "Neuen API-Schlüssel erstellen"}
           </Button>
         </div>
+
+        {errorKeys && <ErrorBanner message={errorKeys} onRetry={loadKeys} />}
 
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-app-border">
                 <th className="text-left py-2.5 px-3 text-xs font-medium uppercase tracking-wide text-txt-muted">Name</th>
-                <th className="text-left py-2.5 px-3 text-xs font-medium uppercase tracking-wide text-txt-muted">Schlussel</th>
+                <th className="text-left py-2.5 px-3 text-xs font-medium uppercase tracking-wide text-txt-muted">Schlüssel</th>
                 <th className="text-left py-2.5 px-3 text-xs font-medium uppercase tracking-wide text-txt-muted hidden sm:table-cell">Erstellt</th>
                 <th className="text-left py-2.5 px-3 text-xs font-medium uppercase tracking-wide text-txt-muted hidden md:table-cell">Letzter Zugriff</th>
                 <th className="text-right py-2.5 px-3 text-xs font-medium uppercase tracking-wide text-txt-muted">Aktionen</th>
               </tr>
             </thead>
             <tbody>
-              {apiKeys.map((apiKey) => (
-                <tr key={apiKey.id} className="border-b border-app-border/50 last:border-0">
-                  <td className="py-3 px-3 text-txt-primary font-medium">{apiKey.name}</td>
-                  <td className="py-3 px-3">
-                    <code className="text-xs text-txt-secondary bg-app-elevated px-2 py-1 rounded-lg font-mono">
-                      {maskKey(apiKey.key)}
-                    </code>
-                  </td>
-                  <td className="py-3 px-3 text-txt-muted hidden sm:table-cell">{apiKey.created}</td>
-                  <td className="py-3 px-3 text-txt-muted hidden md:table-cell">{apiKey.lastAccess}</td>
-                  <td className="py-3 px-3">
-                    <div className="flex items-center justify-end gap-1.5">
-                      <button
-                        type="button"
-                        onClick={() => handleCopy(apiKey.key, apiKey.id)}
-                        className="p-1.5 rounded-lg text-txt-muted hover:text-txt-primary hover:bg-app-elevated transition-colors"
-                        title="Kopieren"
-                      >
-                        {copiedId === apiKey.id ? (
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-success">
-                            <path d="M20 6L9 17l-5-5" />
-                          </svg>
-                        ) : (
-                          <CopyIcon />
-                        )}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleRevoke(apiKey.id)}
-                        className="p-1.5 rounded-lg text-txt-muted hover:text-danger hover:bg-danger-dim transition-colors"
-                        title="Widerrufen"
-                      >
-                        <TrashIcon />
-                      </button>
-                    </div>
+              {loadingKeys ? (
+                <>
+                  <SkeletonRow cols={5} />
+                  <SkeletonRow cols={5} />
+                </>
+              ) : apiKeys.length === 0 && !errorKeys ? (
+                <tr>
+                  <td colSpan={5} className="py-8 text-center text-sm text-txt-muted">
+                    Keine API-Schlüssel vorhanden
                   </td>
                 </tr>
-              ))}
+              ) : (
+                apiKeys.map((apiKey) => (
+                  <tr key={apiKey.id} className="border-b border-app-border/50 last:border-0">
+                    <td className="py-3 px-3 text-txt-primary font-medium">{apiKey.name}</td>
+                    <td className="py-3 px-3">
+                      <code className="text-xs text-txt-secondary bg-app-elevated px-2 py-1 rounded-lg font-mono">
+                        {maskKey(apiKey.key)}
+                      </code>
+                    </td>
+                    <td className="py-3 px-3 text-txt-muted hidden sm:table-cell">{apiKey.createdAt ?? "–"}</td>
+                    <td className="py-3 px-3 text-txt-muted hidden md:table-cell">{apiKey.lastAccess ?? "–"}</td>
+                    <td className="py-3 px-3">
+                      <div className="flex items-center justify-end gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => handleCopy(apiKey.key, apiKey.id)}
+                          className="p-1.5 rounded-lg text-txt-muted hover:text-txt-primary hover:bg-app-elevated transition-colors"
+                          title="Kopieren"
+                        >
+                          {copiedId === apiKey.id ? (
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-success">
+                              <path d="M20 6L9 17l-5-5" />
+                            </svg>
+                          ) : (
+                            <CopyIcon />
+                          )}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleRevoke(apiKey.id)}
+                          disabled={actionLoading === apiKey.id}
+                          className="p-1.5 rounded-lg text-txt-muted hover:text-danger hover:bg-danger-dim transition-colors disabled:opacity-50"
+                          title="Widerrufen"
+                        >
+                          <TrashIcon />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
@@ -182,10 +277,18 @@ export const ApiSettings: React.FC = () => {
       <Card>
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-sm font-semibold text-txt-primary">Webhooks</h3>
-          <Button variant="primary" size="sm" iconLeft={<PlusIcon />} onClick={handleAddWebhook}>
-            Webhook hinzufugen
+          <Button
+            variant="primary"
+            size="sm"
+            iconLeft={<PlusIcon />}
+            onClick={handleAddWebhook}
+            disabled={actionLoading === "create-webhook"}
+          >
+            {actionLoading === "create-webhook" ? "Wird erstellt..." : "Webhook hinzufügen"}
           </Button>
         </div>
+
+        {errorWebhooks && <ErrorBanner message={errorWebhooks} onRetry={loadWebhooks} />}
 
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -198,48 +301,48 @@ export const ApiSettings: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              {webhooks.map((webhook) => (
-                <tr key={webhook.id} className="border-b border-app-border/50 last:border-0">
-                  <td className="py-3 px-3">
-                    <code className="text-xs text-txt-secondary font-mono">{webhook.url}</code>
-                  </td>
-                  <td className="py-3 px-3">
-                    <div className="flex flex-wrap gap-1">
-                      {webhook.events.map((event) => (
-                        <Badge key={event} variant="accent" size="sm">{event}</Badge>
-                      ))}
-                    </div>
-                  </td>
-                  <td className="py-3 px-3">
-                    <Badge variant={webhook.active ? "success" : "neutral"} dot size="sm">
-                      {webhook.active ? "Aktiv" : "Inaktiv"}
-                    </Badge>
-                  </td>
-                  <td className="py-3 px-3">
-                    <div className="flex items-center justify-end gap-1.5">
-                      <button
-                        type="button"
-                        className="p-1.5 rounded-lg text-txt-muted hover:text-txt-primary hover:bg-app-elevated transition-colors"
-                        title="Bearbeiten"
-                      >
-                        {/* TODO: Open edit webhook modal */}
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
-                          <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
-                        </svg>
-                      </button>
-                      <button
-                        type="button"
-                        className="p-1.5 rounded-lg text-txt-muted hover:text-danger hover:bg-danger-dim transition-colors"
-                        title="Loschen"
-                      >
-                        {/* TODO: API call to delete webhook (DELETE /api/settings/webhooks/:id) */}
-                        <TrashIcon />
-                      </button>
-                    </div>
+              {loadingWebhooks ? (
+                <SkeletonRow cols={4} />
+              ) : webhooks.length === 0 && !errorWebhooks ? (
+                <tr>
+                  <td colSpan={4} className="py-8 text-center text-sm text-txt-muted">
+                    Keine Webhooks konfiguriert
                   </td>
                 </tr>
-              ))}
+              ) : (
+                webhooks.map((webhook) => (
+                  <tr key={webhook.id} className="border-b border-app-border/50 last:border-0">
+                    <td className="py-3 px-3">
+                      <code className="text-xs text-txt-secondary font-mono">{webhook.url}</code>
+                    </td>
+                    <td className="py-3 px-3">
+                      <div className="flex flex-wrap gap-1">
+                        {webhook.events.map((event) => (
+                          <Badge key={event} variant="accent" size="sm">{event}</Badge>
+                        ))}
+                      </div>
+                    </td>
+                    <td className="py-3 px-3">
+                      <Badge variant={webhook.active ? "success" : "neutral"} dot size="sm">
+                        {webhook.active ? "Aktiv" : "Inaktiv"}
+                      </Badge>
+                    </td>
+                    <td className="py-3 px-3">
+                      <div className="flex items-center justify-end gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteWebhook(webhook.id)}
+                          disabled={actionLoading === webhook.id}
+                          className="p-1.5 rounded-lg text-txt-muted hover:text-danger hover:bg-danger-dim transition-colors disabled:opacity-50"
+                          title="Löschen"
+                        >
+                          <TrashIcon />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
@@ -284,10 +387,10 @@ export const ApiSettings: React.FC = () => {
         >
           <div>
             <h3 className="text-sm font-semibold text-txt-primary group-hover:text-accent transition-colors">
-              API-Dokumentation offnen
+              API-Dokumentation öffnen
             </h3>
             <p className="text-xs text-txt-muted mt-1">
-              Vollstandige Referenz aller Endpunkte, Authentifizierung und Beispiele
+              Vollständige Referenz aller Endpunkte, Authentifizierung und Beispiele
             </p>
           </div>
           <ExternalLinkIcon />
