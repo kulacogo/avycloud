@@ -78,9 +78,10 @@ export const Tabs: React.FC<TabsProps> = ({ tabs, activeTab, onTabChange, classN
                 {tab.count}
               </span>
             )}
-            {isActive && (
-              <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-accent rounded-full" aria-hidden="true" />
-            )}
+            <span className={cn(
+              "absolute bottom-0 left-0 right-0 h-0.5 rounded-full transition-all duration-200",
+              isActive ? "bg-accent opacity-100" : "bg-transparent opacity-0"
+            )} aria-hidden="true" />
           </button>
         );
       })}

@@ -122,6 +122,22 @@ body {
   transition: background-color 0.2s ease, color 0.2s ease;
 }
 
+/* Button press feedback */
+button:not(:disabled):active,
+[role="button"]:not(:disabled):active {
+  transform: scale(0.97);
+}
+
+button,
+[role="button"] {
+  transition: all 0.15s ease;
+}
+
+/* Table row hover transitions */
+tr {
+  transition: background-color 0.1s ease;
+}
+
 /* ========================================
    LIGHT THEME — Legacy Tailwind class overrides
    (phased out as components migrate to token classes)
