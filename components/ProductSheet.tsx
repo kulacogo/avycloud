@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import DOMPurify from 'dompurify';
 import { Product, DatasheetChange, ProductImage, WarehouseBin, EbayCategoryOption } from '../types';
 import {
   saveProduct,
@@ -1081,9 +1082,17 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
     if (raw) {
       return raw;
     }
-    // Never fabricate placeholder/price text in the UI. If we don't have a description yet, say so plainly.
     return t('sheet.description.empty');
   }, [localProduct.details?.short_description, t]);
+
+  const descriptionIsHtml = useMemo(() => {
+    return /<[a-z][\s\S]*>/i.test(descriptionText);
+  }, [descriptionText]);
+
+  const sanitizedDescription = useMemo(() => {
+    if (!descriptionIsHtml) return '';
+    return DOMPurify.sanitize(descriptionText, { USE_PROFILES: { html: true } });
+  }, [descriptionText, descriptionIsHtml]);
 
   const requiresKTyp = useMemo(() => {
     const cat = (localProduct?.identification?.category || '').toString().toLowerCase();
@@ -1354,6 +1363,11 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                   onBlur={(e) => handleFieldChange('details.short_description', e.target.value)}
                   className="w-full min-h-[80px] text-sm bg-app-elevated border border-app-border rounded-lg p-2.5 outline-none focus:border-accent"
                 />
+              ) : descriptionIsHtml ? (
+                <div
+                  className="text-sm text-txt-secondary leading-relaxed prose prose-sm prose-invert max-w-none [&_ul]:list-disc [&_ul]:pl-4 [&_ol]:list-decimal [&_ol]:pl-4 [&_li]:mb-1 [&_p]:mb-2 [&_strong]:font-semibold [&_h1]:text-base [&_h2]:text-sm [&_h3]:text-sm [&_a]:text-accent [&_a]:underline"
+                  dangerouslySetInnerHTML={{ __html: sanitizedDescription }}
+                />
               ) : (
                 <p className="text-sm text-txt-secondary leading-relaxed">{descriptionText || '—'}</p>
               )}
@@ -1417,9 +1431,20 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                     </div>
                   </div>
                 ) : (
-                  <div className="flex flex-wrap gap-1.5">
+                  <div className="flex flex-wrap gap-2">
                     {currentBarcodeSummary.all.length ? currentBarcodeSummary.all.map((b: string, i: number) => (
-                      <span key={i} className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-mono ${isValidGtin(b) ? 'bg-success-dim text-success' : 'bg-app-elevated text-txt-muted'}`}>{b}</span>
+                      <span key={i} className="inline-flex items-center gap-1.5 text-sm font-mono text-txt-primary">
+                        {b}
+                        {isValidGtin(b) && <span className="w-1.5 h-1.5 rounded-full bg-success shrink-0" title="Gültige EAN/GTIN" />}
+                        <button
+                          type="button"
+                          className="text-txt-muted hover:text-txt-primary transition-colors"
+                          title="Kopieren"
+                          onClick={() => navigator.clipboard.writeText(b)}
+                        >
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" /></svg>
+                        </button>
+                      </span>
                     )) : <span className="text-sm text-txt-muted">—</span>}
                   </div>
                 )}
@@ -1769,7 +1794,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
           {/* Web Evidence */}
           {qualityGate?.evidence?.pages?.length > 0 && (
             <div className="mt-4 pt-4 border-t border-app-border">
-              <h4 className="text-xs font-semibold text-txt-muted uppercase tracking-wide mb-2">Web-Evidence</h4>
+              <h4 className="text-xs font-semibold text-txt-muted uppercase tracking-wide mb-2">Preisquellen</h4>
               <div className="space-y-1.5">
                 {qualityGate.evidence.pages.map((p: any, i: number) => {
                   const url = typeof p === 'string' ? p : p?.url || p?.href || '';

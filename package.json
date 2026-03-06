@@ -13,6 +13,7 @@
     "@google/generative-ai": "^0.1.0",
     "@imgly/background-removal": "^1.7.0",
     "@zxing/browser": "^0.1.4",
+    "dompurify": "^3.3.2",
     "firebase": "^10.14.1",
     "framer-motion": "^10.16.4",
     "html5-qrcode": "^2.3.8",
@@ -22,6 +23,7 @@
     "recharts": "^3.7.0"
   },
   "devDependencies": {
+    "@types/dompurify": "^3.0.5",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
     "@vitejs/plugin-react": "^4.0.0",
