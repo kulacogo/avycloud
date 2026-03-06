@@ -1182,14 +1182,14 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
       <header className="p-4 bg-app-surface border border-app-border rounded-2xl mb-4">
         <div className="flex items-start gap-4">
           {/* Product image */}
-          {localProduct.details?.images?.[0]?.url && (
+          {localProduct.details?.images?.[0]?.url_or_base64 && (
             <img
-              src={localProduct.details.images[0].url}
+              src={localProduct.details.images[0].url_or_base64}
               alt=""
               className="w-20 h-20 rounded-xl object-cover flex-shrink-0 bg-app-elevated border border-app-border"
             />
           )}
-          {!localProduct.details?.images?.[0]?.url && (
+          {!localProduct.details?.images?.[0]?.url_or_base64 && (
             <div className="w-20 h-20 rounded-xl bg-app-elevated border border-app-border flex items-center justify-center flex-shrink-0">
               <svg className="w-8 h-8 text-txt-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.41a2.25 2.25 0 013.182 0l2.909 2.91m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
@@ -1418,7 +1418,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                   </div>
                 ) : (
                   <div className="flex flex-wrap gap-1.5">
-                    {currentBarcodeSummary.list.length ? currentBarcodeSummary.list.map((b, i) => (
+                    {currentBarcodeSummary.all.length ? currentBarcodeSummary.all.map((b: string, i: number) => (
                       <span key={i} className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-mono ${isValidGtin(b) ? 'bg-success-dim text-success' : 'bg-app-elevated text-txt-muted'}`}>{b}</span>
                     )) : <span className="text-sm text-txt-muted">—</span>}
                   </div>
