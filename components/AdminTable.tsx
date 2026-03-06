@@ -2599,7 +2599,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
       )}
       {improveInProgress && (
         <div role="status" aria-live="polite" aria-busy="true" className="fixed bottom-20 right-6 z-40 flex items-center gap-3 rounded-2xl bg-app-bg/90 border border-app-border px-4 py-3 shadow-lg shadow-black/40 max-w-sm">
-          <Spinner className="w-6 h-6 text-purple-300" />
+          <Spinner className="w-6 h-6 text-accent" />
           <div className="text-sm text-txt-primary">
             <p className="font-semibold">Improve läuft …</p>
             <p className="text-txt-muted text-xs">{improveMessage || 'Produkte werden verbessert'}</p>

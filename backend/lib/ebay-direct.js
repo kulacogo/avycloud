@@ -1616,6 +1616,10 @@ async function listLiveListings({
         gapDocUpdatedAt: tsToIso(gapDoc?.updatedAt) || gapDoc?.updatedAt || null,
         updatedAt: tsToIso(listing.updatedAt) || listing.updatedAt || null,
         viewItemUrl: listing.viewItemUrl || null,
+        currentPrice: typeof listing.currentPrice === 'number' ? listing.currentPrice : null,
+        currency: listing.currency || null,
+        quantityAvailable: typeof listing.quantityAvailable === 'number' ? listing.quantityAvailable : null,
+        categoryName: listing.categoryName || listing.primaryCategoryName || null,
       };
     })
     .filter((row) => {

@@ -643,6 +643,10 @@ export interface EbayListingRow {
   gapDocUpdatedAt?: string | null;
   updatedAt?: string | null;
   viewItemUrl?: string | null;
+  currentPrice?: number | null;
+  currency?: string | null;
+  quantityAvailable?: number | null;
+  categoryName?: string | null;
 }
 
 export interface EbayListingLink {

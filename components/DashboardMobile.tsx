@@ -384,15 +384,15 @@ const DashboardMobile: React.FC<DashboardMobileProps> = ({
 
       {/* ── Finanzen (hero) ────────────────────────────── */}
       <RowLabel label="Finanzen" />
-      <div className="rounded-2xl border border-violet-500/20 bg-violet-800/30 p-4">
-        <p className="text-[10px] uppercase tracking-widest text-violet-400/70 font-bold">Gesamtsaldo</p>
+      <div className="rounded-2xl border border-app-border bg-app-surface p-4">
+        <p className="text-[10px] uppercase tracking-widest text-txt-muted font-bold">Gesamtsaldo</p>
         {financeLoading ? <Skel w="w-32" h="h-8" /> : (
-          <p className={`text-3xl font-bold tabular-nums mt-1 ${totalBalance !== null && totalBalance < 0 ? 'text-danger' : 'text-violet-300'}`}>
+          <p className={`text-3xl font-bold tabular-nums mt-1 ${totalBalance !== null && totalBalance < 0 ? 'text-danger' : 'text-txt-primary'}`}>
             {totalBalance !== null ? fmtCur(totalBalance, 'EUR') : '—'}
           </p>
         )}
         {financeLoading ? <Skel w="w-24" h="h-3" className="mt-2" /> : (
-          <p className="text-xs text-violet-400/70 mt-1">
+          <p className="text-xs text-txt-muted mt-1">
             {finance?.accounts?.length
               ? `${finance.accounts.length} ${finance.accounts.length > 1 ? 'Konten' : 'Konto'} · SevDesk`
               : finance?.errors?.length ? 'SevDesk nicht verfügbar' : 'SevDesk'}

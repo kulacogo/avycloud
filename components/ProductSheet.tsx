@@ -1521,7 +1521,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                   onClick={() => onImprove(localProduct.id)}
                   disabled={Boolean(isImproving)}
                   aria-label={isImproving ? t('common.improving') || 'Wird verbessert' : t('common.improve') || 'Produkt mit KI verbessern'}
-                  className="flex items-center justify-center px-4 py-2 bg-violet-600/20 text-violet-300 font-medium rounded-xl hover:bg-violet-600/30 transition-colors disabled:opacity-40 w-full sm:w-auto"
+                  className="flex items-center justify-center px-4 py-2 bg-accent-dim text-accent font-medium rounded-xl hover:bg-accent/20 transition-colors disabled:opacity-40 w-full sm:w-auto"
                 >
                   {isImproving ? t('common.improving') : t('common.improve')}
                 </button>

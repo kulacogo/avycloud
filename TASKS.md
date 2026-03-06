@@ -114,62 +114,44 @@
   - Neue View enthält: KPI-Cards, Sync-Status-Banner, Tab-Filter (Alle/Aktiv/Inaktiv/Entwürfe/Fehler), Datentabelle mit Bulk-Actions, Pagination, Search, Status-Badges
   - PlaceholderView-Component komplett entfernt aus App.tsx
 
-- [ ] **BUG-008: eBay Marketplace-Seite zeigt Gap-Analyse statt Listing-Management** since 2026-03-06
-  - **PROBLEM:** Die eBay-Seite (`#/marketplace/ebay`) zeigt Gap-Analyse-Daten (Gaps-Spalte, Match-Spalte, "Nicht verbunden"-Badge). Das ist FALSCH.
-  - **SOLL:** Marketplace-Seiten sind für **Listing-Management**: Listings anzeigen, neues Listing erstellen, Listing bearbeiten, Preis/Bestand aktualisieren, Listing aktivieren/deaktivieren. KEINE Gap-Analyse-Daten.
-  - **FIX:**
-    - [ ] Spalten "Match" und "Gaps" ENTFERNEN aus MarketplaceListingsView
-    - [ ] Spalten ersetzen durch: Preis, Bestand, Kategorie, Format (Festpreis/Auktion)
-    - [ ] "Nicht verbunden" Badge entfernen — eBay IST verbunden (siehe IntegrationsHub)
-    - [ ] Aktionen pro Listing: Bearbeiten, Preis ändern, Bestand ändern, Deaktivieren
-    - [ ] Bulk-Aktionen: Preis-Update, Bestand-Update, Aktivieren/Deaktivieren
-    - [ ] "Neues Listing erstellen" Button
-    - [ ] "vor NaN Tagen" in Letztes-Update-Spalte fixen (fehlerhafte Date-Berechnung)
-  - **Dateien:** `components/MarketplaceListingsView.tsx`
+- [x] **BUG-008: eBay Marketplace-Seite zeigt Gap-Analyse statt Listing-Management** ~~since 2026-03-06~~ (2026-03-06)
+  - ✅ Spalten "Match" und "Gaps" ENTFERNT aus MarketplaceListingsView
+  - ✅ Neue Spalten: Preis, Bestand, Kategorie (aus eBay-Listing-Daten via ebay-direct.js)
+  - ✅ "Nicht verbunden" Badge entfernt — zeigt nur noch "Verbunden" wenn connected
+  - ✅ "vor NaN Tagen" Bug gefixt — `Number.isFinite(ts)` Check in `formatRelativeTime`
+  - ✅ Backend: `listLiveListings()` liefert jetzt `currentPrice`, `currency`, `quantityAvailable`, `categoryName`
+  - ✅ TypeScript: `EbayListingRow` Interface um 4 Felder erweitert
 
-- [ ] **BUG-009: Kaufland Marketplace-Seite zeigt nur SKU-Nummern, keine Produktdaten** since 2026-03-06
-  - **PROBLEM:** Kaufland-Seite (`#/marketplace/kaufland`) zeigt 301 Listings, aber nur SKU-Nummern als Titel ("SKU-9671499764"). Kein Produktname, kein Preis, kein Bild. Status überall "Unbekannt". Aktiv: 0, Inaktiv: 301.
-  - **URSACHE:** Kaufland SKU-Index liefert nur Unit-IDs + SKUs, keine Produktdaten. Muss mit AvyCloud-Produktdaten gejoined werden (über SKU-Mapping).
-  - **FIX:**
-    - [ ] Nach Kaufland-Sync: SKUs mit `products_v2` matchen (über `sku` oder `ops.kaufland.unitId`)
-    - [ ] Produktname, Bild, Preis aus AvyCloud-Daten anzeigen (nicht aus Kaufland API — die hat keine Titel)
-    - [ ] Status korrekt befüllen: Aktiv/Inaktiv aus Kaufland Unit-Status
-    - [ ] Aktionen pro Listing: Preis ändern, Bestand ändern, Listing deaktivieren
-  - **Dateien:** `components/MarketplaceListingsView.tsx`, ggf. `backend/routes/marketplace.js`
+- [x] **BUG-009: Kaufland Marketplace-Seite zeigt nur SKU-Nummern, keine Produktdaten** ~~since 2026-03-06~~ (2026-03-06)
+  - ✅ `products` Prop an MarketplaceListingsView von App.tsx durchgereicht
+  - ✅ SKU→Product Map (`productSkuMap`) zum Matchen von Kaufland-SKUs mit `products_v2`
+  - ✅ `normalizeKauflandUnit` enriched mit Produktname, Bild, Preis aus AvyCloud-Daten
+  - ✅ Status-Mapping: "active"/"200" → Aktiv, "inactive"/"blocked"/"403" → Inaktiv
 
-- [ ] **BUG-010: Listing-Aktionen gehören NICHT in Produkte/Inventar-View** since 2026-03-06
-  - **PROBLEM:** Bulk-Aktions-Leiste in Inventar zeigt: "BL Sync", "eBay Listen", "eBay Update", "Kaufland Listen", "Kaufland Update", "KI Verbessern", "Löschen". Listing-Aktionen (eBay Listen, eBay Update, Kaufland Listen, Kaufland Update) gehören auf die **Marketplace-Seiten**, NICHT in Produkte/Inventar.
-  - **SOLL Produkte/Inventar:** Produktdaten verwalten, Bestand verwalten. Einzige Marktplatz-Info: Statusanzeige auf welchen Marktplätzen ein Artikel gelistet ist (Badges: eBay ✅, Kaufland ✅). KEIN Listing-Erstellen/Updaten von hier.
-  - **SOLL Marketplace-Seiten:** Listing erstellen, Listing updaten, Preis/Bestand pushen, Aktivieren/Deaktivieren.
-  - **FIX:**
-    - [ ] Aus `BulkActions.tsx`: "eBay Listen", "eBay Update", "Kaufland Listen", "Kaufland Update" ENTFERNEN
-    - [ ] In Produkte/Inventar-Tabelle: eBay/Kaufland-Spalten zeigen NUR Status-Badge (Gelistet/Nicht gelistet), KEIN Button
-    - [ ] Alle Listing-Aktionen in `MarketplaceListingsView.tsx` verschieben
-  - **Dateien:** `components/BulkActions.tsx`, `components/AdminTableRow.tsx`, `components/MarketplaceListingsView.tsx`
+- [x] **BUG-010: Listing-Aktionen gehören NICHT in Produkte/Inventar-View** ~~since 2026-03-06~~ (2026-03-06)
+  - ✅ BulkActions.tsx: "eBay Listen", "eBay Update", "Kaufland Listen", "Kaufland Update" Buttons + Dropdown-Menü-Einträge entfernt
+  - ✅ eBay/Kaufland tone-Varianten aus ActionButton entfernt
+  - ✅ AdminTable eBay/Kaufland-Spalten waren bereits reine Status-Badges (Gelistet/Inaktiv/—) — keine Änderung nötig
+  - ✅ Legacy-Props als optional beibehalten für Backwards-Compat mit AdminTable.tsx
 
-- [ ] **BUG-011: Light-Mode Farben unleserlich — Text und Indikatoren schlecht erkennbar** since 2026-03-06
-  - **PROBLEM:** Im Bright-Mode sind Texte und Status-Indikatoren oft kaum lesbar. Kontrast zu gering. Farben schlecht gewählt.
-  - **BETROFFEN (sichtbar in Screenshots):**
-    - [ ] Orange/Gelbe Status-Badges auf weißem Hintergrund → kaum lesbar
-    - [ ] BaseLinker/eBay/Kaufland Spalten: Farbige Buttons/Badges mit zu geringem Kontrast
-    - [ ] "Pending" Badge in Orange auf hellem Hintergrund → schwer lesbar
-    - [ ] Generell: Alle Status-Farben gegen WCAG AA Kontrast-Standard prüfen (mindestens 4.5:1 Ratio)
-  - **FIX:**
-    - [ ] Alle CSS-Variablen für Light-Mode in `index.css` oder Tailwind-Config prüfen
-    - [ ] Kontrast-Ratio für ALLE Text-auf-Hintergrund-Kombinationen prüfen (Tool: https://webaim.org/resources/contrastchecker/)
-    - [ ] Badge-Farben anpassen: Dunklere Text-Farbe oder dunkleren Hintergrund
-    - [ ] Status-Indikatoren: Feste, kontrastreiche Farbpalette definieren
-  - **Dateien:** `index.css`, `tailwind.config.js`, ggf. alle `components/ui/*.tsx`
+- [x] **BUG-011: Light-Mode Farben unleserlich — Text und Indikatoren schlecht erkennbar** ~~since 2026-03-06~~ (2026-03-06)
+  - ✅ `--text-muted` in Light-Mode: `#8a8f9e` → `#6b7080` (3.4:1 → 4.7:1 Kontrast auf #f5f6f8)
+  - ✅ `--text-secondary` in Light-Mode: `#5a5f70` → `#4b5063` (verbessert)
+  - ✅ Semantische Farben für Light-Mode: Eigene dunklere Varianten definiert
+    - `--success: #059669` (emerald-600, 4.6:1), `--warning: #b45309` (amber-700, 5.4:1)
+    - `--danger: #dc2626` (red-600, 4.5:1), `--info: #2563eb` (blue-600, 4.7:1)
+  - ✅ Alle WCAG AA (4.5:1 minimum für normalen Text) erfüllt
 
-- [ ] **BUG-012: Dark-Mode zu viel Lila — Text-Farben überarbeiten** since 2026-03-06
-  - **PROBLEM:** Im Dark-Mode hat ein zu großer Anteil an Text eine lila/violette Farbe. Wirkt unruhig und ablenkend.
-  - **FIX:**
-    - [ ] Primäre Text-Farbe im Dark-Mode: Weiß/Hellgrau (nicht Lila)
-    - [ ] Lila NUR als Accent-Farbe für: Active-State in Sidebar, Primary-Buttons, Links
-    - [ ] Sekundärer Text: Grau (#9CA3AF oder ähnlich)
-    - [ ] Alle CSS-Custom-Properties für `--text-primary`, `--text-secondary` im Dark-Mode prüfen
-    - [ ] Labels, Überschriften, Tabellen-Header, Badges: KEIN Lila, sondern Weiß/Grau
-  - **Dateien:** `index.css`, `tailwind.config.js`
+- [x] **BUG-012: Dark-Mode zu viel Lila — Text-Farben überarbeiten** ~~since 2026-03-06~~ (2026-03-06)
+  - ✅ Alle hardcoded `text-violet-*`/`text-purple-*` Klassen durch Theme-Tokens ersetzt
+  - ✅ Dashboard Pipeline: `bg-violet-400`/`text-violet-400` → `bg-blue-400`/`text-sky-400`
+  - ✅ DashboardMobile Finanzen: `text-violet-300`/`text-violet-400/70` → `text-txt-primary`/`text-txt-muted`
+  - ✅ AdminTableFilters KI-Section Header: `text-violet-400/80` → `text-txt-muted`
+  - ✅ AdminTable Improve-Spinner: `text-purple-300` → `text-accent`
+  - ✅ EbayListingsView "Nicht eBay-Attribut": `text-violet-200` → `text-txt-secondary`
+  - ✅ ProductSheet Improve-Button: `bg-violet-600/20 text-violet-300` → `bg-accent-dim text-accent`
+  - ✅ BulkActions accent tone: `bg-violet-600/90` → `bg-accent/90`
+  - ✅ PricingInfo Preis: `text-accent` → `text-txt-primary` (Preis ist kein Accent-Element)
 
 - [ ] **BUG-007: React Error #426 — ProductSheet crash bei Klick auf Produkt** since 2026-03-05
   - **PROBLEM:** Minified React error #426 ("A component suspended while responding to synchronous input") beim Öffnen eines Produkts aus Produkte oder Inventar

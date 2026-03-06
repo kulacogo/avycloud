@@ -7,7 +7,7 @@ const ActionButton: React.FC<{
   label: React.ReactNode;
   onClick: () => void;
   disabled?: boolean;
-  tone?: "primary" | "secondary" | "danger" | "accent" | "ebay" | "kaufland";
+  tone?: "primary" | "secondary" | "danger" | "accent";
   ariaLabel?: string;
 }> = ({ icon, label, onClick, disabled, tone = "secondary", ariaLabel }) => {
   const toneClasses = {
@@ -18,10 +18,7 @@ const ActionButton: React.FC<{
     danger:
       "bg-danger/90 text-white hover:bg-danger border border-danger/30",
     accent:
-      "bg-violet-600/90 text-white hover:bg-violet-500 border border-violet-500/30",
-    ebay: "bg-amber-600/90 text-white hover:bg-amber-500 border border-amber-500/30",
-    kaufland:
-      "bg-danger/90 text-white hover:bg-danger border border-danger/30",
+      "bg-accent/90 text-white hover:bg-accent border border-accent/30",
   };
   return (
     <button
@@ -45,24 +42,12 @@ interface BulkActionsProps {
   syncInProgress: boolean;
   handleBatchSync: () => void;
 
-  // eBay
-  ebayPublishInProgress: boolean;
-  handleBatchPublishEbay: () => void;
-  ebayUpdateInProgress: boolean;
-  handleBatchUpdateEbay: () => void;
-  hasSelectedEbayListings: boolean;
-  ebaySyncInProgress: boolean;
-  handleSyncEbayListings: () => void;
-
-  // Kaufland
+  // Bulk jobs (data-fix)
   bulkJobLoading: boolean;
   enqueueBulkForSelection: (
     action: ProductBulkActionName,
     opts?: { apply?: boolean }
   ) => Promise<void>;
-  hasSelectedKauflandListings: boolean;
-  kauflandSyncInProgress: boolean;
-  handleSyncKauflandListings: () => void;
 
   // Improve
   onImproveSelected?: (productIds: string[]) => void;
@@ -75,6 +60,18 @@ interface BulkActionsProps {
 
   // Label print
   handleBatchLabelPrint: () => void;
+
+  // Legacy props (kept for backwards-compat, ignored)
+  ebayPublishInProgress?: boolean;
+  handleBatchPublishEbay?: () => void;
+  ebayUpdateInProgress?: boolean;
+  handleBatchUpdateEbay?: () => void;
+  hasSelectedEbayListings?: boolean;
+  ebaySyncInProgress?: boolean;
+  handleSyncEbayListings?: () => void;
+  hasSelectedKauflandListings?: boolean;
+  kauflandSyncInProgress?: boolean;
+  handleSyncKauflandListings?: () => void;
 }
 
 const menuItemClass =
@@ -85,18 +82,8 @@ const BulkActions: React.FC<BulkActionsProps> = ({
   setSelectedIds,
   syncInProgress,
   handleBatchSync,
-  ebayPublishInProgress,
-  handleBatchPublishEbay,
-  ebayUpdateInProgress,
-  handleBatchUpdateEbay,
-  hasSelectedEbayListings,
-  ebaySyncInProgress,
-  handleSyncEbayListings,
   bulkJobLoading,
   enqueueBulkForSelection,
-  hasSelectedKauflandListings,
-  kauflandSyncInProgress,
-  handleSyncKauflandListings,
   onImproveSelected,
   improveInProgress,
   setImproveInProgress,
@@ -104,35 +91,6 @@ const BulkActions: React.FC<BulkActionsProps> = ({
   handleBatchDelete,
   handleBatchLabelPrint,
 }) => {
-  const globeIcon = (
-    <svg
-      className="w-3.5 h-3.5"
-      viewBox="0 0 20 20"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-    >
-      <circle cx="10" cy="10" r="7" />
-      <path d="M3 10h14M10 3a10.5 10.5 0 013 7 10.5 10.5 0 01-3 7 10.5 10.5 0 01-3-7 10.5 10.5 0 013-7z" />
-    </svg>
-  );
-  const refreshIcon = (
-    <svg
-      className="w-3.5 h-3.5"
-      viewBox="0 0 20 20"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-    >
-      <path d="M4 4v5h5M16 16v-5h-5" />
-      <path
-        d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m18 0 4.36 4.36A9 9 0 0 1 3.51 15"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-
   return (
     <div className="rounded-xl border border-accent/20 bg-accent/5 p-3 space-y-2">
       <div className="flex items-center justify-between">
@@ -151,7 +109,7 @@ const BulkActions: React.FC<BulkActionsProps> = ({
         </button>
       </div>
       <div className="flex flex-wrap items-center gap-1.5">
-        {/* BaseLinker */}
+        {/* BaseLinker Sync */}
         <ActionButton
           icon={<SyncIcon className="w-3.5 h-3.5" />}
           label={syncInProgress ? "Sync läuft..." : "BL Sync"}
@@ -160,48 +118,7 @@ const BulkActions: React.FC<BulkActionsProps> = ({
           disabled={selectedIds.size === 0 || syncInProgress}
           tone="primary"
         />
-        <div className="w-px h-5 bg-app-elevated mx-1" />
-        {/* eBay */}
-        <ActionButton
-          icon={globeIcon}
-          label={
-            ebayPublishInProgress ? "Wird gelistet..." : "eBay Listen"
-          }
-          ariaLabel="Ausgewählte Produkte auf eBay listen"
-          onClick={handleBatchPublishEbay}
-          disabled={selectedIds.size === 0 || ebayPublishInProgress}
-          tone="ebay"
-        />
-        <ActionButton
-          icon={refreshIcon}
-          label={ebayUpdateInProgress ? "Aktualisiert..." : "eBay Update"}
-          ariaLabel="eBay-Listings aktualisieren"
-          onClick={handleBatchUpdateEbay}
-          disabled={selectedIds.size === 0 || ebayUpdateInProgress || ebayPublishInProgress}
-          tone="ebay"
-        />
-        <div className="w-px h-5 bg-app-elevated mx-1" />
-        {/* Kaufland */}
-        <ActionButton
-          icon={globeIcon}
-          label={bulkJobLoading ? "Job läuft..." : "Kaufland Listen"}
-          ariaLabel="Ausgewählte Produkte auf Kaufland listen"
-          onClick={() =>
-            enqueueBulkForSelection("kaufland_create", { apply: true })
-          }
-          disabled={selectedIds.size === 0 || bulkJobLoading}
-          tone="kaufland"
-        />
-        <ActionButton
-          icon={refreshIcon}
-          label={bulkJobLoading ? "Job läuft..." : "Kaufland Update"}
-          ariaLabel="Kaufland-Listings aktualisieren"
-          onClick={() =>
-            enqueueBulkForSelection("kaufland_update", { apply: true })
-          }
-          disabled={selectedIds.size === 0 || bulkJobLoading}
-          tone="kaufland"
-        />
+
         {onImproveSelected ? (
           <>
             <div className="w-px h-5 bg-app-elevated mx-1" />
@@ -295,67 +212,7 @@ const BulkActions: React.FC<BulkActionsProps> = ({
               disabled={bulkJobLoading}
               className={menuItemClass}
             >
-              K\u2011Typ enrich
-            </button>
-
-            <div className="my-1.5 border-t border-app-border/60" />
-            <div className="px-2.5 pt-1 pb-1 text-[10px] uppercase tracking-wider font-semibold text-amber-500/80">
-              eBay
-            </div>
-            <button
-              type="button"
-              onClick={handleBatchPublishEbay}
-              disabled={selectedIds.size === 0 || ebayPublishInProgress}
-              className={menuItemClass}
-            >
-              {ebayPublishInProgress
-                ? "eBay Publish läuft..."
-                : "Listings erstellen"}
-            </button>
-            <button
-              type="button"
-              onClick={handleSyncEbayListings}
-              disabled={ebaySyncInProgress}
-              className={menuItemClass}
-            >
-              {ebaySyncInProgress
-                ? "Sync läuft..."
-                : "Listings synchronisieren"}
-            </button>
-
-            <div className="my-1.5 border-t border-app-border/60" />
-            <div className="px-2.5 pt-1 pb-1 text-[10px] uppercase tracking-wider font-semibold text-danger/80">
-              Kaufland
-            </div>
-            <button
-              type="button"
-              onClick={handleSyncKauflandListings}
-              disabled={kauflandSyncInProgress}
-              className={menuItemClass}
-            >
-              {kauflandSyncInProgress
-                ? "Sync läuft..."
-                : "Listings synchronisieren"}
-            </button>
-            <button
-              type="button"
-              onClick={() =>
-                enqueueBulkForSelection("kaufland_create", { apply: true })
-              }
-              disabled={bulkJobLoading || selectedIds.size === 0}
-              className={menuItemClass}
-            >
-              Listings erstellen
-            </button>
-            <button
-              type="button"
-              onClick={() =>
-                enqueueBulkForSelection("kaufland_update", { apply: true })
-              }
-              disabled={bulkJobLoading || selectedIds.size === 0}
-              className={menuItemClass}
-            >
-              Listings aktualisieren
+              K&#x2011;Typ enrich
             </button>
 
             <div className="my-1.5 border-t border-app-border/60" />

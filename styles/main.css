@@ -71,11 +71,21 @@
   --border: #e2e4e9;
 
   --text-primary: #1a1d23;
-  --text-secondary: #5a5f70;
-  --text-muted: #8a8f9e;
+  --text-secondary: #4b5063;
+  --text-muted: #6b7080;
 
   --accent: #635bff;
   --accent-dim: rgba(99, 91, 255, 0.1);
+
+  /* Semantic colors — darker for WCAG AA contrast on light bg */
+  --success: #059669;
+  --success-dim: rgba(5, 150, 105, 0.12);
+  --warning: #b45309;
+  --warning-dim: rgba(180, 83, 9, 0.12);
+  --danger: #dc2626;
+  --danger-dim: rgba(220, 38, 38, 0.10);
+  --info: #2563eb;
+  --info-dim: rgba(37, 99, 235, 0.10);
 
   --shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }

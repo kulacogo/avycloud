@@ -70,7 +70,7 @@ const PricingInfo: React.FC<PricingInfoProps> = ({ pricing, isEditing = false, o
             <input type="text" defaultValue={lowest_price.currency} onBlur={e => setCurrency(e.target.value.toUpperCase())} className="w-20 bg-app-elevated border border-app-border rounded px-2 py-1 text-txt-secondary uppercase" />
           </div>
         ) : (
-          <span id="price-value" className="text-3xl font-bold text-accent">
+          <span id="price-value" className="text-3xl font-bold text-txt-primary">
             {lowest_price?.amount > 0
               ? new Intl.NumberFormat('de-DE', { style: 'currency', currency: safeCurrency(lowest_price.currency) }).format(lowest_price.amount)
               : 'Not Available'}

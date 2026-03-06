@@ -3,18 +3,18 @@ import {
   fetchEbayLiveListings,
   syncEbayLiveListings,
   fetchEbayStatus,
-  fetchEbayGaps,
   bulkUpdateEbayListings,
   syncKauflandListings,
   fetchKauflandSkuIndex,
 } from "../api/client";
-import type { EbayListingRow, EbayGapDoc } from "../types";
+import type { EbayListingRow } from "../types";
 import type { EbayConnectionStatus } from "../api/client";
 
 // ─── Types ───────────────────────────────────────────────────
 
 interface MarketplaceListingsViewProps {
   marketplace: "ebay" | "kaufland";
+  products?: any[];
 }
 
 type ListingStatus = "active" | "inactive" | "error" | "unknown";
@@ -24,15 +24,15 @@ interface NormalizedListing {
   id: string;
   title: string;
   sku: string | null;
-  price?: number | null;
-  quantity?: number | null;
+  price: number | null;
+  currency: string | null;
+  quantity: number | null;
   status: ListingStatus;
-  matchStatus?: string | null;
-  gapCount?: number;
-  gapCriticalCount?: number;
+  category: string | null;
   viewItemUrl: string | null;
-  lastSync?: string | null;
+  lastSync: string | null;
   errors?: string[];
+  imageUrl?: string | null;
 }
 
 // ─── Constants ───────────────────────────────────────────────
@@ -60,20 +60,24 @@ const PAGE_SIZE = 50;
 
 // ─── Helpers ─────────────────────────────────────────────────
 
-function formatPrice(price?: number | null): string {
+function formatPrice(price: number | null | undefined, currency?: string | null): string {
   if (price == null) return "—";
-  return price.toLocaleString("de-DE", { style: "currency", currency: "EUR" });
+  return price.toLocaleString("de-DE", { style: "currency", currency: currency || "EUR" });
 }
 
 function formatRelativeTime(iso?: string | null): string {
   if (!iso) return "—";
-  const diff = Date.now() - new Date(iso).getTime();
+  const ts = new Date(iso).getTime();
+  if (!Number.isFinite(ts)) return "—";
+  const diff = Date.now() - ts;
+  if (diff < 0) return "gerade eben";
   const mins = Math.floor(diff / 60000);
   if (mins < 1) return "gerade eben";
   if (mins < 60) return `vor ${mins} Min.`;
   const hours = Math.floor(mins / 60);
   if (hours < 24) return `vor ${hours} Std.`;
-  return `vor ${Math.floor(hours / 24)} Tagen`;
+  const days = Math.floor(hours / 24);
+  return `vor ${days} ${days === 1 ? "Tag" : "Tagen"}`;
 }
 
 function normalizeEbayStatus(row: EbayListingRow): ListingStatus {
@@ -83,27 +87,18 @@ function normalizeEbayStatus(row: EbayListingRow): ListingStatus {
   return "unknown";
 }
 
-function normalizeEbayRow(row: EbayListingRow, gapMap: Map<string, EbayGapDoc>): NormalizedListing {
-  const gap = gapMap.get(row.itemId);
-  const errors: string[] = [];
-  if (gap?.gaps) {
-    for (const g of gap.gaps) {
-      if (g.severity === "critical" || g.severity === "error") {
-        errors.push(g.message || g.field || "Unbekannter Fehler");
-      }
-    }
-  }
+function normalizeEbayRow(row: EbayListingRow): NormalizedListing {
   return {
     id: row.itemId,
     title: row.title || row.sku || row.itemId,
     sku: row.sku || null,
+    price: row.currentPrice ?? null,
+    currency: row.currency ?? null,
+    quantity: row.quantityAvailable ?? null,
     status: normalizeEbayStatus(row),
-    matchStatus: row.matchStatus,
-    gapCount: row.gapCount ?? gap?.summary?.total ?? 0,
-    gapCriticalCount: row.gapCriticalCount ?? gap?.summary?.critical ?? 0,
+    category: row.categoryName || row.primaryCategoryId || null,
     viewItemUrl: row.viewItemUrl || null,
-    lastSync: row.updatedAt || row.gapDocUpdatedAt || null,
-    errors: errors.length > 0 ? errors : undefined,
+    lastSync: row.updatedAt || null,
   };
 }
 
@@ -118,18 +113,28 @@ interface KauflandUnit {
   viewItemUrl: string | null;
 }
 
-function normalizeKauflandUnit(unit: KauflandUnit): NormalizedListing {
+function normalizeKauflandUnit(unit: KauflandUnit, productMap?: Map<string, any>): NormalizedListing {
   const statusLower = (unit.status || "").toLowerCase();
   let status: ListingStatus = "unknown";
   if (statusLower === "active" || statusLower === "200") status = "active";
   else if (statusLower === "inactive" || statusLower === "blocked" || statusLower === "403") status = "inactive";
 
+  // Try to enrich with product data from AvyCloud
+  const sku = unit.sku || unit.skuNormalized || null;
+  const product = sku && productMap ? productMap.get(sku.toLowerCase()) : null;
+
   return {
     id: unit.idUnit,
-    title: unit.sku || unit.ean || unit.idUnit,
-    sku: unit.sku || null,
+    title: product?.title || product?.details?.title || sku || unit.ean || unit.idUnit,
+    sku,
+    price: product?.details?.pricing?.sellPrice ?? product?.pricing?.sellPrice ?? null,
+    currency: "EUR",
+    quantity: product?.inventory?.quantity ?? null,
     status,
+    category: product?.details?.category || null,
     viewItemUrl: unit.viewItemUrl || null,
+    lastSync: null,
+    imageUrl: product?.details?.images?.[0]?.url || product?.images?.[0]?.url || null,
   };
 }
 
@@ -173,7 +178,7 @@ const IconWarning = () => (
 
 // ─── Component ───────────────────────────────────────────────
 
-export function MarketplaceListingsView({ marketplace }: MarketplaceListingsViewProps) {
+export function MarketplaceListingsView({ marketplace, products }: MarketplaceListingsViewProps) {
   const [listings, setListings] = useState<NormalizedListing[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -188,22 +193,28 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
 
   const label = MARKETPLACE_LABELS[marketplace];
 
+  // Build SKU→product map for Kaufland enrichment
+  const productSkuMap = useMemo(() => {
+    if (!products || marketplace !== "kaufland") return new Map<string, any>();
+    const map = new Map<string, any>();
+    for (const p of products) {
+      const sku = (p?.details?.identifiers?.sku || p?.identification?.sku || "").trim().toLowerCase();
+      if (sku) map.set(sku, p);
+    }
+    return map;
+  }, [products, marketplace]);
+
   // ─── Data Loading ────────────────────────────────────────
 
   const loadEbayListings = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const [rows, gaps, status] = await Promise.all([
+      const [rows, status] = await Promise.all([
         fetchEbayLiveListings({ limit: 500, includeInactive: true }),
-        fetchEbayGaps({ limit: 500 }).catch(() => [] as EbayGapDoc[]),
         fetchEbayStatus().catch(() => null),
       ]);
-      const gapMap = new Map<string, EbayGapDoc>();
-      for (const g of gaps) {
-        gapMap.set(g.itemId, g);
-      }
-      const normalized = rows.map((r) => normalizeEbayRow(r, gapMap));
+      const normalized = rows.map((r) => normalizeEbayRow(r));
       setListings(normalized);
       if (status) setConnectionStatus(status);
       setLastSyncTime(new Date().toISOString());
@@ -219,7 +230,7 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
     setError(null);
     try {
       const units = await fetchKauflandSkuIndex("de");
-      const normalized = units.map(normalizeKauflandUnit);
+      const normalized = units.map((u: any) => normalizeKauflandUnit(u, productSkuMap));
       setListings(normalized);
       setLastSyncTime(new Date().toISOString());
     } catch (err: any) {
@@ -227,7 +238,7 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [productSkuMap]);
 
   useEffect(() => {
     if (marketplace === "ebay") {
@@ -262,10 +273,9 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
     setBulkUpdating(true);
     setError(null);
     try {
-      const result = await bulkUpdateEbayListings({ itemIds: [...selectedIds] });
+      await bulkUpdateEbayListings({ itemIds: [...selectedIds] });
       setSelectedIds(new Set());
       await loadEbayListings();
-      console.log("Bulk update result:", result.summary);
     } catch (err: any) {
       setError(err.message || "Bulk-Update fehlgeschlagen");
     } finally {
@@ -281,7 +291,7 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
       counts.all++;
       if (l.status === "active") counts.active++;
       else if (l.status === "inactive" || l.status === "unknown") counts.inactive++;
-      if (l.status === "error" || (l.gapCriticalCount && l.gapCriticalCount > 0)) counts.error++;
+      if (l.status === "error") counts.error++;
     });
     return counts;
   }, [listings]);
@@ -290,7 +300,7 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
     let result = listings;
     if (activeTab === "active") result = result.filter((l) => l.status === "active");
     else if (activeTab === "inactive") result = result.filter((l) => l.status === "inactive" || l.status === "unknown");
-    else if (activeTab === "error") result = result.filter((l) => l.status === "error" || (l.gapCriticalCount && l.gapCriticalCount > 0));
+    else if (activeTab === "error") result = result.filter((l) => l.status === "error");
 
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
@@ -392,25 +402,20 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
           <div>
             <h1 className="text-xl font-bold text-txt-primary">{label} Listings</h1>
             <p className="text-sm text-txt-muted">
-              {listings.length} Listings geladen
+              {listings.length} Listings · {tabCounts.active} aktiv
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          {marketplace === "ebay" && connectionStatus && (
-            <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium ${
-              connectionStatus.connected
-                ? "bg-success-dim text-success"
-                : "bg-danger-dim text-danger"
-            }`}>
-              <span className="w-2 h-2 rounded-full bg-current" />
-              {connectionStatus.connected ? "Verbunden" : "Nicht verbunden"}
-            </span>
-          )}
-        </div>
+        {/* Connection status for eBay — only show "Verbunden" */}
+        {marketplace === "ebay" && connectionStatus?.connected && (
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-success-dim text-success">
+            <span className="w-2 h-2 rounded-full bg-current" />
+            Verbunden
+          </span>
+        )}
       </div>
 
-      {/* Inline error banner (when we have listings but got an error on action) */}
+      {/* Inline error banner */}
       {error && listings.length > 0 && (
         <div className="bg-danger-dim border border-app-border rounded-xl px-4 py-3 flex items-center gap-3">
           <span className="text-danger"><IconWarning /></span>
@@ -450,17 +455,6 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
               {formatRelativeTime(lastSyncTime)}
             </span>
           </span>
-          {marketplace === "ebay" && connectionStatus?.connectedAt && (
-            <>
-              <span className="hidden sm:inline text-app-border">|</span>
-              <span className="hidden sm:inline">
-                Verbunden seit:{" "}
-                <span className="text-txt-primary font-medium">
-                  {new Date(connectionStatus.connectedAt).toLocaleDateString("de-DE")}
-                </span>
-              </span>
-            </>
-          )}
           {tabCounts.error > 0 && (
             <>
               <span className="hidden sm:inline text-app-border">|</span>
@@ -531,7 +525,7 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
                 disabled={bulkUpdating}
                 className="px-3 py-1.5 text-sm font-medium text-txt-primary bg-app-surface border border-app-border rounded-lg hover:bg-app-elevated transition-colors disabled:opacity-50"
               >
-                {bulkUpdating ? "Aktualisiere..." : "eBay aktualisieren"}
+                {bulkUpdating ? "Aktualisiere..." : "Listings aktualisieren"}
               </button>
             )}
             <button
@@ -584,23 +578,12 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
                   <th className="px-4 py-3 text-left text-txt-muted font-medium hidden md:table-cell">
                     {marketplace === "ebay" ? "Item-ID" : "Unit-ID"}
                   </th>
+                  <th className="px-4 py-3 text-right text-txt-muted font-medium hidden sm:table-cell">Preis</th>
+                  <th className="px-4 py-3 text-right text-txt-muted font-medium hidden sm:table-cell">Bestand</th>
                   <th className="px-4 py-3 text-left text-txt-muted font-medium">Status</th>
-                  {marketplace === "ebay" && (
-                    <th className="px-4 py-3 text-left text-txt-muted font-medium hidden lg:table-cell">
-                      Match
-                    </th>
-                  )}
-                  {marketplace === "ebay" && (
-                    <th className="px-4 py-3 text-right text-txt-muted font-medium hidden lg:table-cell">
-                      Gaps
-                    </th>
-                  )}
-                  <th className="px-4 py-3 text-left text-txt-muted font-medium hidden lg:table-cell">
-                    Letztes Update
-                  </th>
-                  <th className="px-4 py-3 text-right text-txt-muted font-medium w-20">
-                    Link
-                  </th>
+                  <th className="px-4 py-3 text-left text-txt-muted font-medium hidden lg:table-cell">Kategorie</th>
+                  <th className="px-4 py-3 text-left text-txt-muted font-medium hidden lg:table-cell">Letztes Update</th>
+                  <th className="px-4 py-3 text-right text-txt-muted font-medium w-20">Link</th>
                 </tr>
               </thead>
               <tbody>
@@ -631,15 +614,24 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
                             SKU: {listing.sku}
                           </div>
                         )}
-                        {listing.errors && listing.errors.length > 0 && (
-                          <div className="text-xs text-danger mt-0.5 truncate max-w-[320px]">
-                            {listing.errors[0]}
-                          </div>
-                        )}
                       </td>
                       <td className="px-4 py-3 hidden md:table-cell">
                         <span className="text-txt-secondary text-xs font-mono">
                           {listing.id}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-right hidden sm:table-cell">
+                        <span className="text-txt-primary font-medium">
+                          {formatPrice(listing.price, listing.currency)}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-right hidden sm:table-cell">
+                        <span className={`font-medium ${
+                          listing.quantity != null && listing.quantity <= 0 ? "text-danger" :
+                          listing.quantity != null && listing.quantity <= 3 ? "text-warning" :
+                          "text-txt-primary"
+                        }`}>
+                          {listing.quantity != null ? listing.quantity : "—"}
                         </span>
                       </td>
                       <td className="px-4 py-3">
@@ -649,35 +641,11 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
                           {statusCfg.label}
                         </span>
                       </td>
-                      {marketplace === "ebay" && (
-                        <td className="px-4 py-3 hidden lg:table-cell">
-                          {listing.matchStatus && (
-                            <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${
-                              listing.matchStatus === "matched"
-                                ? "bg-success-dim text-success"
-                                : listing.matchStatus === "ambiguous"
-                                ? "bg-warning-dim text-warning"
-                                : "bg-app-elevated text-txt-muted"
-                            }`}>
-                              {listing.matchStatus === "matched" ? "Zugeordnet" : listing.matchStatus === "ambiguous" ? "Mehrdeutig" : "Nicht zugeordnet"}
-                            </span>
-                          )}
-                        </td>
-                      )}
-                      {marketplace === "ebay" && (
-                        <td className="px-4 py-3 text-right hidden lg:table-cell">
-                          {(listing.gapCount ?? 0) > 0 ? (
-                            <span className={`text-xs font-medium ${(listing.gapCriticalCount ?? 0) > 0 ? "text-danger" : "text-warning"}`}>
-                              {listing.gapCount}
-                              {(listing.gapCriticalCount ?? 0) > 0 && (
-                                <span className="text-danger"> ({listing.gapCriticalCount} krit.)</span>
-                              )}
-                            </span>
-                          ) : (
-                            <span className="text-xs text-txt-muted">0</span>
-                          )}
-                        </td>
-                      )}
+                      <td className="px-4 py-3 hidden lg:table-cell">
+                        <span className="text-txt-secondary text-xs truncate max-w-[150px] inline-block">
+                          {listing.category || "—"}
+                        </span>
+                      </td>
                       <td className="px-4 py-3 text-xs text-txt-muted hidden lg:table-cell whitespace-nowrap">
                         {formatRelativeTime(listing.lastSync)}
                       </td>

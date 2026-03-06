@@ -484,7 +484,7 @@ const AdminTableFilters: React.FC<AdminTableFiltersProps> = ({
             {onBulkImprove ? (
               <>
                 <div className="my-1.5 border-t border-app-border/60" />
-                <div className="px-2.5 pt-1 pb-1 text-[10px] uppercase tracking-wider font-semibold text-violet-400/80">
+                <div className="px-2.5 pt-1 pb-1 text-[10px] uppercase tracking-wider font-semibold text-txt-muted">
                   KI
                 </div>
                 <button

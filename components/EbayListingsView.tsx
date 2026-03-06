@@ -1583,7 +1583,7 @@ export const EbayListingsView: React.FC = () => {
                     <span className="rounded border border-amber-700/70 px-1.5 py-0.5 text-amber-200">
                       Unterschiedlich: {specificsStats.different}
                     </span>
-                    <span className="rounded border border-violet-700/70 px-1.5 py-0.5 text-violet-200">
+                    <span className="rounded border border-app-border px-1.5 py-0.5 text-txt-secondary">
                       Nicht eBay-Attribut: {specificsStats.not_applicable}
                     </span>
                     <span className="rounded-lg border border-app-border px-1.5 py-0.5 text-txt-primary">
@@ -1652,7 +1652,7 @@ export const EbayListingsView: React.FC = () => {
                                     : row.status === 'missing_avy'
                                       ? 'border-app-border text-txt-primary'
                                       : row.status === 'not_applicable'
-                                        ? 'border-violet-600/70 text-violet-200'
+                                        ? 'border-app-border text-txt-secondary'
                                       : 'border-amber-600/70 text-amber-200'
                               }`}
                             >
