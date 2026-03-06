@@ -120,7 +120,7 @@ function normalizeKauflandRow(row: KauflandListingRow): NormalizedListing {
     status,
     category: row.category || null,
     viewItemUrl: row.viewItemUrl || null,
-    lastSync: null,
+    lastSync: row.updatedAt || null,
     imageUrl: row.imageUrl || null,
   };
 }

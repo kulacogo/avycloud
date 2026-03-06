@@ -12,22 +12,27 @@
 > - "Demnächst verfügbar" / "Coming Soon" ist VERBOTEN in der UI
 > - **Bestehende Fake-Views (mit Mock-Daten) MÜSSEN auf echte API-Calls umgebaut werden**
 
-> **⚠️ AKTUELLER ZUSTAND (Stand 2026-03-06 18:00): LIVE-AUDIT DURCHGEFÜHRT — APP NICHT PRODUKTIONSREIF**
+> **⚠️ AKTUELLER ZUSTAND (Stand 2026-03-06 19:00): NACH CLAUDE-CODE-FIX-RUNDE**
 >
-> **Funktioniert vollständig (6/17):** Dashboard (teilw.), Produktdaten, Bestellungen, Lagerverwaltung, Mitarbeiter & Rollen, Plan & Abrechnung
+> **Gefixt in letzter Runde:** AUDIT-001 (React.lazy→Direct Imports), AUDIT-006 (Dashboard Sync), AUDIT-008 (Sidebar verified), AUDIT-011 (Theme-Switch), AUDIT-013 (Empty States)
 >
-> **Crashes/Index-Fehler (5/17):** Inventar (Chunk-Error), Erfassen (Chunk-Error), Retouren (Firestore-Index), Versand (Firestore-Index), Rechnungen (Firestore-Index), API-Keys (Firestore-Index)
+> **NOCH OFFEN — KRITISCH:**
+> - AUDIT-002: Firestore Composite Indexes fehlen → Retouren, Versand, Rechnungen, API-Keys kaputt (→ Sprint 3, Block 0: firestore.indexes.json + deploy)
+> - AUDIT-003: eBay Listings — Kategorie/Update/Link leer (Backend-Enrichment)
+> - AUDIT-004: Kaufland Listings — Preis/Bestand/Status/Kategorie leer (Backend-Enrichment)
+> - AUDIT-005: eBay zeigt "Nicht verbunden" auf Integrationen-Seite
+> - AUDIT-010: Farbschema Lila → Blau umstellen
+> - AUDIT-012: Badge-Semantik + Tabellen-Konsistenz
+> - UX-Cross-Check: Typografie, Spacing, Animationen, ProductSheet HTML-Rendering
 >
-> **Halb kaputt / Daten fehlen (6/17):** eBay Listings (Kategorie/Update/Link leer), Kaufland Listings (Preis/Bestand/Status leer), Integrationen (eBay "Nicht verbunden"-Widerspruch), Dashboard Marketplace-Sync (leer), Persönliche Daten (Theme-Switch kaputt), Unternehmensdaten (funktioniert aber FAKE-Daten)
->
-> **→ Siehe LIVE-AUDIT Sektion für Details (AUDIT-001 bis AUDIT-013)**
+> **→ NÄCHSTER SPRINT: Siehe Claude-Code-Prompt unten**
 >
 > **Backend:** 100+ API-Funktionen in `api/client.ts`. 5 neue Backend-Routes: `settings.js`, `integrations.js`, `returns.js`, `invoices.js` + Erweiterungen in `orders.js`, `warehouse.js`.
 > Alle neuen Collections mit `tenantId` (MT-ready).
 >
 > **✅ Phase 5 (Stock-Sync) ABGESCHLOSSEN (2026-03-06):** Reservierungen, Multi-Channel Sync (eBay+Kaufland), Preis-Sync, Dashboard Widget.
 >
-> **→ NÄCHSTE PRIORITÄT: AUDIT-001 + AUDIT-002 fixen (Crashes + Firestore Indexes), dann AUDIT-003/004 (Marketplace-Daten), dann UI/UX (AUDIT-010ff).**
+> **→ NÄCHSTE PRIORITÄT: AUDIT-003/004 (Marketplace-Enrichment), AUDIT-010 (Farbe Lila→Blau), UX-Fixes (Typografie, Badges, HTML-Rendering, Animationen). AUDIT-002 (Firestore Indexes) MANUELL in Firebase Console.**
 
 ---
 

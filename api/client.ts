@@ -1117,6 +1117,7 @@ export interface KauflandListingRow {
   quantity: number | null;
   idProduct: number | null;
   viewItemUrl: string | null;
+  updatedAt: string | null;
   productId: string | null;
   title: string | null;
   brand: string | null;

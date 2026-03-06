@@ -804,6 +804,11 @@ router.post('/kaufland/listings/sync', requirePermission('products', 'write'), a
       const productUrl = String(product?.url || '').trim();
       const viewItemUrl = productUrl || (normalizedIdProduct ? `https://www.kaufland.de/product/${normalizedIdProduct}/` : null);
 
+      // Extract title and price from Kaufland API response
+      const klTitle = typeof product?.title === 'string' && product.title.trim() ? product.title.trim() : null;
+      const rawPrice = unit?.listing_price ?? unit?.price ?? null;
+      const klListingPrice = Number.isFinite(Number(rawPrice)) ? Number(rawPrice) : null;
+
       const payload = {
         id_unit: idUnit,
         id_offer: String(unit?.id_offer || '').trim() || null,
@@ -816,6 +821,8 @@ router.post('/kaufland/listings/sync', requirePermission('products', 'write'), a
         status: String(unit?.status || '').trim() || null,
         storefront: String(unit?.storefront || storefront || 'de').trim().toLowerCase(),
         active: String(unit?.status || '').trim().toUpperCase() === 'AVAILABLE',
+        title: klTitle,
+        listing_price: klListingPrice,
         updatedAt: now,
         source: 'kaufland-sync',
       };
@@ -961,6 +968,10 @@ router.get('/kaufland/listings', requirePermission('products', 'read'), async (r
       const klTitle = typeof d.title === 'string' ? d.title : null;
       const klPrice = Number.isFinite(Number(d.listing_price)) ? Number(d.listing_price) / 100 : null;
 
+      // updatedAt for "Letztes Update" column
+      const updatedAtRaw = d.updatedAt;
+      const updatedAtIso = updatedAtRaw?.toDate?.()?.toISOString?.() || (typeof updatedAtRaw === 'string' ? updatedAtRaw : null);
+
       rows.push({
         idUnit: doc.id,
         sku: unitSku || null,
@@ -970,6 +981,7 @@ router.get('/kaufland/listings', requirePermission('products', 'read'), async (r
         quantity: Number.isFinite(Number(d.amount)) ? Number(d.amount) : null,
         idProduct: Number.isFinite(Number(d.id_product)) ? Number(d.id_product) : null,
         viewItemUrl: d.view_item_url || null,
+        updatedAt: updatedAtIso,
         // Enriched product data (AvyCloud match → Kaufland data fallback)
         productId: matched?.id || null,
         title: matched?.identification?.name || klTitle || null,
