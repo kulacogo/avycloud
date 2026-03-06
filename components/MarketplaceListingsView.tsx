@@ -43,7 +43,7 @@ interface NormalizedListing {
 
 const STATUS_CONFIG: Record<ListingStatus, { label: string; bg: string; text: string }> = {
   active: { label: "Aktiv", bg: "bg-success-dim", text: "text-success" },
-  inactive: { label: "Inaktiv", bg: "bg-warning-dim", text: "text-warning" },
+  inactive: { label: "Inaktiv", bg: "bg-app-elevated", text: "text-txt-muted" },
   unknown: { label: "Unbekannt", bg: "bg-app-elevated", text: "text-txt-muted" },
 };
 
