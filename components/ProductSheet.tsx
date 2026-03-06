@@ -1424,6 +1424,36 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                   </div>
                 )}
               </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-txt-secondary mb-1">MPN</label>
+                  {isEditing ? (
+                    <input
+                      value={localProduct.details?.identifiers?.mpn || ''}
+                      onChange={(e) => handleFieldChange('details.identifiers.mpn', e.target.value)}
+                      placeholder="Herstellerteilenr."
+                      className="w-full text-sm bg-app-elevated border border-app-border rounded-lg px-3 py-2 outline-none focus:border-accent font-mono"
+                    />
+                  ) : (
+                    <p className="text-sm text-txt-primary font-mono">{localProduct.details?.identifiers?.mpn || '—'}</p>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-txt-secondary mb-1">Gewicht (kg)</label>
+                  {isEditing ? (
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={localProduct.details?.attributes?.['Gewicht'] ?? ''}
+                      onChange={(e) => handleFieldChange('details.attributes.Gewicht', e.target.value || null)}
+                      placeholder="z.B. 2.5"
+                      className="w-full text-sm bg-app-elevated border border-app-border rounded-lg px-3 py-2 outline-none focus:border-accent font-mono"
+                    />
+                  ) : (
+                    <p className="text-sm text-txt-primary font-mono">{localProduct.details?.attributes?.['Gewicht'] ? `${localProduct.details.attributes['Gewicht']} kg` : '—'}</p>
+                  )}
+                </div>
+              </div>
             </div>
           </section>
 
@@ -1649,29 +1679,39 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
           <h3 className="text-sm font-semibold text-txt-muted uppercase tracking-wide mb-4">Listing-Status</h3>
           <div className="space-y-3">
             {/* eBay */}
-            <div className="flex items-center justify-between rounded-lg border border-app-border bg-app-bg/60 px-4 py-3">
-              <div className="flex items-center gap-3">
+            <div className="rounded-lg border border-app-border bg-app-bg/60 px-4 py-3">
+              <div className="flex items-center justify-between">
                 <span className="text-sm font-semibold text-txt-primary">eBay</span>
+                {(localProduct as any)?.ops?.listingStatus?.ebay === 'active' ? (
+                  <span className="inline-flex items-center rounded-full bg-success-dim px-3 py-1 text-xs font-semibold text-success">Gelistet</span>
+                ) : (localProduct as any)?.ops?.listingStatus?.ebay === 'inactive' ? (
+                  <span className="inline-flex items-center rounded-full bg-warning-dim px-3 py-1 text-xs font-semibold text-warning">Inaktiv</span>
+                ) : (
+                  <span className="text-xs text-txt-muted">Nicht gelistet</span>
+                )}
               </div>
-              {(localProduct as any)?.ops?.listingStatus?.ebay === 'active' ? (
-                <span className="inline-flex items-center rounded-full bg-success-dim px-3 py-1 text-xs font-semibold text-success">Gelistet</span>
-              ) : (localProduct as any)?.ops?.listingStatus?.ebay === 'inactive' ? (
-                <span className="inline-flex items-center rounded-full bg-warning-dim px-3 py-1 text-xs font-semibold text-warning">Inaktiv</span>
-              ) : (
-                <span className="text-xs text-txt-muted">Nicht gelistet</span>
+              {((localProduct as any)?.ops?.ebay?.itemId || (localProduct as any)?.ops?.ebay?.item_id) && (
+                <div className="mt-2 text-xs text-txt-muted">
+                  Item-ID: <span className="font-mono text-txt-secondary">{(localProduct as any).ops.ebay.itemId || (localProduct as any).ops.ebay.item_id}</span>
+                </div>
               )}
             </div>
             {/* Kaufland */}
-            <div className="flex items-center justify-between rounded-lg border border-app-border bg-app-bg/60 px-4 py-3">
-              <div className="flex items-center gap-3">
+            <div className="rounded-lg border border-app-border bg-app-bg/60 px-4 py-3">
+              <div className="flex items-center justify-between">
                 <span className="text-sm font-semibold text-txt-primary">Kaufland</span>
+                {(localProduct as any)?.ops?.listingStatus?.kaufland === 'active' ? (
+                  <span className="inline-flex items-center rounded-full bg-success-dim px-3 py-1 text-xs font-semibold text-success">Gelistet</span>
+                ) : (localProduct as any)?.ops?.listingStatus?.kaufland === 'inactive' ? (
+                  <span className="inline-flex items-center rounded-full bg-warning-dim px-3 py-1 text-xs font-semibold text-warning">Inaktiv</span>
+                ) : (
+                  <span className="text-xs text-txt-muted">Nicht gelistet</span>
+                )}
               </div>
-              {(localProduct as any)?.ops?.listingStatus?.kaufland === 'active' ? (
-                <span className="inline-flex items-center rounded-full bg-success-dim px-3 py-1 text-xs font-semibold text-success">Gelistet</span>
-              ) : (localProduct as any)?.ops?.listingStatus?.kaufland === 'inactive' ? (
-                <span className="inline-flex items-center rounded-full bg-warning-dim px-3 py-1 text-xs font-semibold text-warning">Inaktiv</span>
-              ) : (
-                <span className="text-xs text-txt-muted">Nicht gelistet</span>
+              {((localProduct as any)?.ops?.kaufland?.unitId || (localProduct as any)?.ops?.kaufland?.id_unit) && (
+                <div className="mt-2 text-xs text-txt-muted">
+                  Unit-ID: <span className="font-mono text-txt-secondary">{(localProduct as any).ops.kaufland.unitId || (localProduct as any).ops.kaufland.id_unit}</span>
+                </div>
               )}
             </div>
             {/* BaseLinker */}
