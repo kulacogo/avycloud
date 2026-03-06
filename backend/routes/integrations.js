@@ -13,14 +13,23 @@ router.get('/integrations/status', async (req, res) => {
     const results = [];
 
     // eBay — check OAuth integration doc in Firestore
-    const ebayDoc = await getEbayIntegration().catch(() => null);
+    const ebayDoc = await getEbayIntegration().catch((err) => {
+      console.warn(`[integrations/status] eBay check failed: ${err.message}`);
+      return null;
+    });
     const ebayStatus = publicStatus(ebayDoc);
+    // Fallback: if OAuth doc not found, check if eBay client credentials exist (API key auth)
+    let ebayConnected = ebayStatus.connected;
+    if (!ebayConnected) {
+      const ebaySecret = await getSecretValue('EBAY_CLIENT_SECRET').catch(() => null);
+      if (ebaySecret) ebayConnected = true;
+    }
     results.push({
       id: 'ebay',
       name: 'eBay',
       description: 'Online-Marktplatz für Auktionen und Sofortkauf',
       category: 'marketplaces',
-      status: ebayStatus.connected ? 'connected' : 'not_connected',
+      status: ebayConnected ? 'connected' : 'not_connected',
       connectedAt: ebayStatus.connectedAt || null,
       updatedAt: ebayStatus.updatedAt || null,
       lastRefreshedAt: ebayStatus.lastRefreshedAt || null,
