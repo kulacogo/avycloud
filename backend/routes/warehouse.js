@@ -405,6 +405,13 @@ router.post('/stock-in', requirePermission('warehouse', 'write'), async (req, re
     });
     if (result?.product) {
       _backgroundSyncProductStockToBaseLinker(result.product, 'stock-in');
+      // Multi-channel stock push (eBay + Kaufland) — best-effort
+      const tenantId = req.user?.tenantId || 'default';
+      setTimeout(() => {
+        const { syncStockToAllChannels } = require('../services/stock-sync-dispatcher');
+        syncStockToAllChannels({ tenantId, product: result.product, reason: 'stock-in' })
+          .catch((err) => console.warn('[stock-sync] dispatch failed:', err?.message || err));
+      }, 0);
     }
     res.json({ ok: true, data: result });
   } catch (error) {
@@ -442,6 +449,21 @@ router.post('/stock-out', requirePermission('warehouse', 'write'), async (req, r
     });
     if (result?.product) {
       _backgroundSyncProductStockToBaseLinker(result.product, 'stock-out');
+      // Multi-channel stock push (eBay + Kaufland) — best-effort, never block response
+      const tenantId = req.user?.tenantId || 'default';
+      setTimeout(() => {
+        const { syncStockToAllChannels } = require('../services/stock-sync-dispatcher');
+        syncStockToAllChannels({ tenantId, product: result.product, reason: 'stock-out' })
+          .then((r) => {
+            const channels = r.results.filter((c) => c.status === 'success').map((c) => c.channel);
+            if (channels.length) {
+              console.log(`[stock-sync] pushed to ${channels.join(',')} for product=${result.product.id}`);
+            }
+          })
+          .catch((err) => {
+            console.warn('[stock-sync] dispatch failed:', err?.message || err);
+          });
+      }, 0);
     }
     res.json({ ok: true, data: result });
   } catch (error) {

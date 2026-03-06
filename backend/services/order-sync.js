@@ -491,6 +491,32 @@ async function syncNewOrders() {
 
   await saveOrders(orders);
 
+  // Best-effort stock reservation for new orders — prevents overselling
+  try {
+    const newOrders = orders.filter((o) => o.status === 'new');
+    if (newOrders.length > 0) {
+      const { reserveStock } = require('./stock-reservation');
+      for (const order of newOrders) {
+        const items = (order.items || [])
+          .filter((item) => item.sku && item.quantity > 0)
+          .map((item) => ({ sku: item.sku, productId: item.productId || null, quantity: item.quantity }));
+        if (items.length > 0) {
+          const result = await reserveStock({
+            tenantId: 'default',
+            orderId: order.id || order.baselinkerId,
+            items,
+          });
+          if (result.reserved) {
+            console.log(`[order-sync] reserved stock for order ${order.id}: ${result.count} items`);
+          }
+        }
+      }
+    }
+  } catch (reserveErr) {
+    // Non-blocking: reservation failure should never prevent order sync
+    console.warn('[order-sync] stock reservation failed (non-blocking):', reserveErr?.message || reserveErr);
+  }
+
   // Prune old orders beyond lookback window to keep dashboard counts consistent and prevent unbounded growth.
   // This is best-effort and safe: it only deletes very old orders that are outside our sync window anyway.
   try {

@@ -553,9 +553,15 @@ function buildReviseItemRequestXml(callName, patch, cfg) {
     itemFields.push(`<StartPrice currencyID="${escapeXml(currency)}">${startPrice.toFixed(2)}</StartPrice>`);
   }
 
+  // Quantity update — sets total available quantity for the listing
+  const quantity = parseInt(patch?.quantity, 10);
+  if (Number.isFinite(quantity) && quantity >= 0) {
+    itemFields.push(`<Quantity>${quantity}</Quantity>`);
+  }
+
   if (itemFields.length <= 1) {
     const error = new Error(
-      'No revisable fields provided. Expected category/title/subtitle/description/itemSpecifics/pictureUrls/startPrice.'
+      'No revisable fields provided. Expected category/title/subtitle/description/itemSpecifics/pictureUrls/startPrice/quantity.'
     );
     error.code = 'EBAY_REVISE_FIELDS_MISSING';
     throw error;

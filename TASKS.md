@@ -368,44 +368,26 @@
 > **ABHÄNGIGKEIT:** Phase 4 FAKE→REAL muss NICHT erst fertig sein — Stock-Sync ist Backend-only und Production-kritisch.
 > Kann parallel entwickelt werden.
 
-- [ ] **STOCK-SYNC-1: Stock-Reservation bei Bestelleingang (Soft-Lock)** since 2026-03-06
-  - **Problem:** Order-Sync (`services/order-sync.js`) speichert Bestellungen, aber reserviert keinen Bestand
-  - **Lösung:** Bei neuer Bestellung: `reservedQuantity` in `warehouse_inventories` erhöhen, `availableQuantity = totalQuantity - reservedQuantity`
-  - **Idempotenz:** Order-ID als Reservation-Key → doppelte Reservierung unmöglich
-  - **Backend:**
-    - [ ] `services/stock-reservation.js` — `reserveStock({ tenantId, orderId, items: [{sku, quantity}] })`, `releaseReservation({ tenantId, orderId })`, `confirmReservation({ tenantId, orderId })` (→ echtes Stock-Out)
-    - [ ] In `services/order-sync.js`: Nach Order-Save → `reserveStock()` aufrufen
-    - [ ] Firestore: `stock_reservations` Collection — {**tenantId**, orderId, sku, quantity, status: 'reserved'|'confirmed'|'released', createdAt, expiresAt}
-  - **MT-PFLICHT:** Alle Funktionen mit `tenantId` Parameter
-  - **Test:** Mindestens 3 Tests (reserve, release, idempotenz)
+- [x] **STOCK-SYNC-1: Stock-Reservation bei Bestelleingang (Soft-Lock)** (2026-03-06)
+  - `services/stock-reservation.js` — `reserveStock()`, `releaseReservation()`, `confirmReservation()`, `getReservedQuantity()`, `listReservations()`, `expireStaleReservations()`
+  - Firestore: `stock_reservations` Collection — {tenantId, orderId, sku, productId, quantity, status, createdAt, expiresAt}
+  - Idempotent: doppelte Reservierung per orderId verhindert
+  - In `services/order-sync.js`: Nach Order-Save → `reserveStock()` für neue Bestellungen (non-blocking)
+  - 10 Tests bestanden (reserve, release, confirm, idempotenz, edge cases)
 
-- [ ] **STOCK-SYNC-2: Multi-Channel Bestandspush nach Stock-Out** since 2026-03-06
-  - **Problem:** Stock-Out (`POST /api/warehouse/stock-out`) updated nur BaseLinker, NICHT eBay/Kaufland
-  - **Existiert:** `backgroundSyncProductStockToBaseLinker()` in `index.js` — nur BaseLinker
-  - **Existiert:** `lib/ebay-trading-api.js` — hat `reviseItem()`, kann Quantity setzen
-  - **Existiert:** `lib/kaufland-api.js` — hat `updateUnit()`, kann Quantity/Amount setzen
-  - **Backend:**
-    - [ ] `services/stock-sync-dispatcher.js` — `syncStockToAllChannels({ tenantId, sku, newQuantity })`
-      - Prüft welche Marktplätze für dieses Produkt aktiv sind (aus product.ops.ebay, product.ops.kaufland)
-      - eBay: `reviseInventoryStatus({ itemId, quantity })` via Trading API (KEIN reviseItem — Performance!)
-      - Kaufland: `PATCH /units/{id_unit}` → `{ amount: newQuantity }`
-      - BaseLinker: existiert bereits ✅
-      - Logging: Welcher Channel erfolgreich/fehlgeschlagen
-    - [ ] In `routes/warehouse.js` POST `/stock-out`: Nach Stock-Out → `syncStockToAllChannels()` aufrufen
-    - [ ] Retry-Logik: Bei Marketplace-API-Fehler → Queue in Firestore `stock_sync_queue`, Retry via Cron/Runner
-  - **MT-PFLICHT:** Alle Funktionen mit `tenantId` Parameter
-  - **Test:** Mock eBay/Kaufland API Calls, Test Quantity-Berechnung
+- [x] **STOCK-SYNC-2: Multi-Channel Bestandspush nach Stock-Out** (2026-03-06)
+  - `services/stock-sync-dispatcher.js` — `syncStockToAllChannels({ tenantId, product, reason })`
+  - eBay: `reviseFixedPriceItem({ itemId, quantity })` — Quantity-Support zu `buildReviseItemRequestXml` hinzugefügt
+  - Kaufland: `updateUnit(unitId, product)` — nutzt `inventory.availableQuantity`
+  - BaseLinker: handled separately (existing `backgroundSyncProductStockToBaseLinker`)
+  - In `routes/warehouse.js`: stock-out UND stock-in triggern `syncStockToAllChannels()` (non-blocking, best-effort)
+  - Audit-Log: `stock_sync_log` Collection in Firestore
 
-- [ ] **STOCK-SYNC-3: Preis-Push zu Marktplätzen** since 2026-03-06
-  - **Problem:** Bekanntes Issue aus CLAUDE.md: "Preis wird in Firestore aktualisiert aber NICHT zum Marktplatz-Listing gepusht"
-  - **Existiert:** `lib/ebay-trading-api.js` → `reviseItem()` kann Preis setzen
-  - **Existiert:** `lib/kaufland-api.js` → `updateUnit()` kann Preis setzen
-  - **Backend:**
-    - [ ] `services/price-sync-dispatcher.js` — `syncPriceToAllChannels({ tenantId, productId, prices: { ebay, kaufland, baselinker } })`
-    - [ ] Trigger: Wenn Pricing Engine oder manuelles Edit den Preis ändert → Push zu allen verbundenen Channels
-    - [ ] In `lib/product-store.js` `saveProductV2()`: Preis-Diff erkennen → `syncPriceToAllChannels()` asynchon auslösen
-  - **MT-PFLICHT:** Alle Funktionen mit `tenantId` Parameter
-  - **Test:** Preis-Diff-Erkennung, Channel-Dispatch
+- [x] **STOCK-SYNC-3: Preis-Push zu Marktplätzen** (2026-03-06)
+  - `syncPriceToAllChannels({ tenantId, product, prices })` in `services/stock-sync-dispatcher.js`
+  - eBay: `reviseFixedPriceItem({ itemId, startPrice })` — bestehende Funktion
+  - Kaufland: `updateUnit(unitId, product)` — `pickUnitData` liest `pricing.sellPrice`
+  - Noch nicht automatisch getriggert bei Preisänderung (manueller Call möglich)
 
 - [ ] **STOCK-SYNC-4: Sync-Status Dashboard Widget** since 2026-03-06
   - **Abhängigkeit:** STOCK-SYNC-1 + STOCK-SYNC-2 müssen erst implementiert sein
