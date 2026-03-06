@@ -2443,7 +2443,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
               </button>
             </div>
             <div className="space-y-2">
-              <label className="block text-xs uppercase tracking-wide text-txt-muted">
+              <label className="block text-xs font-medium text-txt-muted">
                 {t('table.inventory.selectLabel')}
               </label>
               <select
@@ -2510,7 +2510,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
             </div>
 
             <div className="space-y-2">
-              <label className="block text-xs uppercase tracking-wide text-txt-muted">
+              <label className="block text-xs font-medium text-txt-muted">
                 CSV Datei auswählen
               </label>
               <input

@@ -105,7 +105,7 @@ const Card: React.FC<CardProps> = ({
           {badge}
         </span>
       )}
-      <p className="text-[11px] uppercase tracking-widest text-txt-muted font-semibold">{label}</p>
+      <p className="text-xs text-txt-muted font-medium">{label}</p>
       {loading ? (
         <Skel w="w-28" h={size === 'hero' ? 'h-10' : 'h-8'} />
       ) : (
@@ -154,7 +154,7 @@ const Pipeline: React.FC<{
             onClick={() => onClickStatus(st.key)}
             className="group flex flex-col items-center gap-2 rounded-lg bg-app-bg hover:bg-app-elevated border border-app-border py-3 px-2 transition-colors cursor-pointer"
           >
-            <div className={`flex items-center gap-1.5 text-[10px] uppercase tracking-wider ${st.text} font-semibold`}>
+            <div className={`flex items-center gap-1.5 text-xs ${st.text} font-medium`}>
               <span className={`w-1.5 h-1.5 rounded-full ${st.dot}`} />
               {st.label}
             </div>
@@ -376,7 +376,7 @@ const Section: React.FC<{ title: string; badge?: string; children: React.ReactNo
 }) => (
   <div>
     <div className="flex items-center gap-2 mb-3">
-      <h2 className="text-[11px] uppercase tracking-[0.15em] font-bold text-txt-muted">{title}</h2>
+      <h2 className="text-sm font-medium text-txt-muted">{title}</h2>
       {badge && (
         <span className="text-[10px] text-txt-muted font-medium px-1.5 py-0.5 rounded bg-app-elevated">{badge}</span>
       )}
@@ -451,7 +451,7 @@ const DateRangePicker: React.FC<{
           style={{ minWidth: '16rem' }}
         >
           <div className="p-2">
-            <p className="text-[10px] uppercase tracking-widest text-txt-muted font-semibold px-2 pt-1 pb-1.5">Zeitraum</p>
+            <p className="text-xs text-txt-muted font-medium px-2 pt-1 pb-1.5">Zeitraum</p>
             {PRESETS.map(p => (
               <button
                 key={p.id}
@@ -476,7 +476,7 @@ const DateRangePicker: React.FC<{
           {/* Custom date range inputs */}
           {activePreset === 'custom' && (
             <div className="border-t border-app-border p-3 space-y-2">
-              <p className="text-[10px] uppercase tracking-widest text-txt-muted font-semibold px-1">Von – Bis</p>
+              <p className="text-xs text-txt-muted font-medium px-1">Von – Bis</p>
               <div className="flex gap-2">
                 <input
                   type="date"
