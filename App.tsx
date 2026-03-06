@@ -15,51 +15,26 @@ import MobileTabBar from './components/MobileTabBar';
 import ProductsPageHeader from './components/ProductsPageHeader';
 
 import ProductSheet from './components/ProductSheet';
-// ─── Lazy-loaded view components (route-based code splitting) ─────────────────
-const AdminTable = React.lazy(() => import('./components/AdminTable'));
-const WarehouseView = React.lazy(() => import('./components/WarehouseView'));
-const Dashboard = React.lazy(() => import('./components/Dashboard'));
-const DashboardMobile = React.lazy(() => import('./components/DashboardMobile'));
-const OperationsView = React.lazy(() => import('./components/OperationsView'));
-const MobileOperationsView = React.lazy(() => import('./components/MobileOperationsView'));
-const CategoryManagement = React.lazy(() =>
-  import('./components/CategoryManagement').then(m => ({ default: m.CategoryManagement }))
-);
-const AdminPanel = React.lazy(() =>
-  import('./components/admin/AdminPanel').then(m => ({ default: m.AdminPanel }))
-);
-const OrdersView = React.lazy(() => import('./components/OrdersView'));
-const MarketplaceListingsView = React.lazy(() => import('./components/MarketplaceListingsView'));
-const IntegrationsHub = React.lazy(() =>
-  import('./components/IntegrationsHub').then(m => ({ default: m.IntegrationsHub }))
-);
-const ReturnsView = React.lazy(() =>
-  import('./components/orders/ReturnsView').then(m => ({ default: m.ReturnsView }))
-);
-const ShippingView = React.lazy(() =>
-  import('./components/orders/ShippingView').then(m => ({ default: m.ShippingView }))
-);
-const InvoicesView = React.lazy(() =>
-  import('./components/orders/InvoicesView').then(m => ({ default: m.InvoicesView }))
-);
-const OrderSettingsView = React.lazy(() =>
-  import('./components/orders/OrderSettingsView').then(m => ({ default: m.OrderSettingsView }))
-);
-const WarehouseSettingsView = React.lazy(() =>
-  import('./components/warehouse/WarehouseSettingsView').then(m => ({ default: m.WarehouseSettingsView }))
-);
-const CompanySettings = React.lazy(() =>
-  import('./components/settings/CompanySettings').then(m => ({ default: m.CompanySettings }))
-);
-const ProfileSettings = React.lazy(() =>
-  import('./components/settings/ProfileSettings').then(m => ({ default: m.ProfileSettings }))
-);
-const ApiSettings = React.lazy(() =>
-  import('./components/settings/ApiSettings').then(m => ({ default: m.ApiSettings }))
-);
-const BillingSettings = React.lazy(() =>
-  import('./components/settings/BillingSettings').then(m => ({ default: m.BillingSettings }))
-);
+import AdminTable from './components/AdminTable';
+import WarehouseView from './components/WarehouseView';
+import Dashboard from './components/Dashboard';
+import DashboardMobile from './components/DashboardMobile';
+import OperationsView from './components/OperationsView';
+import MobileOperationsView from './components/MobileOperationsView';
+import { CategoryManagement } from './components/CategoryManagement';
+import { AdminPanel } from './components/admin/AdminPanel';
+import OrdersView from './components/OrdersView';
+import MarketplaceListingsView from './components/MarketplaceListingsView';
+import { IntegrationsHub } from './components/IntegrationsHub';
+import { ReturnsView } from './components/orders/ReturnsView';
+import { ShippingView } from './components/orders/ShippingView';
+import { InvoicesView } from './components/orders/InvoicesView';
+import { OrderSettingsView } from './components/orders/OrderSettingsView';
+import { WarehouseSettingsView } from './components/warehouse/WarehouseSettingsView';
+import { CompanySettings } from './components/settings/CompanySettings';
+import { ProfileSettings } from './components/settings/ProfileSettings';
+import { ApiSettings } from './components/settings/ApiSettings';
+import { BillingSettings } from './components/settings/BillingSettings';
 import { fetchOrders, fetchProducts, refreshPrice } from './api/client';
 import { useI18n } from './i18n';
 import { addMediaQueryListener } from './utils/mediaQuery';
@@ -1010,7 +985,7 @@ const AppInner: React.FC = () => {
       case 'settings':
         return <CompanySettings />;
       case 'settings-profile':
-        return <ProfileSettings />;
+        return <ProfileSettings appTheme={theme} onThemeChange={setTheme} />;
       case 'settings-team':
         if (!(
           hasPermission('admin', 'users.read') ||
@@ -1063,11 +1038,7 @@ const AppInner: React.FC = () => {
         </div>
       );
     }
-    return (
-      <React.Suspense fallback={<div className="flex justify-center py-16"><Spinner className="w-8 h-8" /></div>}>
-        {renderView()}
-      </React.Suspense>
-    );
+    return renderView();
   };
 
   return (

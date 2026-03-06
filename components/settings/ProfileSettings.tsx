@@ -35,16 +35,33 @@ const notificationOptions: NotificationOption[] = [
 
 type ThemeOption = "light" | "dark" | "system";
 
-export const ProfileSettings: React.FC = () => {
+interface ProfileSettingsProps {
+  appTheme?: "light" | "dark";
+  onThemeChange?: (theme: "light" | "dark") => void;
+}
+
+export const ProfileSettings: React.FC<ProfileSettingsProps> = ({ appTheme, onThemeChange }) => {
   const [vorname, setVorname] = useState("");
   const [nachname, setNachname] = useState("");
   const [email, setEmail] = useState("");
   const [notifications, setNotifications] = useState<Record<string, boolean>>({});
-  const [theme, setTheme] = useState<ThemeOption>("system");
+  const [theme, setLocalTheme] = useState<ThemeOption>(appTheme || "system");
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
+
+  const handleThemeChange = useCallback((value: ThemeOption) => {
+    setLocalTheme(value);
+    if (onThemeChange) {
+      if (value === "system") {
+        const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+        onThemeChange(prefersDark ? "dark" : "light");
+      } else {
+        onThemeChange(value);
+      }
+    }
+  }, [onThemeChange]);
 
   const loadProfile = useCallback(async () => {
     setLoading(true);
@@ -55,7 +72,7 @@ export const ProfileSettings: React.FC = () => {
       if (data.nachname) setNachname(data.nachname);
       if (data.email) setEmail(data.email);
       if (data.notifications) setNotifications(data.notifications);
-      if (data.theme) setTheme(data.theme as ThemeOption);
+      if (data.theme) handleThemeChange(data.theme as ThemeOption);
       // Fallback: use displayName if vorname/nachname not set
       if (!data.vorname && !data.nachname && data.displayName) {
         const parts = data.displayName.split(" ");
@@ -203,7 +220,7 @@ export const ProfileSettings: React.FC = () => {
                 name="theme"
                 value={opt.value}
                 checked={theme === opt.value}
-                onChange={() => setTheme(opt.value)}
+                onChange={() => handleThemeChange(opt.value)}
                 className="sr-only"
               />
               <span

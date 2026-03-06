@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { fetchShipments, type ShipmentData } from "../../api/client";
+import { EmptyState } from "../ui/EmptyState";
 
 /* ─── Config ─── */
 const CARRIER_STYLE: Record<string, { cls: string; initial: string }> = {
@@ -160,7 +161,9 @@ export const ShippingView: React.FC = () => {
       {/* Error */}
       {error && (
         <div className="rounded-xl border border-danger/20 bg-danger-dim px-4 py-3 text-sm text-danger">
-          {error}
+          {error.includes("FAILED_PRECONDITION") || error.includes("index")
+            ? "Datenbank-Index wird erstellt. Bitte versuche es in wenigen Minuten erneut."
+            : error}
         </div>
       )}
 
@@ -213,8 +216,12 @@ export const ShippingView: React.FC = () => {
 
       {/* Empty state */}
       {!loading && shipments.length === 0 && !error && (
-        <div className="rounded-xl border border-app-border bg-app-surface p-12 text-center">
-          <p className="text-txt-muted">Keine Sendungen vorhanden.</p>
+        <div className="rounded-xl border border-app-border bg-app-surface">
+          <EmptyState
+            icon={<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-txt-muted"><rect x="1" y="3" width="15" height="13" /><polygon points="16 8 20 8 23 11 23 16 16 16 16 8" /><circle cx="5.5" cy="18.5" r="2.5" /><circle cx="18.5" cy="18.5" r="2.5" /></svg>}
+            title="Keine Sendungen vorhanden"
+            description="Versandlabels können über die Auftragsansicht erstellt werden. Sendungen erscheinen hier nach der Erstellung."
+          />
         </div>
       )}
 

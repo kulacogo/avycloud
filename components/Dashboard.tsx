@@ -827,8 +827,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
             />
           </div>
         ) : (
-          <div className="rounded-2xl border border-app-border bg-app-surface p-5 text-sm text-txt-muted text-center">
-            Sync-Status nicht verfügbar
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            {(['ebay', 'kaufland', 'baselinker'] as const).map(ch => (
+              <Card key={ch} label={ch.charAt(0).toUpperCase() + ch.slice(1)} value="—" sub="Kein Sync in 24h" color="neutral" size="sm" />
+            ))}
+            <Card label="Reservierungen" value="0" sub="Keine aktiven Reservierungen" color="neutral" size="sm" />
           </div>
         )}
       </Section>

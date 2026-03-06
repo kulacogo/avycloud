@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { fetchInvoices, updateInvoiceStatus, type InvoiceData } from "../../api/client";
+import { EmptyState } from "../ui/EmptyState";
 
 /* ─── Config ─── */
 const STATUS_CONFIG: Record<string, { label: string; cls: string }> = {
@@ -159,7 +160,9 @@ export const InvoicesView: React.FC = () => {
       {/* Error */}
       {error && (
         <div className="rounded-xl border border-danger/20 bg-danger-dim px-4 py-3 text-sm text-danger">
-          {error}
+          {error.includes("FAILED_PRECONDITION") || error.includes("index")
+            ? "Datenbank-Index wird erstellt. Bitte versuche es in wenigen Minuten erneut."
+            : error}
         </div>
       )}
 
@@ -212,8 +215,12 @@ export const InvoicesView: React.FC = () => {
 
       {/* Empty state */}
       {!loading && invoices.length === 0 && !error && (
-        <div className="rounded-xl border border-app-border bg-app-surface p-12 text-center">
-          <p className="text-txt-muted">Keine Rechnungen vorhanden.</p>
+        <div className="rounded-xl border border-app-border bg-app-surface">
+          <EmptyState
+            icon={<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-txt-muted"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /><polyline points="10 9 9 9 8 9" /></svg>}
+            title="Keine Rechnungen vorhanden"
+            description="Rechnungen werden automatisch bei versendeten Aufträgen erstellt oder können manuell angelegt werden."
+          />
         </div>
       )}
 

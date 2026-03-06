@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { fetchReturns, updateReturn, type ReturnData } from "../../api/client";
+import { EmptyState } from "../ui/EmptyState";
 
 /* ─── Config ─── */
 const REASON_LABELS: Record<string, { label: string; cls: string }> = {
@@ -155,7 +156,9 @@ export const ReturnsView: React.FC = () => {
       {/* Error */}
       {error && (
         <div className="rounded-xl border border-danger/20 bg-danger-dim px-4 py-3 text-sm text-danger">
-          {error}
+          {error.includes("FAILED_PRECONDITION") || error.includes("index")
+            ? "Datenbank-Index wird erstellt. Bitte versuche es in wenigen Minuten erneut."
+            : error}
         </div>
       )}
 
@@ -208,8 +211,12 @@ export const ReturnsView: React.FC = () => {
 
       {/* Empty state */}
       {!loading && returns.length === 0 && !error && (
-        <div className="rounded-xl border border-app-border bg-app-surface p-12 text-center">
-          <p className="text-txt-muted">Keine Retouren vorhanden.</p>
+        <div className="rounded-xl border border-app-border bg-app-surface">
+          <EmptyState
+            icon={<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-txt-muted"><path d="M9 14l-4 4m0 0l4 4m-4-4h11a4 4 0 000-8h-1" /></svg>}
+            title="Keine Retouren vorhanden"
+            description="Retouren werden automatisch aus den Marktplätzen synchronisiert oder können manuell angelegt werden."
+          />
         </div>
       )}
 

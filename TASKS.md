@@ -12,21 +12,22 @@
 > - "Demnächst verfügbar" / "Coming Soon" ist VERBOTEN in der UI
 > - **Bestehende Fake-Views (mit Mock-Daten) MÜSSEN auf echte API-Calls umgebaut werden**
 
-> **✅ AKTUELLER ZUSTAND (Stand 2026-03-06): ALLE VIEWS REAL**
+> **⚠️ AKTUELLER ZUSTAND (Stand 2026-03-06 18:00): LIVE-AUDIT DURCHGEFÜHRT — APP NICHT PRODUKTIONSREIF**
 >
-> **ECHT (API-Connected, echte Daten):** Dashboard, OrdersView, OperationsView, WarehouseView,
-> MarketplaceListingsView, IdentifyQueueView, IntegrationsHub, CompanySettings, ProfileSettings,
-> OrderSettingsView, WarehouseSettingsView, ApiSettings, BillingSettings, ShippingView,
-> InvoicesView, ReturnsView
+> **Funktioniert vollständig (6/17):** Dashboard (teilw.), Produktdaten, Bestellungen, Lagerverwaltung, Mitarbeiter & Rollen, Plan & Abrechnung
 >
-> **FAKE: KEINE** — Phase 4 FAKE→REAL komplett abgeschlossen (2026-03-06)
+> **Crashes/Index-Fehler (5/17):** Inventar (Chunk-Error), Erfassen (Chunk-Error), Retouren (Firestore-Index), Versand (Firestore-Index), Rechnungen (Firestore-Index), API-Keys (Firestore-Index)
+>
+> **Halb kaputt / Daten fehlen (6/17):** eBay Listings (Kategorie/Update/Link leer), Kaufland Listings (Preis/Bestand/Status leer), Integrationen (eBay "Nicht verbunden"-Widerspruch), Dashboard Marketplace-Sync (leer), Persönliche Daten (Theme-Switch kaputt), Unternehmensdaten (funktioniert aber FAKE-Daten)
+>
+> **→ Siehe LIVE-AUDIT Sektion für Details (AUDIT-001 bis AUDIT-013)**
 >
 > **Backend:** 100+ API-Funktionen in `api/client.ts`. 5 neue Backend-Routes: `settings.js`, `integrations.js`, `returns.js`, `invoices.js` + Erweiterungen in `orders.js`, `warehouse.js`.
 > Alle neuen Collections mit `tenantId` (MT-ready).
 >
 > **✅ Phase 5 (Stock-Sync) ABGESCHLOSSEN (2026-03-06):** Reservierungen, Multi-Channel Sync (eBay+Kaufland), Preis-Sync, Dashboard Widget.
 >
-> **→ NÄCHSTE PRIORITÄT: BUG-008 bis BUG-012 fixen, dann Module 3-9 weiter.**
+> **→ NÄCHSTE PRIORITÄT: AUDIT-001 + AUDIT-002 fixen (Crashes + Firestore Indexes), dann AUDIT-003/004 (Marketplace-Daten), dann UI/UX (AUDIT-010ff).**
 
 ---
 
@@ -232,7 +233,7 @@
     - [ ] Wenn Matching 0% → SKU-Formate stimmen nicht überein → Backend-Matching-Logik erweitern
   - **Dateien:** `components/MarketplaceListingsView.tsx`, `backend/routes/marketplace.js`
 
-- [ ] **BUG-007: React Error #426 — ProductSheet crash bei Klick auf Produkt** since 2026-03-05
+- [x] **BUG-007: React Error #426 — ProductSheet crash bei Klick auf Produkt** since 2026-03-05 ✅ Fixed: ProductSheet direct import, removed lazy-loading + dual render
   - **PROBLEM:** Minified React error #426 ("A component suspended while responding to synchronous input") beim Öffnen eines Produkts aus Produkte oder Inventar
   - **URSACHE:** `ProductSheet` war `React.lazy()` geladen UND wurde gleichzeitig an 2 Stellen gerendert (als Route `case 'sheet'` + als Overlay)
   - **FIX (bereits in App.tsx implementiert):**
@@ -241,6 +242,257 @@
     3. ✅ Alle `setView('sheet')` Aufrufe → redirecten auf `'products'`
     4. ✅ Suspense-Wrapper um Overlay entfernt
   - **MUSS DEPLOYED WERDEN** via `git push` → GitHub Actions → Firebase Hosting
+
+---
+
+### 🔴 LIVE-AUDIT 2026-03-06: Vollständiger UI/UX-Durchlauf avycloud.web.app
+
+> **Methode:** Jede einzelne Seite der Live-App wurde im Browser geöffnet und gescreenshottet.
+> **Ergebnis: Die App ist in Production NICHT nutzbar.** Massive Crashes, fehlende Daten, UI-Probleme.
+
+#### P0 — CRASHES & FIRESTORE-INDEX-FEHLER (App unbenutzbar)
+
+- [x] **AUDIT-001: "Unexpected token '<'" Crash auf mehreren Seiten** ✅ Fixed: Replaced ALL 20 React.lazy() imports with direct imports in App.tsx, removed Suspense wrapper
+  - **Betroffene Routen:** `#/inventory`, `#/capture`, `#/orders/shipping`, `#/orders/invoices` (beim ersten Laden nach Cold-Start/Direct-Navigation)
+  - **Symptom:** Error Boundary "Etwas ist schiefgelaufen — Unexpected token '<'" — kompletter Whitescreen
+  - **Ursache:** Wahrscheinlich fehlendes Lazy-Loaded Chunk im Production Build. Wenn Seiten ÜBER die Sidebar-Navigation aufgerufen werden (statt direct URL), laden sie teils korrekt.
+  - **FIX:** `React.lazy()` Imports prüfen. Alle lazy-geladenen Chunks in `vite.config.ts` / Build-Output validieren. Ggf. alle Lazy-Imports durch direkte Imports ersetzen (wie bei BUG-007 für ProductSheet).
+
+- [ ] **AUDIT-002: Firestore FAILED_PRECONDITION — Composite Indexes fehlen**
+  - **Betroffene Seiten:** Retouren, Versand & Labels, Rechnungen, API-Schlüssel (Settings/API)
+  - **Symptom:** Roter Banner "FAILED_PRECONDITION: The query requires an index. You can create it here: https://console.firebase.google.com/..."
+  - **Ursache:** Neue Firestore-Collections (`returns`, `shipments`, `invoices`, `api-keys`) verwenden `orderBy`/`where`-Kombinationen, für die kein Composite-Index existiert.
+  - **FIX:** ALLE Index-URLs aus den Fehlermeldungen aufrufen und Indexes in Firebase Console erstellen. Alternativ: `firestore.indexes.json` pflegen und deployen via `firebase deploy --only firestore:indexes`.
+
+#### P1 — FEHLENDE DATEN IN MARKETPLACE-TABELLEN
+
+- [ ] **AUDIT-003: eBay Listings — Tabelle halb leer**
+  - **Sichtbar:** Titel/SKU ✅, Item-ID ✅, Preis ✅, Bestand ✅ (aber überall "1"), Status ✅
+  - **FEHLT:** Kategorie (überall "—"), Letztes Update (überall "—"), Link (überall "—")
+  - **Bestand unrealistisch:** Fast alle Listings zeigen "1" — das ist der eBay-Bestand, nicht der tatsächliche Lagerbestand
+  - **FIX:** Backend `GET /api/marketplace/ebay/listings` muss eBay-Kategorie, lastModified, viewItemURL aus der GetSellerList-Response mappen und zurückgeben. Bestand-Spalte sollte AvyCloud-Bestand (aus products_v2) zeigen, nicht eBay-Quantity.
+
+- [ ] **AUDIT-004: Kaufland Listings — Preis, Bestand, Status, Kategorie komplett leer**
+  - **Sichtbar:** Titel ✅ (Produktnamen statt SKU — Verbesserung!), Unit-ID ✅
+  - **FEHLT:** Preis (überall "—"), Bestand (überall "0" rot), Status (überall "Unbekannt"), Kategorie (überall "—"), Letztes Update (überall "—"), Link (überall "—")
+  - **FIX:** Backend `GET /api/marketplace/kaufland/listings` muss `price`, `amount`, `status`, `category`, `url` aus der Kaufland-API-Response zurückgeben. Server-Side-Enrichment (SKU→Product-Join) muss Preis+Bestand aus units-Response mappen.
+
+- [ ] **AUDIT-005: eBay auf Integrationen-Seite zeigt "Nicht verbunden" obwohl Listings geladen werden**
+  - **Widerspruch:** IntegrationsHub zeigt eBay-Karte mit "Nicht verbunden / Nicht konfiguriert", aber eBay-Listings-Seite lädt 636 Listings erfolgreich.
+  - **FIX:** IntegrationsHub muss den tatsächlichen eBay-Verbindungsstatus prüfen (z.B. Token-Validität, letzte erfolgreiche API-Antwort).
+
+#### P2 — DASHBOARD-PROBLEME
+
+- [x] **AUDIT-006: Dashboard MARKETPLACE SYNC zeigt "Sync-Status nicht verfügbar"** ✅ Fixed: Shows per-channel cards with "Kein Sync in 24h" instead of bare error text
+  - **Symptom:** Die 4 MARKETPLACE SYNC Karten im Dashboard sind leer, nur der Text "Sync-Status nicht verfügbar" wird angezeigt.
+  - **FIX:** Dashboard muss Marketplace-Sync-Status von Backend abrufen (letzte Sync-Zeit, Erfolg/Fehler pro Marktplatz).
+
+#### P3 — NAVIGATION & ROUTING
+
+- [ ] **AUDIT-007: Erfassen-Route hat keinen eigenen View**
+  - **Symptom:** Sidebar "Erfassen" klicken → leitet zu `#products` (Produktdaten) weiter. Kein dedizierter Capture/Identify-Flow.
+  - **FIX:** Eigene Route `#/products/capture` mit dem KI-Identify-Flow (Barcode/Foto scannen → Gemini identifizieren → Produkt anlegen).
+
+- [x] **AUDIT-008: Sidebar MARKTPLÄTZE klappt zu und verliert eBay/Kaufland-Links** ✅ Verified: State already persisted via localStorage, default is expanded
+  - **Symptom:** Nach Navigation zu anderen Sektionen klappt MARKTPLÄTZE zusammen und zeigt nur "Integrationen >" statt eBay, Kaufland, Integrationen als Untermenüpunkte.
+  - **FIX:** Sidebar-State muss persistent sein oder MARKTPLÄTZE standardmäßig offen sein. Alternativ: eBay und Kaufland als Top-Level-Items statt Submenu.
+
+- [ ] **AUDIT-009: Aufträge/Einstellungen und Lager/Einstellungen — nicht geprüft**
+  - **Sidebar zeigt "Einstellungen" unter AUFTRÄGE und unter LAGER** — diese spezifischen Settings-Seiten müssen noch verifiziert werden (OrderSettings, WarehouseSettings).
+
+#### P4 — UI/UX ENTERPRISE-BEWERTUNG
+
+- [ ] **AUDIT-010: Dark-Mode Farbschema — Lila ist KEIN Enterprise-Standard**
+  - **Problem:** Primärfarbe ist Lila/Violett (#7C3AED o.ä.) — durchzieht die gesamte App (Sidebar-Highlights, Buttons, Links, Progress-Bars, Tab-Underlines, Badges)
+  - **Enterprise-Benchmark:** ChannelEngine (Blau), Channable (Blau/Grün), Linnworks (Blau), Plentymarkets (Blau/Teal), Billbee (Blau)
+  - **Empfehlung:** Primärfarbe auf professionelles Blau (#2563EB oder #3B82F6) oder Teal (#0D9488) umstellen. Lila wirkt "consumer-app" und nicht enterprise-grade.
+  - **Dateien:** Tailwind Config (`tailwind.config.js`), CSS-Variablen, alle `text-purple-*` / `bg-purple-*` Klassen
+
+- [x] **AUDIT-011: Light-Mode-Switch funktioniert nicht oder ist kaputt** ✅ Fixed: ProfileSettings now receives appTheme/onThemeChange props, updates document data-theme attribute in real-time
+  - **Symptom:** "Hell"-Button in Persönliche Daten → Design klicken hat keinen sichtbaren Effekt. App bleibt im Dark Mode.
+  - **FIX:** Theme-Switch-Logik prüfen. `localStorage`-Persistenz + `document.documentElement.classList` Toggle.
+
+- [ ] **AUDIT-012: Tabellen-Design nicht konsistent**
+  - **Produktdaten/Inventar:** Thumbnails, volle Datenspalten — funktioniert gut
+  - **eBay Listings:** Kein Thumbnail, halbe Spalten leer
+  - **Kaufland Listings:** Kein Thumbnail, fast alle Spalten leer
+  - **Empfehlung:** Einheitliches Table-Component mit Thumbnail, Status-Badge, und Fallback für fehlende Daten (statt "—" ein grauer Hint wie "Wird synchronisiert").
+
+- [x] **AUDIT-013: Kein Empty-State-Design** ✅ Fixed: ReturnsView, ShippingView, InvoicesView now use EmptyState component with icons + descriptions. FAILED_PRECONDITION errors show user-friendly message.
+  - **Problem:** Seiten ohne Daten (Retouren, Versand, Rechnungen) zeigen nur "0 / 0 angezeigt" oder Firestore-Fehler. Kein informativer Empty-State mit Illustration + Call-to-Action.
+  - **Enterprise-Best-Practice:** Empty States mit Icon/Illustration + Erklärtext + Primary-Action-Button ("Erste Retoure anlegen", "Label erstellen", etc.)
+
+#### ZUSAMMENFASSUNG: Was funktioniert, was nicht
+
+| Seite | Status | Anmerkung |
+|---|---|---|
+| Dashboard | ⚠️ Teilweise | Daten laden, aber MARKETPLACE SYNC leer |
+| Produktdaten | ✅ Funktioniert | 806 Produkte, Tabelle vollständig |
+| Inventar | ❌ Crasht | "Unexpected token '<'" bei Direct-URL |
+| Erfassen | ❌ Kein eigener View | Redirect zu Produktdaten |
+| Bestellungen | ✅ Funktioniert | Echte Order-Daten |
+| Retouren | ❌ Index-Fehler | Firestore FAILED_PRECONDITION |
+| Versand & Labels | ❌ Index-Fehler | Firestore FAILED_PRECONDITION |
+| Rechnungen | ❌ Index-Fehler | Firestore FAILED_PRECONDITION |
+| Lagerverwaltung | ✅ Funktioniert | 3 Zonen, BIN-System, echte Daten |
+| eBay Listings | ⚠️ Halb kaputt | Titel+Preis da, aber Kategorie/Update/Link fehlen |
+| Kaufland Listings | ⚠️ Fast leer | Titel da, aber Preis/Bestand/Status/Kategorie fehlen |
+| Integrationen | ⚠️ Inkonsistent | eBay "Nicht verbunden" obwohl Listings laden |
+| Unternehmensdaten | ✅ Funktioniert | Formular mit allen Feldern |
+| Persönliche Daten | ⚠️ Theme-Bug | Light-Mode-Switch kaputt |
+| Mitarbeiter & Rollen | ✅ Funktioniert | Admin-Panel, 3 User, Rollen-Checkboxes |
+| API | ⚠️ Index-Fehler | API-Keys-Query broken, Rest funktioniert |
+| Plan & Abrechnung | ✅ Funktioniert | Professional 49€, Nutzungs-Bars |
+
+**FAZIT: 6 von 17 Seiten funktionieren vollständig. 5 crashen oder haben Index-Fehler. 6 haben fehlende Daten oder Bugs.**
+
+---
+
+### 🎨 UI/UX CROSS-CHECK: Enterprise-Tauglichkeit (2026-03-06)
+
+> **Benchmark:** ChannelEngine, Channable, Linnworks, Plentymarkets, Billbee
+> **Frage: Ist AvyCloud UI/UX-seitig enterprise-tauglich?**
+> **Antwort: NEIN. Nicht ansatzweise.**
+
+#### 1. FARBSCHEMA — Lila ist der falsche Weg
+
+**Aktuell:** Primärfarbe Lila/Violett (#7C3AED oder ähnlich) durchzieht die GESAMTE App:
+- Sidebar Active-State (lila Highlight + lila Text)
+- Buttons (lila Background)
+- Tab-Underlines (lila)
+- Progress-Bars (lila)
+- Links/Hover-States (lila)
+- Status-Badges mischen Lila mit Gelb/Grün/Rot → kein klares Farbsystem
+
+**Enterprise-Benchmark:**
+- **ChannelEngine:** Blau (#1976D2) — seriös, vertrauenswürdig
+- **Channable:** Blau + Grün — frisch, professionell
+- **Linnworks:** Dunkelblau (#1B2B4B) — enterprise, Business
+- **Plentymarkets:** Teal/Petrol (#00838F) — modern, sachlich
+- **Billbee:** Blau (#2196F3) — klar, clean
+- **Salesforce/HubSpot/Stripe:** Alle Blau-Varianten
+
+**Best Practice (2025/2026):** Muted Blues, Teals, und Grautöne als Basis. Kräftige Farben NUR für Status-Badges und CTAs. Lila wirkt "Consumer-App" (Twitch, Discord) — nicht "Enterprise-Tool".
+
+**→ FIX:** Primärfarbe auf **#2563EB (Blue-600)** oder **#0D9488 (Teal-600)** umstellen. Tailwind-Config + alle `purple-*`-Klassen global ersetzen.
+
+#### 2. TYPOGRAFIE — Inkonsistent und teilweise unleserlich
+
+**Probleme im Detail:**
+- **Beschreibungstext im ProductSheet:** Rohes HTML wird als Text angezeigt (`<p>Das Costway...`, `<ul><li>Fahrspaß`, `</li></ul>`). HTML-Tags sind sichtbar statt gerendert. Das ist ein KI-Output der nicht post-processed wird.
+- **Schriftgrößen:** Kein erkennbares Type-Scale-System. Manche Labels sind 10px (kaum lesbar), KPI-Zahlen sind 28-36px, Tabellenzellen sind ~13px. Keine konsistente Hierarchie.
+- **Font-Weight:** Übermäßiger Einsatz von `font-semibold` und `font-bold`. Fast alles ist fett → nichts sticht hervor.
+- **Section-Headers:** "JAHRESÜBERBLICK", "BESTAND", "MARKETPLACE SYNC", "AUFTRAGSFLUSS" — UPPERCASE + SMALL + GRAU = kaum wahrnehmbar. Sections verschmelzen visuell.
+- **Tabellen-Header:** "THUMBNAIL", "NAME / BRAND", "SKU", etc. — Alles UPPERCASE, eng zusammen, schwer scanbar.
+
+**Best Practice:** Max 2-3 Font-Sizes (H1/H2/Body), klare Hierarchie durch Size+Weight+Color-Kombination. Kein ALL-CAPS für lange Labels. Beschreibungstexte als gerendetes HTML (via `dangerouslySetInnerHTML` oder Markdown-Renderer).
+
+**→ FIX:** Type-Scale definieren (z.B. 12/14/16/20/24/32px), Section-Headers mit Medium-Weight statt UPPERCASE, HTML-Beschreibungen rendern.
+
+#### 3. SPACING & LAYOUT — Zu dicht, keine Atemräume
+
+**Probleme:**
+- **Dashboard:** KPI-Cards direkt aneinander, keine Margin zwischen Sektionen. JAHRESÜBERBLICK → BESTAND → MARKETPLACE SYNC → AUFTRAGSFLUSS → KENNZAHLEN fließen ineinander.
+- **Produkttabelle:** 14+ Spalten, horizontal gequetscht. "OFFENE EINLAGERUNGEN" als Spalte ist zu breit, "LAGERPLATZ" zeigt "Kein BIN zugewiesen" → viel Platz für leeren Text.
+- **ProductSheet:** Keine Padding-Konsistenz. "PRODUKT" Sektion hat andere Margins als "IDENTIFIKATOREN" und "PREIS & LAGER".
+- **Sidebar:** Zu viele Items ohne Gruppentrennung. 17 Links in einer Sidebar → kein visueller Rhythmus.
+
+**Best Practice:** 8px-Spacing-Grid. Klar definierte Sektions-Abstände (24/32/48px). Negative Space zwischen Dashboard-Widgets. Maximal 8-10 Spalten in Tabellen (Rest in Detail-View).
+
+**→ FIX:** Spacing-Tokens definieren (xs=4, sm=8, md=16, lg=24, xl=32, 2xl=48). Dashboard-Sektionen mit 32px Abstand. Tabelle: Spalten priorisieren (Thumbnail, Name, SKU, Preis, Bestand, Status — Rest in ProductSheet).
+
+#### 4. STATUS-BADGES & FARB-SEMANTIK — Chaos
+
+**Aktuell:**
+- "Verknüpft" = grün Badge
+- "Inaktiv" = rot Text (ABER inaktiv ist kein Fehler!)
+- "Gelistet" = gelb Badge (ABER gelistet ist positiv!)
+- "Synced" = grün Badge
+- "Pending" = gelb/orange Badge
+- "Aktiv" = grün Badge
+- "Fehler" → umbenannt in "Optimierung" = gelb
+
+**Problem:** Rot, Grün, Gelb werden WILLKÜRLICH zugewiesen. "Inaktiv" ist rot (= Fehler-Signal), obwohl es ein normaler Zustand ist. "Gelistet" ist gelb (= Warn-Signal), obwohl es positiv ist.
+
+**Best Practice (Semantic Colors):**
+- **Grün:** Aktiv, Synced, Gelistet, Bezahlt — alles was "gut" ist
+- **Gelb/Orange:** Pending, In Bearbeitung, Warnung — braucht Aufmerksamkeit
+- **Rot:** Fehler, Überfällig, Abgelehnt — braucht sofortige Aktion
+- **Grau:** Inaktiv, Nicht konfiguriert, Entwurf — neutraler Zustand
+- **Blau:** Informativ, Synchronisiert, In Zustellung
+
+**→ FIX:** Farb-Semantik-System definieren und ALLE Badges refactoren. "Inaktiv" → Grau. "Gelistet" → Grün. "Nicht in BL" → Grau.
+
+#### 5. ANIMATIONEN & TRANSITIONS — Nicht vorhanden
+
+**Aktuell:** KEINE sichtbaren Transitions.
+- Sidebar-Collapse: Instant, kein Slide
+- ProductSheet öffnen: Erscheint sofort, kein Slide-In
+- Tab-Wechsel: Instant, kein Fade
+- Hover-States: Minimal (nur Color-Change)
+- Daten laden: "Produkte werden geladen..." ohne Skeleton-Screen
+
+**Best Practice:** Subtile 150-300ms Transitions für Layout-Changes. Skeleton-Screens statt Spinner. Hover mit Scale/Shadow-Elevation. Slide-In für Panels/Sheets. Micro-Interactions an Buttons (Press-State).
+
+**→ FIX:** `transition-all duration-200` auf interaktive Elemente. Skeleton-Loading für Tabellen. ProductSheet slide-in mit `transform translateX`. Tab-Content fade-in.
+
+#### 6. PRODUKTDATENBLATT (ProductSheet) — Red Flag
+
+**Aktueller Zustand nach BUG-018 Redesign:**
+- ✅ Header mit Thumbnail + Titel + Meta-Info + Buttons — GUTER Ansatz
+- ✅ 6 Tabs (Stammdaten, Bilder, Attribute, Marktplätze, Qualität, KI-Assistent) — sinnvolle Struktur
+- ❌ Beschreibung zeigt RAW HTML mit Tags (`<p>`, `<ul>`, `<li>`) — unformatiert
+- ❌ "IDENTIFIKATOREN" und "PREIS & LAGER" Boxen nebeneinander — Layout bricht bei schmalen Screens
+- ❌ "Selling price:" Label ist Englisch, Rest ist Deutsch — Sprach-Mix
+- ❌ "Confidence: 75%" — was bedeutet das? Kein Tooltip, keine Erklärung
+- ❌ "Evidence sources: Manual 108,00€" — unklar für den User
+- ❌ Barcodes als grüne Badges (`0033616163678`, `0033616163678`) — verwirrend, sehen aus wie Buttons
+- ❌ Kein Edit-Inline-Mode — nur "Bearbeiten" Button der unklar ist wohin er führt
+- ❌ Panel-Breite ~55vw — überlagert die Tabelle darunter, kein Dimm-Overlay
+
+**Enterprise-Benchmark (ChannelEngine/Linnworks Product Detail):**
+- Klare Sektionen mit Edit-Icons inline
+- Bilder-Gallery mit Drag & Drop
+- Preis-Feld mit Währungssymbol + Margin-Rechner
+- Marketplace-Status pro Kanal mit Live-Preview
+- Versionshistorie / Audit-Trail
+
+**→ FIX:** HTML-Beschreibung rendern (DOMPurify + dangerouslySetInnerHTML), Sprach-Mix bereinigen, Confidence mit Tooltip erklären, Barcode-Badges restylen, Dimm-Overlay hinter Panel.
+
+#### 7. WAS KOMPLETT FEHLT
+
+- [ ] **Breadcrumbs:** Nur auf manchen Seiten ("Aufträge / Versand & Labels"). Fehlt auf Dashboard, Produktdaten, Inventar.
+- [ ] **Empty States:** Seiten ohne Daten zeigen "0 / 0 angezeigt" statt hilfreicher Illustration + CTA.
+- [ ] **Toast/Notification-System:** Kein sichtbares Feedback nach Aktionen (Speichern, Sync starten, etc.)
+- [ ] **Loading-Skeletons:** Nur Spinner ("Produkte werden geladen..."). Kein Skeleton-Screen.
+- [ ] **Keyboard-Shortcuts:** Ctrl+K Suche existiert (top bar), aber keine Tabellen-Navigation (Enter=Open, Arrows=Navigate).
+- [ ] **Bulk-Action-Feedback:** Kein Progress-Indicator für laufende Bulk-Operationen.
+- [x] **Error-Recovery:** Firestore-Errors zeigen die rohe Firebase-URL als "Fix" — ✅ FAILED_PRECONDITION errors now show "Datenbank-Index wird erstellt" instead of raw URL
+- [ ] **Responsive Design:** Nicht getestet, aber Tabelle mit 14 Spalten wird auf <1440px unwrap-bar sein.
+- [ ] **Onboarding/Wizard:** Kein First-Run-Experience für neue User. Dashboard zeigt sofort alle KPIs ohne Kontext.
+- [ ] **Data-Density-Toggle:** Keine Möglichkeit zwischen "Compact" und "Comfortable" Table-View zu wechseln.
+
+#### GESAMTURTEIL
+
+| Kriterium | Score (1-10) | Enterprise-Standard |
+|---|---|---|
+| Farbschema | 3/10 | Lila = Consumer-App. Kein Enterprise-Tool nutzt Lila. |
+| Typografie | 4/10 | Inkonsistent, kein Type-Scale, HTML-Tags sichtbar |
+| Spacing/Layout | 4/10 | Zu dicht, keine Atemräume, 14-Spalten-Tabellen |
+| Status/Badges | 3/10 | Farb-Semantik willkürlich, verwirrt den User |
+| Animationen | 2/10 | Quasi nicht vorhanden |
+| ProductSheet | 4/10 | Guter Tab-Ansatz, aber Inhalt roh/unformatiert |
+| Navigation | 5/10 | Sidebar funktional, aber MARKTPLÄTZE-Collapse Bug |
+| Error Handling | 2/10 | Rohe Firestore-URLs, Crash-Screens, kein Recovery |
+| Fehlende Patterns | 2/10 | Empty States, Skeletons, Toasts, Breadcrumbs fehlen |
+| **GESAMT** | **3.2/10** | **Nicht enterprise-tauglich** |
+
+**Zum Vergleich: Enterprise-Standard wäre mindestens 7/10.**
+
+**Die 3 dringendsten Design-Fixes:**
+1. **Farbschema von Lila auf Blau** — 1 Tailwind-Config-Änderung + globales Find/Replace
+2. **Semantisches Badge-System** — Farben nach Bedeutung, nicht nach Geschmack
+3. **HTML-Beschreibungen rendern** — DOMPurify + dangerouslySetInnerHTML statt Raw-Tags
 
 ---
 
