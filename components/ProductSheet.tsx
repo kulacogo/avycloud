@@ -16,8 +16,6 @@ import {
   setProductInventoryId,
   openInventoryLabelWindow,
   fetchEbayCategories,
-  verifyEbayPublish,
-  publishToEbay,
 } from '../api/client';
 import { EditIcon, SaveIcon, SyncIcon, PrintIcon, MagicIcon, RefreshIcon, BarcodeIcon } from './icons/Icons';
 import { Spinner } from './Spinner';
@@ -139,8 +137,6 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
   const [isSaving, setIsSaving] = useState(false);
   const isSavingRef = useRef(false);
   const [isSyncing, setIsSyncing] = useState(false);
-  const [isPublishingEbay, setIsPublishingEbay] = useState(false);
-  const [ebayPublishStatus, setEbayPublishStatus] = useState<'idle' | 'verifying' | 'publishing' | 'done'>('idle');
   const [isDirty, setIsDirty] = useState(false);
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [autoGenDone, setAutoGenDone] = useState(false);
@@ -966,48 +962,6 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
     }
   };
 
-  const handlePublishToEbay = async () => {
-    if (isPublishingEbay) return;
-    setIsPublishingEbay(true);
-    setEbayPublishStatus('verifying');
-    try {
-      const verifyResult = await verifyEbayPublish(localProduct.id);
-      if (!verifyResult.canPublish) {
-        showNotification('error', `eBay Publish blockiert: ${verifyResult.blockers.join(', ')}`);
-        setEbayPublishStatus('idle');
-        return;
-      }
-      if (verifyResult.warnings?.length) {
-        showNotification('info', `eBay Hinweise: ${verifyResult.warnings.join(', ')}`);
-      }
-      const feeSummary = (verifyResult.fees || [])
-        .filter((f) => f.amount && f.amount !== '0.0' && f.amount !== '0')
-        .map((f) => `${f.name}: ${f.amount} ${f.currency || 'EUR'}`)
-        .join(', ');
-
-      if (!window.confirm(`Produkt auf eBay.de listen?${feeSummary ? `\n\nGebühren: ${feeSummary}` : ''}\n\nFortfahren?`)) {
-        setEbayPublishStatus('idle');
-        return;
-      }
-
-      setEbayPublishStatus('publishing');
-      const result = await publishToEbay(localProduct.id);
-      if (result.ok && result.itemId) {
-        showNotification('success', `Erfolgreich auf eBay gelistet! Item ID: ${result.itemId}`);
-        const refreshed = await fetchProductById(localProduct.id);
-        onUpdate(refreshed);
-      } else {
-        showNotification('error', result.blockers?.join(', ') || 'eBay Publish fehlgeschlagen.');
-      }
-      setEbayPublishStatus('done');
-    } catch (err: any) {
-      showNotification('error', err?.message || 'eBay Publish fehlgeschlagen.');
-      setEbayPublishStatus('idle');
-    } finally {
-      setIsPublishingEbay(false);
-    }
-  };
-
   const handleFieldChange = (field: string, value: string) => {
     const keys = field.split('.');
     setLocalProduct(prev => {
@@ -1231,8 +1185,8 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
               </button>
             </div>
           )}
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-            <div className="flex-1 min-w-0">
+          <div className="flex flex-col gap-4">
+            <div className="min-w-0">
               {isEditing ? (
                 <>
                   <textarea
@@ -1495,13 +1449,13 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                 )}
               </div>
             </div>
-            <div className="actions flex flex-col sm:flex-row flex-wrap gap-2 w-full sm:w-auto justify-end">
+            <div className="actions flex flex-wrap gap-2">
               <button
                 id="btn-edit"
                 onClick={() => setIsEditing(v => !v)}
                 aria-label={isEditing ? t('common.editing') || 'Bearbeitung aktiv' : t('common.edit') || 'Produkt bearbeiten'}
                 aria-pressed={isEditing}
-                className={`flex items-center justify-center px-4 py-2 font-medium rounded-xl transition-colors w-full sm:w-auto ${isEditing ? 'bg-app-elevated text-txt-primary hover:bg-app-border' : 'bg-accent-dim text-accent hover:bg-accent/20'
+                className={`flex items-center justify-center px-4 py-2 font-medium rounded-xl transition-colors ${isEditing ? 'bg-app-elevated text-txt-primary hover:bg-app-border' : 'bg-accent-dim text-accent hover:bg-accent/20'
                   }`}
               >
                 <EditIcon /><span className="ml-2">{isEditing ? t('common.editing') : t('common.edit')}</span>
@@ -1511,7 +1465,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                 onClick={handleSave}
                 disabled={isSaving}
                 aria-label={isSaving ? t('common.saving') || 'Wird gespeichert' : t('common.save') || 'Produkt speichern'}
-                className="flex items-center justify-center px-4 py-2 bg-success/20 text-success font-medium rounded-xl hover:bg-success/30 transition-colors disabled:opacity-40 disabled:cursor-not-allowed w-full sm:w-auto"
+                className="flex items-center justify-center px-4 py-2 bg-success/20 text-success font-medium rounded-xl hover:bg-success/30 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 <SaveIcon /><span className="ml-2">{isSaving ? t('common.saving') : t('common.save')}</span>
               </button>
@@ -1521,32 +1475,11 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                   onClick={() => onImprove(localProduct.id)}
                   disabled={Boolean(isImproving)}
                   aria-label={isImproving ? t('common.improving') || 'Wird verbessert' : t('common.improve') || 'Produkt mit KI verbessern'}
-                  className="flex items-center justify-center px-4 py-2 bg-accent-dim text-accent font-medium rounded-xl hover:bg-accent/20 transition-colors disabled:opacity-40 w-full sm:w-auto"
+                  className="flex items-center justify-center px-4 py-2 bg-accent-dim text-accent font-medium rounded-xl hover:bg-accent/20 transition-colors disabled:opacity-40"
                 >
                   {isImproving ? t('common.improving') : t('common.improve')}
                 </button>
               )}
-              <button
-                type="button"
-                onClick={handlePublishToEbay}
-                disabled={isPublishingEbay}
-                aria-label="Produkt auf eBay veröffentlichen"
-                className="flex items-center justify-center gap-2 px-4 py-2 bg-accent-dim text-accent font-medium rounded-xl hover:bg-accent/20 transition-colors disabled:opacity-40 disabled:cursor-wait w-full sm:w-auto"
-              >
-                {isPublishingEbay ? (
-                  <Spinner className="w-4 h-4" />
-                ) : (
-                  <svg className="w-4 h-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
-                    <circle cx="10" cy="10" r="7" />
-                    <path d="M3 10h14M10 3a10.5 10.5 0 013 7 10.5 10.5 0 01-3 7 10.5 10.5 0 01-3-7 10.5 10.5 0 013-7z" />
-                  </svg>
-                )}
-                {ebayPublishStatus === 'verifying'
-                  ? 'Prüfe...'
-                  : ebayPublishStatus === 'publishing'
-                    ? 'Listing...'
-                    : 'eBay'}
-              </button>
             </div>
           </div>
         </header>
@@ -2068,22 +2001,22 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
           {((localProduct as any)?.ops?.listingStatus?.ebay || (localProduct as any)?.ops?.listingStatus?.kaufland) && (
             <div className="flex flex-wrap gap-2 mb-4" role="status" aria-label="Listing-Status">
               {(localProduct as any)?.ops?.listingStatus?.ebay === 'active' && (
-                <span className="inline-flex items-center rounded-full bg-amber-500/20 px-3 py-1 text-xs font-semibold text-amber-200">
+                <span className="inline-flex items-center rounded-full bg-success-dim px-3 py-1 text-xs font-semibold text-success">
                   eBay: Gelistet
                 </span>
               )}
               {(localProduct as any)?.ops?.listingStatus?.ebay === 'inactive' && (
-                <span className="inline-flex items-center rounded-full bg-amber-800/30 px-3 py-1 text-xs font-semibold text-amber-400">
+                <span className="inline-flex items-center rounded-full bg-warning-dim px-3 py-1 text-xs font-semibold text-warning">
                   eBay: Inaktiv
                 </span>
               )}
               {(localProduct as any)?.ops?.listingStatus?.kaufland === 'active' && (
-                <span className="inline-flex items-center rounded-full bg-danger-dim px-3 py-1 text-xs font-semibold text-danger">
+                <span className="inline-flex items-center rounded-full bg-success-dim px-3 py-1 text-xs font-semibold text-success">
                   Kaufland: Gelistet
                 </span>
               )}
               {(localProduct as any)?.ops?.listingStatus?.kaufland === 'inactive' && (
-                <span className="inline-flex items-center rounded-full bg-danger-dim px-3 py-1 text-xs font-semibold text-danger">
+                <span className="inline-flex items-center rounded-full bg-warning-dim px-3 py-1 text-xs font-semibold text-warning">
                   Kaufland: Inaktiv
                 </span>
               )}
@@ -2105,29 +2038,6 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
             >
               {isSyncing ? <Spinner className="w-5 h-5" /> : <SyncIcon />}
               <span className="ml-2">{t('sheet.actions.sync')}</span>
-            </button>
-            <button
-              id="btn-publish-ebay"
-              onClick={handlePublishToEbay}
-              disabled={isPublishingEbay}
-              aria-label="Auf eBay listen"
-              className="flex items-center justify-center px-4 py-2 bg-accent-dim text-accent font-semibold rounded-xl hover:bg-accent/20 transition-colors disabled:opacity-40 disabled:cursor-wait"
-            >
-              {isPublishingEbay ? (
-                <Spinner className="w-5 h-5" />
-              ) : (
-                <svg className="w-5 h-5" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
-                  <circle cx="10" cy="10" r="7" />
-                  <path d="M3 10h14M10 3a10.5 10.5 0 013 7 10.5 10.5 0 01-3 7 10.5 10.5 0 01-3-7 10.5 10.5 0 013-7z" />
-                </svg>
-              )}
-              <span className="ml-2">
-                {ebayPublishStatus === 'verifying'
-                  ? 'Prüfe...'
-                  : ebayPublishStatus === 'publishing'
-                    ? 'Wird gelistet...'
-                    : 'Auf eBay listen'}
-              </span>
             </button>
           </div>
         </section>

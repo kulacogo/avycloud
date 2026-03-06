@@ -893,6 +893,90 @@ router.get('/kaufland/sku-index', requirePermission('products', 'read'), async (
   }
 });
 
+// Enriched Kaufland listings — joins kauflandUnitsLive with products_v2
+router.get('/kaufland/listings', requirePermission('products', 'read'), async (req, res) => {
+  try {
+    const storefront = String(req.query?.storefront || 'de').trim().toLowerCase();
+    const { getAllProductsV2 } = require('../lib/product-store');
+
+    // Fetch both collections in parallel
+    const [unitsSnap, products] = await Promise.all([
+      firestore
+        .collection('kauflandUnitsLive')
+        .where('storefront', '==', storefront)
+        .get(),
+      getAllProductsV2(),
+    ]);
+
+    // Build multi-key lookup map from products
+    const skuMap = new Map();  // lowercase sku → product
+    const eanMap = new Map();  // ean → product
+    for (const p of products) {
+      const sku = (p?.identification?.sku || p?.details?.identifiers?.sku || '').trim();
+      if (sku) {
+        skuMap.set(sku.toLowerCase(), p);
+        // Also index without common prefixes (SKU-, sku-)
+        const stripped = sku.replace(/^sku[-_]?/i, '').trim();
+        if (stripped && stripped !== sku.toLowerCase()) {
+          skuMap.set(stripped.toLowerCase(), p);
+        }
+      }
+      // Index by EAN/barcode
+      const barcodes = p?.identification?.barcodes || p?.details?.identifiers?.barcodes || [];
+      const eanList = Array.isArray(barcodes) ? barcodes : [barcodes];
+      for (const ean of eanList) {
+        const e = String(ean || '').trim();
+        if (e) eanMap.set(e, p);
+      }
+    }
+
+    const rows = [];
+    unitsSnap.docs.forEach((doc) => {
+      const d = doc.data() || {};
+      const unitSku = (d.id_offer || '').trim();
+      const unitEan = (d.ean || '').trim();
+
+      // Try matching: exact SKU → stripped SKU → EAN
+      let matched = null;
+      if (unitSku) {
+        matched = skuMap.get(unitSku.toLowerCase()) || null;
+        if (!matched) {
+          const stripped = unitSku.replace(/^sku[-_]?/i, '').trim();
+          if (stripped) matched = skuMap.get(stripped.toLowerCase()) || null;
+        }
+      }
+      if (!matched && unitEan) {
+        matched = eanMap.get(unitEan) || null;
+      }
+
+      rows.push({
+        idUnit: doc.id,
+        sku: unitSku || null,
+        ean: unitEan || null,
+        status: d.status || null,
+        active: d.active === true,
+        idProduct: Number.isFinite(Number(d.id_product)) ? Number(d.id_product) : null,
+        viewItemUrl: d.view_item_url || null,
+        // Enriched product data
+        productId: matched?.id || null,
+        title: matched?.identification?.name || null,
+        brand: matched?.identification?.brand || null,
+        price: matched?.details?.pricing?.sellPrice ?? null,
+        imageUrl: matched?.details?.images?.[0]?.url || null,
+        category: matched?.details?.category || null,
+      });
+    });
+
+    return res.status(200).json({ ok: true, data: rows });
+  } catch (error) {
+    console.error('[GET /api/marketplace/kaufland/listings]', error);
+    return res.status(500).json({
+      ok: false,
+      error: { code: 500, message: error?.message || 'Failed to load Kaufland listings' },
+    });
+  }
+});
+
 // =====================================================================
 // eBay Gaps
 // =====================================================================

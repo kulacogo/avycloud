@@ -5,16 +5,15 @@ import {
   fetchEbayStatus,
   bulkUpdateEbayListings,
   syncKauflandListings,
-  fetchKauflandSkuIndex,
+  fetchKauflandListings,
 } from "../api/client";
-import type { EbayListingRow } from "../types";
-import type { EbayConnectionStatus } from "../api/client";
+import type { EbayListingRow, } from "../types";
+import type { EbayConnectionStatus, KauflandListingRow } from "../api/client";
 
 // ─── Types ───────────────────────────────────────────────────
 
 interface MarketplaceListingsViewProps {
   marketplace: "ebay" | "kaufland";
-  products?: any[];
 }
 
 type ListingStatus = "active" | "inactive" | "error" | "unknown";
@@ -102,39 +101,23 @@ function normalizeEbayRow(row: EbayListingRow): NormalizedListing {
   };
 }
 
-interface KauflandUnit {
-  idUnit: string;
-  sku: string | null;
-  skuNormalized: string | null;
-  ean: string | null;
-  eans: string[];
-  status: string | null;
-  idProduct: number | null;
-  viewItemUrl: string | null;
-}
-
-function normalizeKauflandUnit(unit: KauflandUnit, productMap?: Map<string, any>): NormalizedListing {
-  const statusLower = (unit.status || "").toLowerCase();
+function normalizeKauflandRow(row: KauflandListingRow): NormalizedListing {
   let status: ListingStatus = "unknown";
-  if (statusLower === "active" || statusLower === "200") status = "active";
-  else if (statusLower === "inactive" || statusLower === "blocked" || statusLower === "403") status = "inactive";
-
-  // Try to enrich with product data from AvyCloud
-  const sku = unit.sku || unit.skuNormalized || null;
-  const product = sku && productMap ? productMap.get(sku.toLowerCase()) : null;
+  if (row.active) status = "active";
+  else if (row.status === "inactive" || row.status === "blocked") status = "inactive";
 
   return {
-    id: unit.idUnit,
-    title: product?.title || product?.details?.title || sku || unit.ean || unit.idUnit,
-    sku,
-    price: product?.details?.pricing?.sellPrice ?? product?.pricing?.sellPrice ?? null,
+    id: row.idUnit,
+    title: row.title || row.sku || row.ean || row.idUnit,
+    sku: row.sku,
+    price: row.price,
     currency: "EUR",
-    quantity: product?.inventory?.quantity ?? null,
+    quantity: null,
     status,
-    category: product?.details?.category || null,
-    viewItemUrl: unit.viewItemUrl || null,
+    category: row.category || null,
+    viewItemUrl: row.viewItemUrl || null,
     lastSync: null,
-    imageUrl: product?.details?.images?.[0]?.url || product?.images?.[0]?.url || null,
+    imageUrl: row.imageUrl || null,
   };
 }
 
@@ -178,7 +161,7 @@ const IconWarning = () => (
 
 // ─── Component ───────────────────────────────────────────────
 
-export function MarketplaceListingsView({ marketplace, products }: MarketplaceListingsViewProps) {
+export function MarketplaceListingsView({ marketplace }: MarketplaceListingsViewProps) {
   const [listings, setListings] = useState<NormalizedListing[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -192,17 +175,6 @@ export function MarketplaceListingsView({ marketplace, products }: MarketplaceLi
   const [bulkUpdating, setBulkUpdating] = useState(false);
 
   const label = MARKETPLACE_LABELS[marketplace];
-
-  // Build SKU→product map for Kaufland enrichment
-  const productSkuMap = useMemo(() => {
-    if (!products || marketplace !== "kaufland") return new Map<string, any>();
-    const map = new Map<string, any>();
-    for (const p of products) {
-      const sku = (p?.details?.identifiers?.sku || p?.identification?.sku || "").trim().toLowerCase();
-      if (sku) map.set(sku, p);
-    }
-    return map;
-  }, [products, marketplace]);
 
   // ─── Data Loading ────────────────────────────────────────
 
@@ -229,8 +201,8 @@ export function MarketplaceListingsView({ marketplace, products }: MarketplaceLi
     setLoading(true);
     setError(null);
     try {
-      const units = await fetchKauflandSkuIndex("de");
-      const normalized = units.map((u: any) => normalizeKauflandUnit(u, productSkuMap));
+      const rows = await fetchKauflandListings("de");
+      const normalized = rows.map((r) => normalizeKauflandRow(r));
       setListings(normalized);
       setLastSyncTime(new Date().toISOString());
     } catch (err: any) {
@@ -238,7 +210,7 @@ export function MarketplaceListingsView({ marketplace, products }: MarketplaceLi
     } finally {
       setLoading(false);
     }
-  }, [productSkuMap]);
+  }, []);
 
   useEffect(() => {
     if (marketplace === "ebay") {

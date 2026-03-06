@@ -1108,6 +1108,33 @@ export async function fetchKauflandSkuIndex(storefront = 'de'): Promise<{
 }
 
 
+export interface KauflandListingRow {
+  idUnit: string;
+  sku: string | null;
+  ean: string | null;
+  status: string | null;
+  active: boolean;
+  idProduct: number | null;
+  viewItemUrl: string | null;
+  productId: string | null;
+  title: string | null;
+  brand: string | null;
+  price: number | null;
+  imageUrl: string | null;
+  category: string | null;
+}
+
+export async function fetchKauflandListings(storefront = 'de'): Promise<KauflandListingRow[]> {
+  const url = new URL(`${BACKEND_URL}/api/kaufland/listings`);
+  url.searchParams.set('storefront', storefront);
+  const res = await fetchApi(url.toString(), { method: 'GET' });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) {
+    throw new Error(data?.error?.message || 'Failed to load Kaufland listings');
+  }
+  return Array.isArray(data?.data) ? data.data : [];
+}
+
 export async function bulkUpdateEbayListings(params: {
   itemIds?: string[];
   applyAll?: boolean;

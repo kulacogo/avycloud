@@ -123,16 +123,22 @@
   - ✅ TypeScript: `EbayListingRow` Interface um 4 Felder erweitert
 
 - [x] **BUG-009: Kaufland Marketplace-Seite zeigt nur SKU-Nummern, keine Produktdaten** ~~since 2026-03-06~~ (2026-03-06)
-  - ✅ `products` Prop an MarketplaceListingsView von App.tsx durchgereicht
-  - ✅ SKU→Product Map (`productSkuMap`) zum Matchen von Kaufland-SKUs mit `products_v2`
-  - ✅ `normalizeKauflandUnit` enriched mit Produktname, Bild, Preis aus AvyCloud-Daten
-  - ✅ Status-Mapping: "active"/"200" → Aktiv, "inactive"/"blocked"/"403" → Inaktiv
+  - ✅ Frontend-SKU-Matching scheiterte an Format-Mismatch (Kaufland `id_offer` vs products_v2 `identification.sku`)
+  - ✅ Neuer Backend-Endpoint `GET /api/marketplace/kaufland/listings` in `backend/routes/marketplace.js`
+    - Fetcht `kauflandUnitsLive` + `products_v2` parallel
+    - Multi-Key Matching: exakte SKU → SKU ohne Prefix → EAN/Barcode
+    - Gibt enriched Rows zurück mit `title`, `brand`, `price`, `imageUrl`, `category`
+  - ✅ Neue API-Client-Funktion `fetchKauflandListings()` + `KauflandListingRow` Interface
+  - ✅ `MarketplaceListingsView` nutzt jetzt Backend-Endpoint statt Frontend-SKU-Map
+  - ✅ `products` Prop entfernt (nicht mehr benötigt, Backend macht den Join)
 
 - [x] **BUG-010: Listing-Aktionen gehören NICHT in Produkte/Inventar-View** ~~since 2026-03-06~~ (2026-03-06)
-  - ✅ BulkActions.tsx: "eBay Listen", "eBay Update", "Kaufland Listen", "Kaufland Update" Buttons + Dropdown-Menü-Einträge entfernt
-  - ✅ eBay/Kaufland tone-Varianten aus ActionButton entfernt
-  - ✅ AdminTable eBay/Kaufland-Spalten waren bereits reine Status-Badges (Gelistet/Inaktiv/—) — keine Änderung nötig
-  - ✅ Legacy-Props als optional beibehalten für Backwards-Compat mit AdminTable.tsx
+  - ✅ BulkActions.tsx: eBay/Kaufland Buttons + Dropdown entfernt
+  - ✅ ProductSheet: "eBay" Publish-Button komplett entfernt (Header + Aktionen-Sektion)
+  - ✅ `handlePublishToEbay`, `isPublishingEbay`, `ebayPublishStatus` State/Funktion entfernt
+  - ✅ `publishToEbay`, `verifyEbayPublish` Imports entfernt
+  - ✅ Listing-Status-Badges bleiben als reine Status-Anzeige (eBay: Gelistet/Inaktiv, Kaufland: Gelistet/Inaktiv)
+  - ✅ Badge-Farben auf Theme-Tokens umgestellt (`text-success`/`text-warning` statt hardcoded amber/danger)
 
 - [x] **BUG-011: Light-Mode Farben unleserlich — Text und Indikatoren schlecht erkennbar** ~~since 2026-03-06~~ (2026-03-06)
   - ✅ `--text-muted` in Light-Mode: `#8a8f9e` → `#6b7080` (3.4:1 → 4.7:1 Kontrast auf #f5f6f8)
@@ -152,6 +158,11 @@
   - ✅ ProductSheet Improve-Button: `bg-violet-600/20 text-violet-300` → `bg-accent-dim text-accent`
   - ✅ BulkActions accent tone: `bg-violet-600/90` → `bg-accent/90`
   - ✅ PricingInfo Preis: `text-accent` → `text-txt-primary` (Preis ist kein Accent-Element)
+
+- [x] **BUG-013: ProductSheet Titel wird VERTIKAL angezeigt — jeder Buchstabe auf neuer Zeile** ~~since 2026-03-06~~ (2026-03-06)
+  - ✅ Ursache: `lg:flex-row` auf Header-Container zwang Titel und 4 Buttons nebeneinander — Buttons nahmen zu viel Breite, Titel-Container (`flex-1 min-w-0`) schrumpfte auf 1 Zeichen Breite
+  - ✅ Fix: Layout auf `flex-col` geändert — Titel immer oberhalb der Buttons, volle Breite
+  - ✅ Buttons: `w-full sm:w-auto` entfernt, nutzen jetzt `flex-wrap` für natürliches Wrapping
 
 - [ ] **BUG-007: React Error #426 — ProductSheet crash bei Klick auf Produkt** since 2026-03-05
   - **PROBLEM:** Minified React error #426 ("A component suspended while responding to synchronous input") beim Öffnen eines Produkts aus Produkte oder Inventar
