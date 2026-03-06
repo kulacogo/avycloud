@@ -24,6 +24,7 @@ import AttributeTable from './AttributeTable';
 import PricingInfo from './PricingInfo';
 import CompetitorPrices from './CompetitorPrices';
 import AssistantChat from './GeminiChat';
+import { Tabs, TabPanel } from './ui/Tabs';
 import { useI18n } from '../i18n';
 import { normalizeBarcode, summarizeBarcodes, isValidGtin } from '../utils/gtin';
 import {
@@ -1154,904 +1155,610 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
     }
   }, [localProduct.id, onUpdate, qualityBusy]);
 
+  const [activeTab, setActiveTab] = useState('stammdaten');
+
+  const sheetTabs = useMemo(() => [
+    { id: 'stammdaten', label: 'Stammdaten' },
+    { id: 'bilder', label: 'Bilder', count: localProduct.details?.images?.length || 0 },
+    { id: 'attribute', label: 'Attribute' },
+    { id: 'marktplaetze', label: 'Marktplätze' },
+    { id: 'qualitaet', label: 'Qualität', count: qualityIssues.length || undefined },
+    { id: 'assistent', label: 'KI-Assistent' },
+  ], [localProduct.details?.images?.length, qualityIssues.length]);
+
   return (
-    <section
-      id="product-sheet"
-      className="grid grid-cols-1 gap-6 w-full relative items-start lg:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)]"
-    >
+    <section id="product-sheet" className="w-full relative">
       {notification && (
         <div
           role="alert"
           aria-live="assertive"
-          className={`fixed top-20 right-8 p-4 rounded-xl z-50 ${notification.type === 'success' ? 'bg-success' : 'bg-danger'} text-txt-primary`}
+          className={`fixed top-20 right-8 p-4 rounded-xl z-50 ${notification.type === 'success' ? 'bg-success' : 'bg-danger'} text-white`}
         >
           {notification.message}
         </div>
       )}
 
-      <div className="space-y-5">
-        <header className="p-5 bg-app-surface border border-app-border rounded-2xl">
-          {onClose && (
-            <div className="flex justify-end mb-2">
+      {/* ─── HEADER ─────────────────────────────────────────── */}
+      <header className="p-4 bg-app-surface border border-app-border rounded-2xl mb-4">
+        <div className="flex items-start gap-4">
+          {/* Product image */}
+          {localProduct.details?.images?.[0]?.url && (
+            <img
+              src={localProduct.details.images[0].url}
+              alt=""
+              className="w-20 h-20 rounded-xl object-cover flex-shrink-0 bg-app-elevated border border-app-border"
+            />
+          )}
+          {!localProduct.details?.images?.[0]?.url && (
+            <div className="w-20 h-20 rounded-xl bg-app-elevated border border-app-border flex items-center justify-center flex-shrink-0">
+              <svg className="w-8 h-8 text-txt-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.41a2.25 2.25 0 013.182 0l2.909 2.91m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+              </svg>
+            </div>
+          )}
+
+          {/* Title + meta */}
+          <div className="flex-1 min-w-0">
+            <h1 className="text-lg font-bold text-txt-primary truncate leading-tight" title={localProduct.identification.name}>
+              {localProduct.identification.name}
+            </h1>
+            <p className="text-sm text-txt-secondary mt-0.5 truncate">
+              {localProduct.identification.brand}
+              {localProduct.identification.brand && getProductDisplayCategory(localProduct) ? ' · ' : ''}
+              {getProductDisplayCategory(localProduct)}
+            </p>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5 text-xs text-txt-muted">
+              <span>SKU: {localProduct.identification.sku || localProduct.details?.identifiers?.sku || '—'}</span>
+              {currentBarcodeSummary.ean && <span>EAN: {currentBarcodeSummary.ean}</span>}
+              {localProduct.details?.pricing?.lowest_price?.amount != null && (
+                <span className="font-semibold text-txt-primary">
+                  {localProduct.details.pricing.lowest_price.amount.toLocaleString('de-DE', { minimumFractionDigits: 2 })} €
+                </span>
+              )}
+              {/* Listing status badges inline */}
+              {(localProduct as any)?.ops?.listingStatus?.ebay === 'active' && (
+                <span className="inline-flex items-center rounded-full bg-success-dim px-2 py-0.5 text-[10px] font-semibold text-success">eBay</span>
+              )}
+              {(localProduct as any)?.ops?.listingStatus?.kaufland === 'active' && (
+                <span className="inline-flex items-center rounded-full bg-success-dim px-2 py-0.5 text-[10px] font-semibold text-success">Kaufland</span>
+              )}
+            </div>
+          </div>
+
+          {/* Action buttons — top right */}
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <button
+              id="btn-edit"
+              onClick={() => setIsEditing(v => !v)}
+              aria-pressed={isEditing}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${isEditing ? 'bg-accent text-white' : 'bg-app-elevated text-txt-primary hover:bg-app-border border border-app-border'}`}
+            >
+              <EditIcon className="w-3.5 h-3.5" />
+              {isEditing ? t('common.editing') : t('common.edit')}
+            </button>
+            <button
+              id="btn-save"
+              onClick={handleSave}
+              disabled={isSaving}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg bg-success/20 text-success hover:bg-success/30 transition-colors disabled:opacity-40"
+            >
+              <SaveIcon className="w-3.5 h-3.5" />
+              {isSaving ? t('common.saving') : t('common.save')}
+            </button>
+            {onImprove && (
+              <button
+                type="button"
+                onClick={() => onImprove(localProduct.id)}
+                disabled={Boolean(isImproving)}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg bg-accent-dim text-accent hover:bg-accent/20 transition-colors disabled:opacity-40"
+              >
+                {isImproving ? t('common.improving') : t('common.improve')}
+              </button>
+            )}
+            {onClose && (
               <button
                 type="button"
                 onClick={onClose}
                 className="flex items-center justify-center w-8 h-8 rounded-lg text-txt-muted hover:text-txt-primary hover:bg-app-elevated transition-colors"
                 aria-label="Schließen"
               >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M18 6L6 18M6 6l12 12" />
                 </svg>
               </button>
-            </div>
-          )}
-          <div className="flex flex-col gap-4">
-            <div className="min-w-0">
+            )}
+          </div>
+        </div>
+      </header>
+
+      {/* ─── TABS ───────────────────────────────────────────── */}
+      <Tabs tabs={sheetTabs} activeTab={activeTab} onTabChange={setActiveTab} className="mb-4" />
+
+      {/* ─── TAB: Stammdaten ────────────────────────────────── */}
+      <TabPanel tabId="stammdaten" activeTab={activeTab} className="space-y-5">
+        {/* Title editing */}
+        <section className="p-5 bg-app-surface border border-app-border rounded-2xl">
+          <h3 className="text-sm font-semibold text-txt-muted uppercase tracking-wide mb-3">Produkt</h3>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-xs font-semibold text-txt-secondary mb-1">Titel</label>
               {isEditing ? (
-                <>
+                <div>
                   <textarea
                     id="p-name"
                     aria-label={t('common.productName') || 'Produktname'}
                     value={localProduct.identification.name}
                     onChange={(e) => handleFieldChange('identification.name', e.target.value)}
-                    className={`w-full text-2xl sm:text-3xl font-bold bg-transparent outline-none border-b resize-y min-h-[3.5rem] leading-tight ${
-                      hasQualityIssue('identification.name') ? 'border-danger' : 'border-accent'
+                    className={`w-full text-sm bg-app-elevated border rounded-lg p-2.5 outline-none resize-y min-h-[3rem] ${
+                      hasQualityIssue('identification.name') ? 'border-danger' : 'border-app-border focus:border-accent'
                     }`}
                     rows={2}
-                    style={{ wordBreak: 'break-word' }}
                   />
                   <div className="flex justify-end mt-0.5">
-                    <span className={`text-xs tabular-nums ${
-                      (localProduct.identification.name?.length || 0) > 80
-                        ? 'text-danger font-semibold'
-                        : (localProduct.identification.name?.length || 0) >= 70
-                        ? 'text-amber-400'
-                        : 'text-txt-muted'
-                    }`}>
+                    <span className={`text-[11px] tabular-nums ${(localProduct.identification.name?.length || 0) > 80 ? 'text-danger font-semibold' : 'text-txt-muted'}`}>
                       {localProduct.identification.name?.length || 0}/80
                     </span>
                   </div>
-                </>
+                </div>
               ) : (
-                <h1
-                  className={`text-2xl sm:text-3xl font-bold break-words leading-tight ${
-                    hasQualityIssue('identification.name') ? 'text-danger' : ''
-                  }`}
-                  style={{ wordBreak: 'break-word' }}
-                >
-                  {localProduct.identification.name}
-                </h1>
+                <p className="text-sm text-txt-primary">{localProduct.identification.name}</p>
               )}
-              <p id="p-brand-cat" className="text-txt-muted mt-1">
-                <input
-                  aria-label="Marke"
-                  value={localProduct.identification.brand}
-                  onChange={(e) => handleFieldChange('identification.brand', e.target.value)}
-                  readOnly={!isEditing}
-                  className={`bg-transparent inline-block outline-none ${
-                    isEditing ? (hasQualityIssue('identification.brand') ? 'border-b border-danger' : 'border-b border-accent') : ''
-                  }`}
-                />
-                {' · '}
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-txt-secondary mb-1">Marke</label>
                 {isEditing ? (
-                  <span className="inline-flex flex-col gap-1 text-xs text-txt-secondary">
+                  <input
+                    value={localProduct.identification.brand}
+                    onChange={(e) => handleFieldChange('identification.brand', e.target.value)}
+                    className={`w-full text-sm bg-app-elevated border rounded-lg px-3 py-2 outline-none ${hasQualityIssue('identification.brand') ? 'border-danger' : 'border-app-border focus:border-accent'}`}
+                  />
+                ) : (
+                  <p className="text-sm text-txt-primary">{localProduct.identification.brand || '—'}</p>
+                )}
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-txt-secondary mb-1">Kategorie</label>
+                {isEditing ? (
+                  <div className="space-y-1">
                     <input
-                      aria-label="eBay Kategorie suchen"
                       value={categoryQuery}
                       onChange={(e) => setCategoryQuery(e.target.value)}
-                      className={`bg-transparent border-b outline-none ${
-                        hasQualityIssue('details.categoryId') ? 'border-danger' : 'border-accent'
-                      }`}
                       placeholder="eBay Kategorie suchen..."
+                      className={`w-full text-sm bg-app-elevated border rounded-lg px-3 py-2 outline-none ${hasQualityIssue('details.categoryId') ? 'border-danger' : 'border-app-border focus:border-accent'}`}
                     />
                     <select
-                      aria-label="eBay Kategorie auswählen"
-                      value={
-                        getProductEbayCategoryId(localProduct) ||
-                        ''
-                      }
+                      value={getProductEbayCategoryId(localProduct) || ''}
                       onChange={(e) => handleCategorySelect(e.target.value)}
-                      className="bg-app-elevated border border-app-border rounded-md px-2 py-1 text-xs text-txt-secondary"
+                      className="w-full text-sm bg-app-elevated border border-app-border rounded-lg px-3 py-2"
                     >
-                      <option value="">eBay Kategorie auswählen...</option>
+                      <option value="">Kategorie auswählen...</option>
                       {categorySelectOptions.map((option) => (
-                        <option key={option.id} value={option.id}>
-                          {option.breadcrumb} ({option.id})
-                        </option>
+                        <option key={option.id} value={option.id}>{option.breadcrumb} ({option.id})</option>
                       ))}
                     </select>
-                    {categoryLoading && <span role="status" aria-live="polite" className="text-[10px] text-txt-muted">Lade Kategorien…</span>}
-                    {categoryError && <span className="text-[10px] text-danger">{categoryError}</span>}
-                  </span>
+                    {categoryLoading && <span className="text-[10px] text-txt-muted">Lade...</span>}
+                  </div>
                 ) : (
-                  <span className="text-accent">
-                    {getProductDisplayCategory(localProduct)}
-                    {localProduct.details?.categoryId ? (
-                      <span className="text-txt-muted"> ({localProduct.details.categoryId})</span>
-                    ) : null}
-                  </span>
-                )}
-              </p>
-
-              <div className="flex flex-wrap items-center gap-2 text-[11px] text-txt-muted mt-2">
-                <span>
-                  SKU:{' '}
-                  {localProduct.identification.sku || localProduct.details.identifiers?.sku || t('common.skuFallback')}
-                </span>
-                <button
-                  id="btn-print-label"
-                  onClick={handlePrintLabel}
-                  disabled={!localProduct.identification.sku || isPrintingLabel}
-                  className="flex items-center px-3 py-1.5 bg-app-elevated text-txt-primary rounded-full hover:bg-app-border disabled:opacity-40"
-                  title={t('sheet.buttons.printLabelTitle')}
-                  aria-label={t('sheet.buttons.printLabelTitle') || 'SKU-Label drucken'}
-                >
-                  <PrintIcon />
-                  <span className="ml-1">{t('common.printLabel')}</span>
-                </button>
-              </div>
-              {isEditing ? (
-                <div className="mt-3">
-                  <label className="block text-xs font-semibold text-txt-secondary mb-1">
-                    {t('common.barcodeLabel')}
-                  </label>
-                  <textarea
-                    aria-label={t('common.barcodeLabel') || 'Barcodes (EAN/GTIN)'}
-                    value={barcodeInput}
-                    onChange={(e) => {
-                      setBarcodeInput(e.target.value);
-                      setIsDirty(true);
-                    }}
-                    rows={Math.min(4, Math.max(2, barcodeInput.split('\n').length || 2))}
-                    className={`w-full bg-app-elevated border rounded-lg p-2 text-xs text-txt-secondary ${
-                      hasQualityIssue('identification.barcodes') || hasQualityIssue('details.identifiers') ? 'border-danger/60' : 'border-app-border'
-                    }`}
-                    placeholder={t('input.barcodes.placeholder')}
-                  />
-                  <p className="text-[11px] text-txt-muted mt-1">{t('input.barcodes.hint')}</p>
-                  <div className="text-[11px] mt-1">
-                    {editingBarcodeSummary.hasValid ? (
-                      <span className="text-success">
-                        {editingBarcodeSummary.gtin
-                          ? t('sheet.barcodes.statusValidGtin', { code: editingBarcodeSummary.gtin })
-                          : t('sheet.barcodes.statusValidEan', { code: editingBarcodeSummary.ean })}
-                      </span>
-                    ) : (
-                      <span className="text-amber-300">{t('sheet.barcodes.statusMissing')}</span>
-                    )}
-                  </div>
-                </div>
-              ) : (
-                <div className="mt-1">
-                  <p id="p-barcodes" className="text-xs text-txt-muted">
-                    {t('common.barcodeLabel')}: {localProduct.identification.barcodes?.join(', ') || t('common.na')}
-                  </p>
-                  <div className="flex flex-wrap gap-2 text-[11px] text-txt-muted mt-1">
-                    {currentBarcodeSummary.gtin && (
-                      <span className="px-2 py-0.5 rounded-full bg-success-dim text-success border border-success/30">
-                        {t('sheet.barcodes.statusValidGtin', { code: currentBarcodeSummary.gtin })}
-                      </span>
-                    )}
-                    {!currentBarcodeSummary.gtin && currentBarcodeSummary.ean && (
-                      <span className="px-2 py-0.5 rounded-full bg-success-dim text-success border border-success/30">
-                        {t('sheet.barcodes.statusValidEan', { code: currentBarcodeSummary.ean })}
-                      </span>
-                    )}
-                    {!currentBarcodeSummary.hasValid && (
-                      <span className="text-amber-300">{t('sheet.barcodes.statusMissing')}</span>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              <div className="mt-4 border border-app-border rounded-lg bg-app-bg/40 p-3">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-semibold text-txt-secondary">Quality Gate</span>
-                      {qualityGate?.checked_at_iso ? (
-                        <span className="text-[11px] text-txt-muted">
-                          {new Date(qualityGate.checked_at_iso).toLocaleString('de-DE')}
-                        </span>
-                      ) : (
-                        <span className="text-[11px] text-txt-muted">noch nicht geprüft</span>
-                      )}
-                      {qualityGate && qualityErrorCount === 0 && qualityWarnCount === 0 && qualityIssues.length === 0 && (
-                        <span className="px-2 py-0.5 rounded-full bg-success-dim text-success border border-success/30 text-[11px]">
-                          OK
-                        </span>
-                      )}
-                      {qualityGate && qualityHasWarns && (
-                        <span className="px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-200 border border-amber-500/30 text-[11px]">
-                          W{qualityWarnCount}
-                        </span>
-                      )}
-                      {qualityGate && qualityHasErrors && (
-                        <span className="px-2 py-0.5 rounded-full bg-danger-dim text-danger border border-danger/30 text-[11px]">
-                          E{qualityErrorCount}{qualityWarnCount ? ` W${qualityWarnCount}` : ''}
-                        </span>
-                      )}
-                    </div>
-                    {qualityGate?.summary && <div className="text-[12px] text-txt-secondary mt-1">{qualityGate.summary}</div>}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={runQualityGate}
-                    disabled={qualityBusy}
-                    className={`px-3 py-1.5 rounded-md text-xs font-semibold ${
-                      qualityHasErrors
-                        ? 'bg-danger text-txt-primary hover:bg-danger/80'
-                        : qualityHasWarns
-                          ? 'bg-warning text-txt-primary hover:bg-warning/80'
-                          : 'bg-app-elevated text-txt-primary hover:bg-app-border'
-                    } ${qualityBusy ? 'opacity-50 cursor-not-allowed' : ''}`}
-                    title="Quality Gate manuell ausführen"
-                    aria-label="Quality Gate manuell ausführen"
-                  >
-                    {qualityBusy ? 'Prüfe…' : 'Prüfen'}
-                  </button>
-                </div>
-
-                {qualityMessage && <div role="status" aria-live="polite" className="text-[11px] text-txt-muted mt-2">{qualityMessage}</div>}
-
-                {qualityIssues.length > 0 && (
-                  <div className="mt-2 space-y-1">
-                    {qualityIssues.slice(0, 6).map((issue: any, idx: number) => (
-                      <div key={`${issue?.code || 'issue'}-${idx}`} className="flex items-start gap-2 text-[12px]">
-                        <span
-                          className={`mt-0.5 px-1.5 py-0.5 rounded border text-[10px] uppercase ${
-                            issue?.severity === 'error'
-                              ? 'bg-danger-dim text-danger border-danger/30'
-                              : issue?.severity === 'warn'
-                                ? 'bg-amber-500/15 text-amber-200 border-amber-500/30'
-                                : 'bg-app-border/20 text-txt-secondary border-app-border'
-                          }`}
-                        >
-                          {issue?.severity || 'info'}
-                        </span>
-                        <div className="text-txt-secondary">
-                          <span className="font-semibold">{issue?.code}</span>: {issue?.message}
-                        </div>
-                      </div>
-                    ))}
-                    {qualityIssues.length > 6 && (
-                      <div className="text-[11px] text-txt-muted">… und {qualityIssues.length - 6} weitere</div>
-                    )}
-                  </div>
-                )}
-
-                {qualityGate?.evidence?.query && (
-                  <div className="mt-3 border-t border-app-border pt-2">
-                    <div className="text-[11px] text-txt-muted">Web-Evidenz Query:</div>
-                    <div className="text-[12px] text-txt-secondary font-mono break-words">{qualityGate.evidence.query}</div>
-                    {Array.isArray(qualityGate?.evidence?.pages) && qualityGate.evidence.pages.length > 0 && (
-                      <div className="mt-2 space-y-1">
-                        <div className="text-[11px] text-txt-muted">Quellen:</div>
-                        {qualityGate.evidence.pages.slice(0, 3).map((p: any, idx: number) => (
-                          <div key={`qg-evidence-${idx}`} className="text-[12px]">
-                            <a
-                              href={p?.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-accent hover:underline break-words"
-                            >
-                              {p?.title || p?.url}
-                            </a>
-                            {p?.via && <span className="ml-2 text-[11px] text-txt-muted">({p.via})</span>}
-                          </div>
-                        ))}
-                        {qualityGate.evidence.pages.length > 3 && (
-                          <div className="text-[11px] text-txt-muted">… und {qualityGate.evidence.pages.length - 3} weitere</div>
-                        )}
-                      </div>
-                    )}
-                  </div>
+                  <p className="text-sm text-txt-primary">{getProductDisplayCategory(localProduct) || '—'}</p>
                 )}
               </div>
             </div>
-            <div className="actions flex flex-wrap gap-2">
-              <button
-                id="btn-edit"
-                onClick={() => setIsEditing(v => !v)}
-                aria-label={isEditing ? t('common.editing') || 'Bearbeitung aktiv' : t('common.edit') || 'Produkt bearbeiten'}
-                aria-pressed={isEditing}
-                className={`flex items-center justify-center px-4 py-2 font-medium rounded-xl transition-colors ${isEditing ? 'bg-app-elevated text-txt-primary hover:bg-app-border' : 'bg-accent-dim text-accent hover:bg-accent/20'
-                  }`}
-              >
-                <EditIcon /><span className="ml-2">{isEditing ? t('common.editing') : t('common.edit')}</span>
-              </button>
-              <button
-                id="btn-save"
-                onClick={handleSave}
-                disabled={isSaving}
-                aria-label={isSaving ? t('common.saving') || 'Wird gespeichert' : t('common.save') || 'Produkt speichern'}
-                className="flex items-center justify-center px-4 py-2 bg-success/20 text-success font-medium rounded-xl hover:bg-success/30 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                <SaveIcon /><span className="ml-2">{isSaving ? t('common.saving') : t('common.save')}</span>
-              </button>
-              {onImprove && (
-                <button
-                  type="button"
-                  onClick={() => onImprove(localProduct.id)}
-                  disabled={Boolean(isImproving)}
-                  aria-label={isImproving ? t('common.improving') || 'Wird verbessert' : t('common.improve') || 'Produkt mit KI verbessern'}
-                  className="flex items-center justify-center px-4 py-2 bg-accent-dim text-accent font-medium rounded-xl hover:bg-accent/20 transition-colors disabled:opacity-40"
-                >
-                  {isImproving ? t('common.improving') : t('common.improve')}
-                </button>
-              )}
-            </div>
-          </div>
-        </header>
 
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
-          <div id="media-gallery" className="md:col-span-2">
-            <ImageGallery
-              images={localProduct.details.images}
-              resetKey={localProduct.id}
-              isEditing={isEditing}
-              onDeleteImage={isEditing ? handleDeleteImage : undefined}
-              onReorder={isEditing ? handleReorderImages : undefined}
-              onUpdateImage={isEditing ? handleUpdateImage : undefined}
-            />
-            {isEditing && (
-              <div className="mt-4 space-y-3">
-                <div className="flex flex-col sm:flex-row gap-3">
-                  <input
-                    type="text"
-                    aria-label={t('sheet.upload.urlPlaceholder') || 'Bild-URL eingeben'}
-                    placeholder={t('sheet.upload.urlPlaceholder')}
-                    className="flex-1 bg-app-elevated border border-app-border rounded-lg p-2 text-txt-secondary"
-                    value={newImageUrl}
-                    onChange={(e) => setNewImageUrl(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        handleAddImageFromUrl();
-                      }
-                    }}
-                  />
-                  <button
-                    type="button"
-                    onClick={handleAddImageFromUrl}
-                    aria-label={t('sheet.upload.urlButton') || 'Bild von URL hinzufügen'}
-                    className="px-4 py-2 bg-app-elevated rounded-xl text-txt-primary font-semibold hover:bg-app-border transition-colors disabled:opacity-50"
-                    disabled={!newImageUrl.trim()}
-                  >
-                    {t('sheet.upload.urlButton')}
-                  </button>
-                </div>
-                <div
-                  role="region"
-                  aria-label="Bilder per Drag-and-Drop hochladen"
-                  className={`rounded-xl border-2 border-dashed p-4 text-center text-xs sm:text-sm transition-colors ${isUploadDragActive ? 'border-accent bg-app-elevated/60' : 'border-app-border bg-app-bg/40'}`}
-                  onDragOver={handleUploadDragOver}
-                  onDragEnter={handleUploadDragOver}
-                  onDragLeave={handleUploadDragLeave}
-                  onDrop={handleUploadDrop}
-                >
-                  <p className="text-sm font-semibold text-txt-primary">{t('sheet.upload.dragTitle')}</p>
-                  <p className="text-txt-muted mt-1">{t('sheet.upload.dragHint')}</p>
-                  <div className="mt-3 flex items-center justify-center gap-2 text-txt-muted text-xs uppercase tracking-wide">
-                    <span>{t('sheet.upload.or')}</span>
-                    <label className="cursor-pointer rounded-full border border-app-border px-3 py-1 text-txt-primary">
-                      {t('sheet.upload.fileBtn')}
-                      <input
-                        type="file"
-                        accept="image/*"
-                        multiple
-                        aria-label="Bilddateien auswählen"
-                        className="hidden"
-                        onChange={(e) => {
-                          const { files } = e.target;
-                          handleUploadImages(files);
-                          if (e.target) {
-                            e.target.value = '';
-                          }
-                        }}
-                      />
-                    </label>
-                  </div>
-                  <p className="text-[11px] text-txt-muted mt-2">{t('sheet.upload.support')}</p>
-                </div>
-              </div>
-            )}
-            {isEditing && (
-              <div className="mt-4 pt-4 border-t border-app-border space-y-3">
-                <div>
-                  <label className="block text-xs font-semibold text-txt-secondary mb-1">
-                    {t('sheet.ai.referenceLabel')}
-                  </label>
-                  {referenceImages.length ? (
-                    <select
-                      aria-label="Referenzbild für KI-Generierung auswählen"
-                      className="w-full bg-app-elevated border border-app-border rounded-lg px-3 py-2 text-sm text-txt-primary"
-                      value={selectedReferenceIndex >= 0 ? selectedReferenceIndex : ''}
-                      onChange={(e) => setSelectedReferenceIndex(Number(e.target.value))}
-                    >
-                      {referenceImages.map((img, index) => {
-                        const meta = [img.source, img.variant, img.notes].filter(Boolean).join(' · ');
-                        return (
-                          <option key={`${img.url_or_base64}-${index}`} value={index}>
-                            {`Bild ${index + 1}${meta ? ` – ${meta}` : ''}`}
-                          </option>
-                        );
-                      })}
-                    </select>
-                  ) : (
-                    <p className="text-xs text-amber-400">{t('sheet.ai.noReference')}</p>
-                  )}
-                </div>
-                <button
-                  onClick={handleGenerateImages}
-                  disabled={isGeneratingImages || !selectedReferenceImage}
-                  aria-label={isGeneratingImages ? t('sheet.ai.running') || 'Bilder werden generiert' : t('sheet.ai.cta') || 'KI-Bilder generieren'}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-violet-600 to-violet-500 text-txt-primary font-semibold rounded-xl hover:from-violet-500 hover:to-violet-400 transition-all disabled:opacity-40 shadow-lg shadow-violet-900/20"
-                >
-                  {isGeneratingImages ? <Spinner className="w-5 h-5 text-txt-primary" /> : <MagicIcon className="w-5 h-5" />}
-                  <span>{isGeneratingImages ? t('sheet.ai.running') : t('sheet.ai.cta')}</span>
-                </button>
-                <p className="text-xs text-txt-muted text-center">{t('sheet.ai.helper')}</p>
-              </div>
-            )}
-          </div>
-          <section id="highlights" className="md:col-span-3 p-5 bg-app-surface border border-app-border rounded-2xl">
-            <h3 className="text-lg font-semibold mb-2 text-txt-primary">{t('sheet.highlights')}</h3>
-            {isEditing ? (
-              <textarea
-                aria-label={t('sheet.highlights') || 'Highlights bearbeiten'}
-                defaultValue={(localProduct.details.key_features || []).join('\n')}
-                onBlur={(e) => {
-                  const lines = e.target.value.split('\n').map((line) => line.trim()).filter(Boolean);
-                  setLocalProduct((prev) => ({
-                    ...prev,
-                    details: { ...prev.details, key_features: lines },
-                  }));
-                  setIsDirty(true);
-                }}
-                placeholder={t('sheet.highlights.placeholder')}
-                className="w-full min-h-[110px] bg-app-elevated border border-app-border rounded-lg p-3 text-txt-secondary"
-              />
-            ) : highlightList.length ? (
-              <ul className="space-y-2 list-disc list-inside text-txt-secondary text-sm">
-                {highlightList.map((feature, index) => (
-                  <li key={index}>{feature}</li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-sm text-txt-muted">{t('sheet.highlights.empty')}</p>
-            )}
-          </section>
-        </div>
-
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-          <section id="description" className="p-5 bg-app-surface border border-app-border rounded-2xl h-full">
-            <h3 className="text-xl font-semibold mb-3 text-txt-primary">{t('sheet.description')}</h3>
-            {isEditing ? (
-              <textarea
-                aria-label={t('sheet.description') || 'Produktbeschreibung bearbeiten'}
-                defaultValue={localProduct.details.short_description}
-                onBlur={(e) => handleFieldChange('details.short_description', e.target.value)}
-                className="w-full min-h-[120px] bg-app-elevated border border-app-border rounded-lg p-3 text-txt-secondary"
-              />
-            ) : (
-              <p className="text-txt-secondary leading-relaxed text-sm sm:text-base">{descriptionText}</p>
-            )}
-          </section>
-
-          <section id="gpsr" className="p-5 bg-app-surface border border-app-border rounded-2xl h-full">
-            <div className="flex items-center justify-between gap-3">
-              <h3 className="text-xl font-semibold mb-3 text-txt-primary">GPSR</h3>
-              {!hasAnyGpsr && !isEditing ? (
-                <span className="text-[11px] px-2 py-0.5 rounded-full bg-app-elevated/60 text-txt-secondary border border-app-border">
-                  leer
-                </span>
-              ) : null}
-            </div>
-
-            <p className="text-xs text-txt-muted mb-3">
-              GPSR/Compliance Herstellerdaten (wird aus Identify/Jobs strukturiert unter <span className="font-mono">details.gpsr</span> gespeichert).
-            </p>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {[
-                ['manufacturer_name', 'Hersteller Name'],
-                ['manufacturer_address', 'Adresse (Straße + Nr.)'],
-                ['manufacturer_city', 'Stadt'],
-                ['manufacturer_postalcode', 'PLZ'],
-                ['manufacturer_state_province', 'Bundesland / Province'],
-                ['entity_country', 'Land (EN)'],
-                ['country_code', 'Country Code'],
-                ['email', 'E-Mail'],
-                ['manufacturer_phone', 'Telefon'],
-                ['url', 'Website'],
-              ].map(([key, label]) => {
-                const value = typeof gpsr?.[key] === 'string' ? gpsr[key] : '';
-                return (
-                  <div key={key} className="flex flex-col gap-1">
-                    <div className="text-xs font-semibold text-txt-secondary">{label}</div>
-                    {isEditing ? (
-                      <input
-                        aria-label={`GPSR ${label}`}
-                        value={value}
-                        onChange={(e) => updateGpsrField(String(key), e.target.value)}
-                        className="w-full bg-app-elevated border border-app-border rounded-lg px-3 py-2 text-txt-secondary text-sm"
-                        placeholder="—"
-                      />
-                    ) : (
-                      <div className="text-sm text-txt-secondary break-words">
-                        {value ? value : <span className="text-txt-muted">—</span>}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </section>
-
-          <section id="attributes" className="p-5 bg-app-surface border border-app-border rounded-2xl h-full">
-            <h3 className="text-xl font-semibold mb-4 text-txt-primary">{t('sheet.attributes')}</h3>
-
-            <div className="mb-4 rounded-lg border border-app-border bg-app-bg/60 p-3">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <div className="text-sm font-semibold text-txt-secondary">K-Typ</div>
-                    {requiresKTyp && !ktypValue && (
-                      <span className="text-[11px] px-2 py-0.5 rounded-full bg-warning/30 text-amber-200 border border-amber-500/30">
-                        Pflicht (Auto/KFZ/Motorrad)
-                      </span>
-                    )}
-                  </div>
-                  <p className="mt-1 text-[11px] text-txt-muted">
-                    Format: <span className="font-mono">19974|57446|57448</span> (optional mit Kommentar nach Komma je Eintrag).
-                  </p>
-                </div>
-              </div>
-
+            <div>
+              <label className="block text-xs font-semibold text-txt-secondary mb-1">Beschreibung</label>
               {isEditing ? (
                 <textarea
-                  aria-label="K-Typ Nummern bearbeiten"
-                  defaultValue={ktypValue}
-                  placeholder="19974|57446|57448"
-                  onBlur={(e) => {
-                    const nextVal = e.target.value.trim();
-                    setLocalProduct((prev) => {
-                      const nextAttrs = { ...(prev.details.attributes || {}) } as Record<string, any>;
-                      if (!nextVal) {
-                        Object.keys(nextAttrs).forEach((k) => {
-                          const lower = String(k || '').trim().toLowerCase();
-                          if (lower === 'k-typ' || lower === 'ktyp' || lower === 'k typ') {
-                            delete nextAttrs[k];
-                          }
-                        });
-                      } else {
-                        nextAttrs['K-Typ'] = nextVal;
-                      }
-                      return { ...prev, details: { ...prev.details, attributes: nextAttrs } };
-                    });
-                    setIsDirty(true);
-                  }}
-                  className="mt-3 w-full min-h-[70px] bg-app-elevated border border-app-border rounded-lg p-2 text-txt-secondary"
+                  defaultValue={localProduct.details.short_description}
+                  onBlur={(e) => handleFieldChange('details.short_description', e.target.value)}
+                  className="w-full min-h-[80px] text-sm bg-app-elevated border border-app-border rounded-lg p-2.5 outline-none focus:border-accent"
                 />
               ) : (
-                <div className="mt-3 text-sm text-txt-secondary whitespace-pre-wrap break-words">
-                  {ktypValue ? ktypValue : <span className="text-txt-muted">—</span>}
-                </div>
+                <p className="text-sm text-txt-secondary leading-relaxed">{descriptionText || '—'}</p>
               )}
             </div>
 
-            {localProduct?.ops?.data_quality?.ktype_enrich_v1 ? (
-              <details className="mb-4 rounded-lg border border-app-border bg-app-bg/60 p-3">
-                <summary className="cursor-pointer text-sm font-semibold text-txt-secondary">
-                  K-Typ Trace (ops.data_quality.ktype_enrich_v1)
-                </summary>
-                <pre className="mt-3 overflow-auto whitespace-pre-wrap text-xs text-txt-secondary">
-                  {JSON.stringify(localProduct.ops.data_quality.ktype_enrich_v1, null, 2)}
-                </pre>
-              </details>
-            ) : null}
+            <div>
+              <label className="block text-xs font-semibold text-txt-secondary mb-1">Highlights</label>
+              {isEditing ? (
+                <textarea
+                  defaultValue={(localProduct.details.key_features || []).join('\n')}
+                  onBlur={(e) => {
+                    const lines = e.target.value.split('\n').map((line) => line.trim()).filter(Boolean);
+                    setLocalProduct((prev) => ({ ...prev, details: { ...prev.details, key_features: lines } }));
+                    setIsDirty(true);
+                  }}
+                  placeholder="Ein Highlight pro Zeile..."
+                  className="w-full min-h-[60px] text-sm bg-app-elevated border border-app-border rounded-lg p-2.5 outline-none focus:border-accent"
+                />
+              ) : highlightList.length ? (
+                <ul className="space-y-1 list-disc list-inside text-sm text-txt-secondary">
+                  {highlightList.map((f, i) => <li key={i}>{f}</li>)}
+                </ul>
+              ) : (
+                <p className="text-sm text-txt-muted">—</p>
+              )}
+            </div>
+          </div>
+        </section>
 
-            <AttributeTable
-              attributes={localProduct.details.attributes}
-              isEditing={isEditing}
-              highlightKeys={qualityAttributeHighlightKeys}
-              onChange={(next) => {
-                setLocalProduct(prev => ({ ...prev, details: { ...prev.details, attributes: next } }));
-                setIsDirty(true);
-              }}
-            />
+        {/* Identifiers + Pricing side by side */}
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
+          <section className="p-5 bg-app-surface border border-app-border rounded-2xl">
+            <h3 className="text-sm font-semibold text-txt-muted uppercase tracking-wide mb-3">Identifikatoren</h3>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-semibold text-txt-secondary mb-1">SKU</label>
+                <div className="flex items-center gap-2">
+                  <p className="text-sm text-txt-primary font-mono">{localProduct.identification.sku || localProduct.details?.identifiers?.sku || '—'}</p>
+                  <button onClick={handlePrintLabel} disabled={!localProduct.identification.sku || isPrintingLabel} className="text-txt-muted hover:text-txt-primary transition-colors" title="SKU-Label drucken">
+                    <PrintIcon className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-txt-secondary mb-1">Barcodes (EAN/GTIN)</label>
+                {isEditing ? (
+                  <div>
+                    <textarea
+                      value={barcodeInput}
+                      onChange={(e) => { setBarcodeInput(e.target.value); setIsDirty(true); }}
+                      rows={Math.min(3, Math.max(2, barcodeInput.split('\n').length || 2))}
+                      className={`w-full text-sm bg-app-elevated border rounded-lg p-2.5 font-mono ${hasQualityIssue('identification.barcodes') ? 'border-danger/60' : 'border-app-border'}`}
+                      placeholder={t('input.barcodes.placeholder')}
+                    />
+                    <div className="text-[11px] mt-1">
+                      {editingBarcodeSummary.hasValid ? (
+                        <span className="text-success">EAN: {editingBarcodeSummary.ean || editingBarcodeSummary.gtin || '—'}</span>
+                      ) : barcodeInput.trim() ? (
+                        <span className="text-danger">Kein gültiger Barcode erkannt</span>
+                      ) : null}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex flex-wrap gap-1.5">
+                    {currentBarcodeSummary.list.length ? currentBarcodeSummary.list.map((b, i) => (
+                      <span key={i} className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-mono ${isValidGtin(b) ? 'bg-success-dim text-success' : 'bg-app-elevated text-txt-muted'}`}>{b}</span>
+                    )) : <span className="text-sm text-txt-muted">—</span>}
+                  </div>
+                )}
+              </div>
+            </div>
           </section>
 
-        </div>
-
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-          <section id="pricing" className="p-5 bg-app-surface border border-app-border rounded-2xl h-full">
-            <h3 className="text-xl font-semibold mb-4 text-txt-primary">{t('sheet.pricing')}</h3>
+          <section className="p-5 bg-app-surface border border-app-border rounded-2xl">
+            <h3 className="text-sm font-semibold text-txt-muted uppercase tracking-wide mb-3">Preis & Lager</h3>
             <PricingInfo
               pricing={localProduct.details?.pricing}
               isEditing={isEditing}
-              onChange={(next) => {
-                setLocalProduct(prev => ({ ...prev, details: { ...prev.details, pricing: next } }));
-                setIsDirty(true);
-              }}
+              onChange={(next) => { setLocalProduct(prev => ({ ...prev, details: { ...prev.details, pricing: next } })); setIsDirty(true); }}
             />
-            {/* Pricing Engine — Preisvorschlag */}
             {(() => {
               const pricing = localProduct.details?.pricing;
               const suggestedPrice = pricing?.suggestedPrice;
               if (!suggestedPrice) return null;
               const tier = pricing?.pricingTier;
-              const matchBasis = pricing?.pricingMatchBasis;
               const currentAmount = pricing?.lowest_price?.amount;
               const tierConfig: Record<number, { label: string; cls: string }> = {
-                1: { label: 'Tier 1 · Sicher', cls: 'bg-success-dim text-success' },
-                2: { label: 'Tier 2 · Ähnlich', cls: 'bg-yellow-900/40 text-yellow-400' },
-                0: { label: 'Kostenbasis', cls: 'bg-app-elevated/40 text-txt-muted' },
+                1: { label: 'Tier 1', cls: 'bg-success-dim text-success' },
+                2: { label: 'Tier 2', cls: 'bg-warning-dim text-warning' },
+                0: { label: 'Kosten', cls: 'bg-app-elevated text-txt-muted' },
               };
               const cfg = tier != null ? (tierConfig[tier] ?? tierConfig[0]) : null;
-              const diff = currentAmount && currentAmount > 0
-                ? Math.round(((suggestedPrice - currentAmount) / currentAmount) * 100)
-                : null;
+              const diff = currentAmount && currentAmount > 0 ? Math.round(((suggestedPrice - currentAmount) / currentAmount) * 100) : null;
               return (
-                <div className="mt-4 pt-4 border-t border-app-border">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-xs text-txt-muted font-medium uppercase tracking-wide">Preisvorschlag</span>
-                    {cfg && (
-                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${cfg.cls}`}>{cfg.label}</span>
-                    )}
-                    {diff != null && (
-                      <span className={`text-xs font-medium ${diff > 0 ? 'text-success' : diff < 0 ? 'text-danger' : 'text-txt-muted'}`}>
-                        {diff > 0 ? `+${diff}%` : `${diff}%`} zum aktuellen Preis
-                      </span>
-                    )}
+                <div className="mt-3 pt-3 border-t border-app-border">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-xs text-txt-muted font-medium">Vorschlag</span>
+                    {cfg && <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${cfg.cls}`}>{cfg.label}</span>}
+                    {diff != null && <span className={`text-xs font-medium ${diff > 0 ? 'text-success' : diff < 0 ? 'text-danger' : 'text-txt-muted'}`}>{diff > 0 ? `+${diff}%` : `${diff}%`}</span>}
                   </div>
-                  <div className="flex items-center gap-3">
-                    <span className="text-2xl font-bold text-txt-primary">
-                      {suggestedPrice.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
-                    </span>
-                    <button
-                      type="button"
-                      title="Preisvorschlag als aktuellen Preis übernehmen und speichern"
-                      aria-label="Preisvorschlag als aktuellen Preis übernehmen"
-                      onClick={() => {
-                        setLocalProduct(prev => ({
-                          ...prev,
-                          details: {
-                            ...prev.details,
-                            pricing: {
-                              ...prev.details?.pricing,
-                              sellPrice: suggestedPrice,
-                              lowest_price: {
-                                ...(prev.details?.pricing?.lowest_price || {}),
-                                amount: suggestedPrice,
-                              },
-                            },
-                          },
-                        }));
-                        setIsDirty(true);
-                      }}
-                      className="rounded-lg bg-accent px-3 py-1.5 text-sm font-semibold text-txt-primary hover:bg-accent/80 transition-colors"
-                    >
-                      Preis übernehmen
-                    </button>
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg font-bold text-txt-primary">{suggestedPrice.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</span>
+                    <button type="button" onClick={() => { setLocalProduct(prev => ({ ...prev, details: { ...prev.details, pricing: { ...prev.details?.pricing, sellPrice: suggestedPrice, lowest_price: { ...(prev.details?.pricing?.lowest_price || {}), amount: suggestedPrice } } } })); setIsDirty(true); }} className="rounded-lg bg-accent px-2.5 py-1 text-xs font-semibold text-white hover:bg-accent/80">Übernehmen</button>
                   </div>
-                  {matchBasis && (
-                    <p className="text-xs text-txt-muted mt-1">{matchBasis}</p>
-                  )}
                 </div>
               );
             })()}
-            {/* Competitor prices — only show when a valid EAN/GTIN exists */}
             {(currentBarcodeSummary.ean || currentBarcodeSummary.gtin) && (
-              <div className="mt-5 pt-5 border-t border-app-border">
-                <CompetitorPrices
-                  ean={currentBarcodeSummary.ean || currentBarcodeSummary.gtin || ''}
-                  ownPrice={localProduct.details?.pricing?.lowest_price?.amount}
-                  storedPrices={localProduct.details?.pricing?.competitorPrices}
-                  lastPriceCheck={localProduct.details?.pricing?.lastPriceCheck}
-                />
+              <div className="mt-3 pt-3 border-t border-app-border">
+                <CompetitorPrices ean={currentBarcodeSummary.ean || currentBarcodeSummary.gtin || ''} ownPrice={localProduct.details?.pricing?.lowest_price?.amount} storedPrices={localProduct.details?.pricing?.competitorPrices} lastPriceCheck={localProduct.details?.pricing?.lastPriceCheck} />
               </div>
             )}
-          </section>
-
-          <section id="storage" className="p-5 bg-app-surface border border-app-border rounded-2xl h-full">
-            <h3 className="text-xl font-semibold mb-4 text-txt-primary">{t('sheet.storage')}</h3>
-            {binsLoading ? (
-              <p role="status" aria-live="polite" className="text-txt-muted text-sm mb-3">{t('sheet.storage.loading')}</p>
-            ) : binsError ? (
-              <p role="alert" className="text-danger text-sm mb-3">{binsError}</p>
-            ) : productBins.length ? (
-              <div className="mb-4 space-y-2 max-h-56 overflow-auto pr-1">
-                {productBins.map((bin) => (
-                  <div key={bin.code} className="rounded border border-app-border bg-app-bg/60 px-3 py-2 text-sm text-txt-secondary">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div className="font-semibold text-txt-primary">{bin.code}</div>
-                      <div className="text-xs text-txt-muted">
-                        Zone {bin.zone} · Etage {bin.etage} · Gang {bin.gang} · Regal {bin.regal} · Ebene {bin.ebene}
-                      </div>
-                      <div className="text-xs text-txt-secondary">Menge {bin.quantity ?? bin.productCount ?? 0}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-txt-muted text-sm mb-3">{t('sheet.storage.none')}</p>
-            )}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs text-txt-muted mb-1">{t('sheet.storage.binLabel')}</label>
-                <input
-                  value={binCodeInput}
-                  onChange={(e) => setBinCodeInput(e.target.value.toUpperCase())}
-                  placeholder={t('sheet.storage.binPlaceholder')}
-                  className="w-full bg-app-elevated border border-app-border rounded-lg px-3 py-2 text-sm"
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-txt-muted mb-1">{t('sheet.storage.quantity')}</label>
-                <input
-                  type="number"
-                  min={1}
-                  value={binQuantity}
-                  onChange={(e) => setBinQuantity(Number(e.target.value))}
-                  className="w-full bg-app-elevated border border-app-border rounded-lg px-3 py-2 text-sm"
-                />
-              </div>
-            </div>
-            <div className="flex flex-wrap gap-3 mt-4">
-              <button
-                onClick={handleAssignBin}
-                disabled={isAssigningBin}
-                aria-label={t('sheet.storage.assign') || 'Lagerplatz zuweisen (Stock-In)'}
-                className="px-4 py-2 bg-accent-dim text-accent rounded-xl hover:bg-accent/20 disabled:opacity-40"
-              >
-                {isAssigningBin ? t('sheet.storage.assigning') : t('sheet.storage.assign')}
-              </button>
-              {binCodeInput && (
-                <button
-                  onClick={handleRemoveBin}
-                  aria-label={t('sheet.storage.remove') || 'Lagerplatz entfernen (Stock-Out)'}
-                  className="px-4 py-2 bg-danger/20 text-danger rounded-xl hover:bg-danger/30"
-                >
-                  {t('sheet.storage.remove')}
-                </button>
-              )}
-            </div>
           </section>
         </div>
 
-        {false && (
-        <section className="p-5 bg-app-elevated/40 rounded-2xl border border-app-border space-y-3">
-          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-            <div>
-              <h3 className="text-xl font-semibold text-txt-primary">{t('sheet.inventory.title')}</h3>
-              <p className="text-sm text-txt-secondary">
-                {localProduct.inventory?.inventoryName || t('sheet.inventory.none')}
-              </p>
-              <p className="text-xs text-txt-muted">
-                {localProduct.inventory?.inventoryId || t('sheet.inventory.helper')}
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={handleInventoryLabel}
-                disabled={!localProduct.inventory?.inventoryId}
-                aria-label={t('sheet.inventory.printLabel') || 'Inventar-Label drucken'}
-                className="inline-flex items-center gap-2 rounded-xl border border-app-border px-3 py-1.5 text-sm font-semibold text-txt-primary hover:bg-app-elevated transition-colors disabled:opacity-50"
-              >
-                <PrintIcon className="w-4 h-4" />
-                {t('sheet.inventory.printLabel')}
-              </button>
-              <button
-                type="button"
-                onClick={() => syncInventoryList()}
-                disabled={inventorySyncing}
-                aria-label={t('sheet.inventory.sync') || 'Inventar synchronisieren'}
-                className="inline-flex items-center gap-2 rounded-xl border border-app-border px-3 py-1.5 text-sm font-semibold text-txt-primary hover:bg-app-elevated transition-colors disabled:opacity-60"
-              >
-                {inventorySyncing ? <Spinner className="w-4 h-4" /> : <RefreshIcon className="w-4 h-4" />}
-                {inventorySyncing ? t('sheet.inventory.syncing') : t('sheet.inventory.sync')}
-              </button>
-            </div>
+        {/* GPSR */}
+        <section className="p-5 bg-app-surface border border-app-border rounded-2xl">
+          <div className="flex items-center gap-2 mb-3">
+            <h3 className="text-sm font-semibold text-txt-muted uppercase tracking-wide">GPSR / Compliance</h3>
+            {!hasAnyGpsr && !isEditing && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-app-elevated text-txt-muted">leer</span>}
           </div>
-          <div className="space-y-2">
-            <label className="block text-xs text-txt-muted uppercase tracking-wide">
-              {t('sheet.inventory.selectLabel')}
-            </label>
-            <select
-              aria-label={t('sheet.inventory.selectLabel') || 'Inventar auswählen'}
-              value={localProduct.inventory?.inventoryId || ''}
-              onChange={(event) => handleInventoryAssign(event.target.value)}
-              disabled={assigningInventory}
-              className="w-full rounded-xl border border-app-border bg-app-bg px-3 py-2 text-sm text-txt-primary disabled:opacity-50"
-            >
-              <option value="">{t('sheet.inventory.selectPlaceholder')}</option>
-              {inventories.map((inv) => (
-                <option key={inv.inventoryId} value={inv.inventoryId}>
-                  {inv.name} ({inv.inventoryId})
-                </option>
-              ))}
-            </select>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {([
+              ['manufacturer_name', 'Hersteller'],
+              ['manufacturer_address', 'Adresse'],
+              ['manufacturer_city', 'Stadt'],
+              ['manufacturer_postalcode', 'PLZ'],
+              ['entity_country', 'Land'],
+              ['email', 'E-Mail'],
+              ['manufacturer_phone', 'Telefon'],
+              ['url', 'Website'],
+            ] as [string, string][]).map(([key, label]) => {
+              const value = typeof gpsr?.[key] === 'string' ? gpsr[key] : '';
+              return (
+                <div key={key}>
+                  <label className="block text-xs text-txt-muted mb-0.5">{label}</label>
+                  {isEditing ? (
+                    <input value={value} onChange={(e) => updateGpsrField(key, e.target.value)} className="w-full text-sm bg-app-elevated border border-app-border rounded-lg px-2.5 py-1.5" placeholder="—" />
+                  ) : (
+                    <p className="text-sm text-txt-secondary">{value || '—'}</p>
+                  )}
+                </div>
+              );
+            })}
           </div>
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() =>
-                localProduct.inventory?.inventoryId
-                  ? setActiveInventoryId(localProduct.inventory.inventoryId)
-                  : null
-              }
-              disabled={!localProduct.inventory?.inventoryId}
-              aria-label={t('sheet.inventory.setActive') || 'Inventar als aktiv setzen'}
-              className="inline-flex items-center gap-2 rounded-xl border border-app-border px-3 py-1.5 text-sm font-semibold text-txt-primary hover:bg-app-elevated transition-colors disabled:opacity-50"
-            >
-              <BarcodeIcon className="w-4 h-4" />
-              {t('sheet.inventory.setActive')}
-            </button>
-          </div>
-          {inventoryMessage && <p role="status" aria-live="polite" className="text-xs text-txt-muted">{inventoryMessage}</p>}
         </section>
-        )}
 
-        <section className="p-5 bg-app-elevated/40 rounded-2xl border border-app-border">
-          <h3 className="text-xl font-semibold mb-4 text-txt-primary">{t('sheet.actions.title')}</h3>
-          {/* Listing Status Badges */}
-          {((localProduct as any)?.ops?.listingStatus?.ebay || (localProduct as any)?.ops?.listingStatus?.kaufland) && (
-            <div className="flex flex-wrap gap-2 mb-4" role="status" aria-label="Listing-Status">
-              {(localProduct as any)?.ops?.listingStatus?.ebay === 'active' && (
-                <span className="inline-flex items-center rounded-full bg-success-dim px-3 py-1 text-xs font-semibold text-success">
-                  eBay: Gelistet
-                </span>
-              )}
-              {(localProduct as any)?.ops?.listingStatus?.ebay === 'inactive' && (
-                <span className="inline-flex items-center rounded-full bg-warning-dim px-3 py-1 text-xs font-semibold text-warning">
-                  eBay: Inaktiv
-                </span>
-              )}
-              {(localProduct as any)?.ops?.listingStatus?.kaufland === 'active' && (
-                <span className="inline-flex items-center rounded-full bg-success-dim px-3 py-1 text-xs font-semibold text-success">
-                  Kaufland: Gelistet
-                </span>
-              )}
-              {(localProduct as any)?.ops?.listingStatus?.kaufland === 'inactive' && (
-                <span className="inline-flex items-center rounded-full bg-warning-dim px-3 py-1 text-xs font-semibold text-warning">
-                  Kaufland: Inaktiv
-                </span>
-              )}
-              {(localProduct as any)?.ops?.listingStatus?.lastSyncAt && (
-                <span className="text-xs text-txt-muted">
-                  Sync: {new Date((localProduct as any).ops.listingStatus.lastSyncAt).toLocaleString('de-DE')}
-                </span>
-              )}
+        {/* Storage */}
+        <section className="p-5 bg-app-surface border border-app-border rounded-2xl">
+          <h3 className="text-sm font-semibold text-txt-muted uppercase tracking-wide mb-3">{t('sheet.storage')}</h3>
+          {binsLoading ? (
+            <p className="text-txt-muted text-sm">{t('sheet.storage.loading')}</p>
+          ) : binsError ? (
+            <p className="text-danger text-sm">{binsError}</p>
+          ) : productBins.length ? (
+            <div className="mb-3 space-y-1.5 max-h-40 overflow-auto">
+              {productBins.map((bin) => (
+                <div key={bin.code} className="flex items-center justify-between rounded-lg border border-app-border bg-app-bg/60 px-3 py-1.5 text-sm">
+                  <span className="font-semibold text-txt-primary">{bin.code}</span>
+                  <span className="text-xs text-txt-muted">Zone {bin.zone} · Gang {bin.gang} · Menge {bin.quantity ?? bin.productCount ?? 0}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-txt-muted text-sm mb-3">{t('sheet.storage.none')}</p>
+          )}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs text-txt-muted mb-1">{t('sheet.storage.binLabel')}</label>
+              <input value={binCodeInput} onChange={(e) => setBinCodeInput(e.target.value.toUpperCase())} placeholder={t('sheet.storage.binPlaceholder')} className="w-full text-sm bg-app-elevated border border-app-border rounded-lg px-3 py-1.5" />
+            </div>
+            <div>
+              <label className="block text-xs text-txt-muted mb-1">{t('sheet.storage.quantity')}</label>
+              <input type="number" min={1} value={binQuantity} onChange={(e) => setBinQuantity(Number(e.target.value))} className="w-full text-sm bg-app-elevated border border-app-border rounded-lg px-3 py-1.5" />
+            </div>
+          </div>
+          <div className="flex gap-2 mt-3">
+            <button onClick={handleAssignBin} disabled={isAssigningBin} className="px-3 py-1.5 text-sm bg-accent-dim text-accent rounded-lg hover:bg-accent/20 disabled:opacity-40">{isAssigningBin ? t('sheet.storage.assigning') : t('sheet.storage.assign')}</button>
+            {binCodeInput && <button onClick={handleRemoveBin} className="px-3 py-1.5 text-sm bg-danger/20 text-danger rounded-lg hover:bg-danger/30">{t('sheet.storage.remove')}</button>}
+          </div>
+        </section>
+
+        {/* Sync */}
+        <div className="flex items-center gap-3">
+          <button id="btn-sync" onClick={handleSync} disabled={isSyncing} className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg bg-app-elevated border border-app-border text-txt-secondary hover:bg-app-border transition-colors disabled:opacity-40">
+            {isSyncing ? <Spinner className="w-4 h-4" /> : <SyncIcon className="w-4 h-4" />}
+            {t('sheet.actions.sync')}
+          </button>
+        </div>
+      </TabPanel>
+
+      {/* ─── TAB: Bilder ────────────────────────────────────── */}
+      <TabPanel tabId="bilder" activeTab={activeTab} className="space-y-5">
+        <section className="p-5 bg-app-surface border border-app-border rounded-2xl">
+          <ImageGallery
+            images={localProduct.details.images}
+            resetKey={localProduct.id}
+            isEditing={isEditing}
+            onDeleteImage={isEditing ? handleDeleteImage : undefined}
+            onReorder={isEditing ? handleReorderImages : undefined}
+            onUpdateImage={isEditing ? handleUpdateImage : undefined}
+          />
+          {isEditing && (
+            <div className="mt-4 space-y-3">
+              <div className="flex flex-col sm:flex-row gap-3">
+                <input
+                  type="text"
+                  placeholder={t('sheet.upload.urlPlaceholder')}
+                  className="flex-1 text-sm bg-app-elevated border border-app-border rounded-lg p-2"
+                  value={newImageUrl}
+                  onChange={(e) => setNewImageUrl(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddImageFromUrl(); } }}
+                />
+                <button onClick={handleAddImageFromUrl} disabled={!newImageUrl.trim()} className="px-4 py-2 text-sm bg-app-elevated rounded-lg text-txt-primary font-medium hover:bg-app-border disabled:opacity-50">{t('sheet.upload.urlButton')}</button>
+              </div>
+              <div
+                className={`rounded-xl border-2 border-dashed p-4 text-center text-sm transition-colors ${isUploadDragActive ? 'border-accent bg-app-elevated/60' : 'border-app-border bg-app-bg/40'}`}
+                onDragOver={handleUploadDragOver} onDragEnter={handleUploadDragOver} onDragLeave={handleUploadDragLeave} onDrop={handleUploadDrop}
+              >
+                <p className="text-sm font-semibold text-txt-primary">{t('sheet.upload.dragTitle')}</p>
+                <p className="text-txt-muted mt-1 text-xs">{t('sheet.upload.dragHint')}</p>
+                <label className="mt-2 inline-block cursor-pointer rounded-full border border-app-border px-3 py-1 text-xs text-txt-primary">
+                  {t('sheet.upload.fileBtn')}
+                  <input type="file" accept="image/*" multiple className="hidden" onChange={(e) => { handleUploadImages(e.target.files); if (e.target) e.target.value = ''; }} />
+                </label>
+              </div>
+              <div className="pt-3 border-t border-app-border">
+                <label className="block text-xs font-semibold text-txt-secondary mb-1">{t('sheet.ai.referenceLabel')}</label>
+                {referenceImages.length ? (
+                  <select className="w-full text-sm bg-app-elevated border border-app-border rounded-lg px-3 py-2" value={selectedReferenceIndex >= 0 ? selectedReferenceIndex : ''} onChange={(e) => setSelectedReferenceIndex(Number(e.target.value))}>
+                    {referenceImages.map((img, i) => <option key={`${img.url_or_base64}-${i}`} value={i}>{`Bild ${i + 1}`}</option>)}
+                  </select>
+                ) : <p className="text-xs text-txt-muted">{t('sheet.ai.noReference')}</p>}
+                <button onClick={handleGenerateImages} disabled={isGeneratingImages || !selectedReferenceImage} className="mt-2 w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-accent text-white font-medium rounded-xl hover:bg-accent/80 disabled:opacity-40">
+                  {isGeneratingImages ? <Spinner className="w-4 h-4" /> : <MagicIcon className="w-4 h-4" />}
+                  {isGeneratingImages ? t('sheet.ai.running') : t('sheet.ai.cta')}
+                </button>
+              </div>
             </div>
           )}
-          <div className="actions flex flex-wrap gap-4 items-center">
-            {/* Fixed BaseLinker inventory (78659), no selector */}
-            <button
-              id="btn-sync"
-              onClick={handleSync}
-              disabled={isSyncing}
-              aria-label={t('sheet.actions.sync') || 'Mit BaseLinker synchronisieren'}
-              className="flex items-center justify-center px-4 py-2 bg-app-elevated/60 text-txt-secondary font-semibold rounded-xl hover:bg-app-elevated/60 transition-colors disabled:opacity-40 disabled:cursor-wait border border-app-border"
-            >
-              {isSyncing ? <Spinner className="w-5 h-5" /> : <SyncIcon />}
-              <span className="ml-2">{t('sheet.actions.sync')}</span>
+        </section>
+      </TabPanel>
+
+      {/* ─── TAB: Attribute ─────────────────────────────────── */}
+      <TabPanel tabId="attribute" activeTab={activeTab} className="space-y-5">
+        <section className="p-5 bg-app-surface border border-app-border rounded-2xl">
+          {/* K-Typ */}
+          <div className="mb-4 rounded-lg border border-app-border bg-app-bg/60 p-3">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-sm font-semibold text-txt-secondary">K-Typ</span>
+              {requiresKTyp && !ktypValue && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-warning-dim text-warning">Pflicht</span>}
+            </div>
+            {isEditing ? (
+              <textarea
+                defaultValue={ktypValue}
+                placeholder="19974|57446|57448"
+                onBlur={(e) => {
+                  const nextVal = e.target.value.trim();
+                  setLocalProduct((prev) => {
+                    const nextAttrs = { ...(prev.details.attributes || {}) } as Record<string, any>;
+                    if (!nextVal) { Object.keys(nextAttrs).forEach((k) => { if (['k-typ','ktyp','k typ'].includes(k.trim().toLowerCase())) delete nextAttrs[k]; }); }
+                    else { nextAttrs['K-Typ'] = nextVal; }
+                    return { ...prev, details: { ...prev.details, attributes: nextAttrs } };
+                  });
+                  setIsDirty(true);
+                }}
+                className="w-full min-h-[50px] text-sm bg-app-elevated border border-app-border rounded-lg p-2 font-mono"
+              />
+            ) : (
+              <p className="text-sm text-txt-secondary font-mono">{ktypValue || '—'}</p>
+            )}
+          </div>
+
+          {localProduct?.ops?.data_quality?.ktype_enrich_v1 ? (
+            <details className="mb-4 rounded-lg border border-app-border bg-app-bg/60 p-3">
+              <summary className="cursor-pointer text-sm font-semibold text-txt-secondary">K-Typ Trace</summary>
+              <pre className="mt-2 overflow-auto whitespace-pre-wrap text-xs text-txt-muted">{JSON.stringify(localProduct.ops.data_quality.ktype_enrich_v1, null, 2)}</pre>
+            </details>
+          ) : null}
+
+          <AttributeTable
+            attributes={localProduct.details.attributes}
+            isEditing={isEditing}
+            highlightKeys={qualityAttributeHighlightKeys}
+            onChange={(next) => { setLocalProduct(prev => ({ ...prev, details: { ...prev.details, attributes: next } })); setIsDirty(true); }}
+          />
+        </section>
+      </TabPanel>
+
+      {/* ─── TAB: Marktplätze ───────────────────────────────── */}
+      <TabPanel tabId="marktplaetze" activeTab={activeTab} className="space-y-5">
+        <section className="p-5 bg-app-surface border border-app-border rounded-2xl">
+          <h3 className="text-sm font-semibold text-txt-muted uppercase tracking-wide mb-4">Listing-Status</h3>
+          <div className="space-y-3">
+            {/* eBay */}
+            <div className="flex items-center justify-between rounded-lg border border-app-border bg-app-bg/60 px-4 py-3">
+              <div className="flex items-center gap-3">
+                <span className="text-sm font-semibold text-txt-primary">eBay</span>
+              </div>
+              {(localProduct as any)?.ops?.listingStatus?.ebay === 'active' ? (
+                <span className="inline-flex items-center rounded-full bg-success-dim px-3 py-1 text-xs font-semibold text-success">Gelistet</span>
+              ) : (localProduct as any)?.ops?.listingStatus?.ebay === 'inactive' ? (
+                <span className="inline-flex items-center rounded-full bg-warning-dim px-3 py-1 text-xs font-semibold text-warning">Inaktiv</span>
+              ) : (
+                <span className="text-xs text-txt-muted">Nicht gelistet</span>
+              )}
+            </div>
+            {/* Kaufland */}
+            <div className="flex items-center justify-between rounded-lg border border-app-border bg-app-bg/60 px-4 py-3">
+              <div className="flex items-center gap-3">
+                <span className="text-sm font-semibold text-txt-primary">Kaufland</span>
+              </div>
+              {(localProduct as any)?.ops?.listingStatus?.kaufland === 'active' ? (
+                <span className="inline-flex items-center rounded-full bg-success-dim px-3 py-1 text-xs font-semibold text-success">Gelistet</span>
+              ) : (localProduct as any)?.ops?.listingStatus?.kaufland === 'inactive' ? (
+                <span className="inline-flex items-center rounded-full bg-warning-dim px-3 py-1 text-xs font-semibold text-warning">Inaktiv</span>
+              ) : (
+                <span className="text-xs text-txt-muted">Nicht gelistet</span>
+              )}
+            </div>
+            {/* BaseLinker */}
+            <div className="flex items-center justify-between rounded-lg border border-app-border bg-app-bg/60 px-4 py-3">
+              <div className="flex items-center gap-3">
+                <span className="text-sm font-semibold text-txt-primary">BaseLinker</span>
+              </div>
+              <button onClick={handleSync} disabled={isSyncing} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-app-elevated border border-app-border text-txt-secondary hover:bg-app-border disabled:opacity-40">
+                {isSyncing ? <Spinner className="w-3.5 h-3.5" /> : <SyncIcon className="w-3.5 h-3.5" />}
+                {t('sheet.actions.sync')}
+              </button>
+            </div>
+          </div>
+          {(localProduct as any)?.ops?.listingStatus?.lastSyncAt && (
+            <p className="text-xs text-txt-muted mt-3">Letzter Sync: {new Date((localProduct as any).ops.listingStatus.lastSyncAt).toLocaleString('de-DE')}</p>
+          )}
+        </section>
+      </TabPanel>
+
+      {/* ─── TAB: Qualität ──────────────────────────────────── */}
+      <TabPanel tabId="qualitaet" activeTab={activeTab} className="space-y-5">
+        <section className="p-5 bg-app-surface border border-app-border rounded-2xl">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <h3 className="text-sm font-semibold text-txt-muted uppercase tracking-wide">Quality Gate</h3>
+              {qualityHasErrors && <span className="text-[10px] px-2 py-0.5 rounded-full bg-danger-dim text-danger font-semibold">{qualityErrorCount} Fehler</span>}
+              {qualityHasWarns && <span className="text-[10px] px-2 py-0.5 rounded-full bg-warning-dim text-warning font-semibold">{qualityWarnCount} Warnungen</span>}
+              {!qualityHasErrors && !qualityHasWarns && qualityIssues.length === 0 && <span className="text-[10px] px-2 py-0.5 rounded-full bg-success-dim text-success font-semibold">OK</span>}
+            </div>
+            <button onClick={runQualityGate} disabled={qualityBusy} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-app-elevated border border-app-border text-txt-secondary hover:bg-app-border disabled:opacity-40">
+              {qualityBusy ? <Spinner className="w-3.5 h-3.5" /> : <RefreshIcon className="w-3.5 h-3.5" />}
+              Prüfen
             </button>
           </div>
+          {qualityMessage && <p className="text-xs text-txt-muted mb-3">{qualityMessage}</p>}
+          {qualityIssues.length > 0 ? (
+            <div className="space-y-2">
+              {qualityIssues.map((issue: any, i: number) => {
+                const severity = (issue.severity || issue.level || 'warning').toLowerCase();
+                const isError = severity === 'error' || severity === 'critical';
+                return (
+                  <details key={i} className={`rounded-lg border p-3 ${isError ? 'border-danger/30 bg-danger-dim' : 'border-warning/30 bg-warning-dim'}`}>
+                    <summary className="cursor-pointer flex items-center gap-2 text-sm">
+                      <span className={`text-xs font-semibold ${isError ? 'text-danger' : 'text-warning'}`}>{isError ? '✕' : '⚠'}</span>
+                      <span className="font-medium text-txt-primary">{issue.field || issue.type || 'Issue'}</span>
+                    </summary>
+                    <p className="mt-2 text-xs text-txt-secondary">{issue.message || issue.details || JSON.stringify(issue)}</p>
+                  </details>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="text-sm text-txt-muted">Keine Quality-Issues gefunden.</p>
+          )}
+          {/* Web Evidence */}
+          {qualityGate?.evidence?.pages?.length > 0 && (
+            <div className="mt-4 pt-4 border-t border-app-border">
+              <h4 className="text-xs font-semibold text-txt-muted uppercase tracking-wide mb-2">Web-Evidence</h4>
+              <div className="space-y-1.5">
+                {qualityGate.evidence.pages.map((p: any, i: number) => {
+                  const url = typeof p === 'string' ? p : p?.url || p?.href || '';
+                  if (!url) return null;
+                  let domain = '';
+                  try { domain = new URL(url).hostname.replace('www.', ''); } catch { domain = url; }
+                  return (
+                    <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-accent hover:underline truncate">
+                      <img src={`https://www.google.com/s2/favicons?domain=${domain}&sz=16`} alt="" className="w-4 h-4 flex-shrink-0" />
+                      <span className="truncate">{typeof p === 'string' ? domain : (p?.title || domain)}</span>
+                    </a>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </section>
-      </div>
+      </TabPanel>
 
-      <aside id="gemini-chat" aria-label="KI-Assistent Chat" className="lg:sticky lg:top-24">
-        <div className="h-[60vh] min-h-[420px] lg:h-[75vh]">
+      {/* ─── TAB: KI-Assistent ──────────────────────────────── */}
+      <TabPanel tabId="assistent" activeTab={activeTab}>
+        <div className="h-[65vh] min-h-[400px]">
           <AssistantChat
             product={localProduct}
             onApplyDatasheetChange={applyAssistantChange}
             onAddImages={applyAssistantImages}
           />
         </div>
-      </aside>
+      </TabPanel>
     </section>
   );
 };

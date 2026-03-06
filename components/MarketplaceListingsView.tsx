@@ -6,7 +6,11 @@ import {
   bulkUpdateEbayListings,
   syncKauflandListings,
   fetchKauflandListings,
+  publishToEbay,
+  publishToKaufland,
+  fetchProducts,
 } from "../api/client";
+import type { Product } from "../types";
 import type { EbayListingRow, } from "../types";
 import type { EbayConnectionStatus, KauflandListingRow } from "../api/client";
 
@@ -16,8 +20,8 @@ interface MarketplaceListingsViewProps {
   marketplace: "ebay" | "kaufland";
 }
 
-type ListingStatus = "active" | "inactive" | "error" | "unknown";
-type TabFilter = "all" | "active" | "inactive" | "error";
+type ListingStatus = "active" | "inactive" | "unknown";
+type TabFilter = "all" | "active" | "inactive" | "optimization";
 
 interface NormalizedListing {
   id: string;
@@ -32,6 +36,7 @@ interface NormalizedListing {
   lastSync: string | null;
   errors?: string[];
   imageUrl?: string | null;
+  gapCount?: number;
 }
 
 // ─── Constants ───────────────────────────────────────────────
@@ -39,7 +44,6 @@ interface NormalizedListing {
 const STATUS_CONFIG: Record<ListingStatus, { label: string; bg: string; text: string }> = {
   active: { label: "Aktiv", bg: "bg-success-dim", text: "text-success" },
   inactive: { label: "Inaktiv", bg: "bg-warning-dim", text: "text-warning" },
-  error: { label: "Fehler", bg: "bg-danger-dim", text: "text-danger" },
   unknown: { label: "Unbekannt", bg: "bg-app-elevated", text: "text-txt-muted" },
 };
 
@@ -47,7 +51,7 @@ const TAB_LABELS: Record<TabFilter, string> = {
   all: "Alle",
   active: "Aktiv",
   inactive: "Inaktiv",
-  error: "Fehler",
+  optimization: "Optimierung",
 };
 
 const MARKETPLACE_LABELS = {
@@ -80,7 +84,6 @@ function formatRelativeTime(iso?: string | null): string {
 }
 
 function normalizeEbayStatus(row: EbayListingRow): ListingStatus {
-  if (row.gapCriticalCount && row.gapCriticalCount > 0) return "error";
   if (row.active === false || row.listingStatus === "Completed" || row.listingStatus === "Ended") return "inactive";
   if (row.active === true || row.listingStatus === "Active") return "active";
   return "unknown";
@@ -98,6 +101,7 @@ function normalizeEbayRow(row: EbayListingRow): NormalizedListing {
     category: row.categoryName || row.primaryCategoryId || null,
     viewItemUrl: row.viewItemUrl || null,
     lastSync: row.updatedAt || null,
+    gapCount: row.gapCriticalCount || 0,
   };
 }
 
@@ -112,7 +116,7 @@ function normalizeKauflandRow(row: KauflandListingRow): NormalizedListing {
     sku: row.sku,
     price: row.price,
     currency: "EUR",
-    quantity: null,
+    quantity: row.quantity ?? null,
     status,
     category: row.category || null,
     viewItemUrl: row.viewItemUrl || null,
@@ -173,6 +177,12 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
   const [connectionStatus, setConnectionStatus] = useState<EbayConnectionStatus | null>(null);
   const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
   const [bulkUpdating, setBulkUpdating] = useState(false);
+  const [showPublishModal, setShowPublishModal] = useState(false);
+  const [publishProducts, setPublishProducts] = useState<Product[]>([]);
+  const [publishSearch, setPublishSearch] = useState("");
+  const [publishLoading, setPublishLoading] = useState(false);
+  const [publishingId, setPublishingId] = useState<string | null>(null);
+  const [publishResult, setPublishResult] = useState<{ ok: boolean; message: string } | null>(null);
 
   const label = MARKETPLACE_LABELS[marketplace];
 
@@ -183,7 +193,7 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
     setError(null);
     try {
       const [rows, status] = await Promise.all([
-        fetchEbayLiveListings({ limit: 500, includeInactive: true }),
+        fetchEbayLiveListings({ limit: 2000, includeInactive: true }),
         fetchEbayStatus().catch(() => null),
       ]);
       const normalized = rows.map((r) => normalizeEbayRow(r));
@@ -255,15 +265,63 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
     }
   }, [marketplace, selectedIds, loadEbayListings]);
 
+  const openPublishModal = useCallback(async () => {
+    setShowPublishModal(true);
+    setPublishSearch("");
+    setPublishResult(null);
+    setPublishLoading(true);
+    try {
+      const products = await fetchProducts();
+      setPublishProducts(products);
+    } catch {
+      setPublishProducts([]);
+    } finally {
+      setPublishLoading(false);
+    }
+  }, []);
+
+  const handlePublish = useCallback(async (productId: string) => {
+    setPublishingId(productId);
+    setPublishResult(null);
+    try {
+      if (marketplace === "ebay") {
+        await publishToEbay(productId);
+        setPublishResult({ ok: true, message: "Erfolgreich auf eBay gelistet!" });
+        loadEbayListings();
+      } else {
+        await publishToKaufland(productId);
+        setPublishResult({ ok: true, message: "Erfolgreich auf Kaufland gelistet!" });
+        loadKauflandListings();
+      }
+    } catch (err: any) {
+      setPublishResult({ ok: false, message: err.message || "Veröffentlichung fehlgeschlagen" });
+    } finally {
+      setPublishingId(null);
+    }
+  }, [marketplace, loadEbayListings, loadKauflandListings]);
+
+  const filteredPublishProducts = useMemo(() => {
+    if (!publishSearch.trim()) return publishProducts.slice(0, 50);
+    const q = publishSearch.toLowerCase();
+    return publishProducts
+      .filter((p) => {
+        const title = (p.identification?.name || "").toLowerCase();
+        const sku = (p.identification?.sku || "").toLowerCase();
+        const ean = (p.identification?.barcodes?.[0] || "").toLowerCase();
+        return title.includes(q) || sku.includes(q) || ean.includes(q);
+      })
+      .slice(0, 50);
+  }, [publishProducts, publishSearch]);
+
   // ─── Computed Data ───────────────────────────────────────
 
   const tabCounts = useMemo(() => {
-    const counts: Record<TabFilter, number> = { all: 0, active: 0, inactive: 0, error: 0 };
+    const counts: Record<TabFilter, number> = { all: 0, active: 0, inactive: 0, optimization: 0 };
     listings.forEach((l) => {
       counts.all++;
       if (l.status === "active") counts.active++;
       else if (l.status === "inactive" || l.status === "unknown") counts.inactive++;
-      if (l.status === "error") counts.error++;
+      if (l.gapCount && l.gapCount > 0) counts.optimization++;
     });
     return counts;
   }, [listings]);
@@ -272,7 +330,7 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
     let result = listings;
     if (activeTab === "active") result = result.filter((l) => l.status === "active");
     else if (activeTab === "inactive") result = result.filter((l) => l.status === "inactive" || l.status === "unknown");
-    else if (activeTab === "error") result = result.filter((l) => l.status === "error");
+    else if (activeTab === "optimization") result = result.filter((l) => l.gapCount != null && l.gapCount > 0);
 
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
@@ -378,13 +436,24 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
             </p>
           </div>
         </div>
-        {/* Connection status for eBay — only show "Verbunden" */}
-        {marketplace === "ebay" && connectionStatus?.connected && (
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-success-dim text-success">
-            <span className="w-2 h-2 rounded-full bg-current" />
-            Verbunden
-          </span>
-        )}
+        <div className="flex items-center gap-3">
+          {/* Connection status for eBay — only show "Verbunden" */}
+          {marketplace === "ebay" && connectionStatus?.connected && (
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-success-dim text-success">
+              <span className="w-2 h-2 rounded-full bg-current" />
+              Verbunden
+            </span>
+          )}
+          <button
+            onClick={openPublishModal}
+            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-accent rounded-lg hover:opacity-90 transition-opacity"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+            </svg>
+            Artikel listen
+          </button>
+        </div>
       </div>
 
       {/* Inline error banner */}
@@ -413,8 +482,8 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
           <div className="text-2xl font-bold text-txt-primary">{tabCounts.inactive}</div>
         </div>
         <div className="bg-app-surface border border-app-border rounded-xl p-4">
-          <div className="text-sm text-txt-muted mb-1">Fehler</div>
-          <div className="text-2xl font-bold text-danger">{tabCounts.error}</div>
+          <div className="text-sm text-txt-muted mb-1">Optimierung</div>
+          <div className="text-2xl font-bold text-warning">{tabCounts.optimization}</div>
         </div>
       </div>
 
@@ -427,10 +496,10 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
               {formatRelativeTime(lastSyncTime)}
             </span>
           </span>
-          {tabCounts.error > 0 && (
+          {tabCounts.optimization > 0 && (
             <>
               <span className="hidden sm:inline text-app-border">|</span>
-              <span className="text-danger font-medium">{tabCounts.error} Fehler</span>
+              <span className="text-warning font-medium">{tabCounts.optimization} Optimierungen</span>
             </>
           )}
         </div>
@@ -575,11 +644,23 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
                         />
                       </td>
                       <td className="px-4 py-3">
-                        <div
-                          className="text-txt-primary font-medium truncate max-w-[320px]"
-                          title={listing.title}
-                        >
-                          {listing.title}
+                        <div className="flex items-center gap-1.5">
+                          <span
+                            className="text-txt-primary font-medium truncate max-w-[300px]"
+                            title={listing.title}
+                          >
+                            {listing.title}
+                          </span>
+                          {listing.gapCount != null && listing.gapCount > 0 && (
+                            <span
+                              className="flex-shrink-0 text-warning"
+                              title={`${listing.gapCount} Optimierungsvorschläge`}
+                            >
+                              <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 6a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 6zm0 9a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                              </svg>
+                            </span>
+                          )}
                         </div>
                         {listing.sku && (
                           <div className="text-xs text-txt-muted mt-0.5 font-mono truncate max-w-[320px]">
@@ -668,6 +749,77 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
               >
                 <IconChevronRight />
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Publish Modal */}
+      {showPublishModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setShowPublishModal(false)} />
+          <div className="relative bg-app-surface border border-app-border rounded-xl shadow-2xl w-full max-w-lg max-h-[80vh] flex flex-col">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-app-border">
+              <h2 className="text-lg font-bold text-txt-primary">Artikel auf {label} listen</h2>
+              <button
+                onClick={() => setShowPublishModal(false)}
+                className="text-txt-muted hover:text-txt-primary p-1"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {publishResult && (
+              <div className={`mx-5 mt-4 px-3 py-2 rounded-lg text-sm ${publishResult.ok ? "bg-success-dim text-success" : "bg-danger-dim text-danger"}`}>
+                {publishResult.message}
+              </div>
+            )}
+
+            <div className="px-5 pt-4">
+              <input
+                type="text"
+                value={publishSearch}
+                onChange={(e) => setPublishSearch(e.target.value)}
+                placeholder="Produkt suchen (Titel, SKU, EAN)..."
+                className="w-full px-3 py-2 bg-app-bg border border-app-border rounded-lg text-sm text-txt-primary placeholder:text-txt-muted focus:outline-none focus:ring-2 focus:ring-accent/30"
+                autoFocus
+              />
+            </div>
+
+            <div className="flex-1 overflow-y-auto px-5 py-3 space-y-1">
+              {publishLoading ? (
+                <div className="text-center text-txt-muted py-8">Lade Produkte…</div>
+              ) : filteredPublishProducts.length === 0 ? (
+                <div className="text-center text-txt-muted py-8">Keine Produkte gefunden</div>
+              ) : (
+                filteredPublishProducts.map((p) => (
+                  <div
+                    key={p.id}
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-app-elevated transition-colors"
+                  >
+                    {p.details?.images?.[0]?.url_or_base64 ? (
+                      <img src={p.details.images[0].url_or_base64} alt="" className="w-10 h-10 rounded-md object-cover flex-shrink-0" />
+                    ) : (
+                      <div className="w-10 h-10 rounded-md bg-app-elevated flex items-center justify-center text-txt-muted text-xs flex-shrink-0">—</div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm text-txt-primary font-medium truncate">{p.identification?.name || "Ohne Titel"}</div>
+                      <div className="text-xs text-txt-muted">
+                        {p.identification?.sku && <span>SKU: {p.identification.sku}</span>}
+                        {p.identification?.barcodes?.[0] && <span className="ml-2">EAN: {p.identification.barcodes[0]}</span>}
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => handlePublish(p.id)}
+                      disabled={publishingId === p.id}
+                      className="flex-shrink-0 px-3 py-1.5 text-xs font-medium text-white bg-accent rounded-lg hover:opacity-90 disabled:opacity-50 transition-opacity"
+                    >
+                      {publishingId === p.id ? "Wird gelistet…" : "Listen"}
+                    </button>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>

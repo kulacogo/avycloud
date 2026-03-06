@@ -900,13 +900,16 @@ router.get('/kaufland/listings', requirePermission('products', 'read'), async (r
     const { getAllProductsV2 } = require('../lib/product-store');
 
     // Fetch both collections in parallel
-    const [unitsSnap, products] = await Promise.all([
-      firestore
-        .collection('kauflandUnitsLive')
-        .where('storefront', '==', storefront)
-        .get(),
-      getAllProductsV2(),
-    ]);
+    // Try with storefront filter first, fall back to all units if empty
+    let unitsSnap = await firestore
+      .collection('kauflandUnitsLive')
+      .where('storefront', '==', storefront)
+      .get();
+    if (unitsSnap.empty) {
+      // Storefront field might be missing or use different case — fetch all
+      unitsSnap = await firestore.collection('kauflandUnitsLive').get();
+    }
+    const products = await getAllProductsV2();
 
     // Build multi-key lookup map from products
     const skuMap = new Map();  // lowercase sku → product
@@ -928,8 +931,12 @@ router.get('/kaufland/listings', requirePermission('products', 'read'), async (r
         const e = String(ean || '').trim();
         if (e) eanMap.set(e, p);
       }
+      // Also index by identification.ean and details.identifiers.ean
+      const singleEan = p?.identification?.ean || p?.details?.identifiers?.ean || '';
+      if (singleEan) eanMap.set(String(singleEan).trim(), p);
     }
 
+    let matchCount = 0;
     const rows = [];
     unitsSnap.docs.forEach((doc) => {
       const d = doc.data() || {};
@@ -948,6 +955,11 @@ router.get('/kaufland/listings', requirePermission('products', 'read'), async (r
       if (!matched && unitEan) {
         matched = eanMap.get(unitEan) || null;
       }
+      if (matched) matchCount++;
+
+      // Use Kaufland product title as fallback if no AvyCloud product match
+      const klTitle = typeof d.title === 'string' ? d.title : null;
+      const klPrice = Number.isFinite(Number(d.listing_price)) ? Number(d.listing_price) / 100 : null;
 
       rows.push({
         idUnit: doc.id,
@@ -955,24 +967,54 @@ router.get('/kaufland/listings', requirePermission('products', 'read'), async (r
         ean: unitEan || null,
         status: d.status || null,
         active: d.active === true,
+        quantity: Number.isFinite(Number(d.amount)) ? Number(d.amount) : null,
         idProduct: Number.isFinite(Number(d.id_product)) ? Number(d.id_product) : null,
         viewItemUrl: d.view_item_url || null,
-        // Enriched product data
+        // Enriched product data (AvyCloud match → Kaufland data fallback)
         productId: matched?.id || null,
-        title: matched?.identification?.name || null,
+        title: matched?.identification?.name || klTitle || null,
         brand: matched?.identification?.brand || null,
-        price: matched?.details?.pricing?.sellPrice ?? null,
-        imageUrl: matched?.details?.images?.[0]?.url || null,
+        price: matched?.details?.pricing?.sellPrice ?? klPrice ?? null,
+        imageUrl: matched?.details?.images?.[0]?.url_or_base64 || matched?.details?.images?.[0]?.url || null,
         category: matched?.details?.category || null,
       });
     });
 
+    console.info(`[GET /api/kaufland/listings] ${matchCount}/${rows.length} units matched (${products.length} products, ${skuMap.size} SKU keys, ${eanMap.size} EAN keys)`);
     return res.status(200).json({ ok: true, data: rows });
   } catch (error) {
-    console.error('[GET /api/marketplace/kaufland/listings]', error);
+    console.error('[GET /api/kaufland/listings]', error);
     return res.status(500).json({
       ok: false,
       error: { code: 500, message: error?.message || 'Failed to load Kaufland listings' },
+    });
+  }
+});
+
+// =====================================================================
+// Kaufland Publish
+// =====================================================================
+
+router.post('/kaufland/publish', requirePermission('products', 'write'), async (req, res) => {
+  try {
+    const { productId, storefront = 'de' } = req.body || {};
+    if (!productId) {
+      return res.status(400).json({ ok: false, error: { code: 'MISSING_PRODUCT_ID', message: 'productId is required' } });
+    }
+    const { getProductV2 } = require('../lib/product-store');
+    const product = await getProductV2(productId);
+    if (!product) {
+      return res.status(404).json({ ok: false, error: { code: 'PRODUCT_NOT_FOUND', message: `Product ${productId} not found` } });
+    }
+    const { createUnit } = require('../lib/kaufland-api');
+    const result = await createUnit(product, { storefront });
+    return res.status(201).json({ ok: true, data: result });
+  } catch (error) {
+    console.error(`[POST /api/marketplace/kaufland/publish] ${error.message}`, error);
+    const status = error.code === 'KAUFLAND_PRODUCT_NOT_FOUND' || error.code === 'KAUFLAND_EAN_UNKNOWN' ? 400 : 500;
+    return res.status(status).json({
+      ok: false,
+      error: { code: error.code || 'INTERNAL', message: error.message },
     });
   }
 });

@@ -1114,6 +1114,7 @@ export interface KauflandListingRow {
   ean: string | null;
   status: string | null;
   active: boolean;
+  quantity: number | null;
   idProduct: number | null;
   viewItemUrl: string | null;
   productId: string | null;
@@ -1308,6 +1309,22 @@ export async function publishToEbay(
     throw new Error(data?.error?.message || 'Failed to publish to eBay');
   }
   return data?.data as EbayPublishResult;
+}
+
+export async function publishToKaufland(
+  productId: string,
+  storefront = 'de'
+): Promise<{ idUnit: number | null; storefront: string }> {
+  const res = await fetchApi(`${BACKEND_URL}/api/marketplace/kaufland/publish`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ productId, storefront }),
+  });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) {
+    throw new Error(data?.error?.message || 'Failed to publish to Kaufland');
+  }
+  return data?.data;
 }
 
 export async function bulkVerifyEbayPublish(

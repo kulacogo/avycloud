@@ -1568,8 +1568,8 @@ async function listLiveListings({
   matchStatus = '',
   includeInactive = false,
 } = {}) {
-  const capped = Math.max(1, Math.min(Number(limit) || 100, 500));
-  let query = firestore.collection(EBAY_LISTINGS_COLLECTION).limit(capped);
+  const safeLimit = Math.max(1, Number(limit) || 100);
+  let query = firestore.collection(EBAY_LISTINGS_COLLECTION).limit(safeLimit);
   if (!includeInactive) {
     query = query.where('active', '==', true);
   }
@@ -1577,11 +1577,24 @@ async function listLiveListings({
   const listings = snapshot.docs.map((doc) => ({ ...(doc.data() || {}), itemId: doc.id }));
   const ids = listings.map((x) => x.itemId).filter(Boolean);
 
+  // Firestore getAll() supports max 500 refs per call — batch if needed
+  const batchGetAll = async (refs) => {
+    if (!refs.length) return [];
+    const BATCH = 500;
+    if (refs.length <= BATCH) return firestore.getAll(...refs);
+    const results = [];
+    for (let i = 0; i < refs.length; i += BATCH) {
+      const chunk = refs.slice(i, i + BATCH);
+      const docs = await firestore.getAll(...chunk);
+      results.push(...docs);
+    }
+    return results;
+  };
   const linkRefs = ids.map((id) => firestore.collection(EBAY_LINKS_COLLECTION).doc(id));
   const gapRefs = ids.map((id) => firestore.collection(EBAY_GAPS_COLLECTION).doc(id));
   const [linkDocs, gapDocs] = await Promise.all([
-    linkRefs.length ? firestore.getAll(...linkRefs) : Promise.resolve([]),
-    gapRefs.length ? firestore.getAll(...gapRefs) : Promise.resolve([]),
+    batchGetAll(linkRefs),
+    batchGetAll(gapRefs),
   ]);
 
   const linkMap = new Map();

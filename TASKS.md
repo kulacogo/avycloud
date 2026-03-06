@@ -164,6 +164,74 @@
   - ✅ Fix: Layout auf `flex-col` geändert — Titel immer oberhalb der Buttons, volle Breite
   - ✅ Buttons: `w-full sm:w-auto` entfernt, nutzen jetzt `flex-wrap` für natürliches Wrapping
 
+- [x] **BUG-018: ProductSheet komplett unbrauchbar — Redesign DRINGEND** since 2026-03-06 ✅ FIXED 2026-03-06: Complete rewrite with 6-tab layout (Stammdaten/Bilder/Attribute/Marktplätze/Qualität/KI-Assistent), compact header with product image + truncated title + inline meta + action buttons, panel width increased to 55vw, quality issues grouped with collapsible details, web evidence as clickable links with favicons
+  - **PROBLEM:** Das Produkt-Datenblatt (Slide-in Panel rechts) ist nicht arbeitsfähig:
+    1. **Zu schmal:** Panel nimmt nur ~25% der Bildschirmbreite ein → alles gequetscht
+    2. **Titel zu groß:** Produktname in riesiger Schrift nimmt 30% des sichtbaren Bereichs
+    3. **Kein Produktbild** im oberen Bereich sichtbar
+    4. **Quality-Issues als Textwand:** Gelbe Badges mit rohen Attributnamen ("attributes_duplicate_value: Redundante Attribute: gleicher Wert '120 kg' in Belastbarkeit, Maximale Belastbarkeit") — unleserlich, nicht gruppiert
+    5. **Keine Struktur/Tabs:** Alles untereinander: Titel, Brand, Kategorie, SKU, Barcodes, Quality, Web-Evidence, Assistant — kein Tab-System
+    6. **GPT Assistant Panel nimmt Platz weg** und ist im Datenblatt-Kontext nutzlos
+    7. **Web-Evidence als rohe URLs** — nehmen Platz, schlecht formatiert
+    8. **Bearbeiten/Speichern ganz unten** — muss nach unten scrollen um Aktionen zu erreichen
+    9. **Kein erkennbarer Edit-Modus** — wo ändert man Preis, Titel, Beschreibung, Attribute?
+  - **SOLL-DESIGN (orientiert an Plentymarkets/Billbee/ChannelEngine):**
+    - [ ] **Breite:** Mindestens 50% des Bildschirms (oder besser: eigene Full-Page-View statt Slide-in)
+    - [ ] **Header:** Produktbild (groß) + Titel (1 Zeile, ellipsis) + Brand + SKU/EAN inline + Bearbeiten/Speichern Buttons OBEN
+    - [ ] **Tab-Navigation:**
+      - Tab 1: **Stammdaten** — Titel, Beschreibung, Brand, Kategorie, Preis, EAN, MPN, Gewicht, Maße (EDITIERBAR)
+      - Tab 2: **Bilder** — Galerie mit Drag&Drop Sortierung, Bild-Upload, Hauptbild setzen
+      - Tab 3: **Attribute** — Strukturierte Key-Value-Tabelle (Farbe: Schwarz, Material: Polyester, etc.)
+      - Tab 4: **Marktplätze** — Status pro Channel (eBay: Gelistet, Item-ID: xxx | Kaufland: Gelistet, Unit-ID: xxx)
+      - Tab 5: **Qualität** — Quality-Score, Issues gruppiert nach Typ, Verbesserungsvorschläge
+      - Tab 6: **Historie** — Änderungslog, wann was von wem geändert
+    - [ ] **Edit-Modus:** Klick auf "Bearbeiten" → alle Felder werden editierbar (Input-Felder statt Text)
+    - [ ] **Quality-Issues:** Gruppiert nach Typ, Severity-Badge (Kritisch/Warnung/Info), aufklappbare Details
+  - **Dateien:** `components/ProductSheet.tsx` (kompletter Rewrite)
+
+- [x] **BUG-014: eBay Listings auf 500 hardcoded-limitiert — zeigt nicht alle Angebote** since 2026-03-06 ✅ FIXED 2026-03-06: Removed Math.min(limit,500) cap, added batchGetAll() for Firestore getAll() 500-ref limit, frontend requests up to 2000 listings
+  - **PROBLEM:** `listLiveListings()` in `backend/lib/ebay-direct.js` Zeile ~1571 hat ein hardcoded Limit: `Math.min(limit, 500)`. eBay-Seller hat 756+ Listings (340 aktiv + 410 nicht verkauft + 6 Entwürfe). AvyCloud zeigt nur 500.
+  - **AUSWIRKUNG:** Nutzer sieht nicht alle seine Listings. KPI-Cards zeigen falsche Zahlen (130 aktiv statt 340 aktiv laut eBay-Cockpit).
+  - **FIX:**
+    - [ ] `listLiveListings()` in `ebay-direct.js`: 500-Cap ENTFERNEN → Cursor-Pagination mit `startAfter()`
+    - [ ] `GET /api/marketplace/ebay/listings` in `routes/marketplace.js`: Pagination-Parameter akzeptieren (`page`, `pageSize`, `pageToken`)
+    - [ ] Response: `{ data: [...], total: N, nextPageToken: '...' }` statt nur Array
+    - [ ] KPI-Cards: Separate Firestore Count-Query (nicht aus gelimiteter Liste berechnen)
+    - [ ] Frontend: Pagination-Controls (Seiten-Navigation oder "Mehr laden")
+  - **MT-PFLICHT:** tenantId Filter vorbereiten
+  - **Dateien:** `backend/lib/ebay-direct.js`, `backend/routes/marketplace.js`, `components/MarketplaceListingsView.tsx`, `api/client.ts`
+
+- [x] **BUG-015: eBay "231 Fehler" sind KEINE echten Fehler — irreführende Status-Klassifizierung** since 2026-03-06 ✅ FIXED 2026-03-06: Removed gapCriticalCount from status classification, renamed "Fehler" tab to "Optimierung" with warning color, added gap count as warning icon tooltip next to listing title
+  - **PROBLEM:** `normalizeEbayStatus()` in MarketplaceListingsView klassifiziert Listings als "Fehler" wenn `gapCriticalCount > 0`. Das sind Datenqualitäts-Gaps (fehlende Kategorie, Bilder etc.) — KEINE eBay-Fehler. Nutzer denkt seine eBay-Listings haben Probleme, obwohl sie auf eBay einwandfrei laufen.
+  - **FIX:**
+    - [ ] `normalizeEbayStatus()`: Gap-Analyse NICHT als "Fehler" klassifizieren
+    - [ ] Status nur aus eBay-Listing-Daten: Aktiv (`active=true`) / Inaktiv (`listingStatus=Completed/Ended`) / Entwurf
+    - [ ] Gaps als SEPARATE Spalte oder kleines Warn-Icon neben dem Titel (Tooltip: "3 Optimierungsvorschläge")
+    - [ ] Tab "Fehler" umbenennen zu "Optimierung" oder entfernen
+  - **Dateien:** `components/MarketplaceListingsView.tsx`
+
+- [x] **BUG-016: Kein "Neues Listing erstellen" auf Marketplace-Seiten** since 2026-03-06 ✅ FIXED 2026-03-06: Added "Artikel listen" button + product search modal, eBay uses existing publishToEbay(), Kaufland publish via new POST /api/marketplace/kaufland/publish endpoint using existing createUnit()
+  - **PROBLEM:** Kein Button/Flow um ein AvyCloud-Produkt auf eBay oder Kaufland zu listen. `publishToEbay()` existiert im Backend (AddFixedPriceItem), wurde aber in BUG-010 aus dem ProductSheet entfernt und nie auf die Marketplace-Seite verschoben. Für Kaufland existiert gar kein Publish-Endpoint.
+  - **eBay:** `publishToEbay(productId, overrides)` in `api/client.ts` + `backend/lib/ebay-direct.js publishProduct()` — KOMPLETT implementiert
+  - **Kaufland:** KEIN `publishToKaufland()` — muss neu gebaut werden (`POST /units` via Kaufland API)
+  - **FIX:**
+    - [ ] MarketplaceListingsView: "Artikel listen" Button oben rechts
+    - [ ] eBay: Öffnet Wizard → Produkt auswählen → Listing-Details prüfen → Veröffentlichen (nutzt bestehendes `publishToEbay()`)
+    - [ ] Kaufland: Neuer Endpoint `POST /api/marketplace/kaufland/publish` → `createUnit()` via Kaufland API
+    - [ ] `lib/kaufland-api.js`: `createUnit({ sku, ean, title, price, quantity, ... })` implementieren
+  - **MT-PFLICHT:** tenantId Parameter
+  - **Dateien:** `components/MarketplaceListingsView.tsx`, `backend/routes/marketplace.js`, `backend/lib/kaufland-api.js`, `api/client.ts`
+
+- [x] **BUG-017: Kaufland-Seite zeigt immer noch nur SKU-Nummern (Enrichment funktioniert nicht)** since 2026-03-06 ✅ FIXED 2026-03-06: Fixed image field path (url_or_base64), added EAN fallback matching, storefront filter fallback, quantity field, Kaufland product title/price as fallback when no AvyCloud match, added match count logging
+  - **PROBLEM:** Screenshot zeigt: Kaufland-Seite hat jetzt Preis/Bestand/Status/Kategorie Spalten, aber Titel ist immer noch "SKU-9671499764", Preis "—", Status "Unbekannt", Kategorie "—". Enrichment-Endpoint wurde gebaut (`GET /api/marketplace/kaufland/listings`) aber Frontend nutzt ihn entweder nicht, oder SKU-Matching im Backend matcht nichts.
+  - **DEBUG:**
+    - [ ] Prüfe ob Frontend `fetchKauflandListings()` aufruft oder noch alte `syncKauflandListings()` + `fetchKauflandSkuIndex()`
+    - [ ] Prüfe Backend-Logs: Wie viele von 301 Units werden tatsächlich gematcht? (`matched X of Y`)
+    - [ ] Prüfe SKU-Format in `kauflandUnitsLive`: Ist das Feld `sku` oder `id_offer`? Format "SKU-9671499764" oder "9671499764"?
+    - [ ] Prüfe `products_v2` SKU-Format: Ist es `identification.sku` = "SKU-9671499764" oder nur Nummer?
+    - [ ] Wenn Matching 0% → SKU-Formate stimmen nicht überein → Backend-Matching-Logik erweitern
+  - **Dateien:** `components/MarketplaceListingsView.tsx`, `backend/routes/marketplace.js`
+
 - [ ] **BUG-007: React Error #426 — ProductSheet crash bei Klick auf Produkt** since 2026-03-05
   - **PROBLEM:** Minified React error #426 ("A component suspended while responding to synchronous input") beim Öffnen eines Produkts aus Produkte oder Inventar
   - **URSACHE:** `ProductSheet` war `React.lazy()` geladen UND wurde gleichzeitig an 2 Stellen gerendert (als Route `case 'sheet'` + als Overlay)

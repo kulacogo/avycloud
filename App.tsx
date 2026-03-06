@@ -1122,7 +1122,7 @@ const AppInner: React.FC = () => {
               aria-label="Close product sheet"
             />
             {/* Sheet panel */}
-            <div className="relative w-full max-w-[540px] bg-app-surface border-l border-app-border overflow-y-auto shadow-2xl animate-slide-in-right">
+            <div className="relative w-full md:w-[55vw] md:max-w-[900px] bg-app-surface border-l border-app-border overflow-y-auto shadow-2xl animate-slide-in-right">
               <ProductSheet
                 product={currentProduct}
                 onUpdate={handleUpdateProduct}
