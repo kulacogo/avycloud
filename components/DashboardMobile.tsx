@@ -63,7 +63,7 @@ const toneBase: Record<NonNullable<TileProps['color']>, string> = {
   default: 'bg-app-elevated border border-app-border',
   warn: 'bg-amber-600/90 border border-amber-500/30',
   success: 'bg-success border border-success/30',
-  violet: 'bg-violet-800/60 border border-violet-500/20',
+  violet: 'bg-blue-800/60 border border-blue-500/20',
   red: 'bg-danger-dim border border-danger/30',
   blue: 'bg-accent-dim border border-accent/20',
 };

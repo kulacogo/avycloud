@@ -21,9 +21,9 @@
   --text-secondary: #7a8090;
   --text-muted: #8a8f9e;
 
-  /* Accent (Brand Purple) */
-  --accent: #7c75ff;
-  --accent-dim: rgba(124, 117, 255, 0.15);
+  /* Accent (Brand Blue) */
+  --accent: #3b82f6;
+  --accent-dim: rgba(59, 130, 246, 0.15);
 
   /* Semantic Colors */
   --success: #34d399;
@@ -74,8 +74,8 @@
   --text-secondary: #4b5063;
   --text-muted: #6b7080;
 
-  --accent: #635bff;
-  --accent-dim: rgba(99, 91, 255, 0.1);
+  --accent: #2563eb;
+  --accent-dim: rgba(37, 99, 235, 0.1);
 
   /* Semantic colors — darker for WCAG AA contrast on light bg */
   --success: #059669;

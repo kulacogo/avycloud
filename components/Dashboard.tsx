@@ -297,7 +297,7 @@ const DualChart: React.FC<{
             )}
             {/* Order bar */}
             <rect x={barX(i)} y={barTop(d.count)} width={barW} height={barH(d.count)}
-              fill={hovered === i ? '#93a3ff' : '#7c75ff'} rx="2"
+              fill={hovered === i ? '#60a5fa' : '#3b82f6'} rx="2"
               style={{ transition: 'fill 0.1s' }} />
           </g>
         ))}
