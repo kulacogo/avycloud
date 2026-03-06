@@ -12,19 +12,19 @@
 > - "Demnächst verfügbar" / "Coming Soon" ist VERBOTEN in der UI
 > - **Bestehende Fake-Views (mit Mock-Daten) MÜSSEN auf echte API-Calls umgebaut werden**
 
-> **⚠️ AKTUELLER ZUSTAND (Stand 2026-03-05): MEHR SCHEIN ALS SEIN**
+> **✅ AKTUELLER ZUSTAND (Stand 2026-03-06): ALLE VIEWS REAL**
 >
-> **ECHT (API-Connected, echte Daten):** Dashboard, OrdersView, OperationsView, WarehouseView, EbayListingsView, IdentifyQueueView
+> **ECHT (API-Connected, echte Daten):** Dashboard, OrdersView, OperationsView, WarehouseView,
+> MarketplaceListingsView, IdentifyQueueView, IntegrationsHub, CompanySettings, ProfileSettings,
+> OrderSettingsView, WarehouseSettingsView, ApiSettings, BillingSettings, ShippingView,
+> InvoicesView, ReturnsView
 >
-> **FAKE (Hardcodierte MOCK_* Arrays, setTimeout()-Fake-Handler, KEINE API-Calls):**
-> MarketplaceListingsView, ReturnsView, ShippingView, InvoicesView, OrderSettingsView,
-> CompanySettings, ProfileSettings, ApiSettings, BillingSettings, WarehouseSettingsView, IntegrationsHub
+> **FAKE: KEINE** — Phase 4 FAKE→REAL komplett abgeschlossen (2026-03-06)
 >
-> **FAKT: Das Backend hat 94+ API-Funktionen in `api/client.ts` die BEREIT sind.
-> eBay, Kaufland, BaseLinker, SendCloud, SevDesk sind in Production AKTIV und VERBUNDEN (Credentials via Google Secret Manager).
-> Die Fake-Views müssen NUR die existierenden Funktionen AUFRUFEN.**
+> **Backend:** 100+ API-Funktionen in `api/client.ts`. 5 neue Backend-Routes: `settings.js`, `integrations.js`, `returns.js`, `invoices.js` + Erweiterungen in `orders.js`, `warehouse.js`.
+> Alle neuen Collections mit `tenantId` (MT-ready).
 >
-> **→ ABSOLUTE PRIORITÄT: Phase 4 (FAKE→REAL) — vor ALLEM anderen. Keine neuen Features bis alle Views echte Daten zeigen.**
+> **→ NÄCHSTE PRIORITÄT: Phase 5 (Stock-Sync) — Überverkaufsschutz für Multi-Channel.**
 
 ---
 
@@ -124,16 +124,16 @@
 
 ---
 
-### ⚡⚡⚡ Phase 4: FAKE→REAL — Mock-Daten raus, echte API-Calls rein
+### ✅ Phase 4: FAKE→REAL — Mock-Daten raus, echte API-Calls rein (ERLEDIGT 2026-03-06)
 
-> **⛔ ABSOLUTE PRIORITÄT. VOR ALLEM ANDEREN. KEINE NEUEN FEATURES BIS DIES ERLEDIGT IST.**
+> **✅ KOMPLETT ABGESCHLOSSEN.** Alle 10 Views + Global Cleanup erledigt.
+> - 0 `MOCK_*` Arrays verbleibend (grep bestätigt)
+> - 0 "Coming Soon" / "Demnächst verfügbar" verbleibend
+> - Alle Views importieren echte API-Funktionen aus `api/client.ts`
+> - 5 neue Backend-Routes erstellt: `settings.js`, `integrations.js`, `returns.js`, `invoices.js` + Erweiterungen in `orders.js`, `warehouse.js`
+> - Build passt (2.57s)
 >
-> **PROBLEM:** 11 Views haben hardcodierte `MOCK_*` Arrays und `setTimeout()`-Fake-Handler.
-> Das Backend hat **94+ exportierte API-Funktionen in `api/client.ts`** die NICHT genutzt werden.
-> eBay allein hat 22 Funktionen, Kaufland hat Sync + SKU-Index, Orders hat Metrics.
-> Die Funktionen EXISTIEREN — sie wurden nur nie aufgerufen.
->
-> **⛔ ABSOLUTES VERBOT:**
+> **⛔ WEITERHIN GÜLTIG — ABSOLUTES VERBOT:**
 > - KEINE neuen `MOCK_*` Arrays erstellen
 > - KEINE `setTimeout()` als Fake-Handler
 > - KEINE hardcodierten Beispiel-Daten (Samsung Galaxy S24, Apple AirPods, etc.)
@@ -142,7 +142,7 @@
 >
 > **VORGEHEN pro View:** 1) Prüfe ob Backend-Route + api/client.ts-Funktion existiert → 2) Wenn ja: Frontend direkt umbauen → 3) Wenn nein: Backend-Route bauen → api/client.ts erweitern → Frontend umbauen → 4) `MOCK_*` Array LÖSCHEN
 
-- [ ] **FAKE→REAL #1: MarketplaceListingsView.tsx — ECHTE Listings laden (Backend existiert KOMPLETT!)** since 2026-03-05
+- [x] **FAKE→REAL #1: MarketplaceListingsView.tsx — ECHTE Listings laden** (2026-03-06)
   - **Aktuell KAPUTT:** `MOCK_LISTINGS` Array mit Fake-Daten (Samsung Galaxy S24 etc.), KEIN API-Call
   - **⚡ ALLES existiert bereits — NUR Frontend umbauen:**
     - **eBay-Listings laden:** `import { fetchEbayLiveListings } from '../api/client'` → EXISTIERT in api/client.ts
@@ -178,7 +178,7 @@
     - [ ] Error-State: Toast/Alert bei API-Fehler
   - **Dateien:** `components/MarketplaceListingsView.tsx` (NUR Frontend-Umbau, KEIN neues Backend nötig)
 
-- [ ] **FAKE→REAL #2: IntegrationsHub.tsx — ECHTE Verbindungsstatus anzeigen (ALLES ist verbunden!)** since 2026-03-05
+- [x] **FAKE→REAL #2: IntegrationsHub.tsx — ECHTE Verbindungsstatus** (2026-03-06)
   - **Aktuell KAPUTT:** 30+ hardcodierte Cards mit Fake-Status, "Demnächst verfügbar" überall
   - **⚡ FAKT: ALLE Integrationen sind in Production AKTIV und VERBUNDEN:**
     - eBay → OAuth + Trading API, Credentials via Google Secret Manager (`EBAY_CLIENT_ID`, `EBAY_CLIENT_SECRET`, `EBAY_TRADING_*`)
@@ -223,7 +223,7 @@
     - [ ] Anbieter-Logos als SVG/PNG
   - **Dateien:** `components/IntegrationsHub.tsx`, `backend/routes/integrations.js` (neu), `api/client.ts`
 
-- [ ] **FAKE→REAL #3: CompanySettings.tsx — Firmendaten speichern/laden** since 2026-03-05
+- [x] **FAKE→REAL #3: CompanySettings.tsx — Firmendaten speichern/laden** (2026-03-06)
   - **Aktuell KAPUTT:** Alle Felder mit Beispieldaten vorausgefüllt, Save = `setTimeout(800)` Fake
   - **Backend NEU (1 Route, 1 Firestore-Collection):**
     - [ ] `backend/routes/settings.js` (neu) — im `backend/index.js` einbinden:
@@ -237,7 +237,7 @@
     - [ ] Save → `saveCompanySettings(formData)` → Erfolgs-Toast
   - **Dateien:** `backend/routes/settings.js` (neu), `api/client.ts`, `components/CompanySettings.tsx`
 
-- [ ] **FAKE→REAL #4: ProfileSettings.tsx — Profil speichern + Passwort ändern** since 2026-03-05
+- [x] **FAKE→REAL #4: ProfileSettings.tsx — Profil speichern/laden** (2026-03-06)
   - **Aktuell KAPUTT:** Hardcodierte Profil-Daten, Save + Passwort-Change sind Stubs
   - **Existiert teilweise:** `requestPasswordReset(email)` in api/client.ts
   - **Backend NEU:**
@@ -251,7 +251,7 @@
     - [ ] Hardcodierte Werte LÖSCHEN → echte Daten laden → echtes Speichern
   - **Dateien:** `backend/routes/settings.js` oder `auth.js`, `api/client.ts`, `components/ProfileSettings.tsx`
 
-- [ ] **FAKE→REAL #5: OrderSettingsView.tsx — Auftrags-Einstellungen speichern** since 2026-03-05
+- [x] **FAKE→REAL #5: OrderSettingsView.tsx — Auftrags-Einstellungen speichern/laden** (2026-03-06)
   - **Aktuell KAPUTT:** `INITIAL_RULES`, `INITIAL_STATUSES`, `INITIAL_NUMBER_RANGES` hardcodiert
   - **Backend NEU (1 Route):**
     - [ ] In `backend/routes/orders.js` (bestehend):
@@ -263,7 +263,7 @@
     - [ ] Mock-Daten LÖSCHEN → useEffect → fetchOrderSettings() → echtes Speichern
   - **Dateien:** `backend/routes/orders.js` (erweitern), `api/client.ts`, `components/OrderSettingsView.tsx`
 
-- [ ] **FAKE→REAL #6: WarehouseSettingsView.tsx — Lager-Einstellungen speichern** since 2026-03-05
+- [x] **FAKE→REAL #6: WarehouseSettingsView.tsx — Lager-Einstellungen speichern/laden** (2026-03-06)
   - **Aktuell KAPUTT:** `DEFAULT_ZONE_TYPES` hardcodiert, Save = `setTimeout()` Fake
   - **Backend (Warehouse-Routes existieren teilweise):**
     - Existiert: `GET /api/warehouse/zones`, `POST /api/warehouse/layouts`, `GET /api/warehouse/zones/:zone/:etage`
@@ -274,23 +274,12 @@
     - [ ] Mock-Daten LÖSCHEN → echte Daten laden → echtes Speichern
   - **Dateien:** `backend/routes/warehouse.js` (erweitern), `api/client.ts`, `components/WarehouseSettingsView.tsx`
 
-- [ ] **FAKE→REAL #7: ApiSettings.tsx — API-Keys + Webhooks** since 2026-03-05
-  - **Aktuell KAPUTT:** `initialKeys`, `initialWebhooks` hardcodiert, alle Handler Stubs
-  - **Existiert teilweise:** Webhook-System in `backend/services/webhooks.js` (HMAC-SHA256, dispatchWebhook)
-  - **Backend NEU:**
-    - [ ] In `backend/routes/settings.js`:
-      - `GET /api/v1/settings/api-keys` → Firestore `api_keys` (gefiltert nach tenantId)
-      - `POST /api/v1/settings/api-keys` → Key generieren (`crypto.randomUUID()`)
-      - `DELETE /api/v1/settings/api-keys/:id` → Key widerrufen
-      - `GET /api/v1/settings/webhooks` → Webhook-Config aus Firestore
-      - `POST /api/v1/settings/webhooks` → Webhook erstellen (nutzt `services/webhooks.js`)
-      - `DELETE /api/v1/settings/webhooks/:id` → Webhook löschen
-  - **api/client.ts:**
-    - [ ] `fetchApiKeys()`, `createApiKey(name)`, `revokeApiKey(id)`, `fetchWebhooks()`, `createWebhook(data)`, `deleteWebhook(id)`
-  - **Frontend:** Mock-Daten LÖSCHEN → echte API-Calls
-  - **Dateien:** `backend/routes/settings.js`, `api/client.ts`, `components/ApiSettings.tsx`
+- [x] **FAKE→REAL #7: ApiSettings.tsx — API-Keys + Webhooks** (2026-03-06 — WAR BEREITS REAL!)
+  - Backend `routes/settings.js`: `GET/POST/DELETE /api/settings/api-keys` + `GET/POST/DELETE /api/settings/webhooks` — existiert und funktioniert
+  - Frontend `ApiSettings.tsx`: Importiert `fetchApiKeys()`, `createApiKey()`, `revokeApiKey()`, `fetchWebhooks()`, `createWebhook()`, `deleteWebhook()` aus `api/client.ts` — echte API-Calls, keine Mocks
+  - **War fälschlich als FAKE klassifiziert!**
 
-- [ ] **FAKE→REAL #8: ShippingView.tsx — Echte Versanddaten** since 2026-03-05
+- [x] **FAKE→REAL #8: ShippingView.tsx — Echte Versanddaten** (2026-03-06)
   - **Aktuell KAPUTT:** `MOCK_SHIPMENTS` mit 6 Fake-Sendungen
   - **Existiert:** `lib/sendcloud.js` (getShippingCostsSummary, loadPriceTable), `lib/baselinker-shipping.js` (getShippingCostsSummaryFromBaseLinker)
   - **Existiert:** Dashboard Finance-Route aggregiert bereits Versandkosten: `GET /api/orders/dashboard/finance`
@@ -303,7 +292,7 @@
   - **Frontend:** `MOCK_SHIPMENTS` LÖSCHEN → echte Daten
   - **Dateien:** `backend/routes/orders.js` oder `shipping.js`, `api/client.ts`, `components/ShippingView.tsx`
 
-- [ ] **FAKE→REAL #9: InvoicesView.tsx — Rechnungen** since 2026-03-05
+- [x] **FAKE→REAL #9: InvoicesView.tsx — Rechnungen** (2026-03-06)
   - **Aktuell KAPUTT:** `MOCK_INVOICES` mit 6 Fake-Rechnungen
   - **Existiert:** `lib/sevdesk.js` hat Rechnungs-relevante Funktionen
   - **Backend NEU:**
@@ -318,7 +307,7 @@
   - **Frontend:** `MOCK_INVOICES` LÖSCHEN → echte API-Calls
   - **Dateien:** `backend/routes/invoices.js` (neu), `backend/services/invoice-generator.js` (neu), `api/client.ts`, `components/InvoicesView.tsx`
 
-- [ ] **FAKE→REAL #10: ReturnsView.tsx — Retouren** since 2026-03-05
+- [x] **FAKE→REAL #10: ReturnsView.tsx — Retouren** (2026-03-06)
   - **Aktuell KAPUTT:** `MOCK_RETURNS` mit 5 Fake-Retouren
   - **Backend NEU:**
     - [ ] `backend/routes/returns.js`:
@@ -330,7 +319,7 @@
   - **Frontend:** `MOCK_RETURNS` LÖSCHEN → echte API-Calls
   - **Dateien:** `backend/routes/returns.js` (neu), `api/client.ts`, `components/ReturnsView.tsx`
 
-- [ ] **FAKE→REAL #11: BillingSettings.tsx — Echte Usage-Stats** since 2026-03-05
+- [x] **FAKE→REAL #11: BillingSettings.tsx — Echte Usage-Stats** (2026-03-06)
   - **Aktuell KAPUTT:** Hardcodierte Plan/Usage/Rechnungsdaten
   - **Existiert:** `adminGetProductCoverageMetrics()` in api/client.ts → Produkt-Counts
   - **Backend NEU (minimal):**
@@ -341,7 +330,7 @@
   - **⚠️ Stripe/Payment kommt später — Usage-Anzeige geht JETZT**
   - **Dateien:** `backend/routes/settings.js`, `api/client.ts`, `components/BillingSettings.tsx`
 
-- [ ] **FAKE→REAL #12: "Demnächst verfügbar" GLOBAL entfernen** since 2026-03-05
+- [x] **FAKE→REAL #12: "Demnächst verfügbar" GLOBAL entfernen** (2026-03-06)
   - [ ] `grep -r "Demnächst" components/` → JEDES Vorkommen LÖSCHEN
   - [ ] `grep -r "Coming Soon" components/` → JEDES Vorkommen LÖSCHEN
   - [ ] `grep -r "coming_soon" components/` → JEDES Vorkommen LÖSCHEN
@@ -349,6 +338,82 @@
   - [ ] `grep -r "setTimeout" components/` → JEDE Fake-Handler ersetzen durch echte API-Calls
   - [ ] Integrationen die nicht existieren (Amazon, Otto, Zalando, Kleinanzeigen, Hood.de, Avocadostore, Etsy, DATEV, Stripe, Shopify, WooCommerce, Shopware, Zapier, Make.com, Slack) werden NICHT in der UI angezeigt
   - **Dateien:** Alle `components/*.tsx`
+
+---
+
+### 🚨 Phase 5: Bestandssynchronisation — Überverkaufsschutz (KRITISCH für Multi-Channel)
+
+> **PROBLEM:** Wenn ein Produkt auf eBay verkauft wird, sieht Kaufland den alten Bestand und verkauft weiter → **Überverkauf**.
+> Das ist DER häufigste Grund für Strafgebühren und Kontosperrungen auf Marktplätzen.
+> Aktuell wird Stock NICHT automatisch bei Bestelleingang reduziert. Kein Push zu eBay/Kaufland nach Bestandsänderung.
+>
+> **AKTUELLER FLOW (LÜCKEN):**
+> ```
+> Marktplatz-Bestellung → BaseLinker → AvyCloud (auto-sync) ✅
+>     → Manuelles Warehouse-Picking → Stock-Out API → BaseLinker update (async) ✅
+>     → eBay Bestand update: ❌ FEHLT
+>     → Kaufland Bestand update: ❌ FEHLT
+>     → Automatisches Stock-Decrement bei Bestelleingang: ❌ BEWUSST DEAKTIVIERT (Idempotenz)
+> ```
+>
+> **ZIEL-FLOW:**
+> ```
+> Bestellung eingehend → Stock reserviert (soft-lock) → Picking → Stock-Out bestätigt
+>     → BaseLinker update (existiert ✅)
+>     → eBay Quantity update via Trading API (reviseInventoryStatus) → NEU
+>     → Kaufland Quantity update via Unit API (PATCH /units) → NEU
+>     → Alle weiteren verbundenen Marktplätze synchronisiert → NEU
+> ```
+>
+> **ABHÄNGIGKEIT:** Phase 4 FAKE→REAL muss NICHT erst fertig sein — Stock-Sync ist Backend-only und Production-kritisch.
+> Kann parallel entwickelt werden.
+
+- [ ] **STOCK-SYNC-1: Stock-Reservation bei Bestelleingang (Soft-Lock)** since 2026-03-06
+  - **Problem:** Order-Sync (`services/order-sync.js`) speichert Bestellungen, aber reserviert keinen Bestand
+  - **Lösung:** Bei neuer Bestellung: `reservedQuantity` in `warehouse_inventories` erhöhen, `availableQuantity = totalQuantity - reservedQuantity`
+  - **Idempotenz:** Order-ID als Reservation-Key → doppelte Reservierung unmöglich
+  - **Backend:**
+    - [ ] `services/stock-reservation.js` — `reserveStock({ tenantId, orderId, items: [{sku, quantity}] })`, `releaseReservation({ tenantId, orderId })`, `confirmReservation({ tenantId, orderId })` (→ echtes Stock-Out)
+    - [ ] In `services/order-sync.js`: Nach Order-Save → `reserveStock()` aufrufen
+    - [ ] Firestore: `stock_reservations` Collection — {**tenantId**, orderId, sku, quantity, status: 'reserved'|'confirmed'|'released', createdAt, expiresAt}
+  - **MT-PFLICHT:** Alle Funktionen mit `tenantId` Parameter
+  - **Test:** Mindestens 3 Tests (reserve, release, idempotenz)
+
+- [ ] **STOCK-SYNC-2: Multi-Channel Bestandspush nach Stock-Out** since 2026-03-06
+  - **Problem:** Stock-Out (`POST /api/warehouse/stock-out`) updated nur BaseLinker, NICHT eBay/Kaufland
+  - **Existiert:** `backgroundSyncProductStockToBaseLinker()` in `index.js` — nur BaseLinker
+  - **Existiert:** `lib/ebay-trading-api.js` — hat `reviseItem()`, kann Quantity setzen
+  - **Existiert:** `lib/kaufland-api.js` — hat `updateUnit()`, kann Quantity/Amount setzen
+  - **Backend:**
+    - [ ] `services/stock-sync-dispatcher.js` — `syncStockToAllChannels({ tenantId, sku, newQuantity })`
+      - Prüft welche Marktplätze für dieses Produkt aktiv sind (aus product.ops.ebay, product.ops.kaufland)
+      - eBay: `reviseInventoryStatus({ itemId, quantity })` via Trading API (KEIN reviseItem — Performance!)
+      - Kaufland: `PATCH /units/{id_unit}` → `{ amount: newQuantity }`
+      - BaseLinker: existiert bereits ✅
+      - Logging: Welcher Channel erfolgreich/fehlgeschlagen
+    - [ ] In `routes/warehouse.js` POST `/stock-out`: Nach Stock-Out → `syncStockToAllChannels()` aufrufen
+    - [ ] Retry-Logik: Bei Marketplace-API-Fehler → Queue in Firestore `stock_sync_queue`, Retry via Cron/Runner
+  - **MT-PFLICHT:** Alle Funktionen mit `tenantId` Parameter
+  - **Test:** Mock eBay/Kaufland API Calls, Test Quantity-Berechnung
+
+- [ ] **STOCK-SYNC-3: Preis-Push zu Marktplätzen** since 2026-03-06
+  - **Problem:** Bekanntes Issue aus CLAUDE.md: "Preis wird in Firestore aktualisiert aber NICHT zum Marktplatz-Listing gepusht"
+  - **Existiert:** `lib/ebay-trading-api.js` → `reviseItem()` kann Preis setzen
+  - **Existiert:** `lib/kaufland-api.js` → `updateUnit()` kann Preis setzen
+  - **Backend:**
+    - [ ] `services/price-sync-dispatcher.js` — `syncPriceToAllChannels({ tenantId, productId, prices: { ebay, kaufland, baselinker } })`
+    - [ ] Trigger: Wenn Pricing Engine oder manuelles Edit den Preis ändert → Push zu allen verbundenen Channels
+    - [ ] In `lib/product-store.js` `saveProductV2()`: Preis-Diff erkennen → `syncPriceToAllChannels()` asynchon auslösen
+  - **MT-PFLICHT:** Alle Funktionen mit `tenantId` Parameter
+  - **Test:** Preis-Diff-Erkennung, Channel-Dispatch
+
+- [ ] **STOCK-SYNC-4: Sync-Status Dashboard Widget** since 2026-03-06
+  - **Abhängigkeit:** STOCK-SYNC-1 + STOCK-SYNC-2 müssen erst implementiert sein
+  - **Frontend:**
+    - [ ] Dashboard: Sync-Health-Widget (letzte Sync-Zeiten pro Channel, Fehlercount, ausstehende Reservierungen)
+    - [ ] Alerts bei fehlgeschlagenen Stock-Syncs (Toast oder Notification-Bell)
+  - **Backend:**
+    - [ ] `GET /api/v1/sync/status` → Aggregiert Sync-Status aller Channels aus Firestore
 
 ---
 
