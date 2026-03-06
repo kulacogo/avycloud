@@ -1014,4 +1014,73 @@ router.post('/shipments', async (req, res) => {
   }
 });
 
+// ── Stock Sync Status (aggregates sync health from stock_sync_log + stock_reservations) ──
+
+router.get('/sync/status', requirePermission('dashboard', 'read'), async (req, res) => {
+  try {
+    const tenantId = req.user?.tenantId || 'default';
+    const now = new Date();
+    const since24h = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
+
+    // Fetch recent sync logs (last 24h, max 500)
+    const [logsSnap, reservationsSnap] = await Promise.all([
+      firestore.collection('stock_sync_log')
+        .where('tenantId', '==', tenantId)
+        .where('createdAt', '>=', since24h)
+        .orderBy('createdAt', 'desc')
+        .limit(500)
+        .get(),
+      firestore.collection('stock_reservations')
+        .where('tenantId', '==', tenantId)
+        .where('status', '==', 'reserved')
+        .limit(500)
+        .get(),
+    ]);
+
+    // Aggregate per-channel stats from logs
+    const channels = {};
+    for (const doc of logsSnap.docs) {
+      const d = doc.data();
+      const results = d.results || [];
+      for (const r of results) {
+        const ch = r.channel;
+        if (!ch || ch === 'all') continue;
+        if (!channels[ch]) {
+          channels[ch] = { lastSync: null, successCount: 0, errorCount: 0, totalCount: 0 };
+        }
+        channels[ch].totalCount++;
+        if (r.status === 'success') channels[ch].successCount++;
+        else if (r.status === 'error' || r.status === 'failed') channels[ch].errorCount++;
+        // Track latest sync time
+        if (!channels[ch].lastSync || (d.createdAt && d.createdAt > channels[ch].lastSync)) {
+          channels[ch].lastSync = d.createdAt;
+        }
+      }
+    }
+
+    // Count active reservations
+    const reservedCount = reservationsSnap.docs.length;
+    let reservedQuantity = 0;
+    for (const doc of reservationsSnap.docs) {
+      reservedQuantity += Number(doc.data().quantity) || 0;
+    }
+
+    const totalErrors = Object.values(channels).reduce((s, c) => s + c.errorCount, 0);
+    const totalSyncs = Object.values(channels).reduce((s, c) => s + c.totalCount, 0);
+
+    res.json({
+      ok: true,
+      data: {
+        channels,
+        reservations: { count: reservedCount, totalQuantity: reservedQuantity },
+        summary: { totalSyncs, totalErrors, since: since24h },
+        generatedAt: now.toISOString(),
+      },
+    });
+  } catch (err) {
+    console.error(`[GET /api/sync/status] ${err.message}`, err);
+    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: err.message } });
+  }
+});
+
 module.exports = { router, setBackgroundSyncOrders };

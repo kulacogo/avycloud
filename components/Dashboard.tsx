@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { DashboardMetrics, FinanceMetrics, Product } from '../types';
-import { fetchDashboardMetrics, fetchFinanceMetrics } from '../api/client';
+import { fetchDashboardMetrics, fetchFinanceMetrics, fetchSyncStatus, type SyncStatusData } from '../api/client';
 import {
   getProductAvailableQuantity,
   getProductPhysicalQuantity,
@@ -520,6 +520,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const [metricsError, setMetricsError] = useState<string | null>(null);
   const [finance, setFinance] = useState<FinanceMetrics | null>(null);
   const [financeLoading, setFinanceLoading] = useState(true);
+  const [syncStatus, setSyncStatus] = useState<SyncStatusData | null>(null);
+  const [syncLoading, setSyncLoading] = useState(true);
   const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
   const loadingRef = useRef(false);
 
@@ -552,12 +554,14 @@ export const Dashboard: React.FC<DashboardProps> = ({
     const long = activePreset === 'year_to_date' || activePreset === 'last_year' || activePreset === 'all_time';
     setMetricsLoading(true);
     setFinanceLoading(true);
+    setSyncLoading(true);
     const fromDate = activePreset === 'custom' ? from : undefined;
     const toDate = activePreset === 'custom' ? to : undefined;
     try {
-      const [mResult, fResult] = await Promise.allSettled([
+      const [mResult, fResult, sResult] = await Promise.allSettled([
         fetchDashboardMetrics({ days: 7, preset: activePreset, from_date: fromDate, to_date: toDate }, { timeoutMs: long ? 90000 : 28000 }),
         fetchFinanceMetrics(activePreset, { timeoutMs: 40000, from_date: fromDate, to_date: toDate }),
+        fetchSyncStatus(),
       ]);
       if (mResult.status === 'fulfilled') {
         setMetrics(mResult.value);
@@ -566,9 +570,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
         setMetricsError((mResult.reason as any)?.message || 'Fehler beim Laden');
       }
       if (fResult.status === 'fulfilled') setFinance(fResult.value);
+      if (sResult.status === 'fulfilled') setSyncStatus(sResult.value);
     } finally {
       setMetricsLoading(false);
       setFinanceLoading(false);
+      setSyncLoading(false);
       loadingRef.current = false;
       setLastRefreshed(new Date());
     }
@@ -772,6 +778,59 @@ export const Dashboard: React.FC<DashboardProps> = ({
             color={inv.sync.failed > 0 ? 'red' : inv.sync.pending > 0 ? 'amber' : 'green'}
           />
         </div>
+      </Section>
+
+      {/* ══ 2b. SYNC-HEALTH ══════════════════════════════════════════════ */}
+      <Section title="Marketplace Sync" badge={syncStatus && syncStatus.summary.totalErrors > 0 ? `${syncStatus.summary.totalErrors} Fehler` : undefined}>
+        {syncLoading ? (
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            {[1, 2, 3, 4].map(i => (
+              <div key={i} className="rounded-2xl border border-app-border bg-app-surface p-5 h-24 animate-pulse" />
+            ))}
+          </div>
+        ) : syncStatus ? (
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            {/* Per-channel cards */}
+            {(['ebay', 'kaufland', 'baselinker'] as const).map(ch => {
+              const c = syncStatus.channels[ch];
+              if (!c) return (
+                <Card key={ch} label={ch.charAt(0).toUpperCase() + ch.slice(1)} value="—" sub="Nicht verbunden" color="neutral" size="sm" />
+              );
+              const hasErrors = c.errorCount > 0;
+              const ago = c.lastSync ? (() => {
+                const diff = Date.now() - new Date(c.lastSync).getTime();
+                const mins = Math.floor(diff / 60000);
+                if (mins < 1) return 'gerade eben';
+                if (mins < 60) return `vor ${mins} Min.`;
+                const hrs = Math.floor(mins / 60);
+                if (hrs < 24) return `vor ${hrs} Std.`;
+                return `vor ${Math.floor(hrs / 24)} Tagen`;
+              })() : null;
+              return (
+                <Card
+                  key={ch}
+                  label={ch.charAt(0).toUpperCase() + ch.slice(1)}
+                  value={`${c.successCount}/${c.totalCount}`}
+                  sub={ago ? `Letzter Sync: ${ago}${hasErrors ? ` · ${c.errorCount} Fehler` : ''}` : undefined}
+                  color={hasErrors ? 'red' : c.totalCount > 0 ? 'green' : 'neutral'}
+                  size="sm"
+                />
+              );
+            })}
+            {/* Reservations card */}
+            <Card
+              label="Reservierungen"
+              value={fmtNum(syncStatus.reservations.count)}
+              sub={`${fmtNum(syncStatus.reservations.totalQuantity)} Einheiten reserviert`}
+              color={syncStatus.reservations.count > 0 ? 'amber' : 'neutral'}
+              size="sm"
+            />
+          </div>
+        ) : (
+          <div className="rounded-2xl border border-app-border bg-app-surface p-5 text-sm text-txt-muted text-center">
+            Sync-Status nicht verfügbar
+          </div>
+        )}
       </Section>
 
       {/* ══ 3. AUFTRAGSFLUSS ═══════════════════════════════════════════ */}

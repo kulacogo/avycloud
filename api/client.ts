@@ -898,6 +898,29 @@ export async function updateInvoiceStatus(id: string, status: string): Promise<a
   return data?.data;
 }
 
+// ── Stock Sync Status ──
+
+export interface SyncChannelStatus {
+  lastSync: string | null;
+  successCount: number;
+  errorCount: number;
+  totalCount: number;
+}
+
+export interface SyncStatusData {
+  channels: Record<string, SyncChannelStatus>;
+  reservations: { count: number; totalQuantity: number };
+  summary: { totalSyncs: number; totalErrors: number; since: string };
+  generatedAt: string;
+}
+
+export async function fetchSyncStatus(): Promise<SyncStatusData> {
+  const res = await fetchApi(`${BACKEND_URL}/api/sync/status`, { method: 'GET' });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) throw new Error(data?.error?.message || 'Failed to load sync status');
+  return data?.data as SyncStatusData;
+}
+
 export async function fetchEbayStatus(): Promise<EbayConnectionStatus> {
   const res = await fetchApi(`${BACKEND_URL}/api/ebay/status?t=${Date.now()}`, { method: 'GET' });
   const data = await parseResponse(res);

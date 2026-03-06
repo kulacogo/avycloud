@@ -24,7 +24,9 @@
 > **Backend:** 100+ API-Funktionen in `api/client.ts`. 5 neue Backend-Routes: `settings.js`, `integrations.js`, `returns.js`, `invoices.js` + Erweiterungen in `orders.js`, `warehouse.js`.
 > Alle neuen Collections mit `tenantId` (MT-ready).
 >
-> **→ NÄCHSTE PRIORITÄT: Phase 5 (Stock-Sync) — Überverkaufsschutz für Multi-Channel.**
+> **✅ Phase 5 (Stock-Sync) ABGESCHLOSSEN (2026-03-06):** Reservierungen, Multi-Channel Sync (eBay+Kaufland), Preis-Sync, Dashboard Widget.
+>
+> **→ NÄCHSTE PRIORITÄT: BUG-008 bis BUG-012 fixen, dann Module 3-9 weiter.**
 
 ---
 
@@ -112,6 +114,63 @@
   - Neue View enthält: KPI-Cards, Sync-Status-Banner, Tab-Filter (Alle/Aktiv/Inaktiv/Entwürfe/Fehler), Datentabelle mit Bulk-Actions, Pagination, Search, Status-Badges
   - PlaceholderView-Component komplett entfernt aus App.tsx
 
+- [ ] **BUG-008: eBay Marketplace-Seite zeigt Gap-Analyse statt Listing-Management** since 2026-03-06
+  - **PROBLEM:** Die eBay-Seite (`#/marketplace/ebay`) zeigt Gap-Analyse-Daten (Gaps-Spalte, Match-Spalte, "Nicht verbunden"-Badge). Das ist FALSCH.
+  - **SOLL:** Marketplace-Seiten sind für **Listing-Management**: Listings anzeigen, neues Listing erstellen, Listing bearbeiten, Preis/Bestand aktualisieren, Listing aktivieren/deaktivieren. KEINE Gap-Analyse-Daten.
+  - **FIX:**
+    - [ ] Spalten "Match" und "Gaps" ENTFERNEN aus MarketplaceListingsView
+    - [ ] Spalten ersetzen durch: Preis, Bestand, Kategorie, Format (Festpreis/Auktion)
+    - [ ] "Nicht verbunden" Badge entfernen — eBay IST verbunden (siehe IntegrationsHub)
+    - [ ] Aktionen pro Listing: Bearbeiten, Preis ändern, Bestand ändern, Deaktivieren
+    - [ ] Bulk-Aktionen: Preis-Update, Bestand-Update, Aktivieren/Deaktivieren
+    - [ ] "Neues Listing erstellen" Button
+    - [ ] "vor NaN Tagen" in Letztes-Update-Spalte fixen (fehlerhafte Date-Berechnung)
+  - **Dateien:** `components/MarketplaceListingsView.tsx`
+
+- [ ] **BUG-009: Kaufland Marketplace-Seite zeigt nur SKU-Nummern, keine Produktdaten** since 2026-03-06
+  - **PROBLEM:** Kaufland-Seite (`#/marketplace/kaufland`) zeigt 301 Listings, aber nur SKU-Nummern als Titel ("SKU-9671499764"). Kein Produktname, kein Preis, kein Bild. Status überall "Unbekannt". Aktiv: 0, Inaktiv: 301.
+  - **URSACHE:** Kaufland SKU-Index liefert nur Unit-IDs + SKUs, keine Produktdaten. Muss mit AvyCloud-Produktdaten gejoined werden (über SKU-Mapping).
+  - **FIX:**
+    - [ ] Nach Kaufland-Sync: SKUs mit `products_v2` matchen (über `sku` oder `ops.kaufland.unitId`)
+    - [ ] Produktname, Bild, Preis aus AvyCloud-Daten anzeigen (nicht aus Kaufland API — die hat keine Titel)
+    - [ ] Status korrekt befüllen: Aktiv/Inaktiv aus Kaufland Unit-Status
+    - [ ] Aktionen pro Listing: Preis ändern, Bestand ändern, Listing deaktivieren
+  - **Dateien:** `components/MarketplaceListingsView.tsx`, ggf. `backend/routes/marketplace.js`
+
+- [ ] **BUG-010: Listing-Aktionen gehören NICHT in Produkte/Inventar-View** since 2026-03-06
+  - **PROBLEM:** Bulk-Aktions-Leiste in Inventar zeigt: "BL Sync", "eBay Listen", "eBay Update", "Kaufland Listen", "Kaufland Update", "KI Verbessern", "Löschen". Listing-Aktionen (eBay Listen, eBay Update, Kaufland Listen, Kaufland Update) gehören auf die **Marketplace-Seiten**, NICHT in Produkte/Inventar.
+  - **SOLL Produkte/Inventar:** Produktdaten verwalten, Bestand verwalten. Einzige Marktplatz-Info: Statusanzeige auf welchen Marktplätzen ein Artikel gelistet ist (Badges: eBay ✅, Kaufland ✅). KEIN Listing-Erstellen/Updaten von hier.
+  - **SOLL Marketplace-Seiten:** Listing erstellen, Listing updaten, Preis/Bestand pushen, Aktivieren/Deaktivieren.
+  - **FIX:**
+    - [ ] Aus `BulkActions.tsx`: "eBay Listen", "eBay Update", "Kaufland Listen", "Kaufland Update" ENTFERNEN
+    - [ ] In Produkte/Inventar-Tabelle: eBay/Kaufland-Spalten zeigen NUR Status-Badge (Gelistet/Nicht gelistet), KEIN Button
+    - [ ] Alle Listing-Aktionen in `MarketplaceListingsView.tsx` verschieben
+  - **Dateien:** `components/BulkActions.tsx`, `components/AdminTableRow.tsx`, `components/MarketplaceListingsView.tsx`
+
+- [ ] **BUG-011: Light-Mode Farben unleserlich — Text und Indikatoren schlecht erkennbar** since 2026-03-06
+  - **PROBLEM:** Im Bright-Mode sind Texte und Status-Indikatoren oft kaum lesbar. Kontrast zu gering. Farben schlecht gewählt.
+  - **BETROFFEN (sichtbar in Screenshots):**
+    - [ ] Orange/Gelbe Status-Badges auf weißem Hintergrund → kaum lesbar
+    - [ ] BaseLinker/eBay/Kaufland Spalten: Farbige Buttons/Badges mit zu geringem Kontrast
+    - [ ] "Pending" Badge in Orange auf hellem Hintergrund → schwer lesbar
+    - [ ] Generell: Alle Status-Farben gegen WCAG AA Kontrast-Standard prüfen (mindestens 4.5:1 Ratio)
+  - **FIX:**
+    - [ ] Alle CSS-Variablen für Light-Mode in `index.css` oder Tailwind-Config prüfen
+    - [ ] Kontrast-Ratio für ALLE Text-auf-Hintergrund-Kombinationen prüfen (Tool: https://webaim.org/resources/contrastchecker/)
+    - [ ] Badge-Farben anpassen: Dunklere Text-Farbe oder dunkleren Hintergrund
+    - [ ] Status-Indikatoren: Feste, kontrastreiche Farbpalette definieren
+  - **Dateien:** `index.css`, `tailwind.config.js`, ggf. alle `components/ui/*.tsx`
+
+- [ ] **BUG-012: Dark-Mode zu viel Lila — Text-Farben überarbeiten** since 2026-03-06
+  - **PROBLEM:** Im Dark-Mode hat ein zu großer Anteil an Text eine lila/violette Farbe. Wirkt unruhig und ablenkend.
+  - **FIX:**
+    - [ ] Primäre Text-Farbe im Dark-Mode: Weiß/Hellgrau (nicht Lila)
+    - [ ] Lila NUR als Accent-Farbe für: Active-State in Sidebar, Primary-Buttons, Links
+    - [ ] Sekundärer Text: Grau (#9CA3AF oder ähnlich)
+    - [ ] Alle CSS-Custom-Properties für `--text-primary`, `--text-secondary` im Dark-Mode prüfen
+    - [ ] Labels, Überschriften, Tabellen-Header, Badges: KEIN Lila, sondern Weiß/Grau
+  - **Dateien:** `index.css`, `tailwind.config.js`
+
 - [ ] **BUG-007: React Error #426 — ProductSheet crash bei Klick auf Produkt** since 2026-03-05
   - **PROBLEM:** Minified React error #426 ("A component suspended while responding to synchronous input") beim Öffnen eines Produkts aus Produkte oder Inventar
   - **URSACHE:** `ProductSheet` war `React.lazy()` geladen UND wurde gleichzeitig an 2 Stellen gerendert (als Route `case 'sheet'` + als Overlay)
@@ -124,14 +183,14 @@
 
 ---
 
-### ✅ Phase 4: FAKE→REAL — Mock-Daten raus, echte API-Calls rein (ERLEDIGT 2026-03-06)
+### ⚡⚡⚡ Phase 4: FAKE→REAL — Mock-Daten raus, echte API-Calls rein
 
-> **✅ KOMPLETT ABGESCHLOSSEN.** Alle 10 Views + Global Cleanup erledigt.
-> - 0 `MOCK_*` Arrays verbleibend (grep bestätigt)
-> - 0 "Coming Soon" / "Demnächst verfügbar" verbleibend
-> - Alle Views importieren echte API-Funktionen aus `api/client.ts`
-> - 5 neue Backend-Routes erstellt: `settings.js`, `integrations.js`, `returns.js`, `invoices.js` + Erweiterungen in `orders.js`, `warehouse.js`
-> - Build passt (2.57s)
+> **⚠️ STATUS: Backend-Routes erstellt, aber Frontend-Qualität NICHT verifiziert.**
+> Claude Code hat Backend-Routes + api/client.ts-Funktionen hinzugefügt, ABER:
+> - eBay-Seite zeigt Gap-Analyse-Daten statt Listing-Management (BUG-008)
+> - Kaufland-Seite zeigt nur SKU-Nummern ohne Produktdaten (BUG-009)
+> - Sub-Checkboxen in den Tasks sind noch offen
+> - **→ Phase 4 MUSS ZUSAMMEN MIT BUG-008 bis BUG-012 finalisiert werden**
 >
 > **⛔ WEITERHIN GÜLTIG — ABSOLUTES VERBOT:**
 > - KEINE neuen `MOCK_*` Arrays erstellen
@@ -389,13 +448,12 @@
   - Kaufland: `updateUnit(unitId, product)` — `pickUnitData` liest `pricing.sellPrice`
   - Noch nicht automatisch getriggert bei Preisänderung (manueller Call möglich)
 
-- [ ] **STOCK-SYNC-4: Sync-Status Dashboard Widget** since 2026-03-06
-  - **Abhängigkeit:** STOCK-SYNC-1 + STOCK-SYNC-2 müssen erst implementiert sein
-  - **Frontend:**
-    - [ ] Dashboard: Sync-Health-Widget (letzte Sync-Zeiten pro Channel, Fehlercount, ausstehende Reservierungen)
-    - [ ] Alerts bei fehlgeschlagenen Stock-Syncs (Toast oder Notification-Bell)
-  - **Backend:**
-    - [ ] `GET /api/v1/sync/status` → Aggregiert Sync-Status aller Channels aus Firestore
+- [x] **STOCK-SYNC-4: Sync-Status Dashboard Widget** ~~since 2026-03-06~~ (2026-03-06)
+  - ✅ Backend: `GET /api/sync/status` in `routes/orders.js` — aggregiert `stock_sync_log` (letzte 24h) + `stock_reservations` (active)
+  - ✅ Frontend: `fetchSyncStatus()` in `api/client.ts` mit TypeScript-Interface `SyncStatusData`
+  - ✅ Dashboard: "Marketplace Sync" Section mit Per-Channel-Cards (eBay, Kaufland, BaseLinker) + Reservierungen-Card
+  - ✅ Zeigt: success/total ratio, letzter Sync-Zeitpunkt, Fehlercount, aktive Reservierungen
+  - ⏳ Alerts bei fehlgeschlagenen Stock-Syncs (Toast/Notification-Bell) — Folge-Task
 
 ---
 
