@@ -1031,6 +1031,49 @@ router.post('/kaufland/publish', requirePermission('products', 'write'), async (
   }
 });
 
+router.post('/kaufland/publish/bulk', requirePermission('products', 'write'), async (req, res) => {
+  try {
+    const body = req.body && typeof req.body === 'object' ? req.body : {};
+    const productIds = Array.isArray(body.productIds)
+      ? body.productIds.map((x) => String(x || '').trim()).filter(Boolean)
+      : [];
+    if (!productIds.length) {
+      return res.status(400).json({ ok: false, error: { code: 'MISSING_PRODUCT_IDS', message: 'productIds array is required' } });
+    }
+    const storefront = body.storefront || 'de';
+    const { getProductV2 } = require('../lib/product-store');
+    const { createUnit } = require('../lib/kaufland-api');
+    const results = [];
+    for (const id of productIds) {
+      try {
+        const product = await getProductV2(id);
+        if (!product) {
+          results.push({ productId: id, ok: false, error: `Product ${id} not found` });
+          continue;
+        }
+        const result = await createUnit(product, { storefront });
+        results.push({ productId: id, ok: true, data: result });
+      } catch (err) {
+        results.push({ productId: id, ok: false, error: err.message || 'Failed' });
+      }
+    }
+    const success = results.filter((r) => r.ok).length;
+    return res.status(200).json({
+      ok: true,
+      data: {
+        summary: { total: productIds.length, success, failed: productIds.length - success },
+        results,
+      },
+    });
+  } catch (error) {
+    console.error(`[POST /api/marketplace/kaufland/publish/bulk] ${error.message}`, error);
+    return res.status(500).json({
+      ok: false,
+      error: { code: 'INTERNAL', message: error.message },
+    });
+  }
+});
+
 // =====================================================================
 // eBay Gaps
 // =====================================================================

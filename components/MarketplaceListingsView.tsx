@@ -8,6 +8,8 @@ import {
   fetchKauflandListings,
   publishToEbay,
   publishToKaufland,
+  bulkPublishToEbay,
+  bulkPublishToKaufland,
   fetchProducts,
 } from "../api/client";
 import type { Product } from "../types";
@@ -21,7 +23,7 @@ interface MarketplaceListingsViewProps {
 }
 
 type ListingStatus = "active" | "inactive" | "unknown";
-type TabFilter = "all" | "active" | "inactive" | "optimization";
+type TabFilter = "all" | "active" | "inactive";
 
 interface NormalizedListing {
   id: string;
@@ -36,7 +38,6 @@ interface NormalizedListing {
   lastSync: string | null;
   errors?: string[];
   imageUrl?: string | null;
-  gapCount?: number;
 }
 
 // ─── Constants ───────────────────────────────────────────────
@@ -51,7 +52,6 @@ const TAB_LABELS: Record<TabFilter, string> = {
   all: "Alle",
   active: "Aktiv",
   inactive: "Inaktiv",
-  optimization: "Optimierung",
 };
 
 const MARKETPLACE_LABELS = {
@@ -98,10 +98,9 @@ function normalizeEbayRow(row: EbayListingRow): NormalizedListing {
     currency: row.currency ?? null,
     quantity: row.quantityAvailable ?? null,
     status: normalizeEbayStatus(row),
-    category: row.categoryName || row.primaryCategoryId || null,
-    viewItemUrl: row.viewItemUrl || null,
+    category: row.categoryName || (row.primaryCategoryId ? `Kat. ${row.primaryCategoryId}` : null),
+    viewItemUrl: row.viewItemUrl || (row.itemId ? `https://www.ebay.de/itm/${row.itemId}` : null),
     lastSync: row.updatedAt || null,
-    gapCount: row.gapCriticalCount || 0,
   };
 }
 
@@ -183,6 +182,11 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
   const [publishLoading, setPublishLoading] = useState(false);
   const [publishingId, setPublishingId] = useState<string | null>(null);
   const [publishResult, setPublishResult] = useState<{ ok: boolean; message: string } | null>(null);
+  const [publishSelectedIds, setPublishSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkPublishing, setBulkPublishing] = useState(false);
+  const [bulkPublishSummary, setBulkPublishSummary] = useState<{
+    total: number; success: number; failed: number; failedNames: string[];
+  } | null>(null);
 
   const label = MARKETPLACE_LABELS[marketplace];
 
@@ -269,6 +273,8 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
     setShowPublishModal(true);
     setPublishSearch("");
     setPublishResult(null);
+    setPublishSelectedIds(new Set());
+    setBulkPublishSummary(null);
     setPublishLoading(true);
     try {
       const products = await fetchProducts();
@@ -300,6 +306,75 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
     }
   }, [marketplace, loadEbayListings, loadKauflandListings]);
 
+  const togglePublishSelect = useCallback((productId: string) => {
+    setPublishSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(productId)) next.delete(productId);
+      else next.add(productId);
+      return next;
+    });
+  }, []);
+
+  const togglePublishSelectAll = useCallback((visibleProducts: Product[]) => {
+    setPublishSelectedIds((prev) => {
+      const visibleIds = visibleProducts.map((p) => p.id);
+      const allSelected = visibleIds.length > 0 && visibleIds.every((id) => prev.has(id));
+      const next = new Set(prev);
+      if (allSelected) {
+        visibleIds.forEach((id) => next.delete(id));
+      } else {
+        visibleIds.forEach((id) => next.add(id));
+      }
+      return next;
+    });
+  }, []);
+
+  const handleBulkPublish = useCallback(async () => {
+    const ids = [...publishSelectedIds];
+    if (!ids.length) return;
+
+    setBulkPublishing(true);
+    setBulkPublishSummary(null);
+    setPublishResult(null);
+
+    try {
+      let summary: { total: number; success: number; failed: number };
+      let failedNames: string[] = [];
+
+      if (marketplace === "ebay") {
+        const result = await bulkPublishToEbay(ids);
+        summary = result.summary;
+        failedNames = result.results
+          .filter((r: any) => !r.ok)
+          .map((r: any) => {
+            const prod = publishProducts.find((p) => p.id === r.productId);
+            return prod?.identification?.name || r.productId;
+          });
+        loadEbayListings();
+      } else {
+        const result = await bulkPublishToKaufland(ids);
+        summary = result.summary;
+        failedNames = result.results
+          .filter((r) => !r.ok)
+          .map((r) => {
+            const prod = publishProducts.find((p) => p.id === r.productId);
+            return prod?.identification?.name || r.productId;
+          });
+        loadKauflandListings();
+      }
+
+      setBulkPublishSummary({ ...summary, failedNames });
+      setPublishSelectedIds(new Set());
+    } catch (err: any) {
+      setPublishResult({
+        ok: false,
+        message: err.message || "Bulk-Veröffentlichung fehlgeschlagen",
+      });
+    } finally {
+      setBulkPublishing(false);
+    }
+  }, [marketplace, publishSelectedIds, publishProducts, loadEbayListings, loadKauflandListings]);
+
   const filteredPublishProducts = useMemo(() => {
     if (!publishSearch.trim()) return publishProducts.slice(0, 50);
     const q = publishSearch.toLowerCase();
@@ -316,12 +391,11 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
   // ─── Computed Data ───────────────────────────────────────
 
   const tabCounts = useMemo(() => {
-    const counts: Record<TabFilter, number> = { all: 0, active: 0, inactive: 0, optimization: 0 };
+    const counts: Record<TabFilter, number> = { all: 0, active: 0, inactive: 0 };
     listings.forEach((l) => {
       counts.all++;
       if (l.status === "active") counts.active++;
       else if (l.status === "inactive" || l.status === "unknown") counts.inactive++;
-      if (l.gapCount && l.gapCount > 0) counts.optimization++;
     });
     return counts;
   }, [listings]);
@@ -330,7 +404,6 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
     let result = listings;
     if (activeTab === "active") result = result.filter((l) => l.status === "active");
     else if (activeTab === "inactive") result = result.filter((l) => l.status === "inactive" || l.status === "unknown");
-    else if (activeTab === "optimization") result = result.filter((l) => l.gapCount != null && l.gapCount > 0);
 
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
@@ -482,8 +555,12 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
           <div className="text-2xl font-bold text-txt-primary">{tabCounts.inactive}</div>
         </div>
         <div className="bg-app-surface border border-app-border rounded-xl p-4">
-          <div className="text-sm text-txt-muted mb-1">Optimierung</div>
-          <div className="text-2xl font-bold text-warning">{tabCounts.optimization}</div>
+          <div className="text-sm text-txt-muted mb-1">Durchschnittspreis</div>
+          <div className="text-2xl font-bold text-txt-primary">
+            {listings.length > 0
+              ? `${(listings.reduce((sum, l) => sum + (l.price || 0), 0) / listings.filter(l => l.price).length).toFixed(2)} €`
+              : "—"}
+          </div>
         </div>
       </div>
 
@@ -496,12 +573,6 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
               {formatRelativeTime(lastSyncTime)}
             </span>
           </span>
-          {tabCounts.optimization > 0 && (
-            <>
-              <span className="hidden sm:inline text-app-border">|</span>
-              <span className="text-warning font-medium">{tabCounts.optimization} Optimierungen</span>
-            </>
-          )}
         </div>
         <button
           onClick={handleSync}
@@ -651,16 +722,6 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
                           >
                             {listing.title}
                           </span>
-                          {listing.gapCount != null && listing.gapCount > 0 && (
-                            <span
-                              className="flex-shrink-0 text-warning"
-                              title={`${listing.gapCount} Optimierungsvorschläge`}
-                            >
-                              <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
-                                <path fillRule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 6a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 6zm0 9a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
-                              </svg>
-                            </span>
-                          )}
                         </div>
                         {listing.sku && (
                           <div className="text-xs text-txt-muted mt-0.5 font-mono truncate max-w-[320px]">
@@ -756,13 +817,26 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
       {/* Publish Modal */}
       {showPublishModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/40" onClick={() => setShowPublishModal(false)} />
+          <div className="absolute inset-0 bg-black/40" onClick={() => !bulkPublishing && setShowPublishModal(false)} />
           <div className="relative bg-app-surface border border-app-border rounded-xl shadow-2xl w-full max-w-lg max-h-[80vh] flex flex-col">
+            {/* Header */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-app-border">
-              <h2 className="text-lg font-bold text-txt-primary">Artikel auf {label} listen</h2>
+              <div className="flex items-center gap-3">
+                {!publishLoading && filteredPublishProducts.length > 0 && (
+                  <input
+                    type="checkbox"
+                    checked={filteredPublishProducts.length > 0 && filteredPublishProducts.every((p) => publishSelectedIds.has(p.id))}
+                    onChange={() => togglePublishSelectAll(filteredPublishProducts)}
+                    className="w-4 h-4 rounded border-app-border text-accent focus:ring-accent/30 cursor-pointer"
+                    disabled={bulkPublishing}
+                  />
+                )}
+                <h2 className="text-lg font-bold text-txt-primary">Artikel auf {label} listen</h2>
+              </div>
               <button
                 onClick={() => setShowPublishModal(false)}
                 className="text-txt-muted hover:text-txt-primary p-1"
+                disabled={bulkPublishing}
               >
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -770,12 +844,30 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
               </button>
             </div>
 
+            {/* Result banners */}
             {publishResult && (
               <div className={`mx-5 mt-4 px-3 py-2 rounded-lg text-sm ${publishResult.ok ? "bg-success-dim text-success" : "bg-danger-dim text-danger"}`}>
                 {publishResult.message}
               </div>
             )}
+            {bulkPublishSummary && (
+              <div className={`mx-5 mt-4 px-3 py-2 rounded-lg text-sm ${
+                bulkPublishSummary.failed === 0 ? "bg-success-dim text-success" : "bg-warning-dim text-warning"
+              }`}>
+                <div className="font-medium">
+                  {bulkPublishSummary.success} von {bulkPublishSummary.total} erfolgreich gelistet
+                  {bulkPublishSummary.failed > 0 && `, ${bulkPublishSummary.failed} fehlgeschlagen`}
+                </div>
+                {bulkPublishSummary.failedNames.length > 0 && (
+                  <div className="mt-1 text-xs opacity-80">
+                    Fehlgeschlagen: {bulkPublishSummary.failedNames.slice(0, 5).join(", ")}
+                    {bulkPublishSummary.failedNames.length > 5 && ` (+${bulkPublishSummary.failedNames.length - 5} weitere)`}
+                  </div>
+                )}
+              </div>
+            )}
 
+            {/* Search */}
             <div className="px-5 pt-4">
               <input
                 type="text"
@@ -784,9 +876,11 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
                 placeholder="Produkt suchen (Titel, SKU, EAN)..."
                 className="w-full px-3 py-2 bg-app-bg border border-app-border rounded-lg text-sm text-txt-primary placeholder:text-txt-muted focus:outline-none focus:ring-2 focus:ring-accent/30"
                 autoFocus
+                disabled={bulkPublishing}
               />
             </div>
 
+            {/* Product list */}
             <div className="flex-1 overflow-y-auto px-5 py-3 space-y-1">
               {publishLoading ? (
                 <div className="text-center text-txt-muted py-8">Lade Produkte…</div>
@@ -798,6 +892,13 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
                     key={p.id}
                     className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-app-elevated transition-colors"
                   >
+                    <input
+                      type="checkbox"
+                      checked={publishSelectedIds.has(p.id)}
+                      onChange={() => togglePublishSelect(p.id)}
+                      className="w-4 h-4 rounded border-app-border text-accent focus:ring-accent/30 flex-shrink-0 cursor-pointer"
+                      disabled={bulkPublishing}
+                    />
                     {p.details?.images?.[0]?.url_or_base64 ? (
                       <img src={p.details.images[0].url_or_base64} alt="" className="w-10 h-10 rounded-md object-cover flex-shrink-0" />
                     ) : (
@@ -812,7 +913,7 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
                     </div>
                     <button
                       onClick={() => handlePublish(p.id)}
-                      disabled={publishingId === p.id}
+                      disabled={publishingId === p.id || bulkPublishing}
                       className="flex-shrink-0 px-3 py-1.5 text-xs font-medium text-white bg-accent rounded-lg hover:opacity-90 disabled:opacity-50 transition-opacity"
                     >
                       {publishingId === p.id ? "Wird gelistet…" : "Listen"}
@@ -821,6 +922,33 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
                 ))
               )}
             </div>
+
+            {/* Bulk publish footer */}
+            {publishSelectedIds.size > 0 && (
+              <div className="px-5 py-3 border-t border-app-border flex items-center justify-between">
+                <span className="text-sm text-txt-muted">
+                  {publishSelectedIds.size} ausgewählt
+                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setPublishSelectedIds(new Set())}
+                    disabled={bulkPublishing}
+                    className="px-3 py-1.5 text-sm font-medium text-txt-muted hover:text-txt-primary transition-colors disabled:opacity-50"
+                  >
+                    Auswahl aufheben
+                  </button>
+                  <button
+                    onClick={handleBulkPublish}
+                    disabled={bulkPublishing}
+                    className="px-4 py-1.5 text-sm font-medium text-white bg-accent rounded-lg hover:opacity-90 disabled:opacity-50 transition-opacity"
+                  >
+                    {bulkPublishing
+                      ? "Wird gelistet…"
+                      : `${publishSelectedIds.size} Artikel listen`}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

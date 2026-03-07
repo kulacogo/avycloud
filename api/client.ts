@@ -1360,6 +1360,27 @@ export async function bulkPublishToEbay(
   return data?.data as EbayBulkPublishResult;
 }
 
+export interface BulkPublishResult {
+  summary: { total: number; success: number; failed: number };
+  results: Array<{ productId: string; ok: boolean; error?: string }>;
+}
+
+export async function bulkPublishToKaufland(
+  productIds: string[],
+  storefront = 'de'
+): Promise<BulkPublishResult> {
+  const res = await fetchApi(`${BACKEND_URL}/api/marketplace/kaufland/publish/bulk`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ productIds, storefront }),
+  });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) {
+    throw new Error(data?.error?.message || 'Failed to bulk publish to Kaufland');
+  }
+  return data?.data as BulkPublishResult;
+}
+
 export async function generateEbayReports(outDir?: string): Promise<any> {
   const res = await fetchApi(`${BACKEND_URL}/api/ebay/reports/generate`, {
     method: 'POST',

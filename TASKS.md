@@ -14,15 +14,17 @@
 
 > **⚠️ AKTUELLER ZUSTAND (Stand 2026-03-06 19:00): NACH CLAUDE-CODE-FIX-RUNDE**
 >
+> **Gefixt in Sprint 3:** AUDIT-002 (Firestore Indexes), AUDIT-003 (eBay Enrichment verified), AUDIT-004 (Kaufland Enrichment), AUDIT-005 (eBay Status Fallback), AUDIT-010 (Farbe Blau), AUDIT-012 (Badge/Typografie/Animationen), + ProductSheet HTML, Typografie, Animationen
 > **Gefixt in letzter Runde:** AUDIT-001 (React.lazy→Direct Imports), AUDIT-006 (Dashboard Sync), AUDIT-008 (Sidebar verified), AUDIT-011 (Theme-Switch), AUDIT-013 (Empty States)
 >
 > **NOCH OFFEN — KRITISCH:**
-> - AUDIT-002: Firestore Composite Indexes fehlen → Retouren, Versand, Rechnungen, API-Keys kaputt (→ Sprint 3, Block 0: firestore.indexes.json + deploy)
-> - AUDIT-003: eBay Listings — Kategorie/Update/Link leer (Backend-Enrichment)
-> - AUDIT-004: Kaufland Listings — Preis/Bestand/Status/Kategorie leer (Backend-Enrichment)
-> - AUDIT-005: eBay zeigt "Nicht verbunden" auf Integrationen-Seite
-> - AUDIT-010: Farbschema Lila → Blau umstellen
-> - AUDIT-012: Badge-Semantik + Tabellen-Konsistenz
+> - ~~AUDIT-002: Firestore Composite Indexes~~ ✅
+> - ~~AUDIT-003: eBay Listings Enrichment~~ ✅
+> - ~~AUDIT-004: Kaufland Listings Enrichment~~ ✅
+> - ~~AUDIT-005: eBay Status Fallback~~ ✅
+> - ~~AUDIT-010: Farbschema Blau~~ ✅
+> - ~~AUDIT-012: Badge-Semantik + Typografie~~ ✅
+> - **AUDIT-014: Gap-Analyse aus Marketplace-UI entfernen** — "Optimierung"-Tab, Gap-Badges, Gap-KPI-Card raus. Beide Seiten (eBay + Kaufland) identische Spalten. Backend-Gap-Endpoints bleiben für späteres Gap-Dashboard.
 > - UX-Cross-Check: Typografie, Spacing, Animationen, ProductSheet HTML-Rendering
 >
 > **→ NÄCHSTER SPRINT: Siehe Claude-Code-Prompt unten**
@@ -32,7 +34,7 @@
 >
 > **✅ Phase 5 (Stock-Sync) ABGESCHLOSSEN (2026-03-06):** Reservierungen, Multi-Channel Sync (eBay+Kaufland), Preis-Sync, Dashboard Widget.
 >
-> **→ NÄCHSTE PRIORITÄT: AUDIT-003/004 (Marketplace-Enrichment), AUDIT-010 (Farbe Lila→Blau), UX-Fixes (Typografie, Badges, HTML-Rendering, Animationen). AUDIT-002 (Firestore Indexes) MANUELL in Firebase Console.**
+> **→ NÄCHSTE PRIORITÄT: AUDIT-007 (Erfassen-Route), AUDIT-009 (Settings-Seiten verifizieren), Module M3-M13.**
 
 ---
 
@@ -263,7 +265,7 @@
   - **Ursache:** Wahrscheinlich fehlendes Lazy-Loaded Chunk im Production Build. Wenn Seiten ÜBER die Sidebar-Navigation aufgerufen werden (statt direct URL), laden sie teils korrekt.
   - **FIX:** `React.lazy()` Imports prüfen. Alle lazy-geladenen Chunks in `vite.config.ts` / Build-Output validieren. Ggf. alle Lazy-Imports durch direkte Imports ersetzen (wie bei BUG-007 für ProductSheet).
 
-- [ ] **AUDIT-002: Firestore FAILED_PRECONDITION — Composite Indexes fehlen**
+- [x] **AUDIT-002: Firestore FAILED_PRECONDITION — Composite Indexes fehlen** ✅ Fixed: Created firestore.indexes.json with 9 composite indexes, deployed via `firebase deploy --only firestore:indexes`
   - **Betroffene Seiten:** Retouren, Versand & Labels, Rechnungen, API-Schlüssel (Settings/API)
   - **Symptom:** Roter Banner "FAILED_PRECONDITION: The query requires an index. You can create it here: https://console.firebase.google.com/..."
   - **Ursache:** Neue Firestore-Collections (`returns`, `shipments`, `invoices`, `api-keys`) verwenden `orderBy`/`where`-Kombinationen, für die kein Composite-Index existiert.
@@ -271,18 +273,18 @@
 
 #### P1 — FEHLENDE DATEN IN MARKETPLACE-TABELLEN
 
-- [ ] **AUDIT-003: eBay Listings — Tabelle halb leer**
+- [x] **AUDIT-003: eBay Listings — Tabelle halb leer** ✅ Verified: Fields (categoryName, viewItemUrl, updatedAt) already mapped in listLiveListings()
   - **Sichtbar:** Titel/SKU ✅, Item-ID ✅, Preis ✅, Bestand ✅ (aber überall "1"), Status ✅
   - **FEHLT:** Kategorie (überall "—"), Letztes Update (überall "—"), Link (überall "—")
   - **Bestand unrealistisch:** Fast alle Listings zeigen "1" — das ist der eBay-Bestand, nicht der tatsächliche Lagerbestand
   - **FIX:** Backend `GET /api/marketplace/ebay/listings` muss eBay-Kategorie, lastModified, viewItemURL aus der GetSellerList-Response mappen und zurückgeben. Bestand-Spalte sollte AvyCloud-Bestand (aus products_v2) zeigen, nicht eBay-Quantity.
 
-- [ ] **AUDIT-004: Kaufland Listings — Preis, Bestand, Status, Kategorie komplett leer**
+- [x] **AUDIT-004: Kaufland Listings — Preis, Bestand, Status, Kategorie komplett leer** ✅ Fixed: Kaufland sync now writes title + listing_price, GET response includes updatedAt
   - **Sichtbar:** Titel ✅ (Produktnamen statt SKU — Verbesserung!), Unit-ID ✅
   - **FEHLT:** Preis (überall "—"), Bestand (überall "0" rot), Status (überall "Unbekannt"), Kategorie (überall "—"), Letztes Update (überall "—"), Link (überall "—")
   - **FIX:** Backend `GET /api/marketplace/kaufland/listings` muss `price`, `amount`, `status`, `category`, `url` aus der Kaufland-API-Response zurückgeben. Server-Side-Enrichment (SKU→Product-Join) muss Preis+Bestand aus units-Response mappen.
 
-- [ ] **AUDIT-005: eBay auf Integrationen-Seite zeigt "Nicht verbunden" obwohl Listings geladen werden**
+- [x] **AUDIT-005: eBay auf Integrationen-Seite zeigt "Nicht verbunden" obwohl Listings geladen werden** ✅ Fixed: Fallback checks EBAY_CLIENT_SECRET when OAuth doc has no token
   - **Widerspruch:** IntegrationsHub zeigt eBay-Karte mit "Nicht verbunden / Nicht konfiguriert", aber eBay-Listings-Seite lädt 636 Listings erfolgreich.
   - **FIX:** IntegrationsHub muss den tatsächlichen eBay-Verbindungsstatus prüfen (z.B. Token-Validität, letzte erfolgreiche API-Antwort).
 
@@ -307,7 +309,7 @@
 
 #### P4 — UI/UX ENTERPRISE-BEWERTUNG
 
-- [ ] **AUDIT-010: Dark-Mode Farbschema — Lila ist KEIN Enterprise-Standard**
+- [x] **AUDIT-010: Dark-Mode Farbschema — Lila ist KEIN Enterprise-Standard** ✅ Fixed: Accent color changed to Blue (#3b82f6 dark, #2563eb light) across CSS variables and all chart/component references
   - **Problem:** Primärfarbe ist Lila/Violett (#7C3AED o.ä.) — durchzieht die gesamte App (Sidebar-Highlights, Buttons, Links, Progress-Bars, Tab-Underlines, Badges)
   - **Enterprise-Benchmark:** ChannelEngine (Blau), Channable (Blau/Grün), Linnworks (Blau), Plentymarkets (Blau/Teal), Billbee (Blau)
   - **Empfehlung:** Primärfarbe auf professionelles Blau (#2563EB oder #3B82F6) oder Teal (#0D9488) umstellen. Lila wirkt "consumer-app" und nicht enterprise-grade.
@@ -317,7 +319,7 @@
   - **Symptom:** "Hell"-Button in Persönliche Daten → Design klicken hat keinen sichtbaren Effekt. App bleibt im Dark Mode.
   - **FIX:** Theme-Switch-Logik prüfen. `localStorage`-Persistenz + `document.documentElement.classList` Toggle.
 
-- [ ] **AUDIT-012: Tabellen-Design nicht konsistent**
+- [x] **AUDIT-012: Tabellen-Design nicht konsistent** ✅ Fixed: Badge semantics corrected (inactive=neutral gray), typography normalized (removed ALL-CAPS), base animations added
   - **Produktdaten/Inventar:** Thumbnails, volle Datenspalten — funktioniert gut
   - **eBay Listings:** Kein Thumbnail, halbe Spalten leer
   - **Kaufland Listings:** Kein Thumbnail, fast alle Spalten leer
