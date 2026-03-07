@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { useI18n } from "../i18n";
 import { useAuth } from "../context/AuthContext";
+import { Breadcrumb, type BreadcrumbItem } from "./ui/Breadcrumb";
 
 type View =
   | "dashboard"
@@ -81,10 +82,13 @@ const VIEW_BREADCRUMBS: Record<string, { parent: string; parentView: string }> =
   "orders-invoices": { parent: "Aufträge", parentView: "orders" },
   "orders-settings": { parent: "Aufträge", parentView: "orders" },
   "warehouse-settings": { parent: "Lager", parentView: "warehouse" },
+  "marketplace-ebay": { parent: "Marktplätze", parentView: "integrations" },
+  "marketplace-kaufland": { parent: "Marktplätze", parentView: "integrations" },
   "settings-profile": { parent: "Einstellungen", parentView: "settings" },
   "settings-team": { parent: "Einstellungen", parentView: "settings" },
   "settings-api": { parent: "Einstellungen", parentView: "settings" },
   "settings-billing": { parent: "Einstellungen", parentView: "settings" },
+  categories: { parent: "Produkte", parentView: "products" },
 };
 
 export const Topbar: React.FC<TopbarProps> = ({ currentView, theme, onToggleTheme, onNavigate }) => {
@@ -122,22 +126,20 @@ export const Topbar: React.FC<TopbarProps> = ({ currentView, theme, onToggleThem
   return (
     <header className="h-14 min-h-[56px] bg-app-bg border-b border-app-border flex items-center px-6 gap-4 sticky top-0 z-40">
       {/* Page title / Breadcrumb */}
-      <div className="flex items-center gap-1.5 min-w-0">
+      <div className="flex items-center min-w-0">
         {breadcrumb ? (
-          <>
-            <button
-              type="button"
-              onClick={() => {
-                window.location.hash = `#/${breadcrumb.parentView}`;
-                onNavigate?.(breadcrumb.parentView);
-              }}
-              className="text-sm text-txt-muted hover:text-txt-primary transition-colors whitespace-nowrap"
-            >
-              {breadcrumb.parent}
-            </button>
-            <span className="text-txt-muted text-sm" aria-hidden="true">/</span>
-            <h1 className="text-sm font-semibold text-txt-primary whitespace-nowrap truncate">{title}</h1>
-          </>
+          <Breadcrumb
+            items={[
+              {
+                label: breadcrumb.parent,
+                onClick: () => {
+                  window.location.hash = `#/${breadcrumb.parentView}`;
+                  onNavigate?.(breadcrumb.parentView);
+                },
+              },
+              { label: title },
+            ]}
+          />
         ) : (
           <h1 className="text-lg font-semibold text-txt-primary whitespace-nowrap">{title}</h1>
         )}

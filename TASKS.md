@@ -12,29 +12,30 @@
 > - "Demnächst verfügbar" / "Coming Soon" ist VERBOTEN in der UI
 > - **Bestehende Fake-Views (mit Mock-Daten) MÜSSEN auf echte API-Calls umgebaut werden**
 
-> **⚠️ AKTUELLER ZUSTAND (Stand 2026-03-06 19:00): NACH CLAUDE-CODE-FIX-RUNDE**
+> **⚠️ AKTUELLER ZUSTAND (Stand 2026-03-07): SPRINT 4 VORBEREITUNG**
 >
-> **Gefixt in Sprint 3:** AUDIT-002 (Firestore Indexes), AUDIT-003 (eBay Enrichment verified), AUDIT-004 (Kaufland Enrichment), AUDIT-005 (eBay Status Fallback), AUDIT-010 (Farbe Blau), AUDIT-012 (Badge/Typografie/Animationen), + ProductSheet HTML, Typografie, Animationen
-> **Gefixt in letzter Runde:** AUDIT-001 (React.lazy→Direct Imports), AUDIT-006 (Dashboard Sync), AUDIT-008 (Sidebar verified), AUDIT-011 (Theme-Switch), AUDIT-013 (Empty States)
+> **✅ Abgeschlossen:**
+> - Phase 1–3: Security, Daten-Normalisierung, Infrastruktur, Code-Qualität
+> - Phase 4: FAKE→REAL (12 Module auf echte API-Calls umgebaut)
+> - Phase 5: Stock-Sync (Reservierungen, Multi-Channel Sync, Preis-Sync)
+> - Sprint 3 UI-Fixes: AUDIT-001–013 (Crashes, Marketplace-Enrichment, Farbe Blau, Badge-Semantik, Animationen)
 >
-> **NOCH OFFEN — KRITISCH:**
-> - ~~AUDIT-002: Firestore Composite Indexes~~ ✅
-> - ~~AUDIT-003: eBay Listings Enrichment~~ ✅
-> - ~~AUDIT-004: Kaufland Listings Enrichment~~ ✅
-> - ~~AUDIT-005: eBay Status Fallback~~ ✅
-> - ~~AUDIT-010: Farbschema Blau~~ ✅
-> - ~~AUDIT-012: Badge-Semantik + Typografie~~ ✅
-> - **AUDIT-014: Gap-Analyse aus Marketplace-UI entfernen** — "Optimierung"-Tab, Gap-Badges, Gap-KPI-Card raus. Beide Seiten (eBay + Kaufland) identische Spalten. Backend-Gap-Endpoints bleiben für späteres Gap-Dashboard.
-> - UX-Cross-Check: Typografie, Spacing, Animationen, ProductSheet HTML-Rendering
+> **🔴 OFFEN — Sprint 3 Restarbeiten:**
+> - AUDIT-014: Gap-Analyse aus Marketplace-UI entfernen + beide Seiten vereinheitlichen
+> - AUDIT-007: Erfassen-Route hat keinen eigenen View
+> - AUDIT-009: Settings-Seiten verifizieren
+> - UX-Cross-Check: Restliche Typografie, Spacing, Animationen
 >
-> **→ NÄCHSTER SPRINT: Siehe Claude-Code-Prompt unten**
+> **🚀 STRATEGISCHE ENTSCHEIDUNG (2026-03-07):**
+> **AvyCloud wird ein eigenständiges Order Management System — komplett losgelöst von BaseLinker.**
+> BaseLinker wird durch native Marketplace-API-Anbindung (eBay/Kaufland) für Order-Intake ersetzt.
+> Rechnungen, Versandlabels, Retouren — alles nativ in AvyCloud.
 >
-> **Backend:** 100+ API-Funktionen in `api/client.ts`. 5 neue Backend-Routes: `settings.js`, `integrations.js`, `returns.js`, `invoices.js` + Erweiterungen in `orders.js`, `warehouse.js`.
-> Alle neuen Collections mit `tenantId` (MT-ready).
->
-> **✅ Phase 5 (Stock-Sync) ABGESCHLOSSEN (2026-03-06):** Reservierungen, Multi-Channel Sync (eBay+Kaufland), Preis-Sync, Dashboard Widget.
->
-> **→ NÄCHSTE PRIORITÄT: AUDIT-007 (Erfassen-Route), AUDIT-009 (Settings-Seiten verifizieren), Module M3-M13.**
+> **→ NÄCHSTE PRIORITÄT:**
+> 1. Sprint 3 Restarbeiten abschließen (AUDIT-014, AUDIT-007, AUDIT-009)
+> 2. **OMS Phase A: Parallelbetrieb** — AvyCloud empfängt Bestellungen AUCH direkt von Marktplätzen
+> 3. **OMS Phase B: AvyCloud Primary** — BaseLinker nur noch Fallback
+> 4. **OMS Phase C: BaseLinker abschalten**
 
 ---
 
@@ -304,7 +305,7 @@
   - **Symptom:** Nach Navigation zu anderen Sektionen klappt MARKTPLÄTZE zusammen und zeigt nur "Integrationen >" statt eBay, Kaufland, Integrationen als Untermenüpunkte.
   - **FIX:** Sidebar-State muss persistent sein oder MARKTPLÄTZE standardmäßig offen sein. Alternativ: eBay und Kaufland als Top-Level-Items statt Submenu.
 
-- [ ] **AUDIT-009: Aufträge/Einstellungen und Lager/Einstellungen — nicht geprüft**
+- [x] **AUDIT-009: Aufträge/Einstellungen und Lager/Einstellungen — nicht geprüft** ✅ Verified: Both OrderSettingsView (306 lines) and WarehouseSettingsView (328 lines) are fully functional with proper routing, API endpoints, and Firestore persistence
   - **Sidebar zeigt "Einstellungen" unter AUFTRÄGE und unter LAGER** — diese spezifischen Settings-Seiten müssen noch verifiziert werden (OrderSettings, WarehouseSettings).
 
 #### P4 — UI/UX ENTERPRISE-BEWERTUNG
@@ -468,12 +469,12 @@
 
 #### 7. WAS KOMPLETT FEHLT
 
-- [ ] **Breadcrumbs:** Nur auf manchen Seiten ("Aufträge / Versand & Labels"). Fehlt auf Dashboard, Produktdaten, Inventar.
+- [x] **Breadcrumbs:** ✅ Topbar now uses Breadcrumb component for all nested views. Added marketplace-ebay/kaufland, categories breadcrumbs.
 - [ ] **Empty States:** Seiten ohne Daten zeigen "0 / 0 angezeigt" statt hilfreicher Illustration + CTA.
-- [ ] **Toast/Notification-System:** Kein sichtbares Feedback nach Aktionen (Speichern, Sync starten, etc.)
-- [ ] **Loading-Skeletons:** Nur Spinner ("Produkte werden geladen..."). Kein Skeleton-Screen.
+- [x] **Toast/Notification-System:** ✅ Built ToastContext + useToast() hook with success/error/info/warning, auto-dismiss, global container at bottom-right
+- [x] **Loading-Skeletons:** ✅ Main app loading replaced with skeleton screen (KPI cards + toolbar + table rows). Skeleton component already existed, now used.
 - [ ] **Keyboard-Shortcuts:** Ctrl+K Suche existiert (top bar), aber keine Tabellen-Navigation (Enter=Open, Arrows=Navigate).
-- [ ] **Bulk-Action-Feedback:** Kein Progress-Indicator für laufende Bulk-Operationen.
+- [x] **Bulk-Action-Feedback:** ✅ Bulk listing modal shows summary banner with success/failed counts after operation
 - [x] **Error-Recovery:** Firestore-Errors zeigen die rohe Firebase-URL als "Fix" — ✅ FAILED_PRECONDITION errors now show "Datenbank-Index wird erstellt" instead of raw URL
 - [ ] **Responsive Design:** Nicht getestet, aber Tabelle mit 14 Spalten wird auf <1440px unwrap-bar sein.
 - [ ] **Onboarding/Wizard:** Kein First-Run-Experience für neue User. Dashboard zeigt sofort alle KPIs ohne Kontext.
@@ -1043,122 +1044,181 @@
 
 ---
 
-### Modul 6: Aufträge (Order Management)
+### Modul 6: Aufträge — Eigenständiges Order Management System (OMS)
 
-- [ ] **M6: Multi-Channel Order Management** since 2026-03-05 (⚡ UI fertig)
-  - ✅ Routes für alle Sub-Views aktiv: `#/orders`, `#/orders/returns`, `#/orders/shipping`, `#/orders/invoices`, `#/orders/settings`
-  - ✅ Bestehende OrdersView unter `#/orders`
-  - ✅ `ReturnsView.tsx` — KPI-Cards, Tab-Filter, Datentabelle mit Grund/Status-Badges, Bulk-Actions
-  - ✅ `ShippingView.tsx` — KPI-Cards, Carrier-Badges (DHL/DPD/GLS), Tracking-URLs, Label-Druck
-  - ✅ `InvoicesView.tsx` — KPI-Cards, Rechnungstabelle, PDF/Mail-Aktionen, Überfällig-Markierung
-  - ✅ `OrderSettingsView.tsx` — Automatisierungsregeln, Status-Konfiguration, Nummernkreise, Dokumenten-Templates
-  - **Konzept:** Zentrale Auftragsansicht über ALLE Marktplätze. Jeder Auftrag hat eine Fulfillment-Pipeline: Neu → Bestätigt → Kommissioniert → Verpackt → Versendet → Zugestellt.
-  - **Page-Header:**
-    - [ ] Titel "Aufträge" + Counter "{offen} offen, {heute} heute"
-    - [ ] KPI-Cards: Offene Aufträge, Heute eingegangen, Heute versendet, Ø Bearbeitungszeit, Umsatz heute
-    - [ ] Sync-Button: "Aufträge synchronisieren" (alle Marktplätze)
-  - **Pipeline-Visualisierung (NEU):**
-    - [ ] Horizontale Pipeline-Bar: Neu (n) → Bestätigt (n) → Kommissionierung (n) → Verpackung (n) → Versendet (n)
-    - [ ] Klick auf Stage → Filtert Tabelle auf diesen Status
-    - [ ] Farbcodierung: Neu=Info, Bestätigt=Warning, Komm.=Accent, Verpackt=Success, Versendet=Muted
-  - **Filter:**
-    - [ ] Status, Marktplatz (eBay/Kaufland/Amazon/...), Datumsbereich, Kunde, Zahlungsstatus (Bezahlt/Offen/Erstattet)
-  - **Tabelle:**
-    - [ ] Spalten: Auftrag-ID (Marketplace-Ref), Datum, Kunde (Name, abgekürzt), Artikel (Produktname × Menge, mehrere Zeilen bei Multi-Item), Gesamt (Betrag + Währung), Quelle (Marketplace-Badge: eBay blau, Kaufland orange, etc.), Zahlungsstatus, Fulfillment-Status (Badge), Aktionen
-    - [ ] Row-Expand: Klick → Auftragsdetails (alle Positionen, Versandadresse, Notizen)
-    - [ ] Aktionen: "Kommissionieren starten", "Versandlabel drucken", "Details", "Stornieren"
-  - **Auftragsdetail-Panel (Slide-in oder Seite):**
-    - [ ] Kundendaten: Name, Adresse, E-Mail, Telefon
-    - [ ] Positionen: Produktbild, Name, SKU, Menge, Einzelpreis, Gesamtpreis
-    - [ ] Zahlungsinfo: Methode, Status, Transaktions-ID
-    - [ ] Versandinfo: Carrier, Tracking-Nummer (klickbar), Status, Versandkosten
-    - [ ] Timeline: Auftragshistorie (Bestellt → Bezahlt → Kommissioniert → Verpackt → Versendet → Zugestellt)
-    - [ ] Aktionen: "Rechnung generieren", "Lieferschein drucken", "Versandlabel drucken", "Nachricht an Kunden"
-  - **Rechnungen-View (`#/orders/invoices`) — NEU:**
-    - [ ] Tab-Bar: Alle | Entwürfe | Gesendet | Bezahlt | Überfällig | Storniert
-    - [ ] Tabelle: Rechnungs-Nr., Datum, Kunde, Auftrag-ID, Betrag (Netto/Brutto), Status (Badge), Fälligkeitsdatum, Aktionen
-    - [ ] Aktionen: "PDF generieren", "Per E-Mail senden", "Als bezahlt markieren", "Stornieren"
-    - [ ] Bulk: "Alle offenen drucken", "Mahnlauf starten"
-    - [ ] Auto-Generierung: Rechnung automatisch erstellen wenn Auftrag Status = "Versendet" (konfigurierbar in Einstellungen)
-    - [ ] PDF-Template: Firmenlogo, Adresse, USt-IdNr., Bankverbindung, Positionen, MwSt-Ausweis
-    - [ ] Lieferschein-Generierung analog (gleicher Flow, anderes Template — ohne Preise)
-    - [ ] Integration: SevDesk/lexoffice-Export wenn Buchhaltungs-Integration aktiv
-  - **Auftrags-Einstellungen (`#/orders/settings`) — NEU:**
-    - [ ] **Automatisierung:** Rule-Engine für automatische Status-Übergänge
-      - "Wenn Zahlung eingegangen → Status 'Bestätigt'"
-      - "Wenn alle Items gepickt → Status 'Kommissioniert'"
-      - "Wenn Versandlabel erstellt → Status 'Versendet'"
-      - "Wenn Tracking 'Zugestellt' → Status 'Abgeschlossen'"
-    - [ ] **Status-Konfiguration:** Benutzerdefinierte Status-Namen und Reihenfolge, Farben pro Status
-    - [ ] **Nummernkreise:** Rechnungs-Nummernkreis (Prefix, Start, Format z.B. "RE-2026-{0001}"), Auftrags-Nummernkreis, Lieferschein-Nummernkreis
-    - [ ] **Dokumenten-Templates:** WYSIWYG-Editor oder Template-Upload für Rechnung, Lieferschein, Auftragsbestätigung. Platzhalter: {firmenname}, {kundenname}, {positionen}, {gesamt}, {datum}, etc.
-    - [ ] **E-Mail-Templates:** Auftragsbestätigung, Versandbenachrichtigung, Rechnungsversand — Text editierbar, Platzhalter
-  - **Backend:**
-    - [ ] Existiert: `routes/orders.js`, `lib/firestore.js::listOrders()`
-    - [ ] Erweitern: Fulfillment-Status-Updates (PATCH `/api/orders/:id/status`), Multi-Channel-Aggregation
-    - [ ] NEU: `routes/invoices.js` — CRUD für Rechnungen, PDF-Generierung (pdfkit oder puppeteer). **MT-PFLICHT:** Alle Queries mit `tenantId`-Filter
-    - [ ] NEU: `services/invoice-generator.js` — Template-Rendering, Nummernkreis-Logik, PDF-Export. **MT-PFLICHT:** Nummernkreise pro Tenant isoliert
-    - [ ] NEU: `services/order-automation.js` — Rule-Engine für automatische Status-Übergänge. **MT-PFLICHT:** Rules pro Tenant gespeichert
-    - [ ] Firestore Collections: `invoices` — {invoiceId, **tenantId**, orderId, number, customer, items, total, tax, status, pdfUrl, ...} *(MT-ready: tenantId als erstes Feld, Composite-Index tenantId+status)*
-    - [ ] Webhook: Bei Status-Änderung → Marketplace-API (eBay: Mark as Shipped, Kaufland: Confirm Shipment)
-  - **Dateien:** `components/OrdersView.tsx` (überarbeiten), `components/OrderDetail.tsx` (neu), `components/InvoicesView.tsx` (neu), `components/OrderSettingsView.tsx` (neu), `backend/routes/orders.js`, `backend/routes/invoices.js` (neu), `backend/services/invoice-generator.js` (neu), `backend/services/order-automation.js` (neu)
+> **🚀 STRATEGISCHE ENTSCHEIDUNG: AvyCloud ersetzt BaseLinker als Order Management System.**
+> BaseLinker wird in 3 Phasen abgelöst. Ziel: Bestellungen direkt von Marktplätzen empfangen,
+> eigene Fulfillment-Pipeline, eigene Rechnungs-/Versand-/Retouren-Engine.
+
+> **AKTUELLER WORKFLOW (BaseLinker-abhängig):**
+> ```
+> Marktplatz → BaseLinker (Bestellung rein)
+>   → AvyCloud Mobile: PICK (Kommissionierung)
+>   → AvyCloud Mobile: PACK (SKU-Scan → BaseLinker Status → Automation)
+>   → SendCloud: Versandlabel nach Gewicht
+>   → SevDesk: Rechnung auto-erstellt → sync zu BaseLinker
+>   → BaseLinker → Marktplatz: Tracking-Nummer
+>   → Zugestellt → BaseLinker Status final
+> ```
+>
+> **ZIEL-WORKFLOW (AvyCloud-nativ):**
+> ```
+> Marktplatz-API (eBay/Kaufland) → AvyCloud (Bestellung direkt)
+>   → AvyCloud: Automatische Bestätigung + Stock-Reservation
+>   → AvyCloud Mobile: PICK (Kommissionierung mit Lagerplatz-Hints)
+>   → AvyCloud Mobile: PACK (SKU-Scan → Status-Update → Label-Druck)
+>   → SendCloud API: Versandlabel nach Gewicht/Regeln
+>   → AvyCloud: Rechnung auto-generiert (PDF) + SevDesk-Export
+>   → AvyCloud → Marktplatz-API: Tracking-Nummer + Versandbestätigung
+>   → Carrier-Webhook → AvyCloud: Zugestellt → Auftrag abgeschlossen
+> ```
+
+- [ ] **M6: Eigenständiges OMS** since 2026-03-07
+
+  **Was existiert (BaseLinker-abhängig):**
+  - ✅ `backend/services/order-sync.js` — `syncNewOrders()` (von BaseLinker), `markOrderAsPicked()`, `markOrderAsPacked()`
+  - ✅ `backend/services/pick-hints.js` — `attachPickHintsToOrders()` (Lagerplatz-Lookup)
+  - ✅ `backend/routes/orders.js` — GET /api/orders, POST /api/orders/sync, POST /api/orders/:id/complete|pack
+  - ✅ `backend/lib/firestore.js` — saveOrders(), listOrders(), updateOrder(), getOrderSummary()
+  - ✅ Firestore Collections: `orders`, `shipments`, `returns`, `invoices`, `order_settings`
+  - ✅ Frontend: OrdersView.tsx, ReturnsView.tsx, ShippingView.tsx, InvoicesView.tsx, OrderSettingsView.tsx
+  - ✅ Integrationen: SendCloud (Kosten-Aggregation), SevDesk (Bankdaten), BaseLinker (alles)
+
+  **Was fehlt (für eigenständiges OMS):**
+
+  #### OMS Phase A: Parallelbetrieb (BaseLinker bleibt, AvyCloud empfängt AUCH)
+
+  - [ ] **OMS-A1: Marketplace Order Intake** — Bestellungen DIREKT von eBay/Kaufland APIs empfangen
+    - `backend/services/order-intake-ebay.js` (NEU) — eBay GetOrders/GetOrderTransactions API polling
+    - `backend/services/order-intake-kaufland.js` (NEU) — Kaufland Orders API polling
+    - Eigene `orderId`-Generierung (nicht mehr BaseLinker-ID als Primary Key)
+    - Neues Feld `source: 'ebay' | 'kaufland' | 'baselinker' | 'manual'` statt nur `'baselinker'`
+    - Deduplizierung: Wenn Bestellung bereits via BaseLinker existiert → nicht doppelt anlegen
+    - **MT-PFLICHT:** Alle neuen Funktionen mit `{ tenantId, ...params }` Signatur
+
+  - [ ] **OMS-A2: Eigene Status-Engine** — Unabhängig von BaseLinker Status-IDs
+    - Eigener Status-Flow: `pending → confirmed → picking → picked → packing → packed → shipped → delivered → completed`
+    - `backend/services/order-state-machine.js` (NEU) — Status-Übergänge mit Validierung
+    - Status-History/Audit-Log: Jede Änderung protokollieren mit Timestamp + User + alter/neuer Status
+    - Firestore: `order_events` Collection — {orderId, tenantId, event, fromStatus, toStatus, userId, timestamp}
+    - **KEIN BaseLinker `setOrderStatus()` mehr nötig** — AvyCloud ist die Source of Truth
+
+  - [ ] **OMS-A3: Eigene Auftrags-Nummerierung**
+    - Nummernkreis-Service: `backend/services/number-sequence.js` (NEU)
+    - Format konfigurierbar: z.B. `AVY-2026-{0001}` für Aufträge, `RE-2026-{0001}` für Rechnungen, `LS-2026-{0001}` für Lieferscheine
+    - Firestore: `number_sequences` Collection — {tenantId, type, prefix, currentNumber, format}
+    - Atomic increment via Firestore Transaction (keine Lücken, keine Duplikate)
+
+  - [ ] **OMS-A4: Order-Detail-Seite** (Frontend)
+    - `components/OrderDetail.tsx` (NEU) — Slide-in Panel oder eigene Route
+    - Kundendaten: Name, Adresse, E-Mail, Telefon
+    - Positionen: Produktbild, Name, SKU, Menge, Einzelpreis, Gesamtpreis
+    - Zahlungsinfo: Methode, Status, Transaktions-ID (von Marktplatz)
+    - Versandinfo: Carrier, Tracking-Nummer (klickbar), Status, Versandkosten
+    - Timeline: Auftragshistorie (jeder Status-Wechsel mit Timestamp)
+    - Aktionen: "Rechnung generieren", "Lieferschein drucken", "Versandlabel drucken"
+
+  - [ ] **OMS-A5: Pipeline-Visualisierung** (Frontend)
+    - Horizontale Pipeline-Bar in OrdersView: Neu (n) → Bestätigt (n) → Komm. (n) → Verpackt (n) → Versendet (n)
+    - Klick auf Stage → Filtert Tabelle auf diesen Status
+    - Erweiterte Filter: Status, Marktplatz, Datumsbereich, Kunde, Zahlungsstatus
+
+  #### OMS Phase B: Versand & Rechnungen nativ
+
+  - [ ] **OMS-B1: SendCloud Label-Erzeugung** — Labels ERSTELLEN statt nur Kosten aggregieren
+    - `backend/services/shipping-engine.js` (NEU) — `createParcel()`, `getLabel()`, `cancelParcel()`
+    - SendCloud API v2: POST /parcels → Label-PDF-URL zurück
+    - Gewichtsbasierte Carrier-Wahl: Regeln aus `order_settings` (z.B. <1kg → Warenpost, >5kg → DHL Paket)
+    - Label-PDF speichern in GCS: `gs://prodsandjobs/{tenantId}/labels/{shipmentId}.pdf`
+    - Nach Label-Erstellung: Auftragsstatus automatisch → `shipped`
+
+  - [ ] **OMS-B2: Tracking-Webhooks** — Zustellstatus automatisch empfangen
+    - `backend/routes/webhooks.js` erweitern: POST /api/webhooks/sendcloud (Tracking-Events)
+    - SendCloud Webhook registrieren für: parcel_registered, parcel_shipped, parcel_delivered, parcel_returned
+    - Bei `parcel_delivered` → Auftragsstatus → `delivered`
+    - Tracking-Nummer + Status an Marktplatz-API pushen:
+      - eBay: CompleteSale (Trading API) mit TrackingNumber + ShippingCarrier
+      - Kaufland: PATCH /units/{id_unit}/shipment mit tracking_number + carrier
+
+  - [ ] **OMS-B3: Rechnungs-Engine** — PDF-Generierung + SevDesk-Export
+    - `backend/services/invoice-engine.js` (NEU) — `generateInvoice()`, `generateDeliveryNote()`
+    - PDF-Generierung mit pdfkit oder puppeteer (HTML-Template → PDF)
+    - Template-Felder: Firmenlogo, Adresse, USt-IdNr., Bankverbindung, Positionen, MwSt-Ausweis
+    - Lieferschein: Gleicher Flow, anderes Template (ohne Preise)
+    - Auto-Trigger: Bei Status `shipped` → Rechnung automatisch erstellen (konfigurierbar)
+    - SevDesk-Export: `lib/sevdesk.js` erweitern — POST /api/v1/Invoice (Rechnung anlegen)
+    - PDF in GCS: `gs://prodsandjobs/{tenantId}/invoices/{invoiceNumber}.pdf`
+
+  - [ ] **OMS-B4: Marketplace-Kommunikation** — Tracking + Versandbestätigung zurück an Marktplatz
+    - eBay: `lib/ebay-trading-api.js` erweitern — `completeSale(itemId, trackingNumber, carrier)`
+    - Kaufland: `lib/kaufland-api.js` erweitern — `confirmShipment(unitId, trackingNumber, carrier)`
+    - Automatisch ausgelöst nach Label-Erstellung (OMS-B1)
+
+  #### OMS Phase C: BaseLinker abschalten
+
+  - [ ] **OMS-C1: BaseLinker-Abhängigkeiten entfernen**
+    - `syncNewOrders()` deaktivieren — Orders kommen nur noch von Marketplace-APIs
+    - `markOrderAsPicked/Packed()` — kein `setOrderStatus()` zu BaseLinker mehr
+    - Dashboard-Metriken: Umsatz/Volumen aus eigener `orders` Collection statt BaseLinker getOrders
+    - Status-ID-Resolution: Eigene Status-Engine statt BaseLinker `getOrderStatusList()`
+    - BaseLinker-Integration bleibt als optionaler Connector (für Kunden die BaseLinker parallel nutzen wollen)
+
+  - [ ] **OMS-C2: Mobile Pick & Pack umstellen**
+    - Pick-Modul: Status-Updates direkt in AvyCloud (nicht mehr via BaseLinker)
+    - Pack-Modul: SKU-Scan → AvyCloud Status-Update → Label-Druck direkt aus AvyCloud
+    - Gewichtsermittlung: Aus `products_v2.details.dimensions.weight` oder manuell eingeben
 
 ---
 
 ### Modul 7: Versand (Courier Integration)
 
-- [ ] **M7: Multi-Carrier Versand-Management** since 2026-03-05 (⚡ UI fertig)
-  - ✅ Route `#/orders/shipping` aktiv mit `ShippingView.tsx` — KPI-Cards, Carrier-Badges, Tracking-URLs, Label-Druck
-  - **Konzept:** Zentrale Versandverwaltung. Mehrere Carrier (DHL, DPD, GLS, Hermes, UPS, Deutsche Post), Label-Druck, Tracking, automatische Carrier-Wahl basierend auf Regeln.
-  - **Versand-View (`#/shipping`):**
-    - [ ] KPI-Cards: Heute versendet, Pakete in Zustellung, Zustellquote, Ø Versandkosten
-    - [ ] Tab-Bar: Ausstehend (zu versenden) | In Zustellung | Zugestellt | Probleme
-    - [ ] Tabelle: Auftrag-ID, Kunde, Carrier (Logo-Badge), Tracking-Nummer (klickbar → Tracking-URL), Status, Versanddatum, Zustelldatum (geschätzt), Versandkosten
-    - [ ] "Label drucken" — Einzel oder Bulk (Multi-Label-PDF)
-    - [ ] Carrier-Auswahl: Bei Einzelversand → Dropdown mit konfigurierten Carriern + geschätzten Kosten
-  - **Versand-Regeln (Automatisierung):**
-    - [ ] Rule-Engine: "Wenn Gewicht < 1kg UND Inland → Deutsche Post Warenpost"
-    - [ ] "Wenn Gewicht > 5kg → DHL Paket"
-    - [ ] "Wenn Expressversand → DPD Express"
-    - [ ] Default-Carrier konfigurierbar
-  - **Tracking-Integration:**
-    - [ ] Tracking-Status automatisch von Carrier-API abrufen (Polling oder Webhook)
-    - [ ] Status-Updates an Marktplatz-API weiterleiten (eBay: Upload Tracking, Kaufland: Confirm Shipment)
-    - [ ] Kunde erhält Tracking-Info automatisch
-  - **Backend:**
-    - [ ] Existiert: `lib/sendcloud.js` (nur SendCloud, hardcoded)
-    - [ ] Erweitern: Multi-Carrier-Abstraction-Layer
-    - [ ] `services/shipping.js` — `createShipment()`, `getLabel()`, `getTracking()`, `listCarriers()`
-    - [ ] Carrier-Adapter: `lib/carrier-dhl.js`, `lib/carrier-dpd.js`, `lib/carrier-gls.js`, etc.
-    - [ ] Carrier-Config aus Firestore (nicht ENV) — via Integrations-Management
-  - **Dateien:** `components/ShippingView.tsx` (neu), `components/ShippingRules.tsx` (neu), `backend/services/shipping.js` (neu), `backend/lib/carrier-*.js` (neu)
+- [ ] **M7: Multi-Carrier Versand-Management** since 2026-03-05
+  - ✅ `lib/sendcloud.js` existiert (Kosten-Aggregation, NICHT Label-Erstellung)
+  - ✅ `ShippingView.tsx` UI existiert (KPI-Cards, Carrier-Badges, Tracking-URLs)
+
+  **Implementierung via OMS-B1 + OMS-B2 (siehe Modul 6)**
+
+  - [ ] **M7-1: SendCloud Label-API** — Parcels erstellen, Labels drucken, Tracking empfangen
+  - [ ] **M7-2: Versand-Regeln** — Gewichtsbasierte Carrier-Wahl aus Einstellungen
+    - Regel-Engine: "Wenn Gewicht < 1kg UND Inland → Deutsche Post Warenpost"
+    - "Wenn Gewicht > 5kg → DHL Paket", "Express → DPD Express"
+    - Default-Carrier konfigurierbar in `order_settings`
+  - [ ] **M7-3: Tracking-Dashboard** — Echtzeit-Tracking-Status aller Sendungen
+    - Tab-Bar: Ausstehend | In Zustellung | Zugestellt | Probleme
+    - Tracking-Nummer klickbar → Carrier-Tracking-Seite
+  - [ ] **M7-4: Bulk-Label-Druck** — Multi-Label-PDF für alle offenen Aufträge
+  - **Backend:** `backend/services/shipping-engine.js` (NEU), `backend/routes/webhooks.js` (erweitern)
+  - **Dateien:** `components/ShippingView.tsx` (überarbeiten), `backend/services/shipping-engine.js` (neu)
 
 ---
 
 ### Modul 8: Retouren (Returns Management)
 
-- [ ] **M8: Retouren-Management** since 2026-03-05 (⚡ UI fertig)
-  - ✅ Route `#/orders/returns` aktiv mit `ReturnsView.tsx` — KPI-Cards, Tab-Filter, Grund/Status-Badges, Bulk-Actions
-  - **Konzept:** Return-Requests entgegennehmen, Grund kategorisieren, Rückerstattung auslösen, Ware prüfen, wieder einlagern oder entsorgen.
-  - **Retouren-View (`#/returns`):**
-    - [ ] KPI-Cards: Offene Retouren, Retourenquote (%), Erstattungen diese Woche, Ø Bearbeitungszeit
-    - [ ] Tab-Bar: Neu eingegangen | In Prüfung | Erstattet | Abgeschlossen | Abgelehnt
-    - [ ] Tabelle: Retoure-ID, Auftrag-ID, Kunde, Produkt(e), Retourengrund (Badge), Eingang-Datum, Status, Erstattungsbetrag, Aktionen
-  - **Retouren-Gründe (kategorisiert):**
-    - [ ] "Defekt/Beschädigt", "Falsche Lieferung", "Nicht wie beschrieben", "Zu spät geliefert", "Meinungsänderung", "Doppelbestellung", "Sonstiges"
-    - [ ] Pro Marktplatz: Marketplace-spezifische Gründe mappen (eBay Return Reasons → interne Kategorien)
-  - **Retouren-Workflow:**
-    - [ ] Schritt 1: Retoure eingeht (automatisch via Marketplace-API oder manuell)
-    - [ ] Schritt 2: Ware prüfen — Zustand bewerten (A-Ware → Wiederverkauf, B-Ware → Reduziert, C-Ware → Entsorgung)
-    - [ ] Schritt 3: Erstattung — Voll, Teilweise, oder Ablehnung (mit Begründung)
-    - [ ] Schritt 4: Wiedereinlagerung — Wenn A/B-Ware: Zurück ins Inventar mit neuem Zustand
-    - [ ] Schritt 5: Abschluss — Marketplace-API-Update (Refund Issued, Return Closed)
-  - **Backend:**
-    - [ ] `backend/routes/returns.js` (neu) — CRUD für Retouren. **MT-PFLICHT:** Alle Queries mit `tenantId`-Filter
-    - [ ] `backend/services/returns.js` (neu) — processReturn(), issueRefund(), restockItem(). **MT-PFLICHT:** Alle Funktionen mit `{ tenantId, ...params }` Signatur
-    - [ ] Firestore Collection: `returns` — {returnId, **tenantId**, orderId, items, reason, status, refundAmount, condition, ...} *(MT-ready: tenantId als erstes Feld)*
-    - [ ] Marketplace-Integration: eBay GetReturnRequests, Kaufland Returns-API
-  - **Dateien:** `components/ReturnsView.tsx` (neu), `components/ReturnDetail.tsx` (neu), `backend/routes/returns.js` (neu), `backend/services/returns.js` (neu)
+- [ ] **M8: Retouren-Management** since 2026-03-05
+  - ✅ `ReturnsView.tsx` UI existiert (KPI-Cards, Tab-Filter, Grund/Status-Badges)
+  - ✅ `backend/routes/returns.js` existiert (77 Zeilen, Basis-CRUD)
+
+  - [ ] **M8-1: Marketplace-Retouren empfangen**
+    - eBay: GetReturnRequests API → Retouren automatisch anlegen
+    - Kaufland: Returns API → Retouren automatisch anlegen
+    - Deduplizierung: Marketplace-Return-ID als Unique Key
+
+  - [ ] **M8-2: Retouren-Workflow**
+    - Status-Flow: `eingegangen → in_pruefung → erstattet | abgelehnt → abgeschlossen`
+    - Wareneingang: Zustand bewerten (A-Ware → Wiederverkauf, B-Ware → Reduziert, C-Ware → Entsorgung)
+    - Bei A/B-Ware: Automatische Wiedereinlagerung in Inventar
+    - Erstattung: Voll, Teilweise, oder Ablehnung mit Begründung
+
+  - [ ] **M8-3: Retouren-Gründe (kategorisiert)**
+    - Interne Kategorien: Defekt, Falsche Lieferung, Nicht wie beschrieben, Zu spät, Meinungsänderung, Doppelbestellung
+    - Marketplace-Mapping: eBay/Kaufland Return Reasons → interne Kategorien
+
+  - [ ] **M8-4: Erstattungs-Kommunikation**
+    - Marketplace-API: eBay Refund API, Kaufland Refund API
+    - Automatische Erstattung nach Warenprüfung (konfigurierbar)
+
+  - **Backend:** `backend/services/returns-engine.js` (NEU) — processReturn(), issueRefund(), restockItem()
+  - **Dateien:** `components/ReturnsView.tsx` (überarbeiten), `components/ReturnDetail.tsx` (neu)
 
 ---
 

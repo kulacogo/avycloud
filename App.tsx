@@ -41,6 +41,7 @@ import { addMediaQueryListener } from './utils/mediaQuery';
 import { isInventoryItem, isProductBacklogItem } from './utils/inventorySplit';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { InventoryProvider } from './context/InventoryContext';
+import { ToastProvider } from './context/ToastContext';
 import { LoginScreen } from './components/LoginScreen';
 import { ResetPasswordScreen } from './components/ResetPasswordScreen';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -1030,10 +1031,36 @@ const AppInner: React.FC = () => {
   const renderLoadState = () => {
     if (productsLoading && products.length === 0) {
       return (
-        <div className="flex items-center justify-center h-[calc(100vh-10rem)] text-txt-primary">
-          <div className="bg-app-surface border border-app-border rounded-lg px-6 py-5 shadow-app text-center space-y-2">
-            <p className="text-lg font-semibold">{t('status.loading.products')}</p>
-            <p className="text-sm text-txt-muted">{t('status.loading.hint')}</p>
+        <div className="p-6 space-y-6 animate-pulse">
+          {/* KPI cards skeleton */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="bg-app-surface border border-app-border rounded-xl p-4 space-y-3">
+                <div className="h-3 w-20 bg-app-elevated rounded" />
+                <div className="h-7 w-16 bg-app-elevated rounded" />
+              </div>
+            ))}
+          </div>
+          {/* Toolbar skeleton */}
+          <div className="flex items-center gap-3">
+            <div className="h-9 w-64 bg-app-elevated rounded-lg" />
+            <div className="h-9 w-24 bg-app-elevated rounded-lg" />
+          </div>
+          {/* Table skeleton */}
+          <div className="bg-app-surface border border-app-border rounded-xl overflow-hidden">
+            <div className="flex items-center gap-4 px-4 py-3 border-b border-app-border">
+              {[1, 2, 3, 4, 5, 6].map((i) => (
+                <div key={i} className="h-3 bg-app-elevated rounded flex-1" />
+              ))}
+            </div>
+            {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+              <div key={i} className="flex items-center gap-4 px-4 py-3 border-b border-app-border/50">
+                <div className="h-8 w-8 bg-app-elevated rounded" />
+                {[1, 2, 3, 4, 5].map((j) => (
+                  <div key={j} className="h-3 bg-app-elevated rounded flex-1" />
+                ))}
+              </div>
+            ))}
           </div>
         </div>
       );
@@ -1243,9 +1270,11 @@ const AuthGate: React.FC = () => {
 const App: React.FC = () => (
   <ErrorBoundary>
     <AuthProvider>
-      <InventoryProvider>
-        <AuthGate />
-      </InventoryProvider>
+      <ToastProvider>
+        <InventoryProvider>
+          <AuthGate />
+        </InventoryProvider>
+      </ToastProvider>
     </AuthProvider>
   </ErrorBoundary>
 );
