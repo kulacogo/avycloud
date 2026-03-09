@@ -3122,6 +3122,19 @@ export async function fetchOrderDetail(orderId: string): Promise<{ order: any; t
   return data?.data || { order: null, timeline: [], nextStatuses: [] };
 }
 
+export async function updateOrderCustomer(
+  orderId: string,
+  customer: { name?: string; street?: string; city?: string; zip?: string; country?: string; phone?: string; email?: string }
+): Promise<void> {
+  const res = await fetchApi(`${BACKEND_URL}/api/orders/${encodeURIComponent(orderId)}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ customer }),
+  });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) throw new Error(data?.error?.message || "Kundendaten-Update fehlgeschlagen");
+}
+
 export async function transitionOrderStatus(orderId: string, toStatus: string, note?: string): Promise<{ fromStatus: string; toStatus: string }> {
   const res = await fetchApi(`${BACKEND_URL}/api/orders/${encodeURIComponent(orderId)}/transition`, {
     method: 'POST',

@@ -5,6 +5,7 @@ import {
   shipOrder,
   generateInvoice,
   generateDeliveryNote,
+  updateOrderCustomer,
 } from "../api/client";
 import type { Order, OrderTimelineEvent, OmsStatus } from "../types";
 
@@ -47,6 +48,9 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({ orderId, onClose, onSt
   const [transitioning, setTransitioning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"details" | "items" | "timeline">("details");
+  const [editingAddress, setEditingAddress] = useState(false);
+  const [addressForm, setAddressForm] = useState({ name: "", street: "", city: "", zip: "", country: "", phone: "", email: "" });
+  const [savingAddress, setSavingAddress] = useState(false);
   const backdropRef = useRef<HTMLDivElement>(null);
 
   const loadData = useCallback(async () => {
@@ -195,17 +199,104 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({ orderId, onClose, onSt
                 <>
                   {/* Customer */}
                   <section>
-                    <h3 className="text-sm font-medium text-txt-primary mb-2">Kunde</h3>
-                    <div className="bg-app-bg rounded-lg p-3 space-y-1.5 text-sm">
-                      <div className="font-medium text-txt-primary">{order.customer?.name || "Unbekannt"}</div>
-                      {order.customer?.street && <div className="text-txt-secondary">{order.customer.street}</div>}
-                      {(order.customer?.zip || order.customer?.city) && (
-                        <div className="text-txt-secondary">{[order.customer.zip, order.customer.city].filter(Boolean).join(" ")}</div>
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="text-sm font-medium text-txt-primary">Kunde</h3>
+                      {!editingAddress && (
+                        <button
+                          type="button"
+                          className="text-xs text-accent hover:text-accent/80 transition-colors"
+                          onClick={() => {
+                            setAddressForm({
+                              name: order.customer?.name || "",
+                              street: order.customer?.street || "",
+                              city: order.customer?.city || "",
+                              zip: order.customer?.zip || "",
+                              country: order.customer?.country || "",
+                              phone: order.customer?.phone || "",
+                              email: order.customer?.email || "",
+                            });
+                            setEditingAddress(true);
+                          }}
+                        >
+                          Bearbeiten
+                        </button>
                       )}
-                      {order.customer?.country && <div className="text-txt-muted text-xs">{order.customer.country}</div>}
-                      {order.customer?.email && <div className="text-txt-muted text-xs">{order.customer.email}</div>}
-                      {order.customer?.phone && <div className="text-txt-muted text-xs">{order.customer.phone}</div>}
                     </div>
+                    {editingAddress ? (
+                      <div className="bg-app-bg rounded-lg p-3 space-y-2">
+                        {[
+                          { key: "name", label: "Name" },
+                          { key: "street", label: "Straße" },
+                          { key: "zip", label: "PLZ" },
+                          { key: "city", label: "Stadt" },
+                          { key: "country", label: "Land" },
+                          { key: "phone", label: "Telefon" },
+                          { key: "email", label: "E-Mail" },
+                        ].map(({ key, label }) => (
+                          <div key={key}>
+                            <label className="block text-xs text-txt-muted mb-0.5">{label}</label>
+                            <input
+                              type="text"
+                              value={(addressForm as any)[key]}
+                              onChange={(e) => setAddressForm((prev) => ({ ...prev, [key]: e.target.value }))}
+                              className="w-full h-8 px-2.5 text-sm rounded-md bg-app-surface border border-app-border text-txt-primary focus:outline-none focus:ring-1 focus:ring-accent"
+                            />
+                          </div>
+                        ))}
+                        {/* Address completeness warning */}
+                        {(!addressForm.street || !addressForm.city || !addressForm.zip) && (
+                          <div className="text-xs text-warning bg-warning/10 px-2.5 py-1.5 rounded">
+                            Adresse unvollständig — Versandlabel kann nicht erstellt werden.
+                          </div>
+                        )}
+                        <div className="flex gap-2 pt-1">
+                          <button
+                            type="button"
+                            className="flex-1 h-8 text-xs rounded-md bg-accent text-white hover:bg-accent/90 transition-colors disabled:opacity-50"
+                            disabled={savingAddress}
+                            onClick={async () => {
+                              setSavingAddress(true);
+                              try {
+                                await updateOrderCustomer(orderId, addressForm);
+                                setEditingAddress(false);
+                                loadData();
+                              } catch (err: any) {
+                                setError(err.message);
+                              } finally {
+                                setSavingAddress(false);
+                              }
+                            }}
+                          >
+                            {savingAddress ? "Speichern..." : "Speichern"}
+                          </button>
+                          <button
+                            type="button"
+                            className="h-8 px-3 text-xs rounded-md bg-app-elevated text-txt-secondary hover:text-txt-primary transition-colors"
+                            onClick={() => setEditingAddress(false)}
+                            disabled={savingAddress}
+                          >
+                            Abbrechen
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="bg-app-bg rounded-lg p-3 space-y-1.5 text-sm">
+                        <div className="font-medium text-txt-primary">{order.customer?.name || "Unbekannt"}</div>
+                        {order.customer?.street && <div className="text-txt-secondary">{order.customer.street}</div>}
+                        {(order.customer?.zip || order.customer?.city) && (
+                          <div className="text-txt-secondary">{[order.customer.zip, order.customer.city].filter(Boolean).join(" ")}</div>
+                        )}
+                        {order.customer?.country && <div className="text-txt-muted text-xs">{order.customer.country}</div>}
+                        {order.customer?.email && <div className="text-txt-muted text-xs">{order.customer.email}</div>}
+                        {order.customer?.phone && <div className="text-txt-muted text-xs">{order.customer.phone}</div>}
+                        {/* Address incomplete warning */}
+                        {(!order.customer?.street || !order.customer?.city || !order.customer?.zip) && (
+                          <div className="text-xs text-warning mt-1">
+                            Adresse unvollständig
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </section>
 
                   {/* Order Info */}
@@ -237,15 +328,21 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({ orderId, onClose, onSt
                     <h3 className="text-sm font-medium text-txt-primary mb-2">Aktionen</h3>
                     <div className="flex flex-wrap gap-2">
                       {(omsStatus === "packed" || omsStatus === "picked") && !order.trackingNumber && (
-                        <ActionButton
-                          label="Versandlabel erstellen"
-                          icon="📦"
-                          onClick={async () => {
-                            await shipOrder(orderId);
-                            await loadData();
-                            onStatusChange?.();
-                          }}
-                        />
+                        order.customer?.street && order.customer?.city && order.customer?.zip ? (
+                          <ActionButton
+                            label="Versandlabel erstellen"
+                            icon="📦"
+                            onClick={async () => {
+                              await shipOrder(orderId);
+                              await loadData();
+                              onStatusChange?.();
+                            }}
+                          />
+                        ) : (
+                          <div className="text-xs text-warning bg-warning/10 px-3 py-2 rounded-lg">
+                            Versandlabel nicht möglich — Adresse unvollständig. Bitte oben bearbeiten.
+                          </div>
+                        )
                       )}
                       {!order.invoiceNumber && (
                         <ActionButton

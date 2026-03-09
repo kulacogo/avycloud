@@ -41,7 +41,7 @@
 > **🔴 NÄCHSTER SPRINT — OFFEN:**
 > - ~~**BUG-019: Marketplace-Listings zeigen Produkte ohne Lagerbestand**~~ ✅
 > - ~~**BUG-021: Versandlabel — Adress-Validation + Versandregeln-UI**~~ ✅ (teilweise — Validation + UI fertig, aber BUG-022 Root Cause noch offen)
-> - **🔴 BUG-022: ALLE BaseLinker-Bestellungen haben KEINE Versandadresse** — Root Cause gefunden: `order-sync.js` mappt street/zip/phone nicht
+> - ~~**BUG-022: ALLE BaseLinker-Bestellungen haben KEINE Versandadresse**~~ ✅ — Fixed: `mapBaseLinkerOrder()` mappt jetzt street/zip/phone/email + Backfill-Script + Address-Editing in OrderDetail
 > - **BUG-020: Retouren prüfen** — Returns-Engine implementiert, Production-Verifikation steht aus
 > - ~~Deduplizierung: Merge-UI + Auto-Merge~~ ✅
 > - ~~Bulk-Import/Export (CSV/Excel)~~ ✅
@@ -123,11 +123,11 @@
 
 Dashboard, Produktkatalog, KI-Produkterkennung, KI-Datenverbesserung, KI-Chat, KI-Bildgenerierung, eBay Integration, Kaufland Integration, BaseLinker Integration, Bestellungen (BaseLinker + Native OMS), Pick & Pack (Mobile), Lagerverwaltung, Versand (Labels + Tracking + Bulk), Retouren (Workflow + Marketplace-Intake + Erstattung), Rechnungen (PDF + Nummernkreise + SevDesk-Export), Lieferscheine (PDF), Einstellungen, Admin-Panel, Wettbewerbspreise, Kategorie-Management, Barcode-Scanner, PDF-Labels, Webhooks, Dark/Light Mode, Integrations Self-Service (M9), Order Intake nativ (eBay/Kaufland), Status-Engine (OMS State Machine), Tracking-Webhooks (SendCloud → OMS), Marketplace Versandbestätigung, Auftrags-Detail-Seite, Pipeline-Visualisierung, Versand-Regeln (gewichtsbasiert), Retouren-Marketplace-Intake, Erstattungs-Engine, Auftrags-Nummerierung, BaseLinker Feature-Flag-Decoupling, Pricing Engine (Runner + UI + Auto-Repricing), Inventory Forecast (Dashboard-Widget + Reorder-Alerts), Marketplace Auto-Sync (Orders + Returns periodic), Preis-Push zu Marktplätzen (auto bei Produktspeicherung), Erfassen-Stepper (5-Schritt KI-Identify-Flow), Marketplace-Listings mit Inventory-Abgleich, Bulk-Import/Export (CSV), Deduplizierung (Merge-UI), E-Mail-Templates (branded Templates), Audit-Log (Aktivitätsprotokoll)
 
-### ⚠️ Halb fertig (2 Features)
+### ⚠️ Halb fertig (1 Feature)
 
 | Feature | Was fehlt | Prio |
 |---|---|---|
-| **Versand / Versandlabels (BUG-022)** | BaseLinker-Orders haben KEINE Versandadresse (street/zip/phone fehlen in `order-sync.js` Mapping). Ohne Fix kann kein einziges Versandlabel erstellt werden! | **KRITISCH** |
+| ~~Versand / Versandlabels (BUG-022)~~ ✅ | Fixed: `mapBaseLinkerOrder()` + Backfill-Script + Address-Editing + Validation | ✅ |
 | **Retouren (BUG-020)** | Implementiert, aber noch nicht auf Production verifiziert (Sync auslösen, Daten prüfen) | Mittel |
 
 ### 🔴 Fehlt komplett (1 Feature)
@@ -143,7 +143,7 @@ Dashboard, Produktkatalog, KI-Produkterkennung, KI-Datenverbesserung, KI-Chat, K
 > **Claude Code:** Lies `CLAUDE.md` für Production-Safety-Regeln. Arbeite diese Blöcke IN REIHENFOLGE ab.
 > Nach jedem Block: `cd backend && npm test` + `npm run build`. Commit nach jedem Block.
 
-### Sprint-Block 1: 🔴 BUG-022 — BaseLinker-Bestellungen haben KEINE Versandadresse (KRITISCH)
+### Sprint-Block 1: ✅ BUG-022 — BaseLinker-Bestellungen haben KEINE Versandadresse (KRITISCH) — Fixed (2026-03-09)
 
 **PROBLEM:** ALLE Bestellungen die über BaseLinker importiert werden haben KEINE Versandadresse (street, zip, phone fehlen). Dadurch kann kein einziges Versandlabel über SendCloud erstellt werden. Fehler: `SendCloud create parcel 400: address: "This field may not be blank."`
 
@@ -204,7 +204,7 @@ customer: {
 
 **Test:** Nach dem Fix einen neuen BaseLinker-Sync auslösen und prüfen ob neue Orders jetzt Versandadresse haben.
 
-### Sprint-Block 2: BUG-020 — Retouren auf Production verifizieren
+### Sprint-Block 2: BUG-020 — Retouren auf Production verifizieren (Code-complete, needs prod test)
 
 1. Production-Sync auslösen: POST /api/returns/sync testen
 2. Prüfen ob ReturnsView echte Daten zeigt oder leer bleibt
@@ -213,7 +213,7 @@ customer: {
 
 **Dateien:** `backend/services/returns-engine.js`, `components/ReturnsView.tsx`
 
-### Sprint-Block 3: Order-Detail — Adresse editierbar machen
+### Sprint-Block 3: ✅ Order-Detail — Adresse editierbar machen — Done (2026-03-09)
 
 **PROBLEM:** Selbst wenn BUG-022 gefixt ist, muss es möglich sein Adressen nachträglich zu bearbeiten (z.B. wenn Kunde anruft und Adresse ändert).
 

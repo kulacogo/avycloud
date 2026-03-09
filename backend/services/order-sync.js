@@ -172,8 +172,14 @@ function mapBaseLinkerOrder(entry) {
     number: entry?.external_order_id || entry?.external_invoice_number || String(entry.order_id),
     customer: {
       name: entry?.delivery_fullname || entry?.invoice_fullname || entry?.buyer || 'Unbekannt',
+      street: [entry?.delivery_address, entry?.delivery_address2].filter(Boolean).join(', ')
+        || [entry?.invoice_address, entry?.invoice_address2].filter(Boolean).join(', ')
+        || null,
       city: entry?.delivery_city || entry?.invoice_city || null,
+      zip: entry?.delivery_postcode || entry?.invoice_postcode || null,
       country: entry?.delivery_country_code || entry?.invoice_country_code || null,
+      phone: entry?.delivery_phone || entry?.invoice_phone || entry?.phone || null,
+      email: entry?.email || entry?.invoice_email || null,
     },
     currency: entry?.currency || 'EUR',
     totalAmount,

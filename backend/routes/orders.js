@@ -1448,4 +1448,56 @@ router.post('/orders/bulk-ship', requirePermission('orders', 'write'), async (re
   }
 });
 
+// --- Order Update (address editing) ---
+const { updateOrder } = require('../lib/firestore');
+const { logAudit } = require('../services/audit-log');
+
+const ALLOWED_CUSTOMER_FIELDS = ['name', 'street', 'city', 'zip', 'country', 'phone', 'email'];
+
+router.put('/orders/:orderId', requirePermission('orders', 'write'), async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const { customer } = req.body;
+
+    if (!customer || typeof customer !== 'object') {
+      return res.status(400).json({ ok: false, error: { code: 'VALIDATION', message: 'customer object required' } });
+    }
+
+    // Only allow known customer fields
+    const sanitized = {};
+    for (const key of ALLOWED_CUSTOMER_FIELDS) {
+      if (customer[key] !== undefined) {
+        sanitized[key] = customer[key] === '' ? null : customer[key];
+      }
+    }
+
+    if (Object.keys(sanitized).length === 0) {
+      return res.status(400).json({ ok: false, error: { code: 'VALIDATION', message: 'No valid customer fields provided' } });
+    }
+
+    // Build Firestore dot-notation update (merge into existing customer object)
+    const updates = {};
+    for (const [key, value] of Object.entries(sanitized)) {
+      updates[`customer.${key}`] = value;
+    }
+
+    await updateOrder(orderId, updates);
+
+    logAudit({
+      action: 'order.customer_updated',
+      userId: req.user?.uid,
+      userEmail: req.user?.email,
+      tenantId: req.user?.tenantId || 'default',
+      resourceType: 'order',
+      resourceId: orderId,
+      details: { updatedFields: Object.keys(sanitized) },
+    });
+
+    res.json({ ok: true });
+  } catch (error) {
+    console.error(`[PUT /api/orders/${req.params.orderId}] ${error.message}`, error);
+    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: error.message } });
+  }
+});
+
 module.exports = { router, setBackgroundSyncOrders };
