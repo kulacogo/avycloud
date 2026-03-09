@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Order, Product } from '../types';
 import { getProductQuantity } from '../utils/product';
-import { fetchOrders as fetchOrdersApi, syncOrders as syncOrdersApi, completeOrder, packOrder, stockInProduct, stockOutProduct } from '../api/client';
+import { fetchOrders as fetchOrdersApi, syncOrders as syncOrdersApi, completeOrder, packOrder, packAndShip, stockInProduct, stockOutProduct } from '../api/client';
 import { useI18n } from '../i18n';
 import { compareBinCodesForPickRoute } from '../utils/warehouseRoute';
 import type { UploadGroupPayload } from '../hooks/useIdentification';
@@ -1488,13 +1488,34 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
       setPackMessage(null);
       void (async () => {
         try {
-          await packOrder(selectedItem.orderId);
-          setPackMessage(
-            t('ops.mobile.pack.scan.success', {
-              order: selectedItem.orderNumber || selectedItem.orderId,
-              sku: selectedItem.sku,
-            })
-          );
+          // Find the order to pass weight for carrier rule matching
+          const order = readyToPackOrders.find((o) => o.id === selectedItem.orderId);
+          const weightOpt = order?.weight ? { weight: order.weight } : undefined;
+
+          // Check if address is complete enough for label creation
+          const cust = order?.customer;
+          const hasAddress = cust?.street && cust?.city && cust?.zip;
+
+          if (!hasAddress) {
+            // Pack only — no label possible without address
+            await packOrder(selectedItem.orderId);
+            setPackMessage(
+              `${selectedItem.orderNumber || selectedItem.orderId} verpackt — Versandlabel nicht möglich (Adresse unvollständig).`
+            );
+          } else {
+            // Pack + Ship + Print label
+            const result = await packAndShip(selectedItem.orderId, weightOpt);
+            if (result.labelUrl) {
+              window.open(result.labelUrl, '_blank');
+              setPackMessage(
+                `${selectedItem.orderNumber || selectedItem.orderId} verpackt & Label erstellt (${result.carrier || '?'}) — Druckdialog geöffnet.`
+              );
+            } else {
+              setPackMessage(
+                `${selectedItem.orderNumber || selectedItem.orderId} verpackt & versendet — kein Label-PDF verfügbar.`
+              );
+            }
+          }
         } catch (err: any) {
           setPackMessage(t('ops.mobile.pack.scan.error', { message: err?.message || t('common.unknownError') }));
         }

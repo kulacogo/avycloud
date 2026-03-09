@@ -3106,6 +3106,25 @@ export const packOrder = async (orderId: string): Promise<void> => {
   }
 };
 
+/**
+ * Pack + Ship + Print in one step.
+ * 1) Mark order as packed
+ * 2) Create shipping label via SendCloud (carrier rules auto-select method)
+ * 3) Return labelUrl for printing
+ */
+export async function packAndShip(
+  orderId: string,
+  opts?: { weight?: number }
+): Promise<{ labelUrl: string | null; trackingNumber: string | null; carrier: string | null }> {
+  await packOrder(orderId);
+  const result = await shipOrder(orderId, opts);
+  return {
+    labelUrl: result?.labelUrl || null,
+    trackingNumber: result?.trackingNumber || null,
+    carrier: result?.carrier || null,
+  };
+}
+
 // ─── OMS Native Endpoints ────────────────────────────────────
 
 export async function fetchOrderStatuses(): Promise<{ statuses: Record<string, any>; counts: Record<string, number> }> {
