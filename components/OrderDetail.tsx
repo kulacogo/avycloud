@@ -7,6 +7,7 @@ import {
   generateDeliveryNote,
   updateOrderCustomer,
   updateOrderWeight,
+  cancelShippingLabel,
 } from "../api/client";
 import type { Order, OrderTimelineEvent, OmsStatus } from "../types";
 
@@ -45,6 +46,7 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({ orderId, onClose, onSt
   const [order, setOrder] = useState<Order | null>(null);
   const [timeline, setTimeline] = useState<OrderTimelineEvent[]>([]);
   const [nextStatuses, setNextStatuses] = useState<string[]>([]);
+  const [allStatuses, setAllStatuses] = useState<Record<string, { label: string; color: string; sortOrder: number }>>({});
   const [loading, setLoading] = useState(true);
   const [transitioning, setTransitioning] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -65,6 +67,7 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({ orderId, onClose, onSt
       setOrder(data.order);
       setTimeline(data.timeline || []);
       setNextStatuses(data.nextStatuses || []);
+      setAllStatuses(data.allStatuses || {});
     } catch (err: any) {
       setError(err.message || "Fehler beim Laden");
     } finally {
@@ -86,11 +89,11 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({ orderId, onClose, onSt
     if (e.target === backdropRef.current) onClose();
   }, [onClose]);
 
-  const handleTransition = useCallback(async (toStatus: string) => {
+  const handleTransition = useCallback(async (toStatus: string, force = false) => {
     setTransitioning(true);
     setError(null);
     try {
-      await transitionOrderStatus(orderId, toStatus);
+      await transitionOrderStatus(orderId, toStatus, { force });
       await loadData();
       onStatusChange?.();
     } catch (err: any) {
@@ -152,31 +155,51 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({ orderId, onClose, onSt
         {!loading && order && (
           <>
             {/* Status Actions */}
-            {nextStatuses.length > 0 && (
-              <div className="px-5 pt-4 pb-2 border-b border-app-border shrink-0">
-                <p className="text-xs text-txt-muted mb-2">Nächster Schritt</p>
-                <div className="flex flex-wrap gap-2">
-                  {nextStatuses.map((status) => {
-                    const color = STATUS_COLORS[status] || STATUS_COLORS.pending;
-                    const isCancelOrReturn = status === "cancelled" || status === "returned" || status === "on_hold";
-                    return (
-                      <button
-                        key={status}
-                        onClick={() => handleTransition(status)}
-                        disabled={transitioning}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors disabled:opacity-50 ${
-                          isCancelOrReturn
-                            ? "border border-danger/30 text-danger hover:bg-danger-dim"
-                            : `${color.bg} ${color.text} hover:opacity-80`
-                        }`}
-                      >
-                        {transitioning ? "..." : `→ ${STATUS_LABELS[status] || status}`}
-                      </button>
-                    );
-                  })}
-                </div>
+            <div className="px-5 pt-4 pb-2 border-b border-app-border shrink-0">
+              <p className="text-xs text-txt-muted mb-2">Nächster Schritt</p>
+              <div className="flex flex-wrap gap-2">
+                {/* Quick-action buttons for recommended next statuses */}
+                {nextStatuses.map((status) => {
+                  const color = STATUS_COLORS[status] || STATUS_COLORS.pending;
+                  const isCancelOrReturn = status === "cancelled" || status === "returned" || status === "on_hold";
+                  return (
+                    <button
+                      key={status}
+                      onClick={() => handleTransition(status)}
+                      disabled={transitioning}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors disabled:opacity-50 ${
+                        isCancelOrReturn
+                          ? "border border-danger/30 text-danger hover:bg-danger-dim"
+                          : `${color.bg} ${color.text} hover:opacity-80`
+                      }`}
+                    >
+                      {transitioning ? "..." : `→ ${STATUS_LABELS[status] || status}`}
+                    </button>
+                  );
+                })}
+                {/* Dropdown for manual override to any status */}
+                {Object.keys(allStatuses).length > 0 && (
+                  <select
+                    value=""
+                    disabled={transitioning}
+                    onChange={(e) => {
+                      if (e.target.value) handleTransition(e.target.value, true);
+                    }}
+                    className="h-7 px-2 rounded-lg text-xs bg-app-elevated border border-app-border text-txt-secondary hover:text-txt-primary cursor-pointer disabled:opacity-50 focus:outline-none focus:ring-1 focus:ring-accent"
+                  >
+                    <option value="">Status setzen...</option>
+                    {Object.entries(allStatuses)
+                      .sort(([, a], [, b]) => a.sortOrder - b.sortOrder)
+                      .filter(([key]) => key !== omsStatus)
+                      .map(([key, info]) => (
+                        <option key={key} value={key}>
+                          {info.label}
+                        </option>
+                      ))}
+                  </select>
+                )}
               </div>
-            )}
+            </div>
 
             {/* Tab Navigation */}
             <div className="px-5 pt-3 border-b border-app-border shrink-0">
@@ -408,6 +431,17 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({ orderId, onClose, onSt
                             Versandlabel nicht möglich — Adresse unvollständig. Bitte oben bearbeiten.
                           </div>
                         )
+                      )}
+                      {order.trackingNumber && (
+                        <ActionButton
+                          label="Label stornieren"
+                          icon="✕"
+                          onClick={async () => {
+                            await cancelShippingLabel(orderId);
+                            await loadData();
+                            onStatusChange?.();
+                          }}
+                        />
                       )}
                       {!order.invoiceNumber && (
                         <ActionButton

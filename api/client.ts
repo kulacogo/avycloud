@@ -3178,15 +3178,28 @@ export async function updateOrderWeight(orderId: string, weight: number): Promis
   if (!res.ok || data?.ok === false) throw new Error(data?.error?.message || "Gewicht-Update fehlgeschlagen");
 }
 
-export async function transitionOrderStatus(orderId: string, toStatus: string, note?: string): Promise<{ fromStatus: string; toStatus: string }> {
+export async function transitionOrderStatus(
+  orderId: string,
+  toStatus: string,
+  opts?: { note?: string; force?: boolean }
+): Promise<{ fromStatus: string; toStatus: string }> {
   const res = await fetchApi(`${BACKEND_URL}/api/orders/${encodeURIComponent(orderId)}/transition`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ toStatus, note }),
+    body: JSON.stringify({ toStatus, note: opts?.note, force: opts?.force }),
   });
   const data = await parseResponse(res);
   if (!res.ok || data?.ok === false) throw new Error(data?.error?.message || 'Statusübergang fehlgeschlagen');
   return data?.data || {};
+}
+
+export async function cancelShippingLabel(orderId: string): Promise<void> {
+  const res = await fetchApi(`${BACKEND_URL}/api/orders/${encodeURIComponent(orderId)}/cancel-label`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+  });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) throw new Error(data?.error?.message || 'Label-Stornierung fehlgeschlagen');
 }
 
 export async function fetchOrderTimeline(orderId: string): Promise<any[]> {

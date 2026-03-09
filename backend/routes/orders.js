@@ -1154,8 +1154,9 @@ router.get('/orders/:orderId/detail', requirePermission('orders', 'read'), async
     // Get timeline
     const timeline = await getOrderTimeline({ orderId }).catch(() => []);
 
-    // Get next possible statuses
+    // Get next possible statuses + all statuses for manual override
     const nextStatuses = getNextStatuses(order.omsStatus);
+    const allStatuses = getAllStatuses();
 
     res.json({
       ok: true,
@@ -1163,6 +1164,7 @@ router.get('/orders/:orderId/detail', requirePermission('orders', 'read'), async
         order,
         timeline,
         nextStatuses,
+        allStatuses,
       },
     });
   } catch (err) {
@@ -1178,7 +1180,7 @@ router.get('/orders/:orderId/detail', requirePermission('orders', 'read'), async
 router.post('/orders/:orderId/transition', requirePermission('orders', 'write'), async (req, res) => {
   try {
     const { orderId } = req.params;
-    const { toStatus, note } = req.body;
+    const { toStatus, note, force } = req.body;
     const tenantId = req.user?.tenantId || 'default';
 
     if (!toStatus) {
@@ -1191,6 +1193,7 @@ router.post('/orders/:orderId/transition', requirePermission('orders', 'write'),
       toStatus,
       actor: req.user ? { uid: req.user.uid, email: req.user.email } : null,
       note,
+      force: !!force,
     });
 
     if (!result.ok) {
@@ -1317,6 +1320,65 @@ router.post('/orders/:orderId/ship', requirePermission('orders', 'write'), async
     res.json({ ok: true, data: result });
   } catch (err) {
     console.error(`[POST /api/orders/:orderId/ship] ${err.message}`, err);
+    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: err.message } });
+  }
+});
+
+/**
+ * POST /api/orders/:orderId/cancel-label — Cancel shipping label and clear tracking.
+ */
+router.post('/orders/:orderId/cancel-label', requirePermission('orders', 'write'), async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const tenantId = req.user?.tenantId || 'default';
+    const db = require('@google-cloud/firestore');
+    const firestore = new db.Firestore();
+
+    // Find active shipment for this order
+    const snap = await firestore.collection('shipments')
+      .where('orderId', '==', orderId)
+      .orderBy('createdAt', 'desc')
+      .limit(1)
+      .get();
+
+    if (snap.empty) {
+      return res.status(404).json({ ok: false, error: { code: 'NOT_FOUND', message: 'Kein Versandlabel für diesen Auftrag gefunden.' } });
+    }
+
+    const shipment = snap.docs[0].data();
+    const parcelId = shipment.sendcloudParcelId;
+
+    if (!parcelId) {
+      return res.status(400).json({ ok: false, error: { code: 'BAD_REQUEST', message: 'Keine SendCloud Parcel-ID vorhanden.' } });
+    }
+
+    // Cancel parcel in SendCloud
+    const { cancelParcel } = require('../services/shipping-engine');
+    await cancelParcel({ parcelId, tenantId });
+
+    // Clear tracking data from order
+    await firestore.collection('orders').doc(orderId).set({
+      trackingNumber: null,
+      trackingUrl: null,
+      shippingService: null,
+      shipmentId: null,
+      updatedAt: new Date().toISOString(),
+    }, { merge: true });
+
+    // Transition order back to packed
+    const { transitionOrder } = require('../services/order-state-machine');
+    await transitionOrder({
+      tenantId,
+      orderId,
+      toStatus: 'packed',
+      actor: { uid: req.user?.uid || 'system', email: req.user?.email || 'api' },
+      note: 'Versandlabel storniert — Tracking entfernt',
+      force: true,
+    });
+
+    res.json({ ok: true, data: { message: 'Label storniert, Tracking entfernt.' } });
+  } catch (err) {
+    console.error(`[POST /api/orders/:orderId/cancel-label] ${err.message}`, err);
     res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: err.message } });
   }
 });

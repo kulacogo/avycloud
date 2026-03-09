@@ -102,7 +102,7 @@ function getAllStatuses() {
  * @param {{ tenantId?: string, orderId: string, toStatus: string, actor: { uid: string, email: string }, note?: string }} opts
  * @returns {Promise<{ ok: boolean, fromStatus: string, toStatus: string, error?: string }>}
  */
-async function transitionOrder({ tenantId = 'default', orderId, toStatus, actor, note }) {
+async function transitionOrder({ tenantId = 'default', orderId, toStatus, actor, note, force = false }) {
   if (!orderId) return { ok: false, error: 'orderId ist erforderlich' };
   if (!toStatus) return { ok: false, error: 'toStatus ist erforderlich' };
   if (!ORDER_STATUSES[toStatus]) return { ok: false, error: `Unbekannter Status: ${toStatus}` };
@@ -124,7 +124,8 @@ async function transitionOrder({ tenantId = 'default', orderId, toStatus, actor,
       return { ok: false, fromStatus, toStatus, error: 'Auftrag ist bereits in diesem Status' };
     }
 
-    if (!isTransitionAllowed(fromStatus, toStatus)) {
+    // Skip transition validation when force=true (manual override)
+    if (!force && !isTransitionAllowed(fromStatus, toStatus)) {
       const allowed = getNextStatuses(fromStatus).map((s) => ORDER_STATUSES[s]?.label || s).join(', ');
       return {
         ok: false,
