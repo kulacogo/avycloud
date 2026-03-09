@@ -150,7 +150,11 @@ async function createParcel({
   const parcel = result?.parcel || {};
 
   const trackingNumber = parcel.tracking_number || null;
-  const labelUrl = parcel.label?.label_printer || parcel.label?.normal_printer?.[0] || null;
+  // SendCloud often doesn't return label in the immediate POST response.
+  // Construct the label URL from parcel ID (label_printer = thermal 10x15cm format).
+  const labelUrl = parcel.label?.label_printer
+    || parcel.label?.normal_printer?.[0]
+    || (parcel.id ? `${SENDCLOUD_BASE_URL}/labels/label_printer/${parcel.id}` : null);
 
   // Save shipment record to Firestore
   const shipmentDoc = {
