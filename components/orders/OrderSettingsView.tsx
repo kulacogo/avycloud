@@ -38,10 +38,10 @@ interface DocTemplate {
 
 /* ─── Default values for first-time setup ─── */
 const DEFAULT_CARRIER_RULES: CarrierRule[] = [
-  { id: "cr-1", minWeight: 0.5, maxWeight: 1.99, shippingMethodId: 0, carrier: "dhl", label: "DHL Kleinpaket" },
-  { id: "cr-2", minWeight: 2, maxWeight: 4.99, shippingMethodId: 0, carrier: "dpd", label: "DPD Classic 0-5 kg" },
-  { id: "cr-3", minWeight: 5, maxWeight: 9.99, shippingMethodId: 0, carrier: "dpd", label: "DPD Classic 5-10 kg" },
-  { id: "cr-4", minWeight: 10, maxWeight: 31.5, shippingMethodId: 0, carrier: "dpd", label: "DPD Classic 10-20 kg" },
+  { id: "cr-1", minWeight: 0.5, maxWeight: 1.99, shippingMethodId: 2830, carrier: "dhl", label: "DHL Kleinpaket 0-1kg" },
+  { id: "cr-2", minWeight: 2, maxWeight: 4.99, shippingMethodId: 111, carrier: "dpd", label: "DPD Classic 0-5 kg" },
+  { id: "cr-3", minWeight: 5, maxWeight: 9.99, shippingMethodId: 112, carrier: "dpd", label: "DPD Classic 5-10 kg" },
+  { id: "cr-4", minWeight: 10, maxWeight: 31.5, shippingMethodId: 113, carrier: "dpd", label: "DPD Classic 10-20 kg" },
 ];
 
 const DEFAULT_RULES: AutomationRule[] = [

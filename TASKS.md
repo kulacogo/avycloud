@@ -40,9 +40,9 @@
 >
 > **🔴 NÄCHSTER SPRINT — OFFEN:**
 > - ~~**BUG-019: Marketplace-Listings zeigen Produkte ohne Lagerbestand**~~ ✅
-> - ~~**BUG-021: Versandlabel-Erstellung fehlgeschlagen (Adresse leer)**~~ ✅ — Adress-Validation + Fallback-Felder, konfigurierbare Versandregeln (Gewicht → DHL/DPD)
-> - **BUG-020: Retouren prüfen** — Returns-Engine (eBay + Kaufland) ist implementiert, aber Status muss verifiziert werden (Sync auslösen, Daten prüfen)
-> - **Versandregeln: SendCloud Method IDs eintragen** — Default-Regeln angelegt, aber die konkreten SendCloud Shipping Method IDs müssen noch aus dem SendCloud-Konto eingetragen werden
+> - ~~**BUG-021: Versandlabel — Adress-Validation + Versandregeln-UI**~~ ✅ (teilweise — Validation + UI fertig, aber BUG-022 Root Cause noch offen)
+> - **🔴 BUG-022: ALLE BaseLinker-Bestellungen haben KEINE Versandadresse** — Root Cause gefunden: `order-sync.js` mappt street/zip/phone nicht
+> - **BUG-020: Retouren prüfen** — Returns-Engine implementiert, Production-Verifikation steht aus
 > - ~~Deduplizierung: Merge-UI + Auto-Merge~~ ✅
 > - ~~Bulk-Import/Export (CSV/Excel)~~ ✅
 > - ~~E-Mail-Templates~~ ✅
@@ -123,10 +123,11 @@
 
 Dashboard, Produktkatalog, KI-Produkterkennung, KI-Datenverbesserung, KI-Chat, KI-Bildgenerierung, eBay Integration, Kaufland Integration, BaseLinker Integration, Bestellungen (BaseLinker + Native OMS), Pick & Pack (Mobile), Lagerverwaltung, Versand (Labels + Tracking + Bulk), Retouren (Workflow + Marketplace-Intake + Erstattung), Rechnungen (PDF + Nummernkreise + SevDesk-Export), Lieferscheine (PDF), Einstellungen, Admin-Panel, Wettbewerbspreise, Kategorie-Management, Barcode-Scanner, PDF-Labels, Webhooks, Dark/Light Mode, Integrations Self-Service (M9), Order Intake nativ (eBay/Kaufland), Status-Engine (OMS State Machine), Tracking-Webhooks (SendCloud → OMS), Marketplace Versandbestätigung, Auftrags-Detail-Seite, Pipeline-Visualisierung, Versand-Regeln (gewichtsbasiert), Retouren-Marketplace-Intake, Erstattungs-Engine, Auftrags-Nummerierung, BaseLinker Feature-Flag-Decoupling, Pricing Engine (Runner + UI + Auto-Repricing), Inventory Forecast (Dashboard-Widget + Reorder-Alerts), Marketplace Auto-Sync (Orders + Returns periodic), Preis-Push zu Marktplätzen (auto bei Produktspeicherung), Erfassen-Stepper (5-Schritt KI-Identify-Flow), Marketplace-Listings mit Inventory-Abgleich, Bulk-Import/Export (CSV), Deduplizierung (Merge-UI), E-Mail-Templates (branded Templates), Audit-Log (Aktivitätsprotokoll)
 
-### ⚠️ Halb fertig (1 Feature)
+### ⚠️ Halb fertig (2 Features)
 
 | Feature | Was fehlt | Prio |
 |---|---|---|
+| **Versand / Versandlabels (BUG-022)** | BaseLinker-Orders haben KEINE Versandadresse (street/zip/phone fehlen in `order-sync.js` Mapping). Ohne Fix kann kein einziges Versandlabel erstellt werden! | **KRITISCH** |
 | **Retouren (BUG-020)** | Implementiert, aber noch nicht auf Production verifiziert (Sync auslösen, Daten prüfen) | Mittel |
 
 ### 🔴 Fehlt komplett (1 Feature)
@@ -142,44 +143,92 @@ Dashboard, Produktkatalog, KI-Produkterkennung, KI-Datenverbesserung, KI-Chat, K
 > **Claude Code:** Lies `CLAUDE.md` für Production-Safety-Regeln. Arbeite diese Blöcke IN REIHENFOLGE ab.
 > Nach jedem Block: `cd backend && npm test` + `npm run build`. Commit nach jedem Block.
 
-### Sprint-Block 1: BUG-019 — Marketplace-Listings mit Inventory-Abgleich
+### Sprint-Block 1: 🔴 BUG-022 — BaseLinker-Bestellungen haben KEINE Versandadresse (KRITISCH)
 
-**PROBLEM:** eBay/Kaufland-Listings zeigen Marketplace-Bestand statt Lagerbestand. Produkte ohne Lager werden ohne Warnung gelistet.
+**PROBLEM:** ALLE Bestellungen die über BaseLinker importiert werden haben KEINE Versandadresse (street, zip, phone fehlen). Dadurch kann kein einziges Versandlabel über SendCloud erstellt werden. Fehler: `SendCloud create parcel 400: address: "This field may not be blank."`
 
-**Backend — eBay** (`backend/lib/ebay-direct.js` — `listLiveListings()`):
-1. Nach dem Join mit `ebayListingLinks` → für jedes gelinkte Produkt: `products_v2` Inventory-Daten laden
-2. Neue Felder pro Row: `warehouseStock` (aus `inventory.availableQuantity`), `binLocation` (aus `warehouse.binLocation`), `stockMismatch` (boolean: marketplace qty ≠ warehouse qty)
+**ROOT CAUSE:** `backend/services/order-sync.js` — Funktion `mapBaseLinkerOrder()` (ca. Zeile 173-177).
+Das Customer-Objekt mappt nur `name`, `city`, `country` — aber NICHT `street`, `zip`, `phone`, `email`.
 
-**Backend — Kaufland** (`backend/routes/marketplace.js` — GET /api/kaufland/listings):
-1. Der `products_v2`-Join existiert bereits → `inventory.availableQuantity` und `warehouse.binLocation` aus dem gematchten Produkt durchreichen
-2. Neue Felder: `warehouseStock`, `binLocation`, `stockMismatch`
+**IST (kaputt):**
+```js
+customer: {
+  name: entry?.delivery_fullname || entry?.invoice_fullname || entry?.buyer || 'Unbekannt',
+  city: entry?.delivery_city || entry?.invoice_city || null,
+  country: entry?.delivery_country_code || entry?.invoice_country_code || null,
+},
+```
 
-**Frontend** (`components/MarketplaceListingsView.tsx`):
-1. Spalte "Bestand" splitten in "Marktplatz" und "Lager"
-2. Warning-Badge "⚠️ Nicht auf Lager" wenn `warehouseStock === 0` oder `binLocation` fehlt
-3. Gelbes "Abweichung"-Badge wenn `stockMismatch === true`
-4. Neue KPI-Card: "Bestandsabweichungen" — Anzahl Listings wo Mismatch
-5. Optional: Filter-Tab "Abweichungen"
+**SOLL (fix):**
+```js
+customer: {
+  name: entry?.delivery_fullname || entry?.invoice_fullname || entry?.buyer || 'Unbekannt',
+  street: [entry?.delivery_address, entry?.delivery_address2].filter(Boolean).join(', ')
+    || [entry?.invoice_address, entry?.invoice_address2].filter(Boolean).join(', ')
+    || null,
+  city: entry?.delivery_city || entry?.invoice_city || null,
+  zip: entry?.delivery_postcode || entry?.invoice_postcode || null,
+  country: entry?.delivery_country_code || entry?.invoice_country_code || null,
+  phone: entry?.delivery_phone || entry?.invoice_phone || entry?.phone || null,
+  email: entry?.email || entry?.invoice_email || null,
+},
+```
 
-### Sprint-Block 2: BUG-020 — Retouren verifizieren
+**BaseLinker API Felder (Referenz):**
+- `delivery_fullname` → Name
+- `delivery_address` → Straße + Hausnummer (FEHLT im Mapping!)
+- `delivery_address2` → Adresszusatz (FEHLT!)
+- `delivery_postcode` → PLZ (FEHLT!)
+- `delivery_city` → Stadt ✅ (bereits gemappt)
+- `delivery_country_code` → Land ✅ (bereits gemappt)
+- `delivery_phone` → Telefon (FEHLT!)
+- `email` → E-Mail (FEHLT!)
+- Fallbacks: `invoice_address`, `invoice_postcode`, `invoice_phone`, `invoice_email`
+
+**ZUSÄTZLICH — Bestehende Bestellungen reparieren:**
+1. Erstelle ein Migration-Script `backend/scripts/backfill-order-addresses.js`:
+   - Lade ALLE Orders aus Firestore `orders` Collection
+   - Für Orders die `customer.street` LEER haben UND `raw`-Feld haben (BaseLinker raw data):
+     - Extrahiere `street`, `zip`, `phone`, `email` aus `raw.delivery_address` etc.
+     - Update das Order-Dokument mit den fehlenden Feldern
+   - Logging: Wie viele Orders repariert, wie viele ohne raw-Daten
+2. Das Script soll als `node backend/scripts/backfill-order-addresses.js` ausführbar sein
+
+**Vergleich mit korrektem Mapping (Referenz):**
+- `backend/services/order-intake-ebay.js` Zeile 98-106 — mappt street, zip, phone, email KORREKT
+- `backend/services/order-intake-kaufland.js` Zeile 92-100 — mappt street, zip, phone, email KORREKT
+
+**Dateien:**
+- `backend/services/order-sync.js` — `mapBaseLinkerOrder()` fixen
+- `backend/scripts/backfill-order-addresses.js` — NEU erstellen (Migration)
+
+**Test:** Nach dem Fix einen neuen BaseLinker-Sync auslösen und prüfen ob neue Orders jetzt Versandadresse haben.
+
+### Sprint-Block 2: BUG-020 — Retouren auf Production verifizieren
 
 1. Production-Sync auslösen: POST /api/returns/sync testen
-2. Prüfen ob ReturnsView echte Daten zeigt
+2. Prüfen ob ReturnsView echte Daten zeigt oder leer bleibt
 3. Periodic Sync (alle 4h) verifizieren — läuft der Cron?
-4. Wenn Probleme: Fixes dokumentieren
+4. Wenn Probleme: Fixes dokumentieren und in TASKS.md Status aktualisieren
 
-### Sprint-Block 3: Bulk-Import/Export (CSV/Excel) ✅ Komplett (2026-03-09)
+**Dateien:** `backend/services/returns-engine.js`, `components/ReturnsView.tsx`
 
-- [x] CSV Export: Produkte als CSV Download mit BOM für Excel-Kompatibilität
-- [x] CSV Import: 4-Schritt-Flow (Upload → Spalten-Mapping → Preview → Import) mit Auto-Delimiter-Erkennung und Fuzzy-Header-Matching
-- **Dateien:** `backend/services/import-export.js`, `components/ImportModal.tsx`, `backend/routes/products.js` (3 neue Endpoints), `api/client.ts`
+### Sprint-Block 3: Order-Detail — Adresse editierbar machen
+
+**PROBLEM:** Selbst wenn BUG-022 gefixt ist, muss es möglich sein Adressen nachträglich zu bearbeiten (z.B. wenn Kunde anruft und Adresse ändert).
+
+1. **Backend:** `PUT /api/orders/:orderId` — Endpoint zum Aktualisieren von Order-Feldern (customer.street, customer.city, customer.zip, customer.phone, customer.email). Nur erlaubte Felder, Audit-Log-Eintrag.
+2. **Frontend:** `components/OrderDetail.tsx` — "Bearbeiten"-Button neben Kundendaten. Klick öffnet Inline-Edit-Form für Adressfelder. Speichern → PUT /api/orders/:orderId → Reload.
+3. **Validation:** Bevor "Versandlabel erstellen" klickbar ist → prüfe ob street+city+zip vorhanden. Wenn nicht → Button disabled + Hinweis "Adresse unvollständig".
+
+**Dateien:** `backend/routes/orders.js`, `components/OrderDetail.tsx`, `api/client.ts`
 
 ### Sprint-Regeln
 
 1. **KEIN `// TODO` im Code.** Fertig machen oder explizit dokumentieren was fehlt.
 2. **KEINE neuen Mock-Daten.** Wenn Endpoint fehlt, BAU ihn.
 3. **TESTE nach jedem Block:** `cd backend && npm test` + `npm run build`
-4. **Commit nach jedem Block:** Conventional Commit (`fix(ui): ...`)
+4. **Commit nach jedem Block:** Conventional Commit (`fix(shipping): ...`, `feat(orders): ...`)
 5. **KEINE Änderungen an:** `Dockerfile`, `cloudbuild.yaml`, `.firebaserc`, Auth-Middleware, Job-Runnern.
 6. **AUSNAHME:** `firebase.json` darf für Firestore-Indexes ergänzt werden.
 
@@ -207,6 +256,16 @@ Dashboard, Produktkatalog, KI-Produkterkennung, KI-Datenverbesserung, KI-Chat, K
     - [ ] `MarketplaceListingsView.tsx` — Neue Spalte "Lagerbestand", Warning-Badge bei Diskrepanz
     - [ ] KPI-Card "Bestandsabweichungen" — Anzahl Listings wo Marktplatz-Bestand ≠ Lagerbestand
   - **Dateien:** `backend/lib/ebay-direct.js`, `backend/routes/marketplace.js`, `components/MarketplaceListingsView.tsx`
+
+- [ ] **🔴 BUG-022: BaseLinker-Bestellungen haben KEINE Versandadresse (KRITISCH)** since 2026-03-09
+  - **PROBLEM:** ALLE BaseLinker-importierten Bestellungen haben leere Adressfelder (street, zip, phone fehlen). Kein Versandlabel erstellbar.
+  - **ROOT CAUSE:** `backend/services/order-sync.js` → `mapBaseLinkerOrder()` mappt nur name/city/country, NICHT street/zip/phone/email.
+  - **FIX 1:** `mapBaseLinkerOrder()` um `street`, `zip`, `phone`, `email` aus BaseLinker `delivery_*` / `invoice_*` Feldern erweitern
+  - **FIX 2:** Migration-Script `backend/scripts/backfill-order-addresses.js` — bestehende Orders aus `raw`-Feld nachträglich reparieren
+  - **FIX 3:** Order-Detail-Seite: Adresse editierbar machen (Inline-Edit-Form)
+  - **FIX 4:** "Versandlabel erstellen" Button nur aktiv wenn Adresse vollständig
+  - **Dateien:** `backend/services/order-sync.js`, `backend/scripts/backfill-order-addresses.js` (NEU), `backend/routes/orders.js`, `components/OrderDetail.tsx`
+  - **Siehe Sprint-Block 1 + 3 für detaillierte Arbeitsanweisungen**
 
 - [ ] **BUG-020: Retouren-Status verifizieren** since 2026-03-09
   - **KONTEXT:** Returns-Engine ist implementiert (eBay `GetReturnRequests` + Kaufland `GET /v2/returns` + Workflow + Erstattung), aber:
