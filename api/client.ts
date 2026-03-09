@@ -3042,6 +3042,51 @@ export const packOrder = async (orderId: string): Promise<void> => {
   }
 };
 
+// ─── OMS Native Endpoints ────────────────────────────────────
+
+export async function fetchOrderStatuses(): Promise<{ statuses: Record<string, any>; counts: Record<string, number> }> {
+  const res = await fetchApi(`${BACKEND_URL}/api/orders/statuses`, { method: 'GET' });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) throw new Error(data?.error?.message || 'Failed to load order statuses');
+  return data?.data || { statuses: {}, counts: {} };
+}
+
+export async function fetchOrderDetail(orderId: string): Promise<{ order: any; timeline: any[]; nextStatuses: string[] }> {
+  const res = await fetchApi(`${BACKEND_URL}/api/orders/${encodeURIComponent(orderId)}/detail`, { method: 'GET' });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) throw new Error(data?.error?.message || 'Failed to load order detail');
+  return data?.data || { order: null, timeline: [], nextStatuses: [] };
+}
+
+export async function transitionOrderStatus(orderId: string, toStatus: string, note?: string): Promise<{ fromStatus: string; toStatus: string }> {
+  const res = await fetchApi(`${BACKEND_URL}/api/orders/${encodeURIComponent(orderId)}/transition`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ toStatus, note }),
+  });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) throw new Error(data?.error?.message || 'Statusübergang fehlgeschlagen');
+  return data?.data || {};
+}
+
+export async function fetchOrderTimeline(orderId: string): Promise<any[]> {
+  const res = await fetchApi(`${BACKEND_URL}/api/orders/${encodeURIComponent(orderId)}/timeline`, { method: 'GET' });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) throw new Error(data?.error?.message || 'Failed to load timeline');
+  return Array.isArray(data?.data) ? data.data : [];
+}
+
+export async function syncMarketplaceOrders(opts?: { marketplace?: string; lookbackDays?: number }): Promise<{ results: Record<string, any>; totalSynced: number }> {
+  const res = await fetchApi(`${BACKEND_URL}/api/orders/sync/marketplace`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(opts || {}),
+  });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) throw new Error(data?.error?.message || 'Marketplace sync fehlgeschlagen');
+  return data?.data || { results: {}, totalSynced: 0 };
+}
+
 export const openSkuLabelWindow = (productId: string): { ok: boolean; error?: { code: number; message: string } } => {
   try {
     const url = `${BACKEND_URL}/api/products/${encodeURIComponent(productId)}/label`;

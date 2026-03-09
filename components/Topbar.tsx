@@ -89,6 +89,7 @@ const VIEW_BREADCRUMBS: Record<string, { parent: string; parentView: string }> =
   "settings-api": { parent: "Einstellungen", parentView: "settings" },
   "settings-billing": { parent: "Einstellungen", parentView: "settings" },
   categories: { parent: "Produkte", parentView: "products" },
+  input: { parent: "Produkte", parentView: "products" },
 };
 
 export const Topbar: React.FC<TopbarProps> = ({ currentView, theme, onToggleTheme, onNavigate }) => {

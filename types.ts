@@ -366,6 +366,8 @@ export interface WarehouseBin {
 
 export type OrderStatus = 'new' | 'picking' | 'picked' | 'packed' | 'other';
 
+export type OmsStatus = 'pending' | 'confirmed' | 'picking' | 'picked' | 'packing' | 'packed' | 'shipped' | 'delivered' | 'completed' | 'cancelled' | 'returned' | 'on_hold';
+
 export interface OrderItemPickHint {
   productId?: string | null;
   productName?: string | null;
@@ -390,29 +392,56 @@ export interface OrderItem {
 
 export interface OrderCustomer {
   name?: string | null;
+  street?: string | null;
   city?: string | null;
+  zip?: string | null;
   country?: string | null;
+  phone?: string | null;
+  email?: string | null;
 }
 
 export interface Order {
   id: string;
-  baselinkerId: string;
+  baselinkerId?: string;
   baselinkerOrderKey?: string;
+  orderId?: string;
   orderSource?: string | null;
   orderSourceId?: string | null;
   number?: string | null;
-  source: 'baselinker';
+  source: string;
+  marketplace?: string | null;
+  marketplaceOrderId?: string | null;
   status: OrderStatus;
+  omsStatus?: OmsStatus;
+  omsStatusLabel?: string;
   statusLabel: string;
   statusId?: string | null;
   createdAt: string;
   updatedAt: string;
   pickedAt?: string | null;
+  packedAt?: string | null;
+  shippedAt?: string | null;
+  deliveredAt?: string | null;
   currency?: string;
   totalAmount?: number;
   customer: OrderCustomer;
   items: OrderItem[];
   notes?: string | null;
+  paymentStatus?: string | null;
+  shippingService?: string | null;
+  trackingNumber?: string | null;
+}
+
+export interface OrderTimelineEvent {
+  id: string;
+  event: string;
+  fromStatus: string;
+  toStatus: string;
+  fromStatusLabel: string;
+  toStatusLabel: string;
+  actor?: { uid: string; email: string } | null;
+  note?: string | null;
+  timestamp: string;
 }
 
 export interface DashboardMetricsDay {

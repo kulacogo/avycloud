@@ -1,8 +1,14 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useI18n } from "../i18n";
-import { fetchOrders as fetchOrdersApi, syncOrders } from "../api/client";
+import {
+  fetchOrders as fetchOrdersApi,
+  syncOrders,
+  fetchOrderStatuses,
+  syncMarketplaceOrders,
+} from "../api/client";
 import { Order, OrderStatus } from "../types";
 import { SyncIcon } from "./icons/Icons";
+import { OrderDetail } from "./OrderDetail";
 
 /* ─── Status filter config ─── */
 type StatusFilter = "all" | OrderStatus;
@@ -56,16 +62,30 @@ const KpiCard: React.FC<{
   </div>
 );
 
+/* ─── OMS Pipeline Stages ─── */
+const PIPELINE_STAGES: { key: string; label: string; color: string; dotColor: string }[] = [
+  { key: "pending",   label: "Neu",           color: "bg-info-dim text-info",    dotColor: "bg-info" },
+  { key: "confirmed", label: "Bestätigt",     color: "bg-info-dim text-info",    dotColor: "bg-info" },
+  { key: "picking",   label: "Kommission.",   color: "bg-warning-dim text-warning", dotColor: "bg-warning" },
+  { key: "picked",    label: "Kommissioniert", color: "bg-accent-dim text-accent", dotColor: "bg-accent" },
+  { key: "packing",   label: "Verpackung",    color: "bg-warning-dim text-warning", dotColor: "bg-warning" },
+  { key: "packed",    label: "Verpackt",      color: "bg-success-dim text-success", dotColor: "bg-success" },
+  { key: "shipped",   label: "Versendet",     color: "bg-success-dim text-success", dotColor: "bg-success" },
+];
+
 /* ─── Main Component ─── */
 const OrdersView: React.FC = () => {
   const { t } = useI18n();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
+  const [syncingMp, setSyncingMp] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<StatusFilter>("all");
   const [sortField, setSortField] = useState<"createdAt" | "totalAmount" | "status">("createdAt");
   const [sortAsc, setSortAsc] = useState(false);
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+  const [omsCounts, setOmsCounts] = useState<Record<string, number>>({});
 
   /* ─── Fetch ─── */
   const loadOrders = useCallback(async () => {
@@ -96,6 +116,33 @@ const OrdersView: React.FC = () => {
       setSyncing(false);
     }
   }, []);
+
+  const handleMarketplaceSync = useCallback(async () => {
+    setSyncingMp(true);
+    setError(null);
+    try {
+      await syncMarketplaceOrders();
+      await loadOrders();
+    } catch (err: any) {
+      setError(err?.message || "Marketplace sync failed");
+    } finally {
+      setSyncingMp(false);
+    }
+  }, [loadOrders]);
+
+  /* ─── Load OMS status counts ─── */
+  const loadOmsCounts = useCallback(async () => {
+    try {
+      const data = await fetchOrderStatuses();
+      setOmsCounts(data.counts || {});
+    } catch {
+      // non-critical, pipeline just shows zeros
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadOmsCounts();
+  }, [loadOmsCounts]);
 
   /* ─── KPIs ─── */
   const kpis = useMemo(() => {
@@ -179,15 +226,26 @@ const OrdersView: React.FC = () => {
           <h1 className="text-2xl font-bold text-txt-primary">{t("orders.title")}</h1>
           <p className="text-sm text-txt-muted">{t("orders.subtitle")}</p>
         </div>
-        <button
-          type="button"
-          onClick={handleSync}
-          disabled={syncing}
-          className="inline-flex items-center gap-2 rounded-xl bg-accent text-white px-4 py-2.5 text-sm font-semibold hover:bg-accent/80 transition disabled:opacity-50"
-        >
-          <SyncIcon className={`w-4 h-4 ${syncing ? "animate-spin" : ""}`} />
-          {syncing ? t("ops.orders.syncing") : t("ops.orders.sync")}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleMarketplaceSync}
+            disabled={syncingMp}
+            className="inline-flex items-center gap-2 rounded-xl border border-app-border bg-app-surface text-txt-primary px-4 py-2.5 text-sm font-semibold hover:bg-app-elevated transition disabled:opacity-50"
+          >
+            <SyncIcon className={`w-4 h-4 ${syncingMp ? "animate-spin" : ""}`} />
+            {syncingMp ? "Syncing..." : "Marketplace Sync"}
+          </button>
+          <button
+            type="button"
+            onClick={handleSync}
+            disabled={syncing}
+            className="inline-flex items-center gap-2 rounded-xl bg-accent text-white px-4 py-2.5 text-sm font-semibold hover:bg-accent/80 transition disabled:opacity-50"
+          >
+            <SyncIcon className={`w-4 h-4 ${syncing ? "animate-spin" : ""}`} />
+            {syncing ? t("ops.orders.syncing") : t("ops.orders.sync")}
+          </button>
+        </div>
       </div>
 
       {/* Error */}
@@ -221,6 +279,41 @@ const OrdersView: React.FC = () => {
           sub={t("orders.kpi.avgTimeSub")}
           tone="text-warning"
         />
+      </div>
+
+      {/* OMS Pipeline */}
+      <div className="rounded-2xl border border-app-border bg-app-surface p-4">
+        <div className="flex items-center gap-1">
+          {PIPELINE_STAGES.map((stage, idx) => {
+            const count = omsCounts[stage.key] || 0;
+            const isActive = filter === stage.key;
+            return (
+              <React.Fragment key={stage.key}>
+                {idx > 0 && (
+                  <svg className="w-4 h-4 text-app-border shrink-0" viewBox="0 0 16 16" fill="currentColor">
+                    <path d="M6 3l5 5-5 5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setFilter(stage.key as StatusFilter)}
+                  className={`flex flex-col items-center flex-1 min-w-0 rounded-lg px-2 py-2 transition ${
+                    isActive ? `${stage.color} ring-1 ring-current/20` : "hover:bg-app-elevated"
+                  }`}
+                >
+                  <span className={`text-lg font-bold ${isActive ? "" : "text-txt-primary"}`}>
+                    {count}
+                  </span>
+                  <span className={`text-[10px] font-medium truncate w-full text-center ${
+                    isActive ? "" : "text-txt-muted"
+                  }`}>
+                    {stage.label}
+                  </span>
+                </button>
+              </React.Fragment>
+            );
+          })}
+        </div>
       </div>
 
       {/* Filter Pills */}
@@ -302,7 +395,8 @@ const OrdersView: React.FC = () => {
                   return (
                     <tr
                       key={order.id}
-                      className="border-b border-app-border last:border-b-0 hover:bg-app-elevated/40 transition"
+                      onClick={() => setSelectedOrderId(order.id)}
+                      className="border-b border-app-border last:border-b-0 hover:bg-app-elevated/40 transition cursor-pointer"
                     >
                       {/* Order ID */}
                       <td className="px-4 py-3">
@@ -388,6 +482,18 @@ const OrdersView: React.FC = () => {
         <div className="text-xs text-txt-muted text-right">
           {filteredOrders.length} / {orders.length} {t("orders.footer.showing")}
         </div>
+      )}
+
+      {/* Order Detail Slide-in */}
+      {selectedOrderId && (
+        <OrderDetail
+          orderId={selectedOrderId}
+          onClose={() => setSelectedOrderId(null)}
+          onStatusChange={() => {
+            void loadOrders();
+            void loadOmsCounts();
+          }}
+        />
       )}
     </div>
   );

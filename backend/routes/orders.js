@@ -1083,4 +1083,163 @@ router.get('/sync/status', requirePermission('dashboard', 'read'), async (req, r
   }
 });
 
+// ── OMS Native Endpoints ─────────────────────────────────────
+
+const {
+  transitionOrder,
+  getOrderTimeline,
+  getStatusCounts,
+  getAllStatuses,
+  getNextStatuses,
+  mapLegacyStatus,
+} = require('../services/order-state-machine');
+const { syncEbayOrders } = require('../services/order-intake-ebay');
+const { syncKauflandOrders } = require('../services/order-intake-kaufland');
+const { getSequenceStates } = require('../services/number-sequence');
+const { getOrderById } = require('../lib/firestore');
+
+/**
+ * GET /api/orders/statuses
+ * Returns all OMS status definitions and their metadata.
+ */
+router.get('/orders/statuses', requirePermission('orders', 'read'), async (req, res) => {
+  try {
+    const statuses = getAllStatuses();
+    const counts = await getStatusCounts().catch(() => ({}));
+    res.json({ ok: true, data: { statuses, counts } });
+  } catch (err) {
+    console.error(`[GET /api/orders/statuses] ${err.message}`, err);
+    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: err.message } });
+  }
+});
+
+/**
+ * GET /api/orders/:orderId/detail
+ * Returns detailed order data including timeline.
+ */
+router.get('/orders/:orderId/detail', requirePermission('orders', 'read'), async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const order = await getOrderById(orderId);
+    if (!order) {
+      return res.status(404).json({ ok: false, error: { code: 'NOT_FOUND', message: 'Auftrag nicht gefunden' } });
+    }
+
+    // Map legacy status
+    order.omsStatus = order.omsStatus || mapLegacyStatus(order.status);
+
+    // Get timeline
+    const timeline = await getOrderTimeline({ orderId }).catch(() => []);
+
+    // Get next possible statuses
+    const nextStatuses = getNextStatuses(order.omsStatus);
+
+    res.json({
+      ok: true,
+      data: {
+        order,
+        timeline,
+        nextStatuses,
+      },
+    });
+  } catch (err) {
+    console.error(`[GET /api/orders/${req.params.orderId}/detail] ${err.message}`, err);
+    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: err.message } });
+  }
+});
+
+/**
+ * POST /api/orders/:orderId/transition
+ * Transition an order to a new OMS status.
+ */
+router.post('/orders/:orderId/transition', requirePermission('orders', 'write'), async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const { toStatus, note } = req.body;
+    const tenantId = req.user?.tenantId || 'default';
+
+    if (!toStatus) {
+      return res.status(400).json({ ok: false, error: { code: 'VALIDATION', message: 'toStatus ist erforderlich' } });
+    }
+
+    const result = await transitionOrder({
+      tenantId,
+      orderId,
+      toStatus,
+      actor: req.user ? { uid: req.user.uid, email: req.user.email } : null,
+      note,
+    });
+
+    if (!result.ok) {
+      return res.status(400).json({ ok: false, error: { code: 'TRANSITION_DENIED', message: result.error } });
+    }
+
+    res.json({ ok: true, data: result });
+  } catch (err) {
+    console.error(`[POST /api/orders/${req.params.orderId}/transition] ${err.message}`, err);
+    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: err.message } });
+  }
+});
+
+/**
+ * GET /api/orders/:orderId/timeline
+ * Returns the event history for an order.
+ */
+router.get('/orders/:orderId/timeline', requirePermission('orders', 'read'), async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const limit = Math.min(parseInt(req.query.limit || '50', 10) || 50, 200);
+    const timeline = await getOrderTimeline({ orderId, limit });
+    res.json({ ok: true, data: timeline });
+  } catch (err) {
+    console.error(`[GET /api/orders/${req.params.orderId}/timeline] ${err.message}`, err);
+    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: err.message } });
+  }
+});
+
+/**
+ * POST /api/orders/sync/marketplace
+ * Sync orders from eBay and/or Kaufland directly (not via BaseLinker).
+ */
+router.post('/orders/sync/marketplace', requirePermission('orders', 'read'), async (req, res) => {
+  try {
+    const { marketplace, lookbackDays = 7 } = req.body;
+    const tenantId = req.user?.tenantId || 'default';
+    const results = {};
+
+    if (!marketplace || marketplace === 'ebay' || marketplace === 'all') {
+      results.ebay = await syncEbayOrders({ tenantId, lookbackDays }).catch((err) => ({
+        synced: 0, skipped: 0, total: 0, error: err.message,
+      }));
+    }
+
+    if (!marketplace || marketplace === 'kaufland' || marketplace === 'all') {
+      results.kaufland = await syncKauflandOrders({ tenantId, lookbackDays }).catch((err) => ({
+        synced: 0, skipped: 0, total: 0, error: err.message,
+      }));
+    }
+
+    const totalSynced = Object.values(results).reduce((s, r) => s + (r.synced || 0), 0);
+    res.json({ ok: true, data: { results, totalSynced } });
+  } catch (err) {
+    console.error(`[POST /api/orders/sync/marketplace] ${err.message}`, err);
+    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: err.message } });
+  }
+});
+
+/**
+ * GET /api/orders/sequences
+ * Returns current number sequence states for all types.
+ */
+router.get('/orders/sequences', requirePermission('orders', 'read'), async (req, res) => {
+  try {
+    const tenantId = req.user?.tenantId || 'default';
+    const states = await getSequenceStates({ tenantId });
+    res.json({ ok: true, data: states });
+  } catch (err) {
+    console.error(`[GET /api/orders/sequences] ${err.message}`, err);
+    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: err.message } });
+  }
+});
+
 module.exports = { router, setBackgroundSyncOrders };

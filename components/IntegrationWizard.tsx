@@ -81,8 +81,13 @@ export const IntegrationWizard: React.FC<IntegrationWizardProps> = ({
       const popup = window.open(url, "ebay_oauth", "width=600,height=700,scrollbars=yes");
 
       // Listen for OAuth completion
+      // Backend callback sends { type: 'avycloud:ebay_oauth_complete' }
       const handler = (event: MessageEvent) => {
-        if (event.data === "avycloud:ebay_oauth_complete") {
+        const msg = event.data;
+        if (
+          msg === "avycloud:ebay_oauth_complete" ||
+          msg?.type === "avycloud:ebay_oauth_complete"
+        ) {
           window.removeEventListener("message", handler);
           setConnecting(false);
           setSuccessMessage("eBay wurde erfolgreich verbunden!");

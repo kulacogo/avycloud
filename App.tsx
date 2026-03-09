@@ -190,6 +190,7 @@ const parseHash = (): { view: View; productId: string | null } => {
     const productsMap: Record<string, View> = {
       inventory: 'inventory',
       identify: 'input',
+      capture: 'input',
     };
     if (productsMap[second]) return { view: productsMap[second], productId: null };
   }
@@ -226,6 +227,7 @@ const viewToHashPath = (view: View, productId?: string | null) => {
     'warehouse-settings': '/warehouse/settings',
     'marketplace-ebay': '/marketplace/ebay',
     'marketplace-kaufland': '/marketplace/kaufland',
+    input: '/products/capture',
     integrations: '/integrations',
     settings: '/settings',
     'settings-profile': '/settings/profile',
