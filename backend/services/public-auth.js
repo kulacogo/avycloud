@@ -106,8 +106,8 @@ async function requestPasswordReset({ email, ip }) {
     throw error;
   }
 
-  const email = renderEmail('password-reset', { resetLink: buildAppPasswordResetUrl(resetLink) });
-  await sendMail({ to: normalizedEmail, ...email });
+  const mailContent = renderEmail('password-reset', { resetLink: buildAppPasswordResetUrl(resetLink) });
+  await sendMail({ to: normalizedEmail, ...mailContent });
 
   return { ok: true, sent: true };
 }
