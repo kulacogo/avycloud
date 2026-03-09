@@ -1242,4 +1242,119 @@ router.get('/orders/sequences', requirePermission('orders', 'read'), async (req,
   }
 });
 
+// ── OMS-B: Shipping & Invoices ──────────────────────────────────────
+
+/**
+ * POST /api/orders/:orderId/ship — Create shipping label via SendCloud.
+ */
+router.post('/orders/:orderId/ship', requirePermission('orders', 'write'), async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const { shippingMethodId, weight } = req.body;
+    const tenantId = req.user?.tenantId || 'default';
+
+    const { shipOrder } = require('../services/shipping-engine');
+    const result = await shipOrder({ orderId, tenantId, shippingMethodId, weight });
+
+    // Auto-transition to shipped
+    const { transitionOrder } = require('../services/order-state-machine');
+    await transitionOrder({
+      tenantId,
+      orderId,
+      toStatus: 'shipped',
+      actor: { uid: req.user?.uid || 'system', email: req.user?.email || 'api' },
+      note: `Versandlabel erstellt (${result.carrier || 'unknown'})`,
+    });
+
+    // Push tracking to marketplace (async, non-blocking)
+    if (result.trackingNumber) {
+      const { pushTrackingToMarketplace } = require('../services/marketplace-tracking');
+      pushTrackingToMarketplace({
+        orderId,
+        trackingNumber: result.trackingNumber,
+        carrier: result.carrier || '',
+      }).catch((err) => console.error(`[ship] Marketplace push failed: ${err.message}`));
+    }
+
+    res.json({ ok: true, data: result });
+  } catch (err) {
+    console.error(`[POST /api/orders/:orderId/ship] ${err.message}`, err);
+    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: err.message } });
+  }
+});
+
+/**
+ * POST /api/orders/:orderId/invoice — Generate invoice PDF.
+ */
+router.post('/orders/:orderId/invoice', requirePermission('orders', 'write'), async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const tenantId = req.user?.tenantId || 'default';
+
+    const { generateInvoice } = require('../services/invoice-engine');
+    const result = await generateInvoice({
+      orderId,
+      tenantId,
+      actor: { uid: req.user?.uid || '', email: req.user?.email || '' },
+    });
+
+    res.json({ ok: true, data: result });
+  } catch (err) {
+    console.error(`[POST /api/orders/:orderId/invoice] ${err.message}`, err);
+    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: err.message } });
+  }
+});
+
+/**
+ * POST /api/orders/:orderId/delivery-note — Generate delivery note PDF.
+ */
+router.post('/orders/:orderId/delivery-note', requirePermission('orders', 'write'), async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const tenantId = req.user?.tenantId || 'default';
+
+    const { generateDeliveryNote } = require('../services/invoice-engine');
+    const result = await generateDeliveryNote({ orderId, tenantId });
+
+    res.json({ ok: true, data: result });
+  } catch (err) {
+    console.error(`[POST /api/orders/:orderId/delivery-note] ${err.message}`, err);
+    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: err.message } });
+  }
+});
+
+/**
+ * GET /api/shipping/methods — List available SendCloud shipping methods.
+ */
+router.get('/shipping/methods', requirePermission('orders', 'read'), async (req, res) => {
+  try {
+    const { getShippingMethods } = require('../services/shipping-engine');
+    const methods = await getShippingMethods();
+    res.json({ ok: true, data: methods });
+  } catch (err) {
+    console.error(`[GET /api/shipping/methods] ${err.message}`, err);
+    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: err.message } });
+  }
+});
+
+/**
+ * POST /api/invoices/:invoiceId/export-sevdesk — Export invoice to SevDesk.
+ */
+router.post('/invoices/:invoiceId/export-sevdesk', requirePermission('orders', 'write'), async (req, res) => {
+  try {
+    const { invoiceId } = req.params;
+    const { exportToSevDesk } = require('../services/invoice-engine');
+    const result = await exportToSevDesk({ invoiceId });
+
+    if (!result.ok) {
+      return res.status(400).json({ ok: false, error: { code: 'SEVDESK_EXPORT_FAILED', message: result.error } });
+    }
+
+    res.json({ ok: true, data: result });
+  } catch (err) {
+    console.error(`[POST /api/invoices/:invoiceId/export-sevdesk] ${err.message}`, err);
+    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: err.message } });
+  }
+});
+
 module.exports = { router, setBackgroundSyncOrders };

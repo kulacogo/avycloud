@@ -25,6 +25,7 @@ const integrationsRouter = require('./routes/integrations');
 const settingsRouter = require('./routes/settings');
 const returnsRouter = require('./routes/returns');
 const invoicesRouter = require('./routes/invoices');
+const webhooksRouter = require('./routes/webhooks');
 const { syncNewOrders } = require('./services/order-sync');
 const { requireAuth } = require('./lib/auth');
 const { ensureDefaultRoles } = require('./lib/rbac');
@@ -250,6 +251,9 @@ app.get('/ready', (req, res) => res.json({ status: 'ready' }));
 
 // --- Public Auth API (extracted router, no auth required) ---
 app.use('/api/auth', authRouter);
+
+// --- Public Webhooks (no auth — machine-to-machine, validated per-route) ---
+app.use('/api', webhooksRouter);
 
 // Default-deny: everything under /api requires authentication by default.
 // Allowlist endpoints that must be public for technical reasons (e.g., <img src> cannot send headers).

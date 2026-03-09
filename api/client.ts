@@ -3087,6 +3087,59 @@ export async function syncMarketplaceOrders(opts?: { marketplace?: string; lookb
   return data?.data || { results: {}, totalSynced: 0 };
 }
 
+// ── OMS-B: Shipping & Invoices ──────────────────────────────
+
+export async function shipOrder(orderId: string, opts?: { shippingMethodId?: number; weight?: number }): Promise<any> {
+  const res = await fetchApi(`${BACKEND_URL}/api/orders/${encodeURIComponent(orderId)}/ship`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(opts || {}),
+  });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) throw new Error(data?.error?.message || 'Versand fehlgeschlagen');
+  return data?.data;
+}
+
+export async function generateInvoice(orderId: string): Promise<{ invoiceId: string; invoiceNumber: string; pdfUrl: string | null }> {
+  const res = await fetchApi(`${BACKEND_URL}/api/orders/${encodeURIComponent(orderId)}/invoice`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: '{}',
+  });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) throw new Error(data?.error?.message || 'Rechnungserstellung fehlgeschlagen');
+  return data?.data;
+}
+
+export async function generateDeliveryNote(orderId: string): Promise<{ deliveryNoteNumber: string; pdfUrl: string | null }> {
+  const res = await fetchApi(`${BACKEND_URL}/api/orders/${encodeURIComponent(orderId)}/delivery-note`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: '{}',
+  });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) throw new Error(data?.error?.message || 'Lieferschein-Erstellung fehlgeschlagen');
+  return data?.data;
+}
+
+export async function fetchShippingMethods(): Promise<any[]> {
+  const res = await fetchApi(`${BACKEND_URL}/api/shipping/methods`, { method: 'GET' });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) throw new Error(data?.error?.message || 'Versandmethoden laden fehlgeschlagen');
+  return data?.data || [];
+}
+
+export async function exportInvoiceToSevDesk(invoiceId: string): Promise<{ ok: boolean; sevdeskId?: string }> {
+  const res = await fetchApi(`${BACKEND_URL}/api/invoices/${encodeURIComponent(invoiceId)}/export-sevdesk`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: '{}',
+  });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) throw new Error(data?.error?.message || 'SevDesk-Export fehlgeschlagen');
+  return data?.data;
+}
+
 export const openSkuLabelWindow = (productId: string): { ok: boolean; error?: { code: number; message: string } } => {
   try {
     const url = `${BACKEND_URL}/api/products/${encodeURIComponent(productId)}/label`;

@@ -1,5 +1,11 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { fetchOrderDetail, transitionOrderStatus, fetchOrderTimeline } from "../api/client";
+import {
+  fetchOrderDetail,
+  transitionOrderStatus,
+  shipOrder,
+  generateInvoice,
+  generateDeliveryNote,
+} from "../api/client";
 import type { Order, OrderTimelineEvent, OmsStatus } from "../types";
 
 /* ─── OMS Status Colors ─── */
@@ -225,6 +231,50 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({ orderId, onClose, onSt
                       {order.deliveredAt && <Row label="Zugestellt" value={new Date(order.deliveredAt).toLocaleString("de-DE")} />}
                     </div>
                   </section>
+
+                  {/* Actions */}
+                  <section>
+                    <h3 className="text-sm font-medium text-txt-primary mb-2">Aktionen</h3>
+                    <div className="flex flex-wrap gap-2">
+                      {(omsStatus === "packed" || omsStatus === "picked") && !order.trackingNumber && (
+                        <ActionButton
+                          label="Versandlabel erstellen"
+                          icon="📦"
+                          onClick={async () => {
+                            await shipOrder(orderId);
+                            await loadData();
+                            onStatusChange?.();
+                          }}
+                        />
+                      )}
+                      {!order.invoiceNumber && (
+                        <ActionButton
+                          label="Rechnung erstellen"
+                          icon="📄"
+                          onClick={async () => {
+                            await generateInvoice(orderId);
+                            await loadData();
+                          }}
+                        />
+                      )}
+                      {!order.deliveryNoteNumber && (
+                        <ActionButton
+                          label="Lieferschein erstellen"
+                          icon="📋"
+                          onClick={async () => {
+                            await generateDeliveryNote(orderId);
+                            await loadData();
+                          }}
+                        />
+                      )}
+                      {order.invoiceNumber && (
+                        <span className="text-xs text-txt-muted self-center">Rechnung: {order.invoiceNumber}</span>
+                      )}
+                      {order.deliveryNoteNumber && (
+                        <span className="text-xs text-txt-muted self-center">Lieferschein: {order.deliveryNoteNumber}</span>
+                      )}
+                    </div>
+                  </section>
                 </>
               )}
 
@@ -311,6 +361,36 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({ orderId, onClose, onSt
           </>
         )}
       </div>
+    </div>
+  );
+};
+
+/* Helper: Action Button */
+const ActionButton: React.FC<{ label: string; icon: string; onClick: () => Promise<void> }> = ({ label, icon, onClick }) => {
+  const [busy, setBusy] = React.useState(false);
+  const [err, setErr] = React.useState<string | null>(null);
+  const handleClick = async () => {
+    setBusy(true);
+    setErr(null);
+    try {
+      await onClick();
+    } catch (e: any) {
+      setErr(e.message || "Fehler");
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="flex flex-col">
+      <button
+        onClick={handleClick}
+        disabled={busy}
+        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-app-elevated rounded-lg text-xs font-medium text-txt-primary hover:bg-app-border transition-colors disabled:opacity-50"
+      >
+        <span>{icon}</span>
+        {busy ? "..." : label}
+      </button>
+      {err && <span className="text-[10px] text-danger mt-0.5">{err}</span>}
     </div>
   );
 };
