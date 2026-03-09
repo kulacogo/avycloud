@@ -361,6 +361,26 @@ async function shipOrder({ orderId, tenantId = 'default', shippingMethodId, weig
   return result;
 }
 
+/**
+ * Download a SendCloud label PDF as a Buffer (proxied with auth).
+ * @param {string} labelUrl — full SendCloud label URL
+ * @returns {Promise<{ buffer: Buffer, contentType: string }>}
+ */
+async function downloadLabelPdf(labelUrl) {
+  if (!labelUrl) throw new Error('No label URL provided');
+  const auth = await getSendCloudAuth();
+  const res = await fetch(labelUrl, {
+    headers: { Authorization: auth },
+  });
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    throw new Error(`SendCloud label download ${res.status}: ${body.slice(0, 200)}`);
+  }
+  const buffer = Buffer.from(await res.arrayBuffer());
+  const contentType = res.headers.get('content-type') || 'application/pdf';
+  return { buffer, contentType };
+}
+
 module.exports = {
   getShippingMethods,
   createParcel,
@@ -369,4 +389,5 @@ module.exports = {
   calculateOrderWeight,
   matchCarrierRule,
   shipOrder,
+  downloadLabelPdf,
 };

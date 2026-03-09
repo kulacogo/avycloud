@@ -1509,4 +1509,43 @@ router.put('/orders/:orderId', requirePermission('orders', 'write'), async (req,
   }
 });
 
+/**
+ * GET /api/orders/:orderId/label — Proxy SendCloud label PDF with auth.
+ * Returns the PDF directly so the browser can display/print it.
+ */
+router.get('/orders/:orderId/label', requirePermission('orders', 'read'), async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const db = require('@google-cloud/firestore');
+    const firestore = new db.Firestore();
+
+    // Find shipment for this order
+    const snap = await firestore.collection('shipments')
+      .where('orderId', '==', orderId)
+      .orderBy('createdAt', 'desc')
+      .limit(1)
+      .get();
+
+    if (snap.empty) {
+      return res.status(404).json({ ok: false, error: { code: 'NOT_FOUND', message: 'Kein Versandlabel für diesen Auftrag gefunden.' } });
+    }
+
+    const shipment = snap.docs[0].data();
+    const labelUrl = shipment.labelUrl;
+    if (!labelUrl) {
+      return res.status(404).json({ ok: false, error: { code: 'NOT_FOUND', message: 'Label-URL nicht verfügbar.' } });
+    }
+
+    const { downloadLabelPdf } = require('../services/shipping-engine');
+    const { buffer, contentType } = await downloadLabelPdf(labelUrl);
+
+    res.set('Content-Type', contentType);
+    res.set('Content-Disposition', `inline; filename="label-${orderId}.pdf"`);
+    res.send(buffer);
+  } catch (err) {
+    console.error(`[GET /api/orders/:orderId/label] ${err.message}`, err);
+    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: err.message } });
+  }
+});
+
 module.exports = { router, setBackgroundSyncOrders };

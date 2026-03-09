@@ -1505,8 +1505,12 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
           } else {
             // Pack + Ship + Print label
             const result = await packAndShip(selectedItem.orderId, weightOpt);
-            if (result.labelUrl) {
-              window.open(result.labelUrl, '_blank');
+            if (result.labelBlobUrl) {
+              // Open PDF in new tab for printing (blob URL avoids SendCloud auth issue)
+              const printWindow = window.open(result.labelBlobUrl, '_blank');
+              if (printWindow) {
+                printWindow.addEventListener('afterprint', () => URL.revokeObjectURL(result.labelBlobUrl!));
+              }
               setPackMessage(
                 `${selectedItem.orderNumber || selectedItem.orderId} verpackt & Label erstellt (${result.carrier || '?'}) — Druckdialog geöffnet.`
               );

@@ -5,6 +5,7 @@ import {
   syncOrders,
   fetchOrderStatuses,
   syncMarketplaceOrders,
+  buildImageProxyUrl,
 } from "../api/client";
 import { Order, OrderStatus } from "../types";
 import { SyncIcon } from "./icons/Icons";
@@ -418,9 +419,36 @@ const OrdersView: React.FC = () => {
                       </td>
                       {/* Items */}
                       <td className="px-4 py-3">
-                        <span className="inline-flex items-center justify-center min-w-[24px] h-6 rounded-md bg-app-elevated px-1.5 text-xs font-bold text-txt-secondary">
-                          {itemCount}
-                        </span>
+                        {order.items.length > 0 ? (
+                          <div className="flex items-center gap-2.5">
+                            {(() => {
+                              const first = order.items[0];
+                              const imgSrc = first.pickHint?.image || null;
+                              return (
+                                <div className="w-9 h-9 rounded-lg bg-app-elevated border border-app-border overflow-hidden flex items-center justify-center shrink-0">
+                                  {imgSrc ? (
+                                    <img src={buildImageProxyUrl(imgSrc)} alt="" className="w-full h-full object-cover" loading="lazy" />
+                                  ) : (
+                                    <span className="text-[9px] text-txt-muted">—</span>
+                                  )}
+                                </div>
+                              );
+                            })()}
+                            <div className="min-w-0">
+                              <div className="text-xs text-txt-primary font-medium truncate max-w-[200px]">
+                                {order.items[0].name || "—"}
+                              </div>
+                              <div className="text-[11px] text-txt-muted truncate max-w-[200px]">
+                                {order.items[0].sku ? `SKU ${order.items[0].sku}` : ""}
+                                {order.items.length > 1 && (
+                                  <span className="ml-1 text-txt-muted">+{order.items.length - 1} weitere</span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-txt-muted">—</span>
+                        )}
                       </td>
                       {/* Total */}
                       <td className="px-4 py-3 text-right">

@@ -3110,16 +3110,30 @@ export const packOrder = async (orderId: string): Promise<void> => {
  * Pack + Ship + Print in one step.
  * 1) Mark order as packed
  * 2) Create shipping label via SendCloud (carrier rules auto-select method)
- * 3) Return labelUrl for printing
+ * 3) Download label PDF via authenticated proxy and open for printing
  */
 export async function packAndShip(
   orderId: string,
   opts?: { weight?: number }
-): Promise<{ labelUrl: string | null; trackingNumber: string | null; carrier: string | null }> {
+): Promise<{ labelBlobUrl: string | null; trackingNumber: string | null; carrier: string | null }> {
   await packOrder(orderId);
   const result = await shipOrder(orderId, opts);
+
+  let labelBlobUrl: string | null = null;
+  if (result?.labelUrl) {
+    // Fetch PDF via our authenticated backend proxy
+    const pdfRes = await fetchApi(
+      `${BACKEND_URL}/api/orders/${encodeURIComponent(orderId)}/label`,
+      { method: 'GET' }
+    );
+    if (pdfRes.ok) {
+      const blob = await pdfRes.blob();
+      labelBlobUrl = URL.createObjectURL(blob);
+    }
+  }
+
   return {
-    labelUrl: result?.labelUrl || null,
+    labelBlobUrl,
     trackingNumber: result?.trackingNumber || null,
     carrier: result?.carrier || null,
   };
