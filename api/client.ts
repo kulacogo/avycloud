@@ -3135,6 +3135,16 @@ export async function updateOrderCustomer(
   if (!res.ok || data?.ok === false) throw new Error(data?.error?.message || "Kundendaten-Update fehlgeschlagen");
 }
 
+export async function updateOrderWeight(orderId: string, weight: number): Promise<void> {
+  const res = await fetchApi(`${BACKEND_URL}/api/orders/${encodeURIComponent(orderId)}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ weight }),
+  });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) throw new Error(data?.error?.message || "Gewicht-Update fehlgeschlagen");
+}
+
 export async function transitionOrderStatus(orderId: string, toStatus: string, note?: string): Promise<{ fromStatus: string; toStatus: string }> {
   const res = await fetchApi(`${BACKEND_URL}/api/orders/${encodeURIComponent(orderId)}/transition`, {
     method: 'POST',

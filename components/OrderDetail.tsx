@@ -6,6 +6,7 @@ import {
   generateInvoice,
   generateDeliveryNote,
   updateOrderCustomer,
+  updateOrderWeight,
 } from "../api/client";
 import type { Order, OrderTimelineEvent, OmsStatus } from "../types";
 
@@ -51,6 +52,9 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({ orderId, onClose, onSt
   const [editingAddress, setEditingAddress] = useState(false);
   const [addressForm, setAddressForm] = useState({ name: "", street: "", city: "", zip: "", country: "", phone: "", email: "" });
   const [savingAddress, setSavingAddress] = useState(false);
+  const [editingWeight, setEditingWeight] = useState(false);
+  const [weightInput, setWeightInput] = useState("");
+  const [savingWeight, setSavingWeight] = useState(false);
   const backdropRef = useRef<HTMLDivElement>(null);
 
   const loadData = useCallback(async () => {
@@ -307,6 +311,67 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({ orderId, onClose, onSt
                       <Row label="Erstellt" value={order.createdAt ? new Date(order.createdAt).toLocaleString("de-DE") : "—"} />
                       <Row label="Zahlung" value={order.paymentStatus || "—"} />
                       <Row label="Versand" value={order.shippingService || "—"} />
+                      {/* Editable Weight */}
+                      <div className="flex items-start justify-between gap-4">
+                        <span className="text-txt-muted shrink-0">Gewicht</span>
+                        {editingWeight ? (
+                          <div className="flex items-center gap-1.5">
+                            <input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              value={weightInput}
+                              onChange={(e) => setWeightInput(e.target.value)}
+                              className="w-20 h-6 px-1.5 text-sm text-right rounded bg-app-surface border border-app-border text-txt-primary focus:outline-none focus:ring-1 focus:ring-accent"
+                              autoFocus
+                              onKeyDown={(e) => {
+                                if (e.key === "Escape") setEditingWeight(false);
+                                if (e.key === "Enter") {
+                                  e.preventDefault();
+                                  const w = parseFloat(weightInput);
+                                  if (!isNaN(w) && w >= 0) {
+                                    setSavingWeight(true);
+                                    updateOrderWeight(orderId, w)
+                                      .then(() => { setEditingWeight(false); loadData(); })
+                                      .catch((err: any) => setError(err.message))
+                                      .finally(() => setSavingWeight(false));
+                                  }
+                                }
+                              }}
+                            />
+                            <span className="text-xs text-txt-muted">kg</span>
+                            <button
+                              type="button"
+                              disabled={savingWeight}
+                              className="text-xs text-accent hover:text-accent/80"
+                              onClick={() => {
+                                const w = parseFloat(weightInput);
+                                if (!isNaN(w) && w >= 0) {
+                                  setSavingWeight(true);
+                                  updateOrderWeight(orderId, w)
+                                    .then(() => { setEditingWeight(false); loadData(); })
+                                    .catch((err: any) => setError(err.message))
+                                    .finally(() => setSavingWeight(false));
+                                }
+                              }}
+                            >
+                              {savingWeight ? "..." : "✓"}
+                            </button>
+                            <button type="button" className="text-xs text-txt-muted hover:text-txt-primary" onClick={() => setEditingWeight(false)}>✕</button>
+                          </div>
+                        ) : (
+                          <span
+                            className="text-txt-primary text-right cursor-pointer hover:text-accent transition-colors"
+                            title="Klicken zum Bearbeiten"
+                            onClick={() => {
+                              setWeightInput(String(order.weight || ""));
+                              setEditingWeight(true);
+                            }}
+                          >
+                            {order.weight ? `${order.weight} kg` : <span className="text-warning">nicht angegeben ✎</span>}
+                          </span>
+                        )}
+                      </div>
                       {order.trackingNumber && <Row label="Tracking" value={order.trackingNumber} />}
                       {order.buyerNote && <Row label="Kundennotiz" value={order.buyerNote} />}
                     </div>
@@ -333,7 +398,7 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({ orderId, onClose, onSt
                             label="Versandlabel erstellen"
                             icon="📦"
                             onClick={async () => {
-                              await shipOrder(orderId);
+                              await shipOrder(orderId, order.weight ? { weight: order.weight } : undefined);
                               await loadData();
                               onStatusChange?.();
                             }}

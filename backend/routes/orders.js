@@ -1457,40 +1457,49 @@ const ALLOWED_CUSTOMER_FIELDS = ['name', 'street', 'city', 'zip', 'country', 'ph
 router.put('/orders/:orderId', requirePermission('orders', 'write'), async (req, res) => {
   try {
     const { orderId } = req.params;
-    const { customer } = req.body;
+    const { customer, weight } = req.body;
 
-    if (!customer || typeof customer !== 'object') {
-      return res.status(400).json({ ok: false, error: { code: 'VALIDATION', message: 'customer object required' } });
-    }
-
-    // Only allow known customer fields
-    const sanitized = {};
-    for (const key of ALLOWED_CUSTOMER_FIELDS) {
-      if (customer[key] !== undefined) {
-        sanitized[key] = customer[key] === '' ? null : customer[key];
-      }
-    }
-
-    if (Object.keys(sanitized).length === 0) {
-      return res.status(400).json({ ok: false, error: { code: 'VALIDATION', message: 'No valid customer fields provided' } });
-    }
-
-    // Build Firestore dot-notation update (merge into existing customer object)
     const updates = {};
-    for (const [key, value] of Object.entries(sanitized)) {
-      updates[`customer.${key}`] = value;
+    const auditFields = [];
+
+    // --- Customer fields ---
+    if (customer && typeof customer === 'object') {
+      const sanitized = {};
+      for (const key of ALLOWED_CUSTOMER_FIELDS) {
+        if (customer[key] !== undefined) {
+          sanitized[key] = customer[key] === '' ? null : customer[key];
+        }
+      }
+      for (const [key, value] of Object.entries(sanitized)) {
+        updates[`customer.${key}`] = value;
+      }
+      auditFields.push(...Object.keys(sanitized).map((k) => `customer.${k}`));
+    }
+
+    // --- Weight (top-level, in kg) ---
+    if (weight !== undefined) {
+      const w = parseFloat(weight);
+      if (isNaN(w) || w < 0) {
+        return res.status(400).json({ ok: false, error: { code: 'VALIDATION', message: 'weight muss eine positive Zahl in kg sein' } });
+      }
+      updates.weight = w;
+      auditFields.push('weight');
+    }
+
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({ ok: false, error: { code: 'VALIDATION', message: 'Keine gültigen Felder zum Aktualisieren' } });
     }
 
     await updateOrder(orderId, updates);
 
     logAudit({
-      action: 'order.customer_updated',
+      action: 'order.updated',
       userId: req.user?.uid,
       userEmail: req.user?.email,
       tenantId: req.user?.tenantId || 'default',
       resourceType: 'order',
       resourceId: orderId,
-      details: { updatedFields: Object.keys(sanitized) },
+      details: { updatedFields: auditFields },
     });
 
     res.json({ ok: true });

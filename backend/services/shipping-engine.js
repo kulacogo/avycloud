@@ -14,6 +14,14 @@ const SENDCLOUD_BASE_URL = 'https://panel.sendcloud.sc/api/v2';
 const SHIPMENTS_COLLECTION = 'shipments';
 const ORDERS_COLLECTION = 'orders';
 
+// Default carrier rules — used as fallback when no rules configured in Firestore
+const DEFAULT_CARRIER_RULES = [
+  { minWeight: 0.5, maxWeight: 1.99, shippingMethodId: 2830, carrier: 'dhl', label: 'DHL Kleinpaket 0-1kg' },
+  { minWeight: 2,   maxWeight: 4.99, shippingMethodId: 111,  carrier: 'dpd', label: 'DPD Classic 0-5 kg' },
+  { minWeight: 5,   maxWeight: 9.99, shippingMethodId: 112,  carrier: 'dpd', label: 'DPD Classic 5-10 kg' },
+  { minWeight: 10,  maxWeight: 31.5, shippingMethodId: 113,  carrier: 'dpd', label: 'DPD Classic 10-20 kg' },
+];
+
 let _db;
 function getDb() {
   if (!_db) _db = new Firestore();
@@ -321,12 +329,7 @@ async function shipOrder({ orderId, tenantId = 'default', shippingMethodId, weig
   if (!methodId) {
     const settingsSnap = await db.collection('order_settings').doc(tenantId).get();
     const settings = settingsSnap.exists ? settingsSnap.data() : {};
-    const rules = settings.carrierRules || [];
-    if (rules.length === 0) {
-      throw new Error(
-        'Keine Versandregeln konfiguriert. Bitte unter Einstellungen → Versandregeln Carrier-Regeln hinterlegen.'
-      );
-    }
+    const rules = settings.carrierRules?.length ? settings.carrierRules : DEFAULT_CARRIER_RULES;
     matchedRule = matchCarrierRule({ weight: orderWeight, rules });
     if (!matchedRule) {
       throw new Error(

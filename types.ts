@@ -430,6 +430,10 @@ export interface Order {
   paymentStatus?: string | null;
   shippingService?: string | null;
   trackingNumber?: string | null;
+  weight?: number | null;
+  buyerNote?: string | null;
+  invoiceNumber?: string | null;
+  deliveryNoteNumber?: string | null;
 }
 
 export interface OrderTimelineEvent {
