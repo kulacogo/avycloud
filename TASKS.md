@@ -12,7 +12,7 @@
 > - "Demnächst verfügbar" / "Coming Soon" ist VERBOTEN in der UI
 > - **Bestehende Fake-Views (mit Mock-Daten) MÜSSEN auf echte API-Calls umgebaut werden**
 
-> **⚠️ AKTUELLER ZUSTAND (Stand 2026-03-07): SPRINT 4 VORBEREITUNG**
+> **⚠️ AKTUELLER ZUSTAND (Stand 2026-03-08)**
 >
 > **✅ Abgeschlossen:**
 > - Phase 1–3: Security, Daten-Normalisierung, Infrastruktur, Code-Qualität
@@ -20,22 +20,20 @@
 > - Phase 5: Stock-Sync (Reservierungen, Multi-Channel Sync, Preis-Sync)
 > - Sprint 3 UI-Fixes: AUDIT-001–013 (Crashes, Marketplace-Enrichment, Farbe Blau, Badge-Semantik, Animationen)
 >
-> **🔴 OFFEN — Sprint 3 Restarbeiten:**
-> - AUDIT-014: Gap-Analyse aus Marketplace-UI entfernen + beide Seiten vereinheitlichen
-> - AUDIT-007: Erfassen-Route hat keinen eigenen View
-> - AUDIT-009: Settings-Seiten verifizieren
-> - UX-Cross-Check: Restliche Typografie, Spacing, Animationen
+> **🔴 NÄCHSTER SPRINT — OFFEN:**
+> 1. **Gap-Analyse aus eBay Marketplace-UI entfernen** — "Optimierung: 238" muss raus, beide Seiten identisch
+> 2. **Kaufland Preis-Spalte fixen** — `listing_price` in Firestore, wird aber nicht durchgereicht
+> 3. **eBay fehlende Spalten** — Kategorie, Letztes Update, Link (Fallbacks bauen)
+> 4. **Integration Self-Service (M9)** — Setup-Wizard, OAuth-Flows, API-Key-Input, Konfig-Panel
+> 5. **OMS Phase A** — Order Intake nativ von eBay/Kaufland, eigene Status-Engine
+> 6. **OMS Phase B** — SendCloud Labels, Tracking-Webhooks, Rechnungs-PDF, Marketplace-Kommunikation
+> 7. **OMS Phase C** — BaseLinker abschalten
+> 8. Restliche UX-Fixes: AUDIT-007, Typografie, Spacing, Animationen
 >
 > **🚀 STRATEGISCHE ENTSCHEIDUNG (2026-03-07):**
 > **AvyCloud wird ein eigenständiges Order Management System — komplett losgelöst von BaseLinker.**
 > BaseLinker wird durch native Marketplace-API-Anbindung (eBay/Kaufland) für Order-Intake ersetzt.
 > Rechnungen, Versandlabels, Retouren — alles nativ in AvyCloud.
->
-> **→ NÄCHSTE PRIORITÄT:**
-> 1. Sprint 3 Restarbeiten abschließen (AUDIT-014, AUDIT-007, AUDIT-009)
-> 2. **OMS Phase A: Parallelbetrieb** — AvyCloud empfängt Bestellungen AUCH direkt von Marktplätzen
-> 3. **OMS Phase B: AvyCloud Primary** — BaseLinker nur noch Fallback
-> 4. **OMS Phase C: BaseLinker abschalten**
 
 ---
 
@@ -96,6 +94,143 @@
 >
 > **Zusammenfassung:** Datenmodelle MIT `tenantId`, Service-Funktionen MIT `tenantId`-Parameter,
 > aber KEIN Multi-Tenant-Routing/Switching/UI. Das kommt in der MT-Phase.
+
+---
+
+## 📊 Feature-Übersicht (Stand 2026-03-08)
+
+> **48 Features identifiziert — 23 fertig, 10 halb fertig, 16 fehlen komplett (~48% Fertigstellung)**
+
+### ✅ Funktioniert (23 Features)
+
+Dashboard, Produktkatalog, KI-Produkterkennung, KI-Datenverbesserung, KI-Chat, KI-Bildgenerierung, eBay Integration, Kaufland Integration, BaseLinker Integration, Bestellungen (BaseLinker), Pick & Pack (Mobile), Lagerverwaltung, Versand (Kosten-Anzeige), Retouren (Basis-CRUD), Rechnungen (Basis-CRUD), Einstellungen, Admin-Panel, Wettbewerbspreise, Kategorie-Management, Barcode-Scanner, PDF-Labels, Webhooks, Dark/Light Mode
+
+### ⚠️ Halb fertig (10 Features)
+
+| Feature | Was fehlt | Prio |
+|---|---|---|
+| Pricing Engine | Kein Runner, kein UI, kein Auto-Repricing | Mittel |
+| Inventory Forecast | Kein Dashboard-Widget, kein Alert | Mittel |
+| Deduplizierung | Kein Merge-UI, kein Auto-Merge | Niedrig |
+| Marketplace Auto-Sync | Kein Cron-Job, kein Auto-Sync | Hoch |
+| Preis-Push zu Marktplätzen | NICHT zum eBay/Kaufland-Listing gepusht | Hoch |
+| Versandlabel-Erstellung | Labels werden NICHT erstellt (nur Kosten-Daten) | Hoch |
+| Rechnungs-PDF | Keine PDF-Generierung, kein SevDesk-Export | Hoch |
+| Retouren-Workflow | Kein Marketplace-Intake, kein Erstattungs-Flow | Mittel |
+| Erfassen-Seite | Kein eigenständiger View | Niedrig |
+| Integrations-Konfiguration | Kein Setup-Wizard, kein API-Key-Input, kein OAuth-Start | 🔴 Kritisch |
+
+### 🔴 Fehlt komplett (16 Features)
+
+| Feature | Prio |
+|---|---|
+| Integrations Self-Service (Setup-Wizard, Konfig, Disconnect) | 🔴 Kritisch |
+| Order Intake nativ (eBay/Kaufland APIs → Bestellungen) | 🔴 Kritisch |
+| Eigene Status-Engine (statt BaseLinker-IDs) | 🔴 Kritisch |
+| Tracking-Webhooks (Carrier → AvyCloud → Marktplatz) | 🔴 Kritisch |
+| Marketplace Versandbestätigung (Tracking an eBay/Kaufland) | 🔴 Kritisch |
+| Auftrags-Detail-Seite | Hoch |
+| Pipeline-Visualisierung | Hoch |
+| Rechnungs-Engine (PDF, Nummernkreise, SevDesk-Export) | Hoch |
+| Lieferschein-Generierung | Hoch |
+| Versand-Regeln (gewichtsbasiert) | Mittel |
+| Retouren-Marketplace-Intake | Mittel |
+| Erstattungs-Engine | Mittel |
+| Auftrags-Nummerierung (AVY-2026-0001) | Mittel |
+| E-Mail-Templates | Niedrig |
+| Audit-Log | Niedrig |
+| Onboarding/Wizard | Niedrig |
+
+---
+
+## 🔧 Nächster Sprint — Arbeitsanweisungen
+
+> **Claude Code:** Lies `CLAUDE.md` für Production-Safety-Regeln. Arbeite diese Blöcke IN REIHENFOLGE ab.
+> Nach jedem Block: `cd backend && npm test` + `npm run build`. Commit nach jedem Block.
+
+### Sprint-Block 1: Gap-Analyse aus Marketplace-UI ENTFERNEN
+
+**Datei:** `components/MarketplaceListingsView.tsx`
+
+1. `type TabFilter` — entferne `"optimization"`. Tabs nur noch: Alle / Aktiv / Inaktiv
+2. `TAB_LABELS` — entferne `optimization: "Optimierung"`
+3. `counts` Record — entferne `optimization: 0` und den `if (l.gapCount...)` Zähler
+4. `else if (activeTab === "optimization")` Filter — entfernen
+5. KPI-Cards — "Optimierung"-Card komplett entfernen (3 Cards: Gesamt, Aktiv, Inaktiv)
+6. Sync-Banner — Optimierung-Count entfernen
+7. Warning-Badges — `listing.gapCount > 0` entfernen
+8. `normalizeEbayRow()` — `gapCount: row.gapCriticalCount || 0` entfernen
+9. `NormalizedListing` Interface — `gapCount?: number` entfernen
+
+**NICHT anfassen:** Backend-Gap-Endpoints bleiben. `EbayListingRow` in `types.ts` bleibt.
+
+### Sprint-Block 2: Kaufland Preis + eBay fehlende Spalten
+
+**Kaufland Preis** (`backend/routes/marketplace.js` ~Zeile 967-992):
+```js
+// ALT (falsch): price: matched?.details?.pricing?.sellPrice ?? klPrice ?? null,
+// NEU (Kaufland-Preis hat Vorrang):
+price: klPrice ?? matched?.details?.pricing?.sellPrice ?? null,
+```
+Link-Fallback: `viewItemUrl: d.view_item_url || (d.id_product ? \`https://www.kaufland.de/product/${d.id_product}/\` : null)`
+
+**eBay fehlende Spalten** (`components/MarketplaceListingsView.tsx` — `normalizeEbayRow()`):
+```ts
+viewItemUrl: row.viewItemUrl || `https://www.ebay.de/itm/${row.itemId}`,
+category: row.categoryName || (row.primaryCategoryId ? `Kat. ${row.primaryCategoryId}` : null),
+lastSync: row.updatedAt || row.gapDocUpdatedAt || null,
+```
+
+### Sprint-Block 3: Farbschema Lila → Blau (AUDIT-010)
+
+- Tailwind-Config: Primary-Farbe auf `#2563EB` (Blue-600)
+- Globales Find & Replace: `purple-*` → `blue-*`, `violet-*` → `blue-*`
+- CSS Custom Properties auf Blau umstellen
+- Status-Farben (Grün/Gelb/Rot/Grau) NICHT ändern
+
+### Sprint-Block 4: Badge-Semantik (AUDIT-012)
+
+| Status | Korrekte Farbe | Tailwind |
+|---|---|---|
+| Aktiv/Synced/Gelistet | Grün | `bg-green-500/20 text-green-400` |
+| Pending/Optimierung | Gelb | `bg-yellow-500/20 text-yellow-400` |
+| Inaktiv/Nicht verbunden | Grau | `bg-gray-500/20 text-gray-400` |
+| Fehler | Rot | `bg-red-500/20 text-red-400` |
+
+BONUS: Wiederverwendbare `StatusBadge` Komponente in `components/ui/StatusBadge.tsx`
+
+### Sprint-Block 5: ProductSheet HTML-Rendering + Sprach-Fix
+
+- Beschreibung rendern: `DOMPurify.sanitize()` + `dangerouslySetInnerHTML`
+- Sprach-Mix fixen: "Selling price:" → "Verkaufspreis:", "Confidence:" → "Datenqualität:", etc.
+- Barcode-Badges: Normaler Text mit Copy-Icon statt farbiger Badge
+
+### Sprint-Block 6: Typografie & Spacing
+
+- Section-Headers: Kein ALL-CAPS. `text-sm font-medium text-gray-400` statt uppercase
+- Tabellen-Header: Kein uppercase, kein tracking-wider
+- Produkttabelle: Default 8 Spalten, Rest per Column-Toggle ausblendbar
+
+### Sprint-Block 7: Basis-Animationen
+
+- Sidebar: `transition-colors duration-150`
+- ProductSheet: Slide-In `transition-transform duration-300`, Dimm-Overlay
+- Buttons: `transition-all duration-150` + `active:scale-95`
+- Tabellen-Hover: `hover:bg-gray-800/50` mit `transition-colors duration-100`
+
+### Sprint-Block 8: eBay Integrationen-Status (AUDIT-005)
+
+- `IntegrationsHub.tsx`: eBay-Status prüft ob gültiger Token existiert
+- Gleicher Mechanismus wie Kaufland "Verbunden"-Status
+
+### Sprint-Regeln
+
+1. **KEIN `// TODO` im Code.** Fertig machen oder explizit dokumentieren was fehlt.
+2. **KEINE neuen Mock-Daten.** Wenn Endpoint fehlt, BAU ihn.
+3. **TESTE nach jedem Block:** `cd backend && npm test` + `npm run build`
+4. **Commit nach jedem Block:** Conventional Commit (`fix(ui): ...`)
+5. **KEINE Änderungen an:** `Dockerfile`, `cloudbuild.yaml`, `.firebaserc`, Auth-Middleware, Job-Runnern.
+6. **AUSNAHME:** `firebase.json` darf für Firestore-Indexes ergänzt werden.
 
 ---
 
@@ -1089,11 +1224,15 @@
   #### OMS Phase A: Parallelbetrieb (BaseLinker bleibt, AvyCloud empfängt AUCH)
 
   - [ ] **OMS-A1: Marketplace Order Intake** — Bestellungen DIREKT von eBay/Kaufland APIs empfangen
-    - `backend/services/order-intake-ebay.js` (NEU) — eBay GetOrders/GetOrderTransactions API polling
-    - `backend/services/order-intake-kaufland.js` (NEU) — Kaufland Orders API polling
+    - **Die APIs existieren bereits!** `ebay-trading-api.js` + `kaufland-api.js` sind aktiv — nur die Order-Endpoints werden noch nicht genutzt.
+    - **eBay:** `GetOrders` (Trading API) — liefert: OrderID, BuyerInfo, TransactionArray (Items, SKU, Quantity, TransactionPrice), ShippingAddress, PaymentStatus, OrderStatus, ShippedTime. Auch: `GetReturnRequests` für Retouren.
+    - **Kaufland:** `GET /orders` + `GET /order-units` — liefert: id_order, buyer (name, email, address), items (id_offer/sku, quantity, price), status, ts_created. Auch: `GET /returns` für Retouren.
+    - `backend/services/order-intake-ebay.js` (NEU) — eBay GetOrders Polling (alle 5 Min oder Webhook via eBay Platform Notifications)
+    - `backend/services/order-intake-kaufland.js` (NEU) — Kaufland Orders API Polling (alle 5 Min)
     - Eigene `orderId`-Generierung (nicht mehr BaseLinker-ID als Primary Key)
-    - Neues Feld `source: 'ebay' | 'kaufland' | 'baselinker' | 'manual'` statt nur `'baselinker'`
-    - Deduplizierung: Wenn Bestellung bereits via BaseLinker existiert → nicht doppelt anlegen
+    - Neues Feld `source: 'ebay' | 'kaufland' | 'manual'` (BaseLinker wird Fallback, nicht Default)
+    - Deduplizierung: Marketplace-OrderID als Unique Key → keine Duplikate
+    - **Retouren gleich mitziehen:** eBay `GetReturnRequests` + Kaufland `GET /returns` direkt in `returns` Collection
     - **MT-PFLICHT:** Alle neuen Funktionen mit `{ tenantId, ...params }` Signatur
 
   - [ ] **OMS-A2: Eigene Status-Engine** — Unabhängig von BaseLinker Status-IDs
@@ -1224,10 +1363,15 @@
 
 ### Modul 9: Integrationen — Self-Service Integration Hub
 
-- [ ] **M9: Integrations-Hub — Echte Verbindungen, echte Auth-Flows, kein Fake** since 2026-03-05 (⚠️ UI existiert aber FAKE — Phase 4 #2 muss zuerst)
-  - ✅ `IntegrationsHub.tsx` erstellt — aber mit hardcodierten Cards und "Demnächst verfügbar"
-  - ⚠️ **Phase 4 #2 zuerst:** IntegrationsHub auf echte API-Calls umbauen (aktive Integrationen aus Backend)
-  - ⚠️ **KRITISCHSTER GAP FÜR SAAS:** Ohne Self-Service-Integrationen kann kein neuer Kunde AvyCloud nutzen
+- [ ] **M9: Integrations-Hub — Echte Verbindungen, echte Auth-Flows, kein Fake** since 2026-03-05 (⚠️ UI existiert aber KEINE Konfiguration möglich)
+  - ✅ `IntegrationsHub.tsx` zeigt 6 Karten mit Verbindungsstatus
+  - ✅ `GET /api/integrations/status` prüft ob Secrets vorhanden sind
+  - ❌ **KEIN Self-Service-Setup:** Man kann keine Integration verbinden oder konfigurieren
+  - ❌ **KEIN OAuth-Flow-Start** aus der UI (eBay OAuth existiert im Backend, aber kein Button im IntegrationsHub)
+  - ❌ **KEIN API-Key-Input-Modal** für Kaufland/BaseLinker/SendCloud/SevDesk
+  - ❌ **KEIN Integration-Settings-Panel** (Sync-Intervall, Was syncen, Fehler-Log)
+  - ⚠️ **KRITISCH FÜR OMS:** Ohne Self-Service-Integrationen kann das OMS keine Marketplace-Bestellungen empfangen. Modul 9 ist VORAUSSETZUNG für OMS Phase A.
+  - ⚠️ **KRITISCH FÜR SAAS:** Ohne Self-Service-Integrationen kann kein neuer Kunde AvyCloud nutzen
 
   ---
 

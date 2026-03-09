@@ -638,11 +638,48 @@ export interface IntegrationStatusEntry {
   name: string;
   description: string;
   category: string;
+  authType?: string;
   status: 'connected' | 'not_connected';
   connectedAt?: string | null;
   updatedAt?: string | null;
   lastRefreshedAt?: string | null;
   details?: Record<string, any>;
+  settings?: Record<string, any> | null;
+  connectedBy?: { uid: string; email: string } | null;
+  dependsOn?: string | null;
+}
+
+export interface IntegrationProvider {
+  id: string;
+  name: string;
+  description: string;
+  category: string;
+  authType: 'oauth2' | 'api_key' | 'none';
+  logo: string;
+  helpUrl?: string;
+  helpText?: string;
+  features?: string[];
+  fields?: Array<{ key: string; label: string; type: string; placeholder?: string; required?: boolean; minLength?: number }>;
+  dependsOn?: string | null;
+}
+
+export interface IntegrationDetail {
+  id: string;
+  name: string;
+  description: string;
+  category: string;
+  authType: string;
+  features?: string[];
+  helpUrl?: string;
+  helpText?: string;
+  fields?: Array<{ key: string; label: string; type: string; placeholder?: string; required?: boolean }>;
+  status: string;
+  settings?: Record<string, any> | null;
+  connectedAt?: string | null;
+  updatedAt?: string | null;
+  lastSync?: string | null;
+  lastError?: string | null;
+  connectedBy?: { uid: string; email: string } | null;
 }
 
 // ─── Order Settings API ──────────────────────────────────────
@@ -798,6 +835,70 @@ export async function fetchIntegrationStatus(): Promise<IntegrationStatusEntry[]
     throw new Error(data?.error?.message || 'Failed to load integration status');
   }
   return Array.isArray(data?.data) ? data.data : [];
+}
+
+export async function fetchIntegrationProviders(): Promise<IntegrationProvider[]> {
+  const res = await fetchApi(`${BACKEND_URL}/api/integrations/providers`, { method: 'GET' });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) {
+    throw new Error(data?.error?.message || 'Failed to load integration providers');
+  }
+  return Array.isArray(data?.data) ? data.data : [];
+}
+
+export async function fetchIntegrationDetail(type: string): Promise<IntegrationDetail> {
+  const res = await fetchApi(`${BACKEND_URL}/api/integrations/${type}`, { method: 'GET' });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) {
+    throw new Error(data?.error?.message || 'Failed to load integration detail');
+  }
+  return data?.data || {};
+}
+
+export async function connectIntegration(type: string, credentials: Record<string, string>): Promise<{ ok: boolean; testMessage?: string }> {
+  const res = await fetchApi(`${BACKEND_URL}/api/integrations/${type}/connect`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ credentials }),
+  });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) {
+    throw new Error(data?.error?.message || 'Verbindung fehlgeschlagen');
+  }
+  return data?.data || { ok: true };
+}
+
+export async function testIntegration(type: string, credentials?: Record<string, string>): Promise<{ ok: boolean; message: string }> {
+  const res = await fetchApi(`${BACKEND_URL}/api/integrations/${type}/test`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ credentials: credentials || null }),
+  });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) {
+    throw new Error(data?.error?.message || 'Test fehlgeschlagen');
+  }
+  return data?.data || { ok: false, message: 'Unbekannt' };
+}
+
+export async function updateIntegrationSettings(type: string, settings: Record<string, any>): Promise<void> {
+  const res = await fetchApi(`${BACKEND_URL}/api/integrations/${type}/settings`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ settings }),
+  });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) {
+    throw new Error(data?.error?.message || 'Einstellungen konnten nicht gespeichert werden');
+  }
+}
+
+export async function disconnectIntegration(type: string): Promise<void> {
+  const res = await fetchApi(`${BACKEND_URL}/api/integrations/${type}`, { method: 'DELETE' });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) {
+    throw new Error(data?.error?.message || 'Trennung fehlgeschlagen');
+  }
 }
 
 // ─── Shipments API ───────────────────────────────────────────

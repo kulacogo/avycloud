@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
-import { fetchIntegrationStatus } from "../api/client";
-import type { IntegrationStatusEntry } from "../api/client";
+import { fetchIntegrationStatus, fetchIntegrationProviders } from "../api/client";
+import type { IntegrationStatusEntry, IntegrationProvider } from "../api/client";
+import IntegrationWizard from "./IntegrationWizard";
 
 /* ─── Types ─── */
 type Category = "all" | "marketplaces" | "shipping" | "finance" | "other";
@@ -48,16 +49,25 @@ const StatusIndicator: React.FC<{ status: string; connectedAt?: string | null }>
 };
 
 /* ─── Integration Card ─── */
-const IntegrationCard: React.FC<{ integration: IntegrationStatusEntry }> = ({ integration }) => {
+interface IntegrationCardProps {
+  integration: IntegrationStatusEntry;
+  provider: IntegrationProvider | null;
+  onConfigure: () => void;
+}
+
+const IntegrationCard: React.FC<IntegrationCardProps> = ({ integration, provider, onConfigure }) => {
   const logo = LOGO_CONFIG[integration.id] || { letter: integration.name.charAt(0), color: "bg-accent" };
   const isConnected = integration.status === "connected";
+  const isConfigurable = provider?.authType === "oauth2" || provider?.authType === "api_key";
+  const isDependency = provider?.authType === "none";
 
   return (
     <div
       className={`
-        relative bg-app-surface rounded-xl border transition-all hover:shadow-md
+        relative bg-app-surface rounded-xl border transition-all hover:shadow-md cursor-pointer group
         ${isConnected ? "border-success/30 border-t-2 border-t-success" : "border-app-border hover:border-accent/40"}
       `}
+      onClick={onConfigure}
     >
       <div className="p-5">
         {/* Logo + Name + Description */}
@@ -67,10 +77,17 @@ const IntegrationCard: React.FC<{ integration: IntegrationStatusEntry }> = ({ in
           >
             {logo.letter}
           </div>
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <h3 className="text-sm font-semibold text-txt-primary truncate">{integration.name}</h3>
             <p className="text-xs text-txt-muted mt-0.5 line-clamp-2">{integration.description}</p>
           </div>
+          {/* Configure icon */}
+          <svg
+            className="w-4 h-4 text-txt-muted/0 group-hover:text-txt-muted transition-colors shrink-0 mt-0.5"
+            fill="none" viewBox="0 0 24 24" stroke="currentColor"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
         </div>
 
         {/* Status */}
@@ -98,11 +115,22 @@ const IntegrationCard: React.FC<{ integration: IntegrationStatusEntry }> = ({ in
           </div>
         )}
 
+        {/* Dependency note */}
+        {isDependency && integration.dependsOn && (
+          <div className="mb-4">
+            <span className="text-[11px] text-txt-muted">via {integration.dependsOn}</span>
+          </div>
+        )}
+
         {/* Action */}
         <div className="flex items-center gap-2">
           {isConnected ? (
             <span className="flex-1 px-3 py-1.5 text-xs font-medium rounded-lg bg-success-dim text-success text-center">
               Aktiv
+            </span>
+          ) : isConfigurable ? (
+            <span className="flex-1 px-3 py-1.5 text-xs font-medium rounded-lg bg-accent/10 text-accent text-center group-hover:bg-accent group-hover:text-white transition-colors">
+              Verbinden
             </span>
           ) : (
             <span className="flex-1 px-3 py-1.5 text-xs font-medium rounded-lg bg-app-elevated text-txt-muted text-center">
@@ -119,15 +147,21 @@ const IntegrationCard: React.FC<{ integration: IntegrationStatusEntry }> = ({ in
 export const IntegrationsHub: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Category>("all");
   const [integrations, setIntegrations] = useState<IntegrationStatusEntry[]>([]);
+  const [providers, setProviders] = useState<IntegrationProvider[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [wizardProvider, setWizardProvider] = useState<IntegrationProvider | null>(null);
 
-  const loadStatus = useCallback(async () => {
+  const loadData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const data = await fetchIntegrationStatus();
-      setIntegrations(data);
+      const [statusData, providerData] = await Promise.all([
+        fetchIntegrationStatus(),
+        fetchIntegrationProviders().catch(() => []),
+      ]);
+      setIntegrations(statusData);
+      setProviders(providerData);
     } catch (err: any) {
       setError(err.message || "Fehler beim Laden der Integrationen");
     } finally {
@@ -136,8 +170,8 @@ export const IntegrationsHub: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    loadStatus();
-  }, [loadStatus]);
+    loadData();
+  }, [loadData]);
 
   const connectedCount = useMemo(
     () => integrations.filter((i) => i.status === "connected").length,
@@ -148,6 +182,26 @@ export const IntegrationsHub: React.FC = () => {
     () => activeTab === "all" ? integrations : integrations.filter((i) => i.category === activeTab),
     [integrations, activeTab]
   );
+
+  const providerMap = useMemo(
+    () => new Map(providers.map((p) => [p.id, p])),
+    [providers]
+  );
+
+  const openWizard = useCallback((integrationId: string) => {
+    const provider = providerMap.get(integrationId);
+    if (provider) {
+      setWizardProvider(provider);
+    }
+  }, [providerMap]);
+
+  const closeWizard = useCallback(() => {
+    setWizardProvider(null);
+  }, []);
+
+  const handleWizardSuccess = useCallback(() => {
+    loadData();
+  }, [loadData]);
 
   // Loading state
   if (loading) {
@@ -172,7 +226,7 @@ export const IntegrationsHub: React.FC = () => {
           <p className="text-danger font-semibold mb-2">Fehler beim Laden der Integrationen</p>
           <p className="text-txt-secondary text-sm mb-4">{error}</p>
           <button
-            onClick={loadStatus}
+            onClick={loadData}
             className="px-4 py-2 bg-accent text-white rounded-lg text-sm font-medium hover:opacity-90 transition-opacity"
           >
             Erneut versuchen
@@ -193,7 +247,7 @@ export const IntegrationsHub: React.FC = () => {
           </span>
         </div>
         <p className="mt-1 text-sm text-txt-secondary">
-          Übersicht aller aktiven Integrationen und deren Verbindungsstatus.
+          Verbinde Marktplätze, Versanddienstleister und Buchhaltungssoftware mit AvyCloud.
         </p>
       </div>
 
@@ -222,7 +276,12 @@ export const IntegrationsHub: React.FC = () => {
       <div className="px-6 pb-8">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {filtered.map((integration) => (
-            <IntegrationCard key={integration.id} integration={integration} />
+            <IntegrationCard
+              key={integration.id}
+              integration={integration}
+              provider={providerMap.get(integration.id) || null}
+              onConfigure={() => openWizard(integration.id)}
+            />
           ))}
         </div>
 
@@ -232,6 +291,16 @@ export const IntegrationsHub: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Integration Wizard Modal */}
+      {wizardProvider && (
+        <IntegrationWizard
+          provider={wizardProvider}
+          currentStatus={integrations.find((i) => i.id === wizardProvider.id) || null}
+          onClose={closeWizard}
+          onSuccess={handleWizardSuccess}
+        />
+      )}
     </div>
   );
 };

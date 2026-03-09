@@ -5,6 +5,20 @@
 
 ---
 
+## Workflow — Source of Truth
+
+> **`TASKS.md` ist die EINZIGE Source of Truth für alle Tasks, Sprint-Anweisungen und Feature-Status.**
+>
+> **Beim Start einer Session:**
+> 1. Lies `CLAUDE.md` (diese Datei) — Projektregeln, Architektur, Safety-Rules
+> 2. Lies `TASKS.md` — offene Tasks, Sprint-Blöcke, Feature-Übersicht, Modulpläne
+> 3. Arbeite die offenen Tasks/Sprint-Blöcke in TASKS.md ab
+>
+> **KEINE separaten Sprint-Prompt-Dateien.** Alles steht in TASKS.md.
+> **KEINE separaten Feature-Status-Dateien.** Feature-Übersicht steht in TASKS.md.
+
+---
+
 ## Projekt-Übersicht
 
 AvyCloud ist ein Product Intelligence Hub für E-Commerce: KI-gestützte Produkterkennung, Multi-Marktplatz-Sync (eBay, Kaufland, BaseLinker), Lagerverwaltung und Auftragsabwicklung.
