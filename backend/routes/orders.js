@@ -1331,8 +1331,6 @@ router.post('/orders/:orderId/cancel-label', requirePermission('orders', 'write'
   try {
     const { orderId } = req.params;
     const tenantId = req.user?.tenantId || 'default';
-    const db = require('@google-cloud/firestore');
-    const firestore = new db.Firestore();
 
     // Find active shipment for this order
     const snap = await firestore.collection('shipments')
@@ -1578,8 +1576,6 @@ router.put('/orders/:orderId', requirePermission('orders', 'write'), async (req,
 router.get('/orders/:orderId/label', requirePermission('orders', 'read'), async (req, res) => {
   try {
     const { orderId } = req.params;
-    const db = require('@google-cloud/firestore');
-    const firestore = new db.Firestore();
 
     // Find shipment for this order
     const snap = await firestore.collection('shipments')

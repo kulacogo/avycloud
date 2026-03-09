@@ -1503,18 +1503,22 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
               `${selectedItem.orderNumber || selectedItem.orderId} verpackt — Versandlabel nicht möglich (Adresse unvollständig).`
             );
           } else {
+            // Pre-open window BEFORE async work to avoid popup blocker
+            const printWindow = window.open('about:blank', '_blank');
+
             // Pack + Ship + Print label
             const result = await packAndShip(selectedItem.orderId, weightOpt);
-            if (result.labelBlobUrl) {
-              // Open PDF in new tab for printing (blob URL avoids SendCloud auth issue)
-              const printWindow = window.open(result.labelBlobUrl, '_blank');
-              if (printWindow) {
-                printWindow.addEventListener('afterprint', () => URL.revokeObjectURL(result.labelBlobUrl!));
-              }
+            if (result.labelBlobUrl && printWindow) {
+              // Navigate pre-opened window to the PDF blob URL
+              printWindow.location.href = result.labelBlobUrl;
+              // Revoke blob URL after 60s to free memory
+              setTimeout(() => URL.revokeObjectURL(result.labelBlobUrl!), 60000);
               setPackMessage(
                 `${selectedItem.orderNumber || selectedItem.orderId} verpackt & Label erstellt (${result.carrier || '?'}) — Druckdialog geöffnet.`
               );
             } else {
+              // Close the blank tab if no label available
+              if (printWindow) printWindow.close();
               setPackMessage(
                 `${selectedItem.orderNumber || selectedItem.orderId} verpackt & versendet — kein Label-PDF verfügbar.`
               );

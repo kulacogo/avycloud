@@ -38,11 +38,13 @@ const EBAY_CARRIER_MAP = {
 const KAUFLAND_CARRIER_MAP = {
   dhl: 'DHL',
   'dhl-de': 'DHL',
+  dhl_express: 'DHL_EXPRESS',
   dpd: 'DPD',
   'dpd-de': 'DPD',
   hermes: 'HERMES',
   gls: 'GLS',
   ups: 'UPS',
+  deutsche_post: 'DEUTSCHE_POST',
 };
 
 /**
@@ -63,7 +65,8 @@ async function pushTrackingToMarketplace({ orderId, trackingNumber, carrier }) {
   if (!orderSnap.exists) return { ok: false, error: 'Order not found' };
 
   const order = orderSnap.data();
-  const marketplace = (order.marketplace || order.source || '').toLowerCase();
+  // Check marketplace, orderSource (from BaseLinker sync), then source
+  const marketplace = (order.marketplace || order.orderSource || '').toLowerCase();
 
   if (marketplace === 'ebay') {
     return pushTrackingToEbay({ order, trackingNumber, carrier });
@@ -83,14 +86,14 @@ async function pushTrackingToMarketplace({ orderId, trackingNumber, carrier }) {
  */
 async function pushTrackingToEbay({ order, trackingNumber, carrier }) {
   try {
-    const { callTradingApi, buildRequestRoot } = require('../lib/ebay-trading-api');
+    const { callTradingApi, buildRequestRoot, getEbayTradingConfig } = require('../lib/ebay-trading-api');
 
     const ebayOrderId = order.marketplaceOrderId || order.externalOrderId;
     if (!ebayOrderId) return { ok: false, marketplace: 'ebay', error: 'No eBay order ID' };
 
     const ebayCarrier = EBAY_CARRIER_MAP[(carrier || '').toLowerCase()] || carrier || 'Other';
 
-    // CompleteSale marks the order as shipped and adds tracking
+    // Build inner XML for CompleteSale
     const innerXml = `
   <OrderID>${escapeXml(ebayOrderId)}</OrderID>
   <Shipped>true</Shipped>
@@ -101,7 +104,11 @@ async function pushTrackingToEbay({ order, trackingNumber, carrier }) {
     </ShipmentTrackingDetails>
   </Shipment>`;
 
-    const result = await callTradingApi('CompleteSale', innerXml);
+    // Wrap in SOAP envelope with auth token
+    const cfg = await getEbayTradingConfig();
+    const fullXml = buildRequestRoot('CompleteSale', innerXml, cfg.userToken, cfg.compatibilityLevel);
+
+    const result = await callTradingApi('CompleteSale', fullXml);
     console.log(`[marketplace-tracking] eBay CompleteSale for order ${ebayOrderId}: Ack=${result.ack}`);
 
     return { ok: true, marketplace: 'ebay' };

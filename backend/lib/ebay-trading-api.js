@@ -914,6 +914,7 @@ async function fetchTradingStatus() {
 
 module.exports = {
   getEbayTradingConfig,
+  buildRequestRoot,
   fetchTradingStatus,
   callTradingApi,
   getMyeBaySellingActive,

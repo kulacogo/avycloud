@@ -147,6 +147,7 @@ function mapBaseLinkerOrder(entry) {
       ean: product?.ean || null,
       priceBrutto: Number(product?.price_brutto || product?.price || 0),
       currency: entry?.currency || 'EUR',
+      weight: product?.weight ? Number(product.weight) : null, // kg
     }))
     : [];
 
@@ -158,6 +159,8 @@ function mapBaseLinkerOrder(entry) {
     baselinkerOrderKey: sourceScopedOrderKey,
     orderSource: orderSource || null,
     orderSourceId,
+    marketplace: orderSource ? orderSource.toLowerCase() : null,
+    marketplaceOrderId: entry?.external_order_id || null,
     source: 'baselinker',
     status: 'new',
     statusLabel: resolvedStatusLabel,
