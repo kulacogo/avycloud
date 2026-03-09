@@ -3,6 +3,15 @@ import { fetchOrderSettings, saveOrderSettings, runRepricingBatch, fetchPricingR
 import { useToast } from "../../context/ToastContext";
 
 /* ─── Types ─── */
+interface CarrierRule {
+  id: string;
+  minWeight: number;
+  maxWeight: number;
+  shippingMethodId: number;
+  carrier: string;
+  label: string;
+}
+
 interface AutomationRule {
   id: string;
   label: string;
@@ -28,6 +37,13 @@ interface DocTemplate {
 }
 
 /* ─── Default values for first-time setup ─── */
+const DEFAULT_CARRIER_RULES: CarrierRule[] = [
+  { id: "cr-1", minWeight: 0.5, maxWeight: 1.99, shippingMethodId: 0, carrier: "dhl", label: "DHL Kleinpaket" },
+  { id: "cr-2", minWeight: 2, maxWeight: 4.99, shippingMethodId: 0, carrier: "dpd", label: "DPD Classic 0-5 kg" },
+  { id: "cr-3", minWeight: 5, maxWeight: 9.99, shippingMethodId: 0, carrier: "dpd", label: "DPD Classic 5-10 kg" },
+  { id: "cr-4", minWeight: 10, maxWeight: 31.5, shippingMethodId: 0, carrier: "dpd", label: "DPD Classic 10-20 kg" },
+];
+
 const DEFAULT_RULES: AutomationRule[] = [
   { id: "rule-1", label: "Wenn Zahlung eingegangen → Status 'Bestätigt'", enabled: true },
   { id: "rule-2", label: "Wenn alle Items gepickt → Status 'Kommissioniert'", enabled: true },
@@ -79,6 +95,7 @@ const Toggle: React.FC<{ enabled: boolean; onChange: () => void }> = ({ enabled,
 /* ─── Main Component ─── */
 export const OrderSettingsView: React.FC = () => {
   const [rules, setRules] = useState<AutomationRule[]>([]);
+  const [carrierRules, setCarrierRules] = useState<CarrierRule[]>(DEFAULT_CARRIER_RULES);
   const [statuses, setStatuses] = useState<OrderStatusConfig[]>([]);
   const [numberRanges, setNumberRanges] = useState<Record<string, NumberRange>>(DEFAULT_NUMBER_RANGES);
   const [templates, setTemplates] = useState<DocTemplate[]>([]);
@@ -97,6 +114,7 @@ export const OrderSettingsView: React.FC = () => {
     try {
       const data = await fetchOrderSettings();
       setRules(data.rules?.length ? data.rules : DEFAULT_RULES);
+      setCarrierRules(data.carrierRules?.length ? data.carrierRules : DEFAULT_CARRIER_RULES);
       setStatuses(data.statuses?.length ? data.statuses : DEFAULT_STATUSES);
       if (data.numberRanges && Object.keys(data.numberRanges).length > 0) {
         setNumberRanges(data.numberRanges);
@@ -130,6 +148,23 @@ export const OrderSettingsView: React.FC = () => {
     ]);
   };
 
+  const updateCarrierRule = (id: string, field: keyof CarrierRule, value: string | number) => {
+    setCarrierRules((prev) =>
+      prev.map((r) => (r.id === id ? { ...r, [field]: value } : r))
+    );
+  };
+
+  const addCarrierRule = () => {
+    setCarrierRules((prev) => [
+      ...prev,
+      { id: `cr-${Date.now()}`, minWeight: 0, maxWeight: 0, shippingMethodId: 0, carrier: "dhl", label: "Neue Regel" },
+    ]);
+  };
+
+  const removeCarrierRule = (id: string) => {
+    setCarrierRules((prev) => prev.filter((r) => r.id !== id));
+  };
+
   const updateRange = (key: string, field: keyof NumberRange, value: string) => {
     setNumberRanges((prev) => ({
       ...prev,
@@ -142,7 +177,7 @@ export const OrderSettingsView: React.FC = () => {
     setError(null);
     setSaveSuccess(false);
     try {
-      await saveOrderSettings({ rules, statuses, numberRanges, templates });
+      await saveOrderSettings({ rules, statuses, numberRanges, templates, carrierRules });
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);
     } catch (err: any) {
@@ -196,7 +231,103 @@ export const OrderSettingsView: React.FC = () => {
         </div>
       </div>
 
-      {/* Section 2: Status-Konfiguration */}
+      {/* Section 2: Versandregeln */}
+      <div className="rounded-xl border border-app-border bg-app-surface p-6">
+        <SectionHeader
+          title="Versandregeln"
+          description="Automatische Carrier-Zuordnung nach Gewicht. Die SendCloud Shipping Method ID findest du in deinem SendCloud-Konto."
+        />
+        <div className="space-y-3">
+          {/* Header */}
+          <div className="grid grid-cols-12 gap-2 px-2 text-xs font-semibold text-txt-muted">
+            <div className="col-span-2">Min (kg)</div>
+            <div className="col-span-2">Max (kg)</div>
+            <div className="col-span-2">Carrier</div>
+            <div className="col-span-2">Method ID</div>
+            <div className="col-span-3">Bezeichnung</div>
+            <div className="col-span-1" />
+          </div>
+          {carrierRules.map((rule) => (
+            <div key={rule.id} className="grid grid-cols-12 gap-2 items-center rounded-xl border border-app-border bg-app-bg px-2 py-2">
+              <div className="col-span-2">
+                <input
+                  type="number"
+                  step="0.01"
+                  value={rule.minWeight}
+                  onChange={(e) => updateCarrierRule(rule.id, "minWeight", parseFloat(e.target.value) || 0)}
+                  className="w-full rounded-lg border border-app-border bg-app-bg px-2 py-1.5 text-sm text-txt-primary focus:outline-none focus:ring-1 focus:ring-accent"
+                />
+              </div>
+              <div className="col-span-2">
+                <input
+                  type="number"
+                  step="0.01"
+                  value={rule.maxWeight}
+                  onChange={(e) => updateCarrierRule(rule.id, "maxWeight", parseFloat(e.target.value) || 0)}
+                  className="w-full rounded-lg border border-app-border bg-app-bg px-2 py-1.5 text-sm text-txt-primary focus:outline-none focus:ring-1 focus:ring-accent"
+                />
+              </div>
+              <div className="col-span-2">
+                <select
+                  value={rule.carrier}
+                  onChange={(e) => updateCarrierRule(rule.id, "carrier", e.target.value)}
+                  className="w-full rounded-lg border border-app-border bg-app-bg px-2 py-1.5 text-sm text-txt-primary focus:outline-none focus:ring-1 focus:ring-accent"
+                >
+                  <option value="dhl">DHL</option>
+                  <option value="dpd">DPD</option>
+                  <option value="gls">GLS</option>
+                  <option value="hermes">Hermes</option>
+                  <option value="ups">UPS</option>
+                  <option value="dhl_express">DHL Express</option>
+                </select>
+              </div>
+              <div className="col-span-2">
+                <input
+                  type="number"
+                  value={rule.shippingMethodId}
+                  onChange={(e) => updateCarrierRule(rule.id, "shippingMethodId", parseInt(e.target.value) || 0)}
+                  placeholder="z.B. 89"
+                  className="w-full rounded-lg border border-app-border bg-app-bg px-2 py-1.5 text-sm text-txt-primary focus:outline-none focus:ring-1 focus:ring-accent"
+                />
+              </div>
+              <div className="col-span-3">
+                <input
+                  type="text"
+                  value={rule.label}
+                  onChange={(e) => updateCarrierRule(rule.id, "label", e.target.value)}
+                  className="w-full rounded-lg border border-app-border bg-app-bg px-2 py-1.5 text-sm text-txt-primary focus:outline-none focus:ring-1 focus:ring-accent"
+                />
+              </div>
+              <div className="col-span-1 flex justify-center">
+                <button
+                  type="button"
+                  onClick={() => removeCarrierRule(rule.id)}
+                  className="text-txt-muted hover:text-danger transition p-1"
+                  title="Regel entfernen"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          ))}
+          <button
+            type="button"
+            onClick={addCarrierRule}
+            className="w-full rounded-xl border border-dashed border-app-border bg-app-bg p-3 text-sm text-txt-muted hover:text-txt-secondary hover:border-txt-muted transition text-center"
+          >
+            + Versandregel hinzufügen
+          </button>
+        </div>
+        {carrierRules.some((r) => r.shippingMethodId === 0) && (
+          <div className="mt-3 bg-warning-dim border border-app-border rounded-lg px-3 py-2 text-xs text-warning">
+            Hinweis: Einige Regeln haben noch keine SendCloud Method ID. Bitte trage die korrekten IDs aus deinem SendCloud-Konto ein.
+          </div>
+        )}
+      </div>
+
+      {/* Section 3: Status-Konfiguration */}
       <div className="rounded-xl border border-app-border bg-app-surface p-6">
         <SectionHeader title="Status-Konfiguration" description="Auftragsstatus definieren und anpassen" />
         <div className="space-y-2">

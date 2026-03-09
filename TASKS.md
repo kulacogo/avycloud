@@ -40,7 +40,9 @@
 >
 > **🔴 NÄCHSTER SPRINT — OFFEN:**
 > - ~~**BUG-019: Marketplace-Listings zeigen Produkte ohne Lagerbestand**~~ ✅
+> - ~~**BUG-021: Versandlabel-Erstellung fehlgeschlagen (Adresse leer)**~~ ✅ — Adress-Validation + Fallback-Felder, konfigurierbare Versandregeln (Gewicht → DHL/DPD)
 > - **BUG-020: Retouren prüfen** — Returns-Engine (eBay + Kaufland) ist implementiert, aber Status muss verifiziert werden (Sync auslösen, Daten prüfen)
+> - **Versandregeln: SendCloud Method IDs eintragen** — Default-Regeln angelegt, aber die konkreten SendCloud Shipping Method IDs müssen noch aus dem SendCloud-Konto eingetragen werden
 > - ~~Deduplizierung: Merge-UI + Auto-Merge~~ ✅
 > - ~~Bulk-Import/Export (CSV/Excel)~~ ✅
 > - ~~E-Mail-Templates~~ ✅

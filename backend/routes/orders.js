@@ -961,12 +961,27 @@ router.get('/orders/settings', async (req, res) => {
 router.put('/orders/settings', async (req, res) => {
   try {
     const tenantId = getOrderSettingsTenantId(req);
-    const { rules, statuses, numberRanges, templates } = req.body;
+    const { rules, statuses, numberRanges, templates, carrierRules } = req.body;
     const data = { tenantId, updatedAt: new Date().toISOString(), updatedBy: req.user?.uid || null };
     if (rules !== undefined) data.rules = rules;
     if (statuses !== undefined) data.statuses = statuses;
     if (numberRanges !== undefined) data.numberRanges = numberRanges;
     if (templates !== undefined) data.templates = templates;
+    if (carrierRules !== undefined) {
+      // Validate carrier rules structure
+      if (!Array.isArray(carrierRules)) {
+        return res.status(400).json({ ok: false, error: { code: 'INVALID_INPUT', message: 'carrierRules muss ein Array sein' } });
+      }
+      for (const rule of carrierRules) {
+        if (!rule.maxWeight || !rule.shippingMethodId || !rule.carrier) {
+          return res.status(400).json({
+            ok: false,
+            error: { code: 'INVALID_INPUT', message: 'Jede Versandregel braucht: maxWeight, shippingMethodId, carrier' },
+          });
+        }
+      }
+      data.carrierRules = carrierRules;
+    }
 
     await firestore.collection('order_settings').doc(tenantId).set(data, { merge: true });
     res.json({ ok: true, data });
@@ -1251,6 +1266,21 @@ router.get('/orders/sequences', requirePermission('orders', 'read'), async (req,
 });
 
 // ── OMS-B: Shipping & Invoices ──────────────────────────────────────
+
+/**
+ * GET /api/shipping-methods — List available SendCloud shipping methods.
+ * Used by admin UI to configure carrier rules with correct method IDs.
+ */
+router.get('/shipping-methods', requirePermission('orders', 'read'), async (req, res) => {
+  try {
+    const { getShippingMethods } = require('../services/shipping-engine');
+    const methods = await getShippingMethods();
+    res.json({ ok: true, data: methods });
+  } catch (err) {
+    console.error(`[GET /api/shipping-methods] ${err.message}`, err);
+    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: err.message } });
+  }
+});
 
 /**
  * POST /api/orders/:orderId/ship — Create shipping label via SendCloud.

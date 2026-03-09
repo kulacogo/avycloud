@@ -686,6 +686,14 @@ export interface IntegrationDetail {
 
 export interface OrderSettingsData {
   rules?: Array<{ id: string; label: string; enabled: boolean }>;
+  carrierRules?: Array<{
+    id: string;
+    minWeight: number;
+    maxWeight: number;
+    shippingMethodId: number;
+    carrier: string;
+    label: string;
+  }>;
   statuses?: Array<{ id: string; name: string; description: string; color: string }>;
   numberRanges?: Record<string, { prefix: string; startNumber: string }>;
   templates?: Array<{ id: string; name: string; lastEdited: string }>;

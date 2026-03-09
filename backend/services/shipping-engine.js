@@ -73,19 +73,46 @@ async function createParcel({
   const customer = order.customer || {};
   const auth = await getSendCloudAuth();
 
+  // Resolve address fields — try multiple field names for robustness
+  const addressStr = customer.street
+    || customer.address
+    || customer.address_1
+    || customer.strasse
+    || [customer.streetName, customer.houseNumber].filter(Boolean).join(' ')
+    || '';
+  const cityStr = customer.city || customer.ort || '';
+  const zipStr = customer.zip || customer.postal_code || customer.postcode || customer.plz || '';
+  const nameStr = customer.name
+    || [customer.firstName, customer.lastName].filter(Boolean).join(' ')
+    || 'Unbekannt';
+
+  // Validate required fields before calling SendCloud
+  const missingFields = [];
+  if (!addressStr.trim()) missingFields.push('Straße (customer.street)');
+  if (!cityStr.trim()) missingFields.push('Stadt (customer.city)');
+  if (!zipStr.trim()) missingFields.push('PLZ (customer.zip)');
+  if (!nameStr.trim() || nameStr === 'Unbekannt') missingFields.push('Name (customer.name)');
+
+  if (missingFields.length > 0) {
+    throw new Error(
+      `Versandlabel kann nicht erstellt werden — fehlende Adressdaten: ${missingFields.join(', ')}. ` +
+      `Bitte Kundendaten im Auftrag vervollständigen.`
+    );
+  }
+
   // Calculate total weight from items if not provided
   const totalWeight = weight || calculateOrderWeight(order);
 
   // Build parcel payload per SendCloud API v2
   const parcelData = {
     parcel: {
-      name: customer.name || 'Unbekannt',
-      address: customer.street || '',
-      city: customer.city || '',
-      postal_code: customer.zip || '',
-      country: customer.country || 'DE',
+      name: nameStr,
+      address: addressStr,
+      city: cityStr,
+      postal_code: zipStr,
+      country: customer.country || customer.countryCode || 'DE',
       email: customer.email || '',
-      telephone: customer.phone || '',
+      telephone: customer.phone || customer.telephone || '',
       order_number: order.orderId || order.id || '',
       weight: String(Math.round((totalWeight || 0.5) * 1000)), // grams
       request_label: requestLabel,
@@ -225,7 +252,12 @@ function calculateOrderWeight(order) {
 /**
  * Match shipping method based on carrier rules from order_settings.
  *
- * Rules: { maxWeight: number, shippingMethodId: number, carrier: string, label: string }
+ * Rules format:
+ *   { minWeight?: number, maxWeight: number, shippingMethodId: number, carrier: string, label: string }
+ *
+ * Example rules:
+ *   { minWeight: 0.5, maxWeight: 1.99, shippingMethodId: 89, carrier: 'dhl', label: 'DHL Kleinpaket' }
+ *   { minWeight: 2,   maxWeight: 4.99, shippingMethodId: 201, carrier: 'dpd', label: 'DPD Classic 0-5 kg' }
  *
  * @param {{ weight: number, rules: object[] }} opts
  * @returns {{ shippingMethodId: number, carrier: string, label: string } | null}
@@ -233,10 +265,14 @@ function calculateOrderWeight(order) {
 function matchCarrierRule({ weight, rules }) {
   if (!Array.isArray(rules) || rules.length === 0) return null;
 
-  // Sort by maxWeight ascending, pick the first rule where weight fits
+  // Sort by maxWeight ascending
   const sorted = [...rules].sort((a, b) => (a.maxWeight || 0) - (b.maxWeight || 0));
+
+  // Find first rule where weight is within [minWeight, maxWeight]
   for (const rule of sorted) {
-    if (weight <= (rule.maxWeight || Infinity)) {
+    const min = rule.minWeight || 0;
+    const max = rule.maxWeight || Infinity;
+    if (weight >= min && weight <= max) {
       return {
         shippingMethodId: rule.shippingMethodId,
         carrier: rule.carrier || 'unknown',
@@ -245,13 +281,18 @@ function matchCarrierRule({ weight, rules }) {
     }
   }
 
-  // If weight exceeds all rules, use the largest
+  // Fallback: if weight exceeds all rules, use the largest rule
   const last = sorted[sorted.length - 1];
-  return {
-    shippingMethodId: last.shippingMethodId,
-    carrier: last.carrier || 'unknown',
-    label: last.label || last.carrier || 'Standard',
-  };
+  if (weight > (last.maxWeight || 0)) {
+    return {
+      shippingMethodId: last.shippingMethodId,
+      carrier: last.carrier || 'unknown',
+      label: last.label || last.carrier || 'Standard',
+    };
+  }
+
+  // Weight below all rules (e.g. under minimum) — no match
+  return null;
 }
 
 /**
@@ -276,14 +317,24 @@ async function shipOrder({ orderId, tenantId = 'default', shippingMethodId, weig
 
   // Auto-select shipping method from rules if not provided
   let methodId = shippingMethodId;
+  let matchedRule = null;
   if (!methodId) {
     const settingsSnap = await db.collection('order_settings').doc(tenantId).get();
     const settings = settingsSnap.exists ? settingsSnap.data() : {};
     const rules = settings.carrierRules || [];
-    const matched = matchCarrierRule({ weight: orderWeight, rules });
-    if (matched) {
-      methodId = matched.shippingMethodId;
+    if (rules.length === 0) {
+      throw new Error(
+        'Keine Versandregeln konfiguriert. Bitte unter Einstellungen → Versandregeln Carrier-Regeln hinterlegen.'
+      );
     }
+    matchedRule = matchCarrierRule({ weight: orderWeight, rules });
+    if (!matchedRule) {
+      throw new Error(
+        `Keine passende Versandregel für Gewicht ${orderWeight.toFixed(2)} kg gefunden. ` +
+        `Bitte Versandregeln prüfen oder Gewicht korrigieren.`
+      );
+    }
+    methodId = matchedRule.shippingMethodId;
   }
 
   // Create parcel in SendCloud
