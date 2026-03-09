@@ -1602,6 +1602,21 @@ async function listLiveListings({
   linkDocs.forEach((doc) => linkMap.set(doc.id, doc.exists ? doc.data() || null : null));
   gapDocs.forEach((doc) => gapMap.set(doc.id, doc.exists ? doc.data() || null : null));
 
+  // 4) Batch-fetch linked products from products_v2 for warehouse stock enrichment
+  const uniqueProductIds = [...new Set(
+    [...linkMap.values()]
+      .filter((v) => v?.productId)
+      .map((v) => String(v.productId))
+  )];
+  const productMap = new Map();
+  if (uniqueProductIds.length > 0) {
+    const prodRefs = uniqueProductIds.map((id) => firestore.collection('products_v2').doc(id));
+    const prodDocs = await batchGetAll(prodRefs);
+    prodDocs.forEach((doc) => {
+      if (doc.exists) productMap.set(doc.id, doc.data() || {});
+    });
+  }
+
   const filteredSearch = safeLower(search);
   const rows = listings
     .map((listing) => {
@@ -1610,6 +1625,17 @@ async function listLiveListings({
       const gaps = Array.isArray(gapDoc?.gaps) ? gapDoc.gaps : [];
       const severityCritical = gaps.filter((g) => safeLower(g?.severity) === 'critical').length;
       const readyCount = gaps.filter((g) => safeLower(g?.status) === 'ready_to_sync').length;
+
+      // Warehouse stock enrichment
+      const prodId = link?.productId ? String(link.productId) : null;
+      const prod = prodId ? productMap.get(prodId) || null : null;
+      const bins = Array.isArray(prod?.storageBins) ? prod.storageBins : [];
+      const whStock = bins.reduce((sum, b) => sum + (Number(b?.quantity) || 0), 0)
+        || (typeof prod?.inventory?.availableQuantity === 'number' ? prod.inventory.availableQuantity : null);
+      const binLoc = bins.length > 0 ? (bins[0]?.code || null) : (prod?.storage?.binCode || null);
+      const mpQty = typeof listing.quantityAvailable === 'number' ? listing.quantityAvailable : null;
+      const mismatch = typeof whStock === 'number' && mpQty !== null && whStock !== mpQty;
+
       return {
         itemId: listing.itemId,
         sku: listing.sku || null,
@@ -1633,6 +1659,9 @@ async function listLiveListings({
         currency: listing.currency || null,
         quantityAvailable: typeof listing.quantityAvailable === 'number' ? listing.quantityAvailable : null,
         categoryName: listing.categoryName || listing.primaryCategoryName || null,
+        warehouseStock: typeof whStock === 'number' ? whStock : null,
+        binLocation: binLoc,
+        stockMismatch: mismatch,
       };
     })
     .filter((row) => {

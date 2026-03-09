@@ -972,13 +972,21 @@ router.get('/kaufland/listings', requirePermission('products', 'read'), async (r
       const updatedAtRaw = d.updatedAt;
       const updatedAtIso = updatedAtRaw?.toDate?.()?.toISOString?.() || (typeof updatedAtRaw === 'string' ? updatedAtRaw : null);
 
+      // Warehouse stock enrichment
+      const bins = Array.isArray(matched?.storageBins) ? matched.storageBins : [];
+      const whStock = bins.reduce((sum, b) => sum + (Number(b?.quantity) || 0), 0)
+        || (typeof matched?.inventory?.availableQuantity === 'number' ? matched.inventory.availableQuantity : null);
+      const binLoc = bins.length > 0 ? (bins[0]?.code || null) : (matched?.storage?.binCode || null);
+      const mpQty = Number.isFinite(Number(d.amount)) ? Number(d.amount) : null;
+      const mismatch = typeof whStock === 'number' && mpQty !== null && whStock !== mpQty;
+
       rows.push({
         idUnit: doc.id,
         sku: unitSku || null,
         ean: unitEan || null,
         status: d.status || null,
         active: d.active === true,
-        quantity: Number.isFinite(Number(d.amount)) ? Number(d.amount) : null,
+        quantity: mpQty,
         idProduct: Number.isFinite(Number(d.id_product)) ? Number(d.id_product) : null,
         viewItemUrl: d.view_item_url || null,
         updatedAt: updatedAtIso,
@@ -989,6 +997,9 @@ router.get('/kaufland/listings', requirePermission('products', 'read'), async (r
         price: matched?.details?.pricing?.sellPrice ?? klPrice ?? null,
         imageUrl: matched?.details?.images?.[0]?.url_or_base64 || matched?.details?.images?.[0]?.url || null,
         category: matched?.details?.category || null,
+        warehouseStock: typeof whStock === 'number' ? whStock : null,
+        binLocation: binLoc,
+        stockMismatch: mismatch,
       });
     });
 

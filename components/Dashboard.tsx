@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { DashboardMetrics, FinanceMetrics, Product } from '../types';
-import { fetchDashboardMetrics, fetchFinanceMetrics, fetchSyncStatus, type SyncStatusData } from '../api/client';
+import { fetchDashboardMetrics, fetchFinanceMetrics, fetchSyncStatus, fetchReorderAlerts, type SyncStatusData } from '../api/client';
 import {
   getProductAvailableQuantity,
   getProductPhysicalQuantity,
@@ -523,6 +523,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const [syncStatus, setSyncStatus] = useState<SyncStatusData | null>(null);
   const [syncLoading, setSyncLoading] = useState(true);
   const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
+  const [reorderAlerts, setReorderAlerts] = useState<any[]>([]);
+  const [alertsLoading, setAlertsLoading] = useState(true);
   const loadingRef = useRef(false);
 
   const [internalPreset, setInternalPreset] = useState('month_to_date');
@@ -558,10 +560,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
     const fromDate = activePreset === 'custom' ? from : undefined;
     const toDate = activePreset === 'custom' ? to : undefined;
     try {
-      const [mResult, fResult, sResult] = await Promise.allSettled([
+      const [mResult, fResult, sResult, aResult] = await Promise.allSettled([
         fetchDashboardMetrics({ days: 7, preset: activePreset, from_date: fromDate, to_date: toDate }, { timeoutMs: long ? 90000 : 28000 }),
         fetchFinanceMetrics(activePreset, { timeoutMs: 40000, from_date: fromDate, to_date: toDate }),
         fetchSyncStatus(),
+        fetchReorderAlerts(),
       ]);
       if (mResult.status === 'fulfilled') {
         setMetrics(mResult.value);
@@ -571,10 +574,12 @@ export const Dashboard: React.FC<DashboardProps> = ({
       }
       if (fResult.status === 'fulfilled') setFinance(fResult.value);
       if (sResult.status === 'fulfilled') setSyncStatus(sResult.value);
+      if (aResult.status === 'fulfilled') setReorderAlerts(aResult.value || []);
     } finally {
       setMetricsLoading(false);
       setFinanceLoading(false);
       setSyncLoading(false);
+      setAlertsLoading(false);
       loadingRef.current = false;
       setLastRefreshed(new Date());
     }
@@ -904,6 +909,52 @@ export const Dashboard: React.FC<DashboardProps> = ({
           <DualChart data={ord.chart} currency={ord.currency} loading={metricsLoading} />
         </div>
       </Section>
+
+      {/* ══ 5. NACHBESTELLUNGS-WARNUNGEN ══════════════════════════ */}
+      {!alertsLoading && reorderAlerts.length > 0 && (
+        <Section title="Nachbestellungs-Warnungen" badge={String(reorderAlerts.length)}>
+          <div className="rounded-lg border border-warning/20 bg-warning-dim/30 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-warning/10">
+                    <th className="text-left px-4 py-2 text-xs font-semibold text-txt-muted">Produkt</th>
+                    <th className="text-right px-4 py-2 text-xs font-semibold text-txt-muted">Bestand</th>
+                    <th className="text-right px-4 py-2 text-xs font-semibold text-txt-muted">Verkauf/Tag</th>
+                    <th className="text-right px-4 py-2 text-xs font-semibold text-txt-muted">Reichweite</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {reorderAlerts.slice(0, 10).map((a: any, i: number) => (
+                    <tr
+                      key={a.productId || i}
+                      className="border-b border-warning/10 last:border-b-0 cursor-pointer hover:bg-warning-dim/50 transition"
+                      onClick={() => onSelectProduct(a.productId)}
+                    >
+                      <td className="px-4 py-2 text-txt-primary font-medium truncate max-w-[200px]">
+                        {a.name || a.productId?.slice(0, 12)}
+                      </td>
+                      <td className="px-4 py-2 text-right font-mono text-warning font-semibold">
+                        {a.currentStock ?? '—'}
+                      </td>
+                      <td className="px-4 py-2 text-right font-mono text-txt-muted">
+                        {typeof a.velocity === 'number' ? a.velocity.toFixed(1) : '—'}
+                      </td>
+                      <td className="px-4 py-2 text-right">
+                        <span className={`font-mono font-semibold ${(a.daysUntilStockout ?? 999) < 7 ? 'text-danger' : 'text-warning'}`}>
+                          {typeof a.daysUntilStockout === 'number'
+                            ? `${a.daysUntilStockout} Tage`
+                            : '—'}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </Section>
+      )}
 
     </div>
   );

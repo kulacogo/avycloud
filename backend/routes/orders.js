@@ -1365,4 +1365,57 @@ router.post('/invoices/:invoiceId/export-sevdesk', requirePermission('orders', '
   }
 });
 
+/**
+ * POST /api/orders/bulk-ship — Create labels for multiple packed orders at once.
+ * Body: { orderIds: string[], shippingMethodId?: number }
+ */
+router.post('/orders/bulk-ship', requirePermission('orders', 'write'), async (req, res) => {
+  try {
+    const { orderIds, shippingMethodId } = req.body;
+    if (!Array.isArray(orderIds) || orderIds.length === 0) {
+      return res.status(400).json({ ok: false, error: { code: 'VALIDATION', message: 'orderIds array required' } });
+    }
+    if (orderIds.length > 50) {
+      return res.status(400).json({ ok: false, error: { code: 'VALIDATION', message: 'Max 50 orders per bulk ship' } });
+    }
+
+    const tenantId = req.user?.tenantId || 'default';
+    const actor = { uid: req.user?.uid || 'system', email: req.user?.email || 'api' };
+    const { shipOrder } = require('../services/shipping-engine');
+    const { transitionOrder } = require('../services/order-state-machine');
+    const { pushTrackingToMarketplace } = require('../services/marketplace-tracking');
+
+    const results = [];
+    for (const orderId of orderIds) {
+      try {
+        const result = await shipOrder({ orderId, tenantId, shippingMethodId });
+
+        // Auto-transition to shipped
+        await transitionOrder({
+          tenantId, orderId, toStatus: 'shipped', actor,
+          note: `Bulk-Versand (${result.carrier || 'unknown'})`,
+        });
+
+        // Push tracking async
+        if (result.trackingNumber) {
+          pushTrackingToMarketplace({
+            orderId, trackingNumber: result.trackingNumber, carrier: result.carrier || '',
+          }).catch((err) => console.error(`[bulk-ship] Marketplace push failed for ${orderId}: ${err.message}`));
+        }
+
+        results.push({ orderId, ok: true, trackingNumber: result.trackingNumber, labelUrl: result.labelUrl });
+      } catch (err) {
+        console.error(`[bulk-ship] Order ${orderId} failed: ${err.message}`);
+        results.push({ orderId, ok: false, error: err.message });
+      }
+    }
+
+    const successCount = results.filter((r) => r.ok).length;
+    res.json({ ok: true, data: { total: orderIds.length, success: successCount, results } });
+  } catch (err) {
+    console.error(`[POST /api/orders/bulk-ship] ${err.message}`, err);
+    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: err.message } });
+  }
+});
+
 module.exports = { router, setBackgroundSyncOrders };

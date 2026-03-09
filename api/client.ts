@@ -932,11 +932,17 @@ export async function fetchShipments(params?: { status?: string; limit?: number 
 export interface ReturnData {
   id: string;
   orderId: string;
-  customer?: string | null;
-  product?: string | null;
+  marketplace?: string;
+  marketplaceReturnId?: string;
+  customer?: { name?: string; email?: string } | string | null;
+  product?: { name?: string; sku?: string; quantity?: number } | string | null;
   reason?: string;
+  reasonText?: string;
   status?: string;
   refundAmount?: number;
+  refundType?: string;
+  itemCondition?: string;
+  restock?: boolean;
   createdAt?: string;
   [key: string]: any;
 }
@@ -960,6 +966,56 @@ export async function updateReturn(id: string, update: { status?: string; refund
   const data = await parseResponse(res);
   if (!res.ok || data?.ok === false) throw new Error(data?.error?.message || 'Failed to update return');
   return data?.data;
+}
+
+export async function syncReturns(): Promise<any> {
+  const res = await fetchApi(`${BACKEND_URL}/api/returns/sync`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) throw new Error(data?.error?.message || 'Retouren-Sync fehlgeschlagen');
+  return data?.data;
+}
+
+export async function processReturn(
+  id: string,
+  opts: { itemCondition: string; refundType: string; refundAmount?: number; note?: string }
+): Promise<any> {
+  const res = await fetchApi(`${BACKEND_URL}/api/returns/${encodeURIComponent(id)}/process`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(opts),
+  });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) throw new Error(data?.error?.message || 'Retoure verarbeiten fehlgeschlagen');
+  return data?.data;
+}
+
+export async function issueReturnRefund(id: string): Promise<any> {
+  const res = await fetchApi(`${BACKEND_URL}/api/returns/${encodeURIComponent(id)}/refund`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: '{}',
+  });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) throw new Error(data?.error?.message || 'Erstattung fehlgeschlagen');
+  return data?.data;
+}
+
+export async function closeReturn(id: string, note?: string): Promise<any> {
+  const res = await fetchApi(`${BACKEND_URL}/api/returns/${encodeURIComponent(id)}/close`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ note }),
+  });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) throw new Error(data?.error?.message || 'Retoure schließen fehlgeschlagen');
+  return data?.data;
+}
+
+export async function fetchReturnEvents(id: string): Promise<any[]> {
+  const res = await fetchApi(`${BACKEND_URL}/api/returns/${encodeURIComponent(id)}/events`, { method: 'GET' });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) throw new Error(data?.error?.message || 'Events laden fehlgeschlagen');
+  return Array.isArray(data?.data) ? data.data : [];
 }
 
 // ─── Invoices API ────────────────────────────────────────────
@@ -3087,6 +3143,43 @@ export async function syncMarketplaceOrders(opts?: { marketplace?: string; lookb
   return data?.data || { results: {}, totalSynced: 0 };
 }
 
+// ── Pricing Engine ──────────────────────────────────────────
+
+export async function suggestPrice(productId: string): Promise<any> {
+  const res = await fetchApi(`${BACKEND_URL}/api/v1/pricing/suggest/${encodeURIComponent(productId)}`, { method: 'POST' });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) throw new Error(data?.error?.message || 'Preisvorschlag fehlgeschlagen');
+  return data?.data;
+}
+
+export async function fetchPricingRules(): Promise<any[]> {
+  const res = await fetchApi(`${BACKEND_URL}/api/v1/pricing/rules`, { method: 'GET' });
+  const data = await parseResponse(res);
+  return Array.isArray(data?.data) ? data.data : [];
+}
+
+export async function runRepricingBatch(): Promise<any> {
+  const res = await fetchApi(`${BACKEND_URL}/api/v1/pricing/reprice-batch`, { method: 'POST' });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) throw new Error(data?.error?.message || 'Repricing fehlgeschlagen');
+  return data?.data;
+}
+
+// ── Inventory Forecast ──────────────────────────────────────
+
+export async function fetchProductForecast(productId: string, days = 30): Promise<any> {
+  const res = await fetchApi(`${BACKEND_URL}/api/v1/forecast/${encodeURIComponent(productId)}?days=${days}`, { method: 'GET' });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) throw new Error(data?.error?.message || 'Prognose fehlgeschlagen');
+  return data?.data;
+}
+
+export async function fetchReorderAlerts(): Promise<any[]> {
+  const res = await fetchApi(`${BACKEND_URL}/api/v1/forecast/alerts`, { method: 'GET' });
+  const data = await parseResponse(res);
+  return Array.isArray(data?.data) ? data.data : [];
+}
+
 // ── OMS-B: Shipping & Invoices ──────────────────────────────
 
 export async function shipOrder(orderId: string, opts?: { shippingMethodId?: number; weight?: number }): Promise<any> {
@@ -3137,6 +3230,23 @@ export async function exportInvoiceToSevDesk(invoiceId: string): Promise<{ ok: b
   });
   const data = await parseResponse(res);
   if (!res.ok || data?.ok === false) throw new Error(data?.error?.message || 'SevDesk-Export fehlgeschlagen');
+  return data?.data;
+}
+
+export interface BulkShipResult {
+  total: number;
+  success: number;
+  results: Array<{ orderId: string; ok: boolean; trackingNumber?: string; labelUrl?: string; error?: string }>;
+}
+
+export async function bulkShipOrders(orderIds: string[], opts?: { shippingMethodId?: number }): Promise<BulkShipResult> {
+  const res = await fetchApi(`${BACKEND_URL}/api/orders/bulk-ship`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ orderIds, shippingMethodId: opts?.shippingMethodId }),
+  });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) throw new Error(data?.error?.message || 'Bulk-Versand fehlgeschlagen');
   return data?.data;
 }
 
@@ -3960,4 +4070,189 @@ export const openInventoryLabelWindow = (inventoryId: string): { ok: boolean; er
   }
   const url = `${BACKEND_URL}/api/inventories/${encodeURIComponent(inventoryId)}/label.pdf`;
   return openAuthedUrlInNewTab(url, { timeoutMs: 25000 });
+};
+
+// ─── CSV Export / Import ──────────────────────────────────────
+
+export const exportProductsCsv = async (): Promise<void> => {
+  try {
+    const response = await fetchApi(`${BACKEND_URL}/api/v1/products/export/csv`);
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `avycloud-produkte-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  } catch (err) {
+    console.error("CSV export failed:", err);
+    throw err;
+  }
+};
+
+export interface ImportPreviewResult {
+  ok: boolean;
+  data?: {
+    headers: string[];
+    totalRows: number;
+    validCount: number;
+    errorCount: number;
+    errors: { row: number; message: string }[];
+    preview: { name: string; brand: string; sku: string; ean: string; sellPrice: number }[];
+  };
+  error?: { code: string; message: string };
+}
+
+export interface ColumnMapping {
+  csvColumn: string;
+  field: string;
+}
+
+export const previewProductsImport = async (
+  csvText: string,
+  mapping: ColumnMapping[],
+  delimiter?: string
+): Promise<ImportPreviewResult> => {
+  let response: Response | undefined;
+  try {
+    response = await fetchApi(`${BACKEND_URL}/api/v1/products/import/preview`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ csvText, mapping, delimiter }),
+    });
+    return await response.json();
+  } catch (err) {
+    const errorInfo = extractErrorInfo(err, response);
+    return { ok: false, error: errorInfo };
+  }
+};
+
+export interface ImportExecuteResult {
+  ok: boolean;
+  data?: {
+    imported: number;
+    failed: number;
+    totalRows: number;
+    validationErrors: { row: number; message: string }[];
+    importErrors: { row: number; message: string }[];
+  };
+  error?: { code: string; message: string };
+}
+
+// --- Deduplication ---
+
+export interface DuplicateGroup {
+  type: "ean" | "mpn" | "brand_name";
+  key: string;
+  productIds: string[];
+}
+
+export interface DuplicatesResult {
+  ok: boolean;
+  data?: {
+    duplicates: DuplicateGroup[];
+    totalProducts: number;
+    totalDuplicateGroups: number;
+  };
+  error?: { code: string; message: string };
+}
+
+export interface MergeSuggestion {
+  id: string;
+  name: string;
+  brand: string;
+  sku: string;
+  barcodes: string[];
+  stock: number;
+  images: number;
+  createdAt: string;
+}
+
+export interface MergeSuggestResult {
+  ok: boolean;
+  data?: {
+    productA: MergeSuggestion;
+    productB: MergeSuggestion;
+  };
+  error?: { code: string; message: string };
+}
+
+export interface MergeExecuteResult {
+  ok: boolean;
+  data?: {
+    keepId: string;
+    removeId: string;
+    merged: { barcodes: number; images: number };
+  };
+  error?: { code: string; message: string };
+}
+
+export async function fetchDuplicates(): Promise<DuplicatesResult> {
+  const res = await fetchApi(`${BACKEND_URL}/api/v1/products/duplicates`);
+  return res.json();
+}
+
+export async function fetchMergeSuggestion(idA: string, idB: string): Promise<MergeSuggestResult> {
+  const res = await fetchApi(`${BACKEND_URL}/api/v1/products/merge/suggest?a=${encodeURIComponent(idA)}&b=${encodeURIComponent(idB)}`);
+  return res.json();
+}
+
+export async function executeMerge(keepId: string, removeId: string): Promise<MergeExecuteResult> {
+  const res = await fetchApi(`${BACKEND_URL}/api/v1/products/merge`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ keepId, removeId }),
+  });
+  return res.json();
+}
+
+// --- Audit Log ---
+
+export interface AuditLogEntry {
+  id: string;
+  action: string;
+  userId: string | null;
+  userEmail: string | null;
+  tenantId: string;
+  resourceType: string | null;
+  resourceId: string | null;
+  details: Record<string, any> | null;
+  ip: string | null;
+  timestamp: string;
+}
+
+export async function fetchAuditLog(params?: {
+  action?: string;
+  resourceType?: string;
+  limit?: number;
+  startAfter?: string;
+}): Promise<{ ok: boolean; data?: AuditLogEntry[]; error?: { code: string; message: string } }> {
+  const qs = new URLSearchParams();
+  if (params?.action) qs.set("action", params.action);
+  if (params?.resourceType) qs.set("resourceType", params.resourceType);
+  if (params?.limit) qs.set("limit", String(params.limit));
+  if (params?.startAfter) qs.set("startAfter", params.startAfter);
+  const res = await fetchApi(`${BACKEND_URL}/api/admin/audit-log?${qs.toString()}`);
+  return res.json();
+}
+
+export const executeProductsImport = async (
+  csvText: string,
+  mapping: ColumnMapping[],
+  delimiter?: string
+): Promise<ImportExecuteResult> => {
+  let response: Response | undefined;
+  try {
+    response = await fetchApi(`${BACKEND_URL}/api/v1/products/import/execute`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ csvText, mapping, delimiter }),
+    });
+    return await response.json();
+  } catch (err) {
+    const errorInfo = extractErrorInfo(err, response);
+    return { ok: false, error: errorInfo };
+  }
 };

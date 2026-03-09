@@ -4,6 +4,10 @@ import { Product, WarehouseBin } from './types';
 import { useIdentification, UploadGroupPayload } from './hooks/useIdentification';
 import { useImproveQueue } from './hooks/useImproveQueue';
 import ProductInput from './components/ProductInput';
+import CaptureView from './components/capture/CaptureView';
+import DeduplicationView from './components/DeduplicationView';
+import AuditLogView from './components/AuditLogView';
+import ImportModal from './components/ImportModal';
 import { Header } from './components/Header';
 import { Sidebar } from './components/Sidebar';
 import { Topbar } from './components/Topbar';
@@ -112,6 +116,8 @@ const ALLOWED_VIEWS: View[] = [
   'settings-team',
   'settings-api',
   'settings-billing',
+  'duplicates',
+  'audit-log',
 ];
 type Theme = 'light' | 'dark';
 
@@ -423,6 +429,7 @@ const AppInner: React.FC = () => {
   const [productsError, setProductsError] = useState<string | null>(null);
   const productsRef = useRef<Product[]>([]);
   const [currentProduct, setCurrentProduct] = useState<Product | null>(null);
+  const [showImportModal, setShowImportModal] = useState(false);
   const {
     enqueueIdentification,
     jobStatuses,
@@ -922,6 +929,15 @@ const AppInner: React.FC = () => {
                 window.location.hash = '#/input';
                 setView('input');
               }}
+              onExport={async () => {
+                try {
+                  const { exportProductsCsv } = await import('./api/client');
+                  await exportProductsCsv();
+                } catch (err: any) {
+                  console.error('Export failed:', err);
+                }
+              }}
+              onImport={() => setShowImportModal(true)}
             />
             <AdminTable
               products={products}
@@ -1021,12 +1037,29 @@ const AppInner: React.FC = () => {
             onRangePresetChange={setDashboardRangePreset}
           />
         );
+      case 'duplicates':
+        if (!hasPermission('products', 'read')) {
+          return <div className="text-center p-8 text-txt-muted">{t('error.forbidden')}</div>;
+        }
+        return <DeduplicationView />;
+      case 'audit-log':
+        if (!hasPermission('admin', 'read')) {
+          return <div className="text-center p-8 text-txt-muted">{t('error.forbidden')}</div>;
+        }
+        return <AuditLogView />;
       case 'input':
       default:
         if (!hasPermission('identify', 'run')) {
           return <div className="text-center p-8 text-txt-muted">{t('error.forbidden')}</div>;
         }
-        return <ProductInput onIdentify={handleIdentification} />;
+        return (
+          <CaptureView
+            onProductCreated={(product) => {
+              // Refresh products list after new product is captured
+              loadProducts();
+            }}
+          />
+        );
     }
   };
 
@@ -1133,6 +1166,13 @@ const AppInner: React.FC = () => {
             </div>
           </div>
         )}
+
+        {/* Import Modal */}
+        <ImportModal
+          open={showImportModal}
+          onClose={() => setShowImportModal(false)}
+          onComplete={loadProducts}
+        />
 
         {/* Mobile bottom nav */}
         {isMobile && (

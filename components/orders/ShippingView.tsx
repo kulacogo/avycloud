@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { fetchShipments, type ShipmentData } from "../../api/client";
+import { fetchShipments, bulkShipOrders, type ShipmentData } from "../../api/client";
 import { EmptyState } from "../ui/EmptyState";
+import { useToast } from "../../context/ToastContext";
 
 /* ─── Config ─── */
 const CARRIER_STYLE: Record<string, { cls: string; initial: string }> = {
@@ -58,6 +59,8 @@ export const ShippingView: React.FC = () => {
   const [shipments, setShipments] = useState<ShipmentData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const toast = useToast();
 
   const loadShipments = useCallback(async () => {
     try {
@@ -203,6 +206,32 @@ export const ShippingView: React.FC = () => {
         <div className="flex items-center gap-2 rounded-xl border border-accent/20 bg-accent-dim px-4 py-2.5">
           <span className="text-sm font-medium text-accent">{selected.size} ausgewählt</span>
           <div className="ml-auto flex gap-2">
+            <button
+              type="button"
+              disabled={bulkBusy}
+              onClick={async () => {
+                const pending = filtered.filter((s) => selected.has(s.id) && s.status === "ausstehend");
+                const orderIds = pending.map((s) => s.orderId).filter(Boolean);
+                if (orderIds.length === 0) {
+                  toast.warning("Keine ausstehenden Sendungen in der Auswahl.");
+                  return;
+                }
+                setBulkBusy(true);
+                try {
+                  const result = await bulkShipOrders(orderIds);
+                  toast.success(`${result.success}/${result.total} Labels erstellt`);
+                  setSelected(new Set());
+                  loadShipments();
+                } catch (err: any) {
+                  toast.error(err?.message || "Bulk-Versand fehlgeschlagen");
+                } finally {
+                  setBulkBusy(false);
+                }
+              }}
+              className="rounded-lg bg-accent text-white px-3 py-1.5 text-xs font-semibold hover:bg-accent/90 transition disabled:opacity-50"
+            >
+              {bulkBusy ? "Erstelle Labels…" : "Labels erstellen"}
+            </button>
             <button
               type="button"
               onClick={() => setSelected(new Set())}

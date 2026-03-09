@@ -31,7 +31,9 @@ export type View =
   | "settings-team"
   | "settings-api"
   | "settings-billing"
-  | "ebay-listings";
+  | "ebay-listings"
+  | "duplicates"
+  | "audit-log";
 
 interface SidebarProps {
   currentView: View;
@@ -222,6 +224,13 @@ const icons = {
       <path d="M9 18l6-6-6-6" />
     </Icon>
   ),
+  layers: (
+    <Icon>
+      <path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.84Z" />
+      <path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65" />
+      <path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65" />
+    </Icon>
+  ),
   logout: (
     <Icon>
       <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />
@@ -366,6 +375,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, setView }) => {
               ...(canSeeIdentify
                 ? [{ view: "input" as View, label: "Erfassen", icon: icons.scanLine }]
                 : []),
+              ...(canSeeProducts
+                ? [{ view: "duplicates" as View, label: "Duplikate", icon: icons.layers }]
+                : []),
             ],
           },
         ]
@@ -421,6 +433,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, setView }) => {
               { view: "settings-team" as View, label: "Mitarbeiter & Rollen", icon: icons.users },
               { view: "settings-api" as View, label: "API", icon: icons.code },
               { view: "settings-billing" as View, label: "Plan & Abrechnung", icon: icons.creditCard },
+              { view: "audit-log" as View, label: "Aktivitätsprotokoll", icon: icons.fileText },
             ],
           },
         ]

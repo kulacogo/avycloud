@@ -1,5 +1,6 @@
 const { getAdminAuth } = require('../lib/firebaseAdmin');
 const { sendMail } = require('../lib/mailer');
+const { renderEmail } = require('../lib/email-templates');
 const { isAllowedEmail } = require('../lib/auth');
 const { rewriteActionLinkApiKey } = require('../lib/firebase-web-api-key');
 
@@ -105,22 +106,8 @@ async function requestPasswordReset({ email, ip }) {
     throw error;
   }
 
-  await sendMail({
-    to: normalizedEmail,
-    subject: 'AvyCloud – Passwort zurücksetzen',
-    text:
-      `Hallo,\n\n` +
-      `du hast einen Passwort-Reset für AvyCloud angefordert.\n\n` +
-      `Passwort zurücksetzen:\n${buildAppPasswordResetUrl(resetLink)}\n\n` +
-      `Falls du das nicht warst, ignoriere diese E-Mail.\n`,
-    html:
-      `<p>Hallo,</p>` +
-      `<p>du hast einen Passwort-Reset für <strong>AvyCloud</strong> angefordert.</p>` +
-      `<p><strong>Passwort zurücksetzen</strong>:<br/><a href="${buildAppPasswordResetUrl(resetLink)}">${buildAppPasswordResetUrl(
-        resetLink
-      )}</a></p>` +
-      `<p>Falls du das nicht warst, ignoriere diese E-Mail.</p>`,
-  });
+  const email = renderEmail('password-reset', { resetLink: buildAppPasswordResetUrl(resetLink) });
+  await sendMail({ to: normalizedEmail, ...email });
 
   return { ok: true, sent: true };
 }

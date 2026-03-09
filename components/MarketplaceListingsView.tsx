@@ -38,6 +38,9 @@ interface NormalizedListing {
   lastSync: string | null;
   errors?: string[];
   imageUrl?: string | null;
+  warehouseStock: number | null;
+  binLocation: string | null;
+  stockMismatch: boolean;
 }
 
 // ─── Constants ───────────────────────────────────────────────
@@ -101,6 +104,9 @@ function normalizeEbayRow(row: EbayListingRow): NormalizedListing {
     category: row.categoryName || (row.primaryCategoryId ? `Kat. ${row.primaryCategoryId}` : null),
     viewItemUrl: row.viewItemUrl || (row.itemId ? `https://www.ebay.de/itm/${row.itemId}` : null),
     lastSync: row.updatedAt || null,
+    warehouseStock: (row as any).warehouseStock ?? null,
+    binLocation: (row as any).binLocation ?? null,
+    stockMismatch: (row as any).stockMismatch === true,
   };
 }
 
@@ -121,6 +127,9 @@ function normalizeKauflandRow(row: KauflandListingRow): NormalizedListing {
     viewItemUrl: row.viewItemUrl || null,
     lastSync: row.updatedAt || null,
     imageUrl: row.imageUrl || null,
+    warehouseStock: (row as any).warehouseStock ?? null,
+    binLocation: (row as any).binLocation ?? null,
+    stockMismatch: (row as any).stockMismatch === true,
   };
 }
 
@@ -278,7 +287,13 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
     setPublishLoading(true);
     try {
       const products = await fetchProducts();
-      setPublishProducts(products);
+      // BUG-019: Nur Produkte mit Lagerbestand > 0 anzeigen
+      const inStockProducts = products.filter((p) => {
+        const qty = Number(p.inventory?.quantity ?? p.inventory?.physicalQuantity ?? 0);
+        const hasBins = Array.isArray(p.storageBins) && p.storageBins.some((b) => Number(b?.quantity || 0) > 0);
+        return qty > 0 || hasBins;
+      });
+      setPublishProducts(inStockProducts);
     } catch {
       setPublishProducts([]);
     } finally {
@@ -555,12 +570,17 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
           <div className="text-2xl font-bold text-txt-primary">{tabCounts.inactive}</div>
         </div>
         <div className="bg-app-surface border border-app-border rounded-xl p-4">
-          <div className="text-sm text-txt-muted mb-1">Durchschnittspreis</div>
-          <div className="text-2xl font-bold text-txt-primary">
-            {listings.length > 0
-              ? `${(listings.reduce((sum, l) => sum + (l.price || 0), 0) / listings.filter(l => l.price).length).toFixed(2)} €`
-              : "—"}
+          <div className="text-sm text-txt-muted mb-1">Bestandsabweichungen</div>
+          <div className={`text-2xl font-bold ${
+            listings.filter((l) => l.stockMismatch).length > 0 ? "text-warning" : "text-txt-primary"
+          }`}>
+            {listings.filter((l) => l.stockMismatch).length}
           </div>
+          {listings.filter((l) => l.warehouseStock === 0).length > 0 && (
+            <div className="text-xs text-danger mt-0.5">
+              {listings.filter((l) => l.warehouseStock === 0).length} nicht auf Lager
+            </div>
+          )}
         </div>
       </div>
 
@@ -691,7 +711,8 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
                     {marketplace === "ebay" ? "Item-ID" : "Unit-ID"}
                   </th>
                   <th className="px-4 py-3 text-right text-txt-muted font-medium hidden sm:table-cell">Preis</th>
-                  <th className="px-4 py-3 text-right text-txt-muted font-medium hidden sm:table-cell">Bestand</th>
+                  <th className="px-4 py-3 text-right text-txt-muted font-medium hidden sm:table-cell">Marktplatz</th>
+                  <th className="px-4 py-3 text-right text-txt-muted font-medium hidden sm:table-cell">Lager</th>
                   <th className="px-4 py-3 text-left text-txt-muted font-medium">Status</th>
                   <th className="px-4 py-3 text-left text-txt-muted font-medium hidden lg:table-cell">Kategorie</th>
                   <th className="px-4 py-3 text-left text-txt-muted font-medium hidden lg:table-cell">Letztes Update</th>
@@ -747,6 +768,38 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
                         }`}>
                           {listing.quantity != null ? listing.quantity : "—"}
                         </span>
+                      </td>
+                      <td className="px-4 py-3 text-right hidden sm:table-cell">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <span className={`font-medium ${
+                            listing.warehouseStock === 0 ? "text-danger" :
+                            listing.warehouseStock != null && listing.warehouseStock <= 3 ? "text-warning" :
+                            listing.warehouseStock != null ? "text-txt-primary" : "text-txt-muted"
+                          }`}>
+                            {listing.warehouseStock != null ? listing.warehouseStock : "—"}
+                          </span>
+                          {listing.stockMismatch && (
+                            <span
+                              className="inline-flex px-1 py-0.5 rounded text-[10px] font-semibold bg-warning-dim text-warning"
+                              title={`Marktplatz: ${listing.quantity ?? '—'}, Lager: ${listing.warehouseStock ?? '—'}`}
+                            >
+                              ≠
+                            </span>
+                          )}
+                          {listing.warehouseStock === 0 && (
+                            <span
+                              className="inline-flex px-1 py-0.5 rounded text-[10px] font-semibold bg-danger-dim text-danger"
+                              title="Nicht auf Lager"
+                            >
+                              !
+                            </span>
+                          )}
+                        </div>
+                        {listing.binLocation && (
+                          <div className="text-[10px] text-txt-muted mt-0.5 font-mono">
+                            {listing.binLocation}
+                          </div>
+                        )}
                       </td>
                       <td className="px-4 py-3">
                         <span
@@ -831,7 +884,10 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
                     disabled={bulkPublishing}
                   />
                 )}
-                <h2 className="text-lg font-bold text-txt-primary">Artikel auf {label} listen</h2>
+                <div>
+                  <h2 className="text-lg font-bold text-txt-primary">Artikel auf {label} listen</h2>
+                  <p className="text-xs text-txt-muted">Nur Artikel mit Lagerbestand</p>
+                </div>
               </div>
               <button
                 onClick={() => setShowPublishModal(false)}
@@ -909,6 +965,14 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
                       <div className="text-xs text-txt-muted">
                         {p.identification?.sku && <span>SKU: {p.identification.sku}</span>}
                         {p.identification?.barcodes?.[0] && <span className="ml-2">EAN: {p.identification.barcodes[0]}</span>}
+                      </div>
+                      <div className="text-xs text-txt-muted mt-0.5">
+                        <span className="text-success font-medium">
+                          Bestand: {Number(p.inventory?.quantity ?? p.inventory?.physicalQuantity ?? 0)}
+                        </span>
+                        {p.storageBins?.[0]?.code && (
+                          <span className="ml-2">Bin: {p.storageBins[0].code}</span>
+                        )}
                       </div>
                     </div>
                     <button

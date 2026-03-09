@@ -296,6 +296,26 @@ const server = app.listen(PORT, () => {
   } catch (err) {
     console.warn('[order-sync] failed to start periodic refresh:', err?.message || err);
   }
+
+  // Periodic returns sync from marketplaces (every 4 hours)
+  const RETURNS_SYNC_INTERVAL_MS = parseInt(process.env.RETURNS_SYNC_INTERVAL_MS || String(4 * 60 * 60 * 1000), 10);
+  try {
+    setTimeout(() => {
+      const { syncAllReturns } = require('./services/returns-engine');
+      syncAllReturns({ tenantId: 'default', lookbackDays: 7 })
+        .then((r) => console.log('[returns-sync] periodic sync done:', JSON.stringify(r)))
+        .catch((err) => console.warn('[returns-sync] periodic sync failed:', err?.message));
+    }, 60_000); // 1 min after startup
+    setInterval(() => {
+      const { syncAllReturns } = require('./services/returns-engine');
+      syncAllReturns({ tenantId: 'default', lookbackDays: 7 })
+        .then((r) => console.log('[returns-sync] periodic sync done:', JSON.stringify(r)))
+        .catch((err) => console.warn('[returns-sync] periodic sync failed:', err?.message));
+    }, RETURNS_SYNC_INTERVAL_MS);
+    console.log(`[returns-sync] periodic refresh enabled: every ${RETURNS_SYNC_INTERVAL_MS}ms`);
+  } catch (err) {
+    console.warn('[returns-sync] failed to start periodic refresh:', err?.message || err);
+  }
 });
 
 // Graceful shutdown für Cloud Run

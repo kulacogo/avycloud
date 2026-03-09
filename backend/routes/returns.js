@@ -6,6 +6,10 @@ function getTenantId(req) {
   return req.user?.tenantId || 'default';
 }
 
+function getActor(req) {
+  return { uid: req.user?.uid || 'system', email: req.user?.email || 'api' };
+}
+
 /**
  * GET /api/returns
  * List returns for the current tenant.
@@ -28,8 +32,22 @@ router.get('/returns', async (req, res) => {
 });
 
 /**
+ * GET /api/returns/reasons
+ * List available return reason categories.
+ */
+router.get('/returns/reasons', (req, res) => {
+  const { RETURN_REASONS } = require('../services/returns-engine');
+  const reasons = Object.entries(RETURN_REASONS).map(([key, val]) => ({
+    key,
+    label: val.label,
+    refundDefault: val.refundDefault,
+  }));
+  res.json({ ok: true, data: reasons });
+});
+
+/**
  * POST /api/returns
- * Create a new return.
+ * Create a new return manually.
  */
 router.post('/returns', async (req, res) => {
   try {
@@ -43,7 +61,7 @@ router.post('/returns', async (req, res) => {
       product: product || null,
       reason: reason || 'meinungsaenderung',
       refundAmount: refundAmount || 0,
-      status: 'neu',
+      status: 'eingegangen',
       createdAt: new Date().toISOString(),
       createdBy: req.user?.uid || null,
     };
@@ -57,18 +75,136 @@ router.post('/returns', async (req, res) => {
 
 /**
  * PATCH /api/returns/:id
- * Update return status (erstatten, ablehnen, etc.)
+ * Update return fields (reason, notes, etc.)
  */
 router.patch('/returns/:id', async (req, res) => {
   try {
-    const { status, refundAmount } = req.body;
+    const { status, refundAmount, reason, note } = req.body;
     const update = { updatedAt: new Date().toISOString() };
-    if (status) update.status = status;
+    if (reason) update.reason = reason;
+    if (note) update.note = note;
     if (refundAmount !== undefined) update.refundAmount = refundAmount;
+
+    // Use workflow engine for status transitions
+    if (status) {
+      const { transitionReturn } = require('../services/returns-engine');
+      const result = await transitionReturn({
+        returnId: req.params.id,
+        toStatus: status,
+        actor: getActor(req),
+        note: note || '',
+      });
+      return res.json({ ok: true, data: result });
+    }
+
     await firestore.collection('returns').doc(req.params.id).update(update);
     res.json({ ok: true, data: { id: req.params.id, ...update } });
   } catch (err) {
     console.error(`[PATCH /api/returns/:id] ${err.message}`, err);
+    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: err.message } });
+  }
+});
+
+/**
+ * POST /api/returns/:id/process — Inspect item and decide refund.
+ * Body: { itemCondition: 'a_ware'|'b_ware'|'c_ware', refundType: 'full'|'partial'|'none', refundAmount?, note? }
+ */
+router.post('/returns/:id/process', async (req, res) => {
+  try {
+    const { itemCondition, refundType, refundAmount, note } = req.body;
+    if (!itemCondition) return res.status(400).json({ ok: false, error: { code: 'VALIDATION', message: 'itemCondition required' } });
+    if (!refundType) return res.status(400).json({ ok: false, error: { code: 'VALIDATION', message: 'refundType required' } });
+
+    const { processReturn } = require('../services/returns-engine');
+    const result = await processReturn({
+      returnId: req.params.id,
+      tenantId: getTenantId(req),
+      itemCondition,
+      refundType,
+      refundAmount,
+      note,
+      actor: getActor(req),
+    });
+
+    res.json({ ok: true, data: result });
+  } catch (err) {
+    console.error(`[POST /api/returns/:id/process] ${err.message}`, err);
+    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: err.message } });
+  }
+});
+
+/**
+ * POST /api/returns/:id/refund — Issue refund via marketplace API.
+ */
+router.post('/returns/:id/refund', async (req, res) => {
+  try {
+    const { issueMarketplaceRefund } = require('../services/returns-engine');
+    const result = await issueMarketplaceRefund({
+      returnId: req.params.id,
+      tenantId: getTenantId(req),
+      actor: getActor(req),
+    });
+
+    if (!result.ok) {
+      return res.status(400).json({ ok: false, error: { code: 'REFUND_FAILED', message: result.error } });
+    }
+
+    res.json({ ok: true, data: result });
+  } catch (err) {
+    console.error(`[POST /api/returns/:id/refund] ${err.message}`, err);
+    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: err.message } });
+  }
+});
+
+/**
+ * POST /api/returns/:id/close — Close a return (terminal state).
+ */
+router.post('/returns/:id/close', async (req, res) => {
+  try {
+    const { transitionReturn } = require('../services/returns-engine');
+    const result = await transitionReturn({
+      returnId: req.params.id,
+      toStatus: 'abgeschlossen',
+      actor: getActor(req),
+      note: req.body.note || 'Retoure abgeschlossen',
+    });
+    res.json({ ok: true, data: result });
+  } catch (err) {
+    console.error(`[POST /api/returns/:id/close] ${err.message}`, err);
+    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: err.message } });
+  }
+});
+
+/**
+ * POST /api/returns/sync — Sync returns from all marketplaces.
+ */
+router.post('/returns/sync', async (req, res) => {
+  try {
+    const { syncAllReturns } = require('../services/returns-engine');
+    const result = await syncAllReturns({
+      tenantId: getTenantId(req),
+      lookbackDays: parseInt(req.query.days || '30', 10),
+    });
+    res.json({ ok: true, data: result });
+  } catch (err) {
+    console.error(`[POST /api/returns/sync] ${err.message}`, err);
+    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: err.message } });
+  }
+});
+
+/**
+ * GET /api/returns/:id/events — Get return event history.
+ */
+router.get('/returns/:id/events', async (req, res) => {
+  try {
+    const snap = await firestore.collection('return_events')
+      .where('returnId', '==', req.params.id)
+      .orderBy('timestamp', 'asc')
+      .get();
+    const events = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    res.json({ ok: true, data: events });
+  } catch (err) {
+    console.error(`[GET /api/returns/:id/events] ${err.message}`, err);
     res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: err.message } });
   }
 });

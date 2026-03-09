@@ -61,6 +61,7 @@ const { calculateOptimalPrice, savePricingRule, listPricingRules, runRepricingJo
 const { calculateSalesVelocity, predictStockOut, generateReorderAlerts } = require('../services/inventory-forecast');
 const { createWebhook, listWebhooks, deleteWebhook } = require('../services/webhooks');
 const { findDuplicates, suggestMerge, executeMerge } = require('../services/deduplication');
+const { logAudit } = require('../services/audit-log');
 
 // ── Constants ────────────────────────────────────────────────────────
 const IMAGE_PROXY_TIMEOUT_MS = parseInt(process.env.IMAGE_PROXY_TIMEOUT_MS || '10000', 10);
@@ -1796,6 +1797,27 @@ router.post('/save', requirePermission('products', 'write'), async (req, res) =>
       console.warn('Failed to enqueue quality job after save:', qErr?.message || qErr);
     }
 
+    // Auto-push price to marketplaces when pricing changes (async, non-blocking)
+    try {
+      const sellPrice = product.pricing?.sellPrice;
+      if (Number.isFinite(sellPrice) && sellPrice > 0) {
+        const { syncPriceToAllChannels } = require('../services/stock-sync-dispatcher');
+        syncPriceToAllChannels({
+          tenantId: req.user?.tenantId || 'default',
+          product,
+        }).then((syncResult) => {
+          const pushed = (syncResult?.results || []).filter((r) => r.status === 'success');
+          if (pushed.length > 0) {
+            console.log(`[auto-price-push] product=${product.id} pushed to ${pushed.map((r) => r.channel).join(', ')}`);
+          }
+        }).catch((err) => {
+          console.warn(`[auto-price-push] failed for product=${product.id}:`, err?.message);
+        });
+      }
+    } catch (priceErr) {
+      console.warn('[auto-price-push] setup error:', priceErr?.message);
+    }
+
     res.json({
       ok: true,
       data: {
@@ -2250,6 +2272,20 @@ router.get('/v1/products/duplicates', requirePermission('products', 'read'), asy
   }
 });
 
+router.get('/v1/products/merge/suggest', requirePermission('products', 'read'), async (req, res) => {
+  try {
+    const { a, b } = req.query;
+    if (!a || !b) {
+      return res.status(400).json({ ok: false, error: { code: 'VALIDATION', message: 'Query params a and b required' } });
+    }
+    const result = await suggestMerge(String(a), String(b));
+    res.json({ ok: true, data: result });
+  } catch (error) {
+    console.error('[GET /api/v1/products/merge/suggest] Error:', error.message);
+    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: error.message } });
+  }
+});
+
 router.post('/v1/products/merge', requirePermission('products', 'write'), async (req, res) => {
   try {
     const { keepId, removeId } = req.body;
@@ -2257,6 +2293,15 @@ router.post('/v1/products/merge', requirePermission('products', 'write'), async 
       return res.status(400).json({ ok: false, error: { code: 'VALIDATION', message: 'keepId and removeId required' } });
     }
     const result = await executeMerge(keepId, removeId);
+    logAudit({
+      action: 'product.merged',
+      userId: req.user?.uid,
+      userEmail: req.user?.email,
+      tenantId: req.user?.tenantId || 'default',
+      resourceType: 'product',
+      resourceId: keepId,
+      details: { keepId, removeId, merged: result.merged },
+    });
     res.json({ ok: true, data: result });
   } catch (error) {
     console.error('[POST /api/v1/products/merge] Error:', error.message);
@@ -2294,6 +2339,115 @@ router.get('/v1/competitors/overview', requirePermission('products', 'read'), as
   } catch (error) {
     console.error('[GET /api/v1/competitors/overview] Error:', error.message);
     res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: error.message } });
+  }
+});
+
+// ─── CSV Export / Import ──────────────────────────────────────
+
+/**
+ * GET /api/v1/products/export/csv
+ * Download products as CSV.
+ * Query: ?columns=name,brand,sku (optional subset)
+ */
+router.get('/products/export/csv', requirePermission('products', 'read'), async (req, res) => {
+  try {
+    const { exportProductsCsv } = require('../services/import-export');
+    const columns = req.query.columns ? String(req.query.columns).split(',').map((s) => s.trim()) : undefined;
+    const { csv, count } = await exportProductsCsv({ columns });
+    const filename = `avycloud-produkte-${new Date().toISOString().slice(0, 10)}.csv`;
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    // BOM for Excel UTF-8 compatibility
+    res.send('\uFEFF' + csv);
+  } catch (err) {
+    console.error('[GET /api/v1/products/export/csv]', err.message, err);
+    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: err.message } });
+  }
+});
+
+/**
+ * POST /api/v1/products/import/preview
+ * Preview CSV import — validates rows without saving.
+ * Body: { csvText: string, mapping: ColumnMapping[], delimiter?: string }
+ */
+router.post('/products/import/preview', requirePermission('products', 'write'), async (req, res) => {
+  try {
+    const { parseCsv, validateImportRows } = require('../services/import-export');
+    const { csvText, mapping, delimiter } = req.body;
+    if (!csvText) return res.status(400).json({ ok: false, error: { code: 'VALIDATION', message: 'csvText required' } });
+    if (!Array.isArray(mapping) || mapping.length === 0) return res.status(400).json({ ok: false, error: { code: 'VALIDATION', message: 'mapping required' } });
+
+    const { headers, rows } = parseCsv(csvText, delimiter || ';');
+    const { valid, errors } = validateImportRows(rows, mapping);
+    res.json({
+      ok: true,
+      data: {
+        headers,
+        totalRows: rows.length,
+        validCount: valid.length,
+        errorCount: errors.length,
+        errors: errors.slice(0, 50),
+        preview: valid.slice(0, 10).map((p) => ({
+          name: p.identification?.name,
+          brand: p.identification?.brand,
+          sku: p.identification?.sku,
+          ean: p.identification?.barcodes?.[0],
+          sellPrice: p.details?.pricing?.sellPrice,
+        })),
+      },
+    });
+  } catch (err) {
+    console.error('[POST /api/v1/products/import/preview]', err.message, err);
+    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: err.message } });
+  }
+});
+
+/**
+ * POST /api/v1/products/import/execute
+ * Execute CSV import — validates and saves products.
+ * Body: { csvText: string, mapping: ColumnMapping[], delimiter?: string }
+ */
+router.post('/products/import/execute', requirePermission('products', 'write'), async (req, res) => {
+  try {
+    const { parseCsv, validateImportRows, importProducts } = require('../services/import-export');
+    const { csvText, mapping, delimiter } = req.body;
+    if (!csvText) return res.status(400).json({ ok: false, error: { code: 'VALIDATION', message: 'csvText required' } });
+    if (!Array.isArray(mapping) || mapping.length === 0) return res.status(400).json({ ok: false, error: { code: 'VALIDATION', message: 'mapping required' } });
+
+    const { rows } = parseCsv(csvText, delimiter || ';');
+    const { valid, errors: validationErrors } = validateImportRows(rows, mapping);
+
+    if (valid.length === 0) {
+      return res.status(400).json({
+        ok: false,
+        error: { code: 'VALIDATION', message: 'Keine gültigen Zeilen gefunden' },
+        data: { validationErrors: validationErrors.slice(0, 50) },
+      });
+    }
+
+    const tenantId = req.user?.tenantId || 'default';
+    const result = await importProducts(valid, tenantId);
+    logAudit({
+      action: 'product.bulk_import',
+      userId: req.user?.uid,
+      userEmail: req.user?.email,
+      tenantId,
+      resourceType: 'product',
+      details: { imported: result.imported, failed: result.failed, totalRows: rows.length },
+    });
+    res.json({
+      ok: true,
+      data: {
+        imported: result.imported,
+        failed: result.failed,
+        totalRows: rows.length,
+        validationErrors: validationErrors.slice(0, 20),
+        importErrors: result.errors.slice(0, 20),
+      },
+    });
+  } catch (err) {
+    console.error('[POST /api/v1/products/import/execute]', err.message, err);
+    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: err.message } });
   }
 });
 

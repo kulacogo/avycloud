@@ -20,15 +20,31 @@
 > - Phase 5: Stock-Sync (Reservierungen, Multi-Channel Sync, Preis-Sync)
 > - Sprint 3 UI-Fixes: AUDIT-001–013 (Crashes, Marketplace-Enrichment, Farbe Blau, Badge-Semantik, Animationen)
 >
+> **✅ SPRINT ABGESCHLOSSEN (2026-03-09):**
+> 1. ~~Gap-Analyse aus eBay Marketplace-UI entfernen~~ ✅
+> 2. ~~Kaufland Preis-Spalte fixen~~ ✅
+> 3. ~~eBay fehlende Spalten~~ ✅
+> 4. ~~Integration Self-Service (M9)~~ ✅
+> 5. ~~OMS Phase A~~ ✅ — Order Intake, Status-Engine, Pipeline-Visualisierung
+> 6. ~~OMS Phase B~~ ✅ — SendCloud Labels, Tracking-Webhooks, Rechnungs-PDF, Marketplace-Tracking
+> 7. ~~OMS Phase C~~ ✅ — BaseLinker Feature-Flag-Decoupling (Strangler Fig)
+> 8. ~~UX-Fixes~~ ✅ — Animationen, Breadcrumbs, Skeleton Loading, Toast System
+> 9. ~~M7: Multi-Carrier Versand~~ ✅ — Labels, Regeln, Tracking-Dashboard, Bulk-Labels
+> 10. ~~M8: Retouren-Management~~ ✅ — Marketplace-Intake, Workflow, Gründe, Erstattungen
+>
+> **✅ SPRINT 2 ABGESCHLOSSEN (2026-03-09):**
+> - ~~Preis-Push zu Marktplätzen~~ ✅ — Auto-Push bei Product-Save, `syncPriceToAllChannels()`
+> - ~~Marketplace Auto-Sync~~ ✅ — Periodic Returns-Sync (4h) + Order-Sync (2h)
+> - ~~Pricing Engine Runner + UI~~ ✅ — Repricing-Button in OrderSettingsView
+> - ~~Inventory Forecast Dashboard-Widget~~ ✅ — Nachbestellungs-Warnungen im Dashboard
+>
 > **🔴 NÄCHSTER SPRINT — OFFEN:**
-> 1. **Gap-Analyse aus eBay Marketplace-UI entfernen** — "Optimierung: 238" muss raus, beide Seiten identisch
-> 2. **Kaufland Preis-Spalte fixen** — `listing_price` in Firestore, wird aber nicht durchgereicht
-> 3. **eBay fehlende Spalten** — Kategorie, Letztes Update, Link (Fallbacks bauen)
-> 4. **Integration Self-Service (M9)** — Setup-Wizard, OAuth-Flows, API-Key-Input, Konfig-Panel
-> 5. **OMS Phase A** — Order Intake nativ von eBay/Kaufland, eigene Status-Engine
-> 6. **OMS Phase B** — SendCloud Labels, Tracking-Webhooks, Rechnungs-PDF, Marketplace-Kommunikation
-> 7. **OMS Phase C** — BaseLinker abschalten
-> 8. Restliche UX-Fixes: AUDIT-007, Typografie, Spacing, Animationen
+> - ~~**BUG-019: Marketplace-Listings zeigen Produkte ohne Lagerbestand**~~ ✅
+> - **BUG-020: Retouren prüfen** — Returns-Engine (eBay + Kaufland) ist implementiert, aber Status muss verifiziert werden (Sync auslösen, Daten prüfen)
+> - ~~Deduplizierung: Merge-UI + Auto-Merge~~ ✅
+> - ~~Bulk-Import/Export (CSV/Excel)~~ ✅
+> - ~~E-Mail-Templates~~ ✅
+> - ~~Audit-Log~~ ✅
 >
 > **🚀 STRATEGISCHE ENTSCHEIDUNG (2026-03-07):**
 > **AvyCloud wird ein eigenständiges Order Management System — komplett losgelöst von BaseLinker.**
@@ -97,48 +113,24 @@
 
 ---
 
-## 📊 Feature-Übersicht (Stand 2026-03-08)
+## 📊 Feature-Übersicht (Stand 2026-03-09)
 
-> **48 Features identifiziert — 23 fertig, 10 halb fertig, 16 fehlen komplett (~48% Fertigstellung)**
+> **48 Features identifiziert — 46 fertig, 1 halb fertig, 1 fehlt komplett (~96% Fertigstellung)**
 
-### ✅ Funktioniert (23 Features)
+### ✅ Funktioniert (46 Features)
 
-Dashboard, Produktkatalog, KI-Produkterkennung, KI-Datenverbesserung, KI-Chat, KI-Bildgenerierung, eBay Integration, Kaufland Integration, BaseLinker Integration, Bestellungen (BaseLinker), Pick & Pack (Mobile), Lagerverwaltung, Versand (Kosten-Anzeige), Retouren (Basis-CRUD), Rechnungen (Basis-CRUD), Einstellungen, Admin-Panel, Wettbewerbspreise, Kategorie-Management, Barcode-Scanner, PDF-Labels, Webhooks, Dark/Light Mode
+Dashboard, Produktkatalog, KI-Produkterkennung, KI-Datenverbesserung, KI-Chat, KI-Bildgenerierung, eBay Integration, Kaufland Integration, BaseLinker Integration, Bestellungen (BaseLinker + Native OMS), Pick & Pack (Mobile), Lagerverwaltung, Versand (Labels + Tracking + Bulk), Retouren (Workflow + Marketplace-Intake + Erstattung), Rechnungen (PDF + Nummernkreise + SevDesk-Export), Lieferscheine (PDF), Einstellungen, Admin-Panel, Wettbewerbspreise, Kategorie-Management, Barcode-Scanner, PDF-Labels, Webhooks, Dark/Light Mode, Integrations Self-Service (M9), Order Intake nativ (eBay/Kaufland), Status-Engine (OMS State Machine), Tracking-Webhooks (SendCloud → OMS), Marketplace Versandbestätigung, Auftrags-Detail-Seite, Pipeline-Visualisierung, Versand-Regeln (gewichtsbasiert), Retouren-Marketplace-Intake, Erstattungs-Engine, Auftrags-Nummerierung, BaseLinker Feature-Flag-Decoupling, Pricing Engine (Runner + UI + Auto-Repricing), Inventory Forecast (Dashboard-Widget + Reorder-Alerts), Marketplace Auto-Sync (Orders + Returns periodic), Preis-Push zu Marktplätzen (auto bei Produktspeicherung), Erfassen-Stepper (5-Schritt KI-Identify-Flow), Marketplace-Listings mit Inventory-Abgleich, Bulk-Import/Export (CSV), Deduplizierung (Merge-UI), E-Mail-Templates (branded Templates), Audit-Log (Aktivitätsprotokoll)
 
-### ⚠️ Halb fertig (10 Features)
+### ⚠️ Halb fertig (1 Feature)
 
 | Feature | Was fehlt | Prio |
 |---|---|---|
-| Pricing Engine | Kein Runner, kein UI, kein Auto-Repricing | Mittel |
-| Inventory Forecast | Kein Dashboard-Widget, kein Alert | Mittel |
-| Deduplizierung | Kein Merge-UI, kein Auto-Merge | Niedrig |
-| Marketplace Auto-Sync | Kein Cron-Job, kein Auto-Sync | Hoch |
-| Preis-Push zu Marktplätzen | NICHT zum eBay/Kaufland-Listing gepusht | Hoch |
-| Versandlabel-Erstellung | Labels werden NICHT erstellt (nur Kosten-Daten) | Hoch |
-| Rechnungs-PDF | Keine PDF-Generierung, kein SevDesk-Export | Hoch |
-| Retouren-Workflow | Kein Marketplace-Intake, kein Erstattungs-Flow | Mittel |
-| Erfassen-Seite | Kein eigenständiger View | Niedrig |
-| Integrations-Konfiguration | Kein Setup-Wizard, kein API-Key-Input, kein OAuth-Start | 🔴 Kritisch |
+| **Retouren (BUG-020)** | Implementiert, aber noch nicht auf Production verifiziert (Sync auslösen, Daten prüfen) | Mittel |
 
-### 🔴 Fehlt komplett (16 Features)
+### 🔴 Fehlt komplett (1 Feature)
 
 | Feature | Prio |
 |---|---|
-| Integrations Self-Service (Setup-Wizard, Konfig, Disconnect) | 🔴 Kritisch |
-| Order Intake nativ (eBay/Kaufland APIs → Bestellungen) | 🔴 Kritisch |
-| Eigene Status-Engine (statt BaseLinker-IDs) | 🔴 Kritisch |
-| Tracking-Webhooks (Carrier → AvyCloud → Marktplatz) | 🔴 Kritisch |
-| Marketplace Versandbestätigung (Tracking an eBay/Kaufland) | 🔴 Kritisch |
-| Auftrags-Detail-Seite | Hoch |
-| Pipeline-Visualisierung | Hoch |
-| Rechnungs-Engine (PDF, Nummernkreise, SevDesk-Export) | Hoch |
-| Lieferschein-Generierung | Hoch |
-| Versand-Regeln (gewichtsbasiert) | Mittel |
-| Retouren-Marketplace-Intake | Mittel |
-| Erstattungs-Engine | Mittel |
-| Auftrags-Nummerierung (AVY-2026-0001) | Mittel |
-| E-Mail-Templates | Niedrig |
-| Audit-Log | Niedrig |
 | Onboarding/Wizard | Niedrig |
 
 ---
@@ -148,80 +140,37 @@ Dashboard, Produktkatalog, KI-Produkterkennung, KI-Datenverbesserung, KI-Chat, K
 > **Claude Code:** Lies `CLAUDE.md` für Production-Safety-Regeln. Arbeite diese Blöcke IN REIHENFOLGE ab.
 > Nach jedem Block: `cd backend && npm test` + `npm run build`. Commit nach jedem Block.
 
-### Sprint-Block 1: Gap-Analyse aus Marketplace-UI ENTFERNEN
+### Sprint-Block 1: BUG-019 — Marketplace-Listings mit Inventory-Abgleich
 
-**Datei:** `components/MarketplaceListingsView.tsx`
+**PROBLEM:** eBay/Kaufland-Listings zeigen Marketplace-Bestand statt Lagerbestand. Produkte ohne Lager werden ohne Warnung gelistet.
 
-1. `type TabFilter` — entferne `"optimization"`. Tabs nur noch: Alle / Aktiv / Inaktiv
-2. `TAB_LABELS` — entferne `optimization: "Optimierung"`
-3. `counts` Record — entferne `optimization: 0` und den `if (l.gapCount...)` Zähler
-4. `else if (activeTab === "optimization")` Filter — entfernen
-5. KPI-Cards — "Optimierung"-Card komplett entfernen (3 Cards: Gesamt, Aktiv, Inaktiv)
-6. Sync-Banner — Optimierung-Count entfernen
-7. Warning-Badges — `listing.gapCount > 0` entfernen
-8. `normalizeEbayRow()` — `gapCount: row.gapCriticalCount || 0` entfernen
-9. `NormalizedListing` Interface — `gapCount?: number` entfernen
+**Backend — eBay** (`backend/lib/ebay-direct.js` — `listLiveListings()`):
+1. Nach dem Join mit `ebayListingLinks` → für jedes gelinkte Produkt: `products_v2` Inventory-Daten laden
+2. Neue Felder pro Row: `warehouseStock` (aus `inventory.availableQuantity`), `binLocation` (aus `warehouse.binLocation`), `stockMismatch` (boolean: marketplace qty ≠ warehouse qty)
 
-**NICHT anfassen:** Backend-Gap-Endpoints bleiben. `EbayListingRow` in `types.ts` bleibt.
+**Backend — Kaufland** (`backend/routes/marketplace.js` — GET /api/kaufland/listings):
+1. Der `products_v2`-Join existiert bereits → `inventory.availableQuantity` und `warehouse.binLocation` aus dem gematchten Produkt durchreichen
+2. Neue Felder: `warehouseStock`, `binLocation`, `stockMismatch`
 
-### Sprint-Block 2: Kaufland Preis + eBay fehlende Spalten
+**Frontend** (`components/MarketplaceListingsView.tsx`):
+1. Spalte "Bestand" splitten in "Marktplatz" und "Lager"
+2. Warning-Badge "⚠️ Nicht auf Lager" wenn `warehouseStock === 0` oder `binLocation` fehlt
+3. Gelbes "Abweichung"-Badge wenn `stockMismatch === true`
+4. Neue KPI-Card: "Bestandsabweichungen" — Anzahl Listings wo Mismatch
+5. Optional: Filter-Tab "Abweichungen"
 
-**Kaufland Preis** (`backend/routes/marketplace.js` ~Zeile 967-992):
-```js
-// ALT (falsch): price: matched?.details?.pricing?.sellPrice ?? klPrice ?? null,
-// NEU (Kaufland-Preis hat Vorrang):
-price: klPrice ?? matched?.details?.pricing?.sellPrice ?? null,
-```
-Link-Fallback: `viewItemUrl: d.view_item_url || (d.id_product ? \`https://www.kaufland.de/product/${d.id_product}/\` : null)`
+### Sprint-Block 2: BUG-020 — Retouren verifizieren
 
-**eBay fehlende Spalten** (`components/MarketplaceListingsView.tsx` — `normalizeEbayRow()`):
-```ts
-viewItemUrl: row.viewItemUrl || `https://www.ebay.de/itm/${row.itemId}`,
-category: row.categoryName || (row.primaryCategoryId ? `Kat. ${row.primaryCategoryId}` : null),
-lastSync: row.updatedAt || row.gapDocUpdatedAt || null,
-```
+1. Production-Sync auslösen: POST /api/returns/sync testen
+2. Prüfen ob ReturnsView echte Daten zeigt
+3. Periodic Sync (alle 4h) verifizieren — läuft der Cron?
+4. Wenn Probleme: Fixes dokumentieren
 
-### Sprint-Block 3: Farbschema Lila → Blau (AUDIT-010)
+### Sprint-Block 3: Bulk-Import/Export (CSV/Excel) ✅ Komplett (2026-03-09)
 
-- Tailwind-Config: Primary-Farbe auf `#2563EB` (Blue-600)
-- Globales Find & Replace: `purple-*` → `blue-*`, `violet-*` → `blue-*`
-- CSS Custom Properties auf Blau umstellen
-- Status-Farben (Grün/Gelb/Rot/Grau) NICHT ändern
-
-### Sprint-Block 4: Badge-Semantik (AUDIT-012)
-
-| Status | Korrekte Farbe | Tailwind |
-|---|---|---|
-| Aktiv/Synced/Gelistet | Grün | `bg-green-500/20 text-green-400` |
-| Pending/Optimierung | Gelb | `bg-yellow-500/20 text-yellow-400` |
-| Inaktiv/Nicht verbunden | Grau | `bg-gray-500/20 text-gray-400` |
-| Fehler | Rot | `bg-red-500/20 text-red-400` |
-
-BONUS: Wiederverwendbare `StatusBadge` Komponente in `components/ui/StatusBadge.tsx`
-
-### Sprint-Block 5: ProductSheet HTML-Rendering + Sprach-Fix
-
-- Beschreibung rendern: `DOMPurify.sanitize()` + `dangerouslySetInnerHTML`
-- Sprach-Mix fixen: "Selling price:" → "Verkaufspreis:", "Confidence:" → "Datenqualität:", etc.
-- Barcode-Badges: Normaler Text mit Copy-Icon statt farbiger Badge
-
-### Sprint-Block 6: Typografie & Spacing
-
-- Section-Headers: Kein ALL-CAPS. `text-sm font-medium text-gray-400` statt uppercase
-- Tabellen-Header: Kein uppercase, kein tracking-wider
-- Produkttabelle: Default 8 Spalten, Rest per Column-Toggle ausblendbar
-
-### Sprint-Block 7: Basis-Animationen
-
-- Sidebar: `transition-colors duration-150`
-- ProductSheet: Slide-In `transition-transform duration-300`, Dimm-Overlay
-- Buttons: `transition-all duration-150` + `active:scale-95`
-- Tabellen-Hover: `hover:bg-gray-800/50` mit `transition-colors duration-100`
-
-### Sprint-Block 8: eBay Integrationen-Status (AUDIT-005)
-
-- `IntegrationsHub.tsx`: eBay-Status prüft ob gültiger Token existiert
-- Gleicher Mechanismus wie Kaufland "Verbunden"-Status
+- [x] CSV Export: Produkte als CSV Download mit BOM für Excel-Kompatibilität
+- [x] CSV Import: 4-Schritt-Flow (Upload → Spalten-Mapping → Preview → Import) mit Auto-Delimiter-Erkennung und Fuzzy-Header-Matching
+- **Dateien:** `backend/services/import-export.js`, `components/ImportModal.tsx`, `backend/routes/products.js` (3 neue Endpoints), `api/client.ts`
 
 ### Sprint-Regeln
 
@@ -237,6 +186,32 @@ BONUS: Wiederverwendbare `StatusBadge` Komponente in `components/ui/StatusBadge.
 ## Active
 
 ### Sofort-Bugfixes (vor allem anderen)
+
+- [x] **BUG-019: Marketplace-Listings ohne Inventory-Abgleich — Produkte ohne Lagerbestand werden gelistet** since 2026-03-09 ✅ Fixed: eBay + Kaufland listings now include warehouseStock, binLocation, stockMismatch from products_v2. Split stock into Marktplatz + Lager columns with mismatch badges. KPI card shows discrepancy count. **+ "Artikel listen"-Modal:** Nur Produkte mit Lagerbestand > 0 werden im Publish-Modal angezeigt (BUG-019b, 2026-03-09). Bestand + Bin-Code sichtbar im Modal.
+  - **PROBLEM:** eBay- und Kaufland-Marketplace-Seiten zeigen ALLE Listings unabhängig davon, ob das Produkt im Lager ist.
+    - `Bestand`-Spalte zeigt den **Marketplace-Wert** (eBay `quantityAvailable`, Kaufland `amount`), NICHT den echten AvyCloud-Lagerbestand
+    - Produkte mit Menge 0 in `products_v2` und ohne BIN-Zuordnung im Warehouse werden ohne Warnung angezeigt
+    - Kein Join zwischen `ebayListingsLive`/`kauflandUnitsLive` und Warehouse/Inventory-Daten
+  - **SOLL:**
+    - Marketplace-Listings-Tabelle muss ZWEI Bestand-Spalten haben: **"Marktplatz-Bestand"** (was der Marktplatz denkt) + **"Lagerbestand"** (was wirklich da ist)
+    - Wenn Lagerbestand = 0 oder kein BIN zugewiesen → **Warning-Badge "⚠️ Nicht auf Lager"** an der Zeile
+    - Diskrepanz-Indikator: Wenn Marktplatz-Bestand ≠ Lagerbestand → **Gelbes "Abweichung"**-Badge
+    - Optional: Filter/Tab "Bestandsabweichung" um alle Listings mit Diskrepanz zu finden
+  - **FIX Backend:**
+    - [ ] eBay: `listLiveListings()` in `ebay-direct.js` — Join mit `products_v2` Inventory-Daten (`inventory.availableQuantity`, `warehouse.binLocation`)
+    - [ ] Kaufland: `GET /api/kaufland/listings` in `routes/marketplace.js` — Inventory-Daten aus dem bereits existierenden `products_v2`-Join enrichen
+    - [ ] Response-Felder erweitern: `warehouseStock`, `binLocation`, `stockMismatch: boolean`
+  - **FIX Frontend:**
+    - [ ] `MarketplaceListingsView.tsx` — Neue Spalte "Lagerbestand", Warning-Badge bei Diskrepanz
+    - [ ] KPI-Card "Bestandsabweichungen" — Anzahl Listings wo Marktplatz-Bestand ≠ Lagerbestand
+  - **Dateien:** `backend/lib/ebay-direct.js`, `backend/routes/marketplace.js`, `components/MarketplaceListingsView.tsx`
+
+- [ ] **BUG-020: Retouren-Status verifizieren** since 2026-03-09
+  - **KONTEXT:** Returns-Engine ist implementiert (eBay `GetReturnRequests` + Kaufland `GET /v2/returns` + Workflow + Erstattung), aber:
+    - [ ] Muss verifiziert werden ob Sync auf Production funktioniert (Button "Retouren synchronisieren" klicken)
+    - [ ] Prüfen ob die ReturnsView echte Daten zeigt oder leer bleibt
+    - [ ] Prüfen ob Auto-Sync (periodic returns-sync alle 4h) tatsächlich läuft
+  - **Dateien:** `backend/services/returns-engine.js`, `components/ReturnsView.tsx`
 
 - [x] **BUG-001: Umlaut/Unicode-Encoding in BulkActions** ~~since 2026-03-05~~ (2026-03-05)
   - Fix: Alle `\u00xx` Unicode-Escapes durch echte UTF-8-Zeichen ersetzt in BulkActions.tsx, AdminTableFilters.tsx, AdminTableHeader.tsx, AdminTableRow.tsx
@@ -432,7 +407,7 @@ BONUS: Wiederverwendbare `StatusBadge` Komponente in `components/ui/StatusBadge.
 
 #### P3 — NAVIGATION & ROUTING
 
-- [ ] **AUDIT-007: Erfassen-Route hat keinen eigenen View**
+- [x] **AUDIT-007: Erfassen-Route hat keinen eigenen View** ✅ Fixed: New 5-step CaptureView stepper (Upload → KI-Erkennung → Prüfen → Preis/Lager → Zusammenfassung) at `#/products/capture`, replaces old ProductInput
   - **Symptom:** Sidebar "Erfassen" klicken → leitet zu `#products` (Produktdaten) weiter. Kein dedizierter Capture/Identify-Flow.
   - **FIX:** Eigene Route `#/products/capture` mit dem KI-Identify-Flow (Barcode/Foto scannen → Gemini identifizieren → Produkt anlegen).
 
@@ -1311,53 +1286,50 @@ BONUS: Wiederverwendbare `StatusBadge` Komponente in `components/ui/StatusBadge.
 
 ### Modul 7: Versand (Courier Integration)
 
-- [ ] **M7: Multi-Carrier Versand-Management** since 2026-03-05
+- [x] **M7: Multi-Carrier Versand-Management** since 2026-03-05 ✅ Komplett (2026-03-09)
   - ✅ `lib/sendcloud.js` existiert (Kosten-Aggregation, NICHT Label-Erstellung)
-  - ✅ `ShippingView.tsx` UI existiert (KPI-Cards, Carrier-Badges, Tracking-URLs)
+  - ✅ `ShippingView.tsx` UI existiert (KPI-Cards, Carrier-Badges, Tracking-URLs, Bulk-Label-Button)
 
   **Implementierung via OMS-B1 + OMS-B2 (siehe Modul 6)**
 
-  - [ ] **M7-1: SendCloud Label-API** — Parcels erstellen, Labels drucken, Tracking empfangen
-  - [ ] **M7-2: Versand-Regeln** — Gewichtsbasierte Carrier-Wahl aus Einstellungen
-    - Regel-Engine: "Wenn Gewicht < 1kg UND Inland → Deutsche Post Warenpost"
-    - "Wenn Gewicht > 5kg → DHL Paket", "Express → DPD Express"
-    - Default-Carrier konfigurierbar in `order_settings`
-  - [ ] **M7-3: Tracking-Dashboard** — Echtzeit-Tracking-Status aller Sendungen
-    - Tab-Bar: Ausstehend | In Zustellung | Zugestellt | Probleme
-    - Tracking-Nummer klickbar → Carrier-Tracking-Seite
-  - [ ] **M7-4: Bulk-Label-Druck** — Multi-Label-PDF für alle offenen Aufträge
-  - **Backend:** `backend/services/shipping-engine.js` (NEU), `backend/routes/webhooks.js` (erweitern)
-  - **Dateien:** `components/ShippingView.tsx` (überarbeiten), `backend/services/shipping-engine.js` (neu)
+  - [x] **M7-1: SendCloud Label-API** — `backend/services/shipping-engine.js`: createParcel(), getLabel(), cancelParcel()
+  - [x] **M7-2: Versand-Regeln** — `matchCarrierRule()` in shipping-engine.js, Regeln aus `order_settings.carrierRules`
+  - [x] **M7-3: Tracking-Dashboard** — ShippingView.tsx: Tabs, KPIs, clickable Tracking-URLs, echte `shipments` Collection
+  - [x] **M7-4: Bulk-Label-Druck** — `POST /api/orders/bulk-ship` (max 50), UI-Button in ShippingView
+  - **Backend:** `backend/services/shipping-engine.js`, `backend/routes/webhooks.js`
+  - **Dateien:** `components/orders/ShippingView.tsx`, `backend/services/shipping-engine.js`
 
 ---
 
 ### Modul 8: Retouren (Returns Management)
 
-- [ ] **M8: Retouren-Management** since 2026-03-05
-  - ✅ `ReturnsView.tsx` UI existiert (KPI-Cards, Tab-Filter, Grund/Status-Badges)
-  - ✅ `backend/routes/returns.js` existiert (77 Zeilen, Basis-CRUD)
+- [x] **M8: Retouren-Management** since 2026-03-05 ✅ Komplett (2026-03-09)
+  - ✅ `ReturnsView.tsx` UI: Marketplace-Sync-Button, Prozess-Dialog (Warenprüfung + Erstattung), Marketplace-Badges
+  - ✅ `backend/routes/returns.js`: 8 Endpoints (CRUD + process + refund + close + sync + events)
+  - ✅ `backend/services/returns-engine.js`: Komplette Returns Engine
 
-  - [ ] **M8-1: Marketplace-Retouren empfangen**
-    - eBay: GetReturnRequests API → Retouren automatisch anlegen
-    - Kaufland: Returns API → Retouren automatisch anlegen
-    - Deduplizierung: Marketplace-Return-ID als Unique Key
+  - [x] **M8-1: Marketplace-Retouren empfangen**
+    - `syncEbayReturns()`: GetReturnRequests API, Deduplizierung via `marketplaceReturnId`
+    - `syncKauflandReturns()`: GET /v2/returns API, Deduplizierung via `marketplaceReturnId`
+    - `syncAllReturns()`: Combined sync, `POST /api/returns/sync`
 
-  - [ ] **M8-2: Retouren-Workflow**
-    - Status-Flow: `eingegangen → in_pruefung → erstattet | abgelehnt → abgeschlossen`
-    - Wareneingang: Zustand bewerten (A-Ware → Wiederverkauf, B-Ware → Reduziert, C-Ware → Entsorgung)
-    - Bei A/B-Ware: Automatische Wiedereinlagerung in Inventar
-    - Erstattung: Voll, Teilweise, oder Ablehnung mit Begründung
+  - [x] **M8-2: Retouren-Workflow**
+    - Status-Flow: `eingegangen → in_pruefung → erstattet | teilweise_erstattet | abgelehnt → abgeschlossen`
+    - `transitionReturn()`: Validierte Statusübergänge, Event-Logging in `return_events` Collection
+    - `processReturn()`: Warenprüfung (A/B/C-Ware), Erstattungsentscheidung, Auto-Restock
+    - `restockItem()`: Wiedereinlagerung als `warehouse_movements` Eintrag
 
-  - [ ] **M8-3: Retouren-Gründe (kategorisiert)**
-    - Interne Kategorien: Defekt, Falsche Lieferung, Nicht wie beschrieben, Zu spät, Meinungsänderung, Doppelbestellung
-    - Marketplace-Mapping: eBay/Kaufland Return Reasons → interne Kategorien
+  - [x] **M8-3: Retouren-Gründe (kategorisiert)**
+    - 7 interne Kategorien: defekt, falsche_lieferung, nicht_wie_beschrieben, zu_spaet, meinungsaenderung, doppelbestellung, sonstiges
+    - `EBAY_REASON_MAP` + `KAUFLAND_REASON_MAP`: Marketplace → interne Zuordnung
 
-  - [ ] **M8-4: Erstattungs-Kommunikation**
-    - Marketplace-API: eBay Refund API, Kaufland Refund API
-    - Automatische Erstattung nach Warenprüfung (konfigurierbar)
+  - [x] **M8-4: Erstattungs-Kommunikation**
+    - `issueEbayRefund()`: IssueRefund via Trading API
+    - `issueKauflandRefund()`: PATCH /v2/returns/{id}/accept via Kaufland API
+    - Frontend: "Erstatten" Button nach Verarbeitung → Marketplace-Refund
 
-  - **Backend:** `backend/services/returns-engine.js` (NEU) — processReturn(), issueRefund(), restockItem()
-  - **Dateien:** `components/ReturnsView.tsx` (überarbeiten), `components/ReturnDetail.tsx` (neu)
+  - **Backend:** `backend/services/returns-engine.js`, `backend/routes/returns.js`
+  - **Frontend:** `components/orders/ReturnsView.tsx` (ProcessDialog, Marketplace-Sync, Workflow-Buttons)
 
 ---
 
@@ -1635,7 +1607,7 @@ BONUS: Wiederverwendbare `StatusBadge` Komponente in `components/ui/StatusBadge.
 
 ### Modul 13: Erfassen (KI-Identify Flow)
 
-- [ ] **M13: Erfassen — KI-gestützte Produkterkennung als geführter Flow** since 2026-03-05
+- [x] **M13: Erfassen — KI-gestützte Produkterkennung als geführter Flow** since 2026-03-05 ✅ Komplett (2026-03-09)
   - Route `#/products/identify` aktiv (⚠️ aktuell Placeholder → MUSS ersetzt werden)
   - ✅ Backend komplett vorhanden: `services/enrichment.js`, `services/improve.js`, `lib/gemini-structured.js`, `lib/image-search.js`, `services/job-runner.js`
   - **Konzept:** AvyClouds USP. Benutzer fotografiert/uploaded ein Produkt → KI erkennt automatisch: Was ist es? Marke? Modell? EAN? Preis? Der User bestätigt/korrigiert → Produkt wird im Katalog angelegt. Dies ist der Haupt-Workflow für Eingangsware.

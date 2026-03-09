@@ -1015,4 +1015,66 @@ router.get('/jobs/status', requirePermission('admin', 'jobs.read'), async (req, 
   }
 });
 
+// --- Email Templates ---
+const { listTemplates, renderEmail } = require('../lib/email-templates');
+
+router.get('/email-templates', requirePermission('admin', 'read'), async (req, res) => {
+  try {
+    res.json({ ok: true, data: listTemplates() });
+  } catch (error) {
+    console.error('[GET /api/admin/email-templates] Error:', error.message);
+    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: error.message } });
+  }
+});
+
+router.get('/email-templates/:name/preview', requirePermission('admin', 'read'), async (req, res) => {
+  try {
+    const { name } = req.params;
+    const sampleVars = {
+      resetLink: 'https://avycloud.web.app/reset-password?oobCode=example123',
+      verifyLink: 'https://avycloud.web.app/verify?oobCode=example456',
+      orderNumber: 'AVC-2026-0001',
+      date: new Date().toLocaleDateString('de-DE'),
+      itemCount: 3,
+      total: '149,99 \u20AC',
+      carrier: 'DHL',
+      trackingNumber: '00340434161094015902',
+      trackingUrl: 'https://www.dhl.de/de/privatkunden/pakete-empfangen/verfolgen.html?piececode=00340434161094015902',
+      productName: 'Samsung Galaxy S24 Ultra',
+      sku: 'SAM-S24U-256',
+      currentStock: 2,
+      minStock: 5,
+    };
+    const result = renderEmail(name, sampleVars);
+    res.json({ ok: true, data: { ...result, templateName: name } });
+  } catch (error) {
+    if (error.message.includes('Unknown email template')) {
+      return res.status(404).json({ ok: false, error: { code: 'NOT_FOUND', message: error.message } });
+    }
+    console.error('[GET /api/admin/email-templates/:name/preview] Error:', error.message);
+    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: error.message } });
+  }
+});
+
+// --- Audit Log ---
+const { queryAuditLog } = require('../services/audit-log');
+
+router.get('/audit-log', requirePermission('admin', 'read'), async (req, res) => {
+  try {
+    const { action, resourceType, resourceId, userId, limit, startAfter } = req.query;
+    const entries = await queryAuditLog({
+      action: action || null,
+      resourceType: resourceType || null,
+      resourceId: resourceId || null,
+      userId: userId || null,
+      limit: limit ? parseInt(String(limit), 10) : 100,
+      startAfter: startAfter || null,
+    });
+    res.json({ ok: true, data: entries });
+  } catch (error) {
+    console.error('[GET /api/admin/audit-log] Error:', error.message);
+    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: error.message } });
+  }
+});
+
 module.exports = router;

@@ -1,5 +1,6 @@
 const { getAdminAuth } = require('../lib/firebaseAdmin');
 const { sendMail } = require('../lib/mailer');
+const { renderEmail } = require('../lib/email-templates');
 const { isAllowedEmail } = require('../lib/auth');
 const { rewriteActionLinkApiKey } = require('../lib/firebase-web-api-key');
 const {
@@ -94,24 +95,8 @@ async function inviteUser({ actorUid, email, roles }) {
 
   const appResetLink = buildAppPasswordResetUrl(resetLink);
 
-  await sendMail({
-    to: normalizedEmail,
-    subject: 'AvyCloud Zugang – Passwort setzen & E-Mail bestätigen',
-    text:
-      `Hallo,\n\n` +
-      `du wurdest für AvyCloud freigeschaltet.\n\n` +
-      `1) Passwort setzen:\n${appResetLink}\n\n` +
-      `2) E-Mail bestätigen (Pflicht):\n${verifyLink}\n\n` +
-      `Danach kannst du dich mit deiner @trendocean.de Adresse anmelden.\n`,
-    html:
-      `<p>Hallo,</p>` +
-      `<p>du wurdest für <strong>AvyCloud</strong> freigeschaltet.</p>` +
-      `<ol>` +
-      `<li><p><strong>Passwort setzen</strong>:<br/><a href="${appResetLink}">${appResetLink}</a></p></li>` +
-      `<li><p><strong>E-Mail bestätigen (Pflicht)</strong>:<br/><a href="${verifyLink}">${verifyLink}</a></p></li>` +
-      `</ol>` +
-      `<p>Danach kannst du dich mit deiner <code>@trendocean.de</code> Adresse anmelden.</p>`,
-  });
+  const inviteEmail = renderEmail('user-invitation', { resetLink: appResetLink, verifyLink });
+  await sendMail({ to: normalizedEmail, ...inviteEmail });
 
   return { uid: userRecord.uid, email: normalizedEmail, resetLink, verifyLink };
 }
