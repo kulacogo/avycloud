@@ -122,7 +122,7 @@ async function createParcel({
       email: customer.email || '',
       telephone: customer.phone || customer.telephone || '',
       order_number: order.orderId || order.id || '',
-      weight: String(Math.round((totalWeight || 0.5) * 1000)), // grams
+      weight: String(totalWeight || 0.5), // kg
       request_label: requestLabel,
       external_reference: order.marketplaceOrderId || order.id || '',
     },
