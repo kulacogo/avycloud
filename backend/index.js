@@ -68,7 +68,8 @@ function backgroundSyncOrders() {
     ordersSyncInFlight = false;
   }, ORDER_SYNC_TIMEOUT_MS);
 
-  syncNewOrders()
+  const { syncOrders: syncOrdersRouted } = require('./services/order-source-router');
+  syncOrdersRouted()
     .catch((err) => console.warn('Background order sync failed:', err?.message || err))
     .finally(() => {
       clearTimeout(timer);

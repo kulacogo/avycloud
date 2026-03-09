@@ -897,7 +897,11 @@ router.post('/orders/sync', requirePermission('orders', 'read'), async (req, res
 router.post('/orders/:orderId/complete', requirePermission('orders', 'pick'), async (req, res) => {
   try {
     const { orderId } = req.params;
-    await markOrderAsPicked(orderId);
+    const { pickOrder } = require('../services/order-source-router');
+    await pickOrder({
+      orderId,
+      actor: req.user ? { uid: req.user.uid, email: req.user.email } : undefined,
+    });
     res.json({ ok: true });
   } catch (error) {
     console.error('Failed to complete order:', error);
@@ -915,7 +919,11 @@ router.post('/orders/:orderId/complete', requirePermission('orders', 'pick'), as
 router.post('/orders/:orderId/pack', requirePermission('orders', 'pack'), async (req, res) => {
   try {
     const { orderId } = req.params;
-    await markOrderAsPacked(orderId);
+    const { packOrder } = require('../services/order-source-router');
+    await packOrder({
+      orderId,
+      actor: req.user ? { uid: req.user.uid, email: req.user.email } : undefined,
+    });
     res.json({ ok: true });
   } catch (error) {
     console.error('Failed to mark order as packed:', error);
