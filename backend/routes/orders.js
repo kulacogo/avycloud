@@ -1350,9 +1350,20 @@ router.post('/orders/:orderId/cancel-label', requirePermission('orders', 'write'
       return res.status(400).json({ ok: false, error: { code: 'BAD_REQUEST', message: 'Keine SendCloud Parcel-ID vorhanden.' } });
     }
 
-    // Cancel parcel in SendCloud
+    // Cancel parcel in SendCloud (non-blocking — may already be cancelled externally)
     const { cancelParcel } = require('../services/shipping-engine');
-    await cancelParcel({ parcelId, tenantId });
+    try {
+      await cancelParcel({ parcelId, tenantId });
+    } catch (cancelErr) {
+      console.warn(`[cancel-label] SendCloud cancel failed (may already be cancelled): ${cancelErr.message}`);
+    }
+
+    // Update shipment doc status
+    await firestore.collection('shipments').doc(snap.docs[0].id).set({
+      status: 'cancelled',
+      cancelledAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    }, { merge: true });
 
     // Clear tracking data from order
     await firestore.collection('orders').doc(orderId).set({
