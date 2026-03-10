@@ -317,6 +317,24 @@ const server = app.listen(PORT, () => {
   } catch (err) {
     console.warn('[returns-sync] failed to start periodic refresh:', err?.message || err);
   }
+
+  // Periodic SendCloud parcel sync (every 2 hours)
+  const SENDCLOUD_SYNC_INTERVAL_MS = parseInt(process.env.SENDCLOUD_SYNC_INTERVAL_MS || String(2 * 60 * 60 * 1000), 10);
+  try {
+    const runSendCloudSync = () => {
+      const { syncSendCloudParcels } = require('./services/shipping-engine');
+      const fromDate = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString();
+      return syncSendCloudParcels({ tenantId: 'default', fromDate })
+        .then((r) => console.log('[sendcloud-sync] periodic sync done: matched=%d, unmatched=%d, skipped=%d',
+          r.matched?.length || 0, r.unmatched?.length || 0, r.skipped?.length || 0))
+        .catch((err) => console.warn('[sendcloud-sync] periodic sync failed:', err?.message));
+    };
+    setTimeout(runSendCloudSync, 90_000); // 90s after startup
+    setInterval(runSendCloudSync, SENDCLOUD_SYNC_INTERVAL_MS);
+    console.log(`[sendcloud-sync] periodic refresh enabled: every ${SENDCLOUD_SYNC_INTERVAL_MS}ms`);
+  } catch (err) {
+    console.warn('[sendcloud-sync] failed to start periodic refresh:', err?.message || err);
+  }
 });
 
 // Graceful shutdown für Cloud Run

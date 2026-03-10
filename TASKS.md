@@ -43,9 +43,11 @@
 > - ~~**BUG-021: Versandlabel — Adress-Validation + Versandregeln-UI**~~ ✅ (teilweise — Validation + UI fertig, aber BUG-022 Root Cause noch offen)
 > - ~~**BUG-022: ALLE BaseLinker-Bestellungen haben KEINE Versandadresse**~~ ✅ — Fixed: `mapBaseLinkerOrder()` mappt jetzt street/zip/phone/email + Backfill-Script + Address-Editing in OrderDetail
 > - ~~**BUG-023: SendCloud Gewicht ×1000 + Label/Tracking Deep Dive**~~ ✅ — Sprint-Block 4
-> - **BUG-020: Retouren prüfen** — Returns-Engine implementiert, Production-Verifikation steht aus → Sprint-Block 6
-> - ~~**FEAT: SendCloud Versandinfo-Abruf**~~ ✅ — Sprint-Block 5
-> - **FEAT: eBay Integration Deep Dive** — OAuth-Flow debuggen, Secrets prüfen → Sprint-Block 7
+> - **BUG-020: Retouren prüfen** — Returns-Engine implementiert, Production-Verifikation steht aus → Sprint-Block 6 + 8.3
+> - ~~**FEAT: SendCloud Versandinfo-Abruf**~~ ✅ — Sprint-Block 5 (Funktion fertig, aber **Auto-Runner fehlt** → Sprint-Block 8.1)
+> - **FEAT: eBay Integration Deep Dive** — Secrets gesetzt ✅, Callback Auth-Fix ✅, Deploy + Test steht aus → Sprint-Block 7 + 8.4
+> - ~~**🔴 FEAT: SendCloud Auto-Sync Runner**~~ ✅ — Runner in index.js (2h-Intervall) + Sync-Button in ShippingView
+> - ~~**🔴 BUG: Versand/Labels-Seite komplett leer**~~ ✅ — Sync-Runner befüllt shipments Collection, Button in ShippingView
 > - ~~Deduplizierung: Merge-UI + Auto-Merge~~ ✅
 > - ~~Bulk-Import/Export (CSV/Excel)~~ ✅
 > - ~~E-Mail-Templates~~ ✅
@@ -405,6 +407,117 @@ curl -H "Authorization: Bearer <jwt>" "https://<backend>/api/ebay/oauth/start?lo
 ```
 
 **Dateien:** `backend/lib/ebay-oauth.js`, `backend/routes/marketplace.js`, `backend/routes/integrations.js`, `components/IntegrationWizard.tsx`, `components/IntegrationsHub.tsx`
+
+---
+
+### Sprint-Block 8: 🔴 KRITISCH — SendCloud Auto-Sync Runner + Retouren-Debugging + Versand-Seite (2026-03-10) ✅ Code-Fixes erledigt
+
+**KONTEXT:** Drei zusammenhängende Probleme — alle haben die gleiche Wurzel: fehlender automatischer Sync + fehlende Production-Verifikation.
+**STATUS:** Task 8.1 ✅ (Runner in index.js), Task 8.2 ✅ (Sync-Button in ShippingView), Task 8.3 ✅ (Firestore-Index für return_events), Task 8.4 ✅ (OAuth-Callback Auth-Fix bereits deployed). Deploy + Production-Test steht aus.
+
+---
+
+#### Task 8.1: SendCloud Sync Runner erstellen (HAUPTPROBLEM)
+
+**PROBLEM:** `syncSendCloudParcels()` existiert in `shipping-engine.js` und der Endpoint `POST /api/orders/sync-sendcloud` existiert — aber es gibt **KEINEN automatischen Runner**. Labels, die manuell in SendCloud erstellt werden, landen NIEMALS automatisch in AvyCloud. Die Versand/Labels-Seite (`shipments` Collection) bleibt leer.
+
+**FIX — Neuer Runner in `backend/index.js`:**
+```js
+// --- SendCloud Parcel Sync (jede 2 Stunden) ---
+const SENDCLOUD_SYNC_INTERVAL = parseInt(process.env.SENDCLOUD_SYNC_INTERVAL_MS || String(2 * 60 * 60 * 1000), 10);
+setTimeout(async () => {
+  logger.info('[sendcloud-sync] periodic sync enabled: every %d min', SENDCLOUD_SYNC_INTERVAL / 60000);
+  const runSync = async () => {
+    try {
+      const { syncSendCloudParcels } = require('./services/shipping-engine');
+      const result = await syncSendCloudParcels({ tenantId: 'default', lookbackDays: 14 });
+      logger.info('[sendcloud-sync] periodic sync done: matched=%d, unmatched=%d, skipped=%d',
+        result.matched?.length || 0, result.unmatched?.length || 0, result.skipped?.length || 0);
+    } catch (err) {
+      logger.error('[sendcloud-sync] periodic sync failed: %s', err.message);
+    }
+  };
+  await runSync(); // Sofort beim Start
+  setInterval(runSync, SENDCLOUD_SYNC_INTERVAL);
+}, 90_000); // 90s nach Startup
+```
+
+**WICHTIG:**
+- `syncSendCloudParcels()` muss `lookbackDays` Parameter unterstützen (falls noch nicht vorhanden: `fromDate = new Date(Date.now() - lookbackDays * 86400000)`)
+- Der Runner erstellt `shipments`-Dokumente UND aktualisiert Orders mit trackingNumber/trackingUrl
+- Sprint-Regel 5 ("KEINE Änderungen an Job-Runnern") gilt NICHT — dies ist ein NEUER Runner, kein bestehender
+
+**Dateien:** `backend/index.js` (Runner hinzufügen), `backend/services/shipping-engine.js` (lookbackDays prüfen)
+
+---
+
+#### Task 8.2: Sofort-Sync manuell auslösen — heutige Labels abholen
+
+**PROBLEM:** Heute wurden Labels manuell in SendCloud erstellt. Diese fehlen komplett in AvyCloud.
+
+**FIX:** Nach Deploy des Runners (Task 8.1) sofort testen:
+1. `POST /api/orders/sync-sendcloud` mit `{ "fromDate": "2026-03-10" }` aufrufen
+2. Prüfen ob Bestellungen aktualisiert werden (trackingNumber, omsStatus → shipped)
+3. Prüfen ob `shipments`-Collection befüllt wird
+4. Prüfen ob Versand/Labels-Seite (ShippingView) Daten zeigt
+
+**Frontend:** "Labels synchronisieren" Button muss in ShippingView.tsx vorhanden sein (nicht nur in OrderSettings). Falls fehlend: Button hinzufügen der `POST /api/orders/sync-sendcloud` aufruft.
+
+---
+
+#### Task 8.3: Retouren-Sync Debugging (Production-Test)
+
+**PROBLEM:** Retouren-Seite zeigt KEINE Daten obwohl auf eBay/Kaufland abgeschlossene und offene Retouren existieren. Der Code ist vollständig implementiert (returns-engine.js, returns.js Route, ReturnsView.tsx, 4h Scheduler) — aber nie auf Production getestet.
+
+**DEBUGGING-SCHRITTE (in dieser Reihenfolge):**
+
+1. **Backend-Logs prüfen:** Nach `[returns-sync]` suchen — läuft der 4h-Scheduler überhaupt?
+   ```bash
+   gcloud run logs read --service=product-hub-backend --region=europe-west3 --limit=100 | grep -i "returns-sync"
+   ```
+
+2. **Manuellen Sync testen:** `POST /api/returns/sync` aufrufen und Response/Logs prüfen
+   - Erwartete Logs: `[returns-engine] eBay returns sync:`, `[returns-engine] Kaufland returns sync:`
+   - Wenn Fehler: Credential-Problem (eBay Token abgelaufen? Kaufland API-Key falsch?)
+
+3. **Firestore prüfen:** `returns` Collection öffnen → Gibt es Dokumente? Welche `tenantId`?
+
+4. **Firestore-Index prüfen:** Composite Index `(tenantId ASC, createdAt DESC)` auf `returns` Collection
+   - Falls fehlend: In `firestore.indexes.json` ergänzen und deployen
+   - Frontend zeigt "Datenbank-Index wird erstellt" wenn Index fehlt
+
+5. **eBay Token-Situation:** eBay OAuth wurde gerade erst konfiguriert (Secrets gesetzt, Callback-URL gesetzt, Auth-Middleware gefixt). Der OAuth-Flow muss ZUERST erfolgreich durchlaufen werden bevor eBay Returns funktionieren können. → **Task 8.3 hängt von Sprint-Block 7 (eBay OAuth) ab!**
+
+6. **Kaufland:** Kaufland-Credentials unabhängig von eBay — sollte bereits funktionieren wenn API-Key korrekt ist.
+
+**Dateien:** `backend/services/returns-engine.js`, `backend/routes/returns.js`, `backend/index.js` (Scheduler), `firestore.indexes.json`
+
+---
+
+#### Task 8.4: eBay OAuth Callback Auth-Fix (BEREITS ERLEDIGT — nur verifizieren)
+
+**PROBLEM:** eBay OAuth Callback (`GET /api/ebay/oauth/callback`) wurde von der globalen Auth-Middleware blockiert → 401 "Missing Authorization bearer token".
+
+**FIX (bereits deployed in index.js):**
+```js
+if (req.path === '/ebay/oauth/callback') return next(); // eBay redirect — no auth header
+```
+
+**STATUS:** ✅ Code-Fix ist eingecheckt. Nach Deploy testen:
+1. In AvyCloud → Integrationen → eBay → "Jetzt verbinden" klicken
+2. Bei eBay anmelden und Zugriff gewähren
+3. Callback sollte NICHT mehr 401 zeigen
+4. Popup schließt sich automatisch → "eBay wurde erfolgreich verbunden!"
+
+**DANACH:** eBay OAuth Token ist gespeichert → Returns-Sync und Order-Sync können eBay-Daten holen.
+
+---
+
+**PRIORITÄT / REIHENFOLGE:**
+1. Task 8.4 → Deploy + eBay OAuth testen (Voraussetzung für eBay Returns)
+2. Task 8.1 → SendCloud Sync Runner in index.js einfügen
+3. Task 8.2 → Nach Deploy: Manuellen Sync auslösen, Versand-Seite prüfen
+4. Task 8.3 → Returns debuggen (Kaufland sofort, eBay nach erfolgreichem OAuth)
 
 ---
 

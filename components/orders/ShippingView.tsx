@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { fetchShipments, bulkShipOrders, type ShipmentData } from "../../api/client";
+import { fetchShipments, bulkShipOrders, syncSendCloudParcels, type ShipmentData } from "../../api/client";
 import { EmptyState } from "../ui/EmptyState";
 import { useToast } from "../../context/ToastContext";
 
@@ -60,6 +60,7 @@ export const ShippingView: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [bulkBusy, setBulkBusy] = useState(false);
+  const [syncBusy, setSyncBusy] = useState(false);
   const toast = useToast();
 
   const loadShipments = useCallback(async () => {
@@ -149,16 +150,40 @@ export const ShippingView: React.FC = () => {
           <h1 className="text-2xl font-bold text-txt-primary">Versand & Labels</h1>
           <p className="text-sm text-txt-muted">Sendungen verfolgen und Versandlabels verwalten</p>
         </div>
-        <button
-          type="button"
-          onClick={loadShipments}
-          className="inline-flex items-center gap-2 rounded-lg bg-app-elevated text-txt-secondary px-4 py-2.5 text-sm font-semibold hover:text-txt-primary transition"
-        >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-          </svg>
-          Aktualisieren
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            disabled={syncBusy}
+            onClick={async () => {
+              setSyncBusy(true);
+              try {
+                const r = await syncSendCloudParcels();
+                toast.success(`SendCloud Sync: ${r.matched} zugeordnet, ${r.unmatched} offen, ${r.skipped} übersprungen`);
+                loadShipments();
+              } catch (err: any) {
+                toast.error(err?.message || "SendCloud-Sync fehlgeschlagen");
+              } finally {
+                setSyncBusy(false);
+              }
+            }}
+            className="inline-flex items-center gap-2 rounded-lg bg-accent text-white px-4 py-2.5 text-sm font-semibold hover:opacity-90 transition disabled:opacity-50"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+            </svg>
+            {syncBusy ? "Synchronisiere…" : "SendCloud Sync"}
+          </button>
+          <button
+            type="button"
+            onClick={loadShipments}
+            className="inline-flex items-center gap-2 rounded-lg bg-app-elevated text-txt-secondary px-4 py-2.5 text-sm font-semibold hover:text-txt-primary transition"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            Aktualisieren
+          </button>
+        </div>
       </div>
 
       {/* Error */}
