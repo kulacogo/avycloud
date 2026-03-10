@@ -6,6 +6,7 @@ import {
   fetchOrderStatuses,
   syncMarketplaceOrders,
   buildImageProxyUrl,
+  bulkTransitionOrders,
 } from "../api/client";
 import { Order, OrderStatus } from "../types";
 import { SyncIcon } from "./icons/Icons";
@@ -106,6 +107,9 @@ const OrdersView: React.FC = () => {
   const [sortAsc, setSortAsc] = useState(false);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [omsCounts, setOmsCounts] = useState<Record<string, number>>({});
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [bulkResult, setBulkResult] = useState<string | null>(null);
 
   /* ─── Fetch ─── */
   const loadOrders = useCallback(async () => {
@@ -229,6 +233,49 @@ const OrdersView: React.FC = () => {
       </svg>
     );
   };
+
+  /* ─── Selection helpers ─── */
+  const toggleSelect = useCallback((id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const toggleSelectAll = useCallback(() => {
+    setSelectedIds((prev) => {
+      if (prev.size === filteredOrders.length) return new Set();
+      return new Set(filteredOrders.map((o) => o.id));
+    });
+  }, [filteredOrders]);
+
+  const handleBulkTransition = useCallback(async (toStatus: string) => {
+    if (selectedIds.size === 0) return;
+    setBulkBusy(true);
+    setBulkResult(null);
+    try {
+      const result = await bulkTransitionOrders(Array.from(selectedIds), toStatus);
+      const failedCount = result.total - result.success;
+      if (failedCount > 0) {
+        const failedDetails = result.results.filter((r) => !r.ok).map((r) => `${r.orderId}: ${r.error}`).join('; ');
+        setBulkResult(`${result.success}/${result.total} erfolgreich. Fehler: ${failedDetails}`);
+      } else {
+        setBulkResult(`${result.success} Aufträge → ${OMS_STATUS_LABELS[toStatus] || toStatus}`);
+      }
+      setSelectedIds(new Set());
+      await loadOrders();
+      await loadOmsCounts();
+    } catch (err: any) {
+      setBulkResult(`Fehler: ${err?.message || 'Unbekannter Fehler'}`);
+    } finally {
+      setBulkBusy(false);
+    }
+  }, [selectedIds, loadOrders, loadOmsCounts]);
+
+  // Clear selection when filter changes
+  useEffect(() => { setSelectedIds(new Set()); }, [filter]);
 
   /* ─── Status counts for filter pills ─── */
   const statusCounts = useMemo(() => {
@@ -362,6 +409,50 @@ const OrdersView: React.FC = () => {
         })}
       </div>
 
+      {/* Bulk Action Bar */}
+      {selectedIds.size > 0 && (
+        <div className="rounded-2xl border border-accent/30 bg-accent/5 px-4 py-3 flex items-center gap-3 flex-wrap">
+          <span className="text-sm font-semibold text-txt-primary">
+            {selectedIds.size} ausgewählt
+          </span>
+          <div className="h-5 w-px bg-app-border" />
+          {["confirmed", "picking", "picked", "packed", "shipped", "cancelled", "on_hold"].map((s) => (
+            <button
+              key={s}
+              type="button"
+              disabled={bulkBusy}
+              onClick={() => handleBulkTransition(s)}
+              className={`inline-flex items-center rounded-lg border px-3 py-1.5 text-xs font-semibold transition disabled:opacity-50 ${statusBadge(s)} hover:opacity-80`}
+            >
+              {OMS_STATUS_LABELS[s] || s}
+            </button>
+          ))}
+          <div className="ml-auto">
+            <button
+              type="button"
+              onClick={() => setSelectedIds(new Set())}
+              className="text-xs text-txt-muted hover:text-txt-primary transition"
+            >
+              Auswahl aufheben
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Result Feedback */}
+      {bulkResult && (
+        <div
+          className={`rounded-xl px-4 py-3 text-sm border ${
+            bulkResult.startsWith("Fehler") ? "border-danger/20 bg-danger-dim text-danger" : "border-success/20 bg-success-dim text-success"
+          }`}
+        >
+          {bulkResult}
+          <button type="button" onClick={() => setBulkResult(null)} className="ml-3 underline text-xs opacity-70 hover:opacity-100">
+            Schließen
+          </button>
+        </div>
+      )}
+
       {/* Table */}
       <div className="rounded-2xl border border-app-border bg-app-surface overflow-hidden">
         {loading ? (
@@ -377,6 +468,15 @@ const OrdersView: React.FC = () => {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-app-border bg-app-bg/50">
+                  <th className="w-10 px-3 py-3">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.size > 0 && selectedIds.size === filteredOrders.length}
+                      ref={(el) => { if (el) el.indeterminate = selectedIds.size > 0 && selectedIds.size < filteredOrders.length; }}
+                      onChange={toggleSelectAll}
+                      className="w-4 h-4 rounded border-app-border text-accent focus:ring-accent/30 cursor-pointer"
+                    />
+                  </th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-txt-muted uppercase tracking-wider">
                     {t("orders.col.id")}
                   </th>
@@ -417,8 +517,19 @@ const OrdersView: React.FC = () => {
                     <tr
                       key={order.id}
                       onClick={() => setSelectedOrderId(order.id)}
-                      className="border-b border-app-border last:border-b-0 hover:bg-app-elevated/40 transition cursor-pointer"
+                      className={`border-b border-app-border last:border-b-0 hover:bg-app-elevated/40 transition cursor-pointer ${
+                        selectedIds.has(order.id) ? "bg-accent/5" : ""
+                      }`}
                     >
+                      {/* Checkbox */}
+                      <td className="w-10 px-3 py-3" onClick={(e) => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.has(order.id)}
+                          onChange={() => toggleSelect(order.id)}
+                          className="w-4 h-4 rounded border-app-border text-accent focus:ring-accent/30 cursor-pointer"
+                        />
+                      </td>
                       {/* Order ID */}
                       <td className="px-4 py-3">
                         <span className="font-mono text-xs text-txt-primary">

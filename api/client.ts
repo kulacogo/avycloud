@@ -3369,6 +3369,27 @@ export async function bulkShipOrders(orderIds: string[], opts?: { shippingMethod
   return data?.data;
 }
 
+export interface BulkTransitionResult {
+  total: number;
+  success: number;
+  results: { orderId: string; ok: boolean; fromStatus?: string; toStatus?: string; error?: string }[];
+}
+
+export async function bulkTransitionOrders(
+  orderIds: string[],
+  toStatus: string,
+  opts?: { note?: string; force?: boolean }
+): Promise<BulkTransitionResult> {
+  const res = await fetchApi(`${BACKEND_URL}/api/orders/bulk-transition`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ orderIds, toStatus, note: opts?.note, force: opts?.force }),
+  });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) throw new Error(data?.error?.message || 'Bulk-Statuswechsel fehlgeschlagen');
+  return data?.data;
+}
+
 export const openSkuLabelWindow = (productId: string): { ok: boolean; error?: { code: number; message: string } } => {
   try {
     const url = `${BACKEND_URL}/api/products/${encodeURIComponent(productId)}/label`;

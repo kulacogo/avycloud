@@ -1559,6 +1559,50 @@ router.post('/orders/bulk-ship', requirePermission('orders', 'write'), async (re
   }
 });
 
+/**
+ * POST /api/orders/bulk-transition — Change status for multiple orders at once.
+ * Body: { orderIds: string[], toStatus: string, note?: string, force?: boolean }
+ */
+router.post('/orders/bulk-transition', requirePermission('orders', 'write'), async (req, res) => {
+  try {
+    const { orderIds, toStatus, note, force } = req.body;
+    if (!Array.isArray(orderIds) || orderIds.length === 0) {
+      return res.status(400).json({ ok: false, error: { code: 'VALIDATION', message: 'orderIds array required' } });
+    }
+    if (!toStatus || typeof toStatus !== 'string') {
+      return res.status(400).json({ ok: false, error: { code: 'VALIDATION', message: 'toStatus required' } });
+    }
+    if (orderIds.length > 50) {
+      return res.status(400).json({ ok: false, error: { code: 'VALIDATION', message: 'Max 50 orders per bulk transition' } });
+    }
+
+    const tenantId = req.user?.tenantId || 'default';
+    const actor = { uid: req.user?.uid || 'system', email: req.user?.email || 'api' };
+    const { transitionOrder } = require('../services/order-state-machine');
+
+    const results = [];
+    for (const orderId of orderIds) {
+      try {
+        const result = await transitionOrder({
+          tenantId, orderId, toStatus, actor,
+          note: note || `Bulk-Statuswechsel → ${toStatus}`,
+          force: !!force,
+        });
+        results.push({ orderId, ok: true, fromStatus: result.fromStatus, toStatus: result.toStatus });
+      } catch (err) {
+        console.error(`[bulk-transition] Order ${orderId} failed: ${err.message}`);
+        results.push({ orderId, ok: false, error: err.message });
+      }
+    }
+
+    const successCount = results.filter((r) => r.ok).length;
+    res.json({ ok: true, data: { total: orderIds.length, success: successCount, results } });
+  } catch (err) {
+    console.error(`[POST /api/orders/bulk-transition] ${err.message}`, err);
+    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: err.message } });
+  }
+});
+
 // --- Order Update (address editing) ---
 const { updateOrder } = require('../lib/firestore');
 const { logAudit } = require('../services/audit-log');
