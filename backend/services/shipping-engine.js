@@ -121,10 +121,10 @@ async function createParcel({
       country: customer.country || customer.countryCode || 'DE',
       email: customer.email || '',
       telephone: customer.phone || customer.telephone || '',
-      order_number: order.orderId || order.id || '',
+      order_number: order.number || order.baselinkerId || order.orderId || order.id || '',
       weight: String(totalWeight || 0.5), // kg
       request_label: requestLabel,
-      external_reference: order.marketplaceOrderId || order.id || '',
+      external_reference: order.marketplaceOrderId || order.baselinkerId || order.id || '',
     },
   };
 
@@ -458,6 +458,7 @@ async function syncSendCloudParcels({ tenantId = 'default', fromDate, toDate } =
   for (const doc of ordersSnap.docs) {
     const o = { id: doc.id, ...doc.data() };
     ordersById.set(doc.id, o);
+    ordersByNumber.set(doc.id, o); // Firestore doc ID for matching parcels created with order.id
 
     if (o.orderId) ordersByNumber.set(String(o.orderId), o);
     if (o.number) ordersByNumber.set(String(o.number), o);
@@ -494,14 +495,14 @@ async function syncSendCloudParcels({ tenantId = 'default', fromDate, toDate } =
     const orderNumber = parcel.order_number || '';
     const extRef = parcel.external_reference || '';
 
-    // Priority 1: order_number → orderId/number/baselinkerId
+    // Priority 1: order_number → Firestore doc ID, then orderId/number/baselinkerId
     if (orderNumber) {
-      order = ordersByNumber.get(orderNumber) || ordersById.get(orderNumber) || null;
+      order = ordersById.get(orderNumber) || ordersByNumber.get(orderNumber) || null;
     }
 
-    // Priority 2: external_reference → marketplaceOrderId
+    // Priority 2: external_reference → marketplaceOrderId, then by number
     if (!order && extRef) {
-      order = ordersByMarketplaceId.get(extRef) || ordersByNumber.get(extRef) || null;
+      order = ordersByMarketplaceId.get(extRef) || ordersById.get(extRef) || ordersByNumber.get(extRef) || null;
     }
 
     // Priority 3: name + zip fallback

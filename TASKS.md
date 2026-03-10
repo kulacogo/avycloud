@@ -43,11 +43,17 @@
 > - ~~**BUG-021: Versandlabel — Adress-Validation + Versandregeln-UI**~~ ✅ (teilweise — Validation + UI fertig, aber BUG-022 Root Cause noch offen)
 > - ~~**BUG-022: ALLE BaseLinker-Bestellungen haben KEINE Versandadresse**~~ ✅ — Fixed: `mapBaseLinkerOrder()` mappt jetzt street/zip/phone/email + Backfill-Script + Address-Editing in OrderDetail
 > - ~~**BUG-023: SendCloud Gewicht ×1000 + Label/Tracking Deep Dive**~~ ✅ — Sprint-Block 4
-> - **BUG-020: Retouren prüfen** — Returns-Engine implementiert, Production-Verifikation steht aus → Sprint-Block 6 + 8.3
-> - ~~**FEAT: SendCloud Versandinfo-Abruf**~~ ✅ — Sprint-Block 5 (Funktion fertig, aber **Auto-Runner fehlt** → Sprint-Block 8.1)
-> - **FEAT: eBay Integration Deep Dive** — Secrets gesetzt ✅, Callback Auth-Fix ✅, Deploy + Test steht aus → Sprint-Block 7 + 8.4
-> - ~~**🔴 FEAT: SendCloud Auto-Sync Runner**~~ ✅ — Runner in index.js (2h-Intervall) + Sync-Button in ShippingView
-> - ~~**🔴 BUG: Versand/Labels-Seite komplett leer**~~ ✅ — Sync-Runner befüllt shipments Collection, Button in ShippingView
+> - **🔴 BUG-024: SendCloud Sync Matching kaputt** — 0 von 4 Parcels gematcht, Matching-Logik fehlerhaft → Sprint-Block 9.1
+> - **🔴 BUG-025: Retouren-Sync schlägt still fehl** — eBay Scopes fehlen (`sell.fulfillment`), Errors verschluckt → Sprint-Block 9.2
+> - **🔴 BUG-026: Status-Diskrepanz Liste vs Detail** — OrdersView zeigt Legacy-Status, OrderDetail zeigt OMS-Status → Sprint-Block 9.3
+> - **BUG-027: Tracking-Nummer nicht verlinkt** — Plain-Text statt klickbarer Link → Sprint-Block 9.4
+> - **BUG-028: Carrier-Liste hardcoded** — Nicht aus SendCloud geladen → Sprint-Block 9.5
+> - **BUG-029: Status-Dropdown zeigt ungültige Übergänge** — Alle 12 Status statt gültige Transitions → Sprint-Block 9.6
+> - **FEAT: Mehr Integrationen** — Nur 3 aktiv, strategische Erweiterung nötig → Sprint-Block 9.7
+> - **VERIFY: Tracking → Marktplätze** — Code existiert, Production-Test steht aus → Sprint-Block 9.8
+> - **🔴 BUG-030: eBay "Trennen" funktioniert nicht** — `deleteIntegration` löscht `default__ebay`, aber OAuth-Token liegt in Doc `ebay` → Sprint-Block 9.9
+> - ~~**FEAT: eBay Integration**~~ ✅ — OAuth funktioniert, eBay als Integration aktiv
+> - ~~**FEAT: SendCloud Auto-Sync Runner**~~ ✅ — Runner + Button vorhanden, aber Matching kaputt (→ 9.1)
 > - ~~Deduplizierung: Merge-UI + Auto-Merge~~ ✅
 > - ~~Bulk-Import/Export (CSV/Excel)~~ ✅
 > - ~~E-Mail-Templates~~ ✅
@@ -518,6 +524,276 @@ if (req.path === '/ebay/oauth/callback') return next(); // eBay redirect — no 
 2. Task 8.1 → SendCloud Sync Runner in index.js einfügen
 3. Task 8.2 → Nach Deploy: Manuellen Sync auslösen, Versand-Seite prüfen
 4. Task 8.3 → Returns debuggen (Kaufland sofort, eBay nach erfolgreichem OAuth)
+
+---
+
+### Sprint-Block 9: 🔴 KRITISCH — Production-Bugs aus User-Testing (2026-03-10) ✅ Code-Fixes erledigt
+
+**KONTEXT:** User hat nach Deploy getestet. 8 Probleme gefunden — alle verified. Hier die Arbeitsanweisungen.
+**STATUS:** Task 9.9 ✅ (eBay Disconnect), Task 9.2 ✅ (Scopes + Error), Task 9.1 ✅ (SendCloud Matching), Task 9.3 ✅ (Status-Diskrepanz), Task 9.4 ✅ (Tracking-Links), Task 9.6 ✅ (Status-Dropdown Filter). Task 9.5/9.7/9.8 offen (nicht kritisch).
+
+---
+
+#### Task 9.1: 🔴 SendCloud Sync Matching ist kaputt (0 von 4 gematcht)
+
+**PROBLEM:** `syncSendCloudParcels()` matcht 0 Parcels obwohl 4 unmatched und 316 skipped. Die Matching-Logik hat einen fundamentalen Fehler.
+
+**ROOT CAUSE:**
+- `createParcel()` (Zeile ~124) sendet `order_number: order.orderId || order.id` — BaseLinker-Orders haben KEIN `orderId`-Feld, also wird die Firestore-Doc-ID gesendet
+- `syncSendCloudParcels()` baut Lookup-Maps: `ordersByNumber` nutzt `order.orderId`, `order.number`, `order.baselinkerId` — aber NICHT die Firestore-Doc-ID
+- Die Priority-1-Suche (`ordersByNumber.get(orderNumber)`) findet die Firestore-Doc-ID nicht
+- `ordersById.get()` wird zwar als Fallback aufgerufen, aber der Wert aus SendCloud (`order_number`) ist die Firestore-Doc-ID, und `ordersById` mapped `doc.id` → das SOLLTE matchen, tut es aber offenbar nicht
+
+**FIX (2 Stellen):**
+
+1. **`createParcel()` (shipping-engine.js ~Zeile 124)** — Bessere Werte an SendCloud senden:
+   ```js
+   // ALT (FALSCH):
+   order_number: order.orderId || order.id || '',
+   external_reference: order.marketplaceOrderId || order.id || '',
+
+   // NEU (RICHTIG):
+   order_number: order.number || order.baselinkerId || order.id || '',
+   external_reference: order.marketplaceOrderId || order.baselinkerId || order.id || '',
+   ```
+
+2. **`syncSendCloudParcels()` Matching-Logik** — Priority-1 muss auch Firestore-Doc-ID finden:
+   ```js
+   // ALT:
+   order = ordersByNumber.get(orderNumber) || ordersById.get(orderNumber) || null;
+
+   // NEU: ordersById hat höhere Priorität (enthält doc.id)
+   order = ordersById.get(orderNumber) || ordersByNumber.get(orderNumber) || null;
+   ```
+
+3. **Zusätzlich `ordersByNumber` erweitern** — Auch Firestore-Doc-ID in die Map:
+   ```js
+   // In der Schleife wo ordersByNumber gebaut wird:
+   ordersByNumber.set(doc.id, o); // Firestore doc.id als Key hinzufügen
+   ```
+
+**TESTEN:** Nach Fix `POST /api/orders/sync-sendcloud` aufrufen → mindestens 4 sollten als "matched" zurückkommen.
+
+**Dateien:** `backend/services/shipping-engine.js`
+
+---
+
+#### Task 9.2: 🔴 Retouren-Sync schlägt still fehl (eBay Scopes fehlen)
+
+**PROBLEM:** Returns-Sync gibt "0 neue Retouren synchronisiert" obwohl 17+ Returns auf eBay existieren. Der Sync schlägt still fehl weil:
+
+**ROOT CAUSE 1 — Fehlender OAuth Scope:**
+- `getEbayScopes()` in `ebay-oauth.js` (Zeile ~63) hat Default: `sell.inventory.readonly`
+- Post-Order API v2 (`GET /post-order/v2/return/search`) braucht `sell.fulfillment` Scope
+- eBay gibt 403 zurück → Error wird verschluckt
+
+**ROOT CAUSE 2 — Fehler werden nicht angezeigt:**
+- `syncEbayReturns()` fängt den 403 mit try/catch, loggt ihn, gibt aber nur `errors: 1` zurück
+- Frontend zeigt "0 neue Retouren" ohne Fehlerdetails
+
+**FIX:**
+
+1. **`ebay-oauth.js` Default-Scopes erweitern (Zeile ~63):**
+   ```js
+   const fallback = [
+     'https://api.ebay.com/oauth/api_scope/sell.inventory.readonly',
+     'https://api.ebay.com/oauth/api_scope/sell.fulfillment',
+     'https://api.ebay.com/oauth/api_scope/sell.finances',
+     'https://api.ebay.com/oauth/api_scope/commerce.identity.readonly',
+   ];
+   ```
+
+2. **`returns-engine.js` — Error-Details in Response exponieren:**
+   ```js
+   // In syncEbayReturns() catch-Block:
+   catch (err) {
+     logger.error(`[returns-engine] eBay returns sync failed: ${err.message}`);
+     return { synced: 0, skipped: 0, errors: 1, errorMessage: err.message };
+   }
+   ```
+
+3. **Frontend ReturnsView** — Error-Message anzeigen wenn `errorMessage` in Response
+
+4. **WICHTIG:** Nach Scope-Änderung muss der User den eBay OAuth-Flow NOCHMAL durchlaufen (neuer Token mit erweiterten Scopes). Bestehender Token hat nur `sell.inventory.readonly`.
+
+**Dateien:** `backend/lib/ebay-oauth.js`, `backend/services/returns-engine.js`, `backend/routes/returns.js`, `components/ReturnsView.tsx`
+
+---
+
+#### Task 9.3: Status-Diskrepanz zwischen Auftrags-Liste und Auftrags-Detail
+
+**PROBLEM:** OrdersView zeigt "Verpackt" aber OrderDetail zeigt "Versendet" für die gleiche Bestellung.
+
+**ROOT CAUSE:**
+- OrdersView nutzt `order.statusLabel || order.status` (Legacy BaseLinker-Status)
+- OrderDetail nutzt `order.omsStatus` (neues OMS-System)
+- `order-sync.js` Zeile ~462 mappt BaseLinker "Versendet" → Legacy `status: 'picked'`, nicht `shipped`
+- Wenn dann ein Versandlabel erstellt wird, wird `omsStatus` auf `shipped` gesetzt, aber der Legacy-Status bleibt `picked`
+
+**FIX:**
+- OrdersView MUSS `omsStatus` als primäre Quelle verwenden (mit Fallback auf Legacy):
+  ```tsx
+  // In OrdersView, Status-Anzeige:
+  const displayStatus = order.omsStatus || order.status;
+  const displayLabel = OMS_STATUS_LABELS[displayStatus] || order.statusLabel || displayStatus;
+  ```
+- ODER: `order-sync.js` muss beim Import auch `omsStatus` korrekt setzen
+
+**Dateien:** `components/OrdersView.tsx`, `backend/services/order-sync.js`
+
+---
+
+#### Task 9.4: Tracking-Nummer nicht verlinkt
+
+**PROBLEM:** Tracking-Nummer in OrderDetail ist Plain-Text, nicht klickbar.
+
+**FIX:** Carrier-spezifische Tracking-URL generieren:
+```tsx
+// In OrderDetail.tsx:
+const TRACKING_URLS: Record<string, string> = {
+  dhl: 'https://www.dhl.de/de/privatkunden/pakete-empfangen/verfolgen.html?piececode=',
+  dhl_de: 'https://www.dhl.de/de/privatkunden/pakete-empfangen/verfolgen.html?piececode=',
+  dpd: 'https://tracking.dpd.de/parcelstatus?query=',
+  gls: 'https://gls-group.eu/DE/de/paketverfolgung?match=',
+  hermes: 'https://www.myhermes.de/empfangen/sendungsverfolgung/sendungsinformation#',
+  ups: 'https://www.ups.com/track?tracknum=',
+  dhl_express: 'https://www.dhl.com/de-de/home/tracking/tracking-express.html?submit=1&tracking-id=',
+};
+
+// Tracking-Row mit Link:
+{order.trackingNumber && (
+  <Row label="Tracking" value={
+    <a href={`${TRACKING_URLS[order.shippingService || 'dhl']}${order.trackingNumber}`}
+       target="_blank" rel="noopener noreferrer"
+       className="text-accent hover:underline">
+      {order.trackingNumber}
+    </a>
+  } />
+)}
+```
+
+Alternativ: `order.trackingUrl` verwenden wenn vorhanden (wird von SendCloud zurückgegeben).
+
+**Dateien:** `components/OrderDetail.tsx`
+
+---
+
+#### Task 9.5: Versandregeln — Carrier-Liste hardcoded statt dynamisch
+
+**PROBLEM:** Carrier-Dropdown in Versandregeln zeigt DHL, DPD, GLS, Hermes, UPS, DHL Express — unabhängig davon was in SendCloud oder als Integration aktiv ist.
+
+**FIX:**
+1. **Neuer Endpoint** `GET /api/shipping/methods` der `getShippingMethods()` aus `shipping-engine.js` aufruft
+2. **Frontend** lädt Carrier/Methods beim Öffnen der Versandregeln-Seite
+3. Dropdown zeigt nur Carrier die im SendCloud-Account tatsächlich verfügbar sind
+4. Method-ID wird automatisch vorgeschlagen basierend auf gewähltem Carrier + Gewichtsklasse
+
+**Dateien:** `backend/routes/orders.js`, `backend/services/shipping-engine.js`, `components/orders/OrderSettingsView.tsx`, `api/client.ts`
+
+---
+
+#### Task 9.6: Status-Dropdown zeigt ungültige Übergänge (kein Transition-Filter)
+
+**PROBLEM:** "Status setzen..." Dropdown in OrderDetail zeigt ALLE 12 OMS-Status. User kann z.B. von "Versendet" auf "Kommissionierung" setzen — das ist logisch ungültig.
+
+**FIX:**
+1. **Neuer Endpoint** `GET /api/orders/:orderId/transitions` der gültige Übergänge zurückgibt
+   - Liest `TRANSITIONS` Map aus `order-state-machine.js`
+   - Gibt nur erlaubte Ziel-Status zurück basierend auf aktuellem Status
+2. **Frontend** filtert Dropdown auf gültige Übergänge:
+   ```tsx
+   // Statt allStatuses:
+   const validTransitions = TRANSITIONS[currentStatus] || [];
+   // Dropdown zeigt nur validTransitions
+   ```
+3. "Force"-Override nur für Admin-Rolle sichtbar (nicht für normale User)
+
+**Dateien:** `components/OrderDetail.tsx`, `backend/routes/orders.js`, `backend/services/order-state-machine.js`
+
+---
+
+#### Task 9.7: Integrationen — zu wenige Optionen
+
+**PROBLEM:** IntegrationsHub zeigt nur eBay, Kaufland, BaseLinker. Wettbewerber wie BaseLinker bieten 1800+ Integrationen. AvyCloud braucht zumindest die wichtigsten.
+
+**KEIN SOFORT-FIX — STRATEGISCHE AUFGABE:**
+- Kurzfristig (KW 11): Bestehende Integrationen stabilisieren (eBay OAuth, Kaufland, SendCloud)
+- Mittelfristig (KW 12-14): Weitere Versanddienstleister über SendCloud (bereits ~35 Carrier unterstützt)
+- Mittelfristig: Weitere Marktplätze: Amazon, Otto, Etsy, Zalando
+- Langfristig: Buchhaltung (SevDesk ✅ bereits implementiert, DATEV, lexoffice), Payment (Stripe, PayPal), CRM
+- **IntegrationsHub erweitern:** Kategorien (Marktplätze, Versand, Buchhaltung, Payment), Status-Badges, Config-Seiten pro Integration
+
+**Dateien:** `components/IntegrationsHub.tsx`, `components/IntegrationWizard.tsx`
+
+---
+
+#### Task 9.8: Tracking → Marktplätze Kommunikation verifizieren
+
+**PROBLEM:** Unklar ob Tracking-Nummern erfolgreich an eBay/Kaufland gepusht werden.
+
+**STATUS:** Code existiert in `marketplace-tracking.js` (`pushTrackingToEbay()` via CompleteSale, `pushTrackingToKaufland()`). War in Sprint-Block 4 gefixt (eBay XML repariert, Kaufland Carrier-Map erweitert).
+
+**VERIFIKATION:**
+1. Bestellung öffnen die Tracking-Nummer hat
+2. Cloud Run Logs prüfen: `grep "marketplace-tracking"` — gibt es Erfolgs- oder Fehlermeldungen?
+3. Auf eBay Seller Hub prüfen: Bestellung → Versandstatus → Tracking-Nummer vorhanden?
+4. Falls nicht: `pushTrackingToEbay()` manuell debuggen (Token, XML, OrderID)
+
+**Dateien:** `backend/services/marketplace-tracking.js`, `backend/lib/ebay-trading-api.js`
+
+---
+
+#### Task 9.9: 🔴 eBay Integration "Trennen" funktioniert nicht (Doc-ID Mismatch)
+
+**PROBLEM:** User klickt "Trennen" bei eBay-Integration, aber Status bleibt "Verbunden". Re-Connect mit neuen Scopes ist daher nicht möglich.
+
+**ROOT CAUSE — Zwei verschiedene Firestore-Doc-IDs:**
+- `integration-store.js` → `deleteIntegration()` löscht Doc `default__ebay` (Collection `integrations`)
+- `ebay-oauth.js` → `upsertEbayTokenSet()` speichert in Doc `ebay` (Collection `integrations`)
+- `getEbayIntegration()` liest Doc `ebay` → findet Token → zeigt "Verbunden"
+- `deleteIntegration()` löscht `default__ebay` → aber `ebay` Doc (mit dem echten Token) bleibt erhalten!
+
+**FIX (2 Optionen — Option A empfohlen):**
+
+**Option A: `deleteIntegration` für eBay erweitern:**
+```js
+// In integration-store.js → deleteIntegration():
+async function deleteIntegration({ tenantId = 'default', type }) {
+  const docId = `${tenantId}__${type}`;
+  await getDb().collection(COLLECTION).doc(docId).delete();
+
+  // eBay speichert OAuth-Token in separatem Doc
+  if (type === 'ebay') {
+    await getDb().collection(COLLECTION).doc('ebay').delete();
+  }
+
+  return { ok: true, type, status: 'disconnected' };
+}
+```
+
+**Option B: eBay OAuth auf `{tenantId}__ebay` Doc-ID umstellen:**
+- Alle Referenzen in `ebay-oauth.js` von `doc('ebay')` → `doc(`${tenantId}__ebay`)` umstellen
+- Multi-Tenancy-ready, aber größerer Umbau
+
+**WICHTIG:** Nach diesem Fix muss der User:
+1. eBay trennen (löscht Token)
+2. eBay neu verbinden (OAuth-Flow mit erweiterten Scopes aus Task 9.2)
+3. Dann funktionieren Returns-Sync und Order-Sync
+
+**Dateien:** `backend/services/integration-store.js`, `backend/lib/ebay-oauth.js`
+
+---
+
+**PRIORITÄT / REIHENFOLGE:**
+1. **Task 9.9** — eBay Disconnect fixen (Blocker für Task 9.2!)
+2. **Task 9.2** — eBay Scopes erweitern + Error-Handling (kritisch, Retouren leer)
+3. **Task 9.1** — SendCloud Matching fixen (kritisch, Versand-Seite leer)
+4. **Task 9.3** — Status-Diskrepanz (verwirrend für User)
+5. **Task 9.4** — Tracking-Link (quick win)
+6. **Task 9.6** — Status-Dropdown filtern (UX)
+7. **Task 9.5** — Carrier dynamisch laden (mittel)
+8. **Task 9.8** — Tracking-Push verifizieren (nach Deploy)
+9. **Task 9.7** — Mehr Integrationen (strategisch, kein Sofort-Fix)
 
 ---
 

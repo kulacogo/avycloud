@@ -23,17 +23,36 @@ const STATUS_FILTERS: { key: StatusFilter; labelKey: string; tone: string }[] = 
   { key: "other", labelKey: "orders.filter.other", tone: "bg-app-elevated text-txt-secondary" },
 ];
 
+/* ─── OMS Status Labels ─── */
+const OMS_STATUS_LABELS: Record<string, string> = {
+  pending: "Neu", confirmed: "Bestätigt", picking: "Kommissionierung",
+  picked: "Kommissioniert", packing: "Verpackung", packed: "Verpackt",
+  shipped: "Versendet", delivered: "Zugestellt", cancelled: "Storniert",
+  returned: "Retoure", on_hold: "Pausiert", refunded: "Erstattet",
+};
+
 /* ─── Status badge styling ─── */
-const statusBadge = (status: OrderStatus) => {
+const statusBadge = (status: string) => {
   switch (status) {
     case "new":
+    case "pending":
+    case "confirmed":
       return "bg-info-dim text-info border-info/20";
     case "picking":
+    case "packing":
       return "bg-warning-dim text-warning border-warning/20";
     case "picked":
-      return "bg-accent-dim text-accent border-accent/20";
     case "packed":
+      return "bg-accent-dim text-accent border-accent/20";
+    case "shipped":
+    case "delivered":
       return "bg-success-dim text-success border-success/20";
+    case "cancelled":
+    case "returned":
+    case "refunded":
+      return "bg-danger-dim text-danger border-danger/20";
+    case "on_hold":
+      return "bg-warning-dim text-warning border-warning/20";
     default:
       return "bg-app-elevated text-txt-secondary border-app-border";
   }
@@ -150,11 +169,12 @@ const OrdersView: React.FC = () => {
     const now = new Date();
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
 
-    const openCount = orders.filter((o) => o.status === "new" || o.status === "picking").length;
+    const getStatus = (o: Order) => (o as any).omsStatus || o.status;
+    const openCount = orders.filter((o) => { const s = getStatus(o); return s === "new" || s === "pending" || s === "picking"; }).length;
     const pickedToday = orders.filter(
       (o) => o.pickedAt && new Date(o.pickedAt).getTime() >= todayStart
     ).length;
-    const packedCount = orders.filter((o) => o.status === "packed").length;
+    const packedCount = orders.filter((o) => getStatus(o) === "packed").length;
 
     // Avg processing time: from createdAt to pickedAt for picked/packed orders
     const processedOrders = orders.filter((o) => o.pickedAt && o.createdAt);
@@ -171,7 +191,7 @@ const OrdersView: React.FC = () => {
 
   /* ─── Filter + Sort ─── */
   const filteredOrders = useMemo(() => {
-    let list = filter === "all" ? orders : orders.filter((o) => o.status === filter);
+    let list = filter === "all" ? orders : orders.filter((o) => ((o as any).omsStatus || o.status) === filter);
 
     list = [...list].sort((a, b) => {
       let cmp = 0;
@@ -472,13 +492,17 @@ const OrdersView: React.FC = () => {
                       </td>
                       {/* Status */}
                       <td className="px-4 py-3">
-                        <span
-                          className={`inline-flex items-center rounded-md border px-2 py-0.5 text-[11px] font-semibold ${statusBadge(
-                            order.status
-                          )}`}
-                        >
-                          {order.statusLabel || order.status}
-                        </span>
+                        {(() => {
+                          const displayStatus = (order as any).omsStatus || order.status;
+                          const displayLabel = OMS_STATUS_LABELS[displayStatus] || order.statusLabel || displayStatus;
+                          return (
+                            <span
+                              className={`inline-flex items-center rounded-md border px-2 py-0.5 text-[11px] font-semibold ${statusBadge(displayStatus)}`}
+                            >
+                              {displayLabel}
+                            </span>
+                          );
+                        })()}
                       </td>
                       {/* Date */}
                       <td className="px-4 py-3 text-right">

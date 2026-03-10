@@ -71,6 +71,9 @@ async function getEbayScopes() {
   //   sell.marketing.readonly    — promoted listings stats
   const fallback = [
     'https://api.ebay.com/oauth/api_scope/sell.inventory.readonly',
+    'https://api.ebay.com/oauth/api_scope/sell.fulfillment',
+    'https://api.ebay.com/oauth/api_scope/sell.finances',
+    'https://api.ebay.com/oauth/api_scope/commerce.identity.readonly',
   ];
   const fromEnv = parseScopes(process.env.EBAY_SCOPES);
   return fromEnv || fallback;

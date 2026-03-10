@@ -386,6 +386,8 @@ async function syncEbayReturns({ tenantId = 'default', lookbackDays = 30 } = {})
   } catch (err) {
     console.error(`[returns-engine] eBay returns sync failed: ${err.message}`);
     errors++;
+    console.log(`[returns-engine] eBay sync: ${synced} synced, ${skipped} skipped, ${errors} errors`);
+    return { synced, skipped, errors, errorMessage: err.message };
   }
 
   console.log(`[returns-engine] eBay sync: ${synced} synced, ${skipped} skipped, ${errors} errors`);
@@ -487,6 +489,8 @@ async function syncKauflandReturns({ tenantId = 'default', lookbackDays = 30 } =
   } catch (err) {
     console.error(`[returns-engine] Kaufland returns sync failed: ${err.message}`);
     errors++;
+    console.log(`[returns-engine] Kaufland sync: ${synced} synced, ${skipped} skipped, ${errors} errors`);
+    return { synced, skipped, errors, errorMessage: err.message };
   }
 
   console.log(`[returns-engine] Kaufland sync: ${synced} synced, ${skipped} skipped, ${errors} errors`);

@@ -34,6 +34,24 @@ const STATUS_LABELS: Record<string, string> = {
   cancelled: "Storniert", returned: "Retourniert", on_hold: "Zurückgestellt",
 };
 
+/* ─── Tracking URL builder ─── */
+const TRACKING_URLS: Record<string, string> = {
+  dhl: "https://www.dhl.de/de/privatkunden/pakete-empfangen/verfolgen.html?piececode=",
+  dhl_de: "https://www.dhl.de/de/privatkunden/pakete-empfangen/verfolgen.html?piececode=",
+  dhl_express: "https://www.dhl.com/de-de/home/tracking/tracking-express.html?submit=1&tracking-id=",
+  dpd: "https://tracking.dpd.de/parcelstatus?query=",
+  gls: "https://gls-group.eu/DE/de/paketverfolgung?match=",
+  hermes: "https://www.myhermes.de/empfangen/sendungsverfolgung/sendungsinformation#",
+  ups: "https://www.ups.com/track?tracknum=",
+};
+
+function buildTrackingUrl(order: Order): string | null {
+  if ((order as any).trackingUrl) return (order as any).trackingUrl;
+  const carrier = ((order as any).shippingService || "dhl").toLowerCase();
+  const base = TRACKING_URLS[carrier] || TRACKING_URLS.dhl;
+  return order.trackingNumber ? `${base}${order.trackingNumber}` : null;
+}
+
 /* ─── Props ─── */
 interface OrderDetailProps {
   orderId: string;
@@ -177,27 +195,38 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({ orderId, onClose, onSt
                     </button>
                   );
                 })}
-                {/* Dropdown for manual override to any status */}
-                {Object.keys(allStatuses).length > 0 && (
-                  <select
-                    value=""
-                    disabled={transitioning}
-                    onChange={(e) => {
-                      if (e.target.value) handleTransition(e.target.value, true);
-                    }}
-                    className="h-7 px-2 rounded-lg text-xs bg-app-elevated border border-app-border text-txt-secondary hover:text-txt-primary cursor-pointer disabled:opacity-50 focus:outline-none focus:ring-1 focus:ring-accent"
-                  >
-                    <option value="">Status setzen...</option>
-                    {Object.entries(allStatuses)
-                      .sort(([, a], [, b]) => a.sortOrder - b.sortOrder)
-                      .filter(([key]) => key !== omsStatus)
-                      .map(([key, info]) => (
-                        <option key={key} value={key}>
-                          {info.label}
-                        </option>
-                      ))}
-                  </select>
-                )}
+                {/* Dropdown for other valid transitions + force override */}
+                {Object.keys(allStatuses).length > 0 && (() => {
+                  const validSet = new Set(nextStatuses);
+                  const otherValid = Object.entries(allStatuses)
+                    .filter(([key]) => key !== omsStatus && !validSet.has(key))
+                    .sort(([, a], [, b]) => a.sortOrder - b.sortOrder);
+                  const forceTargets = otherValid.filter(([key]) => !validSet.has(key));
+                  return (
+                    <select
+                      value=""
+                      disabled={transitioning}
+                      onChange={(e) => {
+                        if (e.target.value) {
+                          const isForce = !validSet.has(e.target.value);
+                          handleTransition(e.target.value, isForce);
+                        }
+                      }}
+                      className="h-7 px-2 rounded-lg text-xs bg-app-elevated border border-app-border text-txt-secondary hover:text-txt-primary cursor-pointer disabled:opacity-50 focus:outline-none focus:ring-1 focus:ring-accent"
+                    >
+                      <option value="">Status setzen...</option>
+                      {forceTargets.length > 0 && (
+                        <optgroup label="Manuell erzwingen">
+                          {forceTargets.map(([key, info]) => (
+                            <option key={key} value={key}>
+                              {info.label}
+                            </option>
+                          ))}
+                        </optgroup>
+                      )}
+                    </select>
+                  );
+                })()}
               </div>
             </div>
 
@@ -395,7 +424,18 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({ orderId, onClose, onSt
                           </span>
                         )}
                       </div>
-                      {order.trackingNumber && <Row label="Tracking" value={order.trackingNumber} />}
+                      {order.trackingNumber && (
+                        <Row label="Tracking" value={
+                          (() => {
+                            const url = buildTrackingUrl(order);
+                            return url ? (
+                              <a href={url} target="_blank" rel="noopener noreferrer" className="text-accent hover:underline font-mono text-xs">
+                                {order.trackingNumber}
+                              </a>
+                            ) : order.trackingNumber;
+                          })()
+                        } />
+                      )}
                       {order.buyerNote && <Row label="Kundennotiz" value={order.buyerNote} />}
                     </div>
                   </section>

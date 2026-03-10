@@ -207,6 +207,16 @@ async function updateSettings({ tenantId = 'default', type, settings }) {
 async function deleteIntegration({ tenantId = 'default', type }) {
   const docId = `${tenantId}__${type}`;
   await getDb().collection(COLLECTION).doc(docId).delete();
+
+  // eBay stores OAuth tokens in a separate doc ('ebay') — delete it too
+  if (type === 'ebay') {
+    try {
+      await getDb().collection(COLLECTION).doc('ebay').delete();
+    } catch (err) {
+      console.warn(`[integration-store] Failed to delete eBay OAuth doc: ${err.message}`);
+    }
+  }
+
   return { ok: true, type, status: 'disconnected' };
 }
 
