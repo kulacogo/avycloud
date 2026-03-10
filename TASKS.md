@@ -712,18 +712,402 @@ Alternativ: `order.trackingUrl` verwenden wenn vorhanden (wird von SendCloud zur
 
 ---
 
-#### Task 9.7: Integrationen — zu wenige Optionen
+#### Task 9.7: 🔴🔴🔴 KRITISCH — Integrationen = Kundengewinnung = Umsatz
 
-**PROBLEM:** IntegrationsHub zeigt nur eBay, Kaufland, BaseLinker. Wettbewerber wie BaseLinker bieten 1800+ Integrationen. AvyCloud braucht zumindest die wichtigsten.
+**PROBLEM:** AvyCloud hat 6 Integrationen. BaseLinker hat 1.800+. Ohne Integrationen keine Kunden, ohne Kunden kein Umsatz. Das ist der #1 Blocker für Go-to-Market.
 
-**KEIN SOFORT-FIX — STRATEGISCHE AUFGABE:**
-- Kurzfristig (KW 11): Bestehende Integrationen stabilisieren (eBay OAuth, Kaufland, SendCloud)
-- Mittelfristig (KW 12-14): Weitere Versanddienstleister über SendCloud (bereits ~35 Carrier unterstützt)
-- Mittelfristig: Weitere Marktplätze: Amazon, Otto, Etsy, Zalando
-- Langfristig: Buchhaltung (SevDesk ✅ bereits implementiert, DATEV, lexoffice), Payment (Stripe, PayPal), CRM
-- **IntegrationsHub erweitern:** Kategorien (Marktplätze, Versand, Buchhaltung, Payment), Status-Badges, Config-Seiten pro Integration
+**BENCHMARK (BaseLinker-Kategorien):**
+- Marketplace: 364 | Shops: 86 | Couriers: 388 | Fulfillment: 58
+- Accounting/ERP: 137 | SMS: 15 | Other: 44 | Wholesalers: 838
 
-**Dateien:** `components/IntegrationsHub.tsx`, `components/IntegrationWizard.tsx`
+**AvyCloud IST-Stand: 6 Integrationen**
+- eBay ✅ | Kaufland ✅ | BaseLinker ✅ | SendCloud ✅ | SevDesk ✅ | DHL (via SendCloud) ✅
+
+---
+
+**🔴 PHASE 1 — MUSS (KW 11-14) — Minimum Viable Integration Set**
+
+> Ohne diese Integrationen ist AvyCloud für die meisten DACH-Händler nicht nutzbar.
+
+**Marktplätze (Top 5 für DACH):**
+| Integration | Marktanteil | API | Aufwand | Prio |
+|---|---|---|---|---|
+| Amazon SP-API | ~50% aller DACH-Käufer | OAuth 2.0 + Selling Partner API | 80-120h | 🔴 P0 |
+| Otto Market | #2 DE Marktplatz | REST API + OAuth | 60-80h | 🔴 P0 |
+| Zalando ZFS | Fashion + expanding | REST API | 40-60h | 🟠 P1 |
+| Etsy | Handmade/Nische | OAuth 2.0 + REST | 30-40h | 🟠 P1 |
+| About You | Fashion DACH | REST API | 30-40h | 🟡 P2 |
+
+**Shops (Top 5 — eigene Webshops der Händler):**
+| Integration | Verbreitung | API | Aufwand | Prio |
+|---|---|---|---|---|
+| Shopify | Global #1 | REST + GraphQL | 40-50h | 🔴 P0 |
+| WooCommerce | DE sehr verbreitet | REST API | 30-40h | 🔴 P0 |
+| Shopware 6 | DE Marktführer | REST + Admin API | 40-50h | 🟠 P1 |
+| PrestaShop | EU verbreitet | REST API | 30h | 🟡 P2 |
+| Magento/Adobe | Enterprise | REST + GraphQL | 50-60h | 🟡 P2 |
+
+**Versand/Couriers (über SendCloud bereits ~35 Carrier abgedeckt, aber direkte Integrationen für Top-Carrier):**
+| Integration | Status | Aufwand | Prio |
+|---|---|---|---|
+| DHL (direkt) | Via SendCloud ✅ | Direkt-API 20h | 🟠 P1 |
+| DPD | Via SendCloud ✅ | Direkt-API 20h | 🟡 P2 |
+| GLS | Via SendCloud ✅ | Direkt-API 20h | 🟡 P2 |
+| Hermes | Via SendCloud ✅ | Direkt-API 15h | 🟡 P2 |
+| UPS | Via SendCloud ✅ | Direkt-API 20h | 🟡 P2 |
+
+> **Strategie Versand:** SendCloud bleibt Haupt-Carrier-Hub (388 Carrier). Direkte API nur wenn Händler SendCloud nicht nutzt.
+
+**Buchhaltung/ERP:**
+| Integration | Verbreitung DE | API | Aufwand | Prio |
+|---|---|---|---|---|
+| SevDesk | ✅ Bereits implementiert | — | — | ✅ |
+| lexoffice | Sehr verbreitet DE | REST API | 25-30h | 🔴 P0 |
+| DATEV | Standard Steuerberater DE | DATEV Connect | 40-50h | 🟠 P1 |
+| Xero | International | OAuth + REST | 30h | 🟡 P2 |
+| Debitoor/SumUp | KMU | REST API | 20h | 🟡 P2 |
+
+**Other / Payment:**
+| Integration | Zweck | Aufwand | Prio |
+|---|---|---|---|
+| Stripe | Zahlungen | 20-30h | 🟠 P1 |
+| PayPal | Zahlungen | 20-30h | 🟠 P1 |
+| Klarna | BNPL | 20h | 🟡 P2 |
+| Slack | Notifications | 10h | 🟡 P2 |
+| Zapier | Automation | 30h | 🟡 P2 |
+
+---
+
+**🟠 PHASE 2 — SOLL (KW 15-20) — Competitive Parity**
+
+- Weitere Marktplätze: Kleinanzeigen, Hood.de, Avocadostore, real.de/Kaufland AT
+- Shops: Wix, Squarespace, Gambio, JTL-Shop, OXID
+- Fulfillment: Amazon FBA, DHL Fulfillment, Completio
+- ERP: BuchhaltungsButler, FastBill, Billomat
+- CRM: HubSpot, Salesforce (für größere Händler)
+
+---
+
+**🟡 PHASE 3 — KANN (KW 20+) — Market Leadership**
+
+- Wholesalers/Dropshipping: BigBuy, Vidaxl, Suppliers via API
+- SMS: Benachrichtigungen via Twilio/MessageBird
+- Analytics: Google Analytics 4, Matomo
+- Weitere Shops: Ecwid, BigCommerce, Volusion
+- Internationalisierung: Amazon.com, Amazon.co.uk, Amazon.fr, Cdiscount, Allegro
+
+---
+
+**ARCHITEKTUR-ANFORDERUNGEN für Skalierung:**
+
+1. **Integration Registry erweitern** — `integration-registry.js` um alle Kategorien erweitern:
+   ```
+   Kategorien: marketplace | shop | courier | fulfillment | accounting | payment | notification | automation | wholesaler
+   ```
+
+2. **IntegrationsHub UI komplett überarbeiten:**
+   - Kategorie-Tabs: Marktplätze | Shops | Versand | Fulfillment | Buchhaltung | Payment | Sonstiges
+   - Suchfeld für Integrationen
+   - "Coming Soon"-Badge für geplante (mit Warteliste-Button)
+   - Pro Integration: Logo, Name, Status, Kurzbeschreibung, Setup-Wizard-Link
+
+3. **Integration-Adapter-Pattern:**
+   ```
+   backend/integrations/
+   ├── marketplace/
+   │   ├── amazon/     → adapter.js, api.js, mapper.js
+   │   ├── otto/       → adapter.js, api.js, mapper.js
+   │   ├── ebay/       → (refactor aus lib/ebay-*.js)
+   │   └── kaufland/   → (refactor aus lib/kaufland-*.js)
+   ├── shop/
+   │   ├── shopify/    → adapter.js, api.js, mapper.js
+   │   └── woocommerce/
+   ├── accounting/
+   │   ├── sevdesk/    → (refactor aus lib/sevdesk.js)
+   │   └── lexoffice/
+   └── _base/
+       └── integration-adapter.js   → Gemeinsame Basis (connect, disconnect, sync, test)
+   ```
+
+4. **Jeder Adapter implementiert:**
+   ```js
+   class IntegrationAdapter {
+     async connect(credentials) {}      // OAuth oder API-Key
+     async disconnect(tenantId) {}      // Clean disconnect
+     async testConnection() {}          // Health check
+     async syncOrders(since) {}         // Order import
+     async syncProducts(since) {}       // Product sync
+     async pushTracking(order) {}       // Tracking an Marktplatz
+     async pushPrice(product) {}        // Preis-Update
+     async pushInventory(product) {}    // Bestand-Update
+   }
+   ```
+
+5. **Multi-Tenancy ready:** Jede Integration speichert Credentials pro Tenant in `integrations_config`
+
+---
+
+---
+
+**🔧 INTEGRATIONS-KONFIGURATION — KI-FIRST + Capability-basiert**
+
+> **⚡ STRATEGISCHER VORTEIL: KI erledigt was User bei Wettbewerbern manuell machen müssen.**
+>
+> **IST-Stand:** AvyCloud hat nur Connect/Disconnect. Keinerlei Konfiguration.
+> **SOLL:** Connect → KI konfiguriert automatisch → User überprüft/überschreibt nur bei Bedarf.
+>
+> **Wettbewerber zwingen User durch 5-8 manuelle Config-Tabs:**
+> Kategorie-Mapping, Attribut-Mapping, Status-Mapping, Rückgabegrund-Mapping, Preis-Regeln...
+> **AvyCloud macht das per KI.** DAS ist der Differentiator. DAS ist warum User wechseln.
+
+**WETTBEWERBER-ANALYSE — Was User dort MANUELL konfigurieren müssen:**
+- **ChannelEngine:** Setup → Product Selection → Categorization → Attribute-Mappings → Carrier-Mappings → Pricing Rules → Activation (6+ manuelle Schritte)
+- **Channable:** Name/ID → Kategorisierung → Regeln → Attribut-Mapping → Kategorie-Mapping → Connect → Activate (7 manuelle Schritte)
+- **Linnworks:** Connection → Order Download → Inventory Sync → Listing → SKU Mapping (SKU Mapping komplett manuell)
+- **Billbee:** Verbindung → Allgemein → Umsatzsteuer → Nummernkreise → Bestandsabgleich → Versandprofile → Kategorie-Zuordnung → Synchronisierung (8 Tabs)
+- **BaseLinker:** Connection → Orders → Offer Settings → Returns → Order Statuses → Prices → Stock + Competition BETA (7 Tabs pro Integration)
+
+**KERN-ERKENNTNIS:** Config-Tabs nur per Capability zeigen. Aber der entscheidende Unterschied: **KI übernimmt die Config, User bestätigt nur.**
+
+---
+
+**🤖 KI-AUTOMATISIERUNG — Was die KI für den User erledigt:**
+
+| Was Wettbewerber manuell machen | Was AvyCloud KI automatisch macht |
+|---|---|
+| **Kategorie-Mapping** — User ordnet jede Produktkategorie manuell dem Marktplatz zu (Channable: Schritt 2, ChannelEngine: Schritt 3) | **KI analysiert Produktdaten (Titel, Beschreibung, Bilder) und wählt automatisch die richtige Marktplatz-Kategorie.** Kaufland-Listing funktioniert bereits ohne manuelles Mapping! |
+| **Attribut-Mapping** — User mappt jedes Produktfeld auf Marktplatz-Felder (Channable: Schritt 4+5, ChannelEngine: Content Mappings) | **KI erkennt welche internen Felder zu welchen Marktplatz-Attributen passen.** Schema-Matching via Gemini — Name→Title, Beschreibung→Description, EAN→GTIN etc. |
+| **Status-Mapping** — User definiert manuell welcher interne Status welchem Marktplatz-Status entspricht (BaseLinker: Order Statuses Tab) | **KI schlägt Standard-Mapping vor basierend auf Status-Namen und Best Practices.** "Versendet"→"Shipped", "Storniert"→"Cancelled" — offensichtlich. |
+| **Rückgabegrund-Mapping** — User mappt jeden Marktplatz-Rückgabegrund auf interne Gründe (BaseLinker: Returns Tab) | **KI clustert Rückgabegründe semantisch.** "Does not fit" + "Wrong size" → "Passt nicht". "Changed mind" + "Found better price" → "Meinung geändert". |
+| **Preis-/Bestand-Regeln** — User stellt Sync-Intervalle, Schwellenwerte, Aktionen manuell ein | **KI schlägt optimale Defaults vor basierend auf Verkaufsvolumen und Produkttyp.** Hochdreher → Live-Sync. Langsamdreher → 4h-Intervall. |
+| **Versandprofil-Zuordnung** — User mappt Shop-Versandprofile auf interne Versandprodukte (Billbee: Versandprofile Tab) | **KI matcht Versandprofile automatisch basierend auf Namen, Gewichtsgrenzen und Zielländern.** |
+| **Listing-Erstellung** — User füllt Titel, Beschreibung, Bilder, Preis, Versand manuell pro Marktplatz | **KI generiert marktplatz-optimierte Listings aus Produktdaten.** Titel-Länge, Keywords, Beschreibungsformat — alles automatisch angepasst pro Marktplatz. |
+
+**FLOW FÜR DEN USER:**
+
+```
+1. User klickt "Verbinden" bei z.B. Amazon
+2. OAuth/API-Key-Eingabe
+3. AvyCloud KI analysiert:
+   - Bestehende Produkte in AvyCloud
+   - Amazon-Kategoriestruktur
+   - Attribut-Anforderungen pro Kategorie
+   - Bestehende Config-Muster anderer User (langfristig)
+4. KI erstellt automatisch:
+   ✅ Kategorie-Mapping (Produkt → Amazon-Kategorie)
+   ✅ Attribut-Mapping (interne Felder → Amazon-Felder)
+   ✅ Status-Mapping (Standard-Defaults)
+   ✅ Preis/Bestand-Sync (optimale Intervalle)
+   ✅ Versandregeln (basierend auf aktiven Carriern)
+5. User sieht: "KI hat 47 Produkte automatisch konfiguriert. 3 brauchen Aufmerksamkeit."
+6. User prüft/bestätigt oder überschreibt per Config-Tab (nur wenn nötig!)
+```
+
+**CONFIG-TABS BLEIBEN — aber als Override/Review, nicht als Pflicht-Setup:**
+
+User MUSS nie durch 7 Tabs klicken um loszulegen. Die KI hat schon alles vorkonfiguriert.
+Die Tabs dienen als Experten-Zugang für User die Fein-Tuning wollen.
+UX: "Automatisch konfiguriert ✅" Badge auf jedem Tab. Gelbes Badge "Prüfung empfohlen" wenn KI unsicher.
+
+---
+
+**CAPABILITY-DEKLARATION pro Integration in `integration-registry.js`:**
+
+```js
+const INTEGRATIONS = {
+  ebay: {
+    type: 'marketplace', auth: 'oauth2',
+    capabilities: ['orders', 'listings', 'prices', 'stock', 'returns', 'statusMapping', 'tracking'],
+    sites: ['ebay.de', 'ebay.com', 'ebay.co.uk', 'ebay.fr', 'ebay.it', 'ebay.at', 'ebay.ch'],
+  },
+  kaufland: {
+    type: 'marketplace', auth: 'apikey',
+    capabilities: ['orders', 'listings', 'prices', 'stock', 'tracking'],
+    // KEINE returns → kein Returns-Tab
+  },
+  amazon: {
+    type: 'marketplace', auth: 'oauth2',
+    capabilities: ['orders', 'listings', 'prices', 'stock', 'returns', 'statusMapping', 'tracking', 'fba'],
+    // fba = extra Tab für FBA-Settings
+  },
+  shopify: {
+    type: 'shop', auth: 'oauth2',
+    capabilities: ['orders', 'products', 'stock', 'prices', 'webhooks'],
+    // KEIN statusMapping, KEIN returns
+  },
+  woocommerce: {
+    type: 'shop', auth: 'apikey',
+    capabilities: ['orders', 'products', 'stock', 'prices'],
+  },
+  sendcloud: {
+    type: 'shipping', auth: 'apikey',
+    capabilities: ['labels', 'tracking', 'carriers', 'returns'],
+    // KEINE orders, listings, prices, stock
+  },
+  sevdesk: {
+    type: 'accounting', auth: 'apikey',
+    capabilities: ['invoices', 'contacts', 'export'],
+  },
+  lexoffice: {
+    type: 'accounting', auth: 'apikey',
+    capabilities: ['invoices', 'contacts'],
+    // KEIN export
+  },
+};
+```
+
+**CONFIG-BEREICHE — zeigt NUR wenn Integration die Capability hat:**
+
+| Capability | Tab-Name | Einstellungen |
+|---|---|---|
+| *(immer)* | **Verbindung** | Status, Test, Re-Connect, Token-Info, Account-Name |
+| `orders` | **Bestellungen** | Sync-Intervall, Auto-Import, Status-Filter |
+| `listings` | **Angebote** | Site-Auswahl (nur Multi-Site), Versandvorlage, Listing-Queue |
+| `products` | **Produkt-Sync** | Sync-Richtung, Intervall, Felder-Mapping |
+| `prices` | **Preise** | Sync-Intervall (aus/4h/1h/live), Preis-0-Handling, Rundung, Limit |
+| `stock` | **Bestand** | Sync-Intervall, Empty-Stock-Aktion, Max-Menge, Schwellenwert |
+| `returns` | **Retouren** | Auto-Fetch, Grund-Mapping (Marktplatz → intern) |
+| `statusMapping` | **Status-Zuordnung** | Intern → Marktplatz, bidirektionale Regeln |
+| `tracking` | **Tracking** | Auto-Push, Carrier-Mapping |
+| `fba` | **FBA/Fulfillment** | FBA vs. FBM, Warehouse-Zuordnung |
+| `labels` | **Labels** | Standard-Carrier, Gewichts-Default, Absender |
+| `carriers` | **Versandregeln** | Carrier nach Gewicht/Ziel/Preis |
+| `invoices` | **Rechnungen** | Auto-Erstellen, Nummernkreis, MwSt |
+| `contacts` | **Kontakte** | Kunden-Sync |
+| `export` | **Export** | Format, Intervall, Konten |
+| `webhooks` | **Webhooks** | URLs, Events |
+| `tax` | **Umsatzsteuer** | Modus, Sätze (wie Billbee) |
+| `categoryMapping` | **Kategorien** | Intern → Marktplatz (wie Channable) |
+| `attributeMapping` | **Attribute** | Felder → Marktplatz-Felder (wie ChannelEngine) |
+
+**WAS JEDE INTEGRATION TATSÄCHLICH ZEIGT:**
+
+```
+eBay:           Verbindung | Bestellungen | Angebote | Preise | Bestand | Retouren | Status-Zuordnung | Tracking
+Kaufland:       Verbindung | Bestellungen | Angebote | Preise | Bestand | Tracking
+Amazon:         Verbindung | Bestellungen | Angebote | Preise | Bestand | Retouren | Status-Zuordnung | Tracking | FBA
+Otto:           Verbindung | Bestellungen | Angebote | Preise | Bestand | Attribut-Mapping | Kategorien
+Etsy:           Verbindung | Bestellungen | Angebote | Preise | Bestand
+Shopify:        Verbindung | Bestellungen | Produkt-Sync | Preise | Bestand | Webhooks
+WooCommerce:    Verbindung | Bestellungen | Produkt-Sync | Preise | Bestand
+SendCloud:      Verbindung | Labels | Tracking | Versandregeln | Retouren
+SevDesk:        Verbindung | Rechnungen | Kontakte | Export
+lexoffice:      Verbindung | Rechnungen | Kontakte
+```
+
+**IMPLEMENTIERUNG:**
+
+1. **`integration-registry.js`** — Capabilities pro Integration deklarieren (s.o.)
+
+2. **`integrations_config/{tenantId}__{type}`** — `settings`-Objekt NUR mit Capabilities:
+   ```js
+   // eBay (7 Capabilities → 7 Settings-Blöcke)
+   { settings: { orders: {...}, listings: {...}, prices: {...}, stock: {...}, returns: {...}, statusMapping: {...}, tracking: {...} } }
+   // SendCloud (4 Capabilities → 4 Settings-Blöcke)
+   { settings: { labels: {...}, tracking: {...}, carriers: {...}, returns: {...} } }
+   // lexoffice (2 Capabilities → 2 Settings-Blöcke)
+   { settings: { invoices: {...}, contacts: {...} } }
+   ```
+
+3. **Frontend `IntegrationConfigView.tsx`** — Dynamische Tab-Generierung:
+   ```tsx
+   const tabs = integration.capabilities.map(cap => CONFIG_TAB_REGISTRY[cap]).filter(Boolean);
+   // Rendert NUR Tabs die zur Integration passen
+   ```
+
+4. **Backend `PATCH /api/integrations/:type/settings`** — Validiert gegen erlaubte Capabilities
+
+5. **Sync-Runner lesen Settings** — `order-sync.js`, `shipping-engine.js` etc. respektieren Intervalle/Regeln
+
+---
+
+**SOFORT-MASSNAHME (diese Woche):**
+1. **KI-Auto-Config Service** — `services/integration-ai-config.js`: Gemini-basierte Auto-Konfiguration (Kategorie-Mapping, Attribut-Mapping, Status-Mapping, Rückgabegrund-Mapping)
+2. **IntegrationsHub UI** überarbeiten mit allen Kategorien + "Coming Soon" + KI-Badge
+3. **IntegrationConfigView.tsx** — Capability-basierte Tabs als Override/Review (NICHT als Pflicht-Setup)
+4. **Amazon SP-API** Integration starten (P0 — ohne Amazon kein ernsthafter Händler)
+5. **lexoffice** Integration starten (P0 — Buchhaltung ist Pflicht für DE-Händler)
+6. **Shopify** Integration starten (P0 — größte Shop-Plattform)
+
+**KI-Auto-Config nutzt bestehende Infrastruktur:**
+- `lib/gemini-client.js` + `lib/gemini-structured.js` — bereits vorhanden für Produkterkennung
+- `lib/llm-policy-pack.js` + `lib/llm-rulebook.js` — Policy + Validierung bereits aktiv
+- Erweiterung: Neues Prompt-Template für Integration-Config statt Produkt-Identifizierung
+
+**Dateien:** `services/integration-ai-config.js` (NEU), `components/IntegrationsHub.tsx`, `components/IntegrationConfigView.tsx` (NEU), `components/IntegrationWizard.tsx`, `backend/lib/integration-registry.js`, `backend/services/integration-store.js`, `backend/routes/integrations.js`, neue Dateien unter `backend/integrations/`
+
+---
+
+#### Task 9.7.1: 🔴🔴🔴 Universal Taxonomy Engine — Marktplatz-Daten Akquisition
+
+> **Detaillierter Plan: `Marketplace_Taxonomy_Masterplan.html`**
+> Ohne Taxonomie-Daten kann KI-Auto-Config nicht funktionieren. BLOCKER für alle neuen Integrationen.
+
+**ZIEL:** Das bewährte Kaufland-Pattern (CSV → 4-Tier Resolution → Auto-Matching) auf ALLE neuen Marktplätze ausrollen.
+
+**ARCHITEKTUR — Universal Taxonomy Engine:**
+
+```
+taxonomy-data/           ← Zentral für ALLE MP-Taxonomien
+├── kaufland/categories.csv       (bestehend, ~50k Kategorien)
+├── ebay/categories.json          (bestehend, ~20k)
+├── amazon/browse-tree-de.csv     (NEU: Browse Tree Report → XML→CSV)
+├── amazon/type-schemas/          (NEU: Product Type Definitions)
+├── otto/categories.json          (NEU: API-paginiert)
+├── etsy/seller-taxonomy.json     (NEU: Tree API)
+├── etsy/properties.json          (NEU: Attributes pro Kategorie)
+├── shopify/taxonomy.json         (NEU: GitHub Open Source!)
+├── zalando/fashion-categories.csv (NEU: Manuell + API-Filter)
+└── _schema/config.json           (Unified Schema)
+
+lib/taxonomy-loader.js   ← NEU: Universal CSV/JSON Loader → TaxonomyIndex
+lib/category-matcher.js  ← NEU: 4-Tier Resolution (ID → Path → Token → Gemini)
+lib/attribute-mapper.js  ← NEU: Feld → Marktplatz-Feld Mapping
+lib/shop-taxonomy-sync.js ← NEU: Dynamisches Fetching bei Shop-Connect
+
+scripts/fetch-*-taxonomy.js ← NEU: Pro-MP Fetch Scripts
+services/taxonomy-refresh.js ← NEU: Periodischer Cron-Refresh
+```
+
+**DREI AKQUISITIONS-STRATEGIEN:**
+1. **Statisch** (Kaufland, eBay, Amazon, Shopify): CSV/JSON vorinstallieren, periodisch refreshen
+2. **API-Driven** (Otto, Etsy, Zalando): Bei Connect/periodisch aus API ziehen und cachen
+3. **Shop-spezifisch** (WooCommerce, Shopware): Pro Shop-Instanz bei Connect holen, in Firestore speichern
+
+**DATENQUELLEN PRO MARKTPLATZ:**
+
+| MP | Endpoint / Quelle | Format | Auth | ~Kategorien | Rate Limit | Refresh |
+|---|---|---|---|---|---|---|
+| Amazon | SP-API Browse Tree Report + Product Type Definitions | XML→CSV + JSON Schema | OAuth 2.0 + AWS IAM | ~30k+ Types | Token Bucket | Wöchentlich |
+| Otto | `GET /products/categories` (paginiert) | Flat JSON | OAuth 2.0 Bearer | ~5k+ | 20 req/s | Täglich |
+| Etsy | `/v3/application/seller-taxonomy/nodes` + `/properties` | Hierarchical JSON | API Key + OAuth | ~10k+ | 10k/Tag, 10/s | Monatlich |
+| Shopify | GitHub `Shopify/product-taxonomy` (Open Source!) | JSON | Keiner! | 5.595 | — | Bei Release |
+| Zalando | FCI API (Brand Readiness) | CSV | OAuth 2.0 | Brand-limitiert | — | Quartalsweise |
+| WooCommerce | `/wp-json/wc/v3/products/categories` (pro Shop) | Flat JSON | Basic Auth | Shop-spezifisch | Server-abhängig | Täglich |
+
+**IMPLEMENTIERUNGS-REIHENFOLGE:**
+
+| Woche | Was | Output | Aufwand |
+|---|---|---|---|
+| **KW 11** | Foundation: `taxonomy-loader.js`, `category-matcher.js`, `attribute-mapper.js` + Shopify | Universal Engine + Shopify | 28h |
+| **KW 12** | Otto API Fetch + eBay Migration in Engine | Otto + eBay über Engine | 18h |
+| **KW 13** | Amazon SP-API (Teil 1): Browse Tree Report + XML→CSV | Amazon Browse Tree | 16h |
+| **KW 14** | Amazon (Teil 2): Product Type Definitions + Etsy Taxonomy | Amazon + Etsy in Engine | 22h |
+| **KW 15** | WooCommerce Dynamic Sync + `shop-taxonomy-sync.js` | WooCommerce Dynamic | 16h |
+| **KW 16** | Zalando Fashion-Set + Refresh Service + Integration Tests | Alle 7+ MPs fertig | 25h |
+
+**Gesamt: ~130h (6 Wochen)**
+
+**⚠️ SOFORT-AKTION:**
+1. **Amazon SP-API Registrierung JETZT starten** — dauert 2-4 Wochen!
+2. **Etsy App registrieren** — API Key beantragen
+3. **Otto Partner Connect** — Credentials besorgen
+
+**ERFOLGS-METRIKEN:**
+- Auto-Match Rate (Tier 1-3): >85%
+- Gesamt-Match Rate (Tier 1-4): >97%
+- Genauigkeit: >92% (Stichproben)
+- Gemini-Kosten: <$0.20/1000 Produkte
 
 ---
 
@@ -785,15 +1169,15 @@ async function deleteIntegration({ tenantId = 'default', type }) {
 ---
 
 **PRIORITÄT / REIHENFOLGE:**
-1. **Task 9.9** — eBay Disconnect fixen (Blocker für Task 9.2!)
-2. **Task 9.2** — eBay Scopes erweitern + Error-Handling (kritisch, Retouren leer)
-3. **Task 9.1** — SendCloud Matching fixen (kritisch, Versand-Seite leer)
-4. **Task 9.3** — Status-Diskrepanz (verwirrend für User)
-5. **Task 9.4** — Tracking-Link (quick win)
-6. **Task 9.6** — Status-Dropdown filtern (UX)
+1. **Task 9.9** — eBay Disconnect fixen (Blocker für Task 9.2!) ✅
+2. **Task 9.2** — eBay Scopes erweitern + Error-Handling (kritisch, Retouren leer) ✅
+3. **Task 9.1** — SendCloud Matching fixen (kritisch, Versand-Seite leer) ✅
+4. **Task 9.3** — Status-Diskrepanz (verwirrend für User) ✅
+5. **Task 9.4** — Tracking-Link (quick win) ✅
+6. **Task 9.6** — Status-Dropdown filtern (UX) ✅
 7. **Task 9.5** — Carrier dynamisch laden (mittel)
 8. **Task 9.8** — Tracking-Push verifizieren (nach Deploy)
-9. **Task 9.7** — Mehr Integrationen (strategisch, kein Sofort-Fix)
+9. **Task 9.7** — 🔴🔴🔴 INTEGRATIONEN = KUNDEN = UMSATZ (strategisch KRITISCH, Phasenplan in Task 9.7)
 
 ---
 

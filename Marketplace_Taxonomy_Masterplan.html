@@ -1,0 +1,1799 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AvyCloud — Marketplace Taxonomy Masterplan</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #222633;
+    --border: #2d3348;
+    --text: #e4e7f1;
+    --text-muted: #8b90a5;
+    --accent: #6366f1;
+    --accent-light: #818cf8;
+    --green: #22c55e;
+    --green-bg: rgba(34,197,94,0.12);
+    --yellow: #eab308;
+    --yellow-bg: rgba(234,179,8,0.12);
+    --red: #ef4444;
+    --red-bg: rgba(239,68,68,0.12);
+    --blue: #3b82f6;
+    --blue-bg: rgba(59,130,246,0.12);
+    --orange: #f97316;
+    --orange-bg: rgba(249,115,22,0.12);
+    --cyan: #06b6d4;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.65;
+    padding: 0;
+  }
+  .hero {
+    background: linear-gradient(135deg, #1e1b4b 0%, #312e81 40%, #4338ca 100%);
+    padding: 60px 40px;
+    text-align: center;
+    border-bottom: 1px solid var(--border);
+  }
+  .hero h1 { font-size: 2.4rem; font-weight: 800; letter-spacing: -0.5px; margin-bottom: 12px; }
+  .hero .subtitle { color: #a5b4fc; font-size: 1.15rem; max-width: 700px; margin: 0 auto 20px; }
+  .hero .meta { color: #818cf8; font-size: 0.85rem; }
+  .container { max-width: 1200px; margin: 0 auto; padding: 40px 24px; }
+
+  /* Navigation */
+  .nav-bar {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 40px;
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .nav-bar a {
+    color: var(--text-muted);
+    text-decoration: none;
+    font-size: 0.82rem;
+    padding: 6px 14px;
+    border-radius: 6px;
+    transition: all 0.2s;
+    font-weight: 500;
+  }
+  .nav-bar a:hover { background: var(--surface2); color: var(--text); }
+  .nav-bar a.active { background: var(--accent); color: white; }
+
+  /* Sections */
+  section { margin-bottom: 48px; }
+  h2 {
+    font-size: 1.6rem;
+    font-weight: 700;
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid var(--accent);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  h3 { font-size: 1.2rem; font-weight: 600; margin: 24px 0 12px; color: var(--accent-light); }
+  h4 { font-size: 1rem; font-weight: 600; margin: 16px 0 8px; }
+  p { margin-bottom: 12px; color: var(--text); }
+  .muted { color: var(--text-muted); }
+
+  /* Cards */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 16px;
+  }
+  .card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+  }
+  .card-header h3 { margin: 0; font-size: 1.15rem; }
+
+  /* Marketplace Grid */
+  .mp-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: 16px;
+    margin: 16px 0;
+  }
+  .mp-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    transition: border-color 0.2s;
+  }
+  .mp-card:hover { border-color: var(--accent); }
+  .mp-card .mp-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 12px;
+  }
+  .mp-card .mp-name { font-size: 1.1rem; font-weight: 700; }
+  .mp-card .mp-type { font-size: 0.75rem; padding: 3px 10px; border-radius: 99px; font-weight: 600; }
+  .type-marketplace { background: var(--blue-bg); color: var(--blue); }
+  .type-shop { background: var(--green-bg); color: var(--green); }
+  .type-accounting { background: var(--orange-bg); color: var(--orange); }
+
+  .mp-card .mp-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin: 12px 0;
+  }
+  .mp-stat {
+    background: var(--surface2);
+    border-radius: 8px;
+    padding: 8px 12px;
+  }
+  .mp-stat .label { font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+  .mp-stat .value { font-size: 0.9rem; font-weight: 600; margin-top: 2px; }
+
+  .mp-card .mp-detail { font-size: 0.85rem; color: var(--text-muted); margin-top: 8px; line-height: 1.5; }
+  .mp-card .mp-detail code { background: var(--surface2); padding: 2px 6px; border-radius: 4px; font-size: 0.8rem; color: var(--cyan); }
+
+  /* Tables */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0;
+    font-size: 0.88rem;
+  }
+  th {
+    background: var(--surface2);
+    padding: 10px 14px;
+    text-align: left;
+    font-weight: 600;
+    color: var(--text);
+    border-bottom: 2px solid var(--border);
+    font-size: 0.82rem;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+  td {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text);
+  }
+  tr:hover td { background: var(--surface); }
+
+  /* Badges */
+  .badge {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 99px;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+  .badge-green { background: var(--green-bg); color: var(--green); }
+  .badge-yellow { background: var(--yellow-bg); color: var(--yellow); }
+  .badge-red { background: var(--red-bg); color: var(--red); }
+  .badge-blue { background: var(--blue-bg); color: var(--blue); }
+  .badge-orange { background: var(--orange-bg); color: var(--orange); }
+
+  /* Code blocks */
+  pre {
+    background: #0d0f17;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    overflow-x: auto;
+    font-size: 0.82rem;
+    line-height: 1.6;
+    margin: 16px 0;
+  }
+  code { font-family: 'JetBrains Mono', 'Fira Code', monospace; }
+  .inline-code { background: var(--surface2); padding: 2px 6px; border-radius: 4px; font-size: 0.85rem; color: var(--cyan); }
+
+  /* Flow diagrams */
+  .flow {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin: 20px 0;
+  }
+  .flow-step {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 20px;
+    text-align: center;
+    min-width: 140px;
+  }
+  .flow-step.highlight { border-color: var(--accent); background: rgba(99,102,241,0.1); }
+  .flow-step .step-num { font-size: 0.7rem; color: var(--accent-light); font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }
+  .flow-step .step-title { font-size: 0.9rem; font-weight: 600; margin-top: 4px; }
+  .flow-step .step-detail { font-size: 0.75rem; color: var(--text-muted); margin-top: 4px; }
+  .flow-arrow { color: var(--accent); font-size: 1.4rem; font-weight: 700; }
+
+  /* Callout */
+  .callout {
+    border-radius: 10px;
+    padding: 18px 22px;
+    margin: 16px 0;
+    border-left: 4px solid;
+  }
+  .callout-info { background: var(--blue-bg); border-color: var(--blue); }
+  .callout-warn { background: var(--yellow-bg); border-color: var(--yellow); }
+  .callout-success { background: var(--green-bg); border-color: var(--green); }
+  .callout-danger { background: var(--red-bg); border-color: var(--red); }
+  .callout strong { display: block; margin-bottom: 4px; }
+
+  /* Timeline */
+  .timeline { position: relative; padding-left: 32px; margin: 20px 0; }
+  .timeline::before {
+    content: '';
+    position: absolute;
+    left: 8px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: var(--border);
+  }
+  .timeline-item { margin-bottom: 20px; position: relative; }
+  .timeline-item::before {
+    content: '';
+    position: absolute;
+    left: -28px;
+    top: 6px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    border: 2px solid var(--accent);
+    background: var(--bg);
+  }
+  .timeline-item.done::before { background: var(--green); border-color: var(--green); }
+  .timeline-item .tl-title { font-weight: 600; font-size: 0.95rem; }
+  .timeline-item .tl-detail { color: var(--text-muted); font-size: 0.85rem; margin-top: 4px; }
+
+  /* Architecture diagram */
+  .arch-diagram {
+    background: #0d0f17;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 30px;
+    margin: 20px 0;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.78rem;
+    line-height: 1.5;
+    overflow-x: auto;
+    white-space: pre;
+    color: var(--text-muted);
+  }
+  .arch-diagram .highlight { color: var(--accent-light); font-weight: 700; }
+  .arch-diagram .green { color: var(--green); }
+  .arch-diagram .yellow { color: var(--yellow); }
+  .arch-diagram .blue { color: var(--blue); }
+  .arch-diagram .red { color: var(--red); }
+  .arch-diagram .cyan { color: var(--cyan); }
+
+  /* Comparison */
+  .compare-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin: 16px 0;
+  }
+  @media (max-width: 768px) {
+    .compare-grid { grid-template-columns: 1fr; }
+    .mp-grid { grid-template-columns: 1fr; }
+  }
+  .compare-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+  }
+  .compare-box h4 { margin-top: 0; }
+  .compare-box.is-bad { border-color: var(--red); }
+  .compare-box.is-good { border-color: var(--green); }
+
+  /* Priority strip */
+  .prio-strip {
+    display: flex;
+    gap: 4px;
+    margin: 8px 0;
+  }
+  .prio-block {
+    height: 6px;
+    border-radius: 3px;
+    flex: 1;
+  }
+  .prio-p0 { background: var(--red); }
+  .prio-p1 { background: var(--orange); }
+  .prio-p2 { background: var(--yellow); }
+
+  /* Checklist */
+  .checklist { list-style: none; padding: 0; }
+  .checklist li {
+    padding: 8px 0 8px 28px;
+    position: relative;
+    font-size: 0.9rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .checklist li::before {
+    content: '☐';
+    position: absolute;
+    left: 0;
+    color: var(--text-muted);
+  }
+  .checklist li.done::before { content: '✓'; color: var(--green); }
+
+  /* Tabs */
+  .tab-container { margin: 20px 0; }
+  .tab-buttons { display: flex; gap: 4px; margin-bottom: 0; }
+  .tab-btn {
+    padding: 10px 20px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-bottom: none;
+    border-radius: 8px 8px 0 0;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 500;
+    transition: all 0.2s;
+  }
+  .tab-btn:hover { color: var(--text); }
+  .tab-btn.active { background: var(--surface); color: var(--accent-light); border-color: var(--accent); }
+  .tab-content {
+    display: none;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 0 12px 12px 12px;
+    padding: 24px;
+  }
+  .tab-content.active { display: block; }
+
+  .file-tree { font-family: monospace; font-size: 0.85rem; line-height: 1.8; color: var(--text-muted); }
+  .file-tree .folder { color: var(--accent-light); font-weight: 600; }
+  .file-tree .new { color: var(--green); }
+  .file-tree .existing { color: var(--yellow); }
+  .file-tree .comment { color: #555; }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <h1>Marketplace Taxonomy Masterplan</h1>
+  <p class="subtitle">KI-First Auto-Konfiguration für alle Marktplätze — von Kaufland-Blueprint zu Universal Taxonomy Engine</p>
+  <p class="meta">AvyCloud Product Intelligence Hub &bull; Version 1.0 &bull; März 2026</p>
+</div>
+
+<nav class="nav-bar" id="nav">
+  <a href="#blueprint" class="active">Blueprint</a>
+  <a href="#marketplaces">Marktplätze</a>
+  <a href="#architecture">Architektur</a>
+  <a href="#acquisition">Daten-Akquisition</a>
+  <a href="#ai-engine">KI-Engine</a>
+  <a href="#implementation">Implementierung</a>
+  <a href="#timeline">Timeline</a>
+  <a href="#risks">Risiken</a>
+</nav>
+
+<div class="container">
+
+<!-- ============ SECTION 1: BLUEPRINT ============ -->
+<section id="blueprint">
+<h2>📐 1. Existierender Blueprint — Was funktioniert</h2>
+
+<p>Kaufland läuft in Production ohne manuelles Mapping. Das ist der Beweis, dass der KI-First-Ansatz funktioniert. Hier die exakte Architektur, die wir für alle neuen Marktplätze replizieren.</p>
+
+<h3>Das 4-Tier Fallback-System</h3>
+
+<div class="flow">
+  <div class="flow-step">
+    <div class="step-num">Tier 1</div>
+    <div class="step-title">Direct ID</div>
+    <div class="step-detail">Produkt hat bereits eine gültige Kategorie-ID</div>
+  </div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step">
+    <div class="step-num">Tier 2</div>
+    <div class="step-title">Path Lookup</div>
+    <div class="step-detail">CSV-Index: "Elektronik > Handys" → ID 48291</div>
+  </div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step">
+    <div class="step-num">Tier 3</div>
+    <div class="step-title">Token Scoring</div>
+    <div class="step-detail">Fuzzy-Match: Tokens splitten & scoren</div>
+  </div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step highlight">
+    <div class="step-num">Tier 4</div>
+    <div class="step-title">Gemini AI</div>
+    <div class="step-detail">Shortlist → Gemini wählt beste Kategorie</div>
+  </div>
+</div>
+
+<div class="callout callout-success">
+  <strong>Bewiesene Ergebnisse</strong>
+  Kaufland nutzt Tier 1-3 (kein Gemini nötig). eBay nutzt alle 4 Tiers inkl. Gemini-Fallback.
+  Beide laufen in Production mit ~50.000 Kategorien (Kaufland) bzw. ~20.000 (eBay).
+</div>
+
+<h3>Datenquellen IST-Stand</h3>
+<table>
+  <tr><th>Marktplatz</th><th>Datei</th><th>Format</th><th>Größe</th><th>Kategorien</th><th>Index-Typ</th></tr>
+  <tr>
+    <td><strong>Kaufland</strong></td>
+    <td><code>kaufland/category_tree_all_languages.csv</code></td>
+    <td>CSV (9 Level-Spalten, multilingual)</td>
+    <td>5.4 MB</td>
+    <td>~50.000</td>
+    <td>Path + Name + ID-Set</td>
+  </tr>
+  <tr>
+    <td><strong>eBay</strong></td>
+    <td><code>ebay-data/categories.json</code></td>
+    <td>JSON (ID → breadcrumb)</td>
+    <td>2.8 MB</td>
+    <td>~20.000</td>
+    <td>Path + Unique-Name + ID-Set + Aspect-Catalog</td>
+  </tr>
+</table>
+
+<h3>Code-Module (Replizier-Pattern)</h3>
+<table>
+  <tr><th>Modul</th><th>Verantwortung</th><th>Replizieren für neue MP?</th></tr>
+  <tr>
+    <td><code>lib/kaufland-taxonomy.js</code></td>
+    <td>CSV laden, CATEGORY_CACHE aufbauen, <code>findKauflandCategory()</code> (Token-Scoring)</td>
+    <td><span class="badge badge-green">Ja — Template</span></td>
+  </tr>
+  <tr>
+    <td><code>lib/ebay-taxonomy.js</code></td>
+    <td>JSON laden, breadcrumb index, Umlaut-Normalisierung, Aspect-Catalog</td>
+    <td><span class="badge badge-green">Ja — Template</span></td>
+  </tr>
+  <tr>
+    <td><code>lib/marketplace-lookup.js</code></td>
+    <td>Lazy-loaded Indices (Path, Name, ID-Set), Lookup-Methoden</td>
+    <td><span class="badge badge-yellow">Erweitern</span></td>
+  </tr>
+  <tr>
+    <td><code>services/enrichment.js</code></td>
+    <td><code>resolve*Category()</code>, <code>process*Product()</code>, Gemini-Fallback</td>
+    <td><span class="badge badge-yellow">Erweitern</span></td>
+  </tr>
+</table>
+</section>
+
+<!-- ============ SECTION 2: MARKETPLACES ============ -->
+<section id="marketplaces">
+<h2>🏪 2. Marktplatz-Taxonomie — API-Analyse pro Marktplatz</h2>
+
+<p>Detaillierte Analyse jeder Marktplatz-API für Taxonomie/Kategorie-Daten. Entscheidend: <strong>Wie kommen wir an die Daten, wie groß sind sie, wie oft ändern sie sich?</strong></p>
+
+<div class="mp-grid">
+
+  <!-- Amazon -->
+  <div class="mp-card">
+    <div class="mp-header">
+      <div class="mp-name">Amazon SP-API</div>
+      <span class="mp-type type-marketplace">Marketplace</span>
+    </div>
+    <div class="prio-strip"><div class="prio-block prio-p0"></div><div class="prio-block prio-p0"></div><div class="prio-block prio-p0"></div></div>
+    <div class="mp-stats">
+      <div class="mp-stat"><div class="label">Auth</div><div class="value">OAuth 2.0 + AWS IAM</div></div>
+      <div class="mp-stat"><div class="label">Kategorien</div><div class="value">~30.000+ Typen</div></div>
+      <div class="mp-stat"><div class="label">Datenformat</div><div class="value">JSON Schema 2019-09</div></div>
+      <div class="mp-stat"><div class="label">Rate Limit</div><div class="value">Token Bucket</div></div>
+    </div>
+    <div class="mp-detail">
+      <strong>Endpoints:</strong><br>
+      <code>GET /definitions/2020-09-01/productTypes</code> — Alle Produkttypen listen<br>
+      <code>GET /definitions/2020-09-01/productTypes/{type}</code> — Schema pro Typ<br>
+      Browse Tree Report: <code>GET_XML_BROWSE_TREE_FEED</code><br><br>
+      <strong>Besonderheit:</strong> Amazon liefert KEIN einfaches Category-Tree. Stattdessen "Product Type Definitions" mit JSON Schema das alle Pflichtfelder pro Typ definiert. Browse Tree kommt als XML-Report.<br><br>
+      <strong>Akquisitions-Strategie:</strong> Browse Tree Report einmalig ziehen → XML→CSV konvertieren. Product Type Definitions für Pflichtfeld-Mapping per Typ abfragen. Ergibt zwei Datensätze: Kategorie-Baum + Attribut-Schema.
+    </div>
+  </div>
+
+  <!-- Otto -->
+  <div class="mp-card">
+    <div class="mp-header">
+      <div class="mp-name">Otto Market</div>
+      <span class="mp-type type-marketplace">Marketplace</span>
+    </div>
+    <div class="prio-strip"><div class="prio-block prio-p0"></div><div class="prio-block prio-p0"></div><div class="prio-block prio-p0"></div></div>
+    <div class="mp-stats">
+      <div class="mp-stat"><div class="label">Auth</div><div class="value">OAuth 2.0 Bearer</div></div>
+      <div class="mp-stat"><div class="label">Kategorien</div><div class="value">~5.000+ (Schätzung)</div></div>
+      <div class="mp-stat"><div class="label">Datenformat</div><div class="value">Flat JSON (paginiert)</div></div>
+      <div class="mp-stat"><div class="label">Rate Limit</div><div class="value">20 req/s</div></div>
+    </div>
+    <div class="mp-detail">
+      <strong>Endpoint:</strong><br>
+      <code>GET /products/categories</code> — Alle Kategorien (paginiert, Limit-Parameter)<br><br>
+      <strong>Besonderheit:</strong> Flat-List statt Tree. Kategorie-Name muss EXAKT stimmen für Produkt-Submission. Spezifische Pflichtattribute pro Kategorie-Gruppe (z.B. Normpreise für Kosmetik).<br><br>
+      <strong>Akquisitions-Strategie:</strong> Alle Seiten durchpaginieren → JSON→CSV. Path-Hierarchie aus Gruppen-Zuordnung ableiten. Otto empfiehlt täglichen Refresh.
+    </div>
+  </div>
+
+  <!-- Zalando -->
+  <div class="mp-card">
+    <div class="mp-header">
+      <div class="mp-name">Zalando Partner</div>
+      <span class="mp-type type-marketplace">Marketplace</span>
+    </div>
+    <div class="prio-strip"><div class="prio-block prio-p1"></div><div class="prio-block prio-p1"></div><div class="prio-block" style="background:#333"></div></div>
+    <div class="mp-stats">
+      <div class="mp-stat"><div class="label">Auth</div><div class="value">OAuth 2.0</div></div>
+      <div class="mp-stat"><div class="label">Kategorien</div><div class="value">Brand-limitiert</div></div>
+      <div class="mp-stat"><div class="label">Datenformat</div><div class="value">FCI API (CSV)</div></div>
+      <div class="mp-stat"><div class="label">Rate Limit</div><div class="value">Nicht dokumentiert</div></div>
+    </div>
+    <div class="mp-detail">
+      <strong>Endpoint:</strong> FCI (Fashion Connector Importer) API<br><br>
+      <strong>Besonderheit:</strong> Kategorien werden beim Onboarding ("Brand Readiness") zugewiesen. NICHT alle Zalando-Kategorien sind für jeden Partner verfügbar. Fashion-zentriert mit spezifischen Größen/Farb-Attributen.<br><br>
+      <strong>Akquisitions-Strategie:</strong> Fashion-Standard-Kategorie-Set (Bekleidung, Schuhe, Accessoires) als CSV vorhalten. Zalando-spezifische Attribute (Größe, Farbe, Material) als Pflichtfeld-Map. Bei Onboarding: verfügbare Kategorien aus API abfragen und lokales Set filtern.
+    </div>
+  </div>
+
+  <!-- Etsy -->
+  <div class="mp-card">
+    <div class="mp-header">
+      <div class="mp-name">Etsy Open API v3</div>
+      <span class="mp-type type-marketplace">Marketplace</span>
+    </div>
+    <div class="prio-strip"><div class="prio-block prio-p1"></div><div class="prio-block prio-p1"></div><div class="prio-block" style="background:#333"></div></div>
+    <div class="mp-stats">
+      <div class="mp-stat"><div class="label">Auth</div><div class="value">API Key + OAuth 2.0</div></div>
+      <div class="mp-stat"><div class="label">Kategorien</div><div class="value">~10.000+ Nodes</div></div>
+      <div class="mp-stat"><div class="label">Datenformat</div><div class="value">Hierarchical JSON</div></div>
+      <div class="mp-stat"><div class="label">Rate Limit</div><div class="value">10k/Tag, 10/s</div></div>
+    </div>
+    <div class="mp-detail">
+      <strong>Endpoints:</strong><br>
+      <code>GET /v3/application/seller-taxonomy/nodes</code> — Seller Taxonomy Tree<br>
+      <code>GET /v3/application/seller-taxonomy/nodes/{id}/properties</code> — Attribute pro Kategorie<br><br>
+      <strong>Besonderheit:</strong> Seller und Buyer Taxonomy getrennt. Seller-Taxonomy ist tiefer. Properties-Endpoint liefert Pflichtfelder pro Kategorie mit möglichen Werten.<br><br>
+      <strong>Akquisitions-Strategie:</strong> Full Tree mit einem Call holen → JSON→CSV. Für jede Leaf-Kategorie Properties abfragen (Rate Limit beachten: max 10/s → Batch über ~1 Stunde).
+    </div>
+  </div>
+
+  <!-- Shopify -->
+  <div class="mp-card">
+    <div class="mp-header">
+      <div class="mp-name">Shopify Taxonomy</div>
+      <span class="mp-type type-shop">Shop</span>
+    </div>
+    <div class="prio-strip"><div class="prio-block prio-p0"></div><div class="prio-block prio-p0"></div><div class="prio-block prio-p0"></div></div>
+    <div class="mp-stats">
+      <div class="mp-stat"><div class="label">Auth</div><div class="value">Access Token</div></div>
+      <div class="mp-stat"><div class="label">Kategorien</div><div class="value">5.595 (versioniert)</div></div>
+      <div class="mp-stat"><div class="label">Datenformat</div><div class="value">GraphQL JSON</div></div>
+      <div class="mp-stat"><div class="label">Rate Limit</div><div class="value">50 pts/s (cost-based)</div></div>
+    </div>
+    <div class="mp-detail">
+      <strong>Endpoint:</strong><br>
+      GraphQL: <code>query { taxonomy { categories(first: 250) { ... } } }</code><br>
+      GitHub: <code>github.com/Shopify/product-taxonomy</code> (Open Source!)<br><br>
+      <strong>Besonderheit:</strong> Shopify hat eine <strong>offene, versionierte Taxonomie</strong> auf GitHub! 5.595 Kategorien über 26 Verticals. Jede Kategorie hat definierte <code>TaxonomyCategoryAttribute</code>.<br><br>
+      <strong>Akquisitions-Strategie:</strong> GitHub-Repository klonen/downloaden — KEIN API-Call nötig! JSON/CSV direkt von GitHub. Versions-Updates via GitHub Releases tracken. Bester Case aller Marktplätze.
+    </div>
+  </div>
+
+  <!-- WooCommerce -->
+  <div class="mp-card">
+    <div class="mp-header">
+      <div class="mp-name">WooCommerce</div>
+      <span class="mp-type type-shop">Shop</span>
+    </div>
+    <div class="prio-strip"><div class="prio-block prio-p0"></div><div class="prio-block prio-p0"></div><div class="prio-block" style="background:#333"></div></div>
+    <div class="mp-stats">
+      <div class="mp-stat"><div class="label">Auth</div><div class="value">Basic Auth / OAuth 1.0a</div></div>
+      <div class="mp-stat"><div class="label">Kategorien</div><div class="value">Shop-spezifisch</div></div>
+      <div class="mp-stat"><div class="label">Datenformat</div><div class="value">Flat JSON</div></div>
+      <div class="mp-stat"><div class="label">Rate Limit</div><div class="value">Server-abhängig</div></div>
+    </div>
+    <div class="mp-detail">
+      <strong>Endpoint:</strong><br>
+      <code>GET /wp-json/wc/v3/products/categories</code> — Alle Kategorien des Shops<br><br>
+      <strong>Besonderheit:</strong> <strong>Kein globaler Kategorie-Baum!</strong> Jeder Shop hat eigene Kategorien. Kein Pflichtfeld-Schema pro Kategorie. Kategorien sind simple Container.<br><br>
+      <strong>Akquisitions-Strategie:</strong> ANDERER ANSATZ als bei Marktplätzen: Bei Connect des Shops die Shop-Kategorien per API holen. KI mappt AvyCloud-Produkte auf die individuellen Shop-Kategorien des Users. KEIN vorinstalliertes CSV nötig.
+    </div>
+  </div>
+
+</div>
+
+<div class="callout callout-info">
+  <strong>Drei unterschiedliche Akquisitions-Strategien identifiziert:</strong>
+  <br>1. <strong>Statische Taxonomie</strong> (Kaufland, eBay, Amazon, Shopify) — CSV/JSON vorinstallieren, periodisch refreshen
+  <br>2. <strong>API-Driven Taxonomie</strong> (Otto, Etsy, Zalando) — Bei Connect/periodisch aus API ziehen
+  <br>3. <strong>Shop-spezifische Kategorien</strong> (WooCommerce, Shopware, Magento) — Pro Shop-Instanz bei Connect holen
+</div>
+</section>
+
+<!-- ============ SECTION 3: ARCHITECTURE ============ -->
+<section id="architecture">
+<h2>🏗️ 3. Universal Taxonomy Engine — Architektur</h2>
+
+<p>Das bestehende Kaufland/eBay-Pattern wird zu einer universellen Engine verallgemeinert. Ein einziges System das ALLE Marktplätze bedient — mit marketplace-spezifischen Plugins.</p>
+
+<div class="arch-diagram"><span class="highlight">┌─────────────────────────────────────────────────────────────────────────────┐</span>
+<span class="highlight">│                    UNIVERSAL TAXONOMY ENGINE                                │</span>
+<span class="highlight">└─────────────────────────────────────────────────────────────────────────────┘</span>
+
+<span class="blue">┌── Datenquellen ──────────────────────────────────┐</span>
+│                                                    │
+│  <span class="green">backend/taxonomy-data/</span>                           │
+│  ├── <span class="cyan">kaufland/</span>  categories.csv  (5.4 MB, ~50k)    │
+│  ├── <span class="cyan">ebay/</span>      categories.json (2.8 MB, ~20k)    │
+│  ├── <span class="cyan">amazon/</span>    browse-tree.csv + types.json      │
+│  ├── <span class="cyan">otto/</span>      categories.json (API-cached)      │
+│  ├── <span class="cyan">etsy/</span>      taxonomy.json + properties.json   │
+│  ├── <span class="cyan">shopify/</span>   taxonomy.json (von GitHub)        │
+│  ├── <span class="cyan">zalando/</span>   fashion-categories.csv            │
+│  └── <span class="yellow">_schema/</span>   unified-schema.json              │
+│                                                    │
+<span class="blue">└──────────────────────────────────────────────────┘</span>
+          │
+          ▼
+<span class="green">┌── Taxonomy Loader (lib/taxonomy-loader.js) ──────┐</span>
+│                                                    │
+│  <span class="highlight">loadTaxonomy(marketplace)</span>                        │
+│  ├── CSV Parser (Kaufland, Amazon, Zalando)        │
+│  ├── JSON Parser (eBay, Otto, Etsy, Shopify)       │
+│  └── Normalizer → <span class="cyan">Unified Category Object</span>          │
+│       { id, path, normalized, level, parentId,     │
+│         attributes: [], marketplace }              │
+│                                                    │
+<span class="green">└──────────────────────────────────────────────────┘</span>
+          │
+          ▼
+<span class="yellow">┌── Category Matcher (lib/category-matcher.js) ────┐</span>
+│                                                    │
+│  <span class="highlight">resolveCategory(marketplace, product)</span>            │
+│  ├── <span class="green">Tier 1:</span> Direct ID Validation                 │
+│  ├── <span class="green">Tier 2:</span> Path Index Lookup                    │
+│  ├── <span class="green">Tier 3:</span> Token Scoring (fuzzy)                │
+│  ├── <span class="red">Tier 4:</span> Gemini AI (shortlist + pick)          │
+│  └── Cache: LRU 10.000 Einträge                   │
+│                                                    │
+<span class="yellow">└──────────────────────────────────────────────────┘</span>
+          │
+          ▼
+<span class="red">┌── Attribute Mapper (lib/attribute-mapper.js) ────┐</span>
+│                                                    │
+│  <span class="highlight">mapAttributes(marketplace, categoryId, product)</span>  │
+│  ├── Schema Lookup: Pflichtfelder pro Kategorie    │
+│  ├── Field Matching: intern → Marktplatz           │
+│  ├── Value Mapping: "Rot" → "Red" (Etsy)          │
+│  └── Gemini Fallback: unbekannte Felder            │
+│                                                    │
+<span class="red">└──────────────────────────────────────────────────┘</span></div>
+
+<h3>Unified Category Object</h3>
+<pre><code>{
+  id: '48291',                          // Marktplatz-interne ID
+  marketplace: 'kaufland',              // Welcher Marktplatz
+  path: 'Elektronik > Handys > Smartphones',  // Breadcrumb-Pfad
+  normalized: 'elektronik > handys > smartphones',  // Lowercase
+  level: 3,                             // Tiefe im Baum
+  parentId: '12453',                    // Eltern-Kategorie
+  isLeaf: true,                         // Blatt-Kategorie?
+  attributes: [                         // Pflichtfelder dieser Kategorie
+    { name: 'brand', required: true, type: 'string' },
+    { name: 'color', required: true, type: 'enum', values: ['Schwarz','Weiß','Blau',...] },
+    { name: 'storage', required: false, type: 'string' }
+  ],
+  lastUpdated: '2026-03-01'            // Wann zuletzt aktualisiert
+}</code></pre>
+
+<h3>Neue Verzeichnisstruktur</h3>
+<div class="file-tree">
+<span class="folder">backend/</span>
+├── <span class="folder">taxonomy-data/</span>              <span class="comment">← NEU: Zentral für alle Taxonomie-Daten</span>
+│   ├── <span class="existing">kaufland/</span>               <span class="comment">← Verschoben aus backend/kaufland/</span>
+│   │   └── categories.csv
+│   ├── <span class="existing">ebay/</span>                   <span class="comment">← Verschoben aus backend/ebay-data/</span>
+│   │   ├── categories.json
+│   │   ├── aspects-full.json
+│   │   └── required-aspects.json
+│   ├── <span class="new">amazon/</span>                 <span class="comment">← NEU</span>
+│   │   ├── browse-tree-de.csv
+│   │   ├── product-types.json
+│   │   └── type-schemas/          <span class="comment">← JSON Schema pro Type</span>
+│   ├── <span class="new">otto/</span>                   <span class="comment">← NEU</span>
+│   │   └── categories.json
+│   ├── <span class="new">etsy/</span>                   <span class="comment">← NEU</span>
+│   │   ├── seller-taxonomy.json
+│   │   └── properties.json
+│   ├── <span class="new">shopify/</span>                <span class="comment">← NEU (von GitHub)</span>
+│   │   └── taxonomy.json
+│   ├── <span class="new">zalando/</span>                <span class="comment">← NEU</span>
+│   │   └── fashion-categories.csv
+│   └── <span class="new">_schema/</span>                <span class="comment">← Unified Schema Definition</span>
+│       └── unified-category.json
+│
+├── <span class="folder">lib/</span>
+│   ├── <span class="existing">kaufland-taxonomy.js</span>    <span class="comment">← Bleibt (backward compat)</span>
+│   ├── <span class="existing">ebay-taxonomy.js</span>        <span class="comment">← Bleibt (backward compat)</span>
+│   ├── <span class="existing">marketplace-lookup.js</span>   <span class="comment">← Erweitert mit neuen MPs</span>
+│   ├── <span class="new">taxonomy-loader.js</span>      <span class="comment">← NEU: Universal CSV/JSON Loader</span>
+│   ├── <span class="new">category-matcher.js</span>     <span class="comment">← NEU: 4-Tier Resolution Engine</span>
+│   └── <span class="new">attribute-mapper.js</span>     <span class="comment">← NEU: Feld → Marktplatz-Feld</span>
+│
+├── <span class="folder">scripts/</span>
+│   ├── <span class="new">fetch-amazon-taxonomy.js</span>   <span class="comment">← NEU: Amazon Browse Tree ziehen</span>
+│   ├── <span class="new">fetch-otto-taxonomy.js</span>     <span class="comment">← NEU: Otto Kategorien ziehen</span>
+│   ├── <span class="new">fetch-etsy-taxonomy.js</span>     <span class="comment">← NEU: Etsy Taxonomy + Properties</span>
+│   ├── <span class="new">fetch-shopify-taxonomy.js</span>  <span class="comment">← NEU: Shopify GitHub Download</span>
+│   └── <span class="new">refresh-all-taxonomies.js</span>  <span class="comment">← NEU: Alle auf einmal refreshen</span>
+│
+└── <span class="folder">services/</span>
+    ├── <span class="existing">enrichment.js</span>          <span class="comment">← Erweitert: resolve*Category() pro MP</span>
+    └── <span class="new">taxonomy-refresh.js</span>    <span class="comment">← NEU: Periodischer Refresh-Service</span>
+</div>
+</section>
+
+<!-- ============ SECTION 4: DATA ACQUISITION ============ -->
+<section id="acquisition">
+<h2>📥 4. Daten-Akquisition — Schritt für Schritt pro Marktplatz</h2>
+
+<div class="tab-container">
+  <div class="tab-buttons">
+    <div class="tab-btn active" onclick="switchTab(event, 'tab-amazon')">Amazon</div>
+    <div class="tab-btn" onclick="switchTab(event, 'tab-otto')">Otto</div>
+    <div class="tab-btn" onclick="switchTab(event, 'tab-etsy')">Etsy</div>
+    <div class="tab-btn" onclick="switchTab(event, 'tab-shopify')">Shopify</div>
+    <div class="tab-btn" onclick="switchTab(event, 'tab-zalando')">Zalando</div>
+    <div class="tab-btn" onclick="switchTab(event, 'tab-shops')">Shops</div>
+  </div>
+
+  <!-- Amazon Tab -->
+  <div class="tab-content active" id="tab-amazon">
+    <h3>Amazon — Zwei-Datenquellen-Strategie</h3>
+
+    <p>Amazon hat KEIN einfaches Category Tree API. Stattdessen brauchen wir zwei separate Quellen:</p>
+
+    <h4>Quelle 1: Browse Tree Report (Kategorie-Baum)</h4>
+    <pre><code>// scripts/fetch-amazon-taxonomy.js
+
+const SellingPartnerAPI = require('amazon-sp-api');
+
+async function fetchBrowseTree() {
+  const sp = new SellingPartnerAPI({ region: 'eu', ... });
+
+  // 1. Report anfordern
+  const report = await sp.callAPI({
+    operation: 'createReport',
+    body: {
+      reportType: 'GET_XML_BROWSE_TREE_DATA',
+      marketplaceIds: ['A1PA6795UKMFR9']  // DE
+    }
+  });
+
+  // 2. Warten bis fertig (polling)
+  let status;
+  do {
+    await sleep(30000);
+    status = await sp.callAPI({
+      operation: 'getReport',
+      path: { reportId: report.reportId }
+    });
+  } while (status.processingStatus !== 'DONE');
+
+  // 3. Report downloaden (XML)
+  const doc = await sp.callAPI({
+    operation: 'getReportDocument',
+    path: { reportDocumentId: status.reportDocumentId }
+  });
+
+  // 4. XML → CSV konvertieren
+  const xml = await downloadAndDecompress(doc.url);
+  const categories = parseAmazonBrowseTree(xml);
+
+  // 5. Speichern als CSV
+  writeCsv('taxonomy-data/amazon/browse-tree-de.csv', categories);
+  // Spalten: id, name, path, level, parentId, isLeaf
+}
+
+// XML-Struktur:
+// &lt;BrowseNode&gt;
+//   &lt;BrowseNodeId&gt;78689031&lt;/BrowseNodeId&gt;
+//   &lt;BrowseNodeName&gt;Elektronik &amp; Foto&lt;/BrowseNodeName&gt;
+//   &lt;BrowsePathById&gt;78689031&lt;/BrowsePathById&gt;
+//   &lt;BrowsePathByName&gt;Elektronik &amp; Foto&lt;/BrowsePathByName&gt;
+//   &lt;HasChildren&gt;true&lt;/HasChildren&gt;
+//   &lt;ChildNodes&gt;...&lt;/ChildNodes&gt;
+// &lt;/BrowseNode&gt;</code></pre>
+
+    <h4>Quelle 2: Product Type Definitions (Attribut-Schema)</h4>
+    <pre><code>// Für jede relevante Kategorie: Pflichtfelder abfragen
+
+async function fetchProductTypeSchemas() {
+  const sp = new SellingPartnerAPI({ region: 'eu', ... });
+
+  // 1. Alle Product Types listen
+  const types = await sp.callAPI({
+    operation: 'searchDefinitionsProductTypes',
+    query: { marketplaceIds: ['A1PA6795UKMFR9'] }
+  });
+
+  // 2. Pro Type das Schema holen
+  for (const type of types.productTypes) {
+    const schema = await sp.callAPI({
+      operation: 'getDefinitionsProductType',
+      path: { productType: type.name },
+      query: {
+        marketplaceIds: ['A1PA6795UKMFR9'],
+        requirements: 'LISTING',
+        locale: 'de_DE'
+      }
+    });
+
+    // 3. Schema → Pflichtfelder extrahieren
+    const required = extractRequiredFields(schema.schema);
+
+    fs.writeFileSync(
+      `taxonomy-data/amazon/type-schemas/${type.name}.json`,
+      JSON.stringify({ type: type.name, required, schema: schema.schema })
+    );
+
+    await sleep(200); // Rate Limit respektieren
+  }
+}</code></pre>
+
+    <div class="callout callout-warn">
+      <strong>Amazon Herausforderungen:</strong>
+      <br>• Browse Tree Report kann 30+ Minuten dauern
+      <br>• Product Type Schemas sind komplex (JSON Schema 2019-09 mit Amazon-Extensions)
+      <br>• Verschiedene Marketplaces (DE, AT, etc.) haben unterschiedliche Trees
+      <br>• Rate Limits sind strikt — Token Bucket Algorithmus
+    </div>
+
+    <table>
+      <tr><th>Schritt</th><th>Was</th><th>Output</th><th>Aufwand</th></tr>
+      <tr><td>1</td><td>SP-API Credentials einrichten</td><td>Refresh Token + AWS IAM</td><td>2h</td></tr>
+      <tr><td>2</td><td>Browse Tree Report Script</td><td><code>browse-tree-de.csv</code></td><td>8h</td></tr>
+      <tr><td>3</td><td>Product Type Definitions Script</td><td><code>type-schemas/*.json</code></td><td>8h</td></tr>
+      <tr><td>4</td><td>amazon-taxonomy.js (Loader + Matcher)</td><td>Modul</td><td>6h</td></tr>
+      <tr><td>5</td><td>Tests + Integration in enrichment.js</td><td>Tests</td><td>4h</td></tr>
+      <tr><th colspan="4">Gesamt: ~28h</th></tr>
+    </table>
+  </div>
+
+  <!-- Otto Tab -->
+  <div class="tab-content" id="tab-otto">
+    <h3>Otto — Paginiertes Flat-List API</h3>
+
+    <pre><code>// scripts/fetch-otto-taxonomy.js
+
+async function fetchOttoCategories() {
+  const token = await getOttoAccessToken();
+  let allCategories = [];
+  let page = 0;
+  let hasMore = true;
+
+  while (hasMore) {
+    const response = await fetch(
+      `https://api.otto.market/v3/products/categories?limit=100&page=${page}`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    const data = await response.json();
+
+    allCategories.push(...data.categories);
+    hasMore = data.categories.length === 100;
+    page++;
+
+    await sleep(100); // 20 req/s Limit
+  }
+
+  // Normalisieren → Unified Format
+  const normalized = allCategories.map(cat => ({
+    id: cat.categoryGroupId,
+    name: cat.categoryGroupName,
+    path: cat.categoryGroupName, // Otto hat keine Hierarchie-Pfade
+    attributes: cat.requiredAttributes || [],
+    marketplace: 'otto'
+  }));
+
+  fs.writeFileSync(
+    'taxonomy-data/otto/categories.json',
+    JSON.stringify(normalized, null, 2)
+  );
+
+  console.log(`Otto: ${normalized.length} Kategorien gespeichert`);
+}</code></pre>
+
+    <div class="callout callout-info">
+      <strong>Otto Besonderheit:</strong>
+      Otto hat eine flache Kategorie-Struktur ohne tiefe Hierarchie. Der Kategorie-Name muss
+      EXAKT zur API-Erwartung passen. Token-Scoring muss hier besonders präzise sein.
+      Empfehlung: Gemini-Fallback als primären Matcher nutzen (weniger Kategorien = besser für LLM).
+    </div>
+
+    <table>
+      <tr><th>Schritt</th><th>Was</th><th>Output</th><th>Aufwand</th></tr>
+      <tr><td>1</td><td>Otto Partner Connect Credentials</td><td>Client ID + Secret</td><td>1h</td></tr>
+      <tr><td>2</td><td>Fetch Script + Paginierung</td><td><code>categories.json</code></td><td>4h</td></tr>
+      <tr><td>3</td><td>otto-taxonomy.js (Loader + Matcher)</td><td>Modul</td><td>4h</td></tr>
+      <tr><td>4</td><td>Tests + Integration</td><td>Tests</td><td>3h</td></tr>
+      <tr><th colspan="4">Gesamt: ~12h</th></tr>
+    </table>
+  </div>
+
+  <!-- Etsy Tab -->
+  <div class="tab-content" id="tab-etsy">
+    <h3>Etsy — Hierarchical Tree + Properties</h3>
+
+    <pre><code>// scripts/fetch-etsy-taxonomy.js
+
+async function fetchEtsyTaxonomy() {
+  // 1. Ganzen Seller Taxonomy Tree holen (1 Call!)
+  const tree = await fetch(
+    'https://openapi.etsy.com/v3/application/seller-taxonomy/nodes',
+    { headers: { 'x-api-key': ETSY_API_KEY } }
+  );
+  const nodes = await tree.json();
+
+  // 2. Flattening: Tree → Array mit Pfaden
+  const flat = flattenTree(nodes.results, '');
+
+  fs.writeFileSync(
+    'taxonomy-data/etsy/seller-taxonomy.json',
+    JSON.stringify(flat, null, 2)
+  );
+
+  // 3. Für jede Leaf-Kategorie: Properties abfragen
+  const leafNodes = flat.filter(n => n.isLeaf);
+  const properties = {};
+
+  for (const node of leafNodes) {
+    const props = await fetch(
+      `https://openapi.etsy.com/v3/application/seller-taxonomy/nodes/${node.id}/properties`,
+      { headers: { 'x-api-key': ETSY_API_KEY } }
+    );
+    properties[node.id] = await props.json();
+
+    await sleep(110); // 10 QPS Limit
+    // ~10.000 Leaf-Nodes × 0.11s = ~18 Minuten
+  }
+
+  fs.writeFileSync(
+    'taxonomy-data/etsy/properties.json',
+    JSON.stringify(properties, null, 2)
+  );
+}
+
+function flattenTree(nodes, parentPath) {
+  const result = [];
+  for (const node of nodes) {
+    const path = parentPath
+      ? `${parentPath} > ${node.name}`
+      : node.name;
+
+    result.push({
+      id: node.id,
+      name: node.name,
+      path,
+      normalized: path.toLowerCase(),
+      level: node.level,
+      parentId: node.parent_id,
+      isLeaf: !node.children || node.children.length === 0,
+      marketplace: 'etsy'
+    });
+
+    if (node.children) {
+      result.push(...flattenTree(node.children, path));
+    }
+  }
+  return result;
+}</code></pre>
+
+    <table>
+      <tr><th>Schritt</th><th>Was</th><th>Output</th><th>Aufwand</th></tr>
+      <tr><td>1</td><td>Etsy App registrieren + API Key</td><td>API Key</td><td>1h</td></tr>
+      <tr><td>2</td><td>Taxonomy Tree Script</td><td><code>seller-taxonomy.json</code></td><td>3h</td></tr>
+      <tr><td>3</td><td>Properties Batch-Script</td><td><code>properties.json</code></td><td>4h</td></tr>
+      <tr><td>4</td><td>etsy-taxonomy.js (Loader + Matcher)</td><td>Modul</td><td>4h</td></tr>
+      <tr><td>5</td><td>Tests + Integration</td><td>Tests</td><td>3h</td></tr>
+      <tr><th colspan="4">Gesamt: ~15h</th></tr>
+    </table>
+  </div>
+
+  <!-- Shopify Tab -->
+  <div class="tab-content" id="tab-shopify">
+    <h3>Shopify — Open Source Taxonomy (Bester Fall!)</h3>
+
+    <div class="callout callout-success">
+      <strong>Shopify ist der einfachste Fall!</strong>
+      Die komplette Taxonomie ist Open Source auf GitHub: <code>github.com/Shopify/product-taxonomy</code>.
+      5.595 Kategorien, versioniert, mit Attributen. Kein API-Call nötig.
+    </div>
+
+    <pre><code>// scripts/fetch-shopify-taxonomy.js
+
+const https = require('https');
+const fs = require('fs');
+
+async function fetchShopifyTaxonomy() {
+  // Direkt von GitHub herunterladen — KEIN Auth nötig!
+  const url = 'https://raw.githubusercontent.com/Shopify/product-taxonomy/main/dist/en/categories.json';
+
+  const data = await fetchJson(url);
+
+  // Shopify-Format ist bereits gut strukturiert:
+  // [{ id: "aa-1-1", name: "Animals & Pet Supplies",
+  //    full_name: "Animals & Pet Supplies > Live Animals",
+  //    parent_id: "aa", level: 1, ... }]
+
+  const normalized = data.map(cat => ({
+    id: cat.id,
+    name: cat.name,
+    path: cat.full_name,
+    normalized: cat.full_name.toLowerCase(),
+    level: cat.level,
+    parentId: cat.parent_id,
+    isLeaf: !data.some(c => c.parent_id === cat.id),
+    attributes: cat.attributes || [],
+    marketplace: 'shopify'
+  }));
+
+  fs.writeFileSync(
+    'taxonomy-data/shopify/taxonomy.json',
+    JSON.stringify(normalized, null, 2)
+  );
+
+  console.log(`Shopify: ${normalized.length} Kategorien gespeichert`);
+}
+
+// Version-Check für Updates:
+async function checkShopifyVersion() {
+  const releases = await fetchJson(
+    'https://api.github.com/repos/Shopify/product-taxonomy/releases/latest'
+  );
+  return releases.tag_name; // z.B. "v2025.09"
+}</code></pre>
+
+    <table>
+      <tr><th>Schritt</th><th>Was</th><th>Output</th><th>Aufwand</th></tr>
+      <tr><td>1</td><td>GitHub Download Script</td><td><code>taxonomy.json</code></td><td>2h</td></tr>
+      <tr><td>2</td><td>shopify-taxonomy.js (Loader + Matcher)</td><td>Modul</td><td>3h</td></tr>
+      <tr><td>3</td><td>Version-Check für Auto-Update</td><td>Script</td><td>1h</td></tr>
+      <tr><td>4</td><td>Tests + Integration</td><td>Tests</td><td>2h</td></tr>
+      <tr><th colspan="4">Gesamt: ~8h (einfachster MP!)</th></tr>
+    </table>
+  </div>
+
+  <!-- Zalando Tab -->
+  <div class="tab-content" id="tab-zalando">
+    <h3>Zalando — Fashion-spezifisch + Brand-limitiert</h3>
+
+    <pre><code>// Zalando hat KEIN öffentliches Category API.
+// Kategorien werden beim "Brand Readiness" Onboarding zugewiesen.
+// Strategie: Statisches Fashion-Kategorie-Set vorhalten.
+
+// taxonomy-data/zalando/fashion-categories.csv
+// Manuell erstellt aus Zalando Partner Portal Dokumentation:
+//
+// id,name,path,gender,required_attributes
+// 1,T-Shirts,Bekleidung > Oberteile > T-Shirts,all,"size,color,material,brand"
+// 2,Jeans,Bekleidung > Hosen > Jeans,all,"size,color,material,brand,fit"
+// 3,Sneakers,Schuhe > Sneakers,all,"size,color,material,brand"
+// ...
+
+// Bei Connect: Verfügbare Kategorien aus Zalando API filtern
+async function fetchZalandoAvailableCategories(partnerId) {
+  // Zalando FCI API: Nur zugewiesene Kategorien zurückgeben
+  const available = await zalandoApi.getAvailableCategories(partnerId);
+
+  // Gegen lokales Set matchen
+  const localCats = loadTaxonomy('zalando');
+  return localCats.filter(c => available.includes(c.id));
+}</code></pre>
+
+    <div class="callout callout-warn">
+      <strong>Zalando ist ein Sonderfall:</strong>
+      <br>• Nur Fashion-Kategorien (kein Elektronik, kein Haushalt)
+      <br>• Kategorien sind brand-spezifisch zugewiesen
+      <br>• Attribut-Anforderungen sind sehr streng (Größentabellen, Farb-Codes)
+      <br>• Empfehlung: P1 statt P0 — nur für Fashion-Händler relevant
+    </div>
+
+    <table>
+      <tr><th>Schritt</th><th>Was</th><th>Output</th><th>Aufwand</th></tr>
+      <tr><td>1</td><td>Fashion-Kategorie-Set manuell erstellen</td><td><code>fashion-categories.csv</code></td><td>6h</td></tr>
+      <tr><td>2</td><td>Attribut-Maps (Größen, Farben, Material)</td><td><code>attributes.json</code></td><td>4h</td></tr>
+      <tr><td>3</td><td>zalando-taxonomy.js</td><td>Modul</td><td>4h</td></tr>
+      <tr><td>4</td><td>Tests + Integration</td><td>Tests</td><td>3h</td></tr>
+      <tr><th colspan="4">Gesamt: ~17h</th></tr>
+    </table>
+  </div>
+
+  <!-- Shops Tab -->
+  <div class="tab-content" id="tab-shops">
+    <h3>WooCommerce / Shopware / Magento — Shop-spezifisch</h3>
+
+    <div class="callout callout-info">
+      <strong>Fundamentaler Unterschied zu Marktplätzen:</strong>
+      Shops haben KEINEN globalen Kategorie-Baum. Jeder Shop hat seine eigenen Kategorien.
+      Die Taxonomie-Daten werden NICHT vorinstalliert, sondern bei jedem Connect frisch aus der Shop-API gezogen.
+    </div>
+
+    <pre><code>// lib/shop-taxonomy-sync.js — Dynamisches Category Fetching
+
+async function syncShopCategories(integration) {
+  const { type, tenantId, credentials } = integration;
+
+  let categories;
+  switch (type) {
+    case 'woocommerce':
+      categories = await fetchWooCommerceCategories(credentials);
+      break;
+    case 'shopware':
+      categories = await fetchShopwareCategories(credentials);
+      break;
+    case 'magento':
+      categories = await fetchMagentoCategories(credentials);
+      break;
+  }
+
+  // In Firestore speichern (pro Tenant + Shop)
+  await getDb()
+    .collection('shop_taxonomies')
+    .doc(`${tenantId}__${type}`)
+    .set({
+      categories: categories.map(c => ({
+        id: c.id,
+        name: c.name,
+        path: c.path,
+        normalized: c.path.toLowerCase(),
+        parentId: c.parentId,
+        productCount: c.count
+      })),
+      lastSynced: new Date().toISOString(),
+      categoryCount: categories.length
+    });
+
+  return categories;
+}
+
+async function fetchWooCommerceCategories({ url, key, secret }) {
+  const WooCommerce = require('@woocommerce/woocommerce-rest-api');
+  const api = new WooCommerce.default({ url, consumerKey: key, consumerSecret: secret });
+
+  let all = [], page = 1;
+  while (true) {
+    const { data } = await api.get('products/categories', { per_page: 100, page });
+    if (!data.length) break;
+    all.push(...data);
+    page++;
+  }
+
+  // Pfade aus Parent-Beziehungen aufbauen
+  return buildPathsFromParents(all);
+}</code></pre>
+
+    <h4>KI-Mapping für Shop-Kategorien</h4>
+    <p>Da Shop-Kategorien individuell sind, ist der KI-Ansatz hier BESONDERS wichtig. Die KI mappt AvyCloud-Produkte auf die unbekannten Shop-Kategorien des Users:</p>
+
+    <pre><code>// services/integration-ai-config.js — Shop Category Mapping
+
+async function autoMapShopCategories(tenantId, shopType) {
+  // 1. Produkte des Users laden
+  const products = await getAllProductsV2({ tenantId });
+
+  // 2. Shop-Kategorien laden (frisch synchronisiert)
+  const shopCats = await getShopTaxonomy(tenantId, shopType);
+
+  // 3. Gemini: "Welche Shop-Kategorie passt zu welchem Produkt?"
+  const prompt = `Du bist ein E-Commerce Experte.
+Ordne jedes Produkt der passendsten Shop-Kategorie zu.
+
+PRODUKTE:
+${products.slice(0, 50).map(p => `- ${p.title} (${p.details?.category || 'keine Kategorie'})`).join('\n')}
+
+SHOP-KATEGORIEN:
+${shopCats.map(c => `- ID ${c.id}: ${c.path}`).join('\n')}
+
+Antworte als JSON: [{"productId": "...", "categoryId": "...", "confidence": 0.95}]`;
+
+  const mapping = await geminiStructured(prompt);
+  return mapping;
+}</code></pre>
+  </div>
+</div>
+</section>
+
+<!-- ============ SECTION 5: AI ENGINE ============ -->
+<section id="ai-engine">
+<h2>🤖 5. KI-Engine — Intelligentes Category Matching</h2>
+
+<p>Das Herzstück des KI-First-Ansatzes: Gemini wählt aus einer vorselektierten Shortlist die beste Kategorie. Kein Halluzinieren möglich, weil nur echte Kategorie-IDs als Antwort akzeptiert werden.</p>
+
+<h3>Gemini Category Resolution — Universell</h3>
+
+<pre><code>// lib/category-matcher.js — Universelle 4-Tier Resolution
+
+const { loadTaxonomy } = require('./taxonomy-loader');
+const { geminiStructured } = require('./gemini-structured');
+
+// LRU Cache um doppelte Gemini-Calls zu vermeiden
+const LRU = require('lru-cache');
+const cache = new LRU({ max: 10000, ttl: 1000 * 60 * 60 * 24 }); // 24h
+
+/**
+ * Universelle Kategorie-Resolution für JEDEN Marktplatz.
+ * Repliziert das bewährte Kaufland/eBay-Pattern.
+ */
+async function resolveCategory(marketplace, product) {
+  const cacheKey = `${marketplace}:${product.id || product.title}`;
+  const cached = cache.get(cacheKey);
+  if (cached) return cached;
+
+  const taxonomy = loadTaxonomy(marketplace);
+  if (!taxonomy || !taxonomy.categories.length) return null;
+
+  const details = product.details || {};
+  const attributes = details.attributes || {};
+  const identification = product.identification || {};
+
+  // ── TIER 1: Direct ID Validation ──
+  const rawId = attributes[`${marketplace}_category_id`]
+             || details[`${marketplace}CategoryId`];
+
+  if (rawId && taxonomy.isValidId(rawId)) {
+    const cat = taxonomy.getById(rawId);
+    if (cat) {
+      const result = { id: rawId, path: cat.path, tier: 1, confidence: 1.0 };
+      cache.set(cacheKey, result);
+      return result;
+    }
+  }
+
+  // ── TIER 2: Path Lookup ──
+  const rawPath = details[`${marketplace}CategoryPath`]
+               || attributes[`${marketplace}_category`]
+               || identification.category;
+
+  if (rawPath) {
+    const byPath = taxonomy.lookupByPath(rawPath);
+    if (byPath) {
+      const result = { id: byPath.id, path: byPath.path, tier: 2, confidence: 0.95 };
+      cache.set(cacheKey, result);
+      return result;
+    }
+  }
+
+  // ── TIER 3: Token Scoring (Fuzzy Match) ──
+  const searchText = [
+    product.title,
+    rawPath,
+    identification.category,
+    details.category,
+    attributes.Kategorie
+  ].filter(Boolean).join(' ');
+
+  if (searchText) {
+    const scored = taxonomy.fuzzyMatch(searchText);
+    if (scored && scored.score > 8) { // Mindest-Score
+      const result = { id: scored.id, path: scored.path, tier: 3, confidence: scored.score / 20 };
+      cache.set(cacheKey, result);
+      return result;
+    }
+  }
+
+  // ── TIER 4: Gemini AI ──
+  const shortlist = taxonomy.buildShortlist(product, 60);
+  if (!shortlist.length) return null;
+
+  const geminiResult = await resolveWithGemini(marketplace, product, shortlist);
+  if (geminiResult) {
+    const result = { ...geminiResult, tier: 4 };
+    cache.set(cacheKey, result);
+    return result;
+  }
+
+  return null;
+}
+
+/**
+ * Gemini wählt aus Shortlist — KEINE Halluzination möglich.
+ */
+async function resolveWithGemini(marketplace, product, shortlist) {
+  const productInfo = [
+    product.title,
+    product.details?.brand,
+    product.details?.description?.substring(0, 200),
+    product.identification?.category
+  ].filter(Boolean).join(' | ');
+
+  const candidateList = shortlist
+    .map(c => `ID:${c.id} → ${c.path}`)
+    .join('\n');
+
+  const prompt = `Du bist ein Kategorisierungs-Assistent für ${marketplace}.
+Aufgabe: Wähle GENAU EINE Kategorie aus der Kandidatenliste für dieses Produkt.
+
+PRODUKT: ${productInfo}
+
+KANDIDATEN:
+${candidateList}
+
+Regeln:
+- Du darfst NUR eine ID aus der Kandidatenliste zurückgeben
+- Wähle die spezifischste Leaf-Kategorie die passt
+- Bei Unsicherheit: generellere Kategorie wählen
+
+Antwort als JSON: {"id": "...", "confidence": 0.0-1.0}`;
+
+  try {
+    const response = await geminiStructured(prompt, {
+      schema: { type: 'object', properties: { id: { type: 'string' }, confidence: { type: 'number' } } }
+    });
+
+    // Validierung: ID muss in Shortlist sein!
+    const valid = shortlist.find(c => String(c.id) === String(response.id));
+    if (!valid) return null;
+
+    return { id: response.id, path: valid.path, confidence: response.confidence };
+  } catch (err) {
+    console.error(`[category-matcher] Gemini failed for ${marketplace}:`, err.message);
+    return null;
+  }
+}
+
+module.exports = { resolveCategory };</code></pre>
+
+<h3>Taxonomy Loader — Unified Interface</h3>
+
+<pre><code>// lib/taxonomy-loader.js
+
+const fs = require('fs');
+const path = require('path');
+const csvParse = require('csv-parse/sync');
+
+const TAXONOMY_DIR = path.join(__dirname, '..', 'taxonomy-data');
+const taxonomyCache = new Map();
+
+/**
+ * Lädt Taxonomie für einen Marktplatz.
+ * Gibt ein TaxonomyIndex-Objekt zurück mit einheitlicher API.
+ */
+function loadTaxonomy(marketplace) {
+  if (taxonomyCache.has(marketplace)) return taxonomyCache.get(marketplace);
+
+  const configPath = path.join(TAXONOMY_DIR, marketplace, 'config.json');
+  if (!fs.existsSync(configPath)) {
+    console.warn(`[taxonomy-loader] No config for ${marketplace}`);
+    return null;
+  }
+
+  const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+  let categories;
+
+  switch (config.format) {
+    case 'csv':
+      categories = loadFromCsv(marketplace, config);
+      break;
+    case 'json':
+      categories = loadFromJson(marketplace, config);
+      break;
+    default:
+      throw new Error(`Unknown format: ${config.format}`);
+  }
+
+  const index = new TaxonomyIndex(marketplace, categories);
+  taxonomyCache.set(marketplace, index);
+
+  console.log(`[taxonomy-loader] ${marketplace}: ${categories.length} categories loaded`);
+  return index;
+}
+
+class TaxonomyIndex {
+  constructor(marketplace, categories) {
+    this.marketplace = marketplace;
+    this.categories = categories;
+
+    // Build indices
+    this.idMap = new Map();
+    this.pathIndex = new Map();
+    this.nameIndex = new Map();
+    this.idSet = new Set();
+
+    const nameCounts = new Map();
+
+    for (const cat of categories) {
+      this.idMap.set(String(cat.id), cat);
+      this.idSet.add(String(cat.id));
+      this.pathIndex.set(cat.normalized, cat);
+
+      // Unique leaf names only
+      const leafName = cat.name?.toLowerCase().trim();
+      if (leafName) {
+        nameCounts.set(leafName, (nameCounts.get(leafName) || 0) + 1);
+      }
+    }
+
+    for (const cat of categories) {
+      const leafName = cat.name?.toLowerCase().trim();
+      if (leafName && nameCounts.get(leafName) === 1) {
+        this.nameIndex.set(leafName, cat);
+      }
+    }
+  }
+
+  isValidId(id) { return this.idSet.has(String(id).trim()); }
+  getById(id) { return this.idMap.get(String(id).trim()); }
+
+  lookupByPath(pathOrName) {
+    const norm = pathOrName.toString().trim().toLowerCase();
+    return this.pathIndex.get(norm) || this.nameIndex.get(norm) || null;
+  }
+
+  fuzzyMatch(searchText) {
+    const needle = searchText.toLowerCase().trim();
+    const tokens = needle.split(/[\s\/,;>\-]+/).filter(t => t.length > 2);
+
+    let best = null, bestScore = 0;
+
+    for (const cat of this.categories) {
+      let score = 0;
+
+      // Substring match bonus
+      if (cat.normalized.includes(needle)) score += needle.length + 5;
+      else if (needle.includes(cat.normalized)) score += cat.normalized.length;
+
+      // Token matching
+      for (const token of tokens) {
+        if (cat.normalized.includes(token)) score += token.length;
+      }
+
+      // Leaf preference bonus
+      if (cat.isLeaf) score += 2;
+
+      if (score > bestScore) {
+        bestScore = score;
+        best = { ...cat, score };
+      }
+    }
+
+    return best;
+  }
+
+  buildShortlist(product, maxCandidates = 60) {
+    const text = [
+      product.title,
+      product.details?.brand,
+      product.details?.description?.substring(0, 300),
+      product.identification?.category,
+      product.details?.category
+    ].filter(Boolean).join(' ').toLowerCase();
+
+    const tokens = text.split(/[\s\/,;>\-]+/).filter(t => t.length > 2);
+
+    const scored = this.categories
+      .map(cat => {
+        let score = 0;
+        for (const token of tokens) {
+          if (cat.normalized.includes(token)) score += token.length;
+        }
+        return { ...cat, score };
+      })
+      .filter(c => c.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, maxCandidates);
+
+    return scored;
+  }
+}
+
+module.exports = { loadTaxonomy, TaxonomyIndex };</code></pre>
+
+<h3>Performance-Vergleich: Tier-Kosten</h3>
+<table>
+  <tr><th>Tier</th><th>Latenz</th><th>Kosten</th><th>Genauigkeit</th><th>Typischer Anteil</th></tr>
+  <tr>
+    <td><span class="badge badge-green">Tier 1: Direct ID</span></td>
+    <td>&lt;1ms</td>
+    <td>$0</td>
+    <td>100%</td>
+    <td>~15% (Re-Enrichment)</td>
+  </tr>
+  <tr>
+    <td><span class="badge badge-green">Tier 2: Path Lookup</span></td>
+    <td>&lt;1ms</td>
+    <td>$0</td>
+    <td>~98%</td>
+    <td>~40% (gut getaggte Produkte)</td>
+  </tr>
+  <tr>
+    <td><span class="badge badge-yellow">Tier 3: Token Score</span></td>
+    <td>&lt;5ms</td>
+    <td>$0</td>
+    <td>~85%</td>
+    <td>~30% (teilweise getaggt)</td>
+  </tr>
+  <tr>
+    <td><span class="badge badge-red">Tier 4: Gemini AI</span></td>
+    <td>~800ms</td>
+    <td>~$0.001/Call</td>
+    <td>~92%</td>
+    <td>~15% (neue/unbekannte)</td>
+  </tr>
+</table>
+
+<div class="callout callout-success">
+  <strong>Kosten-Kalkulation:</strong> Bei 1.000 Produkten kosten Tier 1-3 nichts. Tier 4 (Gemini) wird nur für ~150 Produkte aufgerufen = ~$0.15.
+  Bei 10.000 Produkten: ~$1.50. Vernachlässigbar.
+</div>
+</section>
+
+<!-- ============ SECTION 6: IMPLEMENTATION ============ -->
+<section id="implementation">
+<h2>🔧 6. Implementierungs-Plan — Reihenfolge & Abhängigkeiten</h2>
+
+<h3>Phase 0: Foundation (MUSS ZUERST)</h3>
+<div class="card">
+  <div class="card-header">
+    <h3>Universal Taxonomy Engine bauen</h3>
+    <span class="badge badge-red">Blocker</span>
+  </div>
+  <ul class="checklist">
+    <li><code>taxonomy-data/</code> Verzeichnis anlegen + <code>_schema/config.json</code> Format definieren</li>
+    <li><code>lib/taxonomy-loader.js</code> — Unified Loader (CSV + JSON Parser, TaxonomyIndex Klasse)</li>
+    <li><code>lib/category-matcher.js</code> — 4-Tier Resolution Engine mit LRU Cache</li>
+    <li><code>lib/attribute-mapper.js</code> — Attribut-Mapping Engine</li>
+    <li>Bestehende <code>kaufland-taxonomy.js</code> + <code>ebay-taxonomy.js</code> als Adapter behalten (backward compat)</li>
+    <li>Tests: Unit Tests für TaxonomyIndex, fuzzyMatch, buildShortlist</li>
+  </ul>
+  <p class="muted">Aufwand: ~20h | Keine Breaking Changes | Alle bestehenden Module bleiben</p>
+</div>
+
+<h3>Phase 1: Statische Taxonomien (P0 Marktplätze)</h3>
+
+<div class="compare-grid">
+  <div class="compare-box">
+    <h4>🟢 Shopify (Einfachster Start)</h4>
+    <p>GitHub Download → JSON → TaxonomyIndex</p>
+    <p class="muted">Aufwand: 8h | Kein Auth nötig</p>
+    <div class="prio-strip"><div class="prio-block prio-p0"></div><div class="prio-block prio-p0"></div><div class="prio-block prio-p0"></div></div>
+  </div>
+  <div class="compare-box">
+    <h4>🟡 Otto Market</h4>
+    <p>API Paginierung → JSON → TaxonomyIndex</p>
+    <p class="muted">Aufwand: 12h | OAuth nötig</p>
+    <div class="prio-strip"><div class="prio-block prio-p0"></div><div class="prio-block prio-p0"></div><div class="prio-block prio-p0"></div></div>
+  </div>
+  <div class="compare-box">
+    <h4>🟠 Amazon SP-API</h4>
+    <p>Browse Tree Report + Type Schemas → CSV+JSON → TaxonomyIndex</p>
+    <p class="muted">Aufwand: 28h | Komplexeste API</p>
+    <div class="prio-strip"><div class="prio-block prio-p0"></div><div class="prio-block prio-p0"></div><div class="prio-block prio-p0"></div></div>
+  </div>
+  <div class="compare-box">
+    <h4>🟡 Etsy</h4>
+    <p>Taxonomy API → JSON → TaxonomyIndex + Properties</p>
+    <p class="muted">Aufwand: 15h | API Key nötig</p>
+    <div class="prio-strip"><div class="prio-block prio-p1"></div><div class="prio-block prio-p1"></div><div class="prio-block" style="background:#333"></div></div>
+  </div>
+</div>
+
+<h3>Phase 2: Dynamische Shop-Taxonomien</h3>
+<div class="card">
+  <div class="card-header">
+    <h3>Shop-spezifische Kategorien bei Connect laden</h3>
+    <span class="badge badge-blue">WooCommerce, Shopware, Magento</span>
+  </div>
+  <ul class="checklist">
+    <li><code>lib/shop-taxonomy-sync.js</code> — Bei jedem Connect: Kategorien aus Shop-API holen</li>
+    <li>Speicherung in Firestore: <code>shop_taxonomies/{tenantId}__{type}</code></li>
+    <li>KI-Mapping: Gemini mappt AvyCloud-Produkte auf individuelle Shop-Kategorien</li>
+    <li>Periodischer Re-Sync (1x/Tag) um Kategorie-Änderungen im Shop zu erkennen</li>
+  </ul>
+  <p class="muted">Aufwand: ~16h für WooCommerce, dann je ~8h pro weiterem Shop-System</p>
+</div>
+
+<h3>Phase 3: Taxonomy Refresh & Monitoring</h3>
+<div class="card">
+  <div class="card-header">
+    <h3>Automatische Aktualisierung</h3>
+    <span class="badge badge-yellow">Wartung</span>
+  </div>
+  <table>
+    <tr><th>Marktplatz</th><th>Refresh-Strategie</th><th>Intervall</th><th>Trigger</th></tr>
+    <tr><td>Kaufland</td><td>CSV Re-Download</td><td>Monatlich</td><td>Cron Job</td></tr>
+    <tr><td>eBay</td><td>Taxonomy API Call</td><td>Wöchentlich</td><td>Cron Job</td></tr>
+    <tr><td>Amazon</td><td>Browse Tree Report</td><td>Wöchentlich</td><td>Cron Job</td></tr>
+    <tr><td>Otto</td><td>Categories API</td><td>Täglich (Otto-Empfehlung)</td><td>Cron Job</td></tr>
+    <tr><td>Etsy</td><td>Taxonomy API</td><td>Monatlich</td><td>Cron Job</td></tr>
+    <tr><td>Shopify</td><td>GitHub Release Check</td><td>Bei Versionswechsel</td><td>GitHub Webhook / Check</td></tr>
+    <tr><td>Zalando</td><td>Manuell</td><td>Quartalsweise</td><td>Manuell</td></tr>
+    <tr><td>Shops</td><td>API Sync</td><td>Täglich</td><td>Cron Job pro Tenant</td></tr>
+  </table>
+</div>
+</section>
+
+<!-- ============ SECTION 7: TIMELINE ============ -->
+<section id="timeline">
+<h2>📅 7. Timeline — KW 11 bis KW 16</h2>
+
+<div class="timeline">
+  <div class="timeline-item">
+    <div class="tl-title">KW 11 — Foundation + Shopify</div>
+    <div class="tl-detail">
+      <code>taxonomy-loader.js</code>, <code>category-matcher.js</code>, <code>attribute-mapper.js</code> bauen.
+      Shopify-Taxonomie von GitHub laden. Erste universelle Resolution Tests.
+      <br><strong>Output:</strong> Universal Engine + 1 neuer MP (Shopify)
+    </div>
+  </div>
+  <div class="timeline-item">
+    <div class="tl-title">KW 12 — Otto + eBay Migration</div>
+    <div class="tl-detail">
+      Otto API Credentials + Fetch Script. Otto Taxonomy laden.
+      eBay bestehende <code>ebay-taxonomy.js</code> als Adapter in Universal Engine einbinden.
+      <br><strong>Output:</strong> Otto + eBay über Universal Engine
+    </div>
+  </div>
+  <div class="timeline-item">
+    <div class="tl-title">KW 13 — Amazon SP-API (Teil 1)</div>
+    <div class="tl-detail">
+      Amazon SP-API Credentials. Browse Tree Report Script.
+      XML→CSV Konvertierung. Browse Tree testen.
+      <br><strong>Output:</strong> Amazon Browse Tree als CSV
+    </div>
+  </div>
+  <div class="timeline-item">
+    <div class="tl-title">KW 14 — Amazon (Teil 2) + Etsy</div>
+    <div class="tl-detail">
+      Amazon Product Type Definitions für Top-Kategorien.
+      <code>amazon-taxonomy.js</code> in Engine integrieren.
+      Etsy Taxonomy + Properties Script.
+      <br><strong>Output:</strong> Amazon + Etsy über Universal Engine
+    </div>
+  </div>
+  <div class="timeline-item">
+    <div class="tl-title">KW 15 — WooCommerce + Shop-Sync</div>
+    <div class="tl-detail">
+      <code>shop-taxonomy-sync.js</code> für dynamische Shop-Kategorien.
+      WooCommerce als erster Shop. KI-Mapping für Shop-Kategorien.
+      <br><strong>Output:</strong> WooCommerce Dynamic Taxonomy
+    </div>
+  </div>
+  <div class="timeline-item">
+    <div class="tl-title">KW 16 — Zalando + Refresh + Polish</div>
+    <div class="tl-detail">
+      Zalando Fashion-Kategorie-Set. Taxonomy Refresh Service.
+      Integration Tests über alle Marktplätze. Performance-Tuning.
+      <br><strong>Output:</strong> Alle 7+ Marktplätze über Universal Engine
+    </div>
+  </div>
+</div>
+
+<h3>Aufwand-Zusammenfassung</h3>
+<table>
+  <tr><th>Komponente</th><th>Aufwand</th><th>Priorität</th></tr>
+  <tr><td>Universal Taxonomy Engine (Foundation)</td><td>20h</td><td><span class="badge badge-red">Blocker</span></td></tr>
+  <tr><td>Shopify Taxonomy</td><td>8h</td><td><span class="badge badge-red">P0</span></td></tr>
+  <tr><td>Otto Taxonomy</td><td>12h</td><td><span class="badge badge-red">P0</span></td></tr>
+  <tr><td>Amazon Taxonomy</td><td>28h</td><td><span class="badge badge-red">P0</span></td></tr>
+  <tr><td>Etsy Taxonomy</td><td>15h</td><td><span class="badge badge-orange">P1</span></td></tr>
+  <tr><td>WooCommerce Dynamic Sync</td><td>16h</td><td><span class="badge badge-red">P0</span></td></tr>
+  <tr><td>Zalando Fashion Categories</td><td>17h</td><td><span class="badge badge-orange">P1</span></td></tr>
+  <tr><td>Taxonomy Refresh Service</td><td>8h</td><td><span class="badge badge-orange">P1</span></td></tr>
+  <tr><td>Kaufland/eBay Migration zu Engine</td><td>6h</td><td><span class="badge badge-yellow">P2</span></td></tr>
+  <tr><th>Gesamt</th><th>~130h</th><th></th></tr>
+</table>
+</section>
+
+<!-- ============ SECTION 8: RISKS ============ -->
+<section id="risks">
+<h2>⚠️ 8. Risiken & Mitigierung</h2>
+
+<table>
+  <tr><th>Risiko</th><th>Impact</th><th>Wahrscheinlichkeit</th><th>Mitigierung</th></tr>
+  <tr>
+    <td><strong>Amazon SP-API Zugang</strong> — Strenge Registrierung, kann Wochen dauern</td>
+    <td><span class="badge badge-red">Hoch</span></td>
+    <td><span class="badge badge-yellow">Mittel</span></td>
+    <td>SOFORT SP-API Registrierung starten (parallel zur Entwicklung). Alternative: Browse Tree als XML-Upload von existierendem Seller-Account.</td>
+  </tr>
+  <tr>
+    <td><strong>API Rate Limits</strong> — Etsy: 10k/Tag, eBay: 5k/Tag</td>
+    <td><span class="badge badge-yellow">Mittel</span></td>
+    <td><span class="badge badge-green">Niedrig</span></td>
+    <td>Taxonomy-Daten lokal cachen. Nur beim Refresh API-Calls. Bulk-Operations mit Sleep/Backoff.</td>
+  </tr>
+  <tr>
+    <td><strong>Taxonomy-Änderungen</strong> — Marktplatz ändert Kategorien, alte IDs invalid</td>
+    <td><span class="badge badge-yellow">Mittel</span></td>
+    <td><span class="badge badge-yellow">Mittel</span></td>
+    <td>Refresh Service erkennt Diff. Gelöschte IDs → Produkte markieren → KI remapped automatisch.</td>
+  </tr>
+  <tr>
+    <td><strong>Gemini Latenz bei Bulk</strong> — 1.000 Produkte × 800ms = 13 Minuten</td>
+    <td><span class="badge badge-yellow">Mittel</span></td>
+    <td><span class="badge badge-yellow">Mittel</span></td>
+    <td>Batch-Processing mit Parallelisierung (10 concurrent). LRU-Cache für wiederkehrende Muster. Tier 1-3 decken 85% ab.</td>
+  </tr>
+  <tr>
+    <td><strong>Zalando Partner-Zugang</strong> — Nur für zugelassene Brands</td>
+    <td><span class="badge badge-green">Niedrig</span></td>
+    <td><span class="badge badge-red">Hoch</span></td>
+    <td>Zalando als P1, nicht P0. Statisches Fashion-Set als Grundlage. API-Zugang nur für testende Partner.</td>
+  </tr>
+  <tr>
+    <td><strong>Token-Scoring Präzision</strong> — Falsche Kategorie bei ähnlichen Namen</td>
+    <td><span class="badge badge-yellow">Mittel</span></td>
+    <td><span class="badge badge-yellow">Mittel</span></td>
+    <td>Confidence-Score an Produkt. User sieht "KI-Vorschlag prüfen" Badge. Feedback-Loop: User-Korrekturen verbessern zukünftiges Matching.</td>
+  </tr>
+</table>
+
+<div class="callout callout-danger">
+  <strong>SOFORT-AKTION: Amazon SP-API Registrierung DIESE WOCHE starten!</strong>
+  Die Registrierung kann 2-4 Wochen dauern. Ohne sie kein Browse Tree Report.
+  Parallel dazu die Universal Engine und einfachere MPs (Shopify, Otto) implementieren.
+</div>
+
+<h3>Erfolgs-Metriken</h3>
+<table>
+  <tr><th>Metrik</th><th>Ziel</th><th>Messung</th></tr>
+  <tr><td>Auto-Match Rate (Tier 1-3)</td><td>&gt;85%</td><td>% Produkte die ohne Gemini gemappt werden</td></tr>
+  <tr><td>Gesamt-Match Rate (Tier 1-4)</td><td>&gt;97%</td><td>% Produkte die erfolgreich kategorisiert werden</td></tr>
+  <tr><td>Kategorie-Genauigkeit</td><td>&gt;92%</td><td>Stichproben-Review (manuelle Prüfung)</td></tr>
+  <tr><td>Gemini-Kosten pro 1000 Produkte</td><td>&lt;$0.20</td><td>API-Kosten Tracking</td></tr>
+  <tr><td>Kategorie-Resolution Latenz (p95)</td><td>&lt;2s</td><td>Tier 4 inklusive Gemini</td></tr>
+  <tr><td>Neue MP Onboarding (Zeit)</td><td>&lt;2 Tage</td><td>Fetch Script + Config + Tests</td></tr>
+</table>
+</section>
+
+</div>
+
+<script>
+function switchTab(event, tabId) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  event.target.classList.add('active');
+  document.getElementById(tabId).classList.add('active');
+}
+
+// Smooth scroll for nav
+document.querySelectorAll('.nav-bar a').forEach(link => {
+  link.addEventListener('click', (e) => {
+    e.preventDefault();
+    document.querySelectorAll('.nav-bar a').forEach(a => a.classList.remove('active'));
+    link.classList.add('active');
+    const target = document.querySelector(link.getAttribute('href'));
+    if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+});
+
+// Active nav on scroll
+const sections = document.querySelectorAll('section[id]');
+const navLinks = document.querySelectorAll('.nav-bar a');
+window.addEventListener('scroll', () => {
+  let current = '';
+  sections.forEach(section => {
+    const top = section.offsetTop - 120;
+    if (window.scrollY >= top) current = section.id;
+  });
+  navLinks.forEach(link => {
+    link.classList.remove('active');
+    if (link.getAttribute('href') === '#' + current) link.classList.add('active');
+  });
+});
+</script>
+
+</body>
+</html>

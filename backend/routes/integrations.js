@@ -30,11 +30,9 @@ router.get('/integrations/status', async (req, res) => {
       return null;
     });
     const ebayStatus = publicStatus(ebayDoc);
+    // eBay is "connected" only if an active OAuth token exists — NOT based on
+    // Secret Manager credentials (those are infrastructure config, not connection state).
     let ebayConnected = ebayStatus.connected;
-    if (!ebayConnected) {
-      const ebaySecret = await getSecretValue('EBAY_CLIENT_SECRET').catch(() => null);
-      if (ebaySecret) ebayConnected = true;
-    }
     if (!ebayConnected && storedMap.has('ebay')) {
       ebayConnected = storedMap.get('ebay').status === 'active';
     }
