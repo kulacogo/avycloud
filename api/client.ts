@@ -3202,6 +3202,19 @@ export async function cancelShippingLabel(orderId: string): Promise<void> {
   if (!res.ok || data?.ok === false) throw new Error(data?.error?.message || 'Label-Stornierung fehlgeschlagen');
 }
 
+export async function syncSendCloudParcels(
+  opts?: { fromDate?: string; toDate?: string }
+): Promise<{ matched: number; unmatched: number; skipped: number; details: any }> {
+  const res = await fetchApi(`${BACKEND_URL}/api/orders/sync-sendcloud`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(opts || {}),
+  });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) throw new Error(data?.error?.message || 'SendCloud-Sync fehlgeschlagen');
+  return data?.data || {};
+}
+
 export async function fetchOrderTimeline(orderId: string): Promise<any[]> {
   const res = await fetchApi(`${BACKEND_URL}/api/orders/${encodeURIComponent(orderId)}/timeline`, { method: 'GET' });
   const data = await parseResponse(res);

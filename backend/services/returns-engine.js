@@ -7,16 +7,15 @@
  * reason categorization, and refund communication.
  */
 
-const { Firestore, FieldValue } = require('@google-cloud/firestore');
+const { FieldValue } = require('@google-cloud/firestore');
+const { firestore } = require('../lib/firestore');
 
 const RETURNS_COLLECTION = 'returns';
 const ORDERS_COLLECTION = 'orders';
 const RETURN_EVENTS_COLLECTION = 'return_events';
 
-let _db;
 function getDb() {
-  if (!_db) _db = new Firestore();
-  return _db;
+  return firestore;
 }
 
 // ─── Return Status Flow ──────────────────────────────────────
@@ -274,13 +273,14 @@ async function restockItem({ returnId, orderId, itemCondition, tenantId = 'defau
 // ─── Marketplace Return Intake ───────────────────────────────
 
 /**
- * Sync returns from eBay via GetReturnRequests (Trading API).
+ * Sync returns from eBay via Post-Order REST API.
+ * Uses GET /post-order/v2/return/search (JSON, OAuth bearer token).
  *
  * @param {{ tenantId?: string, lookbackDays?: number }} opts
  * @returns {Promise<{ synced: number, skipped: number, errors: number }>}
  */
 async function syncEbayReturns({ tenantId = 'default', lookbackDays = 30 } = {}) {
-  const { callTradingApi } = require('../lib/ebay-trading-api');
+  const { getValidEbayAccessToken } = require('../lib/ebay-oauth');
   const db = getDb();
 
   let synced = 0;
@@ -288,32 +288,42 @@ async function syncEbayReturns({ tenantId = 'default', lookbackDays = 30 } = {})
   let errors = 0;
 
   try {
+    const { accessToken, apiBaseUrl } = await getValidEbayAccessToken();
     const fromDate = new Date(Date.now() - lookbackDays * 24 * 60 * 60 * 1000).toISOString();
 
-    const innerXml = `
-  <ReturnRequestFilter>
-    <CreationDateRangeFilter>
-      <FromDate>${fromDate}</FromDate>
-    </CreationDateRangeFilter>
-  </ReturnRequestFilter>
-  <Pagination>
-    <EntriesPerPage>100</EntriesPerPage>
-    <PageNumber>1</PageNumber>
-  </Pagination>`;
+    // eBay Post-Order API: GET /post-order/v2/return/search
+    const searchUrl = new URL('/post-order/v2/return/search', apiBaseUrl);
+    searchUrl.searchParams.set('creation_date_range_from', fromDate);
+    searchUrl.searchParams.set('limit', '200');
+    searchUrl.searchParams.set('offset', '0');
+    searchUrl.searchParams.set('sort', 'RETURN_CREATION_DATE_DESC');
 
-    const result = await callTradingApi('GetReturnRequests', innerXml);
+    const res = await fetch(searchUrl.toString(), {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+        'X-EBAY-C-MARKETPLACE-ID': 'EBAY_DE',
+        'Accept': 'application/json',
+      },
+    });
 
-    // Parse return requests from XML response
-    const returnRequests = extractArray(result, 'ReturnRequest');
+    if (!res.ok) {
+      const body = await res.text().catch(() => '');
+      throw new Error(`eBay Post-Order API ${res.status}: ${body.slice(0, 500)}`);
+    }
+
+    const json = await res.json();
+    const returnRequests = Array.isArray(json.members) ? json.members : [];
 
     for (const rr of returnRequests) {
       try {
-        const marketplaceReturnId = rr.ReturnId || rr.ReturnID || '';
+        const marketplaceReturnId = rr.returnId || rr.returnRequest?.returnId || '';
         if (!marketplaceReturnId) continue;
 
         // Deduplicate by marketplace return ID
         const existing = await db.collection(RETURNS_COLLECTION)
-          .where('marketplaceReturnId', '==', marketplaceReturnId)
+          .where('marketplaceReturnId', '==', String(marketplaceReturnId))
           .where('marketplace', '==', 'ebay')
           .limit(1)
           .get();
@@ -323,33 +333,34 @@ async function syncEbayReturns({ tenantId = 'default', lookbackDays = 30 } = {})
           continue;
         }
 
-        // Map eBay fields to our return schema
-        const ebayReason = rr.ReturnReason || rr.Reason || 'OTHER';
+        // Map eBay Post-Order fields to our return schema
+        const detail = rr.returnRequest || rr;
+        const ebayReason = detail.reason || detail.returnReason || 'OTHER';
         const reason = EBAY_REASON_MAP[ebayReason] || 'sonstiges';
 
         const returnDoc = {
           tenantId,
           marketplace: 'ebay',
-          marketplaceReturnId,
-          marketplaceOrderId: rr.OrderId || rr.OrderID || null,
-          orderId: null, // Will be linked by marketplaceOrderId lookup
+          marketplaceReturnId: String(marketplaceReturnId),
+          marketplaceOrderId: detail.orderId || null,
+          orderId: null,
           customer: {
-            name: rr.BuyerLoginID || rr.BuyerUserName || null,
+            name: detail.buyerLoginName || null,
             email: null,
           },
           product: {
-            name: rr.ItemTitle || null,
-            sku: rr.SKU || null,
-            quantity: parseInt(rr.Quantity || '1', 10),
+            name: detail.itemTitle || null,
+            sku: detail.sellerResponse?.itemSku || null,
+            quantity: detail.returnQuantity || 1,
           },
           reason,
           reasonRaw: ebayReason,
-          reasonText: rr.ReturnReasonDescription || rr.Comments || null,
-          refundAmount: parseFloat(rr.RefundAmount?.Value || rr.TotalAmount?.Value || '0') || 0,
-          currency: rr.RefundAmount?.CurrencyID || rr.TotalAmount?.CurrencyID || 'EUR',
+          reasonText: detail.comments?.content || detail.buyerComments || null,
+          refundAmount: parseFloat(detail.estimatedRefundAmount?.value || detail.actualRefundAmount?.value || '0') || 0,
+          currency: detail.estimatedRefundAmount?.currency || detail.actualRefundAmount?.currency || 'EUR',
           status: 'eingegangen',
-          marketplaceStatus: rr.Status || rr.ReturnStatus || null,
-          createdAt: rr.CreationDate || new Date().toISOString(),
+          marketplaceStatus: detail.state || detail.status || null,
+          createdAt: detail.creationDate || new Date().toISOString(),
           syncedAt: new Date().toISOString(),
         };
 
@@ -398,7 +409,7 @@ async function syncKauflandReturns({ tenantId = 'default', lookbackDays = 30 } =
   try {
     const fromDate = new Date(Date.now() - lookbackDays * 24 * 60 * 60 * 1000).toISOString();
 
-    const result = await kauflandRequest('GET', '/v2/returns', {
+    const result = await kauflandRequest('GET', '/returns', {
       query: {
         ts_created_from_iso: fromDate,
         limit: 100,
@@ -533,26 +544,47 @@ async function issueMarketplaceRefund({ returnId, tenantId = 'default', actor })
 }
 
 /**
- * Issue eBay refund via Trading API.
+ * Issue eBay refund via Post-Order REST API.
+ * POST /post-order/v2/return/{returnId}/issue_refund
  */
 async function issueEbayRefund({ ret, returnId }) {
   try {
-    const { callTradingApi } = require('../lib/ebay-trading-api');
+    const { getValidEbayAccessToken } = require('../lib/ebay-oauth');
 
     const marketplaceReturnId = ret.marketplaceReturnId;
     if (!marketplaceReturnId) return { ok: false, marketplace: 'ebay', error: 'No eBay return ID' };
 
+    const { accessToken, apiBaseUrl } = await getValidEbayAccessToken();
     const amount = ret.refundAmount || 0;
+    const refundType = ret.refundType === 'partial' ? 'OTHER' : 'FULL_REFUND';
 
-    const innerXml = `
-  <ReturnId>${escapeXml(marketplaceReturnId)}</ReturnId>
-  <RefundDetail>
-    <RefundAmount currencyID="${escapeXml(ret.currency || 'EUR')}">${amount.toFixed(2)}</RefundAmount>
-    <RefundType>FULL</RefundType>
-  </RefundDetail>`;
+    const refundUrl = `${apiBaseUrl}/post-order/v2/return/${encodeURIComponent(marketplaceReturnId)}/issue_refund`;
 
-    const result = await callTradingApi('IssueRefund', innerXml);
-    console.log(`[returns-engine] eBay refund for return ${marketplaceReturnId}: Ack=${result.ack}`);
+    const res = await fetch(refundUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+        'X-EBAY-C-MARKETPLACE-ID': 'EBAY_DE',
+        'Accept': 'application/json',
+      },
+      body: JSON.stringify({
+        comments: { content: `Refund issued via AvyCloud` },
+        refundDetail: {
+          itemizedRefundDetail: [{
+            refundAmount: { value: amount.toFixed(2), currency: ret.currency || 'EUR' },
+            refundFeeType: refundType,
+          }],
+        },
+      }),
+    });
+
+    if (!res.ok) {
+      const body = await res.text().catch(() => '');
+      throw new Error(`eBay refund API ${res.status}: ${body.slice(0, 500)}`);
+    }
+
+    console.log(`[returns-engine] eBay refund for return ${marketplaceReturnId}: success`);
 
     // Update return with refund status
     await getDb().collection(RETURNS_COLLECTION).doc(returnId).set({
@@ -577,7 +609,7 @@ async function issueKauflandRefund({ ret, returnId }) {
     const marketplaceReturnId = ret.marketplaceReturnId;
     if (!marketplaceReturnId) return { ok: false, marketplace: 'kaufland', error: 'No Kaufland return ID' };
 
-    await kauflandRequest('PATCH', `/v2/returns/${marketplaceReturnId}/accept`, {
+    await kauflandRequest('PATCH', `/returns/${marketplaceReturnId}/accept`, {
       body: {
         refund_amount: ret.refundAmount || 0,
       },

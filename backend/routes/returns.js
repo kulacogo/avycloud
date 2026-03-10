@@ -74,6 +74,24 @@ router.post('/returns', async (req, res) => {
 });
 
 /**
+ * POST /api/returns/sync — Sync returns from all marketplaces.
+ * MUST be before /:id routes to avoid Express matching "sync" as :id.
+ */
+router.post('/returns/sync', async (req, res) => {
+  try {
+    const { syncAllReturns } = require('../services/returns-engine');
+    const result = await syncAllReturns({
+      tenantId: getTenantId(req),
+      lookbackDays: parseInt(req.query.days || '30', 10),
+    });
+    res.json({ ok: true, data: result });
+  } catch (err) {
+    console.error(`[POST /api/returns/sync] ${err.message}`, err);
+    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: err.message } });
+  }
+});
+
+/**
  * PATCH /api/returns/:id
  * Update return fields (reason, notes, etc.)
  */
@@ -171,23 +189,6 @@ router.post('/returns/:id/close', async (req, res) => {
     res.json({ ok: true, data: result });
   } catch (err) {
     console.error(`[POST /api/returns/:id/close] ${err.message}`, err);
-    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: err.message } });
-  }
-});
-
-/**
- * POST /api/returns/sync — Sync returns from all marketplaces.
- */
-router.post('/returns/sync', async (req, res) => {
-  try {
-    const { syncAllReturns } = require('../services/returns-engine');
-    const result = await syncAllReturns({
-      tenantId: getTenantId(req),
-      lookbackDays: parseInt(req.query.days || '30', 10),
-    });
-    res.json({ ok: true, data: result });
-  } catch (err) {
-    console.error(`[POST /api/returns/sync] ${err.message}`, err);
     res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: err.message } });
   }
 });

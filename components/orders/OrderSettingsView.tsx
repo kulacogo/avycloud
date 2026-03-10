@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { fetchOrderSettings, saveOrderSettings, runRepricingBatch, fetchPricingRules } from "../../api/client";
+import { fetchOrderSettings, saveOrderSettings, runRepricingBatch, fetchPricingRules, syncSendCloudParcels } from "../../api/client";
 import { useToast } from "../../context/ToastContext";
 
 /* ─── Types ─── */
@@ -105,6 +105,8 @@ export const OrderSettingsView: React.FC = () => {
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [repricingBusy, setRepricingBusy] = useState(false);
   const [repricingResult, setRepricingResult] = useState<any>(null);
+  const [scSyncBusy, setScSyncBusy] = useState(false);
+  const [scSyncResult, setScSyncResult] = useState<any>(null);
   const [pricingRulesCount, setPricingRulesCount] = useState<number | null>(null);
   const toast = useToast();
 
@@ -506,6 +508,49 @@ export const OrderSettingsView: React.FC = () => {
             </table>
           </div>
         )}
+      </div>
+
+      {/* SendCloud Sync */}
+      <div className="rounded-xl border border-app-border bg-app-surface p-6">
+        <h3 className="text-base font-bold text-txt-primary mb-1">SendCloud Labels synchronisieren</h3>
+        <p className="text-sm text-txt-muted mb-4">
+          Manuell in SendCloud erstellte Labels abholen und den passenden AvyCloud-Bestellungen zuordnen.
+        </p>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            disabled={scSyncBusy}
+            onClick={async () => {
+              setScSyncBusy(true);
+              setScSyncResult(null);
+              try {
+                const result = await syncSendCloudParcels();
+                setScSyncResult(result);
+                toast.success(
+                  `SendCloud: ${result.matched} zugeordnet, ${result.unmatched} nicht zugeordnet, ${result.skipped} übersprungen`
+                );
+              } catch (err: any) {
+                toast.error(err?.message || "SendCloud-Sync fehlgeschlagen");
+              } finally {
+                setScSyncBusy(false);
+              }
+            }}
+            className="inline-flex items-center gap-2 rounded-lg bg-accent text-white px-4 py-2.5 text-sm font-semibold hover:bg-accent/90 transition disabled:opacity-50"
+          >
+            {scSyncBusy && (
+              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+            )}
+            {scSyncBusy ? "Synchronisiere…" : "Labels synchronisieren"}
+          </button>
+
+          {scSyncResult && (
+            <div className="text-sm text-txt-muted">
+              <span className="font-semibold text-success">{scSyncResult.matched}</span> zugeordnet,{" "}
+              <span className="font-semibold">{scSyncResult.unmatched}</span> nicht zugeordnet,{" "}
+              <span className="font-semibold text-txt-muted">{scSyncResult.skipped}</span> übersprungen
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Save Button */}

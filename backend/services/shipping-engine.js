@@ -385,6 +385,213 @@ async function downloadLabelPdf(labelUrl) {
   return { buffer, contentType };
 }
 
+/**
+ * Sync SendCloud parcels into AvyCloud — match existing orders by order_number,
+ * external_reference, or customer name+zip fallback.
+ *
+ * @param {{ tenantId?: string, fromDate?: string, toDate?: string }} opts
+ * @returns {Promise<{ matched: object[], unmatched: object[], skipped: number }>}
+ */
+async function syncSendCloudParcels({ tenantId = 'default', fromDate, toDate } = {}) {
+  const auth = await getSendCloudAuth();
+  const db = getDb();
+
+  // Default date range: last 14 days
+  if (!fromDate) {
+    const d = new Date();
+    d.setDate(d.getDate() - 14);
+    fromDate = d.toISOString().slice(0, 10);
+  }
+  if (!toDate) {
+    toDate = new Date().toISOString().slice(0, 10);
+  }
+
+  // Load existing shipment parcel IDs to skip already-synced
+  const existingSnap = await db.collection(SHIPMENTS_COLLECTION)
+    .select('sendcloudParcelId')
+    .limit(5000)
+    .get();
+  const existingParcelIds = new Set();
+  for (const doc of existingSnap.docs) {
+    const pid = doc.data().sendcloudParcelId;
+    if (pid) existingParcelIds.add(Number(pid));
+  }
+
+  // Fetch parcels from SendCloud with pagination
+  const allParcels = [];
+  let page = 1;
+  const limit = 100;
+
+  while (true) {
+    const params = new URLSearchParams({
+      from_date: fromDate,
+      to_date: toDate,
+      limit: String(limit),
+      offset: String((page - 1) * limit),
+    });
+
+    const res = await fetch(`${SENDCLOUD_BASE_URL}/parcels?${params}`, {
+      headers: { Authorization: auth },
+    });
+
+    if (!res.ok) {
+      const body = await res.text().catch(() => '');
+      throw new Error(`SendCloud parcels fetch ${res.status}: ${body.slice(0, 200)}`);
+    }
+
+    const data = await res.json();
+    const parcels = Array.isArray(data?.parcels) ? data.parcels : [];
+    allParcels.push(...parcels);
+
+    if (parcels.length < limit) break;
+    if (page > 50) break; // Safety limit
+    page++;
+  }
+
+  // Load all orders for matching
+  const ordersSnap = await db.collection(ORDERS_COLLECTION).limit(5000).get();
+  const ordersById = new Map();
+  const ordersByNumber = new Map();
+  const ordersByMarketplaceId = new Map();
+  const ordersByNameZip = new Map();
+
+  for (const doc of ordersSnap.docs) {
+    const o = { id: doc.id, ...doc.data() };
+    ordersById.set(doc.id, o);
+
+    if (o.orderId) ordersByNumber.set(String(o.orderId), o);
+    if (o.number) ordersByNumber.set(String(o.number), o);
+    if (o.baselinkerId) ordersByNumber.set(String(o.baselinkerId), o);
+
+    if (o.marketplaceOrderId) ordersByMarketplaceId.set(String(o.marketplaceOrderId), o);
+
+    const nameZipKey = `${(o.customer?.name || '').toLowerCase().trim()}::${(o.customer?.zip || '').trim()}`;
+    if (nameZipKey !== '::') ordersByNameZip.set(nameZipKey, o);
+  }
+
+  const matched = [];
+  const unmatched = [];
+  let skipped = 0;
+
+  for (const parcel of allParcels) {
+    const parcelId = parcel.id;
+
+    // Skip already synced
+    if (existingParcelIds.has(Number(parcelId))) {
+      skipped++;
+      continue;
+    }
+
+    // Skip cancelled parcels
+    const statusId = Number(parcel.status?.id || 0);
+    if (statusId === 2000) {
+      skipped++;
+      continue;
+    }
+
+    // Try to match to an order
+    let order = null;
+    const orderNumber = parcel.order_number || '';
+    const extRef = parcel.external_reference || '';
+
+    // Priority 1: order_number → orderId/number/baselinkerId
+    if (orderNumber) {
+      order = ordersByNumber.get(orderNumber) || ordersById.get(orderNumber) || null;
+    }
+
+    // Priority 2: external_reference → marketplaceOrderId
+    if (!order && extRef) {
+      order = ordersByMarketplaceId.get(extRef) || ordersByNumber.get(extRef) || null;
+    }
+
+    // Priority 3: name + zip fallback
+    if (!order) {
+      const name = (parcel.name || '').toLowerCase().trim();
+      const zip = (parcel.postal_code || '').trim();
+      if (name && zip) {
+        order = ordersByNameZip.get(`${name}::${zip}`) || null;
+      }
+    }
+
+    if (!order) {
+      unmatched.push({
+        parcelId,
+        orderNumber,
+        externalReference: extRef,
+        name: parcel.name,
+        trackingNumber: parcel.tracking_number,
+        carrier: parcel.carrier?.code,
+      });
+      continue;
+    }
+
+    // Create shipment record
+    const trackingNumber = parcel.tracking_number || null;
+    const trackingUrl = parcel.tracking_url || null;
+    const carrier = parcel.carrier?.code || null;
+    const labelUrl = parcel.label?.label_printer
+      || parcel.label?.normal_printer?.[0]
+      || (parcelId ? `${SENDCLOUD_BASE_URL}/labels/label_printer/${parcelId}` : null);
+
+    const shipmentDoc = {
+      tenantId,
+      orderId: order.id,
+      orderNumber: order.orderId || order.number || null,
+      sendcloudParcelId: parcelId,
+      trackingNumber,
+      trackingUrl,
+      labelUrl,
+      carrier,
+      carrierName: carrier,
+      weight: parcel.weight ? Number(parcel.weight) : null,
+      status: parcel.status?.message || 'synced',
+      statusId: parcel.status?.id || null,
+      source: 'sendcloud_sync',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    const shipRef = await db.collection(SHIPMENTS_COLLECTION).add(shipmentDoc);
+
+    // Update order with tracking info
+    const orderUpdate = {
+      trackingNumber,
+      trackingUrl,
+      shippingService: carrier,
+      shipmentId: shipRef.id,
+      updatedAt: new Date().toISOString(),
+    };
+    await db.collection(ORDERS_COLLECTION).doc(order.id).set(orderUpdate, { merge: true });
+
+    // Auto-transition to shipped if currently packed/picked
+    const currentStatus = order.omsStatus || order.status || 'pending';
+    if (['packed', 'picked', 'packing', 'picking', 'confirmed', 'pending'].includes(currentStatus)) {
+      const { transitionOrder } = require('./order-state-machine');
+      await transitionOrder({
+        tenantId,
+        orderId: order.id,
+        toStatus: 'shipped',
+        actor: { uid: 'system', email: 'sendcloud-sync' },
+        note: `SendCloud Sync — Label ${carrier || '?'} (${trackingNumber || 'no tracking'})`,
+        force: true,
+      }).catch((err) => console.warn(`[syncSendCloud] Transition failed for ${order.id}: ${err.message}`));
+    }
+
+    matched.push({
+      parcelId,
+      orderId: order.id,
+      orderNumber: order.orderId || order.number,
+      trackingNumber,
+      carrier,
+    });
+
+    existingParcelIds.add(Number(parcelId));
+  }
+
+  console.log(`[syncSendCloud] ${matched.length} matched, ${unmatched.length} unmatched, ${skipped} skipped`);
+  return { matched, unmatched, skipped };
+}
+
 module.exports = {
   getShippingMethods,
   createParcel,
@@ -394,4 +601,5 @@ module.exports = {
   matchCarrierRule,
   shipOrder,
   downloadLabelPdf,
+  syncSendCloudParcels,
 };

@@ -42,7 +42,10 @@
 > - ~~**BUG-019: Marketplace-Listings zeigen Produkte ohne Lagerbestand**~~ ✅
 > - ~~**BUG-021: Versandlabel — Adress-Validation + Versandregeln-UI**~~ ✅ (teilweise — Validation + UI fertig, aber BUG-022 Root Cause noch offen)
 > - ~~**BUG-022: ALLE BaseLinker-Bestellungen haben KEINE Versandadresse**~~ ✅ — Fixed: `mapBaseLinkerOrder()` mappt jetzt street/zip/phone/email + Backfill-Script + Address-Editing in OrderDetail
-> - **BUG-020: Retouren prüfen** — Returns-Engine implementiert, Production-Verifikation steht aus
+> - ~~**BUG-023: SendCloud Gewicht ×1000 + Label/Tracking Deep Dive**~~ ✅ — Sprint-Block 4
+> - **BUG-020: Retouren prüfen** — Returns-Engine implementiert, Production-Verifikation steht aus → Sprint-Block 6
+> - ~~**FEAT: SendCloud Versandinfo-Abruf**~~ ✅ — Sprint-Block 5
+> - **FEAT: eBay Integration Deep Dive** — OAuth-Flow debuggen, Secrets prüfen → Sprint-Block 7
 > - ~~Deduplizierung: Merge-UI + Auto-Merge~~ ✅
 > - ~~Bulk-Import/Export (CSV/Excel)~~ ✅
 > - ~~E-Mail-Templates~~ ✅
@@ -223,6 +226,188 @@ customer: {
 
 **Dateien:** `backend/routes/orders.js`, `components/OrderDetail.tsx`, `api/client.ts`
 
+### Sprint-Block 4: ✅ BUG-023 — SendCloud Gewicht-Bug + Label/Tracking/Status Deep Dive — Fixed (2026-03-09)
+
+**Fixes in diesem Block:**
+1. ✅ **Gewicht ×1000** → `weight: String(totalWeight || 0.5)` (kg, nicht Gramm)
+2. ✅ **labelUrl immer null** → Fallback-URL aus `parcel.id` konstruiert (`/labels/label_printer/{id}`)
+3. ✅ **Tracking nie an Marktplätze gepusht** → `marketplace` + `marketplaceOrderId` Felder in `mapBaseLinkerOrder()` + `orderSource` Fallback in `marketplace-tracking.js`
+4. ✅ **eBay CompleteSale XML kaputt** → `buildRequestRoot()` + `getEbayTradingConfig()` für SOAP-Envelope
+5. ✅ **Artikelgewicht nie gemappt** → `weight: product.weight` in `mapBaseLinkerOrder()` Items
+6. ✅ **Popup-Blocker** → `window.open('about:blank')` VOR async, dann navigieren
+7. ✅ **Status nicht frei wählbar** → `force`-Modus in `transitionOrder()` + Status-Dropdown in OrderDetail
+8. ✅ **Label stornieren** → `POST /cancel-label` Endpoint + "Label stornieren" Button
+9. ✅ **Kaufland Carrier-Map** → `dhl_express`, `deutsche_post` ergänzt
+10. ✅ **Firestore-Instanzen** → Shared `firestore` in Label/Cancel-Routen
+
+---
+
+### Sprint-Block 5: ✅ SendCloud Versandinfo-Abruf für manuell erstellte Labels — Done (2026-03-09)
+
+**PROBLEM:** Versandlabels mussten heute manuell in SendCloud erstellt werden, weil der AvyCloud-Versand nicht funktionierte (Weight-Bug). Jetzt fehlen Tracking-Daten in AvyCloud. Es muss eine Funktion geben, die bestehende SendCloud-Parcels abholt und den AvyCloud-Bestellungen zuordnet.
+
+**KONTEXT — vorhandene Infrastruktur:**
+- `backend/lib/sendcloud.js` → `getShippingCostsSummary(from, to)` ruft bereits `GET /api/v2/parcels` auf (Pagination, Auth)
+- `backend/routes/webhooks.js` → Webhook-Handler existiert (`POST /api/webhooks/sendcloud`), matcht über `sendcloudParcelId` in `shipments` Collection
+- Beim Parcel-Erstellen schickt AvyCloud `order_number` + `external_reference` → diese Felder werden von SendCloud zurückgegeben
+- `shipments` Collection: `{ orderId, sendcloudParcelId, trackingNumber, trackingUrl, carrier, status }`
+
+**IMPLEMENTIERUNG:**
+
+1. **Neue Funktion** in `backend/services/shipping-engine.js`:
+   ```js
+   async function syncSendCloudParcels({ tenantId = 'default', fromDate, toDate } = {}) {
+     // 1. GET /api/v2/parcels mit Datumsfilter (Pagination wie in sendcloud.js)
+     // 2. Für jeden Parcel:
+     //    a. Prüfe ob sendcloudParcelId bereits in shipments Collection → skip
+     //    b. Matche über parcel.order_number → orders.orderId
+     //       ODER parcel.external_reference → orders.marketplaceOrderId
+     //       ODER Fallback: parcel.name + parcel.postal_code → orders.customer.name + orders.customer.zip
+     //    c. Wenn Match gefunden:
+     //       - Erstelle shipments-Dokument (sendcloudParcelId, trackingNumber, trackingUrl, carrier, etc.)
+     //       - Update Order: trackingNumber, trackingUrl, shippingService, shipmentId
+     //       - Transition omsStatus → 'shipped' (wenn aktuell packed/picked)
+     //    d. Wenn kein Match: Log als unmatched, return in Response
+     // 3. Return { matched: [...], unmatched: [...], skipped: [...] }
+   }
+   ```
+
+2. **Neuer Endpoint** in `backend/routes/orders.js`:
+   ```
+   POST /api/orders/sync-sendcloud
+   Body: { fromDate?: string, toDate?: string }
+   Response: { ok: true, data: { matched: number, unmatched: number, skipped: number, details: [...] } }
+   ```
+
+3. **Frontend-Button** in `components/orders/OrderSettingsView.tsx` oder `OrdersView.tsx`:
+   - Button "SendCloud Labels synchronisieren" (📦 Icon)
+   - Optionaler Datumsbereich-Filter
+   - Zeigt Ergebnis: "X Labels zugeordnet, Y nicht zugeordnet, Z übersprungen"
+
+**Matching-Priorität (Reihenfolge):**
+1. `shipments.sendcloudParcelId` existiert → Skip (bereits synchronisiert)
+2. `parcel.order_number` → `orders.orderId` (exakter Match)
+3. `parcel.external_reference` → `orders.marketplaceOrderId` (eBay/Kaufland Order-ID)
+4. Fallback: `parcel.name` + `parcel.postal_code` → `orders.customer.name` + `orders.customer.zip`
+
+**Dateien:** `backend/services/shipping-engine.js`, `backend/routes/orders.js`, `components/orders/OrderSettingsView.tsx`, `api/client.ts`
+
+---
+
+### Sprint-Block 6: Retouren-Daten von Marktplätzen abrufen (Verifikation + Fixes)
+
+**PROBLEM:** Das Retoure-Modul soll Retoure-Daten von eBay und Kaufland holen. Die Infrastruktur existiert bereits, muss aber verifiziert und ggf. repariert werden.
+
+**VORHANDENE INFRASTRUKTUR:**
+- `backend/services/returns-engine.js`:
+  - `syncEbayReturns()` → eBay Post-Order REST API `GET /post-order/v2/return/search` ✅ Fixed (was broken Trading API)
+  - `syncKauflandReturns()` → Kaufland REST API `GET /returns` ✅ Fixed (double /v2/ prefix removed)
+  - `issueEbayRefund()` → Post-Order API `POST /post-order/v2/return/{id}/issue_refund` ✅ Fixed (was broken Trading API)
+  - `issueKauflandRefund()` → `PATCH /returns/{id}/accept` ✅ Fixed (double /v2/ prefix removed)
+- `backend/routes/returns.js`:
+  - `POST /api/returns/sync` → triggert Marketplace-Sync
+  - Auto-Sync periodic alle 4h (über Scheduler)
+- Workflow: `eingegangen → in_pruefung → erstattet/teilweise_erstattet/abgelehnt → abgeschlossen`
+- Reason-Maps: EBAY_REASON_MAP + KAUFLAND_REASON_MAP → interne Kategorien
+
+**AUFGABEN:**
+
+1. **Production-Test eBay Returns:**
+   - [ ] `POST /api/returns/sync` aufrufen → prüfen ob eBay-Returns gefunden werden
+   - [ ] Prüfen ob `GetReturnRequests` korrekte Credentials nutzt (Trading API Token ≠ OAuth Token)
+   - [ ] Falls eBay Post-Order API nötig: `syncEbayReturns()` auf Post-Order API v2 umstellen (`GET /post-order/v2/return/search`)
+   - [ ] Return-Daten in Firestore `returns` Collection prüfen
+
+2. **Production-Test Kaufland Returns:**
+   - [ ] Kaufland `GET /v2/returns` testen
+   - [ ] Prüfen ob Returns korrekt in Firestore landen
+   - [ ] Reason-Mapping verifizieren
+
+3. **Frontend-Verifikation:**
+   - [ ] ReturnsView.tsx öffnen → zeigt es echte Daten?
+   - [ ] "Retouren synchronisieren" Button funktional?
+   - [ ] Erstattungs-Workflow testen (Status-Übergang, Refund-Auslösung)
+
+4. **Fehlende Features prüfen:**
+   - [ ] eBay: Sind auch "Return Requests" (Pre-Approval) vs "Completed Returns" abgedeckt?
+   - [ ] Auto-Sync: Läuft der 4h-Scheduler tatsächlich? Logs prüfen.
+
+**Dateien:** `backend/services/returns-engine.js`, `backend/routes/returns.js`, `components/ReturnsView.tsx`
+
+---
+
+### Sprint-Block 7: eBay Integration über "Integrationen" — Deep Dive & Fix
+
+**PROBLEM:** Die eBay-Anbindung über den Integrations-Hub (Self-Service OAuth) funktioniert nicht. User kann eBay nicht verbinden.
+
+**VORHANDENE INFRASTRUKTUR:**
+
+- **Frontend:** `IntegrationsHub.tsx` → klickt auf eBay-Karte → öffnet `IntegrationWizard.tsx`
+- **IntegrationWizard:** Erkennt `authType === 'oauth2'` → zeigt "Jetzt verbinden" Button → ruft `handleOAuthConnect()` auf
+- **OAuth-Flow:**
+  1. Frontend: `startEbayOAuth({ locale: 'de-DE' })` → `GET /api/ebay/oauth/start`
+  2. Backend: `createOAuthState()` + `buildConsentUrl()` → gibt eBay Auth-URL zurück
+  3. Frontend: `window.open(url, 'ebay_oauth', 'width=600,height=700')` → Popup
+  4. User autorisiert bei eBay
+  5. eBay redirected zu `/api/ebay/oauth/callback?code=xxx&state=yyy`
+  6. Backend: `consumeOAuthState()` + `exchangeAuthorizationCodeForToken()` + `upsertEbayTokenSet()`
+  7. Backend: Gibt HTML mit `postMessage({ type: 'avycloud:ebay_oauth_complete' })` zurück
+  8. Frontend: Empfängt Message → zeigt "eBay wurde erfolgreich verbunden!"
+
+**MÖGLICHE FEHLERQUELLEN (ALLE PRÜFEN):**
+
+1. **Fehlende Environment-Variablen:**
+   - `EBAY_CLIENT_ID` — muss in Secret Manager oder .env gesetzt sein
+   - `EBAY_CLIENT_SECRET` — muss in Secret Manager gesetzt sein
+   - `EBAY_RU_NAME` — **RuName (Redirect URL Name)** aus eBay Developer Portal, NICHT die URL selbst
+   - Prüfen: `getEbayOAuthConfig()` in `ebay-oauth.js` → wirft Error wenn einer fehlt
+   - **FIX wenn fehlend:** Secrets in Google Cloud Secret Manager anlegen oder in Firestore `integrations` Collection
+
+2. **RuName Mismatch:**
+   - eBay RuName muss exakt dem im eBay Developer Portal hinterlegten Wert entsprechen
+   - Callback-URL im eBay Dev Portal muss auf `https://<backend-url>/api/ebay/oauth/callback` zeigen
+   - Wenn Production-Backend auf Cloud Run: URL ist `https://<service-name>-<hash>.run.app/api/ebay/oauth/callback`
+
+3. **Scope-Probleme:**
+   - Default-Scope: `https://api.ebay.com/oauth/api_scope/sell.inventory.readonly`
+   - Für Orders + Returns braucht man erweiterte Scopes:
+     - `https://api.ebay.com/oauth/api_scope/sell.fulfillment` (Orders)
+     - `https://api.ebay.com/oauth/api_scope/sell.finances` (Returns/Refunds)
+   - **FIX:** `EBAY_SCOPES` Environment-Variable mit allen benötigten Scopes setzen
+
+4. **Popup-Blocker:**
+   - Frontend fängt `!popup` ab und zeigt Fehlermeldung → das ist korrekt
+   - Aber manche Browser blockieren `window.open()` wenn nicht in direktem Click-Handler
+
+5. **Token-Exchange-Fehler:**
+   - `exchangeAuthorizationCodeForToken()` macht POST zu eBay Token-Endpoint
+   - Muss Basic Auth Header: `base64(clientId:clientSecret)` senden
+   - `redirect_uri` im Token-Exchange muss der **RuName-Wert** sein (nicht die URL!)
+
+6. **postMessage Cross-Origin:**
+   - Callback-HTML macht `window.opener.postMessage(...)` mit `'*'` origin
+   - Sollte funktionieren, aber prüfen ob Popup und Parent gleiche Origin haben
+
+**DEBUGGING-ANLEITUNG:**
+
+```bash
+# 1. Prüfe ob Secrets gesetzt sind:
+gcloud secrets versions access latest --secret=EBAY_CLIENT_ID --project=<project>
+gcloud secrets versions access latest --secret=EBAY_CLIENT_SECRET --project=<project>
+gcloud secrets versions access latest --secret=EBAY_RU_NAME --project=<project>
+
+# 2. Prüfe Cloud Run Logs nach Fehler:
+gcloud run logs read --service=<service-name> --region=europe-west3 --limit=50 | grep -i "ebay"
+
+# 3. Manuell testen:
+curl -H "Authorization: Bearer <jwt>" "https://<backend>/api/ebay/oauth/start?locale=de-DE"
+# → Sollte { ok: true, data: { url: "https://auth.ebay.com/oauth2/authorize?..." } } zurückgeben
+```
+
+**Dateien:** `backend/lib/ebay-oauth.js`, `backend/routes/marketplace.js`, `backend/routes/integrations.js`, `components/IntegrationWizard.tsx`, `components/IntegrationsHub.tsx`
+
+---
+
 ### Sprint-Regeln
 
 1. **KEIN `// TODO` im Code.** Fertig machen oder explizit dokumentieren was fehlt.
@@ -257,7 +442,7 @@ customer: {
     - [ ] KPI-Card "Bestandsabweichungen" — Anzahl Listings wo Marktplatz-Bestand ≠ Lagerbestand
   - **Dateien:** `backend/lib/ebay-direct.js`, `backend/routes/marketplace.js`, `components/MarketplaceListingsView.tsx`
 
-- [ ] **🔴 BUG-022: BaseLinker-Bestellungen haben KEINE Versandadresse (KRITISCH)** since 2026-03-09
+- [x] **🔴 BUG-022: BaseLinker-Bestellungen haben KEINE Versandadresse (KRITISCH)** ~~since 2026-03-09~~ (2026-03-09) ✅
   - **PROBLEM:** ALLE BaseLinker-importierten Bestellungen haben leere Adressfelder (street, zip, phone fehlen). Kein Versandlabel erstellbar.
   - **ROOT CAUSE:** `backend/services/order-sync.js` → `mapBaseLinkerOrder()` mappt nur name/city/country, NICHT street/zip/phone/email.
   - **FIX 1:** `mapBaseLinkerOrder()` um `street`, `zip`, `phone`, `email` aus BaseLinker `delivery_*` / `invoice_*` Feldern erweitern
@@ -267,8 +452,24 @@ customer: {
   - **Dateien:** `backend/services/order-sync.js`, `backend/scripts/backfill-order-addresses.js` (NEU), `backend/routes/orders.js`, `components/OrderDetail.tsx`
   - **Siehe Sprint-Block 1 + 3 für detaillierte Arbeitsanweisungen**
 
+- [x] **🔴 BUG-023: SendCloud Gewicht-Bug + Label/Tracking/Status Deep Dive** ~~since 2026-03-09~~ (2026-03-09) ✅
+  - Fixed: Weight ×1000, labelUrl null, Marketplace-Tracking nie gepusht, eBay XML kaputt, item.weight nicht gemappt, Popup-Blocker, Status nicht wählbar, Label-Stornierung, Carrier-Maps
+  - **Siehe Sprint-Block 4**
+
+- [x] **FEAT: SendCloud Versandinfo-Abruf** ~~since 2026-03-09~~ (2026-03-09) ✅
+  - `syncSendCloudParcels()` in shipping-engine.js — holt Parcels, matcht per order_number/external_reference/Name+PLZ
+  - `POST /api/orders/sync-sendcloud` Endpoint + "Labels synchronisieren" Button in OrderSettingsView
+  - Auto-Transition zu shipped + Tracking-Daten auf Order gesetzt
+
+- [ ] **FEAT: eBay Integration über Integrationen nicht möglich** since 2026-03-09
+  - **PROBLEM:** eBay OAuth-Flow über den IntegrationsHub schlägt fehl. User kann eBay nicht selbstständig verbinden.
+  - **MÖGLICHE URSACHEN:** Fehlende Secrets (EBAY_CLIENT_ID/SECRET/RU_NAME), RuName-Mismatch, Scope-Limitierung, Callback-URL stimmt nicht
+  - **DEBUGGING:** Logs prüfen, Secrets verifizieren, manueller OAuth-Start-Test
+  - **Dateien:** `backend/lib/ebay-oauth.js`, `backend/routes/marketplace.js`, `components/IntegrationWizard.tsx`
+  - **Siehe Sprint-Block 7 für vollständige Debugging-Anleitung**
+
 - [ ] **BUG-020: Retouren-Status verifizieren** since 2026-03-09
-  - **KONTEXT:** Returns-Engine ist implementiert (eBay `GetReturnRequests` + Kaufland `GET /v2/returns` + Workflow + Erstattung), aber:
+  - **KONTEXT:** Returns-Engine Bugs gefixt (Sprint-Block 6): eBay → Post-Order REST API, Kaufland → /v2/ prefix fix, shared Firestore instance, route ordering fix. Aber:
     - [ ] Muss verifiziert werden ob Sync auf Production funktioniert (Button "Retouren synchronisieren" klicken)
     - [ ] Prüfen ob die ReturnsView echte Daten zeigt oder leer bleibt
     - [ ] Prüfen ob Auto-Sync (periodic returns-sync alle 4h) tatsächlich läuft

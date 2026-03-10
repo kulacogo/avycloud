@@ -1456,6 +1456,36 @@ router.post('/invoices/:invoiceId/export-sevdesk', requirePermission('orders', '
 });
 
 /**
+ * POST /api/orders/sync-sendcloud — Sync SendCloud parcels into AvyCloud orders.
+ * Body: { fromDate?: string, toDate?: string }
+ */
+router.post('/orders/sync-sendcloud', requirePermission('orders', 'write'), async (req, res) => {
+  try {
+    const { fromDate, toDate } = req.body;
+    const tenantId = req.user?.tenantId || 'default';
+
+    const { syncSendCloudParcels } = require('../services/shipping-engine');
+    const result = await syncSendCloudParcels({ tenantId, fromDate, toDate });
+
+    res.json({
+      ok: true,
+      data: {
+        matched: result.matched.length,
+        unmatched: result.unmatched.length,
+        skipped: result.skipped,
+        details: {
+          matched: result.matched,
+          unmatched: result.unmatched,
+        },
+      },
+    });
+  } catch (err) {
+    console.error(`[POST /api/orders/sync-sendcloud] ${err.message}`, err);
+    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: err.message } });
+  }
+});
+
+/**
  * POST /api/orders/bulk-ship — Create labels for multiple packed orders at once.
  * Body: { orderIds: string[], shippingMethodId?: number }
  */

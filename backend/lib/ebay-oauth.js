@@ -61,9 +61,14 @@ function parseScopes(raw) {
 }
 
 async function getEbayScopes() {
-  // Default: inventory read only. sell.finances must be added explicitly via EBAY_SCOPES
-  // env var because it requires the eBay developer app to have the scope pre-approved;
-  // adding it to the fallback breaks the OAuth flow for apps that don't have it.
+  // Default: inventory read only. Extended scopes must be added via EBAY_SCOPES env var
+  // because they require the eBay developer app to have them pre-approved.
+  //
+  // Recommended EBAY_SCOPES for full functionality:
+  //   sell.inventory.readonly    — product listings
+  //   sell.fulfillment           — orders, shipping, returns (Post-Order API)
+  //   sell.finances              — payouts, transaction fees
+  //   sell.marketing.readonly    — promoted listings stats
   const fallback = [
     'https://api.ebay.com/oauth/api_scope/sell.inventory.readonly',
   ];

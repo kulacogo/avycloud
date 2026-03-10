@@ -80,15 +80,28 @@ export const IntegrationWizard: React.FC<IntegrationWizardProps> = ({
       const url = await startEbayOAuth({ locale: "de-DE" });
       const popup = window.open(url, "ebay_oauth", "width=600,height=700,scrollbars=yes");
 
-      // Listen for OAuth completion
-      // Backend callback sends { type: 'avycloud:ebay_oauth_complete' }
+      if (!popup) {
+        setConnecting(false);
+        setError("Popup wurde blockiert. Bitte erlaube Popups für diese Seite.");
+        return;
+      }
+
+      // Cleanup helper — removes listener + stops polling
+      let pollTimer: ReturnType<typeof setInterval> | null = null;
+      let timeoutTimer: ReturnType<typeof setTimeout> | null = null;
+
+      const cleanup = () => {
+        window.removeEventListener("message", handler);
+        if (pollTimer) clearInterval(pollTimer);
+        if (timeoutTimer) clearTimeout(timeoutTimer);
+      };
+
+      // Listen for OAuth completion via postMessage
+      // Note: callback page is on backend origin (Cloud Run), not frontend origin
       const handler = (event: MessageEvent) => {
         const msg = event.data;
-        if (
-          msg === "avycloud:ebay_oauth_complete" ||
-          msg?.type === "avycloud:ebay_oauth_complete"
-        ) {
-          window.removeEventListener("message", handler);
+        if (msg?.type === "avycloud:ebay_oauth_complete") {
+          cleanup();
           setConnecting(false);
           setSuccessMessage("eBay wurde erfolgreich verbunden!");
           setStep("success");
@@ -96,12 +109,22 @@ export const IntegrationWizard: React.FC<IntegrationWizardProps> = ({
       };
       window.addEventListener("message", handler);
 
-      // Check if popup was blocked
-      if (!popup) {
-        window.removeEventListener("message", handler);
+      // Poll for popup close (user closed window without completing)
+      pollTimer = setInterval(() => {
+        if (popup.closed) {
+          cleanup();
+          setConnecting(false);
+          setError("OAuth-Fenster wurde geschlossen. Bitte versuche es erneut.");
+        }
+      }, 500);
+
+      // Timeout after 5 minutes
+      timeoutTimer = setTimeout(() => {
+        if (!popup.closed) popup.close();
+        cleanup();
         setConnecting(false);
-        setError("Popup wurde blockiert. Bitte erlaube Popups für diese Seite.");
-      }
+        setError("OAuth-Zeitlimit überschritten. Bitte versuche es erneut.");
+      }, 5 * 60 * 1000);
     } catch (err: any) {
       setConnecting(false);
       setError(err.message || "OAuth-Flow konnte nicht gestartet werden");
