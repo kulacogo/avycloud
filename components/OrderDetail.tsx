@@ -441,14 +441,22 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({ orderId, onClose, onSt
                     </div>
                   </section>
 
-                  {/* Timestamps */}
+                  {/* Timestamps — only show if status has actually reached that stage */}
                   <section>
                     <h3 className="text-sm font-medium text-txt-primary mb-2">Zeitstempel</h3>
                     <div className="bg-app-bg rounded-lg p-3 space-y-2 text-sm">
-                      {order.pickedAt && <Row label="Kommissioniert" value={new Date(order.pickedAt).toLocaleString("de-DE")} />}
-                      {order.packedAt && <Row label="Verpackt" value={new Date(order.packedAt).toLocaleString("de-DE")} />}
-                      {order.shippedAt && <Row label="Versendet" value={new Date(order.shippedAt).toLocaleString("de-DE")} />}
-                      {order.deliveredAt && <Row label="Zugestellt" value={new Date(order.deliveredAt).toLocaleString("de-DE")} />}
+                      {order.pickedAt && ["picked", "packed", "shipped", "delivered", "completed"].includes(omsStatus) && (
+                        <Row label="Kommissioniert" value={new Date(order.pickedAt).toLocaleString("de-DE")} />
+                      )}
+                      {order.packedAt && ["packed", "shipped", "delivered", "completed"].includes(omsStatus) && (
+                        <Row label="Verpackt" value={new Date(order.packedAt).toLocaleString("de-DE")} />
+                      )}
+                      {order.shippedAt && ["shipped", "delivered", "completed"].includes(omsStatus) && (
+                        <Row label="Versendet" value={new Date(order.shippedAt).toLocaleString("de-DE")} />
+                      )}
+                      {order.deliveredAt && ["delivered", "completed"].includes(omsStatus) && (
+                        <Row label="Zugestellt" value={new Date(order.deliveredAt).toLocaleString("de-DE")} />
+                      )}
                     </div>
                   </section>
 

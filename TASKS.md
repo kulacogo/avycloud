@@ -84,6 +84,7 @@
 | **M10: Analytics** | 🔴 Geplant | Dashboard-Überarbeitung + Reports |
 | **M11: Einstellungen** | ⚡ UI fertig | Backend FAKE→REAL |
 | **M12: Lagerverwaltung** | ⚡ Settings fertig | Zonen/Bins/Inventur fehlen |
+| **M14: Pack & Ship** | 🔴 Geplant | SKU-Scan → Auto-Label-Print, Drucker-Voreinstellungen |
 | **M-AUTO: Automatisierung** | 🔴 Geplant | Bulk-Import, Repricing-UI |
 | **FAKE→REAL** | 🔴 12 Views | Mock-Daten durch echte API-Calls ersetzen |
 | **Universal Taxonomy** | 🔴 Geplant | Marktplatz-Kategorien für neue Integrationen |
@@ -119,11 +120,14 @@
 - [ ] **M5: Marktplatz-Views** — eBay + Kaufland echte Listings, Realtime-Sync
 - [ ] **M12: Lagerverwaltung** — Zonen, Bins, Inventur, Bewegungen
 
-#### KW 14 (31. März – 4. April 2026) — M6 OMS Phase A + M10
+#### KW 14 (31. März – 4. April 2026) — M6 OMS Phase A + M14 Pack & Ship
 - [ ] **M6-A1: Marketplace Order Intake** — Bestellungen direkt von eBay/Kaufland
 - [ ] **M6-A2: Eigene Status-Engine** — Unabhängig von BaseLinker
 - [ ] **M6-A3: Eigene Auftrags-Nummerierung** — Konfigurierbare Nummernkreise
 - [ ] **M6-A4: Order-Detail-Seite** — Komplettes Order-Detail-Panel
+- [ ] **M14-P1: Drucker & Label-Format Voreinstellungen** — User-Settings für Drucker, Format, Auto-Print
+- [ ] **M14-P2: PackStation** — SKU-Scan Interface, Scan-Fortschritt, Item-Validierung
+- [ ] **M14-P3: Auto-Print Flow** — Scan komplett → Auto-Ship → Auto-Label-Print
 - [ ] **M10: Dashboard** — Revenue, Orders, Inventory KPIs, Charts
 
 ### Phase B: Integrationen & Skalierung (KW 15–20)
@@ -265,6 +269,52 @@
 - [ ] Warehouse-View: Zonen-Tab, Bins-Tab, Inventur-Tab, Bewegungen-Tab
 - [ ] Backend: CRUD für Zonen, Bins, Inventur, Bewegungen
 - [ ] Firestore: warehouse_zones, warehouse_bins, warehouse_movements, warehouse_inventories
+
+### M14: Pack & Ship — ⚡ Pack existiert, Auto-Print fehlt
+
+> **Ziel:** Versandlabel wird automatisch gedruckt sobald SKU im Pack-Modul gescannt wird. Drucker und Label-Format pro User vordefinierbar.
+
+**Was BEREITS existiert (umfangreich):**
+- `MobileOperationsView.tsx` — Vollständige Pack-UI mit `operations-pack` Mode
+- `ScannerOverlay.tsx` — Kamera-basierter Barcode-Scanner (QR, EAN-13, CODE-128, CODE-39, UPC-A, AZTEC, DATA-MATRIX)
+- SKU-Scan → Item in Bestellung finden → Feedback (Erfolg/Nicht gefunden/Mehrdeutig)
+- "Verpackt" Button → `packOrder()` → Status-Transition nach "packed"
+- `packAndShip()` in api/client.ts — Pack + Label-Generierung kombiniert
+- Backend: `POST /api/orders/:id/pack` mit `orders.pack` Permission
+- `order-source-router.js:packOrder()` → `order-sync.js:markOrderAsPacked()` → State-Machine
+- State-Machine: picking → picked → packing → packed → shipped (Zeile 47-49)
+- `GET /api/orders/:id/label` — Label-PDF Proxy zu SendCloud
+- OrderDetail.tsx "Label drucken" → `window.open(blobUrl)` → `printWindow.print()`
+- Carrier-Regeln nach Gewicht in `order_settings.carrierRules`
+- i18n komplett (DE/EN/TR) für Pack-Modus
+- RBAC: `orders.pack` Permission
+
+**Was FEHLT:**
+
+**Erweiterung 1: Auto-Print nach Pack-Scan**
+- [ ] **MobileOperationsView.tsx → Pack-Flow erweitern:** Nach erfolgreichem "Verpackt" (packOrder) automatisch `shipOrder()` aufrufen → Label-PDF holen → Print-Dialog öffnen. Aktuell muss der User manuell in die Auftragsmaske wechseln und dort "Label drucken" klicken.
+- [ ] **`packAndShip()` nutzen:** Die Funktion existiert bereits in api/client.ts — sie muss im MobileOperationsView Pack-Modus aufgerufen werden statt nur `packOrder()`. Nach Erfolg: Label-PDF automatisch an Drucker senden.
+- [ ] **Fehler-Handling:** Wenn Label-Erstellung fehlschlägt → klare Fehlermeldung im Pack-Interface, Bestellung bleibt auf "packed" (KEIN "shipped" ohne bestätigtes Label).
+
+**Erweiterung 2: Drucker & Label-Format Voreinstellungen pro User**
+- [ ] **Firestore: `user_profiles` erweitern** — Neue Felder: `printing.labelFormat` ('thermal_10x15' | 'a4' | 'a6'), `printing.autoPrint` (boolean)
+- [ ] **Backend: `PUT /api/settings/profile`** erweitern — `printing` Objekt akzeptieren und validieren
+- [ ] **Frontend: ProfileSettings erweitern** — Sektion "Druckeinstellungen": Label-Format Dropdown (10x15 Thermodruck, A4, A6), Auto-Print Toggle
+- [ ] **SendCloud Label-Format durchreichen** — `label_printer` (10x15 thermal) vs. `normal_printer` (A4). Format aus User-Setting an `downloadLabelPdf()` übergeben. Aktuell hardcoded auf `label_printer`.
+
+**Betroffene Dateien:**
+
+| Datei | Änderung |
+|-------|----------|
+| `components/MobileOperationsView.tsx` → Pack-Modus | Nach `packOrder()` automatisch `packAndShip()` oder `shipOrder()` + `fetchLabelPdfBlob()` + Print aufrufen |
+| `api/client.ts` → `packAndShip()` | Prüfen ob Label-Format Parameter durchgereicht werden kann |
+| `backend/routes/settings.js` → `PUT /api/settings/profile` | `printing` Objekt akzeptieren |
+| `backend/services/shipping-engine.js` → `downloadLabelPdf()` | Label-Format-Parameter (thermal vs. A4) |
+| `components/orders/ProfileSettings.tsx` | Druckeinstellungen UI-Sektion |
+
+**Abhängigkeiten:**
+- BUG-025 muss zuerst gefixt sein (Carrier-Zuordnung nach Gewicht)
+- BUG-026 muss zuerst gefixt sein (Timestamps erst nach bestätigter Aktion)
 
 ### M-AUTO: Automatisierung & Bulk — 🔴 Geplant
 
@@ -420,6 +470,7 @@
 | BUG-023 | Kaufland-Tabelle zeigt nichts Brauchbares | P1 | ✅ Fixed (responsive classes, brand field, image thumbnail) |
 | BUG-024 | Marketplace-Tabellen haben keinerlei UX | P1 | ✅ Fixed (column sorting, rows-per-page, stock filter) |
 | BUG-025 | **KRITISCH: Versandlabel falsche Carrier-Zuordnung** — 4kg Paket bekommt DHL Kleinpaket 0-1kg statt DPD Classic 0-5kg | P0 | ✅ Fixed (order-level weight + type-safe rule matching) |
+| BUG-026 | **Nicht versendete Bestellungen zeigen Verpackt/Versendet Zeitstempel** — State-Machine setzt Timestamps eager, bevor Aktion bestätigt ist | P1 | ✅ Fixed (caller-provided timestamps, tracking-gated transitions, defensive UI) |
 | BUG-SSE | Token-in-Query-Parameter für SSE-Streams leakt | P1 | 🔴 Offen |
 | BUG-006 | EbayListingsView.tsx (alte Gap-Analysis) noch da — LÖSCHEN | P1 | ✅ Fixed (deleted) |
 | BUG-008 | eBay-Seite zeigt Gap-Analyse-Daten statt Listing-Management | P1 | ✅ Fixed (route already correct, old component deleted) |
@@ -569,6 +620,52 @@ Frontend "Label drucken" → POST /api/orders/:id/ship (orders.js:1291)
 1. Bestehende Bestellungen mit bekanntem Gewicht testen (4kg → DPD Classic 0-5kg erwartet)
 2. Bestellungen OHNE Gewichtsdaten testen (Fallback 0.5kg → DHL Kleinpaket erwartet)
 3. Prüfen ob `order.weight` in Kaufland-Orders korrekt importiert wird
+
+### BUG-026 — Nicht versendete Bestellungen zeigen Verpackt/Versendet Zeitstempel
+
+**Symptom:** Bestellungen die nicht tatsächlich versendet wurden haben trotzdem Zeitstempel für "Verpackt" und "Versendet" in der Detailansicht.
+
+**Root Cause: Eager Timestamp Assignment in State-Machine**
+
+`backend/services/order-state-machine.js` Zeile 145-163 — `transitionOrder()` setzt Timestamps **sofort beim Status-Wechsel**, BEVOR die eigentliche Aktion (Label-Erstellung etc.) bestätigt ist:
+```
+if (toStatus === 'packed') {
+  update.packedAt = new Date().toISOString();  // ← Sofort gesetzt
+}
+if (toStatus === 'shipped') {
+  update.shippedAt = new Date().toISOString();  // ← Sofort gesetzt
+}
+```
+
+**Problematische Szenarien:**
+
+1. **Ship-Flow (orders.js Zeile 1296-1330):** `shipOrder()` erstellt SendCloud-Parcel → `transitionOrder('shipped')` wird aufgerufen und setzt `shippedAt` → wenn danach `pushTrackingToMarketplace()` oder ein anderer Schritt fehlschlägt, bleibt der Timestamp stehen.
+
+2. **SendCloud-Sync (shipping-engine.js Zeile 577-588):** `syncSendCloudParcels()` ruft `transitionOrder({ force: true })` auf. Mit `force: true` wird die State-Machine-Validierung umgangen — Bestellungen können von "pending" direkt auf "shipped" gesetzt werden.
+
+3. **Kein Rollback:** Wenn `createParcel()` erfolgreich ist aber das Label null zurückgibt (z.B. Adressfehler bei SendCloud), wird die Bestellung trotzdem als "shipped" markiert mit Timestamp.
+
+**Frontend (OrderDetail.tsx Zeile 444-453):** Rendert Timestamps bedingungslos wenn Felder existieren:
+```
+{order.packedAt && <Row label="Verpackt" value={...} />}
+{order.shippedAt && <Row label="Versendet" value={...} />}
+```
+Keine Validierung ob `omsStatus` tatsächlich zum Timestamp passt.
+
+**Betroffene Dateien + Fixes:**
+
+| Datei | Was ändern |
+|-------|-----------|
+| `backend/services/order-state-machine.js` → `transitionOrder()` (Zeile 145-163) | Timestamps NICHT eager setzen. Stattdessen: Timestamp-Felder als optionale Parameter akzeptieren. Caller setzt Timestamp erst NACH erfolgreicher Aktion. |
+| `backend/routes/orders.js` → `POST /orders/:id/ship` (Zeile 1296-1330) | Flow umbauen: 1) `shipOrder()` aufrufen, 2) Ergebnis prüfen (trackingNumber nicht null?), 3) ERST DANN `transitionOrder('shipped')` mit explizitem `shippedAt`. |
+| `backend/services/shipping-engine.js` → `shipOrder()` (Zeile 367-373) | Vor dem Firestore-Update prüfen: `result.trackingNumber` muss vorhanden sein. Wenn null → Error werfen statt Order zu aktualisieren. |
+| `backend/services/shipping-engine.js` → `syncSendCloudParcels()` (Zeile 577-588) | `force: true` entfernen. Nur auf "shipped" wechseln wenn aktueller Status in erlaubter Vorgängerliste ist UND Tracking-Nummer vorhanden. |
+| `components/OrderDetail.tsx` → Zeitstempel-Sektion (Zeile 444-453) | **Defensive Anzeige:** `shippedAt` nur anzeigen wenn `omsStatus` tatsächlich `'shipped'` oder `'delivered'` ist. Gleiches für `packedAt` → nur bei `'packed'`, `'shipped'`, `'delivered'`. |
+
+**Verifikation nach Fix:**
+1. Bestellung erstellen → auf "packed" setzen → Ship fehlschlagen lassen → kein `shippedAt` Timestamp erwartet
+2. Bestellung erfolgreich versenden → `shippedAt` korrekt gesetzt
+3. SendCloud-Sync mit fehlenden Tracking-Nummern → Status darf NICHT auf "shipped" wechseln
 
 ---
 

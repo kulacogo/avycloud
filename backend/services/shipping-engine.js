@@ -574,17 +574,18 @@ async function syncSendCloudParcels({ tenantId = 'default', fromDate, toDate } =
     };
     await db.collection(ORDERS_COLLECTION).doc(order.id).set(orderUpdate, { merge: true });
 
-    // Auto-transition to shipped if currently packed/picked
+    // Auto-transition to shipped only if tracking is confirmed and order is in a valid pre-ship state
     const currentStatus = order.omsStatus || order.status || 'pending';
-    if (['packed', 'picked', 'packing', 'picking', 'confirmed', 'pending'].includes(currentStatus)) {
+    if (trackingNumber && ['packed', 'picked', 'packing'].includes(currentStatus)) {
       const { transitionOrder } = require('./order-state-machine');
       await transitionOrder({
         tenantId,
         orderId: order.id,
         toStatus: 'shipped',
         actor: { uid: 'system', email: 'sendcloud-sync' },
-        note: `SendCloud Sync — Label ${carrier || '?'} (${trackingNumber || 'no tracking'})`,
+        note: `SendCloud Sync — Label ${carrier || '?'} (${trackingNumber})`,
         force: true,
+        timestamps: { shippedAt: new Date().toISOString() },
       }).catch((err) => console.warn(`[syncSendCloud] Transition failed for ${order.id}: ${err.message}`));
     }
 

@@ -102,7 +102,7 @@ function getAllStatuses() {
  * @param {{ tenantId?: string, orderId: string, toStatus: string, actor: { uid: string, email: string }, note?: string }} opts
  * @returns {Promise<{ ok: boolean, fromStatus: string, toStatus: string, error?: string }>}
  */
-async function transitionOrder({ tenantId = 'default', orderId, toStatus, actor, note, force = false }) {
+async function transitionOrder({ tenantId = 'default', orderId, toStatus, actor, note, force = false, timestamps = {} }) {
   if (!orderId) return { ok: false, error: 'orderId ist erforderlich' };
   if (!toStatus) return { ok: false, error: 'toStatus ist erforderlich' };
   if (!ORDER_STATUSES[toStatus]) return { ok: false, error: `Unbekannter Status: ${toStatus}` };
@@ -142,24 +142,23 @@ async function transitionOrder({ tenantId = 'default', orderId, toStatus, actor,
       updatedAt: new Date().toISOString(),
     };
 
-    // Set timestamp fields for specific transitions
-    if (toStatus === 'picking' || toStatus === 'picked') {
-      update.pickedAt = update.pickedAt || new Date().toISOString();
-    }
-    if (toStatus === 'packed') {
-      update.packedAt = new Date().toISOString();
-    }
-    if (toStatus === 'shipped') {
-      update.shippedAt = new Date().toISOString();
-    }
-    if (toStatus === 'delivered') {
-      update.deliveredAt = new Date().toISOString();
-    }
-    if (toStatus === 'completed') {
-      update.completedAt = new Date().toISOString();
-    }
-    if (toStatus === 'cancelled') {
-      update.cancelledAt = new Date().toISOString();
+    // Set timestamp fields — caller can pass explicit timestamps, otherwise auto-set
+    const now = new Date().toISOString();
+    const tsMap = {
+      picking: 'pickedAt', picked: 'pickedAt',
+      packed: 'packedAt', shipped: 'shippedAt',
+      delivered: 'deliveredAt', completed: 'completedAt',
+      cancelled: 'cancelledAt',
+    };
+    const tsField = tsMap[toStatus];
+    if (tsField) {
+      // Use caller-provided timestamp, or auto-set if not explicitly suppressed
+      if (timestamps[tsField] !== undefined) {
+        if (timestamps[tsField]) update[tsField] = timestamps[tsField];
+        // if null, skip setting (caller explicitly suppressed)
+      } else {
+        update[tsField] = now;
+      }
     }
 
     // Update order
