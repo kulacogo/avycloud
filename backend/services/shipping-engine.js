@@ -252,13 +252,21 @@ async function cancelParcel({ parcelId, tenantId = 'default' }) {
  * @returns {number} weight in kg
  */
 function calculateOrderWeight(order) {
+  // 1. Order-level weight (e.g. Kaufland orders store weight on order, not items)
+  const orderLevelWeight = parseFloat(order.weight || '0') || 0;
+  if (orderLevelWeight > 0) return orderLevelWeight;
+
+  // 2. Sum of item weights
   const items = order.items || [];
   let totalKg = 0;
   for (const item of items) {
     const w = parseFloat(item.weight || '0') || 0;
     totalKg += w * (item.quantity || 1);
   }
-  return totalKg > 0 ? totalKg : 0.5; // Default 500g if unknown
+  if (totalKg > 0) return totalKg;
+
+  // 3. Last resort default
+  return 0.5;
 }
 
 /**
@@ -277,14 +285,16 @@ function calculateOrderWeight(order) {
 function matchCarrierRule({ weight, rules }) {
   if (!Array.isArray(rules) || rules.length === 0) return null;
 
-  // Sort by maxWeight ascending
-  const sorted = [...rules].sort((a, b) => (a.maxWeight || 0) - (b.maxWeight || 0));
+  const w = Number(weight) || 0;
+
+  // Sort by maxWeight ascending (type-safe)
+  const sorted = [...rules].sort((a, b) => (Number(a.maxWeight) || 0) - (Number(b.maxWeight) || 0));
 
   // Find first rule where weight is within [minWeight, maxWeight]
   for (const rule of sorted) {
-    const min = rule.minWeight || 0;
-    const max = rule.maxWeight || Infinity;
-    if (weight >= min && weight <= max) {
+    const min = Number(rule.minWeight) || 0;
+    const max = Number(rule.maxWeight) || Infinity;
+    if (w >= min && w <= max) {
       return {
         shippingMethodId: rule.shippingMethodId,
         carrier: rule.carrier || 'unknown',
@@ -295,7 +305,7 @@ function matchCarrierRule({ weight, rules }) {
 
   // Fallback: if weight exceeds all rules, use the largest rule
   const last = sorted[sorted.length - 1];
-  if (weight > (last.maxWeight || 0)) {
+  if (w > (Number(last.maxWeight) || 0)) {
     return {
       shippingMethodId: last.shippingMethodId,
       carrier: last.carrier || 'unknown',

@@ -980,7 +980,12 @@ router.put('/orders/settings', async (req, res) => {
           });
         }
       }
-      data.carrierRules = carrierRules;
+      data.carrierRules = carrierRules.map((rule) => ({
+        ...rule,
+        minWeight: Number(rule.minWeight) || 0,
+        maxWeight: Number(rule.maxWeight) || 0,
+        shippingMethodId: Number(rule.shippingMethodId) || 0,
+      }));
     }
 
     await firestore.collection('order_settings').doc(tenantId).set(data, { merge: true });

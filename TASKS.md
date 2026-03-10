@@ -419,6 +419,7 @@
 | BUG-022 | Inventar eBay-Indikator zeigt falschen Status | P1 | ✅ Fixed (SKU-index priority over stale ops.listingStatus) |
 | BUG-023 | Kaufland-Tabelle zeigt nichts Brauchbares | P1 | ✅ Fixed (responsive classes, brand field, image thumbnail) |
 | BUG-024 | Marketplace-Tabellen haben keinerlei UX | P1 | ✅ Fixed (column sorting, rows-per-page, stock filter) |
+| BUG-025 | **KRITISCH: Versandlabel falsche Carrier-Zuordnung** — 4kg Paket bekommt DHL Kleinpaket 0-1kg statt DPD Classic 0-5kg | P0 | ✅ Fixed (order-level weight + type-safe rule matching) |
 | BUG-SSE | Token-in-Query-Parameter für SSE-Streams leakt | P1 | 🔴 Offen |
 | BUG-006 | EbayListingsView.tsx (alte Gap-Analysis) noch da — LÖSCHEN | P1 | ✅ Fixed (deleted) |
 | BUG-008 | eBay-Seite zeigt Gap-Analyse-Daten statt Listing-Management | P1 | ✅ Fixed (route already correct, old component deleted) |
@@ -517,6 +518,57 @@ idUnit, idProduct, viewItemUrl, updatedAt, warehouseStock, binLocation, stockMis
 
 **Best Practice Referenz (AdminTable.tsx hat es richtig):**
 AdminTable.tsx in der Inventar-Ansicht hat bereits: sortierbare Spalten, Pagination mit Rows-per-Page, Filter-Presets. Dasselbe Pattern in MarketplaceListingsView übernehmen.
+
+### BUG-025 — Versandlabel falsche Carrier-Zuordnung (P0 KRITISCH)
+
+**Symptom:** Bestellung MA8YQ35 hat Gewicht 4 kg, Versand dhl_de. DHL Kleinpaket 0-1kg Label erstellt. Laut Versandregeln müsste DPD Classic 0-5 kg (Method 111) gewählt werden.
+
+**Root Cause (2 Probleme):**
+
+**Problem 1 (Haupt-Ursache): `calculateOrderWeight()` ignoriert Order-Level Gewicht**
+
+`backend/services/shipping-engine.js` Zeile 254-262:
+```
+function calculateOrderWeight(order) {
+  const items = order.items || [];
+  let totalKg = 0;
+  for (const item of items) {
+    const w = parseFloat(item.weight || '0') || 0;
+    totalKg += w * (item.quantity || 1);
+  }
+  return totalKg > 0 ? totalKg : 0.5; // ← HIER: Default 0.5kg!
+}
+```
+
+Die Funktion iteriert NUR über `order.items[].weight`. Kaufland-Bestellungen haben aber das Gewicht auf **Order-Ebene** (`order.weight = 4`), NICHT auf Item-Ebene. Wenn kein Item ein `weight`-Feld hat → `totalKg = 0` → **Return 0.5 kg** → matcht DHL Kleinpaket (0.5-1.99 kg).
+
+In `shipOrder()` Zeile 328: `const orderWeight = weight || calculateOrderWeight(order);` — `weight` kommt nur wenn explizit per Request-Body übergeben. Bulk-Ship (Zeile 1522) übergibt KEIN weight → immer calculateOrderWeight.
+
+**Problem 2 (Zusätzlich): `matchCarrierRule()` macht keine Typ-Sicherung**
+
+`backend/services/shipping-engine.js` Zeile 277-308: `rule.minWeight` und `rule.maxWeight` werden direkt verglichen ohne `Number()` Konvertierung. Wenn Firestore-Daten als Strings gespeichert sind (z.B. durch Migration oder manuellen Edit), bricht die Sortierung und der Vergleich.
+
+**Betroffene Dateien + Fixes:**
+
+| Datei | Was ändern |
+|-------|-----------|
+| `backend/services/shipping-engine.js` → `calculateOrderWeight()` (Zeile 254-262) | **Order-Level Gewicht prüfen:** VOR der Items-Schleife: `if (order.weight && parseFloat(order.weight) > 0) return parseFloat(order.weight);`. Dann: Items-Gewicht als Fallback. Dann: 0.5 kg als letzter Fallback. |
+| `backend/services/shipping-engine.js` → `matchCarrierRule()` (Zeile 284-287) | **Typ-Sicherung:** `const min = Number(rule.minWeight) \|\| 0;` und `const max = Number(rule.maxWeight) \|\| Infinity;` und `const w = Number(weight) \|\| 0;` |
+| `backend/routes/orders.js` → PUT `/api/orders/settings` (Zeile 970-983) | **Numerische Normalisierung beim Speichern:** Vor dem Firestore-Write alle `carrierRules[].minWeight` und `maxWeight` mit `parseFloat()` konvertieren um sicherzustellen dass nur Zahlen gespeichert werden. |
+
+**Datenfluss:**
+```
+Frontend "Label drucken" → POST /api/orders/:id/ship (orders.js:1291)
+  → shipOrder({ orderId, tenantId, weight? }) (shipping-engine.js:319)
+    → weight nicht übergeben? → calculateOrderWeight(order) (Zeile 254)
+      → order.items[].weight iterieren → 0 gefunden → return 0.5 (DEFAULT!)
+    → matchCarrierRule({ weight: 0.5, rules }) → 0.5 liegt in [0.5, 1.99] → DHL Kleinpaket ❌
+```
+
+**Verifikation nach Fix:**
+1. Bestehende Bestellungen mit bekanntem Gewicht testen (4kg → DPD Classic 0-5kg erwartet)
+2. Bestellungen OHNE Gewichtsdaten testen (Fallback 0.5kg → DHL Kleinpaket erwartet)
+3. Prüfen ob `order.weight` in Kaufland-Orders korrekt importiert wird
 
 ---
 
