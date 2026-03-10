@@ -1520,7 +1520,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
               // Close the blank tab if no label available
               if (printWindow) printWindow.close();
               setPackMessage(
-                `${selectedItem.orderNumber || selectedItem.orderId} verpackt & versendet — kein Label-PDF verfügbar.`
+                `${selectedItem.orderNumber || selectedItem.orderId} verpackt & versendet — kein Label-PDF verfügbar.${result.labelError ? ` (${result.labelError})` : ''}`
               );
             }
           }

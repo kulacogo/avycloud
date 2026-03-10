@@ -3121,20 +3121,30 @@ export const packOrder = async (orderId: string): Promise<void> => {
 export async function packAndShip(
   orderId: string,
   opts?: { weight?: number }
-): Promise<{ labelBlobUrl: string | null; trackingNumber: string | null; carrier: string | null }> {
+): Promise<{ labelBlobUrl: string | null; trackingNumber: string | null; carrier: string | null; labelError?: string | null }> {
   await packOrder(orderId);
   const result = await shipOrder(orderId, opts);
 
   let labelBlobUrl: string | null = null;
+  let labelError: string | null = null;
   if (result?.labelUrl) {
     // Fetch PDF via our authenticated backend proxy
-    const pdfRes = await fetchApi(
-      `${BACKEND_URL}/api/orders/${encodeURIComponent(orderId)}/label`,
-      { method: 'GET' }
-    );
-    if (pdfRes.ok) {
-      const blob = await pdfRes.blob();
-      labelBlobUrl = URL.createObjectURL(blob);
+    try {
+      const pdfRes = await fetchApi(
+        `${BACKEND_URL}/api/orders/${encodeURIComponent(orderId)}/label`,
+        { method: 'GET' }
+      );
+      if (pdfRes.ok) {
+        const blob = await pdfRes.blob();
+        labelBlobUrl = URL.createObjectURL(blob);
+      } else {
+        const errData = await pdfRes.json().catch(() => null);
+        labelError = errData?.error?.message || `Label-Download fehlgeschlagen (${pdfRes.status})`;
+        console.warn('[packAndShip] Label download failed:', labelError);
+      }
+    } catch (err: any) {
+      labelError = err?.message || 'Label-Download fehlgeschlagen';
+      console.warn('[packAndShip] Label download error:', labelError);
     }
   }
 
@@ -3142,6 +3152,7 @@ export async function packAndShip(
     labelBlobUrl,
     trackingNumber: result?.trackingNumber || null,
     carrier: result?.carrier || null,
+    labelError,
   };
 }
 
