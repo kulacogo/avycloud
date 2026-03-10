@@ -141,7 +141,7 @@ async function syncPriceToAllChannels({ tenantId = 'default', product, prices = 
   const ebayItemId = product?.ops?.ebay?.itemId
     || product?.ops?.ebay?.item_id
     || product?.marketplace?.ebay?.itemId;
-  const ebayPrice = prices.ebay ?? product?.pricing?.ebay?.price ?? product?.pricing?.sellPrice;
+  const ebayPrice = prices.ebay ?? product?.pricing?.ebay?.price ?? product?.details?.pricing?.sellPrice ?? product?.pricing?.sellPrice;
 
   if (ebayItemId && Number.isFinite(ebayPrice) && ebayPrice > 0) {
     try {
@@ -164,7 +164,7 @@ async function syncPriceToAllChannels({ tenantId = 'default', product, prices = 
   const kauflandUnitId = product?.ops?.kaufland?.unitId
     || product?.ops?.kaufland?.id_unit
     || product?.marketplace?.kaufland?.unitId;
-  const kauflandPrice = prices.kaufland ?? product?.pricing?.kaufland?.price ?? product?.pricing?.sellPrice;
+  const kauflandPrice = prices.kaufland ?? product?.pricing?.kaufland?.price ?? product?.details?.pricing?.sellPrice ?? product?.pricing?.sellPrice;
 
   if (kauflandUnitId && Number.isFinite(kauflandPrice) && kauflandPrice > 0) {
     try {

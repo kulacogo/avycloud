@@ -667,9 +667,9 @@ const AdminTable: React.FC<AdminTableProps> = ({
             (marketplaceItemId && ebayActiveItemIds.has(marketplaceItemId)
               ? `https://www.ebay.de/itm/${encodeURIComponent(marketplaceItemId)}`
               : null);
-          // Determine listed state: ops.listingStatus is authoritative, viewItemUrl as fallback
-          const isActive = ebayStatus === 'active' || (!ebayStatus && viewItemUrl);
-          const isInactive = ebayStatus === 'inactive';
+          // Determine listed state: SKU-index (viewItemUrl) has priority over stale ops.listingStatus
+          const isActive = !!viewItemUrl || ebayStatus === 'active';
+          const isInactive = !isActive && ebayStatus === 'inactive';
           return (
             isActive && viewItemUrl ? (
               <a

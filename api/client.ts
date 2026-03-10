@@ -1474,7 +1474,13 @@ export async function publishToEbay(
   if (!res.ok || data?.ok === false) {
     throw new Error(data?.error?.message || 'Failed to publish to eBay');
   }
-  return data?.data as EbayPublishResult;
+  const result = data?.data as EbayPublishResult;
+  if (result && result.ok === false && Array.isArray(result.blockers) && result.blockers.length > 0) {
+    const err: any = new Error(result.blockers.join(' | '));
+    err.blockers = result.blockers;
+    throw err;
+  }
+  return result;
 }
 
 export async function publishToKaufland(

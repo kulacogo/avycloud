@@ -1799,7 +1799,7 @@ router.post('/save', requirePermission('products', 'write'), async (req, res) =>
 
     // Auto-push price to marketplaces when pricing changes (async, non-blocking)
     try {
-      const sellPrice = product.pricing?.sellPrice;
+      const sellPrice = product.details?.pricing?.sellPrice ?? product.pricing?.sellPrice;
       if (Number.isFinite(sellPrice) && sellPrice > 0) {
         const { syncPriceToAllChannels } = require('../services/stock-sync-dispatcher');
         syncPriceToAllChannels({

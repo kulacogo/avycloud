@@ -38,6 +38,7 @@ interface NormalizedListing {
   lastSync: string | null;
   errors?: string[];
   imageUrl?: string | null;
+  brand?: string | null;
   warehouseStock: number | null;
   binLocation: string | null;
   stockMismatch: boolean;
@@ -62,7 +63,11 @@ const MARKETPLACE_LABELS = {
   kaufland: "Kaufland",
 };
 
-const PAGE_SIZE = 50;
+const PAGE_SIZE_OPTIONS = [25, 50, 100, 250] as const;
+
+type SortKey = "title" | "price" | "quantity" | "status" | "category" | "lastSync";
+type SortDir = "asc" | "desc";
+type StockFilter = "all" | "inStock" | "low" | "empty";
 
 // ─── Helpers ─────────────────────────────────────────────────
 
@@ -127,6 +132,7 @@ function normalizeKauflandRow(row: KauflandListingRow): NormalizedListing {
     viewItemUrl: row.viewItemUrl || null,
     lastSync: row.updatedAt || null,
     imageUrl: row.imageUrl || null,
+    brand: (row as any).brand || null,
     warehouseStock: (row as any).warehouseStock ?? null,
     binLocation: (row as any).binLocation ?? null,
     stockMismatch: (row as any).stockMismatch === true,
@@ -181,6 +187,10 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(50);
+  const [sortKey, setSortKey] = useState<SortKey | null>(null);
+  const [sortDir, setSortDir] = useState<SortDir>("asc");
+  const [stockFilter, setStockFilter] = useState<StockFilter>("all");
   const [syncing, setSyncing] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<EbayConnectionStatus | null>(null);
   const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
@@ -194,7 +204,7 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
   const [publishSelectedIds, setPublishSelectedIds] = useState<Set<string>>(new Set());
   const [bulkPublishing, setBulkPublishing] = useState(false);
   const [bulkPublishSummary, setBulkPublishSummary] = useState<{
-    total: number; success: number; failed: number; failedNames: string[];
+    total: number; success: number; failed: number; failedNames: string[]; failedDetails: string[];
   } | null>(null);
 
   const label = MARKETPLACE_LABELS[marketplace];
@@ -356,29 +366,41 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
       let summary: { total: number; success: number; failed: number };
       let failedNames: string[] = [];
 
+      let failedDetails: string[] = [];
+
       if (marketplace === "ebay") {
         const result = await bulkPublishToEbay(ids);
         summary = result.summary;
-        failedNames = result.results
-          .filter((r: any) => !r.ok)
-          .map((r: any) => {
-            const prod = publishProducts.find((p) => p.id === r.productId);
-            return prod?.identification?.name || r.productId;
-          });
+        const failedResults = result.results.filter((r: any) => !r.ok);
+        failedNames = failedResults.map((r: any) => {
+          const prod = publishProducts.find((p) => p.id === r.productId);
+          return prod?.identification?.name || r.productId;
+        });
+        failedDetails = failedResults.map((r: any) => {
+          const prod = publishProducts.find((p) => p.id === r.productId);
+          const name = prod?.identification?.name || r.productId;
+          const reasons = Array.isArray(r.blockers) && r.blockers.length > 0 ? r.blockers.join(", ") : "Unbekannter Fehler";
+          return `${name}: ${reasons}`;
+        });
         loadEbayListings();
       } else {
         const result = await bulkPublishToKaufland(ids);
         summary = result.summary;
-        failedNames = result.results
-          .filter((r) => !r.ok)
-          .map((r) => {
-            const prod = publishProducts.find((p) => p.id === r.productId);
-            return prod?.identification?.name || r.productId;
-          });
+        const failedResults = result.results.filter((r) => !r.ok);
+        failedNames = failedResults.map((r) => {
+          const prod = publishProducts.find((p) => p.id === r.productId);
+          return prod?.identification?.name || r.productId;
+        });
+        failedDetails = failedResults.map((r) => {
+          const prod = publishProducts.find((p) => p.id === r.productId);
+          const name = prod?.identification?.name || r.productId;
+          const reasons = Array.isArray((r as any).blockers) && (r as any).blockers.length > 0 ? (r as any).blockers.join(", ") : "Unbekannter Fehler";
+          return `${name}: ${reasons}`;
+        });
         loadKauflandListings();
       }
 
-      setBulkPublishSummary({ ...summary, failedNames });
+      setBulkPublishSummary({ ...summary, failedNames, failedDetails });
       setPublishSelectedIds(new Set());
     } catch (err: any) {
       setPublishResult({
@@ -420,6 +442,10 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
     if (activeTab === "active") result = result.filter((l) => l.status === "active");
     else if (activeTab === "inactive") result = result.filter((l) => l.status === "inactive" || l.status === "unknown");
 
+    if (stockFilter === "inStock") result = result.filter((l) => l.quantity != null && l.quantity > 3);
+    else if (stockFilter === "low") result = result.filter((l) => l.quantity != null && l.quantity > 0 && l.quantity <= 3);
+    else if (stockFilter === "empty") result = result.filter((l) => l.quantity != null && l.quantity <= 0);
+
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       result = result.filter(
@@ -429,14 +455,47 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
           l.sku?.toLowerCase().includes(q)
       );
     }
-    return result;
-  }, [listings, activeTab, searchQuery]);
 
-  const totalPages = Math.max(1, Math.ceil(filteredListings.length / PAGE_SIZE));
+    if (sortKey) {
+      result = [...result].sort((a, b) => {
+        let aVal: any = a[sortKey];
+        let bVal: any = b[sortKey];
+        // Nulls always last
+        if (aVal == null && bVal == null) return 0;
+        if (aVal == null) return 1;
+        if (bVal == null) return -1;
+        if (typeof aVal === "string") aVal = aVal.toLowerCase();
+        if (typeof bVal === "string") bVal = bVal.toLowerCase();
+        const cmp = aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
+        return sortDir === "asc" ? cmp : -cmp;
+      });
+    }
+
+    return result;
+  }, [listings, activeTab, searchQuery, stockFilter, sortKey, sortDir]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredListings.length / pageSize));
   const paginatedListings = filteredListings.slice(
-    (currentPage - 1) * PAGE_SIZE,
-    currentPage * PAGE_SIZE
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize
   );
+
+  const handleSort = useCallback((key: SortKey) => {
+    setSortKey((prev) => {
+      if (prev === key) {
+        setSortDir((d) => d === "asc" ? "desc" : "asc");
+        return key;
+      }
+      setSortDir("asc");
+      return key;
+    });
+    setCurrentPage(1);
+  }, []);
+
+  const sortIndicator = (key: SortKey) => {
+    if (sortKey !== key) return null;
+    return <span className="ml-1 text-accent">{sortDir === "asc" ? "↑" : "↓"}</span>;
+  };
 
   const allVisibleSelected =
     paginatedListings.length > 0 && paginatedListings.every((l) => selectedIds.has(l.id));
@@ -465,7 +524,7 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
   useEffect(() => {
     setCurrentPage(1);
     setSelectedIds(new Set());
-  }, [activeTab, searchQuery]);
+  }, [activeTab, searchQuery, stockFilter]);
 
   // ─── Loading State ───────────────────────────────────────
 
@@ -644,6 +703,16 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
             className="w-full pl-10 pr-4 py-2 bg-app-surface border border-app-border rounded-lg text-sm text-txt-primary placeholder:text-txt-muted focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-colors"
           />
         </div>
+        <select
+          value={stockFilter}
+          onChange={(e) => { setStockFilter(e.target.value as StockFilter); setCurrentPage(1); }}
+          className="px-3 py-2 bg-app-surface border border-app-border rounded-lg text-sm text-txt-primary focus:outline-none focus:ring-2 focus:ring-accent/30"
+        >
+          <option value="all">Alle Bestände</option>
+          <option value="inStock">Auf Lager (&gt;3)</option>
+          <option value="low">Niedrig (1–3)</option>
+          <option value="empty">Leer (0)</option>
+        </select>
       </div>
 
       {/* Bulk Actions Bar */}
@@ -706,16 +775,28 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
                       className="rounded border-app-border accent-accent"
                     />
                   </th>
-                  <th className="px-4 py-3 text-left text-txt-muted font-medium">Titel / SKU</th>
+                  <th className="px-4 py-3 text-left text-txt-muted font-medium cursor-pointer select-none hover:text-txt-primary" onClick={() => handleSort("title")}>
+                    Titel / SKU{sortIndicator("title")}
+                  </th>
                   <th className="px-4 py-3 text-left text-txt-muted font-medium hidden md:table-cell">
                     {marketplace === "ebay" ? "Item-ID" : "Unit-ID"}
                   </th>
-                  <th className="px-4 py-3 text-right text-txt-muted font-medium hidden sm:table-cell">Preis</th>
-                  <th className="px-4 py-3 text-right text-txt-muted font-medium hidden sm:table-cell">Marktplatz</th>
+                  <th className="px-4 py-3 text-right text-txt-muted font-medium cursor-pointer select-none hover:text-txt-primary" onClick={() => handleSort("price")}>
+                    Preis{sortIndicator("price")}
+                  </th>
+                  <th className="px-4 py-3 text-right text-txt-muted font-medium cursor-pointer select-none hover:text-txt-primary" onClick={() => handleSort("quantity")}>
+                    Marktplatz{sortIndicator("quantity")}
+                  </th>
                   <th className="px-4 py-3 text-right text-txt-muted font-medium hidden sm:table-cell">Lager</th>
-                  <th className="px-4 py-3 text-left text-txt-muted font-medium">Status</th>
-                  <th className="px-4 py-3 text-left text-txt-muted font-medium hidden lg:table-cell">Kategorie</th>
-                  <th className="px-4 py-3 text-left text-txt-muted font-medium hidden lg:table-cell">Letztes Update</th>
+                  <th className="px-4 py-3 text-left text-txt-muted font-medium cursor-pointer select-none hover:text-txt-primary" onClick={() => handleSort("status")}>
+                    Status{sortIndicator("status")}
+                  </th>
+                  <th className="px-4 py-3 text-left text-txt-muted font-medium hidden md:table-cell cursor-pointer select-none hover:text-txt-primary" onClick={() => handleSort("category")}>
+                    Kategorie{sortIndicator("category")}
+                  </th>
+                  <th className="px-4 py-3 text-left text-txt-muted font-medium hidden lg:table-cell cursor-pointer select-none hover:text-txt-primary" onClick={() => handleSort("lastSync")}>
+                    Letztes Update{sortIndicator("lastSync")}
+                  </th>
                   <th className="px-4 py-3 text-right text-txt-muted font-medium w-20">Link</th>
                 </tr>
               </thead>
@@ -736,31 +817,48 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
                         />
                       </td>
                       <td className="px-4 py-3">
-                        <div className="flex items-center gap-1.5">
-                          <span
-                            className="text-txt-primary font-medium truncate max-w-[300px]"
-                            title={listing.title}
-                          >
-                            {listing.title}
-                          </span>
-                        </div>
-                        {listing.sku && (
-                          <div className="text-xs text-txt-muted mt-0.5 font-mono truncate max-w-[320px]">
-                            SKU: {listing.sku}
+                        <div className="flex items-center gap-2.5">
+                          {listing.imageUrl && (
+                            <img
+                              src={listing.imageUrl}
+                              alt=""
+                              className="w-8 h-8 rounded object-cover flex-shrink-0 bg-app-elevated"
+                              loading="lazy"
+                            />
+                          )}
+                          <div className="min-w-0">
+                            <span
+                              className="text-txt-primary font-medium truncate block max-w-[280px]"
+                              title={listing.title}
+                            >
+                              {listing.title}
+                            </span>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              {listing.sku && (
+                                <span className="text-xs text-txt-muted font-mono truncate max-w-[200px]">
+                                  SKU: {listing.sku}
+                                </span>
+                              )}
+                              {listing.brand && (
+                                <span className="text-xs text-txt-muted truncate">
+                                  {listing.brand}
+                                </span>
+                              )}
+                            </div>
                           </div>
-                        )}
+                        </div>
                       </td>
                       <td className="px-4 py-3 hidden md:table-cell">
                         <span className="text-txt-secondary text-xs font-mono">
                           {listing.id}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-right hidden sm:table-cell">
+                      <td className="px-4 py-3 text-right">
                         <span className="text-txt-primary font-medium">
                           {formatPrice(listing.price, listing.currency)}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-right hidden sm:table-cell">
+                      <td className="px-4 py-3 text-right">
                         <span className={`font-medium ${
                           listing.quantity != null && listing.quantity <= 0 ? "text-danger" :
                           listing.quantity != null && listing.quantity <= 3 ? "text-warning" :
@@ -808,7 +906,7 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
                           {statusCfg.label}
                         </span>
                       </td>
-                      <td className="px-4 py-3 hidden lg:table-cell">
+                      <td className="px-4 py-3 hidden md:table-cell">
                         <span className="text-txt-secondary text-xs truncate max-w-[150px] inline-block">
                           {listing.category || "—"}
                         </span>
@@ -840,11 +938,22 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
 
           {/* Pagination */}
           <div className="flex items-center justify-between px-4 py-3 border-t border-app-border">
-            <span className="text-sm text-txt-muted">
-              Zeige {(currentPage - 1) * PAGE_SIZE + 1}–
-              {Math.min(currentPage * PAGE_SIZE, filteredListings.length)} von{" "}
-              {filteredListings.length}
-            </span>
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-txt-muted">
+                Zeige {(currentPage - 1) * pageSize + 1}–
+                {Math.min(currentPage * pageSize, filteredListings.length)} von{" "}
+                {filteredListings.length}
+              </span>
+              <select
+                value={pageSize}
+                onChange={(e) => { setPageSize(Number(e.target.value)); setCurrentPage(1); }}
+                className="px-2 py-1 bg-app-bg border border-app-border rounded text-xs text-txt-secondary focus:outline-none"
+              >
+                {PAGE_SIZE_OPTIONS.map((n) => (
+                  <option key={n} value={n}>{n} pro Seite</option>
+                ))}
+              </select>
+            </div>
             <div className="flex items-center gap-1">
               <button
                 disabled={currentPage <= 1}
@@ -914,7 +1023,16 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
                   {bulkPublishSummary.success} von {bulkPublishSummary.total} erfolgreich gelistet
                   {bulkPublishSummary.failed > 0 && `, ${bulkPublishSummary.failed} fehlgeschlagen`}
                 </div>
-                {bulkPublishSummary.failedNames.length > 0 && (
+                {bulkPublishSummary.failedDetails && bulkPublishSummary.failedDetails.length > 0 ? (
+                  <div className="mt-2 text-xs space-y-1 max-h-40 overflow-y-auto">
+                    {bulkPublishSummary.failedDetails.slice(0, 10).map((detail, i) => (
+                      <div key={i} className="opacity-90">{detail}</div>
+                    ))}
+                    {bulkPublishSummary.failedDetails.length > 10 && (
+                      <div className="opacity-60">+{bulkPublishSummary.failedDetails.length - 10} weitere</div>
+                    )}
+                  </div>
+                ) : bulkPublishSummary.failedNames.length > 0 && (
                   <div className="mt-1 text-xs opacity-80">
                     Fehlgeschlagen: {bulkPublishSummary.failedNames.slice(0, 5).join(", ")}
                     {bulkPublishSummary.failedNames.length > 5 && ` (+${bulkPublishSummary.failedNames.length - 5} weitere)`}
