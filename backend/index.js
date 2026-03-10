@@ -261,6 +261,7 @@ app.use('/api', webhooksRouter);
 app.use('/api', (req, res, next) => {
   if (req.method === 'OPTIONS') return next();
   if (req.path === '/image-proxy') return next();
+  if (req.path === '/ebay/oauth/callback') return next(); // eBay redirect — no auth header
   return requireAuth(req, res, next);
 });
 
