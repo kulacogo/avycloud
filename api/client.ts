@@ -3210,6 +3210,18 @@ export async function transitionOrderStatus(
   return data?.data || {};
 }
 
+export async function fetchLabelPdfBlob(orderId: string): Promise<Blob> {
+  const res = await fetchApi(
+    `${BACKEND_URL}/api/orders/${encodeURIComponent(orderId)}/label`,
+    { method: 'GET' }
+  );
+  if (!res.ok) {
+    const errData = await res.json().catch(() => null);
+    throw new Error(errData?.error?.message || `Label-Download fehlgeschlagen (${res.status})`);
+  }
+  return res.blob();
+}
+
 export async function cancelShippingLabel(orderId: string): Promise<void> {
   const res = await fetchApi(`${BACKEND_URL}/api/orders/${encodeURIComponent(orderId)}/cancel-label`, {
     method: 'POST',

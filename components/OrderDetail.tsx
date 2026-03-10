@@ -8,6 +8,7 @@ import {
   updateOrderCustomer,
   updateOrderWeight,
   cancelShippingLabel,
+  fetchLabelPdfBlob,
 } from "../api/client";
 import type { Order, OrderTimelineEvent, OmsStatus } from "../types";
 
@@ -471,6 +472,30 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({ orderId, onClose, onSt
                             Versandlabel nicht möglich — Adresse unvollständig. Bitte oben bearbeiten.
                           </div>
                         )
+                      )}
+                      {order.trackingNumber && (
+                        <ActionButton
+                          label="Label drucken"
+                          icon="🖨"
+                          onClick={async () => {
+                            const blob = await fetchLabelPdfBlob(orderId);
+                            const blobUrl = URL.createObjectURL(blob);
+                            const printWindow = window.open(blobUrl, '_blank');
+                            if (printWindow) {
+                              printWindow.addEventListener('load', () => {
+                                printWindow.print();
+                              });
+                              setTimeout(() => URL.revokeObjectURL(blobUrl), 120000);
+                            } else {
+                              // Fallback: download if popup blocked
+                              const a = document.createElement('a');
+                              a.href = blobUrl;
+                              a.download = `label-${orderId}.pdf`;
+                              a.click();
+                              setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+                            }
+                          }}
+                        />
                       )}
                       {order.trackingNumber && (
                         <ActionButton
