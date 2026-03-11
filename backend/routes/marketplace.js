@@ -972,10 +972,10 @@ router.get('/kaufland/listings', requirePermission('products', 'read'), async (r
       const updatedAtRaw = d.updatedAt;
       const updatedAtIso = updatedAtRaw?.toDate?.()?.toISOString?.() || (typeof updatedAtRaw === 'string' ? updatedAtRaw : null);
 
-      // Warehouse stock enrichment
-      const bins = Array.isArray(matched?.storageBins) ? matched.storageBins : [];
-      const whStock = bins.reduce((sum, b) => sum + (Number(b?.quantity) || 0), 0)
-        || (typeof matched?.inventory?.availableQuantity === 'number' ? matched.inventory.availableQuantity : null);
+      // Warehouse stock enrichment — use inventory.quantity as source of truth
+      const whStock = typeof matched?.inventory?.quantity === 'number'
+        ? matched.inventory.quantity
+        : null;
       const binLoc = bins.length > 0 ? (bins[0]?.code || null) : (matched?.storage?.binCode || null);
       const mpQty = Number.isFinite(Number(d.amount)) ? Number(d.amount) : null;
       const mismatch = typeof whStock === 'number' && mpQty !== null && whStock !== mpQty;

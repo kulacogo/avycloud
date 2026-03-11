@@ -477,6 +477,9 @@
 | BUG-026 | **Nicht versendete Bestellungen zeigen Verpackt/Versendet Zeitstempel** — State-Machine setzt Timestamps eager, bevor Aktion bestätigt ist | P1 | ✅ Fixed (caller-provided timestamps, tracking-gated transitions, defensive UI) |
 | BUG-027 | **eBay-Filter in Inventar/Produktdaten zeigt falsche Ergebnisse** — "Gelistet" = 0 Ergebnisse, "Nicht gelistet" enthält gelistete Artikel | P1 | ✅ Fixed (Filter-Logik an Badge-Logik angeglichen: viewItemUrl/SKU-Index-Priorität für eBay + Kaufland) |
 | BUG-028 | **Marketplace-Seiten: Inkonsistente Lager/Marktplatz-Mengen** — Warehouse-Qty ≠ Marketplace-Qty, kein Real-Time-Sync bei externen Verkäufen | P1 | ✅ Fixed (P1: Retry-Mechanismus, Stock-Sync nach Pack/Ship, Listing-Sync 10→3 Min, Auto-Heal bei Diskrepanz) |
+| BUG-029 | **🔥 OVERSELL: Artikel mit Bestand 0 werden auf Marktplätzen verkauft** — Kaufland zeigt Menge >0 obwohl Inventar 0 ist. Kein Stock-Sync bei Order-Intake. availableQuantity nie gespeichert. | P0 SOFORT | ✅ Fixed (computeAvailableQuantity aus Reservierungen, Stock-Sync bei Order-Intake + Order-Sync, Auto-Heal mit Oversell-Detection, Kaufland-UI frischer Bestand) |
+| BUG-030 | **Stornierung fehlt: Aufträge können nicht storniert + an Marktplätze kommuniziert werden** — Status "cancelled" existiert intern, aber kein Cancel-API-Call zu eBay/Kaufland. Stock-Reservierung wird nicht freigegeben. | P0 | 🔴 Offen |
+| BUG-031 | **Status-Sync zu Marktplätzen unvollständig** — Tracking-Push nur bei SendCloud-Ship, nicht bei manuellem Status-Wechsel. Kein Status-Push für packed/cancelled/on_hold. | P1 | 🔴 Offen |
 | BUG-SSE | Token-in-Query-Parameter für SSE-Streams leakt | P1 | 🔴 Offen |
 | BUG-006 | EbayListingsView.tsx (alte Gap-Analysis) noch da — LÖSCHEN | P1 | ✅ Fixed (deleted) |
 | BUG-008 | eBay-Seite zeigt Gap-Analyse-Daten statt Listing-Management | P1 | ✅ Fixed (route already correct, old component deleted) |
@@ -815,6 +818,162 @@ JEDE Bestandsänderung (stock-out, pack, ship, inventur, retoure)
 |-------|-----------|
 | `components/Sidebar.tsx` (Zeile 454-461) | Text durch Wordmark-Logo ersetzen. Collapsed: `avy_logo.png`. Expanded: `logo_darkmode.png` (dark) / `logo_brightmode.png` (light). |
 | `components/Header.tsx` (Zeile ~230) | Prüfen ob dort auch Text "AvyCloud" steht → gleiche Logik anwenden |
+
+### BUG-029 — 🔥 OVERSELL: Artikel mit Bestand 0 werden auf Marktplätzen verkauft (P0 SOFORT)
+
+**Symptom:** SKU-9247228090 "CO2-Zylinder Aluminium SodaStream" hat Bestand 0 im Inventar (kein BIN zugewiesen). Kaufland zeigt trotzdem Menge 2 auf dem Marktplatz und Lager 6. Zwei Bestellungen (M7PPT35, MEL4T35) wurden angenommen — Oversell, Ware nicht lieferbar.
+
+**Impact:** Finanzieller Schaden + Kaufland-Strafpunkte + Kundenstornierungen + Reputationsschaden
+
+**Root Causes (5 Schichten):**
+
+**1. KEIN Stock-Sync bei Order-Intake**
+`order-intake-kaufland.js` und `order-sync.js` importieren Bestellungen und reservieren Stock — aber rufen NICHT `syncStockToAllChannels()` auf. Der Bestand wird lokal reserviert, aber Kaufland wird NICHT informiert dass weniger Bestand verfügbar ist.
+
+**Vergleich:** `warehouse.js` POST `/stock-out` (Zeile 451-466) ruft `syncStockToAllChannels()` auf — aber Order-Intake tut das nicht.
+
+**2. `availableQuantity` wird NIE gespeichert**
+`availableQuantity` ist ein BERECHNETES Feld (`physicalQuantity - reservedQuantity`), wird on-demand in `routes/products.js:214` berechnet. Es wird NICHT in Firestore gespeichert. Wenn `syncStockToAllChannels()` aufgerufen wird, liest es:
+```js
+const availableQuantity = product?.inventory?.availableQuantity ?? quantity;
+```
+Da `availableQuantity` nie gespeichert wird → Fallback auf `quantity` → kann veraltet sein.
+
+**3. Kaufland-Listings-Seite zeigt falschen Lagerbestand**
+`marketplace.js:976-978` berechnet "Lager" aus `storageBins[].quantity` des verlinkten Produkts. Wenn das Produkt aus einem alten Firestore-Read stammt (gecachtes Objekt), zeigt es den alten Bestand (6 Stück) obwohl `inventory.quantity` bereits 0 ist.
+
+**4. Stock-Sync nur bei explizitem Stock-Out**
+`syncStockToAllChannels()` wird NUR aufgerufen bei:
+- `POST /api/warehouse/stock-out` ✅
+- Pack/Ship-Endpoints (seit BUG-028 Fix) ✅
+- **NICHT bei:** Order-Intake, Inventur-Korrektur, manueller Bestandsänderung, Retouren-Einlagerung ❌
+
+**5. Kein Oversell-Schutz**
+Wenn Bestand = 0 aber Kaufland noch Menge > 0 zeigt, gibt es KEINEN Mechanismus der:
+- Kaufland-Listing automatisch auf 0 setzt
+- Kaufland-Listing automatisch deaktiviert
+- Neue Bestellungen bei Bestand 0 ablehnt
+
+**Betroffene Dateien + Fixes (ALLE P0 — SOFORT):**
+
+| # | Datei | Was ändern |
+|---|-------|-----------|
+| 1 | `backend/services/order-intake-kaufland.js` | **SOFORT-FIX:** Nach jedem importierten Order → `syncStockToAllChannels()` für JEDES betroffene Produkt aufrufen. Menge = `inventory.quantity - Summe aktiver Reservierungen`. |
+| 2 | `backend/services/order-sync.js` → `reserveStock()` (Zeile ~513) | **SOFORT-FIX:** Nach `reserveStock()` → available Qty berechnen (`quantity - reserved`) → `syncStockToAllChannels({ product: { ...product, inventory: { ...product.inventory, availableQuantity: computed } } })` |
+| 3 | `backend/services/stock-sync-dispatcher.js` → `syncStockToAllChannels()` | **availableQuantity korrekt berechnen:** NICHT blind aus `product.inventory.availableQuantity` lesen (existiert nicht in Firestore). Stattdessen: `stock_reservations` Collection lesen, Summe der `status: 'reserved'` für dieses Produkt berechnen, `availableQty = max(0, inventory.quantity - reservedSum)`. NUR `availableQty` an Marktplätze pushen. |
+| 4 | `backend/services/stock-sync-dispatcher.js` | **Zero-Stock → Auto-Delist:** Wenn `availableQty === 0` → Kaufland-Unit auf `status: 'ONHOLD'` setzen (über `updateUnit`). eBay-Listing auf `quantity: 0` setzen (über `reviseFixedPriceItem`). Dies verhindert weitere Verkäufe. |
+| 5 | `backend/services/listing-sync-runner.js` → Auto-Heal | **Oversell-Detection:** Beim periodischen Sync: Für jedes Listing → wahren `availableQty` berechnen. Wenn Marketplace-Menge > availableQty → sofort Push mit korrektem Wert. Wenn availableQty === 0 und Marketplace zeigt > 0 → ALARM loggen + sofort pushen. |
+| 6 | `backend/routes/marketplace.js` → Kaufland-Enrichment (Zeile ~976) | **Lager-Menge korrekt:** Nicht aus `storageBins` des gecachten Produkts lesen. Stattdessen: `inventory.quantity` direkt aus frischem Firestore-Read verwenden. Oder: `storageBins` und `inventory.quantity` vergleichen und den niedrigeren Wert nehmen. |
+
+**Datenfluss (Ist → Soll):**
+
+```
+IST (KAPUTT):
+Order-Intake Kaufland → reserveStock() → FERTIG (Kaufland weiß nichts!)
+  → Kaufland verkauft weiter → OVERSELL
+
+SOLL:
+Order-Intake Kaufland → reserveStock()
+  → availableQty berechnen (quantity - reserved)
+  → syncStockToAllChannels({ availableQty })
+  → Kaufland API: PATCH /units/{id} { amount: availableQty }
+  → Wenn availableQty === 0: status: 'ONHOLD'
+  → eBay API: reviseFixedPriceItem({ quantity: availableQty })
+  → Kein weiterer Verkauf möglich ✅
+```
+
+**Sofort-Maßnahme (VOR dem Code-Fix):**
+Manuell ALLE Produkte mit `inventory.quantity === 0` identifizieren und deren Kaufland/eBay-Listings auf Menge 0 setzen. Kann per Script oder manuell über Kaufland-Portal erfolgen.
+
+**Verifikation nach Fix:**
+1. Produkt mit Bestand 2 → 1 Kaufland-Bestellung kommt rein → Kaufland zeigt sofort Menge 1 (nicht 2)
+2. Produkt mit Bestand 1 → Bestellung kommt rein → Kaufland zeigt 0 + Status ONHOLD → keine weitere Bestellung möglich
+3. Produkt mit Bestand 0 → Kaufland UND eBay zeigen 0 → Auto-Delist/ONHOLD
+4. listing-sync-runner erkennt Oversell-Situation → korrigiert sofort
+5. Keine Bestellung mehr möglich für Produkte mit Bestand 0
+
+### BUG-030 — Stornierung: Aufträge können nicht an Marktplätze kommuniziert werden (P0)
+
+**Symptom:** In AvyCloud kann ein Auftrag auf "Storniert" gesetzt werden (Status "cancelled" existiert in State-Machine). Aber: eBay und Kaufland erfahren NICHTS davon. Reservierter Bestand wird nicht freigegeben. Stornierte Aufträge blockieren Lagerbestand.
+
+**Was BEREITS existiert:**
+
+| Funktion | Datei | Status |
+|----------|-------|--------|
+| Status "cancelled" in State-Machine | `order-state-machine.js` Zeile 36, 43-56 | ✅ Existiert |
+| Transition-Regeln: pending/confirmed/picking/picked/packing/packed → cancelled | `order-state-machine.js` Zeile 43-50 | ✅ Existiert |
+| `cancelledAt` Timestamp bei Transition | `order-state-machine.js` Zeile 151 | ✅ Existiert |
+| `/api/orders/:id/transition` mit `{toStatus:'cancelled'}` | `orders.js` Zeile 1192-1220 | ✅ Existiert |
+| Bulk-Transition inkl. cancelled | `orders.js` Zeile 1578-1616 | ✅ Existiert |
+| `releaseReservation({tenantId, orderId})` | `stock-reservation.js` Zeile 86-107 | ✅ Code existiert, wird NIRGENDS aufgerufen |
+
+**Was FEHLT:**
+
+| # | Was | Datei | Fix |
+|---|-----|-------|-----|
+| 1 | **eBay Cancel API** | `backend/services/marketplace-tracking.js` oder neu | Neue Funktion `cancelOrderOnEbay({order})`: eBay Post-Order API `POST /post-order/v2/cancellation` mit `legacyOrderId` und `cancelReason`. Alternative: Seller-initiated Cancellation via `CancelTransaction` Trading API Call. |
+| 2 | **Kaufland Cancel API** | `backend/services/marketplace-tracking.js` oder neu | Neue Funktion `cancelOrderOnKaufland({order})`: Für jede Order-Unit: `PATCH /v2/order-units/{unitId}/cancel` mit `reason` und `note`. Kaufland-API unterstützt Cancel pro Unit. |
+| 3 | **Auto-Release Stock bei Cancel** | `backend/services/order-state-machine.js` → `transitionOrder()` | Wenn `toStatus === 'cancelled'` → automatisch `releaseReservation({tenantId, orderId})` aufrufen. Danach `syncStockToAllChannels()` für alle betroffenen Produkte → Bestand wieder auf Marktplätzen verfügbar. |
+| 4 | **Marketplace-Cancel bei Transition** | `backend/routes/orders.js` → `/api/orders/:id/transition` (Zeile 1192-1220) | Nach erfolgreicher Transition zu "cancelled": `pushCancellationToMarketplace({order})` async aufrufen (ähnlich Pattern wie `pushTrackingToMarketplace` bei Ship). |
+| 5 | **Cancel-Button im UI** | `components/OrderDetail.tsx` oder `MobileOperationsView.tsx` | "Stornieren" Button sichtbar wenn Status in [pending, confirmed, picking, picked, packing, packed]. Confirmation-Dialog mit Storno-Grund. |
+| 6 | **Storno-Gründe** | `order-state-machine.js` oder `orders.js` | Cancel-Gründe definieren: "Nicht auf Lager", "Kunde hat storniert", "Defekt/Beschädigt", "Adresse ungültig", "Sonstiges". Grund wird mit `cancelReason` in Firestore gespeichert UND an Marktplatz übermittelt. |
+
+**Datenfluss (Soll):**
+```
+User klickt "Stornieren" + wählt Grund
+  → POST /api/orders/:id/transition { toStatus: 'cancelled', note: 'Grund' }
+    → transitionOrder('cancelled') → setzt cancelledAt + cancelReason
+    → releaseReservation({ orderId }) → reservierter Stock wird freigegeben
+    → syncStockToAllChannels() → Bestand auf Marktplätzen aktualisiert
+    → pushCancellationToMarketplace({ order })
+      → eBay: POST /post-order/v2/cancellation ODER CancelTransaction
+      → Kaufland: PATCH /v2/order-units/{unitId}/cancel
+```
+
+**Verifikation nach Fix:**
+1. Auftrag stornieren → Status = "Storniert", cancelledAt gesetzt
+2. Stock-Reservierung freigegeben → Bestand steigt
+3. eBay/Kaufland erhalten Cancel-Benachrichtigung
+4. Stornierter Bestand wird sofort auf anderen Marktplätzen wieder verfügbar
+5. Bulk-Stornierung: Mehrere Aufträge gleichzeitig stornieren → alle Marktplätze informiert
+
+### BUG-031 — Status-Sync zu Marktplätzen unvollständig (P1)
+
+**Symptom:** Wenn ein Auftrag in AvyCloud auf "Versendet" gesetzt wird, wird der Marktplatz NUR informiert wenn das über den SendCloud-Ship-Flow passiert. Manueller Status-Wechsel (z.B. über Transition-Endpoint oder UI-Button) pusht NICHTS an eBay/Kaufland.
+
+**Was BEREITS existiert (funktioniert):**
+
+| Funktion | Datei | Zeile |
+|----------|-------|-------|
+| `pushTrackingToMarketplace({orderId, trackingNumber, carrier})` | `marketplace-tracking.js` | Hauptfunktion |
+| eBay: `CompleteSale` mit Tracking + `<Shipped>true</Shipped>` | `marketplace-tracking.js` | 87-119 |
+| Kaufland: `PATCH /v2/order-units/{unitId}/ship` mit Tracking + Carrier | `marketplace-tracking.js` | 129-180 |
+| Carrier-Mapping eBay (6 Carrier) + Kaufland (8 Carrier) | `marketplace-tracking.js` | 24-48 |
+| Aufruf bei Ship-Endpoint: async `pushTrackingToMarketplace()` | `orders.js` | 1328-1335 |
+
+**Was FEHLT:**
+
+| # | Problem | Fix |
+|---|---------|-----|
+| 1 | **Manueller Status→shipped pusht NICHT** | `orders.js` → `/api/orders/:id/transition` (Zeile 1192-1220): Wenn `toStatus === 'shipped'` UND Order hat `trackingNumber` → `pushTrackingToMarketplace()` aufrufen. |
+| 2 | **Bulk-Transition→shipped pusht NICHT** | `orders.js` → `/api/orders/bulk-transition` (Zeile 1578-1616): Gleiche Logik — für jede auf "shipped" gesetzte Order mit Tracking → Push. |
+| 3 | **Kein Status-Push für packed** | Optional P2: Kaufland unterstützt `PATCH /v2/order-units/{unitId}/send` mit Status-Updates. eBay hat kein explizites "packed" Signal. |
+| 4 | **Kein Status-Push für cancelled** | → Siehe BUG-030 (separate Implementierung) |
+| 5 | **Fehler-Handling: Fire-and-Forget** | `marketplace-tracking.js` loggt Fehler nur mit `console.error`. Kein Retry, kein Speichern fehlgeschlagener Pushes. → Retry-Queue analog zu BUG-028 Fix. |
+
+**Betroffene Dateien:**
+
+| Datei | Was ändern |
+|-------|-----------|
+| `backend/routes/orders.js` → `/api/orders/:id/transition` (Zeile 1192-1220) | Nach Transition: Wenn `toStatus === 'shipped'` und Order hat `trackingNumber` → `pushTrackingToMarketplace()`. Wenn `toStatus === 'cancelled'` → `pushCancellationToMarketplace()` (BUG-030). |
+| `backend/routes/orders.js` → `/api/orders/bulk-transition` (Zeile 1578-1616) | Gleiche Logik für Bulk: Für jede transitionierte Order Status-spezifischen Marketplace-Push. |
+| `backend/services/marketplace-tracking.js` | **Retry-Mechanismus:** Bei Fehler → in `marketplace_push_failures` Collection speichern. Listing-sync-runner oder separater Retry-Job pickt fehlgeschlagene Pushes auf. |
+
+**Verifikation nach Fix:**
+1. Auftrag manuell auf "shipped" setzen (mit vorhandener Tracking-Nr) → eBay/Kaufland erhalten Tracking
+2. Bulk-Transition 5 Aufträge → shipped → alle 5 Marktplätze erhalten Tracking
+3. Push-Fehler → Retry nach 60s → erfolgreicher Push beim 2. Versuch
+4. Auftrag ohne Tracking auf "shipped" → Push wird übersprungen (kein leerer Tracking-Push)
 
 ---
 

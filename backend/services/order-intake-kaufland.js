@@ -137,6 +137,7 @@ async function syncKauflandOrders({ tenantId = 'default', lookbackDays = 7 } = {
   let totalSynced = 0;
   let totalSkipped = 0;
   let totalEntries = 0;
+  const newOrderSkus = new Set();
 
   do {
     const result = await fetchKauflandOrders({
@@ -149,13 +150,44 @@ async function syncKauflandOrders({ tenantId = 'default', lookbackDays = 7 } = {
 
     for (const order of result.orders) {
       const saved = await saveOrderIfNew({ tenantId, order });
-      if (saved) totalSynced++;
-      else totalSkipped++;
+      if (saved) {
+        totalSynced++;
+        // Collect SKUs from newly imported orders for stock sync
+        for (const item of (order.items || [])) {
+          const sku = String(item.sku || '').trim();
+          if (sku) newOrderSkus.add(sku);
+        }
+      } else {
+        totalSkipped++;
+      }
     }
 
     offset += result.orders.length;
     if (result.orders.length < 100) break;
   } while (offset < totalEntries && offset < 5000); // Safety limit
+
+  // After importing new orders, push updated availability to marketplaces
+  if (newOrderSkus.size > 0) {
+    try {
+      const { syncStockToAllChannels } = require('./stock-sync-dispatcher');
+      const db = getDb();
+      const skuArray = Array.from(newOrderSkus);
+      for (let i = 0; i < skuArray.length; i += 10) {
+        const chunk = skuArray.slice(i, i + 10);
+        const snap = await db.collection('products_v2')
+          .where('details.identifiers.sku', 'in', chunk)
+          .get();
+        for (const doc of snap.docs) {
+          const product = { id: doc.id, ...doc.data() };
+          syncStockToAllChannels({ tenantId, product, reason: 'kaufland-order-intake' })
+            .catch((err) => console.warn(`[kaufland-intake] stock sync failed for ${doc.id}: ${err.message}`));
+        }
+      }
+      console.log(`[kaufland-intake] triggered stock sync for ${newOrderSkus.size} SKUs from ${totalSynced} new orders`);
+    } catch (err) {
+      console.warn(`[kaufland-intake] stock sync after import failed: ${err.message}`);
+    }
+  }
 
   return { synced: totalSynced, skipped: totalSkipped, total: totalEntries };
 }

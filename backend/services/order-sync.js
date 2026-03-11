@@ -505,6 +505,7 @@ async function syncNewOrders() {
     const newOrders = orders.filter((o) => o.status === 'new');
     if (newOrders.length > 0) {
       const { reserveStock } = require('./stock-reservation');
+      const { syncStockForOrderItems } = require('./stock-sync-dispatcher');
       for (const order of newOrders) {
         const items = (order.items || [])
           .filter((item) => item.sku && item.quantity > 0)
@@ -517,6 +518,12 @@ async function syncNewOrders() {
           });
           if (result.reserved) {
             console.log(`[order-sync] reserved stock for order ${order.id}: ${result.count} items`);
+            // Push updated availability to marketplaces (prevents oversell)
+            syncStockForOrderItems({
+              tenantId: 'default',
+              orderId: order.id || order.baselinkerId,
+              reason: 'order-intake',
+            }).catch((err) => console.warn(`[order-sync] stock sync after reserve failed: ${err.message}`));
           }
         }
       }

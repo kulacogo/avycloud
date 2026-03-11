@@ -14,7 +14,37 @@ const { firestore } = require('../lib/firestore');
 const SYNC_LOG_COLLECTION = 'stock_sync_log';
 
 /**
+ * Compute true available quantity for a product by subtracting
+ * active reservations from physical stock.
+ *
+ * @param {Object} product - Product with inventory.quantity and identification.sku
+ * @param {string} tenantId
+ * @returns {Promise<{ physicalQty: number, reservedQty: number, availableQty: number }>}
+ */
+async function computeAvailableQuantity(product, tenantId = 'default') {
+  const physicalQty = Number(product?.inventory?.quantity ?? 0);
+  const sku = String(product?.identification?.sku || product?.details?.identifiers?.sku || '').trim();
+  const productId = String(product?.id || '');
+
+  let reservedQty = 0;
+  try {
+    const { getReservedQuantity } = require('./stock-reservation');
+    if (sku) {
+      reservedQty = await getReservedQuantity({ tenantId, sku });
+    } else if (productId) {
+      reservedQty = await getReservedQuantity({ tenantId, productId });
+    }
+  } catch (err) {
+    console.warn(`[stock-sync] reservation lookup failed for ${sku || productId}: ${err.message}`);
+  }
+
+  const availableQty = Math.max(0, physicalQty - reservedQty);
+  return { physicalQty, reservedQty, availableQty };
+}
+
+/**
  * Sync stock quantity to all connected marketplace channels for a product.
+ * Computes real availableQuantity from physical stock minus active reservations.
  *
  * @param {Object} params
  * @param {string} params.tenantId - Tenant ID (default: 'default')
@@ -28,8 +58,8 @@ async function syncStockToAllChannels({ tenantId = 'default', product, reason = 
   }
 
   const productId = String(product.id);
-  const quantity = product?.inventory?.quantity ?? 0;
-  const availableQuantity = product?.inventory?.availableQuantity ?? quantity;
+  const { physicalQty: quantity, reservedQty, availableQty: availableQuantity } =
+    await computeAvailableQuantity(product, tenantId);
   const results = [];
 
   // --- eBay ---
@@ -279,4 +309,5 @@ module.exports = {
   syncStockWithRetry,
   syncStockForOrderItems,
   syncPriceToAllChannels,
+  computeAvailableQuantity,
 };

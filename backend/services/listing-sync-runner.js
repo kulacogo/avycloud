@@ -212,15 +212,21 @@ async function syncKauflandUnitsToCache() {
 // ─── Auto-Heal: Detect and fix stock discrepancies ──────────────────────────
 
 async function autoHealStockDiscrepancies() {
-  const { syncStockToAllChannels } = require('./stock-sync-dispatcher');
+  const { syncStockToAllChannels, computeAvailableQuantity } = require('./stock-sync-dispatcher');
 
   // Check eBay listings for quantity mismatches
   const ebaySnap = await firestore.collection('ebayListingsLive')
     .where('active', '==', true)
     .get();
-  if (ebaySnap.empty) return;
 
-  // Build itemId → marketplaceQty map
+  // Also check Kaufland units
+  const kauflandSnap = await firestore.collection('kauflandUnitsLive')
+    .where('active', '==', true)
+    .get();
+
+  if (ebaySnap.empty && kauflandSnap.empty) return;
+
+  // Build SKU → marketplace qty maps
   const ebayQtyMap = new Map();
   for (const doc of ebaySnap.docs) {
     const data = doc.data();
@@ -230,12 +236,22 @@ async function autoHealStockDiscrepancies() {
     }
   }
 
-  if (ebayQtyMap.size === 0) return;
+  const kauflandQtyMap = new Map();
+  for (const doc of kauflandSnap.docs) {
+    const data = doc.data();
+    const sku = String(data?.id_offer || '').trim();
+    if (sku) {
+      kauflandQtyMap.set(sku, Number(data?.amount ?? 0));
+    }
+  }
 
-  // Query products with matching SKUs in chunks
-  const skus = Array.from(ebayQtyMap.keys());
+  // Merge all SKUs that need checking
+  const allSkus = new Set([...ebayQtyMap.keys(), ...kauflandQtyMap.keys()]);
+  if (allSkus.size === 0) return;
+
+  const skus = Array.from(allSkus);
   let healed = 0;
-  const MAX_HEALS_PER_CYCLE = 10; // Limit to avoid API rate limits
+  const MAX_HEALS_PER_CYCLE = 10;
 
   for (let i = 0; i < skus.length && healed < MAX_HEALS_PER_CYCLE; i += 10) {
     const chunk = skus.slice(i, i + 10);
@@ -247,12 +263,22 @@ async function autoHealStockDiscrepancies() {
         if (healed >= MAX_HEALS_PER_CYCLE) break;
         const product = { id: doc.id, ...doc.data() };
         const sku = String(product?.identification?.sku || '').trim();
-        const warehouseQty = product?.inventory?.availableQuantity ?? product?.inventory?.quantity ?? 0;
-        const marketplaceQty = ebayQtyMap.get(sku);
 
-        if (marketplaceQty !== undefined && marketplaceQty !== warehouseQty) {
-          console.log(`[ListingSyncRunner] Auto-heal: ${sku} warehouse=${warehouseQty} ebay=${marketplaceQty} → pushing`);
-          syncStockToAllChannels({ tenantId: 'default', product, reason: 'auto-heal' })
+        // Compute true available quantity (physical - reserved)
+        const { availableQty } = await computeAvailableQuantity(product, 'default');
+
+        const ebayMpQty = ebayQtyMap.get(sku);
+        const kauflandMpQty = kauflandQtyMap.get(sku);
+        const mismatch =
+          (ebayMpQty !== undefined && ebayMpQty !== availableQty) ||
+          (kauflandMpQty !== undefined && kauflandMpQty !== availableQty);
+
+        if (mismatch) {
+          const isOversell = availableQty === 0 && ((ebayMpQty || 0) > 0 || (kauflandMpQty || 0) > 0);
+          console.log(
+            `[ListingSyncRunner] Auto-heal: ${sku} available=${availableQty} ebay=${ebayMpQty ?? '-'} kaufland=${kauflandMpQty ?? '-'}${isOversell ? ' ⚠️ OVERSELL' : ''} → pushing`
+          );
+          syncStockToAllChannels({ tenantId: 'default', product, reason: isOversell ? 'oversell-fix' : 'auto-heal' })
             .catch((err) => console.warn(`[auto-heal] push failed for ${sku}: ${err.message}`));
           healed++;
         }
