@@ -58,14 +58,31 @@ async function syncStockToAllChannels({ tenantId = 'default', product, reason = 
   }
 
   const productId = String(product.id);
+
+  // Read fresh product data from Firestore to avoid stale quantities
+  let freshProduct = product;
+  try {
+    const freshDoc = await firestore.collection('products_v2').doc(productId).get();
+    if (freshDoc.exists) {
+      freshProduct = { id: freshDoc.id, ...freshDoc.data() };
+    }
+  } catch (err) {
+    console.warn(`[stock-sync] fresh read failed for ${productId}, using passed object: ${err.message}`);
+  }
+
   const { physicalQty: quantity, reservedQty, availableQty: availableQuantity } =
-    await computeAvailableQuantity(product, tenantId);
+    await computeAvailableQuantity(freshProduct, tenantId);
   const results = [];
+  const isZeroStock = availableQuantity === 0;
+
+  if (isZeroStock) {
+    console.warn(`[stock-sync] ⚠️ ZERO STOCK product=${productId} physical=${quantity} reserved=${reservedQty} → pushing 0 to all channels`);
+  }
 
   // --- eBay ---
-  const ebayItemId = product?.ops?.ebay?.itemId
-    || product?.ops?.ebay?.item_id
-    || product?.marketplace?.ebay?.itemId;
+  const ebayItemId = freshProduct?.ops?.ebay?.itemId
+    || freshProduct?.ops?.ebay?.item_id
+    || freshProduct?.marketplace?.ebay?.itemId;
 
   if (ebayItemId) {
     try {
@@ -75,9 +92,9 @@ async function syncStockToAllChannels({ tenantId = 'default', product, reason = 
         quantity: Math.max(0, availableQuantity),
       });
       const status = result?.ack === 'Success' || result?.ack === 'Warning' ? 'success' : 'failed';
-      results.push({ channel: 'ebay', status, itemId: ebayItemId, quantityPushed: availableQuantity });
+      results.push({ channel: 'ebay', status, itemId: ebayItemId, quantityPushed: availableQuantity, zeroStock: isZeroStock });
       console.log(
-        `[stock-sync] ebay product=${productId} itemId=${ebayItemId} qty=${availableQuantity} status=${status}`
+        `[stock-sync] ebay product=${productId} itemId=${ebayItemId} qty=${availableQuantity} status=${status}${isZeroStock ? ' (DELIST)' : ''}`
       );
     } catch (err) {
       results.push({ channel: 'ebay', status: 'error', error: err?.message });
@@ -89,19 +106,17 @@ async function syncStockToAllChannels({ tenantId = 'default', product, reason = 
   }
 
   // --- Kaufland ---
-  const kauflandUnitId = product?.ops?.kaufland?.unitId
-    || product?.ops?.kaufland?.id_unit
-    || product?.marketplace?.kaufland?.unitId;
+  const kauflandUnitId = freshProduct?.ops?.kaufland?.unitId
+    || freshProduct?.ops?.kaufland?.id_unit
+    || freshProduct?.marketplace?.kaufland?.unitId;
 
   if (kauflandUnitId) {
     try {
       const { updateUnit } = require('../lib/kaufland-api');
-      // updateUnit reads quantity from product.inventory.availableQuantity or inventory.quantity
-      // We ensure it's set correctly on the product object
       const productWithAvailable = {
-        ...product,
+        ...freshProduct,
         inventory: {
-          ...(product.inventory || {}),
+          ...(freshProduct.inventory || {}),
           availableQuantity,
         },
       };
@@ -111,9 +126,10 @@ async function syncStockToAllChannels({ tenantId = 'default', product, reason = 
         status: result?.updated ? 'success' : 'failed',
         unitId: kauflandUnitId,
         quantityPushed: availableQuantity,
+        zeroStock: isZeroStock,
       });
       console.log(
-        `[stock-sync] kaufland product=${productId} unitId=${kauflandUnitId} qty=${availableQuantity} status=success`
+        `[stock-sync] kaufland product=${productId} unitId=${kauflandUnitId} qty=${availableQuantity} status=success${isZeroStock ? ' (DELIST)' : ''}`
       );
     } catch (err) {
       results.push({ channel: 'kaufland', status: 'error', error: err?.message });
@@ -127,7 +143,7 @@ async function syncStockToAllChannels({ tenantId = 'default', product, reason = 
   // --- BaseLinker (handled by existing backgroundSyncProductStockToBaseLinker in index.js) ---
   // We don't call it here — it's already triggered in the warehouse route.
   // Just log that BL was skipped (handled separately).
-  const blLinked = Boolean(product?.ops?.base_product_id || product?.ops?.baselinker?.product_id);
+  const blLinked = Boolean(freshProduct?.ops?.base_product_id || freshProduct?.ops?.baselinker?.product_id);
   if (blLinked) {
     results.push({ channel: 'baselinker', status: 'handled_separately' });
   }
@@ -139,7 +155,9 @@ async function syncStockToAllChannels({ tenantId = 'default', product, reason = 
       productId,
       reason,
       quantity,
+      reservedQty,
       availableQuantity,
+      zeroStock: isZeroStock,
       results,
       createdAt: new Date().toISOString(),
     });

@@ -10,6 +10,8 @@
 const { Firestore, FieldValue } = require('@google-cloud/firestore');
 const { callTradingApi } = require('../lib/ebay-trading-api');
 const { getNextNumber } = require('./number-sequence');
+const { reserveStock } = require('./stock-reservation');
+const { syncStockWithRetry } = require('./stock-sync-dispatcher');
 
 const ORDERS_COLLECTION = 'orders';
 
@@ -128,6 +130,8 @@ async function syncEbayOrders({ tenantId = 'default', lookbackDays = 7 } = {}) {
   let totalSynced = 0;
   let totalSkipped = 0;
   let totalEntries = 0;
+  const newOrderSkus = new Set();
+  const newOrders = []; // Track newly saved orders for reservation
 
   do {
     const result = await fetchEbayOrders({
@@ -141,13 +145,57 @@ async function syncEbayOrders({ tenantId = 'default', lookbackDays = 7 } = {}) {
 
     for (const order of result.orders) {
       const saved = await saveOrderIfNew({ tenantId, order });
-      if (saved) totalSynced++;
-      else totalSkipped++;
+      if (saved) {
+        totalSynced++;
+        newOrders.push(order);
+        for (const item of (order.items || [])) {
+          const sku = String(item.sku || '').trim();
+          if (sku) newOrderSkus.add(sku);
+        }
+      } else {
+        totalSkipped++;
+      }
     }
 
     page++;
     if (page > result.totalPages) break;
   } while (page <= 50); // Safety limit
+
+  // Reserve stock for newly imported orders
+  for (const order of newOrders) {
+    try {
+      const orderId = `ebay__${order.marketplaceOrderId}`;
+      const items = (order.items || []).map((item) => ({
+        sku: item.sku || null,
+        quantity: item.quantity || 1,
+      }));
+      await reserveStock({ tenantId, orderId, items });
+    } catch (err) {
+      console.warn(`[ebay-intake] reserveStock failed for ${order.marketplaceOrderId}: ${err.message}`);
+    }
+  }
+
+  // Push updated availability to all marketplaces
+  if (newOrderSkus.size > 0) {
+    try {
+      const db = getDb();
+      const skuArray = Array.from(newOrderSkus);
+      for (let i = 0; i < skuArray.length; i += 10) {
+        const chunk = skuArray.slice(i, i + 10);
+        const snap = await db.collection('products_v2')
+          .where('details.identifiers.sku', 'in', chunk)
+          .get();
+        for (const doc of snap.docs) {
+          const product = { id: doc.id, ...doc.data() };
+          syncStockWithRetry({ tenantId, product, reason: 'ebay-order-intake' })
+            .catch((err) => console.warn(`[ebay-intake] stock sync failed for ${doc.id}: ${err.message}`));
+        }
+      }
+      console.log(`[ebay-intake] triggered stock sync for ${newOrderSkus.size} SKUs from ${totalSynced} new orders`);
+    } catch (err) {
+      console.warn(`[ebay-intake] stock sync after import failed: ${err.message}`);
+    }
+  }
 
   return { synced: totalSynced, skipped: totalSkipped, total: totalEntries };
 }

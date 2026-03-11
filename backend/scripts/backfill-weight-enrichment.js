@@ -31,7 +31,7 @@
 
 const { getAllProducts, saveProduct } = require('../lib/firestore');
 const { saveProductV2 } = require('../lib/product-store');
-const { callGeminiStructured } = require('../lib/gemini-structured');
+const { getGeminiClient } = require('../lib/gemini-client');
 
 // ---------------------------------------------------------------------------
 // Weight parsing (copied from firestore.js — not exported there)

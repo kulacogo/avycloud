@@ -10,6 +10,7 @@
 const { Firestore, FieldValue } = require('@google-cloud/firestore');
 const { kauflandRequest } = require('../lib/kaufland-api');
 const { getNextNumber } = require('./number-sequence');
+const { reserveStock } = require('./stock-reservation');
 
 const ORDERS_COLLECTION = 'orders';
 
@@ -138,6 +139,7 @@ async function syncKauflandOrders({ tenantId = 'default', lookbackDays = 7 } = {
   let totalSkipped = 0;
   let totalEntries = 0;
   const newOrderSkus = new Set();
+  const newOrders = [];
 
   do {
     const result = await fetchKauflandOrders({
@@ -152,7 +154,7 @@ async function syncKauflandOrders({ tenantId = 'default', lookbackDays = 7 } = {
       const saved = await saveOrderIfNew({ tenantId, order });
       if (saved) {
         totalSynced++;
-        // Collect SKUs from newly imported orders for stock sync
+        newOrders.push(order);
         for (const item of (order.items || [])) {
           const sku = String(item.sku || '').trim();
           if (sku) newOrderSkus.add(sku);
@@ -166,10 +168,24 @@ async function syncKauflandOrders({ tenantId = 'default', lookbackDays = 7 } = {
     if (result.orders.length < 100) break;
   } while (offset < totalEntries && offset < 5000); // Safety limit
 
-  // After importing new orders, push updated availability to marketplaces
+  // Reserve stock for newly imported orders
+  for (const order of newOrders) {
+    try {
+      const orderId = `kaufland__${order.marketplaceOrderId}`;
+      const items = (order.items || []).map((item) => ({
+        sku: item.sku || null,
+        quantity: item.quantity || 1,
+      }));
+      await reserveStock({ tenantId, orderId, items });
+    } catch (err) {
+      console.warn(`[kaufland-intake] reserveStock failed for ${order.marketplaceOrderId}: ${err.message}`);
+    }
+  }
+
+  // After importing new orders, push updated availability to marketplaces (with retry)
   if (newOrderSkus.size > 0) {
     try {
-      const { syncStockToAllChannels } = require('./stock-sync-dispatcher');
+      const { syncStockWithRetry } = require('./stock-sync-dispatcher');
       const db = getDb();
       const skuArray = Array.from(newOrderSkus);
       for (let i = 0; i < skuArray.length; i += 10) {
@@ -179,7 +195,7 @@ async function syncKauflandOrders({ tenantId = 'default', lookbackDays = 7 } = {
           .get();
         for (const doc of snap.docs) {
           const product = { id: doc.id, ...doc.data() };
-          syncStockToAllChannels({ tenantId, product, reason: 'kaufland-order-intake' })
+          syncStockWithRetry({ tenantId, product, reason: 'kaufland-order-intake' })
             .catch((err) => console.warn(`[kaufland-intake] stock sync failed for ${doc.id}: ${err.message}`));
         }
       }

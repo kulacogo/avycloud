@@ -22,7 +22,7 @@ const LISTING_SYNC_INITIAL_DELAY_MS = parseInt(
   process.env.LISTING_SYNC_INITIAL_DELAY_MS || String(3 * 60 * 1000),
   10
 );
-const PRODUCTS_COLLECTION = process.env.PRODUCT_COLLECTION || 'products';
+const PRODUCTS_COLLECTION = process.env.PRODUCT_COLLECTION || 'products_v2';
 
 let runnerTimer = null;
 let runInFlight = false;
@@ -212,7 +212,7 @@ async function syncKauflandUnitsToCache() {
 // ─── Auto-Heal: Detect and fix stock discrepancies ──────────────────────────
 
 async function autoHealStockDiscrepancies() {
-  const { syncStockToAllChannels, computeAvailableQuantity } = require('./stock-sync-dispatcher');
+  const { syncStockWithRetry, computeAvailableQuantity } = require('./stock-sync-dispatcher');
 
   // Check eBay listings for quantity mismatches
   const ebaySnap = await firestore.collection('ebayListingsLive')
@@ -251,7 +251,7 @@ async function autoHealStockDiscrepancies() {
 
   const skus = Array.from(allSkus);
   let healed = 0;
-  const MAX_HEALS_PER_CYCLE = 10;
+  const MAX_HEALS_PER_CYCLE = 50;
 
   for (let i = 0; i < skus.length && healed < MAX_HEALS_PER_CYCLE; i += 10) {
     const chunk = skus.slice(i, i + 10);
@@ -278,7 +278,7 @@ async function autoHealStockDiscrepancies() {
           console.log(
             `[ListingSyncRunner] Auto-heal: ${sku} available=${availableQty} ebay=${ebayMpQty ?? '-'} kaufland=${kauflandMpQty ?? '-'}${isOversell ? ' ⚠️ OVERSELL' : ''} → pushing`
           );
-          syncStockToAllChannels({ tenantId: 'default', product, reason: isOversell ? 'oversell-fix' : 'auto-heal' })
+          syncStockWithRetry({ tenantId: 'default', product, reason: isOversell ? 'oversell-fix' : 'auto-heal' })
             .catch((err) => console.warn(`[auto-heal] push failed for ${sku}: ${err.message}`));
           healed++;
         }
