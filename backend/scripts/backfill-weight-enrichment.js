@@ -217,9 +217,28 @@ async function estimateWeightViaGemini(product) {
     responseSchema: WEIGHT_RESPONSE_SCHEMA,
     temperature: 0.1,
     maxOutputTokens: 256,
+    stopSequences: [],
   });
 
-  const parsed = JSON.parse(raw);
+  let parsed;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    // Gemini sometimes returns text instead of JSON — try to extract JSON from response
+    const jsonMatch = raw.match(/\{[\s\S]*"weightKg"\s*:\s*[\d.]+[\s\S]*\}/);
+    if (jsonMatch) {
+      parsed = JSON.parse(jsonMatch[0]);
+    } else {
+      // Last resort: try to extract a number from the text
+      const numMatch = raw.match(/([\d]+(?:[.,]\d+)?)\s*(?:kg)?/i);
+      if (numMatch) {
+        parsed = { weightKg: parseFloat(numMatch[1].replace(',', '.')), confidence: 'low', reasoning: 'extracted from text' };
+      } else {
+        throw new Error(`Cannot parse Gemini response: ${raw.slice(0, 100)}`);
+      }
+    }
+  }
+
   const weightKg = normalizeWeightKgNumber(parsed.weightKg);
 
   if (!weightKg || weightKg <= 0 || weightKg > 500) {

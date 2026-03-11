@@ -107,10 +107,21 @@ async function callGeminiStructured({
         .map((p) => (typeof p?.text === 'string' ? p.text : ''))
         .filter((t) => t && t.trim().length > 0)
     : [];
-  const textPayload = textParts.join('').trim();
+  let textPayload = textParts.join('').trim();
   if (!textPayload) {
     throw new Error('Gemini structured call returned empty payload.');
   }
+
+  // Strip markdown code fences if Gemini wraps JSON in ```json ... ```
+  if (textPayload.startsWith('```')) {
+    textPayload = textPayload.replace(/^```(?:json)?\s*\n?/, '').replace(/\n?```\s*$/, '').trim();
+  }
+  // Strip leading non-JSON text (e.g. "Here is the JSON requested:\n")
+  const jsonStart = textPayload.indexOf('{');
+  if (jsonStart > 0 && jsonStart < 200) {
+    textPayload = textPayload.slice(jsonStart).trim();
+  }
+
   return textPayload;
 }
 

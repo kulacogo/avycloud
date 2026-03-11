@@ -476,11 +476,13 @@
 | BUG-025 | **KRITISCH: Versandlabel falsche Carrier-Zuordnung** — 4kg Paket bekommt DHL Kleinpaket 0-1kg statt DPD Classic 0-5kg | P0 | ✅ Fixed (order-level weight + type-safe rule matching) |
 | BUG-026 | **Nicht versendete Bestellungen zeigen Verpackt/Versendet Zeitstempel** — State-Machine setzt Timestamps eager, bevor Aktion bestätigt ist | P1 | ✅ Fixed (caller-provided timestamps, tracking-gated transitions, defensive UI) |
 | BUG-027 | **eBay-Filter in Inventar/Produktdaten zeigt falsche Ergebnisse** — "Gelistet" = 0 Ergebnisse, "Nicht gelistet" enthält gelistete Artikel | P1 | ✅ Fixed (Filter-Logik an Badge-Logik angeglichen: viewItemUrl/SKU-Index-Priorität für eBay + Kaufland) |
-| BUG-028 | **Marketplace-Seiten: Inkonsistente Lager/Marktplatz-Mengen** — Warehouse-Qty ≠ Marketplace-Qty, kein Real-Time-Sync bei externen Verkäufen | P1 | ✅ Fixed (P1: Retry-Mechanismus, Stock-Sync nach Pack/Ship, Listing-Sync 10→3 Min, Auto-Heal bei Diskrepanz) |
-| BUG-029 | **🔥 OVERSELL: Artikel mit Bestand 0 werden auf Marktplätzen verkauft** — Kaufland zeigt Menge >0 obwohl Inventar 0 ist. Kein Stock-Sync bei Order-Intake. availableQuantity nie gespeichert. | P0 SOFORT | ✅ Fixed (computeAvailableQuantity aus Reservierungen, Stock-Sync bei Order-Intake + Order-Sync, Auto-Heal mit Oversell-Detection, Kaufland-UI frischer Bestand) |
+| BUG-028 | **Marketplace-Seiten: Inkonsistente Lager/Marktplatz-Mengen** — Warehouse-Qty ≠ Marketplace-Qty, kein Real-Time-Sync bei externen Verkäufen | P1 | ⚠️ Teilweise Fixed (Pack/Ship sync ✅, Listing-Sync 3min ✅, Auto-Heal ✅ — ABER: warehouse stock-in/out Fire-and-Forget ohne Retry, Auto-Heal nur 10/Zyklus → **siehe BUG-033**) |
+| BUG-029 | **🔥 OVERSELL: Artikel mit Bestand 0 werden auf Marktplätzen verkauft** — Kaufland zeigt Menge >0 obwohl Inventar 0 ist. Kein Stock-Sync bei Order-Intake. availableQuantity nie gespeichert. | P0 SOFORT | ⚠️ Teilweise Fixed (computeAvailableQuantity ✅, Kaufland-Intake hat Sync ✅ — ABER: eBay-Intake ZERO Sync ❌, reserveStock() NIE aufgerufen ❌, Fire-and-Forget ❌ → **siehe BUG-033**) |
 | BUG-030 | **Stornierung fehlt: Aufträge können nicht storniert + an Marktplätze kommuniziert werden** — Status "cancelled" existiert intern, aber kein Cancel-API-Call zu eBay/Kaufland. Stock-Reservierung wird nicht freigegeben. | P0 | ✅ Fixed (eBay+Kaufland Cancel-API, auto releaseReservation + syncStock bei Cancel, pushCancellationToMarketplace bei Transition + Bulk) |
 | BUG-031 | **Status-Sync zu Marktplätzen unvollständig** — Tracking-Push nur bei SendCloud-Ship, nicht bei manuellem Status-Wechsel. Kein Status-Push für packed/cancelled/on_hold. | P1 | ✅ Fixed (pushTrackingToMarketplace bei manueller/bulk Transition zu shipped, Cancel-Push via BUG-030) |
 | BUG-032 | **Produkt-Gewicht fehlt bei fast allen Produkten** — Identify/Improve extrahieren kein Gewicht. Mandatory für Carrier-Zuordnung. Initial-Backfill + Pipeline-Fix nötig. | P0 | 🔴 Offen |
+| BUG-033 | **🔥 BESTAND-SYNC UNVOLLSTÄNDIG: eBay Order-Intake hat ZERO Stock-Sync** — eBay-Bestellungen importiert ohne jeglichen Stock-Sync zu Kaufland. `reserveStock()` wird NIE aufgerufen. Fire-and-Forget überall. Auto-Heal nur 10 Produkte/Zyklus. | P0 SOFORT | 🔴 Offen |
+| BUG-034 | **LISTING-STATUS INKONSISTENT: Kein Auto-Delist bei Bestand 0, Status-Propagation lückenhaft** — Wenn Bestand=0, kein ONHOLD/Delist auf Kaufland/eBay. Listing-Status nur alle 3 Min gecached. Case-Sensitive Status-Check ("Active" vs "active"). | P0 | 🔴 Offen |
 | BUG-SSE | Token-in-Query-Parameter für SSE-Streams leakt | P1 | 🔴 Offen |
 | BUG-006 | EbayListingsView.tsx (alte Gap-Analysis) noch da — LÖSCHEN | P1 | ✅ Fixed (deleted) |
 | BUG-008 | eBay-Seite zeigt Gap-Analyse-Daten statt Listing-Management | P1 | ✅ Fixed (route already correct, old component deleted) |
@@ -1040,6 +1042,111 @@ User klickt "Stornieren" + wählt Grund
 2. Neues Produkt identifizieren → Gewicht wird automatisch extrahiert/geschätzt
 3. Quality-Gate flaggt Produkte ohne Gewicht als Error
 4. Neue Kaufland-Bestellung → `order.items[].weight` aus Produkt befüllt → korrekter Carrier
+
+---
+
+### BUG-033 — 🔥 BESTAND-SYNC UNVOLLSTÄNDIG: 5-Schichten-Problem (P0 SOFORT)
+
+**Symptom:** Lager und Marktplätze zeigen stark inkonsistente Bestände. Oversell tritt weiterhin auf trotz BUG-029 "Fix". Bestände divergieren nach Order-Intake, Stock-In/Out und bei Netzwerkfehlern.
+
+**Deep-Dive Code-Audit (2026-03-11) — tatsächlicher IST-Zustand:**
+
+**Schicht 1: eBay Order-Intake = ZERO Stock-Sync (KRITISCH)**
+
+`backend/services/order-intake-ebay.js` (Zeile 142-152): Importiert eBay-Bestellungen und speichert sie, ruft aber WEDER `syncStockToAllChannels()` NOCH `reserveStock()` auf. Ergebnis: eBay-Bestellung kommt rein → Kaufland zeigt weiterhin den alten Bestand → Oversell.
+
+**Schicht 2: reserveStock() wird NIE aufgerufen (KRITISCH)**
+
+Weder `order-intake-ebay.js` noch `order-intake-kaufland.js` rufen `reserveStock()` auf. Die Funktion existiert in `stock-reservation.js` (Zeile 29-76), wird aber **nirgendwo im Order-Intake-Flow** verwendet. `computeAvailableQuantity()` subtrahiert Reservierungen — aber es gibt keine Reservierungen zum Subtrahieren.
+
+**Schicht 3: Fire-and-Forget ohne Retry (fast überall)**
+
+| Aufruf-Stelle | Awaited? | setTimeout? | Retry? |
+|---------------|----------|-------------|--------|
+| `order-intake-kaufland.js:182` | ❌ | ❌ | ❌ (nutzt `syncStockToAllChannels` statt `syncStockWithRetry`) |
+| `warehouse.js:412` (stock-in) | ❌ | ✅ (0ms) | ❌ |
+| `warehouse.js:456` (stock-out) | ❌ | ✅ (0ms) | ❌ |
+| `listing-sync-runner.js:281` (auto-heal) | ❌ | ❌ | ❌ |
+| `orders.js:931` (pack) | ❌ | ❌ | ✅ (syncStockWithRetry, 1x 30s) |
+| `orders.js:1364` (ship) | ❌ | ❌ | ✅ (syncStockWithRetry, 1x 30s) |
+
+Nur Pack/Ship nutzen `syncStockWithRetry()`. Alle anderen → Fire-and-Forget. Netzwerk-Timeout = verlorener Sync.
+
+**Schicht 4: Auto-Heal nur 10 Produkte pro Zyklus**
+
+`listing-sync-runner.js:254`: `const MAX_HEALS_PER_CYCLE = 10;` — Bei 100 Oversells dauert es 30 Minuten bis alle geheilt sind.
+
+**Schicht 5: Stale Product-Objekt beim Sync**
+
+`warehouse.js` übergibt `result.product` an `syncStockToAllChannels()`. Dieses Objekt stammt aus dem Request — wenn parallel ein anderer Stock-Change passiert, sendet der Sync den alten Bestand.
+
+**Fix-Plan:**
+
+| # | Datei | Maßnahme | Prio |
+|---|-------|----------|------|
+| 1 | `backend/services/order-intake-ebay.js` | **Nach Order-Import: `syncStockForOrderItems({tenantId, orderId, reason: 'ebay-order-intake'})` aufrufen.** Gleiche Logik wie bei Kaufland-Intake. MUSS `syncStockWithRetry` nutzen, nicht raw `syncStockToAllChannels`. | P0 |
+| 2 | `backend/services/order-intake-kaufland.js:182` | **Wechsel von `syncStockToAllChannels()` zu `syncStockForOrderItems()` oder `syncStockWithRetry()`.** Aktuell: keine Retry-Logik → Netzwerkfehler = verlorener Sync. | P0 |
+| 3 | `backend/services/order-intake-ebay.js` + `order-intake-kaufland.js` | **`reserveStock({tenantId, orderId, sku, quantity})` aufrufen** für jedes Order-Item. Erst dann Sync. Damit `computeAvailableQuantity()` korrekt arbeitet. | P0 |
+| 4 | `backend/routes/warehouse.js:412,456` | **`setTimeout(0)` entfernen.** Stattdessen: `syncStockWithRetry()` (mit 1x Retry) aufrufen. Nicht blockierend, aber mit Retry. | P1 |
+| 5 | `backend/services/listing-sync-runner.js:254` | **`MAX_HEALS_PER_CYCLE` von 10 auf 50 erhöhen.** Bei 3-Min-Intervall: 50 Produkte/Zyklus = max 6 Min für 100 Oversells statt 30 Min. | P1 |
+| 6 | `backend/services/stock-sync-dispatcher.js` | **Persistent Retry-Queue:** Fehlgeschlagene Syncs → Firestore `stock_sync_failures` + Retry via Cron (existiert teilweise, aber nur in `syncStockWithRetry` und nur 1x). Braucht: Multi-Retry (3x exponential backoff) oder Job-Queue. | P2 |
+| 7 | Alle Sync-Aufruf-Stellen | **Frisches Product-Objekt laden** statt übergebenes Objekt nutzen. `syncStockToAllChannels()` sollte IMMER `products_v2/{id}` frisch aus Firestore lesen. | P1 |
+
+**Verifikation nach Fix:**
+
+1. eBay-Bestellung kommt rein → Kaufland UND eBay Bestand sinkt sofort um bestellte Menge
+2. Kaufland-Bestellung kommt rein → eBay Bestand sinkt sofort
+3. Netzwerk-Timeout simulieren → Retry nach 30s → Bestand wird korrekt gepusht
+4. 5 gleichzeitige Bestellungen → `stock_reservations` zeigt 5 Einträge → `availableQuantity` = physical - 5
+5. Lager stock-in +10 → eBay UND Kaufland zeigen sofort +10
+6. Auto-Heal bei Diskrepanz: 50 Produkte/Zyklus, nicht 10
+
+---
+
+### BUG-034 — LISTING-STATUS INKONSISTENT: Kein Auto-Delist, Status-Propagation lückenhaft (P0)
+
+**Symptom:** Marketplace-Seiten zeigen Produkte als "aktiv" obwohl Bestand 0. Kein Auto-Delist/ONHOLD bei Bestand 0. Listing-Status in Firestore weicht von tatsächlichem Marketplace-Status ab.
+
+**Deep-Dive Code-Audit (2026-03-11):**
+
+**Problem 1: Kein Auto-Delist bei Bestand 0**
+
+Wenn `inventory.quantity === 0` passiert folgendes:
+- `syncStockToAllChannels()` pusht `quantity: 0` an eBay/Kaufland
+- eBay: Listing wird auf quantity=0 gesetzt, aber NICHT delistet (bleibt als "active" mit 0 Stück)
+- Kaufland: Unit wird auf `amount: 0` gesetzt, aber KEIN `status: ONHOLD` gepusht
+- Ergebnis: Listings bleiben "sichtbar aktiv" mit 0 Stück — verwirrt Käufer und AvyCloud-Nutzer
+
+**Problem 2: Case-Sensitive Status-Check**
+
+`listing-sync-runner.js:51`: Prüft `active === true && status === 'active'` — eBay gibt aber `listingStatus: 'Active'` (Großbuchstabe A). Potenzielle Nicht-Erkennung aktiver Listings.
+
+**Problem 3: Listing-Status-Cache 3 Min Latenz**
+
+Listing-Sync-Runner läuft alle 3 Min und cached eBay/Kaufland Status. In diesen 3 Min zeigt AvyCloud u.U. falschen Status. Kein Push-basiertes Update.
+
+**Problem 4: Re-List bei Stock-Rückkehr fehlt**
+
+Wenn Bestand von 0 → positiv geht (z.B. durch Retoure oder Stock-In), gibt es keinen Mechanismus der:
+- Kaufland Unit von ONHOLD → aktiv setzt
+- eBay Listing re-listet (relist API Call)
+
+**Fix-Plan:**
+
+| # | Datei | Maßnahme | Prio |
+|---|-------|----------|------|
+| 1 | `backend/services/stock-sync-dispatcher.js` → `syncStockToAllChannels()` | **Auto-Delist bei Bestand 0:** Wenn `availableQty === 0` → eBay: `EndFixedPriceItem` oder `quantity: 0` + Reason. Kaufland: `PATCH /units/{id}` mit `status: ONHOLD`. | P0 |
+| 2 | `backend/services/stock-sync-dispatcher.js` | **Auto-Relist bei Bestand >0:** Wenn `availableQty > 0` UND Listing war ONHOLD/ended → eBay: `RelistFixedPriceItem` oder `reviseFixedPriceItem` mit neuer Qty. Kaufland: Status zurück auf aktiv. | P1 |
+| 3 | `backend/services/listing-sync-runner.js:51` | **Case-Insensitive Status-Check:** `status.toLowerCase() === 'active'` statt `status === 'active'`. | P1 |
+| 4 | `backend/services/listing-sync-runner.js` | **Listing-Status in Firestore Produkt schreiben:** `ops.listingStatus.ebay = 'active'/'ended'`, `ops.listingStatus.kaufland = 'active'/'onhold'` — damit Frontend aktuellen Status hat. | P1 |
+| 5 | Frontend: Marketplace-Views + AdminTable | **Status-Badge "Oversell-Warnung":** Wenn `availableQty === 0` aber Marketplace-Qty > 0 → rotes Badge "⚠️ Oversell-Risiko". | P2 |
+
+**Verifikation nach Fix:**
+
+1. Bestand → 0: Kaufland zeigt ONHOLD, eBay zeigt ended/0 → kein Kauf mehr möglich
+2. Retoure eingelagert (Bestand 0 → 3): Kaufland automatisch zurück auf aktiv mit Qty 3, eBay re-listed
+3. Listing-Status in AdminTable stimmt mit tatsächlichem Marketplace-Status überein (max 3 Min Latenz)
+4. Kein Case-Sensitivity Bug mehr bei Active/active
 
 ---
 
