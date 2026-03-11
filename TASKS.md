@@ -478,8 +478,9 @@
 | BUG-027 | **eBay-Filter in Inventar/Produktdaten zeigt falsche Ergebnisse** — "Gelistet" = 0 Ergebnisse, "Nicht gelistet" enthält gelistete Artikel | P1 | ✅ Fixed (Filter-Logik an Badge-Logik angeglichen: viewItemUrl/SKU-Index-Priorität für eBay + Kaufland) |
 | BUG-028 | **Marketplace-Seiten: Inkonsistente Lager/Marktplatz-Mengen** — Warehouse-Qty ≠ Marketplace-Qty, kein Real-Time-Sync bei externen Verkäufen | P1 | ✅ Fixed (P1: Retry-Mechanismus, Stock-Sync nach Pack/Ship, Listing-Sync 10→3 Min, Auto-Heal bei Diskrepanz) |
 | BUG-029 | **🔥 OVERSELL: Artikel mit Bestand 0 werden auf Marktplätzen verkauft** — Kaufland zeigt Menge >0 obwohl Inventar 0 ist. Kein Stock-Sync bei Order-Intake. availableQuantity nie gespeichert. | P0 SOFORT | ✅ Fixed (computeAvailableQuantity aus Reservierungen, Stock-Sync bei Order-Intake + Order-Sync, Auto-Heal mit Oversell-Detection, Kaufland-UI frischer Bestand) |
-| BUG-030 | **Stornierung fehlt: Aufträge können nicht storniert + an Marktplätze kommuniziert werden** — Status "cancelled" existiert intern, aber kein Cancel-API-Call zu eBay/Kaufland. Stock-Reservierung wird nicht freigegeben. | P0 | 🔴 Offen |
-| BUG-031 | **Status-Sync zu Marktplätzen unvollständig** — Tracking-Push nur bei SendCloud-Ship, nicht bei manuellem Status-Wechsel. Kein Status-Push für packed/cancelled/on_hold. | P1 | 🔴 Offen |
+| BUG-030 | **Stornierung fehlt: Aufträge können nicht storniert + an Marktplätze kommuniziert werden** — Status "cancelled" existiert intern, aber kein Cancel-API-Call zu eBay/Kaufland. Stock-Reservierung wird nicht freigegeben. | P0 | ✅ Fixed (eBay+Kaufland Cancel-API, auto releaseReservation + syncStock bei Cancel, pushCancellationToMarketplace bei Transition + Bulk) |
+| BUG-031 | **Status-Sync zu Marktplätzen unvollständig** — Tracking-Push nur bei SendCloud-Ship, nicht bei manuellem Status-Wechsel. Kein Status-Push für packed/cancelled/on_hold. | P1 | ✅ Fixed (pushTrackingToMarketplace bei manueller/bulk Transition zu shipped, Cancel-Push via BUG-030) |
+| BUG-032 | **Produkt-Gewicht fehlt bei fast allen Produkten** — Identify/Improve extrahieren kein Gewicht. Mandatory für Carrier-Zuordnung. Initial-Backfill + Pipeline-Fix nötig. | P0 | 🔴 Offen |
 | BUG-SSE | Token-in-Query-Parameter für SSE-Streams leakt | P1 | 🔴 Offen |
 | BUG-006 | EbayListingsView.tsx (alte Gap-Analysis) noch da — LÖSCHEN | P1 | ✅ Fixed (deleted) |
 | BUG-008 | eBay-Seite zeigt Gap-Analyse-Daten statt Listing-Management | P1 | ✅ Fixed (route already correct, old component deleted) |
@@ -974,6 +975,66 @@ User klickt "Stornieren" + wählt Grund
 2. Bulk-Transition 5 Aufträge → shipped → alle 5 Marktplätze erhalten Tracking
 3. Push-Fehler → Retry nach 60s → erfolgreicher Push beim 2. Versuch
 4. Auftrag ohne Tracking auf "shipped" → Push wird übersprungen (kein leerer Tracking-Push)
+
+### BUG-032 — Produkt-Gewicht fehlt bei fast allen Produkten (P0)
+
+**Symptom:** Fast kein Produkt im Inventar hat ein Gewicht. Das führt direkt zu BUG-025 (falsche Carrier-Zuordnung → DHL Kleinpaket statt DPD). Gewicht ist mandatory für korrekten Versand.
+
+**Analyse — Was existiert vs. was fehlt:**
+
+**Infrastruktur (✅ VORHANDEN, gut gebaut):**
+- `parseWeightKg()` + `normalizeWeightKgNumber()` in `firestore.js` Zeile 236-272 — robust, erkennt kg/g/Gramm, Heuristik >50=Gramm
+- Storage: `details.weight` (Zahl in KG) + `details.attributes.weight` + `details.attributes['Gewicht']` — Dual-Storage
+- 17+ Gewicht-Aliase normalisiert (`firestore.js` Zeile 532-550): weight, Gewicht, Bruttogewicht, Artikelgewicht, shipping weight etc.
+- `product-canonical.js` Zeile 59-66: Alle Aliase → `attributes['Gewicht']`
+- LLM-Policy (`llm-policy-pack.js` Zeile 103): "Gewicht: immer als ZAHL in KG"
+- `bucket-weights.js`: Gewicht-Buckets (1, 3, 6, 9, 12, 15 kg) für Carrier-Matching
+- `extractSpecsFromText()` in `enrichment.js` Zeile 2333-2342: Kann Gewicht aus Text parsen
+
+**Lücken (❌ FEHLT):**
+
+| # | Was fehlt | Auswirkung |
+|---|-----------|------------|
+| 1 | **Identify-Pipeline fragt Gewicht nicht aktiv ab** | Gemini-Prompt enthält keine explizite Anweisung Gewicht zu extrahieren/schätzen |
+| 2 | **Improve-Pipeline reichert Gewicht nicht an** | `improve.js` hat KEINEN Gewicht-Code |
+| 3 | **Web-Enrichment speichert extrahiertes Gewicht nicht** | `extractSpecsFromText()` liefert `weight_g` — wird nur für Scoring genutzt, nicht gespeichert |
+| 4 | **Kein Quality-Gate für fehlendes Gewicht** | Produkte ohne Gewicht werden nicht geflaggt |
+| 5 | **Order-Items bekommen Gewicht nicht aus Produkt** | `shipping-engine.js` liest `order.items[].weight` — wird beim Order-Intake nicht aus Produkt befüllt |
+| 6 | **~806 Produkte im Inventar haben kein Gewicht** | Kein Initial-Backfill gelaufen |
+
+**Fixes (3 Teile):**
+
+**Teil 1: Initial-Backfill (SOFORT) — Alle bestehenden Produkte mit Gewicht versehen**
+
+| # | Datei | Was |
+|---|-------|-----|
+| 1 | `backend/scripts/backfill-weights.js` (NEU) | Script: Alle Produkte aus `products_v2` laden. Für jedes Produkt OHNE `details.weight`: Gemini-API aufrufen mit Titel + Brand + Kategorie + EAN → Gewicht in kg schätzen lassen. `saveProductV2()` mit neuem Gewicht. Batch-Processing mit Rate-Limiting (max 10 req/s). |
+| 2 | Gemini-Prompt für Weight-Estimation | `"Du bist ein Produktexperte. Schätze das Gewicht dieses Produkts in KG. Gib NUR eine Zahl zurück, keine Einheit. Wenn du unsicher bist, gib einen realistischen Mittelwert. Produkt: {title}, Brand: {brand}, Kategorie: {category}, EAN: {ean}. Gewicht in KG:"` |
+| 3 | Logging | Jedes geschätzte Gewicht loggen: `{ productId, title, estimatedWeight, source: 'llm-backfill' }` |
+
+**Teil 2: Pipeline-Fix — Zukünftige Produkte bekommen automatisch Gewicht**
+
+| # | Datei | Was ändern |
+|---|-------|-----------|
+| 1 | `backend/services/enrichment.js` → Identify-Prompt | **Gewicht als Pflichtfeld im Gemini-Prompt:** In `buildSystemPrompt()` oder `buildUserPrompt()` explizit: `"Gewicht (weight_kg): Pflichtfeld. Zahl in KG. Wenn nicht sichtbar/bekannt: realistisch schätzen basierend auf Produkttyp und Größe. NIEMALS leer lassen."` |
+| 2 | `backend/services/enrichment.js` → Response-Parsing | Nach Gemini-Response: Wenn `weight` im Output → `parseWeightKg()` → in `details.weight` und `details.attributes.weight` speichern. |
+| 3 | `backend/services/improve.js` | **Gewicht-Enrichment hinzufügen:** Wenn Produkt kein Gewicht hat → Gemini mit Titel+Brand+Kategorie aufrufen → Gewicht schätzen → speichern. |
+| 4 | `backend/services/enrichment.js` → `extractSpecsFromText()` | Extrahiertes `weight_g` nicht nur für Scoring nutzen sondern auch in Produkt speichern wenn noch kein Gewicht vorhanden. |
+| 5 | `backend/lib/llm-policy-pack.js` Zeile 103 | Policy ändern: Von `"Wenn Gewicht nicht belegbar: Feld leer lassen (nicht raten)"` → `"Wenn Gewicht nicht belegbar: realistisch schätzen basierend auf Produkttyp, Material und Größe. Gewicht darf NIEMALS leer bleiben."` |
+
+**Teil 3: Quality-Gate + Order-Integration**
+
+| # | Datei | Was ändern |
+|---|-------|-----------|
+| 1 | `backend/services/quality-runner.js` oder `quality-check.js` | **Quality-Gate:** Produkt ohne `details.weight` → Warning "Gewicht fehlt". Produkt mit Bestand > 0 und ohne Gewicht → Error "KRITISCH: Gewicht fehlt bei lagerndem Produkt". |
+| 2 | `backend/services/order-sync.js` oder `order-intake-kaufland.js` | **Gewicht aus Produkt in Order-Item:** Beim Order-Intake: Für jedes `order.item` → verlinktes Produkt laden → `item.weight = product.details.weight`. Damit `calculateOrderWeight()` korrekt arbeitet. |
+| 3 | Frontend: ProductSheet / AdminTable | **Gewicht-Indikator:** Spalte oder Badge das anzeigt ob Gewicht vorhanden oder fehlend. Optional: Inline-Edit für manuelles Gewicht. |
+
+**Verifikation nach Fix:**
+1. Backfill: Alle ~806 Produkte haben nach dem Script ein `details.weight` > 0
+2. Neues Produkt identifizieren → Gewicht wird automatisch extrahiert/geschätzt
+3. Quality-Gate flaggt Produkte ohne Gewicht als Error
+4. Neue Kaufland-Bestellung → `order.items[].weight` aus Produkt befüllt → korrekter Carrier
 
 ---
 

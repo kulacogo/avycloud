@@ -179,6 +179,145 @@ async function pushTrackingToKaufland({ order, trackingNumber, carrier }) {
   }
 }
 
+// ─── Cancellation Push ──────────────────────────────────────────────────────
+
+/**
+ * Cancel reason mapping for Kaufland API.
+ */
+const KAUFLAND_CANCEL_REASONS = {
+  out_of_stock: 'OUT_OF_STOCK',
+  customer_requested: 'BUYER_CANCELLED',
+  defective: 'DEFECTIVE_GOODS',
+  wrong_address: 'CUSTOMER_DATA_INCORRECT',
+  other: 'GENERAL_ADJUSTMENT',
+};
+
+/**
+ * Push cancellation to the order's marketplace.
+ *
+ * @param {{
+ *   orderId: string,
+ *   reason?: string,
+ *   note?: string,
+ * }} opts
+ * @returns {Promise<{ ok: boolean, marketplace?: string, error?: string }>}
+ */
+async function pushCancellationToMarketplace({ orderId, reason, note }) {
+  if (!orderId) return { ok: false, error: 'orderId required' };
+
+  const orderSnap = await getDb().collection(ORDERS_COLLECTION).doc(orderId).get();
+  if (!orderSnap.exists) return { ok: false, error: 'Order not found' };
+
+  const order = orderSnap.data();
+  const marketplace = (order.marketplace || order.orderSource || '').toLowerCase();
+
+  if (marketplace === 'ebay') {
+    return cancelOrderOnEbay({ order, reason, note });
+  }
+  if (marketplace === 'kaufland') {
+    return cancelOrderOnKaufland({ order, reason, note });
+  }
+
+  return { ok: true, marketplace, skipped: 'no marketplace cancel needed' };
+}
+
+/**
+ * Cancel an eBay order via Trading API (CancelTransaction not available for
+ * managed payments — use VoidFixedPriceItem to set qty to 0 as workaround,
+ * or EndItem for single-listing orders).
+ *
+ * For eBay managed payments orders, seller-initiated cancellation is best done
+ * by setting quantity to 0 to prevent further sales + marking as shipped with
+ * a note. eBay's official Post-Order cancellation API requires buyer consent.
+ *
+ * @param {{ order: object, reason?: string, note?: string }} opts
+ */
+async function cancelOrderOnEbay({ order, reason, note }) {
+  try {
+    const { reviseFixedPriceItem } = require('../lib/ebay-trading-api');
+
+    const ebayOrderId = order.marketplaceOrderId || order.externalOrderId;
+    if (!ebayOrderId) return { ok: false, marketplace: 'ebay', error: 'No eBay order ID' };
+
+    // Set quantity to 0 on linked eBay listings to prevent further sales
+    const items = order.items || [];
+    let revised = 0;
+    for (const item of items) {
+      const itemId = item.ebayItemId || item.itemId;
+      if (!itemId) continue;
+      try {
+        await reviseFixedPriceItem({ itemId: String(itemId), quantity: 0 });
+        revised++;
+      } catch (err) {
+        console.warn(`[marketplace-cancel] eBay revise item ${itemId} failed: ${err.message}`);
+      }
+    }
+
+    console.log(`[marketplace-cancel] eBay cancel for order ${ebayOrderId}: revised ${revised} item(s), reason=${reason || 'n/a'}`);
+    return { ok: true, marketplace: 'ebay', revised };
+  } catch (err) {
+    console.error(`[marketplace-cancel] eBay cancel failed: ${err.message}`);
+    return { ok: false, marketplace: 'ebay', error: err.message };
+  }
+}
+
+/**
+ * Cancel a Kaufland order by cancelling each order unit.
+ * Kaufland API: PATCH /v2/order-units/{unitId}/cancel
+ *
+ * @param {{ order: object, reason?: string, note?: string }} opts
+ */
+async function cancelOrderOnKaufland({ order, reason, note }) {
+  try {
+    const { kauflandRequest } = require('../lib/kaufland-api');
+
+    const klReason = KAUFLAND_CANCEL_REASONS[reason] || KAUFLAND_CANCEL_REASONS.other;
+
+    const items = order.items || [];
+    const unitIds = items.map((item) => item.unitId).filter(Boolean);
+
+    if (unitIds.length === 0) {
+      // Fallback: fetch unit IDs from Kaufland API
+      const klOrderId = order.marketplaceOrderId || order.externalOrderId;
+      if (!klOrderId) return { ok: false, marketplace: 'kaufland', error: 'No Kaufland order/unit IDs' };
+
+      const unitsRes = await kauflandRequest('GET', `/v2/orders/${klOrderId}/units`);
+      const units = Array.isArray(unitsRes?.data) ? unitsRes.data : [];
+      for (const unit of units) {
+        if (unit.id_order_unit) unitIds.push(unit.id_order_unit);
+      }
+    }
+
+    let successCount = 0;
+    let lastError = null;
+
+    for (const unitId of unitIds) {
+      try {
+        await kauflandRequest('PATCH', `/v2/order-units/${unitId}/cancel`, {
+          body: {
+            reason: klReason,
+            message: note || undefined,
+          },
+        });
+        successCount++;
+      } catch (err) {
+        lastError = err.message;
+        console.error(`[marketplace-cancel] Kaufland unit ${unitId} cancel failed: ${err.message}`);
+      }
+    }
+
+    if (successCount === 0 && unitIds.length > 0) {
+      return { ok: false, marketplace: 'kaufland', error: lastError || 'All unit cancellations failed' };
+    }
+
+    console.log(`[marketplace-cancel] Kaufland: ${successCount}/${unitIds.length} units cancelled for order ${order.marketplaceOrderId}`);
+    return { ok: true, marketplace: 'kaufland', unitsCancelled: successCount };
+  } catch (err) {
+    console.error(`[marketplace-cancel] Kaufland cancel failed: ${err.message}`);
+    return { ok: false, marketplace: 'kaufland', error: err.message };
+  }
+}
+
 /**
  * Escape XML special characters.
  */
@@ -195,6 +334,10 @@ module.exports = {
   pushTrackingToMarketplace,
   pushTrackingToEbay,
   pushTrackingToKaufland,
+  pushCancellationToMarketplace,
+  cancelOrderOnEbay,
+  cancelOrderOnKaufland,
   EBAY_CARRIER_MAP,
   KAUFLAND_CARRIER_MAP,
+  KAUFLAND_CANCEL_REASONS,
 };

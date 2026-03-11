@@ -1212,6 +1212,31 @@ router.post('/orders/:orderId/transition', requirePermission('orders', 'write'),
       return res.status(400).json({ ok: false, error: { code: 'TRANSITION_DENIED', message: result.error } });
     }
 
+    // Post-transition side effects (async, non-blocking)
+    if (toStatus === 'cancelled') {
+      // Release stock reservations + push updated availability to marketplaces
+      const { releaseReservation } = require('../services/stock-reservation');
+      const { syncStockForOrderItems } = require('../services/stock-sync-dispatcher');
+      const { pushCancellationToMarketplace } = require('../services/marketplace-tracking');
+      releaseReservation({ tenantId, orderId })
+        .then(() => syncStockForOrderItems({ tenantId, orderId, reason: 'cancel' }))
+        .catch((err) => console.warn(`[transition] cancel stock release failed: ${err.message}`));
+      pushCancellationToMarketplace({ orderId, reason: note || 'other' })
+        .catch((err) => console.warn(`[transition] cancel marketplace push failed: ${err.message}`));
+    }
+    if (toStatus === 'shipped') {
+      // Push tracking to marketplace if tracking number exists
+      const orderDoc = await require('../lib/firestore').firestore.collection('orders').doc(orderId).get();
+      const orderData = orderDoc.exists ? orderDoc.data() : {};
+      const trackingNumber = orderData.trackingNumber || orderData.tracking?.trackingNumber;
+      const carrier = orderData.carrier || orderData.tracking?.carrier || 'other';
+      if (trackingNumber) {
+        const { pushTrackingToMarketplace } = require('../services/marketplace-tracking');
+        pushTrackingToMarketplace({ orderId, trackingNumber, carrier })
+          .catch((err) => console.warn(`[transition] shipped tracking push failed: ${err.message}`));
+      }
+    }
+
     res.json({ ok: true, data: result });
   } catch (err) {
     console.error(`[POST /api/orders/${req.params.orderId}/transition] ${err.message}`, err);
@@ -1593,6 +1618,7 @@ router.post('/orders/bulk-transition', requirePermission('orders', 'write'), asy
     const { transitionOrder } = require('../services/order-state-machine');
 
     const results = [];
+    const successfulOrderIds = [];
     for (const orderId of orderIds) {
       try {
         const result = await transitionOrder({
@@ -1601,9 +1627,40 @@ router.post('/orders/bulk-transition', requirePermission('orders', 'write'), asy
           force: !!force,
         });
         results.push({ orderId, ok: true, fromStatus: result.fromStatus, toStatus: result.toStatus });
+        if (result.ok) successfulOrderIds.push(orderId);
       } catch (err) {
         console.error(`[bulk-transition] Order ${orderId} failed: ${err.message}`);
         results.push({ orderId, ok: false, error: err.message });
+      }
+    }
+
+    // Post-transition side effects for successfully transitioned orders
+    if (successfulOrderIds.length > 0 && toStatus === 'cancelled') {
+      const { releaseReservation } = require('../services/stock-reservation');
+      const { syncStockForOrderItems } = require('../services/stock-sync-dispatcher');
+      const { pushCancellationToMarketplace } = require('../services/marketplace-tracking');
+      for (const oid of successfulOrderIds) {
+        releaseReservation({ tenantId, orderId: oid })
+          .then(() => syncStockForOrderItems({ tenantId, orderId: oid, reason: 'bulk-cancel' }))
+          .catch((err) => console.warn(`[bulk-transition] cancel release failed for ${oid}: ${err.message}`));
+        pushCancellationToMarketplace({ orderId: oid, reason: note || 'other' })
+          .catch((err) => console.warn(`[bulk-transition] cancel push failed for ${oid}: ${err.message}`));
+      }
+    }
+    if (successfulOrderIds.length > 0 && toStatus === 'shipped') {
+      const { pushTrackingToMarketplace } = require('../services/marketplace-tracking');
+      const { firestore: fs } = require('../lib/firestore');
+      for (const oid of successfulOrderIds) {
+        fs.collection('orders').doc(oid).get().then((doc) => {
+          if (!doc.exists) return;
+          const od = doc.data();
+          const tn = od.trackingNumber || od.tracking?.trackingNumber;
+          const cr = od.carrier || od.tracking?.carrier || 'other';
+          if (tn) {
+            pushTrackingToMarketplace({ orderId: oid, trackingNumber: tn, carrier: cr })
+              .catch((err) => console.warn(`[bulk-transition] tracking push failed for ${oid}: ${err.message}`));
+          }
+        }).catch(() => {});
       }
     }
 
