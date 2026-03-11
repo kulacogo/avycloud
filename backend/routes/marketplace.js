@@ -976,7 +976,8 @@ router.get('/kaufland/listings', requirePermission('products', 'read'), async (r
       const whStock = typeof matched?.inventory?.quantity === 'number'
         ? matched.inventory.quantity
         : null;
-      const binLoc = bins.length > 0 ? (bins[0]?.code || null) : (matched?.storage?.binCode || null);
+      const storageBins = Array.isArray(matched?.storageBins) ? matched.storageBins : [];
+      const binLoc = storageBins.length > 0 ? (storageBins[0]?.code || null) : (matched?.storage?.binCode || null);
       const mpQty = Number.isFinite(Number(d.amount)) ? Number(d.amount) : null;
       const mismatch = typeof whStock === 'number' && mpQty !== null && whStock !== mpQty;
 

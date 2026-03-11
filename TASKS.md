@@ -1008,19 +1008,24 @@ User klickt "Stornieren" + wählt Grund
 
 | # | Datei | Was |
 |---|-------|-----|
-| 1 | `backend/scripts/backfill-weights.js` (NEU) | Script: Alle Produkte aus `products_v2` laden. Für jedes Produkt OHNE `details.weight`: Gemini-API aufrufen mit Titel + Brand + Kategorie + EAN → Gewicht in kg schätzen lassen. `saveProductV2()` mit neuem Gewicht. Batch-Processing mit Rate-Limiting (max 10 req/s). |
-| 2 | Gemini-Prompt für Weight-Estimation | `"Du bist ein Produktexperte. Schätze das Gewicht dieses Produkts in KG. Gib NUR eine Zahl zurück, keine Einheit. Wenn du unsicher bist, gib einen realistischen Mittelwert. Produkt: {title}, Brand: {brand}, Kategorie: {category}, EAN: {ean}. Gewicht in KG:"` |
-| 3 | Logging | Jedes geschätzte Gewicht loggen: `{ productId, title, estimatedWeight, source: 'llm-backfill' }` |
+| 1 | `backend/scripts/backfill-weights.js` (NEU) | Script: Alle Produkte aus `products_v2` laden. Für jedes Produkt OHNE `details.weight`: **Stufe 1:** EAN/GTIN vorhanden? → Web-Suche nach Herstellerdaten/Produktdatenblatt → Gewicht extrahieren. **Stufe 2:** Wenn nichts gefunden → Gemini-API aufrufen mit Titel + Brand + Kategorie + EAN + Abmessungen (falls bekannt) → Gewicht schätzen lassen. `saveProductV2()` mit Gewicht + `weightSource` ('manufacturer', 'web', 'llm-estimate'). Batch-Processing mit Rate-Limiting (max 10 req/s). |
+| 2 | Gemini-Prompt für Weight-Estimation | `"Du bist ein Produktexperte. Bestimme das Gewicht dieses Produkts in KG. Gib NUR eine Zahl zurück, keine Einheit. Nutze dein Wissen über typische Produktgewichte. WICHTIG: Nur schätzen wenn kein verlässlicher Wert gefunden werden kann. Produkt: {title}, Brand: {brand}, Kategorie: {category}, EAN: {ean}. Gewicht in KG:"` |
+| 3 | Logging | Jedes Gewicht loggen: `{ productId, title, weight, weightSource: 'manufacturer' \| 'web' \| 'llm-estimate' }`. LLM-Schätzungen markieren damit sie später manuell verifiziert werden können. |
 
 **Teil 2: Pipeline-Fix — Zukünftige Produkte bekommen automatisch Gewicht**
 
+**Prioritätsreihenfolge für Gewicht-Ermittlung (IMMER in dieser Reihenfolge):**
+1. **Herstellerangabe** — Aus Barcode/EAN-Lookup, Produktdatenblatt, Verpackung
+2. **Web-Enrichment** — Aus öffentlichen Quellen (Produktseiten, Datenbanken) extrahiert
+3. **LLM-Schätzung** — NUR als letzter Fallback wenn nichts Verlässliches gefunden
+
 | # | Datei | Was ändern |
 |---|-------|-----------|
-| 1 | `backend/services/enrichment.js` → Identify-Prompt | **Gewicht als Pflichtfeld im Gemini-Prompt:** In `buildSystemPrompt()` oder `buildUserPrompt()` explizit: `"Gewicht (weight_kg): Pflichtfeld. Zahl in KG. Wenn nicht sichtbar/bekannt: realistisch schätzen basierend auf Produkttyp und Größe. NIEMALS leer lassen."` |
-| 2 | `backend/services/enrichment.js` → Response-Parsing | Nach Gemini-Response: Wenn `weight` im Output → `parseWeightKg()` → in `details.weight` und `details.attributes.weight` speichern. |
-| 3 | `backend/services/improve.js` | **Gewicht-Enrichment hinzufügen:** Wenn Produkt kein Gewicht hat → Gemini mit Titel+Brand+Kategorie aufrufen → Gewicht schätzen → speichern. |
-| 4 | `backend/services/enrichment.js` → `extractSpecsFromText()` | Extrahiertes `weight_g` nicht nur für Scoring nutzen sondern auch in Produkt speichern wenn noch kein Gewicht vorhanden. |
-| 5 | `backend/lib/llm-policy-pack.js` Zeile 103 | Policy ändern: Von `"Wenn Gewicht nicht belegbar: Feld leer lassen (nicht raten)"` → `"Wenn Gewicht nicht belegbar: realistisch schätzen basierend auf Produkttyp, Material und Größe. Gewicht darf NIEMALS leer bleiben."` |
+| 1 | `backend/services/enrichment.js` → Identify-Prompt | **Gewicht als Pflichtfeld im Gemini-Prompt:** In `buildSystemPrompt()` oder `buildUserPrompt()` explizit: `"Gewicht (weight_kg): Pflichtfeld. Zahl in KG. Erst aus sichtbaren Produktdaten/Verpackung/Barcode-Info extrahieren. Wenn nicht auffindbar: realistisch schätzen basierend auf Produkttyp, Material und Größe. Geschätztes Gewicht mit 'estimated: true' markieren."` |
+| 2 | `backend/services/enrichment.js` → Response-Parsing | Nach Gemini-Response: Wenn `weight` im Output → `parseWeightKg()` → in `details.weight` und `details.attributes.weight` speichern. Zusätzlich `details.weightSource` setzen ('identified' oder 'estimated'). |
+| 3 | `backend/services/improve.js` | **Gewicht-Enrichment hinzufügen:** Wenn Produkt kein Gewicht hat → Web-Recherche nach EAN/Titel → Gewicht extrahieren. Wenn nichts gefunden → Gemini mit Titel+Brand+Kategorie → schätzen. `weightSource` setzen. |
+| 4 | `backend/services/enrichment.js` → `extractSpecsFromText()` | Extrahiertes `weight_g` nicht nur für Scoring nutzen sondern auch in Produkt speichern wenn noch kein Gewicht vorhanden. Source = 'web'. |
+| 5 | `backend/lib/llm-policy-pack.js` Zeile 103 | Policy ändern: Von `"Wenn Gewicht nicht belegbar: Feld leer lassen (nicht raten)"` → `"Gewicht ist PFLICHT. Erst aus verlässlichen Quellen (Herstellerangabe, Produktdatenblatt, Verpackung) extrahieren. NUR wenn keine verlässliche Quelle verfügbar: realistisch schätzen und als Schätzung markieren."` |
 
 **Teil 3: Quality-Gate + Order-Integration**
 
