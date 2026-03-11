@@ -66,6 +66,112 @@ Auth:      Firebase Authentication
 - **Frontend:** Push to `main` → GitHub Actions → `npm run build` → Firebase Hosting
 - **Backend:** Push to `main` → Cloud Build → Docker Build → Cloud Run Deploy
 
+---
+
+## Brand & Design System
+
+> **PFLICHT:** Jede UI-Änderung MUSS sich an diese Brand-Guidelines halten. Keine eigenen Farben erfinden, keine Fonts ändern, keine Logo-Varianten erstellen.
+
+### Markenname
+
+- **Offiziell:** `avycloud` (Kleinschreibung im Wordmark-Logo)
+- **In Text/Code:** `AvyCloud` (CamelCase)
+- **NICHT verwenden:** AvyStock, Avycloud, AVYCloud, avy cloud
+
+### Logo-Assets (in `/public/`)
+
+| Datei | Typ | Verwendung |
+|-------|-----|------------|
+| `avy_logo.png` | Cloud-Icon (aV-Form) | App-Icon, Favicon-Basis, Sidebar-Icon (collapsed) |
+| `avy_brand.png` | Wordmark "avycloud" | Sidebar (expanded), Login-Screen, Marketing |
+| `logo_darkmode.png` | Wordmark hell/grau | Für dunkle Hintergründe (Dark-Theme) |
+| `logo_brightmode.png` | Wordmark dunkel | Für helle Hintergründe (Light-Theme) |
+| `favicon.ico` | Favicon | Browser-Tab |
+| `apple-touch-icon.png` | Touch-Icon | iOS Home-Screen |
+| `android-chrome-*.png` | PWA-Icons | Android, Manifest |
+
+**WICHTIG — Sidebar-Header:**
+- Sidebar **expanded**: Zeigt Wordmark-Logo (`avy_brand.png` oder theme-abhängig `logo_darkmode.png`/`logo_brightmode.png`) — KEIN Text "AvyCloud" + "Product Intelligence"
+- Sidebar **collapsed**: Zeigt nur Cloud-Icon (`avy_logo.png`)
+- Logo-Render in `components/Sidebar.tsx` (Zeile ~454-461)
+
+**Veraltete Assets (Legacy, NICHT verwenden):**
+- `avystock_brand_logo.png`, `avystock_brand_logo_darkmode.png`, `avystock_full_logo.png`, `avystock_app_icon.png` — alter Markenname "AvyStock", DEPRECATED
+
+### Farben — Design Tokens
+
+Alle Farben sind als CSS Custom Properties in `styles/main.css` definiert und über Tailwind-Klassen verfügbar.
+
+**Brand-Farbe (Accent):**
+
+| Token | Dark Mode | Light Mode | Tailwind-Klasse |
+|-------|-----------|------------|-----------------|
+| `--accent` | `#3b82f6` (Blue 500) | `#2563eb` (Blue 600) | `bg-accent`, `text-accent` |
+| `--accent-dim` | `rgba(59,130,246,0.15)` | `rgba(37,99,235,0.1)` | `bg-accent-dim` |
+
+**Logo-Blau (Wordmark "a"):**
+- Hellblau/Himmelblau ~`#5BB5E8` — wird NUR im Logo-Asset selbst verwendet, NICHT als UI-Farbe
+
+**Hintergründe:**
+
+| Token | Dark Mode | Light Mode | Tailwind-Klasse |
+|-------|-----------|------------|-----------------|
+| `--bg` | `#1a1d23` | `#f5f6f8` | `bg-app-bg` |
+| `--sidebar` | `#15171c` | `#ffffff` | `bg-app-sidebar` |
+| `--surface` | `#21242b` | `#ffffff` | `bg-app-surface` |
+| `--elevated` | `#282c34` | `#f0f1f3` | `bg-app-elevated` |
+| `--border` | `#2a2d35` | `#e2e4e9` | `border-app-border` |
+
+**Text:**
+
+| Token | Dark Mode | Light Mode | Tailwind-Klasse |
+|-------|-----------|------------|-----------------|
+| `--text-primary` | `#ebeef5` | `#1a1d23` | `text-txt-primary` |
+| `--text-secondary` | `#7a8090` | `#4b5063` | `text-txt-secondary` |
+| `--text-muted` | `#8a8f9e` | `#6b7080` | `text-txt-muted` |
+
+**Status-Farben:**
+
+| Token | Dark Mode | Light Mode | Tailwind-Klasse |
+|-------|-----------|------------|-----------------|
+| `--success` | `#34d399` | `#059669` | `text-success`, `bg-success` |
+| `--warning` | `#fbbf24` | `#b45309` | `text-warning`, `bg-warning` |
+| `--danger` | `#f87171` | `#dc2626` | `text-danger`, `bg-danger` |
+| `--info` | `#60a5fa` | `#2563eb` | `text-info`, `bg-info` |
+
+Jede Status-Farbe hat eine `-dim` Variante für Hintergründe (z.B. `bg-success-dim`).
+
+### UI-Dimensionen
+
+| Token | Wert | Verwendung |
+|-------|------|------------|
+| `--radius-sm` | `6px` | Buttons, Inputs, Badges |
+| `--radius-md` | `8px` | Cards, Dropdowns |
+| `--radius-lg` | `12px` | Modals, große Panels |
+| `--radius-xl` | `16px` | Spezial-Container |
+| Sidebar-Breite | `220px` | `w-sidebar` |
+| Topbar-Höhe | `56px` | `h-topbar` |
+
+### Design-Regeln
+
+1. **Keine hardcodierten Farben.** Immer CSS-Variablen oder Tailwind-Token verwenden (`bg-accent`, NICHT `bg-blue-500`)
+2. **Dark Mode ist Default.** Light Mode wird über `[data-theme='light']` aktiviert
+3. **Beide Themes testen.** Jede neue Komponente muss in Dark UND Light Mode funktionieren
+4. **Logo nie verzerren.** Immer `object-contain`, nie `object-cover` oder feste Aspect-Ratios die nicht zum Logo passen
+5. **Brand-Konsistenz:** Alle Marketplace-Badges, Status-Indikatoren, Buttons nutzen ausschließlich die definierten Token-Farben
+
+### Konfigurationsdateien
+
+| Datei | Inhalt |
+|-------|--------|
+| `styles/main.css` | CSS Custom Properties (alle Farb-Token, Dark/Light Theme) |
+| `tailwind.config.cjs` | Tailwind-Mapping auf CSS-Variablen, Custom Sizes |
+| `postcss.config.cjs` | PostCSS mit Tailwind + Autoprefixer |
+| `index.html` | Meta-Tags: theme-color `#1a1d23`, Favicons, Manifest-Link |
+| `public/manifest.webmanifest` | PWA-Config: background `#0f172a`, theme `#0f172a` |
+
+---
+
 ### Aktiver Task-Stand
 
 **Alle aktiven Tasks stehen in [`TASKS.md`](./TASKS.md)** — dort IMMER zuerst nachsehen.
@@ -80,10 +186,11 @@ Auth:      Firebase Authentication
 
 ### Bekannte offene Issues
 
-- **Token-in-Query-Parameter (SSE):** JWT als `?token=` URL-Parameter für SSE-Streams leakt in Logs/History
+> **Vollständige Bug-Liste mit Root-Cause-Analyse:** Siehe `TASKS.md` → Aktive Bugs
+
+- **Token-in-Query-Parameter (SSE):** JWT als `?token=` URL-Parameter für SSE-Streams leakt in Logs/History (BUG-SSE)
 - **Pricing Engine:** Backend-only, kein Runner, kein Frontend, keine Neu/Gebraucht-Unterscheidung
-- **Marketplace Sync:** Listing-Status (eBay/Kaufland) nur manuell per Button, kein automatischer Sync
-- **eBay/Kaufland Update:** Preis wird in Firestore aktualisiert aber NICHT zum Marktplatz-Listing gepusht
+- **Sidebar Logo:** Text "AvyCloud / Product Intelligence" muss durch Wordmark-Logo ersetzt werden (siehe Brand-Sektion oben)
 
 ---
 

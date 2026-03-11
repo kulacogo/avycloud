@@ -454,10 +454,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, setView }) => {
         <div className={`flex items-center gap-2.5 ${collapsed ? "justify-center w-full" : ""}`}>
           <img src="/avy_logo.png" alt="AvyCloud" className="w-8 h-8 rounded-md object-contain shrink-0" />
           {!collapsed && (
-            <div>
-              <div className="text-[15px] font-bold text-txt-primary leading-tight">AvyCloud</div>
-              <div className="text-[10px] text-txt-muted leading-none">Product Intelligence</div>
-            </div>
+            <>
+              <img src="/logo_darkmode.png" alt="AvyCloud" className="h-6 object-contain logo-dark" />
+              <img src="/logo_brightmode.png" alt="AvyCloud" className="h-6 object-contain logo-light" />
+            </>
           )}
         </div>
         {!collapsed && (

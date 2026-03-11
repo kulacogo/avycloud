@@ -58,6 +58,12 @@
   }
 }
 
+/* ── Theme-aware logo toggle ── */
+.logo-dark  { display: block; }
+.logo-light { display: none; }
+[data-theme='light'] .logo-dark  { display: none; }
+[data-theme='light'] .logo-light { display: block; }
+
 /* ========================================
    LIGHT THEME
    ======================================== */

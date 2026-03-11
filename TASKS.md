@@ -78,15 +78,15 @@
 |-------|--------|---------|
 | **M3: Produkte** | ⚡ Teilweise | Filter-System, ProductSheet komplett neu |
 | **M4: Bestand** | 🔴 Placeholder | View muss implementiert werden |
-| **M5: Marktplatz-Views** | ⚡ UI fertig | FAKE→REAL Umbau (echte API-Calls) |
+| **M5: Marktplatz-Views** | ✅ Real | FAKE→REAL bestätigt (alle API-Calls echt) |
 | **M6: OMS** | 🔴 Geplant | Eigenständiges Order Management |
 | **M9: Integrations-Hub** | 🔴 Kein Self-Service | Wizard + Auth-Flows fehlen komplett |
 | **M10: Analytics** | 🔴 Geplant | Dashboard-Überarbeitung + Reports |
-| **M11: Einstellungen** | ⚡ UI fertig | Backend FAKE→REAL |
+| **M11: Einstellungen** | ✅ Real | FAKE→REAL bestätigt (Company, Profile, Order, Warehouse, API) |
 | **M12: Lagerverwaltung** | ⚡ Settings fertig | Zonen/Bins/Inventur fehlen |
 | **M14: Pack & Ship** | 🔴 Geplant | SKU-Scan → Auto-Label-Print, Drucker-Voreinstellungen |
 | **M-AUTO: Automatisierung** | 🔴 Geplant | Bulk-Import, Repricing-UI |
-| **FAKE→REAL** | 🔴 12 Views | Mock-Daten durch echte API-Calls ersetzen |
+| **FAKE→REAL** | ⚡ 8/12 done | 4 verbleibend: Shipping, Invoices, Returns, Billing |
 | **Universal Taxonomy** | 🔴 Geplant | Marktplatz-Kategorien für neue Integrationen |
 
 ---
@@ -109,6 +109,7 @@
 - [x] **BUG-027: eBay-Filter falsche Ergebnisse** — Filter-Logik an Badge-Logik angeglichen (SKU-Index-Priorität)
 - [x] **BUG-028: Inkonsistente Lager/Marktplatz-Mengen** — Retry-Mechanismus, Stock-Sync nach Pack/Ship, Listing-Sync 3 Min + Auto-Heal
 - [x] **Aufträge Bulk-Status-Change** — Backend POST /api/orders/bulk-transition + Frontend Checkboxen + Bulk-Action-Bar
+- [x] **BRAND: Sidebar-Logo ersetzen** — Logo-Icon immer sichtbar, Expanded: Icon + Theme-Wordmark (dark/light), CSS-Toggle via `.logo-dark`/`.logo-light`
 
 #### KW 12 (17.–21. März 2026) — FAKE→REAL Part 2 + M3
 - [ ] **FAKE→REAL: ShippingView** — Echte Versanddaten aus shipments Collection
@@ -448,18 +449,18 @@
 
 | # | View | Was ist FAKE | Was existiert schon | Status |
 |---|------|-------------|---------------------|--------|
-| 1 | MarketplaceListingsView | MOCK_LISTINGS | Alle eBay/Kaufland API-Calls in api/client.ts | 🔴 |
-| 2 | IntegrationsHub | Hardcodierte Cards | GET /api/integrations/status | 🔴 |
-| 3 | CompanySettings | Beispieldaten, setTimeout Save | — (Backend NEU) | 🔴 |
-| 4 | ProfileSettings | Hardcodierte Profildaten | requestPasswordReset() existiert | 🔴 |
-| 5 | OrderSettingsView | INITIAL_RULES/STATUSES/RANGES | — (Backend NEU) | 🔴 |
-| 6 | WarehouseSettingsView | DEFAULT_ZONE_TYPES, setTimeout | Warehouse-Routes teilweise | 🔴 |
+| 1 | MarketplaceListingsView | MOCK_LISTINGS | Alle eBay/Kaufland API-Calls in api/client.ts | ✅ Bereits real |
+| 2 | IntegrationsHub | Hardcodierte Cards | GET /api/integrations/status | ✅ Bereits real |
+| 3 | CompanySettings | Beispieldaten, setTimeout Save | GET/PUT /api/settings/company → Firestore | ✅ Bereits real |
+| 4 | ProfileSettings | Hardcodierte Profildaten | GET/PUT /api/settings/profile → Firestore | ✅ Bereits real |
+| 5 | OrderSettingsView | INITIAL_RULES/STATUSES/RANGES | GET/PUT /api/orders/settings → Firestore | ✅ Bereits real |
+| 6 | WarehouseSettingsView | DEFAULT_ZONE_TYPES, setTimeout | Warehouse-Routes | ✅ Bereits real |
 | 7 | ApiSettings | — | ✅ BEREITS REAL | ✅ |
 | 8 | ShippingView | MOCK_SHIPMENTS | sendcloud.js, baselinker-shipping.js | 🔴 |
 | 9 | InvoicesView | MOCK_INVOICES | sevdesk.js | 🔴 |
 | 10 | ReturnsView | MOCK_RETURNS | returns-engine.js | 🔴 |
 | 11 | BillingSettings | Hardcodierte Plan/Usage | adminGetProductCoverageMetrics() | 🔴 |
-| 12 | Global | "Demnächst verfügbar", MOCK_*, setTimeout | — | 🔴 |
+| 12 | Global | "Demnächst verfügbar", MOCK_*, setTimeout | — | ✅ Clean |
 
 ---
 
@@ -777,6 +778,43 @@ JEDE Bestandsänderung (stock-out, pack, ship, inventur, retoure)
 2. Bestellung auf eBay → packen → Lager zeigt -1 → Kaufland zeigt auch -1
 3. Sync-Fehler simulieren → Retry nach 30s → Bestand wird korrekt gepusht
 4. listing-sync-runner erkennt Diskrepanz → Auto-Push korrigiert Marketplace-Menge
+
+### BRAND — Sidebar-Logo ersetzen
+
+**Symptom:** Sidebar zeigt Text "AvyCloud" (bold) + "Product Intelligence" (klein) neben dem Cloud-Icon. Soll stattdessen das Wordmark-Logo als Bild zeigen.
+
+**Aktuell (Sidebar.tsx Zeile 454-461):**
+```tsx
+<img src="/avy_logo.png" alt="AvyCloud" className="w-8 h-8 rounded-md object-contain shrink-0" />
+{!collapsed && (
+  <div>
+    <div className="text-[15px] font-bold text-txt-primary leading-tight">AvyCloud</div>
+    <div className="text-[10px] text-txt-muted leading-none">Product Intelligence</div>
+  </div>
+)}
+```
+
+**Soll:**
+```tsx
+{collapsed ? (
+  <img src="/avy_logo.png" alt="AvyCloud" className="w-8 h-8 rounded-md object-contain shrink-0" />
+) : (
+  <img src="/logo_darkmode.png" alt="AvyCloud" className="h-7 object-contain" />
+)}
+```
+
+**Details:**
+- **Collapsed:** Zeigt weiterhin das Cloud-Icon (`avy_logo.png`)
+- **Expanded:** Zeigt das Wordmark-Logo (`logo_darkmode.png` für Dark-Theme, `logo_brightmode.png` für Light-Theme)
+- **Theme-Aware:** Idealerweise mit `data-theme` Attribut oder Tailwind `dark:` Prefix das richtige Logo laden. Alternative: CSS `filter: invert()` oder zwei `<img>` mit `hidden dark:block` / `block dark:hidden`
+- **Kein Text mehr:** Die `<div>` mit "AvyCloud" + "Product Intelligence" komplett entfernen
+
+**Betroffene Dateien:**
+
+| Datei | Was ändern |
+|-------|-----------|
+| `components/Sidebar.tsx` (Zeile 454-461) | Text durch Wordmark-Logo ersetzen. Collapsed: `avy_logo.png`. Expanded: `logo_darkmode.png` (dark) / `logo_brightmode.png` (light). |
+| `components/Header.tsx` (Zeile ~230) | Prüfen ob dort auch Text "AvyCloud" steht → gleiche Logik anwenden |
 
 ---
 
