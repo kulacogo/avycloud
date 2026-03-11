@@ -202,7 +202,81 @@ async function syncPriceToAllChannels({ tenantId = 'default', product, prices = 
   return { results };
 }
 
+/**
+ * Sync stock with automatic retry on failure.
+ * Retries once after 30s for channels that failed on first attempt.
+ */
+async function syncStockWithRetry({ tenantId = 'default', product, reason = 'manual' }) {
+  const first = await syncStockToAllChannels({ tenantId, product, reason });
+  const failedChannels = first.results.filter((r) => r.status === 'error');
+  if (failedChannels.length === 0) return first;
+
+  // Schedule retry after 30s for failed channels
+  console.log(`[stock-sync] ${failedChannels.length} channel(s) failed, scheduling retry in 30s`);
+  setTimeout(async () => {
+    try {
+      const retry = await syncStockToAllChannels({ tenantId, product, reason: `${reason}-retry` });
+      const stillFailed = retry.results.filter((r) => r.status === 'error');
+      if (stillFailed.length > 0) {
+        // Log persistent failure to Firestore for monitoring
+        await firestore.collection('stock_sync_failures').add({
+          tenantId,
+          productId: String(product?.id || ''),
+          reason,
+          failedChannels: stillFailed.map((r) => r.channel),
+          errors: stillFailed.map((r) => r.error),
+          createdAt: new Date().toISOString(),
+        }).catch(() => {});
+        console.warn(`[stock-sync] Retry still failed for product=${product?.id}: ${stillFailed.map((r) => `${r.channel}:${r.error}`).join(', ')}`);
+      } else {
+        console.log(`[stock-sync] Retry succeeded for product=${product?.id}`);
+      }
+    } catch (err) {
+      console.error(`[stock-sync] Retry error for product=${product?.id}: ${err.message}`);
+    }
+  }, 30000);
+
+  return first;
+}
+
+/**
+ * Sync stock to all channels for all products in an order.
+ * Reads product docs from order items' SKUs, then pushes stock to marketplaces.
+ */
+async function syncStockForOrderItems({ tenantId = 'default', orderId, reason = 'order' }) {
+  try {
+    // Read order to get items
+    const orderDoc = await firestore.collection('orders').doc(orderId).get();
+    if (!orderDoc.exists) return;
+    const order = { id: orderDoc.id, ...orderDoc.data() };
+    const items = order.items || [];
+    if (items.length === 0) return;
+
+    // Collect unique SKUs from order items
+    const skus = [...new Set(items.map((i) => String(i.sku || '').trim()).filter(Boolean))];
+    if (skus.length === 0) return;
+
+    // Query products by SKU (in chunks of 10)
+    const { getProductV2 } = require('../lib/product-store');
+    for (let i = 0; i < skus.length; i += 10) {
+      const chunk = skus.slice(i, i + 10);
+      const snap = await firestore.collection('products_v2')
+        .where('details.identifiers.sku', 'in', chunk)
+        .get();
+      for (const doc of snap.docs) {
+        const product = { id: doc.id, ...doc.data() };
+        syncStockWithRetry({ tenantId, product, reason: `${reason}-${orderId}` })
+          .catch((err) => console.warn(`[stock-sync] order item sync failed: ${err.message}`));
+      }
+    }
+  } catch (err) {
+    console.warn(`[stock-sync] syncStockForOrderItems failed for ${orderId}: ${err.message}`);
+  }
+}
+
 module.exports = {
   syncStockToAllChannels,
+  syncStockWithRetry,
+  syncStockForOrderItems,
   syncPriceToAllChannels,
 };

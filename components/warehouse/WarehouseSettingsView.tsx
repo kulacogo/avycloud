@@ -254,11 +254,6 @@ export const WarehouseSettingsView: React.FC = () => {
               <option value="small">Klein (30x15mm)</option>
             </select>
           </div>
-          <div className="flex items-end">
-            <button type="button" className="rounded-lg border border-app-border bg-app-elevated px-4 py-2 text-sm text-txt-secondary hover:bg-app-bg transition-colors">
-              Test-Label drucken
-            </button>
-          </div>
         </div>
       </SectionCard>
 
@@ -310,7 +305,14 @@ export const WarehouseSettingsView: React.FC = () => {
             </div>
           )}
           <p className="text-sm text-txt-muted bg-app-elevated rounded-lg px-3 py-2">
-            Nächste Inventur: <span className="font-medium text-txt-secondary">01.04.2026</span>
+            Nächste Inventur: <span className="font-medium text-txt-secondary">{(() => {
+              const intervalMonths: Record<string, number> = { monthly: 1, quarterly: 3, biannual: 6, yearly: 12 };
+              const months = intervalMonths[settings.inventoryInterval] || 3;
+              const next = new Date();
+              next.setMonth(next.getMonth() + months);
+              next.setDate(1);
+              return next.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" });
+            })()}</span>
           </p>
         </div>
       </SectionCard>

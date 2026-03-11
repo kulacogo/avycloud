@@ -1,6 +1,6 @@
 # TASKS.md — AvyCloud Roadmap & Task-Management
 
-> **Letzte Aktualisierung:** 2026-03-10
+> **Letzte Aktualisierung:** 2026-03-11
 > **Verantwortlich:** Oguzhan (Owner), Claude Code (Backend/Tests), Claude Cowork (Planung/Doku)
 
 ---
@@ -54,7 +54,7 @@
 | **Security** | ✅ | Helmet.js, Rate-Limiting, .env bereinigt |
 | **Datenbank** | ✅ | products_v2 live, Normalisierung, LLM-Policy + Rulebook |
 | **Infrastruktur** | ✅ | Pino Logging, Health-Check, Graceful Shutdown, AppError |
-| **Code-Qualität** | ✅ | 7 Router-Module, API Versioning, 119 Vitest-Tests |
+| **Code-Qualität** | ✅ | 7 Router-Module, API Versioning, 129 Vitest-Tests |
 | **KI-Pipeline** | ✅ | Identify (Vision+Barcode+Web+LLM), Improve, Quality-Check |
 | **Pricing** | ✅ | Engine backend-only, Competitor Intelligence |
 | **Inventory** | ✅ | Forecast, salesVelocity, Reorder-Alerts |
@@ -98,14 +98,17 @@
 ### Phase A: Foundation & Stabilisierung (KW 11–14)
 
 #### KW 11 (10.–14. März 2026) — FAKE→REAL + Bug-Fixes
-- [ ] **FAKE→REAL: MarketplaceListingsView** — Mock-Daten raus, echte eBay/Kaufland API-Calls
-- [ ] **FAKE→REAL: IntegrationsHub** — Echte Verbindungsstatus aus Backend
-- [ ] **FAKE→REAL: CompanySettings** — Firestore speichern/laden
-- [ ] **FAKE→REAL: ProfileSettings** — Firestore + Firebase Auth
-- [ ] **FAKE→REAL: OrderSettings** — Firestore speichern/laden
-- [ ] **FAKE→REAL: WarehouseSettings** — Firestore speichern/laden
-- [ ] **BUG: "Demnächst verfügbar" global entfernen** — Alle MOCK_*, setTimeout-Fakes, Coming-Soon
-- [ ] **BUG: eBay Preis-Push** — Firestore-Update geht, aber Listing-Preis wird nicht zu eBay gepusht
+- [x] **FAKE→REAL: MarketplaceListingsView** — Bereits 100% real, keine Mock-Daten gefunden
+- [x] **FAKE→REAL: IntegrationsHub** — Bereits 100% real (Firestore + Secret Manager Status-Checks)
+- [x] **FAKE→REAL: CompanySettings** — Bereits 100% real (GET/PUT /api/settings/company → Firestore)
+- [x] **FAKE→REAL: ProfileSettings** — Bereits 100% real (GET/PUT /api/settings/profile → Firestore)
+- [x] **FAKE→REAL: OrderSettings** — Bereits 100% real (GET/PUT /api/orders/settings → Firestore, Smart-Defaults)
+- [x] **FAKE→REAL: WarehouseSettings** — Bereits real, hardcodiertes Inventur-Datum + nonfunktionaler Button entfernt
+- [x] **BUG: "Demnächst verfügbar" global entfernen** — Codebase bereits clean, keine MOCK_*/setTimeout-Fakes/Coming-Soon gefunden
+- [x] **BUG: eBay Preis-Push** — ✅ Fixed (BUG-020, property path mismatch)
+- [x] **BUG-027: eBay-Filter falsche Ergebnisse** — Filter-Logik an Badge-Logik angeglichen (SKU-Index-Priorität)
+- [x] **BUG-028: Inkonsistente Lager/Marktplatz-Mengen** — Retry-Mechanismus, Stock-Sync nach Pack/Ship, Listing-Sync 3 Min + Auto-Heal
+- [x] **Aufträge Bulk-Status-Change** — Backend POST /api/orders/bulk-transition + Frontend Checkboxen + Bulk-Action-Bar
 
 #### KW 12 (17.–21. März 2026) — FAKE→REAL Part 2 + M3
 - [ ] **FAKE→REAL: ShippingView** — Echte Versanddaten aus shipments Collection
@@ -471,6 +474,8 @@
 | BUG-024 | Marketplace-Tabellen haben keinerlei UX | P1 | ✅ Fixed (column sorting, rows-per-page, stock filter) |
 | BUG-025 | **KRITISCH: Versandlabel falsche Carrier-Zuordnung** — 4kg Paket bekommt DHL Kleinpaket 0-1kg statt DPD Classic 0-5kg | P0 | ✅ Fixed (order-level weight + type-safe rule matching) |
 | BUG-026 | **Nicht versendete Bestellungen zeigen Verpackt/Versendet Zeitstempel** — State-Machine setzt Timestamps eager, bevor Aktion bestätigt ist | P1 | ✅ Fixed (caller-provided timestamps, tracking-gated transitions, defensive UI) |
+| BUG-027 | **eBay-Filter in Inventar/Produktdaten zeigt falsche Ergebnisse** — "Gelistet" = 0 Ergebnisse, "Nicht gelistet" enthält gelistete Artikel | P1 | ✅ Fixed (Filter-Logik an Badge-Logik angeglichen: viewItemUrl/SKU-Index-Priorität für eBay + Kaufland) |
+| BUG-028 | **Marketplace-Seiten: Inkonsistente Lager/Marktplatz-Mengen** — Warehouse-Qty ≠ Marketplace-Qty, kein Real-Time-Sync bei externen Verkäufen | P1 | ✅ Fixed (P1: Retry-Mechanismus, Stock-Sync nach Pack/Ship, Listing-Sync 10→3 Min, Auto-Heal bei Diskrepanz) |
 | BUG-SSE | Token-in-Query-Parameter für SSE-Streams leakt | P1 | 🔴 Offen |
 | BUG-006 | EbayListingsView.tsx (alte Gap-Analysis) noch da — LÖSCHEN | P1 | ✅ Fixed (deleted) |
 | BUG-008 | eBay-Seite zeigt Gap-Analyse-Daten statt Listing-Management | P1 | ✅ Fixed (route already correct, old component deleted) |
@@ -666,6 +671,112 @@ Keine Validierung ob `omsStatus` tatsächlich zum Timestamp passt.
 1. Bestellung erstellen → auf "packed" setzen → Ship fehlschlagen lassen → kein `shippedAt` Timestamp erwartet
 2. Bestellung erfolgreich versenden → `shippedAt` korrekt gesetzt
 3. SendCloud-Sync mit fehlenden Tracking-Nummern → Status darf NICHT auf "shipped" wechseln
+
+### BUG-027 — eBay-Filter in Inventar/Produktdaten zeigt falsche Ergebnisse
+
+**Symptom:** Filter "eBay: Gelistet" zeigt 0 Ergebnisse (leere Tabelle), obwohl Produkte auf eBay gelistet sind und grüne "Gelistet"-Badges haben. Filter "eBay: Nicht gelistet" zeigt 433 Ergebnisse, enthält aber Produkte die aktiv auf eBay gelistet sind (grünes Badge sichtbar). Betrifft Inventar- UND Produktdaten-Seite (beide nutzen AdminTable.tsx).
+
+**Root Cause: Filter-Logik stimmt nicht mit Badge-Logik überein**
+
+**Badge-Logik (Zeile 670-671) — KORREKT:**
+```
+const isActive = !!viewItemUrl || ebayStatus === 'active';
+```
+Badge zeigt "Gelistet" wenn: viewItemUrl existiert (SKU-Index = Echtzeit-Quelle) ODER ebayStatus === 'active'.
+
+**Filter-Logik (Zeile 1090-1094) — FALSCH:**
+```
+const isEbayListed = pEbayStatus === 'active' || (!pEbayStatus && Boolean(
+  hasSkuMatch || ebayProductIdMap.get(p.id) || (marketplaceItemId && ebayActiveItemIds.has(marketplaceItemId))
+));
+```
+Filter erkennt als "gelistet" NUR wenn: `pEbayStatus === 'active'` ODER (`pEbayStatus` ist null/undefined UND Fallback-Quellen matchen).
+
+**Das Problem:** Wenn `pEbayStatus === 'inactive'` (stale Wert vom listing-sync-runner), dann:
+- Badge: `!!viewItemUrl` = true → zeigt grün "Gelistet" ✅
+- Filter: `pEbayStatus === 'active'` = false, UND `!pEbayStatus` = false (weil 'inactive' truthy ist) → `isEbayListed = false` → Produkt erscheint NICHT unter "Gelistet" ❌
+
+Umgekehrt: Filter "Nicht gelistet" zeigt dieses Produkt, obwohl Badge grün ist.
+
+**Betroffene Dateien + Fixes:**
+
+| Datei | Was ändern |
+|-------|-----------|
+| `components/AdminTable.tsx` → Filter-Logik (Zeile 1090-1094) | **Filter-Logik an Badge-Logik angleichen.** viewItemUrl MUSS im Filter genauso berechnet werden wie im Badge-Render. Neue Logik: `const pViewItemUrl = pSkuCandidates.map((sku) => ebayLinkedMap.get(sku)).find(Boolean) \|\| ebayProductIdMap.get(p.id) \|\| (marketplaceItemId && ebayActiveItemIds.has(marketplaceItemId));` dann: `const isEbayListed = !!pViewItemUrl \|\| pEbayStatus === 'active';` |
+
+**Verifikation nach Fix:**
+1. Filter "eBay: Gelistet" → muss alle Produkte zeigen die grünes "Gelistet"-Badge haben
+2. Filter "eBay: Nicht gelistet" → darf KEINE Produkte mit grünem Badge enthalten
+3. Anzahl "Gelistet" + "Nicht gelistet" = Gesamtzahl Artikel
+4. Gleiches Verhalten auf Inventar- UND Produktdaten-Seite verifizieren
+
+### BUG-028 — Inkonsistente Lager/Marktplatz-Mengen auf Marketplace-Seiten
+
+**Symptom:** eBay-Seite und Kaufland-Seite zeigen unterschiedliche Mengen in "Marktplatz"-Spalte vs. "Lager"-Spalte, obwohl beide Marktplätze denselben Lagerbestand nutzen. Beispiel: Marktplatz zeigt "1", Lager zeigt "—" (oder umgekehrt). Extrem kritisch: Lagerbestand muss auf ALLEN aktiven Marktplätzen jederzeit synchron sein.
+
+**Analyse — Wie Stock-Sync aktuell funktioniert:**
+
+**Datenquellen auf Marketplace-Seiten:**
+- **Marktplatz-Menge (eBay):** `ebayListingsLive` Collection → `quantityAvailable` — von eBay API geholt
+- **Marktplatz-Menge (Kaufland):** `kauflandUnitsLive` Collection → `amount` — von Kaufland API geholt
+- **Lager-Menge:** Errechnet aus verlinktem Produkt in `products_v2` → `storageBins[].quantity` summiert, Fallback auf `inventory.availableQuantity`
+
+**Automatischer Push (Warehouse → Marktplätze):**
+- `POST /api/warehouse/stock-out` → `stock-sync-dispatcher.js:syncStockToAllChannels()` → Push zu eBay (`reviseFixedPriceItem`) + Kaufland (`updateUnit`) + BaseLinker
+- Trigger: NUR bei explizitem Stock-Out über Warehouse-Endpoint
+- Non-blocking: `setTimeout(..., 0)` — Fire-and-forget, Fehler nur in Console geloggt
+
+**Periodischer Fetch (Marktplätze → Cache):**
+- `listing-sync-runner.js` läuft alle ~10 Minuten (LISTING_SYNC_INTERVAL_MS)
+- Holt aktuelle Mengen von eBay/Kaufland APIs und schreibt in `ebayListingsLive`/`kauflandUnitsLive`
+
+**Root Causes der Inkonsistenzen:**
+
+| # | Ursache | Auswirkung |
+|---|---------|------------|
+| 1 | **Kein automatischer Stock-Sync bei Marketplace-Verkäufen** | Verkauf auf eBay → eBay-Menge sinkt sofort → AvyCloud-Lager weiß davon erst wenn Bestellung eingeht + verarbeitet wird → bis dahin Diskrepanz |
+| 2 | **Listing-Sync nur alle 10 Min** | Marketplace-Mengen-Cache ist bis zu 10 Min veraltet → UI zeigt alte Daten |
+| 3 | **Stock-Push nur bei stock-out Endpoint** | Manuelle Lageränderungen, Inventur, Retouren → kein automatischer Push zu Marktplätzen |
+| 4 | **Kein Order-basierter Stock-Decrement** | Wenn eBay/Kaufland-Bestellung eingeht und kommissioniert wird → Stock-Sync zu ANDEREN Marktplätzen fehlt wenn nicht über stock-out Endpoint |
+| 5 | **Fire-and-Forget Push** | `syncStockToAllChannels()` Fehler werden nur geloggt, nicht retried. Fehlgeschlagene Syncs → permanente Diskrepanz |
+| 6 | **Kein Webhook-Empfang** | eBay/Kaufland Webhooks für Bestandsänderungen werden nicht empfangen → kein Real-Time-Update möglich |
+
+**Betroffene Dateien + Fixes (nach Priorität):**
+
+| # | Datei | Was ändern | Prio |
+|---|-------|-----------|------|
+| 1 | `backend/services/stock-sync-dispatcher.js` | **Retry-Mechanismus:** Bei Fehler 1x automatisch retrien nach 30s. Fehlgeschlagene Syncs in `stock_sync_failures` Collection speichern mit Retry-Counter. | P1 |
+| 2 | `backend/routes/orders.js` → Pack/Ship-Endpoints | **Stock-Sync nach Kommissionierung:** Wenn Bestellung gepackt/versendet wird → `syncStockToAllChannels()` für ALLE betroffenen Produkte aufrufen. Nicht nur bei stock-out. | P1 |
+| 3 | `backend/services/listing-sync-runner.js` | **Sync-Intervall verkürzen:** `LISTING_SYNC_INTERVAL_MS` Default von 10 Min auf 3 Min. Und: Bei erkannter Diskrepanz (warehouseStock ≠ marketplaceQty) → sofortigen Push triggern. | P1 |
+| 4 | `backend/services/stock-sync-dispatcher.js` | **Alle Stock-Änderungen abfangen:** Nicht nur stock-out, auch: Inventur-Korrektur, Retouren-Einlagerung, manuelle Bestandsänderung → Überall `syncStockToAllChannels()` aufrufen. | P2 |
+| 5 | `backend/routes/marketplace.js` oder neuer Webhook-Endpoint | **eBay/Kaufland Webhooks empfangen** für Bestellungen → sofortiger Stock-Decrement + Sync zu anderen Kanälen. | P2 |
+
+**Datenfluss (Ist-Zustand):**
+```
+Warehouse Stock-Out → syncStockToAllChannels() → Push zu eBay + Kaufland (async, no retry)
+                                                    ↓
+                                            ebayListingsLive/kauflandUnitsLive = STALE bis nächster listing-sync-runner Zyklus (10 Min)
+
+Marketplace-Verkauf → Bestellung in BaseLinker → irgendwann: order-sync → packOrder → stock-out → Push
+                                                    ↓
+                                            ABER: Andere Marktplätze wissen bis dahin nichts → Oversell-Risiko!
+```
+
+**Datenfluss (Soll-Zustand):**
+```
+JEDE Bestandsänderung (stock-out, pack, ship, inventur, retoure)
+    → syncStockToAllChannels() mit Retry
+    → Push zu ALLEN aktiven Marktplätzen
+    → Bei Fehler: Queue + Retry nach 30s
+    → listing-sync-runner alle 3 Min als Safety-Net
+    → Bei Diskrepanz: sofort Push (Auto-Heal)
+```
+
+**Verifikation nach Fix:**
+1. Produkt mit Bestand 5 → stock-out 1 Stück → eBay UND Kaufland zeigen sofort 4
+2. Bestellung auf eBay → packen → Lager zeigt -1 → Kaufland zeigt auch -1
+3. Sync-Fehler simulieren → Retry nach 30s → Bestand wird korrekt gepusht
+4. listing-sync-runner erkennt Diskrepanz → Auto-Push korrigiert Marketplace-Menge
 
 ---
 

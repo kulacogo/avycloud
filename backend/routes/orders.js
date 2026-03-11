@@ -924,6 +924,13 @@ router.post('/orders/:orderId/pack', requirePermission('orders', 'pack'), async 
       orderId,
       actor: req.user ? { uid: req.user.uid, email: req.user.email } : undefined,
     });
+
+    // Sync stock to all channels after pack (non-blocking)
+    const tenantId = req.user?.tenantId || 'default';
+    const { syncStockForOrderItems } = require('../services/stock-sync-dispatcher');
+    syncStockForOrderItems({ tenantId, orderId, reason: 'pack' })
+      .catch((err) => console.warn(`[pack] stock sync failed for ${orderId}: ${err.message}`));
+
     res.json({ ok: true });
   } catch (error) {
     console.error('Failed to mark order as packed:', error);
@@ -1326,6 +1333,11 @@ router.post('/orders/:orderId/ship', requirePermission('orders', 'write'), async
         carrier: result.carrier || '',
       }).catch((err) => console.error(`[ship] Marketplace push failed: ${err.message}`));
     }
+
+    // Sync stock to all channels after ship (non-blocking)
+    const { syncStockForOrderItems } = require('../services/stock-sync-dispatcher');
+    syncStockForOrderItems({ tenantId, orderId, reason: 'ship' })
+      .catch((err) => console.warn(`[ship] stock sync failed for ${orderId}: ${err.message}`));
 
     res.json({ ok: true, data: result });
   } catch (err) {

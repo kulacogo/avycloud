@@ -15,7 +15,7 @@ const { syncLiveListingsLight } = require('../lib/ebay-direct');
 
 const LISTING_SYNC_ENABLED = process.env.LISTING_SYNC_ENABLED !== 'false'; // Default ON
 const LISTING_SYNC_INTERVAL_MS = parseInt(
-  process.env.LISTING_SYNC_INTERVAL_MS || String(10 * 60 * 1000), // 10 minutes
+  process.env.LISTING_SYNC_INTERVAL_MS || String(3 * 60 * 1000), // 3 minutes
   10
 );
 const LISTING_SYNC_INITIAL_DELAY_MS = parseInt(
@@ -209,6 +209,64 @@ async function syncKauflandUnitsToCache() {
   return { fetched: units.length, active: seenIds.size };
 }
 
+// ─── Auto-Heal: Detect and fix stock discrepancies ──────────────────────────
+
+async function autoHealStockDiscrepancies() {
+  const { syncStockToAllChannels } = require('./stock-sync-dispatcher');
+
+  // Check eBay listings for quantity mismatches
+  const ebaySnap = await firestore.collection('ebayListingsLive')
+    .where('active', '==', true)
+    .get();
+  if (ebaySnap.empty) return;
+
+  // Build itemId → marketplaceQty map
+  const ebayQtyMap = new Map();
+  for (const doc of ebaySnap.docs) {
+    const data = doc.data();
+    const sku = String(data?.sku || '').trim();
+    if (sku) {
+      ebayQtyMap.set(sku, Number(data?.quantityAvailable ?? data?.quantity ?? 0));
+    }
+  }
+
+  if (ebayQtyMap.size === 0) return;
+
+  // Query products with matching SKUs in chunks
+  const skus = Array.from(ebayQtyMap.keys());
+  let healed = 0;
+  const MAX_HEALS_PER_CYCLE = 10; // Limit to avoid API rate limits
+
+  for (let i = 0; i < skus.length && healed < MAX_HEALS_PER_CYCLE; i += 10) {
+    const chunk = skus.slice(i, i + 10);
+    try {
+      const snap = await firestore.collection(PRODUCTS_COLLECTION)
+        .where('identification.sku', 'in', chunk)
+        .get();
+      for (const doc of snap.docs) {
+        if (healed >= MAX_HEALS_PER_CYCLE) break;
+        const product = { id: doc.id, ...doc.data() };
+        const sku = String(product?.identification?.sku || '').trim();
+        const warehouseQty = product?.inventory?.availableQuantity ?? product?.inventory?.quantity ?? 0;
+        const marketplaceQty = ebayQtyMap.get(sku);
+
+        if (marketplaceQty !== undefined && marketplaceQty !== warehouseQty) {
+          console.log(`[ListingSyncRunner] Auto-heal: ${sku} warehouse=${warehouseQty} ebay=${marketplaceQty} → pushing`);
+          syncStockToAllChannels({ tenantId: 'default', product, reason: 'auto-heal' })
+            .catch((err) => console.warn(`[auto-heal] push failed for ${sku}: ${err.message}`));
+          healed++;
+        }
+      }
+    } catch (err) {
+      console.warn(`[ListingSyncRunner] Auto-heal SKU query failed: ${err.message}`);
+    }
+  }
+
+  if (healed > 0) {
+    console.log(`[ListingSyncRunner] Auto-heal: pushed corrections for ${healed} product(s)`);
+  }
+}
+
 // ─── Sync Cycle ───────────────────────────────────────────────────────────────
 
 async function runListingSyncCycle() {
@@ -256,6 +314,11 @@ async function runListingSyncCycle() {
     } else {
       console.log(`[ListingSyncRunner] Kaufland: updated ${kauflandProp.updated} products`);
     }
+
+    // Auto-heal: detect stock discrepancies and push corrections
+    await autoHealStockDiscrepancies().catch(err => {
+      console.warn(`[ListingSyncRunner] Auto-heal failed: ${err.message}`);
+    });
   } catch (err) {
     console.error('[ListingSyncRunner] Cycle failed:', err.message);
   } finally {

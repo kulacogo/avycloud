@@ -743,9 +743,9 @@ const AdminTable: React.FC<AdminTableProps> = ({
           const skuProductId = sku ? kauflandSkuProductIdMap.get(sku) : null;
           const eanProductId = eanCandidates.map((ean) => kauflandEanProductIdMap.get(ean)).find((v) => Number(v) > 0) || null;
           const viewItemUrl = skuUrl || eanUrl || buildKauflandProductUrl(skuProductId || eanProductId || null) || null;
-          // Determine listed state: ops.listingStatus is authoritative, listedByIndex as fallback
-          const isActive = kauflandStatus === 'active' || (!kauflandStatus && listedByIndex);
-          const isInactive = kauflandStatus === 'inactive';
+          // Determine listed state: SKU/EAN index (listedByIndex) has priority over stale ops.listingStatus
+          const isActive = listedByIndex || kauflandStatus === 'active';
+          const isInactive = !isActive && kauflandStatus === 'inactive';
           return (
             failed ? (
               <span
@@ -1085,13 +1085,15 @@ const AdminTable: React.FC<AdminTableProps> = ({
           ].filter(Boolean)
         )
       );
-      const hasSkuMatch = pSkuCandidates.some((sku) => Boolean(ebayLinkedMap.get(sku)));
       const marketplaceItemId = String((p as any)?.marketplace?.ebay?.itemId || '').trim();
-      const isEbayListed = pEbayStatus === 'active' || (!pEbayStatus && Boolean(
-        hasSkuMatch ||
-        ebayProductIdMap.get(p.id) ||
-        (marketplaceItemId && ebayActiveItemIds.has(marketplaceItemId))
-      ));
+      // Resolve viewItemUrl same way as badge render (line ~664-669)
+      const pSkuUrl = pSkuCandidates.map((sku) => ebayLinkedMap.get(sku)).find(Boolean) || null;
+      const pPidItemId = ebayProductIdMap.get(p.id);
+      const pViewItemUrl =
+        pSkuUrl ||
+        (pPidItemId ? true : null) ||
+        (marketplaceItemId && ebayActiveItemIds.has(marketplaceItemId) ? true : null);
+      const isEbayListed = !!pViewItemUrl || pEbayStatus === 'active';
       const matchesEbay =
         filterEbay === 'all' ||
         (filterEbay === 'listed' && isEbayListed) ||
@@ -1116,10 +1118,9 @@ const AdminTable: React.FC<AdminTableProps> = ({
             .filter(Boolean)
         )
       );
-      const isKauflandListed = pKauflandStatus === 'active' || (!pKauflandStatus && (
-        (pSku && kauflandSkuSet.has(pSku)) ||
-        pEanCandidates.some((ean) => kauflandEanSet.has(ean))
-      ));
+      // Match badge logic: SKU/EAN index presence = listed, regardless of stale ops status
+      const pKauflandByIndex = (pSku && kauflandSkuSet.has(pSku)) || pEanCandidates.some((ean) => kauflandEanSet.has(ean));
+      const isKauflandListed = pKauflandStatus === 'active' || pKauflandByIndex;
       const matchesKaufland =
         filterKaufland === 'all' ||
         (filterKaufland === 'listed' && isKauflandListed) ||
