@@ -8,6 +8,7 @@ const { getCheckAccountBalances, getShippingCostsFromSevDesk } = require('../lib
 const { getShippingCostsSummaryFromBaseLinker } = require('../lib/baselinker-shipping');
 const { getShippingCostsSummary: getSendCloudShippingSummary } = require('../lib/sendcloud');
 const { getEbayNetRevenueSummary } = require('../lib/ebay-finances');
+const { emitSyncEvent } = require('../services/sync-event-bus');
 
 // ── Factory: backgroundSyncOrders wird von index.js injiziert ────────
 
@@ -904,6 +905,13 @@ router.post('/orders/:orderId/complete', requirePermission('orders', 'pick'), as
       orderId,
       actor: req.user ? { uid: req.user.uid, email: req.user.email } : undefined,
     });
+
+    // Event-driven sync
+    emitSyncEvent('order:status_changed', {
+      entityId: orderId, tenantId: req.user?.tenantId || 'default',
+      toStatus: 'picked', source: 'api:complete',
+    });
+
     res.json({ ok: true });
   } catch (error) {
     console.error('Failed to complete order:', error);
@@ -927,11 +935,11 @@ router.post('/orders/:orderId/pack', requirePermission('orders', 'pack'), async 
       actor: req.user ? { uid: req.user.uid, email: req.user.email } : undefined,
     });
 
-    // Sync stock to all channels after pack (non-blocking)
+    // Event-driven sync: triggers stock sync to all channels
     const tenantId = req.user?.tenantId || 'default';
-    const { syncStockForOrderItems } = require('../services/stock-sync-dispatcher');
-    syncStockForOrderItems({ tenantId, orderId, reason: 'pack' })
-      .catch((err) => console.warn(`[pack] stock sync failed for ${orderId}: ${err.message}`));
+    emitSyncEvent('order:status_changed', {
+      entityId: orderId, tenantId, toStatus: 'packed', source: 'api:pack',
+    });
 
     res.json({ ok: true });
   } catch (error) {
@@ -1214,20 +1222,18 @@ router.post('/orders/:orderId/transition', requirePermission('orders', 'write'),
       return res.status(400).json({ ok: false, error: { code: 'TRANSITION_DENIED', message: result.error } });
     }
 
-    // Post-transition side effects (async, non-blocking)
+    // Event-driven sync: handles stock release, marketplace push, and cross-system sync
+    emitSyncEvent('order:status_changed', {
+      entityId: orderId, tenantId, toStatus, fromStatus: result.fromStatus, source: 'api:transition',
+    });
+
+    // Direct marketplace push for cancel/ship (time-critical, don't wait for debounced sync)
     if (toStatus === 'cancelled') {
-      // Release stock reservations + push updated availability to marketplaces
-      const { releaseReservation } = require('../services/stock-reservation');
-      const { syncStockForOrderItems } = require('../services/stock-sync-dispatcher');
       const { pushCancellationToMarketplace } = require('../services/marketplace-tracking');
-      releaseReservation({ tenantId, orderId })
-        .then(() => syncStockForOrderItems({ tenantId, orderId, reason: 'cancel' }))
-        .catch((err) => console.warn(`[transition] cancel stock release failed: ${err.message}`));
       pushCancellationToMarketplace({ orderId, reason: note || 'other' })
         .catch((err) => console.warn(`[transition] cancel marketplace push failed: ${err.message}`));
     }
     if (toStatus === 'shipped') {
-      // Push tracking to marketplace if tracking number exists
       const orderDoc = await require('../lib/firestore').firestore.collection('orders').doc(orderId).get();
       const orderData = orderDoc.exists ? orderDoc.data() : {};
       const trackingNumber = orderData.trackingNumber || orderData.tracking?.trackingNumber;
@@ -1351,7 +1357,7 @@ router.post('/orders/:orderId/ship', requirePermission('orders', 'write'), async
       console.warn(`[ship] Label created for ${orderId} but no tracking number — staying in current status`);
     }
 
-    // Push tracking to marketplace (async, non-blocking)
+    // Push tracking to marketplace immediately (time-critical)
     if (result.trackingNumber) {
       const { pushTrackingToMarketplace } = require('../services/marketplace-tracking');
       pushTrackingToMarketplace({
@@ -1361,10 +1367,13 @@ router.post('/orders/:orderId/ship', requirePermission('orders', 'write'), async
       }).catch((err) => console.error(`[ship] Marketplace push failed: ${err.message}`));
     }
 
-    // Sync stock to all channels after ship (non-blocking)
-    const { syncStockForOrderItems } = require('../services/stock-sync-dispatcher');
-    syncStockForOrderItems({ tenantId, orderId, reason: 'ship' })
-      .catch((err) => console.warn(`[ship] stock sync failed for ${orderId}: ${err.message}`));
+    // Event-driven sync: stock sync + marketplace sync + SendCloud sync
+    emitSyncEvent('order:status_changed', {
+      entityId: orderId, tenantId, toStatus: 'shipped', source: 'api:ship',
+    });
+    emitSyncEvent('shipment:created', {
+      entityId: orderId, tenantId, source: 'api:ship',
+    });
 
     res.json({ ok: true, data: result });
   } catch (err) {
@@ -1432,6 +1441,14 @@ router.post('/orders/:orderId/cancel-label', requirePermission('orders', 'write'
       actor: { uid: req.user?.uid || 'system', email: req.user?.email || 'api' },
       note: 'Versandlabel storniert — Tracking entfernt',
       force: true,
+    });
+
+    // Event-driven sync: shipment cancelled → resync stock + shipments
+    emitSyncEvent('order:status_changed', {
+      entityId: orderId, tenantId, toStatus: 'packed', source: 'api:cancel-label',
+    });
+    emitSyncEvent('shipment:updated', {
+      entityId: orderId, tenantId, source: 'api:cancel-label',
     });
 
     res.json({ ok: true, data: { message: 'Label storniert, Tracking entfernt.' } });

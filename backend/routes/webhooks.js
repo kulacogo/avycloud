@@ -11,6 +11,7 @@
 const express = require('express');
 const router = express.Router();
 const { Firestore, FieldValue } = require('@google-cloud/firestore');
+const { emitSyncEvent } = require('../services/sync-event-bus');
 
 const SHIPMENTS_COLLECTION = 'shipments';
 const ORDERS_COLLECTION = 'orders';
@@ -144,10 +145,132 @@ router.post('/webhooks/sendcloud', async (req, res) => {
       }
     }
 
+    // Event-driven sync: SendCloud status change → trigger full sync cascade
+    emitSyncEvent('shipment:updated', {
+      entityId: orderId || `parcel-${parcelId}`,
+      tenantId: 'default',
+      statusId,
+      source: 'sendcloud-webhook',
+    });
+
     return res.status(200).json({ ok: true });
   } catch (err) {
     console.error(`[POST /api/webhooks/sendcloud] ${err.message}`, err);
     // Always return 200 to prevent SendCloud from retrying
+    return res.status(200).json({ ok: false, error: err.message });
+  }
+});
+
+/**
+ * POST /api/webhooks/kaufland — Receive order/return events from Kaufland.
+ *
+ * Kaufland Push Notifications send JSON with event_name + payload.
+ * We trigger a full sync on any relevant event.
+ */
+router.post('/webhooks/kaufland', async (req, res) => {
+  try {
+    const body = req.body || {};
+    const eventName = body.event_name || body.event || '';
+    const payload = body.data || body.payload || {};
+
+    console.log(`[webhook/kaufland] event=${eventName} keys=${Object.keys(payload).join(',')}`);
+
+    // Relevant events: new_order, order_unit_status_changed, return_created, etc.
+    const orderEvents = ['new_order', 'order_unit_status_changed', 'order_cancelled', 'order_shipped'];
+    const returnEvents = ['return_created', 'return_updated', 'return_accepted', 'return_rejected'];
+
+    if (orderEvents.some((e) => eventName.includes(e))) {
+      emitSyncEvent('order:updated', {
+        entityId: payload.id_order || payload.order_id || 'kaufland',
+        tenantId: 'default',
+        source: `kaufland-webhook:${eventName}`,
+      });
+    }
+
+    if (returnEvents.some((e) => eventName.includes(e))) {
+      emitSyncEvent('return:created', {
+        entityId: payload.id_return || payload.return_id || 'kaufland',
+        tenantId: 'default',
+        source: `kaufland-webhook:${eventName}`,
+      });
+    }
+
+    // Fallback: any unknown event still triggers order sync
+    if (!orderEvents.some((e) => eventName.includes(e)) && !returnEvents.some((e) => eventName.includes(e))) {
+      emitSyncEvent('order:updated', {
+        entityId: 'kaufland-unknown',
+        tenantId: 'default',
+        source: `kaufland-webhook:${eventName}`,
+      });
+    }
+
+    return res.status(200).json({ ok: true });
+  } catch (err) {
+    console.error(`[POST /api/webhooks/kaufland] ${err.message}`, err);
+    return res.status(200).json({ ok: false, error: err.message });
+  }
+});
+
+/**
+ * POST /api/webhooks/ebay — Receive marketplace notifications from eBay.
+ *
+ * eBay Platform Notifications (REST or Trading API) push JSON/XML.
+ * We trigger appropriate syncs based on notification type.
+ */
+router.post('/webhooks/ebay', async (req, res) => {
+  try {
+    const body = req.body || {};
+
+    // eBay Marketplace Account Deletion/Closure (GDPR) — required endpoint
+    if (body.metadata?.topic === 'MARKETPLACE_ACCOUNT_DELETION') {
+      console.log('[webhook/ebay] Account deletion notification received');
+      return res.status(200).json({ ok: true });
+    }
+
+    const notificationType = body.metadata?.topic || body.NotificationEventName || body.topic || '';
+    console.log(`[webhook/ebay] type=${notificationType}`);
+
+    // eBay notification types
+    const orderTypes = [
+      'MARKETPLACE_ORDER_CREATED', 'MARKETPLACE_ORDER_COMPLETED',
+      'ORDER_CREATED', 'FIXED_PRICE_TRANSACTION', 'CHECKOUT_COMPLETE',
+      'ORDER_STATUS_CHANGE',
+    ];
+    const returnTypes = [
+      'RETURN_CREATED', 'RETURN_CLOSED', 'RETURN_ESCALATED',
+      'ITEM_RETURNED',
+    ];
+
+    if (orderTypes.some((t) => notificationType.includes(t))) {
+      emitSyncEvent('order:updated', {
+        entityId: body.resource?.orderId || body.OrderID || 'ebay',
+        tenantId: 'default',
+        source: `ebay-webhook:${notificationType}`,
+      });
+    }
+
+    if (returnTypes.some((t) => notificationType.includes(t))) {
+      emitSyncEvent('return:created', {
+        entityId: body.resource?.returnId || 'ebay',
+        tenantId: 'default',
+        source: `ebay-webhook:${notificationType}`,
+      });
+    }
+
+    // eBay challenge response (webhook verification)
+    if (req.query.challenge_code) {
+      const crypto = require('crypto');
+      const verificationToken = process.env.EBAY_WEBHOOK_VERIFICATION_TOKEN || '';
+      const endpoint = process.env.EBAY_WEBHOOK_ENDPOINT || '';
+      const hash = crypto.createHash('sha256')
+        .update(req.query.challenge_code + verificationToken + endpoint)
+        .digest('hex');
+      return res.status(200).json({ challengeResponse: hash });
+    }
+
+    return res.status(200).json({ ok: true });
+  } catch (err) {
+    console.error(`[POST /api/webhooks/ebay] ${err.message}`, err);
     return res.status(200).json({ ok: false, error: err.message });
   }
 });

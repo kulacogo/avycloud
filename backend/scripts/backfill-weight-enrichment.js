@@ -158,14 +158,16 @@ function tryExtractWeightFromProduct(product) {
  * Build a Gemini prompt to estimate product weight.
  */
 function buildWeightPrompt(product) {
-  const title = product?.details?.title || product?.details?.name || '';
-  const brand = product?.details?.brand || '';
-  const category = product?.details?.category || '';
-  const ean = product?.details?.identifiers?.ean || product?.details?.identifiers?.barcode || '';
-  const desc = (product?.details?.description || '').slice(0, 500);
+  const title = product?.identification?.name || product?.details?.title || product?.details?.name || '';
+  const brand = product?.identification?.brand || product?.details?.brand || '';
+  const category = product?.details?.baselinkerCategoryPath || product?.details?.categoryId || '';
+  const ean = product?.identification?.ean || product?.details?.identifiers?.ean || product?.details?.identifiers?.barcode || '';
+  const desc = (product?.details?.short_description || product?.details?.description || '').replace(/<[^>]*>/g, '').slice(0, 500);
+  const keyFeatures = Array.isArray(product?.details?.key_features) ? product.details.key_features.join('; ') : '';
   const attrs = product?.details?.attributes || {};
-  const dimensions = attrs.dimensions || attrs.Abmessungen || attrs.Maße || '';
+  const dimensions = attrs.dimensions || attrs.Abmessungen || attrs.Maße || attrs.Produktmaße || '';
   const material = attrs.material || attrs.Material || '';
+  const produktart = attrs.Produktart || '';
 
   return `Du bist ein Produktdaten-Experte. Schätze das Gewicht des folgenden Produkts in Kilogramm.
 

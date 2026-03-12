@@ -1,0 +1,265 @@
+'use strict';
+
+/**
+ * sync-event-bus.js — Event-Driven Sync Dispatcher.
+ *
+ * Central hub that reacts to ANY data change (orders, returns, shipments, stock)
+ * and triggers the appropriate sync operations in real-time.
+ *
+ * Events:
+ *   order:created         — New order imported from marketplace
+ *   order:status_changed  — Order status changed (pack, ship, cancel, etc.)
+ *   order:updated         — Order data updated (tracking, customer, etc.)
+ *   return:created        — New return from marketplace or manual
+ *   return:status_changed — Return status changed (processed, refunded, etc.)
+ *   shipment:created      — New shipment/label created
+ *   shipment:updated      — Shipment status changed (via SendCloud webhook)
+ *   stock:changed         — Stock quantity changed (warehouse, restock, etc.)
+ *
+ * Architecture:
+ *   - In-process EventEmitter (no external message broker needed)
+ *   - Async handlers with error isolation (one failure doesn't block others)
+ *   - Debounce per entity to prevent duplicate syncs within 5s
+ *   - All handlers are fire-and-forget with structured logging
+ */
+
+const EventEmitter = require('events');
+
+const bus = new EventEmitter();
+bus.setMaxListeners(50); // We'll have many handlers
+
+// Debounce map: `${event}:${entityId}` → timestamp
+const _lastEmitMs = new Map();
+const DEBOUNCE_MS = 5000; // 5s debounce per entity per event type
+
+/**
+ * Emit a sync event with debounce protection.
+ *
+ * @param {string} event - Event name (e.g. 'order:status_changed')
+ * @param {object} payload - Event data
+ * @param {string} payload.entityId - ID of the entity (orderId, returnId, etc.)
+ * @param {string} [payload.source] - Who triggered this (e.g. 'api', 'kaufland-webhook')
+ */
+function emitSyncEvent(event, payload = {}) {
+  const entityId = payload.entityId || 'unknown';
+  const key = `${event}:${entityId}`;
+  const now = Date.now();
+  const last = _lastEmitMs.get(key) || 0;
+
+  if (now - last < DEBOUNCE_MS) {
+    return; // Debounced — skip duplicate
+  }
+  _lastEmitMs.set(key, now);
+
+  // Cleanup old entries periodically (every 1000 entries)
+  if (_lastEmitMs.size > 1000) {
+    const cutoff = now - 60_000;
+    for (const [k, ts] of _lastEmitMs) {
+      if (ts < cutoff) _lastEmitMs.delete(k);
+    }
+  }
+
+  console.log(`[sync-bus] ${event} entity=${entityId} source=${payload.source || '?'}`);
+  bus.emit(event, payload);
+}
+
+// ─── Handler Registration ────────────────────────────────────
+
+/**
+ * When an order status changes → sync stock to all channels + sync to marketplaces.
+ */
+bus.on('order:status_changed', async (payload) => {
+  const { entityId: orderId, tenantId = 'default', toStatus, fromStatus, source } = payload;
+  try {
+    // 1. Sync stock to all channels (covers eBay, Kaufland, BaseLinker)
+    const { syncStockForOrderItems } = require('./stock-sync-dispatcher');
+    await syncStockForOrderItems({ tenantId, orderId, reason: `status:${toStatus}` })
+      .catch((err) => console.warn(`[sync-bus] stock sync failed for order ${orderId}: ${err.message}`));
+
+    // 2. If cancelled → release reservations
+    if (toStatus === 'cancelled') {
+      try {
+        const { releaseReservation } = require('./stock-reservation');
+        await releaseReservation({ tenantId, orderId });
+      } catch (err) {
+        console.warn(`[sync-bus] release reservation failed for ${orderId}: ${err.message}`);
+      }
+    }
+
+    // 3. Trigger marketplace order sync (picks up all status changes from both sides)
+    _debouncedMarketplaceOrderSync(tenantId);
+
+  } catch (err) {
+    console.error(`[sync-bus] order:status_changed handler error: ${err.message}`);
+  }
+});
+
+/**
+ * When a new order is created → sync stock + trigger full order sync.
+ */
+bus.on('order:created', async (payload) => {
+  const { entityId: orderId, tenantId = 'default', source } = payload;
+  try {
+    const { syncStockForOrderItems } = require('./stock-sync-dispatcher');
+    await syncStockForOrderItems({ tenantId, orderId, reason: 'order-created' })
+      .catch((err) => console.warn(`[sync-bus] stock sync failed for new order ${orderId}: ${err.message}`));
+
+    // Trigger marketplace sync to pick up any other new orders
+    _debouncedMarketplaceOrderSync(tenantId);
+
+  } catch (err) {
+    console.error(`[sync-bus] order:created handler error: ${err.message}`);
+  }
+});
+
+/**
+ * When order data is updated (tracking etc.) → sync to marketplaces.
+ */
+bus.on('order:updated', async (payload) => {
+  const { entityId: orderId, tenantId = 'default' } = payload;
+  try {
+    _debouncedMarketplaceOrderSync(tenantId);
+  } catch (err) {
+    console.error(`[sync-bus] order:updated handler error: ${err.message}`);
+  }
+});
+
+/**
+ * When a return is created or status changes → sync returns from marketplaces
+ * + sync stock if restocked.
+ */
+bus.on('return:created', async (payload) => {
+  const { tenantId = 'default' } = payload;
+  try {
+    _debouncedReturnSync(tenantId);
+  } catch (err) {
+    console.error(`[sync-bus] return:created handler error: ${err.message}`);
+  }
+});
+
+bus.on('return:status_changed', async (payload) => {
+  const { entityId: returnId, tenantId = 'default', toStatus } = payload;
+  try {
+    // If restocked → sync stock to all channels
+    if (['erstattet', 'teilweise_erstattet'].includes(toStatus)) {
+      const { firestore } = require('../lib/firestore');
+      const snap = await firestore.collection('returns').doc(returnId).get();
+      if (snap.exists) {
+        const ret = snap.data();
+        if (ret.restock && ret.orderId) {
+          const { syncStockForOrderItems } = require('./stock-sync-dispatcher');
+          await syncStockForOrderItems({ tenantId, orderId: ret.orderId, reason: 'return-restock' })
+            .catch((err) => console.warn(`[sync-bus] restock stock sync failed: ${err.message}`));
+        }
+      }
+    }
+    _debouncedReturnSync(tenantId);
+  } catch (err) {
+    console.error(`[sync-bus] return:status_changed handler error: ${err.message}`);
+  }
+});
+
+/**
+ * When a shipment is created or updated → sync SendCloud parcels + stock.
+ */
+bus.on('shipment:created', async (payload) => {
+  const { entityId: orderId, tenantId = 'default' } = payload;
+  try {
+    _debouncedSendCloudSync(tenantId);
+  } catch (err) {
+    console.error(`[sync-bus] shipment:created handler error: ${err.message}`);
+  }
+});
+
+bus.on('shipment:updated', async (payload) => {
+  const { entityId: orderId, tenantId = 'default', statusId } = payload;
+  try {
+    // If returned → trigger return sync + stock sync
+    if ([15, 32, 33].includes(statusId)) {
+      _debouncedReturnSync(tenantId);
+    }
+    _debouncedSendCloudSync(tenantId);
+  } catch (err) {
+    console.error(`[sync-bus] shipment:updated handler error: ${err.message}`);
+  }
+});
+
+/**
+ * When stock changes → sync to all marketplace channels.
+ */
+bus.on('stock:changed', async (payload) => {
+  const { entityId: productId, tenantId = 'default', reason } = payload;
+  try {
+    if (!productId) return;
+
+    // Load product and sync stock
+    const { getProduct } = require('../lib/firestore');
+    const product = await getProduct(productId);
+    if (!product) return;
+
+    const { syncStockToAllChannels } = require('./stock-sync-dispatcher');
+    await syncStockToAllChannels(product, tenantId, `event:${reason || 'stock-changed'}`)
+      .catch((err) => console.warn(`[sync-bus] stock channel sync failed for ${productId}: ${err.message}`));
+
+  } catch (err) {
+    console.error(`[sync-bus] stock:changed handler error: ${err.message}`);
+  }
+});
+
+// ─── Debounced Aggregate Syncs ──────────────────────────────
+// These prevent hammering external APIs when many events fire in quick succession.
+
+let _marketplaceSyncTimer = null;
+function _debouncedMarketplaceOrderSync(tenantId) {
+  if (_marketplaceSyncTimer) return; // Already scheduled
+  _marketplaceSyncTimer = setTimeout(async () => {
+    _marketplaceSyncTimer = null;
+    try {
+      const { syncEbayOrders } = require('./order-intake-ebay');
+      const { syncKauflandOrders } = require('./order-intake-kaufland');
+      const [ebay, kaufland] = await Promise.allSettled([
+        syncEbayOrders({ tenantId, lookbackDays: 3 }),
+        syncKauflandOrders({ tenantId, lookbackDays: 3 }),
+      ]);
+      console.log(`[sync-bus] marketplace order sync: ebay=${ebay.status} kaufland=${kaufland.status}`);
+    } catch (err) {
+      console.warn(`[sync-bus] marketplace order sync failed: ${err.message}`);
+    }
+  }, 3000); // 3s debounce
+}
+
+let _returnSyncTimer = null;
+function _debouncedReturnSync(tenantId) {
+  if (_returnSyncTimer) return;
+  _returnSyncTimer = setTimeout(async () => {
+    _returnSyncTimer = null;
+    try {
+      const { syncAllReturns } = require('./returns-engine');
+      const result = await syncAllReturns({ tenantId, lookbackDays: 14 });
+      console.log(`[sync-bus] return sync: ebay=${JSON.stringify(result.ebay)} kaufland=${JSON.stringify(result.kaufland)}`);
+    } catch (err) {
+      console.warn(`[sync-bus] return sync failed: ${err.message}`);
+    }
+  }, 3000);
+}
+
+let _sendCloudSyncTimer = null;
+function _debouncedSendCloudSync(tenantId) {
+  if (_sendCloudSyncTimer) return;
+  _sendCloudSyncTimer = setTimeout(async () => {
+    _sendCloudSyncTimer = null;
+    try {
+      const { syncSendCloudParcels } = require('./shipping-engine');
+      const fromDate = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString();
+      const result = await syncSendCloudParcels({ tenantId, fromDate });
+      console.log(`[sync-bus] sendcloud sync: matched=${result.matched?.length || 0}`);
+    } catch (err) {
+      console.warn(`[sync-bus] sendcloud sync failed: ${err.message}`);
+    }
+  }, 3000);
+}
+
+module.exports = {
+  emitSyncEvent,
+  bus, // Expose for testing
+};

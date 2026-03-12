@@ -11,6 +11,7 @@ const { Firestore, FieldValue } = require('@google-cloud/firestore');
 const { kauflandRequest } = require('../lib/kaufland-api');
 const { getNextNumber } = require('./number-sequence');
 const { reserveStock } = require('./stock-reservation');
+const { emitSyncEvent } = require('./sync-event-bus');
 
 const ORDERS_COLLECTION = 'orders';
 
@@ -203,6 +204,15 @@ async function syncKauflandOrders({ tenantId = 'default', lookbackDays = 7 } = {
     } catch (err) {
       console.warn(`[kaufland-intake] stock sync after import failed: ${err.message}`);
     }
+  }
+
+  // Event-driven: emit for each new order so downstream syncs fire
+  for (const order of newOrders) {
+    emitSyncEvent('order:created', {
+      entityId: `kaufland__${order.marketplaceOrderId}`,
+      tenantId,
+      source: 'kaufland-intake',
+    });
   }
 
   // --- Status reconciliation: re-fetch recent orders to pick up status changes (cancelled, shipped, etc.) ---

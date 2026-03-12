@@ -12,6 +12,7 @@ const { callTradingApi } = require('../lib/ebay-trading-api');
 const { getNextNumber } = require('./number-sequence');
 const { reserveStock } = require('./stock-reservation');
 const { syncStockWithRetry } = require('./stock-sync-dispatcher');
+const { emitSyncEvent } = require('./sync-event-bus');
 
 const ORDERS_COLLECTION = 'orders';
 
@@ -195,6 +196,15 @@ async function syncEbayOrders({ tenantId = 'default', lookbackDays = 7 } = {}) {
     } catch (err) {
       console.warn(`[ebay-intake] stock sync after import failed: ${err.message}`);
     }
+  }
+
+  // Event-driven: emit for each new order so downstream syncs fire
+  for (const order of newOrders) {
+    emitSyncEvent('order:created', {
+      entityId: `ebay__${order.marketplaceOrderId}`,
+      tenantId,
+      source: 'ebay-intake',
+    });
   }
 
   return { synced: totalSynced, skipped: totalSkipped, total: totalEntries };

@@ -287,53 +287,57 @@ app.use(errorHandler);
 const server = app.listen(PORT, () => {
   console.log(`Server listening on port ${PORT}`);
 
-  // Best-effort periodic order status refresh so BaseLinker-internal status changes
-  // (e.g. "Versendet") are reflected in AvyCloud without requiring user interaction.
-  const ORDER_SYNC_INTERVAL_MS = parseInt(process.env.ORDER_SYNC_INTERVAL_MS || String(2 * 60 * 60 * 1000), 10);
+  // ─── Event-Driven Sync is PRIMARY (sync-event-bus.js) ───────────────
+  // Periodic intervals below are SAFETY NETS only — they catch anything
+  // the event-driven system might miss (e.g. webhook delivery failure).
+  // Primary sync happens via emitSyncEvent() on every data mutation.
+
+  // Safety-net: order sync every 6h (primary: event-driven on every mutation)
+  const ORDER_SYNC_INTERVAL_MS = parseInt(process.env.ORDER_SYNC_INTERVAL_MS || String(6 * 60 * 60 * 1000), 10);
   try {
     setTimeout(() => backgroundSyncOrders(), 10_000);
     setInterval(() => backgroundSyncOrders(), ORDER_SYNC_INTERVAL_MS);
-    console.log(`[order-sync] periodic refresh enabled: every ${ORDER_SYNC_INTERVAL_MS}ms`);
+    console.log(`[order-sync] safety-net enabled: every ${ORDER_SYNC_INTERVAL_MS}ms (primary: event-driven)`);
   } catch (err) {
-    console.warn('[order-sync] failed to start periodic refresh:', err?.message || err);
+    console.warn('[order-sync] failed to start safety-net:', err?.message || err);
   }
 
-  // Periodic returns sync from marketplaces (every 1 hour)
-  const RETURNS_SYNC_INTERVAL_MS = parseInt(process.env.RETURNS_SYNC_INTERVAL_MS || String(1 * 60 * 60 * 1000), 10);
+  // Safety-net: returns sync every 6h (primary: event-driven on return mutations + webhooks)
+  const RETURNS_SYNC_INTERVAL_MS = parseInt(process.env.RETURNS_SYNC_INTERVAL_MS || String(6 * 60 * 60 * 1000), 10);
   try {
     setTimeout(() => {
       const { syncAllReturns } = require('./services/returns-engine');
       syncAllReturns({ tenantId: 'default', lookbackDays: 30 })
-        .then((r) => console.log('[returns-sync] periodic sync done:', JSON.stringify(r)))
-        .catch((err) => console.warn('[returns-sync] periodic sync failed:', err?.message));
-    }, 60_000); // 1 min after startup
+        .then((r) => console.log('[returns-sync] safety-net sync done:', JSON.stringify(r)))
+        .catch((err) => console.warn('[returns-sync] safety-net sync failed:', err?.message));
+    }, 60_000);
     setInterval(() => {
       const { syncAllReturns } = require('./services/returns-engine');
       syncAllReturns({ tenantId: 'default', lookbackDays: 30 })
-        .then((r) => console.log('[returns-sync] periodic sync done:', JSON.stringify(r)))
-        .catch((err) => console.warn('[returns-sync] periodic sync failed:', err?.message));
+        .then((r) => console.log('[returns-sync] safety-net sync done:', JSON.stringify(r)))
+        .catch((err) => console.warn('[returns-sync] safety-net sync failed:', err?.message));
     }, RETURNS_SYNC_INTERVAL_MS);
-    console.log(`[returns-sync] periodic refresh enabled: every ${RETURNS_SYNC_INTERVAL_MS}ms`);
+    console.log(`[returns-sync] safety-net enabled: every ${RETURNS_SYNC_INTERVAL_MS}ms (primary: event-driven)`);
   } catch (err) {
-    console.warn('[returns-sync] failed to start periodic refresh:', err?.message || err);
+    console.warn('[returns-sync] failed to start safety-net:', err?.message || err);
   }
 
-  // Periodic SendCloud parcel sync (every 1 hour)
-  const SENDCLOUD_SYNC_INTERVAL_MS = parseInt(process.env.SENDCLOUD_SYNC_INTERVAL_MS || String(1 * 60 * 60 * 1000), 10);
+  // Safety-net: SendCloud parcel sync every 6h (primary: SendCloud webhooks)
+  const SENDCLOUD_SYNC_INTERVAL_MS = parseInt(process.env.SENDCLOUD_SYNC_INTERVAL_MS || String(6 * 60 * 60 * 1000), 10);
   try {
     const runSendCloudSync = () => {
       const { syncSendCloudParcels } = require('./services/shipping-engine');
       const fromDate = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString();
       return syncSendCloudParcels({ tenantId: 'default', fromDate })
-        .then((r) => console.log('[sendcloud-sync] periodic sync done: matched=%d, unmatched=%d, skipped=%d',
+        .then((r) => console.log('[sendcloud-sync] safety-net sync done: matched=%d, unmatched=%d, skipped=%d',
           r.matched?.length || 0, r.unmatched?.length || 0, r.skipped?.length || 0))
-        .catch((err) => console.warn('[sendcloud-sync] periodic sync failed:', err?.message));
+        .catch((err) => console.warn('[sendcloud-sync] safety-net sync failed:', err?.message));
     };
-    setTimeout(runSendCloudSync, 90_000); // 90s after startup
+    setTimeout(runSendCloudSync, 90_000);
     setInterval(runSendCloudSync, SENDCLOUD_SYNC_INTERVAL_MS);
-    console.log(`[sendcloud-sync] periodic refresh enabled: every ${SENDCLOUD_SYNC_INTERVAL_MS}ms`);
+    console.log(`[sendcloud-sync] safety-net enabled: every ${SENDCLOUD_SYNC_INTERVAL_MS}ms (primary: event-driven)`);
   } catch (err) {
-    console.warn('[sendcloud-sync] failed to start periodic refresh:', err?.message || err);
+    console.warn('[sendcloud-sync] failed to start safety-net:', err?.message || err);
   }
 });
 

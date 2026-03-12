@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { firestore } = require('../lib/firestore');
+const { emitSyncEvent } = require('../services/sync-event-bus');
 
 function getTenantId(req) {
   return req.user?.tenantId || 'default';
@@ -66,6 +67,12 @@ router.post('/returns', async (req, res) => {
       createdBy: req.user?.uid || null,
     };
     const ref = await firestore.collection('returns').add(data);
+
+    // Event-driven sync: new return → sync with marketplaces
+    emitSyncEvent('return:created', {
+      entityId: ref.id, tenantId, source: 'api:manual-return',
+    });
+
     res.json({ ok: true, data: { id: ref.id, ...data } });
   } catch (err) {
     console.error(`[POST /api/returns] ${err.message}`, err);
@@ -112,6 +119,13 @@ router.patch('/returns/:id', async (req, res) => {
         actor: getActor(req),
         note: note || '',
       });
+
+      // Event-driven sync: return status changed → stock + marketplace sync
+      emitSyncEvent('return:status_changed', {
+        entityId: req.params.id, tenantId: getTenantId(req),
+        toStatus: status, source: 'api:return-transition',
+      });
+
       return res.json({ ok: true, data: result });
     }
 
@@ -144,6 +158,12 @@ router.post('/returns/:id/process', async (req, res) => {
       actor: getActor(req),
     });
 
+    // Event-driven sync: return processed → stock restock + marketplace sync
+    emitSyncEvent('return:status_changed', {
+      entityId: req.params.id, tenantId: getTenantId(req),
+      toStatus: result.status, source: 'api:return-process',
+    });
+
     res.json({ ok: true, data: result });
   } catch (err) {
     console.error(`[POST /api/returns/:id/process] ${err.message}`, err);
@@ -167,6 +187,12 @@ router.post('/returns/:id/refund', async (req, res) => {
       return res.status(400).json({ ok: false, error: { code: 'REFUND_FAILED', message: result.error } });
     }
 
+    // Event-driven sync: refund issued → sync with marketplace
+    emitSyncEvent('return:status_changed', {
+      entityId: req.params.id, tenantId: getTenantId(req),
+      toStatus: 'refunded', source: 'api:refund',
+    });
+
     res.json({ ok: true, data: result });
   } catch (err) {
     console.error(`[POST /api/returns/:id/refund] ${err.message}`, err);
@@ -186,6 +212,13 @@ router.post('/returns/:id/close', async (req, res) => {
       actor: getActor(req),
       note: req.body.note || 'Retoure abgeschlossen',
     });
+
+    // Event-driven sync
+    emitSyncEvent('return:status_changed', {
+      entityId: req.params.id, tenantId: getTenantId(req),
+      toStatus: 'abgeschlossen', source: 'api:return-close',
+    });
+
     res.json({ ok: true, data: result });
   } catch (err) {
     console.error(`[POST /api/returns/:id/close] ${err.message}`, err);

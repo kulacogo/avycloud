@@ -486,12 +486,42 @@
 | BUG-035 | **EAN nicht in Produktdatenblatt gespeichert nach Identify** — User gibt EAN ein, Produkt wird erkannt, aber `details.identifiers.ean` bleibt leer. `v2-product-builder.js` ignoriert manualBarcodes bei identifiers. | P1 | ✅ Fixed (Fallback auf manualBarcodes in identifiers + barcode-Feld) |
 | BUG-036 | **Bestellungen-Seite max 100 Einträge, keine Pagination** — Backend hardcoded `Math.min(..., 100)`. Kein Rows-per-Page Selector. Keine Seitennavigation. | P1 | ✅ Fixed (Backend: limit 500 + offset. Frontend: Rows-per-Page 25/50/100/200/500 + Page-Nav) |
 | BUG-037 | **🔥 Kaufland-Stornierungen nicht nach AvyCloud synchronisiert** — `saveOrderIfNew()` überspringt existierende Orders. `mapKauflandStatus()` nie aufgerufen. 3 stornierte Aufträge (MXTBT35, M7PPT35, MEL4T35) zeigen "Kommissioniert" statt "Storniert". | P0 | ✅ Fixed (saveOrderIfNew updatet Status + 14-Tage Reconciliation) |
-| BUG-038 | **Retouren-Seite leer** — Sync 4h Intervall + 7 Tage Lookback. Stornierungen ≠ Retouren in Kaufland. | P1 | ✅ Fixed (1h Intervall, 30 Tage Lookback) |
-| BUG-039 | **Versand & Labels Seite leer** — SendCloud Sync 2h Intervall. Kein Bug — Seite zeigt Daten erst nach Label-Erstellung. | P2 | ✅ Fixed (1h Intervall) |
+| BUG-038 | **Retouren-Seite leer** — Sync 4h Intervall + 7 Tage Lookback. Stornierungen ≠ Retouren in Kaufland. | P1 | ✅ Fixed (Event-Driven Sync + 6h Safety-Net, 30d Lookback) |
+| BUG-039 | **Versand & Labels Seite leer** — SendCloud Sync 2h Intervall. Kein Bug — Seite zeigt Daten erst nach Label-Erstellung. | P2 | ✅ Fixed (Event-Driven Sync + 6h Safety-Net) |
+| FEAT-EDS | **🚀 Event-Driven Sync Architektur** — Intervall-basierte Syncs durch Event-getriebene Echtzeit-Syncs ersetzt. Jede Änderung (Order/Return/Shipment/Stock) in AvyCloud, Kaufland, eBay oder SendCloud triggert sofort einen Sync. | P0 | ✅ Implementiert |
 | BUG-SSE | Token-in-Query-Parameter für SSE-Streams leakt | P1 | 🔴 Offen |
 | BUG-006 | EbayListingsView.tsx (alte Gap-Analysis) noch da — LÖSCHEN | P1 | ✅ Fixed (deleted) |
 | BUG-008 | eBay-Seite zeigt Gap-Analyse-Daten statt Listing-Management | P1 | ✅ Fixed (route already correct, old component deleted) |
 | BUG-009 | Kaufland-Seite zeigt nur SKU-Nummern ohne Produktdaten | P1 | ✅ Fixed (same root cause as BUG-023) |
+
+### FEAT-EDS — Event-Driven Sync Architektur (2026-03-12)
+
+**Problem:** Alle Syncs (Orders, Returns, Shipments) liefen auf festen Intervallen (1-2h). Änderungen bei Kaufland, eBay oder SendCloud wurden erst nach dem nächsten Intervall sichtbar. User: *"Scheiss auf die sync intervalle! Sync triggern bei Veränderung!"*
+
+**Lösung:** Vollständig event-getriebene Architektur:
+
+| Komponente | Datei | Funktion |
+|---|---|---|
+| **Event Bus** | `services/sync-event-bus.js` | Zentraler EventEmitter mit Debounce (5s/Entity). Events: `order:created`, `order:status_changed`, `order:updated`, `return:created`, `return:status_changed`, `shipment:created`, `shipment:updated`, `stock:changed` |
+| **Order Hooks** | `routes/orders.js` | `emitSyncEvent()` nach pack, pick, ship, cancel-label, transition — triggert Stock-Sync + Marketplace-Sync |
+| **Return Hooks** | `routes/returns.js` | `emitSyncEvent()` nach create, transition, process, refund, close — triggert Return-Sync + Stock-Restock |
+| **Shipment Hooks** | `routes/webhooks.js` | `emitSyncEvent()` im bestehenden SendCloud-Webhook — triggert SendCloud-Sync + Return-Sync bei Return-Status |
+| **Kaufland Webhook** | `routes/webhooks.js` | `POST /api/webhooks/kaufland` — empfängt Push-Notifications von Kaufland, triggert Order/Return-Sync |
+| **eBay Webhook** | `routes/webhooks.js` | `POST /api/webhooks/ebay` — empfängt eBay Marketplace Notifications, triggert Order/Return-Sync |
+| **Order Intake** | `services/order-intake-kaufland.js`, `services/order-intake-ebay.js` | `emitSyncEvent('order:created')` nach jedem neuen Import |
+| **Safety-Net** | `index.js` | Intervalle von 1-2h auf 6h erhöht — nur noch Fallback falls Event-Bus-Delivery fehlschlägt |
+
+**Event-Flow Beispiel (Kaufland storniert):**
+1. Kaufland sendet Push-Notification → `POST /api/webhooks/kaufland`
+2. Webhook emittiert `order:updated` → Event-Bus
+3. Event-Bus triggert `_debouncedMarketplaceOrderSync()` (3s Debounce)
+4. `syncKauflandOrders()` läuft → `saveOrderIfNew()` findet Status-Änderung → updated Order zu "cancelled"
+5. Stock-Sync feuert automatisch → Bestand auf allen Kanälen aktualisiert
+
+**Webhook-URLs für externe Konfiguration:**
+- SendCloud: `https://api.avycloud.web.app/api/webhooks/sendcloud` (bereits konfiguriert)
+- Kaufland: `https://api.avycloud.web.app/api/webhooks/kaufland` (Push-Notifications aktivieren in Kaufland Seller Portal)
+- eBay: `https://api.avycloud.web.app/api/webhooks/ebay` (Marketplace Notifications API / Event Notifications)
 
 ### BUG-021 — eBay Publish Blocker-Gründe nicht sichtbar
 
