@@ -852,6 +852,12 @@ async function tryFetchWebMarketingImages(product, { limit, excludeUrls, existin
   if (!querySeed) {
     return response;
   }
+  // Extract category for search context — helps disambiguate generic brands (e.g. "Bader" sells everything)
+  const rawCategory = product?.identification?.category || '';
+  const categoryParts = String(rawCategory).split(/[>\/,;]/).map((s) => s.trim()).filter(Boolean);
+  // Use the most specific (last) category segment, e.g. "Möbel > Sofas & Sessel" → "Sofas & Sessel"
+  const category = categoryParts.length > 0 ? categoryParts[categoryParts.length - 1] : '';
+
   const identifiers = [];
   const barcodes = Array.isArray(product?.identification?.barcodes) ? product.identification.barcodes : [];
   barcodes.forEach((code) => {
@@ -872,6 +878,7 @@ async function tryFetchWebMarketingImages(product, { limit, excludeUrls, existin
     const { images, trace } = await fetchMarketingImages({
       brand,
       name,
+      category,
       identifiers,
       mpn: mpnCandidate,
       limit,

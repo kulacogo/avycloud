@@ -288,40 +288,54 @@ async function syncEbayReturns({ tenantId = 'default', lookbackDays = 30 } = {})
   let errors = 0;
 
   try {
-    const { accessToken, apiBaseUrl } = await getValidEbayAccessToken();
+    const { accessToken } = await getValidEbayAccessToken();
     const fromDate = new Date(Date.now() - lookbackDays * 24 * 60 * 60 * 1000).toISOString();
 
-    // eBay Post-Order API: GET /post-order/v2/return/search
-    const searchUrl = new URL('/post-order/v2/return/search', apiBaseUrl);
-    searchUrl.searchParams.set('creation_date_range_from', fromDate);
-    searchUrl.searchParams.set('limit', '200');
-    searchUrl.searchParams.set('offset', '0');
-    searchUrl.searchParams.set('sort', 'RETURN_CREATION_DATE_DESC');
+    // Use eBay Sell Fulfillment API to find orders with refunds.
+    // The Post-Order API is unstable (401 auth issues). The Fulfillment API
+    // reliably returns refund data on line items.
+    let allOrders = [];
+    let offset = 0;
+    const limit = 200;
 
-    const res = await fetch(searchUrl.toString(), {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
-        'X-EBAY-C-MARKETPLACE-ID': 'EBAY_DE',
-        'Accept': 'application/json',
-      },
-    });
+    while (true) {
+      const url = `https://api.ebay.com/sell/fulfillment/v1/order?limit=${limit}&offset=${offset}&filter=creationdate:[${encodeURIComponent(fromDate)}..]`;
+      const res = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'X-EBAY-C-MARKETPLACE-ID': 'EBAY_DE',
+          'Accept': 'application/json',
+        },
+      });
 
-    if (!res.ok) {
-      const body = await res.text().catch(() => '');
-      throw new Error(`eBay Post-Order API ${res.status}: ${body.slice(0, 500)}`);
+      if (!res.ok) {
+        const body = await res.text().catch(() => '');
+        throw new Error(`eBay Fulfillment API ${res.status}: ${body.slice(0, 500)}`);
+      }
+
+      const json = await res.json();
+      const orders = json.orders || [];
+      allOrders = allOrders.concat(orders);
+
+      if (allOrders.length >= (json.total || 0) || orders.length < limit) break;
+      offset += limit;
     }
 
-    const json = await res.json();
-    const returnRequests = Array.isArray(json.members) ? json.members : [];
-
-    for (const rr of returnRequests) {
+    // Extract orders that have refunds or cancellations
+    for (const order of allOrders) {
       try {
-        const marketplaceReturnId = rr.returnId || rr.returnRequest?.returnId || '';
+        const isCanceled = order.cancelStatus?.cancelState &&
+          order.cancelStatus.cancelState !== 'NONE_REQUESTED';
+        const refundedItems = (order.lineItems || []).filter(
+          (li) => li.refunds && li.refunds.length > 0
+        );
+
+        if (!isCanceled && refundedItems.length === 0) continue;
+
+        const marketplaceReturnId = order.orderId || '';
         if (!marketplaceReturnId) continue;
 
-        // Deduplicate by marketplace return ID
+        // Deduplicate
         const existing = await db.collection(RETURNS_COLLECTION)
           .where('marketplaceReturnId', '==', String(marketplaceReturnId))
           .where('marketplace', '==', 'ebay')
@@ -329,42 +343,71 @@ async function syncEbayReturns({ tenantId = 'default', lookbackDays = 30 } = {})
           .get();
 
         if (!existing.empty) {
+          // Update marketplace status if changed
+          const existingDoc = existing.docs[0];
+          const existingData = existingDoc.data();
+          const newMpStatus = isCanceled ? 'CANCELED' : 'REFUNDED';
+          if (existingData.marketplaceStatus !== newMpStatus) {
+            await existingDoc.ref.update({
+              marketplaceStatus: newMpStatus,
+              syncedAt: new Date().toISOString(),
+            });
+          }
           skipped++;
           continue;
         }
 
-        // Map eBay Post-Order fields to our return schema
-        const detail = rr.returnRequest || rr;
-        const ebayReason = detail.reason || detail.returnReason || 'OTHER';
-        const reason = EBAY_REASON_MAP[ebayReason] || 'sonstiges';
+        // Determine reason from cancel or refund context
+        const cancelReason = order.cancelStatus?.cancelReason || '';
+        let reason = 'sonstiges';
+        if (isCanceled) {
+          reason = cancelReason === 'BUYER_ASKED_CANCEL' ? 'meinungsaenderung' :
+            cancelReason === 'OUT_OF_STOCK_OR_CANNOT_FULFILL' ? 'sonstiges' : 'sonstiges';
+        } else if (refundedItems.length > 0) {
+          reason = 'meinungsaenderung'; // default for refunds without explicit reason
+        }
+        const ebayReason = cancelReason || 'REFUND';
+        reason = EBAY_REASON_MAP[ebayReason] || reason;
+
+        // Sum refund amounts
+        let totalRefund = 0;
+        for (const li of refundedItems) {
+          for (const ref of (li.refunds || [])) {
+            totalRefund += parseFloat(ref.amount?.value || '0') || 0;
+          }
+        }
+
+        const productNames = (order.lineItems || [])
+          .map((li) => li.title)
+          .filter(Boolean);
 
         const returnDoc = {
           tenantId,
           marketplace: 'ebay',
           marketplaceReturnId: String(marketplaceReturnId),
-          marketplaceOrderId: detail.orderId || null,
+          marketplaceOrderId: order.orderId || null,
           orderId: null,
           customer: {
-            name: detail.buyerLoginName || null,
+            name: order.buyer?.username || null,
             email: null,
           },
           product: {
-            name: detail.itemTitle || null,
-            sku: detail.sellerResponse?.itemSku || null,
-            quantity: detail.returnQuantity || 1,
+            name: productNames[0] || null,
+            sku: (order.lineItems || [])[0]?.sku || null,
+            quantity: refundedItems.length || 1,
           },
           reason,
           reasonRaw: ebayReason,
-          reasonText: detail.comments?.content || detail.buyerComments || null,
-          refundAmount: parseFloat(detail.estimatedRefundAmount?.value || detail.actualRefundAmount?.value || '0') || 0,
-          currency: detail.estimatedRefundAmount?.currency || detail.actualRefundAmount?.currency || 'EUR',
+          reasonText: order.cancelStatus?.cancelReason || null,
+          refundAmount: totalRefund,
+          currency: 'EUR',
           status: 'eingegangen',
-          marketplaceStatus: detail.state || detail.status || null,
-          createdAt: detail.creationDate || new Date().toISOString(),
+          marketplaceStatus: isCanceled ? 'CANCELED' : 'REFUNDED',
+          createdAt: order.creationDate || new Date().toISOString(),
           syncedAt: new Date().toISOString(),
         };
 
-        // Try to link to our order by marketplace order ID
+        // Link to internal order
         if (returnDoc.marketplaceOrderId) {
           const orderSnap = await db.collection(ORDERS_COLLECTION)
             .where('marketplaceOrderId', '==', returnDoc.marketplaceOrderId)
@@ -411,15 +454,14 @@ async function syncKauflandReturns({ tenantId = 'default', lookbackDays = 30 } =
   try {
     const fromDate = new Date(Date.now() - lookbackDays * 24 * 60 * 60 * 1000).toISOString();
 
+    // kauflandRequest returns { status, data: <parsed JSON>, headers }.
+    // The Kaufland API response body is { data: [...], pagination: {...} }.
     const result = await kauflandRequest('GET', '/returns', {
-      query: {
-        ts_created_from_iso: fromDate,
-        limit: 100,
-        sort: 'ts_created:desc',
-      },
+      query: { limit: 100 },
     });
 
-    const returns = Array.isArray(result?.data) ? result.data : [];
+    const responseBody = result?.data || {};
+    const returns = Array.isArray(responseBody?.data) ? responseBody.data : [];
 
     for (const kr of returns) {
       try {
@@ -434,6 +476,18 @@ async function syncKauflandReturns({ tenantId = 'default', lookbackDays = 30 } =
           .get();
 
         if (!existing.empty) {
+          // Update marketplace status if changed
+          const existingDoc = existing.docs[0];
+          const existingData = existingDoc.data();
+          const newStatus = kr.status || null;
+          if (newStatus && existingData.marketplaceStatus !== newStatus) {
+            await existingDoc.ref.update({
+              marketplaceStatus: newStatus,
+              trackingCode: kr.tracking_code || existingData.trackingCode || null,
+              trackingProvider: kr.tracking_provider || existingData.trackingProvider || null,
+              syncedAt: new Date().toISOString(),
+            });
+          }
           skipped++;
           continue;
         }
@@ -445,7 +499,7 @@ async function syncKauflandReturns({ tenantId = 'default', lookbackDays = 30 } =
           tenantId,
           marketplace: 'kaufland',
           marketplaceReturnId,
-          marketplaceOrderId: kr.id_order ? String(kr.id_order) : null,
+          marketplaceOrderId: kr.id_order ? String(kr.id_order) : (kr.id_order_unit ? String(kr.id_order_unit) : null),
           orderId: null,
           customer: {
             name: kr.buyer_name || kr.buyer?.name || null,
@@ -463,7 +517,9 @@ async function syncKauflandReturns({ tenantId = 'default', lookbackDays = 30 } =
           currency: 'EUR',
           status: 'eingegangen',
           marketplaceStatus: kr.status || null,
-          createdAt: kr.ts_created || new Date().toISOString(),
+          trackingCode: kr.tracking_code || null,
+          trackingProvider: kr.tracking_provider || null,
+          createdAt: kr.ts_created_iso || kr.ts_created || new Date().toISOString(),
           syncedAt: new Date().toISOString(),
         };
 

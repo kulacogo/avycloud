@@ -243,8 +243,32 @@ export const ReturnsView: React.FC = () => {
     }
   }, []);
 
+  // Auto-sync from marketplaces on mount, then poll every 60s
   useEffect(() => {
-    loadReturns();
+    // Initial: sync from eBay/Kaufland, then load
+    let cancelled = false;
+    const initialSync = async () => {
+      try {
+        setSyncing(true);
+        await syncReturns();
+      } catch {
+        // silent — background sync
+      } finally {
+        if (!cancelled) setSyncing(false);
+      }
+      if (!cancelled) loadReturns();
+    };
+    initialSync();
+
+    // Poll for fresh data every 60s
+    const interval = setInterval(() => {
+      if (!cancelled) loadReturns();
+    }, 60_000);
+
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
   }, [loadReturns]);
 
   const handleSync = async () => {

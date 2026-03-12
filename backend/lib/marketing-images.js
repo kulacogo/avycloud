@@ -159,9 +159,48 @@ async function pickAccessibleUrl(candidate) {
   return null;
 }
 
+/**
+ * Build a set of lowercase tokens from product name + category for relevance filtering.
+ * Used to reject image results that clearly don't match the product (e.g. garden boxes for a recliner).
+ */
+function buildRelevanceTokens(name, category) {
+  const raw = [name, category].filter(Boolean).join(' ');
+  // Split on spaces, punctuation, special chars — keep tokens ≥ 3 chars
+  const tokens = raw
+    .toLowerCase()
+    .split(/[\s,;>\/&°×+\-–—()[\]{}]+/)
+    .map((t) => t.replace(/[^a-zäöüß0-9]/g, ''))
+    .filter((t) => t.length >= 3);
+  return new Set(tokens);
+}
+
+/**
+ * Score how relevant an image result is to the product.
+ * Returns 0..1 where 0 = no match, 1 = perfect match.
+ * An image with score < threshold will be rejected.
+ */
+function scoreImageRelevance(imageTitle, relevanceTokens) {
+  if (!imageTitle || relevanceTokens.size === 0) return 1; // No data → don't filter
+  const titleLower = imageTitle.toLowerCase();
+  const titleTokens = titleLower
+    .split(/[\s,;>\/&°×+\-–—()[\]{}]+/)
+    .map((t) => t.replace(/[^a-zäöüß0-9]/g, ''))
+    .filter((t) => t.length >= 3);
+  if (titleTokens.length === 0) return 0.5; // No parseable title → neutral
+
+  let matches = 0;
+  for (const token of relevanceTokens) {
+    if (titleLower.includes(token)) matches++;
+  }
+  return relevanceTokens.size > 0 ? matches / relevanceTokens.size : 0.5;
+}
+
+const RELEVANCE_THRESHOLD = parseFloat(process.env.MARKETING_IMAGE_RELEVANCE_THRESHOLD || '0.15');
+
 async function fetchMarketingImages({
   brand,
   name,
+  category = '',
   identifiers = [],
   mpn = '',
   limit = DEFAULT_IMAGE_LIMIT,
@@ -171,6 +210,14 @@ async function fetchMarketingImages({
   if (!baseQuery) {
     return { images: [], trace: [] };
   }
+
+  // Category-enriched query: append category to disambiguate generic brands
+  // e.g. "Bader Relaxsessel" → "Bader Relaxsessel Sofas & Sessel"
+  const categoryClean = category ? String(category).trim() : '';
+  const categoryQuery = categoryClean ? `${baseQuery} ${categoryClean}`.trim() : '';
+
+  // Build relevance tokens from product name + category for filtering results
+  const relevanceTokens = buildRelevanceTokens(name, categoryClean);
 
   const seen = new Set();
   exclude
@@ -193,10 +240,13 @@ async function fetchMarketingImages({
   const mpnClean = mpn ? String(mpn).trim() : '';
 
   // Prefer very specific queries first (EAN/GTIN/MPN usually yields the most accurate product pages/images).
+  // Category-enriched queries come before plain brand+name to get more relevant results.
   const googleQueries = uniq([
     ...cleanIds,
     ...(mpnClean ? [`${mpnClean}`, `${brand || ''} ${mpnClean}`.trim(), `${baseQuery} ${mpnClean}`.trim()] : []),
+    ...(categoryQuery ? [categoryQuery] : []),
     baseQuery,
+    ...(categoryQuery ? [`${categoryQuery} Produktfoto`] : []),
     `${baseQuery} Produktfoto`,
     `${baseQuery} Produktbilder`,
     `${baseQuery} Pressefoto`,
@@ -229,12 +279,15 @@ async function fetchMarketingImages({
       );
     for (const img of images) {
       if (collected.length >= desired) break;
+      // Relevance filter: reject images whose title clearly doesn't match the product
+      const relevance = scoreImageRelevance(img.title, relevanceTokens);
+      if (relevance < RELEVANCE_THRESHOLD) continue;
       const accessibleUrl = await pickAccessibleUrl(img);
       if (!accessibleUrl) continue;
       const key = normalizeUrlKey(accessibleUrl);
       if (!key || seen.has(key)) continue;
       seen.add(key);
-      collected.push({ ...img, url: accessibleUrl });
+      collected.push({ ...img, url: accessibleUrl, relevance });
     }
     trace.push(...engineTrace);
     }
@@ -257,12 +310,15 @@ async function fetchMarketingImages({
       );
       for (const img of images) {
         if (collected.length >= desired) break;
+        // Relevance filter
+        const relevance = scoreImageRelevance(img.title, relevanceTokens);
+        if (relevance < RELEVANCE_THRESHOLD) continue;
         const accessibleUrl = await pickAccessibleUrl(img);
         if (!accessibleUrl) continue;
         const key = normalizeUrlKey(accessibleUrl);
         if (!key || seen.has(key)) continue;
         seen.add(key);
-        collected.push({ ...img, url: accessibleUrl });
+        collected.push({ ...img, url: accessibleUrl, relevance });
       }
       trace.push(...engineTrace);
     }
@@ -278,15 +334,21 @@ async function fetchMarketingImages({
     );
     for (const img of images) {
       if (collected.length >= desired) break;
+      // Relevance filter
+      const relevance = scoreImageRelevance(img.title, relevanceTokens);
+      if (relevance < RELEVANCE_THRESHOLD) continue;
       const accessibleUrl = await pickAccessibleUrl(img);
       if (!accessibleUrl) continue;
       const key = normalizeUrlKey(accessibleUrl);
       if (!key || seen.has(key)) continue;
       seen.add(key);
-      collected.push({ ...img, url: accessibleUrl });
+      collected.push({ ...img, url: accessibleUrl, relevance });
     }
     trace.push(...engineTrace);
   }
+
+  // Sort by relevance (highest first) before returning
+  collected.sort((a, b) => (b.relevance || 0) - (a.relevance || 0));
 
   return {
     images: collected.slice(0, desired),
@@ -296,5 +358,8 @@ async function fetchMarketingImages({
 
 module.exports = {
   fetchMarketingImages,
+  // Exported for testing
+  buildRelevanceTokens,
+  scoreImageRelevance,
 };
 
