@@ -468,6 +468,33 @@ async function syncKauflandReturns({ tenantId = 'default', lookbackDays = 30 } =
         const marketplaceReturnId = String(kr.id_return || kr.id || '');
         if (!marketplaceReturnId) continue;
 
+        // Fetch detail with return_units + buyer to get order linkage & reason
+        let returnDetail = null;
+        try {
+          const detailRes = await kauflandRequest('GET', `/returns/${marketplaceReturnId}`, {
+            query: { 'embedded[]': 'return_units' },
+          });
+          returnDetail = detailRes?.data?.data || null;
+        } catch {
+          // Non-critical — fall back to list data
+        }
+
+        const returnUnits = returnDetail?.return_units || [];
+        const firstUnit = returnUnits[0] || {};
+        const orderUnitId = firstUnit.id_order_unit ? String(firstUnit.id_order_unit) : null;
+        const unitReason = firstUnit.reason || kr.reason || 'OTHER';
+
+        // Fetch order-unit detail for product, buyer, and order linkage
+        let orderUnitDetail = null;
+        if (orderUnitId) {
+          try {
+            const ouRes = await kauflandRequest('GET', `/order-units/${orderUnitId}`);
+            orderUnitDetail = ouRes?.data?.data || null;
+          } catch {
+            // Non-critical
+          }
+        }
+
         // Deduplicate
         const existing = await db.collection(RETURNS_COLLECTION)
           .where('marketplaceReturnId', '==', marketplaceReturnId)
@@ -480,39 +507,82 @@ async function syncKauflandReturns({ tenantId = 'default', lookbackDays = 30 } =
           const existingDoc = existing.docs[0];
           const existingData = existingDoc.data();
           const newStatus = kr.status || null;
+          const updates = {};
           if (newStatus && existingData.marketplaceStatus !== newStatus) {
-            await existingDoc.ref.update({
-              marketplaceStatus: newStatus,
-              trackingCode: kr.tracking_code || existingData.trackingCode || null,
-              trackingProvider: kr.tracking_provider || existingData.trackingProvider || null,
-              syncedAt: new Date().toISOString(),
-            });
+            updates.marketplaceStatus = newStatus;
+          }
+          if (kr.tracking_code && !existingData.trackingCode) {
+            updates.trackingCode = kr.tracking_code;
+          }
+          if (orderUnitId && !existingData.orderUnitId) {
+            updates.orderUnitId = orderUnitId;
+          }
+          if (unitReason && unitReason !== 'OTHER' && existingData.reasonRaw === 'OTHER') {
+            updates.reasonRaw = unitReason;
+            updates.reason = KAUFLAND_REASON_MAP[unitReason] || existingData.reason;
+          }
+          // Link to order if not yet linked
+          if (!existingData.orderId && orderUnitId) {
+            const orderSnap = await db.collection(ORDERS_COLLECTION)
+              .where('marketplace', '==', 'kaufland')
+              .limit(200)
+              .get();
+            // Search order items for matching order_unit_id
+            for (const oDoc of orderSnap.docs) {
+              const oData = oDoc.data();
+              const items = oData.products || oData.items || [];
+              const match = items.some((item) => String(item.order_unit_id || item.id_order_unit || '') === orderUnitId);
+              if (match) {
+                updates.orderId = oDoc.id;
+                updates.orderAmount = oData.totalAmount || 0;
+                updates.product = {
+                  name: items.find((i) => String(i.order_unit_id || i.id_order_unit || '') === orderUnitId)?.name || existingData.product?.name || null,
+                  sku: items.find((i) => String(i.order_unit_id || i.id_order_unit || '') === orderUnitId)?.sku || existingData.product?.sku || null,
+                  quantity: 1,
+                };
+                break;
+              }
+            }
+          }
+          if (Object.keys(updates).length > 0) {
+            updates.syncedAt = new Date().toISOString();
+            await existingDoc.ref.update(updates);
           }
           skipped++;
           continue;
         }
 
-        const klReason = kr.reason || 'OTHER';
-        const reason = KAUFLAND_REASON_MAP[klReason] || 'sonstiges';
+        const reason = KAUFLAND_REASON_MAP[unitReason] || 'sonstiges';
+
+        // Build customer & product from order-unit detail
+        const ouBuyer = orderUnitDetail?.buyer || {};
+        const ouProduct = orderUnitDetail?.product || {};
+        const ouShipping = orderUnitDetail?.shipping_address || orderUnitDetail?.billing_address || {};
+        const buyerName = ouShipping.first_name && ouShipping.last_name
+          ? `${ouShipping.first_name} ${ouShipping.last_name}`
+          : (kr.buyer_name || kr.buyer?.name || null);
 
         const returnDoc = {
           tenantId,
           marketplace: 'kaufland',
           marketplaceReturnId,
-          marketplaceOrderId: kr.id_order ? String(kr.id_order) : (kr.id_order_unit ? String(kr.id_order_unit) : null),
+          marketplaceOrderId: orderUnitDetail?.id_order || orderUnitId,
+          orderUnitId,
           orderId: null,
           customer: {
-            name: kr.buyer_name || kr.buyer?.name || null,
-            email: kr.buyer_email || kr.buyer?.email || null,
+            name: buyerName,
+            email: ouBuyer.email || kr.buyer_email || null,
           },
           product: {
-            name: kr.product_title || kr.title || null,
-            sku: kr.id_offer ? String(kr.id_offer) : null,
+            name: ouProduct.title || kr.product_title || kr.title || null,
+            sku: orderUnitDetail?.id_offer || (kr.id_offer ? String(kr.id_offer) : null),
             quantity: kr.quantity || 1,
+            ean: ouProduct.eans?.[0] || null,
+            price: orderUnitDetail?.price ? (orderUnitDetail.price / 100) : null,
           },
           reason,
-          reasonRaw: klReason,
-          reasonText: kr.reason_comment || kr.note || null,
+          reasonRaw: unitReason,
+          reasonText: firstUnit.note || kr.reason_comment || null,
           refundAmount: parseFloat(kr.refund_amount || '0') || 0,
           currency: 'EUR',
           status: 'eingegangen',
@@ -523,7 +593,7 @@ async function syncKauflandReturns({ tenantId = 'default', lookbackDays = 30 } =
           syncedAt: new Date().toISOString(),
         };
 
-        // Link to order
+        // Link to order via Kaufland order ID (e.g. "MXB5KD5")
         if (returnDoc.marketplaceOrderId) {
           const orderSnap = await db.collection(ORDERS_COLLECTION)
             .where('marketplaceOrderId', '==', returnDoc.marketplaceOrderId)
