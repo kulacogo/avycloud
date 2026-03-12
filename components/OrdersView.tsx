@@ -110,13 +110,15 @@ const OrdersView: React.FC = () => {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
   const [bulkResult, setBulkResult] = useState<string | null>(null);
+  const [rowsPerPage, setRowsPerPage] = useState(50);
+  const [currentPage, setCurrentPage] = useState(1);
 
   /* ─── Fetch ─── */
   const loadOrders = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const data = await fetchOrdersApi(200);
+      const data = await fetchOrdersApi(500);
       setOrders(data);
     } catch (err: any) {
       setError(err?.message || "Failed to load orders");
@@ -211,6 +213,15 @@ const OrdersView: React.FC = () => {
 
     return list;
   }, [orders, filter, sortField, sortAsc]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredOrders.length / rowsPerPage));
+  const paginatedOrders = useMemo(() => {
+    const start = (currentPage - 1) * rowsPerPage;
+    return filteredOrders.slice(start, start + rowsPerPage);
+  }, [filteredOrders, currentPage, rowsPerPage]);
+
+  // Reset page when filter changes
+  useEffect(() => { setCurrentPage(1); }, [filter, rowsPerPage]);
 
   const handleSort = (field: typeof sortField) => {
     if (sortField === field) {
@@ -510,7 +521,7 @@ const OrdersView: React.FC = () => {
                 </tr>
               </thead>
               <tbody>
-                {filteredOrders.map((order) => {
+                {paginatedOrders.map((order) => {
                   const src = sourceBadge(order.orderSource);
                   const itemCount = order.items.reduce((sum, i) => sum + i.quantity, 0);
                   return (
@@ -640,10 +651,46 @@ const OrdersView: React.FC = () => {
         )}
       </div>
 
-      {/* Footer count */}
+      {/* Pagination Footer */}
       {!loading && filteredOrders.length > 0 && (
-        <div className="text-xs text-txt-muted text-right">
-          {filteredOrders.length} / {orders.length} {t("orders.footer.showing")}
+        <div className="flex items-center justify-between gap-4 text-xs text-txt-muted">
+          <div className="flex items-center gap-2">
+            <span>Zeilen pro Seite:</span>
+            <select
+              value={rowsPerPage}
+              onChange={(e) => setRowsPerPage(Number(e.target.value))}
+              className="rounded-md border border-app-border bg-app-surface text-txt-primary px-2 py-1 text-xs"
+            >
+              {[25, 50, 100, 200, 500].map((n) => (
+                <option key={n} value={n}>{n}</option>
+              ))}
+            </select>
+          </div>
+          <div className="flex items-center gap-3">
+            <span>
+              {(currentPage - 1) * rowsPerPage + 1}–{Math.min(currentPage * rowsPerPage, filteredOrders.length)} von {filteredOrders.length}
+              {filteredOrders.length !== orders.length && ` (${orders.length} gesamt)`}
+            </span>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                disabled={currentPage <= 1}
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                className="rounded-md border border-app-border bg-app-surface px-2 py-1 hover:bg-app-elevated disabled:opacity-30 transition"
+              >
+                &larr;
+              </button>
+              <span className="px-2 font-medium text-txt-primary">{currentPage} / {totalPages}</span>
+              <button
+                type="button"
+                disabled={currentPage >= totalPages}
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                className="rounded-md border border-app-border bg-app-surface px-2 py-1 hover:bg-app-elevated disabled:opacity-30 transition"
+              >
+                &rarr;
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

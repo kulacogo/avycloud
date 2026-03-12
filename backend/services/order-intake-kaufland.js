@@ -205,6 +205,27 @@ async function syncKauflandOrders({ tenantId = 'default', lookbackDays = 7 } = {
     }
   }
 
+  // --- Status reconciliation: re-fetch recent orders to pick up status changes (cancelled, shipped, etc.) ---
+  try {
+    const reconcileFrom = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString(); // 14 days lookback
+    let recOffset = 0;
+    let recUpdated = 0;
+    let recTotal = 0;
+    do {
+      const result = await fetchKauflandOrders({ createdAfter: reconcileFrom, limit: 100, offset: recOffset });
+      recTotal = result.total;
+      for (const order of result.orders) {
+        // saveOrderIfNew now also updates status of existing orders
+        await saveOrderIfNew({ tenantId, order });
+      }
+      recOffset += result.orders.length;
+      if (result.orders.length < 100) break;
+    } while (recOffset < recTotal && recOffset < 3000);
+    console.log(`[kaufland-intake] Status reconciliation: checked ${Math.min(recOffset, recTotal)} orders (14d lookback)`);
+  } catch (err) {
+    console.warn(`[kaufland-intake] Status reconciliation failed: ${err.message}`);
+  }
+
   return { synced: totalSynced, skipped: totalSkipped, total: totalEntries };
 }
 
@@ -223,7 +244,38 @@ async function saveOrderIfNew({ tenantId, order }) {
     .limit(1)
     .get();
 
-  if (!existing.empty) return false;
+  if (!existing.empty) {
+    // Order exists — check if Kaufland status changed (e.g. cancelled, shipped)
+    const existingDoc = existing.docs[0];
+    const existingData = existingDoc.data();
+    const rawUnits = order.raw?.order_units || [];
+    const klUnitStatus = rawUnits[0]?.status || null;
+
+    if (klUnitStatus) {
+      const mappedStatus = mapKauflandStatus(klUnitStatus);
+      const currentOms = existingData.omsStatus || existingData.status;
+
+      // Only update if Kaufland reports a more advanced status
+      if (mappedStatus !== currentOms && ['cancelled', 'shipped', 'returned', 'completed'].includes(mappedStatus)) {
+        const OMS_STATUS_LABELS = {
+          pending: 'Neu', confirmed: 'Bestätigt', picking: 'Kommissionierung',
+          picked: 'Kommissioniert', packed: 'Verpackt', shipped: 'Versendet',
+          delivered: 'Zugestellt', cancelled: 'Storniert', returned: 'Retoure',
+          completed: 'Abgeschlossen', on_hold: 'Pausiert',
+        };
+        await existingDoc.ref.update({
+          omsStatus: mappedStatus,
+          omsStatusLabel: OMS_STATUS_LABELS[mappedStatus] || mappedStatus,
+          status: mappedStatus,
+          statusLabel: OMS_STATUS_LABELS[mappedStatus] || mappedStatus,
+          updatedAt: new Date().toISOString(),
+          'ops.kauflandStatusSync': { from: currentOms, to: mappedStatus, klUnitStatus, syncedAt: new Date().toISOString() },
+        });
+        console.log(`[kaufland-intake] Status updated: ${existingData.orderId || existingDoc.id} ${currentOms} → ${mappedStatus} (Kaufland: ${klUnitStatus})`);
+      }
+    }
+    return false;
+  }
 
   // Generate AvyCloud order number
   const seq = await getNextNumber({ tenantId, type: 'order' });

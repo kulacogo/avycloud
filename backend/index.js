@@ -298,18 +298,18 @@ const server = app.listen(PORT, () => {
     console.warn('[order-sync] failed to start periodic refresh:', err?.message || err);
   }
 
-  // Periodic returns sync from marketplaces (every 4 hours)
-  const RETURNS_SYNC_INTERVAL_MS = parseInt(process.env.RETURNS_SYNC_INTERVAL_MS || String(4 * 60 * 60 * 1000), 10);
+  // Periodic returns sync from marketplaces (every 1 hour)
+  const RETURNS_SYNC_INTERVAL_MS = parseInt(process.env.RETURNS_SYNC_INTERVAL_MS || String(1 * 60 * 60 * 1000), 10);
   try {
     setTimeout(() => {
       const { syncAllReturns } = require('./services/returns-engine');
-      syncAllReturns({ tenantId: 'default', lookbackDays: 7 })
+      syncAllReturns({ tenantId: 'default', lookbackDays: 30 })
         .then((r) => console.log('[returns-sync] periodic sync done:', JSON.stringify(r)))
         .catch((err) => console.warn('[returns-sync] periodic sync failed:', err?.message));
     }, 60_000); // 1 min after startup
     setInterval(() => {
       const { syncAllReturns } = require('./services/returns-engine');
-      syncAllReturns({ tenantId: 'default', lookbackDays: 7 })
+      syncAllReturns({ tenantId: 'default', lookbackDays: 30 })
         .then((r) => console.log('[returns-sync] periodic sync done:', JSON.stringify(r)))
         .catch((err) => console.warn('[returns-sync] periodic sync failed:', err?.message));
     }, RETURNS_SYNC_INTERVAL_MS);
@@ -318,8 +318,8 @@ const server = app.listen(PORT, () => {
     console.warn('[returns-sync] failed to start periodic refresh:', err?.message || err);
   }
 
-  // Periodic SendCloud parcel sync (every 2 hours)
-  const SENDCLOUD_SYNC_INTERVAL_MS = parseInt(process.env.SENDCLOUD_SYNC_INTERVAL_MS || String(2 * 60 * 60 * 1000), 10);
+  // Periodic SendCloud parcel sync (every 1 hour)
+  const SENDCLOUD_SYNC_INTERVAL_MS = parseInt(process.env.SENDCLOUD_SYNC_INTERVAL_MS || String(1 * 60 * 60 * 1000), 10);
   try {
     const runSendCloudSync = () => {
       const { syncSendCloudParcels } = require('./services/shipping-engine');

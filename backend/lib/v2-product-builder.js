@@ -282,10 +282,11 @@ function buildProductFromV2Record(record, options = {}) {
       key_features: keyFeatures,
       attributes,
       identifiers: {
-        ean: normalizeValue(record?.ean) || undefined,
-        gtin: normalizeValue(record?.gtin) || undefined,
-        upc: normalizeValue(record?.upc) || undefined,
+        ean: normalizeValue(record?.ean) || (manualBarcodes.find(b => /^\d{8}$|^\d{13}$/.test(b))) || undefined,
+        gtin: normalizeValue(record?.gtin) || (manualBarcodes.find(b => /^\d{14}$/.test(b))) || undefined,
+        upc: normalizeValue(record?.upc) || (manualBarcodes.find(b => /^\d{12}$/.test(b))) || undefined,
         sku: normalizeSkuCandidate(record?.sku, record) || undefined,
+        barcode: manualBarcodes[0] || normalizeValue(record?.ean) || normalizeValue(record?.gtin) || undefined,
       },
       images,
       pricing: {

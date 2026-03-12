@@ -31,7 +31,7 @@
 
 const { getAllProducts, saveProduct } = require('../lib/firestore');
 const { saveProductV2 } = require('../lib/product-store');
-const { getGeminiClient } = require('../lib/gemini-client');
+const { gemini3GenerateJSON } = require('../lib/gemini3-client');
 
 // ---------------------------------------------------------------------------
 // Weight parsing (copied from firestore.js — not exported there)
@@ -196,8 +196,7 @@ const WEIGHT_RESPONSE_SCHEMA = {
     },
     confidence: {
       type: 'string',
-      enum: ['high', 'medium', 'low'],
-      description: 'Konfidenz der Schätzung',
+      description: 'Konfidenz der Schätzung: high, medium oder low',
     },
     reasoning: {
       type: 'string',
@@ -208,35 +207,20 @@ const WEIGHT_RESPONSE_SCHEMA = {
 };
 
 /**
- * Call Gemini to estimate weight.
+ * Call Gemini 3 Pro to estimate weight via central gemini3-client.
  */
 async function estimateWeightViaGemini(product) {
   const prompt = buildWeightPrompt(product);
-  const raw = await callGeminiStructured({
-    parts: [{ text: prompt }],
-    responseSchema: WEIGHT_RESPONSE_SCHEMA,
+
+  const parsed = await gemini3GenerateJSON({
+    prompt,
+    schema: WEIGHT_RESPONSE_SCHEMA,
     temperature: 0.1,
-    maxOutputTokens: 256,
-    stopSequences: [],
+    maxOutputTokens: 2048,
   });
 
-  let parsed;
-  try {
-    parsed = JSON.parse(raw);
-  } catch {
-    // Gemini sometimes returns text instead of JSON — try to extract JSON from response
-    const jsonMatch = raw.match(/\{[\s\S]*"weightKg"\s*:\s*[\d.]+[\s\S]*\}/);
-    if (jsonMatch) {
-      parsed = JSON.parse(jsonMatch[0]);
-    } else {
-      // Last resort: try to extract a number from the text
-      const numMatch = raw.match(/([\d]+(?:[.,]\d+)?)\s*(?:kg)?/i);
-      if (numMatch) {
-        parsed = { weightKg: parseFloat(numMatch[1].replace(',', '.')), confidence: 'low', reasoning: 'extracted from text' };
-      } else {
-        throw new Error(`Cannot parse Gemini response: ${raw.slice(0, 100)}`);
-      }
-    }
+  if (DEBUG) {
+    console.log('    [gemini3] response:', JSON.stringify(parsed).slice(0, 120));
   }
 
   const weightKg = normalizeWeightKgNumber(parsed.weightKg);

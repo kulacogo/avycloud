@@ -427,18 +427,20 @@ async function computeDashboardBaseLinkerRevenueTotal({
 
 router.get('/orders', requirePermission('orders', 'read'), async (req, res) => {
   try {
-    const limit = Math.min(Number(req.query.limit) || 50, 100);
+    const limit = Math.min(Number(req.query.limit) || 50, 500);
+    const offset = Math.max(Number(req.query.offset) || 0, 0);
     // Return cached orders immediately; trigger background sync best-effort
-    let rawOrders = await listOrders(limit);
+    let rawOrders = await listOrders(limit + offset);
     _backgroundSyncOrders();
 
     if (!Array.isArray(rawOrders)) {
       rawOrders = [];
     }
 
-    const cappedOrders = Array.isArray(rawOrders) ? rawOrders.slice(0, limit) : [];
-    const orders = await attachPickHintsToOrders(cappedOrders);
-    res.json({ ok: true, data: orders });
+    const total = rawOrders.length;
+    const paginatedOrders = rawOrders.slice(offset, offset + limit);
+    const orders = await attachPickHintsToOrders(paginatedOrders);
+    res.json({ ok: true, data: orders, meta: { total, limit, offset, hasMore: offset + limit < total } });
   } catch (error) {
     console.error('Failed to load orders:', error);
     res.status(500).json({
