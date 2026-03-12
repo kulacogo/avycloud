@@ -69,6 +69,7 @@ const EBAY_REASON_MAP = {
  * Kaufland return reason → internal category mapping.
  */
 const KAUFLAND_REASON_MAP = {
+  // Uppercase (legacy/safety)
   WRONG_PRODUCT_DELIVERED: 'falsche_lieferung',
   DEFECTIVE:               'defekt',
   ITEM_NOT_AS_DESCRIBED:   'nicht_wie_beschrieben',
@@ -76,6 +77,21 @@ const KAUFLAND_REASON_MAP = {
   TOO_LATE:                'zu_spaet',
   DUPLICATE_ORDER:         'doppelbestellung',
   OTHER:                   'sonstiges',
+  // Lowercase (actual Kaufland API values)
+  wrong_product_delivered:  'falsche_lieferung',
+  defective:               'defekt',
+  item_not_as_described:    'nicht_wie_beschrieben',
+  no_longer_needed:         'meinungsaenderung',
+  too_late:                 'zu_spaet',
+  duplicate_order:          'doppelbestellung',
+  wrong_size:               'nicht_wie_beschrieben',
+  too_big:                  'nicht_wie_beschrieben',
+  too_small:                'nicht_wie_beschrieben',
+  does_not_fit:             'nicht_wie_beschrieben',
+  not_as_expected:          'nicht_wie_beschrieben',
+  arrived_too_late:         'zu_spaet',
+  damaged_in_transit:       'defekt',
+  other:                    'sonstiges',
 };
 
 // ─── Return Workflow ─────────────────────────────────────────
@@ -343,15 +359,32 @@ async function syncEbayReturns({ tenantId = 'default', lookbackDays = 30 } = {})
           .get();
 
         if (!existing.empty) {
-          // Update marketplace status if changed
+          // Update marketplace status + fix missing data on re-sync
           const existingDoc = existing.docs[0];
           const existingData = existingDoc.data();
           const newMpStatus = isCanceled ? 'CANCELED' : 'REFUNDED';
+          const updates = {};
           if (existingData.marketplaceStatus !== newMpStatus) {
-            await existingDoc.ref.update({
-              marketplaceStatus: newMpStatus,
-              syncedAt: new Date().toISOString(),
-            });
+            updates.marketplaceStatus = newMpStatus;
+          }
+          // Fix customer name if it was stored as eBay username
+          const shipTo = order.fulfillmentStartInstructions?.[0]?.shippingStep?.shipTo;
+          const realName = shipTo?.fullName || shipTo?.contactAddress?.fullName || null;
+          if (realName && (!existingData.customer?.name || existingData.customer.name === order.buyer?.username)) {
+            updates.customer = { name: realName, email: shipTo?.email || existingData.customer?.email || null };
+          }
+          // Fix missing product name
+          const pNames = (order.lineItems || []).map((li) => li.title).filter(Boolean);
+          if (pNames[0] && (!existingData.product?.name)) {
+            updates.product = { ...existingData.product, name: pNames[0] };
+          }
+          // Fix refundAmount if 0
+          if ((!existingData.refundAmount || existingData.refundAmount === 0) && totalRefund > 0) {
+            updates.refundAmount = totalRefund;
+          }
+          if (Object.keys(updates).length > 0) {
+            updates.syncedAt = new Date().toISOString();
+            await existingDoc.ref.update(updates);
           }
           skipped++;
           continue;
@@ -359,15 +392,20 @@ async function syncEbayReturns({ tenantId = 'default', lookbackDays = 30 } = {})
 
         // Determine reason from cancel or refund context
         const cancelReason = order.cancelStatus?.cancelReason || '';
-        let reason = 'sonstiges';
+        let reason = 'meinungsaenderung'; // sensible default for returns
         if (isCanceled) {
-          reason = cancelReason === 'BUYER_ASKED_CANCEL' ? 'meinungsaenderung' :
-            cancelReason === 'OUT_OF_STOCK_OR_CANNOT_FULFILL' ? 'sonstiges' : 'sonstiges';
+          if (cancelReason === 'BUYER_ASKED_CANCEL' || cancelReason === 'BUYER_CANCEL') {
+            reason = 'meinungsaenderung';
+          } else if (cancelReason === 'OUT_OF_STOCK_OR_CANNOT_FULFILL') {
+            reason = 'sonstiges';
+          } else {
+            reason = EBAY_REASON_MAP[cancelReason] || 'meinungsaenderung';
+          }
         } else if (refundedItems.length > 0) {
-          reason = 'meinungsaenderung'; // default for refunds without explicit reason
+          // Check if any refund has a reason hint
+          const refundReason = refundedItems[0]?.refunds?.[0]?.reasonType || '';
+          reason = EBAY_REASON_MAP[refundReason] || 'meinungsaenderung';
         }
-        const ebayReason = cancelReason || 'REFUND';
-        reason = EBAY_REASON_MAP[ebayReason] || reason;
 
         // Sum refund amounts
         let totalRefund = 0;
@@ -381,6 +419,14 @@ async function syncEbayReturns({ tenantId = 'default', lookbackDays = 30 } = {})
           .map((li) => li.title)
           .filter(Boolean);
 
+        // Extract real customer name from shipping address (not username)
+        const shipTo = order.fulfillmentStartInstructions?.[0]?.shippingStep?.shipTo;
+        const buyerFullName = shipTo?.fullName
+          || (shipTo?.contactAddress?.fullName)
+          || order.buyer?.username
+          || null;
+        const buyerEmail = shipTo?.email || order.buyer?.email || null;
+
         const returnDoc = {
           tenantId,
           marketplace: 'ebay',
@@ -388,8 +434,8 @@ async function syncEbayReturns({ tenantId = 'default', lookbackDays = 30 } = {})
           marketplaceOrderId: order.orderId || null,
           orderId: null,
           customer: {
-            name: order.buyer?.username || null,
-            email: null,
+            name: buyerFullName,
+            email: buyerEmail,
           },
           product: {
             name: productNames[0] || null,
@@ -517,9 +563,13 @@ async function syncKauflandReturns({ tenantId = 'default', lookbackDays = 30 } =
           if (orderUnitId && !existingData.orderUnitId) {
             updates.orderUnitId = orderUnitId;
           }
-          if (unitReason && unitReason !== 'OTHER' && existingData.reasonRaw === 'OTHER') {
+          if (unitReason && unitReason !== 'OTHER' && unitReason.toLowerCase() !== 'other' && (!existingData.reasonRaw || existingData.reasonRaw === 'OTHER' || existingData.reason === 'sonstiges')) {
             updates.reasonRaw = unitReason;
-            updates.reason = KAUFLAND_REASON_MAP[unitReason] || existingData.reason;
+            updates.reason = KAUFLAND_REASON_MAP[unitReason] || KAUFLAND_REASON_MAP[unitReason.toLowerCase()] || existingData.reason;
+          }
+          // Update refundAmount if still 0 and we have price info
+          if ((!existingData.refundAmount || existingData.refundAmount === 0) && orderUnitDetail?.price) {
+            updates.refundAmount = orderUnitDetail.price / 100;
           }
           // Link to order if not yet linked
           if (!existingData.orderId && orderUnitId) {
@@ -552,7 +602,7 @@ async function syncKauflandReturns({ tenantId = 'default', lookbackDays = 30 } =
           continue;
         }
 
-        const reason = KAUFLAND_REASON_MAP[unitReason] || 'sonstiges';
+        const reason = KAUFLAND_REASON_MAP[unitReason] || KAUFLAND_REASON_MAP[unitReason.toLowerCase()] || 'sonstiges';
 
         // Build customer & product from order-unit detail
         const ouBuyer = orderUnitDetail?.buyer || {};
@@ -583,7 +633,9 @@ async function syncKauflandReturns({ tenantId = 'default', lookbackDays = 30 } =
           reason,
           reasonRaw: unitReason,
           reasonText: firstUnit.note || kr.reason_comment || null,
-          refundAmount: parseFloat(kr.refund_amount || '0') || 0,
+          refundAmount: parseFloat(kr.refund_amount || '0')
+            || (orderUnitDetail?.price ? (orderUnitDetail.price / 100) : 0)
+            || 0,
           currency: 'EUR',
           status: 'eingegangen',
           marketplaceStatus: kr.status || null,

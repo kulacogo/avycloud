@@ -15,11 +15,13 @@ const STATUS_CONFIG: Record<string, { label: string; cls: string }> = {
   in_zustellung: { label: "In Zustellung", cls: "bg-info-dim text-info" },
   zugestellt: { label: "Zugestellt", cls: "bg-success-dim text-success" },
   problem: { label: "Problem", cls: "bg-danger-dim text-danger" },
+  storniert: { label: "Storniert", cls: "bg-app-elevated text-txt-muted" },
 };
 
-type TabKey = "ausstehend" | "in_zustellung" | "zugestellt" | "problem";
+type TabKey = "alle" | "ausstehend" | "in_zustellung" | "zugestellt" | "problem";
 
-const TABS: { key: TabKey | "alle"; label: string }[] = [
+const TABS: { key: TabKey; label: string }[] = [
+  { key: "alle", label: "Alle" },
   { key: "ausstehend", label: "Ausstehend" },
   { key: "in_zustellung", label: "In Zustellung" },
   { key: "zugestellt", label: "Zugestellt" },
@@ -54,7 +56,7 @@ function trackingUrl(carrier: string, trackingNr: string): string {
 
 /* ─── Main Component ─── */
 export const ShippingView: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<TabKey | "alle">("ausstehend");
+  const [activeTab, setActiveTab] = useState<TabKey>("alle");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [shipments, setShipments] = useState<ShipmentData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -77,8 +79,30 @@ export const ShippingView: React.FC = () => {
     }
   }, []);
 
+  // Auto-sync from SendCloud on mount, then poll every 60s
   useEffect(() => {
-    loadShipments();
+    let cancelled = false;
+    const initialSync = async () => {
+      try {
+        setSyncBusy(true);
+        await syncSendCloudParcels();
+      } catch {
+        // silent — background sync
+      } finally {
+        if (!cancelled) setSyncBusy(false);
+      }
+      if (!cancelled) loadShipments();
+    };
+    initialSync();
+
+    const interval = setInterval(() => {
+      if (!cancelled) loadShipments();
+    }, 60_000);
+
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
   }, [loadShipments]);
 
   const filtered = useMemo(() => {
@@ -87,7 +111,7 @@ export const ShippingView: React.FC = () => {
   }, [shipments, activeTab]);
 
   const tabCounts = useMemo(() => {
-    const counts: Record<string, number> = {};
+    const counts: Record<string, number> = { alle: shipments.length };
     for (const s of shipments) {
       if (s.status) counts[s.status] = (counts[s.status] || 0) + 1;
     }
@@ -307,7 +331,8 @@ export const ShippingView: React.FC = () => {
               </thead>
               <tbody>
                 {filtered.map((shp) => {
-                  const carrier = CARRIER_STYLE[shp.carrier || ""] || { cls: "bg-gray-100 text-gray-800", initial: "?" };
+                  const carrierKey = (shp.carrier || "").toUpperCase().replace("_DE", "");
+                  const carrier = CARRIER_STYLE[carrierKey] || { cls: "bg-app-elevated text-txt-muted", initial: carrierKey.charAt(0) || "?" };
                   const status = STATUS_CONFIG[shp.status || ""] || { label: shp.status || "—", cls: "bg-app-elevated text-txt-muted" };
                   return (
                     <tr
@@ -329,7 +354,7 @@ export const ShippingView: React.FC = () => {
                           <span className="w-4 h-4 rounded-full bg-current/10 flex items-center justify-center text-[9px] font-bold">
                             {carrier.initial}
                           </span>
-                          {shp.carrier || "—"}
+                          {carrierKey || "—"}
                         </span>
                       </td>
                       <td className="px-4 py-3">

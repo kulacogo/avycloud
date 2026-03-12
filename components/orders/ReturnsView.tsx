@@ -33,8 +33,8 @@ const STATUS_CONFIG: Record<string, { label: string; cls: string }> = {
 };
 
 const MARKETPLACE_BADGE: Record<string, { label: string; cls: string }> = {
-  ebay: { label: "eBay", cls: "bg-blue-100 text-blue-800" },
-  kaufland: { label: "Kaufland", cls: "bg-red-100 text-red-800" },
+  ebay: { label: "eBay", cls: "bg-info-dim text-info" },
+  kaufland: { label: "Kaufland", cls: "bg-danger-dim text-danger" },
 };
 
 type TabKey = "alle" | string;
@@ -536,10 +536,22 @@ export const ReturnsView: React.FC = () => {
       {filtered.length > 0 && (
         <div className="rounded-xl border border-app-border bg-app-surface overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full text-sm table-fixed min-w-[900px]">
+              <colgroup>
+                <col className="w-10" />
+                <col className="w-[7%]" />
+                <col className="w-[8%]" />
+                <col className="w-[13%]" />
+                <col className="w-[22%]" />
+                <col className="w-[12%]" />
+                <col className="w-[9%]" />
+                <col className="w-[10%]" />
+                <col className="w-[9%]" />
+                <col className="w-[10%]" />
+              </colgroup>
               <thead>
                 <tr className="border-b border-app-border bg-app-bg/50">
-                  <th className="px-4 py-3 w-10">
+                  <th className="px-3 py-3">
                     <input
                       type="checkbox"
                       checked={
@@ -549,32 +561,32 @@ export const ReturnsView: React.FC = () => {
                       className="rounded border-app-border"
                     />
                   </th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-txt-muted uppercase tracking-wider">
-                    Retoure
+                  <th className="text-left px-3 py-3 text-xs font-semibold text-txt-muted uppercase tracking-wider">
+                    ID
                   </th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-txt-muted uppercase tracking-wider">
+                  <th className="text-left px-3 py-3 text-xs font-semibold text-txt-muted uppercase tracking-wider">
                     Marktplatz
                   </th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-txt-muted uppercase tracking-wider">
+                  <th className="text-left px-3 py-3 text-xs font-semibold text-txt-muted uppercase tracking-wider">
                     Kunde
                   </th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-txt-muted uppercase tracking-wider">
+                  <th className="text-left px-3 py-3 text-xs font-semibold text-txt-muted uppercase tracking-wider">
                     Produkt
                   </th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-txt-muted uppercase tracking-wider">
+                  <th className="text-left px-3 py-3 text-xs font-semibold text-txt-muted uppercase tracking-wider">
                     Grund
                   </th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-txt-muted uppercase tracking-wider">
+                  <th className="text-left px-3 py-3 text-xs font-semibold text-txt-muted uppercase tracking-wider">
                     Eingang
                   </th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-txt-muted uppercase tracking-wider">
+                  <th className="text-left px-3 py-3 text-xs font-semibold text-txt-muted uppercase tracking-wider">
                     Status
                   </th>
-                  <th className="text-right px-4 py-3 text-xs font-semibold text-txt-muted uppercase tracking-wider">
+                  <th className="text-right px-3 py-3 text-xs font-semibold text-txt-muted uppercase tracking-wider">
                     Betrag
                   </th>
-                  <th className="text-right px-4 py-3 text-xs font-semibold text-txt-muted uppercase tracking-wider">
-                    Aktionen
+                  <th className="text-right px-3 py-3 text-xs font-semibold text-txt-muted uppercase tracking-wider">
+                    Aktion
                   </th>
                 </tr>
               </thead>
@@ -600,7 +612,7 @@ export const ReturnsView: React.FC = () => {
                       key={ret.id}
                       className="border-b border-app-border last:border-b-0 hover:bg-app-elevated/40 transition"
                     >
-                      <td className="px-4 py-3">
+                      <td className="px-3 py-3">
                         <input
                           type="checkbox"
                           checked={selected.has(ret.id)}
@@ -608,13 +620,13 @@ export const ReturnsView: React.FC = () => {
                           className="rounded border-app-border"
                         />
                       </td>
-                      <td className="px-4 py-3 font-mono text-xs text-txt-primary font-medium">
-                        {ret.id.slice(0, 8)}…
+                      <td className="px-3 py-3 font-mono text-[11px] text-txt-muted truncate">
+                        {ret.id.slice(0, 7)}
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-3 py-3">
                         {mp ? (
                           <span
-                            className={`inline-flex rounded-md px-2 py-0.5 text-[11px] font-semibold ${mp.cls}`}
+                            className={`inline-flex rounded-md px-2 py-0.5 text-[11px] font-semibold whitespace-nowrap ${mp.cls}`}
                           >
                             {mp.label}
                           </span>
@@ -622,29 +634,29 @@ export const ReturnsView: React.FC = () => {
                           <span className="text-xs text-txt-muted">Manuell</span>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-txt-primary font-medium">
+                      <td className="px-3 py-3 text-txt-primary text-xs font-medium truncate" title={customerName(ret.customer)}>
                         {customerName(ret.customer)}
                       </td>
-                      <td className="px-4 py-3">
-                        <span className="text-txt-primary truncate max-w-[180px] inline-block">
+                      <td className="px-3 py-3">
+                        <span className="text-txt-primary text-xs truncate block" title={productName(ret.product)}>
                           {productName(ret.product)}
                         </span>
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-3 py-3">
                         <span
-                          className={`inline-flex rounded-md px-2 py-0.5 text-[11px] font-semibold ${reason.cls}`}
+                          className={`inline-flex rounded-md px-2 py-0.5 text-[11px] font-semibold whitespace-nowrap ${reason.cls}`}
                         >
                           {reason.label}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-xs text-txt-muted whitespace-nowrap">
+                      <td className="px-3 py-3 text-xs text-txt-muted whitespace-nowrap">
                         {ret.createdAt
                           ? new Date(ret.createdAt).toLocaleDateString("de-DE")
                           : "—"}
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-3 py-3">
                         <span
-                          className={`inline-flex rounded-md px-2 py-0.5 text-[11px] font-semibold ${status.cls}`}
+                          className={`inline-flex rounded-md px-2 py-0.5 text-[11px] font-semibold whitespace-nowrap ${status.cls}`}
                         >
                           {status.label}
                         </span>
@@ -658,20 +670,20 @@ export const ReturnsView: React.FC = () => {
                           </span>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-right font-semibold text-txt-primary">
-                        {typeof ret.refundAmount === "number"
+                      <td className="px-3 py-3 text-right text-xs font-semibold text-txt-primary whitespace-nowrap">
+                        {typeof ret.refundAmount === "number" && ret.refundAmount > 0
                           ? `${ret.refundAmount.toLocaleString("de-DE", {
                               minimumFractionDigits: 2,
-                            })} EUR`
+                            })}\u00A0EUR`
                           : "—"}
                       </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center justify-end gap-1.5">
+                      <td className="px-3 py-3">
+                        <div className="flex items-center justify-end gap-1">
                           {st === "eingegangen" && (
                             <button
                               type="button"
                               onClick={() => handleStatusChange(ret.id, "in_pruefung")}
-                              className="rounded-lg bg-app-elevated px-2.5 py-1.5 text-xs font-semibold text-txt-secondary hover:text-txt-primary transition"
+                              className="rounded-md bg-app-elevated px-2 py-1 text-[11px] font-semibold text-txt-secondary hover:text-txt-primary transition whitespace-nowrap"
                             >
                               Prüfen
                             </button>
@@ -680,16 +692,16 @@ export const ReturnsView: React.FC = () => {
                             <button
                               type="button"
                               onClick={() => setProcessTarget(ret)}
-                              className="rounded-lg bg-accent-dim px-2.5 py-1.5 text-xs font-semibold text-accent hover:opacity-80 transition"
+                              className="rounded-md bg-accent-dim px-2 py-1 text-[11px] font-semibold text-accent hover:opacity-80 transition whitespace-nowrap"
                             >
-                              Verarbeiten
+                              Bearbeiten
                             </button>
                           )}
                           {isRefunded && ret.marketplace && !ret.marketplaceRefundStatus && (
                             <button
                               type="button"
                               onClick={() => handleRefund(ret)}
-                              className="rounded-lg bg-success-dim px-2.5 py-1.5 text-xs font-semibold text-success hover:opacity-80 transition"
+                              className="rounded-md bg-success-dim px-2 py-1 text-[11px] font-semibold text-success hover:opacity-80 transition whitespace-nowrap"
                             >
                               Erstatten
                             </button>
@@ -698,7 +710,7 @@ export const ReturnsView: React.FC = () => {
                             <button
                               type="button"
                               onClick={() => handleClose(ret.id)}
-                              className="rounded-lg bg-app-elevated px-2.5 py-1.5 text-xs font-semibold text-txt-muted hover:text-txt-primary transition"
+                              className="rounded-md bg-app-elevated px-2 py-1 text-[11px] font-semibold text-txt-muted hover:text-txt-primary transition whitespace-nowrap"
                             >
                               Schließen
                             </button>

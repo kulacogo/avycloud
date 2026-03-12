@@ -28,6 +28,26 @@ function getDb() {
   return _db;
 }
 
+/**
+ * Map SendCloud numeric status IDs to internal shipment statuses.
+ * https://support.sendcloud.sc/hc/en-us/articles/360024967612
+ */
+function mapSendCloudStatus(statusId) {
+  const id = Number(statusId || 0);
+  // Delivered states
+  if (id === 11 || id === 6) return 'zugestellt';
+  // In transit states
+  if (id === 3 || id === 4 || id === 5 || id === 91) return 'in_zustellung';
+  // Created / ready / announced
+  if (id === 1 || id === 1000 || id === 1001 || id === 62989) return 'ausstehend';
+  // Problem states
+  if (id === 1002 || id === 8 || id === 80 || id === 999) return 'problem';
+  // Cancelled
+  if (id === 2000) return 'storniert';
+  // Fallback
+  return 'ausstehend';
+}
+
 let _cachedAuth = null;
 async function getSendCloudAuth() {
   if (_cachedAuth) return _cachedAuth;
@@ -544,6 +564,22 @@ async function syncSendCloudParcels({ tenantId = 'default', fromDate, toDate } =
       || parcel.label?.normal_printer?.[0]
       || (parcelId ? `${SENDCLOUD_BASE_URL}/labels/label_printer/${parcelId}` : null);
 
+    // Map SendCloud status to internal status
+    const scStatus = mapSendCloudStatus(statusId);
+
+    // Extract cost from parcel
+    const parcelCost = parseFloat(String(parcel.price || '0').replace(',', '.')) || 0;
+
+    // Customer name from order
+    const customerName = order.customer?.name
+      || (order.customer?.firstName ? `${order.customer.firstName} ${order.customer.lastName || ''}`.trim() : null)
+      || parcel.name
+      || null;
+
+    // Dates
+    const parcelCreated = parcel.date_created || parcel.created_at || null;
+    const shippedAt = parcelCreated || new Date().toISOString();
+
     const shipmentDoc = {
       tenantId,
       orderId: order.id,
@@ -552,11 +588,16 @@ async function syncSendCloudParcels({ tenantId = 'default', fromDate, toDate } =
       trackingNumber,
       trackingUrl,
       labelUrl,
-      carrier,
+      carrier: (carrier || '').toUpperCase().replace('_DE', ''),
       carrierName: carrier,
+      customer: customerName,
       weight: parcel.weight ? Number(parcel.weight) : null,
-      status: parcel.status?.message || 'synced',
+      cost: parcelCost,
+      status: scStatus,
       statusId: parcel.status?.id || null,
+      statusRaw: parcel.status?.message || null,
+      shippedAt,
+      deliveredAt: scStatus === 'zugestellt' ? (parcel.date_updated || new Date().toISOString()) : null,
       source: 'sendcloud_sync',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
