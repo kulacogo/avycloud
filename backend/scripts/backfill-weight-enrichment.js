@@ -158,10 +158,10 @@ function tryExtractWeightFromProduct(product) {
  * Build a Gemini prompt to estimate product weight.
  */
 function buildWeightPrompt(product) {
-  const title = product?.identification?.name || product?.details?.title || product?.details?.name || '';
-  const brand = product?.identification?.brand || product?.details?.brand || '';
-  const category = product?.details?.baselinkerCategoryPath || product?.details?.categoryId || '';
-  const ean = product?.identification?.ean || product?.details?.identifiers?.ean || product?.details?.identifiers?.barcode || '';
+  const title = product?.identification?.name || '';
+  const brand = product?.identification?.brand || '';
+  const category = product?.details?.baselinkerCategoryPath || product?.details?.categoryId || product?.identification?.category || '';
+  const ean = product?.details?.identifiers?.ean || product?.details?.identifiers?.gtin || (Array.isArray(product?.identification?.barcodes) ? product.identification.barcodes[0] : '') || '';
   const desc = (product?.details?.short_description || product?.details?.description || '').replace(/<[^>]*>/g, '').slice(0, 500);
   const keyFeatures = Array.isArray(product?.details?.key_features) ? product.details.key_features.join('; ') : '';
   const attrs = product?.details?.attributes || {};
@@ -175,9 +175,11 @@ Produktdaten:
 - Titel: ${title}
 - Marke: ${brand}
 - Kategorie: ${category}
+- Produktart: ${produktart}
 - EAN: ${ean}
 - Material: ${material}
 - Abmessungen: ${dimensions}
+- Key Features: ${keyFeatures}
 - Beschreibung: ${desc}
 
 REGELN:
@@ -349,6 +351,7 @@ async function run() {
         product.details = product.details || {};
         product.details.attributes = product.details.attributes || {};
         product.details.attributes.weight = weightKg;
+        product.details.attributes.Gewicht = weightKg;
         product.details.weight = weightKg;
 
         // Track enrichment metadata

@@ -209,7 +209,7 @@ const normalizePath = (v) => (v ? v.toString().trim() : '');
 async function resolveCategoryWithGemini(product, target) {
   try {
     const client = await getGeminiClient();
-    const modelName = resolveModel(null, 'CATEGORY_MODEL', 'gemini-2.5-flash');
+    const modelName = resolveModel(null, 'CATEGORY_MODEL', 'gemini-3-pro-preview');
     const model = client.getGenerativeModel({ model: modelName });
     const attrs = product?.details?.attributes || {};
 
@@ -1545,12 +1545,12 @@ function buildReviewPrompt(
     description: product?.details?.short_description,
     highlights: product?.details?.key_features,
     attributes: product?.details?.attributes,
-    ebayCategoryId: product?.details?.ebayCategoryId,
+    ebayCategoryId: product?.details?.categoryId,
     ebayTitleInsightTokens: Array.isArray(titleInsights?.topTokens) ? titleInsights.topTokens : [],
     condition_locked: Boolean(product?.ops?.condition_locked),
   };
 
-  const catIdRaw = product?.details?.categoryId || product?.details?.ebayCategoryId || null;
+  const catIdRaw = product?.details?.categoryId || null;
   const requiredMeta = buildRequiredAspectMeta(catIdRaw ? String(catIdRaw).trim() : null, product?.details?.attributes || {});
   const aspectStats = getRequiredAspectCatalogStats();
   const requiredAspects = Array.isArray(requiredMeta.requiredAspects) ? requiredMeta.requiredAspects : [];
@@ -1822,7 +1822,7 @@ async function runDatasheetReview(
 ) {
   if (!Array.isArray(products) || !products.length) return;
   // Use Thinking model for deep quality assurance
-  const reviewModel = resolveModel(null, 'REVIEW_MODEL', 'gemini-2.5-flash');
+  const reviewModel = resolveModel(null, 'REVIEW_MODEL', 'gemini-3-pro-preview');
 
   const client = await getGeminiClient();
   const model = client.getGenerativeModel({ model: reviewModel });
@@ -2201,7 +2201,7 @@ function parseMarketingJson(response) {
 async function ensureMarketingCopy(products = [], locale = 'de-DE') {
   if (!Array.isArray(products) || !products.length) return;
   // Use experimental high-quality model for Marketing
-  const targetModelName = resolveModel(null, 'MARKETING_MODEL', 'gemini-2.5-flash');
+  const targetModelName = resolveModel(null, 'MARKETING_MODEL', 'gemini-3-pro-preview');
   const client = await getGeminiClient();
   const model = client.getGenerativeModel({ model: targetModelName });
   const titleInsightCache = new Map();
@@ -2967,7 +2967,7 @@ async function runProductIdentification({
 
   const client = await getGeminiClient();
   // Default model: stable high-throughput model (override via IDENTIFY_MODEL).
-  const targetModelName = resolveModel(modelOverride, 'IDENTIFY_MODEL', 'gemini-2.5-flash');
+  const targetModelName = resolveModel(modelOverride, 'IDENTIFY_MODEL', 'gemini-3-pro-preview');
   const model = client.getGenerativeModel({ model: targetModelName });
 
   const generationConfig = {

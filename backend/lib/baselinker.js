@@ -56,7 +56,7 @@ function safeString(value) {
 async function resolveCategoryWithGemini(product, invId) {
   try {
     const client = await getGeminiClient();
-    const modelName = resolveModel(null, 'BASELINKER_CATEGORY_MODEL', 'gemini-2.5-flash');
+    const modelName = resolveModel(null, 'BASELINKER_CATEGORY_MODEL', 'gemini-3-pro-preview');
     const model = client.getGenerativeModel({ model: modelName });
     const lookup = ensureMarketplaceLookup();
     const isEbay = String(invId) === '85403';
@@ -76,7 +76,7 @@ SKU: ${product?.details?.identifiers?.sku || product?.identification?.sku || pro
 Name: ${product?.identification?.name || ''}
 Marke: ${product?.identification?.brand || ''}
 Kategorie (frei): ${product?.identification?.category || ''}
-Beschreibung: ${product?.details?.description || product?.details?.short_description || ''}
+Beschreibung: ${product?.details?.short_description || product?.details?.description || ''}
 Attribute: ${Object.entries(attrs)
         .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(', ') : v}`)
         .join(' | ')}

@@ -515,7 +515,7 @@ function buildLlmPrompt({ product, webEvidence, ruleIssues, locale }) {
 
 async function runLlmQualityCheck({ product, webEvidence, ruleIssues, locale = 'de-DE' }) {
   const client = await getGeminiClient();
-  const modelName = resolveModel(null, 'QUALITY_GATE_MODEL', 'gemini-2.5-flash');
+  const modelName = resolveModel(null, 'QUALITY_GATE_MODEL', 'gemini-3-pro-preview');
   const model = client.getGenerativeModel({ model: modelName });
 
   const promptText = buildLlmPrompt({ product, webEvidence, ruleIssues, locale });

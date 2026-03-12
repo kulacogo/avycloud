@@ -88,7 +88,7 @@ async function detectIntent(message) {
   try {
     const genAI = getGeminiClient();
     const model = genAI.getGenerativeModel({
-      model: resolveModel(null, 'CHAT_INTENT_MODEL', 'gemini-2.0-flash-lite'),
+      model: resolveModel(null, 'CHAT_INTENT_MODEL', 'gemini-3-flash-preview'),
       generationConfig: { temperature: 0, maxOutputTokens: 10 },
     });
 
@@ -397,7 +397,7 @@ async function forceOneEvidencePass(product, userMessage, { scope = null, notesO
   const client = await getGeminiClient();
   const updateOnlyTools = [{ functionDeclarations: [toGeminiTool(updateDatasheetTool)] }];
   const updateOnlyModel = client.getGenerativeModel({
-    model: resolveModel(null, 'CHAT_MODEL', 'gemini-2.5-flash'),
+    model: resolveModel(null, 'CHAT_MODEL', 'gemini-3-pro-preview'),
     tools: updateOnlyTools,
     toolConfig: {
       functionCallingConfig: {
@@ -1352,8 +1352,8 @@ function buildProductContext(product, { attachments = [], mode = 'short', market
     pricing: product?.details?.pricing || null,
     ocr: collectOcrData(product),
     warehouse: {
-      primary: product?.storage || null,
-      bins: Array.isArray(product?.storageBins) ? product.storageBins : [],
+      primary: product?.warehouse?.storage || product?.storage || null,
+      bins: Array.isArray(product?.warehouse?.storageBins) ? product.warehouse.storageBins : (Array.isArray(product?.storageBins) ? product.storageBins : []),
     },
     inventory: {
       quantity: product?.inventory?.quantity ?? null,
@@ -2065,7 +2065,7 @@ async function runProductChat(product, userMessage, {
   onProgress = null, // Progress callback for SSE streaming: (event) => void
 } = {}) {
   const client = await getGeminiClient();
-  const modelName = resolveModel(modelOverride, 'CHAT_MODEL', 'gemini-2.5-flash');
+  const modelName = resolveModel(modelOverride, 'CHAT_MODEL', 'gemini-3-pro-preview');
 
   const locale = 'de-DE';
   const intent = await detectIntent(userMessage || '');
