@@ -252,7 +252,7 @@ async function syncEbayOrders({ tenantId = 'default', lookbackDays = 7 } = {}) {
 
   // --- Status reconciliation: re-fetch recent orders to pick up status changes ---
   try {
-    const reconcileFrom = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString(); // 14 days lookback
+    const reconcileFrom = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(); // 30 days lookback
     let recPage = 1;
     let recTotal = 0;
     let recChecked = 0;

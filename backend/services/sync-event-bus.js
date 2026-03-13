@@ -76,13 +76,20 @@ bus.on('order:status_changed', async (payload) => {
     await syncStockForOrderItems({ tenantId, orderId, reason: `status:${toStatus}` })
       .catch((err) => console.warn(`[sync-bus] stock sync failed for order ${orderId}: ${err.message}`));
 
-    // 2. If cancelled → release reservations
+    // 2. If cancelled → release reservations + push cancellation to marketplace
     if (toStatus === 'cancelled') {
       try {
         const { releaseReservation } = require('./stock-reservation');
         await releaseReservation({ tenantId, orderId });
       } catch (err) {
         console.warn(`[sync-bus] release reservation failed for ${orderId}: ${err.message}`);
+      }
+      try {
+        const { pushCancellationToMarketplace } = require('./marketplace-tracking');
+        const result = await pushCancellationToMarketplace({ orderId });
+        console.log(`[sync-bus] marketplace cancel push for ${orderId}: ok=${result.ok}`);
+      } catch (err) {
+        console.warn(`[sync-bus] marketplace cancel push failed for ${orderId}: ${err.message}`);
       }
     }
 

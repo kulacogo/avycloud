@@ -72,7 +72,7 @@ async function pushTrackingToMarketplace({ orderId, trackingNumber, carrier }) {
   if (marketplace === 'ebay') {
     result = await pushTrackingToEbay({ order, trackingNumber, carrier });
   } else if (marketplace === 'kaufland') {
-    result = await pushTrackingToKaufland({ order, trackingNumber, carrier });
+    result = await pushTrackingToKaufland({ order, trackingNumber, carrier, firestoreDocRef: orderSnap.ref });
   } else {
     result = { ok: true, marketplace, skipped: 'no marketplace push needed' };
   }
@@ -144,7 +144,7 @@ async function pushTrackingToEbay({ order, trackingNumber, carrier }) {
  * @param {{ order: object, trackingNumber: string, carrier: string }} opts
  * @returns {Promise<{ ok: boolean, marketplace: string, error?: string }>}
  */
-async function pushTrackingToKaufland({ order, trackingNumber, carrier }) {
+async function pushTrackingToKaufland({ order, trackingNumber, carrier, firestoreDocRef }) {
   try {
     const { kauflandRequest } = require('../lib/kaufland-api');
 
@@ -153,18 +153,37 @@ async function pushTrackingToKaufland({ order, trackingNumber, carrier }) {
     // Kaufland needs per-unit shipment confirmation
     const items = order.items || [];
     const unitIds = items.map((item) => item.unitId).filter(Boolean);
+    let fetchedFromApi = false;
 
     if (unitIds.length === 0) {
-      // Fallback: try order-level shipment if no unit IDs
+      // Fallback: fetch unit IDs from Kaufland API
       const klOrderId = order.marketplaceOrderId || order.externalOrderId;
       if (!klOrderId) return { ok: false, marketplace: 'kaufland', error: 'No Kaufland order/unit IDs' };
 
-      // Try to fetch order units from Kaufland API
       const unitsRes = await kauflandRequest('GET', `/v2/orders/${klOrderId}/units`);
       const units = Array.isArray(unitsRes?.data) ? unitsRes.data : [];
       for (const unit of units) {
         if (unit.id_order_unit) unitIds.push(unit.id_order_unit);
       }
+      fetchedFromApi = unitIds.length > 0;
+
+      // Backfill unitIds to Firestore so future retries don't need API call
+      if (fetchedFromApi && firestoreDocRef) {
+        try {
+          const updatedItems = items.map((item, idx) => ({
+            ...item,
+            unitId: item.unitId || unitIds[idx] || null,
+          }));
+          await firestoreDocRef.update({ items: updatedItems });
+          console.log(`[marketplace-tracking] Backfilled ${unitIds.length} Kaufland unitIds for order ${klOrderId}`);
+        } catch (backfillErr) {
+          console.warn(`[marketplace-tracking] unitId backfill failed: ${backfillErr.message}`);
+        }
+      }
+    }
+
+    if (unitIds.length === 0) {
+      return { ok: false, marketplace: 'kaufland', error: 'No unit IDs found (API + local)' };
     }
 
     let successCount = 0;
@@ -250,27 +269,24 @@ async function retryFailedMarketplacePushes({ tenantId = 'default', maxAge = 7 }
   const db = getDb();
   const cutoff = new Date(Date.now() - maxAge * 24 * 60 * 60 * 1000).toISOString();
 
-  // Find shipped orders without successful marketplace push
-  const snap = await db.collection(ORDERS_COLLECTION)
-    .where('omsStatus', '==', 'shipped')
-    .where('updatedAt', '>=', cutoff)
-    .limit(50)
-    .get();
-
   let checked = 0;
   let retried = 0;
   let succeeded = 0;
   let failed = 0;
 
-  for (const doc of snap.docs) {
+  // 1) Retry shipped orders without successful tracking push
+  const shippedSnap = await db.collection(ORDERS_COLLECTION)
+    .where('omsStatus', '==', 'shipped')
+    .where('updatedAt', '>=', cutoff)
+    .limit(50)
+    .get();
+
+  for (const doc of shippedSnap.docs) {
     checked++;
     const order = doc.data();
     const marketplace = (order.marketplace || order.orderSource || '').toLowerCase();
 
-    // Skip orders that don't belong to a marketplace
     if (!['ebay', 'kaufland'].includes(marketplace)) continue;
-
-    // Skip already successful pushes
     if (order.marketplacePush?.status === 'success') continue;
 
     const trackingNumber = order.trackingNumber || order.tracking?.trackingNumber;
@@ -292,7 +308,50 @@ async function retryFailedMarketplacePushes({ tenantId = 'default', maxAge = 7 }
       }
     } catch (err) {
       failed++;
-      console.error(`[marketplace-tracking] Retry failed for ${doc.id}: ${err.message}`);
+      console.error(`[marketplace-tracking] Retry tracking push failed for ${doc.id}: ${err.message}`);
+    }
+  }
+
+  // 2) Retry cancelled orders without successful cancellation push
+  const cancelledSnap = await db.collection(ORDERS_COLLECTION)
+    .where('omsStatus', '==', 'cancelled')
+    .where('updatedAt', '>=', cutoff)
+    .limit(50)
+    .get();
+
+  for (const doc of cancelledSnap.docs) {
+    checked++;
+    const order = doc.data();
+    const marketplace = (order.marketplace || order.orderSource || '').toLowerCase();
+
+    if (!['ebay', 'kaufland'].includes(marketplace)) continue;
+    if (order.marketplaceCancelPush?.status === 'success') continue;
+
+    retried++;
+    try {
+      const result = await pushCancellationToMarketplace({
+        orderId: doc.id,
+        reason: order.cancelReason || 'other',
+      });
+
+      // Track cancellation push status on the order document
+      await doc.ref.set({
+        marketplaceCancelPush: {
+          status: result.ok ? 'success' : 'failed',
+          marketplace,
+          lastAttempt: new Date().toISOString(),
+          error: result.ok ? null : (result.error || 'unknown'),
+        },
+      }, { merge: true });
+
+      if (result.ok) {
+        succeeded++;
+      } else {
+        failed++;
+      }
+    } catch (err) {
+      failed++;
+      console.error(`[marketplace-tracking] Retry cancel push failed for ${doc.id}: ${err.message}`);
     }
   }
 
