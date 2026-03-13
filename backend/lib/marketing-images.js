@@ -197,6 +197,53 @@ function scoreImageRelevance(imageTitle, relevanceTokens) {
 
 const RELEVANCE_THRESHOLD = parseFloat(process.env.MARKETING_IMAGE_RELEVANCE_THRESHOLD || '0.15');
 
+/**
+ * Deduplicate brand from product name to avoid queries like "Upgrade4Cars Upgrade4Cars Autoabdeckung..."
+ * If brand appears at the start of the name, strip it.
+ */
+function deduplicateBrandFromName(brand, name) {
+  if (!brand || !name) return [brand, name].filter(Boolean).join(' ').trim();
+  const brandLower = brand.toLowerCase().trim();
+  const nameLower = name.toLowerCase().trim();
+  // If name already starts with brand (exact or with separator), use name only
+  if (nameLower.startsWith(brandLower)) {
+    const rest = name.slice(brand.length).trim();
+    // If stripping brand leaves a meaningful name, use brand + rest
+    if (rest.length > 3) return `${brand} ${rest}`;
+    // Otherwise just use name as-is (brand IS the name essentially)
+    return name;
+  }
+  return `${brand} ${name}`.trim();
+}
+
+/**
+ * Build a shorter query variant by stripping size/variant suffixes.
+ * E.g. "Autoabdeckung Outdoor Vollgarage alle Jahreszeiten Universal Gr. L" → "Autoabdeckung Outdoor Vollgarage"
+ * Strips: Gr. X, Größe X, Size X, Universal, Roman numerals as sizes, dimensions like 100x200
+ */
+function buildShortenedQuery(query) {
+  if (!query) return '';
+  let shortened = query
+    // Strip size indicators: "Gr. L", "Gr. XL", "Größe 42", "Size M", etc.
+    .replace(/\b(Gr\.?\s*[A-Z0-9]+|Größe\s*\S+|Size\s*\S+)\b/gi, '')
+    // Strip dimension patterns: "86×80×107cm", "100x200", "50-60 l", "24 x 120 ml"
+    .replace(/\b\d+\s*[x×]\s*\d+(\s*[x×]\s*\d+)?\s*(cm|mm|m|ml|l)?\b/gi, '')
+    .replace(/\b\d+\s*-\s*\d+\s*(l|ml|cm|mm|kg|g)\b/gi, '')
+    .replace(/\b\d+\s*(l|ml|cm|mm|kg|g|W|Watt)\b/gi, '')
+    // Strip generic filler words: "Universal", "alle Jahreszeiten", "alle Farben"
+    .replace(/\b(Universal|alle\s+\w+)\b/gi, '')
+    // Strip set descriptions: "Set mit 24 x 120 ml", "3,00 l Schüssel"
+    .replace(/\bSet\s+mit\s+[\d\s,x.]+\s*\w{0,3}\b/gi, '')
+    // Clean up multiple spaces
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+  // Only return if meaningfully shorter than original (at least 20% shorter and > 5 chars)
+  if (shortened.length < query.length * 0.85 && shortened.length > 5) {
+    return shortened;
+  }
+  return '';
+}
+
 async function fetchMarketingImages({
   brand,
   name,
@@ -206,10 +253,14 @@ async function fetchMarketingImages({
   limit = DEFAULT_IMAGE_LIMIT,
   exclude = [],
 } = {}) {
-  const baseQuery = [brand, name].filter(Boolean).join(' ').trim();
+  // Deduplicate brand from name (prevents "Upgrade4Cars Upgrade4Cars Autoabdeckung...")
+  const baseQuery = deduplicateBrandFromName(brand, name);
   if (!baseQuery) {
     return { images: [], trace: [] };
   }
+
+  // Build shortened query variant for fallback (strips sizes, dimensions, filler)
+  const shortQuery = buildShortenedQuery(baseQuery);
 
   // Category-enriched query: append category to disambiguate generic brands
   // e.g. "Bader Relaxsessel" → "Bader Relaxsessel Sofas & Sessel"
@@ -241,16 +292,20 @@ async function fetchMarketingImages({
 
   // Prefer very specific queries first (EAN/GTIN/MPN usually yields the most accurate product pages/images).
   // Category-enriched queries come before plain brand+name to get more relevant results.
+  // Shortened query variants act as fallback when full title is too specific for Google Images.
   const googleQueries = uniq([
     ...cleanIds,
     ...(mpnClean ? [`${mpnClean}`, `${brand || ''} ${mpnClean}`.trim(), `${baseQuery} ${mpnClean}`.trim()] : []),
     ...(categoryQuery ? [categoryQuery] : []),
     baseQuery,
+    ...(shortQuery ? [shortQuery] : []),
     ...(categoryQuery ? [`${categoryQuery} Produktfoto`] : []),
     `${baseQuery} Produktfoto`,
+    ...(shortQuery ? [`${shortQuery} Produktfoto`] : []),
     `${baseQuery} Produktbilder`,
     `${baseQuery} Pressefoto`,
     `${baseQuery} marketing photo`,
+    ...(shortQuery ? [`${shortQuery} marketing photo`] : []),
     `${baseQuery} lifestyle`,
     `${baseQuery} hero image`,
   ]);
@@ -361,5 +416,7 @@ module.exports = {
   // Exported for testing
   buildRelevanceTokens,
   scoreImageRelevance,
+  deduplicateBrandFromName,
+  buildShortenedQuery,
 };
 
