@@ -1802,9 +1802,17 @@ router.post('/save', requirePermission('products', 'write'), async (req, res) =>
       const sellPrice = product.details?.pricing?.sellPrice ?? product.pricing?.sellPrice;
       if (Number.isFinite(sellPrice) && sellPrice > 0) {
         const { syncPriceToAllChannels } = require('../services/stock-sync-dispatcher');
+        // Read fresh product from Firestore so we have marketplace.ebay.itemId
+        // (publishProduct writes itemId to 'products' collection, not in req.body)
+        const freshSnap = await firestore.collection('products').doc(product.id).get();
+        const freshProduct = freshSnap.exists ? { id: product.id, ...freshSnap.data() } : product;
+        // Merge current sellPrice in case it hasn't propagated to Firestore yet
+        if (!freshProduct.details) freshProduct.details = {};
+        if (!freshProduct.details.pricing) freshProduct.details.pricing = {};
+        freshProduct.details.pricing.sellPrice = sellPrice;
         syncPriceToAllChannels({
           tenantId: req.user?.tenantId || 'default',
-          product,
+          product: freshProduct,
         }).then((syncResult) => {
           const pushed = (syncResult?.results || []).filter((r) => r.status === 'success');
           if (pushed.length > 0) {
