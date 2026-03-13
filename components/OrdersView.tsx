@@ -63,6 +63,8 @@ const statusBadge = (status: string) => {
 const sourceBadge = (source?: string | null) => {
   if (!source) return null;
   const s = source.toLowerCase();
+  // "baselinker" is an integration layer, not a marketplace — ignore it
+  if (s === "baselinker") return null;
   if (s.includes("ebay")) return { label: "eBay", cls: "bg-amber-600/15 text-amber-400 border-amber-500/20" };
   if (s.includes("kaufland")) return { label: "Kaufland", cls: "bg-danger-dim text-danger border-danger/20" };
   if (s.includes("amazon")) return { label: "Amazon", cls: "bg-info-dim text-info border-info/20" };
@@ -522,7 +524,7 @@ const OrdersView: React.FC = () => {
               </thead>
               <tbody>
                 {paginatedOrders.map((order) => {
-                  const src = sourceBadge((order as any).marketplace || (order as any).source || order.orderSource);
+                  const src = sourceBadge((order as any).marketplace || order.orderSource || (order as any).source);
                   const itemCount = order.items.reduce((sum, i) => sum + i.quantity, 0);
                   return (
                     <tr

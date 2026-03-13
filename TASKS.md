@@ -62,7 +62,7 @@
 | **Webhooks** | ✅ | HMAC-SHA256, dispatchWebhook() |
 | **eBay** | ✅ | OAuth, Trading API, Listings, Gap-Analyse, Publish |
 | **Kaufland** | ✅ | HMAC Auth, Listings, SKU-Index, Category-Mapping |
-| **BaseLinker** | ✅ | Token Auth, Order-Sync, Stock-Sync, Inventory-Sync |
+| **BaseLinker** | ⚠️ DEPRECATED | Wird durch natives OMS ersetzt. Keine neuen Features. UI zeigt BaseLinker-Source nicht mehr an. |
 | **SendCloud** | ✅ | Basic Auth, Kosten-Aggregation |
 | **SevDesk** | ✅ | Token Auth, Bankdaten |
 | **Stock-Sync** | ✅ | Reservation, Multi-Channel Push (eBay+Kaufland), Preis-Push |
@@ -79,7 +79,7 @@
 | **M3: Produkte** | ⚡ Teilweise | Filter-System, ProductSheet komplett neu |
 | **M4: Bestand** | 🔴 Placeholder | View muss implementiert werden |
 | **M5: Marktplatz-Views** | ✅ Real | FAKE→REAL bestätigt (alle API-Calls echt) |
-| **M6: OMS** | 🔴 Geplant | Eigenständiges Order Management |
+| **M6: OMS** | ⚡ Phase A Live | Natives OMS aktiv, BaseLinker deprecated, Phase B/C offen |
 | **M9: Integrations-Hub** | 🔴 Kein Self-Service | Wizard + Auth-Flows fehlen komplett |
 | **M10: Analytics** | 🔴 Geplant | Dashboard-Überarbeitung + Reports |
 | **M11: Einstellungen** | ✅ Real | FAKE→REAL bestätigt (Company, Profile, Order, Warehouse, API) |
@@ -167,7 +167,7 @@
 - [ ] **Stripe Billing** — Subscription-Management, Plans, Invoices
 
 #### KW 23–24 — Polish, Testing, Launch
-- [ ] **M6-C: BaseLinker abschalten** — Optional, nicht mehr Default
+- [ ] **M6-C: BaseLinker vollständig entfernen** — Code + ENV-Vars + Scripts bereinigen
 - [ ] **E2E-Tests** — Playwright für kritische Flows
 - [ ] **Monitoring** — Sentry, Uptime, Job-Health
 - [ ] **GDPR** — Data Export, Deletion, Privacy Policy
@@ -211,26 +211,33 @@
 - [ ] EbayListingsView.tsx LÖSCHEN (alte Gap-Analysis)
 - [ ] Generisches Pattern: Neue Marktplätze per Config, nicht per Component
 
-### M6: Order Management System (OMS) — 🔴 Geplant
+### M6: Order Management System (OMS) — ⚡ Phase A Live
 
-> **Strategisch:** AvyCloud ersetzt BaseLinker als OMS. 3 Phasen: Parallelbetrieb → Nativ → BaseLinker optional.
+> **Strategisch:** AvyCloud hat BaseLinker als OMS ersetzt. Natives Order Management ist aktiv.
+> **Stand 2026-03-13:** Phase A ist live. eBay + Kaufland Orders werden direkt importiert, eigene Status-Engine läuft.
+> **BaseLinker-Transition:** BaseLinker wird in der UI nicht mehr als Quelle angezeigt. Historische BaseLinker-Orders bleiben in Firestore, neue Orders kommen nativ von den Marktplätzen.
 
-**Phase A: Parallelbetrieb**
-- [ ] A1: Marketplace Order Intake (eBay GetOrders + Kaufland GET /orders)
-- [ ] A2: Eigene Status-Engine (pending → confirmed → picking → packed → shipped → delivered)
-- [ ] A3: Eigene Auftrags-Nummerierung (AVY-2026-{0001})
-- [ ] A4: Order-Detail-Seite (Kunden, Positionen, Zahlung, Versand, Timeline)
-- [ ] A5: Pipeline-Visualisierung (Horizontale Status-Bar)
+**Phase A: Natives OMS (LIVE)**
+- [x] A1: Marketplace Order Intake — `order-intake-ebay.js` + `order-intake-kaufland.js` (direkt von eBay/Kaufland API)
+- [x] A2: Eigene Status-Engine — 12-State OMS (pending → confirmed → picking → picked → packing → packed → shipped → delivered → completed + cancelled/returned/on_hold)
+- [x] A3: Eigene Auftrags-Nummerierung (AVY-2026-{0001})
+- [x] A4: Order-Detail-Seite (Kunden, Positionen, Timeline)
+- [x] A5: Pipeline-Visualisierung (Horizontale Status-Bar)
+- [x] A6: Kaufland Status-Reconciliation + Cancellation-Detection (2026-03-13)
+- [x] A7: Kaufland Tracking-Push + unitId-Backfill (2026-03-13)
+- [x] A8: Event-driven Cancellation-Push an Marktplätze (2026-03-13)
+- [x] A9: Retry-Mechanismus für fehlgeschlagene Marketplace-Pushes (2026-03-13)
 
 **Phase B: Versand & Rechnungen nativ**
 - [ ] B1: SendCloud Label-Erzeugung (createParcel, getLabel, cancelParcel)
 - [ ] B2: Tracking-Webhooks (parcel_shipped, parcel_delivered)
 - [ ] B3: Rechnungs-Engine (PDF + SevDesk-Export)
-- [ ] B4: Marketplace-Kommunikation (Tracking an eBay/Kaufland)
+- [x] B4: Marketplace-Kommunikation — Tracking + Cancellation an eBay/Kaufland (2026-03-13)
 
-**Phase C: BaseLinker abschalten**
-- [ ] C1: BaseLinker-Abhängigkeiten entfernen
-- [ ] C2: Mobile Pick & Pack umstellen
+**Phase C: BaseLinker vollständig entfernen**
+- [ ] C1: BaseLinker-Code entfernen (~10 lib-Dateien, ~32 Scripts, 25+ ENV-Vars)
+- [ ] C2: Cloud Run ENV-Vars bereinigen (ORDER_SOURCE etc.)
+- [ ] C3: Historische BaseLinker-Orders in Firestore: `source`-Feld bleibt, UI zeigt `marketplace`-Feld
 
 ### M9: Integrations-Hub — 🔴 Kein Self-Service
 
