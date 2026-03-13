@@ -69,33 +69,73 @@ async function fetchEbayOrders({
 }
 
 /**
+ * Map eBay OrderStatus + CancelStatus to OMS status.
+ * @param {object} ebayOrder
+ * @returns {string}
+ */
+function mapEbayStatus(ebayOrder) {
+  const cancelState = ebayOrder?.CancelStatus?.CancelState || '';
+  if (cancelState === 'Cancelled' || cancelState === 'CancelComplete') return 'cancelled';
+  if (cancelState === 'CancelPending') return 'cancelled';
+
+  const orderStatus = ebayOrder?.OrderStatus || '';
+  const shippedTime = ebayOrder?.ShippedTime;
+  const checkoutComplete = ebayOrder?.CheckoutStatus?.Status === 'Complete';
+
+  if (orderStatus === 'Cancelled') return 'cancelled';
+  if (orderStatus === 'Completed' && shippedTime) return 'shipped';
+  if (orderStatus === 'Completed' && checkoutComplete) return 'confirmed';
+  if (orderStatus === 'Active' && checkoutComplete) return 'confirmed';
+  return 'pending';
+}
+
+/**
  * Map eBay Trading API Order to AvyCloud order format.
  */
 function mapEbayOrder(ebayOrder) {
   const transactions = ebayOrder?.TransactionArray?.Transaction;
   const txArray = Array.isArray(transactions) ? transactions : transactions ? [transactions] : [];
 
-  const items = txArray.map((tx) => ({
-    name: tx?.Item?.Title || 'Unbekannter Artikel',
-    sku: tx?.Item?.SKU || tx?.Variation?.SKU || null,
-    quantity: parseInt(tx?.QuantityPurchased || '1', 10),
-    priceBrutto: parseFloat(tx?.TransactionPrice?.['#text'] || tx?.TransactionPrice || '0'),
-    currency: tx?.TransactionPrice?.['@_currencyID'] || 'EUR',
-    itemId: tx?.Item?.ItemID || null,
-    transactionId: tx?.TransactionID || null,
-    ean: tx?.Variation?.VariationSpecifics?.NameValueList?.find?.((nv) => nv?.Name === 'EAN')?.Value?.[0] || null,
-  }));
+  const items = txArray.map((tx) => {
+    // EAN: check VariationSpecifics (multi-variation) and ItemSpecifics (single-item)
+    const variationSpecs = tx?.Variation?.VariationSpecifics?.NameValueList;
+    const itemSpecs = tx?.Item?.ItemSpecifics?.NameValueList;
+    const allSpecs = [
+      ...(Array.isArray(variationSpecs) ? variationSpecs : variationSpecs ? [variationSpecs] : []),
+      ...(Array.isArray(itemSpecs) ? itemSpecs : itemSpecs ? [itemSpecs] : []),
+    ];
+    const ean = allSpecs.find((nv) => nv?.Name === 'EAN')?.Value?.[0] || null;
+
+    return {
+      name: tx?.Item?.Title || 'Unbekannter Artikel',
+      sku: tx?.Item?.SKU || tx?.Variation?.SKU || null,
+      quantity: parseInt(tx?.QuantityPurchased || '1', 10),
+      priceBrutto: parseFloat(tx?.TransactionPrice?.['#text'] || tx?.TransactionPrice || '0'),
+      currency: tx?.TransactionPrice?.['@_currencyID'] || 'EUR',
+      itemId: tx?.Item?.ItemID || null,
+      transactionId: tx?.TransactionID || null,
+      ean,
+    };
+  });
 
   const shippingAddr = ebayOrder?.ShippingAddress || {};
   const totalAmount = parseFloat(ebayOrder?.Total?.['#text'] || ebayOrder?.Total || '0');
+
+  // Extract tracking from ShipmentTrackingDetails
+  const shippingDetails = ebayOrder?.ShippingDetails?.ShipmentTrackingDetails;
+  const trackingArray = Array.isArray(shippingDetails) ? shippingDetails : shippingDetails ? [shippingDetails] : [];
+  const trackingNumber = trackingArray[0]?.ShipmentTrackingNumber || null;
+  const carrier = trackingArray[0]?.ShippingCarrierUsed || null;
 
   return {
     marketplaceOrderId: ebayOrder?.OrderID || null,
     source: 'ebay',
     marketplace: 'ebay',
     externalOrderId: ebayOrder?.OrderID || null,
+    ebayStatus: mapEbayStatus(ebayOrder),
     createdAt: ebayOrder?.CreatedTime || new Date().toISOString(),
     paidAt: ebayOrder?.PaidTime || null,
+    shippedAt: ebayOrder?.ShippedTime || null,
     totalAmount,
     currency: ebayOrder?.Total?.['@_currencyID'] || 'EUR',
     customer: {
@@ -109,8 +149,11 @@ function mapEbayOrder(ebayOrder) {
     },
     items,
     paymentStatus: ebayOrder?.CheckoutStatus?.eBayPaymentStatus || ebayOrder?.PaymentStatus || null,
+    paymentMethod: ebayOrder?.CheckoutStatus?.PaymentMethod || null,
     shippingService: ebayOrder?.ShippingServiceSelected?.ShippingService || null,
     shippingCost: parseFloat(ebayOrder?.ShippingServiceSelected?.ShippingServiceCost?.['#text'] || '0'),
+    trackingNumber,
+    carrier,
     buyerNote: ebayOrder?.BuyerCheckoutMessage || null,
     raw: ebayOrder,
   };
@@ -207,6 +250,32 @@ async function syncEbayOrders({ tenantId = 'default', lookbackDays = 7 } = {}) {
     });
   }
 
+  // --- Status reconciliation: re-fetch recent orders to pick up status changes ---
+  try {
+    const reconcileFrom = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString(); // 14 days lookback
+    let recPage = 1;
+    let recTotal = 0;
+    let recChecked = 0;
+    do {
+      const result = await fetchEbayOrders({
+        createTimeFrom: reconcileFrom,
+        createTimeTo: now.toISOString(),
+        pageNumber: recPage,
+        entriesPerPage: 100,
+      });
+      recTotal = result.totalEntries;
+      for (const order of result.orders) {
+        await saveOrderIfNew({ tenantId, order });
+        recChecked++;
+      }
+      recPage++;
+      if (recPage > result.totalPages) break;
+    } while (recPage <= 50);
+    console.log(`[ebay-intake] Status reconciliation: checked ${recChecked} orders (14d lookback)`);
+  } catch (err) {
+    console.warn(`[ebay-intake] Status reconciliation failed: ${err.message}`);
+  }
+
   return { synced: totalSynced, skipped: totalSkipped, total: totalEntries };
 }
 
@@ -215,6 +284,13 @@ async function syncEbayOrders({ tenantId = 'default', lookbackDays = 7 } = {}) {
  * @param {{ tenantId: string, order: object }} opts
  * @returns {Promise<boolean>} true if saved (new), false if skipped (duplicate)
  */
+const OMS_STATUS_LABELS = {
+  pending: 'Neu', confirmed: 'Bestätigt', picking: 'Kommissionierung',
+  picked: 'Kommissioniert', packing: 'Verpackung', packed: 'Verpackt',
+  shipped: 'Versendet', delivered: 'Zugestellt', cancelled: 'Storniert',
+  returned: 'Retoure', completed: 'Abgeschlossen', on_hold: 'Pausiert',
+};
+
 async function saveOrderIfNew({ tenantId, order }) {
   const db = getDb();
   const marketplaceKey = `${order.source}__${order.marketplaceOrderId}`;
@@ -225,10 +301,47 @@ async function saveOrderIfNew({ tenantId, order }) {
     .limit(1)
     .get();
 
-  if (!existing.empty) return false;
+  if (!existing.empty) {
+    // Order exists — reconcile status if eBay reports a more advanced state
+    const existingDoc = existing.docs[0];
+    const existingData = existingDoc.data();
+    const ebayStatus = order.ebayStatus;
+    const currentOms = existingData.omsStatus || existingData.status;
+
+    // Only update if eBay reports a terminal/advanced status we don't have yet
+    if (ebayStatus && ebayStatus !== currentOms && ['cancelled', 'shipped', 'confirmed', 'completed'].includes(ebayStatus)) {
+      // Don't downgrade: don't go from shipped → confirmed
+      const OMS_RANK = { pending: 0, confirmed: 1, picking: 2, picked: 3, packing: 4, packed: 5, shipped: 6, delivered: 7, completed: 8, cancelled: 9, returned: 10 };
+      const currentRank = OMS_RANK[currentOms] ?? 0;
+      const newRank = OMS_RANK[ebayStatus] ?? 0;
+
+      if (newRank > currentRank || ebayStatus === 'cancelled') {
+        const updates = {
+          omsStatus: ebayStatus,
+          omsStatusLabel: OMS_STATUS_LABELS[ebayStatus] || ebayStatus,
+          status: ebayStatus,
+          statusLabel: OMS_STATUS_LABELS[ebayStatus] || ebayStatus,
+          updatedAt: new Date().toISOString(),
+          'ops.ebayStatusSync': { from: currentOms, to: ebayStatus, syncedAt: new Date().toISOString() },
+        };
+        // Update tracking if newly available
+        if (order.trackingNumber && !existingData.trackingNumber) {
+          updates.trackingNumber = order.trackingNumber;
+          updates.carrier = order.carrier;
+        }
+        if (order.shippedAt && !existingData.shippedAt) {
+          updates.shippedAt = order.shippedAt;
+        }
+        await existingDoc.ref.update(updates);
+        console.log(`[ebay-intake] Status updated: ${existingData.orderId || existingDoc.id} ${currentOms} → ${ebayStatus}`);
+      }
+    }
+    return false;
+  }
 
   // Generate AvyCloud order number
   const seq = await getNextNumber({ tenantId, type: 'order' });
+  const initialStatus = order.ebayStatus || 'pending';
 
   const doc = {
     tenantId,
@@ -238,13 +351,13 @@ async function saveOrderIfNew({ tenantId, order }) {
     externalOrderId: order.externalOrderId,
     source: order.source,
     marketplace: order.marketplace,
-    omsStatus: 'pending',
-    omsStatusLabel: 'Neu',
-    // Legacy compatibility fields
-    status: 'new',
-    statusLabel: 'Neue Bestellung',
+    omsStatus: initialStatus,
+    omsStatusLabel: OMS_STATUS_LABELS[initialStatus] || 'Neu',
+    status: initialStatus,
+    statusLabel: OMS_STATUS_LABELS[initialStatus] || 'Neu',
     createdAt: order.createdAt,
     paidAt: order.paidAt || null,
+    shippedAt: order.shippedAt || null,
     updatedAt: new Date().toISOString(),
     totalAmount: order.totalAmount,
     currency: order.currency,
@@ -254,8 +367,11 @@ async function saveOrderIfNew({ tenantId, order }) {
       ...item,
     })),
     paymentStatus: order.paymentStatus,
+    paymentMethod: order.paymentMethod || null,
     shippingService: order.shippingService,
     shippingCost: order.shippingCost,
+    trackingNumber: order.trackingNumber || null,
+    carrier: order.carrier || null,
     buyerNote: order.buyerNote,
   };
 

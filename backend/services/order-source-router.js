@@ -1,13 +1,11 @@
 'use strict';
 
 /**
- * order-source-router.js — Routes order operations to either BaseLinker or native OMS.
+ * order-source-router.js — Routes order operations to native OMS.
  *
  * Feature flag: ORDER_SOURCE env var
- *   - 'native'     → Use AvyCloud OMS state machine (eBay/Kaufland direct)
- *   - 'baselinker' → Use BaseLinker (legacy, default for backward compatibility)
- *
- * This enables a gradual migration: flip ORDER_SOURCE=native when ready.
+ *   - 'native'     → Use AvyCloud OMS state machine (eBay/Kaufland direct) [DEFAULT]
+ *   - 'baselinker' → Legacy (deprecated, scheduled for removal)
  */
 
 const { Firestore } = require('@google-cloud/firestore');
@@ -23,8 +21,8 @@ function getDb() {
  * @returns {'native' | 'baselinker'}
  */
 function getOrderSource() {
-  const source = (process.env.ORDER_SOURCE || 'baselinker').toLowerCase().trim();
-  return source === 'native' ? 'native' : 'baselinker';
+  const source = (process.env.ORDER_SOURCE || 'native').toLowerCase().trim();
+  return source === 'baselinker' ? 'baselinker' : 'native';
 }
 
 /**

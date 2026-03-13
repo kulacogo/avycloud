@@ -351,6 +351,30 @@ async function syncEbayReturns({ tenantId = 'default', lookbackDays = 30 } = {})
         const marketplaceReturnId = order.orderId || '';
         if (!marketplaceReturnId) continue;
 
+        // Compute refund total and reason BEFORE dedup check (needed for update path too)
+        let totalRefund = 0;
+        for (const li of refundedItems) {
+          for (const ref of (li.refunds || [])) {
+            totalRefund += parseFloat(ref.amount?.value || '0') || 0;
+          }
+        }
+
+        const cancelReason = order.cancelStatus?.cancelReason || '';
+        const refundReason = refundedItems[0]?.refunds?.[0]?.reasonType || '';
+        const ebayReason = isCanceled ? cancelReason : refundReason;
+        let reason = 'meinungsaenderung'; // sensible default for returns
+        if (isCanceled) {
+          if (cancelReason === 'BUYER_ASKED_CANCEL' || cancelReason === 'BUYER_CANCEL') {
+            reason = 'meinungsaenderung';
+          } else if (cancelReason === 'OUT_OF_STOCK_OR_CANNOT_FULFILL') {
+            reason = 'sonstiges';
+          } else {
+            reason = EBAY_REASON_MAP[cancelReason] || 'meinungsaenderung';
+          }
+        } else if (refundedItems.length > 0) {
+          reason = EBAY_REASON_MAP[refundReason] || 'meinungsaenderung';
+        }
+
         // Deduplicate
         const existing = await db.collection(RETURNS_COLLECTION)
           .where('marketplaceReturnId', '==', String(marketplaceReturnId))
@@ -382,37 +406,17 @@ async function syncEbayReturns({ tenantId = 'default', lookbackDays = 30 } = {})
           if ((!existingData.refundAmount || existingData.refundAmount === 0) && totalRefund > 0) {
             updates.refundAmount = totalRefund;
           }
+          // Fix missing reason
+          if ((!existingData.reasonRaw || existingData.reason === 'sonstiges') && ebayReason) {
+            updates.reasonRaw = ebayReason;
+            updates.reason = reason;
+          }
           if (Object.keys(updates).length > 0) {
             updates.syncedAt = new Date().toISOString();
             await existingDoc.ref.update(updates);
           }
           skipped++;
           continue;
-        }
-
-        // Determine reason from cancel or refund context
-        const cancelReason = order.cancelStatus?.cancelReason || '';
-        let reason = 'meinungsaenderung'; // sensible default for returns
-        if (isCanceled) {
-          if (cancelReason === 'BUYER_ASKED_CANCEL' || cancelReason === 'BUYER_CANCEL') {
-            reason = 'meinungsaenderung';
-          } else if (cancelReason === 'OUT_OF_STOCK_OR_CANNOT_FULFILL') {
-            reason = 'sonstiges';
-          } else {
-            reason = EBAY_REASON_MAP[cancelReason] || 'meinungsaenderung';
-          }
-        } else if (refundedItems.length > 0) {
-          // Check if any refund has a reason hint
-          const refundReason = refundedItems[0]?.refunds?.[0]?.reasonType || '';
-          reason = EBAY_REASON_MAP[refundReason] || 'meinungsaenderung';
-        }
-
-        // Sum refund amounts
-        let totalRefund = 0;
-        for (const li of refundedItems) {
-          for (const ref of (li.refunds || [])) {
-            totalRefund += parseFloat(ref.amount?.value || '0') || 0;
-          }
         }
 
         const productNames = (order.lineItems || [])
@@ -500,16 +504,30 @@ async function syncKauflandReturns({ tenantId = 'default', lookbackDays = 30 } =
   try {
     const fromDate = new Date(Date.now() - lookbackDays * 24 * 60 * 60 * 1000).toISOString();
 
-    // kauflandRequest returns { status, data: <parsed JSON>, headers }.
-    // The Kaufland API response body is { data: [...], pagination: {...} }.
-    const result = await kauflandRequest('GET', '/returns', {
-      query: { limit: 100 },
-    });
+    // Paginate through all Kaufland returns
+    let allReturns = [];
+    let offset = 0;
+    const PAGE_LIMIT = 100;
+    const MAX_RETURNS = 5000; // Safety limit
 
-    const responseBody = result?.data || {};
-    const returns = Array.isArray(responseBody?.data) ? responseBody.data : [];
+    do {
+      const result = await kauflandRequest('GET', '/returns', {
+        query: { limit: PAGE_LIMIT, offset },
+      });
 
-    for (const kr of returns) {
+      const responseBody = result?.data || {};
+      const batch = Array.isArray(responseBody?.data) ? responseBody.data : [];
+      allReturns = allReturns.concat(batch);
+
+      if (batch.length < PAGE_LIMIT) break; // Last page
+      offset += batch.length;
+    } while (offset < MAX_RETURNS);
+
+    if (allReturns.length > 0) {
+      console.log(`[returns-engine] Kaufland: fetched ${allReturns.length} returns (${Math.ceil(allReturns.length / PAGE_LIMIT)} pages)`);
+    }
+
+    for (const kr of allReturns) {
       try {
         const marketplaceReturnId = String(kr.id_return || kr.id || '');
         if (!marketplaceReturnId) continue;

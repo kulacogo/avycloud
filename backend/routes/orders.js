@@ -518,43 +518,61 @@ router.get('/dashboard/metrics', requirePermission('dashboard', 'read'), async (
       console.warn('Dashboard BaseLinker orders enrichment failed (falling back to local cache):', err?.message || err);
     }
 
-    // Pull BaseLinker returns and incorporate them into KPIs (net revenue + returns counts).
-    // Official docs: https://api.baselinker.com/index.php?method=getOrderReturns
+    // Pull returns from Firestore `returns` collection for KPIs (net revenue + returns counts).
     try {
+      const { Firestore: _Firestore } = require('@google-cloud/firestore');
+      const _returnsDb = new _Firestore();
       const rangeStart = metrics?.range?.from_iso ? new Date(metrics.range.from_iso) : null;
       const rangeEndExclusive = metrics?.range?.to_iso ? new Date(metrics.range.to_iso) : null;
       const now = new Date();
       const yearStart = new Date(Date.UTC(now.getUTCFullYear(), 0, 1, 0, 0, 0));
-      const minFromMs = Math.min(rangeStart ? rangeStart.getTime() : yearStart.getTime(), yearStart.getTime());
-      const fromUnix = Math.floor(minFromMs / 1000);
-      const returnsList = await loadOrderReturnsSince(fromUnix, { timeoutMs: 20_000 });
-
       const monthStart = metrics?.revenue?.month_start_iso ? new Date(metrics.revenue.month_start_iso) : null;
-      const stats = computeOrderReturnsStats(returnsList, { rangeStart, rangeEndExclusive, monthStart });
-      const ytdStats = computeOrderReturnsStats(returnsList, { rangeStart: yearStart, rangeEndExclusive: now, monthStart });
 
-      if (metrics?.orders) {
-        metrics.orders.returns_total = ytdStats.window.count;
-        metrics.orders.returns_month = stats.month.count;
+      const returnsSnap = await _returnsDb.collection('returns')
+        .where('createdAt', '>=', yearStart.toISOString())
+        .select('refundAmount', 'currency', 'createdAt', 'status')
+        .get();
+
+      let ytdCount = 0, ytdValue = 0;
+      let monthCount = 0;
+      let windowCount = 0, windowValue = 0;
+
+      for (const doc of returnsSnap.docs) {
+        const d = doc.data();
+        const amount = Number(d.refundAmount || 0) || 0;
+        const created = d.createdAt ? new Date(d.createdAt) : null;
+        if (!created) continue;
+
+        ytdCount++;
+        ytdValue += amount;
+
+        if (monthStart && created >= monthStart) monthCount++;
+        if (rangeStart && rangeEndExclusive && created >= rangeStart && created < rangeEndExclusive) {
+          windowCount++;
+          windowValue += amount;
+        }
       }
 
-      const cur = (metrics?.currency || 'EUR').toString().trim().toUpperCase() || 'EUR';
-      const returnsTotalValue = Number(ytdStats.window.value_by_currency?.[cur] || 0) || 0;
-      const returnsWindowValue = Number(stats.window.value_by_currency?.[cur] || 0) || 0;
+      if (metrics?.orders) {
+        metrics.orders.returns_total = ytdCount;
+        metrics.orders.returns_month = monthCount;
+      }
 
       if (metrics?.revenue) {
         if (typeof metrics.revenue.all_non_cancelled_total === 'number') {
-          metrics.revenue.all_non_cancelled_total = Number((metrics.revenue.all_non_cancelled_total - returnsTotalValue).toFixed(2));
+          metrics.revenue.all_non_cancelled_total = Number((metrics.revenue.all_non_cancelled_total - ytdValue).toFixed(2));
         }
         if (typeof metrics.revenue.window_non_cancelled_total === 'number') {
-          metrics.revenue.window_non_cancelled_total = Number((metrics.revenue.window_non_cancelled_total - returnsWindowValue).toFixed(2));
+          metrics.revenue.window_non_cancelled_total = Number((metrics.revenue.window_non_cancelled_total - windowValue).toFixed(2));
         }
       }
 
-      // Optional diagnostic payload (safe, small): return value breakdown for the UI if needed later.
-      metrics.returns = stats;
+      metrics.returns = {
+        total: { count: ytdCount, value_by_currency: { EUR: Math.round(ytdValue * 100) / 100 } },
+        window: { count: windowCount, value_by_currency: { EUR: Math.round(windowValue * 100) / 100 } },
+      };
     } catch (err) {
-      console.warn('Dashboard returns enrichment failed (falling back to order-status heuristics):', err?.message || err);
+      console.warn('Dashboard returns enrichment failed:', err?.message || err);
     }
 
     // Enrich with eBay net revenue (after all marketplace fees) via eBay Finances API.
