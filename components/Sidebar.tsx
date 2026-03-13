@@ -452,11 +452,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, setView }) => {
       {/* Header — Logo + Collapse toggle */}
       <div className="px-3 pt-4 pb-2 flex items-center justify-between">
         <div className={`flex items-center gap-2.5 ${collapsed ? "justify-center w-full" : ""}`}>
-          <img src="/avy_logo.png" alt="AvyCloud" className="w-8 h-8 rounded-md object-contain shrink-0" />
+          <img src="/avycloud_logo_40x40_icon.png" alt="AvyCloud" className="w-8 h-8 rounded-md object-contain shrink-0" />
           {!collapsed && (
             <>
-              <img src="/logo_darkmode.png" alt="AvyCloud" className="h-6 object-contain logo-dark" />
-              <img src="/logo_brightmode.png" alt="AvyCloud" className="h-6 object-contain logo-light" />
+              <img src="/avycloud_logo_name_darkmode.png" alt="AvyCloud" className="h-6 object-contain logo-dark" />
+              <img src="/avycloud_logo_name.png" alt="AvyCloud" className="h-6 object-contain logo-light" />
             </>
           )}
         </div>

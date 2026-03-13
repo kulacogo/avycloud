@@ -1077,4 +1077,38 @@ router.get('/audit-log', requirePermission('admin', 'read'), async (req, res) =>
   }
 });
 
+// ─── Marketplace Tracking Retry ─────────────────────────────────────────
+/**
+ * POST /api/admin/marketplace-tracking/retry
+ * Retry failed marketplace tracking pushes for shipped orders.
+ * Body: { maxAge?: number (days, default 7) }
+ */
+router.post('/admin/marketplace-tracking/retry', requirePermission('admin', 'write'), async (req, res) => {
+  try {
+    const { maxAge = 7 } = req.body;
+    const { retryFailedMarketplacePushes } = require('../services/marketplace-tracking');
+    const result = await retryFailedMarketplacePushes({ maxAge });
+    res.json({ ok: true, data: result });
+  } catch (error) {
+    console.error('[POST /api/admin/marketplace-tracking/retry] Error:', error.message);
+    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: error.message } });
+  }
+});
+
+/**
+ * POST /api/admin/marketplace-tracking/push/:orderId
+ * Force-push tracking for a specific order.
+ */
+router.post('/admin/marketplace-tracking/push/:orderId', requirePermission('admin', 'write'), async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const { ensureMarketplaceTrackingPushed } = require('../services/marketplace-tracking');
+    const result = await ensureMarketplaceTrackingPushed({ orderId });
+    res.json({ ok: true, data: result });
+  } catch (error) {
+    console.error(`[POST /api/admin/marketplace-tracking/push/${req.params.orderId}] Error:`, error.message);
+    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: error.message } });
+  }
+});
+
 module.exports = router;

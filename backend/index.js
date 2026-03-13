@@ -339,6 +339,28 @@ const server = app.listen(PORT, () => {
   } catch (err) {
     console.warn('[sendcloud-sync] failed to start safety-net:', err?.message || err);
   }
+
+  // ─── Marketplace Tracking Push Catch-up (every 2h) ──────────
+  // Retries failed tracking pushes for shipped orders — prevents marketplace warnings
+  try {
+    const TRACKING_CATCHUP_INTERVAL_MS = 2 * 60 * 60 * 1000; // 2h
+    const runTrackingCatchup = async () => {
+      try {
+        const { retryFailedMarketplacePushes } = require('./services/marketplace-tracking');
+        const result = await retryFailedMarketplacePushes({ maxAge: 7 });
+        if (result.retried > 0) {
+          console.log(`[tracking-catchup] retried=${result.retried} succeeded=${result.succeeded} failed=${result.failed}`);
+        }
+      } catch (err) {
+        console.warn('[tracking-catchup] catch-up failed:', err?.message);
+      }
+    };
+    setTimeout(runTrackingCatchup, 120_000); // First run after 2 min
+    setInterval(runTrackingCatchup, TRACKING_CATCHUP_INTERVAL_MS);
+    console.log(`[tracking-catchup] safety-net enabled: every ${TRACKING_CATCHUP_INTERVAL_MS}ms`);
+  } catch (err) {
+    console.warn('[tracking-catchup] failed to start safety-net:', err?.message || err);
+  }
 });
 
 // Graceful shutdown für Cloud Run

@@ -86,7 +86,17 @@ bus.on('order:status_changed', async (payload) => {
       }
     }
 
-    // 3. Trigger marketplace order sync (picks up all status changes from both sides)
+    // 3. If shipped → ensure marketplace tracking push succeeded (backup for fire-and-forget in route)
+    if (toStatus === 'shipped') {
+      try {
+        const { ensureMarketplaceTrackingPushed } = require('./marketplace-tracking');
+        await ensureMarketplaceTrackingPushed({ orderId });
+      } catch (err) {
+        console.warn(`[sync-bus] marketplace tracking push check failed for ${orderId}: ${err.message}`);
+      }
+    }
+
+    // 4. Trigger marketplace order sync (picks up all status changes from both sides)
     _debouncedMarketplaceOrderSync(tenantId);
 
   } catch (err) {

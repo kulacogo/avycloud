@@ -227,7 +227,7 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onT
             {/* Logo */}
             <div className="flex-shrink-0 sm:ml-2 lg:ml-4">
               <img
-                src="/avy_logo.png"
+                src="/avycloud_logo_40x40_icon.png"
                 alt="avycloud"
                 draggable={false}
                 style={{

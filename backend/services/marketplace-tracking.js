@@ -68,14 +68,32 @@ async function pushTrackingToMarketplace({ orderId, trackingNumber, carrier }) {
   // Check marketplace, orderSource (from BaseLinker sync), then source
   const marketplace = (order.marketplace || order.orderSource || '').toLowerCase();
 
+  let result;
   if (marketplace === 'ebay') {
-    return pushTrackingToEbay({ order, trackingNumber, carrier });
-  }
-  if (marketplace === 'kaufland') {
-    return pushTrackingToKaufland({ order, trackingNumber, carrier });
+    result = await pushTrackingToEbay({ order, trackingNumber, carrier });
+  } else if (marketplace === 'kaufland') {
+    result = await pushTrackingToKaufland({ order, trackingNumber, carrier });
+  } else {
+    result = { ok: true, marketplace, skipped: 'no marketplace push needed' };
   }
 
-  return { ok: true, marketplace, skipped: 'no marketplace push needed' };
+  // Track push status on the order document for retry/audit
+  try {
+    await orderSnap.ref.set({
+      marketplacePush: {
+        status: result.ok ? 'success' : 'failed',
+        marketplace,
+        lastAttempt: new Date().toISOString(),
+        error: result.ok ? null : (result.error || 'unknown'),
+        trackingNumber,
+        carrier: carrier || null,
+      },
+    }, { merge: true });
+  } catch (err) {
+    console.warn(`[marketplace-tracking] Failed to save push status for ${orderId}: ${err.message}`);
+  }
+
+  return result;
 }
 
 /**
@@ -177,6 +195,112 @@ async function pushTrackingToKaufland({ order, trackingNumber, carrier }) {
     console.error(`[marketplace-tracking] Kaufland push failed: ${err.message}`);
     return { ok: false, marketplace: 'kaufland', error: err.message };
   }
+}
+
+// ─── Ensure / Retry Push ────────────────────────────────────────────────────
+
+/**
+ * Ensure that marketplace tracking has been pushed for a shipped order.
+ * If the previous push failed or was never attempted, retry now.
+ *
+ * Called from sync-event-bus as a safety net after status transitions.
+ *
+ * @param {{ orderId: string }} opts
+ * @returns {Promise<{ ok: boolean, skipped?: boolean, error?: string }>}
+ */
+async function ensureMarketplaceTrackingPushed({ orderId }) {
+  if (!orderId) return { ok: false, error: 'orderId required' };
+
+  const orderSnap = await getDb().collection(ORDERS_COLLECTION).doc(orderId).get();
+  if (!orderSnap.exists) return { ok: false, error: 'Order not found' };
+
+  const order = orderSnap.data();
+
+  // Only relevant for shipped orders
+  const status = order.omsStatus || order.status || '';
+  if (!['shipped', 'delivered', 'completed'].includes(status)) {
+    return { ok: true, skipped: true };
+  }
+
+  // Already successfully pushed?
+  if (order.marketplacePush?.status === 'success') {
+    return { ok: true, skipped: true };
+  }
+
+  // Need tracking number to push
+  const trackingNumber = order.trackingNumber || order.tracking?.trackingNumber;
+  if (!trackingNumber) {
+    return { ok: false, error: 'No tracking number on order' };
+  }
+
+  const carrier = order.carrier || order.shippingService || order.tracking?.carrier || 'other';
+  console.log(`[marketplace-tracking] Retry push for order ${orderId} (prev=${order.marketplacePush?.status || 'never'})`);
+
+  return pushTrackingToMarketplace({ orderId, trackingNumber, carrier });
+}
+
+/**
+ * Catch-up: Find all shipped orders where marketplace push failed or was never done, and retry.
+ * Called periodically as a safety net.
+ *
+ * @param {{ tenantId?: string, maxAge?: number }} opts — maxAge in days (default: 7)
+ * @returns {Promise<{ checked: number, retried: number, succeeded: number, failed: number }>}
+ */
+async function retryFailedMarketplacePushes({ tenantId = 'default', maxAge = 7 } = {}) {
+  const db = getDb();
+  const cutoff = new Date(Date.now() - maxAge * 24 * 60 * 60 * 1000).toISOString();
+
+  // Find shipped orders without successful marketplace push
+  const snap = await db.collection(ORDERS_COLLECTION)
+    .where('omsStatus', '==', 'shipped')
+    .where('updatedAt', '>=', cutoff)
+    .limit(50)
+    .get();
+
+  let checked = 0;
+  let retried = 0;
+  let succeeded = 0;
+  let failed = 0;
+
+  for (const doc of snap.docs) {
+    checked++;
+    const order = doc.data();
+    const marketplace = (order.marketplace || order.orderSource || '').toLowerCase();
+
+    // Skip orders that don't belong to a marketplace
+    if (!['ebay', 'kaufland'].includes(marketplace)) continue;
+
+    // Skip already successful pushes
+    if (order.marketplacePush?.status === 'success') continue;
+
+    const trackingNumber = order.trackingNumber || order.tracking?.trackingNumber;
+    if (!trackingNumber) continue;
+
+    retried++;
+    const carrier = order.carrier || order.shippingService || order.tracking?.carrier || 'other';
+
+    try {
+      const result = await pushTrackingToMarketplace({
+        orderId: doc.id,
+        trackingNumber,
+        carrier,
+      });
+      if (result.ok) {
+        succeeded++;
+      } else {
+        failed++;
+      }
+    } catch (err) {
+      failed++;
+      console.error(`[marketplace-tracking] Retry failed for ${doc.id}: ${err.message}`);
+    }
+  }
+
+  if (retried > 0) {
+    console.log(`[marketplace-tracking] Catch-up: checked=${checked} retried=${retried} succeeded=${succeeded} failed=${failed}`);
+  }
+
+  return { checked, retried, succeeded, failed };
 }
 
 // ─── Cancellation Push ──────────────────────────────────────────────────────
@@ -334,6 +458,8 @@ module.exports = {
   pushTrackingToMarketplace,
   pushTrackingToEbay,
   pushTrackingToKaufland,
+  ensureMarketplaceTrackingPushed,
+  retryFailedMarketplacePushes,
   pushCancellationToMarketplace,
   cancelOrderOnEbay,
   cancelOrderOnKaufland,

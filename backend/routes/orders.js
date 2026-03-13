@@ -1233,19 +1233,27 @@ router.post('/orders/:orderId/transition', requirePermission('orders', 'write'),
       pushCancellationToMarketplace({ orderId, reason: note || 'other' })
         .catch((err) => console.warn(`[transition] cancel marketplace push failed: ${err.message}`));
     }
+    let marketplacePush = null;
     if (toStatus === 'shipped') {
       const orderDoc = await require('../lib/firestore').firestore.collection('orders').doc(orderId).get();
       const orderData = orderDoc.exists ? orderDoc.data() : {};
       const trackingNumber = orderData.trackingNumber || orderData.tracking?.trackingNumber;
-      const carrier = orderData.carrier || orderData.tracking?.carrier || 'other';
+      const carrier = orderData.carrier || orderData.shippingService || orderData.tracking?.carrier || 'other';
       if (trackingNumber) {
-        const { pushTrackingToMarketplace } = require('../services/marketplace-tracking');
-        pushTrackingToMarketplace({ orderId, trackingNumber, carrier })
-          .catch((err) => console.warn(`[transition] shipped tracking push failed: ${err.message}`));
+        try {
+          const { pushTrackingToMarketplace } = require('../services/marketplace-tracking');
+          marketplacePush = await pushTrackingToMarketplace({ orderId, trackingNumber, carrier });
+          if (!marketplacePush.ok && !marketplacePush.skipped) {
+            console.warn(`[transition] shipped tracking push failed for ${orderId}: ${marketplacePush.error}`);
+          }
+        } catch (err) {
+          console.warn(`[transition] shipped tracking push error for ${orderId}: ${err.message}`);
+          marketplacePush = { ok: false, error: err.message };
+        }
       }
     }
 
-    res.json({ ok: true, data: result });
+    res.json({ ok: true, data: { ...result, marketplacePush } });
   } catch (err) {
     console.error(`[POST /api/orders/${req.params.orderId}/transition] ${err.message}`, err);
     res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: err.message } });
@@ -1358,16 +1366,27 @@ router.post('/orders/:orderId/ship', requirePermission('orders', 'write'), async
     }
 
     // Push tracking to marketplace immediately (time-critical)
+    // await the result so we can include push status in response
+    let marketplacePush = null;
     if (result.trackingNumber) {
-      const { pushTrackingToMarketplace } = require('../services/marketplace-tracking');
-      pushTrackingToMarketplace({
-        orderId,
-        trackingNumber: result.trackingNumber,
-        carrier: result.carrier || '',
-      }).catch((err) => console.error(`[ship] Marketplace push failed: ${err.message}`));
+      try {
+        const { pushTrackingToMarketplace } = require('../services/marketplace-tracking');
+        marketplacePush = await pushTrackingToMarketplace({
+          orderId,
+          trackingNumber: result.trackingNumber,
+          carrier: result.carrier || '',
+        });
+        if (!marketplacePush.ok && !marketplacePush.skipped) {
+          console.warn(`[ship] Marketplace push failed for ${orderId}: ${marketplacePush.error}`);
+        }
+      } catch (err) {
+        console.error(`[ship] Marketplace push error for ${orderId}: ${err.message}`);
+        marketplacePush = { ok: false, error: err.message };
+      }
     }
 
     // Event-driven sync: stock sync + marketplace sync + SendCloud sync
+    // The event bus will also retry the marketplace push if it failed above
     emitSyncEvent('order:status_changed', {
       entityId: orderId, tenantId, toStatus: 'shipped', source: 'api:ship',
     });
@@ -1375,7 +1394,7 @@ router.post('/orders/:orderId/ship', requirePermission('orders', 'write'), async
       entityId: orderId, tenantId, source: 'api:ship',
     });
 
-    res.json({ ok: true, data: result });
+    res.json({ ok: true, data: { ...result, marketplacePush } });
   } catch (err) {
     console.error(`[POST /api/orders/:orderId/ship] ${err.message}`, err);
     res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: err.message } });
