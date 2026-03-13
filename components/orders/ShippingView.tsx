@@ -348,7 +348,7 @@ export const ShippingView: React.FC = () => {
                         />
                       </td>
                       <td className="px-4 py-3 font-mono text-xs text-txt-primary font-medium">{shp.orderId}</td>
-                      <td className="px-4 py-3 text-txt-primary font-medium">{shp.customer || "—"}</td>
+                      <td className="px-4 py-3 text-txt-primary font-medium">{typeof shp.customer === "string" ? shp.customer : shp.customer?.name || "—"}</td>
                       <td className="px-4 py-3">
                         <span className={`inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[11px] font-semibold ${carrier.cls}`}>
                           <span className="w-4 h-4 rounded-full bg-current/10 flex items-center justify-center text-[9px] font-bold">

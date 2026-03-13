@@ -522,7 +522,7 @@ const OrdersView: React.FC = () => {
               </thead>
               <tbody>
                 {paginatedOrders.map((order) => {
-                  const src = sourceBadge(order.orderSource);
+                  const src = sourceBadge((order as any).marketplace || (order as any).source || order.orderSource);
                   const itemCount = order.items.reduce((sum, i) => sum + i.quantity, 0);
                   return (
                     <tr

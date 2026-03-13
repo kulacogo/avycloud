@@ -273,7 +273,7 @@ export const InvoicesView: React.FC = () => {
                       <td className="px-4 py-3 text-xs text-txt-muted whitespace-nowrap">
                         {inv.date ? new Date(inv.date).toLocaleDateString("de-DE") : "—"}
                       </td>
-                      <td className="px-4 py-3 text-txt-primary font-medium">{inv.customer || "—"}</td>
+                      <td className="px-4 py-3 text-txt-primary font-medium">{typeof inv.customer === "string" ? inv.customer : inv.customer?.name || "—"}</td>
                       <td className="px-4 py-3 font-mono text-xs text-txt-secondary">{inv.orderId || "—"}</td>
                       <td className="px-4 py-3 text-right text-txt-secondary">
                         {typeof inv.amountNet === "number"
