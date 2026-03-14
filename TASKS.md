@@ -1,6 +1,6 @@
 # TASKS.md — AvyCloud Roadmap & Task-Management
 
-> **Letzte Aktualisierung:** 2026-03-13
+> **Letzte Aktualisierung:** 2026-03-14
 > **Verantwortlich:** Oguzhan (Owner), Claude Code (Backend/Tests), Claude Cowork (Planung/Doku)
 
 ---
@@ -32,6 +32,8 @@
 4. **Nach Abschluss:** Task abhaken, Datum ergänzen, ggf. Folge-Tasks anlegen
 5. **Keine separaten Sprint-Dateien.** Alles steht hier.
 6. **Multi-Tenancy-Pflicht:** Alle neuen Collections/Services/Endpoints mit `tenantId` Parameter
+7. **⛔ VERIFIZIERUNGSPFLICHT:** Ein Bug ist ERST "✅ Fixed" wenn er in PRODUCTION verifiziert wurde. Code-Änderung allein reicht NICHT. Prüfe: (a) Deploy erfolgreich? (b) Feature im Browser sichtbar geändert? (c) Kein Regression? Bugs die nur im Code gefixt aber nicht deployed/verifiziert sind, werden als "⚠️ Code-Fix da, Verifizierung ausstehend" markiert.
+8. **⛔ KEIN "Fixed" ohne Beweis:** Screenshot, API-Response oder Test-Output als Nachweis. "Ich habe den Code geändert" ist KEIN Beweis dass der Bug gefixt ist.
 
 ### Multi-Tenancy Kompatibilität (PFLICHT für jeden neuen Code)
 ```
@@ -111,7 +113,7 @@
 - [x] **BUG-028: Inkonsistente Lager/Marktplatz-Mengen** — Retry-Mechanismus, Stock-Sync nach Pack/Ship, Listing-Sync 3 Min + Auto-Heal
 - [x] **Aufträge Bulk-Status-Change** — Backend POST /api/orders/bulk-transition + Frontend Checkboxen + Bulk-Action-Bar
 - [x] **BRAND: Sidebar-Logo ersetzen** — Logo-Icon immer sichtbar, Expanded: Icon + Theme-Wordmark (dark/light), CSS-Toggle via `.logo-dark`/`.logo-light`
-- [ ] **BUG-040: Alte BaseLinker-Orders ohne Quelle** — Backfill `marketplace`-Feld aus `raw`-Daten
+- [ ] **⛔ BUG-040: SICHTBAR IN PROD — Alte BL-Orders Backfill** — Firestore-Batch-Script: `marketplace` aus `raw`-Daten extrahieren + Status aus Marketplace-API reconcilen. NICHT GEFIXT.
 - [x] **BUG-041: Kaufland Order-Intake fehlende Felder** — ✅ paidAt, paymentMethod, shippingCost, shippedAt, billingAddress (2026-03-13)
 - [x] **BUG-042: Kaufland Adresse unvollständig** — ✅ billingAddress mit Fallback auf shippingAddress (2026-03-13)
 - [x] **BUG-043: Returns-Engine Referenz-Fehler** — ✅ Fixed (totalRefund + ebayReason korrekt, Pagination)
@@ -130,7 +132,7 @@
 > Entfernt: 34 Scripts, 7 Lib-Dateien, 4 Service-Dateien, 3 Root-Referenzdateien.
 > Bereinigt: 7 Routes, 11 Services, 18 Frontend-Dateien, Test-Mocks, cloudbuild.yaml, RBAC, Integration-Registry.
 
-- [x] C1: Daten-Migration — BL-Orders `marketplace`-Feld backfillen → offen als BUG-040
+- [ ] **⛔ C1: Daten-Migration — NICHT ERLEDIGT!** BL-Orders `marketplace`-Feld backfillen (BUG-040). Kein Script vorhanden. Historische Orders zeigen "baselinker" als Quelle.
 - [x] C2: Dashboard-Metriken — BL-Fallback entfernt, nur lokale Order-Aggregation
 - [x] C3: Shipping-Kosten — BL-Fallback entfernt, nur SevDesk + SendCloud
 - [x] C4-C5: Backend lib (7) + services (4) gelöscht
@@ -639,12 +641,12 @@
 | BUG-034 | **LISTING-STATUS INKONSISTENT: Kein Auto-Delist bei Bestand 0, Status-Propagation lückenhaft** — Wenn Bestand=0, kein ONHOLD/Delist auf Kaufland/eBay. Listing-Status nur alle 3 Min gecached. Case-Sensitive Status-Check ("Active" vs "active"). | P0 | ⚠️ Teilweise Fixed (Zero-Stock→qty 0 push mit DELIST-Log, fresh product read in syncStockToAllChannels, case-insensitive war bereits gefixt — ABER: explizites Kaufland ONHOLD-API-Call + eBay EndFixedPriceItem fehlen noch) |
 | BUG-035 | **EAN nicht in Produktdatenblatt gespeichert nach Identify** — User gibt EAN ein, Produkt wird erkannt, aber `details.identifiers.ean` bleibt leer. `v2-product-builder.js` ignoriert manualBarcodes bei identifiers. | P1 | ✅ Fixed (Fallback auf manualBarcodes in identifiers + barcode-Feld) |
 | BUG-036 | **Bestellungen-Seite max 100 Einträge, keine Pagination** — Backend hardcoded `Math.min(..., 100)`. Kein Rows-per-Page Selector. Keine Seitennavigation. | P1 | ✅ Fixed (Backend: limit 500 + offset. Frontend: Rows-per-Page 25/50/100/200/500 + Page-Nav) |
-| BUG-037 | **🔥 Kaufland-Stornierungen nicht nach AvyCloud synchronisiert** — `saveOrderIfNew()` überspringt existierende Orders. `mapKauflandStatus()` nie aufgerufen. 3 stornierte Aufträge (MXTBT35, M7PPT35, MEL4T35) zeigen "Kommissioniert" statt "Storniert". | P0 | ✅ Fixed (saveOrderIfNew updatet Status + 14-Tage Reconciliation) |
+| BUG-037 | **🔥 Kaufland-Stornierungen** — Code-Fix vorhanden (Rank-basierte Reconciliation + 30-Tage Lookback), ABER: Screenshot vom 14.03. zeigt MXTBT35, M7PPT35, MEL4T35 noch als "Kommissioniert". Entweder Reconciliation-Loop noch nicht gelaufen oder Fix nicht deployed. **Manuell verifizieren nach nächstem Deploy!** | P0 | ⚠️ Code-Fix da, Production-Verifizierung ausstehend |
 | BUG-038 | **Retouren-Seite leer** — Sync 4h Intervall + 7 Tage Lookback. Stornierungen ≠ Retouren in Kaufland. | P1 | ✅ Fixed (Event-Driven Sync + 6h Safety-Net, 30d Lookback) |
 | BUG-039 | **Versand & Labels Seite leer** — SendCloud Sync 2h Intervall. Kein Bug — Seite zeigt Daten erst nach Label-Erstellung. | P2 | ✅ Fixed (Event-Driven Sync + 6h Safety-Net) |
 | FEAT-EDS | **🚀 Event-Driven Sync Architektur** — Intervall-basierte Syncs durch Event-getriebene Echtzeit-Syncs ersetzt. Jede Änderung (Order/Return/Shipment/Stock) in AvyCloud, Kaufland, eBay oder SendCloud triggert sofort einen Sync. | P0 | ✅ Implementiert |
-| BUG-040 | **Alte BaseLinker-Orders ohne Quelle-Badge** — Orders mit `source: 'baselinker'` zeigen "—" als Quelle weil `sourceBadge()` BaseLinker filtert. Historische Orders brauchen `marketplace`-Feld Backfill aus `raw`-Daten. | P1 | 🔴 Offen |
-| BUG-041 | **Kaufland Order-Intake: Fehlende Felder** — `mapKauflandOrder()` extrahiert nicht: `paidAt`, `shippedAt`, `paymentMethod`, `shippingService`, `shippingCost`, `trackingNumber`, `carrier`. `saveOrderIfNew()` speichert diese Felder ebenfalls nicht. eBay-Intake hat alle Felder. | P0 | 🔴 Offen |
+| BUG-040 | **⛔ SICHTBAR IN PRODUCTION: Alte BL-Orders zeigen "baselinker" als Quelle + Status "Neue Bestellungen"** — `sourceBadge()` zeigt jetzt graues "baselinker" Badge (nicht mehr "—"). Aber: (1) Kein Backfill-Script → historische Orders haben kein `marketplace`-Feld → zeigen "baselinker" statt "eBay"/"Kaufland". (2) Historische BL-Orders haben keine Status-Reconciliation → bleiben auf "Neue Bestellungen" stehen. (3) Betrifft ~6+ sichtbare Orders im Auftrags-Screen (Derby Rasierklingen, Piaggio, Hartmann, LED etc.). **BRAUCHT:** Firestore-Batch-Update-Script das `marketplace` aus `raw`-Daten extrahiert UND Status nachzieht. | P0 | 🔴 **NICHT GEFIXT — Backfill-Script + Status-Migration fehlt** |
+| BUG-041 | **Kaufland Order-Intake: trackingNumber + carrier fehlen noch** — `mapKauflandOrder()` extrahiert jetzt paidAt, paymentMethod, shippedAt, shippingCost ✅. ABER: `trackingNumber` und `carrier` werden NICHT aus Kaufland-API extrahiert (eBay hat beides). `saveOrderIfNew()` schreibt diese Felder auch nicht. | P1 | ⚠️ **TEILWEISE gefixt** — trackingNumber + carrier fehlen |
 | BUG-042 | **Kaufland Adresse unvollständig** — `mapKauflandOrder()` setzt `customer.street` aus `shipping_address.street + house_number`, aber wenn Kaufland die Adresse in `billing_address` oder anderen Feldern liefert, bleibt die Adresse leer. Frontend zeigt "Adresse unvollständig" (rot). | P1 | 🔴 Offen |
 | BUG-043 | **Returns-Engine Bugs: `totalRefund` + `ebayReason` Referenz-Fehler** — returns-engine.js: totalRefund + ebayReason Variablen-Bugs | P1 | ✅ Fixed (2026-03-13: totalRefund korrekt akkumuliert, ebayReason extrahiert vor Dedup-Check) |
 | BUG-044 | **Kaufland Returns: Keine Pagination** — `syncKauflandReturns()` hatte `limit: 100` ohne Loop | P2 | ✅ Fixed (2026-03-13: Pagination-Loop mit offset/limit, 5000-Item Safety-Cap) |
@@ -660,6 +662,8 @@
 | BUG-054 | **Operations-Buttons Light Mode Kontrast** — Design-Tokens (text-warning/bg-warning-dim) statt hardcoded amber. | P1 | ✅ Fixed (2026-03-14) |
 | BUG-055 | **Bottom Nav Icons unscharf** — Inline SVGs ersetzen PNG-Icons, 48dp Touch-Targets. | P1 | ✅ Fixed (2026-03-14) |
 | BUG-056 | **Dashboard Mobile KPIs leer** — Root Cause BUG-048 behoben. KPIs zeigen jetzt native Firestore-Daten mit korrekter Kaufland/eBay-Aufschlüsselung. | P0 | ✅ Fixed (2026-03-14, via BUG-048) |
+| BUG-057 | **⛔ SICHTBAR: Historische BL-Orders ohne korrekten OMS-Status** — ~6+ Orders im Auftrags-Screen zeigen "Neue Bestellungen" obwohl sie längst versendet/abgeschlossen sind. Diese Orders kamen über BaseLinker-Import und haben keinen OMS-Status-Update bekommen. Reconciliation greift nur für NEUE Orders (30-Tage Lookback an eBay/Kaufland API). **BRAUCHT:** Migration-Script das historische BL-Orders anhand von `raw`-Daten (eBay: CompleteSales, Kaufland: order_units) den korrekten Status zuweist. | P0 | 🔴 **NICHT GEFIXT** |
+| BUG-058 | **BaseLinker-Entfernung NICHT abgeschlossen** — Claude Code behauptet Phase C ist erledigt, aber Deep Dive 3 (2026-03-13) fand 136+ Dateien mit BL-Referenzen. Verifizierung nach Deploy nötig: `grep -r "baselinker" backend/ components/ api/ types.ts i18n.tsx --include="*.js" --include="*.ts" --include="*.tsx"`. Wenn >0 Ergebnisse → Phase C ist NICHT fertig. | P0 | 🔴 **VERIFIZIERUNG AUSSTEHEND** |
 | BUG-SSE | Token-in-Query-Parameter für SSE-Streams leakt | P1 | 🔴 Offen |
 | BUG-006 | EbayListingsView.tsx (alte Gap-Analysis) noch da — LÖSCHEN | P1 | ✅ Fixed (deleted) |
 | BUG-008 | eBay-Seite zeigt Gap-Analyse-Daten statt Listing-Management | P1 | ✅ Fixed (route already correct, old component deleted) |
