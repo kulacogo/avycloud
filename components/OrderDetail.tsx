@@ -78,6 +78,7 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({ orderId, onClose, onSt
   const [weightInput, setWeightInput] = useState("");
   const [savingWeight, setSavingWeight] = useState(false);
   const [selectedVatRate, setSelectedVatRate] = useState<number>(0.19);
+  const [labelFormat, setLabelFormat] = useState<string>(() => localStorage.getItem("avycloud_label_format") || "a6");
   const backdropRef = useRef<HTMLDivElement>(null);
 
   const loadData = useCallback(async () => {
@@ -468,15 +469,32 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({ orderId, onClose, onSt
                     <div className="flex flex-wrap gap-2">
                       {(omsStatus === "packed" || omsStatus === "picked") && !order.trackingNumber && (
                         order.customer?.street && order.customer?.city && order.customer?.zip ? (
-                          <ActionButton
-                            label="Versandlabel erstellen"
-                            icon="📦"
-                            onClick={async () => {
-                              await shipOrder(orderId, order.weight ? { weight: order.weight } : undefined);
-                              await loadData();
-                              onStatusChange?.();
-                            }}
-                          />
+                          <>
+                            <select
+                              value={labelFormat}
+                              onChange={(e) => {
+                                setLabelFormat(e.target.value);
+                                localStorage.setItem("avycloud_label_format", e.target.value);
+                              }}
+                              className="rounded-md border border-app-border bg-app-surface text-txt-primary text-xs px-2 py-1.5 self-center"
+                              title="Label-Format"
+                            >
+                              <option value="a6">A6 / Thermal</option>
+                              <option value="a4">A4</option>
+                            </select>
+                            <ActionButton
+                              label="Versandlabel erstellen"
+                              icon="📦"
+                              onClick={async () => {
+                                await shipOrder(orderId, {
+                                  ...(order.weight ? { weight: order.weight } : {}),
+                                  labelFormat,
+                                });
+                                await loadData();
+                                onStatusChange?.();
+                              }}
+                            />
+                          </>
                         ) : (
                           <div className="text-xs text-warning bg-warning/10 px-3 py-2 rounded-lg">
                             Versandlabel nicht möglich — Adresse unvollständig. Bitte oben bearbeiten.
@@ -484,28 +502,42 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({ orderId, onClose, onSt
                         )
                       )}
                       {order.trackingNumber && (
-                        <ActionButton
-                          label="Label drucken"
-                          icon="🖨"
-                          onClick={async () => {
-                            const blob = await fetchLabelPdfBlob(orderId);
-                            const blobUrl = URL.createObjectURL(blob);
-                            const printWindow = window.open(blobUrl, '_blank');
-                            if (printWindow) {
-                              printWindow.addEventListener('load', () => {
-                                printWindow.print();
-                              });
-                              setTimeout(() => URL.revokeObjectURL(blobUrl), 120000);
-                            } else {
-                              // Fallback: download if popup blocked
-                              const a = document.createElement('a');
-                              a.href = blobUrl;
-                              a.download = `label-${orderId}.pdf`;
-                              a.click();
-                              setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
-                            }
-                          }}
-                        />
+                        <>
+                          <select
+                            value={labelFormat}
+                            onChange={(e) => {
+                              setLabelFormat(e.target.value);
+                              localStorage.setItem("avycloud_label_format", e.target.value);
+                            }}
+                            className="rounded-md border border-app-border bg-app-surface text-txt-primary text-xs px-2 py-1.5 self-center"
+                            title="Label-Format"
+                          >
+                            <option value="a6">A6 / Thermal</option>
+                            <option value="a4">A4</option>
+                          </select>
+                          <ActionButton
+                            label="Label drucken"
+                            icon="🖨"
+                            onClick={async () => {
+                              const blob = await fetchLabelPdfBlob(orderId, { labelFormat });
+                              const blobUrl = URL.createObjectURL(blob);
+                              const printWindow = window.open(blobUrl, '_blank');
+                              if (printWindow) {
+                                printWindow.addEventListener('load', () => {
+                                  printWindow.print();
+                                });
+                                setTimeout(() => URL.revokeObjectURL(blobUrl), 120000);
+                              } else {
+                                // Fallback: download if popup blocked
+                                const a = document.createElement('a');
+                                a.href = blobUrl;
+                                a.download = `label-${orderId}.pdf`;
+                                a.click();
+                                setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+                              }
+                            }}
+                          />
+                        </>
                       )}
                       {order.trackingNumber && (
                         <ActionButton

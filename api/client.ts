@@ -3118,9 +3118,10 @@ export async function transitionOrderStatus(
   return data?.data || {};
 }
 
-export async function fetchLabelPdfBlob(orderId: string): Promise<Blob> {
+export async function fetchLabelPdfBlob(orderId: string, opts?: { labelFormat?: string }): Promise<Blob> {
+  const format = opts?.labelFormat || 'a6';
   const res = await fetchApi(
-    `${BACKEND_URL}/api/orders/${encodeURIComponent(orderId)}/label`,
+    `${BACKEND_URL}/api/orders/${encodeURIComponent(orderId)}/label?format=${encodeURIComponent(format)}`,
     { method: 'GET' }
   );
   if (!res.ok) {
@@ -3209,7 +3210,7 @@ export async function fetchReorderAlerts(): Promise<any[]> {
 
 // ── OMS-B: Shipping & Invoices ──────────────────────────────
 
-export async function shipOrder(orderId: string, opts?: { shippingMethodId?: number; weight?: number }): Promise<any> {
+export async function shipOrder(orderId: string, opts?: { shippingMethodId?: number; weight?: number; labelFormat?: string }): Promise<any> {
   const res = await fetchApi(`${BACKEND_URL}/api/orders/${encodeURIComponent(orderId)}/ship`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -3266,11 +3267,11 @@ export interface BulkShipResult {
   results: Array<{ orderId: string; ok: boolean; trackingNumber?: string; labelUrl?: string; error?: string }>;
 }
 
-export async function bulkShipOrders(orderIds: string[], opts?: { shippingMethodId?: number }): Promise<BulkShipResult> {
+export async function bulkShipOrders(orderIds: string[], opts?: { shippingMethodId?: number; labelFormat?: string }): Promise<BulkShipResult> {
   const res = await fetchApi(`${BACKEND_URL}/api/orders/bulk-ship`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ orderIds, shippingMethodId: opts?.shippingMethodId }),
+    body: JSON.stringify({ orderIds, shippingMethodId: opts?.shippingMethodId, labelFormat: opts?.labelFormat }),
   });
   const data = await parseResponse(res);
   if (!res.ok || data?.ok === false) throw new Error(data?.error?.message || 'Bulk-Versand fehlgeschlagen');

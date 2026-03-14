@@ -63,6 +63,7 @@ export const ShippingView: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [bulkBusy, setBulkBusy] = useState(false);
   const [syncBusy, setSyncBusy] = useState(false);
+  const [labelFormat, setLabelFormat] = useState<string>(() => localStorage.getItem("avycloud_label_format") || "a6");
   const toast = useToast();
 
   const loadShipments = useCallback(async () => {
@@ -255,6 +256,18 @@ export const ShippingView: React.FC = () => {
         <div className="flex items-center gap-2 rounded-xl border border-accent/20 bg-accent-dim px-4 py-2.5">
           <span className="text-sm font-medium text-accent">{selected.size} ausgewählt</span>
           <div className="ml-auto flex gap-2">
+            <select
+              value={labelFormat}
+              onChange={(e) => {
+                setLabelFormat(e.target.value);
+                localStorage.setItem("avycloud_label_format", e.target.value);
+              }}
+              className="rounded-lg border border-app-border bg-app-surface text-txt-primary text-xs px-2 py-1.5 font-medium"
+              title="Label-Format"
+            >
+              <option value="a6">A6 / Thermal</option>
+              <option value="a4">A4</option>
+            </select>
             <button
               type="button"
               disabled={bulkBusy}
@@ -267,7 +280,7 @@ export const ShippingView: React.FC = () => {
                 }
                 setBulkBusy(true);
                 try {
-                  const result = await bulkShipOrders(orderIds);
+                  const result = await bulkShipOrders(orderIds, { labelFormat });
                   toast.success(`${result.success}/${result.total} Labels erstellt`);
                   setSelected(new Set());
                   loadShipments();

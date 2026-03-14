@@ -155,12 +155,12 @@
 - [x] FEAT-ORD-06: Auto-Rechnung bei Status → shipped — ✅ Post-Transition Hook in transitionOrder() ruft generateInvoice() fire-and-forget auf, mit Idempotenz-Check (2026-03-14)
 
 **Block 3: Buchhaltung nutzbar machen**
-- [ ] B3: SevDesk-Export reparieren — BUG-050: Nur Draft-Skelett ohne Positionen/Kontakt/Adresse. Braucht: Kontakt-Mapping, Line-Items, Adress-Daten
+- [x] B3: SevDesk-Export reparieren — ✅ Contact-Erstellung + Adresse + Line-Items (InvoicePos) aus Order, korrektes Response-Parsing (2026-03-14)
 - [x] B4: Invoice PDF-Download im UI — ✅ Proxy-Endpoint `GET /api/invoices/:id/download` (GCS→Browser), Download-Buttons in InvoicesView + OrderDetail (2026-03-14)
 - [ ] B5: Invoice Email-Versand (Template + SMTP/SES) — Kein `sendInvoiceEmail()` vorhanden
 - [ ] B6: Gutschriften/Stornorechnungen — Kein `generateCreditNote()` vorhanden
 - [x] B7: MwSt-Sätze 19%/7%/0% — ✅ order.vatRate ?? 0.19, VAT-Dropdown in OrderDetail, API-Parameter, TypeScript-Typen (2026-03-14)
-- [ ] FEAT-INV-01: Rechnungsübersicht: Suche + Datumsfilter + PDF-Download-Buttons
+- [x] FEAT-INV-01: Rechnungsübersicht — ✅ Suche (Rechnungsnr., Kunde, Auftrag) + Datumsfilter (Heute/7d/30d/90d), PDF-Download via B4 (2026-03-14)
 
 **Block 4: Retouren nutzbar machen**
 - [x] BUG-043: Returns-Engine Referenz-Fehler (totalRefund + ebayReason) — ✅ Fixed
@@ -169,9 +169,9 @@
 - [x] FEAT-RET-03: Bulk-Retoure-Aktionen — ✅ POST /api/returns/bulk-action (refund/close, max 50), Frontend Bulk-Action-Bar mit Erstatten + Schließen (2026-03-14)
 
 **Block 5: Versand optimieren**
-- [ ] B2: SendCloud Tracking-Webhooks (Zustellbenachrichtigung)
-- [ ] FEAT-SHP-01: Label-Format A4/A6 + Thermal wählbar
-- [ ] BUG-049: Marketplace Refund Push Runner (automatisch Erstattungen an eBay/Kaufland senden)
+- [x] B2: SendCloud Tracking-Webhooks — ✅ Handler existierte bereits (POST /api/webhooks/sendcloud), Signature-Verification hinzugefügt (2026-03-14)
+- [x] FEAT-SHP-01: Label-Format A4/A6 + Thermal — ✅ Backend labelFormat (createParcel/shipOrder), Frontend Dropdown in OrderDetail + ShippingView, localStorage-Persistenz (2026-03-14)
+- [x] BUG-049: Marketplace Refund Push Runner — ✅ runRefundPush() in returns-engine, auto-Push alle 4h für erstattet/teilweise_erstattet Returns (2026-03-14)
 
 **Block 6: Mobile UI — Weltklasse UX**
 - [x] BUG-053: Logo scharf machen — ✅ High-Res avycloud_logo_icon.png (4269×3299) statt 40×40 Asset, h-10 w-10 CSS (2026-03-14)
@@ -292,8 +292,8 @@
 
 **Phase B: Versand & Rechnungen nativ**
 - [x] B1: SendCloud Label-Erzeugung (createParcel, getLabel, cancelParcel) ✅ shipping-engine.js live
-- [ ] B2: Tracking-Webhooks (parcel_shipped, parcel_delivered) — SendCloud Webhook-Handler fehlt
-- [ ] B3: Rechnungs-Engine Fix — SevDesk-Export reparieren (API-Response-Parsing + Contact-Mapping)
+- [x] B2: Tracking-Webhooks — ✅ Handler + Signature-Verification (2026-03-14)
+- [x] B3: Rechnungs-Engine Fix — ✅ SevDesk-Export mit Contact + Adresse + Line-Items (2026-03-14)
 - [x] B4: Invoice PDF-Download im UI — ✅ GCS-Proxy-Endpoint + Download-Buttons in InvoicesView + OrderDetail (2026-03-14)
 - [ ] B5: Invoice Email-Versand — kein sendInvoiceEmail(), kein Email-Template
 - [ ] B6: Gutschriften (Credit Notes) — kein generateCreditNote(), keine Storno-Rechnung
@@ -652,8 +652,8 @@
 | BUG-046 | **Dashboard Shipping-Kosten: BL-Fallback entfernt** — Nur SevDesk + SendCloud als Quellen. | P2 | ✅ Fixed (2026-03-13) |
 | BUG-047 | **Invoice PDF Download** — GCS-Proxy `GET /api/invoices/:id/download` + Frontend Download-Buttons. | P1 | ✅ Fixed (2026-03-14) |
 | BUG-048 | **Dashboard Revenue/Returns nutzt BaseLinker-API** — Dashboard nutzt jetzt native Firestore-Aggregation. Kaufland-Breakdown (kaufland_gross_window/ytd, kaufland_payout_window/ytd) in getDashboardMetrics() ergänzt. Payout-Berechnung trennt eBay vs. Kaufland korrekt. | P0 | ✅ Fixed (2026-03-14) |
-| BUG-049 | **Kein Marketplace Refund Push** — `issueEbayRefund()` und `issueKauflandRefund()` existieren in returns-engine.js, werden aber nur manuell per API aufgerufen. Kein Runner/Scheduler der Erstattungen automatisch an eBay/Kaufland pusht. Erstattungen bleiben in AvyCloud stecken. | P2 | 🔴 Offen |
-| BUG-050 | **SevDesk Invoice-Export unvollständig** — `invoice-engine.js` Zeile 379-430: SevDesk-Export erstellt nur Draft-Rechnung (Status 100) ohne Positionsdetails, ohne Kunden-/Kontakt-Mapping, ohne Adresse. Ergebnis: leere Skelett-Rechnung in SevDesk. | P1 | 🔴 Offen |
+| BUG-049 | **Marketplace Refund Push Runner** — runRefundPush() auto-pusht erstattet/teilweise_erstattet Returns alle 4h an eBay/Kaufland. | P2 | ✅ Fixed (2026-03-14) |
+| BUG-050 | **SevDesk Invoice-Export** — Contact-Erstellung, ContactAddress, Invoice mit Line-Items (InvoicePos), korrektes Response-Parsing. | P1 | ✅ Fixed (2026-03-14) |
 | BUG-051 | **BaseLinker Auto-Sync bei Server-Start** — Entfernt im Rahmen von Phase C (Block 1 KW 12). | P0 | ✅ Fixed (2026-03-13) |
 | BUG-052 | **BaseLinker in RBAC aktiv** — RBAC-Permissions + integration-registry bereinigt (Block 1 KW 12). | P1 | ✅ Fixed (2026-03-13) |
 | BUG-053 | **Logo unscharf auf Mobile** — High-Res `avycloud_logo_icon.png` (4269×3299) statt 40×40 Asset. | P1 | ✅ Fixed (2026-03-14) |

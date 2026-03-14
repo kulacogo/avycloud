@@ -303,6 +303,28 @@ const server = app.listen(PORT, () => {
   } catch (err) {
     console.warn('[tracking-catchup] failed to start safety-net:', err?.message || err);
   }
+
+  // ─── Marketplace Refund Push (every 4h) ─────────────────────
+  // Auto-pushes refunds to eBay/Kaufland for returns in 'erstattet' status
+  try {
+    const REFUND_PUSH_INTERVAL_MS = 4 * 60 * 60 * 1000; // 4h
+    const runRefundPush = async () => {
+      try {
+        const { runRefundPush: pushRefunds } = require('./services/returns-engine');
+        const result = await pushRefunds({ tenantId: 'default' });
+        if (result.processed > 0) {
+          console.log(`[refund-push] processed=${result.processed} success=${result.success} errors=${result.errors.length}`);
+        }
+      } catch (err) {
+        console.warn('[refund-push] runner failed:', err?.message);
+      }
+    };
+    setTimeout(runRefundPush, 180_000); // First run after 3 min
+    setInterval(runRefundPush, REFUND_PUSH_INTERVAL_MS);
+    console.log(`[refund-push] safety-net enabled: every ${REFUND_PUSH_INTERVAL_MS}ms`);
+  } catch (err) {
+    console.warn('[refund-push] failed to start safety-net:', err?.message || err);
+  }
 });
 
 // Graceful shutdown für Cloud Run

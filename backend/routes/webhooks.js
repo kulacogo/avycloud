@@ -56,6 +56,25 @@ const SENDCLOUD_STATUS_MAP = {
  */
 router.post('/webhooks/sendcloud', async (req, res) => {
   try {
+    // Verify SendCloud webhook authenticity via secret key in query or basic auth
+    const { getSecretValue } = require('../lib/secret-values');
+    const webhookSecret = await getSecretValue('SENDCLOUD_SECRET_KEY').catch(() => null);
+    if (webhookSecret) {
+      const authHeader = req.headers.authorization || '';
+      const querySecret = req.query?.secret || '';
+      // SendCloud can send Basic auth (public_key:secret_key) or we verify via query param
+      let verified = false;
+      if (authHeader.startsWith('Basic ')) {
+        const decoded = Buffer.from(authHeader.slice(6), 'base64').toString('utf-8');
+        verified = decoded.includes(webhookSecret);
+      }
+      if (!verified && querySecret === webhookSecret) verified = true;
+      if (!verified) {
+        console.warn('[webhook/sendcloud] Unauthorized webhook attempt');
+        return res.status(200).json({ ok: false, error: 'unauthorized' });
+      }
+    }
+
     const body = req.body || {};
     const parcelId = body.parcel_id || body.parcel?.id;
     const statusId = body.status?.id || body.parcel?.status?.id;

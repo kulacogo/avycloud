@@ -848,6 +848,65 @@ function escapeXml(str) {
     .replace(/'/g, '&apos;');
 }
 
+/**
+ * Auto-push pending refunds to marketplaces.
+ * Finds returns in 'erstattet' or 'teilweise_erstattet' status that haven't
+ * been pushed to their marketplace yet, and issues the refund.
+ *
+ * @param {{ tenantId?: string, limit?: number }} opts
+ * @returns {Promise<{ processed: number, success: number, errors: string[] }>}
+ */
+async function runRefundPush({ tenantId = 'default', limit = 50 } = {}) {
+  const db = getDb();
+  const errors = [];
+  let processed = 0;
+  let success = 0;
+
+  // Find returns that need marketplace refund push
+  const refundStatuses = ['erstattet', 'teilweise_erstattet'];
+  for (const status of refundStatuses) {
+    const snap = await db.collection(RETURNS_COLLECTION)
+      .where('status', '==', status)
+      .where('marketplaceRefundPushed', '==', false)
+      .limit(limit)
+      .get();
+
+    // Also check returns without the field set (legacy)
+    const snapLegacy = await db.collection(RETURNS_COLLECTION)
+      .where('status', '==', status)
+      .limit(limit)
+      .get();
+
+    const docs = new Map();
+    snap.docs.forEach((d) => docs.set(d.id, d));
+    snapLegacy.docs.forEach((d) => {
+      const data = d.data();
+      if (!data.marketplaceRefundPushed && !docs.has(d.id)) docs.set(d.id, d);
+    });
+
+    for (const [returnId, doc] of docs) {
+      const data = doc.data();
+      const mp = (data.marketplace || '').toLowerCase();
+      if (!mp || (mp !== 'ebay' && mp !== 'kaufland')) continue;
+
+      processed++;
+      try {
+        await issueMarketplaceRefund({ returnId, tenantId });
+        await doc.ref.set({ marketplaceRefundPushed: true, marketplaceRefundPushedAt: new Date().toISOString() }, { merge: true });
+        success++;
+      } catch (err) {
+        errors.push(`${returnId}: ${err.message}`);
+      }
+    }
+  }
+
+  if (processed > 0) {
+    console.log(`[returns-engine] Refund push: ${success}/${processed} successful${errors.length ? `, ${errors.length} errors` : ''}`);
+  }
+
+  return { processed, success, errors };
+}
+
 module.exports = {
   // Workflow
   transitionReturn,
@@ -861,6 +920,7 @@ module.exports = {
 
   // Refunds
   issueMarketplaceRefund,
+  runRefundPush,
 
   // Constants
   RETURN_STATUSES,
