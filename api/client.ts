@@ -3632,6 +3632,132 @@ export const openBinLabelsBatchWindow = (options: {
   return openAuthedUrlInNewTab(url, { timeoutMs: 30000 });
 };
 
+// ── Warehouse Movements ──────────────────────────────────────────
+
+export interface WarehouseMovement {
+  id: string;
+  type: string;
+  binCode: string;
+  productId: string;
+  sku: string;
+  delta: number;
+  quantityAfter: number;
+  binQuantityAfter: number;
+  meta?: { source?: string; action?: string; orderId?: string };
+  createdAt: string;
+}
+
+export async function fetchWarehouseMovements(params: {
+  type?: string;
+  binCode?: string;
+  productId?: string;
+  limit?: number;
+  offset?: number;
+  from?: string;
+  to?: string;
+}): Promise<{ movements: WarehouseMovement[]; total: number; hasMore: boolean }> {
+  const qs = new URLSearchParams();
+  if (params.type) qs.set("type", params.type);
+  if (params.binCode) qs.set("binCode", params.binCode);
+  if (params.productId) qs.set("productId", params.productId);
+  if (params.limit) qs.set("limit", String(params.limit));
+  if (params.offset) qs.set("offset", String(params.offset));
+  if (params.from) qs.set("from", params.from);
+  if (params.to) qs.set("to", params.to);
+
+  const res = await fetchApi(`${BACKEND_URL}/api/warehouse/movements?${qs.toString()}`);
+  const data = await parseResponse(res);
+  if (!res.ok) throw new Error(data?.error?.message || "Movements konnten nicht geladen werden");
+  return data;
+}
+
+// ── Warehouse Inventories (Inventur) ─────────────────────────────
+
+export interface InventoryCount {
+  binCode: string;
+  productId: string;
+  sku: string;
+  productName: string;
+  systemQty: number;
+  countedQty: number | null;
+  variance: number | null;
+  countedAt: string | null;
+}
+
+export interface WarehouseInventory {
+  id: string;
+  tenantId: string;
+  name: string;
+  status: "planned" | "active" | "completed";
+  scope: "full" | "zone";
+  zoneFilter?: string | null;
+  createdAt: string;
+  startedAt: string | null;
+  completedAt: string | null;
+  counts?: InventoryCount[];
+  summary: {
+    totalItems: number;
+    countedItems: number;
+    totalVariance: number;
+    completionPct: number;
+  };
+}
+
+export async function fetchWarehouseInventories(): Promise<WarehouseInventory[]> {
+  const res = await fetchApi(`${BACKEND_URL}/api/warehouse/inventories`);
+  const data = await parseResponse(res);
+  if (!res.ok) throw new Error(data?.error?.message || "Inventuren konnten nicht geladen werden");
+  return data.inventories;
+}
+
+export async function fetchWarehouseInventory(id: string): Promise<WarehouseInventory> {
+  const res = await fetchApi(`${BACKEND_URL}/api/warehouse/inventories/${id}`);
+  const data = await parseResponse(res);
+  if (!res.ok) throw new Error(data?.error?.message || "Inventur nicht gefunden");
+  return data.inventory;
+}
+
+export async function createWarehouseInventory(params: {
+  name: string;
+  scope: "full" | "zone";
+  zoneFilter?: string;
+}): Promise<WarehouseInventory> {
+  const res = await fetchApi(`${BACKEND_URL}/api/warehouse/inventories`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(params),
+  });
+  const data = await parseResponse(res);
+  if (!res.ok) throw new Error(data?.error?.message || "Inventur konnte nicht erstellt werden");
+  return data.inventory;
+}
+
+export async function recordInventoryCounts(
+  inventoryId: string,
+  counts: Array<{ binCode: string; productId: string; countedQty: number }>
+): Promise<{ countedItems: number; totalVariance: number }> {
+  const res = await fetchApi(`${BACKEND_URL}/api/warehouse/inventories/${inventoryId}/counts`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ counts }),
+  });
+  const data = await parseResponse(res);
+  if (!res.ok) throw new Error(data?.error?.message || "Zählungen konnten nicht gespeichert werden");
+  return data;
+}
+
+export async function completeWarehouseInventory(
+  inventoryId: string
+): Promise<{ variances: InventoryCount[]; totalVariance: number }> {
+  const res = await fetchApi(`${BACKEND_URL}/api/warehouse/inventories/${inventoryId}/complete`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+  });
+  const data = await parseResponse(res);
+  if (!res.ok) throw new Error(data?.error?.message || "Inventur konnte nicht abgeschlossen werden");
+  return data;
+}
+
 export const refreshPrice = async (productId: string): Promise<{ ok: boolean; data?: any; error?: { code: number; message: string } }> => {
   let response: Response | undefined;
 

@@ -209,13 +209,13 @@ bus.on('stock:changed', async (payload) => {
   try {
     if (!productId) return;
 
-    // Load product and sync stock
-    const { getProduct } = require('../lib/firestore');
-    const product = await getProduct(productId);
+    // Load product from products_v2 (active collection)
+    const { getProductV2 } = require('../lib/product-store');
+    const product = await getProductV2(productId);
     if (!product) return;
 
-    const { syncStockToAllChannels } = require('./stock-sync-dispatcher');
-    await syncStockToAllChannels(product, tenantId, `event:${reason || 'stock-changed'}`)
+    const { syncStockWithRetry } = require('./stock-sync-dispatcher');
+    await syncStockWithRetry({ tenantId, product, reason: `event:${reason || 'stock-changed'}` })
       .catch((err) => console.warn(`[sync-bus] stock channel sync failed for ${productId}: ${err.message}`));
 
   } catch (err) {

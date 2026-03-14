@@ -79,13 +79,13 @@
 | Modul | Status | Blocker |
 |-------|--------|---------|
 | **M3: Produkte** | ⚡ Teilweise | Filter-System, ProductSheet komplett neu |
-| **M4: Bestand** | 🔴 Placeholder | View muss implementiert werden |
+| **M4: Bestand** | ⚡ View Live | KPIs, Tabelle, Filter, Suche, Sort — Bulk-Actions offen |
 | **M5: Marktplatz-Views** | ✅ Real | FAKE→REAL bestätigt (alle API-Calls echt) |
 | **M6: OMS** | ⚡ Phase A Live | Natives OMS aktiv, BaseLinker deprecated, Phase B/C offen |
 | **M9: Integrations-Hub** | 🔴 Kein Self-Service | Wizard + Auth-Flows fehlen komplett |
 | **M10: Analytics** | 🔴 Geplant | Dashboard-Überarbeitung + Reports |
 | **M11: Einstellungen** | ✅ Real | FAKE→REAL bestätigt (Company, Profile, Order, Warehouse, API) |
-| **M12: Lagerverwaltung** | ⚡ Settings fertig | Zonen/Bins/Inventur fehlen |
+| **M12: Lagerverwaltung** | ⚡ Tabs Live | 3-Tab-System (Struktur/Bewegungen/Inventur), CRUD + Events |
 | **M14: Pack & Ship** | 🔴 Geplant | SKU-Scan → Auto-Label-Print, Drucker-Voreinstellungen |
 | **M-AUTO: Automatisierung** | 🔴 Geplant | Bulk-Import, Repricing-UI |
 | **M-MOBILE: Mobile UI** | ⚡ Funktional, UX-Mängel | Logo unscharf, Button-Kontrast, keine Icons, Dashboard KPIs leer |
@@ -187,9 +187,9 @@
 - [x] MOB-10: Dark/Light Mode Konsistenz — ✅ StatusBadge warn-Farben auf Design-Tokens umgestellt (bg-warning-dim/text-warning), alle Mobile-Komponenten geprüft (2026-03-14)
 
 #### KW 13 (24.–28. März 2026) — M4 + M5 + M12
-- [ ] **M4: Bestand-View** — Lager-fokussierte Inventar-Ansicht
-- [ ] **M5: Marktplatz-Views** — eBay + Kaufland echte Listings, Realtime-Sync
-- [ ] **M12: Lagerverwaltung** — Zonen, Bins, Inventur, Bewegungen
+- [x] **M4: Bestand-View** — ✅ InventoryView live: KPIs, Tabelle, Quick-Filter, Suche, Sort (2026-03-14)
+- [x] **M5: Marktplatz-Views** — ✅ Realtime-Sync komplett: Retry, Event-Bus, Auto-Heal, 3-Min-Sync + Bug-Fix sync-event-bus.js (2026-03-14)
+- [x] **M12: Lagerverwaltung** — ✅ 3-Tab-System (Struktur/Bewegungen/Inventur), Backend CRUD, warehouseEvents + warehouse_inventories (2026-03-14)
 
 #### KW 14 (31. März – 4. April 2026) — M14 Pack & Ship + M10 Dashboard
 - [x] **M6 OMS Phase A** — ✅ Bereits live (vorgezogen, siehe M6 Detail-Sektion)
@@ -210,8 +210,8 @@
 
 #### KW 17–18 (21. April – 2. Mai 2026) — OMS Phase B Rest + Neue Integrationen
 - [x] **M6-B1: SendCloud Label-Erzeugung** — ✅ shipping-engine.js live
-- [ ] **M6-B2: Tracking-Webhooks** — Zustellstatus automatisch (SendCloud Webhook-Handler fehlt)
-- [ ] **M6-B3: Rechnungs-Engine** — SevDesk-Export reparieren, PDF-Download, MwSt-Sätze
+- [x] **M6-B2: Tracking-Webhooks** — ✅ Vorgezogen in KW 12 (B2: SendCloud Handler + Signature-Verification)
+- [x] **M6-B3: Rechnungs-Engine** — ✅ Vorgezogen in KW 12 (B3: SevDesk-Export, B4: PDF-Download, B7: MwSt-Sätze)
 - [x] **M6-B4: Marketplace-Kommunikation** — ✅ Tracking + Cancellation an eBay/Kaufland (2026-03-13)
 - [ ] **INT: Amazon SP-API** — OAuth + Produkte + Orders (Tier 2)
 - [ ] **INT: Shopify** — OAuth + Produkte + Orders (Tier 2)
@@ -253,15 +253,19 @@
 - [ ] Migration bestehender HTML-Tags auf ui/* Components (Button, Input, Select, Badge, Modal, Tabs)
 - [ ] Typography-Scale durchsetzen
 
-### M4: Bestand (Inventar) — 🔴 Placeholder
+### M4: Bestand (Inventar) — ⚡ View Live
 
-**Was existiert:** Route `#/products/inventory` aktiv, Placeholder-View
+**Was existiert:** InventoryView.tsx (632 Zeilen), Route `#/products/inventory` aktiv, echte Daten via fetchProducts()
+
+**Erledigt:**
+- [x] KPI-Cards (Gesamtartikel, Einheiten, Bestandswert, Niedrig-Bestand) — ✅ 2026-03-14
+- [x] Tabelle (Thumbnail, Name/Brand, SKU, Lagerplatz/Zone, Menge, Verfügbar/Reserviert, EK, Bestandswert, Marketplace-Icons) — ✅ 2026-03-14
+- [x] Quick-Filters (Alle, Niedrig-Bestand, Kein Lagerplatz, 30 Tage unbewegt) mit Counts — ✅ 2026-03-14
+- [x] Suche (Name, SKU, EAN) — ✅ 2026-03-14
+- [x] Sortierung alle Spalten (Name, SKU, Bin, Menge, Verfügbar, EK, Wert) — ✅ 2026-03-14
 
 **Offen:**
-- [ ] KPI-Cards (Gesamtartikel, Einheiten, Bestandswert, Niedrig-Bestand)
-- [ ] Tabelle (Thumbnail, Name, SKU, Bin, Menge, Zustand, EK, Bestandswert, Marketplace-Icons)
-- [ ] Filter (Zone, Bin, Menge-Range, Zustand, Marketplace-Status)
-- [ ] Quick-Filters (Niedrig-Bestand, Kein Lagerplatz, 30 Tage unbewegt)
+- [ ] Erweiterte Filter (Zone-Dropdown, Bin-Dropdown, Menge-Range, Zustand, Marketplace-Status)
 - [ ] Bulk-Actions (Umlagern, Inventur, Export)
 
 ### M5: Marktplatz-Views — ✅ Real
@@ -270,7 +274,7 @@
 
 **Offen:**
 - [x] FAKE→REAL: Echte API-Calls — ✅ Bereits real
-- [ ] Realtime-Sync (Bestand + Preis + Status eBay ↔ AvyCloud ↔ Kaufland)
+- [x] Realtime-Sync (Bestand + Preis + Status eBay ↔ AvyCloud ↔ Kaufland) — ✅ syncStockWithRetry + syncPriceToAllChannels + sync-event-bus + autoHealStockDiscrepancies + 3-Min-Listing-Sync (2026-03-14)
 - [ ] Gap-Analyse integriert in Listing-View (expandable Row)
 - [x] EbayListingsView.tsx LÖSCHEN — ✅ Gelöscht (BUG-006)
 - [ ] Generisches Pattern: Neue Marktplätze per Config, nicht per Component
@@ -341,14 +345,21 @@
 - [ ] Team-Management: Einladung, Rollen-Editor, Berechtigungen
 - [ ] Billing: Stripe-Integration (Waiting On)
 
-### M12: Lagerverwaltung — ⚡ Settings fertig
+### M12: Lagerverwaltung — ⚡ Tabs Live
 
-**Was existiert:** WarehouseSettingsView.tsx, Routes
+**Was existiert:** WarehouseView.tsx (838 Zeilen) mit 3-Tab-System, WarehouseSettingsView.tsx, 18 Backend-Endpoints
+
+**Erledigt:**
+- [x] Warehouse-View: 3-Tab-System (Lager-Struktur, Bewegungen, Inventur) — ✅ 2026-03-14
+- [x] Bewegungen-Tab: Filterable movement history (Typ, BIN, Datum) aus warehouseEvents — ✅ 2026-03-14
+- [x] Inventur-Tab: CRUD-Workflow (Erstellen, Zählen, Abschließen) mit Progress + Varianz — ✅ 2026-03-14
+- [x] Backend: GET /api/warehouse/movements (query + pagination) — ✅ 2026-03-14
+- [x] Backend: GET/POST /api/warehouse/inventories + counts + complete — ✅ 2026-03-14
+- [x] Firestore: warehouseEvents (bestehend), warehouse_inventories (neu) — ✅ 2026-03-14
 
 **Offen:**
-- [ ] Warehouse-View: Zonen-Tab, Bins-Tab, Inventur-Tab, Bewegungen-Tab
-- [ ] Backend: CRUD für Zonen, Bins, Inventur, Bewegungen
-- [ ] Firestore: warehouse_zones, warehouse_bins, warehouse_movements, warehouse_inventories
+- [ ] Bestandskorrektur aus Inventur-Abschluss (variance → auto stock-adjust)
+- [ ] CSV-Export für Inventur-Ergebnisse
 
 ### M14: Pack & Ship — ⚡ Pack existiert, Auto-Print fehlt
 
@@ -960,13 +971,13 @@ Umgekehrt: Filter "Nicht gelistet" zeigt dieses Produkt, obwohl Badge grün ist.
 
 **Betroffene Dateien + Fixes (nach Priorität):**
 
-| # | Datei | Was ändern | Prio |
-|---|-------|-----------|------|
-| 1 | `backend/services/stock-sync-dispatcher.js` | **Retry-Mechanismus:** Bei Fehler 1x automatisch retrien nach 30s. Fehlgeschlagene Syncs in `stock_sync_failures` Collection speichern mit Retry-Counter. | P1 |
-| 2 | `backend/routes/orders.js` → Pack/Ship-Endpoints | **Stock-Sync nach Kommissionierung:** Wenn Bestellung gepackt/versendet wird → `syncStockToAllChannels()` für ALLE betroffenen Produkte aufrufen. Nicht nur bei stock-out. | P1 |
-| 3 | `backend/services/listing-sync-runner.js` | **Sync-Intervall verkürzen:** `LISTING_SYNC_INTERVAL_MS` Default von 10 Min auf 3 Min. Und: Bei erkannter Diskrepanz (warehouseStock ≠ marketplaceQty) → sofortigen Push triggern. | P1 |
-| 4 | `backend/services/stock-sync-dispatcher.js` | **Alle Stock-Änderungen abfangen:** Nicht nur stock-out, auch: Inventur-Korrektur, Retouren-Einlagerung, manuelle Bestandsänderung → Überall `syncStockToAllChannels()` aufrufen. | P2 |
-| 5 | `backend/routes/marketplace.js` oder neuer Webhook-Endpoint | **eBay/Kaufland Webhooks empfangen** für Bestellungen → sofortiger Stock-Decrement + Sync zu anderen Kanälen. | P2 |
+| # | Datei | Was ändern | Prio | Status |
+|---|-------|-----------|------|--------|
+| 1 | `backend/services/stock-sync-dispatcher.js` | **Retry-Mechanismus:** syncStockWithRetry() mit 30s Retry + stock_sync_failures Logging | P1 | ✅ Done |
+| 2 | `backend/services/sync-event-bus.js` | **Stock-Sync bei JEDEM Status-Change:** order:status_changed → syncStockForOrderItems() (pack/ship/cancel) | P1 | ✅ Done |
+| 3 | `backend/services/listing-sync-runner.js` | **3-Min-Intervall + Auto-Heal:** autoHealStockDiscrepancies() erkennt Mismatches und pusht sofort | P1 | ✅ Done |
+| 4 | `backend/services/sync-event-bus.js + order-intake-*.js + warehouse.js` | **Alle Pfade:** Order-Intake, Stock-In/Out, Returns, Inventur → alle rufen syncStockWithRetry() | P2 | ✅ Done |
+| 5 | `backend/routes/marketplace.js` oder neuer Webhook-Endpoint | **eBay/Kaufland Webhooks empfangen** für Bestellungen → sofortiger Stock-Decrement + Sync zu anderen Kanälen. | P2 | ❌ Offen |
 
 **Datenfluss (Ist-Zustand):**
 ```

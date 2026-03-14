@@ -17,9 +17,19 @@ import { PageHeader } from './ui/PageHeader';
 import { HelpDisclosure } from './ui/HelpDisclosure';
 import { Notice } from './ui/Notice';
 import { ConfirmDialog } from './ui/ConfirmDialog';
+import WarehouseMovementsTab from './warehouse/WarehouseMovementsTab';
+import WarehouseInventoryTab from './warehouse/WarehouseInventoryTab';
 
 const ZONE_OPTIONS: Array<'X' | 'XS' | 'S' | 'M' | 'L' | 'XL' | 'XQ'> = ['X', 'XS', 'S', 'M', 'L', 'XL', 'XQ'];
 const ETAGE_OPTIONS: Array<'GA' | 'UG' | 'EG'> = ['GA', 'UG', 'EG'];
+
+type WarehouseTab = 'structure' | 'movements' | 'inventory';
+
+const TAB_CONFIG: Array<{ key: WarehouseTab; label: string }> = [
+  { key: 'structure', label: 'Lager-Struktur' },
+  { key: 'movements', label: 'Bewegungen' },
+  { key: 'inventory', label: 'Inventur' },
+];
 
 interface WarehouseViewProps {
   refreshBin?: WarehouseBin | null;
@@ -27,6 +37,7 @@ interface WarehouseViewProps {
 }
 
 const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinConsumed }) => {
+  const [activeTab, setActiveTab] = useState<WarehouseTab>('structure');
   const [zones, setZones] = useState<WarehouseLayout[]>([]);
   const [selectedZone, setSelectedZone] = useState<WarehouseLayout | null>(null);
   const [bins, setBins] = useState<WarehouseBin[]>([]);
@@ -436,7 +447,31 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
         </HelpDisclosure>
       </PageHeader>
 
-      {zones.length === 0 ? (
+      {/* Tab Bar */}
+      <div className="flex gap-1 border-b border-app-border">
+        {TAB_CONFIG.map((tab) => (
+          <button
+            key={tab.key}
+            onClick={() => setActiveTab(tab.key)}
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === tab.key
+                ? 'border-accent text-accent'
+                : 'border-transparent text-txt-secondary hover:text-txt-primary'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Movements Tab */}
+      {activeTab === 'movements' && <WarehouseMovementsTab />}
+
+      {/* Inventory Tab */}
+      {activeTab === 'inventory' && <WarehouseInventoryTab />}
+
+      {/* Structure Tab (existing content) */}
+      {activeTab !== 'structure' ? null : zones.length === 0 ? (
         <Notice tone="info" title="Noch keine Lagerstruktur">
           Lege zuerst eine Zone/Etage-Struktur an (unten: „Neue Lagerstruktur anlegen“). Danach kannst du Bins auswählen und Labels drucken.
         </Notice>
@@ -463,6 +498,7 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
 
       {/* Header moved to PageHeader above */}
 
+      {activeTab === 'structure' && (<>
       <div className="bg-app-surface rounded-2xl p-5 border border-app-border space-y-3">
         <h3 className="text-lg font-semibold text-txt-primary">BIN-Auswahl & Druck</h3>
         <div className="text-xs text-txt-muted">
@@ -793,6 +829,7 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
           )}
         </div>
       )}
+      </>)}
     </section>
   );
 };

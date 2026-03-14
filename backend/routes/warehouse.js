@@ -512,4 +512,274 @@ router.put('/settings', async (req, res) => {
   }
 });
 
+// ── Movements (Bewegungen) ────────────────────────────────────────
+
+router.get('/movements', requirePermission('warehouse', 'read'), async (req, res) => {
+  try {
+    const { type, binCode, productId, from, to, limit: rawLimit, offset: rawOffset } = req.query;
+    const limit = Math.min(parseInt(rawLimit || '50', 10) || 50, 200);
+    const offset = parseInt(rawOffset || '0', 10) || 0;
+
+    let query = firestore.collection('warehouseEvents').orderBy('createdAt', 'desc');
+
+    if (type) query = query.where('type', '==', type);
+    if (binCode) query = query.where('binCode', '==', binCode);
+    if (productId) query = query.where('productId', '==', productId);
+
+    // Date range filters — only apply if no other where clause conflicts with orderBy
+    // Firestore limitation: range filter + orderBy must be on same field
+    // We use createdAt for orderBy, so date range works
+    if (from) {
+      query = query.where('createdAt', '>=', new Date(from));
+    }
+    if (to) {
+      const toDate = new Date(to);
+      toDate.setDate(toDate.getDate() + 1); // inclusive end day
+      query = query.where('createdAt', '<', toDate);
+    }
+
+    // For total count, we need a separate query (Firestore has no COUNT)
+    // We'll estimate from the limited result set
+    const snap = await query.limit(limit + offset + 1).get();
+    const allDocs = snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+
+    // Convert Firestore Timestamps to ISO strings
+    const movements = allDocs.slice(offset, offset + limit).map((m) => ({
+      ...m,
+      createdAt: m.createdAt?.toDate ? m.createdAt.toDate().toISOString() : m.createdAt,
+    }));
+
+    res.json({
+      ok: true,
+      movements,
+      total: allDocs.length,
+      hasMore: allDocs.length > offset + limit,
+    });
+  } catch (err) {
+    console.error(`[GET /api/warehouse/movements] ${err.message}`, err);
+    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: err.message } });
+  }
+});
+
+// ── Inventories (Inventur) ────────────────────────────────────────
+
+const INVENTORIES_COLLECTION = 'warehouse_inventories';
+
+// List all inventories
+router.get('/inventories', requirePermission('warehouse', 'read'), async (req, res) => {
+  try {
+    const tenantId = getWarehouseTenantId(req);
+    const snap = await firestore.collection(INVENTORIES_COLLECTION)
+      .where('tenantId', '==', tenantId)
+      .orderBy('createdAt', 'desc')
+      .limit(50)
+      .get();
+
+    const inventories = snap.docs.map((doc) => {
+      const d = doc.data();
+      return {
+        id: doc.id,
+        ...d,
+        createdAt: d.createdAt?.toDate ? d.createdAt.toDate().toISOString() : d.createdAt,
+        startedAt: d.startedAt?.toDate ? d.startedAt.toDate().toISOString() : d.startedAt,
+        completedAt: d.completedAt?.toDate ? d.completedAt.toDate().toISOString() : d.completedAt,
+        counts: undefined, // Don't send counts in list view (can be large)
+      };
+    });
+
+    res.json({ ok: true, inventories });
+  } catch (err) {
+    console.error(`[GET /api/warehouse/inventories] ${err.message}`, err);
+    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: err.message } });
+  }
+});
+
+// Get single inventory with counts
+router.get('/inventories/:id', requirePermission('warehouse', 'read'), async (req, res) => {
+  try {
+    const doc = await firestore.collection(INVENTORIES_COLLECTION).doc(req.params.id).get();
+    if (!doc.exists) return res.status(404).json({ ok: false, error: { code: 'NOT_FOUND', message: 'Inventur nicht gefunden' } });
+
+    const d = doc.data();
+    res.json({
+      ok: true,
+      inventory: {
+        id: doc.id,
+        ...d,
+        createdAt: d.createdAt?.toDate ? d.createdAt.toDate().toISOString() : d.createdAt,
+        startedAt: d.startedAt?.toDate ? d.startedAt.toDate().toISOString() : d.startedAt,
+        completedAt: d.completedAt?.toDate ? d.completedAt.toDate().toISOString() : d.completedAt,
+      },
+    });
+  } catch (err) {
+    console.error(`[GET /api/warehouse/inventories/:id] ${err.message}`, err);
+    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: err.message } });
+  }
+});
+
+// Create new inventory cycle
+router.post('/inventories', requirePermission('warehouse', 'write'), async (req, res) => {
+  try {
+    const tenantId = getWarehouseTenantId(req);
+    const { name, scope = 'full', zoneFilter } = req.body;
+
+    if (!name || typeof name !== 'string' || name.trim().length < 2) {
+      return res.status(400).json({ ok: false, error: { code: 'INVALID', message: 'Name ist erforderlich (min. 2 Zeichen)' } });
+    }
+
+    // Build initial bin/product list from warehouse data
+    const bins = [];
+    if (scope === 'zone' && zoneFilter) {
+      // Only bins from the specified zone
+      for (const etage of ['GA', 'UG', 'EG']) {
+        const zoneBins = await getBinsForZone(zoneFilter, etage);
+        bins.push(...zoneBins.filter((b) => b.productCount > 0));
+      }
+    } else {
+      // All zones
+      const zones = await listWarehouseZones();
+      for (const z of zones) {
+        const zoneBins = await getBinsForZone(z.zone, z.etage);
+        bins.push(...zoneBins.filter((b) => b.productCount > 0));
+      }
+    }
+
+    // Build counts list from bins with products
+    const counts = [];
+    for (const bin of bins) {
+      if (bin.products && bin.products.length > 0) {
+        for (const prod of bin.products) {
+          counts.push({
+            binCode: bin.code,
+            productId: prod.productId,
+            sku: prod.sku || '',
+            productName: prod.name || '',
+            systemQty: prod.quantity || 0,
+            countedQty: null,
+            variance: null,
+            countedAt: null,
+          });
+        }
+      }
+    }
+
+    const now = new Date().toISOString();
+    const inventoryData = {
+      tenantId,
+      name: name.trim(),
+      status: 'active',
+      scope,
+      zoneFilter: scope === 'zone' ? zoneFilter : null,
+      createdAt: now,
+      startedAt: now,
+      completedAt: null,
+      counts,
+      summary: {
+        totalItems: counts.length,
+        countedItems: 0,
+        totalVariance: 0,
+        completionPct: 0,
+      },
+      createdBy: req.user?.uid || null,
+    };
+
+    const ref = await firestore.collection(INVENTORIES_COLLECTION).add(inventoryData);
+    res.json({ ok: true, inventory: { id: ref.id, ...inventoryData } });
+  } catch (err) {
+    console.error(`[POST /api/warehouse/inventories] ${err.message}`, err);
+    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: err.message } });
+  }
+});
+
+// Record counts for an inventory
+router.post('/inventories/:id/counts', requirePermission('warehouse', 'write'), async (req, res) => {
+  try {
+    const docRef = firestore.collection(INVENTORIES_COLLECTION).doc(req.params.id);
+    const doc = await docRef.get();
+    if (!doc.exists) return res.status(404).json({ ok: false, error: { code: 'NOT_FOUND', message: 'Inventur nicht gefunden' } });
+
+    const data = doc.data();
+    if (data.status === 'completed') {
+      return res.status(400).json({ ok: false, error: { code: 'COMPLETED', message: 'Inventur bereits abgeschlossen' } });
+    }
+
+    const { counts: newCounts } = req.body;
+    if (!Array.isArray(newCounts) || newCounts.length === 0) {
+      return res.status(400).json({ ok: false, error: { code: 'INVALID', message: 'counts Array erforderlich' } });
+    }
+
+    // Merge new counts into existing
+    const existingCounts = data.counts || [];
+    const now = new Date().toISOString();
+
+    for (const nc of newCounts) {
+      const idx = existingCounts.findIndex(
+        (c) => c.binCode === nc.binCode && c.productId === nc.productId
+      );
+      if (idx >= 0) {
+        existingCounts[idx].countedQty = nc.countedQty;
+        existingCounts[idx].variance = nc.countedQty - existingCounts[idx].systemQty;
+        existingCounts[idx].countedAt = now;
+      }
+    }
+
+    const countedItems = existingCounts.filter((c) => c.countedQty !== null).length;
+    const totalVariance = existingCounts
+      .filter((c) => c.variance !== null)
+      .reduce((sum, c) => sum + c.variance, 0);
+
+    await docRef.update({
+      counts: existingCounts,
+      summary: {
+        totalItems: existingCounts.length,
+        countedItems,
+        totalVariance,
+        completionPct: existingCounts.length > 0 ? Math.round((countedItems / existingCounts.length) * 100) : 0,
+      },
+    });
+
+    res.json({ ok: true, countedItems, totalVariance });
+  } catch (err) {
+    console.error(`[POST /api/warehouse/inventories/:id/counts] ${err.message}`, err);
+    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: err.message } });
+  }
+});
+
+// Complete an inventory
+router.post('/inventories/:id/complete', requirePermission('warehouse', 'write'), async (req, res) => {
+  try {
+    const docRef = firestore.collection(INVENTORIES_COLLECTION).doc(req.params.id);
+    const doc = await docRef.get();
+    if (!doc.exists) return res.status(404).json({ ok: false, error: { code: 'NOT_FOUND', message: 'Inventur nicht gefunden' } });
+
+    const data = doc.data();
+    if (data.status === 'completed') {
+      return res.status(400).json({ ok: false, error: { code: 'COMPLETED', message: 'Inventur bereits abgeschlossen' } });
+    }
+
+    const counts = data.counts || [];
+    const variances = counts.filter((c) => c.variance !== null && c.variance !== 0);
+    const countedItems = counts.filter((c) => c.countedQty !== null).length;
+    const totalVariance = counts
+      .filter((c) => c.variance !== null)
+      .reduce((sum, c) => sum + c.variance, 0);
+
+    await docRef.update({
+      status: 'completed',
+      completedAt: new Date().toISOString(),
+      summary: {
+        totalItems: counts.length,
+        countedItems,
+        totalVariance,
+        completionPct: 100,
+      },
+    });
+
+    res.json({ ok: true, variances, totalVariance });
+  } catch (err) {
+    console.error(`[POST /api/warehouse/inventories/:id/complete] ${err.message}`, err);
+    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: err.message } });
+  }
+});
+
 module.exports = { router };

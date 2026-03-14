@@ -29,6 +29,7 @@ import { CategoryManagement } from './components/CategoryManagement';
 import { AdminPanel } from './components/admin/AdminPanel';
 import OrdersView from './components/OrdersView';
 import MarketplaceListingsView from './components/MarketplaceListingsView';
+import InventoryView from './components/InventoryView';
 import { IntegrationsHub } from './components/IntegrationsHub';
 import { ReturnsView } from './components/orders/ReturnsView';
 import { ShippingView } from './components/orders/ShippingView';
@@ -370,8 +371,7 @@ const mergeIdentifiedProducts = (
 const VIEW_MIGRATIONS: Partial<Record<string, View>> = {
   // Historical: "admin" used to be the product list; keep behavior stable.
   admin: 'products',
-  // Historical: "inventory" used to be the full product list; keep behavior stable.
-  inventory: 'products',
+  // "inventory" is now a dedicated view (InventoryView).
   home: 'home',
   search: 'search',
   ebay: 'marketplace-ebay',
@@ -915,6 +915,18 @@ const AppInner: React.FC = () => {
         );
       // 'sheet' view removed — ProductSheet is now overlay-only (see below in JSX)
       case 'inventory':
+        if (!hasPermission('products', 'read')) {
+          return <div className="text-center p-8 text-txt-muted">{t('error.forbidden')}</div>;
+        }
+        return (
+          <InventoryView
+            onNavigate={(next) => setView(next as View)}
+            onSelectProduct={(product) => {
+              setCurrentProduct(product);
+              setInventoryFocusId(product.id);
+            }}
+          />
+        );
       case 'products':
         if (!hasPermission('products', 'read')) {
           return <div className="text-center p-8 text-txt-muted">{t('error.forbidden')}</div>;
@@ -924,7 +936,7 @@ const AppInner: React.FC = () => {
             <ProductsPageHeader
               totalCount={products.length}
               filteredCount={products.length}
-              mode={view === 'inventory' ? 'inventory' : 'products'}
+              mode="products"
               onCreateProduct={() => {
                 window.location.hash = '#/input';
                 setView('input');
