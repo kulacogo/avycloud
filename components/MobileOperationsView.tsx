@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Order, Product } from '../types';
 import { getProductQuantity } from '../utils/product';
-import { fetchOrders as fetchOrdersApi, syncOrders as syncOrdersApi, completeOrder, packOrder, packAndShip, stockInProduct, stockOutProduct } from '../api/client';
+import { fetchOrders as fetchOrdersApi, syncOrders as syncOrdersApi, completeOrder, packOrder, packAndShip, stockInProduct, stockOutProduct, fetchProfile } from '../api/client';
 import { useI18n } from '../i18n';
 import { compareBinCodesForPickRoute } from '../utils/warehouseRoute';
 import type { UploadGroupPayload } from '../hooks/useIdentification';
@@ -114,6 +114,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
   const [packMessage, setPackMessage] = useState<string | null>(null);
   const [packScopedOrderKey, setPackScopedOrderKey] = useState<string | null>(null);
   const [packSelectedKey, setPackSelectedKey] = useState<string | null>(null);
+  const [printingPrefs, setPrintingPrefs] = useState<{ labelFormat?: string; autoPrint?: boolean }>({});
   // Mobile pick progress (supports partial picks across bins)
   const [pickedByItemId, setPickedByItemId] = useState<Record<string, number>>({});
   // Local bin deltas to avoid stale product data causing repeated picks from the same BIN
@@ -303,6 +304,18 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
       setPackSelectedKey(null);
     }
   }, [packScopedOrderKey, readyToPackOrders, getOrderCouplingKey]);
+
+  // Load user printing preferences when entering pack mode
+  useEffect(() => {
+    if (mode === 'operations-pack') {
+      fetchProfile()
+        .then((data) => {
+          if (data.printing) setPrintingPrefs(data.printing);
+        })
+        .catch(() => {}); // Non-critical — defaults work fine
+    }
+  }, [mode]);
+
   const equalsSkuScan = (a?: string | null, b?: string | null) => {
     const na = normalizeScan(a);
     const nb = normalizeScan(b);
@@ -1506,15 +1519,24 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
             // Pre-open window BEFORE async work to avoid popup blocker
             const printWindow = window.open('about:blank', '_blank');
 
-            // Pack + Ship + Print label
-            const result = await packAndShip(selectedItem.orderId, weightOpt);
+            // Pack + Ship + Print label (with user's preferred format)
+            const result = await packAndShip(selectedItem.orderId, {
+              ...weightOpt,
+              labelFormat: printingPrefs.labelFormat || 'a6',
+            });
             if (result.labelBlobUrl && printWindow) {
               // Navigate pre-opened window to the PDF blob URL
               printWindow.location.href = result.labelBlobUrl;
+              // Auto-print if user preference enabled
+              if (printingPrefs.autoPrint) {
+                printWindow.onload = () => {
+                  try { printWindow.print(); } catch (_) { /* cross-origin or blocked */ }
+                };
+              }
               // Revoke blob URL after 60s to free memory
               setTimeout(() => URL.revokeObjectURL(result.labelBlobUrl!), 60000);
               setPackMessage(
-                `${selectedItem.orderNumber || selectedItem.orderId} verpackt & Label erstellt (${result.carrier || '?'}) — Druckdialog geöffnet.`
+                `${selectedItem.orderNumber || selectedItem.orderId} verpackt & Label erstellt (${result.carrier || '?'}) — ${printingPrefs.autoPrint ? 'Druckdialog geöffnet.' : 'Label-Fenster geöffnet.'}`
               );
             } else {
               // Close the blank tab if no label available

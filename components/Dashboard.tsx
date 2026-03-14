@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { DashboardMetrics, FinanceMetrics, Product } from '../types';
-import { fetchDashboardMetrics, fetchFinanceMetrics, fetchSyncStatus, fetchReorderAlerts, type SyncStatusData } from '../api/client';
+import { fetchDashboardMetrics, fetchFinanceMetrics, fetchSyncStatus, fetchReorderAlerts, fetchActivityFeed, type SyncStatusData, type ActivityEvent } from '../api/client';
 import {
   getProductAvailableQuantity,
   getProductPhysicalQuantity,
@@ -525,6 +525,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
   const [reorderAlerts, setReorderAlerts] = useState<any[]>([]);
   const [alertsLoading, setAlertsLoading] = useState(true);
+  const [activities, setActivities] = useState<ActivityEvent[]>([]);
   const loadingRef = useRef(false);
 
   const [internalPreset, setInternalPreset] = useState('month_to_date');
@@ -560,11 +561,12 @@ export const Dashboard: React.FC<DashboardProps> = ({
     const fromDate = activePreset === 'custom' ? from : undefined;
     const toDate = activePreset === 'custom' ? to : undefined;
     try {
-      const [mResult, fResult, sResult, aResult] = await Promise.allSettled([
+      const [mResult, fResult, sResult, aResult, actResult] = await Promise.allSettled([
         fetchDashboardMetrics({ days: 7, preset: activePreset, from_date: fromDate, to_date: toDate }, { timeoutMs: long ? 90000 : 28000 }),
         fetchFinanceMetrics(activePreset, { timeoutMs: 40000, from_date: fromDate, to_date: toDate }),
         fetchSyncStatus(),
         fetchReorderAlerts(),
+        fetchActivityFeed(15),
       ]);
       if (mResult.status === 'fulfilled') {
         setMetrics(mResult.value);
@@ -575,6 +577,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
       if (fResult.status === 'fulfilled') setFinance(fResult.value);
       if (sResult.status === 'fulfilled') setSyncStatus(sResult.value);
       if (aResult.status === 'fulfilled') setReorderAlerts(aResult.value || []);
+      if (actResult.status === 'fulfilled') setActivities(actResult.value || []);
     } finally {
       setMetricsLoading(false);
       setFinanceLoading(false);
@@ -951,6 +954,42 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   ))}
                 </tbody>
               </table>
+            </div>
+          </div>
+        </Section>
+      )}
+
+      {/* ══ 6. AKTIVITÄTS-FEED ══════════════════════════════════════ */}
+      {activities.length > 0 && (
+        <Section title="Aktivitäts-Feed" badge="24h">
+          <div className="rounded-lg border border-app-border bg-app-surface overflow-hidden">
+            <div className="divide-y divide-app-border max-h-80 overflow-y-auto">
+              {activities.map((a) => {
+                const typeIcon = { order: '\uD83D\uDCE6', shipment: '\uD83D\uDE9A', return: '\u21A9\uFE0F', sync: '\uD83D\uDD04' }[a.type] || '\u2022';
+                const statusColor = a.status === 'error' ? 'text-danger'
+                  : a.status === 'shipped' || a.status === 'success' ? 'text-success'
+                  : 'text-txt-secondary';
+                const timeAgo = (() => {
+                  const diff = Date.now() - new Date(a.timestamp).getTime();
+                  const mins = Math.floor(diff / 60000);
+                  if (mins < 1) return 'gerade eben';
+                  if (mins < 60) return `vor ${mins} Min`;
+                  const hrs = Math.floor(mins / 60);
+                  if (hrs < 24) return `vor ${hrs} Std`;
+                  return `vor ${Math.floor(hrs / 24)} Tag(en)`;
+                })();
+                return (
+                  <div key={`${a.type}-${a.id}`} className="px-4 py-2.5 flex items-center gap-3 hover:bg-app-elevated/50 transition-colors">
+                    <span className="text-base shrink-0">{typeIcon}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-txt-primary truncate">{a.title}</p>
+                      {a.detail && <p className="text-xs text-txt-muted truncate">{a.detail}</p>}
+                    </div>
+                    <span className={`text-xs font-medium ${statusColor} shrink-0`}>{a.status}</span>
+                    <span className="text-xs text-txt-muted shrink-0 tabular-nums">{timeAgo}</span>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </Section>

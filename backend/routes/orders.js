@@ -428,6 +428,97 @@ router.get('/dashboard/finance', requirePermission('dashboard', 'read'), async (
   });
 });
 
+/**
+ * GET /api/dashboard/activity
+ * Returns recent activity events (orders, shipments, returns, stock syncs).
+ */
+router.get('/dashboard/activity', requirePermission('orders', 'read'), async (req, res) => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit) || 20, 50);
+    const activities = [];
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+
+    const [ordersSnap, shipmentsSnap, returnsSnap, syncSnap] = await Promise.all([
+      firestore.collection('orders')
+        .where('createdAt', '>=', since)
+        .orderBy('createdAt', 'desc')
+        .limit(10)
+        .get(),
+      firestore.collection('shipments')
+        .where('createdAt', '>=', since)
+        .orderBy('createdAt', 'desc')
+        .limit(10)
+        .get(),
+      firestore.collection('returns')
+        .where('createdAt', '>=', since)
+        .orderBy('createdAt', 'desc')
+        .limit(10)
+        .get(),
+      firestore.collection('stock_sync_log')
+        .where('createdAt', '>=', since)
+        .orderBy('createdAt', 'desc')
+        .limit(10)
+        .get(),
+    ]);
+
+    for (const doc of ordersSnap.docs) {
+      const d = doc.data();
+      activities.push({
+        type: 'order',
+        id: doc.id,
+        title: `Auftrag ${d.orderNumber || doc.id}`,
+        detail: d.customer?.name || d.source || '',
+        status: d.omsStatus || d.status || 'neu',
+        timestamp: d.createdAt,
+      });
+    }
+
+    for (const doc of shipmentsSnap.docs) {
+      const d = doc.data();
+      activities.push({
+        type: 'shipment',
+        id: doc.id,
+        title: `Versand ${d.trackingNumber || ''}`,
+        detail: d.carrier || '',
+        status: 'shipped',
+        timestamp: d.createdAt,
+      });
+    }
+
+    for (const doc of returnsSnap.docs) {
+      const d = doc.data();
+      activities.push({
+        type: 'return',
+        id: doc.id,
+        title: `Retoure ${d.returnNumber || doc.id}`,
+        detail: d.reason || '',
+        status: d.status || 'pending',
+        timestamp: d.createdAt,
+      });
+    }
+
+    for (const doc of syncSnap.docs) {
+      const d = doc.data();
+      const channels = (d.results || []).map((r) => r.channel).join(', ');
+      const hasError = (d.results || []).some((r) => r.status === 'error');
+      activities.push({
+        type: 'sync',
+        id: doc.id,
+        title: `Stock-Sync ${d.productId || ''}`,
+        detail: channels,
+        status: hasError ? 'error' : 'success',
+        timestamp: d.createdAt,
+      });
+    }
+
+    activities.sort((a, b) => (b.timestamp || '').localeCompare(a.timestamp || ''));
+    res.json({ ok: true, data: activities.slice(0, limit) });
+  } catch (err) {
+    console.error(`[GET /api/dashboard/activity] ${err.message}`, err);
+    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: err.message } });
+  }
+});
+
 router.post('/orders/sync', requirePermission('orders', 'read'), async (req, res) => {
   try {
     // Kick off background sync, but respond immediately with cached orders

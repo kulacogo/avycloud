@@ -93,7 +93,7 @@ router.put('/settings/profile', async (req, res) => {
       return res.status(401).json({ ok: false, error: { code: 'UNAUTHORIZED', message: 'Not authenticated' } });
     }
     const tenantId = getTenantId(req);
-    const allowedFields = ['vorname', 'nachname', 'notifications', 'theme'];
+    const allowedFields = ['vorname', 'nachname', 'notifications', 'theme', 'printing'];
     const data = {};
     for (const key of allowedFields) {
       if (req.body[key] !== undefined) {

@@ -83,10 +83,10 @@
 | **M5: Marktplatz-Views** | ✅ Real | FAKE→REAL bestätigt (alle API-Calls echt) |
 | **M6: OMS** | ⚡ Phase A Live | Natives OMS aktiv, BaseLinker deprecated, Phase B/C offen |
 | **M9: Integrations-Hub** | 🔴 Kein Self-Service | Wizard + Auth-Flows fehlen komplett |
-| **M10: Analytics** | 🔴 Geplant | Dashboard-Überarbeitung + Reports |
+| **M10: Analytics** | ⚡ Activity Feed Live | Dashboard Activity Feed (24h Timeline), Reports offen |
 | **M11: Einstellungen** | ✅ Real | FAKE→REAL bestätigt (Company, Profile, Order, Warehouse, API) |
 | **M12: Lagerverwaltung** | ⚡ Tabs Live | 3-Tab-System (Struktur/Bewegungen/Inventur), CRUD + Events |
-| **M14: Pack & Ship** | 🔴 Geplant | SKU-Scan → Auto-Label-Print, Drucker-Voreinstellungen |
+| **M14: Pack & Ship** | ⚡ Auto-Print Live | Label-Format-Prefs, Auto-Print nach Pack, packAndShip mit Format |
 | **M-AUTO: Automatisierung** | 🔴 Geplant | Bulk-Import, Repricing-UI |
 | **M-MOBILE: Mobile UI** | ⚡ Funktional, UX-Mängel | Logo unscharf, Button-Kontrast, keine Icons, Dashboard KPIs leer |
 | **FAKE→REAL** | ✅ 12/12 done | Alle Views nutzen echte API-Daten (Shipping, Invoices, Returns, Billing: 2026-03-13) |
@@ -113,7 +113,7 @@
 - [x] **BUG-028: Inkonsistente Lager/Marktplatz-Mengen** — Retry-Mechanismus, Stock-Sync nach Pack/Ship, Listing-Sync 3 Min + Auto-Heal
 - [x] **Aufträge Bulk-Status-Change** — Backend POST /api/orders/bulk-transition + Frontend Checkboxen + Bulk-Action-Bar
 - [x] **BRAND: Sidebar-Logo ersetzen** — Logo-Icon immer sichtbar, Expanded: Icon + Theme-Wordmark (dark/light), CSS-Toggle via `.logo-dark`/`.logo-light`
-- [ ] **⛔ BUG-040: SICHTBAR IN PROD — Alte BL-Orders Backfill** — Firestore-Batch-Script: `marketplace` aus `raw`-Daten extrahieren + Status aus Marketplace-API reconcilen. NICHT GEFIXT.
+- [ ] **⛔⛔⛔ BUG-040: BLOCKIERT ALLES — BL-Orders Daten-Migration.** BL-Code entfernt am 14.03. 02:05 (✅), aber alle VOR 02:05 importierten Orders haben `source:'baselinker'`, keine Kundendaten, falscher Status. Betrifft brandneue Bestellungen (z.B. 07-14365-99405 vom 14.03. 00:02). **BRAUCHT: Firestore-Batch-Script** das `marketplace` + Adresse + Zahlung + Status aus `raw`-Daten nachfüllt. OHNE dieses Script ist die Bestellungsseite KAPUTT.
 - [x] **BUG-041: Kaufland Order-Intake fehlende Felder** — ✅ paidAt, paymentMethod, shippingCost, shippedAt, billingAddress (2026-03-13)
 - [x] **BUG-042: Kaufland Adresse unvollständig** — ✅ billingAddress mit Fallback auf shippingAddress (2026-03-13)
 - [x] **BUG-043: Returns-Engine Referenz-Fehler** — ✅ Fixed (totalRefund + ebayReason korrekt, Pagination)
@@ -193,10 +193,10 @@
 
 #### KW 14 (31. März – 4. April 2026) — M14 Pack & Ship + M10 Dashboard
 - [x] **M6 OMS Phase A** — ✅ Bereits live (vorgezogen, siehe M6 Detail-Sektion)
-- [ ] **M14-P1: Drucker & Label-Format Voreinstellungen** — User-Settings für Drucker, Format, Auto-Print
-- [ ] **M14-P2: PackStation** — SKU-Scan Interface, Scan-Fortschritt, Item-Validierung
-- [ ] **M14-P3: Auto-Print Flow** — Scan komplett → Auto-Ship → Auto-Label-Print
-- [ ] **M10: Dashboard** — Revenue, Orders, Inventory KPIs, Charts
+- [x] **M14-P1: Drucker & Label-Format Voreinstellungen** — ✅ ProfileSettings + Backend allowedFields, Label-Format (a6/a4) + Auto-Print Toggle (2026-03-14)
+- [x] **M14-P2: PackStation** — ✅ Bereits live (SKU-Scan, Item-Validierung, Fortschritt in MobileOperationsView)
+- [x] **M14-P3: Auto-Print Flow** — ✅ packAndShip mit labelFormat, auto window.print() bei autoPrint-Pref, User-Prefs geladen bei Pack-Mode-Entry (2026-03-14)
+- [x] **M10: Dashboard** — ✅ Activity Feed (24h Timeline: Orders/Shipments/Returns/Sync), Backend GET /api/dashboard/activity (2026-03-14)
 
 ### Phase B: Integrationen & Skalierung (KW 15–20)
 
@@ -326,12 +326,15 @@
 - [ ] Backend: routes/integrations.js (CRUD + OAuth Callback)
 - [ ] Migration: Bestehende API-Clients mit Firestore-Fallback auf ENV
 
-### M10: Analytics & Reporting — 🔴 Geplant
+### M10: Analytics & Reporting — ⚡ Activity Feed Live
 
-**Was existiert:** Dashboard funktional (Revenue KPIs, Orders, Shipping-Kosten)
+**Was existiert:** Dashboard funktional (Revenue KPIs, Orders, Shipping-Kosten, Activity Feed)
+
+**Erledigt:**
+- [x] Dashboard Activity Feed: 24h Timeline (Orders, Shipments, Returns, Stock-Syncs) — ✅ 2026-03-14
+- [x] Backend: GET /api/dashboard/activity Endpoint — ✅ 2026-03-14
 
 **Offen:**
-- [ ] Dashboard neu: Revenue/Order/Inventory KPIs mit Trends, Charts, Aktivitäts-Feed
 - [ ] Reporting-Seite: Umsatz, Bestand, Margen, Bestseller, Retouren
 - [ ] Export: CSV, Excel, PDF
 - [ ] Backend: routes/reports.js, services/analytics.js
@@ -361,7 +364,7 @@
 - [ ] Bestandskorrektur aus Inventur-Abschluss (variance → auto stock-adjust)
 - [ ] CSV-Export für Inventur-Ergebnisse
 
-### M14: Pack & Ship — ⚡ Pack existiert, Auto-Print fehlt
+### M14: Pack & Ship — ⚡ Auto-Print Live
 
 > **Ziel:** Versandlabel wird automatisch gedruckt sobald SKU im Pack-Modul gescannt wird. Drucker und Label-Format pro User vordefinierbar.
 
@@ -380,18 +383,18 @@
 - i18n komplett (DE/EN/TR) für Pack-Modus
 - RBAC: `orders.pack` Permission
 
-**Was FEHLT:**
+**Erledigt (2026-03-14):**
 
 **Erweiterung 1: Auto-Print nach Pack-Scan**
-- [ ] **MobileOperationsView.tsx → Pack-Flow erweitern:** Nach erfolgreichem "Verpackt" (packOrder) automatisch `shipOrder()` aufrufen → Label-PDF holen → Print-Dialog öffnen. Aktuell muss der User manuell in die Auftragsmaske wechseln und dort "Label drucken" klicken.
-- [ ] **`packAndShip()` nutzen:** Die Funktion existiert bereits in api/client.ts — sie muss im MobileOperationsView Pack-Modus aufgerufen werden statt nur `packOrder()`. Nach Erfolg: Label-PDF automatisch an Drucker senden.
-- [ ] **Fehler-Handling:** Wenn Label-Erstellung fehlschlägt → klare Fehlermeldung im Pack-Interface, Bestellung bleibt auf "packed" (KEIN "shipped" ohne bestätigtes Label).
+- [x] **MobileOperationsView.tsx → Pack-Flow erweitern:** `packAndShip()` mit `labelFormat` aus User-Prefs, `window.print()` bei `autoPrint`-Einstellung — ✅
+- [x] **`packAndShip()` nutzen:** Bereits in Verwendung seit OMS, jetzt erweitert mit `labelFormat` + `?format=` an Label-Download-URL — ✅
+- [x] **Fehler-Handling:** Label-Fehler zeigt Nachricht, Bestellung bleibt packed (kein shipped ohne Label) — ✅ Bereits implementiert
 
 **Erweiterung 2: Drucker & Label-Format Voreinstellungen pro User**
-- [ ] **Firestore: `user_profiles` erweitern** — Neue Felder: `printing.labelFormat` ('thermal_10x15' | 'a4' | 'a6'), `printing.autoPrint` (boolean)
-- [ ] **Backend: `PUT /api/settings/profile`** erweitern — `printing` Objekt akzeptieren und validieren
-- [ ] **Frontend: ProfileSettings erweitern** — Sektion "Druckeinstellungen": Label-Format Dropdown (10x15 Thermodruck, A4, A6), Auto-Print Toggle
-- [ ] **SendCloud Label-Format durchreichen** — `label_printer` (10x15 thermal) vs. `normal_printer` (A4). Format aus User-Setting an `downloadLabelPdf()` übergeben. Aktuell hardcoded auf `label_printer`.
+- [x] **Firestore: `user_profiles` erweitern** — `printing.labelFormat` ('a6'|'a4'), `printing.autoPrint` (boolean) — ✅
+- [x] **Backend: `PUT /api/settings/profile`** — `printing` in allowedFields ergänzt — ✅
+- [x] **Frontend: ProfileSettings erweitern** — "Druckeinstellungen" Card mit Format-Radio + Auto-Print Toggle — ✅
+- [x] **SendCloud Label-Format durchreichen** — `packAndShip()` → `shipOrder(labelFormat)` + `GET /label?format=a6|a4` — ✅
 
 **Betroffene Dateien:**
 
@@ -656,7 +659,7 @@
 | BUG-038 | **Retouren-Seite leer** — Sync 4h Intervall + 7 Tage Lookback. Stornierungen ≠ Retouren in Kaufland. | P1 | ✅ Fixed (Event-Driven Sync + 6h Safety-Net, 30d Lookback) |
 | BUG-039 | **Versand & Labels Seite leer** — SendCloud Sync 2h Intervall. Kein Bug — Seite zeigt Daten erst nach Label-Erstellung. | P2 | ✅ Fixed (Event-Driven Sync + 6h Safety-Net) |
 | FEAT-EDS | **🚀 Event-Driven Sync Architektur** — Intervall-basierte Syncs durch Event-getriebene Echtzeit-Syncs ersetzt. Jede Änderung (Order/Return/Shipment/Stock) in AvyCloud, Kaufland, eBay oder SendCloud triggert sofort einen Sync. | P0 | ✅ Implementiert |
-| BUG-040 | **⛔ SICHTBAR IN PRODUCTION: Alte BL-Orders zeigen "baselinker" als Quelle + Status "Neue Bestellungen"** — `sourceBadge()` zeigt jetzt graues "baselinker" Badge (nicht mehr "—"). Aber: (1) Kein Backfill-Script → historische Orders haben kein `marketplace`-Feld → zeigen "baselinker" statt "eBay"/"Kaufland". (2) Historische BL-Orders haben keine Status-Reconciliation → bleiben auf "Neue Bestellungen" stehen. (3) Betrifft ~6+ sichtbare Orders im Auftrags-Screen (Derby Rasierklingen, Piaggio, Hartmann, LED etc.). **BRAUCHT:** Firestore-Batch-Update-Script das `marketplace` aus `raw`-Daten extrahiert UND Status nachzieht. | P0 | 🔴 **NICHT GEFIXT — Backfill-Script + Status-Migration fehlt** |
+| BUG-040 | **⛔⛔⛔ P0 SOFORT — Orders zeigen "baselinker" + fehlende Kundendaten + falscher Status.** BL-Code wurde am 14.03. um 02:05 entfernt (Commit c487ed9). ABER: Alle VOR 02:05 importierten Orders kamen über alten BL-Pfad → `source:'baselinker'`, kein `marketplace`, unvollständige Adressen, Zahlung "—", Versand "—". Beispiel: eBay-Order 07-14365-99405 (Beyhan Öztunc, 14.03. 00:02) — in eBay komplett mit Adresse+Zahlung, in AvyCloud: "baselinker", "Adresse unvollständig". **FIX:** Einmaliges Firestore-Batch-Script: (1) Alle `source:'baselinker'` Orders finden, (2) `marketplace` aus `raw`-Daten erkennen, (3) fehlende Felder (Adresse, Zahlung, Versand, paidAt) aus `raw` nachfüllen, (4) Status via Marketplace-API reconcilen. **NEUE Orders nach Deploy (02:05+) sollten korrekt sein** — nativer Intake setzt alles. **VERIFIZIEREN:** Nächste Order nach 02:05 prüfen ob `source:'ebay'`. | P0 SOFORT | 🔴 **DATEN-MIGRATION-SCRIPT FEHLT** |
 | BUG-041 | **Kaufland Order-Intake: trackingNumber + carrier fehlen noch** — `mapKauflandOrder()` extrahiert jetzt paidAt, paymentMethod, shippedAt, shippingCost ✅. ABER: `trackingNumber` und `carrier` werden NICHT aus Kaufland-API extrahiert (eBay hat beides). `saveOrderIfNew()` schreibt diese Felder auch nicht. | P1 | ⚠️ **TEILWEISE gefixt** — trackingNumber + carrier fehlen |
 | BUG-042 | **Kaufland Adresse unvollständig** — `mapKauflandOrder()` setzt `customer.street` aus `shipping_address.street + house_number`, aber wenn Kaufland die Adresse in `billing_address` oder anderen Feldern liefert, bleibt die Adresse leer. Frontend zeigt "Adresse unvollständig" (rot). | P1 | 🔴 Offen |
 | BUG-043 | **Returns-Engine Bugs: `totalRefund` + `ebayReason` Referenz-Fehler** — returns-engine.js: totalRefund + ebayReason Variablen-Bugs | P1 | ✅ Fixed (2026-03-13: totalRefund korrekt akkumuliert, ebayReason extrahiert vor Dedup-Check) |
@@ -673,8 +676,8 @@
 | BUG-054 | **Operations-Buttons Light Mode Kontrast** — Design-Tokens (text-warning/bg-warning-dim) statt hardcoded amber. | P1 | ✅ Fixed (2026-03-14) |
 | BUG-055 | **Bottom Nav Icons unscharf** — Inline SVGs ersetzen PNG-Icons, 48dp Touch-Targets. | P1 | ✅ Fixed (2026-03-14) |
 | BUG-056 | **Dashboard Mobile KPIs leer** — Root Cause BUG-048 behoben. KPIs zeigen jetzt native Firestore-Daten mit korrekter Kaufland/eBay-Aufschlüsselung. | P0 | ✅ Fixed (2026-03-14, via BUG-048) |
-| BUG-057 | **⛔ SICHTBAR: Historische BL-Orders ohne korrekten OMS-Status** — ~6+ Orders im Auftrags-Screen zeigen "Neue Bestellungen" obwohl sie längst versendet/abgeschlossen sind. Diese Orders kamen über BaseLinker-Import und haben keinen OMS-Status-Update bekommen. Reconciliation greift nur für NEUE Orders (30-Tage Lookback an eBay/Kaufland API). **BRAUCHT:** Migration-Script das historische BL-Orders anhand von `raw`-Daten (eBay: CompleteSales, Kaufland: order_units) den korrekten Status zuweist. | P0 | 🔴 **NICHT GEFIXT** |
-| BUG-058 | **BaseLinker-Entfernung NICHT abgeschlossen** — Claude Code behauptet Phase C ist erledigt, aber Deep Dive 3 (2026-03-13) fand 136+ Dateien mit BL-Referenzen. Verifizierung nach Deploy nötig: `grep -r "baselinker" backend/ components/ api/ types.ts i18n.tsx --include="*.js" --include="*.ts" --include="*.tsx"`. Wenn >0 Ergebnisse → Phase C ist NICHT fertig. | P0 | 🔴 **VERIFIZIERUNG AUSSTEHEND** |
+| BUG-057 | **⛔ Zusammengeführt mit BUG-040** — Historische BL-Orders Status-Migration ist Teil des BUG-040 Backfill-Scripts. Beide Probleme (falscher Marketplace + falscher Status) werden mit einem einzigen Firestore-Batch-Script gelöst. | P0 | → Siehe BUG-040 |
+| BUG-058 | **BaseLinker Code-Entfernung: 98% erledigt** — Verifiziert am 2026-03-14: Frontend (*.ts, *.tsx) = 0 BL-Referenzen ✅. Backend index.js = 0 ✅. Backend routes/orders.js = 0 ✅. **Restposten:** 3 Backend-Dateien mit 9 Referenzen (lib/ebay-direct.js: 1, scripts/export-inventory-categories.js: 3, scripts/add-ebay-categories-to-inventory.js: 5) — alles non-production Scripts. **ABER:** Firestore-Daten NICHT migriert → BUG-040 + BUG-057 sind die echten Blocker. | P2 | ⚠️ Code 98% clean, Daten-Migration fehlt |
 | BUG-SSE | Token-in-Query-Parameter für SSE-Streams leakt | P1 | 🔴 Offen |
 | BUG-006 | EbayListingsView.tsx (alte Gap-Analysis) noch da — LÖSCHEN | P1 | ✅ Fixed (deleted) |
 | BUG-008 | eBay-Seite zeigt Gap-Analyse-Daten statt Listing-Management | P1 | ✅ Fixed (route already correct, old component deleted) |
@@ -1371,23 +1374,526 @@ Wenn Bestand von 0 → positiv geht (z.B. durch Retoure oder Stock-In), gibt es 
 
 ---
 
-### BUG-040 — Alte BaseLinker-Orders ohne Quelle-Badge (P1)
+### BUG-040 — ⛔⛔⛔ P0 SOFORT: BaseLinker-Orders Komplett-Migration (BLOCKIERT ALLES)
 
-**Symptom:** Orders in der Bestellungsliste zeigen "—" als Quelle (kein Badge). Betroffen sind alle historischen Orders, die über BaseLinker importiert wurden (z.B. `06-14364-52060`, `10-14357-79866`).
+> **PRIORITÄT: HÖCHSTE. Ohne dieses Script ist die gesamte Bestellungsseite KAPUTT.**
+> **ACHTUNG: Das sind KEINE alten Orders! Bestellungen vom 14.03.2026 00:02 — Stunden alt!**
+> BL-Code wurde am 14.03. um 02:05 entfernt (Commit c487ed9). Alle Orders VOR 02:05 kamen über den alten BL-Pfad.
+
+**Symptom:**
+- Orders zeigen "baselinker" als Quelle (graues Badge statt eBay/Kaufland)
+- Kundendaten fehlen komplett ("Adresse unvollständig")
+- Zahlung zeigt "—"
+- Versand zeigt "—"
+- Status ist falsch/veraltet
+- Betrifft ca. 76 Orders (65 eBay, 11 Kaufland)
 
 **Root Cause:**
-- Diese Orders haben `source: 'baselinker'` in Firestore
-- `sourceBadge()` in `OrdersView.tsx` (Zeile 67) filtert BaseLinker explizit raus: `if (s === "baselinker") return null;`
-- Diese Orders haben **kein `marketplace`-Feld** (nur `source`), weil der alte BaseLinker-Pfad `marketplace` nie gesetzt hat
-- Die Fallback-Kette `order.marketplace || order.orderSource || order.source` findet nur `source: 'baselinker'` → wird zu `null`
+- Orders haben `source: 'baselinker'` statt `source: 'ebay'`/`source: 'kaufland'`
+- Kein `marketplace`-Feld vorhanden → `sourceBadge()` Fallback-Kette `order.marketplace || order.orderSource || order.source` liefert "baselinker"
+- Kundendaten (Adresse, Telefon, Email) sind leer oder unvollständig
+- Zahlungs-/Versanddaten fehlen
+- ABER: Jede Order hat ein `raw`-Feld mit den KOMPLETTEN BaseLinker-API-Rohdaten → daraus kann ALLES rekonstruiert werden
 
-**Fix-Strategie:**
-1. **Firestore Backfill-Script:** Alle Orders mit `source: 'baselinker'` durchgehen, aus `raw`-Daten den tatsächlichen Marketplace extrahieren (eBay/Kaufland) und `marketplace`-Feld setzen
-2. **Fallback in `sourceBadge()`:** Wenn `source === 'baselinker'`, aus anderen Feldern den Marketplace ableiten (z.B. `order.raw.order_source`, `order.marketplaceOrderId`-Prefix)
+---
 
-**Betroffene Dateien:**
-- `components/OrdersView.tsx` — `sourceBadge()` (Zeile 63-72)
-- Neues Script: `backend/scripts/backfill-baselinker-marketplace.js`
+#### SCHRITT-FÜR-SCHRITT MIGRATIONS-SPEZIFIKATION
+
+**Dateiname:** `backend/scripts/migrate-baselinker-orders.js`
+
+**Vorlage/Referenz-Script:** `backend/scripts/backfill-order-addresses.js` — zeigt exakt wie man:
+- Firestore initialisiert (Zeile 16–24)
+- Orders iteriert (Zeile 40)
+- `raw`-Feld ausliest (Zeile 44: `const raw = order?.raw`)
+- Felder per Dot-Notation updatet (Zeile 108: `doc.update(updates)`)
+- Dry-Run implementiert (Zeile 101–104)
+
+---
+
+##### 1. SCRIPT-GRUNDGERÜST
+
+```js
+#!/usr/bin/env node
+/**
+ * migrate-baselinker-orders.js
+ *
+ * Migriert alle BaseLinker-importierten Orders auf natives Format.
+ * Extrahiert marketplace, Kundendaten, Zahlung, Versand aus dem raw-Feld.
+ *
+ * Usage:
+ *   node backend/scripts/migrate-baselinker-orders.js --dry-run
+ *   node backend/scripts/migrate-baselinker-orders.js
+ */
+const admin = require('firebase-admin');
+
+if (!admin.apps.length) {
+  admin.initializeApp({
+    projectId: process.env.GCLOUD_PROJECT || process.env.GCP_PROJECT || 'avycloud-hub',
+  });
+}
+
+const firestore = admin.firestore();
+const ORDERS_COLLECTION = 'orders';
+const dryRun = process.argv.includes('--dry-run');
+```
+
+##### 2. QUERY — NUR BaseLinker-Orders
+
+```js
+const snap = await firestore
+  .collection(ORDERS_COLLECTION)
+  .where('source', '==', 'baselinker')
+  .get();
+console.log(`Found ${snap.size} BaseLinker orders to migrate`);
+```
+
+##### 3. MARKETPLACE-ERKENNUNG
+
+Das `raw`-Feld enthält die komplette BaseLinker-API-Antwort. Darin gibt es ein Feld `order_source` das den tatsächlichen Marktplatz angibt.
+
+```js
+function detectMarketplace(raw) {
+  // Primär: raw.order_source (BaseLinker setzt das IMMER)
+  const src = (raw.order_source || '').toLowerCase();
+  if (src === 'ebay' || src.includes('ebay')) return 'ebay';
+  if (src === 'kaufland' || src.includes('kaufland')) return 'kaufland';
+
+  // Fallback: Order-ID-Format
+  // eBay: Nummern mit Bindestrich (z.B. "07-14365-99405")
+  // Kaufland: Alphanumerisch (z.B. "MXTBT35")
+  const orderId = String(raw.order_id || raw.extra_field_1 || '');
+  if (/^\d{2}-\d{5}-\d{5}$/.test(orderId)) return 'ebay';
+  if (/^[A-Z0-9]{5,10}$/.test(orderId)) return 'kaufland';
+
+  // Wenn nichts passt: 'unknown' — manuell prüfen
+  return 'unknown';
+}
+```
+
+**WICHTIG:**
+- `raw.order_source` ist der zuverlässigste Indikator (65 Orders haben 'ebay', 11 haben 'kaufland')
+- Fallback über OrderID-Format nur als Sicherheitsnetz
+- Orders mit `unknown` NICHT automatisch migrieren → loggen und manuell prüfen
+
+##### 4. FELD-MAPPING — BaseLinker raw → Natives Format
+
+**KOMPLETT-TABELLE: Jedes Feld das gesetzt werden muss**
+
+| Ziel-Feld (Firestore) | Quelle (raw.*) | Typ | Fallback | Pflicht |
+|---|---|---|---|---|
+| `source` | detectMarketplace(raw) | string | — | ✅ JA |
+| `marketplace` | detectMarketplace(raw) | string | — | ✅ JA |
+| `marketplaceOrderId` | `raw.extra_field_1` (eBay OrderID) ODER `raw.order_id` | string | — | ✅ JA |
+| `externalOrderId` | = marketplaceOrderId | string | — | ✅ JA |
+| `marketplaceKey` | `${marketplace}__${marketplaceOrderId}` | string | — | ✅ JA |
+| `customer.name` | `raw.delivery_fullname` | string | `raw.invoice_fullname` | ✅ JA |
+| `customer.street` | `[raw.delivery_address, raw.delivery_address2].filter(Boolean).join(', ')` | string | `raw.invoice_address` + `raw.invoice_address2` | ✅ JA |
+| `customer.city` | `raw.delivery_city` | string | `raw.invoice_city` | ✅ JA |
+| `customer.zip` | `raw.delivery_postcode` | string | `raw.invoice_postcode` | ✅ JA |
+| `customer.country` | `raw.delivery_country_code` | string | `raw.invoice_country_code` | ✅ JA |
+| `customer.phone` | `raw.delivery_phone` | string | `raw.invoice_phone` → `raw.phone` | ⚠️ Optional |
+| `customer.email` | `raw.email` | string | `raw.invoice_email` | ⚠️ Optional |
+| `billingAddress.name` | `raw.invoice_fullname` | string | `raw.delivery_fullname` | ⚠️ Optional |
+| `billingAddress.street` | `[raw.invoice_address, raw.invoice_address2].filter(Boolean).join(', ')` | string | — | ⚠️ Optional |
+| `billingAddress.city` | `raw.invoice_city` | string | — | ⚠️ Optional |
+| `billingAddress.zip` | `raw.invoice_postcode` | string | — | ⚠️ Optional |
+| `billingAddress.country` | `raw.invoice_country_code` | string | — | ⚠️ Optional |
+| `totalAmount` | `parseFloat(raw.payment_done)` falls > 0, sonst existierenden Wert behalten | number | Bestehender Wert | ⚠️ Nur wenn fehlend |
+| `currency` | `raw.currency` | string | 'EUR' | ⚠️ Nur wenn fehlend |
+| `paymentMethod` | `raw.payment_method` | string | null | ⚠️ Optional |
+| `paymentStatus` | `parseFloat(raw.payment_done) > 0 ? 'paid' : 'pending'` | string | null | ⚠️ Optional |
+| `paidAt` | `raw.date_confirmed ? new Date(raw.date_confirmed * 1000).toISOString() : null` | string/null | null | ⚠️ Optional |
+| `shippingService` | `raw.delivery_method` | string | null | ⚠️ Optional |
+| `trackingNumber` | `raw.delivery_package_nr` | string | null | ⚠️ Optional |
+| `carrier` | Aus `raw.delivery_method` den Carrier extrahieren (DHL, DPD, GLS, Hermes etc.) | string | null | ⚠️ Optional |
+| `shippingCost` | `parseFloat(raw.delivery_price)` | number | 0 | ⚠️ Optional |
+| `buyerNote` | `raw.user_comments` | string | null | ⚠️ Optional |
+| `createdAt` | `raw.date_add ? new Date(raw.date_add * 1000).toISOString() : existingCreatedAt` | string | Bestehender Wert | ⚠️ Nur wenn fehlend |
+
+**ACHTUNG — BaseLinker Timestamps:**
+- BaseLinker speichert Timestamps als **Unix-Sekunden** (NICHT Millisekunden!)
+- Konvertierung: `new Date(raw.date_add * 1000).toISOString()`
+- Relevante Timestamp-Felder: `raw.date_add`, `raw.date_confirmed`, `raw.date_in_status`
+
+##### 5. ITEMS-ARRAY MAPPING
+
+Das `raw`-Feld enthält ein `products`-Array mit den Bestellpositionen:
+
+```js
+function mapItems(raw, orderId) {
+  const products = raw.products || [];
+  return products.map((p, idx) => ({
+    id: `${orderId}-${idx + 1}`,
+    name: p.name || p.product_id || 'Unbekannt',
+    sku: p.sku || null,
+    quantity: parseInt(p.quantity, 10) || 1,
+    priceBrutto: parseFloat(p.price_brutto) || 0,
+    currency: raw.currency || 'EUR',
+    ean: p.ean || null,
+    // eBay-spezifisch:
+    itemId: p.auction_id || null,          // eBay ItemID
+    transactionId: p.order_product_id || null,
+  }));
+}
+```
+
+**WICHTIG:**
+- Items nur überschreiben wenn das aktuelle `items`-Array leer ist oder fehlt!
+- Wenn `items` bereits existiert und gefüllt ist → NICHT überschreiben (könnte manuell korrigiert worden sein)
+
+##### 6. STATUS-ZUORDNUNG
+
+BaseLinker hat eigene `order_status_id` Werte. Diese müssen auf das AvyCloud OMS-System gemappt werden.
+
+```js
+// BaseLinker Status IDs → AvyCloud OMS Status
+// ACHTUNG: Die genauen BL Status-IDs müssen aus den raw-Daten ermittelt werden.
+// Fallback: Aus raw.order_status_id + Marketplace-Daten den besten OMS-Status ableiten.
+function mapStatus(raw, marketplace) {
+  // Wenn Zahlung erfolgt + Tracking vorhanden → shipped
+  if (parseFloat(raw.payment_done) > 0 && raw.delivery_package_nr) return 'shipped';
+  // Wenn Zahlung erfolgt aber kein Tracking → confirmed
+  if (parseFloat(raw.payment_done) > 0) return 'confirmed';
+  // Sonst → pending
+  return 'pending';
+}
+```
+
+**BESSER:** Nicht den Status erraten, sondern die echte Marketplace-API abfragen!
+→ Für jeden eBay-Order: eBay GetOrders aufrufen mit der marketplaceOrderId
+→ Für jeden Kaufland-Order: Kaufland API /orders/ aufrufen
+→ Aktuellen Status von dort übernehmen (über `mapEbayStatus()` / `mapKauflandStatus()`)
+
+**EMPFOHLENER ANSATZ:** Migration in 2 Phasen:
+1. **Phase 1 (dieses Script):** Marketplace, Kundendaten, Zahlung, Versand, Items migrieren
+2. **Phase 2 (danach):** Status-Reconciliation über normalen Sync-Pfad laufen lassen (order-intake-ebay/kaufland syncen automatisch Status bei vorhandener marketplaceKey)
+
+##### 7. CARRIER-ERKENNUNG aus delivery_method
+
+```js
+function extractCarrier(deliveryMethod) {
+  if (!deliveryMethod) return null;
+  const m = deliveryMethod.toLowerCase();
+  if (m.includes('dhl')) return 'DHL';
+  if (m.includes('dpd')) return 'DPD';
+  if (m.includes('gls')) return 'GLS';
+  if (m.includes('hermes')) return 'Hermes';
+  if (m.includes('ups')) return 'UPS';
+  if (m.includes('fedex')) return 'FedEx';
+  if (m.includes('deutsche post')) return 'Deutsche Post';
+  return deliveryMethod;  // Originalwert als Fallback
+}
+```
+
+##### 8. KOMPLETTE UPDATE-LOGIK PRO ORDER
+
+```js
+function buildUpdates(order, raw) {
+  const updates = {};
+  const marketplace = detectMarketplace(raw);
+
+  if (marketplace === 'unknown') {
+    return { updates: null, marketplace, reason: 'marketplace unknown' };
+  }
+
+  // --- PFLICHTFELDER (IMMER setzen) ---
+  updates['source'] = marketplace;
+  updates['marketplace'] = marketplace;
+
+  // MarketplaceOrderId: Bei eBay ist die echte OrderID oft in extra_field_1
+  const mktOrderId = raw.extra_field_1 || String(raw.order_id || '');
+  if (mktOrderId) {
+    updates['marketplaceOrderId'] = mktOrderId;
+    updates['externalOrderId'] = mktOrderId;
+    updates['marketplaceKey'] = `${marketplace}__${mktOrderId}`;
+  }
+
+  // --- KUNDENDATEN (nur setzen wenn fehlend oder unvollständig) ---
+  const customer = order.customer || {};
+
+  if (!customer.name && raw.delivery_fullname) {
+    updates['customer.name'] = raw.delivery_fullname;
+  }
+  if (!customer.street) {
+    const street = [raw.delivery_address, raw.delivery_address2].filter(Boolean).join(', ')
+      || [raw.invoice_address, raw.invoice_address2].filter(Boolean).join(', ');
+    if (street) updates['customer.street'] = street;
+  }
+  if (!customer.city) {
+    updates['customer.city'] = raw.delivery_city || raw.invoice_city || null;
+  }
+  if (!customer.zip) {
+    updates['customer.zip'] = raw.delivery_postcode || raw.invoice_postcode || null;
+  }
+  if (!customer.country) {
+    updates['customer.country'] = raw.delivery_country_code || raw.invoice_country_code || null;
+  }
+  if (!customer.phone) {
+    updates['customer.phone'] = raw.delivery_phone || raw.invoice_phone || raw.phone || null;
+  }
+  if (!customer.email) {
+    updates['customer.email'] = raw.email || raw.invoice_email || null;
+  }
+
+  // --- BILLING ADDRESS (nur wenn vorhanden in raw) ---
+  if (!order.billingAddress && raw.invoice_fullname) {
+    updates['billingAddress'] = {
+      name: raw.invoice_fullname,
+      street: [raw.invoice_address, raw.invoice_address2].filter(Boolean).join(', '),
+      city: raw.invoice_city || '',
+      zip: raw.invoice_postcode || '',
+      country: raw.invoice_country_code || '',
+    };
+  }
+
+  // --- ZAHLUNG (nur setzen wenn fehlend) ---
+  if (!order.paymentMethod && raw.payment_method) {
+    updates['paymentMethod'] = raw.payment_method;
+  }
+  if (!order.paymentStatus) {
+    const paid = parseFloat(raw.payment_done || '0') > 0;
+    updates['paymentStatus'] = paid ? 'paid' : 'pending';
+  }
+  if (!order.paidAt && raw.date_confirmed) {
+    updates['paidAt'] = new Date(raw.date_confirmed * 1000).toISOString();
+  }
+
+  // --- VERSAND (nur setzen wenn fehlend) ---
+  if (!order.shippingService && raw.delivery_method) {
+    updates['shippingService'] = raw.delivery_method;
+  }
+  if (!order.trackingNumber && raw.delivery_package_nr) {
+    updates['trackingNumber'] = raw.delivery_package_nr;
+  }
+  if (!order.carrier && raw.delivery_method) {
+    updates['carrier'] = extractCarrier(raw.delivery_method);
+  }
+  if (order.shippingCost === undefined && raw.delivery_price) {
+    updates['shippingCost'] = parseFloat(raw.delivery_price) || 0;
+  }
+
+  // --- SONSTIGES ---
+  if (!order.buyerNote && raw.user_comments) {
+    updates['buyerNote'] = raw.user_comments;
+  }
+  if (!order.currency && raw.currency) {
+    updates['currency'] = raw.currency || 'EUR';
+  }
+  if (!order.totalAmount && raw.payment_done) {
+    const total = parseFloat(raw.payment_done);
+    if (total > 0) updates['totalAmount'] = total;
+  }
+
+  // --- TIMESTAMPS (nur wenn fehlend) ---
+  if (!order.createdAt && raw.date_add) {
+    updates['createdAt'] = new Date(raw.date_add * 1000).toISOString();
+  }
+  if (!order.shippedAt && raw.delivery_package_nr && raw.date_in_status) {
+    // Wenn Tracking vorhanden → Versanddatum aus letztem Status-Datum
+    updates['shippedAt'] = new Date(raw.date_in_status * 1000).toISOString();
+  }
+
+  // --- ITEMS (nur wenn fehlend oder leer) ---
+  if (!order.items || order.items.length === 0) {
+    const items = mapItems(raw, order.orderId);
+    if (items.length > 0) updates['items'] = items;
+  }
+
+  // Null-Werte entfernen (Firestore mag keine null-Updates)
+  for (const [key, val] of Object.entries(updates)) {
+    if (val === null || val === undefined) delete updates[key];
+  }
+
+  return { updates, marketplace, reason: null };
+}
+```
+
+##### 9. BATCH-EXECUTION
+
+```js
+async function migrateBaselinkerOrders() {
+  console.log(`[migrate-bl-orders] Starting... ${dryRun ? '(DRY RUN)' : ''}`);
+
+  const snap = await firestore
+    .collection(ORDERS_COLLECTION)
+    .where('source', '==', 'baselinker')
+    .get();
+
+  console.log(`[migrate-bl-orders] Found ${snap.size} BaseLinker orders`);
+
+  let batch = firestore.batch();
+  let batchCount = 0;
+  let migrated = 0;
+  let skipped = 0;
+  let errors = 0;
+  let unknownMarketplace = [];
+
+  const commitBatch = async () => {
+    if (batchCount === 0) return;
+    await batch.commit();
+    batch = firestore.batch();
+    batchCount = 0;
+  };
+
+  for (const doc of snap.docs) {
+    const order = doc.data();
+    const raw = order?.raw;
+
+    if (!raw) {
+      console.warn(`  SKIP ${doc.id}: Kein raw-Feld vorhanden!`);
+      skipped++;
+      continue;
+    }
+
+    const { updates, marketplace, reason } = buildUpdates(order, raw);
+
+    if (!updates || Object.keys(updates).length === 0) {
+      if (reason === 'marketplace unknown') {
+        unknownMarketplace.push({ docId: doc.id, orderId: order.orderId, rawOrderSource: raw.order_source });
+      }
+      skipped++;
+      continue;
+    }
+
+    // Migrations-Metadaten
+    updates['_migration'] = {
+      migratedAt: new Date().toISOString(),
+      migratedFrom: 'baselinker',
+      migratedTo: marketplace,
+      scriptVersion: '1.0.0',
+    };
+
+    if (dryRun) {
+      console.log(`  [DRY] ${doc.id} (${order.orderId}): ${marketplace}`);
+      console.log(`         Updates: ${JSON.stringify(updates, null, 2)}`);
+      migrated++;
+      continue;
+    }
+
+    try {
+      const ref = firestore.collection(ORDERS_COLLECTION).doc(doc.id);
+      batch.update(ref, updates);
+      batchCount++;
+      migrated++;
+
+      if (batchCount >= 400) {
+        await commitBatch();
+        console.log(`  ... ${migrated} orders migrated`);
+      }
+    } catch (err) {
+      console.error(`  ERROR ${doc.id}: ${err.message}`);
+      errors++;
+    }
+  }
+
+  await commitBatch();  // Restliche Batch committen
+
+  // Zusammenfassung
+  console.log(`\n[migrate-bl-orders] DONE!`);
+  console.log(`  Migrated: ${migrated}`);
+  console.log(`  Skipped: ${skipped}`);
+  console.log(`  Errors: ${errors}`);
+  if (unknownMarketplace.length > 0) {
+    console.log(`  UNKNOWN MARKETPLACE (manuell prüfen):`);
+    unknownMarketplace.forEach(u => console.log(`    - ${u.docId} (${u.orderId}): raw.order_source = "${u.rawOrderSource}"`));
+  }
+}
+
+migrateBaselinkerOrders()
+  .then(() => process.exit(0))
+  .catch((err) => {
+    console.error('[migrate-bl-orders] Fatal:', err);
+    process.exit(1);
+  });
+```
+
+##### 10. AUSFÜHRUNGSREIHENFOLGE
+
+1. **ZUERST:** `node backend/scripts/migrate-baselinker-orders.js --dry-run` → Output prüfen!
+2. **Output validieren:** Prüfen ob marketplace korrekt erkannt wird, ob Adressen vollständig sind
+3. **DANN:** `node backend/scripts/migrate-baselinker-orders.js` → Live-Migration
+4. **DANACH:** Normalen Order-Sync laufen lassen → Status-Reconciliation via `order-intake-ebay.js` + `order-intake-kaufland.js` gleicht automatisch Status ab (die erkennen vorhandene Orders über `marketplaceKey` und updaten den Status)
+
+##### 11. VERIFIKATION NACH MIGRATION
+
+```js
+// Verifikations-Query: Dürfen KEINE BaseLinker-Orders mehr existieren
+const remaining = await firestore
+  .collection('orders')
+  .where('source', '==', 'baselinker')
+  .get();
+console.log(`Remaining BaseLinker orders: ${remaining.size}`);
+// MUSS 0 sein!
+
+// Spot-Check: Bekannte Order prüfen
+const testOrder = await firestore
+  .collection('orders')
+  .where('marketplaceOrderId', '==', '07-14365-99405')
+  .get();
+const data = testOrder.docs[0]?.data();
+console.log('Source:', data?.source);          // MUSS 'ebay' sein
+console.log('Marketplace:', data?.marketplace);  // MUSS 'ebay' sein
+console.log('Customer:', data?.customer);        // MUSS name, street, city, zip, country haben
+console.log('Payment:', data?.paymentMethod);    // MUSS befüllt sein
+console.log('Tracking:', data?.trackingNumber);  // MUSS befüllt sein (wenn vorhanden)
+```
+
+##### 12. EDGE CASES — EXPLIZIT BEHANDELN
+
+| Edge Case | Behandlung |
+|---|---|
+| `raw` fehlt komplett | SKIP + Warnung loggen. Diese Order muss manuell geprüft werden. |
+| `raw.order_source` fehlt | Fallback auf OrderID-Format-Erkennung (siehe detectMarketplace) |
+| `raw.delivery_fullname` ist leer | Fallback auf `raw.invoice_fullname` |
+| `raw.payment_done` ist String "0" | `parseFloat()` → 0 → paymentStatus = 'pending' |
+| `raw.date_add` ist 0 oder fehlt | Bestehenden `createdAt` Wert behalten |
+| `raw.products` ist leer | Items-Array NICHT überschreiben, bestehende Items behalten |
+| Order hat bereits `marketplace`-Feld | Trotzdem `source` auf korrekten Wert setzen! |
+| `raw.delivery_package_nr` hat mehrere Nummern (Komma-getrennt) | Erste Nummer nehmen: `raw.delivery_package_nr.split(',')[0].trim()` |
+| Marketplace "unknown" erkannt | NICHT migrieren → in separater Liste loggen → manuell zuordnen |
+
+##### 13. KEINE SEITENEFFEKTE
+
+- **KEIN** `raw`-Feld löschen oder modifizieren — wird weiterhin als Backup gebraucht
+- **KEIN** `orderId` ändern — das ist die interne AvyCloud-ID
+- **KEINE** Orders löschen — nur Felder updaten/ergänzen
+- **KEINE** Marketplace-API-Calls in diesem Script — das macht Phase 2 (Status-Reconciliation)
+- **KEIN** Frontend-Code ändern — `sourceBadge()` funktioniert korrekt sobald `marketplace` gesetzt ist
+
+---
+
+#### ZUSAMMENFASSUNG FÜR CLAUDE CODE
+
+**Erstelle GENAU EINE Datei:** `backend/scripts/migrate-baselinker-orders.js`
+
+**Das Script MUSS:**
+1. Alle Orders mit `source: 'baselinker'` aus Firestore `orders` Collection laden
+2. Für jede Order das `raw`-Feld auslesen
+3. Marketplace via `raw.order_source` erkennen (eBay oder Kaufland)
+4. `source` und `marketplace` auf den korrekten Wert setzen ('ebay' oder 'kaufland')
+5. `marketplaceOrderId`, `externalOrderId`, `marketplaceKey` setzen
+6. Kundendaten aus `raw.delivery_*` / `raw.invoice_*` extrahieren und in `customer.*` setzen
+7. Zahlungsdaten (`paymentMethod`, `paymentStatus`, `paidAt`) aus `raw.payment_*` setzen
+8. Versanddaten (`trackingNumber`, `carrier`, `shippingService`, `shippingCost`) aus `raw.delivery_*` setzen
+9. Items-Array aus `raw.products[]` mappen (nur wenn leer)
+10. Timestamps korrekt konvertieren: `new Date(unixSeconds * 1000).toISOString()`
+11. Batched Writes verwenden (max 400 pro Batch)
+12. `--dry-run` Flag unterstützen
+13. Migrations-Metadaten in `_migration`-Feld speichern
+14. Zusammenfassung am Ende loggen (migrated, skipped, errors, unknown)
+
+**Das Script darf NICHT:**
+- `raw`-Feld löschen oder ändern
+- Orders löschen
+- `orderId` ändern
+- Marketplace-APIs aufrufen
+- Frontend-Code ändern
+- Bereits gefüllte Felder überschreiben (nur leere/fehlende Felder setzen, AUSNAHME: `source` und `marketplace` IMMER überschreiben)
+
+**Erfolgskriterium:**
+- `where('source', '==', 'baselinker')` liefert 0 Ergebnisse
+- Order `07-14365-99405` zeigt `source: 'ebay'`, `marketplace: 'ebay'`, vollständige Kundendaten
+- Frontend zeigt eBay/Kaufland-Badge statt "baselinker"
 
 ---
 

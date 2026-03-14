@@ -2985,6 +2985,27 @@ export const fetchFinanceMetrics = async (
   return result?.data;
 };
 
+export interface ActivityEvent {
+  type: "order" | "shipment" | "return" | "sync";
+  id: string;
+  title: string;
+  detail: string;
+  status: string;
+  timestamp: string;
+}
+
+export async function fetchActivityFeed(limit = 20): Promise<ActivityEvent[]> {
+  const res = await fetchApi(
+    `${BACKEND_URL}/api/dashboard/activity?limit=${limit}`,
+    { method: "GET" }
+  );
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) {
+    throw new Error(data?.error?.message || "Activity feed failed");
+  }
+  return data?.data || [];
+}
+
 export const syncOrders = async (options?: { timeoutMs?: number }): Promise<Order[]> => {
   const response = await fetchWithTimeout(
     `${BACKEND_URL}/api/orders/sync`,
@@ -3028,7 +3049,7 @@ export const packOrder = async (orderId: string): Promise<void> => {
  */
 export async function packAndShip(
   orderId: string,
-  opts?: { weight?: number }
+  opts?: { weight?: number; labelFormat?: string }
 ): Promise<{ labelBlobUrl: string | null; trackingNumber: string | null; carrier: string | null; labelError?: string | null }> {
   await packOrder(orderId);
   const result = await shipOrder(orderId, opts);
@@ -3038,9 +3059,10 @@ export async function packAndShip(
   if (result?.labelUrl) {
     // Fetch PDF via our authenticated backend proxy
     try {
+      const format = opts?.labelFormat || "a6";
       const pdfRes = await fetchApi(
-        `${BACKEND_URL}/api/orders/${encodeURIComponent(orderId)}/label`,
-        { method: 'GET' }
+        `${BACKEND_URL}/api/orders/${encodeURIComponent(orderId)}/label?format=${encodeURIComponent(format)}`,
+        { method: "GET" }
       );
       if (pdfRes.ok) {
         const blob = await pdfRes.blob();

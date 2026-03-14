@@ -46,6 +46,8 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({ appTheme, onTh
   const [email, setEmail] = useState("");
   const [notifications, setNotifications] = useState<Record<string, boolean>>({});
   const [theme, setLocalTheme] = useState<ThemeOption>(appTheme || "system");
+  const [labelFormat, setLabelFormat] = useState<"a6" | "a4">("a6");
+  const [autoPrint, setAutoPrint] = useState(false);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -73,6 +75,10 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({ appTheme, onTh
       if (data.email) setEmail(data.email);
       if (data.notifications) setNotifications(data.notifications);
       if (data.theme) handleThemeChange(data.theme as ThemeOption);
+      if (data.printing) {
+        if (data.printing.labelFormat) setLabelFormat(data.printing.labelFormat);
+        if (data.printing.autoPrint) setAutoPrint(data.printing.autoPrint);
+      }
       // Fallback: use displayName if vorname/nachname not set
       if (!data.vorname && !data.nachname && data.displayName) {
         const parts = data.displayName.split(" ");
@@ -99,7 +105,7 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({ appTheme, onTh
     setError(null);
     setSaveSuccess(false);
     try {
-      await saveProfile({ vorname, nachname, notifications, theme });
+      await saveProfile({ vorname, nachname, notifications, theme, printing: { labelFormat, autoPrint } });
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);
     } catch (err: any) {
@@ -234,6 +240,73 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({ appTheme, onTh
             </label>
           ))}
         </div>
+      </Card>
+
+      {/* Druckeinstellungen */}
+      <Card>
+        <h3 className="text-sm font-semibold text-txt-primary mb-4">Druckeinstellungen</h3>
+
+        {/* Label-Format */}
+        <div className="mb-4">
+          <label className="block text-xs text-txt-muted mb-2">Label-Format</label>
+          <div className="flex flex-wrap gap-3">
+            {([
+              { value: "a6" as const, label: "10\u00D715 Thermodruck", desc: "Zebra, Brother etc." },
+              { value: "a4" as const, label: "A4 Normaldrucker", desc: "Label auf DIN-A4 Seite" },
+            ]).map((opt) => (
+              <label
+                key={opt.value}
+                className={`flex items-center gap-2.5 px-4 py-2.5 rounded-xl border cursor-pointer transition-colors ${
+                  labelFormat === opt.value
+                    ? "border-accent bg-accent-dim text-accent"
+                    : "border-app-border bg-app-elevated text-txt-secondary hover:border-accent/30"
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="labelFormat"
+                  value={opt.value}
+                  checked={labelFormat === opt.value}
+                  onChange={() => setLabelFormat(opt.value)}
+                  className="sr-only"
+                />
+                <span
+                  className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${
+                    labelFormat === opt.value ? "border-accent" : "border-app-border"
+                  }`}
+                >
+                  {labelFormat === opt.value && <span className="w-2 h-2 rounded-full bg-accent" />}
+                </span>
+                <div>
+                  <span className="text-sm font-medium block">{opt.label}</span>
+                  <span className="text-xs text-txt-muted">{opt.desc}</span>
+                </div>
+              </label>
+            ))}
+          </div>
+        </div>
+
+        {/* Auto-Print Toggle */}
+        <label className="flex items-center gap-3 cursor-pointer group">
+          <span
+            className={`w-5 h-5 rounded-md border flex items-center justify-center shrink-0 transition-colors ${
+              autoPrint
+                ? "bg-accent border-accent"
+                : "bg-app-elevated border-app-border group-hover:border-accent/40"
+            }`}
+            onClick={() => setAutoPrint((prev) => !prev)}
+          >
+            {autoPrint && (
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M20 6L9 17l-5-5" />
+              </svg>
+            )}
+          </span>
+          <div>
+            <span className="text-sm text-txt-primary">Auto-Print nach Verpacken</span>
+            <span className="block text-xs text-txt-muted">Druckdialog automatisch nach Pack & Ship</span>
+          </div>
+        </label>
       </Card>
 
       {/* Save */}
