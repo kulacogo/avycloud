@@ -8,7 +8,7 @@
  *
  * Requires scope: https://api.ebay.com/oauth/api_scope/sell.finances
  * If the scope is not authorized, calls return 403 and the module returns null
- * so the caller can fall back to BaseLinker gross revenue.
+ * so the caller can fall back to estimated gross revenue.
  *
  * Reference: https://developer.ebay.com/api-docs/sell/finances/resources/transaction/methods/getTransactions
  */
@@ -105,8 +105,8 @@ async function getEbayNetRevenueSummary(fromDate, toDate, { forceRefresh = false
     }
 
     if (res.status === 403 || res.status === 401) {
-      // Scope not authorized — caller should fall back to BaseLinker
-      console.log(`[ebay-finances] ${res.status} – sell.finances scope not authorized, use BaseLinker fallback`);
+      // Scope not authorized — caller should fall back to estimated revenue
+      console.log(`[ebay-finances] ${res.status} – sell.finances scope not authorized, using fallback`);
       return null;
     }
 

@@ -384,10 +384,10 @@ function shouldRefresh(product, { maxAgeDays, onlyMissing, force }) {
   const plausible = okAmount && amount >= 0.5 && amount <= 50000;
   const trustedOrigin = sources.some((s) => {
     const url = safeString(s?.url).toLowerCase();
-    return url.startsWith('baselinker://') || url.startsWith('manual://');
+    return url.startsWith('manual://');
   });
   if (!force && trustedOrigin && plausible && currencyOk) {
-    // Never overwrite trusted listing prices from BaseLinker/manual edits.
+    // Never overwrite trusted listing prices from manual edits.
     return false;
   }
   return !okAmount || !plausible || !currencyOk || !sourcesOk || age > maxAgeDays;

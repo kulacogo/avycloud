@@ -11,7 +11,6 @@ export type ColumnId =
   | "inventory"
   | "pendingIntake"
   | "storage"
-  | "baselinker"
   | "ebay"
   | "kaufland"
   | "lastSold"

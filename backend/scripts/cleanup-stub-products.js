@@ -5,7 +5,7 @@
  *
  * Safety:
  * - Dry-run by default.
- * - Will NOT delete a product if it is referenced by any warehouse bin entry or baselinker_sku_index entry.
+ * - Will NOT delete a product if it is referenced by any warehouse bin entry or sku_index entry.
  *
  * Usage:
  *   node backend/scripts/cleanup-stub-products.js
@@ -26,7 +26,7 @@ const APPLY = argv.includes('--apply');
 
 const productsCol = firestore.collection('products');
 const binsCol = firestore.collection('warehouseBins');
-const skuIndexCol = firestore.collection('baselinker_sku_index');
+const skuIndexCol = firestore.collection('sku_index');
 
 const normalizeKey = (v) => {
   const s = v == null ? '' : String(v).trim();
@@ -69,7 +69,6 @@ function isStubProduct(docId, data = {}) {
       Boolean(ops.last_saved_iso) ||
       Boolean(ops.last_synced_iso) ||
       Boolean(ops.base_product_id) ||
-      Boolean(ops.baselinker) ||
       Boolean(ops.identity_key) ||
       (Array.isArray(ops.identity_aliases) && ops.identity_aliases.length > 0));
 

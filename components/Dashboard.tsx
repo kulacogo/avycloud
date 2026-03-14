@@ -634,7 +634,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
       })();
       return { key: d.date, label, count: Number(d.orders || 0), revenue: Number(d.revenue || 0) };
     });
-    // Derive order count from chart data (date-filtered from BaseLinker), NOT from
+    // Derive order count from chart data (date-filtered), NOT from
     // status_breakdown which counts ALL orders globally regardless of time window.
     const totalOrdersInWindow = chart.reduce((s, d) => s + d.count, 0);
     return {
@@ -796,7 +796,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
         ) : syncStatus ? (
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             {/* Per-channel cards */}
-            {(['ebay', 'kaufland', 'baselinker'] as const).map(ch => {
+            {(['ebay', 'kaufland'] as const).map(ch => {
               const c = syncStatus.channels[ch];
               if (!c) return (
                 <Card key={ch} label={ch.charAt(0).toUpperCase() + ch.slice(1)} value="—" sub="Nicht verbunden" color="neutral" size="sm" />
@@ -833,7 +833,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
           </div>
         ) : (
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-            {(['ebay', 'kaufland', 'baselinker'] as const).map(ch => (
+            {(['ebay', 'kaufland'] as const).map(ch => (
               <Card key={ch} label={ch.charAt(0).toUpperCase() + ch.slice(1)} value="—" sub="Kein Sync in 24h" color="neutral" size="sm" />
             ))}
             <Card label="Reservierungen" value="0" sub="Keine aktiven Reservierungen" color="neutral" size="sm" />

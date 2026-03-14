@@ -517,7 +517,7 @@ export const AdminRulebookManagement: React.FC = () => {
           <div>
             <h3 className="text-sm font-semibold text-txt-secondary">Pflicht: Initial Run + Delta Sync</h3>
             <p className="text-xs text-txt-muted">
-              Startet den serverseitigen Rulebook-Apply Job und enqueued BaseLinker <code>text_only</code> Sync-Jobs für geänderte Produkte.
+              Startet den serverseitigen Rulebook-Apply Job und enqueued <code>text_only</code> Sync-Jobs für geänderte Produkte.
             </p>
           </div>
           <div className="flex items-center gap-2">

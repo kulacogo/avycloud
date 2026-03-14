@@ -65,7 +65,7 @@ async function pushTrackingToMarketplace({ orderId, trackingNumber, carrier }) {
   if (!orderSnap.exists) return { ok: false, error: 'Order not found' };
 
   const order = orderSnap.data();
-  // Check marketplace, orderSource (from BaseLinker sync), then source
+  // Check marketplace, orderSource, then source
   const marketplace = (order.marketplace || order.orderSource || '').toLowerCase();
 
   let result;

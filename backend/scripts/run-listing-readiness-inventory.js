@@ -1,7 +1,7 @@
 /* eslint-disable no-console */
 /**
  * Run "listing_readiness" fixes for ALL inventory items (warehouse: qty>0 + BIN present),
- * then enqueue BaseLinker text-only sync jobs for changed items (handled by bulk action).
+ * then apply changes to inventory items.
  *
  * This runs against the same Firestore the backend uses (ADC required).
  *
@@ -102,7 +102,7 @@ function getPhysicalQuantity(product) {
 async function main() {
   const apply = process.argv.includes('--apply');
   if (!apply) {
-    console.log('Refusing to run without --apply (this updates Firestore + queues BaseLinker sync jobs).');
+    console.log('Refusing to run without --apply (this updates Firestore).');
     process.exitCode = 2;
     return;
   }

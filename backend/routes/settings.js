@@ -219,7 +219,7 @@ router.get('/settings/billing/usage', async (req, res) => {
     const productsSnap = await firestore.collection('products_v2').count().get();
     const productCount = productsSnap.data().count || 0;
     // Count integrations (from integrations status — simplified count)
-    const integrationCount = 6; // eBay, Kaufland, BaseLinker, SendCloud, SevDesk, DHL — all active
+    const integrationCount = 5; // eBay, Kaufland, SendCloud, SevDesk, DHL — all active
     // Count orders this month
     const now = new Date();
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();

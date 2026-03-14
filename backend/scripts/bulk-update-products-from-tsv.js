@@ -24,11 +24,7 @@
  * Optional:
  *   --dry-run                Print changes but do not write (default)
  *   --apply                  Write changes to Firestore
- *   --sync-baselinker        After save, sync each updated product to BaseLinker (inventory 78659 by default)
  *   --blank=delete|keep      How to treat empty cells for attributes (default: delete)
- *
- * Env:
- * - BASELINKER_INVENTORY_ID  (optional) defaults to 78659
  */
 
 const fs = require('fs');
@@ -38,7 +34,6 @@ const { getProduct, saveProduct } = require('../lib/firestore');
 
 const argv = process.argv.slice(2);
 const APPLY = argv.includes('--apply');
-const SYNC_BASELINKER = argv.includes('--sync-baselinker');
 const blankArg = argv.find((arg) => arg.startsWith('--blank='));
 const BLANK_MODE = (blankArg ? blankArg.split('=')[1] : 'keep') || 'keep';
 const BLANK_DELETE = BLANK_MODE.toLowerCase() === 'delete';
@@ -138,13 +133,6 @@ function computeUpdatedAttributes(existingAttrs, header, row) {
   return next;
 }
 
-async function maybeSyncToBaseLinker(product) {
-  if (!SYNC_BASELINKER) return null;
-  const { syncProductToBaseLinker } = require('../lib/baselinker');
-  const invId = String(process.env.BASELINKER_INVENTORY_ID || '78659').trim();
-  return await syncProductToBaseLinker(product, invId);
-}
-
 async function main() {
   const raw = fs.readFileSync(resolved, 'utf8');
   const delimiter = inferDelimiter(resolved);
@@ -159,7 +147,6 @@ async function main() {
     inputPath: resolved,
     delimiter: delimiter === '\t' ? 'tab' : 'comma',
     apply: APPLY,
-    syncBaseLinker: SYNC_BASELINKER,
     blankMode: BLANK_DELETE ? 'delete' : 'keep',
     processed: 0,
     updated: 0,
@@ -290,10 +277,6 @@ async function main() {
       report.updated += 1;
       console.log('[updated]', sku);
 
-      const syncRes = await maybeSyncToBaseLinker(await getProduct(sku));
-      if (syncRes) {
-        console.log('[baselinker]', sku, syncRes.status, syncRes.message || '');
-      }
     } catch (err) {
       const message = err?.message || String(err);
       report.errors.push({ sku, message });

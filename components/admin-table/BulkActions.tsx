@@ -1,5 +1,5 @@
 import React from "react";
-import { SyncIcon, TrashIcon, OperationsIcon } from "../icons/Icons";
+import { TrashIcon, OperationsIcon } from "../icons/Icons";
 import { ProductBulkActionName } from "./types";
 
 const ActionButton: React.FC<{
@@ -37,10 +37,6 @@ const ActionButton: React.FC<{
 interface BulkActionsProps {
   selectedIds: Set<string>;
   setSelectedIds: (ids: Set<string>) => void;
-
-  // Sync
-  syncInProgress: boolean;
-  handleBatchSync: () => void;
 
   // Bulk jobs (data-fix)
   bulkJobLoading: boolean;
@@ -80,8 +76,6 @@ const menuItemClass =
 const BulkActions: React.FC<BulkActionsProps> = ({
   selectedIds,
   setSelectedIds,
-  syncInProgress,
-  handleBatchSync,
   bulkJobLoading,
   enqueueBulkForSelection,
   onImproveSelected,
@@ -109,16 +103,6 @@ const BulkActions: React.FC<BulkActionsProps> = ({
         </button>
       </div>
       <div className="flex flex-wrap items-center gap-1.5">
-        {/* BaseLinker Sync */}
-        <ActionButton
-          icon={<SyncIcon className="w-3.5 h-3.5" />}
-          label={syncInProgress ? "Sync läuft..." : "BL Sync"}
-          ariaLabel="Ausgewählte Produkte mit BaseLinker synchronisieren"
-          onClick={handleBatchSync}
-          disabled={selectedIds.size === 0 || syncInProgress}
-          tone="primary"
-        />
-
         {onImproveSelected ? (
           <>
             <div className="w-px h-5 bg-app-elevated mx-1" />

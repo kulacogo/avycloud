@@ -271,14 +271,9 @@ function buildImproveContext(product, ebayListing = null, { titleInsights = null
   const lines = [];
   lines.push(`Aktueller Titel: ${product?.identification?.name || 'unbekannt'}`);
   lines.push(`Marke: ${product?.identification?.brand || 'unbekannt'}`);
-  const legacyCats = product?.details?.baselinkerCategories && typeof product.details.baselinkerCategories === 'object'
-    ? product.details.baselinkerCategories
-    : {};
-  lines.push(
-    `BaseLinker Kategorie: ${
-      product?.details?.baselinkerCategoryPath || legacyCats?.['91387'] || 'unbekannt'
-    }`
-  );
+  if (product?.details?.categoryPath) {
+    lines.push(`Kategorie: ${product.details.categoryPath}`);
+  }
   if (product?.details?.short_description) {
     lines.push(`Beschreibung:\n${product.details.short_description}`);
   }
@@ -1163,18 +1158,6 @@ async function improveExistingProduct(productId, onProgress) {
     mergedProduct.notes.warnings = Array.from(
       new Set([...(mergedProduct.notes.warnings || []), `Rulebook Issues (Improve): ${applied.issues.slice(0, 12).join('; ')}`])
     );
-  }
-
-  // BaseLinker category assignment (single inventory: 78659, best-effort).
-  // Keeps Improve outputs aligned with the inventory taxonomy used for sync.
-  try {
-    const { assignBaselinkerCategoryBestEffort } = require('./baselinker-category');
-    await assignBaselinkerCategoryBestEffort(mergedProduct, {
-      inventoryId: '78659',
-      locale: product.locale || 'de-DE',
-    });
-  } catch (e) {
-    console.warn('[improve] BaseLinker category assignment failed (continuing):', e?.message || e);
   }
 
   // Persist Improve readiness snapshot (draft-friendly; downstream can block on errors).

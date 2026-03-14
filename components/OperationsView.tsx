@@ -819,7 +819,7 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
       <div className="bg-app-surface rounded-2xl p-5 border border-app-border space-y-4">
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
-            <p className="text-sm uppercase tracking-widest text-txt-muted">BaseLinker</p>
+            <p className="text-sm uppercase tracking-widest text-txt-muted">Aufträge</p>
             <h2 className="text-xl font-semibold text-txt-primary">{t('ops.orders.section')}</h2>
           </div>
           <div className="flex items-center gap-3 flex-wrap">

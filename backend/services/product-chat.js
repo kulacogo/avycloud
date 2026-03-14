@@ -3,11 +3,9 @@ const {
   serpapiToolDefinition,
   brightdataSearchToolDefinition,
   webFetchToolDefinition,
-  baselinkerCategorySearchToolDefinition,
   executeSerpapiToolCall,
   executeBrightdataSearchToolCall,
   executeWebFetchToolCall,
-  executeBaselinkerCategorySearchToolCall,
 } = require('./toolkit');
 const { resolveModel } = require('../lib/model-select');
 const { fetchMarketingImages } = require('../lib/marketing-images');
@@ -527,9 +525,6 @@ const updateDatasheetTool = {
           upc: { type: 'string' },
         },
       },
-      // BaseLinker category (single inventory: 78659)
-      baselinkerCategoryPath: { type: 'string' },
-      baselinkerCategoryId: { type: 'string' },
       short_description: { type: 'string' },
       key_features: {
         type: 'array',
@@ -1655,12 +1650,6 @@ function consolidateDatasheetChanges(changes = []) {
     if (entry.gpsr && typeof entry.gpsr === 'object' && !Array.isArray(entry.gpsr)) {
       merged.gpsr = { ...(merged.gpsr || {}), ...entry.gpsr };
     }
-    if (typeof entry.baselinkerCategoryPath === 'string' && safeString(entry.baselinkerCategoryPath)) {
-      merged.baselinkerCategoryPath = safeString(entry.baselinkerCategoryPath);
-    }
-    if (typeof entry.baselinkerCategoryId === 'string' && safeString(entry.baselinkerCategoryId)) {
-      merged.baselinkerCategoryId = safeString(entry.baselinkerCategoryId);
-    }
     if (entry.notes && typeof entry.notes === 'object' && !Array.isArray(entry.notes)) {
       merged.notes = {
         unsure: mergeUniqueStringList(merged?.notes?.unsure, entry?.notes?.unsure),
@@ -1789,13 +1778,6 @@ function sanitizeDatasheetChange(entry, product, { scope = null, titleHintTokens
     }
   }
 
-  // BaseLinker category (single category)
-  if (allow.category && typeof entry.baselinkerCategoryPath === 'string' && entry.baselinkerCategoryPath.trim()) {
-    result.baselinkerCategoryPath = entry.baselinkerCategoryPath.trim();
-  }
-  if (allow.category && typeof entry.baselinkerCategoryId === 'string' && entry.baselinkerCategoryId.trim()) {
-    result.baselinkerCategoryId = entry.baselinkerCategoryId.trim();
-  }
   const identityPatch = {};
   const barcodeSet = new Set();
   const pushBarcode = (value) => {
@@ -2141,7 +2123,6 @@ async function runProductChat(product, userMessage, {
         toGeminiTool(brightdataSearchToolDefinition),
         ...(SERPAPI_ENABLED ? [toGeminiTool(serpapiToolDefinition)] : []),
         toGeminiTool(webFetchToolDefinition),
-        toGeminiTool(baselinkerCategorySearchToolDefinition),
         toGeminiTool(updateDatasheetTool),
         toGeminiTool(suggestImagesTool),
         toGeminiTool(generateAiImagesTool),
@@ -2182,8 +2163,7 @@ async function runProductChat(product, userMessage, {
   5. **ALWAYS** use the 'update_product_datasheet' tool when you propose ANY data changes (title, description, attributes, etc.). Do NOT just output JSON text. The tool call IS the way to propose changes.
   6. DO NOT ASK for confirmation ("Should I update?"). Just CALL THE TOOL. The user's UI acts as the confirmation. Asking is a failure.
   7. GPSR updates MUST be returned under the top-level "gpsr" object (not in attributes). Never create keys like "GPSR Manufacturer name" inside attributes.
-  8. BaseLinker category: if you change it, FIRST call 'baselinker_category_search', THEN set BOTH 'baselinkerCategoryId' and 'baselinkerCategoryPath' in update_product_datasheet.
-  9. IMAGE RULES:
+  8. IMAGE RULES:
      - When the user asks for "Web-Produktbilder", "Produktbilder" or any image search: use brightdata_web_search to find REAL product images from online shops. Use suggest_product_images to return them.
      - NEVER call generate_ai_images as a response to image search requests. AI image generation is ONLY for explicit requests like "erstelle KI-Bilder" or "generiere Render".
      - Product images must be REAL photos from manufacturer sites, shops, or marketplaces.
@@ -2332,12 +2312,6 @@ async function runProductChat(product, userMessage, {
             status: result.status,
             error: result.error
           });
-          toolResult = result;
-        }
-        else if (name === 'baselinker_category_search') {
-          onProgress?.({ type: 'tool_start', tool: 'baselinker_category_search', query: args?.query || '' });
-          const result = await executeBaselinkerCategorySearchToolCall({ arguments: JSON.stringify(args) });
-          onProgress?.({ type: 'tool_done', tool: 'baselinker_category_search' });
           toolResult = result;
         }
         else if (name === 'update_product_datasheet') {

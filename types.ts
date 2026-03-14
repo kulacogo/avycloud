@@ -134,18 +134,6 @@ export interface Details {
   pricing: Pricing;
   // canonical eBay category id (see backend enforceEbayAspects)
   categoryId?: string;
-  /**
-   * BaseLinker inventory category (single inventory: 78659).
-   * - `baselinkerCategoryId` is the BaseLinker inventory `category_id`
-   * - `baselinkerCategoryPath` is the human-readable breadcrumb
-   */
-  baselinkerCategoryId?: string;
-  baselinkerCategoryPath?: string;
-  /**
-   * Legacy (multi-inventory experiment): keep for backwards compatibility.
-   * New code should use baselinkerCategoryId/baselinkerCategoryPath.
-   */
-  baselinkerCategories?: Record<string, string>;
   gpsr?: {
     entity_country?: string;
     country_code?: string; // ISO-like code (see backend normalization)
@@ -175,23 +163,6 @@ export interface Ops {
   last_saved_iso?: string | null; // ISO-8601
   last_synced_iso?: string | null; // ISO-8601
   base_product_id?: string | null;
-  baselinker?: {
-    product_id?: number | string | null;
-    synced_inventory?: string | null;
-    matched_sku?: string | null;
-    matched_ean?: string | null;
-    // Derived (API-enriched): BaseLinker getInventoryProductsData.links summary
-    links_count?: number;
-    has_links?: boolean;
-    inventories?: Record<
-      string,
-      {
-        product_id?: number | string | null;
-        sync_status?: SyncStatus;
-        last_synced_iso?: string | null;
-      }
-    >;
-  };
   pending_intake_quantity?: number;
   revision: number;
   data_quality?: DataQualityOps;
@@ -236,7 +207,7 @@ export interface InventoryInfo {
   unit?: string;
   inventoryId?: string | null;
   inventoryName?: string | null;
-  // Derived quantities (physical/reserved/available) for BaseLinker vs. warehouse flow
+  // Derived quantities (physical/reserved/available) for warehouse flow
   physicalQuantity?: number;
   reservedQuantity?: number;
   availableQuantity?: number;
@@ -286,8 +257,6 @@ export interface DatasheetChange {
   identity?: Partial<Identification>;
   categoryId?: string;
   categoryPath?: string;
-  baselinkerCategoryId?: string;
-  baselinkerCategoryPath?: string;
   short_description?: string;
   key_features?: string[];
   attributes?: Record<string, string | number | boolean>;
@@ -402,8 +371,6 @@ export interface OrderCustomer {
 
 export interface Order {
   id: string;
-  baselinkerId?: string;
-  baselinkerOrderKey?: string;
   orderId?: string;
   orderSource?: string | null;
   orderSourceId?: string | null;
@@ -647,14 +614,6 @@ export interface EbayTaxonomyCategoryAspectsResponse {
     category: EbayCategoryTaxonomyEntry;
     catalog: EbayCategoryAspectCatalog;
   };
-}
-
-export interface BaseLinkerCategoryOption {
-  id: string;
-  name: string;
-  breadcrumb: string;
-  parent_id?: number;
-  depth?: number;
 }
 
 export interface EbayListingRow {

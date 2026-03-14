@@ -162,7 +162,7 @@ const META_ATTRIBUTE_KEYS = new Set(
     'kaufland_kategorie',
     'kaufland kategorie pfad',
     'category_path',
-    // Text-field payloads / LLM exports sometimes embed BaseLinker text fields in attributes
+    // Text-field payloads / LLM exports sometimes embed text fields in attributes
     'text_name',
     'text_description',
     'text_features',

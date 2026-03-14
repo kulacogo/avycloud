@@ -362,17 +362,6 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
       console.warn('Identify price enrichment failed (continuing):', e?.message || e);
     }
 
-    // 3.7) BaseLinker category assignment (single inventory: 78659, best-effort).
-    // We constrain the choice to the BaseLinker category tree and store:
-    // - details.baselinkerCategoryPath (breadcrumb)
-    // - details.baselinkerCategoryId (category_id)
-    try {
-      const { assignBaselinkerCategoryBestEffort } = require('../services/baselinker-category');
-      await assignBaselinkerCategoryBestEffort(product, { inventoryId: '78659', locale });
-    } catch (e) {
-      console.warn('Identify BaseLinker category assignment failed (continuing):', e?.message || e);
-    }
-
     // 3.8) Compute and persist quality snapshot (independent of QUALITY_GATE_ENABLED).
     // This powers UI/debug dashboards and helps explain "why not ebay-ready" without blocking saves.
     let finalQuality = null;

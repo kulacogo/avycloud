@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 
 /**
- * Backfill missing address fields for BaseLinker-imported orders.
+ * Backfill missing address fields for imported orders.
  *
- * BaseLinker orders imported before the BUG-022 fix have empty
+ * Orders imported before the BUG-022 fix have empty
  * street/zip/phone/email in customer data. This script reads the
- * raw BaseLinker data stored in each order's `raw` field and
+ * raw data stored in each order's `raw` field and
  * backfills the missing address fields.
  *
  * Usage:
@@ -55,7 +55,7 @@ async function backfillOrderAddresses() {
       continue;
     }
 
-    // Extract missing fields from raw BaseLinker data
+    // Extract missing fields from raw order data
     const updates = {};
     let changed = false;
 

@@ -364,7 +364,7 @@ router.put('/rulebook', requirePermission('admin', 'rules.write'), async (req, r
 
 router.post('/rulebook/apply', requirePermission('admin', 'jobs.run'), async (req, res) => {
   try {
-    const invId = String(req.body?.inventoryId || process.env.BASELINKER_INVENTORY_ID || '78659').trim();
+    const invId = String(req.body?.inventoryId || '78659').trim();
     const limit = Number(req.body?.limit || 0);
     const chunkSize = Number(req.body?.chunkSize || 200);
     const minQty =
@@ -836,7 +836,6 @@ router.post('/bulk/run', requirePermission('admin', 'jobs.run'), async (req, res
       inventoryId: typeof body.inventoryId === 'string' ? body.inventoryId : undefined,
       storefront: typeof body.storefront === 'string' ? body.storefront : undefined,
       marketplaceId: typeof body.marketplaceId === 'string' ? body.marketplaceId : undefined,
-      syncToBaseLinker: body.syncToBaseLinker === undefined ? undefined : Boolean(body.syncToBaseLinker),
       titleInsights: body.titleInsights === undefined ? undefined : Boolean(body.titleInsights),
       titleInsightsQuery: typeof body.titleInsightsQuery === 'string' ? body.titleInsightsQuery : undefined,
       titleInsightsForceRefresh:

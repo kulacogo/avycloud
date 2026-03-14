@@ -57,7 +57,6 @@ router.get('/integrations/status', async (req, res) => {
     // API-Key integrations: check Firestore self-service → Secret Manager fallback
     const apiKeyProviders = [
       { id: 'kaufland', secretKey: 'KAUFLAND_CLIENT_KEY' },
-      { id: 'baselinker', secretKey: 'BASELINKER_TOKEN' },
       { id: 'sendcloud', secretKey: 'SENDCLOUD_PUBLIC_KEY' },
       { id: 'sevdesk', secretKey: 'SEVDESK_API_TOKEN' },
     ];

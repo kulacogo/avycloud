@@ -9,8 +9,6 @@ const { getRulebookConfigCached } = require('../lib/rulebook-config');
 const { fetchCategoryTitleInsights } = require('../lib/ebay-browse-title-insights');
 const fs = require('fs');
 const { uploadJobFile } = require('../lib/storage');
-const { createJob: createBaseLinkerSyncJob, Timestamp: BaseLinkerSyncTimestamp } = require('../lib/baselinker-sync-jobs');
-const { enqueueBaseLinkerSyncJob } = require('./baselinker-sync-runner');
 const {
   findUnit,
   createUnit,
@@ -117,46 +115,6 @@ function chunkArray(arr, chunkSize) {
   const s = Math.max(1, Math.min(500, Number(chunkSize) || 200));
   for (let i = 0; i < arr.length; i += s) out.push(arr.slice(i, i + s));
   return out;
-}
-
-async function enqueueBaseLinkerSyncJobs({
-  productIds,
-  inventoryId,
-  mode = 'full',
-  chunkSize = 200,
-  requestedBy = 'admin-bulk',
-}) {
-  const invId = String(inventoryId || process.env.BASELINKER_INVENTORY_ID || '78659').trim();
-  const uniqueAll = Array.from(new Set((productIds || []).map((x) => safeString(x)).filter(Boolean)));
-  if (!uniqueAll.length) return [];
-  const chunks = chunkArray(uniqueAll, chunkSize);
-  const jobIds = [];
-  for (const ids of chunks) {
-    const unique = Array.from(new Set(ids.map((x) => safeString(x)).filter(Boolean))).slice(0, 500);
-    if (!unique.length) continue;
-    const job = await createBaseLinkerSyncJob({
-      payload: { productIds: unique, inventoryId: invId, mode: safeString(mode || 'full') || 'full' },
-      status: 'pending',
-      stage: 'queued',
-      progress: { total: unique.length, processed: 0, synced: 0, failed: 0 },
-      requestedBy,
-      createdAt: BaseLinkerSyncTimestamp.now(),
-      updatedAt: BaseLinkerSyncTimestamp.now(),
-    });
-    enqueueBaseLinkerSyncJob(job.id, true);
-    jobIds.push(job.id);
-  }
-  return jobIds;
-}
-
-async function enqueueBaseLinkerTextOnlyJobs({ productIds, inventoryId, chunkSize = 200, requestedBy = 'admin-bulk' }) {
-  return enqueueBaseLinkerSyncJobs({
-    productIds,
-    inventoryId,
-    mode: 'text_only',
-    chunkSize,
-    requestedBy,
-  });
 }
 
 function buildMarketplaceLookup() {
@@ -312,7 +270,6 @@ async function runExportMarketplace({ jobId, productIds = null, limit = 500, off
     const images = pickImages(cur, 12);
     const qty = Number(cur?.inventory?.quantity || 0);
     const bin = safeString(cur?.storage?.binCode) || '';
-    const bl = cur?.ops?.baselinker || {};
 
     rows.push({
       product_id: id,
@@ -336,8 +293,6 @@ async function runExportMarketplace({ jobId, productIds = null, limit = 500, off
       qty: Number.isFinite(qty) ? String(qty) : '',
       bin,
       storageBins_json: Array.isArray(cur?.storageBins) ? JSON.stringify(cur.storageBins) : '',
-      baselinker_product_id: bl?.product_id != null ? String(bl.product_id) : '',
-      baselinker_synced_inventory: safeString(bl?.synced_inventory) || '',
       images_primary: images[0] || '',
       images_all: images.join('|'),
       gpsr_entity_country: safeString(gpsr?.entity_country) || '',
@@ -461,8 +416,6 @@ async function runBulkTitle({
   includeUi = false,
   debug = false,
   productIds = null,
-  inventoryId = null,
-  syncToBaseLinker = true,
   titleInsights = true,
   titleInsightsQuery = '',
   titleInsightsForceRefresh = false,
@@ -472,13 +425,11 @@ async function runBulkTitle({
 } = {}) {
   const selected = await resolveTargetProducts({ productIds, limit, offset });
   const useTitleInsights = parseBool(titleInsights, true);
-  const useSyncToBaseLinker = parseBool(syncToBaseLinker, true);
   const insightsForceRefresh = parseBool(titleInsightsForceRefresh, false);
   const insightsQuery = safeString(titleInsightsQuery);
   const insightsLimit = Math.max(10, Math.min(200, Number(titleInsightsLimit) || 80));
   const insightsMaxHints = Math.max(0, Math.min(20, Number(titleInsightsMaxHints) || 8));
   const requestedMarketplaceId = safeString(marketplaceId);
-  const changedIds = [];
   const categoryInsightCache = new Map();
 
   const summary = {
@@ -498,10 +449,8 @@ async function runBulkTitle({
     titleInsightsUsed: 0,
     titleInsightsMissingCategory: 0,
     titleInsightsFetchFailed: 0,
-    baselinkerSyncJobs: 0,
   };
   const samples = [];
-  let baselinkerSyncJobIds = [];
 
   for (const p of selected) {
     const id = p.id;
@@ -635,7 +584,6 @@ async function runBulkTitle({
           insights_enabled: useTitleInsights,
         };
         await saveProductV2(cur, { source: 'admin-bulk', skipKeyFeaturesNormalize: true });
-        changedIds.push(String(id));
       }
       summary.updated += 1;
       if (insightTokens.length > 0) summary.titleInsightsUsed += 1;
@@ -648,17 +596,7 @@ async function runBulkTitle({
     }
   }
 
-  if (apply && useSyncToBaseLinker && changedIds.length > 0) {
-    baselinkerSyncJobIds = await enqueueBaseLinkerSyncJobs({
-      productIds: changedIds,
-      inventoryId,
-      mode: 'full',
-      requestedBy: 'admin-bulk-title-v2',
-    });
-    summary.baselinkerSyncJobs = baselinkerSyncJobIds.length;
-  }
-
-  return { summary, samples, baselinkerSyncJobIds };
+  return { summary, samples };
 }
 
 function cleanupTitleTrailingDash(rawTitle = '') {
@@ -692,10 +630,8 @@ async function runBulkTitleTrailingDashFix({
     invalid_after: 0,
     noop: 0,
     failed: 0,
-    baselinkerTextOnlyJobs: 0,
   };
   const samples = [];
-  const changedIds = [];
 
   for (const p of selected) {
     const id = p.id;
@@ -736,22 +672,11 @@ async function runBulkTitleTrailingDashFix({
       }
 
       summary.updated += 1;
-      changedIds.push(String(id));
       if (!apply && samples.length < 15) samples.push({ id, sku, before: currentTitle, after: nextTitle });
     } catch (e) {
       summary.failed += 1;
       if (samples.length < 10) samples.push({ id, sku, status: 'error', message: e?.message || String(e) });
     }
-  }
-
-  if (apply && changedIds.length) {
-    const jobs = await enqueueBaseLinkerTextOnlyJobs({
-      productIds: changedIds,
-      inventoryId,
-      chunkSize: 200,
-      requestedBy: 'admin-bulk-title-trailing-dash-v1',
-    });
-    summary.baselinkerTextOnlyJobs = jobs.length;
   }
 
   return { summary, samples };
@@ -819,10 +744,8 @@ async function runBulkHighlightsHtml({
     noop: 0,
     invalid_after: 0,
     failed: 0,
-    baselinkerTextOnlyJobs: 0,
   };
   const samples = [];
-  const changedIds = [];
 
   for (const p of selected) {
     const id = p.id;
@@ -857,7 +780,6 @@ async function runBulkHighlightsHtml({
       }
 
       summary.updated += 1;
-      changedIds.push(String(id));
       if (!apply && samples.length < 15) {
         samples.push({ id, sku, itemCount: built.itemCount, preview: built.html.slice(0, 160) });
       }
@@ -865,16 +787,6 @@ async function runBulkHighlightsHtml({
       summary.failed += 1;
       if (samples.length < 10) samples.push({ id, sku, status: 'error', message: e?.message || String(e) });
     }
-  }
-
-  if (apply && changedIds.length) {
-    const jobs = await enqueueBaseLinkerTextOnlyJobs({
-      productIds: changedIds,
-      inventoryId,
-      chunkSize: 200,
-      requestedBy: 'admin-bulk-highlights-html-v1',
-    });
-    summary.baselinkerTextOnlyJobs = jobs.length;
   }
 
   return { summary, samples };
@@ -971,10 +883,8 @@ async function runBulkDescriptionHtml({
     noop: 0,
     invalid_after: 0,
     failed: 0,
-    baselinkerTextOnlyJobs: 0,
   };
   const samples = [];
-  const changedIds = [];
 
   for (const p of selected) {
     const id = p.id;
@@ -1007,7 +917,6 @@ async function runBulkDescriptionHtml({
 
       if (apply) {
         cur.details = cur.details || {};
-        // Ensure BaseLinker uses the formatted HTML.
         cur.details.short_description = next;
         cur.ops = cur.ops || {};
         cur.ops.data_quality = cur.ops.data_quality || {};
@@ -1016,22 +925,11 @@ async function runBulkDescriptionHtml({
       }
 
       summary.updated += 1;
-      changedIds.push(String(id));
       if (!apply && samples.length < 15) samples.push({ id, sku, before: src.slice(0, 120), after: next.slice(0, 120) });
     } catch (e) {
       summary.failed += 1;
       if (samples.length < 10) samples.push({ id, sku, status: 'error', message: e?.message || String(e) });
     }
-  }
-
-  if (apply && changedIds.length) {
-    const jobs = await enqueueBaseLinkerTextOnlyJobs({
-      productIds: changedIds,
-      inventoryId,
-      chunkSize: 200,
-      requestedBy: 'admin-bulk-description-html-v1',
-    });
-    summary.baselinkerTextOnlyJobs = jobs.length;
   }
 
   return { summary, samples };
@@ -1044,7 +942,7 @@ function normalizeAttrValue(value) {
     return v;
   }
   if (typeof value === 'number' || typeof value === 'boolean') return value;
-  // Keep objects/arrays as-is; Firestore saveProduct/enforceEbayAspects will stringify where appropriate for BaseLinker.
+  // Keep objects/arrays as-is; Firestore saveProduct/enforceEbayAspects will stringify where appropriate.
   return value;
 }
 
@@ -1104,10 +1002,8 @@ async function runBulkListingReadiness({
     noop: 0,
     invalid_after: 0,
     failed: 0,
-    baselinkerTextOnlyJobs: 0,
   };
   const samples = [];
-  const changedIds = [];
 
   for (const p of selected) {
     const id = p.id;
@@ -1136,7 +1032,7 @@ async function runBulkListingReadiness({
         }
       }
 
-      // Description HTML (short_description is what we sync as BaseLinker description)
+      // Description HTML
       const srcDesc =
         safeString(cur?.details?.short_description) || safeString(cur?.details?.description) || '';
       if (srcDesc && !looksLikeHtml(srcDesc)) {
@@ -1216,22 +1112,11 @@ async function runBulkListingReadiness({
       }
 
       summary.updated += 1;
-      changedIds.push(String(id));
       if (!apply && samples.length < 15) samples.push({ id, sku, changed: true });
     } catch (e) {
       summary.failed += 1;
       if (samples.length < 10) samples.push({ id, sku, status: 'error', message: e?.message || String(e) });
     }
-  }
-
-  if (apply && changedIds.length) {
-    const jobs = await enqueueBaseLinkerTextOnlyJobs({
-      productIds: changedIds,
-      inventoryId,
-      chunkSize: 200,
-      requestedBy: 'admin-bulk-listing-readiness-v1',
-    });
-    summary.baselinkerTextOnlyJobs = jobs.length;
   }
 
   return { summary, samples };
@@ -2160,7 +2045,6 @@ async function runBulkAction(action, payload = {}) {
   }
   if (a === 'title') {
     const includeUi = parseBool(payload.includeUi, false);
-    const syncToBaseLinker = parseBool(payload.syncToBaseLinker, true);
     const titleInsights = parseBool(payload.titleInsights, true);
     const titleInsightsQuery = safeString(payload.titleInsightsQuery || payload.query);
     const titleInsightsForceRefresh = parseBool(payload.titleInsightsForceRefresh, false);
@@ -2174,8 +2058,6 @@ async function runBulkAction(action, payload = {}) {
       includeUi,
       debug,
       productIds,
-      inventoryId,
-      syncToBaseLinker,
       titleInsights,
       titleInsightsQuery,
       titleInsightsForceRefresh,

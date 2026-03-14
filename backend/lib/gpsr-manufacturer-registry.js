@@ -118,7 +118,7 @@ function normalizeCountryCode(raw) {
   if (!v) return '';
   const upper = v.toUpperCase();
   if (/^[A-Z]{2}$/.test(upper)) {
-    // User requirement: treat United Kingdom as "UK" (BaseLinker/marketplace often accepts it).
+    // User requirement: treat United Kingdom as "UK" (marketplace convention).
     if (upper === 'GB') return 'UK';
     return upper;
   }
@@ -178,7 +178,7 @@ function normalizeGpsrPhone(raw) {
 function normalizeStreetOnly(address) {
   const raw = safeString(address);
   if (!raw) return '';
-  // Keep only street+house part (before commas) to match BaseLinker/GPSR policy.
+  // Keep only street+house part (before commas) to match GPSR policy.
   const parts = raw.split(',').map((p) => safeString(p)).filter(Boolean);
   return safeString(parts[0] || raw);
 }

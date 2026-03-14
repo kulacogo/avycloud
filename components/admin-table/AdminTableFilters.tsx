@@ -12,7 +12,6 @@ const COLUMN_PRESETS: Record<ColumnPreset, ColumnId[]> = {
     "inventory",
     "pendingIntake",
     "storage",
-    "baselinker",
     "ebay",
     "kaufland",
     "syncStatus",
@@ -25,7 +24,6 @@ const COLUMN_PRESETS: Record<ColumnPreset, ColumnId[]> = {
     "inventory",
     "pendingIntake",
     "storage",
-    "baselinker",
     "ebay",
     "kaufland",
     "syncStatus",
@@ -37,7 +35,6 @@ const COLUMN_PRESETS: Record<ColumnPreset, ColumnId[]> = {
     "sku",
     "barcode",
     "pendingIntake",
-    "baselinker",
     "ebay",
     "kaufland",
     "syncStatus",
@@ -49,7 +46,6 @@ const COLUMN_PRESETS: Record<ColumnPreset, ColumnId[]> = {
     "barcode",
     "inventory",
     "pendingIntake",
-    "baselinker",
     "ebay",
     "kaufland",
     "syncStatus",
@@ -88,8 +84,6 @@ interface AdminTableFiltersProps {
   setFilterEanValid: (v: "all" | "valid" | "invalid" | "missing") => void;
   filterGpsr: "all" | "complete" | "incomplete";
   setFilterGpsr: (v: "all" | "complete" | "incomplete") => void;
-  filterBaselinkerLink: "all" | "linked" | "unlinked";
-  setFilterBaselinkerLink: (v: "all" | "linked" | "unlinked") => void;
   filterEbay: "all" | "listed" | "notListed";
   setFilterEbay: (v: "all" | "listed" | "notListed") => void;
   filterKaufland: "all" | "listed" | "notListed";
@@ -166,8 +160,6 @@ const AdminTableFilters: React.FC<AdminTableFiltersProps> = ({
   setFilterEanValid,
   filterGpsr,
   setFilterGpsr,
-  filterBaselinkerLink,
-  setFilterBaselinkerLink,
   filterEbay,
   setFilterEbay,
   filterKaufland,
@@ -355,16 +347,6 @@ const AdminTableFilters: React.FC<AdminTableFiltersProps> = ({
             <option value="incomplete">GPSR: Unvollständig</option>
           </select>
           <select
-            id="table-filter-baselinker-link"
-            value={filterBaselinkerLink}
-            onChange={(e) => setFilterBaselinkerLink(e.target.value as any)}
-            className={filterControlClass}
-          >
-            <option value="all">BaseLinker: Alle</option>
-            <option value="linked">BaseLinker: Verknüpft</option>
-            <option value="unlinked">BaseLinker: Nicht verknüpft</option>
-          </select>
-          <select
             id="table-filter-ebay"
             value={filterEbay}
             onChange={(e) => setFilterEbay(e.target.value as any)}
@@ -522,7 +504,7 @@ const AdminTableFilters: React.FC<AdminTableFiltersProps> = ({
                       title: "Titel-Fix für alle Inventory-Produkte?",
                       tone: "default",
                       description:
-                        "Entfernt einen Bindestrich am Ende (inkl. Leerzeichen) und stößt anschließend einen BaseLinker Text-Sync an.",
+                        "Entfernt einen Bindestrich am Ende (inkl. Leerzeichen) und stößt anschließend einen Text-Sync an.",
                       confirmLabel: "Starten",
                       onConfirm: async () => {
                         setConfirmDialog(null);
@@ -541,7 +523,7 @@ const AdminTableFilters: React.FC<AdminTableFiltersProps> = ({
                       title: "Highlights als HTML formatieren?",
                       tone: "default",
                       description:
-                        'Speichert Highlights als <ul><li>\u2026</li></ul> (kein \u201E\u2022\u201C) und synchronisiert sie per Text-Only Sync nach BaseLinker.',
+                        'Speichert Highlights als <ul><li>\u2026</li></ul> (kein \u201E\u2022\u201C) und synchronisiert sie per Text-Only Sync.',
                       confirmLabel: "Starten",
                       onConfirm: async () => {
                         setConfirmDialog(null);
@@ -560,7 +542,7 @@ const AdminTableFilters: React.FC<AdminTableFiltersProps> = ({
                       title: "Beschreibung als HTML formatieren?",
                       tone: "default",
                       description:
-                        'Formatiert Absätze zu <p>\u2026</p> und Label wie \u201EZustand:\u201C zu <strong>\u2026</strong>. Danach Text-Only Sync nach BaseLinker.',
+                        'Formatiert Absätze zu <p>\u2026</p> und Label wie \u201EZustand:\u201C zu <strong>\u2026</strong>. Danach Text-Only Sync.',
                       confirmLabel: "Starten",
                       onConfirm: async () => {
                         setConfirmDialog(null);
@@ -581,7 +563,7 @@ const AdminTableFilters: React.FC<AdminTableFiltersProps> = ({
                       title: "Listing-Readiness Audit ausführen?",
                       tone: "default",
                       description:
-                        "Korrigiert/vereinheitlicht Titel/Highlights/Beschreibung/Attribute und stößt anschließend Text-Only Sync nach BaseLinker an.",
+                        "Korrigiert/vereinheitlicht Titel/Highlights/Beschreibung/Attribute und stößt anschließend Text-Only Sync an.",
                       confirmLabel: "Starten",
                       onConfirm: async () => {
                         setConfirmDialog(null);

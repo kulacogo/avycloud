@@ -16,7 +16,6 @@ import {
   EbayCategoryOption,
   EbayCategoryTaxonomyEntry,
   EbayCategoryAspectCatalog,
-  BaseLinkerCategoryOption,
   DashboardMetrics,
   FinanceMetrics,
   EbayListingRow,
@@ -1744,7 +1743,7 @@ export const runProductBulkAction = async (params: {
   maxAgeDays?: number; // price
   force?: boolean; // price
   includeUi?: boolean; // title
-  inventoryId?: string; // optional override for BaseLinker text-only sync jobs
+  inventoryId?: string; // optional override for text-only sync jobs
   storefront?: string; // optional storefront selector for Kaufland actions (default: de)
 }): Promise<{ jobId: string }> => {
   const res = await fetchApi(`${BACKEND_URL}/api/products/bulk/run`, {
@@ -2232,7 +2231,6 @@ const normalizeProduct = (raw: any): Product => {
       last_saved_iso: opsIn.last_saved_iso ?? null,
       last_synced_iso: opsIn.last_synced_iso ?? null,
       base_product_id: opsIn.base_product_id ?? null,
-      baselinker: opsIn.baselinker ?? undefined,
       pending_intake_quantity:
         typeof opsIn.pending_intake_quantity === 'number' ? opsIn.pending_intake_quantity : 0,
       revision: typeof opsIn.revision === 'number' ? opsIn.revision : 0,
@@ -2599,31 +2597,6 @@ export const fetchEbayCategories = async (params: {
   return Array.isArray(result?.items) ? result.items : [];
 };
 
-export const fetchBaseLinkerCategories = async (params: {
-  inventoryId?: string;
-  query?: string;
-  id?: string;
-  limit?: number;
-  leafOnly?: boolean;
-}): Promise<BaseLinkerCategoryOption[]> => {
-  const inv = String(params?.inventoryId || '78659').trim();
-  const query = new URLSearchParams();
-  if (params.query) query.set('q', params.query);
-  if (params.id) query.set('id', params.id);
-  if (params.limit) query.set('limit', String(params.limit));
-  if (params.leafOnly) query.set('leafOnly', 'true');
-  query.set('inventoryId', inv);
-  const url = query.toString()
-    ? `${BACKEND_URL}/api/baselinker/categories?${query.toString()}`
-    : `${BACKEND_URL}/api/baselinker/categories`;
-  const response = await fetchApi(url);
-  const result = await parseResponse(response);
-  if (!response.ok) {
-    throw new Error(result?.error?.message || 'BaseLinker-Kategorien konnten nicht geladen werden.');
-  }
-  return Array.isArray(result?.items) ? result.items : [];
-};
-
 // This function now makes a REAL API call to the live backend server.
 export const createIdentificationJob = async (
   images: File[],
@@ -2806,104 +2779,6 @@ export const saveProduct = async (product: Product): Promise<{ ok: boolean; data
   }
 };
 
-
-// Sync product(s) to BaseLinker – single inventory (default 78659)
-export const syncToBaseLinker = async (
-  productOrProducts: Product | Product[],
-  inventoryId?: string
-): Promise<{ ok: boolean; results?: Array<{ id: string; status: 'synced' | 'failed'; message?: string }>; error?: { code: number; message: string } }> => {
-  let response: Response | undefined;
-
-  try {
-    const inv = (inventoryId || '78659').trim();
-
-    const isSingle = !Array.isArray(productOrProducts);
-    const products = Array.isArray(productOrProducts) ? productOrProducts : [productOrProducts];
-
-    if (import.meta.env.DEV) {
-      console.log('API CALL: /api/baselinker/sync/jobs', { count: products.length, inventoryId: inv });
-    }
-
-    // Always use async jobs to avoid long-running HTTP requests (prevents browser/proxy "failed to fetch").
-    const ids = products.map((p) => p?.id).filter(Boolean) as string[];
-    response = await fetchApi(`${BACKEND_URL}/api/baselinker/sync/jobs`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ productIds: ids, inventoryId: inv }),
-    });
-
-    const created = await parseResponse(response);
-
-    if (!response.ok) {
-      throw new Error(created?.error?.message || `Request failed with status ${response.status}`);
-    }
-
-    const jobId = created?.jobId;
-    if (!jobId) {
-      throw new Error('Backend returned invalid sync job response (jobId missing).');
-    }
-
-    // Poll job until done/failed
-    const startedAt = Date.now();
-    const TIMEOUT_MS = 12 * 60 * 1000; // 12 minutes
-    while (Date.now() - startedAt < TIMEOUT_MS) {
-      const jobRes = await fetchApi(`${BACKEND_URL}/api/baselinker/sync/jobs/${encodeURIComponent(jobId)}`, {
-        method: 'GET',
-      });
-      const jobPayload = await parseResponse(jobRes);
-      if (!jobRes.ok) {
-        throw new Error(jobPayload?.error?.message || 'Failed to load sync job status.');
-      }
-      const job = jobPayload?.data;
-      const status = job?.status;
-      if (status === 'done' || status === 'failed') {
-        const results = Array.isArray(job?.result?.results) ? job.result.results : [];
-        const failed = results.filter((r: any) => r.status === 'failed');
-        return {
-          ok: failed.length === 0 && status === 'done',
-          results,
-          error:
-            failed.length > 0 || status === 'failed'
-              ? { code: 502, message: failed.map((f: any) => `${f.id}: ${f.message || 'Sync failed'}`).join(' | ') || (job?.error?.message || 'Sync failed') }
-              : undefined,
-        };
-      }
-      await new Promise((r) => setTimeout(r, 1200));
-    }
-
-    throw new Error('Sync job timed out while waiting for completion.');
-
-  } catch (error) {
-    console.error('Failed to sync to BaseLinker:', error);
-    const errorInfo = extractErrorInfo(error, response);
-    return { ok: false, error: errorInfo };
-  }
-};
-
-// Lookup SKU/EAN in BaseLinker inventory → returns map { normalizedSkuOrEan: { product_id, sku, ean, inventoryId } }
-export const lookupBaseLinkerBySkus = async (
-  skus: string[]
-): Promise<{ ok: boolean; results?: Record<string, { product_id: number; sku?: string | null; ean?: string | null; inventoryId?: string }>; error?: { code: number; message: string } }> => {
-  let response: Response | undefined;
-  try {
-    response = await fetchApi(`${BACKEND_URL}/api/baselinker/lookup`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ skus }),
-    });
-    const result = await parseResponse(response);
-    if (!response.ok) {
-      return { ok: false, error: { code: response.status, message: result?.error?.message || 'Lookup failed' } };
-    }
-    return { ok: true, results: result?.results || {} };
-  } catch (error) {
-    console.error('Failed to lookup BaseLinker SKUs:', error);
-    const errorInfo = extractErrorInfo(error, response);
-    return { ok: false, error: errorInfo };
-  }
-};
 
 export const uploadKTypeCsv = async (
   file: File,

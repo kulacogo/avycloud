@@ -34,7 +34,6 @@ const { callGeminiStructured } = require('../lib/gemini-structured');
 const { fetchWithUnlocker } = require('../lib/web-unlocker');
 const { search } = require('../lib/evidence-provider');
 const { buildCommonPolicyText } = require('../lib/llm-policy-pack');
-const { createJob, Timestamp } = require('../lib/baselinker-sync-jobs');
 const { getManufacturerGpsrByName, upsertManufacturerGpsr, mergePreferMoreComplete, isGpsrPlaceholderLike } = require('../lib/gpsr-manufacturer-registry');
 
 const USE_UNLOCKER = (process.env.GPSR_WEB_USE_UNLOCKER || '').toString().toLowerCase() === 'true';
@@ -646,8 +645,6 @@ async function main() {
   const requireBinRaw = String(argValue('--require-bin', envRequireBin || '1') || '1').trim();
   const requireBin = requireBinRaw !== '0';
   const onlyProductId = argValue('--product-id', envProductId || null);
-  const enqueueBaseLinker = argFlag('--enqueue-baselinker') || String(process.env.ENQUEUE_BASELINKER || '').trim() === '1';
-  const invId = String(argValue('--inventory-id', process.env.BASELINKER_INVENTORY_ID || '78659')).trim();
   const chunkSize = Math.max(10, Math.min(500, Number(argValue('--chunk-size', '200') || 200)));
   // If true, only retry products that have not been successfully enriched before.
   // This is useful for iterative "dig deeper" runs without reprocessing already enriched items.
@@ -672,8 +669,6 @@ async function main() {
         debugFailuresMax,
         minQty,
         requireBin,
-        enqueueBaseLinker: enqueueBaseLinker && !dryRun,
-        inventoryId: invId,
         chunkSize,
         onlyUnenriched,
         prioritizeWorst,
@@ -824,41 +819,6 @@ async function main() {
   );
 
   console.log(JSON.stringify({ done: true, ok, failed, reasons }, null, 2));
-
-  if (!dryRun && enqueueBaseLinker && updatedIds.length) {
-    const chunkArray = (arr, n) => {
-      const out = [];
-      for (let i = 0; i < arr.length; i += n) out.push(arr.slice(i, i + n));
-      return out;
-    };
-    const chunks = chunkArray(Array.from(new Set(updatedIds)), chunkSize);
-    let enqueued = 0;
-    for (const ids of chunks) {
-      if (!ids.length) continue;
-      const jobId = crypto.randomUUID();
-      await createJob(
-        {
-          payload: { productIds: ids, inventoryId: invId, mode: 'text_only' },
-          status: 'pending',
-          stage: 'queued',
-          progress: { total: ids.length, processed: 0, synced: 0, failed: 0 },
-          requestedBy: 'script',
-          reason: 'gpsr_web_enrich_delta_sync',
-          createdAt: Timestamp.now(),
-          updatedAt: Timestamp.now(),
-        },
-        jobId
-      );
-      enqueued += 1;
-    }
-    console.log(
-      JSON.stringify(
-        { baselinker_jobs_enqueued: enqueued, products_enqueued: updatedIds.length, inventoryId: invId, mode: 'text_only' },
-        null,
-        2
-      )
-    );
-  }
 
   // IMPORTANT: do NOT fail the whole Cloud Run Job just because some items couldn't be enriched.
   // This avoids endless retries + noisy alerts. The script already reports per-reason counts.

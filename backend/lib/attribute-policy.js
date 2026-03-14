@@ -68,7 +68,6 @@ function isBlockedAttributeKey(key) {
   if (!k) return true;
   if (k.includes('ebay')) return true;
   if (k.includes('kaufland')) return true;
-  if (k.includes('baselinker')) return true;
   if (k.endsWith('_id') || k === 'id' || k === 'product_id') return true;
   if (k.includes('category_id') || k.includes('category path') || k.includes('category_path')) return true;
   if (k.startsWith('text_') || k.startsWith('features') || k.includes('integration')) return true;

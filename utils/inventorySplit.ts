@@ -1,5 +1,5 @@
 import type { Product } from '../types';
-import { getProductPhysicalQuantity, normalizeSyncStatus } from './product';
+import { getProductPhysicalQuantity } from './product';
 
 export function hasBin(product: Product): boolean {
   const code = (product as any)?.storage?.binCode;
@@ -12,11 +12,9 @@ export function hasBin(product: Product): boolean {
 }
 
 export function hasMarketplaceListing(product: Product): boolean {
-  const count = (product as any)?.ops?.baselinker?.links_count;
-  if (typeof count === 'number' && Number.isFinite(count)) return count > 0;
-  const flag = (product as any)?.ops?.baselinker?.has_links;
-  if (typeof flag === 'boolean') return flag;
-  return false;
+  const listingStatus = (product as any)?.ops?.listingStatus;
+  if (!listingStatus) return false;
+  return listingStatus.ebay === 'active' || listingStatus.kaufland === 'active';
 }
 
 export function hasAiImages(product: Product): boolean {
@@ -31,16 +29,6 @@ export function hasAiImages(product: Product): boolean {
     const notes = String(img?.notes || '');
     return /\b(ai|generated|gen)\b/i.test(notes);
   });
-}
-
-export function isBaselinkerSyncedOk(product: Product): boolean {
-  const status = normalizeSyncStatus(
-    ((product as any)?.ops?.sync_status || 'pending') as any,
-    (product as any)?.ops?.last_synced_iso
-  );
-  if (status !== 'synced') return false;
-  const last = (product as any)?.ops?.last_synced_iso;
-  return typeof last === 'string' && last.trim().length > 0;
 }
 
 export function isInventoryItem(product: Product): boolean {

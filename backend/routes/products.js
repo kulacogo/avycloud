@@ -47,15 +47,12 @@ const {
   buildInventoryLabelPdf,
 } = require('../services/label-printer');
 const { scanToBuffer } = require('../services/scanner');
-const { syncInventoriesFromBaseLinker } = require('../services/inventory-sync');
 const { createJob: createAdminBulkJob, getJob: getAdminBulkJob } = require('../lib/admin-bulk-jobs');
 const { enqueueAdminBulkJob } = require('../services/admin-bulk-runner');
 const { createJob: createQualityJob, getJob: getQualityJob, Timestamp: QualityTimestamp, updateJob: updateQualityJob } = require('../lib/quality-jobs');
 const { enqueueQualityJob } = require('../services/quality-runner');
 const { enqueueImproveJob } = require('../services/improve-runner');
 const { getSecretValue } = require('../lib/secret-values');
-const { buildBaselinkerCategoryDetails } = require('../lib/baselinker-category-resolver');
-const { findProductsBySkus, getInventoryProductLinksSummary } = require('../lib/baselinker');
 const { generateImagesForProduct } = require('../services/image-generation');
 const { calculateOptimalPrice, savePricingRule, listPricingRules, runRepricingJob } = require('../services/pricing-engine');
 const { calculateSalesVelocity, predictStockOut, generateReorderAlerts } = require('../services/inventory-forecast');
@@ -72,12 +69,6 @@ const MAX_IMPROVE_BATCH = parseInt(process.env.MAX_IMPROVE_BATCH || '100', 10);
 const IMPROVE_INLINE = (process.env.IMPROVE_INLINE ?? 'false') === 'true';
 const MAX_QUALITY_BATCH = parseInt(process.env.MAX_QUALITY_BATCH || '50', 10);
 const GENERATED_IMAGE_SIGNATURE = /\b(generated|gpt|gemini|ai[-\s]?image|ai[-\s]?render)\b/i;
-
-// ── Dependency Injection ─────────────────────────────────────────────
-let _backgroundSyncProductStockToBaseLinker = () => {};
-function setBackgroundSyncProductStock(fn) {
-  _backgroundSyncProductStockToBaseLinker = fn;
-}
 
 // ── Helper Functions ─────────────────────────────────────────────────
 
@@ -319,7 +310,7 @@ function isGhostProduct(product = {}) {
   const hasAttrs = details?.attributes && typeof details.attributes === 'object' && Object.keys(details.attributes).length > 0;
   const hasPricing = Boolean(details?.pricing?.lowest_price?.amount);
   const hasPendingIntake = Number(ops?.pending_intake_quantity || 0) > 0;
-  const hasOpsLink = Boolean(ops?.base_product_id || ops?.baselinker?.product_id || ops?.sync_status);
+  const hasOpsLink = Boolean(ops?.sync_status);
 
   const invQty = Number(product?.inventory?.quantity || 0);
   const hasStock =
@@ -432,8 +423,7 @@ function normalizeProductForApi(product = {}) {
   const p = product && typeof product === 'object' ? product : {};
   const identification =
     p.identification && typeof p.identification === 'object' ? p.identification : {};
-  const rawDetails = p.details && typeof p.details === 'object' ? p.details : {};
-  const details = buildBaselinkerCategoryDetails(rawDetails).details;
+  const details = p.details && typeof p.details === 'object' ? { ...p.details } : {};
   const identifiers =
     details.identifiers && typeof details.identifiers === 'object' ? details.identifiers : {};
   const pricing = details.pricing && typeof details.pricing === 'object' ? details.pricing : {};
@@ -611,7 +601,6 @@ router.post('/products/bulk/run', requirePermission('products', 'write'), async 
       includeUi: Boolean(body.includeUi),
       inventoryId: typeof body.inventoryId === 'string' ? body.inventoryId : undefined,
       marketplaceId: typeof body.marketplaceId === 'string' ? body.marketplaceId : undefined,
-      syncToBaseLinker: body.syncToBaseLinker === undefined ? undefined : Boolean(body.syncToBaseLinker),
       titleInsights: body.titleInsights === undefined ? undefined : Boolean(body.titleInsights),
       titleInsightsQuery: typeof body.titleInsightsQuery === 'string' ? body.titleInsightsQuery : undefined,
       titleInsightsForceRefresh:
@@ -720,27 +709,6 @@ router.get('/inventories/:id/label.pdf', requirePermission('inventories', 'read'
     return res.status(500).json({
       ok: false,
       error: { code: 500, message: 'Inventory-Label konnte nicht erstellt werden.', details: error.message },
-    });
-  }
-});
-
-// Inventory sync pulls from BaseLinker; protect it like other integration sync operations.
-router.post('/inventories/sync', requirePermission('baselinker', 'sync'), async (req, res) => {
-  try {
-    const result = await syncInventoriesFromBaseLinker();
-    res.json({
-      ok: true,
-      data: result,
-    });
-  } catch (error) {
-    console.error('Inventory sync failed:', error);
-    res.status(500).json({
-      ok: false,
-      error: {
-        code: 500,
-        message: 'Inventory-Sync fehlgeschlagen.',
-        details: error.message,
-      },
     });
   }
 });
@@ -1408,99 +1376,7 @@ router.get('/products', requirePermission('products', 'read'), async (req, res) 
       };
     });
 
-    // Optional: Resolve BaseLinker product_id for items that are not yet linked in Firestore.
-    // WARNING: This can be very slow (one BaseLinker request per SKU/EAN). Disabled by default to keep /api/products fast.
-    const toBool = (v) => ['1', 'true', 'yes', 'on'].includes(String(v || '').toLowerCase());
-    const resolveBaselinkerIdsEnabled =
-      toBool(process.env.PRODUCTS_RESOLVE_BASELINKER_IDS) || toBool(req.query?.resolveBaselinkerIds);
-    const resolveBaselinkerLimit = Math.max(
-      0,
-      parseInt(process.env.PRODUCTS_RESOLVE_BASELINKER_IDS_LIMIT || '10', 10)
-    );
-
-    let withBaselinkerIdsFiltered = withCompletenessFiltered;
-    if (resolveBaselinkerIdsEnabled) {
-      const normalizeSkuKeyLocal = (raw) =>
-        String(raw || '')
-          .trim()
-          .toLowerCase()
-          .replace(/^sku[-\s]*/i, '')
-          .replace(/\s+/g, '');
-      const normalizeEanKey = (raw) => String(raw || '').replace(/\D+/g, '').trim();
-
-      const resolveCandidateSkus = withCompletenessFiltered
-        .filter((p) => !(p?.ops?.baselinker?.product_id ?? p?.ops?.base_product_id))
-        .map(
-          (p) => p?.identification?.sku || p?.details?.identifiers?.sku || p?.details?.identifiers?.ean || null
-        )
-        .filter(Boolean);
-
-      const cappedResolveCandidateSkus =
-        resolveBaselinkerLimit > 0 ? resolveCandidateSkus.slice(0, resolveBaselinkerLimit) : [];
-
-      let resolvedBySku = {};
-      try {
-        resolvedBySku = cappedResolveCandidateSkus.length
-          ? await findProductsBySkus(null, cappedResolveCandidateSkus)
-          : {};
-      } catch (error) {
-        console.warn('[products] findProductsBySkus failed:', error?.message || error);
-        resolvedBySku = {};
-      }
-
-      if (resolvedBySku && Object.keys(resolvedBySku).length) {
-        withBaselinkerIdsFiltered = withCompletenessFiltered.map((p) => {
-          const already = p?.ops?.baselinker?.product_id ?? p?.ops?.base_product_id ?? null;
-          if (already) return p;
-          const key =
-            p?.identification?.sku || p?.details?.identifiers?.sku || p?.details?.identifiers?.ean || null;
-          const skuKey = normalizeSkuKeyLocal(key);
-          const eanKey = normalizeEanKey(key);
-          // findProductsBySkus returns normalized keys (skuKey OR eanKey)
-          const match = (skuKey && resolvedBySku[skuKey]) || (eanKey && resolvedBySku[eanKey]) || null;
-          if (!match?.product_id) return p;
-          return {
-            ...p,
-            ops: {
-              ...(p.ops || {}),
-              baselinker: {
-                ...((p.ops && p.ops.baselinker) || {}),
-                product_id: match.product_id,
-                synced_inventory: match.inventoryId || (p?.ops?.baselinker?.synced_inventory ?? null),
-                matched_sku: match.sku || null,
-                matched_ean: match.ean || null,
-              },
-            },
-          };
-        });
-      }
-    }
-
-    // BaseLinker marketplace links ("listed on at least one marketplace") enrichment.
-    // This is cached + chunked in baselinker.js to keep /api/products responsive.
-    const baseProductIds = withBaselinkerIdsFiltered
-      .map((p) => p?.ops?.baselinker?.product_id ?? p?.ops?.base_product_id ?? null)
-      .filter(Boolean);
-    const linksSummary = await getInventoryProductLinksSummary(null, baseProductIds);
-    const withLinksFiltered = withBaselinkerIdsFiltered.map((p) => {
-      const pidRaw = p?.ops?.baselinker?.product_id ?? p?.ops?.base_product_id ?? null;
-      const pid = pidRaw != null ? String(Number(pidRaw) || '') : '';
-      const summary = pid ? linksSummary[pid] : null;
-      if (!summary) return p;
-      return {
-        ...p,
-        ops: {
-          ...(p.ops || {}),
-          baselinker: {
-            ...((p.ops && p.ops.baselinker) || {}),
-            links_count: Number(summary.linksCount) || 0,
-            has_links: Boolean(summary.hasLinks),
-          },
-        },
-      };
-    });
-
-    res.json({ ok: true, products: withLinksFiltered });
+    res.json({ ok: true, products: withCompletenessFiltered });
   } catch (error) {
     console.error('Error getting products:', error);
     res.status(500).json({
@@ -2459,4 +2335,4 @@ router.post('/products/import/execute', requirePermission('products', 'write'), 
   }
 });
 
-module.exports = { router, setBackgroundSyncProductStock };
+module.exports = { router };

@@ -217,7 +217,7 @@ const DashboardMobile: React.FC<DashboardMobileProps> = ({
       if (ordRes.status === 'fulfilled') {
         const seen = new Set<string>();
         setOrders((ordRes.value ?? []).filter((o: Order) => {
-          const k = o.baselinkerOrderKey || `${o.baselinkerId}::${o.orderSource}`;
+          const k = o.orderId || `${o.id}::${o.orderSource}`;
           return seen.has(k) ? false : (seen.add(k), true);
         }));
       }
@@ -320,7 +320,7 @@ const DashboardMobile: React.FC<DashboardMobileProps> = ({
           {lastUpdated && (
             <p className="text-[10px] text-txt-muted">
               {lastUpdated.toLocaleTimeString(intlLocale, { hour: '2-digit', minute: '2-digit' })}
-              {' · BaseLinker'}
+              {' · Orders'}
             </p>
           )}
         </div>

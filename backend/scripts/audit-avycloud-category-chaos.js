@@ -3,10 +3,9 @@
  * Audit + optional repair for AvyCloud category chaos.
  *
  * What it does:
- * - Builds an overview of all BaseLinker categories used in products.
+ * - Builds an overview of all categories used in products.
  * - Identifies category drift/conflicts across fields.
  * - Writes a Markdown report with full category list.
- * - Optionally backfills canonical BaseLinker category fields.
  *
  * Usage:
  *   node backend/scripts/audit-avycloud-category-chaos.js --dry-run
@@ -16,11 +15,11 @@
 const fs = require('fs');
 const path = require('path');
 const { Firestore } = require('@google-cloud/firestore');
-const {
-  normalizeBreadcrumb,
-  resolveBaselinkerCategory,
-  buildBaselinkerCategoryDetails,
-} = require('../lib/baselinker-category-resolver');
+
+function normalizeBreadcrumb(raw) {
+  if (!raw || typeof raw !== 'string') return '';
+  return raw.replace(/\s*>\s*/g, ' > ').trim();
+}
 
 const PROJECT_ID = process.env.GOOGLE_CLOUD_PROJECT || 'avycloud';
 const firestore = new Firestore({ projectId: PROJECT_ID });
@@ -106,17 +105,17 @@ function buildMarkdownReport({
   lines.push(`- Stand: ${new Date().toISOString()}`);
   lines.push(`- Projekt: ${PROJECT_ID}`);
   lines.push(`- Produkte gesamt: ${summary.totalProducts}`);
-  lines.push(`- Produkte mit BaseLinker-Kategorie: ${summary.productsWithCategory}`);
-  lines.push(`- Produkte ohne BaseLinker-Kategorie: ${summary.productsWithoutCategory}`);
+  lines.push(`- Produkte mit Kategorie: ${summary.productsWithCategory}`);
+  lines.push(`- Produkte ohne Kategorie: ${summary.productsWithoutCategory}`);
   lines.push(`- Eindeutige Kategorien: ${summary.uniqueCategories}`);
   lines.push('');
   lines.push('## Problemquellen');
   lines.push('');
   lines.push('| Problemquelle | Anzahl |');
   lines.push('| --- | ---: |');
-  lines.push(`| BaseLinker-Kategorie fehlt | ${summary.productsWithoutCategory} |`);
+  lines.push(`| Kategorie fehlt | ${summary.productsWithoutCategory} |`);
   lines.push(`| Konflikt zwischen mehreren Kategorie-Quellen | ${summary.conflictProducts} |`);
-  lines.push(`| UI-Mix Risiko (identification.category != BaseLinker) | ${summary.mismatchIdentificationVsBaselinker} |`);
+  lines.push(`| UI-Mix Risiko (identification.category != Kategorie) | ${summary.mismatchIdentificationVsCategory} |`);
   lines.push(`| Backfill/Repair notwendig | ${summary.repairCandidates} |`);
   lines.push('');
   lines.push('### Quellenverteilung (welches Feld liefert aktuell die Kategorie)');
@@ -137,7 +136,7 @@ function buildMarkdownReport({
     lines.push(`| ${idx + 1} | ${markdownEscape(entry.category)} | ${entry.count} |`);
   });
   lines.push('');
-  lines.push('## Alle AvyCloud Kategorien (BaseLinker)');
+  lines.push('## Alle AvyCloud Kategorien');
   lines.push('');
   lines.push('| # | Kategorie | Produkte |');
   lines.push('| ---: | --- | ---: |');
@@ -159,21 +158,21 @@ function buildMarkdownReport({
     lines.push('Keine Konflikte gefunden.');
   }
   lines.push('');
-  lines.push('## Stichprobe: identification.category weicht von BaseLinker-Kategorie ab');
+  lines.push('## Stichprobe: identification.category weicht von Kategorie ab');
   lines.push('');
   if (mismatchExamples.length) {
-    lines.push('| Produkt-ID | SKU | BaseLinker | identification.category |');
+    lines.push('| Produkt-ID | SKU | Kategorie | identification.category |');
     lines.push('| --- | --- | --- | --- |');
     mismatchExamples.forEach((entry) => {
       lines.push(
-        `| ${markdownEscape(entry.id)} | ${markdownEscape(entry.sku)} | ${markdownEscape(entry.baselinker)} | ${markdownEscape(entry.identification)} |`
+        `| ${markdownEscape(entry.id)} | ${markdownEscape(entry.sku)} | ${markdownEscape(entry.category)} | ${markdownEscape(entry.identification)} |`
       );
     });
   } else {
     lines.push('Keine Abweichungen gefunden.');
   }
   lines.push('');
-  lines.push('## Stichprobe: Produkte ohne BaseLinker-Kategorie');
+  lines.push('## Stichprobe: Produkte ohne Kategorie');
   lines.push('');
   if (missingExamples.length) {
     lines.push('| Produkt-ID | SKU | identification.category (Fallback) |');
@@ -184,18 +183,18 @@ function buildMarkdownReport({
       );
     });
   } else {
-    lines.push('Keine fehlenden BaseLinker-Kategorien gefunden.');
+    lines.push('Keine fehlenden Kategorien gefunden.');
   }
   lines.push('');
   lines.push('## Implementierte Lösung');
   lines.push('');
-  lines.push('1. Kategorie-Auflösung auf eine kanonische BaseLinker-Quelle vereinheitlicht (Path + Legacy 78659).');
-  lines.push('2. Repair-Backfill setzt `details.baselinkerCategoryPath` und `details.baselinkerCategories.78659` konsistent.');
-  lines.push('3. UI nutzt die BaseLinker-Kategorie als primäre Inventar-Kategorie (kein Taxonomie-Mix mit eBay).');
+  lines.push('1. Kategorie-Auflösung auf eine kanonische Quelle vereinheitlicht.');
+  lines.push('2. Repair-Backfill setzt `details.categoryPath` konsistent.');
+  lines.push('3. UI nutzt die Kategorie als primäre Inventar-Kategorie (kein Taxonomie-Mix mit eBay).');
   lines.push('');
   lines.push('## Präventive Maßnahmen');
   lines.push('');
-  lines.push('- Save-Pipeline erzwingt künftig kanonischen BaseLinker-Kategoriepfad pro Produkt.');
+  lines.push('- Save-Pipeline erzwingt künftig kanonischen Kategoriepfad pro Produkt.');
   lines.push('- Konfliktfälle werden als Data-Quality-Signal markiert statt still weiterzutreiben.');
   lines.push('- Dieses Audit-Skript kann regelmäßig (z. B. nightly) laufen, um neue Drifts früh sichtbar zu machen.');
   lines.push('');
@@ -248,7 +247,7 @@ async function main() {
   let productsWithCategory = 0;
   let productsWithoutCategory = 0;
   let conflictProducts = 0;
-  let mismatchIdentificationVsBaselinker = 0;
+  let mismatchIdentificationVsCategory = 0;
 
   for (const doc of docs) {
     const data = doc.data() || {};
@@ -256,10 +255,12 @@ async function main() {
     const identification =
       data?.identification && typeof data.identification === 'object' ? data.identification : {};
 
-    const resolved = resolveBaselinkerCategory(details);
-    sourceCounts[resolved.source] = (sourceCounts[resolved.source] || 0) + 1;
-    const selected = resolved.value;
+    // Resolve category from available fields
+    const categoryPath = normalizeBreadcrumb(details.categoryPath || details.categoryId || '');
     const identCategory = normalizeBreadcrumb(identification.category);
+    const selected = categoryPath || identCategory || '';
+    const source = categoryPath ? 'details.categoryPath' : identCategory ? 'identification.category' : 'none';
+    sourceCounts[source] = (sourceCounts[source] || 0) + 1;
     const sku = pickSku(data, doc.id);
 
     if (selected) {
@@ -278,56 +279,29 @@ async function main() {
       }
     }
 
-    if (resolved.hasConflict) {
-      conflictProducts += 1;
-      if (conflictExamples.length < 30) {
-        conflictExamples.push({
-          id: doc.id,
-          sku,
-          selected: selected || '—',
-          candidates: resolved.distinctValues,
-        });
-      }
-    }
-
-    if (selected && identCategory && selected !== identCategory) {
-      mismatchIdentificationVsBaselinker += 1;
+    if (categoryPath && identCategory && categoryPath !== identCategory) {
+      mismatchIdentificationVsCategory += 1;
       if (mismatchExamples.length < 40) {
         mismatchExamples.push({
           id: doc.id,
           sku,
-          baselinker: selected,
+          category: categoryPath,
           identification: identCategory,
         });
       }
     }
 
-    const hydrated = buildBaselinkerCategoryDetails(details);
-    if (hydrated.changed && hydrated.value) {
+    // Repair: backfill categoryPath from identification.category if missing
+    if (!categoryPath && identCategory) {
       const updates = {};
-      const currentPath = normalizeBreadcrumb(details.baselinkerCategoryPath);
-      if (currentPath !== hydrated.value) {
-        updates['details.baselinkerCategoryPath'] = hydrated.value;
-      }
-      const legacy =
-        details.baselinkerCategories &&
-        typeof details.baselinkerCategories === 'object' &&
-        !Array.isArray(details.baselinkerCategories)
-          ? details.baselinkerCategories
-          : {};
-      const current78659 = normalizeBreadcrumb(legacy['78659']);
-      if (current78659 !== hydrated.value) {
-        updates['details.baselinkerCategories.78659'] = hydrated.value;
-      }
-      if (Object.keys(updates).length) {
-        repairRows.push({
-          id: doc.id,
-          sku,
-          source: hydrated.source,
-          value: hydrated.value,
-          updates,
-        });
-      }
+      updates['details.categoryPath'] = identCategory;
+      repairRows.push({
+        id: doc.id,
+        sku,
+        source: 'identification.category',
+        value: identCategory,
+        updates,
+      });
     }
   }
 
@@ -362,7 +336,7 @@ async function main() {
     productsWithoutCategory,
     uniqueCategories: categories.length,
     conflictProducts,
-    mismatchIdentificationVsBaselinker,
+    mismatchIdentificationVsCategory,
     sourceCounts,
     repairCandidates: repairRows.length,
   };

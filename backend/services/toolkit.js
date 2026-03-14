@@ -1,8 +1,6 @@
 const { callSerpApi, summarizeSerpEntries, ALLOWED_ENGINES } = require('../lib/serpapi');
 const { fetchWithUnlocker } = require('../lib/web-unlocker');
 const { search, searchSite } = require('../lib/evidence-provider');
-const { searchInventoryCategories } = require('../lib/baselinker-inventory-category-index');
-
 const AMAZON_DOMAIN_BY_HINT = {
   de: 'amazon.de',
   'de-de': 'amazon.de',
@@ -239,28 +237,6 @@ const webFetchToolDefinition = {
         maximum: 60000,
         description: 'Timeout für den Unlocker-Request in Millisekunden.',
       },
-    },
-  },
-};
-
-const baselinkerCategorySearchToolDefinition = {
-  type: 'function',
-  name: 'baselinker_category_search',
-  description:
-    'Sucht BaseLinker Inventory-Kategorien (Standard Inventory 78659) und liefert id + breadcrumb. Nutze dies vor Category-Änderungen im Datenblatt.',
-  strict: false,
-  parameters: {
-    type: 'object',
-    additionalProperties: false,
-    required: ['query'],
-    properties: {
-      inventoryId: {
-        type: ['string', 'null'],
-        description: 'BaseLinker inventory_id (Standard: 78659).',
-      },
-      query: { type: 'string', description: 'Suchanfrage (z.B. "Bremsen", "Auto Tuning").' },
-      limit: { type: ['number', 'null'], minimum: 1, maximum: 200, description: 'Max. Ergebnisse.' },
-      leafOnly: { type: ['boolean', 'null'], description: 'true = nur Leaf-Kategorien.' },
     },
   },
 };
@@ -645,37 +621,11 @@ async function executeWebFetchToolCall(toolCall) {
   }
 }
 
-async function executeBaselinkerCategorySearchToolCall(toolCall) {
-  let args = {};
-  try {
-    args = JSON.parse(toolCall.arguments || '{}');
-  } catch (error) {
-    return { ok: false, inventoryId: '78659', query: '', items: [], error: `Invalid arguments: ${error.message}` };
-  }
-  const inventoryId = (args.inventoryId || '78659').toString().trim() || '78659';
-  const q = (args.query || '').toString().trim();
-  if (!q) {
-    return { ok: false, inventoryId, query: '', items: [], error: 'query is required' };
-  }
-  const limit = Math.max(1, Math.min(200, Math.floor(Number(args.limit || 60))));
-  const leafOnly = Boolean(args.leafOnly ?? true);
-  const items = await searchInventoryCategories(inventoryId, q, { limit, leafOnly });
-  return {
-    ok: items.length > 0,
-    inventoryId,
-    query: q,
-    items,
-    error: items.length ? null : 'no_results',
-  };
-}
-
 module.exports = {
   serpapiToolDefinition,
   brightdataSearchToolDefinition,
   webFetchToolDefinition,
-  baselinkerCategorySearchToolDefinition,
   executeSerpapiToolCall,
   executeBrightdataSearchToolCall,
   executeWebFetchToolCall,
-  executeBaselinkerCategorySearchToolCall,
 };

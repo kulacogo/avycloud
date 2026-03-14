@@ -262,21 +262,6 @@ async function testConnection({ type, credentials }) {
         return { ok: true, message: `Verbunden! ${Array.isArray(result) ? result.length : 0} Locales gefunden.` };
       }
 
-      case 'baselinker': {
-        const fetchFn = global.fetch || require('node-fetch');
-        const resp = await fetchFn('https://api.baselinker.com/connector.php', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-BLToken': credentials.apiToken },
-          body: 'method=getInventories',
-        });
-        const data = await resp.json();
-        if (data.status === 'SUCCESS') {
-          const count = data.inventories?.length || 0;
-          return { ok: true, message: `Verbunden! ${count} Inventare gefunden.` };
-        }
-        return { ok: false, message: data.error_message || 'Verbindung fehlgeschlagen' };
-      }
-
       case 'sendcloud': {
         const fetchFn = global.fetch || require('node-fetch');
         const auth = Buffer.from(`${credentials.publicKey}:${credentials.secretKey}`).toString('base64');

@@ -4,7 +4,7 @@
  * order-intake-kaufland.js — Fetch orders directly from Kaufland API.
  *
  * Uses Kaufland Orders API to pull orders.
- * Replaces BaseLinker as order source for Kaufland.
+ * Fetches orders directly from Kaufland API.
  */
 
 const { Firestore, FieldValue } = require('@google-cloud/firestore');
@@ -82,6 +82,21 @@ function mapKauflandOrder(klOrder) {
   const totalAmount = items.reduce((sum, item) => sum + (item.priceBrutto * item.quantity), 0);
 
   const shippingAddr = klOrder.buyer?.shipping_address || klOrder.shipping_address || {};
+  const billingAddr = klOrder.buyer?.billing_address || {};
+
+  // Kaufland is prepaid — if payment_status is complete, the buyer paid at order creation
+  const paymentStatus = klOrder.payment_status || null;
+  const paidAt = paymentStatus === 'complete' ? (klOrder.ts_created || null) : null;
+
+  // Derive shippedAt from unit status if any unit is 'shipped'
+  const anyShipped = units.some((u) => u.status === 'shipped');
+  const shippedAt = anyShipped ? (klOrder.ts_updated || new Date().toISOString()) : null;
+
+  // Shipping cost: Kaufland may include shipping_costs at unit level
+  const shippingCost = units.reduce((sum, u) => {
+    const sc = parseFloat(u.shipping_costs_total || u.shipping_cost || '0');
+    return sum + (isNaN(sc) ? 0 : sc / 100); // cents → EUR
+  }, 0) || null;
 
   return {
     marketplaceOrderId: String(klOrder.id_order || ''),
@@ -100,8 +115,23 @@ function mapKauflandOrder(klOrder) {
       phone: shippingAddr.phone || null,
       email: buyer.email || null,
     },
+    billingAddress: {
+      name: [billingAddr.first_name, billingAddr.last_name].filter(Boolean).join(' ')
+        || [shippingAddr.first_name, shippingAddr.last_name].filter(Boolean).join(' ')
+        || buyer.name || null,
+      street: [billingAddr.street, billingAddr.house_number].filter(Boolean).join(' ')
+        || [shippingAddr.street, shippingAddr.house_number].filter(Boolean).join(' ')
+        || null,
+      city: billingAddr.city || shippingAddr.city || null,
+      zip: billingAddr.postcode || shippingAddr.postcode || null,
+      country: billingAddr.country || shippingAddr.country || 'DE',
+    },
     items,
-    paymentStatus: klOrder.payment_status || null,
+    paymentStatus,
+    paidAt,
+    shippedAt,
+    paymentMethod: paymentStatus === 'complete' ? 'Kaufland Checkout' : null,
+    shippingCost: shippingCost || null,
     buyerNote: klOrder.note || null,
     raw: klOrder,
   };
@@ -296,14 +326,26 @@ async function saveOrderIfNew({ tenantId, order }) {
           shipped: 'Versendet', delivered: 'Zugestellt', cancelled: 'Storniert',
           returned: 'Retoure', completed: 'Abgeschlossen', on_hold: 'Pausiert',
         };
-        await existingDoc.ref.update({
+        const updateFields = {
           omsStatus: mappedStatus,
           omsStatusLabel: OMS_STATUS_LABELS[mappedStatus] || mappedStatus,
           status: mappedStatus,
           statusLabel: OMS_STATUS_LABELS[mappedStatus] || mappedStatus,
           updatedAt: new Date().toISOString(),
           'ops.kauflandStatusSync': { from: currentOms, to: mappedStatus, klUnitStatus, syncedAt: new Date().toISOString() },
-        });
+        };
+        // Backfill shippedAt when marketplace confirms shipment
+        if (mappedStatus === 'shipped' && !existingData.shippedAt) {
+          updateFields.shippedAt = new Date().toISOString();
+        }
+        // Backfill paidAt if payment is complete and not yet recorded
+        if (order.paidAt && !existingData.paidAt) {
+          updateFields.paidAt = order.paidAt;
+        }
+        if (order.paymentMethod && !existingData.paymentMethod) {
+          updateFields.paymentMethod = order.paymentMethod;
+        }
+        await existingDoc.ref.update(updateFields);
         console.log(`[kaufland-intake] Status updated: ${existingData.orderId || existingDoc.id} ${currentOms} → ${mappedStatus} (Kaufland: ${klUnitStatus})`);
       }
 
@@ -352,11 +394,16 @@ async function saveOrderIfNew({ tenantId, order }) {
     totalAmount: order.totalAmount,
     currency: order.currency,
     customer: order.customer,
+    billingAddress: order.billingAddress || null,
     items: order.items.map((item, idx) => ({
       id: `${seq.formatted}-${idx + 1}`,
       ...item,
     })),
     paymentStatus: order.paymentStatus,
+    paidAt: order.paidAt || null,
+    shippedAt: order.shippedAt || null,
+    paymentMethod: order.paymentMethod || null,
+    shippingCost: order.shippingCost || null,
     buyerNote: order.buyerNote,
   };
 

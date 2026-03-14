@@ -5,7 +5,7 @@
  * Why this exists:
  * - hood.de uses numeric category IDs internally ("Kategorienummer").
  * - Public category pages embed `categoryID` + `catID` markers in HTML.
- * - We need a complete list to map BaseLinker inventory categories.
+ * - We need a complete list to map inventory categories.
  *
  * Output:
  * - backend/exports/hood/categories-hood.json

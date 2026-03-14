@@ -17,7 +17,6 @@ const TABS: { key: Category; label: string }[] = [
 const LOGO_CONFIG: Record<string, { letter: string; color: string }> = {
   ebay: { letter: "eB", color: "bg-blue-600" },
   kaufland: { letter: "KL", color: "bg-red-600" },
-  baselinker: { letter: "BL", color: "bg-sky-600" },
   sendcloud: { letter: "SC", color: "bg-blue-500" },
   sevdesk: { letter: "SD", color: "bg-emerald-600" },
   dhl: { letter: "DHL", color: "bg-yellow-500" },

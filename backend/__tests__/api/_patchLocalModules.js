@@ -149,12 +149,6 @@ patchLocalModule('../../services/scanner.js', {
   scanToBuffer: spies.scanToBuffer,
 });
 
-// services/inventory-sync.js
-spies.syncInventoriesFromBaseLinker = vi.fn().mockResolvedValue({});
-patchLocalModule('../../services/inventory-sync.js', {
-  syncInventoriesFromBaseLinker: spies.syncInventoriesFromBaseLinker,
-});
-
 // lib/admin-bulk-jobs.js
 spies.adminBulkJobsCreateJob = vi.fn().mockResolvedValue({ jobId: 'test-job' });
 spies.adminBulkJobsGetJob = vi.fn().mockResolvedValue(null);
@@ -196,23 +190,6 @@ patchLocalModule('../../services/improve-runner.js', {
 spies.getSecretValue = vi.fn().mockResolvedValue('secret-value');
 patchLocalModule('../../lib/secret-values.js', {
   getSecretValue: spies.getSecretValue,
-});
-
-// lib/baselinker-category-resolver.js
-// buildBaselinkerCategoryDetails is called SYNCHRONOUSLY — must return { details: ... }
-spies.buildBaselinkerCategoryDetails = vi.fn((rawDetails) => ({ details: rawDetails || {} }));
-patchLocalModule('../../lib/baselinker-category-resolver.js', {
-  buildBaselinkerCategoryDetails: spies.buildBaselinkerCategoryDetails,
-});
-
-// lib/baselinker.js
-spies.findProductsBySkus = vi.fn().mockResolvedValue([]);
-spies.getInventoryProductLinksSummary = vi.fn(() => ({}));
-spies.callBaseLinker = vi.fn().mockResolvedValue({});
-patchLocalModule('../../lib/baselinker.js', {
-  findProductsBySkus: spies.findProductsBySkus,
-  getInventoryProductLinksSummary: spies.getInventoryProductLinksSummary,
-  callBaseLinker: spies.callBaseLinker,
 });
 
 // services/image-generation.js
@@ -285,12 +262,6 @@ spies.getShippingCostsFromSevDesk = vi.fn().mockResolvedValue({});
 patchLocalModule('../../lib/sevdesk.js', {
   getCheckAccountBalances: spies.getCheckAccountBalances,
   getShippingCostsFromSevDesk: spies.getShippingCostsFromSevDesk,
-});
-
-// lib/baselinker-shipping.js (for orders.test.js)
-spies.getShippingCostsSummaryFromBaseLinker = vi.fn().mockResolvedValue({});
-patchLocalModule('../../lib/baselinker-shipping.js', {
-  getShippingCostsSummaryFromBaseLinker: spies.getShippingCostsSummaryFromBaseLinker,
 });
 
 // lib/sendcloud.js (for orders.test.js)

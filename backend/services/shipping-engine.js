@@ -141,10 +141,10 @@ async function createParcel({
       country: customer.country || customer.countryCode || 'DE',
       email: customer.email || '',
       telephone: customer.phone || customer.telephone || '',
-      order_number: order.number || order.baselinkerId || order.orderId || order.id || '',
+      order_number: order.number || order.orderId || order.id || '',
       weight: String(totalWeight || 0.5), // kg
       request_label: requestLabel,
-      external_reference: order.marketplaceOrderId || order.baselinkerId || order.id || '',
+      external_reference: order.marketplaceOrderId || order.id || '',
     },
   };
 
@@ -492,8 +492,6 @@ async function syncSendCloudParcels({ tenantId = 'default', fromDate, toDate } =
 
     if (o.orderId) ordersByNumber.set(String(o.orderId), o);
     if (o.number) ordersByNumber.set(String(o.number), o);
-    if (o.baselinkerId) ordersByNumber.set(String(o.baselinkerId), o);
-
     if (o.marketplaceOrderId) ordersByMarketplaceId.set(String(o.marketplaceOrderId), o);
 
     const nameZipKey = `${(o.customer?.name || '').toLowerCase().trim()}::${(o.customer?.zip || '').trim()}`;
@@ -525,7 +523,7 @@ async function syncSendCloudParcels({ tenantId = 'default', fromDate, toDate } =
     const orderNumber = parcel.order_number || '';
     const extRef = parcel.external_reference || '';
 
-    // Priority 1: order_number → Firestore doc ID, then orderId/number/baselinkerId
+    // Priority 1: order_number → Firestore doc ID, then orderId/number
     if (orderNumber) {
       order = ordersById.get(orderNumber) || ordersByNumber.get(orderNumber) || null;
     }

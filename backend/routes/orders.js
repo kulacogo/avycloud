@@ -3,9 +3,7 @@ const { requirePermission } = require('../lib/rbac');
 const { listOrders, getDashboardMetrics, computeOrdersDeliveryTotal } = require('../lib/firestore');
 const { syncNewOrders, markOrderAsPicked, markOrderAsPacked } = require('../services/order-sync');
 const { attachPickHintsToOrders } = require('../services/pick-hints');
-const { callBaseLinker } = require('../lib/baselinker');
 const { getCheckAccountBalances, getShippingCostsFromSevDesk } = require('../lib/sevdesk');
-const { getShippingCostsSummaryFromBaseLinker } = require('../lib/baselinker-shipping');
 const { getShippingCostsSummary: getSendCloudShippingSummary } = require('../lib/sendcloud');
 const { getEbayNetRevenueSummary } = require('../lib/ebay-finances');
 const { emitSyncEvent } = require('../services/sync-event-bus');
@@ -18,411 +16,6 @@ function setBackgroundSyncOrders(fn) {
   _backgroundSyncOrders = fn;
 }
 
-// --- Dashboard helpers: BaseLinker order returns (for returns KPIs + net revenue) ---
-const ORDER_RETURNS_CACHE_TTL_MS = parseInt(process.env.ORDER_RETURNS_CACHE_TTL_MS || String(5 * 60 * 1000), 10);
-const ORDER_RETURNS_MAX_PAGES = parseInt(process.env.ORDER_RETURNS_MAX_PAGES || '50', 10);
-const ORDER_RETURNS_MAX_ITEMS = parseInt(process.env.ORDER_RETURNS_MAX_ITEMS || '5000', 10);
-let ORDER_RETURNS_CACHE = {
-  atMs: 0,
-  dateFromUnix: 0,
-  returns: [],
-};
-
-function computeOrderReturnValueBrutto(returnEntry = {}) {
-  const products = Array.isArray(returnEntry?.products) ? returnEntry.products : [];
-  const value = products.reduce((sum, p) => {
-    const price = Number(p?.price_brutto || 0) || 0;
-    const qty = Number(p?.quantity || 0) || 0;
-    return sum + price * qty;
-  }, 0);
-  const currency = (returnEntry?.currency || '').toString().trim().toUpperCase() || 'EUR';
-  const createdAt = returnEntry?.date_add ? new Date(Number(returnEntry.date_add) * 1000) : null;
-  return { currency, value: Number(value) || 0, createdAt };
-}
-
-async function loadOrderReturnsSince(dateFromUnix, { timeoutMs = 20_000 } = {}) {
-  const now = Date.now();
-  if (
-    ORDER_RETURNS_CACHE.returns?.length &&
-    ORDER_RETURNS_CACHE.dateFromUnix === dateFromUnix &&
-    ORDER_RETURNS_CACHE.atMs &&
-    now - ORDER_RETURNS_CACHE.atMs < ORDER_RETURNS_CACHE_TTL_MS
-  ) {
-    return ORDER_RETURNS_CACHE.returns;
-  }
-
-  const out = [];
-  const seen = new Set();
-  let idFrom = null;
-
-  for (let page = 0; page < ORDER_RETURNS_MAX_PAGES; page += 1) {
-    const params = {
-      date_from: dateFromUnix,
-      ...(idFrom ? { id_from: idFrom } : {}),
-      include_custom_extra_fields: false,
-      include_connect_data: false,
-    };
-    const response = await callBaseLinker('getOrderReturns', params, { timeoutMs, retries: 2 });
-    const batch = Array.isArray(response?.returns) ? response.returns : [];
-    if (!batch.length) break;
-
-    let maxId = 0;
-    for (const entry of batch) {
-      const rid = entry?.return_id != null ? String(entry.return_id) : '';
-      const n = Number(entry?.return_id || 0) || 0;
-      if (n > maxId) maxId = n;
-      if (!rid || seen.has(rid)) continue;
-      seen.add(rid);
-      out.push(entry);
-      if (out.length >= ORDER_RETURNS_MAX_ITEMS) break;
-    }
-
-    if (out.length >= ORDER_RETURNS_MAX_ITEMS) break;
-    if (batch.length < 100) break; // docs: max 100 per call
-    if (!maxId) break;
-    idFrom = maxId + 1;
-  }
-
-  ORDER_RETURNS_CACHE = { atMs: Date.now(), dateFromUnix, returns: out };
-  return out;
-}
-
-function computeOrderReturnsStats(returnsList, { rangeStart, rangeEndExclusive, monthStart } = {}) {
-  const totals = { count: 0, valueByCurrency: new Map() };
-  const month = { count: 0, valueByCurrency: new Map() };
-  const window = { count: 0, valueByCurrency: new Map() };
-
-  const add = (bucket, currency, amount) => {
-    bucket.valueByCurrency.set(currency, (bucket.valueByCurrency.get(currency) || 0) + (Number(amount) || 0));
-  };
-
-  (returnsList || []).forEach((entry) => {
-    const { currency, value, createdAt } = computeOrderReturnValueBrutto(entry);
-    totals.count += 1;
-    add(totals, currency, value);
-
-    if (createdAt && monthStart && createdAt >= monthStart) {
-      month.count += 1;
-      add(month, currency, value);
-    }
-
-    if (createdAt && rangeStart && rangeEndExclusive && createdAt >= rangeStart && createdAt < rangeEndExclusive) {
-      window.count += 1;
-      add(window, currency, value);
-    }
-  });
-
-  const mapToObject = (m) => Object.fromEntries(Array.from(m.entries()).map(([k, v]) => [k, Number((v || 0).toFixed(2))]));
-  return {
-    total: { count: totals.count, value_by_currency: mapToObject(totals.valueByCurrency) },
-    month: { count: month.count, value_by_currency: mapToObject(month.valueByCurrency) },
-    window: { count: window.count, value_by_currency: mapToObject(window.valueByCurrency) },
-  };
-}
-
-// --- Dashboard helpers: BaseLinker orders (for accurate revenue/volume across long presets) ---
-// Official docs: https://api.baselinker.com/index.php?method=getOrders
-// Official docs: https://api.baselinker.com/index.php?method=getOrderStatusList
-const DASHBOARD_ORDERS_CACHE_TTL_MS = parseInt(
-  process.env.DASHBOARD_ORDERS_CACHE_TTL_MS || String(15 * 60 * 1000),
-  10
-);
-const DASHBOARD_ORDERS_MAX_PAGES = parseInt(process.env.DASHBOARD_ORDERS_MAX_PAGES || '200', 10);
-const DASHBOARD_ORDERS_MAX_ITEMS = parseInt(process.env.DASHBOARD_ORDERS_MAX_ITEMS || '20000', 10);
-const DASHBOARD_ORDER_STATUS_CACHE_TTL_MS = parseInt(
-  process.env.DASHBOARD_ORDER_STATUS_CACHE_TTL_MS || String(15 * 60 * 1000),
-  10
-);
-
-let DASHBOARD_ORDERS_AGG_CACHE = new Map(); // key -> { atMs, data }
-let DASHBOARD_ORDER_STATUS_CACHE = { atMs: 0, byId: new Map() }; // string id -> normalized name
-
-function normalizeLower(input) {
-  return (input || '').toString().trim().toLowerCase();
-}
-
-async function ensureDashboardOrderStatusNameMap({ timeoutMs = 15_000 } = {}) {
-  const now = Date.now();
-  if (
-    DASHBOARD_ORDER_STATUS_CACHE.byId &&
-    DASHBOARD_ORDER_STATUS_CACHE.byId.size &&
-    DASHBOARD_ORDER_STATUS_CACHE.atMs &&
-    now - DASHBOARD_ORDER_STATUS_CACHE.atMs < DASHBOARD_ORDER_STATUS_CACHE_TTL_MS
-  ) {
-    return DASHBOARD_ORDER_STATUS_CACHE.byId;
-  }
-  try {
-    const response = await callBaseLinker('getOrderStatusList', {}, { timeoutMs, retries: 2 });
-    const statuses = Array.isArray(response?.statuses) ? response.statuses : [];
-    const next = new Map();
-    statuses.forEach((s) => {
-      if (s?.id == null) return;
-      const id = String(s.id).trim();
-      const name = normalizeLower(s?.name || s?.name_for_customer || '');
-      if (!id || !name) return;
-      next.set(id, name);
-    });
-    DASHBOARD_ORDER_STATUS_CACHE = { atMs: now, byId: next };
-    return next;
-  } catch (err) {
-    // Best-effort: keep existing cache on failure.
-    return DASHBOARD_ORDER_STATUS_CACHE.byId || new Map();
-  }
-}
-
-function isCancelledByStatusId(statusId, statusNameById) {
-  if (!statusId) return false;
-  const name = statusNameById?.get(String(statusId).trim()) || '';
-  if (!name) return false;
-  return name.includes('storniert') || name.includes('cancel');
-}
-
-function computeBaseLinkerOrderValueBrutto(orderEntry = {}) {
-  const products = Array.isArray(orderEntry?.products) ? orderEntry.products : [];
-  const productsValue = products.reduce((sum, p) => {
-    const price = Number(p?.price_brutto || 0) || 0;
-    const qty = Number(p?.quantity || 0) || 0;
-    return sum + price * qty;
-  }, 0);
-  const delivery = Number(orderEntry?.delivery_price || 0) || 0;
-  const value = productsValue + delivery;
-  const currency = (orderEntry?.currency || '').toString().trim().toUpperCase() || 'EUR';
-  const confirmedAt = orderEntry?.date_confirmed ? new Date(Number(orderEntry.date_confirmed) * 1000) : null;
-  return { currency, value: Number(value) || 0, confirmedAt };
-}
-
-function computeDashboardBucketKey(dt, { bucket, bucketStepHours, startDay } = {}) {
-  if (!(dt instanceof Date) || Number.isNaN(dt.getTime())) return null;
-  if (bucket === 'month') {
-    return `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, '0')}-01`;
-  }
-  if (bucket === 'week') {
-    if (!(startDay instanceof Date) || Number.isNaN(startDay.getTime())) return dt.toISOString().slice(0, 10);
-    const MS_PER_DAY = 24 * 60 * 60 * 1000;
-    const dayStartAt = new Date(Date.UTC(dt.getUTCFullYear(), dt.getUTCMonth(), dt.getUTCDate(), 0, 0, 0));
-    const diffDays = Math.floor((dayStartAt.getTime() - startDay.getTime()) / MS_PER_DAY);
-    const idx = Math.max(0, Math.floor(diffDays / 7));
-    const d = new Date(startDay);
-    d.setUTCDate(startDay.getUTCDate() + idx * 7);
-    return d.toISOString().slice(0, 10);
-  }
-  if (bucket === 'hour') {
-    const step = Math.max(1, Number(bucketStepHours) || 1);
-    const hour = dt.getUTCHours();
-    const bucketHour = Math.floor(hour / step) * step;
-    const d = new Date(Date.UTC(dt.getUTCFullYear(), dt.getUTCMonth(), dt.getUTCDate(), bucketHour, 0, 0));
-    return d.toISOString();
-  }
-  // day
-  return dt.toISOString().slice(0, 10);
-}
-
-async function computeDashboardBaseLinkerOrdersAggregate({
-  rangeStart,
-  rangeEndExclusive,
-  bucket,
-  bucketStepHours,
-  seriesTemplate,
-  timeoutMs = 20_000,
-} = {}) {
-  const rangeStartDt = rangeStart instanceof Date ? rangeStart : null;
-  const rangeEndDt = rangeEndExclusive instanceof Date ? rangeEndExclusive : null;
-  if (!rangeStartDt || !rangeEndDt) {
-    return null;
-  }
-  const fromUnix = Math.floor(rangeStartDt.getTime() / 1000);
-  const toUnix = Math.ceil(rangeEndDt.getTime() / 1000);
-  if (!Number.isFinite(fromUnix) || !Number.isFinite(toUnix) || fromUnix <= 0 || toUnix <= fromUnix) {
-    return null;
-  }
-
-  // Cache key uses 5-min quantization to avoid thrashing on "now" ranges.
-  const toUnixKey = Math.max(0, Math.floor(toUnix / 300) * 300);
-  const cacheKey = `window:${fromUnix}:${toUnixKey}:${bucket || 'day'}:${Number(bucketStepHours) || 0}`;
-  const now = Date.now();
-  const cached = DASHBOARD_ORDERS_AGG_CACHE.get(cacheKey);
-  if (cached?.atMs && now - cached.atMs < DASHBOARD_ORDERS_CACHE_TTL_MS) {
-    return cached.data;
-  }
-
-  const statusNameById = await ensureDashboardOrderStatusNameMap({ timeoutMs: Math.min(20_000, timeoutMs) });
-
-  const template = Array.isArray(seriesTemplate) ? seriesTemplate : [];
-  const series = template.map((d) => ({
-    date: d?.date,
-    orders: 0,
-    revenue: 0,
-  }));
-  const seriesIndex = new Map(series.map((d, idx) => [d.date, idx]));
-
-  const startDay = new Date(
-    Date.UTC(rangeStartDt.getUTCFullYear(), rangeStartDt.getUTCMonth(), rangeStartDt.getUTCDate(), 0, 0, 0)
-  );
-
-  const revenueByCurrency = new Map();
-  let kauflandGross = 0;
-  let cursor = fromUnix;
-  let processed = 0;
-
-  for (let page = 0; page < DASHBOARD_ORDERS_MAX_PAGES; page += 1) {
-    const response = await callBaseLinker(
-      'getOrders',
-      {
-        date_confirmed_from: cursor,
-        get_unconfirmed_orders: false,
-        include_custom_extra_fields: false,
-        include_connect_data: false,
-        include_commission_data: false,
-      },
-      { timeoutMs, retries: 2 }
-    );
-    const batch = Array.isArray(response?.orders) ? response.orders : [];
-    if (!batch.length) break;
-
-    let lastConfirmed = 0;
-    for (const o of batch) {
-      const confirmedUnix = Number(o?.date_confirmed || 0) || 0;
-      if (confirmedUnix > lastConfirmed) lastConfirmed = confirmedUnix;
-      if (!confirmedUnix || confirmedUnix < fromUnix) continue;
-      if (confirmedUnix >= toUnix) continue;
-
-      // Ignore synthetic "order_return" orders – returns are handled via getOrderReturns.
-      const orderSource = (o?.order_source || '').toString().trim().toLowerCase();
-      if (orderSource === 'order_return') continue;
-
-      const statusId = o?.order_status_id != null ? String(o.order_status_id).trim() : null;
-      const cancelled = isCancelledByStatusId(statusId, statusNameById);
-      if (cancelled) continue;
-
-      const { currency, value, confirmedAt } = computeBaseLinkerOrderValueBrutto(o);
-      if (!confirmedAt) continue;
-      if (confirmedAt < rangeStartDt || confirmedAt >= rangeEndDt) continue;
-
-      const dk = computeDashboardBucketKey(confirmedAt, {
-        bucket,
-        bucketStepHours,
-        startDay,
-      });
-      if (dk && seriesIndex.has(dk)) {
-        const idx = seriesIndex.get(dk);
-        series[idx].orders += 1;
-        series[idx].revenue += value;
-      }
-      revenueByCurrency.set(currency, (revenueByCurrency.get(currency) || 0) + value);
-      // Track Kaufland gross separately (order_source contains 'kaufland')
-      if (orderSource.includes('kaufland') && currency === 'EUR') {
-        kauflandGross += value;
-      }
-      processed += 1;
-      if (processed >= DASHBOARD_ORDERS_MAX_ITEMS) break;
-    }
-
-    if (processed >= DASHBOARD_ORDERS_MAX_ITEMS) break;
-    if (batch.length < 100) break; // docs: max 100 per call
-    if (!lastConfirmed || lastConfirmed >= toUnix) break;
-    cursor = lastConfirmed + 1;
-  }
-
-  // Kaufland: 14% Netto-Provision on Bruttoverkaufspreis + 19% MwSt on provision
-  // = 14% × 1.19 = 16.66% effective deduction from brutto
-  const KAUFLAND_PROVISION_RATE = 0.14;
-  const KAUFLAND_EFFECTIVE_RATE = KAUFLAND_PROVISION_RATE * 1.19; // ~0.1666
-  const data = {
-    series: series.map((d) => ({
-      date: d.date,
-      orders: d.orders,
-      revenue: Number((Number(d.revenue || 0) || 0).toFixed(2)),
-    })),
-    revenue_by_currency: Object.fromEntries(
-      Array.from(revenueByCurrency.entries()).map(([k, v]) => [k, Number((Number(v || 0) || 0).toFixed(2))])
-    ),
-    kaufland_gross: Math.round(kauflandGross * 100) / 100,
-    kaufland_payout: Math.round(kauflandGross * (1 - KAUFLAND_EFFECTIVE_RATE) * 100) / 100,
-  };
-
-  DASHBOARD_ORDERS_AGG_CACHE.set(cacheKey, { atMs: now, data });
-  return data;
-}
-
-async function computeDashboardBaseLinkerRevenueTotal({
-  fromUnix,
-  toUnix,
-  timeoutMs = 20_000,
-} = {}) {
-  const f = Number(fromUnix) || 0;
-  const t = Number(toUnix) || 0;
-  if (!Number.isFinite(f) || !Number.isFinite(t) || f <= 0 || t <= f) return null;
-
-  // Cache key ignores "to" (we compute up to "now" and accept TTL staleness).
-  const cacheKey = `total:${f}`;
-  const now = Date.now();
-  const cached = DASHBOARD_ORDERS_AGG_CACHE.get(cacheKey);
-  if (cached?.atMs && now - cached.atMs < DASHBOARD_ORDERS_CACHE_TTL_MS) {
-    return cached.data;
-  }
-
-  const statusNameById = await ensureDashboardOrderStatusNameMap({ timeoutMs: Math.min(20_000, timeoutMs) });
-  const revenueByCurrency = new Map();
-  let kauflandGross = 0;
-  let cursor = f;
-  let processed = 0;
-
-  for (let page = 0; page < DASHBOARD_ORDERS_MAX_PAGES; page += 1) {
-    const response = await callBaseLinker(
-      'getOrders',
-      {
-        date_confirmed_from: cursor,
-        get_unconfirmed_orders: false,
-        include_custom_extra_fields: false,
-        include_connect_data: false,
-        include_commission_data: false,
-      },
-      { timeoutMs, retries: 2 }
-    );
-    const batch = Array.isArray(response?.orders) ? response.orders : [];
-    if (!batch.length) break;
-
-    let lastConfirmed = 0;
-    for (const o of batch) {
-      const confirmedUnix = Number(o?.date_confirmed || 0) || 0;
-      if (confirmedUnix > lastConfirmed) lastConfirmed = confirmedUnix;
-      if (!confirmedUnix || confirmedUnix < f) continue;
-      if (confirmedUnix >= t) continue;
-
-      const orderSource = (o?.order_source || '').toString().trim().toLowerCase();
-      if (orderSource === 'order_return') continue;
-
-      const statusId = o?.order_status_id != null ? String(o.order_status_id).trim() : null;
-      const cancelled = isCancelledByStatusId(statusId, statusNameById);
-      if (cancelled) continue;
-
-      const { currency, value } = computeBaseLinkerOrderValueBrutto(o);
-      revenueByCurrency.set(currency, (revenueByCurrency.get(currency) || 0) + value);
-      if (orderSource.includes('kaufland') && currency === 'EUR') {
-        kauflandGross += value;
-      }
-      processed += 1;
-      if (processed >= DASHBOARD_ORDERS_MAX_ITEMS) break;
-    }
-
-    if (processed >= DASHBOARD_ORDERS_MAX_ITEMS) break;
-    if (batch.length < 100) break;
-    if (!lastConfirmed || lastConfirmed >= t) break;
-    cursor = lastConfirmed + 1;
-  }
-
-  const KAUFLAND_PROVISION_RATE = 0.14;
-  const KAUFLAND_EFFECTIVE_RATE = KAUFLAND_PROVISION_RATE * 1.19;
-  const data = {
-    revenue_by_currency: Object.fromEntries(
-      Array.from(revenueByCurrency.entries()).map(([k, v]) => [k, Number((Number(v || 0) || 0).toFixed(2))])
-    ),
-    kaufland_gross: Math.round(kauflandGross * 100) / 100,
-    kaufland_payout: Math.round(kauflandGross * (1 - KAUFLAND_EFFECTIVE_RATE) * 100) / 100,
-  };
-  DASHBOARD_ORDERS_AGG_CACHE.set(cacheKey, { atMs: now, data });
-  return data;
-}
 
 // ── Routes ───────────────────────────────────────────────────────────
 
@@ -461,7 +54,7 @@ router.get('/dashboard/metrics', requirePermission('dashboard', 'read'), async (
     const preset = typeof req.query?.preset === 'string' ? String(req.query.preset).trim() : null;
     const fromDate = typeof req.query?.from_date === 'string' ? req.query.from_date.trim() : null;
     const toDate   = typeof req.query?.to_date   === 'string' ? req.query.to_date.trim()   : null;
-    // Best-effort: trigger order sync in background so metrics converge to BaseLinker truth.
+    // Best-effort: trigger order sync in background so metrics stay current.
     // Do NOT await (avoid slow dashboard loads).
     try {
       _backgroundSyncOrders();
@@ -469,54 +62,6 @@ router.get('/dashboard/metrics', requirePermission('dashboard', 'read'), async (
       // ignore
     }
     const metrics = await getDashboardMetrics({ days, preset, fromDate, toDate });
-
-    // Replace range revenue/volume with BaseLinker truth (supports long presets even if local order cache is pruned).
-    try {
-      const bucket = metrics?.range?.bucket || 'day';
-      const bucketStepHours = metrics?.range?.bucket_step_hours || null;
-      const rangeStart = metrics?.range?.from_iso ? new Date(metrics.range.from_iso) : null;
-      const rangeEndExclusive = metrics?.range?.to_iso ? new Date(metrics.range.to_iso) : null;
-      const template = metrics?.volume_7d?.days || [];
-      if (rangeStart && rangeEndExclusive && Array.isArray(template) && template.length) {
-        const agg = await computeDashboardBaseLinkerOrdersAggregate({
-          rangeStart,
-          rangeEndExclusive,
-          bucket,
-          bucketStepHours,
-          seriesTemplate: template,
-          timeoutMs: 20_000,
-        });
-        if (agg?.series && metrics?.volume_7d) {
-          metrics.volume_7d.days = agg.series;
-          const cur = (metrics?.currency || 'EUR').toString().trim().toUpperCase() || 'EUR';
-          const windowRevenue = Number(agg?.revenue_by_currency?.[cur] || 0) || 0;
-          if (metrics?.revenue) {
-            metrics.revenue.window_non_cancelled_total = windowRevenue;
-            // Kaufland gross + payout (14% provision + 19% MwSt on provision = 16.66% effective)
-            metrics.revenue.kaufland_gross_window = agg.kaufland_gross ?? 0;
-            metrics.revenue.kaufland_payout_window = agg.kaufland_payout ?? 0;
-          }
-        }
-
-        // Compute "headline" total as year-to-date (YTD) revenue (gross, non-cancelled).
-        const now = new Date();
-        const yearStart = new Date(Date.UTC(now.getUTCFullYear(), 0, 1, 0, 0, 0));
-        const toUnix = Math.ceil(Date.now() / 1000);
-        const total = await computeDashboardBaseLinkerRevenueTotal({
-          fromUnix: Math.floor(yearStart.getTime() / 1000),
-          toUnix,
-          timeoutMs: 20_000,
-        });
-        if (total?.revenue_by_currency && metrics?.revenue) {
-          const cur = (metrics?.currency || 'EUR').toString().trim().toUpperCase() || 'EUR';
-          metrics.revenue.all_non_cancelled_total = Number(total.revenue_by_currency?.[cur] || 0) || 0;
-          metrics.revenue.kaufland_gross_ytd = total.kaufland_gross ?? 0;
-          metrics.revenue.kaufland_payout_ytd = total.kaufland_payout ?? 0;
-        }
-      }
-    } catch (err) {
-      console.warn('Dashboard BaseLinker orders enrichment failed (falling back to local cache):', err?.message || err);
-    }
 
     // Pull returns from Firestore `returns` collection for KPIs (net revenue + returns counts).
     try {
@@ -743,19 +288,14 @@ router.get('/dashboard/finance', requirePermission('dashboard', 'read'), async (
   const ytdToStr = toDateStr(now);
 
   // Run external API calls in parallel, failing gracefully.
-  // Shipping cost: SevDesk (actual paid invoices) + BaseLinker (label count only).
-  // If SevDesk returns no shipping vouchers, fall back to BaseLinker CSV estimate.
+  // Shipping cost: SevDesk (actual paid invoices) + SendCloud (parcel count + carrier breakdown).
   const forceRefresh = req.query?.refresh === '1' || req.query?.refresh === 'true';
-  const [balanceResult, sevdeskShippingResult, blShippingResult, sevdeskShippingYtdResult, blShippingYtdResult, scShippingResult, scShippingYtdResult] = await Promise.allSettled([
+  const [balanceResult, sevdeskShippingResult, sevdeskShippingYtdResult, scShippingResult, scShippingYtdResult] = await Promise.allSettled([
     getCheckAccountBalances({ timeoutMs: 15000 }),
     getShippingCostsFromSevDesk(fromDateStr, toDateStr2, { timeoutMs: 20000 }),
-    getShippingCostsSummaryFromBaseLinker(fromDateStr, toDateStr2, { timeoutMs: 25000, forceRefresh }),
     // Only fetch YTD separately if not already YTD
     (preset !== 'year_to_date' && !(preset === 'last_year'))
       ? getShippingCostsFromSevDesk(ytdFromStr, ytdToStr, { timeoutMs: 20000 })
-      : Promise.resolve(null),
-    (preset !== 'year_to_date' && !(preset === 'last_year'))
-      ? getShippingCostsSummaryFromBaseLinker(ytdFromStr, ytdToStr, { timeoutMs: 25000, forceRefresh })
       : Promise.resolve(null),
     // SendCloud: primary source for parcel count + carrier breakdown
     getSendCloudShippingSummary(fromDateStr, toDateStr2, { timeoutMs: 20000, forceRefresh }),
@@ -768,10 +308,8 @@ router.get('/dashboard/finance', requirePermission('dashboard', 'read'), async (
   // IMPORTANT: All returned total_cost values are NETTO — the frontend multiplies by 1.19 for brutto.
   // - SendCloud API returns netto prices → use as-is
   // - SevDesk bank transactions are brutto → divide by 1.19 to get netto
-  // - BaseLinker calculated costs are already brutto → divide by 1.19 to get netto
-  function mergeShipping(svResult, blResult, scResult) {
+  function mergeShipping(svResult, scResult) {
     const sv = svResult?.status === 'fulfilled' ? (svResult.value || {}) : null;
-    const bl = blResult?.status  === 'fulfilled' ? (blResult.value  || {}) : null;
     const sc = scResult?.status  === 'fulfilled' ? (scResult.value  || {}) : null;
 
     // SevDesk may have "direct" shipping costs (DHL/DPD paid without SendCloud,
@@ -794,24 +332,18 @@ router.get('/dashboard/finance', requirePermission('dashboard', 'read'), async (
       };
     }
 
-    // Fallback: SevDesk cost (brutto → convert to netto) + BaseLinker count
-    if (!sv && !bl) return null;
-    const parcelCount = bl?.parcel_count ?? 0;
-    if (sv && sv.voucher_count > 0) {
+    // Fallback: SevDesk cost only
+    if (!sv) return null;
+    if (sv.voucher_count > 0) {
       // SevDesk total_cost is brutto → convert to netto so frontend × 1.19 = correct brutto
       const svTotalNetto = Math.round((sv.total_cost / 1.19) * 100) / 100;
-      return { total_cost: svTotalNetto, parcel_count: parcelCount, currency: 'EUR', source: 'sevdesk+baselinker' };
-    }
-    if (bl && bl.parcel_count > 0) {
-      // BaseLinker calculated costs are brutto → convert to netto
-      const blNetto = Math.round((bl.total_cost / 1.19) * 100) / 100;
-      return { ...bl, total_cost: blNetto, source: 'baselinker' };
+      return { total_cost: svTotalNetto, parcel_count: 0, currency: 'EUR', source: 'sevdesk' };
     }
     return null;
   }
 
-  const shippingMerged    = mergeShipping(sevdeskShippingResult,    blShippingResult,    scShippingResult);
-  const shippingYtdMerged = mergeShipping(sevdeskShippingYtdResult, blShippingYtdResult, scShippingYtdResult);
+  const shippingMerged    = mergeShipping(sevdeskShippingResult,    scShippingResult);
+  const shippingYtdMerged = mergeShipping(sevdeskShippingYtdResult, scShippingYtdResult);
 
   // Shim into the existing shippingResult / shippingYtdResult shape
   const shippingResult    = { status: shippingMerged    ? 'fulfilled' : 'rejected', value: shippingMerged,    reason: new Error('Keine Versanddaten') };
@@ -829,7 +361,7 @@ router.get('/dashboard/finance', requirePermission('dashboard', 'read'), async (
   let shipping = null;
   if (shippingResult.status === 'fulfilled') {
     const sc = shippingResult.value || {};
-    // If BaseLinker returned no useful data (0 parcels or 0 cost), fall back to order delivery prices
+    // If no useful data (0 parcels or 0 cost), fall back to order delivery prices
     if (!sc.parcel_count && !sc.total_cost) {
       try {
         const ordersFallback = await computeOrdersDeliveryTotal(fromDateStr, toDateStr2);
@@ -847,7 +379,7 @@ router.get('/dashboard/finance', requirePermission('dashboard', 'read'), async (
       shipping = { ...sc, from_date: fromDateStr, to_date: toDateStr2 };
     }
   } else {
-    errors.push(`BaseLinker-Versand: ${shippingResult.reason?.message || 'Fehler beim Abrufen der Versandkosten'}`);
+    errors.push(`Versand: ${shippingResult.reason?.message || 'Fehler beim Abrufen der Versandkosten'}`);
     // Primary source failed — fall back to order delivery prices immediately
     try {
       const ordersFallback = await computeOrdersDeliveryTotal(fromDateStr, toDateStr2);
@@ -1031,7 +563,7 @@ router.put('/orders/settings', async (req, res) => {
   }
 });
 
-// ── Shipments (read from BaseLinker orders with tracking) ──
+// ── Shipments ──
 
 router.get('/shipments', async (req, res) => {
   try {
@@ -1296,7 +828,7 @@ router.get('/orders/:orderId/timeline', requirePermission('orders', 'read'), asy
 
 /**
  * POST /api/orders/sync/marketplace
- * Sync orders from eBay and/or Kaufland directly (not via BaseLinker).
+ * Sync orders from eBay and/or Kaufland directly.
  */
 router.post('/orders/sync/marketplace', requirePermission('orders', 'read'), async (req, res) => {
   try {

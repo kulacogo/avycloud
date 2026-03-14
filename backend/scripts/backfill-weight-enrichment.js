@@ -160,7 +160,7 @@ function tryExtractWeightFromProduct(product) {
 function buildWeightPrompt(product) {
   const title = product?.identification?.name || '';
   const brand = product?.identification?.brand || '';
-  const category = product?.details?.baselinkerCategoryPath || product?.details?.categoryId || product?.identification?.category || '';
+  const category = product?.details?.categoryPath || product?.details?.categoryId || product?.identification?.category || '';
   const ean = product?.details?.identifiers?.ean || product?.details?.identifiers?.gtin || (Array.isArray(product?.identification?.barcodes) ? product.identification.barcodes[0] : '') || '';
   const desc = (product?.details?.short_description || product?.details?.description || '').replace(/<[^>]*>/g, '').slice(0, 500);
   const keyFeatures = Array.isArray(product?.details?.key_features) ? product.details.key_features.join('; ') : '';

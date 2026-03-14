@@ -21,7 +21,11 @@
 
 ## Projekt-Übersicht
 
-AvyCloud ist ein Product Intelligence Hub für E-Commerce: KI-gestützte Produkterkennung, Multi-Marktplatz-Sync (eBay, Kaufland, BaseLinker), Lagerverwaltung und Auftragsabwicklung.
+AvyCloud ist ein Product Intelligence Hub für E-Commerce: KI-gestützte Produkterkennung, Multi-Marktplatz-Sync (eBay, Kaufland), Lagerverwaltung und Auftragsabwicklung.
+
+> **⛔ BaseLinker ist TABU.** AvyCloud hat eigene vollumfängliche Multichannel-Integrationen (eBay, Kaufland, SendCloud, SevDesk).
+> TrendOcean nutzt AvyCloud OHNE BaseLinker. Alle BaseLinker-Reste werden in Phase C entfernt.
+> **Kein neuer Code darf BaseLinker referenzieren.** Keine Imports, keine Funktionsaufrufe, keine ENV-Vars.
 
 ### Architektur
 
@@ -176,13 +180,18 @@ Jede Status-Farbe hat eine `-dim` Variante für Hintergründe (z.B. `bg-success-
 
 **Alle aktiven Tasks stehen in [`TASKS.md`](./TASKS.md)** — dort IMMER zuerst nachsehen.
 
-**Abgeschlossen (Phase 1–3, Stand 2026-03):**
+**Abgeschlossen (Phase 1–3 + OMS Phase A, Stand 2026-03-13):**
 - ✅ Security: Helmet.js, Rate-Limiting (identify: 30/15min, general: 120/min), .env.local bereinigt
 - ✅ Daten: Firestore-Normalisierung (products_v2 live, USE_PRODUCTS_V2=true), LLM-Policy + Rulebook aktiv
 - ✅ Infrastruktur: Pino Logging, Health-Check, Graceful Shutdown, AppError + errorHandler
-- ✅ Code-Qualität: Router Splitting (7 Module), API Versioning, Vitest (119 Tests)
+- ✅ Code-Qualität: Router Splitting (7 Module), API Versioning, Vitest (129 Tests, 8 Suiten)
 - ✅ Services: Pricing Engine, Inventory Forecast, Webhooks, Deduplizierung, Competitor Intelligence
 - ✅ Alle Schreibpfade auf `saveProductV2()` (product-store.js Abstraktionsschicht)
+- ✅ OMS Phase A: Natives Order Management (eBay + Kaufland direkt), 12-State Engine, Pipeline-UI
+- ✅ Event-Driven Sync: Echtzeit-Sync bei Änderungen (Order/Return/Shipment/Stock), Webhooks für eBay/Kaufland/SendCloud
+- ✅ Marketplace-Kommunikation: Tracking-Push + Cancellation-Push an eBay/Kaufland
+- ✅ FAKE→REAL: Alle 12 Views nutzen echte API-Daten (Shipping, Invoices, Returns, Billing: 2026-03-13)
+- ✅ Sidebar Logo: Wordmark-Logo ersetzt Text-Header
 
 ### Bekannte offene Issues
 
@@ -190,7 +199,7 @@ Jede Status-Farbe hat eine `-dim` Variante für Hintergründe (z.B. `bg-success-
 
 - **Token-in-Query-Parameter (SSE):** JWT als `?token=` URL-Parameter für SSE-Streams leakt in Logs/History (BUG-SSE)
 - **Pricing Engine:** Backend-only, kein Runner, kein Frontend, keine Neu/Gebraucht-Unterscheidung
-- **Sidebar Logo:** Text "AvyCloud / Product Intelligence" muss durch Wordmark-Logo ersetzt werden (siehe Brand-Sektion oben)
+- **BaseLinker-Entfernung (Phase C):** Code + ENV-Vars + Scripts müssen bereinigt werden (136+ Dateien referenzieren noch BL)
 
 ---
 
@@ -263,6 +272,14 @@ Jede Status-Farbe hat eine `-dim` Variante für Hintergründe (z.B. `bg-success-
 | `services/webhooks.js` | HMAC-SHA256, dispatchWebhook() | ✅ Aktiv |
 | `services/enrichment.js` | Produktidentifikation via Gemini (Identify) | ✅ Aktiv |
 | `services/improve.js` | Datenverbesserung via Gemini (Improve) | ✅ Aktiv |
+| `services/order-intake-ebay.js` | eBay Order-Import + Status-Reconciliation | ✅ Aktiv |
+| `services/order-intake-kaufland.js` | Kaufland Order-Import + Status-Reconciliation | ✅ Aktiv |
+| `services/order-state-machine.js` | 12-State OMS Engine, Transitions, Timestamps | ✅ Aktiv |
+| `services/marketplace-tracking.js` | Tracking + Cancellation Push an eBay/Kaufland | ✅ Aktiv |
+| `services/sync-event-bus.js` | Event-Driven Sync (Order/Return/Shipment/Stock) | ✅ Aktiv |
+| `services/returns-engine.js` | Retouren-Workflow, Marketplace-Sync, Erstattung | ✅ Aktiv |
+| `services/shipping-engine.js` | SendCloud Labels, Carrier-Regeln, Tracking | ✅ Aktiv |
+| `services/invoice-engine.js` | Rechnungs-Generierung, SevDesk-Export | ⚠️ Draft-only, SevDesk-Export unvollständig |
 
 ### Externe Integrationen (NICHT ändern ohne explizite Anweisung)
 
@@ -270,7 +287,7 @@ Jede Status-Farbe hat eine `-dim` Variante für Hintergründe (z.B. `bg-success-
 |---|---|
 | eBay OAuth + Trading API | `lib/ebay-oauth.js`, `lib/ebay-api.js`, `lib/ebay-trading-api.js`, `lib/ebay-direct.js` |
 | Kaufland API | `lib/kaufland-api.js`, `lib/kaufland-taxonomy.js` |
-| BaseLinker API | `lib/baselinker-*.js`, `services/baselinker-*.js`, `services/inventory-sync.js` |
+| ~~BaseLinker API~~ | ⛔ **TABU — WIRD ENTFERNT** (Phase C). `lib/baselinker-*.js` + `services/baselinker-*.js` werden gelöscht. Keine neuen Referenzen! |
 | Google Gemini | `lib/gemini-client.js`, `lib/gemini.js`, `lib/gemini-structured.js` |
 | SerpApi / BrightData | `services/enrichment-v2.js`, `lib/web-unlocker.js` |
 | SendCloud / SevDesk | `lib/sendcloud.js`, `lib/sevdesk.js` |
@@ -282,7 +299,7 @@ Jede Status-Farbe hat eine `-dim` Variante für Hintergründe (z.B. `bg-success-
 | Job Runner | `services/job-runner.js` |
 | Improve Runner | `services/improve-runner.js` |
 | Quality Runner | `services/quality-runner.js` |
-| BaseLinker Sync | `services/baselinker-sync-runner.js` |
+| ~~BaseLinker Sync~~ | ⛔ **WIRD ENTFERNT** — `services/baselinker-sync-runner.js` wird gelöscht |
 | Admin Bulk | `services/admin-bulk-runner.js` |
 | Rulebook Runner | `services/rulebook-runner.js` |
 

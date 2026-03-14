@@ -1,23 +1,23 @@
 /* eslint-disable no-console */
 /**
- * Utility to build a BaseLinker category -> eBay category ID mapping.
+ * Utility to build an inventory category -> eBay category ID mapping.
  *
  * Usage:
  *   node backend/scripts/generate-ebay-map.js > /tmp/ebay-map.json
  *
  * The script reads:
- *   - backend/scripts/output/inventory-78659-categories.json (BaseLinker inventory export)
- *   - exports/BL products.csv (current BaseLinker export)
+ *   - backend/scripts/output/inventory-78659-categories.json (inventory category export)
+ *   - exports/BL products.csv (current product export)
  *   - backend/ebay-data/categories.json (full eBay taxonomy incl. breadcrumbs)
  *
- * It tries to find the closest eBay category for each BaseLinker category by:
+ * It tries to find the closest eBay category for each inventory category by:
  *   1. Exact breadcrumb match
  *   2. Unique leaf-name match
  *   3. Fuzzy token matching with scoring
  *
  * Outputs JSON with:
  *   {
- *     "<BaseLinker category>": {
+ *     "<inventory category>": {
  *        "id": "<ebayId>",
  *        "breadcrumb": "<eBay breadcrumb>",
  *        "score": <confidence score>,
@@ -81,7 +81,7 @@ function loadEbayEntries() {
     .filter(Boolean);
 }
 
-function loadBaseLinkerCategories() {
+function loadInventoryCategories() {
   const names = new Set();
   const add = (value) => {
     if (!value) return;
@@ -97,14 +97,14 @@ function loadBaseLinkerCategories() {
     const rows = parse(csvContent, { columns: true, skip_empty_lines: true });
     rows.forEach((row) => add(row.Kategorie || row.category || row.product_category_name));
   } else {
-    console.warn('[warn] BaseLinker products CSV not found, using inventory export only.');
+    console.warn('[warn] Products CSV not found, using inventory export only.');
   }
 
   return Array.from(names).sort((a, b) => a.localeCompare(b, 'de'));
 }
 
 const EBAY_ENTRIES = loadEbayEntries();
-const CATEGORIES = loadBaseLinkerCategories();
+const CATEGORIES = loadInventoryCategories();
 
 const EXACT_BREADCRUMB = new Map();
 const LEAF_BUCKET = new Map();

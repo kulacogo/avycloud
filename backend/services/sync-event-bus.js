@@ -71,7 +71,7 @@ function emitSyncEvent(event, payload = {}) {
 bus.on('order:status_changed', async (payload) => {
   const { entityId: orderId, tenantId = 'default', toStatus, fromStatus, source } = payload;
   try {
-    // 1. Sync stock to all channels (covers eBay, Kaufland, BaseLinker)
+    // 1. Sync stock to all channels (covers eBay, Kaufland)
     const { syncStockForOrderItems } = require('./stock-sync-dispatcher');
     await syncStockForOrderItems({ tenantId, orderId, reason: `status:${toStatus}` })
       .catch((err) => console.warn(`[sync-bus] stock sync failed for order ${orderId}: ${err.message}`));

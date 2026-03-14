@@ -109,12 +109,6 @@ const sanitizeDatasheetChange = (entry: any = {}): DatasheetChange => {
       (result as any).gpsr = next;
     }
   }
-  if (typeof entry.baselinkerCategoryPath === 'string' && entry.baselinkerCategoryPath.trim()) {
-    result.baselinkerCategoryPath = entry.baselinkerCategoryPath.trim();
-  }
-  if (typeof entry.baselinkerCategoryId === 'string' && entry.baselinkerCategoryId.trim()) {
-    result.baselinkerCategoryId = entry.baselinkerCategoryId.trim();
-  }
   if (entry.attributes) {
     if (Array.isArray(entry.attributes)) {
       result.attributes = entry.attributes.reduce((acc: Record<string, string | number | boolean>, item: any) => {
@@ -262,7 +256,6 @@ const TOOL_LABELS: Record<string, string> = {
   brightdata_web_search: 'Websuche',
   serpapi_web_search: 'Websuche',
   web_fetch: 'Seite lesen',
-  baselinker_category_search: 'Kategorie suchen',
   update_product_datasheet: 'Änderung erstellen',
 };
 

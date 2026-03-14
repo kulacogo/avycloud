@@ -4,7 +4,7 @@
  * order-intake-ebay.js — Fetch orders directly from eBay Trading API.
  *
  * Uses GetOrders Trading API call to pull orders.
- * Replaces BaseLinker as order source for eBay.
+ * Fetches orders directly from eBay Trading API.
  */
 
 const { Firestore, FieldValue } = require('@google-cloud/firestore');

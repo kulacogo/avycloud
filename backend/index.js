@@ -3,23 +3,20 @@ const cors = require('cors');
 const helmet = require('helmet');
 const { generalLimiter } = require('./lib/rate-limit');
 const requestLogger = require('./lib/request-logger');
-const { syncProductToBaseLinker } = require('./lib/baselinker');
-const { syncInventoriesFromBaseLinker } = require('./services/inventory-sync');
 const { startJobRunner } = require('./services/job-runner');
 const { startImproveRunner } = require('./services/improve-runner');
 const { startQualityRunner } = require('./services/quality-runner');
-const { startBaseLinkerSyncRunner } = require('./services/baselinker-sync-runner');
 const { startRulebookRunner } = require('./services/rulebook-runner');
 const { startAdminBulkRunner } = require('./services/admin-bulk-runner');
 const { startPricingRunner } = require('./services/pricing-runner');
 const { startListingSyncRunner } = require('./services/listing-sync-runner');
 const { startCompetitorRefreshRunner } = require('./services/competitor-refresh-runner');
-const { router: warehouseRouter, setBackgroundSync: setWarehouseBackgroundSync } = require('./routes/warehouse');
+const { router: warehouseRouter } = require('./routes/warehouse');
 const authRouter = require('./routes/auth');
 const adminRouter = require('./routes/admin');
 const { router: ordersRouter, setBackgroundSyncOrders } = require('./routes/orders');
 const identifyRouter = require('./routes/identify');
-const { router: productsRouter, setBackgroundSyncProductStock } = require('./routes/products');
+const { router: productsRouter } = require('./routes/products');
 const marketplaceRouter = require('./routes/marketplace');
 const integrationsRouter = require('./routes/integrations');
 const settingsRouter = require('./routes/settings');
@@ -47,13 +44,6 @@ const ORDER_SYNC_TIMEOUT_MS = parseInt(process.env.ORDER_SYNC_TIMEOUT_MS || '800
 const ORDER_SYNC_THROTTLE_MS = parseInt(process.env.ORDER_SYNC_THROTTLE_MS || '60000', 10);
 let ordersSyncInFlight = false;
 let lastOrdersSyncAtMs = 0;
-const BASELINKER_AUTO_STOCK_SYNC = (process.env.BASELINKER_AUTO_STOCK_SYNC ?? 'true') === 'true';
-const BASELINKER_AUTO_STOCK_SYNC_THROTTLE_MS = parseInt(
-  process.env.BASELINKER_AUTO_STOCK_SYNC_THROTTLE_MS || '15000',
-  10
-);
-const lastAutoStockSyncAtMs = new Map(); // productId -> epoch ms
-
 function backgroundSyncOrders() {
   const now = Date.now();
   if (ordersSyncInFlight) return;
@@ -76,43 +66,6 @@ function backgroundSyncOrders() {
       ordersSyncInFlight = false;
     });
 }
-
-function backgroundSyncProductStockToBaseLinker(product, reason = 'warehouse') {
-  if (!BASELINKER_AUTO_STOCK_SYNC) return;
-  const productId = product?.id ? String(product.id) : null;
-  if (!productId) return;
-
-  // Only auto-sync products that are linked/synced to BaseLinker to avoid creating accidental listings
-  const hasLink = Boolean(product?.ops?.base_product_id || product?.ops?.baselinker?.product_id);
-  if (!hasLink) return;
-
-  const now = Date.now();
-  const last = Number(lastAutoStockSyncAtMs.get(productId) || 0);
-  if (Number.isFinite(last) && now - last < BASELINKER_AUTO_STOCK_SYNC_THROTTLE_MS) {
-    return;
-  }
-  lastAutoStockSyncAtMs.set(productId, now);
-
-  const invId = process.env.BASELINKER_INVENTORY_ID || '78659';
-  // Best-effort background sync; never block warehouse ops responses
-  setTimeout(() => {
-    syncProductToBaseLinker(product, invId)
-      .then((result) => {
-        console.log(
-          `[auto-sync-baselinker] reason=${reason} product=${productId} status=${result?.status || 'unknown'}`
-        );
-      })
-      .catch((err) => {
-        console.warn(
-          `[auto-sync-baselinker] failed reason=${reason} product=${productId}:`,
-          err?.message || err
-        );
-      });
-  }, 0);
-}
-
-// Inject backgroundSync into warehouse router
-setWarehouseBackgroundSync(backgroundSyncProductStockToBaseLinker);
 
 // --- CORS ---
 const allowedOrigins = [
@@ -138,7 +91,6 @@ const corsOptions = {
 startJobRunner();
 startImproveRunner();
 startQualityRunner();
-startBaseLinkerSyncRunner();
 startRulebookRunner();
 try {
   startAdminBulkRunner();
@@ -178,15 +130,6 @@ ensureDefaultLlmScopes()
     }
   })
   .catch((error) => console.error('LLM scope seeding failed:', error));
-syncInventoriesFromBaseLinker()
-  .then((result) => {
-    console.log(`Initial inventory sync completed (${result.fetched} entries)`);
-  })
-  .catch((error) => {
-    console.error('Initial inventory sync failed:', error);
-  });
-
-
 // --- Middleware ---
 app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
@@ -277,7 +220,6 @@ app.use('/api', settingsRouter);
 app.use('/api', returnsRouter);
 app.use('/api', invoicesRouter);
 setBackgroundSyncOrders(backgroundSyncOrders);
-setBackgroundSyncProductStock(backgroundSyncProductStockToBaseLinker);
 
 // --- Centralized Error Handler ---
 const { errorHandler } = require('./lib/error-handler');

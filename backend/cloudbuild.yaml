@@ -32,11 +32,6 @@ steps:
   - name: gcr.io/cloud-builders/npm
     dir: backend
     entrypoint: node
-    args: ["--check", "lib/baselinker.js"]
-
-  - name: gcr.io/cloud-builders/npm
-    dir: backend
-    entrypoint: node
     args: ["--check", "lib/title-policy.js"]
 
   - name: gcr.io/cloud-builders/npm

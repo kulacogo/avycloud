@@ -10,8 +10,6 @@ const { getProduct, getAllProducts } = require('../lib/firestore');
 const { saveProductV2 } = require('../lib/product-store');
 const { normalizeProductForPolicyApply } = require('../lib/llm-rulebook');
 const { getProductBinSummaryMap } = require('../lib/warehouse');
-const { createJob: createBaseLinkerSyncJob, Timestamp: BaseLinkerSyncTimestamp } = require('../lib/baselinker-sync-jobs');
-const { enqueueBaseLinkerSyncJob } = require('./baselinker-sync-runner');
 
 const CONCURRENCY = parseInt(process.env.RULEBOOK_JOB_CONCURRENCY || '1', 10);
 const MAX_ATTEMPTS = parseInt(process.env.RULEBOOK_JOB_MAX_ATTEMPTS || '2', 10);
@@ -21,34 +19,6 @@ const JOB_RETRY_BACKOFF_MS = parseInt(process.env.RULEBOOK_JOB_BACKOFF_MS || '30
 const queue = new PQueue({ concurrency: CONCURRENCY });
 let sweepTimer = null;
 let sweepInFlight = false;
-
-function chunkArray(arr, chunkSize) {
-  const out = [];
-  for (let i = 0; i < arr.length; i += chunkSize) out.push(arr.slice(i, i + chunkSize));
-  return out;
-}
-
-async function enqueueBaseLinkerTextOnlyJobs({ productIds, inventoryId, chunkSize = 200 }) {
-  const invId = String(inventoryId || process.env.BASELINKER_INVENTORY_ID || '78659').trim();
-  const chunks = chunkArray(productIds, Math.max(10, Math.min(500, chunkSize)));
-  const jobIds = [];
-  for (const ids of chunks) {
-    const unique = Array.from(new Set(ids.map((x) => String(x).trim()).filter(Boolean))).slice(0, 500);
-    if (!unique.length) continue;
-    const job = await createBaseLinkerSyncJob({
-      payload: { productIds: unique, inventoryId: invId, mode: 'text_only' },
-      status: 'pending',
-      stage: 'queued',
-      progress: { total: unique.length, processed: 0, synced: 0, failed: 0 },
-      requestedBy: 'rulebook-runner',
-      createdAt: BaseLinkerSyncTimestamp.now(),
-      updatedAt: BaseLinkerSyncTimestamp.now(),
-    });
-    enqueueBaseLinkerSyncJob(job.id, true);
-    jobIds.push(job.id);
-  }
-  return jobIds;
-}
 
 async function processRulebookJob(jobId) {
   let jobSnapshot;
@@ -61,9 +31,7 @@ async function processRulebookJob(jobId) {
   }
 
   try {
-    const invId = String(jobSnapshot?.payload?.inventoryId || process.env.BASELINKER_INVENTORY_ID || '78659').trim();
     const limit = Number(jobSnapshot?.payload?.limit || 0);
-    const chunkSize = Number(jobSnapshot?.payload?.chunkSize || 200);
     const minQtyRaw = jobSnapshot?.payload?.minQty;
     const minQty = typeof minQtyRaw === 'number' && Number.isFinite(minQtyRaw) ? Math.max(1, Math.min(9999, minQtyRaw)) : null;
     const requireBin =
@@ -162,7 +130,7 @@ async function processRulebookJob(jobId) {
 
     await updateJob(jobId, {
       stage: 'processing',
-      progress: { total: selected.length, processed: 0, changed: 0, invalid: 0, enqueued: 0 },
+      progress: { total: selected.length, processed: 0, changed: 0, invalid: 0 },
       updatedAt: Timestamp.now(),
     });
 
@@ -214,31 +182,18 @@ async function processRulebookJob(jobId) {
       if (processed % flushEvery === 0 || processed === selected.length) {
         await updateJob(jobId, {
           stage: 'processing',
-          progress: { total: selected.length, processed, changed, invalid, enqueued: 0 },
+          progress: { total: selected.length, processed, changed, invalid },
         });
       }
     }
 
     await updateJob(jobId, {
-      stage: 'enqueue_baselinker',
-      progress: { total: selected.length, processed, changed, invalid, enqueued: 0 },
-    });
-
-    const blJobIds = await enqueueBaseLinkerTextOnlyJobs({
-      productIds: changedIds,
-      inventoryId: invId,
-      chunkSize,
-    });
-
-    await updateJob(jobId, {
       status: 'done',
       stage: 'complete',
       finishedAt: Timestamp.now(),
-      progress: { total: selected.length, processed, changed, invalid, enqueued: changedIds.length },
+      progress: { total: selected.length, processed, changed, invalid },
       result: {
-        inventoryId: invId,
         changedProductIdsCount: changedIds.length,
-        baselinkerJobIds: blJobIds,
         invalidPreview,
       },
       error: null,

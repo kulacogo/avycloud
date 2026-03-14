@@ -194,8 +194,8 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
     (order: Order) => {
       const src = (getOrderSource(order) || '-').toString().trim() || '-';
       const srcId = (getOrderSourceId(order) || '-').toString().trim() || '-';
-      const orderId = (order.baselinkerId || order.id || '').toString().trim();
-      return order.baselinkerOrderKey || `${orderId}::${src}::${srcId}`;
+      const orderId = (order.orderId || order.id || '').toString().trim();
+      return `${orderId}::${src}::${srcId}`;
     },
     [getOrderSource, getOrderSourceId]
   );
@@ -264,7 +264,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
 
   const readyToPackOrders = useMemo(() => {
     // Safety gate:
-    // Pack flow must only contain BaseLinker status "Kommissioniert".
+    // Pack flow must only contain status "Kommissioniert".
     // Explicitly exclude "Verpackt"/shipped/cancelled labels so packed orders never reappear here.
     const isCancelled = (label?: string | null) => {
       const raw = (label || '').toLowerCase();
@@ -316,7 +316,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
       const scan = normalizeScan(rawScan);
       if (!scan) return false;
       const sourceId = getOrderSourceId(order);
-      const orderId = (order.baselinkerId || order.id || '').toString().trim();
+      const orderId = (order.orderId || order.id || '').toString().trim();
       const candidates = new Set(
         [
           orderId,
@@ -505,7 +505,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
           bucket[key] = {
             orderId: o.id,
             orderKey,
-            orderNumber: o.number || o.baselinkerId || o.id,
+            orderNumber: o.number || o.orderId || o.id,
             orderSourceId,
             sku,
             ean: it.ean || null,
@@ -605,7 +605,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
               })
             : false;
 
-          // UI must stay fluid: never block on BaseLinker status updates or full order refresh.
+          // UI must stay fluid: never block on status updates or full order refresh.
           // We update UI immediately and sync order status in background if the order is complete.
           if (isOrderDone) {
             setPickMessage(
@@ -739,7 +739,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
           setPackSelectedKey(null);
           setPackMessage(
             t('ops.mobile.pack.scan.orderSelected', {
-              order: selected.number || selected.baselinkerId || selected.id,
+              order: selected.number || selected.orderId || selected.id,
             })
           );
           return;

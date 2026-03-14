@@ -1,7 +1,7 @@
 /* eslint-disable no-console */
 /**
  * Build a compact "Avy" canonical taxonomy from marketplace category trees (Kaufland/eBay/hood),
- * aiming to cover marketplace concepts with far fewer categories for BaseLinker mapping.
+ * aiming to cover marketplace concepts with far fewer categories for inventory mapping.
  *
  * Output:
  * - backend/avy-taxonomy/avy-taxonomy.json  (taxonomy tree + mapping helpers metadata)

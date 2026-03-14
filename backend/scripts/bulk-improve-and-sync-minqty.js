@@ -1,17 +1,15 @@
 /* eslint-disable no-console */
 /**
- * Bulk improve + BaseLinker sync for products with quantity >= minQty.
+ * Bulk improve for products with quantity >= minQty.
  *
  * What it does (per product):
  *  1) improveExistingProduct(productId)  (LLM + BrightData evidence)
- *  2) syncProductToBaseLinker(improvedProduct, inventoryId) (push all fields)
  *
  * Usage:
  *   NODE_PATH=backend/node_modules GOOGLE_CLOUD_PROJECT=avycloud \
- *   node backend/scripts/bulk-improve-and-sync-minqty.js --inventory-id 78659 --min-qty 1 --concurrency 2
+ *   node backend/scripts/bulk-improve-and-sync-minqty.js --min-qty 1 --concurrency 2
  *
  * Options:
- *   --inventory-id <id>     BaseLinker inventory id (default: BASELINKER_INVENTORY_ID or 78659)
  *   --min-qty <n>           default 1
  *   --limit <n>             optional limit (for testing)
  *   --offset <n>            optional offset (resume)
@@ -23,7 +21,6 @@ const crypto = require('crypto');
 const PQueue = require('p-queue').default;
 const { getAllProducts } = require('../lib/firestore');
 const { improveExistingProduct } = require('../services/improve');
-const { syncProductToBaseLinker } = require('../lib/baselinker');
 
 function ensureDir(dir) {
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
@@ -68,7 +65,6 @@ function pickQuantity(product) {
 
 function parseArgs(argv) {
   const args = {
-    inventoryId: process.env.BASELINKER_INVENTORY_ID || '78659',
     minQty: 1,
     limit: 0,
     offset: 0,
@@ -76,10 +72,6 @@ function parseArgs(argv) {
   };
   for (let i = 2; i < argv.length; i += 1) {
     const t = argv[i];
-    if (t === '--inventory-id' || t === '--inventory') {
-      args.inventoryId = String(argv[i + 1] || '').trim();
-      i += 1;
-    }
     if (t === '--min-qty') {
       args.minQty = Number(argv[i + 1]);
       i += 1;
@@ -101,7 +93,6 @@ function parseArgs(argv) {
   args.limit = Number.isFinite(args.limit) ? Math.max(0, Math.floor(args.limit)) : 0;
   args.offset = Number.isFinite(args.offset) ? Math.max(0, Math.floor(args.offset)) : 0;
   args.concurrency = Number.isFinite(args.concurrency) ? Math.max(1, Math.floor(args.concurrency)) : 2;
-  args.inventoryId = String(args.inventoryId || '78659').trim() || '78659';
   return args;
 }
 
@@ -111,8 +102,7 @@ async function main() {
   const outDir = path.join(process.cwd(), 'exports', 'bulk-improve-sync', stamp);
   ensureDir(outDir);
 
-  const inventoryId = args.inventoryId;
-  console.log(`[bulk-improve-sync] inventoryId=${inventoryId} minQty=${args.minQty} concurrency=${args.concurrency} out=${outDir}`);
+  console.log(`[bulk-improve-sync] minQty=${args.minQty} concurrency=${args.concurrency} out=${outDir}`);
 
   const all = await getAllProducts();
   const total = Array.isArray(all) ? all.length : 0;
@@ -134,7 +124,6 @@ async function main() {
   const selected = args.limit && args.limit > 0 ? offsetList.slice(0, args.limit) : offsetList;
 
   const summary = {
-    inventoryId,
     minQty: args.minQty,
     limit: args.limit || null,
     offset: args.offset || 0,
@@ -157,8 +146,6 @@ async function main() {
     done: 0,
     improved_ok: 0,
     improved_failed: 0,
-    synced_ok: 0,
-    synced_failed: 0,
     last: null,
     updated_at_iso: new Date().toISOString(),
   };
@@ -188,18 +175,6 @@ async function main() {
         improveError = e?.message || String(e);
       }
 
-      let syncResult = null;
-      let syncError = null;
-      if (improved && !improveError) {
-        try {
-          syncResult = await syncProductToBaseLinker(improved, inventoryId, {
-            onProgress: null,
-          });
-        } catch (e) {
-          syncError = e?.message || String(e);
-        }
-      }
-
       const finishedAt = new Date().toISOString();
       const record = {
         runId,
@@ -213,11 +188,6 @@ async function main() {
         improve: improved
           ? { ok: true, title: safeString(improved?.identification?.name), warnings: improved?.notes?.warnings || [] }
           : { ok: false, error: improveError || 'unknown' },
-        baselinker: syncResult
-          ? { ok: syncResult.status === 'synced', ...syncResult }
-          : improved
-            ? { ok: false, error: syncError || 'unknown' }
-            : { ok: false, skipped: true },
       };
 
       fs.appendFileSync(resultsJsonlPath, `${JSON.stringify(record)}\n`, 'utf8');
@@ -226,13 +196,11 @@ async function main() {
       progress.done += 1;
       if (record.improve.ok) progress.improved_ok += 1;
       else progress.improved_failed += 1;
-      if (record.baselinker.ok) progress.synced_ok += 1;
-      else if (!record.baselinker.skipped) progress.synced_failed += 1;
-      progress.last = { productId, sku, improve: record.improve, baselinker: record.baselinker };
+      progress.last = { productId, sku, improve: record.improve };
       progress.updated_at_iso = new Date().toISOString();
       fs.writeFileSync(progressPath, JSON.stringify(progress, null, 2), 'utf8');
 
-      const statusLine = `${logPrefix} DONE improve=${record.improve.ok ? 'ok' : 'fail'} sync=${record.baselinker.ok ? 'ok' : record.baselinker.skipped ? 'skipped' : 'fail'}`;
+      const statusLine = `${logPrefix} DONE improve=${record.improve.ok ? 'ok' : 'fail'}`;
       console.log(statusLine);
       return record;
     });

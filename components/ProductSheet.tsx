@@ -4,7 +4,6 @@ import DOMPurify from 'dompurify';
 import { Product, DatasheetChange, ProductImage, WarehouseBin, EbayCategoryOption } from '../types';
 import {
   saveProduct,
-  syncToBaseLinker,
   openSkuLabelWindow,
   printSkuLabel,
   stockInProduct,
@@ -18,7 +17,7 @@ import {
   openInventoryLabelWindow,
   fetchEbayCategories,
 } from '../api/client';
-import { EditIcon, SaveIcon, SyncIcon, PrintIcon, MagicIcon, RefreshIcon, BarcodeIcon } from './icons/Icons';
+import { EditIcon, SaveIcon, PrintIcon, MagicIcon, RefreshIcon, BarcodeIcon } from './icons/Icons';
 import { Spinner } from './Spinner';
 import ImageGallery from './ImageGallery';
 import AttributeTable from './AttributeTable';
@@ -29,7 +28,6 @@ import { Tabs, TabPanel } from './ui/Tabs';
 import { useI18n } from '../i18n';
 import { normalizeBarcode, summarizeBarcodes, isValidGtin } from '../utils/gtin';
 import {
-  getProductBaselinkerCategoryPath,
   getProductDisplayCategory,
   getProductEbayCategoryId,
   getProductEbayCategoryPath,
@@ -138,7 +136,6 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
   latestProductRef.current = localProduct;
   const [isSaving, setIsSaving] = useState(false);
   const isSavingRef = useRef(false);
-  const [isSyncing, setIsSyncing] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [autoGenDone, setAutoGenDone] = useState(false);
@@ -168,7 +165,6 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
 
   const [assigningInventory, setAssigningInventory] = useState(false);
   const [inventoryMessage, setInventoryMessage] = useState<string | null>(null);
-  const [syncInventoryId] = useState('78659');
   const prevProductIdRef = useRef(product.id);
 
   const updateGpsrField = useCallback((key: string, value: string) => {
@@ -762,17 +758,6 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
         }
       }
 
-      // 1.6 BaseLinker category (legacy compatibility)
-      if (change.baselinkerCategoryPath || change.baselinkerCategoryId) {
-        next.details = next.details || {};
-        if (change.baselinkerCategoryPath) {
-          (next.details as any).baselinkerCategoryPath = String(change.baselinkerCategoryPath).trim();
-        }
-        if (change.baselinkerCategoryId) {
-          (next.details as any).baselinkerCategoryId = String(change.baselinkerCategoryId).trim();
-        }
-      }
-
       // 2. Short Description
       if (change.short_description) {
         next.details = next.details || {};
@@ -938,31 +923,6 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
       },
     };
   }, [barcodeInput, localProduct, parseBarcodes]);
-
-  const handleSync = async () => {
-    setIsSyncing(true);
-    try {
-      const categoryPath = String(getProductBaselinkerCategoryPath(localProduct) || '').trim();
-      if (!categoryPath) {
-        showNotification('error', 'BaseLinker Kategorie fehlt.');
-        return;
-      }
-
-      const result = await syncToBaseLinker(localProduct, syncInventoryId);
-      const entry = result.results?.find((e) => e.id === localProduct.id);
-      if (entry?.status === 'synced') {
-        showNotification('success', 'Sync zu BaseLinker erfolgreich.');
-      } else {
-        showNotification('error', entry?.message || result.error?.message || t('sheet.msg.syncError'));
-      }
-
-      // Refresh product from backend so linkage/status is reflected in UI
-      const refreshed = await fetchProductById(localProduct.id);
-      onUpdate(refreshed);
-    } finally {
-      setIsSyncing(false);
-    }
-  };
 
   const handleFieldChange = (field: string, value: string) => {
     const keys = field.split('.');
@@ -1591,13 +1551,6 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
           </div>
         </section>
 
-        {/* Sync */}
-        <div className="flex items-center gap-3">
-          <button id="btn-sync" onClick={handleSync} disabled={isSyncing} className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg bg-app-elevated border border-app-border text-txt-secondary hover:bg-app-border transition-colors disabled:opacity-40">
-            {isSyncing ? <Spinner className="w-4 h-4" /> : <SyncIcon className="w-4 h-4" />}
-            {t('sheet.actions.sync')}
-          </button>
-        </div>
       </TabPanel>
 
       {/* ─── TAB: Bilder ────────────────────────────────────── */}
@@ -1738,16 +1691,6 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                   Unit-ID: <span className="font-mono text-txt-secondary">{(localProduct as any).ops.kaufland.unitId || (localProduct as any).ops.kaufland.id_unit}</span>
                 </div>
               )}
-            </div>
-            {/* BaseLinker */}
-            <div className="flex items-center justify-between rounded-lg border border-app-border bg-app-bg/60 px-4 py-3">
-              <div className="flex items-center gap-3">
-                <span className="text-sm font-semibold text-txt-primary">BaseLinker</span>
-              </div>
-              <button onClick={handleSync} disabled={isSyncing} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-app-elevated border border-app-border text-txt-secondary hover:bg-app-border disabled:opacity-40">
-                {isSyncing ? <Spinner className="w-3.5 h-3.5" /> : <SyncIcon className="w-3.5 h-3.5" />}
-                {t('sheet.actions.sync')}
-              </button>
             </div>
           </div>
           {(localProduct as any)?.ops?.listingStatus?.lastSyncAt && (

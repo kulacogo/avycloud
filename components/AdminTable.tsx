@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { Product, SyncStatus } from '../types';
-import { fetchProducts, getProductBulkJob, runProductBulkAction, syncToBaseLinker, deleteProductsBulk, openProductLabelBatchWindow, assignInventoryToProducts, lookupBaseLinkerBySkus, uploadKTypeCsv, bulkVerifyEbayPublish, bulkPublishToEbay, fetchEbaySkuIndex, lightSyncEbayLiveListings, bulkUpdateEbayListings, fetchKauflandSkuIndex, syncKauflandListings, type ProductBulkActionName } from '../api/client';
+import { fetchProducts, getProductBulkJob, runProductBulkAction, deleteProductsBulk, openProductLabelBatchWindow, assignInventoryToProducts, uploadKTypeCsv, bulkVerifyEbayPublish, bulkPublishToEbay, fetchEbaySkuIndex, lightSyncEbayLiveListings, bulkUpdateEbayListings, fetchKauflandSkuIndex, syncKauflandListings, type ProductBulkActionName } from '../api/client';
 import { SearchIcon } from './icons/Icons';
 import {
   normalizeSyncStatus,
@@ -28,10 +28,10 @@ const safeCurrency = (code?: string) => {
 
 const COLUMN_STORAGE_KEY = 'avystock:admin-table:visible-columns';
 const COLUMN_PRESETS: Record<ColumnPreset, ColumnId[]> = {
-  standard: ['thumbnail', 'nameBrand', 'sku', 'barcode', 'category', 'price', 'inventory', 'pendingIntake', 'storage', 'baselinker', 'ebay', 'kaufland', 'syncStatus', 'lastSaved'],
-  warehouse: ['nameBrand', 'sku', 'barcode', 'inventory', 'pendingIntake', 'storage', 'baselinker', 'ebay', 'kaufland', 'syncStatus', 'saveStatus'],
-  pricing: ['nameBrand', 'price', 'sku', 'barcode', 'pendingIntake', 'baselinker', 'ebay', 'kaufland', 'syncStatus', 'lastSynced'],
-  minimal: ['nameBrand', 'sku', 'barcode', 'inventory', 'pendingIntake', 'baselinker', 'ebay', 'kaufland', 'syncStatus'],
+  standard: ['thumbnail', 'nameBrand', 'sku', 'barcode', 'category', 'price', 'inventory', 'pendingIntake', 'storage', 'ebay', 'kaufland', 'syncStatus', 'lastSaved'],
+  warehouse: ['nameBrand', 'sku', 'barcode', 'inventory', 'pendingIntake', 'storage', 'ebay', 'kaufland', 'syncStatus', 'saveStatus'],
+  pricing: ['nameBrand', 'price', 'sku', 'barcode', 'pendingIntake', 'ebay', 'kaufland', 'syncStatus', 'lastSynced'],
+  minimal: ['nameBrand', 'sku', 'barcode', 'inventory', 'pendingIntake', 'ebay', 'kaufland', 'syncStatus'],
 };
 
 const normalizeMarketplaceColumnOrder = (columns: ColumnId[]): ColumnId[] => {
@@ -132,10 +132,6 @@ const AdminTable: React.FC<AdminTableProps> = ({
     if (typeof window === 'undefined') return 'all';
     return (window.sessionStorage.getItem('avystock:admin-table:filterGpsr') as any) || 'all';
   });
-  const [filterBaselinkerLink, setFilterBaselinkerLink] = useState<'all' | 'linked' | 'unlinked'>(() => {
-    if (typeof window === 'undefined') return 'all';
-    return (window.sessionStorage.getItem('avystock:admin-table:filterBaselinkerLink') as any) || 'all';
-  });
   const [filterWeight, setFilterWeight] = useState<'all' | 'withWeight' | 'noWeight'>(() => {
     if (typeof window === 'undefined') return 'all';
     return (window.sessionStorage.getItem('avystock:admin-table:filterWeight') as any) || 'all';
@@ -198,9 +194,6 @@ const AdminTable: React.FC<AdminTableProps> = ({
   const [ktypeBusy, setKtypeBusy] = useState(false);
   const [ktypeMessage, setKtypeMessage] = useState<string | null>(null);
   const [ktypeReport, setKtypeReport] = useState<any | null>(null);
-  // Fixed BaseLinker inventory
-  const [syncInventoryId] = useState('78659');
-  const [syncInProgress, setSyncInProgress] = useState(false);
   const [ebayPublishInProgress, setEbayPublishInProgress] = useState(false);
   // productId → itemId map from ebayListingLinks (matched listings)
   const [ebayLinkedMap, setEbayLinkedMap] = useState<Map<string, string>>(new Map());
@@ -216,7 +209,6 @@ const AdminTable: React.FC<AdminTableProps> = ({
   const [kauflandSkuProductIdMap, setKauflandSkuProductIdMap] = useState<Map<string, number>>(new Map());
   const [kauflandEanProductIdMap, setKauflandEanProductIdMap] = useState<Map<string, number>>(new Map());
   const [kauflandSyncInProgress, setKauflandSyncInProgress] = useState(false);
-  const [syncMessage, setSyncMessage] = useState<string | null>(null);
   const [improveInProgress, setImproveInProgress] = useState(false);
   const [improveMessage, setImproveMessage] = useState<string | null>(null);
   const [notice, setNotice] = useState<{
@@ -234,11 +226,9 @@ const AdminTable: React.FC<AdminTableProps> = ({
     confirmBusy?: boolean;
     onConfirm: () => void | Promise<void>;
   } | null>(null);
-  const [baselinkerLookupInProgress, setBaselinkerLookupInProgress] = useState(false);
   const [bulkJobId, setBulkJobId] = useState<string | null>(null);
   const [bulkJobAction, setBulkJobAction] = useState<string | null>(null);
   const [bulkJobLoading, setBulkJobLoading] = useState(false);
-  const baselinkerChecked = useRef<Set<string>>(new Set());
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const mq = window.matchMedia('(max-width: 640px)');
@@ -339,70 +329,6 @@ const AdminTable: React.FC<AdminTableProps> = ({
     setKauflandSkuProductIdMap(skuProductIdMap);
     setKauflandEanProductIdMap(eanProductIdMap);
   };
-
-  // On load: check BaseLinker existence by SKU/EAN and update products with found product_id
-  useEffect(() => {
-    const candidates = products
-      .filter((p) => !p?.ops?.baselinker?.product_id)
-      .map((p) => {
-        const identifiers = p.details?.identifiers || {};
-        const sku = normalizeSku(p.identification?.sku || identifiers.sku);
-        const ean = normalizeSku(identifiers.ean || identifiers.gtin || identifiers.upc || (p.identification?.barcodes || [])[0]);
-        return sku || ean || '';
-      })
-      .filter(Boolean)
-      .filter((sku) => !baselinkerChecked.current.has(sku));
-
-    const uniqueSkus = Array.from(new Set(candidates));
-    if (!uniqueSkus.length || baselinkerLookupInProgress) return;
-
-    let cancelled = false;
-    const run = async () => {
-      try {
-        setBaselinkerLookupInProgress(true);
-        const res = await lookupBaseLinkerBySkus(uniqueSkus);
-        if (!res.ok || !res.results || cancelled) return;
-
-        const updated = products.map((p) => {
-          const identifiers = p.details?.identifiers || {};
-          const sku = normalizeSku(p.identification?.sku || identifiers.sku);
-          const ean = normalizeSku(identifiers.ean || identifiers.gtin || identifiers.upc || (p.identification?.barcodes || [])[0]);
-          const key = sku || ean || '';
-          const match = key ? res.results?.[key] : undefined;
-          if (match?.product_id) {
-            const currentOps = { ...(p.ops || {}) };
-            const currentBL = currentOps.baselinker || {};
-            return {
-              ...p,
-              ops: {
-                ...currentOps,
-                baselinker: {
-                  ...currentBL,
-                  product_id: match.product_id,
-                  synced_inventory: match.inventoryId || syncInventoryId,
-                  matched_sku: match.sku || sku || null,
-                  matched_ean: match.ean || ean || null,
-                },
-              },
-            };
-          }
-          return p;
-        });
-
-        // mark checked
-        uniqueSkus.forEach((s) => baselinkerChecked.current.add(s));
-        onUpdateProducts(updated);
-      } finally {
-        if (!cancelled) setBaselinkerLookupInProgress(false);
-      }
-    };
-
-    run();
-    return () => {
-      cancelled = true;
-    };
-  }, [products, baselinkerLookupInProgress, onUpdateProducts, syncInventoryId]);
-
 
   const categoryTree = useMemo(() => {
     const tree = new Map<string, { count: number; children: Map<string, number> }>();
@@ -620,26 +546,6 @@ const AdminTable: React.FC<AdminTableProps> = ({
           ) : (
             <span className="text-txt-muted">{t('table.noBin')}</span>
           ),
-      },
-      {
-        id: 'baselinker',
-        label: 'BaseLinker',
-        sortKey: 'ops.baselinker.product_id',
-        defaultVisible: true,
-        render: ({ product }) => {
-          const bl = (product as any)?.ops?.baselinker;
-          const linked = Boolean(bl?.product_id);
-          return (
-            <span
-              className={`inline-flex items-center justify-center rounded-full px-2 py-0.5 text-xs font-semibold ${linked
-                  ? 'bg-success-dim text-success'
-                  : 'bg-app-elevated text-txt-secondary'
-                }`}
-            >
-              {linked ? 'Verknüpft' : 'Nicht in BL'}
-            </span>
-          );
-        },
       },
       {
         id: 'ebay',
@@ -1032,13 +938,6 @@ const AdminTable: React.FC<AdminTableProps> = ({
         (filterBinSplit === 'singleBin' && binCount <= 1) ||
         (filterBinSplit === 'multiBin' && binCount >= 2);
 
-      const baselinkerProductId = (p as any)?.ops?.baselinker?.product_id;
-      const hasBaselinkerLink = Boolean(baselinkerProductId);
-      const matchesBaselinkerLink =
-        filterBaselinkerLink === 'all' ||
-        (filterBaselinkerLink === 'linked' && hasBaselinkerLink) ||
-        (filterBaselinkerLink === 'unlinked' && !hasBaselinkerLink);
-
       const weight = Number((p.details?.attributes as any)?.weight || 0);
       const hasWeight = Number.isFinite(weight) && weight > 0;
       const matchesWeight =
@@ -1132,7 +1031,6 @@ const AdminTable: React.FC<AdminTableProps> = ({
         matchesCategory &&
         matchesBin &&
         matchesBinSplit &&
-        matchesBaselinkerLink &&
         matchesWeight &&
         matchesReserved &&
         matchesEanValid &&
@@ -1236,7 +1134,6 @@ const AdminTable: React.FC<AdminTableProps> = ({
     filterCategorySelection,
     filterBin,
     filterBinSplit,
-    filterBaselinkerLink,
     filterWeight,
     filterReserved,
     filterEanValid,
@@ -1293,94 +1190,6 @@ const AdminTable: React.FC<AdminTableProps> = ({
       }
       return newSet;
     });
-  };
-
-  const handleBatchSync = async () => {
-    if (selectedIds.size === 0) return;
-
-    // Get selected products
-    const selectedProducts = products.filter(p => selectedIds.has(p.id));
-    if (selectedProducts.length === 0) return;
-
-    // Update UI to show syncing state
-    setSyncInProgress(true);
-    setSyncMessage(`Synchronisiere ${selectedProducts.length} Produkte …`);
-    setNotice({
-      tone: 'info',
-      title: 'Sync gestartet',
-      message: `Synchronisiere ${selectedProducts.length} Produkte (BaseLinker Inventory ${syncInventoryId}).`,
-    });
-    const updatingProducts = products.map(p =>
-      selectedIds.has(p.id)
-        ? { ...p, ops: { ...p.ops, sync_status: 'pending' as const } }
-        : p
-    );
-    onUpdateProducts(updatingProducts);
-
-    try {
-      const missingCats = selectedProducts
-        .filter((p) => {
-          const v = String(p?.details?.baselinkerCategoryPath || '').trim();
-          if (v) return false;
-          const legacyMap = (p?.details?.baselinkerCategories || {}) as any;
-          return !String(legacyMap?.['91387'] || '').trim();
-        })
-        .map((p) => p.id);
-
-      if (missingCats.length) {
-        throw new Error(
-          `Sync abgebrochen: BaseLinker-Kategorie fehlt für ${missingCats.length} Produkte (z.B. ${missingCats
-            .slice(0, 8)
-            .join(', ')}).`
-        );
-      }
-
-      const res = await syncToBaseLinker(selectedProducts, syncInventoryId);
-      const results = Array.isArray(res?.results) ? res.results : [];
-      const byId = new Map(results.map((r) => [r.id, r]));
-
-      const finalProducts = products.map((p) => {
-        if (!selectedIds.has(p.id)) return p;
-        const entry = byId.get(p.id);
-        const ok = entry?.status === 'synced';
-        return {
-          ...p,
-          ops: {
-            ...p.ops,
-            sync_status: ok ? ('synced' as const) : ('failed' as const),
-            last_synced_iso: ok ? new Date().toISOString() : p.ops.last_synced_iso,
-          },
-        };
-      });
-      onUpdateProducts(finalProducts);
-
-      const successCount = finalProducts.filter((p) => selectedIds.has(p.id) && p.ops.sync_status === 'synced').length;
-      const failCount = selectedProducts.length - successCount;
-      const failureSummary = results
-        .filter((r) => r.status !== 'synced')
-        .slice(0, 200)
-        .map((r) => `${r.id}: ${r.message || 'fehlgeschlagen'}`)
-        .join('\n');
-
-      setNotice({
-        tone: failCount > 0 ? 'warning' : 'success',
-        title: 'Sync abgeschlossen',
-        message: `✓ ${successCount} synchronisiert · ✗ ${failCount} fehlgeschlagen`,
-        details: failCount > 0 ? failureSummary : undefined,
-      });
-    } catch (error) {
-      // Revert to original state on error
-      onUpdateProducts(products);
-      setNotice({
-        tone: 'error',
-        title: 'Sync fehlgeschlagen',
-        details: error instanceof Error ? error.message : 'Unknown error',
-      });
-    } finally {
-      setSyncInProgress(false);
-      setSyncMessage(null);
-      setSelectedIds(new Set());
-    }
   };
 
   const handleBatchPublishEbay = async () => {
@@ -1582,7 +1391,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
         // price: default to "missing only"; set >0 in Admin → Bulk if you want "stale refresh"
         maxAgeDays: action === 'price' ? 0 : undefined,
         force: action === 'price',
-        inventoryId: syncInventoryId,
+        inventoryId: '78659',
       });
       setBulkJobId(res.jobId);
       setBulkJobAction(action);
@@ -1907,7 +1716,6 @@ const AdminTable: React.FC<AdminTableProps> = ({
     setFilterCategorySelection([]);
     setFilterBin('all');
     setFilterBinSplit('all');
-    setFilterBaselinkerLink('all');
     setFilterWeight('all');
     setFilterReserved('all');
     setFilterEanValid('all');
@@ -1956,10 +1764,6 @@ const AdminTable: React.FC<AdminTableProps> = ({
   }, [filterGpsr]);
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    window.sessionStorage.setItem('avystock:admin-table:filterBaselinkerLink', filterBaselinkerLink);
-  }, [filterBaselinkerLink]);
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
     window.sessionStorage.setItem('avystock:admin-table:filterWeight', filterWeight);
   }, [filterWeight]);
   useEffect(() => {
@@ -1993,7 +1797,6 @@ const AdminTable: React.FC<AdminTableProps> = ({
     if (filterStatus !== 'all') count++;
     if (filterCategorySelection.length > 0) count++;
     if (filterBin !== 'all') count++;
-    if (filterBaselinkerLink !== 'all') count++;
     if (filterEbay !== 'all') count++;
     if (filterKaufland !== 'all') count++;
     if (filterWeight !== 'all') count++;
@@ -2002,7 +1805,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
     if (filterEanValid !== 'all') count++;
     if (filterGpsr !== 'all') count++;
     return count;
-  }, [filterStatus, filterCategorySelection, filterBin, filterBaselinkerLink, filterEbay, filterKaufland, filterWeight, filterReserved, filterBinSplit, filterEanValid, filterGpsr]);
+  }, [filterStatus, filterCategorySelection, filterBin, filterEbay, filterKaufland, filterWeight, filterReserved, filterBinSplit, filterEanValid, filterGpsr]);
 
   const activeFilterChips = useMemo(() => {
     const chips: Array<{ key: string; label: string; onClear: () => void }> = [];
@@ -2035,14 +1838,6 @@ const AdminTable: React.FC<AdminTableProps> = ({
     if (filterGpsr !== 'all') {
       const label = filterGpsr === 'complete' ? 'GPSR: Vollständig' : 'GPSR: Unvollständig';
       chips.push({ key: 'gpsr', label, onClear: () => setFilterGpsr('all') });
-    }
-
-    if (filterBaselinkerLink !== 'all') {
-      chips.push({
-        key: 'baselinker',
-        label: filterBaselinkerLink === 'linked' ? 'BaseLinker: Verknüpft' : 'BaseLinker: Nicht verknüpft',
-        onClear: () => setFilterBaselinkerLink('all'),
-      });
     }
 
     if (filterEbay !== 'all') {
@@ -2087,7 +1882,6 @@ const AdminTable: React.FC<AdminTableProps> = ({
 
     return chips;
   }, [
-    filterBaselinkerLink,
     filterBin,
     filterBinSplit,
     filterCategorySelection,
@@ -2244,8 +2038,6 @@ const AdminTable: React.FC<AdminTableProps> = ({
                 setFilterEanValid={setFilterEanValid}
                 filterGpsr={filterGpsr}
                 setFilterGpsr={setFilterGpsr}
-                filterBaselinkerLink={filterBaselinkerLink}
-                setFilterBaselinkerLink={setFilterBaselinkerLink}
                 filterEbay={filterEbay}
                 setFilterEbay={setFilterEbay}
                 filterKaufland={filterKaufland}
@@ -2307,8 +2099,6 @@ const AdminTable: React.FC<AdminTableProps> = ({
             <BulkActions
               selectedIds={selectedIds}
               setSelectedIds={setSelectedIds}
-              syncInProgress={syncInProgress}
-              handleBatchSync={handleBatchSync}
               ebayPublishInProgress={ebayPublishInProgress}
               handleBatchPublishEbay={handleBatchPublishEbay}
               ebayUpdateInProgress={ebayUpdateInProgress}
@@ -2586,15 +2376,6 @@ const AdminTable: React.FC<AdminTableProps> = ({
                 </details>
               </div>
             )}
-          </div>
-        </div>
-      )}
-      {syncInProgress && (
-        <div role="status" aria-live="polite" aria-busy="true" className="fixed bottom-6 right-6 z-40 flex items-center gap-3 rounded-2xl bg-app-bg/90 border border-app-border px-4 py-3 shadow-lg shadow-black/40 max-w-sm">
-          <Spinner className="w-6 h-6 text-accent" />
-          <div className="text-sm text-txt-primary">
-            <p className="font-semibold">Sync läuft …</p>
-            <p className="text-txt-muted text-xs">{syncMessage || 'Produkte werden übertragen'}</p>
           </div>
         </div>
       )}

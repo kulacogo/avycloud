@@ -63,8 +63,6 @@ const statusBadge = (status: string) => {
 const sourceBadge = (source?: string | null) => {
   if (!source) return null;
   const s = source.toLowerCase();
-  // "baselinker" is an integration layer, not a marketplace — ignore it
-  if (s === "baselinker") return null;
   if (s.includes("ebay")) return { label: "eBay", cls: "bg-amber-600/15 text-amber-400 border-amber-500/20" };
   if (s.includes("kaufland")) return { label: "Kaufland", cls: "bg-danger-dim text-danger border-danger/20" };
   if (s.includes("amazon")) return { label: "Amazon", cls: "bg-info-dim text-info border-info/20" };
@@ -114,6 +112,8 @@ const OrdersView: React.FC = () => {
   const [bulkResult, setBulkResult] = useState<string | null>(null);
   const [rowsPerPage, setRowsPerPage] = useState(50);
   const [currentPage, setCurrentPage] = useState(1);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [datePreset, setDatePreset] = useState<"all" | "today" | "7d" | "30d" | "90d">("all");
 
   /* ─── Fetch ─── */
   const loadOrders = useCallback(async () => {
@@ -201,6 +201,29 @@ const OrdersView: React.FC = () => {
   const filteredOrders = useMemo(() => {
     let list = filter === "all" ? orders : orders.filter((o) => ((o as any).omsStatus || o.status) === filter);
 
+    // Date filter
+    if (datePreset !== "all") {
+      const now = Date.now();
+      const cutoff = datePreset === "today"
+        ? new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate()).getTime()
+        : datePreset === "7d" ? now - 7 * 86400000
+        : datePreset === "30d" ? now - 30 * 86400000
+        : now - 90 * 86400000;
+      list = list.filter((o) => new Date(o.createdAt).getTime() >= cutoff);
+    }
+
+    // Search filter (order ID, customer name, SKU, marketplace order ID)
+    if (searchQuery.trim()) {
+      const q = searchQuery.trim().toLowerCase();
+      list = list.filter((o) => {
+        const orderId = (o.orderId || o.number || o.id || "").toLowerCase();
+        const customerName = (o.customer?.name || "").toLowerCase();
+        const marketplaceId = ((o as any).marketplaceOrderId || (o as any).externalOrderId || "").toLowerCase();
+        const skus = (o.items || []).map((i) => (i.sku || "").toLowerCase()).join(" ");
+        return orderId.includes(q) || customerName.includes(q) || marketplaceId.includes(q) || skus.includes(q);
+      });
+    }
+
     list = [...list].sort((a, b) => {
       let cmp = 0;
       if (sortField === "createdAt") {
@@ -214,7 +237,7 @@ const OrdersView: React.FC = () => {
     });
 
     return list;
-  }, [orders, filter, sortField, sortAsc]);
+  }, [orders, filter, sortField, sortAsc, searchQuery, datePreset]);
 
   const totalPages = Math.max(1, Math.ceil(filteredOrders.length / rowsPerPage));
   const paginatedOrders = useMemo(() => {
@@ -223,7 +246,7 @@ const OrdersView: React.FC = () => {
   }, [filteredOrders, currentPage, rowsPerPage]);
 
   // Reset page when filter changes
-  useEffect(() => { setCurrentPage(1); }, [filter, rowsPerPage]);
+  useEffect(() => { setCurrentPage(1); }, [filter, rowsPerPage, searchQuery, datePreset]);
 
   const handleSort = (field: typeof sortField) => {
     if (sortField === field) {
@@ -326,6 +349,53 @@ const OrdersView: React.FC = () => {
             <SyncIcon className={`w-4 h-4 ${syncing ? "animate-spin" : ""}`} />
             {syncing ? t("ops.orders.syncing") : t("ops.orders.sync")}
           </button>
+        </div>
+      </div>
+
+      {/* Search + Date Filter */}
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="relative flex-1 min-w-[200px] max-w-md">
+          <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-txt-muted" viewBox="0 0 20 20" fill="currentColor">
+            <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
+          </svg>
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Suche: Auftragsnr., Kunde, SKU, Marketplace-ID..."
+            className="w-full rounded-xl border border-app-border bg-app-surface text-txt-primary pl-9 pr-3 py-2 text-sm placeholder:text-txt-muted focus:outline-none focus:ring-1 focus:ring-accent/40 focus:border-accent/40"
+          />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => setSearchQuery("")}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-txt-muted hover:text-txt-primary text-xs"
+            >
+              &times;
+            </button>
+          )}
+        </div>
+        <div className="flex items-center gap-1">
+          {([
+            { key: "all", label: "Alle" },
+            { key: "today", label: "Heute" },
+            { key: "7d", label: "7 Tage" },
+            { key: "30d", label: "30 Tage" },
+            { key: "90d", label: "90 Tage" },
+          ] as const).map((dp) => (
+            <button
+              key={dp.key}
+              type="button"
+              onClick={() => setDatePreset(dp.key)}
+              className={`rounded-lg px-2.5 py-1.5 text-xs font-medium transition ${
+                datePreset === dp.key
+                  ? "bg-accent text-white"
+                  : "bg-app-surface text-txt-muted border border-app-border hover:bg-app-elevated"
+              }`}
+            >
+              {dp.label}
+            </button>
+          ))}
         </div>
       </div>
 

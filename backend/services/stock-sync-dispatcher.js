@@ -2,7 +2,7 @@
  * Stock Sync Dispatcher
  *
  * After a stock-out (or stock-in), pushes updated quantity to ALL connected
- * marketplace channels: BaseLinker (existing), eBay, Kaufland.
+ * marketplace channels: eBay, Kaufland.
  *
  * Usage:
  *   const { syncStockToAllChannels } = require('./stock-sync-dispatcher');
@@ -138,14 +138,6 @@ async function syncStockToAllChannels({ tenantId = 'default', product, reason = 
         err?.message || err
       );
     }
-  }
-
-  // --- BaseLinker (handled by existing backgroundSyncProductStockToBaseLinker in index.js) ---
-  // We don't call it here — it's already triggered in the warehouse route.
-  // Just log that BL was skipped (handled separately).
-  const blLinked = Boolean(freshProduct?.ops?.base_product_id || freshProduct?.ops?.baselinker?.product_id);
-  if (blLinked) {
-    results.push({ channel: 'baselinker', status: 'handled_separately' });
   }
 
   // Log sync attempt to Firestore for audit trail

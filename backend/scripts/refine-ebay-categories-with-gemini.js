@@ -4,7 +4,7 @@
  *
  * Why:
  * - Many products currently have leaf-only or top-level categories (no '>') which is inconsistent and too broad.
- * - We want a consistent category tree path for BaseLinker / exports / UI.
+ * - We want a consistent category tree path for exports / UI.
  *
  * Safety:
  * - We only apply if:

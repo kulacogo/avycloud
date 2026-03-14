@@ -236,7 +236,7 @@ async function getStatusCounts({ tenantId = 'default' } = {}) {
   for (const doc of snap.docs) {
     const d = doc.data();
     const status = d.omsStatus || d.status || 'pending';
-    // Map old BaseLinker statuses to OMS statuses
+    // Map old statuses to OMS statuses
     const mapped = mapLegacyStatus(status);
     counts[mapped] = (counts[mapped] || 0) + 1;
   }
@@ -245,7 +245,7 @@ async function getStatusCounts({ tenantId = 'default' } = {}) {
 }
 
 /**
- * Map legacy BaseLinker status to OMS status.
+ * Map legacy status to OMS status.
  * @param {string} status
  * @returns {string}
  */

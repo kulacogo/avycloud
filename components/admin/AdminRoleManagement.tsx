@@ -26,7 +26,6 @@ const MODULES: Array<{ id: string; label: string; actions: string[] }> = [
   { id: 'inventories', label: 'Inventories', actions: ['read'] },
   { id: 'warehouse', label: 'Warehouse', actions: ['read', 'write'] },
   { id: 'orders', label: 'Orders', actions: ['read', 'pick', 'pack'] },
-  { id: 'baselinker', label: 'BaseLinker', actions: ['read', 'sync'] },
   { id: 'identify', label: 'Identify', actions: ['run'] },
   { id: 'jobs', label: 'Jobs', actions: ['read'] },
   { id: 'ai', label: 'AI', actions: ['chat', 'improve'] },

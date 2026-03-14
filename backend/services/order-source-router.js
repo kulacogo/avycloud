@@ -3,9 +3,7 @@
 /**
  * order-source-router.js — Routes order operations to native OMS.
  *
- * Feature flag: ORDER_SOURCE env var
- *   - 'native'     → Use AvyCloud OMS state machine (eBay/Kaufland direct) [DEFAULT]
- *   - 'baselinker' → Legacy (deprecated, scheduled for removal)
+ * Uses AvyCloud OMS state machine (eBay/Kaufland direct).
  */
 
 const { Firestore } = require('@google-cloud/firestore');
@@ -18,11 +16,10 @@ function getDb() {
 
 /**
  * Determine the active order source.
- * @returns {'native' | 'baselinker'}
+ * @returns {'native'}
  */
 function getOrderSource() {
-  const source = (process.env.ORDER_SOURCE || 'native').toLowerCase().trim();
-  return source === 'baselinker' ? 'baselinker' : 'native';
+  return 'native';
 }
 
 /**
@@ -30,23 +27,16 @@ function getOrderSource() {
  * @returns {boolean}
  */
 function isNativeOms() {
-  return getOrderSource() === 'native';
+  return true;
 }
 
 /**
- * Sync orders from the configured source.
- *
- * - native: Syncs from eBay + Kaufland directly
- * - baselinker: Uses existing BaseLinker sync
+ * Sync orders from eBay + Kaufland directly.
  *
  * @returns {Promise<any[]>} orders
  */
 async function syncOrders() {
-  if (isNativeOms()) {
-    return syncOrdersNative();
-  }
-  const { syncNewOrders } = require('./order-sync');
-  return syncNewOrders();
+  return syncOrdersNative();
 }
 
 /**
@@ -88,97 +78,80 @@ async function syncOrdersNative() {
 /**
  * Mark an order as picked.
  *
- * - native: Uses OMS state machine (pending/confirmed → picking → picked)
- * - baselinker: Uses BaseLinker setOrderStatus
+ * Uses OMS state machine (pending/confirmed → picking → picked).
  *
  * @param {{ orderId: string, actor?: object }} opts
  * @returns {Promise<{ id: string }>}
  */
 async function pickOrder({ orderId, actor }) {
-  if (isNativeOms()) {
-    const { transitionOrder } = require('./order-state-machine');
+  const { transitionOrder } = require('./order-state-machine');
 
-    // Try picking first, then picked (two-step)
-    const currentSnap = await getDb().collection('orders').doc(orderId).get();
-    if (!currentSnap.exists) throw new Error('Order not found');
-    const current = currentSnap.data();
-    const omsStatus = current.omsStatus || current.status || 'pending';
+  // Try picking first, then picked (two-step)
+  const currentSnap = await getDb().collection('orders').doc(orderId).get();
+  if (!currentSnap.exists) throw new Error('Order not found');
+  const current = currentSnap.data();
+  const omsStatus = current.omsStatus || current.status || 'pending';
 
-    // If not already in 'picking', transition to 'picking' first
-    if (omsStatus !== 'picking' && omsStatus !== 'picked') {
-      await transitionOrder({
-        orderId,
-        toStatus: 'picking',
-        actor: actor || { uid: 'system', email: 'api' },
-        note: 'Kommissionierung gestartet',
-      });
-    }
-
-    // Then transition to 'picked'
-    if (omsStatus !== 'picked') {
-      await transitionOrder({
-        orderId,
-        toStatus: 'picked',
-        actor: actor || { uid: 'system', email: 'api' },
-        note: 'Kommissionierung abgeschlossen',
-      });
-    }
-
-    return { id: orderId };
+  // If not already in 'picking', transition to 'picking' first
+  if (omsStatus !== 'picking' && omsStatus !== 'picked') {
+    await transitionOrder({
+      orderId,
+      toStatus: 'picking',
+      actor: actor || { uid: 'system', email: 'api' },
+      note: 'Kommissionierung gestartet',
+    });
   }
 
-  const { markOrderAsPicked } = require('./order-sync');
-  return markOrderAsPicked(orderId);
+  // Then transition to 'picked'
+  if (omsStatus !== 'picked') {
+    await transitionOrder({
+      orderId,
+      toStatus: 'picked',
+      actor: actor || { uid: 'system', email: 'api' },
+      note: 'Kommissionierung abgeschlossen',
+    });
+  }
+
+  return { id: orderId };
 }
 
 /**
  * Mark an order as packed.
  *
- * - native: Uses OMS state machine (picked → packing → packed)
- * - baselinker: Uses BaseLinker setOrderStatus
+ * Uses OMS state machine (picked → packing → packed).
  *
  * @param {{ orderId: string, actor?: object }} opts
  * @returns {Promise<{ id: string }>}
  */
 async function packOrder({ orderId, actor }) {
-  if (isNativeOms()) {
-    const { transitionOrder } = require('./order-state-machine');
+  const { transitionOrder } = require('./order-state-machine');
 
-    const currentSnap = await getDb().collection('orders').doc(orderId).get();
-    if (!currentSnap.exists) throw new Error('Order not found');
-    const current = currentSnap.data();
-    const omsStatus = current.omsStatus || current.status || 'pending';
+  const currentSnap = await getDb().collection('orders').doc(orderId).get();
+  if (!currentSnap.exists) throw new Error('Order not found');
+  const current = currentSnap.data();
+  const omsStatus = current.omsStatus || current.status || 'pending';
 
-    // If in 'picked', transition to 'packed' (skipping 'packing' for quick pack)
-    if (omsStatus !== 'packed') {
-      await transitionOrder({
-        orderId,
-        toStatus: 'packed',
-        actor: actor || { uid: 'system', email: 'api' },
-        note: 'Verpackung abgeschlossen',
-      });
-    }
-
-    return { id: orderId };
+  // If in 'picked', transition to 'packed' (skipping 'packing' for quick pack)
+  if (omsStatus !== 'packed') {
+    await transitionOrder({
+      orderId,
+      toStatus: 'packed',
+      actor: actor || { uid: 'system', email: 'api' },
+      note: 'Verpackung abgeschlossen',
+    });
   }
 
-  const { markOrderAsPacked } = require('./order-sync');
-  return markOrderAsPacked(orderId);
+  return { id: orderId };
 }
 
 /**
- * Get dashboard order metrics from the configured source.
+ * Get dashboard order metrics.
  *
- * - native: Aggregates from Firestore orders collection directly
- * - baselinker: Uses existing BaseLinker-based dashboard metrics
+ * Aggregates from Firestore orders collection directly.
  *
  * @returns {Promise<object>}
  */
 async function getDashboardOrderMetrics() {
-  if (!isNativeOms()) {
-    return null; // Let the existing dashboard logic handle it
-  }
-
   const db = getDb();
   const snap = await db.collection('orders')
     .select('omsStatus', 'status', 'totalAmount', 'currency', 'createdAt', 'source', 'marketplace')

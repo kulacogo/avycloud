@@ -1,6 +1,6 @@
 # TASKS.md — AvyCloud Roadmap & Task-Management
 
-> **Letzte Aktualisierung:** 2026-03-11
+> **Letzte Aktualisierung:** 2026-03-13
 > **Verantwortlich:** Oguzhan (Owner), Claude Code (Backend/Tests), Claude Cowork (Planung/Doku)
 
 ---
@@ -54,7 +54,7 @@
 | **Security** | ✅ | Helmet.js, Rate-Limiting, .env bereinigt |
 | **Datenbank** | ✅ | products_v2 live, Normalisierung, LLM-Policy + Rulebook |
 | **Infrastruktur** | ✅ | Pino Logging, Health-Check, Graceful Shutdown, AppError |
-| **Code-Qualität** | ✅ | 7 Router-Module, API Versioning, 129 Vitest-Tests |
+| **Code-Qualität** | ✅ | 7 Router-Module, API Versioning, 129 Vitest-Tests (8 Suiten) |
 | **KI-Pipeline** | ✅ | Identify (Vision+Barcode+Web+LLM), Improve, Quality-Check |
 | **Pricing** | ✅ | Engine backend-only, Competitor Intelligence |
 | **Inventory** | ✅ | Forecast, salesVelocity, Reorder-Alerts |
@@ -62,7 +62,7 @@
 | **Webhooks** | ✅ | HMAC-SHA256, dispatchWebhook() |
 | **eBay** | ✅ | OAuth, Trading API, Listings, Gap-Analyse, Publish |
 | **Kaufland** | ✅ | HMAC Auth, Listings, SKU-Index, Category-Mapping |
-| **BaseLinker** | ⚠️ DEPRECATED | Wird durch natives OMS ersetzt. Keine neuen Features. UI zeigt BaseLinker-Source nicht mehr an. |
+| **BaseLinker** | ❌ ENTFERNT | Komplett aus Codebase entfernt (2026-03-13). 48 Dateien gelöscht, 40+ bereinigt. |
 | **SendCloud** | ✅ | Basic Auth, Kosten-Aggregation |
 | **SevDesk** | ✅ | Token Auth, Bankdaten |
 | **Stock-Sync** | ✅ | Reservation, Multi-Channel Push (eBay+Kaufland), Preis-Push |
@@ -86,7 +86,8 @@
 | **M12: Lagerverwaltung** | ⚡ Settings fertig | Zonen/Bins/Inventur fehlen |
 | **M14: Pack & Ship** | 🔴 Geplant | SKU-Scan → Auto-Label-Print, Drucker-Voreinstellungen |
 | **M-AUTO: Automatisierung** | 🔴 Geplant | Bulk-Import, Repricing-UI |
-| **FAKE→REAL** | ⚡ 8/12 done | 4 verbleibend: Shipping, Invoices, Returns, Billing |
+| **M-MOBILE: Mobile UI** | ⚡ Funktional, UX-Mängel | Logo unscharf, Button-Kontrast, keine Icons, Dashboard KPIs leer |
+| **FAKE→REAL** | ✅ 12/12 done | Alle Views nutzen echte API-Daten (Shipping, Invoices, Returns, Billing: 2026-03-13) |
 | **Universal Taxonomy** | 🔴 Geplant | Marktplatz-Kategorien für neue Integrationen |
 
 ---
@@ -110,25 +111,86 @@
 - [x] **BUG-028: Inkonsistente Lager/Marktplatz-Mengen** — Retry-Mechanismus, Stock-Sync nach Pack/Ship, Listing-Sync 3 Min + Auto-Heal
 - [x] **Aufträge Bulk-Status-Change** — Backend POST /api/orders/bulk-transition + Frontend Checkboxen + Bulk-Action-Bar
 - [x] **BRAND: Sidebar-Logo ersetzen** — Logo-Icon immer sichtbar, Expanded: Icon + Theme-Wordmark (dark/light), CSS-Toggle via `.logo-dark`/`.logo-light`
+- [ ] **BUG-040: Alte BaseLinker-Orders ohne Quelle** — Backfill `marketplace`-Feld aus `raw`-Daten
+- [x] **BUG-041: Kaufland Order-Intake fehlende Felder** — ✅ paidAt, paymentMethod, shippingCost, shippedAt, billingAddress (2026-03-13)
+- [x] **BUG-042: Kaufland Adresse unvollständig** — ✅ billingAddress mit Fallback auf shippingAddress (2026-03-13)
+- [x] **BUG-043: Returns-Engine Referenz-Fehler** — ✅ Fixed (totalRefund + ebayReason korrekt, Pagination)
+- [x] **BUG-044: Kaufland Returns Pagination** — ✅ Fixed (Pagination-Loop mit 5000-Cap)
+- [x] **BUG-045: eBay Status-Reconciliation** — ✅ Fixed (Rank-basiert, 30-Tage Lookback)
+- [x] **BUG-046: Dashboard BaseLinker-Fallback entfernen** — ✅ BL-Shipping-Fallback entfernt, nur SevDesk + SendCloud (2026-03-13)
 
-#### KW 12 (17.–21. März 2026) — FAKE→REAL Part 2 + M3
-- [ ] **FAKE→REAL: ShippingView** — Echte Versanddaten aus shipments Collection
-- [ ] **FAKE→REAL: InvoicesView** — Echte Rechnungen + PDF-Generierung
-- [ ] **FAKE→REAL: ReturnsView** — Echte Retouren-Daten
-- [ ] **FAKE→REAL: BillingSettings** — Echte Usage-Stats
-- [ ] **M3: Produkte-View** — Filter-System neu, Kategorien-Management
-- [ ] **M3: ProductSheet** — 6-Tab Detail-Panel komplett neu
+#### KW 12 (17.–21. März 2026) — BaseLinker raus + Customer-Satisfaction Features
+
+> **Priorität: Bestellungen, Retouren, Versand, Buchhaltung MÜSSEN verwaltbar sein.**
+> **BaseLinker ist TABU.** Alle Reste entfernen. AvyCloud ist eigenständig multichannel-fähig.
+
+**Block 1: BaseLinker-Entfernung (Phase C) — ✅ KOMPLETT (2026-03-13)**
+
+> ✅ **48 Dateien gelöscht, 40+ Dateien bereinigt. 129/129 Tests grün, Frontend-Build OK.**
+> Entfernt: 34 Scripts, 7 Lib-Dateien, 4 Service-Dateien, 3 Root-Referenzdateien.
+> Bereinigt: 7 Routes, 11 Services, 18 Frontend-Dateien, Test-Mocks, cloudbuild.yaml, RBAC, Integration-Registry.
+
+- [x] C1: Daten-Migration — BL-Orders `marketplace`-Feld backfillen → offen als BUG-040
+- [x] C2: Dashboard-Metriken — BL-Fallback entfernt, nur lokale Order-Aggregation
+- [x] C3: Shipping-Kosten — BL-Fallback entfernt, nur SevDesk + SendCloud
+- [x] C4-C5: Backend lib (7) + services (4) gelöscht
+- [x] C6-C7: Routes (7) + index.js bereinigt — BL-Imports, Endpoints, Auto-Sync entfernt
+- [x] C7a: index.js — backgroundSync, Runner, Inventory-Sync entfernt
+- [x] C7b: order-sync.js, rulebook-runner.js, admin-bulk-actions.js, improve.js, toolkit.js bereinigt
+- [x] C8: Frontend — 18 Dateien bereinigt (types.ts, api/client.ts, i18n.tsx, 15 Komponenten)
+- [x] C8a: GeminiChat.tsx — baselinker_category_search Tool entfernt
+- [x] C9: 34 Scripts gelöscht
+- [x] C10: cloudbuild.yaml BL-Lint-Check entfernt
+- [x] C11: _patchLocalModules.js + orders.test.js BL-Mocks entfernt
+- [x] C11a: RBAC — baselinker:read/sync Permissions entfernt
+- [x] C11b: integration-registry.js — BL-Eintrag entfernt
+- [x] C12: Validierung — 129/129 Tests grün, Frontend-Build OK
+
+**Block 2: Bestellungen nutzbar machen**
+- [x] BUG-041: Kaufland Order-Intake fehlende Felder — ✅ paidAt, paymentMethod, shippingCost, shippedAt im mapKauflandOrder + Firestore-Doc (2026-03-13)
+- [x] BUG-042: Kaufland Adresse unvollständig — ✅ billingAddress mit Fallback auf shippingAddress, Reconciliation backfills paidAt/paymentMethod (2026-03-13)
+- [x] BUG-045: eBay Status-Reconciliation — ✅ Fixed (Rank-basiert, 30-Tage Lookback)
+- [x] FEAT-ORD-01: Auftragssuche — ✅ Client-side Search nach Auftragsnr., Kundenname, SKU, Marketplace-ID (2026-03-13)
+- [x] FEAT-ORD-02: Datumsfilter — ✅ Presets: Heute, 7 Tage, 30 Tage, 90 Tage, Alle (2026-03-13)
+- [ ] FEAT-ORD-06: Auto-Rechnung bei Status → shipped (Automation-Rule im Backend)
+
+**Block 3: Buchhaltung nutzbar machen**
+- [ ] B3: SevDesk-Export reparieren — BUG-050: Nur Draft-Skelett ohne Positionen/Kontakt/Adresse. Braucht: Kontakt-Mapping, Line-Items, Adress-Daten
+- [ ] B4: Invoice + Lieferschein PDF-Download im UI — BUG-047: Proxy-Endpoint `/api/invoices/:id/download` fehlt (GCS→Browser). Frontend: Download-Link in OrderDetail + InvoicesView
+- [ ] B5: Invoice Email-Versand (Template + SMTP/SES) — Kein `sendInvoiceEmail()` vorhanden
+- [ ] B6: Gutschriften/Stornorechnungen — Kein `generateCreditNote()` vorhanden
+- [ ] B7: MwSt-Sätze 19%/7%/0% statt hardcoded 19% (invoice-engine.js Zeile 97, 339)
+- [ ] FEAT-INV-01: Rechnungsübersicht: Suche + Datumsfilter + PDF-Download-Buttons
+
+**Block 4: Retouren nutzbar machen**
+- [x] BUG-043: Returns-Engine Referenz-Fehler (totalRefund + ebayReason) — ✅ Fixed
+- [x] BUG-044: Kaufland Returns Pagination — ✅ Fixed
+- [ ] FEAT-RET-01: Retoure-Detail-Ansicht (Modal mit allen Infos)
+- [ ] FEAT-RET-03: Bulk-Retoure-Aktionen (Erstatten, Schließen)
+
+**Block 5: Versand optimieren**
+- [ ] B2: SendCloud Tracking-Webhooks (Zustellbenachrichtigung)
+- [ ] FEAT-SHP-01: Label-Format A4/A6 + Thermal wählbar
+- [ ] BUG-049: Marketplace Refund Push Runner (automatisch Erstattungen an eBay/Kaufland senden)
+
+**Block 6: Mobile UI — Weltklasse UX**
+- [ ] BUG-053: Logo scharf machen (High-Res Icon oder SVG, srcset für Retina)
+- [ ] BUG-054: Operations-Buttons Light Mode Kontrast fixen (WCAG AA 4.5:1)
+- [ ] BUG-055: Bottom Nav SVG-Icons statt pixelige PNGs
+- [ ] BUG-056: Dashboard KPIs leer (abhängig von BUG-048 BaseLinker→Native)
+- [ ] MOB-01: Operations-Buttons mit Lucide-Icons (ScanLine, PackagePlus, ClipboardList, Package)
+- [ ] MOB-02: Touch Feedback / Active States (scale, transition, optional haptic)
+- [ ] MOB-03: Operations-Counter als Badges auf den Buttons
+- [ ] MOB-04: Bottom Nav Lucide-Icons + 48dp Touch-Targets
+- [ ] MOB-10: Dark/Light Mode Konsistenz prüfen (beide Themes WCAG AA)
 
 #### KW 13 (24.–28. März 2026) — M4 + M5 + M12
 - [ ] **M4: Bestand-View** — Lager-fokussierte Inventar-Ansicht
 - [ ] **M5: Marktplatz-Views** — eBay + Kaufland echte Listings, Realtime-Sync
 - [ ] **M12: Lagerverwaltung** — Zonen, Bins, Inventur, Bewegungen
 
-#### KW 14 (31. März – 4. April 2026) — M6 OMS Phase A + M14 Pack & Ship
-- [ ] **M6-A1: Marketplace Order Intake** — Bestellungen direkt von eBay/Kaufland
-- [ ] **M6-A2: Eigene Status-Engine** — Unabhängig von BaseLinker
-- [ ] **M6-A3: Eigene Auftrags-Nummerierung** — Konfigurierbare Nummernkreise
-- [ ] **M6-A4: Order-Detail-Seite** — Komplettes Order-Detail-Panel
+#### KW 14 (31. März – 4. April 2026) — M14 Pack & Ship + M10 Dashboard
+- [x] **M6 OMS Phase A** — ✅ Bereits live (vorgezogen, siehe M6 Detail-Sektion)
 - [ ] **M14-P1: Drucker & Label-Format Voreinstellungen** — User-Settings für Drucker, Format, Auto-Print
 - [ ] **M14-P2: PackStation** — SKU-Scan Interface, Scan-Fortschritt, Item-Validierung
 - [ ] **M14-P3: Auto-Print Flow** — Scan komplett → Auto-Ship → Auto-Label-Print
@@ -144,11 +206,11 @@
 - [ ] **Taxonomy: taxonomy-loader.js** — Universeller CSV/JSON Loader
 - [ ] **Taxonomy: category-matcher.js** — 4-Tier Resolution Engine
 
-#### KW 17–18 (21. April – 2. Mai 2026) — OMS Phase B + Neue Integrationen
-- [ ] **M6-B1: SendCloud Label-Erzeugung** — Labels erstellen, nicht nur Kosten
-- [ ] **M6-B2: Tracking-Webhooks** — Zustellstatus automatisch
-- [ ] **M6-B3: Rechnungs-Engine** — PDF-Generierung + SevDesk-Export
-- [ ] **M6-B4: Marketplace-Kommunikation** — Tracking zurück an eBay/Kaufland
+#### KW 17–18 (21. April – 2. Mai 2026) — OMS Phase B Rest + Neue Integrationen
+- [x] **M6-B1: SendCloud Label-Erzeugung** — ✅ shipping-engine.js live
+- [ ] **M6-B2: Tracking-Webhooks** — Zustellstatus automatisch (SendCloud Webhook-Handler fehlt)
+- [ ] **M6-B3: Rechnungs-Engine** — SevDesk-Export reparieren, PDF-Download, MwSt-Sätze
+- [x] **M6-B4: Marketplace-Kommunikation** — ✅ Tracking + Cancellation an eBay/Kaufland (2026-03-13)
 - [ ] **INT: Amazon SP-API** — OAuth + Produkte + Orders (Tier 2)
 - [ ] **INT: Shopify** — OAuth + Produkte + Orders (Tier 2)
 
@@ -167,7 +229,7 @@
 - [ ] **Stripe Billing** — Subscription-Management, Plans, Invoices
 
 #### KW 23–24 — Polish, Testing, Launch
-- [ ] **M6-C: BaseLinker vollständig entfernen** — Code + ENV-Vars + Scripts bereinigen
+- [x] **M6-C: BaseLinker vollständig entfernt** — ✅ Bereits in KW 12 erledigt (2026-03-13)
 - [ ] **E2E-Tests** — Playwright für kritische Flows
 - [ ] **Monitoring** — Sentry, Uptime, Job-Health
 - [ ] **GDPR** — Data Export, Deletion, Privacy Policy
@@ -200,15 +262,15 @@
 - [ ] Quick-Filters (Niedrig-Bestand, Kein Lagerplatz, 30 Tage unbewegt)
 - [ ] Bulk-Actions (Umlagern, Inventur, Export)
 
-### M5: Marktplatz-Views — ⚡ UI fertig
+### M5: Marktplatz-Views — ✅ Real
 
-**Was existiert:** MarketplaceListingsView.tsx (generisch), Routes, KPIs, Tabs, Tabelle, Bulk-Actions
+**Was existiert:** MarketplaceListingsView.tsx (generisch), Routes, KPIs, Tabs, Tabelle, Bulk-Actions, Sortierung, Rows-per-Page, Stock-Filter
 
 **Offen:**
-- [ ] FAKE→REAL: Echte API-Calls statt Mock-Daten
+- [x] FAKE→REAL: Echte API-Calls — ✅ Bereits real
 - [ ] Realtime-Sync (Bestand + Preis + Status eBay ↔ AvyCloud ↔ Kaufland)
 - [ ] Gap-Analyse integriert in Listing-View (expandable Row)
-- [ ] EbayListingsView.tsx LÖSCHEN (alte Gap-Analysis)
+- [x] EbayListingsView.tsx LÖSCHEN — ✅ Gelöscht (BUG-006)
 - [ ] Generisches Pattern: Neue Marktplätze per Config, nicht per Component
 
 ### M6: Order Management System (OMS) — ⚡ Phase A Live
@@ -229,15 +291,20 @@
 - [x] A9: Retry-Mechanismus für fehlgeschlagene Marketplace-Pushes (2026-03-13)
 
 **Phase B: Versand & Rechnungen nativ**
-- [ ] B1: SendCloud Label-Erzeugung (createParcel, getLabel, cancelParcel)
-- [ ] B2: Tracking-Webhooks (parcel_shipped, parcel_delivered)
-- [ ] B3: Rechnungs-Engine (PDF + SevDesk-Export)
-- [x] B4: Marketplace-Kommunikation — Tracking + Cancellation an eBay/Kaufland (2026-03-13)
+- [x] B1: SendCloud Label-Erzeugung (createParcel, getLabel, cancelParcel) ✅ shipping-engine.js live
+- [ ] B2: Tracking-Webhooks (parcel_shipped, parcel_delivered) — SendCloud Webhook-Handler fehlt
+- [ ] B3: Rechnungs-Engine Fix — SevDesk-Export reparieren (API-Response-Parsing + Contact-Mapping)
+- [ ] B4: Invoice PDF-Download im UI — pdfUrl existiert in Firestore, kein Download-Link in InvoicesView
+- [ ] B5: Invoice Email-Versand — kein sendInvoiceEmail(), kein Email-Template
+- [ ] B6: Gutschriften (Credit Notes) — kein generateCreditNote(), keine Storno-Rechnung
+- [ ] B7: MwSt-Sätze — hardcoded 19%, braucht 7% und 0% Support
+- [x] B8: Marketplace-Kommunikation — Tracking + Cancellation an eBay/Kaufland (2026-03-13)
 
-**Phase C: BaseLinker vollständig entfernen**
-- [ ] C1: BaseLinker-Code entfernen (~10 lib-Dateien, ~32 Scripts, 25+ ENV-Vars)
-- [ ] C2: Cloud Run ENV-Vars bereinigen (ORDER_SOURCE etc.)
-- [ ] C3: Historische BaseLinker-Orders in Firestore: `source`-Feld bleibt, UI zeigt `marketplace`-Feld
+**Phase C: BaseLinker KOMPLETT entfernt — ✅ DONE (2026-03-13)**
+
+> ✅ BaseLinker wurde restlos aus AvyCloud entfernt. 48 Dateien gelöscht, 40+ bereinigt.
+> AvyCloud ist eigenständig multichannel-fähig mit eBay, Kaufland, SendCloud und SevDesk.
+> Einziger Restposten: BUG-040 (historische BL-Orders ohne marketplace-Feld backfillen).
 
 ### M9: Integrations-Hub — 🔴 Kein Self-Service
 
@@ -263,12 +330,12 @@
 - [ ] Export: CSV, Excel, PDF
 - [ ] Backend: routes/reports.js, services/analytics.js
 
-### M11: Einstellungen — ⚡ UI fertig
+### M11: Einstellungen — ✅ Real
 
-**Was existiert:** Alle Settings-Views + Routes + Sidebar-Gruppe
+**Was existiert:** Alle Settings-Views + Routes + Sidebar-Gruppe, alle CRUD via Firestore
 
 **Offen:**
-- [ ] Backend FAKE→REAL: Firestore CRUD für Company, Profile, Team, Billing
+- [x] Backend FAKE→REAL — ✅ Bereits real (Company, Profile, Order, Warehouse, API, Billing-Usage)
 - [ ] Team-Management: Einladung, Rollen-Editor, Berechtigungen
 - [ ] Billing: Stripe-Integration (Waiting On)
 
@@ -337,6 +404,86 @@
 - [ ] Repricing-UI: Dashboard, Regel-Editor, Mindestmarge
 - [ ] Workflow-Builder (Phase 2 nach Launch)
 
+### M-MOBILE: Mobile UI — ⚡ Funktional, Weltklasse-UX fehlt
+
+> **Stand 2026-03-13.** Mobile UI ist funktional (4 Views, Bottom Nav, Scanner, KPIs).
+> Aber: Logo unscharf, Button-Kontrast schlecht, keine Icons, Dashboard leer, kein Haptic Feedback.
+> **Ziel: Weltklasse Mobile UX** nach Best Practices von ShipBob MiniBob, Sortly, Billbee.
+> Referenz: Material Design 3, Apple HIG, WCAG 2.1 AA.
+
+**Betroffene Dateien:**
+
+| Datei | Zweck |
+|-------|-------|
+| `components/Header.tsx` | Mobile Header mit Logo |
+| `components/MobileTabBar.tsx` | Bottom Navigation (82 Zeilen) |
+| `components/MobileOperationsView.tsx` | Operations Hub + 4 Sub-Modes (1716 Zeilen) |
+| `components/DashboardMobile.tsx` | Mobile Dashboard mit KPIs (502 Zeilen) |
+| `components/MobileSearchView.tsx` | Produkt-Suche (131 Zeilen) |
+| `styles/main.css` | Safe-Area, Mobile-spezifische Styles |
+| `public/` | Logo-Assets, Mobile Nav Icons |
+
+**Bugs (sichtbar in Screenshots):**
+
+- [ ] **BUG-053: Logo unscharf auf Mobile** — `Header.tsx` Zeile 229-238: `avycloud_logo_40x40_icon.png` (40×40px) wird auf `width: 100px, height: 70px` hochskaliert → pixelig. High-Res Icon `avycloud_logo_icon.png` (4269×3299) existiert aber wird nicht verwendet. **Fix:** High-Res Icon verwenden + `srcset` für 1x/2x/3x Retina. Oder SVG-Version erstellen.
+
+- [ ] **BUG-054: Operations-Buttons schlechter Kontrast (Light Mode)** — `MobileOperationsView.tsx` Zeile 1658-1713:
+  - "Identifizieren": `text-accent` (Blue 600 `#2563eb`) auf `bg-accent-dim` (Blue/10% opacity) = ~3.2:1 Kontrast ❌ (WCAG AA erfordert 4.5:1)
+  - "Kommissionieren": `text-amber-300` (#fcd34d) auf `bg-amber-600/20` = ~1.8:1 Kontrast ❌ NICHT lesbar
+  - "Packen": `text-txt-primary` auf `bg-app-surface` = OK ✅
+  - **Fix:** Light-Mode-spezifische Farben: dunklere Textfarben (`text-accent` → `text-blue-700`, `text-amber-300` → `text-amber-700`), oder Buttons mit solidem Hintergrund + weißem Text
+
+- [ ] **BUG-055: Bottom Nav Icon "Operationen" nicht lesbar (Light Mode)** — `MobileTabBar.tsx` Zeile 72: PNG-Icons `mobile operation.png` (~1.8 KB) zu niedrige Auflösung. Inaktiver State: `text-txt-secondary` auf hellem Hintergrund = grenzwertig. **Fix:** SVG-Icons statt PNG, oder größere hochauflösende PNGs mit srcset.
+
+- [ ] **BUG-056: Dashboard KPIs leer** — `DashboardMobile.tsx` Zeile 385-434: GESAMTSALDO, UMSATZ BRUTTO, RETOUREN, VERSANDKOSTEN zeigen keine Werte. **Root Cause:** Dashboard-Metriken kommen über `fetchDashboardMetrics()` das BaseLinker-API nutzt (→ BUG-048). Wenn BL keine Daten liefert, zeigen Cards "—". **Fix:** Hängt von BUG-048 ab (Dashboard auf native Aggregation umstellen).
+
+**UX-Verbesserungen (Best Practice Weltklasse):**
+
+> Referenz: ShipBob MiniBob (Warehouse Operations), Sortly (Mobile Inventory), Billbee (E-Commerce), Material Design 3
+
+- [ ] **MOB-01: Operations-Buttons mit Icons** — Jeder Button braucht ein passendes Icon (Lucide React: `ScanLine` für Identify, `PackagePlus` für Einlagern, `ClipboardList` für Kommissionieren, `Package` für Packen). Icons 24px links vom Text. Touch-Target mindestens 48×48dp (Material Design). Aktuell: reine Text-Buttons ohne visuelles Gewicht.
+
+- [ ] **MOB-02: Touch Feedback / Active States** — Buttons brauchen:
+  - `active:scale-[0.98]` für visuelles Press-Feedback
+  - `transition-all duration-150` für smooth Animations
+  - Optional: Haptic Feedback via `navigator.vibrate(10)` bei kritischen Aktionen (Pack, Ship)
+  - Aktuell: kein visuelles Feedback beim Antippen
+
+- [ ] **MOB-03: Operations-Counter als Badges** — Counter (Einlagern: 0, Kommissionieren: 13, Packen: 417) sollten als prominente Badges DIREKT auf den Buttons stehen, nicht nur rechts oben als Text. Badge-Farbe = Status-Farbe (grün/amber/rot bei >50 unverpackt). Vorbild: ShipBob MiniBob Task-Counter.
+
+- [ ] **MOB-04: Bottom Nav SVG-Icons** — PNG-Icons (2KB, pixelig) durch SVG oder Lucide-Icons ersetzen:
+  - Home → `Home` (Lucide)
+  - Suche → `Search` (Lucide)
+  - Operationen → `ScanLine` oder `Workflow` (Lucide)
+  - Active State: Icon + Label mit Brand-Accent-Farbe, Inactive: Muted
+  - Mindestgröße: 24×24px Icon + 10px Label, Touch-Target 48×48dp
+
+- [ ] **MOB-05: Dashboard KPI-Cards Redesign** — Aktuelle Cards sind dunkel-auf-dunkel (Dark Mode) ohne visuellen Unterschied. Best Practice:
+  - Gradient-Hintergründe für Primär-KPIs (Revenue = Accent-Gradient, Returns = Danger-Gradient)
+  - Sparkline/Mini-Chart in jeder KPI-Card (Trend der letzten 7 Tage)
+  - Große Zahl zentriert, Label klein oben, Trend-Pfeil (▲/▼) mit Farbe
+  - Tap auf KPI-Card → Drill-Down (z.B. Revenue → Auftrags-Liste gefiltert auf Zeitraum)
+
+- [ ] **MOB-06: Pull-to-Refresh** — Standard mobile Pattern. Dashboard und Operations brauchen Pull-to-Refresh (aktuell: kein Refresh-Mechanismus ohne Page-Reload). Implementierung: `onTouchStart/Move/End` mit Animation-Threshold.
+
+- [ ] **MOB-07: Loading Skeletons verbessern** — `DashboardMobile.tsx` hat `Skel`-Komponente, aber:
+  - Skeleton-Höhe stimmt nicht mit echtem Content überein → Layout-Jump
+  - Keine Pulse-Animation auf allen Skeletons
+  - **Fix:** Skeleton-Dimensionen an reale Card-Höhen anpassen, `animate-pulse` durchgängig
+
+- [ ] **MOB-08: Logo auf Mobile scharf machen** — 3 Optionen (Priorität):
+  1. **SVG erstellen** aus dem vorhandenen High-Res PNG (optimal, skaliert perfekt)
+  2. **srcset mit 2x/3x Varianten** (z.B. `avycloud_logo_icon@2x.png` 80×80, `@3x.png` 120×120)
+  3. **High-Res Icon verwenden** (`avycloud_logo_icon.png` 4269×3299) mit CSS-Dimensionierung (schnellster Fix, aber 1.28MB Payload)
+  - Header.tsx Zeile 229: `src` auf bessere Quelle ändern, `width`/`height` auf 40×40 setzen (nicht 100×70), `srcSet` hinzufügen
+
+- [ ] **MOB-09: Swipe-Gesten** — Operations-Modi sollten per Swipe-Left/Right wechselbar sein (Identify → Stow → Pick → Pack). Bottom-Sheet für Order-Details statt Modal. Standard mobile Pattern.
+
+- [ ] **MOB-10: Dark/Light Mode Konsistenz** — Screenshots zeigen Operations in Light, Dashboard in Dark. Beide Themes müssen konsistent funktionieren:
+  - Light Mode: Alle Buttons müssen WCAG AA Kontrast haben (4.5:1 Text, 3:1 UI-Elemente)
+  - Dark Mode: Cards brauchen Border oder Elevation für visuelle Trennung
+  - Theme-Toggle in Header muss in beiden Modes gleich prominent sein
+
 ### Universal Taxonomy Engine — 🔴 Geplant
 
 > **Siehe:** `Marketplace_Taxonomy_Masterplan.html` für Details
@@ -394,7 +541,7 @@
 
 | # | Integration | Auth-Typ | Tier | Status | Dateien |
 |---|-------------|----------|------|--------|---------|
-| 1 | **BaseLinker** | API Token | ✅ Live | Backend komplett, wird langfristig optional | `lib/baselinker-*.js` |
+| 1 | **BaseLinker** | API Token | ⛔ TABU — WIRD ENTFERNT | 136+ Dateien, ~4360 Zeilen aktiver Code. Removal in Phase C (KW 12). | `lib/baselinker-*.js` — LÖSCHEN |
 | 2 | **BigBuy** | API Key | P3 Phase 3 | 🔴 Nicht begonnen | — |
 | 3 | **Vidaxl** | API Key | P3 Phase 3 | 🔴 Nicht begonnen | — |
 
@@ -445,7 +592,7 @@
 | Pattern | Beschreibung | Integrationen |
 |---------|-------------|---------------|
 | **A: OAuth 2.0** | Redirect → Login → Callback → Token | eBay, Amazon, OTTO, Etsy, Shopify, lexoffice, Xero, Stripe Connect, DHL, UPS |
-| **B: API-Key/Secret** | User gibt Credentials ein → Test-Call → Speichern | Kaufland, BaseLinker, SevDesk, SendCloud, WooCommerce, Shopware, PrestaShop, Hood.de |
+| **B: API-Key/Secret** | User gibt Credentials ein → Test-Call → Speichern | Kaufland, SevDesk, SendCloud, WooCommerce, Shopware, PrestaShop, Hood.de |
 | **C: Datei-Export** | Konfiguration + CSV/XML Export | DATEV |
 
 ---
@@ -463,10 +610,10 @@
 | 5 | OrderSettingsView | INITIAL_RULES/STATUSES/RANGES | GET/PUT /api/orders/settings → Firestore | ✅ Bereits real |
 | 6 | WarehouseSettingsView | DEFAULT_ZONE_TYPES, setTimeout | Warehouse-Routes | ✅ Bereits real |
 | 7 | ApiSettings | — | ✅ BEREITS REAL | ✅ |
-| 8 | ShippingView | MOCK_SHIPMENTS | sendcloud.js, baselinker-shipping.js | 🔴 |
-| 9 | InvoicesView | MOCK_INVOICES | sevdesk.js | 🔴 |
-| 10 | ReturnsView | MOCK_RETURNS | returns-engine.js | 🔴 |
-| 11 | BillingSettings | Hardcodierte Plan/Usage | adminGetProductCoverageMetrics() | 🔴 |
+| 8 | ShippingView | MOCK_SHIPMENTS | fetchShipments() → /api/shipments, SendCloud Sync, Tracking-URLs | ✅ Real (2026-03-13) |
+| 9 | InvoicesView | MOCK_INVOICES | fetchInvoices() → /api/invoices, Status-Updates, KPIs | ✅ Real (2026-03-13) |
+| 10 | ReturnsView | MOCK_RETURNS | fetchReturns() → /api/returns, Marketplace-Sync, Processing-Dialog | ✅ Real (2026-03-13) |
+| 11 | BillingSettings | Hardcodierte Plan/Usage | fetchBillingUsage() → /api/settings/billing/usage, Progress-Bars | ✅ Real (2026-03-13, Stripe pending) |
 | 12 | Global | "Demnächst verfügbar", MOCK_*, setTimeout | — | ✅ Clean |
 
 ---
@@ -496,6 +643,23 @@
 | BUG-038 | **Retouren-Seite leer** — Sync 4h Intervall + 7 Tage Lookback. Stornierungen ≠ Retouren in Kaufland. | P1 | ✅ Fixed (Event-Driven Sync + 6h Safety-Net, 30d Lookback) |
 | BUG-039 | **Versand & Labels Seite leer** — SendCloud Sync 2h Intervall. Kein Bug — Seite zeigt Daten erst nach Label-Erstellung. | P2 | ✅ Fixed (Event-Driven Sync + 6h Safety-Net) |
 | FEAT-EDS | **🚀 Event-Driven Sync Architektur** — Intervall-basierte Syncs durch Event-getriebene Echtzeit-Syncs ersetzt. Jede Änderung (Order/Return/Shipment/Stock) in AvyCloud, Kaufland, eBay oder SendCloud triggert sofort einen Sync. | P0 | ✅ Implementiert |
+| BUG-040 | **Alte BaseLinker-Orders ohne Quelle-Badge** — Orders mit `source: 'baselinker'` zeigen "—" als Quelle weil `sourceBadge()` BaseLinker filtert. Historische Orders brauchen `marketplace`-Feld Backfill aus `raw`-Daten. | P1 | 🔴 Offen |
+| BUG-041 | **Kaufland Order-Intake: Fehlende Felder** — `mapKauflandOrder()` extrahiert nicht: `paidAt`, `shippedAt`, `paymentMethod`, `shippingService`, `shippingCost`, `trackingNumber`, `carrier`. `saveOrderIfNew()` speichert diese Felder ebenfalls nicht. eBay-Intake hat alle Felder. | P0 | 🔴 Offen |
+| BUG-042 | **Kaufland Adresse unvollständig** — `mapKauflandOrder()` setzt `customer.street` aus `shipping_address.street + house_number`, aber wenn Kaufland die Adresse in `billing_address` oder anderen Feldern liefert, bleibt die Adresse leer. Frontend zeigt "Adresse unvollständig" (rot). | P1 | 🔴 Offen |
+| BUG-043 | **Returns-Engine Bugs: `totalRefund` + `ebayReason` Referenz-Fehler** — returns-engine.js: totalRefund + ebayReason Variablen-Bugs | P1 | ✅ Fixed (2026-03-13: totalRefund korrekt akkumuliert, ebayReason extrahiert vor Dedup-Check) |
+| BUG-044 | **Kaufland Returns: Keine Pagination** — `syncKauflandReturns()` hatte `limit: 100` ohne Loop | P2 | ✅ Fixed (2026-03-13: Pagination-Loop mit offset/limit, 5000-Item Safety-Cap) |
+| BUG-045 | **eBay Order-Intake: Kein Status-Update nach Import** — `saveOrderIfNew()` übersprang existierende Orders | P1 | ✅ Fixed (2026-03-13: Rank-basierte Status-Reconciliation, 30-Tage Lookback, 50-Page Safety) |
+| BUG-046 | **Dashboard Shipping-Kosten: Noch BaseLinker-Fallback** — `routes/orders.js` Zeile ~803-808 hat noch `source: 'sevdesk+baselinker'` und `source: 'baselinker'` Fallback für Versandkosten-Berechnung. Muss auf rein native Quellen umgestellt werden. | P2 | 🔴 Offen |
+| BUG-047 | **Invoice PDF nicht web-zugänglich** — PDFs werden in GCS gespeichert (`gs://prodsandjobs/...`), aber es gibt keinen `/api/invoices/:id/download` Proxy-Endpoint. Frontend kann GCS-URLs nicht direkt fetchen (CORS + Auth). OrderDetail hat "Rechnung erstellen" Button aber keinen PDF-Download-Link danach. | P1 | 🔴 Offen |
+| BUG-048 | **Dashboard Revenue/Returns nutzt BaseLinker-API** — `routes/orders.js` Zeile 22-410: Dashboard-Metriken (Revenue, Returns, Shipping-KPIs) werden über `callBaseLinker('getOrders')` und `callBaseLinker('getOrderReturns')` gezogen statt aus der nativen `orders`/`returns` Firestore-Collection. Muss auf native Aggregation umgestellt werden. | P0 | 🔴 Offen |
+| BUG-049 | **Kein Marketplace Refund Push** — `issueEbayRefund()` und `issueKauflandRefund()` existieren in returns-engine.js, werden aber nur manuell per API aufgerufen. Kein Runner/Scheduler der Erstattungen automatisch an eBay/Kaufland pusht. Erstattungen bleiben in AvyCloud stecken. | P2 | 🔴 Offen |
+| BUG-050 | **SevDesk Invoice-Export unvollständig** — `invoice-engine.js` Zeile 379-430: SevDesk-Export erstellt nur Draft-Rechnung (Status 100) ohne Positionsdetails, ohne Kunden-/Kontakt-Mapping, ohne Adresse. Ergebnis: leere Skelett-Rechnung in SevDesk. | P1 | 🔴 Offen |
+| BUG-051 | **BaseLinker Auto-Sync bei Server-Start** — `index.js` Zeile 80-112: `backgroundSyncProductStockToBaseLinker()` registriert sich als Warehouse-Hook und synct bei JEDER Warehouse-Mutation zu BaseLinker (alle 15s gedrosselt). Zeile 141: `startBaseLinkerSyncRunner()`. Zeile 181: `syncInventoriesFromBaseLinker()`. Alles muss entfernt werden. | P0 | 🔴 Offen |
+| BUG-052 | **BaseLinker in RBAC aktiv** — `lib/rbac.js` Zeile 40+51: `baselinker: { read: true, sync: true }` in Admin/Operator-Rollen. `integration-registry.js` Zeile 55-66: BaseLinker als aktive Integration registriert. Muss beides entfernt werden. | P1 | 🔴 Offen |
+| BUG-053 | **Logo unscharf auf Mobile** — Header.tsx: `avycloud_logo_40x40_icon.png` (40×40) wird auf 100×70px hochskaliert. High-Res existiert (4269×3299) wird nicht verwendet. Kein srcset für Retina. | P1 | 🔴 Offen |
+| BUG-054 | **Operations-Buttons Light Mode Kontrast** — MobileOperationsView.tsx: "Identifizieren" ~3.2:1, "Kommissionieren" ~1.8:1 Kontrast. WCAG AA erfordert 4.5:1. Buttons in Light Mode kaum lesbar. | P1 | 🔴 Offen |
+| BUG-055 | **Bottom Nav Icons unscharf + "Operationen" nicht lesbar (Light Mode)** — MobileTabBar.tsx: PNG-Icons (1.8-2.3KB) zu niedrig aufgelöst. Inaktiver State grenzwertiger Kontrast. | P1 | 🔴 Offen |
+| BUG-056 | **Dashboard Mobile KPIs leer** — DashboardMobile.tsx: GESAMTSALDO, UMSATZ, RETOUREN, VERSANDKOSTEN zeigen "—". Root Cause: Dashboard nutzt BaseLinker-API (→ BUG-048). | P0 | 🔴 Offen (Abhängig von BUG-048) |
 | BUG-SSE | Token-in-Query-Parameter für SSE-Streams leakt | P1 | 🔴 Offen |
 | BUG-006 | EbayListingsView.tsx (alte Gap-Analysis) noch da — LÖSCHEN | P1 | ✅ Fixed (deleted) |
 | BUG-008 | eBay-Seite zeigt Gap-Analyse-Daten statt Listing-Management | P1 | ✅ Fixed (route already correct, old component deleted) |
@@ -771,7 +935,7 @@ Umgekehrt: Filter "Nicht gelistet" zeigt dieses Produkt, obwohl Badge grün ist.
 - **Lager-Menge:** Errechnet aus verlinktem Produkt in `products_v2` → `storageBins[].quantity` summiert, Fallback auf `inventory.availableQuantity`
 
 **Automatischer Push (Warehouse → Marktplätze):**
-- `POST /api/warehouse/stock-out` → `stock-sync-dispatcher.js:syncStockToAllChannels()` → Push zu eBay (`reviseFixedPriceItem`) + Kaufland (`updateUnit`) + BaseLinker
+- `POST /api/warehouse/stock-out` → `stock-sync-dispatcher.js:syncStockToAllChannels()` → Push zu eBay (`reviseFixedPriceItem`) + Kaufland (`updateUnit`)
 - Trigger: NUR bei explizitem Stock-Out über Warehouse-Endpoint
 - Non-blocking: `setTimeout(..., 0)` — Fire-and-forget, Fehler nur in Console geloggt
 
@@ -806,7 +970,7 @@ Warehouse Stock-Out → syncStockToAllChannels() → Push zu eBay + Kaufland (as
                                                     ↓
                                             ebayListingsLive/kauflandUnitsLive = STALE bis nächster listing-sync-runner Zyklus (10 Min)
 
-Marketplace-Verkauf → Bestellung in BaseLinker → irgendwann: order-sync → packOrder → stock-out → Push
+Marketplace-Verkauf → Order-Intake (eBay/Kaufland) → reserveStock → syncStockWithRetry → Push
                                                     ↓
                                             ABER: Andere Marktplätze wissen bis dahin nichts → Oversell-Risiko!
 ```
@@ -1189,6 +1353,340 @@ Wenn Bestand von 0 → positiv geht (z.B. durch Retoure oder Stock-In), gibt es 
 2. Retoure eingelagert (Bestand 0 → 3): Kaufland automatisch zurück auf aktiv mit Qty 3, eBay re-listed
 3. Listing-Status in AdminTable stimmt mit tatsächlichem Marketplace-Status überein (max 3 Min Latenz)
 4. Kein Case-Sensitivity Bug mehr bei Active/active
+
+---
+
+### BUG-040 — Alte BaseLinker-Orders ohne Quelle-Badge (P1)
+
+**Symptom:** Orders in der Bestellungsliste zeigen "—" als Quelle (kein Badge). Betroffen sind alle historischen Orders, die über BaseLinker importiert wurden (z.B. `06-14364-52060`, `10-14357-79866`).
+
+**Root Cause:**
+- Diese Orders haben `source: 'baselinker'` in Firestore
+- `sourceBadge()` in `OrdersView.tsx` (Zeile 67) filtert BaseLinker explizit raus: `if (s === "baselinker") return null;`
+- Diese Orders haben **kein `marketplace`-Feld** (nur `source`), weil der alte BaseLinker-Pfad `marketplace` nie gesetzt hat
+- Die Fallback-Kette `order.marketplace || order.orderSource || order.source` findet nur `source: 'baselinker'` → wird zu `null`
+
+**Fix-Strategie:**
+1. **Firestore Backfill-Script:** Alle Orders mit `source: 'baselinker'` durchgehen, aus `raw`-Daten den tatsächlichen Marketplace extrahieren (eBay/Kaufland) und `marketplace`-Feld setzen
+2. **Fallback in `sourceBadge()`:** Wenn `source === 'baselinker'`, aus anderen Feldern den Marketplace ableiten (z.B. `order.raw.order_source`, `order.marketplaceOrderId`-Prefix)
+
+**Betroffene Dateien:**
+- `components/OrdersView.tsx` — `sourceBadge()` (Zeile 63-72)
+- Neues Script: `backend/scripts/backfill-baselinker-marketplace.js`
+
+---
+
+### BUG-041 — Kaufland Order-Intake: Fehlende Felder (P0)
+
+**Symptom:** Kaufland-Bestellungen in der Detail-Ansicht zeigen:
+- Zahlung: "—"
+- Versand: "—"
+- Weitere Felder fehlen komplett
+
+**Root Cause:** `mapKauflandOrder()` (Zeile 67-108 in `order-intake-kaufland.js`) extrahiert nur Basis-Felder. Im Vergleich zum eBay-Intake fehlen:
+
+| Feld | eBay-Intake | Kaufland-Intake |
+|------|-------------|-----------------|
+| `paidAt` | ✅ Zeile 137 | ❌ Nicht extrahiert |
+| `shippedAt` | ✅ Zeile 138 | ❌ Nicht extrahiert |
+| `paymentMethod` | ✅ Zeile 152 | ❌ Nicht extrahiert |
+| `shippingService` | ✅ Zeile 153 | ❌ Nicht extrahiert |
+| `shippingCost` | ✅ Zeile 154 | ❌ Nicht extrahiert |
+| `trackingNumber` | ✅ Zeile 155 | ❌ Nicht extrahiert |
+| `carrier` | ✅ Zeile 156 | ❌ Nicht extrahiert |
+
+Zusätzlich speichert `saveOrderIfNew()` (Zeile 338-365) in Kaufland diese Felder nicht im Firestore-Doc, selbst wenn sie im Mapping wären.
+
+**Fix-Strategie:**
+1. `mapKauflandOrder()` erweitern — Kaufland-API-Felder mappen:
+   - `paidAt` ← `klOrder.ts_units_paid` oder aus Unit-Status-Timestamps
+   - `shippingCost` ← Summe der Unit `delivery_cost` oder `klOrder.shipping_costs`
+   - `paymentMethod` ← `klOrder.payment_method` falls vorhanden
+   - `trackingNumber` + `carrier` ← aus `klOrder.order_units[].tracking_*` Feldern
+2. `saveOrderIfNew()` erweitern — fehlende Felder in den Firestore-Doc aufnehmen (analog zu eBay-Intake Zeile 359-374)
+
+**Betroffene Dateien:**
+- `backend/services/order-intake-kaufland.js` — `mapKauflandOrder()` (Zeile 67-108) + `saveOrderIfNew()` (Zeile 338-365)
+
+**Referenz:** eBay-Intake als Vorlage: `backend/services/order-intake-ebay.js` Zeile 95-159 (Mapping) + Zeile 346-376 (Save)
+
+---
+
+### BUG-042 — Kaufland Adresse unvollständig (P1)
+
+**Symptom:** Kaufland-Bestellungen zeigen "Adresse unvollständig" (rot) in der Detail-Ansicht. Betroffen z.B. MEQ3L35.
+
+**Root Cause:** `mapKauflandOrder()` Zeile 84:
+```js
+const shippingAddr = klOrder.buyer?.shipping_address || klOrder.shipping_address || {};
+```
+Wenn Kaufland die Adresse in einem anderen Feld liefert (z.B. `klOrder.delivery_address`, direkt in `klOrder.buyer`), wird `shippingAddr` zu `{}` und alle Adressfelder (`street`, `city`, `zip`) werden `null`.
+
+**Fix-Strategie:**
+1. Kaufland API-Response loggen/debuggen für betroffene Orders (aus `raw`-Feld in Firestore)
+2. Alle möglichen Adress-Pfade in der Kaufland-API-Response abdecken
+3. Fallback auf `billing_address` wenn `shipping_address` leer
+
+**Betroffene Dateien:**
+- `backend/services/order-intake-kaufland.js` — `mapKauflandOrder()` (Zeile 84-101)
+
+---
+
+### BUG-043 — Returns-Engine: `totalRefund` + `ebayReason` Referenz-Fehler (P1)
+
+**Symptom:** eBay-Returns-Updates crashen still. Existierende Returns werden nie aktualisiert.
+
+**Root Cause:** `returns-engine.js` hat zwei Variable-Referenz-Bugs:
+
+1. **Zeile ~382:** `totalRefund` wird im Update-Block referenziert, aber erst im New-Doc-Block (~Zeile 411) berechnet. Wenn eine existierende Retoure `refundAmount === 0` hat → `ReferenceError`
+2. **Zeile ~446:** `ebayReason` wird referenziert, existiert aber nie als Variable. Stattdessen gibt es `cancelReason` und `refundReason`.
+
+Beide Fehler werden vom umgebenden try/catch geschluckt → Return bleibt auf altem Stand.
+
+**Fix-Strategie:**
+1. `totalRefund` Berechnung VOR den Update-Block verschieben (oder eigene Funktion)
+2. `ebayReason` durch die korrekte Variable ersetzen (`cancelReason` oder `refundReason`)
+
+**Betroffene Dateien:**
+- `backend/services/returns-engine.js` — `syncEbayReturns()` (~Zeile 370-460)
+
+---
+
+### BUG-044 — Kaufland Returns: Keine Pagination (P2)
+
+**Symptom:** Bei >100 Kaufland-Returns im Zeitraum (30 Tage) gehen Returns verloren.
+
+**Root Cause:** `syncKauflandReturns()` nutzt `{ limit: 100 }` ohne Pagination-Loop. Die Kaufland API liefert `pagination.total` und `pagination.offset`, die werden ignoriert.
+
+**Fix:** Pagination-Loop analog zu `syncKauflandOrders()` implementieren.
+
+**Betroffene Dateien:**
+- `backend/services/returns-engine.js` — `syncKauflandReturns()`
+
+---
+
+### BUG-045 — eBay Order-Intake: Kein Status-Update nach Import (P1)
+
+**Symptom:** eBay-Orders bleiben in AvyCloud auf dem Initialstatus stehen (z.B. "pending"), auch wenn eBay den Status auf "Completed" oder "Cancelled" ändert.
+
+**Root Cause:** `saveOrderIfNew()` in `order-intake-ebay.js` (Zeile ~296-300):
+```js
+const existingSnap = await db.collection(ORDERS_COLLECTION)
+  .where('marketplaceKey', '==', marketplaceKey).limit(1).get();
+if (!existingSnap.empty) return false; // ← Gibt sofort false zurück!
+```
+Keine Status-Reconciliation. Kaufland-Intake hat dagegen einen kompletten Reconciliation-Block (Zeile 252-300).
+
+**Fix-Strategie:**
+1. Nach dem `!existingSnap.empty` Check: eBay-Status vergleichen mit internem `omsStatus`
+2. Wenn eBay weiter ist → Update analog zur Kaufland-Reconciliation
+3. Mindestens: `completed` und `cancelled` von eBay übernehmen
+
+**Betroffene Dateien:**
+- `backend/services/order-intake-ebay.js` — `saveOrderIfNew()` (Zeile ~283-380)
+- **Referenz:** `order-intake-kaufland.js` Zeile 252-300 (Kaufland Reconciliation als Vorlage)
+
+---
+
+### BUG-046 — Dashboard Shipping-Kosten: Noch BaseLinker-Fallback (P2)
+
+**Symptom:** Dashboard-Versandkosten zeigen `source: 'baselinker'` Fallback.
+
+**Root Cause:** `routes/orders.js` Zeile ~803-808:
+```js
+return { total_cost: svTotalNetto, parcel_count: parcelCount, currency: 'EUR', source: 'sevdesk+baselinker' };
+// ...
+return { ...bl, total_cost: blNetto, source: 'baselinker' };
+```
+Der Shipping-KPI-Endpunkt fällt auf BaseLinker-API zurück wenn SevDesk keine Daten liefert.
+
+**Fix:** BaseLinker-Fallback entfernen, stattdessen nur SevDesk + SendCloud als Versandkosten-Quellen.
+
+**Betroffene Dateien:**
+- `backend/routes/orders.js` — Dashboard shipping KPI endpoint (~Zeile 790-810)
+
+---
+
+## Feature-Gap-Analyse: AvyCloud vs. Konkurrenz (JTL, Billbee, Xentral)
+
+> **Stand 2026-03-13.** Benchmark gegen JTL-Wawi, Billbee, Xentral — die drei führenden deutschen E-Commerce-ERPs.
+> Ziel: AvyCloud muss Bestellungen, Retouren, Versand, Buchhaltung vollumfänglich abdecken.
+
+### Bestellungen (Orders)
+
+| Feature | JTL | Billbee | Xentral | AvyCloud | Gap |
+|---------|-----|---------|---------|----------|-----|
+| Multi-Marketplace Import | ✅ | ✅ | ✅ | ✅ eBay+Kaufland | — |
+| Status-Pipeline 12+ Stufen | ✅ | ✅ | ✅ | ✅ 12 Stufen | — |
+| Auftragssuche (Volltextsuche) | ✅ | ✅ | ✅ | ❌ | **FEAT-ORD-01** |
+| Datumsfilter | ✅ | ✅ | ✅ | ❌ | **FEAT-ORD-02** |
+| CSV/Excel-Export | ✅ | ✅ | ✅ | ❌ | **FEAT-ORD-03** |
+| Interne Notizen pro Auftrag | ✅ | ✅ | ✅ | ❌ | **FEAT-ORD-04** |
+| Bulk-Druck (Lieferscheine/Rechnungen) | ✅ | ✅ | ✅ | ❌ | **FEAT-ORD-05** |
+| Automatische Rechnungserzeugung bei Versand | ✅ | ✅ | ✅ | ❌ | **FEAT-ORD-06** |
+| Marketplace-Status-Reconciliation | ✅ | ✅ | ✅ | ✅ eBay+Kaufland | ✅ Fixed (BUG-045) |
+
+### Retouren (Returns)
+
+| Feature | JTL | Billbee | Xentral | AvyCloud | Gap |
+|---------|-----|---------|---------|----------|-----|
+| Marketplace-Sync (eBay/Kaufland) | ✅ | ✅ | ✅ | ✅ | — |
+| Retoure-Workflow (Prüfung→Erstattung) | ✅ | ✅ | ✅ | ✅ | — |
+| Wareneingang A/B/C-Ware | ✅ | ⚠️ | ✅ | ✅ | — |
+| Marketplace-Erstattung auslösen | ✅ | ✅ | ✅ | ✅ | — |
+| Retoure-Detail-Ansicht | ✅ | ✅ | ✅ | ❌ | **FEAT-RET-01** |
+| Retourelabel drucken | ✅ | ✅ | ✅ | ❌ | **FEAT-RET-02** |
+| Gutschrift/Stornorechnung | ✅ | ✅ | ✅ | ❌ | **B6** |
+| Bulk-Aktionen (Erstatten, Schließen) | ✅ | ✅ | ⚠️ | ❌ | **FEAT-RET-03** |
+| CSV-Export | ✅ | ✅ | ✅ | ❌ | **FEAT-RET-04** |
+
+### Versand (Shipping)
+
+| Feature | JTL | Billbee | Xentral | AvyCloud | Gap |
+|---------|-----|---------|---------|----------|-----|
+| Label-Erstellung (DHL, DPD, etc.) | ✅ | ✅ | ✅ | ✅ SendCloud | — |
+| Bulk-Label-Erstellung | ✅ | ✅ | ✅ | ✅ | — |
+| Carrier-Autoselection (Gewicht) | ✅ | ✅ | ✅ | ✅ | — |
+| Tracking-Push an Marketplaces | ✅ | ✅ | ✅ | ✅ | — |
+| Tracking-Webhooks (Zustellung) | ✅ | ✅ | ✅ | ❌ | **B2** |
+| Retourelabel via SendCloud | ✅ | ✅ | ✅ | ❌ | **FEAT-RET-02** |
+| Versandkosten-Dashboard | ✅ | ✅ | ✅ | ✅ | — |
+| Label-Format (Thermal/A4/A6) | ✅ | ✅ | ✅ | ⚠️ nur Thermal | **FEAT-SHP-01** |
+
+### Buchhaltung (Invoicing)
+
+| Feature | JTL | Billbee | Xentral | AvyCloud | Gap |
+|---------|-----|---------|---------|----------|-----|
+| Rechnungs-PDF-Erzeugung | ✅ | ✅ | ✅ | ✅ | — |
+| Lieferschein-PDF | ✅ | ✅ | ✅ | ✅ | — |
+| Automatische Rechnung bei Versand | ✅ | ✅ | ✅ | ❌ | **FEAT-ORD-06** |
+| Rechnungs-Email an Kunde | ✅ | ✅ | ✅ | ❌ | **B5** |
+| Gutschrift/Stornorechnung | ✅ | ✅ | ✅ | ❌ | **B6** |
+| MwSt-Sätze (19%, 7%, 0%) | ✅ | ✅ | ✅ | ❌ nur 19% | **B7** |
+| SevDesk-Export | ✅ | ✅ | ✅ | ❌ broken (BUG-050: nur Skelett) | **B3** |
+| PDF-Download im UI | ✅ | ✅ | ✅ | ❌ (BUG-047: kein Proxy) | **B4** |
+| Rechnungsübersicht mit Suche | ✅ | ✅ | ✅ | ⚠️ nur Tabs | **FEAT-INV-01** |
+| Bulk-Rechnungserzeugung | ✅ | ✅ | ✅ | ❌ | **FEAT-INV-02** |
+| Marketplace-Erstattung automatisch | ✅ | ✅ | ✅ | ❌ (BUG-049: manuell) | **BUG-049** |
+
+### Priorisierte Feature-Tasks (aus Gap-Analyse)
+
+| ID | Feature | Priorität | Aufwand |
+|----|---------|-----------|---------|
+| FEAT-ORD-01 | Auftragssuche (Order-ID, Kunde, SKU) | P1 | S |
+| FEAT-ORD-02 | Datumsfilter für Bestellungsliste | P1 | S |
+| FEAT-ORD-03 | CSV/Excel-Export Bestellungen | P2 | S |
+| FEAT-ORD-04 | Interne Notizen pro Auftrag | P2 | M |
+| FEAT-ORD-05 | Bulk-Druck (Lieferscheine/Rechnungen) | P1 | M |
+| FEAT-ORD-06 | Auto-Rechnung bei Status → shipped | P1 | M |
+| FEAT-RET-01 | Retoure-Detail-Ansicht (Modal/Panel) | P1 | M |
+| FEAT-RET-02 | Retourelabel via SendCloud | P2 | M |
+| FEAT-RET-03 | Bulk-Retoure-Aktionen | P2 | S |
+| FEAT-RET-04 | CSV-Export Retouren | P2 | S |
+| FEAT-SHP-01 | Label-Format A4/A6 + Thermal wählbar | P2 | S |
+| FEAT-INV-01 | Rechnungsübersicht: Suche + Datumsfilter + PDF-Download | P1 | M |
+| FEAT-INV-02 | Bulk-Rechnungserzeugung | P2 | M |
+
+> **S** = Small (< 1 Tag), **M** = Medium (1-2 Tage), **L** = Large (3+ Tage)
+
+---
+
+## Deep Dive 3 — Zusammenfassung (2026-03-13)
+
+> **Audit-Ergebnis:** 4 parallele Deep Dives über BaseLinker-Reste, Frontend-UX, Backend-Services, FAKE→REAL.
+
+### Positive Entwicklungen (gefixt seit letztem Deep Dive)
+- ✅ **FAKE→REAL komplett:** Alle 12 Views nutzen echte API-Daten (ShippingView, InvoicesView, ReturnsView, BillingSettings neu verifiziert)
+- ✅ **BUG-043 gefixt:** returns-engine.js totalRefund + ebayReason korrekt
+- ✅ **BUG-044 gefixt:** Kaufland Returns Pagination mit offset/limit Loop + 5000-Cap
+- ✅ **BUG-045 gefixt:** eBay saveOrderIfNew() hat jetzt Rank-basierte Status-Reconciliation + 30-Tage Lookback
+- ✅ **Keine Mock-Daten mehr:** Kein MOCK_* Array, kein setTimeout-Fake, kein "Coming Soon" in der Codebase
+
+### Kritische Findings (NEU)
+1. **⛔ BaseLinker ist NICHT entfernt (136+ Dateien!):**
+   - Auto-Sync bei Server-Start (BUG-051): Stock-Sync alle 15s, Runner-Start, Inventory-Import
+   - Dashboard-KPIs über BL-API (BUG-048): Revenue, Returns, Shipping aus `callBaseLinker('getOrders')`
+   - RBAC `baselinker:read/sync` aktiv (BUG-052)
+   - Integration-Registry listet BL als "active"
+   - 6 BL-API-Endpoints in routes/marketplace.js
+   - 15+ Frontend-Komponenten mit BL-Features (Sync-Buttons, Spalten, Filter)
+   - 34 Scripts in backend/scripts/
+
+2. **📄 Invoice PDF nicht zugänglich (BUG-047):**
+   - PDFs in GCS gespeichert, aber kein Proxy-Endpoint für Browser-Download
+   - OrderDetail hat "Rechnung erstellen" Button aber zeigt danach keinen Download-Link
+
+3. **💰 SevDesk-Export defekt (BUG-050):**
+   - Erstellt nur leere Draft-Rechnung (Status 100) ohne Positionen, Kontakt, Adresse
+
+4. **🔄 Kein Marketplace Refund Push (BUG-049):**
+   - Erstattungen werden in AvyCloud verarbeitet aber nicht automatisch an eBay/Kaufland gepusht
+
+### UX-Feature-Gaps (Frontend — kein Backend-Change nötig)
+
+| View | Fehlend | Impact |
+|------|---------|--------|
+| **OrdersView** | Suche, Datumsfilter, Export, Notizen, Bulk-Label-Druck | HOCH — Produktivität |
+| **OrderDetail** | PDF-Download-Links, Kunden-Notizen, Return-Initiation | HOCH — Workflow |
+| **InvoicesView** | Suche, Datumsfilter, PDF-Download, Credit Notes, Bulk | HOCH — Compliance |
+| **ReturnsView** | Detail-Ansicht, Bulk-Aktionen, Export, Reason-Filter | MITTEL |
+| **ShippingView** | Label-Format-Auswahl, Carrier-Override, Return-Labels | MITTEL |
+| **Dashboard** | PDF-Export, Vergleichsperioden, Drill-Down | NIEDRIG |
+
+### BaseLinker-Entfernung: Vollständige Datei-Liste
+
+**Zu löschende Dateien (9 Kern-Dateien):**
+```
+backend/lib/baselinker.js                          (96 KB, Haupt-Client)
+backend/lib/baselinker-shipping.js
+backend/lib/baselinker-sync-jobs.js
+backend/lib/baselinker-category-canonical.js
+backend/lib/baselinker-category-resolver.js
+backend/lib/baselinker-inventory-category-index.js
+backend/lib/baselinker-inventory-category-source.js
+backend/services/baselinker-sync-runner.js
+backend/services/baselinker-category.js
+```
+
+**Zu bereinigende Dateien (29 Consumer-Module):**
+```
+backend/index.js                — Zeile 6, 11, 50-54, 80-112, 115, 141, 181-187, 280
+backend/routes/orders.js        — Zeile 6, 8, 22-410, 746-810
+backend/routes/marketplace.js   — Zeile 1553-1855 (6 BL-Endpoints, ~300 Zeilen)
+backend/routes/products.js      — Zeile 57-58, 728, 1414-1475
+backend/routes/identify.js      — Zeile 370-371
+backend/routes/warehouse.js     — Zeile 349, 369, 407, 449
+backend/routes/admin.js         — Zeile 839
+backend/services/inventory-sync.js    — BL-Import
+backend/services/order-sync.js        — BL-Import
+backend/services/rulebook-runner.js   — Zeile 13-14
+backend/services/admin-bulk-actions.js — Zeile 12-13
+backend/services/improve.js           — Zeile 1171
+backend/services/toolkit.js           — Zeile 4
+backend/lib/rbac.js                   — Zeile 40, 51
+backend/lib/integration-registry.js   — Zeile 55-66
+backend/__tests__/api/_patchLocalModules.js — Zeile 153-155, 201-220, 290-293
+api/client.ts           — fetchBaseLinkerCategories, syncToBaseLinker, lookupBaseLinkerBySkus
+types.ts                — Zeile 138-148, 178-185, 405-406, 652-655
+i18n.tsx                — Zeile 274, 580-581
+utils/product.ts        — Zeile 145-160
+components/ProductSheet.tsx      — BL-Sync-Button + Category
+components/AdminTable.tsx        — BL-Spalten + Bulk-Sync
+components/BulkActions.tsx       — "BL Sync" Button
+components/AdminTableFilters.tsx — BL-Filter
+components/Dashboard.tsx         — BL-Sync-Status
+components/IntegrationWizard.tsx — BL-Badge
+components/IntegrationsHub.tsx   — BL-Badge
+components/GeminiChat.tsx        — baselinker_category_search Tool
+components/OperationsView.tsx    — Section Title
+components/OrdersView.tsx        — sourceBadge BL-Filter
+backend/cloudbuild.yaml          — Zeile 35 (BL-Lint-Check)
+```
+
+**Zu löschende Scripts (34 Dateien in backend/scripts/):**
+```
+Alle Dateien mit "baselinker" im Namen — Migrations, Imports, Syncs, Audits, Reports
+```
 
 ---
 

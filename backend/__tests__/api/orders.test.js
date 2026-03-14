@@ -92,14 +92,12 @@ describe('GET /api/dashboard/finance', () => {
     localMocks.spies.getCheckAccountBalances?.mockReset();
     localMocks.spies.getShippingCostsFromSevDesk?.mockReset();
     localMocks.spies.getEbayNetRevenueSummary?.mockReset();
-    localMocks.spies.getShippingCostsSummaryFromBaseLinker?.mockReset();
   });
 
   it('returns 200 with finance data', async () => {
     localMocks.spies.getCheckAccountBalances?.mockResolvedValue([{ amount: 10000, name: 'Girokonto' }]);
     localMocks.spies.getShippingCostsFromSevDesk?.mockResolvedValue({ total: 450 });
     localMocks.spies.getEbayNetRevenueSummary?.mockResolvedValue({ net: 4800 });
-    localMocks.spies.getShippingCostsSummaryFromBaseLinker?.mockResolvedValue({ totalCost: 420, count: 42 });
 
     const res = await request(app).get('/api/dashboard/finance');
     expect(res.status).toBe(200);
@@ -110,7 +108,6 @@ describe('GET /api/dashboard/finance', () => {
     localMocks.spies.getCheckAccountBalances?.mockRejectedValue(new Error('SevDesk down'));
     localMocks.spies.getShippingCostsFromSevDesk?.mockRejectedValue(new Error('SevDesk down'));
     localMocks.spies.getEbayNetRevenueSummary?.mockResolvedValue(null);
-    localMocks.spies.getShippingCostsSummaryFromBaseLinker?.mockResolvedValue(null);
 
     const res = await request(app).get('/api/dashboard/finance');
     expect(res.status).toBeLessThan(500);

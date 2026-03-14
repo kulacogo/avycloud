@@ -94,14 +94,6 @@ async function sendBinLabelsPdf(res, codes) {
   return res.send(pdfBuffer);
 }
 
-// ── Factory: backgroundSync wird von index.js injiziert ─────────────
-
-let _backgroundSyncProductStockToBaseLinker = () => {};
-
-function setBackgroundSync(fn) {
-  _backgroundSyncProductStockToBaseLinker = fn;
-}
-
 // ── Routes ───────────────────────────────────────────────────────────
 
 router.get('/zones', requirePermission('warehouse', 'read'), async (req, res) => {
@@ -345,9 +337,6 @@ router.post('/bins/:code/assign', requirePermission('warehouse', 'write'), async
     }
     const bin = await assignProductToBin(code, productId, Number(quantity));
     const updatedProduct = await getProduct(productId);
-    if (updatedProduct) {
-      _backgroundSyncProductStockToBaseLinker(updatedProduct, 'bin-assign');
-    }
     res.json({ ok: true, data: { bin, product: updatedProduct } });
   } catch (error) {
     console.error('Failed to assign product to bin:', error);
@@ -363,14 +352,6 @@ router.delete('/bins/:code/products/:productId', requirePermission('warehouse', 
     const code = req.params.code.toUpperCase();
     const { productId } = req.params;
     await removeProductFromBin(code, productId);
-    try {
-      const updatedProduct = await getProduct(productId);
-      if (updatedProduct) {
-        _backgroundSyncProductStockToBaseLinker(updatedProduct, 'bin-remove');
-      }
-    } catch (syncErr) {
-      console.warn('Background BaseLinker stock sync after bin-remove failed:', syncErr?.message || syncErr);
-    }
     res.json({ ok: true });
   } catch (error) {
     console.error('Failed to remove product from bin:', error);
@@ -404,7 +385,6 @@ router.post('/stock-in', requirePermission('warehouse', 'write'), async (req, re
       },
     });
     if (result?.product) {
-      _backgroundSyncProductStockToBaseLinker(result.product, 'stock-in');
       // Multi-channel stock push (eBay + Kaufland) — with retry on failure
       const tenantId = req.user?.tenantId || 'default';
       const { syncStockWithRetry } = require('../services/stock-sync-dispatcher');
@@ -446,7 +426,6 @@ router.post('/stock-out', requirePermission('warehouse', 'write'), async (req, r
       },
     });
     if (result?.product) {
-      _backgroundSyncProductStockToBaseLinker(result.product, 'stock-out');
       // Multi-channel stock push (eBay + Kaufland) — with retry on failure
       const tenantId = req.user?.tenantId || 'default';
       const { syncStockWithRetry } = require('../services/stock-sync-dispatcher');
@@ -533,4 +512,4 @@ router.put('/settings', async (req, res) => {
   }
 });
 
-module.exports = { router, setBackgroundSync };
+module.exports = { router };

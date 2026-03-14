@@ -9,7 +9,6 @@ const {
 const { coerceTitleToPolicy } = require('./title-policy');
 const { normalizeBrandDisplayCase } = require('./brand-normalize');
 const { getVehicleFitmentMode } = require('./vehicle-fitment');
-const { buildBaselinkerCategoryDetails } = require('./baselinker-category-resolver');
 const {
   getManufacturerGpsrByName,
   upsertManufacturerGpsr,
@@ -96,7 +95,7 @@ const firestore = new Firestore({
 // Collection name
 const PRODUCTS_COLLECTION = 'products';
 const ORDERS_COLLECTION = 'orders';
-const SKU_INDEX_COLLECTION = 'baselinker_sku_index';
+const SKU_INDEX_COLLECTION = 'sku_index';
 const INVENTORIES_COLLECTION = 'inventories';
 const INVENTORY_SYNC_LOGS_COLLECTION = 'inventorySyncLogs';
 const PRODUCT_LIST_LIMIT = parseInt(process.env.PRODUCT_LIST_LIMIT || '0', 10);
@@ -706,7 +705,7 @@ function enforceEbayAspects(product) {
       'kaufland_kategorie',
       'kaufland kategorie pfad',
       'category_path',
-      // Text-field payloads / LLM exports sometimes embed BaseLinker text fields in attributes
+      // Text-field payloads / LLM exports sometimes embed text fields in attributes
       'text_name',
       'text_description',
       'text_features',
@@ -787,7 +786,7 @@ function enforceEbayAspects(product) {
 
   // GPSR (EU compliance) fields should be stored in a dedicated structured object, not in the user-facing
   // attributes table. This avoids duplicated values like "Marke" == "GPSR Manufacturer name" and makes
-  // downstream mappings (BaseLinker, etc.) deterministic.
+  // downstream mappings deterministic.
   const gpsr =
     details.gpsr && typeof details.gpsr === 'object' ? { ...details.gpsr } : {};
 
@@ -2005,24 +2004,6 @@ async function saveProduct(product, options = {}) {
       pricing: Object.keys(mergedPricing).length ? mergedPricing : undefined,
     };
 
-    // BaseLinker category invariants:
-    // - We keep ONE canonical path in details.baselinkerCategoryPath
-    // - We mirror that path to legacy key 78659 for backwards compatibility
-    // - We record conflicting path candidates for investigation (without blocking saves)
-    const blCategory = buildBaselinkerCategoryDetails(mergedDetails);
-    if (blCategory.changed) {
-      mergedDetails = blCategory.details;
-    }
-    if (blCategory.hasConflict) {
-      mergedOps.data_quality = mergedOps.data_quality || {};
-      mergedOps.data_quality.baselinker_category_conflict_v1 = {
-        at_iso: new Date().toISOString(),
-        selected_source: blCategory.source,
-        selected_value: blCategory.value,
-        candidates: blCategory.candidates.slice(0, 12),
-      };
-    }
-
     // Merge identification
     const mergedIdentification = {
       ...(existingData?.identification || {}),
@@ -2076,7 +2057,7 @@ async function saveProduct(product, options = {}) {
       }
     }
 
-    // Optional: keep identifiers in sync with barcodes (UI edits barcodes; BaseLinker sync reads identifiers.ean first).
+    // Optional: keep identifiers in sync with barcodes (UI edits barcodes; sync reads identifiers.ean first).
     // Barcode + Identifier invariants:
     // - Only keep valid GTIN/EAN/UPC codes (correct checkdigit).
     // - Never persist invalid codes in identification.barcodes (they poison dedupe and exports).
@@ -2658,46 +2639,23 @@ async function deleteProduct(productId, { existingData = null } = {}) {
 }
 
 /**
- * Update product sync status (and optional BaseLinker linkage)
+ * Update product sync status
  */
 async function updateProductSyncStatus(
   productId,
   status,
-  lastSyncedIso = null,
-  baseProductId = undefined,
-  inventoryId = undefined
+  lastSyncedIso = null
 ) {
   try {
     const docRef = firestore.collection(PRODUCTS_COLLECTION).doc(productId);
     const updateData = {
       'ops.sync_status': status
     };
-    
+
     if (lastSyncedIso) {
       updateData['ops.last_synced_iso'] = lastSyncedIso;
     }
-    
-    const invKey = inventoryId != null ? String(inventoryId).trim() : '';
-    if (invKey) {
-      // Track per-inventory sync status (multi-inventory support).
-      updateData[`ops.baselinker.inventories.${invKey}.sync_status`] = status;
-      if (lastSyncedIso) {
-        updateData[`ops.baselinker.inventories.${invKey}.last_synced_iso`] = lastSyncedIso;
-      }
-    }
 
-    if (baseProductId !== undefined) {
-      // Legacy linkage fields (last-synced inventory).
-      updateData['ops.base_product_id'] = baseProductId;
-      updateData['ops.baselinker.product_id'] = baseProductId;
-      updateData['ops.baselinker.synced_inventory'] = invKey || null;
-
-      // Per-inventory linkage (preferred).
-      if (invKey) {
-        updateData[`ops.baselinker.inventories.${invKey}.product_id`] = baseProductId;
-      }
-    }
-    
     await docRef.update(updateData);
     console.log(`Product sync status updated: ${productId} -> ${status}`);
   } catch (error) {
@@ -3065,7 +3023,7 @@ async function getOrderSummary() {
     'canceled',
   ]);
 
-  const pickedStatusIds = new Set(['363183']); // hard fallback BaseLinker picked status
+  const pickedStatusIds = new Set(['363183']); // hard fallback picked status
   const envPickedId = process.env.BASE_ORDER_STATUS_PICKED;
   if (envPickedId) {
     pickedStatusIds.add(String(envPickedId).trim());
@@ -3275,7 +3233,7 @@ async function getDashboardMetrics({ days = 7, preset = null, fromDate = null, t
     'canceled',
     'abgebrochen',
   ]);
-  const pickedStatusIds = new Set(['363183']); // hard fallback BaseLinker picked status
+  const pickedStatusIds = new Set(['363183']); // hard fallback picked status
   const envPickedId = process.env.BASE_ORDER_STATUS_PICKED;
   if (envPickedId) pickedStatusIds.add(String(envPickedId).trim());
 
@@ -3571,7 +3529,6 @@ async function upsertInventories(records = []) {
       defaultPriceGroup: record.defaultPriceGroup || null,
       isActive: record.isActive !== false,
       isExternal: record.isExternal || false,
-      baselinker: record.baselinker || null,
       meta: {
         vendorCode: record.vendorCode || parsedMeta.vendorCode || null,
         fiscalYear: record.fiscalYear ?? parsedMeta.fiscalYear ?? null,
@@ -3671,7 +3628,7 @@ async function logInventorySyncEvent({ productId, inventoryId, status, message }
 }
 
 /**
- * Sum `delivery_price` from BaseLinker orders stored in Firestore for the given date range.
+ * Sum `delivery_price` from orders stored in Firestore for the given date range.
  * Uses `raw.delivery_price` (price included in order for shipping) as a shipping cost estimate.
  * Excludes cancelled/returned orders.
  *

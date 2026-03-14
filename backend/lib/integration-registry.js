@@ -52,25 +52,6 @@ const PROVIDERS = {
     },
   },
 
-  baselinker: {
-    id: 'baselinker',
-    name: 'BaseLinker',
-    description: 'Multi-Channel E-Commerce Middleware',
-    category: 'other',
-    authType: 'api_key',
-    logo: 'baselinker',
-    helpUrl: 'https://panel.baselinker.com/other_api_token.html',
-    helpText: 'Den API-Token findest du im BaseLinker Panel unter Mein Konto → API.',
-    features: ['Bestellungen synchronisieren', 'Lagerbestand abgleichen', 'Versandlabels erstellen'],
-    fields: [
-      { key: 'apiToken', label: 'API Token', type: 'password', placeholder: 'BaseLinker API Token', required: true, minLength: 10 },
-    ],
-    secretKeys: ['BASELINKER_TOKEN'],
-    credentialToSecretMap: {
-      apiToken: 'BASELINKER_TOKEN',
-    },
-  },
-
   sendcloud: {
     id: 'sendcloud',
     name: 'SendCloud',

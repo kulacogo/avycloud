@@ -1,15 +1,15 @@
 /**
- * Legt alle eBay-Kategorien aus der CSV im BaseLinker-Inventory an (nur Namen/Pfade, keine IDs).
- *
- * Usage:
- *   BASELINKER_INVENTORY_ID=78659 node backend/scripts/add-ebay-categories-to-inventory.js
+ * DEPRECATED: This script previously managed inventory categories via BaseLinker API.
+ * BaseLinker integration has been removed.
  */
+console.error('[DEPRECATED] This script relied on BaseLinker API which has been removed.');
+process.exit(1);
+
 const fs = require('fs');
 const path = require('path');
 const { parse } = require('csv-parse/sync');
-const { callBaseLinker } = require('../lib/baselinker');
 
-const INVENTORY_ID = process.env.BASELINKER_INVENTORY_ID || '78659';
+const INVENTORY_ID = process.env.INVENTORY_ID || '78659';
 const CSV_PATH = path.join(__dirname, '..', 'ebay', 'DE_New_Structure_(May2023).csv');
 const CATEGORY_COL = 'category_path';
 const EXISTING_JSON = path.join(__dirname, 'output', `inventory-${INVENTORY_ID}-categories.json`);
@@ -39,7 +39,7 @@ function loadExistingFromJson() {
 async function ensureInventoryCategoriesLoaded() {
   if (inventoryCategoryCache.size > 0 && nameToId.size > 0) return;
   try {
-    const resp = await callBaseLinker('getInventoryCategories', {
+    const resp = { categories: [] }; // Previously: callBaseLinker('getInventoryCategories', {
       inventory_id: Number(INVENTORY_ID),
     });
     const cats = resp?.categories || [];
@@ -79,7 +79,7 @@ async function ensureInventoryCategory(pathStr) {
       inventoryCategoryCache.set(currentPath, parentId);
       continue;
     }
-    const resp = await callBaseLinker('addInventoryCategory', {
+    const resp = { status: 'REMOVED' }; // Previously: callBaseLinker('addInventoryCategory', {
       inventory_id: Number(INVENTORY_ID),
       name: seg,
       parent_id: parentId,
