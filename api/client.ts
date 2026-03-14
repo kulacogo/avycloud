@@ -1018,6 +1018,27 @@ export async function closeReturn(id: string, note?: string): Promise<any> {
   return data?.data;
 }
 
+export interface BulkReturnActionResult {
+  total: number;
+  success: number;
+  results: { returnId: string; ok: boolean; error?: string }[];
+}
+
+export async function bulkReturnAction(
+  returnIds: string[],
+  action: "refund" | "close",
+  note?: string
+): Promise<BulkReturnActionResult> {
+  const res = await fetchApi(`${BACKEND_URL}/api/returns/bulk-action`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ returnIds, action, note }),
+  });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) throw new Error(data?.error?.message || "Bulk action failed");
+  return data?.data;
+}
+
 export async function fetchReturnEvents(id: string): Promise<any[]> {
   const res = await fetchApi(`${BACKEND_URL}/api/returns/${encodeURIComponent(id)}/events`, { method: 'GET' });
   const data = await parseResponse(res);
@@ -1060,6 +1081,18 @@ export async function updateInvoiceStatus(id: string, status: string): Promise<a
   const data = await parseResponse(res);
   if (!res.ok || data?.ok === false) throw new Error(data?.error?.message || 'Failed to update invoice');
   return data?.data;
+}
+
+export async function downloadInvoicePdfBlob(invoiceId: string): Promise<Blob> {
+  const res = await fetchApi(
+    `${BACKEND_URL}/api/invoices/${encodeURIComponent(invoiceId)}/download`,
+    { method: 'GET' }
+  );
+  if (!res.ok) {
+    const errData = await res.json().catch(() => null);
+    throw new Error(errData?.error?.message || `Rechnungs-PDF Download fehlgeschlagen (${res.status})`);
+  }
+  return res.blob();
 }
 
 // ── Stock Sync Status ──
@@ -3187,11 +3220,11 @@ export async function shipOrder(orderId: string, opts?: { shippingMethodId?: num
   return data?.data;
 }
 
-export async function generateInvoice(orderId: string): Promise<{ invoiceId: string; invoiceNumber: string; pdfUrl: string | null }> {
+export async function generateInvoice(orderId: string, opts?: { vatRate?: number }): Promise<{ invoiceId: string; invoiceNumber: string; pdfUrl: string | null }> {
   const res = await fetchApi(`${BACKEND_URL}/api/orders/${encodeURIComponent(orderId)}/invoice`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: '{}',
+    body: JSON.stringify(opts || {}),
   });
   const data = await parseResponse(res);
   if (!res.ok || data?.ok === false) throw new Error(data?.error?.message || 'Rechnungserstellung fehlgeschlagen');

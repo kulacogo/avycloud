@@ -354,6 +354,7 @@ export interface OrderItem {
   quantity: number;
   ean?: string | null;
   priceBrutto?: number;
+  taxRate?: number;
   currency?: string;
   pickHint?: OrderItemPickHint | null;
   pickCompleted?: boolean;
@@ -399,6 +400,8 @@ export interface Order {
   trackingNumber?: string | null;
   weight?: number | null;
   buyerNote?: string | null;
+  vatRate?: number;
+  invoiceId?: string | null;
   invoiceNumber?: string | null;
   deliveryNoteNumber?: string | null;
 }

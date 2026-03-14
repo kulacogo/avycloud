@@ -1,11 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   fetchReturns,
+  fetchReturnEvents,
   updateReturn,
   syncReturns,
   processReturn,
   issueReturnRefund,
   closeReturn,
+  bulkReturnAction,
   type ReturnData,
 } from "../../api/client";
 import { EmptyState } from "../ui/EmptyState";
@@ -218,6 +220,327 @@ function productName(product: ReturnData["product"]): string {
   return product.name || product.sku || "—";
 }
 
+/* ─── Helper: Key-Value Row ─── */
+const DetailRow: React.FC<{ label: string; value: React.ReactNode }> = ({ label, value }) => (
+  <div className="flex items-start justify-between gap-4">
+    <span className="text-txt-muted shrink-0">{label}</span>
+    <span className="text-txt-primary text-right">{value}</span>
+  </div>
+);
+
+/* ─── Condition badge helper ─── */
+const CONDITION_CONFIG: Record<string, { label: string; cls: string }> = {
+  a_ware: { label: "A-Ware", cls: "bg-success-dim text-success" },
+  b_ware: { label: "B-Ware", cls: "bg-warning-dim text-warning" },
+  c_ware: { label: "C-Ware", cls: "bg-danger-dim text-danger" },
+};
+
+/* ─── Return Detail Slide-In Panel ─── */
+const ReturnDetail: React.FC<{
+  ret: ReturnData;
+  onClose: () => void;
+  onProcess: (ret: ReturnData) => void;
+  onRefund: (ret: ReturnData) => void;
+  onCloseReturn: (id: string) => void;
+  onStatusChange: (id: string, status: string) => void;
+}> = ({ ret, onClose, onProcess, onRefund, onCloseReturn, onStatusChange }) => {
+  const [events, setEvents] = useState<any[]>([]);
+  const [loadingEvents, setLoadingEvents] = useState(true);
+  const backdropRef = React.useRef<HTMLDivElement>(null);
+
+  // Fetch timeline events
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      setLoadingEvents(true);
+      try {
+        const data = await fetchReturnEvents(ret.id);
+        if (!cancelled) setEvents(data);
+      } catch {
+        // silent — events are supplementary
+      } finally {
+        if (!cancelled) setLoadingEvents(false);
+      }
+    };
+    load();
+    return () => { cancelled = true; };
+  }, [ret.id]);
+
+  // Close on Escape
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [onClose]);
+
+  const handleBackdropClick = useCallback((e: React.MouseEvent) => {
+    if (e.target === backdropRef.current) onClose();
+  }, [onClose]);
+
+  const st = ret.status === "neu" ? "eingegangen" : (ret.status || "eingegangen");
+  const status = STATUS_CONFIG[st] || { label: st, cls: "bg-app-elevated text-txt-muted" };
+  const mp = MARKETPLACE_BADGE[(ret.marketplace || "").toLowerCase()];
+  const reason = REASON_LABELS[ret.reason || ""] || { label: ret.reason || "—", cls: "bg-app-elevated text-txt-muted" };
+  const condition = CONDITION_CONFIG[ret.itemCondition || ""] || null;
+  const isOpen = st === "eingegangen" || st === "in_pruefung";
+  const isRefunded = st === "erstattet" || st === "teilweise_erstattet";
+
+  const custName = customerName(ret.customer);
+  const custEmail = typeof ret.customer === "object" && ret.customer?.email ? ret.customer.email : null;
+  const prodName = productName(ret.product);
+  const prodSku = typeof ret.product === "object" && ret.product?.sku ? ret.product.sku : null;
+  const prodQty = typeof ret.product === "object" && ret.product?.quantity ? ret.product.quantity : null;
+
+  return (
+    <div
+      ref={backdropRef}
+      onClick={handleBackdropClick}
+      className="fixed inset-0 z-50 flex justify-end bg-black/40 backdrop-blur-sm"
+    >
+      <div className="w-full max-w-[480px] bg-app-surface border-l border-app-border shadow-2xl flex flex-col h-full animate-slide-in-right">
+        {/* Header */}
+        <div className="flex items-center gap-3 p-5 border-b border-app-border shrink-0">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h2 className="text-lg font-semibold text-txt-primary truncate font-mono">
+                {ret.id.slice(0, 8)}
+              </h2>
+              {mp && (
+                <span className={`inline-flex rounded-md px-2 py-0.5 text-[11px] font-semibold whitespace-nowrap ${mp.cls}`}>
+                  {mp.label}
+                </span>
+              )}
+              <span className={`inline-flex rounded-md px-2 py-0.5 text-[11px] font-semibold whitespace-nowrap ${status.cls}`}>
+                {status.label}
+              </span>
+            </div>
+            {ret.marketplaceReturnId && (
+              <p className="text-xs text-txt-muted mt-0.5">
+                Marketplace-ID: {ret.marketplaceReturnId}
+              </p>
+            )}
+          </div>
+          <button
+            onClick={onClose}
+            className="p-1.5 rounded-lg hover:bg-app-elevated text-txt-muted hover:text-txt-primary transition-colors"
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Scrollable Content */}
+        <div className="flex-1 overflow-y-auto p-5 space-y-5">
+          {/* Customer Section */}
+          <section>
+            <h3 className="text-sm font-medium text-txt-primary mb-2">Kunde</h3>
+            <div className="bg-app-bg rounded-lg p-3 space-y-1.5 text-sm">
+              <div className="font-medium text-txt-primary">{custName}</div>
+              {custEmail && <div className="text-txt-muted text-xs">{custEmail}</div>}
+            </div>
+          </section>
+
+          {/* Product Section */}
+          <section>
+            <h3 className="text-sm font-medium text-txt-primary mb-2">Produkt</h3>
+            <div className="bg-app-bg rounded-lg p-3 space-y-2 text-sm">
+              <div className="font-medium text-txt-primary">{prodName}</div>
+              {prodSku && (
+                <div className="text-xs text-txt-muted">SKU: <span className="font-mono">{prodSku}</span></div>
+              )}
+              {prodQty && (
+                <div className="text-xs text-txt-muted">Menge: {prodQty}</div>
+              )}
+              {ret.orderId && (
+                <div className="text-xs text-txt-muted">
+                  Bestellung: <span className="font-mono text-accent">{ret.orderId.slice(0, 10)}</span>
+                </div>
+              )}
+            </div>
+          </section>
+
+          {/* Return Details Section */}
+          <section>
+            <h3 className="text-sm font-medium text-txt-primary mb-2">Retoure-Details</h3>
+            <div className="bg-app-bg rounded-lg p-3 space-y-2 text-sm">
+              <DetailRow
+                label="Grund"
+                value={
+                  <span className={`inline-flex rounded-md px-2 py-0.5 text-[11px] font-semibold ${reason.cls}`}>
+                    {reason.label}
+                  </span>
+                }
+              />
+              {ret.reasonText && (
+                <DetailRow label="Beschreibung" value={<span className="text-xs">{ret.reasonText}</span>} />
+              )}
+              {condition && (
+                <DetailRow
+                  label="Warenzustand"
+                  value={
+                    <span className={`inline-flex rounded-md px-2 py-0.5 text-[11px] font-semibold ${condition.cls}`}>
+                      {condition.label}
+                    </span>
+                  }
+                />
+              )}
+              {ret.refundType && (
+                <DetailRow
+                  label="Erstattungsart"
+                  value={ret.refundType === "full" ? "Vollerstattung" : ret.refundType === "partial" ? "Teilerstattung" : ret.refundType === "none" ? "Keine" : ret.refundType}
+                />
+              )}
+              <DetailRow
+                label="Betrag"
+                value={
+                  typeof ret.refundAmount === "number" && ret.refundAmount > 0
+                    ? `${ret.refundAmount.toLocaleString("de-DE", { minimumFractionDigits: 2 })}\u00A0EUR`
+                    : "—"
+                }
+              />
+              <DetailRow
+                label="Eingang"
+                value={ret.createdAt ? new Date(ret.createdAt).toLocaleString("de-DE") : "—"}
+              />
+              {ret.marketplaceRefundStatus && (
+                <DetailRow label="Marktplatz-Erstattung" value={ret.marketplaceRefundStatus} />
+              )}
+            </div>
+          </section>
+
+          {/* Timeline Section */}
+          <section>
+            <h3 className="text-sm font-medium text-txt-primary mb-2">
+              Verlauf {!loadingEvents && events.length > 0 && `(${events.length})`}
+            </h3>
+            {loadingEvents ? (
+              <div className="bg-app-bg rounded-lg p-4 flex items-center justify-center">
+                <div className="flex items-center gap-2 text-sm text-txt-muted">
+                  <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                  </svg>
+                  Lade Verlauf...
+                </div>
+              </div>
+            ) : events.length === 0 ? (
+              <div className="bg-app-bg rounded-lg p-4 text-center text-sm text-txt-muted">
+                Noch keine Eintr&auml;ge
+              </div>
+            ) : (
+              <div className="bg-app-bg rounded-lg p-3 space-y-0">
+                {events.map((event, idx) => {
+                  const toStatusCfg = STATUS_CONFIG[event.toStatus] || STATUS_CONFIG[event.status] || { label: event.toStatus || event.status || "—", cls: "bg-app-elevated text-txt-muted" };
+                  // Determine dot color from status config cls
+                  const dotColor = toStatusCfg.cls.includes("text-info") ? "bg-info"
+                    : toStatusCfg.cls.includes("text-warning") ? "bg-warning"
+                    : toStatusCfg.cls.includes("text-success") ? "bg-success"
+                    : toStatusCfg.cls.includes("text-danger") ? "bg-danger"
+                    : "bg-txt-muted";
+
+                  return (
+                    <div key={event.id || idx} className="flex gap-3">
+                      {/* Timeline line */}
+                      <div className="flex flex-col items-center">
+                        <div className={`w-2.5 h-2.5 rounded-full mt-1.5 ${dotColor}`} />
+                        {idx < events.length - 1 && <div className="w-px flex-1 bg-app-border" />}
+                      </div>
+                      {/* Event content */}
+                      <div className="pb-4 flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium text-txt-primary">
+                            {event.fromStatus && event.toStatus
+                              ? `${STATUS_CONFIG[event.fromStatus]?.label || event.fromStatus} → ${STATUS_CONFIG[event.toStatus]?.label || event.toStatus}`
+                              : event.action || event.type || toStatusCfg.label}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          {(event.actor?.email || event.actor) && (
+                            <span className="text-xs text-txt-muted">
+                              {typeof event.actor === "string" ? event.actor : event.actor?.email || "System"}
+                            </span>
+                          )}
+                          {(event.timestamp || event.createdAt) && (
+                            <span className="text-xs text-txt-muted">
+                              {new Date(event.timestamp || event.createdAt).toLocaleString("de-DE")}
+                            </span>
+                          )}
+                        </div>
+                        {event.note && (
+                          <p className="text-xs text-txt-secondary mt-1">{event.note}</p>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+
+          {/* Actions Section */}
+          <section>
+            <h3 className="text-sm font-medium text-txt-primary mb-2">Aktionen</h3>
+            <div className="flex flex-wrap gap-2">
+              {st === "eingegangen" && (
+                <button
+                  type="button"
+                  onClick={() => onStatusChange(ret.id, "in_pruefung")}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-app-elevated text-sm font-semibold text-txt-secondary hover:text-txt-primary transition"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                  </svg>
+                  Pr&uuml;fen
+                </button>
+              )}
+              {isOpen && (
+                <button
+                  type="button"
+                  onClick={() => onProcess(ret)}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-accent text-white text-sm font-semibold hover:bg-accent/90 transition"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                  Bearbeiten
+                </button>
+              )}
+              {isRefunded && ret.marketplace && !ret.marketplaceRefundStatus && (
+                <button
+                  type="button"
+                  onClick={() => onRefund(ret)}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-success-dim text-success text-sm font-semibold hover:opacity-80 transition"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+                  </svg>
+                  Erstatten
+                </button>
+              )}
+              {(isRefunded || st === "abgelehnt") && (
+                <button
+                  type="button"
+                  onClick={() => onCloseReturn(ret.id)}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-app-elevated text-sm font-semibold text-txt-muted hover:text-txt-primary transition"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                  Schlie&szlig;en
+                </button>
+              )}
+              {st === "abgeschlossen" && (
+                <span className="text-sm text-txt-muted self-center">Retoure abgeschlossen</span>
+              )}
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 /* ─── Main Component ─── */
 export const ReturnsView: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabKey>("alle");
@@ -227,6 +550,9 @@ export const ReturnsView: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [processTarget, setProcessTarget] = useState<ReturnData | null>(null);
+  const [selectedReturnId, setSelectedReturnId] = useState<string | null>(null);
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [bulkResult, setBulkResult] = useState<string | null>(null);
   const toast = useToast();
 
   const loadReturns = useCallback(async () => {
@@ -337,6 +663,30 @@ export const ReturnsView: React.FC = () => {
       setSelected(new Set());
     } else {
       setSelected(new Set(filtered.map((r) => r.id)));
+    }
+  };
+
+  const handleBulkAction = async (action: "refund" | "close") => {
+    if (selected.size === 0) return;
+    setBulkBusy(true);
+    setBulkResult(null);
+    try {
+      const result = await bulkReturnAction(Array.from(selected), action);
+      const failed = result.total - result.success;
+      if (failed === 0) {
+        setBulkResult(`${result.success}/${result.total} erfolgreich`);
+        toast.success(`${result.success} Retouren ${action === "refund" ? "erstattet" : "geschlossen"}`);
+      } else {
+        setBulkResult(`${result.success}/${result.total} erfolgreich, ${failed} fehlgeschlagen`);
+        toast.warning(`${result.success}/${result.total} erfolgreich, ${failed} fehlgeschlagen`);
+      }
+      setSelected(new Set());
+      await loadReturns();
+    } catch (err: any) {
+      setBulkResult(null);
+      toast.error(err?.message || "Bulk-Aktion fehlgeschlagen");
+    } finally {
+      setBulkBusy(false);
     }
   };
 
@@ -491,15 +841,35 @@ export const ReturnsView: React.FC = () => {
 
       {/* Bulk Actions */}
       {selected.size > 0 && (
-        <div className="flex items-center gap-2 rounded-xl border border-accent/20 bg-accent-dim px-4 py-2.5">
-          <span className="text-sm font-medium text-accent">
+        <div className="rounded-2xl border border-accent/30 bg-accent-dim px-4 py-3 flex items-center gap-3 flex-wrap">
+          <span className="text-sm font-medium text-txt-primary">
             {selected.size} ausgewählt
           </span>
-          <div className="ml-auto flex gap-2">
+          <div className="h-5 w-px bg-app-border" />
+          <button
+            type="button"
+            disabled={bulkBusy}
+            onClick={() => handleBulkAction("refund")}
+            className="px-3 py-1.5 rounded-lg bg-success-dim text-success text-sm font-medium hover:bg-success/20 disabled:opacity-50"
+          >
+            {bulkBusy ? "..." : "Erstatten"}
+          </button>
+          <button
+            type="button"
+            disabled={bulkBusy}
+            onClick={() => handleBulkAction("close")}
+            className="px-3 py-1.5 rounded-lg bg-app-elevated text-txt-primary text-sm font-medium hover:bg-app-elevated/80 disabled:opacity-50"
+          >
+            {bulkBusy ? "..." : "Schließen"}
+          </button>
+          {bulkResult && (
+            <span className="text-sm text-txt-secondary ml-2">{bulkResult}</span>
+          )}
+          <div className="ml-auto">
             <button
               type="button"
-              onClick={() => setSelected(new Set())}
-              className="rounded-lg bg-app-elevated text-txt-secondary px-3 py-1.5 text-xs font-semibold hover:text-txt-primary transition"
+              onClick={() => { setSelected(new Set()); setBulkResult(null); }}
+              className="text-sm text-txt-muted hover:text-txt-primary"
             >
               Auswahl aufheben
             </button>
@@ -610,9 +980,10 @@ export const ReturnsView: React.FC = () => {
                   return (
                     <tr
                       key={ret.id}
-                      className="border-b border-app-border last:border-b-0 hover:bg-app-elevated/40 transition"
+                      onClick={() => setSelectedReturnId(ret.id)}
+                      className="border-b border-app-border last:border-b-0 hover:bg-app-elevated/40 transition cursor-pointer"
                     >
-                      <td className="px-3 py-3">
+                      <td className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
                         <input
                           type="checkbox"
                           checked={selected.has(ret.id)}
@@ -677,7 +1048,7 @@ export const ReturnsView: React.FC = () => {
                             })}\u00A0EUR`
                           : "—"}
                       </td>
-                      <td className="px-3 py-3">
+                      <td className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-end gap-1">
                           {st === "eingegangen" && (
                             <button
@@ -742,6 +1113,33 @@ export const ReturnsView: React.FC = () => {
           }}
         />
       )}
+
+      {/* Return Detail Slide-In */}
+      {selectedReturnId && (() => {
+        const selectedReturn = returns.find((r) => r.id === selectedReturnId);
+        if (!selectedReturn) return null;
+        return (
+          <ReturnDetail
+            ret={selectedReturn}
+            onClose={() => setSelectedReturnId(null)}
+            onProcess={(r) => {
+              setSelectedReturnId(null);
+              setProcessTarget(r);
+            }}
+            onRefund={(r) => {
+              setSelectedReturnId(null);
+              handleRefund(r);
+            }}
+            onCloseReturn={(id) => {
+              setSelectedReturnId(null);
+              handleClose(id);
+            }}
+            onStatusChange={(id, status) => {
+              handleStatusChange(id, status);
+            }}
+          />
+        );
+      })()}
     </div>
   );
 };

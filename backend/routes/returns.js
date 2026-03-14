@@ -99,6 +99,52 @@ router.post('/returns/sync', async (req, res) => {
 });
 
 /**
+ * POST /api/returns/bulk-action
+ * Body: { returnIds: string[], action: 'refund' | 'close', note?: string }
+ * Response: { ok: true, data: { total, success, results: [{returnId, ok, error?}] } }
+ */
+router.post('/returns/bulk-action', async (req, res) => {
+  try {
+    const { returnIds, action, note } = req.body;
+
+    if (!Array.isArray(returnIds) || returnIds.length === 0) {
+      return res.status(400).json({ ok: false, error: { code: 'VALIDATION', message: 'returnIds must be a non-empty array' } });
+    }
+    if (returnIds.length > 50) {
+      return res.status(400).json({ ok: false, error: { code: 'VALIDATION', message: 'Max 50 returns per bulk action' } });
+    }
+    if (!['refund', 'close'].includes(action)) {
+      return res.status(400).json({ ok: false, error: { code: 'VALIDATION', message: 'action must be "refund" or "close"' } });
+    }
+
+    const tenantId = getTenantId(req);
+    const actor = getActor(req);
+    const { issueMarketplaceRefund, transitionReturn } = require('../services/returns-engine');
+
+    const results = [];
+    for (const returnId of returnIds) {
+      try {
+        if (action === 'refund') {
+          await issueMarketplaceRefund({ returnId, tenantId, actor });
+        } else {
+          await transitionReturn({ returnId, toStatus: 'abgeschlossen', actor, note: note || 'Bulk-Aktion: Retoure abgeschlossen' });
+        }
+        results.push({ returnId, ok: true });
+        emitSyncEvent('return:status_changed', { entityId: returnId, tenantId });
+      } catch (err) {
+        results.push({ returnId, ok: false, error: err.message });
+      }
+    }
+
+    const successCount = results.filter(r => r.ok).length;
+    res.json({ ok: true, data: { total: returnIds.length, success: successCount, results } });
+  } catch (err) {
+    console.error(`[POST /api/returns/bulk-action] ${err.message}`, err);
+    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: err.message } });
+  }
+});
+
+/**
  * PATCH /api/returns/:id
  * Update return fields (reason, notes, etc.)
  */

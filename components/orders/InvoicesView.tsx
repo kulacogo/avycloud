@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { fetchInvoices, updateInvoiceStatus, type InvoiceData } from "../../api/client";
+import { fetchInvoices, updateInvoiceStatus, downloadInvoicePdfBlob, type InvoiceData } from "../../api/client";
 import { EmptyState } from "../ui/EmptyState";
 
 /* ─── Config ─── */
@@ -117,6 +117,26 @@ export const InvoicesView: React.FC = () => {
   const isDueSoon = (dueDate?: string | null, status?: string): boolean => {
     if (!dueDate || status === "bezahlt" || status === "storniert") return false;
     return new Date(dueDate).getTime() < Date.now();
+  };
+
+  const handleDownloadPdf = async (invoiceId: string) => {
+    try {
+      const blob = await downloadInvoicePdfBlob(invoiceId);
+      const blobUrl = URL.createObjectURL(blob);
+      const printWindow = window.open(blobUrl, "_blank");
+      if (!printWindow) {
+        const a = document.createElement("a");
+        a.href = blobUrl;
+        a.download = `rechnung-${invoiceId}.pdf`;
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+      } else {
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 120000);
+      }
+    } catch (err: any) {
+      console.error("[InvoicesView] PDF download failed:", err);
+      setError(err?.message || "PDF-Download fehlgeschlagen");
+    }
   };
 
   /* ─── Loading ─── */
@@ -297,6 +317,19 @@ export const InvoicesView: React.FC = () => {
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-end gap-1.5">
+                          {/* Download PDF */}
+                          {inv.pdfUrl && (
+                            <button
+                              type="button"
+                              onClick={() => handleDownloadPdf(inv.id)}
+                              className="rounded-lg bg-accent-dim p-1.5 text-accent hover:opacity-80 transition"
+                              title="PDF herunterladen"
+                            >
+                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                              </svg>
+                            </button>
+                          )}
                           {/* Mark Paid */}
                           {(inv.status === "gesendet" || inv.status === "ueberfaellig") && (
                             <button

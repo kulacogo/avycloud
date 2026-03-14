@@ -45,7 +45,7 @@ const StatusBadge: React.FC<{ label: string; tone?: 'neutral' | 'success' | 'war
     tone === 'success'
       ? 'bg-success-dim text-success border-success/30'
       : tone === 'warn'
-        ? 'bg-amber-900/60 text-amber-100 border-amber-700/60'
+        ? 'bg-warning-dim text-warning border-warning/30'
         : 'bg-app-surface text-txt-secondary border-app-border';
   return (
     <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold border ${toneClasses}`}>
@@ -1679,34 +1679,41 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
         <button
           type="button"
           aria-label={t('ops.mode.identify')}
-          className="w-full rounded-2xl bg-accent-dim text-accent font-semibold py-4 text-lg border border-accent/20"
+          className="w-full rounded-2xl bg-accent-dim text-accent font-semibold py-4 px-5 text-lg border border-accent/20 flex items-center gap-3"
           onClick={() => onNavigate('operations-identify')}
         >
-          {t('ops.mode.identify')}
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0"><path d="M3 7V5a2 2 0 0 1 2-2h2" /><path d="M17 3h2a2 2 0 0 1 2 2v2" /><path d="M21 17v2a2 2 0 0 1-2 2h-2" /><path d="M7 21H5a2 2 0 0 1-2-2v-2" /><line x1="7" y1="12" x2="17" y2="12" /><line x1="7" y1="8" x2="13" y2="8" /><line x1="7" y1="16" x2="11" y2="16" /></svg>
+          <span className="flex-1 text-left">{t('ops.mode.identify')}</span>
         </button>
         <button
           type="button"
           aria-label={t('ops.mode.stow')}
-          className="w-full rounded-2xl bg-success-dim text-success font-semibold py-4 text-lg border border-success/30"
+          className="w-full rounded-2xl bg-success-dim text-success font-semibold py-4 px-5 text-lg border border-success/30 flex items-center gap-3"
           onClick={() => onNavigate('operations-stow')}
         >
-          {t('ops.mode.stow')}
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0"><path d="M12 3h7a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-7" /><path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h7" /><path d="M12 12v9" /><path d="M12 3v9" /><line x1="9" y1="15" x2="15" y2="15" /><line x1="12" y1="12" x2="12" y2="18" /></svg>
+          <span className="flex-1 text-left">{t('ops.mode.stow')}</span>
+          {stowList.length > 0 && <span className="bg-success/20 text-success text-sm font-bold px-2.5 py-0.5 rounded-full">{stowList.length}</span>}
         </button>
         <button
           type="button"
           aria-label={t('ops.mode.pick')}
-          className="w-full rounded-2xl bg-amber-600/20 text-amber-300 font-semibold py-4 text-lg border border-amber-500/20"
+          className="w-full rounded-2xl bg-warning-dim text-warning font-semibold py-4 px-5 text-lg border border-warning/20 flex items-center gap-3"
           onClick={() => onNavigate('operations-pick')}
         >
-          {t('ops.mode.pick')}
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0"><rect x="3" y="3" width="18" height="18" rx="2" ry="2" /><line x1="8" y1="8" x2="8.01" y2="8" /><line x1="12" y1="8" x2="16" y2="8" /><line x1="8" y1="12" x2="8.01" y2="12" /><line x1="12" y1="12" x2="16" y2="12" /><line x1="8" y1="16" x2="8.01" y2="16" /><line x1="12" y1="16" x2="16" y2="16" /></svg>
+          <span className="flex-1 text-left">{t('ops.mode.pick')}</span>
+          {pickList.length > 0 && <span className="bg-warning/20 text-warning text-sm font-bold px-2.5 py-0.5 rounded-full">{pickList.length}</span>}
         </button>
         <button
           type="button"
           aria-label={t('ops.mode.pack')}
-          className="w-full rounded-2xl bg-app-surface text-txt-primary font-semibold py-4 text-lg border border-app-border"
+          className="w-full rounded-2xl bg-app-surface text-txt-primary font-semibold py-4 px-5 text-lg border border-app-border flex items-center gap-3"
           onClick={() => onNavigate('operations-pack')}
         >
-          {t('ops.mode.pack')}
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" /><polyline points="3.27 6.96 12 12.01 20.73 6.96" /><line x1="12" y1="22.08" x2="12" y2="12" /></svg>
+          <span className="flex-1 text-left">{t('ops.mode.pack')}</span>
+          {packList.length > 0 && <span className="bg-accent/15 text-txt-secondary text-sm font-bold px-2.5 py-0.5 rounded-full">{packList.length}</span>}
         </button>
       </div>
     </div>

@@ -3291,6 +3291,12 @@ async function getDashboardMetrics({ days = 7, preset = null, fromDate = null, t
   let returnsMonth = 0;
   let openCurrent = 0;
 
+  // Marketplace breakdown for payout calculation (Kaufland vs eBay vs other)
+  let kauflandGrossWindow = 0;
+  let kauflandGrossYtd = 0;
+  const yearStart = utcYearStart(now.getUTCFullYear());
+  const KAUFLAND_PAYOUT_FACTOR = 0.8334; // 1 - (0.14 * 1.19) = 14% Provision + MwSt
+
   const statusBreakdown = {
     neu: 0,
     kommissioniert: 0,
@@ -3384,6 +3390,13 @@ async function getDashboardMetrics({ days = 7, preset = null, fromDate = null, t
       revenueAllNonCancelledTotal += totalAmount;
     }
 
+    // Marketplace breakdown (Kaufland payout differs from eBay)
+    const mp = normalize(order.marketplace || order.source || '');
+    if (mp.includes('kaufland') && !cancelled) {
+      if (createdAt >= yearStart) kauflandGrossYtd += totalAmount;
+      if (createdAt >= rangeStart && createdAt < rangeEndExclusive) kauflandGrossWindow += totalAmount;
+    }
+
     // Returns (best-effort)
     if (returned) {
       returnsTotal += 1;
@@ -3433,6 +3446,10 @@ async function getDashboardMetrics({ days = 7, preset = null, fromDate = null, t
       window_non_cancelled_total: Number(revenueWindowNonCancelledTotal.toFixed(2)),
       window_start_iso: rangeStart.toISOString(),
       window_days: rangeDays,
+      kaufland_gross_window: Number(kauflandGrossWindow.toFixed(2)),
+      kaufland_gross_ytd: Number(kauflandGrossYtd.toFixed(2)),
+      kaufland_payout_window: Number((kauflandGrossWindow * KAUFLAND_PAYOUT_FACTOR).toFixed(2)),
+      kaufland_payout_ytd: Number((kauflandGrossYtd * KAUFLAND_PAYOUT_FACTOR).toFixed(2)),
     },
     orders: {
       open_current: openCurrent,

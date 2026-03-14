@@ -9,6 +9,7 @@ import {
   updateOrderWeight,
   cancelShippingLabel,
   fetchLabelPdfBlob,
+  downloadInvoicePdfBlob,
 } from "../api/client";
 import type { Order, OrderTimelineEvent, OmsStatus } from "../types";
 
@@ -76,6 +77,7 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({ orderId, onClose, onSt
   const [editingWeight, setEditingWeight] = useState(false);
   const [weightInput, setWeightInput] = useState("");
   const [savingWeight, setSavingWeight] = useState(false);
+  const [selectedVatRate, setSelectedVatRate] = useState<number>(0.19);
   const backdropRef = useRef<HTMLDivElement>(null);
 
   const loadData = useCallback(async () => {
@@ -517,14 +519,26 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({ orderId, onClose, onSt
                         />
                       )}
                       {!order.invoiceNumber && (
-                        <ActionButton
-                          label="Rechnung erstellen"
-                          icon="📄"
-                          onClick={async () => {
-                            await generateInvoice(orderId);
-                            await loadData();
-                          }}
-                        />
+                        <>
+                          <select
+                            value={selectedVatRate}
+                            onChange={(e) => setSelectedVatRate(parseFloat(e.target.value))}
+                            className="rounded-md border border-app-border bg-app-surface text-txt-primary text-xs px-2 py-1.5 self-center"
+                            title="MwSt.-Satz"
+                          >
+                            <option value={0.19}>19% MwSt.</option>
+                            <option value={0.07}>7% MwSt.</option>
+                            <option value={0}>0% Steuerfrei</option>
+                          </select>
+                          <ActionButton
+                            label="Rechnung erstellen"
+                            icon="📄"
+                            onClick={async () => {
+                              await generateInvoice(orderId, { vatRate: selectedVatRate });
+                              await loadData();
+                            }}
+                          />
+                        </>
                       )}
                       {!order.deliveryNoteNumber && (
                         <ActionButton
@@ -537,7 +551,42 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({ orderId, onClose, onSt
                         />
                       )}
                       {order.invoiceNumber && (
-                        <span className="text-xs text-txt-muted self-center">Rechnung: {order.invoiceNumber}</span>
+                        <span className="text-xs text-txt-muted self-center inline-flex items-center gap-1.5">
+                          Rechnung: {order.invoiceNumber}
+                          <span className="rounded bg-app-elevated px-1.5 py-0.5 text-[10px] font-medium text-txt-secondary">
+                            {Math.round((order.vatRate ?? 0.19) * 100)}% MwSt.
+                          </span>
+                          {order.invoiceId && (
+                            <button
+                              type="button"
+                              title="Rechnungs-PDF herunterladen"
+                              className="inline-flex items-center gap-1 rounded bg-accent-dim px-1.5 py-0.5 text-[11px] font-semibold text-accent hover:opacity-80 transition"
+                              onClick={async () => {
+                                try {
+                                  const blob = await downloadInvoicePdfBlob(order.invoiceId!);
+                                  const blobUrl = URL.createObjectURL(blob);
+                                  const printWindow = window.open(blobUrl, "_blank");
+                                  if (!printWindow) {
+                                    const a = document.createElement("a");
+                                    a.href = blobUrl;
+                                    a.download = `Rechnung-${order.invoiceNumber}.pdf`;
+                                    a.click();
+                                    setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+                                  } else {
+                                    setTimeout(() => URL.revokeObjectURL(blobUrl), 120000);
+                                  }
+                                } catch (err: any) {
+                                  console.error("[OrderDetail] Invoice PDF download failed:", err);
+                                }
+                              }}
+                            >
+                              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                              </svg>
+                              PDF
+                            </button>
+                          )}
+                        </span>
                       )}
                       {order.deliveryNoteNumber && (
                         <span className="text-xs text-txt-muted self-center">Lieferschein: {order.deliveryNoteNumber}</span>

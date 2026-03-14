@@ -227,14 +227,10 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onT
             {/* Logo */}
             <div className="flex-shrink-0 sm:ml-2 lg:ml-4">
               <img
-                src="/avycloud_logo_40x40_icon.png"
+                src="/avycloud_logo_icon.png"
                 alt="avycloud"
                 draggable={false}
-                style={{
-                  height: '70px',
-                  width: '100px',
-                  objectFit: 'contain',
-                }}
+                className="h-10 w-10 object-contain"
               />
             </div>
 

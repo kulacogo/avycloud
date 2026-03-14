@@ -1035,6 +1035,16 @@ router.post('/orders/:orderId/invoice', requirePermission('orders', 'write'), as
     const { orderId } = req.params;
     const tenantId = req.user?.tenantId || 'default';
 
+    // Persist VAT rate on order before generating invoice
+    if (req.body.vatRate !== undefined) {
+      const rate = parseFloat(req.body.vatRate);
+      if ([0, 0.07, 0.19].includes(rate)) {
+        const { Firestore } = require('@google-cloud/firestore');
+        const db = new Firestore();
+        await db.collection('orders').doc(orderId).set({ vatRate: rate, updatedAt: new Date().toISOString() }, { merge: true });
+      }
+    }
+
     const { generateInvoice } = require('../services/invoice-engine');
     const result = await generateInvoice({
       orderId,

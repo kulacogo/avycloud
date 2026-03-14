@@ -85,6 +85,11 @@ async function generateInvoice({
   if (!orderSnap.exists) throw new Error('Auftrag nicht gefunden');
   const order = { id: orderSnap.id, ...orderSnap.data() };
 
+  // Idempotency: skip if order already has an invoice
+  if (order.invoiceId) {
+    return { invoiceId: order.invoiceId, invoiceNumber: order.invoiceNumber || null, pdfUrl: order.pdfUrl || null };
+  }
+
   // Generate invoice number
   const seq = await getNextNumber({ tenantId, type: 'invoice' });
 
@@ -94,7 +99,7 @@ async function generateInvoice({
   // Calculate amounts
   const items = order.items || [];
   const totalBrutto = order.totalAmount || items.reduce((sum, item) => sum + (item.priceBrutto || 0) * (item.quantity || 1), 0);
-  const vatRate = 0.19;
+  const vatRate = order.vatRate ?? 0.19;
   const totalNetto = Math.round((totalBrutto / (1 + vatRate)) * 100) / 100;
   const vatAmount = Math.round((totalBrutto - totalNetto) * 100) / 100;
 

@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const { firestore } = require('../lib/firestore');
+const { requirePermission } = require('../lib/rbac');
+const { Storage } = require('@google-cloud/storage');
 
 function getTenantId(req) {
   return req.user?.tenantId || 'default';
@@ -70,6 +72,40 @@ router.patch('/invoices/:id', async (req, res) => {
     res.json({ ok: true, data: { id: req.params.id, ...update } });
   } catch (err) {
     console.error(`[PATCH /api/invoices/:id] ${err.message}`, err);
+    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: err.message } });
+  }
+});
+
+/**
+ * GET /api/invoices/:invoiceId/download — Download invoice PDF from GCS
+ */
+router.get('/invoices/:invoiceId/download', requirePermission('orders', 'read'), async (req, res) => {
+  try {
+    const invoiceId = String(req.params.invoiceId);
+    const snap = await firestore.collection('invoices').doc(invoiceId).get();
+    if (!snap.exists) {
+      return res.status(404).json({ ok: false, error: { code: 404, message: 'Invoice not found' } });
+    }
+    const invoice = snap.data();
+    const pdfUrl = invoice.pdfUrl;
+    if (!pdfUrl || !pdfUrl.startsWith('gs://')) {
+      return res.status(404).json({ ok: false, error: { code: 404, message: 'No PDF available for this invoice' } });
+    }
+    // Parse gs:// URL: gs://bucket-name/path/to/file.pdf
+    const gcsPath = pdfUrl.replace('gs://', '');
+    const slashIdx = gcsPath.indexOf('/');
+    const bucketName = gcsPath.substring(0, slashIdx);
+    const filePath = gcsPath.substring(slashIdx + 1);
+
+    const storage = new Storage();
+    const [buffer] = await storage.bucket(bucketName).file(filePath).download();
+
+    const fileName = invoice.invoiceNumber ? `Rechnung-${invoice.invoiceNumber}.pdf` : `invoice-${invoiceId}.pdf`;
+    res.set('Content-Type', 'application/pdf');
+    res.set('Content-Disposition', `inline; filename="${fileName}"`);
+    res.send(buffer);
+  } catch (err) {
+    console.error(`[GET /api/invoices/${req.params.invoiceId}/download] ${err.message}`, err);
     res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: err.message } });
   }
 });

@@ -182,6 +182,19 @@ async function transitionOrder({ tenantId = 'default', orderId, toStatus, actor,
     return { ok: true, fromStatus, toStatus };
   });
 
+  // Post-transition side effects (fire-and-forget)
+  if (result.ok && toStatus === 'shipped') {
+    // Auto-generate invoice when order ships (FEAT-ORD-06)
+    try {
+      const { generateInvoice } = require('./invoice-engine');
+      generateInvoice({ orderId, tenantId, actor }).catch((err) => {
+        console.warn(`[order-state-machine] Auto-invoice for ${orderId} failed: ${err.message}`);
+      });
+    } catch (err) {
+      console.warn(`[order-state-machine] Auto-invoice import failed: ${err.message}`);
+    }
+  }
+
   return result;
 }
 
