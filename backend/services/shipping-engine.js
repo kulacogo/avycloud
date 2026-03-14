@@ -86,6 +86,7 @@ async function getShippingMethods() {
  *   weight?: number,
  *   requestLabel?: boolean,
  *   tenantId?: string,
+ *   labelFormat?: 'a6' | 'a4',
  * }} opts
  * @returns {Promise<{ parcel: object, labelUrl: string | null, trackingNumber: string | null }>}
  */
@@ -95,6 +96,7 @@ async function createParcel({
   weight,
   requestLabel = true,
   tenantId = 'default',
+  labelFormat = 'a6',
 }) {
   if (!order) throw new Error('order is required');
 
@@ -171,10 +173,16 @@ async function createParcel({
 
   const trackingNumber = parcel.tracking_number || null;
   // SendCloud often doesn't return label in the immediate POST response.
-  // Construct the label URL from parcel ID (label_printer = thermal 10x15cm format).
-  const labelUrl = parcel.label?.label_printer
-    || parcel.label?.normal_printer?.[0]
-    || (parcel.id ? `${SENDCLOUD_BASE_URL}/labels/label_printer/${parcel.id}` : null);
+  // Construct the label URL from parcel ID based on selected format:
+  //   label_printer = A6 / thermal (10x15cm), normal_printer = A4 (with margins)
+  const isA4 = labelFormat === 'a4';
+  const labelUrl = isA4
+    ? (parcel.label?.normal_printer?.[0]
+      || parcel.label?.label_printer
+      || (parcel.id ? `${SENDCLOUD_BASE_URL}/labels/normal_printer/${parcel.id}` : null))
+    : (parcel.label?.label_printer
+      || parcel.label?.normal_printer?.[0]
+      || (parcel.id ? `${SENDCLOUD_BASE_URL}/labels/label_printer/${parcel.id}` : null));
 
   // Save shipment record to Firestore
   const shipmentDoc = {
@@ -209,10 +217,10 @@ async function createParcel({
 
 /**
  * Get label PDF URL for an existing parcel.
- * @param {{ parcelId: number }} opts
+ * @param {{ parcelId: number, labelFormat?: 'a6' | 'a4' }} opts
  * @returns {Promise<{ labelUrl: string | null }>}
  */
-async function getLabel({ parcelId }) {
+async function getLabel({ parcelId, labelFormat = 'a6' }) {
   const auth = await getSendCloudAuth();
   const res = await fetch(`${SENDCLOUD_BASE_URL}/parcels/${parcelId}`, {
     headers: { Authorization: auth },
@@ -225,8 +233,12 @@ async function getLabel({ parcelId }) {
 
   const data = await res.json();
   const parcel = data?.parcel || {};
+  const isA4 = labelFormat === 'a4';
+  const labelUrl = isA4
+    ? (parcel.label?.normal_printer?.[0] || parcel.label?.label_printer || null)
+    : (parcel.label?.label_printer || parcel.label?.normal_printer?.[0] || null);
   return {
-    labelUrl: parcel.label?.label_printer || parcel.label?.normal_printer?.[0] || null,
+    labelUrl,
     trackingNumber: parcel.tracking_number || null,
     status: parcel.status?.message || null,
   };
@@ -343,10 +355,10 @@ function matchCarrierRule({ weight, rules }) {
  * Full flow: load order → calculate weight → match carrier rule → create SendCloud parcel
  * → update order status to 'shipped'
  *
- * @param {{ orderId: string, tenantId?: string, shippingMethodId?: number, weight?: number }} opts
+ * @param {{ orderId: string, tenantId?: string, shippingMethodId?: number, weight?: number, labelFormat?: 'a6' | 'a4' }} opts
  * @returns {Promise<object>}
  */
-async function shipOrder({ orderId, tenantId = 'default', shippingMethodId, weight }) {
+async function shipOrder({ orderId, tenantId = 'default', shippingMethodId, weight, labelFormat = 'a6' }) {
   const db = getDb();
 
   // Load order
@@ -381,6 +393,7 @@ async function shipOrder({ orderId, tenantId = 'default', shippingMethodId, weig
     weight: orderWeight,
     requestLabel: true,
     tenantId,
+    labelFormat,
   });
 
   // Update order with tracking info

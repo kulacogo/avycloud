@@ -159,14 +159,14 @@
 - [x] B4: Invoice PDF-Download im UI — ✅ Proxy-Endpoint `GET /api/invoices/:id/download` (GCS→Browser), Download-Buttons in InvoicesView + OrderDetail (2026-03-14)
 - [ ] B5: Invoice Email-Versand (Template + SMTP/SES) — Kein `sendInvoiceEmail()` vorhanden
 - [ ] B6: Gutschriften/Stornorechnungen — Kein `generateCreditNote()` vorhanden
-- [ ] B7: MwSt-Sätze 19%/7%/0% statt hardcoded 19% (invoice-engine.js Zeile 97, 339)
+- [x] B7: MwSt-Sätze 19%/7%/0% — ✅ order.vatRate ?? 0.19, VAT-Dropdown in OrderDetail, API-Parameter, TypeScript-Typen (2026-03-14)
 - [ ] FEAT-INV-01: Rechnungsübersicht: Suche + Datumsfilter + PDF-Download-Buttons
 
 **Block 4: Retouren nutzbar machen**
 - [x] BUG-043: Returns-Engine Referenz-Fehler (totalRefund + ebayReason) — ✅ Fixed
 - [x] BUG-044: Kaufland Returns Pagination — ✅ Fixed
 - [x] FEAT-RET-01: Retoure-Detail-Ansicht — ✅ Slide-in Panel mit Kunden, Produkt, Grund, Timeline, Actions (2026-03-14)
-- [ ] FEAT-RET-03: Bulk-Retoure-Aktionen (Erstatten, Schließen)
+- [x] FEAT-RET-03: Bulk-Retoure-Aktionen — ✅ POST /api/returns/bulk-action (refund/close, max 50), Frontend Bulk-Action-Bar mit Erstatten + Schließen (2026-03-14)
 
 **Block 5: Versand optimieren**
 - [ ] B2: SendCloud Tracking-Webhooks (Zustellbenachrichtigung)
@@ -297,7 +297,7 @@
 - [x] B4: Invoice PDF-Download im UI — ✅ GCS-Proxy-Endpoint + Download-Buttons in InvoicesView + OrderDetail (2026-03-14)
 - [ ] B5: Invoice Email-Versand — kein sendInvoiceEmail(), kein Email-Template
 - [ ] B6: Gutschriften (Credit Notes) — kein generateCreditNote(), keine Storno-Rechnung
-- [ ] B7: MwSt-Sätze — hardcoded 19%, braucht 7% und 0% Support
+- [x] B7: MwSt-Sätze — ✅ 19%/7%/0% Support via order.vatRate (2026-03-14)
 - [x] B8: Marketplace-Kommunikation — Tracking + Cancellation an eBay/Kaufland (2026-03-13)
 
 **Phase C: BaseLinker KOMPLETT entfernt — ✅ DONE (2026-03-13)**

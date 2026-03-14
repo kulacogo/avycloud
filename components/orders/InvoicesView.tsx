@@ -41,6 +41,8 @@ export const InvoicesView: React.FC = () => {
   const [invoices, setInvoices] = useState<InvoiceData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [datePreset, setDatePreset] = useState<"all" | "today" | "7d" | "30d" | "90d">("all");
 
   const loadInvoices = useCallback(async () => {
     try {
@@ -61,9 +63,34 @@ export const InvoicesView: React.FC = () => {
   }, [loadInvoices]);
 
   const filtered = useMemo(() => {
-    if (activeTab === "alle") return invoices;
-    return invoices.filter((inv) => inv.status === activeTab);
-  }, [invoices, activeTab]);
+    let list = activeTab === "alle" ? invoices : invoices.filter((inv) => inv.status === activeTab);
+
+    // Date filter
+    if (datePreset !== "all") {
+      const now = Date.now();
+      const cutoff = datePreset === "today"
+        ? new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate()).getTime()
+        : datePreset === "7d" ? now - 7 * 86400000
+        : datePreset === "30d" ? now - 30 * 86400000
+        : now - 90 * 86400000;
+      list = list.filter((inv) => {
+        const d = new Date(inv.date || inv.createdAt || "");
+        return !isNaN(d.getTime()) && d.getTime() >= cutoff;
+      });
+    }
+
+    // Search filter
+    if (searchQuery.trim()) {
+      const q = searchQuery.trim().toLowerCase();
+      list = list.filter((inv) =>
+        (inv.invoiceNumber || "").toLowerCase().includes(q) ||
+        (typeof inv.customer === "string" ? inv.customer : "").toLowerCase().includes(q) ||
+        (inv.orderId || "").toLowerCase().includes(q)
+      );
+    }
+
+    return list;
+  }, [invoices, activeTab, datePreset, searchQuery]);
 
   const tabCounts = useMemo(() => {
     const counts: Record<string, number> = { alle: invoices.length };
@@ -192,6 +219,53 @@ export const InvoicesView: React.FC = () => {
         <KpiCard label="Gesamt Rechnungen" value={invoices.length} tone="text-accent" />
         <KpiCard label="Überfällig" value={kpis.overdue} tone="text-danger" />
         <KpiCard label="Bezahlt gesamt" value={`${kpis.paidTotal} EUR`} tone="text-success" />
+      </div>
+
+      {/* Search + Date Filter */}
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="relative flex-1 min-w-[200px] max-w-md">
+          <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-txt-muted" viewBox="0 0 20 20" fill="currentColor">
+            <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
+          </svg>
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Suche nach Rechnungsnr., Kunde, Auftrag..."
+            className="w-full rounded-xl border border-app-border bg-app-surface text-txt-primary pl-9 pr-3 py-2 text-sm placeholder:text-txt-muted focus:outline-none focus:ring-1 focus:ring-accent/40 focus:border-accent/40"
+          />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => setSearchQuery("")}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-txt-muted hover:text-txt-primary text-xs"
+            >
+              &times;
+            </button>
+          )}
+        </div>
+        <div className="flex items-center gap-1">
+          {([
+            { key: "all", label: "Alle" },
+            { key: "today", label: "Heute" },
+            { key: "7d", label: "7 Tage" },
+            { key: "30d", label: "30 Tage" },
+            { key: "90d", label: "90 Tage" },
+          ] as const).map((dp) => (
+            <button
+              key={dp.key}
+              type="button"
+              onClick={() => setDatePreset(dp.key)}
+              className={`rounded-lg px-2.5 py-1.5 text-xs font-medium transition ${
+                datePreset === dp.key
+                  ? "bg-accent text-white"
+                  : "bg-app-surface text-txt-muted border border-app-border hover:bg-app-elevated"
+              }`}
+            >
+              {dp.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Tabs */}

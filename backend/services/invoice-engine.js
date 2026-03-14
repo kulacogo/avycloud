@@ -383,7 +383,8 @@ function buildInvoicePdf(data) {
  */
 async function exportToSevDesk({ invoiceId }) {
   try {
-    const snap = await getDb().collection(INVOICES_COLLECTION).doc(invoiceId).get();
+    const db = getDb();
+    const snap = await db.collection(INVOICES_COLLECTION).doc(invoiceId).get();
     if (!snap.exists) throw new Error('Rechnung nicht gefunden');
     const invoice = snap.data();
 
@@ -391,39 +392,122 @@ async function exportToSevDesk({ invoiceId }) {
     const token = await getSecretValue('SEVDESK_API_TOKEN');
     if (!token) throw new Error('SevDesk API Token not configured');
 
-    // Create invoice in SevDesk
-    const res = await fetch('https://my.sevdesk.de/api/v1/Invoice', {
-      method: 'POST',
-      headers: {
-        Authorization: token,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        invoice: {
-          objectName: 'Invoice',
-          invoiceNumber: invoice.invoiceNumber,
-          invoiceDate: invoice.date,
-          deliveryDate: invoice.date,
-          status: 100, // Draft
-          taxRate: Math.round((invoice.vatRate || 0.19) * 100),
-          sumNet: String(invoice.amountNetto || 0),
-          sumGross: String(invoice.amountBrutto || 0),
-          currency: invoice.currency || 'EUR',
-        },
-      }),
-    });
+    const sevdeskHeaders = { Authorization: token, 'Content-Type': 'application/json' };
+    const sevdeskFetch = async (path, body) => {
+      const r = await fetch(`https://my.sevdesk.de/api/v1${path}`, {
+        method: 'POST', headers: sevdeskHeaders, body: JSON.stringify(body),
+      });
+      if (!r.ok) {
+        const text = await r.text().catch(() => '');
+        throw new Error(`SevDesk ${r.status} ${path}: ${text.slice(0, 300)}`);
+      }
+      return r.json();
+    };
 
-    if (!res.ok) {
-      const body = await res.text().catch(() => '');
-      throw new Error(`SevDesk ${res.status}: ${body.slice(0, 200)}`);
+    // 1. Create or find Contact in SevDesk
+    const cust = invoice.customer || {};
+    let contactId = null;
+    if (cust.name) {
+      const contactRes = await sevdeskFetch('/Contact', {
+        customerNumber: invoice.orderId || null,
+        name: cust.name,
+        category: { id: 3, objectName: 'Category' }, // 3 = Customer
+      });
+      contactId = contactRes?.objects?.id || null;
+
+      // Add address to contact if available
+      if (contactId && (cust.street || cust.city)) {
+        try {
+          await sevdeskFetch('/ContactAddress', {
+            contact: { id: contactId, objectName: 'Contact' },
+            street: cust.street || '',
+            zip: cust.zip || '',
+            city: cust.city || '',
+            country: { id: 1, objectName: 'StaticCountry' }, // 1 = Deutschland (default)
+          });
+        } catch (addrErr) {
+          console.warn(`[invoice-engine] SevDesk address creation failed: ${addrErr.message}`);
+        }
+      }
     }
 
-    const data = await res.json();
-    const sevdeskId = data?.objects?.id || null;
+    // 2. Create Invoice header in SevDesk
+    const taxRate = Math.round((invoice.vatRate || 0.19) * 100);
+    const invoicePayload = {
+      invoice: {
+        objectName: 'Invoice',
+        invoiceNumber: invoice.invoiceNumber,
+        invoiceDate: invoice.date,
+        deliveryDate: invoice.date,
+        deliveryDateUntil: invoice.date,
+        status: 100, // Draft
+        taxRate,
+        taxText: `Umsatzsteuer ${taxRate / 100}%`,
+        taxType: taxRate === 0 ? 'noteu' : 'default',
+        currency: invoice.currency || 'EUR',
+        ...(contactId ? { contact: { id: contactId, objectName: 'Contact' } } : {}),
+        ...(invoice.dueDate ? { payDate: invoice.dueDate } : {}),
+        address: cust.name
+          ? [cust.name, cust.street, `${cust.zip || ''} ${cust.city || ''}`.trim(), cust.country || ''].filter(Boolean).join('\n')
+          : null,
+        mapAll: true,
+      },
+    };
+
+    const invoiceRes = await sevdeskFetch('/Invoice', invoicePayload);
+    const sevdeskId = invoiceRes?.objects?.id || null;
+
+    // 3. Create line items (InvoicePos) from order
+    if (sevdeskId && invoice.orderId) {
+      try {
+        const orderSnap = await db.collection(ORDERS_COLLECTION).doc(invoice.orderId).get();
+        const items = orderSnap.exists ? (orderSnap.data()?.items || []) : [];
+        const vatFactor = 1 + (invoice.vatRate || 0.19);
+
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i];
+          const qty = Number(item.quantity) || 1;
+          const brutto = Number(item.priceBrutto) || 0;
+          const netto = Math.round((brutto / vatFactor) * 100) / 100;
+
+          await sevdeskFetch('/InvoicePos', {
+            invoicePos: {
+              invoice: { id: sevdeskId, objectName: 'Invoice' },
+              name: item.name || item.sku || 'Artikel',
+              quantity: qty,
+              price: netto,
+              unity: { id: 1, objectName: 'Unity' },
+              taxRate,
+              positionNumber: i + 1,
+              mapAll: true,
+            },
+          });
+        }
+
+        // If no items but we have totals, create a single summary position
+        if (items.length === 0 && invoice.amountNetto) {
+          await sevdeskFetch('/InvoicePos', {
+            invoicePos: {
+              invoice: { id: sevdeskId, objectName: 'Invoice' },
+              name: `Bestellung ${invoice.orderNumber || invoice.orderId}`,
+              quantity: 1,
+              price: invoice.amountNetto,
+              unity: { id: 1, objectName: 'Unity' },
+              taxRate,
+              positionNumber: 1,
+              mapAll: true,
+            },
+          });
+        }
+      } catch (itemErr) {
+        console.warn(`[invoice-engine] SevDesk line items failed: ${itemErr.message}`);
+      }
+    }
 
     // Update invoice with SevDesk ID
     await snap.ref.set({
       sevdeskId,
+      sevdeskContactId: contactId,
       sevdeskExportedAt: new Date().toISOString(),
     }, { merge: true });
 

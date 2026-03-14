@@ -8,6 +8,8 @@ const { getShippingCostsSummary: getSendCloudShippingSummary } = require('../lib
 const { getEbayNetRevenueSummary } = require('../lib/ebay-finances');
 const { emitSyncEvent } = require('../services/sync-event-bus');
 
+const SENDCLOUD_BASE_URL = 'https://panel.sendcloud.sc/api/v2';
+
 // ── Factory: backgroundSyncOrders wird von index.js injiziert ────────
 
 let _backgroundSyncOrders = () => {};
@@ -894,11 +896,15 @@ router.get('/shipping-methods', requirePermission('orders', 'read'), async (req,
 router.post('/orders/:orderId/ship', requirePermission('orders', 'write'), async (req, res) => {
   try {
     const { orderId } = req.params;
-    const { shippingMethodId, weight } = req.body;
+    const { shippingMethodId, weight, labelFormat } = req.body;
     const tenantId = req.user?.tenantId || 'default';
 
+    // Validate labelFormat — default to 'a6' (thermal) if not provided or invalid
+    const validFormats = ['a4', 'a6'];
+    const resolvedFormat = validFormats.includes(labelFormat) ? labelFormat : 'a6';
+
     const { shipOrder } = require('../services/shipping-engine');
-    const result = await shipOrder({ orderId, tenantId, shippingMethodId, weight });
+    const result = await shipOrder({ orderId, tenantId, shippingMethodId, weight, labelFormat: resolvedFormat });
 
     // Only transition to shipped if we have confirmed tracking
     if (result.trackingNumber) {
@@ -1147,7 +1153,7 @@ router.post('/orders/sync-sendcloud', requirePermission('orders', 'write'), asyn
  */
 router.post('/orders/bulk-ship', requirePermission('orders', 'write'), async (req, res) => {
   try {
-    const { orderIds, shippingMethodId } = req.body;
+    const { orderIds, shippingMethodId, labelFormat } = req.body;
     if (!Array.isArray(orderIds) || orderIds.length === 0) {
       return res.status(400).json({ ok: false, error: { code: 'VALIDATION', message: 'orderIds array required' } });
     }
@@ -1157,6 +1163,8 @@ router.post('/orders/bulk-ship', requirePermission('orders', 'write'), async (re
 
     const tenantId = req.user?.tenantId || 'default';
     const actor = { uid: req.user?.uid || 'system', email: req.user?.email || 'api' };
+    const validFormats = ['a4', 'a6'];
+    const resolvedFormat = validFormats.includes(labelFormat) ? labelFormat : 'a6';
     const { shipOrder } = require('../services/shipping-engine');
     const { transitionOrder } = require('../services/order-state-machine');
     const { pushTrackingToMarketplace } = require('../services/marketplace-tracking');
@@ -1164,7 +1172,7 @@ router.post('/orders/bulk-ship', requirePermission('orders', 'write'), async (re
     const results = [];
     for (const orderId of orderIds) {
       try {
-        const result = await shipOrder({ orderId, tenantId, shippingMethodId });
+        const result = await shipOrder({ orderId, tenantId, shippingMethodId, labelFormat: resolvedFormat });
 
         // Auto-transition to shipped
         await transitionOrder({
@@ -1334,10 +1342,13 @@ router.put('/orders/:orderId', requirePermission('orders', 'write'), async (req,
 /**
  * GET /api/orders/:orderId/label — Proxy SendCloud label PDF with auth.
  * Returns the PDF directly so the browser can display/print it.
+ * Query params:
+ *   - format: 'a4' | 'a6' (default: 'a6') — selects normal_printer (A4) or label_printer (A6/thermal)
  */
 router.get('/orders/:orderId/label', requirePermission('orders', 'read'), async (req, res) => {
   try {
     const { orderId } = req.params;
+    const format = req.query.format === 'a4' ? 'a4' : 'a6';
 
     // Find shipment for this order
     const snap = await firestore.collection('shipments')
@@ -1351,7 +1362,19 @@ router.get('/orders/:orderId/label', requirePermission('orders', 'read'), async 
     }
 
     const shipment = snap.docs[0].data();
-    const labelUrl = shipment.labelUrl;
+    const parcelId = shipment.sendcloudParcelId;
+
+    // Determine the label URL based on requested format.
+    // If parcel ID is available, construct the URL directly for the desired format.
+    // This allows re-downloading in A4 even if label was originally created as A6, and vice versa.
+    let labelUrl;
+    if (parcelId) {
+      const printerType = format === 'a4' ? 'normal_printer' : 'label_printer';
+      labelUrl = `${SENDCLOUD_BASE_URL}/labels/${printerType}/${parcelId}`;
+    } else {
+      labelUrl = shipment.labelUrl;
+    }
+
     if (!labelUrl) {
       return res.status(404).json({ ok: false, error: { code: 'NOT_FOUND', message: 'Label-URL nicht verfügbar.' } });
     }
