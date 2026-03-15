@@ -1110,4 +1110,80 @@ router.post('/admin/marketplace-tracking/push/:orderId', requirePermission('admi
   }
 });
 
+// ── Backfill order marketplaces ───────────────────────────────────────────
+// Scans all orders and resolves marketplace from raw data, writing the fix
+// back to Firestore. Runs on Cloud Run which has full Firestore access.
+// Usage: POST /api/admin/backfill-order-marketplaces (admin:write)
+router.post('/admin/backfill-order-marketplaces', requirePermission('admin', 'write'), async (req, res) => {
+  const { firestore } = require('../lib/firestore');
+
+  const KNOWN = new Set(['ebay', 'kaufland', 'amazon', 'otto', 'shopify']);
+
+  function detectMarketplace(order) {
+    const stored = String(order.marketplace || order.source || '').toLowerCase();
+    if (KNOWN.has(stored)) return null; // Already correct, no write needed
+
+    const raw = order.raw || {};
+    const rawSrc = String(raw.order_source || '').toLowerCase();
+    if (rawSrc.includes('ebay')) return 'ebay';
+    if (rawSrc.includes('kaufland') || rawSrc.includes('real.de') || rawSrc.includes('real')) return 'kaufland';
+    if (rawSrc.includes('amazon')) return 'amazon';
+    if (rawSrc.includes('otto')) return 'otto';
+
+    const extId = String(order.marketplaceOrderId || order.externalOrderId || order.orderSourceId || '');
+    if (/^\d{2}-\d{5,}-\d{5,}$/.test(extId)) return 'ebay';
+
+    return null;
+  }
+
+  try {
+    const dryRun = req.query.dry_run === 'true';
+    const snap = await firestore.collection('orders').get();
+
+    let checked = 0;
+    let fixed = 0;
+    let unchanged = 0;
+    let unresolvable = 0;
+    const BATCH_LIMIT = 400;
+    let batch = firestore.batch();
+    let batchCount = 0;
+
+    const flush = async () => {
+      if (batchCount > 0 && !dryRun) await batch.commit();
+      batch = firestore.batch();
+      batchCount = 0;
+    };
+
+    for (const doc of snap.docs) {
+      checked++;
+      const order = doc.data();
+      const marketplace = detectMarketplace(order);
+
+      if (!marketplace) {
+        const stored = String(order.marketplace || order.source || '').toLowerCase();
+        if (KNOWN.has(stored)) unchanged++;
+        else unresolvable++;
+        continue;
+      }
+
+      fixed++;
+      if (!dryRun) {
+        batch.update(doc.ref, { marketplace, source: marketplace });
+        batchCount++;
+        if (batchCount >= BATCH_LIMIT) await flush();
+      }
+    }
+
+    await flush();
+
+    res.json({
+      ok: true,
+      data: { checked, fixed, unchanged, unresolvable, dryRun },
+    });
+  } catch (error) {
+    console.error('[POST /api/admin/backfill-order-marketplaces] Error:', error.message);
+    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: error.message } });
+  }
+});
+
 module.exports = router;

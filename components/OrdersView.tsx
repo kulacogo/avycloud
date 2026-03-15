@@ -67,9 +67,10 @@ const sourceBadge = (source?: string | null) => {
   if (s.includes("ebay")) return { label: "eBay", cls: "bg-warning-dim text-warning border-warning/20" };
   if (s.includes("kaufland")) return { label: "Kaufland", cls: "bg-danger-dim text-danger border-danger/20" };
   if (s.includes("amazon")) return { label: "Amazon", cls: "bg-info-dim text-info border-info/20" };
-  // Legacy BaseLinker orders: show as "Legacy" instead of raw "baselinker" string
-  if (s.includes("baselinker") || s === "bl") return { label: "Legacy", cls: "bg-app-elevated text-txt-muted border-app-border" };
-  return { label: source, cls: "bg-app-elevated text-txt-secondary border-app-border" };
+  if (s === "otto") return { label: "Otto", cls: "bg-app-elevated text-txt-secondary border-app-border" };
+  if (s === "shopify") return { label: "Shopify", cls: "bg-success-dim text-success border-success/20" };
+  // Unknown source — don't render a badge (backend should have resolved this)
+  return null;
 };
 
 /* ─── KPI Card ─── */

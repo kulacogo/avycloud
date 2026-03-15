@@ -132,7 +132,7 @@
 > Entfernt: 34 Scripts, 7 Lib-Dateien, 4 Service-Dateien, 3 Root-Referenzdateien.
 > Bereinigt: 7 Routes, 11 Services, 18 Frontend-Dateien, Test-Mocks, cloudbuild.yaml, RBAC, Integration-Registry.
 
-- [ ] **⛔ C1: Daten-Migration — NICHT ERLEDIGT!** BL-Orders `marketplace`-Feld backfillen (BUG-040). Script vorhanden: `backend/scripts/backfill-baselinker-orders.js`. **Muss manuell ausgeführt werden:** `node backend/scripts/backfill-baselinker-orders.js --dry-run` → dann ohne `--dry-run`. UI-Fix: `sourceBadge()` zeigt "Legacy" statt Roh-String (2026-03-15).
+- [ ] **⛔ C1: Daten-Migration — TEILWEISE ERLEDIGT (2026-03-15)** Self-Healing aktiv: `normalizeOrderForResponse()` erkennt Marketplace aus `raw.order_source` + schreibt zurück in Firestore (automatisch bei jedem Seitenaufruf). Admin Bulk-Fix: `POST /api/admin/backfill-order-marketplaces` — einmalig ausführen für komplette Migration. `sourceBadge()` zeigt kein "Legacy" mehr.
 - [x] C2: Dashboard-Metriken — BL-Fallback entfernt, nur lokale Order-Aggregation
 - [x] C3: Shipping-Kosten — BL-Fallback entfernt, nur SevDesk + SendCloud
 - [x] C4-C5: Backend lib (7) + services (4) gelöscht
@@ -212,11 +212,20 @@
 > Historische Orders in Firestore haben `source: 'baselinker'` statt `source: 'ebay'`/`source: 'kaufland'`.
 > Die UI zeigt "baselinker" als Quelle. Kunden, Adressen, Zahlungsdaten fehlen teilweise.
 
-- [ ] **Backfill-Script ausführen:** `node backend/scripts/backfill-baselinker-orders.js --dry-run` → Output prüfen → `node backend/scripts/backfill-baselinker-orders.js`
-- [ ] **Verifizieren:** Firestore Console → `orders` Collection → kein Dokument mit `source: 'baselinker'` mehr vorhanden
-- [ ] **UI verifizieren:** avycloud.web.app → Bestellungen → keine Order zeigt "baselinker" oder "Legacy" als Quelle
+**Option A — Self-Healing (automatisch, läuft schon):** Seit 2026-03-15 heilt `normalizeOrderForResponse()` in `routes/orders.js` jede abgerufene Order automatisch: erkennt Marketplace aus `raw.order_source` → schreibt `marketplace` + `source` zurück in Firestore (fire-and-forget). Keine manuelle Aktion nötig — passiert beim nächsten Seitenaufruf.
 
-**Datei:** `backend/scripts/backfill-baselinker-orders.js`
+**Option B — Admin Bulk-Fix (empfohlen für sofortige Komplett-Migration):**
+- Dry-run (prüfen): `curl -X POST "https://product-hub-backend-*.europe-west3.run.app/api/admin/backfill-order-marketplaces?dry_run=true" -H "Authorization: Bearer $TOKEN"`
+- Ausführen: `curl -X POST ".../api/admin/backfill-order-marketplaces" -H "Authorization: Bearer $TOKEN"`
+- Liefert: `{ checked, fixed, unchanged, unresolvable }`
+
+**Option C — Script (nur mit Cloud Run Credentials):** `node backend/scripts/backfill-baselinker-orders.js --dry-run` → ohne `--dry-run`
+
+- [ ] **Option B ausführen** (empfohlen — läuft auf Cloud Run, hat volle Firestore-Rechte)
+- [ ] **Verifizieren:** Firestore Console → `orders` Collection → kein Dokument mit `source: 'baselinker'` mehr vorhanden
+- [ ] **UI verifizieren:** avycloud.web.app → Bestellungen → keine Order zeigt unbekannte Quelle mehr
+
+**Datei:** `backend/scripts/backfill-baselinker-orders.js`, `backend/routes/admin.js` (Bulk-Fix Endpoint)
 **Was das Script tut:**
 1. Findet alle Orders mit `source === 'baselinker'`
 2. Liest `raw.order_source` → mappt zu `ebay`/`kaufland`
@@ -281,14 +290,21 @@
 
 ---
 
-**FIX-6: BUG-082b — sourceBadge zeigt "baselinker" als Roh-String (P1)**
+**FIX-6: BUG-082b — Marketplace-Quelle nicht erkannt ("Legacy" / Roh-String) (P1)** ✅ ERLEDIGT 2026-03-15
 
-> Orders mit `source: 'baselinker'` zeigten den Roh-String in der Source-Spalte.
+> Orders mit `source: 'baselinker'` / unbekanntem Marketplace-Wert zeigten "Legacy" oder Roh-String.
+> Ursache: historische Orders kamen aus einer entfernten Drittsystem-Integration.
 
-- [x] **Frontend-Fix (Cowork erledigt):** `sourceBadge()` mappt `baselinker`/`bl` → Label "Legacy" mit muted Styling
-- [ ] **Production verifizieren:** Bestellungen → keine Order zeigt "baselinker" als Badge-Text (nach FIX-1 Backfill sind es dann "eBay"/"Kaufland")
+- [x] ✅ **Backend (orders.js):** `resolveOrderMarketplace()` + `normalizeOrderForResponse()` — erkennt Marketplace zur Abfrage-Zeit aus `raw.order_source` + eBay-Order-ID-Pattern (2026-03-15)
+- [x] ✅ **Self-Heal:** Wenn Marketplace erkannt + weicht von gespeichertem Wert ab → Fire-and-Forget Firestore-Update (permanent fix ohne separaten Backfill-Lauf)
+- [x] ✅ **Admin Bulk-Fix:** `POST /api/admin/backfill-order-marketplaces?dry_run=true` — scannt alle Orders und schreibt korrekte marketplace/source Felder (läuft auf Cloud Run mit vollen Firestore-Rechten)
+- [x] ✅ **Frontend (OrdersView.tsx):** `sourceBadge()` zeigt kein "Legacy" mehr — unbekannte Quellen werden ignoriert (Backend liefert jetzt immer aufgelöste Werte)
+- [ ] **Production verifizieren:** Bestellungen → alle Orders zeigen "eBay" oder "Kaufland" Badge
 
-**Geänderte Datei:** `components/OrdersView.tsx` → `sourceBadge()` Zeile ~70
+**Geänderte Dateien:**
+- `backend/routes/orders.js` — `KNOWN_MARKETPLACES`, `resolveOrderMarketplace()`, `normalizeOrderForResponse()` + Self-Heal
+- `backend/routes/admin.js` — `POST /admin/backfill-order-marketplaces`
+- `components/OrdersView.tsx` → `sourceBadge()` ohne Legacy-Mapping
 
 ---
 

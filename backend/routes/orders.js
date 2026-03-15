@@ -1,6 +1,6 @@
 const router = require('express').Router();
 const { requirePermission } = require('../lib/rbac');
-const { listOrders, getDashboardMetrics, computeOrdersDeliveryTotal } = require('../lib/firestore');
+const { listOrders, getDashboardMetrics, computeOrdersDeliveryTotal, firestore } = require('../lib/firestore');
 const { syncNewOrders, markOrderAsPicked, markOrderAsPacked } = require('../services/order-sync');
 const { attachPickHintsToOrders } = require('../services/pick-hints');
 const { getCheckAccountBalances, getShippingCostsFromSevDesk } = require('../lib/sevdesk');
@@ -19,6 +19,65 @@ function setBackgroundSyncOrders(fn) {
 }
 
 
+// ── Marketplace resolution ────────────────────────────────────────────
+
+const KNOWN_MARKETPLACES = new Set(['ebay', 'kaufland', 'amazon', 'otto', 'shopify']);
+
+/**
+ * Determine the real marketplace for an order.
+ * If the stored source/marketplace is not a known value, attempts to derive
+ * it from the embedded raw.order_source string and external order ID formats.
+ * Returns the canonical marketplace key (ebay / kaufland / ...) or null.
+ */
+function resolveOrderMarketplace(order) {
+  const stored = String(order.marketplace || order.source || '').toLowerCase();
+
+  if (KNOWN_MARKETPLACES.has(stored)) return stored;
+
+  // Stored value is not a recognized marketplace — try to detect from embedded raw data
+  const raw = order.raw || {};
+  const rawSrc = String(raw.order_source || '').toLowerCase();
+
+  if (rawSrc.includes('ebay')) return 'ebay';
+  if (rawSrc.includes('kaufland') || rawSrc.includes('real.de') || rawSrc.includes('real')) return 'kaufland';
+  if (rawSrc.includes('amazon')) return 'amazon';
+  if (rawSrc.includes('otto')) return 'otto';
+
+  // Last resort: eBay order IDs follow the pattern "12-12345-12345"
+  const extId = String(order.marketplaceOrderId || order.externalOrderId || order.orderSourceId || '');
+  if (/^\d{2}-\d{5,}-\d{5,}$/.test(extId)) return 'ebay';
+
+  return null; // Cannot determine
+}
+
+/**
+ * Strip internal fields and resolve marketplace before sending to frontend.
+ * Self-heals Firestore: when we successfully derive the marketplace from raw
+ * data and it differs from what's stored, we fire a background update so the
+ * fix is permanent and the next read won't need the fallback logic.
+ */
+function normalizeOrderForResponse(order) {
+  const resolvedMarketplace = resolveOrderMarketplace(order);
+  const { raw: _raw, ...rest } = order; // eslint-disable-line no-unused-vars
+
+  // Self-heal: persist the corrected marketplace back to Firestore (fire-and-forget).
+  if (resolvedMarketplace && resolvedMarketplace !== order.marketplace) {
+    const orderId = order.id || order.orderId;
+    if (orderId) {
+      firestore
+        .collection('orders')
+        .doc(orderId)
+        .update({ marketplace: resolvedMarketplace, source: resolvedMarketplace })
+        .catch(() => {}); // Non-critical — never block the response
+    }
+  }
+
+  return {
+    ...rest,
+    ...(resolvedMarketplace ? { marketplace: resolvedMarketplace, source: resolvedMarketplace } : {}),
+  };
+}
+
 // ── Routes ───────────────────────────────────────────────────────────
 
 router.get('/orders', requirePermission('orders', 'read'), async (req, res) => {
@@ -36,7 +95,8 @@ router.get('/orders', requirePermission('orders', 'read'), async (req, res) => {
     const total = rawOrders.length;
     const paginatedOrders = rawOrders.slice(offset, offset + limit);
     const orders = await attachPickHintsToOrders(paginatedOrders);
-    res.json({ ok: true, data: orders, meta: { total, limit, offset, hasMore: offset + limit < total } });
+    const normalized = orders.map(normalizeOrderForResponse);
+    res.json({ ok: true, data: normalized, meta: { total, limit, offset, hasMore: offset + limit < total } });
   } catch (error) {
     console.error('Failed to load orders:', error);
     res.status(500).json({
@@ -521,7 +581,7 @@ router.post('/orders/sync', requirePermission('orders', 'read'), async (req, res
     const rawOrders = await listOrders(Math.min(Number(req.query?.limit) || 200, 100));
 
     const orders = await attachPickHintsToOrders(rawOrders || []);
-    res.json({ ok: true, data: orders });
+    res.json({ ok: true, data: orders.map(normalizeOrderForResponse) });
   } catch (error) {
     console.error('Failed to sync orders:', error);
     res.status(500).json({
@@ -594,8 +654,6 @@ router.post('/orders/:orderId/pack', requirePermission('orders', 'pack'), async 
 });
 
 // ── Order Settings (CRUD for automation rules, statuses, number ranges) ──
-
-const { firestore } = require('../lib/firestore');
 
 function getOrderSettingsTenantId(req) {
   return req.user?.tenantId || 'default';
@@ -821,7 +879,7 @@ router.get('/orders/:orderId/detail', requirePermission('orders', 'read'), async
     res.json({
       ok: true,
       data: {
-        order,
+        order: normalizeOrderForResponse(order),
         timeline,
         nextStatuses,
         allStatuses,
