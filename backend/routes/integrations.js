@@ -271,6 +271,14 @@ router.delete('/integrations/:type', requirePermission('integrations', 'write'),
     }
 
     const result = await integrationStore.deleteIntegration({ tenantId, type });
+
+    // eBay stores its OAuth tokens in a separate `integrations` collection (ebay-oauth.js).
+    // The generic store only clears `integrations_config`, so we must also wipe the eBay doc.
+    if (type === 'ebay') {
+      const { firestore } = require('../lib/firestore');
+      await firestore.collection('integrations').doc('ebay').delete().catch(() => {});
+    }
+
     res.json({ ok: true, data: result });
   } catch (err) {
     console.error(`[DELETE /api/integrations/${req.params.type}] ${err.message}`, err);
