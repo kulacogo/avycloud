@@ -366,9 +366,21 @@ function buildRuleIssues(product, { webEvidence } = {}) {
     }
   }
 
-  // Weight plausibility: compare stored bucket weight with web evidence or high-signal keywords.
-  const storedWeight = Number(attrs?.weight || details?.weight || 0);
+  // Weight presence check: flag products with no weight at all.
+  const storedWeight = Number(attrs?.weight || details?.weight || attrs?.['Gewicht (kg)'] || 0);
   const hasStoredWeight = Number.isFinite(storedWeight) && storedWeight > 0;
+  if (!hasStoredWeight) {
+    issues.push({
+      code: 'weight_missing',
+      severity: 'warn',
+      fields: ['details.weight'],
+      message: 'Produktgewicht fehlt. Pflichtfeld für Carrier-Zuordnung (DHL/DPD) und Versandkosten-Kalkulation.',
+      source: 'rule',
+      confidence: 1.0,
+    });
+  }
+
+  // Weight plausibility: compare stored bucket weight with web evidence or high-signal keywords.
   const pages = Array.isArray(webEvidence?.pages) ? webEvidence.pages : [];
   const weightHits = [];
   for (const p of pages.filter((x) => x?.ok)) {

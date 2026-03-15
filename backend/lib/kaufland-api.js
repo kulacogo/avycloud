@@ -589,6 +589,30 @@ async function updateUnit(unitId, product, { storefront = 'de' } = {}) {
   };
 }
 
+/**
+ * Explicitly set a Kaufland unit's status to ONHOLD or AVAILABLE.
+ * Unlike updateUnit(), this bypasses price/SKU validation — safe to call even
+ * when listing_price or id_offer are missing (e.g. zero-stock delist).
+ *
+ * @param {string|number} unitId - Kaufland unit ID
+ * @param {'ONHOLD'|'AVAILABLE'} status
+ * @param {{ storefront?: string }} options
+ */
+async function setUnitStatus(unitId, status, { storefront = 'de' } = {}) {
+  const validStatuses = ['AVAILABLE', 'ONHOLD'];
+  const normalizedStatus = String(status || '').toUpperCase();
+  if (!validStatuses.includes(normalizedStatus)) {
+    throw new Error(`Invalid Kaufland unit status: ${status}`);
+  }
+  const body = { status: normalizedStatus };
+  if (normalizedStatus === 'ONHOLD') body.amount = 0;
+  const res = await kauflandRequest('PATCH', `/units/${encodeURIComponent(String(unitId))}`, {
+    query: { storefront },
+    body,
+  });
+  return { updated: true, status: normalizedStatus, data: res.data };
+}
+
 module.exports = {
   kauflandRequest,
   findUnit,
@@ -601,5 +625,6 @@ module.exports = {
   patchProductData,
   createUnit,
   updateUnit,
+  setUnitStatus,
   pickUnitData,
 };

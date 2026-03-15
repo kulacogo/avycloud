@@ -36,7 +36,7 @@ export const useJobStream = (jobId: string | null, options: UseJobStreamOptions)
   const [job, setJob] = useState<IdentificationJob | null>(null);
   const [status, setStatus] = useState<JobStreamStatus>("idle");
   const [error, setError] = useState<string | null>(null);
-  const eventSourceRef = useRef<EventSource | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
   const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const onUpdateRef = useRef(onUpdate);
@@ -47,9 +47,9 @@ export const useJobStream = (jobId: string | null, options: UseJobStreamOptions)
   onCompleteRef.current = onComplete;
 
   const cleanup = useCallback(() => {
-    if (eventSourceRef.current) {
-      eventSourceRef.current.close();
-      eventSourceRef.current = null;
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
     }
     if (pollTimerRef.current) {
       clearInterval(pollTimerRef.current);
@@ -117,36 +117,61 @@ export const useJobStream = (jobId: string | null, options: UseJobStreamOptions)
       setError("Job stream timed out.");
     }, timeoutMs);
 
-    // Try SSE first.
-    try {
-      const backendUrl = getBackendUrl();
-      const sseUrl = `${backendUrl}/api/jobs/${encodeURIComponent(jobId)}/stream?token=${encodeURIComponent(token)}`;
-      const es = new EventSource(sseUrl);
-      eventSourceRef.current = es;
+    // Try SSE first (fetch-based to avoid token in URL query param).
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
 
-      es.onopen = () => {
+    (async () => {
+      try {
+        const backendUrl = getBackendUrl();
+        const sseUrl = `${backendUrl}/api/jobs/${encodeURIComponent(jobId)}/stream`;
+        const response = await fetch(sseUrl, {
+          headers: { Authorization: `Bearer ${token}` },
+          signal: controller.signal,
+        });
+
+        if (!response.ok) throw new Error(`SSE connect failed: ${response.status}`);
+        if (!response.body) throw new Error("No response body");
+
         setStatus("streaming");
-      };
 
-      es.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data) as IdentificationJob;
-          handleJobData(data);
-        } catch {
-          // Ignore malformed messages.
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const messages = buffer.split("\n\n");
+          buffer = messages.pop() ?? "";
+
+          for (const message of messages) {
+            if (!message.trim()) continue;
+
+            let data = "";
+            for (const line of message.split("\n")) {
+              if (line.startsWith("data: ")) {
+                data = line.slice(6);
+              }
+            }
+            if (!data) continue;
+
+            try {
+              const parsed = JSON.parse(data) as IdentificationJob;
+              handleJobData(parsed);
+            } catch {
+              // Ignore malformed messages.
+            }
+          }
         }
-      };
-
-      es.onerror = () => {
-        // SSE failed — close and fall back to polling.
-        es.close();
-        eventSourceRef.current = null;
+      } catch (err: any) {
+        if (err?.name === "AbortError") return;
+        // SSE failed — fall back to polling.
         startPolling();
-      };
-    } catch {
-      // EventSource constructor failed — fall back to polling.
-      startPolling();
-    }
+      }
+    })();
 
     return cleanup;
     // eslint-disable-next-line react-hooks/exhaustive-deps

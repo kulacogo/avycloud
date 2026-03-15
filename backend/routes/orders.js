@@ -66,21 +66,17 @@ router.get('/dashboard/metrics', requirePermission('dashboard', 'read'), async (
     const metrics = await getDashboardMetrics({ days, preset, fromDate, toDate });
 
     // Pull returns from Firestore `returns` collection for KPIs (net revenue + returns counts).
+    // Uses the shared firestore singleton (no yearStart filter) so counts match the Returns page.
     try {
-      const { Firestore: _Firestore } = require('@google-cloud/firestore');
-      const _returnsDb = new _Firestore();
       const rangeStart = metrics?.range?.from_iso ? new Date(metrics.range.from_iso) : null;
       const rangeEndExclusive = metrics?.range?.to_iso ? new Date(metrics.range.to_iso) : null;
-      const now = new Date();
-      const yearStart = new Date(Date.UTC(now.getUTCFullYear(), 0, 1, 0, 0, 0));
       const monthStart = metrics?.revenue?.month_start_iso ? new Date(metrics.revenue.month_start_iso) : null;
 
-      const returnsSnap = await _returnsDb.collection('returns')
-        .where('createdAt', '>=', yearStart.toISOString())
+      const returnsSnap = await firestore.collection('returns')
         .select('refundAmount', 'currency', 'createdAt', 'status')
         .get();
 
-      let ytdCount = 0, ytdValue = 0;
+      let totalCount = 0, totalValue = 0;
       let monthCount = 0;
       let windowCount = 0, windowValue = 0;
 
@@ -88,26 +84,25 @@ router.get('/dashboard/metrics', requirePermission('dashboard', 'read'), async (
         const d = doc.data();
         const amount = Number(d.refundAmount || 0) || 0;
         const created = d.createdAt ? new Date(d.createdAt) : null;
-        if (!created) continue;
 
-        ytdCount++;
-        ytdValue += amount;
+        totalCount++;
+        totalValue += amount;
 
-        if (monthStart && created >= monthStart) monthCount++;
-        if (rangeStart && rangeEndExclusive && created >= rangeStart && created < rangeEndExclusive) {
+        if (created && monthStart && created >= monthStart) monthCount++;
+        if (created && rangeStart && rangeEndExclusive && created >= rangeStart && created < rangeEndExclusive) {
           windowCount++;
           windowValue += amount;
         }
       }
 
       if (metrics?.orders) {
-        metrics.orders.returns_total = ytdCount;
+        metrics.orders.returns_total = totalCount;
         metrics.orders.returns_month = monthCount;
       }
 
       if (metrics?.revenue) {
         if (typeof metrics.revenue.all_non_cancelled_total === 'number') {
-          metrics.revenue.all_non_cancelled_total = Number((metrics.revenue.all_non_cancelled_total - ytdValue).toFixed(2));
+          metrics.revenue.all_non_cancelled_total = Number((metrics.revenue.all_non_cancelled_total - totalValue).toFixed(2));
         }
         if (typeof metrics.revenue.window_non_cancelled_total === 'number') {
           metrics.revenue.window_non_cancelled_total = Number((metrics.revenue.window_non_cancelled_total - windowValue).toFixed(2));
@@ -115,7 +110,7 @@ router.get('/dashboard/metrics', requirePermission('dashboard', 'read'), async (
       }
 
       metrics.returns = {
-        total: { count: ytdCount, value_by_currency: { EUR: Math.round(ytdValue * 100) / 100 } },
+        total: { count: totalCount, value_by_currency: { EUR: Math.round(totalValue * 100) / 100 } },
         window: { count: windowCount, value_by_currency: { EUR: Math.round(windowValue * 100) / 100 } },
       };
     } catch (err) {

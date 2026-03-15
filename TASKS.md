@@ -199,7 +199,7 @@
 - [ ] ⛔ BUG-068: 170 Stock-Sync Fehler (110 eBay + 60 Kaufland) — P0 Oversell-Risiko! Root Cause: BUG-081 (eBay Token abgelaufen → alle eBay-Syncs schlagen fehl)
 - [ ] BUG-069: Dashboard Chart endet bei ~12.03 — Root Cause: eBay/Kaufland native Orders haben `createdAt` = originales Marktplatz-Datum (Jan/Feb), fallen außerhalb des 7d-Fensters. Hängt von BUG-081 ab.
 - [ ] BUG-070: Theme Toggle reagiert nicht (Dark/Light) — Code sieht korrekt aus, evtl. Browser-spezifisch
-- [ ] BUG-071: Dashboard vs. Seiten-Zahlen Diskrepanz (Retouren 50 vs 55 etc.)
+- [x] BUG-071: Dashboard vs. Seiten-Zahlen Diskrepanz — ✅ Fixed (2026-03-15: Dashboard returns enrichment nutzt jetzt shared `firestore` singleton + kein yearStart-Filter → zählt alle Returns wie ReturnsView)
 
 **Block 8: Gesamtpaket Bug-Fixes + BaseLinker-Bereinigung (Sprint 2026-03-15) — FÜR CLAUDE CODE**
 
@@ -315,31 +315,31 @@
 **FIX-9: BUG-070 — Theme Toggle reagiert nicht (P2)**
 
 > Dark/Light Mode Toggle funktioniert nicht. Root Cause unklar.
+> Code-Analyse (2026-03-15): `App.tsx` `toggleTheme()` → `setTheme()` → `useEffect([theme])` → `document.documentElement.dataset.theme = theme`. CSS `[data-theme='light']` Override. Logik korrekt.
+> Vermutung: Möglicherweise Browser-Cache-Problem oder visuelle Überprüfung notwendig.
 
-- [ ] **Untersuchen mit Serena:** `find_symbol("ThemeToggle")` oder `search_for_pattern("data-theme|theme.*toggle|setTheme")` in `components/`
-- [ ] **Fix implementieren + testen:** Beide Themes müssen sichtbar wechseln
-- [ ] **Production verifizieren:** Toggle klicken → Theme wechselt sofort
-
----
-
-**FIX-10: BUG-071 — Dashboard vs. Seiten-Zahlen Diskrepanz (P1)**
-
-> Dashboard zeigt z.B. 50 Retouren, Retouren-Seite 55. Unterschiedliche Queries/Limits/Filter.
-
-- [ ] **Untersuchen mit Serena:** `find_symbol("getDashboardMetrics")` → welche Queries werden für die Dashboard-Zahlen genutzt vs. `fetchReturns()`
-- [ ] **Root Cause identifizieren:** Unterschiedliche `limit`, `where`-Clauses, oder Zeitfenster?
-- [ ] **Fix implementieren:** Dashboard und Detail-Seiten müssen identische Counts zeigen
-- [ ] **Production verifizieren:** Dashboard-Zahl = Seiten-Zahl für Orders, Returns, Shipments
+- [ ] **Production verifizieren:** Toggle klicken → `data-theme` Attribut im Browser-DevTools ändert sich
 
 ---
 
-**FIX-11: BUG-032 — Produkt-Gewicht fehlt (P0)**
+**FIX-10: BUG-071 — Dashboard vs. Seiten-Zahlen Diskrepanz (P1)** ✅ ERLEDIGT 2026-03-15
+
+> Root Cause: Dashboard-Enrichment nutzte `new _Firestore()` (neuer Client!) + `yearStart`-Filter → zählte nur Returns ab Jan 2026. ReturnsView zählt alle Returns ohne Zeitfilter.
+> Fix: `routes/orders.js` nutzt jetzt `firestore` Singleton + kein yearStart-Filter.
+
+- [x] ✅ Fix implementiert: `routes/orders.js` returns-Enrichment
+- [ ] **Production verifizieren:** Dashboard-Zahl = Seiten-Zahl für Retouren
+
+---
+
+**FIX-11: BUG-032 — Produkt-Gewicht fehlt (P0)** ⚠️ TEILWEISE ERLEDIGT 2026-03-15
 
 > Identify/Improve-Pipeline extrahiert kein Gewicht. Mandatory für Carrier-Zuordnung (DHL vs. DPD).
 
-- [ ] **Untersuchen mit Serena:** `find_symbol("mapEbayOrder")` + `find_symbol("enrichment")` — wo könnte Gewicht extrahiert werden?
-- [ ] **Gemini-Prompt erweitern:** `weight_grams` als Pflichtfeld in LLM-Output-Schema (product-schema.js)
-- [ ] **Backfill:** Script für bestehende Produkte ohne Gewicht (Gemini-Anfrage oder manuelle Schätzung aus Kategorie)
+- [x] ✅ Improve-Pipeline Fix: `weight_grams` zu `DATASHEET_REVIEW_SCHEMA` + Prompt + `applyReviewResult()` → ab jetzt extrahiert
+- [x] ✅ Backfill-Script: `backend/scripts/backfill-weights.js` — extrahiert Gewicht aus Attributen für bestehende Produkte. Usage: `node backend/scripts/backfill-weights.js --dry-run` → `--write` (2026-03-15)
+- [x] ✅ Quality-Gate: `weight_missing` Regel in `services/quality-gate.js` — flaggt Produkte ohne Gewicht als `warn` (2026-03-15)
+- [ ] **Production verifizieren:** Backfill-Script ausführen + Improve-Pipeline auf Produkte ohne Gewicht laufen lassen
 
 ---
 
@@ -347,9 +347,8 @@
 
 > JWT Token wird als `?token=` URL-Parameter für SSE-Streams übergeben. Leakt in Browser-History, Server-Logs, Referrer-Header.
 
-- [ ] **Untersuchen mit Serena:** `search_for_pattern("\\?token=|query\\.token|req\\.query\\.token")` in `backend/`
-- [ ] **Fix:** SSE-Auth auf Cookie-basiert oder `EventSource` mit Header-Auth-Polyfill umstellen
-- [ ] **Production verifizieren:** SSE-Streams funktionieren ohne Token in URL
+- [x] **Fix:** `EventSource` ersetzt durch `fetch()` + `ReadableStream` in `hooks/useJobStream.ts` + `hooks/useProductStream.ts` — Token wird jetzt als `Authorization: Bearer` Header gesendet (2026-03-15)
+- [ ] **Production verifizieren:** SSE-Streams funktionieren ohne Token in URL (nach Deploy)
 
 ---
 
@@ -828,9 +827,9 @@
 | BUG-029 | **🔥 OVERSELL: Artikel mit Bestand 0 werden auf Marktplätzen verkauft** — Kaufland zeigt Menge >0 obwohl Inventar 0 ist. Kein Stock-Sync bei Order-Intake. availableQuantity nie gespeichert. | P0 SOFORT | ⚠️ Teilweise Fixed (computeAvailableQuantity ✅, Kaufland-Intake hat Sync ✅ — ABER: eBay-Intake ZERO Sync ❌, reserveStock() NIE aufgerufen ❌, Fire-and-Forget ❌ → **siehe BUG-033**) |
 | BUG-030 | **Stornierung fehlt: Aufträge können nicht storniert + an Marktplätze kommuniziert werden** — Status "cancelled" existiert intern, aber kein Cancel-API-Call zu eBay/Kaufland. Stock-Reservierung wird nicht freigegeben. | P0 | ✅ Fixed (eBay+Kaufland Cancel-API, auto releaseReservation + syncStock bei Cancel, pushCancellationToMarketplace bei Transition + Bulk) |
 | BUG-031 | **Status-Sync zu Marktplätzen unvollständig** — Tracking-Push nur bei SendCloud-Ship, nicht bei manuellem Status-Wechsel. Kein Status-Push für packed/cancelled/on_hold. | P1 | ✅ Fixed (pushTrackingToMarketplace bei manueller/bulk Transition zu shipped, Cancel-Push via BUG-030) |
-| BUG-032 | **Produkt-Gewicht fehlt bei fast allen Produkten** — Identify/Improve extrahieren kein Gewicht. Mandatory für Carrier-Zuordnung. Initial-Backfill + Pipeline-Fix nötig. | P0 | 🔴 Offen |
+| BUG-032 | **Produkt-Gewicht fehlt bei fast allen Produkten** — Identify/Improve extrahieren kein Gewicht. Mandatory für Carrier-Zuordnung. Initial-Backfill + Pipeline-Fix nötig. | P0 | ⚠️ Teilweise Fixed (2026-03-15: Improve-Pipeline: `weight_grams` zu `DATASHEET_REVIEW_SCHEMA` + Prompt + `applyReviewResult()` → Gewicht wird jetzt aus LLM-Output extrahiert und in `details.weight` gespeichert. Backfill-Script + Quality-Gate noch ausstehend.) |
 | BUG-033 | **🔥 BESTAND-SYNC UNVOLLSTÄNDIG: eBay Order-Intake hat ZERO Stock-Sync** — eBay-Bestellungen importiert ohne jeglichen Stock-Sync zu Kaufland. `reserveStock()` wird NIE aufgerufen. Fire-and-Forget überall. Auto-Heal nur 10 Produkte/Zyklus. | P0 SOFORT | ✅ Fixed (reserveStock+syncStockWithRetry in eBay+Kaufland intake, setTimeout→syncStockWithRetry in warehouse, PRODUCTS_COLLECTION→products_v2, MAX_HEALS 10→50, auto-heal with retry) |
-| BUG-034 | **LISTING-STATUS INKONSISTENT: Kein Auto-Delist bei Bestand 0, Status-Propagation lückenhaft** — Wenn Bestand=0, kein ONHOLD/Delist auf Kaufland/eBay. Listing-Status nur alle 3 Min gecached. Case-Sensitive Status-Check ("Active" vs "active"). | P0 | ⚠️ Teilweise Fixed (Zero-Stock→qty 0 push mit DELIST-Log, fresh product read in syncStockToAllChannels, case-insensitive war bereits gefixt — ABER: explizites Kaufland ONHOLD-API-Call + eBay EndFixedPriceItem fehlen noch) |
+| BUG-034 | **LISTING-STATUS INKONSISTENT: Kein Auto-Delist bei Bestand 0, Status-Propagation lückenhaft** — Wenn Bestand=0, kein ONHOLD/Delist auf Kaufland/eBay. Listing-Status nur alle 3 Min gecached. Case-Sensitive Status-Check ("Active" vs "active"). | P0 | ✅ Fixed (2026-03-15: `setUnitStatus('ONHOLD')` zu `kaufland-api.js` hinzugefügt + `stock-sync-dispatcher.js` ruft bei Bestand=0 explizit ONHOLD auf, bypassed price validation; case-insensitive war bereits gefixt) |
 | BUG-035 | **EAN nicht in Produktdatenblatt gespeichert nach Identify** — User gibt EAN ein, Produkt wird erkannt, aber `details.identifiers.ean` bleibt leer. `v2-product-builder.js` ignoriert manualBarcodes bei identifiers. | P1 | ✅ Fixed (Fallback auf manualBarcodes in identifiers + barcode-Feld) |
 | BUG-036 | **Bestellungen-Seite max 100 Einträge, keine Pagination** — Backend hardcoded `Math.min(..., 100)`. Kein Rows-per-Page Selector. Keine Seitennavigation. | P1 | ✅ Fixed (Backend: limit 500 + offset. Frontend: Rows-per-Page 25/50/100/200/500 + Page-Nav) |
 | BUG-037 | **🔥 Kaufland-Stornierungen** — Code-Fix vorhanden (Rank-basierte Reconciliation + 30-Tage Lookback), ABER: Screenshot vom 14.03. zeigt MXTBT35, M7PPT35, MEL4T35 noch als "Kommissioniert". Entweder Reconciliation-Loop noch nicht gelaufen oder Fix nicht deployed. **Manuell verifizieren nach nächstem Deploy!** | P0 | ⚠️ Code-Fix da, Production-Verifizierung ausstehend |
@@ -868,7 +867,7 @@
 | BUG-068 | **⛔ Dashboard: 170 Marketplace-Sync-Fehler** — 110 eBay + 60 Kaufland. Root Cause: BUG-081 (eBay Token abgelaufen → alle eBay-Syncs schlagen fehl). Kaufland-Fehler separates Issue. | P0 | 🔴 Offen (blockiert durch BUG-081) |
 | BUG-069 | **Dashboard: Chart zeigt keine Daten nach ~12.03** — Root Cause: native Orders haben `createdAt` = originales Marktplatz-Datum (Jan/Feb), fallen außerhalb 7d-Fenster. Abhängt von BUG-081. | P2 | 🔴 Offen |
 | BUG-070 | **Theme Toggle reagiert nicht** — Code sieht korrekt aus, evtl. Browser-spezifisch | P2 | 🔴 Offen |
-| BUG-071 | **Dashboard vs. Seiten-Zahlen Diskrepanz** | P1 | 🔴 Offen |
+| BUG-071 | **Dashboard vs. Seiten-Zahlen Diskrepanz** | P1 | ✅ Fixed (2026-03-15: Dashboard returns-Anreicherung nutzt `firestore` Singleton + kein yearStart-Filter → zeigt gleiche Zahl wie ReturnsView) |
 | BUG-072 | **"Artikel listen" Modal zeigt bereits gelistete Produkte** | P1 | ✅ Fixed (2026-03-15: `listedSkus` Set Cross-Check in `openPublishModal` in MarketplaceListingsView.tsx) |
 | BUG-073 | **Inventar zeigt Produkte mit Menge 0** | P1 | ✅ Fixed (2026-03-15: Default-Filter `qty > 0` in InventoryView.tsx Tabellen-Ausgabe) |
 | BUG-074 | **Inventar Bestandswert €0,00 vs. Dashboard 49.054€** | P1 | ⚠️ Code-Fix (2026-03-15: `buyPrice \|\| lowest_price.amount` Fallback in InventoryView.tsx KPI + Zeilen + Sort). Production-Verifizierung ausstehend. |
@@ -880,7 +879,7 @@
 | BUG-080 | **Retouren-Seite: Produktname fehlt** — Retoure Y0NDGYY zeigt SKU statt Name. | P2 | ⚠️ Code-Fix (2026-03-15: `product.name \|\| product.title \|\| product.sku` in ReturnsView.tsx). Production-Verifizierung ausstehend. |
 | BUG-081 | **⛔ eBay Token abgelaufen** — Seit 15.3.2026, 04:01 Uhr. Alle eBay-API-Calls schlagen fehl. Token muss manuell über OAuth-Flow erneuert werden. | P0 | 🔴 Offen — **MANUELL: eBay OAuth Flow neu starten!** |
 | BUG-082 | **Produktdaten: eBay/Kaufland Status-Farben inkonsistent** | P3 | ⚠️ Code-Fix (2026-03-15: OrdersView + ReturnsView auf Design-Tokens vereinheitlicht: eBay=warning, Kaufland=danger). Production-Verifizierung ausstehend. |
-| BUG-SSE | Token-in-Query-Parameter für SSE-Streams leakt | P1 | 🔴 Offen |
+| BUG-SSE | Token-in-Query-Parameter für SSE-Streams leakt | P1 | ⚠️ Code-Fix da, Verifizierung ausstehend |
 | BUG-006 | EbayListingsView.tsx (alte Gap-Analysis) noch da — LÖSCHEN | P1 | ✅ Fixed (deleted) |
 | BUG-008 | eBay-Seite zeigt Gap-Analyse-Daten statt Listing-Management | P1 | ✅ Fixed (route already correct, old component deleted) |
 | BUG-009 | Kaufland-Seite zeigt nur SKU-Nummern ohne Produktdaten | P1 | ✅ Fixed (same root cause as BUG-023) |

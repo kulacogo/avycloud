@@ -1511,6 +1511,15 @@ const DATASHEET_REVIEW_SCHEMA = {
       },
       required: [],
     },
+    // Optional: product weight in GRAMS (integer or float).
+    // Extract from WEB-EVIDENCE, packaging, or product data. If not directly available,
+    // provide a realistic estimate based on product type, material, and category.
+    // Return null ONLY if completely impossible to estimate.
+    weight_grams: {
+      type: ['number', 'null'],
+      minimum: 0,
+      maximum: 5000000,
+    },
     // Optional: GPSR manufacturer/contact data (EU compliance).
     // IMPORTANT: do not invent values; only extract from evidence.
     gpsr: {
@@ -1625,6 +1634,7 @@ function buildReviewPrompt(
     '- Beschreibung: SEO-stark und gut lesbar. HTML-Struktur ist verpflichtend (nur <p>, <ul>, <li>, <strong>). Empfohlen: 1 Einleitungs-<p> (2–3 Sätze) + <ul> mit 5–7 Punkten (Nutzen + Spec) + 1 <p> mit technischen Eckdaten/Kompatibilität/Abmessungen/Gewicht (nur wenn belegbar). Zielumfang bei ausreichender Beleglage: ca. 180–240 Wörter. Keine Preis-/Versandtexte, keine Platzhalter, keine Dubletten.',
     '- Highlights: 5–7 Bulletpoints, je Bullet ca. 70–120 Zeichen (je Kategorie) und im Format "[Nutzen] – [konkrete Eigenschaft/Spec]" (Dash/En-Dash mit Leerzeichen). Neutral formulieren (kein "Ihr/Dein"), technisch/faktenbasiert, keine Verpackungshinweise, keine Dubletten.',
     '- Attribute: mindestens 10, sehr granular/technisch, keine Dubletten (auch nicht als Synonyme).',
+    '- Gewicht (weight_grams): Pflichtfeld. Als Zahl in GRAMM (z.B. 500 für 500g, 2500 für 2,5 kg). Aus WEB-EVIDENZ/Verpackung/Produktdaten extrahieren. Falls nicht belegbar: realistisch schätzen basierend auf Produkttyp, Material und Kategorie. Nur null wenn Schätzung unmöglich.',
     '- Zustand: Wenn condition_locked=false, ist "Gebraucht/Used" nicht erlaubt (auf NEU normalisieren).',
     '- Wenn das Datenblatt nicht eBay-ready ist, musst du es reparieren (fehlende Felder ergänzen, Mindestlängen erfüllen).',
     qualityIssues && qualityIssues.length
@@ -1798,6 +1808,54 @@ function applyReviewResult(product, review, { titleHintTokens = [] } = {}) {
         new Set([...(product.notes.warnings || []), ...cleaned])
       );
     }
+  }
+
+  // Weight extraction — save to details.weight (in KG) so carrier selection works.
+  // saveProductV2() will normalize the value via normalizeWeightKgNumber().
+  try {
+    const parseWeightToKg = (raw) => {
+      if (typeof raw === 'number') {
+        if (!Number.isFinite(raw) || raw <= 0) return null;
+        return raw > 50 ? raw / 1000 : raw; // heuristic: >50 = grams
+      }
+      const str = String(raw || '').trim();
+      if (!str) return null;
+      const m = str.match(/([\d.,]+)\s*(kg|g|gramm|grams?|kilogramm|kilograms?)?/i);
+      if (!m) return null;
+      const num = parseFloat(m[1].replace(',', '.'));
+      if (!Number.isFinite(num) || num <= 0) return null;
+      const unit = (m[2] || '').toLowerCase();
+      if (unit === 'g' || unit === 'gramm' || unit === 'grams' || unit === 'gram') return num / 1000;
+      if (unit === 'kg' || unit === 'kilogramm' || unit === 'kilogram' || unit === 'kilograms') return num;
+      return num > 50 ? num / 1000 : num;
+    };
+
+    const WEIGHT_ATTR_KEYS = new Set(['gewicht', 'weight', 'bruttogewicht', 'artikelgewicht', 'produktgewicht', 'versandgewicht', 'shipping weight', 'gesamtgewicht']);
+
+    // Priority 1: dedicated weight_grams field (in grams)
+    let weightKg = null;
+    if (typeof review.weight_grams === 'number' && Number.isFinite(review.weight_grams) && review.weight_grams > 0) {
+      weightKg = review.weight_grams / 1000;
+    }
+
+    // Priority 2: weight-related attributes from the LLM output
+    if (!weightKg && product.details.attributes) {
+      for (const [k, v] of Object.entries(product.details.attributes)) {
+        if (WEIGHT_ATTR_KEYS.has(String(k || '').trim().toLowerCase())) {
+          const parsed = parseWeightToKg(v);
+          if (parsed && parsed > 0) { weightKg = parsed; break; }
+        }
+      }
+    }
+
+    // Save if valid and not already set (saveProductV2 will normalize)
+    if (weightKg && weightKg > 0 && weightKg <= 500) {
+      if (!product.details.weight || product.details.weight <= 0) {
+        product.details.weight = Math.round(weightKg * 1000) / 1000;
+      }
+    }
+  } catch {
+    // non-blocking
   }
 
   // Final strict rulebook pass (no best-effort):

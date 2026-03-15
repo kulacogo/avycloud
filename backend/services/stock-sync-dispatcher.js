@@ -111,32 +111,59 @@ async function syncStockToAllChannels({ tenantId = 'default', product, reason = 
     || freshProduct?.marketplace?.kaufland?.unitId;
 
   if (kauflandUnitId) {
-    try {
-      const { updateUnit } = require('../lib/kaufland-api');
-      const productWithAvailable = {
-        ...freshProduct,
-        inventory: {
-          ...(freshProduct.inventory || {}),
-          availableQuantity,
-        },
-      };
-      const result = await updateUnit(kauflandUnitId, productWithAvailable, { storefront: 'de' });
-      results.push({
-        channel: 'kaufland',
-        status: result?.updated ? 'success' : 'failed',
-        unitId: kauflandUnitId,
-        quantityPushed: availableQuantity,
-        zeroStock: isZeroStock,
-      });
-      console.log(
-        `[stock-sync] kaufland product=${productId} unitId=${kauflandUnitId} qty=${availableQuantity} status=success${isZeroStock ? ' (DELIST)' : ''}`
-      );
-    } catch (err) {
-      results.push({ channel: 'kaufland', status: 'error', error: err?.message });
-      console.warn(
-        `[stock-sync] kaufland FAILED product=${productId} unitId=${kauflandUnitId}:`,
-        err?.message || err
-      );
+    if (isZeroStock) {
+      // Zero stock: explicitly set ONHOLD first — bypasses price validation in updateUnit()
+      // This guarantees the listing is deactivated even if price/SKU data is missing.
+      try {
+        const { setUnitStatus } = require('../lib/kaufland-api');
+        await setUnitStatus(kauflandUnitId, 'ONHOLD', { storefront: 'de' });
+        results.push({
+          channel: 'kaufland',
+          status: 'success',
+          unitId: kauflandUnitId,
+          quantityPushed: 0,
+          zeroStock: true,
+          action: 'onhold',
+        });
+        console.log(
+          `[stock-sync] kaufland ONHOLD product=${productId} unitId=${kauflandUnitId} → status=ONHOLD`
+        );
+      } catch (err) {
+        results.push({ channel: 'kaufland', status: 'error', error: err?.message, action: 'onhold' });
+        console.warn(
+          `[stock-sync] kaufland ONHOLD FAILED product=${productId} unitId=${kauflandUnitId}:`,
+          err?.message || err
+        );
+      }
+    } else {
+      // Stock > 0: full update (price + qty + sets status=AVAILABLE automatically)
+      try {
+        const { updateUnit } = require('../lib/kaufland-api');
+        const productWithAvailable = {
+          ...freshProduct,
+          inventory: {
+            ...(freshProduct.inventory || {}),
+            availableQuantity,
+          },
+        };
+        const result = await updateUnit(kauflandUnitId, productWithAvailable, { storefront: 'de' });
+        results.push({
+          channel: 'kaufland',
+          status: result?.updated ? 'success' : 'failed',
+          unitId: kauflandUnitId,
+          quantityPushed: availableQuantity,
+          zeroStock: false,
+        });
+        console.log(
+          `[stock-sync] kaufland product=${productId} unitId=${kauflandUnitId} qty=${availableQuantity} status=success`
+        );
+      } catch (err) {
+        results.push({ channel: 'kaufland', status: 'error', error: err?.message });
+        console.warn(
+          `[stock-sync] kaufland FAILED product=${productId} unitId=${kauflandUnitId}:`,
+          err?.message || err
+        );
+      }
     }
   }
 

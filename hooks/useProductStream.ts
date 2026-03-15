@@ -45,15 +45,15 @@ export function useProductStream(options: UseProductStreamOptions) {
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<StreamStatus>("idle");
 
-  const eventSourceRef = useRef<EventSource | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
   const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const reconnectAttemptsRef = useRef(0);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const cleanup = useCallback(() => {
-    if (eventSourceRef.current) {
-      eventSourceRef.current.close();
-      eventSourceRef.current = null;
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
     }
     if (pollTimerRef.current) {
       clearInterval(pollTimerRef.current);
@@ -102,49 +102,81 @@ export function useProductStream(options: UseProductStreamOptions) {
     pollTimerRef.current = setInterval(loadProducts, pollIntervalMs);
   }, [loadProducts, pollIntervalMs]);
 
-  // Connect SSE
+  // Connect SSE via fetch (Authorization header — avoids token in URL)
   const connectSSE = useCallback(() => {
     if (!token) return;
     cleanup();
     setStatus("connecting");
 
-    const url = `${getBackendUrl()}/api/products/stream?token=${encodeURIComponent(token)}`;
-    const es = new EventSource(url);
-    eventSourceRef.current = es;
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
 
-    es.addEventListener("connected", () => {
-      setStatus("streaming");
-      reconnectAttemptsRef.current = 0;
-    });
-
-    es.addEventListener("update", (event) => {
+    (async () => {
       try {
-        const data = JSON.parse(event.data);
-        if (data?.changes?.length) {
-          applyChanges(data.changes);
+        const url = `${getBackendUrl()}/api/products/stream`;
+        const response = await fetch(url, {
+          headers: { Authorization: `Bearer ${token}` },
+          signal: controller.signal,
+        });
+
+        if (!response.ok) throw new Error(`SSE connect failed: ${response.status}`);
+        if (!response.body) throw new Error("No response body");
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+
+        setStatus("streaming");
+        reconnectAttemptsRef.current = 0;
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const messages = buffer.split("\n\n");
+          buffer = messages.pop() ?? "";
+
+          for (const message of messages) {
+            if (!message.trim()) continue;
+
+            let eventType = "message";
+            let data = "";
+
+            for (const line of message.split("\n")) {
+              if (line.startsWith("event: ")) {
+                eventType = line.slice(7).trim();
+              } else if (line.startsWith("data: ")) {
+                data = line.slice(6);
+              }
+            }
+
+            if (eventType === "update") {
+              try {
+                const parsed = JSON.parse(data);
+                if (parsed?.changes?.length) {
+                  applyChanges(parsed.changes);
+                }
+              } catch {
+                console.warn("[useProductStream] Failed to parse SSE update");
+              }
+            }
+          }
         }
-      } catch (err) {
-        console.warn("[useProductStream] Failed to parse SSE update:", err);
+      } catch (err: any) {
+        if (err?.name === "AbortError") return;
+        console.warn("[useProductStream] SSE error, attempting reconnect...", err?.message);
+
+        reconnectAttemptsRef.current += 1;
+        if (reconnectAttemptsRef.current <= MAX_RECONNECT_ATTEMPTS) {
+          setStatus("connecting");
+          reconnectTimerRef.current = setTimeout(connectSSE, SSE_RECONNECT_DELAY_MS);
+        } else {
+          console.warn("[useProductStream] Max reconnect attempts reached, falling back to polling");
+          startPolling();
+        }
       }
-    });
-
-    es.addEventListener("error", () => {
-      console.warn("[useProductStream] SSE error, attempting reconnect...");
-    });
-
-    es.onerror = () => {
-      es.close();
-      eventSourceRef.current = null;
-
-      reconnectAttemptsRef.current += 1;
-      if (reconnectAttemptsRef.current <= MAX_RECONNECT_ATTEMPTS) {
-        setStatus("connecting");
-        reconnectTimerRef.current = setTimeout(connectSSE, SSE_RECONNECT_DELAY_MS);
-      } else {
-        console.warn("[useProductStream] Max reconnect attempts reached, falling back to polling");
-        startPolling();
-      }
-    };
+    })();
   }, [token, cleanup, applyChanges, startPolling]);
 
   // Main effect: initial load + connect SSE or poll
