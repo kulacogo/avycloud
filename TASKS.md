@@ -132,7 +132,7 @@
 > Entfernt: 34 Scripts, 7 Lib-Dateien, 4 Service-Dateien, 3 Root-Referenzdateien.
 > Bereinigt: 7 Routes, 11 Services, 18 Frontend-Dateien, Test-Mocks, cloudbuild.yaml, RBAC, Integration-Registry.
 
-- [ ] **⛔ C1: Daten-Migration — NICHT ERLEDIGT!** BL-Orders `marketplace`-Feld backfillen (BUG-040). Kein Script vorhanden. Historische Orders zeigen "baselinker" als Quelle.
+- [ ] **⛔ C1: Daten-Migration — NICHT ERLEDIGT!** BL-Orders `marketplace`-Feld backfillen (BUG-040). Script vorhanden: `backend/scripts/backfill-baselinker-orders.js`. **Muss manuell ausgeführt werden:** `node backend/scripts/backfill-baselinker-orders.js --dry-run` → dann ohne `--dry-run`. UI-Fix: `sourceBadge()` zeigt "Legacy" statt Roh-String (2026-03-15).
 - [x] C2: Dashboard-Metriken — BL-Fallback entfernt, nur lokale Order-Aggregation
 - [x] C3: Shipping-Kosten — BL-Fallback entfernt, nur SevDesk + SendCloud
 - [x] C4-C5: Backend lib (7) + services (4) gelöscht
@@ -200,6 +200,169 @@
 - [ ] BUG-069: Dashboard Chart endet bei ~12.03 — Root Cause: eBay/Kaufland native Orders haben `createdAt` = originales Marktplatz-Datum (Jan/Feb), fallen außerhalb des 7d-Fensters. Hängt von BUG-081 ab.
 - [ ] BUG-070: Theme Toggle reagiert nicht (Dark/Light) — Code sieht korrekt aus, evtl. Browser-spezifisch
 - [ ] BUG-071: Dashboard vs. Seiten-Zahlen Diskrepanz (Retouren 50 vs 55 etc.)
+
+**Block 8: Gesamtpaket Bug-Fixes + BaseLinker-Bereinigung (Sprint 2026-03-15) — FÜR CLAUDE CODE**
+
+> **⛔ PFLICHT: Alle Fixes MÜSSEN deployed und in Production verifiziert werden.**
+> **⛔ Serena MCP nutzen!** Projekt ist konfiguriert unter `.serena/project.yml`. Vor Refactorings: `find_referencing_symbols` nutzen statt blind greppen.
+> **⛔ Nach JEDEM Fix:** `cd backend && npm test` UND `npm run build` ausführen. Kein Commit ohne grüne Tests.
+
+**FIX-1: BUG-040 — BaseLinker-Orders Daten-Migration (P0 SOFORT)**
+
+> Historische Orders in Firestore haben `source: 'baselinker'` statt `source: 'ebay'`/`source: 'kaufland'`.
+> Die UI zeigt "baselinker" als Quelle. Kunden, Adressen, Zahlungsdaten fehlen teilweise.
+
+- [ ] **Backfill-Script ausführen:** `node backend/scripts/backfill-baselinker-orders.js --dry-run` → Output prüfen → `node backend/scripts/backfill-baselinker-orders.js`
+- [ ] **Verifizieren:** Firestore Console → `orders` Collection → kein Dokument mit `source: 'baselinker'` mehr vorhanden
+- [ ] **UI verifizieren:** avycloud.web.app → Bestellungen → keine Order zeigt "baselinker" oder "Legacy" als Quelle
+
+**Datei:** `backend/scripts/backfill-baselinker-orders.js`
+**Was das Script tut:**
+1. Findet alle Orders mit `source === 'baselinker'`
+2. Liest `raw.order_source` → mappt zu `ebay`/`kaufland`
+3. Setzt `marketplace` + `source` auf den richtigen Wert
+4. Backfilled fehlende Adresse aus `raw.delivery_*` Feldern
+5. Backfilled fehlende Payment-Felder aus `raw.payment_method`/`raw.date_pay_finish`
+6. Mappt OMS-Status konservativ (nur terminale States: cancelled, shipped, completed)
+
+---
+
+**FIX-2: BUG-074 + BUG-060 — Inventar Bestandswert €0,00 (P1)**
+
+> InventoryView benutzt `details.pricing.buyPrice` für die Wertberechnung, aber dieses Feld ist bei fast allen Produkten 0/undefined.
+> Dashboard benutzt `details.pricing.lowest_price.amount` und zeigt 49.054€.
+
+- [x] **Frontend-Fix (Cowork erledigt):** KPI-Berechnung, Zeilen-Wert und Sortierung nutzen jetzt `buyPrice || lowest_price.amount` als Fallback
+- [ ] **Production verifizieren:** avycloud.web.app → Inventar → Bestandswert-KPI zeigt Wert > €0
+
+**Geänderte Datei:** `components/InventoryView.tsx`
+**Geänderte Stellen (3):**
+1. Zeile ~212-218: KPI `totalValue` Berechnung — `p.details?.pricing?.buyPrice || (p.details?.pricing as any)?.lowest_price?.amount || 0`
+2. Zeile ~495-496: Zeilen-Wert `rowValue` — gleicher Fallback
+3. Zeile ~272-278: Sortierung nach buyPrice und value — gleicher Fallback
+
+---
+
+**FIX-3: BUG-075 — Versand Status nicht übersetzt (P2)**
+
+> ShippingView STATUS_CONFIG kannte nur 5 deutsche Status-Keys. `createParcel()` speicherte aber den rohen SendCloud-Status-String (z.B. "Ready to send").
+
+- [x] **Frontend-Fix (Cowork erledigt):** STATUS_CONFIG von 5 → 25+ Mappings erweitert (alle SendCloud-Rohstatus auf deutsche Labels)
+- [x] **Backend-Fix (Cowork erledigt):** `createParcel()` nutzt jetzt `mapSendCloudStatus()` statt rohen String
+- [ ] **Production verifizieren:** avycloud.web.app → Versand → keine englischen Status-Strings mehr sichtbar
+
+**Geänderte Dateien:**
+1. `components/orders/ShippingView.tsx` → STATUS_CONFIG erweitert
+2. `backend/services/shipping-engine.js` → Zeile ~200: `status: mapSendCloudStatus(parcel.status?.id)` + `statusRaw` Feld
+
+---
+
+**FIX-4: BUG-080 — Retouren zeigt SKU statt Produktname (P2)**
+
+> `productName()` in ReturnsView fiel auf `product.sku` zurück, weil Kaufland-Retouren den Titel unter `product.title` statt `product.name` speichern.
+
+- [x] **Frontend-Fix (Cowork erledigt):** `productName()` prüft jetzt `product.name || product.title || product.sku`
+- [ ] **Production verifizieren:** avycloud.web.app → Retouren → Produktspalte zeigt Namen statt SKU
+
+**Geänderte Datei:** `components/orders/ReturnsView.tsx` → Zeile ~217-221
+
+---
+
+**FIX-5: BUG-082 — Marketplace-Badge-Farben inkonsistent (P3)**
+
+> OrdersView benutzte hardcoded `amber-600/15` für eBay, ReturnsView benutzte `bg-info-dim text-info`. Laut CLAUDE.md: keine hardcodierten Farben.
+
+- [x] **Frontend-Fix (Cowork erledigt):** Alle Views vereinheitlicht: eBay = `bg-warning-dim text-warning`, Kaufland = `bg-danger-dim text-danger`
+- [ ] **Production verifizieren:** Bestellungen + Retouren → eBay-Badge gleiche Farbe
+
+**Geänderte Dateien:**
+1. `components/OrdersView.tsx` → `sourceBadge()` Zeile ~67: `bg-warning-dim text-warning`
+2. `components/orders/ReturnsView.tsx` → `MARKETPLACE_BADGE` Zeile ~37-40
+
+---
+
+**FIX-6: BUG-082b — sourceBadge zeigt "baselinker" als Roh-String (P1)**
+
+> Orders mit `source: 'baselinker'` zeigten den Roh-String in der Source-Spalte.
+
+- [x] **Frontend-Fix (Cowork erledigt):** `sourceBadge()` mappt `baselinker`/`bl` → Label "Legacy" mit muted Styling
+- [ ] **Production verifizieren:** Bestellungen → keine Order zeigt "baselinker" als Badge-Text (nach FIX-1 Backfill sind es dann "eBay"/"Kaufland")
+
+**Geänderte Datei:** `components/OrdersView.tsx` → `sourceBadge()` Zeile ~70
+
+---
+
+**FIX-7: BUG-062 — Versand Kundenname "—" (P1, Firestore Re-Sync nötig)**
+
+> Historische Shipment-Docs in Firestore haben `customer: null` weil die Fallback-Kette fehlte.
+> Code-Fix (2026-03-15) ist da: `parcel.address?.name + company_name` Fallbacks.
+> Aber existierende Firestore-Docs müssen re-synced werden.
+
+- [ ] **SendCloud Re-Sync triggern:** avycloud.web.app → Versand → "Sync" Button klicken. Die `syncSendCloudParcels()` Funktion updated existierende Docs mit den neuen Fallbacks.
+- [ ] **Production verifizieren:** Versand-Seite → Kundenname-Spalte zeigt Namen statt "—"
+
+---
+
+**FIX-8: BUG-081 — eBay Token abgelaufen (P0, MANUELL)**
+
+> Seit 15.3.2026 04:01 Uhr. ALLE eBay-API-Calls schlagen fehl. BUG-068 (170 Sync-Fehler) ist Folge davon.
+
+- [ ] **Oguzhan muss manuell:** eBay OAuth Flow neu starten (Developer Portal → User Token → Consent → neuen Refresh-Token speichern)
+- [ ] **Verifizieren:** avycloud.web.app → Dashboard → Marketplace-Sync-Fehler = 0
+
+---
+
+**FIX-9: BUG-070 — Theme Toggle reagiert nicht (P2)**
+
+> Dark/Light Mode Toggle funktioniert nicht. Root Cause unklar.
+
+- [ ] **Untersuchen mit Serena:** `find_symbol("ThemeToggle")` oder `search_for_pattern("data-theme|theme.*toggle|setTheme")` in `components/`
+- [ ] **Fix implementieren + testen:** Beide Themes müssen sichtbar wechseln
+- [ ] **Production verifizieren:** Toggle klicken → Theme wechselt sofort
+
+---
+
+**FIX-10: BUG-071 — Dashboard vs. Seiten-Zahlen Diskrepanz (P1)**
+
+> Dashboard zeigt z.B. 50 Retouren, Retouren-Seite 55. Unterschiedliche Queries/Limits/Filter.
+
+- [ ] **Untersuchen mit Serena:** `find_symbol("getDashboardMetrics")` → welche Queries werden für die Dashboard-Zahlen genutzt vs. `fetchReturns()`
+- [ ] **Root Cause identifizieren:** Unterschiedliche `limit`, `where`-Clauses, oder Zeitfenster?
+- [ ] **Fix implementieren:** Dashboard und Detail-Seiten müssen identische Counts zeigen
+- [ ] **Production verifizieren:** Dashboard-Zahl = Seiten-Zahl für Orders, Returns, Shipments
+
+---
+
+**FIX-11: BUG-032 — Produkt-Gewicht fehlt (P0)**
+
+> Identify/Improve-Pipeline extrahiert kein Gewicht. Mandatory für Carrier-Zuordnung (DHL vs. DPD).
+
+- [ ] **Untersuchen mit Serena:** `find_symbol("mapEbayOrder")` + `find_symbol("enrichment")` — wo könnte Gewicht extrahiert werden?
+- [ ] **Gemini-Prompt erweitern:** `weight_grams` als Pflichtfeld in LLM-Output-Schema (product-schema.js)
+- [ ] **Backfill:** Script für bestehende Produkte ohne Gewicht (Gemini-Anfrage oder manuelle Schätzung aus Kategorie)
+
+---
+
+**FIX-12: BUG-SSE — Token-in-Query-Parameter (P1, Security)**
+
+> JWT Token wird als `?token=` URL-Parameter für SSE-Streams übergeben. Leakt in Browser-History, Server-Logs, Referrer-Header.
+
+- [ ] **Untersuchen mit Serena:** `search_for_pattern("\\?token=|query\\.token|req\\.query\\.token")` in `backend/`
+- [ ] **Fix:** SSE-Auth auf Cookie-basiert oder `EventSource` mit Header-Auth-Polyfill umstellen
+- [ ] **Production verifizieren:** SSE-Streams funktionieren ohne Token in URL
+
+---
+
+**REIHENFOLGE FÜR CLAUDE CODE:**
+1. ⛔ **FIX-1 (BUG-040)** — Backfill ausführen (blockiert alles)
+2. ⛔ **FIX-8 (BUG-081)** — eBay Token (Oguzhan muss, aber Claude Code kann vorbereiten/testen)
+3. **FIX-9 (BUG-070)** — Theme Toggle (Code-Fix nötig)
+4. **FIX-10 (BUG-071)** — Dashboard Diskrepanz (Code-Fix nötig)
+5. **FIX-11 (BUG-032)** — Gewicht-Extraktion (Feature-Erweiterung)
+6. **FIX-12 (BUG-SSE)** — Security-Fix
+7. **FIX-2 bis FIX-7** — Production-Verifizierung der Cowork-Fixes (Deploy + Browser-Check)
+8. `cd backend && npm test` — alle 129+ Tests grün
+9. `npm run build` — Frontend kompiliert fehlerfrei
 
 #### KW 13 (24.–28. März 2026) — M4 + M5 + M12
 - [x] **M4: Bestand-View** — ✅ InventoryView live: KPIs, Tabelle, Quick-Filter, Suche, Sort (2026-03-14)
@@ -708,15 +871,15 @@
 | BUG-071 | **Dashboard vs. Seiten-Zahlen Diskrepanz** | P1 | 🔴 Offen |
 | BUG-072 | **"Artikel listen" Modal zeigt bereits gelistete Produkte** | P1 | ✅ Fixed (2026-03-15: `listedSkus` Set Cross-Check in `openPublishModal` in MarketplaceListingsView.tsx) |
 | BUG-073 | **Inventar zeigt Produkte mit Menge 0** | P1 | ✅ Fixed (2026-03-15: Default-Filter `qty > 0` in InventoryView.tsx Tabellen-Ausgabe) |
-| BUG-074 | **Inventar Bestandswert €0,00 vs. Dashboard 49.054€** | P1 | 🔴 Offen (gleiche Ursache wie BUG-060: EK fehlt) |
-| BUG-075 | **Versand Status-Werte nicht übersetzt** — Backend speichert bereits German-Status (ausstehend/in_zustellung/zugestellt). Evtl. ältere Docs in Firestore mit EN-Status. | P2 | ⚠️ Backend OK, ältere Firestore-Docs brauchen Re-Sync |
+| BUG-074 | **Inventar Bestandswert €0,00 vs. Dashboard 49.054€** | P1 | ⚠️ Code-Fix (2026-03-15: `buyPrice \|\| lowest_price.amount` Fallback in InventoryView.tsx KPI + Zeilen + Sort). Production-Verifizierung ausstehend. |
+| BUG-075 | **Versand Status-Werte nicht übersetzt** — Frontend STATUS_CONFIG 5→25+ Mappings, Backend createParcel() nutzt mapSendCloudStatus() | P2 | ⚠️ Code-Fix (2026-03-15: ShippingView.tsx + shipping-engine.js). Production-Verifizierung ausstehend. |
 | BUG-076 | **Versand Duplikat-Einträge** | P2 | ✅ Fixed (2026-03-15: Deduplizierung nach `sendcloudParcelId` in ShippingView.tsx loadShipments) |
 | BUG-077 | **Kaufland Listings: Marktplatz-Spalte zeigt "0" für ungematchte Produkte** — `quantity=0` ist korrekt für ONHOLD-Units. Spalte zeigt Marketplace-Qty, nicht Anzahl Marktplätze. | P1 | ⚠️ Kein Bug — Spalte "Marktplatz" zeigt Qty auf Kaufland (0 = ONHOLD) |
 | BUG-078 | **Duplikate-Seite zeigt Gruppen mit nur 1 Produkt** | P2 | ✅ Fixed (2026-03-15: `productIds.length >= 2` Filter in DeduplicationView.tsx loadDuplicates) |
 | BUG-079 | **Orders Pipeline vs. Filter-Tab Diskrepanz** | P1 | ✅ Fixed (2026-03-15: "Versendet" Tab hinzugefügt + statusCounts + filteredOrders Logik korrigiert in OrdersView.tsx) |
-| BUG-080 | **Retouren-Seite: Produktname fehlt** — Retoure Y0NDGYY zeigt SKU statt Name. | P2 | 🔴 Offen (Backend: Kaufland returns-engine speichert `ouProduct.title` — bei null kein Fallback auf products_v2) |
+| BUG-080 | **Retouren-Seite: Produktname fehlt** — Retoure Y0NDGYY zeigt SKU statt Name. | P2 | ⚠️ Code-Fix (2026-03-15: `product.name \|\| product.title \|\| product.sku` in ReturnsView.tsx). Production-Verifizierung ausstehend. |
 | BUG-081 | **⛔ eBay Token abgelaufen** — Seit 15.3.2026, 04:01 Uhr. Alle eBay-API-Calls schlagen fehl. Token muss manuell über OAuth-Flow erneuert werden. | P0 | 🔴 Offen — **MANUELL: eBay OAuth Flow neu starten!** |
-| BUG-082 | **Produktdaten: eBay/Kaufland Status-Farben inkonsistent** | P3 | 🔴 Offen |
+| BUG-082 | **Produktdaten: eBay/Kaufland Status-Farben inkonsistent** | P3 | ⚠️ Code-Fix (2026-03-15: OrdersView + ReturnsView auf Design-Tokens vereinheitlicht: eBay=warning, Kaufland=danger). Production-Verifizierung ausstehend. |
 | BUG-SSE | Token-in-Query-Parameter für SSE-Streams leakt | P1 | 🔴 Offen |
 | BUG-006 | EbayListingsView.tsx (alte Gap-Analysis) noch da — LÖSCHEN | P1 | ✅ Fixed (deleted) |
 | BUG-008 | eBay-Seite zeigt Gap-Analyse-Daten statt Listing-Management | P1 | ✅ Fixed (route already correct, old component deleted) |
