@@ -196,9 +196,10 @@
 - [x] BUG-065: Rechnungen NETTO/BRUTTO fehlt ("—") — ✅ Fixed (2026-03-15: `amountNet ?? amountNetto` + `amountGross ?? amountBrutto` Fallback)
 - [x] BUG-066: Kaufland Listings Status "Unbekannt" — ✅ Fixed (2026-03-15: `active===true`→"active", `status!=null`→"inactive" in normalizeKauflandRow)
 - [x] BUG-067: Kaufland Listings Preise "—" — ✅ Fixed (2026-03-15: `d.price/100` als Fallback zu `d.listing_price/100`)
-- [ ] ⛔ BUG-068: 170 Stock-Sync Fehler (110 eBay + 60 Kaufland) — P0 Oversell-Risiko! Root Cause: BUG-081 (eBay Token abgelaufen → alle eBay-Syncs schlagen fehl)
+- [ ] ⛔ BUG-068: 170 Stock-Sync Fehler (110 eBay + 60 Kaufland) — P0 Oversell-Risiko! Root Cause: BUG-081 (eBay Token abgelaufen → alle eBay-Syncs schlagen fehl). BUG-081 code-fix deployed → Verifizierung ausstehend.
 - [ ] BUG-069: Dashboard Chart endet bei ~12.03 — Root Cause: eBay/Kaufland native Orders haben `createdAt` = originales Marktplatz-Datum (Jan/Feb), fallen außerhalb des 7d-Fensters. Hängt von BUG-081 ab.
 - [ ] BUG-070: Theme Toggle reagiert nicht (Dark/Light) — Code sieht korrekt aus, evtl. Browser-spezifisch
+- [x] BUG-084: Doppelte Bestellungen — ✅ Fixed (2026-03-15: 126 Duplikate gelöscht + `createdAt+marketplace` Fallback in saveOrderIfNew)
 - [x] BUG-071: Dashboard vs. Seiten-Zahlen Diskrepanz — ✅ Fixed (2026-03-15: Dashboard returns enrichment nutzt jetzt shared `firestore` singleton + kein yearStart-Filter → zählt alle Returns wie ReturnsView)
 
 **Block 8: Gesamtpaket Bug-Fixes + BaseLinker-Bereinigung (Sprint 2026-03-15) — FÜR CLAUDE CODE**
@@ -301,12 +302,14 @@
 
 ---
 
-**FIX-8: BUG-081 — eBay Token abgelaufen (P0, MANUELL)**
+**FIX-8: BUG-081 — eBay Token abgelaufen (P0, MANUELL)** ⚠️ TEILWEISE ERLEDIGT 2026-03-15
 
 > Seit 15.3.2026 04:01 Uhr. ALLE eBay-API-Calls schlagen fehl. BUG-068 (170 Sync-Fehler) ist Folge davon.
 
-- [ ] **Oguzhan muss manuell:** eBay OAuth Flow neu starten (Developer Portal → User Token → Consent → neuen Refresh-Token speichern)
-- [ ] **Verifizieren:** avycloud.web.app → Dashboard → Marketplace-Sync-Fehler = 0
+- [x] ✅ **Oguzhan: OAuth reconnected** (~10:25 UTC, HTTP 200 in Logs bestätigt)
+- [x] ✅ **Code-Fix: ebay-trading-api.js** — holt jetzt OAuth-Token aus Firestore `integrations/ebay` statt statischem Secret + auto-wraps XML mit `buildRequestRoot()`
+- [x] ✅ **Code-Fix: integrations.js** — `DELETE /api/integrations/ebay` löscht jetzt AUCH `integrations/ebay` Firestore-Doc (Disconnect funktioniert jetzt korrekt)
+- [ ] **Verifizieren:** avycloud.web.app → Dashboard → Marketplace-Sync-Fehler = 0 (nach Deploy)
 
 ---
 
@@ -875,7 +878,8 @@
 | BUG-078 | **Duplikate-Seite zeigt Gruppen mit nur 1 Produkt** | P2 | ✅ Fixed (2026-03-15: `productIds.length >= 2` Filter in DeduplicationView.tsx loadDuplicates) |
 | BUG-079 | **Orders Pipeline vs. Filter-Tab Diskrepanz** | P1 | ✅ Fixed (2026-03-15: "Versendet" Tab hinzugefügt + statusCounts + filteredOrders Logik korrigiert in OrdersView.tsx) |
 | BUG-080 | **Retouren-Seite: Produktname fehlt** — Retoure Y0NDGYY zeigt SKU statt Name. | P2 | ⚠️ Code-Fix (2026-03-15: `product.name \|\| product.title \|\| product.sku` in ReturnsView.tsx). Production-Verifizierung ausstehend. |
-| BUG-081 | **⛔ eBay Token abgelaufen** — Seit 15.3.2026, 04:01 Uhr. Alle eBay-API-Calls schlagen fehl. Token muss manuell über OAuth-Flow erneuert werden. | P0 | 🔴 Offen — **MANUELL: eBay OAuth Flow neu starten!** |
+| BUG-081 | **⛔ eBay Token abgelaufen** — Seit 15.3.2026, 04:01 Uhr. Alle eBay-API-Calls schlagen fehl. Token muss manuell über OAuth-Flow erneuert werden. | P0 | ⚠️ OAuth reconnected (Oguzhan, 15.3. ~10:25 UTC). Code-Fix: ebay-trading-api.js holt jetzt OAuth-Token aus Firestore `integrations/ebay`. Production-Verifizierung: eBay Sync-Fehler sollten = 0 nach Deploy. |
+| BUG-084 | **🔥 Doppelte Bestellungen** — 126 Duplikate durch BaseLinker→native eBay Migration. Alte BL-Docs hatten keine `marketplaceKey`, new eBay-synced docs ignoriert Fallback → Duplikate. | P0 | ✅ Fixed (2026-03-15: 111 alte BL eBay-Docs + 15 historische Duplikate gelöscht. `saveOrderIfNew()` hat jetzt `createdAt + marketplace` Fallback-Dedup.) |
 | BUG-082 | **Produktdaten: eBay/Kaufland Status-Farben inkonsistent** | P3 | ⚠️ Code-Fix (2026-03-15: OrdersView + ReturnsView auf Design-Tokens vereinheitlicht: eBay=warning, Kaufland=danger). Production-Verifizierung ausstehend. |
 | BUG-083 | **🔥 Cross-Marketplace Oversell: Kaufland nicht benachrichtigt bei eBay-Verkauf** — `syncStockToAllChannels()` übersprung Kaufland für 82% der Produkte weil `ops.kaufland.unitId` nicht gesetzt. | P0 | ✅ Fixed (2026-03-15: (1) `stock-sync-dispatcher.js`: Fallback-Lookup via `kauflandUnitsLive` nach SKU/EAN wenn unitId fehlt + Write-Back. (2) `marketplace.js` Sync: `ops.kaufland.unitId` Backfill bei jedem Sync-Lauf. (3) `order-state-machine.js`: `_onOrderShipped()` → confirmReservation + physicalQty dekrementieren + syncStockWithRetry. `_onOrderCancelled()` → releaseReservation + Marketplace re-sync.) |
 | BUG-SSE | Token-in-Query-Parameter für SSE-Streams leakt | P1 | ⚠️ Code-Fix da, Verifizierung ausstehend |
