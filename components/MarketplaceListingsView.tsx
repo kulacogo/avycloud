@@ -117,8 +117,14 @@ function normalizeEbayRow(row: EbayListingRow): NormalizedListing {
 
 function normalizeKauflandRow(row: KauflandListingRow): NormalizedListing {
   let status: ListingStatus = "unknown";
-  if (row.active) status = "active";
-  else if (row.status === "inactive" || row.status === "blocked") status = "inactive";
+  if (row.active === true) {
+    status = "active";
+  } else if (row.status != null) {
+    // Map Kaufland unit statuses to our schema
+    const s = String(row.status).toUpperCase();
+    if (s === "AVAILABLE") status = "active";
+    else status = "inactive"; // ONHOLD, DEACTIVATED, blocked, etc.
+  }
 
   return {
     id: row.idUnit,
@@ -297,19 +303,29 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
     setPublishLoading(true);
     try {
       const products = await fetchProducts();
-      // BUG-019: Nur Produkte mit Lagerbestand > 0 anzeigen
+      // Nur Produkte mit Lagerbestand > 0
       const inStockProducts = products.filter((p) => {
         const qty = Number(p.inventory?.quantity ?? p.inventory?.physicalQuantity ?? 0);
         const hasBins = Array.isArray(p.storageBins) && p.storageBins.some((b) => Number(b?.quantity || 0) > 0);
         return qty > 0 || hasBins;
       });
-      setPublishProducts(inStockProducts);
+      // BUG-072: Bereits aktiv gelistete Produkte ausfiltern
+      const listedSkus = new Set(
+        listings
+          .filter((l) => l.status === "active" && l.sku)
+          .map((l) => String(l.sku).toLowerCase())
+      );
+      const notYetListed = inStockProducts.filter((p) => {
+        const sku = String(p.identification?.sku || p.details?.identifiers?.sku || "").toLowerCase();
+        return !sku || !listedSkus.has(sku);
+      });
+      setPublishProducts(notYetListed);
     } catch {
       setPublishProducts([]);
     } finally {
       setPublishLoading(false);
     }
-  }, []);
+  }, [listings]);
 
   const handlePublish = useCallback(async (productId: string) => {
     setPublishingId(productId);

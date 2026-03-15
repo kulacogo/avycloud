@@ -581,10 +581,12 @@ async function syncSendCloudParcels({ tenantId = 'default', fromDate, toDate } =
     // Extract cost from parcel
     const parcelCost = parseFloat(String(parcel.price || '0').replace(',', '.')) || 0;
 
-    // Customer name from order
+    // Customer name from order — BUG-062: more fallbacks for missing name
     const customerName = order.customer?.name
       || (order.customer?.firstName ? `${order.customer.firstName} ${order.customer.lastName || ''}`.trim() : null)
       || parcel.name
+      || parcel.address?.name
+      || parcel.address?.company_name
       || null;
 
     // Dates

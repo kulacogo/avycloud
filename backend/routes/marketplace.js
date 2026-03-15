@@ -946,7 +946,9 @@ router.get('/kaufland/listings', requirePermission('products', 'read'), async (r
 
       // Use Kaufland product title as fallback if no AvyCloud product match
       const klTitle = typeof d.title === 'string' ? d.title : null;
-      const klPrice = Number.isFinite(Number(d.listing_price)) ? Number(d.listing_price) / 100 : null;
+      const klPrice = Number.isFinite(Number(d.listing_price)) ? Number(d.listing_price) / 100
+        : Number.isFinite(Number(d.price)) ? Number(d.price) / 100
+        : null;
 
       // updatedAt for "Letztes Update" column
       const updatedAtRaw = d.updatedAt;

@@ -42,7 +42,9 @@ const DeduplicationView: React.FC = () => {
     try {
       const result = await fetchDuplicates();
       if (result.ok && result.data) {
-        setGroups(result.data.duplicates);
+        // BUG-078: Filter groups with <2 products — a duplicate group needs ≥2 products
+        const realDuplicates = result.data.duplicates.filter((g) => g.productIds.length >= 2);
+        setGroups(realDuplicates);
         setTotalProducts(result.data.totalProducts);
       } else {
         addToast({ type: "error", title: "Fehler", message: result.error?.message || "Duplikate konnten nicht geladen werden." });

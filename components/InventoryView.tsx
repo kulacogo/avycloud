@@ -223,7 +223,8 @@ const InventoryView: React.FC<InventoryViewProps> = ({ onNavigate, onSelectProdu
 
   // ---- Filtering ----
   const filteredProducts = useMemo(() => {
-    let list = products;
+    // Default: only show products with stock > 0 (Inventar = was tatsächlich auf Lager ist)
+    let list = products.filter((p) => (p.inventory?.quantity ?? 0) > 0);
 
     // Quick filter
     switch (quickFilter) {
@@ -234,7 +235,7 @@ const InventoryView: React.FC<InventoryViewProps> = ({ onNavigate, onSelectProdu
         list = list.filter((p) => isNoBin(p));
         break;
       case "stale":
-        list = list.filter((p) => (p.inventory?.quantity ?? 0) > 0 && isStale(p));
+        list = list.filter((p) => isStale(p));
         break;
     }
 
@@ -554,7 +555,7 @@ const InventoryView: React.FC<InventoryViewProps> = ({ onNavigate, onSelectProdu
                           {binCode}
                         </span>
                       ) : (
-                        <span className="text-xs text-txt-muted">\u2014</span>
+                        <span className="text-xs text-txt-muted">{"—"}</span>
                       )}
                     </td>
 
@@ -617,7 +618,7 @@ const InventoryView: React.FC<InventoryViewProps> = ({ onNavigate, onSelectProdu
                           </span>
                         )}
                         {ebayStatus !== "active" && kauflandStatus !== "active" && (
-                          <span className="text-xs text-txt-muted">\u2014</span>
+                          <span className="text-xs text-txt-muted">{"—"}</span>
                         )}
                       </div>
                     </td>

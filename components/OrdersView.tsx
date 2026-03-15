@@ -21,6 +21,7 @@ const STATUS_FILTERS: { key: StatusFilter; labelKey: string; tone: string }[] = 
   { key: "picking", labelKey: "orders.filter.picking", tone: "bg-warning-dim text-warning" },
   { key: "picked", labelKey: "orders.filter.picked", tone: "bg-accent-dim text-accent" },
   { key: "packed", labelKey: "orders.filter.packed", tone: "bg-success-dim text-success" },
+  { key: "shipped", labelKey: "orders.filter.shipped", tone: "bg-success-dim text-success" },
   { key: "other", labelKey: "orders.filter.other", tone: "bg-app-elevated text-txt-secondary" },
 ];
 
@@ -199,7 +200,20 @@ const OrdersView: React.FC = () => {
 
   /* ─── Filter + Sort ─── */
   const filteredOrders = useMemo(() => {
-    let list = filter === "all" ? orders : orders.filter((o) => ((o as any).omsStatus || o.status) === filter);
+    const getOmsStatus = (o: Order) => (o as any).omsStatus || o.status;
+    let list: Order[];
+    if (filter === "all") {
+      list = orders;
+    } else if (filter === "new") {
+      list = orders.filter((o) => ["pending", "confirmed", "new"].includes(getOmsStatus(o)));
+    } else if (filter === "picking") {
+      list = orders.filter((o) => ["picking", "packing"].includes(getOmsStatus(o)));
+    } else if (filter === "other") {
+      const covered = new Set(["pending", "confirmed", "new", "picking", "packing", "picked", "packed", "shipped", "delivered"]);
+      list = orders.filter((o) => !covered.has(getOmsStatus(o)));
+    } else {
+      list = orders.filter((o) => getOmsStatus(o) === filter);
+    }
 
     // Date filter
     if (datePreset !== "all") {
@@ -315,9 +329,18 @@ const OrdersView: React.FC = () => {
 
   /* ─── Status counts for filter pills ─── */
   const statusCounts = useMemo(() => {
-    const counts: Record<string, number> = { all: orders.length };
+    const counts: Record<string, number> = { all: orders.length, new: 0, picking: 0, picked: 0, packed: 0, shipped: 0, other: 0 };
+    const newStatuses = new Set(["pending", "confirmed", "new"]);
+    const pickingStatuses = new Set(["picking", "packing"]);
+    const coveredStatuses = new Set(["pending", "confirmed", "new", "picking", "packing", "picked", "packed", "shipped", "delivered"]);
     for (const o of orders) {
-      counts[o.status] = (counts[o.status] || 0) + 1;
+      const s = (o as any).omsStatus || o.status;
+      if (newStatuses.has(s)) counts.new++;
+      else if (pickingStatuses.has(s)) counts.picking++;
+      else if (s === "picked") counts.picked++;
+      else if (s === "packed") counts.packed++;
+      else if (s === "shipped" || s === "delivered") counts.shipped++;
+      else if (!coveredStatuses.has(s)) counts.other++;
     }
     return counts;
   }, [orders]);

@@ -1,6 +1,6 @@
 # TASKS.md — AvyCloud Roadmap & Task-Management
 
-> **Letzte Aktualisierung:** 2026-03-14
+> **Letzte Aktualisierung:** 2026-03-15
 > **Verantwortlich:** Oguzhan (Owner), Claude Code (Backend/Tests), Claude Cowork (Planung/Doku)
 
 ---
@@ -113,7 +113,7 @@
 - [x] **BUG-028: Inkonsistente Lager/Marktplatz-Mengen** — Retry-Mechanismus, Stock-Sync nach Pack/Ship, Listing-Sync 3 Min + Auto-Heal
 - [x] **Aufträge Bulk-Status-Change** — Backend POST /api/orders/bulk-transition + Frontend Checkboxen + Bulk-Action-Bar
 - [x] **BRAND: Sidebar-Logo ersetzen** — Logo-Icon immer sichtbar, Expanded: Icon + Theme-Wordmark (dark/light), CSS-Toggle via `.logo-dark`/`.logo-light`
-- [ ] **⛔⛔⛔ BUG-040: BLOCKIERT ALLES — BL-Orders Daten-Migration.** BL-Code entfernt am 14.03. 02:05 (✅), aber alle VOR 02:05 importierten Orders haben `source:'baselinker'`, keine Kundendaten, falscher Status. Betrifft brandneue Bestellungen (z.B. 07-14365-99405 vom 14.03. 00:02). **BRAUCHT: Firestore-Batch-Script** das `marketplace` + Adresse + Zahlung + Status aus `raw`-Daten nachfüllt. OHNE dieses Script ist die Bestellungsseite KAPUTT.
+- [x] **⛔⛔⛔ BUG-040: BLOCKIERT ALLES — BL-Orders Daten-Migration.** ✅ Script erstellt: `backend/scripts/backfill-baselinker-orders.js` — setzt `marketplace` aus `raw.order_source`, backfilled Adresse/Zahlung/Status aus raw-Feldern. Usage: `node backend/scripts/backfill-baselinker-orders.js --dry-run` (dann ohne --dry-run ausführen). ⚠️ **Noch nicht in Production gelaufen — muss manuell ausgeführt werden!**
 - [x] **BUG-041: Kaufland Order-Intake fehlende Felder** — ✅ paidAt, paymentMethod, shippingCost, shippedAt, billingAddress (2026-03-13)
 - [x] **BUG-042: Kaufland Adresse unvollständig** — ✅ billingAddress mit Fallback auf shippingAddress (2026-03-13)
 - [x] **BUG-043: Returns-Engine Referenz-Fehler** — ✅ Fixed (totalRefund + ebayReason korrekt, Pagination)
@@ -185,6 +185,21 @@
 - [x] MOB-03: Operations-Counter als Badges — ✅ Pill-Badges rechts auf Stow/Pick/Pack Buttons, nur sichtbar bei count > 0 (2026-03-14)
 - [x] MOB-04: Bottom Nav SVG-Icons + 48dp Touch-Targets — ✅ min-h-[48px] min-w-[48px] (2026-03-14)
 - [x] MOB-10: Dark/Light Mode Konsistenz — ✅ StatusBadge warn-Farben auf Design-Tokens umgestellt (bg-warning-dim/text-warning), alle Mobile-Komponenten geprüft (2026-03-14)
+
+**Block 7: UI Visual Audit Fixes (Deep Dive 4, 2026-03-15)**
+- [x] BUG-059: Inventar `\u2014` Encoding-Bug — ✅ Fixed (2026-03-15: JSX text `\u2014` → `{"—"}` in InventoryView.tsx + WarehouseInventoryTab.tsx)
+- [ ] BUG-060: Inventar Bestandswert €0,00 — EK fehlt bei allen Produkten
+- [x] BUG-061: Versand "Invalid Date" — ✅ Fixed (2026-03-15: `isNaN(d.getTime())` Guard in ShippingView.tsx)
+- [x] BUG-062: Versand Kundenname "—" — ✅ Code-Fix (2026-03-15: `parcel.address?.name + parcel.address?.company_name` als Fallbacks in shipping-engine.js syncSendCloudParcels)
+- [x] BUG-063: Versand AUFTRAG-ID zeigt SendCloud-Parcel-ID statt Order-ID — ✅ Fixed (2026-03-15: ShippingView.tsx zeigt `shp.orderNumber || shp.orderId`)
+- [x] BUG-064: Retouren Erstattungsquote 100% bei 0 EUR — ✅ Fixed (2026-03-15: Formel korrigiert: refunded.length/returns.length)
+- [x] BUG-065: Rechnungen NETTO/BRUTTO fehlt ("—") — ✅ Fixed (2026-03-15: `amountNet ?? amountNetto` + `amountGross ?? amountBrutto` Fallback)
+- [x] BUG-066: Kaufland Listings Status "Unbekannt" — ✅ Fixed (2026-03-15: `active===true`→"active", `status!=null`→"inactive" in normalizeKauflandRow)
+- [x] BUG-067: Kaufland Listings Preise "—" — ✅ Fixed (2026-03-15: `d.price/100` als Fallback zu `d.listing_price/100`)
+- [ ] ⛔ BUG-068: 170 Stock-Sync Fehler (110 eBay + 60 Kaufland) — P0 Oversell-Risiko! Root Cause: BUG-081 (eBay Token abgelaufen → alle eBay-Syncs schlagen fehl)
+- [ ] BUG-069: Dashboard Chart endet bei ~12.03 — Root Cause: eBay/Kaufland native Orders haben `createdAt` = originales Marktplatz-Datum (Jan/Feb), fallen außerhalb des 7d-Fensters. Hängt von BUG-081 ab.
+- [ ] BUG-070: Theme Toggle reagiert nicht (Dark/Light) — Code sieht korrekt aus, evtl. Browser-spezifisch
+- [ ] BUG-071: Dashboard vs. Seiten-Zahlen Diskrepanz (Retouren 50 vs 55 etc.)
 
 #### KW 13 (24.–28. März 2026) — M4 + M5 + M12
 - [x] **M4: Bestand-View** — ✅ InventoryView live: KPIs, Tabelle, Quick-Filter, Suche, Sort (2026-03-14)
@@ -659,9 +674,9 @@
 | BUG-038 | **Retouren-Seite leer** — Sync 4h Intervall + 7 Tage Lookback. Stornierungen ≠ Retouren in Kaufland. | P1 | ✅ Fixed (Event-Driven Sync + 6h Safety-Net, 30d Lookback) |
 | BUG-039 | **Versand & Labels Seite leer** — SendCloud Sync 2h Intervall. Kein Bug — Seite zeigt Daten erst nach Label-Erstellung. | P2 | ✅ Fixed (Event-Driven Sync + 6h Safety-Net) |
 | FEAT-EDS | **🚀 Event-Driven Sync Architektur** — Intervall-basierte Syncs durch Event-getriebene Echtzeit-Syncs ersetzt. Jede Änderung (Order/Return/Shipment/Stock) in AvyCloud, Kaufland, eBay oder SendCloud triggert sofort einen Sync. | P0 | ✅ Implementiert |
-| BUG-040 | **⛔⛔⛔ P0 SOFORT — Orders zeigen "baselinker" + fehlende Kundendaten + falscher Status.** BL-Code wurde am 14.03. um 02:05 entfernt (Commit c487ed9). ABER: Alle VOR 02:05 importierten Orders kamen über alten BL-Pfad → `source:'baselinker'`, kein `marketplace`, unvollständige Adressen, Zahlung "—", Versand "—". Beispiel: eBay-Order 07-14365-99405 (Beyhan Öztunc, 14.03. 00:02) — in eBay komplett mit Adresse+Zahlung, in AvyCloud: "baselinker", "Adresse unvollständig". **FIX:** Einmaliges Firestore-Batch-Script: (1) Alle `source:'baselinker'` Orders finden, (2) `marketplace` aus `raw`-Daten erkennen, (3) fehlende Felder (Adresse, Zahlung, Versand, paidAt) aus `raw` nachfüllen, (4) Status via Marketplace-API reconcilen. **NEUE Orders nach Deploy (02:05+) sollten korrekt sein** — nativer Intake setzt alles. **VERIFIZIEREN:** Nächste Order nach 02:05 prüfen ob `source:'ebay'`. | P0 SOFORT | 🔴 **DATEN-MIGRATION-SCRIPT FEHLT** |
-| BUG-041 | **Kaufland Order-Intake: trackingNumber + carrier fehlen noch** — `mapKauflandOrder()` extrahiert jetzt paidAt, paymentMethod, shippedAt, shippingCost ✅. ABER: `trackingNumber` und `carrier` werden NICHT aus Kaufland-API extrahiert (eBay hat beides). `saveOrderIfNew()` schreibt diese Felder auch nicht. | P1 | ⚠️ **TEILWEISE gefixt** — trackingNumber + carrier fehlen |
-| BUG-042 | **Kaufland Adresse unvollständig** — `mapKauflandOrder()` setzt `customer.street` aus `shipping_address.street + house_number`, aber wenn Kaufland die Adresse in `billing_address` oder anderen Feldern liefert, bleibt die Adresse leer. Frontend zeigt "Adresse unvollständig" (rot). | P1 | 🔴 Offen |
+| BUG-040 | **⛔⛔⛔ P0 SOFORT — Orders zeigen "baselinker" + fehlende Kundendaten + falscher Status.** | P0 SOFORT | ⚠️ Script erstellt (`backend/scripts/backfill-baselinker-orders.js`, 2026-03-15) — **Noch nicht in Production ausgeführt. Manuell starten: `node backend/scripts/backfill-baselinker-orders.js --dry-run` dann ohne --dry-run.** |
+| BUG-041 | **Kaufland Order-Intake: trackingNumber + carrier fehlen noch** | P1 | ✅ Fixed (2026-03-15: `trackingNumber` + `carrier` aus `units[].tracking_number/carrier` + `klOrder.tracking_number/carrier` extrahiert) |
+| BUG-042 | **Kaufland Adresse unvollständig** — Adresse war nur aus `shipping_address`, ohne Fallback auf `billing_address`. | P1 | ✅ Fixed (2026-03-15: Fallback auf `billingAddr` für alle customer-Felder: name, street, city, zip, country, phone) |
 | BUG-043 | **Returns-Engine Bugs: `totalRefund` + `ebayReason` Referenz-Fehler** — returns-engine.js: totalRefund + ebayReason Variablen-Bugs | P1 | ✅ Fixed (2026-03-13: totalRefund korrekt akkumuliert, ebayReason extrahiert vor Dedup-Check) |
 | BUG-044 | **Kaufland Returns: Keine Pagination** — `syncKauflandReturns()` hatte `limit: 100` ohne Loop | P2 | ✅ Fixed (2026-03-13: Pagination-Loop mit offset/limit, 5000-Item Safety-Cap) |
 | BUG-045 | **eBay Order-Intake: Kein Status-Update nach Import** — `saveOrderIfNew()` übersprang existierende Orders | P1 | ✅ Fixed (2026-03-13: Rank-basierte Status-Reconciliation, 30-Tage Lookback, 50-Page Safety) |
@@ -678,6 +693,30 @@
 | BUG-056 | **Dashboard Mobile KPIs leer** — Root Cause BUG-048 behoben. KPIs zeigen jetzt native Firestore-Daten mit korrekter Kaufland/eBay-Aufschlüsselung. | P0 | ✅ Fixed (2026-03-14, via BUG-048) |
 | BUG-057 | **⛔ Zusammengeführt mit BUG-040** — Historische BL-Orders Status-Migration ist Teil des BUG-040 Backfill-Scripts. Beide Probleme (falscher Marketplace + falscher Status) werden mit einem einzigen Firestore-Batch-Script gelöst. | P0 | → Siehe BUG-040 |
 | BUG-058 | **BaseLinker Code-Entfernung: 98% erledigt** — Verifiziert am 2026-03-14: Frontend (*.ts, *.tsx) = 0 BL-Referenzen ✅. Backend index.js = 0 ✅. Backend routes/orders.js = 0 ✅. **Restposten:** 3 Backend-Dateien mit 9 Referenzen (lib/ebay-direct.js: 1, scripts/export-inventory-categories.js: 3, scripts/add-ebay-categories-to-inventory.js: 5) — alles non-production Scripts. **ABER:** Firestore-Daten NICHT migriert → BUG-040 + BUG-057 sind die echten Blocker. | P2 | ⚠️ Code 98% clean, Daten-Migration fehlt |
+| BUG-059 | **Inventar: Literal `\u2014` statt Em-Dash** | P1 | ✅ Fixed (2026-03-15: `\u2014` → `{"—"}` in InventoryView.tsx + WarehouseInventoryTab.tsx) |
+| BUG-060 | **Inventar Bestandswert €0,00 obwohl 1.636 Einheiten vorhanden** — EK fehlt bei allen Produkten | P2 | 🔴 Offen |
+| BUG-061 | **Versand: "Invalid Date" im Versanddatum** | P1 | ✅ Fixed (2026-03-15: `isNaN(d.getTime())` Guard in ShippingView.tsx) |
+| BUG-062 | **Versand: Kundenname "—" bei den meisten Sendungen** — KUNDE-Spalte zeigt "—" statt Namen. | P1 | ⚠️ Code-Fix (2026-03-15: `parcel.address?.name` + `company_name` als Fallbacks in shipping-engine.js; vorhandene Docs in Firestore brauchen Re-Sync) |
+| BUG-063 | **Versand: AUFTRAG-ID zeigt SendCloud-Parcel-ID statt AvyCloud-Order-ID** | P2 | ✅ Fixed (2026-03-15: ShippingView.tsx zeigt `shp.orderNumber || shp.orderId`) |
+| BUG-064 | **Retouren: Erstattungsquote 100% bei 0,00 EUR Erstattungen** | P1 | ✅ Fixed (2026-03-15: Formel korrigiert: `refunded.length/returns.length`) |
+| BUG-065 | **Rechnungen: NETTO + BRUTTO fehlt** | P1 | ✅ Fixed (2026-03-15: `amountNet ?? amountNetto` + `amountGross ?? amountBrutto` in InvoicesView.tsx) |
+| BUG-066 | **Kaufland Listings: Alle Status "Unbekannt"** | P1 | ✅ Fixed (2026-03-15: `active===true`→"active", `status!=null`→"inactive" in normalizeKauflandRow) |
+| BUG-067 | **Kaufland Listings: Alle Preise "—"** | P1 | ✅ Fixed (2026-03-15: `d.price/100` als Fallback zu `d.listing_price/100` in marketplace.js) |
+| BUG-068 | **⛔ Dashboard: 170 Marketplace-Sync-Fehler** — 110 eBay + 60 Kaufland. Root Cause: BUG-081 (eBay Token abgelaufen → alle eBay-Syncs schlagen fehl). Kaufland-Fehler separates Issue. | P0 | 🔴 Offen (blockiert durch BUG-081) |
+| BUG-069 | **Dashboard: Chart zeigt keine Daten nach ~12.03** — Root Cause: native Orders haben `createdAt` = originales Marktplatz-Datum (Jan/Feb), fallen außerhalb 7d-Fenster. Abhängt von BUG-081. | P2 | 🔴 Offen |
+| BUG-070 | **Theme Toggle reagiert nicht** — Code sieht korrekt aus, evtl. Browser-spezifisch | P2 | 🔴 Offen |
+| BUG-071 | **Dashboard vs. Seiten-Zahlen Diskrepanz** | P1 | 🔴 Offen |
+| BUG-072 | **"Artikel listen" Modal zeigt bereits gelistete Produkte** | P1 | ✅ Fixed (2026-03-15: `listedSkus` Set Cross-Check in `openPublishModal` in MarketplaceListingsView.tsx) |
+| BUG-073 | **Inventar zeigt Produkte mit Menge 0** | P1 | ✅ Fixed (2026-03-15: Default-Filter `qty > 0` in InventoryView.tsx Tabellen-Ausgabe) |
+| BUG-074 | **Inventar Bestandswert €0,00 vs. Dashboard 49.054€** | P1 | 🔴 Offen (gleiche Ursache wie BUG-060: EK fehlt) |
+| BUG-075 | **Versand Status-Werte nicht übersetzt** — Backend speichert bereits German-Status (ausstehend/in_zustellung/zugestellt). Evtl. ältere Docs in Firestore mit EN-Status. | P2 | ⚠️ Backend OK, ältere Firestore-Docs brauchen Re-Sync |
+| BUG-076 | **Versand Duplikat-Einträge** | P2 | ✅ Fixed (2026-03-15: Deduplizierung nach `sendcloudParcelId` in ShippingView.tsx loadShipments) |
+| BUG-077 | **Kaufland Listings: Marktplatz-Spalte zeigt "0" für ungematchte Produkte** — `quantity=0` ist korrekt für ONHOLD-Units. Spalte zeigt Marketplace-Qty, nicht Anzahl Marktplätze. | P1 | ⚠️ Kein Bug — Spalte "Marktplatz" zeigt Qty auf Kaufland (0 = ONHOLD) |
+| BUG-078 | **Duplikate-Seite zeigt Gruppen mit nur 1 Produkt** | P2 | ✅ Fixed (2026-03-15: `productIds.length >= 2` Filter in DeduplicationView.tsx loadDuplicates) |
+| BUG-079 | **Orders Pipeline vs. Filter-Tab Diskrepanz** | P1 | ✅ Fixed (2026-03-15: "Versendet" Tab hinzugefügt + statusCounts + filteredOrders Logik korrigiert in OrdersView.tsx) |
+| BUG-080 | **Retouren-Seite: Produktname fehlt** — Retoure Y0NDGYY zeigt SKU statt Name. | P2 | 🔴 Offen (Backend: Kaufland returns-engine speichert `ouProduct.title` — bei null kein Fallback auf products_v2) |
+| BUG-081 | **⛔ eBay Token abgelaufen** — Seit 15.3.2026, 04:01 Uhr. Alle eBay-API-Calls schlagen fehl. Token muss manuell über OAuth-Flow erneuert werden. | P0 | 🔴 Offen — **MANUELL: eBay OAuth Flow neu starten!** |
+| BUG-082 | **Produktdaten: eBay/Kaufland Status-Farben inkonsistent** | P3 | 🔴 Offen |
 | BUG-SSE | Token-in-Query-Parameter für SSE-Streams leakt | P1 | 🔴 Offen |
 | BUG-006 | EbayListingsView.tsx (alte Gap-Analysis) noch da — LÖSCHEN | P1 | ✅ Fixed (deleted) |
 | BUG-008 | eBay-Seite zeigt Gap-Analyse-Daten statt Listing-Management | P1 | ✅ Fixed (route already correct, old component deleted) |
@@ -2208,6 +2247,200 @@ backend/cloudbuild.yaml          — Zeile 35 (BL-Lint-Check)
 ```
 Alle Dateien mit "baselinker" im Namen — Migrations, Imports, Syncs, Audits, Reports
 ```
+
+---
+
+## Deep Dive 4 — UI Visual Audit (2026-03-15)
+
+> **Methode:** Jede Seite der Production-App (avycloud.web.app) im Browser geöffnet, Screenshots erstellt, jedes Element visuell geprüft.
+> **Ergebnis:** 13 neue Bugs gefunden (BUG-059 bis BUG-071). BUG-040 visuell bestätigt.
+
+### Seite-für-Seite Befund
+
+**✅ = OK | ⛔ = Bug | ⚠️ = Warnung**
+
+#### 1. Bestellungen (Orders)
+- ✅ Layout, KPI-Cards, Pipeline, Filter-Tabs funktional
+- ✅ Tabelle zeigt Thumbnail, Kundenname, Ort, Produkt, SKU, Preis, Datum
+- ✅ Order-Detail Panel öffnet sich bei Klick (Tabs: Details, Positionen, Verlauf)
+- ✅ Positionen-Tab zeigt Produkt, SKU, EAN, Preis korrekt
+- ✅ Nächster-Schritt Buttons (Bestätigt, Kommissionierung, Storniert, Zurückgestellt)
+- ⛔ **BUG-040 BESTÄTIGT:** Alle ~9 neuesten Orders (13-14.03) zeigen "baselinker" als QUELLE
+- ⛔ **BUG-040 BESTÄTIGT:** Order-Detail 07-14365-99405: "Adresse unvollständig", Zahlung "—", Versand "—"
+- ⛔ **BUG-040 BESTÄTIGT:** Status "Neue Bestellungen" für Orders die auf eBay bereits versendet sind
+- ✅ Ab 11.03-Orders: Korrekte Kaufland/eBay Badges (native Intake funktioniert!)
+- ⚠️ Kundenname "jürgen schulte" mit Kleinbuchstabe — Datenqualität aus BL-Import
+
+#### 2. Dashboard
+- ✅ KPI-Cards: Umsatz (2.046€), Versand (1.007€, 44 Sendungen), Retouren
+- ✅ Auftragsfluss Pipeline mit korrekten Status-Stufen
+- ✅ Chart Auftragsvolumen & Umsatz rendert korrekt
+- ✅ Aktivitäts-Feed zeigt Stock-Sync Events
+- ⛔ **BUG-068:** 170 Marketplace Sync Fehler (110 eBay + 60 Kaufland)
+- ⛔ **BUG-069:** Chart endet bei ~12.03, keine Daten für 13-14.03
+- ⛔ **BUG-071:** Zahlen-Diskrepanz Dashboard vs. Detailseiten (Retouren 50 vs 55, etc.)
+- ⚠️ Stock-Sync Errors für EAN 4251029854921 + 4260325295246 (wiederholt)
+
+#### 3. Retouren
+- ✅ Tabelle mit ID, Marktplatz, Kunde, Produkt, Grund, Eingang, Status, Betrag
+- ✅ Marketplace-Badges (Kaufland rot, eBay blau) korrekt
+- ✅ Gründe: "Nicht wie beschrieben", "Sonstiges", "Meinungsänderung"
+- ✅ "Bearbeiten" + "Prüfen" Aktionen vorhanden
+- ⛔ **BUG-064:** Erstattungsquote 100.0% bei 0,00 EUR Erstattungen — Formel invertiert
+- ⚠️ Alle 55 Retouren im Status "Eingegangen" — keine bearbeitet
+
+#### 4. Versand & Labels
+- ✅ Tabelle zeigt Carrier-Badges (DHL blau, DPD rot/pink)
+- ✅ Tracking-Nummern als klickbare Links
+- ✅ Filter-Tabs: Alle, Ausstehend, In Zustellung, Zugestellt, Probleme
+- ⛔ **BUG-061:** "Invalid Date" im Versanddatum bei 2 Sendungen
+- ⛔ **BUG-062:** KUNDE zeigt "—" bei fast allen Sendungen
+- ⛔ **BUG-063:** AUFTRAG-ID zeigt SendCloud-Parcel-IDs statt AvyCloud-Order-IDs
+- ⛔ **BUG-071:** KPIs "0 versendet, 0.00 EUR" widersprechen Dashboard-Daten
+
+#### 5. Rechnungen
+- ✅ Layout mit KPIs, Suche, Filter-Tabs
+- ✅ Rechnungsnummer-Format RE-2026-0001
+- ✅ Download-Button vorhanden
+- ⛔ **BUG-065:** NETTO + BRUTTO zeigen "—" — keine Beträge berechnet
+- ⚠️ Nur 1 Rechnung für 200+ Orders — Rechnungserstellung kaum genutzt
+
+#### 6. Produktdaten
+- ✅ 808 Produkte, Thumbnails rendern korrekt
+- ✅ Name, Brand, SKU, EAN/GTIN, Kategorie, Preis alle vorhanden
+- ✅ eBay/Kaufland Sync-Status (Pending/Synced/Inaktiv/Gelistet)
+- ✅ "+ Produkt anlegen", Import, Export Buttons vorhanden
+- ⚠️ BESTAND zeigt 0 für sichtbare Produkte — unklar ob korrekt oder Bug
+
+#### 7. Inventar
+- ✅ KPIs: 430 Artikel, 1.636 Einheiten
+- ✅ Filter: Alle, Niedrig-Bestand, Kein Lagerplatz, 30 Tage unbewegt
+- ✅ Lagerplatz-Codes (XGA0501B etc.) für zugewiesene Produkte
+- ⛔ **BUG-059:** Literal `\u2014` in Lagerplatz- UND Marktplatz-Spalten statt "—"
+- ⛔ **BUG-060:** Bestandswert €0,00 trotz 1.636 Einheiten (EK fehlt überall)
+- ⚠️ 401 von 430 Artikeln = "Niedrig-Bestand" (93%)
+- ⚠️ "Kein Lagerplatz: 0" — Filter zählt `\u2014` als gültigen Lagerplatz
+
+#### 8. eBay Listings
+- ✅ 645 Listings, 329 aktiv, "● Verbunden" Status
+- ✅ Sync "gerade eben", Item-IDs, Preise, Status-Badges
+- ⚠️ Marktplatz-Spalte zeigt nur "1" statt Marketplace-Name
+- ⚠️ Kategorie "—" für alle sichtbaren Listings
+- ⚠️ Letztes Update "—" für alle sichtbaren Listings
+
+#### 9. Kaufland Listings
+- ✅ 533 Listings, 241 aktiv, Sync funktioniert
+- ✅ Unit-IDs, Thumbnails, Lager-Zuordnung teilweise vorhanden
+- ⛔ **BUG-066:** Alle Status "Unbekannt" statt Aktiv/Inaktiv
+- ⛔ **BUG-067:** Alle Preise "—" — Preisdaten fehlen
+- ⚠️ 41 Bestandsabweichungen (135 nicht auf Lager)
+
+#### 10. Auftrags-Einstellungen
+- ✅ 4 Automatisierungsregeln korrekt konfiguriert und aktiv
+- ✅ 4 Versandregeln (DHL + 3× DPD) mit Min/Max-Gewicht, Method-IDs
+- ⚠️ Gewichtslücke: 0-0.49kg hat keine Carrier-Regel
+
+#### 11. Sidebar & Branding
+- ✅ Wordmark-Logo "avycloud" + Cloud-Icon im Header
+- ✅ Logo wechselt korrekt zwischen Light/Dark Mode Variante
+- ✅ Navigation: 4 Gruppen (Aufträge, Produkte, Marktplätze, Einstellungen)
+- ✅ User-Info "admin / Admin" am unteren Rand
+- ⛔ **BUG-070:** Theme-Toggle (Mond-Icon) reagiert nicht auf Klicks
+
+### Prioritäten-Übersicht neue Bugs
+
+| Prio | Bug-IDs | Thema |
+|------|---------|-------|
+| P0 | BUG-068 | 170 Stock-Sync Fehler (eBay+Kaufland) — Oversell-Risiko! |
+| P1 | BUG-059, BUG-061, BUG-062, BUG-064, BUG-065, BUG-066, BUG-067, BUG-071 | Datenqualität + UI-Logik |
+| P2 | BUG-060, BUG-063, BUG-069, BUG-070 | Kosmetik + Usability |
+
+---
+
+## Deep Dive 5 — Zweiter UI Audit (2026-03-15)
+
+> **Methode:** Erneuter Browser-Audit aller Seiten mit Fokus auf vom User gemeldete Bugs + gründlicherer Check.
+> **Ergebnis:** 11 weitere Bugs gefunden (BUG-072 bis BUG-082). Mehrere kritische Logik-Fehler bestätigt.
+
+### Vom User gemeldete Bugs — BESTÄTIGT
+
+**1. "Artikel listen" Modal zeigt bereits gelistete Produkte (BUG-072)**
+- Betrifft BEIDE Marktplätze (eBay + Kaufland)
+- Verifiziert: SKU-4209249383 (Under Armour T-Shirt Horizon Blue), SKU-1291336114 (Under Armour Shorts), SKU-1041822612 (Under Armour Funktionsshirt) sind "Aktiv" gelistet auf eBay UND Kaufland, erscheinen aber im Modal mit "Listen"-Button
+- **Root Cause:** `openPublishModal()` in `MarketplaceListingsView.tsx` (Zeile 291-312) filtert nur `qty > 0`, kein Cross-Check gegen bestehende Listings
+- **Fix:** Vor Anzeige filtern: `publishProducts.filter(p => !alreadyListedIds.has(p.id))`
+
+**2. Inventar zeigt Produkte ohne Lagerbestand (BUG-073)**
+- KPI "GESAMTARTIKEL: 430" ist korrekt (nur qty > 0)
+- Tabelle zeigt "808 von 808 Artikeln" — 378 Produkte mit qty=0 eingeschlossen
+- Produkte mit Menge 0 werden grau dargestellt, aber nicht ausgeblendet
+- **Root Cause:** `InventoryView.tsx` Zeile 208 filtert nur für KPI, Tabelle (Zeile 487+) zeigt alles
+- **Fix:** Default-Filter "Nur auf Lager" oder Tab-Filter hinzufügen
+
+### Seite-für-Seite Befund (Runde 2)
+
+**Dashboard:**
+- ⛔ BUG-074: Bestandswert 49.054€ (Dashboard) vs. €0,00 (Inventar) — EK-Feld leer
+- ⛔ BUG-071 bestätigt: Zahlen-Diskrepanzen zwischen Dashboard und Detailseiten
+- ⛔ BUG-081: eBay Token abgelaufen! (15.3.2026, 04:01:11)
+
+**Bestellungen:**
+- ⛔ BUG-040 bestätigt: BaseLinker-Orders (MF67K35) zeigen "Adresse unvollständig", Zahlung/Versand "—"
+- ⛔ BUG-079: Pipeline 360 vs. Filter-Tab "Alle 200" — Versendet-Tab fehlt komplett
+- ✅ Native eBay/Kaufland-Orders (ab 10-11.03) zeigen korrekte Badges und Daten
+
+**Retouren:**
+- ⛔ BUG-064 bestätigt: Erstattungsquote 100.0% bei 0,00 EUR Erstattung
+- ⛔ BUG-080: Produkt "SKU-7357361636" statt Produktname
+- ⚠️ 55 Retouren alle im Status "Eingegangen" — keine weiterverarbeitet
+
+**Versand & Labels:**
+- ⛔ BUG-061 bestätigt: "Invalid Date" für Versanddatum
+- ⛔ BUG-062 bestätigt: Kundenname "—" für die meisten Sendungen
+- ⛔ BUG-063 bestätigt: SendCloud-IDs statt Order-IDs
+- ⛔ BUG-075: Mix DE/EN Status ("Ready to send", "Ausstehend", "cancelled")
+- ⛔ BUG-076: Sendung 33127936 erscheint 3x (cancelled Duplikate)
+
+**Rechnungen:**
+- ⛔ BUG-065 bestätigt: NETTO/BRUTTO "—" für RE-2026-0001
+- ⚠️ Nur 1 Rechnung bei 200+ Bestellungen
+
+**eBay Listings:**
+- ⛔ BUG-072: "Artikel listen" Modal zeigt bereits gelistete Produkte
+- ✅ Listings-Tabelle und Suche funktionieren korrekt
+
+**Kaufland Listings:**
+- ⛔ BUG-066 bestätigt: Status "Unbekannt" für ungematchte Listings
+- ⛔ BUG-067 bestätigt: Preise "—" für ungematchte Listings
+- ⛔ BUG-077: Marktplatz-Spalte "0" für ungematchte Produkte
+- ⛔ BUG-072: Gleicher "Artikel listen"-Bug wie eBay
+- ✅ Gematchte Listings (z.B. Under Armour nach Sync) zeigen korrekte Daten
+
+**Inventar:**
+- ⛔ BUG-059 bestätigt: `\u2014` in Lagerplatz- und Marktplatz-Spalten
+- ⛔ BUG-073: 808 Produkte in Tabelle vs. 430 mit Bestand
+- ⛔ BUG-074: Bestandswert €0,00 (EK-Spalte leer)
+- ⚠️ NIEDRIG-BESTAND: 401 von 430 = 93% — Schwellenwert prüfen
+
+**Produktdaten:**
+- ⛔ BUG-082: Inkonsistente Farben eBay-gelb vs. Kaufland-rot für "Inaktiv"
+- ⚠️ Filter zeigt 378/808 — unklar welcher Filter aktiv
+
+**Duplikate:**
+- ⛔ BUG-078: 698 "Gruppen" aber fast alle mit nur 1 Produkt — irreführend
+
+**Erfassen:** ✅ OK — Wizard korrekt
+**Integrationen:** ✅ OK — 5 verbunden, alle aktiv (ABER: eBay Token abgelaufen!)
+**Einstellungen:** ✅ OK — Automatisierung + Versandregeln korrekt
+
+### Neue Bug-Prioritäten (Deep Dive 5)
+
+| Prio | Bug-IDs | Thema |
+|------|---------|-------|
+| P0 | BUG-081 | eBay Token ABGELAUFEN — sofortige Erneuerung nötig! |
+| P1 | BUG-072, BUG-073, BUG-074, BUG-077, BUG-079 | Logik-Fehler (Artikel listen, Inventar, Pipeline) |
+| P2 | BUG-075, BUG-076, BUG-078, BUG-080 | UX/Kosmetik (Status-Übersetzung, Duplikate, Retouren) |
+| P3 | BUG-082 | Farb-Inkonsistenz eBay/Kaufland Badges |
 
 ---
 

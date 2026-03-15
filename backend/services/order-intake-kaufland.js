@@ -82,7 +82,7 @@ function mapKauflandOrder(klOrder) {
   const totalAmount = items.reduce((sum, item) => sum + (item.priceBrutto * item.quantity), 0);
 
   const shippingAddr = klOrder.buyer?.shipping_address || klOrder.shipping_address || {};
-  const billingAddr = klOrder.buyer?.billing_address || {};
+  const billingAddr = klOrder.buyer?.billing_address || klOrder.billing_address || {};
 
   // Kaufland is prepaid — if payment_status is complete, the buyer paid at order creation
   const paymentStatus = klOrder.payment_status || null;
@@ -98,6 +98,11 @@ function mapKauflandOrder(klOrder) {
     return sum + (isNaN(sc) ? 0 : sc / 100); // cents → EUR
   }, 0) || null;
 
+  // Extract tracking from units — Kaufland stores tracking per unit
+  const shippedUnit = units.find((u) => u.tracking_number || u.carrier);
+  const trackingNumber = shippedUnit?.tracking_number || klOrder.tracking_number || null;
+  const carrier = shippedUnit?.carrier || klOrder.carrier || null;
+
   return {
     marketplaceOrderId: String(klOrder.id_order || ''),
     source: 'kaufland',
@@ -107,12 +112,16 @@ function mapKauflandOrder(klOrder) {
     totalAmount,
     currency: 'EUR',
     customer: {
-      name: [shippingAddr.first_name, shippingAddr.last_name].filter(Boolean).join(' ') || buyer.name || 'Unbekannt',
-      street: [shippingAddr.street, shippingAddr.house_number].filter(Boolean).join(' ') || null,
-      city: shippingAddr.city || null,
-      zip: shippingAddr.postcode || null,
-      country: shippingAddr.country || 'DE',
-      phone: shippingAddr.phone || null,
+      name: [shippingAddr.first_name, shippingAddr.last_name].filter(Boolean).join(' ')
+        || [billingAddr.first_name, billingAddr.last_name].filter(Boolean).join(' ')
+        || buyer.name || 'Unbekannt',
+      street: [shippingAddr.street, shippingAddr.house_number].filter(Boolean).join(' ')
+        || [billingAddr.street, billingAddr.house_number].filter(Boolean).join(' ')
+        || null,
+      city: shippingAddr.city || billingAddr.city || null,
+      zip: shippingAddr.postcode || billingAddr.postcode || null,
+      country: shippingAddr.country || billingAddr.country || 'DE',
+      phone: shippingAddr.phone || billingAddr.phone || buyer.phone || null,
       email: buyer.email || null,
     },
     billingAddress: {
@@ -132,6 +141,8 @@ function mapKauflandOrder(klOrder) {
     shippedAt,
     paymentMethod: paymentStatus === 'complete' ? 'Kaufland Checkout' : null,
     shippingCost: shippingCost || null,
+    trackingNumber,
+    carrier,
     buyerNote: klOrder.note || null,
     raw: klOrder,
   };

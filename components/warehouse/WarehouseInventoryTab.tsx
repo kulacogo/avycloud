@@ -462,7 +462,7 @@ const WarehouseInventoryTab: React.FC = () => {
                             {variance > 0 ? `+${variance}` : variance}
                           </span>
                         ) : (
-                          <span className="text-txt-muted">\u2014</span>
+                          <span className="text-txt-muted">{"—"}</span>
                         )}
                       </td>
                     </tr>

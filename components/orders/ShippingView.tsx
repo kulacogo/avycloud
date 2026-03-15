@@ -71,7 +71,13 @@ export const ShippingView: React.FC = () => {
       setLoading(true);
       setError(null);
       const data = await fetchShipments({ limit: 200 });
-      setShipments(data);
+      // BUG-076: Deduplicate by sendcloudParcelId — keep latest (last) per ID
+      const seen = new Map<string, ShipmentData>();
+      for (const s of data) {
+        const key = s.sendcloudParcelId ? String(s.sendcloudParcelId) : s.id;
+        seen.set(key, s);
+      }
+      setShipments(Array.from(seen.values()));
     } catch (err: any) {
       console.error("[ShippingView] load failed:", err);
       setError(err?.message || "Sendungen konnten nicht geladen werden");
@@ -360,7 +366,7 @@ export const ShippingView: React.FC = () => {
                           className="rounded border-app-border"
                         />
                       </td>
-                      <td className="px-4 py-3 font-mono text-xs text-txt-primary font-medium">{shp.orderId}</td>
+                      <td className="px-4 py-3 font-mono text-xs text-txt-primary font-medium">{shp.orderNumber || shp.orderId}</td>
                       <td className="px-4 py-3 text-txt-primary font-medium">{typeof shp.customer === "string" ? shp.customer : shp.customer?.name || "—"}</td>
                       <td className="px-4 py-3">
                         <span className={`inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[11px] font-semibold ${carrier.cls}`}>
@@ -390,10 +396,10 @@ export const ShippingView: React.FC = () => {
                         </span>
                       </td>
                       <td className="px-4 py-3 text-xs text-txt-muted whitespace-nowrap">
-                        {shp.shippedAt ? new Date(shp.shippedAt).toLocaleDateString("de-DE") : "—"}
+                        {(() => { const d = shp.shippedAt ? new Date(shp.shippedAt) : null; return d && !isNaN(d.getTime()) ? d.toLocaleDateString("de-DE") : "—"; })()}
                       </td>
                       <td className="px-4 py-3 text-xs text-txt-muted whitespace-nowrap">
-                        {shp.deliveredAt ? new Date(shp.deliveredAt).toLocaleDateString("de-DE") : "—"}
+                        {(() => { const d = shp.deliveredAt ? new Date(shp.deliveredAt) : null; return d && !isNaN(d.getTime()) ? d.toLocaleDateString("de-DE") : "—"; })()}
                       </td>
                       <td className="px-4 py-3 text-right font-semibold text-txt-primary">
                         {typeof shp.cost === "number" ? `${shp.cost.toLocaleString("de-DE", { minimumFractionDigits: 2 })} EUR` : "—"}

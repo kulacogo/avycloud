@@ -638,14 +638,15 @@ export const ReturnsView: React.FC = () => {
       (r) => r.status === "erstattet" || r.status === "teilweise_erstattet"
     );
     const totalRefunded = refunded.reduce((sum, r) => sum + (r.refundAmount || 0), 0);
-    const returnRate =
+    // Erstattungsquote = Anteil erstatteter Retouren (nicht alle nicht-abgelehnten)
+    const erstattungsquote =
       returns.length > 0
-        ? ((returns.filter((r) => r.status !== "abgelehnt").length / returns.length) * 100).toFixed(1)
+        ? ((refunded.length / returns.length) * 100).toFixed(1)
         : "—";
     return {
       open,
       totalRefunded: totalRefunded.toLocaleString("de-DE", { minimumFractionDigits: 2 }),
-      returnRate,
+      returnRate: erstattungsquote,
     };
   }, [returns]);
 

@@ -370,13 +370,13 @@ export const InvoicesView: React.FC = () => {
                       <td className="px-4 py-3 text-txt-primary font-medium">{typeof inv.customer === "string" ? inv.customer : inv.customer?.name || "—"}</td>
                       <td className="px-4 py-3 font-mono text-xs text-txt-secondary">{inv.orderId || "—"}</td>
                       <td className="px-4 py-3 text-right text-txt-secondary">
-                        {typeof inv.amountNet === "number"
-                          ? `${inv.amountNet.toLocaleString("de-DE", { minimumFractionDigits: 2 })} EUR`
+                        {typeof (inv.amountNet ?? inv.amountNetto) === "number"
+                          ? `${(inv.amountNet ?? inv.amountNetto).toLocaleString("de-DE", { minimumFractionDigits: 2 })} EUR`
                           : "—"}
                       </td>
                       <td className="px-4 py-3 text-right font-semibold text-txt-primary">
-                        {typeof inv.amountGross === "number"
-                          ? `${inv.amountGross.toLocaleString("de-DE", { minimumFractionDigits: 2 })} EUR`
+                        {typeof (inv.amountGross ?? inv.amountBrutto) === "number"
+                          ? `${(inv.amountGross ?? inv.amountBrutto).toLocaleString("de-DE", { minimumFractionDigits: 2 })} EUR`
                           : "—"}
                       </td>
                       <td className="px-4 py-3">

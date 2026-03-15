@@ -913,9 +913,11 @@ export async function disconnectIntegration(type: string): Promise<void> {
 export interface ShipmentData {
   id: string;
   orderId: string;
+  orderNumber?: string | null;
   customer?: string | null;
   carrier?: string;
   trackingNumber?: string | null;
+  sendcloudParcelId?: number | string | null;
   status?: string;
   cost?: number;
   shippedAt?: string | null;
