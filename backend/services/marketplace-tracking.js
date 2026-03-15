@@ -160,7 +160,7 @@ async function pushTrackingToKaufland({ order, trackingNumber, carrier, firestor
       const klOrderId = order.marketplaceOrderId || order.externalOrderId;
       if (!klOrderId) return { ok: false, marketplace: 'kaufland', error: 'No Kaufland order/unit IDs' };
 
-      const unitsRes = await kauflandRequest('GET', `/v2/orders/${klOrderId}/units`);
+      const unitsRes = await kauflandRequest('GET', `/orders/${klOrderId}/units`);
       const units = Array.isArray(unitsRes?.data) ? unitsRes.data : [];
       for (const unit of units) {
         if (unit.id_order_unit) unitIds.push(unit.id_order_unit);
@@ -191,7 +191,7 @@ async function pushTrackingToKaufland({ order, trackingNumber, carrier, firestor
 
     for (const unitId of unitIds) {
       try {
-        await kauflandRequest('PATCH', `/v2/order-units/${unitId}/ship`, {
+        await kauflandRequest('PATCH', `/order-units/${unitId}/ship`, {
           body: {
             tracking_number: trackingNumber,
             carrier_code: klCarrier,
@@ -464,7 +464,7 @@ async function cancelOrderOnKaufland({ order, reason, note }) {
       const klOrderId = order.marketplaceOrderId || order.externalOrderId;
       if (!klOrderId) return { ok: false, marketplace: 'kaufland', error: 'No Kaufland order/unit IDs' };
 
-      const unitsRes = await kauflandRequest('GET', `/v2/orders/${klOrderId}/units`);
+      const unitsRes = await kauflandRequest('GET', `/orders/${klOrderId}/units`);
       const units = Array.isArray(unitsRes?.data) ? unitsRes.data : [];
       for (const unit of units) {
         if (unit.id_order_unit) unitIds.push(unit.id_order_unit);
@@ -476,7 +476,7 @@ async function cancelOrderOnKaufland({ order, reason, note }) {
 
     for (const unitId of unitIds) {
       try {
-        await kauflandRequest('PATCH', `/v2/order-units/${unitId}/cancel`, {
+        await kauflandRequest('PATCH', `/order-units/${unitId}/cancel`, {
           body: {
             reason: klReason,
             message: note || undefined,

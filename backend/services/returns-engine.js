@@ -592,6 +592,7 @@ async function syncKauflandReturns({ tenantId = 'default', lookbackDays = 30 } =
           // Link to order if not yet linked
           if (!existingData.orderId && orderUnitId) {
             const orderSnap = await db.collection(ORDERS_COLLECTION)
+              .where('tenantId', '==', tenantId)
               .where('marketplace', '==', 'kaufland')
               .limit(200)
               .get();
