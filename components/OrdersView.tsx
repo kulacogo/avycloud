@@ -64,7 +64,7 @@ const statusBadge = (status: string) => {
 const sourceBadge = (source?: string | null) => {
   if (!source) return null;
   const s = source.toLowerCase();
-  if (s.includes("ebay")) return { label: "eBay", cls: "bg-amber-600/15 text-amber-400 border-amber-500/20" };
+  if (s.includes("ebay")) return { label: "eBay", cls: "bg-warning-dim text-warning border-warning/20" };
   if (s.includes("kaufland")) return { label: "Kaufland", cls: "bg-danger-dim text-danger border-danger/20" };
   if (s.includes("amazon")) return { label: "Amazon", cls: "bg-info-dim text-info border-info/20" };
   return { label: source, cls: "bg-app-elevated text-txt-secondary border-app-border" };

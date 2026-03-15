@@ -35,7 +35,7 @@ const STATUS_CONFIG: Record<string, { label: string; cls: string }> = {
 };
 
 const MARKETPLACE_BADGE: Record<string, { label: string; cls: string }> = {
-  ebay: { label: "eBay", cls: "bg-info-dim text-info" },
+  ebay: { label: "eBay", cls: "bg-warning-dim text-warning" },
   kaufland: { label: "Kaufland", cls: "bg-danger-dim text-danger" },
 };
 
@@ -217,7 +217,8 @@ function customerName(customer: ReturnData["customer"]): string {
 function productName(product: ReturnData["product"]): string {
   if (!product) return "—";
   if (typeof product === "string") return product;
-  return product.name || product.sku || "—";
+  // BUG-080: Check title (Kaufland), name, then fallback to SKU
+  return product.name || (product as any).title || product.sku || "—";
 }
 
 /* ─── Helper: Key-Value Row ─── */

@@ -11,11 +11,34 @@ const CARRIER_STYLE: Record<string, { cls: string; initial: string }> = {
 };
 
 const STATUS_CONFIG: Record<string, { label: string; cls: string }> = {
+  // Internal German keys (from mapSendCloudStatus in backend)
   ausstehend: { label: "Ausstehend", cls: "bg-warning-dim text-warning" },
   in_zustellung: { label: "In Zustellung", cls: "bg-info-dim text-info" },
   zugestellt: { label: "Zugestellt", cls: "bg-success-dim text-success" },
   problem: { label: "Problem", cls: "bg-danger-dim text-danger" },
   storniert: { label: "Storniert", cls: "bg-app-elevated text-txt-muted" },
+  // Raw SendCloud status strings (from createParcel / older docs)
+  created: { label: "Erstellt", cls: "bg-warning-dim text-warning" },
+  "ready_to_send": { label: "Versandbereit", cls: "bg-warning-dim text-warning" },
+  "Ready to send": { label: "Versandbereit", cls: "bg-warning-dim text-warning" },
+  announced: { label: "Angekündigt", cls: "bg-warning-dim text-warning" },
+  Announced: { label: "Angekündigt", cls: "bg-warning-dim text-warning" },
+  "en route to sorting center": { label: "In Zustellung", cls: "bg-info-dim text-info" },
+  "En route to sorting center": { label: "In Zustellung", cls: "bg-info-dim text-info" },
+  shipped: { label: "Versendet", cls: "bg-info-dim text-info" },
+  "in_transit": { label: "In Zustellung", cls: "bg-info-dim text-info" },
+  "In transit": { label: "In Zustellung", cls: "bg-info-dim text-info" },
+  delivered: { label: "Zugestellt", cls: "bg-success-dim text-success" },
+  Delivered: { label: "Zugestellt", cls: "bg-success-dim text-success" },
+  cancelled: { label: "Storniert", cls: "bg-app-elevated text-txt-muted" },
+  Cancelled: { label: "Storniert", cls: "bg-app-elevated text-txt-muted" },
+  "delivery_attempt_failed": { label: "Zustellung fehlgeschlagen", cls: "bg-danger-dim text-danger" },
+  "Delivery attempt failed": { label: "Zustellung fehlgeschlagen", cls: "bg-danger-dim text-danger" },
+  "returned_to_sender": { label: "Rücksendung", cls: "bg-danger-dim text-danger" },
+  "at_sorting_centre": { label: "Im Sortierzentrum", cls: "bg-info-dim text-info" },
+  "At sorting centre": { label: "Im Sortierzentrum", cls: "bg-info-dim text-info" },
+  "out_for_delivery": { label: "Wird zugestellt", cls: "bg-info-dim text-info" },
+  "Driver en route": { label: "Wird zugestellt", cls: "bg-info-dim text-info" },
 };
 
 type TabKey = "alle" | "ausstehend" | "in_zustellung" | "zugestellt" | "problem";

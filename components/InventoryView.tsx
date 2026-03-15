@@ -211,7 +211,10 @@ const InventoryView: React.FC<InventoryViewProps> = ({ onNavigate, onSelectProdu
     const totalUnits = products.reduce((sum, p) => sum + (p.inventory?.quantity ?? 0), 0);
     const totalValue = products.reduce((sum, p) => {
       const qty = p.inventory?.quantity ?? 0;
-      const buyPrice = p.details?.pricing?.buyPrice ?? 0;
+      // BUG-074: Use buyPrice, fall back to lowest_price.amount (same as Dashboard)
+      const buyPrice = p.details?.pricing?.buyPrice
+        || (p.details?.pricing as any)?.lowest_price?.amount
+        || 0;
       return sum + qty * buyPrice;
     }, 0);
     const lowStockCount = products.filter(isLowStock).length;
@@ -266,13 +269,18 @@ const InventoryView: React.FC<InventoryViewProps> = ({ onNavigate, onSelectProdu
         case "available":
           cmp = (a.inventory?.availableQuantity ?? 0) - (b.inventory?.availableQuantity ?? 0);
           break;
-        case "buyPrice":
-          cmp = (a.details?.pricing?.buyPrice ?? 0) - (b.details?.pricing?.buyPrice ?? 0);
+        case "buyPrice": {
+          const aBuy = a.details?.pricing?.buyPrice || (a.details?.pricing as any)?.lowest_price?.amount || 0;
+          const bBuy = b.details?.pricing?.buyPrice || (b.details?.pricing as any)?.lowest_price?.amount || 0;
+          cmp = aBuy - bBuy;
           break;
-        case "value":
-          cmp =
-            (a.inventory?.quantity ?? 0) * (a.details?.pricing?.buyPrice ?? 0) -
-            (b.inventory?.quantity ?? 0) * (b.details?.pricing?.buyPrice ?? 0);
+        }
+        case "value": {
+          const aVal = (a.inventory?.quantity ?? 0) * (a.details?.pricing?.buyPrice || (a.details?.pricing as any)?.lowest_price?.amount || 0);
+          const bVal = (b.inventory?.quantity ?? 0) * (b.details?.pricing?.buyPrice || (b.details?.pricing as any)?.lowest_price?.amount || 0);
+          cmp = aVal - bVal;
+          break;
+        }
           break;
         case "binCode":
           cmp = (getBinCode(a) || "zzz").localeCompare(getBinCode(b) || "zzz", "de");
@@ -489,7 +497,9 @@ const InventoryView: React.FC<InventoryViewProps> = ({ onNavigate, onSelectProdu
                 const qty = product.inventory?.quantity ?? 0;
                 const availableQty = product.inventory?.availableQuantity ?? qty;
                 const reservedQty = product.inventory?.reservedQuantity ?? 0;
-                const buyPrice = product.details?.pricing?.buyPrice ?? 0;
+                const buyPrice = product.details?.pricing?.buyPrice
+                  || (product.details?.pricing as any)?.lowest_price?.amount
+                  || 0;
                 const rowValue = qty * buyPrice;
                 const binCode = getBinCode(product);
                 const zone = getBinZone(product);
