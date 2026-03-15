@@ -493,27 +493,13 @@ router.get('/dashboard/activity', requirePermission('orders', 'read'), async (re
     const activities = [];
     const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 
+    const emptySnap = { docs: [] };
+    const safeGet = (q) => q.get().catch(() => emptySnap);
     const [ordersSnap, shipmentsSnap, returnsSnap, syncSnap] = await Promise.all([
-      firestore.collection('orders')
-        .where('createdAt', '>=', since)
-        .orderBy('createdAt', 'desc')
-        .limit(10)
-        .get(),
-      firestore.collection('shipments')
-        .where('createdAt', '>=', since)
-        .orderBy('createdAt', 'desc')
-        .limit(10)
-        .get(),
-      firestore.collection('returns')
-        .where('createdAt', '>=', since)
-        .orderBy('createdAt', 'desc')
-        .limit(10)
-        .get(),
-      firestore.collection('stock_sync_log')
-        .where('createdAt', '>=', since)
-        .orderBy('createdAt', 'desc')
-        .limit(10)
-        .get(),
+      safeGet(firestore.collection('orders').where('createdAt', '>=', since).orderBy('createdAt', 'desc').limit(10)),
+      safeGet(firestore.collection('shipments').where('createdAt', '>=', since).orderBy('createdAt', 'desc').limit(10)),
+      safeGet(firestore.collection('returns').where('createdAt', '>=', since).orderBy('createdAt', 'desc').limit(10)),
+      safeGet(firestore.collection('stock_sync_log').where('createdAt', '>=', since).orderBy('createdAt', 'desc').limit(10)),
     ]);
 
     for (const doc of ordersSnap.docs) {
@@ -521,7 +507,7 @@ router.get('/dashboard/activity', requirePermission('orders', 'read'), async (re
       activities.push({
         type: 'order',
         id: doc.id,
-        title: `Auftrag ${d.orderNumber || doc.id}`,
+        title: `Auftrag ${d.orderId || d.orderNumber || doc.id}`,
         detail: d.customer?.name || d.source || '',
         status: d.omsStatus || d.status || 'neu',
         timestamp: d.createdAt,
