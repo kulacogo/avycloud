@@ -359,10 +359,12 @@
 - ✅ FIX-10 (BUG-071) — Erledigt
 - ✅ FIX-12 (BUG-SSE) — Code-Fix deployed
 - ✅ BUG-084 — 126 Duplikate gelöscht + Dedup-Fallback deployed
+- ✅ Kaufland Backfill — 104 alte KL-Bestellungen erhalten marketplaceKey aus raw.external_order_id (MXTBT35/M7PPT35/MEL4T35 inklusive → Status-Reconciliation beim nächsten Sync)
+- ✅ Activity Feed Fix — orderId statt orderNumber + resiliente Queries
 - ✅ `cd backend && npm test` — 129 Tests grün ✓
 - ✅ `npm run build` — Frontend kompiliert ✓
 - ✅ Frontend deployed → avycloud.web.app
-- ✅ Backend deployed → product-hub-backend-01094-pkk
+- ✅ Backend deployed → product-hub-backend-01095-b2f
 
 **NOCH ZU VERIFIZIEREN (Browser-Check, kein Code-Fix nötig):**
 - [ ] FIX-8: avycloud.web.app → Dashboard → Sync-Fehler = 0 (nach deploy)
