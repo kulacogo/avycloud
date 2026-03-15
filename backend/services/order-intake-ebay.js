@@ -296,10 +296,36 @@ async function saveOrderIfNew({ tenantId, order }) {
   const marketplaceKey = `${order.source}__${order.marketplaceOrderId}`;
 
   // Check for existing order by marketplace key
-  const existing = await db.collection(ORDERS_COLLECTION)
+  let existing = await db.collection(ORDERS_COLLECTION)
     .where('marketplaceKey', '==', marketplaceKey)
     .limit(1)
     .get();
+
+  // Fallback: old orders (pre-BaseLinker migration) have marketplaceOrderId but no marketplaceKey
+  if (existing.empty && order.marketplaceOrderId) {
+    existing = await db.collection(ORDERS_COLLECTION)
+      .where('marketplaceOrderId', '==', String(order.marketplaceOrderId))
+      .where('marketplace', '==', order.marketplace)
+      .limit(1)
+      .get();
+    // Self-heal: write marketplaceKey so future lookups skip this fallback
+    if (!existing.empty) {
+      existing.docs[0].ref.update({ marketplaceKey }).catch(() => {});
+    }
+  }
+
+  // Fallback: old BaseLinker imports have no marketplaceOrderId — match by createdAt + marketplace
+  if (existing.empty && order.createdAt && order.marketplace) {
+    existing = await db.collection(ORDERS_COLLECTION)
+      .where('createdAt', '==', order.createdAt)
+      .where('marketplace', '==', order.marketplace)
+      .limit(1)
+      .get();
+    if (!existing.empty) {
+      // Self-heal: write marketplaceKey and marketplaceOrderId to the old doc
+      existing.docs[0].ref.update({ marketplaceKey, marketplaceOrderId: String(order.marketplaceOrderId) }).catch(() => {});
+    }
+  }
 
   if (!existing.empty) {
     // Order exists — reconcile status if eBay reports a more advanced state
