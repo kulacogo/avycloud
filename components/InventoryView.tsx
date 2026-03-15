@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { Product } from "../types";
-import { fetchProducts } from "../api/client";
+import { fetchProducts, fetchEbaySkuIndex, fetchKauflandSkuIndex } from "../api/client";
 import { Spinner } from "./Spinner";
 
 // ---------------------------------------------------------------------------
@@ -184,6 +184,10 @@ const InventoryView: React.FC<InventoryViewProps> = ({ onNavigate, onSelectProdu
   const [searchQuery, setSearchQuery] = useState("");
   const [sortField, setSortField] = useState<SortField>("name");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
+  // Marketplace listing index: productId → isListed
+  const [ebayListedProductIds, setEbayListedProductIds] = useState<Set<string>>(new Set());
+  const [kauflandListedSkus, setKauflandListedSkus] = useState<Set<string>>(new Set());
+  const [kauflandListedEans, setKauflandListedEans] = useState<Set<string>>(new Set());
 
   // ---- Data loading ----
   const loadData = useCallback(async () => {
@@ -203,6 +207,38 @@ const InventoryView: React.FC<InventoryViewProps> = ({ onNavigate, onSelectProdu
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  // ---- Marketplace index loading ----
+  useEffect(() => {
+    fetchEbaySkuIndex()
+      .then((entries) => {
+        const pids = new Set<string>();
+        entries.forEach((e) => { if (e.productId) pids.add(String(e.productId)); });
+        setEbayListedProductIds(pids);
+      })
+      .catch(() => {/* non-blocking */});
+  }, []);
+
+  useEffect(() => {
+    fetchKauflandSkuIndex('de')
+      .then((entries) => {
+        const skus = new Set<string>();
+        const eans = new Set<string>();
+        entries.forEach((e) => {
+          const sku = String(e.skuNormalized || e.sku || '').trim().toUpperCase();
+          if (sku) skus.add(sku);
+          const ean = String(e.ean || '').replace(/\D+/g, '').trim();
+          if (ean) eans.add(ean);
+          (Array.isArray(e.eans) ? e.eans : []).forEach((v: string) => {
+            const n = String(v || '').replace(/\D+/g, '').trim();
+            if (n) eans.add(n);
+          });
+        });
+        setKauflandListedSkus(skus);
+        setKauflandListedEans(eans);
+      })
+      .catch(() => {/* non-blocking */});
+  }, []);
 
   // ---- KPI calculations ----
   const kpis = useMemo(() => {
@@ -506,6 +542,13 @@ const InventoryView: React.FC<InventoryViewProps> = ({ onNavigate, onSelectProdu
                 const imgUrl = primaryImage(product);
                 const ebayStatus = (product as any)?.ops?.listingStatus?.ebay;
                 const kauflandStatus = (product as any)?.ops?.listingStatus?.kaufland;
+                const productSku = String((product as any)?.identification?.sku || '').trim().toUpperCase();
+                const productEans = (() => {
+                  const raw = (product as any)?.identification?.ean || (product as any)?.identification?.barcode || '';
+                  return [raw, ...((product as any)?.identification?.eans || [])].map((v: string) => String(v || '').replace(/\D+/g, '').trim()).filter(Boolean);
+                })();
+                const isEbayActive = ebayStatus === 'active' || ebayListedProductIds.has(product.id);
+                const isKauflandActive = kauflandStatus === 'active' || (productSku && kauflandListedSkus.has(productSku)) || productEans.some((e) => kauflandListedEans.has(e));
 
                 return (
                   <tr
@@ -613,21 +656,21 @@ const InventoryView: React.FC<InventoryViewProps> = ({ onNavigate, onSelectProdu
                     {/* Marktplatz */}
                     <td className="px-3 py-2">
                       <div className="flex items-center justify-center gap-1.5">
-                        {ebayStatus === "active" && (
+                        {isEbayActive && (
                           <span className="inline-flex items-center justify-center w-6 h-6 rounded bg-app-elevated" title="eBay">
                             <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none">
                               <text x="2" y="17" fontSize="11" fontWeight="bold" fill="currentColor" className="text-txt-secondary">eB</text>
                             </svg>
                           </span>
                         )}
-                        {kauflandStatus === "active" && (
+                        {isKauflandActive && (
                           <span className="inline-flex items-center justify-center w-6 h-6 rounded bg-app-elevated" title="Kaufland">
                             <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none">
                               <text x="5" y="17" fontSize="12" fontWeight="bold" fill="currentColor" className="text-txt-secondary">K</text>
                             </svg>
                           </span>
                         )}
-                        {ebayStatus !== "active" && kauflandStatus !== "active" && (
+                        {!isEbayActive && !isKauflandActive && (
                           <span className="text-xs text-txt-muted">{"—"}</span>
                         )}
                       </div>

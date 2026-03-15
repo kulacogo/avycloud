@@ -960,7 +960,7 @@ const AppInner: React.FC = () => {
               onImproveSelected={handleImproveSelected}
               onBulkImprove={handleBulkImprove}
               improvingProductIds={activeProductIds}
-              mode={view}
+              mode="all"
               scopeProductIds={drilldownProductIds}
             />
           </>

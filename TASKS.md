@@ -2714,9 +2714,131 @@ Alle Dateien mit "baselinker" im Namen — Migrations, Imports, Syncs, Audits, R
 
 ---
 
+## Sprint-Block 10: OMS Audit Fixes (März 2026) — 🔴 OFFEN
+
+> **Quelle:** Vollständiges OMS-Audit vom 15.03.2026 (siehe `oms-audit-report.html`)
+> **Scope:** 51 Findings — 9 Critical, 12 High, 18 Medium, 8 Low, 4 Security
+> **Priorität:** P0/P1 — Production-stabilisierende Fixes zuerst
+
+### Phase 1: Critical Fixes (P0 — Sofort)
+
+- [ ] **FIX-B001** NULL Pointer in marketplace-tracking.js — `order.shipment_tracking` null-Guard
+  - Datei: `backend/services/marketplace-tracking.js` ~Zeile 95
+  - Guard: `if (!order?.shipment_tracking?.carrier) return;`
+
+- [ ] **FIX-B002** Race Condition: Stock-Release vs Marketplace-Sync in sync-event-bus.js
+  - Datei: `backend/services/sync-event-bus.js` ~Zeile 110-130
+  - Fix: Stock-Release atomar in derselben Firestore-Transaktion wie Status-Update
+
+- [ ] **FIX-B003** eBay API Errors still ignoriert (HTTP 200 + Error-Liste)
+  - Datei: `backend/services/order-intake-ebay.js` ~Zeile 65
+  - Fix: `if (response.Errors?.length) throw new Error('eBay errors: ' + ...)`
+
+- [ ] **FIX-B004** eBay Status "NotPaid" nicht im Mapping → Orders verschwinden
+  - Datei: `backend/services/order-intake-ebay.js` (mapEbayStatus)
+  - Fix: `case 'NotPaid': return 'pending';`
+
+- [ ] **FIX-B005** Stock wird bei Stornierung NICHT freigegeben → Inventar-Deadlock
+  - Datei: `backend/services/order-state-machine.js` ~Zeile 450
+  - Fix: `await releaseStockReservation(order.products, order.id)` vor Marketplace-Stornierung
+
+- [ ] **FIX-B006** NULL Pointer: order.customer.address in shipping-engine.js
+  - Datei: `backend/services/shipping-engine.js` ~Zeile 95
+  - Fix: `if (!order?.customer?.address) throw new AppError('SHIPPING_ADDRESS_MISSING', 400)`
+
+- [ ] **FIX-B007** Dual Status-Feld (status vs omsStatus) konsolidieren
+  - Backend: Einheitlich `omsStatus` in allen Order-Endpoints zurückgeben
+  - Frontend: `types.ts` — Order-Interface konsolidieren, `as any`-Casts entfernen
+  - Dateien: `backend/routes/orders.js`, `components/OrdersView.tsx`, `types.ts`
+
+- [ ] **FIX-B008** Unbekannte Shipping-Statuse verschwinden aus Tabs
+  - Datei: `components/orders/ShippingView.tsx`
+  - Fix: Normalisierungs-Layer in api/client.ts + Fallback-Tab "Sonstige"
+
+- [ ] **FIX-B009** SevDesk-Export Stub implementieren
+  - Datei: `backend/services/invoice-engine.js`
+  - Fix: Vollständige SevDesk API-Integration (Kontakt, Rechnung, PDF)
+
+### Phase 2: High Fixes (P1 — Diese Woche)
+
+- [ ] **FIX-B010** SendCloud: Retry mit exponential Backoff (3 Versuche)
+  - Datei: `backend/services/shipping-engine.js` (createParcel)
+
+- [ ] **FIX-B011** Tracking-Push: Sofort-Retry statt erst nach 24h
+  - Datei: `backend/services/marketplace-tracking.js`
+
+- [ ] **FIX-B012** Kaufland Webhook HMAC-Signatur-Validierung
+  - Datei: `backend/routes/orders.js` (Webhook-Endpoint)
+
+- [ ] **FIX-B013** Kaufland "closed" → "cancelled" statt "completed"
+  - Datei: `backend/services/order-intake-kaufland.js`
+
+- [ ] **FIX-B014** Kaufland Einzelpreise extrahieren (item.price / 100)
+  - Datei: `backend/services/order-intake-kaufland.js`
+
+- [ ] **FIX-B015** Stale Data: refetch() nach jeder Mutation in allen OMS-Views
+  - Dateien: `OrdersView.tsx`, `ReturnsView.tsx`, `InvoicesView.tsx`, `ShippingView.tsx`
+
+- [ ] **FIX-B016** Invoice amountNet/amountNetto Normalisierung in api/client.ts
+  - Datei: `api/client.ts` — Response-Transform-Layer
+
+- [ ] **FIX-B017** Bulk-Operationen: Einzelergebnisse auswerten + anzeigen
+  - Dateien: `OrdersView.tsx`, `ReturnsView.tsx`, `ShippingView.tsx`
+
+- [ ] **FIX-B018** Kaufland API Response-Validierung (Array-Check)
+  - Datei: `backend/services/order-intake-kaufland.js`
+
+- [ ] **FIX-B019** eBay Refund-Push via Post-Order API implementieren
+  - Datei: `backend/services/returns-engine.js`
+
+- [ ] **FIX-B020** Return-Typen: Strict Enums + Fallback-Labels
+  - Dateien: `types.ts`, `ReturnsView.tsx`
+
+- [ ] **FIX-B021** JSON.parse in ebay-oauth.js mit try-catch wrappen
+  - Datei: `backend/lib/ebay-oauth.js`
+
+### Phase 3: Security Fixes (P1)
+
+- [ ] **FIX-S001** JWT Token aus URL entfernen (SSE → Authorization Header)
+  - Dateien: Backend SSE-Endpoint + Frontend useJobStream.ts
+
+- [ ] **FIX-S002** XSS: decodeHtmlEntitiesDeep() an allen Intake-Entry-Points
+  - Dateien: `order-intake-ebay.js`, `order-intake-kaufland.js`, `returns-engine.js`
+
+- [ ] **FIX-S003** Kaufland Webhook HMAC-Signatur-Validierung (= FIX-B012)
+
+- [ ] **FIX-S004** Kunden-Email Regex-Validierung bei Import
+  - Dateien: `order-intake-ebay.js`, `order-intake-kaufland.js`
+
+### Phase 4: Medium/Low (P2 — Diesen Monat)
+
+- [ ] **FIX-B022** i18n: 50+ hardcoded deutsche Strings → i18n.t() extrahieren
+- [ ] **FIX-B023** Return-Sync Race Condition: Lock pro Return-ID
+- [ ] **FIX-B024** Return Reason gegen Enum validieren (Fallback: 'sonstiges')
+- [ ] **FIX-B025** Pricing Engine: Runner + Frontend erstellen
+- [ ] **FIX-B026** SevDesk Versandkosten-Filter verschärfen
+- [ ] **FIX-B027** Invoice Überfällig: Server-Zeit statt Client-Zeit
+- [ ] **FIX-B028** Empty States in allen OMS-Tabellen
+- [ ] **FIX-B029** Loading-Spinner bei allen Async-Operationen
+- [ ] **FIX-B030** ShippingView 60s Polling: Error-Catch + Backoff
+- [ ] **FIX-B031** OrderDetail nextStatuses Typ-Mismatch fixen
+- [ ] **FIX-B032** Pagination Reset bei Filter-Wechsel
+- [ ] **FIX-B033** Feldnamen vereinheitlichen: shipment → shipment_tracking
+- [ ] **FIX-B034** Return Timeline Timezone-Handling
+- [ ] **FIX-B035** ProcessReturn Dialog: try-catch + Error-Toast
+- [ ] **FIX-B036** KPI NaN/Infinity Guard bei leerem Datensatz
+- [ ] **FIX-B037** SevDesk Balance-Cache Type klären
+- [ ] **FIX-B038** Idempotente Order-Erstellung (set() statt add())
+- [ ] **FIX-B039** Reconciliation Window konfigurierbar (ENV)
+- [ ] **FIX-B040–B047** Low-Priority: Carrier-Validierung, Timeouts, Accessibility, CSV-Export
+
+---
+
 ## Referenz-Dokumente
 
 | Dokument | Beschreibung | Pfad |
 |----------|-------------|------|
 | CLAUDE.md | Projektregeln, Architektur, Safety-Rules | `./CLAUDE.md` |
 | Marketplace_Taxonomy_Masterplan.html | Taxonomy-Akquisitionsplan für alle Marktplätze | `./Marketplace_Taxonomy_Masterplan.html` |
+| oms-audit-report.html | OMS Audit Report — 51 Findings mit Filter-Dashboard | `./oms-audit-report.html` |
+| compare-ebay-returns.js | eBay vs. AvyCloud Retouren-Vergleichs-Script | `backend/scripts/compare-ebay-returns.js` |

@@ -15,7 +15,6 @@ import { Spinner } from './Spinner';
 import { addMediaQueryListener } from '../utils/mediaQuery';
 import { useInventoryContext } from '../context/InventoryContext';
 import { isInventoryItem, isProductBacklogItem } from '../utils/inventorySplit';
-import { PageHeader } from './ui/PageHeader';
 import { Notice } from './ui/Notice';
 import { ConfirmDialog } from './ui/ConfirmDialog';
 import { AdminTableHeader, AdminTableRow, AdminTableFilters, BulkActions } from './admin-table';
@@ -1942,9 +1941,6 @@ const AdminTable: React.FC<AdminTableProps> = ({
   return (
     <>
       <section id="admin-table" className="space-y-4">
-        <PageHeader
-          title={mode === 'inventory' ? t('nav.inventory') : mode === 'products' ? t('nav.products') : t('inventory.title')}
-        />
 
         {notice ? (
           <Notice

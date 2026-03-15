@@ -1,0 +1,1136 @@
+<!DOCTYPE html>
+<html lang="de" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AvyCloud OMS Audit Report — 2026-03-15</title>
+<style>
+  :root {
+    --bg: #1a1d23; --surface: #21242b; --elevated: #282c34; --border: #2a2d35;
+    --text: #ebeef5; --text-sec: #7a8090; --text-muted: #8a8f9e;
+    --accent: #3b82f6; --accent-dim: rgba(59,130,246,0.15);
+    --danger: #f87171; --danger-dim: rgba(248,113,113,0.12);
+    --warning: #fbbf24; --warning-dim: rgba(251,191,36,0.12);
+    --success: #34d399; --success-dim: rgba(52,211,153,0.12);
+    --info: #60a5fa; --info-dim: rgba(96,165,250,0.12);
+    --radius: 8px; --radius-lg: 12px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; }
+  .container { max-width: 1200px; margin: 0 auto; padding: 32px 24px; }
+
+  /* Header */
+  .header { margin-bottom: 32px; }
+  .header h1 { font-size: 28px; font-weight: 700; margin-bottom: 4px; }
+  .header .subtitle { color: var(--text-sec); font-size: 14px; }
+  .header .date { color: var(--text-muted); font-size: 13px; margin-top: 4px; }
+
+  /* KPI Row */
+  .kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 32px; }
+  .kpi { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 20px; }
+  .kpi .label { font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); margin-bottom: 8px; }
+  .kpi .value { font-size: 32px; font-weight: 700; }
+  .kpi .detail { font-size: 12px; color: var(--text-sec); margin-top: 4px; }
+  .kpi.critical .value { color: var(--danger); }
+  .kpi.high .value { color: var(--warning); }
+  .kpi.medium .value { color: var(--info); }
+  .kpi.ok .value { color: var(--success); }
+
+  /* Severity bar */
+  .severity-bar { display: flex; height: 8px; border-radius: 4px; overflow: hidden; margin-bottom: 32px; }
+  .severity-bar .seg { transition: width 0.3s; }
+  .severity-bar .seg.critical { background: var(--danger); }
+  .severity-bar .seg.high { background: var(--warning); }
+  .severity-bar .seg.medium { background: var(--info); }
+  .severity-bar .seg.low { background: var(--text-muted); }
+
+  /* Filters */
+  .filters { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 24px; }
+  .filter-btn { padding: 6px 14px; border-radius: 20px; border: 1px solid var(--border); background: var(--surface); color: var(--text-sec); font-size: 13px; cursor: pointer; transition: all 0.15s; }
+  .filter-btn:hover { border-color: var(--accent); color: var(--text); }
+  .filter-btn.active { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+  .filter-btn .count { margin-left: 4px; opacity: 0.7; }
+
+  /* Sections */
+  .section { margin-bottom: 40px; }
+  .section-title { font-size: 18px; font-weight: 600; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+
+  /* Bug cards */
+  .bug-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 12px; overflow: hidden; transition: border-color 0.15s; }
+  .bug-card:hover { border-color: var(--accent); }
+  .bug-card.hidden { display: none; }
+  .bug-header { padding: 14px 18px; cursor: pointer; display: flex; align-items: center; gap: 12px; }
+  .bug-header:hover { background: var(--elevated); }
+  .bug-body { padding: 0 18px 16px; display: none; }
+  .bug-card.open .bug-body { display: block; }
+  .bug-id { font-size: 12px; font-weight: 600; color: var(--text-muted); min-width: 50px; }
+  .sev-badge { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 10px; text-transform: uppercase; letter-spacing: 0.3px; }
+  .sev-badge.critical { background: var(--danger-dim); color: var(--danger); }
+  .sev-badge.high { background: var(--warning-dim); color: var(--warning); }
+  .sev-badge.medium { background: var(--info-dim); color: var(--info); }
+  .sev-badge.low { background: rgba(138,143,158,0.15); color: var(--text-muted); }
+  .sev-badge.security { background: rgba(168,85,247,0.15); color: #a855f7; }
+  .bug-title { flex: 1; font-size: 14px; font-weight: 500; }
+  .bug-layer { font-size: 11px; padding: 2px 8px; border-radius: 10px; background: var(--elevated); color: var(--text-sec); }
+  .bug-chevron { color: var(--text-muted); transition: transform 0.2s; font-size: 12px; }
+  .bug-card.open .bug-chevron { transform: rotate(90deg); }
+
+  .bug-meta { display: flex; gap: 16px; margin-bottom: 12px; flex-wrap: wrap; }
+  .bug-meta-item { font-size: 12px; color: var(--text-sec); }
+  .bug-meta-item strong { color: var(--text); font-weight: 500; }
+
+  .bug-desc { font-size: 13px; color: var(--text-sec); margin-bottom: 12px; line-height: 1.7; }
+  .bug-code { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 12px 14px; font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 12px; overflow-x: auto; margin: 8px 0 12px; color: var(--text-muted); white-space: pre; }
+  .bug-fix { font-size: 13px; padding: 10px 14px; background: var(--success-dim); border-radius: 6px; border-left: 3px solid var(--success); }
+  .bug-fix strong { color: var(--success); }
+
+  /* Layer summary */
+  .layer-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px; margin-bottom: 32px; }
+  .layer-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; }
+  .layer-card h3 { font-size: 14px; font-weight: 600; margin-bottom: 10px; }
+  .layer-stat { display: flex; justify-content: space-between; font-size: 13px; padding: 4px 0; color: var(--text-sec); }
+  .layer-stat .num { font-weight: 600; color: var(--text); }
+
+  /* Status pill */
+  .status-pill { font-size: 11px; padding: 1px 6px; border-radius: 8px; }
+  .status-pill.unfixed { background: var(--danger-dim); color: var(--danger); }
+  .status-pill.known { background: var(--warning-dim); color: var(--warning); }
+  .status-pill.workaround { background: var(--success-dim); color: var(--success); }
+
+  @media (max-width: 768px) {
+    .kpi-row { grid-template-columns: repeat(2, 1fr); }
+    .container { padding: 16px; }
+    .header h1 { font-size: 22px; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+<div class="header">
+  <h1>OMS Audit Report</h1>
+  <div class="subtitle">AvyCloud Order Management System — Vollständige Fehleranalyse</div>
+  <div class="date">Generiert: 15. März 2026 | Backend + Frontend + Integrationen | 45.000+ Zeilen analysiert</div>
+</div>
+
+<!-- KPIs -->
+<div class="kpi-row">
+  <div class="kpi critical">
+    <div class="label">Critical</div>
+    <div class="value">9</div>
+    <div class="detail">Production-Risiko, Crashes, Datenverlust</div>
+  </div>
+  <div class="kpi high">
+    <div class="label">High</div>
+    <div class="value">12</div>
+    <div class="detail">Fehlende Retry-Logik, Status-Gaps</div>
+  </div>
+  <div class="kpi medium">
+    <div class="label">Medium</div>
+    <div class="value">18</div>
+    <div class="detail">Fehlende Features, i18n, UX</div>
+  </div>
+  <div class="kpi ok">
+    <div class="label">Low / Info</div>
+    <div class="value">12</div>
+    <div class="detail">Code Smells, Accessibility, Polish</div>
+  </div>
+</div>
+
+<div class="severity-bar">
+  <div class="seg critical" style="width:17.6%"></div>
+  <div class="seg high" style="width:23.5%"></div>
+  <div class="seg medium" style="width:35.3%"></div>
+  <div class="seg low" style="width:23.5%"></div>
+</div>
+
+<!-- Layer Summary -->
+<div class="layer-grid">
+  <div class="layer-card">
+    <h3>Backend Services</h3>
+    <div class="layer-stat"><span>Critical Bugs</span><span class="num" style="color:var(--danger)">7</span></div>
+    <div class="layer-stat"><span>Missing Retry/Validation</span><span class="num">6</span></div>
+    <div class="layer-stat"><span>Incomplete Features</span><span class="num">3</span></div>
+    <div class="layer-stat"><span>Race Conditions</span><span class="num">2</span></div>
+  </div>
+  <div class="layer-card">
+    <h3>Frontend Views</h3>
+    <div class="layer-stat"><span>Status Mapping Gaps</span><span class="num" style="color:var(--danger)">4</span></div>
+    <div class="layer-stat"><span>Stale Data nach Mutation</span><span class="num">5</span></div>
+    <div class="layer-stat"><span>Hardcoded German (i18n)</span><span class="num">50+</span></div>
+    <div class="layer-stat"><span>Missing Error Handling</span><span class="num">8</span></div>
+  </div>
+  <div class="layer-card">
+    <h3>Integrationen</h3>
+    <div class="layer-stat"><span>eBay API Gaps</span><span class="num" style="color:var(--warning)">4</span></div>
+    <div class="layer-stat"><span>Kaufland Mapping Fehler</span><span class="num">3</span></div>
+    <div class="layer-stat"><span>SendCloud ohne Retry</span><span class="num">1</span></div>
+    <div class="layer-stat"><span>SevDesk Export Stub</span><span class="num">1</span></div>
+  </div>
+  <div class="layer-card">
+    <h3>Security</h3>
+    <div class="layer-stat"><span>JWT Token in URL (SSE)</span><span class="num" style="color:var(--danger)">1</span></div>
+    <div class="layer-stat"><span>XSS via Product Titles</span><span class="num">1</span></div>
+    <div class="layer-stat"><span>Webhook Signature fehlend</span><span class="num">1</span></div>
+    <div class="layer-stat"><span>Missing Email Validation</span><span class="num">1</span></div>
+  </div>
+</div>
+
+<!-- Filters -->
+<div class="filters">
+  <button class="filter-btn active" data-filter="all">Alle <span class="count">51</span></button>
+  <button class="filter-btn" data-filter="critical">Critical <span class="count">9</span></button>
+  <button class="filter-btn" data-filter="high">High <span class="count">12</span></button>
+  <button class="filter-btn" data-filter="medium">Medium <span class="count">18</span></button>
+  <button class="filter-btn" data-filter="low">Low <span class="count">12</span></button>
+  <button class="filter-btn" data-filter="security">Security <span class="count">4</span></button>
+  <span style="width:1px;background:var(--border);margin:0 4px"></span>
+  <button class="filter-btn" data-layer="backend">Backend</button>
+  <button class="filter-btn" data-layer="frontend">Frontend</button>
+  <button class="filter-btn" data-layer="integration">Integration</button>
+</div>
+
+<!-- BUGS LIST -->
+<div class="section" id="bugs">
+<div class="section-title">Alle Findings</div>
+
+<!-- ===== CRITICAL ===== -->
+
+<div class="bug-card" data-sev="critical" data-layer="backend">
+  <div class="bug-header" onclick="toggleBug(this)">
+    <span class="bug-id">B-001</span>
+    <span class="sev-badge critical">Critical</span>
+    <span class="bug-title">NULL Pointer: shipment_tracking in marketplace-tracking.js</span>
+    <span class="bug-layer">Backend</span>
+    <span class="status-pill unfixed">Unfixed</span>
+    <span class="bug-chevron">&#9654;</span>
+  </div>
+  <div class="bug-body">
+    <div class="bug-meta">
+      <div class="bug-meta-item"><strong>Datei:</strong> services/marketplace-tracking.js</div>
+      <div class="bug-meta-item"><strong>Risiko:</strong> Crash bei Tracking-Push</div>
+    </div>
+    <div class="bug-desc">pushTrackingToMarketplace() greift direkt auf order.shipment_tracking zu, ohne null-Check. Bei Bestellungen ohne Tracking (storniert, ausstehend) → TypeError: "Cannot read property of undefined".</div>
+    <div class="bug-code">// Line ~95: carrierCode = KAUFLAND_CARRIER_MAP[order.shipment_tracking.carrier]
+// ^ Crash wenn shipment_tracking null/undefined</div>
+    <div class="bug-fix"><strong>Fix:</strong> Guard: if (!order?.shipment_tracking?.carrier) return; // skip push</div>
+  </div>
+</div>
+
+<div class="bug-card" data-sev="critical" data-layer="backend">
+  <div class="bug-header" onclick="toggleBug(this)">
+    <span class="bug-id">B-002</span>
+    <span class="sev-badge critical">Critical</span>
+    <span class="bug-title">Race Condition: Stock-Release vs. Marketplace-Sync</span>
+    <span class="bug-layer">Backend</span>
+    <span class="status-pill unfixed">Unfixed</span>
+    <span class="bug-chevron">&#9654;</span>
+  </div>
+  <div class="bug-body">
+    <div class="bug-meta">
+      <div class="bug-meta-item"><strong>Datei:</strong> services/sync-event-bus.js</div>
+      <div class="bug-meta-item"><strong>Risiko:</strong> Overselling, Bestandsfehler</div>
+    </div>
+    <div class="bug-desc">stock:changed Event feuert sync:reserve-stock-release und sofort danach Marketplace-Sync. Wenn Marketplace-Sync den Order-Status auf "completed" setzt bevor Stock-Release bestätigt → Order completed MIT reserviertem Bestand (double-booked).</div>
+    <div class="bug-fix"><strong>Fix:</strong> Stock-Release atomar innerhalb derselben Transaktion wie Order-Status-Update machen.</div>
+  </div>
+</div>
+
+<div class="bug-card" data-sev="critical" data-layer="integration">
+  <div class="bug-header" onclick="toggleBug(this)">
+    <span class="bug-id">B-003</span>
+    <span class="sev-badge critical">Critical</span>
+    <span class="bug-title">eBay API Fehler werden still ignoriert (HTTP 200 + Errors)</span>
+    <span class="bug-layer">Integration</span>
+    <span class="status-pill unfixed">Unfixed</span>
+    <span class="bug-chevron">&#9654;</span>
+  </div>
+  <div class="bug-body">
+    <div class="bug-meta">
+      <div class="bug-meta-item"><strong>Datei:</strong> services/order-intake-ebay.js</div>
+      <div class="bug-meta-item"><strong>Risiko:</strong> Verlorene Bestellungen</div>
+    </div>
+    <div class="bug-desc">syncEbayOrders() prüft nicht das Errors-Feld in der eBay Trading API Response. eBay kann HTTP 200 mit Error-Liste zurückgeben. Fehlgeschlagene Syncs erscheinen als erfolgreich — Bestellungen bleiben bei eBay, kommen aber nie in die DB.</div>
+    <div class="bug-code">// Line ~65: const orders = response.OrderArray || [];
+// Fehlt: if (response.Errors?.length) throw new Error(...)</div>
+    <div class="bug-fix"><strong>Fix:</strong> Check: if (response.Errors?.length) throw new Error('eBay sync errors: ' + JSON.stringify(response.Errors))</div>
+  </div>
+</div>
+
+<div class="bug-card" data-sev="critical" data-layer="integration">
+  <div class="bug-header" onclick="toggleBug(this)">
+    <span class="bug-id">B-004</span>
+    <span class="sev-badge critical">Critical</span>
+    <span class="bug-title">eBay Status "NotPaid" nicht im OMS-Mapping</span>
+    <span class="bug-layer">Integration</span>
+    <span class="status-pill unfixed">Unfixed</span>
+    <span class="bug-chevron">&#9654;</span>
+  </div>
+  <div class="bug-body">
+    <div class="bug-meta">
+      <div class="bug-meta-item"><strong>Datei:</strong> services/order-intake-ebay.js</div>
+      <div class="bug-meta-item"><strong>Risiko:</strong> Unsichtbare Bestellungen</div>
+    </div>
+    <div class="bug-desc">mapEbayStatus() hat keinen Handler für den eBay-Status "NotPaid". Ergebnis: order.status wird undefined → Bestellung ist im OMS unsichtbar, kann nicht bearbeitet werden.</div>
+    <div class="bug-fix"><strong>Fix:</strong> Neuen Case: case 'NotPaid': return 'pending'; // oder 'on_hold'</div>
+  </div>
+</div>
+
+<div class="bug-card" data-sev="critical" data-layer="backend">
+  <div class="bug-header" onclick="toggleBug(this)">
+    <span class="bug-id">B-005</span>
+    <span class="sev-badge critical">Critical</span>
+    <span class="bug-title">Bestand wird bei Stornierung NICHT freigegeben</span>
+    <span class="bug-layer">Backend</span>
+    <span class="status-pill unfixed">Unfixed</span>
+    <span class="bug-chevron">&#9654;</span>
+  </div>
+  <div class="bug-body">
+    <div class="bug-meta">
+      <div class="bug-meta-item"><strong>Datei:</strong> services/order-state-machine.js</div>
+      <div class="bug-meta-item"><strong>Risiko:</strong> Inventar-Deadlock, Overselling</div>
+    </div>
+    <div class="bug-desc">Wenn transitionOrder() zu "cancelled" übergeht, wird der reservierte Bestand NICHT freigegeben. Stornierte Bestellungen blockieren Inventar permanent.</div>
+    <div class="bug-code">// Line ~450: if (newStatus === 'cancelled') {
+//   ... trigger marketplace cancellation ...
+//   // FEHLT: releaseStockReservation(order.products, order.id)
+// }</div>
+    <div class="bug-fix"><strong>Fix:</strong> await releaseStockReservation(order.products, order.id) VOR der Marketplace-Stornierung aufrufen.</div>
+  </div>
+</div>
+
+<div class="bug-card" data-sev="critical" data-layer="backend">
+  <div class="bug-header" onclick="toggleBug(this)">
+    <span class="bug-id">B-006</span>
+    <span class="sev-badge critical">Critical</span>
+    <span class="bug-title">NULL Pointer: order.customer.address in shipping-engine.js</span>
+    <span class="bug-layer">Backend</span>
+    <span class="status-pill unfixed">Unfixed</span>
+    <span class="bug-chevron">&#9654;</span>
+  </div>
+  <div class="bug-body">
+    <div class="bug-meta">
+      <div class="bug-meta-item"><strong>Datei:</strong> services/shipping-engine.js</div>
+      <div class="bug-meta-item"><strong>Risiko:</strong> Versand blockiert</div>
+    </div>
+    <div class="bug-desc">shipOrder() → createParcel() greift auf order.customer.address.street1 zu ohne null-Guard. Wenn customer null → TypeError, Bestellung bleibt im Status "packed" hängen.</div>
+    <div class="bug-fix"><strong>Fix:</strong> Guard: if (!order?.customer?.address) throw new AppError('SHIPPING_ADDRESS_MISSING', 400)</div>
+  </div>
+</div>
+
+<div class="bug-card" data-sev="critical" data-layer="frontend">
+  <div class="bug-header" onclick="toggleBug(this)">
+    <span class="bug-id">B-007</span>
+    <span class="sev-badge critical">Critical</span>
+    <span class="bug-title">Dual-Status-Feld: status vs. omsStatus nicht konsolidiert</span>
+    <span class="bug-layer">Frontend</span>
+    <span class="status-pill unfixed">Unfixed</span>
+    <span class="bug-chevron">&#9654;</span>
+  </div>
+  <div class="bug-body">
+    <div class="bug-meta">
+      <div class="bug-meta-item"><strong>Datei:</strong> OrdersView.tsx, types.ts</div>
+      <div class="bug-meta-item"><strong>Risiko:</strong> Falsche Status-Anzeige</div>
+    </div>
+    <div class="bug-desc">Order-Typ hat sowohl status (5 Werte: 'new'|'picking'|'picked'|'packed'|'other') als auch omsStatus (12-State-Model). Frontend nutzt überall: (o as any).omsStatus || o.status. Das "as any" zeigt: Backend liefert inkonsistent — manche Endpoints nur status, andere omsStatus.</div>
+    <div class="bug-code">const statusKey = (o as any).omsStatus || o.status;
+// ^ "as any" = Type-System ist kaputt, kein Vertrag zwischen Backend/Frontend</div>
+    <div class="bug-fix"><strong>Fix:</strong> Backend konsolidieren: ein einziges status-Feld mit 12-State-Enum. Frontend-Type anpassen.</div>
+  </div>
+</div>
+
+<div class="bug-card" data-sev="critical" data-layer="frontend">
+  <div class="bug-header" onclick="toggleBug(this)">
+    <span class="bug-id">B-008</span>
+    <span class="sev-badge critical">Critical</span>
+    <span class="bug-title">Versand-Tabs: Unbekannte Status-Werte verschwinden</span>
+    <span class="bug-layer">Frontend</span>
+    <span class="status-pill unfixed">Unfixed</span>
+    <span class="bug-chevron">&#9654;</span>
+  </div>
+  <div class="bug-body">
+    <div class="bug-meta">
+      <div class="bug-meta-item"><strong>Datei:</strong> components/orders/ShippingView.tsx</div>
+      <div class="bug-meta-item"><strong>Risiko:</strong> Unsichtbare Sendungen</div>
+    </div>
+    <div class="bug-desc">ShippingView hat 4 Status-Tabs (ausstehend, in_zustellung, zugestellt, problem). Backend liefert aber auch SendCloud-Roh-Status ('Ready to send', 'In transit', etc.). Sendungen mit nicht-gemapptem Status werden in keinem Tab angezeigt → verschwinden komplett.</div>
+    <div class="bug-fix"><strong>Fix:</strong> Normalisierungs-Layer in api/client.ts der ALLE Status-Varianten auf kanonische Werte mappt. Fallback-Tab "Sonstige" hinzufügen.</div>
+  </div>
+</div>
+
+<div class="bug-card" data-sev="critical" data-layer="backend">
+  <div class="bug-header" onclick="toggleBug(this)">
+    <span class="bug-id">B-009</span>
+    <span class="sev-badge critical">Critical</span>
+    <span class="bug-title">SevDesk-Export ist nur ein Stub (nicht implementiert)</span>
+    <span class="bug-layer">Backend</span>
+    <span class="status-pill known">Known</span>
+    <span class="bug-chevron">&#9654;</span>
+  </div>
+  <div class="bug-body">
+    <div class="bug-meta">
+      <div class="bug-meta-item"><strong>Datei:</strong> services/invoice-engine.js</div>
+      <div class="bug-meta-item"><strong>Risiko:</strong> Keine automatische Buchhaltung</div>
+    </div>
+    <div class="bug-desc">exportToSevDesk() existiert als Funktion, loggt aber nur "TODO: SevDesk export not yet implemented" und gibt null zurück. Rechnungen werden nie automatisch an SevDesk übertragen.</div>
+    <div class="bug-fix"><strong>Fix:</strong> Vollständige SevDesk API-Integration implementieren (Kontakt anlegen, Rechnung erstellen, PDF anhängen).</div>
+  </div>
+</div>
+
+<!-- ===== HIGH ===== -->
+
+<div class="bug-card" data-sev="high" data-layer="integration">
+  <div class="bug-header" onclick="toggleBug(this)">
+    <span class="bug-id">B-010</span>
+    <span class="sev-badge high">High</span>
+    <span class="bug-title">SendCloud: Kein Retry bei API-Fehlern</span>
+    <span class="bug-layer">Integration</span>
+    <span class="status-pill unfixed">Unfixed</span>
+    <span class="bug-chevron">&#9654;</span>
+  </div>
+  <div class="bug-body">
+    <div class="bug-meta">
+      <div class="bug-meta-item"><strong>Datei:</strong> services/shipping-engine.js</div>
+      <div class="bug-meta-item"><strong>Risiko:</strong> Versand blockiert bei transientem Fehler</div>
+    </div>
+    <div class="bug-desc">createParcel() ruft SendCloud API genau einmal auf. Bei Timeout oder transienten Fehlern → Bestellung bleibt ohne Label stecken, kein automatischer Retry.</div>
+    <div class="bug-fix"><strong>Fix:</strong> Retry mit exponential Backoff implementieren (3 Versuche, 1s/3s/9s). Siehe kaufland-api.js als Referenz.</div>
+  </div>
+</div>
+
+<div class="bug-card" data-sev="high" data-layer="integration">
+  <div class="bug-header" onclick="toggleBug(this)">
+    <span class="bug-id">B-011</span>
+    <span class="sev-badge high">High</span>
+    <span class="bug-title">Tracking-Push Retry erst nach 24h</span>
+    <span class="bug-layer">Integration</span>
+    <span class="status-pill unfixed">Unfixed</span>
+    <span class="bug-chevron">&#9654;</span>
+  </div>
+  <div class="bug-body">
+    <div class="bug-meta">
+      <div class="bug-meta-item"><strong>Datei:</strong> services/marketplace-tracking.js</div>
+      <div class="bug-meta-item"><strong>Risiko:</strong> 24h Tracking-Verzögerung</div>
+    </div>
+    <div class="bug-desc">ensureMarketplaceTrackingPushed() Safety-Net retried nur Pushes die &gt;24h alt sind. Bei frischem Failure → keine automatische Wiederholung. Kaufland 500 → Tracking kommt erst am nächsten Tag.</div>
+    <div class="bug-fix"><strong>Fix:</strong> Sofortiges Retry-Event bei Failure emittieren (z.B. nach 5 min), nicht erst nach 24h.</div>
+  </div>
+</div>
+
+<div class="bug-card" data-sev="high" data-layer="integration">
+  <div class="bug-header" onclick="toggleBug(this)">
+    <span class="bug-id">B-012</span>
+    <span class="sev-badge high">High</span>
+    <span class="bug-title">Kaufland Webhook-Signatur wird nicht validiert</span>
+    <span class="bug-layer">Integration</span>
+    <span class="status-pill unfixed">Unfixed</span>
+    <span class="bug-chevron">&#9654;</span>
+  </div>
+  <div class="bug-body">
+    <div class="bug-meta">
+      <div class="bug-meta-item"><strong>Datei:</strong> routes/orders.js (Webhook-Endpoint)</div>
+      <div class="bug-meta-item"><strong>Risiko:</strong> Webhook-Spoofing möglich</div>
+    </div>
+    <div class="bug-desc">Eingehende Kaufland-Webhooks werden nicht gegen HMAC-SHA256 Signatur geprüft. Ein Angreifer könnte gefälschte Webhooks senden (Bestellungen stornieren, Tracking ändern).</div>
+    <div class="bug-fix"><strong>Fix:</strong> HMAC-Signatur-Validierung als Middleware vor dem Webhook-Handler.</div>
+  </div>
+</div>
+
+<div class="bug-card" data-sev="high" data-layer="integration">
+  <div class="bug-header" onclick="toggleBug(this)">
+    <span class="bug-id">B-013</span>
+    <span class="sev-badge high">High</span>
+    <span class="bug-title">Kaufland "closed" Status falsch gemappt → "completed"</span>
+    <span class="bug-layer">Integration</span>
+    <span class="status-pill unfixed">Unfixed</span>
+    <span class="bug-chevron">&#9654;</span>
+  </div>
+  <div class="bug-body">
+    <div class="bug-meta">
+      <div class="bug-meta-item"><strong>Datei:</strong> services/order-intake-kaufland.js</div>
+      <div class="bug-meta-item"><strong>Risiko:</strong> Nicht geliefert aber "abgeschlossen"</div>
+    </div>
+    <div class="bug-desc">Kaufland Status 'closed' (Account geschlossen, NICHT Bestellung erfüllt) wird auf OMS 'completed' gemappt. Ergebnis: Geschlossene Accounts werden als erfolgreich zugestellt angezeigt.</div>
+    <div class="bug-fix"><strong>Fix:</strong> Mappen auf 'cancelled' statt 'completed'. Ggf. Sonderstatus 'account_closed' einführen.</div>
+  </div>
+</div>
+
+<div class="bug-card" data-sev="high" data-layer="integration">
+  <div class="bug-header" onclick="toggleBug(this)">
+    <span class="bug-id">B-014</span>
+    <span class="sev-badge high">High</span>
+    <span class="bug-title">Kaufland Einzelpreise gehen verloren</span>
+    <span class="bug-layer">Integration</span>
+    <span class="status-pill unfixed">Unfixed</span>
+    <span class="bug-chevron">&#9654;</span>
+  </div>
+  <div class="bug-body">
+    <div class="bug-meta">
+      <div class="bug-meta-item"><strong>Datei:</strong> services/order-intake-kaufland.js</div>
+      <div class="bug-meta-item"><strong>Risiko:</strong> Falsche Finanzberichte</div>
+    </div>
+    <div class="bug-desc">mapKauflandOrder() extrahiert nur Gesamt-Bestellwert, nicht die einzelnen Unit-Preise. Line Items haben Preis = 0 wenn Quelle Kaufland ist. Rechnungen zeigen €0 pro Position.</div>
+    <div class="bug-fix"><strong>Fix:</strong> Unit Price aus Kaufland Response extrahieren: item.price / 100 (Kaufland speichert in Cent).</div>
+  </div>
+</div>
+
+<div class="bug-card" data-sev="high" data-layer="frontend">
+  <div class="bug-header" onclick="toggleBug(this)">
+    <span class="bug-id">B-015</span>
+    <span class="sev-badge high">High</span>
+    <span class="bug-title">Stale Data: Keine Refetch nach Status-Mutation</span>
+    <span class="bug-layer">Frontend</span>
+    <span class="status-pill unfixed">Unfixed</span>
+    <span class="bug-chevron">&#9654;</span>
+  </div>
+  <div class="bug-body">
+    <div class="bug-meta">
+      <div class="bug-meta-item"><strong>Datei:</strong> OrdersView, ReturnsView, InvoicesView, ShippingView</div>
+      <div class="bug-meta-item"><strong>Risiko:</strong> User sieht falschen Status</div>
+    </div>
+    <div class="bug-desc">Nach jeder Mutation (Status-Transition, Refund, Mark-as-Paid, Label-Erstellung) wird die Liste NICHT neu geladen. User sieht alten Status bis zur nächsten manuellen Aktualisierung. Betroffene Stellen: bulkTransitionOrders(), processReturn(), markInvoicePaid(), bulkCreateLabels().</div>
+    <div class="bug-fix"><strong>Fix:</strong> refetch() nach jeder erfolgreichen Mutation aufrufen. Oder: Optimistic Updates mit React Query.</div>
+  </div>
+</div>
+
+<div class="bug-card" data-sev="high" data-layer="frontend">
+  <div class="bug-header" onclick="toggleBug(this)">
+    <span class="bug-id">B-016</span>
+    <span class="sev-badge high">High</span>
+    <span class="bug-title">Invoice: amountNet/amountNetto Dual-Feldnamen → NaN</span>
+    <span class="bug-layer">Frontend</span>
+    <span class="status-pill unfixed">Unfixed</span>
+    <span class="bug-chevron">&#9654;</span>
+  </div>
+  <div class="bug-body">
+    <div class="bug-meta">
+      <div class="bug-meta-item"><strong>Datei:</strong> InvoicesView.tsx, types.ts</div>
+      <div class="bug-meta-item"><strong>Risiko:</strong> NaN in KPI-Cards, falsche Summen</div>
+    </div>
+    <div class="bug-desc">Backend liefert manchmal amountNet (englisch), manchmal amountNetto (deutsch). Frontend hat Fallback: inv.amountNet ?? inv.amountNetto. Wenn keines vorhanden → undefined → KPI-Berechnung zeigt NaN.</div>
+    <div class="bug-fix"><strong>Fix:</strong> Normalisierung in api/client.ts: response.amountNet = response.amountNet ?? response.amountNetto ?? 0</div>
+  </div>
+</div>
+
+<div class="bug-card" data-sev="high" data-layer="frontend">
+  <div class="bug-header" onclick="toggleBug(this)">
+    <span class="bug-id">B-017</span>
+    <span class="sev-badge high">High</span>
+    <span class="bug-title">Bulk-Operationen: Kein Feedback bei Teil-Fehler</span>
+    <span class="bug-layer">Frontend</span>
+    <span class="status-pill unfixed">Unfixed</span>
+    <span class="bug-chevron">&#9654;</span>
+  </div>
+  <div class="bug-body">
+    <div class="bug-meta">
+      <div class="bug-meta-item"><strong>Datei:</strong> OrdersView, ReturnsView, ShippingView</div>
+      <div class="bug-meta-item"><strong>Risiko:</strong> Stille Fehlschläge</div>
+    </div>
+    <div class="bug-desc">Bulk-Transition, Bulk-Refund, Bulk-Label: Wenn eine von 10 Bestellungen fehlschlägt, zeigt die UI entweder "Erfolg" oder "Fehler" — aber nie welche genau fehlgeschlagen sind. Backend gibt {results: [{ok, error}]} zurück, Frontend ignoriert Einzelergebnisse.</div>
+    <div class="bug-fix"><strong>Fix:</strong> Einzelergebnisse aus response.data.results auswerten und als Liste anzeigen: "8/10 erfolgreich, 2 fehlgeschlagen: [Details]".</div>
+  </div>
+</div>
+
+<div class="bug-card" data-sev="high" data-layer="backend">
+  <div class="bug-header" onclick="toggleBug(this)">
+    <span class="bug-id">B-018</span>
+    <span class="sev-badge high">High</span>
+    <span class="bug-title">Kaufland API Response-Struktur nicht validiert</span>
+    <span class="bug-layer">Backend</span>
+    <span class="status-pill unfixed">Unfixed</span>
+    <span class="bug-chevron">&#9654;</span>
+  </div>
+  <div class="bug-body">
+    <div class="bug-meta">
+      <div class="bug-meta-item"><strong>Datei:</strong> services/order-intake-kaufland.js</div>
+      <div class="bug-meta-item"><strong>Risiko:</strong> TypeError bei unerwartetem Response</div>
+    </div>
+    <div class="bug-desc">fetchKauflandOrderUnits() greift auf response.data[0] zu ohne zu prüfen, ob data ein Array ist. Kaufland API kann { data: null } oder { data: [] } zurückgeben.</div>
+    <div class="bug-fix"><strong>Fix:</strong> Validate: if (!Array.isArray(response?.data) || !response.data.length) return [];</div>
+  </div>
+</div>
+
+<div class="bug-card" data-sev="high" data-layer="backend">
+  <div class="bug-header" onclick="toggleBug(this)">
+    <span class="bug-id">B-019</span>
+    <span class="sev-badge high">High</span>
+    <span class="bug-title">eBay Refund-Push nicht implementiert</span>
+    <span class="bug-layer">Backend</span>
+    <span class="status-pill known">Known/TODO</span>
+    <span class="bug-chevron">&#9654;</span>
+  </div>
+  <div class="bug-body">
+    <div class="bug-meta">
+      <div class="bug-meta-item"><strong>Datei:</strong> services/returns-engine.js</div>
+      <div class="bug-meta-item"><strong>Risiko:</strong> Kunden erhalten kein Geld zurück</div>
+    </div>
+    <div class="bug-desc">issueMarketplaceRefund() handelt nur Kaufland. Für eBay existiert nur ein Stub mit console.log("TODO: eBay refund not implemented"). Ergebnis: Erstattungen für eBay-Retouren müssen manuell bei eBay vorgenommen werden.</div>
+    <div class="bug-fix"><strong>Fix:</strong> eBay Post-Order API v2 integrieren: POST /post-order/v2/return/{id}/issue_refund</div>
+  </div>
+</div>
+
+<div class="bug-card" data-sev="high" data-layer="frontend">
+  <div class="bug-header" onclick="toggleBug(this)">
+    <span class="bug-id">B-020</span>
+    <span class="sev-badge high">High</span>
+    <span class="bug-title">Return-Typen zu lose: reason, condition, refundType = string</span>
+    <span class="bug-layer">Frontend</span>
+    <span class="status-pill unfixed">Unfixed</span>
+    <span class="bug-chevron">&#9654;</span>
+  </div>
+  <div class="bug-body">
+    <div class="bug-meta">
+      <div class="bug-meta-item"><strong>Datei:</strong> types.ts, ReturnsView.tsx</div>
+      <div class="bug-meta-item"><strong>Risiko:</strong> Stille Mapping-Fehler</div>
+    </div>
+    <div class="bug-desc">ReturnData hat reason, itemCondition, refundType als string statt Enum. Wenn Backend unerwartete Werte liefert (z.B. 'condition_good' statt 'a_ware'), rendert das Frontend leer statt Fehlermeldung.</div>
+    <div class="bug-fix"><strong>Fix:</strong> Strict Enums in types.ts + Fallback-Label "Unbekannt" für nicht-gemappte Werte.</div>
+  </div>
+</div>
+
+<div class="bug-card" data-sev="high" data-layer="backend">
+  <div class="bug-header" onclick="toggleBug(this)">
+    <span class="bug-id">B-021</span>
+    <span class="sev-badge high">High</span>
+    <span class="bug-title">JSON.parse in ebay-oauth.js ohne try-catch</span>
+    <span class="bug-layer">Backend</span>
+    <span class="status-pill unfixed">Unfixed</span>
+    <span class="bug-chevron">&#9654;</span>
+  </div>
+  <div class="bug-body">
+    <div class="bug-meta">
+      <div class="bug-meta-item"><strong>Datei:</strong> lib/ebay-oauth.js</div>
+      <div class="bug-meta-item"><strong>Risiko:</strong> Token-Refresh Crash</div>
+    </div>
+    <div class="bug-desc">JSON.parse(bodyText) ohne try-catch. Wenn eBay fehlerhaftes JSON zurückgibt → SyntaxError → Token-Refresh crasht → App verliert eBay-Zugang.</div>
+    <div class="bug-fix"><strong>Fix:</strong> try { JSON.parse(bodyText) } catch { throw new AppError('INVALID_OAUTH_RESPONSE') }</div>
+  </div>
+</div>
+
+<!-- ===== MEDIUM ===== -->
+
+<div class="bug-card" data-sev="medium" data-layer="frontend">
+  <div class="bug-header" onclick="toggleBug(this)">
+    <span class="bug-id">B-022</span>
+    <span class="sev-badge medium">Medium</span>
+    <span class="bug-title">50+ hardcoded deutsche Strings statt i18n</span>
+    <span class="bug-layer">Frontend</span>
+    <span class="status-pill unfixed">Unfixed</span>
+    <span class="bug-chevron">&#9654;</span>
+  </div>
+  <div class="bug-body">
+    <div class="bug-desc">Alle OMS-Komponenten (OrdersView, ShippingView, ReturnsView, InvoicesView) haben Status-Labels, Button-Texte, KPI-Titel und Filter-Labels direkt als deutsche Strings hardcoded. i18n-System existiert (i18n.tsx) wird aber nicht genutzt. Betroffene Dateien: OrdersView (OMS_STATUS_LABELS), ShippingView (statusTabs), ReturnsView (statusConfig, reasonConfig), InvoicesView (statusTabs, column headers).</div>
+    <div class="bug-fix"><strong>Fix:</strong> Alle Labels extrahieren zu i18n.t()-Aufrufen. Translations in de.json/en.json/tr.json pflegen.</div>
+  </div>
+</div>
+
+<div class="bug-card" data-sev="medium" data-layer="backend">
+  <div class="bug-header" onclick="toggleBug(this)">
+    <span class="bug-id">B-023</span>
+    <span class="sev-badge medium">Medium</span>
+    <span class="bug-title">Race Condition: Paralleler Return-Sync für gleiche Retoure</span>
+    <span class="bug-layer">Backend</span>
+    <span class="status-pill unfixed">Unfixed</span>
+    <span class="bug-chevron">&#9654;</span>
+  </div>
+  <div class="bug-body">
+    <div class="bug-meta">
+      <div class="bug-meta-item"><strong>Datei:</strong> services/returns-engine.js</div>
+    </div>
+    <div class="bug-desc">syncEbayReturns() und syncKauflandReturns() laufen parallel alle 6h. Wenn beide dieselbe Retoure finden und gleichzeitig updaten → Firestore-Transaktionskonflikt oder Lost Update.</div>
+    <div class="bug-fix"><strong>Fix:</strong> Lock-basierte Serialisierung: nur ein Sync pro Return-ID gleichzeitig erlauben.</div>
+  </div>
+</div>
+
+<div class="bug-card" data-sev="medium" data-layer="backend">
+  <div class="bug-header" onclick="toggleBug(this)">
+    <span class="bug-id">B-024</span>
+    <span class="sev-badge medium">Medium</span>
+    <span class="bug-title">Return Reason nicht gegen Enum validiert</span>
+    <span class="bug-layer">Backend</span>
+    <span class="status-pill unfixed">Unfixed</span>
+    <span class="bug-chevron">&#9654;</span>
+  </div>
+  <div class="bug-body">
+    <div class="bug-desc">Bei Marketplace-Sync wird der gemappte Reason nicht gegen RETURN_REASONS geprüft. Unbekannte Reasons werden still gespeichert → Filter im Frontend finden sie nicht.</div>
+    <div class="bug-fix"><strong>Fix:</strong> if (!RETURN_REASONS[reason]) reason = 'sonstiges'; // Fallback</div>
+  </div>
+</div>
+
+<div class="bug-card" data-sev="medium" data-layer="backend">
+  <div class="bug-header" onclick="toggleBug(this)">
+    <span class="bug-id">B-025</span>
+    <span class="sev-badge medium">Medium</span>
+    <span class="bug-title">Pricing Engine: Kein Runner, kein Frontend</span>
+    <span class="bug-layer">Backend</span>
+    <span class="status-pill known">Known</span>
+    <span class="bug-chevron">&#9654;</span>
+  </div>
+  <div class="bug-body">
+    <div class="bug-desc">pricing-engine.js existiert mit Pricing-Rules und Repricing-Logik, aber: kein Job-Runner der es automatisch ausführt, kein Frontend zur Konfiguration, keine Unterscheidung Neu/Gebraucht.</div>
+    <div class="bug-fix"><strong>Fix:</strong> pricing-runner.js erstellen (scheduled job), Frontend-UI für Rules, Condition-Multiplier einbauen.</div>
+  </div>
+</div>
+
+<div class="bug-card" data-sev="medium" data-layer="backend">
+  <div class="bug-header" onclick="toggleBug(this)">
+    <span class="bug-id">B-026</span>
+    <span class="sev-badge medium">Medium</span>
+    <span class="bug-title">SevDesk: Versandkosten-Filter zu breit</span>
+    <span class="bug-layer">Backend</span>
+    <span class="status-pill unfixed">Unfixed</span>
+    <span class="bug-chevron">&#9654;</span>
+  </div>
+  <div class="bug-body">
+    <div class="bug-meta">
+      <div class="bug-meta-item"><strong>Datei:</strong> lib/sevdesk.js</div>
+    </div>
+    <div class="bug-desc">getShippingCostsFromSevDesk() filtert Transaktionen per Keyword "sendcloud" in payeePayerName ODER paymtPurpose. Matcht auch Kunden-Notizen die "sendcloud" erwähnen → Falsche Versandkosten in Berichten.</div>
+    <div class="bug-fix"><strong>Fix:</strong> Strikteres Matching: payeePayerName === 'SendCloud' AND Datumsbereich. Vendor-IDs whitelisten.</div>
+  </div>
+</div>
+
+<div class="bug-card" data-sev="medium" data-layer="frontend">
+  <div class="bug-header" onclick="toggleBug(this)">
+    <span class="bug-id">B-027</span>
+    <span class="sev-badge medium">Medium</span>
+    <span class="bug-title">Überfällig-Berechnung nutzt Client-Zeit statt Server-Zeit</span>
+    <span class="bug-layer">Frontend</span>
+    <span class="status-pill unfixed">Unfixed</span>
+    <span class="bug-chevron">&#9654;</span>
+  </div>
+  <div class="bug-body">
+    <div class="bug-meta">
+      <div class="bug-meta-item"><strong>Datei:</strong> InvoicesView.tsx</div>
+    </div>
+    <div class="bug-desc">isDueSoon() vergleicht Fälligkeitsdatum mit new Date() (Client-Systemzeit). Wenn User-Uhr falsch → falsche Rechnungen als überfällig markiert.</div>
+    <div class="bug-fix"><strong>Fix:</strong> Server-Timestamp als Referenz nutzen (aus API-Response-Header oder /health Endpoint).</div>
+  </div>
+</div>
+
+<div class="bug-card" data-sev="medium" data-layer="frontend">
+  <div class="bug-header" onclick="toggleBug(this)">
+    <span class="bug-id">B-028</span>
+    <span class="sev-badge medium">Medium</span>
+    <span class="bug-title">Keine Empty States in OMS-Tabellen</span>
+    <span class="bug-layer">Frontend</span>
+    <span class="status-pill unfixed">Unfixed</span>
+    <span class="bug-chevron">&#9654;</span>
+  </div>
+  <div class="bug-body">
+    <div class="bug-desc">Alle OMS-Tabellen (Orders, Shipping, Returns, Invoices) zeigen bei leerer Ergebnisliste einfach nichts. Kein "Keine Ergebnisse gefunden", kein Hinweis auf Filter zurücksetzen. User denkt App ist kaputt.</div>
+    <div class="bug-fix"><strong>Fix:</strong> EmptyState-Komponente mit kontextspezifischer Nachricht + "Filter zurücksetzen" Button.</div>
+  </div>
+</div>
+
+<div class="bug-card" data-sev="medium" data-layer="frontend">
+  <div class="bug-header" onclick="toggleBug(this)">
+    <span class="bug-id">B-029</span>
+    <span class="sev-badge medium">Medium</span>
+    <span class="bug-title">Keine Loading-Spinner bei Async-Operationen</span>
+    <span class="bug-layer">Frontend</span>
+    <span class="status-pill unfixed">Unfixed</span>
+    <span class="bug-chevron">&#9654;</span>
+  </div>
+  <div class="bug-body">
+    <div class="bug-desc">Bulk-Transition, Label-Erstellung, Mark-as-Paid, Refund-Push: Keine dieser Operationen zeigt einen Loading-Spinner. Buttons bleiben klickbar → Doppelklick = doppelter API-Call.</div>
+    <div class="bug-fix"><strong>Fix:</strong> isLoading-State pro Button, Button disabled während Request läuft, Spinner-Icon.</div>
+  </div>
+</div>
+
+<div class="bug-card" data-sev="medium" data-layer="frontend">
+  <div class="bug-header" onclick="toggleBug(this)">
+    <span class="bug-id">B-030</span>
+    <span class="sev-badge medium">Medium</span>
+    <span class="bug-title">ShippingView: 60s Polling ohne Error-Catch</span>
+    <span class="bug-layer">Frontend</span>
+    <span class="status-pill unfixed">Unfixed</span>
+    <span class="bug-chevron">&#9654;</span>
+  </div>
+  <div class="bug-body">
+    <div class="bug-meta">
+      <div class="bug-meta-item"><strong>Datei:</strong> components/orders/ShippingView.tsx</div>
+    </div>
+    <div class="bug-desc">useEffect mit setInterval (60s) für Auto-Sync hat keinen Error-Catch. Bei API 500 → Polling feuert alle 60s Fehlermeldungen. Kein Backoff, kein Stop nach N Fehlern.</div>
+    <div class="bug-fix"><strong>Fix:</strong> try-catch im Interval-Callback, Error-Counter, nach 3 Fehlern Polling stoppen + User benachrichtigen.</div>
+  </div>
+</div>
+
+<div class="bug-card" data-sev="medium" data-layer="frontend">
+  <div class="bug-header" onclick="toggleBug(this)">
+    <span class="bug-id">B-031</span>
+    <span class="sev-badge medium">Medium</span>
+    <span class="bug-title">OrderDetail: nextStatuses Typ-Mismatch</span>
+    <span class="bug-layer">Frontend</span>
+    <span class="status-pill unfixed">Unfixed</span>
+    <span class="bug-chevron">&#9654;</span>
+  </div>
+  <div class="bug-body">
+    <div class="bug-meta">
+      <div class="bug-meta-item"><strong>Datei:</strong> OrderDetail.tsx</div>
+    </div>
+    <div class="bug-desc">Backend liefert nextStatuses: string[], Frontend erwartet {status, label}[]. Iteration crasht oder zeigt leere Dropdown-Einträge.</div>
+    <div class="bug-fix"><strong>Fix:</strong> Entweder Backend anpassen (Objekte statt Strings) oder Frontend mappt: statuses.map(s => ({status: s, label: OMS_STATUS_LABELS[s]}))</div>
+  </div>
+</div>
+
+<div class="bug-card" data-sev="medium" data-layer="frontend">
+  <div class="bug-header" onclick="toggleBug(this)">
+    <span class="bug-id">B-032</span>
+    <span class="sev-badge medium">Medium</span>
+    <span class="bug-title">Pagination wird bei Filter-Wechsel nicht zurückgesetzt</span>
+    <span class="bug-layer">Frontend</span>
+    <span class="status-pill unfixed">Unfixed</span>
+    <span class="bug-chevron">&#9654;</span>
+  </div>
+  <div class="bug-body">
+    <div class="bug-meta">
+      <div class="bug-meta-item"><strong>Datei:</strong> OrdersView.tsx</div>
+    </div>
+    <div class="bug-desc">User ist auf Seite 3, wechselt Filter → currentPage bleibt 3 aber zeigt Daten für Seite 1. Oder: leere Ergebnisse weil Seite 3 des gefilterten Ergebnisses nicht existiert.</div>
+    <div class="bug-fix"><strong>Fix:</strong> setCurrentPage(1) bei jedem Filter-Wechsel.</div>
+  </div>
+</div>
+
+<div class="bug-card" data-sev="medium" data-layer="backend">
+  <div class="bug-header" onclick="toggleBug(this)">
+    <span class="bug-id">B-033</span>
+    <span class="sev-badge medium">Medium</span>
+    <span class="bug-title">Inkonsistente Feldnamen: shipment vs shipment_tracking</span>
+    <span class="bug-layer">Backend</span>
+    <span class="status-pill unfixed">Unfixed</span>
+    <span class="bug-chevron">&#9654;</span>
+  </div>
+  <div class="bug-body">
+    <div class="bug-desc">Order-Objekt nutzt manchmal order.shipment_tracking (mit Unterstrich) und manchmal order.shipment (ohne). Kein konsistentes Naming. Refactoring-Risiko: man findet nicht alle Stellen.</div>
+    <div class="bug-fix"><strong>Fix:</strong> Einheitlich auf shipment_tracking umbenennen. Migration für bestehende Firestore-Docs.</div>
+  </div>
+</div>
+
+<div class="bug-card" data-sev="medium" data-layer="frontend">
+  <div class="bug-header" onclick="toggleBug(this)">
+    <span class="bug-id">B-034</span>
+    <span class="sev-badge medium">Medium</span>
+    <span class="bug-title">Return Timeline: Zeitzone nicht berücksichtigt</span>
+    <span class="bug-layer">Frontend</span>
+    <span class="status-pill unfixed">Unfixed</span>
+    <span class="bug-chevron">&#9654;</span>
+  </div>
+  <div class="bug-body">
+    <div class="bug-desc">Return-Events zeigen Timestamps ohne Timezone-Offset. Backend speichert in UTC, Frontend rendert als Lokalzeit. Verschiedene User sehen verschiedene Zeiten für dasselbe Event.</div>
+    <div class="bug-fix"><strong>Fix:</strong> Einheitlich als "Europe/Berlin" rendern oder explizit UTC+Offset anzeigen.</div>
+  </div>
+</div>
+
+<div class="bug-card" data-sev="medium" data-layer="frontend">
+  <div class="bug-header" onclick="toggleBug(this)">
+    <span class="bug-id">B-035</span>
+    <span class="sev-badge medium">Medium</span>
+    <span class="bug-title">ProcessReturn Dialog: Kein Error-Handling</span>
+    <span class="bug-layer">Frontend</span>
+    <span class="status-pill unfixed">Unfixed</span>
+    <span class="bug-chevron">&#9654;</span>
+  </div>
+  <div class="bug-body">
+    <div class="bug-meta">
+      <div class="bug-meta-item"><strong>Datei:</strong> ReturnsView.tsx</div>
+    </div>
+    <div class="bug-desc">processReturn() API-Call hat keinen try-catch. Bei Backend-Fehler bleibt der Dialog im Loading-State hängen — forever. User muss Seite neu laden.</div>
+    <div class="bug-fix"><strong>Fix:</strong> try-catch mit Error-Toast und Dialog-Reset.</div>
+  </div>
+</div>
+
+<div class="bug-card" data-sev="medium" data-layer="frontend">
+  <div class="bug-header" onclick="toggleBug(this)">
+    <span class="bug-id">B-036</span>
+    <span class="sev-badge medium">Medium</span>
+    <span class="bug-title">KPI-Cards zeigen NaN/Infinity bei leerem Datensatz</span>
+    <span class="bug-layer">Frontend</span>
+    <span class="status-pill unfixed">Unfixed</span>
+    <span class="bug-chevron">&#9654;</span>
+  </div>
+  <div class="bug-body">
+    <div class="bug-meta">
+      <div class="bug-meta-item"><strong>Datei:</strong> OrdersView.tsx, InvoicesView.tsx</div>
+    </div>
+    <div class="bug-desc">avgProcessingTime und andere KPI-Berechnungen teilen durch Anzahl der Orders. Bei 0 Orders → Division durch 0 → Infinity oder NaN wird angezeigt.</div>
+    <div class="bug-fix"><strong>Fix:</strong> Guard: orders.length === 0 ? 0 : total / orders.length</div>
+  </div>
+</div>
+
+<div class="bug-card" data-sev="medium" data-layer="backend">
+  <div class="bug-header" onclick="toggleBug(this)">
+    <span class="bug-id">B-037</span>
+    <span class="sev-badge medium">Medium</span>
+    <span class="bug-title">SevDesk Balance-Cache: Array vs. Object Type Confusion</span>
+    <span class="bug-layer">Backend</span>
+    <span class="status-pill unfixed">Unfixed</span>
+    <span class="bug-chevron">&#9654;</span>
+  </div>
+  <div class="bug-body">
+    <div class="bug-desc">getCheckAccountBalances() gibt { accounts: [...], total } zurück. Consumer-Code iteriert teilweise direkt über das Ergebnis statt über .accounts → stille Fehler.</div>
+    <div class="bug-fix"><strong>Fix:</strong> JSDoc + TypeScript-Interface klarstellen. Alle Consumer prüfen.</div>
+  </div>
+</div>
+
+<div class="bug-card" data-sev="medium" data-layer="backend">
+  <div class="bug-header" onclick="toggleBug(this)">
+    <span class="bug-id">B-038</span>
+    <span class="sev-badge medium">Medium</span>
+    <span class="bug-title">Keine Idempotency bei Order-Erstellung</span>
+    <span class="bug-layer">Backend</span>
+    <span class="status-pill unfixed">Unfixed</span>
+    <span class="bug-chevron">&#9654;</span>
+  </div>
+  <div class="bug-body">
+    <div class="bug-desc">syncEbayOrders() und syncKauflandOrders() prüfen auf Duplikate per marketplaceOrderId-Query. Bei Firestore-Timeout: Query schlägt fehl, Order wird doppelt erstellt. Kein idempotenter Schreibschutz.</div>
+    <div class="bug-fix"><strong>Fix:</strong> Firestore set() mit merge statt add(). Document-ID = marketplaceOrderId für natürliche Idempotenz.</div>
+  </div>
+</div>
+
+<div class="bug-card" data-sev="medium" data-layer="backend">
+  <div class="bug-header" onclick="toggleBug(this)">
+    <span class="bug-id">B-039</span>
+    <span class="sev-badge medium">Medium</span>
+    <span class="bug-title">Hardcoded 30-Tage Reconciliation Window</span>
+    <span class="bug-layer">Backend</span>
+    <span class="status-pill unfixed">Unfixed</span>
+    <span class="bug-chevron">&#9654;</span>
+  </div>
+  <div class="bug-body">
+    <div class="bug-desc">Reconciliation-Runner nutzt maxAgeDays: 30 hardcoded. Ältere Bestellungen können nie reconciled werden ohne Code-Änderung.</div>
+    <div class="bug-fix"><strong>Fix:</strong> ENV-Variable: MARKETPLACE_RECONCILIATION_MAX_AGE_DAYS=30</div>
+  </div>
+</div>
+
+<!-- ===== LOW ===== -->
+
+<div class="bug-card" data-sev="low" data-layer="backend">
+  <div class="bug-header" onclick="toggleBug(this)">
+    <span class="bug-id">B-040</span>
+    <span class="sev-badge low">Low</span>
+    <span class="bug-title">Carrier-Code nicht gegen Enum validiert</span>
+    <span class="bug-layer">Backend</span>
+    <span class="status-pill unfixed">Unfixed</span>
+    <span class="bug-chevron">&#9654;</span>
+  </div>
+  <div class="bug-body">
+    <div class="bug-desc">EBAY_CARRIER_MAP[carrier] und KAUFLAND_CARRIER_MAP[carrier] ohne Check ob carrier ein gültiger Key ist. Ungültiger Carrier → undefined → Push schlägt still fehl.</div>
+    <div class="bug-fix"><strong>Fix:</strong> if (!CARRIER_MAP[carrier]) throw new Error('UNSUPPORTED_CARRIER: ' + carrier)</div>
+  </div>
+</div>
+
+<div class="bug-card" data-sev="low" data-layer="backend">
+  <div class="bug-header" onclick="toggleBug(this)">
+    <span class="bug-id">B-041</span>
+    <span class="sev-badge low">Low</span>
+    <span class="bug-title">Kaufland API Timeout nicht konfigurierbar</span>
+    <span class="bug-layer">Backend</span>
+    <span class="status-pill unfixed">Unfixed</span>
+    <span class="bug-chevron">&#9654;</span>
+  </div>
+  <div class="bug-body">
+    <div class="bug-desc">kauflandRequest() hat hardcoded Fetch-Timeout. Zu kurz = flaky Retries, zu lang = langsamer Order-Import.</div>
+    <div class="bug-fix"><strong>Fix:</strong> ENV: KAUFLAND_REQUEST_TIMEOUT_MS=30000</div>
+  </div>
+</div>
+
+<div class="bug-card" data-sev="low" data-layer="frontend">
+  <div class="bug-header" onclick="toggleBug(this)">
+    <span class="bug-id">B-042</span>
+    <span class="sev-badge low">Low</span>
+    <span class="bug-title">Accessibility: Keine ARIA-Labels auf Status-Badges</span>
+    <span class="bug-layer">Frontend</span>
+    <span class="status-pill unfixed">Unfixed</span>
+    <span class="bug-chevron">&#9654;</span>
+  </div>
+  <div class="bug-body">
+    <div class="bug-desc">Farbige Status-Badges (Grün=Verpackt, Rot=Storniert) haben kein aria-label. Screenreader und farbenblinde User können Status nicht erkennen.</div>
+    <div class="bug-fix"><strong>Fix:</strong> aria-label={statusLabel} auf alle Badge-Spans.</div>
+  </div>
+</div>
+
+<div class="bug-card" data-sev="low" data-layer="frontend">
+  <div class="bug-header" onclick="toggleBug(this)">
+    <span class="bug-id">B-043</span>
+    <span class="sev-badge low">Low</span>
+    <span class="bug-title">Tracking-Links ohne target="_blank" rel="noopener"</span>
+    <span class="bug-layer">Frontend</span>
+    <span class="status-pill unfixed">Unfixed</span>
+    <span class="bug-chevron">&#9654;</span>
+  </div>
+  <div class="bug-body">
+    <div class="bug-desc">ShippingView: Tracking-URLs öffnen neuen Tab ohne rel="noopener" → Sicherheitsrisiko (opener kann Parent-Window manipulieren).</div>
+    <div class="bug-fix"><strong>Fix:</strong> target="_blank" rel="noopener noreferrer" auf alle externen Links.</div>
+  </div>
+</div>
+
+<div class="bug-card" data-sev="low" data-layer="frontend">
+  <div class="bug-header" onclick="toggleBug(this)">
+    <span class="bug-id">B-044</span>
+    <span class="sev-badge low">Low</span>
+    <span class="bug-title">Tabellen-Header: div statt th (Semantik)</span>
+    <span class="bug-layer">Frontend</span>
+    <span class="status-pill unfixed">Unfixed</span>
+    <span class="bug-chevron">&#9654;</span>
+  </div>
+  <div class="bug-body">
+    <div class="bug-desc">InvoicesView nutzt div-Elemente statt th für Tabellen-Header. Screenreader können Zellen nicht den Spalten zuordnen.</div>
+    <div class="bug-fix"><strong>Fix:</strong> Semantisches table/thead/th/tbody/tr/td verwenden.</div>
+  </div>
+</div>
+
+<div class="bug-card" data-sev="low" data-layer="frontend">
+  <div class="bug-header" onclick="toggleBug(this)">
+    <span class="bug-id">B-045</span>
+    <span class="sev-badge low">Low</span>
+    <span class="bug-title">Focus-Trap fehlt in Modals</span>
+    <span class="bug-layer">Frontend</span>
+    <span class="status-pill unfixed">Unfixed</span>
+    <span class="bug-chevron">&#9654;</span>
+  </div>
+  <div class="bug-body">
+    <div class="bug-desc">Return-Process-Dialog und andere Modals haben keinen Focus-Trap. User kann mit Tab aus dem Modal heraus-navigieren und unsichtbare Elemente aktivieren.</div>
+    <div class="bug-fix"><strong>Fix:</strong> Focus-Trap-Library oder eigene Implementierung mit useEffect + focusin Event.</div>
+  </div>
+</div>
+
+<div class="bug-card" data-sev="low" data-layer="frontend">
+  <div class="bug-header" onclick="toggleBug(this)">
+    <span class="bug-id">B-046</span>
+    <span class="sev-badge low">Low</span>
+    <span class="bug-title">Keine Bulk-CSV-Export-Funktion</span>
+    <span class="bug-layer">Frontend</span>
+    <span class="status-pill unfixed">Unfixed</span>
+    <span class="bug-chevron">&#9654;</span>
+  </div>
+  <div class="bug-body">
+    <div class="bug-desc">OMS-Tabellen haben keinen CSV/Excel-Export. User muss Daten manuell kopieren oder über API abfragen.</div>
+    <div class="bug-fix"><strong>Fix:</strong> Export-Button pro View: CSV-Generator mit aktuellen Filterergebnissen.</div>
+  </div>
+</div>
+
+<div class="bug-card" data-sev="low" data-layer="frontend">
+  <div class="bug-header" onclick="toggleBug(this)">
+    <span class="bug-id">B-047</span>
+    <span class="sev-badge low">Low</span>
+    <span class="bug-title">Carrier-Badge Initialen: GLS → GL statt GLS</span>
+    <span class="bug-layer">Frontend</span>
+    <span class="status-pill unfixed">Unfixed</span>
+    <span class="bug-chevron">&#9654;</span>
+  </div>
+  <div class="bug-body">
+    <div class="bug-desc">getCarrierInitial() schneidet auf 2 Zeichen. GLS wird als "GL" angezeigt statt "GLS". Kein visuelles Problem für DHL/DPD (2 reicht), aber falsch für 3-Buchstaben-Carrier.</div>
+    <div class="bug-fix"><strong>Fix:</strong> Carrier-spezifische Initialen-Map: {DHL: 'DHL', DPD: 'DPD', GLS: 'GLS', ...}</div>
+  </div>
+</div>
+
+<!-- ===== SECURITY ===== -->
+
+<div class="bug-card" data-sev="security" data-layer="backend">
+  <div class="bug-header" onclick="toggleBug(this)">
+    <span class="bug-id">S-001</span>
+    <span class="sev-badge security">Security</span>
+    <span class="bug-title">JWT Token in URL-Query (SSE Streams)</span>
+    <span class="bug-layer">Backend</span>
+    <span class="status-pill known">Known BUG-SSE</span>
+    <span class="bug-chevron">&#9654;</span>
+  </div>
+  <div class="bug-body">
+    <div class="bug-desc">SSE-Streams nutzen ?token=&lt;JWT&gt; als URL-Parameter. Tokens erscheinen in: Browser-History, Server-Logs, Reverse-Proxy Logs, Referrer-Headers. Ermöglicht Session-Hijacking.</div>
+    <div class="bug-fix"><strong>Fix:</strong> Authorization-Header statt Query-Parameter für SSE. Oder: kurzlebige Token (1min) speziell für SSE.</div>
+  </div>
+</div>
+
+<div class="bug-card" data-sev="security" data-layer="backend">
+  <div class="bug-header" onclick="toggleBug(this)">
+    <span class="bug-id">S-002</span>
+    <span class="sev-badge security">Security</span>
+    <span class="bug-title">XSS via Product Titles aus eBay/Kaufland</span>
+    <span class="bug-layer">Backend</span>
+    <span class="status-pill unfixed">Unfixed</span>
+    <span class="bug-chevron">&#9654;</span>
+  </div>
+  <div class="bug-body">
+    <div class="bug-desc">Produkt-Titel von Marketplaces werden ohne HTML-Sanitization gespeichert. Wenn ein Titel &lt;script&gt;-Tags enthält und das Frontend dangerouslySetInnerHTML nutzt → XSS. decodeHtmlEntitiesDeep() existiert in firestore.js, wird aber nicht überall angewandt.</div>
+    <div class="bug-fix"><strong>Fix:</strong> decodeHtmlEntitiesDeep() an allen Entry-Points (order-intake-*, returns-engine) anwenden.</div>
+  </div>
+</div>
+
+<div class="bug-card" data-sev="security" data-layer="backend">
+  <div class="bug-header" onclick="toggleBug(this)">
+    <span class="bug-id">S-003</span>
+    <span class="sev-badge security">Security</span>
+    <span class="bug-title">Kaufland Webhook ohne Signatur-Validierung</span>
+    <span class="bug-layer">Backend</span>
+    <span class="status-pill unfixed">Unfixed</span>
+    <span class="bug-chevron">&#9654;</span>
+  </div>
+  <div class="bug-body">
+    <div class="bug-desc">Eingehende Kaufland-Webhooks werden nicht gegen HMAC-SHA256 validiert. Angreifer können gefälschte Order-Updates, Stornierungen oder Tracking-Änderungen senden.</div>
+    <div class="bug-fix"><strong>Fix:</strong> HMAC-SHA256 Signatur-Validierung als Middleware: verifyKauflandSignature(req, secret).</div>
+  </div>
+</div>
+
+<div class="bug-card" data-sev="security" data-layer="backend">
+  <div class="bug-header" onclick="toggleBug(this)">
+    <span class="bug-id">S-004</span>
+    <span class="sev-badge security">Security</span>
+    <span class="bug-title">Kunden-Email nicht validiert</span>
+    <span class="bug-layer">Backend</span>
+    <span class="status-pill unfixed">Unfixed</span>
+    <span class="bug-chevron">&#9654;</span>
+  </div>
+  <div class="bug-body">
+    <div class="bug-desc">Customer-Email aus eBay/Kaufland wird ohne Format-Validierung gespeichert. Ungültige Emails brechen Kundenkommunikation, Benachrichtigungen, und Email-basierte Lookups.</div>
+    <div class="bug-fix"><strong>Fix:</strong> Einfache Email-Regex-Validierung in mapEbayOrder() und mapKauflandOrder().</div>
+  </div>
+</div>
+
+</div><!-- /bugs -->
+
+</div><!-- /container -->
+
+<script>
+function toggleBug(header) {
+  header.closest('.bug-card').classList.toggle('open');
+}
+
+// Filter logic
+document.querySelectorAll('.filter-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const filter = btn.dataset.filter;
+    const layer = btn.dataset.layer;
+
+    if (filter) {
+      document.querySelectorAll('.filter-btn[data-filter]').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      // Deactivate layer filters
+      document.querySelectorAll('.filter-btn[data-layer]').forEach(b => b.classList.remove('active'));
+    }
+    if (layer) {
+      const wasActive = btn.classList.contains('active');
+      document.querySelectorAll('.filter-btn[data-layer]').forEach(b => b.classList.remove('active'));
+      if (!wasActive) btn.classList.add('active');
+      else { /* deselected, show all */ }
+      // Deactivate severity filters, reset to "all"
+      document.querySelectorAll('.filter-btn[data-filter]').forEach(b => b.classList.remove('active'));
+      document.querySelector('.filter-btn[data-filter="all"]').classList.add('active');
+    }
+
+    const activeSev = document.querySelector('.filter-btn[data-filter].active')?.dataset.filter || 'all';
+    const activeLayer = document.querySelector('.filter-btn[data-layer].active')?.dataset.layer || null;
+
+    document.querySelectorAll('.bug-card').forEach(card => {
+      const cardSev = card.dataset.sev;
+      const cardLayer = card.dataset.layer;
+      let show = true;
+      if (activeSev !== 'all' && cardSev !== activeSev) show = false;
+      if (activeLayer && cardLayer !== activeLayer) show = false;
+      card.classList.toggle('hidden', !show);
+    });
+  });
+});
+</script>
+</body>
+</html>
