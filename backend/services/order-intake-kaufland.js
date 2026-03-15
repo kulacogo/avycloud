@@ -37,7 +37,7 @@ async function fetchKauflandOrders({
   if (createdAfter) query.ts_created_from_iso = createdAfter;
   if (status) query.status = status;
 
-  const result = await kauflandRequest('GET', '/v2/orders', { query });
+  const result = await kauflandRequest('GET', '/orders', { query });
 
   // Kaufland returns { data: [...], pagination: { total, limit, offset } }
   const data = result?.data || result;
@@ -56,7 +56,7 @@ async function fetchKauflandOrders({
  * @returns {Promise<object[]>}
  */
 async function fetchKauflandOrderUnits({ orderId }) {
-  const result = await kauflandRequest('GET', `/v2/orders/${orderId}/units`);
+  const result = await kauflandRequest('GET', `/orders/${orderId}/units`);
   const data = result?.data || result;
   return Array.isArray(data) ? data : [];
 }

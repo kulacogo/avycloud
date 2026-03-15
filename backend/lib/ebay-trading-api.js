@@ -394,6 +394,24 @@ function mapListingDetail(item = {}) {
 
 async function callTradingApi(callName, bodyXml, { timeoutMs = DEFAULT_TIMEOUT_MS } = {}) {
   const cfg = await getEbayTradingConfig();
+
+  // Prefer the fresh OAuth access token from Firestore over the static GCP Secret token.
+  // Both work in the Trading API <eBayAuthToken> field; the OAuth token is always up-to-date.
+  let effectiveToken = cfg.userToken;
+  try {
+    const { getValidEbayAccessToken } = require('./ebay-oauth');
+    const { accessToken } = await getValidEbayAccessToken();
+    if (accessToken) effectiveToken = accessToken;
+  } catch (_err) {
+    // Fall back to static token from GCP Secret Manager
+  }
+
+  // Auto-wrap inner XML fragments — callers that already built the full root (via buildRequestRoot)
+  // pass <?xml ... so we detect and skip double-wrapping.
+  const fullXml = bodyXml.trimStart().startsWith('<?xml')
+    ? bodyXml
+    : buildRequestRoot(callName, bodyXml, effectiveToken, cfg.compatibilityLevel);
+
   const res = await fetchWithTimeout(
     cfg.endpoint,
     {
@@ -407,7 +425,7 @@ async function callTradingApi(callName, bodyXml, { timeoutMs = DEFAULT_TIMEOUT_M
         'X-EBAY-API-DEV-NAME': cfg.devId,
         'X-EBAY-API-CERT-NAME': cfg.certId,
       },
-      body: bodyXml,
+      body: fullXml,
     },
     timeoutMs
   );
