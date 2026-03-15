@@ -353,16 +353,26 @@
 
 ---
 
-**REIHENFOLGE FÜR CLAUDE CODE:**
-1. ⛔ **FIX-1 (BUG-040)** — Backfill ausführen (blockiert alles)
-2. ⛔ **FIX-8 (BUG-081)** — eBay Token (Oguzhan muss, aber Claude Code kann vorbereiten/testen)
-3. **FIX-9 (BUG-070)** — Theme Toggle (Code-Fix nötig)
-4. **FIX-10 (BUG-071)** — Dashboard Diskrepanz (Code-Fix nötig)
-5. **FIX-11 (BUG-032)** — Gewicht-Extraktion (Feature-Erweiterung)
-6. **FIX-12 (BUG-SSE)** — Security-Fix
-7. **FIX-2 bis FIX-7** — Production-Verifizierung der Cowork-Fixes (Deploy + Browser-Check)
-8. `cd backend && npm test` — alle 129+ Tests grün
-9. `npm run build` — Frontend kompiliert fehlerfrei
+**STATUS (2026-03-15, Session Ende):**
+- ✅ FIX-1 (BUG-040) — Erledigt
+- ✅ FIX-8 (BUG-081) — Code-Fix deployed (ebay-trading-api.js OAuth-Unifikation + integrations.js Disconnect)
+- ✅ FIX-10 (BUG-071) — Erledigt
+- ✅ FIX-12 (BUG-SSE) — Code-Fix deployed
+- ✅ BUG-084 — 126 Duplikate gelöscht + Dedup-Fallback deployed
+- ✅ `cd backend && npm test` — 129 Tests grün ✓
+- ✅ `npm run build` — Frontend kompiliert ✓
+- ✅ Frontend deployed → avycloud.web.app
+- ✅ Backend deployed → product-hub-backend-01094-pkk
+
+**NOCH ZU VERIFIZIEREN (Browser-Check, kein Code-Fix nötig):**
+- [ ] FIX-8: avycloud.web.app → Dashboard → Sync-Fehler = 0 (nach deploy)
+- [ ] FIX-9 (BUG-070): Theme Toggle → data-theme in DevTools ändert sich beim Klick
+- [ ] FIX-2: Inventar → Bestandswert KPI > €0
+- [ ] FIX-3: Versand → keine englischen Status-Strings mehr
+- [ ] FIX-4: Retouren → Produktname statt SKU
+- [ ] FIX-5: Bestellungen/Retouren → eBay-Badge gleiche Farbe
+- [ ] FIX-7: Versand → "Sync" Button klicken → Kundenname-Spalte füllt sich
+- [ ] FIX-11: `node backend/scripts/backfill-weights.js --write` ausführen
 
 #### KW 13 (24.–28. März 2026) — M4 + M5 + M12
 - [x] **M4: Bestand-View** — ✅ InventoryView live: KPIs, Tabelle, Quick-Filter, Suche, Sort (2026-03-14)
