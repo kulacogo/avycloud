@@ -830,12 +830,111 @@ router.post('/kaufland/listings/sync', requirePermission('products', 'write'), a
       await commitBatch();
     }
 
+    // ── Backfill ops.kaufland.unitId into products_v2 ────────────────────────
+    // For every active unit, find the matching product_v2 doc (by SKU/EAN) and
+    // write ops.kaufland.unitId so the stock-sync-dispatcher can push to
+    // Kaufland without a separate lookup. Fire-and-forget, non-critical.
+    try {
+      const { getAllProductsV2 } = require('../lib/product-store');
+      const allProds = await getAllProductsV2();
+      const skuToProduct = new Map();
+      const eanToProduct = new Map();
+      for (const p of allProds) {
+        const sku = (p?.identification?.sku || p?.details?.identifiers?.sku || '').trim();
+        if (sku) skuToProduct.set(sku.toLowerCase(), p);
+        const ean = (p?.identification?.ean || p?.details?.identifiers?.ean || '').trim();
+        if (ean) eanToProduct.set(ean, p);
+      }
+
+      let opsBatch = firestore.batch();
+      let opsBatchCount = 0;
+      for (const unit of units) {
+        const idUnit = Number(unit?.id_unit || 0);
+        if (!Number.isFinite(idUnit) || idUnit <= 0) continue;
+        const unitSku = String(unit?.id_offer || '').trim();
+        const unitEan = String(unit?.ean || '').trim();
+        const prod = (unitSku && skuToProduct.get(unitSku.toLowerCase()))
+          || (unitEan && eanToProduct.get(unitEan)) || null;
+        if (!prod) continue;
+        const existing = prod?.ops?.kaufland?.unitId;
+        if (String(existing || '') === String(idUnit)) continue; // already correct
+        opsBatch.update(firestore.collection('products_v2').doc(prod.id), {
+          'ops.kaufland.unitId': String(idUnit),
+        });
+        opsBatchCount++;
+        if (opsBatchCount >= 400) {
+          await opsBatch.commit();
+          opsBatch = firestore.batch();
+          opsBatchCount = 0;
+        }
+      }
+      if (opsBatchCount > 0) await opsBatch.commit();
+      if (opsBatchCount > 0) console.log(`[kaufland-sync] Backfilled ops.kaufland.unitId for ${opsBatchCount} products`);
+    } catch (opsErr) {
+      console.error('[kaufland-sync] ops backfill error (non-fatal):', opsErr.message);
+    }
+
+    // ── Inventory reconciliation ──────────────────────────────────────────────
+    // When Kaufland reports amount > 0 for a unit that is matched to a
+    // products_v2 doc with inventory.quantity = 0, sync the warehouse quantity
+    // from Kaufland. This prevents active listings appearing with 0 stock.
+    const { getAllProductsV2 } = require('../lib/product-store');
+    let reconciledCount = 0;
+    try {
+      const products = await getAllProductsV2();
+      const skuMap = new Map();
+      const eanMap = new Map();
+      for (const p of products) {
+        const sku = (p?.identification?.sku || '').trim().toLowerCase();
+        if (sku) skuMap.set(sku, p);
+        const ean = (p?.identification?.ean || '').trim();
+        if (ean) eanMap.set(ean, p);
+      }
+
+      let reconBatch = firestore.batch();
+      let reconCount = 0;
+      const commitRecon = async () => {
+        if (!reconCount) return;
+        await reconBatch.commit();
+        reconBatch = firestore.batch();
+        reconCount = 0;
+      };
+
+      for (const unit of units) {
+        const klAmount = Number(unit?.amount || 0);
+        if (klAmount <= 0) continue; // Kaufland reports 0 — nothing to reconcile
+
+        const idOffer = String(unit?.id_offer || '').trim().toLowerCase();
+        const ean = String(unit?.ean || '').trim();
+        const matched = (idOffer && skuMap.get(idOffer)) || (ean && eanMap.get(ean)) || null;
+        if (!matched) continue;
+
+        const whQty = typeof matched.inventory?.quantity === 'number' ? matched.inventory.quantity : null;
+        if (whQty !== 0) continue; // Only reconcile when warehouse shows exactly 0
+
+        // Kaufland says >0, warehouse says 0 → update warehouse to Kaufland amount
+        const docRef = firestore.collection('products_v2').doc(matched.id);
+        reconBatch.update(docRef, {
+          'inventory.quantity': klAmount,
+          updatedAt: new Date().toISOString(),
+        });
+        reconCount++;
+        reconciledCount++;
+        console.log(`[kaufland-sync] Reconciled inventory: ${matched.identification?.sku} warehouse 0 → ${klAmount} (from Kaufland)`);
+        if (reconCount >= 400) await commitRecon();
+      }
+      await commitRecon();
+    } catch (reconErr) {
+      console.error('[kaufland-sync] Reconciliation error (non-fatal):', reconErr.message);
+    }
+
     return res.status(200).json({
       ok: true,
       data: {
         storefront,
         fetched: units.length,
         active: seenIds.size,
+        reconciled: reconciledCount,
       },
     });
   } catch (error) {

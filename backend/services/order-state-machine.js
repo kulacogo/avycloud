@@ -193,9 +193,122 @@ async function transitionOrder({ tenantId = 'default', orderId, toStatus, actor,
     } catch (err) {
       console.warn(`[order-state-machine] Auto-invoice import failed: ${err.message}`);
     }
+
+    // Decrement physical stock + sync to all marketplaces (oversell prevention)
+    _onOrderShipped({ orderId, tenantId }).catch((err) => {
+      console.warn(`[order-state-machine] Stock-out for ${orderId} failed: ${err.message}`);
+    });
+  }
+
+  if (result.ok && toStatus === 'cancelled') {
+    // Release soft-locked stock + re-sync marketplaces
+    _onOrderCancelled({ orderId, tenantId }).catch((err) => {
+      console.warn(`[order-state-machine] Stock-release for ${orderId} failed: ${err.message}`);
+    });
   }
 
   return result;
+}
+
+/**
+ * On order shipped: confirm reservation + decrement physical stock + push to marketplaces.
+ */
+async function _onOrderShipped({ orderId, tenantId }) {
+  const db = getDb();
+
+  // 1. Confirm (close) the reservation → marks stock as physically consumed
+  try {
+    const { confirmReservation } = require('./stock-reservation');
+    const res = await confirmReservation({ tenantId, orderId });
+    console.log(`[order-state-machine] confirmReservation orderId=${orderId} confirmed=${res.confirmed}`);
+  } catch (err) {
+    console.warn(`[order-state-machine] confirmReservation failed orderId=${orderId}: ${err.message}`);
+  }
+
+  // 2. Fetch order to get items + SKUs
+  const orderDoc = await db.collection(ORDERS_COLLECTION).doc(orderId).get();
+  if (!orderDoc.exists) return;
+  const order = orderDoc.data();
+  const items = order.items || [];
+  if (items.length === 0) return;
+
+  // 3. Decrement inventory.quantity in products_v2 per SKU; then sync to marketplaces
+  const { syncStockWithRetry } = require('./stock-sync-dispatcher');
+  const { firestore: fs } = require('../lib/firestore');
+
+  const skuQtyMap = {};
+  for (const item of items) {
+    const sku = String(item.sku || '').trim();
+    if (!sku) continue;
+    skuQtyMap[sku] = (skuQtyMap[sku] || 0) + (Number(item.quantity) || 1);
+  }
+
+  const skus = Object.keys(skuQtyMap);
+  for (let i = 0; i < skus.length; i += 10) {
+    const chunk = skus.slice(i, i + 10);
+    const snap = await fs.collection('products_v2')
+      .where('details.identifiers.sku', 'in', chunk)
+      .get();
+
+    for (const doc of snap.docs) {
+      const product = { id: doc.id, ...doc.data() };
+      const sku = String(product?.details?.identifiers?.sku || product?.identification?.sku || '').trim();
+      const sold = skuQtyMap[sku] || 0;
+      const currentQty = Number(product?.inventory?.quantity ?? 0);
+      const newQty = Math.max(0, currentQty - sold);
+
+      await fs.collection('products_v2').doc(doc.id).update({
+        'inventory.quantity': newQty,
+        updatedAt: new Date().toISOString(),
+      });
+      console.log(`[order-state-machine] stock-out sku=${sku} ${currentQty} → ${newQty} (sold=${sold})`);
+
+      // Push updated stock to all marketplace channels
+      const updatedProduct = { ...product, inventory: { ...(product.inventory || {}), quantity: newQty } };
+      syncStockWithRetry({ tenantId, product: updatedProduct, reason: `shipped-${orderId}` })
+        .catch((err) => console.warn(`[order-state-machine] channel sync failed sku=${sku}: ${err.message}`));
+    }
+  }
+}
+
+/**
+ * On order cancelled: release reservation + re-sync available stock to marketplaces.
+ */
+async function _onOrderCancelled({ orderId, tenantId }) {
+  // Release the soft-lock
+  try {
+    const { releaseReservation } = require('./stock-reservation');
+    const res = await releaseReservation({ tenantId, orderId });
+    console.log(`[order-state-machine] releaseReservation orderId=${orderId} released=${res.released}`);
+  } catch (err) {
+    console.warn(`[order-state-machine] releaseReservation failed orderId=${orderId}: ${err.message}`);
+  }
+
+  // Re-sync stock to marketplaces (available qty just increased due to release)
+  const db = getDb();
+  const orderDoc = await db.collection(ORDERS_COLLECTION).doc(orderId).get();
+  if (!orderDoc.exists) return;
+  const order = orderDoc.data();
+  const items = order.items || [];
+
+  const skus = [...new Set(items.map((i) => String(i.sku || '').trim()).filter(Boolean))];
+  if (skus.length === 0) return;
+
+  const { syncStockWithRetry } = require('./stock-sync-dispatcher');
+  const { firestore: fs } = require('../lib/firestore');
+
+  for (let i = 0; i < skus.length; i += 10) {
+    const chunk = skus.slice(i, i + 10);
+    const snap = await fs.collection('products_v2')
+      .where('details.identifiers.sku', 'in', chunk)
+      .get();
+
+    for (const doc of snap.docs) {
+      const product = { id: doc.id, ...doc.data() };
+      syncStockWithRetry({ tenantId, product, reason: `cancelled-${orderId}` })
+        .catch((err) => console.warn(`[order-state-machine] channel sync failed after cancel: ${err.message}`));
+    }
+  }
 }
 
 /**

@@ -106,9 +106,44 @@ async function syncStockToAllChannels({ tenantId = 'default', product, reason = 
   }
 
   // --- Kaufland ---
-  const kauflandUnitId = freshProduct?.ops?.kaufland?.unitId
+  // Primary: unitId stored in product ops. Fallback: look up from kauflandUnitsLive
+  // by SKU or EAN. This handles products that were listed on Kaufland before
+  // ops.kaufland.unitId was written (majority of historical products).
+  let kauflandUnitId = freshProduct?.ops?.kaufland?.unitId
     || freshProduct?.ops?.kaufland?.id_unit
     || freshProduct?.marketplace?.kaufland?.unitId;
+
+  if (!kauflandUnitId) {
+    try {
+      const sku = String(freshProduct?.identification?.sku || freshProduct?.details?.identifiers?.sku || '').trim();
+      const ean = String(freshProduct?.identification?.ean || freshProduct?.details?.identifiers?.ean || '').trim();
+      let unitSnap = null;
+      if (sku) {
+        unitSnap = await firestore.collection('kauflandUnitsLive')
+          .where('id_offer', '==', sku)
+          .where('active', '==', true)
+          .limit(1)
+          .get();
+      }
+      if ((!unitSnap || unitSnap.empty) && ean) {
+        unitSnap = await firestore.collection('kauflandUnitsLive')
+          .where('ean', '==', ean)
+          .where('active', '==', true)
+          .limit(1)
+          .get();
+      }
+      if (unitSnap && !unitSnap.empty) {
+        kauflandUnitId = unitSnap.docs[0].id;
+        console.log(`[stock-sync] kaufland unitId resolved via lookup: ${kauflandUnitId} (sku=${sku})`);
+        // Write back to product so future syncs don't need the lookup
+        firestore.collection('products_v2').doc(productId)
+          .update({ 'ops.kaufland.unitId': kauflandUnitId })
+          .catch(() => {});
+      }
+    } catch (err) {
+      console.warn(`[stock-sync] kaufland unitId lookup failed for product=${productId}: ${err.message}`);
+    }
+  }
 
   if (kauflandUnitId) {
     if (isZeroStock) {

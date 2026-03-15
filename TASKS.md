@@ -132,7 +132,7 @@
 > Entfernt: 34 Scripts, 7 Lib-Dateien, 4 Service-Dateien, 3 Root-Referenzdateien.
 > Bereinigt: 7 Routes, 11 Services, 18 Frontend-Dateien, Test-Mocks, cloudbuild.yaml, RBAC, Integration-Registry.
 
-- [ ] **⛔ C1: Daten-Migration — TEILWEISE ERLEDIGT (2026-03-15)** Self-Healing aktiv: `normalizeOrderForResponse()` erkennt Marketplace aus `raw.order_source` + schreibt zurück in Firestore (automatisch bei jedem Seitenaufruf). Admin Bulk-Fix: `POST /api/admin/backfill-order-marketplaces` — einmalig ausführen für komplette Migration. `sourceBadge()` zeigt kein "Legacy" mehr.
+- [x] **✅ C1: Daten-Migration — KOMPLETT (2026-03-15)** 365 Orders via `backfill-baselinker-orders.js` (marketplace, paidAt, paymentMethod, Adresse). 356 weitere via `fix-source-field.js` (`source: 'baselinker'` → korrekten marketplace-Wert). Firestore: 0 Orders mit `source='baselinker'` übrig. Self-Healing aktiv für zukünftige Fälle.
 - [x] C2: Dashboard-Metriken — BL-Fallback entfernt, nur lokale Order-Aggregation
 - [x] C3: Shipping-Kosten — BL-Fallback entfernt, nur SevDesk + SendCloud
 - [x] C4-C5: Backend lib (7) + services (4) gelöscht
@@ -207,32 +207,14 @@
 > **⛔ Serena MCP nutzen!** Projekt ist konfiguriert unter `.serena/project.yml`. Vor Refactorings: `find_referencing_symbols` nutzen statt blind greppen.
 > **⛔ Nach JEDEM Fix:** `cd backend && npm test` UND `npm run build` ausführen. Kein Commit ohne grüne Tests.
 
-**FIX-1: BUG-040 — BaseLinker-Orders Daten-Migration (P0 SOFORT)**
+**FIX-1: BUG-040 — BaseLinker-Orders Daten-Migration (P0 SOFORT)** ✅ ERLEDIGT 2026-03-15
 
-> Historische Orders in Firestore haben `source: 'baselinker'` statt `source: 'ebay'`/`source: 'kaufland'`.
-> Die UI zeigt "baselinker" als Quelle. Kunden, Adressen, Zahlungsdaten fehlen teilweise.
+> ✅ Migration abgeschlossen. Firestore `orders`: 0 Dokumente mit `source: 'baselinker'`.
 
-**Option A — Self-Healing (automatisch, läuft schon):** Seit 2026-03-15 heilt `normalizeOrderForResponse()` in `routes/orders.js` jede abgerufene Order automatisch: erkennt Marketplace aus `raw.order_source` → schreibt `marketplace` + `source` zurück in Firestore (fire-and-forget). Keine manuelle Aktion nötig — passiert beim nächsten Seitenaufruf.
-
-**Option B — Admin Bulk-Fix (empfohlen für sofortige Komplett-Migration):**
-- Dry-run (prüfen): `curl -X POST "https://product-hub-backend-*.europe-west3.run.app/api/admin/backfill-order-marketplaces?dry_run=true" -H "Authorization: Bearer $TOKEN"`
-- Ausführen: `curl -X POST ".../api/admin/backfill-order-marketplaces" -H "Authorization: Bearer $TOKEN"`
-- Liefert: `{ checked, fixed, unchanged, unresolvable }`
-
-**Option C — Script (nur mit Cloud Run Credentials):** `node backend/scripts/backfill-baselinker-orders.js --dry-run` → ohne `--dry-run`
-
-- [ ] **Option B ausführen** (empfohlen — läuft auf Cloud Run, hat volle Firestore-Rechte)
-- [ ] **Verifizieren:** Firestore Console → `orders` Collection → kein Dokument mit `source: 'baselinker'` mehr vorhanden
-- [ ] **UI verifizieren:** avycloud.web.app → Bestellungen → keine Order zeigt unbekannte Quelle mehr
-
-**Datei:** `backend/scripts/backfill-baselinker-orders.js`, `backend/routes/admin.js` (Bulk-Fix Endpoint)
-**Was das Script tut:**
-1. Findet alle Orders mit `source === 'baselinker'`
-2. Liest `raw.order_source` → mappt zu `ebay`/`kaufland`
-3. Setzt `marketplace` + `source` auf den richtigen Wert
-4. Backfilled fehlende Adresse aus `raw.delivery_*` Feldern
-5. Backfilled fehlende Payment-Felder aus `raw.payment_method`/`raw.date_pay_finish`
-6. Mappt OMS-Status konservativ (nur terminale States: cancelled, shipped, completed)
+- [x] ✅ 365 Orders via `backfill-baselinker-orders.js` — marketplace, paidAt, paymentMethod, Adresse aus raw-Feldern backfilled
+- [x] ✅ 356 weitere Orders via `fix-source-field.js` — `source` auf korrekten marketplace-Wert gesetzt
+- [x] ✅ Verifiziert: `where('source', '==', 'baselinker')` → 0 Ergebnisse
+- [ ] **UI verifizieren:** avycloud.web.app → Bestellungen → alle Orders zeigen eBay/Kaufland Badge
 
 ---
 
@@ -895,6 +877,7 @@
 | BUG-080 | **Retouren-Seite: Produktname fehlt** — Retoure Y0NDGYY zeigt SKU statt Name. | P2 | ⚠️ Code-Fix (2026-03-15: `product.name \|\| product.title \|\| product.sku` in ReturnsView.tsx). Production-Verifizierung ausstehend. |
 | BUG-081 | **⛔ eBay Token abgelaufen** — Seit 15.3.2026, 04:01 Uhr. Alle eBay-API-Calls schlagen fehl. Token muss manuell über OAuth-Flow erneuert werden. | P0 | 🔴 Offen — **MANUELL: eBay OAuth Flow neu starten!** |
 | BUG-082 | **Produktdaten: eBay/Kaufland Status-Farben inkonsistent** | P3 | ⚠️ Code-Fix (2026-03-15: OrdersView + ReturnsView auf Design-Tokens vereinheitlicht: eBay=warning, Kaufland=danger). Production-Verifizierung ausstehend. |
+| BUG-083 | **🔥 Cross-Marketplace Oversell: Kaufland nicht benachrichtigt bei eBay-Verkauf** — `syncStockToAllChannels()` übersprung Kaufland für 82% der Produkte weil `ops.kaufland.unitId` nicht gesetzt. | P0 | ✅ Fixed (2026-03-15: (1) `stock-sync-dispatcher.js`: Fallback-Lookup via `kauflandUnitsLive` nach SKU/EAN wenn unitId fehlt + Write-Back. (2) `marketplace.js` Sync: `ops.kaufland.unitId` Backfill bei jedem Sync-Lauf. (3) `order-state-machine.js`: `_onOrderShipped()` → confirmReservation + physicalQty dekrementieren + syncStockWithRetry. `_onOrderCancelled()` → releaseReservation + Marketplace re-sync.) |
 | BUG-SSE | Token-in-Query-Parameter für SSE-Streams leakt | P1 | ⚠️ Code-Fix da, Verifizierung ausstehend |
 | BUG-006 | EbayListingsView.tsx (alte Gap-Analysis) noch da — LÖSCHEN | P1 | ✅ Fixed (deleted) |
 | BUG-008 | eBay-Seite zeigt Gap-Analyse-Daten statt Listing-Management | P1 | ✅ Fixed (route already correct, old component deleted) |
