@@ -642,13 +642,10 @@ const OrdersView: React.FC = () => {
                       {/* Order ID */}
                       <td className="px-4 py-3">
                         <span className="font-mono text-xs text-txt-primary block">
-                          {order.number || order.orderId || order.id}
+                          {(order as any).marketplaceOrderId && (order as any).marketplaceOrderId !== '-'
+                            ? (order as any).marketplaceOrderId
+                            : order.orderId || order.number || order.id}
                         </span>
-                        {(order as any).marketplaceOrderId && (order as any).marketplaceOrderId !== '-' && (
-                          <span className="font-mono text-[10px] text-txt-muted block leading-tight">
-                            {(order as any).marketplaceOrderId}
-                          </span>
-                        )}
                       </td>
                       {/* Customer */}
                       <td className="px-4 py-3">
