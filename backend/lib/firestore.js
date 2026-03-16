@@ -2983,7 +2983,7 @@ async function listOrders(limit = 50) {
     .limit(limit)
     .get();
 
-  return snapshot.docs.map((doc) => doc.data());
+  return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
 }
 
 async function listOrdersByStatus(status, limit = 200) {
