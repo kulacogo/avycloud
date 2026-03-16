@@ -56,9 +56,12 @@ async function fetchKauflandOrders({
  * @returns {Promise<object[]>}
  */
 async function fetchKauflandOrderUnits({ orderId }) {
-  const result = await kauflandRequest('GET', `/orders/${orderId}/units`);
-  const data = result?.data || result;
-  return Array.isArray(data) ? data : [];
+  // Kaufland embeds order_units in the order response; there is no separate /units endpoint
+  // API returns double-nested: { data: { data: { order_units: [...] } } }
+  const result = await kauflandRequest('GET', `/orders/${orderId}`);
+  const order = result?.data?.data || result?.data || result;
+  const units = order?.order_units || [];
+  return Array.isArray(units) ? units : [];
 }
 
 /**
@@ -88,8 +91,8 @@ function mapKauflandOrder(klOrder) {
   const paymentStatus = klOrder.payment_status || null;
   const paidAt = paymentStatus === 'complete' ? (klOrder.ts_created || null) : null;
 
-  // Derive shippedAt from unit status if any unit is 'shipped'
-  const anyShipped = units.some((u) => u.status === 'shipped');
+  // Derive shippedAt from unit status if any unit is shipped (API uses 'sent' or 'shipped')
+  const anyShipped = units.some((u) => u.status === 'sent' || u.status === 'shipped');
   const shippedAt = anyShipped ? (klOrder.ts_updated || new Date().toISOString()) : null;
 
   // Shipping cost: Kaufland may include shipping_costs at unit level
@@ -157,8 +160,13 @@ function mapKauflandStatus(klStatus) {
   const statusMap = {
     open: 'pending',
     open_new: 'pending',
+    // Kaufland order-level statuses
     need_to_ship: 'confirmed',
     shipped: 'shipped',
+    // Kaufland unit-level statuses (actual API field values)
+    need_to_be_sent: 'confirmed',
+    sent: 'shipped',
+    // Other statuses
     returned: 'returned',
     cancelled: 'cancelled',
     closed: 'completed',
