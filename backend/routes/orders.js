@@ -564,7 +564,7 @@ router.post('/orders/sync', requirePermission('orders', 'read'), async (req, res
   try {
     // Kick off background sync, but respond immediately with cached orders
     _backgroundSyncOrders();
-    const rawOrders = await listOrders(Math.min(Number(req.query?.limit) || 200, 100));
+    const rawOrders = await listOrders(500);
 
     const orders = await attachPickHintsToOrders(rawOrders || []);
     res.json({ ok: true, data: orders.map(normalizeOrderForResponse) });

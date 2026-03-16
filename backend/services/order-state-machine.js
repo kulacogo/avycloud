@@ -350,7 +350,7 @@ async function getStatusCounts({ tenantId = 'default' } = {}) {
   // For large datasets, use a counters document pattern
   const snap = await getDb()
     .collection(ORDERS_COLLECTION)
-    .select('omsStatus', 'status')
+    .select('omsStatus', 'status', 'marketplaceKey')
     .limit(5000)
     .get();
 
@@ -361,6 +361,8 @@ async function getStatusCounts({ tenantId = 'default' } = {}) {
 
   for (const doc of snap.docs) {
     const d = doc.data();
+    // Skip legacy BL-only orders (no omsStatus and no marketplaceKey) to avoid stale data pollution
+    if (!d.omsStatus && !d.marketplaceKey) continue;
     const status = d.omsStatus || d.status || 'pending';
     // Map old statuses to OMS statuses
     const mapped = mapLegacyStatus(status);
