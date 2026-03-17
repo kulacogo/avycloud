@@ -78,6 +78,21 @@ async function getShippingMethods() {
 }
 
 /**
+ * Split a combined address string into street name + house number.
+ * German pattern: "Musterstraße 12a" → { street: "Musterstraße", houseNumber: "12a" }
+ * If no number found, returns houseNumber = '-' (SendCloud requires a non-blank value).
+ */
+function splitAddressLine(addressStr) {
+  const s = String(addressStr || '').trim();
+  // Match: everything before the trailing number (with optional letter suffix)
+  const match = s.match(/^(.*?)\s+(\d+\s*[a-zA-Z\-\/]*)$/);
+  if (match) {
+    return { street: match[1].trim(), houseNumber: match[2].trim() };
+  }
+  return { street: s, houseNumber: '-' };
+}
+
+/**
  * Create a parcel (shipping label) in SendCloud.
  *
  * @param {{
@@ -104,17 +119,24 @@ async function createParcel({
   const auth = await getSendCloudAuth();
 
   // Resolve address fields — try multiple field names for robustness
-  const addressStr = customer.street
+  // Convert to string to handle numeric values stored from marketplace APIs
+  const rawAddress = String(customer.street
     || customer.address
     || customer.address_1
     || customer.strasse
     || [customer.streetName, customer.houseNumber].filter(Boolean).join(' ')
-    || '';
-  const cityStr = customer.city || customer.ort || '';
-  const zipStr = customer.zip || customer.postal_code || customer.postcode || customer.plz || '';
-  const nameStr = customer.name
+    || '');
+  const cityStr = String(customer.city || customer.ort || '');
+  const zipStr = String(customer.zip || customer.postal_code || customer.postcode || customer.plz || '');
+  const nameStr = String(customer.name
     || [customer.firstName, customer.lastName].filter(Boolean).join(' ')
-    || 'Unbekannt';
+    || 'Unbekannt');
+
+  // Split address into street name + house number (SendCloud requires them separate)
+  const explicitHouseNumber = String(customer.houseNumber || customer.house_number || '');
+  const { street: parsedStreet, houseNumber: parsedHouseNumber } = splitAddressLine(rawAddress);
+  const addressStr = parsedStreet;
+  const houseNumberStr = explicitHouseNumber || parsedHouseNumber;
 
   // Validate required fields before calling SendCloud
   const missingFields = [];
@@ -138,6 +160,7 @@ async function createParcel({
     parcel: {
       name: nameStr,
       address: addressStr,
+      house_number: houseNumberStr,
       city: cityStr,
       postal_code: zipStr,
       country: customer.country || customer.countryCode || 'DE',

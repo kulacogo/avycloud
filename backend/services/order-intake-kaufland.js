@@ -42,13 +42,28 @@ async function fetchKauflandOrders({
 
   // Kaufland list: double-nested { data: { data: [...], pagination: {...} } }
   const inner = result?.data?.data || result?.data || result;
-  const orders = Array.isArray(inner) ? inner : [];
-  const total = result?.data?.pagination?.total || result?.pagination?.total || orders.length;
+  const rawOrders = Array.isArray(inner) ? inner : [];
+  const total = result?.data?.pagination?.total || result?.pagination?.total || rawOrders.length;
 
-  return {
-    orders: orders.map(mapKauflandOrder),
-    total,
-  };
+  // The list endpoint may return orders without embedded order_units/buyer.
+  // Enrich any order that is missing items or buyer by fetching its full detail.
+  const orders = await Promise.all(rawOrders.map(async (klOrder) => {
+    const hasUnits = Array.isArray(klOrder.order_units) && klOrder.order_units.length > 0;
+    const hasBuyer = klOrder.buyer && (klOrder.buyer.email || klOrder.buyer.name
+      || klOrder.buyer.shipping_address?.last_name);
+    if (hasUnits && hasBuyer) return mapKauflandOrder(klOrder);
+    // Fetch full order detail to get buyer + order_units
+    try {
+      const detailResult = await kauflandRequest('GET', `/orders/${klOrder.id_order}`);
+      const full = detailResult?.data?.data || detailResult?.data || detailResult;
+      if (full && (full.order_units || full.buyer)) return mapKauflandOrder({ ...klOrder, ...full });
+    } catch (err) {
+      console.warn(`[kaufland] Detail fetch failed for ${klOrder.id_order}: ${err.message}`);
+    }
+    return mapKauflandOrder(klOrder);
+  }));
+
+  return { orders, total };
 }
 
 /**
@@ -94,7 +109,7 @@ function mapKauflandOrder(klOrder) {
 
   // Derive shippedAt from unit status if any unit is shipped (API uses 'sent' or 'shipped')
   const anyShipped = units.some((u) => u.status === 'sent' || u.status === 'shipped');
-  const shippedAt = anyShipped ? (klOrder.ts_updated || new Date().toISOString()) : null;
+  const shippedAt = anyShipped ? (klOrder.ts_updated_iso || klOrder.ts_updated || new Date().toISOString()) : null;
 
   // Shipping cost: Kaufland may include shipping_costs at unit level
   const shippingCost = units.reduce((sum, u) => {
@@ -112,7 +127,7 @@ function mapKauflandOrder(klOrder) {
     source: 'kaufland',
     marketplace: 'kaufland',
     externalOrderId: String(klOrder.id_order || ''),
-    createdAt: klOrder.ts_created || new Date().toISOString(),
+    createdAt: klOrder.ts_created_iso || klOrder.ts_created || new Date().toISOString(),
     totalAmount,
     currency: 'EUR',
     customer: {
@@ -403,6 +418,26 @@ async function saveOrderIfNew({ tenantId, order }) {
         }));
         await existingDoc.ref.update({ items: updatedItems });
         console.log(`[kaufland-intake] Backfilled unitIds for ${existingData.orderId || existingDoc.id}`);
+      }
+
+      // Backfill missing customer/items data (list endpoint may have saved an empty order)
+      const needsCustomer = !existingData.customer?.name || existingData.customer.name === 'Unbekannt';
+      const needsItems = !existingData.items || existingData.items.length === 0;
+      const hasNewCustomer = order.customer?.name && order.customer.name !== 'Unbekannt';
+      const hasNewItems = order.items && order.items.length > 0;
+      if ((needsCustomer && hasNewCustomer) || (needsItems && hasNewItems)) {
+        const backfill = {};
+        if (needsCustomer && hasNewCustomer) backfill.customer = order.customer;
+        if (needsItems && hasNewItems) {
+          backfill.items = order.items.map((item, idx) => ({
+            id: `${existingData.orderId || existingDoc.id}-${idx + 1}`,
+            ...item,
+          }));
+          backfill.totalAmount = order.totalAmount;
+          if (order.billingAddress) backfill.billingAddress = order.billingAddress;
+        }
+        await existingDoc.ref.update(backfill);
+        console.log(`[kaufland-intake] Backfilled customer/items for ${existingData.orderId || existingDoc.id}`);
       }
     }
     return false;

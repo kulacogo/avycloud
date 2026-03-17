@@ -1036,19 +1036,23 @@ router.post('/orders/:orderId/ship', requirePermission('orders', 'write'), async
     const { shipOrder } = require('../services/shipping-engine');
     const result = await shipOrder({ orderId, tenantId, shippingMethodId, weight, labelFormat: resolvedFormat });
 
-    // Only transition to shipped if we have confirmed tracking
-    if (result.trackingNumber) {
+    // Transition to shipped when tracking confirmed, or when label created but announcement pending
+    const hasLabel = !!(result.labelUrl);
+    if (result.trackingNumber || hasLabel) {
       const { transitionOrder } = require('../services/order-state-machine');
+      const note = result.trackingNumber
+        ? `Versandlabel erstellt (${result.carrier || 'unknown'})`
+        : `Versandlabel erstellt (${result.carrier || 'unknown'}) — Tracking ausstehend`;
       await transitionOrder({
         tenantId,
         orderId,
         toStatus: 'shipped',
         actor: { uid: req.user?.uid || 'system', email: req.user?.email || 'api' },
-        note: `Versandlabel erstellt (${result.carrier || 'unknown'})`,
+        note,
         timestamps: { shippedAt: new Date().toISOString() },
       });
     } else {
-      console.warn(`[ship] Label created for ${orderId} but no tracking number — staying in current status`);
+      console.warn(`[ship] No label or tracking for ${orderId} — staying in current status`);
     }
 
     // Push tracking to marketplace immediately (time-critical)

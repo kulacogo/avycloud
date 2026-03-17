@@ -114,7 +114,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
   const [packMessage, setPackMessage] = useState<string | null>(null);
   const [packScopedOrderKey, setPackScopedOrderKey] = useState<string | null>(null);
   const [packSelectedKey, setPackSelectedKey] = useState<string | null>(null);
-  const [printingPrefs, setPrintingPrefs] = useState<{ labelFormat?: string; autoPrint?: boolean }>({});
+  const [printingPrefs, setPrintingPrefs] = useState<{ labelFormat?: string; autoPrint?: boolean; networkPrinterUrl?: string }>({});
   // Mobile pick progress (supports partial picks across bins)
   const [pickedByItemId, setPickedByItemId] = useState<Record<string, number>>({});
   // Local bin deltas to avoid stale product data causing repeated picks from the same BIN
@@ -260,7 +260,12 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
       const raw = (label || '').toLowerCase();
       return raw.includes('storniert') || raw.includes('cancel');
     };
-    return orders.filter((o) => (o.status || '').toLowerCase() === 'new' && !isCancelled(o.statusLabel));
+    return orders.filter((o) => {
+      // OMS orders use 'pending'/'confirmed'/'picking'; legacy BL orders used 'new'
+      const oms = (((o as any).omsStatus || o.status) || '').toLowerCase();
+      const isOpen = oms === 'new' || oms === 'pending' || oms === 'confirmed' || oms === 'picking';
+      return isOpen && !isCancelled(o.statusLabel);
+    });
   }, [orders]);
 
   const readyToPackOrders = useMemo(() => {
@@ -284,8 +289,13 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
     };
     const filtered = orders.filter((o) => {
       const label = (o.statusLabel || '').toLowerCase();
-      const isKommissioniert = label.includes('kommissioniert');
-      return o.status === 'picked' && isKommissioniert && !isCancelled(label) && !isPackedOrBeyond(label);
+      const oms = (((o as any).omsStatus || o.status) || '').toLowerCase();
+      if (isCancelled(label)) return false;
+      // Packed orders without a shipping label: show for retry-ship
+      if (oms === 'packed' && !(o as any).trackingNumber) return true;
+      // Normal case: picked orders not yet packed
+      const isPicked = oms === 'picked' || label.includes('kommissioniert');
+      return isPicked && !isPackedOrBeyond(label);
     });
     // Stable processing order to keep scanner behavior deterministic.
     return filtered.sort((a, b) => {
@@ -334,6 +344,8 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
         [
           orderId,
           order.number || '',
+          (order as any).marketplaceOrderId || '',
+          (order as any).externalOrderId || '',
           sourceId || '',
           sourceId ? `${orderId}-${sourceId}` : '',
           sourceId ? `${orderId}/${sourceId}` : '',
@@ -466,7 +478,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
 
         tasks.push({
           orderId: order.id,
-          orderNumber: order.number,
+          orderNumber: (order as any).marketplaceOrderId || order.number || (order as any).orderId || order.id,
           orderCreatedAt: order.createdAt || null,
           itemId,
           name: hint?.productName || product?.identification?.name || it.name,
@@ -518,7 +530,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
           bucket[key] = {
             orderId: o.id,
             orderKey,
-            orderNumber: o.number || o.orderId || o.id,
+            orderNumber: (o as any).marketplaceOrderId || o.number || (o as any).orderId || o.id,
             orderSourceId,
             sku,
             ean: it.ean || null,
@@ -1527,11 +1539,11 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
             if (result.labelBlobUrl && printWindow) {
               // Navigate pre-opened window to the PDF blob URL
               printWindow.location.href = result.labelBlobUrl;
-              // Auto-print if user preference enabled
+              // Auto-print: use setTimeout — onload doesn't reliably fire for PDF blobs on mobile
               if (printingPrefs.autoPrint) {
-                printWindow.onload = () => {
+                setTimeout(() => {
                   try { printWindow.print(); } catch (_) { /* cross-origin or blocked */ }
-                };
+                }, 1200);
               }
               // Revoke blob URL after 60s to free memory
               setTimeout(() => URL.revokeObjectURL(result.labelBlobUrl!), 60000);

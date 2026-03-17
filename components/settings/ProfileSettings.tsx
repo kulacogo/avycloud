@@ -48,6 +48,7 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({ appTheme, onTh
   const [theme, setLocalTheme] = useState<ThemeOption>(appTheme || "system");
   const [labelFormat, setLabelFormat] = useState<"a6" | "a4">("a6");
   const [autoPrint, setAutoPrint] = useState(false);
+  const [networkPrinterUrl, setNetworkPrinterUrl] = useState("");
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -78,6 +79,7 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({ appTheme, onTh
       if (data.printing) {
         if (data.printing.labelFormat) setLabelFormat(data.printing.labelFormat);
         if (data.printing.autoPrint) setAutoPrint(data.printing.autoPrint);
+        if (data.printing.networkPrinterUrl) setNetworkPrinterUrl(data.printing.networkPrinterUrl);
       }
       // Fallback: use displayName if vorname/nachname not set
       if (!data.vorname && !data.nachname && data.displayName) {
@@ -105,7 +107,7 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({ appTheme, onTh
     setError(null);
     setSaveSuccess(false);
     try {
-      await saveProfile({ vorname, nachname, notifications, theme, printing: { labelFormat, autoPrint } });
+      await saveProfile({ vorname, nachname, notifications, theme, printing: { labelFormat, autoPrint, networkPrinterUrl: networkPrinterUrl.trim() || undefined } });
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);
     } catch (err: any) {
@@ -307,6 +309,19 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({ appTheme, onTh
             <span className="block text-xs text-txt-muted">Druckdialog automatisch nach Pack & Ship</span>
           </div>
         </label>
+
+        {/* Network Printer */}
+        <div className="mt-4">
+          <label className="block text-xs text-txt-muted mb-1.5">Netzwerkdrucker Hostname</label>
+          <input
+            type="text"
+            value={networkPrinterUrl}
+            onChange={(e) => setNetworkPrinterUrl(e.target.value)}
+            placeholder="z.B. BRW3C0AF3A24F1F oder 192.168.1.100"
+            className="w-full px-3 py-2 rounded-lg border border-app-border bg-app-elevated text-sm text-txt-primary placeholder:text-txt-muted focus:outline-none focus:border-accent"
+          />
+          <span className="block text-xs text-txt-muted mt-1">Brother NC-42004w · Hostname aus Druckerkonfiguration</span>
+        </div>
       </Card>
 
       {/* Save */}
