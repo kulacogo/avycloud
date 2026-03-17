@@ -1,7 +1,7 @@
 const router = require('express').Router();
 const { requirePermission } = require('../lib/rbac');
 const { listOrders, getDashboardMetrics, computeOrdersDeliveryTotal, firestore } = require('../lib/firestore');
-const { syncNewOrders, markOrderAsPicked, markOrderAsPacked } = require('../services/order-sync');
+const { markOrderAsPicked, markOrderAsPacked } = require('../services/order-sync');
 const { attachPickHintsToOrders } = require('../services/pick-hints');
 const { getCheckAccountBalances, getShippingCostsFromSevDesk } = require('../lib/sevdesk');
 const { getShippingCostsSummary: getSendCloudShippingSummary } = require('../lib/sendcloud');

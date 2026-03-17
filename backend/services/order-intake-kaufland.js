@@ -34,15 +34,16 @@ async function fetchKauflandOrders({
   sort = 'ts_created:desc',
 } = {}) {
   const query = { limit, offset, sort };
-  if (createdAfter) query.ts_created_from_iso = createdAfter;
+  // Kaufland rejects ISO dates with milliseconds — strip them
+  if (createdAfter) query.ts_created_from_iso = String(createdAfter).replace(/\.\d{3}Z$/, 'Z');
   if (status) query.status = status;
 
   const result = await kauflandRequest('GET', '/orders', { query });
 
-  // Kaufland returns { data: [...], pagination: { total, limit, offset } }
-  const data = result?.data || result;
-  const orders = Array.isArray(data) ? data : [];
-  const total = result?.pagination?.total || orders.length;
+  // Kaufland list: double-nested { data: { data: [...], pagination: {...} } }
+  const inner = result?.data?.data || result?.data || result;
+  const orders = Array.isArray(inner) ? inner : [];
+  const total = result?.data?.pagination?.total || result?.pagination?.total || orders.length;
 
   return {
     orders: orders.map(mapKauflandOrder),

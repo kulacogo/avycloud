@@ -2960,6 +2960,8 @@ async function saveOrders(orders = []) {
 
   orders.forEach((order) => {
     if (!order?.id) return;
+    // Skip legacy BL-imported orders (no marketplaceKey, has baselinkerId) — these are purged
+    if (order.baselinkerId && !order.marketplaceKey) return;
     const docRef = firestore.collection(ORDERS_COLLECTION).doc(order.id);
     batch.set(
       docRef,

@@ -85,35 +85,6 @@ async function syncNewOrders() {
     console.warn('[order-sync] stock reservation failed (non-blocking):', reserveErr?.message || reserveErr);
   }
 
-  // Prune old orders beyond lookback window to keep dashboard counts consistent and prevent unbounded growth.
-  // This is best-effort and safe: it only deletes very old orders that are outside our sync window anyway.
-  try {
-    const pruneEnabled = (process.env.ORDER_SYNC_PRUNE_OLD ?? 'true').toString().toLowerCase() === 'true';
-    if (pruneEnabled) {
-      const cutoffIso = new Date(Date.now() - DEFAULT_ORDER_LOOKBACK_DAYS * 24 * 60 * 60 * 1000).toISOString();
-      let deleted = 0;
-      // Delete in small batches to avoid timeouts.
-      while (deleted < 2000) {
-        const snap = await firestore
-          .collection('orders')
-          .where('createdAt', '<', cutoffIso)
-          .limit(200)
-          .get();
-        if (snap.empty) break;
-        const batch = firestore.batch();
-        snap.docs.forEach((doc) => batch.delete(doc.ref));
-        await batch.commit();
-        deleted += snap.docs.length;
-        if (snap.docs.length < 200) break;
-      }
-      if (deleted > 0) {
-        console.log(`[order-sync] pruned old orders: ${deleted} (cutoff ${cutoffIso})`);
-      }
-    }
-  } catch (error) {
-    console.warn('Order prune pass failed:', error?.message || error);
-  }
-
   // Repair pass for historical cache artifacts:
   // Older versions mistakenly stored the constant "order_source_id" (shop/source id) as order.number (e.g. 10129).
   // This breaks UI because multiple orders appear to have the same number.

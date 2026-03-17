@@ -23,7 +23,7 @@ const settingsRouter = require('./routes/settings');
 const returnsRouter = require('./routes/returns');
 const invoicesRouter = require('./routes/invoices');
 const webhooksRouter = require('./routes/webhooks');
-const { syncNewOrders } = require('./services/order-sync');
+// order-sync's syncNewOrders is no longer used (replaced by native eBay/Kaufland intake)
 const { requireAuth } = require('./lib/auth');
 const { ensureDefaultRoles } = require('./lib/rbac');
 const { ensureBootstrapAdmin } = require('./lib/bootstrap-admin');
