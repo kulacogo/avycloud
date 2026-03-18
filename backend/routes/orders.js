@@ -1216,6 +1216,102 @@ router.post('/orders/:orderId/cancel-label', requirePermission('orders', 'write'
 });
 
 /**
+ * POST /api/orders/:orderId/tracking — Manually assign tracking number to an order.
+ * Body: { trackingNumber: string, carrier?: string, trackingUrl?: string }
+ */
+router.post('/orders/:orderId/tracking', requirePermission('orders', 'write'), async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const { trackingNumber, carrier, trackingUrl } = req.body;
+    const tenantId = req.user?.tenantId || 'default';
+
+    if (!trackingNumber || typeof trackingNumber !== 'string' || !trackingNumber.trim()) {
+      return res.status(400).json({ ok: false, error: { code: 'BAD_REQUEST', message: 'Tracking-Nummer erforderlich.' } });
+    }
+
+    const orderSnap = await firestore.collection('orders').doc(orderId).get();
+    if (!orderSnap.exists) {
+      return res.status(404).json({ ok: false, error: { code: 'NOT_FOUND', message: 'Auftrag nicht gefunden.' } });
+    }
+
+    const order = orderSnap.data();
+
+    // Update order with tracking info
+    await firestore.collection('orders').doc(orderId).set({
+      trackingNumber: trackingNumber.trim(),
+      trackingUrl: trackingUrl || null,
+      shippingService: carrier || order.shippingService || null,
+      updatedAt: new Date().toISOString(),
+    }, { merge: true });
+
+    // Create/update shipment record
+    const existingShipSnap = await firestore.collection('shipments')
+      .where('orderId', '==', orderId)
+      .orderBy('createdAt', 'desc')
+      .limit(1)
+      .get();
+
+    if (!existingShipSnap.empty) {
+      await existingShipSnap.docs[0].ref.set({
+        trackingNumber: trackingNumber.trim(),
+        trackingUrl: trackingUrl || null,
+        carrier: carrier || null,
+        source: 'manual',
+        updatedAt: new Date().toISOString(),
+      }, { merge: true });
+    } else {
+      await firestore.collection('shipments').add({
+        tenantId,
+        orderId,
+        orderNumber: order.marketplaceOrderId || order.orderId || null,
+        marketplaceOrderId: order.marketplaceOrderId || null,
+        marketplace: order.marketplace || order.source || null,
+        trackingNumber: trackingNumber.trim(),
+        trackingUrl: trackingUrl || null,
+        carrier: carrier || null,
+        status: 'ausstehend',
+        source: 'manual',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+    }
+
+    // Transition to shipped if not already
+    const currentStatus = order.omsStatus || order.status;
+    if (currentStatus && !['shipped', 'delivered', 'completed', 'cancelled'].includes(currentStatus)) {
+      const { transitionOrder } = require('../services/order-state-machine');
+      await transitionOrder({
+        tenantId,
+        orderId,
+        toStatus: 'shipped',
+        actor: { uid: req.user?.uid || 'system', email: req.user?.email || 'api' },
+        note: `Tracking manuell hinterlegt: ${trackingNumber.trim()}`,
+        timestamps: { shippedAt: new Date().toISOString() },
+      });
+    }
+
+    // Push tracking to marketplace
+    if (trackingNumber.trim()) {
+      try {
+        const { pushTrackingToMarketplace } = require('../services/marketplace-tracking');
+        await pushTrackingToMarketplace({
+          orderId,
+          trackingNumber: trackingNumber.trim(),
+          carrier: carrier || '',
+        });
+      } catch (pushErr) {
+        console.warn(`[tracking] Marketplace push failed: ${pushErr.message}`);
+      }
+    }
+
+    res.json({ ok: true, data: { message: 'Tracking-Nummer hinterlegt.', trackingNumber: trackingNumber.trim() } });
+  } catch (err) {
+    console.error(`[POST /api/orders/:orderId/tracking] ${err.message}`, err);
+    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: err.message } });
+  }
+});
+
+/**
  * POST /api/orders/:orderId/invoice — Generate invoice PDF.
  */
 router.post('/orders/:orderId/invoice', requirePermission('orders', 'write'), async (req, res) => {

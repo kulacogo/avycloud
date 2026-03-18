@@ -3186,6 +3186,20 @@ export async function cancelShippingLabel(orderId: string): Promise<void> {
   if (!res.ok || data?.ok === false) throw new Error(data?.error?.message || 'Label-Stornierung fehlgeschlagen');
 }
 
+export async function assignTracking(
+  orderId: string,
+  opts: { trackingNumber: string; carrier?: string; trackingUrl?: string }
+): Promise<{ message: string; trackingNumber: string }> {
+  const res = await fetchApi(`${BACKEND_URL}/api/orders/${encodeURIComponent(orderId)}/tracking`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(opts),
+  });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) throw new Error(data?.error?.message || 'Tracking-Zuweisung fehlgeschlagen');
+  return data?.data || {};
+}
+
 export async function syncSendCloudParcels(
   opts?: { fromDate?: string; toDate?: string }
 ): Promise<{ matched: number; unmatched: number; skipped: number; details: any }> {

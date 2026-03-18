@@ -78,6 +78,22 @@ async function getShippingMethods() {
 }
 
 /**
+ * Normalize a name for fuzzy matching.
+ * "Dr.Marin,Christian" → "christian marin dr"
+ * Removes punctuation, lowercases, splits + sorts parts alphabetically.
+ */
+function normalizeName(name) {
+  return String(name || '')
+    .toLowerCase()
+    .replace(/[.,;:\-_\/\\'"()]/g, ' ')
+    .split(/\s+/)
+    .map((p) => p.trim())
+    .filter(Boolean)
+    .sort()
+    .join(' ');
+}
+
+/**
  * Split a combined address string into street name + house number.
  * German pattern: "Musterstraße 12a" → { street: "Musterstraße", houseNumber: "12a" }
  * If no number found, returns houseNumber = '-' (SendCloud requires a non-blank value).
@@ -605,7 +621,9 @@ async function syncSendCloudParcels({ tenantId = 'default', fromDate, toDate } =
     if (o.number) ordersByNumber.set(String(o.number), o);
     if (o.marketplaceOrderId) ordersByMarketplaceId.set(String(o.marketplaceOrderId), o);
 
-    const nameZipKey = `${(o.customer?.name || '').toLowerCase().trim()}::${(o.customer?.zip || '').trim()}`;
+    const normName = normalizeName(String(o.customer?.name || ''));
+    const normZip = String(o.customer?.zip || o.customer?.postal_code || o.customer?.plz || '').trim();
+    const nameZipKey = `${normName}::${normZip}`;
     if (nameZipKey !== '::') ordersByNameZip.set(nameZipKey, o);
   }
 
@@ -644,10 +662,10 @@ async function syncSendCloudParcels({ tenantId = 'default', fromDate, toDate } =
       order = ordersByMarketplaceId.get(extRef) || ordersById.get(extRef) || ordersByNumber.get(extRef) || null;
     }
 
-    // Priority 3: name + zip fallback
+    // Priority 3: name + zip fallback (normalized for fuzzy matching)
     if (!order) {
-      const name = (parcel.name || '').toLowerCase().trim();
-      const zip = (parcel.postal_code || '').trim();
+      const name = normalizeName(parcel.name || '');
+      const zip = String(parcel.postal_code || '').trim();
       if (name && zip) {
         order = ordersByNameZip.get(`${name}::${zip}`) || null;
       }

@@ -10,6 +10,7 @@ import {
   cancelShippingLabel,
   fetchLabelPdfBlob,
   downloadInvoicePdfBlob,
+  assignTracking,
 } from "../api/client";
 import type { Order, OrderTimelineEvent, OmsStatus } from "../types";
 
@@ -79,6 +80,10 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({ orderId, onClose, onSt
   const [savingWeight, setSavingWeight] = useState(false);
   const [selectedVatRate, setSelectedVatRate] = useState<number>(0.19);
   const [labelFormat, setLabelFormat] = useState<string>(() => localStorage.getItem("avycloud_label_format") || "a6");
+  const [showManualTracking, setShowManualTracking] = useState(false);
+  const [manualTrackingNumber, setManualTrackingNumber] = useState("");
+  const [manualCarrier, setManualCarrier] = useState("");
+  const [savingTracking, setSavingTracking] = useState(false);
   const backdropRef = useRef<HTMLDivElement>(null);
 
   const loadData = useCallback(async () => {
@@ -503,6 +508,64 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({ orderId, onClose, onSt
                           <div className="text-xs text-warning bg-warning/10 px-3 py-2 rounded-lg">
                             Versandlabel nicht möglich — Adresse unvollständig. Bitte oben bearbeiten.
                           </div>
+                        )
+                      )}
+                      {/* Manual tracking input */}
+                      {!order.trackingNumber && (
+                        showManualTracking ? (
+                          <div className="flex flex-wrap items-center gap-2 w-full">
+                            <input
+                              type="text"
+                              placeholder="Tracking-Nummer"
+                              value={manualTrackingNumber}
+                              onChange={(e) => setManualTrackingNumber(e.target.value)}
+                              className="rounded-md border border-app-border bg-app-surface text-txt-primary text-xs px-2 py-1.5 w-48"
+                            />
+                            <select
+                              value={manualCarrier}
+                              onChange={(e) => setManualCarrier(e.target.value)}
+                              className="rounded-md border border-app-border bg-app-surface text-txt-primary text-xs px-2 py-1.5"
+                            >
+                              <option value="">Carrier</option>
+                              <option value="dhl">DHL</option>
+                              <option value="dpd">DPD</option>
+                              <option value="gls">GLS</option>
+                              <option value="hermes">Hermes</option>
+                              <option value="ups">UPS</option>
+                            </select>
+                            <ActionButton
+                              label="Speichern"
+                              icon="✓"
+                              disabled={!manualTrackingNumber.trim() || savingTracking}
+                              onClick={async () => {
+                                setSavingTracking(true);
+                                try {
+                                  await assignTracking(orderId, {
+                                    trackingNumber: manualTrackingNumber.trim(),
+                                    carrier: manualCarrier || undefined,
+                                  });
+                                  setShowManualTracking(false);
+                                  setManualTrackingNumber("");
+                                  setManualCarrier("");
+                                  await loadData();
+                                  onStatusChange?.();
+                                } finally {
+                                  setSavingTracking(false);
+                                }
+                              }}
+                            />
+                            <ActionButton
+                              label="Abbrechen"
+                              icon="✕"
+                              onClick={() => { setShowManualTracking(false); setManualTrackingNumber(""); }}
+                            />
+                          </div>
+                        ) : (
+                          <ActionButton
+                            label="Tracking manuell"
+                            icon="✎"
+                            onClick={() => setShowManualTracking(true)}
+                          />
                         )
                       )}
                       {order.trackingNumber && (
