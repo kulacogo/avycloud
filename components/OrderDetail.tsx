@@ -140,7 +140,7 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({ orderId, onClose, onSt
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
               <h2 className="text-lg font-semibold text-txt-primary truncate">
-                {order?.orderId || order?.number || order?.id || "..."}
+                {order?.marketplaceOrderId || order?.orderId || order?.number || order?.id || "..."}
               </h2>
               {omsStatus && (
                 <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-medium ${statusColor.bg} ${statusColor.text}`}>
@@ -152,7 +152,7 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({ orderId, onClose, onSt
             {order?.marketplace && (
               <p className="text-xs text-txt-muted mt-0.5">
                 {order.marketplace === "ebay" ? "eBay" : order.marketplace === "kaufland" ? "Kaufland" : order.marketplace}
-                {order.marketplaceOrderId ? ` · ${order.marketplaceOrderId}` : ""}
+                {order.orderId ? ` · ${order.orderId}` : ""}
               </p>
             )}
           </div>

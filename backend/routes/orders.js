@@ -8,8 +8,6 @@ const { getShippingCostsSummary: getSendCloudShippingSummary } = require('../lib
 const { getEbayNetRevenueSummary } = require('../lib/ebay-finances');
 const { emitSyncEvent } = require('../services/sync-event-bus');
 
-const SENDCLOUD_BASE_URL = 'https://panel.sendcloud.sc/api/v2';
-
 // ── Factory: backgroundSyncOrders wird von index.js injiziert ────────
 
 let _backgroundSyncOrders = () => {};
@@ -1548,22 +1546,22 @@ router.get('/orders/:orderId/label', requirePermission('orders', 'read'), async 
     const shipment = snap.docs[0].data();
     const parcelId = shipment.sendcloudParcelId;
 
-    // Determine the label URL based on requested format.
-    // If parcel ID is available, construct the URL directly for the desired format.
-    // This allows re-downloading in A4 even if label was originally created as A6, and vice versa.
+    // Get actual label URL from SendCloud parcel API (not constructed from ID)
+    const { downloadLabelPdf, getLabel } = require('../services/shipping-engine');
     let labelUrl;
     if (parcelId) {
-      const printerType = format === 'a4' ? 'normal_printer' : 'label_printer';
-      labelUrl = `${SENDCLOUD_BASE_URL}/labels/${printerType}/${parcelId}`;
-    } else {
+      const labelResult = await getLabel({ parcelId, labelFormat: format });
+      labelUrl = labelResult.labelUrl;
+    }
+    // Fallback to stored URL if getLabel returned nothing
+    if (!labelUrl) {
       labelUrl = shipment.labelUrl;
     }
 
     if (!labelUrl) {
-      return res.status(404).json({ ok: false, error: { code: 'NOT_FOUND', message: 'Label-URL nicht verfügbar.' } });
+      return res.status(404).json({ ok: false, error: { code: 'NO_LABEL', message: 'Kein Label von SendCloud verfügbar. Bitte Label in SendCloud prüfen.' } });
     }
 
-    const { downloadLabelPdf } = require('../services/shipping-engine');
     const { buffer, contentType } = await downloadLabelPdf(labelUrl);
 
     res.set('Content-Type', contentType);
