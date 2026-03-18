@@ -19,7 +19,7 @@ router.get('/invoices', async (req, res) => {
     if (req.query.status) {
       query = query.where('status', '==', req.query.status);
     }
-    query = query.orderBy('createdAt', 'desc').limit(parseInt(req.query.limit || '100', 10));
+    query = query.orderBy('createdAt', 'desc').limit(parseInt(req.query.limit || '2000', 10));
     const snap = await query.get();
     const invoices = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     res.json({ ok: true, data: invoices });
@@ -72,6 +72,88 @@ router.patch('/invoices/:id', async (req, res) => {
     res.json({ ok: true, data: { id: req.params.id, ...update } });
   } catch (err) {
     console.error(`[PATCH /api/invoices/:id] ${err.message}`, err);
+    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: err.message } });
+  }
+});
+
+/**
+ * POST /api/invoices/import-sevdesk
+ * One-time (idempotent) import of all existing SevDesk invoices into Firestore.
+ * Matches invoices to orders by gross amount (±€1 tolerance).
+ */
+router.post('/invoices/import-sevdesk', requirePermission('orders', 'write'), async (req, res) => {
+  try {
+    const tenantId = req.user?.tenantId || 'default';
+    const { importFromSevDesk } = require('../services/invoice-engine');
+    const result = await importFromSevDesk({ tenantId });
+    res.json({ ok: true, data: result });
+  } catch (err) {
+    console.error(`[POST /api/invoices/import-sevdesk] ${err.message}`, err);
+    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: err.message } });
+  }
+});
+
+/**
+ * POST /api/invoices/bulk-generate
+ * Generate invoices for all shipped orders that don't have one yet.
+ * Batches in groups of 5 to avoid hammering GCS/SevDesk.
+ */
+router.post('/invoices/bulk-generate', requirePermission('orders', 'write'), async (req, res) => {
+  try {
+    const tenantId = req.user?.tenantId || 'default';
+    const { generateInvoice, exportToSevDesk } = require('../services/invoice-engine');
+
+    // Query orders in terminal/shipped states that have no invoice yet
+    const eligibleStatuses = ['shipped', 'delivered', 'completed'];
+    let allOrders = [];
+    for (const status of eligibleStatuses) {
+      const snap = await firestore
+        .collection('orders')
+        .where('tenantId', '==', tenantId)
+        .where('omsStatus', '==', status)
+        .get();
+      for (const doc of snap.docs) {
+        const d = doc.data();
+        if (!d.invoiceId) {
+          allOrders.push({ id: doc.id, ...d });
+        }
+      }
+    }
+
+    // Remove duplicates (shouldn't happen, but safety)
+    const seen = new Set();
+    allOrders = allOrders.filter((o) => {
+      if (seen.has(o.id)) return false;
+      seen.add(o.id);
+      return true;
+    });
+
+    const results = { generated: 0, skipped: 0, errors: [] };
+    const actor = req.user ? { uid: req.user.uid, email: req.user.email } : null;
+    const BATCH = 5;
+
+    for (let i = 0; i < allOrders.length; i += BATCH) {
+      const batch = allOrders.slice(i, i + BATCH);
+      await Promise.all(batch.map(async (order) => {
+        try {
+          const inv = await generateInvoice({ orderId: order.id, tenantId, actor });
+          results.generated++;
+          // Fire-and-forget SevDesk export
+          if (inv.invoiceId) {
+            exportToSevDesk({ invoiceId: inv.invoiceId })
+              .catch((err) => console.warn(`[bulk-generate] SevDesk export failed for ${order.id}: ${err.message}`));
+          }
+        } catch (err) {
+          console.warn(`[bulk-generate] invoice failed for ${order.id}: ${err.message}`);
+          results.errors.push({ orderId: order.id, error: err.message });
+          results.skipped++;
+        }
+      }));
+    }
+
+    res.json({ ok: true, data: results });
+  } catch (err) {
+    console.error(`[POST /api/invoices/bulk-generate] ${err.message}`, err);
     res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: err.message } });
   }
 });

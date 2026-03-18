@@ -90,42 +90,144 @@ async function generateInvoice({
     return { invoiceId: order.invoiceId, invoiceNumber: order.invoiceNumber || null, pdfUrl: order.pdfUrl || null };
   }
 
-  // Generate invoice number
-  const seq = await getNextNumber({ tenantId, type: 'invoice' });
-
-  // Load company settings
+  // Load company settings + SevDesk token
   const company = await getCompanySettings(tenantId);
+  const { getSecretValue } = require('../lib/secret-values');
+  const token = await getSecretValue('SEVDESK_API_TOKEN').catch(() => null);
 
-  // Calculate amounts
+  // Calculate amounts — always derive from items
   const items = order.items || [];
-  const totalBrutto = order.totalAmount || items.reduce((sum, item) => sum + (item.priceBrutto || 0) * (item.quantity || 1), 0);
+  const shippingCost = order.shippingCost || 0;
+  const itemsBrutto = items.reduce((sum, item) => sum + (item.priceBrutto || 0) * (item.quantity || 1), 0);
+  const totalBrutto = Math.round((itemsBrutto > 0 ? itemsBrutto + shippingCost : (order.totalAmount || 0)) * 100) / 100;
   const vatRate = order.vatRate ?? 0.19;
   const totalNetto = Math.round((totalBrutto / (1 + vatRate)) * 100) / 100;
   const vatAmount = Math.round((totalBrutto - totalNetto) * 100) / 100;
+  const vatFactor = 1 + vatRate;
+  const taxRate = Math.round(vatRate * 100);
+
+  // Add shipping as separate line item if present
+  const invoiceItems = [...items];
+  if (shippingCost > 0 && itemsBrutto > 0) {
+    invoiceItems.push({ name: 'Versandkosten', priceBrutto: shippingCost, quantity: 1 });
+  }
 
   const invoiceDate = new Date().toISOString().split('T')[0];
   const dueDate = new Date(Date.now() + paymentTermDays * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+  const marketplaceOrderRef = order.marketplaceOrderId || order.orderId || order.number || orderId;
 
-  // Generate PDF
+  // ── Create invoice in SevDesk first to get the official invoice number ──
+  let invoiceNumber = null;
+  let sevdeskId = null;
+
+  if (token) {
+    try {
+      const userId = await getSevdeskUserId(token);
+      const headers = { Authorization: token, 'Content-Type': 'application/json' };
+      const cust = order.customer || {};
+      const addressParts = [cust.name, cust.street, `${cust.zip || ''} ${cust.city || ''}`.trim() || null].filter(Boolean);
+
+      const invoicePosSave = invoiceItems.map((item, i) => ({
+        id: null,
+        objectName: 'InvoicePos',
+        mapAll: true,
+        name: item.name || item.sku || 'Artikel',
+        quantity: Number(item.quantity) || 1,
+        price: Math.round((Number(item.priceBrutto || 0) / vatFactor) * 100) / 100,
+        unity: { id: 1, objectName: 'Unity' },
+        positionNumber: i + 1,
+        taxRate,
+      }));
+
+      if (invoicePosSave.length === 0) {
+        invoicePosSave.push({
+          id: null, objectName: 'InvoicePos', mapAll: true,
+          name: `Bestellung ${marketplaceOrderRef}`,
+          quantity: 1, price: totalNetto,
+          unity: { id: 1, objectName: 'Unity' },
+          positionNumber: 1, taxRate,
+        });
+      }
+
+      const sdPayload = {
+        invoice: {
+          id: null,
+          objectName: 'Invoice',
+          invoiceDate: toSevdeskDate(invoiceDate),
+          deliveryDate: toSevdeskDate(invoiceDate),
+          deliveryDateUntil: null,
+          status: '100', // Draft — sendBy call below transitions to 200 and assigns number
+          invoiceType: 'RE',
+          taxRate,
+          taxText: `Umsatzsteuer ${taxRate}%`,
+          taxType: taxRate === 0 ? 'noteu' : 'default',
+          currency: order.currency || 'EUR',
+          discount: 0,
+          smallSettlement: 0,
+          address: addressParts.join('\n') || null,
+          ...(dueDate ? { payDate: toSevdeskDate(dueDate) } : {}),
+          ...(userId ? { contactPerson: { id: userId, objectName: 'SevUser' } } : {}),
+          mapAll: true,
+        },
+        invoicePosSave,
+        invoicePosDelete: null,
+        filename: null,
+        discountSave: null,
+      };
+
+      const r = await fetch('https://my.sevdesk.de/api/v1/Invoice/Factory/saveInvoice', {
+        method: 'POST', headers, body: JSON.stringify(sdPayload),
+      });
+      if (r.ok) {
+        const data = await r.json();
+        sevdeskId = data?.objects?.invoice?.id || null;
+        // Finalize (sendBy VPDF) to transition from draft→open and trigger sequential number assignment
+        if (sevdeskId) {
+          const rSend = await fetch(`https://my.sevdesk.de/api/v1/Invoice/${sevdeskId}/sendBy`, {
+            method: 'PUT', headers, body: JSON.stringify({ sendType: 'VPDF' }),
+          });
+          if (rSend.ok) {
+            const sd = await rSend.json();
+            invoiceNumber = sd?.objects?.invoiceNumber || null;
+          }
+        }
+        console.log(`[invoice-engine] SevDesk invoice created: ${invoiceNumber} (ID ${sevdeskId})`);
+      } else {
+        const text = await r.text().catch(() => '');
+        console.warn(`[invoice-engine] SevDesk invoice creation failed: ${r.status} ${text.slice(0, 200)}`);
+      }
+    } catch (err) {
+      console.warn(`[invoice-engine] SevDesk creation error (non-fatal): ${err.message}`);
+    }
+  }
+
+  // Fallback if SevDesk unavailable: generate local number (temporary until synced)
+  if (!invoiceNumber) {
+    const seq = await getNextNumber({ tenantId, type: 'invoice' });
+    invoiceNumber = seq.formatted;
+    console.warn(`[invoice-engine] SevDesk unavailable — using local number ${invoiceNumber} (will be corrected on next sync)`);
+  }
+
+  // Generate PDF with the (SevDesk-assigned) invoice number
   const pdfBuffer = await buildInvoicePdf({
     type: 'invoice',
-    number: seq.formatted,
+    number: invoiceNumber,
     date: invoiceDate,
     dueDate,
     company,
     customer: order.customer || {},
-    items,
+    items: invoiceItems,
     totalNetto,
     vatRate,
     vatAmount,
     totalBrutto,
-    orderNumber: order.orderId || order.number || orderId,
+    orderNumber: marketplaceOrderRef,
   });
 
   // Upload to GCS
   let pdfUrl = null;
   try {
-    const filePath = `${tenantId}/invoices/${seq.formatted}.pdf`;
+    const filePath = `${tenantId}/invoices/${invoiceNumber}.pdf`;
     const bucket = getStorage().bucket(GCS_BUCKET);
     const file = bucket.file(filePath);
     await file.save(pdfBuffer, { contentType: 'application/pdf', resumable: false });
@@ -137,16 +239,20 @@ async function generateInvoice({
   // Save invoice record
   const invoiceDoc = {
     tenantId,
-    invoiceNumber: seq.formatted,
+    invoiceNumber,
+    sevdeskId: sevdeskId || null,
+    sevdeskExportedAt: sevdeskId ? new Date().toISOString() : null,
     orderId,
-    orderNumber: order.orderId || order.number || null,
+    orderNumber: marketplaceOrderRef,
+    marketplaceOrderId: order.marketplaceOrderId || null,
+    marketplace: order.marketplace || order.source || null,
     customer: order.customer || null,
     amountNetto: totalNetto,
     amountBrutto: totalBrutto,
     vatRate,
     vatAmount,
     currency: order.currency || 'EUR',
-    status: 'erstellt',
+    status: 'offen',
     date: invoiceDate,
     dueDate,
     pdfUrl,
@@ -159,15 +265,11 @@ async function generateInvoice({
   // Link invoice to order
   await orderSnap.ref.set({
     invoiceId: ref.id,
-    invoiceNumber: seq.formatted,
+    invoiceNumber,
     updatedAt: new Date().toISOString(),
   }, { merge: true });
 
-  return {
-    invoiceId: ref.id,
-    invoiceNumber: seq.formatted,
-    pdfUrl,
-  };
+  return { invoiceId: ref.id, invoiceNumber, pdfUrl };
 }
 
 /**
@@ -193,7 +295,7 @@ async function generateDeliveryNote({ orderId, tenantId = 'default' }) {
     company,
     customer: order.customer || {},
     items: order.items || [],
-    orderNumber: order.orderId || order.number || orderId,
+    orderNumber: order.marketplaceOrderId || order.orderId || order.number || orderId,
   });
 
   let pdfUrl = null;
@@ -376,7 +478,38 @@ function buildInvoicePdf(data) {
 }
 
 /**
- * Export an invoice to SevDesk.
+ * Get the SevDesk user ID for the current API token.
+ * Cached in memory for the process lifetime.
+ */
+let _sevdeskUserId = null;
+async function getSevdeskUserId(token) {
+  if (_sevdeskUserId) return _sevdeskUserId;
+  try {
+    const r = await fetch('https://my.sevdesk.de/api/v1/SevUser', {
+      headers: { Authorization: token },
+    });
+    if (r.ok) {
+      const data = await r.json();
+      _sevdeskUserId = data?.objects?.[0]?.id || null;
+    }
+  } catch {
+    // ignore — contactPerson will be omitted
+  }
+  return _sevdeskUserId;
+}
+
+/**
+ * Format a YYYY-MM-DD date string to German DD.MM.YYYY format for SevDesk API.
+ */
+function toSevdeskDate(dateStr) {
+  if (!dateStr) return null;
+  const parts = String(dateStr).split('T')[0].split('-');
+  if (parts.length !== 3) return dateStr;
+  return `${parts[2]}.${parts[1]}.${parts[0]}`;
+}
+
+/**
+ * Export an invoice to SevDesk using the Factory/saveInvoice endpoint.
  *
  * @param {{ invoiceId: string }} opts
  * @returns {Promise<{ ok: boolean, sevdeskId?: string, error?: string }>}
@@ -392,122 +525,99 @@ async function exportToSevDesk({ invoiceId }) {
     const token = await getSecretValue('SEVDESK_API_TOKEN');
     if (!token) throw new Error('SevDesk API Token not configured');
 
-    const sevdeskHeaders = { Authorization: token, 'Content-Type': 'application/json' };
-    const sevdeskFetch = async (path, body) => {
-      const r = await fetch(`https://my.sevdesk.de/api/v1${path}`, {
-        method: 'POST', headers: sevdeskHeaders, body: JSON.stringify(body),
-      });
-      if (!r.ok) {
-        const text = await r.text().catch(() => '');
-        throw new Error(`SevDesk ${r.status} ${path}: ${text.slice(0, 300)}`);
-      }
-      return r.json();
-    };
+    const headers = { Authorization: token, 'Content-Type': 'application/json' };
+    const userId = await getSevdeskUserId(token);
 
-    // 1. Create or find Contact in SevDesk
     const cust = invoice.customer || {};
-    let contactId = null;
-    if (cust.name) {
-      const contactRes = await sevdeskFetch('/Contact', {
-        customerNumber: invoice.orderId || null,
-        name: cust.name,
-        category: { id: 3, objectName: 'Category' }, // 3 = Customer
-      });
-      contactId = contactRes?.objects?.id || null;
-
-      // Add address to contact if available
-      if (contactId && (cust.street || cust.city)) {
-        try {
-          await sevdeskFetch('/ContactAddress', {
-            contact: { id: contactId, objectName: 'Contact' },
-            street: cust.street || '',
-            zip: cust.zip || '',
-            city: cust.city || '',
-            country: { id: 1, objectName: 'StaticCountry' }, // 1 = Deutschland (default)
-          });
-        } catch (addrErr) {
-          console.warn(`[invoice-engine] SevDesk address creation failed: ${addrErr.message}`);
-        }
-      }
-    }
-
-    // 2. Create Invoice header in SevDesk
     const taxRate = Math.round((invoice.vatRate || 0.19) * 100);
-    const invoicePayload = {
-      invoice: {
-        objectName: 'Invoice',
-        invoiceNumber: invoice.invoiceNumber,
-        invoiceDate: invoice.date,
-        deliveryDate: invoice.date,
-        deliveryDateUntil: invoice.date,
-        status: 100, // Draft
-        taxRate,
-        taxText: `Umsatzsteuer ${taxRate / 100}%`,
-        taxType: taxRate === 0 ? 'noteu' : 'default',
-        currency: invoice.currency || 'EUR',
-        ...(contactId ? { contact: { id: contactId, objectName: 'Contact' } } : {}),
-        ...(invoice.dueDate ? { payDate: invoice.dueDate } : {}),
-        address: cust.name
-          ? [cust.name, cust.street, `${cust.zip || ''} ${cust.city || ''}`.trim(), cust.country || ''].filter(Boolean).join('\n')
-          : null,
-        mapAll: true,
-      },
-    };
+    const vatFactor = 1 + (invoice.vatRate || 0.19);
 
-    const invoiceRes = await sevdeskFetch('/Invoice', invoicePayload);
-    const sevdeskId = invoiceRes?.objects?.id || null;
+    // Build address string
+    const addressParts = [
+      cust.name,
+      cust.street,
+      `${cust.zip || ''} ${cust.city || ''}`.trim() || null,
+    ].filter(Boolean);
+    const address = addressParts.join('\n') || null;
 
-    // 3. Create line items (InvoicePos) from order
-    if (sevdeskId && invoice.orderId) {
+    // Build line items from order
+    let invoicePosSave = [];
+    if (invoice.orderId) {
       try {
         const orderSnap = await db.collection(ORDERS_COLLECTION).doc(invoice.orderId).get();
         const items = orderSnap.exists ? (orderSnap.data()?.items || []) : [];
-        const vatFactor = 1 + (invoice.vatRate || 0.19);
-
-        for (let i = 0; i < items.length; i++) {
-          const item = items[i];
-          const qty = Number(item.quantity) || 1;
-          const brutto = Number(item.priceBrutto) || 0;
-          const netto = Math.round((brutto / vatFactor) * 100) / 100;
-
-          await sevdeskFetch('/InvoicePos', {
-            invoicePos: {
-              invoice: { id: sevdeskId, objectName: 'Invoice' },
-              name: item.name || item.sku || 'Artikel',
-              quantity: qty,
-              price: netto,
-              unity: { id: 1, objectName: 'Unity' },
-              taxRate,
-              positionNumber: i + 1,
-              mapAll: true,
-            },
-          });
-        }
-
-        // If no items but we have totals, create a single summary position
-        if (items.length === 0 && invoice.amountNetto) {
-          await sevdeskFetch('/InvoicePos', {
-            invoicePos: {
-              invoice: { id: sevdeskId, objectName: 'Invoice' },
-              name: `Bestellung ${invoice.orderNumber || invoice.orderId}`,
-              quantity: 1,
-              price: invoice.amountNetto,
-              unity: { id: 1, objectName: 'Unity' },
-              taxRate,
-              positionNumber: 1,
-              mapAll: true,
-            },
-          });
-        }
+        invoicePosSave = items.map((item, i) => ({
+          id: null,
+          objectName: 'InvoicePos',
+          mapAll: true,
+          name: item.name || item.sku || 'Artikel',
+          quantity: Number(item.quantity) || 1,
+          price: Math.round((Number(item.priceBrutto || 0) / vatFactor) * 100) / 100,
+          unity: { id: 1, objectName: 'Unity' },
+          positionNumber: i + 1,
+          taxRate,
+        }));
       } catch (itemErr) {
-        console.warn(`[invoice-engine] SevDesk line items failed: ${itemErr.message}`);
+        console.warn(`[invoice-engine] Failed to load order items: ${itemErr.message}`);
       }
     }
+
+    // Fallback: single summary line if no items
+    if (invoicePosSave.length === 0) {
+      const amtNetto = invoice.amountNetto || invoice.amountNet || 0;
+      invoicePosSave = [{
+        id: null,
+        objectName: 'InvoicePos',
+        mapAll: true,
+        name: `Bestellung ${invoice.orderNumber || invoice.marketplaceOrderId || invoice.orderId || invoiceId}`,
+        quantity: 1,
+        price: amtNetto,
+        unity: { id: 1, objectName: 'Unity' },
+        positionNumber: 1,
+        taxRate,
+      }];
+    }
+
+    const payload = {
+      invoice: {
+        id: null,
+        objectName: 'Invoice',
+        invoiceNumber: invoice.invoiceNumber,
+        invoiceDate: toSevdeskDate(invoice.date),
+        deliveryDate: toSevdeskDate(invoice.date),
+        deliveryDateUntil: null,
+        status: '100',
+        invoiceType: 'RE',
+        taxRate,
+        taxText: `Umsatzsteuer ${taxRate}%`,
+        taxType: taxRate === 0 ? 'noteu' : 'default',
+        currency: invoice.currency || 'EUR',
+        discount: 0,
+        smallSettlement: 0,
+        address,
+        ...(invoice.dueDate ? { payDate: toSevdeskDate(invoice.dueDate) } : {}),
+        ...(userId ? { contactPerson: { id: userId, objectName: 'SevUser' } } : {}),
+        mapAll: true,
+      },
+      invoicePosSave,
+      invoicePosDelete: null,
+      filename: null,
+      discountSave: null,
+    };
+
+    const r = await fetch('https://my.sevdesk.de/api/v1/Invoice/Factory/saveInvoice', {
+      method: 'POST', headers, body: JSON.stringify(payload),
+    });
+    if (!r.ok) {
+      const text = await r.text().catch(() => '');
+      throw new Error(`SevDesk ${r.status} /Invoice/Factory/saveInvoice: ${text.slice(0, 300)}`);
+    }
+    const data = await r.json();
+    const sevdeskId = data?.objects?.invoice?.id || null;
 
     // Update invoice with SevDesk ID
     await snap.ref.set({
       sevdeskId,
-      sevdeskContactId: contactId,
       sevdeskExportedAt: new Date().toISOString(),
     }, { merge: true });
 
@@ -530,10 +640,341 @@ function formatDate(dateStr) {
   return `${parts[2]}.${parts[1]}.${parts[0]}`;
 }
 
+/**
+ * Generate invoices for all picked/packed/shipped/delivered/completed orders that don't have one yet.
+ * Idempotent — skips orders with an existing invoiceId.
+ *
+ * @param {{ tenantId?: string }} opts
+ * @returns {Promise<{ generated: number, skipped: number, errors: Array }>}
+ */
+async function bulkGenerateForShippedOrders({ tenantId = 'default' } = {}) {
+  const db = getDb();
+  const eligibleStatuses = ['picked', 'packed', 'shipped', 'delivered', 'completed'];
+  const seen = new Set();
+  const allOrders = [];
+
+  for (const status of eligibleStatuses) {
+    const snap = await db.collection(ORDERS_COLLECTION)
+      .where('tenantId', '==', tenantId)
+      .where('omsStatus', '==', status)
+      .get();
+    for (const doc of snap.docs) {
+      if (seen.has(doc.id)) continue;
+      seen.add(doc.id);
+      const d = doc.data();
+      if (!d.invoiceId) allOrders.push({ id: doc.id, ...d });
+    }
+  }
+
+  const results = { generated: 0, skipped: 0, errors: [] };
+
+  // Sequential (not parallel) to avoid SevDesk invoice-numbering deadlocks
+  for (const order of allOrders) {
+    try {
+      await generateInvoice({ orderId: order.id, tenantId });
+      results.generated++;
+    } catch (err) {
+      console.warn(`[bulk-invoice] failed for ${order.id}: ${err.message}`);
+      results.errors.push({ orderId: order.id, error: err.message });
+      results.skipped++;
+    }
+  }
+
+  return results;
+}
+
+/**
+ * Import all invoices from SevDesk into Firestore.
+ * Matches imported invoices to AvyCloud orders by gross amount (within €1 tolerance).
+ * Idempotent — invoices already imported (matched by sevdeskId) are skipped.
+ *
+ * @param {{ tenantId?: string }} opts
+ * @returns {Promise<{ imported: number, matched: number, skipped: number, total: number }>}
+ */
+async function importFromSevDesk({ tenantId = 'default' } = {}) {
+  const { getSecretValue } = require('../lib/secret-values');
+  const token = await getSecretValue('SEVDESK_API_TOKEN');
+  if (!token) throw new Error('SevDesk API Token not configured');
+
+  const db = getDb();
+
+  // Paginate through all SevDesk invoices (100 per page) until exhausted
+  const PAGE_SIZE = 100;
+  const sdInvoices = [];
+  let offset = 0;
+  while (true) {
+    const url = `https://my.sevdesk.de/api/v1/Invoice?limit=${PAGE_SIZE}&offset=${offset}&embed=contact&orderBy=invoiceDate%2Cdesc`;
+    const res = await fetch(url, {
+      headers: { Authorization: token, 'Content-Type': 'application/json' },
+    });
+    if (!res.ok) {
+      const body = await res.text().catch(() => '');
+      throw new Error(`SevDesk API error ${res.status}: ${body.slice(0, 300)}`);
+    }
+    const data = await res.json();
+    const page = Array.isArray(data?.objects) ? data.objects : [];
+    sdInvoices.push(...page);
+    if (page.length < PAGE_SIZE) break; // last page
+    offset += PAGE_SIZE;
+  }
+  console.log(`[invoice-engine] importFromSevDesk: fetched ${sdInvoices.length} invoices from SevDesk`);
+
+  // Load all orders that still need an invoice for matching
+  const ordersSnap = await db.collection(ORDERS_COLLECTION)
+    .where('tenantId', '==', tenantId)
+    .get();
+  const unmatchedOrders = ordersSnap.docs
+    .map((d) => ({ id: d.id, ...d.data() }))
+    .filter((o) => !o.invoiceId);
+
+  const STATUS_MAP = { '100': 'entwurf', '200': 'offen', '1000': 'bezahlt' };
+
+  let imported = 0, matched = 0, skipped = 0;
+
+  for (const sdInv of sdInvoices) {
+    const sevdeskId = String(sdInv.id);
+
+    // Idempotency: skip if already imported
+    const existingSnap = await db.collection(INVOICES_COLLECTION)
+      .where('tenantId', '==', tenantId)
+      .where('sevdeskId', '==', sevdeskId)
+      .limit(1)
+      .get();
+    if (!existingSnap.empty) { skipped++; continue; }
+
+    const grossAmount = parseFloat(sdInv.sumGross) || 0;
+    const netAmount = parseFloat(sdInv.sumNet) || 0;
+
+    // Contact name — SevDesk can return name or surename+familyname
+    const contactName = sdInv.contact?.name ||
+      [sdInv.contact?.surename, sdInv.contact?.familyname].filter(Boolean).join(' ') ||
+      null;
+
+    const invDate = sdInv.invoiceDate ? String(sdInv.invoiceDate).split('T')[0] : null;
+    const dueDate = sdInv.payDate ? String(sdInv.payDate).split('T')[0] : null;
+    const status = STATUS_MAP[String(sdInv.status)] || 'entwurf';
+
+    // Match to order by gross amount (within €1) — consume matched order so we don't double-assign
+    let matchedOrderId = null;
+    if (grossAmount > 0) {
+      for (let i = 0; i < unmatchedOrders.length; i++) {
+        const order = unmatchedOrders[i];
+        const orderTotal = order.totalAmount || 0;
+        if (Math.abs(orderTotal - grossAmount) < 1.0) {
+          matchedOrderId = order.id;
+          unmatchedOrders.splice(i, 1);
+          break;
+        }
+      }
+    }
+
+    const invoiceDoc = {
+      tenantId,
+      sevdeskId,
+      invoiceNumber: sdInv.invoiceNumber || null,
+      date: invDate,
+      dueDate,
+      status,
+      amountGross: grossAmount,
+      amountNetto: netAmount,
+      amountNet: netAmount,
+      vatAmount: parseFloat(sdInv.sumTax) || 0,
+      currency: sdInv.currency || 'EUR',
+      customer: contactName ? { name: contactName } : null,
+      orderId: matchedOrderId || null,
+      source: 'sevdesk_import',
+      pdfUrl: null,
+      createdAt: new Date().toISOString(),
+      importedAt: new Date().toISOString(),
+    };
+
+    const ref = await db.collection(INVOICES_COLLECTION).add(invoiceDoc);
+    imported++;
+
+    if (matchedOrderId) {
+      await db.collection(ORDERS_COLLECTION).doc(matchedOrderId).update({
+        invoiceId: ref.id,
+        invoiceNumber: invoiceDoc.invoiceNumber,
+        sevdeskInvoiceId: sevdeskId,
+        updatedAt: new Date().toISOString(),
+      });
+      matched++;
+    }
+  }
+
+  return { imported, matched, skipped, total: sdInvoices.length };
+}
+
+/**
+ * Create a correction document for an order invoice:
+ *   - type 'storno'    → cancels the full invoice in SevDesk (POST /Invoice/{id}/cancelInvoice)
+ *   - type 'gutschrift' → creates a partial Stornorechnung (SR) in SevDesk for refundAmount
+ *
+ * Idempotent: if a correction of the same type already exists for this order, skips.
+ *
+ * @param {{
+ *   orderId: string,
+ *   tenantId?: string,
+ *   type?: 'storno' | 'gutschrift',
+ *   refundAmount?: number,
+ *   reason?: string,
+ * }} opts
+ * @returns {Promise<{ ok: boolean, correctionId?: string, sevdeskId?: string, reason?: string }>}
+ */
+async function createCorrectionInvoice({ orderId, tenantId = 'default', type = 'storno', refundAmount = null, reason = '' } = {}) {
+  const db = getDb();
+
+  // Find the original invoice for this order
+  const invQuery = await db.collection(INVOICES_COLLECTION)
+    .where('orderId', '==', orderId)
+    .where('tenantId', '==', tenantId)
+    .limit(1)
+    .get();
+
+  if (invQuery.empty) {
+    console.warn(`[invoice-engine] createCorrectionInvoice: no invoice found for order ${orderId}`);
+    return { ok: false, reason: 'no_invoice' };
+  }
+
+  const invDoc = invQuery.docs[0];
+  const invoice = { id: invDoc.id, ...invDoc.data() };
+
+  // Idempotency: skip if already corrected with this type
+  if (invoice.correctionId && invoice.correctionType === type) {
+    return { ok: true, correctionId: invoice.correctionId, skipped: true };
+  }
+
+  const { getSecretValue } = require('../lib/secret-values');
+  const token = await getSecretValue('SEVDESK_API_TOKEN');
+  if (!token) throw new Error('SevDesk API Token not configured');
+
+  const headers = { Authorization: token, 'Content-Type': 'application/json' };
+  const correctionAmount = refundAmount || invoice.amountGross || 0;
+  const vatRate = Math.round((invoice.vatRate || 0.19) * 100);
+  const vatFactor = 1 + (invoice.vatRate || 0.19);
+  let correctionSevdeskId = null;
+
+  if (type === 'storno') {
+    // Full cancellation: POST /Invoice/{id}/cancelInvoice → SevDesk auto-creates Stornorechnung (SR)
+    if (invoice.sevdeskId) {
+      try {
+        const r = await fetch(`https://my.sevdesk.de/api/v1/Invoice/${invoice.sevdeskId}/cancelInvoice`, {
+          method: 'POST', headers,
+        });
+        if (r.ok) {
+          const data = await r.json();
+          correctionSevdeskId = data?.objects?.id || null;
+        } else {
+          const text = await r.text().catch(() => '');
+          console.warn(`[invoice-engine] SevDesk cancelInvoice failed: ${r.status} ${text.slice(0, 200)}`);
+        }
+      } catch (err) {
+        console.warn(`[invoice-engine] SevDesk cancelInvoice error: ${err.message}`);
+      }
+    }
+  } else {
+    // Partial refund: create Stornorechnung (SR) in SevDesk via factory endpoint
+    try {
+      const amountNetto = Math.round((correctionAmount / vatFactor) * 100) / 100;
+      const today = toSevdeskDate(new Date().toISOString().split('T')[0]);
+      const userId = await getSevdeskUserId(token);
+      const cust = invoice.customer || {};
+      const addressParts = [cust.name, cust.street, `${cust.zip || ''} ${cust.city || ''}`.trim() || null].filter(Boolean);
+      const payload = {
+        invoice: {
+          id: null,
+          objectName: 'Invoice',
+          invoiceNumber: `SR-${invoice.invoiceNumber || Date.now()}`,
+          invoiceDate: today,
+          deliveryDate: today,
+          deliveryDateUntil: null,
+          status: '100',
+          invoiceType: 'SR',
+          taxRate: vatRate,
+          taxText: `Umsatzsteuer ${vatRate}%`,
+          taxType: vatRate === 0 ? 'noteu' : 'default',
+          currency: invoice.currency || 'EUR',
+          discount: 0,
+          smallSettlement: 0,
+          address: addressParts.join('\n') || null,
+          ...(userId ? { contactPerson: { id: userId, objectName: 'SevUser' } } : {}),
+          mapAll: true,
+        },
+        invoicePosSave: [{
+          id: null,
+          objectName: 'InvoicePos',
+          mapAll: true,
+          name: reason || `Teilerstattung ${invoice.orderNumber || invoice.marketplaceOrderId || orderId}`,
+          quantity: 1,
+          price: amountNetto,
+          unity: { id: 1, objectName: 'Unity' },
+          positionNumber: 1,
+          taxRate: vatRate,
+        }],
+        invoicePosDelete: null,
+        filename: null,
+        discountSave: null,
+      };
+      const r = await fetch('https://my.sevdesk.de/api/v1/Invoice/Factory/saveInvoice', {
+        method: 'POST', headers, body: JSON.stringify(payload),
+      });
+      if (r.ok) {
+        const data = await r.json();
+        correctionSevdeskId = data?.objects?.invoice?.id || null;
+      } else {
+        const text = await r.text().catch(() => '');
+        console.warn(`[invoice-engine] SevDesk SR creation failed: ${r.status} ${text.slice(0, 200)}`);
+      }
+    } catch (err) {
+      console.warn(`[invoice-engine] SevDesk SR error: ${err.message}`);
+    }
+  }
+
+  // Store correction in Firestore
+  const correctionDoc = {
+    tenantId,
+    type,
+    originalInvoiceId: invoice.id,
+    originalInvoiceNumber: invoice.invoiceNumber,
+    orderId,
+    orderNumber: invoice.orderNumber || null,
+    marketplaceOrderId: invoice.marketplaceOrderId || null,
+    marketplace: invoice.marketplace || null,
+    amountGross: correctionAmount,
+    amountNetto: Math.round((correctionAmount / vatFactor) * 100) / 100,
+    amountNet: Math.round((correctionAmount / vatFactor) * 100) / 100,
+    vatRate: invoice.vatRate || 0.19,
+    currency: invoice.currency || 'EUR',
+    customer: invoice.customer || null,
+    sevdeskId: correctionSevdeskId || null,
+    reason,
+    status: 'storniert',
+    date: new Date().toISOString().split('T')[0],
+    createdAt: new Date().toISOString(),
+  };
+
+  const ref = await db.collection(INVOICES_COLLECTION).add(correctionDoc);
+
+  // Mark original invoice as corrected
+  await invDoc.ref.update({
+    correctionId: ref.id,
+    correctionType: type,
+    correctedAt: new Date().toISOString(),
+    status: type === 'storno' ? 'storniert' : 'teilkorrigiert',
+    updatedAt: new Date().toISOString(),
+  });
+
+  console.log(`[invoice-engine] createCorrectionInvoice: ${type} created (${ref.id}) for order ${orderId}`);
+  return { ok: true, correctionId: ref.id, sevdeskId: correctionSevdeskId, amount: correctionAmount };
+}
+
 module.exports = {
   generateInvoice,
   generateDeliveryNote,
   exportToSevDesk,
+  importFromSevDesk,
+  bulkGenerateForShippedOrders,
+  createCorrectionInvoice,
   getCompanySettings,
   buildInvoicePdf,
 };

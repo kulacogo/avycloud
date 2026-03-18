@@ -596,6 +596,26 @@ router.post('/orders/:orderId/complete', requirePermission('orders', 'pick'), as
       toStatus: 'picked', source: 'api:complete',
     });
 
+    // Auto-generate invoice + SevDesk export on pick (non-blocking)
+    const _tenantId = req.user?.tenantId || 'default';
+    setImmediate(async () => {
+      try {
+        const { generateInvoice, exportToSevDesk } = require('../services/invoice-engine');
+        const orderSnap = await require('../lib/firestore').firestore.collection('orders').doc(orderId).get();
+        const orderData = orderSnap.exists ? orderSnap.data() : {};
+        if (!orderData.invoiceId) {
+          const inv = await generateInvoice({ orderId, tenantId: _tenantId, actor: req.user ? { uid: req.user.uid, email: req.user.email } : null });
+          console.log(`[complete] auto-invoice created: ${inv.invoiceNumber} for order ${orderId}`);
+          if (inv.invoiceId) {
+            exportToSevDesk({ invoiceId: inv.invoiceId })
+              .catch((err) => console.warn(`[complete] SevDesk auto-export failed for ${orderId}: ${err.message}`));
+          }
+        }
+      } catch (invErr) {
+        console.warn(`[complete] auto-invoice failed (non-blocking) for ${orderId}: ${invErr.message}`);
+      }
+    });
+
     res.json({ ok: true });
   } catch (error) {
     console.error('Failed to complete order:', error);
@@ -914,6 +934,15 @@ router.post('/orders/:orderId/transition', requirePermission('orders', 'write'),
       const { pushCancellationToMarketplace } = require('../services/marketplace-tracking');
       pushCancellationToMarketplace({ orderId, reason: note || 'other' })
         .catch((err) => console.warn(`[transition] cancel marketplace push failed: ${err.message}`));
+      // Auto-create Stornorechnung if order had an invoice
+      setImmediate(async () => {
+        try {
+          const { createCorrectionInvoice } = require('../services/invoice-engine');
+          await createCorrectionInvoice({ orderId, tenantId, type: 'storno', reason: note || 'Stornierung' });
+        } catch (err) {
+          console.warn(`[transition] Storno creation failed (non-blocking) for ${orderId}: ${err.message}`);
+        }
+      });
     }
     let marketplacePush = null;
     if (toStatus === 'shipped') {
@@ -933,6 +962,27 @@ router.post('/orders/:orderId/transition', requirePermission('orders', 'write'),
           marketplacePush = { ok: false, error: err.message };
         }
       }
+    }
+
+    // Auto-generate invoice + SevDesk export when order is picked (commissioned)
+    if (toStatus === 'picked') {
+      setImmediate(async () => {
+        try {
+          const { generateInvoice, exportToSevDesk } = require('../services/invoice-engine');
+          const orderSnap = await require('../lib/firestore').firestore.collection('orders').doc(orderId).get();
+          const orderData = orderSnap.exists ? orderSnap.data() : {};
+          if (!orderData.invoiceId) {
+            const inv = await generateInvoice({ orderId, tenantId, actor: req.user ? { uid: req.user.uid, email: req.user.email } : null });
+            console.log(`[transition] auto-invoice created: ${inv.invoiceNumber} for order ${orderId}`);
+            if (inv.invoiceId) {
+              exportToSevDesk({ invoiceId: inv.invoiceId })
+                .catch((err) => console.warn(`[transition] SevDesk auto-export failed for ${orderId}: ${err.message}`));
+            }
+          }
+        } catch (invErr) {
+          console.warn(`[transition] auto-invoice failed (non-blocking) for ${orderId}: ${invErr.message}`);
+        }
+      });
     }
 
     res.json({ ok: true, data: { ...result, marketplacePush } });

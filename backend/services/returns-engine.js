@@ -244,6 +244,25 @@ async function processReturn({
     }
   }
 
+  // Create Storno / Gutschrift in SevDesk (non-blocking)
+  if (refundType !== 'none' && ret.orderId) {
+    setImmediate(async () => {
+      try {
+        const { createCorrectionInvoice } = require('./invoice-engine');
+        const corrType = refundType === 'partial' ? 'gutschrift' : 'storno';
+        await createCorrectionInvoice({
+          orderId: ret.orderId,
+          tenantId,
+          type: corrType,
+          refundAmount: finalAmount || null,
+          reason: note || (refundType === 'partial' ? 'Teilerstattung Retoure' : 'Vollerstattung Retoure'),
+        });
+      } catch (err) {
+        console.warn(`[returns-engine] Correction invoice failed (non-blocking) for return ${returnId}: ${err.message}`);
+      }
+    });
+  }
+
   return { id: returnId, status: toStatus, restock: shouldRestock };
 }
 

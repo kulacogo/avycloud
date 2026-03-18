@@ -118,6 +118,13 @@ const OrdersView: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
   const [datePreset, setDatePreset] = useState<"all" | "today" | "7d" | "30d" | "90d">("all");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [marketplaceFilter, setMarketplaceFilter] = useState<"all" | "ebay" | "kaufland">("all");
+  const [carrierFilter, setCarrierFilter] = useState<"all" | "dhl" | "dpd" | "other">("all");
+  const [backfillDays, setBackfillDays] = useState(140);
+  const [backfilling, setBackfilling] = useState(false);
+  const [backfillResult, setBackfillResult] = useState<string | null>(null);
 
   /* ─── Fetch ─── */
   const loadOrders = useCallback(async () => {
@@ -201,6 +208,36 @@ const OrdersView: React.FC = () => {
     return { openCount, pickedToday, packedCount, avgHours, total: orders.length };
   }, [orders]);
 
+  /* ─── Backfill ─── */
+  const handleBackfill = useCallback(async () => {
+    setBackfilling(true);
+    setBackfillResult(null);
+    try {
+      const result = await syncMarketplaceOrders({ lookbackDays: backfillDays });
+      const total = result.totalSynced ?? 0;
+      const ebayErr = result.results?.ebay?.error;
+      const kauflandErr = result.results?.kaufland?.error;
+      const errs = [ebayErr, kauflandErr].filter(Boolean).join("; ");
+      setBackfillResult(errs ? `${total} importiert. Fehler: ${errs}` : `${total} Bestellungen importiert (${backfillDays} Tage)`);
+      await loadOrders();
+      await loadOmsCounts();
+    } catch (err: any) {
+      setBackfillResult(`Fehler: ${err?.message || "Unbekannt"}`);
+    } finally {
+      setBackfilling(false);
+    }
+  }, [backfillDays, loadOrders, loadOmsCounts]);
+
+  /* ─── Carrier detection ─── */
+  const detectCarrier = useCallback((order: Order): string => {
+    const raw = String((order as any).carrier || (order as any).shippingService || order.shippingService || "").toLowerCase();
+    if (raw.includes("dhl")) return "dhl";
+    if (raw.includes("dpd")) return "dpd";
+    const tracking = String(order.trackingNumber || "").toLowerCase();
+    if (tracking.startsWith("00340") || tracking.startsWith("jd")) return "dhl";
+    return raw ? "other" : "none";
+  }, []);
+
   /* ─── Filter + Sort ─── */
   const filteredOrders = useMemo(() => {
     const getOmsStatus = (o: Order) => (o as any).omsStatus || o.status;
@@ -218,8 +255,15 @@ const OrdersView: React.FC = () => {
       list = orders.filter((o) => getOmsStatus(o) === filter);
     }
 
-    // Date filter
-    if (datePreset !== "all") {
+    // Date filter — custom range overrides preset
+    if (dateFrom || dateTo) {
+      const fromMs = dateFrom ? new Date(dateFrom).getTime() : 0;
+      const toMs = dateTo ? new Date(dateTo + "T23:59:59").getTime() : Infinity;
+      list = list.filter((o) => {
+        const t = new Date(o.createdAt).getTime();
+        return t >= fromMs && t <= toMs;
+      });
+    } else if (datePreset !== "all") {
       const now = Date.now();
       const cutoff = datePreset === "today"
         ? new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate()).getTime()
@@ -227,6 +271,19 @@ const OrdersView: React.FC = () => {
         : datePreset === "30d" ? now - 30 * 86400000
         : now - 90 * 86400000;
       list = list.filter((o) => new Date(o.createdAt).getTime() >= cutoff);
+    }
+
+    // Marketplace filter
+    if (marketplaceFilter !== "all") {
+      list = list.filter((o) => {
+        const src = String((o as any).marketplace || (o as any).orderSource || (o as any).source || "").toLowerCase();
+        return src.includes(marketplaceFilter);
+      });
+    }
+
+    // Carrier filter
+    if (carrierFilter !== "all") {
+      list = list.filter((o) => detectCarrier(o) === carrierFilter);
     }
 
     // Search filter (order ID, customer name, SKU, marketplace order ID)
@@ -254,7 +311,7 @@ const OrdersView: React.FC = () => {
     });
 
     return list;
-  }, [orders, filter, sortField, sortAsc, searchQuery, datePreset]);
+  }, [orders, filter, sortField, sortAsc, searchQuery, datePreset, dateFrom, dateTo, marketplaceFilter, carrierFilter, detectCarrier]);
 
   const totalPages = Math.max(1, Math.ceil(filteredOrders.length / rowsPerPage));
   const paginatedOrders = useMemo(() => {
@@ -263,7 +320,7 @@ const OrdersView: React.FC = () => {
   }, [filteredOrders, currentPage, rowsPerPage]);
 
   // Reset page when filter changes
-  useEffect(() => { setCurrentPage(1); }, [filter, rowsPerPage, searchQuery, datePreset]);
+  useEffect(() => { setCurrentPage(1); }, [filter, rowsPerPage, searchQuery, datePreset, dateFrom, dateTo, marketplaceFilter, carrierFilter]);
 
   const handleSort = (field: typeof sortField) => {
     if (sortField === field) {
@@ -378,51 +435,126 @@ const OrdersView: React.FC = () => {
         </div>
       </div>
 
-      {/* Search + Date Filter */}
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="relative flex-1 min-w-[200px] max-w-md">
-          <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-txt-muted" viewBox="0 0 20 20" fill="currentColor">
-            <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
-          </svg>
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Suche: Auftragsnr., Kunde, SKU, Marketplace-ID..."
-            className="w-full rounded-xl border border-app-border bg-app-surface text-txt-primary pl-9 pr-3 py-2 text-sm placeholder:text-txt-muted focus:outline-none focus:ring-1 focus:ring-accent/40 focus:border-accent/40"
-          />
-          {searchQuery && (
+      {/* Filter Toolbar */}
+      <div className="rounded-2xl border border-app-border bg-app-surface p-3 space-y-2.5">
+        {/* Row 1: Search + dropdowns */}
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative flex-1 min-w-[200px]">
+            <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-txt-muted" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
+            </svg>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Auftragsnr., Kunde, SKU, Marketplace-ID..."
+              className="w-full rounded-xl border border-app-border bg-app-elevated text-txt-primary pl-9 pr-8 py-2 text-sm placeholder:text-txt-muted focus:outline-none focus:ring-1 focus:ring-accent/40 focus:border-accent/40"
+            />
+            {searchQuery && (
+              <button type="button" onClick={() => setSearchQuery("")} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-txt-muted hover:text-txt-primary text-base leading-none">
+                ×
+              </button>
+            )}
+          </div>
+          <select
+            value={marketplaceFilter}
+            onChange={(e) => setMarketplaceFilter(e.target.value as "all" | "ebay" | "kaufland")}
+            className="rounded-xl border border-app-border bg-app-elevated text-txt-primary text-sm px-3 py-2 focus:outline-none focus:ring-1 focus:ring-accent/40 cursor-pointer"
+          >
+            <option value="all">Alle Märkte</option>
+            <option value="ebay">eBay</option>
+            <option value="kaufland">Kaufland</option>
+          </select>
+          <select
+            value={carrierFilter}
+            onChange={(e) => setCarrierFilter(e.target.value as "all" | "dhl" | "dpd" | "other")}
+            className="rounded-xl border border-app-border bg-app-elevated text-txt-primary text-sm px-3 py-2 focus:outline-none focus:ring-1 focus:ring-accent/40 cursor-pointer"
+          >
+            <option value="all">Alle Versandarten</option>
+            <option value="dhl">DHL</option>
+            <option value="dpd">DPD</option>
+            <option value="other">Andere</option>
+          </select>
+        </div>
+        {/* Row 2: Date presets + custom range + backfill */}
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {([
+              { key: "all", label: "Alle" },
+              { key: "today", label: "Heute" },
+              { key: "7d", label: "7 Tage" },
+              { key: "30d", label: "30 Tage" },
+              { key: "90d", label: "90 Tage" },
+            ] as const).map((dp) => (
+              <button
+                key={dp.key}
+                type="button"
+                onClick={() => { setDatePreset(dp.key); setDateFrom(""); setDateTo(""); }}
+                className={`rounded-lg px-3 py-1.5 text-xs font-medium transition border ${
+                  datePreset === dp.key && !dateFrom && !dateTo
+                    ? "bg-accent text-white border-accent"
+                    : "bg-app-elevated text-txt-muted border-app-border hover:border-txt-muted hover:text-txt-primary"
+                }`}
+              >
+                {dp.label}
+              </button>
+            ))}
+            <div className="flex items-center gap-1 ml-1">
+              <input
+                type="date"
+                value={dateFrom}
+                onChange={(e) => { setDateFrom(e.target.value); setDatePreset("all"); }}
+                className={`rounded-lg border text-xs px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-accent/40 cursor-pointer ${
+                  dateFrom ? "border-accent/40 bg-accent/5 text-txt-primary" : "border-app-border bg-app-elevated text-txt-muted"
+                }`}
+              />
+              <span className="text-txt-muted text-xs">–</span>
+              <input
+                type="date"
+                value={dateTo}
+                onChange={(e) => { setDateTo(e.target.value); setDatePreset("all"); }}
+                className={`rounded-lg border text-xs px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-accent/40 cursor-pointer ${
+                  dateTo ? "border-accent/40 bg-accent/5 text-txt-primary" : "border-app-border bg-app-elevated text-txt-muted"
+                }`}
+              />
+              {(dateFrom || dateTo) && (
+                <button type="button" onClick={() => { setDateFrom(""); setDateTo(""); }} className="rounded-lg border border-app-border bg-app-elevated text-txt-muted px-2 py-1.5 text-xs hover:text-txt-primary transition" title="Zurücksetzen">×</button>
+              )}
+            </div>
+          </div>
+          {/* Backfill */}
+          <div className="flex items-center gap-1.5">
+            <select
+              value={backfillDays}
+              onChange={(e) => setBackfillDays(Number(e.target.value))}
+              className="rounded-lg border border-app-border bg-app-elevated text-txt-secondary text-xs px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-accent/40 cursor-pointer"
+              title="Zeitraum für Verlaufs-Import"
+            >
+              <option value={30}>30 Tage</option>
+              <option value={60}>60 Tage</option>
+              <option value={90}>90 Tage (max)</option>
+            </select>
             <button
               type="button"
-              onClick={() => setSearchQuery("")}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-txt-muted hover:text-txt-primary text-xs"
+              onClick={handleBackfill}
+              disabled={backfilling}
+              title={`Alle Bestellungen der letzten ${backfillDays} Tage neu importieren`}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-app-border bg-app-elevated text-txt-secondary px-3 py-1.5 text-xs font-medium hover:bg-app-surface hover:text-txt-primary transition disabled:opacity-50"
             >
-              &times;
+              <SyncIcon className={`w-3.5 h-3.5 ${backfilling ? "animate-spin" : ""}`} />
+              {backfilling ? "Importiere..." : "Verlauf laden"}
             </button>
-          )}
+          </div>
         </div>
-        <div className="flex items-center gap-1">
-          {([
-            { key: "all", label: "Alle" },
-            { key: "today", label: "Heute" },
-            { key: "7d", label: "7 Tage" },
-            { key: "30d", label: "30 Tage" },
-            { key: "90d", label: "90 Tage" },
-          ] as const).map((dp) => (
-            <button
-              key={dp.key}
-              type="button"
-              onClick={() => setDatePreset(dp.key)}
-              className={`rounded-lg px-2.5 py-1.5 text-xs font-medium transition ${
-                datePreset === dp.key
-                  ? "bg-accent text-white"
-                  : "bg-app-surface text-txt-muted border border-app-border hover:bg-app-elevated"
-              }`}
-            >
-              {dp.label}
-            </button>
-          ))}
-        </div>
+        {/* Backfill result inline */}
+        {backfillResult && (
+          <div className={`rounded-lg px-3 py-2 text-xs border flex items-center justify-between ${
+            backfillResult.startsWith("Fehler") ? "border-danger/20 bg-danger-dim text-danger" : "border-success/20 bg-success-dim text-success"
+          }`}>
+            <span>{backfillResult}</span>
+            <button type="button" onClick={() => setBackfillResult(null)} className="ml-3 opacity-60 hover:opacity-100 text-base leading-none">×</button>
+          </div>
+        )}
       </div>
 
       {/* Error */}

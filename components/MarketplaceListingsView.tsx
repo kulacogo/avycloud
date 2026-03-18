@@ -29,6 +29,7 @@ interface NormalizedListing {
   id: string;
   title: string;
   sku: string | null;
+  ean: string | null;
   price: number | null;
   currency: string | null;
   quantity: number | null;
@@ -102,6 +103,7 @@ function normalizeEbayRow(row: EbayListingRow): NormalizedListing {
     id: row.itemId,
     title: row.title || row.sku || row.itemId,
     sku: row.sku || null,
+    ean: (row as any).ean || null,
     price: row.currentPrice ?? null,
     currency: row.currency ?? null,
     quantity: row.quantityAvailable ?? null,
@@ -130,6 +132,7 @@ function normalizeKauflandRow(row: KauflandListingRow): NormalizedListing {
     id: row.idUnit,
     title: row.title || row.sku || row.ean || row.idUnit,
     sku: row.sku,
+    ean: row.ean || null,
     price: row.price,
     currency: "EUR",
     quantity: row.quantity ?? null,
@@ -309,15 +312,29 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
         const hasBins = Array.isArray(p.storageBins) && p.storageBins.some((b) => Number(b?.quantity || 0) > 0);
         return qty > 0 || hasBins;
       });
-      // BUG-072: Bereits aktiv gelistete Produkte ausfiltern
+      // Bereits aktiv gelistete Produkte ausfiltern (SKU + EAN + listingStatus)
+      const activeListings = listings.filter((l) => l.status === "active");
       const listedSkus = new Set(
-        listings
-          .filter((l) => l.status === "active" && l.sku)
+        activeListings
+          .filter((l) => l.sku)
           .map((l) => String(l.sku).toLowerCase())
       );
+      const listedEans = new Set(
+        activeListings
+          .filter((l) => l.ean)
+          .map((l) => String(l.ean).toLowerCase())
+      );
       const notYetListed = inStockProducts.filter((p) => {
+        // Check ops.listingStatus for current marketplace
+        const mpStatus = p.ops?.listingStatus?.[marketplace];
+        if (mpStatus === "active") return false;
+        // Check SKU match against active listings
         const sku = String(p.identification?.sku || p.details?.identifiers?.sku || "").toLowerCase();
-        return !sku || !listedSkus.has(sku);
+        if (sku && listedSkus.has(sku)) return false;
+        // Check EAN match against active listings
+        const ean = String(p.identification?.barcodes?.[0] || p.details?.identifiers?.ean || "").toLowerCase();
+        if (ean && listedEans.has(ean)) return false;
+        return true;
       });
       setPublishProducts(notYetListed);
     } catch {

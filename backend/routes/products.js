@@ -1359,11 +1359,14 @@ router.post('/products/bulk-improve', requirePermission('ai', 'improve'), async 
 // --- Get all products ---
 router.get('/products', requirePermission('products', 'read'), async (req, res) => {
   try {
-    const products = await getAllProducts();
+    // Parallelise independent Firestore queries to cut latency (mobile timeout fix)
+    const [products, reservedMap] = await Promise.all([
+      getAllProducts(),
+      buildReservedOpenOrderMap(),
+    ]);
     const filteredProducts = Array.isArray(products)
       ? products.filter((p) => !isGhostProduct(p))
       : [];
-    const reservedMap = await buildReservedOpenOrderMap();
     // NOTE: Filter ghost/stub docs early to avoid showing meaningless rows in the AdminTable.
     // Rebuild enriched pipeline using the filtered set to keep counts consistent.
     const enrichedFiltered = await enrichProductsWithBinSummaries(filteredProducts);

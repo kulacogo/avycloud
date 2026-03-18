@@ -304,6 +304,33 @@ const server = app.listen(PORT, () => {
     console.warn('[tracking-catchup] failed to start safety-net:', err?.message || err);
   }
 
+  // ─── Invoice Sync: SevDesk Import + Bulk Generate (startup + every 24h) ─
+  // On boot: import all existing SevDesk invoices, then generate any missing ones.
+  // Runs again every 24h to catch any gaps. Fully idempotent.
+  const INVOICE_SYNC_INTERVAL_MS = 24 * 60 * 60 * 1000;
+  const runInvoiceSync = async () => {
+    try {
+      const { importFromSevDesk, bulkGenerateForShippedOrders } = require('./services/invoice-engine');
+      const importResult = await importFromSevDesk({ tenantId: 'default' });
+      if (importResult.imported > 0 || importResult.matched > 0) {
+        console.log(`[invoice-sync] SevDesk import: imported=${importResult.imported} matched=${importResult.matched} skipped=${importResult.skipped}`);
+      }
+      const genResult = await bulkGenerateForShippedOrders({ tenantId: 'default' });
+      if (genResult.generated > 0) {
+        console.log(`[invoice-sync] bulk generate: generated=${genResult.generated} skipped=${genResult.skipped} errors=${genResult.errors.length}`);
+      }
+    } catch (err) {
+      console.warn('[invoice-sync] sync failed:', err?.message);
+    }
+  };
+  try {
+    setTimeout(runInvoiceSync, 5 * 60 * 1000); // First run 5 min after startup
+    setInterval(runInvoiceSync, INVOICE_SYNC_INTERVAL_MS);
+    console.log('[invoice-sync] enabled: startup + every 24h');
+  } catch (err) {
+    console.warn('[invoice-sync] failed to schedule:', err?.message);
+  }
+
   // ─── Marketplace Refund Push (every 4h) ─────────────────────
   // Auto-pushes refunds to eBay/Kaufland for returns in 'erstattet' status
   try {

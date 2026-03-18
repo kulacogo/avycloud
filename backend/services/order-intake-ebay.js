@@ -167,8 +167,10 @@ function mapEbayOrder(ebayOrder) {
  * @returns {Promise<{ synced: number, skipped: number, total: number }>}
  */
 async function syncEbayOrders({ tenantId = 'default', lookbackDays = 7 } = {}) {
+  // eBay Trading API hard limit: CreateTimeFrom cannot be older than 90 days
+  const cappedDays = Math.min(lookbackDays, 90);
   const now = new Date();
-  const from = new Date(now.getTime() - lookbackDays * 24 * 60 * 60 * 1000).toISOString();
+  const from = new Date(now.getTime() - cappedDays * 24 * 60 * 60 * 1000).toISOString();
 
   let page = 1;
   let totalSynced = 0;

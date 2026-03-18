@@ -2531,20 +2531,40 @@ export const pollQualityJob = async (
 };
 
 export const fetchProducts = async (options?: { timeoutMs?: number }): Promise<Product[]> => {
-  let response: Response;
-  try {
-    response = await fetchWithTimeout(
-      `${BACKEND_URL}/api/products`,
-      undefined,
-      options?.timeoutMs || 25000
-    );
-  } catch (error: any) {
-    if (error?.name === 'AbortError') {
+  const timeout = options?.timeoutMs || 45000;
+  let response: Response | undefined;
+  let lastError: any;
+  // Retry once on timeout (mobile networks can be flaky)
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      response = await fetchWithTimeout(
+        `${BACKEND_URL}/api/products`,
+        undefined,
+        timeout
+      );
+      lastError = null;
+      break;
+    } catch (error: any) {
+      lastError = error;
+      if (error?.name === 'AbortError' && attempt === 0) {
+        // First timeout — retry once
+        continue;
+      }
+      if (error?.name === 'AbortError') {
+        throw new Error(
+          'Zeitüberschreitung beim Laden der Produkte. Bitte Backend/Verbindung prüfen und erneut versuchen.'
+        );
+      }
+      throw error;
+    }
+  }
+  if (lastError || !response) {
+    if (lastError?.name === 'AbortError') {
       throw new Error(
         'Zeitüberschreitung beim Laden der Produkte. Bitte Backend/Verbindung prüfen und erneut versuchen.'
       );
     }
-    throw error;
+    throw lastError || new Error('Produkte konnten nicht geladen werden.');
   }
 
   const result = await parseResponse(response);
@@ -3282,6 +3302,28 @@ export async function exportInvoiceToSevDesk(invoiceId: string): Promise<{ ok: b
   });
   const data = await parseResponse(res);
   if (!res.ok || data?.ok === false) throw new Error(data?.error?.message || 'SevDesk-Export fehlgeschlagen');
+  return data?.data;
+}
+
+export async function importSevDeskInvoices(): Promise<{ imported: number; matched: number; skipped: number }> {
+  const res = await fetchApi(`${BACKEND_URL}/api/invoices/import-sevdesk`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: '{}',
+  });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) throw new Error(data?.error?.message || 'SevDesk-Import fehlgeschlagen');
+  return data?.data;
+}
+
+export async function bulkGenerateInvoices(): Promise<{ generated: number; skipped: number; errors: Array<{ orderId: string; error: string }> }> {
+  const res = await fetchApi(`${BACKEND_URL}/api/invoices/bulk-generate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: '{}',
+  });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) throw new Error(data?.error?.message || 'Bulk-Generierung fehlgeschlagen');
   return data?.data;
 }
 

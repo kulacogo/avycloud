@@ -2985,7 +2985,21 @@ async function listOrders(limit = 50) {
     .limit(limit)
     .get();
 
-  return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+  const all = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+
+  // Deduplicate: if a BL legacy doc (baselinkerId set, no marketplaceKey) has the same
+  // marketplace order ID as an OMS doc, suppress the BL doc.
+  // BaseLinker writes directly to Firestore — this guard prevents double entries in the UI.
+  const omsMarketplaceIds = new Set(
+    all
+      .filter((o) => o.marketplaceOrderId && o.marketplaceKey)
+      .map((o) => o.marketplaceOrderId)
+  );
+  return all.filter((o) => {
+    if (!o.baselinkerId || o.marketplaceKey) return true; // not a BL-only doc
+    const blOrderId = o.marketplaceOrderId || o.number || (o.raw && o.raw.external_order_id) || '';
+    return !omsMarketplaceIds.has(blOrderId); // suppress if OMS doc exists for same order
+  });
 }
 
 async function listOrdersByStatus(status, limit = 200) {

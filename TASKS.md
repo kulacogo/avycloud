@@ -1,6 +1,6 @@
 # TASKS.md — AvyCloud Roadmap & Task-Management
 
-> **Letzte Aktualisierung:** 2026-03-15
+> **Letzte Aktualisierung:** 2026-03-17
 > **Verantwortlich:** Oguzhan (Owner), Claude Code (Backend/Tests), Claude Cowork (Planung/Doku)
 
 ---
@@ -56,7 +56,7 @@
 | **Security** | ✅ | Helmet.js, Rate-Limiting, .env bereinigt |
 | **Datenbank** | ✅ | products_v2 live, Normalisierung, LLM-Policy + Rulebook |
 | **Infrastruktur** | ✅ | Pino Logging, Health-Check, Graceful Shutdown, AppError |
-| **Code-Qualität** | ✅ | 7 Router-Module, API Versioning, 129 Vitest-Tests (8 Suiten) |
+| **Code-Qualität** | ✅ | 7 Router-Module, API Versioning, 141 Vitest-Tests |
 | **KI-Pipeline** | ✅ | Identify (Vision+Barcode+Web+LLM), Improve, Quality-Check |
 | **Pricing** | ✅ | Engine backend-only, Competitor Intelligence |
 | **Inventory** | ✅ | Forecast, salesVelocity, Reorder-Alerts |
@@ -91,6 +91,12 @@
 | **M-MOBILE: Mobile UI** | ⚡ Funktional, UX-Mängel | Logo unscharf, Button-Kontrast, keine Icons, Dashboard KPIs leer |
 | **FAKE→REAL** | ✅ 12/12 done | Alle Views nutzen echte API-Daten (Shipping, Invoices, Returns, Billing: 2026-03-13) |
 | **Universal Taxonomy** | 🔴 Geplant | Marktplatz-Kategorien für neue Integrationen |
+| **OMS Bugs** | 🔴 51 Findings | 9 Critical, 12 High, 18 Medium, 8 Low, 4 Security → Sprint-Block 10 |
+| **SevDesk-Export** | ⚠️ Teilweise | Grundgerüst da (Contact+Invoice+LineItems), kein Auto-Trigger, keine Gutschriften |
+| **Pricing Engine UI** | 🔴 Backend-only | Kein Runner, kein Frontend, keine Neu/Gebraucht-Unterscheidung |
+| **Sprachumschalter** | 🔴 Fehlt | i18n komplett (1.695 Keys), aber kein UI-Dropdown |
+| **Multi-Tenancy** | 🔴 Fehlt | Single-Tenant only, kein Billing |
+| **Neue Marktplätze** | 🔴 Geplant | Amazon, Shopify, OTTO, Etsy — nicht gebaut |
 
 ---
 
@@ -2714,6 +2720,109 @@ Alle Dateien mit "baselinker" im Namen — Migrations, Imports, Syncs, Audits, R
 
 ---
 
+## Technische Analyse & Marktbewertung — Findings (2026-03-17)
+
+> **Quelle:** AvyCloud_Analyse_Marktbewertung_2026-03-17.docx/pdf + OMS Audit Report (51 Findings)
+> **Zweck:** Vollständige Inventur aller bekannten Defizite, fehlenden Features und strukturellen Probleme.
+
+### Was fehlt / Was ist kaputt — Übersicht
+
+| ID | Problem | Priorität | Status | Referenz |
+|----|---------|-----------|--------|----------|
+| DEF-001 | OMS: 51 dokumentierte Bugs (9 Critical, 12 High, 18 Medium, 8 Low, 4 Security) | P0 | 🔴 Offen → Sprint-Block 10 | `oms-audit-report.html` |
+| DEF-002 | eBay OAuth Token: Manuelles Renewal, kein Self-Service-Refresh-Flow | P1 | 🔴 Offen | BUG-081 |
+| DEF-003 | SevDesk-Export: Grundgerüst implementiert (BUG-050 ✅), aber unvollständig — kein automatischer Trigger bei Versand, keine Gutschriften/Stornorechnungen, keine MwSt-Sätze 7%/0% | P1 | ⚠️ Teilweise | FIX-B009, BUG-050 |
+| DEF-004 | Pricing Engine: Backend existiert, kein Runner, kein Frontend, keine Neu/Gebraucht-Unterscheidung | P1 | 🔴 Offen | FIX-B025 |
+| DEF-005 | 38 API-Funktionen im Frontend definiert aber nie aufgerufen — Backend-Features ohne UI | P2 | 🔴 Offen | — |
+| DEF-006 | BaseLinker: Code 95% entfernt, Firestore-Daten zeigen noch `source: baselinker` | P1 | ⚠️ Script da | BUG-040, BUG-058 |
+| DEF-007 | Sprachumschalter fehlt in der UI (i18n-Infrastruktur komplett, 1.695 Keys, aber kein Dropdown) | P2 | 🔴 Offen | — |
+| DEF-008 | Kein Self-Service Onboarding, kein Integration-Wizard | P2 | 🔴 Offen | M9 |
+| DEF-009 | Multi-Tenancy fehlt (single tenant only) | P2 | 🔴 Offen | Waiting On |
+| DEF-010 | Kein Stripe-Billing, kein Abrechnungsmodell | P2 | 🔴 Offen | Waiting On |
+| DEF-011 | Amazon, Shopify, OTTO, Etsy — geplant, nicht gebaut | P3 | 🔴 Offen | Integration-Platzhalter |
+
+### Production-Critical (P0) — Was läuft schief
+
+#### OMS: 9 Critical Bugs identifiziert, 1 bereits gefixt, 8 offen (→ Sprint-Block 10, Phase 1)
+
+| Bug | Beschreibung | Impact | Datei |
+|-----|-------------|--------|-------|
+| ~~FIX-B005~~ | ~~Stock wird bei Stornierung NICHT freigegeben~~ | ✅ Bereits gefixt (BUG-030 + BUG-083: `_onOrderCancelled()` → `releaseReservation()`) | `order-state-machine.js` |
+| FIX-B002 | Race Condition: Stock-Release vs Marketplace-Sync | Doppelt gebuchter Bestand, Overselling | `sync-event-bus.js` |
+| FIX-B003 | eBay API-Fehler still ignoriert (HTTP 200 + Error-Body) | Bestellungen gehen verloren | `order-intake-ebay.js` |
+| FIX-B004 | eBay Status "NotPaid" nicht im Mapping | Orders werden undefined → unsichtbar | `order-intake-ebay.js` |
+| FIX-B001 | NULL Pointer: `order.shipment_tracking` | TypeError crasht Tracking-Push | `marketplace-tracking.js` |
+| FIX-B006 | NULL Pointer: `order.customer.address` | Label-Erstellung crasht | `shipping-engine.js` |
+| FIX-B007 | Dual-Status-Feld: `status` (5 Werte) vs `omsStatus` (12 Werte) | 18× `as any` Casts, gebrochener API-Vertrag | `orders.js`, `OrdersView.tsx`, `types.ts` |
+| FIX-B008 | Unbekannte Shipping-Statuse verschwinden | Sendungen in keinem Tab sichtbar | `ShippingView.tsx` |
+| FIX-B009 | SevDesk-Export: Grundgerüst da, aber kein Auto-Trigger bei Versand, keine Gutschriften, kein 7%/0% MwSt | Buchhaltung nur manuell auslösbar | `invoice-engine.js` |
+
+#### Security-Lücken (4 Findings → Sprint-Block 10, Phase 3)
+
+| Bug | Beschreibung | Risiko |
+|-----|-------------|--------|
+| FIX-S001 | JWT Token als URL-Parameter in SSE-Streams | Session-Hijacking via Browser-History/Logs/Referrer |
+| FIX-S003 | Kaufland Webhooks ohne HMAC-Signatur-Validierung | Webhook-Spoofing möglich |
+| FIX-S002 | XSS via Produkt-Titel (keine HTML-Sanitization) | Stored XSS |
+| FIX-S004 | Kunden-Emails nicht validiert | Benachrichtigungen brechen |
+
+### High Priority (P1) — Integration-Defizite
+
+| ID | Problem | Impact | Datei |
+|----|---------|--------|-------|
+| FIX-B010 | SendCloud: Kein Retry bei API-Fehlern | Ein Timeout = Label blockiert | `shipping-engine.js` |
+| FIX-B011 | Tracking-Push Retry erst nach 24h | Kaufland 500 → Tracking kommt erst morgen | `marketplace-tracking.js` |
+| FIX-B013 | Kaufland "closed" falsch gemappt auf "completed" | Geschlossene Accounts = "completed" | `order-intake-kaufland.js` |
+| FIX-B014 | Kaufland Einzelpreise gehen verloren (Preis = 0) | Umsatz-Tracking falsch | `order-intake-kaufland.js` |
+| FIX-B019 | eBay Refund-Push nicht implementiert (Stub) | Erstattungen nur manuell | `returns-engine.js` |
+
+### High Priority (P1) — Frontend-Defizite
+
+| ID | Problem | Impact | Datei |
+|----|---------|--------|-------|
+| FIX-B015 | Stale Data: Nach Mutation keine Liste-Aktualisierung | User sieht falschen Status bis Reload | `OrdersView.tsx`, `ReturnsView.tsx`, etc. |
+| FIX-B016 | Invoice: `amountNet` vs `amountNetto` inkonsistent | NaN in Rechnungsansicht | `api/client.ts` |
+| FIX-B017 | Bulk-Operationen ohne Einzel-Feedback | 8/10 OK aber nur "Erfolg" oder "Fehler" | `OrdersView.tsx`, etc. |
+
+### Strukturelle Probleme (P2)
+
+| ID | Problem | Details |
+|----|---------|---------|
+| STRUC-001 | Testabdeckung gering | 141 Testdateien für 347.000 Zeilen Code. Keine Marketplace-Tests, keine OMS-Tests, kein Frontend-Test |
+| STRUC-002 | 50+ hardcoded deutsche Strings | i18n-System existiert (1.695 Keys), wird in OMS-Komponenten nicht genutzt |
+| STRUC-003 | Monster-Komponenten | AdminTable.tsx (2.613 Zeilen), EbayListingsView.tsx (1.927 Zeilen), ReturnsView.tsx (1.149 Zeilen) |
+| STRUC-004 | Keine Pagination (Backend) | Viele Collection-Reads mit `.limit(2000)` → teuer bei Wachstum |
+| STRUC-005 | Kein Real-Time | OMS-Views ohne WebSocket/SSE. Manuelles Refresh oder 60s-Polling |
+| DEF-005 | 38 tote API-Funktionen | Frontend `api/client.ts` definiert Funktionen die nie aufgerufen werden |
+| DEF-007 | Sprachumschalter fehlt | i18n komplett, aber kein UI-Toggle. Locked auf Browser-Locale |
+
+### Fehlende Features für Marktreife
+
+| ID | Feature | Priorität | Aufwand | Abhängigkeit |
+|----|---------|-----------|---------|-------------|
+| FEAT-MT | Multi-Tenancy | P2 | XL | Alle Module mit `tenantId` |
+| FEAT-BILL | Stripe-Billing / Abrechnungsmodell | P2 | L | Multi-Tenancy |
+| FEAT-ONBOARD | Self-Service Onboarding + Integration-Wizard | P2 | L | M9 |
+| FEAT-LANG | Sprachumschalter in UI | P2 | S | — |
+| FEAT-AMZ | Amazon SP-API Integration | P1 | XL | API-Registrierung (2-4 Wochen) |
+| FEAT-SHOP | Shopify Integration | P2 | L | — |
+| FEAT-OTTO | OTTO Market Integration | P2 | L | OPC Portal Zugang |
+| FEAT-ETSY | Etsy Integration | P3 | L | Developer Account |
+| FEAT-PRICE-UI | Pricing Engine: Frontend + Runner + Neu/Gebraucht | P1 | M | — |
+| FEAT-OAUTH | eBay OAuth Self-Service-Refresh-Flow | P1 | M | — |
+
+> **S** = Small (< 1 Tag), **M** = Medium (1-2 Tage), **L** = Large (3+ Tage), **XL** = Extra Large (1+ Woche)
+
+### Priorisierte Reihenfolge (empfohlen)
+
+1. **Sofort (P0):** Sprint-Block 10 Phase 1 — 9 Critical OMS Bugs fixen
+2. **Diese Woche (P1):** Sprint-Block 10 Phase 2+3 — High Bugs + Security Fixes
+3. **Kurzfristig:** DEF-002 (eBay OAuth), DEF-003 (SevDesk vervollständigen), DEF-004 (Pricing), DEF-006 (BL-Daten-Migration)
+4. **Mittelfristig:** STRUC-001 (Tests), STRUC-003 (Refactoring), FEAT-LANG, FEAT-ONBOARD
+5. **Langfristig:** FEAT-MT, FEAT-BILL, FEAT-AMZ, FEAT-SHOP, FEAT-OTTO, FEAT-ETSY
+
+---
+
 ## Sprint-Block 10: OMS Audit Fixes (März 2026) — 🔴 OFFEN
 
 > **Quelle:** Vollständiges OMS-Audit vom 15.03.2026 (siehe `oms-audit-report.html`)
@@ -2738,9 +2847,9 @@ Alle Dateien mit "baselinker" im Namen — Migrations, Imports, Syncs, Audits, R
   - Datei: `backend/services/order-intake-ebay.js` (mapEbayStatus)
   - Fix: `case 'NotPaid': return 'pending';`
 
-- [ ] **FIX-B005** Stock wird bei Stornierung NICHT freigegeben → Inventar-Deadlock
-  - Datei: `backend/services/order-state-machine.js` ~Zeile 450
-  - Fix: `await releaseStockReservation(order.products, order.id)` vor Marketplace-Stornierung
+- [x] **FIX-B005** ~~Stock wird bei Stornierung NICHT freigegeben → Inventar-Deadlock~~ ✅ Bereits implementiert
+  - Datei: `backend/services/order-state-machine.js` Zeile 203–208 + 277–286
+  - `_onOrderCancelled()` ruft `releaseReservation()` + `syncStockWithRetry()` auf (BUG-030 + BUG-083)
 
 - [ ] **FIX-B006** NULL Pointer: order.customer.address in shipping-engine.js
   - Datei: `backend/services/shipping-engine.js` ~Zeile 95
@@ -2755,9 +2864,10 @@ Alle Dateien mit "baselinker" im Namen — Migrations, Imports, Syncs, Audits, R
   - Datei: `components/orders/ShippingView.tsx`
   - Fix: Normalisierungs-Layer in api/client.ts + Fallback-Tab "Sonstige"
 
-- [ ] **FIX-B009** SevDesk-Export Stub implementieren
+- [~] **FIX-B009** SevDesk-Export vervollständigen
   - Datei: `backend/services/invoice-engine.js`
-  - Fix: Vollständige SevDesk API-Integration (Kontakt, Rechnung, PDF)
+  - ✅ Erledigt (BUG-050): Grundgerüst — Contact, ContactAddress, Invoice, LineItems (InvoicePos)
+  - Offen: Auto-Trigger bei Status → shipped, Gutschriften/Stornorechnungen, MwSt 7%/0%
 
 ### Phase 2: High Fixes (P1 — Diese Woche)
 
@@ -2842,3 +2952,5 @@ Alle Dateien mit "baselinker" im Namen — Migrations, Imports, Syncs, Audits, R
 | Marketplace_Taxonomy_Masterplan.html | Taxonomy-Akquisitionsplan für alle Marktplätze | `./Marketplace_Taxonomy_Masterplan.html` |
 | oms-audit-report.html | OMS Audit Report — 51 Findings mit Filter-Dashboard | `./oms-audit-report.html` |
 | compare-ebay-returns.js | eBay vs. AvyCloud Retouren-Vergleichs-Script | `backend/scripts/compare-ebay-returns.js` |
+| AvyCloud_Analyse_Marktbewertung_2026-03-17.pdf | Technische Analyse & Marktbewertung (8 Kapitel) | `./AvyCloud_Analyse_Marktbewertung_2026-03-17.pdf` |
+| AvyCloud_Analyse_Marktbewertung_2026-03-17.docx | Technische Analyse & Marktbewertung (Word-Version) | `./AvyCloud_Analyse_Marktbewertung_2026-03-17.docx` |
