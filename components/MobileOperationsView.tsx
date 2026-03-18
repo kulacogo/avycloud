@@ -1528,19 +1528,15 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
               `${selectedItem.orderNumber || selectedItem.orderId} verpackt — Versandlabel nicht möglich (Adresse unvollständig).`
             );
           } else {
-            // Pre-open window BEFORE async work to avoid popup blocker
-            const printWindow = window.open('about:blank', '_blank');
-
             // Pack + Ship + Print label (with user's preferred format)
             const result = await packAndShip(selectedItem.orderId, {
               ...weightOpt,
               labelFormat: printingPrefs.labelFormat || 'a6',
             });
-            if (result.labelBlobUrl && printWindow) {
-              // Navigate pre-opened window to the PDF blob URL
-              printWindow.location.href = result.labelBlobUrl;
-              // Auto-print: use setTimeout — onload doesn't reliably fire for PDF blobs on mobile
-              if (printingPrefs.autoPrint) {
+            if (result.labelBlobUrl) {
+              // Only open window AFTER label is confirmed available (avoids blank pages on mobile)
+              const printWindow = window.open(result.labelBlobUrl, '_blank');
+              if (printWindow && printingPrefs.autoPrint) {
                 setTimeout(() => {
                   try { printWindow.print(); } catch (_) { /* cross-origin or blocked */ }
                 }, 1200);
@@ -1551,8 +1547,6 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
                 `${selectedItem.orderNumber || selectedItem.orderId} verpackt & Label erstellt (${result.carrier || '?'}) — ${printingPrefs.autoPrint ? 'Druckdialog geöffnet.' : 'Label-Fenster geöffnet.'}`
               );
             } else {
-              // Close the blank tab if no label available
-              if (printWindow) printWindow.close();
               setPackMessage(
                 `${selectedItem.orderNumber || selectedItem.orderId} verpackt & versendet — kein Label-PDF verfügbar.${result.labelError ? ` (${result.labelError})` : ''}`
               );

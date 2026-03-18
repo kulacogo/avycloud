@@ -365,7 +365,11 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({ orderId, onClose, onSt
                     <div className="bg-app-bg rounded-lg p-3 space-y-2 text-sm">
                       <Row label="Betrag" value={order.totalAmount != null ? `${order.totalAmount.toFixed(2)} ${order.currency || "EUR"}` : "—"} />
                       <Row label="Erstellt" value={order.createdAt ? new Date(order.createdAt).toLocaleString("de-DE") : "—"} />
-                      <Row label="Zahlung" value={order.paymentStatus || "—"} />
+                      <Row label="Zahlung" value={
+                        order.paymentStatus === "NoPaymentFailure" ? "Bezahlt" :
+                        order.paymentStatus === "PaymentComplete" ? "Bezahlt" :
+                        order.paymentStatus || "—"
+                      } />
                       <Row label="Versand" value={order.shippingService || "—"} />
                       {/* Editable Weight */}
                       <div className="flex items-start justify-between gap-4">

@@ -92,6 +92,19 @@ function mapEbayStatus(ebayOrder) {
 /**
  * Map eBay Trading API Order to AvyCloud order format.
  */
+// eBay sometimes returns placeholder strings instead of real contact info
+const EBAY_JUNK_VALUES = new Set([
+  'invalid request', 'invalid', 'n/a', 'none', 'null', 'undefined',
+  'invalid request.', 'not available',
+]);
+
+function sanitizeContactField(value) {
+  if (!value || typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  if (!trimmed || EBAY_JUNK_VALUES.has(trimmed.toLowerCase())) return null;
+  return trimmed;
+}
+
 function mapEbayOrder(ebayOrder) {
   const transactions = ebayOrder?.TransactionArray?.Transaction;
   const txArray = Array.isArray(transactions) ? transactions : transactions ? [transactions] : [];
@@ -144,8 +157,8 @@ function mapEbayOrder(ebayOrder) {
       city: shippingAddr?.CityName || null,
       zip: shippingAddr?.PostalCode || null,
       country: shippingAddr?.Country || null,
-      phone: shippingAddr?.Phone || null,
-      email: ebayOrder?.TransactionArray?.Transaction?.[0]?.Buyer?.Email || null,
+      phone: sanitizeContactField(shippingAddr?.Phone),
+      email: sanitizeContactField(ebayOrder?.TransactionArray?.Transaction?.[0]?.Buyer?.Email),
     },
     items,
     paymentStatus: ebayOrder?.CheckoutStatus?.eBayPaymentStatus || ebayOrder?.PaymentStatus || null,
