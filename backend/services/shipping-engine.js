@@ -436,22 +436,44 @@ async function shipOrder({ orderId, tenantId = 'default', shippingMethodId, weig
 
 /**
  * Download a SendCloud label PDF as a Buffer (proxied with auth).
+ * SendCloud generates label PDFs asynchronously — the label_printer endpoint
+ * may return 404 for a few seconds after parcel creation. We retry with backoff.
  * @param {string} labelUrl — full SendCloud label URL
+ * @param {{ maxRetries?: number, retryDelayMs?: number }} retryOpts
  * @returns {Promise<{ buffer: Buffer, contentType: string }>}
  */
-async function downloadLabelPdf(labelUrl) {
+async function downloadLabelPdf(labelUrl, { maxRetries = 8, retryDelayMs = 2000 } = {}) {
   if (!labelUrl) throw new Error('No label URL provided');
   const auth = await getSendCloudAuth();
-  const res = await fetch(labelUrl, {
-    headers: { Authorization: auth },
-  });
-  if (!res.ok) {
-    const body = await res.text().catch(() => '');
-    throw new Error(`SendCloud label download ${res.status}: ${body.slice(0, 200)}`);
+
+  let lastStatus = 0;
+  let lastBody = '';
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    if (attempt > 0) {
+      await new Promise((r) => setTimeout(r, retryDelayMs));
+    }
+    const res = await fetch(labelUrl, {
+      headers: { Authorization: auth },
+    });
+    if (res.ok) {
+      const buffer = Buffer.from(await res.arrayBuffer());
+      const contentType = res.headers.get('content-type') || 'application/pdf';
+      if (attempt > 0) {
+        console.log(`[downloadLabelPdf] Label ready after ${attempt} retries`);
+      }
+      return { buffer, contentType };
+    }
+    lastStatus = res.status;
+    lastBody = await res.text().catch(() => '');
+    // Only retry on 404 (label not yet generated) or 429 (rate limit)
+    if (res.status !== 404 && res.status !== 429) {
+      throw new Error(`SendCloud label download ${res.status}: ${lastBody.slice(0, 200)}`);
+    }
+    if (attempt < maxRetries) {
+      console.log(`[downloadLabelPdf] Attempt ${attempt + 1}/${maxRetries + 1} got ${res.status}, retrying in ${retryDelayMs}ms...`);
+    }
   }
-  const buffer = Buffer.from(await res.arrayBuffer());
-  const contentType = res.headers.get('content-type') || 'application/pdf';
-  return { buffer, contentType };
+  throw new Error(`SendCloud label download ${lastStatus} after ${maxRetries + 1} attempts: ${lastBody.slice(0, 200)}`);
 }
 
 /**

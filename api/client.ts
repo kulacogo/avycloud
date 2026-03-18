@@ -3079,12 +3079,14 @@ export async function packAndShip(
   let labelBlobUrl: string | null = null;
   let labelError: string | null = null;
   if (result?.labelUrl) {
-    // Fetch PDF via our authenticated backend proxy
+    // Fetch PDF via our authenticated backend proxy.
+    // The backend retries internally if SendCloud hasn't generated the PDF yet.
     try {
       const format = opts?.labelFormat || "a6";
-      const pdfRes = await fetchApi(
+      const pdfRes = await fetchWithTimeout(
         `${BACKEND_URL}/api/orders/${encodeURIComponent(orderId)}/label?format=${encodeURIComponent(format)}`,
-        { method: "GET" }
+        { method: "GET" },
+        30000
       );
       if (pdfRes.ok) {
         const blob = await pdfRes.blob();
