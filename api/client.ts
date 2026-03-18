@@ -3080,13 +3080,13 @@ export async function packAndShip(
   let labelError: string | null = null;
   if (result?.labelUrl) {
     // Fetch PDF via our authenticated backend proxy.
-    // The backend retries internally if SendCloud hasn't generated the PDF yet.
+    // The backend retries internally if SendCloud hasn't generated the PDF yet (up to ~18s).
+    // No client-side timeout — backend handles retry + error and always responds.
     try {
       const format = opts?.labelFormat || "a6";
-      const pdfRes = await fetchWithTimeout(
+      const pdfRes = await fetchApi(
         `${BACKEND_URL}/api/orders/${encodeURIComponent(orderId)}/label?format=${encodeURIComponent(format)}`,
-        { method: "GET" },
-        30000
+        { method: "GET" }
       );
       if (pdfRes.ok) {
         const blob = await pdfRes.blob();
