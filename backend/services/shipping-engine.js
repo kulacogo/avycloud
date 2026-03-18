@@ -634,9 +634,9 @@ async function syncSendCloudParcels({ tenantId = 'default', fromDate, toDate } =
     const orderNumber = parcel.order_number || '';
     const extRef = parcel.external_reference || '';
 
-    // Priority 1: order_number → Firestore doc ID, then orderId/number
+    // Priority 1: order_number → try marketplace ID, then Firestore doc ID, then orderId/number
     if (orderNumber) {
-      order = ordersById.get(orderNumber) || ordersByNumber.get(orderNumber) || null;
+      order = ordersByMarketplaceId.get(orderNumber) || ordersById.get(orderNumber) || ordersByNumber.get(orderNumber) || null;
     }
 
     // Priority 2: external_reference → marketplaceOrderId, then by number
@@ -669,9 +669,7 @@ async function syncSendCloudParcels({ tenantId = 'default', fromDate, toDate } =
     const trackingNumber = parcel.tracking_number || null;
     const trackingUrl = parcel.tracking_url || null;
     const carrier = parcel.carrier?.code || null;
-    const labelUrl = parcel.label?.label_printer
-      || parcel.label?.normal_printer?.[0]
-      || (parcelId ? `${SENDCLOUD_BASE_URL}/labels/label_printer/${parcelId}` : null);
+    const labelUrl = extractLabelUrl(parcel, false);
 
     // Map SendCloud status to internal status
     const scStatus = mapSendCloudStatus(statusId);
