@@ -24,6 +24,7 @@ import AttributeTable from './AttributeTable';
 import PricingInfo from './PricingInfo';
 import CompetitorPrices from './CompetitorPrices';
 import AssistantChat from './GeminiChat';
+import ValidationPanel from './ValidationPanel';
 import { Tabs, TabPanel } from './ui/Tabs';
 import { useI18n } from '../i18n';
 import { normalizeBarcode, summarizeBarcodes, isValidGtin } from '../utils/gtin';
@@ -1653,6 +1654,9 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
 
       {/* ─── TAB: Marktplätze ───────────────────────────────── */}
       <TabPanel tabId="marktplaetze" activeTab={activeTab} className="space-y-5">
+        {/* Pre-Listing Validation (VAL-001) */}
+        <ValidationPanel product={localProduct} />
+
         <section className="p-5 bg-app-surface border border-app-border rounded-2xl">
           <h3 className="text-sm font-semibold text-txt-muted uppercase tracking-wide mb-4">Listing-Status</h3>
           <div className="space-y-3">

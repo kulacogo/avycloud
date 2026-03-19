@@ -4541,6 +4541,44 @@ export async function fetchAuditLog(params?: {
   return res.json();
 }
 
+// ── Pre-Listing Validation (VAL-001) ──
+
+export async function validateProduct(
+  product: any,
+  marketplaces?: string[]
+): Promise<{ ok: boolean; results?: Record<string, any>; error?: any }> {
+  let response: Response | undefined;
+  try {
+    response = await fetchApi(`${BACKEND_URL}/api/v1/products/validate`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ product, marketplaces }),
+    });
+    return await response.json();
+  } catch (err) {
+    const errorInfo = extractErrorInfo(err, response);
+    return { ok: false, error: errorInfo };
+  }
+}
+
+export async function validateProductBatch(
+  productIds: string[],
+  marketplaces?: string[]
+): Promise<{ ok: boolean; results?: any[]; summary?: any; error?: any }> {
+  let response: Response | undefined;
+  try {
+    response = await fetchApi(`${BACKEND_URL}/api/v1/products/validate-batch`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ productIds, marketplaces }),
+    });
+    return await response.json();
+  } catch (err) {
+    const errorInfo = extractErrorInfo(err, response);
+    return { ok: false, error: errorInfo };
+  }
+}
+
 export const executeProductsImport = async (
   csvText: string,
   mapping: ColumnMapping[],
