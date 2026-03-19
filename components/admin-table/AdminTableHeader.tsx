@@ -58,6 +58,8 @@ interface AdminTableHeaderProps {
   selectedIds: Set<string>;
   pageProducts: { id: string }[];
   onSelectAll: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  totalFilteredCount?: number;
+  onSelectAllFiltered?: () => void;
 }
 
 const AdminTableHeader: React.FC<AdminTableHeaderProps> = ({
@@ -67,23 +69,42 @@ const AdminTableHeader: React.FC<AdminTableHeaderProps> = ({
   selectedIds,
   pageProducts,
   onSelectAll,
+  totalFilteredCount,
+  onSelectAllFiltered,
 }) => {
+  const allPageSelected =
+    selectedIds.size > 0 &&
+    pageProducts.length > 0 &&
+    pageProducts.every((p) => selectedIds.has(p.id));
+  const showSelectAllFiltered =
+    allPageSelected &&
+    totalFilteredCount != null &&
+    totalFilteredCount > pageProducts.length &&
+    selectedIds.size < totalFilteredCount;
+
   return (
     <thead className="bg-app-surface">
       <tr>
         <th className="p-3 w-12 text-xs font-semibold uppercase tracking-wide text-txt-secondary">
-          <input
-            type="checkbox"
-            name="select-all-products"
-            aria-label="Alle auswählen"
-            onChange={onSelectAll}
-            checked={
-              selectedIds.size > 0 &&
-              selectedIds.size === pageProducts.length &&
-              pageProducts.length > 0
-            }
-            className="bg-app-border border-app-border"
-          />
+          <div className="flex flex-col items-start gap-1">
+            <input
+              type="checkbox"
+              name="select-all-products"
+              aria-label="Alle auswählen"
+              onChange={onSelectAll}
+              checked={allPageSelected}
+              className="bg-app-border border-app-border"
+            />
+            {showSelectAllFiltered && onSelectAllFiltered && (
+              <button
+                type="button"
+                onClick={onSelectAllFiltered}
+                className="text-[10px] text-accent hover:underline whitespace-nowrap leading-tight"
+              >
+                Alle {totalFilteredCount}
+              </button>
+            )}
+          </div>
         </th>
         {visibleColumnDefinitions.map((column) => {
           return (

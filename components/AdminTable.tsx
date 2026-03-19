@@ -19,6 +19,8 @@ import { Notice } from './ui/Notice';
 import { ConfirmDialog } from './ui/ConfirmDialog';
 import { AdminTableHeader, AdminTableRow, AdminTableFilters, BulkActions } from './admin-table';
 import type { ColumnId, ColumnPreset, ColumnDefinition, SortConfig } from './admin-table';
+import { useGridEdit } from '../hooks/useGridEdit';
+import { useBulkUpdate } from '../hooks/useBulkUpdate';
 
 const safeCurrency = (code?: string) => {
   const c = (code || '').toString().trim().toUpperCase();
@@ -175,6 +177,8 @@ const AdminTable: React.FC<AdminTableProps> = ({
   });
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const gridEdit = useGridEdit();
+  const gridBulkUpdate = useBulkUpdate();
   const [isColumnPanelOpen, setIsColumnPanelOpen] = useState(false);
   // track a simple preset to make column selection easier
   const [columnPreset, setColumnPreset] = useState<ColumnPreset>('standard');
@@ -297,7 +301,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
     const entries = await fetchKauflandSkuIndex('de');
     const skuSet = new Set<string>();
     const eanSet = new Set<string>();
-    const skuUrlMap = new Map<string, string>();
+    const skuUrlMap = new Map<string, string>(); 
     const eanUrlMap = new Map<string, string>();
     const skuProductIdMap = new Map<string, number>();
     const eanProductIdMap = new Map<string, number>();
@@ -1177,6 +1181,10 @@ const AdminTable: React.FC<AdminTableProps> = ({
     } else {
       setSelectedIds(new Set());
     }
+  };
+
+  const handleSelectAllFiltered = () => {
+    setSelectedIds(new Set(filteredAndSortedProducts.map((p) => p.id)));
   };
 
   const handleSelectOne = (id: string) => {
@@ -2095,6 +2103,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
             <BulkActions
               selectedIds={selectedIds}
               setSelectedIds={setSelectedIds}
+              totalFilteredCount={filteredAndSortedProducts.length}
               ebayPublishInProgress={ebayPublishInProgress}
               handleBatchPublishEbay={handleBatchPublishEbay}
               ebayUpdateInProgress={ebayUpdateInProgress}
@@ -2113,6 +2122,30 @@ const AdminTable: React.FC<AdminTableProps> = ({
               setImproveMessage={setImproveMessage}
               handleBatchDelete={handleBatchDelete}
               handleBatchLabelPrint={handleBatchLabelPrint}
+              isEditMode={gridEdit.isEditMode}
+              onToggleEditMode={gridEdit.toggleEditMode}
+              dirtyCount={gridEdit.dirtyCount}
+              onCommitEdits={async () => {
+                const payloads = gridEdit.toBulkUpdatePayloads();
+                if (payloads.length === 0) return;
+                // Group all dirty products into one bulk call
+                // Grid edit: each product can have different values, so we do per-product calls
+                for (const payload of payloads) {
+                  await gridBulkUpdate.executeCommit([payload.productId], payload.updates);
+                }
+                gridEdit.discardAll();
+                try {
+                  const list = await fetchProducts();
+                  if (Array.isArray(list)) onUpdateProducts(list);
+                } catch { /* ignore */ }
+              }}
+              onDiscardEdits={gridEdit.discardAll}
+              onRefreshProducts={async () => {
+                try {
+                  const list = await fetchProducts();
+                  if (Array.isArray(list)) onUpdateProducts(list);
+                } catch { /* ignore */ }
+              }}
             />
           )}
         </div>
@@ -2146,6 +2179,8 @@ const AdminTable: React.FC<AdminTableProps> = ({
               selectedIds={selectedIds}
               pageProducts={pageProducts}
               onSelectAll={handleSelectAll}
+              totalFilteredCount={filteredAndSortedProducts.length}
+              onSelectAllFiltered={handleSelectAllFiltered}
             />
             <tbody>
               {pageProducts.map(p => (
@@ -2159,6 +2194,9 @@ const AdminTable: React.FC<AdminTableProps> = ({
                   rowRef={(el) => {
                     rowRefs.current[p.id] = el;
                   }}
+                  isEditMode={gridEdit.isEditMode}
+                  dirtyFields={gridEdit.dirtyFields.get(p.id)}
+                  onCellChange={gridEdit.setCellValue}
                 />
               ))}
             </tbody>

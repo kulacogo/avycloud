@@ -2229,6 +2229,52 @@ router.get('/v1/competitors/overview', requirePermission('products', 'read'), as
   }
 });
 
+// ─── Bulk Field Update ───────────────────────────────────────
+
+/**
+ * PATCH /api/v1/products/bulk-update
+ * Bulk update fields on multiple products.
+ * Supports dryRun mode for preview/diff.
+ */
+router.patch('/v1/products/bulk-update', requirePermission('products', 'write'), async (req, res) => {
+  try {
+    const { bulkUpdateProducts } = require('../services/bulk-update');
+    const { productIds, updates, dryRun } = req.body;
+    const tenantId = req.user?.tenantId || 'default';
+
+    const result = await bulkUpdateProducts({
+      productIds,
+      updates,
+      dryRun: Boolean(dryRun),
+      tenantId,
+    });
+
+    if (!dryRun) {
+      logAudit({
+        action: 'product.bulk_update',
+        userId: req.user?.uid,
+        userEmail: req.user?.email,
+        tenantId,
+        resourceType: 'product',
+        details: {
+          updated: result.updated,
+          skipped: result.skipped,
+          errors: result.errors.length,
+          fields: updates.map((u) => u.field),
+          productCount: productIds.length,
+        },
+      });
+    }
+
+    res.json({ ok: true, data: result });
+  } catch (err) {
+    const status = err.statusCode || 500;
+    const code = err.code || 'INTERNAL';
+    console.error(`[PATCH /api/v1/products/bulk-update] ${err.message}`, err);
+    res.status(status).json({ ok: false, error: { code, message: err.message } });
+  }
+});
+
 // ─── CSV Export / Import ──────────────────────────────────────
 
 /**

@@ -4465,6 +4465,52 @@ export async function executeMerge(keepId: string, removeId: string): Promise<Me
   return res.json();
 }
 
+// --- Bulk Field Update (BULK-001) ---
+
+export interface BulkFieldUpdate {
+  field: string;
+  value: any;
+}
+
+export interface BulkUpdateDiffEntry {
+  productId: string;
+  productName: string;
+  changes: { field: string; oldValue: any; newValue: any }[];
+  status: "ready" | "skipped";
+  reason?: string;
+}
+
+export interface BulkUpdateResult {
+  ok: boolean;
+  data?: {
+    updated: number;
+    skipped: number;
+    errors: { id: string; reason: string }[];
+    diff?: BulkUpdateDiffEntry[];
+    duration_ms: number;
+  };
+  error?: { code: string; message: string };
+}
+
+export async function bulkUpdateProducts(params: {
+  productIds: string[];
+  updates: BulkFieldUpdate[];
+  dryRun?: boolean;
+}): Promise<BulkUpdateResult> {
+  let response: Response | undefined;
+  try {
+    response = await fetchApi(`${BACKEND_URL}/api/v1/products/bulk-update`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(params),
+    });
+    return await response.json();
+  } catch (err) {
+    const errorInfo = extractErrorInfo(err, response);
+    return { ok: false, error: errorInfo };
+  }
+}
+
 // --- Audit Log ---
 
 export interface AuditLogEntry {
