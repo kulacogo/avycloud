@@ -24,6 +24,7 @@
  */
 
 const EventEmitter = require('events');
+const { collectError } = require('../lib/error-collector');
 
 const bus = new EventEmitter();
 bus.setMaxListeners(50); // We'll have many handlers
@@ -108,6 +109,7 @@ bus.on('order:status_changed', async (payload) => {
 
   } catch (err) {
     console.error(`[sync-bus] order:status_changed handler error: ${err.message}`);
+    collectError({ tenantId, type: 'sync_failure', severity: 'warning', channel: 'internal', message: `Sync-Bus order:status_changed failed: ${err.message}`, entityType: 'order', entityId: orderId, source: 'sync-event-bus' });
   }
 });
 

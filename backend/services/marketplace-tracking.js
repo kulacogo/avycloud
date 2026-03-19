@@ -8,6 +8,7 @@
  */
 
 const { Firestore } = require('@google-cloud/firestore');
+const { collectError } = require('../lib/error-collector');
 
 const ORDERS_COLLECTION = 'orders';
 
@@ -132,6 +133,7 @@ async function pushTrackingToEbay({ order, trackingNumber, carrier }) {
     return { ok: true, marketplace: 'ebay' };
   } catch (err) {
     console.error(`[marketplace-tracking] eBay push failed: ${err.message}`);
+    collectError({ type: 'api_error', severity: 'warning', channel: 'ebay', message: `Tracking-Push eBay fehlgeschlagen: ${err.message}`, entityType: 'order', entityId: order.marketplaceOrderId || order.externalOrderId, source: 'marketplace-tracking' });
     return { ok: false, marketplace: 'ebay', error: err.message };
   }
 }
