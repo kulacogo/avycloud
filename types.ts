@@ -239,6 +239,12 @@ export interface Product {
   inventory?: InventoryInfo; // legacy, to be ignored
   storage?: ProductStorageLocation | null;
   storageBins?: ProductStorageBinEntry[];
+  marketplace_listings?: {
+    ebay?: { title: string; description: string; categoryId: string; categoryName: string; attributes: Record<string, string>; validation: { ready: boolean; issues: { severity: string; message: string }[] } };
+    kaufland?: { title: string; description: string; categoryId: string; categoryName: string; attributes: Record<string, string>; validation: { ready: boolean; issues: { severity: string; message: string }[] } };
+    generated_at?: string;
+    [key: string]: unknown;
+  };
 }
 
 export interface ProductBundle {

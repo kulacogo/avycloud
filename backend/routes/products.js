@@ -59,6 +59,7 @@ const { calculateSalesVelocity, predictStockOut, generateReorderAlerts } = requi
 const { createWebhook, listWebhooks, deleteWebhook } = require('../services/webhooks');
 const { findDuplicates, suggestMerge, executeMerge } = require('../services/deduplication');
 const { logAudit } = require('../services/audit-log');
+const { generateChannelListings } = require('../services/listing-pipeline');
 
 // ── Constants ────────────────────────────────────────────────────────
 const IMAGE_PROXY_TIMEOUT_MS = parseInt(process.env.IMAGE_PROXY_TIMEOUT_MS || '10000', 10);
@@ -1015,6 +1016,25 @@ router.post('/generate-images', async (req, res) => {
         details: error.message
       }
     });
+  }
+});
+
+// --- AI Listing Pipeline ---
+router.post('/listing-pipeline', requirePermission('products', 'write'), async (req, res) => {
+  try {
+    const body = req.body && typeof req.body === 'object' ? req.body : {};
+    const productId = String(body.productId || '').trim();
+    if (!productId) {
+      return res.status(400).json({ ok: false, error: { code: 'VALIDATION_ERROR', message: 'Missing productId' } });
+    }
+    const channels = Array.isArray(body.channels) ? body.channels : undefined;
+    const result = await generateChannelListings(productId, { channels });
+    return res.json({ ok: true, data: result });
+  } catch (err) {
+    console.error(`[POST /api/products/listing-pipeline] ${err.message}`, err);
+    const status = err.status || 500;
+    const code = err.code || 'INTERNAL';
+    return res.status(status).json({ ok: false, error: { code, message: err.message } });
   }
 });
 
