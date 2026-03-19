@@ -2076,6 +2076,12 @@ router.post('/v1/pricing/rules', requirePermission('products', 'write'), async (
 
 router.get('/v1/pricing/rules', requirePermission('products', 'read'), async (req, res) => {
   try {
+    const all = req.query.all === 'true';
+    if (all) {
+      const snap = await firestore.collection('pricingRules').get();
+      const rules = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      return res.json({ ok: true, data: rules });
+    }
     const rules = await listPricingRules();
     res.json({ ok: true, data: rules });
   } catch (error) {
@@ -2090,6 +2096,39 @@ router.post('/v1/pricing/reprice-batch', requirePermission('admin', 'jobs.run'),
     res.json({ ok: true, data: results });
   } catch (error) {
     console.error('[POST /api/v1/pricing/reprice-batch] Error:', error.message);
+    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: error.message } });
+  }
+});
+
+router.delete('/v1/pricing/rules/:ruleId', requirePermission('products', 'write'), async (req, res) => {
+  try {
+    const { ruleId } = req.params;
+    const docRef = firestore.collection('pricingRules').doc(ruleId);
+    const doc = await docRef.get();
+    if (!doc.exists) {
+      return res.status(404).json({ ok: false, error: { code: 'NOT_FOUND', message: 'Regel nicht gefunden' } });
+    }
+    await docRef.delete();
+    res.json({ ok: true });
+  } catch (error) {
+    console.error('[DELETE /api/v1/pricing/rules/:ruleId] Error:', error.message);
+    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: error.message } });
+  }
+});
+
+router.patch('/v1/pricing/rules/:ruleId/toggle', requirePermission('products', 'write'), async (req, res) => {
+  try {
+    const { ruleId } = req.params;
+    const docRef = firestore.collection('pricingRules').doc(ruleId);
+    const doc = await docRef.get();
+    if (!doc.exists) {
+      return res.status(404).json({ ok: false, error: { code: 'NOT_FOUND', message: 'Regel nicht gefunden' } });
+    }
+    const currentActive = doc.data().active !== false;
+    await docRef.update({ active: !currentActive, updatedAt: new Date().toISOString() });
+    res.json({ ok: true, data: { id: ruleId, active: !currentActive } });
+  } catch (error) {
+    console.error('[PATCH /api/v1/pricing/rules/:ruleId/toggle] Error:', error.message);
     res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: error.message } });
   }
 });

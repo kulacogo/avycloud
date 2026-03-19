@@ -3253,6 +3253,44 @@ export async function runRepricingBatch(): Promise<any> {
   return data?.data;
 }
 
+export async function fetchAllPricingRules(): Promise<any[]> {
+  const res = await fetchApi(`${BACKEND_URL}/api/v1/pricing/rules?all=true`, { method: 'GET' });
+  const data = await parseResponse(res);
+  return Array.isArray(data?.data) ? data.data : [];
+}
+
+export async function createPricingRule(rule: {
+  productId: string;
+  ruleType: string;
+  params?: Record<string, any>;
+}): Promise<any> {
+  const res = await fetchApi(`${BACKEND_URL}/api/v1/pricing/rules`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(rule),
+  });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) throw new Error(data?.error?.message || 'Regel konnte nicht erstellt werden');
+  return data?.data;
+}
+
+export async function deletePricingRule(ruleId: string): Promise<void> {
+  const res = await fetchApi(`${BACKEND_URL}/api/v1/pricing/rules/${encodeURIComponent(ruleId)}`, { method: 'DELETE' });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) throw new Error(data?.error?.message || 'Regel konnte nicht gelöscht werden');
+}
+
+export async function togglePricingRule(ruleId: string): Promise<{ id: string; active: boolean }> {
+  const res = await fetchApi(`${BACKEND_URL}/api/v1/pricing/rules/${encodeURIComponent(ruleId)}/toggle`, { method: 'PATCH' });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) throw new Error(data?.error?.message || 'Regel konnte nicht umgeschaltet werden');
+  return data?.data;
+}
+
+export async function fetchPricingSuggestion(productId: string): Promise<any> {
+  return suggestPrice(productId);
+}
+
 // ── Inventory Forecast ──────────────────────────────────────
 
 export async function fetchProductForecast(productId: string, days = 30): Promise<any> {

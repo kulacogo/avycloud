@@ -33,7 +33,8 @@ export type View =
   | "settings-billing"
   | "ebay-listings"
   | "duplicates"
-  | "audit-log";
+  | "audit-log"
+  | "pricing";
 
 interface SidebarProps {
   currentView: View;
@@ -231,6 +232,12 @@ const icons = {
       <path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65" />
     </Icon>
   ),
+  tag: (
+    <Icon>
+      <path d="M12 2H2v10l9.29 9.29c.94.94 2.48.94 3.42 0l6.58-6.58c.94-.94.94-2.48 0-3.42L12 2Z" />
+      <path d="M7 7h.01" />
+    </Icon>
+  ),
   logout: (
     <Icon>
       <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />
@@ -376,7 +383,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, setView }) => {
                 ? [{ view: "input" as View, label: "Erfassen", icon: icons.scanLine }]
                 : []),
               ...(canSeeProducts
-                ? [{ view: "duplicates" as View, label: "Duplikate", icon: icons.layers }]
+                ? [
+                    { view: "duplicates" as View, label: "Duplikate", icon: icons.layers },
+                    { view: "pricing" as View, label: "Preise", icon: icons.tag },
+                  ]
                 : []),
             ],
           },
