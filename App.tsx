@@ -40,6 +40,7 @@ import { CompanySettings } from './components/settings/CompanySettings';
 import { ProfileSettings } from './components/settings/ProfileSettings';
 import { ApiSettings } from './components/settings/ApiSettings';
 import { BillingSettings } from './components/settings/BillingSettings';
+import PricingDashboard from './components/PricingDashboard';
 import { fetchOrders, fetchProducts, refreshPrice } from './api/client';
 import { useI18n } from './i18n';
 import { addMediaQueryListener } from './utils/mediaQuery';
@@ -81,7 +82,8 @@ type View =
   | 'settings-profile'
   | 'settings-team'
   | 'settings-api'
-  | 'settings-billing';
+  | 'settings-billing'
+  | 'pricing';
 const VIEW_STORAGE_KEY = 'avystock:view';
 const VIEW_PRODUCT_KEY = 'avystock:view:productId';
 const THEME_STORAGE_KEY = 'avystock:theme';
@@ -119,6 +121,7 @@ const ALLOWED_VIEWS: View[] = [
   'settings-billing',
   'duplicates',
   'audit-log',
+  'pricing',
 ];
 type Theme = 'light' | 'dark';
 
@@ -1049,6 +1052,11 @@ const AppInner: React.FC = () => {
             onRangePresetChange={setDashboardRangePreset}
           />
         );
+      case 'pricing':
+        if (!hasPermission('products', 'read')) {
+          return <div className="text-center p-8 text-txt-muted">{t('error.forbidden')}</div>;
+        }
+        return <PricingDashboard />;
       case 'duplicates':
         if (!hasPermission('products', 'read')) {
           return <div className="text-center p-8 text-txt-muted">{t('error.forbidden')}</div>;
