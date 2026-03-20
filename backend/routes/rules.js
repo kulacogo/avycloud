@@ -9,6 +9,7 @@
 
 const express = require('express');
 const router = express.Router();
+const { logAudit } = require('../services/audit-log');
 const {
   evaluateConditions,
   applyActions,
@@ -116,6 +117,7 @@ router.post('/', async (req, res) => {
     };
 
     const ref = await getDb().collection(RULES_COLLECTION).add(doc);
+    logAudit({ action: 'rule.created', userId: req.user?.uid, userEmail: req.user?.email, tenantId, resourceType: 'rule', resourceId: ref.id, details: { name: doc.name } }).catch(() => {});
     res.status(201).json({ ok: true, data: { id: ref.id, ...doc } });
   } catch (err) {
     console.error(`[POST /api/v1/rules] ${err.message}`, err);
@@ -143,6 +145,7 @@ router.put('/:ruleId', async (req, res) => {
     if (req.body.active !== undefined) updates.active = req.body.active;
 
     await ref.update(updates);
+    logAudit({ action: 'rule.updated', userId: req.user?.uid, userEmail: req.user?.email, tenantId: getTenantId(req), resourceType: 'rule', resourceId: req.params.ruleId }).catch(() => {});
     const updated = await ref.get();
     res.json({ ok: true, data: { id: updated.id, ...updated.data() } });
   } catch (err) {
@@ -161,6 +164,7 @@ router.delete('/:ruleId', async (req, res) => {
       return res.status(404).json({ ok: false, error: { code: 'NOT_FOUND', message: 'Regel nicht gefunden' } });
     }
     await ref.delete();
+    logAudit({ action: 'rule.deleted', userId: req.user?.uid, userEmail: req.user?.email, tenantId: getTenantId(req), resourceType: 'rule', resourceId: req.params.ruleId }).catch(() => {});
     res.json({ ok: true });
   } catch (err) {
     console.error(`[DELETE /api/v1/rules/:ruleId] ${err.message}`, err);
@@ -195,6 +199,7 @@ router.post('/:ruleId/execute', async (req, res) => {
 
     const { jobId, status } = await executeRule(req.params.ruleId, mode, limit);
     enqueueAutomationJob(jobId);
+    logAudit({ action: 'rule.executed', userId: req.user?.uid, userEmail: req.user?.email, tenantId: getTenantId(req), resourceType: 'rule', resourceId: req.params.ruleId, details: { mode, jobId } }).catch(() => {});
 
     res.status(202).json({ ok: true, data: { jobId, status } });
   } catch (err) {
