@@ -137,11 +137,13 @@ const PricingSuggestions: React.FC<PricingSuggestionsProps> = ({ onAccept }) => 
       )}
 
       {suggestions.length === 0 && !running && !error && (
-        <div className="text-center py-12 bg-app-surface border border-app-border rounded-lg">
+        <div className="text-center py-12 bg-app-surface border border-app-border rounded-lg space-y-2">
           <p className="text-txt-muted text-sm">
-            {batchResult
-              ? "Keine offenen Vorschläge nach dem Repricing."
-              : "Keine offenen Vorschläge. Starte ein Repricing um Vorschläge zu generieren."}
+            {batchResult && batchResult.processed === 0
+              ? "Noch keine Preisregeln vorhanden. Erstelle zuerst Regeln im Tab \"Regeln\", dann starte das Repricing."
+              : batchResult
+                ? "Keine offenen Vorschläge nach dem Repricing."
+                : "Noch kein Repricing durchgeführt. Klicke \"Repricing starten\" um Vorschläge zu generieren."}
           </p>
         </div>
       )}

@@ -46,16 +46,17 @@ function validateRule(body) {
 router.get('/', async (req, res) => {
   try {
     const tenantId = getTenantId(req);
-    let query = getDb().collection(RULES_COLLECTION)
+    // Simple single-field query to avoid composite index requirement.
+    // Sort + filter client-side (< 100 rules per tenant).
+    const snap = await getDb().collection(RULES_COLLECTION)
       .where('tenantId', '==', tenantId)
-      .orderBy('createdAt', 'desc');
+      .get();
 
+    let rules = snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
     if (req.query.active === 'true') {
-      query = query.where('active', '==', true);
+      rules = rules.filter((r) => r.active === true);
     }
-
-    const snap = await query.get();
-    const rules = snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+    rules.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
     res.json({ ok: true, data: rules });
   } catch (err) {
     console.error(`[GET /api/v1/rules] ${err.message}`, err);
