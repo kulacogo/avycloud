@@ -8,13 +8,16 @@ import StepUpload from "./StepUpload";
 import StepAnalysis from "./StepAnalysis";
 import StepReview from "./StepReview";
 import StepPricing from "./StepPricing";
+import StepChannels from "./StepChannels";
 import StepSummary from "./StepSummary";
+import type { ChannelListing } from "../../api/client";
 
 const STEPS: Step[] = [
   { id: "upload", label: "Bilder hochladen" },
   { id: "analysis", label: "KI-Erkennung" },
   { id: "review", label: "Prüfen & Korrigieren" },
   { id: "pricing", label: "Preis & Lager" },
+  { id: "channels", label: "Marktplätze" },
   { id: "summary", label: "Zusammenfassung" },
 ];
 
@@ -35,6 +38,7 @@ const CaptureView: React.FC<CaptureViewProps> = ({ onProductCreated }) => {
   const [uploadData, setUploadData] = useState<CaptureUploadData | null>(null);
   const [product, setProduct] = useState<Product | null>(null);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
+  const [channelListings, setChannelListings] = useState<Record<string, ChannelListing> | null>(null);
 
   const completeStep = useCallback((stepId: string) => {
     setCompletedSteps((prev) => (prev.includes(stepId) ? prev : [...prev, stepId]));
@@ -79,17 +83,28 @@ const CaptureView: React.FC<CaptureViewProps> = ({ onProductCreated }) => {
     [completeStep, goTo]
   );
 
-  // Step 4 → 5
+  // Step 4 → 5 (Channels)
   const handlePricingComplete = useCallback(
     (updated: Product) => {
       setProduct(updated);
       completeStep("pricing");
+      goTo("channels");
+    },
+    [completeStep, goTo]
+  );
+
+  // Step 5 → 6 (Summary)
+  const handleChannelsComplete = useCallback(
+    (updated: Product, listings: Record<string, ChannelListing>) => {
+      setProduct(updated);
+      setChannelListings(listings);
+      completeStep("channels");
       goTo("summary");
     },
     [completeStep, goTo]
   );
 
-  // Step 5 done
+  // Step 6 done
   const handleSaved = useCallback(
     (saved: Product) => {
       onProductCreated?.(saved);
@@ -105,6 +120,7 @@ const CaptureView: React.FC<CaptureViewProps> = ({ onProductCreated }) => {
     setUploadData(null);
     setProduct(null);
     setAnalysisError(null);
+    setChannelListings(null);
   }, []);
 
   // Allow going back to previous steps
@@ -159,6 +175,14 @@ const CaptureView: React.FC<CaptureViewProps> = ({ onProductCreated }) => {
           <StepPricing
             product={product}
             onComplete={handlePricingComplete}
+            onBack={handleStepBack}
+          />
+        )}
+
+        {activeStep === "channels" && product && (
+          <StepChannels
+            product={product}
+            onComplete={handleChannelsComplete}
             onBack={handleStepBack}
           />
         )}

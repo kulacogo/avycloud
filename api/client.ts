@@ -1495,6 +1495,45 @@ export async function verifyEbayPublish(
   return data?.data as EbayPublishVerifyResult;
 }
 
+// --- AI Listing Pipeline ---
+
+export interface ChannelListing {
+  title: string;
+  description: string;
+  categoryId: string;
+  categoryName: string;
+  attributes: Record<string, string>;
+  validation: { ready: boolean; issues: { severity: string; message: string }[] };
+}
+
+export interface ListingPipelineResult {
+  productId: string;
+  listings: {
+    ebay?: ChannelListing;
+    kaufland?: ChannelListing;
+  };
+  generated_at: string;
+}
+
+export async function runListingPipeline(
+  productId: string,
+  channels?: string[]
+): Promise<ListingPipelineResult> {
+  const body: Record<string, unknown> = { productId };
+  if (channels) body.channels = channels;
+
+  const res = await fetchApi(`${BACKEND_URL}/api/products/listing-pipeline`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) {
+    throw new Error(data?.error?.message || "Listing pipeline failed");
+  }
+  return data?.data as ListingPipelineResult;
+}
+
 export async function publishToEbay(
   productId: string,
   overrides?: EbayPublishOverrides
