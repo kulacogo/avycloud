@@ -9,6 +9,7 @@
  */
 
 const express = require('express');
+const crypto = require('crypto');
 const router = express.Router();
 const { Firestore, FieldValue } = require('@google-cloud/firestore');
 const { emitSyncEvent } = require('../services/sync-event-bus');
@@ -188,6 +189,19 @@ router.post('/webhooks/sendcloud', async (req, res) => {
  */
 router.post('/webhooks/kaufland', async (req, res) => {
   try {
+    // Verify Kaufland webhook signature (HMAC-SHA256)
+    const { getSecretValue } = require('../lib/secret-values');
+    const webhookSecret = await getSecretValue('KAUFLAND_WEBHOOK_SECRET').catch(() => null);
+    if (webhookSecret) {
+      const signature = req.headers['x-kaufland-signature'] || req.headers['x-signature'] || '';
+      const rawBody = typeof req.body === 'string' ? req.body : JSON.stringify(req.body || {});
+      const expected = crypto.createHmac('sha256', webhookSecret).update(rawBody).digest('hex');
+      if (!signature || !crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) {
+        console.warn('[webhook/kaufland] Invalid HMAC signature — possible spoofing attempt');
+        return res.status(200).json({ ok: false, error: 'invalid signature' });
+      }
+    }
+
     const body = req.body || {};
     const eventName = body.event_name || body.event || '';
     const payload = body.data || body.payload || {};
