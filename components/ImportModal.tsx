@@ -119,13 +119,13 @@ const ImportModal: React.FC<ImportModalProps> = ({ open, onClose, onComplete }) 
     try {
       const result = await previewProductsImport(csvText, columnMappings, delimiter);
       if (!result.ok) {
-        addToast({ type: "error", title: "Vorschau fehlgeschlagen", message: result.error?.message });
+        addToast("error", `Vorschau fehlgeschlagen: ${result.error?.message || "Unbekannter Fehler"}`);
         return;
       }
       setPreviewData(result.data);
       setStep("preview");
     } catch (err: any) {
-      addToast({ type: "error", title: "Fehler", message: err?.message });
+      addToast("error", `Fehler: ${err?.message || "Unbekannter Fehler"}`);
     } finally {
       setLoading(false);
     }
@@ -137,19 +137,16 @@ const ImportModal: React.FC<ImportModalProps> = ({ open, onClose, onComplete }) 
     try {
       const result = await executeProductsImport(csvText, columnMappings, delimiter);
       if (!result.ok) {
-        addToast({ type: "error", title: "Import fehlgeschlagen", message: result.error?.message });
+        addToast("error", `Import fehlgeschlagen: ${result.error?.message || "Unbekannter Fehler"}`);
         return;
       }
       setResultData(result.data);
       setStep("result");
-      addToast({
-        type: "success",
-        title: `${result.data?.imported || 0} Produkte importiert`,
-        message: result.data?.failed ? `${result.data.failed} fehlgeschlagen` : undefined,
-      });
+      const importMsg = `${result.data?.imported || 0} Produkte importiert` + (result.data?.failed ? `, ${result.data.failed} fehlgeschlagen` : "");
+      addToast("success", importMsg);
       onComplete?.();
     } catch (err: any) {
-      addToast({ type: "error", title: "Fehler", message: err?.message });
+      addToast("error", `Fehler: ${err?.message || "Unbekannter Fehler"}`);
     } finally {
       setLoading(false);
     }

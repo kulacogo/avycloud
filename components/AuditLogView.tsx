@@ -61,10 +61,10 @@ const AuditLogView: React.FC = () => {
         }
         setHasMore(result.data.length === 50);
       } else {
-        addToast({ type: "error", title: "Fehler", message: result.error?.message });
+        addToast("error", `Fehler: ${result.error?.message || "Audit-Log konnte nicht geladen werden."}`);
       }
     } catch (err: any) {
-      addToast({ type: "error", title: "Fehler", message: err?.message });
+      addToast("error", `Fehler: ${err?.message || "Unbekannter Fehler"}`);
     } finally {
       setLoading(false);
     }
