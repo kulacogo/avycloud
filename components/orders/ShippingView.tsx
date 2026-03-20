@@ -41,7 +41,7 @@ const STATUS_CONFIG: Record<string, { label: string; cls: string }> = {
   "Driver en route": { label: "Wird zugestellt", cls: "bg-info-dim text-info" },
 };
 
-type TabKey = "alle" | "ausstehend" | "in_zustellung" | "zugestellt" | "problem";
+type TabKey = "alle" | "ausstehend" | "in_zustellung" | "zugestellt" | "problem" | "sonstige";
 
 const TABS: { key: TabKey; label: string }[] = [
   { key: "alle", label: "Alle" },
@@ -49,7 +49,22 @@ const TABS: { key: TabKey; label: string }[] = [
   { key: "in_zustellung", label: "In Zustellung" },
   { key: "zugestellt", label: "Zugestellt" },
   { key: "problem", label: "Probleme" },
+  { key: "sonstige", label: "Sonstige" },
 ];
+
+/** Normalize any raw/SendCloud status into a tab category */
+function statusToTab(raw: string | undefined | null): TabKey {
+  const s = (raw || "").toLowerCase().replace(/\s+/g, "_");
+  // Ausstehend
+  if (["ausstehend", "created", "ready_to_send", "announced"].includes(s)) return "ausstehend";
+  // In Zustellung
+  if (["in_zustellung", "shipped", "in_transit", "at_sorting_centre", "en_route_to_sorting_center", "out_for_delivery", "driver_en_route"].includes(s)) return "in_zustellung";
+  // Zugestellt
+  if (["zugestellt", "delivered"].includes(s)) return "zugestellt";
+  // Problem
+  if (["problem", "delivery_attempt_failed", "returned_to_sender", "cancelled", "storniert"].includes(s)) return "problem";
+  return "sonstige";
+}
 
 /* ─── KPI Card ─── */
 const KpiCard: React.FC<{ label: string; value: string | number; tone?: string }> = ({
@@ -137,13 +152,14 @@ export const ShippingView: React.FC = () => {
 
   const filtered = useMemo(() => {
     if (activeTab === "alle") return shipments;
-    return shipments.filter((s) => s.status === activeTab);
+    return shipments.filter((s) => statusToTab(s.status) === activeTab);
   }, [shipments, activeTab]);
 
   const tabCounts = useMemo(() => {
     const counts: Record<string, number> = { alle: shipments.length };
     for (const s of shipments) {
-      if (s.status) counts[s.status] = (counts[s.status] || 0) + 1;
+      const tab = statusToTab(s.status);
+      counts[tab] = (counts[tab] || 0) + 1;
     }
     return counts;
   }, [shipments]);

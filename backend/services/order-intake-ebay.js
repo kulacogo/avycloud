@@ -54,6 +54,19 @@ async function fetchEbayOrders({
   const result = await callTradingApi('GetOrders', innerXml, { timeoutMs: 30000 });
   const resp = result.response;
 
+  // Check for eBay API errors (HTTP 200 can still contain errors)
+  const ack = resp?.Ack || '';
+  if (ack === 'Failure') {
+    const errors = Array.isArray(resp.Errors) ? resp.Errors : resp.Errors ? [resp.Errors] : [];
+    const msgs = errors.map((e) => `${e.ErrorCode}: ${e.ShortMessage || e.LongMessage}`).join('; ');
+    throw new Error(`eBay GetOrders failed (Ack=Failure): ${msgs}`);
+  }
+  if (ack === 'Warning' && resp.Errors) {
+    const errors = Array.isArray(resp.Errors) ? resp.Errors : [resp.Errors];
+    const msgs = errors.map((e) => `${e.ErrorCode}: ${e.ShortMessage || e.LongMessage}`).join('; ');
+    console.warn(`[ebay-intake] GetOrders warnings: ${msgs}`);
+  }
+
   // Parse orders from response
   const orderArray = resp?.OrderArray?.Order;
   const orders = Array.isArray(orderArray) ? orderArray : orderArray ? [orderArray] : [];
@@ -86,6 +99,11 @@ function mapEbayStatus(ebayOrder) {
   if (orderStatus === 'Completed' && shippedTime) return 'shipped';
   if (orderStatus === 'Completed' && checkoutComplete) return 'confirmed';
   if (orderStatus === 'Active' && checkoutComplete) return 'confirmed';
+
+  // Unpaid orders → on_hold for visibility (eBay CheckoutStatus or PaymentHoldStatus)
+  const paymentStatus = ebayOrder?.CheckoutStatus?.Status || '';
+  if (paymentStatus === 'Incomplete' || orderStatus === 'Active') return 'on_hold';
+
   return 'pending';
 }
 

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Order, Product } from '../types';
+import { Order, Product, getOrderStatus } from '../types';
 import { getProductQuantity } from '../utils/product';
 import { fetchOrders as fetchOrdersApi, syncOrders as syncOrdersApi, completeOrder, packOrder, packAndShip, stockInProduct, stockOutProduct, fetchProfile } from '../api/client';
 import { useI18n } from '../i18n';
@@ -262,7 +262,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
     };
     return orders.filter((o) => {
       // OMS orders use 'pending'/'confirmed'/'picking'; legacy BL orders used 'new'
-      const oms = (((o as any).omsStatus || o.status) || '').toLowerCase();
+      const oms = getOrderStatus(o);
       const isOpen = oms === 'new' || oms === 'pending' || oms === 'confirmed' || oms === 'picking';
       return isOpen && !isCancelled(o.statusLabel);
     });
@@ -289,7 +289,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
     };
     const filtered = orders.filter((o) => {
       const label = (o.statusLabel || '').toLowerCase();
-      const oms = (((o as any).omsStatus || o.status) || '').toLowerCase();
+      const oms = getOrderStatus(o);
       if (isCancelled(label)) return false;
       // Packed orders without a shipping label: show for retry-ship
       if (oms === 'packed' && !(o as any).trackingNumber) return true;

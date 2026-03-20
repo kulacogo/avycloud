@@ -8,7 +8,7 @@ import {
   buildImageProxyUrl,
   bulkTransitionOrders,
 } from "../api/client";
-import { Order, OrderStatus } from "../types";
+import { Order, OrderStatus, getOrderStatus } from "../types";
 import { SyncIcon } from "./icons/Icons";
 import { OrderDetail } from "./OrderDetail";
 
@@ -188,12 +188,11 @@ const OrdersView: React.FC = () => {
     const now = new Date();
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
 
-    const getStatus = (o: Order) => (o as any).omsStatus || o.status;
-    const openCount = orders.filter((o) => { const s = getStatus(o); return s === "new" || s === "pending" || s === "picking"; }).length;
+    const openCount = orders.filter((o) => { const s = getOrderStatus(o); return s === "new" || s === "pending" || s === "picking"; }).length;
     const pickedToday = orders.filter(
       (o) => o.pickedAt && new Date(o.pickedAt).getTime() >= todayStart
     ).length;
-    const packedCount = orders.filter((o) => getStatus(o) === "packed").length;
+    const packedCount = orders.filter((o) => getOrderStatus(o) === "packed").length;
 
     // Avg processing time: from createdAt to pickedAt for picked/packed orders
     const processedOrders = orders.filter((o) => o.pickedAt && o.createdAt);
@@ -240,19 +239,18 @@ const OrdersView: React.FC = () => {
 
   /* ─── Filter + Sort ─── */
   const filteredOrders = useMemo(() => {
-    const getOmsStatus = (o: Order) => (o as any).omsStatus || o.status;
     let list: Order[];
     if (filter === "all") {
       list = orders;
     } else if (filter === "new") {
-      list = orders.filter((o) => ["pending", "confirmed", "new"].includes(getOmsStatus(o)));
+      list = orders.filter((o) => ["pending", "confirmed", "new"].includes(getOrderStatus(o)));
     } else if (filter === "picking") {
-      list = orders.filter((o) => ["picking", "packing"].includes(getOmsStatus(o)));
+      list = orders.filter((o) => ["picking", "packing"].includes(getOrderStatus(o)));
     } else if (filter === "other") {
       const covered = new Set(["pending", "confirmed", "new", "picking", "packing", "picked", "packed", "shipped", "delivered"]);
-      list = orders.filter((o) => !covered.has(getOmsStatus(o)));
+      list = orders.filter((o) => !covered.has(getOrderStatus(o)));
     } else {
-      list = orders.filter((o) => getOmsStatus(o) === filter);
+      list = orders.filter((o) => getOrderStatus(o) === filter);
     }
 
     // Date filter — custom range overrides preset
@@ -394,7 +392,7 @@ const OrdersView: React.FC = () => {
     const pickingStatuses = new Set(["picking", "packing"]);
     const coveredStatuses = new Set(["pending", "confirmed", "new", "picking", "packing", "picked", "packed", "shipped", "delivered"]);
     for (const o of orders) {
-      const s = (o as any).omsStatus || o.status;
+      const s = getOrderStatus(o);
       if (newStatuses.has(s)) counts.new++;
       else if (pickingStatuses.has(s)) counts.picking++;
       else if (s === "picked") counts.picked++;
@@ -847,7 +845,7 @@ const OrdersView: React.FC = () => {
                       {/* Status */}
                       <td className="px-4 py-3">
                         {(() => {
-                          const displayStatus = (order as any).omsStatus || order.status;
+                          const displayStatus = getOrderStatus(order);
                           const displayLabel = OMS_STATUS_LABELS[displayStatus] || order.statusLabel || displayStatus;
                           return (
                             <span
