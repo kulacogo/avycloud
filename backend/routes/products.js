@@ -2443,4 +2443,108 @@ router.post('/products/import/execute', requirePermission('products', 'write'), 
   }
 });
 
+// --- Pre-Listing Validation (VAL-001) ---
+const { validateProduct: validateProductForMarketplaces, SUPPORTED_MARKETPLACES: VALIDATION_MARKETPLACES } = require('../services/listing-validator');
+
+router.post('/products/validate', requirePermission('products', 'read'), async (req, res) => {
+  try {
+    const { product, marketplaces } = req.body || {};
+    if (!product || typeof product !== 'object') {
+      return res.status(400).json({
+        ok: false,
+        error: { code: 'VALIDATION_ERROR', message: 'Product data is required' },
+      });
+    }
+
+    // Validate marketplace names
+    const targets = Array.isArray(marketplaces) && marketplaces.length
+      ? marketplaces
+      : VALIDATION_MARKETPLACES;
+    for (const mp of targets) {
+      if (!VALIDATION_MARKETPLACES.includes(mp)) {
+        return res.status(400).json({
+          ok: false,
+          error: { code: 'VALIDATION_ERROR', message: `Unknown marketplace: ${mp}` },
+        });
+      }
+    }
+
+    const results = validateProductForMarketplaces(product, targets);
+    res.json({ ok: true, results });
+  } catch (err) {
+    console.error(`[POST /api/v1/products/validate] ${err.message}`, err);
+    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: err.message } });
+  }
+});
+
+router.post('/products/validate-batch', requirePermission('products', 'read'), async (req, res) => {
+  try {
+    const { productIds, marketplaces } = req.body || {};
+    if (!Array.isArray(productIds) || productIds.length === 0) {
+      return res.status(400).json({
+        ok: false,
+        error: { code: 'VALIDATION_ERROR', message: 'productIds array is required' },
+      });
+    }
+    if (productIds.length > 100) {
+      return res.status(400).json({
+        ok: false,
+        error: { code: 'VALIDATION_ERROR', message: 'Batch size exceeds limit of 100' },
+      });
+    }
+
+    const targets = Array.isArray(marketplaces) && marketplaces.length
+      ? marketplaces
+      : VALIDATION_MARKETPLACES;
+    for (const mp of targets) {
+      if (!VALIDATION_MARKETPLACES.includes(mp)) {
+        return res.status(400).json({
+          ok: false,
+          error: { code: 'VALIDATION_ERROR', message: `Unknown marketplace: ${mp}` },
+        });
+      }
+    }
+
+    const results = [];
+    let ebayReady = 0;
+    let kauflandReady = 0;
+
+    for (const pid of productIds) {
+      const product = await getProduct(String(pid).trim());
+      if (!product) {
+        results.push({ productId: pid, productName: null, error: 'Product not found' });
+        continue;
+      }
+      const validation = validateProductForMarketplaces(product, targets);
+      const entry = {
+        productId: pid,
+        productName: product?.identification?.name || null,
+      };
+      for (const mp of targets) {
+        entry[mp] = {
+          score: validation[mp].score,
+          ready: validation[mp].ready,
+          counts: validation[mp].counts,
+        };
+        if (mp === 'ebay' && validation[mp].ready) ebayReady++;
+        if (mp === 'kaufland' && validation[mp].ready) kauflandReady++;
+      }
+      results.push(entry);
+    }
+
+    res.json({
+      ok: true,
+      results,
+      summary: {
+        total: productIds.length,
+        ebay_ready: targets.includes('ebay') ? ebayReady : undefined,
+        kaufland_ready: targets.includes('kaufland') ? kauflandReady : undefined,
+      },
+    });
+  } catch (err) {
+    console.error(`[POST /api/v1/products/validate-batch] ${err.message}`, err);
+    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: err.message } });
+  }
+});
+
 module.exports = { router };

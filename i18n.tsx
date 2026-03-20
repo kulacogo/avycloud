@@ -580,6 +580,10 @@ const messages: Record<Locale, Dict> = {
     'sheet.msg.imagesAdded': '{count} Bild(er) hinzugefügt.',
     'sheet.msg.syncSuccess': 'Sync erfolgreich.',
     'sheet.msg.syncError': 'Sync fehlgeschlagen.',
+    'validation.title': 'Pre-Listing Validierung',
+    'validation.run': 'Validierung starten',
+    'validation.running': 'Wird validiert…',
+    'validation.hint': 'Klicken Sie auf "Validierung starten", um die Produktdaten gegen Marktplatz-Anforderungen zu pruefen.',
   },
   en: {
     'nav.dashboard': 'Dashboard',
@@ -1150,6 +1154,10 @@ const messages: Record<Locale, Dict> = {
     'input.model.fallback': 'Backend fallback',
     'input.submit': 'Identify groups',
     'app.sheet.empty': 'No product selected. Use Identify or pick one from Inventory.',
+    'validation.title': 'Pre-Listing Validation',
+    'validation.run': 'Run Validation',
+    'validation.running': 'Validating…',
+    'validation.hint': 'Click "Run Validation" to check product data against marketplace requirements.',
   },
   tr: {
     'nav.dashboard': 'Panel',
@@ -1720,6 +1728,10 @@ const messages: Record<Locale, Dict> = {
     'input.model.fallback': 'Backend yedeği',
     'input.submit': 'Grupları tanımla',
     'app.sheet.empty': 'Ürün seçilmedi. Tanımla bölümünü kullan veya envanterden seç.',
+    'validation.title': 'Listeleme Oncesi Dogrulama',
+    'validation.run': 'Dogrulamayı Baslat',
+    'validation.running': 'Dogrulanıyor…',
+    'validation.hint': 'Urun verilerini pazar yeri gereksinimlerine gore kontrol etmek icin "Dogrulamayı Baslat"a tıklayın.',
   },
 };
 

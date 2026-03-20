@@ -856,6 +856,45 @@ export interface ProductEnrichmentRecord {
 }
 
 
+// ── Pre-Listing Validation (VAL-001) ──
+
+export interface ValidationIssue {
+  code: string;
+  severity: "error" | "warning" | "info";
+  message: string;
+  fields: string[];
+  suggestion: string | null;
+}
+
+export interface ValidationMarketplaceResult {
+  marketplace: string;
+  score: number;
+  ready: boolean;
+  errors: ValidationIssue[];
+  warnings: ValidationIssue[];
+  info: ValidationIssue[];
+  counts: { errors: number; warnings: number; info: number };
+}
+
+export interface ValidationResults {
+  ebay?: ValidationMarketplaceResult;
+  kaufland?: ValidationMarketplaceResult;
+}
+
+export interface ValidationBatchEntry {
+  productId: string;
+  productName: string | null;
+  error?: string;
+  ebay?: { score: number; ready: boolean; counts: { errors: number; warnings: number; info: number } };
+  kaufland?: { score: number; ready: boolean; counts: { errors: number; warnings: number; info: number } };
+}
+
+export interface ValidationBatchResponse {
+  ok: boolean;
+  results: ValidationBatchEntry[];
+  summary: { total: number; ebay_ready?: number; kaufland_ready?: number };
+}
+
 export interface IdentificationJob {
   id: string;
   status: IdentificationJobStatus;
