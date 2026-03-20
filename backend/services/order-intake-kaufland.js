@@ -9,6 +9,7 @@
 
 const { Firestore, FieldValue } = require('@google-cloud/firestore');
 const { kauflandRequest } = require('../lib/kaufland-api');
+const { sanitizeText } = require('../lib/html-entities');
 const { getNextNumber } = require('./number-sequence');
 const { reserveStock } = require('./stock-reservation');
 const { emitSyncEvent } = require('./sync-event-bus');
@@ -88,7 +89,7 @@ function mapKauflandOrder(klOrder) {
   const units = klOrder.order_units || [];
 
   const items = units.map((unit) => ({
-    name: unit.product?.title || unit.offer_id || 'Unbekannter Artikel',
+    name: sanitizeText(unit.product?.title) || unit.offer_id || 'Unbekannter Artikel',
     sku: unit.id_offer || null,
     quantity: parseInt(unit.quantity || '1', 10),
     priceBrutto: parseFloat(unit.price || '0') / 100, // Kaufland prices in cents
@@ -131,13 +132,13 @@ function mapKauflandOrder(klOrder) {
     totalAmount,
     currency: 'EUR',
     customer: {
-      name: [shippingAddr.first_name, shippingAddr.last_name].filter(Boolean).join(' ')
-        || [billingAddr.first_name, billingAddr.last_name].filter(Boolean).join(' ')
-        || buyer.name || 'Unbekannt',
-      street: [shippingAddr.street, shippingAddr.house_number].filter(Boolean).join(' ')
-        || [billingAddr.street, billingAddr.house_number].filter(Boolean).join(' ')
+      name: sanitizeText([shippingAddr.first_name, shippingAddr.last_name].filter(Boolean).join(' '))
+        || sanitizeText([billingAddr.first_name, billingAddr.last_name].filter(Boolean).join(' '))
+        || sanitizeText(buyer.name) || 'Unbekannt',
+      street: sanitizeText([shippingAddr.street, shippingAddr.house_number].filter(Boolean).join(' '))
+        || sanitizeText([billingAddr.street, billingAddr.house_number].filter(Boolean).join(' '))
         || null,
-      city: shippingAddr.city || billingAddr.city || null,
+      city: sanitizeText(shippingAddr.city) || sanitizeText(billingAddr.city) || null,
       zip: shippingAddr.postcode || billingAddr.postcode || null,
       country: shippingAddr.country || billingAddr.country || 'DE',
       phone: shippingAddr.phone || billingAddr.phone || buyer.phone || null,
@@ -162,7 +163,7 @@ function mapKauflandOrder(klOrder) {
     shippingCost: shippingCost || null,
     trackingNumber,
     carrier,
-    buyerNote: klOrder.note || null,
+    buyerNote: sanitizeText(klOrder.note) || null,
     raw: klOrder,
   };
 }

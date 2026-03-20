@@ -9,6 +9,7 @@
 
 const { Firestore, FieldValue } = require('@google-cloud/firestore');
 const { callTradingApi } = require('../lib/ebay-trading-api');
+const { sanitizeText } = require('../lib/html-entities');
 const { getNextNumber } = require('./number-sequence');
 const { reserveStock } = require('./stock-reservation');
 const { syncStockWithRetry } = require('./stock-sync-dispatcher');
@@ -138,7 +139,7 @@ function mapEbayOrder(ebayOrder) {
     const ean = allSpecs.find((nv) => nv?.Name === 'EAN')?.Value?.[0] || null;
 
     return {
-      name: tx?.Item?.Title || 'Unbekannter Artikel',
+      name: sanitizeText(tx?.Item?.Title) || 'Unbekannter Artikel',
       sku: tx?.Item?.SKU || tx?.Variation?.SKU || null,
       quantity: parseInt(tx?.QuantityPurchased || '1', 10),
       priceBrutto: parseFloat(tx?.TransactionPrice?.['#text'] || tx?.TransactionPrice || '0'),
@@ -170,9 +171,9 @@ function mapEbayOrder(ebayOrder) {
     totalAmount,
     currency: ebayOrder?.Total?.['@_currencyID'] || 'EUR',
     customer: {
-      name: shippingAddr?.Name || ebayOrder?.BuyerUserID || 'Unbekannt',
-      street: [shippingAddr?.Street1, shippingAddr?.Street2].filter(Boolean).join(', ') || null,
-      city: shippingAddr?.CityName || null,
+      name: sanitizeText(shippingAddr?.Name) || ebayOrder?.BuyerUserID || 'Unbekannt',
+      street: [shippingAddr?.Street1, shippingAddr?.Street2].filter(Boolean).map(sanitizeText).join(', ') || null,
+      city: sanitizeText(shippingAddr?.CityName) || null,
       zip: shippingAddr?.PostalCode || null,
       country: shippingAddr?.Country || null,
       phone: sanitizeContactField(shippingAddr?.Phone),
@@ -185,7 +186,7 @@ function mapEbayOrder(ebayOrder) {
     shippingCost: parseFloat(ebayOrder?.ShippingServiceSelected?.ShippingServiceCost?.['#text'] || '0'),
     trackingNumber,
     carrier,
-    buyerNote: ebayOrder?.BuyerCheckoutMessage || null,
+    buyerNote: sanitizeText(ebayOrder?.BuyerCheckoutMessage) || null,
     raw: ebayOrder,
   };
 }

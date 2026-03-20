@@ -9,6 +9,7 @@
 
 const { FieldValue } = require('@google-cloud/firestore');
 const { firestore } = require('../lib/firestore');
+const { sanitizeText } = require('../lib/html-entities');
 
 const RETURNS_COLLECTION = 'returns';
 const ORDERS_COLLECTION = 'orders';
@@ -412,12 +413,12 @@ async function syncEbayReturns({ tenantId = 'default', lookbackDays = 30 } = {})
           }
           // Fix customer name if it was stored as eBay username
           const shipTo = order.fulfillmentStartInstructions?.[0]?.shippingStep?.shipTo;
-          const realName = shipTo?.fullName || shipTo?.contactAddress?.fullName || null;
+          const realName = sanitizeText(shipTo?.fullName) || sanitizeText(shipTo?.contactAddress?.fullName) || null;
           if (realName && (!existingData.customer?.name || existingData.customer.name === order.buyer?.username)) {
             updates.customer = { name: realName, email: shipTo?.email || existingData.customer?.email || null };
           }
           // Fix missing product name
-          const pNames = (order.lineItems || []).map((li) => li.title).filter(Boolean);
+          const pNames = (order.lineItems || []).map((li) => sanitizeText(li.title)).filter(Boolean);
           if (pNames[0] && (!existingData.product?.name)) {
             updates.product = { ...existingData.product, name: pNames[0] };
           }
@@ -439,13 +440,13 @@ async function syncEbayReturns({ tenantId = 'default', lookbackDays = 30 } = {})
         }
 
         const productNames = (order.lineItems || [])
-          .map((li) => li.title)
+          .map((li) => sanitizeText(li.title))
           .filter(Boolean);
 
         // Extract real customer name from shipping address (not username)
         const shipTo = order.fulfillmentStartInstructions?.[0]?.shippingStep?.shipTo;
-        const buyerFullName = shipTo?.fullName
-          || (shipTo?.contactAddress?.fullName)
+        const buyerFullName = sanitizeText(shipTo?.fullName)
+          || sanitizeText(shipTo?.contactAddress?.fullName)
           || order.buyer?.username
           || null;
         const buyerEmail = shipTo?.email || order.buyer?.email || null;
@@ -647,8 +648,8 @@ async function syncKauflandReturns({ tenantId = 'default', lookbackDays = 30 } =
         const ouProduct = orderUnitDetail?.product || {};
         const ouShipping = orderUnitDetail?.shipping_address || orderUnitDetail?.billing_address || {};
         const buyerName = ouShipping.first_name && ouShipping.last_name
-          ? `${ouShipping.first_name} ${ouShipping.last_name}`
-          : (kr.buyer_name || kr.buyer?.name || null);
+          ? sanitizeText(`${ouShipping.first_name} ${ouShipping.last_name}`)
+          : sanitizeText(kr.buyer_name || kr.buyer?.name) || null;
 
         const returnDoc = {
           tenantId,
@@ -662,7 +663,7 @@ async function syncKauflandReturns({ tenantId = 'default', lookbackDays = 30 } =
             email: ouBuyer.email || kr.buyer_email || null,
           },
           product: {
-            name: ouProduct.title || kr.product_title || kr.title || null,
+            name: sanitizeText(ouProduct.title) || sanitizeText(kr.product_title) || sanitizeText(kr.title) || null,
             sku: orderUnitDetail?.id_offer || (kr.id_offer ? String(kr.id_offer) : null),
             quantity: kr.quantity || 1,
             ean: ouProduct.eans?.[0] || null,
@@ -670,7 +671,7 @@ async function syncKauflandReturns({ tenantId = 'default', lookbackDays = 30 } =
           },
           reason,
           reasonRaw: unitReason,
-          reasonText: firstUnit.note || kr.reason_comment || null,
+          reasonText: sanitizeText(firstUnit.note) || sanitizeText(kr.reason_comment) || null,
           refundAmount: parseFloat(kr.refund_amount || '0')
             || (orderUnitDetail?.price ? (orderUnitDetail.price / 100) : 0)
             || 0,

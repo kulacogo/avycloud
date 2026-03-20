@@ -89,7 +89,21 @@ function decodeHtmlEntitiesDeep(value, maxPasses = 3) {
   return current;
 }
 
+/**
+ * Sanitize text from external sources (marketplaces, webhooks).
+ * Strips HTML tags and decodes entities to prevent XSS.
+ */
+function sanitizeText(value) {
+  if (value == null) return value;
+  const str = safeString(value);
+  if (!str) return '';
+  // Strip HTML tags, then decode entities
+  const stripped = str.replace(/<[^>]*>/g, '');
+  return decodeHtmlEntitiesDeep(stripped).replace(/\s+/g, ' ').trim();
+}
+
 module.exports = {
   decodeHtmlEntities,
   decodeHtmlEntitiesDeep,
+  sanitizeText,
 };
