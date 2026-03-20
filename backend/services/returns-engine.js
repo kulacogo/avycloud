@@ -9,7 +9,7 @@
 
 const { FieldValue } = require('@google-cloud/firestore');
 const { firestore } = require('../lib/firestore');
-const { sanitizeText } = require('../lib/html-entities');
+const { sanitizeText, validateEmail } = require('../lib/html-entities');
 
 const RETURNS_COLLECTION = 'returns';
 const ORDERS_COLLECTION = 'orders';
@@ -415,7 +415,7 @@ async function syncEbayReturns({ tenantId = 'default', lookbackDays = 30 } = {})
           const shipTo = order.fulfillmentStartInstructions?.[0]?.shippingStep?.shipTo;
           const realName = sanitizeText(shipTo?.fullName) || sanitizeText(shipTo?.contactAddress?.fullName) || null;
           if (realName && (!existingData.customer?.name || existingData.customer.name === order.buyer?.username)) {
-            updates.customer = { name: realName, email: shipTo?.email || existingData.customer?.email || null };
+            updates.customer = { name: realName, email: validateEmail(shipTo?.email) || existingData.customer?.email || null };
           }
           // Fix missing product name
           const pNames = (order.lineItems || []).map((li) => sanitizeText(li.title)).filter(Boolean);
@@ -449,7 +449,7 @@ async function syncEbayReturns({ tenantId = 'default', lookbackDays = 30 } = {})
           || sanitizeText(shipTo?.contactAddress?.fullName)
           || order.buyer?.username
           || null;
-        const buyerEmail = shipTo?.email || order.buyer?.email || null;
+        const buyerEmail = validateEmail(shipTo?.email) || validateEmail(order.buyer?.email);
 
         const returnDoc = {
           tenantId,
@@ -660,7 +660,7 @@ async function syncKauflandReturns({ tenantId = 'default', lookbackDays = 30 } =
           orderId: null,
           customer: {
             name: buyerName,
-            email: ouBuyer.email || kr.buyer_email || null,
+            email: validateEmail(ouBuyer.email) || validateEmail(kr.buyer_email),
           },
           product: {
             name: sanitizeText(ouProduct.title) || sanitizeText(kr.product_title) || sanitizeText(kr.title) || null,

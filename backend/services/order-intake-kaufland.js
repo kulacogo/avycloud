@@ -9,7 +9,7 @@
 
 const { Firestore, FieldValue } = require('@google-cloud/firestore');
 const { kauflandRequest } = require('../lib/kaufland-api');
-const { sanitizeText } = require('../lib/html-entities');
+const { sanitizeText, validateEmail } = require('../lib/html-entities');
 const { getNextNumber } = require('./number-sequence');
 const { reserveStock } = require('./stock-reservation');
 const { emitSyncEvent } = require('./sync-event-bus');
@@ -142,7 +142,7 @@ function mapKauflandOrder(klOrder) {
       zip: shippingAddr.postcode || billingAddr.postcode || null,
       country: shippingAddr.country || billingAddr.country || 'DE',
       phone: shippingAddr.phone || billingAddr.phone || buyer.phone || null,
-      email: buyer.email || null,
+      email: validateEmail(buyer.email),
     },
     billingAddress: {
       name: [billingAddr.first_name, billingAddr.last_name].filter(Boolean).join(' ')

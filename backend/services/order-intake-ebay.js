@@ -9,7 +9,7 @@
 
 const { Firestore, FieldValue } = require('@google-cloud/firestore');
 const { callTradingApi } = require('../lib/ebay-trading-api');
-const { sanitizeText } = require('../lib/html-entities');
+const { sanitizeText, validateEmail } = require('../lib/html-entities');
 const { getNextNumber } = require('./number-sequence');
 const { reserveStock } = require('./stock-reservation');
 const { syncStockWithRetry } = require('./stock-sync-dispatcher');
@@ -177,7 +177,7 @@ function mapEbayOrder(ebayOrder) {
       zip: shippingAddr?.PostalCode || null,
       country: shippingAddr?.Country || null,
       phone: sanitizeContactField(shippingAddr?.Phone),
-      email: sanitizeContactField(ebayOrder?.TransactionArray?.Transaction?.[0]?.Buyer?.Email),
+      email: validateEmail(sanitizeContactField(ebayOrder?.TransactionArray?.Transaction?.[0]?.Buyer?.Email)),
     },
     items,
     paymentStatus: ebayOrder?.CheckoutStatus?.eBayPaymentStatus || ebayOrder?.PaymentStatus || null,

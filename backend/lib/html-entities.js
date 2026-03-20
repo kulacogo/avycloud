@@ -102,8 +102,21 @@ function sanitizeText(value) {
   return decodeHtmlEntitiesDeep(stripped).replace(/\s+/g, ' ').trim();
 }
 
+/**
+ * Validate and normalize an email address from marketplace data.
+ * Returns the trimmed email if valid, null otherwise.
+ */
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+function validateEmail(value) {
+  if (value == null || typeof value !== 'string') return null;
+  const trimmed = value.trim().toLowerCase();
+  if (!trimmed || !EMAIL_RE.test(trimmed)) return null;
+  return trimmed;
+}
+
 module.exports = {
   decodeHtmlEntities,
   decodeHtmlEntitiesDeep,
   sanitizeText,
+  validateEmail,
 };
