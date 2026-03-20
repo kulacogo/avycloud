@@ -4680,3 +4680,107 @@ export const executeProductsImport = async (
     return { ok: false, error: errorInfo };
   }
 };
+
+/* ─── Rule Engine API (RULE-001) ─── */
+
+export interface RuleData {
+  id: string;
+  name: string;
+  description?: string;
+  active: boolean;
+  conditions: { field: string; operator: string; value?: any }[];
+  actions: { type: string; field: string; value?: any; params?: Record<string, any> }[];
+  channel?: string | null;
+  stats: { lastRunAt: string | null; lastRunProducts: number; lastRunApplied: number; totalRuns: number };
+  createdAt: string;
+  updatedAt?: string;
+  createdBy?: string;
+}
+
+export interface RuleJobData {
+  id: string;
+  ruleId: string;
+  status: "pending" | "processing" | "done" | "failed";
+  mode: "execute" | "dry_run";
+  progress: { total: number; processed: number; applied: number; skipped: number; errors: number };
+  result?: { summary: string; changes: { productId: string; productName: string; field: string; oldValue: any; newValue: any }[] } | null;
+  error?: string | null;
+}
+
+export async function listRules(active?: boolean): Promise<RuleData[]> {
+  const url = new URL(`${BACKEND_URL}/api/v1/rules`);
+  if (active !== undefined) url.searchParams.set("active", String(active));
+  const res = await fetchApi(url.toString(), { method: "GET" });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) throw new Error(data?.error?.message || "Failed to load rules");
+  return data?.data || [];
+}
+
+export async function getRule(ruleId: string): Promise<RuleData> {
+  const res = await fetchApi(`${BACKEND_URL}/api/v1/rules/${encodeURIComponent(ruleId)}`, { method: "GET" });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) throw new Error(data?.error?.message || "Rule not found");
+  return data?.data;
+}
+
+export async function createRule(body: Partial<RuleData>): Promise<RuleData> {
+  const res = await fetchApi(`${BACKEND_URL}/api/v1/rules`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) throw new Error(data?.error?.message || "Failed to create rule");
+  return data?.data;
+}
+
+export async function updateRule(ruleId: string, body: Partial<RuleData>): Promise<RuleData> {
+  const res = await fetchApi(`${BACKEND_URL}/api/v1/rules/${encodeURIComponent(ruleId)}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) throw new Error(data?.error?.message || "Failed to update rule");
+  return data?.data;
+}
+
+export async function deleteRule(ruleId: string): Promise<void> {
+  const res = await fetchApi(`${BACKEND_URL}/api/v1/rules/${encodeURIComponent(ruleId)}`, { method: "DELETE" });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) throw new Error(data?.error?.message || "Failed to delete rule");
+}
+
+export async function toggleRule(ruleId: string): Promise<{ id: string; active: boolean }> {
+  const res = await fetchApi(`${BACKEND_URL}/api/v1/rules/${encodeURIComponent(ruleId)}/toggle`, { method: "PATCH" });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) throw new Error(data?.error?.message || "Failed to toggle rule");
+  return data?.data;
+}
+
+export async function executeRuleApi(ruleId: string, mode: "execute" | "dry_run", limit?: number): Promise<{ jobId: string; status: string }> {
+  const res = await fetchApi(`${BACKEND_URL}/api/v1/rules/${encodeURIComponent(ruleId)}/execute`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ mode, limit }),
+  });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) throw new Error(data?.error?.message || "Failed to execute rule");
+  return data?.data;
+}
+
+export async function getJobStatus(jobId: string): Promise<RuleJobData> {
+  const res = await fetchApi(`${BACKEND_URL}/api/v1/rules/jobs/${encodeURIComponent(jobId)}`, { method: "GET" });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) throw new Error(data?.error?.message || "Failed to get job status");
+  return data?.data;
+}
+
+export async function previewRule(ruleId: string, limit = 20): Promise<{ matchCount: number; sample: any[] }> {
+  const url = new URL(`${BACKEND_URL}/api/v1/rules/${encodeURIComponent(ruleId)}/preview`);
+  url.searchParams.set("limit", String(limit));
+  const res = await fetchApi(url.toString(), { method: "GET" });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) throw new Error(data?.error?.message || "Failed to preview rule");
+  return data?.data;
+}

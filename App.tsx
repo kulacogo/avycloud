@@ -41,6 +41,7 @@ import { ProfileSettings } from './components/settings/ProfileSettings';
 import { ApiSettings } from './components/settings/ApiSettings';
 import { BillingSettings } from './components/settings/BillingSettings';
 import PricingDashboard from './components/PricingDashboard';
+import RuleDashboard from './components/RuleDashboard';
 import { fetchOrders, fetchProducts, refreshPrice } from './api/client';
 import { useI18n } from './i18n';
 import { addMediaQueryListener } from './utils/mediaQuery';
@@ -83,7 +84,8 @@ type View =
   | 'settings-team'
   | 'settings-api'
   | 'settings-billing'
-  | 'pricing';
+  | 'pricing'
+  | 'rules';
 const VIEW_STORAGE_KEY = 'avystock:view';
 const VIEW_PRODUCT_KEY = 'avystock:view:productId';
 const THEME_STORAGE_KEY = 'avystock:theme';
@@ -122,6 +124,7 @@ const ALLOWED_VIEWS: View[] = [
   'duplicates',
   'audit-log',
   'pricing',
+  'rules',
 ];
 type Theme = 'light' | 'dark';
 
@@ -1057,6 +1060,8 @@ const AppInner: React.FC = () => {
           return <div className="text-center p-8 text-txt-muted">{t('error.forbidden')}</div>;
         }
         return <PricingDashboard />;
+      case 'rules':
+        return <RuleDashboard />;
       case 'duplicates':
         if (!hasPermission('products', 'read')) {
           return <div className="text-center p-8 text-txt-muted">{t('error.forbidden')}</div>;

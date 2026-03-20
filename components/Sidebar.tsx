@@ -34,7 +34,8 @@ export type View =
   | "ebay-listings"
   | "duplicates"
   | "audit-log"
-  | "pricing";
+  | "pricing"
+  | "rules";
 
 interface SidebarProps {
   currentView: View;
@@ -386,6 +387,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, setView }) => {
                 ? [
                     { view: "duplicates" as View, label: "Duplikate", icon: icons.layers },
                     { view: "pricing" as View, label: "Preise", icon: icons.tag },
+                    { view: "rules" as View, label: "Regeln", icon: icons.settings },
                   ]
                 : []),
             ],
