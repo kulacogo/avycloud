@@ -16,6 +16,7 @@
 - [ ] FIX-10: Dashboard-Zahl = Seiten-Zahl für Retouren
 - [ ] FIX-11: `node backend/scripts/backfill-weights.js --write` ausführen
 - [ ] FIX-12: SSE-Streams funktionieren ohne Token in URL
+- [ ] Audit-Log: Firestore Composite Index erstellen (FAILED_PRECONDITION Error)
 
 ## Aktive Bugs (P0/P1)
 
@@ -24,31 +25,44 @@
 - [ ] **B5** Invoice Email-Versand fehlt
 - [ ] **B6** Gutschriften/Stornorechnungen fehlen
 
-## OMS Audit — Sprint-Block 10 (51 Findings)
+## OMS Audit — Sprint-Block 10
 
 > Details: `oms-audit-report.html` im Root
 
-**Critical (P0):** FIX-B001 bis B009 (8 offen, 1 erledigt)
-**High (P1):** FIX-B010 bis B021 (12 offen)
-**Security (P1):** FIX-S001 bis S004 (4 offen, S001 ≈ FIX-12)
+**Critical (P0):** ✅ erledigt
+- ~~B001~~ ~~B002~~ ~~B003~~ ~~B004~~ ~~B005~~ ~~B006~~ ~~B007~~ ~~B008~~ ~~B009~~ — alle gefixt
+
+**High (P1):** ✅ erledigt
+- ~~B010~~ SendCloud Retry — ~~B011~~ Tracking Retry — ~~B012~~ Kaufland HMAC
+- ~~B013~~ Kaufland closed→cancelled — ~~B015~~ refetch nach Mutation
+- ~~B017~~ Bulk-Ops Details — ~~B020~~ Return Enums — ~~B021~~ JSON.parse try-catch
+- [ ] **B014** Kaufland Einzelpreise (item.price / 100) — offen
+- [ ] **B016** Invoice amountNet/amountNetto Normalisierung — offen
+- [ ] **B018** Kaufland API Response Array-Check — offen
+- [ ] **B019** eBay Refund-Push via Post-Order API — offen
+
+**Security (P1):** ✅ erledigt
+- ~~S001~~ JWT aus URL — ~~S002~~ XSS-Schutz — ~~S004~~ Email-Validierung
+- [ ] **S003** Kaufland Webhook HMAC — evtl. durch B012 abgedeckt, prüfen
+
 **Medium/Low (P2):** FIX-B022 bis B047 (26 offen)
 
 ## Feature Backlog
 
-| ID | Feature | Prio | Spec |
-|----|---------|------|------|
-| BULK-001 | Bulk Editing MVP | P0 ✅ done | `docs/features/BULK-001-bulk-editing/spec.md` |
-| ERR-001 | Error Dashboard | P0 ✅ done | `docs/features/ERR-001-error-dashboard/spec.md` |
-| PRICE-001 | Pricing Engine UI | P0 ✅ done | `docs/features/PRICE-001-pricing-engine-ui/spec.md` |
-| AI-001 | AI Listing Pipeline | P1 | `docs/features/AI-001-ai-listing-pipeline/spec.md` |
-| VAL-001 | Pre-Listing Validation | P1 | `docs/features/VAL-001-pre-listing-validation/spec.md` |
-| RULE-001 | Rule Engine | P1 | `docs/features/RULE-001-rule-engine/spec.md` |
-| VAR-001 | Variant Model | P1 | `docs/features/VAR-001-variant-model/spec.md` |
-| IMG-001 | Image Enhancement | P2 | `docs/features/IMG-001-image-enhancement/spec.md` |
-| DASH-001 | Analytics Dashboard | P2 | `docs/features/DASH-001-analytics-dashboard/spec.md` |
-| MP-001 | Amazon Integration | P2 | `docs/features/MP-001-amazon-integration/spec.md` |
-| MP-002 | Otto Integration | P2 | `docs/features/MP-002-otto-integration/spec.md` |
-| UX-001 | Onboarding Wizard | P2 | `docs/features/UX-001-onboarding-wizard/spec.md` |
+| ID | Feature | Prio | Status |
+|----|---------|------|--------|
+| BULK-001 | Bulk Editing MVP | P0 | ✅ done + merged |
+| ERR-001 | Error Dashboard | P0 | ✅ done + merged |
+| PRICE-001 | Pricing Engine UI | P0 | ✅ done + merged |
+| AI-001 | AI Listing Pipeline | P1 | ✅ done + merged |
+| VAL-001 | Pre-Listing Validation | P1 | ✅ done + merged |
+| RULE-001 | Rule Engine | P1 | Spec vorhanden, nicht implementiert |
+| VAR-001 | Variant Model | P1 | Spec vorhanden, nicht implementiert |
+| IMG-001 | Image Enhancement | P2 | Spec vorhanden, nicht implementiert |
+| DASH-001 | Analytics Dashboard | P2 | Spec vorhanden, nicht implementiert |
+| MP-001 | Amazon Integration | P2 | Spec vorhanden, nicht implementiert |
+| MP-002 | Otto Integration | P2 | Spec vorhanden, nicht implementiert |
+| UX-001 | Onboarding Wizard | P2 | Spec vorhanden, nicht implementiert |
 
 ## Waiting On
 
