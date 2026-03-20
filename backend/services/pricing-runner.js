@@ -21,6 +21,8 @@ const PRICING_RUNNER_INITIAL_DELAY_MS = parseInt(
 
 let runnerTimer = null;
 let runInFlight = false;
+let lastRunAt = null;
+let lastRunResult = null;
 
 async function runPricingCycle() {
   if (runInFlight) {
@@ -31,6 +33,8 @@ async function runPricingCycle() {
   console.log('[PricingRunner] Starting repricing cycle...');
   try {
     const results = await runRepricingJob();
+    lastRunAt = new Date().toISOString();
+    lastRunResult = results;
     console.log(
       `[PricingRunner] Cycle complete: processed=${results.processed}, updated=${results.updated}, errors=${results.errors}`
     );
@@ -60,4 +64,15 @@ function stopPricingRunner() {
   }
 }
 
-module.exports = { startPricingRunner, stopPricingRunner };
+function getPricingRunnerStatus() {
+  return {
+    enabled: PRICING_RUNNER_ENABLED,
+    running: runnerTimer !== null,
+    inFlight: runInFlight,
+    lastRunAt,
+    lastRunResult,
+    intervalMs: PRICING_RUNNER_INTERVAL_MS,
+  };
+}
+
+module.exports = { startPricingRunner, stopPricingRunner, getPricingRunnerStatus };

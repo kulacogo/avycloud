@@ -1055,6 +1055,16 @@ router.get('/email-templates/:name/preview', requirePermission('admin', 'read'),
   }
 });
 
+// --- Pricing Runner Status ---
+router.get('/pricing/runner-status', requirePermission('admin', 'read'), async (req, res) => {
+  try {
+    const { getPricingRunnerStatus } = require('../services/pricing-runner');
+    res.json({ ok: true, data: getPricingRunnerStatus() });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: err.message } });
+  }
+});
+
 // --- Audit Log ---
 const { queryAuditLog } = require('../services/audit-log');
 

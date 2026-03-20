@@ -10,6 +10,7 @@ import {
 } from "../api/client";
 import { Order, OrderStatus, getOrderStatus } from "../types";
 import { EmptyState } from "./ui/EmptyState";
+import { exportToCsv } from "../utils/csv-export";
 import { SyncIcon } from "./icons/Icons";
 import { OrderDetail } from "./OrderDetail";
 
@@ -430,6 +431,25 @@ const OrdersView: React.FC = () => {
           >
             <SyncIcon className={`w-4 h-4 ${syncing ? "animate-spin" : ""}`} />
             {syncing ? t("ops.orders.syncing") : t("ops.orders.sync")}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              const headers = ["Bestellnr", "Datum", "Kunde", "Status", "Marketplace", "Betrag"];
+              const rows = filteredOrders.map((o) => [
+                o.number || o.orderId || o.id,
+                o.createdAt ? new Date(o.createdAt).toLocaleDateString("de-DE") : "",
+                typeof o.customer === "object" ? (o.customer?.name || "") : "",
+                getOrderStatus(o),
+                o.marketplace || o.source || "",
+                o.totalAmount != null ? o.totalAmount.toFixed(2) : "",
+              ]);
+              exportToCsv(`bestellungen-${new Date().toISOString().slice(0, 10)}.csv`, headers, rows);
+            }}
+            disabled={filteredOrders.length === 0}
+            className="inline-flex items-center gap-2 rounded-xl border border-app-border bg-app-surface text-txt-primary px-4 py-2.5 text-sm font-semibold hover:bg-app-elevated transition disabled:opacity-50"
+          >
+            CSV Export
           </button>
         </div>
       </div>
