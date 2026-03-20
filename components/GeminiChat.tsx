@@ -940,7 +940,7 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
                             <a
                               href={item.url}
                               target="_blank"
-                              rel="noreferrer"
+                              rel="noopener noreferrer"
                               className="text-accent underline hover:text-accent"
                             >
                               {item.title || item.url}

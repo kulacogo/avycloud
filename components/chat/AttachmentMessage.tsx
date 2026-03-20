@@ -42,7 +42,7 @@ const AttachmentMessage: React.FC<AttachmentMessageProps> = ({
               href={url}
               download={name}
               target="_blank"
-              rel="noreferrer"
+              rel="noopener noreferrer"
               className="text-accent hover:text-accent"
             >
               Download
@@ -65,7 +65,7 @@ const AttachmentMessage: React.FC<AttachmentMessageProps> = ({
             href={url}
             download={name}
             target="_blank"
-            rel="noreferrer"
+            rel="noopener noreferrer"
             className="ml-3 whitespace-nowrap text-accent hover:text-accent"
           >
             Download

@@ -311,7 +311,7 @@ const ReturnDetail: React.FC<{
                   {mp.label}
                 </span>
               )}
-              <span className={`inline-flex rounded-md px-2 py-0.5 text-[11px] font-semibold whitespace-nowrap ${status.cls}`}>
+              <span className={`inline-flex rounded-md px-2 py-0.5 text-[11px] font-semibold whitespace-nowrap ${status.cls}`} aria-label={`Status: ${status.label}`}>
                 {status.label}
               </span>
             </div>
@@ -402,7 +402,7 @@ const ReturnDetail: React.FC<{
               />
               <DetailRow
                 label="Eingang"
-                value={ret.createdAt ? new Date(ret.createdAt).toLocaleString("de-DE") : "—"}
+                value={ret.createdAt ? new Date(ret.createdAt).toLocaleString("de-DE", { timeZone: "Europe/Berlin" }) : "—"}
               />
               {ret.marketplaceRefundStatus && (
                 <DetailRow label="Marktplatz-Erstattung" value={ret.marketplaceRefundStatus} />
@@ -464,7 +464,7 @@ const ReturnDetail: React.FC<{
                           )}
                           {(event.timestamp || event.createdAt) && (
                             <span className="text-xs text-txt-muted">
-                              {new Date(event.timestamp || event.createdAt).toLocaleString("de-DE")}
+                              {new Date(event.timestamp || event.createdAt).toLocaleString("de-DE", { timeZone: "Europe/Berlin" })}
                             </span>
                           )}
                         </div>

@@ -411,7 +411,7 @@ export const ShippingView: React.FC = () => {
               <tbody>
                 {filtered.map((shp) => {
                   const carrierKey = (shp.carrier || "").toUpperCase().replace("_DE", "");
-                  const carrier = CARRIER_STYLE[carrierKey] || { cls: "bg-app-elevated text-txt-muted", initial: carrierKey.charAt(0) || "?" };
+                  const carrier = CARRIER_STYLE[carrierKey] || { cls: "bg-app-elevated text-txt-muted", initial: carrierKey.length <= 4 ? carrierKey : carrierKey.slice(0, 2) };
                   const status = STATUS_CONFIG[shp.status || ""] || { label: shp.status || "—", cls: "bg-app-elevated text-txt-muted" };
                   return (
                     <tr
@@ -464,7 +464,7 @@ export const ShippingView: React.FC = () => {
                         )}
                       </td>
                       <td className="px-4 py-3">
-                        <span className={`inline-flex rounded-md px-2 py-0.5 text-[11px] font-semibold ${status.cls}`}>
+                        <span className={`inline-flex rounded-md px-2 py-0.5 text-[11px] font-semibold ${status.cls}`} aria-label={`Status: ${status.label}`}>
                           {status.label}
                         </span>
                       </td>

@@ -172,6 +172,7 @@ export const InvoicesView: React.FC = () => {
   const kpis = useMemo(() => {
     const main = invoices.filter((inv) => !(inv as any).type);
     const openInvs = main.filter((inv) => OPEN_STATUSES.has(inv.status || ""));
+    // Client-time is acceptable here: dueDate has day granularity, so ±1h timezone skew is irrelevant
     const today = Date.now();
     const overdue = main.filter((inv) => {
       if (inv.status === "bezahlt" || inv.status === "storniert") return false;
@@ -432,7 +433,7 @@ export const InvoicesView: React.FC = () => {
                       </td>
                       {/* Status */}
                       <td className="px-4 py-3">
-                        <span className={`inline-flex rounded-md px-2 py-0.5 text-[11px] font-semibold ${statusCfg.cls}`}>
+                        <span className={`inline-flex rounded-md px-2 py-0.5 text-[11px] font-semibold ${statusCfg.cls}`} aria-label={`Status: ${statusCfg.label}`}>
                           {statusCfg.label}
                         </span>
                       </td>

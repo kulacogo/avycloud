@@ -584,7 +584,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
               <a
                 href={viewItemUrl}
                 target="_blank"
-                rel="noreferrer"
+                rel="noopener noreferrer"
                 onClick={(e) => e.stopPropagation()}
                 title="eBay-Listing öffnen"
                 className="inline-flex items-center justify-center rounded-full bg-amber-500/20 px-2 py-0.5 text-xs font-semibold text-amber-200 hover:bg-amber-500/30 hover:text-amber-100"
@@ -667,7 +667,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
               <a
                 href={viewItemUrl}
                 target="_blank"
-                rel="noreferrer"
+                rel="noopener noreferrer"
                 onClick={(e) => e.stopPropagation()}
                 title="Kaufland-Listing öffnen"
                 className="inline-flex items-center justify-center rounded-full bg-danger-dim px-2 py-0.5 text-xs font-semibold text-danger hover:bg-danger/20 hover:text-danger"

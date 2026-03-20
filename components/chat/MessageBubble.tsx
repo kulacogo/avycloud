@@ -136,7 +136,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                       key={`link-${idx}`}
                       href={part}
                       target="_blank"
-                      rel="noreferrer"
+                      rel="noopener noreferrer"
                       className="break-words text-accent underline hover:text-accent"
                     >
                       {part}
