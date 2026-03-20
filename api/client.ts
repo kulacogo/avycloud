@@ -1071,7 +1071,13 @@ export async function fetchInvoices(params?: { status?: string; limit?: number }
   const res = await fetchApi(url.toString(), { method: 'GET' });
   const data = await parseResponse(res);
   if (!res.ok || data?.ok === false) throw new Error(data?.error?.message || 'Failed to load invoices');
-  return Array.isArray(data?.data) ? data.data : [];
+  const invoices: InvoiceData[] = Array.isArray(data?.data) ? data.data : [];
+  // Normalize dual field names (backend writes amountNetto/amountBrutto in older invoices)
+  for (const inv of invoices) {
+    inv.amountNet = inv.amountNet ?? (inv as any).amountNetto ?? 0;
+    inv.amountGross = inv.amountGross ?? (inv as any).amountBrutto ?? 0;
+  }
+  return invoices;
 }
 
 export async function updateInvoiceStatus(id: string, status: string): Promise<any> {
