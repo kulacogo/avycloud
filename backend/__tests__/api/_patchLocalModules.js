@@ -257,7 +257,7 @@ patchLocalModule('../../services/pick-hints.js', {
 });
 
 // lib/sevdesk.js (for orders.test.js)
-spies.getCheckAccountBalances = vi.fn().mockResolvedValue([]);
+spies.getCheckAccountBalances = vi.fn().mockResolvedValue({ accounts: [], total: 0 });
 spies.getShippingCostsFromSevDesk = vi.fn().mockResolvedValue({});
 patchLocalModule('../../lib/sevdesk.js', {
   getCheckAccountBalances: spies.getCheckAccountBalances,

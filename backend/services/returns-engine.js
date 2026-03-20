@@ -51,6 +51,15 @@ const RETURN_REASONS = {
   sonstiges:           { label: 'Sonstiges', refundDefault: 'partial' },
 };
 
+const VALID_REASONS = new Set(Object.keys(RETURN_REASONS));
+
+/** Validate mapped reason against known enum; fall back to 'sonstiges'. */
+function validateReason(mapped, original) {
+  if (VALID_REASONS.has(mapped)) return mapped;
+  console.warn(`[returns-engine] Unknown return reason: "${original}" mapped to "${mapped}" → falling back to "sonstiges"`);
+  return 'sonstiges';
+}
+
 /**
  * eBay return reason → internal category mapping.
  */
@@ -394,6 +403,7 @@ async function syncEbayReturns({ tenantId = 'default', lookbackDays = 30 } = {})
         } else if (refundedItems.length > 0) {
           reason = EBAY_REASON_MAP[refundReason] || 'meinungsaenderung';
         }
+        reason = validateReason(reason, ebayReason);
 
         // Deduplicate
         const existing = await db.collection(RETURNS_COLLECTION)
@@ -489,7 +499,9 @@ async function syncEbayReturns({ tenantId = 'default', lookbackDays = 30 } = {})
           }
         }
 
-        await db.collection(RETURNS_COLLECTION).add(returnDoc);
+        // Deterministic doc ID prevents duplicates from parallel syncs
+        const docId = `ebay__${marketplaceReturnId}`;
+        await db.collection(RETURNS_COLLECTION).doc(docId).set(returnDoc, { merge: true });
         synced++;
       } catch (err) {
         console.error(`[returns-engine] eBay return parse error: ${err.message}`);
@@ -641,7 +653,10 @@ async function syncKauflandReturns({ tenantId = 'default', lookbackDays = 30 } =
           continue;
         }
 
-        const reason = KAUFLAND_REASON_MAP[unitReason] || KAUFLAND_REASON_MAP[unitReason.toLowerCase()] || 'sonstiges';
+        const reason = validateReason(
+          KAUFLAND_REASON_MAP[unitReason] || KAUFLAND_REASON_MAP[unitReason.toLowerCase()] || 'sonstiges',
+          unitReason
+        );
 
         // Build customer & product from order-unit detail
         const ouBuyer = orderUnitDetail?.buyer || {};
@@ -696,7 +711,9 @@ async function syncKauflandReturns({ tenantId = 'default', lookbackDays = 30 } =
           }
         }
 
-        await db.collection(RETURNS_COLLECTION).add(returnDoc);
+        // Deterministic doc ID prevents duplicates from parallel syncs
+        const docId = `kaufland__${marketplaceReturnId}`;
+        await db.collection(RETURNS_COLLECTION).doc(docId).set(returnDoc, { merge: true });
         synced++;
       } catch (err) {
         console.error(`[returns-engine] Kaufland return parse error: ${err.message}`);

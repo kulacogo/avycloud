@@ -286,7 +286,8 @@ async function syncEbayOrders({ tenantId = 'default', lookbackDays = 7 } = {}) {
 
   // --- Status reconciliation: re-fetch recent orders to pick up status changes ---
   try {
-    const reconcileFrom = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(); // 30 days lookback
+    const reconcileDays = parseInt(process.env.RECONCILIATION_MAX_AGE_DAYS || '30', 10);
+    const reconcileFrom = new Date(Date.now() - reconcileDays * 24 * 60 * 60 * 1000).toISOString();
     let recPage = 1;
     let recTotal = 0;
     let recChecked = 0;
@@ -435,7 +436,8 @@ async function saveOrderIfNew({ tenantId, order }) {
     buyerNote: order.buyerNote,
   };
 
-  await db.collection(ORDERS_COLLECTION).add(doc);
+  // Use marketplaceKey as doc ID for idempotent creation (prevents duplicates on race condition)
+  await db.collection(ORDERS_COLLECTION).doc(marketplaceKey).set(doc);
   return true;
 }
 

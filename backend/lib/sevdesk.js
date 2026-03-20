@@ -153,10 +153,10 @@ async function getShippingCostsFromSevDesk(fromDate, toDate, { forceRefresh = fa
   // Categorise: "sendcloud" vs "direct" (DHL/DPD/GLS paid without SendCloud)
   const categorizeShipping = (t) => {
     const payee = (t?.payeePayerName || '').toLowerCase();
-    const desc  = (t?.paymtPurpose  || '').toLowerCase();
-    const text = payee + ' ' + desc;
-    if (text.includes('sendcloud')) return 'sendcloud';
-    if (SHIPPING_SUPPLIER_KEYWORDS.some(kw => payee.includes(kw) || desc.includes(kw))) return 'direct';
+    // Only check payeePayerName (sender/recipient), NOT paymtPurpose (description)
+    // to avoid false matches from customer notes mentioning "sendcloud"
+    if (payee.includes('sendcloud')) return 'sendcloud';
+    if (SHIPPING_SUPPLIER_KEYWORDS.some(kw => payee.includes(kw))) return 'direct';
     return null;
   };
 

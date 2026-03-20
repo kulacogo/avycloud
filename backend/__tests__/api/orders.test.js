@@ -95,7 +95,7 @@ describe('GET /api/dashboard/finance', () => {
   });
 
   it('returns 200 with finance data', async () => {
-    localMocks.spies.getCheckAccountBalances?.mockResolvedValue([{ amount: 10000, name: 'Girokonto' }]);
+    localMocks.spies.getCheckAccountBalances?.mockResolvedValue({ accounts: [{ id: '1', name: 'Girokonto', balance: 10000, currency: 'EUR' }], total: 10000 });
     localMocks.spies.getShippingCostsFromSevDesk?.mockResolvedValue({ total: 450 });
     localMocks.spies.getEbayNetRevenueSummary?.mockResolvedValue({ net: 4800 });
 
