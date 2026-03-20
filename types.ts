@@ -429,6 +429,12 @@ export interface OrderTimelineEvent {
   timestamp: string;
 }
 
+/* ─── Return Enums ─── */
+export type ReturnReason = 'defekt' | 'falsche_lieferung' | 'nicht_wie_beschrieben' | 'zu_spaet' | 'meinungsaenderung' | 'doppelbestellung' | 'sonstiges';
+export type ReturnItemCondition = 'a_ware' | 'b_ware' | 'c_ware';
+export type ReturnRefundType = 'vollerstattung' | 'teilerstattung' | 'gutschrift' | 'umtausch';
+export type ReturnStatus = 'eingegangen' | 'neu' | 'in_pruefung' | 'erstattet' | 'teilweise_erstattet' | 'abgelehnt' | 'abgeschlossen';
+
 export interface DashboardMetricsDay {
   // Bucket start (UTC). Format depends on bucket type:
   // - day/week/month: YYYY-MM-DD
