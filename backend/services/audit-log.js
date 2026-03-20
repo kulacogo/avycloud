@@ -77,35 +77,39 @@ async function queryAuditLog({
   limit = 100,
   startAfter = null,
 } = {}) {
+  // Simple single-field query + orderBy to avoid composite index requirements.
+  // Firestore allows equality filters on one field + orderBy on another without
+  // a composite index, but range filters (>=, <=) on a different field than
+  // orderBy require one. We filter by tenantId (equality) + order by timestamp,
+  // then apply action prefix matching client-side.
   let query = firestore
     .collection(AUDIT_COLLECTION)
     .where('tenantId', '==', tenantId)
     .orderBy('timestamp', 'desc')
     .limit(Math.min(limit, 500));
 
-  if (action) {
-    // Prefix match: 'product' matches 'product.created', 'product.merged', etc.
-    query = query.where('action', '>=', action).where('action', '<=', action + '\uf8ff');
-  }
-
-  if (resourceType && !action) {
-    query = query.where('resourceType', '==', resourceType);
-  }
-
-  if (resourceId && !action) {
-    query = query.where('resourceId', '==', resourceId);
-  }
-
-  if (userId && !action) {
-    query = query.where('userId', '==', userId);
-  }
-
   if (startAfter) {
     query = query.startAfter(startAfter);
   }
 
   const snap = await query.get();
-  return snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+  let results = snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+
+  // Client-side filtering (avoids composite index requirement)
+  if (action) {
+    results = results.filter((e) => (e.action || '').startsWith(action));
+  }
+  if (resourceType) {
+    results = results.filter((e) => e.resourceType === resourceType);
+  }
+  if (resourceId) {
+    results = results.filter((e) => e.resourceId === resourceId);
+  }
+  if (userId) {
+    results = results.filter((e) => e.userId === userId);
+  }
+
+  return results;
 }
 
 module.exports = {
