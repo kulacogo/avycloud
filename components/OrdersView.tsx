@@ -3,7 +3,6 @@ import { useI18n } from "../i18n";
 import {
   fetchOrders as fetchOrdersApi,
   syncOrders,
-  fetchOrderStatuses,
   syncMarketplaceOrders,
   buildImageProxyUrl,
   bulkTransitionOrders,
@@ -112,7 +111,8 @@ const OrdersView: React.FC = () => {
   const [sortField, setSortField] = useState<"createdAt" | "totalAmount" | "status">("createdAt");
   const [sortAsc, setSortAsc] = useState(false);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
-  const [omsCounts, setOmsCounts] = useState<Record<string, number>>({});
+  // BUG-071: Pipeline counts computed from local orders to match tab counts
+  // Previously fetched from separate backend endpoint which had different filtering.
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
   const [bulkResult, setBulkResult] = useState<string | null>(null);
@@ -171,19 +171,18 @@ const OrdersView: React.FC = () => {
     }
   }, [loadOrders]);
 
-  /* ─── Load OMS status counts ─── */
-  const loadOmsCounts = useCallback(async () => {
-    try {
-      const data = await fetchOrderStatuses();
-      setOmsCounts(data.counts || {});
-    } catch {
-      // non-critical, pipeline just shows zeros
+  /* ─── Pipeline counts (BUG-071: computed from same orders array as tabs) ─── */
+  const omsCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const stage of PIPELINE_STAGES) counts[stage.key] = 0;
+    for (const o of orders) {
+      const s = getOrderStatus(o);
+      if (s in counts) counts[s]++;
+      // "confirmed" in OMS maps to "pending"+"confirmed" — also count "new"
+      else if (s === 'new') counts['pending'] = (counts['pending'] || 0) + 1;
     }
-  }, []);
-
-  useEffect(() => {
-    void loadOmsCounts();
-  }, [loadOmsCounts]);
+    return counts;
+  }, [orders]);
 
   /* ─── KPIs ─── */
   const kpis = useMemo(() => {
@@ -221,13 +220,12 @@ const OrdersView: React.FC = () => {
       const errs = [ebayErr, kauflandErr].filter(Boolean).join("; ");
       setBackfillResult(errs ? `${total} importiert. Fehler: ${errs}` : `${total} Bestellungen importiert (${backfillDays} Tage)`);
       await loadOrders();
-      await loadOmsCounts();
     } catch (err: any) {
       setBackfillResult(`Fehler: ${err?.message || "Unbekannt"}`);
     } finally {
       setBackfilling(false);
     }
-  }, [backfillDays, loadOrders, loadOmsCounts]);
+  }, [backfillDays, loadOrders]);
 
   /* ─── Carrier detection ─── */
   const detectCarrier = useCallback((order: Order): string => {
@@ -376,13 +374,12 @@ const OrdersView: React.FC = () => {
       }
       setSelectedIds(new Set());
       await loadOrders();
-      await loadOmsCounts();
     } catch (err: any) {
       setBulkResult(`Fehler: ${err?.message || 'Unbekannter Fehler'}`);
     } finally {
       setBulkBusy(false);
     }
-  }, [selectedIds, loadOrders, loadOmsCounts]);
+  }, [selectedIds, loadOrders]);
 
   // Clear selection when filter changes
   useEffect(() => { setSelectedIds(new Set()); }, [filter]);
@@ -967,7 +964,6 @@ const OrdersView: React.FC = () => {
           onClose={() => setSelectedOrderId(null)}
           onStatusChange={() => {
             void loadOrders();
-            void loadOmsCounts();
           }}
         />
       )}

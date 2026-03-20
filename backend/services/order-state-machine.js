@@ -347,10 +347,10 @@ async function getOrderTimeline({ orderId, limit = 50 }) {
  */
 async function getStatusCounts({ tenantId = 'default' } = {}) {
   // Firestore doesn't support GROUP BY — we query all and count client-side
-  // For large datasets, use a counters document pattern
   const snap = await getDb()
     .collection(ORDERS_COLLECTION)
-    .select('omsStatus', 'status', 'marketplaceKey')
+    .where('tenantId', '==', tenantId)
+    .select('omsStatus', 'status')
     .limit(5000)
     .get();
 
@@ -361,10 +361,7 @@ async function getStatusCounts({ tenantId = 'default' } = {}) {
 
   for (const doc of snap.docs) {
     const d = doc.data();
-    // Skip legacy BL-only orders (no omsStatus and no marketplaceKey) to avoid stale data pollution
-    if (!d.omsStatus && !d.marketplaceKey) continue;
     const status = d.omsStatus || d.status || 'pending';
-    // Map old statuses to OMS statuses
     const mapped = mapLegacyStatus(status);
     counts[mapped] = (counts[mapped] || 0) + 1;
   }
