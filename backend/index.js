@@ -23,6 +23,7 @@ const settingsRouter = require('./routes/settings');
 const returnsRouter = require('./routes/returns');
 const invoicesRouter = require('./routes/invoices');
 const webhooksRouter = require('./routes/webhooks');
+const rulesRouter = require('./routes/rules');
 // order-sync's syncNewOrders is no longer used (replaced by native eBay/Kaufland intake)
 const { requireAuth } = require('./lib/auth');
 const { ensureDefaultRoles } = require('./lib/rbac');
@@ -219,6 +220,7 @@ app.use('/api', integrationsRouter);
 app.use('/api', settingsRouter);
 app.use('/api', returnsRouter);
 app.use('/api', invoicesRouter);
+app.use('/api/v1/rules', rulesRouter);
 setBackgroundSyncOrders(backgroundSyncOrders);
 
 // --- Centralized Error Handler ---
