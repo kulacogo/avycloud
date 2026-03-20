@@ -185,7 +185,7 @@ function mapKauflandStatus(klStatus) {
     // Other statuses
     returned: 'returned',
     cancelled: 'cancelled',
-    closed: 'completed',
+    closed: 'cancelled',  // Kaufland 'closed' = account/order closed, NOT fulfilled
   };
   return statusMap[klStatus] || 'pending';
 }
