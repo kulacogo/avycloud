@@ -9,6 +9,7 @@ import {
   bulkTransitionOrders,
 } from "../api/client";
 import { Order, OrderStatus, getOrderStatus } from "../types";
+import { EmptyState } from "./ui/EmptyState";
 import { SyncIcon } from "./icons/Icons";
 import { OrderDetail } from "./OrderDetail";
 
@@ -699,9 +700,23 @@ const OrdersView: React.FC = () => {
             <div className="w-6 h-6 border-2 border-accent/30 border-t-accent rounded-full animate-spin" />
           </div>
         ) : filteredOrders.length === 0 ? (
-          <div className="text-center py-16 text-txt-muted text-sm">
-            {t("ops.orders.none")}
-          </div>
+          <EmptyState
+            title={filter !== "all" || searchQuery || datePreset !== "all"
+              ? "Keine Ergebnisse für diesen Filter."
+              : "Noch keine Bestellungen vorhanden."}
+            description={filter !== "all" || searchQuery || datePreset !== "all"
+              ? "Passe die Filterkriterien an oder setze sie zurück."
+              : undefined}
+            action={filter !== "all" || searchQuery || datePreset !== "all" ? (
+              <button
+                type="button"
+                onClick={() => { setFilter("all"); setSearchQuery(""); setDatePreset("all"); setDateFrom(""); setDateTo(""); }}
+                className="rounded-lg bg-accent text-white px-4 py-2 text-sm font-semibold hover:bg-accent/90 transition"
+              >
+                Filter zurücksetzen
+              </button>
+            ) : undefined}
+          />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">

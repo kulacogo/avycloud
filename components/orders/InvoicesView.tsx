@@ -71,6 +71,7 @@ export const InvoicesView: React.FC = () => {
   const [datePreset, setDatePreset] = useState<"all" | "today" | "7d" | "30d" | "90d">("all");
   const [sortCol, setSortCol] = useState<SortCol>("invoiceNumber");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
+  const [actionBusy, setActionBusy] = useState<string | null>(null);
 
   const loadInvoices = useCallback(async () => {
     try {
@@ -196,12 +197,16 @@ export const InvoicesView: React.FC = () => {
   ];
 
   const handleMarkPaid = async (id: string) => {
+    if (actionBusy) return;
+    setActionBusy(id);
     try {
       await updateInvoiceStatus(id, "bezahlt");
       setInvoices((prev) => prev.map((inv) => inv.id === id ? { ...inv, status: "bezahlt" } : inv));
       await loadInvoices(); // Refetch to sync with server state
     } catch (err: any) {
       setError(err?.message || "Fehler beim Status-Update");
+    } finally {
+      setActionBusy(null);
     }
   };
 
@@ -456,7 +461,8 @@ export const InvoicesView: React.FC = () => {
                             <button
                               type="button"
                               onClick={() => handleMarkPaid(inv.id)}
-                              className="rounded-lg bg-success-dim p-1.5 text-success hover:opacity-80 transition"
+                              disabled={actionBusy === inv.id}
+                              className="rounded-lg bg-success-dim p-1.5 text-success hover:opacity-80 transition disabled:opacity-50"
                               title="Als bezahlt markieren"
                             >
                               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
