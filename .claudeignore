@@ -1,0 +1,12 @@
+node_modules/
+dist/
+build/
+.firebase/
+*.log
+docs/plans/archive/
+docs/competitive-analysis/sources/
+docs/archive/
+AvyCloud_Analyse_Marktbewertung_2026-03-17.pdf
+AvyCloud_Marktanalyse_MultiChannel.docx
+Marketplace_Taxonomy_Masterplan.html
+oms-audit-report.html
