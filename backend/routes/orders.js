@@ -4,7 +4,7 @@ const { listOrders, getDashboardMetrics, computeOrdersDeliveryTotal, firestore }
 const { markOrderAsPicked, markOrderAsPacked } = require('../services/order-sync');
 const { attachPickHintsToOrders } = require('../services/pick-hints');
 const { getCheckAccountBalances, getShippingCostsFromSevDesk } = require('../lib/sevdesk');
-const { getShippingCostsSummary: getSendCloudShippingSummary } = require('../lib/sendcloud');
+const { getShippingCostsSummary: getSendCloudShippingSummary, lookupCsvPrice } = require('../lib/sendcloud');
 const { getEbayNetRevenueSummary } = require('../lib/ebay-finances');
 const { emitSyncEvent } = require('../services/sync-event-bus');
 
@@ -725,7 +725,23 @@ router.get('/shipments', async (req, res) => {
     }
     query = query.orderBy('createdAt', 'desc').limit(parseInt(req.query.limit || '100', 10));
     const snap = await query.get();
-    const shipments = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const shipments = snap.docs.map(d => {
+      const s = { id: d.id, ...d.data() };
+      // Enrich: estimate cost from CSV if not set by SendCloud
+      if ((!s.cost || s.cost === 0) && s.weight && s.carrier) {
+        const carrier = (s.carrier || '').toUpperCase();
+        // Default SendCloud method IDs: DHL Paket=89, DPD Classic=111
+        const methodId = carrier.includes('DHL') ? 89 : carrier.includes('DPD') ? 111 : null;
+        if (methodId) {
+          const estimated = lookupCsvPrice(methodId, s.weight);
+          if (estimated > 0) {
+            s.cost = estimated;
+            s.costEstimated = true;
+          }
+        }
+      }
+      return s;
+    });
     res.json({ ok: true, data: shipments });
   } catch (err) {
     console.error(`[GET /api/shipments] ${err.message}`, err);

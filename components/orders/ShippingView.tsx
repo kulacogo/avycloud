@@ -183,12 +183,13 @@ export const ShippingView: React.FC = () => {
   const kpis = useMemo(() => {
     const today = new Date().toISOString().slice(0, 10);
     const shippedToday = shipments.filter((s) => s.shippedAt?.startsWith(today)).length;
-    const inTransit = shipments.filter((s) => s.status === "in_zustellung").length;
-    const delivered = shipments.filter((s) => s.status === "zugestellt").length;
+    const inTransit = shipments.filter((s) => statusToTab(s.status) === "in_zustellung").length;
+    const delivered = shipments.filter((s) => statusToTab(s.status) === "zugestellt").length;
     const total = shipments.length;
     const deliveryRate = total > 0 ? ((delivered / total) * 100).toFixed(1) : "—";
-    const totalCost = shipments.reduce((sum, s) => sum + (s.cost || 0), 0);
-    const avgCost = total > 0 ? (totalCost / total).toFixed(2) : "—";
+    const shipmentsWithCost = shipments.filter((s) => typeof s.cost === "number" && s.cost > 0);
+    const totalCost = shipmentsWithCost.reduce((sum, s) => sum + s.cost, 0);
+    const avgCost = shipmentsWithCost.length > 0 ? (totalCost / shipmentsWithCost.length).toFixed(2) : "—";
     return { shippedToday, inTransit, deliveryRate, avgCost };
   }, [shipments]);
 
