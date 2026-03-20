@@ -679,7 +679,8 @@ export const ReturnsView: React.FC = () => {
         setBulkResult(`${result.success}/${result.total} erfolgreich`);
         toast.success(`${result.success} Retouren ${action === "refund" ? "erstattet" : "geschlossen"}`);
       } else {
-        setBulkResult(`${result.success}/${result.total} erfolgreich, ${failed} fehlgeschlagen`);
+        const failedDetails = (result.results || []).filter((r: any) => !r.ok).map((r: any) => `${r.returnId || '?'}: ${r.error || 'Fehler'}`).join('; ');
+        setBulkResult(`${result.success}/${result.total} erfolgreich. Fehler: ${failedDetails}`);
         toast.warning(`${result.success}/${result.total} erfolgreich, ${failed} fehlgeschlagen`);
       }
       setSelected(new Set());

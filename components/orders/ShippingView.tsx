@@ -326,7 +326,13 @@ export const ShippingView: React.FC = () => {
                 setBulkBusy(true);
                 try {
                   const result = await bulkShipOrders(orderIds, { labelFormat });
-                  toast.success(`${result.success}/${result.total} Labels erstellt`);
+                  const failedCount = (result.total || 0) - (result.success || 0);
+                  if (failedCount > 0 && result.results) {
+                    const failedDetails = result.results.filter((r: any) => !r.ok).map((r: any) => r.orderId || r.error).join(', ');
+                    toast.warning(`${result.success}/${result.total} Labels erstellt. Fehlgeschlagen: ${failedDetails}`);
+                  } else {
+                    toast.success(`${result.success}/${result.total} Labels erstellt`);
+                  }
                   setSelected(new Set());
                   loadShipments();
                 } catch (err: any) {
