@@ -60,18 +60,11 @@ const StepSummary: React.FC<StepSummaryProps> = ({ product, onSave, onBack, onRe
         throw new Error(result.error?.message || "Speichern fehlgeschlagen.");
       }
       setSaved(true);
-      addToast({
-        type: "success",
-        title: `"${product.identification?.name}" gespeichert`,
-        message: result.data?.sku ? `SKU: ${result.data.sku}` : undefined,
-      });
+      const saveMsg = `"${product.identification?.name}" gespeichert` + (result.data?.sku ? ` (SKU: ${result.data.sku})` : "");
+      addToast("success", saveMsg);
       onSave(product);
     } catch (err: any) {
-      addToast({
-        type: "error",
-        title: "Fehler beim Speichern",
-        message: err?.message || "Ein unerwarteter Fehler ist aufgetreten.",
-      });
+      addToast("error", `Fehler beim Speichern: ${err?.message || "Ein unerwarteter Fehler ist aufgetreten."}`);
     } finally {
       setSaving(false);
     }

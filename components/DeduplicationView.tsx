@@ -47,10 +47,10 @@ const DeduplicationView: React.FC = () => {
         setGroups(realDuplicates);
         setTotalProducts(result.data.totalProducts);
       } else {
-        addToast({ type: "error", title: "Fehler", message: result.error?.message || "Duplikate konnten nicht geladen werden." });
+        addToast("error", `Fehler: ${result.error?.message || "Duplikate konnten nicht geladen werden."}`);
       }
     } catch (err: any) {
-      addToast({ type: "error", title: "Fehler", message: err?.message });
+      addToast("error", `Fehler: ${err?.message || "Unbekannter Fehler"}`);
     } finally {
       setLoading(false);
     }
@@ -68,11 +68,11 @@ const DeduplicationView: React.FC = () => {
       if (result.ok && result.data) {
         setMergeModal((prev) => prev ? { ...prev, suggestions: result.data!, loading: false, keepId: result.data!.productA.id } : null);
       } else {
-        addToast({ type: "error", title: "Fehler", message: result.error?.message });
+        addToast("error", `Fehler: ${result.error?.message || "Vorschläge konnten nicht geladen werden."}`);
         setMergeModal(null);
       }
     } catch (err: any) {
-      addToast({ type: "error", title: "Fehler", message: err?.message });
+      addToast("error", `Fehler: ${err?.message || "Unbekannter Fehler"}`);
       setMergeModal(null);
     }
   }, [addToast]);
@@ -88,18 +88,14 @@ const DeduplicationView: React.FC = () => {
     try {
       const result = await executeMerge(keepId, removeId);
       if (result.ok && result.data) {
-        addToast({
-          type: "success",
-          title: "Produkte zusammengeführt",
-          message: `${result.data.merged.barcodes} Barcodes, ${result.data.merged.images} Bilder übernommen`,
-        });
+        addToast("success", `Produkte zusammengeführt: ${result.data.merged.barcodes} Barcodes, ${result.data.merged.images} Bilder übernommen`);
         setMergeModal(null);
         loadDuplicates();
       } else {
-        addToast({ type: "error", title: "Merge fehlgeschlagen", message: result.error?.message });
+        addToast("error", `Merge fehlgeschlagen: ${result.error?.message || "Unbekannter Fehler"}`);
       }
     } catch (err: any) {
-      addToast({ type: "error", title: "Fehler", message: err?.message });
+      addToast("error", `Fehler: ${err?.message || "Unbekannter Fehler"}`);
     } finally {
       setMerging(false);
     }
