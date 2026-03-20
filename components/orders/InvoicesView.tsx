@@ -199,6 +199,7 @@ export const InvoicesView: React.FC = () => {
     try {
       await updateInvoiceStatus(id, "bezahlt");
       setInvoices((prev) => prev.map((inv) => inv.id === id ? { ...inv, status: "bezahlt" } : inv));
+      await loadInvoices(); // Refetch to sync with server state
     } catch (err: any) {
       setError(err?.message || "Fehler beim Status-Update");
     }
