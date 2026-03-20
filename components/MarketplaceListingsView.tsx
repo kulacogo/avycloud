@@ -812,7 +812,7 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
                     Titel / SKU{sortIndicator("title")}
                   </th>
                   <th className="px-4 py-3 text-left text-txt-muted font-medium hidden md:table-cell">
-                    {marketplace === "ebay" ? "Item-ID" : "Unit-ID"}
+                    Listing-ID
                   </th>
                   <th className="px-4 py-3 text-right text-txt-muted font-medium cursor-pointer select-none hover:text-txt-primary" onClick={() => handleSort("price")}>
                     Preis{sortIndicator("price")}
@@ -923,6 +923,14 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
                               title="Nicht auf Lager"
                             >
                               !
+                            </span>
+                          )}
+                          {listing.status === "inactive" && listing.warehouseStock != null && listing.warehouseStock > 0 && (
+                            <span
+                              className="inline-flex px-1 py-0.5 rounded text-[10px] font-semibold bg-warning-dim text-warning"
+                              title="Lagerbestand vorhanden, aber Listing inaktiv"
+                            >
+                              ⚠
                             </span>
                           )}
                         </div>

@@ -1630,8 +1630,10 @@ async function listLiveListings({
       const prodId = link?.productId ? String(link.productId) : null;
       const prod = prodId ? productMap.get(prodId) || null : null;
       const bins = Array.isArray(prod?.storageBins) ? prod.storageBins : [];
-      const whStock = bins.reduce((sum, b) => sum + (Number(b?.quantity) || 0), 0)
-        || (typeof prod?.inventory?.availableQuantity === 'number' ? prod.inventory.availableQuantity : null);
+      // BUG-070: bins.reduce returns 0 for empty bins, and 0 || fallback → fallback (wrong).
+      // Fix: only fall back to inventory.availableQuantity if no bins exist at all.
+      const binsTotal = bins.length > 0 ? bins.reduce((sum, b) => sum + (Number(b?.quantity) || 0), 0) : null;
+      const whStock = binsTotal !== null ? binsTotal : (typeof prod?.inventory?.availableQuantity === 'number' ? prod.inventory.availableQuantity : null);
       const binLoc = bins.length > 0 ? (bins[0]?.code || null) : (prod?.storage?.binCode || null);
       const mpQty = typeof listing.quantityAvailable === 'number' ? listing.quantityAvailable : null;
       const mismatch = typeof whStock === 'number' && mpQty !== null && whStock !== mpQty;
@@ -1653,7 +1655,7 @@ async function listLiveListings({
         gapCriticalCount: severityCritical,
         gapReadyCount: readyCount,
         gapDocUpdatedAt: tsToIso(gapDoc?.updatedAt) || gapDoc?.updatedAt || null,
-        updatedAt: tsToIso(listing.updatedAt) || listing.updatedAt || null,
+        updatedAt: tsToIso(listing.updatedAt) || listing.updatedAt || tsToIso(listing.lastSeenAt) || tsToIso(listing.lastChangedAt) || null,
         viewItemUrl: listing.viewItemUrl || null,
         currentPrice: typeof listing.currentPrice === 'number' ? listing.currentPrice : null,
         currency: listing.currency || null,
