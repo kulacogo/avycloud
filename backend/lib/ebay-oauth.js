@@ -161,7 +161,14 @@ async function exchangeAuthorizationCodeForToken({ code }) {
     throw err;
   }
 
-  const json = JSON.parse(bodyText || '{}');
+  let json;
+  try {
+    json = JSON.parse(bodyText || '{}');
+  } catch {
+    const err = new Error(`eBay token exchange returned invalid JSON: ${(bodyText || '').slice(0, 200)}`);
+    err.code = 'EBAY_TOKEN_EXCHANGE_INVALID_JSON';
+    throw err;
+  }
   return json;
 }
 
@@ -202,7 +209,14 @@ async function refreshUserAccessToken({ refreshToken }) {
     throw err;
   }
 
-  const json = JSON.parse(bodyText || '{}');
+  let json;
+  try {
+    json = JSON.parse(bodyText || '{}');
+  } catch {
+    const err = new Error(`eBay token refresh returned invalid JSON: ${(bodyText || '').slice(0, 200)}`);
+    err.code = 'EBAY_TOKEN_REFRESH_INVALID_JSON';
+    throw err;
+  }
   return json;
 }
 
