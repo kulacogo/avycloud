@@ -239,17 +239,30 @@ async function createParcel({
     parcelData.parcel.shipment = { id: shippingMethodId };
   }
 
-  const res = await fetch(`${SENDCLOUD_BASE_URL}/parcels`, {
-    method: 'POST',
-    headers: {
-      Authorization: auth,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(parcelData),
-  });
+  // Retry with exponential backoff (3 attempts: 0s, 1s, 3s)
+  const MAX_RETRIES = 3;
+  const BACKOFF_BASE_MS = 1000;
+  let res;
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    res = await fetch(`${SENDCLOUD_BASE_URL}/parcels`, {
+      method: 'POST',
+      headers: {
+        Authorization: auth,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(parcelData),
+    });
 
-  if (!res.ok) {
+    if (res.ok) break;
+
     const body = await res.text().catch(() => '');
+    // Only retry on transient errors (429, 5xx)
+    if (attempt < MAX_RETRIES && (res.status >= 500 || res.status === 429)) {
+      const delay = BACKOFF_BASE_MS * Math.pow(3, attempt - 1);
+      console.warn(`[createParcel] SendCloud ${res.status}, retry ${attempt}/${MAX_RETRIES} in ${delay}ms`);
+      await new Promise((r) => setTimeout(r, delay));
+      continue;
+    }
     throw new Error(`SendCloud create parcel ${res.status}: ${body.slice(0, 300)}`);
   }
 
