@@ -94,6 +94,16 @@ async function pushTrackingToMarketplace({ orderId, trackingNumber, carrier }) {
     console.warn(`[marketplace-tracking] Failed to save push status for ${orderId}: ${err.message}`);
   }
 
+  // Schedule immediate retry on failure (5 min delay) instead of waiting for 24h batch
+  if (!result.ok && marketplace) {
+    const RETRY_DELAY_MS = 5 * 60 * 1000;
+    setTimeout(() => {
+      console.log(`[marketplace-tracking] Auto-retry push for ${orderId} after failure`);
+      pushTrackingToMarketplace({ orderId, trackingNumber, carrier })
+        .catch((err) => console.warn(`[marketplace-tracking] Auto-retry failed for ${orderId}: ${err.message}`));
+    }, RETRY_DELAY_MS);
+  }
+
   return result;
 }
 
