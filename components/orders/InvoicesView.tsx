@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { fetchInvoices, updateInvoiceStatus, downloadInvoicePdfBlob, type InvoiceData } from "../../api/client";
 import { EmptyState } from "../ui/EmptyState";
+import { useToast } from "../../context/ToastContext";
 
 /* ─── Helpers ─── */
 const grossAmt = (inv: any): number => inv.amountGross ?? inv.amountBrutto ?? 0;
@@ -63,6 +64,7 @@ const SortTh: React.FC<{
 
 /* ─── Main ─── */
 export const InvoicesView: React.FC = () => {
+  const toast = useToast();
   const [activeTab, setActiveTab] = useState<TabKey>("alle");
   const [invoices, setInvoices] = useState<InvoiceData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -203,9 +205,10 @@ export const InvoicesView: React.FC = () => {
     try {
       await updateInvoiceStatus(id, "bezahlt");
       setInvoices((prev) => prev.map((inv) => inv.id === id ? { ...inv, status: "bezahlt" } : inv));
-      await loadInvoices(); // Refetch to sync with server state
+      toast.success("Rechnung als bezahlt markiert");
+      await loadInvoices();
     } catch (err: any) {
-      setError(err?.message || "Fehler beim Status-Update");
+      toast.error(`Fehler: ${err?.message || "Rechnung konnte nicht als bezahlt markiert werden."}`);
     } finally {
       setActionBusy(null);
     }

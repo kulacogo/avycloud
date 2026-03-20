@@ -63,12 +63,22 @@ router.post('/invoices', async (req, res) => {
  * PATCH /api/invoices/:id
  * Update invoice status.
  */
-router.patch('/invoices/:id', async (req, res) => {
+router.patch('/invoices/:id', requirePermission('orders', 'write'), async (req, res) => {
   try {
+    const tenantId = getTenantId(req);
     const { status } = req.body;
-    const update = { updatedAt: new Date().toISOString() };
-    if (status) update.status = status;
-    await firestore.collection('invoices').doc(req.params.id).update(update);
+    if (!status) return res.status(400).json({ ok: false, error: { code: 'VALIDATION', message: 'status required' } });
+
+    // Verify invoice belongs to tenant before updating
+    const docRef = firestore.collection('invoices').doc(req.params.id);
+    const doc = await docRef.get();
+    if (!doc.exists) return res.status(404).json({ ok: false, error: { code: 'NOT_FOUND', message: 'Rechnung nicht gefunden' } });
+    if (doc.data().tenantId && doc.data().tenantId !== tenantId) {
+      return res.status(403).json({ ok: false, error: { code: 'FORBIDDEN', message: 'Zugriff verweigert' } });
+    }
+
+    const update = { status, updatedAt: new Date().toISOString() };
+    await docRef.update(update);
     res.json({ ok: true, data: { id: req.params.id, ...update } });
   } catch (err) {
     console.error(`[PATCH /api/invoices/:id] ${err.message}`, err);
