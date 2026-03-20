@@ -124,9 +124,12 @@ export const ShippingView: React.FC = () => {
     }
   }, []);
 
-  // Auto-sync from SendCloud on mount, then poll every 60s
+  // Auto-sync from SendCloud on mount, then poll every 60s with error backoff
   useEffect(() => {
     let cancelled = false;
+    let consecutiveErrors = 0;
+    let intervalId: ReturnType<typeof setInterval> | null = null;
+
     const initialSync = async () => {
       try {
         setSyncBusy(true);
@@ -140,15 +143,27 @@ export const ShippingView: React.FC = () => {
     };
     initialSync();
 
-    const interval = setInterval(() => {
-      if (!cancelled) loadShipments();
+    intervalId = setInterval(async () => {
+      if (cancelled) return;
+      try {
+        await fetchShipments({ limit: 1 }); // lightweight health check
+        consecutiveErrors = 0;
+        loadShipments();
+      } catch {
+        consecutiveErrors++;
+        if (consecutiveErrors >= 3 && intervalId) {
+          clearInterval(intervalId);
+          intervalId = null;
+          toast.warning("Auto-Sync pausiert nach 3 Fehlern. Bitte manuell aktualisieren.");
+        }
+      }
     }, 60_000);
 
     return () => {
       cancelled = true;
-      clearInterval(interval);
+      if (intervalId) clearInterval(intervalId);
     };
-  }, [loadShipments]);
+  }, [loadShipments, toast]);
 
   const filtered = useMemo(() => {
     if (activeTab === "alle") return shipments;
