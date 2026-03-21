@@ -1152,7 +1152,7 @@ async function deleteWarehouseBinsByFilter(filter, { dryRun = false } = {}) {
     .filter(({ data }) => {
       const count = Number(data.productCount || 0) || 0;
       const products = Array.isArray(data.products) ? data.products : [];
-      return count > 0 || products.length > 0;
+      return count > 0 || products.some((p) => Number(p.quantity || 0) > 0);
     })
     .slice(0, 10)
     .map(({ id, data }) => ({ code: id, productCount: Number(data.productCount || 0) || 0 }));
