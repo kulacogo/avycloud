@@ -578,10 +578,11 @@ const AppInner: React.FC = () => {
   const handleIdentification = useCallback(
     (
       groupsPayload: UploadGroupPayload[],
-      barcodes: string
+      barcodes: string,
+      paletteCode?: string
     ) => {
       // Single identify pipeline (v2) only.
-      enqueueIdentification(groupsPayload, barcodes, null, null);
+      enqueueIdentification(groupsPayload, barcodes, null, null, paletteCode || null);
     },
     [enqueueIdentification]
   );

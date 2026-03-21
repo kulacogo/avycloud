@@ -98,7 +98,8 @@ export const useIdentification = (options?: UseIdentificationOptions) => {
       group: UploadGroupPayload,
       barcodes: string,
       inventoryId?: string | null,
-      inventoryName?: string | null
+      inventoryName?: string | null,
+      paletteCode?: string | null
     ) => {
       const localId = createLocalId();
       const startedAt = new Date().toISOString();
@@ -123,7 +124,7 @@ export const useIdentification = (options?: UseIdentificationOptions) => {
             phase: 'enriching',
             message: 'Datenblatt wird erstellt …',
           });
-          const identifyResult = await identifyProductV2(group.images, barcodes, 'de-DE', inventoryId || undefined);
+          const identifyResult = await identifyProductV2(group.images, barcodes, 'de-DE', inventoryId || undefined, paletteCode || undefined);
           if (!identifyResult.ok || !identifyResult.data) {
             throw new Error(identifyResult.error?.message || 'Identify (v2) fehlgeschlagen.');
           }
@@ -209,7 +210,8 @@ export const useIdentification = (options?: UseIdentificationOptions) => {
       groups: UploadGroupPayload[],
       barcodes: string,
       inventoryId?: string | null,
-      inventoryName?: string | null
+      inventoryName?: string | null,
+      paletteCode?: string | null
     ) => {
       const prepared = groups.filter((group) => group.images.length > 0);
       const hasBarcodes = Boolean(barcodes && barcodes.trim());
@@ -243,7 +245,7 @@ export const useIdentification = (options?: UseIdentificationOptions) => {
 
       setError(null);
       groupsToProcess.forEach((group) => {
-        startJobForGroup(group, barcodes, inventoryId, inventoryName);
+        startJobForGroup(group, barcodes, inventoryId, inventoryName, paletteCode);
       });
     },
     [startJobForGroup, validateGroup]

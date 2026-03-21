@@ -172,6 +172,8 @@ export interface Ops {
     kaufland?: 'active' | 'inactive' | 'not_listed';
     lastSyncAt?: string | null;
   };
+  sourcePalette?: string | null;
+  sourcePaletteAt?: string | null;
 }
 
 export interface Notes {

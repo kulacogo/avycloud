@@ -30,7 +30,7 @@ interface MobileOperationsViewProps {
   mode: OpsMode;
   onNavigate: (view: OpsMode | 'input' | 'sheet') => void;
   onSelectProduct?: (productId: string) => void;
-  onIdentify?: (groups: UploadGroupPayload[], barcodes: string) => void;
+  onIdentify?: (groups: UploadGroupPayload[], barcodes: string, paletteCode?: string) => void;
 }
 
 const SectionTitle: React.FC<{ title: string; desc?: string }> = ({ title, desc }) => (
@@ -122,6 +122,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
   const [pendingPick, setPendingPick] = useState<MobilePickTask | null>(null);
   const [pendingPickQty, setPendingPickQty] = useState<number>(0);
 
+  const [identifyPaletteCode, setIdentifyPaletteCode] = useState('');
   const [identifySlots, setIdentifySlots] = useState<number[]>([0]);
   const uploadInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
   const cameraInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
@@ -699,13 +700,14 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
     if (!stowSku || !stowBin || stowQty <= 0) return;
     setStowMessage(null);
     const productMatch = resolveProductForStow(stowSku);
+    const sourcePalette = productMatch?.ops?.sourcePalette || undefined;
     const payload = {
       productId: productMatch?.id,
       sku: stowSku,
       binCode: stowBin,
       quantity: stowQty,
       barcode: productMatch?.identification?.barcodes?.[0] || productMatch?.details?.identifiers?.ean || undefined,
-      meta: { flow: 'stow' },
+      meta: { flow: 'stow', ...(sourcePalette ? { paletteCode: sourcePalette } : {}) },
     };
     const result = await stockInProduct(payload);
     if (!result.ok) {
@@ -988,6 +990,22 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
           </button>
         </div>
         <SectionTitle title={t('ops.mode.identify')} />
+        {/* Palette scan — optional, persists across identify slots */}
+        <div className="rounded-2xl border border-app-border bg-app-surface p-3 mb-3">
+          <label className="block text-xs font-semibold text-txt-muted mb-1">Palette (optional)</label>
+          <input
+            type="text"
+            inputMode="none"
+            autoComplete="off"
+            className="w-full rounded-xl bg-app-bg border border-app-border px-3 py-2 text-sm text-txt-primary placeholder:text-txt-muted/50 focus:outline-none focus:ring-2 focus:ring-accent/40"
+            placeholder="Palette scannen (z.B. PGA001)"
+            value={identifyPaletteCode}
+            onChange={(e) => setIdentifyPaletteCode(e.target.value.toUpperCase())}
+          />
+          {identifyPaletteCode && (
+            <p className="text-xs text-success mt-1">Palette {identifyPaletteCode} aktiv — alle erkannten Produkte werden zugeordnet.</p>
+          )}
+        </div>
         <div className="grid grid-cols-1 gap-3">
           {identifySlots.map((slot) => (
             <div key={slot} className="rounded-2xl border border-dashed border-app-border bg-app-surface p-4 space-y-3">
@@ -1084,7 +1102,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
                     { id: `mobile-slot-${slot}`, label: t('input.groups.defaultName', { index }), images },
                   ];
                   if (onIdentify) {
-                    onIdentify(payload, '');
+                    onIdentify(payload, '', identifyPaletteCode || undefined);
                     clearIdentifySlot(slot);
                   } else {
                     onNavigate('input');
