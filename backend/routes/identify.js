@@ -227,6 +227,7 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
     const barcodes = req.body?.barcodes || '';
     const locale = req.body?.locale || 'de-DE';
     const inventoryId = req.body?.inventoryId || null;
+    const paletteCode = req.body?.paletteCode || null;
 
     if (!files.length && (!barcodes || !barcodes.trim())) {
       return res.status(400).json({
@@ -260,12 +261,26 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
       } catch (e) {
         console.warn('Failed to adjust pending intake for existing product:', e?.message || e);
       }
+      // Track source palette on existing product (additive, never overwrites datasheet)
+      if (paletteCode) {
+        try {
+          const { Firestore } = require('@google-cloud/firestore');
+          const db = new Firestore();
+          await db.collection('products_v2').doc(existing.id).update({
+            'ops.sourcePalette': paletteCode,
+            'ops.sourcePaletteAt': new Date().toISOString(),
+          });
+        } catch (e) {
+          console.warn('Failed to set sourcePalette on existing product:', e?.message || e);
+        }
+      }
       const refreshed = await getProduct(existing.id);
       return res.json({
         ok: true,
         data: refreshed || existing,
         meta: {
           reused_existing: true,
+          paletteCode: paletteCode || null,
           locale: result.locale,
           barcodes: result.barcodes,
           ocr: result.ocr,
@@ -397,6 +412,13 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
       throw new Error(
         `Identify (v2) refused to save product without valid eBay category (categoryId="${finalCategoryId || ''}")`
       );
+    }
+
+    // 4) Persist source palette reference if provided (Wareneingang tracking).
+    if (paletteCode) {
+      product.ops = product.ops || {};
+      product.ops.sourcePalette = paletteCode;
+      product.ops.sourcePaletteAt = new Date().toISOString();
     }
 
     // 4) Persist (SYSTEM mode => invariants enforced; never treated as manual UI edit).

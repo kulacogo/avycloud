@@ -364,7 +364,7 @@ router.delete('/bins/:code/products/:productId', requirePermission('warehouse', 
 
 router.post('/stock-in', requirePermission('warehouse', 'write'), async (req, res) => {
   try {
-    const { sku, productId, barcode, binCode, quantity, meta } = req.body || {};
+    const { sku, productId, barcode, binCode, quantity, meta, paletteCode } = req.body || {};
     if (!binCode) {
       return res.status(400).json({ ok: false, error: { code: 400, message: 'Bin-Code ist erforderlich.' } });
     }
@@ -382,6 +382,7 @@ router.post('/stock-in', requirePermission('warehouse', 'write'), async (req, re
         ...(meta && typeof meta === 'object' ? meta : {}),
         source: 'api',
         action: 'stock-in',
+        ...(paletteCode ? { paletteCode } : {}),
       },
     });
     if (result?.product) {

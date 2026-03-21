@@ -4157,7 +4157,8 @@ export const identifyProductV2 = async (
   files: File[],
   barcodes: string,
   locale = 'de-DE',
-  inventoryId?: string
+  inventoryId?: string,
+  paletteCode?: string
 ): Promise<{ ok: boolean; data?: Product; meta?: any; error?: { code: number; message: string } }> => {
   if (!files.length && (!barcodes || !barcodes.trim())) {
     return {
@@ -4172,6 +4173,9 @@ export const identifyProductV2 = async (
   formData.append('locale', locale);
   if (inventoryId) {
     formData.append('inventoryId', inventoryId);
+  }
+  if (paletteCode) {
+    formData.append('paletteCode', paletteCode);
   }
 
   let response: Response | undefined;

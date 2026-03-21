@@ -267,19 +267,22 @@ async function createPaletteBins(etage, count) {
   }
 
   // Find the highest existing palette number for this etage
+  // Use simple where('zone') only — avoids composite index requirement (FAILED_PRECONDITION).
+  // Filter etage + find max paletteNumber client-side (palette count is always small).
   const prefix = `P${etage}`;
   const existing = await binsCollection
     .where('zone', '==', 'P')
-    .where('etage', '==', etage)
-    .orderBy('paletteNumber', 'desc')
-    .limit(1)
     .get();
 
   let startNumber = 1;
-  if (!existing.empty) {
-    const highest = existing.docs[0].data().paletteNumber || 0;
-    startNumber = highest + 1;
-  }
+  let maxNum = 0;
+  existing.docs.forEach((doc) => {
+    const d = doc.data() || {};
+    if (d.etage === etage && typeof d.paletteNumber === 'number' && d.paletteNumber > maxNum) {
+      maxNum = d.paletteNumber;
+    }
+  });
+  if (maxNum > 0) startNumber = maxNum + 1;
 
   const combinations = [];
   for (let i = 0; i < count; i++) {
