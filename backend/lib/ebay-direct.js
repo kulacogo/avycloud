@@ -1617,6 +1617,10 @@ async function listLiveListings({
     });
   }
 
+  // ── BUG-070 Diagnostics ──
+  let _diagTotal = 0, _diagLinked = 0, _diagWithBins = 0, _diagWithInv = 0, _diagWithMpQty = 0, _diagWithStock = 0;
+  const _diagUnmatched = [];
+
   const filteredSearch = safeLower(search);
   const rows = listings
     .map((listing) => {
@@ -1630,13 +1634,22 @@ async function listLiveListings({
       const prodId = link?.productId ? String(link.productId) : null;
       const prod = prodId ? productMap.get(prodId) || null : null;
       const bins = Array.isArray(prod?.storageBins) ? prod.storageBins : [];
-      // BUG-070: bins.reduce returns 0 for empty bins, and 0 || fallback → fallback (wrong).
-      // Fix: only fall back to inventory quantity fields if no bins exist at all.
       const binsExist = bins.length > 0;
       const binsTotal = binsExist ? bins.reduce((sum, b) => sum + (Number(b?.quantity) || 0), 0) : null;
       const fallbackQty = typeof prod?.inventory?.availableQuantity === 'number' ? prod.inventory.availableQuantity
         : (typeof prod?.inventory?.quantity === 'number' ? prod.inventory.quantity : null);
-      const whStock = binsTotal !== null ? binsTotal : fallbackQty;
+      // Last resort: use eBay's own quantityAvailable when no product match exists
+      const ebayQty = typeof listing.quantityAvailable === 'number' ? listing.quantityAvailable : null;
+      const whStock = binsTotal !== null ? binsTotal : (fallbackQty !== null ? fallbackQty : ebayQty);
+
+      // Diagnostics
+      _diagTotal++;
+      if (prod) _diagLinked++;
+      if (binsExist) _diagWithBins++;
+      if (fallbackQty !== null) _diagWithInv++;
+      if (ebayQty !== null) _diagWithMpQty++;
+      if (typeof whStock === 'number') _diagWithStock++;
+      if (!link && _diagUnmatched.length < 5) _diagUnmatched.push({ itemId: listing.itemId, title: (listing.title || '').slice(0, 60) });
       const binLoc = bins.length > 0 ? (bins[0]?.code || null) : (prod?.storage?.binCode || null);
       const mpQty = typeof listing.quantityAvailable === 'number' ? listing.quantityAvailable : null;
       const mismatch = typeof whStock === 'number' && mpQty !== null && whStock !== mpQty;
@@ -1685,6 +1698,13 @@ async function listLiveListings({
       if (Number.isFinite(aMs) && Number.isFinite(bMs) && aMs !== bMs) return bMs - aMs;
       return safeString(b?.itemId).localeCompare(safeString(a?.itemId));
     });
+
+  // BUG-070 diagnostic log
+  console.info(`[eBay Listings] Total: ${_diagTotal}, Linked: ${_diagLinked} (${_diagTotal ? Math.round(_diagLinked / _diagTotal * 100) : 0}%), WithBins: ${_diagWithBins}, WithInv: ${_diagWithInv}, WithMpQty: ${_diagWithMpQty}, WithStock: ${_diagWithStock}`);
+  if (_diagUnmatched.length > 0) {
+    console.info(`[eBay Listings] First ${_diagUnmatched.length} unmatched:`, _diagUnmatched.map(u => `${u.itemId}: ${u.title}`).join(' | '));
+  }
+
   return rows;
 }
 
