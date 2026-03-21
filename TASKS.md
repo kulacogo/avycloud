@@ -16,7 +16,6 @@
 - [ ] FIX-10: Dashboard-Zahl = Seiten-Zahl für Retouren
 - [ ] FIX-11: `node backend/scripts/backfill-weights.js --write` ausführen
 - [ ] FIX-12: SSE-Streams funktionieren ohne Token in URL
-- [ ] Audit-Log: Firestore Composite Index erstellen (FAILED_PRECONDITION Error)
 
 ## Aktive Bugs (P0/P1)
 
@@ -24,6 +23,40 @@
 - [ ] **BUG-069** Dashboard Chart endet bei ~12.03 (createdAt-Datumslogik)
 - [ ] **B5** Invoice Email-Versand fehlt
 - [ ] **B6** Gutschriften/Stornorechnungen fehlen
+- [ ] **BUG-070** Marketplace Listing-Tabellen: falsche Daten + inkonsistente UI (P1)
+  - eBay: Lager-Spalte zeigt "—" für die meisten Artikel obwohl Bestand vorhanden
+  - eBay: Verkaufte/inaktive Artikel zeigen Lagerbestand (z.B. Engelbert Strauss: 3, aber Inaktiv)
+  - Kaufland: Aktive Angebote mit Marktplatz=0 und Lager=0 (Hermès, Wera, KNIPEx etc.)
+  - Kaufland: Preis-Spalte zeigt "—" für viele aktive Artikel
+  - Kaufland: Kategorie-Spalte durchgehend leer
+  - Inkonsistente Spalten zwischen eBay/Kaufland (Item-ID vs Unit-ID, unterschiedliche Layouts)
+  - "Letztes Update" fehlt bei eBay komplett, bei Kaufland teilweise
+  - BEWEIS: BEAUTEX SKU-3210037840 → Inventar zeigt Menge=1, Lagerplatz=XGA0201C, EK=13,99€ — eBay Listing zeigt Lager="—", Kategorie="—"
+  - Lager/Kategorie/Lagerplatz aus products_v2 werden NICHT ins eBay Listing übertragen
+- [ ] **BUG-071** Bestellungen: Pipeline-Zahlen inkonsistent mit Tab-Zahlen (P1)
+  - Pipeline zeigt: 22 Neu + 6 Bestätigt + 341 Versendet = 369
+  - Tabs zeigen: Alle 490, Neu 28, Versendet 411, Sonstige 51
+  - Weder Pipeline noch Tabs summieren sich korrekt
+- [ ] **BUG-072** Versand-Tabelle: Geisterdaten + BaseLinker-Referenz (P0!)
+  - Einträge ohne Tracking-Nr UND ohne Kundenname (26-14354-93495, 09-14380-64268)
+  - Eintrag 33797691 zeigt "baselinker" Badge — BaseLinker ist TABU, muss entfernt werden
+  - Kaufland-Eintrag M9YQ4P5 ohne Kundenname
+  - Alle Versandkosten 0,00 EUR — vermutlich SevDesk-Mapping-Problem
+  - Zustellquote nur 1.1% — Berechnung wahrscheinlich falsch
+- [ ] **BUG-073** Rechnungen: Fehler beim Klick auf grünen Haken (P1)
+  - "Als bezahlt markieren" wirft Fehler
+  - Muss untersucht werden: API-Fehler oder Frontend-Bug
+- [ ] **BUG-074** Rechnungs-PDF Design stimmt nicht mit SevDesk überein (P1)
+  - AvyCloud PDF: minimalistisch, kein Logo, kein Firmenfooter, falsche Struktur
+  - SevDesk/Korrekt: TrendOcean Logo, QR-Code, Absenderzeile, 4-Spalten-Footer
+  - Referenz-Design: RE-1574.pdf (SevDesk-Format)
+- [ ] **BUG-075** ~~Regeln-Seite FAILED_PRECONDITION~~ ✅ gefixt
+- [ ] **BUG-076** ~~Pricing Vorschläge leer~~ ✅ gefixt (Empty State verbessert)
+- [ ] **BUG-077** Mobile UI: Kommissionieren + Operationen (P2)
+  - BIN-Scanner Label "Scannen BIN" bricht um (Feld zu schmal, "BI" / "N" auf 2 Zeilen)
+  - BIN XGA0402C rot hinterlegt — unklar ob Fehler-State oder nur visuell
+  - "Packen: 408" — vermutlich zählt historische/erledigte Aufträge mit
+  - Bottom-Navigation: Safe Area nicht beachtet (iPhone), überlappt mit System-Bereich
 
 ## OMS Audit — Sprint-Block 10
 
@@ -32,20 +65,16 @@
 **Critical (P0):** ✅ erledigt
 - ~~B001~~ ~~B002~~ ~~B003~~ ~~B004~~ ~~B005~~ ~~B006~~ ~~B007~~ ~~B008~~ ~~B009~~ — alle gefixt
 
-**High (P1):** ✅ erledigt
-- ~~B010~~ SendCloud Retry — ~~B011~~ Tracking Retry — ~~B012~~ Kaufland HMAC
-- ~~B013~~ Kaufland closed→cancelled — ~~B015~~ refetch nach Mutation
-- ~~B017~~ Bulk-Ops Details — ~~B020~~ Return Enums — ~~B021~~ JSON.parse try-catch
-- [ ] **B014** Kaufland Einzelpreise (item.price / 100) — offen
-- [ ] **B016** Invoice amountNet/amountNetto Normalisierung — offen
-- [ ] **B018** Kaufland API Response Array-Check — offen
-- [ ] **B019** eBay Refund-Push via Post-Order API — offen
+**High (P1):** ✅ alle erledigt (B010-B021)
 
-**Security (P1):** ✅ erledigt
-- ~~S001~~ JWT aus URL — ~~S002~~ XSS-Schutz — ~~S004~~ Email-Validierung
-- [ ] **S003** Kaufland Webhook HMAC — evtl. durch B012 abgedeckt, prüfen
+**Security (P1):** ✅ alle erledigt (S001-S004, S003 durch B012 abgedeckt)
 
-**Medium/Low (P2):** FIX-B022 bis B047 (26 offen)
+**Medium/Low (P2):** ✅ alle erledigt (B022-B047, 5 Batches)
+- Batch 1: Frontend UX (B028, B029, B032, B036)
+- Batch 2: Error Handling (B030, B031, B035)
+- Batch 3: Backend Robustness (B023, B024, B026, B033, B037, B038, B039)
+- Batch 4: Frontend Quality (B027, B034, B042-B045, B047)
+- Batch 5: Remaining (B022, B025, B040, B041, B046)
 
 ## Feature Backlog
 
@@ -56,7 +85,7 @@
 | PRICE-001 | Pricing Engine UI | P0 | ✅ done + merged |
 | AI-001 | AI Listing Pipeline | P1 | ✅ done + merged |
 | VAL-001 | Pre-Listing Validation | P1 | ✅ done + merged |
-| RULE-001 | Rule Engine | P1 | Spec vorhanden, nicht implementiert |
+| RULE-001 | Rule Engine | P1 | **Spec Ready** → nächstes Feature |
 | VAR-001 | Variant Model | P1 | Spec vorhanden, nicht implementiert |
 | IMG-001 | Image Enhancement | P2 | Spec vorhanden, nicht implementiert |
 | DASH-001 | Analytics Dashboard | P2 | Spec vorhanden, nicht implementiert |
