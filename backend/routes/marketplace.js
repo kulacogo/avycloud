@@ -1056,10 +1056,19 @@ router.get('/kaufland/listings', requirePermission('products', 'read'), async (r
       // Warehouse stock enrichment — prefer storageBins sum, fallback to inventory.quantity
       const storageBins = Array.isArray(matched?.storageBins) ? matched.storageBins : [];
       const binsTotal = storageBins.length > 0 ? storageBins.reduce((sum, b) => sum + (Number(b?.quantity) || 0), 0) : null;
-      const whStock = binsTotal !== null ? binsTotal : (typeof matched?.inventory?.quantity === 'number' ? matched.inventory.quantity : null);
+      const fallbackQty = typeof matched?.inventory?.availableQuantity === 'number' ? matched.inventory.availableQuantity
+        : (typeof matched?.inventory?.quantity === 'number' ? matched.inventory.quantity : null);
+      const whStock = binsTotal !== null ? binsTotal : fallbackQty;
       const binLoc = storageBins.length > 0 ? (storageBins[0]?.code || null) : (matched?.storage?.binCode || null);
       const mpQty = Number.isFinite(Number(d.amount)) ? Number(d.amount) : null;
       const mismatch = typeof whStock === 'number' && mpQty !== null && whStock !== mpQty;
+
+      // Price: prefer matched product price, then Kaufland unit price fields
+      const matchedPrice = matched?.details?.pricing?.sellPrice ?? null;
+      const unitPrice = matchedPrice !== null ? matchedPrice : klPrice;
+
+      // Category: try multiple sources from matched product
+      const categoryName = matched?.identification?.category || matched?.details?.category || matched?.details?.categoryId || null;
 
       rows.push({
         idUnit: doc.id,
@@ -1075,15 +1084,22 @@ router.get('/kaufland/listings', requirePermission('products', 'read'), async (r
         productId: matched?.id || null,
         title: matched?.identification?.name || klTitle || null,
         brand: matched?.identification?.brand || null,
-        price: matched?.details?.pricing?.sellPrice ?? klPrice ?? null,
+        price: unitPrice,
         imageUrl: matched?.details?.images?.[0]?.url_or_base64 || matched?.details?.images?.[0]?.url || null,
-        category: matched?.details?.category || null,
+        category: categoryName,
         warehouseStock: typeof whStock === 'number' ? whStock : null,
         binLocation: binLoc,
         stockMismatch: mismatch,
       });
     });
 
+    // Diagnostic: log unmatched units with their price fields
+    const unmatched = rows.filter(r => !r.productId);
+    if (unmatched.length > 0 && unmatched.length <= 20) {
+      for (const u of unmatched) {
+        console.info(`[Kaufland] unmatched: sku=${u.sku || 'NONE'}, ean=${u.ean || 'NONE'}, price=${u.price ?? 'NULL'}`);
+      }
+    }
     console.info(`[GET /api/kaufland/listings] ${matchCount}/${rows.length} units matched (${products.length} products, ${skuMap.size} SKU keys, ${eanMap.size} EAN keys)`);
     return res.status(200).json({ ok: true, data: rows });
   } catch (error) {

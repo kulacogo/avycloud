@@ -111,9 +111,9 @@ function normalizeEbayRow(row: EbayListingRow): NormalizedListing {
     category: row.categoryName || (row.primaryCategoryId ? `Kat. ${row.primaryCategoryId}` : null),
     viewItemUrl: row.viewItemUrl || (row.itemId ? `https://www.ebay.de/itm/${row.itemId}` : null),
     lastSync: row.updatedAt || null,
-    warehouseStock: (row as any).warehouseStock ?? null,
-    binLocation: (row as any).binLocation ?? null,
-    stockMismatch: (row as any).stockMismatch === true,
+    warehouseStock: row.warehouseStock ?? null,
+    binLocation: row.binLocation ?? null,
+    stockMismatch: row.stockMismatch === true,
   };
 }
 
@@ -141,10 +141,10 @@ function normalizeKauflandRow(row: KauflandListingRow): NormalizedListing {
     viewItemUrl: row.viewItemUrl || null,
     lastSync: row.updatedAt || null,
     imageUrl: row.imageUrl || null,
-    brand: (row as any).brand || null,
-    warehouseStock: (row as any).warehouseStock ?? null,
-    binLocation: (row as any).binLocation ?? null,
-    stockMismatch: (row as any).stockMismatch === true,
+    brand: row.brand || null,
+    warehouseStock: row.warehouseStock ?? null,
+    binLocation: row.binLocation ?? null,
+    stockMismatch: row.stockMismatch === true,
   };
 }
 

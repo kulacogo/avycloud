@@ -659,6 +659,9 @@ export interface EbayListingRow {
   currency?: string | null;
   quantityAvailable?: number | null;
   categoryName?: string | null;
+  warehouseStock?: number | null;
+  binLocation?: string | null;
+  stockMismatch?: boolean;
 }
 
 export interface EbayListingLink {

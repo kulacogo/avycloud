@@ -1329,6 +1329,9 @@ export interface KauflandListingRow {
   price: number | null;
   imageUrl: string | null;
   category: string | null;
+  warehouseStock?: number | null;
+  binLocation?: string | null;
+  stockMismatch?: boolean;
 }
 
 export async function fetchKauflandListings(storefront = 'de'): Promise<KauflandListingRow[]> {

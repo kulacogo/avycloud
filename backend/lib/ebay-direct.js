@@ -1631,9 +1631,12 @@ async function listLiveListings({
       const prod = prodId ? productMap.get(prodId) || null : null;
       const bins = Array.isArray(prod?.storageBins) ? prod.storageBins : [];
       // BUG-070: bins.reduce returns 0 for empty bins, and 0 || fallback → fallback (wrong).
-      // Fix: only fall back to inventory.availableQuantity if no bins exist at all.
-      const binsTotal = bins.length > 0 ? bins.reduce((sum, b) => sum + (Number(b?.quantity) || 0), 0) : null;
-      const whStock = binsTotal !== null ? binsTotal : (typeof prod?.inventory?.availableQuantity === 'number' ? prod.inventory.availableQuantity : null);
+      // Fix: only fall back to inventory quantity fields if no bins exist at all.
+      const binsExist = bins.length > 0;
+      const binsTotal = binsExist ? bins.reduce((sum, b) => sum + (Number(b?.quantity) || 0), 0) : null;
+      const fallbackQty = typeof prod?.inventory?.availableQuantity === 'number' ? prod.inventory.availableQuantity
+        : (typeof prod?.inventory?.quantity === 'number' ? prod.inventory.quantity : null);
+      const whStock = binsTotal !== null ? binsTotal : fallbackQty;
       const binLoc = bins.length > 0 ? (bins[0]?.code || null) : (prod?.storage?.binCode || null);
       const mpQty = typeof listing.quantityAvailable === 'number' ? listing.quantityAvailable : null;
       const mismatch = typeof whStock === 'number' && mpQty !== null && whStock !== mpQty;
@@ -1660,7 +1663,7 @@ async function listLiveListings({
         currentPrice: typeof listing.currentPrice === 'number' ? listing.currentPrice : null,
         currency: listing.currency || null,
         quantityAvailable: typeof listing.quantityAvailable === 'number' ? listing.quantityAvailable : null,
-        categoryName: listing.categoryName || listing.primaryCategoryName || null,
+        categoryName: listing.categoryName || listing.primaryCategoryName || prod?.identification?.category || prod?.details?.categoryId || null,
         warehouseStock: typeof whStock === 'number' ? whStock : null,
         binLocation: binLoc,
         stockMismatch: mismatch,
