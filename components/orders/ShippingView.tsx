@@ -185,10 +185,15 @@ export const ShippingView: React.FC = () => {
     const shippedToday = shipments.filter((s) => s.shippedAt?.startsWith(today)).length;
     const inTransit = shipments.filter((s) => statusToTab(s.status) === "in_zustellung").length;
     const delivered = shipments.filter((s) => statusToTab(s.status) === "zugestellt").length;
-    const total = shipments.length;
-    const deliveryRate = total > 0 ? ((delivered / total) * 100).toFixed(1) : "—";
+    // BUG-072 FIX: Zustellquote = zugestellt / (zugestellt + in_zustellung + problem), nicht / alle
+    // Ausstehende/erstellte Sendungen sind noch nicht unterwegs → dürfen die Rate nicht drücken
+    const relevant = shipments.filter((s) => {
+      const tab = statusToTab(s.status);
+      return tab === "zugestellt" || tab === "in_zustellung" || tab === "problem";
+    }).length;
+    const deliveryRate = relevant > 0 ? ((delivered / relevant) * 100).toFixed(1) : "—";
     const shipmentsWithCost = shipments.filter((s) => typeof s.cost === "number" && s.cost > 0);
-    const totalCost = shipmentsWithCost.reduce((sum, s) => sum + s.cost, 0);
+    const totalCost = shipmentsWithCost.reduce((sum, s) => sum + (s.cost ?? 0), 0);
     const avgCost = shipmentsWithCost.length > 0 ? (totalCost / shipmentsWithCost.length).toFixed(2) : "—";
     return { shippedToday, inTransit, deliveryRate, avgCost };
   }, [shipments]);
@@ -429,19 +434,17 @@ export const ShippingView: React.FC = () => {
                       </td>
                       <td className="px-4 py-3">
                         <span className="font-mono text-xs text-txt-primary font-medium block">{(shp as any).marketplaceOrderId || shp.orderNumber || shp.orderId}</span>
-                        {(shp as any).marketplace && (
-                          <span className={`inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-semibold mt-0.5 ${
-                            String((shp as any).marketplace).toLowerCase().includes('ebay') ? 'bg-warning-dim text-warning' :
-                            String((shp as any).marketplace).toLowerCase().includes('kaufland') ? 'bg-danger-dim text-danger' :
-                            'bg-app-elevated text-txt-muted'
-                          }`}>
-                            {String((shp as any).marketplace).toLowerCase().includes('ebay') ? 'eBay' :
-                             String((shp as any).marketplace).toLowerCase().includes('kaufland') ? 'Kaufland' :
-                             (shp as any).marketplace}
-                          </span>
-                        )}
+                        {(() => {
+                          const mp = String((shp as any).marketplace || (shp as any).source || "").toLowerCase();
+                          // BUG-072: BaseLinker ist TABU — Badge nicht anzeigen. Nur bekannte Marktplätze.
+                          if (mp.includes('baselinker')) return null;
+                          if (mp.includes('ebay')) return <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-semibold mt-0.5 bg-warning-dim text-warning">eBay</span>;
+                          if (mp.includes('kaufland')) return <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-semibold mt-0.5 bg-danger-dim text-danger">Kaufland</span>;
+                          if (mp && mp !== 'unknown') return <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-semibold mt-0.5 bg-app-elevated text-txt-muted">{(shp as any).marketplace || (shp as any).source}</span>;
+                          return null;
+                        })()}
                       </td>
-                      <td className="px-4 py-3 text-txt-primary font-medium">{typeof shp.customer === "string" ? shp.customer : shp.customer?.name || "—"}</td>
+                      <td className="px-4 py-3 text-txt-primary font-medium">{typeof shp.customer === "string" ? shp.customer : (shp.customer as any)?.name || "—"}</td>
                       <td className="px-4 py-3">
                         <span className={`inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[11px] font-semibold ${carrier.cls}`}>
                           <span className="w-4 h-4 rounded-full bg-current/10 flex items-center justify-center text-[9px] font-bold">

@@ -997,6 +997,23 @@ router.get('/kaufland/listings', requirePermission('products', 'read'), async (r
     }
     const products = await getAllProductsV2();
 
+    // BUG-070: storageBins are in `products` (legacy), not products_v2.
+    // Build a lookup from legacy docs to merge BIN data.
+    const legacySnap = await firestore.collection('products').select('storageBins', 'storage').get();
+    const legacyBinMap = new Map();
+    legacySnap.docs.forEach((doc) => {
+      const ld = doc.data() || {};
+      if (ld.storageBins || ld.storage) legacyBinMap.set(doc.id, ld);
+    });
+    // Merge BIN data into products_v2
+    for (const p of products) {
+      if (!p.storageBins && p.id && legacyBinMap.has(p.id)) {
+        const legacy = legacyBinMap.get(p.id);
+        p.storageBins = legacy.storageBins || [];
+        p.storage = legacy.storage || null;
+      }
+    }
+
     // Build multi-key lookup map from products
     const skuMap = new Map();  // lowercase sku → product
     const eanMap = new Map();  // ean → product

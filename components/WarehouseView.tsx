@@ -20,7 +20,7 @@ import { ConfirmDialog } from './ui/ConfirmDialog';
 import WarehouseMovementsTab from './warehouse/WarehouseMovementsTab';
 import WarehouseInventoryTab from './warehouse/WarehouseInventoryTab';
 
-const ZONE_OPTIONS: Array<'X' | 'XS' | 'S' | 'M' | 'L' | 'XL' | 'XQ'> = ['X', 'XS', 'S', 'M', 'L', 'XL', 'XQ'];
+const ZONE_OPTIONS: Array<'X' | 'XS' | 'S' | 'M' | 'L' | 'XL' | 'XQ' | 'P'> = ['X', 'XS', 'S', 'M', 'L', 'XL', 'XQ', 'P'];
 const ETAGE_OPTIONS: Array<'GA' | 'UG' | 'EG'> = ['GA', 'UG', 'EG'];
 
 type WarehouseTab = 'structure' | 'movements' | 'inventory';
@@ -554,7 +554,7 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
 
       <div className="bg-app-surface rounded-2xl p-5 border border-app-border">
         <h3 className="text-xl font-semibold text-txt-primary mb-3">Neue Lagerstruktur anlegen</h3>
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+        <div className={`grid grid-cols-1 gap-3 ${layoutForm.zone === 'P' ? 'md:grid-cols-2' : 'md:grid-cols-5'}`}>
           <div>
             <label className="block text-sm text-txt-muted mb-1">Zone</label>
             <select
@@ -564,7 +564,7 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
             >
               {ZONE_OPTIONS.map((z) => (
                 <option key={z} value={z}>
-                  {z}
+                  {z === 'P' ? 'P (Palette)' : z}
                 </option>
               ))}
             </select>
@@ -583,36 +583,51 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
               ))}
             </select>
           </div>
-          <div>
-            <label className="block text-sm text-txt-muted mb-1">Gänge (z.B. 1-3)</label>
-            <input
-              value={layoutForm.gangs}
-              onChange={(e) => setLayoutForm((prev) => ({ ...prev, gangs: e.target.value }))}
-              className="w-full bg-app-elevated border border-app-border rounded-lg px-3 py-2"
-            />
-          </div>
-          <div>
-            <label className="block text-sm text-txt-muted mb-1">Regale (z.B. 1-4)</label>
-            <input
-              value={layoutForm.regale}
-              onChange={(e) => setLayoutForm((prev) => ({ ...prev, regale: e.target.value }))}
-              className="w-full bg-app-elevated border border-app-border rounded-lg px-3 py-2"
-            />
-          </div>
-          <div>
-            <label className="block text-sm text-txt-muted mb-1">Ebenen (z.B. A-E)</label>
-            <input
-              value={layoutForm.ebenen}
-              onChange={(e) => setLayoutForm((prev) => ({ ...prev, ebenen: e.target.value }))}
-              className="w-full bg-app-elevated border border-app-border rounded-lg px-3 py-2"
-            />
-          </div>
+          {layoutForm.zone === 'P' ? (
+            <div className="md:col-span-2">
+              <label className="block text-sm text-txt-muted mb-1">Anzahl Paletten (z.B. 10)</label>
+              <input
+                value={layoutForm.gangs}
+                onChange={(e) => setLayoutForm((prev) => ({ ...prev, gangs: e.target.value }))}
+                placeholder="10"
+                className="w-full bg-app-elevated border border-app-border rounded-lg px-3 py-2"
+              />
+              <p className="text-xs text-txt-muted mt-1">Paletten erhalten fortlaufende Nummern (P-001, P-002, ...)</p>
+            </div>
+          ) : (
+            <>
+              <div>
+                <label className="block text-sm text-txt-muted mb-1">Gänge (z.B. 1-10)</label>
+                <input
+                  value={layoutForm.gangs}
+                  onChange={(e) => setLayoutForm((prev) => ({ ...prev, gangs: e.target.value }))}
+                  className="w-full bg-app-elevated border border-app-border rounded-lg px-3 py-2"
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-txt-muted mb-1">Regale (z.B. 1-15)</label>
+                <input
+                  value={layoutForm.regale}
+                  onChange={(e) => setLayoutForm((prev) => ({ ...prev, regale: e.target.value }))}
+                  className="w-full bg-app-elevated border border-app-border rounded-lg px-3 py-2"
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-txt-muted mb-1">Ebenen (z.B. A-G)</label>
+                <input
+                  value={layoutForm.ebenen}
+                  onChange={(e) => setLayoutForm((prev) => ({ ...prev, ebenen: e.target.value }))}
+                  className="w-full bg-app-elevated border border-app-border rounded-lg px-3 py-2"
+                />
+              </div>
+            </>
+          )}
         </div>
         <button
           onClick={handleCreateLayout}
           className="mt-4 px-4 py-2 bg-accent-dim text-accent rounded-xl hover:bg-accent/20 transition"
         >
-          Bins generieren
+          {layoutForm.zone === 'P' ? 'Paletten generieren' : 'Bins generieren'}
         </button>
       </div>
 
@@ -632,7 +647,9 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
               </div>
               <div className="text-sm text-txt-secondary">{zone.binCount} Bins · {zone.totalProducts || 0} Produkte</div>
               <div className="text-xs text-txt-muted">
-                Gänge {zone.gangs?.join(', ')} · Regale {zone.regale?.join(', ')} · Ebenen {zone.ebenen?.join(', ')}
+                {zone.isPalette || zone.zone === 'P'
+                  ? `Paletten: ${zone.binCount}`
+                  : `Gänge ${zone.gangs?.join(', ')} · Regale ${zone.regale?.join(', ')} · Ebenen ${zone.ebenen?.join(', ')}`}
               </div>
             </button>
           ))}

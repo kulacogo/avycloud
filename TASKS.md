@@ -1,6 +1,6 @@
 # TASKS.md — AvyCloud Aktive Tasks
 
-> Letzte Aktualisierung: 2026-03-20
+> Letzte Aktualisierung: 2026-03-21
 > Nur aktive Items. Erledigte Tasks → `git log`. Bug-Historie → `docs/archive/`.
 
 ## Zu verifizieren (deployed, Browser-Check nötig)
@@ -85,7 +85,8 @@
 | PRICE-001 | Pricing Engine UI | P0 | ✅ done + merged |
 | AI-001 | AI Listing Pipeline | P1 | ✅ done + merged |
 | VAL-001 | Pre-Listing Validation | P1 | ✅ done + merged |
-| RULE-001 | Rule Engine | P1 | **Spec Ready** → nächstes Feature |
+| RULE-001 | Rule Engine | P1 | ✅ done + merged |
+| WH-001 | Warehouse Zone P + Erweiterte Ranges | P1 | **Claude Code Prompt ready** |
 | VAR-001 | Variant Model | P1 | Spec vorhanden, nicht implementiert |
 | IMG-001 | Image Enhancement | P2 | Spec vorhanden, nicht implementiert |
 | DASH-001 | Analytics Dashboard | P2 | Spec vorhanden, nicht implementiert |

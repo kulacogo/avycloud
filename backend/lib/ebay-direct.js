@@ -1615,6 +1615,19 @@ async function listLiveListings({
     prodDocs.forEach((doc) => {
       if (doc.exists) productMap.set(doc.id, doc.data() || {});
     });
+    // BUG-070: storageBins/storage are written to `products` (legacy) by warehouse.js,
+    // not to products_v2. Merge BIN data from legacy collection so listings show BIN codes.
+    const legacyRefs = uniqueProductIds.map((id) => firestore.collection('products').doc(id));
+    const legacyDocs = await batchGetAll(legacyRefs);
+    legacyDocs.forEach((doc) => {
+      if (!doc.exists) return;
+      const ld = doc.data() || {};
+      const existing = productMap.get(doc.id);
+      if (existing && !existing.storageBins && (ld.storageBins || ld.storage)) {
+        existing.storageBins = ld.storageBins || [];
+        existing.storage = ld.storage || null;
+      }
+    });
   }
 
   // ── BUG-070 Diagnostics ──

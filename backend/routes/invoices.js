@@ -73,11 +73,16 @@ router.patch('/invoices/:id', requirePermission('orders', 'write'), async (req, 
     const docRef = firestore.collection('invoices').doc(req.params.id);
     const doc = await docRef.get();
     if (!doc.exists) return res.status(404).json({ ok: false, error: { code: 'NOT_FOUND', message: 'Rechnung nicht gefunden' } });
-    if (doc.data().tenantId && doc.data().tenantId !== tenantId) {
+    const docData = doc.data() || {};
+    if (docData.tenantId && docData.tenantId !== tenantId) {
       return res.status(403).json({ ok: false, error: { code: 'FORBIDDEN', message: 'Zugriff verweigert' } });
     }
 
     const update = { status, updatedAt: new Date().toISOString() };
+    // BUG-073: Backfill tenantId on legacy invoices that lack it
+    if (!docData.tenantId && tenantId) {
+      update.tenantId = tenantId;
+    }
     await docRef.update(update);
     res.json({ ok: true, data: { id: req.params.id, ...update } });
   } catch (err) {

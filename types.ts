@@ -300,7 +300,7 @@ export interface SerpInsight {
   error?: string | null;
 }
 
-export type WarehouseZoneCode = 'X' | 'XS' | 'S' | 'M' | 'L' | 'XL';
+export type WarehouseZoneCode = 'X' | 'XS' | 'S' | 'M' | 'L' | 'XL' | 'XQ' | 'P';
 export type WarehouseEtageCode = 'GA' | 'UG' | 'EG';
 
 export interface WarehouseLayout {
@@ -311,6 +311,7 @@ export interface WarehouseLayout {
   regale: number[];
   ebenen: string[];
   binCount: number;
+  isPalette?: boolean;
   createdAt: string;
   totalProducts?: number;
 }

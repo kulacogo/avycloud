@@ -1281,8 +1281,8 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
           <div className="grid grid-cols-2 gap-2">
             <div className={scanBoxClass('bin')}>
               <p className="text-[11px] uppercase tracking-widest text-txt-muted">{t('common.bin')}</p>
-              <p className="text-2xl font-extrabold text-txt-primary tracking-wider break-all">
-                {activeBin || `${t('ops.actions.scan')} ${t('common.bin')}`}
+              <p className={`font-extrabold text-txt-primary tracking-wider break-all ${activeBin ? 'text-2xl' : 'text-base'}`}>
+                {activeBin || 'BIN scannen'}
               </p>
             </div>
             <div className={scanBoxClass('sku')}>
