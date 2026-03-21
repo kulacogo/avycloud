@@ -1059,7 +1059,10 @@ router.get('/kaufland/listings', requirePermission('products', 'read'), async (r
       const fallbackQty = typeof matched?.inventory?.availableQuantity === 'number' ? matched.inventory.availableQuantity
         : (typeof matched?.inventory?.quantity === 'number' ? matched.inventory.quantity : null);
       const whStock = binsTotal !== null ? binsTotal : fallbackQty;
-      const binLoc = storageBins.length > 0 ? (storageBins[0]?.code || null) : (matched?.storage?.binCode || null);
+      const binLoc = (storageBins.length > 0 ? (storageBins[0]?.code || storageBins[0]?.binCode || null) : null)
+        || matched?.storage?.binCode
+        || matched?.binCode
+        || null;
       const mpQty = Number.isFinite(Number(d.amount)) ? Number(d.amount) : null;
       const mismatch = typeof whStock === 'number' && mpQty !== null && whStock !== mpQty;
 

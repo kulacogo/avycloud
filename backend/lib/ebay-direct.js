@@ -1618,8 +1618,9 @@ async function listLiveListings({
   }
 
   // ── BUG-070 Diagnostics ──
-  let _diagTotal = 0, _diagLinked = 0, _diagWithBins = 0, _diagWithInv = 0, _diagWithMpQty = 0, _diagWithStock = 0;
+  let _diagTotal = 0, _diagLinked = 0, _diagWithBins = 0, _diagWithInv = 0, _diagWithMpQty = 0, _diagWithStock = 0, _diagWithBin = 0;
   const _diagUnmatched = [];
+  const _diagBinDebug = [];
 
   const filteredSearch = safeLower(search);
   const rows = listings
@@ -1650,7 +1651,23 @@ async function listLiveListings({
       if (ebayQty !== null) _diagWithMpQty++;
       if (typeof whStock === 'number') _diagWithStock++;
       if (!link && _diagUnmatched.length < 5) _diagUnmatched.push({ itemId: listing.itemId, title: (listing.title || '').slice(0, 60) });
-      const binLoc = bins.length > 0 ? (bins[0]?.code || null) : (prod?.storage?.binCode || null);
+
+      // BIN location: check all known field paths in products_v2
+      const binLoc = (binsExist ? (bins[0]?.code || bins[0]?.binCode || null) : null)
+        || prod?.storage?.binCode
+        || prod?.binCode
+        || null;
+      if (binLoc) _diagWithBin++;
+      // Debug: log bin field paths for first 5 matched products
+      if (prod && _diagBinDebug.length < 5) {
+        _diagBinDebug.push({
+          id: prodId,
+          'storage.binCode': prod?.storage?.binCode || null,
+          'storageBins[0].code': bins[0]?.code || null,
+          binCode: prod?.binCode || null,
+          binsLen: bins.length,
+        });
+      }
       const mpQty = typeof listing.quantityAvailable === 'number' ? listing.quantityAvailable : null;
       const mismatch = typeof whStock === 'number' && mpQty !== null && whStock !== mpQty;
 
@@ -1700,9 +1717,12 @@ async function listLiveListings({
     });
 
   // BUG-070 diagnostic log
-  console.info(`[eBay Listings] Total: ${_diagTotal}, Linked: ${_diagLinked} (${_diagTotal ? Math.round(_diagLinked / _diagTotal * 100) : 0}%), WithBins: ${_diagWithBins}, WithInv: ${_diagWithInv}, WithMpQty: ${_diagWithMpQty}, WithStock: ${_diagWithStock}`);
+  console.info(`[eBay Listings] Total: ${_diagTotal}, Linked: ${_diagLinked} (${_diagTotal ? Math.round(_diagLinked / _diagTotal * 100) : 0}%), WithBins: ${_diagWithBins}, WithInv: ${_diagWithInv}, WithMpQty: ${_diagWithMpQty}, WithStock: ${_diagWithStock}, WithBinLoc: ${_diagWithBin}`);
   if (_diagUnmatched.length > 0) {
     console.info(`[eBay Listings] First ${_diagUnmatched.length} unmatched:`, _diagUnmatched.map(u => `${u.itemId}: ${u.title}`).join(' | '));
+  }
+  if (_diagBinDebug.length > 0) {
+    console.info('[eBay Listings] BIN debug (first 5 matched):', JSON.stringify(_diagBinDebug));
   }
 
   return rows;
