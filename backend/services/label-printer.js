@@ -306,8 +306,6 @@ async function buildBinLabelsPdf(codes = []) {
       .font('Helvetica-Bold')
       .fontSize(mmToPoints(fontSize))
       .text(String(code).trim(), textX, textY, {
-        width: mmToPoints(BIN_TEXT_WIDTH_MM),
-        align: 'left',
         characterSpacing: mmToPoints(letterSpacing),
         lineBreak: false,
       });
