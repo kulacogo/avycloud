@@ -36,7 +36,7 @@ router.put('/settings/company', async (req, res) => {
       'firmenname', 'rechtsform', 'ustIdNr', 'steuernummer',
       'strasse', 'plz', 'ort', 'land',
       'email', 'telefon', 'website',
-      'iban', 'bic', 'bank',
+      'iban', 'bic', 'bank', 'inhaber', 'logoUrl',
     ];
     const data = {};
     for (const key of allowedFields) {

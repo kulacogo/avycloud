@@ -1,6 +1,6 @@
 # TASKS.md — AvyCloud Aktive Tasks
 
-> Letzte Aktualisierung: 2026-03-21
+> Letzte Aktualisierung: 2026-03-22
 > Nur aktive Items. Erledigte Tasks → `git log`. Bug-Historie → `docs/archive/`.
 
 ## Zu verifizieren (deployed, Browser-Check nötig)
@@ -38,26 +38,28 @@
   - Pipeline zeigt: 22 Neu + 6 Bestätigt + 341 Versendet = 369
   - Tabs zeigen: Alle 490, Neu 28, Versendet 411, Sonstige 51
   - Weder Pipeline noch Tabs summieren sich korrekt
-- [ ] **BUG-072** Versand-Tabelle: Geisterdaten + BaseLinker-Referenz (P0!)
-  - Einträge ohne Tracking-Nr UND ohne Kundenname (26-14354-93495, 09-14380-64268)
-  - Eintrag 33797691 zeigt "baselinker" Badge — BaseLinker ist TABU, muss entfernt werden
-  - Kaufland-Eintrag M9YQ4P5 ohne Kundenname
-  - Alle Versandkosten 0,00 EUR — vermutlich SevDesk-Mapping-Problem
-  - Zustellquote nur 1.1% — Berechnung wahrscheinlich falsch
+- [x] **BUG-072** Versand-Tabelle: Geisterdaten + BaseLinker-Referenz (P0!)
+  - ✅ BaseLinker-Badge gefiltert (bereits vorher)
+  - ✅ Zustellquote gefixt (bereits vorher)
+  - ✅ Versandkosten 0€: CSV-Fallback via lookupCsvPrice in shipping-engine.js
+  - ✅ Ghost-Einträge: baselinker-source Einträge komplett aus Tabelle gefiltert
+  - ⚠️ Offen: Kaufland-Eintrag M9YQ4P5 ohne Kundenname (Datenqualität, nicht filtrierbar)
 - [ ] **BUG-073** Rechnungen: Fehler beim Klick auf grünen Haken (P1)
   - "Als bezahlt markieren" wirft Fehler
   - Muss untersucht werden: API-Fehler oder Frontend-Bug
-- [ ] **BUG-074** Rechnungs-PDF Design stimmt nicht mit SevDesk überein (P1)
-  - AvyCloud PDF: minimalistisch, kein Logo, kein Firmenfooter, falsche Struktur
-  - SevDesk/Korrekt: TrendOcean Logo, QR-Code, Absenderzeile, 4-Spalten-Footer
-  - Referenz-Design: RE-1574.pdf (SevDesk-Format)
+- [x] **BUG-074** Rechnungs-PDF Design — TrendOcean-Branding (P1)
+  - ✅ Logo-Support (optional, aus company_settings.logoUrl)
+  - ✅ Rechtsform unter Firmenname
+  - ✅ MwSt-Spalte in Items-Tabelle
+  - ✅ 4-Spalten-Footer (Adresse | Kontakt | Steuer | Bank)
+  - ✅ Settings-Route: inhaber + logoUrl als erlaubte Felder
+  - ⚠️ Offen: QR-Code (würde neue Dependency erfordern)
 - [ ] **BUG-075** ~~Regeln-Seite FAILED_PRECONDITION~~ ✅ gefixt
 - [ ] **BUG-076** ~~Pricing Vorschläge leer~~ ✅ gefixt (Empty State verbessert)
-- [ ] **BUG-077** Mobile UI: Kommissionieren + Operationen (P2)
-  - BIN-Scanner Label "Scannen BIN" bricht um (Feld zu schmal, "BI" / "N" auf 2 Zeilen)
-  - BIN XGA0402C rot hinterlegt — unklar ob Fehler-State oder nur visuell
-  - "Packen: 408" — vermutlich zählt historische/erledigte Aufträge mit
-  - Bottom-Navigation: Safe Area nicht beachtet (iPhone), überlappt mit System-Bereich
+- [x] **BUG-077** Mobile UI: Kommissionieren + Operationen (P2)
+  - ✅ BIN-Scanner Label + Safe Area (bereits vorher gefixt)
+  - ✅ Pack-Zähler: nutzt jetzt readyToPackOrders (Orders) statt packList (Products)
+  - ✅ Rote BIN: korrektes Verhalten (Error-State bei unbekanntem Scan, kein Bug)
 
 ## OMS Audit — Sprint-Block 10
 
@@ -94,6 +96,8 @@
 | MP-001 | Amazon Integration | P2 | Spec vorhanden, nicht implementiert |
 | MP-002 | Otto Integration | P2 | Spec vorhanden, nicht implementiert |
 | UX-001 | Onboarding Wizard | P2 | Spec vorhanden, nicht implementiert |
+| PAL-001 | Palette-Pflicht bei Identify | P1 | ✅ done (Frontend + Backend Validierung) |
+| WT-001 | Gewichtsschätzung aus Titel | P1 | ✅ done (extractWeightFromTitle + Plausibilitätscheck) |
 
 ## Waiting On
 

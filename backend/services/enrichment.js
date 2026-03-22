@@ -1634,7 +1634,7 @@ function buildReviewPrompt(
     '- Beschreibung: SEO-stark und gut lesbar. HTML-Struktur ist verpflichtend (nur <p>, <ul>, <li>, <strong>). Empfohlen: 1 Einleitungs-<p> (2–3 Sätze) + <ul> mit 5–7 Punkten (Nutzen + Spec) + 1 <p> mit technischen Eckdaten/Kompatibilität/Abmessungen/Gewicht (nur wenn belegbar). Zielumfang bei ausreichender Beleglage: ca. 180–240 Wörter. Keine Preis-/Versandtexte, keine Platzhalter, keine Dubletten.',
     '- Highlights: 5–7 Bulletpoints, je Bullet ca. 70–120 Zeichen (je Kategorie) und im Format "[Nutzen] – [konkrete Eigenschaft/Spec]" (Dash/En-Dash mit Leerzeichen). Neutral formulieren (kein "Ihr/Dein"), technisch/faktenbasiert, keine Verpackungshinweise, keine Dubletten.',
     '- Attribute: mindestens 10, sehr granular/technisch, keine Dubletten (auch nicht als Synonyme).',
-    '- Gewicht (weight_grams): Pflichtfeld. Als Zahl in GRAMM (z.B. 500 für 500g, 2500 für 2,5 kg). Aus WEB-EVIDENZ/Verpackung/Produktdaten extrahieren. Falls nicht belegbar: realistisch schätzen basierend auf Produkttyp, Material und Kategorie. Nur null wenn Schätzung unmöglich.',
+    '- Gewicht (weight_grams): Pflichtfeld. Als Zahl in GRAMM (z.B. 500 für 500g, 2500 für 2,5 kg). PRIORITÄT 1: Gewichtsangaben im Titel (z.B. "35kg" → 35000, "500g" → 500). PRIORITÄT 2: WEB-EVIDENZ/Verpackung/Produktdaten. PRIORITÄT 3: Realistische Schätzung basierend auf Produkttyp, Material und Größe. KEINE pauschale 500g-Schätzung — verwende die spezifischste verfügbare Information.',
     '- Zustand: Wenn condition_locked=false, ist "Gebraucht/Used" nicht erlaubt (auf NEU normalisieren).',
     '- Wenn das Datenblatt nicht eBay-ready ist, musst du es reparieren (fehlende Felder ergänzen, Mindestlängen erfüllen).',
     qualityIssues && qualityIssues.length
@@ -1645,6 +1645,29 @@ function buildReviewPrompt(
     'Vorliegender Datensatz:',
     JSON.stringify(snapshot, null, 2),
   ].filter(Boolean).join('\n\n');
+}
+
+/**
+ * Extract weight from product title.
+ * Returns weight in kg, or null if no weight found.
+ * @param {string} title
+ * @returns {number|null}
+ */
+function extractWeightFromTitle(title) {
+  if (!title || typeof title !== 'string') return null;
+  // Match patterns like "35kg", "2,5 kg", "500g", "1.5 kilogramm"
+  const re = /(\d+[\.,]?\d*)\s*(kg|kilogramm|g|gramm)\b/gi;
+  let best = null;
+  let match;
+  while ((match = re.exec(title)) !== null) {
+    const val = parseFloat(match[1].replace(',', '.'));
+    const unit = match[2].toLowerCase();
+    const kg = (unit === 'g' || unit === 'gramm') ? val / 1000 : val;
+    if (kg > 0 && kg <= 500) {
+      best = kg;
+    }
+  }
+  return best;
 }
 
 function applyReviewResult(product, review, { titleHintTokens = [] } = {}) {
@@ -1853,6 +1876,17 @@ function applyReviewResult(product, review, { titleHintTokens = [] } = {}) {
       if (!product.details.weight || product.details.weight <= 0) {
         product.details.weight = Math.round(weightKg * 1000) / 1000;
       }
+    }
+
+    // Plausibility check: title weight vs LLM weight — title wins if >50% deviation
+    const titleWeight = extractWeightFromTitle(product.identification?.title || '');
+    if (titleWeight && product.details.weight > 0) {
+      const deviation = Math.abs(titleWeight - product.details.weight) / Math.max(titleWeight, product.details.weight);
+      if (deviation > 0.5) {
+        product.details.weight = Math.round(titleWeight * 1000) / 1000;
+      }
+    } else if (titleWeight && (!product.details.weight || product.details.weight <= 0)) {
+      product.details.weight = Math.round(titleWeight * 1000) / 1000;
     }
   } catch {
     // non-blocking
@@ -3246,5 +3280,6 @@ module.exports = {
     collectPriceCandidates,
     pickBestPriceCandidate,
     normalizeMatchText,
+    extractWeightFromTitle,
   },
 };

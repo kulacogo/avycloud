@@ -236,6 +236,23 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
       });
     }
 
+    // Palette is required for new products
+    if (!paletteCode || !paletteCode.trim()) {
+      return res.status(400).json({
+        ok: false,
+        error: { code: 'PALETTE_REQUIRED', message: 'Paletten-Zuordnung ist Pflicht für neue Ware.' },
+      });
+    }
+
+    // Validate palette exists as a BIN in warehouseBins
+    const paletteBinSnap = await firestore.collection('warehouseBins').doc(paletteCode.trim()).get();
+    if (!paletteBinSnap.exists) {
+      return res.status(400).json({
+        ok: false,
+        error: { code: 'PALETTE_NOT_FOUND', message: `Palette ${paletteCode} existiert nicht.` },
+      });
+    }
+
     // 1) Identify + OCR + record
     const result = await runSerpapiFreePipeline({ files, barcodes, locale, inventoryId });
 

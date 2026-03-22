@@ -9,6 +9,7 @@
 
 const { Firestore, FieldValue } = require('@google-cloud/firestore');
 const { getSecretValue } = require('../lib/secret-values');
+const { lookupCsvPrice } = require('../lib/sendcloud');
 
 const SENDCLOUD_BASE_URL = 'https://panel.sendcloud.sc/api/v2';
 const SHIPMENTS_COLLECTION = 'shipments';
@@ -705,8 +706,15 @@ async function syncSendCloudParcels({ tenantId = 'default', fromDate, toDate } =
     // Map SendCloud status to internal status
     const scStatus = mapSendCloudStatus(statusId);
 
-    // Extract cost from parcel
-    const parcelCost = parseFloat(String(parcel.price || '0').replace(',', '.')) || 0;
+    // Extract cost from parcel — CSV fallback when SendCloud API has no price
+    let parcelCost = parseFloat(String(parcel.price || '0').replace(',', '.')) || 0;
+    if (parcelCost === 0) {
+      const methodId = parcel.shipment?.id ?? parcel.shipment_product?.id ?? 0;
+      const weightKg = parseFloat(String(parcel.weight || '0').replace(',', '.')) || 0;
+      if (methodId && weightKg > 0) {
+        parcelCost = lookupCsvPrice(methodId, weightKg);
+      }
+    }
 
     // Customer name from order — BUG-062: more fallbacks for missing name
     const customerName = order.customer?.name

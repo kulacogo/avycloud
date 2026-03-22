@@ -115,7 +115,13 @@ export const ShippingView: React.FC = () => {
         const key = s.sendcloudParcelId ? String(s.sendcloudParcelId) : s.id;
         seen.set(key, s);
       }
-      setShipments(Array.from(seen.values()));
+      // BUG-072: Filter out baselinker ghost entries (no tracking, no customer)
+      const cleaned = Array.from(seen.values()).filter((s: any) => {
+        const src = String(s.source || s.marketplace || "").toLowerCase();
+        if (src.includes("baselinker")) return false;
+        return true;
+      });
+      setShipments(cleaned);
     } catch (err: any) {
       console.error("[ShippingView] load failed:", err);
       setError(err?.message || "Sendungen konnten nicht geladen werden");

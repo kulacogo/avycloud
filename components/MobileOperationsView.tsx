@@ -990,9 +990,9 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
           </button>
         </div>
         <SectionTitle title={t('ops.mode.identify')} />
-        {/* Palette scan — optional, persists across identify slots */}
-        <div className="rounded-2xl border border-app-border bg-app-surface p-3 mb-3">
-          <label className="block text-xs font-semibold text-txt-muted mb-1">Palette (optional)</label>
+        {/* Palette scan — Pflicht für neue Ware */}
+        <div className={`rounded-2xl border ${identifyPaletteCode ? 'border-success/40' : 'border-danger/40'} bg-app-surface p-3 mb-3`}>
+          <label className="block text-xs font-semibold text-txt-muted mb-1">Palette (Pflicht)</label>
           <input
             type="text"
             inputMode="none"
@@ -1002,8 +1002,10 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
             value={identifyPaletteCode}
             onChange={(e) => setIdentifyPaletteCode(e.target.value.toUpperCase())}
           />
-          {identifyPaletteCode && (
+          {identifyPaletteCode ? (
             <p className="text-xs text-success mt-1">Palette {identifyPaletteCode} aktiv — alle erkannten Produkte werden zugeordnet.</p>
+          ) : (
+            <p className="text-xs text-danger mt-1">Bitte zuerst Palette scannen</p>
           )}
         </div>
         <div className="grid grid-cols-1 gap-3">
@@ -1093,7 +1095,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
                 type="button"
                 aria-label={t('ops.identify.run')}
                 className="w-full rounded-2xl bg-success text-txt-primary font-semibold py-3 disabled:opacity-40"
-                disabled={!identifyImagesBySlot[slot]?.length}
+                disabled={!identifyImagesBySlot[slot]?.length || !identifyPaletteCode}
                 onClick={() => {
                   const images = (identifyImagesBySlot[slot] || []).map((img) => img.file);
                   if (!images.length) return;
@@ -1717,7 +1719,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
             {t('ops.mode.pick')}: {pickList.length}
           </p>
           <p>
-            {t('ops.mode.pack')}: {packList.length}
+            {t('ops.mode.pack')}: {readyToPackOrders.length}
           </p>
         </div>
       </div>
@@ -1759,7 +1761,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
         >
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" /><polyline points="3.27 6.96 12 12.01 20.73 6.96" /><line x1="12" y1="22.08" x2="12" y2="12" /></svg>
           <span className="flex-1 text-left">{t('ops.mode.pack')}</span>
-          {packList.length > 0 && <span className="bg-accent/15 text-txt-secondary text-sm font-bold px-2.5 py-0.5 rounded-full">{packList.length}</span>}
+          {readyToPackOrders.length > 0 && <span className="bg-accent/15 text-txt-secondary text-sm font-bold px-2.5 py-0.5 rounded-full">{readyToPackOrders.length}</span>}
         </button>
       </div>
     </div>

@@ -44,6 +44,7 @@ const DEFAULT_COMPANY = {
   bankName: '',
   iban: '',
   bic: '',
+  logoUrl: '',
 };
 
 /**
@@ -73,12 +74,30 @@ async function getCompanySettings(tenantId) {
         iban: d.iban || DEFAULT_COMPANY.iban,
         bic: d.bic || DEFAULT_COMPANY.bic,
         owner: d.inhaber || '',
+        logoUrl: d.logoUrl || '',
       };
     }
   } catch {
     // Fall through to default
   }
   return { ...DEFAULT_COMPANY };
+}
+
+/**
+ * Fetch logo image from GCS URL as Buffer for embedding in PDF.
+ * Returns null if unavailable.
+ */
+async function fetchLogoBuffer(logoUrl) {
+  if (!logoUrl) return null;
+  try {
+    // GCS signed URL or public URL
+    const resp = await fetch(logoUrl, { signal: AbortSignal.timeout(5000) });
+    if (!resp.ok) return null;
+    const buf = Buffer.from(await resp.arrayBuffer());
+    return buf;
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -110,8 +129,9 @@ async function generateInvoice({
     return { invoiceId: order.invoiceId, invoiceNumber: order.invoiceNumber || null, pdfUrl: order.pdfUrl || null };
   }
 
-  // Load company settings + SevDesk token
+  // Load company settings + SevDesk token + logo
   const company = await getCompanySettings(tenantId);
+  company._logoBuffer = await fetchLogoBuffer(company.logoUrl);
   const { getSecretValue } = require('../lib/secret-values');
   const token = await getSecretValue('SEVDESK_API_TOKEN').catch(() => null);
 
@@ -309,6 +329,7 @@ async function generateDeliveryNote({ orderId, tenantId = 'default' }) {
 
   const seq = await getNextNumber({ tenantId, type: 'delivery_note' });
   const company = await getCompanySettings(tenantId);
+  company._logoBuffer = await fetchLogoBuffer(company.logoUrl);
 
   const pdfBuffer = await buildInvoicePdf({
     type: 'delivery_note',
@@ -362,10 +383,19 @@ function buildInvoicePdf(data) {
       const MARGIN = 50;
       const CONTENT_WIDTH = PAGE_WIDTH - 2 * MARGIN;
 
-      // ── Company name (top-right, large) ──
+      // ── Logo (top-left, if available) + Company name (top-right) ──
+      if (co.logoUrl && co._logoBuffer) {
+        try {
+          doc.image(co._logoBuffer, MARGIN, 35, { width: 120, height: 50, fit: [120, 50] });
+        } catch { /* logo rendering failed — skip silently */ }
+      }
       if (co.name) {
-        doc.fontSize(22).fillColor('#1a1a2e').font('Helvetica-Bold');
+        doc.fontSize(20).fillColor('#1a1a2e').font('Helvetica-Bold');
         doc.text(co.name, MARGIN, 40, { align: 'right', width: CONTENT_WIDTH });
+        if (co.legalForm) {
+          doc.fontSize(8).fillColor('#999').font('Helvetica');
+          doc.text(co.legalForm, MARGIN, 62, { align: 'right', width: CONTENT_WIDTH });
+        }
       }
 
       // ── Absenderzeile (small, above recipient) ──
@@ -373,7 +403,7 @@ function buildInvoicePdf(data) {
       if (senderParts.length > 0) {
         doc.fontSize(7).fillColor('#999').font('Helvetica');
         doc.text(senderParts.join(' \u00B7 '), MARGIN, 100);
-        doc.moveTo(MARGIN, 112).lineTo(250, 112).strokeColor('#ddd').lineWidth(0.5).stroke();
+        doc.moveTo(MARGIN, 112).lineTo(280, 112).strokeColor('#ccc').lineWidth(0.5).stroke();
       }
 
       // ── Recipient (left) ──
@@ -421,20 +451,22 @@ function buildInvoicePdf(data) {
 
       // ── Items Table ──
       // Table header background
-      doc.rect(MARGIN, y - 2, CONTENT_WIDTH, 20).fill('#f5f5f5');
-      doc.fontSize(8).fillColor('#666').font('Helvetica-Bold');
-      doc.text('Pos.', MARGIN + 5, y + 3, { width: 30 });
-      doc.text('Beschreibung', MARGIN + 40, y + 3, { width: 230 });
-      doc.text('Menge', 330, y + 3, { width: 45, align: 'right' });
+      doc.rect(MARGIN, y - 2, CONTENT_WIDTH, 20).fill('#f0f0f5');
+      doc.fontSize(8).fillColor('#555').font('Helvetica-Bold');
+      doc.text('Pos.', MARGIN + 5, y + 3, { width: 25 });
+      doc.text('Bezeichnung', MARGIN + 32, y + 3, { width: 195 });
+      doc.text('Menge', 280, y + 3, { width: 40, align: 'right' });
       if (isInvoice) {
-        doc.text('Einzelpreis', 385, y + 3, { width: 70, align: 'right' });
-        doc.text('Gesamtpreis', 460, y + 3, { width: 80, align: 'right' });
+        doc.text('Einzelpreis', 325, y + 3, { width: 65, align: 'right' });
+        doc.text('MwSt', 395, y + 3, { width: 35, align: 'right' });
+        doc.text('Gesamt', 435, y + 3, { width: 80, align: 'right' });
       }
       y += 22;
 
       // Items
       doc.font('Helvetica').fillColor('#333');
       const items = data.items || [];
+      const vatPct = Math.round((data.vatRate || 0.19) * 100);
       items.forEach((item, idx) => {
         if (y > 690) {
           doc.addPage();
@@ -452,24 +484,25 @@ function buildInvoicePdf(data) {
         }
 
         doc.fontSize(9);
-        doc.text(String(idx + 1), MARGIN + 5, y, { width: 30 });
+        doc.text(String(idx + 1), MARGIN + 5, y, { width: 25 });
 
         const nameLines = [];
         nameLines.push(item.name || 'Artikel');
         if (item.sku) nameLines.push(`SKU: ${item.sku}`);
         if (item.ean) nameLines.push(`EAN: ${item.ean}`);
 
-        doc.text(nameLines[0], MARGIN + 40, y, { width: 240 });
+        doc.text(nameLines[0], MARGIN + 32, y, { width: 210 });
         if (nameLines.length > 1) {
           doc.fontSize(7).fillColor('#999');
-          doc.text(nameLines.slice(1).join(' \u00B7 '), MARGIN + 40, y + 12, { width: 240 });
+          doc.text(nameLines.slice(1).join(' \u00B7 '), MARGIN + 32, y + 12, { width: 210 });
           doc.fontSize(9).fillColor('#333');
         }
 
-        doc.text(String(qty), 330, y, { width: 45, align: 'right' });
+        doc.text(String(qty), 280, y, { width: 40, align: 'right' });
         if (isInvoice) {
-          doc.text(fmtEur(price), 385, y, { width: 70, align: 'right' });
-          doc.text(fmtEur(lineTotal), 460, y, { width: 80, align: 'right' });
+          doc.text(fmtEur(price), 325, y, { width: 65, align: 'right' });
+          doc.text(`${vatPct}%`, 395, y, { width: 35, align: 'right' });
+          doc.text(fmtEur(lineTotal), 435, y, { width: 80, align: 'right' });
         }
 
         y += nameLines.length > 1 ? 28 : 20;
@@ -478,24 +511,24 @@ function buildInvoicePdf(data) {
       // ── Totals (invoice only) ──
       if (isInvoice) {
         y += 8;
-        doc.moveTo(350, y).lineTo(MARGIN + CONTENT_WIDTH, y).strokeColor('#ddd').lineWidth(0.5).stroke();
+        doc.moveTo(330, y).lineTo(MARGIN + CONTENT_WIDTH, y).strokeColor('#ddd').lineWidth(0.5).stroke();
         y += 10;
 
         doc.fontSize(9).fillColor('#666').font('Helvetica');
-        doc.text('Zwischensumme (Netto):', 330, y, { width: 125, align: 'right' });
-        doc.text(fmtEur(data.totalNetto || 0), 460, y, { width: 80, align: 'right' });
+        doc.text('Zwischensumme (Netto):', 310, y, { width: 120, align: 'right' });
+        doc.text(fmtEur(data.totalNetto || 0), 435, y, { width: 80, align: 'right' });
         y += 16;
 
-        doc.text(`zzgl. MwSt. ${Math.round((data.vatRate || 0.19) * 100)}%:`, 330, y, { width: 125, align: 'right' });
-        doc.text(fmtEur(data.vatAmount || 0), 460, y, { width: 80, align: 'right' });
+        doc.text(`zzgl. MwSt. ${vatPct}%:`, 310, y, { width: 120, align: 'right' });
+        doc.text(fmtEur(data.vatAmount || 0), 435, y, { width: 80, align: 'right' });
         y += 16;
 
-        doc.moveTo(350, y).lineTo(MARGIN + CONTENT_WIDTH, y).strokeColor('#333').lineWidth(0.5).stroke();
+        doc.moveTo(330, y).lineTo(MARGIN + CONTENT_WIDTH, y).strokeColor('#333').lineWidth(0.5).stroke();
         y += 8;
 
         doc.fontSize(12).fillColor('#1a1a2e').font('Helvetica-Bold');
-        doc.text('Gesamtbetrag:', 330, y, { width: 125, align: 'right' });
-        doc.text(fmtEur(data.totalBrutto || 0), 460, y, { width: 80, align: 'right' });
+        doc.text('Gesamtbetrag:', 310, y, { width: 120, align: 'right' });
+        doc.text(fmtEur(data.totalBrutto || 0), 435, y, { width: 80, align: 'right' });
         y += 30;
       }
 
