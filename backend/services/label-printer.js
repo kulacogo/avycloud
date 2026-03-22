@@ -309,6 +309,7 @@ async function buildBinLabelsPdf(codes = []) {
         width: mmToPoints(BIN_TEXT_WIDTH_MM),
         align: 'left',
         characterSpacing: mmToPoints(letterSpacing),
+        lineBreak: false,
       });
   }
 
