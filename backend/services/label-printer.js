@@ -18,15 +18,25 @@ const TEXT_AREA_WIDTH_MM = LABEL_WIDTH_MM - QR_SIZE_MM - LABEL_GAP_MM - LABEL_PA
 const MIN_FONT_SIZE_MM = 3.2;
 const MAX_FONT_SIZE_MM = 6.3;
 
+// BIN label dimensions (62mm length × 29mm width)
+const BIN_WIDTH_MM = 62;
+const BIN_HEIGHT_MM = 29;
+const BIN_QR_SIZE_MM = 22;
+const BIN_PADDING_MM = 2.5;
+const BIN_GAP_MM = 3;
+const BIN_TEXT_WIDTH_MM = BIN_WIDTH_MM - BIN_QR_SIZE_MM - BIN_GAP_MM - BIN_PADDING_MM * 2;
+const BIN_MAX_FONT_MM = 7;
+const BIN_MIN_FONT_MM = 3.5;
+
 const mmToPoints = (mm) => (mm / 25.4) * 72;
 
 function getBinFontMetrics(code = '') {
   const clean = String(code || '').trim();
   const length = Math.max(clean.length, 1);
-  const charWidth = TEXT_AREA_WIDTH_MM / length;
+  const charWidth = BIN_TEXT_WIDTH_MM / length;
   const fontSize = Math.max(
-    Math.min(MAX_FONT_SIZE_MM, Number((charWidth * 0.92).toFixed(2))),
-    MIN_FONT_SIZE_MM
+    Math.min(BIN_MAX_FONT_MM, Number((charWidth * 1.4).toFixed(2))),
+    BIN_MIN_FONT_MM
   );
   const letterSpacing = Math.max(Number((fontSize * 0.12).toFixed(3)), 0.05);
   return { fontSize, letterSpacing };
@@ -181,7 +191,7 @@ async function buildBinLabelsHtml(codes = []) {
     <title>BIN Labels</title>
     <style>
       @page {
-        size: ${LABEL_WIDTH_MM}mm ${LABEL_HEIGHT_MM}mm;
+        size: ${BIN_WIDTH_MM}mm ${BIN_HEIGHT_MM}mm;
         margin: 0;
       }
       body {
@@ -191,13 +201,13 @@ async function buildBinLabelsHtml(codes = []) {
         background: #ffffff;
       }
       .label {
-        width: ${LABEL_WIDTH_MM}mm;
-        height: ${LABEL_HEIGHT_MM}mm;
+        width: ${BIN_WIDTH_MM}mm;
+        height: ${BIN_HEIGHT_MM}mm;
         display: flex;
         align-items: center;
         justify-content: flex-start;
-        gap: 3mm;
-        padding: 2mm 3mm;
+        gap: ${BIN_GAP_MM}mm;
+        padding: ${BIN_PADDING_MM}mm;
         box-sizing: border-box;
         page-break-after: always;
       }
@@ -205,8 +215,9 @@ async function buildBinLabelsHtml(codes = []) {
         page-break-after: auto;
       }
       .qr {
-        width: ${QR_SIZE_MM}mm;
-        height: ${QR_SIZE_MM}mm;
+        flex: 0 0 ${BIN_QR_SIZE_MM}mm;
+        width: ${BIN_QR_SIZE_MM}mm;
+        height: ${BIN_QR_SIZE_MM}mm;
       }
       .qr img {
         width: 100%;
@@ -214,11 +225,10 @@ async function buildBinLabelsHtml(codes = []) {
       }
       .text {
         flex: 1;
-        font-size: 6mm;
         font-weight: 700;
         font-family: 'SFMono-Regular', 'Roboto Mono', 'Fira Mono', 'Menlo', monospace;
         text-align: left;
-        line-height: 1.05;
+        line-height: 1;
         white-space: nowrap;
         overflow: visible;
       }
@@ -259,15 +269,14 @@ async function buildBinLabelsPdf(codes = []) {
   }
 
   const doc = new PDFDocument({
-    size: [mmToPoints(LABEL_WIDTH_MM), mmToPoints(LABEL_HEIGHT_MM)],
+    size: [mmToPoints(BIN_WIDTH_MM), mmToPoints(BIN_HEIGHT_MM)],
     margins: {
-      top: mmToPoints(LABEL_PADDING_MM),
-      bottom: mmToPoints(LABEL_PADDING_MM),
-      left: mmToPoints(LABEL_PADDING_MM),
-      right: mmToPoints(LABEL_PADDING_MM),
+      top: mmToPoints(BIN_PADDING_MM),
+      bottom: mmToPoints(BIN_PADDING_MM),
+      left: mmToPoints(BIN_PADDING_MM),
+      right: mmToPoints(BIN_PADDING_MM),
     },
   });
-  applyPageRotation(doc);
 
   const chunks = [];
   doc.on('data', (chunk) => chunks.push(chunk));
@@ -276,7 +285,6 @@ async function buildBinLabelsPdf(codes = []) {
     const code = codes[index];
     if (index > 0) {
       doc.addPage();
-      applyPageRotation(doc);
     }
     const qrDataUrl = await QRCode.toDataURL(code, {
       errorCorrectionLevel: 'H',
@@ -288,15 +296,17 @@ async function buildBinLabelsPdf(codes = []) {
 
     const { fontSize, letterSpacing } = getBinFontMetrics(code);
 
-    doc.image(qrBuffer, 0, 0, { fit: [mmToPoints(QR_SIZE_MM), mmToPoints(QR_SIZE_MM)] });
+    const qrX = mmToPoints(BIN_PADDING_MM);
+    const qrY = mmToPoints((BIN_HEIGHT_MM - BIN_QR_SIZE_MM) / 2);
+    doc.image(qrBuffer, qrX, qrY, { fit: [mmToPoints(BIN_QR_SIZE_MM), mmToPoints(BIN_QR_SIZE_MM)] });
 
-    const textX = mmToPoints(QR_SIZE_MM + LABEL_GAP_MM);
-    const textY = mmToPoints(6);
+    const textX = mmToPoints(BIN_PADDING_MM + BIN_QR_SIZE_MM + BIN_GAP_MM);
+    const textY = mmToPoints((BIN_HEIGHT_MM - fontSize) / 2);
     doc
       .font('Helvetica-Bold')
       .fontSize(mmToPoints(fontSize))
       .text(String(code).trim(), textX, textY, {
-        width: mmToPoints(TEXT_AREA_WIDTH_MM),
+        width: mmToPoints(BIN_TEXT_WIDTH_MM),
         align: 'left',
         characterSpacing: mmToPoints(letterSpacing),
       });
