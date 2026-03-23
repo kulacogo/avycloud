@@ -19,6 +19,9 @@
 
 ## Aktive Bugs (P0/P1)
 
+- [ ] **BUG-079** Multi-Identify liefert nur letztes Produkt — parallel statt sequentiell, Focus überschreibt sich (P0)
+- [ ] **BUG-080** LLM-Pipeline Qualität — Quality Gate deaktiviert, Review-Fehler verschluckt, kein Retry, Schema-Probleme (P0)
+- [ ] **BUG-081** products Collection noch als Primary Read — Migration zu products_v2 unvollständig, 292 Produkte unsichtbar (P0)
 - [x] **BUG-078** BIN-Löschung blockiert obwohl Bestand = 0 — nonEmpty-Filter gefixt (products.some statt products.length)
 - [ ] **BUG-068** 170 Stock-Sync Fehler — Oversell-Risiko (abhängig von eBay Token Fix)
 - [ ] **BUG-069** Dashboard Chart endet bei ~12.03 (createdAt-Datumslogik)
@@ -98,6 +101,8 @@
 | UX-001 | Onboarding Wizard | P2 | Spec vorhanden, nicht implementiert |
 | PAL-001 | Palette-Pflicht bei Identify | P1 | ✅ done (Frontend + Backend Validierung) |
 | WT-001 | Gewichtsschätzung aus Titel | P1 | ✅ done (extractWeightFromTitle + Plausibilitätscheck) |
+| MIG-001 | Products-V2 Lesepfad-Migration | P0 | ✅ done (alle Reads auf products_v2, warehouse dual-write) |
+| LLM-001 | LLM Pipeline Quality Fix | P0 | ✅ done (8 Fixes: QualityGate, Retry, Schema, Improve-Tracking, Evidence-Hierarchie, Gewicht, Preis) |
 
 ## Waiting On
 

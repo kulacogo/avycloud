@@ -16,7 +16,10 @@ const MAX_EBENE = 'G'.charCodeAt(0);
 
 const zonesCollection = firestore.collection('warehouseZones');
 const binsCollection = firestore.collection('warehouseBins');
-const productsCollection = firestore.collection('products');
+const PRODUCTS_COLL_NAME = process.env.USE_PRODUCTS_V2 === 'true' ? 'products_v2' : 'products';
+const PRODUCTS_LEGACY_COLL_NAME = process.env.USE_PRODUCTS_V2 === 'true' ? 'products' : 'products_v2';
+const productsCollection = firestore.collection(PRODUCTS_COLL_NAME);
+const productsLegacyCollection = firestore.collection(PRODUCTS_LEGACY_COLL_NAME);
 const warehouseEventsCollection = firestore.collection('warehouseEvents');
 
 function writeWarehouseEventTx(tx, payload = {}) {
@@ -161,6 +164,21 @@ async function refreshProductInventory(productId) {
     storageBins,
     storage,
   });
+
+  // Dual-write: keep legacy collection in sync (best-effort)
+  try {
+    const legacyRef = productsLegacyCollection.doc(resolvedId);
+    const legacySnap = await legacyRef.get();
+    if (legacySnap.exists) {
+      await legacyRef.update({
+        'inventory.quantity': totalQty,
+        storageBins,
+        storage,
+      });
+    }
+  } catch (e) {
+    console.warn(`[refreshProductInventory] Dual-write to ${PRODUCTS_LEGACY_COLL_NAME} failed for ${resolvedId}:`, e.message);
+  }
 }
 
 async function findProductDocument({ productId, sku, barcode }) {

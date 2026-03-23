@@ -2,6 +2,7 @@ const router = require('express').Router();
 const crypto = require('crypto');
 const path = require('path');
 const {
+  PRODUCTS_COLLECTION,
   saveProduct,
   getProduct,
   getAllProducts,
@@ -1415,7 +1416,7 @@ router.get('/products', requirePermission('products', 'read'), async (req, res) 
 
 // --- SSE Product Stream — real-time product updates via Firestore onSnapshot ---
 router.get('/products/stream', requirePermission('products', 'read'), (req, res) => {
-  const COLLECTION = process.env.PRODUCT_COLLECTION || 'products';
+  const COLLECTION = process.env.USE_PRODUCTS_V2 === 'true' ? 'products_v2' : (process.env.PRODUCT_COLLECTION || 'products');
 
   res.writeHead(200, {
     'Content-Type': 'text/event-stream',
@@ -1703,7 +1704,7 @@ router.post('/save', requirePermission('products', 'write'), async (req, res) =>
         const { syncPriceToAllChannels } = require('../services/stock-sync-dispatcher');
         // Read fresh product from Firestore so we have marketplace.ebay.itemId
         // (publishProduct writes itemId to 'products' collection, not in req.body)
-        const freshSnap = await firestore.collection('products').doc(product.id).get();
+        const freshSnap = await firestore.collection(PRODUCTS_COLLECTION).doc(product.id).get();
         const freshProduct = freshSnap.exists ? { id: product.id, ...freshSnap.data() } : product;
         // Merge current sellPrice in case it hasn't propagated to Firestore yet
         if (!freshProduct.details) freshProduct.details = {};

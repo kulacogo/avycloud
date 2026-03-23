@@ -29,6 +29,7 @@ const { filterBarcodesByWebConfirm } = require('../lib/barcode-web-confirm');
 const { searchWeb, fetchPageText } = require('../lib/web-search-html');
 const { evaluateEbayReady } = require('../lib/datasheet-quality');
 const { fetchCategoryTitleInsights } = require('../lib/ebay-browse-title-insights');
+const { callGeminiWithRetry } = require('../lib/gemini-retry');
 
 function safeString(v) {
   return typeof v === 'string' ? v.trim() : v == null ? '' : String(v).trim();
@@ -647,6 +648,13 @@ function buildSystemPrompt(locale = 'de-DE') {
   return [
     `Du bist Gemini (Google) und agierst als Product Intelligence Brain.`,
     buildCommonPolicyText({ locale, allowWebEvidence: true }),
+    '',
+    `EVIDENCE-HIERARCHIE (PFLICHT, in dieser Reihenfolge):`,
+    `1. BARCODE/EAN-SUCHE → Höchste Priorität. Wenn eine Barcode-Suche ein Ergebnis liefert (Produktname, Brand, Hersteller): DIESEN Titel und Brand als PRIMÄRQUELLE verwenden. Bilder dienen NUR zur Ergänzung von Details (Farbe, Maße, Zustand). NIEMALS den Barcode-Titel mit eigenen Interpretationen überschreiben.`,
+    `2. OCR-TEXT auf Verpackung → Zweithöchste Priorität. Text der direkt auf dem Produkt/Verpackung lesbar ist.`,
+    `3. WEB-EVIDENCE (Marketplace-Snippets) → Dritthöchste Priorität. Titel von eBay/Amazon/Google Shopping Ergebnissen.`,
+    `4. BILD-ANALYSE → Niedrigste Priorität für Titel/Brand. Bilder liefern: Farbe, Zustand, Material, Mengenangaben. Bilder liefern NICHT: Produktname, Brand, Kategorie.`,
+    `ANTI-PATTERN (VERBOTEN): Ein einzelnes Element auf einem Bild sehen und daraus den Produktnamen ableiten (z.B. Deutschland-Flagge sehen → "Deutschland Pin" als Titel → FALSCH wenn es ein 288er-Set ist). Brand aus dem Bild raten wenn EAN-Daten einen anderen Brand liefern.`,
     '',
     `Zusatzregeln für Identify:`,
     `- Du darfst KEINE eigenen Web-Calls ausführen. Wenn WEB-EVIDENZ im Prompt enthalten ist, darfst du sie nutzen.`,
@@ -1472,15 +1480,15 @@ const DATASHEET_REVIEW_SCHEMA = {
     short_description: { type: 'string', minLength: 300, maxLength: 2000 },
     highlights: {
       type: 'array',
-      minItems: 5,
+      minItems: 3,
       maxItems: 7,
       items: { type: 'string', minLength: 10, maxLength: 160 },
     },
     attributes: {
       type: 'array',
-      // We want granular, marketplace-ready datasheets by default.
-      // Quality Gate only requires >=5, but for operational quality we enforce a higher floor here.
-      minItems: 10,
+      // Lowered from 10 to 5 — minItems: 10 caused schema validation failures that
+      // cascaded into silent review failures (P3 fix). Quality Gate enforces >=5 separately.
+      minItems: 5,
       maxItems: 40,
       items: {
         type: 'object',
@@ -1516,9 +1524,9 @@ const DATASHEET_REVIEW_SCHEMA = {
     // provide a realistic estimate based on product type, material, and category.
     // Return null ONLY if completely impossible to estimate.
     weight_grams: {
-      type: ['number', 'null'],
-      minimum: 0,
-      maximum: 5000000,
+      type: ['integer', 'null'],
+      minimum: 1,
+      maximum: 500000,
     },
     // Optional: GPSR manufacturer/contact data (EU compliance).
     // IMPORTANT: do not invent values; only extract from evidence.
@@ -1616,6 +1624,8 @@ function buildReviewPrompt(
     effectiveIntro,
     effectiveRules,
     '',
+    'EVIDENCE-HIERARCHIE (PFLICHT): 1) BARCODE/EAN → Höchste Priorität für Titel/Brand. 2) OCR-Text auf Verpackung. 3) WEB-EVIDENCE. 4) BILD-ANALYSE → nur für Farbe/Zustand/Material, NICHT für Titel/Brand/Kategorie. ANTI-PATTERN: Einzelnes Bildelement sehen und daraus Produktnamen ableiten. Brand aus Barcode-Daten hat IMMER Vorrang vor Bild-Interpretation.',
+    '',
     'Zusatzregeln für Review:',
     requiredLine,
     missingLine,
@@ -1634,7 +1644,7 @@ function buildReviewPrompt(
     '- Beschreibung: SEO-stark und gut lesbar. HTML-Struktur ist verpflichtend (nur <p>, <ul>, <li>, <strong>). Empfohlen: 1 Einleitungs-<p> (2–3 Sätze) + <ul> mit 5–7 Punkten (Nutzen + Spec) + 1 <p> mit technischen Eckdaten/Kompatibilität/Abmessungen/Gewicht (nur wenn belegbar). Zielumfang bei ausreichender Beleglage: ca. 180–240 Wörter. Keine Preis-/Versandtexte, keine Platzhalter, keine Dubletten.',
     '- Highlights: 5–7 Bulletpoints, je Bullet ca. 70–120 Zeichen (je Kategorie) und im Format "[Nutzen] – [konkrete Eigenschaft/Spec]" (Dash/En-Dash mit Leerzeichen). Neutral formulieren (kein "Ihr/Dein"), technisch/faktenbasiert, keine Verpackungshinweise, keine Dubletten.',
     '- Attribute: mindestens 10, sehr granular/technisch, keine Dubletten (auch nicht als Synonyme).',
-    '- Gewicht (weight_grams): Pflichtfeld. Als Zahl in GRAMM (z.B. 500 für 500g, 2500 für 2,5 kg). PRIORITÄT 1: Gewichtsangaben im Titel (z.B. "35kg" → 35000, "500g" → 500). PRIORITÄT 2: WEB-EVIDENZ/Verpackung/Produktdaten. PRIORITÄT 3: Realistische Schätzung basierend auf Produkttyp, Material und Größe. KEINE pauschale 500g-Schätzung — verwende die spezifischste verfügbare Information.',
+    '- GEWICHT (weight_grams) — STRIKTE REGELN: 1) Wenn im Titel oder Beschreibung ein Gewicht steht → DIESES verwenden. 2) Wenn auf den Bildern ein Gewicht sichtbar ist → DIESES verwenden. 3) NUR wenn kein Gewicht belegbar ist: Schätzung basierend auf Kategorie + typisches Gewicht (T-Shirt: 150-250g, Sneaker: 300-500g, Werkzeug: 200-2000g), Material (Metall > Kunststoff), Maße wenn verfügbar. 4) NIEMALS 0g oder null wenn Produkt physisch existiert. 5) Gewicht IMMER in Gramm, ganzzahlig. 6) Bei Unsicherheit: lieber konservativ (leichter) schätzen. KEINE pauschale 500g-Schätzung.',
     '- Zustand: Wenn condition_locked=false, ist "Gebraucht/Used" nicht erlaubt (auf NEU normalisieren).',
     '- Wenn das Datenblatt nicht eBay-ready ist, musst du es reparieren (fehlende Felder ergänzen, Mindestlängen erfüllen).',
     qualityIssues && qualityIssues.length
@@ -2141,27 +2151,30 @@ async function runDatasheetReview(
         }
       }
 
-      const result = await model.generateContent({
-        contents: [{
-          role: "user",
-          parts: [{
-            text: buildReviewPrompt(product, locale, {
-              webEvidence: mergedEvidence,
-              qualityIssues: qualityIssuesById && product?.id ? (qualityIssuesById[product.id] || []) : [],
-              titleInsights,
-              llmOverrides: llmConfig
-                ? {
-                    promptText: llmConfig.promptText,
-                    rulesText: llmConfig.rulesText,
-                    promptMode: llmConfig.promptMode,
-                    rulesMode: llmConfig.rulesMode,
-                  }
-                : null,
-            })
-          }]
-        }],
-        generationConfig
-      });
+      const result = await callGeminiWithRetry(
+        () => model.generateContent({
+          contents: [{
+            role: "user",
+            parts: [{
+              text: buildReviewPrompt(product, locale, {
+                webEvidence: mergedEvidence,
+                qualityIssues: qualityIssuesById && product?.id ? (qualityIssuesById[product.id] || []) : [],
+                titleInsights,
+                llmOverrides: llmConfig
+                  ? {
+                      promptText: llmConfig.promptText,
+                      rulesText: llmConfig.rulesText,
+                      promptMode: llmConfig.promptMode,
+                      rulesMode: llmConfig.rulesMode,
+                    }
+                  : null,
+              })
+            }]
+          }],
+          generationConfig
+        }),
+        { maxRetries: 1, delayMs: 2000 }
+      );
 
       // @google/generative-ai can return multi-part text. Concatenate parts (no separators)
       // to avoid truncated JSON payloads.
@@ -2178,10 +2191,16 @@ async function runDatasheetReview(
         titleHintTokens: Array.isArray(titleInsights?.topTokens) ? titleInsights.topTokens : [],
       });
     } catch (error) {
-      console.warn(
-        `Datasheet review failed for product ${product?.id || 'unknown'}:`,
+      console.error(
+        `[REVIEW FAILED] Product ${product?.id || 'unknown'}:`,
         error?.message || error
       );
+      // Mark product as requiring manual review
+      if (product.ops) {
+        product.ops.sync_status = 'review_required';
+        product.ops.review_reason = `Datasheet review failed: ${error?.message || 'unknown'}`;
+        product.ops.review_failed_at = new Date().toISOString();
+      }
     }
   }
 }
@@ -2753,15 +2772,10 @@ async function fetchPriceTrace(product, keywords) {
 }
 
 async function ensurePriceCoverage(products = [], serpTrace = [], options = {}) {
-  // SerpAPI enrichment step — opt-in via PRICE_ENRICHMENT_ENABLED=true.
-  // SERPAPI_ENABLED is a secondary guard for deployments that don't have SerpAPI credentials.
-  // BrightData/eBay Browse fallbacks in enrichPriceForProductBestEffort run regardless.
-  const PRICE_ENRICH =
-    (process.env.PRICE_ENRICHMENT_ENABLED || '').toString().trim().toLowerCase() === 'true';
-  if (!PRICE_ENRICH) return;
-  const SERPAPI_ENABLED = (process.env.SERPAPI_ENABLED || '').toString().trim().toLowerCase() === 'true';
-  if (!SERPAPI_ENABLED) return;
+  // Price enrichment always runs. SerpAPI is only ONE source — eBay Browse and web search
+  // are independent fallbacks that must not be blocked by SerpAPI kill-switches.
   if (!Array.isArray(products) || !products.length) return;
+  const SERPAPI_ENABLED = (process.env.SERPAPI_ENABLED || '').toString().trim().toLowerCase() === 'true';
 
   const force = Boolean(options?.force);
   const maxAgeDays =
@@ -2822,7 +2836,7 @@ async function ensurePriceCoverage(products = [], serpTrace = [], options = {}) 
     const queries = Array.from(new Set(queryCandidates.map((q) => q.replace(/\s+/g, ' ').trim()))).slice(0, 3);
 
     let candidates = collectPriceCandidates(product, serpTrace, keywords);
-    if (!candidates.length) {
+    if (!candidates.length && SERPAPI_ENABLED) {
       for (const q of queries) {
       try {
           const raw = await callSerpApi('google_shopping', { q, num: 20 });
@@ -2852,8 +2866,26 @@ async function ensurePriceCoverage(products = [], serpTrace = [], options = {}) 
       candidates = collectPriceCandidates(product, serpTrace, keywords);
     }
 
+    // Fallback: eBay Browse API (always available, no SerpAPI required)
+    if (!candidates.length) {
+      try {
+        const { enrichPriceForProductBestEffort } = require('../lib/price-enrichment');
+        const browseResult = await enrichPriceForProductBestEffort(product, { force: true, reason: 'identify' });
+        if (browseResult?.ok && browseResult?.updated) {
+          continue; // Price set by eBay Browse — skip to next product
+        }
+      } catch (e) {
+        console.warn(`[PRICE] eBay Browse fallback failed for ${product?.id}: ${e?.message}`);
+      }
+    }
+
     const best = pickBestPriceCandidate(candidates);
     if (!best) {
+      // Mark as no price data available
+      product.details = product.details || {};
+      product.details.pricing = product.details.pricing || {};
+      product.details.pricing.price_confidence = 0;
+      product.details.pricing.price_source = 'none';
       product.notes = product.notes || {};
       product.notes.warnings = Array.from(
         new Set([...(product.notes.warnings || []), 'Preis konnte nicht zuverlässig ermittelt werden – bitte prüfen.'])
@@ -3072,10 +3104,13 @@ async function runProductIdentification({
 
   let bundle;
   try {
-    const result = await model.generateContent({
-      contents: [{ role: "user", parts: geminiParts }],
-      generationConfig,
-    });
+    const result = await callGeminiWithRetry(
+      () => model.generateContent({
+        contents: [{ role: "user", parts: geminiParts }],
+        generationConfig,
+      }),
+      { maxRetries: 2, delayMs: 3000 }
+    );
 
     const responseText = result.response.text();
     bundle = JSON.parse(responseText);
@@ -3112,10 +3147,13 @@ async function runProductIdentification({
           webEvidence,
         });
         secondParts.push({ text: userPrompt });
-        const retry = await model.generateContent({
-          contents: [{ role: 'user', parts: secondParts }],
-          generationConfig,
-        });
+        const retry = await callGeminiWithRetry(
+          () => model.generateContent({
+            contents: [{ role: 'user', parts: secondParts }],
+            generationConfig,
+          }),
+          { maxRetries: 1, delayMs: 2000 }
+        );
         const responseText = retry.response.text();
         bundle = JSON.parse(responseText);
       }

@@ -16,7 +16,7 @@ const crypto = require('crypto');
 const sharp = require('sharp');
 const { Firestore, Timestamp } = require('@google-cloud/firestore');
 
-const { getProduct } = require('../lib/firestore');
+const { getProduct, PRODUCTS_COLLECTION } = require('../lib/firestore');
 const { resolveModel } = require('../lib/model-select');
 const { getGeminiClient } = require('../lib/gemini-client');
 const { buildCommonPolicyText } = require('../lib/llm-policy-pack');
@@ -29,8 +29,6 @@ const { fetchWithUnlocker } = require('../lib/web-unlocker');
 const firestore = new Firestore({
   projectId: process.env.GOOGLE_CLOUD_PROJECT || 'avycloud',
 });
-
-const PRODUCTS_COLLECTION = 'products';
 
 const USE_LLM = (process.env.QUALITY_GATE_USE_LLM || 'true').toString().toLowerCase() !== 'false';
 const USE_UNLOCKER =

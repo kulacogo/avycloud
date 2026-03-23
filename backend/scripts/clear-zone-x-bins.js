@@ -18,6 +18,7 @@ async function main() {
   const db = new Firestore({ projectId: process.env.GOOGLE_CLOUD_PROJECT || 'avycloud' });
   const binsCollection = db.collection('warehouseBins');
   const productsCollection = db.collection('products');
+  const productsV2Collection = db.collection('products_v2');
   const eventsCollection = db.collection('warehouseEvents');
 
   console.log(`\n🔧 Entferne ALLE Produkt-Zuordnungen aus Zone ${ZONE}...\n`);
@@ -74,11 +75,17 @@ async function main() {
         }
 
         try {
-          const productRef = productsCollection.doc(productId);
-          const productSnap = await productRef.get();
+          // Suche in beiden Collections (products + products_v2)
+          let productRef = productsCollection.doc(productId);
+          let productSnap = await productRef.get();
 
           if (!productSnap.exists) {
-            console.warn(`  ⚠️  Produkt ${productId} nicht in products Collection`);
+            productRef = productsV2Collection.doc(productId);
+            productSnap = await productRef.get();
+          }
+
+          if (!productSnap.exists) {
+            console.warn(`  ⚠️  Produkt ${productId} weder in products noch in products_v2`);
             continue;
           }
 

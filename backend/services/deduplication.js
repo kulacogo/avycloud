@@ -4,7 +4,7 @@
  * Erkennt Duplikate anhand von EAN/MPN/Brand+Model Kombination.
  * NIEMALS automatisch löschen — immer Vorschlag + manuelle Bestätigung.
  */
-const { firestore, getProduct } = require('../lib/firestore');
+const { firestore, getProduct, PRODUCTS_COLLECTION } = require('../lib/firestore');
 const { saveProductV2 } = require('../lib/product-store');
 
 /**
@@ -12,7 +12,7 @@ const { saveProductV2 } = require('../lib/product-store');
  * Gruppiert nach: EAN, MPN, Brand+Name Kombination.
  */
 async function findDuplicates() {
-  const snap = await firestore.collection('products').limit(2000).get();
+  const snap = await firestore.collection(PRODUCTS_COLLECTION).limit(2000).get();
   const products = snap.docs.map(d => ({ id: d.id, ...d.data() }));
 
   // Index aufbauen
@@ -147,7 +147,7 @@ async function executeMerge(keepId, removeId) {
   });
 
   // removeId als archiviert markieren (NICHT löschen)
-  await firestore.collection('products').doc(removeId).set({
+  await firestore.collection(PRODUCTS_COLLECTION).doc(removeId).set({
     ops: {
       archived: true,
       archivedAt: new Date().toISOString(),

@@ -69,9 +69,9 @@ function evaluateEbayReady(product, options = {}) {
   const force = Boolean(options && typeof options === 'object' && options.force === true);
   const ignorePrice = Boolean(options && typeof options === 'object' && options.ignorePrice === true);
   const enabled = (process.env.QUALITY_GATE_ENABLED || '').toString().trim().toLowerCase();
-  const gateEnabled = enabled === '1' || enabled === 'true' || enabled === 'yes';
-  if (!gateEnabled && !force) {
-    // Default: disabled (no rule-based blocking). Still return a lightweight snapshot for UI.
+  const gateDisabled = enabled === '0' || enabled === 'false' || enabled === 'no';
+  if (gateDisabled && !force) {
+    // Gate explicitly disabled — return lightweight snapshot for UI.
     const title = safeString(product?.identification?.name);
     const desc = extractListingText(product);
     const category = safeString(product?.identification?.category);

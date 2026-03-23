@@ -127,7 +127,7 @@ async function enrichPriceViaEbayBrowseBestEffort(product, { force = false, reas
     .filter((s) => (s?.currency ? String(s.currency).toUpperCase() === 'EUR' : true))
     .filter((s) => typeof s?.value === 'number' && Number.isFinite(s.value) && s.value >= 1)
     .filter((s) => safeString(s?.url).startsWith('http'));
-  if (eur.length < 3) return { ok: false, updated: false, error: 'too_few_samples' };
+  if (eur.length < 1) return { ok: false, updated: false, error: 'no_samples' };
 
   const median = medianNumber(eur.map((s) => s.value));
   if (median == null) return { ok: false, updated: false, error: 'no_median' };
@@ -136,6 +136,9 @@ async function enrichPriceViaEbayBrowseBestEffort(product, { force = false, reas
   const sorted = eur.slice().sort((a, b) => Math.abs(a.value - median) - Math.abs(b.value - median) || a.value - b.value);
   const sources = sorted.slice(0, 6).map((s) => ({ name: 'ebay.de', url: s.url, price: s.value, checked_at: timestamp }));
 
+  // Lower confidence with fewer samples (1-2 samples = 0.3, 3+ = 0.7)
+  const confidence = eur.length >= 3 ? 0.7 : 0.3;
+
   const data = {
     lowest_price: {
       amount: median,
@@ -143,11 +146,11 @@ async function enrichPriceViaEbayBrowseBestEffort(product, { force = false, reas
       sources,
       last_checked_iso: timestamp,
     },
-    price_confidence: 0.7,
+    price_confidence: confidence,
   };
 
   product.details.pricing.lowest_price = data.lowest_price;
-  product.details.pricing.price_confidence = data.price_confidence;
+  product.details.pricing.price_confidence = confidence;
   product.ops = product.ops || {};
   product.ops.data_quality = product.ops.data_quality || {};
   product.ops.data_quality.price_enrich_v1 = {
@@ -952,6 +955,9 @@ async function improveExistingProduct(productId, onProgress) {
   console.log(`[improve] Running Identification. Files: ${files.length}, Barcodes: ${barcodes.length}`);
 
   let improvedOutput = null;
+  let identifyOk = false;
+  let reviewOk = false;
+
   if (files.length === 0 && barcodes.length === 0) {
     console.warn('[improve] No reference images downloadable and no barcodes. Falling back to review-only improve.');
     if (onProgress) await onProgress('reviewing');
@@ -970,8 +976,9 @@ async function improveExistingProduct(productId, onProgress) {
         onProgress,
       });
       improvedOutput = result?.bundle?.products?.[0] || null;
+      identifyOk = Boolean(improvedOutput);
     } catch (error) {
-      console.warn('[improve] Identification failed. Falling back to review-only improve:', error?.message || error);
+      console.error('[improve] Identification failed:', error?.message || error);
       improvedOutput = null;
       if (onProgress) await onProgress('reviewing');
     }
@@ -1030,12 +1037,17 @@ async function improveExistingProduct(productId, onProgress) {
 
   console.log('[improve] Final Review & Save...');
   if (onProgress) await onProgress('reviewing');
-  await runDatasheetReview([mergedProduct], {
-    locale: product.locale || 'de-DE',
-    webEvidence: reviewEvidence,
-    marketplaceEvidence: true,
-    llmScopeId: 'improve.product',
-  });
+  try {
+    await runDatasheetReview([mergedProduct], {
+      locale: product.locale || 'de-DE',
+      webEvidence: reviewEvidence,
+      marketplaceEvidence: true,
+      llmScopeId: 'improve.product',
+    });
+    reviewOk = true;
+  } catch (reviewErr) {
+    console.error('[improve] Review failed:', reviewErr?.message || reviewErr);
+  }
 
   // Retry once if still not eBay-ready (incl. missing required aspects).
   try {
@@ -1138,6 +1150,14 @@ async function improveExistingProduct(productId, onProgress) {
     }
   } catch {
     // ignore
+  }
+
+  // If neither Identify nor Review succeeded, mark product as failed
+  if (!identifyOk && !reviewOk) {
+    mergedProduct.ops = mergedProduct.ops || {};
+    mergedProduct.ops.sync_status = 'improve_failed';
+    mergedProduct.ops.improve_error = 'Weder Identify noch Review waren erfolgreich';
+    mergedProduct.ops.improve_failed_at = new Date().toISOString();
   }
 
   // Shared rulebook apply:

@@ -93,7 +93,7 @@ const firestore = new Firestore({
 });
 
 // Collection name
-const PRODUCTS_COLLECTION = 'products';
+const PRODUCTS_COLLECTION = process.env.USE_PRODUCTS_V2 === 'true' ? 'products_v2' : 'products';
 const ORDERS_COLLECTION = 'orders';
 const SKU_INDEX_COLLECTION = 'sku_index';
 const INVENTORIES_COLLECTION = 'inventories';
@@ -3707,6 +3707,7 @@ async function computeOrdersDeliveryTotal(fromDate, toDate) {
 }
 
 module.exports = {
+  PRODUCTS_COLLECTION,
   saveProduct,
   getProduct,
   getAllProducts,

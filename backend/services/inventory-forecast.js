@@ -3,7 +3,7 @@
  *
  * Vorhersage von Stock-Outs basierend auf historischen Verkaufsraten.
  */
-const { firestore } = require('../lib/firestore');
+const { firestore, PRODUCTS_COLLECTION } = require('../lib/firestore');
 
 /**
  * Berechnet die durchschnittliche Verkaufsgeschwindigkeit (Einheiten/Tag).
@@ -42,7 +42,7 @@ async function calculateSalesVelocity(productId, days = 30) {
  * Schätzt das Stock-Out-Datum bei aktueller Verkaufsgeschwindigkeit.
  */
 async function predictStockOut(productId) {
-  const productDoc = await firestore.collection('products').doc(productId).get();
+  const productDoc = await firestore.collection(PRODUCTS_COLLECTION).doc(productId).get();
   if (!productDoc.exists) {
     throw new Error(`Product ${productId} not found`);
   }
@@ -76,7 +76,7 @@ async function predictStockOut(productId) {
  * Alle Produkte identifizieren, die in < 14 Tagen ausverkauft sein werden.
  */
 async function generateReorderAlerts(thresholdDays = 14) {
-  const productsSnap = await firestore.collection('products')
+  const productsSnap = await firestore.collection(PRODUCTS_COLLECTION)
     .where('ops.totalStock', '>', 0)
     .limit(500)
     .get();
