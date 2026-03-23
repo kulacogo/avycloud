@@ -20,7 +20,7 @@ const { findEbayCategory } = require('../lib/ebay-taxonomy');
 const { enrichPriceForProductBestEffort } = require('../lib/price-enrichment');
 
 // --- Constants ---
-const MAX_IMAGE_FILES = 25;
+const MAX_IMAGE_FILES = 30;
 const MAX_CHAT_ATTACHMENTS = parseInt(process.env.CHAT_ATTACHMENT_MAX_FILES || '6', 10);
 const MAX_CHAT_ATTACHMENT_SIZE = parseInt(process.env.CHAT_ATTACHMENT_MAX_SIZE || `${6 * 1024 * 1024}`, 10); // 6 MB per attachment
 const CHAT_ATTACHMENT_TEXT_LIMIT = parseInt(process.env.CHAT_ATTACHMENT_TEXT_LIMIT || '6000', 10);
@@ -32,7 +32,7 @@ const CHAT_ATTACHMENT_MIME_WHITELIST = new Set([
   'application/vnd.ms-excel',
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
 ]);
-const MAX_IMAGE_FILE_SIZE = 8 * 1024 * 1024; // 8 MB per file, total tracked separately
+const MAX_IMAGE_FILE_SIZE = 10 * 1024 * 1024; // 10 MB per file
 
 const JOB_STATUS_FILTERS = ['pending', 'processing', 'failed', 'done'];
 

@@ -14,8 +14,8 @@ const createId = () =>
     ? crypto.randomUUID()
     : Math.random().toString(36).slice(2, 10);
 
-const MAX_FILES = 10;
-const MAX_FILE_SIZE = 8 * 1024 * 1024;
+const MAX_FILES = 30;
+const MAX_FILE_SIZE = 10 * 1024 * 1024;
 const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
 const StepUpload: React.FC<StepUploadProps> = ({ onComplete, paletteCode }) => {
@@ -37,7 +37,7 @@ const StepUpload: React.FC<StepUploadProps> = ({ onComplete, paletteCode }) => {
     }
     const tooLarge = fileArr.find((f) => f.size > MAX_FILE_SIZE);
     if (tooLarge) {
-      setError(`"${tooLarge.name}" ist zu groß (max. 8 MB).`);
+      setError(`"${tooLarge.name}" ist zu groß (max. 10 MB).`);
       return;
     }
 
@@ -161,7 +161,7 @@ const StepUpload: React.FC<StepUploadProps> = ({ onComplete, paletteCode }) => {
                     {hasImages ? "Weitere Bilder hinzufügen" : "Bilder hierher ziehen"}
                   </p>
                   <p className="text-xs text-txt-muted">
-                    JPG, PNG, WEBP · max. 8 MB · bis zu {MAX_FILES} Bilder
+                    JPG, PNG, WEBP · max. 10 MB · bis zu {MAX_FILES} Bilder
                   </p>
                 </>
               )}
