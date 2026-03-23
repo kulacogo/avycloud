@@ -21,12 +21,26 @@ interface LocalGroup {
   barcodes: string;
   confidence: number;
   reason: string;
+  hint: string;
+  checked: boolean;
 }
 
 const createId = () =>
   typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
     ? crypto.randomUUID()
     : `g_${Math.random().toString(36).slice(2, 9)}`;
+
+const ConfidenceBadge: React.FC<{ value: number }> = ({ value }) => (
+  <span className={`text-xs px-2 py-0.5 rounded-full ${
+    value >= 0.8
+      ? "bg-success/10 text-success"
+      : value >= 0.6
+      ? "bg-warning/10 text-warning"
+      : "bg-danger/10 text-danger"
+  }`}>
+    {Math.round(value * 100)}%
+  </span>
+);
 
 const StepGrouping: React.FC<StepGroupingProps> = ({ images, barcodes, onConfirm, onBack }) => {
   const [groups, setGroups] = useState<LocalGroup[]>([]);
@@ -36,6 +50,35 @@ const StepGrouping: React.FC<StepGroupingProps> = ({ images, barcodes, onConfirm
   const [dragImageId, setDragImageId] = useState<string | null>(null);
   const [dragOverGroup, setDragOverGroup] = useState<string | null>(null);
   const startedRef = useRef(false);
+
+  const buildLocalGroups = useCallback(
+    (apiGroups: ProductGroupProposal[]): LocalGroup[] =>
+      apiGroups.map((g: ProductGroupProposal, idx: number) => ({
+        id: g.id || createId(),
+        label: g.label || `Produkt ${idx + 1}`,
+        imageIds: g.image_indices.map((i: number) => images[i]?.id).filter(Boolean),
+        barcodes: g.detected_barcode || "",
+        confidence: g.confidence,
+        reason: g.reason,
+        hint: g.hint || "",
+        checked: g.confidence >= 0.6,
+      })),
+    [images]
+  );
+
+  const fallbackGroup = useCallback(
+    (reason: string): LocalGroup => ({
+      id: createId(),
+      label: "Produkt 1",
+      imageIds: images.map((img) => img.id),
+      barcodes: barcodes || "",
+      confidence: 1,
+      reason,
+      hint: "",
+      checked: true,
+    }),
+    [images, barcodes]
+  );
 
   // Load grouping proposals from backend
   useEffect(() => {
@@ -48,56 +91,40 @@ const StepGrouping: React.FC<StepGroupingProps> = ({ images, barcodes, onConfirm
         const result = await groupImages(files, barcodes);
 
         if (!result.ok || !result.data?.groups?.length) {
-          // Fallback: all in one group
-          setGroups([{
-            id: createId(),
-            label: "Produkt 1",
-            imageIds: images.map((img) => img.id),
-            barcodes: barcodes || "",
-            confidence: 1,
-            reason: "Alle Bilder in eine Gruppe",
-          }]);
+          setGroups([fallbackGroup("Alle Bilder in eine Gruppe")]);
         } else {
-          setGroups(
-            result.data.groups.map((g: ProductGroupProposal, idx: number) => ({
-              id: g.id || createId(),
-              label: g.label || `Produkt ${idx + 1}`,
-              imageIds: g.image_indices.map((i: number) => images[i]?.id).filter(Boolean),
-              barcodes: g.detected_barcode || "",
-              confidence: g.confidence,
-              reason: g.reason,
-            }))
-          );
+          setGroups(buildLocalGroups(result.data.groups));
         }
       } catch (err: any) {
         setError(err?.message || "Gruppierung fehlgeschlagen");
-        // Fallback
-        setGroups([{
-          id: createId(),
-          label: "Produkt 1",
-          imageIds: images.map((img) => img.id),
-          barcodes: barcodes || "",
-          confidence: 1,
-          reason: "Fallback: alle Bilder in eine Gruppe",
-        }]);
+        setGroups([fallbackGroup("Fallback: alle Bilder in eine Gruppe")]);
       } finally {
         setLoading(false);
       }
     };
 
     run();
-  }, [images, barcodes]);
+  }, [images, barcodes, buildLocalGroups, fallbackGroup]);
+
+  // --- Shared callbacks ---
+
+  const toggleGroupChecked = useCallback((groupId: string) => {
+    setGroups((prev) =>
+      prev.map((g) => (g.id === groupId ? { ...g, checked: !g.checked } : g))
+    );
+  }, []);
+
+  const updateGroupBarcodes = useCallback((groupId: string, value: string) => {
+    setGroups((prev) =>
+      prev.map((g) => (g.id === groupId ? { ...g, barcodes: value } : g))
+    );
+  }, []);
+
+  // --- Multi-image grouping callbacks ---
 
   const resetToOneGroup = useCallback(() => {
-    setGroups([{
-      id: createId(),
-      label: "Produkt 1",
-      imageIds: images.map((img) => img.id),
-      barcodes: barcodes || "",
-      confidence: 1,
-      reason: "Manuell: alle in eine Gruppe",
-    }]);
-  }, [images, barcodes]);
+    setGroups([fallbackGroup("Manuell: alle in eine Gruppe")]);
+  }, [fallbackGroup]);
 
   const addGroup = useCallback(() => {
     setGroups((prev) => [
@@ -109,6 +136,8 @@ const StepGrouping: React.FC<StepGroupingProps> = ({ images, barcodes, onConfirm
         barcodes: "",
         confidence: 1,
         reason: "Manuell erstellt",
+        hint: "",
+        checked: true,
       },
     ]);
   }, []);
@@ -122,12 +151,6 @@ const StepGrouping: React.FC<StepGroupingProps> = ({ images, barcodes, onConfirm
       remaining[0].imageIds = [...remaining[0].imageIds, ...removed.imageIds];
       return remaining;
     });
-  }, []);
-
-  const updateGroupBarcodes = useCallback((groupId: string, value: string) => {
-    setGroups((prev) =>
-      prev.map((g) => (g.id === groupId ? { ...g, barcodes: value } : g))
-    );
   }, []);
 
   // Drag & drop between groups
@@ -162,9 +185,11 @@ const StepGrouping: React.FC<StepGroupingProps> = ({ images, barcodes, onConfirm
     }
   }, []);
 
+  // --- Confirm ---
+
   const handleConfirm = useCallback(() => {
     const confirmed: ConfirmedGroup[] = groups
-      .filter((g) => g.imageIds.length > 0)
+      .filter((g) => g.checked && g.imageIds.length > 0)
       .map((g) => ({
         id: g.id,
         label: g.label,
@@ -172,6 +197,7 @@ const StepGrouping: React.FC<StepGroupingProps> = ({ images, barcodes, onConfirm
           .map((id) => images.find((img) => img.id === id)?.file)
           .filter(Boolean) as File[],
         barcodes: g.barcodes,
+        hint: g.hint || undefined,
       }));
 
     if (!confirmed.length) return;
@@ -180,12 +206,21 @@ const StepGrouping: React.FC<StepGroupingProps> = ({ images, barcodes, onConfirm
 
   const getImage = (id: string) => images.find((img) => img.id === id);
 
+  // --- Derived state ---
+
+  const isSingleImageMultiProduct = images.length === 1 && groups.length > 1;
+  const checkedCount = groups.filter((g) => g.checked).length;
+
+  // --- Loading state ---
+
   if (loading) {
     return (
       <Card padding="lg">
         <div className="text-center space-y-4">
           <h2 className="text-lg font-semibold text-txt-primary">
-            Bilder werden analysiert...
+            {images.length === 1
+              ? "Bild wird auf mehrere Produkte analysiert..."
+              : "Bilder werden analysiert..."}
           </h2>
           <p className="text-sm text-txt-muted">
             KI erkennt automatisch verschiedene Produkte in deinen Bildern.
@@ -195,6 +230,99 @@ const StepGrouping: React.FC<StepGroupingProps> = ({ images, barcodes, onConfirm
       </Card>
     );
   }
+
+  // --- Single-image multi-product mode ---
+
+  if (isSingleImageMultiProduct) {
+    const image = images[0];
+
+    return (
+      <div className="space-y-6">
+        {/* Header */}
+        <Card padding="sm">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-semibold text-txt-primary">
+                KI hat {groups.length} Produkte auf einem Bild erkannt
+              </p>
+              <p className="text-xs text-txt-muted mt-0.5">
+                Wähle die Produkte, die du erfassen möchtest. Niedrige Konfidenz (&lt;60%) ist deaktiviert.
+              </p>
+            </div>
+            {error && <p className="text-xs text-danger">{error}</p>}
+          </div>
+        </Card>
+
+        {/* Content: Image + Product list */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Left: Large image */}
+          <Card padding="sm">
+            <img
+              src={image.url}
+              alt=""
+              className="w-full rounded-lg object-contain max-h-[500px]"
+            />
+          </Card>
+
+          {/* Right: Product checklist */}
+          <div className="space-y-3">
+            {groups.map((group) => (
+              <Card
+                key={group.id}
+                padding="sm"
+                className={!group.checked ? "opacity-60" : ""}
+              >
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={group.checked}
+                    onChange={() => toggleGroupChecked(group.id)}
+                    className="mt-1 accent-[var(--color-accent)]"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="text-sm font-medium text-txt-primary truncate">
+                        {group.label}
+                      </p>
+                      <ConfidenceBadge value={group.confidence} />
+                    </div>
+                    {group.reason && (
+                      <p className="text-xs text-txt-muted mt-0.5 truncate">
+                        {group.reason}
+                      </p>
+                    )}
+                    <div className="mt-2">
+                      <Input
+                        value={group.barcodes}
+                        onChange={(e) => updateGroupBarcodes(group.id, e.target.value)}
+                        placeholder="Barcode / EAN (optional)"
+                        className="text-xs"
+                      />
+                    </div>
+                  </div>
+                </label>
+              </Card>
+            ))}
+          </div>
+        </div>
+
+        {/* Actions */}
+        <div className="flex items-center justify-between">
+          <Button variant="secondary" onClick={onBack}>
+            Zurück
+          </Button>
+          <Button
+            onClick={handleConfirm}
+            disabled={checkedCount === 0}
+          >
+            {checkedCount} Produkt{checkedCount !== 1 ? "e" : ""} bestätigen
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // --- Standard multi-image grouping mode ---
 
   return (
     <div className="space-y-6">
@@ -230,15 +358,7 @@ const StepGrouping: React.FC<StepGroupingProps> = ({ images, barcodes, onConfirm
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <p className="text-sm font-semibold text-txt-primary">{group.label}</p>
-                  <span className={`text-xs px-2 py-0.5 rounded-full ${
-                    group.confidence >= 0.8
-                      ? "bg-success/10 text-success"
-                      : group.confidence >= 0.5
-                      ? "bg-amber-500/10 text-amber-500"
-                      : "bg-danger/10 text-danger"
-                  }`}>
-                    {Math.round(group.confidence * 100)}%
-                  </span>
+                  <ConfidenceBadge value={group.confidence} />
                   {group.reason && (
                     <span className="text-xs text-txt-muted">{group.reason}</span>
                   )}

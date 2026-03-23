@@ -4193,7 +4193,8 @@ export const identifyProductV2 = async (
   barcodes: string,
   locale = 'de-DE',
   inventoryId?: string,
-  paletteCode?: string
+  paletteCode?: string,
+  hint?: string
 ): Promise<{ ok: boolean; data?: Product; meta?: any; error?: { code: number; message: string } }> => {
   if (!files.length && (!barcodes || !barcodes.trim())) {
     return {
@@ -4211,6 +4212,9 @@ export const identifyProductV2 = async (
   }
   if (paletteCode) {
     formData.append('paletteCode', paletteCode);
+  }
+  if (hint) {
+    formData.append('hint', hint);
   }
 
   let response: Response | undefined;
@@ -4247,6 +4251,7 @@ export interface ProductGroupProposal {
   confidence: number;
   reason: string;
   detected_barcode: string | null;
+  hint?: string | null;
 }
 
 export const groupImages = async (

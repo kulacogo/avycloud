@@ -36,6 +36,10 @@
   - Root Cause: `listBinsForProduct()` matchte nur Input-Parameter, nicht alle Produkt-Identifier
   - Fix: Lädt jetzt Produkt-Dokument und baut vollständiges keySet (docId + SKU + EAN + Barcodes)
   - ✅ Fix in `backend/lib/warehouse.js`, alle 263 Tests grün
+- [x] **BUG-084** Dual-Write liest aus falscher Collection — manuelle Änderungen werden überschrieben (P0)
+  - Root Cause: `saveProductV2()` Dual-Write las aus `COLLECTION` ('products') statt `PRODUCTS_COLLECTION` ('products_v2')
+  - Fix: Zeile 48-49 in `product-store.js` nutzt jetzt `PRODUCTS_COLLECTION` aus `firestore.js`
+  - ✅ Fix in `backend/lib/product-store.js`, alle 285 Tests grün
 - [ ] **BUG-068** 170 Stock-Sync Fehler — Oversell-Risiko (abhängig von eBay Token Fix)
 - [ ] **BUG-069** Dashboard Chart endet bei ~12.03 (createdAt-Datumslogik)
 - [ ] **B5** Invoice Email-Versand fehlt
@@ -117,6 +121,7 @@
 | MIG-001 | Products-V2 Lesepfad-Migration | P0 | ✅ done (alle Reads auf products_v2, warehouse dual-write) |
 | LLM-001 | LLM Pipeline Quality Fix | P0 | ✅ done (8 Fixes: QualityGate, Retry, Schema, Improve-Tracking, Evidence-Hierarchie, Gewicht, Preis) |
 | ERF-001 | Erfassen-Modul UI Overhaul | P0 | ✅ done (PaletteSelector, Auto-Separation, 2-Spalten-Layout, D&D, Multi-Produkt) |
+| MPD-001 | Multi-Produkt aus Single Image | P1 | ✅ done (Gemini Detection, Hint-Injection, StepGrouping Single-Image-Modus, 15 Tests) |
 
 ## Waiting On
 

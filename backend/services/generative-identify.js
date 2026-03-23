@@ -79,9 +79,16 @@ const PRODUCT_RECORD_SCHEMA = {
   ],
 };
 
-function buildInstructionText({ locale, inputMode }) {
-  return `
-Du bist ein professioneller Produktdaten-Kurator für eBay.de und Kaufland.de.
+function buildInstructionText({ locale, inputMode, hint }) {
+  const hintBlock = hint && hint.trim()
+    ? `PRODUKTHINWEIS (vom vorherigen Erkennungsschritt):
+Auf dem Bild sind mehrere Produkte sichtbar. Fokussiere dich NUR auf folgendes Produkt:
+${hint.trim()}
+Ignoriere alle anderen Produkte auf dem Bild.
+
+`
+    : '';
+  return `${hintBlock}Du bist ein professioneller Produktdaten-Kurator für eBay.de und Kaufland.de.
 Du erhältst:
 - bis zu ${MAX_MODEL_IMAGES} Produkt- oder Label-Fotos
 - OCR-Textzeilen vom Label
@@ -176,10 +183,10 @@ async function buildInlineParts(files = []) {
   return parts;
 }
 
-async function generateStructuredProductRecord({ files, ocrLines, barcodes, locale, inputMode }) {
+async function generateStructuredProductRecord({ files, ocrLines, barcodes, locale, inputMode, hint }) {
   const parts = [
     ...(await buildInlineParts(files)),
-    { text: buildInstructionText({ locale, inputMode }) },
+    { text: buildInstructionText({ locale, inputMode, hint }) },
     { text: buildOcrContext(ocrLines, barcodes) },
   ];
 

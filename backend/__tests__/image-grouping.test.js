@@ -1,7 +1,12 @@
 /**
  * Tests for image-grouping service — parseGroupingResponse & buildGroupingPrompt.
  */
-const { buildGroupingPrompt, parseGroupingResponse } = require('../services/image-grouping');
+const {
+  buildGroupingPrompt,
+  parseGroupingResponse,
+  buildMultiProductPrompt,
+  parseDetectionResponse,
+} = require('../services/image-grouping');
 
 describe('buildGroupingPrompt', () => {
   it('includes image count in prompt', () => {
@@ -93,5 +98,143 @@ describe('parseGroupingResponse', () => {
     });
     const result = parseGroupingResponse(response, 1);
     expect(result[0].label).toBe('Produkt 1');
+  });
+});
+
+// --- Multi-Product Detection Tests ---
+
+describe('buildMultiProductPrompt', () => {
+  it('mentions single image analysis', () => {
+    const prompt = buildMultiProductPrompt();
+    expect(prompt).toContain('1 einzelnes Bild');
+  });
+
+  it('includes max product limit', () => {
+    const prompt = buildMultiProductPrompt();
+    expect(prompt).toContain('10');
+  });
+
+  it('includes anti-hallucination rules', () => {
+    const prompt = buildMultiProductPrompt();
+    expect(prompt).toContain('Erfinde KEINE');
+    expect(prompt).toContain('WENIGER Produkte');
+  });
+
+  it('instructs bounding_description', () => {
+    const prompt = buildMultiProductPrompt();
+    expect(prompt).toContain('bounding_description');
+  });
+});
+
+describe('parseDetectionResponse', () => {
+  it('parses valid detection JSON with multiple products', () => {
+    const raw = JSON.stringify({
+      product_count: 3,
+      products: [
+        { label: 'Nike Schuh', confidence: 0.9, brand_hint: 'Nike', bounding_description: 'links oben' },
+        { label: 'Adidas Jacke', confidence: 0.7, category_hint: 'Kleidung', bounding_description: 'Mitte' },
+        { label: 'Bosch Bohrer', confidence: 0.5, barcode_hint: '4006381333931', bounding_description: 'rechts unten' },
+      ],
+    });
+    const result = parseDetectionResponse(raw);
+    expect(result).toHaveLength(3);
+    expect(result[0].label).toBe('Nike Schuh');
+    expect(result[0].brand_hint).toBe('Nike');
+    expect(result[0].bounding_description).toBe('links oben');
+    expect(result[1].category_hint).toBe('Kleidung');
+    expect(result[2].barcode_hint).toBe('4006381333931');
+  });
+
+  it('parses single product', () => {
+    const raw = JSON.stringify({
+      product_count: 1,
+      products: [{ label: 'Einzelprodukt', confidence: 0.95 }],
+    });
+    const result = parseDetectionResponse(raw);
+    expect(result).toHaveLength(1);
+    expect(result[0].label).toBe('Einzelprodukt');
+  });
+
+  it('clamps confidence to 0-1', () => {
+    const raw = JSON.stringify({
+      product_count: 1,
+      products: [{ label: 'X', confidence: 2.5 }],
+    });
+    const result = parseDetectionResponse(raw);
+    expect(result[0].confidence).toBe(1);
+  });
+
+  it('defaults confidence to 0.5 when missing', () => {
+    const raw = JSON.stringify({
+      product_count: 1,
+      products: [{ label: 'X' }],
+    });
+    const result = parseDetectionResponse(raw);
+    expect(result[0].confidence).toBe(0.5);
+  });
+
+  it('enforces max 10 products', () => {
+    const products = Array.from({ length: 15 }, (_, i) => ({
+      label: `P${i}`,
+      confidence: 0.8,
+    }));
+    const raw = JSON.stringify({ product_count: 15, products });
+    const result = parseDetectionResponse(raw);
+    expect(result).toHaveLength(10);
+  });
+
+  it('filters out products with empty labels', () => {
+    const raw = JSON.stringify({
+      product_count: 2,
+      products: [
+        { label: 'Gutes Produkt', confidence: 0.9 },
+        { label: '', confidence: 0.8 },
+        { label: '  ', confidence: 0.7 },
+      ],
+    });
+    const result = parseDetectionResponse(raw);
+    expect(result).toHaveLength(1);
+    expect(result[0].label).toBe('Gutes Produkt');
+  });
+
+  it('returns empty array on invalid JSON', () => {
+    expect(parseDetectionResponse('not json at all')).toEqual([]);
+  });
+
+  it('returns empty array when products is not an array', () => {
+    const raw = JSON.stringify({ product_count: 1, products: 'bad' });
+    expect(parseDetectionResponse(raw)).toEqual([]);
+  });
+
+  it('strips markdown fences', () => {
+    const raw = '```json\n{"product_count":1,"products":[{"label":"Test","confidence":0.9}]}\n```';
+    const result = parseDetectionResponse(raw);
+    expect(result).toHaveLength(1);
+    expect(result[0].label).toBe('Test');
+  });
+
+  it('defaults missing hint fields to empty strings', () => {
+    const raw = JSON.stringify({
+      product_count: 1,
+      products: [{ label: 'Minimal', confidence: 0.8 }],
+    });
+    const result = parseDetectionResponse(raw);
+    expect(result[0].brand_hint).toBe('');
+    expect(result[0].category_hint).toBe('');
+    expect(result[0].barcode_hint).toBe('');
+    expect(result[0].bounding_description).toBe('');
+  });
+
+  it('assigns sequential IDs', () => {
+    const raw = JSON.stringify({
+      product_count: 2,
+      products: [
+        { label: 'A', confidence: 0.9 },
+        { label: 'B', confidence: 0.8 },
+      ],
+    });
+    const result = parseDetectionResponse(raw);
+    expect(result[0].id).toBe('detected_0');
+    expect(result[1].id).toBe('detected_1');
   });
 });

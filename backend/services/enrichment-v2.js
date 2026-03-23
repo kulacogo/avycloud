@@ -391,7 +391,7 @@ async function uploadReferenceImages(files = []) {
   return uploaded;
 }
 
-async function runSerpapiFreePipeline({ files = [], barcodes = '', locale = 'de-DE', inventoryId = null } = {}) {
+async function runSerpapiFreePipeline({ files = [], barcodes = '', locale = 'de-DE', inventoryId = null, hint = null } = {}) {
   const manualBarcodes = parseBarcodes(barcodes);
   const ocrPayload = await extractOcrPayload(files);
   const mergedBarcodes = mergeBarcodeLists(manualBarcodes, ocrPayload.barcodes || []);
@@ -412,6 +412,7 @@ async function runSerpapiFreePipeline({ files = [], barcodes = '', locale = 'de-
       barcodes: mergedBarcodes,
       locale,
       inputMode,
+      hint,
     });
   } catch (error) {
     console.warn('Structured product generation failed, falling back to defaults:', error.message);

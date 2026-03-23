@@ -39,6 +39,7 @@ export interface ConfirmedGroup {
   label: string;
   images: File[];
   barcodes: string;
+  hint?: string | null;
 }
 
 export interface CaptureUploadData {
@@ -92,6 +93,7 @@ const CaptureView: React.FC<CaptureViewProps> = ({ onProductCreated }) => {
                 id: g.id,
                 label: g.label,
                 images: g.images,
+                hint: g.hint ?? null,
               })),
               barcodes: confirmedGroups.map((g) => g.barcodes).filter(Boolean).join(","),
             }

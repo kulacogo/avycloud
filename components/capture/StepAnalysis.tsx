@@ -70,7 +70,8 @@ const StepAnalysis: React.FC<StepAnalysisProps> = ({
             uploadData.barcodes,
             "de-DE",
             undefined,
-            uploadData.paletteCode || undefined
+            uploadData.paletteCode || undefined,
+            group?.hint || undefined
           );
 
           phaseTimers.forEach(clearTimeout);
@@ -114,7 +115,8 @@ const StepAnalysis: React.FC<StepAnalysisProps> = ({
               group.label === "Barcode-Identifikation" ? uploadData.barcodes : "",
               "de-DE",
               undefined,
-              uploadData.paletteCode || undefined
+              uploadData.paletteCode || undefined,
+              group.hint || undefined
             );
 
             if (result.ok && result.data) {

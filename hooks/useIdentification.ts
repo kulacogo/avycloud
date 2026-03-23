@@ -11,6 +11,7 @@ export interface UploadGroupPayload {
   id: string;
   label: string;
   images: File[];
+  hint?: string | null;
 }
 
 export interface IdentificationJobStatus {
@@ -123,7 +124,7 @@ export const useIdentification = (options?: UseIdentificationOptions) => {
           phase: 'enriching',
           message: 'Datenblatt wird erstellt …',
         });
-        const identifyResult = await identifyProductV2(group.images, barcodes, 'de-DE', inventoryId || undefined, paletteCode || undefined);
+        const identifyResult = await identifyProductV2(group.images, barcodes, 'de-DE', inventoryId || undefined, paletteCode || undefined, group.hint || undefined);
         if (!identifyResult.ok || !identifyResult.data) {
           throw new Error(identifyResult.error?.message || 'Identify (v2) fehlgeschlagen.');
         }

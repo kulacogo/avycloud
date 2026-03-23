@@ -228,6 +228,9 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
     const locale = req.body?.locale || 'de-DE';
     const inventoryId = req.body?.inventoryId || null;
     const paletteCode = req.body?.paletteCode || null;
+    const hint = typeof req.body?.hint === 'string' && req.body.hint.trim()
+      ? req.body.hint.trim().slice(0, 400)
+      : null;
 
     if (!files.length && (!barcodes || !barcodes.trim())) {
       return res.status(400).json({
@@ -254,7 +257,7 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
     }
 
     // 1) Identify + OCR + record
-    const result = await runSerpapiFreePipeline({ files, barcodes, locale, inventoryId });
+    const result = await runSerpapiFreePipeline({ files, barcodes, locale, inventoryId, hint });
 
     // 2) Stock protection: if this identifier already exists, never overwrite datasheet.
     const strictBarcodes = []
@@ -856,6 +859,53 @@ router.post('/v2/group-images', requirePermission('identify', 'run'), upload.arr
       mimeType: f.mimetype,
       filename: f.originalname,
     }));
+
+    // Single image: use multi-product detection instead of standard grouping
+    if (files.length === 1) {
+      const { detectMultipleProducts } = require('../services/image-grouping');
+
+      let detectedProducts = [];
+      try {
+        detectedProducts = await detectMultipleProducts(imageBuffers);
+      } catch (err) {
+        console.warn('[group-images] multi-product detection failed, falling back to single group:', err.message);
+      }
+
+      let groups;
+      if (detectedProducts.length > 1) {
+        groups = detectedProducts.map((p, idx) => {
+          const hintParts = [
+            p.label,
+            p.brand_hint ? `Marke: ${p.brand_hint}` : null,
+            p.category_hint ? `Kategorie: ${p.category_hint}` : null,
+            p.barcode_hint ? `Barcode: ${p.barcode_hint}` : null,
+            p.bounding_description ? `Position: ${p.bounding_description}` : null,
+          ].filter(Boolean);
+          return {
+            id: `group_${idx}`,
+            label: p.label || `Produkt ${idx + 1}`,
+            image_indices: [0],
+            confidence: p.confidence,
+            reason: p.bounding_description || '',
+            detected_barcode: p.barcode_hint || null,
+            hint: hintParts.join('. '),
+          };
+        });
+      } else {
+        // Single product or detection failed — normal single group
+        groups = [{
+          id: 'group_0',
+          label: detectedProducts[0]?.label || 'Produkt 1',
+          image_indices: [0],
+          confidence: detectedProducts[0]?.confidence ?? 1,
+          reason: detectedProducts[0]?.bounding_description || '',
+          detected_barcode: detectedProducts[0]?.barcode_hint || null,
+          hint: null,
+        }];
+      }
+
+      return res.json({ ok: true, data: { groups, imageCount: 1 } });
+    }
 
     const { buildGroupingPrompt, parseGroupingResponse } = require('../services/image-grouping');
     const { callGeminiVision } = require('../lib/gemini-client');
