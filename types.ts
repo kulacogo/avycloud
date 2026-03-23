@@ -340,6 +340,13 @@ export interface WarehouseBin {
   createdAt: string;
   firstStoredAt?: string | null;
   lastStoredAt?: string | null;
+  // Child-BIN (Container) fields
+  parentBinCode?: string | null;
+  isContainer?: boolean;
+  containerIndex?: number;
+  childBinCodes?: string[];
+  children?: WarehouseBin[];
+  childrenProductCount?: number;
 }
 
 export type OrderStatus = 'new' | 'picking' | 'picked' | 'packed' | 'other';

@@ -10,6 +10,8 @@ import {
   deleteWarehouseEbeneApi,
   openBinLabelWindow,
   openBinLabelsBatchWindow,
+  createChildBinApi,
+  deleteChildBinApi,
 } from '../api/client';
 import { WarehouseBin, WarehouseLayout } from '../types';
 import { PrintIcon } from './icons/Icons';
@@ -65,6 +67,8 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
   });
   const [removingProductId, setRemovingProductId] = useState<string | null>(null);
   const [deletingStructure, setDeletingStructure] = useState(false);
+  const [creatingContainer, setCreatingContainer] = useState(false);
+  const [deletingContainerCode, setDeletingContainerCode] = useState<string | null>(null);
 
   const loadZones = useCallback(async () => {
     try {
@@ -303,6 +307,46 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
       setStatusMessage(error?.message || 'Fehler beim Entfernen.');
     } finally {
       setRemovingProductId(null);
+    }
+  };
+
+  const handleAddContainer = async () => {
+    if (!binDetail) return;
+    setCreatingContainer(true);
+    try {
+      await createChildBinApi(binDetail.code);
+      setStatusMessage('Behälter erstellt.');
+      const detail = await fetchWarehouseBinDetail(binDetail.code);
+      setBinDetail(detail);
+    } catch (error: any) {
+      setStatusMessage(error?.message || 'Fehler beim Erstellen des Behälters.');
+    } finally {
+      setCreatingContainer(false);
+    }
+  };
+
+  const handleDeleteContainer = async (childCode: string) => {
+    if (!binDetail) return;
+    setDeletingContainerCode(childCode);
+    try {
+      await deleteChildBinApi(binDetail.code, childCode);
+      setStatusMessage('Behälter entfernt.');
+      const detail = await fetchWarehouseBinDetail(binDetail.code);
+      setBinDetail(detail);
+    } catch (error: any) {
+      setStatusMessage(error?.message || 'Fehler beim Entfernen des Behälters.');
+    } finally {
+      setDeletingContainerCode(null);
+    }
+  };
+
+  const handleSelectChildBin = async (childCode: string) => {
+    try {
+      const detail = await fetchWarehouseBinDetail(childCode);
+      setBinDetail(detail);
+      setSelectedBin(detail);
+    } catch (error: any) {
+      setStatusMessage(error?.message || 'Fehler beim Laden des Behälters.');
     }
   };
 
@@ -836,6 +880,71 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
                         <div className="text-txt-muted text-sm">Keine Produkte eingelagert.</div>
                       )}
                     </div>
+
+                    {/* Behälter (Child-BINs) — only for non-container BINs */}
+                    {!binDetail.isContainer && (
+                      <div className="border-t border-app-border pt-3">
+                        <div className="flex items-center justify-between mb-2">
+                          <h5 className="text-txt-primary font-semibold">Behälter</h5>
+                          <button
+                            onClick={handleAddContainer}
+                            disabled={creatingContainer}
+                            className="text-xs px-2.5 py-1 rounded-lg bg-accent-dim text-accent hover:bg-accent/20 transition disabled:opacity-40"
+                          >
+                            {creatingContainer ? '...' : '+ Behälter'}
+                          </button>
+                        </div>
+                        {binDetail.children?.length ? (
+                          <ul className="space-y-2 max-h-48 overflow-y-auto">
+                            {binDetail.children.map((child: any) => (
+                              <li key={child.code} className="flex justify-between items-center bg-app-elevated/60 px-3 py-2 rounded-lg">
+                                <button
+                                  type="button"
+                                  onClick={() => handleSelectChildBin(child.code)}
+                                  className="text-left"
+                                >
+                                  <div className="text-txt-primary text-sm font-medium">{child.code}</div>
+                                  <div className="text-xs text-txt-muted">
+                                    {child.productCount || 0} Produkte
+                                  </div>
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteContainer(child.code)}
+                                  disabled={deletingContainerCode === child.code || (child.productCount || 0) > 0}
+                                  className="text-xs text-danger hover:text-danger/80 disabled:opacity-40"
+                                  title={(child.productCount || 0) > 0 ? 'Behälter muss leer sein' : 'Behälter entfernen'}
+                                >
+                                  {deletingContainerCode === child.code ? '...' : 'Entfernen'}
+                                </button>
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <div className="text-txt-muted text-sm">Keine Behälter vorhanden.</div>
+                        )}
+                        {(binDetail.childrenProductCount || 0) > 0 && (
+                          <div className="text-xs text-txt-secondary mt-2">
+                            Gesamt in Behältern: {binDetail.childrenProductCount} Produkte
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Show parent link for container BINs */}
+                    {binDetail.parentBinCode && (
+                      <div className="border-t border-app-border pt-3">
+                        <div className="text-xs text-txt-muted">
+                          Behälter von{' '}
+                          <button
+                            type="button"
+                            onClick={() => handleSelectChildBin(binDetail.parentBinCode)}
+                            className="text-accent hover:underline"
+                          >
+                            {binDetail.parentBinCode}
+                          </button>
+                        </div>
+                      </div>
+                    )}
 
                   </div>
                 ) : (

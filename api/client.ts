@@ -3800,6 +3800,41 @@ export const openBinLabelsBatchWindow = (options: {
   return openAuthedUrlInNewTab(url, { timeoutMs: 30000 });
 };
 
+// ── Warehouse Child-BIN (Container) ──────────────────────────────
+
+export const createChildBinApi = async (parentBinCode: string): Promise<WarehouseBin> => {
+  const response = await fetchApi(`${BACKEND_URL}/api/warehouse/bins/${encodeURIComponent(parentBinCode)}/containers`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({}),
+  });
+  const result = await parseResponse(response);
+  if (!response.ok) {
+    throw new Error(result?.error?.message || "Behälter konnte nicht erstellt werden");
+  }
+  return result.data;
+};
+
+export const listChildBinsApi = async (parentBinCode: string): Promise<WarehouseBin[]> => {
+  const response = await fetchApi(`${BACKEND_URL}/api/warehouse/bins/${encodeURIComponent(parentBinCode)}/containers`);
+  const result = await parseResponse(response);
+  if (!response.ok) {
+    throw new Error(result?.error?.message || "Behälter konnten nicht geladen werden");
+  }
+  return result.data;
+};
+
+export const deleteChildBinApi = async (parentBinCode: string, childCode: string): Promise<void> => {
+  const response = await fetchApi(
+    `${BACKEND_URL}/api/warehouse/bins/${encodeURIComponent(parentBinCode)}/containers/${encodeURIComponent(childCode)}`,
+    { method: "DELETE" }
+  );
+  const result = await parseResponse(response);
+  if (!response.ok) {
+    throw new Error(result?.error?.message || "Behälter konnte nicht gelöscht werden");
+  }
+};
+
 // ── Warehouse Movements ──────────────────────────────────────────
 
 export interface WarehouseMovement {

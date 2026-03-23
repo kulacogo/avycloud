@@ -456,13 +456,37 @@ async function getBinByCode(binCode) {
     return null;
   }
   const data = doc.data();
-  return {
+  const result = {
     code: doc.id,
     ...data,
     createdAt: data.createdAt ? data.createdAt.toDate().toISOString() : null,
     firstStoredAt: data.firstStoredAt ? data.firstStoredAt.toDate().toISOString() : null,
     lastStoredAt: data.lastStoredAt ? data.lastStoredAt.toDate().toISOString() : null,
   };
+
+  // If this BIN has children, load them and attach aggregated info
+  const childCodes = Array.isArray(data.childBinCodes) ? data.childBinCodes : [];
+  if (childCodes.length > 0) {
+    const childSnap = await binsCollection.where('parentBinCode', '==', binCode).get();
+    const children = childSnap.docs
+      .map((d) => {
+        const cd = d.data();
+        return {
+          code: d.id,
+          containerIndex: cd.containerIndex,
+          productCount: cd.productCount || 0,
+          products: Array.isArray(cd.products) ? cd.products : [],
+          createdAt: cd.createdAt ? cd.createdAt.toDate().toISOString() : null,
+          firstStoredAt: toIsoString(cd.firstStoredAt),
+          lastStoredAt: toIsoString(cd.lastStoredAt),
+        };
+      })
+      .sort((a, b) => (a.containerIndex || 0) - (b.containerIndex || 0));
+    result.children = children;
+    result.childrenProductCount = children.reduce((sum, c) => sum + (c.productCount || 0), 0);
+  }
+
+  return result;
 }
 
 async function removeProductFromBin(binCode, productId, options = {}) {
@@ -726,6 +750,23 @@ async function bookStockIn({ productId, sku, barcode, binCode, quantity, meta })
     const products = cloneProductsArray(binData);
     resolvedProductId = productData.id || productRef.id;
     const nowIso = now.toDate().toISOString();
+
+    // Consistency check: if parent has children, warn if same product exists in a child
+    const parentChildCodes = Array.isArray(binData.childBinCodes) ? binData.childBinCodes : [];
+    if (parentChildCodes.length > 0) {
+      const keySetCheck = buildProductKeySet(productData);
+      keySetCheck.add(normalizeKey(resolvedProductId));
+      keySetCheck.add(normalizeKey(productRef.id));
+      for (const childCode of parentChildCodes) {
+        const childSnap = await tx.get(binsCollection.doc(childCode));
+        if (!childSnap.exists) continue;
+        const childProducts = Array.isArray(childSnap.data().products) ? childSnap.data().products : [];
+        const inChild = childProducts.some((p) => binEntryMatchesKeySet(p, keySetCheck) && Number(p.quantity || 0) > 0);
+        if (inChild) {
+          throw new Error(`Produkt liegt bereits in Behälter ${childCode}. Bitte dort einlagern oder zuerst entfernen.`);
+        }
+      }
+    }
 
     // Build comprehensive keySet for robust duplicate detection
     const keySet = buildProductKeySet(productData);
@@ -1204,7 +1245,22 @@ async function deleteWarehouseBinsByFilter(filter, { dryRun = false } = {}) {
     return { deleted: 0, binCodes: [], layout: await recomputeWarehouseZoneLayout(filter.zone, filter.etage) };
   }
 
-  const nonEmpty = bins
+  // Collect child-BINs of matched parents
+  const childBins = [];
+  for (const { data } of bins) {
+    const childCodes = Array.isArray(data.childBinCodes) ? data.childBinCodes : [];
+    for (const cc of childCodes) {
+      if (!bins.some((b) => b.id === cc)) {
+        const childSnap = await binsCollection.doc(cc).get();
+        if (childSnap.exists) {
+          childBins.push({ id: cc, data: childSnap.data() || {} });
+        }
+      }
+    }
+  }
+  const allBins = [...bins, ...childBins];
+
+  const nonEmpty = allBins
     .filter(({ data }) => {
       const count = Number(data.productCount || 0) || 0;
       const products = Array.isArray(data.products) ? data.products : [];
@@ -1221,16 +1277,16 @@ async function deleteWarehouseBinsByFilter(filter, { dryRun = false } = {}) {
     );
   }
 
-  const binCodes = bins.map((b) => b.id);
+  const binCodes = allBins.map((b) => b.id);
   if (dryRun) {
     return { deleted: 0, binCodes, layout: null, dryRun: true };
   }
 
   // Firestore batch writes: max 500 operations per batch (official docs).
   const chunkSize = 450;
-  for (let i = 0; i < bins.length; i += chunkSize) {
+  for (let i = 0; i < allBins.length; i += chunkSize) {
     const batch = firestore.batch();
-    const slice = bins.slice(i, i + chunkSize);
+    const slice = allBins.slice(i, i + chunkSize);
     slice.forEach(({ id }) => {
       batch.delete(binsCollection.doc(id));
     });
@@ -1250,6 +1306,143 @@ async function deleteWarehouseBinsByFilter(filter, { dryRun = false } = {}) {
   }
 
   return { deleted: binCodes.length, binCodes, layout };
+}
+
+// ── Child-BIN (Container) Functions ──────────────────────────────────
+
+async function createChildBin(parentBinCode, options = {}) {
+  const code = String(parentBinCode || '').trim().toUpperCase();
+  if (!code) throw new Error('Parent-BIN-Code fehlt.');
+
+  return firestore.runTransaction(async (tx) => {
+    const parentRef = binsCollection.doc(code);
+    const parentSnap = await tx.get(parentRef);
+    if (!parentSnap.exists) throw new Error('Parent-BIN nicht gefunden.');
+
+    const parentData = parentSnap.data();
+    if (parentData.isContainer) {
+      throw new Error('Ein Behälter kann keine weiteren Behälter enthalten.');
+    }
+
+    const existing = Array.isArray(parentData.childBinCodes) ? parentData.childBinCodes : [];
+    // Find next free index (1-99)
+    const usedIndices = new Set(existing.map((c) => {
+      const suffix = c.slice(code.length);
+      return parseInt(suffix, 10);
+    }).filter((n) => !isNaN(n)));
+
+    let nextIndex = 1;
+    while (usedIndices.has(nextIndex) && nextIndex <= 99) nextIndex++;
+    if (nextIndex > 99) throw new Error('Maximale Anzahl an Behältern (99) erreicht.');
+
+    const childCode = `${code}${String(nextIndex).padStart(2, '0')}`;
+    const childRef = binsCollection.doc(childCode);
+
+    const childDoc = {
+      code: childCode,
+      zone: parentData.zone,
+      etage: parentData.etage,
+      gang: parentData.gang,
+      regal: parentData.regal,
+      ebene: parentData.ebene,
+      parentBinCode: code,
+      isContainer: true,
+      containerIndex: nextIndex,
+      createdAt: Timestamp.now(),
+      productCount: 0,
+      products: [],
+      firstStoredAt: null,
+      lastStoredAt: null,
+    };
+
+    tx.set(childRef, childDoc);
+    tx.update(parentRef, {
+      childBinCodes: [...existing, childCode],
+    });
+
+    writeWarehouseEventTx(tx, {
+      type: 'child_bin_created',
+      parentBinCode: code,
+      childBinCode: childCode,
+      containerIndex: nextIndex,
+    });
+
+    return {
+      ...childDoc,
+      createdAt: childDoc.createdAt.toDate().toISOString(),
+    };
+  });
+}
+
+async function deleteChildBin(childBinCode) {
+  const code = String(childBinCode || '').trim().toUpperCase();
+  if (!code) throw new Error('Child-BIN-Code fehlt.');
+
+  return firestore.runTransaction(async (tx) => {
+    const childRef = binsCollection.doc(code);
+    const childSnap = await tx.get(childRef);
+    if (!childSnap.exists) throw new Error('Behälter nicht gefunden.');
+
+    const childData = childSnap.data();
+    if (!childData.isContainer || !childData.parentBinCode) {
+      throw new Error('Diese BIN ist kein Behälter.');
+    }
+
+    // Check if empty
+    const products = Array.isArray(childData.products) ? childData.products : [];
+    const hasStock = products.some((p) => Number(p.quantity || 0) > 0);
+    if (hasStock) {
+      throw new Error('Behälter ist nicht leer. Bitte zuerst alle Produkte entfernen.');
+    }
+
+    const parentRef = binsCollection.doc(childData.parentBinCode);
+    const parentSnap = await tx.get(parentRef);
+
+    tx.delete(childRef);
+
+    if (parentSnap.exists) {
+      const parentData = parentSnap.data();
+      const updatedCodes = (Array.isArray(parentData.childBinCodes) ? parentData.childBinCodes : [])
+        .filter((c) => c !== code);
+      tx.update(parentRef, { childBinCodes: updatedCodes });
+    }
+
+    writeWarehouseEventTx(tx, {
+      type: 'child_bin_deleted',
+      parentBinCode: childData.parentBinCode,
+      childBinCode: code,
+    });
+
+    return { deleted: true, parentBinCode: childData.parentBinCode };
+  });
+}
+
+async function listChildBins(parentBinCode) {
+  const code = String(parentBinCode || '').trim().toUpperCase();
+  if (!code) throw new Error('Parent-BIN-Code fehlt.');
+
+  const snapshot = await binsCollection.where('parentBinCode', '==', code).get();
+  return snapshot.docs
+    .map((doc) => {
+      const data = doc.data();
+      return {
+        code: doc.id,
+        containerIndex: data.containerIndex,
+        parentBinCode: data.parentBinCode,
+        isContainer: true,
+        zone: data.zone,
+        etage: data.etage,
+        gang: data.gang,
+        regal: data.regal,
+        ebene: data.ebene,
+        productCount: data.productCount || 0,
+        products: Array.isArray(data.products) ? data.products : [],
+        createdAt: data.createdAt ? data.createdAt.toDate().toISOString() : null,
+        firstStoredAt: toIsoString(data.firstStoredAt),
+        lastStoredAt: toIsoString(data.lastStoredAt),
+      };
+    })
+    .sort((a, b) => (a.containerIndex || 0) - (b.containerIndex || 0));
 }
 
 async function deleteWarehouseGang(zone, etage, gang, opts = {}) {
@@ -1286,6 +1479,10 @@ module.exports = {
   deleteWarehouseGang,
   deleteWarehouseRegal,
   deleteWarehouseEbene,
+  // Child-BIN (Container) functions
+  createChildBin,
+  deleteChildBin,
+  listChildBins,
   // Exported for testing
   buildProductKeySet,
   binEntryMatchesKeySet,

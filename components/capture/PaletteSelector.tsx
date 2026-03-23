@@ -17,14 +17,26 @@ const PaletteSelector: React.FC<PaletteSelectorProps> = ({ value, onChange }) =>
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    fetchWarehouseBins("P", "").then((result) => {
-      if (!cancelled) {
-        setBins(Array.isArray(result) ? result : []);
-        setLoading(false);
-      }
-    }).catch(() => {
-      if (!cancelled) setLoading(false);
-    });
+    // Palette zone "P" can exist across multiple floors — load all
+    const etagen = ["GA", "UG", "EG"];
+    Promise.all(etagen.map((e) => fetchWarehouseBins("P", e).catch(() => [])))
+      .then((results) => {
+        if (!cancelled) {
+          const all = results.flat().filter(Boolean);
+          // Deduplicate by code (shouldn't happen, but safe)
+          const seen = new Set<string>();
+          const unique = all.filter((b) => {
+            if (seen.has(b.code)) return false;
+            seen.add(b.code);
+            return true;
+          });
+          setBins(unique);
+          setLoading(false);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setLoading(false);
+      });
     return () => { cancelled = true; };
   }, []);
 
@@ -83,7 +95,7 @@ const PaletteSelector: React.FC<PaletteSelectorProps> = ({ value, onChange }) =>
         type="text"
         autoComplete="off"
         className={`w-full rounded-xl bg-app-bg border ${borderClass} px-3 py-2 text-sm text-txt-primary placeholder:text-txt-muted/50 focus:outline-none focus:ring-2 focus:ring-accent/40`}
-        placeholder={loading ? "Paletten werden geladen..." : "Palette eingeben (z.B. PGA001)"}
+        placeholder={loading ? "Paletten werden geladen..." : "Palette eingeben (z.B. PEG001)"}
         value={inputText}
         onChange={handleInputChange}
         onFocus={() => setOpen(true)}

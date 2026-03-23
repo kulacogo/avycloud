@@ -16,6 +16,9 @@ const {
   bookStockIn,
   bookStockOut,
   listBinsForProduct,
+  createChildBin,
+  deleteChildBin,
+  listChildBins,
 } = require('../lib/warehouse');
 const {
   buildBinLabelHtml,
@@ -315,7 +318,8 @@ router.get('/bins/:code/label', requirePermission('warehouse', 'read'), async (r
     if (!bin) {
       console.warn(`BIN ${code} nicht gefunden – Label wird trotzdem erzeugt.`);
     }
-    const html = await buildBinLabelHtml({ code });
+    const labelInput = bin && bin.parentBinCode ? { code, parentBinCode: bin.parentBinCode } : { code };
+    const html = await buildBinLabelHtml(labelInput);
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.setHeader('Cache-Control', 'no-store');
     res.send(html);
@@ -359,6 +363,41 @@ router.delete('/bins/:code/products/:productId', requirePermission('warehouse', 
       ok: false,
       error: { code: 400, message: error.message || 'Fehler beim Entfernen des Produkts.' },
     });
+  }
+});
+
+// ── Child-BIN (Container) Routes ─────────────────────────────────────
+
+router.get('/bins/:code/containers', requirePermission('warehouse', 'read'), async (req, res) => {
+  try {
+    const code = req.params.code.toUpperCase();
+    const children = await listChildBins(code);
+    res.json({ ok: true, data: children });
+  } catch (err) {
+    console.error(`[GET /api/warehouse/bins/:code/containers] ${err.message}`, err);
+    res.status(400).json({ ok: false, error: { code: 'BAD_REQUEST', message: err.message } });
+  }
+});
+
+router.post('/bins/:code/containers', requirePermission('warehouse', 'write'), async (req, res) => {
+  try {
+    const code = req.params.code.toUpperCase();
+    const child = await createChildBin(code, req.body || {});
+    res.status(201).json({ ok: true, data: child });
+  } catch (err) {
+    console.error(`[POST /api/warehouse/bins/:code/containers] ${err.message}`, err);
+    res.status(400).json({ ok: false, error: { code: 'BAD_REQUEST', message: err.message } });
+  }
+});
+
+router.delete('/bins/:code/containers/:childCode', requirePermission('warehouse', 'write'), async (req, res) => {
+  try {
+    const childCode = req.params.childCode.toUpperCase();
+    const result = await deleteChildBin(childCode);
+    res.json({ ok: true, data: result });
+  } catch (err) {
+    console.error(`[DELETE /api/warehouse/bins/:code/containers/:childCode] ${err.message}`, err);
+    res.status(400).json({ ok: false, error: { code: 'BAD_REQUEST', message: err.message } });
   }
 });
 

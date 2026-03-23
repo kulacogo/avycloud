@@ -159,7 +159,10 @@ async function buildProductLabelsHtml(items) {
 </html>`;
 }
 
-async function renderSingleBinLabel(code) {
+async function renderSingleBinLabel(codeOrObj) {
+  const isObj = typeof codeOrObj === 'object' && codeOrObj !== null;
+  const code = isObj ? codeOrObj.code : codeOrObj;
+  const parentBinCode = isObj ? codeOrObj.parentBinCode || null : null;
   const raw = String(code || '').trim();
   if (!raw) {
     throw new Error('BIN-Code darf nicht leer sein.');
@@ -171,10 +174,16 @@ async function renderSingleBinLabel(code) {
     margin: 0,
     scale: 8,
   });
+  const parentLine = parentBinCode
+    ? `<div class="parent-hint">\u21b3 ${escapeHtml(parentBinCode)}</div>`
+    : '';
   return `
     <div class="label">
       <div class="qr"><img src="${qrDataUrl}" alt="${normalized}" /></div>
-      <div class="text" data-length="${raw.length}" style="font-size:${fontSize}mm;letter-spacing:${letterSpacing}mm;">${normalized}</div>
+      <div class="text-wrap">
+        <div class="text" data-length="${raw.length}" style="font-size:${fontSize}mm;letter-spacing:${letterSpacing}mm;">${normalized}</div>
+        ${parentLine}
+      </div>
     </div>
   `;
 }
@@ -183,7 +192,7 @@ async function buildBinLabelsHtml(codes = []) {
   if (!codes || !codes.length) {
     throw new Error('Mindestens ein BIN-Code ist erforderlich.');
   }
-  const labels = await Promise.all(codes.map((code) => renderSingleBinLabel(code)));
+  const labels = await Promise.all(codes.map((codeOrObj) => renderSingleBinLabel(codeOrObj)));
   return `<!DOCTYPE html>
 <html lang="de">
   <head>
@@ -223,14 +232,27 @@ async function buildBinLabelsHtml(codes = []) {
         width: 100%;
         height: 100%;
       }
-      .text {
+      .text-wrap {
         flex: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 0.5mm;
+      }
+      .text {
         font-weight: 700;
         font-family: 'SFMono-Regular', 'Roboto Mono', 'Fira Mono', 'Menlo', monospace;
         text-align: left;
         line-height: 1;
         white-space: nowrap;
         overflow: visible;
+      }
+      .parent-hint {
+        font-size: 2.8mm;
+        font-family: 'SFMono-Regular', 'Roboto Mono', 'Fira Mono', 'Menlo', monospace;
+        color: #666;
+        line-height: 1;
+        white-space: nowrap;
       }
     </style>
     <script>
@@ -248,9 +270,10 @@ async function buildBinLabelsHtml(codes = []) {
 </html>`;
 }
 
-async function buildBinLabelHtml({ code }) {
+async function buildBinLabelHtml(input) {
+  const code = typeof input === 'object' ? input.code : input;
   if (!code) throw new Error('Code is required for label generation');
-  return buildBinLabelsHtml([code]);
+  return buildBinLabelsHtml([input]);
 }
 
 const applyPageRotation = (doc) => {
@@ -282,7 +305,10 @@ async function buildBinLabelsPdf(codes = []) {
   doc.on('data', (chunk) => chunks.push(chunk));
 
   for (let index = 0; index < codes.length; index += 1) {
-    const code = codes[index];
+    const entry = codes[index];
+    const isObj = typeof entry === 'object' && entry !== null;
+    const code = isObj ? entry.code : entry;
+    const parentBinCode = isObj ? entry.parentBinCode || null : null;
     if (index > 0) {
       doc.addPage();
     }
@@ -301,14 +327,27 @@ async function buildBinLabelsPdf(codes = []) {
     doc.image(qrBuffer, qrX, qrY, { fit: [mmToPoints(BIN_QR_SIZE_MM), mmToPoints(BIN_QR_SIZE_MM)] });
 
     const textX = mmToPoints(BIN_PADDING_MM + BIN_QR_SIZE_MM + BIN_GAP_MM);
-    const textY = mmToPoints((BIN_HEIGHT_MM - fontSize) / 2);
+    const mainTextY = parentBinCode
+      ? mmToPoints((BIN_HEIGHT_MM - fontSize - 3.5) / 2)
+      : mmToPoints((BIN_HEIGHT_MM - fontSize) / 2);
     doc
       .font('Helvetica-Bold')
       .fontSize(mmToPoints(fontSize))
-      .text(String(code).trim(), textX, textY, {
+      .text(String(code).trim(), textX, mainTextY, {
         characterSpacing: mmToPoints(letterSpacing),
         lineBreak: false,
       });
+
+    if (parentBinCode) {
+      doc
+        .font('Helvetica')
+        .fontSize(mmToPoints(2.8))
+        .fillColor('#666666')
+        .text(`\u21b3 ${parentBinCode}`, textX, mainTextY + mmToPoints(fontSize + 1), {
+          lineBreak: false,
+        })
+        .fillColor('#000000');
+    }
   }
 
   doc.end();
