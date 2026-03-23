@@ -52,44 +52,16 @@ async function refreshProductInventory(productId) {
 
   const productData = snap.data() || {};
 
-  // Match bins by multiple stable keys: doc id, stored product.id, SKU fields (with/without "SKU-" prefix)
-  const keySet = new Set();
-  const addKey = (value) => {
-    const normalized = normalizeKey(value);
-    if (normalized) keySet.add(normalized);
-  };
-  const addSkuVariants = (value) => {
-    if (!value) return;
-    const raw = String(value).trim();
-    addKey(raw);
-    const stripped = raw.replace(/^sku[-_\s]*/i, '');
-    addKey(stripped);
-  };
-
-  addKey(resolvedId);
-  addKey(productData.id);
-  addSkuVariants(productData?.identification?.sku);
-  addSkuVariants(productData?.details?.identifiers?.sku);
+  // Build comprehensive keySet from product data using central function
+  const keySet = buildProductKeySet(productData);
+  keySet.add(normalizeKey(resolvedId));
 
   const snapshot = await binsCollection.get();
   const bins = [];
   snapshot.forEach((doc) => {
     const data = doc.data() || {};
     const products = Array.isArray(data.products) ? data.products : [];
-    const matches = products.filter((p) => {
-      if (!p) return false;
-      const pid = normalizeKey(p.productId);
-      const sku = normalizeKey(p.sku);
-      const skuStripped = p.sku ? normalizeKey(String(p.sku).replace(/^sku[-_\s]*/i, '')) : null;
-      const pidStripped =
-        p.productId ? normalizeKey(String(p.productId).replace(/^sku[-_\s]*/i, '')) : null;
-      return (
-        (pid && keySet.has(pid)) ||
-        (sku && keySet.has(sku)) ||
-        (skuStripped && keySet.has(skuStripped)) ||
-        (pidStripped && keySet.has(pidStripped))
-      );
-    });
+    const matches = products.filter((p) => binEntryMatchesKeySet(p, keySet));
 
     const quantity = matches.reduce((sum, entry) => sum + (Number(entry?.quantity) || 0), 0);
     if (!quantity) return;
@@ -506,12 +478,12 @@ async function removeProductFromBin(binCode, productId, options = {}) {
     }
 
     const binData = binSnap.data();
+    const productData = productSnap.data();
     const products = Array.isArray(binData.products) ? [...binData.products] : [];
-    // match by productId OR sku to be robust
-    const matches = (p) =>
-      p &&
-      (String(p.productId).trim() === String(productId).trim() ||
-        String(p.sku || '').trim() === String(productId).trim());
+    // Build comprehensive keySet from product data for robust matching
+    const keySet = buildProductKeySet(productData);
+    keySet.add(normalizeKey(productId));
+    const matches = (p) => binEntryMatchesKeySet(p, keySet);
     const updatedProducts = products.filter((p) => !matches(p));
     const removedEntries = products.filter((p) => matches(p));
     const removedQty = removedEntries.reduce((sum, p) => sum + Number(p.quantity || 0), 0);
@@ -530,7 +502,6 @@ async function removeProductFromBin(binCode, productId, options = {}) {
       skipProductUpdate: Boolean(options.skipProductUpdate),
     });
     if (!options.skipProductUpdate) {
-      const productData = productSnap.data();
       const shouldClearStorage = productData?.storage?.binCode === binCode;
       const updatedStorageBins = Array.isArray(productData?.storageBins)
         ? productData.storageBins.filter((b) => String(b.code || '').trim() !== String(binCode).trim())
@@ -668,6 +639,10 @@ async function assignProductToBin(binCode, productId, quantity) {
   const now = Timestamp.now();
   let previousBinQty = 0;
 
+  // Build comprehensive keySet from product data for robust matching
+  const keySet = buildProductKeySet(product);
+  keySet.add(normalizeKey(productId));
+
   await firestore.runTransaction(async (tx) => {
     const binSnap = await tx.get(binRef);
     if (!binSnap.exists) {
@@ -675,7 +650,7 @@ async function assignProductToBin(binCode, productId, quantity) {
     }
     const binData = binSnap.data();
     const products = Array.isArray(binData.products) ? [...binData.products] : [];
-    let entry = products.find((p) => p.productId === productId);
+    let entry = products.find((p) => binEntryMatchesKeySet(p, keySet));
     if (entry) {
       previousBinQty = Number(entry.quantity || 0) || 0;
       entry.quantity = quantity;
@@ -752,7 +727,11 @@ async function bookStockIn({ productId, sku, barcode, binCode, quantity, meta })
     resolvedProductId = productData.id || productRef.id;
     const nowIso = now.toDate().toISOString();
 
-    let entry = products.find((p) => p.productId === resolvedProductId);
+    // Build comprehensive keySet for robust duplicate detection
+    const keySet = buildProductKeySet(productData);
+    keySet.add(normalizeKey(resolvedProductId));
+    keySet.add(normalizeKey(productRef.id));
+    let entry = products.find((p) => binEntryMatchesKeySet(p, keySet));
     if (entry) {
       // Stock-in is additive, regardless of whether this BIN is currently the product's primary location.
       entry.quantity = (Number(entry.quantity) || 0) + quantity;
@@ -973,39 +952,17 @@ async function bookStockOut({ productId, sku, barcode, binCode, quantity, meta }
 async function listBinsForProduct(productIdOrSku) {
   if (!productIdOrSku) throw new Error('Produkt-ID oder SKU fehlt.');
 
-  // Build comprehensive keySet from product document (same strategy as refreshProductInventory)
-  const keySet = new Set();
-  const addKey = (value) => {
-    const normalized = normalizeKey(value);
-    if (normalized) keySet.add(normalized);
-  };
-  const addSkuVariants = (value) => {
-    if (!value) return;
-    const raw = String(value).trim();
-    addKey(raw);
-    const stripped = raw.replace(/^sku[-_\s]*/i, '');
-    addKey(stripped);
-    if (stripped) addKey(`sku-${stripped}`);
-  };
-
+  // Build comprehensive keySet using central function
   const raw = String(productIdOrSku).trim();
-  addKey(raw);
-  addSkuVariants(raw);
+  const keySet = buildProductKeySet(raw);
 
-  // Load product document to get ALL identifiers (SKU, EAN, etc.)
+  // Load product document to enrich keySet with ALL identifiers (SKU, EAN, etc.)
   const productRef = productsCollection.doc(raw);
   const productSnap = await productRef.get();
   if (productSnap.exists) {
     const productData = productSnap.data() || {};
-    addKey(productData.id);
-    addSkuVariants(productData?.identification?.sku);
-    addSkuVariants(productData?.details?.identifiers?.sku);
-    // Also add barcodes/EANs as keys
-    addKey(productData?.details?.identifiers?.ean);
-    addKey(productData?.details?.identifiers?.gtin);
-    addKey(productData?.details?.identifiers?.upc);
-    const barcodes = Array.isArray(productData?.identification?.barcodes) ? productData.identification.barcodes : [];
-    barcodes.forEach((b) => addKey(b));
+    const dataKeySet = buildProductKeySet(productData);
+    dataKeySet.forEach((k) => keySet.add(k));
   }
 
   const snapshot = await binsCollection.get();
@@ -1014,19 +971,7 @@ async function listBinsForProduct(productIdOrSku) {
   snapshot.forEach((doc) => {
     const data = doc.data() || {};
     const products = Array.isArray(data.products) ? data.products : [];
-    const hits = products.filter((p) => {
-      if (!p) return false;
-      const pid = normalizeKey(p.productId);
-      const sku = normalizeKey(p.sku);
-      const pidStripped = pid ? pid.replace(/^sku[-_\s]*/i, '') : null;
-      const skuStripped = sku ? sku.replace(/^sku[-_\s]*/i, '') : null;
-      return (
-        (pid && keySet.has(pid)) ||
-        (sku && keySet.has(sku)) ||
-        (pidStripped && keySet.has(pidStripped)) ||
-        (skuStripped && keySet.has(skuStripped))
-      );
-    });
+    const hits = products.filter((p) => binEntryMatchesKeySet(p, keySet));
     const quantity = hits.reduce((sum, entry) => sum + (Number(entry?.quantity) || 0), 0);
     if (quantity > 0) {
       const first = hits[0] || {};
@@ -1078,6 +1023,67 @@ function toIsoString(value) {
   if (typeof value.toDate === 'function') return value.toDate().toISOString();
   if (typeof value === 'string') return value;
   return null;
+}
+
+/**
+ * Baut ein umfassendes Set von normalisierten Keys für Product-Matching.
+ * Wird von ALLEN Warehouse-Funktionen genutzt die Produkte in BINs suchen.
+ * @param {string|object} productIdOrData - Firestore docId (string) oder Produkt-Daten (object)
+ * @returns {Set<string>} Normalisierte Keys (lowercase, SKU-Varianten)
+ */
+function buildProductKeySet(productIdOrData) {
+  const keySet = new Set();
+  const addKey = (value) => {
+    const normalized = normalizeKey(value);
+    if (normalized) keySet.add(normalized);
+  };
+  const addSkuVariants = (value) => {
+    if (!value) return;
+    const raw = String(value).trim();
+    addKey(raw);
+    const stripped = raw.replace(/^sku[-_\s]*/i, '');
+    addKey(stripped);
+    if (stripped) addKey(`sku-${stripped}`);
+  };
+
+  if (typeof productIdOrData === 'string') {
+    addKey(productIdOrData);
+    addSkuVariants(productIdOrData);
+  }
+
+  if (typeof productIdOrData === 'object' && productIdOrData) {
+    addKey(productIdOrData.id);
+    addSkuVariants(productIdOrData?.identification?.sku);
+    addSkuVariants(productIdOrData?.details?.identifiers?.sku);
+    addKey(productIdOrData?.details?.identifiers?.ean);
+    addKey(productIdOrData?.details?.identifiers?.gtin);
+    addKey(productIdOrData?.details?.identifiers?.upc);
+    const barcodes = Array.isArray(productIdOrData?.identification?.barcodes)
+      ? productIdOrData.identification.barcodes : [];
+    barcodes.forEach((b) => addKey(b));
+  }
+
+  return keySet;
+}
+
+/**
+ * Prüft ob ein Bin-Entry (p) zu einem keySet passt.
+ * @param {object} p - Bin products[] Entry mit .productId und .sku
+ * @param {Set<string>} keySet - Von buildProductKeySet() erzeugt
+ * @returns {boolean}
+ */
+function binEntryMatchesKeySet(p, keySet) {
+  if (!p) return false;
+  const pid = normalizeKey(p.productId);
+  const sku = normalizeKey(p.sku);
+  const pidStripped = pid ? pid.replace(/^sku[-_\s]*/i, '') : null;
+  const skuStripped = sku ? sku.replace(/^sku[-_\s]*/i, '') : null;
+  return (
+    (pid && keySet.has(pid)) ||
+    (sku && keySet.has(sku)) ||
+    (pidStripped && keySet.has(pidStripped)) ||
+    (skuStripped && keySet.has(skuStripped))
+  );
 }
 
 async function getProductBinSummaryMap(productIds = [], skuToProductIdMap = new Map()) {
@@ -1280,4 +1286,8 @@ module.exports = {
   deleteWarehouseGang,
   deleteWarehouseRegal,
   deleteWarehouseEbene,
+  // Exported for testing
+  buildProductKeySet,
+  binEntryMatchesKeySet,
+  normalizeKey,
 };
