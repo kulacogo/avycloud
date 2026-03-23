@@ -38,9 +38,50 @@ async function getGeminiClient() {
     return cachedClient;
 }
 
+const { resolveModel } = require('./model-select');
+const { callGeminiWithRetry } = require('./gemini-retry');
+
+/**
+ * Send a text prompt + inline images to Gemini Vision.
+ * @param {string} textPrompt
+ * @param {Array<{buffer: Buffer, mimeType: string}>} imageBuffers
+ * @param {object} [options]
+ * @returns {Promise<string>} The model's text response.
+ */
+async function callGeminiVision(textPrompt, imageBuffers = [], options = {}) {
+  const client = await getGeminiClient();
+  const modelName = resolveModel(null, 'GROUPING_MODEL', 'gemini-2.0-flash');
+  const model = client.getGenerativeModel({ model: modelName });
+
+  const parts = [
+    { text: textPrompt },
+    ...imageBuffers.map((img) => ({
+      inlineData: {
+        mimeType: img.mimeType || 'image/jpeg',
+        data: img.buffer.toString('base64'),
+      },
+    })),
+  ];
+
+  const result = await callGeminiWithRetry(
+    () =>
+      model.generateContent({
+        contents: [{ role: 'user', parts }],
+        generationConfig: {
+          temperature: options.temperature ?? 0.1,
+          maxOutputTokens: options.maxOutputTokens ?? 2048,
+        },
+      }),
+    { maxRetries: 1, delayMs: 2000 }
+  );
+
+  return result.response.text();
+}
+
 module.exports = {
     getGeminiClient,
     getGeminiApiKey,
+    callGeminiVision,
     // for diagnostics / health endpoints
     __unsafeGetCachedKeySource: () => cachedKeySource,
 };

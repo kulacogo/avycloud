@@ -8,7 +8,7 @@ import type { CaptureUploadData } from "./CaptureView";
 
 interface StepAnalysisProps {
   uploadData: CaptureUploadData;
-  onComplete: (product: Product) => void;
+  onComplete: (products: Product | Product[]) => void;
   onError: (error: string) => void;
   onBack: () => void;
 }
@@ -39,10 +39,10 @@ const StepAnalysis: React.FC<StepAnalysisProps> = ({
 }) => {
   const [phase, setPhase] = useState<Phase>("upload");
   const [error, setError] = useState<string | null>(null);
+  const [phaseLabel, setPhaseLabel] = useState<string | null>(null);
+  const [groupProgress, setGroupProgress] = useState({ current: 0, total: 0 });
   const startedRef = useRef(false);
 
-  // Simulated phase progression — the actual call is one request,
-  // but we show sub-steps to indicate progress to the user.
   useEffect(() => {
     if (startedRef.current) return;
     startedRef.current = true;
@@ -50,53 +50,107 @@ const StepAnalysis: React.FC<StepAnalysisProps> = ({
     let cancelled = false;
 
     const run = async () => {
-      // Progress simulation: advance phases on timers while the actual API call runs
-      const phaseTimers: NodeJS.Timeout[] = [];
-      const advancePhases = () => {
-        const delays = [800, 2500, 4000, 7000, 12000]; // cumulative-ish timing
+      const groups = uploadData.groups;
+      const total = groups.length;
+      setGroupProgress({ current: 0, total });
+
+      if (total <= 1) {
+        // Single group: original behavior with phase simulation
+        const phaseTimers: NodeJS.Timeout[] = [];
+        const delays = [800, 2500, 4000, 7000, 12000];
         const phases: Phase[] = ["vision", "barcode", "web", "llm", "pricing"];
         phases.forEach((p, i) => {
-          const timer = setTimeout(() => {
-            if (!cancelled) setPhase(p);
-          }, delays[i]);
-          phaseTimers.push(timer);
+          phaseTimers.push(setTimeout(() => { if (!cancelled) setPhase(p); }, delays[i]));
         });
-      };
 
-      advancePhases();
+        try {
+          const group = groups[0];
+          const result = await identifyProductV2(
+            group?.images || [],
+            uploadData.barcodes,
+            "de-DE",
+            undefined,
+            uploadData.paletteCode || undefined
+          );
 
-      try {
-        const group = uploadData.groups[0];
-        const result = await identifyProductV2(
-          group?.images || [],
-          uploadData.barcodes,
-          "de-DE"
-        );
+          phaseTimers.forEach(clearTimeout);
+          if (cancelled) return;
 
-        phaseTimers.forEach(clearTimeout);
+          if (!result.ok || !result.data) {
+            const msg = result.error?.message || "Produkterkennung fehlgeschlagen.";
+            setPhase("error");
+            setError(msg);
+            onError(msg);
+            return;
+          }
+
+          setPhase("done");
+          setTimeout(() => {
+            if (!cancelled) onComplete(result.data!);
+          }, 600);
+        } catch (err: any) {
+          phaseTimers.forEach(clearTimeout);
+          if (cancelled) return;
+          const msg = err?.message || "Ein unerwarteter Fehler ist aufgetreten.";
+          setPhase("error");
+          setError(msg);
+          onError(msg);
+        }
+      } else {
+        // Multi-group: sequential processing
+        const results: Product[] = [];
+        const errors: { label: string; error: string }[] = [];
+
+        for (let i = 0; i < total; i++) {
+          if (cancelled) return;
+          const group = groups[i];
+          setGroupProgress({ current: i + 1, total });
+          setPhaseLabel(`${group.label} (${i + 1}/${total})...`);
+          setPhase("vision");
+
+          try {
+            const result = await identifyProductV2(
+              group.images || [],
+              group.label === "Barcode-Identifikation" ? uploadData.barcodes : "",
+              "de-DE",
+              undefined,
+              uploadData.paletteCode || undefined
+            );
+
+            if (result.ok && result.data) {
+              results.push(result.data);
+            } else {
+              errors.push({
+                label: group.label,
+                error: result.error?.message || "Unbekannter Fehler",
+              });
+            }
+          } catch (err: any) {
+            errors.push({
+              label: group.label,
+              error: err?.message || "Netzwerkfehler",
+            });
+          }
+        }
 
         if (cancelled) return;
 
-        if (!result.ok || !result.data) {
-          const msg = result.error?.message || "Produkterkennung fehlgeschlagen.";
+        if (results.length === 0) {
+          const msg = `Alle ${errors.length} Produkte fehlgeschlagen: ${errors.map((e) => e.label).join(", ")}`;
           setPhase("error");
           setError(msg);
           onError(msg);
           return;
         }
 
+        if (errors.length > 0) {
+          setError(`${errors.length} von ${total} Produkten fehlgeschlagen`);
+        }
+
         setPhase("done");
-        // Short delay so user sees the "done" state
         setTimeout(() => {
-          if (!cancelled) onComplete(result.data!);
+          if (!cancelled) onComplete(results);
         }, 600);
-      } catch (err: any) {
-        phaseTimers.forEach(clearTimeout);
-        if (cancelled) return;
-        const msg = err?.message || "Ein unerwarteter Fehler ist aufgetreten.";
-        setPhase("error");
-        setError(msg);
-        onError(msg);
       }
     };
 
@@ -105,9 +159,17 @@ const StepAnalysis: React.FC<StepAnalysisProps> = ({
   }, [uploadData, onComplete, onError]);
 
   const currentIndex = PHASE_ORDER.indexOf(phase);
-  const progress =
-    phase === "done" ? 100
-    : phase === "error" ? 0
+  const isMulti = groupProgress.total > 1;
+  const progress = isMulti
+    ? phase === "done"
+      ? 100
+      : phase === "error"
+      ? 0
+      : Math.round((groupProgress.current / groupProgress.total) * 100)
+    : phase === "done"
+    ? 100
+    : phase === "error"
+    ? 0
     : Math.round(((currentIndex + 0.5) / (PHASE_ORDER.length - 1)) * 100);
 
   return (
@@ -115,14 +177,22 @@ const StepAnalysis: React.FC<StepAnalysisProps> = ({
       <Card padding="lg">
         <div className="text-center mb-6">
           <h2 className="text-lg font-semibold text-txt-primary">
-            {phase === "error" ? "Fehler bei der Erkennung" : phase === "done" ? "Erkennung abgeschlossen" : "Produkt wird analysiert…"}
+            {phase === "error"
+              ? "Fehler bei der Erkennung"
+              : phase === "done"
+              ? "Erkennung abgeschlossen"
+              : isMulti
+              ? `Produkt ${groupProgress.current} von ${groupProgress.total} wird erkannt...`
+              : "Produkt wird analysiert\u2026"}
           </h2>
           <p className="text-sm text-txt-muted mt-1">
             {phase === "error"
               ? error
               : phase === "done"
-              ? "Das Produkt wurde erfolgreich identifiziert."
-              : "Bitte warte, während die KI das Produkt erkennt."}
+              ? isMulti
+                ? `${groupProgress.total} Produkte erfolgreich identifiziert.${error ? ` (${error})` : ""}`
+                : "Das Produkt wurde erfolgreich identifiziert."
+              : phaseLabel || "Bitte warte, während die KI das Produkt erkennt."}
           </p>
         </div>
 
@@ -132,43 +202,42 @@ const StepAnalysis: React.FC<StepAnalysisProps> = ({
           className="mb-8"
         />
 
-        {/* Sub-steps list */}
-        <div className="space-y-3 max-w-md mx-auto">
-          {SUB_STEPS.map((step) => {
-            const stepIndex = PHASE_ORDER.indexOf(step.id);
-            const isComplete = currentIndex > stepIndex || phase === "done";
-            const isActive = phase === step.id;
-            const isPending = currentIndex < stepIndex && phase !== "done" && phase !== "error";
+        {/* Sub-steps list (only for single-group) */}
+        {!isMulti && (
+          <div className="space-y-3 max-w-md mx-auto">
+            {SUB_STEPS.map((step) => {
+              const stepIndex = PHASE_ORDER.indexOf(step.id);
+              const isComplete = currentIndex > stepIndex || phase === "done";
+              const isActive = phase === step.id;
 
-            return (
-              <div key={step.id} className="flex items-center gap-3">
-                {/* Icon */}
-                <span className="w-6 h-6 flex items-center justify-center shrink-0">
-                  {isComplete ? (
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="text-success">
-                      <path d="M20 6L9 17l-5-5" />
-                    </svg>
-                  ) : isActive ? (
-                    <svg className="animate-spin text-accent" width="18" height="18" viewBox="0 0 24 24" fill="none">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                    </svg>
-                  ) : (
-                    <span className="w-2 h-2 rounded-full bg-app-border" />
-                  )}
-                </span>
-                {/* Label */}
-                <span
-                  className={`text-sm ${
-                    isComplete ? "text-txt-primary" : isActive ? "text-accent font-medium" : "text-txt-muted"
-                  }`}
-                >
-                  {step.label}
-                </span>
-              </div>
-            );
-          })}
-        </div>
+              return (
+                <div key={step.id} className="flex items-center gap-3">
+                  <span className="w-6 h-6 flex items-center justify-center shrink-0">
+                    {isComplete ? (
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="text-success">
+                        <path d="M20 6L9 17l-5-5" />
+                      </svg>
+                    ) : isActive ? (
+                      <svg className="animate-spin text-accent" width="18" height="18" viewBox="0 0 24 24" fill="none">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                    ) : (
+                      <span className="w-2 h-2 rounded-full bg-app-border" />
+                    )}
+                  </span>
+                  <span
+                    className={`text-sm ${
+                      isComplete ? "text-txt-primary" : isActive ? "text-accent font-medium" : "text-txt-muted"
+                    }`}
+                  >
+                    {step.label}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </Card>
 
       {/* Error actions */}
@@ -182,7 +251,6 @@ const StepAnalysis: React.FC<StepAnalysisProps> = ({
               startedRef.current = false;
               setPhase("upload");
               setError(null);
-              // Re-trigger by forcing re-mount — parent handles this
               onError("");
             }}
           >

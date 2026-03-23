@@ -4205,6 +4205,38 @@ export const identifyProductV2 = async (
   }
 };
 
+export interface ProductGroupProposal {
+  id: string;
+  label: string;
+  image_indices: number[];
+  confidence: number;
+  reason: string;
+  detected_barcode: string | null;
+}
+
+export const groupImages = async (
+  files: File[],
+  barcodes?: string
+): Promise<{ ok: boolean; data?: { groups: ProductGroupProposal[]; imageCount: number }; error?: { code: string; message: string } }> => {
+  const formData = new FormData();
+  files.forEach((file) => formData.append('images', file));
+  if (barcodes) formData.append('barcodes', barcodes);
+
+  try {
+    const response = await fetchApi(`${BACKEND_URL}/api/v2/group-images`, {
+      method: 'POST',
+      body: formData,
+    });
+    const result = await response.json();
+    if (!response.ok || !result.ok) {
+      return { ok: false, error: result.error || { code: 'GROUPING_FAILED', message: 'Gruppierung fehlgeschlagen' } };
+    }
+    return { ok: true, data: result.data };
+  } catch (error: any) {
+    return { ok: false, error: { code: 'NETWORK_ERROR', message: error?.message || 'Netzwerkfehler' } };
+  }
+};
+
 export const resolveIntakeExisting = async (params: {
   barcodes: string;
   sku?: string | null;

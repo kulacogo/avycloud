@@ -94,13 +94,13 @@ export const useIdentification = (options?: UseIdentificationOptions) => {
   // Persisting is handled server-side by /api/v2/identify (includes stock protection + review).
 
   const startJobForGroup = useCallback(
-    (
+    async (
       group: UploadGroupPayload,
       barcodes: string,
       inventoryId?: string | null,
       inventoryName?: string | null,
       paletteCode?: string | null
-    ) => {
+    ): Promise<void> => {
       const localId = createLocalId();
       const startedAt = new Date().toISOString();
       addJob({
@@ -114,93 +114,92 @@ export const useIdentification = (options?: UseIdentificationOptions) => {
       const controller = new AbortController();
       jobControllersRef.current.set(localId, controller);
 
-      (async () => {
+      try {
+        updateJob(localId, {
+          phase: 'processing',
+          message: 'Vision/Gemini analysiert das Produkt …',
+        });
+        updateJob(localId, {
+          phase: 'enriching',
+          message: 'Datenblatt wird erstellt …',
+        });
+        const identifyResult = await identifyProductV2(group.images, barcodes, 'de-DE', inventoryId || undefined, paletteCode || undefined);
+        if (!identifyResult.ok || !identifyResult.data) {
+          throw new Error(identifyResult.error?.message || 'Identify (v2) fehlgeschlagen.');
+        }
+
+        const finalProduct: Product = identifyResult.data;
+        const hasName =
+          !!finalProduct.identification?.name?.trim() &&
+          !isPlaceholderIdentifiedName(finalProduct.identification?.name);
+        const hasDesc = !!finalProduct.details?.short_description?.trim();
+        const hasImages =
+          Array.isArray(finalProduct.details?.images) && finalProduct.details.images.length > 0;
+        const requireImages = group.images.length > 0;
+        const missing: string[] = [];
+        if (!hasName) missing.push('Titel');
+        if (!hasDesc) missing.push('Beschreibung');
+        if (requireImages && !hasImages) missing.push('Bilder');
+        if (missing.length) {
+          throw new Error(
+            `Identify hat ein unvollständiges Datenblatt geliefert (${missing.join(', ')} fehlt). Bitte erneut versuchen.`
+          );
+        }
+
         try {
           updateJob(localId, {
-            phase: 'processing',
-            message: 'Vision/Gemini analysiert das Produkt …',
-          });
-          updateJob(localId, {
             phase: 'enriching',
-            message: 'Datenblatt wird erstellt …',
+            message: 'Preis wird geprüft …',
           });
-          const identifyResult = await identifyProductV2(group.images, barcodes, 'de-DE', inventoryId || undefined, paletteCode || undefined);
-          if (!identifyResult.ok || !identifyResult.data) {
-            throw new Error(identifyResult.error?.message || 'Identify (v2) fehlgeschlagen.');
-          }
-
-          const finalProduct: Product = identifyResult.data;
-          const hasName =
-            !!finalProduct.identification?.name?.trim() &&
-            !isPlaceholderIdentifiedName(finalProduct.identification?.name);
-          const hasDesc = !!finalProduct.details?.short_description?.trim();
-          const hasImages =
-            Array.isArray(finalProduct.details?.images) && finalProduct.details.images.length > 0;
-          const requireImages = group.images.length > 0;
-          const missing: string[] = [];
-          if (!hasName) missing.push('Titel');
-          if (!hasDesc) missing.push('Beschreibung');
-          if (requireImages && !hasImages) missing.push('Bilder');
-          if (missing.length) {
-            throw new Error(
-              `Identify hat ein unvollständiges Datenblatt geliefert (${missing.join(', ')} fehlt). Bitte erneut versuchen.`
-            );
-          }
-
-          try {
-            updateJob(localId, {
-              phase: 'enriching',
-              message: 'Preis wird geprüft …',
-            });
-            const priceResult = await refreshPrice(finalProduct.id);
-            if (priceResult.ok && priceResult.data) {
-              const withPrice: Product = {
-                ...finalProduct,
-                details: {
-                  ...finalProduct.details,
-                  pricing: {
-                    ...(finalProduct.details?.pricing || {}),
-                    ...priceResult.data,
-                  },
+          const priceResult = await refreshPrice(finalProduct.id);
+          if (priceResult.ok && priceResult.data) {
+            const withPrice: Product = {
+              ...finalProduct,
+              details: {
+                ...finalProduct.details,
+                pricing: {
+                  ...(finalProduct.details?.pricing || {}),
+                  ...priceResult.data,
                 },
-              };
-              options?.onJobCompleted?.({ products: [withPrice] });
-            } else {
-              options?.onJobCompleted?.({ products: [finalProduct] });
-            }
-          } catch (priceError) {
-            console.warn('Price enrichment failed:', (priceError as any)?.message || priceError);
+              },
+            };
+            options?.onJobCompleted?.({ products: [withPrice] });
+          } else {
             options?.onJobCompleted?.({ products: [finalProduct] });
           }
-          updateJob(localId, {
-            phase: 'complete',
-            message: PHASE_MESSAGES.complete,
-            finishedAt: new Date().toISOString(),
-          });
-        } catch (err: any) {
-          if (err?.name === 'AbortError') {
-            updateJob(localId, {
-              phase: 'cancelled',
-              message: PHASE_MESSAGES.cancelled,
-              finishedAt: new Date().toISOString(),
-              error: 'Abgebrochen',
-            });
-          } else {
-            const message =
-              err instanceof Error ? err.message : 'Unbekannter Fehler bei der Produktidentifikation.';
-            console.error('Identification job failed:', err);
-            updateJob(localId, {
-              phase: 'error',
-              message,
-              finishedAt: new Date().toISOString(),
-              error: message,
-            });
-            setError(message);
-          }
-        } finally {
-          jobControllersRef.current.delete(localId);
+        } catch (priceError) {
+          console.warn('Price enrichment failed:', (priceError as any)?.message || priceError);
+          options?.onJobCompleted?.({ products: [finalProduct] });
         }
-      })();
+        updateJob(localId, {
+          phase: 'complete',
+          message: PHASE_MESSAGES.complete,
+          finishedAt: new Date().toISOString(),
+        });
+      } catch (err: any) {
+        if (err?.name === 'AbortError') {
+          updateJob(localId, {
+            phase: 'cancelled',
+            message: PHASE_MESSAGES.cancelled,
+            finishedAt: new Date().toISOString(),
+            error: 'Abgebrochen',
+          });
+        } else {
+          const message =
+            err instanceof Error ? err.message : 'Unbekannter Fehler bei der Produktidentifikation.';
+          console.error('Identification job failed:', err);
+          updateJob(localId, {
+            phase: 'error',
+            message,
+            finishedAt: new Date().toISOString(),
+            error: message,
+          });
+          setError(message);
+        }
+        // Do NOT rethrow — continue with next group in sequential processing
+      } finally {
+        jobControllersRef.current.delete(localId);
+      }
     },
     [addJob, options?.onJobCompleted, updateJob]
   );
@@ -244,9 +243,11 @@ export const useIdentification = (options?: UseIdentificationOptions) => {
       }
 
       setError(null);
-      groupsToProcess.forEach((group) => {
-        startJobForGroup(group, barcodes, inventoryId, inventoryName, paletteCode);
-      });
+
+      // Sequential processing — avoids Gemini rate-limiting and ensures all products are saved
+      for (const group of groupsToProcess) {
+        await startJobForGroup(group, barcodes, inventoryId, inventoryName, paletteCode);
+      }
     },
     [startJobForGroup, validateGroup]
   );

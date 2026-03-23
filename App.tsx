@@ -455,13 +455,16 @@ const AppInner: React.FC = () => {
         nextFocus = merged.focus;
         return merged.list;
       });
+      // Only set focus for single-job identify.
+      // For multi-job: each completion would overwrite the previous focus,
+      // so the user would only see the last product. Instead, merge into
+      // the product list and let the user navigate from there.
       const focusProduct = nextFocus as Product | null;
-      if (focusProduct) {
+      if (focusProduct && jobStatuses.length <= 1) {
         setCurrentProduct(focusProduct);
         setInventoryFocusId(focusProduct.id);
-        // ProductSheet is now overlay-only — stay on products view
-        if (view !== 'products' && view !== 'inventory') {
-          setView('products');
+        if (view !== "products" && view !== "inventory") {
+          setView("products");
         }
       }
     },

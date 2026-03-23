@@ -841,4 +841,61 @@ router.post('/chat', requirePermission('ai', 'chat'), identifyLimiter, chatUploa
   }
 });
 
+// --- Image grouping endpoint (Auto-Separation) ---
+router.post('/v2/group-images', requirePermission('identify', 'run'), upload.array('images'), async (req, res) => {
+  try {
+    const files = req.files || [];
+    const barcodes = req.body?.barcodes || '';
+
+    if (files.length === 0) {
+      return res.status(400).json({ ok: false, error: { code: 'NO_IMAGES', message: 'Mindestens ein Bild erforderlich.' } });
+    }
+
+    const imageBuffers = files.map((f, idx) => ({
+      id: idx,
+      buffer: f.buffer,
+      mimeType: f.mimetype,
+      filename: f.originalname,
+    }));
+
+    const { buildGroupingPrompt, parseGroupingResponse } = require('../services/image-grouping');
+    const { callGeminiVision } = require('../lib/gemini-client');
+
+    const prompt = buildGroupingPrompt(files.length);
+    const response = await callGeminiVision(prompt, imageBuffers, {
+      temperature: 0.1,
+    });
+
+    let groups = parseGroupingResponse(response, files.length);
+
+    // Ensure every image is in at least one group
+    const allIndices = new Set();
+    groups.forEach((g) => g.image_indices.forEach((i) => allIndices.add(i)));
+    const orphaned = [];
+    for (let i = 0; i < files.length; i++) {
+      if (!allIndices.has(i)) orphaned.push(i);
+    }
+    if (orphaned.length && groups.length) {
+      groups[0].image_indices.push(...orphaned);
+    }
+
+    // Fallback: if Gemini returned nothing, put all in one group
+    if (!groups.length) {
+      groups = [{
+        id: 'group_0',
+        label: 'Produkt 1',
+        image_indices: Array.from({ length: files.length }, (_, i) => i),
+        confidence: 1,
+        reason: 'Fallback: alle Bilder in eine Gruppe',
+        detected_barcode: null,
+      }];
+    }
+
+    res.json({ ok: true, data: { groups, imageCount: files.length } });
+  } catch (err) {
+    console.error(`[POST /api/v2/group-images] ${err.message}`, err);
+    res.status(500).json({ ok: false, error: { code: 'GROUPING_FAILED', message: err.message } });
+  }
+});
+
 module.exports = router;
