@@ -281,9 +281,8 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
       // Track source palette on existing product (additive, never overwrites datasheet)
       if (paletteCode) {
         try {
-          const { Firestore } = require('@google-cloud/firestore');
-          const db = new Firestore();
-          await db.collection('products_v2').doc(existing.id).update({
+          const { PRODUCTS_COLLECTION } = require('../lib/firestore');
+          await firestore.collection(PRODUCTS_COLLECTION).doc(existing.id).update({
             'ops.sourcePalette': paletteCode,
             'ops.sourcePaletteAt': new Date().toISOString(),
           });

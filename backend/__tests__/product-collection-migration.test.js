@@ -54,6 +54,21 @@ describe('PRODUCTS_COLLECTION migration', () => {
     expect(PRODUCTS_COLLECTION).toBe('products');
   });
 
+  it('uses products_v2 when USE_PRODUCTS_V2=1', () => {
+    const { PRODUCTS_COLLECTION } = loadFirestoreModule('1');
+    expect(PRODUCTS_COLLECTION).toBe('products_v2');
+  });
+
+  it('uses products_v2 when USE_PRODUCTS_V2=yes', () => {
+    const { PRODUCTS_COLLECTION } = loadFirestoreModule('yes');
+    expect(PRODUCTS_COLLECTION).toBe('products_v2');
+  });
+
+  it('uses products_v2 when USE_PRODUCTS_V2=on', () => {
+    const { PRODUCTS_COLLECTION } = loadFirestoreModule('on');
+    expect(PRODUCTS_COLLECTION).toBe('products_v2');
+  });
+
   it('exports PRODUCTS_COLLECTION', () => {
     const mod = loadFirestoreModule('true');
     expect(mod).toHaveProperty('PRODUCTS_COLLECTION');

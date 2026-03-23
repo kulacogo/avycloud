@@ -244,9 +244,13 @@ export const useIdentification = (options?: UseIdentificationOptions) => {
 
       setError(null);
 
-      // Sequential processing — avoids Gemini rate-limiting and ensures all products are saved
+      // Sequential processing — avoids Gemini rate-limiting and ensures all products are saved.
+      // Only pass barcodes to single-group or barcode-only groups to prevent cross-contamination
+      // (e.g. barcode for product A being sent to product B's identify call).
+      const isSingleGroup = groupsToProcess.length === 1;
       for (const group of groupsToProcess) {
-        await startJobForGroup(group, barcodes, inventoryId, inventoryName, paletteCode);
+        const groupBarcodes = isSingleGroup || group.id === 'barcode-only' ? barcodes : '';
+        await startJobForGroup(group, groupBarcodes, inventoryId, inventoryName, paletteCode);
       }
     },
     [startJobForGroup, validateGroup]

@@ -17,7 +17,6 @@ async function callGeminiWithRetry(fn, { maxRetries = 2, delayMs = 2000 } = {}) 
         error?.status === 503 ||
         msg.includes('timeout') ||
         msg.includes('DEADLINE_EXCEEDED') ||
-        msg.includes('schema') ||
         msg.includes('RESOURCE_EXHAUSTED');
 
       if (!isRetryable || attempt === maxRetries) {

@@ -11,8 +11,7 @@ const PaletteSelector: React.FC<PaletteSelectorProps> = ({ value, onChange }) =>
   const [bins, setBins] = useState<WarehouseBin[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
-  const [filter, setFilter] = useState("");
-  const inputRef = useRef<HTMLInputElement>(null);
+  const [inputText, setInputText] = useState(value);
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -29,6 +28,11 @@ const PaletteSelector: React.FC<PaletteSelectorProps> = ({ value, onChange }) =>
     return () => { cancelled = true; };
   }, []);
 
+  // Sync inputText when value changes externally (e.g. reset)
+  useEffect(() => {
+    setInputText(value);
+  }, [value]);
+
   // Close dropdown on outside click
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -40,25 +44,31 @@ const PaletteSelector: React.FC<PaletteSelectorProps> = ({ value, onChange }) =>
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  const isValid = bins.some((b) => b.code === value);
+  const isValid = value !== "" && bins.some((b) => b.code === value);
   const filtered = bins.filter((b) =>
-    b.code.toLowerCase().includes(filter.toLowerCase())
+    b.code.toLowerCase().includes(inputText.toLowerCase())
   );
 
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const upper = e.target.value.toUpperCase();
-    setFilter(upper);
-    onChange(upper);
+    setInputText(upper);
     setOpen(true);
-  }, [onChange]);
+    // Auto-select if exact match typed
+    if (bins.some((b) => b.code === upper)) {
+      onChange(upper);
+    } else {
+      // Clear parent value — only valid codes propagate
+      onChange("");
+    }
+  }, [bins, onChange]);
 
   const handleSelect = useCallback((code: string) => {
+    setInputText(code);
     onChange(code);
-    setFilter("");
     setOpen(false);
   }, [onChange]);
 
-  const borderClass = value
+  const borderClass = inputText
     ? isValid
       ? "border-success/40"
       : "border-danger/40"
@@ -70,23 +80,22 @@ const PaletteSelector: React.FC<PaletteSelectorProps> = ({ value, onChange }) =>
         Palette (Pflicht)
       </label>
       <input
-        ref={inputRef}
         type="text"
         autoComplete="off"
         className={`w-full rounded-xl bg-app-bg border ${borderClass} px-3 py-2 text-sm text-txt-primary placeholder:text-txt-muted/50 focus:outline-none focus:ring-2 focus:ring-accent/40`}
         placeholder={loading ? "Paletten werden geladen..." : "Palette eingeben (z.B. PGA001)"}
-        value={value || filter}
+        value={inputText}
         onChange={handleInputChange}
         onFocus={() => setOpen(true)}
         disabled={loading}
       />
-      {value && isValid && (
+      {isValid && (
         <p className="text-xs text-success mt-1">Palette {value} ausgewählt</p>
       )}
-      {value && !isValid && (
+      {inputText && !isValid && (
         <p className="text-xs text-danger mt-1">Palette nicht gefunden — bitte aus der Liste wählen</p>
       )}
-      {!value && (
+      {!inputText && (
         <p className="text-xs text-txt-muted mt-1">Bitte Quell-Palette auswählen</p>
       )}
 

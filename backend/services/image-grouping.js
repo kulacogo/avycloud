@@ -43,7 +43,13 @@ function parseGroupingResponse(rawResponse, imageCount) {
   const jsonMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/);
   if (jsonMatch) text = jsonMatch[1].trim();
 
-  const parsed = JSON.parse(text);
+  let parsed;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    console.warn('[image-grouping] Failed to parse Gemini response as JSON, returning empty groups');
+    return [];
+  }
   const groups = Array.isArray(parsed?.groups) ? parsed.groups : [];
 
   return groups

@@ -1,6 +1,6 @@
 # TASKS.md — AvyCloud Aktive Tasks
 
-> Letzte Aktualisierung: 2026-03-22
+> Letzte Aktualisierung: 2026-03-23
 > Nur aktive Items. Erledigte Tasks → `git log`. Bug-Historie → `docs/archive/`.
 
 ## Zu verifizieren (deployed, Browser-Check nötig)
@@ -23,6 +23,19 @@
 - [x] **BUG-080** LLM-Pipeline Qualität — 8 Fixes: QualityGate ON, Retry, Schema, Improve-Tracking, Evidence-Hierarchie, Gewicht, Preis
 - [x] **BUG-081** products Collection noch als Primary Read — alle Reads auf products_v2, warehouse dual-write
 - [x] **BUG-078** BIN-Löschung blockiert obwohl Bestand = 0 — nonEmpty-Filter gefixt (products.some statt products.length)
+- [ ] **BUG-082** ~1084 Ghost-Produkte in products_v2 (P0)
+  - Typ 1: UUID als Titel/ID (z.B. 0060cdec-9193-411b-af64-4754ca0226bd)
+  - Typ 2: EAN/Barcode als Titel (z.B. 00442039661193)
+  - Typ 3: Nur SKU, keine Daten (z.B. SKU-0698797502)
+  - Typ 4: "Unbekanntes Produkt" ohne Inhalte
+  - Root Cause: pickProductId() nutzt EAN als docId, UUID-Fallback, Quality Gate war off
+  - Audit-Script: `node backend/scripts/audit-ghost-products.js` (dry-run), `--apply` zum Löschen
+  - Safety: Produkte mit Bestellungen/Listings werden NICHT gelöscht
+  - Prevention: Validation in saveProductV2() nötig nach Cleanup
+- [x] **BUG-083** ProductSheet zeigt "keinem BIN zugeordnet" obwohl Tabelle + Warehouse BIN zeigen (P0)
+  - Root Cause: `listBinsForProduct()` matchte nur Input-Parameter, nicht alle Produkt-Identifier
+  - Fix: Lädt jetzt Produkt-Dokument und baut vollständiges keySet (docId + SKU + EAN + Barcodes)
+  - ✅ Fix in `backend/lib/warehouse.js`, alle 263 Tests grün
 - [ ] **BUG-068** 170 Stock-Sync Fehler — Oversell-Risiko (abhängig von eBay Token Fix)
 - [ ] **BUG-069** Dashboard Chart endet bei ~12.03 (createdAt-Datumslogik)
 - [ ] **B5** Invoice Email-Versand fehlt

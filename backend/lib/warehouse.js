@@ -16,8 +16,10 @@ const MAX_EBENE = 'G'.charCodeAt(0);
 
 const zonesCollection = firestore.collection('warehouseZones');
 const binsCollection = firestore.collection('warehouseBins');
-const PRODUCTS_COLL_NAME = process.env.USE_PRODUCTS_V2 === 'true' ? 'products_v2' : 'products';
-const PRODUCTS_LEGACY_COLL_NAME = process.env.USE_PRODUCTS_V2 === 'true' ? 'products' : 'products_v2';
+const _whUseV2Raw = (process.env.USE_PRODUCTS_V2 || '').toString().trim().toLowerCase();
+const _whUseV2 = _whUseV2Raw === '1' || _whUseV2Raw === 'true' || _whUseV2Raw === 'yes' || _whUseV2Raw === 'on';
+const PRODUCTS_COLL_NAME = _whUseV2 ? 'products_v2' : 'products';
+const PRODUCTS_LEGACY_COLL_NAME = _whUseV2 ? 'products' : 'products_v2';
 const productsCollection = firestore.collection(PRODUCTS_COLL_NAME);
 const productsLegacyCollection = firestore.collection(PRODUCTS_LEGACY_COLL_NAME);
 const warehouseEventsCollection = firestore.collection('warehouseEvents');
@@ -970,14 +972,44 @@ async function bookStockOut({ productId, sku, barcode, binCode, quantity, meta }
 
 async function listBinsForProduct(productIdOrSku) {
   if (!productIdOrSku) throw new Error('Produkt-ID oder SKU fehlt.');
+
+  // Build comprehensive keySet from product document (same strategy as refreshProductInventory)
+  const keySet = new Set();
+  const addKey = (value) => {
+    const normalized = normalizeKey(value);
+    if (normalized) keySet.add(normalized);
+  };
+  const addSkuVariants = (value) => {
+    if (!value) return;
+    const raw = String(value).trim();
+    addKey(raw);
+    const stripped = raw.replace(/^sku[-_\s]*/i, '');
+    addKey(stripped);
+    if (stripped) addKey(`sku-${stripped}`);
+  };
+
+  const raw = String(productIdOrSku).trim();
+  addKey(raw);
+  addSkuVariants(raw);
+
+  // Load product document to get ALL identifiers (SKU, EAN, etc.)
+  const productRef = productsCollection.doc(raw);
+  const productSnap = await productRef.get();
+  if (productSnap.exists) {
+    const productData = productSnap.data() || {};
+    addKey(productData.id);
+    addSkuVariants(productData?.identification?.sku);
+    addSkuVariants(productData?.details?.identifiers?.sku);
+    // Also add barcodes/EANs as keys
+    addKey(productData?.details?.identifiers?.ean);
+    addKey(productData?.details?.identifiers?.gtin);
+    addKey(productData?.details?.identifiers?.upc);
+    const barcodes = Array.isArray(productData?.identification?.barcodes) ? productData.identification.barcodes : [];
+    barcodes.forEach((b) => addKey(b));
+  }
+
   const snapshot = await binsCollection.get();
   const matches = [];
-  const raw = String(productIdOrSku);
-  const rawLower = raw.trim().toLowerCase();
-  const strippedLower = rawLower.replace(/^sku[-_\\s]*/i, '');
-  const keySet = new Set(
-    [rawLower, strippedLower, strippedLower ? `sku-${strippedLower}` : null].filter(Boolean)
-  );
 
   snapshot.forEach((doc) => {
     const data = doc.data() || {};
@@ -986,8 +1018,8 @@ async function listBinsForProduct(productIdOrSku) {
       if (!p) return false;
       const pid = normalizeKey(p.productId);
       const sku = normalizeKey(p.sku);
-      const pidStripped = pid ? pid.replace(/^sku[-_\\s]*/i, '') : null;
-      const skuStripped = sku ? sku.replace(/^sku[-_\\s]*/i, '') : null;
+      const pidStripped = pid ? pid.replace(/^sku[-_\s]*/i, '') : null;
+      const skuStripped = sku ? sku.replace(/^sku[-_\s]*/i, '') : null;
       return (
         (pid && keySet.has(pid)) ||
         (sku && keySet.has(sku)) ||

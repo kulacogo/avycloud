@@ -93,7 +93,11 @@ const firestore = new Firestore({
 });
 
 // Collection name
-const PRODUCTS_COLLECTION = process.env.USE_PRODUCTS_V2 === 'true' ? 'products_v2' : 'products';
+// parseBoolLoose is defined below (line ~114); use a simple inline check here since
+// this runs at module load before parseBoolLoose is defined. Accept '1', 'true', 'yes', 'on'.
+const _useV2Raw = (process.env.USE_PRODUCTS_V2 || '').toString().trim().toLowerCase();
+const _useV2 = _useV2Raw === '1' || _useV2Raw === 'true' || _useV2Raw === 'yes' || _useV2Raw === 'on';
+const PRODUCTS_COLLECTION = _useV2 ? 'products_v2' : 'products';
 const ORDERS_COLLECTION = 'orders';
 const SKU_INDEX_COLLECTION = 'sku_index';
 const INVENTORIES_COLLECTION = 'inventories';
