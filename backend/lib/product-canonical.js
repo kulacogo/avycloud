@@ -90,12 +90,11 @@ function normalizeProduct(raw) {
   product.notes = product.notes || {};
 
   // ── 7. Produkt-ID kanonisieren ──
-  // Problem: 4 verschiedene ID-Formate existieren (EAN, prod-UUID, reiner UUID, Firestore Auto-ID).
-  // Lösung: Kanonische ID-Hierarchie — bevorzuge Barcode-basierte IDs.
+  // WICHTIG: Die Document-ID darf NICHT geändert werden — das erzeugt Duplikate (BUG-085).
+  // Die kanonische ID wird nur als Metadatum gespeichert für spätere Lookups/Dedup.
   const canonicalId = _pickCanonicalId(product);
   if (canonicalId && canonicalId !== product.id) {
-    product.ops._originalId = product.id; // Original-ID als Backup
-    product.id = canonicalId;
+    product.ops._canonicalId = canonicalId; // Nur als Metadatum, NICHT als Document-ID
   }
 
   // ── 8. Normalisierungs-Metadaten ──

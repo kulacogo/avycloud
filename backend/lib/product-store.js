@@ -35,17 +35,16 @@ async function saveProductV2(product, options = {}) {
   const result = await saveProduct(product, options);
 
   // 2) Normalisierte Kopie in products_v2 schreiben (Dual-Write)
-  if (USE_V2) {
+  //    NUR nötig wenn saveProduct() in eine ANDERE Collection schreibt als products_v2.
+  //    Wenn PRODUCTS_COLLECTION === V2_COLLECTION, schreibt saveProduct() bereits direkt
+  //    nach products_v2 → Dual-Write ist redundant und erzeugt durch _pickCanonicalId
+  //    sogar Duplikate unter abweichenden Document-IDs (BUG-085).
+  const { PRODUCTS_COLLECTION } = require('./firestore');
+  const isDualWriteNeeded = PRODUCTS_COLLECTION !== V2_COLLECTION;
+
+  if (USE_V2 && isDualWriteNeeded) {
     try {
-      // saveProduct() kann das Produkt modifiziert haben (SKU generiert etc.)
-      // Wir nehmen das Ergebnis-Produkt + die aktualisierten Daten aus Firestore.
-      // WICHTIG: Muss aus der GLEICHEN Collection lesen, in die saveProduct() geschrieben hat.
-      // Vorher stand hier COLLECTION ('products'), aber saveProduct() schreibt nach PRODUCTS_COLLECTION
-      // ('products_v2' wenn USE_PRODUCTS_V2=true). Das führte dazu, dass der Dual-Write
-      // veraltete Daten aus der alten Collection las und damit manuelle Änderungen (z.B. Titel)
-      // sofort wieder überschrieb.
       const productId = product.id;
-      const { PRODUCTS_COLLECTION } = require('./firestore');
       const freshSnap = await firestore.collection(PRODUCTS_COLLECTION).doc(productId).get();
       const freshData = freshSnap.exists ? { id: productId, ...freshSnap.data() } : product;
 
@@ -56,11 +55,9 @@ async function saveProductV2(product, options = {}) {
         normalized.ops._validationErrors = validation.errors;
       }
 
-      // targetId = kanonische ID (kann sich von productId unterscheiden durch _pickCanonicalId)
       const targetId = normalized.id || productId;
       await firestore.collection(V2_COLLECTION).doc(targetId).set(normalized, { merge: true });
     } catch (err) {
-      // Dual-Write-Fehler darf den Hauptprozess NICHT blockieren
       console.error(`[saveProductV2] v2 write failed for ${product.id}: ${err.message}`);
     }
   }

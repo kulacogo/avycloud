@@ -223,14 +223,14 @@ describe('normalizeProduct', () => {
   // ── 7. Produkt-ID kanonisieren ──
 
   describe('ID canonicalization', () => {
-    it('rewrites ID to EAN when EAN is available', () => {
+    it('preserves original ID and stores canonical ID as metadata (BUG-085)', () => {
       const raw = {
         id: 'prod-abc123-def456',
         details: { identifiers: { ean: '4006381333931' } },
       };
       const result = normalizeProduct(raw);
-      expect(result.id).toBe('4006381333931');
-      expect(result.ops._originalId).toBe('prod-abc123-def456');
+      expect(result.id).toBe('prod-abc123-def456'); // ID preserved
+      expect(result.ops._canonicalId).toBe('4006381333931'); // stored as metadata
     });
 
     it('keeps ID unchanged when no barcode is available', () => {
@@ -241,30 +241,30 @@ describe('normalizeProduct', () => {
       };
       const result = normalizeProduct(raw);
       expect(result.id).toBe('prod-abc123-def456');
-      expect(result.ops._originalId).toBeUndefined();
+      expect(result.ops._canonicalId).toBeUndefined();
     });
 
-    it('rewrites UUID to EAN from barcodes array', () => {
+    it('preserves UUID and stores canonical ID from barcodes array', () => {
       const raw = {
         id: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
         identification: { barcodes: ['4006381333931'] },
       };
       const result = normalizeProduct(raw);
-      expect(result.id).toBe('4006381333931');
-      expect(result.ops._originalId).toBe('a1b2c3d4-e5f6-7890-abcd-ef1234567890');
+      expect(result.id).toBe('a1b2c3d4-e5f6-7890-abcd-ef1234567890'); // ID preserved
+      expect(result.ops._canonicalId).toBe('4006381333931');
     });
 
-    it('does not rewrite if ID already matches the canonical barcode', () => {
+    it('does not set _canonicalId when ID already matches barcode', () => {
       const raw = {
         id: '4006381333931',
         details: { identifiers: { ean: '4006381333931' } },
       };
       const result = normalizeProduct(raw);
       expect(result.id).toBe('4006381333931');
-      expect(result.ops._originalId).toBeUndefined();
+      expect(result.ops._canonicalId).toBeUndefined();
     });
 
-    it('prefers EAN over GTIN over UPC', () => {
+    it('stores EAN as _canonicalId (prefers EAN over GTIN over UPC)', () => {
       const raw = {
         id: 'some-firestore-id',
         details: {
@@ -276,17 +276,19 @@ describe('normalizeProduct', () => {
         },
       };
       const result = normalizeProduct(raw);
-      expect(result.id).toBe('4006381333931');
+      expect(result.id).toBe('some-firestore-id'); // ID preserved
+      expect(result.ops._canonicalId).toBe('4006381333931');
     });
 
-    it('falls back to barcodes array when no identifier fields', () => {
+    it('stores barcode as _canonicalId when no identifier fields', () => {
       const raw = {
         id: 'some-id',
         identification: { barcodes: ['9780201616224'] },
         details: { identifiers: {} },
       };
       const result = normalizeProduct(raw);
-      expect(result.id).toBe('9780201616224');
+      expect(result.id).toBe('some-id'); // ID preserved
+      expect(result.ops._canonicalId).toBe('9780201616224');
     });
 
     it('ignores invalid barcodes (too short)', () => {
@@ -297,7 +299,7 @@ describe('normalizeProduct', () => {
       };
       const result = normalizeProduct(raw);
       expect(result.id).toBe('keep-me');
-      expect(result.ops._originalId).toBeUndefined();
+      expect(result.ops._canonicalId).toBeUndefined();
     });
 
     it('replaces slashes in barcode IDs for Firestore safety', () => {

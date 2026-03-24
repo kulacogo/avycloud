@@ -1,6 +1,6 @@
 # TASKS.md — AvyCloud Aktive Tasks
 
-> Letzte Aktualisierung: 2026-03-23
+> Letzte Aktualisierung: 2026-03-24
 > Nur aktive Items. Erledigte Tasks → `git log`. Bug-Historie → `docs/archive/`.
 
 ## Zu verifizieren (deployed, Browser-Check nötig)
@@ -40,6 +40,14 @@
   - Root Cause: `saveProductV2()` Dual-Write las aus `COLLECTION` ('products') statt `PRODUCTS_COLLECTION` ('products_v2')
   - Fix: Zeile 48-49 in `product-store.js` nutzt jetzt `PRODUCTS_COLLECTION` aus `firestore.js`
   - ✅ Fix in `backend/lib/product-store.js`, alle 285 Tests grün
+  - ⚠️ Deploy nötig (Cloud Run)
+- [ ] **BUG-085** Dual-Write erzeugt Duplikate durch `_pickCanonicalId` (P0)
+  - Symptom: Gleicher Artikel 2x in Inventar-Tabelle (identische SKU, EAN, Preis, BIN)
+  - Root Cause: `saveProduct()` schreibt unter Original-ID, Dual-Write normalisiert → `_pickCanonicalId()` ändert ID zu EAN → zweites Dokument
+  - Fix A: Dual-Write deaktivieren wenn `PRODUCTS_COLLECTION === V2_COLLECTION` (redundant)
+  - Fix B: Cleanup-Script für bestehende Duplikate (`dedupe-products-v2.js`)
+  - Fix C: `_pickCanonicalId` entschärfen — ID nur als `ops._canonicalId` speichern, nicht Document-ID ändern
+  - Prompt: `docs/prompts/bug-085-dual-write-duplicate-products.md`
 - [ ] **BUG-068** 170 Stock-Sync Fehler — Oversell-Risiko (abhängig von eBay Token Fix)
 - [ ] **BUG-069** Dashboard Chart endet bei ~12.03 (createdAt-Datumslogik)
 - [ ] **B5** Invoice Email-Versand fehlt
@@ -122,6 +130,23 @@
 | LLM-001 | LLM Pipeline Quality Fix | P0 | ✅ done (8 Fixes: QualityGate, Retry, Schema, Improve-Tracking, Evidence-Hierarchie, Gewicht, Preis) |
 | ERF-001 | Erfassen-Modul UI Overhaul | P0 | ✅ done (PaletteSelector, Auto-Separation, 2-Spalten-Layout, D&D, Multi-Produkt) |
 | MPD-001 | Multi-Produkt aus Single Image | P1 | ✅ done (Gemini Detection, Hint-Injection, StepGrouping Single-Image-Modus, 15 Tests) |
+| WH-002 | Child-BINs / Container | P1 | **Claude Code Prompt ready** (`docs/prompts/feat-warehouse-child-bins.md`) |
+
+## Ausstehende Deploys
+
+- [ ] **Backend (Cloud Run):** BUG-083 (warehouse matching), BUG-084 (dual-write collection fix), Upload-Limits (30 Bilder/10MB)
+- [ ] **Frontend (Firebase Hosting):** PaletteSelector Fix, StepUpload Limits, MPD-001 (Multi-Product Single Image)
+
+## Prompt-Queue für Claude Code
+
+| Prio | Prompt | Datei |
+|------|--------|-------|
+| P0 | BUG-085 Dual-Write Duplikate (Fix A+B+C) | `docs/prompts/bug-085-dual-write-duplicate-products.md` |
+| P0 | LLM Pipeline + Preise | `docs/prompts/fix-llm-pipeline-quality.md` |
+| P0 | 292 unsichtbare Produkte (V2 Migration) | `docs/prompts/feat-complete-products-v2-migration.md` |
+| P0 | Multi-Identify nur letztes Produkt | `docs/prompts/bug-079-multi-identify-only-last-product-saved.md` |
+| P1 | Erfassen-Modul UI Overhaul | `docs/prompts/feat-erfassen-modul-ui-overhaul.md` |
+| P1 | Child-BINs / Container | `docs/prompts/feat-warehouse-child-bins.md` |
 
 ## Waiting On
 
