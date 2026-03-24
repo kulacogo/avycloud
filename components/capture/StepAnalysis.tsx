@@ -98,43 +98,56 @@ const StepAnalysis: React.FC<StepAnalysisProps> = ({
           onError(msg);
         }
       } else {
-        // Multi-group: sequential processing
+        // BUG-091: Multi-group with concurrency limit + phase progress
+        const CONCURRENCY = 3;
         const results: Product[] = [];
         const errors: { label: string; error: string }[] = [];
+        let completed = 0;
 
-        for (let i = 0; i < total; i++) {
-          if (cancelled) return;
-          const group = groups[i];
-          setGroupProgress({ current: i + 1, total });
-          setPhaseLabel(`${group.label} (${i + 1}/${total})...`);
-          setPhase("vision");
+        // Phase progress timer (simulates sub-steps like single-mode)
+        const phaseTimers: NodeJS.Timeout[] = [];
+        const multiPhases: Phase[] = ["vision", "barcode", "web", "llm", "pricing"];
+        const multiDelays = [800, 3000, 10000, 25000, 50000];
+        multiPhases.forEach((p, i) => {
+          phaseTimers.push(setTimeout(() => { if (!cancelled) setPhase(p); }, multiDelays[i]));
+        });
 
-          try {
-            const result = await identifyProductV2(
-              group.images || [],
-              group.label === "Barcode-Identifikation" ? uploadData.barcodes : "",
-              "de-DE",
-              undefined,
-              uploadData.paletteCode || undefined,
-              group.hint || undefined
-            );
+        // Process in concurrent chunks
+        for (let batchStart = 0; batchStart < total; batchStart += CONCURRENCY) {
+          if (cancelled) { phaseTimers.forEach(clearTimeout); return; }
+          const chunk = groups.slice(batchStart, batchStart + CONCURRENCY);
+          setGroupProgress({ current: Math.min(batchStart + CONCURRENCY, total), total });
+          setPhaseLabel(`Produkte ${batchStart + 1}–${Math.min(batchStart + CONCURRENCY, total)} von ${total}...`);
 
-            if (result.ok && result.data) {
-              results.push(result.data);
+          const chunkResults = await Promise.allSettled(
+            chunk.map((group) =>
+              identifyProductV2(
+                group.images || [],
+                group.label === "Barcode-Identifikation" ? uploadData.barcodes : "",
+                "de-DE",
+                undefined,
+                uploadData.paletteCode || undefined,
+                group.hint || undefined
+              )
+            )
+          );
+
+          for (let i = 0; i < chunkResults.length; i++) {
+            const settled = chunkResults[i];
+            const group = chunk[i];
+            completed++;
+            if (settled.status === "fulfilled" && settled.value.ok && settled.value.data) {
+              results.push(settled.value.data);
             } else {
-              errors.push({
-                label: group.label,
-                error: result.error?.message || "Unbekannter Fehler",
-              });
+              const msg = settled.status === "rejected"
+                ? settled.reason?.message || "Netzwerkfehler"
+                : settled.value.error?.message || "Unbekannter Fehler";
+              errors.push({ label: group.label, error: msg });
             }
-          } catch (err: any) {
-            errors.push({
-              label: group.label,
-              error: err?.message || "Netzwerkfehler",
-            });
           }
         }
 
+        phaseTimers.forEach(clearTimeout);
         if (cancelled) return;
 
         if (results.length === 0) {

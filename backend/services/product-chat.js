@@ -2156,15 +2156,17 @@ async function runProductChat(product, userMessage, {
   CRITICAL RULES:
   1. DO NOT ASK the user for search queries or "what marketplace to check". derivation of queries is YOUR job.
   2. Web research strategy (BrightData):
-     - ALWAYS start with brightdata_web_search WITHOUT "sites" (unrestricted web).
-     - If results are empty/insufficient: refine the query (barcode/EAN, brand + model, MPN) and search again (still unrestricted).
+     - Start with brightdata_web_search (unrestricted web). Use the "sites" parameter to scope to specific domains when useful.
+     - If results are empty/insufficient: refine the query (barcode/EAN, brand + model, MPN) and search again.
+     - Use serpapi_web_search with engines like google_images, bing_images, amazon, ebay when you need marketplace-specific data or image results.
   3. After you found candidate URLs, fetch the best 1-2 pages via 'web_fetch' and extract facts from them (no guessing).
   4. Never say "I can search if you want". JUST SEARCH.
   5. **ALWAYS** use the 'update_product_datasheet' tool when you propose ANY data changes (title, description, attributes, etc.). Do NOT just output JSON text. The tool call IS the way to propose changes.
   6. DO NOT ASK for confirmation ("Should I update?"). Just CALL THE TOOL. The user's UI acts as the confirmation. Asking is a failure.
   7. GPSR updates MUST be returned under the top-level "gpsr" object (not in attributes). Never create keys like "GPSR Manufacturer name" inside attributes.
   8. IMAGE RULES:
-     - When the user asks for "Web-Produktbilder", "Produktbilder" or any image search: use brightdata_web_search to find REAL product images from online shops. Use suggest_product_images to return them.
+     - When the user asks for "Web-Produktbilder", "Produktbilder" or any image search: use serpapi_web_search with engine "google_images" or "bing_images" to find REAL product images. Then return them via suggest_product_images.
+     - Alternatively, use brightdata_web_search to find product pages and extract image URLs from them.
      - NEVER call generate_ai_images as a response to image search requests. AI image generation is ONLY for explicit requests like "erstelle KI-Bilder" or "generiere Render".
      - Product images must be REAL photos from manufacturer sites, shops, or marketplaces.
   10. SCOPE COMPLIANCE: Read the user's request carefully. If they ask for specific things (e.g. only images, only price, only title), do EXACTLY that. Do not add unrequested changes or commentary.
@@ -2261,9 +2263,7 @@ async function runProductChat(product, userMessage, {
         const { name, args } = call;
 
         if (name === 'brightdata_web_search') {
-          // Chat policy: always use unrestricted web search (ignore site-limits).
           const cleanedArgs = args && typeof args === 'object' ? { ...args } : {};
-          delete cleanedArgs.sites;
           onProgress?.({ type: 'tool_start', tool: 'brightdata_web_search', query: cleanedArgs.query || '' });
           const result = await executeBrightdataSearchToolCall({ arguments: JSON.stringify(cleanedArgs) });
           onProgress?.({ type: 'tool_done', tool: 'brightdata_web_search', count: (result.results || []).length });
@@ -2283,13 +2283,7 @@ async function runProductChat(product, userMessage, {
           toolResult = { results: result.results || [], error: result.error || null };
         }
         else if (name === 'serpapi_web_search') {
-          // Map args back to tool expectations if needed, but Gemini gives object
-          // Chat policy: prefer broad web engines (avoid marketplace-only SerpAPI engines).
           const cleanedArgs = args && typeof args === 'object' ? { ...args } : {};
-          const engineLower = safeString(cleanedArgs.engine).toLowerCase();
-          if (engineLower === 'ebay' || engineLower === 'ebay_product' || engineLower === 'amazon') {
-            cleanedArgs.engine = 'google';
-          }
           onProgress?.({ type: 'tool_start', tool: 'serpapi_web_search', query: cleanedArgs.query || '' });
           const result = await executeSerpapiToolCall({ arguments: JSON.stringify(cleanedArgs) });
           onProgress?.({ type: 'tool_done', tool: 'serpapi_web_search', count: (result.summary || []).length });

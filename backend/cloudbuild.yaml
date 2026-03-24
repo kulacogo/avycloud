@@ -78,6 +78,8 @@ steps:
         '--platform',
         'managed',
         '--allow-unauthenticated',
+        '--timeout',
+        '600',
         '--update-env-vars',
         'USE_PRODUCTS_V2=true',
       ]

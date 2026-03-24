@@ -2950,6 +2950,7 @@ async function runProductIdentification({
   improveContext = null,
   titleInsights = null,
   skipExternalSearch = false,
+  skipBarcodeWebConfirm = false,
   onProgress = null,
 }) {
   if ((!files || files.length === 0) && !barcodes) {
@@ -2979,7 +2980,7 @@ async function runProductIdentification({
 
   let ocrBarcodes = Array.isArray(ocrPayload?.barcodes) ? ocrPayload.barcodes : [];
   let webConfirmTrace = null;
-  if (WEB_CONFIRM && !skipExternalSearch && ocrBarcodes.length) {
+  if (WEB_CONFIRM && !skipExternalSearch && !skipBarcodeWebConfirm && ocrBarcodes.length) {
     if (onProgress) await onProgress('barcode_web_confirm');
     const { confirmed, trace } = await filterBarcodesByWebConfirm({
       barcodes: ocrBarcodes,
@@ -3202,11 +3203,12 @@ async function runProductIdentification({
     await runSmartImageRecovery(bundle.products);
   }
 
-  // SEO & Marketing Optimization (using Pro/Exp model for high quality text)
-  await ensureMarketingCopy(bundle.products, locale);
-
+  // BUG-086: Parallelize independent LLM steps (saves ~8-10s)
   applyEbayTaxonomy(bundle);
-  await ensureCategories(bundle.products);
+  await Promise.all([
+    ensureMarketingCopy(bundle.products, locale),
+    ensureCategories(bundle.products),
+  ]);
 
   // Pricing Coverage (using Thinking model for complex research if needed) - DISABLED if skipExternalSearch is true
   const serpTrace = [];

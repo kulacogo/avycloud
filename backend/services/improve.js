@@ -904,14 +904,10 @@ async function buildReferenceFiles(product) {
     .filter((img) => typeof img?.url_or_base64 === 'string' && img.url_or_base64.startsWith('http'))
     .slice(0, MAX_REFERENCE_IMAGES);
 
-  const files = [];
-  for (let i = 0; i < candidates.length; i += 1) {
-    const file = await downloadImageBuffer(candidates[i].url_or_base64, i);
-    if (file) {
-      files.push(file);
-    }
-  }
-  return files;
+  const results = await Promise.all(
+    candidates.map((img, i) => downloadImageBuffer(img.url_or_base64, i))
+  );
+  return results.filter(Boolean);
 }
 
 async function improveExistingProduct(productId, onProgress) {
@@ -970,9 +966,10 @@ async function improveExistingProduct(productId, onProgress) {
         modelOverride: null,
         improveContext: buildImproveContext(product, ebayListing, { titleInsights: initialTitleInsights }),
         titleInsights: initialTitleInsights,
-        // Allow external search for better identification quality (web evidence, images, pricing),
-        // consistent with Identify + Chat policies. Use env flags if you need to disable globally.
         skipExternalSearch: false,
+        // BUG-086: Skip barcode web-confirm in Improve — products already have validated barcodes
+        // from the initial Identify run. The sequential web-confirm adds 10-30s for no new value.
+        skipBarcodeWebConfirm: true,
         onProgress,
       });
       improvedOutput = result?.bundle?.products?.[0] || null;
@@ -1008,36 +1005,16 @@ async function improveExistingProduct(productId, onProgress) {
   mergedProduct = applyEbayTaxonomy(mergedProduct);
   mergedProduct = applyKauflandTaxonomy(mergedProduct);
 
-  // Prefetch small web evidence blocks (BrightData-backed) so Improve and Identify operate on the same footing.
-  // This is evidence-only; never guessing.
-  const reviewEvidence = {
-    barcodes: Array.isArray(mergedProduct?.identification?.barcodes) ? mergedProduct.identification.barcodes : [],
-  };
-  try {
-    const { prefetchWebEvidenceForIdentify } = require('./enrichment');
-    const ids = mergedProduct?.details?.identifiers || {};
-    const barcodeList = []
-      .concat(reviewEvidence.barcodes || [])
-      .concat([ids?.ean, ids?.gtin, ids?.upc])
-      .filter(Boolean)
-      .map((x) => String(x).trim())
-      .filter(Boolean)
-      .slice(0, 4);
-    const webEnrich = await prefetchWebEvidenceForIdentify({
-      barcodeList,
-      ocrTextSnippets: [],
-      locale: product.locale || 'de-DE',
-    });
-    if (webEnrich) {
-      reviewEvidence.web_enrich = webEnrich;
-    }
-  } catch (e) {
-    // best-effort
-  }
-
+  // BUG-086: Deduplicated review — runProductIdentification() already ran a review
+  // internally (without marketplace evidence). We now run ONE final review WITH
+  // marketplace evidence, which is the high-quality path. This replaces the previous
+  // pattern of 2-3 sequential reviews that mostly duplicated work.
   console.log('[improve] Final Review & Save...');
   if (onProgress) await onProgress('reviewing');
   try {
+    const reviewEvidence = {
+      barcodes: Array.isArray(mergedProduct?.identification?.barcodes) ? mergedProduct.identification.barcodes : [],
+    };
     await runDatasheetReview([mergedProduct], {
       locale: product.locale || 'de-DE',
       webEvidence: reviewEvidence,
@@ -1045,14 +1022,9 @@ async function improveExistingProduct(productId, onProgress) {
       llmScopeId: 'improve.product',
     });
     reviewOk = true;
-  } catch (reviewErr) {
-    console.error('[improve] Review failed:', reviewErr?.message || reviewErr);
-  }
 
-  // Retry once if still not eBay-ready (incl. missing required aspects).
-  try {
+    // Single quality-gate retry if still not eBay-ready
     const { evaluateEbayReady } = require('../lib/datasheet-quality');
-    // The post-review retry is meant to fix text/spec issues. Pricing is enriched separately.
     const eval1 = evaluateEbayReady(mergedProduct, { force: true, ignorePrice: true });
     if (!eval1.ok && eval1.issues && eval1.issues.length) {
       await runDatasheetReview([mergedProduct], {
@@ -1063,8 +1035,8 @@ async function improveExistingProduct(productId, onProgress) {
         llmScopeId: 'improve.product',
       });
     }
-  } catch (e) {
-    console.warn('[improve] Post-review evaluation failed (continuing):', e?.message || e);
+  } catch (reviewErr) {
+    console.error('[improve] Review failed:', reviewErr?.message || reviewErr);
   }
 
   // K-Typ enrichment (AUTO/MOTO only, MVL-backed, never guessing).
@@ -1085,6 +1057,48 @@ async function improveExistingProduct(productId, onProgress) {
     } catch {
       // ignore
     }
+  }
+
+  // BUG-088: Web image search — add up to 3 real product images from the web
+  try {
+    const existingImages = Array.isArray(mergedProduct?.details?.images) ? mergedProduct.details.images : [];
+    const hasEnoughImages = existingImages.filter(img => img?.url_or_base64?.startsWith('http')).length >= 3;
+    if (!hasEnoughImages) {
+      const { fetchMarketingImages } = require('../lib/marketing-images');
+      const brand = mergedProduct?.identification?.brand || '';
+      const name = mergedProduct?.identification?.name || '';
+      const category = mergedProduct?.identification?.category || '';
+      const ids = mergedProduct?.details?.identifiers || {};
+      const identifiers = [ids.ean, ids.gtin, ids.upc, ids.mpn].filter(Boolean);
+      const exclude = existingImages.map(img => img?.url_or_base64).filter(Boolean);
+
+      const { images } = await fetchMarketingImages({
+        brand,
+        name,
+        category,
+        identifiers,
+        mpn: ids.mpn || '',
+        limit: 3,
+        exclude,
+      });
+
+      if (images.length) {
+        mergedProduct.details = mergedProduct.details || {};
+        mergedProduct.details.images = mergedProduct.details.images || [];
+        for (const img of images) {
+          if (img?.url) {
+            mergedProduct.details.images.push({
+              url_or_base64: img.url,
+              source: img.source || 'web_search',
+              variant: 'marketing',
+            });
+          }
+        }
+        console.log(`[improve] Added ${images.length} web images for ${mergedProduct.id}`);
+      }
+    }
+  } catch (e) {
+    console.warn('[improve] Web image search failed (continuing):', e?.message || e);
   }
 
   // Enforce title policy even if the model skipped title updates.

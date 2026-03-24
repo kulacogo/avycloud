@@ -350,6 +350,12 @@ async function findWebPriceForProductV1(product) {
     .filter((u) => u.startsWith('http'))
     .slice(0, 3);
 
+  // BUG-089: Product matching — verify the page actually refers to the same product
+  // before extracting prices. Without this, generic queries return unrelated product prices.
+  const matchTokens = [brand, mpn, barcode]
+    .map((t) => priceSafeString(t).toLowerCase())
+    .filter((t) => t.length >= 3);
+
   const sourceCandidates = [];
   for (const url of urls) {
     try {
@@ -357,6 +363,14 @@ async function findWebPriceForProductV1(product) {
       const pageTitle = html.match(/<title[^>]*>([^<]{3,200})<\/title>/i)?.[1] || '';
       const textBlob = `${pageTitle} ${html.slice(0, 4000)}`;
       if (PRICE_USED_HINT.test(textBlob)) continue;
+
+      // Product match: at least one identifying token (brand, MPN, or barcode) must appear on the page
+      const textLower = textBlob.toLowerCase();
+      const hasMatch = matchTokens.length === 0 || matchTokens.some((token) => textLower.includes(token));
+      if (!hasMatch) {
+        continue; // Page is about a different product — skip
+      }
+
       const prices = extractPriceCandidates(html);
       if (prices.length) sourceCandidates.push({ url, prices });
     } catch {

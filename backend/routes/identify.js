@@ -396,6 +396,48 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
       console.warn('Identify price enrichment failed (continuing):', e?.message || e);
     }
 
+    // 3.7) Web image search — add up to 3 real product images from the web (BUG-088)
+    try {
+      const existingImages = Array.isArray(product?.details?.images) ? product.details.images : [];
+      const hasEnoughImages = existingImages.filter(img => img?.url_or_base64?.startsWith('http')).length >= 3;
+      if (!hasEnoughImages) {
+        const { fetchMarketingImages } = require('../lib/marketing-images');
+        const brand = product?.identification?.brand || '';
+        const name = product?.identification?.name || '';
+        const category = product?.identification?.category || '';
+        const ids = product?.details?.identifiers || {};
+        const identifiers = [ids.ean, ids.gtin, ids.upc, ids.mpn].filter(Boolean);
+        const exclude = existingImages.map(img => img?.url_or_base64).filter(Boolean);
+
+        const { images } = await fetchMarketingImages({
+          brand,
+          name,
+          category,
+          identifiers,
+          mpn: ids.mpn || '',
+          limit: 3,
+          exclude,
+        });
+
+        if (images.length) {
+          product.details = product.details || {};
+          product.details.images = product.details.images || [];
+          for (const img of images) {
+            if (img?.url) {
+              product.details.images.push({
+                url_or_base64: img.url,
+                source: img.source || 'web_search',
+                variant: 'marketing',
+              });
+            }
+          }
+          console.log(`[identify] Added ${images.length} web images for ${product.id}`);
+        }
+      }
+    } catch (e) {
+      console.warn('Identify web image search failed (continuing):', e?.message || e);
+    }
+
     // 3.8) Compute and persist quality snapshot (independent of QUALITY_GATE_ENABLED).
     // This powers UI/debug dashboards and helps explain "why not ebay-ready" without blocking saves.
     let finalQuality = null;
@@ -907,15 +949,15 @@ router.post('/v2/group-images', requirePermission('identify', 'run'), upload.arr
       return res.json({ ok: true, data: { groups, imageCount: 1 } });
     }
 
-    const { buildGroupingPrompt, parseGroupingResponse } = require('../services/image-grouping');
-    const { callGeminiVision } = require('../lib/gemini-client');
+    // BUG-090: Use structured output with image compression + batching
+    const { groupImagesStructured } = require('../services/image-grouping');
 
-    const prompt = buildGroupingPrompt(files.length);
-    const response = await callGeminiVision(prompt, imageBuffers, {
-      temperature: 0.1,
-    });
-
-    let groups = parseGroupingResponse(response, files.length);
+    let groups = [];
+    try {
+      groups = await groupImagesStructured(imageBuffers, files.length);
+    } catch (err) {
+      console.warn(`[group-images] Structured grouping failed for ${files.length} images:`, err.message);
+    }
 
     // Ensure every image is in at least one group
     const allIndices = new Set();
@@ -928,8 +970,9 @@ router.post('/v2/group-images', requirePermission('identify', 'run'), upload.arr
       groups[0].image_indices.push(...orphaned);
     }
 
-    // Fallback: if Gemini returned nothing, put all in one group
+    // BUG-090 Fix 3: Log warning on fallback instead of silently swallowing
     if (!groups.length) {
+      console.warn(`[group-images] Empty grouping result for ${files.length} images — falling back to single group.`);
       groups = [{
         id: 'group_0',
         label: 'Produkt 1',

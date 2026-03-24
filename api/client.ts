@@ -4217,11 +4217,16 @@ export const identifyProductV2 = async (
     formData.append('hint', hint);
   }
 
+  // BUG-091: AbortController with 180s timeout to prevent infinite hangs
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 180_000);
+
   let response: Response | undefined;
   try {
     response = await fetchApi(`${BACKEND_URL}/api/v2/identify`, {
       method: 'POST',
       body: formData,
+      signal: controller.signal,
     });
     const result = await parseResponse(response);
     if (!response.ok) {
@@ -4239,8 +4244,13 @@ export const identifyProductV2 = async (
     const product = result?.data ? normalizeProduct(result.data) : undefined;
     return { ok: true, data: product, meta: result?.meta };
   } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      return { ok: false, error: { code: 408, message: 'Produkterkennung abgebrochen (Timeout nach 3 Minuten).' } };
+    }
     const errorInfo = extractErrorInfo(error, response);
     return { ok: false, error: errorInfo };
+  } finally {
+    clearTimeout(timeout);
   }
 };
 

@@ -6,6 +6,7 @@ const {
   parseGroupingResponse,
   buildMultiProductPrompt,
   parseDetectionResponse,
+  GROUPING_SCHEMA,
 } = require('../services/image-grouping');
 
 describe('buildGroupingPrompt', () => {
@@ -16,8 +17,18 @@ describe('buildGroupingPrompt', () => {
 
   it('includes anti-hallucination rules', () => {
     const prompt = buildGroupingPrompt(3);
-    expect(prompt).toContain('Erfinde KEINE Produkte');
-    expect(prompt).toContain('Im Zweifel: alles in EINE Gruppe');
+    expect(prompt).toContain('Erfinde KEINE');
+  });
+
+  it('prefers separate groups over merging (BUG-090)', () => {
+    const prompt = buildGroupingPrompt(10);
+    expect(prompt).toContain('lieber eine Gruppe zu VIEL');
+    expect(prompt).not.toContain('alles in EINE Gruppe');
+  });
+
+  it('indicates images likely show different products', () => {
+    const prompt = buildGroupingPrompt(15);
+    expect(prompt).toContain('WAHRSCHEINLICH verschiedene Produkte');
   });
 });
 
@@ -123,6 +134,45 @@ describe('buildMultiProductPrompt', () => {
   it('instructs bounding_description', () => {
     const prompt = buildMultiProductPrompt();
     expect(prompt).toContain('bounding_description');
+  });
+});
+
+describe('GROUPING_SCHEMA', () => {
+  it('has required fields for structured output', () => {
+    expect(GROUPING_SCHEMA.type).toBe('object');
+    expect(GROUPING_SCHEMA.required).toContain('product_count');
+    expect(GROUPING_SCHEMA.required).toContain('groups');
+    expect(GROUPING_SCHEMA.properties.groups.type).toBe('array');
+  });
+
+  it('uses integer for product_count', () => {
+    expect(GROUPING_SCHEMA.properties.product_count.type).toBe('integer');
+  });
+});
+
+describe('parseGroupingResponse with many groups (BUG-090)', () => {
+  it('parses 15 groups from 22 images correctly', () => {
+    const groups = Array.from({ length: 15 }, (_, i) => ({
+      label: `Produkt ${i + 1}`,
+      image_indices: [i, i + 1 < 22 ? i + 1 : i],
+      confidence: 0.85,
+      reason: `Gruppe ${i + 1}`,
+    }));
+    const raw = JSON.stringify({ product_count: 15, groups });
+    const result = parseGroupingResponse(raw, 22);
+    expect(result).toHaveLength(15);
+    expect(result[14].label).toBe('Produkt 15');
+  });
+
+  it('handles each image in its own group', () => {
+    const groups = Array.from({ length: 10 }, (_, i) => ({
+      label: `Item ${i + 1}`,
+      image_indices: [i],
+      confidence: 0.7,
+    }));
+    const raw = JSON.stringify({ product_count: 10, groups });
+    const result = parseGroupingResponse(raw, 10);
+    expect(result).toHaveLength(10);
   });
 });
 

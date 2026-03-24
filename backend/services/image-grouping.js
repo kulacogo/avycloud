@@ -1,39 +1,48 @@
 'use strict';
 
+// BUG-090: Structured output schema for grouping (replaces free-text JSON)
+const GROUPING_SCHEMA = {
+  type: 'object',
+  properties: {
+    product_count: { type: 'integer' },
+    groups: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          label: { type: 'string' },
+          image_indices: { type: 'array', items: { type: 'integer' } },
+          confidence: { type: 'number' },
+          reason: { type: 'string' },
+          detected_barcode: { type: 'string' },
+        },
+        required: ['label', 'image_indices', 'confidence'],
+      },
+    },
+  },
+  required: ['product_count', 'groups'],
+};
+
 function buildGroupingPrompt(imageCount) {
   return [
     'Du bist ein Bildanalyse-Experte für Produktfotos in einem E-Commerce-Warenlager.',
     '',
-    `Dir werden ${imageCount} Bilder gezeigt. Deine Aufgabe:`,
+    `Dir werden ${imageCount} Bilder gezeigt. Diese Bilder zeigen WAHRSCHEINLICH verschiedene Produkte.`,
+    '',
+    'Aufgabe:',
     '1. Erkenne wie viele VERSCHIEDENE Produkte in den Bildern zu sehen sind.',
     '2. Gruppiere die Bilder nach Produkten.',
-    '3. WICHTIG: Ein einzelnes Bild kann MEHRERE Produkte zeigen (z.B. Palette, Tisch mit Ware, Regal).',
-    '   In dem Fall ordne das Bild ALLEN Gruppen zu, deren Produkt darauf sichtbar ist.',
+    '3. Ein einzelnes Bild kann MEHRERE Produkte zeigen (z.B. Palette, Tisch mit Ware).',
+    '   In dem Fall ordne das Bild ALLEN Gruppen zu.',
     '',
-    'STRENGE REGELN:',
-    '- Zähle NUR Produkte die du auf den Bildern KLAR SIEHST.',
-    '- Erfinde KEINE Produkte. Im Zweifel: alles in EINE Gruppe.',
-    '- Mehrere Ansichten desselben Produkts (Vorne, Hinten, Seite, Detail) = EINE Gruppe.',
+    'REGELN:',
+    '- Zähle NUR Produkte die du KLAR SIEHST. Erfinde KEINE.',
+    '- Im Zweifel: lieber eine Gruppe zu VIEL als zu wenig. Nur zusammenfassen wenn Bilder KLAR dasselbe Produkt zeigen.',
+    '- Mehrere Ansichten desselben Produkts (Vorne, Hinten, Detail) = EINE Gruppe.',
     '- Unterschiedliche Farben/Varianten desselben Modells = EINE Gruppe.',
-    '- Nur wenn Marke ODER Produkttyp ODER Form klar unterschiedlich → separate Gruppe.',
-    '- Falls ein Bild einen Barcode/EAN zeigt: notiere ihn bei der Gruppe.',
-    '- Ein Bild darf in MEHREREN Gruppen vorkommen wenn es mehrere Produkte zeigt.',
-    '- Übersichtsfotos (mehrere Produkte auf einem Bild) gehören zu JEDER dort sichtbaren Gruppe.',
-    '- Nie mehr Gruppen als Bilder.',
-    '',
-    'Antworte NUR mit JSON (kein Markdown, kein Kommentar):',
-    '{',
-    '  "product_count": <Zahl>,',
-    '  "groups": [',
-    '    {',
-    '      "label": "Produkt 1",',
-    '      "image_indices": [0, 2, 4],',
-    '      "confidence": 0.95,',
-    '      "reason": "Gleiche Nike Schachtel von drei Seiten",',
-    '      "detected_barcode": "4006381333931"',
-    '    }',
-    '  ]',
-    '}',
+    '- Verschiedene Marken, Produkttypen oder Formen → SEPARATE Gruppen.',
+    '- Falls ein Bild einen Barcode/EAN zeigt: notiere ihn bei detected_barcode.',
+    '- Übersichtsfotos gehören zu JEDER dort sichtbaren Gruppe.',
   ].join('\n');
 }
 
@@ -71,6 +80,112 @@ function parseGroupingResponse(rawResponse, imageCount) {
           : null,
     }))
     .filter((g) => g.image_indices.length > 0);
+}
+
+/**
+ * BUG-090: Grouping via structured output with image compression.
+ * Replaces the fragile callGeminiVision (free-text JSON) path.
+ * Compresses images to 800px/JPEG 70% for grouping (high res not needed).
+ * For >10 images, processes in batches and merges results.
+ *
+ * @param {Array<{buffer: Buffer, mimeType: string}>} imageBuffers
+ * @param {number} imageCount
+ * @returns {Promise<Array>} Parsed groups
+ */
+async function groupImagesStructured(imageBuffers, imageCount) {
+  const { callGeminiStructured } = require('../lib/gemini-structured');
+  const sharp = require('sharp');
+
+  // Compress all images for grouping (low res is fine for classification)
+  const compressedParts = [];
+  for (const img of imageBuffers) {
+    if (!img?.buffer) continue;
+    let buf = img.buffer;
+    let mime = img.mimeType || 'image/jpeg';
+    try {
+      buf = await sharp(buf)
+        .rotate()
+        .resize({ width: 800, fit: 'inside', withoutEnlargement: true })
+        .jpeg({ quality: 70 })
+        .toBuffer();
+      mime = 'image/jpeg';
+    } catch {
+      // keep original
+    }
+    compressedParts.push({ inline_data: { mime_type: mime, data: buf.toString('base64') } });
+  }
+
+  const BATCH_SIZE = 10;
+
+  if (imageCount <= BATCH_SIZE) {
+    // Single batch — send all images together
+    const parts = [
+      ...compressedParts,
+      { text: buildGroupingPrompt(imageCount) },
+    ];
+
+    const raw = await callGeminiStructured({
+      parts,
+      responseSchema: GROUPING_SCHEMA,
+      temperature: 0.1,
+      topP: 0.8,
+      topK: 16,
+      maxOutputTokens: 4096,
+      stopSequences: [],
+    });
+
+    return parseGroupingResponse(raw, imageCount);
+  }
+
+  // Multi-batch: process in chunks and merge groups
+  const allGroups = [];
+  let globalIndexOffset = 0;
+
+  for (let batchStart = 0; batchStart < imageCount; batchStart += BATCH_SIZE) {
+    const batchEnd = Math.min(batchStart + BATCH_SIZE, imageCount);
+    const batchParts = compressedParts.slice(batchStart, batchEnd);
+    const batchSize = batchEnd - batchStart;
+
+    const parts = [
+      ...batchParts,
+      { text: buildGroupingPrompt(batchSize) },
+    ];
+
+    try {
+      const raw = await callGeminiStructured({
+        parts,
+        responseSchema: GROUPING_SCHEMA,
+        temperature: 0.1,
+        topP: 0.8,
+        topK: 16,
+        maxOutputTokens: 4096,
+        stopSequences: [],
+      });
+
+      const batchGroups = parseGroupingResponse(raw, batchSize);
+      // Remap indices to global positions
+      for (const g of batchGroups) {
+        g.image_indices = g.image_indices.map((i) => i + batchStart);
+        g.id = `group_${allGroups.length}`;
+        allGroups.push(g);
+      }
+    } catch (err) {
+      console.warn(`[group-images] Batch ${batchStart}-${batchEnd} failed:`, err.message);
+      // Fallback: each image in this batch becomes its own group
+      for (let i = batchStart; i < batchEnd; i++) {
+        allGroups.push({
+          id: `group_${allGroups.length}`,
+          label: `Produkt ${allGroups.length + 1}`,
+          image_indices: [i],
+          confidence: 0.5,
+          reason: 'Batch-Fallback',
+          detected_barcode: null,
+        });
+      }
+    }
+  }
+
+  return allGroups;
 }
 
 // --- Multi-Product Detection from Single Image ---
@@ -210,6 +325,8 @@ async function detectMultipleProducts(imageBuffers) {
 module.exports = {
   buildGroupingPrompt,
   parseGroupingResponse,
+  groupImagesStructured,
+  GROUPING_SCHEMA,
   buildMultiProductPrompt,
   parseDetectionResponse,
   detectMultipleProducts,

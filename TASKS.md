@@ -44,10 +44,39 @@
 - [ ] **BUG-085** Dual-Write erzeugt Duplikate durch `_pickCanonicalId` (P0)
   - Symptom: Gleicher Artikel 2x in Inventar-Tabelle (identische SKU, EAN, Preis, BIN)
   - Root Cause: `saveProduct()` schreibt unter Original-ID, Dual-Write normalisiert → `_pickCanonicalId()` ändert ID zu EAN → zweites Dokument
-  - Fix A: Dual-Write deaktivieren wenn `PRODUCTS_COLLECTION === V2_COLLECTION` (redundant)
-  - Fix B: Cleanup-Script für bestehende Duplikate (`dedupe-products-v2.js`)
-  - Fix C: `_pickCanonicalId` entschärfen — ID nur als `ops._canonicalId` speichern, nicht Document-ID ändern
-  - Prompt: `docs/prompts/bug-085-dual-write-duplicate-products.md`
+  - ✅ Fix A: Dual-Write Guard in `product-store.js` (Skip wenn `PRODUCTS_COLLECTION === V2_COLLECTION`)
+  - ✅ Fix B: Cleanup-Script `backend/scripts/dedupe-products-v2.js` (dry-run default, `--apply`)
+  - ✅ Fix C: `_pickCanonicalId` in `product-canonical.js` → speichert nur als `ops._canonicalId`
+  - ✅ Alle 300 Tests grün
+  - ⚠️ **Deploy nötig (Cloud Run)** — dann `node backend/scripts/dedupe-products-v2.js --apply` ausführen
+  - ⚠️ Nebeneffekt: "KI Verbessern" wirft "Produkt wurde nicht gefunden" + "Anker Anker" Doppel-Brand → löst sich nach Deploy + Cleanup
+- [ ] **BUG-090** Gruppierung fällt auf Fallback bei vielen verschiedenen Produkten (P0)
+  - Symptom: 22 verschiedene Bilder → KI erkennt "1 Produkt", alle in eine Gruppe
+  - Root Cause: Gemini gibt leere Response bei >10 Bildern (Token-Limit), Prompt sagt "Im Zweifel alles in EINE Gruppe", stiller Fallback
+  - Fixes: Bild-Kompression, Prompt umschreiben (separate statt zusammenfassen), Structured Output, Error-Logging
+  - Prompt: `docs/prompts/bug-090-grouping-fallback-22-images.md`
+- [ ] **BUG-091** Multi-Identify hängt bei vielen Produkten — kein Timeout, kein Progress (P0)
+  - Symptom: 9 Produkte → Step 3 bleibt bei "Produkt 1 von 9" hängen, kein Fortschritt
+  - Root Cause: `identifyProductV2()` hat kein Timeout, Pipeline dauert 90-160s/Produkt, 9×sequentiell = 18 Min
+  - Fixes: Frontend Timeout (180s), Phase-Progress im Multi-Modus, Cloud Run Timeout 600s, Parallelisierung (3 concurrent)
+  - Prompt: `docs/prompts/bug-091-multi-identify-hangs-no-timeout.md`
+- [ ] **BUG-086** Improve-Pipeline extrem langsam (~90–160s) (P1)
+  - 5 Bottlenecks: Bild-Download sequentiell, Barcode Web-Confirm redundant, Web Evidence 2× geprefetcht, Datasheet Review 2–3×, kein Streaming
+  - Optimierungsplan: Parallel-Downloads, Evidence-Dedup, Review 1×, Steps parallelisieren, SSE → Ziel: ~25–45s
+  - Prompt: keiner nötig, Analyse ist in Chat-Session dokumentiert
+- [ ] **BUG-087** Chat findet keine Web-Bilder über predefined Prompt (P1)
+  - Tool-Einschränkungen in Chat/Improve/Identify müssen analysiert + gelockert werden
+  - Ziel: LLMs sollen frei suchen können (Web Unlocker, beliebige Search Engines, nicht nur Marktplätze)
+  - 4 Einschränkungen: `sites`-Param gestripped, Amazon/eBay Engine-Remap, Bildersuche nur über Regex, kein agentic Loop in Identify/Improve
+- [ ] **BUG-088** Identify/Improve fügen keine Produktbilder aus dem Web hinzu (P1)
+  - Aktuell: Nur hochgeladene Bilder werden gespeichert, kein Web-Image-Search in der Pipeline
+  - Ziel: 3 hochwertige Produktbild-URLs aus dem Web automatisch hinzufügen (Google Images / Hersteller-Seiten)
+  - Ansatz: Nach Identify/Improve einen Image-Search-Step (SerpAPI `google_images` + BrightData Unlocker Probe) einbauen
+- [ ] **BUG-089** Price Engine liefert falsche Preise — Vergleichslinks zeigen andere Produkte (P1)
+  - Symptom: Preisvergleich-URLs führen zu komplett anderen Produkten als im Datenblatt
+  - Root Cause: Suchquery zu generisch (nur Kategorie/Marke), kein Abgleich ob das Suchergebnis tatsächlich dasselbe Produkt ist
+  - Ziel: Produkt-Matching vor Preisübernahme (EAN/GTIN-Match, Titel-Similarity, Brand-Match)
+  - Betroffene Dateien: `backend/lib/price-enrichment.js`, `backend/services/enrichment.js` (`ensurePriceCoverage`)
 - [ ] **BUG-068** 170 Stock-Sync Fehler — Oversell-Risiko (abhängig von eBay Token Fix)
 - [ ] **BUG-069** Dashboard Chart endet bei ~12.03 (createdAt-Datumslogik)
 - [ ] **B5** Invoice Email-Versand fehlt
@@ -134,14 +163,17 @@
 
 ## Ausstehende Deploys
 
-- [ ] **Backend (Cloud Run):** BUG-083 (warehouse matching), BUG-084 (dual-write collection fix), Upload-Limits (30 Bilder/10MB)
+- [ ] **Backend (Cloud Run):** BUG-083, BUG-084, BUG-085 (Fix A+C), Upload-Limits (30 Bilder/10MB)
+- [ ] **Nach Backend-Deploy:** `node backend/scripts/dedupe-products-v2.js` (dry-run) → prüfen → `--apply`
 - [ ] **Frontend (Firebase Hosting):** PaletteSelector Fix, StepUpload Limits, MPD-001 (Multi-Product Single Image)
 
 ## Prompt-Queue für Claude Code
 
 | Prio | Prompt | Datei |
 |------|--------|-------|
-| P0 | BUG-085 Dual-Write Duplikate (Fix A+B+C) | `docs/prompts/bug-085-dual-write-duplicate-products.md` |
+| ~~P0~~ | ~~BUG-085 Dual-Write Duplikate (Fix A+B+C)~~ | ✅ implementiert, Deploy+Cleanup nötig |
+| P0 | BUG-090 Gruppierung Fallback bei vielen Bildern | `docs/prompts/bug-090-grouping-fallback-22-images.md` |
+| P0 | BUG-091 Multi-Identify hängt (kein Timeout/Progress) | `docs/prompts/bug-091-multi-identify-hangs-no-timeout.md` |
 | P0 | LLM Pipeline + Preise | `docs/prompts/fix-llm-pipeline-quality.md` |
 | P0 | 292 unsichtbare Produkte (V2 Migration) | `docs/prompts/feat-complete-products-v2-migration.md` |
 | P0 | Multi-Identify nur letztes Produkt | `docs/prompts/bug-079-multi-identify-only-last-product-saved.md` |
