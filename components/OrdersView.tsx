@@ -434,7 +434,7 @@ const OrdersView: React.FC = () => {
             onClick={() => {
               const headers = ["Bestellnr", "Datum", "Kunde", "Status", "Marketplace", "Betrag"];
               const rows = filteredOrders.map((o) => [
-                o.number || o.orderId || o.id,
+                (o as any).marketplaceOrderId || o.number || o.orderId || o.id,
                 o.createdAt ? new Date(o.createdAt).toLocaleDateString("de-DE") : "",
                 typeof o.customer === "object" ? (o.customer?.name || "") : "",
                 getOrderStatus(o),

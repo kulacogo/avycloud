@@ -157,7 +157,6 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({ orderId, onClose, onSt
             {order?.marketplace && (
               <p className="text-xs text-txt-muted mt-0.5">
                 {order.marketplace === "ebay" ? "eBay" : order.marketplace === "kaufland" ? "Kaufland" : order.marketplace}
-                {order.orderId ? ` · ${order.orderId}` : ""}
               </p>
             )}
           </div>

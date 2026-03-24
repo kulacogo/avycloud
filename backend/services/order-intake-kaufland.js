@@ -139,7 +139,7 @@ function mapKauflandOrder(klOrder) {
         || sanitizeText([billingAddr.street, billingAddr.house_number].filter(Boolean).join(' '))
         || null,
       city: sanitizeText(shippingAddr.city) || sanitizeText(billingAddr.city) || null,
-      zip: shippingAddr.postcode || billingAddr.postcode || null,
+      zip: (shippingAddr.postcode || billingAddr.postcode) != null ? String(shippingAddr.postcode || billingAddr.postcode).trim() : null,
       country: shippingAddr.country || billingAddr.country || 'DE',
       phone: shippingAddr.phone || billingAddr.phone || buyer.phone || null,
       email: validateEmail(buyer.email),
@@ -152,7 +152,7 @@ function mapKauflandOrder(klOrder) {
         || [shippingAddr.street, shippingAddr.house_number].filter(Boolean).join(' ')
         || null,
       city: billingAddr.city || shippingAddr.city || null,
-      zip: billingAddr.postcode || shippingAddr.postcode || null,
+      zip: (billingAddr.postcode || shippingAddr.postcode) != null ? String(billingAddr.postcode || shippingAddr.postcode).trim() : null,
       country: billingAddr.country || shippingAddr.country || 'DE',
     },
     items,

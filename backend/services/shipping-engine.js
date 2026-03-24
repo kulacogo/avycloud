@@ -245,7 +245,7 @@ async function createParcel({
       order_number: order.marketplaceOrderId || order.orderId || order.id || '',
       weight: String(totalWeight || 0.5), // kg
       request_label: requestLabel,
-      external_reference: order.marketplaceOrderId || order.id || '',
+      external_reference: `${order.marketplaceOrderId || order.id || ''}_${Date.now()}`,
     },
   };
 

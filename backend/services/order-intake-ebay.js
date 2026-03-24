@@ -174,7 +174,7 @@ function mapEbayOrder(ebayOrder) {
       name: sanitizeText(shippingAddr?.Name) || ebayOrder?.BuyerUserID || 'Unbekannt',
       street: [shippingAddr?.Street1, shippingAddr?.Street2].filter(Boolean).map(sanitizeText).join(', ') || null,
       city: sanitizeText(shippingAddr?.CityName) || null,
-      zip: shippingAddr?.PostalCode || null,
+      zip: shippingAddr?.PostalCode != null ? String(shippingAddr.PostalCode).trim() : null,
       country: shippingAddr?.Country || null,
       phone: sanitizeContactField(shippingAddr?.Phone),
       email: validateEmail(sanitizeContactField(ebayOrder?.TransactionArray?.Transaction?.[0]?.Buyer?.Email)),

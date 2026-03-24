@@ -1591,7 +1591,12 @@ router.put('/orders/:orderId', requirePermission('orders', 'write'), async (req,
       const sanitized = {};
       for (const key of ALLOWED_CUSTOMER_FIELDS) {
         if (customer[key] !== undefined) {
-          sanitized[key] = customer[key] === '' ? null : customer[key];
+          let val = customer[key] === '' ? null : customer[key];
+          // Ensure zip is always stored as String (leading zeros matter for DE/AT PLZ)
+          if (key === 'zip' && val != null) {
+            val = String(val).trim();
+          }
+          sanitized[key] = val;
         }
       }
       for (const [key, value] of Object.entries(sanitized)) {
