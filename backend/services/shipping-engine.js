@@ -240,7 +240,7 @@ async function createParcel({
       city: cityStr,
       postal_code: zipStr,
       country: countryRaw,
-      email: customer.email || '',
+      email: customer.email || 'noreply@trendocean.de',
       telephone: customer.phone || customer.telephone || '',
       order_number: order.marketplaceOrderId || order.orderId || order.id || '',
       weight: String(totalWeight || 0.5), // kg
@@ -261,7 +261,7 @@ async function createParcel({
   const BACKOFF_BASE_MS = 1000;
   let res;
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-    res = await fetch(`${SENDCLOUD_BASE_URL}/parcels`, {
+    res = await fetch(`${SENDCLOUD_BASE_URL}/parcels?errors=verbose-carrier`, {
       method: 'POST',
       headers: {
         Authorization: auth,

@@ -159,24 +159,26 @@
 | LLM-001 | LLM Pipeline Quality Fix | P0 | ✅ done (8 Fixes: QualityGate, Retry, Schema, Improve-Tracking, Evidence-Hierarchie, Gewicht, Preis) |
 | ERF-001 | Erfassen-Modul UI Overhaul | P0 | ✅ done (PaletteSelector, Auto-Separation, 2-Spalten-Layout, D&D, Multi-Produkt) |
 | MPD-001 | Multi-Produkt aus Single Image | P1 | ✅ done (Gemini Detection, Hint-Injection, StepGrouping Single-Image-Modus, 15 Tests) |
+| ADDR-001 | Empfänger-Adresslabel 62×29mm aus Bestellliste | P1 | **Claude Code Prompt ready** (`docs/prompts/feat-address-labels-62x29.md`) |
 | WH-002 | Child-BINs / Container | P1 | **Claude Code Prompt ready** (`docs/prompts/feat-warehouse-child-bins.md`) |
 
 ## Ausstehende Deploys
 
-- [ ] **Backend (Cloud Run):** BUG-083, BUG-084, BUG-085 (Fix A+C), Upload-Limits (30 Bilder/10MB)
+- [ ] **Backend (Cloud Run):** BUG-083, BUG-084, BUG-085 (Fix A+C), BUG-090 (Gruppierung Structured Output), Upload-Limits, Cloud Run Timeout 600s
 - [ ] **Nach Backend-Deploy:** `node backend/scripts/dedupe-products-v2.js` (dry-run) → prüfen → `--apply`
-- [ ] **Frontend (Firebase Hosting):** PaletteSelector Fix, StepUpload Limits, MPD-001 (Multi-Product Single Image)
+- [ ] **Frontend (Firebase Hosting):** PaletteSelector Fix, StepUpload Limits, MPD-001, BUG-091 (Multi-Identify Concurrency + Progress)
 
 ## Prompt-Queue für Claude Code
 
 | Prio | Prompt | Datei |
 |------|--------|-------|
 | ~~P0~~ | ~~BUG-085 Dual-Write Duplikate (Fix A+B+C)~~ | ✅ implementiert, Deploy+Cleanup nötig |
-| P0 | BUG-090 Gruppierung Fallback bei vielen Bildern | `docs/prompts/bug-090-grouping-fallback-22-images.md` |
-| P0 | BUG-091 Multi-Identify hängt (kein Timeout/Progress) | `docs/prompts/bug-091-multi-identify-hangs-no-timeout.md` |
+| ~~P0~~ | ~~BUG-090 Gruppierung Fallback bei vielen Bildern~~ | ✅ implementiert (Structured Output, Kompression, Batching), Deploy nötig |
+| ~~P0~~ | ~~BUG-091 Multi-Identify hängt (kein Timeout/Progress)~~ | ✅ implementiert (Concurrency 3, Phase-Progress, Timeout 600s), Deploy nötig |
 | P0 | LLM Pipeline + Preise | `docs/prompts/fix-llm-pipeline-quality.md` |
 | P0 | 292 unsichtbare Produkte (V2 Migration) | `docs/prompts/feat-complete-products-v2-migration.md` |
 | P0 | Multi-Identify nur letztes Produkt | `docs/prompts/bug-079-multi-identify-only-last-product-saved.md` |
+| P1 | ADDR-001 Empfänger-Adresslabel 62×29mm | `docs/prompts/feat-address-labels-62x29.md` |
 | P1 | Erfassen-Modul UI Overhaul | `docs/prompts/feat-erfassen-modul-ui-overhaul.md` |
 | P1 | Child-BINs / Container | `docs/prompts/feat-warehouse-child-bins.md` |
 
