@@ -253,6 +253,9 @@ async function createParcel({
     parcelData.parcel.shipment = { id: shippingMethodId };
   }
 
+  console.log(`[createParcel] Payload for ${order.id}: postal_code="${zipStr}", country="${countryRaw}", city="${cityStr}", address="${addressStr}", house_number="${houseNumberStr}", name="${nameStr}"`);
+  console.log(`[createParcel] Raw customer zip: ${JSON.stringify(customer.zip)}, type: ${typeof customer.zip}, postal_code: ${JSON.stringify(customer.postal_code)}`);
+
   // Retry with exponential backoff (3 attempts: 0s, 1s, 3s)
   const MAX_RETRIES = 3;
   const BACKOFF_BASE_MS = 1000;
