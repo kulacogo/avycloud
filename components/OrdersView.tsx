@@ -831,7 +831,13 @@ const OrdersView: React.FC = () => {
                               return (
                                 <div className="w-9 h-9 rounded-lg bg-app-elevated border border-app-border overflow-hidden flex items-center justify-center shrink-0">
                                   {imgSrc ? (
-                                    <img src={buildImageProxyUrl(imgSrc)} alt="" className="w-full h-full object-cover" loading="lazy" />
+                                    <img
+                                      src={buildImageProxyUrl(imgSrc)}
+                                      alt=""
+                                      className="w-full h-full object-cover"
+                                      loading="lazy"
+                                      onError={(e) => { e.currentTarget.src = ""; e.currentTarget.style.display = "none"; }}
+                                    />
                                   ) : (
                                     <span className="text-[9px] text-txt-muted">—</span>
                                   )}

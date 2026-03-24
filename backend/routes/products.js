@@ -831,17 +831,33 @@ router.get('/image-proxy', async (req, res) => {
   }
 
   try {
-    const upstream = await fetchWithUnlocker({
-      url: target.toString(),
-      method: 'GET',
-      format: 'raw',
-      timeoutMs: IMAGE_PROXY_TIMEOUT_MS,
-      headers: {
-        'User-Agent': 'avystock-image-proxy/1.0',
-        Accept: 'image/*,*/*;q=0.8',
-        Referer: '',
-      },
-    });
+    // GCS URLs from our own bucket: fetch directly (faster, no BrightData needed)
+    const isOwnGcs = target.hostname === 'storage.googleapis.com' && target.pathname.startsWith('/prodsandjobs/');
+    let upstream;
+    if (isOwnGcs) {
+      const directRes = await fetch(target.toString(), {
+        headers: { Accept: 'image/*,*/*;q=0.8' },
+        signal: AbortSignal.timeout(IMAGE_PROXY_TIMEOUT_MS),
+      });
+      upstream = {
+        success: directRes.ok,
+        status: directRes.status,
+        contentType: directRes.headers.get('content-type') || 'image/jpeg',
+        body: Buffer.from(await directRes.arrayBuffer()),
+      };
+    } else {
+      upstream = await fetchWithUnlocker({
+        url: target.toString(),
+        method: 'GET',
+        format: 'raw',
+        timeoutMs: IMAGE_PROXY_TIMEOUT_MS,
+        headers: {
+          'User-Agent': 'avystock-image-proxy/1.0',
+          Accept: 'image/*,*/*;q=0.8',
+          Referer: '',
+        },
+      });
+    }
 
     if (!upstream.success) {
       return res.status(502).json({

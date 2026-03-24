@@ -190,7 +190,20 @@ async function createParcel({
     || [customer.streetName, customer.houseNumber].filter(Boolean).join(' ')
     || '');
   const cityStr = String(customer.city || customer.ort || '');
-  const zipStr = String(customer.zip || customer.postal_code || customer.postcode || customer.plz || '');
+  // PLZ-Sanitierung: eBay liefert zip als Number (z.B. 1069 statt "01069"), Kaufland als String.
+  // Deutsche PLZ müssen 5-stellig sein, mit führender Null wenn nötig.
+  const rawZipValue = customer.zip ?? customer.postal_code ?? customer.postcode ?? customer.plz ?? '';
+  let zipStr = String(rawZipValue).trim().replace(/\s+/g, '').replace(/[^a-zA-Z0-9-]/g, '');
+  const countryRaw = String(customer.country || customer.countryCode || 'DE').trim().toUpperCase().slice(0, 2);
+  // Pad German/Austrian zip codes to 5/4 digits if they were stored as numbers (leading zeros lost)
+  if (countryRaw === 'DE' && /^\d{1,4}$/.test(zipStr)) {
+    zipStr = zipStr.padStart(5, '0');
+  } else if (countryRaw === 'AT' && /^\d{1,3}$/.test(zipStr)) {
+    zipStr = zipStr.padStart(4, '0');
+  }
+  if (String(rawZipValue) !== zipStr) {
+    console.warn(`[createParcel] Sanitized zip: "${rawZipValue}" → "${zipStr}" (order: ${order.id || order.marketplaceOrderId}, country: ${countryRaw})`);
+  }
   const nameStr = String(customer.name
     || [customer.firstName, customer.lastName].filter(Boolean).join(' ')
     || 'Unbekannt');
@@ -226,7 +239,7 @@ async function createParcel({
       house_number: houseNumberStr,
       city: cityStr,
       postal_code: zipStr,
-      country: customer.country || customer.countryCode || 'DE',
+      country: countryRaw,
       email: customer.email || '',
       telephone: customer.phone || customer.telephone || '',
       order_number: order.marketplaceOrderId || order.orderId || order.id || '',
