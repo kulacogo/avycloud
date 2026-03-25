@@ -2,6 +2,7 @@ const PQueue = require('p-queue').default || require('p-queue');
 const { Timestamp, claimJob, updateJob, listJobsByStatus, moveToDeadLetter } = require('../lib/jobs');
 const { downloadFile } = require('../lib/storage');
 const { runProductIdentification } = require('./enrichment');
+const { runProductIdentificationGrounding } = require('./identify-grounding');
 const {
   getProduct,
   findProductByIdentityKey,
@@ -111,16 +112,40 @@ async function processJob(jobId) {
       })
     );
 
-    const result = await withTimeout(
-      runProductIdentification({
-        files,
-        barcodes: jobSnapshot.payload?.barcodes || '',
-        locale: jobSnapshot.payload?.locale || 'de-DE',
-        modelOverride: jobSnapshot.payload?.model || null,
-      }),
-      JOB_TIMEOUT_MS,
-      jobId
-    );
+    const GROUNDING_ENABLED =
+      String(process.env.IDENTIFY_GROUNDING || 'true').toLowerCase() === 'true';
+
+    const identifyArgs = {
+      files,
+      barcodes: jobSnapshot.payload?.barcodes || '',
+      locale: jobSnapshot.payload?.locale || 'de-DE',
+      modelOverride: jobSnapshot.payload?.model || null,
+      hint: jobSnapshot.payload?.hint || null,
+    };
+
+    let result;
+    if (GROUNDING_ENABLED) {
+      try {
+        result = await withTimeout(
+          runProductIdentificationGrounding(identifyArgs),
+          JOB_TIMEOUT_MS,
+          jobId
+        );
+      } catch (groundingError) {
+        console.warn(`[job ${jobId}] Grounding pipeline failed, falling back to legacy:`, groundingError?.message);
+        result = await withTimeout(
+          runProductIdentification(identifyArgs),
+          JOB_TIMEOUT_MS,
+          jobId
+        );
+      }
+    } else {
+      result = await withTimeout(
+        runProductIdentification(identifyArgs),
+        JOB_TIMEOUT_MS,
+        jobId
+      );
+    }
 
     // Auto-Save identifizierte Produkte
     if (result?.bundle?.products?.length) {
