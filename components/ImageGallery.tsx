@@ -312,7 +312,13 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
   const originalCount = images?.length || 0;
   const isActiveReal = activeIndex < originalCount;
   const activeRealImage = isActiveReal ? images[activeIndex] : null;
-  const resolveSrc = (img: ProductImage | any) => (img?.url_or_base64 ? img.url_or_base64 : img?.url ? img.url : '');
+  const resolveSrc = (img: ProductImage | any) => {
+    const raw = img?.url_or_base64;
+    if (typeof raw === 'string') return raw;
+    if (raw && typeof raw === 'object' && typeof raw.url === 'string') return raw.url;
+    if (typeof img?.url === 'string') return img.url;
+    return '';
+  };
   const placeholder = 'https://placehold.co/600x600/1f2937/94a3b8?text=No+Image';
 
   const openLightbox = (index: number) => {

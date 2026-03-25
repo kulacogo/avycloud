@@ -256,6 +256,24 @@ const mapSuggestionsToAttachments = (
   return attachments;
 };
 
+type QuickPrompt = {
+  icon: string;
+  label: string;
+  message: string;
+  scope: string;
+};
+
+const QUICK_PROMPTS: QuickPrompt[] = [
+  { icon: '✨', label: 'Alles optimieren', message: 'Optimiere Titel, Beschreibung, Highlights und Attribute. Recherchiere online und schlage konkrete Verbesserungen vor.', scope: 'title,attributes,highlights,description' },
+  { icon: '🏷️', label: 'Titel verbessern', message: 'Erstelle einen SEO-optimierten, marketplace-tauglichen Produkttitel basierend auf Online-Recherche.', scope: 'title' },
+  { icon: '📝', label: 'Beschreibung', message: 'Schreibe eine professionelle, verkaufsstarke Produktbeschreibung mit Bullet Points und Vorteilen.', scope: 'description,highlights' },
+  { icon: '🔍', label: 'EAN / GTIN finden', message: 'Recherchiere die korrekte EAN/GTIN für dieses Produkt im Web.', scope: 'gtin' },
+  { icon: '📊', label: 'Attribute', message: 'Ergänze fehlende Produktattribute (Material, Farbe, Maße, Gewicht etc.) basierend auf Online-Recherche.', scope: 'attributes' },
+  { icon: '💰', label: 'Preischeck', message: 'Recherchiere aktuelle Marktpreise für dieses Produkt und schlage einen wettbewerbsfähigen Preis vor.', scope: 'pricing' },
+  { icon: '🖼️', label: 'Bilder suchen', message: 'Finde passende Produktbilder im Web.', scope: 'images' },
+  { icon: '🏭', label: 'GPSR / Hersteller', message: 'Recherchiere Herstellerangaben (Name, Adresse, Kontakt) für die GPSR-Konformität.', scope: 'gpsr' },
+];
+
 const TOOL_LABELS: Record<string, string> = {
   brightdata_web_search: 'Websuche',
   serpapi_web_search: 'Websuche',
@@ -816,6 +834,28 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
 
       <div className="flex flex-1 min-h-0 flex-col px-4 py-2">
         <div ref={chatBodyRef} role="log" aria-live="polite" aria-label="Chatverlauf" className="flex-1 min-h-0 space-y-4 overflow-y-auto pr-1 scroll-smooth">
+          {messages.length === 0 && !isStreaming && (
+            <div className="flex flex-col items-center justify-center h-full gap-5 py-8">
+              <div className="flex flex-col items-center gap-1.5">
+                <SparklesIcon className="h-8 w-8 text-accent/60" />
+                <p className="text-sm font-medium text-txt-secondary">Was möchtest du verbessern?</p>
+                <p className="text-[11px] text-txt-muted">Wähle eine Aktion oder schreib eine Nachricht.</p>
+              </div>
+              <div className="grid grid-cols-2 gap-2 w-full max-w-[420px]">
+                {QUICK_PROMPTS.map((qp) => (
+                  <button
+                    key={qp.scope}
+                    type="button"
+                    onClick={() => void handleSend(qp.message, qp.scope)}
+                    className="flex items-center gap-2 rounded-xl border border-app-border/60 bg-app-elevated/40 px-3 py-2.5 text-left text-xs text-txt-secondary hover:bg-app-elevated/80 hover:border-accent/40 hover:text-txt-primary transition-all"
+                  >
+                    <span className="text-base leading-none">{qp.icon}</span>
+                    <span className="font-medium">{qp.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           {messages.map((msg) => (
             <MessageBubble
               key={msg.id}
@@ -965,7 +1005,22 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
         )}
       </div>
 
-      <div className="border-t border-app-border/60 px-4 py-3">
+      <div className="border-t border-app-border/60 px-4 py-3 shrink-0">
+        {messages.length > 0 && !isStreaming && (
+          <div className="flex gap-1.5 overflow-x-auto pb-2 scrollbar-none">
+            {QUICK_PROMPTS.slice(0, 5).map((qp) => (
+              <button
+                key={qp.scope}
+                type="button"
+                onClick={() => void handleSend(qp.message, qp.scope)}
+                className="flex items-center gap-1 whitespace-nowrap rounded-lg border border-app-border/40 bg-app-elevated/30 px-2 py-1 text-[11px] text-txt-muted hover:text-txt-primary hover:border-accent/40 hover:bg-app-elevated/60 transition-all"
+              >
+                <span>{qp.icon}</span>
+                <span>{qp.label}</span>
+              </button>
+            ))}
+          </div>
+        )}
         <ChatInput
           value={input}
           onChange={(v) => {

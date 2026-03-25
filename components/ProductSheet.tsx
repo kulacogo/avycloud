@@ -43,6 +43,16 @@ interface ProductSheetProps {
   onClose?: () => void;
 }
 
+/** Resolve image src from either `{url_or_base64: "..."}` or `{url_or_base64: {url: "..."}}` */
+const resolveImageSrc = (img?: any): string => {
+  if (!img) return '';
+  const raw = img.url_or_base64;
+  if (typeof raw === 'string') return raw;
+  if (raw && typeof raw === 'object' && typeof raw.url === 'string') return raw.url;
+  if (typeof img.url === 'string') return img.url;
+  return '';
+};
+
 const GENERATED_IMAGE_PATTERN = /(generated|gpt|gemini|ai[-\s]?image|ai[-\s]?render|ai[-\s]?derived)/i;
 
 const isGeneratedImageMeta = (image?: ProductImage) => {
@@ -893,10 +903,10 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
     }
     setLocalProduct((prev) => {
       const existing = Array.isArray(prev.details?.images) ? prev.details.images : [];
-      const seen = new Set(existing.map((img) => img?.url_or_base64).filter(Boolean) as string[]);
+      const seen = new Set(existing.map((img) => resolveImageSrc(img)).filter(Boolean));
       const dedupedIncoming = safeImages.filter((img) => {
-        const key = img?.url_or_base64;
-        if (!key || typeof key !== 'string') return false;
+        const key = resolveImageSrc(img);
+        if (!key) return false;
         if (seen.has(key)) return false;
         seen.add(key);
         return true;
@@ -1152,14 +1162,13 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
       <header className="p-4 bg-app-surface border border-app-border rounded-2xl mb-4">
         <div className="flex items-start gap-4">
           {/* Product image */}
-          {localProduct.details?.images?.[0]?.url_or_base64 && (
+          {resolveImageSrc(localProduct.details?.images?.[0]) ? (
             <img
-              src={localProduct.details.images[0].url_or_base64}
+              src={resolveImageSrc(localProduct.details?.images?.[0])}
               alt=""
               className="w-20 h-20 rounded-xl object-cover flex-shrink-0 bg-app-elevated border border-app-border"
             />
-          )}
-          {!localProduct.details?.images?.[0]?.url_or_base64 && (
+          ) : (
             <div className="w-20 h-20 rounded-xl bg-app-elevated border border-app-border flex items-center justify-center flex-shrink-0">
               <svg className="w-8 h-8 text-txt-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.41a2.25 2.25 0 013.182 0l2.909 2.91m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
@@ -1774,7 +1783,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
 
       {/* ─── TAB: KI-Assistent ──────────────────────────────── */}
       <TabPanel tabId="assistent" activeTab={activeTab}>
-        <div className="h-[65vh] min-h-[400px]">
+        <div className="h-[calc(100vh-12rem)] min-h-[480px]">
           <AssistantChat
             product={localProduct}
             onApplyDatasheetChange={applyAssistantChange}
