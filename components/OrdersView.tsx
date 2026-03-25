@@ -6,6 +6,7 @@ import {
   syncMarketplaceOrders,
   buildImageProxyUrl,
   bulkTransitionOrders,
+  printAddressLabels,
 } from "../api/client";
 import { Order, OrderStatus, getOrderStatus } from "../types";
 import { EmptyState } from "./ui/EmptyState";
@@ -684,6 +685,24 @@ const OrdersView: React.FC = () => {
               {OMS_STATUS_LABELS[s] || s}
             </button>
           ))}
+          <div className="h-5 w-px bg-app-border" />
+          <button
+            type="button"
+            disabled={bulkBusy}
+            onClick={async () => {
+              setBulkBusy(true);
+              try {
+                await printAddressLabels(Array.from(selectedIds));
+              } catch (err: any) {
+                setBulkResult(err?.message || 'Fehler beim Drucken');
+              } finally {
+                setBulkBusy(false);
+              }
+            }}
+            className="inline-flex items-center rounded-lg border border-app-border bg-card px-3 py-1.5 text-xs font-semibold text-txt-primary transition hover:bg-app-hover disabled:opacity-50"
+          >
+            Empfänger drucken
+          </button>
           <div className="ml-auto">
             <button
               type="button"

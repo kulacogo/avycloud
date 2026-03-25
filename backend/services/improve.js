@@ -954,10 +954,117 @@ async function improveExistingProduct(productId, onProgress) {
   let identifyOk = false;
   let reviewOk = false;
 
+  // ─── PERF-001 v2: Google Search Grounding for Improve ───
+  const GROUNDING_ENABLED =
+    String(process.env.IDENTIFY_GROUNDING || 'true').toLowerCase() === 'true';
+
   if (files.length === 0 && barcodes.length === 0) {
     console.warn('[improve] No reference images downloadable and no barcodes. Falling back to review-only improve.');
     if (onProgress) await onProgress('reviewing');
-  } else {
+  } else if (GROUNDING_ENABLED) {
+    // Preferred: Single Gemini call with Google Search Grounding
+    try {
+      if (onProgress) await onProgress('identifying');
+      const sharp = require('sharp');
+      const { identifyProductWithGrounding } = require('../lib/gemini3-client');
+
+      // Build compressed image parts
+      const imageParts = [];
+      for (const f of files.slice(0, 4)) {
+        if (!f?.buffer) continue;
+        try {
+          const compressed = await sharp(f.buffer)
+            .rotate()
+            .resize({ width: 1600, height: 1600, fit: 'inside', withoutEnlargement: true })
+            .jpeg({ quality: 78, chromaSubsampling: '4:2:0' })
+            .toBuffer();
+          imageParts.push({ data: compressed.toString('base64'), mimeType: 'image/jpeg' });
+        } catch { /* skip */ }
+      }
+
+      const groundedRecord = await identifyProductWithGrounding({
+        imageParts,
+        ocrText: '', // Improve already has product data, OCR not needed
+        barcodes,
+        locale: product.locale || 'de-DE',
+        hint: null,
+      });
+
+      // Build a pseudo-product from grounded record for merging
+      improvedOutput = {
+        identification: {
+          name: groundedRecord.title_ebay || '',
+          brand: groundedRecord.brand || '',
+          category: groundedRecord.internalCategory || '',
+        },
+        details: {
+          short_description: groundedRecord.description_ebay || '',
+          key_features: Array.isArray(groundedRecord.key_features) ? groundedRecord.key_features : [],
+          attributes: {},
+          identifiers: {
+            ean: groundedRecord.ean || '',
+            gtin: groundedRecord.gtin || '',
+            mpn: groundedRecord.mpn || '',
+          },
+          pricing: groundedRecord.price_eur > 0 ? {
+            lowest_price: {
+              amount: groundedRecord.price_eur,
+              currency: 'EUR',
+              sources: groundedRecord.price_source_url ? [{ url: groundedRecord.price_source_url }] : [],
+              last_checked_iso: new Date().toISOString(),
+            },
+            price_confidence: 0.75,
+          } : {},
+        },
+        marketplace: {
+          ebay: { title: groundedRecord.title_ebay || '', description: groundedRecord.description_ebay || '' },
+          kaufland: { title: groundedRecord.title_kaufland || '', description: groundedRecord.description_kaufland || '' },
+        },
+        ops: { weight_grams: groundedRecord.weight_grams || null },
+      };
+
+      if (Array.isArray(groundedRecord.item_specifics)) {
+        for (const spec of groundedRecord.item_specifics) {
+          if (spec?.key && spec?.value) {
+            improvedOutput.details.attributes[spec.key] = String(spec.value).slice(0, 60);
+          }
+        }
+      }
+
+      // Add web images to the existing product
+      if (Array.isArray(groundedRecord.web_image_urls)) {
+        for (const url of groundedRecord.web_image_urls.filter(Boolean).slice(0, 3)) {
+          product.details = product.details || {};
+          product.details.images = product.details.images || [];
+          const alreadyHas = product.details.images.some((i) => i?.url_or_base64 === url);
+          if (!alreadyHas) {
+            product.details.images.push({ url_or_base64: url, source: 'web_search', variant: 'marketing' });
+          }
+        }
+      }
+
+      // GPSR
+      if (groundedRecord.gpsr_manufacturer_name) {
+        improvedOutput.gpsr = {
+          manufacturer_name: groundedRecord.gpsr_manufacturer_name || '',
+          manufacturer_address: groundedRecord.gpsr_manufacturer_address || '',
+          manufacturer_email: groundedRecord.gpsr_manufacturer_email || '',
+          manufacturer_phone: groundedRecord.gpsr_manufacturer_phone || '',
+          manufacturer_country: groundedRecord.gpsr_manufacturer_country || '',
+        };
+      }
+
+      identifyOk = true;
+      console.log('[improve] Grounding pipeline complete.');
+    } catch (error) {
+      console.error('[improve] Grounding failed, falling back to legacy:', error?.message || error);
+      improvedOutput = null;
+      // Fall through to legacy below
+    }
+  }
+
+  // Legacy fallback (if grounding is disabled or failed with files available)
+  if (!identifyOk && files.length > 0) {
     try {
       const result = await runProductIdentification({
         files,
@@ -967,15 +1074,13 @@ async function improveExistingProduct(productId, onProgress) {
         improveContext: buildImproveContext(product, ebayListing, { titleInsights: initialTitleInsights }),
         titleInsights: initialTitleInsights,
         skipExternalSearch: false,
-        // BUG-086: Skip barcode web-confirm in Improve — products already have validated barcodes
-        // from the initial Identify run. The sequential web-confirm adds 10-30s for no new value.
         skipBarcodeWebConfirm: true,
         onProgress,
       });
       improvedOutput = result?.bundle?.products?.[0] || null;
       identifyOk = Boolean(improvedOutput);
     } catch (error) {
-      console.error('[improve] Identification failed:', error?.message || error);
+      console.error('[improve] Legacy identification failed:', error?.message || error);
       improvedOutput = null;
       if (onProgress) await onProgress('reviewing');
     }
@@ -985,58 +1090,32 @@ async function improveExistingProduct(productId, onProgress) {
   if (onProgress) await onProgress('merging');
   let mergedProduct = improvedOutput ? mergeProductRecords(product, improvedOutput) : JSON.parse(JSON.stringify(product));
 
-  // Web-only mode: NO pricing enrichment (SerpAPI) and NO model-generated inference.
-  // Pricing can be added later via dedicated marketplace parsers if needed.
-  // Price enrichment currently depends on SerpAPI in this codebase. Keep it opt-in.
-  const PRICE_ENRICH =
-    (process.env.PRICE_ENRICHMENT_ENABLED || '').toString().trim().toLowerCase() === 'true';
-  if (PRICE_ENRICH) {
-    if (onProgress) await onProgress('pricing');
-    try {
-      const serpTrace = [];
-      await ensurePriceCoverage([mergedProduct], serpTrace);
-    } catch (err) {
-      console.warn('[improve] Pricing enrichment failed:', err?.message || err);
-    }
-  }
-
   console.log('[improve] Applying Taxonomy...');
   if (onProgress) await onProgress('enriching');
   mergedProduct = applyEbayTaxonomy(mergedProduct);
   mergedProduct = applyKauflandTaxonomy(mergedProduct);
 
-  // BUG-086: Deduplicated review — runProductIdentification() already ran a review
-  // internally (without marketplace evidence). We now run ONE final review WITH
-  // marketplace evidence, which is the high-quality path. This replaces the previous
-  // pattern of 2-3 sequential reviews that mostly duplicated work.
-  console.log('[improve] Final Review & Save...');
-  if (onProgress) await onProgress('reviewing');
-  try {
-    const reviewEvidence = {
-      barcodes: Array.isArray(mergedProduct?.identification?.barcodes) ? mergedProduct.identification.barcodes : [],
-    };
-    await runDatasheetReview([mergedProduct], {
-      locale: product.locale || 'de-DE',
-      webEvidence: reviewEvidence,
-      marketplaceEvidence: true,
-      llmScopeId: 'improve.product',
-    });
-    reviewOk = true;
-
-    // Single quality-gate retry if still not eBay-ready
-    const { evaluateEbayReady } = require('../lib/datasheet-quality');
-    const eval1 = evaluateEbayReady(mergedProduct, { force: true, ignorePrice: true });
-    if (!eval1.ok && eval1.issues && eval1.issues.length) {
+  // Only run legacy review if grounding was NOT used (grounding already includes review-quality output)
+  if (!GROUNDING_ENABLED || !identifyOk) {
+    console.log('[improve] Final Review (legacy path)...');
+    if (onProgress) await onProgress('reviewing');
+    try {
+      const reviewEvidence = {
+        barcodes: Array.isArray(mergedProduct?.identification?.barcodes) ? mergedProduct.identification.barcodes : [],
+      };
       await runDatasheetReview([mergedProduct], {
         locale: product.locale || 'de-DE',
         webEvidence: reviewEvidence,
-        qualityIssuesById: { [mergedProduct.id]: eval1.issues },
         marketplaceEvidence: true,
         llmScopeId: 'improve.product',
       });
+      reviewOk = true;
+    } catch (reviewErr) {
+      console.error('[improve] Review failed:', reviewErr?.message || reviewErr);
     }
-  } catch (reviewErr) {
-    console.error('[improve] Review failed:', reviewErr?.message || reviewErr);
+  } else {
+    reviewOk = true;
+    console.log('[improve] Skipping legacy review (grounding pipeline used).');
   }
 
   // K-Typ enrichment (AUTO/MOTO only, MVL-backed, never guessing).

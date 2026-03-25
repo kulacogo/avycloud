@@ -3467,6 +3467,38 @@ export async function bulkTransitionOrders(
   return data?.data;
 }
 
+export async function printAddressLabels(orderIds: string[]): Promise<void> {
+  if (!orderIds.length) throw new Error('Keine Bestellungen ausgewählt.');
+  const res = await fetchApi(`${BACKEND_URL}/api/orders/address-labels`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ orderIds }),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => null);
+    throw new Error(data?.error?.message || 'Adresslabel-Erstellung fehlgeschlagen');
+  }
+  const html = await res.text();
+  const blob = new Blob([html], { type: 'text/html' });
+  const blobUrl = URL.createObjectURL(blob);
+  const iframe = document.createElement('iframe');
+  iframe.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;opacity:0;';
+  iframe.src = blobUrl;
+  document.body.appendChild(iframe);
+  await new Promise<void>((resolve) => {
+    iframe.onload = () => resolve();
+    setTimeout(resolve, 1500);
+  });
+  try {
+    iframe.contentWindow?.focus?.();
+    iframe.contentWindow?.print?.();
+  } catch (_) { /* cross-origin fallback: user can print manually */ }
+  setTimeout(() => {
+    iframe.remove();
+    URL.revokeObjectURL(blobUrl);
+  }, 60000);
+}
+
 export const openSkuLabelWindow = (productId: string): { ok: boolean; error?: { code: number; message: string } } => {
   try {
     const url = `${BACKEND_URL}/api/products/${encodeURIComponent(productId)}/label`;

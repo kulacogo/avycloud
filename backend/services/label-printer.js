@@ -443,11 +443,121 @@ async function buildInventoryLabelPdf(inventory) {
   return Buffer.concat(chunks);
 }
 
+// Address label constants (same physical label as BIN: 62×29mm)
+const ADDR_WIDTH_MM = 62;
+const ADDR_HEIGHT_MM = 29;
+const ADDR_PADDING_H_MM = 3;
+const ADDR_PADDING_V_MM = 2;
+const ADDR_USABLE_WIDTH_MM = ADDR_WIDTH_MM - ADDR_PADDING_H_MM * 2; // 56mm
+const ADDR_MAX_FONT_MM = 7;
+const ADDR_MIN_FONT_MM = 3.2;
+
+/**
+ * Calculate adaptive font size for address labels based on longest line.
+ * @param {string[]} lines — the 3 address lines
+ * @returns {number} font size in mm
+ */
+function getAddressFontSize(lines) {
+  const longest = Math.max(...lines.map((l) => l.length), 1);
+  return Math.min(ADDR_MAX_FONT_MM, Math.max(ADDR_MIN_FONT_MM, ADDR_USABLE_WIDTH_MM / longest * 1.6));
+}
+
+/**
+ * Build printable HTML for recipient address labels (62×29mm).
+ * Used for Kompaktbrief shipments where sender is pre-printed.
+ *
+ * @param {Array<{name: string, street: string, zip: string, city: string}>} addresses
+ * @returns {string} Self-printing HTML document
+ */
+function buildAddressLabelsHtml(addresses) {
+  if (!addresses || !addresses.length) {
+    throw new Error('Mindestens eine Adresse ist erforderlich.');
+  }
+
+  const labels = addresses.map((addr) => {
+    const name = escapeHtml(String(addr.name || '').trim());
+    const street = escapeHtml(String(addr.street || '').trim());
+    const zip = String(addr.zip || '').trim();
+    const city = escapeHtml(String(addr.city || '').trim());
+    const zipCity = escapeHtml(`${zip} ${city}`.trim());
+
+    const lines = [name, street, `${zip} ${city}`];
+    const fontSize = getAddressFontSize(lines);
+
+    return `
+      <div class="label">
+        <div class="addr" style="font-size:${fontSize.toFixed(2)}mm;">
+          <div class="line">${name}</div>
+          <div class="line">${street}</div>
+          <div class="line">${zipCity}</div>
+        </div>
+      </div>
+    `;
+  });
+
+  return `<!DOCTYPE html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <title>Empfänger-Adresslabels</title>
+    <style>
+      @page {
+        size: ${ADDR_WIDTH_MM}mm ${ADDR_HEIGHT_MM}mm;
+        margin: 0;
+      }
+      body {
+        margin: 0;
+        font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+        -webkit-print-color-adjust: exact;
+        background: #ffffff;
+      }
+      .label {
+        width: ${ADDR_WIDTH_MM}mm;
+        height: ${ADDR_HEIGHT_MM}mm;
+        box-sizing: border-box;
+        padding: ${ADDR_PADDING_V_MM}mm ${ADDR_PADDING_H_MM}mm;
+        page-break-after: always;
+      }
+      .label:last-child {
+        page-break-after: auto;
+      }
+      .addr {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 0.3mm;
+      }
+      .line {
+        font-weight: 700;
+        line-height: 1.15;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+    </style>
+    <script>
+      window.addEventListener('load', () => {
+        setTimeout(() => {
+          window.print();
+          window.onafterprint = () => window.close();
+        }, 150);
+      });
+    </script>
+  </head>
+  <body>
+    ${labels.join('')}
+  </body>
+</html>`;
+}
+
 module.exports = {
   buildProductLabelsHtml,
   buildBinLabelHtml,
   buildBinLabelsHtml,
   buildBinLabelsPdf,
   buildInventoryLabelPdf,
+  buildAddressLabelsHtml,
 };
 

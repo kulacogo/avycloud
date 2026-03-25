@@ -256,32 +256,45 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
       });
     }
 
-    // 1) Identify + OCR + record
-    const result = await runSerpapiFreePipeline({ files, barcodes, locale, inventoryId, hint });
+    // ─── PERF-001 v2: Google Search Grounding Pipeline ───
+    // Single Gemini call with images + Google Search + Structured Output.
+    // Replaces: runSerpapiFreePipeline + prefetchWebEvidence + runDatasheetReview ×2 + enrichPrice + fetchMarketingImages
 
-    // 2) Stock protection: if this identifier already exists, never overwrite datasheet.
-    const strictBarcodes = []
-      .concat(Array.isArray(result?.barcodeInsights?.ranked) ? result.barcodeInsights.ranked.map((r) => r?.code) : [])
-      .concat([result?.barcodeInsights?.selected?.ean, result?.barcodeInsights?.selected?.gtin])
-      .concat(Array.isArray(result?.barcodes) ? result.barcodes : [])
-      .filter(Boolean)
-      .map((c) => String(c).trim())
-      .filter(Boolean)
-      .slice(0, 8);
-    const strictSku =
-      result?.record?.sku && typeof result.record.sku === 'string' && result.record.sku.trim() && result.record.sku.trim().toLowerCase() !== 'unknown'
-        ? result.record.sku.trim()
-        : null;
+    const GROUNDING_ENABLED =
+      String(process.env.IDENTIFY_GROUNDING || 'true').toLowerCase() === 'true';
 
-    const existing = await findProductByStrictIdentifier({ barcodes: strictBarcodes, sku: strictSku });
+    // 1) OCR + Image Upload (parallel)
+    const { extractOcrPayload } = require('../lib/vision-ocr');
+    const { uploadImage } = require('../lib/storage');
+    const sharp = require('sharp');
+
+    const [ocrPayload, uploadedImages] = await Promise.all([
+      extractOcrPayload(files),
+      Promise.all(
+        files.map(async (f) => {
+          if (!f?.buffer) return null;
+          try {
+            const url = await uploadImage(f.buffer, f.mimetype || 'image/jpeg');
+            return { url };
+          } catch { return null; }
+        })
+      ).then((results) => results.filter(Boolean)),
+    ]);
+
+    const mergedBarcodes = [
+      ...new Set([
+        ...(barcodes ? barcodes.split(/[\s,;|]+/).filter(Boolean) : []),
+        ...(ocrPayload.barcodes || []),
+      ]),
+    ];
+
+    // 2) Stock protection: check if product already exists
+    const existing = await findProductByStrictIdentifier({
+      barcodes: mergedBarcodes.slice(0, 8),
+      sku: null,
+    });
     if (existing?.id) {
-      // Best-effort: mark incoming stock as pending intake (do not touch the datasheet)
-      try {
-        await adjustPendingIntakeQuantity(existing.id, 1);
-      } catch (e) {
-        console.warn('Failed to adjust pending intake for existing product:', e?.message || e);
-      }
-      // Track source palette on existing product (additive, never overwrites datasheet)
+      try { await adjustPendingIntakeQuantity(existing.id, 1); } catch {}
       if (paletteCode) {
         try {
           const { PRODUCTS_COLLECTION } = require('../lib/firestore');
@@ -289,154 +302,240 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
             'ops.sourcePalette': paletteCode,
             'ops.sourcePaletteAt': new Date().toISOString(),
           });
-        } catch (e) {
-          console.warn('Failed to set sourcePalette on existing product:', e?.message || e);
-        }
+        } catch {}
       }
       const refreshed = await getProduct(existing.id);
       return res.json({
         ok: true,
         data: refreshed || existing,
-        meta: {
-          reused_existing: true,
-          paletteCode: paletteCode || null,
-          locale: result.locale,
-          barcodes: result.barcodes,
-          ocr: result.ocr,
-          llm: result.llm,
-          barcodeInsights: result.barcodeInsights,
-          quality: result.quality,
-        },
+        meta: { reused_existing: true, paletteCode: paletteCode || null, locale, barcodes: mergedBarcodes },
       });
     }
 
-    // 3) Build initial product (server-side), then run taxonomy + datasheet review using OCR evidence.
-    let product = buildProductFromV2Record(result.record, {
-      fallbackId: crypto.randomUUID(),
-      barcodes,
-      locale,
-      inventoryId: inventoryId || null,
-    });
+    // 3) Build inline image parts for Gemini (compressed, base64)
+    const MAX_IMAGES = 4;
+    const MAX_EDGE = 1600;
+    const JPEG_QUALITY = 78;
+    const imageParts = [];
+    for (const f of files.slice(0, MAX_IMAGES)) {
+      if (!f?.buffer || !f?.mimetype?.startsWith('image/')) continue;
+      try {
+        const compressed = await sharp(f.buffer)
+          .rotate()
+          .resize({ width: MAX_EDGE, height: MAX_EDGE, fit: 'inside', withoutEnlargement: true })
+          .jpeg({ quality: JPEG_QUALITY, chromaSubsampling: '4:2:0' })
+          .toBuffer();
+        imageParts.push({
+          data: compressed.toString('base64'),
+          mimeType: 'image/jpeg',
+        });
+      } catch {
+        // Skip unprocessable image
+      }
+    }
 
-    // 3.0) Hard rule: no product may be persisted without an eBay category.
-    // v2 records often contain only a free-text internalCategory; `saveProduct()` will clear
-    // free-text categories when no valid `details.categoryId` exists, resulting in category-less products.
-    await ensureCategories([product]);
+    const ocrText = (ocrPayload.textSnippets || []).filter(Boolean).join('\n');
+    let product = null;
+    let groundingUsed = false;
+    let legacyResult = null;
 
-    product = applyEbayTaxonomy(product);
-    product = applyKauflandTaxonomy(product);
+    // 4) Try Google Search Grounding pipeline (preferred)
+    if (GROUNDING_ENABLED && (imageParts.length || mergedBarcodes.length)) {
+      try {
+        const { identifyProductWithGrounding } = require('../lib/gemini3-client');
+        console.log(`[identify] Starting grounding pipeline (${imageParts.length} images, ${mergedBarcodes.length} barcodes)`);
 
-    // Provide evidence to the review step (OCR/web hints). This avoids "invented" specs and helps granularity.
-    const evidence = {
-      ocr: result.ocr || null,
-      barcodes: result.barcodes || [],
-      barcodeInsights: result.barcodeInsights || null,
-      llm: result.llm || null,
-    };
+        const groundedRecord = await identifyProductWithGrounding({
+          imageParts,
+          ocrText,
+          barcodes: mergedBarcodes,
+          locale,
+          hint,
+        });
 
-    // Optional: prefetch small web excerpts (BrightData-backed when configured) to push Identify towards 99% completeness.
-    // This is SerpAPI-free and is used as *evidence only* (no guessing).
-    const enablePrefetch =
-      String(process.env.IDENTIFY_PREFETCH_WEB_EVIDENCE || 'true').toLowerCase() === 'true';
-    if (enablePrefetch) {
+        // Map grounded record to product format
+        const productId = crypto.randomUUID();
+        product = {
+          id: productId,
+          identification: {
+            name: groundedRecord.title_ebay || '',
+            brand: groundedRecord.brand || 'unknown',
+            category: groundedRecord.internalCategory || '',
+            sku: groundedRecord.sku || '',
+            barcodes: mergedBarcodes,
+          },
+          details: {
+            categoryId: null,
+            short_description: groundedRecord.description_ebay || '',
+            key_features: Array.isArray(groundedRecord.key_features) ? groundedRecord.key_features : [],
+            attributes: {},
+            identifiers: {
+              ean: groundedRecord.ean || '',
+              gtin: groundedRecord.gtin || '',
+              upc: groundedRecord.upc || '',
+              mpn: groundedRecord.mpn || '',
+            },
+            images: uploadedImages.map((img) => ({
+              url_or_base64: img.url,
+              source: 'upload',
+              variant: 'reference',
+            })),
+            pricing: {},
+          },
+          marketplace: {
+            ebay: {
+              title: groundedRecord.title_ebay || '',
+              description: groundedRecord.description_ebay || '',
+            },
+            kaufland: {
+              title: groundedRecord.title_kaufland || '',
+              description: groundedRecord.description_kaufland || '',
+            },
+          },
+          ops: {
+            weight_grams: groundedRecord.weight_grams || null,
+          },
+          notes: {},
+        };
+
+        // Map item_specifics → attributes
+        if (Array.isArray(groundedRecord.item_specifics)) {
+          for (const spec of groundedRecord.item_specifics) {
+            if (spec?.key && spec?.value) {
+              product.details.attributes[spec.key] = String(spec.value).slice(0, 60);
+            }
+          }
+        }
+
+        // Map price
+        if (groundedRecord.price_eur && groundedRecord.price_eur > 0) {
+          product.details.pricing = {
+            lowest_price: {
+              amount: groundedRecord.price_eur,
+              currency: 'EUR',
+              sources: groundedRecord.price_source_url
+                ? [{ url: groundedRecord.price_source_url, name: groundedRecord.price_source_name || 'web' }]
+                : [],
+              last_checked_iso: new Date().toISOString(),
+            },
+            price_confidence: 0.75,
+          };
+        }
+
+        // Map web images
+        if (Array.isArray(groundedRecord.web_image_urls)) {
+          for (const url of groundedRecord.web_image_urls.filter(Boolean).slice(0, 3)) {
+            product.details.images.push({
+              url_or_base64: url,
+              source: 'web_search',
+              variant: 'marketing',
+            });
+          }
+        }
+
+        // Map GPSR
+        if (groundedRecord.gpsr_manufacturer_name) {
+          product.gpsr = {
+            manufacturer_name: groundedRecord.gpsr_manufacturer_name || '',
+            manufacturer_address: groundedRecord.gpsr_manufacturer_address || '',
+            manufacturer_email: groundedRecord.gpsr_manufacturer_email || '',
+            manufacturer_phone: groundedRecord.gpsr_manufacturer_phone || '',
+            manufacturer_country: groundedRecord.gpsr_manufacturer_country || '',
+          };
+        }
+
+        // Grounding metadata
+        if (groundedRecord._grounding) {
+          product.ops.identify_grounding = groundedRecord._grounding;
+        }
+        if (groundedRecord.notes) {
+          product.notes.identify_notes = groundedRecord.notes;
+        }
+
+        groundingUsed = true;
+        console.log(`[identify] Grounding pipeline complete for ${productId}`);
+      } catch (e) {
+        console.warn('[identify] Grounding pipeline failed, falling back to legacy:', e?.message || e);
+        product = null;
+      }
+    }
+
+    // 5) Fallback: Legacy pipeline (if grounding failed or disabled)
+    if (!product) {
+      const result = await runSerpapiFreePipeline({ files, barcodes, locale, inventoryId, hint });
+      legacyResult = result;
+
+      // Re-check stock protection with legacy barcode resolution
+      const legacyBarcodes = []
+        .concat(Array.isArray(result?.barcodeInsights?.ranked) ? result.barcodeInsights.ranked.map((r) => r?.code) : [])
+        .concat([result?.barcodeInsights?.selected?.ean, result?.barcodeInsights?.selected?.gtin])
+        .concat(Array.isArray(result?.barcodes) ? result.barcodes : [])
+        .filter(Boolean).map((c) => String(c).trim()).filter(Boolean).slice(0, 8);
+      const legacySku =
+        result?.record?.sku && typeof result.record.sku === 'string' && result.record.sku.trim().toLowerCase() !== 'unknown'
+          ? result.record.sku.trim() : null;
+      const legacyExisting = await findProductByStrictIdentifier({ barcodes: legacyBarcodes, sku: legacySku });
+      if (legacyExisting?.id) {
+        try { await adjustPendingIntakeQuantity(legacyExisting.id, 1); } catch {}
+        if (paletteCode) {
+          try {
+            const { PRODUCTS_COLLECTION } = require('../lib/firestore');
+            await firestore.collection(PRODUCTS_COLLECTION).doc(legacyExisting.id).update({
+              'ops.sourcePalette': paletteCode, 'ops.sourcePaletteAt': new Date().toISOString(),
+            });
+          } catch {}
+        }
+        const refreshed = await getProduct(legacyExisting.id);
+        return res.json({
+          ok: true, data: refreshed || legacyExisting,
+          meta: { reused_existing: true, paletteCode: paletteCode || null, locale: result.locale, barcodes: result.barcodes },
+        });
+      }
+
+      product = buildProductFromV2Record(result.record, {
+        fallbackId: crypto.randomUUID(), barcodes, locale, inventoryId: inventoryId || null,
+      });
+
+      // Legacy post-processing (category + review + enrichments)
+      await ensureCategories([product]);
+      product = applyEbayTaxonomy(product);
+      product = applyKauflandTaxonomy(product);
+
+      const evidence = {
+        ocr: result.ocr || null, barcodes: result.barcodes || [],
+        barcodeInsights: result.barcodeInsights || null, llm: result.llm || null,
+      };
+
       try {
         const webEnrich = await prefetchWebEvidenceForIdentify({
           barcodeList: result.barcodes || [],
           ocrTextSnippets: result?.ocr?.textSnippets || [],
           locale,
         });
-        if (webEnrich) {
-          evidence.web_enrich = webEnrich;
-        }
-      } catch (e) {
-        // Best-effort: never fail Identify because web prefetch failed.
-        console.warn('Identify web evidence prefetch failed (continuing):', e?.message || e);
-      }
+        if (webEnrich) evidence.web_enrich = webEnrich;
+      } catch {}
+
+      await runDatasheetReview([product], {
+        locale, webEvidence: evidence, marketplaceEvidence: true, llmScopeId: 'identify.v2',
+      });
+
+      try {
+        await enrichPriceForProductBestEffort(product, { force: false, reason: 'identify' });
+      } catch {}
     }
 
-    await runDatasheetReview([product], {
-      locale,
-      webEvidence: evidence,
-      marketplaceEvidence: true,
-      llmScopeId: 'identify.v2',
-    });
-
-    // Retry once if still not eBay-ready (title/desc/highlights/attrs). This keeps Identify outputs stable.
-    try {
-      const { evaluateEbayReady } = require('../lib/datasheet-quality');
-      // The post-review retry is meant to fix text/spec issues. Pricing is enriched separately.
-      const eval1 = evaluateEbayReady(product, { force: true, ignorePrice: true });
-      if (!eval1.ok && eval1.issues && eval1.issues.length) {
-        await runDatasheetReview([product], {
-          locale,
-          webEvidence: evidence,
-          qualityIssuesById: { [product.id]: eval1.issues },
-          marketplaceEvidence: true,
-          llmScopeId: 'identify.v2',
-        });
-      }
-    } catch (e) {
-      console.warn('Identify post-review evaluation failed (continuing):', e?.message || e);
+    // 6) Category + Taxonomy (for grounding path — legacy already did this above)
+    if (groundingUsed) {
+      await ensureCategories([product]);
+      product = applyEbayTaxonomy(product);
+      product = applyKauflandTaxonomy(product);
     }
 
-    // 3.5) K-Typ enrichment (AUTO/MOTO only, MVL-backed, never guessing).
-    // Best-effort: do not fail Identify if enrichment can't be done.
+    // 7) K-Typ enrichment (best-effort, both paths)
     try {
       const { enrichKTypIfPossible } = require('../lib/ktype-enrichment');
       await enrichKTypIfPossible(product, { reason: 'identify' });
-    } catch (e) {
-      console.warn('Identify K-Typ enrichment failed (continuing):', e?.message || e);
-    }
-
-    // 3.6) Price enrichment (best-effort). Identify outputs should include a price when possible.
-    // This uses SerpAPI when enabled, otherwise falls back to BrightData-backed web search + unlocker scraping.
-    try {
-      await enrichPriceForProductBestEffort(product, { force: false, reason: 'identify' });
-    } catch (e) {
-      console.warn('Identify price enrichment failed (continuing):', e?.message || e);
-    }
-
-    // 3.7) Web image search — add up to 3 real product images from the web (BUG-088)
-    try {
-      const existingImages = Array.isArray(product?.details?.images) ? product.details.images : [];
-      const hasEnoughImages = existingImages.filter(img => img?.url_or_base64?.startsWith('http')).length >= 3;
-      if (!hasEnoughImages) {
-        const { fetchMarketingImages } = require('../lib/marketing-images');
-        const brand = product?.identification?.brand || '';
-        const name = product?.identification?.name || '';
-        const category = product?.identification?.category || '';
-        const ids = product?.details?.identifiers || {};
-        const identifiers = [ids.ean, ids.gtin, ids.upc, ids.mpn].filter(Boolean);
-        const exclude = existingImages.map(img => img?.url_or_base64).filter(Boolean);
-
-        const { images } = await fetchMarketingImages({
-          brand,
-          name,
-          category,
-          identifiers,
-          mpn: ids.mpn || '',
-          limit: 3,
-          exclude,
-        });
-
-        if (images.length) {
-          product.details = product.details || {};
-          product.details.images = product.details.images || [];
-          for (const img of images) {
-            if (img?.url) {
-              product.details.images.push({
-                url_or_base64: img.url,
-                source: img.source || 'web_search',
-                variant: 'marketing',
-              });
-            }
-          }
-          console.log(`[identify] Added ${images.length} web images for ${product.id}`);
-        }
-      }
-    } catch (e) {
-      console.warn('Identify web image search failed (continuing):', e?.message || e);
-    }
+    } catch {};
 
     // 3.8) Compute and persist quality snapshot (independent of QUALITY_GATE_ENABLED).
     // This powers UI/debug dashboards and helps explain "why not ebay-ready" without blocking saves.

@@ -393,10 +393,13 @@ async function uploadReferenceImages(files = []) {
 
 async function runSerpapiFreePipeline({ files = [], barcodes = '', locale = 'de-DE', inventoryId = null, hint = null } = {}) {
   const manualBarcodes = parseBarcodes(barcodes);
-  const ocrPayload = await extractOcrPayload(files);
+  // PERF-001: OCR + Image Upload run in parallel (upload doesn't need OCR result)
+  const [ocrPayload, uploadedImages] = await Promise.all([
+    extractOcrPayload(files),
+    uploadReferenceImages(files),
+  ]);
   const mergedBarcodes = mergeBarcodeLists(manualBarcodes, ocrPayload.barcodes || []);
   const inputMode = determineInputMode(files, mergedBarcodes);
-  const uploadedImages = await uploadReferenceImages(files);
   let llmRecord = null;
   let llmError = null;
 

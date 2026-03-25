@@ -7,6 +7,7 @@ const { getCheckAccountBalances, getShippingCostsFromSevDesk } = require('../lib
 const { getShippingCostsSummary: getSendCloudShippingSummary, lookupCsvPrice } = require('../lib/sendcloud');
 const { getEbayNetRevenueSummary } = require('../lib/ebay-finances');
 const { emitSyncEvent } = require('../services/sync-event-bus');
+const { buildAddressLabelsHtml } = require('../services/label-printer');
 
 // ── Factory: backgroundSyncOrders wird von index.js injiziert ────────
 
@@ -1686,6 +1687,70 @@ router.get('/orders/:orderId/label', requirePermission('orders', 'read'), async 
     res.send(buffer);
   } catch (err) {
     console.error(`[GET /api/orders/:orderId/label] ${err.message}`, err);
+    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: err.message } });
+  }
+});
+
+// ── POST /api/orders/address-labels — Empfänger-Adresslabels (62×29mm) ──
+
+router.post('/orders/address-labels', requirePermission('orders', 'read'), async (req, res) => {
+  try {
+    const { orderIds } = req.body;
+    if (!Array.isArray(orderIds) || orderIds.length === 0) {
+      return res.status(400).json({ ok: false, error: { code: 'INVALID_INPUT', message: 'orderIds Array erforderlich' } });
+    }
+    if (orderIds.length > 100) {
+      return res.status(400).json({ ok: false, error: { code: 'INVALID_INPUT', message: 'Maximal 100 Orders pro Anfrage' } });
+    }
+
+    // Batch-load orders
+    const orderRefs = orderIds.map((id) => firestore.collection('orders').doc(id));
+    const snapshots = await firestore.getAll(...orderRefs);
+
+    const addresses = [];
+    const incomplete = [];
+
+    for (const snap of snapshots) {
+      if (!snap.exists) continue;
+      const order = snap.data();
+      const c = order.customer || {};
+      const addr = {
+        name: (c.name || '').trim(),
+        street: (c.street || '').trim(),
+        zip: String(c.zip || '').trim(),
+        city: (c.city || '').trim(),
+      };
+
+      const missing = [];
+      if (!addr.name) missing.push('name');
+      if (!addr.street) missing.push('street');
+      if (!addr.zip) missing.push('zip');
+      if (!addr.city) missing.push('city');
+
+      if (missing.length > 0) {
+        incomplete.push({ orderId: snap.id, missing });
+      } else {
+        addresses.push(addr);
+      }
+    }
+
+    if (incomplete.length > 0) {
+      return res.status(400).json({
+        ok: false,
+        error: { code: 'INCOMPLETE_ADDRESS', message: `${incomplete.length} Bestellung(en) mit unvollständiger Adresse` },
+        incomplete,
+      });
+    }
+
+    if (addresses.length === 0) {
+      return res.status(400).json({ ok: false, error: { code: 'NO_ORDERS', message: 'Keine gültigen Bestellungen gefunden' } });
+    }
+
+    const html = buildAddressLabelsHtml(addresses);
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.send(html);
+  } catch (err) {
+    console.error(`[POST /api/orders/address-labels] ${err.message}`, err);
     res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: err.message } });
   }
 });

@@ -535,4 +535,111 @@ async function enrichPriceForProductBestEffort(product, { force = false, reason 
   return { ok: true, updated: true, data, serpTrace };
 }
 
-module.exports = { enrichPriceForProductBestEffort };
+/**
+ * PERF-001: Parallel price enrichment.
+ * All 3 sources (SerpAPI/Coverage, eBay Browse, Web) run in parallel instead of waterfall.
+ * First successful hit with highest confidence wins.
+ * @param {object} product
+ * @param {{ force?: boolean, reason?: string }} opts
+ */
+async function enrichPriceParallel(product, { force = false, reason = 'identify' } = {}) {
+  if (!product) return { ok: false, updated: false, error: 'product_missing' };
+  product.details = product.details || {};
+  product.details.pricing = product.details.pricing || {};
+
+  const existing = product.details?.pricing?.lowest_price;
+  if (!force && hasValidPriceEvidence(existing)) {
+    return { ok: true, updated: false };
+  }
+
+  const serpTrace = [];
+
+  // All 3 sources run in PARALLEL (not waterfall)
+  const [serpResult, browseResult, webResult] = await Promise.allSettled([
+    // Source 1: SerpAPI/Coverage
+    (async () => {
+      try {
+        // Clone product to avoid mutation conflicts between parallel sources
+        const shadowProduct = JSON.parse(JSON.stringify(product));
+        shadowProduct.details = shadowProduct.details || {};
+        shadowProduct.details.pricing = shadowProduct.details.pricing || {};
+        await ensurePriceCoverage([shadowProduct], serpTrace, { force });
+        const price = shadowProduct.details?.pricing?.lowest_price;
+        if (hasValidPriceEvidence(price)) return { ok: true, price, via: 'serpapi', confidence: 0.8 };
+      } catch {}
+      return { ok: false };
+    })(),
+    // Source 2: eBay Browse API
+    (async () => {
+      try {
+        const browse = await findEbayBrowsePriceForProductV1(product);
+        if (browse.ok && browse.amount && Array.isArray(browse.sources) && browse.sources.length) {
+          return {
+            ok: true,
+            price: {
+              amount: browse.amount,
+              currency: 'EUR',
+              sources: browse.sources,
+              last_checked_iso: new Date().toISOString(),
+            },
+            via: 'ebay_browse',
+            confidence: 0.7,
+            meta: browse.meta,
+          };
+        }
+      } catch {}
+      return { ok: false };
+    })(),
+    // Source 3: Web Price Search
+    (async () => {
+      try {
+        const web = await findWebPriceForProductV1(product);
+        if (web.ok && web.amount && Array.isArray(web.sources) && web.sources.length) {
+          return {
+            ok: true,
+            price: {
+              amount: web.amount,
+              currency: 'EUR',
+              sources: web.sources,
+              last_checked_iso: new Date().toISOString(),
+            },
+            via: 'web',
+            confidence: 0.75,
+            meta: { query: web.usedQuery, engine: web.usedEngine },
+          };
+        }
+      } catch {}
+      return { ok: false };
+    })(),
+  ]);
+
+  // Pick the best result (highest confidence)
+  const results = [serpResult, browseResult, webResult]
+    .filter((r) => r.status === 'fulfilled' && r.value.ok)
+    .map((r) => r.value)
+    .sort((a, b) => (b.confidence || 0) - (a.confidence || 0));
+
+  if (!results.length) {
+    product.notes = product.notes || {};
+    product.notes.warnings = Array.from(
+      new Set([...(product.notes.warnings || []), 'Preis konnte nicht zuverlässig ermittelt werden – bitte prüfen.'])
+    );
+    return { ok: false, updated: false, error: 'no_price_found', serpTrace };
+  }
+
+  const best = results[0];
+  product.details.pricing.lowest_price = best.price;
+  product.details.pricing.price_confidence = best.confidence;
+  product.ops = product.ops || {};
+  product.ops.data_quality = product.ops.data_quality || {};
+  product.ops.data_quality.price_enrich_v1 = {
+    at_iso: new Date().toISOString(),
+    via: best.via,
+    reason,
+    sources: (best.price.sources || []).map((s) => s?.url).filter(Boolean).slice(0, 6),
+  };
+
+  return { ok: true, updated: true, serpTrace };
+}
+
+module.exports = { enrichPriceForProductBestEffort, enrichPriceParallel };

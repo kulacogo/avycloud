@@ -11,6 +11,7 @@ import {
   fetchLabelPdfBlob,
   downloadInvoicePdfBlob,
   assignTracking,
+  printAddressLabels,
 } from "../api/client";
 import type { Order, OrderTimelineEvent, OmsStatus } from "../types";
 
@@ -266,24 +267,33 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({ orderId, onClose, onSt
                     <div className="flex items-center justify-between mb-2">
                       <h3 className="text-sm font-medium text-txt-primary">Kunde</h3>
                       {!editingAddress && (
-                        <button
-                          type="button"
-                          className="text-xs text-accent hover:text-accent/80 transition-colors"
-                          onClick={() => {
-                            setAddressForm({
-                              name: order.customer?.name || "",
-                              street: order.customer?.street || "",
-                              city: order.customer?.city || "",
-                              zip: order.customer?.zip || "",
-                              country: order.customer?.country || "",
-                              phone: order.customer?.phone || "",
-                              email: order.customer?.email || "",
-                            });
-                            setEditingAddress(true);
-                          }}
-                        >
-                          Bearbeiten
-                        </button>
+                        <div className="flex items-center gap-3">
+                          <button
+                            type="button"
+                            className="text-xs text-accent hover:text-accent/80 transition-colors"
+                            onClick={() => printAddressLabels([order.id]).catch(() => {})}
+                          >
+                            Adresslabel
+                          </button>
+                          <button
+                            type="button"
+                            className="text-xs text-accent hover:text-accent/80 transition-colors"
+                            onClick={() => {
+                              setAddressForm({
+                                name: order.customer?.name || "",
+                                street: order.customer?.street || "",
+                                city: order.customer?.city || "",
+                                zip: order.customer?.zip || "",
+                                country: order.customer?.country || "",
+                                phone: order.customer?.phone || "",
+                                email: order.customer?.email || "",
+                              });
+                              setEditingAddress(true);
+                            }}
+                          >
+                            Bearbeiten
+                          </button>
+                        </div>
                       )}
                     </div>
                     {editingAddress ? (

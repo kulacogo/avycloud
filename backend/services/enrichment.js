@@ -859,6 +859,67 @@ async function prefetchWebEvidenceForIdentify({ barcodeList = [], ocrTextSnippet
   return JSON.stringify({ locale, fetched_at: new Date().toISOString(), blocks }, null, 2);
 }
 
+/**
+ * PERF-001: Parallel version of prefetchWebEvidenceForIdentify.
+ * All queries + URL fetches run in parallel instead of sequentially.
+ * Timeout reduced from 25s to 8s per fetch.
+ * @param {{ barcodeList?: string[], ocrTextSnippets?: string[], locale?: string }} opts
+ * @returns {Promise<string|null>} JSON string with web evidence blocks
+ */
+async function prefetchWebEvidenceParallel({ barcodeList = [], ocrTextSnippets = [], locale = 'de-DE' } = {}) {
+  const queries = [];
+  barcodeList.slice(0, 3).forEach((code) => {
+    const c = String(code || '').trim();
+    if (c && c.length >= 8) queries.push(c);
+  });
+  const ocrLine = (ocrTextSnippets || []).find((l) => typeof l === 'string' && l.trim().length >= 8) || '';
+  if (ocrLine) queries.push(ocrLine.trim().slice(0, 120));
+
+  const unique = Array.from(new Set(queries)).slice(0, 3);
+  if (!unique.length) return null;
+
+  // All queries run in PARALLEL (not for...of sequential)
+  const blockPromises = unique.map(async (q) => {
+    const search = await searchWeb(q, { limit: 6, locale });
+    const urls = (search.results || []).slice(0, 4);
+
+    // All URL fetches in PARALLEL with reduced timeout (8s instead of 25s)
+    const pageResults = await Promise.allSettled(
+      urls.map(async (r) => {
+        const url = r?.url;
+        if (!url) return null;
+        const page = await fetchPageText(url, { timeoutMs: 8_000 });
+        return {
+          title: r.title || '',
+          url,
+          via: page.via,
+          status: page.status,
+          excerpt: page.ok ? String(page.text || '').slice(0, 600) : '',
+        };
+      })
+    );
+
+    const items = pageResults
+      .filter((r) => r.status === 'fulfilled' && r.value)
+      .map((r) => r.value);
+
+    return {
+      engine: search.engine,
+      query: q,
+      search_url: search.url,
+      items,
+      error: search.ok ? null : (search.error || 'search_failed'),
+    };
+  });
+
+  const blocks = await Promise.allSettled(blockPromises);
+  const successBlocks = blocks
+    .filter((r) => r.status === 'fulfilled')
+    .map((r) => r.value);
+
+  return JSON.stringify({ locale, fetched_at: new Date().toISOString(), blocks: successBlocks }, null, 2);
+}
+
 function parseModelJson(response) {
   if (response.refusal) {
     throw new Error(`Model refusal: ${response.refusal}`);
@@ -3306,6 +3367,7 @@ module.exports = {
   ensurePriceCoverage,
   runDatasheetReview,
   prefetchWebEvidenceForIdentify,
+  prefetchWebEvidenceParallel,
   applyEbayTaxonomy,
   applyKauflandTaxonomy,
   BARCODE_LIMIT_ERROR,

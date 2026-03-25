@@ -60,6 +60,16 @@
   - Root Cause: `identifyProductV2()` hat kein Timeout, Pipeline dauert 90-160s/Produkt, 9×sequentiell = 18 Min
   - Fixes: Frontend Timeout (180s), Phase-Progress im Multi-Modus, Cloud Run Timeout 600s, Parallelisierung (3 concurrent)
   - Prompt: `docs/prompts/bug-091-multi-identify-hangs-no-timeout.md`
+- [ ] **PERF-001** Identify+Improve Pipeline Overhaul — Google Search Grounding (P0)
+  - **Ansatz:** 1 Gemini-Call mit Google Search Grounding + Structured Output + Bilder statt 10 sequenzieller Steps
+  - Gemini sucht SELBST im Web (Preise, Specs, GPSR, Bilder) — kein separater BrightData/SerpAPI-Overhead
+  - `identifyProductWithGrounding()` in `gemini3-client.js` — nutzt `@google/genai` SDK (v1.44)
+  - `identify.js`: Grounding Primary, Legacy Fallback (`IDENTIFY_GROUNDING=true/false`)
+  - `improve.js`: Gleiche Grounding-Pipeline, Legacy Fallback
+  - ✅ Implementiert, 316 Tests grün, Syntax OK
+  - ⚠️ **Deploy nötig + Live-Test mit echten Produkten**
+  - Ziel: 30-50s statt 125-270s, Qualität wie Cowork-Demo
+  - Prompt: `docs/prompts/perf-001-identify-pipeline-overhaul.md`
 - [ ] **BUG-086** Improve-Pipeline extrem langsam (~90–160s) (P1)
   - 5 Bottlenecks: Bild-Download sequentiell, Barcode Web-Confirm redundant, Web Evidence 2× geprefetcht, Datasheet Review 2–3×, kein Streaming
   - Optimierungsplan: Parallel-Downloads, Evidence-Dedup, Review 1×, Steps parallelisieren, SSE → Ziel: ~25–45s
@@ -175,6 +185,7 @@
 | ~~P0~~ | ~~BUG-085 Dual-Write Duplikate (Fix A+B+C)~~ | ✅ implementiert, Deploy+Cleanup nötig |
 | ~~P0~~ | ~~BUG-090 Gruppierung Fallback bei vielen Bildern~~ | ✅ implementiert (Structured Output, Kompression, Batching), Deploy nötig |
 | ~~P0~~ | ~~BUG-091 Multi-Identify hängt (kein Timeout/Progress)~~ | ✅ implementiert (Concurrency 3, Phase-Progress, Timeout 600s), Deploy nötig |
+| **P0** | **PERF-001 Identify Pipeline Overhaul (Sub-60s)** | `docs/prompts/perf-001-identify-pipeline-overhaul.md` |
 | P0 | LLM Pipeline + Preise | `docs/prompts/fix-llm-pipeline-quality.md` |
 | P0 | 292 unsichtbare Produkte (V2 Migration) | `docs/prompts/feat-complete-products-v2-migration.md` |
 | P0 | Multi-Identify nur letztes Produkt | `docs/prompts/bug-079-multi-identify-only-last-product-saved.md` |
