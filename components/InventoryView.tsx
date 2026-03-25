@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { Product } from "../types";
-import { fetchProducts, fetchEbaySkuIndex, fetchKauflandSkuIndex } from "../api/client";
+import { fetchProducts, fetchEbaySkuIndex, fetchKauflandSkuIndex, buildImageProxyUrl } from "../api/client";
 import { Spinner } from "./Spinner";
 
 // ---------------------------------------------------------------------------
@@ -565,10 +565,15 @@ const InventoryView: React.FC<InventoryViewProps> = ({ onNavigate, onSelectProdu
                       <div className="w-10 h-10 rounded-md overflow-hidden bg-app-elevated flex items-center justify-center text-xs text-txt-muted flex-shrink-0">
                         {imgUrl ? (
                           <img
-                            src={imgUrl}
+                            src={buildImageProxyUrl(imgUrl)}
                             alt={product.identification?.name || ""}
                             className="w-full h-full object-cover"
                             loading="lazy"
+                            onError={(e) => {
+                              const el = e.currentTarget;
+                              el.style.display = "none";
+                              if (el.parentElement) el.parentElement.textContent = "—";
+                            }}
                           />
                         ) : (
                           <svg className="w-4 h-4 text-txt-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>

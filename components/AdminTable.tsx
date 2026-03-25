@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { Product, SyncStatus } from '../types';
-import { fetchProducts, getProductBulkJob, runProductBulkAction, deleteProductsBulk, openProductLabelBatchWindow, assignInventoryToProducts, uploadKTypeCsv, bulkVerifyEbayPublish, bulkPublishToEbay, fetchEbaySkuIndex, lightSyncEbayLiveListings, bulkUpdateEbayListings, fetchKauflandSkuIndex, syncKauflandListings, type ProductBulkActionName } from '../api/client';
+import { fetchProducts, getProductBulkJob, runProductBulkAction, deleteProductsBulk, openProductLabelBatchWindow, assignInventoryToProducts, uploadKTypeCsv, bulkVerifyEbayPublish, bulkPublishToEbay, fetchEbaySkuIndex, lightSyncEbayLiveListings, bulkUpdateEbayListings, fetchKauflandSkuIndex, syncKauflandListings, buildImageProxyUrl, type ProductBulkActionName } from '../api/client';
 import { SearchIcon } from './icons/Icons';
 import {
   normalizeSyncStatus,
@@ -418,19 +418,28 @@ const AdminTable: React.FC<AdminTableProps> = ({
         label: t('table.thumbnail'),
         defaultVisible: true,
         widthClass: 'w-20',
-        render: ({ product }) => (
-          <div className="w-12 h-12 rounded-md overflow-hidden bg-app-elevated flex items-center justify-center text-xs text-txt-muted">
-            {primaryImage(product) ? (
-              <img
-                src={primaryImage(product)!.url_or_base64}
-                alt={product.identification?.name || 'Produktbild'}
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              '—'
-            )}
-          </div>
-        ),
+        render: ({ product }) => {
+          const img = primaryImage(product);
+          return (
+            <div className="w-12 h-12 rounded-md overflow-hidden bg-app-elevated flex items-center justify-center text-xs text-txt-muted">
+              {img ? (
+                <img
+                  src={buildImageProxyUrl(img.url_or_base64)}
+                  alt={product.identification?.name || 'Produktbild'}
+                  className="w-full h-full object-cover"
+                  loading="lazy"
+                  onError={(e) => {
+                    const el = e.currentTarget;
+                    el.style.display = 'none';
+                    if (el.parentElement) el.parentElement.textContent = '—';
+                  }}
+                />
+              ) : (
+                '—'
+              )}
+            </div>
+          );
+        },
       },
       {
         id: 'nameBrand',
