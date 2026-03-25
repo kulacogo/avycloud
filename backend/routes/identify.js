@@ -14,6 +14,7 @@ const { ensureCategories, runDatasheetReview, prefetchWebEvidenceForIdentify, ap
 const { runSerpapiFreePipeline } = require('../services/enrichment-v2');
 const { buildProductFromV2Record } = require('../lib/v2-product-builder');
 const { runProductChat } = require('../services/product-chat');
+const { runProductChatV2 } = require('../services/product-chat-v2');
 const { buildSessionId, getSession, appendMessages, clearSession, getGeminiHistory } = require('../lib/chat-sessions');
 const { isBannedEbayBreadcrumb } = require('../lib/ebay-category-governance');
 const { findEbayCategory } = require('../lib/ebay-taxonomy');
@@ -923,14 +924,33 @@ router.post('/chat', requirePermission('ai', 'chat'), identifyLimiter, chatUploa
 
       const onProgress = (event) => writeEvent(event);
 
-      try {
-        const chatResult = await runProductChat(product, payloadMessage, {
+      // CHAT_GROUNDING: Use V2 pipeline (Google Search Grounding) with fallback to legacy
+      const chatGrounding = (process.env.CHAT_GROUNDING || 'true').toString().trim().toLowerCase();
+      const useChatV2 = chatGrounding === 'true' || chatGrounding === '1';
+
+      const runChat = async (chatFn, label) => {
+        return chatFn(product, payloadMessage, {
           modelOverride,
           attachments,
           scope: normalizedScope,
           history: conversationHistory,
           onProgress,
         });
+      };
+
+      try {
+        let chatResult;
+        if (useChatV2) {
+          try {
+            chatResult = await runChat(runProductChatV2, 'v2-grounding');
+          } catch (v2Error) {
+            console.warn('[chat] V2 grounding failed, falling back to legacy:', v2Error?.message);
+            onProgress?.({ type: 'tool_start', tool: 'fallback_legacy' });
+            chatResult = await runChat(runProductChat, 'legacy');
+          }
+        } else {
+          chatResult = await runChat(runProductChat, 'legacy');
+        }
 
         // Save messages to session (best-effort, non-blocking)
         appendMessages(sessionId, userId, productId, payloadMessage, chatResult.message || '').catch((e) => {
@@ -947,12 +967,35 @@ router.post('/chat', requirePermission('ai', 'chat'), identifyLimiter, chatUploa
     }
 
     // Sync mode (default): await full result, respond with JSON
-    const chatResult = await runProductChat(product, payloadMessage, {
-      modelOverride,
-      attachments,
-      scope: normalizedScope,
-      history: conversationHistory,
-    });
+    const chatGroundingSync = (process.env.CHAT_GROUNDING || 'true').toString().trim().toLowerCase();
+    const useChatV2Sync = chatGroundingSync === 'true' || chatGroundingSync === '1';
+
+    let chatResult;
+    if (useChatV2Sync) {
+      try {
+        chatResult = await runProductChatV2(product, payloadMessage, {
+          modelOverride,
+          attachments,
+          scope: normalizedScope,
+          history: conversationHistory,
+        });
+      } catch (v2Error) {
+        console.warn('[chat] V2 grounding failed (sync), falling back to legacy:', v2Error?.message);
+        chatResult = await runProductChat(product, payloadMessage, {
+          modelOverride,
+          attachments,
+          scope: normalizedScope,
+          history: conversationHistory,
+        });
+      }
+    } else {
+      chatResult = await runProductChat(product, payloadMessage, {
+        modelOverride,
+        attachments,
+        scope: normalizedScope,
+        history: conversationHistory,
+      });
+    }
 
     // Save messages to session (best-effort, non-blocking)
     appendMessages(sessionId, userId, productId, payloadMessage, chatResult.message || '').catch((e) => {
