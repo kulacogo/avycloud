@@ -566,7 +566,7 @@ const OrdersView: React.FC = () => {
         {/* Backfill result inline */}
         {backfillResult && (
           <div className={`rounded-lg px-3 py-2 text-xs border flex items-center justify-between ${
-            backfillResult.startsWith("Fehler") ? "border-danger/20 bg-danger-dim text-danger" : "border-success/20 bg-success-dim text-success"
+            String(backfillResult).startsWith("Fehler") ? "border-danger/20 bg-danger-dim text-danger" : "border-success/20 bg-success-dim text-success"
           }`}>
             <span>{backfillResult}</span>
             <button type="button" onClick={() => setBackfillResult(null)} className="ml-3 opacity-60 hover:opacity-100 text-base leading-none">×</button>
@@ -719,7 +719,7 @@ const OrdersView: React.FC = () => {
       {bulkResult && (
         <div
           className={`rounded-xl px-4 py-3 text-sm border ${
-            bulkResult.startsWith("Fehler") ? "border-danger/20 bg-danger-dim text-danger" : "border-success/20 bg-success-dim text-success"
+            String(bulkResult).startsWith("Fehler") ? "border-danger/20 bg-danger-dim text-danger" : "border-success/20 bg-success-dim text-success"
           }`}
         >
           {bulkResult}

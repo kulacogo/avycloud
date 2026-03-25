@@ -2277,10 +2277,10 @@ const normalizeProduct = (raw: any): Product => {
     identification: {
       ...(identificationIn as any),
       method: (identificationIn.method as any) || 'image',
-      barcodes: Array.isArray(identificationIn.barcodes) ? identificationIn.barcodes.filter(Boolean) : [],
-      name: identificationIn.name || id || '—',
-      brand: identificationIn.brand || '',
-      category: identificationIn.category || '',
+      barcodes: Array.isArray(identificationIn.barcodes) ? identificationIn.barcodes.filter(Boolean).map(String) : [],
+      name: identificationIn.name ? String(identificationIn.name) : id || '—',
+      brand: identificationIn.brand ? String(identificationIn.brand) : '',
+      category: identificationIn.category ? String(identificationIn.category) : '',
       confidence: typeof identificationIn.confidence === 'number' ? identificationIn.confidence : 0,
       sku: identificationIn.sku || undefined,
     },
@@ -2294,6 +2294,13 @@ const normalizeProduct = (raw: any): Product => {
           : {},
       identifiers: {
         ...(identifiersIn as any),
+        // Defensive: coerce all identifier fields to string (Gemini may return numbers)
+        ean: identifiersIn.ean != null ? String(identifiersIn.ean).trim() : '',
+        gtin: identifiersIn.gtin != null ? String(identifiersIn.gtin).trim() : '',
+        upc: identifiersIn.upc != null ? String(identifiersIn.upc).trim() : '',
+        isbn: identifiersIn.isbn != null ? String(identifiersIn.isbn).trim() : '',
+        mpn: identifiersIn.mpn != null ? String(identifiersIn.mpn).trim() : '',
+        sku: identifiersIn.sku != null ? String(identifiersIn.sku).trim() : '',
       },
       images,
       pricing: {

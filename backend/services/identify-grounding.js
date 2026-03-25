@@ -117,10 +117,10 @@ async function runProductIdentificationGrounding({
       key_features: Array.isArray(groundedRecord.key_features) ? groundedRecord.key_features : [],
       attributes: {},
       identifiers: {
-        ean: groundedRecord.ean || '',
-        gtin: groundedRecord.gtin || '',
-        upc: groundedRecord.upc || '',
-        mpn: groundedRecord.mpn || '',
+        ean: groundedRecord.ean != null ? String(groundedRecord.ean).trim() : '',
+        gtin: groundedRecord.gtin != null ? String(groundedRecord.gtin).trim() : '',
+        upc: groundedRecord.upc != null ? String(groundedRecord.upc).trim() : '',
+        mpn: groundedRecord.mpn != null ? String(groundedRecord.mpn).trim() : '',
       },
       images: uploadedImages.map((img) => ({
         url_or_base64: img.url,

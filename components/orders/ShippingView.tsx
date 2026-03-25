@@ -188,7 +188,7 @@ export const ShippingView: React.FC = () => {
   /* KPI computations from real data */
   const kpis = useMemo(() => {
     const today = new Date().toISOString().slice(0, 10);
-    const shippedToday = shipments.filter((s) => s.shippedAt?.startsWith(today)).length;
+    const shippedToday = shipments.filter((s) => typeof s.shippedAt === 'string' && s.shippedAt.startsWith(today)).length;
     const inTransit = shipments.filter((s) => statusToTab(s.status) === "in_zustellung").length;
     const delivered = shipments.filter((s) => statusToTab(s.status) === "zugestellt").length;
     // BUG-072 FIX: Zustellquote = zugestellt / (zugestellt + in_zustellung + problem), nicht / alle
