@@ -978,12 +978,13 @@ const AdminTable: React.FC<AdminTableProps> = ({
 
       // GPSR completeness filter
       const gpsr = p.details?.gpsr;
-      const gpsrHasName = Boolean(gpsr?.manufacturer_name?.trim());
-      const gpsrHasAddress = Boolean(gpsr?.manufacturer_address?.trim());
-      const gpsrHasCity = Boolean(gpsr?.manufacturer_city?.trim());
-      const gpsrHasPostal = Boolean(gpsr?.manufacturer_postalcode?.trim());
-      const gpsrHasCountry = Boolean(gpsr?.entity_country?.trim() || gpsr?.country_code?.trim());
-      const gpsrHasContact = Boolean(gpsr?.email?.trim() || gpsr?.manufacturer_phone?.trim());
+      const gs = (v: unknown) => (typeof v === 'string' ? v.trim() : '');
+      const gpsrHasName = Boolean(gs(gpsr?.manufacturer_name));
+      const gpsrHasAddress = Boolean(gs(gpsr?.manufacturer_address));
+      const gpsrHasCity = Boolean(gs(gpsr?.manufacturer_city));
+      const gpsrHasPostal = Boolean(gs(gpsr?.manufacturer_postalcode));
+      const gpsrHasCountry = Boolean(gs(gpsr?.entity_country) || gs(gpsr?.country_code));
+      const gpsrHasContact = Boolean(gs(gpsr?.email) || gs(gpsr?.manufacturer_phone));
       const gpsrComplete = gpsrHasName && gpsrHasAddress && gpsrHasCity && gpsrHasPostal && gpsrHasCountry && gpsrHasContact;
       const matchesGpsr =
         filterGpsr === 'all' ||
