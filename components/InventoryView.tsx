@@ -22,7 +22,7 @@ type SortDir = "asc" | "desc";
 
 const primaryImage = (product: Product): string | null => {
   const img = (product.details?.images || []).find(
-    (i) => i.url_or_base64?.startsWith("http")
+    (i) => typeof i.url_or_base64 === "string" && i.url_or_base64.startsWith("http")
   );
   return img?.url_or_base64 || null;
 };

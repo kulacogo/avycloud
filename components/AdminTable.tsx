@@ -389,7 +389,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
   };
 
   const primaryImage = (product: Product) =>
-    (product.details?.images || []).find((img) => img.url_or_base64?.startsWith('http')) || null;
+    (product.details?.images || []).find((img) => typeof img.url_or_base64 === 'string' && img.url_or_base64.startsWith('http')) || null;
   const primaryBarcode = (product: Product) => {
     const codes = product.identification?.barcodes || [];
     const ids = product.details?.identifiers || {};
