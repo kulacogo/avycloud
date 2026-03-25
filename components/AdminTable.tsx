@@ -390,8 +390,10 @@ const AdminTable: React.FC<AdminTableProps> = ({
 
   const primaryImage = (product: Product): string | null => {
     for (const img of product.details?.images || []) {
-      const src = typeof img.url_or_base64 === 'string' ? img.url_or_base64
-        : typeof img.url === 'string' ? img.url
+      const raw = (img as any).url_or_base64;
+      const src = typeof raw === 'string' ? raw
+        : raw && typeof raw === 'object' && typeof raw.url === 'string' ? raw.url
+        : typeof (img as any).url === 'string' ? (img as any).url
         : null;
       if (src && src.startsWith('http')) return src;
     }

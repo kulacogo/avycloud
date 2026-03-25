@@ -272,11 +272,11 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
     const [ocrPayload, uploadedImages] = await Promise.all([
       extractOcrPayload(files),
       Promise.all(
-        files.map(async (f) => {
+        files.map(async (f, idx) => {
           if (!f?.buffer) return null;
           try {
-            const url = await uploadImage(f.buffer, f.mimetype || 'image/jpeg');
-            return { url };
+            const result = await uploadImage(f.buffer, f.mimetype || 'image/jpeg', 'identify-uploads', `v2_${Date.now()}_${idx}`);
+            return { url: result.url, width: result.width, height: result.height };
           } catch { return null; }
         })
       ).then((results) => results.filter(Boolean)),
