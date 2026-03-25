@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { Product, SyncStatus } from '../types';
-import { fetchProducts, getProductBulkJob, runProductBulkAction, deleteProductsBulk, openProductLabelBatchWindow, assignInventoryToProducts, uploadKTypeCsv, bulkVerifyEbayPublish, bulkPublishToEbay, fetchEbaySkuIndex, lightSyncEbayLiveListings, bulkUpdateEbayListings, fetchKauflandSkuIndex, syncKauflandListings, buildImageProxyUrl, type ProductBulkActionName } from '../api/client';
+import { fetchProducts, getProductBulkJob, runProductBulkAction, deleteProductsBulk, openProductLabelBatchWindow, assignInventoryToProducts, uploadKTypeCsv, bulkVerifyEbayPublish, bulkPublishToEbay, fetchEbaySkuIndex, lightSyncEbayLiveListings, bulkUpdateEbayListings, fetchKauflandSkuIndex, syncKauflandListings, type ProductBulkActionName } from '../api/client';
 import { SearchIcon } from './icons/Icons';
 import {
   normalizeSyncStatus,
@@ -388,8 +388,15 @@ const AdminTable: React.FC<AdminTableProps> = ({
     setFilterCategorySelection(Array.from(next));
   };
 
-  const primaryImage = (product: Product) =>
-    (product.details?.images || []).find((img) => typeof img.url_or_base64 === 'string' && img.url_or_base64.startsWith('http')) || null;
+  const primaryImage = (product: Product): string | null => {
+    for (const img of product.details?.images || []) {
+      const src = typeof img.url_or_base64 === 'string' ? img.url_or_base64
+        : typeof img.url === 'string' ? img.url
+        : null;
+      if (src && src.startsWith('http')) return src;
+    }
+    return null;
+  };
   const primaryBarcode = (product: Product) => {
     const codes = product.identification?.barcodes || [];
     const ids = product.details?.identifiers || {};
@@ -419,20 +426,15 @@ const AdminTable: React.FC<AdminTableProps> = ({
         defaultVisible: true,
         widthClass: 'w-20',
         render: ({ product }) => {
-          const img = primaryImage(product);
+          const imgSrc = primaryImage(product);
           return (
             <div className="w-12 h-12 rounded-md overflow-hidden bg-app-elevated flex items-center justify-center text-xs text-txt-muted">
-              {img ? (
+              {imgSrc ? (
                 <img
-                  src={buildImageProxyUrl(img.url_or_base64)}
+                  src={imgSrc}
                   alt={product.identification?.name || 'Produktbild'}
                   className="w-full h-full object-cover"
                   loading="lazy"
-                  onError={(e) => {
-                    const el = e.currentTarget;
-                    el.style.display = 'none';
-                    if (el.parentElement) el.parentElement.textContent = '—';
-                  }}
                 />
               ) : (
                 '—'

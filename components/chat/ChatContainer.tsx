@@ -8,7 +8,7 @@ type ChatContainerProps = {
 const ChatContainer: React.FC<ChatContainerProps> = ({ children, onFilesDropped }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [isCompact, setIsCompact] = useState(false);
-  const [width, setWidth] = useState(520);
+  const [width, setWidth] = useState(640);
   const [isDragActive, setIsDragActive] = useState(false);
   const resizeStartRef = useRef<{ x: number; width: number } | null>(null);
 
@@ -20,7 +20,7 @@ const ChatContainer: React.FC<ChatContainerProps> = ({ children, onFilesDropped 
       if (compact) {
         setWidth(window.innerWidth);
       } else {
-        setWidth((prev) => Math.min(Math.max(prev, 360), 660));
+        setWidth((prev) => Math.min(Math.max(prev, 400), 960));
       }
     };
     handleResize();
@@ -32,7 +32,7 @@ const ChatContainer: React.FC<ChatContainerProps> = ({ children, onFilesDropped 
     if (!resizeStartRef.current) return;
     const { x, width: startWidth } = resizeStartRef.current;
     const delta = x - event.clientX;
-    const nextWidth = Math.min(Math.max(startWidth + delta, 360), 660);
+    const nextWidth = Math.min(Math.max(startWidth + delta, 400), 960);
     setWidth(nextWidth);
   };
 
@@ -80,7 +80,7 @@ const ChatContainer: React.FC<ChatContainerProps> = ({ children, onFilesDropped 
     <aside
       ref={containerRef}
       aria-label="KI-Assistent Chat"
-      className={`relative flex min-h-[420px] h-full flex-col overflow-hidden rounded-xl border border-app-border bg-app-bg/80 text-txt-primary ${
+      className={`relative flex h-full flex-col overflow-hidden rounded-xl border border-app-border bg-app-bg/80 text-txt-primary ${
         isDragActive ? 'ring-2 ring-accent' : ''
       }`}
       style={{

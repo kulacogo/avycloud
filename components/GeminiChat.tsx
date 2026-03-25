@@ -226,9 +226,13 @@ const sanitizeDatasheetChange = (entry: any = {}): DatasheetChange => {
 
 const cleanAssistantMessage = (raw: string) => {
   if (!raw) return '';
-  const withoutCode = raw.replace(/```[\s\S]*?```/g, ' ').replace(/`([^`]+)`/g, '$1');
-  const withoutHtml = withoutCode.replace(/<\/?[^>]+>/g, ' ');
-  return withoutHtml.replace(/\s{2,}/g, ' ').replace(/\n{3,}/g, '\n\n').trim();
+  // Remove JSON code blocks (tool output) but keep text code blocks
+  let text = raw.replace(/```json[\s\S]*?```/gi, '').replace(/```[\s\S]*?```/g, '');
+  // Strip raw HTML tags from LLM output (they render as text otherwise)
+  text = text.replace(/<\/?(?:p|ul|ol|li|strong|em|br|div|span|h[1-6])[^>]*>/gi, '');
+  // Collapse excessive whitespace
+  text = text.replace(/\n{3,}/g, '\n\n').trim();
+  return text;
 };
 
 const mapSuggestionsToAttachments = (
@@ -257,6 +261,10 @@ const TOOL_LABELS: Record<string, string> = {
   serpapi_web_search: 'Websuche',
   web_fetch: 'Seite lesen',
   update_product_datasheet: 'Änderung erstellen',
+  suggest_product_images: 'Bilder suchen',
+  generate_ai_images: 'KI-Bilder erstellen',
+  fallback_legacy: 'Fallback (Legacy)',
+  chat_complete: 'Fertig',
 };
 
 const StreamProgressLine: React.FC<{ event: StreamEvent }> = ({ event }) => {
@@ -788,27 +796,26 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
 
   return (
     <ChatContainer onFilesDropped={handleFilesAdded}>
-      <header className="flex items-center justify-between border-b border-app-border px-4 py-3 text-xs uppercase tracking-wide text-txt-muted">
-        <div className="flex items-center gap-2 text-txt-primary">
+      <header className="flex items-center justify-between border-b border-app-border/60 px-4 py-2">
+        <div className="flex items-center gap-2">
           <SparklesIcon className="h-4 w-4 text-accent" />
           <span className="font-semibold text-sm text-txt-primary">{t('chat.header.title')}</span>
-          <span className="text-[11px] text-txt-muted">{t('chat.header.subtitle')}</span>
+          <span className="text-[10px] text-txt-muted font-medium tracking-wide">{t('chat.header.subtitle')}</span>
         </div>
-        <button
-          type="button"
-          onClick={() => {
-            setInput(buildSmartPrompt());
-          }}
-          className="rounded-full border border-app-border px-3 py-1 text-[11px] text-txt-secondary hover:border-accent hover:text-txt-primary"
-          aria-label="Smarten Prompt aus Optionen erzeugen"
-          title="Erzeugt einen smarten Prompt aus den Optionen."
-        >
-          Prompt bauen
-        </button>
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={resetSession}
+            className="rounded-lg px-2 py-1 text-[11px] text-txt-muted hover:text-txt-primary hover:bg-app-elevated/60 transition-colors"
+            title="Verlauf löschen"
+          >
+            Neu
+          </button>
+        </div>
       </header>
 
-      <div className="flex flex-1 min-h-0 flex-col gap-3 px-4 py-3">
-        <div ref={chatBodyRef} role="log" aria-live="polite" aria-label="Chatverlauf" className="flex-1 min-h-0 space-y-3 overflow-y-auto pr-1">
+      <div className="flex flex-1 min-h-0 flex-col px-4 py-2">
+        <div ref={chatBodyRef} role="log" aria-live="polite" aria-label="Chatverlauf" className="flex-1 min-h-0 space-y-4 overflow-y-auto pr-1 scroll-smooth">
           {messages.map((msg) => (
             <MessageBubble
               key={msg.id}
@@ -822,12 +829,12 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
             />
           ))}
           {isStreaming && (
-            <div className="flex justify-start" role="status" aria-live="polite" aria-label="Verarbeitungsstatus">
-              <div className="rounded-2xl bg-app-elevated px-4 py-3 text-sm text-txt-secondary space-y-1 min-w-[200px]">
+            <div className="flex justify-start" role="status" aria-live="polite">
+              <div className="rounded-xl bg-app-elevated/60 border border-app-border/30 px-3 py-2 text-xs text-txt-secondary space-y-0.5 min-w-[180px]">
                 {streamEvents.length === 0 ? (
                   <div className="flex items-center gap-2">
-                    <span className="inline-block h-2 w-2 rounded-full bg-accent animate-pulse" />
-                    {t('chat.ui.thinking')}
+                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-accent animate-pulse" />
+                    <span className="text-txt-muted">{t('chat.ui.thinking')}</span>
                   </div>
                 ) : (
                   streamEvents.slice(-4).map((event, idx) => (
@@ -840,7 +847,7 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
         </div>
 
         {(pendingChanges.length > 0 || pendingImages.length > 0 || serpInsights.length > 0) && (
-          <div className="space-y-4 border-t border-app-border pt-3 text-xs text-txt-secondary">
+          <div className="space-y-2 border-t border-app-border/40 pt-2 text-xs text-txt-secondary shrink-0">
             {pendingChanges.length > 0 && (
               <details className="rounded-xl border border-app-border bg-app-bg/60">
                 <summary className="flex cursor-pointer items-center justify-between px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-txt-secondary">
@@ -958,103 +965,7 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
         )}
       </div>
 
-      <div className="space-y-3 border-t border-app-border px-4 py-4">
-        <details className="rounded-2xl border border-app-border bg-app-bg/30 p-3">
-          <summary className="cursor-pointer select-none text-[11px] font-semibold uppercase tracking-wide text-txt-secondary">
-            Assistant Optionen
-          </summary>
-          <div className="mt-3 grid grid-cols-1 gap-3">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="flex flex-wrap gap-2 text-[12px]">
-                {[
-                  ['full', 'Vollständig'],
-                  ['title', 'Nur Titel'],
-                  ['gtin', 'Nur EAN/GTIN'],
-                  ['gpsr', 'Nur GPSR'],
-                  ['images', 'Nur Web-Bilder'],
-                  ['pricing', 'Preischeck'],
-                  ['category', 'Kategorie + Pflichtattribute'],
-                ].map(([key, label]) => (
-                  <button
-                    key={key}
-                    type="button"
-                    onClick={() => applyPromptScene(String(key))}
-                    className="rounded-full border border-app-border bg-app-bg/40 px-3 py-1 text-txt-secondary hover:border-accent hover:text-txt-primary"
-                    title="Setzt nur die Optionen (kein starrer Prompt)."
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  const smart = buildSmartPrompt();
-                  setInput(smart);
-                }}
-                className="rounded-full bg-app-surface px-3 py-1 text-[12px] text-txt-secondary hover:bg-app-elevated/60"
-                title="Schreibt den smarten Prompt in die Eingabe."
-              >
-                Vorschau in Eingabe
-              </button>
-            </div>
-
-            <div className="flex flex-wrap gap-2 text-[12px]">
-              {[
-                ['title', 'Titel'],
-                ['attributes', 'Attribute'],
-                ['highlights', 'Highlights'],
-                ['description', 'Beschreibung'],
-                ['pricing', 'Preis'],
-                ['gtin', 'EAN/GTIN'],
-                ['images', 'Web-Bilder'],
-                ['gpsr', 'GPSR'],
-                ['category', 'Kategorie'],
-              ].map(([key, label]) => (
-                <label
-                  key={key}
-                  className="inline-flex items-center gap-2 rounded-full border border-app-border bg-app-bg/40 px-3 py-1 text-txt-secondary hover:border-accent"
-                >
-                  <input
-                    type="checkbox"
-                    checked={(promptConfig as any)[key]}
-                    onChange={(e) => setPromptConfig((prev) => ({ ...prev, [key]: e.target.checked } as any))}
-                  />
-                  {label}
-                </label>
-              ))}
-            </div>
-
-            <div className="flex flex-wrap gap-2 text-[12px]">
-              <label className="inline-flex items-center gap-2 rounded-full border border-app-border bg-app-bg/40 px-3 py-1 text-txt-secondary hover:border-accent">
-                Fetch-Seiten
-                <select
-                  value={promptConfig.maxPagesToFetch}
-                  onChange={(e) => setPromptConfig((prev) => ({ ...prev, maxPagesToFetch: Number(e.target.value) }))}
-                  className="rounded-lg bg-app-surface px-2 py-1 text-txt-secondary"
-                >
-                  <option value={1}>1</option>
-                  <option value={2}>2</option>
-                  <option value={3}>3</option>
-                  <option value={4}>4</option>
-                  <option value={5}>5</option>
-                </select>
-              </label>
-              <button
-                type="button"
-                onClick={() => {
-                  const smart = buildSmartPrompt();
-                  void handleSend(smart, derivedScope);
-                }}
-                disabled={isStreaming}
-                className="rounded-full bg-accent px-3 py-1 text-[12px] font-semibold text-txt-primary hover:bg-accent/80 disabled:opacity-50 disabled:cursor-wait"
-              >
-                Jetzt ausführen
-              </button>
-            </div>
-          </div>
-        </details>
-
+      <div className="border-t border-app-border/60 px-4 py-3">
         <ChatInput
           value={input}
           onChange={(v) => {

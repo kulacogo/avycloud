@@ -844,18 +844,22 @@ async function runProductChatV2(product, userMessage, {
           toolResult = { error: `Unknown tool: ${name}` };
         }
 
-        // Build function response part for @google/genai SDK
+        // Build function response part — must match @google/genai SDK format
         functionResponseParts.push({
           functionResponse: {
-            id: call.id || name,
             name: name,
             response: toolResult,
           },
         });
       }
 
-      // Send function responses back to model
-      response = await chat.sendMessage({ message: functionResponseParts });
+      // Send function responses back to model — SDK requires Content object with role
+      response = await chat.sendMessage({
+        message: {
+          role: 'user',
+          parts: functionResponseParts,
+        },
+      });
       responseText = response.text || '';
       functionCalls = response.functionCalls;
 

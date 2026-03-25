@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { Product } from "../types";
-import { fetchProducts, fetchEbaySkuIndex, fetchKauflandSkuIndex, buildImageProxyUrl } from "../api/client";
+import { fetchProducts, fetchEbaySkuIndex, fetchKauflandSkuIndex } from "../api/client";
 import { Spinner } from "./Spinner";
 
 // ---------------------------------------------------------------------------
@@ -21,10 +21,13 @@ type SortDir = "asc" | "desc";
 // ---------------------------------------------------------------------------
 
 const primaryImage = (product: Product): string | null => {
-  const img = (product.details?.images || []).find(
-    (i) => typeof i.url_or_base64 === "string" && i.url_or_base64.startsWith("http")
-  );
-  return img?.url_or_base64 || null;
+  for (const img of product.details?.images || []) {
+    const src = typeof (img as any).url_or_base64 === "string" ? (img as any).url_or_base64
+      : typeof (img as any).url === "string" ? (img as any).url
+      : null;
+    if (src && src.startsWith("http")) return src;
+  }
+  return null;
 };
 
 const getBinCode = (product: Product): string | null => {
@@ -565,7 +568,7 @@ const InventoryView: React.FC<InventoryViewProps> = ({ onNavigate, onSelectProdu
                       <div className="w-10 h-10 rounded-md overflow-hidden bg-app-elevated flex items-center justify-center text-xs text-txt-muted flex-shrink-0">
                         {imgUrl ? (
                           <img
-                            src={buildImageProxyUrl(imgUrl)}
+                            src={imgUrl}
                             alt={product.identification?.name || ""}
                             className="w-full h-full object-cover"
                             loading="lazy"
