@@ -45,6 +45,8 @@ const { fetchCategoryTitleInsights } = require('../lib/ebay-browse-title-insight
 const { decodeHtmlEntitiesDeep } = require('../lib/html-entities');
 
 const MAX_CHAT_ITERATIONS = 8;
+const MAX_PRODUCT_IMAGE_PARTS = 4;
+const PRODUCT_IMAGE_TIMEOUT_MS = parseInt(process.env.CHAT_IMAGE_TIMEOUT_MS || '8000', 10);
 
 // ---------------------------------------------------------------------------
 // Helpers (shared with legacy, inlined here to keep the file self-contained)
@@ -423,6 +425,49 @@ function normalizeChatAttachments(attachments = []) {
 }
 
 // ---------------------------------------------------------------------------
+// Fetch product images as inline parts for Gemini vision
+// ---------------------------------------------------------------------------
+
+async function fetchProductImageParts(product) {
+  const images = Array.isArray(product?.details?.images) ? product.details.images : [];
+  const candidates = images
+    .filter((img) => typeof img?.url_or_base64 === 'string' && img.url_or_base64.startsWith('http'))
+    .slice(0, MAX_PRODUCT_IMAGE_PARTS);
+  if (!candidates.length) return [];
+
+  const results = await Promise.all(
+    candidates.map(async (img) => {
+      const url = img.url_or_base64;
+      try {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), PRODUCT_IMAGE_TIMEOUT_MS);
+        const res = await fetch(url, {
+          signal: controller.signal,
+          headers: { Accept: 'image/*,*/*;q=0.8' },
+        });
+        clearTimeout(timer);
+        if (!res.ok) return null;
+        const contentType = res.headers.get('content-type') || 'image/jpeg';
+        if (!contentType.startsWith('image/')) return null;
+        const arrayBuf = await res.arrayBuffer();
+        const buf = Buffer.from(arrayBuf);
+        if (buf.length < 500 || buf.length > 10_000_000) return null;
+        return {
+          inlineData: {
+            data: buf.toString('base64'),
+            mimeType: contentType.split(';')[0].trim(),
+          },
+        };
+      } catch (err) {
+        console.warn(`[chat-v2] Failed to fetch product image ${url}: ${err.message}`);
+        return null;
+      }
+    })
+  );
+  return results.filter(Boolean);
+}
+
+// ---------------------------------------------------------------------------
 // Sanitization (reused from legacy — simplified)
 // ---------------------------------------------------------------------------
 
@@ -679,11 +724,14 @@ async function runProductChatV2(product, userMessage, {
     // Never block chat
   }
 
-  // Title insights
-  const titleInsights = await loadTitleInsights(product, {
-    limit: Number(process.env.CHAT_TITLE_INSIGHTS_LIMIT) || 80,
-    maxTokens: Number(process.env.CHAT_TITLE_INSIGHTS_MAX_TOKENS) || 8,
-  });
+  // Title insights + product image download (parallel)
+  const [titleInsights, productImageParts] = await Promise.all([
+    loadTitleInsights(product, {
+      limit: Number(process.env.CHAT_TITLE_INSIGHTS_LIMIT) || 80,
+      maxTokens: Number(process.env.CHAT_TITLE_INSIGHTS_MAX_TOKENS) || 8,
+    }),
+    fetchProductImageParts(product),
+  ]);
   const titleHintTokens = titleInsights?.topTokens || [];
 
   // Attachments
@@ -715,33 +763,27 @@ async function runProductChatV2(product, userMessage, {
     },
   ];
 
+  // Combine product images + user-uploaded attachments
+  const allImageParts = [...productImageParts, ...attachmentPayload.imageParts];
+
   // Build conversation history for the chat
-  // Product context as first turn, then previous conversation, then image attachments
+  // Product context + product images as first turn, then previous conversation
   const chatHistory = [
     {
       role: 'user',
-      parts: [{ text: `Produktkontext:\n${JSON.stringify(productContext, null, 2)}` }],
+      parts: [
+        { text: `Produktkontext:\n${JSON.stringify(productContext, null, 2)}` },
+        ...(allImageParts.length ? [{ text: `\n\nProduktbilder (${allImageParts.length} Stück) — nutze diese für Farbe, Material, Design und andere visuelle Merkmale:` }, ...allImageParts] : []),
+      ],
     },
     {
       role: 'model',
-      parts: [{ text: 'Verstanden. Ich habe den kompletten Produktkontext und kann loslegen.' }],
+      parts: [{ text: allImageParts.length
+        ? `Verstanden. Ich habe den Produktkontext und ${allImageParts.length} Produktbild(er) analysiert.`
+        : 'Verstanden. Ich habe den kompletten Produktkontext und kann loslegen.' }],
     },
     // Previous conversation turns
     ...(Array.isArray(history) ? history : []),
-    // Image attachments
-    ...(attachmentPayload.imageParts.length ? [
-      {
-        role: 'user',
-        parts: [
-          { text: 'Referenzbilder des Produkts:' },
-          ...attachmentPayload.imageParts,
-        ],
-      },
-      {
-        role: 'model',
-        parts: [{ text: 'Bilder empfangen und analysiert.' }],
-      },
-    ] : []),
   ];
 
   // Create chat session
@@ -781,7 +823,7 @@ async function runProductChatV2(product, userMessage, {
     onProgress?.({ type: 'start', text: 'Starte Analyse…' });
 
     // Diagnostic: log chat setup before first API call
-    console.log(`[chat-v2] model=${modelName}, historyLen=${chatHistory.length}, toolsCount=${tools.length}, scopeLen=${(messageText || '').length}`);
+    console.log(`[chat-v2] model=${modelName}, historyLen=${chatHistory.length}, toolsCount=${tools.length}, productImages=${productImageParts.length}, userAttachments=${attachmentPayload.imageParts.length}, scopeLen=${(messageText || '').length}`);
 
     // Send initial message
     let response;
