@@ -254,9 +254,11 @@ DEIN VERHALTEN:
 
 TOOLS:
 - Google Search: Steht dir automatisch zur Verfügung. Nutze es für Datenblätter, Preise, GPSR, Spezifikationen, Bilder.
-- update_product_datasheet: Rufe es auf wenn du Produktdaten ändern willst. IMMER mit Begründung (summary).
+- update_product_datasheet: PFLICHT wenn du Produktdaten ändern willst. IMMER aufrufen — beschreibe Änderungen NIE nur im Text ohne Tool-Call. IMMER mit Begründung (summary). Ohne Tool-Call werden Änderungen NICHT gespeichert.
 - suggest_product_images: Nutze es für Web-Produktbilder.
 - generate_ai_images: NUR wenn der User explizit KI-Bilder will.
+
+KRITISCH: Wenn du Verbesserungen vorschlägst, MUSST du update_product_datasheet aufrufen. Text allein reicht nicht — der User kann nur Tool-Ergebnisse über "Übernehmen" anwenden. Ohne Tool-Call = keine Übernahme möglich.
 
 QUALITÄT:
 - Titel: 70–80 Zeichen, suchmaschinenoptimiert. Marke + Produkttyp + Kernmerkmal zuerst. Keine Marketing-Floskeln, keine EAN/GTIN/SKU.
@@ -858,6 +860,8 @@ async function runProductChatV2(product, userMessage, {
     let responseText = response.text || '';
     let functionCalls = response.functionCalls;
 
+    console.log(`[chat-v2] initial response: textLen=${responseText.length}, functionCalls=${functionCalls?.length || 0}, candidates=${response?.candidates?.length || 0}`);
+
     // Extract grounding metadata from response
     extractGroundingMetadata(response, groundingTrace);
 
@@ -948,6 +952,11 @@ async function runProductChatV2(product, userMessage, {
     // Build final result
     const consolidatedChange = consolidateChanges(datasheetChanges);
     const finalDatasheetChanges = consolidatedChange ? [consolidatedChange] : [];
+
+    console.log(`[chat-v2] done: iterations=${iterations}, datasheetChanges=${datasheetChanges.length}, consolidated=${finalDatasheetChanges.length}, images=${imageSuggestions.length}, textLen=${responseText.length}`);
+    if (!finalDatasheetChanges.length && responseText.length > 200) {
+      console.warn('[chat-v2] WARNING: Long response text but NO datasheet changes — Gemini may have skipped update_product_datasheet tool call');
+    }
 
     // eBay readiness check
     const ebayReadiness = evaluateReadiness(product, finalDatasheetChanges);

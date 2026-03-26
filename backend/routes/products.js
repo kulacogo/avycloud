@@ -1631,7 +1631,7 @@ router.post('/save', requirePermission('products', 'write'), async (req, res) =>
         const image = product.details.images[i];
 
         // Only process base64 images
-        if (image.url_or_base64 && image.url_or_base64.startsWith('data:')) {
+        if (typeof image.url_or_base64 === 'string' && image.url_or_base64.startsWith('data:')) {
           try {
             const variant = image.variant || `image_${i}`;
             const uploadResult = await uploadBase64Image(image.url_or_base64, product.id, variant);
