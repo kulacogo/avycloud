@@ -745,10 +745,15 @@ async function runProductChatV2(product, userMessage, {
   ];
 
   // Create chat session
+  // toolConfig.includeServerSideToolInvocations is REQUIRED when combining
+  // built-in tools (googleSearch) with custom functionDeclarations.
   const chat = ai.chats.create({
     model: modelName,
     config: {
       tools,
+      toolConfig: {
+        includeServerSideToolInvocations: true,
+      },
       systemInstruction: systemPromptText,
       temperature: 0.3,
       maxOutputTokens: 4096,
