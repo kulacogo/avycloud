@@ -482,11 +482,29 @@ function sanitizeDatasheetChangeV2(entry, product, { scope = null, titleHintToke
     change.summary = entry.summary.trim().slice(0, 500);
   }
 
-  // Title
+  // Title — coerce against a preview product that includes proposed attribute/identity
+  // changes from this same LLM turn, so color/category corrections are reflected.
   let titleCandidate = safeString(entry.title || entry?.identity?.name || entry?.identity?.title);
   if (titleCandidate) {
-    // Enforce title policy
-    const coerced = coerceTitleToPolicy(product, titleCandidate, {
+    const preview = JSON.parse(JSON.stringify(product));
+    // Apply proposed identity changes (category, brand)
+    if (entry.identity) {
+      preview.identification = preview.identification || {};
+      if (entry.identity.category) preview.identification.category = safeString(entry.identity.category);
+      if (entry.identity.brand) preview.identification.brand = safeString(entry.identity.brand);
+    }
+    // Apply proposed attribute changes (Farbe, Größe, Material, etc.)
+    if (Array.isArray(entry.attributes) && entry.attributes.length) {
+      preview.details = preview.details || {};
+      preview.details.attributes = preview.details.attributes || {};
+      entry.attributes.forEach((attr) => {
+        if (!attr?.key) return;
+        const key = safeString(attr.key);
+        const value = safeString(typeof attr.value === 'string' ? attr.value : String(attr.value ?? ''));
+        if (key && value) preview.details.attributes[key] = value;
+      });
+    }
+    const coerced = coerceTitleToPolicy(preview, titleCandidate, {
       minLen: 30,
       maxLen: 80,
       softMaxLen: 80,
