@@ -771,7 +771,10 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
       setAttachmentDrafts([]);
 
       const payloadMessage = trimmedInput || 'Bitte analysiere die angehängten Dateien.';
-      const scope = scopeOverride ?? derivedScope;
+      // Quick prompts provide an explicit scope; free-text messages should not
+      // restrict which fields Gemini is allowed to change so the user can ask
+      // for anything (e.g. "Kategorie korrigieren") without scope blocking it.
+      const scope = scopeOverride !== undefined ? scopeOverride : (predefinedMessage ? derivedScope : null);
 
       try {
         const data = await chatSend({

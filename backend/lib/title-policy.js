@@ -1325,11 +1325,14 @@ function buildTitlePlanBySchema(product, schemaId, { proposedTitle = '' } = {}) 
     inferProductTypeFromEvidenceText(product?.details?.short_description, { brand }) ||
     inferProductTypeFromEvidenceText(evidenceCorpus, { brand });
   const categoryLeafTrusted = isCategoryLeafSupportedByEvidence(categoryLeafRaw, evidenceCorpus);
+  // Use untrusted category leaf only if no evidence-based type was found AND the leaf is
+  // at least plausible (shares a word with the evidence corpus).  When the category is
+  // clearly wrong (e.g. "Damenkrawatten" for a Rucksack) we drop it entirely — a missing
+  // product type is better than a misleading one in the title.
   const productTypeRaw =
     explicitProductType ||
     (categoryLeafTrusted ? categoryLeafRaw : '') ||
-    evidenceProductType ||
-    categoryLeafRaw;
+    evidenceProductType;
   const productTypeBase = normalizeTitleToken(productTypeRaw);
 
   const mpn =
