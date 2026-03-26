@@ -1019,7 +1019,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
     const rawFeatures = Array.isArray(localProduct.details?.key_features)
       ? localProduct.details.key_features
       : [];
-    const primary = rawFeatures.map((feature) => feature?.trim()).filter(Boolean);
+    const primary = rawFeatures.map((feature) => (typeof feature === 'string' ? feature.trim() : '')).filter(Boolean);
     const unique = Array.from(new Set(primary));
 
     const addExtra = (text?: string | null) => {
@@ -1049,7 +1049,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
   ]);
 
   const descriptionText = useMemo(() => {
-    const raw = (localProduct.details?.short_description || '').trim();
+    const raw = String(localProduct.details?.short_description || '').trim();
     if (raw) {
       return raw;
     }
