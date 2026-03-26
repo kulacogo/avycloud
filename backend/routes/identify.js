@@ -944,8 +944,10 @@ router.post('/chat', requirePermission('ai', 'chat'), identifyLimiter, chatUploa
           try {
             chatResult = await runChat(runProductChatV2, 'v2-grounding');
           } catch (v2Error) {
-            console.warn('[chat] V2 grounding failed, falling back to legacy:', v2Error?.message);
-            onProgress?.({ type: 'tool_start', tool: 'fallback_legacy' });
+            const v2Msg = v2Error?.message || String(v2Error);
+            console.warn('[chat] V2 grounding failed, falling back to legacy:', v2Msg);
+            console.error('[chat] V2 full error:', v2Error);
+            onProgress?.({ type: 'tool_start', tool: 'fallback_legacy', error: v2Msg });
             chatResult = await runChat(runProductChat, 'legacy');
           }
         } else {

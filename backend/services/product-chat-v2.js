@@ -775,8 +775,21 @@ async function runProductChatV2(product, userMessage, {
   try {
     onProgress?.({ type: 'start', text: 'Starte Analyse…' });
 
+    // Diagnostic: log chat setup before first API call
+    console.log(`[chat-v2] model=${modelName}, historyLen=${chatHistory.length}, toolsCount=${tools.length}, scopeLen=${(messageText || '').length}`);
+
     // Send initial message
-    let response = await chat.sendMessage({ message: messageText });
+    let response;
+    try {
+      response = await chat.sendMessage({ message: messageText });
+    } catch (sendError) {
+      console.error(`[chat-v2] sendMessage FAILED:`, sendError?.message || sendError);
+      console.error(`[chat-v2] sendMessage status:`, sendError?.status, 'code:', sendError?.code);
+      if (sendError?.response) {
+        try { console.error(`[chat-v2] API response body:`, JSON.stringify(sendError.response).slice(0, 1000)); } catch {}
+      }
+      throw sendError;
+    }
     let responseText = response.text || '';
     let functionCalls = response.functionCalls;
 

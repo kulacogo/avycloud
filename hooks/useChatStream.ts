@@ -11,7 +11,7 @@ export type StreamEventType =
 
 export type StreamEvent =
   | { type: 'start'; text: string }
-  | { type: 'tool_start'; tool: string; query?: string; url?: string }
+  | { type: 'tool_start'; tool: string; query?: string; url?: string; error?: string }
   | { type: 'tool_done'; tool: string; count?: number; status?: number; fields?: number }
   | { type: 'result'; data: ChatAssistantPayload; model?: string }
   | { type: 'done' }

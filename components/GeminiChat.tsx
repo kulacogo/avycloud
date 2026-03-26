@@ -297,10 +297,14 @@ const StreamProgressLine: React.FC<{ event: StreamEvent }> = ({ event }) => {
   if (event.type === 'tool_start') {
     const label = TOOL_LABELS[event.tool] || event.tool;
     const detail = event.query || event.url || '';
+    const errorMsg = (event as any).error || '';
     return (
-      <div className="flex items-center gap-2 text-txt-secondary">
-        <span className="inline-block h-2 w-2 rounded-full bg-amber-400 animate-pulse" />
-        <span>{label}{detail ? <span className="ml-1 text-txt-muted truncate max-w-[180px] inline-block align-bottom">"{detail}"</span> : null}</span>
+      <div className="flex flex-col gap-0.5">
+        <div className="flex items-center gap-2 text-txt-secondary">
+          <span className={`inline-block h-2 w-2 rounded-full ${errorMsg ? 'bg-danger' : 'bg-amber-400'} animate-pulse`} />
+          <span>{label}{detail ? <span className="ml-1 text-txt-muted truncate max-w-[180px] inline-block align-bottom">&quot;{detail}&quot;</span> : null}</span>
+        </div>
+        {errorMsg && <p className="text-[10px] text-danger/80 pl-4 break-all">{errorMsg}</p>}
       </div>
     );
   }
@@ -481,7 +485,9 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
   const productImageKeys = useMemo(() => {
     const keys = new Set<string>();
     (product?.details?.images || []).forEach((img) => {
-      const key = normalizeImageKey(img?.url_or_base64);
+      const raw = img?.url_or_base64;
+      const src = typeof raw === 'string' ? raw : raw && typeof raw === 'object' && typeof raw.url === 'string' ? raw.url : null;
+      const key = normalizeImageKey(src);
       if (key) keys.add(key);
     });
     return keys;
