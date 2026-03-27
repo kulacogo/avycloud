@@ -83,10 +83,49 @@ async function getAllProductsV2(queryFn) {
   return snap.docs.map(d => ({ id: d.id, ...d.data() }));
 }
 
+/**
+ * Lookup product weight by SKU or EAN.
+ * Returns weight in kg (number) or null if not found / no weight.
+ *
+ * @param {string|null} sku
+ * @param {string|null} ean
+ * @returns {Promise<number|null>}
+ */
+async function getProductWeightBySku(sku, ean) {
+  if (!sku && !ean) return null;
+
+  const col = firestore.collection(getCollection());
+  let product = null;
+
+  // 1. Try SKU
+  if (sku) {
+    const snap = await col.where('identification.sku', '==', sku).limit(1).get();
+    if (!snap.empty) product = snap.docs[0].data();
+  }
+
+  // 2. Fallback: EAN via identification.barcodes
+  if (!product && ean) {
+    const snap = await col.where('identification.barcodes', 'array-contains', ean).limit(1).get();
+    if (!snap.empty) product = snap.docs[0].data();
+  }
+
+  if (!product) return null;
+
+  // Extract weight with fallback chain
+  const w = product.details?.weight
+    ?? product.details?.attributes?.weight
+    ?? product.details?.attributes?.['Gewicht (kg)']
+    ?? product.details?.attributes?.['Gewicht']
+    ?? null;
+
+  return (typeof w === 'number' && w > 0) ? w : null;
+}
+
 module.exports = {
   saveProductV2,
   getProductV2,
   getAllProductsV2,
+  getProductWeightBySku,
   getCollection,
   COLLECTION,
   V2_COLLECTION,
