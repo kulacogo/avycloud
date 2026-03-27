@@ -283,18 +283,26 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
       ).then((results) => results.filter(Boolean)),
     ]);
 
+    // Explicit barcodes from the request (per-group specific)
+    const explicitBarcodes = barcodes ? barcodes.split(/[\s,;|]+/).filter(Boolean) : [];
+    // All barcodes including OCR (for grounding pipeline identification)
     const mergedBarcodes = [
       ...new Set([
-        ...(barcodes ? barcodes.split(/[\s,;|]+/).filter(Boolean) : []),
+        ...explicitBarcodes,
         ...(ocrPayload.barcodes || []),
       ]),
     ];
 
     // 2) Stock protection: check if product already exists
-    const existing = await findProductByStrictIdentifier({
-      barcodes: mergedBarcodes.slice(0, 8),
-      sku: null,
-    });
+    //    ONLY use explicit per-group barcodes, NOT OCR barcodes.
+    //    OCR extracts ALL barcodes from ALL images — in multi-product scenarios
+    //    (e.g. 5 products in 3 images) this would match unrelated products.
+    const existing = explicitBarcodes.length
+      ? await findProductByStrictIdentifier({
+          barcodes: explicitBarcodes.slice(0, 8),
+          sku: null,
+        })
+      : null;
     if (existing?.id) {
       try { await adjustPendingIntakeQuantity(existing.id, 1); } catch {}
       if (paletteCode) {
@@ -461,10 +469,12 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
         console.log(`[identify] Grounding pipeline complete for ${productId}`);
 
         // Post-grounding duplicate check with AI-resolved identifiers
+        //    Use explicit barcodes + AI-resolved identifiers, NOT OCR barcodes
+        //    (OCR sees all barcodes from shared images in multi-product scenarios)
         const groundedBarcodes = [
           groundedRecord.ean, groundedRecord.gtin, groundedRecord.upc,
         ].filter(Boolean).map((c) => String(c).trim()).filter(Boolean);
-        const allBarcodes = [...new Set([...mergedBarcodes, ...groundedBarcodes])].slice(0, 12);
+        const allBarcodes = [...new Set([...explicitBarcodes, ...groundedBarcodes])].slice(0, 12);
         const groundedSku = groundedRecord.sku && typeof groundedRecord.sku === 'string'
           && groundedRecord.sku.trim().toLowerCase() !== 'unknown'
           ? groundedRecord.sku.trim() : null;

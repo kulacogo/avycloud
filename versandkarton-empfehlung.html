@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AvyCloud — Versandkarton-Empfehlung</title>
+<style>
+  :root {
+    --bg: #0f172a; --surface: #1e293b; --border: #334155;
+    --text: #e2e8f0; --muted: #94a3b8; --accent: #38bdf8;
+    --green: #4ade80; --orange: #fb923c; --red: #f87171;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg); color: var(--text); padding: 2rem; line-height: 1.6; }
+  h1 { font-size: 1.75rem; margin-bottom: 0.25rem; }
+  h2 { font-size: 1.25rem; color: var(--accent); margin: 2rem 0 1rem; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem; }
+  h3 { font-size: 1rem; color: var(--muted); margin: 1.5rem 0 0.5rem; }
+  .subtitle { color: var(--muted); margin-bottom: 2rem; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; margin-bottom: 1rem; }
+  .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; }
+  .card-title { font-weight: 700; font-size: 1.1rem; }
+  .badge { padding: 0.2rem 0.6rem; border-radius: 6px; font-size: 0.75rem; font-weight: 600; }
+  .badge-xs { background: #164e63; color: #67e8f9; }
+  .badge-s { background: #1e3a5f; color: var(--accent); }
+  .badge-m { background: #3b2f1e; color: var(--orange); }
+  .badge-l { background: #3b1e1e; color: var(--red); }
+  .badge-xl { background: #2d1b3e; color: #c084fc; }
+  .dims { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.5px; margin-bottom: 0.5rem; }
+  .dims small { font-size: 0.85rem; color: var(--muted); font-weight: 400; }
+  .meta { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-bottom: 0.75rem; }
+  .meta-item { font-size: 0.85rem; }
+  .meta-label { color: var(--muted); }
+  .products-list { list-style: none; padding: 0; }
+  .products-list li { padding: 0.3rem 0; font-size: 0.9rem; border-bottom: 1px solid var(--border); }
+  .products-list li:last-child { border-bottom: none; }
+  .products-list li::before { content: "→ "; color: var(--accent); }
+  table { width: 100%; border-collapse: collapse; margin: 1rem 0; }
+  th, td { padding: 0.6rem 0.8rem; text-align: left; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
+  th { color: var(--muted); font-weight: 600; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; }
+  .note { background: #1a2744; border-left: 3px solid var(--accent); padding: 1rem; border-radius: 0 8px 8px 0; margin: 1rem 0; font-size: 0.9rem; }
+  .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin: 1rem 0; }
+  .summary-item { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1rem; text-align: center; }
+  .summary-number { font-size: 2rem; font-weight: 700; color: var(--accent); }
+  .summary-label { font-size: 0.8rem; color: var(--muted); }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .link-btn { display: inline-block; background: #0c4a6e; color: var(--accent); padding: 0.4rem 1rem; border-radius: 6px; font-size: 0.85rem; margin-top: 0.5rem; }
+</style>
+</head>
+<body>
+
+<h1>Versandkarton-Empfehlung für AvyCloud</h1>
+<p class="subtitle">Basierend auf Produktkategorien, Gewichtsbereichen und Carrier-Routing · Stand: 27.03.2026</p>
+
+<div class="summary-grid">
+  <div class="summary-item"><div class="summary-number">5</div><div class="summary-label">Kartongrößen empfohlen</div></div>
+  <div class="summary-item"><div class="summary-number">6+</div><div class="summary-label">Produktkategorien abgedeckt</div></div>
+  <div class="summary-item"><div class="summary-number">0,5 – 31,5 kg</div><div class="summary-label">Gewichtsspanne im Shipping Engine</div></div>
+  <div class="summary-item"><div class="summary-number">DHL + DPD</div><div class="summary-label">Carrier im Einsatz</div></div>
+</div>
+
+<h2>1. Datenbasis: Artikelgruppen in AvyCloud</h2>
+
+<p>AvyCloud speichert <strong>keine expliziten Artikelmaße</strong> (L×B×H) — nur Gewicht wird (teilweise) erfasst. Die Shipping Engine routet rein gewichtsbasiert. Die folgenden Schätzungen basieren auf den identifizierten Produktkategorien und marktüblichen Abmessungen.</p>
+
+<table>
+  <thead>
+    <tr><th>Kategorie</th><th>Beispielartikel</th><th>Geschätztes Maß (cm)</th><th>Geschätztes Gewicht</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Textilien (einzeln)</td><td>T-Shirts, Hemden, Pullover</td><td>25 × 20 × 5–10</td><td>0,3 – 0,8 kg</td></tr>
+    <tr><td>Schuhe / Sneaker</td><td>Sneaker, Stiefel</td><td>35 × 25 × 15</td><td>0,8 – 1,5 kg</td></tr>
+    <tr><td>Kleinteile / Elektronik</td><td>Toner, Dexcom-Sensoren, Stifte, Bücher</td><td>20 × 15 × 10</td><td>0,3 – 2 kg</td></tr>
+    <tr><td>Mittlere Waren</td><td>Dutch Oven, Werkzeugsets, Wok, Topf-Sets</td><td>40 × 35 × 25</td><td>2 – 8 kg</td></tr>
+    <tr><td>Auto-/Fahrradteile</td><td>Außenspiegel, Radlagersatz</td><td>40 × 30 × 20</td><td>1 – 5 kg</td></tr>
+    <tr><td>Große Artikel</td><td>Campingliege, Standregal, Ventilator, Roller</td><td>60 × 45 × 35</td><td>5 – 15 kg</td></tr>
+    <tr><td>Übergroße Artikel</td><td>Hochstuhl, Hagelschutzplane</td><td>70 × 50 × 40+</td><td>8 – 25 kg</td></tr>
+  </tbody>
+</table>
+
+<h2>2. Größencluster → 5 Kartongrößen</h2>
+
+<p>Ziel: Mit möglichst wenigen verschiedenen Kartons alle Artikelgruppen abdecken und gleichzeitig die DHL/DPD-Gewichtsklassen optimal nutzen (kein Übergepäck, kein Luftversand).</p>
+
+<!-- Karton XS -->
+<div class="card">
+  <div class="card-header">
+    <span class="card-title">Karton XS — Kleinteile & Textilien (einzeln)</span>
+    <span class="badge badge-xs">DHL Kleinpaket ≤ 1 kg</span>
+  </div>
+  <div class="dims">250 × 175 × 100 mm <small>(Innenmaß)</small></div>
+  <div class="meta">
+    <div class="meta-item"><span class="meta-label">Wellung:</span> 1-wellig</div>
+    <div class="meta-item"><span class="meta-label">Carrier-Klasse:</span> DHL Kleinpaket (€ 3,19)</div>
+    <div class="meta-item"><span class="meta-label">Preis ab:</span> € 0,14 netto/Stk. (ab 16.800 Stk.)</div>
+    <div class="meta-item"><span class="meta-label">Gurtmaß:</span> ca. 105 cm ✓</div>
+  </div>
+  <strong>Passt für:</strong>
+  <ul class="products-list">
+    <li>Einzelne T-Shirts, Hemden (gefaltet)</li>
+    <li>Tonerpatronen, Dexcom-Sensoren</li>
+    <li>Bücher, Schreibwaren, Fasermaler</li>
+    <li>Kleine Ersatzteile (Radlagersatz etc.)</li>
+  </ul>
+  <a class="link-btn" href="https://www.bb-verpackungsshop.de/Faltkarton-250-x-175-x-100-mm" target="_blank">→ Zum Produkt auf bb-verpackungsshop.de</a>
+</div>
+
+<!-- Karton S -->
+<div class="card">
+  <div class="card-header">
+    <span class="card-title">Karton S — Schuhe & mittlere Textilien</span>
+    <span class="badge badge-s">DHL Paket ≤ 2 kg / DPD S</span>
+  </div>
+  <div class="dims">300 × 200 × 200 mm <small>(Innenmaß)</small></div>
+  <div class="meta">
+    <div class="meta-item"><span class="meta-label">Wellung:</span> 1-wellig</div>
+    <div class="meta-item"><span class="meta-label">Carrier-Klasse:</span> DHL 0–2 kg (€ 4,35) / DPD S</div>
+    <div class="meta-item"><span class="meta-label">Preis ab:</span> € 0,20 netto/Stk. (ab 22.400 Stk.)</div>
+    <div class="meta-item"><span class="meta-label">Gurtmaß:</span> ca. 140 cm ✓</div>
+  </div>
+  <strong>Passt für:</strong>
+  <ul class="products-list">
+    <li>Schuhkartons (Sneaker, Stiefel)</li>
+    <li>Mehrere Textilien in einer Bestellung</li>
+    <li>Pullover, Strickjacken</li>
+    <li>Mittlere Elektronikteile</li>
+  </ul>
+  <a class="link-btn" href="https://www.bb-verpackungsshop.de/Faltkarton-300-x-200-x-200-mm" target="_blank">→ Zum Produkt auf bb-verpackungsshop.de</a>
+</div>
+
+<!-- Karton M -->
+<div class="card">
+  <div class="card-header">
+    <span class="card-title">Karton M — Haushalt, Küchengeräte, Werkzeug</span>
+    <span class="badge badge-m">DHL 2–5 kg / DPD M</span>
+  </div>
+  <div class="dims">400 × 300 × 200 mm <small>(Innenmaß)</small></div>
+  <div class="meta">
+    <div class="meta-item"><span class="meta-label">Wellung:</span> 1-wellig</div>
+    <div class="meta-item"><span class="meta-label">Carrier-Klasse:</span> DHL 2–5 kg (€ 4,90) / DPD Classic 0–5 kg</div>
+    <div class="meta-item"><span class="meta-label">Preis ab:</span> € 0,36 netto/Stk. (ab 11.200 Stk.)</div>
+    <div class="meta-item"><span class="meta-label">Gurtmaß:</span> ca. 180 cm ✓</div>
+  </div>
+  <strong>Passt für:</strong>
+  <ul class="products-list">
+    <li>Dutch Oven, Wok, Grillzubehör</li>
+    <li>Werkzeugsets, Bit-Safe, Ratschensets</li>
+    <li>Außenspiegel, Auto-Kleinteile</li>
+    <li>Spannbettlaken, Heimtextilien</li>
+    <li>Multi-Item-Bestellungen (Textilien)</li>
+  </ul>
+  <a class="link-btn" href="https://www.bb-verpackungsshop.de/Faltkarton-400-x-300-x-200-mm" target="_blank">→ Zum Produkt auf bb-verpackungsshop.de</a>
+</div>
+
+<!-- Karton L -->
+<div class="card">
+  <div class="card-header">
+    <span class="card-title">Karton L — Große Haushaltswaren, Sets</span>
+    <span class="badge badge-l">DHL 5–10 kg / DPD L</span>
+  </div>
+  <div class="dims">500 × 400 × 300 mm <small>(Innenmaß, 2-wellig)</small></div>
+  <div class="meta">
+    <div class="meta-item"><span class="meta-label">Wellung:</span> 2-wellig (höhere Stabilität!)</div>
+    <div class="meta-item"><span class="meta-label">Carrier-Klasse:</span> DHL 5–10 kg (€ 8,00) / DPD 5–10 kg</div>
+    <div class="meta-item"><span class="meta-label">Preis ab:</span> € 1,21 netto/Stk. (ab 4.200 Stk.)</div>
+    <div class="meta-item"><span class="meta-label">Gurtmaß:</span> ca. 240 cm ✓</div>
+  </div>
+  <strong>Passt für:</strong>
+  <ul class="products-list">
+    <li>Topf-Sets, große Küchengeräte</li>
+    <li>Campingliegen (zusammengeklappt)</li>
+    <li>Ventilator, Standregal (zerlegt)</li>
+    <li>Große Grillplatten</li>
+    <li>Tesvor Saugroboter</li>
+  </ul>
+  <a class="link-btn" href="https://www.bb-verpackungsshop.de/Faltkarton-500-x-400-x-300-200-mm-2-wellig" target="_blank">→ Zum Produkt auf bb-verpackungsshop.de</a>
+</div>
+
+<!-- Karton XL -->
+<div class="card">
+  <div class="card-header">
+    <span class="card-title">Karton XL — Sperrige Artikel, Möbel</span>
+    <span class="badge badge-xl">DHL 10–31,5 kg / DPD XL</span>
+  </div>
+  <div class="dims">600 × 500 × 400 mm <small>(Innenmaß, 2-wellig)</small></div>
+  <div class="meta">
+    <div class="meta-item"><span class="meta-label">Wellung:</span> 2-wellig (Pflicht bei schwerem Inhalt)</div>
+    <div class="meta-item"><span class="meta-label">Carrier-Klasse:</span> DHL 10–31,5 kg (€ 12,90–15,65) / DPD 10–20 kg</div>
+    <div class="meta-item"><span class="meta-label">Preis ab:</span> € 1,69 netto/Stk. (ab 3.000 Stk.)</div>
+    <div class="meta-item"><span class="meta-label">Gurtmaß:</span> ca. 300 cm (DHL max. 300 cm!)</div>
+  </div>
+  <strong>Passt für:</strong>
+  <ul class="products-list">
+    <li>Hochstuhl (UBRAVOO etc.)</li>
+    <li>Hagelschutzplane (gerollt)</li>
+    <li>Faltbarer Roller</li>
+    <li>Große Regale, Möbelteile</li>
+    <li>Schwere Multi-Item-Bestellungen</li>
+  </ul>
+  <a class="link-btn" href="https://www.bb-verpackungsshop.de/Faltkarton-600-x-500-x-400-350-300-250-mm-2-wellig" target="_blank">→ Zum Produkt auf bb-verpackungsshop.de</a>
+</div>
+
+<h2>3. Übersicht Bestellliste</h2>
+
+<table>
+  <thead>
+    <tr><th>Größe</th><th>Innenmaß (mm)</th><th>Wellung</th><th>Preis ab (netto)</th><th>Carrier-Match</th><th>bb-verpackungsshop.de</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><strong>XS</strong></td><td>250 × 175 × 100</td><td>1-wellig</td><td>€ 0,14</td><td>DHL Kleinpaket ≤ 1 kg</td><td><a href="https://www.bb-verpackungsshop.de/Faltkarton-250-x-175-x-100-mm" target="_blank">Link</a></td></tr>
+    <tr><td><strong>S</strong></td><td>300 × 200 × 200</td><td>1-wellig</td><td>€ 0,20</td><td>DHL 0–2 kg / DPD S</td><td><a href="https://www.bb-verpackungsshop.de/Faltkarton-300-x-200-x-200-mm" target="_blank">Link</a></td></tr>
+    <tr><td><strong>M</strong></td><td>400 × 300 × 200</td><td>1-wellig</td><td>€ 0,36</td><td>DHL 2–5 kg / DPD M</td><td><a href="https://www.bb-verpackungsshop.de/Faltkarton-400-x-300-x-200-mm" target="_blank">Link</a></td></tr>
+    <tr><td><strong>L</strong></td><td>500 × 400 × 300</td><td>2-wellig</td><td>€ 1,21</td><td>DHL 5–10 kg / DPD L</td><td><a href="https://www.bb-verpackungsshop.de/Faltkarton-500-x-400-x-300-200-mm-2-wellig" target="_blank">Link</a></td></tr>
+    <tr><td><strong>XL</strong></td><td>600 × 500 × 400</td><td>2-wellig</td><td>€ 1,69</td><td>DHL 10–31,5 kg / DPD XL</td><td><a href="https://www.bb-verpackungsshop.de/Faltkarton-600-x-500-x-400-350-300-250-mm-2-wellig" target="_blank">Link</a></td></tr>
+  </tbody>
+</table>
+
+<h2>4. Hinweise</h2>
+
+<div class="note">
+  <strong>Maße sind Schätzungen.</strong> AvyCloud speichert aktuell keine Artikeldimensionen (L×B×H) — nur Gewicht, und das auch nicht zuverlässig (siehe Weight-Reliability Feature-Spec). Die Kategorisierung basiert auf Produkttypen aus dem Codebase und marktüblichen Abmessungen. Vor einer Großbestellung sollten die tatsächlichen Top-20-Artikel physisch vermessen werden.
+</div>
+
+<div class="note">
+  <strong>Höhenverstellbare Kartons nutzen.</strong> Die L- und XL-Kartons von BB-Verpackungen haben oft Rilllinien (z.B. 500×400×300/<em>200</em> mm), mit denen die Höhe reduziert werden kann. Das spart Füllmaterial und senkt das Volumengewicht.
+</div>
+
+<div class="note">
+  <strong>Staffelpreise prüfen.</strong> Die angegebenen Preise gelten für Großmengen (3.000–22.000+ Stk.). Für kleinere Bestellmengen (z.B. 100–500 Stk.) liegen die Stückpreise deutlich höher. Beim Erstanlauf empfiehlt sich, die Mengen pro Größe anhand der Order-Verteilung der letzten 3 Monate zu gewichten.
+</div>
+
+<div class="note">
+  <strong>Langfristig: Dimensionen in AvyCloud speichern.</strong> Um die Kartonwahl zu automatisieren, sollten <code>details.attributes</code> um kanonische Felder für Länge, Breite und Höhe (cm) ergänzt werden — analog zur bestehenden Gewichtsnormalisierung in <code>firestore.js</code>.
+</div>
+
+<p style="color: var(--muted); margin-top: 2rem; font-size: 0.8rem;">
+  Erstellt am 27.03.2026 · Quelle: AvyCloud Shipping Engine + bb-verpackungsshop.de
+</p>
+
+</body>
+</html>
