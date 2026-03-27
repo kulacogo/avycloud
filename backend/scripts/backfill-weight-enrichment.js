@@ -29,9 +29,34 @@
  *   - USE_PRODUCTS_V2=true (for dual-write to products_v2)
  */
 
+const https = require('https');
+const http = require('http');
 const { getAllProducts, saveProduct } = require('../lib/firestore');
 const { saveProductV2 } = require('../lib/product-store');
 const { gemini3GenerateJSON } = require('../lib/gemini3-client');
+
+/**
+ * Fetch image from URL and return as base64.
+ * Returns null on any error (timeout, 404, etc).
+ */
+function fetchImageAsBase64(url, timeoutMs = 5000) {
+  return new Promise((resolve) => {
+    const client = url.startsWith('https') ? https : http;
+    const req = client.get(url, { timeout: timeoutMs }, (res) => {
+      if (res.statusCode !== 200) { resolve(null); return; }
+      const chunks = [];
+      res.on('data', (chunk) => chunks.push(chunk));
+      res.on('end', () => {
+        const buf = Buffer.concat(chunks);
+        if (buf.length < 100) { resolve(null); return; }
+        resolve(buf.toString('base64'));
+      });
+      res.on('error', () => resolve(null));
+    });
+    req.on('error', () => resolve(null));
+    req.on('timeout', () => { req.destroy(); resolve(null); });
+  });
+}
 
 // ---------------------------------------------------------------------------
 // Weight parsing (copied from firestore.js — not exported there)
@@ -155,9 +180,10 @@ function tryExtractWeightFromProduct(product) {
 }
 
 /**
- * Build a Gemini prompt to estimate product weight.
+ * Build Gemini content parts to estimate product weight.
+ * Includes first product image as inline base64 data if available.
  */
-function buildWeightPrompt(product) {
+async function buildWeightParts(product) {
   const title = product?.identification?.name || '';
   const brand = product?.identification?.brand || '';
   const category = product?.details?.categoryPath || product?.details?.categoryId || product?.identification?.category || '';
@@ -165,11 +191,28 @@ function buildWeightPrompt(product) {
   const desc = (product?.details?.short_description || product?.details?.description || '').replace(/<[^>]*>/g, '').slice(0, 500);
   const keyFeatures = Array.isArray(product?.details?.key_features) ? product.details.key_features.join('; ') : '';
   const attrs = product?.details?.attributes || {};
-  const dimensions = attrs.dimensions || attrs.Abmessungen || attrs.Maße || attrs.Produktmaße || '';
+  const dimensions = attrs.dimensions || attrs.Abmessungen || attrs['Maße'] || attrs['Produktmaße'] || '';
   const material = attrs.material || attrs.Material || '';
   const produktart = attrs.Produktart || '';
 
-  return `Du bist ein Produktdaten-Experte. Schätze das Gewicht des folgenden Produkts in Kilogramm.
+  const parts = [];
+
+  // Try to include first product image
+  const images = product?.details?.images || [];
+  if (images.length > 0) {
+    const base64 = await fetchImageAsBase64(images[0]);
+    if (base64) {
+      parts.push({
+        inlineData: {
+          mimeType: 'image/jpeg',
+          data: base64,
+        },
+      });
+    }
+  }
+
+  parts.push({
+    text: `Du bist ein erfahrener Lagerarbeiter und Produktexperte. Schaetze das Gewicht des folgenden Produkts in Kilogramm.
 
 Produktdaten:
 - Titel: ${title}
@@ -183,12 +226,16 @@ Produktdaten:
 - Beschreibung: ${desc}
 
 REGELN:
-1. Gib das Gewicht in kg zurück (nur die Zahl, z.B. 0.35 für 350g)
-2. Berücksichtige typische Gewichte für diese Produktkategorie
-3. Wenn du dir unsicher bist, gib eine konservative Schätzung
-4. Gewicht muss > 0 und realistisch sein (Minimum 0.01 kg = 10g)
-5. Runde auf 2 Dezimalstellen
-6. Gib an, wie sicher du dir bist (high/medium/low)`;
+1. Gib das Gewicht in kg zurueck (z.B. 0.35 fuer 350g, 3.6 fuer 3600g)
+2. Sei realistisch: Ein Handy wiegt ~0.2kg, ein Wechselrichter ~3-5kg, ein Grill ~20-40kg
+3. Wenn das Produktbild vorhanden ist, nutze es zur Einschaetzung der Groesse und des Materials
+4. Wenn du dir unsicher bist, schaetze konservativ (eher leichter)
+5. Gewicht muss > 0 und realistisch sein (Minimum 0.01 kg)
+6. Runde auf 2 Dezimalstellen
+7. Gib an, wie sicher du dir bist (high/medium/low)`,
+  });
+
+  return parts;
 }
 
 const WEIGHT_RESPONSE_SCHEMA = {
@@ -214,10 +261,10 @@ const WEIGHT_RESPONSE_SCHEMA = {
  * Call Gemini 3 Pro to estimate weight via central gemini3-client.
  */
 async function estimateWeightViaGemini(product) {
-  const prompt = buildWeightPrompt(product);
+  const parts = await buildWeightParts(product);
 
   const parsed = await gemini3GenerateJSON({
-    prompt,
+    prompt: parts,
     schema: WEIGHT_RESPONSE_SCHEMA,
     temperature: 0.1,
     maxOutputTokens: 2048,
