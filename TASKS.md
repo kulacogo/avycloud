@@ -1,6 +1,6 @@
 # TASKS.md — AvyCloud Aktive Tasks
 
-> Letzte Aktualisierung: 2026-03-24
+> Letzte Aktualisierung: 2026-03-26
 > Nur aktive Items. Erledigte Tasks → `git log`. Bug-Historie → `docs/archive/`.
 
 ## Zu verifizieren (deployed, Browser-Check nötig)
@@ -87,6 +87,15 @@
   - Root Cause: Suchquery zu generisch (nur Kategorie/Marke), kein Abgleich ob das Suchergebnis tatsächlich dasselbe Produkt ist
   - Ziel: Produkt-Matching vor Preisübernahme (EAN/GTIN-Match, Titel-Similarity, Brand-Match)
   - Betroffene Dateien: `backend/lib/price-enrichment.js`, `backend/services/enrichment.js` (`ensurePriceCoverage`)
+- [ ] **BUG-092** Versand: Duplikat-Einträge + falscher "Problem"-Status bei versendeten Paketen (P1)
+  - Symptom: Bestellung 17-14373-89235 hat 2 Einträge in Versand-Tabelle — 1× mit Tracking (Ausstehend), 1× ohne Tracking (Problem)
+  - SendCloud zeigt nur 1 Paket: "Paket unterwegs", Tracking 01596811364368, DPD Classic
+  - Root Cause 1: `syncSendCloudParcels()` hat keine DB-Level Idempotenz — nur In-Memory `existingParcelIds`, Race bei concurrent Syncs
+  - Root Cause 2: Webhook + Sync-Race — Webhook updated Status, parallel Sync erstellt neues Dokument
+  - Root Cause 3: Status-Mapping fehlt für "unterwegs" Status-IDs (z.B. 3,4,5 → `in_zustellung`)
+  - Betroffene Dateien: `backend/services/shipping-engine.js` (syncSendCloudParcels, mapSendCloudStatus), `backend/routes/webhooks.js`
+  - Frontend-Workaround existiert bereits: `ShippingView.tsx` dedupliziert per `sendcloudParcelId` (aber DB bleibt verschmutzt)
+  - Prompt: `docs/prompts/bug-092-shipping-duplicate-problem-status.md`
 - [ ] **BUG-068** 170 Stock-Sync Fehler — Oversell-Risiko (abhängig von eBay Token Fix)
 - [ ] **BUG-069** Dashboard Chart endet bei ~12.03 (createdAt-Datumslogik)
 - [ ] **B5** Invoice Email-Versand fehlt
@@ -186,6 +195,7 @@
 | ~~P0~~ | ~~BUG-090 Gruppierung Fallback bei vielen Bildern~~ | ✅ implementiert (Structured Output, Kompression, Batching), Deploy nötig |
 | ~~P0~~ | ~~BUG-091 Multi-Identify hängt (kein Timeout/Progress)~~ | ✅ implementiert (Concurrency 3, Phase-Progress, Timeout 600s), Deploy nötig |
 | **P0** | **PERF-001 Identify Pipeline Overhaul (Sub-60s)** | `docs/prompts/perf-001-identify-pipeline-overhaul.md` |
+| **P1** | **BUG-092 Versand Duplikate + falscher Problem-Status** | `docs/prompts/bug-092-shipping-duplicate-problem-status.md` |
 | P0 | LLM Pipeline + Preise | `docs/prompts/fix-llm-pipeline-quality.md` |
 | P0 | 292 unsichtbare Produkte (V2 Migration) | `docs/prompts/feat-complete-products-v2-migration.md` |
 | P0 | Multi-Identify nur letztes Produkt | `docs/prompts/bug-079-multi-identify-only-last-product-saved.md` |

@@ -249,8 +249,23 @@ DEIN VERHALTEN:
 - Wenn der User Änderungen will: recherchiere zuerst, dann rufe update_product_datasheet auf.
 - Frag NICHT nach Bestätigung ("Soll ich aktualisieren?") — der User hat eine "Übernehmen"-UI.
 - Halte Antworten kurz und direkt (max ~1000 Zeichen), außer der User will Details.
-- Wenn der User "mehr Details", "ausführlich", "voller Report" sagt: antworte ausführlich.
 - Du kannst auch einfache Fragen beantworten, Tipps geben, Analysen machen — du bist kein reiner Dateneditor.
+
+SCHRITT 1 — PRODUKT VERIFIZIEREN (IMMER zuerst, bevor du irgendetwas optimierst):
+Die bestehenden Produktdaten im Kontext können FALSCH sein (falsche Kategorie, falscher Name, falsche Marke).
+Prüfe IMMER anhand der Produktbilder, EAN/GTIN und Markenname, ob die bestehenden Daten plausibel sind.
+- Suche im Web nach der EAN/GTIN oder "[Marke] [Modellnummer]" um das Produkt eindeutig zu identifizieren.
+- Wenn die Kategorie offensichtlich falsch ist (z.B. "Bootsport > Anker" für eine Anker Powerbank), korrigiere sie SOFORT.
+- Wenn der Titel unsinnige Wörter enthält (z.B. "Boot", "Kette" bei einer Powerbank), erstelle einen komplett neuen Titel.
+- Vertraue NIE blind den bestehenden Daten — verifiziere sie gegen Web-Recherche und Produktbilder.
+
+SCHRITT 2 — RECHERCHIEREN:
+- Suche im Web nach dem korrekt identifizierten Produkt.
+- Nutze Google Search für: Herstellerseite, Datenblatt, technische Specs, Preisvergleich, GPSR.
+- Suche nach "[Marke] [Modell] Datenblatt" oder "[EAN]" für präzise Ergebnisse.
+
+SCHRITT 3 — ÄNDERUNGEN VORSCHLAGEN:
+- Rufe update_product_datasheet auf mit ALLEN korrigierten/verbesserten Feldern.
 
 TOOLS:
 - Google Search: Steht dir automatisch zur Verfügung. Nutze es für Datenblätter, Preise, GPSR, Spezifikationen, Bilder.
@@ -261,16 +276,17 @@ TOOLS:
 KRITISCH: Wenn du Verbesserungen vorschlägst, MUSST du update_product_datasheet aufrufen. Text allein reicht nicht — der User kann nur Tool-Ergebnisse über "Übernehmen" anwenden. Ohne Tool-Call = keine Übernahme möglich.
 
 QUALITÄT:
-- Titel: 70–80 Zeichen, suchmaschinenoptimiert. Marke + Produkttyp + Kernmerkmal zuerst. Keine Marketing-Floskeln, keine EAN/GTIN/SKU.
-- Beschreibung: HTML (<p>, <ul>, <li>, <strong>), 180–240 Wörter, faktenbasiert.
+- Titel: 70–80 Zeichen, suchmaschinenoptimiert. Marke + Produkttyp + Kernmerkmal zuerst. Keine Marketing-Floskeln, keine EAN/GTIN/SKU. KEINE Wörter aus falschen Kategorien. Der Titel muss das Produkt korrekt und verständlich beschreiben.
+- Beschreibung: HTML (<p>, <ul>, <li>, <strong>), 180–240 Wörter, faktenbasiert. Basierend auf Web-Recherche, nicht auf falschen Bestandsdaten.
 - Highlights: 5–7 Bulletpoints, je 70–120 Zeichen, "[Nutzen] - [Eigenschaft]".
-- Attribute: Nur belegbare Fakten. Deutsche Schlüssel. ≤60 Zeichen pro Wert. Nur Schlüssel aus ebay.allowed_aspects verwenden.
+- Attribute: Nur belegbare Fakten. Deutsche Schlüssel. ≤60 Zeichen pro Wert. Verwende die ebay.allowed_aspects als Referenz, aber wenn die Kategorie falsch ist, ignoriere die alten Aspects und korrigiere zuerst die Kategorie.
 - GPSR: Unter gpsr-Objekt, NIE als Attribute.
 - Preis: Aktueller Marktpreis in EUR wenn findbar.
 - Encoding: Echte Umlaute (ä, ö, ü, ß), kein HTML-Encoding.
-- Titel-Konsistenz: Nie widersprüchliche Token mischen (z.B. Damen+Herren, verschiedene Marken).
+- Titel-Konsistenz: Nie widersprüchliche Token mischen (z.B. Damen+Herren, verschiedene Marken, Kategorie-Wörter die nicht zum Produkt passen).
+- Kategorie: Wenn die bestehende Kategorie falsch ist, gib die korrekte Kategorie im identity-Objekt an.
 
-SCOPE-REGEL: Wenn ein SCOPE angegeben ist, ändere NUR Felder innerhalb dieses Scopes.
+SCOPE-REGEL: Wenn ein SCOPE angegeben ist, ändere NUR Felder innerhalb dieses Scopes. AUSNAHME: Wenn die Kategorie offensichtlich falsch ist, korrigiere sie IMMER mit, auch wenn sie nicht im Scope ist.
 
 SPRACHE: ${locale}
 
@@ -289,17 +305,20 @@ function buildProductContextV2(product, { attachments = [], titleInsights = null
   const vehicleFitmentMode = categoryIdRaw ? getVehicleFitmentMode(categoryIdRaw) : null;
 
   return {
+    _hinweis: 'ACHTUNG: Die bestehenden Daten (Titel, Kategorie, Attribute) können FALSCH sein. Verifiziere sie immer gegen Web-Recherche und Produktbilder bevor du sie übernimmst oder darauf aufbaust.',
     identity: {
       id: product?.id || null,
-      title: product?.identification?.name || null,
+      title_aktuell: product?.identification?.name || null,
       brand: product?.identification?.brand || null,
-      category: product?.identification?.category || null,
+      category_aktuell: product?.identification?.category || null,
+      _kategorie_hinweis: 'Diese Kategorie kann komplett falsch sein (z.B. "Anker" = Marke, NICHT Bootsport-Anker). Prüfe gegen EAN/Bilder.',
       categoryId: categoryIdRaw,
       sku: product?.identification?.sku || product?.details?.identifiers?.sku || null,
       barcodes: Array.isArray(product?.identification?.barcodes) ? product.identification.barcodes : [],
     },
     ebay: {
-      categoryId: categoryIdRaw,
+      categoryId_aktuell: categoryIdRaw,
+      _hinweis: 'allowed_aspects und title_insights basieren auf der AKTUELLEN Kategorie. Wenn die Kategorie falsch ist, ignoriere diese Daten und korrigiere zuerst die Kategorie.',
       allowed_aspects: aspectCatalog && Array.isArray(aspectCatalog.allAspects) ? aspectCatalog.allAspects : [],
       required_aspects_meta: {
         missing_required_aspects: Array.isArray(requiredMeta?.missingAspects) ? requiredMeta.missingAspects : [],
@@ -307,6 +326,7 @@ function buildProductContextV2(product, { attachments = [], titleInsights = null
       },
       vehicle_fitment_mode: vehicleFitmentMode,
       title_insights: {
+        _hinweis: 'Diese Tokens/Titel stammen aus der AKTUELLEN eBay-Kategorie. Wenn die Kategorie falsch ist, verwende diese Daten NICHT für den Titel.',
         top_tokens: Array.isArray(titleInsights?.topTokens) ? titleInsights.topTokens : [],
         sampled_titles: Array.isArray(titleInsights?.sampledTitles) ? titleInsights.sampledTitles : [],
       },

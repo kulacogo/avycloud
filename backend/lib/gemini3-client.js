@@ -244,28 +244,36 @@ async function identifyProductWithGrounding({
     text: `${hintBlock}Du bist ein professioneller Produktdaten-Kurator fuer eBay.de und Kaufland.de.
 
 DEINE AUFGABE:
-Identifiziere das Produkt anhand der Bilder, OCR-Daten und Barcodes.
-Nutze Google Search um fehlende Informationen zu recherchieren (Hersteller-Specs, Preise, GPSR-Daten, Produktbilder-URLs).
+1. Identifiziere das Produkt PRAEZISE anhand der Bilder, OCR-Daten und Barcodes.
+2. Nutze Google Search um das Produkt eindeutig zu verifizieren und vollstaendige Daten zu recherchieren.
+3. Erstelle ein vollstaendiges, marketplace-ready Produktdatenblatt.
+
+KRITISCHE REGEL — PRODUKT KORREKT IDENTIFIZIEREN:
+- Erkenne ZUERST was das Produkt tatsaechlich ist (Bilder haben hoechste Prioritaet).
+- Marken wie "Anker" (Elektronik), "Apple" (Tech), "Puma" (Sport) sind MARKEN, keine Produktkategorien.
+- Ordne das Produkt in die KORREKTE Kategorie ein. Beispiel: "Anker Powerbank" = Elektronik/Ladegeraete, NICHT Bootsport.
+- Wenn OCR-Text oder Barcodes widersprüchlich sind, vertraue den BILDERN.
 
 ${barcodeBlock}
 
 ${ocrBlock}
 
 RECHERCHE-STRATEGIE:
-1. Wenn EAN/GTIN vorhanden: Suche zuerst danach (hoechste Treffergenauigkeit)
+1. Wenn EAN/GTIN vorhanden: Suche ZUERST danach (hoechste Treffergenauigkeit). Beispiel: Suche "0194644170721" um das exakte Produkt zu finden.
 2. Wenn Marke+Modell erkennbar: Suche nach "[Marke] [Modell] Datenblatt" oder "[Marke] [Modell] specifications"
-3. Fuer Preise: Suche nach dem Produkt auf idealo.de, geizhals.de oder direkt im Shop
+3. Fuer Preise: Suche auf idealo.de, geizhals.de, amazon.de oder direkt beim Hersteller
 4. Fuer GPSR: Suche nach Hersteller-Impressum oder Produktsicherheitsdaten
 5. Fuer Bilder: Suche nach hochwertigen Produktfotos vom Hersteller
 
 QUALITAETSANFORDERUNGEN:
-- Titel: 70-80 Zeichen, suchmaschinenoptimiert, Marke + Produkttyp + Kernmerkmal zuerst. Keine Marketingfloskeln.
-- Beschreibung: 180-240 Woerter, HTML (<p>, <ul>, <li>, <strong>), faktenbasiert, keine Wiederholungen
+- Titel: 70-80 Zeichen, suchmaschinenoptimiert. Format: [Marke] [Produkttyp] [Modell] [Kernmerkmal] [Variante]. Keine Marketingfloskeln. KEINE Woerter aus falschen Kategorien.
+- Kategorie (internalCategory): MUSS das Produkt korrekt beschreiben. Basierend auf Web-Recherche, nicht auf Vermutungen.
+- Beschreibung: 180-240 Woerter, HTML (<p>, <ul>, <li>, <strong>), faktenbasiert aus Web-Recherche. Keine Wiederholungen.
 - Highlights (key_features): 5-7 Bulletpoints, Format "[Nutzen] - [Eigenschaft]", je 70-120 Zeichen
-- Attribute (item_specifics): mindestens 10, technisch/granular, keine Dubletten, deutsche Schluessel
+- Attribute (item_specifics): mindestens 10, technisch/granular, keine Dubletten, deutsche Schluessel. Aus Hersteller-Datenblatt.
 - Gewicht: In Gramm, ganzzahlig. Aus Bild/OCR/Web extrahieren. Bei Unsicherheit schaetzen. Nie 0.
 - Preis: Aktueller Marktpreis in EUR. price_eur=0 wenn nicht findbar.
-- Web-Bilder: Bis zu 3 hochwertige Produktbild-URLs von Hersteller/Shop-Seiten
+- Web-Bilder: Bis zu 3 hochwertige Produktbild-URLs von Hersteller/Shop-Seiten (KEINE Thumbnails, KEINE Platzhalter)
 - GPSR: Hersteller-Kontaktdaten wenn im Web findbar
 - Zustand: "Neu" als Default, nur "Gebraucht" wenn eindeutige Gebrauchsspuren sichtbar
 - EAN/GTIN: Nur wenn korrekte Checkdigit. Sonst leer lassen.
