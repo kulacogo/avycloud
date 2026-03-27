@@ -18,7 +18,7 @@ const { runProductChatV2 } = require('../services/product-chat-v2');
 const { buildSessionId, getSession, appendMessages, clearSession, getGeminiHistory } = require('../lib/chat-sessions');
 const { isBannedEbayBreadcrumb } = require('../lib/ebay-category-governance');
 const { findEbayCategory } = require('../lib/ebay-taxonomy');
-const { enrichPriceForProductBestEffort } = require('../lib/price-enrichment');
+const { enrichPriceParallel } = require('../lib/price-enrichment');
 const { searchProductImages } = require('../lib/image-search');
 
 // --- Constants ---
@@ -340,6 +340,7 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
     let product = null;
     let groundingUsed = false;
     let legacyResult = null;
+    let groundingImageQuery = '';
 
     // 4) Try Google Search Grounding pipeline (preferred)
     if (GROUNDING_ENABLED && (imageParts.length || mergedBarcodes.length)) {
@@ -347,13 +348,19 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
         const { identifyProductWithGrounding } = require('../lib/gemini3-client');
         console.log(`[identify] Starting grounding pipeline (${imageParts.length} images, ${mergedBarcodes.length} barcodes)`);
 
-        const groundedRecord = await identifyProductWithGrounding({
-          imageParts,
-          ocrText,
-          barcodes: mergedBarcodes,
-          locale,
-          hint,
-        });
+        const GROUNDING_TIMEOUT_MS = parseInt(process.env.GROUNDING_TIMEOUT_MS || '90000', 10);
+        const groundedRecord = await Promise.race([
+          identifyProductWithGrounding({
+            imageParts,
+            ocrText,
+            barcodes: mergedBarcodes,
+            locale,
+            hint,
+          }),
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('Grounding timeout after ' + GROUNDING_TIMEOUT_MS + 'ms')), GROUNDING_TIMEOUT_MS)
+          ),
+        ]);
 
         // Map grounded record to product format
         const productId = crypto.randomUUID();
@@ -424,32 +431,12 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
           };
         }
 
-        // Map web images — use SerpAPI for real URLs instead of Gemini-hallucinated ones
-        try {
-          const imgQuery = [
-            groundedRecord.brand,
-            groundedRecord.model,
-            groundedRecord.ean || groundedRecord.gtin,
-          ].filter(Boolean).join(' ').trim();
-          if (imgQuery) {
-            const serpImages = await searchProductImages(product, {
-              query: imgQuery,
-              limit: 3,
-              minWidth: 400,
-              minHeight: 400,
-            });
-            for (const img of serpImages) {
-              product.details.images.push({
-                url_or_base64: img.url,
-                source: 'web_search',
-                variant: 'marketing',
-                notes: img.title || '',
-              });
-            }
-          }
-        } catch (imgErr) {
-          console.warn('[identify] SerpAPI image search failed:', imgErr?.message);
-        }
+        // SerpAPI image search moved to post-grounding parallel block (PERF-002)
+        groundingImageQuery = [
+          groundedRecord.brand,
+          groundedRecord.model,
+          groundedRecord.ean || groundedRecord.gtin,
+        ].filter(Boolean).join(' ').trim();
 
         // Map GPSR
         if (groundedRecord.gpsr_manufacturer_name) {
@@ -538,22 +525,57 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
       });
 
       try {
-        await enrichPriceForProductBestEffort(product, { force: false, reason: 'identify' });
+        await enrichPriceParallel(product, { force: false, reason: 'identify' });
       } catch {}
     }
 
-    // 6) Category + Taxonomy (for grounding path — legacy already did this above)
+    // 6) PERF-002: Post-processing (parallel where possible)
     if (groundingUsed) {
-      await ensureCategories([product]);
-      product = applyEbayTaxonomy(product);
-      product = applyKauflandTaxonomy(product);
+      // Category resolution + SerpAPI images + KTyp run in parallel (independent tasks)
+      await Promise.all([
+        // Category + Taxonomy
+        (async () => {
+          await ensureCategories([product]);
+          product = applyEbayTaxonomy(product);
+          product = applyKauflandTaxonomy(product);
+        })(),
+        // SerpAPI product images (moved from grounding block for parallelism)
+        (async () => {
+          if (!groundingImageQuery) return;
+          try {
+            const serpImages = await searchProductImages(product, {
+              query: groundingImageQuery,
+              limit: 3,
+              minWidth: 400,
+              minHeight: 400,
+            });
+            for (const img of serpImages) {
+              product.details.images.push({
+                url_or_base64: img.url,
+                source: 'web_search',
+                variant: 'marketing',
+                notes: img.title || '',
+              });
+            }
+          } catch (imgErr) {
+            console.warn('[identify] SerpAPI image search failed:', imgErr?.message);
+          }
+        })(),
+        // K-Typ enrichment
+        (async () => {
+          try {
+            const { enrichKTypIfPossible } = require('../lib/ktype-enrichment');
+            await enrichKTypIfPossible(product, { reason: 'identify' });
+          } catch {}
+        })(),
+      ]);
+    } else {
+      // Legacy path: KTyp only (categories already done above)
+      try {
+        const { enrichKTypIfPossible } = require('../lib/ktype-enrichment');
+        await enrichKTypIfPossible(product, { reason: 'identify' });
+      } catch {}
     }
-
-    // 7) K-Typ enrichment (best-effort, both paths)
-    try {
-      const { enrichKTypIfPossible } = require('../lib/ktype-enrichment');
-      await enrichKTypIfPossible(product, { reason: 'identify' });
-    } catch {};
 
     // 3.8) Compute and persist quality snapshot (independent of QUALITY_GATE_ENABLED).
     // This powers UI/debug dashboards and helps explain "why not ebay-ready" without blocking saves.
