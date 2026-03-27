@@ -11,6 +11,7 @@ const { Firestore, FieldValue } = require('@google-cloud/firestore');
 const { kauflandRequest } = require('../lib/kaufland-api');
 const { sanitizeText, validateEmail } = require('../lib/html-entities');
 const { getNextNumber } = require('./number-sequence');
+const productStore = require('../lib/product-store');
 const { reserveStock } = require('./stock-reservation');
 const { emitSyncEvent } = require('./sync-event-bus');
 
@@ -307,6 +308,31 @@ async function syncKauflandOrders({ tenantId = 'default', lookbackDays = 7 } = {
 }
 
 /**
+ * Enrich order items with product weights from products_v2.
+ * Returns enriched items + total order weight (null if any item has no weight).
+ */
+async function enrichOrderItemsWithWeight(items) {
+  let allHaveWeight = true;
+  const enriched = [];
+
+  for (const item of items) {
+    const weight = await productStore.getProductWeightBySku(item.sku || null, item.ean || null);
+    if (weight) {
+      enriched.push({ ...item, weight });
+    } else {
+      allHaveWeight = false;
+      enriched.push(item);
+    }
+  }
+
+  const orderWeight = allHaveWeight
+    ? enriched.reduce((sum, item) => sum + (item.weight * (item.quantity || 1)), 0)
+    : null;
+
+  return { items: enriched, orderWeight };
+}
+
+/**
  * Save an order to Firestore if it doesn't already exist (by marketplace order ID).
  * @param {{ tenantId: string, order: object }} opts
  * @returns {Promise<boolean>} true if saved (new), false if skipped (duplicate)
@@ -448,6 +474,9 @@ async function saveOrderIfNew({ tenantId, order }) {
   // Generate AvyCloud order number
   const seq = await getNextNumber({ tenantId, type: 'order' });
 
+  // Enrich items with product weights
+  const { items: enrichedItems, orderWeight } = await enrichOrderItemsWithWeight(order.items);
+
   // Determine initial OMS status from Kaufland unit status
   const klUnitStatus = (order.items || [])[0]?.status || null;
   const initialStatus = klUnitStatus ? mapKauflandStatus(klUnitStatus) : 'pending';
@@ -476,7 +505,7 @@ async function saveOrderIfNew({ tenantId, order }) {
     currency: order.currency,
     customer: order.customer,
     billingAddress: order.billingAddress || null,
-    items: order.items.map((item, idx) => ({
+    items: enrichedItems.map((item, idx) => ({
       id: `${seq.formatted}-${idx + 1}`,
       ...item,
     })),
@@ -486,6 +515,7 @@ async function saveOrderIfNew({ tenantId, order }) {
     paymentMethod: order.paymentMethod || null,
     shippingCost: order.shippingCost || null,
     buyerNote: order.buyerNote,
+    weight: orderWeight,
   };
 
   // Use marketplaceKey as doc ID for idempotent creation (prevents duplicates on race condition)
