@@ -504,13 +504,31 @@ function sanitizeDatasheetChangeV2(entry, product, { scope = null, titleHintToke
   let titleCandidate = safeString(entry.title || entry?.identity?.name || entry?.identity?.title);
   if (titleCandidate) {
     const preview = JSON.parse(JSON.stringify(product));
+    // Detect category change — if Gemini proposes a different category, the old
+    // titleHintTokens are from the WRONG category and must be discarded.
+    const proposedCategory = safeString(entry?.identity?.category);
+    const currentCategory = safeString(product?.identification?.category);
+    const categoryChanged = proposedCategory && proposedCategory !== currentCategory;
+
     // Apply proposed identity changes (category, brand)
     if (entry.identity) {
       preview.identification = preview.identification || {};
       if (entry.identity.category) preview.identification.category = safeString(entry.identity.category);
       if (entry.identity.brand) preview.identification.brand = safeString(entry.identity.brand);
     }
+    // Set preview name to the PROPOSED title so coerceTitleToPolicy uses it as
+    // the primary hint instead of the old (possibly wrong) name.
+    preview.identification = preview.identification || {};
+    preview.identification.name = titleCandidate;
+
     // Apply proposed attribute changes (Farbe, Größe, Material, etc.)
+    // When category changed, START with empty attributes — old attributes belong
+    // to the wrong category and pollute the title with irrelevant tokens.
+    if (categoryChanged) {
+      preview.details = preview.details || {};
+      preview.details.attributes = {};
+      preview.details.short_description = '';
+    }
     if (Array.isArray(entry.attributes) && entry.attributes.length) {
       preview.details = preview.details || {};
       preview.details.attributes = preview.details.attributes || {};
@@ -521,11 +539,16 @@ function sanitizeDatasheetChangeV2(entry, product, { scope = null, titleHintToke
         if (key && value) preview.details.attributes[key] = value;
       });
     }
+
+    // When the category changed, do NOT inject old category title hints — they pollute
+    // the title with words from the wrong category (e.g. "Boot", "Kette" for a Powerbank).
+    const effectiveHintTokens = categoryChanged ? [] : titleHintTokens;
+
     const coerced = coerceTitleToPolicy(preview, titleCandidate, {
       minLen: 30,
       maxLen: 80,
       softMaxLen: 80,
-      extraHintTokens: titleHintTokens,
+      extraHintTokens: effectiveHintTokens,
     });
     change.title = coerced || titleCandidate.slice(0, 80);
   }

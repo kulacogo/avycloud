@@ -846,17 +846,45 @@ router.get('/image-proxy', async (req, res) => {
         body: Buffer.from(await directRes.arrayBuffer()),
       };
     } else {
-      upstream = await fetchWithUnlocker({
-        url: target.toString(),
-        method: 'GET',
-        format: 'raw',
-        timeoutMs: IMAGE_PROXY_TIMEOUT_MS,
-        headers: {
-          'User-Agent': 'avystock-image-proxy/1.0',
-          Accept: 'image/*,*/*;q=0.8',
-          Referer: '',
-        },
-      });
+      // Try direct fetch first (works for most CDNs: eBay, Amazon, Google, etc.)
+      try {
+        const directRes = await fetch(target.toString(), {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+            Accept: 'image/*,*/*;q=0.8',
+          },
+          signal: AbortSignal.timeout(IMAGE_PROXY_TIMEOUT_MS),
+          redirect: 'follow',
+        });
+        if (directRes.ok) {
+          const ct = directRes.headers.get('content-type') || '';
+          if (ct.startsWith('image/') || ct === 'application/octet-stream') {
+            upstream = {
+              success: true,
+              status: directRes.status,
+              contentType: ct || 'image/jpeg',
+              body: Buffer.from(await directRes.arrayBuffer()),
+            };
+          }
+        }
+      } catch {
+        // Direct fetch failed — fall through to BrightData
+      }
+
+      // Fallback to BrightData unlocker if direct fetch didn't work
+      if (!upstream) {
+        upstream = await fetchWithUnlocker({
+          url: target.toString(),
+          method: 'GET',
+          format: 'raw',
+          timeoutMs: IMAGE_PROXY_TIMEOUT_MS,
+          headers: {
+            'User-Agent': 'avystock-image-proxy/1.0',
+            Accept: 'image/*,*/*;q=0.8',
+            Referer: '',
+          },
+        });
+      }
     }
 
     if (!upstream.success) {
