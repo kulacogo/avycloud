@@ -1435,18 +1435,28 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-txt-secondary mb-1">Gewicht (kg)</label>
-                  {isEditing ? (
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={localProduct.details?.attributes?.['Gewicht'] ?? ''}
-                      onChange={(e) => handleFieldChange('details.attributes.Gewicht', e.target.value || null)}
-                      placeholder="z.B. 2.5"
-                      className="w-full text-sm bg-app-elevated border border-app-border rounded-lg px-3 py-2 outline-none focus:border-accent font-mono"
-                    />
-                  ) : (
-                    <p className="text-sm text-txt-primary font-mono">{localProduct.details?.attributes?.['Gewicht'] ? `${localProduct.details.attributes['Gewicht']} kg` : '—'}</p>
-                  )}
+                  {(() => {
+                    const weightValue =
+                      localProduct.details?.weight
+                      ?? localProduct.details?.attributes?.weight
+                      ?? localProduct.details?.attributes?.['Gewicht (kg)']
+                      ?? localProduct.details?.attributes?.['Gewicht']
+                      ?? '';
+                    const displayWeight = weightValue !== '' ? `${weightValue} kg` : '—';
+
+                    return isEditing ? (
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={weightValue}
+                        onChange={(e) => handleFieldChange('details.weight', e.target.value ? parseFloat(e.target.value) : null)}
+                        placeholder="z.B. 2.5"
+                        className="w-full text-sm bg-app-elevated border border-app-border rounded-lg px-3 py-2 outline-none focus:border-accent font-mono"
+                      />
+                    ) : (
+                      <p className="text-sm text-txt-primary font-mono">{displayWeight}</p>
+                    );
+                  })()}
                 </div>
               </div>
             </div>
