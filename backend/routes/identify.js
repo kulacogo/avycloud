@@ -459,6 +459,41 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
 
         groundingUsed = true;
         console.log(`[identify] Grounding pipeline complete for ${productId}`);
+
+        // Post-grounding duplicate check with AI-resolved identifiers
+        const groundedBarcodes = [
+          groundedRecord.ean, groundedRecord.gtin, groundedRecord.upc,
+        ].filter(Boolean).map((c) => String(c).trim()).filter(Boolean);
+        const allBarcodes = [...new Set([...mergedBarcodes, ...groundedBarcodes])].slice(0, 12);
+        const groundedSku = groundedRecord.sku && typeof groundedRecord.sku === 'string'
+          && groundedRecord.sku.trim().toLowerCase() !== 'unknown'
+          ? groundedRecord.sku.trim() : null;
+
+        if (allBarcodes.length || groundedSku) {
+          const groundedExisting = await findProductByStrictIdentifier({
+            barcodes: allBarcodes,
+            sku: groundedSku,
+          });
+          if (groundedExisting?.id) {
+            console.log(`[identify] Post-grounding duplicate found: ${groundedExisting.id}`);
+            try { await adjustPendingIntakeQuantity(groundedExisting.id, 1); } catch {}
+            if (paletteCode) {
+              try {
+                const { PRODUCTS_COLLECTION } = require('../lib/firestore');
+                await firestore.collection(PRODUCTS_COLLECTION).doc(groundedExisting.id).update({
+                  'ops.sourcePalette': paletteCode,
+                  'ops.sourcePaletteAt': new Date().toISOString(),
+                });
+              } catch {}
+            }
+            const refreshed = await getProduct(groundedExisting.id);
+            return res.json({
+              ok: true,
+              data: refreshed || groundedExisting,
+              meta: { reused_existing: true, paletteCode: paletteCode || null, locale, barcodes: allBarcodes },
+            });
+          }
+        }
       } catch (e) {
         console.warn('[identify] Grounding pipeline failed, falling back to legacy:', e?.message || e);
         product = null;
