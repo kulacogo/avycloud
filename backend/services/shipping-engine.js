@@ -401,12 +401,12 @@ async function cancelParcel({ parcelId, tenantId = 'default' }) {
 
 /**
  * Calculate order weight from items.
- * Falls back to 0.5kg if no weight data available.
+ * Returns null if no weight data available — no silent fallback.
  * @param {object} order
- * @returns {number} weight in kg
+ * @returns {number|null} weight in kg, or null if unknown
  */
 function calculateOrderWeight(order) {
-  // 1. Order-level weight (e.g. Kaufland orders store weight on order, not items)
+  // 1. Order-level weight (manually set or enriched from products)
   const orderLevelWeight = parseFloat(order.weight || '0') || 0;
   if (orderLevelWeight > 0) return orderLevelWeight;
 
@@ -419,8 +419,8 @@ function calculateOrderWeight(order) {
   }
   if (totalKg > 0) return totalKg;
 
-  // 3. Last resort default
-  return 0.5;
+  // 3. No fallback — weight must be explicitly set
+  return null;
 }
 
 /**
@@ -490,6 +490,11 @@ async function shipOrder({ orderId, tenantId = 'default', shippingMethodId, weig
 
   // Calculate weight
   const orderWeight = weight || calculateOrderWeight(order);
+  if (!orderWeight) {
+    throw new Error(
+      'Versand nicht moeglich: Bestellgewicht fehlt. Bitte Gewicht in den Bestelldetails eintragen.'
+    );
+  }
 
   // Auto-select shipping method from rules if not provided
   let methodId = shippingMethodId;

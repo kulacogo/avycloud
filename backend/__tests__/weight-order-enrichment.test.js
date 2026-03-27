@@ -3,6 +3,21 @@
 // ─── Patch GCP before anything else ────────────────────────────────────────
 require('./api/_patchGcp');
 
+// ─── Stub shipping-engine dependencies before requiring it ─────────────────
+const secretValuesPath = require.resolve('../lib/secret-values');
+require.cache[secretValuesPath] = {
+  id: secretValuesPath, filename: secretValuesPath, loaded: true,
+  exports: { getSecretValue: vi.fn().mockResolvedValue('mock-secret') },
+  children: [], paths: [],
+};
+
+const sendcloudPath = require.resolve('../lib/sendcloud');
+require.cache[sendcloudPath] = {
+  id: sendcloudPath, filename: sendcloudPath, loaded: true,
+  exports: { lookupCsvPrice: vi.fn().mockResolvedValue(null) },
+  children: [], paths: [],
+};
+
 // ─── Stub firestore with controllable query mock ───────────────────────────
 const mockGet = vi.fn();
 const mockLimit = vi.fn(() => ({ get: mockGet }));
@@ -90,5 +105,32 @@ describe('getProductWeightBySku', () => {
 
     const result = await getProductWeightBySku('SKU-123', null);
     expect(result).toBe(2.5);
+  });
+});
+
+describe('calculateOrderWeight', () => {
+  it('uses order-level weight when available', () => {
+    const { calculateOrderWeight } = require('../services/shipping-engine');
+    expect(calculateOrderWeight({ weight: 5.0, items: [] })).toBe(5.0);
+  });
+
+  it('sums item weights when order weight missing', () => {
+    const { calculateOrderWeight } = require('../services/shipping-engine');
+    expect(calculateOrderWeight({
+      items: [
+        { weight: 2.0, quantity: 2 },
+        { weight: 1.5, quantity: 1 },
+      ],
+    })).toBe(5.5);
+  });
+
+  it('returns null when no weights available (no fallback)', () => {
+    const { calculateOrderWeight } = require('../services/shipping-engine');
+    expect(calculateOrderWeight({ items: [{ quantity: 1 }] })).toBeNull();
+  });
+
+  it('returns null for empty order', () => {
+    const { calculateOrderWeight } = require('../services/shipping-engine');
+    expect(calculateOrderWeight({})).toBeNull();
   });
 });
