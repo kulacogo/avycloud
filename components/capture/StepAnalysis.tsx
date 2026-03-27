@@ -120,16 +120,19 @@ const StepAnalysis: React.FC<StepAnalysisProps> = ({
           setPhaseLabel(`Produkte ${batchStart + 1}–${Math.min(batchStart + CONCURRENCY, total)} von ${total}...`);
 
           const chunkResults = await Promise.allSettled(
-            chunk.map((group) =>
-              identifyProductV2(
+            chunk.map((group) => {
+              // Build hint from group label + barcode so Gemini focuses on the right product
+              const parts = [group.label, group.barcodes, group.hint].filter(Boolean);
+              const combinedHint = parts.length ? parts.join(" — ") : undefined;
+              return identifyProductV2(
                 group.images || [],
                 group.barcodes || "",
                 "de-DE",
                 undefined,
                 uploadData.paletteCode || undefined,
-                group.hint || undefined
-              )
-            )
+                combinedHint
+              );
+            })
           );
 
           for (let i = 0; i < chunkResults.length; i++) {
