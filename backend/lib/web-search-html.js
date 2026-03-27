@@ -1,5 +1,5 @@
 /**
- * Best-effort HTML web search + page fetch utilities (NO SerpAPI).
+ * Best-effort HTML web search + page fetch utilities.
  *
  * Notes:
  * - DuckDuckGo HTML endpoint is not an official API; markup may change.
@@ -7,7 +7,7 @@
  */
 
 const { fetchWithUnlocker } = require('./web-unlocker');
-const { fetchSerpHtml } = require('./brightdata-serp');
+const { callSerpApi } = require('./serpapi');
 
 const BRIGHTDATA_ONLY =
   (process.env.WEB_BRIGHTDATA_ONLY || 'true').toString().trim().toLowerCase() !== 'false';
@@ -227,70 +227,48 @@ async function searchGoogle(query, { limit = 6, locale = 'de-DE' } = {}) {
   }
 }
 
-async function searchGoogleViaBrightDataSerp(query, { limit = 6, locale = 'de-DE', country = null } = {}) {
-  // Use Bright Data SERP zone if configured; this tends to be far more reliable than scraping DDG HTML in Cloud Run.
-  const serpZone = (process.env.BRIGHTDATA_SERP_ZONE || '').toString().trim();
-  // Note: token is typically injected via Secret Manager at runtime (env may be empty).
-  // We should still try; `fetchWithUnlocker()` loads secrets as needed.
-
+async function searchGoogleViaSerpApi(query, { limit = 6, locale = 'de-DE' } = {}) {
   const trimmedQuery = safeString(query).slice(0, 140);
+  if (!trimmedQuery) {
+    return { query: '', ok: false, url: '', via: 'serpapi', status: 0, results: [] };
+  }
   const hl = locale.toLowerCase().startsWith('de') ? 'de' : 'en';
-  const url = `https://www.google.com/search?q=${encodeURIComponent(trimmedQuery)}&hl=${hl}&gl=de`;
   try {
-    const fetched = await fetchSerpHtml({ url, zone: serpZone || undefined, country: country || undefined });
-    const html = String(fetched?.body || '');
-    const ok = Boolean(fetched?.ok);
-    const status = fetched?.status || 0;
-    if (!ok || !html) {
-      return { query: trimmedQuery, ok: false, url, via: 'brightdata_serp', status, results: [] };
-    }
+    const data = await callSerpApi('google', {
+      q: trimmedQuery,
+      gl: 'de',
+      hl,
+      google_domain: 'google.de',
+      num: Math.min(limit + 4, 20),
+    });
+    const entries = (data?.organic_results || []).slice(0, limit);
     const results = [];
-    const seen = new Set();
-    const re = /href="(https?:\/\/[^"]+)"/gi;
-    let m;
-    while ((m = re.exec(html))) {
-      const outUrl = decodeHtmlEntities(m[1] || '').replace(/&amp;/g, '&');
+    for (const entry of entries) {
+      const outUrl = entry?.link || entry?.url;
       if (!outUrl || !/^https?:\/\//i.test(outUrl)) continue;
       if (/\.(pdf|jpg|jpeg|png|webp)(\?|$)/i.test(outUrl)) continue;
-      if (seen.has(outUrl)) continue;
       try {
-        const parsed = new URL(outUrl);
-        const host = parsed.host.toLowerCase();
+        const host = new URL(outUrl).host.toLowerCase();
         if (DOMAIN_BLOCKLIST.has(host)) continue;
-        if (
-          host.endsWith('google.com') ||
-          host.endsWith('google.de') ||
-          host.endsWith('gstatic.com') ||
-          host.endsWith('googleusercontent.com') ||
-          host.endsWith('accounts.google.com') ||
-          host.endsWith('support.google.com') ||
-          host.endsWith('translate.google.com')
-        ) {
-          continue;
-        }
-        if (
-          /\/(search|webhp|preferences|policies|advanced_search|setprefs)/i.test(parsed.pathname) ||
-          /accounts\.google\.com/i.test(outUrl)
-        ) {
-          continue;
-        }
       } catch {
-        // ignore
+        continue;
       }
-      seen.add(outUrl);
-      results.push({ title: '', url: outUrl });
-      if (results.length >= limit) break;
+      results.push({
+        title: entry.title || '',
+        url: outUrl,
+        snippet: entry.snippet || '',
+      });
     }
-    return { query: trimmedQuery, ok: true, url, via: fetched?.zone ? `brightdata_serp:${fetched.zone}` : 'brightdata_serp', status, results };
+    return { query: trimmedQuery, ok: results.length > 0, url: '', via: 'serpapi', status: 200, results };
   } catch (e) {
-    return { query: trimmedQuery, ok: false, url, via: 'brightdata_serp', status: 0, results: [], error: e.message };
+    return { query: trimmedQuery, ok: false, url: '', via: 'serpapi', status: 0, results: [], error: e.message };
   }
 }
 
 async function searchWeb(query, { limit = 6, locale = 'de-DE' } = {}) {
-  // Prefer Google via Bright Data SERP zone (most reliable in Cloud Run),
-  // otherwise Google via unlocker. In BrightData-only mode we do NOT fallback to DDG/direct scraping.
-  const serp = await searchGoogleViaBrightDataSerp(query, { limit, locale });
+  // Prefer Google via SerpAPI (structured JSON, most reliable),
+  // then Google via BrightData web unlocker, then DuckDuckGo as last resort.
+  const serp = await searchGoogleViaSerpApi(query, { limit, locale });
   if (serp.ok && Array.isArray(serp.results) && serp.results.length) {
     return { engine: 'google', ...serp };
   }
