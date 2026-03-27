@@ -134,3 +134,76 @@ describe('calculateOrderWeight', () => {
     expect(calculateOrderWeight({})).toBeNull();
   });
 });
+
+// ─── Stub remaining deps for order-intake-ebay ────────────────────────────────
+
+const ebayTradingPath = require.resolve('../lib/ebay-trading-api');
+require.cache[ebayTradingPath] = {
+  id: ebayTradingPath, filename: ebayTradingPath, loaded: true,
+  exports: { callTradingApi: vi.fn().mockResolvedValue({ response: {} }) },
+  children: [], paths: [],
+};
+
+const numberSequencePath = require.resolve('../services/number-sequence');
+require.cache[numberSequencePath] = {
+  id: numberSequencePath, filename: numberSequencePath, loaded: true,
+  exports: { getNextNumber: vi.fn().mockResolvedValue({ formatted: 'AVY-2026-0001', number: 1 }) },
+  children: [], paths: [],
+};
+
+const stockReservationPath = require.resolve('../services/stock-reservation');
+require.cache[stockReservationPath] = {
+  id: stockReservationPath, filename: stockReservationPath, loaded: true,
+  exports: { reserveStock: vi.fn().mockResolvedValue({}), confirmReservation: vi.fn(), releaseReservation: vi.fn() },
+  children: [], paths: [],
+};
+
+const stockSyncDispatcherPath = require.resolve('../services/stock-sync-dispatcher');
+require.cache[stockSyncDispatcherPath] = {
+  id: stockSyncDispatcherPath, filename: stockSyncDispatcherPath, loaded: true,
+  exports: { syncStockWithRetry: vi.fn().mockResolvedValue({}), syncStockToAllChannels: vi.fn() },
+  children: [], paths: [],
+};
+
+const syncEventBusPath = require.resolve('../services/sync-event-bus');
+require.cache[syncEventBusPath] = {
+  id: syncEventBusPath, filename: syncEventBusPath, loaded: true,
+  exports: { emitSyncEvent: vi.fn() },
+  children: [], paths: [],
+};
+
+describe('eBay order intake — weight enrichment', () => {
+  it('enriches items with product weight from SKU lookup', async () => {
+    const productStore = require('../lib/product-store');
+    productStore.getProductWeightBySku = vi.fn()
+      .mockResolvedValueOnce(3.6)
+      .mockResolvedValueOnce(1.2);
+
+    const { enrichOrderItemsWithWeight } = require('../services/order-intake-ebay');
+    const result = await enrichOrderItemsWithWeight([
+      { name: 'Wechselrichter', sku: 'SKU-001', ean: 'EAN-001', quantity: 1, priceBrutto: 160.18 },
+      { name: 'Kabel', sku: 'SKU-002', ean: null, quantity: 2, priceBrutto: 9.99 },
+    ]);
+
+    expect(result.items[0].weight).toBe(3.6);
+    expect(result.items[1].weight).toBe(1.2);
+    expect(result.orderWeight).toBe(3.6 + 1.2 * 2); // 6.0
+  });
+
+  it('sets orderWeight to null when any item has no weight', async () => {
+    const productStore = require('../lib/product-store');
+    productStore.getProductWeightBySku = vi.fn()
+      .mockResolvedValueOnce(3.6)
+      .mockResolvedValueOnce(null);
+
+    const { enrichOrderItemsWithWeight } = require('../services/order-intake-ebay');
+    const result = await enrichOrderItemsWithWeight([
+      { name: 'Wechselrichter', sku: 'SKU-001', ean: 'EAN-001', quantity: 1, priceBrutto: 160.18 },
+      { name: 'Unbekannt', sku: 'SKU-002', ean: null, quantity: 1, priceBrutto: 9.99 },
+    ]);
+
+    expect(result.items[0].weight).toBe(3.6);
+    expect(result.items[1].weight).toBeUndefined();
+    expect(result.orderWeight).toBeNull();
+  });
+});

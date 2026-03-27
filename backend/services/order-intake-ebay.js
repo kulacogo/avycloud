@@ -14,6 +14,7 @@ const { getNextNumber } = require('./number-sequence');
 const { reserveStock } = require('./stock-reservation');
 const { syncStockWithRetry } = require('./stock-sync-dispatcher');
 const { emitSyncEvent } = require('./sync-event-bus');
+const productStore = require('../lib/product-store');
 
 const ORDERS_COLLECTION = 'orders';
 
@@ -315,6 +316,31 @@ async function syncEbayOrders({ tenantId = 'default', lookbackDays = 7 } = {}) {
 }
 
 /**
+ * Enrich order items with product weights from products_v2.
+ * Returns enriched items + total order weight (null if any item has no weight).
+ */
+async function enrichOrderItemsWithWeight(items) {
+  let allHaveWeight = true;
+  const enriched = [];
+
+  for (const item of items) {
+    const weight = await productStore.getProductWeightBySku(item.sku || null, item.ean || null);
+    if (weight) {
+      enriched.push({ ...item, weight });
+    } else {
+      allHaveWeight = false;
+      enriched.push(item);
+    }
+  }
+
+  const orderWeight = allHaveWeight
+    ? enriched.reduce((sum, item) => sum + (item.weight * (item.quantity || 1)), 0)
+    : null;
+
+  return { items: enriched, orderWeight };
+}
+
+/**
  * Save an order to Firestore if it doesn't already exist (by marketplace order ID).
  * @param {{ tenantId: string, order: object }} opts
  * @returns {Promise<boolean>} true if saved (new), false if skipped (duplicate)
@@ -402,6 +428,10 @@ async function saveOrderIfNew({ tenantId, order }) {
 
   // Generate AvyCloud order number
   const seq = await getNextNumber({ tenantId, type: 'order' });
+
+  // Enrich items with product weights
+  const { items: enrichedItems, orderWeight } = await enrichOrderItemsWithWeight(order.items);
+
   const initialStatus = order.ebayStatus || 'pending';
 
   const doc = {
@@ -423,7 +453,7 @@ async function saveOrderIfNew({ tenantId, order }) {
     totalAmount: order.totalAmount,
     currency: order.currency,
     customer: order.customer,
-    items: order.items.map((item, idx) => ({
+    items: enrichedItems.map((item, idx) => ({
       id: `${seq.formatted}-${idx + 1}`,
       ...item,
     })),
@@ -434,6 +464,7 @@ async function saveOrderIfNew({ tenantId, order }) {
     trackingNumber: order.trackingNumber || null,
     carrier: order.carrier || null,
     buyerNote: order.buyerNote,
+    weight: orderWeight,
   };
 
   // Use marketplaceKey as doc ID for idempotent creation (prevents duplicates on race condition)
@@ -446,4 +477,5 @@ module.exports = {
   mapEbayOrder,
   syncEbayOrders,
   saveOrderIfNew,
+  enrichOrderItemsWithWeight,
 };
