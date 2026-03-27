@@ -241,9 +241,10 @@ async function searchGoogleViaSerpApi(query, { limit = 6, locale = 'de-DE' } = {
       google_domain: 'google.de',
       num: Math.min(limit + 4, 20),
     });
-    const entries = (data?.organic_results || []).slice(0, limit);
+    const raw = data?.organic_results || [];
     const results = [];
-    for (const entry of entries) {
+    for (const entry of raw) {
+      if (results.length >= limit) break;
       const outUrl = entry?.link || entry?.url;
       if (!outUrl || !/^https?:\/\//i.test(outUrl)) continue;
       if (/\.(pdf|jpg|jpeg|png|webp)(\?|$)/i.test(outUrl)) continue;
