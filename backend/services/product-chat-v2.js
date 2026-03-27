@@ -21,6 +21,7 @@
 const { getGenAIClient } = require('../lib/gemini3-client');
 const { resolveModel } = require('../lib/model-select');
 const { generateImagesForProduct } = require('./image-generation');
+const { searchProductImages } = require('../lib/image-search');
 const { normalizeDigits, isValidGtin } = require('../lib/gtin');
 const { coerceTitleToPolicy } = require('../lib/title-policy');
 const { buildCommonPolicyText } = require('../lib/llm-policy-pack');
@@ -198,26 +199,20 @@ const UPDATE_DATASHEET_DECLARATION = {
 
 const SUGGEST_IMAGES_DECLARATION = {
   name: 'suggest_product_images',
-  description: 'Suggest web-found product image URLs.',
+  description: 'Search for real product images on the web using Google/Bing Image Search. Provide a precise search query — the system will find actual, verified image URLs via SerpAPI. Do NOT invent or guess image URLs yourself.',
   parameters: {
     type: 'OBJECT',
     properties: {
-      rationale: { type: 'STRING' },
-      images: {
-        type: 'ARRAY',
-        items: {
-          type: 'OBJECT',
-          properties: {
-            url: { type: 'STRING' },
-            source: { type: 'STRING' },
-            variant: { type: 'STRING' },
-            notes: { type: 'STRING' },
-          },
-          required: ['url'],
-        },
+      query: {
+        type: 'STRING',
+        description: 'Search query for product images, e.g. "Anker PowerCore 20000mAh Powerbank" or "0194644170721" (EAN). Be specific: include brand, model, and key identifiers.',
+      },
+      rationale: {
+        type: 'STRING',
+        description: 'Short explanation why these images are being searched.',
       },
     },
-    required: ['images'],
+    required: ['query'],
   },
 };
 
@@ -270,7 +265,7 @@ SCHRITT 3 — ÄNDERUNGEN VORSCHLAGEN:
 TOOLS:
 - Google Search: Steht dir automatisch zur Verfügung. Nutze es für Datenblätter, Preise, GPSR, Spezifikationen, Bilder.
 - update_product_datasheet: PFLICHT wenn du Produktdaten ändern willst. IMMER aufrufen — beschreibe Änderungen NIE nur im Text ohne Tool-Call. IMMER mit Begründung (summary). Ohne Tool-Call werden Änderungen NICHT gespeichert.
-- suggest_product_images: Nutze es für Web-Produktbilder.
+- suggest_product_images: Sucht ECHTE Produktbilder per Google/Bing Image Search. Gib einen präzisen Suchbegriff an (Marke + Modell + ggf. EAN). Erfinde KEINE Bild-URLs selbst — das System findet reale, verifizierte URLs.
 - generate_ai_images: NUR wenn der User explizit KI-Bilder will.
 
 KRITISCH: Wenn du Verbesserungen vorschlägst, MUSST du update_product_datasheet aufrufen. Text allein reicht nicht — der User kann nur Tool-Ergebnisse über "Übernehmen" anwenden. Ohne Tool-Call = keine Übernahme möglich.
@@ -910,15 +905,41 @@ async function runProductChatV2(product, userMessage, {
             policy_issues: sanitized.policyIssues.slice(0, 10),
           };
         } else if (name === 'suggest_product_images') {
-          onProgress?.({ type: 'tool_start', tool: 'suggest_product_images' });
-          const chatImages = sanitizeImageSuggestions(args).filter((img) => {
-            const key = normalizeImageKey(img.url_or_base64);
-            if (!key || existingImageKeys.has(key)) return false;
-            existingImageKeys.add(key);
-            return true;
-          });
-          imageSuggestions.push({ rationale: args?.rationale, images: chatImages });
-          toolResult = { acknowledged: true, count: chatImages.length };
+          const searchQuery = (args?.query || '').trim();
+          onProgress?.({ type: 'tool_start', tool: 'suggest_product_images', query: searchQuery });
+          let chatImages = [];
+          if (searchQuery) {
+            try {
+              console.log(`[chat-v2] SerpAPI image search: "${searchQuery}"`);
+              const serpResults = await searchProductImages(product, {
+                query: searchQuery,
+                limit: 6,
+                minWidth: 400,
+                minHeight: 400,
+              });
+              console.log(`[chat-v2] SerpAPI returned ${serpResults.length} images`);
+              chatImages = serpResults
+                .map((img) => ({
+                  url_or_base64: img.url,
+                  source: img.source || 'web_search',
+                  variant: 'gallery',
+                  notes: img.title || 'Web-Produktbild',
+                }))
+                .filter((img) => {
+                  const key = normalizeImageKey(img.url_or_base64);
+                  if (!key || existingImageKeys.has(key)) return false;
+                  existingImageKeys.add(key);
+                  return true;
+                });
+            } catch (searchErr) {
+              console.error(`[chat-v2] SerpAPI image search failed:`, searchErr.message);
+              toolResult = { success: false, error: 'Image search failed: ' + searchErr.message, count: 0 };
+            }
+          }
+          if (!toolResult?.error) {
+            imageSuggestions.push({ rationale: args?.rationale || searchQuery, images: chatImages });
+            toolResult = { acknowledged: true, count: chatImages.length, query: searchQuery };
+          }
           onProgress?.({ type: 'tool_done', tool: 'suggest_product_images', count: chatImages.length });
         } else if (name === 'generate_ai_images') {
           onProgress?.({ type: 'tool_start', tool: 'generate_ai_images' });

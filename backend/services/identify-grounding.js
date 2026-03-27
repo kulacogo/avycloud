@@ -16,6 +16,7 @@ const crypto = require('crypto');
 const { identifyProductWithGrounding } = require('../lib/gemini3-client');
 const { ensureCategories, applyEbayTaxonomy, applyKauflandTaxonomy } = require('./enrichment');
 const { enrichKTypIfPossible } = require('../lib/ktype-enrichment');
+const { searchProductImages } = require('../lib/image-search');
 
 /**
  * Run product identification via Google Search Grounding.
@@ -171,15 +172,34 @@ async function runProductIdentificationGrounding({
     };
   }
 
-  // Map web images
-  if (Array.isArray(groundedRecord.web_image_urls)) {
-    for (const url of groundedRecord.web_image_urls.filter(Boolean).slice(0, 3)) {
-      product.details.images.push({
-        url_or_base64: url,
-        source: 'web_search',
-        variant: 'marketing',
+  // Map web images — use SerpAPI for real URLs instead of Gemini-hallucinated ones
+  try {
+    const imageQuery = [
+      groundedRecord.brand,
+      groundedRecord.model,
+      groundedRecord.ean || groundedRecord.gtin,
+    ].filter(Boolean).join(' ').trim();
+    if (imageQuery) {
+      console.log(`[identify-grounding] SerpAPI image search: "${imageQuery}"`);
+      const serpImages = await searchProductImages(product, {
+        query: imageQuery,
+        limit: 3,
+        minWidth: 400,
+        minHeight: 400,
       });
+      for (const img of serpImages) {
+        product.details.images.push({
+          url_or_base64: img.url,
+          source: 'web_search',
+          variant: 'marketing',
+          notes: img.title || '',
+        });
+      }
+      console.log(`[identify-grounding] SerpAPI found ${serpImages.length} real images`);
     }
+  } catch (imgErr) {
+    console.warn('[identify-grounding] SerpAPI image search failed:', imgErr?.message);
+    // Non-blocking — continue without web images
   }
 
   // Map GPSR

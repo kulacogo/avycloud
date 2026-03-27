@@ -16,6 +16,7 @@ const { normalizeProductForPolicyApply } = require('../lib/llm-rulebook');
 const { buildRequiredAspectMeta, getRequiredAspectCatalogStats } = require('../lib/ebay-taxonomy');
 const { decodeHtmlEntitiesDeep } = require('../lib/html-entities');
 const { fetchCategoryTitleInsights, fetchBrowsePriceSamples } = require('../lib/ebay-browse-title-insights');
+const { searchProductImages } = require('../lib/image-search');
 
 const MAX_REFERENCE_IMAGES = parseInt(process.env.IMPROVE_REFERENCE_IMAGES || '4', 10);
 const LENS_UPLOAD_PATTERN = /\/uploads\/(identify|improve)_/i;
@@ -1031,16 +1032,36 @@ async function improveExistingProduct(productId, onProgress) {
         }
       }
 
-      // Add web images to the existing product
-      if (Array.isArray(groundedRecord.web_image_urls)) {
-        for (const url of groundedRecord.web_image_urls.filter(Boolean).slice(0, 3)) {
+      // Add web images — use SerpAPI for real URLs instead of Gemini-hallucinated ones
+      try {
+        const imgQuery = [
+          groundedRecord.brand,
+          groundedRecord.model,
+          groundedRecord.ean || groundedRecord.gtin,
+        ].filter(Boolean).join(' ').trim();
+        if (imgQuery) {
           product.details = product.details || {};
           product.details.images = product.details.images || [];
-          const alreadyHas = product.details.images.some((i) => i?.url_or_base64 === url);
-          if (!alreadyHas) {
-            product.details.images.push({ url_or_base64: url, source: 'web_search', variant: 'marketing' });
+          const serpImages = await searchProductImages(product, {
+            query: imgQuery,
+            limit: 3,
+            minWidth: 400,
+            minHeight: 400,
+          });
+          for (const img of serpImages) {
+            const alreadyHas = product.details.images.some((i) => i?.url_or_base64 === img.url);
+            if (!alreadyHas) {
+              product.details.images.push({
+                url_or_base64: img.url,
+                source: 'web_search',
+                variant: 'marketing',
+                notes: img.title || '',
+              });
+            }
           }
         }
+      } catch (imgErr) {
+        console.warn('[improve] SerpAPI image search failed:', imgErr?.message);
       }
 
       // GPSR

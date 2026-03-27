@@ -19,6 +19,7 @@ const { buildSessionId, getSession, appendMessages, clearSession, getGeminiHisto
 const { isBannedEbayBreadcrumb } = require('../lib/ebay-category-governance');
 const { findEbayCategory } = require('../lib/ebay-taxonomy');
 const { enrichPriceForProductBestEffort } = require('../lib/price-enrichment');
+const { searchProductImages } = require('../lib/image-search');
 
 // --- Constants ---
 const MAX_IMAGE_FILES = 30;
@@ -423,15 +424,31 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
           };
         }
 
-        // Map web images
-        if (Array.isArray(groundedRecord.web_image_urls)) {
-          for (const url of groundedRecord.web_image_urls.filter(Boolean).slice(0, 3)) {
-            product.details.images.push({
-              url_or_base64: url,
-              source: 'web_search',
-              variant: 'marketing',
+        // Map web images — use SerpAPI for real URLs instead of Gemini-hallucinated ones
+        try {
+          const imgQuery = [
+            groundedRecord.brand,
+            groundedRecord.model,
+            groundedRecord.ean || groundedRecord.gtin,
+          ].filter(Boolean).join(' ').trim();
+          if (imgQuery) {
+            const serpImages = await searchProductImages(product, {
+              query: imgQuery,
+              limit: 3,
+              minWidth: 400,
+              minHeight: 400,
             });
+            for (const img of serpImages) {
+              product.details.images.push({
+                url_or_base64: img.url,
+                source: 'web_search',
+                variant: 'marketing',
+                notes: img.title || '',
+              });
+            }
           }
+        } catch (imgErr) {
+          console.warn('[identify] SerpAPI image search failed:', imgErr?.message);
         }
 
         // Map GPSR
