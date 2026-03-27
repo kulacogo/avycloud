@@ -3,7 +3,7 @@ const path = require('path');
 const crypto = require('crypto');
 const { FieldValue } = require('@google-cloud/firestore');
 
-const { firestore, getAllProducts } = require('./firestore');
+const { firestore, getAllProducts, PRODUCTS_COLLECTION } = require('./firestore');
 const { getRequiredAspects, getCategoryAspectCatalog } = require('./ebay-taxonomy');
 const {
   getMyeBaySellingActive,
@@ -22,7 +22,6 @@ const EBAY_LINKS_COLLECTION = 'ebayListingLinks';
 const EBAY_GAPS_COLLECTION = 'ebayListingGaps';
 const EBAY_REPORTS_COLLECTION = 'ebayListingReports';
 const CATEGORY_PROFILES_COLLECTION = 'categoryProfiles';
-const PRODUCTS_COLLECTION = 'products';
 
 function safeString(value) {
   return value == null ? '' : String(value).trim();
