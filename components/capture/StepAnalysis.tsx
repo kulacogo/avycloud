@@ -123,7 +123,7 @@ const StepAnalysis: React.FC<StepAnalysisProps> = ({
             chunk.map((group) =>
               identifyProductV2(
                 group.images || [],
-                group.label === "Barcode-Identifikation" ? uploadData.barcodes : "",
+                group.barcodes || "",
                 "de-DE",
                 undefined,
                 uploadData.paletteCode || undefined,

@@ -11,6 +11,7 @@ export interface UploadGroupPayload {
   id: string;
   label: string;
   images: File[];
+  barcodes?: string;
   hint?: string | null;
 }
 

@@ -9,6 +9,7 @@ interface StepReviewProps {
   product: Product;
   onComplete: (edited: Product) => void;
   onBack: () => void;
+  isLastProduct?: boolean;
 }
 
 const CONDITIONS = [
@@ -26,16 +27,18 @@ const ConfidenceBadge: React.FC<{ value: number }> = ({ value }) => {
   return <Badge variant="danger" size="sm">Geschätzt</Badge>;
 };
 
-const StepReview: React.FC<StepReviewProps> = ({ product, onComplete, onBack }) => {
+const StepReview: React.FC<StepReviewProps> = ({ product, onComplete, onBack, isLastProduct = true }) => {
   const [name, setName] = useState(product.identification?.name || "");
   const [brand, setBrand] = useState(product.identification?.brand || "");
   const [category, setCategory] = useState(product.identification?.category || "");
   const [ean, setEan] = useState(
-    product.details?.identifiers?.ean?.[0] ||
+    (Array.isArray(product.details?.identifiers?.ean)
+      ? product.details?.identifiers?.ean?.[0]
+      : product.details?.identifiers?.ean) ||
     product.identification?.barcodes?.[0] || ""
   );
   const [condition, setCondition] = useState(
-    product.details?.attributes?.condition as string || "used_good"
+    product.details?.attributes?.condition as string || "new"
   );
   const [description, setDescription] = useState(
     product.details?.short_description || ""
@@ -65,7 +68,7 @@ const StepReview: React.FC<StepReviewProps> = ({ product, onComplete, onBack }) 
         short_description: description,
         identifiers: {
           ...product.details?.identifiers,
-          ean: ean.trim() ? [ean.trim()] : product.details?.identifiers?.ean || [],
+          ean: ean.trim() || (product.details?.identifiers?.ean as string) || "",
         },
         attributes: {
           ...product.details?.attributes,
@@ -213,7 +216,7 @@ const StepReview: React.FC<StepReviewProps> = ({ product, onComplete, onBack }) 
             </svg>
           }
         >
-          Weiter zu Preis & Lager
+          {isLastProduct ? "Weiter zur Zusammenfassung" : "Nächstes Produkt"}
         </Button>
       </div>
     </div>

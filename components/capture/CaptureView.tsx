@@ -9,18 +9,13 @@ import StepUpload from "./StepUpload";
 import StepGrouping from "./StepGrouping";
 import StepAnalysis from "./StepAnalysis";
 import StepReview from "./StepReview";
-import StepPricing from "./StepPricing";
-import StepChannels from "./StepChannels";
 import StepSummary from "./StepSummary";
-import type { ChannelListing } from "../../api/client";
 
 const STEPS: Step[] = [
   { id: "upload", label: "Bilder hochladen" },
   { id: "grouping", label: "Gruppierung" },
   { id: "analysis", label: "KI-Erkennung" },
   { id: "review", label: "Prüfen & Korrigieren" },
-  { id: "pricing", label: "Preis & Lager" },
-  { id: "channels", label: "Marktplätze" },
   { id: "summary", label: "Zusammenfassung" },
 ];
 
@@ -59,7 +54,6 @@ const CaptureView: React.FC<CaptureViewProps> = ({ onProductCreated }) => {
   const [products, setProducts] = useState<Product[]>([]);
   const [activeProductIndex, setActiveProductIndex] = useState(0);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
-  const [channelListings, setChannelListings] = useState<Record<string, ChannelListing> | null>(null);
 
   const currentProduct = products[activeProductIndex] || null;
 
@@ -93,6 +87,7 @@ const CaptureView: React.FC<CaptureViewProps> = ({ onProductCreated }) => {
                 id: g.id,
                 label: g.label,
                 images: g.images,
+                barcodes: g.barcodes || "",
                 hint: g.hint ?? null,
               })),
               barcodes: confirmedGroups.map((g) => g.barcodes).filter(Boolean).join(","),
@@ -122,41 +117,27 @@ const CaptureView: React.FC<CaptureViewProps> = ({ onProductCreated }) => {
     setAnalysisError(error);
   }, []);
 
-  // Review → Pricing
+  // Review complete for single product — advance to next product or summary
   const handleReviewComplete = useCallback(
     (edited: Product) => {
       setProducts((prev) => prev.map((p, i) => (i === activeProductIndex ? edited : p)));
-      completeStep("review");
-      goTo("pricing");
+      if (activeProductIndex < products.length - 1) {
+        // More products to review — advance to next tab
+        setActiveProductIndex((prev) => prev + 1);
+      } else {
+        // All products reviewed — go to summary
+        completeStep("review");
+        goTo("summary");
+      }
     },
-    [completeStep, goTo, activeProductIndex]
+    [completeStep, goTo, activeProductIndex, products.length]
   );
 
-  // Pricing → Channels
-  const handlePricingComplete = useCallback(
-    (updated: Product) => {
-      setProducts((prev) => prev.map((p, i) => (i === activeProductIndex ? updated : p)));
-      completeStep("pricing");
-      goTo("channels");
-    },
-    [completeStep, goTo, activeProductIndex]
-  );
-
-  // Channels → Summary
-  const handleChannelsComplete = useCallback(
-    (updated: Product, listings: Record<string, ChannelListing>) => {
-      setProducts((prev) => prev.map((p, i) => (i === activeProductIndex ? updated : p)));
-      setChannelListings(listings);
-      completeStep("channels");
-      goTo("summary");
-    },
-    [completeStep, goTo, activeProductIndex]
-  );
-
-  // Summary done
+  // Summary done — called once for all products
   const handleSaved = useCallback(
-    (saved: Product) => {
-      onProductCreated?.(saved);
+    (saved: Product | Product[]) => {
+      const arr = Array.isArray(saved) ? saved : [saved];
+      arr.forEach((p) => onProductCreated?.(p));
       completeStep("summary");
     },
     [completeStep, onProductCreated]
@@ -170,7 +151,6 @@ const CaptureView: React.FC<CaptureViewProps> = ({ onProductCreated }) => {
     setProducts([]);
     setActiveProductIndex(0);
     setAnalysisError(null);
-    setChannelListings(null);
     setPaletteCode("");
   }, []);
 
@@ -251,35 +231,14 @@ const CaptureView: React.FC<CaptureViewProps> = ({ onProductCreated }) => {
               product={currentProduct}
               onComplete={handleReviewComplete}
               onBack={handleStepBack}
+              isLastProduct={activeProductIndex >= products.length - 1}
             />
           </>
         )}
 
-        {activeStep === "pricing" && currentProduct && (
-          <>
-            {ProductTabs}
-            <StepPricing
-              product={currentProduct}
-              onComplete={handlePricingComplete}
-              onBack={handleStepBack}
-            />
-          </>
-        )}
-
-        {activeStep === "channels" && currentProduct && (
-          <>
-            {ProductTabs}
-            <StepChannels
-              product={currentProduct}
-              onComplete={handleChannelsComplete}
-              onBack={handleStepBack}
-            />
-          </>
-        )}
-
-        {activeStep === "summary" && currentProduct && (
+        {activeStep === "summary" && products.length > 0 && (
           <StepSummary
-            product={currentProduct}
+            products={products}
             onSave={handleSaved}
             onBack={handleStepBack}
             onReset={handleReset}

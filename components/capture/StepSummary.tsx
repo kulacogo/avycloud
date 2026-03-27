@@ -7,8 +7,8 @@ import { Badge } from "../ui/Badge";
 import { useToast } from "../../context/ToastContext";
 
 interface StepSummaryProps {
-  product: Product;
-  onSave: (saved: Product) => void;
+  products: Product[];
+  onSave: (saved: Product[]) => void;
   onBack: () => void;
   onReset: () => void;
 }
@@ -32,41 +32,102 @@ const SummaryRow: React.FC<{ label: string; value?: string | number | null; badg
   </div>
 );
 
-const StepSummary: React.FC<StepSummaryProps> = ({ product, onSave, onBack, onReset }) => {
+function getHeroImage(product: Product): string | null {
+  const images = product.details?.images;
+  if (!images?.length) return null;
+  const first = images[0];
+  return typeof first === "string" ? first : (first as any)?.url || (first as any)?.url_or_base64 || null;
+}
+
+function getEan(product: Product): string | undefined {
+  const ean = product.details?.identifiers?.ean;
+  const val = Array.isArray(ean) ? ean[0] : ean;
+  return val || product.identification?.barcodes?.[0];
+}
+
+const ProductCard: React.FC<{ product: Product }> = ({ product }) => {
+  const heroImage = getHeroImage(product);
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-[120px_1fr] gap-4">
+      {/* Image */}
+      <div>
+        {heroImage ? (
+          <div className="aspect-square rounded-xl overflow-hidden border border-app-border bg-app-elevated">
+            <img src={heroImage} alt={product.identification?.name} className="w-full h-full object-cover" />
+          </div>
+        ) : (
+          <div className="aspect-square rounded-xl border border-app-border bg-app-elevated flex items-center justify-center">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-txt-muted">
+              <rect x="3" y="3" width="18" height="18" rx="2" />
+              <circle cx="8.5" cy="8.5" r="1.5" />
+              <path d="m21 15-5-5L5 21" />
+            </svg>
+          </div>
+        )}
+        {product.details?.images?.length > 1 && (
+          <p className="text-xs text-txt-muted text-center mt-1">
+            {product.details.images.length} Bilder
+          </p>
+        )}
+      </div>
+
+      {/* Details */}
+      <Card padding="sm">
+        <div className="divide-y divide-app-border">
+          <SummaryRow label="Name" value={product.identification?.name} />
+          <SummaryRow label="Marke" value={product.identification?.brand} />
+          <SummaryRow label="Kategorie" value={product.identification?.category} />
+          <SummaryRow label="EAN" value={getEan(product)} />
+          <SummaryRow
+            label="Zustand"
+            value={product.details?.attributes?.condition as string}
+            badge
+          />
+          <SummaryRow label="SKU" value={product.identification?.sku} />
+        </div>
+      </Card>
+    </div>
+  );
+};
+
+const StepSummary: React.FC<StepSummaryProps> = ({ products, onSave, onBack, onReset }) => {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [saveResults, setSaveResults] = useState<{ success: number; failed: number; errors: string[] }>({
+    success: 0, failed: 0, errors: [],
+  });
   const { addToast } = useToast();
-
-  const heroImage = useMemo(() => {
-    const images = product.details?.images;
-    if (!images?.length) return null;
-    const first = images[0];
-    return typeof first === "string" ? first : (first as any)?.url || (first as any)?.url_or_base64 || null;
-  }, [product]);
-
-  const pricing = product.details?.pricing;
-  const sellPrice = pricing?.sellPrice;
-  const buyPrice = pricing?.buyPrice;
-  const margin =
-    sellPrice && buyPrice && buyPrice > 0
-      ? ((sellPrice - buyPrice) / buyPrice * 100).toFixed(1)
-      : null;
 
   const handleSave = async () => {
     setSaving(true);
-    try {
-      const result = await saveProduct(product);
-      if (!result.ok) {
-        throw new Error(result.error?.message || "Speichern fehlgeschlagen.");
+    const successes: Product[] = [];
+    const errors: string[] = [];
+
+    for (const product of products) {
+      try {
+        const result = await saveProduct(product);
+        if (!result.ok) {
+          throw new Error(result.error?.message || "Speichern fehlgeschlagen.");
+        }
+        successes.push(product);
+      } catch (err: any) {
+        errors.push(`${product.identification?.name || product.id}: ${err?.message || "Fehler"}`);
       }
+    }
+
+    setSaveResults({ success: successes.length, failed: errors.length, errors });
+    setSaving(false);
+
+    if (successes.length > 0) {
       setSaved(true);
-      const saveMsg = `"${product.identification?.name}" gespeichert` + (result.data?.sku ? ` (SKU: ${result.data.sku})` : "");
-      addToast("success", saveMsg);
-      onSave(product);
-    } catch (err: any) {
-      addToast("error", `Fehler beim Speichern: ${err?.message || "Ein unerwarteter Fehler ist aufgetreten."}`);
-    } finally {
-      setSaving(false);
+      const msg = products.length === 1
+        ? `"${successes[0].identification?.name}" gespeichert`
+        : `${successes.length} von ${products.length} Produkten gespeichert`;
+      addToast("success", msg);
+      onSave(successes);
+    } else {
+      addToast("error", `Keine Produkte gespeichert: ${errors[0]}`);
     }
   };
 
@@ -81,10 +142,21 @@ const StepSummary: React.FC<StepSummaryProps> = ({ product, onSave, onBack, onRe
               </svg>
             </div>
             <div>
-              <h2 className="text-lg font-semibold text-txt-primary">Produkt erfolgreich angelegt</h2>
+              <h2 className="text-lg font-semibold text-txt-primary">
+                {products.length === 1
+                  ? "Produkt erfolgreich angelegt"
+                  : `${saveResults.success} Produkte erfolgreich angelegt`}
+              </h2>
               <p className="text-sm text-txt-muted mt-1">
-                „{product.identification?.name}" wurde im Katalog gespeichert.
+                {products.length === 1
+                  ? `„${products[0].identification?.name}" wurde im Katalog gespeichert.`
+                  : `${saveResults.success} von ${products.length} Produkten wurden im Katalog gespeichert.`}
               </p>
+              {saveResults.failed > 0 && (
+                <div className="mt-2 text-sm text-danger">
+                  {saveResults.errors.map((e, i) => <div key={i}>{e}</div>)}
+                </div>
+              )}
             </div>
           </div>
         </Card>
@@ -93,7 +165,7 @@ const StepSummary: React.FC<StepSummaryProps> = ({ product, onSave, onBack, onRe
             Zum Produktkatalog
           </Button>
           <Button onClick={onReset}>
-            Nächstes Produkt erfassen
+            Nächste Produkte erfassen
           </Button>
         </div>
       </div>
@@ -105,94 +177,41 @@ const StepSummary: React.FC<StepSummaryProps> = ({ product, onSave, onBack, onRe
       <div>
         <h2 className="text-lg font-semibold text-txt-primary">Zusammenfassung</h2>
         <p className="text-sm text-txt-muted mt-0.5">
-          Prüfe die Daten und speichere das Produkt.
+          {products.length === 1
+            ? "Prüfe die Daten und speichere das Produkt."
+            : `Prüfe die Daten und speichere ${products.length} Produkte.`}
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-[180px_1fr] gap-6">
-        {/* Image */}
-        <div>
-          {heroImage ? (
-            <div className="aspect-square rounded-xl overflow-hidden border border-app-border bg-app-elevated">
-              <img src={heroImage} alt={product.identification?.name} className="w-full h-full object-cover" />
-            </div>
-          ) : (
-            <div className="aspect-square rounded-xl border border-app-border bg-app-elevated flex items-center justify-center">
-              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-txt-muted">
-                <rect x="3" y="3" width="18" height="18" rx="2" />
-                <circle cx="8.5" cy="8.5" r="1.5" />
-                <path d="m21 15-5-5L5 21" />
-              </svg>
-            </div>
-          )}
-          {product.details?.images?.length > 1 && (
-            <p className="text-xs text-txt-muted text-center mt-2">
-              {product.details.images.length} Bilder
-            </p>
-          )}
-        </div>
-
-        {/* Details */}
-        <div className="space-y-4">
-          <Card padding="sm">
-            <h3 className="text-xs font-medium text-txt-muted mb-2">Produktdaten</h3>
-            <div className="divide-y divide-app-border">
-              <SummaryRow label="Name" value={product.identification?.name} />
-              <SummaryRow label="Marke" value={product.identification?.brand} />
-              <SummaryRow label="Kategorie" value={product.identification?.category} />
-              <SummaryRow
-                label="EAN"
-                value={product.details?.identifiers?.ean?.[0] || product.identification?.barcodes?.[0]}
-              />
-              <SummaryRow
-                label="Zustand"
-                value={product.details?.attributes?.condition as string}
-                badge
-              />
-              <SummaryRow label="SKU" value={product.identification?.sku} />
-            </div>
+      <div className="space-y-4">
+        {products.map((product, i) => (
+          <Card key={product.id || i} padding="md">
+            {products.length > 1 && (
+              <h3 className="text-sm font-medium text-txt-secondary mb-3">
+                Produkt {i + 1} von {products.length}
+              </h3>
+            )}
+            <ProductCard product={product} />
           </Card>
-
-          <Card padding="sm">
-            <h3 className="text-xs font-medium text-txt-muted mb-2">Preis & Lager</h3>
-            <div className="divide-y divide-app-border">
-              <SummaryRow label="Verkaufspreis" value={sellPrice ? `${sellPrice.toFixed(2)} €` : null} />
-              <SummaryRow label="Einkaufspreis" value={buyPrice ? `${buyPrice.toFixed(2)} €` : null} />
-              {margin && <SummaryRow label="Marge" value={`${margin}%`} />}
-              <SummaryRow label="Menge" value={product.ops?.pending_intake_quantity || 1} />
-              <SummaryRow label="Lagerplatz" value={product.storage?.binCode} />
-            </div>
-          </Card>
-
-          {product.details?.short_description && (
-            <Card padding="sm">
-              <h3 className="text-xs font-medium text-txt-muted mb-2">Beschreibung</h3>
-              <p className="text-sm text-txt-secondary line-clamp-4">
-                {product.details.short_description}
-              </p>
-            </Card>
-          )}
-        </div>
+        ))}
       </div>
 
       {/* Actions */}
       <div className="flex justify-between">
         <Button variant="secondary" onClick={onBack}>Zurück</Button>
-        <div className="flex gap-3">
-          <Button
-            onClick={handleSave}
-            loading={saving}
-            iconLeft={
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z" />
-                <polyline points="17 21 17 13 7 13 7 21" />
-                <polyline points="7 3 7 8 15 8" />
-              </svg>
-            }
-          >
-            Produkt speichern
-          </Button>
-        </div>
+        <Button
+          onClick={handleSave}
+          loading={saving}
+          iconLeft={
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z" />
+              <polyline points="17 21 17 13 7 13 7 21" />
+              <polyline points="7 3 7 8 15 8" />
+            </svg>
+          }
+        >
+          {products.length === 1 ? "Produkt speichern" : `${products.length} Produkte speichern`}
+        </Button>
       </div>
     </div>
   );
