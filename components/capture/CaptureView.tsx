@@ -228,6 +228,7 @@ const CaptureView: React.FC<CaptureViewProps> = ({ onProductCreated }) => {
           <>
             {ProductTabs}
             <StepReview
+              key={currentProduct.id || activeProductIndex}
               product={currentProduct}
               onComplete={handleReviewComplete}
               onBack={handleStepBack}
