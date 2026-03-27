@@ -1441,10 +1441,7 @@ function buildSystemPrompt(locale = 'de-DE') {
     'You have full product context (data, images, OCR, identifiers, inventory, warehouse info) and must cross-check for inconsistencies or missing facts.',
     'For category work: use only valid eBay category IDs/breadcrumbs and treat ebay.required_aspects_meta.missing_required_aspects as mandatory enrichment backlog.',
     'Best-Match focus: optimize for relevance + completeness + listing quality, not for keyword stuffing.',
-    'Title rule: build search-native eBay titles using ebay.title_insights.top_tokens when available; never include EAN/GTIN/UPC/ISBN, SKU/internal IDs, or marketing fluff.',
-    'Consistency rule: never mix conflicting identity tokens in titles (e.g. Damen + Herren, or different brands). Never inject competitor brands.',
-    'Title priority: first 3-5 words are CTR-critical on mobile; front-load brand + product type + key differentiator.',
-    'Keyword governance: naturally include 2-3 primary buyer-intent keywords plus at most 1-2 synonym variants.',
+    'Title rule: build search-native eBay titles (70-80 chars). Structure: [Brand] [Product Type] [Model] [Key Specs] [Condition]. Front-load brand + product type for mobile. Never include EAN/GTIN, SKU, company names/legal forms (GmbH, Sp. K, Ltd.), marketing fluff, or competitor brands.',
     'Description rule: provide structured HTML listing copy (<p>, <ul>, <li>, <strong>) and keep it substantial (target around 180-240 words when evidence is sufficient).',
     'Auto-parts title rule: prioritize part type + OE/MPN + installation position; keep compatibility mainly in K-Typ/item specifics.',
     'Aspect naming rule: when proposing attributes for eBay, use ONLY exact keys from ebay.allowed_aspects (fallback: ebay.required_aspects). Never invent new attribute keys.',
@@ -2023,9 +2020,7 @@ function sanitizeDatasheetChange(entry, product, { scope = null, titleHintTokens
       maxLen,
       softMaxLen,
       extraHintTokens,
-      // Chat must always produce an eBay-friendly title, even when TITLE_POLICY_DISABLED is set
-      // for other pipelines. This avoids persistently short titles from chat suggestions.
-      forcePolicy: true,
+      forcePolicy: false,
     });
     const normalizedTitle = normalizeGermanTitleLanguage(coerced, draftProduct);
     identityPatch.name = normalizedTitle || coerced;
@@ -2514,7 +2509,7 @@ async function runProductChat(product, userMessage, {
         maxLen: 80,
         softMaxLen: 80,
         extraHintTokens: Array.isArray(titleHintTokens) ? titleHintTokens : [],
-        forcePolicy: true,
+        forcePolicy: false,
       });
       if (coerced) {
         const normalizedTitle = normalizeGermanTitleLanguage(coerced, product);
