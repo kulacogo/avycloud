@@ -265,7 +265,7 @@ type QuickPrompt = {
 
 const QUICK_PROMPTS: QuickPrompt[] = [
   { icon: '✨', label: 'Alles optimieren', message: 'Optimiere Titel, Beschreibung, Highlights und Attribute. Recherchiere online und schlage konkrete Verbesserungen vor.', scope: 'title,attributes,highlights,description' },
-  { icon: '🏷️', label: 'Titel verbessern', message: 'Erstelle einen SEO-optimierten, marketplace-tauglichen Produkttitel basierend auf Online-Recherche.', scope: 'title' },
+  { icon: '🏷️', label: 'Titel verbessern', message: 'Erstelle einen SEO-optimierten, marketplace-tauglichen Produkttitel basierend auf Online-Recherche. Wichtig: Nur Marke + Produkttyp + Modell + technische Merkmale. KEINE Firmennamen, Rechtsformen (GmbH, Sp. K, Ltd., Inc., S.A., Co. KG), Händlernamen oder Herstelleradressen im Titel.', scope: 'title' },
   { icon: '📝', label: 'Beschreibung', message: 'Schreibe eine professionelle, verkaufsstarke Produktbeschreibung mit Bullet Points und Vorteilen.', scope: 'description,highlights' },
   { icon: '🔍', label: 'EAN / GTIN finden', message: 'Recherchiere die korrekte EAN/GTIN für dieses Produkt im Web.', scope: 'gtin' },
   { icon: '📊', label: 'Attribute', message: 'Ergänze fehlende Produktattribute (Material, Farbe, Maße, Gewicht etc.) basierend auf Online-Recherche.', scope: 'attributes' },

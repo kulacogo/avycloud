@@ -203,6 +203,14 @@ function stripLeadingNonAlnum(text = '') {
   return String(text || '').replace(/^[^\p{L}\p{N}]+/gu, '');
 }
 
+function stripCompanyLegalForms(text = '') {
+  // Remove company legal forms / trade names that leak into product titles.
+  // E.g. "für Horeczy Sp. K" or "von Müller GmbH" — not product-relevant.
+  return String(text || '')
+    .replace(/\b(für|von|by|from)\s+\S+\s+(Sp\.\s*(?:z\s*o\.?\s*o\.?|K|J)|GmbH|AG|KG|Co\.?\s*KG|e\.?\s*K|OHG|UG|Ltd\.?|Inc\.?|S\.?\s*[AL]\.?|S\.?\s*r\.?\s*l\.?|Corp\.?|LLC|Pty\.?|Pvt\.?|B\.?\s*V\.?|N\.?\s*V\.?)\b/gi, ' ')
+    .replace(/\b(Sp\.\s*(?:z\s*o\.?\s*o\.?|K|J)|GmbH|Co\.?\s*KG|e\.?\s*K)\b/gi, ' ');
+}
+
 function compactApplicationToken(value = '') {
   // Keep "Anwendung" short so it fits in 70–75 char titles.
   // Deterministic cleanup only (no guessing): remove parentheticals and take the first clause.
@@ -2261,6 +2269,7 @@ function coerceTitleToPolicy(
     let t = stripEmojis(proposedTitle || '');
     t = stripMarkdownDecorations(t);
     t = stripSkuNoise(t);
+    t = stripCompanyLegalForms(t);
     t = stripAudienceConflictsFromTitle(t, product);
     t = normalizeSpaces(t);
     t = stripLeadingNonAlnum(t);
@@ -2274,6 +2283,7 @@ function coerceTitleToPolicy(
   // Clean the incoming title: we only use it as a hint source for specs.
   let hintTitle = stripSkuNoise(proposedTitle || '');
   hintTitle = stripEmojis(hintTitle);
+  hintTitle = stripCompanyLegalForms(hintTitle);
   hintTitle = stripMarketingWords(hintTitle);
   if (!conditionLocked) {
     hintTitle = stripUsedCondition(hintTitle);
