@@ -4,7 +4,7 @@ require('../api/_patchGcp');
 
 // Patch serpapi before loading web-search-html
 const serpapi = require('../../lib/serpapi');
-vi.spyOn(serpapi, 'callSerpApi');
+vi.spyOn(serpapi, 'callSerpApi').mockResolvedValue({ organic_results: [] });
 
 // Patch web-unlocker to avoid real HTTP
 const webUnlocker = require('../../lib/web-unlocker');
@@ -70,5 +70,16 @@ describe('web-search-html searchWeb', () => {
     // With unlocker also mocked to fail, should ultimately fail
     expect(result.ok).toBe(false);
     expect(serpapi.callSerpApi).toHaveBeenCalledTimes(1);
+    expect(webUnlocker.fetchWithUnlocker).toHaveBeenCalled();
+  });
+
+  it('falls back when serpapi returns empty results', async () => {
+    serpapi.callSerpApi.mockResolvedValueOnce({ organic_results: [] });
+
+    const result = await searchWeb('empty query');
+
+    expect(result.ok).toBe(false);
+    expect(serpapi.callSerpApi).toHaveBeenCalledTimes(1);
+    expect(webUnlocker.fetchWithUnlocker).toHaveBeenCalled();
   });
 });
