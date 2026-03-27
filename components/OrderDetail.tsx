@@ -716,6 +716,10 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({ orderId, onClose, onSt
                         <div className="flex items-center gap-3 mt-1 text-xs text-txt-muted">
                           {item.sku && <span>SKU: {item.sku}</span>}
                           {item.ean && <span>EAN: {item.ean}</span>}
+                          {item.weight
+                            ? <span>{item.weight} kg</span>
+                            : <span className="text-warning">Gewicht fehlt</span>
+                          }
                         </div>
                         {item.pickHint?.binCode && (
                           <div className="mt-1 text-xs text-accent">
