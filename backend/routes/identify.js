@@ -643,7 +643,7 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
       finalQuality = null;
     }
 
-    // 3.9) Final invariant: refuse to save without a valid (allowed) eBay category id.
+    // 3.9) eBay category check — warn but don't throw. Missing category can be resolved later.
     const finalCategoryId = String(product?.details?.categoryId || '').trim();
     const finalCategory = finalCategoryId ? findEbayCategory(finalCategoryId) : null;
     const finalBreadcrumb = finalCategory?.breadcrumb ? String(finalCategory.breadcrumb) : '';
@@ -654,9 +654,11 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
       !finalBreadcrumb.includes('>') ||
       isBannedEbayBreadcrumb(finalBreadcrumb)
     ) {
-      throw new Error(
-        `Identify (v2) refused to save product without valid eBay category (categoryId="${finalCategoryId || ''}")`
+      console.warn(
+        `[identify] Product saved without valid eBay category (categoryId="${finalCategoryId || ''}") — can be resolved via Improve or Chat`
       );
+      product.ops = product.ops || {};
+      product.ops.missing_ebay_category = true;
     }
 
     // 4) Persist source palette reference if provided (Wareneingang tracking).

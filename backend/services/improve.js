@@ -1201,21 +1201,12 @@ async function improveExistingProduct(productId, onProgress) {
     console.warn('[improve] Web image search failed (continuing):', e?.message || e);
   }
 
-  // Enforce title policy even if the model skipped title updates.
+  // Minimal title sanitization — trust Gemini's output, only clean up noise.
   mergedProduct.identification = mergedProduct.identification || {};
-  const finalTitleInsights = await loadTitleInsightsForProduct(mergedProduct, {
-    fallbackCategoryId: safeString(ebayListing?.categoryId),
-    cache: titleInsightCache,
-    limit: Math.max(10, Math.min(200, Number(process.env.IMPROVE_TITLE_INSIGHTS_LIMIT) || 80)),
-    maxTokens: Math.max(1, Math.min(20, Number(process.env.IMPROVE_TITLE_INSIGHTS_MAX_TOKENS) || 8)),
-  });
-  const extraHintTokens = Array.isArray(finalTitleInsights?.topTokens)
-    ? finalTitleInsights.topTokens.map(normalizeTitleInsightToken).filter(isValidTitleInsightToken).slice(0, 12)
-    : [];
   mergedProduct.identification.name = coerceTitleToPolicy(
     mergedProduct,
     mergedProduct.identification.name,
-    { minLen: 70, maxLen: 80, softMaxLen: 80, extraHintTokens }
+    { minLen: 0, maxLen: 80, softMaxLen: 80, extraHintTokens: [], forcePolicy: false }
   );
 
   // Price enrichment (best-effort): prefer eBay Browse API evidence (no SerpAPI required).

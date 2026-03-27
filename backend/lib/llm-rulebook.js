@@ -69,9 +69,10 @@ function normalizeProductStrict(product, { source = 'unknown' } = {}) {
   const titleSoftMax = Number(rule?.softMaxLen || 75);
   const titleMobileMax = Number(rule?.mobileMaxLen || 60);
   const coercedTitle = coerceTitleToPolicy(next, currentTitle, {
-    minLen: titleMinLen,
+    minLen: 0,
     maxLen: titleMaxLen,
     softMaxLen: titleSoftMax,
+    forcePolicy: false,
   });
   const titleIssues =
     validateTitleToPolicy(next, coercedTitle, { minLen: titleMinLen, maxLen: titleMaxLen, mobileMaxLen: titleMobileMax }) || [];
@@ -158,9 +159,10 @@ function normalizeProductForPolicyApply(product, { source = 'unknown' } = {}) {
   const titleMobileMax = Number(rule?.mobileMaxLen || 60);
 
   const coercedTitle = coerceTitleToPolicy(next, currentTitle, {
-    minLen: titleMinLen,
+    minLen: 0,
     maxLen: titleMaxLen,
     softMaxLen: titleSoftMax,
+    forcePolicy: false,
   });
   const titleIssues =
     validateTitleToPolicy(next, coercedTitle, { minLen: titleMinLen, maxLen: titleMaxLen, mobileMaxLen: titleMobileMax }) || [];
