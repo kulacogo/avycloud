@@ -14,6 +14,31 @@ const { firestore } = require('../lib/firestore');
 const SYNC_LOG_COLLECTION = 'stock_sync_log';
 
 /**
+ * Find products by SKU — searches both identification.sku and details.identifiers.sku
+ * to avoid the silent-miss bug where products only have SKU in one field.
+ */
+async function findProductsBySkuChunk(skuChunk) {
+  const found = new Map();
+  // Primary: identification.sku
+  const snap1 = await firestore.collection('products_v2')
+    .where('identification.sku', 'in', skuChunk)
+    .get();
+  for (const doc of snap1.docs) {
+    found.set(doc.id, { id: doc.id, ...doc.data() });
+  }
+  // Fallback: details.identifiers.sku (for products that only have SKU there)
+  const snap2 = await firestore.collection('products_v2')
+    .where('details.identifiers.sku', 'in', skuChunk)
+    .get();
+  for (const doc of snap2.docs) {
+    if (!found.has(doc.id)) {
+      found.set(doc.id, { id: doc.id, ...doc.data() });
+    }
+  }
+  return [...found.values()];
+}
+
+/**
  * Compute true available quantity for a product by subtracting
  * active reservations from physical stock.
  *
@@ -358,15 +383,11 @@ async function syncStockForOrderItems({ tenantId = 'default', orderId, reason = 
     const skus = [...new Set(items.map((i) => String(i.sku || '').trim()).filter(Boolean))];
     if (skus.length === 0) return;
 
-    // Query products by SKU (in chunks of 10)
-    const { getProductV2 } = require('../lib/product-store');
+    // Query products by SKU (in chunks of 10) — search both SKU fields
     for (let i = 0; i < skus.length; i += 10) {
       const chunk = skus.slice(i, i + 10);
-      const snap = await firestore.collection('products_v2')
-        .where('details.identifiers.sku', 'in', chunk)
-        .get();
-      for (const doc of snap.docs) {
-        const product = { id: doc.id, ...doc.data() };
+      const products = await findProductsBySkuChunk(chunk);
+      for (const product of products) {
         syncStockWithRetry({ tenantId, product, reason: `${reason}-${orderId}` })
           .catch((err) => console.warn(`[stock-sync] order item sync failed: ${err.message}`));
       }
@@ -381,5 +402,6 @@ module.exports = {
   syncStockWithRetry,
   syncStockForOrderItems,
   syncPriceToAllChannels,
+  findProductsBySkuChunk,
   computeAvailableQuantity,
 };

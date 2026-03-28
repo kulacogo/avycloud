@@ -12,7 +12,7 @@ const { callTradingApi } = require('../lib/ebay-trading-api');
 const { sanitizeText, validateEmail } = require('../lib/html-entities');
 const { getNextNumber } = require('./number-sequence');
 const { reserveStock } = require('./stock-reservation');
-const { syncStockWithRetry } = require('./stock-sync-dispatcher');
+const { syncStockWithRetry, findProductsBySkuChunk } = require('./stock-sync-dispatcher');
 const { emitSyncEvent } = require('./sync-event-bus');
 const productStore = require('../lib/product-store');
 
@@ -257,17 +257,13 @@ async function syncEbayOrders({ tenantId = 'default', lookbackDays = 7 } = {}) {
   // Push updated availability to all marketplaces
   if (newOrderSkus.size > 0) {
     try {
-      const db = getDb();
       const skuArray = Array.from(newOrderSkus);
       for (let i = 0; i < skuArray.length; i += 10) {
         const chunk = skuArray.slice(i, i + 10);
-        const snap = await db.collection('products_v2')
-          .where('details.identifiers.sku', 'in', chunk)
-          .get();
-        for (const doc of snap.docs) {
-          const product = { id: doc.id, ...doc.data() };
+        const products = await findProductsBySkuChunk(chunk);
+        for (const product of products) {
           syncStockWithRetry({ tenantId, product, reason: 'ebay-order-intake' })
-            .catch((err) => console.warn(`[ebay-intake] stock sync failed for ${doc.id}: ${err.message}`));
+            .catch((err) => console.warn(`[ebay-intake] stock sync failed for ${product.id}: ${err.message}`));
         }
       }
       console.log(`[ebay-intake] triggered stock sync for ${newOrderSkus.size} SKUs from ${totalSynced} new orders`);

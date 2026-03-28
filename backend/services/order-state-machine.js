@@ -232,8 +232,9 @@ async function _onOrderShipped({ orderId, tenantId }) {
   const items = order.items || [];
   if (items.length === 0) return;
 
-  // 3. Decrement inventory.quantity in products_v2 per SKU; then sync to marketplaces
+  // 3. Decrement physical stock (bins + inventory.quantity) per SKU; then sync to marketplaces
   const { syncStockWithRetry } = require('./stock-sync-dispatcher');
+  const { decrementProductByIdOrSku } = require('../lib/warehouse');
   const { firestore: fs } = require('../lib/firestore');
 
   const skuQtyMap = {};
@@ -243,30 +244,36 @@ async function _onOrderShipped({ orderId, tenantId }) {
     skuQtyMap[sku] = (skuQtyMap[sku] || 0) + (Number(item.quantity) || 1);
   }
 
-  const skus = Object.keys(skuQtyMap);
-  for (let i = 0; i < skus.length; i += 10) {
-    const chunk = skus.slice(i, i + 10);
-    const snap = await fs.collection('products_v2')
-      .where('details.identifiers.sku', 'in', chunk)
-      .get();
+  for (const [sku, sold] of Object.entries(skuQtyMap)) {
+    try {
+      // Decrement storageBins + inventory.quantity atomically via warehouse module
+      await decrementProductByIdOrSku(sku, sold);
+      console.log(`[order-state-machine] stock-out sku=${sku} qty=${sold} (bins + inventory decremented)`);
+    } catch (err) {
+      console.error(`[order-state-machine] decrementProductByIdOrSku failed sku=${sku}: ${err.message}`);
+    }
 
-    for (const doc of snap.docs) {
-      const product = { id: doc.id, ...doc.data() };
-      const sku = String(product?.details?.identifiers?.sku || product?.identification?.sku || '').trim();
-      const sold = skuQtyMap[sku] || 0;
-      const currentQty = Number(product?.inventory?.quantity ?? 0);
-      const newQty = Math.max(0, currentQty - sold);
-
-      await fs.collection('products_v2').doc(doc.id).update({
-        'inventory.quantity': newQty,
-        updatedAt: new Date().toISOString(),
-      });
-      console.log(`[order-state-machine] stock-out sku=${sku} ${currentQty} → ${newQty} (sold=${sold})`);
-
-      // Push updated stock to all marketplace channels
-      const updatedProduct = { ...product, inventory: { ...(product.inventory || {}), quantity: newQty } };
-      syncStockWithRetry({ tenantId, product: updatedProduct, reason: `shipped-${orderId}` })
-        .catch((err) => console.warn(`[order-state-machine] channel sync failed sku=${sku}: ${err.message}`));
+    // Push updated stock to all marketplace channels
+    // Look up fresh product state after decrement — search both identification.sku and details.identifiers.sku
+    try {
+      let snap = await fs.collection('products_v2')
+        .where('identification.sku', '==', sku)
+        .limit(1)
+        .get();
+      if (snap.empty) {
+        snap = await fs.collection('products_v2')
+          .where('details.identifiers.sku', '==', sku)
+          .limit(1)
+          .get();
+      }
+      if (!snap.empty) {
+        const doc = snap.docs[0];
+        const product = { id: doc.id, ...doc.data() };
+        syncStockWithRetry({ tenantId, product, reason: `shipped-${orderId}` })
+          .catch((syncErr) => console.warn(`[order-state-machine] channel sync failed sku=${sku}: ${syncErr.message}`));
+      }
+    } catch (err) {
+      console.warn(`[order-state-machine] marketplace sync lookup failed sku=${sku}: ${err.message}`);
     }
   }
 }
@@ -297,16 +304,26 @@ async function _onOrderCancelled({ orderId, tenantId }) {
   const { syncStockWithRetry } = require('./stock-sync-dispatcher');
   const { firestore: fs } = require('../lib/firestore');
 
-  for (let i = 0; i < skus.length; i += 10) {
-    const chunk = skus.slice(i, i + 10);
-    const snap = await fs.collection('products_v2')
-      .where('details.identifiers.sku', 'in', chunk)
-      .get();
-
-    for (const doc of snap.docs) {
-      const product = { id: doc.id, ...doc.data() };
-      syncStockWithRetry({ tenantId, product, reason: `cancelled-${orderId}` })
-        .catch((err) => console.warn(`[order-state-machine] channel sync failed after cancel: ${err.message}`));
+  for (const sku of skus) {
+    try {
+      let snap = await fs.collection('products_v2')
+        .where('identification.sku', '==', sku)
+        .limit(1)
+        .get();
+      if (snap.empty) {
+        snap = await fs.collection('products_v2')
+          .where('details.identifiers.sku', '==', sku)
+          .limit(1)
+          .get();
+      }
+      if (!snap.empty) {
+        const doc = snap.docs[0];
+        const product = { id: doc.id, ...doc.data() };
+        syncStockWithRetry({ tenantId, product, reason: `cancelled-${orderId}` })
+          .catch((err) => console.warn(`[order-state-machine] channel sync failed after cancel sku=${sku}: ${err.message}`));
+      }
+    } catch (err) {
+      console.warn(`[order-state-machine] cancel sync lookup failed sku=${sku}: ${err.message}`);
     }
   }
 }

@@ -253,18 +253,14 @@ async function syncKauflandOrders({ tenantId = 'default', lookbackDays = 7 } = {
   // After importing new orders, push updated availability to marketplaces (with retry)
   if (newOrderSkus.size > 0) {
     try {
-      const { syncStockWithRetry } = require('./stock-sync-dispatcher');
-      const db = getDb();
+      const { syncStockWithRetry, findProductsBySkuChunk } = require('./stock-sync-dispatcher');
       const skuArray = Array.from(newOrderSkus);
       for (let i = 0; i < skuArray.length; i += 10) {
         const chunk = skuArray.slice(i, i + 10);
-        const snap = await db.collection('products_v2')
-          .where('details.identifiers.sku', 'in', chunk)
-          .get();
-        for (const doc of snap.docs) {
-          const product = { id: doc.id, ...doc.data() };
+        const products = await findProductsBySkuChunk(chunk);
+        for (const product of products) {
           syncStockWithRetry({ tenantId, product, reason: 'kaufland-order-intake' })
-            .catch((err) => console.warn(`[kaufland-intake] stock sync failed for ${doc.id}: ${err.message}`));
+            .catch((err) => console.warn(`[kaufland-intake] stock sync failed for ${product.id}: ${err.message}`));
         }
       }
       console.log(`[kaufland-intake] triggered stock sync for ${newOrderSkus.size} SKUs from ${totalSynced} new orders`);
