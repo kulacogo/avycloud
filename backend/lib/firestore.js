@@ -2526,8 +2526,19 @@ async function saveProduct(product, options = {}) {
 async function getProduct(productId) {
   try {
     const docRef = firestore.collection(PRODUCTS_COLLECTION).doc(productId);
-    const doc = await docRef.get();
-    
+    let doc = await docRef.get();
+
+    // Fallback: if not found by ID, search by ops.base_product_id (dual-write alias)
+    if (!doc.exists) {
+      const aliasSnap = await firestore.collection(PRODUCTS_COLLECTION)
+        .where('ops.base_product_id', '==', productId)
+        .limit(1)
+        .get();
+      if (!aliasSnap.empty) {
+        doc = aliasSnap.docs[0];
+      }
+    }
+
     if (!doc.exists) {
       return null;
     }
