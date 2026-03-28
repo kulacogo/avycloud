@@ -989,6 +989,11 @@ async function improveExistingProduct(productId, onProgress) {
         barcodes,
         locale: product.locale || 'de-DE',
         hint: null,
+        improveContext: {
+          existingProduct: product,
+          titleInsights: initialTitleInsights,
+          categoryTemplate: null, // Phase 2: kategorie-spezifisch
+        },
       });
 
       // Build a pseudo-product from grounded record for merging
@@ -1018,7 +1023,11 @@ async function improveExistingProduct(productId, onProgress) {
           } : {},
         },
         marketplace: {
-          ebay: { title: groundedRecord.title_ebay || '', description: groundedRecord.description_ebay || '' },
+          ebay: {
+            title: groundedRecord.title_ebay || '',
+            description: groundedRecord.description_ebay || '',
+            mobile_snippet: groundedRecord.mobile_snippet || '',
+          },
           kaufland: { title: groundedRecord.title_kaufland || '', description: groundedRecord.description_kaufland || '' },
         },
         ops: { weight_grams: groundedRecord.weight_grams || null },
@@ -1110,6 +1119,13 @@ async function improveExistingProduct(productId, onProgress) {
   console.log('[improve] Merging records...');
   if (onProgress) await onProgress('merging');
   let mergedProduct = improvedOutput ? mergeProductRecords(product, improvedOutput) : JSON.parse(JSON.stringify(product));
+
+  // Preserve mobile_snippet from improved output (additive field)
+  if (improvedOutput?.marketplace?.ebay?.mobile_snippet) {
+    mergedProduct.marketplace = mergedProduct.marketplace || {};
+    mergedProduct.marketplace.ebay = mergedProduct.marketplace.ebay || {};
+    mergedProduct.marketplace.ebay.mobile_snippet = improvedOutput.marketplace.ebay.mobile_snippet;
+  }
 
   console.log('[improve] Applying Taxonomy...');
   if (onProgress) await onProgress('enriching');
@@ -1236,6 +1252,17 @@ async function improveExistingProduct(productId, onProgress) {
   if (Array.isArray(mergedProduct.details.key_features)) {
     mergedProduct.details.key_features = sanitizeKeyFeatures(mergedProduct.details.key_features, 7);
   }
+
+  // Mobile Snippet as Schema.org markup in description (additive, best-effort)
+  try {
+    const mobileSnippet = mergedProduct?.marketplace?.ebay?.mobile_snippet || '';
+    const description = mergedProduct?.details?.short_description || '';
+    if (mobileSnippet && description && !description.includes('itemprop="description"')) {
+      const escapedSnippet = mobileSnippet.replace(/</g, '&lt;').replace(/>/g, '&gt;').slice(0, 800);
+      const schemaDiv = `<div vocab="https://schema.org/" typeof="Product"><span property="description">${escapedSnippet}</span></div>`;
+      mergedProduct.details.short_description = schemaDiv + '\n' + description;
+    }
+  } catch { /* best-effort */ }
 
   // GPSR safety: if GPSR object exists (or partial fields exist) but manufacturer_name is missing,
   // we fill it from the product brand. This avoids "known brand, blank manufacturer" in listings.

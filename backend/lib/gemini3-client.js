@@ -174,6 +174,7 @@ const FULL_PRODUCT_SCHEMA = {
     gpsr_manufacturer_phone: { type: 'string', description: 'GPSR Hersteller-Telefon' },
     gpsr_manufacturer_country: { type: 'string', description: 'GPSR Hersteller-Land (ISO 2-letter)' },
     notes: { type: 'string', description: 'Hinweise zu Unsicherheiten oder fehlenden Daten' },
+    mobile_snippet: { type: 'string', description: 'Compact product summary for mobile eBay view, max 800 chars, plain text, no HTML' },
   },
   required: [
     'brand', 'model', 'internalCategory',
@@ -182,6 +183,60 @@ const FULL_PRODUCT_SCHEMA = {
     'item_specifics',
   ],
 };
+
+// ─── Improve Context: Cassini-optimized prompt extension ───
+
+function buildImprovePromptExtension(ctx) {
+  const lines = [];
+
+  // Existing product data as context
+  if (ctx.existingProduct) {
+    const p = ctx.existingProduct;
+    lines.push('BESTEHENDE PRODUKTDATEN (verbessere diese, erfinde nichts Neues):');
+    if (p.identification?.name) lines.push(`- Aktueller Titel: ${p.identification.name}`);
+    if (p.identification?.brand) lines.push(`- Marke: ${p.identification.brand}`);
+    if (p.details?.categoryPath) lines.push(`- Kategorie: ${p.details.categoryPath}`);
+    if (p.details?.identifiers?.ean) lines.push(`- EAN: ${p.details.identifiers.ean}`);
+    if (p.details?.identifiers?.mpn) lines.push(`- MPN: ${p.details.identifiers.mpn}`);
+    lines.push('');
+  }
+
+  // Competitor titles as reference
+  if (ctx.titleInsights?.sampleTitles?.length) {
+    lines.push('WETTBEWERBER-TITEL AUF EBAY (nutze als Referenz fuer Stil und Keywords):');
+    ctx.titleInsights.sampleTitles.forEach(t => lines.push(`- ${t}`));
+    lines.push('');
+  }
+
+  // Top keywords of the category
+  if (ctx.titleInsights?.topTokens?.length) {
+    lines.push(`TOP-KEYWORDS DIESER KATEGORIE AUF EBAY: ${ctx.titleInsights.topTokens.join(', ')}`);
+    lines.push('Integriere relevante Keywords natuerlich in Titel und Beschreibung.');
+    lines.push('');
+  }
+
+  // Cassini optimization instructions
+  lines.push('CASSINI-OPTIMIERUNG (eBay Best-Match Algorithmus):');
+  lines.push('- TITEL: Erste 3-5 Woerter sind CTR-kritisch (mobile Ansicht). Struktur: Marke + Produkttyp + Kernmerkmal.');
+  lines.push('- TITEL: Nutze alle 80 Zeichen. Integriere Long-Tail-Keywords (z.B. "hoehenverstellbar elektrisch" statt nur "Schreibtisch").');
+  lines.push('- TITEL: Studiere die Wettbewerber-Titel oben und uebernimm erfolgreiche Muster.');
+  lines.push('- SYNONYME: Ergaenze in der Beschreibung Synonyme und semantische Variationen. Beispiel: "Schreibtisch" → auch "Arbeitstisch", "Buerotisch" erwaehnen.');
+  lines.push('- KEYWORD-DICHTE: Verteile die wichtigsten 2-3 Suchbegriffe und ihre Synonyme so, dass sie insgesamt 10-14 Mal in der Beschreibung vorkommen (bei ~200 Woertern = 5-7% Dichte). Natuerlich einweben, KEIN Stuffing.');
+  lines.push('- BESCHREIBUNG: ~200 Woerter. HTML: 1x <p> Einleitung (emotionaler Hook) + <ul> mit 5-7 Benefits + 1x <p> technische Details. Professionell und verkaufspsychologisch.');
+  lines.push('- HIGHLIGHTS: Mindestens 50% der Bulletpoints im Benefits-Format: "[Kundennutzen] – [technische Spec]". SCHLECHT: "512GB SSD". GUT: "512GB SSD – genug Platz fuer Ihre gesamte Mediathek".');
+  lines.push('- ITEM SPECIFICS: Alle Pflicht-UND-empfohlene Artikelmerkmale befuellen. Cassini macht Produkte in Filtern UNSICHTBAR wenn Merkmale fehlen.');
+  lines.push('');
+
+  // Mobile snippet instruction
+  lines.push('MOBILE SNIPPET (NEUES FELD — mobile_snippet):');
+  lines.push('- Erstelle eine kompakte Kurzbeschreibung (max 800 Zeichen, plain text ohne HTML).');
+  lines.push('- Diese wird als Schema.org itemprop="description" fuer die mobile eBay-Ansicht genutzt.');
+  lines.push('- Muss die wichtigsten Kaufargumente und Keywords enthalten.');
+  lines.push('- Kein Duplicate der Hauptbeschreibung, sondern eine eigenstaendige Zusammenfassung.');
+  lines.push('');
+
+  return lines.join('\n');
+}
 
 /**
  * PERF-001: Single-call product identification with Google Search Grounding.
@@ -201,6 +256,7 @@ const FULL_PRODUCT_SCHEMA = {
  *   barcodes: string[],
  *   locale: string,
  *   hint: string|null,
+ *   improveContext: {existingProduct: object, titleInsights: object, categoryTemplate: string|null}|null,
  * }} opts
  * @returns {Promise<object>} Full product record (parsed JSON) + _grounding metadata
  */
@@ -210,6 +266,7 @@ async function identifyProductWithGrounding({
   barcodes = [],
   locale = 'de-DE',
   hint = null,
+  improveContext = null,
 } = {}) {
   const ai = await getGenAIClient();
   const modelName = resolveModel(null, 'IDENTIFY_MODEL', DEFAULT_MODEL);
@@ -278,7 +335,7 @@ QUALITAETSANFORDERUNGEN:
 - Zustand: "Neu" als Default, nur "Gebraucht" wenn eindeutige Gebrauchsspuren sichtbar
 - EAN/GTIN: Nur wenn korrekte Checkdigit. Sonst leer lassen.
 
-WICHTIG:
+${improveContext ? buildImprovePromptExtension(improveContext) : ''}WICHTIG:
 - Nur belegbare Fakten. Nichts erfinden.
 - Wenn Information nicht findbar: Feld leer lassen.
 - Antwort ausschliesslich als JSON gemaess Schema.`
@@ -330,6 +387,7 @@ module.exports = {
   gemini3GenerateJSON,
   gemini3GenerateText,
   identifyProductWithGrounding,
+  buildImprovePromptExtension,
   FULL_PRODUCT_SCHEMA,
   DEFAULT_MODEL,
 };

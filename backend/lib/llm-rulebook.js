@@ -198,6 +198,46 @@ function normalizeProductForPolicyApply(product, { source = 'unknown' } = {}) {
     }
   }
 
+  // Keyword-Density Check (warn only, best-effort)
+  try {
+    const desc = next?.details?.short_description || '';
+    const title = next?.identification?.name || '';
+    const brand = next?.identification?.brand || '';
+    if (desc && title) {
+      const visibleText = desc.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
+      const words = visibleText.split(/\s+/).filter(Boolean);
+      if (words.length >= 50) {
+        const titleWords = title.toLowerCase().split(/\s+/).filter(w => w.length > 3);
+        const brandLower = brand.toLowerCase();
+        const searchTerms = titleWords.filter(w => w !== brandLower);
+        const textLower = visibleText.toLowerCase();
+        let keywordHits = 0;
+        for (const term of searchTerms) {
+          const regex = new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+          keywordHits += (textLower.match(regex) || []).length;
+        }
+        const density = keywordHits / words.length;
+        if (density < 0.03) {
+          issues.push(`keyword-density:niedrig (${(density * 100).toFixed(1)}%). Empfohlen: 5-7% fuer eBay Cassini.`);
+        }
+      }
+    }
+  } catch { /* best-effort */ }
+
+  // Benefits-Format Check (warn only, best-effort)
+  try {
+    const highlights = next?.details?.key_features || [];
+    if (highlights.length >= 3) {
+      const benefitIndicators = [' \u2013 ', ' \u2014 ', ' - ', ' fuer ', ' damit ', ' dank ', ' sorgt ', ' ermoeglicht ', ' bietet '];
+      const benefitCount = highlights.filter(h =>
+        typeof h === 'string' && benefitIndicators.some(ind => h.toLowerCase().includes(ind))
+      ).length;
+      if (benefitCount < Math.ceil(highlights.length * 0.4)) {
+        issues.push(`highlights:benefits-format nur ${benefitCount}/${highlights.length}. Empfohlen: mindestens 50%.`);
+      }
+    }
+  } catch { /* best-effort */ }
+
   return { ok: true, product: next, issues: Array.from(new Set(issues)), source };
 }
 

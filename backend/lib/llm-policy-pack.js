@@ -50,7 +50,7 @@ function buildBestMatchSignalsText() {
   ].join('\n');
 }
 
-function buildCommonPolicyText({ locale = 'de-DE', allowWebEvidence = false } = {}) {
+function buildCommonPolicyText({ locale = 'de-DE', allowWebEvidence = false, context = 'identify' } = {}) {
   // Default ON — opt-out via LLM_POLICY_ENABLED=false
   const policyEnabled = (process.env.LLM_POLICY_ENABLED || 'true').toString().trim().toLowerCase();
   const enabled = policyEnabled !== '0' && policyEnabled !== 'false' && policyEnabled !== 'no';
@@ -64,7 +64,9 @@ function buildCommonPolicyText({ locale = 'de-DE', allowWebEvidence = false } = 
       '- Erfinde keine Fakten. Wenn etwas nicht belegbar ist: leer lassen und als Unsicherheit markieren.',
       '- eBay Best-Match Fokus: Relevanz + Vollständigkeit + Bild-/Content-Qualität + plausibler Preis.',
       '- Titel: erste 3-5 Wörter müssen die kaufrelevantesten Begriffe tragen (Marke + Produkttyp + Kernmerkmal).',
-      '- Keyword-Governance: 2-3 primäre Suchbegriffe natürlich verwenden; kein Keyword-Stuffing oder Keyword-Ketten.',
+      (context === 'improve' || context === 'listing')
+        ? '- Keyword-Governance: Primäre Keywords und relevante Synonyme natürlich in Titel und Beschreibung verwenden. Ziel-Keyword-Dichte in Beschreibung: 5-7% (~10-14 Nennungen bei 200 Wörtern). Kein Stuffing (>10%).'
+        : '- Keyword-Governance: 2-3 primäre Suchbegriffe natürlich verwenden; kein Keyword-Stuffing oder Keyword-Ketten.',
       '- Titel/Highlights/Beschreibung sollen faktenbasiert und suchstark sein; keine Platzhaltertexte.',
       '- Titel (Sport/Haushalt/Home/Beauty/Toys/Büro): priorisiere Maße/Größe/Material vor kryptischen Herstellercodes.',
       '- Titel-Schreibweise: keine komplett kleingeschriebenen Keyword-Ketten; relevante Nomen normal schreiben.',
@@ -103,8 +105,12 @@ function buildCommonPolicyText({ locale = 'de-DE', allowWebEvidence = false } = 
     '',
     'DATASHEET FORMAT (wenn du Datenblattfelder erzeugst/änderst):',
     '- Beschreibung: SEO-stark und klar strukturiert. HTML-Struktur ist verpflichtend (nur einfache Tags: <p>, <ul>, <li>, <strong>). Empfohlen: 1 Einleitungs-<p> (2–3 Sätze) + <ul> mit 5–7 Punkten (Nutzen + Spec) + 1 <p> mit technischen Eckdaten/Kompatibilität. Keine Preis-/Versandtexte, keine Platzhalter, keine Dubletten.',
-    '- Beschreibung: wenn Beleglage ausreichend, Zielumfang ca. 180–240 Wörter mit natürlicher Keyword-Verteilung (kein Stuffing).',
-    '- Beschreibung: ergänze relevante Synonyme/Long-Tail-Varianten nur, wenn sie zum konkreten Produkt belegbar passen.',
+    (context === 'improve' || context === 'listing')
+      ? '- Beschreibung: wenn Beleglage ausreichend, Zielumfang ca. 180–240 Wörter. Keyword-Dichte 5-7% (~10-14 Nennungen bei 200 Wörtern). Kein Stuffing (>10%).'
+      : '- Beschreibung: wenn Beleglage ausreichend, Zielumfang ca. 180–240 Wörter mit natürlicher Keyword-Verteilung (kein Stuffing).',
+    (context === 'improve' || context === 'listing')
+      ? '- Beschreibung: Ergänze aktiv Synonyme und Long-Tail-Varianten (z.B. "Schreibtisch" + "Arbeitstisch" + "Bürotisch"). Du darfst dein Wissen über eBay-Suchverhalten nutzen. Produktfakten (Maße, Material, Specs) müssen belegbar sein.'
+      : '- Beschreibung: ergänze relevante Synonyme/Long-Tail-Varianten nur, wenn sie zum konkreten Produkt belegbar passen.',
     '- Highlights: Kategorieabhängig 3–6 Bulletpoints (siehe CSV Regeln). Jede Bullet ist im Stil: "[Nutzen] – [konkrete Eigenschaft/Spec]" (Dash/En-Dash), faktenbasiert, keine Verpackung, keine Dubletten.',
     '- Attribute: mindestens 10, sehr granular/technisch, keine Dubletten (auch nicht als Synonyme) und keine redundanten Keys mit identischem Wert.',
     '- Pflicht-Item-Specifics (required aspects): wenn Kategorie gesetzt ist, alle Pflicht-Aspekte vollständig ausfüllen (nur mit Belegen; sonst "Unbekannt" + Warning).',
