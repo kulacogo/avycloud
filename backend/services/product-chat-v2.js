@@ -271,7 +271,7 @@ TOOLS:
 KRITISCH: Wenn du Verbesserungen vorschlägst, MUSST du update_product_datasheet aufrufen. Text allein reicht nicht — der User kann nur Tool-Ergebnisse über "Übernehmen" anwenden. Ohne Tool-Call = keine Übernahme möglich.
 
 QUALITÄT:
-- Titel: 70–80 Zeichen, suchmaschinenoptimiert. Marke + Produkttyp + Kernmerkmal zuerst. Keine Marketing-Floskeln, keine EAN/GTIN/SKU. KEINE Wörter aus falschen Kategorien. Der Titel muss das Produkt korrekt und verständlich beschreiben.
+- Titel: 70–80 Zeichen, käufergerecht für eBay/Kaufland. Orientiere dich an echten Top-Seller-Titeln auf ebay.de für dieses Produkt (suche ebay.de zuerst!). Nur wahre, kaufrelevante Fakten. Größen (XS, S, M, L, XL, XXL) immer GROSSBUCHSTABEN. Keine Marketing-Floskeln, keine EAN/GTIN/SKU, keine irrelevanten Specs. KEINE Wörter aus falschen Kategorien.
 - Beschreibung: HTML (<p>, <ul>, <li>, <strong>), 180–240 Wörter, faktenbasiert. Basierend auf Web-Recherche, nicht auf falschen Bestandsdaten.
 - Highlights: 5–7 Bulletpoints, je 70–120 Zeichen, "[Nutzen] - [Eigenschaft]".
 - Attribute: Nur belegbare Fakten. Deutsche Schlüssel. ≤60 Zeichen pro Wert. Verwende die ebay.allowed_aspects als Referenz, aber wenn die Kategorie falsch ist, ignoriere die alten Aspects und korrigiere zuerst die Kategorie.

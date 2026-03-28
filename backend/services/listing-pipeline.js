@@ -94,7 +94,7 @@ PRODUKTDATEN:
 ${context}
 
 REGELN:
-- eBay Titel: Max ${EBAY_TITLE_MAX} Zeichen, SEO-optimiert, Marke + Modell + Zustand + wichtige Merkmale
+- eBay Titel: Max ${EBAY_TITLE_MAX} Zeichen, käufergerecht. Nur wahre, kaufrelevante Fakten. Größen (XS, S, M, L, XL, XXL) GROSSBUCHSTABEN. Keine irrelevanten Specs
 - eBay Beschreibung: Professionelle HTML-Beschreibung mit <p>, <ul>, <li> Tags. Verkaufsfördernde Sprache. Keine Preisangaben im Text.
 - Kaufland Titel: Max ${KAUFLAND_TITLE_MAX} Zeichen, klar und informativ, Marke + Modell + wichtige Merkmale
 - Kaufland Beschreibung: Sachliche Produktbeschreibung ohne HTML. Keine Preisangaben im Text.

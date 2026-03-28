@@ -169,8 +169,6 @@ const TITLE_LOWERCASE_WORDS = new Set([
 const TITLE_UNIT_WORDS = new Set([
   'mm',
   'cm',
-  'm',
-  'l',
   'ml',
   'kg',
   'g',
@@ -184,6 +182,9 @@ const TITLE_UNIT_WORDS = new Set([
   'ghz',
   'rpm',
 ]);
+
+// Unit words that are also clothing size codes — only lowercase when preceded by a number
+const AMBIGUOUS_UNIT_SIZE_WORDS = new Set(['m', 'l']);
 
 function safeString(v) {
   return typeof v === 'string' ? v.trim() : v == null ? '' : String(v).trim();
@@ -358,6 +359,13 @@ function applyBuyerSearchTitleCasing(title = '') {
   const out = words.map((word, idx) => {
     const lower = word.toLowerCase();
     if (TITLE_UNIT_WORDS.has(lower)) return lower;
+    // "m" and "l" are ambiguous — they are units (meter/liter) only when preceded
+    // by a number (e.g. "1,5 m"). After "Gr." / "Gr" or standalone they are sizes.
+    if (AMBIGUOUS_UNIT_SIZE_WORDS.has(lower)) {
+      const prev = idx > 0 ? words[idx - 1] : '';
+      if (/\d$/.test(prev)) return lower; // "1,5 m" → unit, keep lowercase
+      return word.toUpperCase(); // "Gr. m" or standalone → size, uppercase
+    }
     if (idx > 0 && TITLE_LOWERCASE_WORDS.has(lower)) return lower;
     // Keep mixed-case/acronyms as-is (e.g. eBay, i-Size, BMW, ISOFIX, M.2).
     if (/[A-ZÄÖÜ]/.test(word.slice(1))) return word;
@@ -2264,18 +2272,16 @@ function coerceTitleToPolicy(
     forcePolicy = false,
   } = {}
 ) {
-  // Minimal mode: do NOT apply schema rules. Keep only minimal sanitization + hard max length.
-  // Active when: (a) caller opts out via forcePolicy=false, OR (b) env TITLE_POLICY_DISABLED=true.
+  // Passthrough mode: Gemini's output is authoritative. Only strip technical artifacts
+  // (emojis, markdown, SKU noise) and enforce hard max length. No casing, no audience,
+  // no schema rules — Gemini decides what belongs in the title.
   if (!forcePolicy || isTitlePolicyDisabled()) {
     let t = stripEmojis(proposedTitle || '');
     t = stripMarkdownDecorations(t);
     t = stripSkuNoise(t);
-    t = stripCompanyLegalForms(t);
-    t = stripAudienceConflictsFromTitle(t, product);
     t = normalizeSpaces(t);
     t = stripLeadingNonAlnum(t);
     t = normalizeSpaces(t);
-    t = applyBuyerSearchTitleCasing(t);
     if (t.length > maxLen) t = truncateToMax(t, maxLen);
     return t;
   }

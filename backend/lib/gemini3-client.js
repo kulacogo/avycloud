@@ -139,7 +139,7 @@ const FULL_PRODUCT_SCHEMA = {
     condition: { type: 'string', description: 'Zustand: Neu oder Gebraucht' },
     weight_grams: { type: 'integer', description: 'Gewicht in Gramm (ganzzahlig, nie 0)' },
     internalCategory: { type: 'string', description: 'Kategorie-Pfad z.B. Elektronik > Kopfhoerer' },
-    title_ebay: { type: 'string', description: 'eBay Titel, 70-80 Zeichen, SEO-optimiert' },
+    title_ebay: { type: 'string', description: 'eBay Titel, 70-80 Zeichen, kaeufergerecht. Nur wahre kaufrelevante Fakten. Groessen (XS,S,M,L,XL,XXL) GROSSBUCHSTABEN' },
     title_kaufland: { type: 'string', description: 'Kaufland Titel, bis 100 Zeichen' },
     description_ebay: { type: 'string', description: 'eBay Beschreibung in HTML, 180-240 Woerter' },
     description_kaufland: { type: 'string', description: 'Kaufland Beschreibung in HTML' },
@@ -266,7 +266,7 @@ RECHERCHE-STRATEGIE:
 5. Fuer Bilder: Suche nach hochwertigen Produktfotos vom Hersteller
 
 QUALITAETSANFORDERUNGEN:
-- Titel: 70-80 Zeichen, suchmaschinenoptimiert. Format: [Marke] [Produkttyp] [Modell] [Kernmerkmal] [Variante]. Keine Marketingfloskeln. KEINE Woerter aus falschen Kategorien.
+- Titel: 70-80 Zeichen, kaeufergerecht fuer eBay/Kaufland. Orientiere dich an echten Top-Seller-Titeln auf ebay.de fuer dieses Produkt. Nur wahre, kaufrelevante Fakten. Groessenangaben (XS, S, M, L, XL, XXL) immer GROSSBUCHSTABEN. Keine Marketingfloskeln, keine irrelevanten Specs, KEINE Woerter aus falschen Kategorien.
 - Kategorie (internalCategory): MUSS das Produkt korrekt beschreiben. Basierend auf Web-Recherche, nicht auf Vermutungen.
 - Beschreibung: 180-240 Woerter, HTML (<p>, <ul>, <li>, <strong>), faktenbasiert aus Web-Recherche. Keine Wiederholungen.
 - Highlights (key_features): 5-7 Bulletpoints, Format "[Nutzen] - [Eigenschaft]", je 70-120 Zeichen
