@@ -341,6 +341,7 @@ ${improveContext ? buildImprovePromptExtension(improveContext) : ''}WICHTIG:
 - Antwort ausschliesslich als JSON gemaess Schema.`
   });
 
+  const GROUNDING_TIMEOUT_MS = parseInt(process.env.IDENTIFY_GROUNDING_TIMEOUT_MS || '90000', 10);
   const response = await ai.models.generateContent({
     model: modelName,
     contents: [{ role: 'user', parts }],
@@ -350,6 +351,7 @@ ${improveContext ? buildImprovePromptExtension(improveContext) : ''}WICHTIG:
       maxOutputTokens: 4096,
       responseMimeType: 'application/json',
       responseJsonSchema: FULL_PRODUCT_SCHEMA,
+      httpOptions: { timeout: GROUNDING_TIMEOUT_MS },
     },
   });
 

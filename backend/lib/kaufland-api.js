@@ -268,11 +268,12 @@ function pickUnitData(product, { mode = 'create', storefront = 'de' } = {}) {
     null;
   const minimumPrice = toPriceCents(rawMinimumPrice);
 
-  const quantityRaw =
-    product?.inventory?.availableQuantity ??
-    product?.inventory?.quantity ??
-    product?.storage?.quantity ??
-    0;
+  // Use actual bin stock as source of truth, fallback to inventory fields
+  const binStock = Array.isArray(product?.storageBins)
+    ? product.storageBins.reduce((sum, b) => sum + (Number(b?.quantity) || 0), 0)
+    : 0;
+  const quantityRaw = binStock
+    || (product?.inventory?.availableQuantity ?? product?.inventory?.quantity ?? product?.storage?.quantity ?? 0);
   const amount = Math.max(0, toInteger(quantityRaw) || 0);
   const handlingTime = Math.max(1, toInteger(product?.details?.handling_time) || 1);
   const condition = normalizeCondition(product?.details?.condition);

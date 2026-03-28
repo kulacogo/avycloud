@@ -310,96 +310,75 @@ async function fetchMarketingImages({
     `${baseQuery} hero image`,
   ]);
 
-  for (const query of googleQueries) {
-    if (collected.length >= desired) break;
-    const queryAttempts = [
-      // Strict: large photos
-      { tbs: 'isz:l,itp:photo', label: query },
-      // Relaxed: any photo
-      { tbs: 'itp:photo', label: `${query} (relaxed)` },
-    ];
-    for (const attempt of queryAttempts) {
-    if (collected.length >= desired) break;
-    const params = {
-      q: query,
-        tbs: attempt.tbs,
-      num: 20,
-      ijn: collected.length > 0 ? 1 : 0,
-    };
-      const { images, trace: engineTrace } = await querySerpImages(
-        'google_images',
-        params,
-        desired - collected.length,
-        attempt.label
-      );
-    for (const img of images) {
-      if (collected.length >= desired) break;
-      // Relevance filter: reject images whose title clearly doesn't match the product
-      const relevance = scoreImageRelevance(img.title, relevanceTokens);
-      if (relevance < RELEVANCE_THRESHOLD) continue;
-      const accessibleUrl = await pickAccessibleUrl(img);
-      if (!accessibleUrl) continue;
-      const key = normalizeUrlKey(accessibleUrl);
-      if (!key || seen.has(key)) continue;
-      seen.add(key);
-      collected.push({ ...img, url: accessibleUrl, relevance });
-    }
-    trace.push(...engineTrace);
+  // ─── PERF: Parallel query batches + parallel URL probes ───
+  // Helper: run a single SerpAPI query and probe all result URLs in parallel
+  const SERP_BATCH_SIZE = parseInt(process.env.MARKETING_IMAGE_BATCH_SIZE || '3', 10);
+
+  async function runQueryBatch(queries, engine, buildParams) {
+    // Fire up to SERP_BATCH_SIZE queries in parallel
+    const batchResults = await Promise.all(
+      queries.map(async (query) => {
+        try {
+          const params = typeof buildParams === 'function' ? buildParams(query) : { q: query, num: 20 };
+          const { images, trace: engineTrace } = await querySerpImages(engine, params, desired * 2, query);
+          // Parallel URL probes for this batch
+          const probed = await Promise.all(
+            images.map(async (img) => {
+              const relevance = scoreImageRelevance(img.title, relevanceTokens);
+              if (relevance < RELEVANCE_THRESHOLD) return null;
+              const accessibleUrl = await pickAccessibleUrl(img);
+              if (!accessibleUrl) return null;
+              return { ...img, url: accessibleUrl, relevance };
+            })
+          );
+          return { images: probed.filter(Boolean), trace: engineTrace };
+        } catch { return { images: [], trace: [] }; }
+      })
+    );
+    // Collect results respecting dedup + desired limit
+    for (const result of batchResults) {
+      for (const img of result.images) {
+        if (collected.length >= desired) break;
+        const key = normalizeUrlKey(img.url);
+        if (!key || seen.has(key)) continue;
+        seen.add(key);
+        collected.push(img);
+      }
+      trace.push(...result.trace);
     }
   }
 
+  // Google Images: process in batches of SERP_BATCH_SIZE
+  // First batch: strict quality (large photos), then relaxed
+  for (let i = 0; i < googleQueries.length && collected.length < desired; i += SERP_BATCH_SIZE) {
+    const batch = googleQueries.slice(i, i + SERP_BATCH_SIZE);
+    await runQueryBatch(batch, 'google_images', (query) => ({
+      q: query, tbs: 'isz:l,itp:photo', num: 20,
+    }));
+    if (collected.length >= desired) break;
+    // Relaxed fallback for same batch
+    await runQueryBatch(batch, 'google_images', (query) => ({
+      q: query, tbs: 'itp:photo', num: 20,
+    }));
+  }
+
   if (collected.length < desired) {
-    // Fallback: Bing Images sometimes yields more directly accessible image URLs than Google Images.
+    // Fallback: Bing Images — fire all queries in one batch
     const bingQueries = uniq([
       ...cleanIds,
       ...(mpnClean ? [`${brand || ''} ${mpnClean}`.trim(), `${baseQuery} ${mpnClean}`.trim()] : []),
       baseQuery,
     ]);
-    for (const query of bingQueries) {
-      if (collected.length >= desired) break;
-      const { images, trace: engineTrace } = await querySerpImages(
-        'bing_images',
-        { q: query, count: 35 },
-        desired - collected.length,
-        query
-      );
-      for (const img of images) {
-        if (collected.length >= desired) break;
-        // Relevance filter
-        const relevance = scoreImageRelevance(img.title, relevanceTokens);
-        if (relevance < RELEVANCE_THRESHOLD) continue;
-        const accessibleUrl = await pickAccessibleUrl(img);
-        if (!accessibleUrl) continue;
-        const key = normalizeUrlKey(accessibleUrl);
-        if (!key || seen.has(key)) continue;
-        seen.add(key);
-        collected.push({ ...img, url: accessibleUrl, relevance });
-      }
-      trace.push(...engineTrace);
-    }
+    await runQueryBatch(bingQueries, 'bing_images', (query) => ({
+      q: query, count: 35,
+    }));
   }
 
   if (collected.length < desired) {
     const amazonQuery = `${baseQuery} Produktfoto`;
-    const { images, trace: engineTrace } = await querySerpImages(
-      'amazon',
-      { query: amazonQuery, search_type: 'images', num: 20 },
-      desired - collected.length,
-      amazonQuery
-    );
-    for (const img of images) {
-      if (collected.length >= desired) break;
-      // Relevance filter
-      const relevance = scoreImageRelevance(img.title, relevanceTokens);
-      if (relevance < RELEVANCE_THRESHOLD) continue;
-      const accessibleUrl = await pickAccessibleUrl(img);
-      if (!accessibleUrl) continue;
-      const key = normalizeUrlKey(accessibleUrl);
-      if (!key || seen.has(key)) continue;
-      seen.add(key);
-      collected.push({ ...img, url: accessibleUrl, relevance });
-    }
-    trace.push(...engineTrace);
+    await runQueryBatch([amazonQuery], 'amazon', () => ({
+      query: amazonQuery, search_type: 'images', num: 20,
+    }));
   }
 
   // Sort by relevance (highest first) before returning

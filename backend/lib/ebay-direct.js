@@ -3776,7 +3776,12 @@ function mapProductToEbayItem(product, overrides = {}) {
 
   const currency = safeString(overrides.currency) || safeString(pricing?.currency) || 'EUR';
 
-  const quantity = overrides.quantity ?? product?.marketplace?.ebay?.quantity ?? 1;
+  // Use actual stock: storageBins sum → inventory.quantity → marketplace override → fallback 1
+  const binStock = Array.isArray(product?.storageBins)
+    ? product.storageBins.reduce((sum, b) => sum + (Number(b?.quantity) || 0), 0)
+    : 0;
+  const physicalStock = binStock || Number(product?.inventory?.quantity ?? 0);
+  const quantity = overrides.quantity ?? (physicalStock > 0 ? physicalStock : (product?.marketplace?.ebay?.quantity ?? 1));
 
   const conditionId =
     safeString(overrides.conditionId) ||

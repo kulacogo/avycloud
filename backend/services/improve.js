@@ -16,7 +16,7 @@ const { normalizeProductForPolicyApply } = require('../lib/llm-rulebook');
 const { buildRequiredAspectMeta, getRequiredAspectCatalogStats } = require('../lib/ebay-taxonomy');
 const { decodeHtmlEntitiesDeep } = require('../lib/html-entities');
 const { fetchCategoryTitleInsights, fetchBrowsePriceSamples } = require('../lib/ebay-browse-title-insights');
-const { searchProductImages } = require('../lib/image-search');
+// PERF: searchProductImages removed — fetchMarketingImages handles all web image enrichment
 
 const MAX_REFERENCE_IMAGES = parseInt(process.env.IMPROVE_REFERENCE_IMAGES || '4', 10);
 const LENS_UPLOAD_PATTERN = /\/uploads\/(identify|improve)_/i;
@@ -920,33 +920,43 @@ async function improveExistingProduct(productId, onProgress) {
     throw error;
   }
 
-  // Best-effort: attach current eBay listing snapshot (from import/API sync) as context,
-  // so Gemini can see what is currently live and what fields are missing.
-  let ebayListing = null;
-  try {
-    const sku =
-      product?.identification?.sku ||
-      product?.details?.identifiers?.sku ||
-      product?.details?.identifiers?.ean ||
-      null;
-    if (sku) {
-      const { getEbayListingBySku } = require('../lib/ebay-listings');
-      ebayListing = await getEbayListingBySku(String(sku).trim());
-    }
-  } catch {
-    ebayListing = null;
-  }
-  const titleInsightCache = new Map();
-  const initialTitleInsights = await loadTitleInsightsForProduct(product, {
-    fallbackCategoryId: safeString(ebayListing?.categoryId),
-    cache: titleInsightCache,
-    limit: Math.max(10, Math.min(200, Number(process.env.IMPROVE_TITLE_INSIGHTS_LIMIT) || 80)),
-    maxTokens: Math.max(1, Math.min(20, Number(process.env.IMPROVE_TITLE_INSIGHTS_MAX_TOKENS) || 8)),
-  });
-
+  // ─── PERF: Parallelize independent setup calls ───
+  // eBay listing lookup, title insights, and image downloads are independent.
+  // Title insights uses ebayListing.categoryId as fallback, so we run those two
+  // sequentially but in parallel with image downloads.
   if (onProgress) await onProgress('downloading_images');
-  console.log('[improve] Downloading reference images...');
-  const files = await buildReferenceFiles(product);
+  console.log('[improve] Downloading reference images + loading context (parallel)...');
+
+  const setupEbayAndInsights = async () => {
+    let ebayListing = null;
+    try {
+      const sku =
+        product?.identification?.sku ||
+        product?.details?.identifiers?.sku ||
+        product?.details?.identifiers?.ean ||
+        null;
+      if (sku) {
+        const { getEbayListingBySku } = require('../lib/ebay-listings');
+        ebayListing = await getEbayListingBySku(String(sku).trim());
+      }
+    } catch {
+      ebayListing = null;
+    }
+    const titleInsightCache = new Map();
+    const insights = await loadTitleInsightsForProduct(product, {
+      fallbackCategoryId: safeString(ebayListing?.categoryId),
+      cache: titleInsightCache,
+      limit: Math.max(10, Math.min(200, Number(process.env.IMPROVE_TITLE_INSIGHTS_LIMIT) || 80)),
+      maxTokens: Math.max(1, Math.min(20, Number(process.env.IMPROVE_TITLE_INSIGHTS_MAX_TOKENS) || 8)),
+    });
+    return { ebayListing, initialTitleInsights: insights, titleInsightCache };
+  };
+
+  const [setupResult, files] = await Promise.all([
+    setupEbayAndInsights(),
+    buildReferenceFiles(product),
+  ]);
+  const { ebayListing, initialTitleInsights, titleInsightCache } = setupResult;
   const barcodes = collectBarcodes(product);
 
   console.log(`[improve] Running Identification. Files: ${files.length}, Barcodes: ${barcodes.length}`);
@@ -969,19 +979,20 @@ async function improveExistingProduct(productId, onProgress) {
       const sharp = require('sharp');
       const { identifyProductWithGrounding } = require('../lib/gemini3-client');
 
-      // Build compressed image parts
-      const imageParts = [];
-      for (const f of files.slice(0, 4)) {
-        if (!f?.buffer) continue;
-        try {
-          const compressed = await sharp(f.buffer)
-            .rotate()
-            .resize({ width: 1600, height: 1600, fit: 'inside', withoutEnlargement: true })
-            .jpeg({ quality: 78, chromaSubsampling: '4:2:0' })
-            .toBuffer();
-          imageParts.push({ data: compressed.toString('base64'), mimeType: 'image/jpeg' });
-        } catch { /* skip */ }
-      }
+      // Build compressed image parts (parallel)
+      const imageParts = (await Promise.all(
+        files.slice(0, 4).map(async (f) => {
+          if (!f?.buffer) return null;
+          try {
+            const compressed = await sharp(f.buffer)
+              .rotate()
+              .resize({ width: 1600, height: 1600, fit: 'inside', withoutEnlargement: true })
+              .jpeg({ quality: 78, chromaSubsampling: '4:2:0' })
+              .toBuffer();
+            return { data: compressed.toString('base64'), mimeType: 'image/jpeg' };
+          } catch { return null; }
+        })
+      )).filter(Boolean);
 
       const groundedRecord = await identifyProductWithGrounding({
         imageParts,
@@ -1041,37 +1052,8 @@ async function improveExistingProduct(productId, onProgress) {
         }
       }
 
-      // Add web images — use SerpAPI for real URLs instead of Gemini-hallucinated ones
-      try {
-        const imgQuery = [
-          groundedRecord.brand,
-          groundedRecord.model,
-          groundedRecord.ean || groundedRecord.gtin,
-        ].filter(Boolean).join(' ').trim();
-        if (imgQuery) {
-          product.details = product.details || {};
-          product.details.images = product.details.images || [];
-          const serpImages = await searchProductImages(product, {
-            query: imgQuery,
-            limit: 3,
-            minWidth: 400,
-            minHeight: 400,
-          });
-          for (const img of serpImages) {
-            const alreadyHas = product.details.images.some((i) => i?.url_or_base64 === img.url);
-            if (!alreadyHas) {
-              product.details.images.push({
-                url_or_base64: img.url,
-                source: 'web_search',
-                variant: 'marketing',
-                notes: img.title || '',
-              });
-            }
-          }
-        }
-      } catch (imgErr) {
-        console.warn('[improve] SerpAPI image search failed:', imgErr?.message);
-      }
+      // PERF: Removed duplicate SerpAPI image search here — fetchMarketingImages (post-merge)
+      // handles web image enrichment with better deduplication and quality filtering.
 
       // GPSR
       if (groundedRecord.gpsr_manufacturer_name) {
@@ -1155,90 +1137,97 @@ async function improveExistingProduct(productId, onProgress) {
     console.log('[improve] Skipping legacy review (grounding pipeline used).');
   }
 
-  // K-Typ enrichment (AUTO/MOTO only, MVL-backed, never guessing).
-  // This acts as fallback if Identify couldn't enrich (e.g., missing part number earlier).
-  try {
-    const { enrichKTypIfPossible } = require('../lib/ktype-enrichment');
-    await enrichKTypIfPossible(mergedProduct, { reason: 'improve' });
-  } catch (e) {
-    console.warn('[improve] K-Typ enrichment failed (continuing):', e?.message || e);
-    try {
-      mergedProduct.notes = mergedProduct.notes || {};
-      mergedProduct.notes.warnings = Array.from(
-        new Set([
-          ...(mergedProduct.notes.warnings || []),
-          `K-Typ nicht angereichert: interner Fehler (improve).`,
-        ])
-      );
-    } catch {
-      // ignore
-    }
-  }
+  // ─── PERF: Run independent enrichments in parallel ───
+  // K-Typ, marketing images, and price enrichment write to non-overlapping fields.
+  // Title coercion is sync and runs after.
+  console.log('[improve] Running enrichments (parallel)...');
 
-  // BUG-088: Web image search — add up to 3 real product images from the web
-  try {
-    const existingImages = Array.isArray(mergedProduct?.details?.images) ? mergedProduct.details.images : [];
-    const hasEnoughImages = existingImages.filter(img => img?.url_or_base64?.startsWith('http')).length >= 3;
-    if (!hasEnoughImages) {
-      const { fetchMarketingImages } = require('../lib/marketing-images');
-      const brand = mergedProduct?.identification?.brand || '';
-      const name = mergedProduct?.identification?.name || '';
-      const category = mergedProduct?.identification?.category || '';
-      const ids = mergedProduct?.details?.identifiers || {};
-      const identifiers = [ids.ean, ids.gtin, ids.upc, ids.mpn].filter(Boolean);
-      const exclude = existingImages.map(img => img?.url_or_base64).filter(Boolean);
+  await Promise.all([
+    // K-Typ enrichment (AUTO/MOTO only, MVL-backed, never guessing)
+    (async () => {
+      try {
+        const { enrichKTypIfPossible } = require('../lib/ktype-enrichment');
+        await enrichKTypIfPossible(mergedProduct, { reason: 'improve' });
+      } catch (e) {
+        console.warn('[improve] K-Typ enrichment failed (continuing):', e?.message || e);
+        try {
+          mergedProduct.notes = mergedProduct.notes || {};
+          mergedProduct.notes.warnings = Array.from(
+            new Set([
+              ...(mergedProduct.notes.warnings || []),
+              `K-Typ nicht angereichert: interner Fehler (improve).`,
+            ])
+          );
+        } catch { /* ignore */ }
+      }
+    })(),
 
-      const { images } = await fetchMarketingImages({
-        brand,
-        name,
-        category,
-        identifiers,
-        mpn: ids.mpn || '',
-        limit: 3,
-        exclude,
-      });
+    // BUG-088: Web image search — add up to 3 real product images from the web
+    (async () => {
+      try {
+        const existingImages = Array.isArray(mergedProduct?.details?.images) ? mergedProduct.details.images : [];
+        const hasEnoughImages = existingImages.filter(img => img?.url_or_base64?.startsWith('http')).length >= 3;
+        if (!hasEnoughImages) {
+          const { fetchMarketingImages } = require('../lib/marketing-images');
+          const brand = mergedProduct?.identification?.brand || '';
+          const name = mergedProduct?.identification?.name || '';
+          const category = mergedProduct?.identification?.category || '';
+          const ids = mergedProduct?.details?.identifiers || {};
+          const identifiers = [ids.ean, ids.gtin, ids.upc, ids.mpn].filter(Boolean);
+          const exclude = existingImages.map(img => img?.url_or_base64).filter(Boolean);
 
-      if (images.length) {
-        mergedProduct.details = mergedProduct.details || {};
-        mergedProduct.details.images = mergedProduct.details.images || [];
-        for (const img of images) {
-          if (img?.url) {
-            mergedProduct.details.images.push({
-              url_or_base64: img.url,
-              source: img.source || 'web_search',
-              variant: 'marketing',
-            });
+          const { images } = await fetchMarketingImages({
+            brand,
+            name,
+            category,
+            identifiers,
+            mpn: ids.mpn || '',
+            limit: 3,
+            exclude,
+          });
+
+          if (images.length) {
+            mergedProduct.details = mergedProduct.details || {};
+            mergedProduct.details.images = mergedProduct.details.images || [];
+            for (const img of images) {
+              if (img?.url) {
+                mergedProduct.details.images.push({
+                  url_or_base64: img.url,
+                  source: img.source || 'web_search',
+                  variant: 'marketing',
+                });
+              }
+            }
+            console.log(`[improve] Added ${images.length} web images for ${mergedProduct.id}`);
           }
         }
-        console.log(`[improve] Added ${images.length} web images for ${mergedProduct.id}`);
+      } catch (e) {
+        console.warn('[improve] Web image search failed (continuing):', e?.message || e);
       }
-    }
-  } catch (e) {
-    console.warn('[improve] Web image search failed (continuing):', e?.message || e);
-  }
+    })(),
 
-  // Minimal title sanitization — trust Gemini's output, only clean up noise.
+    // Price enrichment (best-effort)
+    (async () => {
+      try {
+        await enrichPriceViaEbayBrowseBestEffort(mergedProduct, { force: false, reason: 'improve' });
+      } catch (e) {
+        try {
+          mergedProduct.notes = mergedProduct.notes || {};
+          mergedProduct.notes.warnings = Array.from(
+            new Set([...(mergedProduct.notes.warnings || []), `Preis (eBay Browse) konnte nicht ermittelt werden: ${e?.message || String(e)}`])
+          );
+        } catch { /* ignore */ }
+      }
+    })(),
+  ]);
+
+  // Minimal title sanitization — trust Gemini's output, only clean up noise (sync).
   mergedProduct.identification = mergedProduct.identification || {};
   mergedProduct.identification.name = coerceTitleToPolicy(
     mergedProduct,
     mergedProduct.identification.name,
     { minLen: 0, maxLen: 80, softMaxLen: 80, extraHintTokens: [], forcePolicy: false }
   );
-
-  // Price enrichment (best-effort): prefer eBay Browse API evidence (no SerpAPI required).
-  try {
-    await enrichPriceViaEbayBrowseBestEffort(mergedProduct, { force: false, reason: 'improve' });
-  } catch (e) {
-    // best-effort only; never fail Improve due to price enrichment.
-    try {
-      mergedProduct.notes = mergedProduct.notes || {};
-      mergedProduct.notes.warnings = Array.from(
-        new Set([...(mergedProduct.notes.warnings || []), `Preis (eBay Browse) konnte nicht ermittelt werden: ${e?.message || String(e)}`])
-      );
-    } catch {
-      // ignore
-    }
-  }
 
   // Deterministic sanitization: never persist price/placeholder/template text,
   // even if the review step fails or the model violates instructions.
