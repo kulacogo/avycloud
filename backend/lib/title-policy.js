@@ -2264,8 +2264,9 @@ function coerceTitleToPolicy(
     forcePolicy = false,
   } = {}
 ) {
-  // Web-only mode: do NOT apply schema rules. Keep only minimal sanitization + hard max length.
-  if (!forcePolicy && isTitlePolicyDisabled()) {
+  // Minimal mode: do NOT apply schema rules. Keep only minimal sanitization + hard max length.
+  // Active when: (a) caller opts out via forcePolicy=false, OR (b) env TITLE_POLICY_DISABLED=true.
+  if (!forcePolicy || isTitlePolicyDisabled()) {
     let t = stripEmojis(proposedTitle || '');
     t = stripMarkdownDecorations(t);
     t = stripSkuNoise(t);
