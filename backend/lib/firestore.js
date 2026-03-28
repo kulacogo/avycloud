@@ -1705,7 +1705,14 @@ async function saveProduct(product, options = {}) {
         const snap = await tx.get(ref);
         const existingPid = snap.exists ? (snap.data()?.productId || snap.data()?.baseProductId || null) : null;
         if (existingPid && String(existingPid) !== String(productId)) {
-          throw new Error(`SKU already in use: ${sku} (productId=${existingPid})`);
+          // Check if the blocking product still exists — if not, reclaim the SKU
+          const blockingRef = firestore.collection(PRODUCTS_COLLECTION).doc(String(existingPid));
+          const blockingSnap = await tx.get(blockingRef);
+          if (!blockingSnap.exists) {
+            console.warn(`[ensureSkuUniqueOrThrow] Orphaned SKU index entry ${sku} → ${existingPid} (product deleted). Reclaiming for ${productId}.`);
+          } else {
+            throw new Error(`SKU already in use: ${sku} (productId=${existingPid})`);
+          }
         }
         tx.set(
           ref,
@@ -1732,7 +1739,13 @@ async function saveProduct(product, options = {}) {
             const snap = await tx.get(ref);
             const existingPid = snap.exists ? (snap.data()?.productId || snap.data()?.baseProductId || null) : null;
             if (existingPid && String(existingPid) !== String(productId)) {
-              throw new Error('sku_collision');
+              const blockingRef = firestore.collection(PRODUCTS_COLLECTION).doc(String(existingPid));
+              const blockingSnap = await tx.get(blockingRef);
+              if (!blockingSnap.exists) {
+                console.warn(`[allocateRandomSku] Orphaned SKU index entry ${sku} → ${existingPid}. Reclaiming for ${productId}.`);
+              } else {
+                throw new Error('sku_collision');
+              }
             }
             tx.set(
               ref,
