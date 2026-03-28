@@ -12,8 +12,8 @@ interface InventoryViewProps {
   onSelectProduct?: (product: Product) => void;
 }
 
-type QuickFilterKey = "all" | "low" | "nobin" | "stale";
-type SortField = "name" | "sku" | "quantity" | "available" | "buyPrice" | "value" | "binCode";
+type QuickFilterKey = "all" | "low" | "nobin" | "stale" | "listed" | "unlisted" | "listingErrors";
+type SortField = "name" | "sku" | "quantity" | "available" | "buyPrice" | "value" | "binCode" | "marketplace";
 type SortDir = "asc" | "desc";
 
 // ---------------------------------------------------------------------------
@@ -245,6 +245,25 @@ const InventoryView: React.FC<InventoryViewProps> = ({ onNavigate, onSelectProdu
       .catch(() => {/* non-blocking */});
   }, []);
 
+  // ---- Marketplace status helper ----
+  const getMarketplaceInfo = useCallback((p: Product) => {
+    const ebayStatus = p.ops?.listingStatus?.ebay;
+    const kauflandStatus = p.ops?.listingStatus?.kaufland;
+    const productSku = String(p.identification?.sku || '').trim().toUpperCase();
+    const productEans = (() => {
+      const raw = (p as any).identification?.ean || (p as any).identification?.barcode || '';
+      return [raw, ...((p as any).identification?.eans || [])].map((v: string) => String(v || '').replace(/\D+/g, '').trim()).filter(Boolean);
+    })();
+    const isEbayActive = ebayStatus === 'active' || ebayListedProductIds.has(p.id);
+    const isKauflandActive = kauflandStatus === 'active' || (productSku && kauflandListedSkus.has(productSku)) || productEans.some((e) => kauflandListedEans.has(e));
+    const ebayValidation = p.marketplace_listings?.ebay?.validation;
+    const kauflandValidation = p.marketplace_listings?.kaufland?.validation;
+    const hasErrors = (ebayValidation && !ebayValidation.ready) || (kauflandValidation && !kauflandValidation.ready);
+    const errorCount = (ebayValidation?.issues?.length ?? 0) + (kauflandValidation?.issues?.length ?? 0);
+    const isListed = isEbayActive || isKauflandActive;
+    return { isEbayActive, isKauflandActive, isListed, hasErrors, errorCount, ebayValidation, kauflandValidation };
+  }, [ebayListedProductIds, kauflandListedSkus, kauflandListedEans]);
+
   // ---- KPI calculations ----
   const kpis = useMemo(() => {
     const withStock = products.filter((p) => (p.inventory?.quantity ?? 0) > 0);
@@ -261,9 +280,18 @@ const InventoryView: React.FC<InventoryViewProps> = ({ onNavigate, onSelectProdu
     const lowStockCount = products.filter(isLowStock).length;
     const noBinCount = products.filter((p) => (p.inventory?.quantity ?? 0) > 0 && isNoBin(p)).length;
     const staleCount = products.filter((p) => (p.inventory?.quantity ?? 0) > 0 && isStale(p)).length;
+    let listedCount = 0;
+    let unlistedCount = 0;
+    let listingErrorCount = 0;
+    withStock.forEach((p) => {
+      const info = getMarketplaceInfo(p);
+      if (info.isListed) listedCount++;
+      else unlistedCount++;
+      if (info.hasErrors) listingErrorCount++;
+    });
 
-    return { totalProducts, totalUnits, totalValue, lowStockCount, noBinCount, staleCount };
-  }, [products]);
+    return { totalProducts, totalUnits, totalValue, lowStockCount, noBinCount, staleCount, listedCount, unlistedCount, listingErrorCount };
+  }, [products, getMarketplaceInfo]);
 
   // ---- Filtering ----
   const filteredProducts = useMemo(() => {
@@ -280,6 +308,15 @@ const InventoryView: React.FC<InventoryViewProps> = ({ onNavigate, onSelectProdu
         break;
       case "stale":
         list = list.filter((p) => isStale(p));
+        break;
+      case "listed":
+        list = list.filter((p) => getMarketplaceInfo(p).isListed);
+        break;
+      case "unlisted":
+        list = list.filter((p) => !getMarketplaceInfo(p).isListed);
+        break;
+      case "listingErrors":
+        list = list.filter((p) => getMarketplaceInfo(p).hasErrors);
         break;
     }
 
@@ -326,12 +363,21 @@ const InventoryView: React.FC<InventoryViewProps> = ({ onNavigate, onSelectProdu
         case "binCode":
           cmp = (getBinCode(a) || "zzz").localeCompare(getBinCode(b) || "zzz", "de");
           break;
+        case "marketplace": {
+          const aInfo = getMarketplaceInfo(a);
+          const bInfo = getMarketplaceInfo(b);
+          // Listed first, then by channel count
+          const aScore = (aInfo.isEbayActive ? 1 : 0) + (aInfo.isKauflandActive ? 1 : 0);
+          const bScore = (bInfo.isEbayActive ? 1 : 0) + (bInfo.isKauflandActive ? 1 : 0);
+          cmp = aScore - bScore;
+          break;
+        }
       }
       return sortDir === "asc" ? cmp : -cmp;
     });
 
     return list;
-  }, [products, quickFilter, searchQuery, sortField, sortDir]);
+  }, [products, quickFilter, searchQuery, sortField, sortDir, getMarketplaceInfo]);
 
   // ---- Sort handler ----
   const handleSort = (field: SortField) => {
@@ -423,6 +469,28 @@ const InventoryView: React.FC<InventoryViewProps> = ({ onNavigate, onSelectProdu
             onClick={() => setQuickFilter("stale")}
             count={kpis.staleCount}
           />
+          <span className="w-px h-5 bg-app-border mx-1 self-center" />
+          <QuickFilter
+            label="Gelistet"
+            active={quickFilter === "listed"}
+            onClick={() => setQuickFilter("listed")}
+            count={kpis.listedCount}
+          />
+          <QuickFilter
+            label="Nicht gelistet"
+            active={quickFilter === "unlisted"}
+            onClick={() => setQuickFilter("unlisted")}
+            count={kpis.unlistedCount}
+          />
+          {kpis.listingErrorCount > 0 && (
+            <QuickFilter
+              label="Listing-Fehler"
+              active={quickFilter === "listingErrors"}
+              onClick={() => setQuickFilter("listingErrors")}
+              count={kpis.listingErrorCount}
+              tone="warn"
+            />
+          )}
         </div>
         <div className="flex-1 w-full sm:w-auto sm:max-w-xs ml-auto">
           <div className="relative">
@@ -521,8 +589,14 @@ const InventoryView: React.FC<InventoryViewProps> = ({ onNavigate, onSelectProdu
                     <SortIcon field="value" />
                   </div>
                 </th>
-                <th className="px-3 py-3 w-20 font-medium text-txt-secondary text-center">
-                  Marktplatz
+                <th
+                  className="px-3 py-3 w-28 font-medium text-txt-secondary cursor-pointer group text-center"
+                  onClick={() => handleSort("marketplace")}
+                >
+                  <div className="flex items-center justify-center gap-1">
+                    Marktplatz
+                    <SortIcon field="marketplace" />
+                  </div>
                 </th>
               </tr>
             </thead>
@@ -545,15 +619,8 @@ const InventoryView: React.FC<InventoryViewProps> = ({ onNavigate, onSelectProdu
                 const binCode = getBinCode(product);
                 const zone = getBinZone(product);
                 const imgUrl = primaryImage(product);
-                const ebayStatus = (product as any)?.ops?.listingStatus?.ebay;
-                const kauflandStatus = (product as any)?.ops?.listingStatus?.kaufland;
-                const productSku = String((product as any)?.identification?.sku || '').trim().toUpperCase();
-                const productEans = (() => {
-                  const raw = (product as any)?.identification?.ean || (product as any)?.identification?.barcode || '';
-                  return [raw, ...((product as any)?.identification?.eans || [])].map((v: string) => String(v || '').replace(/\D+/g, '').trim()).filter(Boolean);
-                })();
-                const isEbayActive = ebayStatus === 'active' || ebayListedProductIds.has(product.id);
-                const isKauflandActive = kauflandStatus === 'active' || (productSku && kauflandListedSkus.has(productSku)) || productEans.some((e) => kauflandListedEans.has(e));
+                const mpInfo = getMarketplaceInfo(product);
+                const { isEbayActive, isKauflandActive, hasErrors, ebayValidation, kauflandValidation } = mpInfo;
 
                 return (
                   <tr
@@ -665,23 +732,43 @@ const InventoryView: React.FC<InventoryViewProps> = ({ onNavigate, onSelectProdu
 
                     {/* Marktplatz */}
                     <td className="px-3 py-2">
-                      <div className="flex items-center justify-center gap-1.5">
-                        {isEbayActive && (
-                          <span className="inline-flex items-center justify-center w-6 h-6 rounded bg-app-elevated" title="eBay">
-                            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none">
-                              <text x="2" y="17" fontSize="11" fontWeight="bold" fill="currentColor" className="text-txt-secondary">eB</text>
+                      <div className="flex flex-col items-center gap-1">
+                        <div className="flex items-center gap-1.5">
+                          {isEbayActive ? (
+                            <span className="inline-flex items-center justify-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-success-dim text-success" title="eBay: Aktiv">
+                              eB
+                            </span>
+                          ) : ebayValidation && !ebayValidation.ready ? (
+                            <span
+                              className="inline-flex items-center justify-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-danger-dim text-danger cursor-help"
+                              title={`eBay: ${ebayValidation.issues.map((i) => i.message).join(', ')}`}
+                            >
+                              eB
+                            </span>
+                          ) : null}
+                          {isKauflandActive ? (
+                            <span className="inline-flex items-center justify-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-success-dim text-success" title="Kaufland: Aktiv">
+                              K
+                            </span>
+                          ) : kauflandValidation && !kauflandValidation.ready ? (
+                            <span
+                              className="inline-flex items-center justify-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-danger-dim text-danger cursor-help"
+                              title={`Kaufland: ${kauflandValidation.issues.map((i) => i.message).join(', ')}`}
+                            >
+                              K
+                            </span>
+                          ) : null}
+                          {!isEbayActive && !isKauflandActive && !hasErrors && (
+                            <span className="text-xs text-txt-muted">—</span>
+                          )}
+                        </div>
+                        {hasErrors && (
+                          <span className="text-[10px] text-danger flex items-center gap-0.5" title="Listing-Probleme vorhanden">
+                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
                             </svg>
+                            Fehler
                           </span>
-                        )}
-                        {isKauflandActive && (
-                          <span className="inline-flex items-center justify-center w-6 h-6 rounded bg-app-elevated" title="Kaufland">
-                            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none">
-                              <text x="5" y="17" fontSize="12" fontWeight="bold" fill="currentColor" className="text-txt-secondary">K</text>
-                            </svg>
-                          </span>
-                        )}
-                        {!isEbayActive && !isKauflandActive && (
-                          <span className="text-xs text-txt-muted">{"—"}</span>
                         )}
                       </div>
                     </td>
