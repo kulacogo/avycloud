@@ -208,6 +208,7 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
   const [publishProducts, setPublishProducts] = useState<Product[]>([]);
   const [publishSearch, setPublishSearch] = useState("");
   const [publishLoading, setPublishLoading] = useState(false);
+  const [publishSort, setPublishSort] = useState<"name" | "stock" | "bin">("name");
   const [publishingId, setPublishingId] = useState<string | null>(null);
   const [publishResult, setPublishResult] = useState<{ ok: boolean; message: string } | null>(null);
   const [publishSelectedIds, setPublishSelectedIds] = useState<Set<string>>(new Set());
@@ -300,17 +301,18 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
   const openPublishModal = useCallback(async () => {
     setShowPublishModal(true);
     setPublishSearch("");
+    setPublishSort("name");
     setPublishResult(null);
     setPublishSelectedIds(new Set());
     setBulkPublishSummary(null);
     setPublishLoading(true);
     try {
       const products = await fetchProducts();
-      // Nur Produkte mit Lagerbestand > 0
+      // Nur Produkte die physisch im Lager sind: Bin-Zuordnung UND Bestand > 0
       const inStockProducts = products.filter((p) => {
-        const qty = Number(p.inventory?.quantity ?? p.inventory?.physicalQuantity ?? 0);
-        const hasBins = Array.isArray(p.storageBins) && p.storageBins.some((b) => Number(b?.quantity || 0) > 0);
-        return qty > 0 || hasBins;
+        if (!Array.isArray(p.storageBins) || p.storageBins.length === 0) return false;
+        const binStock = p.storageBins.reduce((sum, b) => sum + Number(b?.quantity || 0), 0);
+        return binStock > 0;
       });
       // Bereits aktiv gelistete Produkte ausfiltern (SKU + EAN + listingStatus)
       const activeListings = listings.filter((l) => l.status === "active");
@@ -445,18 +447,33 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
     }
   }, [marketplace, publishSelectedIds, publishProducts, loadEbayListings, loadKauflandListings]);
 
+  const getBinStock = useCallback((p: Product) => {
+    if (!Array.isArray(p.storageBins)) return 0;
+    return p.storageBins.reduce((sum, b) => sum + Number(b?.quantity || 0), 0);
+  }, []);
+
   const filteredPublishProducts = useMemo(() => {
-    if (!publishSearch.trim()) return publishProducts.slice(0, 50);
-    const q = publishSearch.toLowerCase();
-    return publishProducts
-      .filter((p) => {
+    let items = publishProducts;
+    const q = publishSearch.trim().toLowerCase();
+    if (q) {
+      items = items.filter((p) => {
         const title = (p.identification?.name || "").toLowerCase();
         const sku = (p.identification?.sku || "").toLowerCase();
         const ean = (p.identification?.barcodes?.[0] || "").toLowerCase();
         return title.includes(q) || sku.includes(q) || ean.includes(q);
-      })
-      .slice(0, 50);
-  }, [publishProducts, publishSearch]);
+      });
+    }
+    const sorted = [...items].sort((a, b) => {
+      if (publishSort === "stock") return getBinStock(b) - getBinStock(a);
+      if (publishSort === "bin") {
+        const binA = a.storageBins?.[0]?.code || "";
+        const binB = b.storageBins?.[0]?.code || "";
+        return binA.localeCompare(binB);
+      }
+      return (a.identification?.name || "").localeCompare(b.identification?.name || "");
+    });
+    return sorted.slice(0, 100);
+  }, [publishProducts, publishSearch, publishSort, getBinStock]);
 
   // ─── Computed Data ───────────────────────────────────────
 
@@ -1095,6 +1112,33 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
               />
             </div>
 
+            {/* Sort controls */}
+            {!publishLoading && publishProducts.length > 0 && (
+              <div className="px-5 pt-3 flex items-center gap-1.5">
+                <span className="text-xs text-txt-muted mr-1">Sortieren:</span>
+                {([
+                  ["name", "Name"],
+                  ["stock", "Bestand"],
+                  ["bin", "Lagerplatz"],
+                ] as const).map(([key, lbl]) => (
+                  <button
+                    key={key}
+                    onClick={() => setPublishSort(key)}
+                    className={`px-2 py-1 text-xs rounded-md transition-colors ${
+                      publishSort === key
+                        ? "bg-accent/15 text-accent font-medium"
+                        : "text-txt-muted hover:text-txt-primary hover:bg-app-elevated"
+                    }`}
+                  >
+                    {lbl}
+                  </button>
+                ))}
+                <span className="ml-auto text-xs text-txt-muted">
+                  {filteredPublishProducts.length} Artikel
+                </span>
+              </div>
+            )}
+
             {/* Product list */}
             <div className="flex-1 overflow-y-auto px-5 py-3 space-y-1">
               {publishLoading ? (
@@ -1127,11 +1171,13 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
                       </div>
                       <div className="text-xs text-txt-muted mt-0.5">
                         <span className="text-success font-medium">
-                          Bestand: {Number(p.inventory?.quantity ?? p.inventory?.physicalQuantity ?? 0)}
+                          Bestand: {getBinStock(p)}
                         </span>
-                        {p.storageBins?.[0]?.code && (
-                          <span className="ml-2">Bin: {p.storageBins[0].code}</span>
-                        )}
+                        {p.storageBins?.filter((b) => Number(b?.quantity || 0) > 0).map((b) => (
+                          <span key={b.code} className="ml-2 px-1.5 py-0.5 bg-app-elevated rounded text-[10px]">
+                            {b.code} ({b.quantity})
+                          </span>
+                        ))}
                       </div>
                     </div>
                     <button
