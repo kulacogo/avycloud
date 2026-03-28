@@ -537,10 +537,11 @@ async function runBulkTitle({
       }
 
       const nextTitle = coerceTitleToPolicy(cur, currentTitle, {
-        minLen,
+        minLen: 0,
         maxLen,
         softMaxLen,
         extraHintTokens: insightTokens,
+        forcePolicy: false,
       });
       const nextLen = safeString(nextTitle).length;
       const afterIssues = validateTitleToPolicy(cur, nextTitle, { maxLen, mobileMaxLen }) || [];

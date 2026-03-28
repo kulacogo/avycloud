@@ -1852,10 +1852,11 @@ function applyReviewResult(product, review, { titleHintTokens = [] } = {}) {
       ? titleHintTokens.map(normalizeTitleInsightToken).filter(isValidTitleInsightToken).slice(0, 12)
       : [];
     product.identification.name = coerceTitleToPolicy(product, review.title, {
-      minLen: 70,
+      minLen: 0,
       maxLen: 80,
       softMaxLen: 80,
       extraHintTokens,
+      forcePolicy: false,
     });
   }
 
@@ -2407,10 +2408,11 @@ async function ensureMarketingCopy(products = [], locale = 'de-DE') {
         product.identification = {
           ...product.identification,
           name: coerceTitleToPolicy(product, rewrite.title, {
-            minLen: 70,
+            minLen: 0,
             maxLen: 80,
             softMaxLen: 80,
             extraHintTokens,
+            forcePolicy: false,
           }),
         };
         product.details = product.details || {};

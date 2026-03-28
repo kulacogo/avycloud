@@ -131,8 +131,8 @@ function buildEbayListing(product, geminiResult) {
   let title = safeStr(geminiResult?.ebay?.title) || safeStr(id.name);
   let description = safeStr(geminiResult?.ebay?.description) || safeStr(det.short_description);
 
-  // Apply eBay title policy (max 80 chars, etc.)
-  title = coerceTitleToPolicy(title) || title;
+  // Minimal title sanitization (max 80 chars, no schema rebuild)
+  title = coerceTitleToPolicy(product, title, { minLen: 0, maxLen: EBAY_TITLE_MAX, forcePolicy: false }) || title;
   if (title.length > EBAY_TITLE_MAX) {
     title = title.slice(0, EBAY_TITLE_MAX - 1).trim() + '\u2026';
   }

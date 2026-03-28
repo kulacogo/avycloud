@@ -545,10 +545,11 @@ function sanitizeDatasheetChangeV2(entry, product, { scope = null, titleHintToke
     const effectiveHintTokens = categoryChanged ? [] : titleHintTokens;
 
     const coerced = coerceTitleToPolicy(preview, titleCandidate, {
-      minLen: 30,
+      minLen: 0,
       maxLen: 80,
       softMaxLen: 80,
       extraHintTokens: effectiveHintTokens,
+      forcePolicy: false,
     });
     change.title = coerced || titleCandidate.slice(0, 80);
   }

@@ -2340,7 +2340,7 @@ async function saveProduct(product, options = {}) {
       productWithEbay.identification.name = coerceTitleToPolicy(
         productWithEbay,
         productWithEbay.identification.name,
-        { minLen: AUTO_TITLE_MIN_LEN, maxLen: AUTO_TITLE_MAX_LEN, softMaxLen: AUTO_TITLE_SOFT_MAX_LEN }
+        { minLen: 0, maxLen: AUTO_TITLE_MAX_LEN, softMaxLen: AUTO_TITLE_SOFT_MAX_LEN, forcePolicy: false }
       );
     }
 
