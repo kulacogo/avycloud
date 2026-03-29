@@ -354,6 +354,81 @@ const server = app.listen(PORT, () => {
   } catch (err) {
     console.warn('[refund-push] failed to start safety-net:', err?.message || err);
   }
+
+  // Safety-net: expire stale stock reservations every 5 minutes
+  const RESERVATION_CLEANUP_MS = parseInt(process.env.RESERVATION_CLEANUP_INTERVAL_MS || String(5 * 60 * 1000), 10);
+  try {
+    setTimeout(() => {
+      const { expireStaleReservations } = require('./services/stock-reservation');
+      expireStaleReservations()
+        .then((r) => { if (r.expired > 0) console.log(`[reservation-cleanup] Expired ${r.expired} stale reservations`); })
+        .catch((err) => console.warn('[reservation-cleanup] failed:', err?.message));
+    }, 30_000); // 30s initial delay
+    setInterval(() => {
+      const { expireStaleReservations } = require('./services/stock-reservation');
+      expireStaleReservations()
+        .then((r) => { if (r.expired > 0) console.log(`[reservation-cleanup] Expired ${r.expired} stale reservations`); })
+        .catch((err) => console.warn('[reservation-cleanup] failed:', err?.message));
+    }, RESERVATION_CLEANUP_MS);
+    console.log(`[reservation-cleanup] safety-net enabled: every ${RESERVATION_CLEANUP_MS}ms`);
+  } catch (err) {
+    console.warn('[reservation-cleanup] failed to start:', err?.message || err);
+  }
+
+  // Stock reconciliation: activity-based every 30min, full scan daily at 3 AM
+  const RECONCILIATION_INTERVAL_MS = parseInt(process.env.RECONCILIATION_INTERVAL_MS || String(30 * 60 * 1000), 10);
+  try {
+    let lastFullScanDate = null;
+    const runReconciliation = async () => {
+      try {
+        const { reconcileRecentActivity, reconcileFullScan } = require('./services/stock-reconciliation');
+
+        // Full scan 1x pro Tag zwischen 3:00-3:29 Uhr
+        const now = new Date();
+        const today = now.toISOString().slice(0, 10);
+        if (now.getHours() === 3 && now.getMinutes() < 30 && lastFullScanDate !== today) {
+          lastFullScanDate = today;
+          const result = await reconcileFullScan();
+          console.log(`[stock-reconciliation] full-scan: checked=${result.checked} drifts=${result.driftsFound} fixed=${result.autoFixed}`);
+          return;
+        }
+
+        // Activity-based alle 30min
+        const result = await reconcileRecentActivity();
+        if (result.driftsFound > 0) {
+          console.log(`[stock-reconciliation] activity: checked=${result.checked} drifts=${result.driftsFound} fixed=${result.autoFixed}`);
+        }
+      } catch (err) {
+        console.warn('[stock-reconciliation] failed:', err?.message);
+      }
+    };
+    setTimeout(runReconciliation, 4 * 60 * 1000); // First run after 4 min
+    setInterval(runReconciliation, RECONCILIATION_INTERVAL_MS);
+    console.log(`[stock-reconciliation] enabled: activity every ${RECONCILIATION_INTERVAL_MS}ms, full scan daily at 03:00`);
+  } catch (err) {
+    console.warn('[stock-reconciliation] failed to start:', err?.message || err);
+  }
+
+  // Restock alert: check for pending return restocks every 2 hours
+  const RESTOCK_ALERT_INTERVAL_MS = parseInt(process.env.RESTOCK_ALERT_INTERVAL_MS || String(2 * 60 * 60 * 1000), 10);
+  try {
+    const runRestockAlert = async () => {
+      try {
+        const { checkPendingRestocks } = require('./services/restock-alert');
+        const result = await checkPendingRestocks();
+        if (result.newAlerts > 0) {
+          console.log(`[restock-alert] checked=${result.checked} newAlerts=${result.newAlerts}`);
+        }
+      } catch (err) {
+        console.warn('[restock-alert] failed:', err?.message);
+      }
+    };
+    setTimeout(runRestockAlert, 5 * 60 * 1000); // First run after 5 min
+    setInterval(runRestockAlert, RESTOCK_ALERT_INTERVAL_MS);
+    console.log(`[restock-alert] enabled: every ${RESTOCK_ALERT_INTERVAL_MS}ms`);
+  } catch (err) {
+    console.warn('[restock-alert] failed to start:', err?.message || err);
+  }
 });
 
 // Graceful shutdown für Cloud Run

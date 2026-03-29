@@ -1,4 +1,4 @@
-# Claude Code Prompt: Stock-Consistency-Fixes (P0)
+# Claude Code Prompt: Stock-Consistency-Fixes (P0 + Phase 2)
 
 ## SESSION START
 
@@ -425,8 +425,501 @@ Nutze das bestehende Test-Pattern aus `backend/__tests__/` — require.cache-Pat
 
 ## WARNUNG
 
-- `index.js` ist **Red Zone** — nur den einen `setInterval`-Block hinzufügen, NICHTS anderes ändern
+- `index.js` ist **Red Zone** — nur die `setInterval`-Blöcke hinzufügen, NICHTS anderes ändern
 - `order-state-machine.js` und `stock-sync-dispatcher.js` sind **Yellow Zone** — Änderungen NUR wie hier beschrieben
-- **Keine neuen Dependencies** — `stock-lock.js` nutzt nur native JS (Map, Promise)
+- **Keine neuen Dependencies** — `stock-lock.js` und `stock-reconciliation.js` nutzen nur native JS + bestehende Module
 - **Kein BaseLinker** — selbsterklärend aber zur Sicherheit: KEINE BaseLinker-Referenzen
-- `stock_operation_failures` ist eine NEUE Firestore Collection — kein Schema-Change an bestehenden Collections
+- `stock_operation_failures`, `stock_reconciliation_log`, `restock_alerts` sind NEUE Firestore Collections — kein Schema-Change an bestehenden Collections
+- `returns-engine.js` ist **Yellow Zone** — nur die eine Zeile in `restockItem()` hinzufügen
+
+---
+
+## PHASE 2: FIX-E (Reconciliation) + FIX-G (Retoure-Alert)
+
+> Phase 2 baut auf Phase 1 (Änderungen 1-5) auf. Implementiere Phase 2 NACH Phase 1.
+
+---
+
+### Änderung 6: Stock Reconciliation Job (NEUER SERVICE)
+
+**Neue Datei:** `backend/services/stock-reconciliation.js`
+
+Zwei-Tier Reconciliation:
+
+- **Tier 1 — Activity-based (alle 30 Min):** Prüft nur Produkte mit kürzlicher Stock-Aktivität
+- **Tier 2 — Full Scan (1x täglich, ~3:00 Uhr nachts):** Prüft den gesamten Katalog
+
+Beide Tiers prüfen dieselben zwei Drift-Typen:
+
+1. **Bin-Drift:** `inventory.quantity` stimmt nicht mit Summe von `storageBins[].quantity` überein → Auto-Fix via `refreshProductInventory()`
+2. **Marketplace-Drift:** eBay/Kaufland hat anderen Bestand als `availableQty` → Auto-Fix via `syncStockToAllChannels()`
+
+```js
+/**
+ * Stock Reconciliation Service
+ *
+ * Two-tier drift detection + auto-repair:
+ * - Tier 1: Activity-based (every 30min) — checks products with recent stock activity
+ * - Tier 2: Full scan (1x daily ~3:00 AM) — checks entire catalog
+ *
+ * Drift types:
+ * - bin_drift: inventory.quantity != sum(storageBins[].quantity)
+ * - marketplace_drift: last-synced marketplace qty != current availableQty
+ *
+ * Logs all results to stock_reconciliation_log collection.
+ */
+
+const { firestore } = require('../lib/firestore');
+const { refreshProductInventory } = require('../lib/warehouse');
+const { syncStockToAllChannels, computeAvailableQuantity } = require('./stock-sync-dispatcher');
+
+const RECONCILIATION_LOG = 'stock_reconciliation_log';
+
+/**
+ * Tier 1: Activity-based reconciliation.
+ * Queries stock_sync_log + warehouse_movements for SKUs with activity in the last hour,
+ * then checks those products for drift.
+ *
+ * @param {Object} [opts]
+ * @param {string} [opts.tenantId='default']
+ * @param {number} [opts.lookbackMinutes=60] — how far back to check for activity
+ * @returns {Promise<{ checked: number, drifts: Array }>}
+ */
+async function reconcileActivityBased({ tenantId = 'default', lookbackMinutes = 60 } = {}) {
+  const since = new Date(Date.now() - lookbackMinutes * 60 * 1000).toISOString();
+  const affectedProductIds = new Set();
+
+  // 1. Sammle productIds aus stock_sync_log (letzte Stunde)
+  try {
+    const syncSnap = await firestore.collection('stock_sync_log')
+      .where('createdAt', '>=', since)
+      .limit(500)
+      .get();
+    syncSnap.docs.forEach((doc) => {
+      const pid = doc.data().productId;
+      if (pid) affectedProductIds.add(pid);
+    });
+  } catch (err) {
+    console.warn('[reconciliation] stock_sync_log query failed:', err?.message);
+  }
+
+  // 2. Sammle productIds aus warehouse_movements (letzte Stunde)
+  try {
+    const movSnap = await firestore.collection('warehouse_movements')
+      .where('createdAt', '>=', since)
+      .limit(500)
+      .get();
+    for (const doc of movSnap.docs) {
+      const data = doc.data();
+      // warehouse_movements hat productSku, nicht productId → Lookup nötig
+      const sku = data.productSku;
+      if (sku) {
+        const pSnap = await firestore.collection('products_v2')
+          .where('identification.sku', '==', sku)
+          .limit(1)
+          .get();
+        if (!pSnap.empty) affectedProductIds.add(pSnap.docs[0].id);
+      }
+    }
+  } catch (err) {
+    console.warn('[reconciliation] warehouse_movements query failed:', err?.message);
+  }
+
+  if (affectedProductIds.size === 0) {
+    return { checked: 0, drifts: [] };
+  }
+
+  console.log(`[reconciliation] Activity-based: checking ${affectedProductIds.size} products`);
+
+  // 3. Lade betroffene Produkte und prüfe Drift
+  const drifts = [];
+  for (const productId of affectedProductIds) {
+    try {
+      const doc = await firestore.collection('products_v2').doc(productId).get();
+      if (!doc.exists) continue;
+      const product = { id: doc.id, ...doc.data() };
+      const productDrifts = await checkAndFixDrifts(product, tenantId);
+      drifts.push(...productDrifts);
+    } catch (err) {
+      console.warn(`[reconciliation] Failed to check ${productId}:`, err?.message);
+    }
+  }
+
+  // 4. Log
+  await logReconciliation({ tenantId, tier: 'activity', checked: affectedProductIds.size, drifts });
+  return { checked: affectedProductIds.size, drifts };
+}
+
+/**
+ * Tier 2: Full catalog scan.
+ * Iterates ALL products_v2 docs and checks for drift.
+ *
+ * @param {Object} [opts]
+ * @param {string} [opts.tenantId='default']
+ * @returns {Promise<{ checked: number, drifts: Array }>}
+ */
+async function reconcileFullScan({ tenantId = 'default' } = {}) {
+  console.log('[reconciliation] Full scan starting...');
+  const snap = await firestore.collection('products_v2').get();
+  const drifts = [];
+  let checked = 0;
+
+  for (const doc of snap.docs) {
+    try {
+      const product = { id: doc.id, ...doc.data() };
+      // Nur Produkte mit Bestand oder Marketplace-Listing prüfen
+      const hasInventory = Number(product.inventory?.quantity || 0) > 0;
+      const hasBins = Array.isArray(product.storageBins) && product.storageBins.length > 0;
+      const hasEbay = Boolean(product.ops?.ebay?.itemId || product.marketplace?.ebay?.itemId);
+      const hasKaufland = Boolean(product.ops?.kaufland?.unitId || product.marketplace?.kaufland?.unitId);
+      if (!hasInventory && !hasBins && !hasEbay && !hasKaufland) continue;
+
+      const productDrifts = await checkAndFixDrifts(product, tenantId);
+      drifts.push(...productDrifts);
+      checked++;
+    } catch (err) {
+      console.warn(`[reconciliation] Full scan failed for ${doc.id}:`, err?.message);
+    }
+  }
+
+  console.log(`[reconciliation] Full scan done: ${checked} products, ${drifts.length} drifts`);
+  await logReconciliation({ tenantId, tier: 'full', checked, drifts });
+  return { checked, drifts };
+}
+
+/**
+ * Check a single product for bin-drift and marketplace-drift.
+ * Auto-fixes drifts and returns array of drift objects.
+ *
+ * @param {Object} product
+ * @param {string} tenantId
+ * @returns {Promise<Array<{ productId, sku, type, expected, actual, delta, fixed }>>}
+ */
+async function checkAndFixDrifts(product, tenantId) {
+  const drifts = [];
+  const productId = product.id;
+  const sku = product.identification?.sku || product.details?.identifiers?.sku || '';
+
+  // ── Drift 1: Bin-Total vs inventory.quantity ──
+  const bins = Array.isArray(product.storageBins) ? product.storageBins : [];
+  const binTotal = bins.reduce((sum, b) => sum + (Number(b.quantity) || 0), 0);
+  const inventoryQty = Number(product.inventory?.quantity ?? 0);
+
+  if (binTotal !== inventoryQty) {
+    console.warn(`[reconciliation] BIN DRIFT: ${productId} (sku=${sku}) bins=${binTotal} inventory=${inventoryQty}`);
+    let fixed = false;
+    try {
+      await refreshProductInventory(productId);
+      fixed = true;
+    } catch (err) {
+      console.error(`[reconciliation] refreshProductInventory failed for ${productId}:`, err?.message);
+    }
+    drifts.push({
+      productId, sku,
+      type: 'bin_drift',
+      expected: binTotal,
+      actual: inventoryQty,
+      delta: binTotal - inventoryQty,
+      fixed,
+    });
+  }
+
+  // ── Drift 2: Marketplace vs availableQty ──
+  try {
+    const { availableQty } = await computeAvailableQuantity(product, tenantId);
+    const lastSyncedQty = product.ops?.lastSyncedQuantity;
+
+    // Nur prüfen wenn wir wissen was zuletzt gesynct wurde
+    if (lastSyncedQty !== undefined && lastSyncedQty !== availableQty) {
+      console.warn(`[reconciliation] MARKETPLACE DRIFT: ${productId} (sku=${sku}) synced=${lastSyncedQty} available=${availableQty}`);
+      let fixed = false;
+      try {
+        await syncStockToAllChannels({ tenantId, product, reason: 'reconciliation' });
+        fixed = true;
+      } catch (err) {
+        console.error(`[reconciliation] syncStockToAllChannels failed for ${productId}:`, err?.message);
+      }
+      drifts.push({
+        productId, sku,
+        type: 'marketplace_drift',
+        expected: availableQty,
+        actual: lastSyncedQty,
+        delta: availableQty - lastSyncedQty,
+        fixed,
+      });
+    }
+  } catch (err) {
+    // computeAvailableQuantity kann fehlschlagen wenn Reservierungs-Query Error hat
+    console.warn(`[reconciliation] availableQty check failed for ${productId}:`, err?.message);
+  }
+
+  return drifts;
+}
+
+/**
+ * Log reconciliation results to Firestore.
+ */
+async function logReconciliation({ tenantId, tier, checked, drifts }) {
+  try {
+    await firestore.collection(RECONCILIATION_LOG).add({
+      tenantId,
+      tier,
+      checked,
+      driftCount: drifts.length,
+      drifts: drifts.slice(0, 100), // Max 100 drifts pro Log-Eintrag
+      createdAt: new Date().toISOString(),
+    });
+  } catch (err) {
+    console.warn('[reconciliation] Failed to log results:', err?.message);
+  }
+}
+
+module.exports = {
+  reconcileActivityBased,
+  reconcileFullScan,
+  checkAndFixDrifts,
+};
+```
+
+**WICHTIG — `ops.lastSyncedQuantity` setzen:**
+
+In `services/stock-sync-dispatcher.js` → `syncStockToAllChannels()` — NACH erfolgreichem Sync die zuletzt gepushte Menge auf dem Produkt speichern, damit die Reconciliation Marketplace-Drift erkennen kann:
+
+Am ENDE der Funktion, nach dem `stock_sync_log`-Write, diesen Block hinzufügen:
+
+```js
+// Track last-synced quantity for reconciliation drift detection
+try {
+  if (productId && productId !== 'unknown') {
+    await firestore.collection('products_v2').doc(productId).update({
+      'ops.lastSyncedQuantity': availableQty,
+      'ops.lastSyncedAt': new Date().toISOString(),
+    });
+  }
+} catch (err) {
+  // best-effort — do not fail sync for tracking write
+  console.warn(`[stock-sync] lastSyncedQuantity write failed for ${productId}:`, err?.message);
+}
+```
+
+Stelle sicher dass `availableQty` und `productId` im Scope sind (sind sie — `availableQty` wird oben berechnet, `productId` wird zu Beginn aus `product.id` extrahiert).
+
+---
+
+**Integration in `backend/index.js`** — NACH dem Reservation-Cleanup-Block aus Änderung 4:
+
+```js
+// Safety-net: stock reconciliation every 30min (activity-based) + full scan at ~3:00 AM
+const RECONCILIATION_INTERVAL_MS = parseInt(process.env.RECONCILIATION_INTERVAL_MS || String(30 * 60 * 1000), 10);
+let _lastFullScanDate = null; // Track so we only run once per day
+try {
+  setTimeout(() => {
+    const { reconcileActivityBased } = require('./services/stock-reconciliation');
+    reconcileActivityBased()
+      .then((r) => { if (r.drifts.length > 0) console.log(`[reconciliation] Activity: ${r.drifts.length} drifts fixed (${r.checked} products)`); })
+      .catch((err) => console.warn('[reconciliation] activity-based failed:', err?.message));
+  }, 120_000); // 2 min initial delay (after other safety-nets start)
+
+  setInterval(async () => {
+    try {
+      // Tier 2: Full scan at ~3:00 AM (once per day)
+      const now = new Date();
+      const today = now.toISOString().slice(0, 10); // YYYY-MM-DD
+      if (now.getHours() === 3 && now.getMinutes() < 30 && _lastFullScanDate !== today) {
+        _lastFullScanDate = today;
+        const { reconcileFullScan } = require('./services/stock-reconciliation');
+        const fullResult = await reconcileFullScan();
+        if (fullResult.drifts.length > 0) {
+          console.log(`[reconciliation] Full scan: ${fullResult.drifts.length} drifts fixed (${fullResult.checked} products)`);
+        }
+        return; // Don't also run activity-based in the same cycle
+      }
+
+      // Tier 1: Activity-based (every 30min)
+      const { reconcileActivityBased } = require('./services/stock-reconciliation');
+      const result = await reconcileActivityBased();
+      if (result.drifts.length > 0) {
+        console.log(`[reconciliation] Activity: ${result.drifts.length} drifts fixed (${result.checked} products)`);
+      }
+    } catch (err) {
+      console.warn('[reconciliation] interval failed:', err?.message);
+    }
+  }, RECONCILIATION_INTERVAL_MS);
+  console.log(`[reconciliation] safety-net enabled: activity every ${RECONCILIATION_INTERVAL_MS}ms, full scan daily ~3:00 AM`);
+} catch (err) {
+  console.warn('[reconciliation] failed to start:', err?.message || err);
+}
+```
+
+---
+
+### Änderung 7: Retoure-Wiedereinlagerungs-Alert (FIX-G)
+
+**Problem:** `restockItem()` in `services/returns-engine.js` (Z.284-316) loggt nur eine `warehouse_movements`-Einträge mit `type: 'restock_return'`, aber ruft NICHT `bookStockIn()` auf. Das ist by Design (QC-Prüfung). Aber es gibt keinen Alert wenn die Wiedereinlagerung vergessen wird.
+
+**Lösung:** Nach dem `warehouse_movements`-Write in `restockItem()` einen `restock_alerts`-Eintrag erstellen. Ein Checker-Job prüft regelmäßig ob ein entsprechender `bookStockIn()` erfolgt ist.
+
+**Datei:** `services/returns-engine.js`, Funktion `restockItem()` (Z.284-316)
+
+NACH dem bestehenden `warehouse_movements.add()` (Z.304-315) diesen Block hinzufügen:
+
+```js
+  // Create restock alert — will be checked/resolved by reconciliation job
+  try {
+    await db.collection('restock_alerts').add({
+      tenantId,
+      returnId,
+      orderId,
+      productSku: returnedItem.sku || null,
+      productName: returnedItem.name || null,
+      quantity: returnedItem.quantity || 1,
+      condition: itemCondition,
+      status: 'pending', // → 'resolved' when bookStockIn happens, 'overdue' after 24h
+      createdAt: new Date().toISOString(),
+      dueAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24h deadline
+    });
+  } catch (alertErr) {
+    console.warn(`[returns-engine] Failed to create restock alert for ${returnId}:`, alertErr?.message);
+  }
+```
+
+**Checker-Logik in `services/stock-reconciliation.js`:**
+
+Neue exportierte Funktion hinzufügen:
+
+```js
+/**
+ * Check for overdue restock alerts.
+ * A restock_alert is overdue when:
+ * - status='pending' AND dueAt < now
+ * - No matching bookStockIn found in warehouse_movements after the alert was created
+ *
+ * Updates status to 'overdue' and logs a warning.
+ *
+ * @param {Object} [opts]
+ * @param {string} [opts.tenantId='default']
+ * @returns {Promise<{ checked: number, overdue: number }>}
+ */
+async function checkRestockAlerts({ tenantId = 'default' } = {}) {
+  const now = new Date().toISOString();
+
+  const snap = await firestore.collection('restock_alerts')
+    .where('tenantId', '==', tenantId)
+    .where('status', '==', 'pending')
+    .where('dueAt', '<', now)
+    .limit(200)
+    .get();
+
+  if (snap.empty) return { checked: 0, overdue: 0 };
+
+  let overdue = 0;
+  const batch = firestore.batch();
+
+  for (const doc of snap.docs) {
+    const data = doc.data();
+    const sku = data.productSku;
+
+    // Check if a bookStockIn happened after the alert was created
+    let restocked = false;
+    if (sku) {
+      try {
+        const movSnap = await firestore.collection('warehouse_movements')
+          .where('productSku', '==', sku)
+          .where('type', '==', 'stock_in')
+          .where('createdAt', '>', data.createdAt)
+          .limit(1)
+          .get();
+        restocked = !movSnap.empty;
+      } catch {
+        // Query kann fehlschlagen wenn kein Index existiert — treat as not found
+      }
+
+      // Fallback: check warehouseEvents (bookStockIn uses this)
+      if (!restocked) {
+        try {
+          const evSnap = await firestore.collection('warehouseEvents')
+            .where('productSku', '==', sku)
+            .where('type', '==', 'stock_in')
+            .where('createdAt', '>', data.createdAt)
+            .limit(1)
+            .get();
+          restocked = !evSnap.empty;
+        } catch {
+          // ignore
+        }
+      }
+    }
+
+    if (restocked) {
+      // Already restocked — resolve the alert silently
+      batch.update(doc.ref, { status: 'resolved', resolvedAt: now });
+    } else {
+      // Overdue — mark and warn
+      batch.update(doc.ref, { status: 'overdue', overdueAt: now });
+      overdue++;
+      console.warn(`[restock-alert] OVERDUE: SKU=${sku} from return ${data.returnId} (${data.condition}) — not restocked within 24h`);
+    }
+  }
+
+  await batch.commit();
+  return { checked: snap.docs.length, overdue };
+}
+```
+
+Exportiere die neue Funktion:
+```js
+module.exports = {
+  reconcileActivityBased,
+  reconcileFullScan,
+  checkAndFixDrifts,
+  checkRestockAlerts,
+};
+```
+
+**Integration in `index.js`** — Im Reconciliation-Interval (innerhalb des bestehenden `setInterval` aus Änderung 6), den Restock-Alert-Check NACH der Activity-Reconciliation aufrufen:
+
+```js
+// Im setInterval-Block von Änderung 6, nach reconcileActivityBased():
+try {
+  const { checkRestockAlerts } = require('./services/stock-reconciliation');
+  const alertResult = await checkRestockAlerts();
+  if (alertResult.overdue > 0) {
+    console.warn(`[restock-alert] ${alertResult.overdue} overdue restock alerts!`);
+  }
+} catch (err) {
+  console.warn('[restock-alert] check failed:', err?.message);
+}
+```
+
+---
+
+## PHASE 2 TESTS
+
+Zur bestehenden Testdatei `backend/__tests__/stock-consistency.test.js` hinzufügen:
+
+```
+describe('stock-reconciliation')
+  ✓ checkAndFixDrifts erkennt bin_drift wenn bins != inventory.quantity
+  ✓ checkAndFixDrifts erkennt marketplace_drift wenn lastSyncedQuantity != availableQty
+  ✓ checkAndFixDrifts returned leeres Array wenn kein Drift
+  ✓ reconcileActivityBased findet Produkte aus stock_sync_log der letzten Stunde
+  ✓ reconcileFullScan überspringt Produkte ohne Bestand/Listings
+
+describe('restock-alerts')
+  ✓ restockItem() erstellt restock_alerts Eintrag mit status=pending
+  ✓ checkRestockAlerts markiert überfällige Alerts als overdue
+  ✓ checkRestockAlerts resolved Alerts wenn bookStockIn erfolgt ist
+```
+
+---
+
+## PHASE 2 BUILD-REIHENFOLGE
+
+> Phase 1 (Schritte 0-8) muss bereits abgeschlossen sein.
+
+9. **Schritt 9:** `services/stock-reconciliation.js` erstellen (reconcileActivityBased + reconcileFullScan + checkAndFixDrifts) + Tests → `npm test`
+10. **Schritt 10:** `services/stock-sync-dispatcher.js` → `ops.lastSyncedQuantity` nach Sync setzen → `npm test`
+11. **Schritt 11:** `services/returns-engine.js` → `restock_alerts` Eintrag in `restockItem()` hinzufügen → `npm test`
+12. **Schritt 12:** `services/stock-reconciliation.js` → `checkRestockAlerts()` hinzufügen + Tests → `npm test`
+13. **Schritt 13:** `index.js` → Reconciliation-Interval + Restock-Alert-Check hinzufügen → `npm test`
+14. **Schritt 14:** Alle Tests grün? → `npm run build` → fertig

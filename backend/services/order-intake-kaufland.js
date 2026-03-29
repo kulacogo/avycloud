@@ -227,6 +227,18 @@ async function syncKauflandOrders({ tenantId = 'default', lookbackDays = 7 } = {
           const sku = String(item.sku || '').trim();
           if (sku) newOrderSkus.add(sku);
         }
+
+        // Reserve stock IMMEDIATELY after save — not after the loop
+        try {
+          const orderId = `kaufland__${order.marketplaceOrderId}`;
+          const items = (order.items || []).map((item) => ({
+            sku: item.sku || null,
+            quantity: item.quantity || 1,
+          }));
+          await reserveStock({ tenantId, orderId, items });
+        } catch (err) {
+          console.warn(`[kaufland-intake] reserveStock failed for ${order.marketplaceOrderId}: ${err.message}`);
+        }
       } else {
         totalSkipped++;
       }
@@ -235,20 +247,6 @@ async function syncKauflandOrders({ tenantId = 'default', lookbackDays = 7 } = {
     offset += result.orders.length;
     if (result.orders.length < 100) break;
   } while (offset < totalEntries && offset < 5000); // Safety limit
-
-  // Reserve stock for newly imported orders
-  for (const order of newOrders) {
-    try {
-      const orderId = `kaufland__${order.marketplaceOrderId}`;
-      const items = (order.items || []).map((item) => ({
-        sku: item.sku || null,
-        quantity: item.quantity || 1,
-      }));
-      await reserveStock({ tenantId, orderId, items });
-    } catch (err) {
-      console.warn(`[kaufland-intake] reserveStock failed for ${order.marketplaceOrderId}: ${err.message}`);
-    }
-  }
 
   // After importing new orders, push updated availability to marketplaces (with retry)
   if (newOrderSkus.size > 0) {

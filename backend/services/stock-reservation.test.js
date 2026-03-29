@@ -167,5 +167,27 @@ describe('stock-reservation', () => {
       const total = await getReservedQuantity({ tenantId: 'default' });
       expect(total).toBe(0);
     });
+
+    it('should ignore expired reservations (expiresAt < now)', async () => {
+      const past = new Date(Date.now() - 3600_000).toISOString();
+      const future = new Date(Date.now() + 3600_000).toISOString();
+      mockDocs.push(
+        { data: () => ({ quantity: 5, expiresAt: past }) },   // expired → skip
+        { data: () => ({ quantity: 3, expiresAt: future }) },  // valid → count
+      );
+
+      const total = await getReservedQuantity({ tenantId: 'default', sku: 'SKU-X' });
+      expect(total).toBe(3);
+    });
+
+    it('should count reservations without expiresAt (backwards compat)', async () => {
+      mockDocs.push(
+        { data: () => ({ quantity: 4 }) },  // no expiresAt → count
+        { data: () => ({ quantity: 2 }) },
+      );
+
+      const total = await getReservedQuantity({ tenantId: 'default', sku: 'SKU-Y' });
+      expect(total).toBe(6);
+    });
   });
 });

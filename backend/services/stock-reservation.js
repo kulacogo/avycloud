@@ -160,9 +160,13 @@ async function getReservedQuantity({ tenantId = 'default', sku, productId }) {
   }
 
   const snap = await query.get();
+  const now = new Date().toISOString();
   let total = 0;
   snap.docs.forEach((doc) => {
-    total += Number(doc.data().quantity) || 0;
+    const data = doc.data();
+    // Skip expired reservations even if cleanup hasn't run yet
+    if (data.expiresAt && data.expiresAt < now) return;
+    total += Number(data.quantity) || 0;
   });
   return total;
 }

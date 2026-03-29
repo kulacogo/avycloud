@@ -215,27 +215,30 @@ async function transitionOrder({ tenantId = 'default', orderId, toStatus, actor,
  */
 async function _onOrderShipped({ orderId, tenantId }) {
   const db = getDb();
+  const failures = [];
 
-  // 1. Confirm (close) the reservation → marks stock as physically consumed
+  // 1. Confirm reservation
   try {
     const { confirmReservation } = require('./stock-reservation');
     const res = await confirmReservation({ tenantId, orderId });
     console.log(`[order-state-machine] confirmReservation orderId=${orderId} confirmed=${res.confirmed}`);
   } catch (err) {
     console.warn(`[order-state-machine] confirmReservation failed orderId=${orderId}: ${err.message}`);
+    failures.push({ step: 'confirmReservation', error: err.message });
   }
 
-  // 2. Fetch order to get items + SKUs
+  // 2. Fetch order
   const orderDoc = await db.collection(ORDERS_COLLECTION).doc(orderId).get();
   if (!orderDoc.exists) return;
   const order = orderDoc.data();
   const items = order.items || [];
   if (items.length === 0) return;
 
-  // 3. Decrement physical stock (bins + inventory.quantity) per SKU; then sync to marketplaces
+  // 3. Decrement + Sync per SKU (with stock-lock)
   const { syncStockWithRetry } = require('./stock-sync-dispatcher');
   const { decrementProductByIdOrSku } = require('../lib/warehouse');
   const { firestore: fs } = require('../lib/firestore');
+  const { withStockLock } = require('../lib/stock-lock');
 
   const skuQtyMap = {};
   for (const item of items) {
@@ -245,35 +248,52 @@ async function _onOrderShipped({ orderId, tenantId }) {
   }
 
   for (const [sku, sold] of Object.entries(skuQtyMap)) {
-    try {
-      // Decrement storageBins + inventory.quantity atomically via warehouse module
-      await decrementProductByIdOrSku(sku, sold);
-      console.log(`[order-state-machine] stock-out sku=${sku} qty=${sold} (bins + inventory decremented)`);
-    } catch (err) {
-      console.error(`[order-state-machine] decrementProductByIdOrSku failed sku=${sku}: ${err.message}`);
-    }
+    await withStockLock(sku, async () => {
+      try {
+        await decrementProductByIdOrSku(sku, sold);
+        console.log(`[order-state-machine] stock-out sku=${sku} qty=${sold} (bins + inventory decremented)`);
+      } catch (err) {
+        console.error(`[order-state-machine] decrementProductByIdOrSku failed sku=${sku}: ${err.message}`);
+        failures.push({ step: 'decrement', sku, qty: sold, error: err.message });
+      }
 
-    // Push updated stock to all marketplace channels
-    // Look up fresh product state after decrement — search both identification.sku and details.identifiers.sku
-    try {
-      let snap = await fs.collection('products_v2')
-        .where('identification.sku', '==', sku)
-        .limit(1)
-        .get();
-      if (snap.empty) {
-        snap = await fs.collection('products_v2')
-          .where('details.identifiers.sku', '==', sku)
+      try {
+        let snap = await fs.collection('products_v2')
+          .where('identification.sku', '==', sku)
           .limit(1)
           .get();
+        if (snap.empty) {
+          snap = await fs.collection('products_v2')
+            .where('details.identifiers.sku', '==', sku)
+            .limit(1)
+            .get();
+        }
+        if (!snap.empty) {
+          const doc = snap.docs[0];
+          const product = { id: doc.id, ...doc.data() };
+          await syncStockWithRetry({ tenantId, product, reason: `shipped-${orderId}` });
+        }
+      } catch (err) {
+        console.warn(`[order-state-machine] marketplace sync failed sku=${sku}: ${err.message}`);
+        failures.push({ step: 'marketplaceSync', sku, error: err.message });
       }
-      if (!snap.empty) {
-        const doc = snap.docs[0];
-        const product = { id: doc.id, ...doc.data() };
-        syncStockWithRetry({ tenantId, product, reason: `shipped-${orderId}` })
-          .catch((syncErr) => console.warn(`[order-state-machine] channel sync failed sku=${sku}: ${syncErr.message}`));
-      }
-    } catch (err) {
-      console.warn(`[order-state-machine] marketplace sync lookup failed sku=${sku}: ${err.message}`);
+    });
+  }
+
+  // Persist failures for recovery
+  if (failures.length > 0) {
+    try {
+      await db.collection('stock_operation_failures').add({
+        tenantId,
+        orderId,
+        operation: 'shipped',
+        failures,
+        status: 'pending',
+        createdAt: new Date().toISOString(),
+      });
+      console.error(`[order-state-machine] ${failures.length} stock failures for ${orderId} persisted to stock_operation_failures`);
+    } catch (persistErr) {
+      console.error(`[order-state-machine] CRITICAL: Failed to persist stock failures for ${orderId}:`, persistErr.message);
     }
   }
 }

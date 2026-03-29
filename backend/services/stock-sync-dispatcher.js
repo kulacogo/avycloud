@@ -83,6 +83,9 @@ async function syncStockToAllChannels({ tenantId = 'default', product, reason = 
   }
 
   const productId = String(product.id);
+  const { withStockLock } = require('../lib/stock-lock');
+
+  return withStockLock(`sync:${productId}`, async () => {
 
   // Read fresh product data from Firestore to avoid stale quantities
   let freshProduct = product;
@@ -245,6 +248,7 @@ async function syncStockToAllChannels({ tenantId = 'default', product, reason = 
   }
 
   return { results };
+  }); // withStockLock
 }
 
 /**

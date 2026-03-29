@@ -231,6 +231,18 @@ async function syncEbayOrders({ tenantId = 'default', lookbackDays = 7 } = {}) {
           const sku = String(item.sku || '').trim();
           if (sku) newOrderSkus.add(sku);
         }
+
+        // Reserve stock IMMEDIATELY after save — not after the loop
+        try {
+          const orderId = `ebay__${order.marketplaceOrderId}`;
+          const items = (order.items || []).map((item) => ({
+            sku: item.sku || null,
+            quantity: item.quantity || 1,
+          }));
+          await reserveStock({ tenantId, orderId, items });
+        } catch (err) {
+          console.warn(`[ebay-intake] reserveStock failed for ${order.marketplaceOrderId}: ${err.message}`);
+        }
       } else {
         totalSkipped++;
       }
@@ -239,20 +251,6 @@ async function syncEbayOrders({ tenantId = 'default', lookbackDays = 7 } = {}) {
     page++;
     if (page > result.totalPages) break;
   } while (page <= 50); // Safety limit
-
-  // Reserve stock for newly imported orders
-  for (const order of newOrders) {
-    try {
-      const orderId = `ebay__${order.marketplaceOrderId}`;
-      const items = (order.items || []).map((item) => ({
-        sku: item.sku || null,
-        quantity: item.quantity || 1,
-      }));
-      await reserveStock({ tenantId, orderId, items });
-    } catch (err) {
-      console.warn(`[ebay-intake] reserveStock failed for ${order.marketplaceOrderId}: ${err.message}`);
-    }
-  }
 
   // Push updated availability to all marketplaces
   if (newOrderSkus.size > 0) {
