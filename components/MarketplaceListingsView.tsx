@@ -429,7 +429,7 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
         failedDetails = failedResults.map((r) => {
           const prod = publishProducts.find((p) => p.id === r.productId);
           const name = prod?.identification?.name || r.productId;
-          const reasons = Array.isArray((r as any).blockers) && (r as any).blockers.length > 0 ? (r as any).blockers.join(", ") : "Unbekannter Fehler";
+          const reasons = (r as any).error || "Unbekannter Fehler";
           return `${name}: ${reasons}`;
         });
         loadKauflandListings();
