@@ -435,6 +435,7 @@ const AppInner: React.FC = () => {
   const [productsError, setProductsError] = useState<string | null>(null);
   const productsRef = useRef<Product[]>([]);
   const [currentProduct, setCurrentProduct] = useState<Product | null>(null);
+  const sheetDirtyRef = useRef(false);
   const [showImportModal, setShowImportModal] = useState(false);
   const {
     enqueueIdentification,
@@ -853,8 +854,11 @@ const AppInner: React.FC = () => {
   // Keep the currently opened product sheet in sync with the latest product list.
   // This prevents stale quantities (e.g., after warehouse stock changes) from lingering in ProductSheet.
   // ProductSheet itself will ignore prop refreshes while the user is actively editing/dirty.
+  // IMPORTANT: Skip sync when ProductSheet has unsaved changes — polling fetches stale Firestore data
+  // that would overwrite local edits (e.g., category changes from Chat before saving).
   useEffect(() => {
     if (!currentProduct?.id) return;
+    if (sheetDirtyRef.current) return;
     const updated = products.find((p) => p.id === currentProduct.id) || null;
     if (!updated) return;
     // Avoid re-setting state if nothing materially changed (best-effort shallow check).
@@ -1180,7 +1184,7 @@ const AppInner: React.FC = () => {
             {/* Backdrop */}
             <div
               className="absolute inset-0 bg-black/40 transition-opacity"
-              onClick={() => setCurrentProduct(null)}
+              onClick={() => { sheetDirtyRef.current = false; setCurrentProduct(null); }}
               aria-label="Close product sheet"
             />
             {/* Sheet panel */}
@@ -1190,7 +1194,8 @@ const AppInner: React.FC = () => {
                 onUpdate={handleUpdateProduct}
                 onImprove={handleImproveProduct}
                 isImproving={Boolean(currentProduct && activeProductIds.has(currentProduct.id))}
-                onClose={() => setCurrentProduct(null)}
+                onClose={() => { sheetDirtyRef.current = false; setCurrentProduct(null); }}
+                onDirtyChange={(dirty) => { sheetDirtyRef.current = dirty; }}
               />
             </div>
           </div>

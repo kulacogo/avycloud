@@ -253,13 +253,32 @@ async function testConnection({ type, credentials }) {
   try {
     switch (type) {
       case 'kaufland': {
-        const { kauflandRequest } = require('../lib/kaufland-api');
-        // Test with info/locale endpoint using provided credentials
-        const result = await kauflandRequest('GET', '/v2/info/locale', null, {
-          clientKey: credentials.clientKey,
-          secretKey: credentials.secretKey,
+        const crypto = require('crypto');
+        const fetchFn = global.fetch || require('node-fetch');
+        const baseUrl = 'https://sellerapi.kaufland.com/v2';
+        const requestPath = '/v2/info/locale';
+        const absoluteUrl = `${baseUrl}${requestPath}`;
+        const timestamp = Math.floor(Date.now() / 1000);
+        const payload = ['GET', absoluteUrl, '', String(timestamp)].join('\n');
+        const signature = crypto
+          .createHmac('sha256', String(credentials.secretKey || ''))
+          .update(payload, 'utf8')
+          .digest('hex');
+        const resp = await fetchFn(absoluteUrl, {
+          method: 'GET',
+          headers: {
+            Accept: 'application/json',
+            'Shop-Client-Key': credentials.clientKey,
+            'Shop-Timestamp': String(timestamp),
+            'Shop-Signature': signature,
+          },
         });
-        return { ok: true, message: `Verbunden! ${Array.isArray(result) ? result.length : 0} Locales gefunden.` };
+        if (resp.ok) {
+          const data = await resp.json();
+          const count = Array.isArray(data) ? data.length : 0;
+          return { ok: true, message: `Verbunden! ${count} Locales gefunden.` };
+        }
+        return { ok: false, message: `Verbindung fehlgeschlagen (HTTP ${resp.status})` };
       }
 
       case 'sendcloud': {

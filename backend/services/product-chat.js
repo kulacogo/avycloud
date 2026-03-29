@@ -1843,7 +1843,23 @@ function sanitizeDatasheetChange(entry, product, { scope = null, titleHintTokens
       identityPatch.brand = entry.identity.brand.trim();
     }
     if (allow.category && typeof entry.identity.category === 'string' && entry.identity.category.trim()) {
-      identityPatch.category = entry.identity.category.trim();
+      const rawCategoryBreadcrumb = entry.identity.category.trim();
+      identityPatch.category = rawCategoryBreadcrumb;
+      // Resolve breadcrumb to eBay category ID so the frontend can set details.categoryId
+      try {
+        const { findEbayCategory } = require('../lib/ebay-taxonomy');
+        const resolved = findEbayCategory(rawCategoryBreadcrumb);
+        if (resolved?.id) {
+          result.categoryId = String(resolved.id);
+          result.categoryPath = resolved.breadcrumb || rawCategoryBreadcrumb;
+        } else {
+          // No ID match — still propagate the breadcrumb path
+          result.categoryPath = rawCategoryBreadcrumb;
+        }
+      } catch (err) {
+        // Taxonomy lookup failed — propagate breadcrumb only
+        result.categoryPath = rawCategoryBreadcrumb;
+      }
     }
     if (allow.sku && typeof entry.identity.sku === 'string' && isValidSku(entry.identity.sku)) {
       identityPatch.sku = entry.identity.sku.trim();

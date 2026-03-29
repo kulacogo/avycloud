@@ -79,6 +79,13 @@ const isAllowedAttachment = (file: File) => {
 
 const sanitizeDatasheetChange = (entry: any = {}): DatasheetChange => {
   const result: DatasheetChange = {};
+  // Pass through categoryId/categoryPath from backend (resolved by ebay-taxonomy)
+  if (typeof entry.categoryId === 'string' && entry.categoryId.trim()) {
+    result.categoryId = entry.categoryId.trim();
+  }
+  if (typeof entry.categoryPath === 'string' && entry.categoryPath.trim()) {
+    result.categoryPath = entry.categoryPath.trim();
+  }
   if (typeof entry.summary === 'string') {
     result.summary = entry.summary;
   }
@@ -176,6 +183,10 @@ const sanitizeDatasheetChange = (entry: any = {}): DatasheetChange => {
     }
     if (typeof entry.identity.category === 'string' && entry.identity.category.trim()) {
       identityPatch.category = entry.identity.category.trim();
+      // Also set categoryPath so applyAssistantChange picks it up for details.categoryId
+      if (!result.categoryPath) {
+        result.categoryPath = entry.identity.category.trim();
+      }
     }
     if (typeof entry.identity.sku === 'string' && entry.identity.sku.trim()) {
       identityPatch.sku = entry.identity.sku.trim();

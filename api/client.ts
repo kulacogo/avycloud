@@ -1569,7 +1569,7 @@ export async function publishToKaufland(
   productId: string,
   storefront = 'de'
 ): Promise<{ idUnit: number | null; storefront: string }> {
-  const res = await fetchApi(`${BACKEND_URL}/api/marketplace/kaufland/publish`, {
+  const res = await fetchApi(`${BACKEND_URL}/api/kaufland/publish`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ productId, storefront }),
@@ -1622,7 +1622,7 @@ export async function bulkPublishToKaufland(
   productIds: string[],
   storefront = 'de'
 ): Promise<BulkPublishResult> {
-  const res = await fetchApi(`${BACKEND_URL}/api/marketplace/kaufland/publish/bulk`, {
+  const res = await fetchApi(`${BACKEND_URL}/api/kaufland/publish/bulk`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ productIds, storefront }),

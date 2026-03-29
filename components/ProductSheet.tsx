@@ -41,6 +41,7 @@ interface ProductSheetProps {
   onImprove?: (productId: string) => void;
   isImproving?: boolean;
   onClose?: () => void;
+  onDirtyChange?: (dirty: boolean) => void;
 }
 
 /** Resolve image src from either `{url_or_base64: "..."}` or `{url_or_base64: {url: "..."}}` */
@@ -80,7 +81,7 @@ const isTrustedAiImage = (image?: ProductImage) => {
 const filterReferenceCandidates = (images: ProductImage[] = []) =>
   images.filter((image) => !isGeneratedImageMeta(image));
 
-const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprove, isImproving, onClose }) => {
+const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprove, isImproving, onClose, onDirtyChange }) => {
   const { t } = useI18n();
   const {
     inventories,
@@ -148,6 +149,8 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
   const [isSaving, setIsSaving] = useState(false);
   const isSavingRef = useRef(false);
   const [isDirty, setIsDirty] = useState(false);
+  // Signal dirty state to parent so polling doesn't overwrite unsaved changes
+  useEffect(() => { onDirtyChange?.(isDirty); }, [isDirty, onDirtyChange]);
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [autoGenDone, setAutoGenDone] = useState(false);
   const [isPrintingLabel, setIsPrintingLabel] = useState(false);
