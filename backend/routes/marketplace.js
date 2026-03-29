@@ -1160,6 +1160,68 @@ router.post('/kaufland/publish', requirePermission('products', 'write'), async (
 });
 
 router.post('/kaufland/publish/bulk', requirePermission('products', 'write'), async (req, res) => {
+  const KL_DEFAULT_SHIPPING_GROUP = 144080;
+  const KL_DEFAULT_WAREHOUSE = 70462;
+
+  function autoFixProduct(product) {
+    const fixes = [];
+    const p = JSON.parse(JSON.stringify(product));
+    const pricing = p.details?.pricing || {};
+    const identifiers = p.details?.identifiers || p.identification || {};
+
+    // --- EAN check ---
+    const ean =
+      String(identifiers?.ean || '').replace(/\D+/g, '') ||
+      (Array.isArray(p.identification?.barcodes)
+        ? p.identification.barcodes.map((v) => String(v || '').replace(/\D+/g, '')).find((v) => v.length === 13 || v.length === 14) || ''
+        : '');
+    if (!ean) {
+      return { product: p, fixes, skip: true, reason: 'Keine EAN vorhanden' };
+    }
+
+    // --- Price fix ---
+    const sellPrice = parseFloat(pricing.sellPrice) || 0;
+    if (sellPrice <= 0) {
+      const buyPrice = parseFloat(pricing.buyPrice) || 0;
+      const lowestPrice = parseFloat(pricing.lowest_price?.amount ?? pricing.lowest_price ?? 0) || 0;
+      if (buyPrice > 0) {
+        const derived = Math.round(buyPrice * 1.40 * 100) / 100;
+        if (!p.details) p.details = {};
+        if (!p.details.pricing) p.details.pricing = {};
+        p.details.pricing.sellPrice = derived;
+        fixes.push(`Preis aus EK abgeleitet (${buyPrice.toFixed(2)} x 1.40 = ${derived.toFixed(2)})`);
+      } else if (lowestPrice > 0) {
+        if (!p.details) p.details = {};
+        if (!p.details.pricing) p.details.pricing = {};
+        p.details.pricing.sellPrice = lowestPrice;
+        fixes.push(`Preis aus Niedrigstpreis uebernommen (${lowestPrice.toFixed(2)})`);
+      } else {
+        return { product: p, fixes, skip: true, reason: 'Kein Preis ableitbar (weder VK, EK noch Niedrigstpreis)' };
+      }
+    }
+
+    // --- Shipping group default ---
+    const kl = p.details?.kaufland || p.details?.marketplaces?.kaufland || {};
+    const hasShippingGroup = kl.id_shipping_group != null && Number(kl.id_shipping_group) > 0;
+    if (!hasShippingGroup) {
+      if (!p.details) p.details = {};
+      if (!p.details.kaufland) p.details.kaufland = {};
+      p.details.kaufland.id_shipping_group = KL_DEFAULT_SHIPPING_GROUP;
+      fixes.push('Versandgruppe: Standard (SendCloud DPD DE)');
+    }
+
+    // --- Warehouse default ---
+    const hasWarehouse = kl.id_warehouse != null && Number(kl.id_warehouse) > 0;
+    if (!hasWarehouse) {
+      if (!p.details) p.details = {};
+      if (!p.details.kaufland) p.details.kaufland = {};
+      p.details.kaufland.id_warehouse = KL_DEFAULT_WAREHOUSE;
+      fixes.push('Lager: Standard (Temp Warehouse)');
+    }
+
+    return { product: p, fixes, skip: false };
+  }
+
   try {
     const body = req.body && typeof req.body === 'object' ? req.body : {};
     const productIds = Array.isArray(body.productIds)
@@ -1170,31 +1232,99 @@ router.post('/kaufland/publish/bulk', requirePermission('products', 'write'), as
     }
     const storefront = body.storefront || 'de';
     const { getProductV2 } = require('../lib/product-store');
-    const { createUnit } = require('../lib/kaufland-api');
+    const { createUnit, putProductData, getProductByEan } = require('../lib/kaufland-api');
     const results = [];
     for (const id of productIds) {
       try {
         const product = await getProductV2(id);
         if (!product) {
-          results.push({ productId: id, ok: false, error: `Product ${id} not found` });
+          results.push({ productId: id, ok: false, status: 'skipped', reason: `Produkt ${id} nicht gefunden` });
           continue;
         }
-        const result = await createUnit(product, { storefront });
-        results.push({ productId: id, ok: true, data: result });
+
+        const { product: fixedProduct, fixes, skip, reason } = autoFixProduct(product);
+        if (skip) {
+          results.push({ productId: id, ok: false, status: 'skipped', reason });
+          continue;
+        }
+
+        try {
+          const result = await createUnit(fixedProduct, { storefront });
+          results.push({
+            productId: id,
+            ok: true,
+            status: fixes.length ? 'fixed' : 'published',
+            fixes: fixes.length ? fixes : undefined,
+            data: result,
+          });
+        } catch (publishErr) {
+          // If EAN unknown at Kaufland, try to create product-data first, then retry
+          if (publishErr.code === 'KAUFLAND_PRODUCT_NOT_FOUND' || publishErr.code === 'KAUFLAND_EAN_UNKNOWN') {
+            const ean =
+              String(fixedProduct.details?.identifiers?.ean || '').replace(/\D+/g, '') ||
+              (Array.isArray(fixedProduct.identification?.barcodes)
+                ? fixedProduct.identification.barcodes.map((v) => String(v || '').replace(/\D+/g, '')).find((v) => v.length === 13 || v.length === 14) || ''
+                : '');
+            const title =
+              fixedProduct.identification?.name ||
+              fixedProduct.details?.title ||
+              fixedProduct.details?.identifiers?.title ||
+              '';
+            if (ean && title) {
+              try {
+                await putProductData({
+                  ean,
+                  attributes: { title: [title] },
+                  locale: 'de-DE',
+                });
+                fixes.push('Produktdaten bei Kaufland angelegt');
+                // Retry publish after product-data creation
+                const retryResult = await createUnit(fixedProduct, { storefront });
+                results.push({
+                  productId: id,
+                  ok: true,
+                  status: 'fixed',
+                  fixes,
+                  data: retryResult,
+                });
+              } catch (retryErr) {
+                results.push({
+                  productId: id,
+                  ok: false,
+                  status: 'failed',
+                  error: `Produktdaten angelegt, Publish fehlgeschlagen: ${retryErr.message || 'Unbekannt'}`,
+                  fixes,
+                });
+              }
+            } else {
+              results.push({
+                productId: id,
+                ok: false,
+                status: 'skipped',
+                reason: ean ? 'EAN bei Kaufland unbekannt, kein Titel fuer Produktdaten' : 'EAN ungueltig',
+              });
+            }
+          } else {
+            results.push({ productId: id, ok: false, status: 'failed', error: publishErr.message || 'Publish fehlgeschlagen' });
+          }
+        }
       } catch (err) {
-        results.push({ productId: id, ok: false, error: err.message || 'Failed' });
+        results.push({ productId: id, ok: false, status: 'failed', error: err.message || 'Unbekannter Fehler' });
       }
     }
-    const success = results.filter((r) => r.ok).length;
+    const published = results.filter((r) => r.ok && r.status === 'published').length;
+    const fixed = results.filter((r) => r.ok && r.status === 'fixed').length;
+    const skipped = results.filter((r) => r.status === 'skipped').length;
+    const failed = results.filter((r) => r.status === 'failed').length;
     return res.status(200).json({
       ok: true,
       data: {
-        summary: { total: productIds.length, success, failed: productIds.length - success },
+        summary: { total: productIds.length, success: published + fixed, published, fixed, skipped, failed },
         results,
       },
     });
   } catch (error) {
-    console.error(`[POST /api/marketplace/kaufland/publish/bulk] ${error.message}`, error);
+    console.error(`[POST /api/kaufland/publish/bulk] ${error.message}`, error);
     return res.status(500).json({
       ok: false,
       error: { code: 'INTERNAL', message: error.message },

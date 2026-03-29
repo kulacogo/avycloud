@@ -214,7 +214,9 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
   const [publishSelectedIds, setPublishSelectedIds] = useState<Set<string>>(new Set());
   const [bulkPublishing, setBulkPublishing] = useState(false);
   const [bulkPublishSummary, setBulkPublishSummary] = useState<{
-    total: number; success: number; failed: number; failedNames: string[]; failedDetails: string[];
+    total: number; success: number; failed: number;
+    published?: number; fixed?: number; skipped?: number;
+    failedNames: string[]; failedDetails: string[]; fixedDetails?: string[];
   } | null>(null);
 
   const label = MARKETPLACE_LABELS[marketplace];
@@ -421,18 +423,37 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
       } else {
         const result = await bulkPublishToKaufland(ids);
         summary = result.summary;
-        const failedResults = result.results.filter((r) => !r.ok);
-        failedNames = failedResults.map((r) => {
+        const notOkResults = result.results.filter((r) => !r.ok);
+        failedNames = notOkResults.map((r) => {
           const prod = publishProducts.find((p) => p.id === r.productId);
           return prod?.identification?.name || r.productId;
         });
-        failedDetails = failedResults.map((r) => {
+        failedDetails = notOkResults.map((r) => {
           const prod = publishProducts.find((p) => p.id === r.productId);
           const name = prod?.identification?.name || r.productId;
-          const reasons = (r as any).error || "Unbekannter Fehler";
-          return `${name}: ${reasons}`;
+          const reason = (r as any).reason || (r as any).error || "Unbekannter Fehler";
+          const status = (r as any).status === "skipped" ? "Uebersprungen" : "Fehler";
+          return `${name}: ${reason} (${status})`;
+        });
+        const fixedResults = result.results.filter((r: any) => r.ok && r.status === "fixed");
+        const fixedDetails = fixedResults.map((r: any) => {
+          const prod = publishProducts.find((p) => p.id === r.productId);
+          const name = prod?.identification?.name || r.productId;
+          const fixes = Array.isArray(r.fixes) ? r.fixes.join(", ") : "";
+          return `${name}: ${fixes}`;
         });
         loadKauflandListings();
+        setBulkPublishSummary({
+          ...summary,
+          published: (summary as any).published,
+          fixed: (summary as any).fixed,
+          skipped: (summary as any).skipped,
+          failedNames,
+          failedDetails,
+          fixedDetails,
+        });
+        setPublishSelectedIds(new Set());
+        return;
       }
 
       setBulkPublishSummary({ ...summary, failedNames, failedDetails });
@@ -1074,26 +1095,48 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
               </div>
             )}
             {bulkPublishSummary && (
-              <div className={`mx-5 mt-4 px-3 py-2 rounded-lg text-sm ${
-                bulkPublishSummary.failed === 0 ? "bg-success-dim text-success" : "bg-warning-dim text-warning"
-              }`}>
-                <div className="font-medium">
-                  {bulkPublishSummary.success} von {bulkPublishSummary.total} erfolgreich gelistet
-                  {bulkPublishSummary.failed > 0 && `, ${bulkPublishSummary.failed} fehlgeschlagen`}
-                </div>
-                {bulkPublishSummary.failedDetails && bulkPublishSummary.failedDetails.length > 0 ? (
-                  <div className="mt-2 text-xs space-y-1 max-h-40 overflow-y-auto">
-                    {bulkPublishSummary.failedDetails.slice(0, 10).map((detail, i) => (
-                      <div key={i} className="opacity-90">{detail}</div>
-                    ))}
-                    {bulkPublishSummary.failedDetails.length > 10 && (
-                      <div className="opacity-60">+{bulkPublishSummary.failedDetails.length - 10} weitere</div>
-                    )}
+              <div className="mx-5 mt-4 space-y-2">
+                {/* Summary line */}
+                <div className={`px-3 py-2 rounded-lg text-sm ${
+                  bulkPublishSummary.failed === 0 && (bulkPublishSummary.skipped ?? 0) === 0
+                    ? "bg-success-dim text-success"
+                    : "bg-warning-dim text-warning"
+                }`}>
+                  <div className="font-medium">
+                    {bulkPublishSummary.success} von {bulkPublishSummary.total} erfolgreich gelistet
+                    {(bulkPublishSummary.fixed ?? 0) > 0 && ` (${bulkPublishSummary.fixed} auto-gefixt)`}
+                    {(bulkPublishSummary.skipped ?? 0) > 0 && `, ${bulkPublishSummary.skipped} uebersprungen`}
+                    {(bulkPublishSummary.failed ?? 0) > 0 && `, ${bulkPublishSummary.failed} fehlgeschlagen`}
                   </div>
-                ) : bulkPublishSummary.failedNames.length > 0 && (
-                  <div className="mt-1 text-xs opacity-80">
-                    Fehlgeschlagen: {bulkPublishSummary.failedNames.slice(0, 5).join(", ")}
-                    {bulkPublishSummary.failedNames.length > 5 && ` (+${bulkPublishSummary.failedNames.length - 5} weitere)`}
+                </div>
+
+                {/* Auto-fixed details */}
+                {bulkPublishSummary.fixedDetails && bulkPublishSummary.fixedDetails.length > 0 && (
+                  <div className="px-3 py-2 rounded-lg text-sm bg-info-dim text-info">
+                    <div className="font-medium mb-1">Auto-gefixt:</div>
+                    <div className="text-xs space-y-1 max-h-32 overflow-y-auto">
+                      {bulkPublishSummary.fixedDetails.slice(0, 10).map((detail, i) => (
+                        <div key={i} className="opacity-90">{detail}</div>
+                      ))}
+                      {bulkPublishSummary.fixedDetails.length > 10 && (
+                        <div className="opacity-60">+{bulkPublishSummary.fixedDetails.length - 10} weitere</div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Failed/skipped details */}
+                {bulkPublishSummary.failedDetails && bulkPublishSummary.failedDetails.length > 0 && (
+                  <div className="px-3 py-2 rounded-lg text-sm bg-danger-dim text-danger">
+                    <div className="font-medium mb-1">Nicht gelistet:</div>
+                    <div className="text-xs space-y-1 max-h-40 overflow-y-auto">
+                      {bulkPublishSummary.failedDetails.slice(0, 10).map((detail, i) => (
+                        <div key={i} className="opacity-90">{detail}</div>
+                      ))}
+                      {bulkPublishSummary.failedDetails.length > 10 && (
+                        <div className="opacity-60">+{bulkPublishSummary.failedDetails.length - 10} weitere</div>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
