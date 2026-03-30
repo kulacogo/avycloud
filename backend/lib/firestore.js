@@ -2164,6 +2164,11 @@ async function saveProduct(product, options = {}) {
         };
       }
       mergedDetails.categoryId = existingCategoryId;
+      // Protect identification.category breadcrumb text from automated overwrites.
+      const existingCategoryText = existingData?.identification?.category;
+      if (existingCategoryText && typeof existingCategoryText === 'string' && existingCategoryText.trim()) {
+        mergedIdentification.category = existingCategoryText;
+      }
       // Remove legacy category fields so enforceEbayAspects can't re-introduce changes from them.
       if (mergedDetails.ebayCategoryId) delete mergedDetails.ebayCategoryId;
       if (mergedDetails.ebayCategoryPath) delete mergedDetails.ebayCategoryPath;
