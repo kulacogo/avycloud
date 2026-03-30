@@ -1028,7 +1028,7 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
       <div className="border-t border-app-border/60 px-4 py-3 shrink-0">
         {messages.length > 0 && !isStreaming && (
           <div className="flex gap-1.5 overflow-x-auto pb-2 scrollbar-none">
-            {QUICK_PROMPTS.slice(0, 5).map((qp) => (
+            {QUICK_PROMPTS.map((qp) => (
               <button
                 key={qp.scope}
                 type="button"

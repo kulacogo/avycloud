@@ -271,7 +271,7 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({ orderId, onClose, onSt
                           <button
                             type="button"
                             className="text-xs text-accent hover:text-accent/80 transition-colors"
-                            onClick={() => printAddressLabels([order.id]).catch(() => {})}
+                            onClick={() => printAddressLabels([orderId]).catch(() => {})}
                           >
                             Adresslabel
                           </button>
