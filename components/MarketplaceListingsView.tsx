@@ -217,8 +217,8 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
   const [bulkPublishing, setBulkPublishing] = useState(false);
   const [bulkPublishSummary, setBulkPublishSummary] = useState<{
     total: number; success: number; failed: number;
-    published?: number; fixed?: number; skipped?: number;
-    failedNames: string[]; failedDetails: string[]; fixedDetails?: string[];
+    published?: number; fixed?: number; pending?: number; skipped?: number;
+    failedNames: string[]; failedDetails: string[]; fixedDetails?: string[]; pendingDetails?: string[];
   } | null>(null);
 
   const label = MARKETPLACE_LABELS[marketplace];
@@ -459,15 +459,23 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
           const fixes = Array.isArray(r.fixes) ? r.fixes.join(", ") : "";
           return `${name}: ${fixes}`;
         });
+        const pendingResults = result.results.filter((r: any) => r.status === "pending");
+        const pendingDetails = pendingResults.map((r: any) => {
+          const prod = publishProducts.find((p) => p.id === r.productId);
+          const name = prod?.identification?.name || r.productId;
+          return `${name}: Produktdaten eingereicht, spaeter erneut versuchen`;
+        });
         loadKauflandListings();
         setBulkPublishSummary({
           ...summary,
           published: (summary as any).published,
           fixed: (summary as any).fixed,
+          pending: (summary as any).pending,
           skipped: (summary as any).skipped,
           failedNames,
           failedDetails,
           fixedDetails,
+          pendingDetails,
         });
         setPublishSelectedIds(new Set());
         return;
@@ -1136,6 +1144,7 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
                   <div className="font-medium">
                     {bulkPublishSummary.success} von {bulkPublishSummary.total} erfolgreich gelistet
                     {(bulkPublishSummary.fixed ?? 0) > 0 && ` (${bulkPublishSummary.fixed} auto-gefixt)`}
+                    {(bulkPublishSummary.pending ?? 0) > 0 && `, ${bulkPublishSummary.pending} eingereicht`}
                     {(bulkPublishSummary.skipped ?? 0) > 0 && `, ${bulkPublishSummary.skipped} uebersprungen`}
                     {(bulkPublishSummary.failed ?? 0) > 0 && `, ${bulkPublishSummary.failed} fehlgeschlagen`}
                   </div>
@@ -1151,6 +1160,21 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
                       ))}
                       {bulkPublishSummary.fixedDetails.length > 10 && (
                         <div className="opacity-60">+{bulkPublishSummary.fixedDetails.length - 10} weitere</div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Pending details (product data submitted, async processing) */}
+                {bulkPublishSummary.pendingDetails && bulkPublishSummary.pendingDetails.length > 0 && (
+                  <div className="px-3 py-2 rounded-lg text-sm bg-warning-dim text-warning">
+                    <div className="font-medium mb-1">Produktdaten eingereicht (spaeter erneut versuchen):</div>
+                    <div className="text-xs space-y-1 max-h-32 overflow-y-auto">
+                      {bulkPublishSummary.pendingDetails.slice(0, 10).map((detail, i) => (
+                        <div key={i} className="opacity-90">{detail}</div>
+                      ))}
+                      {bulkPublishSummary.pendingDetails.length > 10 && (
+                        <div className="opacity-60">+{bulkPublishSummary.pendingDetails.length - 10} weitere</div>
                       )}
                     </div>
                   </div>

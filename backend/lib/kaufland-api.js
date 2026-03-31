@@ -529,51 +529,91 @@ async function patchProductData({ ean, attributes = {}, locale = 'de-DE' } = {})
   return res?.data?.data || res?.data || null;
 }
 
-async function createUnit(product, { storefront = 'de' } = {}) {
+async function createUnit(product, { storefront = 'de', autoCreateProductData = true } = {}) {
   const picked = pickUnitData(product, { mode: 'create', storefront });
   const createData = { ...(picked.unitData || {}) };
+  let productDataSubmitted = false;
+
   if (picked.ean) {
+    // Step 1: Try to find existing product in Kaufland catalog
+    let idProduct = null;
     try {
       const productData = await getProductByEan(picked.ean, { storefront: picked.storefront });
-      const idProduct = Number(productData?.id_product || 0);
-      if (Number.isFinite(idProduct) && idProduct > 0) {
-        createData.id_product = idProduct;
-      } else {
-        const err = new Error(
-          `Kaufland-Produkt fuer EAN ${picked.ean} nicht gefunden. Produktdaten zuerst via /product-data bereitstellen.`
-        );
-        err.code = 'KAUFLAND_PRODUCT_NOT_FOUND';
-        throw err;
+      idProduct = Number(productData?.id_product || 0);
+      if (!Number.isFinite(idProduct) || idProduct <= 0) idProduct = null;
+    } catch (lookupErr) {
+      // Lookup failed — not fatal, we can still try to create the unit
+      console.warn(`[createUnit] EAN lookup failed for ${picked.ean}: ${lookupErr?.message || lookupErr}`);
+    }
+
+    if (idProduct) {
+      createData.id_product = idProduct;
+    } else if (autoCreateProductData) {
+      // Step 2: Product not in catalog — submit product data so Kaufland indexes it
+      const title =
+        safeString(product?.identification?.name) ||
+        safeString(product?.details?.title) ||
+        '';
+      const brand = safeString(product?.identification?.brand) || safeString(product?.details?.brand) || '';
+      const category = safeString(product?.identification?.category) || '';
+      const desc = safeString(product?.details?.short_description) || '';
+
+      const pdAttributes = {};
+      if (title) pdAttributes.title = [title];
+      if (brand) pdAttributes.brand = [brand];
+      if (category) pdAttributes.category = [category];
+      if (desc) pdAttributes.description = [desc];
+
+      if (Object.keys(pdAttributes).length) {
+        try {
+          await putProductData({ ean: picked.ean, attributes: pdAttributes, locale: 'de-DE' });
+          productDataSubmitted = true;
+          console.log(`[createUnit] Product data submitted for EAN ${picked.ean}`);
+        } catch (pdErr) {
+          console.warn(`[createUnit] putProductData failed for EAN ${picked.ean}: ${pdErr?.message || pdErr}`);
+        }
       }
-    } catch (error) {
-      if (error?.code === 'KAUFLAND_PRODUCT_NOT_FOUND') throw error;
-      const message = safeString(error?.message).toLowerCase();
-      const invalidEan = message.includes('invalid ean');
-      const err = new Error(
-        invalidEan
-          ? `EAN ${picked.ean} ist bei Kaufland ungueltig oder unbekannt. Produktdaten zuerst via /product-data bereitstellen.`
-          : `Kaufland-Produktlookup fuer EAN ${picked.ean} fehlgeschlagen: ${error?.message || 'unknown error'}`
-      );
-      err.code = invalidEan ? 'KAUFLAND_EAN_UNKNOWN' : 'KAUFLAND_PRODUCT_LOOKUP_FAILED';
-      err.status = error?.status;
-      err.payload = error?.payload || null;
-      throw err;
     }
   }
-  const res = await kauflandRequest('POST', '/units', {
-    query: { storefront: picked.storefront },
-    body: createData,
-  });
-  const location = typeof res?.headers?.get === 'function' ? res.headers.get('location') : null;
-  const bodyUnitId = Number(res?.data?.data?.id_unit || 0);
-  const idFromBody = Number.isFinite(bodyUnitId) && bodyUnitId > 0 ? bodyUnitId : null;
-  const idFromLocation = extractUnitIdFromLocation(location);
-  return {
-    created: true,
-    data: res.data,
-    location: location || null,
-    id_unit: idFromBody || idFromLocation || null,
-  };
+
+  // Step 3: Create the unit — Kaufland accepts EAN without id_product
+  try {
+    const res = await kauflandRequest('POST', '/units', {
+      query: { storefront: picked.storefront },
+      body: createData,
+    });
+    const location = typeof res?.headers?.get === 'function' ? res.headers.get('location') : null;
+    const bodyUnitId = Number(res?.data?.data?.id_unit || 0);
+    const idFromBody = Number.isFinite(bodyUnitId) && bodyUnitId > 0 ? bodyUnitId : null;
+    const idFromLocation = extractUnitIdFromLocation(location);
+    return {
+      created: true,
+      productDataSubmitted,
+      data: res.data,
+      location: location || null,
+      id_unit: idFromBody || idFromLocation || null,
+    };
+  } catch (unitErr) {
+    // If unit creation fails and we submitted product data, provide a clear message
+    if (productDataSubmitted) {
+      const err = new Error(
+        `Produktdaten fuer EAN ${picked.ean} bei Kaufland eingereicht. ` +
+        `Kaufland verarbeitet neue Produktdaten asynchron (bis zu 24h). ` +
+        `Bitte spaeter erneut versuchen.`
+      );
+      err.code = 'KAUFLAND_PRODUCT_DATA_PENDING';
+      err.productDataSubmitted = true;
+      throw err;
+    }
+    // Re-throw original error with context
+    const message = safeString(unitErr?.message).toLowerCase();
+    if (message.includes('invalid ean') || message.includes('ean') && message.includes('not valid')) {
+      const err = new Error(`EAN "${picked.ean}" is not valid`);
+      err.code = 'KAUFLAND_EAN_INVALID';
+      throw err;
+    }
+    throw unitErr;
+  }
 }
 
 async function updateUnit(unitId, product, { storefront = 'de' } = {}) {
