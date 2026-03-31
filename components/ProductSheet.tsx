@@ -149,6 +149,8 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
   const [isSaving, setIsSaving] = useState(false);
   const isSavingRef = useRef(false);
   const [isDirty, setIsDirty] = useState(false);
+  // Prevent stale external updates from overwriting recent saves (race condition with improve jobs)
+  const lastSaveAtRef = useRef(0);
   // Signal dirty state to parent so polling doesn't overwrite unsaved changes
   useEffect(() => { onDirtyChange?.(isDirty); }, [isDirty, onDirtyChange]);
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
@@ -233,6 +235,11 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
     // Wenn derselbe Datensatz während Bearbeitung/Generierung neu geliefert wird:
     // nicht hart zurücksetzen, sonst brechen Edit- und AI-Flows ab.
     if (isSameProduct && (isEditing || isDirty || isGeneratingImages)) {
+      return;
+    }
+    // Block stale external updates for 10s after a save — improve job results may
+    // contain data from before the save (race condition with concurrent jobs).
+    if (isSameProduct && lastSaveAtRef.current && (Date.now() - lastSaveAtRef.current < 10_000)) {
       return;
     }
 
@@ -598,6 +605,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
         onUpdate(normalized);
         setIsEditing(false);
         setIsDirty(false);
+        lastSaveAtRef.current = Date.now();
         setBarcodeInput((normalized.identification?.barcodes || []).join('\n'));
         showNotification('success', t('sheet.msg.saveSuccess'));
       } else {

@@ -553,7 +553,11 @@ const AppInner: React.FC = () => {
     (product: Product) => {
       setProducts((prev) => prev.map((p) => (p.id === product.id ? product : p)));
       if (currentProduct?.id === product.id) {
-        setCurrentProduct(product);
+        // Do not overwrite current product while the user has unsaved edits —
+        // the improve job result may contain stale data from before the user's changes.
+        if (!sheetDirtyRef.current) {
+          setCurrentProduct(product);
+        }
       }
     },
     [currentProduct]

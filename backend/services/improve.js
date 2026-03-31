@@ -1346,6 +1346,17 @@ async function improveExistingProduct(productId, onProgress) {
   }
 
   console.log('[improve] SUCCESS.');
+  // Return the FRESH product from Firestore, not the stale mergedProduct.
+  // mergedProduct was built from a Firestore read at job start — concurrent saves
+  // (e.g. chat category changes) may have updated fields that the category lock
+  // in saveProduct() correctly preserved. Returning the stale mergedProduct would
+  // cause the frontend to revert those concurrent changes.
+  try {
+    const freshProduct = await getProduct(mergedProduct.id);
+    if (freshProduct) return freshProduct;
+  } catch (e) {
+    console.warn(`[improve] Fresh read failed for ${mergedProduct.id}, returning mergedProduct:`, e?.message);
+  }
   return mergedProduct;
 }
 
