@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { fetchShipments, bulkShipOrders, syncSendCloudParcels, type ShipmentData } from "../../api/client";
+import { fetchShipments, bulkShipOrders, syncSendCloudParcels, fetchShippingMethods, type ShipmentData } from "../../api/client";
+import type { ShippingMethod } from "../../types";
 import { EmptyState } from "../ui/EmptyState";
 import { useToast } from "../../context/ToastContext";
 
@@ -103,6 +104,8 @@ export const ShippingView: React.FC = () => {
   const [syncBusy, setSyncBusy] = useState(false);
   const [labelFormat, setLabelFormat] = useState<string>(() => localStorage.getItem("avycloud_label_format") || "a6");
   const toast = useToast();
+  const [shippingMethods, setShippingMethods] = useState<ShippingMethod[]>([]);
+  const [bulkMethodId, setBulkMethodId] = useState<number | null>(null);
 
   const loadShipments = useCallback(async () => {
     try {
@@ -170,6 +173,10 @@ export const ShippingView: React.FC = () => {
       if (intervalId) clearInterval(intervalId);
     };
   }, [loadShipments, toast]);
+
+  useEffect(() => {
+    fetchShippingMethods().then(setShippingMethods).catch(() => {});
+  }, []);
 
   const filtered = useMemo(() => {
     if (activeTab === "alle") return shipments;
@@ -340,6 +347,30 @@ export const ShippingView: React.FC = () => {
               <option value="a6">A6 / Thermal</option>
               <option value="a4">A4</option>
             </select>
+            <select
+              value={bulkMethodId ?? ""}
+              onChange={(e) => setBulkMethodId(e.target.value ? Number(e.target.value) : null)}
+              className="rounded-lg border border-app-border bg-app-surface text-txt-primary text-xs px-2 py-1.5 font-medium max-w-[220px]"
+              title="Versandmethode (optional)"
+            >
+              <option value="">Auto (Regel)</option>
+              {Object.entries(
+                shippingMethods.reduce<Record<string, ShippingMethod[]>>((acc, m) => {
+                  const key = m.carrierName || m.carrier || "Sonstige";
+                  if (!acc[key]) acc[key] = [];
+                  acc[key].push(m);
+                  return acc;
+                }, {})
+              ).map(([carrier, methods]) => (
+                <optgroup key={carrier} label={carrier.toUpperCase()}>
+                  {methods.map((m) => (
+                    <option key={m.sendcloudId} value={m.sendcloudId}>
+                      {m.name}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
             <button
               type="button"
               disabled={bulkBusy}
@@ -352,7 +383,7 @@ export const ShippingView: React.FC = () => {
                 }
                 setBulkBusy(true);
                 try {
-                  const result = await bulkShipOrders(orderIds, { labelFormat });
+                  const result = await bulkShipOrders(orderIds, { labelFormat, ...(bulkMethodId ? { shippingMethodId: bulkMethodId } : {}) });
                   const failedCount = (result.total || 0) - (result.success || 0);
                   if (failedCount > 0 && result.results) {
                     const failedDetails = result.results.filter((r: any) => !r.ok).map((r: any) => r.orderId || r.error).join(', ');

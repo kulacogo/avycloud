@@ -1569,6 +1569,63 @@ router.post('/ebay/update/bulk', requirePermission('products', 'write'), async (
 });
 
 // =====================================================================
+// eBay End Listing
+// =====================================================================
+
+router.post('/ebay/listings/end', requirePermission('products', 'write'), async (req, res) => {
+  try {
+    const body = req.body && typeof req.body === 'object' ? req.body : {};
+    const itemId = String(body.itemId || '').trim();
+    if (!itemId) {
+      return res.status(400).json({ ok: false, error: { code: 400, message: 'itemId is required.' } });
+    }
+    const reason = String(body.reason || 'NotAvailable').trim();
+
+    // Determine listing type to pick correct API call
+    const { getItemDetails, endItem, endFixedPriceItem } = require('../lib/ebay-trading-api');
+    let listingType = '';
+    try {
+      const detail = await getItemDetails(itemId);
+      listingType = String(detail?.item?.listingType || '').toLowerCase();
+    } catch (err) {
+      // If we can't fetch, default to EndFixedPriceItem (most common for TrendOcean)
+      console.warn(`[POST /ebay/listings/end] Could not fetch listing type for ${itemId}: ${err.message}`);
+    }
+
+    const result = listingType.includes('fixed')
+      ? await endFixedPriceItem(itemId, { reason })
+      : listingType
+        ? await endItem(itemId, { reason })
+        : await endFixedPriceItem(itemId, { reason });
+
+    // Update local cache: mark listing inactive
+    const { firestore } = require('../lib/firestore');
+    const { FieldValue } = require('@google-cloud/firestore');
+    const EBAY_LISTINGS_COLLECTION = process.env.EBAY_LISTINGS_COLLECTION || 'ebayListingsLive';
+    await firestore.collection(EBAY_LISTINGS_COLLECTION).doc(itemId).set(
+      {
+        active: false,
+        listingStatus: 'Ended',
+        endedAt: FieldValue.serverTimestamp(),
+        endedAtIso: new Date().toISOString(),
+        endedBy: req.user?.email || req.user?.uid || 'api',
+        endingReason: reason,
+        updatedAt: FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
+
+    return res.status(200).json({ ok: true, data: result });
+  } catch (error) {
+    console.error(`[POST /ebay/listings/end] ${error.message}`, error);
+    return res.status(500).json({
+      ok: false,
+      error: { code: 500, message: error?.message || 'Failed to end eBay listing' },
+    });
+  }
+});
+
+// =====================================================================
 // eBay Reports
 // =====================================================================
 

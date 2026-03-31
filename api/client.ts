@@ -30,6 +30,7 @@ import {
   EbayBulkPublishResult,
   CompetitorPricesResponse,
   PriceHistoryEntry,
+  ShippingMethod,
 } from '../types';
 
 // Backend URL configuration - single source of truth
@@ -1361,6 +1362,22 @@ export async function bulkUpdateEbayListings(params: {
   const data = await parseResponse(res);
   if (!res.ok || data?.ok === false) {
     throw new Error(data?.error?.message || 'Failed to bulk update eBay listings');
+  }
+  return data?.data;
+}
+
+export async function endEbayListing(params: {
+  itemId: string;
+  reason?: string;
+}): Promise<{ ack: string; itemId: string; endTime: string | null; warnings?: any[] }> {
+  const res = await fetchApi(`${BACKEND_URL}/api/ebay/listings/end`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(params),
+  });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) {
+    throw new Error(data?.error?.message || "Failed to end eBay listing");
   }
   return data?.data;
 }
@@ -3396,10 +3413,24 @@ export async function generateDeliveryNote(orderId: string): Promise<{ deliveryN
   return data?.data;
 }
 
-export async function fetchShippingMethods(): Promise<any[]> {
-  const res = await fetchApi(`${BACKEND_URL}/api/shipping/methods`, { method: 'GET' });
+export async function fetchShippingMethods(params?: { weight?: number; country?: string }): Promise<ShippingMethod[]> {
+  const url = new URL(`${BACKEND_URL}/api/shipping-methods`);
+  if (params?.weight != null) url.searchParams.set("weight", String(params.weight));
+  if (params?.country) url.searchParams.set("country", params.country);
+  const res = await fetchApi(url.toString(), { method: "GET" });
   const data = await parseResponse(res);
-  if (!res.ok || data?.ok === false) throw new Error(data?.error?.message || 'Versandmethoden laden fehlgeschlagen');
+  if (!res.ok || data?.ok === false) throw new Error(data?.error?.message || "Versandmethoden laden fehlgeschlagen");
+  return data?.data || [];
+}
+
+export async function syncShippingMethods(): Promise<ShippingMethod[]> {
+  const res = await fetchApi(`${BACKEND_URL}/api/shipping-methods/sync`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: "{}",
+  });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) throw new Error(data?.error?.message || "Versandmethoden-Sync fehlgeschlagen");
   return data?.data || [];
 }
 
@@ -4765,7 +4796,7 @@ export async function validateProduct(
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ product, marketplaces }),
     });
-    return await response.json();
+    return await parseResponse(response);
   } catch (err) {
     const errorInfo = extractErrorInfo(err, response);
     return { ok: false, error: errorInfo };
@@ -4783,7 +4814,7 @@ export async function validateProductBatch(
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ productIds, marketplaces }),
     });
-    return await response.json();
+    return await parseResponse(response);
   } catch (err) {
     const errorInfo = extractErrorInfo(err, response);
     return { ok: false, error: errorInfo };

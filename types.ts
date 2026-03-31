@@ -439,6 +439,20 @@ export interface OrderTimelineEvent {
   timestamp: string;
 }
 
+export interface ShippingMethod {
+  id: string;
+  sendcloudId: number;
+  carrier: string;
+  carrierName: string;
+  name: string;
+  minWeight: number;
+  maxWeight: number;
+  countries: string[];
+  servicePointInput: string;
+  enabled: boolean;
+  lastSyncedAt: string;
+}
+
 /* ─── Return Enums ─── */
 export type ReturnReason = 'defekt' | 'falsche_lieferung' | 'nicht_wie_beschrieben' | 'zu_spaet' | 'meinungsaenderung' | 'doppelbestellung' | 'sonstiges';
 export type ReturnItemCondition = 'a_ware' | 'b_ware' | 'c_ware';

@@ -12,8 +12,9 @@ import {
   downloadInvoicePdfBlob,
   assignTracking,
   printAddressLabels,
+  fetchShippingMethods,
 } from "../api/client";
-import type { Order, OrderTimelineEvent, OmsStatus } from "../types";
+import type { Order, OrderTimelineEvent, OmsStatus, ShippingMethod } from "../types";
 
 /* ─── OMS Status Colors ─── */
 const STATUS_COLORS: Record<string, { bg: string; text: string; dot: string }> = {
@@ -85,6 +86,9 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({ orderId, onClose, onSt
   const [manualTrackingNumber, setManualTrackingNumber] = useState("");
   const [manualCarrier, setManualCarrier] = useState("");
   const [savingTracking, setSavingTracking] = useState(false);
+  const [shippingMethods, setShippingMethods] = useState<ShippingMethod[]>([]);
+  const [selectedMethodId, setSelectedMethodId] = useState<number | null>(null);
+  const [methodsLoading, setMethodsLoading] = useState(false);
   const backdropRef = useRef<HTMLDivElement>(null);
 
   const loadData = useCallback(async () => {
@@ -103,9 +107,30 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({ orderId, onClose, onSt
     }
   }, [orderId]);
 
+  const loadShippingMethods = useCallback(async (weight?: number, country?: string) => {
+    setMethodsLoading(true);
+    try {
+      const methods = await fetchShippingMethods({
+        weight: weight || undefined,
+        country: country || undefined,
+      });
+      setShippingMethods(methods);
+    } catch {
+      // silent — dropdown will be empty, auto-rule still works
+    } finally {
+      setMethodsLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  useEffect(() => {
+    if (order && (order.omsStatus === "packed" || order.omsStatus === "picked") && !order.trackingNumber) {
+      loadShippingMethods(order.weight || undefined, order.customer?.country || "DE");
+    }
+  }, [order?.omsStatus, order?.weight, order?.customer?.country, order?.trackingNumber, loadShippingMethods]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
@@ -500,12 +525,39 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({ orderId, onClose, onSt
                               <option value="a6">A6 / Thermal</option>
                               <option value="a4">A4</option>
                             </select>
+                            {shippingMethods.length > 0 && (
+                              <select
+                                value={selectedMethodId ?? ""}
+                                onChange={(e) => setSelectedMethodId(e.target.value ? Number(e.target.value) : null)}
+                                className="rounded-md border border-app-border bg-app-surface text-txt-primary text-xs px-2 py-1.5 self-center max-w-[200px]"
+                                title="Versandmethode"
+                              >
+                                <option value="">Auto (Regel)</option>
+                                {Object.entries(
+                                  shippingMethods.reduce<Record<string, ShippingMethod[]>>((acc, m) => {
+                                    const key = m.carrierName || m.carrier || "Sonstige";
+                                    if (!acc[key]) acc[key] = [];
+                                    acc[key].push(m);
+                                    return acc;
+                                  }, {})
+                                ).map(([carrier, methods]) => (
+                                  <optgroup key={carrier} label={carrier.toUpperCase()}>
+                                    {methods.map((m) => (
+                                      <option key={m.sendcloudId} value={m.sendcloudId}>
+                                        {m.name}
+                                      </option>
+                                    ))}
+                                  </optgroup>
+                                ))}
+                              </select>
+                            )}
                             <ActionButton
                               label="Versandlabel erstellen"
                               icon="📦"
                               onClick={async () => {
                                 await shipOrder(orderId, {
                                   ...(order.weight ? { weight: order.weight } : {}),
+                                  ...(selectedMethodId ? { shippingMethodId: selectedMethodId } : {}),
                                   labelFormat,
                                 });
                                 await loadData();

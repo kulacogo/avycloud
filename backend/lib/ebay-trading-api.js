@@ -610,6 +610,64 @@ async function reviseItem(patch, options = {}) {
 }
 
 // ---------------------------------------------------------------------------
+// EndItem / EndFixedPriceItem
+// ---------------------------------------------------------------------------
+
+async function endItem(itemId, { reason = 'NotAvailable', timeoutMs = DEFAULT_TIMEOUT_MS } = {}) {
+  const id = safeString(itemId);
+  if (!id) {
+    const error = new Error('itemId is required for EndItem call');
+    error.code = 'EBAY_END_ITEM_ID_REQUIRED';
+    throw error;
+  }
+  const validReasons = ['NotAvailable', 'Incorrect', 'LostOrBroken', 'OtherListingError', 'SellToHighBidder'];
+  const endingReason = validReasons.includes(reason) ? reason : 'NotAvailable';
+  const cfg = await getEbayTradingConfig();
+  const requestXml = buildRequestRoot(
+    'EndItem',
+    `<ItemID>${escapeXml(id)}</ItemID>
+<EndingReason>${escapeXml(endingReason)}</EndingReason>`,
+    cfg.userToken,
+    cfg.compatibilityLevel
+  );
+  const result = await callTradingApi('EndItem', requestXml, { timeoutMs });
+  const response = result?.response || {};
+  return {
+    ack: result.ack,
+    warnings: result.errors,
+    itemId: safeString(response?.ItemID || id),
+    endTime: toIso(response?.EndTime) || null,
+  };
+}
+
+async function endFixedPriceItem(itemId, { reason = 'NotAvailable', timeoutMs = DEFAULT_TIMEOUT_MS } = {}) {
+  const id = safeString(itemId);
+  if (!id) {
+    const error = new Error('itemId is required for EndFixedPriceItem call');
+    error.code = 'EBAY_END_ITEM_ID_REQUIRED';
+    throw error;
+  }
+  const validReasons = ['NotAvailable', 'Incorrect', 'LostOrBroken', 'OtherListingError'];
+  const endingReason = validReasons.includes(reason) ? reason : 'NotAvailable';
+  const cfg = await getEbayTradingConfig();
+  const requestXml = buildRequestRoot(
+    'EndFixedPriceItem',
+    `<ItemID>${escapeXml(id)}</ItemID>
+<EndingReason>${escapeXml(endingReason)}</EndingReason>`,
+    cfg.userToken,
+    cfg.compatibilityLevel
+  );
+  const result = await callTradingApi('EndFixedPriceItem', requestXml, { timeoutMs });
+  const response = result?.response || {};
+  return {
+    ack: result.ack,
+    warnings: result.errors,
+    itemId: safeString(response?.ItemID || id),
+    endTime: toIso(response?.EndTime) || null,
+  };
+}
+
+// ---------------------------------------------------------------------------
 // AddFixedPriceItem / VerifyAddFixedPriceItem
 // ---------------------------------------------------------------------------
 
@@ -942,6 +1000,8 @@ module.exports = {
   getCategorySpecifics,
   reviseFixedPriceItem,
   reviseItem,
+  endItem,
+  endFixedPriceItem,
   addFixedPriceItem,
   verifyAddFixedPriceItem,
   mapItemSpecifics,

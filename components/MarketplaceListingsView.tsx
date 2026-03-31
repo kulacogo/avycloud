@@ -4,6 +4,7 @@ import {
   syncEbayLiveListings,
   fetchEbayStatus,
   bulkUpdateEbayListings,
+  endEbayListing,
   syncKauflandListings,
   fetchKauflandListings,
   publishToEbay,
@@ -204,6 +205,7 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
   const [connectionStatus, setConnectionStatus] = useState<EbayConnectionStatus | null>(null);
   const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
   const [bulkUpdating, setBulkUpdating] = useState(false);
+  const [endingItemId, setEndingItemId] = useState<string | null>(null);
   const [showPublishModal, setShowPublishModal] = useState(false);
   const [publishProducts, setPublishProducts] = useState<Product[]>([]);
   const [publishSearch, setPublishSearch] = useState("");
@@ -299,6 +301,21 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
       setBulkUpdating(false);
     }
   }, [marketplace, selectedIds, loadEbayListings]);
+
+  const handleEndListing = useCallback(async (itemId: string) => {
+    if (marketplace !== "ebay") return;
+    if (!window.confirm(`Listing ${itemId} wirklich beenden? Dies kann nicht rueckgaengig gemacht werden.`)) return;
+    setEndingItemId(itemId);
+    setError(null);
+    try {
+      await endEbayListing({ itemId });
+      await loadEbayListings();
+    } catch (err: any) {
+      setError(err.message || "Listing beenden fehlgeschlagen");
+    } finally {
+      setEndingItemId(null);
+    }
+  }, [marketplace, loadEbayListings]);
 
   const openPublishModal = useCallback(async () => {
     setShowPublishModal(true);
@@ -994,7 +1011,21 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
                         {formatRelativeTime(listing.lastSync)}
                       </td>
                       <td className="px-4 py-3">
-                        <div className="flex items-center justify-end">
+                        <div className="flex items-center justify-end gap-1">
+                          {marketplace === "ebay" && listing.status === "active" && (
+                            <button
+                              onClick={() => handleEndListing(listing.id)}
+                              disabled={endingItemId === listing.id}
+                              title="Listing beenden"
+                              className="p-1.5 rounded-lg text-txt-muted hover:text-danger hover:bg-danger-dim transition-colors disabled:opacity-40"
+                            >
+                              {endingItemId === listing.id ? (
+                                <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" strokeDasharray="31.4 31.4" strokeLinecap="round" /></svg>
+                              ) : (
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                              )}
+                            </button>
+                          )}
                           {listing.viewItemUrl && (
                             <a
                               href={listing.viewItemUrl}

@@ -816,8 +816,136 @@ async function syncSendCloudParcels({ tenantId = 'default', fromDate, toDate } =
   return { matched, unmatched, skipped };
 }
 
+const SHIPPING_METHODS_COLLECTION = 'shipping_methods';
+
+/**
+ * Sync SendCloud shipping methods into Firestore.
+ * Uses a 1-hour stale check to avoid unnecessary API calls.
+ *
+ * @param {string} tenantId
+ * @returns {Promise<object[]>} enabled shipping methods
+ */
+async function syncShippingMethods(tenantId = 'default') {
+  const db = getDb();
+
+  // Stale check: if newest doc was synced less than 1 hour ago, return cached
+  const recentSnap = await db.collection(SHIPPING_METHODS_COLLECTION)
+    .where('tenantId', '==', tenantId)
+    .orderBy('lastSyncedAt', 'desc')
+    .limit(1)
+    .get();
+
+  if (!recentSnap.empty) {
+    const lastSync = recentSnap.docs[0].data().lastSyncedAt;
+    if (lastSync) {
+      const age = Date.now() - new Date(lastSync).getTime();
+      if (age < 60 * 60 * 1000) {
+        // Return cached methods
+        const cachedSnap = await db.collection(SHIPPING_METHODS_COLLECTION)
+          .where('tenantId', '==', tenantId)
+          .where('enabled', '==', true)
+          .get();
+        return cachedSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+      }
+    }
+  }
+
+  // Fetch from SendCloud API
+  const apiMethods = await getShippingMethods();
+  const now = new Date().toISOString();
+
+  // Track which SendCloud IDs are still active
+  const activeIds = new Set();
+
+  // Batch write: upsert each method
+  const batch = db.batch();
+  for (const m of apiMethods) {
+    const docId = `${tenantId}_${m.id}`;
+    activeIds.add(docId);
+    const ref = db.collection(SHIPPING_METHODS_COLLECTION).doc(docId);
+    batch.set(ref, {
+      tenantId,
+      sendcloudId: m.id,
+      carrier: (m.carrier || '').toLowerCase(),
+      carrierName: m.carrier || '',
+      name: m.name || '',
+      minWeight: m.min_weight != null ? Number(m.min_weight) : 0,
+      maxWeight: m.max_weight != null ? Number(m.max_weight) : 0,
+      countries: Array.isArray(m.countries) ? m.countries.map(c => c.iso_2 || c) : [],
+      servicePointInput: m.service_point_input || 'none',
+      enabled: true,
+      lastSyncedAt: now,
+    }, { merge: true });
+  }
+  await batch.commit();
+
+  // Mark methods not in API response as disabled
+  const allSnap = await db.collection(SHIPPING_METHODS_COLLECTION)
+    .where('tenantId', '==', tenantId)
+    .get();
+
+  const disableBatch = db.batch();
+  let disableCount = 0;
+  for (const doc of allSnap.docs) {
+    if (!activeIds.has(doc.id) && doc.data().enabled !== false) {
+      disableBatch.update(doc.ref, { enabled: false, lastSyncedAt: now });
+      disableCount++;
+    }
+  }
+  if (disableCount > 0) await disableBatch.commit();
+
+  // Return fresh list
+  const freshSnap = await db.collection(SHIPPING_METHODS_COLLECTION)
+    .where('tenantId', '==', tenantId)
+    .where('enabled', '==', true)
+    .get();
+  return freshSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+}
+
+/**
+ * Get cached shipping methods from Firestore with optional filtering.
+ * Triggers initial sync if collection is empty.
+ *
+ * @param {string} tenantId
+ * @param {{ weight?: number, country?: string }} opts
+ * @returns {Promise<object[]>}
+ */
+async function getCachedShippingMethods(tenantId = 'default', { weight, country } = {}) {
+  const db = getDb();
+  let query = db.collection(SHIPPING_METHODS_COLLECTION)
+    .where('tenantId', '==', tenantId)
+    .where('enabled', '==', true);
+
+  const snap = await query.get();
+  let methods = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+  // If collection is empty, trigger initial sync
+  if (methods.length === 0) {
+    methods = await syncShippingMethods(tenantId);
+  }
+
+  // Filter by weight if provided
+  if (weight != null) {
+    const w = Number(weight);
+    methods = methods.filter(m => w >= (m.minWeight || 0) && w <= (m.maxWeight || Infinity));
+  }
+
+  // Filter by country if provided
+  if (country) {
+    const c = country.toUpperCase();
+    methods = methods.filter(m => !m.countries?.length || m.countries.includes(c));
+  }
+
+  // Sort by carrier, then name
+  methods.sort((a, b) => (a.carrier || '').localeCompare(b.carrier || '') || (a.name || '').localeCompare(b.name || ''));
+
+  return methods;
+}
+
 module.exports = {
   getShippingMethods,
+  syncShippingMethods,
+  getCachedShippingMethods,
   createParcel,
   getLabel,
   cancelParcel,

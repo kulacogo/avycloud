@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { fetchOrderSettings, saveOrderSettings, runRepricingBatch, fetchPricingRules, syncSendCloudParcels } from "../../api/client";
+import { fetchOrderSettings, saveOrderSettings, runRepricingBatch, fetchPricingRules, syncSendCloudParcels, syncShippingMethods, fetchShippingMethods } from "../../api/client";
+import type { ShippingMethod } from "../../types";
 import { useToast } from "../../context/ToastContext";
 
 /* ─── Types ─── */
@@ -109,6 +110,8 @@ export const OrderSettingsView: React.FC = () => {
   const [scSyncResult, setScSyncResult] = useState<any>(null);
   const [pricingRulesCount, setPricingRulesCount] = useState<number | null>(null);
   const toast = useToast();
+  const [shippingMethods, setShippingMethods] = useState<ShippingMethod[]>([]);
+  const [methodsLoading, setMethodsLoading] = useState(false);
 
   const loadSettings = useCallback(async () => {
     setLoading(true);
@@ -129,10 +132,29 @@ export const OrderSettingsView: React.FC = () => {
     }
   }, []);
 
+  const loadShippingMethods = useCallback(async () => {
+    setMethodsLoading(true);
+    try {
+      const methods = await fetchShippingMethods();
+      setShippingMethods(methods);
+    } catch {
+      // Fallback: try sync
+      try {
+        const methods = await syncShippingMethods();
+        setShippingMethods(methods);
+      } catch {
+        // silent — methods dropdown will be empty
+      }
+    } finally {
+      setMethodsLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     loadSettings();
+    loadShippingMethods();
     fetchPricingRules().then((r) => setPricingRulesCount(r.length)).catch(() => {});
-  }, [loadSettings]);
+  }, [loadSettings, loadShippingMethods]);
 
   const toggleRule = (id: string) => {
     setRules((prev) => prev.map((r) => (r.id === id ? { ...r, enabled: !r.enabled } : r)));
@@ -152,7 +174,19 @@ export const OrderSettingsView: React.FC = () => {
 
   const updateCarrierRule = (id: string, field: keyof CarrierRule, value: string | number) => {
     setCarrierRules((prev) =>
-      prev.map((r) => (r.id === id ? { ...r, [field]: value } : r))
+      prev.map((r) => {
+        if (r.id !== id) return r;
+        const updated = { ...r, [field]: value };
+        // Auto-fill carrier and label when shipping method changes
+        if (field === "shippingMethodId") {
+          const method = shippingMethods.find((m) => m.sendcloudId === Number(value));
+          if (method) {
+            updated.carrier = method.carrier;
+            updated.label = method.name;
+          }
+        }
+        return updated;
+      })
     );
   };
 
@@ -237,16 +271,14 @@ export const OrderSettingsView: React.FC = () => {
       <div className="rounded-xl border border-app-border bg-app-surface p-6">
         <SectionHeader
           title="Versandregeln"
-          description="Automatische Carrier-Zuordnung nach Gewicht. Die SendCloud Shipping Method ID findest du in deinem SendCloud-Konto."
+          description="Automatische Carrier-Zuordnung nach Gewicht. Versandmethoden werden aus SendCloud synchronisiert."
         />
         <div className="space-y-3">
           {/* Header */}
           <div className="grid grid-cols-12 gap-2 px-2 text-xs font-semibold text-txt-muted">
             <div className="col-span-2">Min (kg)</div>
             <div className="col-span-2">Max (kg)</div>
-            <div className="col-span-2">Carrier</div>
-            <div className="col-span-2">Method ID</div>
-            <div className="col-span-3">Bezeichnung</div>
+            <div className="col-span-7">Versandmethode</div>
             <div className="col-span-1" />
           </div>
           {carrierRules.map((rule) => (
@@ -269,36 +301,35 @@ export const OrderSettingsView: React.FC = () => {
                   className="w-full rounded-lg border border-app-border bg-app-bg px-2 py-1.5 text-sm text-txt-primary focus:outline-none focus:ring-1 focus:ring-accent"
                 />
               </div>
-              <div className="col-span-2">
+              <div className="col-span-7">
                 <select
-                  value={rule.carrier}
-                  onChange={(e) => updateCarrierRule(rule.id, "carrier", e.target.value)}
-                  className="w-full rounded-lg border border-app-border bg-app-bg px-2 py-1.5 text-sm text-txt-primary focus:outline-none focus:ring-1 focus:ring-accent"
-                >
-                  <option value="dhl">DHL</option>
-                  <option value="dpd">DPD</option>
-                  <option value="gls">GLS</option>
-                  <option value="hermes">Hermes</option>
-                  <option value="ups">UPS</option>
-                  <option value="dhl_express">DHL Express</option>
-                </select>
-              </div>
-              <div className="col-span-2">
-                <input
-                  type="number"
                   value={rule.shippingMethodId}
                   onChange={(e) => updateCarrierRule(rule.id, "shippingMethodId", parseInt(e.target.value) || 0)}
-                  placeholder="z.B. 89"
                   className="w-full rounded-lg border border-app-border bg-app-bg px-2 py-1.5 text-sm text-txt-primary focus:outline-none focus:ring-1 focus:ring-accent"
-                />
-              </div>
-              <div className="col-span-3">
-                <input
-                  type="text"
-                  value={rule.label}
-                  onChange={(e) => updateCarrierRule(rule.id, "label", e.target.value)}
-                  className="w-full rounded-lg border border-app-border bg-app-bg px-2 py-1.5 text-sm text-txt-primary focus:outline-none focus:ring-1 focus:ring-accent"
-                />
+                >
+                  <option value={0}>— Versandmethode wählen —</option>
+                  {Object.entries(
+                    shippingMethods.reduce<Record<string, ShippingMethod[]>>((acc, m) => {
+                      const key = m.carrierName || m.carrier || "Sonstige";
+                      if (!acc[key]) acc[key] = [];
+                      acc[key].push(m);
+                      return acc;
+                    }, {})
+                  ).map(([carrier, methods]) => (
+                    <optgroup key={carrier} label={carrier.toUpperCase()}>
+                      {methods.map((m) => (
+                        <option key={m.sendcloudId} value={m.sendcloudId}>
+                          {m.name} ({m.minWeight}–{m.maxWeight} kg)
+                        </option>
+                      ))}
+                    </optgroup>
+                  ))}
+                </select>
+                {rule.shippingMethodId > 0 && (
+                  <div className="mt-1 text-[11px] text-txt-muted">
+                    {rule.carrier?.toUpperCase()} — ID: {rule.shippingMethodId}
+                  </div>
+                )}
               </div>
               <div className="col-span-1 flex justify-center">
                 <button
@@ -324,7 +355,19 @@ export const OrderSettingsView: React.FC = () => {
         </div>
         {carrierRules.some((r) => r.shippingMethodId === 0) && (
           <div className="mt-3 bg-warning-dim border border-app-border rounded-lg px-3 py-2 text-xs text-warning">
-            Hinweis: Einige Regeln haben noch keine SendCloud Method ID. Bitte trage die korrekten IDs aus deinem SendCloud-Konto ein.
+            Hinweis: Einige Regeln haben noch keine Versandmethode. Bitte wähle eine Methode aus dem Dropdown.
+          </div>
+        )}
+        {shippingMethods.length === 0 && !methodsLoading && (
+          <div className="mt-3 bg-info-dim border border-app-border rounded-lg px-3 py-2 text-xs text-info flex items-center justify-between">
+            <span>Keine Versandmethoden geladen. Bitte synchronisiere deine SendCloud-Methoden.</span>
+            <button
+              type="button"
+              onClick={loadShippingMethods}
+              className="text-xs font-semibold text-accent hover:text-accent/80 ml-3"
+            >
+              Jetzt laden
+            </button>
           </div>
         )}
       </div>

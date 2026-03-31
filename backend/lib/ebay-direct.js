@@ -4317,7 +4317,7 @@ async function bulkUpdateListedProducts({ itemIds = null, applyAll = false, acto
 
   // The AdminTable "eBay aktualisieren" action is meant to be a push-update:
   // mark content gaps ready_to_sync so applySync actually has candidates.
-  await bulkPrepareUpdateGaps({ itemIds: resolvedItemIds, actor, types: ['content', 'pictures', 'category'] });
+  await bulkPrepareUpdateGaps({ itemIds: resolvedItemIds, actor, types: ['content', 'pictures', 'category', 'item_specific'] });
 
   return applySync({ itemIds: resolvedItemIds, actor });
 }

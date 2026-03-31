@@ -48,7 +48,10 @@ async function propagateEbayStatusToProducts() {
     const data = doc.data();
     const status = (data?.listingStatus || '').toLowerCase();
     const active = Boolean(data?.active);
-    listingStatusByItemId.set(doc.id, active && status === 'active' ? 'active' : 'inactive');
+    // Use OR: consider active if either flag says so.
+    // Prevents false 'inactive' when deactivation sets active=false
+    // but listingStatus still reflects the real eBay state.
+    listingStatusByItemId.set(doc.id, (active || status === 'active') ? 'active' : 'inactive');
   }
 
   // 3. Group by productId — if any listing is active, product is active on eBay

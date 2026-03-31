@@ -1076,11 +1076,31 @@ router.get('/orders/sequences', requirePermission('orders', 'read'), async (req,
  */
 router.get('/shipping-methods', requirePermission('orders', 'read'), async (req, res) => {
   try {
-    const { getShippingMethods } = require('../services/shipping-engine');
-    const methods = await getShippingMethods();
+    const tenantId = getOrderSettingsTenantId(req);
+    const { getCachedShippingMethods } = require('../services/shipping-engine');
+    const { weight, country } = req.query;
+    const methods = await getCachedShippingMethods(tenantId, {
+      weight: weight ? Number(weight) : undefined,
+      country: country || undefined,
+    });
     res.json({ ok: true, data: methods });
   } catch (err) {
     console.error(`[GET /api/shipping-methods] ${err.message}`, err);
+    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: err.message } });
+  }
+});
+
+/**
+ * POST /api/shipping-methods/sync — Trigger SendCloud shipping methods sync.
+ */
+router.post('/shipping-methods/sync', requirePermission('orders', 'write'), async (req, res) => {
+  try {
+    const tenantId = getOrderSettingsTenantId(req);
+    const { syncShippingMethods } = require('../services/shipping-engine');
+    const methods = await syncShippingMethods(tenantId);
+    res.json({ ok: true, data: methods, syncedAt: new Date().toISOString() });
+  } catch (err) {
+    console.error(`[POST /api/shipping-methods/sync] ${err.message}`, err);
     res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: err.message } });
   }
 });
