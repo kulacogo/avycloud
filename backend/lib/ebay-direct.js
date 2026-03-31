@@ -4322,6 +4322,171 @@ async function bulkUpdateListedProducts({ itemIds = null, applyAll = false, acto
   return applySync({ itemIds: resolvedItemIds, actor });
 }
 
+/**
+ * Direct full-listing update: push ALL AvyCloud product data to an existing eBay listing.
+ * Bypasses the gap system — builds a complete revise payload from product data.
+ */
+async function reviseListingFromProduct(itemId, product, { actor = null } = {}) {
+  const id = safeString(itemId);
+  if (!id) throw Object.assign(new Error('itemId is required'), { code: 'EBAY_REVISE_ITEM_ID_REQUIRED' });
+
+  // Fetch live listing to determine call type (FixedPrice vs Auction)
+  let listing = {};
+  try {
+    const live = await getItemDetails(id);
+    if (live?.item && typeof live.item === 'object') listing = live.item;
+  } catch (e) {
+    console.warn(`[reviseListingFromProduct] Live fetch failed for ${id}, using defaults: ${e?.message}`);
+  }
+
+  // Build full item data from product (same logic as publish)
+  const item = mapProductToEbayItem(product);
+  const title = safeString(item.title);
+  const heroPhoto = item.pictureUrls?.[0] || safeString(deriveProductPhotoUrl(product, null)) || '';
+  const description = buildTrendOceanDescriptionTemplate({
+    listing,
+    product,
+    titleOverride: title,
+    photoOverride: heroPhoto,
+  });
+
+  const patch = {
+    itemId: id,
+    primaryCategoryId: item.primaryCategoryId,
+    title,
+    subtitle: item.subtitle,
+    description,
+    pictureUrls: sanitizeEbayPictureUrls(item.pictureUrls),
+    startPrice: item.startPrice,
+    currency: item.currency || 'EUR',
+    quantity: item.quantity,
+    itemSpecifics: item.itemSpecifics,
+  };
+
+  const callName = resolveReviseCallName(listing);
+  const response = callName === 'ReviseFixedPriceItem'
+    ? await reviseFixedPriceItem(patch)
+    : await reviseItem(patch);
+
+  // Update local listing cache
+  await firestore.collection(EBAY_LISTINGS_COLLECTION).doc(id).set(
+    cleanUndefined({
+      title: patch.title || null,
+      primaryCategoryId: patch.primaryCategoryId || null,
+      syncState: 'synced',
+      lastSyncAt: FieldValue.serverTimestamp(),
+      lastSyncAtIso: new Date().toISOString(),
+      lastSyncCall: callName,
+      lastSyncError: null,
+      pictureUrlsSource: patch.pictureUrls?.length ? patch.pictureUrls : undefined,
+      pictureUrlsSourceUpdatedAtIso: patch.pictureUrls?.length ? new Date().toISOString() : undefined,
+    }),
+    { merge: true }
+  );
+
+  return {
+    itemId: id,
+    ok: true,
+    callName,
+    ack: response?.ack || 'Success',
+    updatedFields: Object.keys(patch).filter((k) => k !== 'itemId' && patch[k] != null),
+  };
+}
+
+/**
+ * Bulk full-update: push AvyCloud data to multiple eBay listings.
+ * Uses direct revise (not gap system) for reliable updates.
+ */
+async function bulkReviseListingsFromProducts({ itemIds = null, applyAll = false, actor = null } = {}) {
+  let resolvedItemIds;
+  if (applyAll) {
+    const snap = await firestore.collection(EBAY_LISTINGS_COLLECTION).where('active', '==', true).get();
+    resolvedItemIds = snap.docs.map((doc) => doc.id);
+  } else if (Array.isArray(itemIds) && itemIds.length > 0) {
+    resolvedItemIds = itemIds.map((x) => String(x || '').trim()).filter(Boolean);
+  } else {
+    return { summary: { total: 0, success: 0, failed: 0, skipped: 0 }, results: [] };
+  }
+
+  // Ensure links exist
+  try {
+    const linkDocs = await firestore.getAll(
+      ...resolvedItemIds.map((id) => firestore.collection(EBAY_LINKS_COLLECTION).doc(String(id)))
+    );
+    const needsLinking = [];
+    linkDocs.forEach((doc) => {
+      if (!doc?.exists || safeLower(doc.data()?.status) !== 'matched' || !safeString(doc.data()?.productId)) {
+        needsLinking.push(String(doc.id));
+      }
+    });
+    if (needsLinking.length) {
+      await buildProductListingLinks({ itemIds: needsLinking, runId: `revise-links-${Date.now()}`, actor });
+    }
+  } catch (e) {
+    // best-effort
+  }
+
+  // Resolve links to products
+  const linkDocs = await firestore.getAll(
+    ...resolvedItemIds.map((id) => firestore.collection(EBAY_LINKS_COLLECTION).doc(String(id)))
+  );
+  const linkMap = new Map();
+  linkDocs.forEach((doc) => {
+    if (doc?.exists) linkMap.set(doc.id, doc.data());
+  });
+
+  // Load all linked products in one batch
+  const productIds = Array.from(new Set(
+    resolvedItemIds
+      .map((id) => safeString(linkMap.get(id)?.productId))
+      .filter(Boolean)
+  ));
+  const productMap = new Map();
+  if (productIds.length) {
+    const productDocs = await firestore.getAll(
+      ...productIds.map((pid) => firestore.collection(PRODUCTS_COLLECTION).doc(pid))
+    );
+    productDocs.forEach((doc) => {
+      if (doc?.exists) productMap.set(doc.id, { id: doc.id, ...doc.data() });
+    });
+  }
+
+  const results = [];
+  for (const itemId of resolvedItemIds) {
+    const link = linkMap.get(itemId);
+    const productId = safeString(link?.productId);
+    if (!productId) {
+      results.push({ itemId, ok: false, skipped: true, message: 'Kein Produkt verknuepft.' });
+      continue;
+    }
+    const product = productMap.get(productId);
+    if (!product) {
+      results.push({ itemId, ok: false, skipped: true, message: `Produkt ${productId} nicht gefunden.` });
+      continue;
+    }
+    try {
+      const result = await reviseListingFromProduct(itemId, product, { actor });
+      results.push(result);
+    } catch (err) {
+      results.push({
+        itemId,
+        ok: false,
+        message: err?.message || 'Unbekannter Fehler',
+      });
+    }
+  }
+
+  return {
+    summary: {
+      total: results.length,
+      success: results.filter((x) => x.ok).length,
+      failed: results.filter((x) => !x.ok && !x.skipped).length,
+      skipped: results.filter((x) => x.skipped).length,
+    },
+    results,
+  };
+}
+
 module.exports = {
   EBAY_LISTINGS_COLLECTION,
   EBAY_LINKS_COLLECTION,
@@ -4350,4 +4515,6 @@ module.exports = {
   bulkVerifyPublishProducts,
   bulkPublishProducts,
   bulkUpdateListedProducts,
+  reviseListingFromProduct,
+  bulkReviseListingsFromProducts,
 };

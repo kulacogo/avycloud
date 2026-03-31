@@ -1526,8 +1526,8 @@ router.post('/ebay/update/bulk', requirePermission('products', 'write'), async (
         error: { code: 400, message: 'itemIds oder applyAll erforderlich.' },
       });
     }
-    const { bulkUpdateListedProducts } = require('../lib/ebay-direct');
-    const out = await bulkUpdateListedProducts({
+    const { bulkReviseListingsFromProducts } = require('../lib/ebay-direct');
+    const out = await bulkReviseListingsFromProducts({
       itemIds,
       applyAll,
       actor: req.user?.email || req.user?.uid || 'api',
