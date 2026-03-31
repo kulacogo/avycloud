@@ -2491,7 +2491,7 @@ router.post('/products/import/execute', requirePermission('products', 'write'), 
 // --- Pre-Listing Validation (VAL-001) ---
 const { validateProduct: validateProductForMarketplaces, SUPPORTED_MARKETPLACES: VALIDATION_MARKETPLACES } = require('../services/listing-validator');
 
-router.post('/products/validate', requirePermission('products', 'read'), async (req, res) => {
+router.post('/v1/products/validate', requirePermission('products', 'read'), async (req, res) => {
   try {
     const { product, marketplaces } = req.body || {};
     if (!product || typeof product !== 'object') {
@@ -2522,7 +2522,7 @@ router.post('/products/validate', requirePermission('products', 'read'), async (
   }
 });
 
-router.post('/products/validate-batch', requirePermission('products', 'read'), async (req, res) => {
+router.post('/v1/products/validate-batch', requirePermission('products', 'read'), async (req, res) => {
   try {
     const { productIds, marketplaces } = req.body || {};
     if (!Array.isArray(productIds) || productIds.length === 0) {
