@@ -159,12 +159,13 @@ describe('normalizeProduct', () => {
   // ── 5. Placeholder bereinigen ──
 
   describe('placeholder cleanup', () => {
-    it('replaces placeholder values with null', () => {
+    it('replaces placeholder values with null (brand/category only, name preserved)', () => {
       const raw = {
         identification: { name: 'unbekannt', brand: 'N/A', category: '-' },
       };
       const result = normalizeProduct(raw);
-      expect(result.identification.name).toBe(null);
+      // name is never auto-cleared (BUG-091 protection)
+      expect(result.identification.name).toBe('unbekannt');
       expect(result.identification.brand).toBe(null);
       expect(result.identification.category).toBe(null);
     });
@@ -179,12 +180,13 @@ describe('normalizeProduct', () => {
       expect(result.identification.category).toBe('Smartphones');
     });
 
-    it('replaces empty strings with null', () => {
+    it('replaces empty strings with null for brand/category, preserves name', () => {
       const raw = { identification: { name: '', brand: '  ', category: '' } };
       const result = normalizeProduct(raw);
-      expect(result.identification.name).toBe(null);
-      expect(result.identification.brand).toBe(null);
-      expect(result.identification.category).toBe(null);
+      // name is never auto-cleared (BUG-091 protection)
+      expect(result.identification.name).toBe('');
+      expect(result.identification.brand).toBe('  ');
+      expect(result.identification.category).toBe('');
     });
   });
 

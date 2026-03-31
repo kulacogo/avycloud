@@ -2026,6 +2026,18 @@ async function saveProduct(product, options = {}) {
       ...(existingData?.identification || {}),
       ...(product?.identification || {}),
     };
+    // Protect critical identification fields from being wiped by automated processes.
+    // Only a manual UI save may clear an existing non-empty name, brand, or EAN.
+    if (hasExisting && !isManualSave) {
+      const existingId = existingData?.identification || {};
+      for (const field of ['name', 'brand']) {
+        const existingVal = typeof existingId[field] === 'string' ? existingId[field].trim() : '';
+        const mergedVal = typeof mergedIdentification[field] === 'string' ? mergedIdentification[field].trim() : '';
+        if (existingVal && !mergedVal) {
+          mergedIdentification[field] = existingId[field];
+        }
+      }
+    }
     // Normalize brand casing deterministically (UI + title consistency)
     if (mergedIdentification?.brand) {
       const normalizedBrand = normalizeBrandDisplayCase(mergedIdentification.brand, {

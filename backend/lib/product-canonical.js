@@ -65,12 +65,14 @@ function normalizeProduct(raw) {
     if (alias !== 'Gewicht') delete attrs[alias];
   }
 
-  // ── 5. Placeholder bereinigen → null statt Fake-Werte ──
-  const placeholders = ['unbekannt', 'unknown', 'n/a', 'na', '-', '—', '--', 'null', 'N/A'];
+  // ── 5. Placeholder bereinigen → leere Strings statt Fake-Werte ──
+  // WICHTIG: Nur brand und category werden bereinigt. 'name' wird NIEMALS
+  // automatisch gelöscht — Datenverlust-Risiko zu hoch (BUG-091).
+  const placeholders = ['unbekannt', 'unknown', 'n/a', 'na', '-', '—', '--', 'null'];
   if (product.identification) {
-    for (const field of ['name', 'brand', 'category']) {
+    for (const field of ['brand', 'category']) {
       const val = (product.identification[field] || '').trim();
-      if (!val || placeholders.includes(val.toLowerCase())) {
+      if (placeholders.includes(val.toLowerCase())) {
         product.identification[field] = null;
       }
     }
