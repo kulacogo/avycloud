@@ -730,14 +730,16 @@ function buildAddFixedPriceItemXml(item, cfg) {
   const isbn = safeString(item?.isbn);
   const mpn = safeString(item?.mpn);
   const brand = safeString(item?.brand);
-  // Only include ProductListingDetails when we actually have a catalog identifier.
-  // (IncludeeBayProductDetails is meaningful only with ePID/GTIN/ISBN/BrandMPN identifiers.)
-  if (ean || isbn || mpn) {
+  // Always include ProductListingDetails — many eBay categories require product identifiers.
+  // When no EAN/ISBN/MPN is available, send "Does not apply" so eBay accepts the listing.
+  {
     const pld = [];
-    if (ean) pld.push(`<EAN>${escapeXml(ean)}</EAN>`);
+    pld.push(`<EAN>${escapeXml(ean || 'Does not apply')}</EAN>`);
     if (isbn) pld.push(`<ISBN>${escapeXml(isbn)}</ISBN>`);
     if (mpn) pld.push(`<BrandMPN><Brand>${escapeXml(brand || 'Unbranded')}</Brand><MPN>${escapeXml(mpn)}</MPN></BrandMPN>`);
-    pld.push('<IncludeeBayProductDetails>true</IncludeeBayProductDetails>');
+    if (ean || isbn || mpn) {
+      pld.push('<IncludeeBayProductDetails>true</IncludeeBayProductDetails>');
+    }
     fields.push(`<ProductListingDetails>${pld.join('')}</ProductListingDetails>`);
   }
 
