@@ -4180,11 +4180,44 @@ async function publishProduct(productId, overrides = {}, { actor = null } = {}) 
 
   const readiness = validatePublishReadiness(product, overrides);
   if (!readiness.canPublish) {
+    // Persist readiness blockers so they're visible in the Marktplätze tab
+    const listingErrors = readiness.blockers.map((msg) => ({ code: 'READINESS', message: msg, severity: 'Error' }));
+    try {
+      await firestore.collection(PRODUCTS_COLLECTION).doc(id).set(
+        { marketplace: { ebay: { listing_errors: listingErrors, listing_errors_at: new Date().toISOString() } } },
+        { merge: true }
+      );
+    } catch (persistErr) {
+      console.error(`[publishProduct] Failed to persist readiness blockers for ${id}:`, persistErr?.message);
+    }
     return { productId: id, ok: false, blockers: readiness.blockers, warnings: readiness.warnings };
   }
 
   const item = mapProductToEbayItem(product, overrides);
-  const result = await addFixedPriceItem(item);
+
+  let result;
+  try {
+    result = await addFixedPriceItem(item);
+  } catch (publishErr) {
+    // Persist the eBay error on the product so it's visible in the Marktplätze tab
+    const errorMessage = safeString(publishErr?.message) || 'Unbekannter eBay-Fehler';
+    const ebayErrors = asArray(publishErr?.details?.errors).map((e) => ({
+      code: safeString(e?.errorCode || e?.code) || null,
+      message: safeString(e?.longMessage || e?.shortMessage) || errorMessage,
+      severity: safeString(e?.severityCode) || 'Error',
+    }));
+    const listingErrors = ebayErrors.length ? ebayErrors : [{ code: null, message: errorMessage, severity: 'Error' }];
+    try {
+      await firestore.collection(PRODUCTS_COLLECTION).doc(id).set(
+        { marketplace: { ebay: { listing_errors: listingErrors, listing_errors_at: new Date().toISOString() } } },
+        { merge: true }
+      );
+    } catch (persistErr) {
+      console.error(`[publishProduct] Failed to persist listing errors for ${id}:`, persistErr?.message);
+    }
+    throw publishErr;
+  }
+
   const itemId = safeString(result?.itemId);
 
   await firestore.collection(EBAY_PUBLISH_LOG_COLLECTION).add({
@@ -4207,6 +4240,8 @@ async function publishProduct(productId, overrides = {}, { actor = null } = {}) 
             itemId,
             publishedAt: new Date().toISOString(),
             publishedBy: safeString(actor) || null,
+            listing_errors: FieldValue.delete(),
+            listing_errors_at: FieldValue.delete(),
           },
         },
       },

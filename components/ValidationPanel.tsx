@@ -140,6 +140,50 @@ function MarketplaceSection({
   );
 }
 
+/* ── Listing Errors (persisted from eBay API) ──────────── */
+
+interface ListingError {
+  code?: string | null;
+  message: string;
+  severity?: string;
+}
+
+function ListingErrorsSection({ errors, at }: { errors: ListingError[]; at?: string }) {
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-semibold text-danger">eBay Listing-Fehler</span>
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-danger-dim text-danger">
+            {errors.length} {errors.length === 1 ? "Fehler" : "Fehler"}
+          </span>
+        </div>
+        {at && (
+          <span className="text-[10px] text-txt-muted">
+            {new Date(at).toLocaleString("de-DE", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" })}
+          </span>
+        )}
+      </div>
+      <div className="space-y-2">
+        {errors.map((err, idx) => (
+          <div key={idx} className="flex items-start gap-3 p-3 rounded-lg bg-app-elevated border-l-4 border-danger">
+            <SeverityIcon severity="error" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm text-txt-primary">{err.message}</p>
+              {err.code && err.code !== "READINESS" && (
+                <p className="text-[10px] text-txt-muted mt-1 font-mono">Code: {err.code}</p>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+      <p className="text-xs text-txt-muted">
+        Diese Fehler wurden beim letzten eBay-Listing-Versuch von der eBay API zurueckgegeben. Beheben Sie die Probleme und listen Sie den Artikel erneut.
+      </p>
+    </div>
+  );
+}
+
 /* ── Main Panel ─────────────────────────────────────────── */
 
 const ValidationPanel: React.FC<ValidationPanelProps> = ({ product }) => {
@@ -149,6 +193,12 @@ const ValidationPanel: React.FC<ValidationPanelProps> = ({ product }) => {
   const handleValidate = useCallback(() => {
     runValidation(product, ["ebay", "kaufland"]);
   }, [product, runValidation]);
+
+  // Read persisted listing errors from product document
+  const ebayData = (product as unknown as Record<string, unknown>)?.marketplace as Record<string, unknown> | undefined;
+  const ebayMp = ebayData?.ebay as Record<string, unknown> | undefined;
+  const listingErrors = Array.isArray(ebayMp?.listing_errors) ? (ebayMp.listing_errors as ListingError[]) : [];
+  const listingErrorsAt = typeof ebayMp?.listing_errors_at === "string" ? ebayMp.listing_errors_at : undefined;
 
   return (
     <section className="p-5 bg-app-surface border border-app-border rounded-2xl">
@@ -179,6 +229,13 @@ const ValidationPanel: React.FC<ValidationPanelProps> = ({ product }) => {
         </button>
       </div>
 
+      {/* Persisted eBay listing errors (from last publish attempt) */}
+      {listingErrors.length > 0 && (
+        <div className="mb-5">
+          <ListingErrorsSection errors={listingErrors} at={listingErrorsAt} />
+        </div>
+      )}
+
       {/* Error state */}
       {error && (
         <div className="p-3 rounded-lg bg-danger-dim text-danger text-sm mb-4">
@@ -187,7 +244,7 @@ const ValidationPanel: React.FC<ValidationPanelProps> = ({ product }) => {
       )}
 
       {/* No results yet */}
-      {!results && !loading && !error && (
+      {!results && !loading && !error && listingErrors.length === 0 && (
         <p className="text-sm text-txt-muted">
           {t("validation.hint")}
         </p>
