@@ -1045,19 +1045,33 @@ function enforceEbayAspects(product) {
         product.identification.category = String(decodedBreadcrumb);
       }
     } else {
-      // Prevent invalid/unknown category IDs (LLM hallucinations or bad imports).
-      // We do NOT guess a replacement here.
-      const invalidCategoryId = String(catId).trim();
-      catId = null;
-      delete details.categoryId;
+      // Category ID not found in local ebay-categories.json.
+      // This can happen when:
+      //   a) The local taxonomy JSON is stale (eBay updates categories regularly)
+      //   b) The user manually set a valid category that's not in our snapshot
+      //   c) An LLM hallucinated an invalid ID
+      //
+      // We KEEP the ID and preserve any existing breadcrumb text, because deleting it
+      // causes a destructive cycle: no categoryId → category lock can't protect →
+      // next improve job overwrites with a wrong Gemini suggestion → user fixes → deleted again.
+      const unknownCategoryId = String(catId).trim();
+      details.categoryId = unknownCategoryId;
+      // Preserve existing breadcrumb text if available (user or prior pipeline may have set it).
+      const existingCategoryText = product?.identification?.category;
+      if (!existingCategoryText || typeof existingCategoryText !== 'string' || !existingCategoryText.trim()) {
+        if (!product.identification) product.identification = {};
+        product.identification.category = '';
+      }
       if (!product.ops) product.ops = {};
       product.ops.data_quality = {
         ...(product.ops.data_quality || {}),
-        category_invalid_id_v1: {
+        category_not_in_taxonomy_v1: {
           at_iso: new Date().toISOString(),
-          value: invalidCategoryId || null,
+          categoryId: unknownCategoryId,
+          reason: 'Category ID not found in local ebay-categories.json — kept as-is',
         },
       };
+      console.warn(`[enforceEbayAspects] categoryId "${unknownCategoryId}" not in local taxonomy — keeping ID and existing breadcrumb`);
     }
   }
 
