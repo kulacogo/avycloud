@@ -639,8 +639,18 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
             </button>
           )}
         </div>
-        {activeImage.source === 'generated' && (
-            <span className="absolute bottom-2 left-2 px-2 py-1 text-xs bg-accent text-txt-primary rounded">{t('sheet.gallery.aiBadge')}</span>
+        {activeImage.source && (
+          <span className={`absolute bottom-2 left-2 px-2 py-1 text-[10px] font-semibold rounded ${
+            activeImage.source === 'generated' ? 'bg-accent text-txt-primary' :
+            activeImage.source === 'upload' ? 'bg-success-dim text-success' :
+            activeImage.source === 'web_search' || activeImage.source === 'web' ? 'bg-warning-dim text-warning' :
+            'bg-app-elevated text-txt-secondary'
+          }`}>
+            {activeImage.source === 'generated' ? 'KI-generiert' :
+             activeImage.source === 'upload' ? 'Hochgeladen' :
+             activeImage.source === 'web_search' || activeImage.source === 'web' ? 'Web' :
+             activeImage.source}
+          </span>
         )}
       </div>
       {improveButtons}
@@ -676,6 +686,19 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
               className="w-full h-full object-cover"
               onError={(e) => { (e.currentTarget as HTMLImageElement).src = placeholder; }}
             />
+            {isReal && image?.source && (
+              <span className={`absolute bottom-0.5 left-0.5 px-1 py-px text-[8px] font-semibold rounded ${
+                image.source === 'generated' ? 'bg-accent/80 text-txt-primary' :
+                image.source === 'upload' ? 'bg-success/80 text-white' :
+                image.source === 'web_search' || image.source === 'web' ? 'bg-warning/80 text-white' :
+                'bg-app-elevated/80 text-txt-secondary'
+              }`}>
+                {image.source === 'generated' ? 'KI' :
+                 image.source === 'upload' ? 'UP' :
+                 image.source === 'web_search' || image.source === 'web' ? 'WEB' :
+                 image.source.slice(0, 3).toUpperCase()}
+              </span>
+            )}
             {isEditing && onDeleteImage && isReal && (
               <span
                 role="button"

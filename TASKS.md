@@ -165,6 +165,7 @@
 | AI-001 | AI Listing Pipeline | P1 | ✅ done + merged |
 | VAL-001 | Pre-Listing Validation | P1 | ✅ done + merged |
 | RULE-001 | Rule Engine | P1 | ✅ done + merged |
+| PERF-002 | eBay API Rate-Limiting & Call-Optimierung | P0 | **Claude Code Prompt ready** (`docs/prompts/perf-002-ebay-api-rate-limiting.md`) |
 | WH-001 | Warehouse Zone P + Erweiterte Ranges | P1 | **Claude Code Prompt ready** |
 | VAR-001 | Variant Model | P1 | Spec vorhanden, nicht implementiert |
 | IMG-001 | Image Enhancement | P2 | Spec vorhanden, nicht implementiert |
@@ -194,6 +195,7 @@
 | ~~P0~~ | ~~BUG-085 Dual-Write Duplikate (Fix A+B+C)~~ | ✅ implementiert, Deploy+Cleanup nötig |
 | ~~P0~~ | ~~BUG-090 Gruppierung Fallback bei vielen Bildern~~ | ✅ implementiert (Structured Output, Kompression, Batching), Deploy nötig |
 | ~~P0~~ | ~~BUG-091 Multi-Identify hängt (kein Timeout/Progress)~~ | ✅ implementiert (Concurrency 3, Phase-Progress, Timeout 600s), Deploy nötig |
+| **P0** | **PERF-002 eBay API Rate-Limiting & Call-Optimierung** | `docs/prompts/perf-002-ebay-api-rate-limiting.md` |
 | **P0** | **PERF-001 Identify Pipeline Overhaul (Sub-60s)** | `docs/prompts/perf-001-identify-pipeline-overhaul.md` |
 | **P1** | **BUG-092 Versand Duplikate + falscher Problem-Status** | `docs/prompts/bug-092-shipping-duplicate-problem-status.md` |
 | P0 | LLM Pipeline + Preise | `docs/prompts/fix-llm-pipeline-quality.md` |

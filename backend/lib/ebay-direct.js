@@ -4155,6 +4155,18 @@ async function publishProduct(productId, overrides = {}, { actor = null } = {}) 
   if (!doc.exists) throw Object.assign(new Error(`Produkt ${id} nicht gefunden`), { code: 'EBAY_PUBLISH_PRODUCT_NOT_FOUND' });
   const product = { id: doc.id, ...doc.data() };
 
+  // Check Firestore link first (free, no API call)
+  const linkedItemId = await checkExistingEbayLink(id);
+  if (linkedItemId) {
+    return {
+      productId: id,
+      ok: false,
+      blockers: [`Bereits auf eBay gelistet (ItemID: ${linkedItemId}). Artikel kann nicht erneut gelistet werden.`],
+      warnings: [],
+    };
+  }
+
+  // Only call eBay API as fallback when product has a stored itemId but no Firestore link
   const existingItemId = safeString(product?.marketplace?.ebay?.itemId);
   if (existingItemId) {
     const state = await resolveItemIsActive(existingItemId);
@@ -4166,16 +4178,6 @@ async function publishProduct(productId, overrides = {}, { actor = null } = {}) 
         warnings: [],
       };
     }
-  }
-
-  const linkedItemId = await checkExistingEbayLink(id);
-  if (linkedItemId) {
-    return {
-      productId: id,
-      ok: false,
-      blockers: [`Bereits auf eBay gelistet (ItemID: ${linkedItemId}). Artikel kann nicht erneut gelistet werden.`],
-      warnings: [],
-    };
   }
 
   const readiness = validatePublishReadiness(product, overrides);
@@ -4265,15 +4267,19 @@ async function publishProduct(productId, overrides = {}, { actor = null } = {}) 
 }
 
 async function bulkVerifyPublishProducts(productIds, overrides = {}) {
+  const BULK_DELAY_MS = parseInt(process.env.EBAY_BULK_PUBLISH_DELAY_MS || '300', 10);
   const ids = asArray(productIds).map((x) => safeString(x)).filter(Boolean);
   if (!ids.length) return { summary: { total: 0, ready: 0, blocked: 0 }, items: [] };
   const items = [];
-  for (const id of ids) {
+  for (let i = 0; i < ids.length; i++) {
+    if (i > 0 && BULK_DELAY_MS > 0) {
+      await new Promise((r) => setTimeout(r, BULK_DELAY_MS));
+    }
     try {
-      const result = await verifyPublishProduct(id, overrides);
+      const result = await verifyPublishProduct(ids[i], overrides);
       items.push(result);
     } catch (err) {
-      items.push({ productId: id, canPublish: false, blockers: [safeString(err?.message)], warnings: [], fees: null });
+      items.push({ productId: ids[i], canPublish: false, blockers: [safeString(err?.message)], warnings: [], fees: null });
     }
   }
   const ready = items.filter((x) => x.canPublish).length;
@@ -4281,15 +4287,19 @@ async function bulkVerifyPublishProducts(productIds, overrides = {}) {
 }
 
 async function bulkPublishProducts(productIds, overrides = {}, { actor = null } = {}) {
+  const BULK_DELAY_MS = parseInt(process.env.EBAY_BULK_PUBLISH_DELAY_MS || '300', 10);
   const ids = asArray(productIds).map((x) => safeString(x)).filter(Boolean);
   if (!ids.length) return { summary: { total: 0, success: 0, failed: 0 }, results: [] };
   const results = [];
-  for (const id of ids) {
+  for (let i = 0; i < ids.length; i++) {
+    if (i > 0 && BULK_DELAY_MS > 0) {
+      await new Promise((r) => setTimeout(r, BULK_DELAY_MS));
+    }
     try {
-      const result = await publishProduct(id, overrides, { actor });
+      const result = await publishProduct(ids[i], overrides, { actor });
       results.push(result);
     } catch (err) {
-      results.push({ productId: id, ok: false, blockers: [safeString(err?.message)], warnings: [] });
+      results.push({ productId: ids[i], ok: false, blockers: [safeString(err?.message)], warnings: [] });
     }
   }
   const success = results.filter((x) => x.ok).length;
@@ -4365,13 +4375,29 @@ async function reviseListingFromProduct(itemId, product, { actor = null } = {}) 
   const id = safeString(itemId);
   if (!id) throw Object.assign(new Error('itemId is required'), { code: 'EBAY_REVISE_ITEM_ID_REQUIRED' });
 
-  // Fetch live listing to determine call type (FixedPrice vs Auction)
+  // Determine call type (FixedPrice vs Auction) — prefer Firestore cache to save an API call
   let listing = {};
   try {
-    const live = await getItemDetails(id);
-    if (live?.item && typeof live.item === 'object') listing = live.item;
-  } catch (e) {
-    console.warn(`[reviseListingFromProduct] Live fetch failed for ${id}, using defaults: ${e?.message}`);
+    const cachedDoc = await firestore.collection(EBAY_LISTINGS_COLLECTION).doc(id).get();
+    if (cachedDoc.exists) {
+      const cached = cachedDoc.data() || {};
+      const CACHE_MAX_AGE_MS = parseInt(process.env.EBAY_REVISE_CACHE_MAX_AGE_MS || String(24 * 60 * 60 * 1000), 10);
+      const cacheAge = Date.now() - Date.parse(cached.lastSyncAtIso || cached.lastSyncAt || '1970-01-01');
+      if (cacheAge < CACHE_MAX_AGE_MS && cached.listingType) {
+        listing = cached;
+      }
+    }
+  } catch (cacheErr) {
+    console.warn(`[reviseListingFromProduct] Cache read failed for ${id}: ${cacheErr?.message}`);
+  }
+  // Fallback to live API call only if cache miss or stale
+  if (!listing.listingType) {
+    try {
+      const live = await getItemDetails(id);
+      if (live?.item && typeof live.item === 'object') listing = live.item;
+    } catch (e) {
+      console.warn(`[reviseListingFromProduct] Live fetch failed for ${id}, using defaults: ${e?.message}`);
+    }
   }
 
   // Build full item data from product (same logic as publish)

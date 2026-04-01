@@ -1719,11 +1719,18 @@ async function saveProduct(product, options = {}) {
         const snap = await tx.get(ref);
         const existingPid = snap.exists ? (snap.data()?.productId || snap.data()?.baseProductId || null) : null;
         if (existingPid && String(existingPid) !== String(productId)) {
-          // Check if the blocking product still exists — if not, reclaim the SKU
+          // Check if the blocking product still exists AND is a real product — if not, reclaim the SKU.
+          // Ghost documents (empty shells from migrations with only ops.listingStatus) should not block.
           const blockingRef = firestore.collection(PRODUCTS_COLLECTION).doc(String(existingPid));
           const blockingSnap = await tx.get(blockingRef);
+          const blockingData = blockingSnap.exists ? blockingSnap.data() : null;
+          const blockingHasSku = blockingData?.identification?.sku || blockingData?.details?.identifiers?.sku;
           if (!blockingSnap.exists) {
             console.warn(`[ensureSkuUniqueOrThrow] Orphaned SKU index entry ${sku} → ${existingPid} (product deleted). Reclaiming for ${productId}.`);
+          } else if (!blockingHasSku) {
+            console.warn(`[ensureSkuUniqueOrThrow] Ghost product ${existingPid} has no SKU data — reclaiming ${sku} for ${productId}.`);
+          } else if (normalizeSkuValue(blockingHasSku) !== normalized) {
+            console.warn(`[ensureSkuUniqueOrThrow] Stale SKU index: ${sku} → ${existingPid} but product has SKU "${blockingHasSku}". Reclaiming for ${productId}.`);
           } else {
             throw new Error(`SKU already in use: ${sku} (productId=${existingPid})`);
           }
@@ -1755,8 +1762,12 @@ async function saveProduct(product, options = {}) {
             if (existingPid && String(existingPid) !== String(productId)) {
               const blockingRef = firestore.collection(PRODUCTS_COLLECTION).doc(String(existingPid));
               const blockingSnap = await tx.get(blockingRef);
+              const blockingData = blockingSnap.exists ? blockingSnap.data() : null;
+              const blockingHasSku = blockingData?.identification?.sku || blockingData?.details?.identifiers?.sku;
               if (!blockingSnap.exists) {
                 console.warn(`[allocateRandomSku] Orphaned SKU index entry ${sku} → ${existingPid}. Reclaiming for ${productId}.`);
+              } else if (!blockingHasSku || normalizeSkuValue(blockingHasSku) !== normalized) {
+                console.warn(`[allocateRandomSku] Ghost/stale product ${existingPid} — reclaiming ${sku} for ${productId}.`);
               } else {
                 throw new Error('sku_collision');
               }

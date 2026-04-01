@@ -392,7 +392,18 @@ function mapListingDetail(item = {}) {
   };
 }
 
+const RATE_LIMIT_MAX_RETRIES = parseInt(process.env.EBAY_RATE_LIMIT_MAX_RETRIES || '3', 10);
+
+function isRateLimitError(text, errors) {
+  if (typeof text === 'string' && text.includes('exceeded usage limit')) return true;
+  if (Array.isArray(errors)) {
+    return errors.some((e) => String(e?.errorCode || e?.code || '') === '21917062');
+  }
+  return false;
+}
+
 async function callTradingApi(callName, bodyXml, { timeoutMs = DEFAULT_TIMEOUT_MS } = {}) {
+  const { acquireSlot } = require('./ebay-rate-limiter');
   const cfg = await getEbayTradingConfig();
 
   // Prefer the fresh OAuth access token from Firestore over the static GCP Secret token.
@@ -412,56 +423,81 @@ async function callTradingApi(callName, bodyXml, { timeoutMs = DEFAULT_TIMEOUT_M
     ? bodyXml
     : buildRequestRoot(callName, bodyXml, effectiveToken, cfg.compatibilityLevel);
 
-  const res = await fetchWithTimeout(
-    cfg.endpoint,
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'text/xml; charset=utf-8',
-        'X-EBAY-API-CALL-NAME': callName,
-        'X-EBAY-API-SITEID': cfg.siteId,
-        'X-EBAY-API-COMPATIBILITY-LEVEL': cfg.compatibilityLevel,
-        'X-EBAY-API-APP-NAME': cfg.appId,
-        'X-EBAY-API-DEV-NAME': cfg.devId,
-        'X-EBAY-API-CERT-NAME': cfg.certId,
+  for (let attempt = 0; attempt <= RATE_LIMIT_MAX_RETRIES; attempt++) {
+    // Wait for rate-limit slot before each attempt
+    await acquireSlot();
+
+    const res = await fetchWithTimeout(
+      cfg.endpoint,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'text/xml; charset=utf-8',
+          'X-EBAY-API-CALL-NAME': callName,
+          'X-EBAY-API-SITEID': cfg.siteId,
+          'X-EBAY-API-COMPATIBILITY-LEVEL': cfg.compatibilityLevel,
+          'X-EBAY-API-APP-NAME': cfg.appId,
+          'X-EBAY-API-DEV-NAME': cfg.devId,
+          'X-EBAY-API-CERT-NAME': cfg.certId,
+        },
+        body: fullXml,
       },
-      body: fullXml,
-    },
-    timeoutMs
-  );
+      timeoutMs
+    );
 
-  const text = await res.text().catch(() => '');
-  if (!res.ok) {
-    const error = new Error(`eBay Trading HTTP ${res.status} for ${callName}: ${text.slice(0, 500)}`);
-    error.code = 'EBAY_TRADING_HTTP_ERROR';
-    error.statusCode = res.status;
-    throw error;
+    const text = await res.text().catch(() => '');
+
+    // Retry on HTTP-level rate limit (429 or similar)
+    if (!res.ok) {
+      if (text.includes('exceeded usage limit') && attempt < RATE_LIMIT_MAX_RETRIES) {
+        const backoffMs = Math.pow(2, attempt + 1) * 1000; // 2s, 4s, 8s
+        console.warn(`[callTradingApi] Rate limit hit for ${callName} (attempt ${attempt + 1}/${RATE_LIMIT_MAX_RETRIES}), retrying in ${backoffMs}ms...`);
+        await new Promise((r) => setTimeout(r, backoffMs));
+        continue;
+      }
+      const error = new Error(`eBay Trading HTTP ${res.status} for ${callName}: ${text.slice(0, 500)}`);
+      error.code = 'EBAY_TRADING_HTTP_ERROR';
+      error.statusCode = res.status;
+      throw error;
+    }
+
+    const parsed = XML_PARSER.parse(text);
+    const responseNode = resolveResponseNode(parsed, callName);
+    if (!responseNode) {
+      const error = new Error(`Invalid ${callName} response payload.`);
+      error.code = 'EBAY_TRADING_PARSE_ERROR';
+      throw error;
+    }
+
+    const ack = safeString(responseNode?.Ack);
+    const errors = parseErrors(responseNode?.Errors);
+
+    // Retry on API-level rate limit error
+    if (!isAckSuccess(ack) && isRateLimitError(text, errors) && attempt < RATE_LIMIT_MAX_RETRIES) {
+      const backoffMs = Math.pow(2, attempt + 1) * 1000;
+      console.warn(`[callTradingApi] Rate limit error for ${callName} (attempt ${attempt + 1}/${RATE_LIMIT_MAX_RETRIES}), retrying in ${backoffMs}ms...`);
+      await new Promise((r) => setTimeout(r, backoffMs));
+      continue;
+    }
+
+    if (!isAckSuccess(ack)) {
+      const message = errors[0]?.longMessage || errors[0]?.shortMessage || `${callName} failed with Ack=${ack}`;
+      const error = new Error(message);
+      error.code = 'EBAY_TRADING_CALL_FAILED';
+      error.details = { ack, errors };
+      throw error;
+    }
+
+    return {
+      ack,
+      errors,
+      response: responseNode,
+      rawXml: text,
+    };
   }
 
-  const parsed = XML_PARSER.parse(text);
-  const responseNode = resolveResponseNode(parsed, callName);
-  if (!responseNode) {
-    const error = new Error(`Invalid ${callName} response payload.`);
-    error.code = 'EBAY_TRADING_PARSE_ERROR';
-    throw error;
-  }
-
-  const ack = safeString(responseNode?.Ack);
-  const errors = parseErrors(responseNode?.Errors);
-  if (!isAckSuccess(ack)) {
-    const message = errors[0]?.longMessage || errors[0]?.shortMessage || `${callName} failed with Ack=${ack}`;
-    const error = new Error(message);
-    error.code = 'EBAY_TRADING_CALL_FAILED';
-    error.details = { ack, errors };
-    throw error;
-  }
-
-  return {
-    ack,
-    errors,
-    response: responseNode,
-    rawXml: text,
-  };
+  // Should not reach here, but safety net
+  throw new Error(`[callTradingApi] ${callName} failed after ${RATE_LIMIT_MAX_RETRIES} rate-limit retries`);
 }
 
 async function getMyeBaySellingActive({
