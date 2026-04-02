@@ -281,6 +281,17 @@ router.get('/ebay/status', requirePermission('products', 'read'), async (req, re
   }
 });
 
+// eBay API rate limit usage stats
+router.get('/ebay/rate-limit-status', requirePermission('products', 'read'), async (req, res) => {
+  try {
+    const { getUsage } = require('../lib/ebay-rate-limiter');
+    return res.status(200).json({ ok: true, data: getUsage() });
+  } catch (error) {
+    console.error('[GET /ebay/rate-limit-status]', error.message);
+    return res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: error.message } });
+  }
+});
+
 // Direct eBay Trading status (Auth'n'Auth token mode, no OAuth flow).
 router.get('/ebay/trading/status', requirePermission('products', 'read'), async (req, res) => {
   try {

@@ -1438,7 +1438,8 @@ async function syncLiveListingsLight(options = {}) {
   if (running && Number.isFinite(runningAtMs) && runningAtMs > now - 3 * 60_000) {
     return { skipped: true, reason: 'running', runningAtIso, runId };
   }
-  if (Number.isFinite(lastCompletedAtMs) && lastCompletedAtMs > now - 60_000) {
+  const cooldownMs = parseInt(process.env.EBAY_LIGHT_SYNC_COOLDOWN_MS || String(10 * 60_000), 10); // 10 min default (was 1 min)
+  if (Number.isFinite(lastCompletedAtMs) && lastCompletedAtMs > now - cooldownMs) {
     return { skipped: true, reason: 'cooldown', lastCompletedAtIso, runId };
   }
 

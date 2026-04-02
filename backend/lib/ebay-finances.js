@@ -14,6 +14,7 @@
  */
 
 const { getValidEbayAccessToken } = require('./ebay-oauth');
+const { acquireSlot } = require('./ebay-rate-limiter');
 
 // eBay Finances API uses a different subdomain than the rest of the eBay API
 const FINANCES_BASE_URL = 'https://apiz.ebay.com';
@@ -31,6 +32,7 @@ async function financesFetch(path, query = {}, { timeoutMs = 20000 } = {}) {
     }
   }
 
+  await acquireSlot();
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {

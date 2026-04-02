@@ -1,6 +1,7 @@
 /* eslint-disable no-console */
 const { getSecretValue } = require('./secret-values');
 const { decodeHtmlEntitiesDeep } = require('./html-entities');
+const { acquireSlot } = require('./ebay-rate-limiter');
 
 const DEFAULT_MARKETPLACE_ID = (process.env.EBAY_MARKETPLACE_ID || 'EBAY_DE').toString().trim();
 const DEFAULT_ENV = (process.env.EBAY_BROWSE_ENV || process.env.EBAY_TAXONOMY_ENV || 'production')
@@ -152,6 +153,7 @@ async function getAppToken({ env = DEFAULT_ENV } = {}) {
     scope: 'https://api.ebay.com/oauth/api_scope',
   });
 
+  await acquireSlot();
   const response = await fetch(tokenUrl, {
     method: 'POST',
     headers: {
@@ -227,6 +229,7 @@ async function fetchBrowseTitles({
   if (q) params.set('q', q);
 
   const url = `${getIdentityBase(env)}/buy/browse/v1/item_summary/search?${params.toString()}`;
+  await acquireSlot();
   const response = await fetch(url, {
     method: 'GET',
     headers: {
@@ -281,6 +284,7 @@ async function fetchBrowsePriceSamples({
   }
 
   const url = `${getIdentityBase(env)}/buy/browse/v1/item_summary/search?${params.toString()}`;
+  await acquireSlot();
   const response = await fetch(url, {
     method: 'GET',
     headers: {

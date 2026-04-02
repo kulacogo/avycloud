@@ -1,5 +1,6 @@
 const fetchImpl = global.fetch || require('node-fetch');
 const { getValidEbayAccessToken } = require('./ebay-oauth');
+const { acquireSlot } = require('./ebay-rate-limiter');
 
 async function fetchWithTimeout(url, init, timeoutMs = 25000) {
   const controller = new AbortController();
@@ -12,6 +13,7 @@ async function fetchWithTimeout(url, init, timeoutMs = 25000) {
 }
 
 async function ebayGetJson(path, { query = null, timeoutMs = null } = {}) {
+  await acquireSlot();
   const { accessToken, apiBaseUrl } = await getValidEbayAccessToken();
   const url = new URL(path, apiBaseUrl);
   if (query && typeof query === 'object') {

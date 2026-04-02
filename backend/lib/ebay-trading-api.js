@@ -22,6 +22,15 @@ const CONFIG_CACHE_TTL_MS = Math.max(
 
 let configCache = { atMs: 0, value: null };
 
+// TTL caches for expensive, rarely-changing lookups
+const SELLER_PROFILES_CACHE_TTL_MS = parseInt(process.env.EBAY_SELLER_PROFILES_CACHE_MS || String(4 * 60 * 60 * 1000), 10); // 4h
+const CATEGORY_SPECIFICS_CACHE_TTL_MS = parseInt(process.env.EBAY_CATEGORY_SPECIFICS_CACHE_MS || String(24 * 60 * 60 * 1000), 10); // 24h
+const CATEGORY_INFO_CACHE_TTL_MS = parseInt(process.env.EBAY_CATEGORY_INFO_CACHE_MS || String(24 * 60 * 60 * 1000), 10); // 24h
+
+let sellerProfilesCache = { atMs: 0, value: null };
+const categorySpecificsCache = new Map(); // categoryId → { atMs, value }
+const categoryInfoCache = new Map(); // categoryId → { atMs, value }
+
 function normalizeEnv(raw) {
   const v = String(raw || '').trim().toLowerCase();
   return v === 'sandbox' ? 'sandbox' : 'production';
@@ -915,7 +924,11 @@ async function verifyAddFixedPriceItem(item, { timeoutMs = DEFAULT_TIMEOUT_MS } 
   };
 }
 
-async function getSellerProfiles({ timeoutMs = DEFAULT_TIMEOUT_MS } = {}) {
+async function getSellerProfiles({ timeoutMs = DEFAULT_TIMEOUT_MS, forceRefresh = false } = {}) {
+  const now = Date.now();
+  if (!forceRefresh && sellerProfilesCache.value && now - sellerProfilesCache.atMs < SELLER_PROFILES_CACHE_TTL_MS) {
+    return sellerProfilesCache.value;
+  }
   const cfg = await getEbayTradingConfig();
   const requestXml = buildRequestRoot(
     'GetSellerProfiles',
@@ -941,18 +954,25 @@ async function getSellerProfiles({ timeoutMs = DEFAULT_TIMEOUT_MS } = {}) {
     name: safeString(p?.PaymentProfileName),
   })).filter((p) => p.id);
 
-  return {
+  const profiles = {
     ack: result.ack,
     warnings: result.errors,
     shippingProfiles,
     returnProfiles,
     paymentProfiles,
   };
+  sellerProfilesCache = { atMs: Date.now(), value: profiles };
+  return profiles;
 }
 
-async function getCategoryInfo(categoryId, { timeoutMs = DEFAULT_TIMEOUT_MS } = {}) {
+async function getCategoryInfo(categoryId, { timeoutMs = DEFAULT_TIMEOUT_MS, forceRefresh = false } = {}) {
   const id = safeString(categoryId);
   if (!id) throw Object.assign(new Error('categoryId is required'), { code: 'EBAY_CATEGORY_ID_REQUIRED' });
+  const now = Date.now();
+  const cached = categoryInfoCache.get(id);
+  if (!forceRefresh && cached && now - cached.atMs < CATEGORY_INFO_CACHE_TTL_MS) {
+    return cached.value;
+  }
   const cfg = await getEbayTradingConfig();
   // NOTE: LevelLimit is absolute in eBay's hierarchy (level 1 = root), NOT relative to CategoryID.
   // Omitting LevelLimit returns the subtree from the specified category (just the node itself if it's a leaf).
@@ -972,18 +992,25 @@ async function getCategoryInfo(categoryId, { timeoutMs = DEFAULT_TIMEOUT_MS } = 
   // LeafCategory is parsed as boolean by fast-xml-parser (parseTagValue: true)
   const leafRaw = cat?.LeafCategory;
   const isLeaf = leafRaw === true || safeString(leafRaw).toLowerCase() === 'true';
-  return {
+  const info = {
     categoryId: id,
     name: safeString(cat?.CategoryName) || null,
     level: toNumber(cat?.CategoryLevel),
     parentId: safeString(cat?.CategoryParentID) || null,
     isLeaf,
   };
+  categoryInfoCache.set(id, { atMs: Date.now(), value: info });
+  return info;
 }
 
-async function getCategorySpecifics(categoryId, { timeoutMs = DEFAULT_TIMEOUT_MS } = {}) {
+async function getCategorySpecifics(categoryId, { timeoutMs = DEFAULT_TIMEOUT_MS, forceRefresh = false } = {}) {
   const id = safeString(categoryId);
   if (!id) throw Object.assign(new Error('categoryId is required'), { code: 'EBAY_CATEGORY_ID_REQUIRED' });
+  const now = Date.now();
+  const cached = categorySpecificsCache.get(id);
+  if (!forceRefresh && cached && now - cached.atMs < CATEGORY_SPECIFICS_CACHE_TTL_MS) {
+    return cached.value;
+  }
   const cfg = await getEbayTradingConfig();
   const requestXml = buildRequestRoot(
     'GetCategorySpecifics',
@@ -1007,7 +1034,9 @@ async function getCategorySpecifics(categoryId, { timeoutMs = DEFAULT_TIMEOUT_MS
       };
     })
     .filter((s) => s.name);
-  return { categoryId: id, specifics };
+  const result2 = { categoryId: id, specifics };
+  categorySpecificsCache.set(id, { atMs: Date.now(), value: result2 });
+  return result2;
 }
 
 async function fetchTradingStatus() {

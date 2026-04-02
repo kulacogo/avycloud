@@ -15,7 +15,7 @@ const { syncLiveListingsLight } = require('../lib/ebay-direct');
 
 const LISTING_SYNC_ENABLED = process.env.LISTING_SYNC_ENABLED !== 'false'; // Default ON
 const LISTING_SYNC_INTERVAL_MS = parseInt(
-  process.env.LISTING_SYNC_INTERVAL_MS || String(3 * 60 * 1000), // 3 minutes
+  process.env.LISTING_SYNC_INTERVAL_MS || String(15 * 60 * 1000), // 15 minutes (was 3 min — too aggressive)
   10
 );
 const LISTING_SYNC_INITIAL_DELAY_MS = parseInt(
@@ -233,6 +233,11 @@ async function syncKauflandUnitsToCache() {
 
 // ─── Auto-Heal: Detect and fix stock discrepancies ──────────────────────────
 
+// Track last heal time per SKU to avoid redundant pushes
+const lastHealedAt = new Map();
+const HEAL_COOLDOWN_MS = parseInt(process.env.AUTO_HEAL_COOLDOWN_MS || String(30 * 60 * 1000), 10); // 30 min
+const MAX_HEALS_PER_CYCLE = parseInt(process.env.AUTO_HEAL_MAX_PER_CYCLE || '5', 10);
+
 async function autoHealStockDiscrepancies() {
   const { syncStockWithRetry, computeAvailableQuantity } = require('./stock-sync-dispatcher');
 
@@ -273,7 +278,12 @@ async function autoHealStockDiscrepancies() {
 
   const skus = Array.from(allSkus);
   let healed = 0;
-  const MAX_HEALS_PER_CYCLE = 50;
+  const now = Date.now();
+
+  // Prune stale cooldown entries (older than 2h)
+  for (const [key, ts] of lastHealedAt) {
+    if (now - ts > 2 * 60 * 60 * 1000) lastHealedAt.delete(key);
+  }
 
   for (let i = 0; i < skus.length && healed < MAX_HEALS_PER_CYCLE; i += 10) {
     const chunk = skus.slice(i, i + 10);
@@ -295,15 +305,23 @@ async function autoHealStockDiscrepancies() {
           (ebayMpQty !== undefined && ebayMpQty !== availableQty) ||
           (kauflandMpQty !== undefined && kauflandMpQty !== availableQty);
 
-        if (mismatch) {
-          const isOversell = availableQty === 0 && ((ebayMpQty || 0) > 0 || (kauflandMpQty || 0) > 0);
-          console.log(
-            `[ListingSyncRunner] Auto-heal: ${sku} available=${availableQty} ebay=${ebayMpQty ?? '-'} kaufland=${kauflandMpQty ?? '-'}${isOversell ? ' ⚠️ OVERSELL' : ''} → pushing`
-          );
-          syncStockWithRetry({ tenantId: 'default', product, reason: isOversell ? 'oversell-fix' : 'auto-heal' })
-            .catch((err) => console.warn(`[auto-heal] push failed for ${sku}: ${err.message}`));
-          healed++;
+        if (!mismatch) continue;
+
+        const isOversell = availableQty === 0 && ((ebayMpQty || 0) > 0 || (kauflandMpQty || 0) > 0);
+
+        // Skip non-critical mismatches if we already pushed recently (cooldown)
+        if (!isOversell) {
+          const lastHealed = lastHealedAt.get(sku) || 0;
+          if (now - lastHealed < HEAL_COOLDOWN_MS) continue;
         }
+
+        console.log(
+          `[ListingSyncRunner] Auto-heal: ${sku} available=${availableQty} ebay=${ebayMpQty ?? '-'} kaufland=${kauflandMpQty ?? '-'}${isOversell ? ' ⚠️ OVERSELL' : ''} → pushing`
+        );
+        lastHealedAt.set(sku, now);
+        syncStockWithRetry({ tenantId: 'default', product, reason: isOversell ? 'oversell-fix' : 'auto-heal' })
+          .catch((err) => console.warn(`[auto-heal] push failed for ${sku}: ${err.message}`));
+        healed++;
       }
     } catch (err) {
       console.warn(`[ListingSyncRunner] Auto-heal SKU query failed: ${err.message}`);
@@ -328,7 +346,7 @@ async function runListingSyncCycle() {
     // eBay: trigger light sync (handles its own cooldown/locking) + propagate
     const ebaySync = await syncLiveListingsLight({
       runId: `auto-${Date.now()}`,
-      maxPages: 50,
+      maxPages: 10,
       entriesPerPage: 200,
       timeoutMs: 30000,
       actor: 'listing-sync-runner',
