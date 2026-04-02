@@ -1,10 +1,9 @@
 
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
-import { Product, SyncStatus } from '../types';
+import { Product, Readiness } from '../types';
 import { fetchProducts, getProductBulkJob, runProductBulkAction, deleteProductsBulk, openProductLabelBatchWindow, assignInventoryToProducts, uploadKTypeCsv, bulkVerifyEbayPublish, bulkPublishToEbay, fetchEbaySkuIndex, lightSyncEbayLiveListings, bulkUpdateEbayListings, fetchKauflandSkuIndex, syncKauflandListings, type ProductBulkActionName } from '../api/client';
 import { SearchIcon } from './icons/Icons';
 import {
-  normalizeSyncStatus,
   getStableNumericId,
   getProductQuantity,
   getProductDisplayCategory,
@@ -29,10 +28,10 @@ const safeCurrency = (code?: string) => {
 
 const COLUMN_STORAGE_KEY = 'avystock:admin-table:visible-columns';
 const COLUMN_PRESETS: Record<ColumnPreset, ColumnId[]> = {
-  standard: ['thumbnail', 'nameBrand', 'sku', 'barcode', 'category', 'price', 'inventory', 'pendingIntake', 'storage', 'ebay', 'kaufland', 'syncStatus', 'lastSaved'],
-  warehouse: ['nameBrand', 'sku', 'barcode', 'inventory', 'pendingIntake', 'storage', 'ebay', 'kaufland', 'syncStatus', 'saveStatus'],
-  pricing: ['nameBrand', 'price', 'sku', 'barcode', 'pendingIntake', 'ebay', 'kaufland', 'syncStatus', 'lastSynced'],
-  minimal: ['nameBrand', 'sku', 'barcode', 'inventory', 'pendingIntake', 'ebay', 'kaufland', 'syncStatus'],
+  standard: ['thumbnail', 'nameBrand', 'sku', 'barcode', 'category', 'price', 'inventory', 'pendingIntake', 'storage', 'ebay', 'kaufland', 'readiness', 'lastSaved'],
+  warehouse: ['nameBrand', 'sku', 'barcode', 'inventory', 'pendingIntake', 'storage', 'ebay', 'kaufland', 'readiness', 'saveStatus'],
+  pricing: ['nameBrand', 'price', 'sku', 'barcode', 'pendingIntake', 'ebay', 'kaufland', 'readiness', 'lastSynced'],
+  minimal: ['nameBrand', 'sku', 'barcode', 'inventory', 'pendingIntake', 'ebay', 'kaufland', 'readiness'],
 };
 
 const normalizeMarketplaceColumnOrder = (columns: ColumnId[]): ColumnId[] => {
@@ -60,15 +59,19 @@ interface AdminTableProps {
   scopeProductIds?: Set<string> | null;
 }
 
-const SyncStatusBadge: React.FC<{ status: SyncStatus }> = ({ status }) => {
-  const baseClasses = 'px-2 py-1 text-xs font-bold rounded-full';
-  const statusMap = {
-    synced: 'bg-success-dim text-success',
-    pending: 'bg-warning-dim text-warning',
-    failed: 'bg-danger-dim text-danger',
-  };
-  const labelMap: Record<SyncStatus, string> = { synced: 'Synced', pending: 'Pending', failed: 'Failed' };
-  return <span className={`${baseClasses} ${statusMap[status]}`}>{labelMap[status]}</span>;
+const ReadinessBadge: React.FC<{ readiness?: string | null; editor?: string | null }> = ({ readiness, editor }) => {
+  if (!readiness) return <span className="text-txt-muted text-xs">—</span>;
+  const base = "px-2 py-1 text-xs font-bold rounded-full inline-flex items-center gap-1";
+  const style = readiness === "ready"
+    ? "bg-success-dim text-success"
+    : "bg-warning-dim text-warning";
+  const label = readiness === "ready" ? "Ready" : "Pending";
+  return (
+    <span className={`${base} ${style}`}>
+      {label}
+      {editor && <span className="opacity-60 text-[10px]">({editor})</span>}
+    </span>
+  );
 };
 
 const SaveStatusBadge: React.FC<{ saved: boolean }> = ({ saved }) => {
@@ -99,9 +102,10 @@ const AdminTable: React.FC<AdminTableProps> = ({
     if (typeof window === 'undefined') return '';
     return window.sessionStorage.getItem('avystock:admin-table:search') || '';
   });
-  const [filterStatus, setFilterStatus] = useState<SyncStatus | 'all'>(() => {
+  const [filterStatus, setFilterStatus] = useState<Readiness | 'all'>(() => {
     if (typeof window === 'undefined') return 'all';
-    return (window.sessionStorage.getItem('avystock:admin-table:filterStatus') as SyncStatus | 'all') || 'all';
+    const stored = window.sessionStorage.getItem('avystock:admin-table:filterStatus') as Readiness | 'all';
+    return stored === 'ready' || stored === 'pending' ? stored : 'all';
   });
   const [filterCategorySelection, setFilterCategorySelection] = useState<string[]>(() => {
     if (typeof window === 'undefined') return [];
@@ -738,12 +742,12 @@ const AdminTable: React.FC<AdminTableProps> = ({
         },
       },
       {
-        id: 'syncStatus',
-        label: t('table.syncStatus'),
-        sortKey: 'ops.sync_status',
+        id: 'readiness',
+        label: t('table.readiness'),
+        sortKey: 'ops.readiness',
         defaultVisible: true,
         render: ({ product }) => (
-          <SyncStatusBadge status={normalizeSyncStatus(product.ops.sync_status, product.ops.last_synced_iso)} />
+          <ReadinessBadge readiness={product.ops?.readiness} editor={product.ops?.readiness_editor} />
         ),
       },
       {
@@ -798,11 +802,10 @@ const AdminTable: React.FC<AdminTableProps> = ({
     kauflandEanProductIdMap,
   ]);
 
-  const statusFilters: Array<{ value: SyncStatus | 'all'; label: string }> = [
-    { value: 'all', label: t('table.status.all') },
-    { value: 'pending', label: t('table.status.pending') },
-    { value: 'synced', label: t('table.status.synced') },
-    { value: 'failed', label: t('table.status.failed') },
+  const statusFilters: Array<{ value: Readiness | 'all'; label: string }> = [
+    { value: 'all', label: t('table.readiness.all') },
+    { value: 'ready', label: t('table.readiness.ready') },
+    { value: 'pending', label: t('table.readiness.pending') },
   ];
 
   const resolveInitialColumns = (): ColumnId[] => {
@@ -898,7 +901,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
           : scoped;
 
     let filtered = modeFiltered.filter(p => {
-      const normalizedStatus = normalizeSyncStatus(p.ops?.sync_status, p.ops?.last_synced_iso);
+      const productReadiness = p.ops?.readiness ?? null;
       const term = (searchTerm || '').toLowerCase().trim();
       const name = (p.identification?.name || '').toLowerCase();
       const brand = (p.identification?.brand || '').toLowerCase();
@@ -917,7 +920,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
         name.includes(term) ||
         brand.includes(term) ||
         identifiers.some((idVal) => idVal.includes(term));
-      const matchesStatus = filterStatus === 'all' || normalizedStatus === filterStatus;
+      const matchesStatus = filterStatus === 'all' || productReadiness === filterStatus;
       const resolvedCategory = getProductDisplayCategory(p);
       const productCategory = resolvedCategory && resolvedCategory !== '—' ? resolvedCategory : 'Unbekannt';
       const matchesCategory = (() => {

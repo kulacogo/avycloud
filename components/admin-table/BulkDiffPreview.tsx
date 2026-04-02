@@ -14,7 +14,7 @@ const FIELD_LABELS: Record<string, string> = {
   "details.pricing.buyPrice": "Einkaufspreis",
   "details.pricing.lowest_price.amount": "Preis",
   "details.attributes.condition": "Zustand",
-  "ops.sync_status": "Sync-Status",
+  "ops.readiness": "Readiness",
 };
 
 function formatValue(value: any): string {

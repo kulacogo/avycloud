@@ -1,5 +1,5 @@
 import React from "react";
-import { SyncStatus, ColumnDefinition, ColumnId, ColumnPreset, ProductBulkActionName } from "./types";
+import { Readiness, ColumnDefinition, ColumnId, ColumnPreset, ProductBulkActionName } from "./types";
 
 const COLUMN_PRESETS: Record<ColumnPreset, ColumnId[]> = {
   standard: [
@@ -14,7 +14,7 @@ const COLUMN_PRESETS: Record<ColumnPreset, ColumnId[]> = {
     "storage",
     "ebay",
     "kaufland",
-    "syncStatus",
+    "readiness",
     "lastSaved",
   ],
   warehouse: [
@@ -26,7 +26,7 @@ const COLUMN_PRESETS: Record<ColumnPreset, ColumnId[]> = {
     "storage",
     "ebay",
     "kaufland",
-    "syncStatus",
+    "readiness",
     "saveStatus",
   ],
   pricing: [
@@ -37,7 +37,7 @@ const COLUMN_PRESETS: Record<ColumnPreset, ColumnId[]> = {
     "pendingIntake",
     "ebay",
     "kaufland",
-    "syncStatus",
+    "readiness",
     "lastSynced",
   ],
   minimal: [
@@ -48,7 +48,7 @@ const COLUMN_PRESETS: Record<ColumnPreset, ColumnId[]> = {
     "pendingIntake",
     "ebay",
     "kaufland",
-    "syncStatus",
+    "readiness",
   ],
 };
 
@@ -60,9 +60,9 @@ interface CategoryNode {
 
 interface AdminTableFiltersProps {
   // Status filter
-  filterStatus: SyncStatus | "all";
-  setFilterStatus: (v: SyncStatus | "all") => void;
-  statusFilters: Array<{ value: SyncStatus | "all"; label: string }>;
+  filterStatus: Readiness | "all";
+  setFilterStatus: (v: Readiness | "all") => void;
+  statusFilters: Array<{ value: Readiness | "all"; label: string }>;
 
   // Category filter
   filterCategorySelection: string[];
@@ -197,7 +197,7 @@ const AdminTableFilters: React.FC<AdminTableFiltersProps> = ({
           id="table-filter-status"
           value={filterStatus}
           onChange={(e) =>
-            setFilterStatus(e.target.value as SyncStatus | "all")
+            setFilterStatus(e.target.value as Readiness | "all")
           }
           className={filterControlClass}
         >

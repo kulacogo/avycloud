@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import DOMPurify from 'dompurify';
-import { Product, DatasheetChange, ProductImage, WarehouseBin, EbayCategoryOption } from '../types';
+import { Product, DatasheetChange, ProductImage, WarehouseBin, EbayCategoryOption, Readiness } from '../types';
 import {
   saveProduct,
   openSkuLabelWindow,
@@ -32,8 +32,10 @@ import {
   getProductDisplayCategory,
   getProductEbayCategoryId,
   getProductEbayCategoryPath,
+  deriveInitials,
 } from '../utils/product';
 import { useInventoryContext } from '../context/InventoryContext';
+import { useAuth } from '../context/AuthContext';
 
 interface ProductSheetProps {
   product: Product;
@@ -83,6 +85,8 @@ const filterReferenceCandidates = (images: ProductImage[] = []) =>
 
 const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprove, isImproving, onClose, onDirtyChange }) => {
   const { t } = useI18n();
+  const { user } = useAuth();
+  const editorInitials = useMemo(() => deriveInitials(user?.email || ""), [user?.email]);
   const {
     inventories,
     syncInventories: syncInventoryList,
@@ -960,6 +964,19 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
     setIsDirty(true);
   };
 
+  const handleReadinessChange = useCallback((value: Readiness | null) => {
+    setLocalProduct(prev => ({
+      ...prev,
+      ops: {
+        ...prev.ops,
+        readiness: value,
+        readiness_editor: value ? editorInitials : null,
+        readiness_set_at: value ? new Date().toISOString() : null,
+      },
+    }));
+    setIsDirty(true);
+  }, [editorInitials]);
+
   const handleCategorySelect = useCallback(
     (categoryId: string) => {
       if (!categoryId) return;
@@ -1217,6 +1234,23 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
 
           {/* Action buttons — top right */}
           <div className="flex items-center gap-2 flex-shrink-0">
+            {/* Readiness status + editor initials */}
+            <div className="flex items-center gap-1.5 mr-2">
+              <select
+                value={localProduct.ops?.readiness || ""}
+                onChange={(e) => handleReadinessChange(e.target.value === "" ? null : e.target.value as Readiness)}
+                className="px-2 py-1.5 text-sm rounded-lg bg-app-elevated text-txt-primary border border-app-border"
+              >
+                <option value="">{t("sheet.readiness.unset")}</option>
+                <option value="pending">{t("sheet.readiness.pending")}</option>
+                <option value="ready">{t("sheet.readiness.ready")}</option>
+              </select>
+              {localProduct.ops?.readiness_editor && (
+                <span className="text-xs text-txt-muted font-medium">
+                  {localProduct.ops.readiness_editor}
+                </span>
+              )}
+            </div>
             <button
               id="btn-edit"
               onClick={() => setIsEditing(v => !v)}

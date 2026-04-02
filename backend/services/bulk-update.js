@@ -23,6 +23,7 @@ const ALLOWED_FIELDS = new Set([
   'details.pricing.lowest_price.amount',
   'details.attributes.condition',
   'ops.sync_status',
+  'ops.readiness',
 ]);
 
 /**

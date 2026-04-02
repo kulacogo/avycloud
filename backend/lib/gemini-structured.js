@@ -1,4 +1,13 @@
 const { getGeminiClient } = require('./gemini-client');
+const { HarmCategory, HarmBlockThreshold } = require('@google/generative-ai');
+
+// Permissive safety settings — product images from warehouses should never be blocked
+const PERMISSIVE_SAFETY = [
+  { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+  { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
+  { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
+  { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+];
 
 const GEMINI_MULTIMODAL_MODEL =
   process.env.GEMINI_MULTIMODAL_MODEL ||
@@ -93,6 +102,7 @@ async function callGeminiStructured({
   const result = await model.generateContent({
     contents: [{ role: 'user', parts: sdkParts }],
     generationConfig,
+    safetySettings: PERMISSIVE_SAFETY,
   });
 
   // IMPORTANT:
@@ -100,7 +110,20 @@ async function callGeminiStructured({
   // response.text() not containing the full concatenation for structured JSON use-cases.
   // We therefore concatenate parts manually (without inserting separators).
   const resp = result?.response;
+
+  // Diagnose blocked / empty responses
+  const promptFeedback = resp?.promptFeedback;
+  if (promptFeedback?.blockReason) {
+    console.error(`[gemini-structured] Prompt BLOCKED: reason=${promptFeedback.blockReason}`, JSON.stringify(promptFeedback));
+    throw new Error(`Gemini blocked the prompt: ${promptFeedback.blockReason}`);
+  }
+
   const candidates = Array.isArray(resp?.candidates) ? resp.candidates : [];
+  const finishReason = candidates[0]?.finishReason;
+  if (finishReason && finishReason !== 'STOP' && finishReason !== 'MAX_TOKENS') {
+    console.warn(`[gemini-structured] Unexpected finishReason: ${finishReason}`, JSON.stringify(candidates[0]?.safetyRatings || []));
+  }
+
   const partsResponse = candidates[0]?.content?.parts || [];
   const textParts = Array.isArray(partsResponse)
     ? partsResponse
@@ -109,7 +132,14 @@ async function callGeminiStructured({
     : [];
   let textPayload = textParts.join('').trim();
   if (!textPayload) {
-    throw new Error('Gemini structured call returned empty payload.');
+    const diagInfo = {
+      candidateCount: candidates.length,
+      finishReason,
+      hasParts: partsResponse.length,
+      promptFeedback: promptFeedback || null,
+    };
+    console.error('[gemini-structured] Empty payload. Diagnostics:', JSON.stringify(diagInfo));
+    throw new Error(`Gemini structured call returned empty payload. finishReason=${finishReason || 'none'}, candidates=${candidates.length}`);
   }
 
   // Strip markdown code fences if Gemini wraps JSON in ```json ... ```

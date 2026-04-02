@@ -26,14 +26,13 @@ const EDITABLE_FIELDS: { field: string; label: string; type: "text" | "number" |
     ],
   },
   {
-    field: "ops.sync_status",
-    label: "Sync-Status",
+    field: "ops.readiness",
+    label: "Readiness",
     type: "select",
     options: [
-      { value: "draft", label: "Draft" },
       { value: "ready", label: "Ready" },
-      { value: "synced", label: "Synced" },
-      { value: "error", label: "Error" },
+      { value: "pending", label: "Pending" },
+      { value: "", label: "— (Leer)" },
     ],
   },
 ];
