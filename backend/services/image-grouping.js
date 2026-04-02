@@ -98,8 +98,12 @@ async function groupImagesStructured(imageBuffers, imageCount) {
 
   // Compress all images for grouping (low res is fine for classification)
   const compressedParts = [];
+  let compressSkipped = 0;
   for (const img of imageBuffers) {
-    if (!img?.buffer) continue;
+    if (!img?.buffer) {
+      compressSkipped++;
+      continue;
+    }
     let buf = img.buffer;
     let mime = img.mimeType || 'image/jpeg';
     try {
@@ -109,19 +113,31 @@ async function groupImagesStructured(imageBuffers, imageCount) {
         .jpeg({ quality: 70 })
         .toBuffer();
       mime = 'image/jpeg';
-    } catch {
-      // keep original
+    } catch (compErr) {
+      console.warn(`[group-images] sharp compression failed for image, using original:`, compErr.message);
     }
     compressedParts.push({ inline_data: { mime_type: mime, data: buf.toString('base64') } });
   }
 
+  if (compressSkipped > 0) {
+    console.warn(`[group-images] ${compressSkipped}/${imageCount} images had no buffer — skipped`);
+  }
+  console.log(`[group-images] Compressed ${compressedParts.length} images for grouping (requested: ${imageCount})`);
+
+  // Use actual compressed count to avoid index mismatches
+  const effectiveCount = compressedParts.length;
+  if (effectiveCount === 0) {
+    console.warn('[group-images] No valid images after compression — returning empty');
+    return [];
+  }
+
   const BATCH_SIZE = 10;
 
-  if (imageCount <= BATCH_SIZE) {
+  if (effectiveCount <= BATCH_SIZE) {
     // Single batch — send all images together
     const parts = [
       ...compressedParts,
-      { text: buildGroupingPrompt(imageCount) },
+      { text: buildGroupingPrompt(effectiveCount) },
     ];
 
     const raw = await callGeminiStructured({
@@ -134,15 +150,17 @@ async function groupImagesStructured(imageBuffers, imageCount) {
       stopSequences: [],
     });
 
-    return parseGroupingResponse(raw, imageCount);
+    console.log(`[group-images] Single-batch raw response (first 500 chars):`, typeof raw === 'string' ? raw.substring(0, 500) : JSON.stringify(raw).substring(0, 500));
+    const groups = parseGroupingResponse(raw, effectiveCount);
+    console.log(`[group-images] Single-batch parsed ${groups.length} groups`);
+    return groups;
   }
 
   // Multi-batch: process in chunks and merge groups
   const allGroups = [];
-  let globalIndexOffset = 0;
 
-  for (let batchStart = 0; batchStart < imageCount; batchStart += BATCH_SIZE) {
-    const batchEnd = Math.min(batchStart + BATCH_SIZE, imageCount);
+  for (let batchStart = 0; batchStart < effectiveCount; batchStart += BATCH_SIZE) {
+    const batchEnd = Math.min(batchStart + BATCH_SIZE, effectiveCount);
     const batchParts = compressedParts.slice(batchStart, batchEnd);
     const batchSize = batchEnd - batchStart;
 
@@ -162,7 +180,25 @@ async function groupImagesStructured(imageBuffers, imageCount) {
         stopSequences: [],
       });
 
+      console.log(`[group-images] Batch ${batchStart}-${batchEnd} raw (first 300 chars):`, typeof raw === 'string' ? raw.substring(0, 300) : JSON.stringify(raw).substring(0, 300));
       const batchGroups = parseGroupingResponse(raw, batchSize);
+      console.log(`[group-images] Batch ${batchStart}-${batchEnd} parsed ${batchGroups.length} groups`);
+
+      if (batchGroups.length === 0) {
+        console.warn(`[group-images] Batch ${batchStart}-${batchEnd} returned 0 groups from valid response — creating individual groups`);
+        for (let i = batchStart; i < batchEnd; i++) {
+          allGroups.push({
+            id: `group_${allGroups.length}`,
+            label: `Produkt ${allGroups.length + 1}`,
+            image_indices: [i],
+            confidence: 0.3,
+            reason: 'Leere Gemini-Response — bitte manuell prüfen',
+            detected_barcode: null,
+          });
+        }
+        continue;
+      }
+
       // Remap indices to global positions
       for (const g of batchGroups) {
         g.image_indices = g.image_indices.map((i) => i + batchStart);
@@ -177,14 +213,15 @@ async function groupImagesStructured(imageBuffers, imageCount) {
           id: `group_${allGroups.length}`,
           label: `Produkt ${allGroups.length + 1}`,
           image_indices: [i],
-          confidence: 0.5,
-          reason: 'Batch-Fallback',
+          confidence: 0.3,
+          reason: 'Batch-Fehler — bitte manuell prüfen',
           detected_barcode: null,
         });
       }
     }
   }
 
+  console.log(`[group-images] Multi-batch complete: ${allGroups.length} groups from ${effectiveCount} images`);
   return allGroups;
 }
 

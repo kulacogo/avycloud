@@ -10,6 +10,15 @@ export const normalizeSyncStatus = (
   return status;
 };
 
+export const deriveInitials = (email: string): string => {
+  const local = (email || "").split("@")[0] || "";
+  const parts = local.split(/[.\-_]/).filter(Boolean);
+  if (parts.length >= 2) {
+    return (parts[0][0] + parts[1][0]).toUpperCase();
+  }
+  return local.slice(0, 2).toUpperCase();
+};
+
 const toNumber = (value: any): number => {
   if (typeof value === 'number' && Number.isFinite(value)) return value;
   const n = Number(value);

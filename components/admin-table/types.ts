@@ -1,5 +1,5 @@
 import React from "react";
-import { Product, SyncStatus } from "../../types";
+import { Product, SyncStatus, Readiness } from "../../types";
 
 export type ColumnId =
   | "thumbnail"
@@ -18,6 +18,7 @@ export type ColumnId =
   | "saveStatus"
   | "lastSaved"
   | "lastSynced"
+  | "readiness"
   | "revision";
 
 export type ColumnPreset = "standard" | "warehouse" | "pricing" | "minimal";
@@ -36,7 +37,7 @@ export interface ColumnDefinition {
 
 export type SortConfig = { key: string; direction: "asc" | "desc" } | null;
 
-export type { Product, SyncStatus };
+export type { Product, SyncStatus, Readiness };
 
 export type ProductBulkActionName =
   | "price"

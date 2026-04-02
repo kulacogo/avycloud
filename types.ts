@@ -5,6 +5,7 @@ export type IdentificationMethod = "image" | "barcode" | "hybrid";
 export type ImageSource = "upload" | "generated" | "web";
 export type ImageVariant = "front" | "angle" | "detail" | "pack" | "other";
 export type SyncStatus = "pending" | "synced" | "failed";
+export type Readiness = "ready" | "pending";
 
 export interface Completeness {
   percent: number;
@@ -174,6 +175,9 @@ export interface Ops {
   };
   sourcePalette?: string | null;
   sourcePaletteAt?: string | null;
+  readiness?: Readiness | null;
+  readiness_editor?: string | null;
+  readiness_set_at?: string | null;
 }
 
 export interface Notes {

@@ -1187,7 +1187,16 @@ router.post('/v2/group-images', requirePermission('identify', 'run'), upload.arr
     try {
       groups = await groupImagesStructured(imageBuffers, files.length);
     } catch (err) {
-      console.warn(`[group-images] Structured grouping failed for ${files.length} images:`, err.message);
+      console.error(`[group-images] Structured grouping THREW for ${files.length} images:`, err.message, err.stack?.split('\n').slice(0, 3).join(' | '));
+      // Instead of silent 1-group fallback, create individual groups so user can merge manually
+      groups = Array.from({ length: files.length }, (_, i) => ({
+        id: `group_${i}`,
+        label: `Produkt ${i + 1}`,
+        image_indices: [i],
+        confidence: 0.3,
+        reason: 'KI-Gruppierung fehlgeschlagen — bitte manuell prüfen',
+        detected_barcode: null,
+      }));
     }
 
     // Ensure every image is in at least one group
@@ -1198,20 +1207,30 @@ router.post('/v2/group-images', requirePermission('identify', 'run'), upload.arr
       if (!allIndices.has(i)) orphaned.push(i);
     }
     if (orphaned.length && groups.length) {
-      groups[0].image_indices.push(...orphaned);
+      // Add orphaned images as individual groups instead of dumping into first group
+      for (const i of orphaned) {
+        groups.push({
+          id: `group_${groups.length}`,
+          label: `Produkt ${groups.length + 1}`,
+          image_indices: [i],
+          confidence: 0.3,
+          reason: 'Bild war keiner Gruppe zugeordnet',
+          detected_barcode: null,
+        });
+      }
     }
 
-    // BUG-090 Fix 3: Log warning on fallback instead of silently swallowing
+    // Last-resort fallback: if still truly empty (shouldn't happen with above fixes)
     if (!groups.length) {
-      console.warn(`[group-images] Empty grouping result for ${files.length} images — falling back to single group.`);
-      groups = [{
-        id: 'group_0',
-        label: 'Produkt 1',
-        image_indices: Array.from({ length: files.length }, (_, i) => i),
-        confidence: 1,
-        reason: 'Fallback: alle Bilder in eine Gruppe',
+      console.error(`[group-images] CRITICAL: No groups at all for ${files.length} images — individual fallback`);
+      groups = Array.from({ length: files.length }, (_, i) => ({
+        id: `group_${i}`,
+        label: `Produkt ${i + 1}`,
+        image_indices: [i],
+        confidence: 0.3,
+        reason: 'Fallback — bitte manuell gruppieren',
         detected_barcode: null,
-      }];
+      }));
     }
 
     res.json({ ok: true, data: { groups, imageCount: files.length } });
