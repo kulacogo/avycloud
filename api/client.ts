@@ -1136,6 +1136,23 @@ export async function fetchEbayStatus(): Promise<EbayConnectionStatus> {
   return (data?.data || { connected: false }) as EbayConnectionStatus;
 }
 
+export type EbayRateLimitStatus = {
+  lastSecond: number;
+  lastHour: number;
+  lastDay: number;
+  limits: { perSecond: number; perHour: number; perDay: number };
+  queueLength: number;
+};
+
+export async function fetchEbayRateLimitStatus(): Promise<EbayRateLimitStatus> {
+  const res = await fetchApi(`${BACKEND_URL}/api/marketplace/ebay/rate-limit-status?t=${Date.now()}`, { method: "GET" });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) {
+    throw new Error(data?.error?.message || "Failed to load eBay rate limit status");
+  }
+  return data?.data as EbayRateLimitStatus;
+}
+
 export async function fetchEbayTradingStatus(): Promise<EbayTradingStatus> {
   const res = await fetchApi(`${BACKEND_URL}/api/ebay/trading/status?t=${Date.now()}`, { method: 'GET' });
   const data = await parseResponse(res);

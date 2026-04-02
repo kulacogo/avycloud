@@ -1,7 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   EbayConnectionStatus,
+  EbayRateLimitStatus,
   fetchEbayStatus,
+  fetchEbayRateLimitStatus,
   importEbayMipCsv,
   startEbayOAuth,
   fetchEbayOffersBySku,
@@ -16,6 +18,67 @@ const pretty = (v: any) => {
   }
 };
 
+function rateLimitTone(used: number, max: number): string {
+  const pct = max > 0 ? used / max : 0;
+  if (pct >= 0.9) return "danger";
+  if (pct >= 0.7) return "warning";
+  return "success";
+}
+
+function RateLimitBar({ label, used, max }: { label: string; used: number; max: number }) {
+  const pct = max > 0 ? Math.min(100, Math.round((used / max) * 100)) : 0;
+  const tone = rateLimitTone(used, max);
+  const barColor =
+    tone === "danger" ? "bg-danger" : tone === "warning" ? "bg-warning" : "bg-success";
+  const textColor =
+    tone === "danger" ? "text-danger" : tone === "warning" ? "text-warning" : "text-success";
+
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center justify-between text-xs">
+        <span className="text-txt-muted">{label}</span>
+        <span className={`font-mono font-semibold ${textColor}`}>
+          {used.toLocaleString("de-DE")} / {max.toLocaleString("de-DE")}
+        </span>
+      </div>
+      <div className="h-2 w-full rounded-full bg-app-surface overflow-hidden">
+        <div
+          className={`h-full rounded-full transition-all duration-500 ${barColor}`}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
+function RateLimitCard({ data }: { data: EbayRateLimitStatus }) {
+  const dayTone = rateLimitTone(data.lastDay, data.limits.perDay);
+  const borderTone =
+    dayTone === "danger"
+      ? "border-danger/40"
+      : dayTone === "warning"
+        ? "border-warning/40"
+        : "border-app-border";
+
+  return (
+    <div className={`rounded-xl border ${borderTone} bg-app-bg/30 p-4 space-y-3`}>
+      <div className="flex items-center justify-between">
+        <h4 className="text-sm font-semibold">API Rate Limit</h4>
+        {data.queueLength > 0 && (
+          <span className="inline-flex items-center rounded-full border border-warning/30 bg-warning-dim px-2 py-0.5 text-xs font-semibold text-warning">
+            {data.queueLength} in Warteschlange
+          </span>
+        )}
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <RateLimitBar label="Pro Sekunde" used={data.lastSecond} max={data.limits.perSecond} />
+        <RateLimitBar label="Pro Stunde" used={data.lastHour} max={data.limits.perHour} />
+        <RateLimitBar label="Pro Tag" used={data.lastDay} max={data.limits.perDay} />
+      </div>
+    </div>
+  );
+}
+
 export const AdminIntegrations: React.FC = () => {
   const [status, setStatus] = useState<EbayConnectionStatus | null>(null);
   const [loading, setLoading] = useState(false);
@@ -27,6 +90,8 @@ export const AdminIntegrations: React.FC = () => {
   const [testSku, setTestSku] = useState('');
   const [offers, setOffers] = useState<any>(null);
   const [offersError, setOffersError] = useState<string | null>(null);
+
+  const [rateLimit, setRateLimit] = useState<EbayRateLimitStatus | null>(null);
 
   const connected = Boolean(status?.connected);
 
@@ -47,6 +112,15 @@ export const AdminIntegrations: React.FC = () => {
   useEffect(() => {
     reload();
   }, [reload]);
+
+  useEffect(() => {
+    const loadRateLimit = () => {
+      fetchEbayRateLimitStatus().then(setRateLimit).catch(() => setRateLimit(null));
+    };
+    loadRateLimit();
+    const iv = setInterval(loadRateLimit, 30_000);
+    return () => clearInterval(iv);
+  }, []);
 
   useEffect(() => {
     const onMessage = (event: MessageEvent) => {
@@ -148,6 +222,10 @@ export const AdminIntegrations: React.FC = () => {
             </button>
           </div>
         </div>
+
+        {rateLimit && (
+          <RateLimitCard data={rateLimit} />
+        )}
 
         <HelpDisclosure title="Technische Hinweise (wichtig)">
           <ul className="list-disc pl-5 space-y-1 text-sm text-txt-secondary">
