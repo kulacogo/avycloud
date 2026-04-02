@@ -63,17 +63,33 @@ async function propagateEbayStatusToProducts() {
     }
   }
 
-  // 4. Batch-update products
+  // 4. Batch-update products — verify existence first to prevent ghost documents.
+  // set({merge:true}) on a non-existent doc silently creates an empty shell.
   const now = new Date().toISOString();
   let batch = firestore.batch();
   let batchCount = 0;
   let updated = 0;
+  let skippedOrphans = 0;
+
+  const productIds = Array.from(productStatusMap.keys());
+  const existingIds = new Set();
+  for (let i = 0; i < productIds.length; i += 10) {
+    const chunk = productIds.slice(i, i + 10);
+    const refs = chunk.map(id => firestore.collection(PRODUCTS_COLLECTION).doc(id));
+    const docs = await firestore.getAll(...refs);
+    for (const doc of docs) {
+      if (doc.exists) existingIds.add(doc.id);
+    }
+  }
 
   for (const [productId, status] of productStatusMap.entries()) {
-    batch.set(
+    if (!existingIds.has(productId)) {
+      skippedOrphans++;
+      continue;
+    }
+    batch.update(
       firestore.collection(PRODUCTS_COLLECTION).doc(productId),
-      { ops: { listingStatus: { ebay: status, lastSyncAt: now } } },
-      { merge: true }
+      { 'ops.listingStatus.ebay': status, 'ops.listingStatus.lastSyncAt': now }
     );
     batchCount++;
     updated++;
@@ -84,6 +100,9 @@ async function propagateEbayStatusToProducts() {
     }
   }
   if (batchCount > 0) await batch.commit();
+  if (skippedOrphans > 0) {
+    console.warn(`[ListingSyncRunner] Skipped ${skippedOrphans} orphaned ebayListingLinks (product not found)`);
+  }
 
   return { linked: itemToProduct.size, updated };
 }

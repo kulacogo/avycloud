@@ -195,14 +195,51 @@ async function buildReservedOpenOrderMap() {
   return map;
 }
 
-function attachReservedAvailability(products = [], reservedMap) {
+const SOLD_STATUSES = new Set(['confirmed', 'picking', 'picked', 'packing', 'packed', 'shipped', 'delivered', 'completed']);
+const EXCLUDED_STATUSES = new Set(['cancelled', 'returned']);
+
+async function buildSoldQuantityMap() {
+  const map = new Map(); // normalizeSkuKey -> { sold: number, open: number }
+  try {
+    const snap = await firestore.collection('orders').get();
+    snap.forEach((doc) => {
+      const order = doc.data() || {};
+      const status = (order.omsStatus || order.status || '').toLowerCase();
+      if (EXCLUDED_STATUSES.has(status)) return;
+      if (!SOLD_STATUSES.has(status)) return;
+      const items = Array.isArray(order.items) ? order.items : [];
+      const isShipped = status === 'shipped' || status === 'delivered' || status === 'completed';
+      for (const item of items) {
+        const key = normalizeSkuKey(item?.sku || item?.productId || '');
+        const qty = Number(item?.quantity || 0);
+        if (!key || qty <= 0) continue;
+        const entry = map.get(key) || { sold: 0, open: 0 };
+        if (isShipped) {
+          entry.sold += qty;
+        } else {
+          entry.open += qty;
+        }
+        map.set(key, entry);
+      }
+    });
+  } catch (error) {
+    console.warn('buildSoldQuantityMap failed:', error.message);
+  }
+  return map;
+}
+
+function attachReservedAvailability(products = [], reservedMap, soldMap) {
   if (!Array.isArray(products) || !products.length) return products;
-  const map = reservedMap instanceof Map ? reservedMap : new Map();
+  const rMap = reservedMap instanceof Map ? reservedMap : new Map();
+  const sMap = soldMap instanceof Map ? soldMap : new Map();
   return products.map((product) => {
     const skuCandidate =
       product?.details?.identifiers?.sku || product?.identification?.sku || product?.id;
     const key = normalizeSkuKey(skuCandidate);
-    const reservedQuantity = key ? Number(map.get(key) || 0) : 0;
+    const reservedQuantity = key ? Number(rMap.get(key) || 0) : 0;
+    const soldEntry = key ? sMap.get(key) : null;
+    const soldQuantity = soldEntry ? soldEntry.sold : 0;
+    const openOrderQuantity = soldEntry ? soldEntry.open : 0;
     const physicalQuantity = Number(product?.inventory?.quantity || 0);
     const availableQuantity = Math.max(0, physicalQuantity - reservedQuantity);
     return {
@@ -212,6 +249,8 @@ function attachReservedAvailability(products = [], reservedMap) {
         physicalQuantity,
         reservedQuantity,
         availableQuantity,
+        soldQuantity,
+        openOrderQuantity,
       },
     };
   });
@@ -1425,9 +1464,10 @@ router.post('/products/bulk-improve', requirePermission('ai', 'improve'), async 
 router.get('/products', requirePermission('products', 'read'), async (req, res) => {
   try {
     // Parallelise independent Firestore queries to cut latency (mobile timeout fix)
-    const [products, reservedMap] = await Promise.all([
+    const [products, reservedMap, soldMap] = await Promise.all([
       getAllProducts(),
       buildReservedOpenOrderMap(),
+      buildSoldQuantityMap(),
     ]);
     const filteredProducts = Array.isArray(products)
       ? products.filter((p) => !isGhostProduct(p))
@@ -1435,7 +1475,7 @@ router.get('/products', requirePermission('products', 'read'), async (req, res) 
     // NOTE: Filter ghost/stub docs early to avoid showing meaningless rows in the AdminTable.
     // Rebuild enriched pipeline using the filtered set to keep counts consistent.
     const enrichedFiltered = await enrichProductsWithBinSummaries(filteredProducts);
-    const withReservedFiltered = attachReservedAvailability(enrichedFiltered, reservedMap);
+    const withReservedFiltered = attachReservedAvailability(enrichedFiltered, reservedMap, soldMap);
     const withCompletenessFiltered = withReservedFiltered.map((p) => {
       const normalized = normalizeProductForApi(p);
       return {

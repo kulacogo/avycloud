@@ -6,7 +6,6 @@ import { SearchIcon } from './icons/Icons';
 import {
   getStableNumericId,
   getProductQuantity,
-  getProductReservedQuantity,
   getProductDisplayCategory,
 } from '../utils/product';
 import { isValidGtin, normalizeBarcode } from '../utils/gtin';
@@ -540,26 +539,27 @@ const AdminTable: React.FC<AdminTableProps> = ({
       {
         id: 'sold',
         label: t('table.sold'),
-        sortKey: 'inventory.reservedQuantity',
+        sortKey: 'inventory.soldQuantity',
         defaultVisible: true,
         render: ({ product }) => {
-          const reserved = getProductReservedQuantity(product);
-          const total = getProductQuantity(product);
-          if (reserved <= 0 && total <= 0) {
+          const inv = (product as any)?.inventory || {};
+          const sold = Number(inv.soldQuantity) || 0;
+          const open = Number(inv.openOrderQuantity) || 0;
+          const total = sold + open;
+          if (total <= 0) {
             return <span className="text-txt-muted text-sm">—</span>;
           }
-          if (reserved <= 0) {
-            return <span className="text-txt-muted text-sm">0</span>;
-          }
-          const allSold = reserved >= total;
           return (
-            <span className={`inline-flex items-center justify-center rounded-full px-2 py-0.5 text-xs font-semibold ${
-              allSold
-                ? 'bg-danger/15 text-danger'
-                : 'bg-amber-500/15 text-amber-200'
-            }`}>
-              {reserved}/{total}
-            </span>
+            <div className="flex flex-col items-center leading-tight gap-0.5">
+              <span className="inline-flex items-center justify-center rounded-full px-2 py-0.5 text-xs font-semibold bg-success/15 text-success">
+                {sold}
+              </span>
+              {open > 0 && (
+                <span className="inline-flex items-center justify-center rounded-full px-2 py-0.5 text-xs font-semibold bg-amber-500/15 text-amber-200">
+                  +{open} offen
+                </span>
+              )}
+            </div>
           );
         },
       },
