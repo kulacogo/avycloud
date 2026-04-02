@@ -30,6 +30,55 @@ const createId = () =>
     ? crypto.randomUUID()
     : `g_${Math.random().toString(36).slice(2, 9)}`;
 
+/**
+ * Compress images client-side before uploading for grouping.
+ * Grouping only needs low-res images — 1024px JPEG 60% is plenty.
+ * This reduces 25 × 5MB photos (~125MB) to ~25 × 80KB (~2MB).
+ */
+async function compressForGrouping(file: File): Promise<File> {
+  const MAX_DIM = 1024;
+  const QUALITY = 0.6;
+
+  return new Promise<File>((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      let { width, height } = img;
+      if (width <= MAX_DIM && height <= MAX_DIM && file.size < 200_000) {
+        URL.revokeObjectURL(img.src);
+        resolve(file);
+        return;
+      }
+      const scale = Math.min(MAX_DIM / width, MAX_DIM / height, 1);
+      width = Math.round(width * scale);
+      height = Math.round(height * scale);
+
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      ctx?.drawImage(img, 0, 0, width, height);
+      URL.revokeObjectURL(img.src);
+
+      canvas.toBlob(
+        (blob) => {
+          if (blob) {
+            resolve(new File([blob], file.name, { type: "image/jpeg" }));
+          } else {
+            resolve(file);
+          }
+        },
+        "image/jpeg",
+        QUALITY
+      );
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(img.src);
+      resolve(file);
+    };
+    img.src = URL.createObjectURL(file);
+  });
+}
+
 const ConfidenceBadge: React.FC<{ value: number }> = ({ value }) => (
   <span className={`text-xs px-2 py-0.5 rounded-full ${
     value >= 0.8
@@ -87,15 +136,20 @@ const StepGrouping: React.FC<StepGroupingProps> = ({ images, barcodes, onConfirm
 
     const run = async () => {
       try {
-        const files = images.map((img) => img.file);
+        // Compress images client-side before upload — raw photos can be 5-10MB each,
+        // 25 images = 125-250MB which exceeds Cloud Run's 32MB request limit.
+        const rawFiles = images.map((img) => img.file);
+        const files = await Promise.all(rawFiles.map(compressForGrouping));
         const result = await groupImages(files, barcodes);
 
         if (!result.ok || !result.data?.groups?.length) {
+          console.warn("[StepGrouping] groupImages returned", result.ok ? "empty groups" : `ok:false — ${result.error?.code}: ${result.error?.message}`);
           setGroups([fallbackGroup("Alle Bilder in eine Gruppe")]);
         } else {
           setGroups(buildLocalGroups(result.data.groups));
         }
       } catch (err: any) {
+        console.error("[StepGrouping] groupImages threw:", err);
         setError(err?.message || "Gruppierung fehlgeschlagen");
         setGroups([fallbackGroup("Fallback: alle Bilder in eine Gruppe")]);
       } finally {

@@ -3563,14 +3563,10 @@ async function updateOrder(orderId, updates = {}) {
     throw new Error('Order ID is required');
   }
   const docRef = firestore.collection(ORDERS_COLLECTION).doc(orderId);
-  await docRef.set(
-    {
-      ...updates,
-      updatedAt: new Date().toISOString(),
-      ...(!updates.updatedAt ? { updatedAt: new Date().toISOString() } : {}),
-    },
-    { merge: true }
-  );
+  await docRef.update({
+    ...updates,
+    updatedAt: new Date().toISOString(),
+  });
 }
 
 async function getSkuIndexEntry(key) {
