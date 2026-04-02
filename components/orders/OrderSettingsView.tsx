@@ -137,13 +137,18 @@ export const OrderSettingsView: React.FC = () => {
     try {
       const methods = await fetchShippingMethods();
       setShippingMethods(methods);
-    } catch {
+      if (methods.length === 0) {
+        // Cache empty — force sync from SendCloud
+        const synced = await syncShippingMethods();
+        setShippingMethods(synced);
+      }
+    } catch (err: any) {
       // Fallback: try sync
       try {
         const methods = await syncShippingMethods();
         setShippingMethods(methods);
-      } catch {
-        // silent — methods dropdown will be empty
+      } catch (syncErr: any) {
+        setError(`Versandmethoden laden fehlgeschlagen: ${syncErr.message || err.message}`);
       }
     } finally {
       setMethodsLoading(false);
@@ -363,7 +368,21 @@ export const OrderSettingsView: React.FC = () => {
             <span>Keine Versandmethoden geladen. Bitte synchronisiere deine SendCloud-Methoden.</span>
             <button
               type="button"
-              onClick={loadShippingMethods}
+              onClick={async () => {
+                setMethodsLoading(true);
+                setError(null);
+                try {
+                  const methods = await syncShippingMethods();
+                  setShippingMethods(methods);
+                  if (methods.length === 0) {
+                    setError("SendCloud hat keine Versandmethoden zurückgegeben. Prüfe ob Carrier in SendCloud aktiviert sind.");
+                  }
+                } catch (err: any) {
+                  setError(`SendCloud-Sync fehlgeschlagen: ${err.message}`);
+                } finally {
+                  setMethodsLoading(false);
+                }
+              }}
               className="text-xs font-semibold text-accent hover:text-accent/80 ml-3"
             >
               Jetzt laden

@@ -1097,7 +1097,7 @@ router.post('/shipping-methods/sync', requirePermission('orders', 'write'), asyn
   try {
     const tenantId = getOrderSettingsTenantId(req);
     const { syncShippingMethods } = require('../services/shipping-engine');
-    const methods = await syncShippingMethods(tenantId);
+    const methods = await syncShippingMethods(tenantId, { force: true });
     res.json({ ok: true, data: methods, syncedAt: new Date().toISOString() });
   } catch (err) {
     console.error(`[POST /api/shipping-methods/sync] ${err.message}`, err);

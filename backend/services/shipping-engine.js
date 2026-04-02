@@ -825,27 +825,30 @@ const SHIPPING_METHODS_COLLECTION = 'shipping_methods';
  * @param {string} tenantId
  * @returns {Promise<object[]>} enabled shipping methods
  */
-async function syncShippingMethods(tenantId = 'default') {
+async function syncShippingMethods(tenantId = 'default', { force = false } = {}) {
   const db = getDb();
 
   // Stale check: if newest doc was synced less than 1 hour ago, return cached
-  const recentSnap = await db.collection(SHIPPING_METHODS_COLLECTION)
-    .where('tenantId', '==', tenantId)
-    .orderBy('lastSyncedAt', 'desc')
-    .limit(1)
-    .get();
+  // Skip stale check when force=true (manual sync from UI)
+  if (!force) {
+    const recentSnap = await db.collection(SHIPPING_METHODS_COLLECTION)
+      .where('tenantId', '==', tenantId)
+      .orderBy('lastSyncedAt', 'desc')
+      .limit(1)
+      .get();
 
-  if (!recentSnap.empty) {
-    const lastSync = recentSnap.docs[0].data().lastSyncedAt;
-    if (lastSync) {
-      const age = Date.now() - new Date(lastSync).getTime();
-      if (age < 60 * 60 * 1000) {
-        // Return cached methods
-        const cachedSnap = await db.collection(SHIPPING_METHODS_COLLECTION)
-          .where('tenantId', '==', tenantId)
-          .where('enabled', '==', true)
-          .get();
-        return cachedSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    if (!recentSnap.empty) {
+      const lastSync = recentSnap.docs[0].data().lastSyncedAt;
+      if (lastSync) {
+        const age = Date.now() - new Date(lastSync).getTime();
+        if (age < 60 * 60 * 1000) {
+          // Return cached methods
+          const cachedSnap = await db.collection(SHIPPING_METHODS_COLLECTION)
+            .where('tenantId', '==', tenantId)
+            .where('enabled', '==', true)
+            .get();
+          return cachedSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        }
       }
     }
   }
