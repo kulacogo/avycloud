@@ -19,7 +19,8 @@ export type ColumnId =
   | "lastSaved"
   | "lastSynced"
   | "readiness"
-  | "revision";
+  | "revision"
+  | "sold";
 
 export type ColumnPreset = "standard" | "warehouse" | "pricing" | "minimal";
 

@@ -6,6 +6,7 @@ import { SearchIcon } from './icons/Icons';
 import {
   getStableNumericId,
   getProductQuantity,
+  getProductReservedQuantity,
   getProductDisplayCategory,
 } from '../utils/product';
 import { isValidGtin, normalizeBarcode } from '../utils/gtin';
@@ -28,10 +29,10 @@ const safeCurrency = (code?: string) => {
 
 const COLUMN_STORAGE_KEY = 'avystock:admin-table:visible-columns';
 const COLUMN_PRESETS: Record<ColumnPreset, ColumnId[]> = {
-  standard: ['thumbnail', 'nameBrand', 'sku', 'barcode', 'category', 'price', 'inventory', 'pendingIntake', 'storage', 'ebay', 'kaufland', 'readiness', 'lastSaved'],
-  warehouse: ['nameBrand', 'sku', 'barcode', 'inventory', 'pendingIntake', 'storage', 'ebay', 'kaufland', 'readiness', 'saveStatus'],
+  standard: ['thumbnail', 'nameBrand', 'sku', 'barcode', 'category', 'price', 'inventory', 'sold', 'pendingIntake', 'storage', 'ebay', 'kaufland', 'readiness', 'lastSaved'],
+  warehouse: ['nameBrand', 'sku', 'barcode', 'inventory', 'sold', 'pendingIntake', 'storage', 'ebay', 'kaufland', 'readiness', 'saveStatus'],
   pricing: ['nameBrand', 'price', 'sku', 'barcode', 'pendingIntake', 'ebay', 'kaufland', 'readiness', 'lastSynced'],
-  minimal: ['nameBrand', 'sku', 'barcode', 'inventory', 'pendingIntake', 'ebay', 'kaufland', 'readiness'],
+  minimal: ['nameBrand', 'sku', 'barcode', 'inventory', 'sold', 'pendingIntake', 'ebay', 'kaufland', 'readiness'],
 };
 
 const normalizeMarketplaceColumnOrder = (columns: ColumnId[]): ColumnId[] => {
@@ -535,6 +536,32 @@ const AdminTable: React.FC<AdminTableProps> = ({
             <span className="font-semibold text-txt-primary text-center block">{getProductQuantity(product)}</span>
           </div>
         ),
+      },
+      {
+        id: 'sold',
+        label: t('table.sold'),
+        sortKey: 'inventory.reservedQuantity',
+        defaultVisible: true,
+        render: ({ product }) => {
+          const reserved = getProductReservedQuantity(product);
+          const total = getProductQuantity(product);
+          if (reserved <= 0 && total <= 0) {
+            return <span className="text-txt-muted text-sm">—</span>;
+          }
+          if (reserved <= 0) {
+            return <span className="text-txt-muted text-sm">0</span>;
+          }
+          const allSold = reserved >= total;
+          return (
+            <span className={`inline-flex items-center justify-center rounded-full px-2 py-0.5 text-xs font-semibold ${
+              allSold
+                ? 'bg-danger/15 text-danger'
+                : 'bg-amber-500/15 text-amber-200'
+            }`}>
+              {reserved}/{total}
+            </span>
+          );
+        },
       },
       {
         id: 'pendingIntake',
