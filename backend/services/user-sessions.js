@@ -186,24 +186,31 @@ async function endSession({ sessionId, tenantId = 'default', userId }) {
  * @returns {Promise<Array>}
  */
 async function querySessions({ tenantId = 'default', userId = null, limit = 50, startAfter = null } = {}) {
-  let query = firestore
+  // Single-field equality query to avoid composite index requirement.
+  // Sort and filter client-side (acceptable for internal admin tool with low volume).
+  const snap = await firestore
     .collection(SESSIONS_COLLECTION)
     .where('tenantId', '==', tenantId)
-    .orderBy('loginAt', 'desc')
-    .limit(Math.min(limit, 500));
+    .limit(1000)
+    .get();
 
-  if (startAfter) {
-    query = query.startAfter(startAfter);
-  }
-
-  const snap = await query.get();
   let results = snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+
+  // Sort by loginAt DESC (client-side)
+  results.sort((a, b) => (b.loginAt || '').localeCompare(a.loginAt || ''));
 
   if (userId) {
     results = results.filter((s) => s.userId === userId);
   }
 
-  return results;
+  if (startAfter) {
+    const idx = results.findIndex((s) => s.loginAt === startAfter);
+    if (idx >= 0) {
+      results = results.slice(idx + 1);
+    }
+  }
+
+  return results.slice(0, Math.min(limit, 500));
 }
 
 /**
@@ -215,10 +222,12 @@ async function querySessions({ tenantId = 'default', userId = null, limit = 50, 
  * @returns {Promise<Array>}
  */
 async function getActiveSessions({ tenantId = 'default' } = {}) {
+  // Single-field query to avoid composite index requirement.
+  // Filter status client-side.
   const snap = await firestore
     .collection(SESSIONS_COLLECTION)
     .where('tenantId', '==', tenantId)
-    .where('status', '==', 'active')
+    .limit(1000)
     .get();
 
   const now = Date.now();
@@ -227,6 +236,9 @@ async function getActiveSessions({ tenantId = 'default' } = {}) {
 
   for (const doc of snap.docs) {
     const data = { id: doc.id, ...doc.data() };
+    // Skip non-active sessions (client-side filter since we query by tenantId only)
+    if (data.status !== 'active') continue;
+
     const lastActive = new Date(data.lastActiveAt).getTime();
 
     if (now - lastActive > STALE_THRESHOLD_MS) {
