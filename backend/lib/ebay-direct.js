@@ -594,9 +594,18 @@ function deriveProductTitle(product) {
   let title = name;
   if (!title && brand) title = brand;
   if (title && brand) {
-    const b = brand.toLowerCase();
     const t = title.toLowerCase();
-    if (!t.startsWith(b)) {
+    // Check if the title already contains ALL meaningful brand parts.
+    // e.g. brand="Hachette / Disney" → parts=["hachette","disney"]
+    // title="Disney Arielle..." already contains "disney" → don't prepend full brand.
+    const brandParts = brand.toLowerCase()
+      .split(/[\s/,&+|·•–-]+/)
+      .map((p) => p.trim())
+      .filter((p) => p.length >= 2);
+    const titleAlreadyHasBrand = brandParts.length > 0 &&
+      brandParts.some((part) => t.includes(part));
+
+    if (!titleAlreadyHasBrand) {
       title = `${brand} ${title}`.trim();
     }
   }

@@ -1145,7 +1145,7 @@ export type EbayRateLimitStatus = {
 };
 
 export async function fetchEbayRateLimitStatus(): Promise<EbayRateLimitStatus> {
-  const res = await fetchApi(`${BACKEND_URL}/api/marketplace/ebay/rate-limit-status?t=${Date.now()}`, { method: "GET" });
+  const res = await fetchApi(`${BACKEND_URL}/api/ebay/rate-limit-status?t=${Date.now()}`, { method: "GET" });
   const data = await parseResponse(res);
   if (!res.ok || data?.ok === false) {
     throw new Error(data?.error?.message || "Failed to load eBay rate limit status");

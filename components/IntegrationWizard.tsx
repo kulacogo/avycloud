@@ -4,8 +4,9 @@ import {
   testIntegration,
   startEbayOAuth,
   disconnectIntegration,
+  fetchEbayRateLimitStatus,
 } from "../api/client";
-import type { IntegrationProvider, IntegrationStatusEntry } from "../api/client";
+import type { IntegrationProvider, IntegrationStatusEntry, EbayRateLimitStatus } from "../api/client";
 
 /* ─── Props ─── */
 interface IntegrationWizardProps {
@@ -26,6 +27,48 @@ const LOGO_CONFIG: Record<string, { letter: string; color: string }> = {
   dhl: { letter: "DHL", color: "bg-yellow-500" },
 };
 
+/* ─── eBay Rate Limit ─── */
+function EbayRateLimitCard({ data }: { data: EbayRateLimitStatus }) {
+  const bar = (label: string, used: number, max: number) => {
+    const pct = max > 0 ? Math.min(100, Math.round((used / max) * 100)) : 0;
+    const tone = pct >= 90 ? "danger" : pct >= 70 ? "warning" : "success";
+    return (
+      <div className="space-y-1">
+        <div className="flex items-center justify-between text-xs">
+          <span className="text-txt-muted">{label}</span>
+          <span className={`font-mono font-semibold text-${tone}`}>
+            {used.toLocaleString("de-DE")} / {max.toLocaleString("de-DE")}
+          </span>
+        </div>
+        <div className="h-1.5 w-full rounded-full bg-app-surface overflow-hidden">
+          <div className={`h-full rounded-full transition-all duration-500 bg-${tone}`} style={{ width: `${pct}%` }} />
+        </div>
+      </div>
+    );
+  };
+
+  const dayPct = data.limits.perDay > 0 ? data.lastDay / data.limits.perDay : 0;
+  const borderTone = dayPct >= 0.9 ? "border-danger/40" : dayPct >= 0.7 ? "border-warning/40" : "border-app-border";
+
+  return (
+    <div className={`rounded-lg border ${borderTone} bg-app-bg/30 p-3 space-y-2`}>
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-semibold text-txt-secondary">API Rate Limit</span>
+        {data.queueLength > 0 && (
+          <span className="text-[10px] font-semibold text-warning bg-warning-dim px-1.5 py-0.5 rounded-full">
+            {data.queueLength} queued
+          </span>
+        )}
+      </div>
+      <div className="space-y-1.5">
+        {bar("Sekunde", data.lastSecond, data.limits.perSecond)}
+        {bar("Stunde", data.lastHour, data.limits.perHour)}
+        {bar("Tag", data.lastDay, data.limits.perDay)}
+      </div>
+    </div>
+  );
+}
+
 /* ─── Component ─── */
 export const IntegrationWizard: React.FC<IntegrationWizardProps> = ({
   provider,
@@ -43,6 +86,16 @@ export const IntegrationWizard: React.FC<IntegrationWizardProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string>("");
   const backdropRef = useRef<HTMLDivElement>(null);
+  const [rateLimit, setRateLimit] = useState<EbayRateLimitStatus | null>(null);
+
+  // eBay rate limit polling
+  useEffect(() => {
+    if (provider.id !== "ebay" || !isConnected) return;
+    const load = () => { fetchEbayRateLimitStatus().then(setRateLimit).catch(() => setRateLimit(null)); };
+    load();
+    const iv = setInterval(load, 30_000);
+    return () => clearInterval(iv);
+  }, [provider.id, isConnected]);
 
   // Initialize credential fields
   useEffect(() => {
@@ -256,6 +309,11 @@ export const IntegrationWizard: React.FC<IntegrationWizardProps> = ({
                     </span>
                   )}
                 </div>
+              )}
+
+              {/* eBay Rate Limit */}
+              {provider.id === "ebay" && isConnected && rateLimit && (
+                <EbayRateLimitCard data={rateLimit} />
               )}
 
               {/* Dependency info */}
