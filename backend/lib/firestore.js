@@ -1845,9 +1845,41 @@ async function saveProduct(product, options = {}) {
     const incomingDetails = product?.details || {};
     const allowCategoryChange = options && options.allowCategoryChange === true;
     const isManualSave = (options && options.mode === 'manual') || saveSource === 'ui';
+
+    // USER EDIT PROTECTION:
+    // If the user saved this product manually within the last 10 minutes,
+    // background jobs (improve, rulebook, enrichment) must NOT overwrite text fields or attributes.
+    // This prevents the frustrating "I just saved and my data got reverted" problem.
+    const MANUAL_EDIT_PROTECTION_MS = parseInt(process.env.MANUAL_EDIT_PROTECTION_MS || String(10 * 60 * 1000), 10);
+    const existingLastSavedSource = existingData?.ops?.last_saved_source;
+    const existingLastSavedIso = existingData?.ops?.last_saved_iso;
+    const existingLastSavedMs = existingLastSavedIso ? Date.parse(existingLastSavedIso) : NaN;
+    const recentlyManuallyEdited =
+      hasExisting &&
+      !isManualSave &&
+      existingLastSavedSource === 'ui' &&
+      Number.isFinite(existingLastSavedMs) &&
+      Date.now() - existingLastSavedMs < MANUAL_EDIT_PROTECTION_MS;
+
+    if (recentlyManuallyEdited) {
+      console.log(
+        `[saveProduct] User-edit protection active for ${product.id} (last UI save: ${existingLastSavedIso}, source: ${saveSource}). ` +
+        'Blocking overwriteTextFields + replaceAttributes for this automated save.'
+      );
+    }
+
     // Manual UI saves should be allowed to overwrite text + remove attributes.
-    const overwriteTextFields = Boolean(options && options.overwriteTextFields === true) || isManualSave;
-    const replaceAttributes = Boolean(options && options.replaceAttributes === true) || isManualSave;
+    // But automated saves are blocked if the user recently edited the product.
+    const overwriteTextFields = isManualSave
+      ? true
+      : recentlyManuallyEdited
+        ? false
+        : Boolean(options && options.overwriteTextFields === true);
+    const replaceAttributes = isManualSave
+      ? true
+      : recentlyManuallyEdited
+        ? false
+        : Boolean(options && options.replaceAttributes === true);
     const syncIdentifiersFromBarcodes =
       Boolean(options && options.syncIdentifiersFromBarcodes === true) || isManualSave;
 
@@ -2113,8 +2145,9 @@ async function saveProduct(product, options = {}) {
 
     // Optional: keep identifiers in sync with barcodes (UI edits barcodes; sync reads identifiers.ean first).
     // Barcode + Identifier invariants:
-    // - Only keep valid GTIN/EAN/UPC codes (correct checkdigit).
-    // - Never persist invalid codes in identification.barcodes (they poison dedupe and exports).
+    // - Automation: Only keep valid GTIN/EAN/UPC codes (correct checkdigit).
+    // - Manual UI saves: Persist user-entered identifiers as-is (user is correcting data).
+    //   Invalid barcodes are flagged in data_quality but NOT deleted during manual saves.
     // - Prefer identifiers (details.identifiers.ean/gtin/upc) derived from barcodes when enabled.
     {
       const normalizeBarcode = (value) => normalizeDigitsShared((value || '').toString());
@@ -2147,41 +2180,80 @@ async function saveProduct(product, options = {}) {
       ].filter(Boolean);
       const summary = summarize(candidates);
 
-      if (summary.valid.length) {
-        mergedIdentification.barcodes = summary.valid;
-      } else if (Array.isArray(mergedIdentification?.barcodes) && mergedIdentification.barcodes.length) {
-        delete mergedIdentification.barcodes;
-      }
+      if (isManualSave) {
+        // MANUAL SAVE: User is the authority. Persist what they entered.
+        // Keep valid barcodes in identification.barcodes (for dedupe/exports).
+        // But also keep ALL user-entered digits-only codes (even with wrong checkdigit) in identifiers.
+        if (summary.valid.length) {
+          mergedIdentification.barcodes = summary.valid;
+        } else if (summary.normalized.length) {
+          // User entered barcodes but none passed checkdigit — keep digits-only ones anyway
+          const digitsOnly = summary.normalized.filter((v) => /^\d+$/.test(v) && v.length >= 8 && v.length <= 14);
+          if (digitsOnly.length) {
+            mergedIdentification.barcodes = digitsOnly;
+          }
+        }
 
-      if (!mergedDetails.identifiers) mergedDetails.identifiers = {};
+        if (!mergedDetails.identifiers) mergedDetails.identifiers = {};
 
-      // If enabled, keep identifiers aligned with valid barcodes.
-      if (syncIdentifiersFromBarcodes) {
-        if (summary.ean13) mergedDetails.identifiers.ean = summary.ean13; else delete mergedDetails.identifiers.ean;
-        if (summary.gtin14) mergedDetails.identifiers.gtin = summary.gtin14; else delete mergedDetails.identifiers.gtin;
-        if (summary.upc12) mergedDetails.identifiers.upc = summary.upc12; else delete mergedDetails.identifiers.upc;
+        // For manual saves: preserve user-entered identifiers.ean/gtin/upc as-is.
+        // Only sync FROM barcodes if identifiers are empty AND we have valid barcodes.
+        if (syncIdentifiersFromBarcodes) {
+          const curEan = normalizeBarcode(mergedDetails.identifiers.ean);
+          const curGtin = normalizeBarcode(mergedDetails.identifiers.gtin);
+          const curUpc = normalizeBarcode(mergedDetails.identifiers.upc);
+          // Only fill empty identifier fields from validated barcodes — never delete user-entered values.
+          if (!curEan && summary.ean13) mergedDetails.identifiers.ean = summary.ean13;
+          if (!curGtin && summary.gtin14) mergedDetails.identifiers.gtin = summary.gtin14;
+          if (!curUpc && summary.upc12) mergedDetails.identifiers.upc = summary.upc12;
+        }
+
+        // Flag invalid codes for data quality but DO NOT delete them.
+        if (summary.invalid.length) {
+          mergedOps.data_quality = mergedOps.data_quality || {};
+          mergedOps.data_quality.barcode_warning_v1 = {
+            iso: new Date().toISOString(),
+            invalid: summary.invalid.slice(0, 50),
+            note: 'manual_save_preserved',
+          };
+        }
       } else {
-        // Even if we don't sync, delete invalid identifiers (never persist invalid codes).
-        const curEan = normalizeBarcode(mergedDetails.identifiers.ean);
-        if (curEan && !([8, 12, 13, 14].includes(curEan.length) && isValidGtinShared(curEan))) {
-          delete mergedDetails.identifiers.ean;
+        // AUTOMATION SAVE: strict validation — only persist valid codes.
+        if (summary.valid.length) {
+          mergedIdentification.barcodes = summary.valid;
+        } else if (Array.isArray(mergedIdentification?.barcodes) && mergedIdentification.barcodes.length) {
+          delete mergedIdentification.barcodes;
         }
-        const curGtin = normalizeBarcode(mergedDetails.identifiers.gtin);
-        if (curGtin && !([8, 12, 13, 14].includes(curGtin.length) && isValidGtinShared(curGtin))) {
-          delete mergedDetails.identifiers.gtin;
-        }
-        const curUpc = normalizeBarcode(mergedDetails.identifiers.upc);
-        if (curUpc && !([8, 12, 13, 14].includes(curUpc.length) && isValidGtinShared(curUpc))) {
-          delete mergedDetails.identifiers.upc;
-        }
-      }
 
-      if (summary.invalid.length) {
-        mergedOps.data_quality = mergedOps.data_quality || {};
-        mergedOps.data_quality.barcode_rejected_v1 = {
-          iso: new Date().toISOString(),
-          invalid: summary.invalid.slice(0, 50),
-        };
+        if (!mergedDetails.identifiers) mergedDetails.identifiers = {};
+
+        if (syncIdentifiersFromBarcodes) {
+          if (summary.ean13) mergedDetails.identifiers.ean = summary.ean13; else delete mergedDetails.identifiers.ean;
+          if (summary.gtin14) mergedDetails.identifiers.gtin = summary.gtin14; else delete mergedDetails.identifiers.gtin;
+          if (summary.upc12) mergedDetails.identifiers.upc = summary.upc12; else delete mergedDetails.identifiers.upc;
+        } else {
+          // Even if we don't sync, delete invalid identifiers (never persist invalid codes).
+          const curEan = normalizeBarcode(mergedDetails.identifiers.ean);
+          if (curEan && !([8, 12, 13, 14].includes(curEan.length) && isValidGtinShared(curEan))) {
+            delete mergedDetails.identifiers.ean;
+          }
+          const curGtin = normalizeBarcode(mergedDetails.identifiers.gtin);
+          if (curGtin && !([8, 12, 13, 14].includes(curGtin.length) && isValidGtinShared(curGtin))) {
+            delete mergedDetails.identifiers.gtin;
+          }
+          const curUpc = normalizeBarcode(mergedDetails.identifiers.upc);
+          if (curUpc && !([8, 12, 13, 14].includes(curUpc.length) && isValidGtinShared(curUpc))) {
+            delete mergedDetails.identifiers.upc;
+          }
+        }
+
+        if (summary.invalid.length) {
+          mergedOps.data_quality = mergedOps.data_quality || {};
+          mergedOps.data_quality.barcode_rejected_v1 = {
+            iso: new Date().toISOString(),
+            invalid: summary.invalid.slice(0, 50),
+          };
+        }
       }
     }
 
@@ -2192,7 +2264,7 @@ async function saveProduct(product, options = {}) {
     // Therefore: if an existing category is present, we lock it unless allowCategoryChange=true.
     const existingCategoryId = pickStableCategoryId(existingData);
     const incomingCategoryId = pickStableCategoryId({ ...product, details: mergedDetails });
-    if (existingCategoryId && hasExisting && !allowCategoryChange) {
+    if (existingCategoryId && hasExisting && !allowCategoryChange && !isManualSave) {
       if (incomingCategoryId && incomingCategoryId !== existingCategoryId) {
         mergedOps.category_write_blocked = {
           at_iso: new Date().toISOString(),

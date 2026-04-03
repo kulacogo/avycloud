@@ -669,8 +669,12 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
     }
 
     // 4) Persist (SYSTEM mode => invariants enforced; never treated as manual UI edit).
+    // allowCategoryChange: only for NEW products (no existing category yet).
+    // Existing products with a category set by UI must not have it overwritten by Identify.
+    const existingDoc = await getProduct(product.id);
+    const existingHasCategory = Boolean(existingDoc?.details?.categoryId);
     await saveProductV2(product, {
-      allowCategoryChange: true,
+      allowCategoryChange: !existingHasCategory,
       mode: 'system',
       source: 'identify',
       overwriteTextFields: true,

@@ -580,26 +580,37 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
       setLocalProduct(productToSave);
       const result = await saveProduct(productToSave);
       if (result.ok && result.data) {
+        // Fetch the server-side version of the product to see exactly what was persisted.
+        // This prevents "phantom reverts" where the UI shows local data but the server
+        // transformed fields (brand casing, attribute aliases, barcode validation, etc.).
+        let serverProduct: Product | null = null;
+        try {
+          serverProduct = await fetchProductById(productToSave.id);
+        } catch {
+          // Fallback: use local data if server fetch fails
+        }
+
+        const finalProduct = serverProduct || productToSave;
         const assignedSku =
           result.data.sku ||
-          productToSave.identification.sku ||
-          productToSave.details.identifiers?.sku ||
+          finalProduct.identification?.sku ||
+          finalProduct.details?.identifiers?.sku ||
           null;
         const updatedProduct: Product = {
-          ...productToSave,
+          ...finalProduct,
           identification: {
-            ...productToSave.identification,
-            sku: assignedSku || productToSave.identification.sku,
+            ...finalProduct.identification,
+            sku: assignedSku || finalProduct.identification?.sku,
           },
           details: {
-            ...productToSave.details,
+            ...finalProduct.details,
             identifiers: {
-              ...(productToSave.details.identifiers || {}),
-              sku: assignedSku || productToSave.details.identifiers?.sku || undefined,
+              ...(finalProduct.details?.identifiers || {}),
+              sku: assignedSku || finalProduct.details?.identifiers?.sku || undefined,
             },
           },
           ops: {
-            ...productToSave.ops,
+            ...finalProduct.ops,
             revision: result.data.revision,
             last_saved_iso: new Date().toISOString(),
           },
