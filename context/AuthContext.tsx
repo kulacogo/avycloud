@@ -4,6 +4,7 @@ import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebas
 import { getFirebaseAuth } from '../utils/firebase';
 import { setAuthTokenProvider } from '../api/client';
 import { fetchMyPermissions, type RbacSnapshot } from '../api/client';
+import { useSessionTracking } from '../hooks/useSessionTracking';
 
 type AuthContextValue = {
   user: User | null;
@@ -132,10 +133,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     [auth, initError]
   );
 
+  const { endCurrentSession } = useSessionTracking(user);
+
   const logout = React.useCallback(async () => {
     if (!auth) return;
+    await endCurrentSession();
     await signOut(auth);
-  }, [auth]);
+  }, [auth, endCurrentSession]);
 
   const isAdmin = Boolean(user?.email && String(user.email).toLowerCase() === BOOTSTRAP_ADMIN_EMAIL);
 

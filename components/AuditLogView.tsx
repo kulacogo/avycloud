@@ -2,8 +2,10 @@ import React, { useState, useEffect, useCallback } from "react";
 import { Card } from "./ui/Card";
 import { Button } from "./ui/Button";
 import { Badge } from "./ui/Badge";
+import { Tabs, TabPanel } from "./ui/Tabs";
 import { useToast } from "../context/ToastContext";
 import { fetchAuditLog, AuditLogEntry } from "../api/client";
+import UserSessionsTab from "./UserSessionsTab";
 
 const ACTION_LABELS: Record<string, string> = {
   "product.created": "Produkt erstellt",
@@ -38,7 +40,13 @@ const FILTER_OPTIONS = [
   { value: "settings", label: "Einstellungen" },
 ];
 
+const TABS = [
+  { id: "log", label: "Protokoll" },
+  { id: "users", label: "Benutzer" },
+];
+
 const AuditLogView: React.FC = () => {
+  const [activeTab, setActiveTab] = useState("log");
   const [entries, setEntries] = useState<AuditLogEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("");
@@ -129,10 +137,21 @@ const AuditLogView: React.FC = () => {
             Alle Änderungen und Aktionen im System
           </p>
         </div>
-        <Button variant="secondary" onClick={() => loadEntries()} loading={loading}>
-          Aktualisieren
-        </Button>
+        {activeTab === "log" && (
+          <Button variant="secondary" onClick={() => loadEntries()} loading={loading}>
+            Aktualisieren
+          </Button>
+        )}
       </div>
+
+      {/* Tabs */}
+      <Tabs tabs={TABS} activeTab={activeTab} onTabChange={setActiveTab} />
+
+      <TabPanel tabId="users" activeTab={activeTab}>
+        <UserSessionsTab />
+      </TabPanel>
+
+      <TabPanel tabId="log" activeTab={activeTab}>
 
       {/* Filter */}
       <div className="flex items-center gap-2">
@@ -225,6 +244,8 @@ const AuditLogView: React.FC = () => {
           )}
         </Card>
       )}
+
+      </TabPanel>
     </div>
   );
 };

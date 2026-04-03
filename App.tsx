@@ -7,6 +7,8 @@ import ProductInput from './components/ProductInput';
 import CaptureView from './components/capture/CaptureView';
 import DeduplicationView from './components/DeduplicationView';
 import AuditLogView from './components/AuditLogView';
+import CookieConsentBanner from './components/CookieConsentBanner';
+import { CookieConsentProvider } from './context/CookieConsentContext';
 import ImportModal from './components/ImportModal';
 import { Header } from './components/Header';
 import { Sidebar } from './components/Sidebar';
@@ -1349,13 +1351,16 @@ const AuthGate: React.FC = () => {
 
 const App: React.FC = () => (
   <ErrorBoundary>
-    <AuthProvider>
-      <ToastProvider>
-        <InventoryProvider>
-          <AuthGate />
-        </InventoryProvider>
-      </ToastProvider>
-    </AuthProvider>
+    <CookieConsentProvider>
+      <AuthProvider>
+        <ToastProvider>
+          <InventoryProvider>
+            <AuthGate />
+          </InventoryProvider>
+        </ToastProvider>
+      </AuthProvider>
+      <CookieConsentBanner />
+    </CookieConsentProvider>
   </ErrorBoundary>
 );
 

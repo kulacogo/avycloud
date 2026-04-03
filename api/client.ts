@@ -4960,3 +4960,124 @@ export async function previewRule(ruleId: string, limit = 20): Promise<{ matchCo
   if (!res.ok || data?.ok === false) throw new Error(data?.error?.message || "Failed to preview rule");
   return data?.data;
 }
+
+// --- User Sessions ---
+
+export interface UserSessionGeo {
+  country: string;
+  city: string;
+  region: string;
+  lat: number | null;
+  lon: number | null;
+  timezone: string;
+}
+
+export interface UserSessionClient {
+  screenResolution: string;
+  viewportSize: string;
+  devicePixelRatio: number | null;
+  language: string;
+  languages: string[];
+  timezone: string;
+  referrer: string;
+  connectionType: string | null;
+  connectionDownlink: number | null;
+  connectionRtt: number | null;
+  saveData: boolean;
+  isPwa: boolean;
+  touchPoints: number;
+  cookieEnabled: boolean;
+  doNotTrack: string | null;
+  hardwareConcurrency: number | null;
+  deviceMemory: number | null;
+  platform: string;
+  colorScheme: "dark" | "light";
+  reducedMotion: boolean;
+  pdfViewerEnabled: boolean;
+}
+
+export interface UserSession {
+  id: string;
+  userId: string;
+  userEmail: string;
+  tenantId: string;
+  loginAt: string;
+  logoutAt: string | null;
+  lastActiveAt: string;
+  durationSeconds: number | null;
+  status: "active" | "idle" | "offline";
+  authProvider: string;
+  ip: string;
+  geo: UserSessionGeo | null;
+  userAgent: string;
+  browser: { name: string; version: string };
+  os: { name: string; version: string };
+  device: { type: string; vendor: string; model: string };
+  client: UserSessionClient;
+}
+
+export interface SessionClientInfo {
+  screenResolution: string;
+  viewportSize: string;
+  devicePixelRatio: number;
+  language: string;
+  languages: string[];
+  timezone: string;
+  referrer: string;
+  connectionType: string | null;
+  connectionDownlink: number | null;
+  connectionRtt: number | null;
+  saveData: boolean;
+  isPwa: boolean;
+  touchPoints: number;
+  cookieEnabled: boolean;
+  doNotTrack: string | null;
+  hardwareConcurrency: number | null;
+  deviceMemory: number | null;
+  platform: string;
+  colorScheme: "dark" | "light";
+  reducedMotion: boolean;
+  pdfViewerEnabled: boolean;
+}
+
+export async function createSessionApi(clientInfo: SessionClientInfo): Promise<{ ok: boolean; sessionId?: string }> {
+  const res = await fetchApi(`${BACKEND_URL}/api/sessions`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ clientInfo }),
+  });
+  const data = await parseResponse(res);
+  return { ok: Boolean(data?.ok), sessionId: data?.sessionId };
+}
+
+export async function heartbeatSession(sessionId: string): Promise<void> {
+  await fetchApi(`${BACKEND_URL}/api/sessions/${encodeURIComponent(sessionId)}/heartbeat`, {
+    method: "POST",
+  });
+}
+
+export async function endSessionApi(sessionId: string): Promise<void> {
+  await fetchApi(`${BACKEND_URL}/api/sessions/${encodeURIComponent(sessionId)}/end`, {
+    method: "POST",
+  });
+}
+
+export async function fetchSessions(params?: {
+  userId?: string;
+  limit?: number;
+  startAfter?: string;
+}): Promise<{ ok: boolean; data?: UserSession[] }> {
+  const qs = new URLSearchParams();
+  if (params?.userId) qs.set("userId", params.userId);
+  if (params?.limit) qs.set("limit", String(params.limit));
+  if (params?.startAfter) qs.set("startAfter", params.startAfter);
+  const res = await fetchApi(`${BACKEND_URL}/api/admin/sessions?${qs.toString()}`);
+  const data = await parseResponse(res);
+  return { ok: Boolean(data?.ok), data: data?.data };
+}
+
+export async function fetchActiveSessions(): Promise<{ ok: boolean; data?: UserSession[] }> {
+  const res = await fetchApi(`${BACKEND_URL}/api/admin/sessions/active`);
+  const data = await parseResponse(res);
+  return { ok: Boolean(data?.ok), data: data?.data };
+}

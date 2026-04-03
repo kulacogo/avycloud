@@ -1196,4 +1196,33 @@ router.post('/admin/backfill-order-marketplaces', requirePermission('admin', 'wr
   }
 });
 
+// ─── User Sessions (Admin Read) ─────────────────────────────────────────
+const { querySessions, getActiveSessions } = require('../services/user-sessions');
+
+router.get('/sessions', requirePermission('admin', 'read'), async (req, res) => {
+  try {
+    const { userId, limit, startAfter } = req.query;
+    const sessions = await querySessions({
+      tenantId: 'default',
+      userId: userId || null,
+      limit: limit ? parseInt(String(limit), 10) : 50,
+      startAfter: startAfter || null,
+    });
+    res.json({ ok: true, data: sessions });
+  } catch (error) {
+    console.error('[GET /api/admin/sessions] Error:', error.message);
+    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: error.message } });
+  }
+});
+
+router.get('/sessions/active', requirePermission('admin', 'read'), async (req, res) => {
+  try {
+    const sessions = await getActiveSessions({ tenantId: 'default' });
+    res.json({ ok: true, data: sessions });
+  } catch (error) {
+    console.error('[GET /api/admin/sessions/active] Error:', error.message);
+    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: error.message } });
+  }
+});
+
 module.exports = router;

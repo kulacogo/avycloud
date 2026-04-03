@@ -195,8 +195,10 @@ async function buildReservedOpenOrderMap() {
   return map;
 }
 
-const SOLD_STATUSES = new Set(['confirmed', 'picking', 'picked', 'packing', 'packed', 'shipped', 'delivered', 'completed']);
-const EXCLUDED_STATUSES = new Set(['cancelled', 'returned']);
+// Orders that don't count as sold (everything else = sold)
+const EXCLUDED_ORDER_STATUSES = new Set(['cancelled', 'returned']);
+// Orders where the item has already left the warehouse
+const SHIPPED_ORDER_STATUSES = new Set(['shipped', 'delivered', 'completed']);
 
 async function buildSoldQuantityMap() {
   const map = new Map(); // normalizeSkuKey -> { sold: number, open: number }
@@ -205,10 +207,9 @@ async function buildSoldQuantityMap() {
     snap.forEach((doc) => {
       const order = doc.data() || {};
       const status = (order.omsStatus || order.status || '').toLowerCase();
-      if (EXCLUDED_STATUSES.has(status)) return;
-      if (!SOLD_STATUSES.has(status)) return;
+      if (!status || EXCLUDED_ORDER_STATUSES.has(status)) return;
       const items = Array.isArray(order.items) ? order.items : [];
-      const isShipped = status === 'shipped' || status === 'delivered' || status === 'completed';
+      const isShipped = SHIPPED_ORDER_STATUSES.has(status);
       for (const item of items) {
         const key = normalizeSkuKey(item?.sku || item?.productId || '');
         const qty = Number(item?.quantity || 0);
