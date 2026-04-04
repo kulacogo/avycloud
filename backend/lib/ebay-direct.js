@@ -3833,6 +3833,17 @@ function mapProductToEbayItem(product, overrides = {}) {
     return '';
   };
 
+  // Weight in kg — same fallback chain as product-store.js getProductWeightBySku()
+  const rawWeight = overrides.weight
+    ?? details?.weight
+    ?? attrs?.weight
+    ?? attrs?.['Gewicht (kg)']
+    ?? attrs?.['Gewicht']
+    ?? null;
+  const weightKg = (typeof rawWeight === 'number' && rawWeight > 0)
+    ? rawWeight
+    : (typeof rawWeight === 'string' && parseFloat(rawWeight) > 0 ? parseFloat(rawWeight) : null);
+
   const ean = safeString(overrides.ean) || safeString(identifiers?.ean) || safeString(identifiers?.gtin) || undefined;
   const isbn =
     safeString(overrides.isbn) ||
@@ -3902,6 +3913,7 @@ function mapProductToEbayItem(product, overrides = {}) {
     brand,
     itemSpecifics: filteredSpecifics.itemSpecifics,
     itemCompatibilityList,
+    weightKg,
     country: safeString(overrides.country) || 'DE',
     postalCode: safeString(overrides.postalCode) || undefined,
     location: safeString(overrides.location) || undefined,
@@ -4431,8 +4443,17 @@ async function reviseListingFromProduct(itemId, product, { actor = null } = {}) 
     startPrice: item.startPrice,
     currency: item.currency || 'EUR',
     quantity: item.quantity,
+    conditionId: item.conditionId,
+    ean: item.ean,
+    isbn: item.isbn,
+    mpn: item.mpn,
+    brand: item.brand,
+    weightKg: item.weightKg,
     itemSpecifics: item.itemSpecifics,
+    itemCompatibilityList: item.itemCompatibilityList,
   };
+
+  console.info(`[reviseListingFromProduct] itemId=${id} productId=${product?.id || '?'} title="${patch.title}" imgs=${patch.pictureUrls?.length || 0} price=${patch.startPrice} qty=${patch.quantity} cat=${patch.primaryCategoryId} cond=${patch.conditionId} weight=${patch.weightKg || '-'} specifics=${Object.keys(patch.itemSpecifics || {}).length} compat=${patch.itemCompatibilityList?.length || 0}`);
 
   const callName = resolveReviseCallName(listing);
   const response = callName === 'ReviseFixedPriceItem'

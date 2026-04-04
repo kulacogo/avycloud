@@ -622,6 +622,45 @@ function buildReviseItemRequestXml(callName, patch, cfg) {
     itemFields.push(`<Quantity>${quantity}</Quantity>`);
   }
 
+  // Condition update
+  const conditionId = safeString(patch?.conditionId);
+  if (conditionId) {
+    itemFields.push(`<ConditionID>${escapeXml(conditionId)}</ConditionID>`);
+  }
+
+  // Product identifiers (EAN/ISBN/MPN)
+  const ean = safeString(patch?.ean);
+  const isbn = safeString(patch?.isbn);
+  const mpn = safeString(patch?.mpn);
+  const brand = safeString(patch?.brand);
+  if (ean || isbn || mpn) {
+    const pld = [];
+    pld.push(`<EAN>${escapeXml(ean || 'Does not apply')}</EAN>`);
+    if (isbn) pld.push(`<ISBN>${escapeXml(isbn)}</ISBN>`);
+    if (mpn) pld.push(`<BrandMPN><Brand>${escapeXml(brand || 'Unbranded')}</Brand><MPN>${escapeXml(mpn)}</MPN></BrandMPN>`);
+    pld.push('<IncludeeBayProductDetails>true</IncludeeBayProductDetails>');
+    itemFields.push(`<ProductListingDetails>${pld.join('')}</ProductListingDetails>`);
+  }
+
+  // Weight — ShippingPackageDetails (kg split into major/minor)
+  const weightKg = parseFloat(patch?.weightKg);
+  if (Number.isFinite(weightKg) && weightKg > 0) {
+    const major = Math.floor(weightKg);
+    const minor = Math.round((weightKg - major) * 1000);
+    itemFields.push(
+      `<ShippingPackageDetails>` +
+      `<WeightMajor unit="kg">${major}</WeightMajor>` +
+      `<WeightMinor unit="g">${minor}</WeightMinor>` +
+      `</ShippingPackageDetails>`
+    );
+  }
+
+  // K-Typ fitment compatibility list
+  const compatibilityXml = buildCompatibilityListXml(patch?.itemCompatibilityList);
+  if (compatibilityXml) {
+    itemFields.push(compatibilityXml);
+  }
+
   if (itemFields.length <= 1) {
     const error = new Error(
       'No revisable fields provided. Expected category/title/subtitle/description/itemSpecifics/pictureUrls/startPrice/quantity.'
@@ -786,6 +825,19 @@ function buildAddFixedPriceItemXml(item, cfg) {
       pld.push('<IncludeeBayProductDetails>true</IncludeeBayProductDetails>');
     }
     fields.push(`<ProductListingDetails>${pld.join('')}</ProductListingDetails>`);
+  }
+
+  // Weight — ShippingPackageDetails (kg split into major/minor)
+  const publishWeightKg = parseFloat(item?.weightKg);
+  if (Number.isFinite(publishWeightKg) && publishWeightKg > 0) {
+    const major = Math.floor(publishWeightKg);
+    const minor = Math.round((publishWeightKg - major) * 1000);
+    fields.push(
+      `<ShippingPackageDetails>` +
+      `<WeightMajor unit="kg">${major}</WeightMajor>` +
+      `<WeightMinor unit="g">${minor}</WeightMinor>` +
+      `</ShippingPackageDetails>`
+    );
   }
 
   const specificsXml = buildNameValueListXml(item?.itemSpecifics || {});
