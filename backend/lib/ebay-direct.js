@@ -590,25 +590,9 @@ function filterSpecificsByRelevantTokens(specifics = {}, relevantTokens = new Se
 function deriveProductTitle(product) {
   const brand = safeString(product?.identification?.brand);
   const name = safeString(product?.identification?.name);
-  // eBay title max length is 80. Also avoid duplicating the brand if the saved title already includes it.
-  let title = name;
-  if (!title && brand) title = brand;
-  if (title && brand) {
-    const t = title.toLowerCase();
-    // Check if the title already contains ALL meaningful brand parts.
-    // e.g. brand="Hachette / Disney" → parts=["hachette","disney"]
-    // title="Disney Arielle..." already contains "disney" → don't prepend full brand.
-    const brandParts = brand.toLowerCase()
-      .split(/[\s/,&+|·•–-]+/)
-      .map((p) => p.trim())
-      .filter((p) => p.length >= 2);
-    const titleAlreadyHasBrand = brandParts.length > 0 &&
-      brandParts.some((part) => t.includes(part));
-
-    if (!titleAlreadyHasBrand) {
-      title = `${brand} ${title}`.trim();
-    }
-  }
+  // Use product name as-is. Brand is already sent via ItemSpecifics ("Marke"),
+  // so prepending it to the title wastes valuable character space (80 char limit).
+  let title = name || brand || '';
   if (title && title.length > 80) {
     title = `${title.slice(0, 79).trimEnd()}…`;
   }
