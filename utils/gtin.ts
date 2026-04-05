@@ -40,6 +40,31 @@ export const isValidGtin14 = (value?: string | null): boolean => {
   return digits.length === 14 && isValidGtin(digits);
 };
 
+export type GtinType = "ean13" | "ean8" | "upc12" | "gtin14" | null;
+
+export const getGtinType = (value?: string | null): GtinType => {
+  const digits = normalizeBarcode(value || "");
+  if (!isValidGtin(digits)) return null;
+  switch (digits.length) {
+    case 13: return "ean13";
+    case 14: return "gtin14";
+    case 12: return "upc12";
+    case 8: return "ean8";
+    default: return null;
+  }
+};
+
+export const getGtinLabel = (value?: string | null): string => {
+  const type = getGtinType(value);
+  switch (type) {
+    case "ean13": return "EAN";
+    case "ean8": return "EAN-8";
+    case "upc12": return "UPC";
+    case "gtin14": return "GTIN-14";
+    default: return "Barcode";
+  }
+};
+
 export const summarizeBarcodes = (values: string[] = []) => {
   const normalized = Array.from(
     new Set(
@@ -51,11 +76,17 @@ export const summarizeBarcodes = (values: string[] = []) => {
   const valid = normalized.filter((value) => isValidGtin(value));
   const ean = valid.find((value) => value.length === 13) || null;
   const gtin = valid.find((value) => value.length === 14) || null;
+  const upc = valid.find((value) => value.length === 12) || null;
+  const primaryBarcode = ean || upc || gtin || valid[0] || null;
+  const primaryLabel = primaryBarcode ? getGtinLabel(primaryBarcode) : null;
   return {
     all: normalized,
     valid,
     ean,
     gtin,
+    upc,
+    primaryBarcode,
+    primaryLabel,
     hasValid: valid.length > 0,
   };
 };

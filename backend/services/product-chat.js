@@ -980,7 +980,7 @@ async function fulfillMarketingImageRequest(product, { allowGeneratedFallback = 
     const help =
       (tried.length ? `\nTried: ${tried.join(' | ')}` : '') +
       (errors.length ? `\nErrors: ${errors.join(' | ')}` : '') +
-      '\nTipp: EAN/GTIN oder Hersteller-/Shop-Link erhöht Trefferquote stark.';
+      '\nTipp: EAN/UPC/GTIN oder Hersteller-/Shop-Link erhöht Trefferquote stark.';
     return {
       message:
         'Keine externen Web-Bilder gefunden.' + help,
@@ -2171,7 +2171,7 @@ async function runProductChat(product, userMessage, {
   1. DO NOT ASK the user for search queries or "what marketplace to check". derivation of queries is YOUR job.
   2. Web research strategy (BrightData):
      - Start with brightdata_web_search (unrestricted web). Use the "sites" parameter to scope to specific domains when useful.
-     - If results are empty/insufficient: refine the query (barcode/EAN, brand + model, MPN) and search again.
+     - If results are empty/insufficient: refine the query (barcode/EAN/UPC/GTIN, brand + model, MPN) and search again.
      - Use serpapi_web_search with engines like google_images, bing_images, amazon, ebay when you need marketplace-specific data or image results.
   3. After you found candidate URLs, fetch the best 1-2 pages via 'web_fetch' and extract facts from them (no guessing).
   4. Never say "I can search if you want". JUST SEARCH.
@@ -2239,11 +2239,15 @@ async function runProductChat(product, userMessage, {
   ];
 
   if (barcodeIntent && !hasLocalValidBarcode) {
+    const barcodeTypeMatch = (userMessage || '').match(BARCODE_INTENT_REGEX);
+    const requestedType = barcodeTypeMatch ? barcodeTypeMatch[1].toUpperCase() : 'EAN';
+    const searchTerm = requestedType === 'UPC' ? 'UPC barcode' : requestedType === 'GTIN' ? 'GTIN EAN' : 'EAN GTIN';
     currentMessageParts.push({
       text: `
-      IMPORTANT: The user explicitly wants a barcode/EAN. None is in the context.
-      ACTION REQUIRED: Do NOT ask questions. Immediately run brightdata_web_search (unrestricted, no sites) for "${product?.identification?.brand || ''} ${product?.identification?.name || ''} EAN".
-      Then extract the EAN from results and return it via update_product_datasheet.
+      IMPORTANT: The user explicitly wants a barcode/${requestedType}. None is in the context.
+      ACTION REQUIRED: Do NOT ask questions. Immediately run brightdata_web_search (unrestricted, no sites) for "${product?.identification?.brand || ''} ${product?.identification?.name || ''} ${searchTerm}".
+      Then extract the ${requestedType} from results and return it via update_product_datasheet.
+      The barcode could be an EAN (13 digits), UPC (12 digits), or GTIN-14 (14 digits). Accept whichever valid format you find.
       `});
   }
 

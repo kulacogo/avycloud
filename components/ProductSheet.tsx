@@ -27,7 +27,7 @@ import AssistantChat from './GeminiChat';
 import ValidationPanel from './ValidationPanel';
 import { Tabs, TabPanel } from './ui/Tabs';
 import { useI18n } from '../i18n';
-import { normalizeBarcode, summarizeBarcodes, isValidGtin } from '../utils/gtin';
+import { normalizeBarcode, summarizeBarcodes, isValidGtin, getGtinLabel } from '../utils/gtin';
 import {
   getProductDisplayCategory,
   getProductEbayCategoryId,
@@ -1227,7 +1227,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
             </p>
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5 text-xs text-txt-muted">
               <span>SKU: {localProduct.identification.sku || localProduct.details?.identifiers?.sku || '—'}</span>
-              {currentBarcodeSummary.ean && <span>EAN: {currentBarcodeSummary.ean}</span>}
+              {currentBarcodeSummary.primaryBarcode && <span>{currentBarcodeSummary.primaryLabel}: {currentBarcodeSummary.primaryBarcode}</span>}
               {localProduct.details?.pricing?.lowest_price?.amount != null && (
                 <span className="font-semibold text-txt-primary">
                   {localProduct.details.pricing.lowest_price.amount.toLocaleString('de-DE', { minimumFractionDigits: 2 })} €
@@ -1438,7 +1438,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-semibold text-txt-secondary mb-1">Barcodes (EAN/GTIN)</label>
+                <label className="block text-xs font-semibold text-txt-secondary mb-1">Barcodes (EAN / UPC / GTIN)</label>
                 {isEditing ? (
                   <div>
                     <textarea
@@ -1450,7 +1450,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                     />
                     <div className="text-[11px] mt-1">
                       {editingBarcodeSummary.hasValid ? (
-                        <span className="text-success">EAN: {editingBarcodeSummary.ean || editingBarcodeSummary.gtin || '—'}</span>
+                        <span className="text-success">{editingBarcodeSummary.primaryLabel}: {editingBarcodeSummary.primaryBarcode}</span>
                       ) : barcodeInput.trim() ? (
                         <span className="text-danger">Kein gültiger Barcode erkannt</span>
                       ) : null}
@@ -1461,7 +1461,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                     {currentBarcodeSummary.all.length ? currentBarcodeSummary.all.map((b: string, i: number) => (
                       <span key={i} className="inline-flex items-center gap-1.5 text-sm font-mono text-txt-primary">
                         {b}
-                        {isValidGtin(b) && <span className="w-1.5 h-1.5 rounded-full bg-success shrink-0" title="Gültige EAN/GTIN" />}
+                        {isValidGtin(b) && <span className="w-1.5 h-1.5 rounded-full bg-success shrink-0" title={`Gültige ${getGtinLabel(b)}`} />}
                         <button
                           type="button"
                           className="text-txt-muted hover:text-txt-primary transition-colors"
@@ -1552,9 +1552,9 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                 </div>
               );
             })()}
-            {(currentBarcodeSummary.ean || currentBarcodeSummary.gtin) && (
+            {currentBarcodeSummary.primaryBarcode && (
               <div className="mt-3 pt-3 border-t border-app-border">
-                <CompetitorPrices ean={currentBarcodeSummary.ean || currentBarcodeSummary.gtin || ''} ownPrice={localProduct.details?.pricing?.lowest_price?.amount} storedPrices={localProduct.details?.pricing?.competitorPrices} lastPriceCheck={localProduct.details?.pricing?.lastPriceCheck} />
+                <CompetitorPrices ean={currentBarcodeSummary.primaryBarcode} ownPrice={localProduct.details?.pricing?.lowest_price?.amount} storedPrices={localProduct.details?.pricing?.competitorPrices} lastPriceCheck={localProduct.details?.pricing?.lastPriceCheck} />
               </div>
             )}
           </section>

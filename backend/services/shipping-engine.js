@@ -110,6 +110,62 @@ function splitAddressLine(addressStr) {
 }
 
 /**
+ * Generate normalized variants of a German street name for SendCloud address validation.
+ * Carriers (DPD, DHL) validate against official address DBs — small deviations
+ * like "Straße" vs "Str." or missing hyphens cause rejections.
+ * Returns an array of unique variants (excluding the original).
+ */
+function germanAddressVariants(street) {
+  const variants = new Set();
+  const s = street.trim();
+
+  // "Straße"/"straße" → "Str." and vice versa
+  if (/[Ss]tra(?:ß|ss)e\b/.test(s)) {
+    variants.add(s.replace(/[Ss]tra(?:ß|ss)e\b/g, 'Str.'));
+  }
+  if (/\bStr\.\s*$/i.test(s)) {
+    variants.add(s.replace(/\bStr\.\s*$/i, 'Straße'));
+  }
+
+  // "ß" → "ss" (and reverse)
+  if (s.includes('ß')) {
+    variants.add(s.replace(/ß/g, 'ss'));
+  }
+
+  // Remove the original if it snuck in
+  variants.delete(s);
+  return [...variants];
+}
+
+/**
+ * Send parcel creation request to SendCloud with transient-error retry.
+ * Returns the fetch Response on success, throws on permanent failure.
+ */
+async function _sendParcelRequest(parcelData, auth) {
+  const MAX_RETRIES = 3;
+  const BACKOFF_BASE_MS = 1000;
+  let res;
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    res = await fetch(`${SENDCLOUD_BASE_URL}/parcels?errors=verbose-carrier`, {
+      method: 'POST',
+      headers: { Authorization: auth, 'Content-Type': 'application/json' },
+      body: JSON.stringify(parcelData),
+    });
+
+    if (res.ok) return res;
+
+    const body = await res.text().catch(() => '');
+    if (attempt < MAX_RETRIES && (res.status >= 500 || res.status === 429)) {
+      const delay = BACKOFF_BASE_MS * Math.pow(3, attempt - 1);
+      console.warn(`[createParcel] SendCloud ${res.status}, retry ${attempt}/${MAX_RETRIES} in ${delay}ms`);
+      await new Promise((r) => setTimeout(r, delay));
+      continue;
+    }
+    throw new Error(`SendCloud create parcel ${res.status}: ${body.slice(0, 300)}`);
+  }
+}
+
+/**
  * Extract label URL from a SendCloud parcel object.
  * Returns null if no label has been generated yet.
  */
@@ -256,31 +312,33 @@ async function createParcel({
   console.log(`[createParcel] Payload for ${order.id}: postal_code="${zipStr}", country="${countryRaw}", city="${cityStr}", address="${addressStr}", house_number="${houseNumberStr}", name="${nameStr}"`);
   console.log(`[createParcel] Raw customer zip: ${JSON.stringify(customer.zip)}, type: ${typeof customer.zip}, postal_code: ${JSON.stringify(customer.postal_code)}`);
 
-  // Retry with exponential backoff (3 attempts: 0s, 1s, 3s)
-  const MAX_RETRIES = 3;
-  const BACKOFF_BASE_MS = 1000;
+  // Try original address first, then normalized variants on address validation errors
   let res;
-  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-    res = await fetch(`${SENDCLOUD_BASE_URL}/parcels?errors=verbose-carrier`, {
-      method: 'POST',
-      headers: {
-        Authorization: auth,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(parcelData),
-    });
+  try {
+    res = await _sendParcelRequest(parcelData, auth);
+  } catch (err) {
+    const isAddrErr = err.message.includes('receiver_address') || err.message.includes('Adresse konnte');
+    if (!isAddrErr) throw err;
 
-    if (res.ok) break;
+    // Try normalized German address variants (Straße→Str., ß→ss, etc.)
+    const variants = germanAddressVariants(parcelData.parcel.address);
+    if (variants.length === 0) throw err;
 
-    const body = await res.text().catch(() => '');
-    // Only retry on transient errors (429, 5xx)
-    if (attempt < MAX_RETRIES && (res.status >= 500 || res.status === 429)) {
-      const delay = BACKOFF_BASE_MS * Math.pow(3, attempt - 1);
-      console.warn(`[createParcel] SendCloud ${res.status}, retry ${attempt}/${MAX_RETRIES} in ${delay}ms`);
-      await new Promise((r) => setTimeout(r, delay));
-      continue;
+    let resolved = false;
+    for (const variant of variants) {
+      console.warn(`[createParcel] Address rejected, trying variant: "${parcelData.parcel.address}" → "${variant}"`);
+      parcelData.parcel.address = variant;
+      try {
+        res = await _sendParcelRequest(parcelData, auth);
+        resolved = true;
+        break;
+      } catch (retryErr) {
+        const stillAddrErr = retryErr.message.includes('receiver_address') || retryErr.message.includes('Adresse konnte');
+        if (!stillAddrErr) throw retryErr;
+        console.warn(`[createParcel] Variant "${variant}" also rejected`);
+      }
     }
-    throw new Error(`SendCloud create parcel ${res.status}: ${body.slice(0, 300)}`);
+    if (!resolved) throw err;
   }
 
   const result = await res.json();
