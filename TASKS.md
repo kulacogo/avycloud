@@ -110,6 +110,12 @@
   - Root Cause 2: Kein lokaler eBay-Kategorie-Cache — LLM rät Kategorien aus Training-Daten
   - Lösung: eBay-Kategorien alle 30 Tage via `GetCategories` API abrufen und in Firestore cachen (`ebay_categories` Collection). LLM bekommt aktuelle Kategorien als Kontext bei Identify/Improve/Chat. Sicherstellt dass nur gültige, aktuelle Kategorien vorgeschlagen werden.
   - Betroffene Dateien: `backend/lib/ebay-api.js` (neuer GetCategories Call), `backend/services/product-chat.js`, `backend/lib/gemini3-client.js`, neues Script: `backend/scripts/sync-ebay-categories.js`
+- [ ] **BUG-095** Kaufland Listings: keine Aktionen + falsche Status (P0)
+  - Symptom 1: Selektierte Angebote haben keine Aktions-Buttons (nur "Auswahl aufheben") — Angebote können nicht aktualisiert, gelistet oder deaktiviert werden
+  - Symptom 2: Status "Aktiv" wird angezeigt obwohl Angebot gar nicht auf Kaufland gelistet ist — betrifft fast alle Angebote
+  - Symptom 3: Keine Möglichkeit neue Produkte auf Kaufland zu listen oder bestehende Listings zu aktualisieren (Preis, Bestand, Beschreibung)
+  - Betroffene Dateien: Frontend `components/KauflandListingsView.tsx` (Aktions-Buttons fehlen), Backend `lib/kaufland-api.js` (Unit-Status-Sync), Backend `services/stock-sync-dispatcher.js` (Unit-Status-Abgleich)
+  - Diagnose nötig: Kaufland Unit-Status vs. lokaler Status vergleichen, Bulk-Aktionen implementieren (Listen, Aktualisieren, Deaktivieren)
 - [ ] **BUG-068** 170 Stock-Sync Fehler — Oversell-Risiko (abhängig von eBay Token Fix)
 - [ ] **BUG-069** Dashboard Chart endet bei ~12.03 (createdAt-Datumslogik)
 - [ ] **B5** Invoice Email-Versand fehlt
