@@ -1,6 +1,6 @@
 # TASKS.md — AvyCloud Aktive Tasks
 
-> Letzte Aktualisierung: 2026-03-26
+> Letzte Aktualisierung: 2026-04-06
 > Nur aktive Items. Erledigte Tasks → `git log`. Bug-Historie → `docs/archive/`.
 
 ## Zu verifizieren (deployed, Browser-Check nötig)
@@ -11,9 +11,9 @@
 - [ ] FIX-5: Bestellungen/Retouren → eBay-Badge gleiche Farbe
 - [ ] FIX-6: Bestellungen → alle Orders zeigen "eBay" oder "Kaufland" Badge
 - [ ] FIX-7: Versand → "Sync" klicken → Kundenname-Spalte füllt sich
-- [ ] FIX-8: Dashboard → Sync-Fehler = 0
+- [x] FIX-8: Dashboard → Sync-Fehler = 0 ✅ (stale unitId clearing bei "Unit Not Found")
 - [ ] FIX-9: Theme Toggle → data-theme ändert sich in DevTools
-- [ ] FIX-10: Dashboard-Zahl = Seiten-Zahl für Retouren
+- [x] FIX-10: Dashboard-Zahl = Seiten-Zahl für Retouren ✅ (Window-Count statt All-Time)
 - [ ] FIX-11: `node backend/scripts/backfill-weights.js --write` ausführen
 - [ ] FIX-12: SSE-Streams funktionieren ohne Token in URL
 
@@ -110,14 +110,14 @@
   - Root Cause 2: Kein lokaler eBay-Kategorie-Cache — LLM rät Kategorien aus Training-Daten
   - Lösung: eBay-Kategorien alle 30 Tage via `GetCategories` API abrufen und in Firestore cachen (`ebay_categories` Collection). LLM bekommt aktuelle Kategorien als Kontext bei Identify/Improve/Chat. Sicherstellt dass nur gültige, aktuelle Kategorien vorgeschlagen werden.
   - Betroffene Dateien: `backend/lib/ebay-api.js` (neuer GetCategories Call), `backend/services/product-chat.js`, `backend/lib/gemini3-client.js`, neues Script: `backend/scripts/sync-ebay-categories.js`
-- [ ] **BUG-095** Kaufland Listings: keine Aktionen + falsche Status (P0)
+- [x] **BUG-095** Kaufland Listings: keine Aktionen + falsche Status (P0) — ✅ Bulk-Aktionen implementiert (Aktualisieren, Aktivieren, Deaktivieren)
   - Symptom 1: Selektierte Angebote haben keine Aktions-Buttons (nur "Auswahl aufheben") — Angebote können nicht aktualisiert, gelistet oder deaktiviert werden
   - Symptom 2: Status "Aktiv" wird angezeigt obwohl Angebot gar nicht auf Kaufland gelistet ist — betrifft fast alle Angebote
   - Symptom 3: Keine Möglichkeit neue Produkte auf Kaufland zu listen oder bestehende Listings zu aktualisieren (Preis, Bestand, Beschreibung)
   - Betroffene Dateien: Frontend `components/KauflandListingsView.tsx` (Aktions-Buttons fehlen), Backend `lib/kaufland-api.js` (Unit-Status-Sync), Backend `services/stock-sync-dispatcher.js` (Unit-Status-Abgleich)
   - Diagnose nötig: Kaufland Unit-Status vs. lokaler Status vergleichen, Bulk-Aktionen implementieren (Listen, Aktualisieren, Deaktivieren)
-- [ ] **BUG-068** 170 Stock-Sync Fehler — Oversell-Risiko (abhängig von eBay Token Fix)
-- [ ] **BUG-069** Dashboard Chart endet bei ~12.03 (createdAt-Datumslogik)
+- [x] **BUG-068** 170 Stock-Sync Fehler — ✅ teilweise gefixt (Price-Path-Fix + stale unitId clearing + Kaufland endpoint fixes)
+- [x] **BUG-069** Dashboard Chart endet bei ~12.03 ✅ (Dashboard-Redesign mit korrektem Zeitraum-Mapping)
 - [ ] **B5** Invoice Email-Versand fehlt
 - [ ] **B6** Gutschriften/Stornorechnungen fehlen
 - [ ] **BUG-070** Marketplace Listing-Tabellen: falsche Daten + inkonsistente UI (P1)
@@ -130,7 +130,7 @@
   - "Letztes Update" fehlt bei eBay komplett, bei Kaufland teilweise
   - BEWEIS: BEAUTEX SKU-3210037840 → Inventar zeigt Menge=1, Lagerplatz=XGA0201C, EK=13,99€ — eBay Listing zeigt Lager="—", Kategorie="—"
   - Lager/Kategorie/Lagerplatz aus products_v2 werden NICHT ins eBay Listing übertragen
-- [ ] **BUG-071** Bestellungen: Pipeline-Zahlen inkonsistent mit Tab-Zahlen (P1)
+- [x] **BUG-071** Bestellungen: Pipeline-Zahlen inkonsistent mit Tab-Zahlen ✅ (categorizeStatus mappt confirmed/bestätigt korrekt als neu)
   - Pipeline zeigt: 22 Neu + 6 Bestätigt + 341 Versendet = 369
   - Tabs zeigen: Alle 490, Neu 28, Versendet 411, Sonstige 51
   - Weder Pipeline noch Tabs summieren sich korrekt
@@ -201,6 +201,24 @@
 | MPD-001 | Multi-Produkt aus Single Image | P1 | ✅ done (Gemini Detection, Hint-Injection, StepGrouping Single-Image-Modus, 15 Tests) |
 | ADDR-001 | Empfänger-Adresslabel 62×29mm aus Bestellliste | P1 | **Claude Code Prompt ready** (`docs/prompts/feat-address-labels-62x29.md`) |
 | WH-002 | Child-BINs / Container | P1 | **Claude Code Prompt ready** (`docs/prompts/feat-warehouse-child-bins.md`) |
+
+## Erledigt am 2026-04-06 (15 Commits)
+
+| Was | Commits | Status |
+|-----|---------|--------|
+| Dashboard Redesign — 3 Hero-KPIs, kompakte Pipeline, Bestand+Sync-Leiste | 3 Commits | ✅ deployed |
+| Retouren-Zahlen — Window-Count, korrekte Revenue-Deduction, returns_ytd | 2 Commits | ✅ deployed |
+| categorizeStatus — confirmed/bestätigt → neu via OMS-Status-Priorität | 1 Commit | ✅ deployed |
+| Activity Feed — Marketplace-OrderID statt AVY-Nummer | 1 Commit | ✅ deployed |
+| Kaufland Tracking — /ship → /send, Unit-ID Fallback korrigiert | 1 Commit | ✅ deployed |
+| Kaufland Price — erweiterte Price-Resolution in pickUnitData() | 1 Commit | ✅ deployed |
+| Kaufland Stale unitId — clearing bei "Unit Not Found" stoppt Retry-Loop | 1 Commit | ✅ deployed |
+| Kaufland Bulk-Aktionen — Aktualisieren, Aktivieren, Deaktivieren | 1 Commit | ✅ deployed |
+| Delivery Polling — shipped→delivered via SendCloud API alle 2h | 2 Commits | ✅ deployed |
+| Audit Log — product create/update/delete mit Field-Level-Diff | 1 Commit | ✅ deployed |
+| Session Tracking — GPU, Akku, Speicher, Mediengeräte, Pointer, etc. | 1 Commit | ✅ deployed |
+| Inventar-Filter — Bereit, Ausstehend, Verkauft, Unverkauft, Listing-bereit | 1 Commit | ✅ deployed |
+| Pipeline Navigation — klick auf Status führt zu Bestellungen | 1 Commit | ✅ deployed |
 
 ## Ausstehende Deploys
 
