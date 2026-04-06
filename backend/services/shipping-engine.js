@@ -1003,6 +1003,119 @@ async function getCachedShippingMethods(tenantId = 'default', { weight, country 
   return methods;
 }
 
+// ─── Delivery Status Polling ──────────────────────────────────────────────────
+
+const DELIVERED_STATUS_IDS = new Set([11, 12, 62]);
+
+/**
+ * Poll SendCloud for delivery status of all shipped orders.
+ * Transitions orders from shipped → delivered when carrier confirms delivery.
+ *
+ * @param {{ tenantId?: string }} opts
+ * @returns {Promise<{ checked: number, delivered: number, errors: number }>}
+ */
+async function pollDeliveryStatus({ tenantId = 'default' } = {}) {
+  const db = getDb();
+  let checked = 0, delivered = 0, errors = 0;
+
+  // Find all shipped orders that have a shipmentId
+  const ordersSnap = await db.collection(ORDERS_COLLECTION)
+    .where('omsStatus', '==', 'shipped')
+    .where('tenantId', '==', tenantId)
+    .get();
+
+  if (ordersSnap.empty) {
+    return { checked: 0, delivered: 0, errors: 0 };
+  }
+
+  let authHeader;
+  try {
+    authHeader = await getSendCloudAuth();
+  } catch (err) {
+    console.warn('[delivery-poll] SendCloud auth failed:', err.message);
+    return { checked: 0, delivered: 0, errors: 1 };
+  }
+
+  for (const orderDoc of ordersSnap.docs) {
+    const order = orderDoc.data();
+    const shipmentId = order.shipmentId;
+    if (!shipmentId) continue;
+
+    try {
+      const shipSnap = await db.collection(SHIPMENTS_COLLECTION).doc(shipmentId).get();
+      if (!shipSnap.exists) continue;
+
+      const shipData = shipSnap.data();
+      const parcelId = shipData.sendcloudParcelId;
+      if (!parcelId) continue;
+
+      checked++;
+
+      // Call SendCloud API
+      const res = await fetch(`${SENDCLOUD_BASE_URL}/parcels/${parcelId}`, {
+        headers: { Authorization: authHeader },
+      });
+
+      if (!res.ok) {
+        if (res.status === 404) continue; // Parcel not found, skip
+        console.warn(`[delivery-poll] SendCloud API ${res.status} for parcel ${parcelId}`);
+        errors++;
+        continue;
+      }
+
+      const json = await res.json();
+      const statusId = Number(json?.parcel?.status?.id || 0);
+      const statusMessage = json?.parcel?.status?.message || '';
+
+      if (!DELIVERED_STATUS_IDS.has(statusId)) continue;
+
+      // Parcel is delivered — update shipment
+      const now = new Date().toISOString();
+      await shipSnap.ref.set({
+        status: statusMessage,
+        statusId,
+        deliveredAt: now,
+        updatedAt: now,
+      }, { merge: true });
+
+      // Update order
+      const { ORDER_STATUSES } = require('./order-state-machine');
+      await orderDoc.ref.set({
+        omsStatus: 'delivered',
+        omsStatusLabel: ORDER_STATUSES?.delivered?.label || 'Zugestellt',
+        deliveredAt: now,
+        updatedAt: now,
+      }, { merge: true });
+
+      // Log event
+      await db.collection('order_events').add({
+        orderId: orderDoc.id,
+        tenantId,
+        event: 'status_change',
+        fromStatus: 'shipped',
+        toStatus: 'delivered',
+        fromStatusLabel: ORDER_STATUSES?.shipped?.label || 'Versendet',
+        toStatusLabel: ORDER_STATUSES?.delivered?.label || 'Zugestellt',
+        actor: { uid: 'system', email: 'delivery-poll' },
+        note: `SendCloud: ${statusMessage} (parcel ${parcelId})`,
+        timestamp: FieldValue.serverTimestamp(),
+      });
+
+      delivered++;
+      console.log(`[delivery-poll] Order ${orderDoc.id}: shipped → delivered (parcel ${parcelId})`);
+    } catch (err) {
+      console.warn(`[delivery-poll] Error checking order ${orderDoc.id}: ${err.message}`);
+      errors++;
+    }
+
+    // Rate limit: 200ms between API calls
+    await new Promise((r) => setTimeout(r, 200));
+  }
+
+  console.log(`[delivery-poll] Done: checked=${checked} delivered=${delivered} errors=${errors}`);
+  return { checked, delivered, errors };
+}
+
 module.exports = {
   getShippingMethods,
   syncShippingMethods,
@@ -1015,4 +1128,5 @@ module.exports = {
   shipOrder,
   downloadLabelPdf,
   syncSendCloudParcels,
+  pollDeliveryStatus,
 };
