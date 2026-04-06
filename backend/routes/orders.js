@@ -512,8 +512,8 @@ router.get('/dashboard/activity', requirePermission('orders', 'read'), async (re
       activities.push({
         type: 'order',
         id: doc.id,
-        title: `Auftrag ${d.orderId || d.orderNumber || doc.id}`,
-        detail: d.customer?.name || d.source || '',
+        title: `Auftrag ${d.marketplaceOrderId || d.orderId || doc.id}`,
+        detail: [d.customer?.name, d.marketplace || d.source].filter(Boolean).join(' · ') || '',
         status: d.omsStatus || d.status || 'neu',
         timestamp: d.createdAt,
       });
