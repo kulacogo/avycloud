@@ -96,6 +96,20 @@
   - Betroffene Dateien: `backend/services/shipping-engine.js` (syncSendCloudParcels, mapSendCloudStatus), `backend/routes/webhooks.js`
   - Frontend-Workaround existiert bereits: `ShippingView.tsx` dedupliziert per `sendcloudParcelId` (aber DB bleibt verschmutzt)
   - Prompt: `docs/prompts/bug-092-shipping-duplicate-problem-status.md`
+- [ ] **BUG-093** Evidence-Source-Links in Preisdaten führen nie zum Produkt (P1)
+  - Symptom: Alle "Evidence sources" im Produktdatenblatt (Stammdaten → Preis & Lager) zeigen URLs die nicht zum Produkt führen
+  - Beispiel: BILSTEIN B4 19-264431 → Amazon-Link gibt 500, kfzteile24-Link leitet auf Homepage, teilehaber-Link gibt 403
+  - Problem gilt für ALLE Produkte — Links sind unvalidiert und veraltet/falsch
+  - Root Cause: `price-enrichment.js` / `enrichment.js` speichert URLs ohne zu prüfen ob sie tatsächlich das Produkt zeigen
+  - Ziel: Links vor Speicherung validieren (HTTP-Status + Produkt-Matching via EAN/MPN/Titel), tote Links nicht anzeigen
+  - Betroffene Dateien: `backend/lib/price-enrichment.js`, `backend/services/enrichment.js`, Frontend: `components/ProductSheet.tsx`
+- [ ] **BUG-094** Chat-Kategorien werden nach Sekunden wieder überschrieben + veraltete eBay-Kategorien (P1)
+  - Symptom 1: KI-Assistent schlägt korrekte Kategorie vor, wird ins Datenblatt übernommen, springt nach wenigen Sekunden zurück zur alten (falschen) Kategorie
+  - Root Cause 1: Vermutlich Race Condition — Chat speichert Kategorie, aber ein paralleler Sync/Auto-Save überschreibt mit alten Daten
+  - Symptom 2: LLM-Features schlagen veraltete/falsche eBay-Kategorien vor weil keine aktuelle Kategorie-Datenbank existiert
+  - Root Cause 2: Kein lokaler eBay-Kategorie-Cache — LLM rät Kategorien aus Training-Daten
+  - Lösung: eBay-Kategorien alle 30 Tage via `GetCategories` API abrufen und in Firestore cachen (`ebay_categories` Collection). LLM bekommt aktuelle Kategorien als Kontext bei Identify/Improve/Chat. Sicherstellt dass nur gültige, aktuelle Kategorien vorgeschlagen werden.
+  - Betroffene Dateien: `backend/lib/ebay-api.js` (neuer GetCategories Call), `backend/services/product-chat.js`, `backend/lib/gemini3-client.js`, neues Script: `backend/scripts/sync-ebay-categories.js`
 - [ ] **BUG-068** 170 Stock-Sync Fehler — Oversell-Risiko (abhängig von eBay Token Fix)
 - [ ] **BUG-069** Dashboard Chart endet bei ~12.03 (createdAt-Datumslogik)
 - [ ] **B5** Invoice Email-Versand fehlt
