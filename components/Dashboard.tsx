@@ -189,7 +189,7 @@ const DualChart: React.FC<{
   const [hovered, setHovered] = useState<number | null>(null);
   const touchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const W = 560, H = 160;
+  const W = 560, H = 220;
   const PAD = { top: 14, right: 52, bottom: 26, left: 40 };
   const PW = W - PAD.left - PAD.right;
   const PH = H - PAD.top - PAD.bottom;
@@ -230,7 +230,7 @@ const DualChart: React.FC<{
 
   if (loading) {
     return (
-      <div className="w-full h-40 flex items-end gap-1.5 px-2 pb-4">
+      <div className="w-full h-56 flex items-end gap-1.5 px-2 pb-4">
         {Array.from({ length: 7 }).map((_, i) => (
           <div key={i} className="flex-1 animate-pulse rounded-t bg-app-border/50"
             style={{ height: `${Math.random() * 60 + 20}%` }} />
@@ -241,7 +241,7 @@ const DualChart: React.FC<{
 
   if (!data.length) {
     return (
-      <div className="w-full h-40 flex items-center justify-center text-sm text-txt-muted">
+      <div className="w-full h-56 flex items-center justify-center text-sm text-txt-muted">
         Keine Daten für diesen Zeitraum
       </div>
     );
@@ -264,7 +264,7 @@ const DualChart: React.FC<{
       <svg
         viewBox={`0 0 ${W} ${H}`}
         className="w-full"
-        style={{ height: '160px' }}
+        style={{ height: '220px' }}
         onMouseLeave={() => setHovered(null)}
         onTouchStart={handleTouchStart}
       >
@@ -637,8 +637,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
       })();
       return { key: d.date, label, count: Number(d.orders || 0), revenue: Number(d.revenue || 0) };
     });
-    // Derive order count from chart data (date-filtered), NOT from
-    // status_breakdown which counts ALL orders globally regardless of time window.
     const totalOrdersInWindow = chart.reduce((s, d) => s + d.count, 0);
     return {
       neu: bd?.neu ?? 0,
@@ -650,8 +648,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
       revenueYtd: metrics?.revenue?.payout_brutto_ytd ?? metrics?.revenue?.all_non_cancelled_total ?? 0,
       revenueWindow: metrics?.revenue?.payout_brutto_window ?? metrics?.revenue?.window_non_cancelled_total ?? 0,
       returnsTotal: metrics?.orders?.returns_total ?? 0,
-      returnsMonth: metrics?.orders?.returns_month ?? 0,
-      returnsWindowValue: (metrics as any)?.returns?.window?.value_by_currency?.EUR ?? 0,
+      returnsYtd: metrics?.orders?.returns_ytd ?? 0,
+      returnsWindowCount: metrics?.returns?.window?.count ?? 0,
+      returnsWindowValue: metrics?.returns?.window?.value_by_currency?.EUR ?? 0,
       currency: safeCur(metrics?.currency),
       chart,
     };
@@ -680,10 +679,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
   return (
     <div className="space-y-5 pb-8">
 
-      {/* ══ Header ══════════════════════════════════════════════════════ */}
+      {/* Header */}
       <div className="flex items-center justify-between">
         <p className="text-xs text-txt-muted">
-          {nowStr ? `Stand: ${nowStr}` : 'Wird geladen…'}
+          {nowStr ? `Stand: ${nowStr}` : 'Wird geladen\u2026'}
         </p>
         <DateRangePicker
           activePreset={activePreset}
@@ -702,12 +701,12 @@ export const Dashboard: React.FC<DashboardProps> = ({
         </div>
       )}
 
-      {/* ══ 1. JAHRESÜBERBLICK ═══════════════════════════════════════════ */}
-      <Section title="Jahresüberblick">
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      {/* 1. HERO-KPIs (3 Karten) */}
+      <Section title="Jahres\u00fcberblick">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <Card
             label="Kontostand"
-            value={totalBalance !== null ? fmtCur(totalBalance, 'EUR') : '—'}
+            value={totalBalance !== null ? fmtCur(totalBalance, 'EUR') : '\u2014'}
             sub="SevDesk"
             color={totalBalance !== null && totalBalance < 0 ? 'red' : 'violet'}
             loading={financeLoading}
@@ -723,28 +722,21 @@ export const Dashboard: React.FC<DashboardProps> = ({
           />
           <Card
             label="Versand (Jahr)"
-            value={shippingYtd !== null ? fmtCur(shippingYtd, 'EUR', true) : '—'}
+            value={shippingYtd !== null ? fmtCur(shippingYtd, 'EUR', true) : '\u2014'}
             sub={shippingYtd !== null ? (
               <span className="flex flex-col gap-0.5">
                 <span>{fmtNum(finance?.shipping_ytd?.parcel_count ?? 0)} Sendungen</span>
                 {((finance?.shipping_ytd?.dhl_count ?? 0) > 0 || (finance?.shipping_ytd?.dpd_count ?? 0) > 0) && (
                   <span className="text-[10px] text-txt-muted">
-                    {(finance?.shipping_ytd?.dhl_count ?? 0) > 0 && `DHL ${fmtNum(finance.shipping_ytd.dhl_count)}`}
-                    {(finance?.shipping_ytd?.dhl_count ?? 0) > 0 && (finance?.shipping_ytd?.dpd_count ?? 0) > 0 && ' · '}
-                    {(finance?.shipping_ytd?.dpd_count ?? 0) > 0 && `DPD ${fmtNum(finance.shipping_ytd.dpd_count)}`}
+                    {(finance?.shipping_ytd?.dhl_count ?? 0) > 0 && `DHL ${fmtNum(finance!.shipping_ytd!.dhl_count!)}`}
+                    {(finance?.shipping_ytd?.dhl_count ?? 0) > 0 && (finance?.shipping_ytd?.dpd_count ?? 0) > 0 && ' \u00b7 '}
+                    {(finance?.shipping_ytd?.dpd_count ?? 0) > 0 && `DPD ${fmtNum(finance!.shipping_ytd!.dpd_count!)}`}
                   </span>
                 )}
               </span>
             ) : undefined}
             color="amber"
             loading={financeLoading && shippingYtd === null}
-            size="hero"
-          />
-          <Card
-            label="Retouren (gesamt)"
-            value={fmtNum(ord.returnsTotal)}
-            color={ord.returnsTotal > 0 ? 'red' : 'neutral'}
-            loading={metricsLoading}
             size="hero"
           />
         </div>
@@ -759,134 +751,28 @@ export const Dashboard: React.FC<DashboardProps> = ({
         )}
       </Section>
 
-      {/* ══ 2. BESTAND ════════════════════════════════════════════════════ */}
-      <Section title="Bestand">
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          <Card
-            label="Im Bestand"
-            value={fmtNum(inv.inStock)}
-            sub={`von ${fmtNum(inv.total)} Produkten`}
-            color="blue"
-          />
-          <Card
-            label="Einheiten"
-            value={fmtNum(inv.available)}
-            sub={`${fmtNum(inv.reserved)} reserviert`}
-            color="blue"
-          />
-          <Card
-            label="Bestandswert"
-            value={fmtCur(inv.totalValue, inv.primaryCur, true)}
-            color="green"
-          />
-          <Card
-            label="Synchronisierung"
-            value={`${fmtNum(inv.sync.synced)} / ${fmtNum(inv.total)}`}
-            sub={inv.sync.failed > 0 ? `${inv.sync.failed} Fehler` : inv.sync.pending > 0 ? `${inv.sync.pending} ausstehend` : undefined}
-            color={inv.sync.failed > 0 ? 'red' : inv.sync.pending > 0 ? 'amber' : 'green'}
-          />
-        </div>
-      </Section>
-
-      {/* ══ 2b. SYNC-HEALTH ══════════════════════════════════════════════ */}
-      <Section title="Marketplace Sync" badge={syncStatus && syncStatus.summary.totalErrors > 0 ? `${syncStatus.summary.totalErrors} Fehler` : undefined}>
-        {syncLoading ? (
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-            {[1, 2, 3, 4].map(i => (
-              <div key={i} className="rounded-2xl border border-app-border bg-app-surface p-5 h-24 animate-pulse" />
-            ))}
-          </div>
-        ) : syncStatus ? (
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-            {/* Per-channel cards */}
-            {(['ebay', 'kaufland'] as const).map(ch => {
-              const c = syncStatus.channels[ch];
-              if (!c) return (
-                <Card key={ch} label={ch.charAt(0).toUpperCase() + ch.slice(1)} value="—" sub="Nicht verbunden" color="neutral" size="sm" />
-              );
-              const hasErrors = c.errorCount > 0;
-              const ago = c.lastSync ? (() => {
-                const diff = Date.now() - new Date(c.lastSync).getTime();
-                const mins = Math.floor(diff / 60000);
-                if (mins < 1) return 'gerade eben';
-                if (mins < 60) return `vor ${mins} Min.`;
-                const hrs = Math.floor(mins / 60);
-                if (hrs < 24) return `vor ${hrs} Std.`;
-                return `vor ${Math.floor(hrs / 24)} Tagen`;
-              })() : null;
-              return (
-                <Card
-                  key={ch}
-                  label={ch.charAt(0).toUpperCase() + ch.slice(1)}
-                  value={`${c.successCount}/${c.totalCount}`}
-                  sub={ago ? `Letzter Sync: ${ago}${hasErrors ? ` · ${c.errorCount} Fehler` : ''}` : undefined}
-                  color={hasErrors ? 'red' : c.totalCount > 0 ? 'green' : 'neutral'}
-                  size="sm"
-                />
-              );
-            })}
-            {/* Reservations card */}
-            <Card
-              label="Reservierungen"
-              value={fmtNum(syncStatus.reservations.count)}
-              sub={`${fmtNum(syncStatus.reservations.totalQuantity)} Einheiten reserviert`}
-              color={syncStatus.reservations.count > 0 ? 'amber' : 'neutral'}
-              size="sm"
-            />
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-            {(['ebay', 'kaufland'] as const).map(ch => (
-              <Card key={ch} label={ch.charAt(0).toUpperCase() + ch.slice(1)} value="—" sub="Kein Sync in 24h" color="neutral" size="sm" />
-            ))}
-            <Card label="Reservierungen" value="0" sub="Keine aktiven Reservierungen" color="neutral" size="sm" />
-          </div>
-        )}
-      </Section>
-
-      {/* ══ 3. AUFTRAGSFLUSS ═══════════════════════════════════════════ */}
-      <Section title="Auftragsfluss" badge={!metricsLoading && ord.neu > 0 ? `${ord.neu} offen` : undefined}>
-        <div className="rounded-lg border border-app-border bg-app-surface p-5">
-          <Pipeline
-            bd={{ neu: ord.neu, kommissioniert: ord.kommissioniert, verpackt: ord.verpackt, versendet: ord.versendet, zugestellt: ord.zugestellt }}
-            loading={metricsLoading}
-            onClickStatus={navigateTo}
-          />
-        </div>
-      </Section>
-
-      {/* ══ 4. KENNZAHLEN · ZEITRAUM + CHART ══════════════════════════ */}
-      <Section title={`Kennzahlen · ${presetLabel}`}>
-        <div className="grid grid-cols-3 gap-3 mb-4">
+      {/* 2. KENNZAHLEN + CHART */}
+      <Section title={`Kennzahlen \u00b7 ${presetLabel}`}>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
           <Card
             label="Umsatz"
             value={fmtCur(ord.revenueWindow, ord.currency, true)}
-            sub={`${fmtNum(ord.totalOrdersInWindow)} Aufträge`}
+            sub={`${fmtNum(ord.totalOrdersInWindow)} Auftr\u00e4ge`}
             color="green"
             loading={metricsLoading}
           />
           <Card
             label="Versand"
-            value={shippingWindow !== null ? fmtCur(shippingWindow, 'EUR', true) : '—'}
-            sub={shippingWindow !== null ? (
-              <span className="flex flex-col gap-0.5">
-                <span>{fmtNum(finance?.shipping?.parcel_count ?? 0)} Sendungen</span>
-                {((finance?.shipping?.dhl_count ?? 0) > 0 || (finance?.shipping?.dpd_count ?? 0) > 0) && (
-                  <span className="text-[10px] text-txt-muted">
-                    {(finance?.shipping?.dhl_count ?? 0) > 0 && `DHL ${finance.shipping.dhl_count}`}
-                    {(finance?.shipping?.dhl_count ?? 0) > 0 && (finance?.shipping?.dpd_count ?? 0) > 0 && ' · '}
-                    {(finance?.shipping?.dpd_count ?? 0) > 0 && `DPD ${finance.shipping.dpd_count}`}
-                  </span>
-                )}
-              </span>
-            ) : undefined}
+            value={shippingWindow !== null ? fmtCur(shippingWindow, 'EUR', true) : '\u2014'}
+            sub={shippingWindow !== null ? `${fmtNum(finance?.shipping?.parcel_count ?? 0)} Sendungen` : undefined}
             color="amber"
             loading={financeLoading && shippingWindow === null}
           />
           <Card
             label="Retouren"
-            value={fmtNum(ord.returnsTotal)}
-            color={ord.returnsTotal > 0 ? 'red' : 'neutral'}
+            value={fmtNum(ord.returnsWindowCount)}
+            sub={ord.returnsWindowValue > 0 ? fmtCur(ord.returnsWindowValue, 'EUR') : undefined}
+            color={ord.returnsWindowCount > 0 ? 'red' : 'neutral'}
             loading={metricsLoading}
           />
         </div>
@@ -901,7 +787,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             <div className="flex items-center gap-4 text-[10px] text-txt-muted">
               <span className="flex items-center gap-1.5">
                 <span className="inline-block w-3 h-3 rounded-sm bg-info" />
-                Aufträge (links)
+                Auftr\u00e4ge (links)
               </span>
               <span className="flex items-center gap-1.5">
                 <span className="inline-block w-3 h-1.5 rounded-full bg-success" />
@@ -913,7 +799,86 @@ export const Dashboard: React.FC<DashboardProps> = ({
         </div>
       </Section>
 
-      {/* ══ 5. NACHBESTELLUNGS-WARNUNGEN ══════════════════════════ */}
+      {/* 3. AUFTRAGSFLUSS (kompakt) */}
+      <Section title="Auftragsfluss" badge={!metricsLoading && ord.neu > 0 ? `${ord.neu} offen` : undefined}>
+        <div className="rounded-lg border border-app-border bg-app-surface px-5 py-3">
+          {metricsLoading ? (
+            <div className="h-8 w-full rounded bg-app-border/50 animate-pulse" />
+          ) : (
+            <div className="flex items-center gap-1">
+              {STEPS.map((st, i) => {
+                const count = ({ neu: ord.neu, kommissioniert: ord.kommissioniert, verpackt: ord.verpackt, versendet: ord.versendet, zugestellt: ord.zugestellt } as Record<string, number>)[st.key] || 0;
+                return (
+                  <React.Fragment key={st.key}>
+                    <button
+                      type="button"
+                      onClick={() => navigateTo(st.key)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-md hover:bg-app-elevated transition-colors cursor-pointer"
+                    >
+                      <span className={`w-1.5 h-1.5 rounded-full ${st.dot}`} />
+                      <span className="text-xs text-txt-muted">{st.label}</span>
+                      <span className={`text-sm font-bold tabular-nums ${st.text}`}>{fmtNum(count)}</span>
+                    </button>
+                    {i < STEPS.length - 1 && (
+                      <span className="text-app-border text-xs select-none">{'\u203A'}</span>
+                    )}
+                  </React.Fragment>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </Section>
+
+      {/* 4. BESTAND & SYNC (kompakte Leiste) */}
+      <Section title="Bestand & Sync">
+        <div className="rounded-lg border border-app-border bg-app-surface px-5 py-3">
+          {syncLoading && metricsLoading ? (
+            <div className="h-6 w-full rounded bg-app-border/50 animate-pulse" />
+          ) : (
+            <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
+              <span className="text-txt-primary">
+                <span className="font-semibold">{fmtNum(inv.inStock)}</span>
+                <span className="text-txt-muted"> Produkte</span>
+              </span>
+              <span className="text-txt-primary">
+                <span className="font-semibold">{fmtNum(inv.available)}</span>
+                <span className="text-txt-muted"> verf\u00fcgbar</span>
+                {inv.reserved > 0 && (
+                  <span className="text-txt-muted"> \u00b7 {fmtNum(inv.reserved)} reserviert</span>
+                )}
+              </span>
+              <span className="text-txt-primary">
+                <span className="text-txt-muted">Wert </span>
+                <span className="font-semibold">{fmtCur(inv.totalValue, inv.primaryCur, true)}</span>
+              </span>
+
+              <span className="w-px h-4 bg-app-border" />
+
+              {syncStatus && (['ebay', 'kaufland'] as const).map(ch => {
+                const c = syncStatus.channels[ch];
+                if (!c) return (
+                  <span key={ch} className="text-xs text-txt-muted">{ch.charAt(0).toUpperCase() + ch.slice(1)} {'\u2014'}</span>
+                );
+                const hasErrors = c.errorCount > 0;
+                return (
+                  <span key={ch} className="flex items-center gap-1 text-xs">
+                    <span className={`w-1.5 h-1.5 rounded-full ${hasErrors ? 'bg-danger' : 'bg-success'}`} />
+                    <span className="text-txt-secondary">{ch.charAt(0).toUpperCase() + ch.slice(1)}</span>
+                    <span className={`font-medium ${hasErrors ? 'text-danger' : 'text-success'}`}>
+                      {c.successCount}/{c.totalCount}
+                    </span>
+                    {hasErrors && <span className="text-danger">{'\u00b7'} {c.errorCount} Fehler</span>}
+                  </span>
+                );
+              })}
+              {!syncStatus && <span className="text-xs text-txt-muted">Sync: kein Status</span>}
+            </div>
+          )}
+        </div>
+      </Section>
+
+      {/* 5. NACHBESTELLUNGS-WARNUNGEN */}
       {!alertsLoading && reorderAlerts.length > 0 && (
         <Section title="Nachbestellungs-Warnungen" badge={String(reorderAlerts.length)}>
           <div className="rounded-lg border border-warning/20 bg-warning-dim/30 overflow-hidden">
@@ -932,22 +897,22 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     <tr
                       key={a.productId || i}
                       className="border-b border-warning/10 last:border-b-0 cursor-pointer hover:bg-warning-dim/50 transition"
-                      onClick={() => onSelectProduct(a.productId)}
+                      onClick={() => _onSelectProduct(a.productId)}
                     >
                       <td className="px-4 py-2 text-txt-primary font-medium truncate max-w-[200px]">
                         {a.name || a.productId?.slice(0, 12)}
                       </td>
                       <td className="px-4 py-2 text-right font-mono text-warning font-semibold">
-                        {a.currentStock ?? '—'}
+                        {a.currentStock ?? '\u2014'}
                       </td>
                       <td className="px-4 py-2 text-right font-mono text-txt-muted">
-                        {typeof a.velocity === 'number' ? a.velocity.toFixed(1) : '—'}
+                        {typeof a.velocity === 'number' ? a.velocity.toFixed(1) : '\u2014'}
                       </td>
                       <td className="px-4 py-2 text-right">
                         <span className={`font-mono font-semibold ${(a.daysUntilStockout ?? 999) < 7 ? 'text-danger' : 'text-warning'}`}>
                           {typeof a.daysUntilStockout === 'number'
                             ? `${a.daysUntilStockout} Tage`
-                            : '—'}
+                            : '\u2014'}
                         </span>
                       </td>
                     </tr>
@@ -959,9 +924,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
         </Section>
       )}
 
-      {/* ══ 6. AKTIVITÄTS-FEED ══════════════════════════════════════ */}
+      {/* 6. AKTIVITÄTS-FEED */}
       {activities.length > 0 && (
-        <Section title="Aktivitäts-Feed" badge="24h">
+        <Section title="Aktivit\u00e4ts-Feed" badge="24h">
           <div className="rounded-lg border border-app-border bg-app-surface overflow-hidden">
             <div className="divide-y divide-app-border max-h-80 overflow-y-auto">
               {activities.map((a) => {
