@@ -12,7 +12,7 @@ interface InventoryViewProps {
   onSelectProduct?: (product: Product) => void;
 }
 
-type QuickFilterKey = "all" | "low" | "nobin" | "stale" | "listed" | "unlisted" | "listingErrors";
+type QuickFilterKey = "all" | "low" | "nobin" | "stale" | "listed" | "unlisted" | "listingErrors" | "ready" | "pending" | "sold" | "unsold" | "listingReady";
 type SortField = "name" | "sku" | "quantity" | "available" | "buyPrice" | "value" | "binCode" | "marketplace";
 type SortDir = "asc" | "desc";
 
@@ -290,7 +290,24 @@ const InventoryView: React.FC<InventoryViewProps> = ({ onNavigate, onSelectProdu
       if (info.hasErrors) listingErrorCount++;
     });
 
-    return { totalProducts, totalUnits, totalValue, lowStockCount, noBinCount, staleCount, listedCount, unlistedCount, listingErrorCount };
+    let readyCount = 0;
+    let pendingCount = 0;
+    let soldCount = 0;
+    let unsoldCount = 0;
+    let listingReadyCount = 0;
+    withStock.forEach((p) => {
+      const readiness = p.ops?.readiness || "pending";
+      if (readiness === "ready") readyCount++;
+      else pendingCount++;
+      const isSold = (p.inventory?.soldQuantity ?? 0) > 0 || (p.inventory?.openOrderQuantity ?? 0) > 0;
+      if (isSold) soldCount++;
+      else unsoldCount++;
+      const hasBin = !isNoBin(p);
+      const info = getMarketplaceInfo(p);
+      if (hasBin && !info.isListed && !isSold) listingReadyCount++;
+    });
+
+    return { totalProducts, totalUnits, totalValue, lowStockCount, noBinCount, staleCount, listedCount, unlistedCount, listingErrorCount, readyCount, pendingCount, soldCount, unsoldCount, listingReadyCount };
   }, [products, getMarketplaceInfo]);
 
   // ---- Filtering ----
@@ -317,6 +334,21 @@ const InventoryView: React.FC<InventoryViewProps> = ({ onNavigate, onSelectProdu
         break;
       case "listingErrors":
         list = list.filter((p) => getMarketplaceInfo(p).hasErrors);
+        break;
+      case "ready":
+        list = list.filter((p) => (p.ops?.readiness || "pending") === "ready");
+        break;
+      case "pending":
+        list = list.filter((p) => (p.ops?.readiness || "pending") === "pending");
+        break;
+      case "sold":
+        list = list.filter((p) => (p.inventory?.soldQuantity ?? 0) > 0 || (p.inventory?.openOrderQuantity ?? 0) > 0);
+        break;
+      case "unsold":
+        list = list.filter((p) => (p.inventory?.soldQuantity ?? 0) === 0 && (p.inventory?.openOrderQuantity ?? 0) === 0);
+        break;
+      case "listingReady":
+        list = list.filter((p) => !isNoBin(p) && !getMarketplaceInfo(p).isListed && (p.inventory?.soldQuantity ?? 0) === 0 && (p.inventory?.openOrderQuantity ?? 0) === 0);
         break;
     }
 
@@ -490,6 +522,43 @@ const InventoryView: React.FC<InventoryViewProps> = ({ onNavigate, onSelectProdu
               count={kpis.listingErrorCount}
               tone="warn"
             />
+          )}
+          <span className="w-px h-5 bg-app-border mx-1 self-center" />
+          <QuickFilter
+            label="Bereit"
+            active={quickFilter === "ready"}
+            onClick={() => setQuickFilter("ready")}
+            count={kpis.readyCount}
+          />
+          <QuickFilter
+            label="Ausstehend"
+            active={quickFilter === "pending"}
+            onClick={() => setQuickFilter("pending")}
+            count={kpis.pendingCount}
+          />
+          <span className="w-px h-5 bg-app-border mx-1 self-center" />
+          <QuickFilter
+            label="Verkauft"
+            active={quickFilter === "sold"}
+            onClick={() => setQuickFilter("sold")}
+            count={kpis.soldCount}
+          />
+          <QuickFilter
+            label="Unverkauft"
+            active={quickFilter === "unsold"}
+            onClick={() => setQuickFilter("unsold")}
+            count={kpis.unsoldCount}
+          />
+          {kpis.listingReadyCount > 0 && (
+            <>
+              <span className="w-px h-5 bg-app-border mx-1 self-center" />
+              <QuickFilter
+                label="Listing-bereit"
+                active={quickFilter === "listingReady"}
+                onClick={() => setQuickFilter("listingReady")}
+                count={kpis.listingReadyCount}
+              />
+            </>
           )}
         </div>
         <div className="flex-1 w-full sm:w-auto sm:max-w-xs ml-auto">
