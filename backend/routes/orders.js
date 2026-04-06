@@ -125,18 +125,19 @@ router.get('/dashboard/metrics', requirePermission('dashboard', 'read'), async (
     const metrics = await getDashboardMetrics({ days, preset, fromDate, toDate });
 
     // Pull returns from Firestore `returns` collection for KPIs (net revenue + returns counts).
-    // Uses the shared firestore singleton (no yearStart filter) so counts match the Returns page.
+    // Single source of truth — order-status-based return counting in getDashboardMetrics() is ignored.
     try {
       const rangeStart = metrics?.range?.from_iso ? new Date(metrics.range.from_iso) : null;
       const rangeEndExclusive = metrics?.range?.to_iso ? new Date(metrics.range.to_iso) : null;
-      const monthStart = metrics?.revenue?.month_start_iso ? new Date(metrics.revenue.month_start_iso) : null;
+      const now = new Date();
+      const yearStart = new Date(Date.UTC(now.getUTCFullYear(), 0, 1, 0, 0, 0));
 
       const returnsSnap = await firestore.collection('returns')
         .select('refundAmount', 'currency', 'createdAt', 'status')
         .get();
 
       let totalCount = 0, totalValue = 0;
-      let monthCount = 0;
+      let ytdCount = 0, ytdValue = 0;
       let windowCount = 0, windowValue = 0;
 
       for (const doc of returnsSnap.docs) {
@@ -147,7 +148,10 @@ router.get('/dashboard/metrics', requirePermission('dashboard', 'read'), async (
         totalCount++;
         totalValue += amount;
 
-        if (created && monthStart && created >= monthStart) monthCount++;
+        if (created && created >= yearStart) {
+          ytdCount++;
+          ytdValue += amount;
+        }
         if (created && rangeStart && rangeEndExclusive && created >= rangeStart && created < rangeEndExclusive) {
           windowCount++;
           windowValue += amount;
@@ -156,12 +160,13 @@ router.get('/dashboard/metrics', requirePermission('dashboard', 'read'), async (
 
       if (metrics?.orders) {
         metrics.orders.returns_total = totalCount;
-        metrics.orders.returns_month = monthCount;
+        metrics.orders.returns_ytd = ytdCount;
       }
 
+      // Deduct returns from revenue — YTD value from YTD revenue, window value from window revenue
       if (metrics?.revenue) {
         if (typeof metrics.revenue.all_non_cancelled_total === 'number') {
-          metrics.revenue.all_non_cancelled_total = Number((metrics.revenue.all_non_cancelled_total - totalValue).toFixed(2));
+          metrics.revenue.all_non_cancelled_total = Number((metrics.revenue.all_non_cancelled_total - ytdValue).toFixed(2));
         }
         if (typeof metrics.revenue.window_non_cancelled_total === 'number') {
           metrics.revenue.window_non_cancelled_total = Number((metrics.revenue.window_non_cancelled_total - windowValue).toFixed(2));
@@ -170,6 +175,7 @@ router.get('/dashboard/metrics', requirePermission('dashboard', 'read'), async (
 
       metrics.returns = {
         total: { count: totalCount, value_by_currency: { EUR: Math.round(totalValue * 100) / 100 } },
+        ytd: { count: ytdCount, value_by_currency: { EUR: Math.round(ytdValue * 100) / 100 } },
         window: { count: windowCount, value_by_currency: { EUR: Math.round(windowValue * 100) / 100 } },
       };
     } catch (err) {
