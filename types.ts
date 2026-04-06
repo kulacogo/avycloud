@@ -503,6 +503,7 @@ export interface DashboardMetrics {
     completed_total: number;
     completed_month: number;
     returns_total: number;
+    returns_ytd?: number;
     returns_month: number;
     status_breakdown?: {
       neu: number;
@@ -517,6 +518,11 @@ export interface DashboardMetrics {
   volume_7d: {
     window_days: number;
     days: DashboardMetricsDay[];
+  };
+  returns?: {
+    total: { count: number; value_by_currency: Record<string, number> };
+    ytd: { count: number; value_by_currency: Record<string, number> };
+    window: { count: number; value_by_currency: Record<string, number> };
   };
 }
 
