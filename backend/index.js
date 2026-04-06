@@ -308,6 +308,27 @@ const server = app.listen(PORT, () => {
     console.warn('[tracking-catchup] failed to start safety-net:', err?.message || err);
   }
 
+  // ── Delivery status polling: check shipped parcels for delivery every 2h ──
+  try {
+    const DELIVERY_POLL_INTERVAL_MS = 2 * 60 * 60 * 1000; // 2h
+    const runDeliveryPoll = async () => {
+      try {
+        const { pollDeliveryStatus } = require('./services/shipping-engine');
+        const result = await pollDeliveryStatus({ tenantId: 'default' });
+        if (result.delivered > 0 || result.errors > 0) {
+          console.log(`[delivery-poll] checked=${result.checked} delivered=${result.delivered} errors=${result.errors}`);
+        }
+      } catch (err) {
+        console.warn('[delivery-poll] poll failed:', err?.message);
+      }
+    };
+    setTimeout(runDeliveryPoll, 150_000); // First run after 2.5 min
+    setInterval(runDeliveryPoll, DELIVERY_POLL_INTERVAL_MS);
+    console.log(`[delivery-poll] enabled: every ${DELIVERY_POLL_INTERVAL_MS}ms`);
+  } catch (err) {
+    console.warn('[delivery-poll] failed to start:', err?.message || err);
+  }
+
   // ─── Invoice Sync: SevDesk Import + Bulk Generate (startup + every 24h) ─
   // On boot: import all existing SevDesk invoices, then generate any missing ones.
   // Runs again every 24h to catch any gaps. Fully idempotent.
