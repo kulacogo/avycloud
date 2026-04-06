@@ -172,8 +172,9 @@ async function pushTrackingToKaufland({ order, trackingNumber, carrier, firestor
       const klOrderId = order.marketplaceOrderId || order.externalOrderId;
       if (!klOrderId) return { ok: false, marketplace: 'kaufland', error: 'No Kaufland order/unit IDs' };
 
-      const unitsRes = await kauflandRequest('GET', `/orders/${klOrderId}/units`);
-      const units = Array.isArray(unitsRes?.data) ? unitsRes.data : [];
+      const orderRes = await kauflandRequest('GET', `/orders/${klOrderId}`);
+      const orderData = orderRes?.data?.data || orderRes?.data || orderRes;
+      const units = Array.isArray(orderData?.order_units) ? orderData.order_units : [];
       for (const unit of units) {
         if (unit.id_order_unit) unitIds.push(unit.id_order_unit);
       }
@@ -203,7 +204,7 @@ async function pushTrackingToKaufland({ order, trackingNumber, carrier, firestor
 
     for (const unitId of unitIds) {
       try {
-        await kauflandRequest('PATCH', `/order-units/${unitId}/ship`, {
+        await kauflandRequest('PATCH', `/order-units/${unitId}/send`, {
           body: {
             tracking_number: trackingNumber,
             carrier_code: klCarrier,
