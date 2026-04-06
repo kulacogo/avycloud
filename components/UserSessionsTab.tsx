@@ -379,6 +379,20 @@ const UserSessionsTab: React.FC = () => {
                                         <DetailItem label="Reduzierte Bewegung" value={s.client.reducedMotion ? "Ja" : "Nein"} />
                                         <DetailItem label="PDF Viewer" value={s.client.pdfViewerEnabled ? "Ja" : "Nein"} />
                                         <DetailItem label="Referrer" value={s.client.referrer || "—"} />
+                                        <DetailItem label="Farbtiefe" value={s.client.screenColorDepth != null ? `${s.client.screenColorDepth} Bit` : "—"} />
+                                        <DetailItem label="Orientierung" value={s.client.screenOrientation || "—"} />
+                                        <DetailItem label="GPU" value={s.client.gpuRenderer || "—"} />
+                                        <DetailItem label="GPU Vendor" value={s.client.gpuVendor || "—"} />
+                                        <DetailItem label="Online" value={s.client.onLine != null ? (s.client.onLine ? "Ja" : "Nein") : "—"} />
+                                        <DetailItem label="Speicher (Quota)" value={s.client.storageQuotaMb != null ? `${s.client.storageQuotaMb.toLocaleString("de-DE")} MB` : "—"} />
+                                        <DetailItem label="Speicher (Belegt)" value={s.client.storageUsageMb != null ? `${s.client.storageUsageMb.toLocaleString("de-DE")} MB` : "—"} />
+                                        <DetailItem label="Akku" value={s.client.batteryLevel != null ? `${Math.round(s.client.batteryLevel * 100)}%${s.client.batteryCharging ? " ⚡" : ""}` : "—"} />
+                                        <DetailItem label="Mediengeräte" value={s.client.mediaDeviceCounts ? `🎤${s.client.mediaDeviceCounts.audioinput} 📷${s.client.mediaDeviceCounts.videoinput} 🔊${s.client.mediaDeviceCounts.audiooutput}` : "—"} />
+                                        <DetailItem label="Pointer" value={s.client.pointerType || "—"} />
+                                        <DetailItem label="Hover" value={s.client.hoverCapable != null ? (s.client.hoverCapable ? "Ja" : "Nein") : "—"} />
+                                        <DetailItem label="Forced Colors" value={s.client.forcedColors ? "Ja" : "Nein"} />
+                                        <DetailItem label="Kontrast" value={s.client.prefersContrast || "—"} />
+                                        <DetailItem label="Netzwerk (physisch)" value={s.client.connectionPhysicalType || "—"} />
                                         {s.geo?.lat != null && s.geo?.lon != null && (
                                           <DetailItem label="Koordinaten" value={`${s.geo.lat.toFixed(2)}, ${s.geo.lon.toFixed(2)}`} />
                                         )}

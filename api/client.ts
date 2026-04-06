@@ -5038,6 +5038,21 @@ export interface SessionClientInfo {
   colorScheme: "dark" | "light";
   reducedMotion: boolean;
   pdfViewerEnabled: boolean;
+  screenColorDepth?: number | null;
+  screenOrientation?: string | null;
+  gpuRenderer?: string | null;
+  gpuVendor?: string | null;
+  onLine?: boolean;
+  storageQuotaMb?: number | null;
+  storageUsageMb?: number | null;
+  batteryLevel?: number | null;
+  batteryCharging?: boolean | null;
+  mediaDeviceCounts?: { audioinput: number; videoinput: number; audiooutput: number } | null;
+  pointerType?: "fine" | "coarse" | "none";
+  hoverCapable?: boolean;
+  forcedColors?: boolean;
+  prefersContrast?: "more" | "less" | "no-preference";
+  connectionPhysicalType?: string | null;
 }
 
 export async function createSessionApi(clientInfo: SessionClientInfo): Promise<{ ok: boolean; sessionId?: string }> {

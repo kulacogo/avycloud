@@ -13,8 +13,54 @@ const HEARTBEAT_HIDDEN_MS = 5 * 60_000; // 5 min when tab is hidden
 /**
  * Collect all available client-side device/browser information.
  */
+function getGpuInfo(): { renderer: string | null; vendor: string | null } {
+  try {
+    const canvas = document.createElement("canvas");
+    const gl = canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
+    if (!gl) return { renderer: null, vendor: null };
+    const ext = (gl as WebGLRenderingContext).getExtension("WEBGL_debug_renderer_info");
+    if (!ext) return { renderer: null, vendor: null };
+    return {
+      renderer: (gl as WebGLRenderingContext).getParameter(ext.UNMASKED_RENDERER_WEBGL) || null,
+      vendor: (gl as WebGLRenderingContext).getParameter(ext.UNMASKED_VENDOR_WEBGL) || null,
+    };
+  } catch {
+    return { renderer: null, vendor: null };
+  }
+}
+
+async function collectClientInfoAsync(): Promise<Partial<SessionClientInfo>> {
+  const extra: Partial<SessionClientInfo> = {};
+  try {
+    if (navigator.storage?.estimate) {
+      const est = await navigator.storage.estimate();
+      extra.storageQuotaMb = est.quota ? Math.round(est.quota / 1024 / 1024) : null;
+      extra.storageUsageMb = est.usage ? Math.round(est.usage / 1024 / 1024) : null;
+    }
+  } catch { /* ignore */ }
+  try {
+    if ((navigator as any).getBattery) {
+      const bat = await (navigator as any).getBattery();
+      extra.batteryLevel = bat.level ?? null;
+      extra.batteryCharging = bat.charging ?? null;
+    }
+  } catch { /* ignore */ }
+  try {
+    if (navigator.mediaDevices?.enumerateDevices) {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      extra.mediaDeviceCounts = {
+        audioinput: devices.filter(d => d.kind === "audioinput").length,
+        videoinput: devices.filter(d => d.kind === "videoinput").length,
+        audiooutput: devices.filter(d => d.kind === "audiooutput").length,
+      };
+    }
+  } catch { /* ignore */ }
+  return extra;
+}
+
 function collectClientInfo(): SessionClientInfo {
   const conn = (navigator as any).connection;
+  const gpu = getGpuInfo();
   return {
     screenResolution: `${screen.width}x${screen.height}`,
     viewportSize: `${window.innerWidth}x${window.innerHeight}`,
@@ -39,6 +85,18 @@ function collectClientInfo(): SessionClientInfo {
       : "light",
     reducedMotion: window.matchMedia("(prefers-reduced-motion: reduce)").matches,
     pdfViewerEnabled: (navigator as any).pdfViewerEnabled !== false,
+    screenColorDepth: screen.colorDepth ?? null,
+    screenOrientation: screen.orientation?.type || null,
+    gpuRenderer: gpu.renderer,
+    gpuVendor: gpu.vendor,
+    onLine: navigator.onLine,
+    pointerType: window.matchMedia("(pointer: fine)").matches ? "fine"
+      : window.matchMedia("(pointer: coarse)").matches ? "coarse" : "none",
+    hoverCapable: window.matchMedia("(hover: hover)").matches,
+    forcedColors: window.matchMedia("(forced-colors: active)").matches,
+    prefersContrast: window.matchMedia("(prefers-contrast: more)").matches ? "more"
+      : window.matchMedia("(prefers-contrast: less)").matches ? "less" : "no-preference",
+    connectionPhysicalType: conn?.type || null,
   };
 }
 
@@ -131,8 +189,11 @@ export function useSessionTracking(user: User | null) {
     // User logged in (new session)
     if (currentUid && currentUid !== prevUid) {
       const clientInfo = collectClientInfo();
-      createSessionApi(clientInfo)
-        .then((result) => {
+      // Collect async data (battery, storage, media devices) then create session
+      collectClientInfoAsync().then((asyncData) => {
+        const fullInfo = { ...clientInfo, ...asyncData };
+        return createSessionApi(fullInfo);
+      }).then((result) => {
           if (result.ok && result.sessionId) {
             sessionIdRef.current = result.sessionId;
             startHeartbeat(HEARTBEAT_ACTIVE_MS);
