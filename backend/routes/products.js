@@ -59,7 +59,7 @@ const { calculateOptimalPrice, savePricingRule, listPricingRules, runRepricingJo
 const { calculateSalesVelocity, predictStockOut, generateReorderAlerts } = require('../services/inventory-forecast');
 const { createWebhook, listWebhooks, deleteWebhook } = require('../services/webhooks');
 const { findDuplicates, suggestMerge, executeMerge } = require('../services/deduplication');
-const { logAudit } = require('../services/audit-log');
+const { logAudit, diffProduct } = require('../services/audit-log');
 const { generateChannelListings } = require('../services/listing-pipeline');
 
 // ── Constants ────────────────────────────────────────────────────────
@@ -1747,6 +1747,13 @@ router.post('/save', requirePermission('products', 'write'), async (req, res) =>
       product.details.images = filteredImages;
     }
 
+    // Read existing product for audit diff (fire-and-forget on failure)
+    let productBefore = null;
+    try {
+      const snap = await firestore.collection(PRODUCTS_COLLECTION).doc(product.id).get();
+      if (snap.exists) productBefore = { id: product.id, ...snap.data() };
+    } catch { /* ignore */ }
+
     // Save to Firestore
     // Manual UI saves:
     // - allowed to change category
@@ -1811,6 +1818,28 @@ router.post('/save', requirePermission('products', 'write'), async (req, res) =>
       console.warn('[auto-price-push] setup error:', priceErr?.message);
     }
 
+    // Audit log: product updated/created
+    try {
+      const isNew = !productBefore;
+      const changes = isNew ? [] : diffProduct(productBefore, product);
+      logAudit({
+        action: isNew ? 'product.created' : 'product.updated',
+        userId: req.user?.uid,
+        userEmail: req.user?.email,
+        tenantId: req.user?.tenantId || 'default',
+        resourceType: 'product',
+        resourceId: product.id,
+        details: {
+          productName: product.identification?.name || product.details?.title || '',
+          sku: product.identification?.sku || '',
+          source: 'ui',
+          changedFields: changes.map(c => c.field),
+          changes: changes.slice(0, 50),
+        },
+        ip: req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip,
+      });
+    } catch { /* audit must never break save */ }
+
     res.json({
       ok: true,
       data: {
@@ -1848,6 +1877,23 @@ router.delete('/products/:id', requirePermission('products', 'delete'), async (r
 
     await deleteProductImages(productId);
     await deleteProduct(productId);
+
+    // Audit log: product deleted
+    try {
+      logAudit({
+        action: 'product.deleted',
+        userId: req.user?.uid,
+        userEmail: req.user?.email,
+        tenantId: req.user?.tenantId || 'default',
+        resourceType: 'product',
+        resourceId: productId,
+        details: {
+          productName: product.identification?.name || product.details?.title || '',
+          sku: product.identification?.sku || '',
+        },
+        ip: req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip,
+      });
+    } catch { /* audit must never break delete */ }
 
     // Safety: by default, delete ONLY the requested product.
     // Optional: allow operators to also purge duplicate docs that share identity aliases.

@@ -112,8 +112,74 @@ async function queryAuditLog({
   return results;
 }
 
+/**
+ * Compute a human-readable diff of product fields.
+ * Returns an array of { field, from, to } for changed top-level and nested fields.
+ * Only tracks meaningful business fields, not internal metadata.
+ */
+function diffProduct(before, after) {
+  const changes = [];
+  if (!before || !after) return changes;
+
+  const flat = (obj, prefix = '') => {
+    const out = {};
+    for (const [k, v] of Object.entries(obj || {})) {
+      const key = prefix ? `${prefix}.${k}` : k;
+      if (v && typeof v === 'object' && !Array.isArray(v)) {
+        Object.assign(out, flat(v, key));
+      } else {
+        out[key] = v;
+      }
+    }
+    return out;
+  };
+
+  // Only diff these top-level sections to avoid noise from ops/internal fields
+  const sections = [
+    'identification.name', 'identification.brand', 'identification.sku',
+    'identification.barcodes',
+    'details.title', 'details.short_description', 'details.description',
+    'details.categoryId', 'details.category_breadcrumb',
+    'details.condition', 'details.handling_time',
+    'details.pricing.sellPrice', 'details.pricing.lowest_price.amount',
+    'details.weight', 'details.attributes',
+    'details.key_features', 'details.images',
+    'details.identifiers.ean', 'details.identifiers.gtin',
+    'details.identifiers.mpn', 'details.identifiers.upc',
+    'details.gpsr',
+  ];
+
+  const get = (obj, path) => {
+    const parts = path.split('.');
+    let cur = obj;
+    for (const p of parts) {
+      if (cur == null) return undefined;
+      cur = cur[p];
+    }
+    return cur;
+  };
+
+  const serialize = (v) => {
+    if (v === undefined || v === null) return null;
+    if (Array.isArray(v)) return JSON.stringify(v);
+    if (typeof v === 'object') return JSON.stringify(v);
+    return String(v);
+  };
+
+  for (const path of sections) {
+    const oldVal = serialize(get(before, path));
+    const newVal = serialize(get(after, path));
+    if (oldVal !== newVal) {
+      changes.push({ field: path, from: oldVal, to: newVal });
+    }
+  }
+
+  return changes;
+}
+
 module.exports = {
   logAudit,
   queryAuditLog,
+  diffProduct,
   AUDIT_COLLECTION,
 };

@@ -114,6 +114,8 @@ const AuditLogView: React.FC = () => {
     if (!entry.details) return null;
     const parts: string[] = [];
 
+    if (entry.details.productName) parts.push(entry.details.productName);
+    if (entry.details.sku) parts.push(`SKU: ${entry.details.sku}`);
     if (entry.details.imported != null) parts.push(`${entry.details.imported} importiert`);
     if (entry.details.failed != null && entry.details.failed > 0) parts.push(`${entry.details.failed} fehlgeschlagen`);
     if (entry.details.keepId) parts.push(`Behalten: ${entry.details.keepId.slice(0, 8)}…`);
@@ -122,6 +124,14 @@ const AuditLogView: React.FC = () => {
       const m = entry.details.merged;
       parts.push(`${m.barcodes || 0} Barcodes, ${m.images || 0} Bilder`);
     }
+    if (Array.isArray(entry.details.changedFields) && entry.details.changedFields.length > 0) {
+      const fields = entry.details.changedFields;
+      const display = fields.length <= 4
+        ? fields.join(", ")
+        : `${fields.slice(0, 3).join(", ")} +${fields.length - 3} weitere`;
+      parts.push(`Geändert: ${display}`);
+    }
+    if (entry.details.source === "chat") parts.push("via KI-Assistent");
 
     if (parts.length === 0) return null;
     return <span className="text-xs text-txt-muted">— {parts.join(" · ")}</span>;
