@@ -669,8 +669,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
 
   const navigateTo = useCallback((statusKey: string) => {
-    const target = statusKey === 'neu' ? 'inventory' : 'products';
-    window.location.hash = `#/${target}?orderStatus=${encodeURIComponent(statusKey)}`;
+    window.location.hash = `#/orders?orderStatus=${encodeURIComponent(statusKey)}`;
   }, []);
 
   const nowStr = lastRefreshed?.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) ?? null;
