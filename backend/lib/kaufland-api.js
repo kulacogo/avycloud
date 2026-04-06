@@ -257,6 +257,8 @@ function pickUnitData(product, { mode = 'create', storefront = 'de' } = {}) {
 
   const rawPrice =
     product?.details?.pricing?.sellPrice ??
+    product?.pricing?.kaufland?.price ??
+    product?.pricing?.sellPrice ??
     product?.details?.pricing?.lowest_price?.amount ??
     product?.details?.pricing?.amount ??
     null;
