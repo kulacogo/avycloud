@@ -702,7 +702,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
       )}
 
       {/* 1. HERO-KPIs (3 Karten) */}
-      <Section title="Jahres\u00fcberblick">
+      <Section title="Jahresüberblick">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <Card
             label="Kontostand"
@@ -729,7 +729,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 {((finance?.shipping_ytd?.dhl_count ?? 0) > 0 || (finance?.shipping_ytd?.dpd_count ?? 0) > 0) && (
                   <span className="text-[10px] text-txt-muted">
                     {(finance?.shipping_ytd?.dhl_count ?? 0) > 0 && `DHL ${fmtNum(finance!.shipping_ytd!.dhl_count!)}`}
-                    {(finance?.shipping_ytd?.dhl_count ?? 0) > 0 && (finance?.shipping_ytd?.dpd_count ?? 0) > 0 && ' \u00b7 '}
+                    {(finance?.shipping_ytd?.dhl_count ?? 0) > 0 && (finance?.shipping_ytd?.dpd_count ?? 0) > 0 && ' · '}
                     {(finance?.shipping_ytd?.dpd_count ?? 0) > 0 && `DPD ${fmtNum(finance!.shipping_ytd!.dpd_count!)}`}
                   </span>
                 )}
@@ -752,12 +752,12 @@ export const Dashboard: React.FC<DashboardProps> = ({
       </Section>
 
       {/* 2. KENNZAHLEN + CHART */}
-      <Section title={`Kennzahlen \u00b7 ${presetLabel}`}>
+      <Section title={`Kennzahlen · ${presetLabel}`}>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
           <Card
             label="Umsatz"
             value={fmtCur(ord.revenueWindow, ord.currency, true)}
-            sub={`${fmtNum(ord.totalOrdersInWindow)} Auftr\u00e4ge`}
+            sub={`${fmtNum(ord.totalOrdersInWindow)} Aufträge`}
             color="green"
             loading={metricsLoading}
           />
@@ -787,7 +787,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             <div className="flex items-center gap-4 text-[10px] text-txt-muted">
               <span className="flex items-center gap-1.5">
                 <span className="inline-block w-3 h-3 rounded-sm bg-info" />
-                Auftr\u00e4ge (links)
+                Aufträge (links)
               </span>
               <span className="flex items-center gap-1.5">
                 <span className="inline-block w-3 h-1.5 rounded-full bg-success" />
@@ -843,9 +843,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
               </span>
               <span className="text-txt-primary">
                 <span className="font-semibold">{fmtNum(inv.available)}</span>
-                <span className="text-txt-muted"> verf\u00fcgbar</span>
+                <span className="text-txt-muted"> verfügbar</span>
                 {inv.reserved > 0 && (
-                  <span className="text-txt-muted"> \u00b7 {fmtNum(inv.reserved)} reserviert</span>
+                  <span className="text-txt-muted"> · {fmtNum(inv.reserved)} reserviert</span>
                 )}
               </span>
               <span className="text-txt-primary">
@@ -868,7 +868,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     <span className={`font-medium ${hasErrors ? 'text-danger' : 'text-success'}`}>
                       {c.successCount}/{c.totalCount}
                     </span>
-                    {hasErrors && <span className="text-danger">{'\u00b7'} {c.errorCount} Fehler</span>}
+                    {hasErrors && <span className="text-danger">· {c.errorCount} Fehler</span>}
                   </span>
                 );
               })}
@@ -926,7 +926,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
       {/* 6. AKTIVITÄTS-FEED */}
       {activities.length > 0 && (
-        <Section title="Aktivit\u00e4ts-Feed" badge="24h">
+        <Section title="Aktivitäts-Feed" badge="24h">
           <div className="rounded-lg border border-app-border bg-app-surface overflow-hidden">
             <div className="divide-y divide-app-border max-h-80 overflow-y-auto">
               {activities.map((a) => {
