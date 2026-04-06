@@ -3466,6 +3466,15 @@ async function getDashboardMetrics({ days = 7, preset = null, fromDate = null, t
   };
 
   const categorizeStatus = (order) => {
+    // 1. Modern OMS status (authoritative for marketplace-imported orders)
+    const oms = normalize(order?.omsStatus || '');
+    if (oms === 'pending' || oms === 'new' || oms === 'confirmed') return 'neu';
+    if (oms === 'picking' || oms === 'picked') return 'kommissioniert';
+    if (oms === 'packing' || oms === 'packed') return 'verpackt';
+    if (oms === 'shipped') return 'versendet';
+    if (oms === 'delivered' || oms === 'completed') return 'zugestellt';
+
+    // 2. Legacy: statusId from old BaseLinker imports
     const statusId = order?.statusId != null ? String(order.statusId).trim() : '';
     if (statusId) {
       if (statusId === STATUS_ID_NEW) return 'neu';
@@ -3473,9 +3482,10 @@ async function getDashboardMetrics({ days = 7, preset = null, fromDate = null, t
       if (statusId === STATUS_ID_PACKED) return 'verpackt';
       if (statusId === STATUS_ID_SHIPPED) return 'versendet';
     }
+
+    // 3. Fallback: substring matching on statusLabel/status
     const raw = normalize(order?.statusLabel || order?.status || '');
-    // prefer explicit "new" state if present
-    if (order?.status === 'new' || raw.includes('neu') || raw.includes('new')) return 'neu';
+    if (order?.status === 'new' || raw.includes('neu') || raw.includes('new') || raw.includes('bestätigt') || raw.includes('bestaetigt')) return 'neu';
     if (raw.includes('kommission') || raw.includes('picked')) return 'kommissioniert';
     if (raw.includes('verpackt') || raw.includes('packed')) return 'verpackt';
     if (raw.includes('versendet') || raw.includes('shipped') || raw.includes('dispatched')) return 'versendet';
