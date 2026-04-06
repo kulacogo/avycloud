@@ -11,6 +11,8 @@ import {
   publishToKaufland,
   bulkPublishToEbay,
   bulkPublishToKaufland,
+  bulkUpdateKauflandUnits,
+  bulkSetKauflandUnitStatus,
   fetchProducts,
 } from "../api/client";
 import type { Product } from "../types";
@@ -824,6 +826,67 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
               >
                 {bulkUpdating ? "Aktualisiere..." : "Listings aktualisieren"}
               </button>
+            )}
+            {marketplace === "kaufland" && (
+              <>
+                <button
+                  onClick={async () => {
+                    setBulkUpdating(true);
+                    try {
+                      const ids = [...selectedIds];
+                      const result = await bulkUpdateKauflandUnits(ids);
+                      alert(`Aktualisiert: ${result.success}/${result.total}${result.failed > 0 ? ` (${result.failed} fehlgeschlagen)` : ""}`);
+                      loadKauflandListings();
+                    } catch (err: any) {
+                      alert(`Fehler: ${err.message}`);
+                    } finally {
+                      setBulkUpdating(false);
+                    }
+                  }}
+                  disabled={bulkUpdating}
+                  className="px-3 py-1.5 text-sm font-medium text-txt-primary bg-app-surface border border-app-border rounded-lg hover:bg-app-elevated transition-colors disabled:opacity-50"
+                >
+                  {bulkUpdating ? "Aktualisiere..." : "Preis & Bestand aktualisieren"}
+                </button>
+                <button
+                  onClick={async () => {
+                    setBulkUpdating(true);
+                    try {
+                      const ids = [...selectedIds];
+                      const result = await bulkSetKauflandUnitStatus(ids, "AVAILABLE");
+                      alert(`Aktiviert: ${result.success}/${result.total}${result.failed > 0 ? ` (${result.failed} fehlgeschlagen)` : ""}`);
+                      loadKauflandListings();
+                    } catch (err: any) {
+                      alert(`Fehler: ${err.message}`);
+                    } finally {
+                      setBulkUpdating(false);
+                    }
+                  }}
+                  disabled={bulkUpdating}
+                  className="px-3 py-1.5 text-sm font-medium text-success bg-success-dim border border-success/20 rounded-lg hover:brightness-110 transition-colors disabled:opacity-50"
+                >
+                  Aktivieren
+                </button>
+                <button
+                  onClick={async () => {
+                    setBulkUpdating(true);
+                    try {
+                      const ids = [...selectedIds];
+                      const result = await bulkSetKauflandUnitStatus(ids, "ONHOLD");
+                      alert(`Deaktiviert: ${result.success}/${result.total}${result.failed > 0 ? ` (${result.failed} fehlgeschlagen)` : ""}`);
+                      loadKauflandListings();
+                    } catch (err: any) {
+                      alert(`Fehler: ${err.message}`);
+                    } finally {
+                      setBulkUpdating(false);
+                    }
+                  }}
+                  disabled={bulkUpdating}
+                  className="px-3 py-1.5 text-sm font-medium text-warning bg-warning-dim border border-warning/20 rounded-lg hover:brightness-110 transition-colors disabled:opacity-50"
+                >
+                  Deaktivieren
+                </button>
+              </>
             )}
             <button
               onClick={() => setSelectedIds(new Set())}

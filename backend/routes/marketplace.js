@@ -1317,6 +1317,88 @@ router.post('/kaufland/publish/bulk', requirePermission('products', 'write'), as
   }
 });
 
+// ── Kaufland: Bulk update units (price + stock) ─────────────────────
+router.post('/kaufland/units/bulk-update', requirePermission('products', 'write'), async (req, res) => {
+  try {
+    const { unitIds } = req.body || {};
+    if (!Array.isArray(unitIds) || !unitIds.length) {
+      return res.status(400).json({ ok: false, error: { code: 'MISSING_UNIT_IDS', message: 'unitIds array is required' } });
+    }
+    const { updateUnit } = require('../lib/kaufland-api');
+    const { getProductV2 } = require('../lib/product-store');
+
+    // Look up products by unitId from kauflandUnitsLive
+    const results = [];
+    for (const unitId of unitIds.slice(0, 100)) {
+      try {
+        const unitSnap = await firestore.collection('kauflandUnitsLive').doc(String(unitId)).get();
+        if (!unitSnap.exists) {
+          results.push({ unitId, ok: false, error: 'Unit nicht gefunden' });
+          continue;
+        }
+        const unitData = unitSnap.data();
+        const sku = unitData.id_offer || unitData.id_offer_normalized;
+        if (!sku) {
+          results.push({ unitId, ok: false, error: 'Keine SKU fuer Unit' });
+          continue;
+        }
+        // Find product by SKU
+        const prodSnap = await firestore.collection('products_v2')
+          .where('identification.sku', '==', sku)
+          .limit(1)
+          .get();
+        if (prodSnap.empty) {
+          results.push({ unitId, ok: false, error: `Kein Produkt fuer SKU ${sku}` });
+          continue;
+        }
+        const product = { id: prodSnap.docs[0].id, ...prodSnap.docs[0].data() };
+        const result = await updateUnit(unitId, product, { storefront: 'de' });
+        results.push({ unitId, ok: true, updated: result?.updated || false });
+      } catch (err) {
+        results.push({ unitId, ok: false, error: err.message });
+      }
+    }
+    const success = results.filter(r => r.ok).length;
+    res.json({ ok: true, data: { total: unitIds.length, success, failed: unitIds.length - success, results } });
+  } catch (error) {
+    console.error(`[POST /api/kaufland/units/bulk-update] ${error.message}`, error);
+    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: error.message } });
+  }
+});
+
+// ── Kaufland: Bulk set unit status (AVAILABLE / ONHOLD) ─────────────
+router.post('/kaufland/units/bulk-status', requirePermission('products', 'write'), async (req, res) => {
+  try {
+    const { unitIds, status } = req.body || {};
+    if (!Array.isArray(unitIds) || !unitIds.length) {
+      return res.status(400).json({ ok: false, error: { code: 'MISSING_UNIT_IDS', message: 'unitIds array is required' } });
+    }
+    if (!['AVAILABLE', 'ONHOLD'].includes(status)) {
+      return res.status(400).json({ ok: false, error: { code: 'INVALID_STATUS', message: 'status must be AVAILABLE or ONHOLD' } });
+    }
+    const { setUnitStatus } = require('../lib/kaufland-api');
+    const results = [];
+    for (const unitId of unitIds.slice(0, 100)) {
+      try {
+        await setUnitStatus(unitId, status, { storefront: 'de' });
+        results.push({ unitId, ok: true });
+        // Update local status in kauflandUnitsLive
+        await firestore.collection('kauflandUnitsLive').doc(String(unitId)).set(
+          { status, active: status === 'AVAILABLE', updatedAt: new Date().toISOString() },
+          { merge: true }
+        ).catch(() => {});
+      } catch (err) {
+        results.push({ unitId, ok: false, error: err.message });
+      }
+    }
+    const success = results.filter(r => r.ok).length;
+    res.json({ ok: true, data: { total: unitIds.length, success, failed: unitIds.length - success, results } });
+  } catch (error) {
+    console.error(`[POST /api/kaufland/units/bulk-status] ${error.message}`, error);
+    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: error.message } });
+  }
+});
+
 // =====================================================================
 // eBay Gaps
 // =====================================================================

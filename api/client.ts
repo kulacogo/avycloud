@@ -1668,6 +1668,37 @@ export async function bulkPublishToKaufland(
   return data?.data as BulkPublishResult;
 }
 
+export async function bulkUpdateKauflandUnits(
+  unitIds: string[]
+): Promise<{ total: number; success: number; failed: number; results: Array<{ unitId: string; ok: boolean; error?: string }> }> {
+  const res = await fetchApi(`${BACKEND_URL}/api/kaufland/units/bulk-update`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ unitIds }),
+  });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) {
+    throw new Error(data?.error?.message || "Failed to bulk update Kaufland units");
+  }
+  return data?.data;
+}
+
+export async function bulkSetKauflandUnitStatus(
+  unitIds: string[],
+  status: "AVAILABLE" | "ONHOLD"
+): Promise<{ total: number; success: number; failed: number; results: Array<{ unitId: string; ok: boolean; error?: string }> }> {
+  const res = await fetchApi(`${BACKEND_URL}/api/kaufland/units/bulk-status`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ unitIds, status }),
+  });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) {
+    throw new Error(data?.error?.message || "Failed to set Kaufland unit status");
+  }
+  return data?.data;
+}
+
 export async function generateEbayReports(outDir?: string): Promise<any> {
   const res = await fetchApi(`${BACKEND_URL}/api/ebay/reports/generate`, {
     method: 'POST',
