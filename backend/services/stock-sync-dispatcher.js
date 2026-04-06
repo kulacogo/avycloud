@@ -192,11 +192,24 @@ async function syncStockToAllChannels({ tenantId = 'default', product, reason = 
           `[stock-sync] kaufland ONHOLD product=${productId} unitId=${kauflandUnitId} → status=ONHOLD`
         );
       } catch (err) {
-        results.push({ channel: 'kaufland', status: 'error', error: err?.message, action: 'onhold' });
+        const errMsg = err?.message || String(err);
+        results.push({ channel: 'kaufland', status: 'error', error: errMsg, action: 'onhold' });
         console.warn(
           `[stock-sync] kaufland ONHOLD FAILED product=${productId} unitId=${kauflandUnitId}:`,
-          err?.message || err
+          errMsg
         );
+        // If unit no longer exists on Kaufland, clear the stale unitId to stop endless retries
+        if (errMsg.includes('Not Found') || errMsg.includes('404') || errMsg.includes('not_found')) {
+          try {
+            await firestore.collection('products_v2').doc(productId).set(
+              { ops: { kaufland: { unitId: null, unitIdCleared: new Date().toISOString(), unitIdClearReason: 'unit_not_found' } } },
+              { merge: true }
+            );
+            console.log(`[stock-sync] Cleared stale kaufland unitId for product=${productId} (Unit Not Found)`);
+          } catch (clearErr) {
+            console.warn(`[stock-sync] Failed to clear stale unitId: ${clearErr?.message}`);
+          }
+        }
       }
     } else {
       // Stock > 0: full update (price + qty + sets status=AVAILABLE automatically)
@@ -221,11 +234,24 @@ async function syncStockToAllChannels({ tenantId = 'default', product, reason = 
           `[stock-sync] kaufland product=${productId} unitId=${kauflandUnitId} qty=${availableQuantity} status=success`
         );
       } catch (err) {
-        results.push({ channel: 'kaufland', status: 'error', error: err?.message });
+        const errMsg = err?.message || String(err);
+        results.push({ channel: 'kaufland', status: 'error', error: errMsg });
         console.warn(
           `[stock-sync] kaufland FAILED product=${productId} unitId=${kauflandUnitId}:`,
-          err?.message || err
+          errMsg
         );
+        // If unit no longer exists on Kaufland, clear the stale unitId to stop endless retries
+        if (errMsg.includes('Not Found') || errMsg.includes('404') || errMsg.includes('not_found')) {
+          try {
+            await firestore.collection('products_v2').doc(productId).set(
+              { ops: { kaufland: { unitId: null, unitIdCleared: new Date().toISOString(), unitIdClearReason: 'unit_not_found' } } },
+              { merge: true }
+            );
+            console.log(`[stock-sync] Cleared stale kaufland unitId for product=${productId} (Unit Not Found)`);
+          } catch (clearErr) {
+            console.warn(`[stock-sync] Failed to clear stale unitId: ${clearErr?.message}`);
+          }
+        }
       }
     }
   }
