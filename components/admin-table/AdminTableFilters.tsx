@@ -92,6 +92,8 @@ interface AdminTableFiltersProps {
   setFilterWeight: (v: "all" | "withWeight" | "noWeight") => void;
   filterReserved: "all" | "reserved" | "notReserved";
   setFilterReserved: (v: "all" | "reserved" | "notReserved") => void;
+  filterSold: "all" | "sold" | "unsold";
+  setFilterSold: (v: "all" | "sold" | "unsold") => void;
 
   // Column presets & visibility
   columnPreset: ColumnPreset;
@@ -168,6 +170,8 @@ const AdminTableFilters: React.FC<AdminTableFiltersProps> = ({
   setFilterWeight,
   filterReserved,
   setFilterReserved,
+  filterSold,
+  setFilterSold,
   columnPreset,
   setColumnPreset,
   visibleColumns,
@@ -385,6 +389,15 @@ const AdminTableFilters: React.FC<AdminTableFiltersProps> = ({
             <option value="all">Reserviert: Alle</option>
             <option value="reserved">Reserviert: &gt; 0</option>
             <option value="notReserved">Reserviert: 0</option>
+          </select>
+          <select
+            value={filterSold}
+            onChange={(e) => setFilterSold(e.target.value as any)}
+            className={filterControlClass}
+          >
+            <option value="all">Verkauft: Alle</option>
+            <option value="sold">Verkauft: Ja</option>
+            <option value="unsold">Verkauft: Nein</option>
           </select>
         </div>
       </div>

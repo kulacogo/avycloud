@@ -145,6 +145,10 @@ const AdminTable: React.FC<AdminTableProps> = ({
     if (typeof window === 'undefined') return 'all';
     return (window.sessionStorage.getItem('avystock:admin-table:filterReserved') as any) || 'all';
   });
+  const [filterSold, setFilterSold] = useState<'all' | 'sold' | 'unsold'>(() => {
+    if (typeof window === 'undefined') return 'all';
+    return (window.sessionStorage.getItem('avystock:admin-table:filterSold') as any) || 'all';
+  });
   const [filterEbay, setFilterEbay] = useState<'all' | 'listed' | 'notListed'>(() => {
     if (typeof window === 'undefined') return 'all';
     return (window.sessionStorage.getItem('avystock:admin-table:filterEbay') as any) || 'all';
@@ -996,6 +1000,12 @@ const AdminTable: React.FC<AdminTableProps> = ({
         filterReserved === 'all' ||
         (filterReserved === 'reserved' && reservedQuantity > 0) ||
         (filterReserved === 'notReserved' && reservedQuantity <= 0);
+      const soldQuantity = Number(p.inventory?.soldQuantity || 0) || 0;
+      const openOrders = Number(p.inventory?.openOrderQuantity || 0) || 0;
+      const matchesSold =
+        filterSold === 'all' ||
+        (filterSold === 'sold' && (soldQuantity > 0 || openOrders > 0)) ||
+        (filterSold === 'unsold' && soldQuantity <= 0 && openOrders <= 0);
       // EAN/GTIN validity filter
       const pBarcode = primaryBarcode(p);
       const pBarcodePresent = pBarcode !== '—';
@@ -1080,6 +1090,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
         matchesBinSplit &&
         matchesWeight &&
         matchesReserved &&
+        matchesSold &&
         matchesEanValid &&
         matchesGpsr &&
         matchesEbay &&
@@ -1183,6 +1194,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
     filterBinSplit,
     filterWeight,
     filterReserved,
+    filterSold,
     filterEanValid,
     filterGpsr,
     filterEbay,
@@ -1823,6 +1835,10 @@ const AdminTable: React.FC<AdminTableProps> = ({
   }, [filterReserved]);
   useEffect(() => {
     if (typeof window === 'undefined') return;
+    window.sessionStorage.setItem('avystock:admin-table:filterSold', filterSold);
+  }, [filterSold]);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
     window.sessionStorage.setItem('avystock:admin-table:filterEbay', filterEbay);
   }, [filterEbay]);
   useEffect(() => {
@@ -1852,11 +1868,12 @@ const AdminTable: React.FC<AdminTableProps> = ({
     if (filterKaufland !== 'all') count++;
     if (filterWeight !== 'all') count++;
     if (filterReserved !== 'all') count++;
+    if (filterSold !== 'all') count++;
     if (filterBinSplit !== 'all') count++;
     if (filterEanValid !== 'all') count++;
     if (filterGpsr !== 'all') count++;
     return count;
-  }, [filterStatus, filterCategorySelection, filterBin, filterEbay, filterKaufland, filterWeight, filterReserved, filterBinSplit, filterEanValid, filterGpsr]);
+  }, [filterStatus, filterCategorySelection, filterBin, filterEbay, filterKaufland, filterWeight, filterReserved, filterSold, filterBinSplit, filterEanValid, filterGpsr]);
 
   const activeFilterChips = useMemo(() => {
     const chips: Array<{ key: string; label: string; onClear: () => void }> = [];
@@ -1920,6 +1937,13 @@ const AdminTable: React.FC<AdminTableProps> = ({
         key: 'reserved',
         label: filterReserved === 'reserved' ? 'Reserviert > 0' : 'Reserviert = 0',
         onClear: () => setFilterReserved('all'),
+      });
+    }
+    if (filterSold !== 'all') {
+      chips.push({
+        key: 'sold',
+        label: filterSold === 'sold' ? 'Verkauft: Ja' : 'Verkauft: Nein',
+        onClear: () => setFilterSold('all'),
       });
     }
 
@@ -2094,6 +2118,8 @@ const AdminTable: React.FC<AdminTableProps> = ({
                 setFilterWeight={setFilterWeight}
                 filterReserved={filterReserved}
                 setFilterReserved={setFilterReserved}
+                filterSold={filterSold}
+                setFilterSold={setFilterSold}
                 columnPreset={columnPreset}
                 setColumnPreset={setColumnPreset}
                 visibleColumns={visibleColumns}
