@@ -881,189 +881,240 @@ function buildTrendOceanDescriptionTemplate({ listing, product, titleOverride = 
 
 <style>
 body {
-  font-family: Arial, Helvetica, sans-serif;
-  color: #2b2b2b;
-  line-height: 1.6;
+  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  color: #1a1a1a;
+  line-height: 1.7;
   background: #ffffff;
+  margin: 0;
+  padding: 0;
+  -webkit-font-smoothing: antialiased;
 }
 
-.wrapper {
-  max-width: 1000px;
+.to-wrap {
+  max-width: 860px;
   margin: 0 auto;
-  padding: 12px;
+  padding: 24px 16px;
 }
 
-.store-logo {
-  display: block;
-  margin: 0 auto 10px auto;
-  max-width: 200px;
-}
-
-h1 {
-  font-size: 24px;
+/* ── Header ── */
+.to-header {
   text-align: center;
-  margin: 6px 0 18px;
+  padding: 32px 0 24px;
+  border-bottom: 1px solid #e8e8e8;
+  margin-bottom: 32px;
+}
+
+.to-logo {
+  display: block;
+  margin: 0 auto 16px auto;
+  max-width: 500px;
+  width: 90%;
+}
+
+.to-tagline {
+  font-size: 13px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: #999;
+  margin: 0;
+}
+
+/* ── Titel ── */
+.to-title {
+  font-size: 22px;
+  font-weight: 600;
+  text-align: center;
+  margin: 0 0 32px;
   color: #111;
+  letter-spacing: -0.3px;
 }
 
-.section {
-  margin: 22px 0;
-}
-
-.section-title {
-  font-size: 18px;
-  font-weight: bold;
-  margin-bottom: 10px;
-  border-bottom: 2px solid #eee;
-  padding-bottom: 4px;
-}
-
-.hero {
+/* ── Produkt-Hero ── */
+.to-product {
   display: flex;
   flex-wrap: wrap;
-  gap: 18px;
+  gap: 32px;
+  align-items: flex-start;
+  margin-bottom: 40px;
 }
 
-.hero-image {
-  flex: 1 1 380px;
+.to-product-image {
+  flex: 1 1 340px;
   text-align: center;
 }
 
-.hero-image img {
+.to-product-image img {
   width: 100%;
-  max-width: 420px;
+  max-width: 400px;
 }
 
-.hero-info {
-  flex: 1 1 420px;
+.to-product-info {
+  flex: 1 1 340px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
 }
 
-.trust-box {
-  background: #f8f9fb;
-  border: 1px solid #e2e4e8;
-  padding: 14px;
-}
-
-.trust-box ul {
+/* ── Trust-Punkte ── */
+.to-trust {
   list-style: none;
   padding: 0;
   margin: 0;
 }
 
-.trust-box li {
+.to-trust li {
+  padding: 10px 0;
+  border-bottom: 1px solid #f0f0f0;
+  font-size: 14px;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.to-trust li:last-child {
+  border-bottom: none;
+}
+
+.to-trust-icon {
+  flex-shrink: 0;
+  font-size: 13px;
+}
+
+/* ── Sektionen ── */
+.to-section {
+  margin-bottom: 36px;
+}
+
+.to-section-label {
+  font-size: 11px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: #888;
+  margin-bottom: 14px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #eee;
+}
+
+.to-section ul {
+  padding-left: 18px;
+  margin: 0;
+}
+
+.to-section li {
   margin-bottom: 6px;
   font-size: 14px;
+  line-height: 1.6;
 }
 
-.highlight {
-  background: #f8f9fb;
-  border-left: 4px solid #1a73e8;
-  padding: 14px 16px;
+.to-section p, .to-section div {
   font-size: 14px;
+  line-height: 1.7;
+  color: #333;
 }
 
-ul {
-  padding-left: 18px;
-  margin: 8px 0;
-}
-
-.cta {
-  background: #111;
-  color: #fff;
-  text-align: center;
-  padding: 16px;
-  font-size: 16px;
-  font-weight: bold;
-  margin-top: 28px;
-}
-
-.packaging-note {
-  background: #f0f4e8;
-  border-left: 4px solid #5a8a2e;
-  padding: 12px 16px;
+/* ── Verpackungshinweis ── */
+.to-packaging {
+  border-top: 1px solid #e8e8e8;
+  border-bottom: 1px solid #e8e8e8;
+  padding: 20px 0;
+  margin: 36px 0;
   font-size: 13px;
-  color: #3a3a3a;
-  margin-top: 22px;
-  line-height: 1.5;
+  color: #555;
+  line-height: 1.7;
 }
 
-.packaging-note strong {
-  color: #2b2b2b;
+.to-packaging-title {
+  font-size: 11px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: #888;
+  margin-bottom: 10px;
 }
 
-.small-note {
-  font-size: 12px;
-  color: #666;
+/* ── CTA ── */
+.to-cta {
   text-align: center;
-  margin-top: 10px;
+  padding: 24px;
+  border: 2px solid #111;
+  margin-bottom: 28px;
+}
+
+.to-cta-text {
+  font-size: 16px;
+  font-weight: 600;
+  color: #111;
+  margin: 0;
+}
+
+/* ── Footer ── */
+.to-footer {
+  text-align: center;
+  padding-top: 20px;
+  border-top: 1px solid #e8e8e8;
+  font-size: 11px;
+  color: #aaa;
+  letter-spacing: 0.3px;
 }
 </style>
 
-<div class="wrapper">
+<div class="to-wrap">
 
-  <img src="https://storage.googleapis.com/trendocean/desc_logo.png"
-       alt="TrendOcean"
-       class="store-logo">
+  <div class="to-header">
+    <img src="https://storage.googleapis.com/trendocean/desc_logo.png"
+         alt="TrendOcean"
+         class="to-logo">
+    <p class="to-tagline">Qualität. Verantwortung. Fairness.</p>
+  </div>
 
-  <h1>${escapeHtml(auctionName)}</h1>
+  <h1 class="to-title">${escapeHtml(auctionName)}</h1>
 
-  <div class="hero">
+  <div class="to-product">
 
-    <div class="hero-image">
+    <div class="to-product-image">
       <img src="${escapeHtml(photo)}" alt="${escapeHtml(auctionName)}">
     </div>
 
-    <div class="hero-info">
-
-      <div class="trust-box">
-        <ul>
-          <li>✔ <strong>Hersteller:</strong> ${escapeHtml(manufacturer)}</li>
-          <li>✔ <strong>Zustand:</strong> Neu</li>
-          <li>✔ <strong>Versand:</strong> Schnell & kostenlos aus Deutschland</li>
-          <li>✔ <strong>Qualitätsprüfung:</strong> Manuell geprüft</li>
-        </ul>
-      </div>
-
-      <div class="highlight section">
-        <strong>Warum dieses Angebot?</strong><br>
-        Hochwertige Ware, faire Preise und professioneller Service – <strong>TrendOcean</strong>.
-      </div>
-
+    <div class="to-product-info">
+      <ul class="to-trust">
+        <li><span class="to-trust-icon">✔</span> <strong>Hersteller</strong> — ${escapeHtml(manufacturer)}</li>
+        <li><span class="to-trust-icon">✔</span> <strong>Zustand</strong> — Neu</li>
+        <li><span class="to-trust-icon">✔</span> <strong>Versand</strong> — Schnell &amp; kostenlos aus Deutschland</li>
+        <li><span class="to-trust-icon">✔</span> <strong>Prüfung</strong> — Manuell kontrolliert</li>
+      </ul>
     </div>
 
   </div>
 
-  <div class="section">
-    <div class="section-title">Produkt-Highlights</div>
+  <div class="to-section">
+    <div class="to-section-label">Produkt-Highlights</div>
     <ul>
       ${highlightItemsHtml}
     </ul>
   </div>
 
-  <div class="section">
-    <div class="section-title">Produktbeschreibung</div>
+  <div class="to-section">
+    <div class="to-section-label">Produktbeschreibung</div>
     <div>
       ${rawDescription}
     </div>
   </div>
 
-  <div class="packaging-note">
-    <strong>♻ Hinweis zur Verpackung:</strong> Alle Artikel sind neuwertig. Die Originalverpackung kann je nach Lagerhaltung oder Versandweg Gebrauchsspuren aufweisen – in diesem Fall versenden wir den Artikel neutral verpackt. Im Sinne der Nachhaltigkeit verwenden wir, wo immer möglich, bereits gebrauchte Versandkartons wieder. Das hat keinen Einfluss auf den Zustand des Artikels.
+  <div class="to-packaging">
+    <div class="to-packaging-title">♻ Hinweis zur Verpackung &amp; Nachhaltigkeit</div>
+    Alle Artikel sind neuwertig. Die Originalverpackung kann je nach Lagerhaltung oder Versandweg Gebrauchsspuren aufweisen – in diesem Fall versenden wir den Artikel neutral verpackt. Im Sinne der Nachhaltigkeit verwenden wir, wo immer möglich, bereits gebrauchte Versandkartons wieder. Das ändert nichts am Zustand des Artikels.
   </div>
 
-  <div class="cta">
-    Jetzt sichern – nur solange der Vorrat reicht!
+  <div class="to-cta">
+    <p class="to-cta-text">Jetzt sichern – nur solange der Vorrat reicht.</p>
   </div>
 
-  <div class="small-note">
-    Markenrechte liegen beim jeweiligen Rechteinhaber.  
-    Abbildungen dienen der Veranschaulichung.
+  <div class="to-footer">
+    Markenrechte liegen beim jeweiligen Rechteinhaber. Abbildungen dienen der Veranschaulichung.
   </div>
 
 </div>
 
 <!-- END TrendOcean eBay Listing Template -->`;
-}
 
 function deriveProductCategoryId(product) {
   const details = product?.details || {};
