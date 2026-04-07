@@ -212,7 +212,8 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
   const [publishProducts, setPublishProducts] = useState<Product[]>([]);
   const [publishSearch, setPublishSearch] = useState("");
   const [publishLoading, setPublishLoading] = useState(false);
-  const [publishSort, setPublishSort] = useState<"name" | "stock" | "bin">("name");
+  const [publishSort, setPublishSort] = useState<"name" | "stock" | "bin" | "status">("name");
+  const [publishStatusFilter, setPublishStatusFilter] = useState<"all" | "ready" | "pending" | "empty">("all");
   const [publishingId, setPublishingId] = useState<string | null>(null);
   const [publishResult, setPublishResult] = useState<{ ok: boolean; message: string } | null>(null);
   const [publishSelectedIds, setPublishSelectedIds] = useState<Set<string>>(new Set());
@@ -323,6 +324,7 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
     setShowPublishModal(true);
     setPublishSearch("");
     setPublishSort("name");
+    setPublishStatusFilter("all");
     setPublishResult(null);
     setPublishSelectedIds(new Set());
     setBulkPublishSummary(null);
@@ -500,8 +502,16 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
     return p.storageBins.reduce((sum, b) => sum + Number(b?.quantity || 0), 0);
   }, []);
 
+  const getReadiness = (p: Product): "ready" | "pending" | "empty" => {
+    const r = p.ops?.readiness;
+    if (r === "ready") return "ready";
+    if (r === "pending") return "pending";
+    return "empty";
+  };
+
   const filteredPublishProducts = useMemo(() => {
     let items = publishProducts;
+    // Text search
     const q = publishSearch.trim().toLowerCase();
     if (q) {
       items = items.filter((p) => {
@@ -511,6 +521,10 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
         return title.includes(q) || sku.includes(q) || ean.includes(q);
       });
     }
+    // Status filter
+    if (publishStatusFilter !== "all") {
+      items = items.filter((p) => getReadiness(p) === publishStatusFilter);
+    }
     const sorted = [...items].sort((a, b) => {
       if (publishSort === "stock") return getBinStock(b) - getBinStock(a);
       if (publishSort === "bin") {
@@ -518,10 +532,14 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
         const binB = b.storageBins?.[0]?.code || "";
         return binA.localeCompare(binB);
       }
+      if (publishSort === "status") {
+        const order = { ready: 0, pending: 1, empty: 2 };
+        return order[getReadiness(a)] - order[getReadiness(b)];
+      }
       return (a.identification?.name || "").localeCompare(b.identification?.name || "");
     });
     return sorted.slice(0, 100);
-  }, [publishProducts, publishSearch, publishSort, getBinStock]);
+  }, [publishProducts, publishSearch, publishSort, publishStatusFilter, getBinStock]);
 
   // ─── Computed Data ───────────────────────────────────────
 
@@ -1161,7 +1179,7 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
       {showPublishModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/40" onClick={() => !bulkPublishing && setShowPublishModal(false)} />
-          <div className="relative bg-app-surface border border-app-border rounded-xl shadow-2xl w-full max-w-lg max-h-[80vh] flex flex-col">
+          <div className="relative bg-app-surface border border-app-border rounded-xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col">
             {/* Header */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-app-border">
               <div className="flex items-center gap-3">
@@ -1273,30 +1291,64 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
               />
             </div>
 
-            {/* Sort controls */}
+            {/* Filter & Sort controls */}
             {!publishLoading && publishProducts.length > 0 && (
-              <div className="px-5 pt-3 flex items-center gap-1.5">
-                <span className="text-xs text-txt-muted mr-1">Sortieren:</span>
-                {([
-                  ["name", "Name"],
-                  ["stock", "Bestand"],
-                  ["bin", "Lagerplatz"],
-                ] as const).map(([key, lbl]) => (
-                  <button
-                    key={key}
-                    onClick={() => setPublishSort(key)}
-                    className={`px-2 py-1 text-xs rounded-md transition-colors ${
-                      publishSort === key
-                        ? "bg-accent/15 text-accent font-medium"
-                        : "text-txt-muted hover:text-txt-primary hover:bg-app-elevated"
-                    }`}
-                  >
-                    {lbl}
-                  </button>
-                ))}
-                <span className="ml-auto text-xs text-txt-muted">
-                  {filteredPublishProducts.length} Artikel
-                </span>
+              <div className="px-5 pt-3 space-y-2">
+                {/* Status filter */}
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs text-txt-muted mr-1">Status:</span>
+                  {([
+                    ["all", "Alle"],
+                    ["ready", "Bereit"],
+                    ["pending", "Ausstehend"],
+                    ["empty", "Leer"],
+                  ] as const).map(([key, lbl]) => {
+                    const count = key === "all"
+                      ? publishProducts.length
+                      : publishProducts.filter((p) => getReadiness(p) === key).length;
+                    return (
+                      <button
+                        key={key}
+                        onClick={() => setPublishStatusFilter(key)}
+                        className={`px-2 py-1 text-xs rounded-md transition-colors ${
+                          publishStatusFilter === key
+                            ? key === "ready" ? "bg-success-dim text-success font-medium"
+                              : key === "pending" ? "bg-warning-dim text-warning font-medium"
+                              : key === "empty" ? "bg-app-elevated text-txt-muted font-medium"
+                              : "bg-accent/15 text-accent font-medium"
+                            : "text-txt-muted hover:text-txt-primary hover:bg-app-elevated"
+                        }`}
+                      >
+                        {lbl} ({count})
+                      </button>
+                    );
+                  })}
+                </div>
+                {/* Sort */}
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs text-txt-muted mr-1">Sortieren:</span>
+                  {([
+                    ["name", "Name"],
+                    ["stock", "Bestand"],
+                    ["bin", "Lagerplatz"],
+                    ["status", "Status"],
+                  ] as const).map(([key, lbl]) => (
+                    <button
+                      key={key}
+                      onClick={() => setPublishSort(key)}
+                      className={`px-2 py-1 text-xs rounded-md transition-colors ${
+                        publishSort === key
+                          ? "bg-accent/15 text-accent font-medium"
+                          : "text-txt-muted hover:text-txt-primary hover:bg-app-elevated"
+                      }`}
+                    >
+                      {lbl}
+                    </button>
+                  ))}
+                  <span className="ml-auto text-xs text-txt-muted">
+                    {filteredPublishProducts.length} Artikel
+                  </span>
+                </div>
               </div>
             )}
 
@@ -1325,7 +1377,29 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
                       <div className="w-10 h-10 rounded-md bg-app-elevated flex items-center justify-center text-txt-muted text-xs flex-shrink-0">—</div>
                     )}
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm text-txt-primary font-medium truncate">{p.identification?.name || "Ohne Titel"}</div>
+                      <div className="flex items-center gap-2">
+                        <a
+                          href={`#/sheet/${p.id}`}
+                          onClick={() => setShowPublishModal(false)}
+                          className="text-sm text-txt-primary font-medium truncate hover:text-accent transition-colors"
+                          title="Produktdetails öffnen"
+                        >
+                          {p.identification?.name || "Ohne Titel"}
+                        </a>
+                        {(() => {
+                          const r = getReadiness(p);
+                          const cfg = r === "ready"
+                            ? { label: "Bereit", cls: "bg-success-dim text-success" }
+                            : r === "pending"
+                            ? { label: "Ausstehend", cls: "bg-warning-dim text-warning" }
+                            : { label: "Leer", cls: "bg-app-elevated text-txt-muted" };
+                          return (
+                            <span className={`flex-shrink-0 px-1.5 py-0.5 text-[10px] font-medium rounded ${cfg.cls}`}>
+                              {cfg.label}
+                            </span>
+                          );
+                        })()}
+                      </div>
                       <div className="text-xs text-txt-muted">
                         {p.identification?.sku && <span>SKU: {p.identification.sku}</span>}
                         {p.identification?.barcodes?.[0] && <span className="ml-2">EAN: {p.identification.barcodes[0]}</span>}
