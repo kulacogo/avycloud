@@ -1115,6 +1115,7 @@ body {
 </div>
 
 <!-- END TrendOcean eBay Listing Template -->`;
+}
 
 function deriveProductCategoryId(product) {
   const details = product?.details || {};
