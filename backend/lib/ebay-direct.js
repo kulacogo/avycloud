@@ -1101,7 +1101,7 @@ body {
 
   <div class="to-packaging">
     <div class="to-packaging-title">♻ Hinweis zur Verpackung &amp; Nachhaltigkeit</div>
-    Alle Artikel sind neuwertig. Die Originalverpackung kann je nach Lagerhaltung oder Versandweg Gebrauchsspuren aufweisen – in diesem Fall versenden wir den Artikel neutral verpackt. Im Sinne der Nachhaltigkeit verwenden wir, wo immer möglich, bereits gebrauchte Versandkartons wieder. Das ändert nichts am Zustand des Artikels.
+    Der Artikel ist neuwertig. Die Original- bzw. Verkaufsverpackung kann vereinzelt leichte optische Spuren aus Lagerung oder Transport aufweisen. Diese betreffen ausschließlich die Verpackung und stellen keinen Mangel des Artikels selbst dar. Zustand, Funktion und Vollständigkeit bleiben hiervon unberührt. Der Versand erfolgt bei Bedarf in neutraler und sicherer Verpackung. Im Sinne der Nachhaltigkeit nutzen wir teilweise bereits verwendete Versandkartons.
   </div>
 
   <div class="to-cta">
