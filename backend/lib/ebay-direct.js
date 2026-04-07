@@ -907,7 +907,7 @@ body {
 .to-logo {
   display: block;
   margin: 0 auto 16px auto;
-  max-width: 500px;
+  max-width: 400px;
   width: 90%;
 }
 
