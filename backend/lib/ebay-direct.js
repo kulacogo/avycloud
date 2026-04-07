@@ -867,7 +867,7 @@ function sameStringList(a = [], b = []) {
   return left.every((v, i) => v === right[i]);
 }
 
-function buildTrendOceanDescriptionTemplate({ listing, product, titleOverride = null, photoOverride = null }) {
+function buildTrendOceanDescriptionTemplate({ listing, product, titleOverride = null, photoOverride = null, relatedProducts = [] }) {
   const auctionName = safeString(titleOverride) || safeString(listing?.title) || safeString(deriveProductTitle(product));
   const manufacturer = safeString(deriveProductManufacturer(product, listing)) || 'Unbekannt';
   const photo = safeString(photoOverride) || safeString(deriveProductPhotoUrl(product, listing));
@@ -876,6 +876,34 @@ function buildTrendOceanDescriptionTemplate({ listing, product, titleOverride = 
   const rawDescription = safeString(deriveProductDescription(product))
     .replace(/<script[\s\S]*?<\/script>/gi, '')
     .replace(/<style[\s\S]*?<\/style>/gi, '');
+
+  // Build related products HTML (max 5)
+  const related = asArray(relatedProducts).slice(0, 5);
+  let relatedHtml = '';
+  if (related.length >= 2) {
+    const cards = related.map((rp) => {
+      const rpTitle = safeString(rp.title || deriveProductTitle(rp)).slice(0, 60);
+      const rpPhoto = safeString(rp.photo || deriveProductPhotoUrl(rp, null));
+      const rpPrice = rp.price ? parseFloat(rp.price).toFixed(2).replace('.', ',') : null;
+      const rpItemId = safeString(rp.itemId);
+      const rpUrl = rpItemId ? `https://www.ebay.de/itm/${rpItemId}` : '';
+      const imgTag = rpPhoto ? `<img src="${escapeHtml(rpPhoto)}" alt="${escapeHtml(rpTitle)}" style="width:100%;aspect-ratio:1/1;object-fit:contain;background:#fafafa;">` : '';
+      const priceTag = rpPrice ? `<div style="font-weight:700;font-size:15px;color:#111;margin-top:6px;">${rpPrice} &euro;</div>` : '';
+      const titleTag = `<div style="font-size:12px;color:#444;margin-top:4px;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">${escapeHtml(rpTitle)}</div>`;
+      const inner = `${imgTag}${priceTag}${titleTag}`;
+      if (rpUrl) {
+        return `<a href="${escapeHtml(rpUrl)}" target="_blank" style="flex:1 1 140px;max-width:170px;text-decoration:none;color:inherit;">${inner}</a>`;
+      }
+      return `<div style="flex:1 1 140px;max-width:170px;">${inner}</div>`;
+    }).join('');
+    relatedHtml = `
+  <div class="to-related">
+    <div class="to-section-label">Weitere Artikel des Verk\u00e4ufers</div>
+    <div class="to-related-grid">
+      ${cards}
+    </div>
+  </div>`;
+  }
 
   return `<!-- START TrendOcean eBay Listing Template -->
 
@@ -899,32 +927,33 @@ body {
 /* ── Header ── */
 .to-header {
   text-align: center;
-  padding: 32px 0 24px;
-  border-bottom: 1px solid #e8e8e8;
-  margin-bottom: 32px;
+  padding: 32px 0 28px;
+  margin-bottom: 28px;
+  background: #fafafa;
+  border-bottom: 2px solid #111;
 }
 
 .to-logo {
   display: block;
   margin: 0 auto 16px auto;
-  max-width: 400px;
+  max-width: 500px;
   width: 90%;
 }
 
 .to-tagline {
-  font-size: 13px;
-  letter-spacing: 2px;
+  font-size: 12px;
+  letter-spacing: 3px;
   text-transform: uppercase;
-  color: #999;
+  color: #888;
   margin: 0;
 }
 
 /* ── Titel ── */
 .to-title {
-  font-size: 22px;
-  font-weight: 600;
+  font-size: 24px;
+  font-weight: 700;
   text-align: center;
-  margin: 0 0 32px;
+  margin: 0 0 28px;
   color: #111;
   letter-spacing: -0.3px;
 }
@@ -935,11 +964,11 @@ body {
   flex-wrap: wrap;
   gap: 32px;
   align-items: flex-start;
-  margin-bottom: 40px;
+  margin-bottom: 36px;
 }
 
 .to-product-image {
-  flex: 1 1 340px;
+  flex: 1 1 300px;
   text-align: center;
 }
 
@@ -952,23 +981,25 @@ body {
   flex: 1 1 340px;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 16px;
 }
 
 /* ── Trust-Punkte ── */
 .to-trust {
   list-style: none;
-  padding: 0;
+  padding: 20px;
   margin: 0;
+  background: #fafafa;
+  border: 1px solid #eee;
 }
 
 .to-trust li {
-  padding: 10px 0;
-  border-bottom: 1px solid #f0f0f0;
+  padding: 8px 0;
+  border-bottom: 1px solid #e8e8e8;
   font-size: 14px;
   display: flex;
   align-items: baseline;
-  gap: 8px;
+  gap: 10px;
 }
 
 .to-trust li:last-child {
@@ -977,22 +1008,24 @@ body {
 
 .to-trust-icon {
   flex-shrink: 0;
-  font-size: 13px;
+  font-size: 14px;
+  color: #111;
 }
 
 /* ── Sektionen ── */
 .to-section {
-  margin-bottom: 36px;
+  margin-bottom: 32px;
 }
 
 .to-section-label {
-  font-size: 11px;
-  letter-spacing: 2px;
+  font-size: 12px;
+  letter-spacing: 2.5px;
   text-transform: uppercase;
-  color: #888;
+  color: #111;
+  font-weight: 700;
   margin-bottom: 14px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid #eee;
+  padding-bottom: 10px;
+  border-bottom: 2px solid #111;
 }
 
 .to-section ul {
@@ -1003,7 +1036,7 @@ body {
 .to-section li {
   margin-bottom: 6px;
   font-size: 14px;
-  line-height: 1.6;
+  line-height: 1.7;
 }
 
 .to-section p, .to-section div {
@@ -1014,45 +1047,63 @@ body {
 
 /* ── Verpackungshinweis ── */
 .to-packaging {
-  border-top: 1px solid #e8e8e8;
-  border-bottom: 1px solid #e8e8e8;
-  padding: 20px 0;
-  margin: 36px 0;
+  background: #fafafa;
+  border: 1px solid #eee;
+  padding: 18px 20px;
+  margin: 32px 0;
   font-size: 13px;
   color: #555;
   line-height: 1.7;
 }
 
 .to-packaging-title {
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: 2px;
   text-transform: uppercase;
-  color: #888;
-  margin-bottom: 10px;
+  color: #111;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.to-packaging-title span {
+  color: #2e7d32;
 }
 
 /* ── CTA ── */
 .to-cta {
   text-align: center;
-  padding: 24px;
-  border: 2px solid #111;
-  margin-bottom: 28px;
+  padding: 22px;
+  background: #111;
+  margin-bottom: 32px;
 }
 
 .to-cta-text {
   font-size: 16px;
   font-weight: 600;
-  color: #111;
+  color: #fff;
   margin: 0;
+  letter-spacing: 0.5px;
+}
+
+/* ── Related ── */
+.to-related {
+  margin-bottom: 32px;
+}
+
+.to-related-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  justify-content: flex-start;
 }
 
 /* ── Footer ── */
 .to-footer {
   text-align: center;
-  padding-top: 20px;
-  border-top: 1px solid #e8e8e8;
+  padding-top: 18px;
+  border-top: 2px solid #111;
   font-size: 11px;
-  color: #aaa;
+  color: #999;
   letter-spacing: 0.3px;
 }
 </style>
@@ -1063,7 +1114,7 @@ body {
     <img src="https://storage.googleapis.com/trendocean/desc_logo.png"
          alt="TrendOcean"
          class="to-logo">
-    <p class="to-tagline">Qualität. Verantwortung. Fairness.</p>
+    <p class="to-tagline">Qualit\u00e4t \u00b7 Verantwortung \u00b7 Fairness</p>
   </div>
 
   <h1 class="to-title">${escapeHtml(auctionName)}</h1>
@@ -1076,10 +1127,10 @@ body {
 
     <div class="to-product-info">
       <ul class="to-trust">
-        <li><span class="to-trust-icon">✔</span> <strong>Hersteller</strong> — ${escapeHtml(manufacturer)}</li>
-        <li><span class="to-trust-icon">✔</span> <strong>Zustand</strong> — Neu</li>
-        <li><span class="to-trust-icon">✔</span> <strong>Versand</strong> — Schnell &amp; kostenlos aus Deutschland</li>
-        <li><span class="to-trust-icon">✔</span> <strong>Prüfung</strong> — Manuell kontrolliert</li>
+        <li><span class="to-trust-icon">\u2714</span> <strong>Hersteller</strong> \u2014 ${escapeHtml(manufacturer)}</li>
+        <li><span class="to-trust-icon">\u2714</span> <strong>Zustand</strong> \u2014 Neu</li>
+        <li><span class="to-trust-icon">\u2714</span> <strong>Versand</strong> \u2014 Schnell &amp; kostenlos aus Deutschland</li>
+        <li><span class="to-trust-icon">\u2714</span> <strong>Pr\u00fcfung</strong> \u2014 Manuell kontrolliert</li>
       </ul>
     </div>
 
@@ -1100,12 +1151,14 @@ body {
   </div>
 
   <div class="to-packaging">
-    <div class="to-packaging-title">♻ Hinweis zur Verpackung &amp; Nachhaltigkeit</div>
-    Der Artikel ist neuwertig. Die Original- bzw. Verkaufsverpackung kann vereinzelt leichte optische Spuren aus Lagerung oder Transport aufweisen. Diese betreffen ausschließlich die Verpackung und stellen keinen Mangel des Artikels selbst dar. Zustand, Funktion und Vollständigkeit bleiben hiervon unberührt. Der Versand erfolgt bei Bedarf in neutraler und sicherer Verpackung. Im Sinne der Nachhaltigkeit nutzen wir teilweise bereits verwendete Versandkartons.
+    <div class="to-packaging-title"><span>\u267b</span> Hinweis zur Verpackung &amp; Nachhaltigkeit</div>
+    Alle Artikel sind neuwertig. Die Originalverpackung kann je nach Lagerhaltung oder Versandweg Gebrauchsspuren aufweisen \u2013 in diesem Fall versenden wir den Artikel neutral verpackt. Im Sinne der Nachhaltigkeit verwenden wir, wo immer m\u00f6glich, bereits gebrauchte Versandkartons wieder. Das \u00e4ndert nichts am Zustand des Artikels.
   </div>
 
+  ${relatedHtml}
+
   <div class="to-cta">
-    <p class="to-cta-text">Jetzt sichern – nur solange der Vorrat reicht.</p>
+    <p class="to-cta-text">Jetzt sichern \u2013 nur solange der Vorrat reicht.</p>
   </div>
 
   <div class="to-footer">
@@ -4447,7 +4500,7 @@ async function bulkUpdateListedProducts({ itemIds = null, applyAll = false, acto
  * Direct full-listing update: push ALL AvyCloud product data to an existing eBay listing.
  * Bypasses the gap system — builds a complete revise payload from product data.
  */
-async function reviseListingFromProduct(itemId, product, { actor = null } = {}) {
+async function reviseListingFromProduct(itemId, product, { actor = null, relatedProducts = [] } = {}) {
   const id = safeString(itemId);
   if (!id) throw Object.assign(new Error('itemId is required'), { code: 'EBAY_REVISE_ITEM_ID_REQUIRED' });
 
@@ -4485,6 +4538,7 @@ async function reviseListingFromProduct(itemId, product, { actor = null } = {}) 
     product,
     titleOverride: title,
     photoOverride: heroPhoto,
+    relatedProducts,
   });
 
   const patch = {
@@ -4597,6 +4651,27 @@ async function bulkReviseListingsFromProducts({ itemIds = null, applyAll = false
     });
   }
 
+  // Build itemId-to-productId reverse map for related products
+  const itemToProductId = new Map();
+  resolvedItemIds.forEach((id) => {
+    const pid = safeString(linkMap.get(id)?.productId);
+    if (pid) itemToProductId.set(id, pid);
+  });
+
+  // Pre-build related product data for template cross-sell section
+  const relatedPool = [];
+  for (const [ebayItemId, pid] of itemToProductId) {
+    const p = productMap.get(pid);
+    if (!p) continue;
+    const mapped = mapProductToEbayItem(p);
+    const rpPhoto = safeString(mapped.pictureUrls?.[0] || deriveProductPhotoUrl(p, null));
+    const rpTitle = safeString(mapped.title || deriveProductTitle(p));
+    const rpPrice = mapped.startPrice || null;
+    if (rpTitle && rpPhoto) {
+      relatedPool.push({ itemId: ebayItemId, productId: pid, title: rpTitle, photo: rpPhoto, price: rpPrice });
+    }
+  }
+
   const results = [];
   for (const itemId of resolvedItemIds) {
     const link = linkMap.get(itemId);
@@ -4610,8 +4685,14 @@ async function bulkReviseListingsFromProducts({ itemIds = null, applyAll = false
       results.push({ itemId, ok: false, skipped: true, message: `Produkt ${productId} nicht gefunden.` });
       continue;
     }
+
+    // Pick up to 5 related products (different from current)
+    const related = relatedPool
+      .filter((rp) => rp.productId !== productId)
+      .slice(0, 5);
+
     try {
-      const result = await reviseListingFromProduct(itemId, product, { actor });
+      const result = await reviseListingFromProduct(itemId, product, { actor, relatedProducts: related });
       results.push(result);
     } catch (err) {
       results.push({
