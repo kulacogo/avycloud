@@ -977,6 +977,20 @@ ul {
   margin-top: 28px;
 }
 
+.packaging-note {
+  background: #f0f4e8;
+  border-left: 4px solid #5a8a2e;
+  padding: 12px 16px;
+  font-size: 13px;
+  color: #3a3a3a;
+  margin-top: 22px;
+  line-height: 1.5;
+}
+
+.packaging-note strong {
+  color: #2b2b2b;
+}
+
 .small-note {
   font-size: 12px;
   color: #666;
@@ -987,7 +1001,7 @@ ul {
 
 <div class="wrapper">
 
-  <img src="https://storage.googleapis.com/trendocean/Brand.png"
+  <img src="https://storage.googleapis.com/trendocean/desc_logo.png"
        alt="TrendOcean"
        class="store-logo">
 
@@ -1004,7 +1018,7 @@ ul {
       <div class="trust-box">
         <ul>
           <li>✔ <strong>Hersteller:</strong> ${escapeHtml(manufacturer)}</li>
-          <li>✔ <strong>Zustand:</strong> Neu & originalverpackt</li>
+          <li>✔ <strong>Zustand:</strong> Neu</li>
           <li>✔ <strong>Versand:</strong> Schnell & kostenlos aus Deutschland</li>
           <li>✔ <strong>Qualitätsprüfung:</strong> Manuell geprüft</li>
         </ul>
@@ -1031,6 +1045,10 @@ ul {
     <div>
       ${rawDescription}
     </div>
+  </div>
+
+  <div class="packaging-note">
+    <strong>♻ Hinweis zur Verpackung:</strong> Alle Artikel sind neuwertig. Die Originalverpackung kann je nach Lagerhaltung oder Versandweg Gebrauchsspuren aufweisen – in diesem Fall versenden wir den Artikel neutral verpackt. Im Sinne der Nachhaltigkeit verwenden wir, wo immer möglich, bereits gebrauchte Versandkartons wieder. Das hat keinen Einfluss auf den Zustand des Artikels.
   </div>
 
   <div class="cta">
