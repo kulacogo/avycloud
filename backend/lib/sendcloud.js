@@ -309,4 +309,71 @@ async function getShippingCostsSummary(fromDate, toDate, { timeoutMs = 30000, fo
   return result;
 }
 
-module.exports = { getShippingCostsSummary, loadPriceTable, lookupCsvPrice };
+// ─── Settings API ──────────────────────────────────────────────────────────
+
+const SENDCLOUD_BASE_URL = 'https://panel.sendcloud.sc/api/v2';
+
+/**
+ * Fetch sender addresses from SendCloud.
+ * @returns {Promise<Array<{ id: number, companyName: string, street: string, city: string, postalCode: string, country: string }>>}
+ */
+async function listSenderAddresses({ timeoutMs = 15000 } = {}) {
+  const authHeader = await getSendCloudAuthHeader();
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(`${SENDCLOUD_BASE_URL}/sender_addresses`, {
+      headers: { Authorization: authHeader },
+      signal: controller.signal,
+    });
+    if (!response.ok) {
+      const body = await response.text().catch(() => '');
+      throw new Error(`SendCloud API returned ${response.status}: ${body.slice(0, 200)}`);
+    }
+    const data = await response.json();
+    const items = Array.isArray(data?.sender_addresses) ? data.sender_addresses : [];
+    return items.map((sa) => ({
+      id: sa.id,
+      companyName: sa.company_name || '',
+      street: sa.street || '',
+      city: sa.city || '',
+      postalCode: sa.postal_code || '',
+      country: sa.country || '',
+    }));
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/**
+ * Fetch available shipping methods from SendCloud.
+ * @returns {Promise<Array<{ id: number, name: string, carrier: string, minWeight: number, maxWeight: number }>>}
+ */
+async function listShippingMethods({ timeoutMs = 15000 } = {}) {
+  const authHeader = await getSendCloudAuthHeader();
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(`${SENDCLOUD_BASE_URL}/shipping_methods`, {
+      headers: { Authorization: authHeader },
+      signal: controller.signal,
+    });
+    if (!response.ok) {
+      const body = await response.text().catch(() => '');
+      throw new Error(`SendCloud API returned ${response.status}: ${body.slice(0, 200)}`);
+    }
+    const data = await response.json();
+    const items = Array.isArray(data?.shipping_methods) ? data.shipping_methods : [];
+    return items.map((sm) => ({
+      id: sm.id,
+      name: sm.name || '',
+      carrier: sm.carrier || '',
+      minWeight: sm.min_weight ?? 0,
+      maxWeight: sm.max_weight ?? 0,
+    }));
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+module.exports = { getShippingCostsSummary, loadPriceTable, lookupCsvPrice, listSenderAddresses, listShippingMethods };

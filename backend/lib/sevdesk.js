@@ -199,4 +199,69 @@ async function getShippingCostsFromSevDesk(fromDate, toDate, { forceRefresh = fa
   return result;
 }
 
-module.exports = { getCheckAccountBalances, getShippingCostsFromSevDesk };
+// ─── Settings API ──────────────────────────────────────────────────────────
+
+/**
+ * Fetch all tax rates from SevDesk.
+ * @returns {Promise<Array<{ id: string, taxRate: number, name: string }>>}
+ */
+async function listTaxRates({ timeoutMs = 15000 } = {}) {
+  const apiKey = await getSevDeskApiKey();
+  if (!apiKey) throw new Error('SEVDESK_API_TOKEN not configured');
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(`${SEVDESK_BASE_URL}/TaxRate?limit=100`, {
+      headers: { Authorization: apiKey, 'Content-Type': 'application/json' },
+      signal: controller.signal,
+    });
+    if (!response.ok) {
+      const body = await response.text().catch(() => '');
+      throw new Error(`SevDesk API returned ${response.status}: ${body.slice(0, 200)}`);
+    }
+    const data = await response.json();
+    const items = Array.isArray(data?.objects) ? data.objects : [];
+    return items.map((tr) => ({
+      id: String(tr.id),
+      taxRate: Number(tr.taxRate) || 0,
+      name: tr.taxName || `${tr.taxRate}%`,
+    }));
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/**
+ * Fetch all check accounts (bank accounts) from SevDesk — full list without filtering.
+ * @returns {Promise<Array<{ id: string, name: string, iban: string, currency: string }>>}
+ */
+async function listCheckAccounts({ timeoutMs = 15000 } = {}) {
+  const apiKey = await getSevDeskApiKey();
+  if (!apiKey) throw new Error('SEVDESK_API_TOKEN not configured');
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(`${SEVDESK_BASE_URL}/CheckAccount?limit=100`, {
+      headers: { Authorization: apiKey, 'Content-Type': 'application/json' },
+      signal: controller.signal,
+    });
+    if (!response.ok) {
+      const body = await response.text().catch(() => '');
+      throw new Error(`SevDesk API returned ${response.status}: ${body.slice(0, 200)}`);
+    }
+    const data = await response.json();
+    const items = Array.isArray(data?.objects) ? data.objects : [];
+    return items.map((acc) => ({
+      id: String(acc.id),
+      name: acc.name || '',
+      iban: acc.iban || '',
+      currency: acc.currency || 'EUR',
+    }));
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+module.exports = { getCheckAccountBalances, getShippingCostsFromSevDesk, listTaxRates, listCheckAccounts };

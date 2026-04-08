@@ -14,10 +14,11 @@ import {
   bulkUpdateKauflandUnits,
   bulkSetKauflandUnitStatus,
   fetchProducts,
+  fetchIntegrationConfig,
 } from "../api/client";
 import type { Product } from "../types";
 import type { EbayListingRow, } from "../types";
-import type { EbayConnectionStatus, KauflandListingRow } from "../api/client";
+import type { EbayConnectionStatus, KauflandListingRow, IntegrationConfig } from "../api/client";
 
 // ─── Types ───────────────────────────────────────────────────
 
@@ -65,6 +66,38 @@ const TAB_LABELS: Record<TabFilter, string> = {
 const MARKETPLACE_LABELS = {
   ebay: "eBay",
   kaufland: "Kaufland",
+};
+
+/* ─── Policy Select (for publish modal) ─── */
+const PolicySelect: React.FC<{
+  label: string;
+  items: Array<{ id: string | number; name: string }>;
+  value: string;
+  defaultId?: string | number | null;
+  onChange: (value: string) => void;
+}> = ({ label, items, value, defaultId, onChange }) => {
+  const defaultLabel = defaultId
+    ? items.find((i) => String(i.id) === String(defaultId))?.name || ""
+    : "";
+  return (
+    <div className="flex items-center gap-3">
+      <span className="text-xs text-txt-muted w-24 shrink-0">{label}</span>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="flex-1 px-2.5 py-1.5 text-xs bg-app-elevated border border-app-border rounded-lg text-txt-primary focus:outline-none focus:ring-1 focus:ring-accent"
+      >
+        <option value="">
+          {defaultLabel ? `Standard: ${defaultLabel}` : "— Kein Standard —"}
+        </option>
+        {items.map((item) => (
+          <option key={String(item.id)} value={String(item.id)}>
+            {item.name} (ID: {item.id})
+          </option>
+        ))}
+      </select>
+    </div>
+  );
 };
 
 const PAGE_SIZE_OPTIONS = [25, 50, 100, 250] as const;
@@ -224,6 +257,11 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
     failedNames: string[]; failedDetails: string[]; fixedDetails?: string[]; pendingDetails?: string[];
   } | null>(null);
 
+  // Policy overrides for publish dialog
+  const [policyConfig, setPolicyConfig] = useState<IntegrationConfig | null>(null);
+  const [policyOverrides, setPolicyOverrides] = useState<Record<string, string>>({});
+  const [showPolicyOverrides, setShowPolicyOverrides] = useState(false);
+
   const label = MARKETPLACE_LABELS[marketplace];
 
   // ─── Data Loading ────────────────────────────────────────
@@ -328,7 +366,13 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
     setPublishResult(null);
     setPublishSelectedIds(new Set());
     setBulkPublishSummary(null);
+    setPolicyOverrides({});
+    setShowPolicyOverrides(false);
     setPublishLoading(true);
+    // Load policy config in background
+    fetchIntegrationConfig(marketplace === "ebay" ? "ebay" : "kaufland")
+      .then((cfg) => setPolicyConfig(cfg))
+      .catch(() => setPolicyConfig(null));
     try {
       const products = await fetchProducts();
       // Nur Produkte die physisch im Lager sind: Bin-Zuordnung UND Bestand > 0
@@ -427,7 +471,12 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
       let failedDetails: string[] = [];
 
       if (marketplace === "ebay") {
-        const result = await bulkPublishToEbay(ids);
+        // Build overrides from policy selection (only include non-empty values)
+        const ebayOverrides: Record<string, string> = {};
+        if (policyOverrides.shippingPolicyId) ebayOverrides.shippingProfileId = policyOverrides.shippingPolicyId;
+        if (policyOverrides.returnPolicyId) ebayOverrides.returnProfileId = policyOverrides.returnPolicyId;
+        if (policyOverrides.paymentPolicyId) ebayOverrides.paymentProfileId = policyOverrides.paymentPolicyId;
+        const result = await bulkPublishToEbay(ids, Object.keys(ebayOverrides).length > 0 ? ebayOverrides : undefined);
         summary = result.summary;
         const failedResults = result.results.filter((r: any) => !r.ok);
         failedNames = failedResults.map((r: any) => {
@@ -442,7 +491,11 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
         });
         loadEbayListings();
       } else {
-        const result = await bulkPublishToKaufland(ids);
+        // Build Kaufland overrides from policy selection
+        const klOverrides: Record<string, string> = {};
+        if (policyOverrides.shippingGroupId) klOverrides.shippingGroupId = policyOverrides.shippingGroupId;
+        if (policyOverrides.warehouseId) klOverrides.warehouseId = policyOverrides.warehouseId;
+        const result = await bulkPublishToKaufland(ids, "de", Object.keys(klOverrides).length > 0 ? klOverrides : undefined);
         summary = result.summary;
         const notOkResults = result.results.filter((r) => !r.ok);
         failedNames = notOkResults.map((r) => {
@@ -1426,6 +1479,73 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
                 ))
               )}
             </div>
+
+            {/* Policy overrides section */}
+            {publishSelectedIds.size > 0 && policyConfig?.cachedData && (
+              <div className="px-5 py-3 border-t border-app-border">
+                <button
+                  onClick={() => setShowPolicyOverrides(!showPolicyOverrides)}
+                  className="flex items-center gap-2 text-xs font-medium text-txt-muted hover:text-txt-primary transition-colors"
+                >
+                  <svg className={`w-3.5 h-3.5 transition-transform ${showPolicyOverrides ? "rotate-90" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                  Rahmenbedingungen anpassen
+                  {Object.values(policyOverrides).some(Boolean) && (
+                    <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-accent/10 text-accent">
+                      Angepasst
+                    </span>
+                  )}
+                </button>
+                {showPolicyOverrides && (
+                  <div className="mt-3 space-y-2.5">
+                    {marketplace === "ebay" && (
+                      <>
+                        <PolicySelect
+                          label="Versand"
+                          items={policyConfig.cachedData.shipping || []}
+                          value={policyOverrides.shippingPolicyId || ""}
+                          defaultId={policyConfig.defaults?.shippingPolicyId}
+                          onChange={(v) => setPolicyOverrides((prev) => ({ ...prev, shippingPolicyId: v }))}
+                        />
+                        <PolicySelect
+                          label="Ruecknahme"
+                          items={policyConfig.cachedData.return || []}
+                          value={policyOverrides.returnPolicyId || ""}
+                          defaultId={policyConfig.defaults?.returnPolicyId}
+                          onChange={(v) => setPolicyOverrides((prev) => ({ ...prev, returnPolicyId: v }))}
+                        />
+                        <PolicySelect
+                          label="Zahlung"
+                          items={policyConfig.cachedData.payment || []}
+                          value={policyOverrides.paymentPolicyId || ""}
+                          defaultId={policyConfig.defaults?.paymentPolicyId}
+                          onChange={(v) => setPolicyOverrides((prev) => ({ ...prev, paymentPolicyId: v }))}
+                        />
+                      </>
+                    )}
+                    {marketplace === "kaufland" && (
+                      <>
+                        <PolicySelect
+                          label="Versandgruppe"
+                          items={policyConfig.cachedData.shippingGroups || []}
+                          value={policyOverrides.shippingGroupId || ""}
+                          defaultId={policyConfig.defaults?.shippingGroupId}
+                          onChange={(v) => setPolicyOverrides((prev) => ({ ...prev, shippingGroupId: v }))}
+                        />
+                        <PolicySelect
+                          label="Lager"
+                          items={policyConfig.cachedData.warehouses || []}
+                          value={policyOverrides.warehouseId || ""}
+                          defaultId={policyConfig.defaults?.warehouseId}
+                          onChange={(v) => setPolicyOverrides((prev) => ({ ...prev, warehouseId: v }))}
+                        />
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Bulk publish footer */}
             {publishSelectedIds.size > 0 && (

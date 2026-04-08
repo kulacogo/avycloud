@@ -656,6 +656,42 @@ async function setUnitStatus(unitId, status, { storefront = 'de' } = {}) {
   return { updated: true, status: normalizedStatus, data: res.data };
 }
 
+/**
+ * List all shipping groups for a storefront.
+ * @param {{ storefront?: string }} options
+ * @returns {Promise<Array<{ id: number, name: string, storefront: string, isDefault: boolean }>>}
+ */
+async function listShippingGroups({ storefront = 'de' } = {}) {
+  const res = await kauflandRequest('GET', '/shipping-groups', {
+    query: { storefront, limit: 100 },
+  });
+  const items = Array.isArray(res?.data) ? res.data : [];
+  return items.map((sg) => ({
+    id: sg.id_shipping_group,
+    name: safeString(sg.name),
+    storefront: safeString(sg.storefront) || storefront,
+    isDefault: Boolean(sg.is_default),
+    type: safeString(sg.type) || 'PACKAGE',
+  }));
+}
+
+/**
+ * List all warehouses.
+ * @returns {Promise<Array<{ id: number, name: string, isDefault: boolean }>>}
+ */
+async function listWarehouses() {
+  const res = await kauflandRequest('GET', '/warehouses', {
+    query: { limit: 100 },
+  });
+  const items = Array.isArray(res?.data) ? res.data : [];
+  return items.map((wh) => ({
+    id: wh.id_warehouse,
+    name: safeString(wh.name),
+    isDefault: Boolean(wh.is_default),
+    type: safeString(wh.type) || 'normal',
+  }));
+}
+
 module.exports = {
   kauflandRequest,
   findUnit,
@@ -670,4 +706,6 @@ module.exports = {
   updateUnit,
   setUnitStatus,
   pickUnitData,
+  listShippingGroups,
+  listWarehouses,
 };

@@ -1177,8 +1177,11 @@ router.post('/kaufland/publish', requirePermission('products', 'write'), async (
 });
 
 router.post('/kaufland/publish/bulk', requirePermission('products', 'write'), async (req, res) => {
-  const KL_DEFAULT_SHIPPING_GROUP = 144080;
-  const KL_DEFAULT_WAREHOUSE = 70462;
+  // Load Kaufland defaults from Firestore, fall back to legacy hardcoded values
+  const { mergeKauflandOverrides } = require('../lib/integration-defaults');
+  const klDefaults = await mergeKauflandOverrides({}, { tenantId: req.user?.tenantId || 'default' });
+  let KL_DEFAULT_SHIPPING_GROUP = klDefaults.shippingGroupId || 144080;
+  let KL_DEFAULT_WAREHOUSE = klDefaults.warehouseId || 70462;
 
   function autoFixProduct(product) {
     const fixes = [];
@@ -1248,6 +1251,12 @@ router.post('/kaufland/publish/bulk', requirePermission('products', 'write'), as
       return res.status(400).json({ ok: false, error: { code: 'MISSING_PRODUCT_IDS', message: 'productIds array is required' } });
     }
     const storefront = body.storefront || 'de';
+    // Per-request overrides from publish dialog take priority over Firestore defaults
+    const requestOverrides = body.overrides && typeof body.overrides === 'object' ? body.overrides : {};
+    const reqShippingGroup = Number(requestOverrides.shippingGroupId) || 0;
+    const reqWarehouse = Number(requestOverrides.warehouseId) || 0;
+    if (reqShippingGroup > 0) KL_DEFAULT_SHIPPING_GROUP = reqShippingGroup;
+    if (reqWarehouse > 0) KL_DEFAULT_WAREHOUSE = reqWarehouse;
     const { getProductV2 } = require('../lib/product-store');
     const { createUnit } = require('../lib/kaufland-api');
     const results = [];
@@ -1723,7 +1732,9 @@ router.post('/ebay/publish/verify', requirePermission('products', 'write'), asyn
     if (!productId) {
       return res.status(400).json({ ok: false, error: { code: 400, message: 'Missing productId' } });
     }
-    const overrides = body.overrides && typeof body.overrides === 'object' ? body.overrides : {};
+    const rawOverrides = body.overrides && typeof body.overrides === 'object' ? body.overrides : {};
+    const { mergeEbayOverrides } = require('../lib/integration-defaults');
+    const overrides = await mergeEbayOverrides(rawOverrides, { tenantId: req.user?.tenantId || 'default' });
     const { verifyPublishProduct } = require('../lib/ebay-direct');
     const result = await verifyPublishProduct(productId, overrides);
     return res.status(200).json({ ok: true, data: result });
@@ -1743,7 +1754,9 @@ router.post('/ebay/publish', requirePermission('products', 'write'), async (req,
     if (!productId) {
       return res.status(400).json({ ok: false, error: { code: 400, message: 'Missing productId' } });
     }
-    const overrides = body.overrides && typeof body.overrides === 'object' ? body.overrides : {};
+    const rawOverrides = body.overrides && typeof body.overrides === 'object' ? body.overrides : {};
+    const { mergeEbayOverrides } = require('../lib/integration-defaults');
+    const overrides = await mergeEbayOverrides(rawOverrides, { tenantId: req.user?.tenantId || 'default' });
     const { publishProduct } = require('../lib/ebay-direct');
     const result = await publishProduct(productId, overrides, {
       actor: req.user?.email || req.user?.uid || 'api',
@@ -1765,7 +1778,9 @@ router.post('/ebay/publish/bulk/verify', requirePermission('products', 'write'),
     if (!productIds.length) {
       return res.status(400).json({ ok: false, error: { code: 400, message: 'Missing productIds array' } });
     }
-    const overrides = body.overrides && typeof body.overrides === 'object' ? body.overrides : {};
+    const rawOverrides = body.overrides && typeof body.overrides === 'object' ? body.overrides : {};
+    const { mergeEbayOverrides } = require('../lib/integration-defaults');
+    const overrides = await mergeEbayOverrides(rawOverrides, { tenantId: req.user?.tenantId || 'default' });
     const { bulkVerifyPublishProducts } = require('../lib/ebay-direct');
     const result = await bulkVerifyPublishProducts(productIds, overrides);
     return res.status(200).json({ ok: true, data: result });
@@ -1785,7 +1800,9 @@ router.post('/ebay/publish/bulk', requirePermission('products', 'write'), async 
     if (!productIds.length) {
       return res.status(400).json({ ok: false, error: { code: 400, message: 'Missing productIds array' } });
     }
-    const overrides = body.overrides && typeof body.overrides === 'object' ? body.overrides : {};
+    const rawOverrides = body.overrides && typeof body.overrides === 'object' ? body.overrides : {};
+    const { mergeEbayOverrides } = require('../lib/integration-defaults');
+    const overrides = await mergeEbayOverrides(rawOverrides, { tenantId: req.user?.tenantId || 'default' });
     const { bulkPublishProducts } = require('../lib/ebay-direct');
     const result = await bulkPublishProducts(productIds, overrides, {
       actor: req.user?.email || req.user?.uid || 'api',

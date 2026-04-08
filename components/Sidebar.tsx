@@ -26,6 +26,10 @@ export type View =
   | "marketplace-ebay"
   | "marketplace-kaufland"
   | "integrations"
+  | "integrations-ebay"
+  | "integrations-kaufland"
+  | "integrations-sendcloud"
+  | "integrations-sevdesk"
   | "settings"
   | "settings-profile"
   | "settings-team"
@@ -423,13 +427,23 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, setView }) => {
           },
         ]
       : []),
-    // Integrationen (standalone)
+    // Integrationen
     {
       id: "integrations",
       label: "",
-      collapsible: false,
+      collapsible: true,
       items: [
-        { view: "integrations" as View, label: "Integrationen", icon: icons.plug },
+        {
+          view: "integrations" as View,
+          label: "Integrationen",
+          icon: icons.plug,
+          children: [
+            { view: "integrations-ebay" as View, label: "eBay" },
+            { view: "integrations-kaufland" as View, label: "Kaufland" },
+            { view: "integrations-sendcloud" as View, label: "SendCloud" },
+            { view: "integrations-sevdesk" as View, label: "SevDesk" },
+          ],
+        },
       ],
     },
     // EINSTELLUNGEN

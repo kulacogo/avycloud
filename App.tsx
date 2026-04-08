@@ -33,6 +33,7 @@ import OrdersView from './components/OrdersView';
 import MarketplaceListingsView from './components/MarketplaceListingsView';
 import InventoryView from './components/InventoryView';
 import { IntegrationsHub } from './components/IntegrationsHub';
+import { IntegrationConfigPage } from './components/integrations/IntegrationConfigPage';
 import { ReturnsView } from './components/orders/ReturnsView';
 import { ShippingView } from './components/orders/ShippingView';
 import { InvoicesView } from './components/orders/InvoicesView';
@@ -81,6 +82,10 @@ type View =
   | 'marketplace-ebay'
   | 'marketplace-kaufland'
   | 'integrations'
+  | 'integrations-ebay'
+  | 'integrations-kaufland'
+  | 'integrations-sendcloud'
+  | 'integrations-sevdesk'
   | 'settings'
   | 'settings-profile'
   | 'settings-team'
@@ -118,6 +123,10 @@ const ALLOWED_VIEWS: View[] = [
   'marketplace-ebay',
   'marketplace-kaufland',
   'integrations',
+  'integrations-ebay',
+  'integrations-kaufland',
+  'integrations-sendcloud',
+  'integrations-sevdesk',
   'settings',
   'settings-profile',
   'settings-team',
@@ -190,6 +199,16 @@ const parseHash = (): { view: View; productId: string | null } => {
   }
 
   // Nested routes: #/settings/profile, #/settings/team, etc.
+  if (first === 'integrations' && second) {
+    const integrationsMap: Record<string, View> = {
+      ebay: 'integrations-ebay',
+      kaufland: 'integrations-kaufland',
+      sendcloud: 'integrations-sendcloud',
+      sevdesk: 'integrations-sevdesk',
+    };
+    if (integrationsMap[second]) return { view: integrationsMap[second], productId: null };
+  }
+
   if (first === 'settings' && second) {
     const settingsMap: Record<string, View> = {
       profile: 'settings-profile',
@@ -1033,6 +1052,13 @@ const AppInner: React.FC = () => {
         return <MarketplaceListingsView marketplace="kaufland" />;
       case 'integrations':
         return <IntegrationsHub />;
+      case 'integrations-ebay':
+      case 'integrations-kaufland':
+      case 'integrations-sendcloud':
+      case 'integrations-sevdesk': {
+        const integrationId = view.replace('integrations-', '') as 'ebay' | 'kaufland' | 'sendcloud' | 'sevdesk';
+        return <IntegrationConfigPage integration={integrationId} onBack={() => setView('integrations')} />;
+      }
       case 'settings':
         return <CompanySettings />;
       case 'settings-profile':

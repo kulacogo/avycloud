@@ -329,4 +329,168 @@ router.get('/integrations/:type', requirePermission('integrations', 'read'), asy
   }
 });
 
+// ─── Integration Settings: Sync + Defaults ─────────────────────────────────
+
+const SYNC_TTL_MS = 24 * 60 * 60 * 1000; // 24h
+const SETTINGS_COLLECTION = 'integration_settings';
+
+function getTenantId(req) {
+  return req.user?.tenantId || 'default';
+}
+
+/**
+ * Fetch fresh data from the external API for a given integration.
+ */
+async function syncFromApi(type) {
+  switch (type) {
+    case 'ebay': {
+      const { getSellerProfiles } = require('../lib/ebay-trading-api');
+      const data = await getSellerProfiles({ forceRefresh: true });
+      return {
+        shipping: Array.isArray(data?.shippingProfiles) ? data.shippingProfiles : [],
+        return: Array.isArray(data?.returnProfiles) ? data.returnProfiles : [],
+        payment: Array.isArray(data?.paymentProfiles) ? data.paymentProfiles : [],
+      };
+    }
+    case 'kaufland': {
+      const { listShippingGroups, listWarehouses } = require('../lib/kaufland-api');
+      const [shippingGroups, warehouses] = await Promise.all([
+        listShippingGroups(),
+        listWarehouses(),
+      ]);
+      return { shippingGroups, warehouses };
+    }
+    case 'sendcloud': {
+      const { listSenderAddresses, listShippingMethods } = require('../lib/sendcloud');
+      const [senderAddresses, shippingMethods] = await Promise.all([
+        listSenderAddresses(),
+        listShippingMethods(),
+      ]);
+      return { senderAddresses, shippingMethods };
+    }
+    case 'sevdesk': {
+      const { listTaxRates, listCheckAccounts } = require('../lib/sevdesk');
+      const [taxRates, checkAccounts] = await Promise.all([
+        listTaxRates(),
+        listCheckAccounts(),
+      ]);
+      return { taxRates, checkAccounts };
+    }
+    default:
+      throw new Error(`Sync not supported for integration: ${type}`);
+  }
+}
+
+/**
+ * GET /api/integrations/:type/config
+ * Returns cached settings + defaults. Auto-syncs if stale (>24h).
+ */
+router.get('/integrations/:type/config', requirePermission('integrations', 'read'), async (req, res) => {
+  try {
+    const { type } = req.params;
+    const tenantId = getTenantId(req);
+    const docId = `${tenantId}__${type}`;
+
+    const { firestore } = require('../lib/firestore');
+    const docRef = firestore.collection(SETTINGS_COLLECTION).doc(docId);
+    let doc = await docRef.get();
+    let data = doc.exists ? doc.data() : null;
+
+    // Auto-sync if missing or stale
+    const lastSynced = data?.lastSyncedAt ? new Date(data.lastSyncedAt).getTime() : 0;
+    const isStale = Date.now() - lastSynced > SYNC_TTL_MS;
+
+    if (!data || isStale) {
+      try {
+        const cachedData = await syncFromApi(type);
+        const now = new Date().toISOString();
+        const update = {
+          tenantId,
+          integration: type,
+          cachedData,
+          lastSyncedAt: now,
+          ...(data ? {} : { defaults: {} }),
+        };
+        await docRef.set(update, { merge: true });
+        // Re-read to get merged doc
+        doc = await docRef.get();
+        data = doc.exists ? doc.data() : update;
+      } catch (syncErr) {
+        console.warn(`[GET /api/integrations/${type}/config] Auto-sync failed: ${syncErr.message}`);
+        // Return stale data if available
+        if (data) {
+          return res.json({ ok: true, data, syncError: syncErr.message });
+        }
+        throw syncErr;
+      }
+    }
+
+    res.json({ ok: true, data });
+  } catch (err) {
+    console.error(`[GET /api/integrations/${req.params.type}/config] ${err.message}`, err);
+    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: err.message } });
+  }
+});
+
+/**
+ * POST /api/integrations/:type/sync
+ * Force-sync cached data from the external API.
+ */
+router.post('/integrations/:type/sync', requirePermission('integrations', 'write'), async (req, res) => {
+  try {
+    const { type } = req.params;
+    const tenantId = getTenantId(req);
+    const docId = `${tenantId}__${type}`;
+
+    const cachedData = await syncFromApi(type);
+    const now = new Date().toISOString();
+
+    const { firestore } = require('../lib/firestore');
+    await firestore.collection(SETTINGS_COLLECTION).doc(docId).set({
+      tenantId,
+      integration: type,
+      cachedData,
+      lastSyncedAt: now,
+    }, { merge: true });
+
+    const doc = await firestore.collection(SETTINGS_COLLECTION).doc(docId).get();
+    res.json({ ok: true, data: doc.data() });
+  } catch (err) {
+    console.error(`[POST /api/integrations/${req.params.type}/sync] ${err.message}`, err);
+    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: err.message } });
+  }
+});
+
+/**
+ * PUT /api/integrations/:type/defaults
+ * Set preferred defaults for an integration.
+ */
+router.put('/integrations/:type/defaults', requirePermission('integrations', 'write'), async (req, res) => {
+  try {
+    const { type } = req.params;
+    const tenantId = getTenantId(req);
+    const docId = `${tenantId}__${type}`;
+    const { defaults } = req.body;
+
+    if (!defaults || typeof defaults !== 'object') {
+      return res.status(400).json({ ok: false, error: { code: 'VALIDATION', message: 'defaults Objekt ist erforderlich' } });
+    }
+
+    const { firestore } = require('../lib/firestore');
+    await firestore.collection(SETTINGS_COLLECTION).doc(docId).set({
+      tenantId,
+      integration: type,
+      defaults,
+      updatedAt: new Date().toISOString(),
+      updatedBy: req.user?.uid || null,
+    }, { merge: true });
+
+    const doc = await firestore.collection(SETTINGS_COLLECTION).doc(docId).get();
+    res.json({ ok: true, data: doc.data() });
+  } catch (err) {
+    console.error(`[PUT /api/integrations/${req.params.type}/defaults] ${err.message}`, err);
+    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: err.message } });
+  }
+});
+
 module.exports = router;

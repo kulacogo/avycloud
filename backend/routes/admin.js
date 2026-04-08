@@ -45,6 +45,9 @@ const { enqueueAdminBulkJob } = require('../services/admin-bulk-runner');
 const { runCloudRunJob } = require('../lib/cloud-run-jobs');
 const { firestore } = require('../lib/firestore');
 
+// --- Batch Optimize ---
+const { runBatchOptimize, previewBatchOptimize } = require('../services/batch-optimize');
+
 const GCP_PROJECT = process.env.GOOGLE_CLOUD_PROJECT || 'avycloud';
 
 // =====================================================================
@@ -1221,6 +1224,53 @@ router.get('/sessions/active', requirePermission('admin', 'read'), async (req, r
     res.json({ ok: true, data: sessions });
   } catch (error) {
     console.error('[GET /api/admin/sessions/active] Error:', error.message);
+    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: error.message } });
+  }
+});
+
+// =====================================================================
+// Batch Optimize (Gemini "Alles optimieren" for BIN-assigned, non-eBay products)
+// =====================================================================
+
+/**
+ * GET /api/admin/batch-optimize/preview
+ * Preview which products would be optimized.
+ */
+router.get('/batch-optimize/preview', requirePermission('admin', 'products.write'), async (req, res) => {
+  try {
+    const tenantId = req.query.tenantId || req.user?.tenantId || null;
+    const preview = await previewBatchOptimize({ tenantId });
+    res.json({ ok: true, data: preview });
+  } catch (error) {
+    console.error('[GET /api/admin/batch-optimize/preview]', error.message);
+    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: error.message } });
+  }
+});
+
+/**
+ * POST /api/admin/batch-optimize/run
+ * Start batch optimization. Body:
+ *   { dryRun?: boolean, limit?: number, offset?: number }
+ *
+ * Returns results synchronously (long-running — use generous timeout).
+ */
+router.post('/batch-optimize/run', requirePermission('admin', 'products.write'), async (req, res) => {
+  try {
+    const { dryRun = false, limit = 0, offset = 0 } = req.body || {};
+    const tenantId = req.body?.tenantId || req.user?.tenantId || null;
+
+    console.log(`[POST /api/admin/batch-optimize/run] user=${req.user?.uid}, dryRun=${dryRun}, limit=${limit}, offset=${offset}`);
+
+    const result = await runBatchOptimize({
+      dryRun: Boolean(dryRun),
+      limit: Number(limit) || 0,
+      offset: Number(offset) || 0,
+      tenantId,
+    });
+
+    res.json({ ok: true, data: result });
+  } catch (error) {
+    console.error('[POST /api/admin/batch-optimize/run]', error.message, error);
     res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: error.message } });
   }
 });

@@ -1654,12 +1654,13 @@ export interface BulkPublishResult {
 
 export async function bulkPublishToKaufland(
   productIds: string[],
-  storefront = 'de'
+  storefront = 'de',
+  overrides?: Record<string, any>
 ): Promise<BulkPublishResult> {
   const res = await fetchApi(`${BACKEND_URL}/api/kaufland/publish/bulk`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ productIds, storefront }),
+    body: JSON.stringify({ productIds, storefront, overrides: overrides || {} }),
   });
   const data = await parseResponse(res);
   if (!res.ok || data?.ok === false) {
@@ -1697,6 +1698,53 @@ export async function bulkSetKauflandUnitStatus(
     throw new Error(data?.error?.message || "Failed to set Kaufland unit status");
   }
   return data?.data;
+}
+
+// ─── Integration Settings ────────────────────────────────────────────────
+
+export interface IntegrationConfig {
+  tenantId: string;
+  integration: string;
+  cachedData: Record<string, any>;
+  defaults: Record<string, any>;
+  lastSyncedAt: string | null;
+  syncError?: string;
+}
+
+export async function fetchIntegrationConfig(integration: string): Promise<IntegrationConfig> {
+  const res = await fetchApi(`${BACKEND_URL}/api/integrations/${integration}/config`);
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) {
+    throw new Error(data?.error?.message || `Failed to load ${integration} config`);
+  }
+  return data?.data as IntegrationConfig;
+}
+
+export async function syncIntegration(integration: string): Promise<IntegrationConfig> {
+  const res = await fetchApi(`${BACKEND_URL}/api/integrations/${integration}/sync`, {
+    method: "POST",
+  });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) {
+    throw new Error(data?.error?.message || `Failed to sync ${integration}`);
+  }
+  return data?.data as IntegrationConfig;
+}
+
+export async function saveIntegrationDefaults(
+  integration: string,
+  defaults: Record<string, any>
+): Promise<IntegrationConfig> {
+  const res = await fetchApi(`${BACKEND_URL}/api/integrations/${integration}/defaults`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ defaults }),
+  });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) {
+    throw new Error(data?.error?.message || `Failed to save ${integration} defaults`);
+  }
+  return data?.data as IntegrationConfig;
 }
 
 export async function generateEbayReports(outDir?: string): Promise<any> {
