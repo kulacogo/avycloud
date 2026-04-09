@@ -339,18 +339,50 @@ function getTenantId(req) {
 }
 
 /**
+ * Fetch eBay business policies via REST Account API (replaces deprecated GetSellerProfiles).
+ */
+async function fetchEbayPolicies() {
+  const { getValidEbayAccessToken } = require('../lib/ebay-oauth');
+  const fetch = require('node-fetch');
+  const { accessToken } = await getValidEbayAccessToken();
+  const baseUrl = 'https://api.ebay.com/sell/account/v1';
+  const headers = {
+    Authorization: `Bearer ${accessToken}`,
+    'Content-Type': 'application/json',
+    Accept: 'application/json',
+  };
+  const marketplaceId = process.env.EBAY_MARKETPLACE_ID || 'EBAY_DE';
+
+  async function fetchPolicies(endpoint, listKey, idKey) {
+    const url = `${baseUrl}/${endpoint}?marketplace_id=${marketplaceId}`;
+    const res = await fetch(url, { headers, timeout: 15000 });
+    if (!res.ok) {
+      const body = await res.text().catch(() => '');
+      throw new Error(`eBay Account API ${endpoint} returned ${res.status}: ${body.slice(0, 300)}`);
+    }
+    const data = await res.json();
+    const items = Array.isArray(data?.[listKey]) ? data[listKey] : [];
+    return items.map((p) => ({
+      id: String(p?.[idKey] || ''),
+      name: String(p?.name || ''),
+    })).filter((p) => p.id);
+  }
+
+  const [shipping, returnPolicies, payment] = await Promise.all([
+    fetchPolicies('fulfillment_policy', 'fulfillmentPolicies', 'fulfillmentPolicyId'),
+    fetchPolicies('return_policy', 'returnPolicies', 'returnPolicyId'),
+    fetchPolicies('payment_policy', 'paymentPolicies', 'paymentPolicyId'),
+  ]);
+  return { shipping, return: returnPolicies, payment };
+}
+
+/**
  * Fetch fresh data from the external API for a given integration.
  */
 async function syncFromApi(type) {
   switch (type) {
     case 'ebay': {
-      const { getSellerProfiles } = require('../lib/ebay-trading-api');
-      const data = await getSellerProfiles({ forceRefresh: true });
-      return {
-        shipping: Array.isArray(data?.shippingProfiles) ? data.shippingProfiles : [],
-        return: Array.isArray(data?.returnProfiles) ? data.returnProfiles : [],
-        payment: Array.isArray(data?.paymentProfiles) ? data.paymentProfiles : [],
-      };
+      return await fetchEbayPolicies();
     }
     case 'kaufland': {
       const { listShippingGroups, listWarehouses } = require('../lib/kaufland-api');

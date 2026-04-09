@@ -663,9 +663,9 @@ async function setUnitStatus(unitId, status, { storefront = 'de' } = {}) {
  */
 async function listShippingGroups({ storefront = 'de' } = {}) {
   const res = await kauflandRequest('GET', '/shipping-groups', {
-    query: { storefront, limit: 100 },
+    query: { storefront, limit: 30 },
   });
-  const items = Array.isArray(res?.data) ? res.data : [];
+  const items = Array.isArray(res?.data?.data) ? res.data.data : [];
   return items.map((sg) => ({
     id: sg.id_shipping_group,
     name: safeString(sg.name),
@@ -681,9 +681,9 @@ async function listShippingGroups({ storefront = 'de' } = {}) {
  */
 async function listWarehouses() {
   const res = await kauflandRequest('GET', '/warehouses', {
-    query: { limit: 100 },
+    query: { limit: 30 },
   });
-  const items = Array.isArray(res?.data) ? res.data : [];
+  const items = Array.isArray(res?.data?.data) ? res.data.data : [];
   return items.map((wh) => ({
     id: wh.id_warehouse,
     name: safeString(wh.name),
