@@ -393,7 +393,7 @@ async function runBatchValidate({
         });
         saved++;
       } else {
-        await saveProductV2(corrected);
+        await saveProductV2(corrected, { source: 'admin-bulk-validate', allowCategoryChange: true });
         console.log(`${logPrefix} ✅ Saved: ${changes.join(', ')}`);
         saved++;
         results.push({
