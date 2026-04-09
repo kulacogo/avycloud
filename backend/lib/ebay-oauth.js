@@ -74,6 +74,7 @@ async function getEbayScopes() {
     'https://api.ebay.com/oauth/api_scope/sell.inventory.readonly',
     'https://api.ebay.com/oauth/api_scope/sell.fulfillment',
     'https://api.ebay.com/oauth/api_scope/sell.finances',
+    'https://api.ebay.com/oauth/api_scope/sell.account.readonly',
     'https://api.ebay.com/oauth/api_scope/commerce.identity.readonly',
   ];
   const fromEnv = parseScopes(process.env.EBAY_SCOPES);

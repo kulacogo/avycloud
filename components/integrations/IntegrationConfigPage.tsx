@@ -3,6 +3,7 @@ import {
   fetchIntegrationConfig,
   syncIntegration,
   saveIntegrationDefaults,
+  getBackendUrl,
 } from "../../api/client";
 import type { IntegrationConfig } from "../../api/client";
 
@@ -316,6 +317,33 @@ export const IntegrationConfigPage: React.FC<IntegrationConfigPageProps> = ({
             {success}
           </div>
         )}
+        {/* eBay: missing scope warning */}
+        {integration === "ebay" &&
+          config?.lastSyncedAt &&
+          !error &&
+          meta.sections.every(
+            (s) => ((config?.cachedData?.[s.key] as any[]) || []).length === 0
+          ) && (
+            <div className="bg-warning-dim border border-app-border rounded-xl px-4 py-3 mb-4">
+              <p className="text-sm text-warning font-medium mb-1">
+                Keine Rahmenbedingungen geladen
+              </p>
+              <p className="text-xs text-txt-secondary mb-3">
+                Der eBay OAuth-Token hat nicht die noetige Berechtigung
+                (sell.account.readonly). Bitte eBay neu autorisieren, damit die
+                Rahmenbedingungen abgerufen werden koennen.
+              </p>
+              <a
+                href={`${getBackendUrl()}/api/ebay/oauth/start`}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-accent text-white rounded-lg text-sm font-medium hover:opacity-90 transition-opacity"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                eBay neu autorisieren
+              </a>
+            </div>
+          )}
       </div>
 
       {/* Policy Sections */}
