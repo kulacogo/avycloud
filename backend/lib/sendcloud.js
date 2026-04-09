@@ -311,8 +311,6 @@ async function getShippingCostsSummary(fromDate, toDate, { timeoutMs = 30000, fo
 
 // ─── Settings API ──────────────────────────────────────────────────────────
 
-const SENDCLOUD_BASE_URL = 'https://panel.sendcloud.sc/api/v2';
-
 /**
  * Fetch sender addresses from SendCloud.
  * @returns {Promise<Array<{ id: number, companyName: string, street: string, city: string, postalCode: string, country: string }>>}
