@@ -29,28 +29,183 @@ const DELAY_BETWEEN_PRODUCTS_MS = parseInt(process.env.BATCH_OPTIMIZE_DELAY_MS |
 
 // ---------------------------------------------------------------------------
 // Filter: BIN assigned + NOT listed on eBay
+// (matches frontend AdminTable.tsx logic exactly)
 // ---------------------------------------------------------------------------
 
 function hasBinAssignment(product) {
   // Primary storage location
   if (product?.storage?.binCode) return true;
-  // Multiple bins
-  if (Array.isArray(product?.storageBins) && product.storageBins.length > 0) {
-    return product.storageBins.some(bin => bin?.binCode);
-  }
+  // Multiple bins — frontend checks array length only (no binCode check on elements)
+  if (Array.isArray(product?.storageBins) && product.storageBins.length > 0) return true;
   return false;
 }
 
-function isNotListedOnEbay(product) {
-  const ebayStatus = product?.ops?.listingStatus?.ebay;
-  // Not listed = no status at all, or explicitly 'not_listed'
-  // Products with 'active' or 'inactive' are considered "listed" (they exist on eBay)
-  return !ebayStatus || ebayStatus === 'not_listed';
+/**
+ * Build eBay "listed" lookup sets from Firestore — mirrors the frontend's
+ * fetchEbaySkuIndex() + AdminTable isEbayListed logic.
+ *
+ * A product counts as "listed on eBay" if ANY of:
+ *   1. ops.listingStatus.ebay === 'active'
+ *   2. Product SKU found in ebayListingsLive (active=true)
+ *   3. Product ID found in ebayListingLinks (status=matched, itemId active)
+ *   4. marketplace.ebay.itemId is in active eBay item IDs
+ */
+async function buildEbayListedSets() {
+  const [liveSnap, linksSnap] = await Promise.all([
+    firestore.collection('ebayListingsLive').where('active', '==', true).get(),
+    firestore.collection('ebayListingLinks').where('status', '==', 'matched').get(),
+  ]);
+
+  const activeItemIds = new Set();
+  const listedSkus = new Set();
+  const listedProductIds = new Set();
+
+  // Active eBay listings → SKUs + itemIds
+  liveSnap.docs.forEach((doc) => {
+    const d = doc.data() || {};
+    activeItemIds.add(doc.id);
+    const rawList = Array.isArray(d.skuIndex) ? d.skuIndex : d.sku ? [d.sku] : [];
+    for (const v of (Array.isArray(rawList) ? rawList : [rawList])) {
+      const s = String(v || '').trim().toUpperCase();
+      if (s) listedSkus.add(s);
+    }
+  });
+
+  // Matched links → productIds (only if itemId is still active)
+  linksSnap.docs.forEach((doc) => {
+    if (!activeItemIds.has(doc.id)) return;
+    const d = doc.data() || {};
+    if (d.productId) listedProductIds.add(d.productId);
+  });
+
+  return { activeItemIds, listedSkus, listedProductIds };
 }
 
-function isEligibleForBatchOptimize(product) {
+function normalizeSku(v) {
+  return String(v || '').trim().toUpperCase();
+}
+
+function isEbayListed(product, ebayIndex) {
+  // 1. Canonical status
+  if (product?.ops?.listingStatus?.ebay === 'active') return true;
+
+  // 2. SKU in active listings
+  const skuCandidates = [
+    normalizeSku(product?.details?.identifiers?.sku),
+    normalizeSku(product?.identification?.sku),
+  ].filter(Boolean);
+  if (skuCandidates.some(sku => ebayIndex.listedSkus.has(sku))) return true;
+
+  // 3. Product ID in matched links
+  if (product?.id && ebayIndex.listedProductIds.has(product.id)) return true;
+
+  // 4. marketplace.ebay.itemId in active items
+  const marketplaceItemId = String(product?.marketplace?.ebay?.itemId || '').trim();
+  if (marketplaceItemId && ebayIndex.activeItemIds.has(marketplaceItemId)) return true;
+
+  return false;
+}
+
+// ---------------------------------------------------------------------------
+// Sold enrichment — mirrors routes/products.js buildSoldQuantityMap +
+// attachReservedAvailability so we use live order data, not stale inventory
+// ---------------------------------------------------------------------------
+
+const EXCLUDED_ORDER_STATUSES = new Set(['cancelled', 'returned']);
+const SHIPPED_ORDER_STATUSES = new Set(['shipped', 'delivered', 'completed']);
+
+const normalizeSkuKey = (val) =>
+  (val || '').toString().trim().toLowerCase().replace(/^sku[-_\s]*/i, '').replace(/\s+/g, '');
+
+async function buildSoldQuantityMap() {
+  const map = new Map();
+  try {
+    const snap = await firestore.collection('orders').get();
+    snap.forEach((doc) => {
+      const order = doc.data() || {};
+      const status = (order.omsStatus || order.status || '').toLowerCase();
+      if (!status || EXCLUDED_ORDER_STATUSES.has(status)) return;
+      const items = Array.isArray(order.items) ? order.items : [];
+      const isShipped = SHIPPED_ORDER_STATUSES.has(status);
+      for (const item of items) {
+        const key = normalizeSkuKey(item?.sku || item?.productId || '');
+        const qty = Number(item?.quantity || 0);
+        if (!key || qty <= 0) continue;
+        const entry = map.get(key) || { sold: 0, open: 0 };
+        if (isShipped) { entry.sold += qty; } else { entry.open += qty; }
+        map.set(key, entry);
+      }
+    });
+  } catch (error) {
+    console.warn('[batch-optimize] buildSoldQuantityMap failed:', error.message);
+  }
+  return map;
+}
+
+function enrichWithSoldData(products, soldMap) {
+  return products.map((product) => {
+    const skuCandidate =
+      product?.details?.identifiers?.sku || product?.identification?.sku || product?.id;
+    const key = normalizeSkuKey(skuCandidate);
+    const soldEntry = key ? soldMap.get(key) : null;
+    const soldQuantity = soldEntry ? soldEntry.sold : 0;
+    const openOrderQuantity = soldEntry ? soldEntry.open : 0;
+    return {
+      ...product,
+      inventory: {
+        ...(product.inventory || {}),
+        soldQuantity,
+        openOrderQuantity,
+      },
+    };
+  });
+}
+
+function isNotSold(product) {
+  const soldQuantity = Number(product?.inventory?.soldQuantity || 0) || 0;
+  const openOrders = Number(product?.inventory?.openOrderQuantity || product?.inventory?.openOrders || 0) || 0;
+  return soldQuantity <= 0 && openOrders <= 0;
+}
+
+/**
+ * Ghost product filter — mirrors routes/products.js isGhostProduct().
+ * Ghost = stub docs with no meaningful data (no name, SKU, barcode, images, etc.)
+ */
+function isGhostProduct(product = {}) {
+  const identification = product?.identification || {};
+  const details = product?.details || {};
+  const identifiers = details?.identifiers || {};
+  const ops = product?.ops || {};
+
+  const hasName = typeof identification?.name === 'string' && identification.name.trim().length > 0;
+  const hasSku =
+    (typeof identification?.sku === 'string' && identification.sku.trim().length > 0) ||
+    (typeof identifiers?.sku === 'string' && identifiers.sku.trim().length > 0);
+  const hasBarcode =
+    Boolean(identifiers?.ean || identifiers?.gtin || identifiers?.upc) ||
+    (Array.isArray(identification?.barcodes) && identification.barcodes.length > 0);
+  const hasImages = Array.isArray(details?.images) && details.images.length > 0;
+  const hasAttrs = details?.attributes && typeof details.attributes === 'object' && Object.keys(details.attributes).length > 0;
+  const hasPricing = Boolean(details?.pricing?.lowest_price?.amount);
+  const hasPendingIntake = Number(ops?.pending_intake_quantity || 0) > 0;
+  const hasOpsLink = Boolean(ops?.sync_status);
+
+  const invQty = Number(product?.inventory?.quantity || 0);
+  const hasStock =
+    (Number.isFinite(invQty) && invQty > 0) ||
+    Boolean(product?.storage?.binCode) ||
+    (Array.isArray(product?.storageBins) && product.storageBins.some((b) => Number(b?.quantity || 0) > 0));
+
+  return !(
+    hasName || hasSku || hasBarcode || hasImages || hasAttrs ||
+    hasPricing || hasPendingIntake || hasOpsLink || hasStock
+  );
+}
+
+function isEligibleForBatchOptimize(product, ebayIndex) {
   if (!product?.id) return false;
-  return hasBinAssignment(product) && isNotListedOnEbay(product);
+  if (isGhostProduct(product)) return false;
+  return hasBinAssignment(product) && !isEbayListed(product, ebayIndex) && isNotSold(product);
 }
 
 // ---------------------------------------------------------------------------
@@ -254,8 +409,15 @@ async function runBatchOptimize({
 
   console.log(`[batch-optimize] Loaded ${allProducts.length} products total`);
 
-  // 2. Filter eligible products
-  let eligible = allProducts.filter(isEligibleForBatchOptimize);
+  // 2. Enrich with live sold data from orders + build eBay index
+  const [soldMap, ebayIndex] = await Promise.all([
+    buildSoldQuantityMap(),
+    buildEbayListedSets(),
+  ]);
+  const enrichedProducts = enrichWithSoldData(allProducts, soldMap);
+  console.log(`[batch-optimize] eBay index: ${ebayIndex.activeItemIds.size} active items, ${ebayIndex.listedSkus.size} SKUs, ${ebayIndex.listedProductIds.size} linked products`);
+  console.log(`[batch-optimize] Sold map: ${soldMap.size} SKUs with order activity`);
+  let eligible = enrichedProducts.filter(p => isEligibleForBatchOptimize(p, ebayIndex));
   console.log(`[batch-optimize] ${eligible.length} products eligible (BIN assigned + not on eBay)`);
 
   // 3. Apply offset + limit
@@ -410,7 +572,12 @@ async function previewBatchOptimize({ tenantId = null } = {}) {
   const snapshot = await query.get();
   const allProducts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
-  const eligible = allProducts.filter(isEligibleForBatchOptimize);
+  const [soldMap, ebayIndex] = await Promise.all([
+    buildSoldQuantityMap(),
+    buildEbayListedSets(),
+  ]);
+  const enrichedProducts = enrichWithSoldData(allProducts, soldMap);
+  const eligible = enrichedProducts.filter(p => isEligibleForBatchOptimize(p, ebayIndex));
 
   return {
     totalProducts: allProducts.length,
@@ -434,5 +601,8 @@ module.exports = {
   isEligibleForBatchOptimize,
   applyChangesToProduct,
   hasBinAssignment,
-  isNotListedOnEbay,
+  isEbayListed,
+  buildEbayListedSets,
+  buildSoldQuantityMap,
+  enrichWithSoldData,
 };

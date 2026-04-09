@@ -104,7 +104,40 @@ async function propagateEbayStatusToProducts() {
     console.warn(`[ListingSyncRunner] Skipped ${skippedOrphans} orphaned ebayListingLinks (product not found)`);
   }
 
-  return { linked: itemToProduct.size, updated };
+  // 5. Cleanup: find products with stale ops.listingStatus.ebay='active' that are NOT truly active.
+  // These are products without an ebayListingLinks entry or whose listing is no longer active on eBay.
+  const activeProductIds = new Set();
+  for (const [productId, status] of productStatusMap.entries()) {
+    if (status === 'active') activeProductIds.add(productId);
+  }
+
+  let staleFixed = 0;
+  const staleSnap = await firestore.collection(PRODUCTS_COLLECTION)
+    .where('ops.listingStatus.ebay', '==', 'active')
+    .get();
+
+  let staleBatch = firestore.batch();
+  let staleBatchCount = 0;
+  for (const doc of staleSnap.docs) {
+    if (activeProductIds.has(doc.id)) continue; // truly active, skip
+    staleBatch.update(doc.ref, {
+      'ops.listingStatus.ebay': 'not_listed',
+      'ops.listingStatus.lastSyncAt': now,
+    });
+    staleBatchCount++;
+    staleFixed++;
+    if (staleBatchCount >= 400) {
+      await staleBatch.commit();
+      staleBatch = firestore.batch();
+      staleBatchCount = 0;
+    }
+  }
+  if (staleBatchCount > 0) await staleBatch.commit();
+  if (staleFixed > 0) {
+    console.log(`[ListingSyncRunner] Fixed ${staleFixed} stale ops.listingStatus.ebay='active' products`);
+  }
+
+  return { linked: itemToProduct.size, updated, staleFixed };
 }
 
 // ─── Kaufland Status Propagation ─────────────────────────────────────────────
@@ -163,7 +196,40 @@ async function propagateKauflandStatusToProducts() {
   }
   if (batchCount > 0) await batch.commit();
 
-  return { units: offerIds.length, updated };
+  // Cleanup: find products with stale ops.listingStatus.kaufland='active' that are NOT truly active.
+  const activeKauflandSkus = new Set();
+  for (const [sku, status] of offerStatusMap.entries()) {
+    if (status === 'active') activeKauflandSkus.add(sku);
+  }
+
+  let staleFixed = 0;
+  const staleSnap = await firestore.collection(PRODUCTS_COLLECTION)
+    .where('ops.listingStatus.kaufland', '==', 'active')
+    .get();
+
+  let staleBatch = firestore.batch();
+  let staleBatchCount = 0;
+  for (const doc of staleSnap.docs) {
+    const sku = String(doc.data()?.identification?.sku || '');
+    if (activeKauflandSkus.has(sku)) continue; // truly active, skip
+    staleBatch.update(doc.ref, {
+      'ops.listingStatus.kaufland': 'not_listed',
+      'ops.listingStatus.lastSyncAt': now,
+    });
+    staleBatchCount++;
+    staleFixed++;
+    if (staleBatchCount >= 400) {
+      await staleBatch.commit();
+      staleBatch = firestore.batch();
+      staleBatchCount = 0;
+    }
+  }
+  if (staleBatchCount > 0) await staleBatch.commit();
+  if (staleFixed > 0) {
+    console.log(`[ListingSyncRunner] Fixed ${staleFixed} stale ops.listingStatus.kaufland='active' products`);
+  }
+
+  return { units: offerIds.length, updated, staleFixed };
 }
 
 // ─── Kaufland API Sync ────────────────────────────────────────────────────────

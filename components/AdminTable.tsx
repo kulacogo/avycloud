@@ -1031,8 +1031,8 @@ const AdminTable: React.FC<AdminTableProps> = ({
         (filterGpsr === 'complete' && gpsrComplete) ||
         (filterGpsr === 'incomplete' && !gpsrComplete);
 
-      // eBay listing filter: ops.listingStatus.ebay is authoritative, fallback to cross-reference
-      const pEbayStatus = (p as any)?.ops?.listingStatus?.ebay;
+      // eBay listing filter: cross-reference against ebayListingsLive (active=true) is authoritative.
+      // ops.listingStatus.ebay can be stale — do NOT use it as filter fallback.
       const pSkuCandidates = Array.from(
         new Set(
           [
@@ -1049,13 +1049,13 @@ const AdminTable: React.FC<AdminTableProps> = ({
         pSkuUrl ||
         (pPidItemId ? true : null) ||
         (marketplaceItemId && ebayActiveItemIds.has(marketplaceItemId) ? true : null);
-      const isEbayListed = !!pViewItemUrl || pEbayStatus === 'active';
+      const isEbayListed = !!pViewItemUrl;
       const matchesEbay =
         filterEbay === 'all' ||
         (filterEbay === 'listed' && isEbayListed) ||
         (filterEbay === 'notListed' && !isEbayListed);
-      // Kaufland listing filter: ops.listingStatus.kaufland is authoritative, fallback to cross-reference
-      const pKauflandStatus = (p as any)?.ops?.listingStatus?.kaufland;
+      // Kaufland listing filter: cross-reference against kauflandUnitsLive is authoritative.
+      // ops.listingStatus.kaufland can be stale — do NOT use it as filter fallback.
       const pSku = normalizeSku(
         (p as any)?.identification?.sku ||
         p?.details?.identifiers?.sku ||
@@ -1076,7 +1076,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
       );
       // Match badge logic: SKU/EAN index presence = listed, regardless of stale ops status
       const pKauflandByIndex = (pSku && kauflandSkuSet.has(pSku)) || pEanCandidates.some((ean) => kauflandEanSet.has(ean));
-      const isKauflandListed = pKauflandStatus === 'active' || pKauflandByIndex;
+      const isKauflandListed = pKauflandByIndex;
       const matchesKaufland =
         filterKaufland === 'all' ||
         (filterKaufland === 'listed' && isKauflandListed) ||
