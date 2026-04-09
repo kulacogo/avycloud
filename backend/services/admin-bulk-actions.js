@@ -2110,6 +2110,10 @@ async function runBulkAction(action, payload = {}) {
   if (a === 'export_marketplace' || a === 'export' || a === 'export-marketplace') {
     return runExportMarketplace({ jobId, productIds, limit, offset, debug });
   }
+  if (a === 'validate' || a === 'schnell-check' || a === 'quick-check') {
+    const { runBatchValidate } = require('./product-validator');
+    return runBatchValidate({ productIds, dryRun: !apply });
+  }
   if (a === 'gpsr') {
     throw new Error('GPSR bulk action is not exposed here (use GPSR jobs/scripts).');
   }

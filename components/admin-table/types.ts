@@ -45,6 +45,7 @@ export type ProductBulkActionName =
   | "title"
   | "category"
   | "ktype"
+  | "validate"
   | "export_marketplace"
   | "kaufland_create"
   | "kaufland_update"

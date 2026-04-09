@@ -8,10 +8,17 @@
 // The functions under test are pure logic — no GCP/Gemini deps needed.
 const {
   hasBinAssignment,
-  isNotListedOnEbay,
+  isEbayListed,
   isEligibleForBatchOptimize,
   applyChangesToProduct,
 } = require('../services/batch-optimize');
+
+// Empty ebay index for testing
+const EMPTY_EBAY_INDEX = {
+  activeItemIds: new Set(),
+  listedSkus: new Set(),
+  listedProductIds: new Set(),
+};
 
 // ---------------------------------------------------------------------------
 // hasBinAssignment
@@ -23,7 +30,7 @@ describe('hasBinAssignment', () => {
     expect(hasBinAssignment(product)).toBe(true);
   });
 
-  it('returns true when product has storageBins with binCode', () => {
+  it('returns true when product has storageBins with entries', () => {
     const product = { id: 'p2', storageBins: [{ binCode: 'S-2-EG-1-3', quantity: 5 }] };
     expect(hasBinAssignment(product)).toBe(true);
   });
@@ -45,33 +52,35 @@ describe('hasBinAssignment', () => {
 });
 
 // ---------------------------------------------------------------------------
-// isNotListedOnEbay
+// isEbayListed
 // ---------------------------------------------------------------------------
 
-describe('isNotListedOnEbay', () => {
-  it('returns true when no listingStatus at all', () => {
+describe('isEbayListed', () => {
+  it('returns false when no listingStatus and empty index', () => {
     const product = { id: 'p1', ops: {} };
-    expect(isNotListedOnEbay(product)).toBe(true);
+    expect(isEbayListed(product, EMPTY_EBAY_INDEX)).toBe(false);
   });
 
-  it('returns true when ebay status is "not_listed"', () => {
-    const product = { id: 'p2', ops: { listingStatus: { ebay: 'not_listed' } } };
-    expect(isNotListedOnEbay(product)).toBe(true);
+  it('returns true when ebay status is "active"', () => {
+    const product = { id: 'p2', ops: { listingStatus: { ebay: 'active' } } };
+    expect(isEbayListed(product, EMPTY_EBAY_INDEX)).toBe(true);
   });
 
-  it('returns false when ebay status is "active"', () => {
-    const product = { id: 'p3', ops: { listingStatus: { ebay: 'active' } } };
-    expect(isNotListedOnEbay(product)).toBe(false);
+  it('returns false when ebay status is "not_listed" and empty index', () => {
+    const product = { id: 'p3', ops: { listingStatus: { ebay: 'not_listed' } } };
+    expect(isEbayListed(product, EMPTY_EBAY_INDEX)).toBe(false);
   });
 
-  it('returns false when ebay status is "inactive"', () => {
-    const product = { id: 'p4', ops: { listingStatus: { ebay: 'inactive' } } };
-    expect(isNotListedOnEbay(product)).toBe(false);
+  it('returns true when SKU is in listedSkus', () => {
+    const product = { id: 'p4', identification: { sku: 'ABC-123' } };
+    const idx = { ...EMPTY_EBAY_INDEX, listedSkus: new Set(['ABC-123']) };
+    expect(isEbayListed(product, idx)).toBe(true);
   });
 
-  it('returns true when ops is undefined', () => {
+  it('returns true when product ID is in listedProductIds', () => {
     const product = { id: 'p5' };
-    expect(isNotListedOnEbay(product)).toBe(true);
+    const idx = { ...EMPTY_EBAY_INDEX, listedProductIds: new Set(['p5']) };
+    expect(isEbayListed(product, idx)).toBe(true);
   });
 });
 
@@ -80,35 +89,44 @@ describe('isNotListedOnEbay', () => {
 // ---------------------------------------------------------------------------
 
 describe('isEligibleForBatchOptimize', () => {
-  it('returns true: has BIN + not on eBay', () => {
+  it('returns true: has BIN + not on eBay + not sold + not ghost', () => {
     const product = {
       id: 'p1',
+      identification: { name: 'Test Product' },
       storage: { binCode: 'X-5-GA-3-1' },
       ops: { listingStatus: { ebay: 'not_listed' } },
     };
-    expect(isEligibleForBatchOptimize(product)).toBe(true);
+    expect(isEligibleForBatchOptimize(product, EMPTY_EBAY_INDEX)).toBe(true);
   });
 
   it('returns false: has BIN + active on eBay', () => {
     const product = {
       id: 'p2',
+      identification: { name: 'Test Product' },
       storage: { binCode: 'X-5-GA-3-1' },
       ops: { listingStatus: { ebay: 'active' } },
     };
-    expect(isEligibleForBatchOptimize(product)).toBe(false);
+    expect(isEligibleForBatchOptimize(product, EMPTY_EBAY_INDEX)).toBe(false);
   });
 
   it('returns false: no BIN + not on eBay', () => {
     const product = {
       id: 'p3',
+      identification: { name: 'Test Product' },
       ops: { listingStatus: { ebay: 'not_listed' } },
     };
-    expect(isEligibleForBatchOptimize(product)).toBe(false);
+    expect(isEligibleForBatchOptimize(product, EMPTY_EBAY_INDEX)).toBe(false);
   });
 
   it('returns false: no product id', () => {
-    const product = { storage: { binCode: 'X-1-GA-1-1' } };
-    expect(isEligibleForBatchOptimize(product)).toBe(false);
+    const product = { storage: { binCode: 'X-1-GA-1-1' }, identification: { name: 'Test' } };
+    expect(isEligibleForBatchOptimize(product, EMPTY_EBAY_INDEX)).toBe(false);
+  });
+
+  it('returns false: ghost product (no name, no SKU, no data, no stock)', () => {
+    // Ghost = no meaningful data. binCode with stock makes it non-ghost, so omit it.
+    const product = { id: 'ghost1' };
+    expect(isEligibleForBatchOptimize(product, EMPTY_EBAY_INDEX)).toBe(false);
   });
 });
 

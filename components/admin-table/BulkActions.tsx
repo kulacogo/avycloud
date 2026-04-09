@@ -3,6 +3,7 @@ import { TrashIcon, OperationsIcon } from "../icons/Icons";
 import { ProductBulkActionName } from "./types";
 import BulkUpdateModal from "./BulkUpdateModal";
 import { exportProductsCsv } from "../../api/client";
+import { useAuth } from "../../context/AuthContext";
 
 const ActionButton: React.FC<{
   icon: React.ReactNode;
@@ -126,6 +127,7 @@ const BulkActions: React.FC<BulkActionsProps> = ({
   onDiscardEdits,
   onRefreshProducts,
 }) => {
+  const { isAdmin } = useAuth();
   const [showBulkUpdateModal, setShowBulkUpdateModal] = useState(false);
   const [csvExporting, setCsvExporting] = useState(false);
 
@@ -234,6 +236,21 @@ const BulkActions: React.FC<BulkActionsProps> = ({
               />
             </>
           ) : null}
+
+          {isAdmin && (
+            <ActionButton
+              icon={
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              }
+              label="Schnell-Check"
+              ariaLabel="Ausgewählte Produkte validieren und korrigieren (Titel, Kategorie, Preis, Attribute)"
+              onClick={() => enqueueBulkForSelection("validate")}
+              disabled={selectedIds.size === 0 || bulkJobLoading}
+              tone="accent"
+            />
+          )}
 
           <ActionButton
             icon={<TrashIcon className="w-3.5 h-3.5" />}
