@@ -320,7 +320,7 @@ async function listSenderAddresses({ timeoutMs = 15000 } = {}) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const response = await fetch(`${SENDCLOUD_BASE_URL}/sender_addresses`, {
+    const response = await fetch(`${SENDCLOUD_BASE_URL}/user/addresses/sender`, {
       headers: { Authorization: authHeader },
       signal: controller.signal,
     });

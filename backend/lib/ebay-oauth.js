@@ -68,12 +68,12 @@ async function getEbayScopes() {
   //   sell.inventory.readonly    — product listings
   //   sell.fulfillment           — orders, shipping, returns (Post-Order API)
   //   sell.finances              — payouts, transaction fees
+  //   sell.account.readonly      — business policies (fulfillment/return/payment) — requires re-authorization
   //   sell.marketing.readonly    — promoted listings stats
   const fallback = [
     'https://api.ebay.com/oauth/api_scope/sell.inventory.readonly',
     'https://api.ebay.com/oauth/api_scope/sell.fulfillment',
     'https://api.ebay.com/oauth/api_scope/sell.finances',
-    'https://api.ebay.com/oauth/api_scope/sell.account.readonly',
     'https://api.ebay.com/oauth/api_scope/commerce.identity.readonly',
   ];
   const fromEnv = parseScopes(process.env.EBAY_SCOPES);

@@ -286,7 +286,7 @@ async function validateProduct(product) {
     schema: VALIDATION_SCHEMA,
     model: 'gemini-3-flash-preview', // Fast model — no search needed
     temperature: 0.1,
-    maxOutputTokens: 2048,
+    maxOutputTokens: 4096,
   });
 
   return {

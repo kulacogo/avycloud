@@ -212,7 +212,7 @@ async function listTaxRates({ timeoutMs = 15000 } = {}) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const response = await fetch(`${SEVDESK_BASE_URL}/TaxRate?limit=100`, {
+    const response = await fetch(`${SEVDESK_BASE_URL}/TaxSet?limit=100`, {
       headers: { Authorization: apiKey, 'Content-Type': 'application/json' },
       signal: controller.signal,
     });
@@ -222,10 +222,10 @@ async function listTaxRates({ timeoutMs = 15000 } = {}) {
     }
     const data = await response.json();
     const items = Array.isArray(data?.objects) ? data.objects : [];
-    return items.map((tr) => ({
-      id: String(tr.id),
-      taxRate: Number(tr.taxRate) || 0,
-      name: tr.taxName || `${tr.taxRate}%`,
+    return items.map((ts) => ({
+      id: String(ts.id),
+      taxRate: Number(ts.taxRate) || 0,
+      name: ts.text || `${ts.taxRate}%`,
     }));
   } finally {
     clearTimeout(timer);
