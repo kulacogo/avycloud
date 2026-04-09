@@ -357,6 +357,12 @@ async function fetchEbayPolicies() {
     const url = `${baseUrl}/${endpoint}?marketplace_id=${marketplaceId}`;
     const res = await fetch(url, { headers, timeout: 15000 });
     if (!res.ok) {
+      if (res.status === 403) {
+        // Missing sell.account.readonly scope — return empty instead of crashing.
+        // User needs to re-authorize eBay OAuth to get the new scope.
+        console.warn(`[eBay Policies] ${endpoint} returned 403 — sell.account.readonly scope missing. Re-authorize eBay OAuth.`);
+        return [];
+      }
       const body = await res.text().catch(() => '');
       throw new Error(`eBay Account API ${endpoint} returned ${res.status}: ${body.slice(0, 300)}`);
     }
