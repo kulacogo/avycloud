@@ -10,7 +10,7 @@
  */
 
 const BRAND_COLOR = '#635BFF';
-const BRAND_NAME = 'AvyCloud';
+const BRAND_NAME = 'avycloud';
 const BRAND_TAGLINE = 'Product Intelligence Hub';
 
 /**
