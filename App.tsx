@@ -1051,7 +1051,15 @@ const AppInner: React.FC = () => {
       case 'marketplace-kaufland':
         return <MarketplaceListingsView marketplace="kaufland" />;
       case 'integrations':
-        return <IntegrationsHub />;
+        return <IntegrationsHub onNavigate={(id: string) => {
+          const viewMap: Record<string, View> = {
+            ebay: 'integrations-ebay',
+            kaufland: 'integrations-kaufland',
+            sendcloud: 'integrations-sendcloud',
+            sevdesk: 'integrations-sevdesk',
+          };
+          if (viewMap[id]) setView(viewMap[id]);
+        }} />;
       case 'integrations-ebay':
       case 'integrations-kaufland':
       case 'integrations-sendcloud':

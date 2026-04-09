@@ -1481,7 +1481,7 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
             </div>
 
             {/* Policy overrides section */}
-            {publishSelectedIds.size > 0 && policyConfig?.cachedData && (
+            {publishSelectedIds.size > 0 && (
               <div className="px-5 py-3 border-t border-app-border">
                 <button
                   onClick={() => setShowPolicyOverrides(!showPolicyOverrides)}
@@ -1499,47 +1499,55 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
                 </button>
                 {showPolicyOverrides && (
                   <div className="mt-3 space-y-2.5">
-                    {marketplace === "ebay" && (
+                    {!policyConfig?.cachedData ? (
+                      <p className="text-xs text-txt-muted">
+                        Rahmenbedingungen nicht geladen. Bitte unter Integrationen &gt; {marketplace === "ebay" ? "eBay" : "Kaufland"} zuerst synchronisieren.
+                      </p>
+                    ) : (
                       <>
-                        <PolicySelect
-                          label="Versand"
-                          items={policyConfig.cachedData.shipping || []}
-                          value={policyOverrides.shippingPolicyId || ""}
-                          defaultId={policyConfig.defaults?.shippingPolicyId}
-                          onChange={(v) => setPolicyOverrides((prev) => ({ ...prev, shippingPolicyId: v }))}
-                        />
-                        <PolicySelect
-                          label="Ruecknahme"
-                          items={policyConfig.cachedData.return || []}
-                          value={policyOverrides.returnPolicyId || ""}
-                          defaultId={policyConfig.defaults?.returnPolicyId}
-                          onChange={(v) => setPolicyOverrides((prev) => ({ ...prev, returnPolicyId: v }))}
-                        />
-                        <PolicySelect
-                          label="Zahlung"
-                          items={policyConfig.cachedData.payment || []}
-                          value={policyOverrides.paymentPolicyId || ""}
-                          defaultId={policyConfig.defaults?.paymentPolicyId}
-                          onChange={(v) => setPolicyOverrides((prev) => ({ ...prev, paymentPolicyId: v }))}
-                        />
-                      </>
-                    )}
-                    {marketplace === "kaufland" && (
-                      <>
-                        <PolicySelect
-                          label="Versandgruppe"
-                          items={policyConfig.cachedData.shippingGroups || []}
-                          value={policyOverrides.shippingGroupId || ""}
-                          defaultId={policyConfig.defaults?.shippingGroupId}
-                          onChange={(v) => setPolicyOverrides((prev) => ({ ...prev, shippingGroupId: v }))}
-                        />
-                        <PolicySelect
-                          label="Lager"
-                          items={policyConfig.cachedData.warehouses || []}
-                          value={policyOverrides.warehouseId || ""}
-                          defaultId={policyConfig.defaults?.warehouseId}
-                          onChange={(v) => setPolicyOverrides((prev) => ({ ...prev, warehouseId: v }))}
-                        />
+                        {marketplace === "ebay" && (
+                          <>
+                            <PolicySelect
+                              label="Versand"
+                              items={policyConfig.cachedData.shipping || []}
+                              value={policyOverrides.shippingPolicyId || ""}
+                              defaultId={policyConfig.defaults?.shippingPolicyId}
+                              onChange={(v) => setPolicyOverrides((prev) => ({ ...prev, shippingPolicyId: v }))}
+                            />
+                            <PolicySelect
+                              label="Ruecknahme"
+                              items={policyConfig.cachedData.return || []}
+                              value={policyOverrides.returnPolicyId || ""}
+                              defaultId={policyConfig.defaults?.returnPolicyId}
+                              onChange={(v) => setPolicyOverrides((prev) => ({ ...prev, returnPolicyId: v }))}
+                            />
+                            <PolicySelect
+                              label="Zahlung"
+                              items={policyConfig.cachedData.payment || []}
+                              value={policyOverrides.paymentPolicyId || ""}
+                              defaultId={policyConfig.defaults?.paymentPolicyId}
+                              onChange={(v) => setPolicyOverrides((prev) => ({ ...prev, paymentPolicyId: v }))}
+                            />
+                          </>
+                        )}
+                        {marketplace === "kaufland" && (
+                          <>
+                            <PolicySelect
+                              label="Versandgruppe"
+                              items={policyConfig.cachedData.shippingGroups || []}
+                              value={policyOverrides.shippingGroupId || ""}
+                              defaultId={policyConfig.defaults?.shippingGroupId}
+                              onChange={(v) => setPolicyOverrides((prev) => ({ ...prev, shippingGroupId: v }))}
+                            />
+                            <PolicySelect
+                              label="Lager"
+                              items={policyConfig.cachedData.warehouses || []}
+                              value={policyOverrides.warehouseId || ""}
+                              defaultId={policyConfig.defaults?.warehouseId}
+                              onChange={(v) => setPolicyOverrides((prev) => ({ ...prev, warehouseId: v }))}
+                            />
+                          </>
+                        )}
                       </>
                     )}
                   </div>

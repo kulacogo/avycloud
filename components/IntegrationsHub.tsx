@@ -143,7 +143,14 @@ const IntegrationCard: React.FC<IntegrationCardProps> = ({ integration, provider
 };
 
 /* ─── Main Component ─── */
-export const IntegrationsHub: React.FC = () => {
+
+const CONFIG_INTEGRATIONS = new Set(["ebay", "kaufland", "sendcloud", "sevdesk"]);
+
+interface IntegrationsHubProps {
+  onNavigate?: (integrationId: string) => void;
+}
+
+export const IntegrationsHub: React.FC<IntegrationsHubProps> = ({ onNavigate }) => {
   const [activeTab, setActiveTab] = useState<Category>("all");
   const [integrations, setIntegrations] = useState<IntegrationStatusEntry[]>([]);
   const [providers, setProviders] = useState<IntegrationProvider[]>([]);
@@ -188,6 +195,11 @@ export const IntegrationsHub: React.FC = () => {
   );
 
   const openWizard = useCallback((integrationId: string) => {
+    // Navigate to config page for integrations that have settings
+    if (onNavigate && CONFIG_INTEGRATIONS.has(integrationId)) {
+      onNavigate(integrationId);
+      return;
+    }
     const provider = providerMap.get(integrationId);
     if (provider) {
       setWizardProvider(provider);
