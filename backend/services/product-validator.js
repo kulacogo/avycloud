@@ -108,8 +108,9 @@ function buildValidationPrompt(product) {
   const barcodes = (id.barcodes || []).join(', ');
   const categoryId = det.categoryId || det.ebayCategoryId || '';
 
-  return `Du bist ein E-Commerce-Experte für eBay.de und Kaufland.de.
-Prüfe und korrigiere die folgenden Produktdaten. Antworte AUSSCHLIESSLICH mit dem JSON-Schema.
+  return `Du bist ein strenger E-Commerce-Qualitätsprüfer für eBay.de und Kaufland.de.
+Deine Aufgabe: Fehler FINDEN und KORRIGIEREN. Sei kritisch — im Zweifel korrigieren, nicht durchlassen.
+Antworte AUSSCHLIESSLICH mit dem JSON-Schema.
 
 PRODUKT:
   ID: ${product.id}
@@ -122,21 +123,28 @@ PRODUKT:
   Attribute (${Object.keys(attrs).length}):
   ${attrList || '(keine)'}
 
-REGELN:
+REGELN — STRENG PRÜFEN:
+
 1. TITEL:
    - 70-80 Zeichen, eBay-optimiert, wahrheitsgemäß
    - Nur belegbare Fakten (Marke, Modell, Farbe, Größe, relevante Specs)
    - Keine Marketing-Floskeln, keine EAN/SKU, keine Sonderzeichen-Spam
    - Wenn Titel ok → ok=true, corrected=""
 
-2. KATEGORIE:
-   - Muss zum Produkt passen (Marke + Titel + Attribute prüfen)
-   - eBay.de Kategorie-Pfad als Breadcrumb (z.B. "Handys & Kommunikation > Handy-Zubehör > Ladegeräte")
-   - Wenn Kategorie plausibel → ok=true
+2. KATEGORIE — BESONDERS KRITISCH PRÜFEN:
+   - Analysiere den Produktnamen Wort für Wort. Was IST dieses Produkt wirklich?
+   - Passt JEDES Level des Kategorie-Breadcrumbs zum tatsächlichen Produkt?
+   - Häufiger Fehler: Produkte werden in semantisch ähnliche aber FALSCHE Kategorien einsortiert.
+     Beispiele: "Kugelhahn für Wärmezähler" ist KEIN Küchenartikel, sondern Heizungstechnik.
+     "Anker Powerbank" gehört nicht in "Bootsport > Anker", sondern in Elektronik.
+   - Frage dich: Wenn ein Käufer in dieser Kategorie auf eBay.de sucht, erwartet er DIESES Produkt?
+   - Wenn die Kategorie auch nur ansatzweise nicht passt → ok=false + korrekte Kategorie vorschlagen.
+   - Verwende echte eBay.de Kategorie-Pfade als Breadcrumb.
+   - Im Zweifel IMMER korrigieren. Falsche Kategorie = Produkt wird nicht gefunden.
 
 3. PREIS:
    - Schätze den Marktpreis im deutschsprachigen Raum (eBay, Amazon, idealo, etc.)
-   - Empfehle einen Preis im UNTEREN Bereich (konkurrenzfähig, aber nicht unter Einkaufspreis)
+   - Empfehle einen konkurrenzfähigen Preis im UNTEREN Bereich
    - Wenn aktueller Preis im unteren Bereich liegt → ok=true
 
 4. ATTRIBUTE:
@@ -145,7 +153,9 @@ REGELN:
    - Deutsche Keys (z.B. "Farbe", nicht "Color")
    - Keine leeren Werte, keine Marketplace-Keys (eBay/Kaufland)
    - Keine Barcodes als Attribute (EAN, GTIN, UPC gehören nicht zu Attributen)
-   - Wenn alles ok → ok=true, corrected=[]`;
+   - Wenn alles ok → ok=true, corrected=[]
+
+WICHTIG: Dein Ziel ist QUALITÄT. Lieber einmal zu viel korrigieren als einen Fehler durchlassen.`;
 }
 
 // ---------------------------------------------------------------------------
@@ -410,19 +420,34 @@ async function runBatchValidate({
   }
 
   const elapsedMs = Date.now() - startedAt;
+
+  // Format matching bulk-job UI expectations:
+  // job.result.summary → displayed in notice details
+  // job.result.samples → shown as failedSamples if status=error
   const summary = {
     total: productIds.length,
     corrected: saved,
     unchanged,
-    errors,
+    failed: errors,
     dryRun,
     elapsedMs,
     elapsedFormatted: `${Math.round(elapsedMs / 1000)}s`,
-    results,
   };
 
+  const samples = results.map(r => ({
+    id: r.productId,
+    sku: r.productName || r.productId,
+    status: r.status === 'error' ? 'error' : 'ok',
+    message: r.changes?.length
+      ? `Korrigiert: ${r.changes.join(', ')}`
+      : r.status === 'ok'
+        ? 'Keine Korrekturen nötig'
+        : r.error || r.status,
+    changes: r.changes || [],
+  }));
+
   console.log(`[product-validator] Done in ${summary.elapsedFormatted}: ${saved} corrected, ${unchanged} ok, ${errors} errors`);
-  return summary;
+  return { summary, samples };
 }
 
 module.exports = {
