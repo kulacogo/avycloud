@@ -28,7 +28,8 @@ const {
 const MAX_ATTRIBUTES = 45;
 
 // Delay between products (Gemini rate limit)
-const DELAY_MS = parseInt(process.env.VALIDATOR_DELAY_MS || '2000', 10);
+const DELAY_MS = parseInt(process.env.VALIDATOR_DELAY_MS || '500', 10);
+const CONCURRENCY = parseInt(process.env.VALIDATOR_CONCURRENCY || '3', 10);
 
 // ---------------------------------------------------------------------------
 // Gemini Schema for structured validation response
@@ -157,6 +158,37 @@ REGELN — STRENG PRÜFEN:
    - Wenn alles ok → ok=true, corrected=[]
 
 WICHTIG: Dein Ziel ist QUALITÄT. Lieber einmal zu viel korrigieren als einen Fehler durchlassen.`;
+}
+
+// ---------------------------------------------------------------------------
+// Focused category-only fix (when main validation misses it)
+// ---------------------------------------------------------------------------
+
+const CATEGORY_SCHEMA = {
+  type: 'OBJECT',
+  properties: {
+    categoryPath: { type: 'STRING', description: 'eBay.de Kategorie-Breadcrumb z.B. "Sport > Fitness > Hanteln"' },
+    categoryId: { type: 'STRING', description: 'eBay.de Category ID (numerisch)' },
+  },
+  required: ['categoryPath'],
+};
+
+async function fixMissingCategory(product) {
+  const id = product?.identification || {};
+  const prompt = `Welche eBay.de-Kategorie passt zu diesem Produkt? Antworte NUR mit dem JSON-Schema.
+
+Produkt: ${id.name || '(unbekannt)'}
+Marke: ${id.brand || '(unbekannt)'}
+
+Gib den exakten eBay.de Kategorie-Pfad als Breadcrumb an (z.B. "Garten & Terrasse > Grills & Zubehör > Grillroste").`;
+
+  return gemini3GenerateJSON({
+    prompt,
+    schema: CATEGORY_SCHEMA,
+    model: 'gemini-3-flash-preview',
+    temperature: 0.1,
+    maxOutputTokens: 256,
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -326,20 +358,18 @@ async function runBatchValidate({
   let errors = 0;
   let unchanged = 0;
 
-  console.log(`[product-validator] Starting batch: ${productIds.length} products, dryRun=${dryRun}`);
+  console.log(`[product-validator] Starting batch: ${productIds.length} products, dryRun=${dryRun}, concurrency=${CONCURRENCY}`);
 
-  for (let i = 0; i < productIds.length; i++) {
-    const pid = productIds[i];
-    const logPrefix = `[product-validator] [${i + 1}/${productIds.length}]`;
+  // Process single product — used by the concurrent runner below
+  async function processOne(pid, idx) {
+    const logPrefix = `[product-validator] [${idx + 1}/${productIds.length}]`;
 
-    onProgress?.({ current: i + 1, total: productIds.length, productId: pid, status: 'validating' });
+    onProgress?.({ current: idx + 1, total: productIds.length, productId: pid, status: 'validating' });
 
     try {
       const product = await getProduct(pid);
       if (!product) {
-        results.push({ productId: pid, status: 'not_found' });
-        errors++;
-        continue;
+        return { productId: pid, status: 'not_found', _outcome: 'error' };
       }
 
       const productName = product?.identification?.name || pid;
@@ -347,10 +377,26 @@ async function runBatchValidate({
 
       const { ruleIssues, validation } = await validateProduct(product);
 
-      // Force category fix when category is missing — Gemini sometimes returns ok=true for empty categories
+      // Force category fix when category is missing
       const catMissing = !product.identification?.category && !product.details?.categoryId;
-      if (catMissing && validation.category) {
-        validation.category.ok = false;
+      if (catMissing) {
+        if (validation.category) validation.category.ok = false;
+        // If Gemini returned ok=true and no correctedPath, do a focused category call
+        if (!validation.category?.correctedPath) {
+          console.log(`${logPrefix} Category missing + no correction from main call, running focused category fix...`);
+          try {
+            const catResult = await fixMissingCategory(product);
+            if (catResult?.categoryPath) {
+              validation.category = validation.category || {};
+              validation.category.ok = false;
+              validation.category.correctedPath = catResult.categoryPath;
+              if (catResult.categoryId) validation.category.correctedId = catResult.categoryId;
+              console.log(`${logPrefix} Focused fix → ${catResult.categoryPath}`);
+            }
+          } catch (catErr) {
+            console.error(`${logPrefix} Focused category fix failed: ${catErr.message}`);
+          }
+        }
       }
 
       // Check what needs fixing
@@ -362,71 +408,64 @@ async function runBatchValidate({
 
       if (!needsFix) {
         console.log(`${logPrefix} ✅ All checks passed`);
-        unchanged++;
-        results.push({
-          productId: pid,
-          productName,
-          status: 'ok',
-          ruleIssues,
-          checks: {
-            title: true,
-            category: true,
-            price: true,
-            attributes: true,
-          },
-        });
-        continue;
+        return { productId: pid, productName, status: 'ok', ruleIssues, _outcome: 'unchanged',
+          checks: { title: true, category: true, price: true, attributes: true } };
       }
 
       // Apply corrections
       const { product: corrected, changes } = applyValidationResult(product, validation);
 
       if (changes.length === 0) {
-        unchanged++;
-        results.push({ productId: pid, productName, status: 'ok', ruleIssues });
-        continue;
+        return { productId: pid, productName, status: 'ok', ruleIssues, _outcome: 'unchanged' };
       }
 
       if (dryRun) {
         console.log(`${logPrefix} 🔵 DRY-RUN would fix: ${changes.join(', ')}`);
-        results.push({
-          productId: pid,
-          productName,
-          status: 'dry_run',
-          changes,
-          ruleIssues,
+        return {
+          productId: pid, productName, status: 'dry_run', changes, ruleIssues, _outcome: 'saved',
           corrections: {
             title: validation.title?.ok ? null : { corrected: validation.title?.corrected, reason: validation.title?.reason },
             category: validation.category?.ok ? null : { corrected: validation.category?.correctedPath, reason: validation.category?.reason },
             price: validation.price?.ok ? null : { suggested: validation.price?.suggestedPrice, range: validation.price?.marketRange, reason: validation.price?.reason },
             attributes: validation.attributes?.ok ? null : { removed: validation.attributes?.removed, reason: validation.attributes?.reason },
           },
-        });
-        saved++;
-      } else {
-        await saveProductV2(corrected, { source: 'admin-bulk-validate', allowCategoryChange: true });
-        console.log(`${logPrefix} ✅ Saved: ${changes.join(', ')}`);
-        saved++;
-        results.push({
-          productId: pid,
-          productName,
-          status: 'corrected',
-          changes,
-          ruleIssues,
-        });
+        };
       }
 
-      onProgress?.({ current: i + 1, total: productIds.length, productId: pid, status: 'done', changes });
+      await saveProductV2(corrected, { source: 'admin-bulk-validate', allowCategoryChange: true });
+      console.log(`${logPrefix} ✅ Saved: ${changes.join(', ')}`);
+      return { productId: pid, productName, status: 'corrected', changes, ruleIssues, _outcome: 'saved' };
 
     } catch (err) {
       console.error(`${logPrefix} ❌ Error for ${pid}: ${err.message}`);
-      errors++;
-      results.push({ productId: pid, status: 'error', error: err.message?.slice(0, 300) });
+      return { productId: pid, status: 'error', error: err.message?.slice(0, 300), _outcome: 'error' };
     }
+  }
 
-    // Rate limit
-    if (i < productIds.length - 1) {
-      await new Promise(r => setTimeout(r, DELAY_MS));
+  // Run with concurrency
+  const queue = [...productIds.map((pid, idx) => ({ pid, idx }))];
+  const inflight = new Set();
+
+  while (queue.length > 0 || inflight.size > 0) {
+    // Fill up to CONCURRENCY slots
+    while (queue.length > 0 && inflight.size < CONCURRENCY) {
+      const { pid, idx } = queue.shift();
+      const task = processOne(pid, idx)
+        .then(r => {
+          inflight.delete(task);
+          if (r._outcome === 'saved') saved++;
+          else if (r._outcome === 'unchanged') unchanged++;
+          else errors++;
+          delete r._outcome;
+          results.push(r);
+          onProgress?.({ current: results.length, total: productIds.length, productId: pid, status: 'done', changes: r.changes });
+        });
+      inflight.add(task);
+    }
+    // Wait for at least one to finish, then add delay before filling next slot
+    if (inflight.size > 0) {
+      await Promise.race(inflight);
+      if (queue.length > 0) await new Promise(r => setTimeout(r, DELAY_MS));
     }
   }
 
