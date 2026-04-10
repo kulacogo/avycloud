@@ -117,13 +117,13 @@ function findEbayCategory(rawCategory) {
     .filter(Boolean);
   const needleLast = needleSegs[needleSegs.length - 1] || '';
   const needleTokens = needleLast.split(/[^a-z0-9]+/).filter(Boolean);
+  const needleAllTokens = needleSegs.flatMap((s) => s.split(/[^a-z0-9]+/).filter(Boolean));
 
   const matchToken = (token, candidate) => {
     if (!token || !candidate) return false;
     return token === candidate || token.includes(candidate) || candidate.includes(token);
   };
 
-  const minPrefix = needleSegs.length >= 2 ? 2 : 1;
   let best = null;
   let bestScore = -1;
 
@@ -136,6 +136,9 @@ function findEbayCategory(rawCategory) {
       .map((s) => normalize(s))
       .filter(Boolean);
 
+    // First segment (root) must match
+    if (!needleSegs[0] || !haySegs[0] || needleSegs[0] !== haySegs[0]) continue;
+
     let prefix = 0;
     for (let i = 0; i < Math.min(needleSegs.length, haySegs.length); i += 1) {
       if (needleSegs[i] === haySegs[i]) {
@@ -144,18 +147,25 @@ function findEbayCategory(rawCategory) {
         break;
       }
     }
-    if (prefix < minPrefix) continue;
+
+    // Token overlap across all segments (handles renamed/restructured categories)
+    const hayAllTokens = haySegs.flatMap((s) => s.split(/[^a-z0-9]+/).filter(Boolean));
+    const tokenOverlap = needleAllTokens.filter((t) => hayAllTokens.some((h) => matchToken(t, h))).length;
 
     const nameTokens = normalize(cat?.name || '')
       .split(/[^a-z0-9]+/)
       .filter(Boolean);
     const overlapLast = nameTokens.filter((t) => needleTokens.some((n) => matchToken(n, t))).length;
 
-    // Score: prefer stronger breadcrumb prefix matches, then prefer leaf-token overlap.
-    const score = prefix * 100 + overlapLast * 25 + haySegs.length;
-        if (score > bestScore) {
-          bestScore = score;
-          best = cat;
+    // Need either strong prefix (2+) or significant token overlap (50%+ of needle tokens)
+    const minTokenOverlap = Math.max(2, Math.ceil(needleAllTokens.length * 0.5));
+    if (prefix < 2 && tokenOverlap < minTokenOverlap) continue;
+
+    // Score: prefix matches are strongest, then token overlap, then leaf overlap
+    const score = prefix * 100 + tokenOverlap * 30 + overlapLast * 25 + haySegs.length;
+    if (score > bestScore) {
+      bestScore = score;
+      best = cat;
     }
   }
 
