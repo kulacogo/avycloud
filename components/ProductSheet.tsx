@@ -913,6 +913,8 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
     });
 
     setIsDirty(true);
+    // Signal dirty state immediately (not via useEffect) to prevent SSE race conditions
+    onDirtyChange?.(true);
     if (incomingBarcodes) {
       setBarcodeInput(incomingBarcodes.join('\n'));
     }
