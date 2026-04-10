@@ -27,6 +27,7 @@ async function runStage3ContentGeneration(stage1, stage2, locale = 'de-DE') {
 
   // Call Gemini with context-rich prompt
   let content;
+  let usedFallback = false;
   try {
     content = await generateProductContent({
       identity: {
@@ -48,6 +49,7 @@ async function runStage3ContentGeneration(stage1, stage2, locale = 'de-DE') {
     console.warn('[stage3] Content generation failed:', err?.message);
     // Fallback: construct minimal content from Stage 1 + 2 data
     content = buildFallbackContent(identity, stage2);
+    usedFallback = true;
   }
 
   // Post-processing
@@ -102,7 +104,7 @@ async function runStage3ContentGeneration(stage1, stage2, locale = 'de-DE') {
   if (Array.isArray(result.item_specifics)) {
     try {
       const attrObj = Object.fromEntries(
-        result.item_specifics.map((s) => [s.key, s.value])
+        result.item_specifics.filter((s) => s?.key).map((s) => [s.key, s.value])
       );
       const canonical = canonicalizeAttributesStrict(attrObj);
       if (canonical && typeof canonical === 'object') {
@@ -118,7 +120,7 @@ async function runStage3ContentGeneration(stage1, stage2, locale = 'de-DE') {
 
   result._meta = {
     durationMs: Date.now() - startTime,
-    fallbackUsed: !content?.title_ebay,
+    fallbackUsed: usedFallback,
   };
 
   return result;

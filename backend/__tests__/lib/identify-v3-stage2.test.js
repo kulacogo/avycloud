@@ -21,7 +21,7 @@ const fetchCategoryTitleInsightsMock = vi.fn(async () => ({
 const searchProductImagesMock = vi.fn(async () => [
   { url: 'https://sony.com/xm5.jpg', title: 'Sony XM5' },
 ]);
-const confirmBarcodeWithWebMock = vi.fn(async () => ({ confirmed: true, matchedProduct: 'Sony WH-1000XM5' }));
+const confirmBarcodeWithWebMock = vi.fn(async () => ({ ok: true, barcode: '4548736132610', evidence: 'Sony WH-1000XM5' }));
 
 // Patch require.cache
 const taxonomyPath = require.resolve('../../lib/ebay-taxonomy');

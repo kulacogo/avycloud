@@ -141,7 +141,7 @@ async function runStage2Enrichment(stage1, locale = 'de-DE') {
           brand: identity.brand,
           mpn: identity.mpn,
         });
-        return confirmation || { confirmed: false };
+        return { confirmed: Boolean(confirmation?.ok), barcode: confirmation?.barcode, evidence: confirmation?.evidence };
       } catch (err) {
         console.warn('[stage2] Barcode confirmation failed:', err?.message);
         return { confirmed: false };
