@@ -347,6 +347,12 @@ async function runBatchValidate({
 
       const { ruleIssues, validation } = await validateProduct(product);
 
+      // Force category fix when category is missing — Gemini sometimes returns ok=true for empty categories
+      const catMissing = !product.identification?.category && !product.details?.categoryId;
+      if (catMissing && validation.category) {
+        validation.category.ok = false;
+      }
+
       // Check what needs fixing
       const needsFix =
         !validation.title?.ok ||
