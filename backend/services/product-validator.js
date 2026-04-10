@@ -213,18 +213,24 @@ function applyValidationResult(product, result) {
     changes.push('title');
   }
 
-  // 2. Category
-  // Force ok=false when category is empty — Gemini sometimes returns ok=true for missing categories
+  // 2. Category — ONLY accept categories that exist in the local eBay taxonomy
   const categoryMissing = !next.identification.category && !next.details.categoryId;
   const categoryNeedsfix = !result.category?.ok || categoryMissing;
   if (categoryNeedsfix) {
-    if (result.category?.correctedPath) {
-      next.identification.category = result.category.correctedPath;
-      changes.push('category');
-    }
+    const { findEbayCategory } = require('../lib/ebay-taxonomy');
+    // Try correctedId first, then resolve correctedPath via fuzzy match
+    let resolved = null;
     if (result.category?.correctedId) {
-      next.details.categoryId = String(result.category.correctedId).replace(/\D+/g, '');
-      if (!changes.includes('category')) changes.push('category');
+      const idStr = String(result.category.correctedId).replace(/\D+/g, '');
+      resolved = findEbayCategory(idStr);
+    }
+    if (!resolved && result.category?.correctedPath) {
+      resolved = findEbayCategory(result.category.correctedPath);
+    }
+    if (resolved?.id) {
+      next.identification.category = resolved.breadcrumb;
+      next.details.categoryId = String(resolved.id);
+      changes.push('category');
     }
   }
 

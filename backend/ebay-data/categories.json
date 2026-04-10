@@ -1224,11 +1224,6 @@
     "name": "Baby",
     "breadcrumb": "Baby"
   },
-  "2987": {
-    "id": 2987,
-    "name": "Sonstige",
-    "breadcrumb": "Baby > Auto-Kindersitze & Zubehör > Sonstige"
-  },
   "2988": {
     "id": 2988,
     "name": "Laufgitter",
@@ -8276,8 +8271,8 @@
   },
   "20417": {
     "id": 20417,
-    "name": "Nestchen",
-    "breadcrumb": "Baby > Bettausstattung > Nestchen"
+    "name": "Mesh-Bettumrandungen",
+    "breadcrumb": "Baby > Bettausstattung > Mesh-Bettumrandungen"
   },
   "20421": {
     "id": 20421,
@@ -32589,121 +32584,6 @@
     "name": "Auto-Motorsport",
     "breadcrumb": "Auto & Motorrad: Teile > Auto-Motorsport"
   },
-  "73672": {
-    "id": 73672,
-    "name": "MS-Teile ohne Straßenzulassung",
-    "breadcrumb": "Auto & Motorrad: Teile > Auto-Motorsport > MS-Teile ohne Straßenzulassung"
-  },
-  "73673": {
-    "id": 73673,
-    "name": "Antrieb, Motor & Getriebe",
-    "breadcrumb": "Auto & Motorrad: Teile > Auto-Motorsport > MS-Teile ohne Straßenzulassung > Antrieb, Motor & Getriebe"
-  },
-  "73674": {
-    "id": 73674,
-    "name": "Auspuffanlagen",
-    "breadcrumb": "Auto & Motorrad: Teile > Auto-Motorsport > MS-Teile ohne Straßenzulassung > Auspuffanlagen"
-  },
-  "73675": {
-    "id": 73675,
-    "name": "Fahrwerksteile",
-    "breadcrumb": "Auto & Motorrad: Teile > Auto-Motorsport > MS-Teile ohne Straßenzulassung > Fahrwerksteile"
-  },
-  "73676": {
-    "id": 73676,
-    "name": "Domstreben",
-    "breadcrumb": "Auto & Motorrad: Teile > Auto-Motorsport > MS-Teile ohne Straßenzulassung > Fahrwerksteile > Domstreben"
-  },
-  "73677": {
-    "id": 73677,
-    "name": "Federn",
-    "breadcrumb": "Auto & Motorrad: Teile > Auto-Motorsport > MS-Teile ohne Straßenzulassung > Fahrwerksteile > Federn"
-  },
-  "73678": {
-    "id": 73678,
-    "name": "Komplettfahrwerke",
-    "breadcrumb": "Auto & Motorrad: Teile > Auto-Motorsport > MS-Teile ohne Straßenzulassung > Fahrwerksteile > Komplettfahrwerke"
-  },
-  "73679": {
-    "id": 73679,
-    "name": "Stoßdämpfer",
-    "breadcrumb": "Auto & Motorrad: Teile > Auto-Motorsport > MS-Teile ohne Straßenzulassung > Fahrwerksteile > Stoßdämpfer"
-  },
-  "73680": {
-    "id": 73680,
-    "name": "Sonstige",
-    "breadcrumb": "Auto & Motorrad: Teile > Auto-Motorsport > MS-Teile ohne Straßenzulassung > Fahrwerksteile > Sonstige"
-  },
-  "73681": {
-    "id": 73681,
-    "name": "Innenausstattung",
-    "breadcrumb": "Auto & Motorrad: Teile > Auto-Motorsport > MS-Teile ohne Straßenzulassung > Innenausstattung"
-  },
-  "73682": {
-    "id": 73682,
-    "name": "Feuerlöscher",
-    "breadcrumb": "Auto & Motorrad: Teile > Auto-Motorsport > MS-Teile ohne Straßenzulassung > Innenausstattung > Feuerlöscher"
-  },
-  "73683": {
-    "id": 73683,
-    "name": "Gurte",
-    "breadcrumb": "Auto & Motorrad: Teile > Auto-Motorsport > MS-Teile ohne Straßenzulassung > Innenausstattung > Gurte"
-  },
-  "73684": {
-    "id": 73684,
-    "name": "Instrumente & Schalter",
-    "breadcrumb": "Auto & Motorrad: Teile > Auto-Motorsport > MS-Teile ohne Straßenzulassung > Innenausstattung > Instrumente & Schalter"
-  },
-  "73685": {
-    "id": 73685,
-    "name": "Lenkräder",
-    "breadcrumb": "Auto & Motorrad: Teile > Auto-Motorsport > MS-Teile ohne Straßenzulassung > Innenausstattung > Lenkräder"
-  },
-  "73686": {
-    "id": 73686,
-    "name": "Sitze",
-    "breadcrumb": "Auto & Motorrad: Teile > Auto-Motorsport > MS-Teile ohne Straßenzulassung > Innenausstattung > Sitze"
-  },
-  "73687": {
-    "id": 73687,
-    "name": "Überrollsysteme",
-    "breadcrumb": "Auto & Motorrad: Teile > Auto-Motorsport > MS-Teile ohne Straßenzulassung > Innenausstattung > Überrollsysteme"
-  },
-  "73688": {
-    "id": 73688,
-    "name": "Sonstige",
-    "breadcrumb": "Auto & Motorrad: Teile > Auto-Motorsport > MS-Teile ohne Straßenzulassung > Innenausstattung > Sonstige"
-  },
-  "73717": {
-    "id": 73717,
-    "name": "Karosserieteile",
-    "breadcrumb": "Auto & Motorrad: Teile > Auto-Motorsport > MS-Teile ohne Straßenzulassung > Karosserieteile"
-  },
-  "73718": {
-    "id": 73718,
-    "name": "Reifen & Felgen",
-    "breadcrumb": "Auto & Motorrad: Teile > Auto-Motorsport > MS-Teile ohne Straßenzulassung > Reifen & Felgen"
-  },
-  "73719": {
-    "id": 73719,
-    "name": "Felgen",
-    "breadcrumb": "Auto & Motorrad: Teile > Auto-Motorsport > MS-Teile ohne Straßenzulassung > Reifen & Felgen > Felgen"
-  },
-  "73720": {
-    "id": 73720,
-    "name": "Reifen",
-    "breadcrumb": "Auto & Motorrad: Teile > Auto-Motorsport > MS-Teile ohne Straßenzulassung > Reifen & Felgen > Reifen"
-  },
-  "73724": {
-    "id": 73724,
-    "name": "Sonstige",
-    "breadcrumb": "Auto & Motorrad: Teile > Auto-Motorsport > MS-Teile ohne Straßenzulassung > Sonstige"
-  },
-  "73725": {
-    "id": 73725,
-    "name": "Kompletträder",
-    "breadcrumb": "Auto & Motorrad: Teile > Auto-Motorsport > MS-Teile ohne Straßenzulassung > Reifen & Felgen > Kompletträder"
-  },
   "73726": {
     "id": 73726,
     "name": "Mitfahrten",
@@ -41446,8 +41326,8 @@
   },
   "116745": {
     "id": 116745,
-    "name": "Mottenkugeln",
-    "breadcrumb": "Möbel & Wohnen > Haushalt > Wäsche > Mottenkugeln"
+    "name": "Zedernholzkugeln & Zubehör aus Zedernholz",
+    "breadcrumb": "Möbel & Wohnen > Haushalt > Wäsche > Zedernholzkugeln & Zubehör aus Zedernholz"
   },
   "116848": {
     "id": 116848,
@@ -43441,8 +43321,8 @@
   },
   "124694": {
     "id": 124694,
-    "name": "Doppler",
-    "breadcrumb": "Business & Industrie > Medizin & Labor > Diagnostik > Doppler"
+    "name": "Gefäßdoppler",
+    "breadcrumb": "Business & Industrie > Medizin & Labor > Diagnostik > Gefäßdoppler"
   },
   "124695": {
     "id": 124695,
@@ -58936,8 +58816,8 @@
   },
   "179480": {
     "id": 179480,
-    "name": "Kraftstoffdruckprüfer",
-    "breadcrumb": "Auto & Motorrad: Teile > Werkzeuge > Diagnosegeräte > Kraftstoffdruckprüfer"
+    "name": "Lecksuch- & Druckprüfgeräte",
+    "breadcrumb": "Auto & Motorrad: Teile > Werkzeuge > Diagnosegeräte > Lecksuch- & Druckprüfgeräte"
   },
   "179481": {
     "id": 179481,
@@ -59056,8 +58936,8 @@
   },
   "179504": {
     "id": 179504,
-    "name": "Bremsenpflegeräte",
-    "breadcrumb": "Auto & Motorrad: Teile > Werkzeuge > Werkstattausstattung & -bedarf > Bremsenpflegeräte"
+    "name": "Bremsenwerkzeuge",
+    "breadcrumb": "Auto & Motorrad: Teile > Werkzeuge > Werkstattausstattung & -bedarf > Bremsenwerkzeuge"
   },
   "179505": {
     "id": 179505,
@@ -85358,5 +85238,15 @@
     "id": 263473,
     "name": "Reparatursätze",
     "breadcrumb": "Auto & Motorrad: Teile > Quad-, SSV- & UTV-Teile & -Zubehör > Bremsen & Bremsenteile > Reparatursätze"
+  },
+  "263529": {
+    "id": 263529,
+    "name": "Blocked Category For Internal Use",
+    "breadcrumb": "Verschiedenes > Testbereich > Blocked Category For Internal Use"
+  },
+  "461772": {
+    "id": 461772,
+    "name": "Kraftstoffsystempflegegeräte",
+    "breadcrumb": "Auto & Motorrad: Teile > Werkzeuge > Werkstattausstattung & -bedarf > Kraftstoffsystempflegegeräte"
   }
 }

@@ -480,7 +480,7 @@ function normalizeProductForApi(product = {}) {
     : '';
   const ebayCategory = normalizedCategoryId ? getEbayCategoryById(normalizedCategoryId) : null;
   const categoryIdForApi = ebayCategory?.id || normalizedCategoryId || '';
-  const categoryPathForApi = ebayCategory?.breadcrumb || '';
+  const categoryPathForApi = ebayCategory?.breadcrumb || identification.category || '';
 
   const images = Array.isArray(details.images) ? details.images.filter(Boolean) : [];
   const barcodes = Array.isArray(identification.barcodes)

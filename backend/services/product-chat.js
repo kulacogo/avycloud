@@ -1844,21 +1844,20 @@ function sanitizeDatasheetChange(entry, product, { scope = null, titleHintTokens
     }
     if (allow.category && typeof entry.identity.category === 'string' && entry.identity.category.trim()) {
       const rawCategoryBreadcrumb = entry.identity.category.trim();
-      identityPatch.category = rawCategoryBreadcrumb;
-      // Resolve breadcrumb to eBay category ID so the frontend can set details.categoryId
+      // Resolve breadcrumb to eBay category ID — ONLY accept categories from local taxonomy
       try {
         const { findEbayCategory } = require('../lib/ebay-taxonomy');
         const resolved = findEbayCategory(rawCategoryBreadcrumb);
         if (resolved?.id) {
+          identityPatch.category = resolved.breadcrumb || rawCategoryBreadcrumb;
           result.categoryId = String(resolved.id);
           result.categoryPath = resolved.breadcrumb || rawCategoryBreadcrumb;
         } else {
-          // No ID match — still propagate the breadcrumb path
-          result.categoryPath = rawCategoryBreadcrumb;
+          // Not in local taxonomy — do NOT propagate unvalidated breadcrumbs
+          console.warn(`[product-chat] Category "${rawCategoryBreadcrumb}" not found in eBay taxonomy — ignoring`);
         }
       } catch (err) {
-        // Taxonomy lookup failed — propagate breadcrumb only
-        result.categoryPath = rawCategoryBreadcrumb;
+        console.warn(`[product-chat] Taxonomy lookup failed: ${err.message}`);
       }
     }
     if (allow.sku && typeof entry.identity.sku === 'string' && isValidSku(entry.identity.sku)) {
