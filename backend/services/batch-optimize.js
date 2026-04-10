@@ -228,7 +228,15 @@ function applyChangesToProduct(product, change) {
     if (change.identity) {
       if (change.identity.name) next.identification.name = change.identity.name;
       if (change.identity.brand) next.identification.brand = change.identity.brand;
-      if (change.identity.category) next.identification.category = change.identity.category;
+      if (change.identity.category) {
+        // Only accept categories validated against local eBay taxonomy
+        const { findEbayCategory } = require('../lib/ebay-taxonomy');
+        const resolved = findEbayCategory(change.identity.category);
+        if (resolved?.id) {
+          next.identification.category = resolved.breadcrumb;
+          next.details.categoryId = String(resolved.id);
+        }
+      }
       if (change.identity.sku) next.identification.sku = change.identity.sku;
 
       // Barcodes: merge + validate
@@ -242,12 +250,16 @@ function applyChangesToProduct(product, change) {
     }
   }
 
-  // 1.5 eBay category
-  if (change.categoryId) {
-    next.details.categoryId = String(change.categoryId).replace(/\D+/g, '').trim();
-  }
-  if (change.categoryPath) {
-    next.identification.category = String(change.categoryPath).trim();
+  // 1.5 eBay category — only accept taxonomy-validated categories
+  if (change.categoryId || change.categoryPath) {
+    const { findEbayCategory } = require('../lib/ebay-taxonomy');
+    const resolved =
+      (change.categoryId ? findEbayCategory(String(change.categoryId).replace(/\D+/g, '')) : null) ||
+      (change.categoryPath ? findEbayCategory(change.categoryPath) : null);
+    if (resolved?.id) {
+      next.details.categoryId = String(resolved.id);
+      next.identification.category = resolved.breadcrumb;
+    }
   }
 
   // 2. Short description

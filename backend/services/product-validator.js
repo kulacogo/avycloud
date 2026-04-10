@@ -100,6 +100,21 @@ const VALIDATION_SCHEMA = {
 // Build validation prompt
 // ---------------------------------------------------------------------------
 
+function buildCategoryCandidates(product) {
+  const categories = require('../ebay-data/categories.json');
+  const id = product?.identification || {};
+  const productText = [id.name, id.brand, id.category].filter(Boolean).join(' ').toLowerCase();
+  const tokens = productText.split(/[^a-z0-9äöüß]+/).filter(t => t.length > 2);
+  const scored = [];
+  for (const [catId, cat] of Object.entries(categories)) {
+    const breadcrumb = (cat.breadcrumb || '').toLowerCase();
+    const overlap = tokens.filter(t => breadcrumb.includes(t)).length;
+    if (overlap >= 1) scored.push({ id: catId, breadcrumb: cat.breadcrumb, score: overlap });
+  }
+  scored.sort((a, b) => b.score - a.score);
+  return scored.slice(0, 30);
+}
+
 function buildValidationPrompt(product) {
   const id = product?.identification || {};
   const det = product?.details || {};
@@ -108,6 +123,12 @@ function buildValidationPrompt(product) {
   const price = det.pricing?.lowest_price?.amount || det.pricing?.sellPrice || null;
   const barcodes = (id.barcodes || []).join(', ');
   const categoryId = det.categoryId || det.ebayCategoryId || '';
+
+  // Build category candidates list for Gemini to pick from
+  const candidates = buildCategoryCandidates(product);
+  const candidateList = candidates.length
+    ? candidates.map(c => `${c.id}: ${c.breadcrumb}`).join('\n  ')
+    : '(keine Kandidaten gefunden)';
 
   return `Du bist ein strenger E-Commerce-Qualitätsprüfer für eBay.de und Kaufland.de.
 Deine Aufgabe: Fehler FINDEN und KORRIGIEREN. Sei kritisch — im Zweifel korrigieren, nicht durchlassen.
@@ -132,17 +153,15 @@ REGELN — STRENG PRÜFEN:
    - Keine Marketing-Floskeln, keine EAN/SKU, keine Sonderzeichen-Spam
    - Wenn Titel ok → ok=true, corrected=""
 
-2. KATEGORIE — BESONDERS KRITISCH PRÜFEN:
-   - Analysiere den Produktnamen Wort für Wort. Was IST dieses Produkt wirklich?
-   - Passt JEDES Level des Kategorie-Breadcrumbs zum tatsächlichen Produkt?
-   - Häufiger Fehler: Produkte werden in semantisch ähnliche aber FALSCHE Kategorien einsortiert.
-     Beispiele: "Kugelhahn für Wärmezähler" ist KEIN Küchenartikel, sondern Heizungstechnik.
-     "Anker Powerbank" gehört nicht in "Bootsport > Anker", sondern in Elektronik.
-   - Frage dich: Wenn ein Käufer in dieser Kategorie auf eBay.de sucht, erwartet er DIESES Produkt?
-   - Wenn die Kategorie LEER ist oder fehlt → ok=false. Du MUSST eine korrekte Kategorie vorschlagen.
-   - Wenn die Kategorie auch nur ansatzweise nicht passt → ok=false + korrekte Kategorie vorschlagen.
-   - Verwende echte eBay.de Kategorie-Pfade als Breadcrumb.
-   - Im Zweifel IMMER korrigieren. Falsche Kategorie = Produkt wird nicht gefunden.
+2. KATEGORIE — NUR AUS DIESER LISTE WÄHLEN:
+   Verfügbare eBay.de Kategorien (ID: Breadcrumb):
+  ${candidateList}
+
+   - Wähle die passendste Kategorie AUS DIESER LISTE.
+   - correctedId = die numerische ID, correctedPath = der Breadcrumb aus der Liste.
+   - Wenn die aktuelle Kategorie in der Liste ist und passt → ok=true.
+   - Wenn die aktuelle Kategorie falsch ist oder fehlt → ok=false + correctedId + correctedPath aus der Liste.
+   - ERFINDE KEINE Kategorien. Nur IDs und Breadcrumbs aus der obigen Liste sind erlaubt.
 
 3. PREIS:
    - Schätze den Marktpreis im deutschsprachigen Raum (eBay, Amazon, idealo, etc.)
@@ -164,31 +183,56 @@ WICHTIG: Dein Ziel ist QUALITÄT. Lieber einmal zu viel korrigieren als einen Fe
 // Focused category-only fix (when main validation misses it)
 // ---------------------------------------------------------------------------
 
-const CATEGORY_SCHEMA = {
+const CATEGORY_PICK_SCHEMA = {
   type: 'OBJECT',
   properties: {
-    categoryPath: { type: 'STRING', description: 'eBay.de Kategorie-Breadcrumb z.B. "Sport > Fitness > Hanteln"' },
-    categoryId: { type: 'STRING', description: 'eBay.de Category ID (numerisch)' },
+    categoryId: { type: 'STRING', description: 'Die ID der am besten passenden Kategorie aus der Liste' },
   },
-  required: ['categoryPath'],
+  required: ['categoryId'],
 };
 
 async function fixMissingCategory(product) {
   const id = product?.identification || {};
-  const prompt = `Welche eBay.de-Kategorie passt zu diesem Produkt? Antworte NUR mit dem JSON-Schema.
+  const categories = require('../ebay-data/categories.json');
+
+  // Build token-matched candidates (same approach as ensureCategories in enrichment.js)
+  const productText = [id.name, id.brand].filter(Boolean).join(' ').toLowerCase();
+  const productTokens = productText.split(/[^a-z0-9äöüß]+/).filter(t => t.length > 2);
+
+  const scored = [];
+  for (const [catId, cat] of Object.entries(categories)) {
+    const breadcrumb = (cat.breadcrumb || '').toLowerCase();
+    const overlap = productTokens.filter(t => breadcrumb.includes(t)).length;
+    if (overlap >= 1) scored.push({ id: catId, breadcrumb: cat.breadcrumb, score: overlap });
+  }
+  scored.sort((a, b) => b.score - a.score);
+  const candidates = scored.slice(0, 40);
+
+  if (!candidates.length) return null;
+
+  const candidateList = candidates.map(c => `${c.id}: ${c.breadcrumb}`).join('\n');
+  const prompt = `Welche eBay.de-Kategorie passt am besten zu diesem Produkt?
+Wähle EINE Kategorie aus der folgenden Liste. Antworte NUR mit der ID.
 
 Produkt: ${id.name || '(unbekannt)'}
 Marke: ${id.brand || '(unbekannt)'}
 
-Gib den exakten eBay.de Kategorie-Pfad als Breadcrumb an (z.B. "Garten & Terrasse > Grills & Zubehör > Grillroste").`;
+KATEGORIEN (ID: Breadcrumb):
+${candidateList}`;
 
-  return gemini3GenerateJSON({
+  const result = await gemini3GenerateJSON({
     prompt,
-    schema: CATEGORY_SCHEMA,
+    schema: CATEGORY_PICK_SCHEMA,
     model: 'gemini-3-flash-preview',
     temperature: 0.1,
-    maxOutputTokens: 256,
+    maxOutputTokens: 64,
   });
+
+  const pickedId = String(result?.categoryId || '').replace(/\D+/g, '');
+  const picked = candidates.find(c => c.id === pickedId);
+  if (!picked) return null;
+
+  return { categoryPath: picked.breadcrumb, categoryId: picked.id };
 }
 
 // ---------------------------------------------------------------------------

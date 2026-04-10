@@ -559,7 +559,16 @@ function sanitizeDatasheetChangeV2(entry, product, { scope = null, titleHintToke
     const id = {};
     if (change.title) id.name = change.title;
     if (entry.identity.brand) id.brand = safeString(entry.identity.brand);
-    if (entry.identity.category) id.category = safeString(entry.identity.category);
+    if (entry.identity.category) {
+      // Only accept categories that exist in the local eBay taxonomy
+      const { findEbayCategory } = require('../lib/ebay-taxonomy');
+      const resolved = findEbayCategory(safeString(entry.identity.category));
+      if (resolved?.id) {
+        id.category = resolved.breadcrumb;
+        change.categoryId = String(resolved.id);
+        change.categoryPath = resolved.breadcrumb;
+      }
+    }
     if (entry.identity.sku) id.sku = safeString(entry.identity.sku);
 
     // Barcodes

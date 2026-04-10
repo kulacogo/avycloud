@@ -1045,33 +1045,24 @@ function enforceEbayAspects(product) {
         product.identification.category = String(decodedBreadcrumb);
       }
     } else {
-      // Category ID not found in local ebay-categories.json.
-      // This can happen when:
-      //   a) The local taxonomy JSON is stale (eBay updates categories regularly)
-      //   b) The user manually set a valid category that's not in our snapshot
-      //   c) An LLM hallucinated an invalid ID
-      //
-      // We KEEP the ID and preserve any existing breadcrumb text, because deleting it
-      // causes a destructive cycle: no categoryId → category lock can't protect →
-      // next improve job overwrites with a wrong Gemini suggestion → user fixes → deleted again.
-      const unknownCategoryId = String(catId).trim();
-      details.categoryId = unknownCategoryId;
-      // Preserve existing breadcrumb text if available (user or prior pipeline may have set it).
-      const existingCategoryText = product?.identification?.category;
-      if (!existingCategoryText || typeof existingCategoryText !== 'string' || !existingCategoryText.trim()) {
-        if (!product.identification) product.identification = {};
-        product.identification.category = '';
-      }
+      // Category ID not found in local taxonomy (hallucinated by LLM or stale).
+      // REJECT — all LLM paths now validate against the taxonomy before setting IDs,
+      // so any unknown ID reaching here is invalid. Keeping it would poison downstream
+      // flows (eBay listing, aspect enforcement, display).
+      const rejectedId = String(catId).trim();
+      console.warn(`[enforceEbayAspects] categoryId "${rejectedId}" not in local taxonomy — REJECTED`);
+      catId = null;
+      delete details.categoryId;
+      // Preserve existing breadcrumb text (user may have set it manually).
       if (!product.ops) product.ops = {};
       product.ops.data_quality = {
         ...(product.ops.data_quality || {}),
-        category_not_in_taxonomy_v1: {
+        category_rejected_v1: {
           at_iso: new Date().toISOString(),
-          categoryId: unknownCategoryId,
-          reason: 'Category ID not found in local ebay-categories.json — kept as-is',
+          categoryId: rejectedId,
+          reason: 'Category ID not in eBay taxonomy — rejected',
         },
       };
-      console.warn(`[enforceEbayAspects] categoryId "${unknownCategoryId}" not in local taxonomy — keeping ID and existing breadcrumb`);
     }
   }
 

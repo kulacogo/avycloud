@@ -160,12 +160,14 @@ describe('applyChangesToProduct', () => {
   });
 
   it('applies identity changes (name, brand, category)', () => {
+    // Category must exist in local eBay taxonomy to be accepted
     const result = applyChangesToProduct(baseProduct, {
-      identity: { name: 'Better Title', brand: 'NewBrand', category: 'Electronics > Chargers' },
+      identity: { name: 'Better Title', brand: 'NewBrand', category: 'Garten & Terrasse > Grills, Heizstrahler & Picknickzubehör > Grillzubehör' },
     });
     expect(result.identification.name).toBe('Better Title');
     expect(result.identification.brand).toBe('NewBrand');
-    expect(result.identification.category).toBe('Electronics > Chargers');
+    expect(result.identification.category).toBe('Garten & Terrasse > Grills, Heizstrahler & Picknickzubehör > Grillzubehör');
+    expect(result.details.categoryId).toBe('260931');
   });
 
   it('applies short_description', () => {
@@ -226,10 +228,19 @@ describe('applyChangesToProduct', () => {
     expect(result.identification.name).toBe('Old Title');
   });
 
-  it('applies categoryId to details', () => {
+  it('applies categoryId to details (valid taxonomy ID)', () => {
     const result = applyChangesToProduct(baseProduct, {
-      categoryId: '12345',
+      categoryId: '260931',
     });
-    expect(result.details.categoryId).toBe('12345');
+    expect(result.details.categoryId).toBe('260931');
+    expect(result.identification.category).toBe('Garten & Terrasse > Grills, Heizstrahler & Picknickzubehör > Grillzubehör');
+  });
+
+  it('rejects invalid categoryId', () => {
+    const result = applyChangesToProduct(baseProduct, {
+      categoryId: '99999999',
+    });
+    // Invalid ID should not be written
+    expect(result.details.categoryId).toBeUndefined();
   });
 });
