@@ -138,6 +138,7 @@ REGELN — STRENG PRÜFEN:
      Beispiele: "Kugelhahn für Wärmezähler" ist KEIN Küchenartikel, sondern Heizungstechnik.
      "Anker Powerbank" gehört nicht in "Bootsport > Anker", sondern in Elektronik.
    - Frage dich: Wenn ein Käufer in dieser Kategorie auf eBay.de sucht, erwartet er DIESES Produkt?
+   - Wenn die Kategorie LEER ist oder fehlt → ok=false. Du MUSST eine korrekte Kategorie vorschlagen.
    - Wenn die Kategorie auch nur ansatzweise nicht passt → ok=false + korrekte Kategorie vorschlagen.
    - Verwende echte eBay.de Kategorie-Pfade als Breadcrumb.
    - Im Zweifel IMMER korrigieren. Falsche Kategorie = Produkt wird nicht gefunden.
@@ -181,13 +182,17 @@ function applyValidationResult(product, result) {
   }
 
   // 2. Category
-  if (!result.category?.ok) {
+  // Force ok=false when category is empty — Gemini sometimes returns ok=true for missing categories
+  const categoryMissing = !next.identification.category && !next.details.categoryId;
+  const categoryNeedsfix = !result.category?.ok || categoryMissing;
+  if (categoryNeedsfix) {
     if (result.category?.correctedPath) {
       next.identification.category = result.category.correctedPath;
       changes.push('category');
     }
     if (result.category?.correctedId) {
       next.details.categoryId = String(result.category.correctedId).replace(/\D+/g, '');
+      if (!changes.includes('category')) changes.push('category');
     }
   }
 
