@@ -322,36 +322,65 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
       });
     }
 
-    // 3) Build inline image parts for Gemini (compressed, base64)
-    const MAX_IMAGES = 4;
-    const MAX_EDGE = 1600;
-    const JPEG_QUALITY = 78;
-    const imageParts = [];
-    for (const f of files.slice(0, MAX_IMAGES)) {
-      if (!f?.buffer || !f?.mimetype?.startsWith('image/')) continue;
-      try {
-        const compressed = await sharp(f.buffer)
-          .rotate()
-          .resize({ width: MAX_EDGE, height: MAX_EDGE, fit: 'inside', withoutEnlargement: true })
-          .jpeg({ quality: JPEG_QUALITY, chromaSubsampling: '4:2:0' })
-          .toBuffer();
-        imageParts.push({
-          data: compressed.toString('base64'),
-          mimeType: 'image/jpeg',
-        });
-      } catch {
-        // Skip unprocessable image
-      }
-    }
+    // ─── IDENTIFY V3: Multi-Stage Pipeline ───
+    const V3_ENABLED = String(process.env.IDENTIFY_V3 || 'false').toLowerCase() === 'true';
+    let v3Meta = null;
 
-    const ocrText = (ocrPayload.textSnippets || []).filter(Boolean).join('\n');
     let product = null;
     let groundingUsed = false;
     let legacyResult = null;
     let groundingImageQuery = '';
 
-    // 4) Try Google Search Grounding pipeline (preferred)
-    if (GROUNDING_ENABLED && (imageParts.length || mergedBarcodes.length)) {
+    if (V3_ENABLED) {
+      try {
+        const { identifyProductV3 } = require('../services/identify-v3');
+        console.log('[identify] Using V3 multi-stage pipeline');
+        const v3Result = await identifyProductV3({
+          files, barcodes, locale, hint, paletteCode, inventoryId,
+        });
+        product = v3Result.product;
+        v3Meta = v3Result.meta;
+        groundingUsed = true;
+        groundingImageQuery = [
+          product.identification?.brand,
+          product.identification?.name?.split(' ').slice(0, 3).join(' '),
+        ].filter(Boolean).join(' ').trim();
+      } catch (v3Error) {
+        console.warn('[identify] V3 pipeline failed, falling back to V2 grounding:', v3Error?.message);
+        product = null;
+        v3Meta = null;
+        // Fall through to existing PERF-001 grounding pipeline
+      }
+    }
+
+    // 3) Build inline image parts for Gemini (compressed, base64) — skipped when V3 succeeded
+    const MAX_IMAGES = 4;
+    const MAX_EDGE = 1600;
+    const JPEG_QUALITY = 78;
+    const imageParts = [];
+    if (!product) {
+      for (const f of files.slice(0, MAX_IMAGES)) {
+        if (!f?.buffer || !f?.mimetype?.startsWith('image/')) continue;
+        try {
+          const compressed = await sharp(f.buffer)
+            .rotate()
+            .resize({ width: MAX_EDGE, height: MAX_EDGE, fit: 'inside', withoutEnlargement: true })
+            .jpeg({ quality: JPEG_QUALITY, chromaSubsampling: '4:2:0' })
+            .toBuffer();
+          imageParts.push({
+            data: compressed.toString('base64'),
+            mimeType: 'image/jpeg',
+          });
+        } catch {
+          // Skip unprocessable image
+        }
+      }
+    }
+
+    const ocrText = (ocrPayload.textSnippets || []).filter(Boolean).join('\n');
+
+    // 4) Try Google Search Grounding pipeline (preferred) — skip if V3 already produced a product
+    if (!product && GROUNDING_ENABLED && (imageParts.length || mergedBarcodes.length)) {
       try {
         const { identifyProductWithGrounding } = require('../lib/gemini3-client');
         console.log(`[identify] Starting grounding pipeline (${imageParts.length} images, ${mergedBarcodes.length} barcodes)`);
@@ -584,8 +613,9 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
           product = applyEbayTaxonomy(product);
           product = applyKauflandTaxonomy(product);
         })(),
-        // SerpAPI product images (moved from grounding block for parallelism)
+        // SerpAPI product images — skip for V3 (Stage 2 already fetched web images)
         (async () => {
+          if (product.ops?.identify_pipeline === 'v3') return;
           if (!groundingImageQuery) return;
           try {
             const serpImages = await searchProductImages(product, {
@@ -699,6 +729,14 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
         ebayReadyIssues: finalQuality ? finalQuality.issues || [] : [],
         ebayReadyIssuesDetailed: finalQuality ? finalQuality.issuesDetailed || [] : [],
         ebayReadySnapshot: finalQuality ? finalQuality.snapshot || null : null,
+        v3: v3Meta ? {
+          pipeline: v3Meta.pipeline,
+          totalDurationMs: v3Meta.totalDurationMs,
+          overallScore: v3Meta.confidence?.overallScore,
+          fieldConfidence: v3Meta.confidence?.fieldConfidence,
+          aspectCoverage: v3Meta.confidence?.requiredAspectsCoverage,
+          marketplaceReadiness: v3Meta.confidence?.marketplaceReadiness,
+        } : undefined,
       },
     });
   } catch (error) {
