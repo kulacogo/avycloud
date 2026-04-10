@@ -368,18 +368,39 @@ async function validateProduct(product) {
 
   // Run Gemini validation (structured JSON, no search, fast)
   const prompt = buildValidationPrompt(product);
-  const result = await gemini3GenerateJSON({
-    prompt,
-    schema: VALIDATION_SCHEMA,
-    model: 'gemini-3-flash-preview', // Fast model — no search needed
-    temperature: 0.1,
-    maxOutputTokens: 8192,
-  });
-
-  return {
-    ruleIssues,
-    validation: result,
-  };
+  try {
+    const result = await gemini3GenerateJSON({
+      prompt,
+      schema: VALIDATION_SCHEMA,
+      model: 'gemini-3-flash-preview',
+      temperature: 0.1,
+      maxOutputTokens: 16384,
+    });
+    return { ruleIssues, validation: result };
+  } catch (err) {
+    // On JSON parse failure (truncation), retry with trimmed attributes to reduce output size
+    if (err?.message?.includes('JSON') || err?.message?.includes('Unterminated')) {
+      const trimmed = JSON.parse(JSON.stringify(product));
+      const attrs = trimmed?.details?.attributes;
+      if (attrs && typeof attrs === 'object') {
+        const keys = Object.keys(attrs);
+        if (keys.length > 15) {
+          // Keep only first 15 attributes to reduce output
+          for (const k of keys.slice(15)) delete attrs[k];
+        }
+      }
+      const retryPrompt = buildValidationPrompt(trimmed);
+      const result = await gemini3GenerateJSON({
+        prompt: retryPrompt,
+        schema: VALIDATION_SCHEMA,
+        model: 'gemini-3-flash-preview',
+        temperature: 0.1,
+        maxOutputTokens: 16384,
+      });
+      return { ruleIssues, validation: result };
+    }
+    throw err;
+  }
 }
 
 // ---------------------------------------------------------------------------
