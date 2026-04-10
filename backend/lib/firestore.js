@@ -441,7 +441,7 @@ function applyAttributeAliasesProfile(attrs = {}, { canonicalAttributes = [], at
   return normalized;
 }
 
-function enforceEbayAspects(product) {
+function enforceEbayAspects(product, { isManualSave = false } = {}) {
   const details = product.details || {};
   const attrs = details.attributes || {};
   const existingExtra =
@@ -1045,31 +1045,44 @@ function enforceEbayAspects(product) {
         product.identification.category = String(decodedBreadcrumb);
       }
     } else {
-      // Category ID not found in local taxonomy (hallucinated by LLM or stale).
-      // REJECT — all LLM paths now validate against the taxonomy before setting IDs,
-      // so any unknown ID reaching here is invalid. Keeping it would poison downstream
-      // flows (eBay listing, aspect enforcement, display).
+      // Category ID not in local taxonomy — try to resolve from breadcrumb text instead.
       const rejectedId = String(catId).trim();
-      console.warn(`[enforceEbayAspects] categoryId "${rejectedId}" not in local taxonomy — REJECTED`);
-      catId = null;
-      delete details.categoryId;
-      // Preserve existing breadcrumb text (user may have set it manually).
+      const breadcrumbText = product?.identification?.category;
+      let resolved = null;
+      if (breadcrumbText && typeof breadcrumbText === 'string' && breadcrumbText.includes('>')) {
+        const { findEbayCategory } = require('./ebay-taxonomy');
+        resolved = findEbayCategory(breadcrumbText);
+      }
+      if (resolved?.id) {
+        // Breadcrumb resolved to a valid taxonomy entry — use that instead
+        catId = String(resolved.id);
+        details.categoryId = catId;
+        if (!product.identification) product.identification = {};
+        product.identification.category = String(resolved.breadcrumb);
+        console.warn(`[enforceEbayAspects] categoryId "${rejectedId}" not in taxonomy → resolved from breadcrumb to ${catId}`);
+      } else {
+        // Cannot resolve — reject the ID but preserve breadcrumb text
+        console.warn(`[enforceEbayAspects] categoryId "${rejectedId}" not in taxonomy — REJECTED`);
+        catId = null;
+        delete details.categoryId;
+      }
       if (!product.ops) product.ops = {};
       product.ops.data_quality = {
         ...(product.ops.data_quality || {}),
         category_rejected_v1: {
           at_iso: new Date().toISOString(),
           categoryId: rejectedId,
-          reason: 'Category ID not in eBay taxonomy — rejected',
+          resolvedTo: resolved?.id || null,
+          reason: resolved ? 'Resolved from breadcrumb text' : 'Category ID not in eBay taxonomy — rejected',
         },
       };
     }
   }
 
   if (!catId) {
-    // Strict category governance:
-    // If no valid eBay category id exists, do not keep any free-text category label.
-    if (product?.identification && typeof product.identification === 'object') {
+    // No valid category ID — clear breadcrumb only for automated saves.
+    // Manual UI saves preserve the user's text so it can be resolved later.
+    if (!isManualSave && product?.identification && typeof product.identification === 'object') {
       product.identification.category = '';
     }
 
@@ -2395,7 +2408,7 @@ async function saveProduct(product, options = {}) {
       storage: preservedStorage,
       storageBins: preservedStorageBins,
       inventory: preservedInventory,
-    });
+    }, { isManualSave });
 
     // Keep attribute "Marke"/"Hersteller" in sync (case-only) with identification.brand for UI consistency.
     try {
