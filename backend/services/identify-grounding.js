@@ -37,6 +37,44 @@ async function runProductIdentificationGrounding({
   modelOverride = null,
   hint = null,
 } = {}) {
+  // ─── IDENTIFY V3: Multi-Stage Pipeline ───
+  const V3_ENABLED = String(process.env.IDENTIFY_V3 || 'false').toLowerCase() === 'true';
+  if (V3_ENABLED) {
+    try {
+      const { identifyProductV3 } = require('./identify-v3');
+      console.log('[identify-grounding] Using V3 multi-stage pipeline');
+      const { product, meta } = await identifyProductV3({ files, barcodes, locale, hint });
+
+      // Category + Taxonomy (V3 may have resolved, but job-runner expects post-processing)
+      try {
+        await ensureCategories([product]);
+        applyEbayTaxonomy(product);
+        applyKauflandTaxonomy(product);
+      } catch (e) {
+        console.warn('[identify-grounding-v3] Category enrichment failed:', e?.message);
+      }
+      try {
+        await enrichKTypIfPossible(product, { reason: 'identify-grounding-v3' });
+      } catch {}
+
+      const serpTrace = meta.stages?.stage1?.groundingUsed ? [{
+        type: 'google_search_grounding_v3',
+        model: 'gemini-3-pro-preview',
+        queries: [],
+        sources: [],
+      }] : [];
+
+      return {
+        bundle: { products: [product] },
+        serpTrace,
+        modelUsed: 'gemini-3-pro-preview',
+      };
+    } catch (v3Error) {
+      console.warn('[identify-grounding] V3 pipeline failed, falling back to V2:', v3Error?.message);
+      // Fall through to existing V2 grounding pipeline
+    }
+  }
+
   const sharp = require('sharp');
   const { extractOcrPayload } = require('../lib/vision-ocr');
   const { uploadImage } = require('../lib/storage');
