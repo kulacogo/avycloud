@@ -345,6 +345,44 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
           product.identification?.brand,
           product.identification?.name?.split(' ').slice(0, 3).join(' '),
         ].filter(Boolean).join(' ').trim();
+
+        // Post-V3 duplicate check with AI-resolved identifiers
+        const v3Barcodes = [
+          product.details?.identifiers?.ean,
+          product.details?.identifiers?.gtin,
+          product.details?.identifiers?.upc,
+          ...(product.identification?.barcodes || []),
+        ].filter(Boolean).map((c) => String(c).trim()).filter(Boolean);
+        const v3AllBarcodes = [...new Set([...explicitBarcodes, ...v3Barcodes])].slice(0, 12);
+        const v3Sku = product.identification?.sku && typeof product.identification.sku === 'string'
+          && product.identification.sku.trim().toLowerCase() !== 'unknown'
+          ? product.identification.sku.trim() : null;
+
+        if (v3AllBarcodes.length || v3Sku) {
+          const v3Existing = await findProductByStrictIdentifier({
+            barcodes: v3AllBarcodes,
+            sku: v3Sku,
+          });
+          if (v3Existing?.id) {
+            console.log(`[identify] Post-V3 duplicate found: ${v3Existing.id}`);
+            try { await adjustPendingIntakeQuantity(v3Existing.id, 1); } catch {}
+            if (paletteCode) {
+              try {
+                const { PRODUCTS_COLLECTION } = require('../lib/firestore');
+                await firestore.collection(PRODUCTS_COLLECTION).doc(v3Existing.id).update({
+                  'ops.sourcePalette': paletteCode,
+                  'ops.sourcePaletteAt': new Date().toISOString(),
+                });
+              } catch {}
+            }
+            const refreshed = await getProduct(v3Existing.id);
+            return res.json({
+              ok: true,
+              data: refreshed || v3Existing,
+              meta: { reused_existing: true, paletteCode: paletteCode || null, locale, barcodes: v3AllBarcodes },
+            });
+          }
+        }
       } catch (v3Error) {
         console.warn('[identify] V3 pipeline failed, falling back to V2 grounding:', v3Error?.message);
         product = null;
