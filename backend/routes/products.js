@@ -1654,27 +1654,26 @@ router.post('/save', requirePermission('products', 'write'), async (req, res) =>
     const categoryId = String(product?.details?.categoryId || '').trim();
     const resolvedCategory = categoryId ? findEbayCategory(categoryId) : null;
     const breadcrumb = resolvedCategory?.breadcrumb ? String(resolvedCategory.breadcrumb) : '';
+    // Category is valid if it resolves in taxonomy OR if there's a stored breadcrumb text
+    const categoryText = String(product?.identification?.category || '').trim();
     const hasValidCategory = Boolean(
-      categoryId &&
-      resolvedCategory &&
-      breadcrumb &&
-      breadcrumb.includes('>') &&
-      !isBannedEbayBreadcrumb(breadcrumb)
+      (categoryId && resolvedCategory && breadcrumb && breadcrumb.includes('>') && !isBannedEbayBreadcrumb(breadcrumb)) ||
+      (categoryId && categoryText && categoryText.includes('>'))
     );
 
-    if (
-      !skuCandidate ||
-      !nameCandidate ||
-      !descCandidate ||
-      !hasImages ||
-      !hasValidCategory
-    ) {
+    const missing = [];
+    if (!skuCandidate) missing.push('SKU');
+    if (!nameCandidate) missing.push('Name');
+    if (!descCandidate) missing.push('Beschreibung');
+    if (!hasImages) missing.push('Bilder');
+    if (!hasValidCategory) missing.push('Kategorie');
+
+    if (missing.length > 0) {
       return res.status(400).json({
         ok: false,
         error: {
           code: 400,
-          message:
-            'Produkt unvollständig: SKU, Name, Beschreibung, Kategorie oder Bilder fehlen/ungültig.',
+          message: `Produkt unvollständig: ${missing.join(', ')} fehlen/ungültig.`,
         },
       });
     }

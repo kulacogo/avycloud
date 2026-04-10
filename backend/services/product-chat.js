@@ -2070,6 +2070,27 @@ async function runProductChat(product, userMessage, {
   const modelName = resolveModel(modelOverride, 'CHAT_MODEL', 'gemini-3-pro-preview');
 
   const locale = 'de-DE';
+
+  // Auto-detect scope from short, single-field user messages when no explicit scope is set.
+  // This prevents Gemini from changing everything when the user only asks for one field.
+  if (!scope && userMessage) {
+    const msg = userMessage.trim().toLowerCase().replace(/[?.!]+$/, '').trim();
+    const SCOPE_KEYWORDS = {
+      category: /^(kategorie|category|kat|ebay[- ]?kategorie)$/,
+      title: /^(titel|title|produkttitel|produktname)$/,
+      pricing: /^(preis|price|pricing|marktpreis)$/,
+      description: /^(beschreibung|description|beschreib|text)$/,
+      attributes: /^(attribute|attribut|specifics|item specifics|merkmale)$/,
+      highlights: /^(highlights|key features|bulletpoints|bullet points)$/,
+    };
+    for (const [scopeKey, pattern] of Object.entries(SCOPE_KEYWORDS)) {
+      if (pattern.test(msg)) {
+        scope = scopeKey;
+        break;
+      }
+    }
+  }
+
   const intent = await detectIntent(userMessage || '');
   const conversationMode = detectConversationMode(userMessage || '');
   const marketingFocus = isMarketingImageRequest(userMessage || '');
