@@ -384,12 +384,244 @@ ${improveContext ? buildImprovePromptExtension(improveContext) : ''}WICHTIG:
   return record;
 }
 
+// ─── IDENTIFY V3: Narrow Recognition Schema ───
+
+const RECOGNITION_SCHEMA = {
+  type: 'object',
+  properties: {
+    brand: { type: 'string', description: 'Markenname des Herstellers' },
+    model: { type: 'string', description: 'Modellbezeichnung/Modellnummer' },
+    mpn: { type: 'string', description: 'Herstellerteilenummer (MPN)' },
+    variant: { type: 'string', description: 'Variante (Farbe, Groesse etc.)' },
+    ean: { type: 'string', description: 'EAN-13 (13 Ziffern) nur wenn verifiziert' },
+    gtin: { type: 'string', description: 'GTIN-14 (14 Ziffern) nur wenn verifiziert' },
+    upc: { type: 'string', description: 'UPC-12 nur wenn verifiziert' },
+    condition: { type: 'string', description: 'Zustand: Neu oder Gebraucht' },
+    internalCategory: { type: 'string', description: 'Kategorie-Pfad z.B. Elektronik > Kopfhoerer > Over-Ear' },
+    weight_grams: { type: 'integer', description: 'Gewicht in Gramm (ganzzahlig, nie 0)' },
+    color: { type: 'string', description: 'Hauptfarbe' },
+    size: { type: 'string', description: 'Groesse/Abmessung' },
+    material: { type: 'string', description: 'Hauptmaterial' },
+    notes: { type: 'string', description: 'Hinweise zu Unsicherheiten' },
+  },
+  required: ['brand', 'model', 'internalCategory'],
+};
+
+/**
+ * V3 Stage 1: Focused product recognition — identity only, no content generation.
+ */
+async function identifyProductFocused({ imageParts = [], ocrText = '', barcodes = [], locale = 'de-DE', hint = null } = {}) {
+  const ai = await getGenAIClient();
+  const modelName = resolveModel(null, 'IDENTIFY_MODEL', DEFAULT_MODEL);
+
+  const parts = [];
+  for (const img of imageParts) {
+    if (!img?.data) continue;
+    parts.push({ inlineData: { mimeType: img.mimeType || 'image/jpeg', data: img.data } });
+  }
+
+  const hintBlock = hint ? `PRODUKTHINWEIS: Fokussiere dich NUR auf: ${hint}\n\n` : '';
+  const barcodeBlock = barcodes.length ? `BARCODES: ${barcodes.join(', ')}` : 'BARCODES: keine';
+  const ocrBlock = ocrText.trim() ? `OCR-TEXT:\n${ocrText.trim().slice(0, 2000)}` : 'OCR-TEXT: nicht verfuegbar';
+
+  parts.push({
+    text: `${hintBlock}Du bist ein Produkterkenner. Deine EINZIGE Aufgabe: Identifiziere das Produkt.
+
+${barcodeBlock}
+${ocrBlock}
+
+REGELN:
+- Erkenne Marke, Modell, MPN aus Bildern und OCR
+- Nutze Google Search um Barcodes zu verifizieren und das exakte Produkt zu finden
+- Ordne das Produkt in die KORREKTE eBay.de-Kategorie ein (Pfad mit >)
+- EAN/GTIN nur eintragen wenn die Pruefsumme stimmt
+- KEINE Titel, KEINE Beschreibungen, KEINE Preise generieren
+- Nur Identifikationsdaten. Nichts erfinden.`
+  });
+
+  const response = await ai.models.generateContent({
+    model: modelName,
+    contents: [{ role: 'user', parts }],
+    config: {
+      tools: [{ googleSearch: {} }],
+      temperature: 0.05,
+      maxOutputTokens: 1024,
+      responseMimeType: 'application/json',
+      responseJsonSchema: RECOGNITION_SCHEMA,
+      httpOptions: { timeout: 30000 },
+    },
+  });
+
+  let text = (response.text || '').trim();
+  if (!text) throw new Error('Gemini returned empty response for focused recognition');
+  if (text.startsWith('```')) {
+    text = text.replace(/^```(?:json)?\s*\n?/, '').replace(/\n?```\s*$/, '').trim();
+  }
+  const jsonStart = text.indexOf('{');
+  if (jsonStart > 0 && jsonStart < 200) text = text.slice(jsonStart);
+
+  const record = JSON.parse(text);
+
+  const candidates = response.candidates || [];
+  const groundingMeta = candidates[0]?.groundingMetadata || {};
+  record._grounding = {
+    model: modelName,
+    searchQueries: groundingMeta.webSearchQueries || [],
+    sources: (groundingMeta.groundingChunks || [])
+      .map((c) => ({ title: c?.web?.title, url: c?.web?.uri }))
+      .filter((s) => s.url)
+      .slice(0, 10),
+  };
+
+  return record;
+}
+
+// ─── IDENTIFY V3: Content Generation Schema ───
+
+const CONTENT_SCHEMA = {
+  type: 'object',
+  properties: {
+    title_ebay: { type: 'string', description: 'eBay Titel, 70-80 Zeichen' },
+    title_kaufland: { type: 'string', description: 'Kaufland Titel, bis 100 Zeichen' },
+    description_ebay: { type: 'string', description: 'eBay Beschreibung in HTML, 180-240 Woerter' },
+    description_kaufland: { type: 'string', description: 'Kaufland Beschreibung in HTML' },
+    key_features: { type: 'array', items: { type: 'string' }, description: '5-7 Bulletpoints' },
+    item_specifics: {
+      type: 'array',
+      items: { type: 'object', properties: { key: { type: 'string' }, value: { type: 'string' } }, required: ['key', 'value'] },
+      description: 'Alle Pflicht-Artikelmerkmale + mind. 10 weitere',
+    },
+    mobile_snippet: { type: 'string', description: 'Kompakte Kurzbeschreibung max 800 Zeichen, plain text' },
+    gpsr_manufacturer_name: { type: 'string' },
+    gpsr_manufacturer_address: { type: 'string' },
+    gpsr_manufacturer_email: { type: 'string' },
+    gpsr_manufacturer_phone: { type: 'string' },
+    gpsr_manufacturer_country: { type: 'string' },
+  },
+  required: ['title_ebay', 'title_kaufland', 'description_ebay', 'item_specifics'],
+};
+
+/**
+ * V3 Stage 3: Context-rich content generation with all enrichment data.
+ */
+async function generateProductContent({ identity, enrichment, imageParts = [], locale = 'de-DE' } = {}) {
+  const ai = await getGenAIClient();
+  const modelName = resolveModel(null, 'IDENTIFY_MODEL', DEFAULT_MODEL);
+
+  const parts = [];
+  for (const img of (imageParts || []).slice(0, 2)) {
+    if (!img?.data) continue;
+    parts.push({ inlineData: { mimeType: img.mimeType || 'image/jpeg', data: img.data } });
+  }
+
+  const sections = [];
+
+  // Identity (verified, do not change)
+  sections.push('VERIFIZIERTE IDENTITAET (nicht aendern):');
+  sections.push(`- Marke: ${identity.brand || 'unbekannt'}`);
+  sections.push(`- Modell: ${identity.model || 'unbekannt'}`);
+  if (identity.mpn) sections.push(`- MPN: ${identity.mpn}`);
+  if (identity.ean) sections.push(`- EAN: ${identity.ean}`);
+  if (identity.variant) sections.push(`- Variante: ${identity.variant}`);
+  sections.push('');
+
+  // Required aspects
+  if (enrichment.requiredAspects?.length) {
+    sections.push('PFLICHT-ARTIKELMERKMALE (ALLE ausfuellen):');
+    enrichment.requiredAspects.forEach((a) => sections.push(`- ${a}`));
+    sections.push('');
+  }
+
+  // Competitor titles
+  if (enrichment.titleInsights?.sampleTitles?.length) {
+    sections.push('WETTBEWERBER-TITEL AUF EBAY (nutze als Referenz):');
+    enrichment.titleInsights.sampleTitles.slice(0, 8).forEach((t) => sections.push(`- ${t}`));
+    sections.push('');
+  }
+
+  // Top keywords
+  if (enrichment.titleInsights?.topTokens?.length) {
+    sections.push(`TOP-KEYWORDS: ${enrichment.titleInsights.topTokens.join(', ')}`);
+    sections.push('');
+  }
+
+  // Price data
+  if (enrichment.pricing?.amount > 0) {
+    sections.push(`VERIFIZIERTER PREIS: ${enrichment.pricing.amount} ${enrichment.pricing.currency || 'EUR'}`);
+    if (enrichment.pricing.sources?.length) {
+      sections.push(`Quellen: ${enrichment.pricing.sources.map((s) => s.url || s.name).filter(Boolean).join(', ')}`);
+    }
+    sections.push('');
+  }
+
+  // GPSR data
+  if (enrichment.gpsr?.found) {
+    sections.push('GPSR-DATEN AUS REGISTRY:');
+    const g = enrichment.gpsr.data || {};
+    if (g.manufacturer_name) sections.push(`- Name: ${g.manufacturer_name}`);
+    if (g.manufacturer_address) sections.push(`- Adresse: ${g.manufacturer_address}`);
+    if (g.email) sections.push(`- E-Mail: ${g.email}`);
+    if (g.manufacturer_phone) sections.push(`- Telefon: ${g.manufacturer_phone}`);
+    sections.push('Nur fehlende GPSR-Felder via Web-Suche ergaenzen.');
+    sections.push('');
+  }
+
+  // Category context
+  if (enrichment.category?.ebayBreadcrumb) {
+    sections.push(`EBAY-KATEGORIE: ${enrichment.category.ebayBreadcrumb}`);
+    sections.push('');
+  }
+
+  sections.push(buildImprovePromptExtension({
+    existingProduct: null,
+    titleInsights: enrichment.titleInsights || {},
+  }));
+
+  parts.push({
+    text: `Du bist ein professioneller Produktdaten-Kurator fuer eBay.de und Kaufland.de.
+
+${sections.join('\n')}
+
+AUFGABE: Erstelle ein vollstaendiges Produktdatenblatt basierend auf den obigen verifizierten Daten.
+- Titel, Beschreibungen, Highlights, Artikelmerkmale, GPSR
+- Nutze Google Search nur fuer fehlende GPSR-Daten oder Luecken in Artikelmerkmalen
+- Nichts erfinden. Nur belegbare Fakten.`
+  });
+
+  const response = await ai.models.generateContent({
+    model: modelName,
+    contents: [{ role: 'user', parts }],
+    config: {
+      tools: [{ googleSearch: {} }],
+      temperature: 0.15,
+      maxOutputTokens: 4096,
+      responseMimeType: 'application/json',
+      responseJsonSchema: CONTENT_SCHEMA,
+      httpOptions: { timeout: 45000 },
+    },
+  });
+
+  let text = (response.text || '').trim();
+  if (!text) throw new Error('Gemini returned empty response for content generation');
+  if (text.startsWith('```')) {
+    text = text.replace(/^```(?:json)?\s*\n?/, '').replace(/\n?```\s*$/, '').trim();
+  }
+  const jsonStart = text.indexOf('{');
+  if (jsonStart > 0 && jsonStart < 200) text = text.slice(jsonStart);
+
+  return JSON.parse(text);
+}
+
 module.exports = {
   getGenAIClient,
   gemini3GenerateJSON,
   gemini3GenerateText,
   identifyProductWithGrounding,
   buildImprovePromptExtension,
+  identifyProductFocused,
+  generateProductContent,
   FULL_PRODUCT_SCHEMA,
+  RECOGNITION_SCHEMA,
+  CONTENT_SCHEMA,
   DEFAULT_MODEL,
 };
