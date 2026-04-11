@@ -937,7 +937,7 @@ body {
   display: block;
   margin: 0 auto 16px auto;
   max-width: 1280px;
-  width: 90%;
+  width: 100%;
 }
 
 .to-tagline {
