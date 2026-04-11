@@ -13,6 +13,7 @@ import {
   bulkSetKauflandUnitStatus,
   fetchProducts,
   fetchIntegrationConfig,
+  repairEbayListings,
 } from "../api/client";
 import { useEbayListings, useKauflandListings } from "../hooks/useListings";
 import { useQueryClient } from "@tanstack/react-query";
@@ -240,6 +241,8 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
   const activeQuery = marketplace === "ebay" ? ebayQuery : kauflandQuery;
   const loading = activeQuery.isLoading;
   const error = activeQuery.error ? (activeQuery.error as Error).message : null;
+  const [repairing, setRepairing] = useState(false);
+  const [repairResult, setRepairResult] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabFilter>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -794,16 +797,42 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
             </span>
           </span>
         </div>
-        <button
-          onClick={handleSync}
-          disabled={syncing}
-          className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-accent bg-accent-dim rounded-lg hover:opacity-80 transition-opacity disabled:opacity-50"
-        >
-          <span className={syncing ? "animate-spin" : ""}>
-            <IconSync />
-          </span>
-          {syncing ? "Synchronisiere..." : "Jetzt synchronisieren"}
-        </button>
+        <div className="flex items-center gap-2">
+          {repairResult && (
+            <span className="text-xs text-success font-medium">{repairResult}</span>
+          )}
+          {marketplace === "ebay" && tabCounts.inactive > 10 && (
+            <button
+              onClick={async () => {
+                setRepairing(true);
+                setRepairResult(null);
+                try {
+                  const result = await repairEbayListings();
+                  setRepairResult(`${result.repaired} Listings repariert`);
+                  invalidateListings();
+                } catch (err: any) {
+                  setRepairResult(`Fehler: ${err.message}`);
+                } finally {
+                  setRepairing(false);
+                }
+              }}
+              disabled={repairing}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-warning bg-warning-dim rounded-lg hover:opacity-80 transition-opacity disabled:opacity-50"
+            >
+              {repairing ? "Repariere..." : "Listings reparieren"}
+            </button>
+          )}
+          <button
+            onClick={handleSync}
+            disabled={syncing}
+            className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-accent bg-accent-dim rounded-lg hover:opacity-80 transition-opacity disabled:opacity-50"
+          >
+            <span className={syncing ? "animate-spin" : ""}>
+              <IconSync />
+            </span>
+            {syncing ? "Synchronisiere..." : "Jetzt synchronisieren"}
+          </button>
+        </div>
       </div>
 
       {/* Tab Bar */}

@@ -1217,6 +1217,18 @@ export async function syncEbayLiveListings(payload?: {
   return data?.data;
 }
 
+export async function repairEbayListings(): Promise<{ repaired: number; skipped: number }> {
+  const res = await fetchApi(`${BACKEND_URL}/api/ebay/listings/repair`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+  });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) {
+    throw new Error(data?.error?.message || 'Failed to repair eBay listings');
+  }
+  return data?.data;
+}
+
 export async function lightSyncEbayLiveListings(payload?: {
   maxPages?: number;
   entriesPerPage?: number;

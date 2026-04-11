@@ -419,6 +419,7 @@ router.post('/ebay/listings/sync', requirePermission('products', 'write'), async
     const runId = typeof body.runId === 'string' && body.runId.trim() ? body.runId.trim() : `api-${Date.now()}`;
 
     const { syncLiveListingsAndAudit } = require('../lib/ebay-direct');
+    const { bus } = require('../services/sync-event-bus');
     const summary = await syncLiveListingsAndAudit({
       runId,
       maxPages,
@@ -427,6 +428,7 @@ router.post('/ebay/listings/sync', requirePermission('products', 'write'), async
       timeoutMs,
       actor: req.user?.email || req.user?.uid || 'api',
     });
+    bus.emit('listings:sync_completed', { source: 'api', active: summary?.ingest?.activeListings || 0 });
     return res.status(200).json({ ok: true, data: summary });
   } catch (error) {
     console.error('Failed to sync eBay live listings:', error);
@@ -454,6 +456,7 @@ router.post('/ebay/listings/light-sync', requirePermission('products', 'read'), 
     const runId = typeof body.runId === 'string' && body.runId.trim() ? body.runId.trim() : `light-${Date.now()}`;
 
     const { syncLiveListingsLight } = require('../lib/ebay-direct');
+    const { bus } = require('../services/sync-event-bus');
     const summary = await syncLiveListingsLight({
       runId,
       maxPages,
@@ -461,6 +464,9 @@ router.post('/ebay/listings/light-sync', requirePermission('products', 'read'), 
       timeoutMs,
       actor: req.user?.email || req.user?.uid || 'api',
     });
+    if (!summary?.skipped) {
+      bus.emit('listings:sync_completed', { source: 'api-light', active: summary?.ingest?.activeListings || 0 });
+    }
     return res.status(200).json({ ok: true, data: summary });
   } catch (error) {
     console.error('Failed to light-sync eBay live listings:', error);
@@ -471,6 +477,29 @@ router.post('/ebay/listings/light-sync', requirePermission('products', 'read'), 
         code: status,
         message: error?.message || 'Failed to light-sync eBay listings',
       },
+    });
+  }
+});
+
+// Repair wrongly deactivated listings — reactivates listings that are
+// `active: false` + `listingStatus: 'Active'` + `deactivation.reason: 'not_in_active_list'`
+router.post('/ebay/listings/repair', requirePermission('products', 'write'), async (req, res) => {
+  try {
+    const { reactivateWronglyDeactivatedListings } = require('../lib/ebay-direct');
+    const { bus } = require('../services/sync-event-bus');
+    const result = await reactivateWronglyDeactivatedListings({
+      runId: `repair-${Date.now()}`,
+      actor: req.user?.email || req.user?.uid || 'api',
+    });
+    if (result.repaired > 0) {
+      bus.emit('listings:sync_completed', { source: 'repair', repaired: result.repaired });
+    }
+    return res.status(200).json({ ok: true, data: result });
+  } catch (error) {
+    console.error('Failed to repair eBay listings:', error);
+    return res.status(500).json({
+      ok: false,
+      error: { code: 500, message: error?.message || 'Repair failed' },
     });
   }
 });

@@ -12,6 +12,7 @@
  */
 const { firestore } = require('../lib/firestore');
 const { syncLiveListingsLight } = require('../lib/ebay-direct');
+const { bus } = require('./sync-event-bus');
 
 const LISTING_SYNC_ENABLED = process.env.LISTING_SYNC_ENABLED !== 'false'; // Default ON
 const LISTING_SYNC_INTERVAL_MS = parseInt(
@@ -451,6 +452,17 @@ async function runListingSyncCycle() {
     await autoHealStockDiscrepancies().catch(err => {
       console.warn(`[ListingSyncRunner] Auto-heal failed: ${err.message}`);
     });
+
+    // Emit SSE event so frontend React Query caches get invalidated
+    try {
+      bus.emit('listings:sync_completed', {
+        source: 'listing-sync-runner',
+        active: ebaySync?.ingest?.activeListings || 0,
+        inactive: ebaySync?.deactivation?.deactivated || 0,
+      });
+    } catch {
+      // Non-critical
+    }
   } catch (err) {
     console.error('[ListingSyncRunner] Cycle failed:', err.message);
   } finally {

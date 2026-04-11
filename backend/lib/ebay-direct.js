@@ -1636,6 +1636,28 @@ async function deactivateListingsMissingFromActiveSet({ activeItemIds = [], runI
     return { scanned: 0, deactivated: 0, keptActive: 0 };
   }
 
+  // ── Safety threshold: refuse to deactivate >20% of active listings ──
+  // Prevents mass deactivation from partial/rate-limited API responses.
+  const MAX_DEACTIVATION_RATIO = 0.20;
+  const wouldDeactivate = docs.filter((d) => !keepSet.has(safeString(d?.id))).length;
+  const ratio = docs.length > 0 ? wouldDeactivate / docs.length : 0;
+
+  if (ratio > MAX_DEACTIVATION_RATIO && wouldDeactivate > 5) {
+    console.warn(
+      `[ebay-deactivation] BLOCKED: would deactivate ${wouldDeactivate}/${docs.length} (${(ratio * 100).toFixed(1)}%) — exceeds safety threshold of ${MAX_DEACTIVATION_RATIO * 100}%. activeSet=${keepSet.size}, runId=${runId}`
+    );
+    return {
+      scanned: docs.length,
+      deactivated: 0,
+      keptActive: docs.length,
+      blocked: true,
+      reason: 'safety_threshold_exceeded',
+      wouldHaveDeactivated: wouldDeactivate,
+      ratio: Math.round(ratio * 100),
+      activeSetSize: keepSet.size,
+    };
+  }
+
   let scanned = 0;
   let deactivated = 0;
   const nowIso = new Date().toISOString();
@@ -1676,6 +1698,67 @@ async function deactivateListingsMissingFromActiveSet({ activeItemIds = [], runI
     deactivated,
     keptActive: Math.max(0, scanned - deactivated),
   };
+}
+
+/**
+ * Repair: reactivate listings that were wrongly deactivated.
+ * Targets listings with `active: false` AND `deactivation.reason: 'not_in_active_list'`.
+ * The `not_in_active_list` reason means the listing was deactivated because it wasn't
+ * in the fetched active set — but that set was incomplete due to pagination/rate limits.
+ * Only skips listings with explicitly ended/completed status.
+ */
+async function reactivateWronglyDeactivatedListings({ runId = null, actor = null } = {}) {
+  const snapshot = await firestore.collection(EBAY_LISTINGS_COLLECTION)
+    .where('active', '==', false)
+    .get();
+
+  const docs = Array.isArray(snapshot?.docs) ? snapshot.docs : [];
+  let repaired = 0;
+  let skipped = 0;
+  const nowIso = new Date().toISOString();
+
+  // Statuses that mean the listing is truly ended on eBay — don't reactivate these
+  const TRULY_ENDED = new Set(['completed', 'ended', 'deleted', 'cancelled']);
+
+  for (const group of chunk(docs, 350)) {
+    const batch = firestore.batch();
+    let touched = 0;
+    group.forEach((doc) => {
+      const data = doc.data() || {};
+      const listingStatus = safeString(data.listingStatus).toLowerCase();
+      const reason = safeString(data.deactivation?.reason);
+
+      // Reactivate if deactivated by the automated not_in_active_list logic
+      // UNLESS the listing has an explicitly ended/completed status
+      if (reason === 'not_in_active_list' && !TRULY_ENDED.has(listingStatus)) {
+        touched += 1;
+        repaired += 1;
+        batch.set(
+          firestore.collection(EBAY_LISTINGS_COLLECTION).doc(doc.id),
+          cleanUndefined({
+            active: true,
+            reactivation: {
+              reason: 'repair_wrongly_deactivated',
+              previousDeactivation: data.deactivation || null,
+              actor: actor || null,
+              runId: runId || null,
+              at: nowIso,
+            },
+            updatedAt: FieldValue.serverTimestamp(),
+          }),
+          { merge: true }
+        );
+      } else {
+        skipped += 1;
+      }
+    });
+    if (touched > 0) {
+      await batch.commit();
+    }
+  }
+
+  console.log(`[ebay-repair] Reactivated ${repaired} wrongly deactivated listings, skipped ${skipped}`);
+  return { repaired, skipped, runId };
 }
 
 async function listLiveListings({
@@ -4744,4 +4827,5 @@ module.exports = {
   bulkUpdateListedProducts,
   reviseListingFromProduct,
   bulkReviseListingsFromProducts,
+  reactivateWronglyDeactivatedListings,
 };
