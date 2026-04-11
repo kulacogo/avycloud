@@ -19,6 +19,69 @@
 const { getGeminiApiKey } = require('./gemini-client');
 const { resolveModel } = require('./model-select');
 
+/**
+ * Attempt to repair truncated JSON from Gemini.
+ * Gemini frequently returns valid JSON that is cut off mid-string or mid-object.
+ * This function tries to close open braces/brackets/strings to salvage the data.
+ */
+function repairTruncatedJson(text) {
+  if (!text || typeof text !== 'string') return null;
+  try { return JSON.parse(text); } catch {}
+
+  // Strip trailing garbage after last meaningful char
+  let cleaned = text.replace(/,\s*$/, '').trim();
+
+  // Close unclosed strings
+  const quoteCount = (cleaned.match(/(?<!\\)"/g) || []).length;
+  if (quoteCount % 2 !== 0) cleaned += '"';
+
+  // Close open braces/brackets from the inside out
+  const stack = [];
+  let inString = false;
+  let escaped = false;
+  for (let i = 0; i < cleaned.length; i++) {
+    const ch = cleaned[i];
+    if (escaped) { escaped = false; continue; }
+    if (ch === '\\') { escaped = true; continue; }
+    if (ch === '"') { inString = !inString; continue; }
+    if (inString) continue;
+    if (ch === '{') stack.push('}');
+    else if (ch === '[') stack.push(']');
+    else if (ch === '}' || ch === ']') stack.pop();
+  }
+
+  // Remove trailing commas before closing
+  cleaned = cleaned.replace(/,\s*$/, '');
+  // Append closers
+  while (stack.length) cleaned += stack.pop();
+
+  try { return JSON.parse(cleaned); } catch {}
+
+  // Last attempt: find the largest valid JSON object prefix
+  for (let end = cleaned.length; end > 10; end--) {
+    const slice = cleaned.slice(0, end);
+    const closers = [];
+    let inStr = false;
+    let esc = false;
+    for (let i = 0; i < slice.length; i++) {
+      const c = slice[i];
+      if (esc) { esc = false; continue; }
+      if (c === '\\') { esc = true; continue; }
+      if (c === '"') { inStr = !inStr; continue; }
+      if (inStr) continue;
+      if (c === '{') closers.push('}');
+      else if (c === '[') closers.push(']');
+      else if (c === '}' || c === ']') closers.pop();
+    }
+    let candidate = slice.replace(/,\s*$/, '');
+    if (inStr) candidate += '"';
+    candidate = candidate.replace(/,\s*$/, '');
+    while (closers.length) candidate += closers.pop();
+    try { return JSON.parse(candidate); } catch {}
+  }
+  return null;
+}
+
 const DEFAULT_MODEL = 'gemini-3-pro-preview';
 
 let _clientPromise = null;
@@ -85,7 +148,9 @@ async function gemini3GenerateJSON({
   const start = jsonStart >= 0 && (arrStart < 0 || jsonStart < arrStart) ? jsonStart : arrStart;
   if (start > 0) text = text.slice(start);
 
-  return JSON.parse(text);
+  const parsed = repairTruncatedJson(text);
+  if (!parsed) throw new Error('Failed to parse Gemini JSON (even after repair attempt)');
+  return parsed;
 }
 
 /**
@@ -367,7 +432,8 @@ ${improveContext ? buildImprovePromptExtension(improveContext) : ''}WICHTIG:
   const jsonStart = text.indexOf('{');
   if (jsonStart > 0 && jsonStart < 200) text = text.slice(jsonStart);
 
-  const record = JSON.parse(text);
+  const record = repairTruncatedJson(text);
+  if (!record) throw new Error('Failed to parse grounding JSON (even after repair)');
 
   // Attach grounding metadata for traceability
   const candidates = response.candidates || [];
@@ -460,7 +526,8 @@ REGELN:
   const jsonStart = text.indexOf('{');
   if (jsonStart > 0 && jsonStart < 200) text = text.slice(jsonStart);
 
-  const record = JSON.parse(text);
+  const record = repairTruncatedJson(text);
+  if (!record) throw new Error('Failed to parse focused grounding JSON (even after repair)');
 
   const candidates = response.candidates || [];
   const groundingMeta = candidates[0]?.groundingMetadata || {};
@@ -609,7 +676,9 @@ AUFGABE: Erstelle ein vollstaendiges Produktdatenblatt basierend auf den obigen 
   const jsonStart = text.indexOf('{');
   if (jsonStart > 0 && jsonStart < 200) text = text.slice(jsonStart);
 
-  return JSON.parse(text);
+  const parsed = repairTruncatedJson(text);
+  if (!parsed) throw new Error('Failed to parse Gemini JSON (even after repair attempt)');
+  return parsed;
 }
 
 module.exports = {
