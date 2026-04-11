@@ -47,8 +47,13 @@ async function runStage3ContentGeneration(stage1, stage2, locale = 'de-DE') {
     });
   } catch (err) {
     console.warn('[stage3] Content generation failed:', err?.message);
-    // Fallback: construct minimal content from Stage 1 + 2 data
-    content = buildFallbackContent(identity, stage2);
+    // Fallback: use V2 grounding data if available (high quality), else minimal content
+    if (stage1.v2FallbackRecord) {
+      console.log('[stage3] Using V2 grounding record as content fallback');
+      content = buildFallbackFromV2(stage1.v2FallbackRecord, identity, stage2);
+    } else {
+      content = buildFallbackContent(identity, stage2);
+    }
     usedFallback = true;
   }
 
@@ -142,6 +147,29 @@ function buildFallbackContent(identity, stage2) {
       identity.color ? { key: 'Farbe', value: identity.color } : null,
     ].filter(Boolean),
     mobile_snippet: name,
+  };
+}
+
+/**
+ * Build content from V2 grounding record — uses production-proven data
+ * instead of the minimal fallback. Quality floor = V2.
+ */
+function buildFallbackFromV2(v2Record, identity, stage2) {
+  return {
+    title_ebay: v2Record.title_ebay || `${identity.brand} ${identity.model}`.trim().slice(0, 80),
+    title_kaufland: v2Record.title_kaufland || v2Record.title_ebay || `${identity.brand} ${identity.model}`.trim().slice(0, 100),
+    description_ebay: v2Record.description_ebay || `<p>${identity.brand} ${identity.model}</p>`,
+    description_kaufland: v2Record.description_kaufland || v2Record.description_ebay || `<p>${identity.brand} ${identity.model}</p>`,
+    key_features: Array.isArray(v2Record.key_features) ? v2Record.key_features : [],
+    item_specifics: Array.isArray(v2Record.item_specifics) ? v2Record.item_specifics : [
+      identity.brand ? { key: 'Marke', value: identity.brand } : null,
+      identity.model ? { key: 'Modell', value: identity.model } : null,
+    ].filter(Boolean),
+    mobile_snippet: (v2Record.title_ebay || `${identity.brand} ${identity.model}`).slice(0, 60),
+    gpsr_manufacturer_name: v2Record.gpsr_manufacturer_name || '',
+    gpsr_manufacturer_address: v2Record.gpsr_manufacturer_address || '',
+    gpsr_manufacturer_email: v2Record.gpsr_manufacturer_email || '',
+    gpsr_manufacturer_phone: v2Record.gpsr_manufacturer_phone || '',
   };
 }
 

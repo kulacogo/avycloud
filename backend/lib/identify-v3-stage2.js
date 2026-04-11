@@ -78,12 +78,12 @@ async function runStage2Enrichment(stage1, locale = 'de-DE') {
       return { requiredAspects, catalog };
     })(),
 
-    // 2. Price Enrichment (capped at 20s — SerpAPI can retry endlessly)
+    // 2. Price Enrichment (capped at 45s to allow SerpAPI to complete)
     (async () => {
       try {
         const priceData = await Promise.race([
           enrichPriceParallel(tempProduct, { force: true, reason: 'identify-v3' }),
-          new Promise((_, reject) => setTimeout(() => reject(new Error('Price enrichment timeout (20s)')), 20000)),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Price enrichment timeout (45s)')), 45000)),
         ]);
         return priceData;
       } catch (err) {

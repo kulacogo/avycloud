@@ -2,7 +2,7 @@
 
 const { isValidGtin, normalizeDigits, getGtinType } = require('./gtin');
 const { lookupEan } = require('./ean-database');
-const { identifyProductFocused } = require('../lib/gemini3-client');
+const { identifyProductFocused, identifyProductWithGrounding } = require('../lib/gemini3-client');
 const { extractOcrPayload } = require('./vision-ocr');
 const { uploadImage } = require('./storage');
 
@@ -87,7 +87,9 @@ async function runStage1Recognition({ files = [], barcodes = '', hint = null, lo
 
   let groundingResult = {};
   let groundingUsed = false;
+  let v2FallbackRecord = null;
   if (imageParts.length || mergedBarcodes.length) {
+    // Try focused grounding first (narrow schema, fast)
     try {
       groundingResult = await identifyProductFocused({
         imageParts,
@@ -98,7 +100,38 @@ async function runStage1Recognition({ files = [], barcodes = '', hint = null, lo
       });
       groundingUsed = true;
     } catch (err) {
-      console.warn('[stage1] Focused grounding failed:', err?.message);
+      console.warn('[stage1] Focused grounding failed, trying V2 grounding fallback:', err?.message);
+
+      // Fallback: Use production-proven V2 grounding (same call that powers V2 identify)
+      try {
+        const GROUNDING_TIMEOUT_MS = parseInt(process.env.GROUNDING_TIMEOUT_MS || '90000', 10);
+        v2FallbackRecord = await Promise.race([
+          identifyProductWithGrounding({ imageParts, ocrText, barcodes: mergedBarcodes, locale, hint }),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('V2 grounding fallback timeout')), GROUNDING_TIMEOUT_MS)),
+        ]);
+        console.log('[stage1] V2 grounding fallback succeeded');
+
+        // Map V2 record to focused grounding format
+        groundingResult = {
+          brand: v2FallbackRecord.brand || '',
+          model: v2FallbackRecord.model || '',
+          mpn: v2FallbackRecord.mpn || '',
+          variant: v2FallbackRecord.variant || '',
+          condition: v2FallbackRecord.condition || 'Neu',
+          internalCategory: v2FallbackRecord.internalCategory || '',
+          weight_grams: v2FallbackRecord.weight_grams || null,
+          color: v2FallbackRecord.color || '',
+          size: v2FallbackRecord.size || '',
+          material: v2FallbackRecord.material || '',
+          ean: v2FallbackRecord.ean || '',
+          gtin: v2FallbackRecord.gtin || '',
+          upc: v2FallbackRecord.upc || '',
+          _grounding: v2FallbackRecord._grounding || null,
+        };
+        groundingUsed = true;
+      } catch (fallbackErr) {
+        console.warn('[stage1] V2 grounding fallback also failed:', fallbackErr?.message);
+      }
     }
   }
 
@@ -154,9 +187,11 @@ async function runStage1Recognition({ files = [], barcodes = '', hint = null, lo
     ocrPayload,
     uploadedImages,
     imageParts,
+    v2FallbackRecord,
     _meta: {
       durationMs: Date.now() - startTime,
       groundingUsed,
+      usedV2Fallback: Boolean(v2FallbackRecord),
       groundingSources: groundingResult._grounding?.sources || [],
       groundingModel: groundingResult._grounding?.model || null,
     },

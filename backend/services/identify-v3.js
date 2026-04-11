@@ -77,6 +77,21 @@ function assembleProduct(id, stage1, stage2, stage3, opts) {
   const titleEbay = stage3.title_ebay || '';
   const name = titleEbay || [identity.brand, identity.model, identity.variant].filter(Boolean).join(' ').trim() || 'Unbekanntes Produkt';
 
+  // Brand: if empty, try to extract from V2 fallback, Stage 3 attributes, or title
+  let brand = identity.brand || '';
+  if (!brand && stage1.v2FallbackRecord?.brand) {
+    brand = stage1.v2FallbackRecord.brand;
+  }
+  if (!brand && Array.isArray(stage3.item_specifics)) {
+    const markeSpec = stage3.item_specifics.find((s) => s?.key === 'Marke' && s?.value);
+    if (markeSpec) brand = String(markeSpec.value).trim();
+  }
+  if (!brand && titleEbay) {
+    // First word of title is often the brand
+    const firstWord = titleEbay.split(/\s+/)[0];
+    if (firstWord && firstWord.length >= 2) brand = firstWord;
+  }
+
   // Category: prefer Stage 2 resolved eBay breadcrumb
   const category = stage2.category?.ebayBreadcrumb || identity.internalCategory || 'Unkategorisiert';
   const categoryId = stage2.category?.ebayId || null;
@@ -148,7 +163,7 @@ function assembleProduct(id, stage1, stage2, stage3, opts) {
       method: barcodeArray.length && !stage1.uploadedImages?.length ? 'barcode' : 'image',
       barcodes: barcodeArray.length ? barcodeArray : undefined,
       name,
-      brand: identity.brand || '',
+      brand: brand || '',
       category,
       confidence: 0.8, // Will be overwritten by Stage 4
       sku: undefined, // Allocated by saveProductV2
