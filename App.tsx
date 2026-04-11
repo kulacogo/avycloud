@@ -55,6 +55,17 @@ import { ToastProvider } from './context/ToastContext';
 import { LoginScreen } from './components/LoginScreen';
 import { ResetPasswordScreen } from './components/ResetPasswordScreen';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { useSSE } from './hooks/useSSE';
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      refetchOnMount: true,
+    },
+  },
+});
 
 type View =
   | 'dashboard'
@@ -448,6 +459,9 @@ const readInitialDashboardRangePreset = (): string => {
 const AppInner: React.FC = () => {
   const { t } = useI18n();
   const { hasPermission } = useAuth();
+
+  // Connect to backend SSE for live cache invalidation
+  useSSE();
   const [{ view: initialView, productId: initialHashProductId }] = useState(() => readInitialView());
   const [view, setView] = useState<View>(initialView);
   const [initialProductId] = useState<string | null>(initialHashProductId);
@@ -1385,16 +1399,18 @@ const AuthGate: React.FC = () => {
 
 const App: React.FC = () => (
   <ErrorBoundary>
-    <CookieConsentProvider>
-      <AuthProvider>
-        <ToastProvider>
-          <InventoryProvider>
-            <AuthGate />
-          </InventoryProvider>
-        </ToastProvider>
-      </AuthProvider>
-      <CookieConsentBanner />
-    </CookieConsentProvider>
+    <QueryClientProvider client={queryClient}>
+      <CookieConsentProvider>
+        <AuthProvider>
+          <ToastProvider>
+            <InventoryProvider>
+              <AuthGate />
+            </InventoryProvider>
+          </ToastProvider>
+        </AuthProvider>
+        <CookieConsentBanner />
+      </CookieConsentProvider>
+    </QueryClientProvider>
   </ErrorBoundary>
 );
 

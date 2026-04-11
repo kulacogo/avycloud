@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useI18n } from "../i18n";
 import {
-  fetchOrders as fetchOrdersApi,
   syncOrders,
   syncMarketplaceOrders,
   buildImageProxyUrl,
@@ -9,6 +8,8 @@ import {
   printAddressLabels,
 } from "../api/client";
 import { Order, OrderStatus, getOrderStatus } from "../types";
+import { useOrders } from "../hooks/useOrders";
+import { useQueryClient } from "@tanstack/react-query";
 import { EmptyState } from "./ui/EmptyState";
 import { exportToCsv } from "../utils/csv-export";
 import { SyncIcon } from "./icons/Icons";
@@ -103,11 +104,11 @@ const PIPELINE_STAGES: { key: string; label: string; color: string; dotColor: st
 /* ─── Main Component ─── */
 const OrdersView: React.FC = () => {
   const { t } = useI18n();
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+  const { data: orders = [], isLoading: loading, error: queryError, refetch } = useOrders(500);
   const [syncing, setSyncing] = useState(false);
   const [syncingMp, setSyncingMp] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const error = queryError ? (queryError as Error).message : null;
   const [filter, setFilter] = useState<StatusFilter>("all");
   const [sortField, setSortField] = useState<"createdAt" | "totalAmount" | "status">("createdAt");
   const [sortAsc, setSortAsc] = useState(false);
@@ -129,48 +130,30 @@ const OrdersView: React.FC = () => {
   const [backfilling, setBackfilling] = useState(false);
   const [backfillResult, setBackfillResult] = useState<string | null>(null);
 
-  /* ─── Fetch ─── */
-  const loadOrders = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await fetchOrdersApi(500);
-      setOrders(data);
-    } catch (err: any) {
-      setError(err?.message || "Failed to load orders");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    void loadOrders();
-  }, [loadOrders]);
-
+  /* ─── Sync ─── */
   const handleSync = useCallback(async () => {
     setSyncing(true);
     try {
-      const data = await syncOrders();
-      setOrders(data);
-    } catch (err: any) {
-      setError(err?.message || "Sync failed");
+      await syncOrders();
+      await queryClient.invalidateQueries({ queryKey: ["orders"] });
+    } catch {
+      // Error handled by React Query refetch
     } finally {
       setSyncing(false);
     }
-  }, []);
+  }, [queryClient]);
 
   const handleMarketplaceSync = useCallback(async () => {
     setSyncingMp(true);
-    setError(null);
     try {
       await syncMarketplaceOrders();
-      await loadOrders();
-    } catch (err: any) {
-      setError(err?.message || "Marketplace sync failed");
+      await queryClient.invalidateQueries({ queryKey: ["orders"] });
+    } catch {
+      // Error handled by React Query
     } finally {
       setSyncingMp(false);
     }
-  }, [loadOrders]);
+  }, [queryClient]);
 
   /* ─── Pipeline counts (BUG-071: computed from same orders array as tabs) ─── */
   const omsCounts = useMemo(() => {
@@ -220,13 +203,13 @@ const OrdersView: React.FC = () => {
       const kauflandErr = result.results?.kaufland?.error;
       const errs = [ebayErr, kauflandErr].filter(Boolean).join("; ");
       setBackfillResult(errs ? `${total} importiert. Fehler: ${errs}` : `${total} Bestellungen importiert (${backfillDays} Tage)`);
-      await loadOrders();
+      await queryClient.invalidateQueries({ queryKey: ["orders"] });
     } catch (err: any) {
       setBackfillResult(`Fehler: ${err?.message || "Unbekannt"}`);
     } finally {
       setBackfilling(false);
     }
-  }, [backfillDays, loadOrders]);
+  }, [backfillDays, queryClient]);
 
   /* ─── Carrier detection ─── */
   const detectCarrier = useCallback((order: Order): string => {
@@ -374,13 +357,13 @@ const OrdersView: React.FC = () => {
         setBulkResult(`${result.success} Aufträge → ${OMS_STATUS_LABELS[toStatus] || toStatus}`);
       }
       setSelectedIds(new Set());
-      await loadOrders();
+      await queryClient.invalidateQueries({ queryKey: ["orders"] });
     } catch (err: any) {
       setBulkResult(`Fehler: ${err?.message || 'Unbekannter Fehler'}`);
     } finally {
       setBulkBusy(false);
     }
-  }, [selectedIds, loadOrders]);
+  }, [selectedIds, queryClient]);
 
   // Clear selection when filter changes
   useEffect(() => { setSelectedIds(new Set()); }, [filter]);
@@ -988,7 +971,7 @@ const OrdersView: React.FC = () => {
           orderId={selectedOrderId}
           onClose={() => setSelectedOrderId(null)}
           onStatusChange={() => {
-            void loadOrders();
+            void queryClient.invalidateQueries({ queryKey: ["orders"] });
           }}
         />
       )}

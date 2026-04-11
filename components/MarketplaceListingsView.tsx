@@ -1,12 +1,10 @@
 import React, { useState, useCallback, useEffect, useMemo } from "react";
 import {
-  fetchEbayLiveListings,
   syncEbayLiveListings,
   fetchEbayStatus,
   bulkUpdateEbayListings,
   endEbayListing,
   syncKauflandListings,
-  fetchKauflandListings,
   publishToEbay,
   publishToKaufland,
   bulkPublishToEbay,
@@ -16,6 +14,8 @@ import {
   fetchProducts,
   fetchIntegrationConfig,
 } from "../api/client";
+import { useEbayListings, useKauflandListings } from "../hooks/useListings";
+import { useQueryClient } from "@tanstack/react-query";
 import type { Product } from "../types";
 import type { EbayListingRow, } from "../types";
 import type { EbayConnectionStatus, KauflandListingRow, IntegrationConfig } from "../api/client";
@@ -225,9 +225,21 @@ const IconWarning = () => (
 // ─── Component ───────────────────────────────────────────────
 
 export function MarketplaceListingsView({ marketplace }: MarketplaceListingsViewProps) {
-  const [listings, setListings] = useState<NormalizedListing[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+  const ebayQuery = useEbayListings();
+  const kauflandQuery = useKauflandListings("de");
+
+  // Derive listings from React Query data
+  const listings = useMemo<NormalizedListing[]>(() => {
+    if (marketplace === "ebay") {
+      return (ebayQuery.data ?? []).map((r) => normalizeEbayRow(r));
+    }
+    return (kauflandQuery.data ?? []).map((r: any) => normalizeKauflandRow(r));
+  }, [marketplace, ebayQuery.data, kauflandQuery.data]);
+
+  const activeQuery = marketplace === "ebay" ? ebayQuery : kauflandQuery;
+  const loading = activeQuery.isLoading;
+  const error = activeQuery.error ? (activeQuery.error as Error).message : null;
   const [activeTab, setActiveTab] = useState<TabFilter>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -264,99 +276,64 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
 
   const label = MARKETPLACE_LABELS[marketplace];
 
-  // ─── Data Loading ────────────────────────────────────────
+  // ─── Data Loading (via React Query — see useEbayListings/useKauflandListings) ──
 
-  const loadEbayListings = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const [rows, status] = await Promise.all([
-        fetchEbayLiveListings({ limit: 2000, includeInactive: true }),
-        fetchEbayStatus().catch(() => null),
-      ]);
-      const normalized = rows.map((r) => normalizeEbayRow(r));
-      setListings(normalized);
-      if (status) setConnectionStatus(status);
-      setLastSyncTime(new Date().toISOString());
-    } catch (err: any) {
-      setError(err.message || "Fehler beim Laden der eBay-Listings");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  const loadKauflandListings = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const rows = await fetchKauflandListings("de");
-      const normalized = rows.map((r) => normalizeKauflandRow(r));
-      setListings(normalized);
-      setLastSyncTime(new Date().toISOString());
-    } catch (err: any) {
-      setError(err.message || "Fehler beim Laden der Kaufland-Listings");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
+  // Fetch eBay connection status on mount
   useEffect(() => {
     if (marketplace === "ebay") {
-      loadEbayListings();
-    } else {
-      loadKauflandListings();
+      fetchEbayStatus().then((s) => { if (s) setConnectionStatus(s); }).catch(() => {});
     }
-  }, [marketplace, loadEbayListings, loadKauflandListings]);
+  }, [marketplace]);
 
   // ─── Actions ─────────────────────────────────────────────
 
+  const invalidateListings = useCallback(() => {
+    return queryClient.invalidateQueries({ queryKey: ["listings"] });
+  }, [queryClient]);
+
   const handleSync = useCallback(async () => {
     setSyncing(true);
-    setError(null);
     try {
       if (marketplace === "ebay") {
         await syncEbayLiveListings();
-        await loadEbayListings();
       } else {
         await syncKauflandListings("de");
-        await loadKauflandListings();
       }
-    } catch (err: any) {
-      setError(err.message || "Synchronisierung fehlgeschlagen");
+      await invalidateListings();
+    } catch {
+      // Error handled by React Query
     } finally {
       setSyncing(false);
     }
-  }, [marketplace, loadEbayListings, loadKauflandListings]);
+  }, [marketplace, invalidateListings]);
 
   const handleBulkUpdate = useCallback(async () => {
     if (marketplace !== "ebay" || selectedIds.size === 0) return;
     setBulkUpdating(true);
-    setError(null);
     try {
       await bulkUpdateEbayListings({ itemIds: [...selectedIds] });
       setSelectedIds(new Set());
-      await loadEbayListings();
-    } catch (err: any) {
-      setError(err.message || "Bulk-Update fehlgeschlagen");
+      await invalidateListings();
+    } catch {
+      // Error handled by React Query
     } finally {
       setBulkUpdating(false);
     }
-  }, [marketplace, selectedIds, loadEbayListings]);
+  }, [marketplace, selectedIds, invalidateListings]);
 
   const handleEndListing = useCallback(async (itemId: string) => {
     if (marketplace !== "ebay") return;
     if (!window.confirm(`Listing ${itemId} wirklich beenden? Dies kann nicht rueckgaengig gemacht werden.`)) return;
     setEndingItemId(itemId);
-    setError(null);
     try {
       await endEbayListing({ itemId });
-      await loadEbayListings();
-    } catch (err: any) {
-      setError(err.message || "Listing beenden fehlgeschlagen");
+      await invalidateListings();
+    } catch {
+      // Error handled by React Query
     } finally {
       setEndingItemId(null);
     }
-  }, [marketplace, loadEbayListings]);
+  }, [marketplace, invalidateListings]);
 
   const openPublishModal = useCallback(async () => {
     setShowPublishModal(true);
@@ -420,18 +397,17 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
       if (marketplace === "ebay") {
         await publishToEbay(productId);
         setPublishResult({ ok: true, message: "Erfolgreich auf eBay gelistet!" });
-        loadEbayListings();
       } else {
         await publishToKaufland(productId);
         setPublishResult({ ok: true, message: "Erfolgreich auf Kaufland gelistet!" });
-        loadKauflandListings();
       }
+      invalidateListings();
     } catch (err: any) {
       setPublishResult({ ok: false, message: err.message || "Veröffentlichung fehlgeschlagen" });
     } finally {
       setPublishingId(null);
     }
-  }, [marketplace, loadEbayListings, loadKauflandListings]);
+  }, [marketplace, invalidateListings]);
 
   const togglePublishSelect = useCallback((productId: string) => {
     setPublishSelectedIds((prev) => {
@@ -489,7 +465,7 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
           const reasons = Array.isArray(r.blockers) && r.blockers.length > 0 ? r.blockers.join(", ") : "Unbekannter Fehler";
           return `${name}: ${reasons}`;
         });
-        loadEbayListings();
+        invalidateListings();
       } else {
         // Build Kaufland overrides from policy selection
         const klOverrides: Record<string, string> = {};
@@ -522,7 +498,7 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
           const name = prod?.identification?.name || r.productId;
           return `${name}: Produktdaten eingereicht, spaeter erneut versuchen`;
         });
-        loadKauflandListings();
+        invalidateListings();
         setBulkPublishSummary({
           ...summary,
           published: (summary as any).published,
@@ -548,7 +524,7 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
     } finally {
       setBulkPublishing(false);
     }
-  }, [marketplace, publishSelectedIds, publishProducts, loadEbayListings, loadKauflandListings]);
+  }, [marketplace, publishSelectedIds, publishProducts, invalidateListings]);
 
   const getBinStock = useCallback((p: Product) => {
     if (!Array.isArray(p.storageBins)) return 0;
@@ -721,11 +697,7 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
           <p className="text-danger font-semibold mb-2">Fehler beim Laden der {label}-Listings</p>
           <p className="text-txt-secondary text-sm mb-4">{error}</p>
           <button
-            onClick={() => {
-              setError(null);
-              if (marketplace === "ebay") loadEbayListings();
-              else loadKauflandListings();
-            }}
+            onClick={() => activeQuery.refetch()}
             className="px-4 py-2 bg-accent text-white rounded-lg text-sm font-medium hover:opacity-90 transition-opacity"
           >
             Erneut versuchen
@@ -777,8 +749,8 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
         <div className="bg-danger-dim border border-app-border rounded-xl px-4 py-3 flex items-center gap-3">
           <span className="text-danger"><IconWarning /></span>
           <span className="text-sm text-danger flex-1">{error}</span>
-          <button onClick={() => setError(null)} className="text-txt-muted hover:text-txt-primary text-sm">
-            Schließen
+          <button onClick={() => activeQuery.refetch()} className="text-txt-muted hover:text-txt-primary text-sm">
+            Neu laden
           </button>
         </div>
       )}
@@ -907,7 +879,7 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
                       const ids = [...selectedIds];
                       const result = await bulkUpdateKauflandUnits(ids);
                       alert(`Aktualisiert: ${result.success}/${result.total}${result.failed > 0 ? ` (${result.failed} fehlgeschlagen)` : ""}`);
-                      loadKauflandListings();
+                      invalidateListings();
                     } catch (err: any) {
                       alert(`Fehler: ${err.message}`);
                     } finally {
@@ -926,7 +898,7 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
                       const ids = [...selectedIds];
                       const result = await bulkSetKauflandUnitStatus(ids, "AVAILABLE");
                       alert(`Aktiviert: ${result.success}/${result.total}${result.failed > 0 ? ` (${result.failed} fehlgeschlagen)` : ""}`);
-                      loadKauflandListings();
+                      invalidateListings();
                     } catch (err: any) {
                       alert(`Fehler: ${err.message}`);
                     } finally {
@@ -945,7 +917,7 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
                       const ids = [...selectedIds];
                       const result = await bulkSetKauflandUnitStatus(ids, "ONHOLD");
                       alert(`Deaktiviert: ${result.success}/${result.total}${result.failed > 0 ? ` (${result.failed} fehlgeschlagen)` : ""}`);
-                      loadKauflandListings();
+                      invalidateListings();
                     } catch (err: any) {
                       alert(`Fehler: ${err.message}`);
                     } finally {

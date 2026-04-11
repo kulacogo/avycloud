@@ -8,6 +8,7 @@ const { getShippingCostsSummary: getSendCloudShippingSummary, lookupCsvPrice } =
 const { getEbayNetRevenueSummary } = require('../lib/ebay-finances');
 const { emitSyncEvent } = require('../services/sync-event-bus');
 const { buildAddressLabelsHtml } = require('../services/label-printer');
+const crypto = require('crypto');
 
 // ── Factory: backgroundSyncOrders wird von index.js injiziert ────────
 
@@ -95,7 +96,14 @@ router.get('/orders', requirePermission('orders', 'read'), async (req, res) => {
     const paginatedOrders = rawOrders.slice(offset, offset + limit);
     const orders = await attachPickHintsToOrders(paginatedOrders);
     const normalized = orders.map(normalizeOrderForResponse);
-    res.json({ ok: true, data: normalized, meta: { total, limit, offset, hasMore: offset + limit < total } });
+    const body = { ok: true, data: normalized, meta: { total, limit, offset, hasMore: offset + limit < total } };
+    const etag = '"' + crypto.createHash('md5').update(JSON.stringify(body)).digest('hex') + '"';
+    if (req.headers['if-none-match'] === etag) {
+      return res.status(304).end();
+    }
+    res.setHeader('Cache-Control', 'private, max-age=60');
+    res.setHeader('ETag', etag);
+    res.json(body);
   } catch (error) {
     console.error('Failed to load orders:', error);
     res.status(500).json({
@@ -255,8 +263,14 @@ router.get('/dashboard/metrics', requirePermission('dashboard', 'read'), async (
       console.warn('Dashboard payout computation failed:', err?.message || err);
     }
 
-    res.setHeader('Cache-Control', 'no-store');
-    res.json({ ok: true, data: metrics });
+    const metricsBody = { ok: true, data: metrics };
+    const metricsEtag = '"' + crypto.createHash('md5').update(JSON.stringify(metricsBody)).digest('hex') + '"';
+    if (req.headers['if-none-match'] === metricsEtag) {
+      return res.status(304).end();
+    }
+    res.setHeader('Cache-Control', 'private, max-age=30');
+    res.setHeader('ETag', metricsEtag);
+    res.json(metricsBody);
   } catch (error) {
     console.error('Failed to load dashboard metrics:', error);
     res.status(500).json({

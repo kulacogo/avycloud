@@ -1,6 +1,7 @@
 const express = require('express');
 const multer = require('multer');
 const path = require('path');
+const crypto = require('crypto');
 const { requirePermission } = require('../lib/rbac');
 const {
   firestore,
@@ -485,7 +486,14 @@ router.get('/ebay/listings', requirePermission('products', 'read'), async (req, 
         .toLowerCase() === 'true';
     const { listLiveListings } = require('../lib/ebay-direct');
     const data = await listLiveListings({ limit, search, matchStatus, includeInactive });
-    return res.status(200).json({ ok: true, data });
+    const body = { ok: true, data };
+    const etag = '"' + crypto.createHash('md5').update(JSON.stringify(body)).digest('hex') + '"';
+    if (req.headers['if-none-match'] === etag) {
+      return res.status(304).end();
+    }
+    res.setHeader('Cache-Control', 'private, max-age=300');
+    res.setHeader('ETag', etag);
+    return res.status(200).json(body);
   } catch (error) {
     console.error('Failed to list eBay listings:', error);
     return res.status(500).json({

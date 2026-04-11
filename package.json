@@ -12,6 +12,7 @@
     "@google/genai": "^1.30.0",
     "@google/generative-ai": "^0.1.0",
     "@imgly/background-removal": "^1.7.0",
+    "@tanstack/react-query": "^5.97.0",
     "@zxing/browser": "^0.1.4",
     "dompurify": "^3.3.2",
     "firebase": "^10.14.1",
