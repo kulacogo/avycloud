@@ -335,9 +335,13 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
       try {
         const { identifyProductV3 } = require('../services/identify-v3');
         console.log('[identify] Using V3 multi-stage pipeline');
-        const v3Result = await identifyProductV3({
-          files, barcodes, locale, hint, paletteCode, inventoryId,
-        });
+        const V3_TIMEOUT_MS = parseInt(process.env.V3_TIMEOUT_MS || '90000', 10);
+        const v3Result = await Promise.race([
+          identifyProductV3({ files, barcodes, locale, hint, paletteCode, inventoryId }),
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error(`V3 pipeline timeout after ${V3_TIMEOUT_MS}ms`)), V3_TIMEOUT_MS)
+          ),
+        ]);
         product = v3Result.product;
         v3Meta = v3Result.meta;
         groundingUsed = true;

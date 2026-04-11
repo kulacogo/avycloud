@@ -43,7 +43,13 @@ async function runProductIdentificationGrounding({
     try {
       const { identifyProductV3 } = require('./identify-v3');
       console.log('[identify-grounding] Using V3 multi-stage pipeline');
-      const { product, meta } = await identifyProductV3({ files, barcodes, locale, hint });
+      const V3_TIMEOUT_MS = parseInt(process.env.V3_TIMEOUT_MS || '90000', 10);
+      const { product, meta } = await Promise.race([
+        identifyProductV3({ files, barcodes, locale, hint }),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error(`V3 pipeline timeout after ${V3_TIMEOUT_MS}ms`)), V3_TIMEOUT_MS)
+        ),
+      ]);
 
       // Category + Taxonomy (V3 may have resolved, but job-runner expects post-processing)
       try {
