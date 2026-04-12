@@ -49,6 +49,14 @@ async function runIdentifyQualityPipeline(product, groundedRecord = {}, { locale
     steps.push({ step: 'gpsr_merge', ok: false, error: e.message });
   }
 
+  // Step 5: Full Rulebook Apply (title + desc + highlights + attributes)
+  try {
+    const result = applyRulebook(product);
+    steps.push({ step: 'rulebook_apply', ...result });
+  } catch (e) {
+    steps.push({ step: 'rulebook_apply', ok: false, error: e.message });
+  }
+
   return {
     product,
     qualityReport: { steps, totalIssues: steps.filter(s => !s.ok).length },
@@ -182,6 +190,37 @@ async function mergeGpsr(product, groundedRecord) {
     source: registryEntry ? 'merged' : 'grounding_only',
     fieldsFromRegistry: Object.keys(registryGpsr).filter(k => registryGpsr[k]).length,
     fieldsFromGrounding: Object.keys(fromGrounding).filter(k => fromGrounding[k]).length,
+  };
+}
+
+function applyRulebook(product) {
+  const { normalizeProductForPolicyApply } = require('./llm-rulebook');
+  const rulebookResult = normalizeProductForPolicyApply(product, { source: 'identify' });
+
+  if (rulebookResult.product) {
+    // Apply rulebook changes back to product (identification + details)
+    if (rulebookResult.product.identification) {
+      product.identification = product.identification || {};
+      Object.assign(product.identification, rulebookResult.product.identification);
+    }
+    if (rulebookResult.product.details) {
+      product.details = product.details || {};
+      // Preserve fields that rulebook doesn't touch
+      const preserved = { ...product.details };
+      Object.assign(product.details, rulebookResult.product.details);
+      // Restore fields that the deep clone might have lost
+      if (!product.details.images && preserved.images) product.details.images = preserved.images;
+      if (!product.details.pricing && preserved.pricing) product.details.pricing = preserved.pricing;
+      if (!product.details.identifiers && preserved.identifiers) product.details.identifiers = preserved.identifiers;
+      if (!product.details.gpsr && preserved.gpsr) product.details.gpsr = preserved.gpsr;
+      if (!product.details.categoryId && preserved.categoryId) product.details.categoryId = preserved.categoryId;
+    }
+  }
+
+  return {
+    ok: rulebookResult.ok !== false,
+    issues: rulebookResult.issues || [],
+    issueCount: (rulebookResult.issues || []).length,
   };
 }
 

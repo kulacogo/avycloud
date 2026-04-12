@@ -1,5 +1,8 @@
 'use strict';
 
+// Patch GCP modules (Firestore, Storage, etc.) — must be FIRST, before any backend requires
+require('./api/_patchGcp');
+
 // Patch gpsr-manufacturer-registry (uses Firestore) — must be before pipeline require
 const path = require('path');
 const mockGetManufacturerGpsrByName = vi.fn().mockResolvedValue(null);
@@ -220,6 +223,63 @@ describe('identify-quality-pipeline', () => {
       const { product: result } = await runIdentifyQualityPipeline(product, grounded);
       // Should still have grounding data
       expect(result.details.gpsr.email).toBe('test@test.de');
+    });
+  });
+
+  describe('Rulebook apply', () => {
+    it('enforces title policy (max 80 chars)', async () => {
+      const product = makeProduct();
+      product.identification.name = 'TestBrand Super Premium Ultra High Quality Amazing Product With Way Too Many Words In Title That Exceeds Limit';
+      const { product: result } = await runIdentifyQualityPipeline(product, {});
+      expect(result.identification.name.length).toBeLessThanOrEqual(80);
+    });
+
+    it('reports blocked attribute keys as issues', async () => {
+      const product = makeProduct();
+      product.details.attributes = {
+        Farbe: 'Schwarz',
+        ebay_item_id: '12345',
+        Marke: 'TestBrand',
+      };
+      const { qualityReport } = await runIdentifyQualityPipeline(product, {});
+      const step = qualityReport.steps.find(s => s.step === 'rulebook_apply');
+      expect(step).toBeDefined();
+      // Blocked keys (ebay_item_id) should appear in issues
+      const blockedIssues = step.issues.filter(i => i.includes('attribute_key_blocked'));
+      expect(blockedIssues.length).toBeGreaterThan(0);
+    });
+
+    it('applies clean attributes when no conflicts', async () => {
+      const product = makeProduct();
+      product.details.attributes = {
+        Farbe: 'Schwarz',
+        Material: 'Kunststoff',
+      };
+      const { product: result } = await runIdentifyQualityPipeline(product, {});
+      // Clean attributes should be preserved
+      expect(result.details.attributes.Farbe).toBe('Schwarz');
+      expect(result.details.attributes.Material).toBe('Kunststoff');
+    });
+
+    it('preserves pricing and images after rulebook apply', async () => {
+      const product = makeProduct();
+      product.details.pricing = { lowest_price: { amount: 49.99, currency: 'EUR', sources: [{ url: 'https://test.de', name: 'test' }] } };
+      product.details.images = [{ url_or_base64: 'https://img.test.de/1.jpg', source: 'upload' }];
+      // Provide grounding data so GPSR merge (step 4) populates gpsr
+      const grounded = { gpsr_manufacturer_name: 'Test GmbH' };
+      const { product: result } = await runIdentifyQualityPipeline(product, grounded);
+      expect(result.details.pricing.lowest_price.amount).toBe(49.99);
+      expect(result.details.images).toHaveLength(1);
+      expect(result.details.gpsr.manufacturer_name).toBe('Test GmbH');
+    });
+
+    it('reports rulebook issues in quality report', async () => {
+      const product = makeProduct();
+      const { qualityReport } = await runIdentifyQualityPipeline(product, {});
+      const step = qualityReport.steps.find(s => s.step === 'rulebook_apply');
+      expect(step).toBeDefined();
+      expect(step.ok).toBeDefined();
+      expect(Array.isArray(step.issues)).toBe(true);
     });
   });
 
