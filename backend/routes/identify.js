@@ -422,6 +422,25 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
 
     const ocrText = (ocrPayload.textSnippets || []).filter(Boolean).join('\n');
 
+    // Pre-fetch eBay context for grounding prompt (best-effort, non-blocking)
+    let ebayContext = null;
+    try {
+      const { fetchCategoryTitleInsights } = require('../lib/ebay-browse-title-insights');
+      const ocrHint = (ocrPayload.textSnippets || []).filter(Boolean).join(' ').slice(0, 200);
+      if (ocrHint) {
+        const insights = await Promise.race([
+          fetchCategoryTitleInsights({ query: ocrHint }),
+          new Promise(r => setTimeout(() => r({ ok: false }), 5000)),
+        ]);
+        if (insights?.ok) {
+          ebayContext = {
+            topTokens: insights.topTokens || [],
+            sampleTitles: (insights.sampleTitles || []).slice(0, 5),
+          };
+        }
+      }
+    } catch { /* best-effort, don't delay identify */ }
+
     // 4) Try Google Search Grounding pipeline (preferred) — skip if V3 already produced a product
     if (!product && GROUNDING_ENABLED && (imageParts.length || mergedBarcodes.length)) {
       try {
@@ -436,6 +455,7 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
             barcodes: mergedBarcodes,
             locale,
             hint,
+            ebayContext,
           }),
           new Promise((_, reject) =>
             setTimeout(() => reject(new Error('Grounding timeout after ' + GROUNDING_TIMEOUT_MS + 'ms')), GROUNDING_TIMEOUT_MS)

@@ -303,6 +303,26 @@ function buildImprovePromptExtension(ctx) {
   return lines.join('\n');
 }
 
+function buildEbayContextBlock(ctx) {
+  const lines = [];
+  if (Array.isArray(ctx.requiredAspects) && ctx.requiredAspects.length) {
+    lines.push('PFLICHT-ATTRIBUTE (eBay verlangt diese fuer die Kategorie):');
+    lines.push(ctx.requiredAspects.join(', '));
+    lines.push('Diese Attribute MUESSEN in item_specifics enthalten sein.');
+    lines.push('');
+  }
+  if (Array.isArray(ctx.sampleTitles) && ctx.sampleTitles.length) {
+    lines.push('WETTBEWERBER-TITEL AUF EBAY (orientiere dich an Stil und Keywords):');
+    ctx.sampleTitles.slice(0, 5).forEach(t => lines.push(`- ${t}`));
+    lines.push('');
+  }
+  if (Array.isArray(ctx.topTokens) && ctx.topTokens.length) {
+    lines.push(`TOP-KEYWORDS DIESER KATEGORIE: ${ctx.topTokens.join(', ')}`);
+    lines.push('');
+  }
+  return lines.length ? lines.join('\n') + '\n' : '';
+}
+
 /**
  * PERF-001: Single-call product identification with Google Search Grounding.
  *
@@ -332,6 +352,7 @@ async function identifyProductWithGrounding({
   locale = 'de-DE',
   hint = null,
   improveContext = null,
+  ebayContext = null,
 } = {}) {
   const ai = await getGenAIClient();
   const modelName = resolveModel(null, 'IDENTIFY_MODEL', DEFAULT_MODEL);
@@ -400,7 +421,7 @@ QUALITAETSANFORDERUNGEN:
 - Zustand: "Neu" als Default, nur "Gebraucht" wenn eindeutige Gebrauchsspuren sichtbar
 - EAN/GTIN: Nur wenn korrekte Checkdigit. Sonst leer lassen.
 
-${improveContext ? buildImprovePromptExtension(improveContext) : ''}WICHTIG:
+${improveContext ? buildImprovePromptExtension(improveContext) : ''}${ebayContext ? buildEbayContextBlock(ebayContext) : ''}WICHTIG:
 - Nur belegbare Fakten. Nichts erfinden.
 - Wenn Information nicht findbar: Feld leer lassen.
 - Antwort ausschliesslich als JSON gemaess Schema.`
