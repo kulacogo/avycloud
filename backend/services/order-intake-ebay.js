@@ -415,6 +415,15 @@ async function saveOrderIfNew({ tenantId, order }) {
         }
         await existingDoc.ref.update(updates);
         console.log(`[ebay-intake] Status updated: ${existingData.orderId || existingDoc.id} ${currentOms} → ${ebayStatus}`);
+
+        // Emit sync event so stock gets pushed to OTHER marketplaces (prevents oversells)
+        emitSyncEvent('order:status_changed', {
+          entityId: existingDoc.id,
+          tenantId,
+          toStatus: ebayStatus,
+          fromStatus: currentOms,
+          source: 'ebay-reconciliation',
+        });
       }
     }
     return false;

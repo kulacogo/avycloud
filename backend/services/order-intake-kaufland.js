@@ -428,6 +428,15 @@ async function saveOrderIfNew({ tenantId, order }) {
         }
         await existingDoc.ref.update(updateFields);
         console.log(`[kaufland-intake] Status updated: ${existingData.orderId || existingDoc.id} ${currentOms} → ${mappedStatus} (Kaufland: ${klUnitStatus})`);
+
+        // Emit sync event so stock gets pushed to OTHER marketplaces (prevents oversells)
+        emitSyncEvent('order:status_changed', {
+          entityId: existingDoc.id,
+          tenantId,
+          toStatus: mappedStatus,
+          fromStatus: currentOms,
+          source: 'kaufland-reconciliation',
+        });
       }
 
       // Also backfill unitIds if missing (critical for tracking/cancel push)

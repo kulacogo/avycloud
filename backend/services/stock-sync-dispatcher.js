@@ -402,9 +402,23 @@ async function syncStockWithRetry({ tenantId = 'default', product, reason = 'man
  */
 async function syncStockForOrderItems({ tenantId = 'default', orderId, reason = 'order' }) {
   try {
-    // Read order to get items
-    const orderDoc = await firestore.collection('orders').doc(orderId).get();
-    if (!orderDoc.exists) return;
+    // Read order to get items — supports both doc ID (e.g. 'kaufland__M4U7TQ5')
+    // and sequential orderId (e.g. 'AVY-2026-0827').
+    let orderDoc = await firestore.collection('orders').doc(orderId).get();
+    if (!orderDoc.exists) {
+      // Fallback: query by orderId field (OMS routes pass sequential IDs)
+      const fallback = await firestore.collection('orders')
+        .where('orderId', '==', orderId)
+        .limit(1)
+        .get();
+      if (!fallback.empty) {
+        orderDoc = fallback.docs[0];
+        console.log(`[stock-sync] order found via orderId field fallback: ${orderId} → doc ${orderDoc.id}`);
+      } else {
+        console.warn(`[stock-sync] order not found by doc ID or orderId field: ${orderId}`);
+        return;
+      }
+    }
     const order = { id: orderDoc.id, ...orderDoc.data() };
     const items = order.items || [];
     if (items.length === 0) return;

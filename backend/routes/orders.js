@@ -1795,4 +1795,32 @@ router.post('/orders/address-labels', requirePermission('orders', 'read'), async
   }
 });
 
+// Force-push current stock to all marketplace channels for a specific product.
+// Used to fix oversells immediately. Accepts productId or SKU.
+router.post('/stock/force-sync', requirePermission('products', 'write'), async (req, res) => {
+  try {
+    const { productId, sku } = req.body || {};
+    const { syncStockToAllChannels, findProductsBySkuChunk } = require('../services/stock-sync-dispatcher');
+    let product = null;
+
+    if (productId) {
+      const doc = await firestore.collection('products_v2').doc(productId).get();
+      if (doc.exists) product = { id: doc.id, ...doc.data() };
+    }
+    if (!product && sku) {
+      const products = await findProductsBySkuChunk([sku]);
+      if (products.length > 0) product = products[0];
+    }
+    if (!product) {
+      return res.status(404).json({ ok: false, error: { code: 'NOT_FOUND', message: 'Produkt nicht gefunden' } });
+    }
+
+    const result = await syncStockToAllChannels({ tenantId: 'default', product, reason: 'force-sync-admin' });
+    res.json({ ok: true, data: { productId: product.id, sku: product.identification?.sku, ...result } });
+  } catch (err) {
+    console.error(`[POST /api/stock/force-sync] ${err.message}`, err);
+    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: err.message } });
+  }
+});
+
 module.exports = { router, setBackgroundSyncOrders };
