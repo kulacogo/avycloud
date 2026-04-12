@@ -3131,7 +3131,7 @@ export const generateProductImages = async (
 };
 
 export const fetchOrders = async (limit = 200, options?: { timeoutMs?: number }): Promise<Order[]> => {
-  const cappedLimit = Math.min(Math.max(Number(limit) || 0, 1), 500);
+  const cappedLimit = Math.min(Math.max(Number(limit) || 0, 1), 5000);
   const response = await fetchWithTimeout(
     `${BACKEND_URL}/api/orders?limit=${cappedLimit}`,
     undefined,

@@ -113,7 +113,7 @@ const PIPELINE_STAGES: { key: string; label: string; color: string; dotColor: st
 const OrdersView: React.FC = () => {
   const { t } = useI18n();
   const queryClient = useQueryClient();
-  const { data: orders = [], isLoading: loading, error: queryError, refetch } = useOrders(500);
+  const { data: orders = [], isLoading: loading, error: queryError, refetch } = useOrders(2000);
   const [syncing, setSyncing] = useState(false);
   const [syncingMp, setSyncingMp] = useState(false);
   const error = queryError ? (queryError as Error).message : null;
@@ -170,8 +170,7 @@ const OrdersView: React.FC = () => {
     for (const o of orders) {
       const s = getOrderStatus(o);
       if (s in counts) counts[s]++;
-      // "confirmed" in OMS maps to "pending"+"confirmed" — also count "new"
-      else if (s === 'new') counts['pending'] = (counts['pending'] || 0) + 1;
+      // Do NOT count legacy "new" status as "pending" — these are BaseLinker relics.
     }
     return counts;
   }, [orders]);
@@ -181,7 +180,9 @@ const OrdersView: React.FC = () => {
     const now = new Date();
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
 
-    const openCount = orders.filter((o) => { const s = getOrderStatus(o); return s === "new" || s === "pending" || s === "picking"; }).length;
+    // "Offene Aufträge": pending + confirmed (= new orders to process).
+    // Exclude legacy "new" status (BaseLinker relics without omsStatus).
+    const openCount = orders.filter((o) => { const s = getOrderStatus(o); return s === "pending" || s === "confirmed"; }).length;
     const pickedToday = orders.filter(
       (o) => o.pickedAt && new Date(o.pickedAt).getTime() >= todayStart
     ).length;

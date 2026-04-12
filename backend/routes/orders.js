@@ -82,7 +82,7 @@ function normalizeOrderForResponse(order) {
 
 router.get('/orders', requirePermission('orders', 'read'), async (req, res) => {
   try {
-    const limit = Math.min(Number(req.query.limit) || 50, 500);
+    const limit = Math.min(Number(req.query.limit) || 50, 5000);
     const offset = Math.max(Number(req.query.offset) || 0, 0);
     // Return cached orders immediately; trigger background sync best-effort
     let rawOrders = await listOrders(limit + offset);

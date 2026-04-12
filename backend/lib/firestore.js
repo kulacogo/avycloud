@@ -3124,11 +3124,12 @@ async function saveOrders(orders = []) {
   return orders;
 }
 
-async function listOrders(limit = 50) {
+async function listOrders(limit = 200) {
+  const capped = Math.min(Math.max(Number(limit) || 200, 1), 5000);
   const snapshot = await firestore
     .collection(ORDERS_COLLECTION)
     .orderBy('createdAt', 'desc')
-    .limit(limit)
+    .limit(capped)
     .get();
 
   const all = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));

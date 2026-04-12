@@ -8,7 +8,7 @@ import type { Order } from "../types";
  * - refetchOnWindowFocus: re-fetches when user tabs back
  * - SSE events invalidate this cache via useSSE hook
  */
-export function useOrders(limit = 500) {
+export function useOrders(limit = 2000) {
   return useQuery<Order[]>({
     queryKey: ["orders", limit],
     queryFn: () => fetchOrdersApi(limit),

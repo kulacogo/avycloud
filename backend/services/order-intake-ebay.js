@@ -395,7 +395,7 @@ async function saveOrderIfNew({ tenantId, order }) {
     const currentOms = existingData.omsStatus || existingData.status;
 
     // Only update if eBay reports a terminal/advanced status we don't have yet
-    if (ebayStatus && ebayStatus !== currentOms && ['cancelled', 'shipped', 'confirmed', 'completed'].includes(ebayStatus)) {
+    if (ebayStatus && ebayStatus !== currentOms && ['cancelled', 'shipped', 'confirmed', 'completed', 'delivered'].includes(ebayStatus)) {
       // Don't downgrade: don't go from shipped → confirmed
       const OMS_RANK = { pending: 0, confirmed: 1, picking: 2, picked: 3, packing: 4, packed: 5, shipped: 6, delivered: 7, completed: 8, cancelled: 9, returned: 10 };
       const currentRank = OMS_RANK[currentOms] ?? 0;
