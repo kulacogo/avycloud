@@ -123,22 +123,71 @@ async function syncStockToAllChannels({ tenantId = 'default', product, reason = 
 
   if (ebayItemId) {
     try {
-      const { reviseFixedPriceItem } = require('../lib/ebay-trading-api');
-      const result = await reviseFixedPriceItem({
-        itemId: String(ebayItemId),
-        quantity: Math.max(0, availableQuantity),
-      });
-      const status = result?.ack === 'Success' || result?.ack === 'Warning' ? 'success' : 'failed';
-      results.push({ channel: 'ebay', status, itemId: ebayItemId, quantityPushed: availableQuantity, zeroStock: isZeroStock });
-      console.log(
-        `[stock-sync] ebay product=${productId} itemId=${ebayItemId} qty=${availableQuantity} status=${status}${isZeroStock ? ' (DELIST)' : ''}`
-      );
+      if (isZeroStock) {
+        // eBay rejects reviseFixedPriceItem with qty=0 ("Die Stückzahl muss > 0 sein").
+        // Use endFixedPriceItem to properly delist the item.
+        const { endFixedPriceItem } = require('../lib/ebay-trading-api');
+        const result = await endFixedPriceItem(String(ebayItemId), { reason: 'NotAvailable' });
+        const status = result?.ack === 'Success' || result?.ack === 'Warning' ? 'success' : 'failed';
+        // If listing was already ended, treat as success
+        const alreadyEnded = result?.errors?.some((e) =>
+          String(e?.errorCode || e?.code || '').includes('1047') ||
+          String(e?.message || '').includes('ended') ||
+          String(e?.message || '').includes('beendet')
+        );
+        const finalStatus = alreadyEnded ? 'success' : status;
+        results.push({ channel: 'ebay', status: finalStatus, itemId: ebayItemId, quantityPushed: 0, zeroStock: true, action: 'end' });
+        console.log(
+          `[stock-sync] ebay END product=${productId} itemId=${ebayItemId} status=${finalStatus}`
+        );
+        // Clear stale itemId if listing was already ended (prevents repeated failures)
+        if (alreadyEnded) {
+          firestore.collection('products_v2').doc(productId)
+            .update({ 'ops.ebay.itemId': null, 'ops.ebay.itemIdCleared': new Date().toISOString(), 'ops.ebay.itemIdClearReason': 'listing_ended' })
+            .catch(() => {});
+        }
+      } else {
+        const { reviseFixedPriceItem } = require('../lib/ebay-trading-api');
+        const result = await reviseFixedPriceItem({
+          itemId: String(ebayItemId),
+          quantity: availableQuantity,
+        });
+        const status = result?.ack === 'Success' || result?.ack === 'Warning' ? 'success' : 'failed';
+        // Check if the listing was ended — if so, clear the stale itemId
+        const isEnded = result?.errors?.some((e) =>
+          String(e?.message || '').includes('beendet') ||
+          String(e?.message || '').includes('ended') ||
+          String(e?.errorCode || e?.code || '').includes('1047')
+        );
+        if (isEnded) {
+          console.warn(`[stock-sync] ebay listing ${ebayItemId} was ended — clearing stale itemId`);
+          firestore.collection('products_v2').doc(productId)
+            .update({ 'ops.ebay.itemId': null, 'ops.ebay.itemIdCleared': new Date().toISOString(), 'ops.ebay.itemIdClearReason': 'listing_ended' })
+            .catch(() => {});
+          results.push({ channel: 'ebay', status: 'skipped', itemId: ebayItemId, error: 'listing ended', zeroStock: false });
+        } else {
+          results.push({ channel: 'ebay', status, itemId: ebayItemId, quantityPushed: availableQuantity, zeroStock: false });
+        }
+        console.log(
+          `[stock-sync] ebay product=${productId} itemId=${ebayItemId} qty=${availableQuantity} status=${status}`
+        );
+      }
     } catch (err) {
-      results.push({ channel: 'ebay', status: 'error', error: err?.message });
-      console.warn(
-        `[stock-sync] ebay FAILED product=${productId} itemId=${ebayItemId}:`,
-        err?.message || err
-      );
+      const errMsg = err?.message || String(err);
+      // If error says listing is ended, clear the stale itemId to stop endless retries
+      if (errMsg.includes('beendet') || errMsg.includes('ended') || errMsg.includes('1047')) {
+        firestore.collection('products_v2').doc(productId)
+          .update({ 'ops.ebay.itemId': null, 'ops.ebay.itemIdCleared': new Date().toISOString(), 'ops.ebay.itemIdClearReason': 'listing_ended' })
+          .catch(() => {});
+        results.push({ channel: 'ebay', status: 'skipped', itemId: ebayItemId, error: 'listing ended (cleared)', zeroStock: isZeroStock });
+        console.log(`[stock-sync] ebay listing ${ebayItemId} ended — cleared stale itemId for product=${productId}`);
+      } else {
+        results.push({ channel: 'ebay', status: 'error', error: errMsg });
+        console.warn(
+          `[stock-sync] ebay FAILED product=${productId} itemId=${ebayItemId}:`,
+          errMsg
+        );
+      }
     }
   }
 
