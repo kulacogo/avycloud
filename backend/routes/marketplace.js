@@ -948,9 +948,14 @@ router.post('/kaufland/listings/sync', requirePermission('products', 'write'), a
         reconCount = 0;
       };
 
+      // Fix mismatch: warehouse is source of truth. If warehouse=0 but Kaufland>0,
+      // push the correct (0) quantity TO Kaufland instead of overwriting warehouse.
+      // The old code wrote Kaufland's quantity into inventory.quantity without updating
+      // storageBins, causing bin drift and the quantity flipping back to 0 on next refresh.
+      const { syncStockWithRetry } = require('../services/stock-sync-dispatcher');
       for (const unit of units) {
         const klAmount = Number(unit?.amount || 0);
-        if (klAmount <= 0) continue; // Kaufland reports 0 — nothing to reconcile
+        if (klAmount <= 0) continue;
 
         const idOffer = String(unit?.id_offer || '').trim().toLowerCase();
         const ean = String(unit?.ean || '').trim();
@@ -958,20 +963,14 @@ router.post('/kaufland/listings/sync', requirePermission('products', 'write'), a
         if (!matched) continue;
 
         const whQty = typeof matched.inventory?.quantity === 'number' ? matched.inventory.quantity : null;
-        if (whQty !== 0) continue; // Only reconcile when warehouse shows exactly 0
+        if (whQty !== 0) continue; // Only act when warehouse shows exactly 0
 
-        // Kaufland says >0, warehouse says 0 → update warehouse to Kaufland amount
-        const docRef = firestore.collection('products_v2').doc(matched.id);
-        reconBatch.update(docRef, {
-          'inventory.quantity': klAmount,
-          updatedAt: new Date().toISOString(),
-        });
-        reconCount++;
+        // Warehouse=0, Kaufland>0 → push 0 to Kaufland to prevent oversell
         reconciledCount++;
-        console.log(`[kaufland-sync] Reconciled inventory: ${matched.identification?.sku} warehouse 0 → ${klAmount} (from Kaufland)`);
-        if (reconCount >= 400) await commitRecon();
+        console.log(`[kaufland-sync] Stock mismatch: ${matched.identification?.sku} warehouse=0 kaufland=${klAmount} → pushing 0 to Kaufland`);
+        syncStockWithRetry({ tenantId, product: matched, reason: 'kaufland-reconciliation' })
+          .catch((err) => console.warn(`[kaufland-sync] reconciliation sync failed for ${matched.identification?.sku}: ${err.message}`));
       }
-      await commitRecon();
     } catch (reconErr) {
       console.error('[kaufland-sync] Reconciliation error (non-fatal):', reconErr.message);
     }

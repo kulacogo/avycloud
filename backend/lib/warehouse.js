@@ -566,8 +566,11 @@ async function decrementProductByIdOrSku(productIdOrSku, quantity) {
       productRef = ref;
       productSnap = await ref.get();
     } catch (e) {
-    console.warn('[decrementProductByIdOrSku] product not found', id);
-    return;
+      // CRITICAL: Do NOT silently return. Throwing ensures the caller knows stock was NOT decremented,
+      // so it can log a failure and the oversell-prevention system can intervene.
+      const msg = `[decrementProductByIdOrSku] CRITICAL: product not found for '${id}' — stock NOT decremented`;
+      console.error(msg);
+      throw new Error(msg);
     }
   }
   const productData = productSnap.data() || {};
@@ -586,8 +589,12 @@ async function decrementProductByIdOrSku(productIdOrSku, quantity) {
   }
 
   const cleanedBins = bins.filter((b) => Number(b.quantity || 0) > 0);
+  // Correct inventory calculation: always subtract the FULL requested quantity from inventory,
+  // not just the leftover `remaining` (which would be 0 if bins covered everything).
+  // refreshProductInventory() will re-derive from bins afterwards, but within the transaction
+  // window we need inventory.quantity to reflect the actual decrement.
   const invQty = Number(productData.inventory?.quantity || 0);
-  const newInv = Math.max(0, invQty - remaining);
+  const newInv = Math.max(0, invQty - (Number(quantity) || 0));
 
   let newStorage = productData.storage || null;
   if (newStorage?.binCode && !cleanedBins.find((b) => String(b.code).trim() === String(newStorage.binCode).trim())) {

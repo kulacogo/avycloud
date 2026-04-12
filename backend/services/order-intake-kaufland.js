@@ -248,7 +248,7 @@ async function syncKauflandOrders({ tenantId = 'default', lookbackDays = 7 } = {
     if (result.orders.length < 100) break;
   } while (offset < totalEntries && offset < 5000); // Safety limit
 
-  // After importing new orders, push updated availability to marketplaces (with retry)
+  // After importing new orders, push updated availability to marketplaces (AWAITED)
   if (newOrderSkus.size > 0) {
     try {
       const { syncStockWithRetry, findProductsBySkuChunk } = require('./stock-sync-dispatcher');
@@ -257,17 +257,21 @@ async function syncKauflandOrders({ tenantId = 'default', lookbackDays = 7 } = {
         const chunk = skuArray.slice(i, i + 10);
         const products = await findProductsBySkuChunk(chunk);
         for (const product of products) {
-          syncStockWithRetry({ tenantId, product, reason: 'kaufland-order-intake' })
-            .catch((err) => console.warn(`[kaufland-intake] stock sync failed for ${product.id}: ${err.message}`));
+          try {
+            await syncStockWithRetry({ tenantId, product, reason: 'kaufland-order-intake' });
+          } catch (err) {
+            console.warn(`[kaufland-intake] stock sync failed for ${product.id}: ${err.message}`);
+          }
         }
       }
-      console.log(`[kaufland-intake] triggered stock sync for ${newOrderSkus.size} SKUs from ${totalSynced} new orders`);
+      console.log(`[kaufland-intake] completed stock sync for ${newOrderSkus.size} SKUs from ${totalSynced} new orders`);
     } catch (err) {
       console.warn(`[kaufland-intake] stock sync after import failed: ${err.message}`);
     }
   }
 
   // Event-driven: emit for each new order so downstream syncs fire
+  // NOTE: stock sync is NOT re-triggered in order:created handler (removed to prevent double sync)
   for (const order of newOrders) {
     emitSyncEvent('order:created', {
       entityId: `kaufland__${order.marketplaceOrderId}`,

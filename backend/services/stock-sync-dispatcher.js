@@ -54,11 +54,20 @@ async function computeAvailableQuantity(product, tenantId = 'default') {
   let reservedQty = 0;
   try {
     const { getReservedQuantity } = require('./stock-reservation');
+    // Search by BOTH sku AND productId to catch all reservations.
+    // Reservations from order intake use sku; manual reservations may use productId.
+    // Using OR logic missed reservations when the key didn't match exactly.
+    let bySkuQty = 0;
+    let byProductIdQty = 0;
     if (sku) {
-      reservedQty = await getReservedQuantity({ tenantId, sku });
-    } else if (productId) {
-      reservedQty = await getReservedQuantity({ tenantId, productId });
+      bySkuQty = await getReservedQuantity({ tenantId, sku });
     }
+    if (productId) {
+      byProductIdQty = await getReservedQuantity({ tenantId, productId });
+    }
+    // Take the higher of the two to avoid double-counting if both point to same reservations,
+    // but also to avoid missing reservations indexed under the other key.
+    reservedQty = Math.max(bySkuQty, byProductIdQty);
   } catch (err) {
     console.warn(`[stock-sync] reservation lookup failed for ${sku || productId}: ${err.message}`);
   }
@@ -428,12 +437,17 @@ async function syncStockForOrderItems({ tenantId = 'default', orderId, reason = 
     if (skus.length === 0) return;
 
     // Query products by SKU (in chunks of 10) — search both SKU fields
+    // Await each sync to ensure marketplace quantities are updated before returning.
+    // Fire-and-forget caused race conditions where subsequent syncs read stale data.
     for (let i = 0; i < skus.length; i += 10) {
       const chunk = skus.slice(i, i + 10);
       const products = await findProductsBySkuChunk(chunk);
       for (const product of products) {
-        syncStockWithRetry({ tenantId, product, reason: `${reason}-${orderId}` })
-          .catch((err) => console.warn(`[stock-sync] order item sync failed: ${err.message}`));
+        try {
+          await syncStockWithRetry({ tenantId, product, reason: `${reason}-${orderId}` });
+        } catch (err) {
+          console.warn(`[stock-sync] order item sync failed for ${product.id}: ${err.message}`);
+        }
       }
     }
   } catch (err) {

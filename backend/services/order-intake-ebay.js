@@ -252,7 +252,8 @@ async function syncEbayOrders({ tenantId = 'default', lookbackDays = 7 } = {}) {
     if (page > result.totalPages) break;
   } while (page <= 50); // Safety limit
 
-  // Push updated availability to all marketplaces
+  // Push updated availability to all marketplaces (AWAITED to ensure stock is synced
+  // before event emission — prevents race conditions with stale quantities)
   if (newOrderSkus.size > 0) {
     try {
       const skuArray = Array.from(newOrderSkus);
@@ -260,17 +261,21 @@ async function syncEbayOrders({ tenantId = 'default', lookbackDays = 7 } = {}) {
         const chunk = skuArray.slice(i, i + 10);
         const products = await findProductsBySkuChunk(chunk);
         for (const product of products) {
-          syncStockWithRetry({ tenantId, product, reason: 'ebay-order-intake' })
-            .catch((err) => console.warn(`[ebay-intake] stock sync failed for ${product.id}: ${err.message}`));
+          try {
+            await syncStockWithRetry({ tenantId, product, reason: 'ebay-order-intake' });
+          } catch (err) {
+            console.warn(`[ebay-intake] stock sync failed for ${product.id}: ${err.message}`);
+          }
         }
       }
-      console.log(`[ebay-intake] triggered stock sync for ${newOrderSkus.size} SKUs from ${totalSynced} new orders`);
+      console.log(`[ebay-intake] completed stock sync for ${newOrderSkus.size} SKUs from ${totalSynced} new orders`);
     } catch (err) {
       console.warn(`[ebay-intake] stock sync after import failed: ${err.message}`);
     }
   }
 
   // Event-driven: emit for each new order so downstream syncs fire
+  // NOTE: stock sync is NOT re-triggered in order:created handler (removed to prevent double sync)
   for (const order of newOrders) {
     emitSyncEvent('order:created', {
       entityId: `ebay__${order.marketplaceOrderId}`,
