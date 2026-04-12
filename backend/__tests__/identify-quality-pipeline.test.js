@@ -23,6 +23,23 @@ require.cache[gpsrModulePath] = {
   paths: [],
 };
 
+// Patch ebay-browse-title-insights (calls eBay API) — must be before pipeline require
+const mockFetchCategoryTitleInsights = vi.fn().mockResolvedValue({ ok: false });
+const titleInsightsModulePath = require.resolve('../lib/ebay-browse-title-insights');
+require.cache[titleInsightsModulePath] = {
+  id: titleInsightsModulePath,
+  filename: titleInsightsModulePath,
+  loaded: true,
+  exports: {
+    fetchCategoryTitleInsights: mockFetchCategoryTitleInsights,
+    fetchBrowsePriceSamples: vi.fn().mockResolvedValue({ ok: false }),
+    fetchTopTitlesForCategory: vi.fn().mockResolvedValue([]),
+    tokenizeTitle: vi.fn(t => (t || '').toLowerCase().split(/\s+/)),
+  },
+  children: [],
+  paths: [],
+};
+
 const { runIdentifyQualityPipeline } = require('../lib/identify-quality-pipeline');
 
 function makeProduct(overrides = {}) {
@@ -280,6 +297,105 @@ describe('identify-quality-pipeline', () => {
       expect(step).toBeDefined();
       expect(step.ok).toBeDefined();
       expect(Array.isArray(step.issues)).toBe(true);
+    });
+  });
+
+  describe('Required aspects check', () => {
+    it('reports missing required aspects', async () => {
+      const product = makeProduct();
+      product.details.categoryId = '12345';
+      product.details.attributes = { Farbe: 'Schwarz' };
+      const { qualityReport } = await runIdentifyQualityPipeline(product, {});
+      const step = qualityReport.steps.find(s => s.step === 'required_aspects');
+      expect(step).toBeDefined();
+      expect(step.ok).toBe(true);
+      expect(step.checked).toBe(true);
+    });
+
+    it('handles missing category gracefully', async () => {
+      const product = makeProduct();
+      product.details.categoryId = '';
+      const { qualityReport } = await runIdentifyQualityPipeline(product, {});
+      const step = qualityReport.steps.find(s => s.step === 'required_aspects');
+      expect(step.checked).toBe(false);
+      expect(step.reason).toBe('no_category');
+    });
+  });
+
+  describe('Title insights', () => {
+    it('fetches and stores title insights', async () => {
+      mockFetchCategoryTitleInsights.mockResolvedValueOnce({
+        ok: true,
+        categoryId: '12345',
+        topTokens: ['bluetooth', 'wireless'],
+        sampleTitles: ['Sony WH-1000XM5 Bluetooth Kopfhoerer'],
+      });
+      const product = makeProduct();
+      product.details.categoryId = '12345';
+      const { qualityReport, product: result } = await runIdentifyQualityPipeline(product, {});
+      const step = qualityReport.steps.find(s => s.step === 'title_insights');
+      expect(step.ok).toBe(true);
+      expect(step.fetched).toBe(true);
+      expect(result.ops.title_insights.topTokens).toEqual(['bluetooth', 'wireless']);
+    });
+
+    it('handles API failure gracefully', async () => {
+      mockFetchCategoryTitleInsights.mockResolvedValueOnce({ ok: false });
+      const product = makeProduct();
+      product.details.categoryId = '12345';
+      const { qualityReport } = await runIdentifyQualityPipeline(product, {});
+      const step = qualityReport.steps.find(s => s.step === 'title_insights');
+      expect(step.fetched).toBe(false);
+    });
+  });
+
+  describe('Price sanity', () => {
+    it('passes valid price with source', async () => {
+      const product = makeProduct();
+      const { qualityReport } = await runIdentifyQualityPipeline(product, {});
+      const step = qualityReport.steps.find(s => s.step === 'price_sanity');
+      expect(step.ok).toBe(true);
+    });
+
+    it('flags missing price', async () => {
+      const product = makeProduct();
+      product.details.pricing = {};
+      const { qualityReport } = await runIdentifyQualityPipeline(product, {});
+      const step = qualityReport.steps.find(s => s.step === 'price_sanity');
+      expect(step.ok).toBe(false);
+      expect(step.issues).toContain('price_missing');
+    });
+
+    it('flags suspiciously low price', async () => {
+      const product = makeProduct();
+      product.details.pricing = { lowest_price: { amount: 0.10, currency: 'EUR', sources: [{ url: 'https://x.de', name: 'x' }] } };
+      const { qualityReport } = await runIdentifyQualityPipeline(product, {});
+      const step = qualityReport.steps.find(s => s.step === 'price_sanity');
+      expect(step.issues).toContain('price_too_low');
+    });
+
+    it('flags price without source URL', async () => {
+      const product = makeProduct();
+      product.details.pricing = { lowest_price: { amount: 29.99, currency: 'EUR', sources: [] } };
+      const { qualityReport } = await runIdentifyQualityPipeline(product, {});
+      const step = qualityReport.steps.find(s => s.step === 'price_sanity');
+      expect(step.issues).toContain('price_no_source');
+    });
+  });
+
+  describe('Quality evaluation', () => {
+    it('stores quality snapshot in ops', async () => {
+      const product = makeProduct();
+      const { product: result } = await runIdentifyQualityPipeline(product, {});
+      expect(result.ops.data_quality.identify_pipeline_v1).toBeDefined();
+      expect(result.ops.data_quality.identify_pipeline_v1.checked_at_iso).toBeDefined();
+      expect(typeof result.ops.data_quality.identify_pipeline_v1.ok).toBe('boolean');
+    });
+
+    it('includes issues in quality snapshot', async () => {
+      const product = makeProduct();
+      const { product: result } = await runIdentifyQualityPipeline(product, {});
+      expect(Array.isArray(result.ops.data_quality.identify_pipeline_v1.issues)).toBe(true);
     });
   });
 

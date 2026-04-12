@@ -57,6 +57,38 @@ async function runIdentifyQualityPipeline(product, groundedRecord = {}, { locale
     steps.push({ step: 'rulebook_apply', ok: false, error: e.message });
   }
 
+  // Step 6: Required Aspects Check
+  try {
+    const result = checkRequiredAspects(product);
+    steps.push({ step: 'required_aspects', ok: true, ...result });
+  } catch (e) {
+    steps.push({ step: 'required_aspects', ok: false, error: e.message });
+  }
+
+  // Step 7: Title Insights Fetch
+  try {
+    const result = await fetchTitleInsights(product);
+    steps.push({ step: 'title_insights', ok: true, ...result });
+  } catch (e) {
+    steps.push({ step: 'title_insights', ok: false, error: e.message });
+  }
+
+  // Step 8: Price Sanity Check
+  try {
+    const result = checkPriceSanity(product);
+    steps.push({ step: 'price_sanity', ...result });
+  } catch (e) {
+    steps.push({ step: 'price_sanity', ok: false, error: e.message });
+  }
+
+  // Step 9: Quality Evaluation (eBay Readiness)
+  try {
+    const result = runQualityEvaluation(product);
+    steps.push({ step: 'quality_eval', ok: result?.ok !== false, ebayReady: Boolean(result?.ok) });
+  } catch (e) {
+    steps.push({ step: 'quality_eval', ok: false, error: e.message });
+  }
+
   return {
     product,
     qualityReport: { steps, totalIssues: steps.filter(s => !s.ok).length },
@@ -222,6 +254,82 @@ function applyRulebook(product) {
     issues: rulebookResult.issues || [],
     issueCount: (rulebookResult.issues || []).length,
   };
+}
+
+function checkRequiredAspects(product) {
+  const categoryId = String(product?.details?.categoryId || '').replace(/\D/g, '');
+  if (!categoryId) return { checked: false, reason: 'no_category' };
+
+  const { getRequiredAspects } = require('./ebay-taxonomy');
+  const required = getRequiredAspects(categoryId);
+  if (!required || !required.length) return { checked: true, missing: [], total: 0, filled: 0 };
+
+  const attrs = product?.details?.attributes || {};
+  const attrKeysLower = Object.keys(attrs).map(k => k.toLowerCase().trim());
+
+  const missing = [];
+  for (const aspect of required) {
+    const name = typeof aspect === 'string' ? aspect : aspect?.name || '';
+    if (!name) continue;
+    const found = attrKeysLower.some(k => k === name.toLowerCase().trim());
+    if (!found) missing.push(name);
+  }
+
+  return { checked: true, missing, total: required.length, filled: required.length - missing.length };
+}
+
+async function fetchTitleInsights(product) {
+  const categoryId = String(product?.details?.categoryId || '').replace(/\D/g, '');
+  if (!categoryId) return { fetched: false, reason: 'no_category' };
+
+  const { fetchCategoryTitleInsights } = require('./ebay-browse-title-insights');
+  const insights = await fetchCategoryTitleInsights({ categoryId });
+
+  if (!insights?.ok) return { fetched: false, reason: 'api_failed' };
+
+  // Store insights in ops for traceability
+  product.ops = product.ops || {};
+  product.ops.title_insights = {
+    topTokens: insights.topTokens || [],
+    sampleCount: (insights.sampleTitles || []).length,
+    fetchedAt: new Date().toISOString(),
+  };
+
+  return { fetched: true, topTokens: (insights.topTokens || []).length };
+}
+
+function checkPriceSanity(product) {
+  const lp = product?.details?.pricing?.lowest_price;
+  const issues = [];
+  if (!lp || lp.amount == null) {
+    issues.push('price_missing');
+    return { ok: false, issues };
+  }
+  const amount = typeof lp.amount === 'number' ? lp.amount : Number(lp.amount);
+  if (!Number.isFinite(amount) || amount <= 0) {
+    issues.push('price_invalid');
+    return { ok: false, issues };
+  }
+  if (amount < 0.50) issues.push('price_too_low');
+  if (amount > 50000) issues.push('price_too_high');
+  const sources = Array.isArray(lp.sources) ? lp.sources.filter(s => s?.url) : [];
+  if (!sources.length) issues.push('price_no_source');
+  return { ok: issues.length === 0, issues };
+}
+
+function runQualityEvaluation(product) {
+  const { evaluateEbayReady } = require('./datasheet-quality');
+  const quality = evaluateEbayReady(product, { force: true });
+  product.ops = product.ops || {};
+  product.ops.data_quality = product.ops.data_quality || {};
+  product.ops.data_quality.identify_pipeline_v1 = {
+    checked_at_iso: new Date().toISOString(),
+    ok: Boolean(quality?.ok),
+    issues: Array.isArray(quality?.issues) ? quality.issues.slice(0, 40) : [],
+    issues_detailed: Array.isArray(quality?.issuesDetailed) ? quality.issuesDetailed.slice(0, 60) : [],
+    snapshot: quality?.snapshot || null,
+  };
+  return quality;
 }
 
 module.exports = { runIdentifyQualityPipeline };
