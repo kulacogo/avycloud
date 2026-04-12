@@ -400,6 +400,25 @@ const server = app.listen(PORT, () => {
     console.warn('[reservation-cleanup] failed to start:', err?.message || err);
   }
 
+  // ─── Startup oversell check: fix any zero-stock items still listed on marketplaces ──
+  // Runs once 2 min after deploy to catch oversells immediately.
+  try {
+    setTimeout(async () => {
+      try {
+        const { autoHealStockDiscrepancies } = require('./services/listing-sync-runner');
+        if (typeof autoHealStockDiscrepancies === 'function') {
+          await autoHealStockDiscrepancies();
+          console.log('[startup-oversell-check] completed');
+        }
+      } catch (err) {
+        console.warn('[startup-oversell-check] failed:', err?.message);
+      }
+    }, 2 * 60 * 1000); // 2 min after startup
+    console.log('[startup-oversell-check] scheduled: 2 min after startup');
+  } catch (err) {
+    console.warn('[startup-oversell-check] failed to schedule:', err?.message);
+  }
+
   // Stock reconciliation: activity-based every 30min, full scan daily at 3 AM
   const RECONCILIATION_INTERVAL_MS = parseInt(process.env.RECONCILIATION_INTERVAL_MS || String(30 * 60 * 1000), 10);
   try {

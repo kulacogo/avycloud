@@ -11,6 +11,7 @@
  */
 const { firestore, saveProduct } = require('./firestore');
 const { normalizeProduct, validateCanonical } = require('./product-canonical');
+const { emitSyncEvent } = require('../services/sync-event-bus');
 
 // Feature-Flag: Umschalten zwischen alter und neuer Collection
 const COLLECTION = process.env.PRODUCT_COLLECTION || 'products';
@@ -30,6 +31,21 @@ function getCollection() {
  * Signatur: saveProductV2(product, options) — identisch zu saveProduct().
  */
 async function saveProductV2(product, options = {}) {
+  const productId = product.id;
+
+  // ── Stock change detection: read old inventory BEFORE save ──
+  // Only when the incoming product includes inventory data (avoids extra reads on non-stock saves)
+  let oldQty = null;
+  const hasInventory = product?.inventory?.quantity !== undefined;
+  if (hasInventory && productId) {
+    try {
+      const oldDoc = await firestore.collection(getCollection()).doc(productId).get();
+      oldQty = oldDoc.exists ? Number(oldDoc.data()?.inventory?.quantity ?? -1) : null;
+    } catch {
+      // Non-critical: if read fails, skip change detection
+    }
+  }
+
   // 1) Originale saveProduct() ausführen — alle Business-Logik bleibt erhalten
   //    (SKU-Allokation, Title-Policy, Category-Mapping, Identifier-Sync etc.)
   const result = await saveProduct(product, options);
@@ -59,6 +75,21 @@ async function saveProductV2(product, options = {}) {
       await firestore.collection(V2_COLLECTION).doc(targetId).set(normalized, { merge: true });
     } catch (err) {
       console.error(`[saveProductV2] v2 write failed for ${product.id}: ${err.message}`);
+    }
+  }
+
+  // ── Emit stock:changed event if inventory actually changed ──
+  // This triggers automatic stock sync to ALL marketplace channels (eBay, Kaufland)
+  if (hasInventory && oldQty !== null && productId) {
+    const newQty = Number(product.inventory.quantity);
+    if (newQty !== oldQty) {
+      emitSyncEvent('stock:changed', {
+        entityId: productId,
+        tenantId: options?.tenantId || 'default',
+        reason: options?.source || 'product-save',
+        oldQty,
+        newQty,
+      });
     }
   }
 

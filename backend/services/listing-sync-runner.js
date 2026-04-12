@@ -352,14 +352,13 @@ async function autoHealStockDiscrepancies() {
     if (now - ts > 2 * 60 * 60 * 1000) lastHealedAt.delete(key);
   }
 
-  for (let i = 0; i < skus.length && healed < MAX_HEALS_PER_CYCLE; i += 10) {
+  for (let i = 0; i < skus.length; i += 10) {
     const chunk = skus.slice(i, i + 10);
     try {
       const snap = await firestore.collection(PRODUCTS_COLLECTION)
         .where('identification.sku', 'in', chunk)
         .get();
       for (const doc of snap.docs) {
-        if (healed >= MAX_HEALS_PER_CYCLE) break;
         const product = { id: doc.id, ...doc.data() };
         const sku = String(product?.identification?.sku || '').trim();
 
@@ -376,8 +375,10 @@ async function autoHealStockDiscrepancies() {
 
         const isOversell = availableQty === 0 && ((ebayMpQty || 0) > 0 || (kauflandMpQty || 0) > 0);
 
-        // Skip non-critical mismatches if we already pushed recently (cooldown)
+        // Oversells are ALWAYS fixed immediately — no cooldown, no limit.
+        // Non-critical mismatches respect cooldown + per-cycle limit.
         if (!isOversell) {
+          if (healed >= MAX_HEALS_PER_CYCLE) continue;
           const lastHealed = lastHealedAt.get(sku) || 0;
           if (now - lastHealed < HEAL_COOLDOWN_MS) continue;
         }
@@ -386,9 +387,18 @@ async function autoHealStockDiscrepancies() {
           `[ListingSyncRunner] Auto-heal: ${sku} available=${availableQty} ebay=${ebayMpQty ?? '-'} kaufland=${kauflandMpQty ?? '-'}${isOversell ? ' ⚠️ OVERSELL' : ''} → pushing`
         );
         lastHealedAt.set(sku, now);
-        syncStockWithRetry({ tenantId: 'default', product, reason: isOversell ? 'oversell-fix' : 'auto-heal' })
-          .catch((err) => console.warn(`[auto-heal] push failed for ${sku}: ${err.message}`));
-        healed++;
+        // Oversells: await to ensure they're fixed before moving on
+        if (isOversell) {
+          try {
+            await syncStockWithRetry({ tenantId: 'default', product, reason: 'oversell-fix' });
+          } catch (err) {
+            console.error(`[auto-heal] ⚠️ OVERSELL FIX FAILED for ${sku}: ${err.message}`);
+          }
+        } else {
+          syncStockWithRetry({ tenantId: 'default', product, reason: 'auto-heal' })
+            .catch((err) => console.warn(`[auto-heal] push failed for ${sku}: ${err.message}`));
+          healed++;
+        }
       }
     } catch (err) {
       console.warn(`[ListingSyncRunner] Auto-heal SKU query failed: ${err.message}`);
@@ -489,4 +499,4 @@ function stopListingSyncRunner() {
   }
 }
 
-module.exports = { startListingSyncRunner, stopListingSyncRunner };
+module.exports = { startListingSyncRunner, stopListingSyncRunner, autoHealStockDiscrepancies };
