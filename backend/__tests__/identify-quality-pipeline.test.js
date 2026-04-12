@@ -1,5 +1,25 @@
 'use strict';
 
+// Patch gpsr-manufacturer-registry (uses Firestore) — must be before pipeline require
+const path = require('path');
+const mockGetManufacturerGpsrByName = vi.fn().mockResolvedValue(null);
+const mockUpsertManufacturerGpsr = vi.fn().mockResolvedValue({ ok: true });
+
+const gpsrModulePath = require.resolve('../lib/gpsr-manufacturer-registry');
+require.cache[gpsrModulePath] = {
+  id: gpsrModulePath,
+  filename: gpsrModulePath,
+  loaded: true,
+  exports: {
+    getManufacturerGpsrByName: mockGetManufacturerGpsrByName,
+    upsertManufacturerGpsr: mockUpsertManufacturerGpsr,
+    normalizeManufacturerKey: vi.fn(n => n?.toLowerCase?.() || ''),
+    manufacturerKeyCandidates: vi.fn(n => [n?.toLowerCase?.() || '']),
+  },
+  children: [],
+  paths: [],
+};
+
 const { runIdentifyQualityPipeline } = require('../lib/identify-quality-pipeline');
 
 function makeProduct(overrides = {}) {
@@ -128,6 +148,78 @@ describe('identify-quality-pipeline', () => {
       const { qualityReport } = await runIdentifyQualityPipeline(product, grounded);
       const step = qualityReport.steps.find(s => s.step === 'mobile_snippet');
       expect(step.applied).toBe(false);
+    });
+  });
+
+  describe('GPSR registry merge', () => {
+    beforeEach(() => {
+      mockGetManufacturerGpsrByName.mockReset().mockResolvedValue(null);
+      mockUpsertManufacturerGpsr.mockReset().mockResolvedValue({ ok: true });
+    });
+
+    it('merges registry GPSR data with grounding data', async () => {
+      mockGetManufacturerGpsrByName.mockResolvedValueOnce({
+        key: 'testbrand',
+        manufacturer_name: 'TestBrand GmbH',
+        gpsr: {
+          manufacturer_name: 'TestBrand GmbH',
+          email: 'info@testbrand.de',
+          manufacturer_address: 'Musterstr. 1',
+          manufacturer_city: 'Berlin',
+          manufacturer_postalcode: '10115',
+          entity_country: 'Germany',
+          country_code: 'DE',
+        },
+      });
+      const product = makeProduct();
+      const grounded = { gpsr_manufacturer_name: 'TestBrand', gpsr_manufacturer_email: 'support@testbrand.de' };
+      const { product: result } = await runIdentifyQualityPipeline(product, grounded);
+      // Grounding email takes priority (fresher)
+      expect(result.details.gpsr.email).toBe('support@testbrand.de');
+      // Registry fills address (grounding didn't have it)
+      expect(result.details.gpsr.manufacturer_address).toBe('Musterstr. 1');
+      expect(result.details.gpsr.manufacturer_city).toBe('Berlin');
+    });
+
+    it('stores GPSR at details.gpsr, not top-level', async () => {
+      const product = makeProduct();
+      product.gpsr = { manufacturer_name: 'WrongLocation' }; // Old location
+      const grounded = { gpsr_manufacturer_name: 'NewBrand', gpsr_manufacturer_email: 'info@new.de' };
+      const { product: result } = await runIdentifyQualityPipeline(product, grounded);
+      expect(result.details.gpsr).toBeDefined();
+      expect(result.details.gpsr.manufacturer_name).toBe('NewBrand');
+      expect(result.gpsr).toBeUndefined(); // Top-level removed
+    });
+
+    it('upserts new GPSR data to registry', async () => {
+      const product = makeProduct();
+      const grounded = { gpsr_manufacturer_name: 'NewBrand', gpsr_manufacturer_email: 'info@new.de' };
+      await runIdentifyQualityPipeline(product, grounded);
+      expect(mockUpsertManufacturerGpsr).toHaveBeenCalledWith(
+        expect.objectContaining({
+          manufacturer_name: 'TestBrand',
+          gpsr: expect.objectContaining({ email: 'info@new.de' }),
+          overwrite: false,
+        })
+      );
+    });
+
+    it('skips GPSR when no brand available', async () => {
+      const product = makeProduct();
+      product.identification.brand = '';
+      const { qualityReport } = await runIdentifyQualityPipeline(product, {});
+      const step = qualityReport.steps.find(s => s.step === 'gpsr_merge');
+      expect(step.source).toBe('none');
+      expect(mockGetManufacturerGpsrByName).not.toHaveBeenCalled();
+    });
+
+    it('handles registry lookup failure gracefully', async () => {
+      mockGetManufacturerGpsrByName.mockRejectedValueOnce(new Error('Firestore down'));
+      const product = makeProduct();
+      const grounded = { gpsr_manufacturer_name: 'TestBrand', gpsr_manufacturer_email: 'test@test.de' };
+      const { product: result } = await runIdentifyQualityPipeline(product, grounded);
+      // Should still have grounding data
+      expect(result.details.gpsr.email).toBe('test@test.de');
     });
   });
 

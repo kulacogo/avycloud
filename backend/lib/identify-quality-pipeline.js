@@ -41,6 +41,14 @@ async function runIdentifyQualityPipeline(product, groundedRecord = {}, { locale
     steps.push({ step: 'mobile_snippet', ok: false, error: e.message });
   }
 
+  // Step 4: GPSR Registry Merge
+  try {
+    const result = await mergeGpsr(product, groundedRecord);
+    steps.push({ step: 'gpsr_merge', ok: true, ...result });
+  } catch (e) {
+    steps.push({ step: 'gpsr_merge', ok: false, error: e.message });
+  }
+
   return {
     product,
     qualityReport: { steps, totalIssues: steps.filter(s => !s.ok).length },
@@ -117,6 +125,64 @@ function integrateMobileSnippet(product, groundedRecord) {
   product.marketplace.ebay = product.marketplace.ebay || {};
   product.marketplace.ebay.mobile_snippet = snippet;
   return { applied: true };
+}
+
+async function mergeGpsr(product, groundedRecord) {
+  const brand = product?.identification?.brand || groundedRecord?.gpsr_manufacturer_name || '';
+  if (!brand) return { source: 'none' };
+
+  // Build GPSR object from grounding flat fields
+  const fromGrounding = {};
+  if (groundedRecord?.gpsr_manufacturer_name) fromGrounding.manufacturer_name = groundedRecord.gpsr_manufacturer_name;
+  if (groundedRecord?.gpsr_manufacturer_address) fromGrounding.manufacturer_address = groundedRecord.gpsr_manufacturer_address;
+  if (groundedRecord?.gpsr_manufacturer_email) fromGrounding.email = groundedRecord.gpsr_manufacturer_email;
+  if (groundedRecord?.gpsr_manufacturer_phone) fromGrounding.manufacturer_phone = groundedRecord.gpsr_manufacturer_phone;
+  if (groundedRecord?.gpsr_manufacturer_country) fromGrounding.country_code = groundedRecord.gpsr_manufacturer_country;
+
+  // Lazy-load registry module (uses Firestore)
+  const { getManufacturerGpsrByName, upsertManufacturerGpsr } = require('./gpsr-manufacturer-registry');
+
+  // Lookup registry
+  let registryEntry = null;
+  try {
+    registryEntry = await getManufacturerGpsrByName(brand);
+  } catch { /* registry unavailable */ }
+
+  // Merge: grounding fills gaps in registry data (grounding is fresher for new fields)
+  const registryGpsr = registryEntry?.gpsr || {};
+  const merged = {};
+
+  // Take registry values as base, overlay grounding values (non-empty only)
+  for (const key of Object.keys({ ...registryGpsr, ...fromGrounding })) {
+    const regVal = typeof registryGpsr[key] === 'string' ? registryGpsr[key].trim() : '';
+    const grndVal = typeof fromGrounding[key] === 'string' ? fromGrounding[key].trim() : '';
+    merged[key] = grndVal || regVal; // Grounding takes priority when present
+  }
+
+  // Store at canonical location
+  product.details = product.details || {};
+  product.details.gpsr = merged;
+  delete product.gpsr; // Remove incorrect top-level location if it exists
+
+  // Upsert new data to registry for future products (best-effort)
+  const hasNewData = Object.values(fromGrounding).some(v => typeof v === 'string' && v.trim());
+  if (hasNewData) {
+    try {
+      await upsertManufacturerGpsr({
+        manufacturer_name: brand,
+        gpsr: fromGrounding,
+        sources: ['identify'],
+        from_product_id: product.id || null,
+        overwrite: false,
+      });
+    } catch { /* best-effort */ }
+  }
+
+  return {
+    source: registryEntry ? 'merged' : 'grounding_only',
+    fieldsFromRegistry: Object.keys(registryGpsr).filter(k => registryGpsr[k]).length,
+    fieldsFromGrounding: Object.keys(fromGrounding).filter(k => fromGrounding[k]).length,
+  };
 }
 
 module.exports = { runIdentifyQualityPipeline };
