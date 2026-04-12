@@ -72,6 +72,65 @@ describe('identify-quality-pipeline', () => {
     });
   });
 
+  describe('Web image integration', () => {
+    it('maps web_image_urls from grounding to product images', async () => {
+      const product = makeProduct();
+      const grounded = { web_image_urls: ['https://shop.example.com/product-large.jpg', 'https://mfg.example.com/hero.png'] };
+      const { product: result } = await runIdentifyQualityPipeline(product, grounded);
+      const webImages = result.details.images.filter(i => i.source === 'grounding_web');
+      expect(webImages).toHaveLength(2);
+      expect(webImages[0].url_or_base64).toBe('https://shop.example.com/product-large.jpg');
+    });
+
+    it('skips duplicate URLs already in images', async () => {
+      const product = makeProduct();
+      product.details.images = [{ url_or_base64: 'https://shop.example.com/product-large.jpg', source: 'upload' }];
+      const grounded = { web_image_urls: ['https://shop.example.com/product-large.jpg'] };
+      const { product: result } = await runIdentifyQualityPipeline(product, grounded);
+      expect(result.details.images).toHaveLength(1);
+    });
+
+    it('limits to 3 web images', async () => {
+      const product = makeProduct();
+      const grounded = { web_image_urls: ['https://a.com/1.jpg', 'https://b.com/2.jpg', 'https://c.com/3.jpg', 'https://d.com/4.jpg', 'https://e.com/5.jpg'] };
+      const { product: result } = await runIdentifyQualityPipeline(product, grounded);
+      const webImages = result.details.images.filter(i => i.source === 'grounding_web');
+      expect(webImages).toHaveLength(3);
+    });
+
+    it('handles missing web_image_urls gracefully', async () => {
+      const product = makeProduct();
+      const { qualityReport } = await runIdentifyQualityPipeline(product, {});
+      const step = qualityReport.steps.find(s => s.step === 'web_images');
+      expect(step.ok).toBe(true);
+      expect(step.added).toBe(0);
+    });
+  });
+
+  describe('Mobile snippet', () => {
+    it('stores mobile_snippet in marketplace.ebay', async () => {
+      const product = makeProduct();
+      const grounded = { mobile_snippet: 'Compact product summary for mobile' };
+      const { product: result } = await runIdentifyQualityPipeline(product, grounded);
+      expect(result.marketplace.ebay.mobile_snippet).toBe('Compact product summary for mobile');
+    });
+
+    it('truncates to 800 chars', async () => {
+      const product = makeProduct();
+      const grounded = { mobile_snippet: 'A'.repeat(1000) };
+      const { product: result } = await runIdentifyQualityPipeline(product, grounded);
+      expect(result.marketplace.ebay.mobile_snippet.length).toBe(800);
+    });
+
+    it('skips empty snippet', async () => {
+      const product = makeProduct();
+      const grounded = { mobile_snippet: '' };
+      const { qualityReport } = await runIdentifyQualityPipeline(product, grounded);
+      const step = qualityReport.steps.find(s => s.step === 'mobile_snippet');
+      expect(step.applied).toBe(false);
+    });
+  });
+
   describe('Pipeline resilience', () => {
     it('does not throw with minimal product data', async () => {
       const product = { id: 'minimal', identification: {}, details: {}, ops: {}, notes: {} };
