@@ -36,6 +36,14 @@ const OMS_STATUS_LABELS: Record<string, string> = {
   returned: "Retoure", on_hold: "Pausiert", refunded: "Erstattet",
 };
 
+/* ─── OMS Status Sort Order (workflow sequence) ─── */
+const OMS_STATUS_SORT_ORDER: Record<string, number> = {
+  pending: 0, new: 0, confirmed: 1, picking: 2, picked: 3,
+  packing: 4, packed: 5, shipped: 6, delivered: 7,
+  completed: 8, cancelled: 9, returned: 10, on_hold: 11,
+  refunded: 12, other: 99,
+};
+
 /* ─── Status badge styling ─── */
 const statusBadge = (status: string) => {
   switch (status) {
@@ -287,7 +295,11 @@ const OrdersView: React.FC = () => {
       } else if (sortField === "totalAmount") {
         cmp = (a.totalAmount || 0) - (b.totalAmount || 0);
       } else if (sortField === "status") {
-        cmp = a.status.localeCompare(b.status);
+        const aStatus = getOrderStatus(a);
+        const bStatus = getOrderStatus(b);
+        const aOrder = OMS_STATUS_SORT_ORDER[aStatus] ?? 99;
+        const bOrder = OMS_STATUS_SORT_ORDER[bStatus] ?? 99;
+        cmp = aOrder - bOrder;
       }
       return sortAsc ? cmp : -cmp;
     });

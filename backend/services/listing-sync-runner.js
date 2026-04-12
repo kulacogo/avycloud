@@ -47,12 +47,12 @@ async function propagateEbayStatusToProducts() {
   const listingStatusByItemId = new Map();
   for (const doc of listingSnap.docs) {
     const data = doc.data();
-    const status = (data?.listingStatus || '').toLowerCase();
     const active = Boolean(data?.active);
-    // Use OR: consider active if either flag says so.
-    // Prevents false 'inactive' when deactivation sets active=false
-    // but listingStatus still reflects the real eBay state.
-    listingStatusByItemId.set(doc.id, (active || status === 'active') ? 'active' : 'inactive');
+    // Use `active` boolean as the sole source of truth.
+    // It is set by upsertLiveListingSummaries (which now respects listingStatus)
+    // and deactivateListingsMissingFromActiveSet. Using OR with listingStatus
+    // caused inconsistencies where ended listings still showed as active.
+    listingStatusByItemId.set(doc.id, active ? 'active' : 'inactive');
   }
 
   // 3. Group by productId — if any listing is active, product is active on eBay
@@ -149,15 +149,17 @@ async function propagateKauflandStatusToProducts() {
   if (unitsSnap.empty) return { units: 0, updated: 0 };
 
   // Build id_offer → status map (id_offer = product SKU)
+  // Use the `active` boolean (already computed correctly with amount check)
+  // instead of raw `status` string, to stay consistent with the cache.
   const offerStatusMap = new Map();
   for (const doc of unitsSnap.docs) {
     const data = doc.data();
     const idOffer = String(data?.id_offer || '').trim();
     if (!idOffer) continue;
-    const status = String(data?.status || '').toUpperCase();
+    const isActive = data?.active === true;
     // If product already has an 'active' entry, keep it
     if (!offerStatusMap.has(idOffer) || offerStatusMap.get(idOffer) !== 'active') {
-      offerStatusMap.set(idOffer, status === 'AVAILABLE' ? 'active' : 'inactive');
+      offerStatusMap.set(idOffer, isActive ? 'active' : 'inactive');
     }
   }
   if (offerStatusMap.size === 0) return { units: 0, updated: 0 };
@@ -261,16 +263,23 @@ async function syncKauflandUnitsToCache() {
     const docId = String(idUnit);
     seenIds.add(docId);
 
+    const unitAmount = Number.isFinite(Number(unit?.amount)) ? Number(unit.amount) : null;
+    const unitStatus = String(unit?.status || '').trim().toUpperCase();
+    // A listing is only truly "active" (sellable) if AVAILABLE AND has stock.
+    // Kaufland returns status=AVAILABLE for units with amount=0 — these are
+    // technically listed but cannot be purchased, so we consider them inactive.
+    const isActive = unitStatus === 'AVAILABLE' && (unitAmount !== null ? unitAmount > 0 : false);
+
     const payload = {
       id_unit: idUnit,
       id_offer: String(unit?.id_offer || '').trim() || null,
       ean: String(unit?.ean || '').replace(/\D+/g, '').trim() || null,
       id_product: Number.isFinite(Number(unit?.id_product)) && Number(unit.id_product) > 0
         ? Number(unit.id_product) : null,
-      amount: Number.isFinite(Number(unit?.amount)) ? Number(unit.amount) : null,
+      amount: unitAmount,
       status: String(unit?.status || '').trim() || null,
       storefront: 'de',
-      active: String(unit?.status || '').trim().toUpperCase() === 'AVAILABLE',
+      active: isActive,
       updatedAt: now,
       source: 'listing-sync-runner',
     };
@@ -499,4 +508,10 @@ function stopListingSyncRunner() {
   }
 }
 
-module.exports = { startListingSyncRunner, stopListingSyncRunner, autoHealStockDiscrepancies };
+module.exports = {
+  startListingSyncRunner,
+  stopListingSyncRunner,
+  autoHealStockDiscrepancies,
+  propagateEbayStatusToProducts,
+  propagateKauflandStatusToProducts,
+};

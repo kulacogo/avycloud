@@ -155,14 +155,20 @@ function normalizeEbayRow(row: EbayListingRow): NormalizedListing {
 }
 
 function normalizeKauflandRow(row: KauflandListingRow): NormalizedListing {
+  // Use `active` boolean as the single source of truth.
+  // The backend sets active = (status === 'AVAILABLE' && amount > 0).
+  // Do NOT fall back to status string — Kaufland returns AVAILABLE even for amount=0,
+  // which would incorrectly show zero-stock listings as "active".
   let status: ListingStatus = "unknown";
   if (row.active === true) {
     status = "active";
+  } else if (row.active === false) {
+    status = "inactive";
   } else if (row.status != null) {
-    // Map Kaufland unit statuses to our schema
+    // Legacy fallback only for docs without active boolean
     const s = String(row.status).toUpperCase();
     if (s === "AVAILABLE") status = "active";
-    else status = "inactive"; // ONHOLD, DEACTIVATED, blocked, etc.
+    else status = "inactive";
   }
 
   return {

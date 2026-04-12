@@ -837,6 +837,13 @@ router.post('/kaufland/listings/sync', requirePermission('products', 'write'), a
       const rawPrice = unit?.listing_price ?? unit?.price ?? null;
       const klListingPrice = Number.isFinite(Number(rawPrice)) ? Number(rawPrice) : null;
 
+      const unitAmount = Number.isFinite(Number(unit?.amount)) ? Number(unit.amount) : null;
+      const unitStatus = String(unit?.status || '').trim().toUpperCase();
+      // A listing is only truly "active" (sellable) if AVAILABLE AND has stock.
+      // Kaufland returns status=AVAILABLE for units with amount=0 — these are
+      // technically listed but cannot be purchased, so we consider them inactive.
+      const isActive = unitStatus === 'AVAILABLE' && (unitAmount !== null ? unitAmount > 0 : false);
+
       const payload = {
         id_unit: idUnit,
         id_offer: String(unit?.id_offer || '').trim() || null,
@@ -845,10 +852,10 @@ router.post('/kaufland/listings/sync', requirePermission('products', 'write'), a
         eans: normalizedEans,
         id_product: normalizedIdProduct,
         view_item_url: viewItemUrl,
-        amount: Number.isFinite(Number(unit?.amount)) ? Number(unit.amount) : null,
+        amount: unitAmount,
         status: String(unit?.status || '').trim() || null,
         storefront: String(unit?.storefront || storefront || 'de').trim().toLowerCase(),
-        active: String(unit?.status || '').trim().toUpperCase() === 'AVAILABLE',
+        active: isActive,
         title: klTitle,
         listing_price: klListingPrice,
         updatedAt: now,

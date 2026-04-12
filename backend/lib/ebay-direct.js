@@ -1491,6 +1491,11 @@ async function upsertLiveListingSummaries(listings = [], { runId = null, actor =
       const docRef = firestore.collection(EBAY_LISTINGS_COLLECTION).doc(item.itemId);
       // IMPORTANT: Summary sync must not null-out detail fields (description, specifics, pictures, ...)
       // → only write summary-level keys here.
+      // Determine active: only set true if listingStatus is 'Active' or absent.
+      // Completed/Ended listings should NOT be marked active even if they appear in the API response.
+      const isEnded = item.listingStatus === 'Completed' || item.listingStatus === 'Ended';
+      const isActive = !isEnded;
+
       const payload = cleanUndefined({
         itemId: item.itemId,
         sku: item.sku,
@@ -1509,7 +1514,7 @@ async function upsertLiveListingSummaries(listings = [], { runId = null, actor =
         currency: item.currency,
         currentPrice: item.currentPrice,
         snapshotHashSummary: item.snapshotHashSummary,
-        active: true,
+        active: isActive,
         runId: runId || null,
         source: {
           mode: 'trading_api',
