@@ -330,6 +330,7 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
     let groundingUsed = false;
     let legacyResult = null;
     let groundingImageQuery = '';
+    let groundedRecord = null;
 
     if (V3_ENABLED) {
       try {
@@ -428,7 +429,7 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
         console.log(`[identify] Starting grounding pipeline (${imageParts.length} images, ${mergedBarcodes.length} barcodes)`);
 
         const GROUNDING_TIMEOUT_MS = parseInt(process.env.GROUNDING_TIMEOUT_MS || '90000', 10);
-        const groundedRecord = await Promise.race([
+        groundedRecord = await Promise.race([
           identifyProductWithGrounding({
             imageParts,
             ocrText,
@@ -517,16 +518,7 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
           groundedRecord.ean || groundedRecord.gtin,
         ].filter(Boolean).join(' ').trim();
 
-        // Map GPSR
-        if (groundedRecord.gpsr_manufacturer_name) {
-          product.gpsr = {
-            manufacturer_name: groundedRecord.gpsr_manufacturer_name || '',
-            manufacturer_address: groundedRecord.gpsr_manufacturer_address || '',
-            manufacturer_email: groundedRecord.gpsr_manufacturer_email || '',
-            manufacturer_phone: groundedRecord.gpsr_manufacturer_phone || '',
-            manufacturer_country: groundedRecord.gpsr_manufacturer_country || '',
-          };
-        }
+        // GPSR: handled by quality pipeline (stored at product.details.gpsr, not top-level)
 
         // Grounding metadata
         if (groundedRecord._grounding) {
@@ -694,25 +686,44 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
       } catch {}
     }
 
-    // 3.8) Compute and persist quality snapshot (independent of QUALITY_GATE_ENABLED).
-    // This powers UI/debug dashboards and helps explain "why not ebay-ready" without blocking saves.
+    // ─── Quality Pipeline: Apply all policies (title, attributes, desc, GPSR, EAN) ───
+    // Runs AFTER category/taxonomy resolution so the pipeline has categoryId available
+    let qualityPipelineReport = null;
+    if (groundingUsed) {
+      try {
+        const { runIdentifyQualityPipeline } = require('../lib/identify-quality-pipeline');
+        const pipelineResult = await runIdentifyQualityPipeline(product, groundedRecord, { locale });
+        product = pipelineResult.product;
+        qualityPipelineReport = pipelineResult.qualityReport;
+      } catch (pipelineErr) {
+        console.warn('[identify] Quality pipeline failed (non-fatal):', pipelineErr?.message);
+      }
+    }
+
+    // 3.8) Quality evaluation — use pipeline result (grounding) or fallback to direct eval (legacy)
     let finalQuality = null;
-    try {
-      const { evaluateEbayReady } = require('../lib/datasheet-quality');
-      finalQuality = evaluateEbayReady(product, { force: true });
-      product.ops = product.ops || {};
-      product.ops.data_quality = product.ops.data_quality || {};
-      product.ops.data_quality.identify_v2_quality_v1 = {
-        checked_at_iso: new Date().toISOString(),
-        ok: Boolean(finalQuality.ok),
-        issues: Array.isArray(finalQuality.issues) ? finalQuality.issues.slice(0, 40) : [],
-        issues_detailed: Array.isArray(finalQuality.issuesDetailed)
-          ? finalQuality.issuesDetailed.slice(0, 60)
-          : [],
-        snapshot: finalQuality.snapshot || null,
-      };
-    } catch (e) {
-      finalQuality = null;
+    if (product.ops?.data_quality?.identify_pipeline_v1) {
+      // Pipeline already ran quality eval (Step 9)
+      finalQuality = product.ops.data_quality.identify_pipeline_v1;
+    } else {
+      // Pipeline didn't run (legacy path or pipeline error) — run direct eval
+      try {
+        const { evaluateEbayReady } = require('../lib/datasheet-quality');
+        finalQuality = evaluateEbayReady(product, { force: true });
+        product.ops = product.ops || {};
+        product.ops.data_quality = product.ops.data_quality || {};
+        product.ops.data_quality.identify_v2_quality_v1 = {
+          checked_at_iso: new Date().toISOString(),
+          ok: Boolean(finalQuality.ok),
+          issues: Array.isArray(finalQuality.issues) ? finalQuality.issues.slice(0, 40) : [],
+          issues_detailed: Array.isArray(finalQuality.issuesDetailed)
+            ? finalQuality.issuesDetailed.slice(0, 60)
+            : [],
+          snapshot: finalQuality.snapshot || null,
+        };
+      } catch (e) {
+        finalQuality = null;
+      }
     }
 
     // 3.9) eBay category check — warn but don't throw. Missing category can be resolved later.
@@ -771,6 +782,7 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
         ebayReadyIssues: finalQuality ? finalQuality.issues || [] : [],
         ebayReadyIssuesDetailed: finalQuality ? finalQuality.issuesDetailed || [] : [],
         ebayReadySnapshot: finalQuality ? finalQuality.snapshot || null : null,
+        qualityPipeline: qualityPipelineReport || null,
         v3: v3Meta ? {
           pipeline: v3Meta.pipeline,
           totalDurationMs: v3Meta.totalDurationMs,
