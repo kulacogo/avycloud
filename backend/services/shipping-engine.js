@@ -339,42 +339,54 @@ async function createParcel({
 
   if (toPostNumber) {
     parcelData.parcel.to_post_number = toPostNumber;
-    // Packstation requires DHL Paket — skip shipment method to let SendCloud auto-select
-    console.log(`[createParcel] Packstation address: skipping explicit shipment method to allow SendCloud auto-selection`);
-  } else if (shippingMethodId) {
+    console.log(`[createParcel] Packstation detected: postNumber="${toPostNumber}"`);
+  }
+
+  if (shippingMethodId) {
     parcelData.parcel.shipment = { id: shippingMethodId };
   }
 
-  console.log(`[createParcel] Payload for ${order.id}: postal_code="${zipStr}", country="${countryRaw}", city="${cityStr}", address="${addressStr}", house_number="${houseNumberStr}", name="${nameStr}"`);
+  console.log(`[createParcel] Payload for ${order.id}: postal_code="${zipStr}", country="${countryRaw}", city="${cityStr}", address="${addressStr}", house_number="${houseNumberStr}", name="${nameStr}"${toPostNumber ? `, to_post_number="${toPostNumber}"` : ''}`);
   console.log(`[createParcel] Raw customer zip: ${JSON.stringify(customer.zip)}, type: ${typeof customer.zip}, postal_code: ${JSON.stringify(customer.postal_code)}`);
 
-  // Try original address first, then normalized variants on address validation errors
+  // Try original, then variants, then Packstation-specific retries
   let res;
   try {
     res = await _sendParcelRequest(parcelData, auth);
   } catch (err) {
-    const isAddrErr = err.message.includes('receiver_address') || err.message.includes('Adresse konnte');
-    if (!isAddrErr) throw err;
-
-    // Try normalized German address variants (Straße→Str., ß→ss, etc.)
-    const variants = germanAddressVariants(parcelData.parcel.address);
-    if (variants.length === 0) throw err;
-
-    let resolved = false;
-    for (const variant of variants) {
-      console.warn(`[createParcel] Address rejected, trying variant: "${parcelData.parcel.address}" → "${variant}"`);
-      parcelData.parcel.address = variant;
+    // Packstation retry: if post_number is rejected, retry without it
+    if (toPostNumber && err.message.includes('post_number')) {
+      console.warn(`[createParcel] to_post_number rejected, retrying without it`);
+      delete parcelData.parcel.to_post_number;
       try {
         res = await _sendParcelRequest(parcelData, auth);
-        resolved = true;
-        break;
       } catch (retryErr) {
-        const stillAddrErr = retryErr.message.includes('receiver_address') || retryErr.message.includes('Adresse konnte');
-        if (!stillAddrErr) throw retryErr;
-        console.warn(`[createParcel] Variant "${variant}" also rejected`);
+        throw retryErr;
       }
+    } else {
+      const isAddrErr = err.message.includes('receiver_address') || err.message.includes('Adresse konnte');
+      if (!isAddrErr) throw err;
+
+      // Try normalized German address variants (Straße→Str., Ortsteil removal, ß→ss, etc.)
+      const variants = germanAddressVariants(parcelData.parcel.address);
+      if (variants.length === 0) throw err;
+
+      let resolved = false;
+      for (const variant of variants) {
+        console.warn(`[createParcel] Address rejected, trying variant: "${parcelData.parcel.address}" → "${variant}"`);
+        parcelData.parcel.address = variant;
+        try {
+          res = await _sendParcelRequest(parcelData, auth);
+          resolved = true;
+          break;
+        } catch (retryErr) {
+          const stillAddrErr = retryErr.message.includes('receiver_address') || retryErr.message.includes('Adresse konnte');
+          if (!stillAddrErr) throw retryErr;
+          console.warn(`[createParcel] Variant "${variant}" also rejected`);
+        }
+      }
+      if (!resolved) throw err;
     }
-    if (!resolved) throw err;
   }
 
   const result = await res.json();
