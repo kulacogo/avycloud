@@ -175,12 +175,25 @@ const normalizeSkuKey = (val) =>
     .replace(/^sku[-_\s]*/i, '')
     .replace(/\s+/g, '');
 
+// All pre-shipment statuses where items are still in the warehouse and should be
+// considered reserved (not available for new listings or other marketplace stock).
+const RESERVED_ORDER_STATUSES = new Set([
+  'new', 'pending', 'confirmed', 'picking', 'picked', 'packing', 'packed', 'on_hold',
+]);
+
 async function buildReservedOpenOrderMap() {
   const map = new Map(); // normalizeSkuKey -> qty
   try {
-    const snap = await firestore.collection('orders').where('status', '==', 'new').get();
+    // Query all non-terminal orders and filter client-side by omsStatus.
+    // Cannot use Firestore 'in' on omsStatus because the field might be absent
+    // on legacy docs (which use 'status' instead).
+    const snap = await firestore.collection('orders')
+      .where('tenantId', '==', 'default')
+      .get();
     snap.forEach((doc) => {
       const order = doc.data() || {};
+      const status = (order.omsStatus || order.status || '').toLowerCase();
+      if (!RESERVED_ORDER_STATUSES.has(status)) return;
       const items = Array.isArray(order.items) ? order.items : [];
       for (const item of items) {
         const key = normalizeSkuKey(item?.sku || item?.productId || '');
