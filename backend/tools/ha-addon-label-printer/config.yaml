@@ -1,6 +1,6 @@
 name: "Label Print Proxy"
 description: "AvyCloud Label Print Proxy — sends PDF shipping labels to Brother QL-1110NWB via IPP"
-version: "2.1.0"
+version: "3.0.0"
 init: false
 slug: "label-print-proxy"
 url: "https://github.com/kulacogo/avycloud"

@@ -1,11 +1,9 @@
-FROM node:20-slim
+FROM python:3.11-slim-bookworm
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    cups \
-    cups-filters \
-    cups-client \
-    cups-ipp-utils \
     poppler-utils \
+    nodejs \
+    && pip install --no-cache-dir brother_ql_inventree \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 COPY label-print-proxy.js /app/
