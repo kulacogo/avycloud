@@ -20,6 +20,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import type { Product } from "../types";
 import type { EbayListingRow, } from "../types";
 import type { EbayConnectionStatus, KauflandListingRow, IntegrationConfig } from "../api/client";
+import { getProductAvailableQuantity, getProductReservedQuantity } from "../utils/product";
 
 // ─── Types ───────────────────────────────────────────────────
 
@@ -355,11 +356,9 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
       .catch(() => setPolicyConfig(null));
     try {
       const products = await fetchProducts();
-      // Nur Produkte die physisch im Lager sind: Bin-Zuordnung UND Bestand > 0
+      // Nur Produkte mit verfügbarem Bestand (physisch minus reserviert durch Bestellungen)
       const inStockProducts = products.filter((p) => {
-        if (!Array.isArray(p.storageBins) || p.storageBins.length === 0) return false;
-        const binStock = p.storageBins.reduce((sum, b) => sum + Number(b?.quantity || 0), 0);
-        return binStock > 0;
+        return getProductAvailableQuantity(p) > 0;
       });
       // Bereits aktiv gelistete Produkte ausfiltern (SKU + EAN + listingStatus)
       const activeListings = listings.filter((l) => l.status === "active");
@@ -530,11 +529,12 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
   }, [marketplace, publishSelectedIds, publishProducts, invalidateListings]);
 
   const getBinStock = useCallback((p: Product) => {
-    if (!Array.isArray(p.storageBins)) return 0;
-    return p.storageBins.reduce((sum, b) => sum + Number(b?.quantity || 0), 0);
+    return getProductAvailableQuantity(p);
   }, []);
 
   const getReadiness = (p: Product): "ready" | "pending" | "empty" => {
+    // Products with no available stock (all reserved by orders) are not ready
+    if (getProductAvailableQuantity(p) <= 0) return "empty";
     const r = p.ops?.readiness;
     if (r === "ready") return "ready";
     if (r === "pending") return "pending";
@@ -1459,9 +1459,14 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
                         {p.identification?.barcodes?.[0] && <span className="ml-2">EAN: {p.identification.barcodes[0]}</span>}
                       </div>
                       <div className="text-xs text-txt-muted mt-0.5">
-                        <span className="text-success font-medium">
+                        <span className={`font-medium ${getBinStock(p) > 0 ? "text-success" : "text-danger"}`}>
                           Bestand: {getBinStock(p)}
                         </span>
+                        {getProductReservedQuantity(p) > 0 && (
+                          <span className="ml-1 text-warning text-[10px]">
+                            ({getProductReservedQuantity(p)} reserviert)
+                          </span>
+                        )}
                         {p.storageBins?.filter((b) => Number(b?.quantity || 0) > 0).map((b) => (
                           <span key={b.code} className="ml-2 px-1.5 py-0.5 bg-app-elevated rounded text-[10px]">
                             {b.code} ({b.quantity})
