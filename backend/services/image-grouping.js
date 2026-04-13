@@ -56,8 +56,27 @@ function parseGroupingResponse(rawResponse, imageCount) {
   try {
     parsed = JSON.parse(text);
   } catch {
-    console.warn('[image-grouping] Failed to parse Gemini response as JSON, returning empty groups');
-    return [];
+    // Try to repair truncated JSON (Gemini may cut off at token limit)
+    try {
+      let repaired = text;
+      // Close open strings
+      const quoteCount = (repaired.match(/"/g) || []).length;
+      if (quoteCount % 2 !== 0) repaired += '"';
+      // Close open arrays and objects
+      const opens = (repaired.match(/[{[]/g) || []).length;
+      const closes = (repaired.match(/[}\]]/g) || []).length;
+      for (let i = 0; i < opens - closes; i++) {
+        // Guess: close arrays before objects (inner first)
+        repaired += repaired.lastIndexOf('[') > repaired.lastIndexOf('{') ? ']' : '}';
+      }
+      // Remove trailing comma before closing brackets
+      repaired = repaired.replace(/,\s*([}\]])/g, '$1');
+      parsed = JSON.parse(repaired);
+      console.warn(`[image-grouping] Repaired truncated JSON (added ${opens - closes} closing brackets)`);
+    } catch {
+      console.warn('[image-grouping] Failed to parse Gemini response as JSON, returning empty groups. Raw (100 chars):', text.substring(0, 100));
+      return [];
+    }
   }
   const groups = Array.isArray(parsed?.groups) ? parsed.groups : [];
 
@@ -131,7 +150,7 @@ async function groupImagesStructured(imageBuffers, imageCount) {
     return [];
   }
 
-  const BATCH_SIZE = 10;
+  const BATCH_SIZE = 6;
 
   if (effectiveCount <= BATCH_SIZE) {
     // Single batch — send all images together
@@ -146,7 +165,7 @@ async function groupImagesStructured(imageBuffers, imageCount) {
       temperature: 0.1,
       topP: 0.8,
       topK: 16,
-      maxOutputTokens: 4096,
+      maxOutputTokens: 8192,
       stopSequences: [],
     });
 
@@ -176,7 +195,7 @@ async function groupImagesStructured(imageBuffers, imageCount) {
         temperature: 0.1,
         topP: 0.8,
         topK: 16,
-        maxOutputTokens: 4096,
+        maxOutputTokens: 8192,
         stopSequences: [],
       });
 

@@ -120,7 +120,9 @@ async function callGeminiStructured({
 
   const candidates = Array.isArray(resp?.candidates) ? resp.candidates : [];
   const finishReason = candidates[0]?.finishReason;
-  if (finishReason && finishReason !== 'STOP' && finishReason !== 'MAX_TOKENS') {
+  if (finishReason === 'MAX_TOKENS') {
+    console.warn(`[gemini-structured] Response truncated (MAX_TOKENS) — output may be incomplete JSON. Consider increasing maxOutputTokens.`);
+  } else if (finishReason && finishReason !== 'STOP') {
     console.warn(`[gemini-structured] Unexpected finishReason: ${finishReason}`, JSON.stringify(candidates[0]?.safetyRatings || []));
   }
 
