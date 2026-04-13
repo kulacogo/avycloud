@@ -267,8 +267,24 @@ async function createParcel({
   // Split address into street name + house number (SendCloud requires them separate)
   const explicitHouseNumber = String(customer.houseNumber || customer.house_number || '');
   const { street: parsedStreet, houseNumber: parsedHouseNumber } = splitAddressLine(rawAddress);
-  const addressStr = parsedStreet;
-  const houseNumberStr = explicitHouseNumber || parsedHouseNumber;
+  let addressStr = parsedStreet;
+  let houseNumberStr = explicitHouseNumber || parsedHouseNumber;
+
+  // Detect DHL Packstation/Postfiliale addresses and extract Postnummer
+  // Patterns: "1818519, Packstation 514", "Packstation 514", "PACKSTATION 123"
+  let toPostNumber = '';
+  const packstationMatch = rawAddress.match(/(?:(\d{6,10})\s*[,.]?\s*)?(?:packstation|postfiliale)\s+(\d+)/i);
+  if (packstationMatch) {
+    toPostNumber = packstationMatch[1] || '';
+    const stationNumber = packstationMatch[2];
+    // Check if Postnummer is in a separate field (e.g. customer.postNumber)
+    if (!toPostNumber) {
+      toPostNumber = String(customer.postNumber || customer.post_number || customer.postnummer || '');
+    }
+    addressStr = rawAddress.match(/packstation/i) ? 'PACKSTATION' : 'POSTFILIALE';
+    houseNumberStr = stationNumber;
+    console.log(`[createParcel] Packstation detected: postNumber="${toPostNumber}", station="${stationNumber}"`);
+  }
 
   // Validate required fields before calling SendCloud
   const missingFields = [];
@@ -304,6 +320,10 @@ async function createParcel({
       external_reference: `${order.marketplaceOrderId || order.id || ''}_${Date.now()}`,
     },
   };
+
+  if (toPostNumber) {
+    parcelData.parcel.to_post_number = toPostNumber;
+  }
 
   if (shippingMethodId) {
     parcelData.parcel.shipment = { id: shippingMethodId };
