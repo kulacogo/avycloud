@@ -3252,11 +3252,12 @@ export const packOrder = async (orderId: string): Promise<void> => {
 export async function packAndShip(
   orderId: string,
   opts?: { weight?: number; labelFormat?: string }
-): Promise<{ labelBlobUrl: string | null; trackingNumber: string | null; carrier: string | null; labelError?: string | null }> {
+): Promise<{ labelBlobUrl: string | null; labelBlob: Blob | null; trackingNumber: string | null; carrier: string | null; labelError?: string | null }> {
   await packOrder(orderId);
   const result = await shipOrder(orderId, opts);
 
   let labelBlobUrl: string | null = null;
+  let labelBlob: Blob | null = null;
   let labelError: string | null = null;
   if (result?.labelUrl) {
     // Fetch PDF via our authenticated backend proxy.
@@ -3270,6 +3271,7 @@ export async function packAndShip(
       );
       if (pdfRes.ok) {
         const blob = await pdfRes.blob();
+        labelBlob = blob;
         labelBlobUrl = URL.createObjectURL(blob);
       } else {
         const errData = await pdfRes.json().catch(() => null);
@@ -3284,10 +3286,28 @@ export async function packAndShip(
 
   return {
     labelBlobUrl,
+    labelBlob,
     trackingNumber: result?.trackingNumber || null,
     carrier: result?.carrier || null,
     labelError,
   };
+}
+
+/**
+ * Send a PDF blob directly to a LAN print proxy (e.g. Raspberry Pi).
+ * The proxy forwards it to a CUPS-configured label printer.
+ */
+export async function printToLabelPrinter(proxyUrl: string, pdfBlob: Blob): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const res = await fetch(`${proxyUrl.replace(/\/+$/, '')}/print`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/pdf' },
+      body: pdfBlob,
+    });
+    return await res.json();
+  } catch (err: any) {
+    return { ok: false, error: err?.message || 'Drucker nicht erreichbar' };
+  }
 }
 
 // ─── OMS Native Endpoints ────────────────────────────────────

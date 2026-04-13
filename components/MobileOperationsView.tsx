@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Order, Product, getOrderStatus } from '../types';
 import { getProductQuantity } from '../utils/product';
-import { fetchOrders as fetchOrdersApi, syncOrders as syncOrdersApi, completeOrder, packOrder, packAndShip, stockInProduct, stockOutProduct, fetchProfile } from '../api/client';
+import { fetchOrders as fetchOrdersApi, syncOrders as syncOrdersApi, completeOrder, packOrder, packAndShip, printToLabelPrinter, stockInProduct, stockOutProduct, fetchProfile } from '../api/client';
 import { useI18n } from '../i18n';
 import { compareBinCodesForPickRoute } from '../utils/warehouseRoute';
 import type { UploadGroupPayload } from '../hooks/useIdentification';
@@ -1553,22 +1553,32 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
               ...weightOpt,
               labelFormat: printingPrefs.labelFormat || 'a6',
             });
-            if (result.labelBlobUrl) {
-              // Only open window AFTER label is confirmed available (avoids blank pages on mobile)
+            const orderLabel = selectedItem.orderNumber || selectedItem.orderId;
+
+            if (result.labelBlob && printingPrefs.networkPrinterUrl) {
+              // Direct print to LAN label printer via print proxy (zero interaction)
+              if (result.labelBlobUrl) URL.revokeObjectURL(result.labelBlobUrl);
+              const printResult = await printToLabelPrinter(printingPrefs.networkPrinterUrl, result.labelBlob);
+              if (printResult.ok) {
+                setPackMessage(`${orderLabel} verpackt & Label gedruckt (${result.carrier || '?'})`);
+              } else {
+                setPackMessage(`${orderLabel} verpackt & versendet — Druckfehler: ${printResult.error}`);
+              }
+            } else if (result.labelBlobUrl) {
+              // Fallback: open label in new window (no print proxy configured)
               const printWindow = window.open(result.labelBlobUrl, '_blank');
               if (printWindow && printingPrefs.autoPrint) {
                 setTimeout(() => {
                   try { printWindow.print(); } catch (_) { /* cross-origin or blocked */ }
                 }, 1200);
               }
-              // Revoke blob URL after 60s to free memory
               setTimeout(() => URL.revokeObjectURL(result.labelBlobUrl!), 60000);
               setPackMessage(
-                `${selectedItem.orderNumber || selectedItem.orderId} verpackt & Label erstellt (${result.carrier || '?'}) — ${printingPrefs.autoPrint ? 'Druckdialog geöffnet.' : 'Label-Fenster geöffnet.'}`
+                `${orderLabel} verpackt & Label erstellt (${result.carrier || '?'}) — ${printingPrefs.autoPrint ? 'Druckdialog geöffnet.' : 'Label-Fenster geöffnet.'}`
               );
             } else {
               setPackMessage(
-                `${selectedItem.orderNumber || selectedItem.orderId} verpackt & versendet — kein Label-PDF verfügbar.${result.labelError ? ` (${result.labelError})` : ''}`
+                `${orderLabel} verpackt & versendet — kein Label-PDF verfügbar.${result.labelError ? ` (${result.labelError})` : ''}`
               );
             }
           }

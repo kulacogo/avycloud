@@ -312,15 +312,15 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({ appTheme, onTh
 
         {/* Network Printer */}
         <div className="mt-4">
-          <label className="block text-xs text-txt-muted mb-1.5">Netzwerkdrucker Hostname</label>
+          <label className="block text-xs text-txt-muted mb-1.5">Label-Drucker Proxy URL</label>
           <input
             type="text"
             value={networkPrinterUrl}
             onChange={(e) => setNetworkPrinterUrl(e.target.value)}
-            placeholder="z.B. BRW3C0AF3A24F1F oder 192.168.1.100"
+            placeholder="z.B. http://192.168.178.50:3001"
             className="w-full px-3 py-2 rounded-lg border border-app-border bg-app-elevated text-sm text-txt-primary placeholder:text-txt-muted focus:outline-none focus:border-accent"
           />
-          <span className="block text-xs text-txt-muted mt-1">Brother NC-42004w · Hostname aus Druckerkonfiguration</span>
+          <span className="block text-xs text-txt-muted mt-1">URL des Label-Print-Proxy (Raspberry Pi). Label wird direkt gedruckt, kein Dialog.</span>
         </div>
       </Card>
 

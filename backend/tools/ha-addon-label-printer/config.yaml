@@ -1,0 +1,18 @@
+name: "Label Print Proxy"
+description: "AvyCloud Label Print Proxy — sends PDF shipping labels to Brother QL-1110NWB via IPP"
+version: "1.0.0"
+slug: "label-print-proxy"
+url: "https://github.com/kulacogo/avycloud"
+arch:
+  - aarch64
+  - armv7
+  - amd64
+host_network: true
+options:
+  printer_ip: "192.168.178.24"
+  printer_port: 631
+  proxy_port: 3001
+schema:
+  printer_ip: str
+  printer_port: int
+  proxy_port: int
