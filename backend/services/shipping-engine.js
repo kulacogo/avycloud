@@ -337,6 +337,21 @@ async function createParcel({
   try {
     res = await _sendParcelRequest(parcelData, auth);
   } catch (err) {
+    // If Packstation to_post_number is rejected, retry without it but with Postnummer in address
+    if (toPostNumber && err.message.includes('post_number')) {
+      console.warn(`[createParcel] to_post_number rejected by shipping method, retrying with Postnummer in address`);
+      delete parcelData.parcel.to_post_number;
+      parcelData.parcel.address = `PACKSTATION ${houseNumberStr}`;
+      parcelData.parcel.house_number = toPostNumber;
+      try {
+        res = await _sendParcelRequest(parcelData, auth);
+        // Fall through to normal response handling below
+      } catch (retryErr) {
+        console.warn(`[createParcel] Packstation retry also failed: ${retryErr.message}`);
+        throw retryErr;
+      }
+    }
+
     const isAddrErr = err.message.includes('receiver_address') || err.message.includes('Adresse konnte');
     if (!isAddrErr) throw err;
 

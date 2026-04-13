@@ -17,10 +17,19 @@ cupsd
 # Wait for CUPS to be ready
 sleep 2
 
-# Add the Brother printer via IPP (driverless/everywhere)
+# Add the Brother printer via IPP Everywhere (driverless)
 echo "Adding printer at ipp://${PRINTER_IP}:631/ipp/print ..."
-lpadmin -p BrotherQL -E -v "ipp://${PRINTER_IP}:631/ipp/print" -m everywhere 2>/dev/null \
-  || lpadmin -p BrotherQL -E -v "ipp://${PRINTER_IP}:631/ipp/print" -m raw
+
+# Try driverless first — queries printer capabilities and auto-configures
+if ipptool -t "ipp://${PRINTER_IP}:631/ipp/print" /usr/share/cups/ipptool/get-printer-attributes.test > /dev/null 2>&1; then
+  echo "Printer responds to IPP, configuring driverless..."
+  lpadmin -p BrotherQL -E -v "ipp://${PRINTER_IP}:631/ipp/print" -m driverless:"ipp://${PRINTER_IP}:631/ipp/print" 2>/dev/null \
+    || lpadmin -p BrotherQL -E -v "ipp://${PRINTER_IP}:631/ipp/print" -m everywhere 2>/dev/null \
+    || lpadmin -p BrotherQL -E -v "ipp://${PRINTER_IP}:631/ipp/print" -m raw
+else
+  echo "Printer not responding to IPP, using raw mode"
+  lpadmin -p BrotherQL -E -v "ipp://${PRINTER_IP}:631/ipp/print" -m raw
+fi
 lpoptions -d BrotherQL
 
 echo "Printer configured:"
