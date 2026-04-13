@@ -661,6 +661,19 @@ function buildReviseItemRequestXml(callName, patch, cfg) {
     itemFields.push(compatibilityXml);
   }
 
+  // VAT Details (MwSt)
+  if (patch?.vatPercent != null) {
+    itemFields.push(
+      `<VATDetails>` +
+      `<VATPercent>${escapeXml(String(patch.vatPercent))}</VATPercent>` +
+      `</VATDetails>`
+    );
+  }
+
+  // Regulatory: GPSR Manufacturer + Responsible Person
+  const regulatory = buildRegulatoryXml(patch);
+  if (regulatory) itemFields.push(regulatory);
+
   if (itemFields.length <= 1) {
     const error = new Error(
       'No revisable fields provided. Expected category/title/subtitle/description/itemSpecifics/pictureUrls/startPrice/quantity.'
@@ -749,6 +762,106 @@ async function endFixedPriceItem(itemId, { reason = 'NotAvailable', timeoutMs = 
     itemId: safeString(response?.ItemID || id),
     endTime: toIso(response?.EndTime) || null,
   };
+}
+
+// ---------------------------------------------------------------------------
+// Regulatory XML (GPSR — EU General Product Safety Regulation)
+// ---------------------------------------------------------------------------
+
+/**
+ * Build <Regulatory> XML block for eBay Trading API.
+ * Includes Manufacturer info and Responsible Person (EU GPSR, mandatory since July 2024).
+ *
+ * eBay XML structure:
+ * <Regulatory>
+ *   <Manufacturer>
+ *     <CompanyName>...</CompanyName>
+ *     <Street1>...</Street1>
+ *     <CityName>...</CityName>
+ *     <StateOrProvince>...</StateOrProvince>
+ *     <PostalCode>...</PostalCode>
+ *     <CountryCode>DE</CountryCode>
+ *     <Phone>...</Phone>
+ *     <Email>...</Email>
+ *   </Manufacturer>
+ *   <ResponsiblePersons>
+ *     <ResponsiblePerson>
+ *       <CompanyName>...</CompanyName>
+ *       <Street1>...</Street1>
+ *       <CityName>...</CityName>
+ *       <PostalCode>...</PostalCode>
+ *       <CountryCode>DE</CountryCode>
+ *       <Phone>...</Phone>
+ *       <Email>...</Email>
+ *       <Types>
+ *         <Type>EUResponsiblePerson</Type>
+ *       </Types>
+ *     </ResponsiblePerson>
+ *   </ResponsiblePersons>
+ * </Regulatory>
+ */
+function buildRegulatoryXml(item) {
+  const gpsr = item?.gpsr;
+  const responsiblePerson = item?.responsiblePerson;
+  if (!gpsr && !responsiblePerson) return '';
+
+  const parts = [];
+
+  // Manufacturer block (from product GPSR data)
+  if (gpsr) {
+    const mfr = [];
+    const companyName = safeString(gpsr.manufacturer_name);
+    if (companyName) mfr.push(`<CompanyName>${escapeXml(companyName)}</CompanyName>`);
+    const street = safeString(gpsr.manufacturer_address);
+    if (street) mfr.push(`<Street1>${escapeXml(street)}</Street1>`);
+    const city = safeString(gpsr.manufacturer_city);
+    if (city) mfr.push(`<CityName>${escapeXml(city)}</CityName>`);
+    const state = safeString(gpsr.manufacturer_state_province);
+    if (state) mfr.push(`<StateOrProvince>${escapeXml(state)}</StateOrProvince>`);
+    const zip = safeString(gpsr.manufacturer_postalcode);
+    if (zip) mfr.push(`<PostalCode>${escapeXml(zip)}</PostalCode>`);
+    const country = safeString(gpsr.country_code || gpsr.entity_country);
+    if (country) {
+      // eBay expects ISO 3166-1 alpha-2 codes (DE, US, CN, etc.)
+      const cc = country.length === 2 ? country.toUpperCase() : '';
+      if (cc) mfr.push(`<CountryCode>${escapeXml(cc)}</CountryCode>`);
+    }
+    const phone = safeString(gpsr.manufacturer_phone);
+    if (phone) mfr.push(`<Phone>${escapeXml(phone)}</Phone>`);
+    const email = safeString(gpsr.email);
+    if (email) mfr.push(`<Email>${escapeXml(email)}</Email>`);
+
+    if (mfr.length > 0) {
+      parts.push(`<Manufacturer>${mfr.join('')}</Manufacturer>`);
+    }
+  }
+
+  // Responsible Person block (EU GPSR — the EU-based contact person)
+  if (responsiblePerson) {
+    const rp = [];
+    const rpName = safeString(responsiblePerson.companyName);
+    if (rpName) rp.push(`<CompanyName>${escapeXml(rpName)}</CompanyName>`);
+    const rpStreet = safeString(responsiblePerson.street);
+    if (rpStreet) rp.push(`<Street1>${escapeXml(rpStreet)}</Street1>`);
+    const rpCity = safeString(responsiblePerson.city);
+    if (rpCity) rp.push(`<CityName>${escapeXml(rpCity)}</CityName>`);
+    const rpZip = safeString(responsiblePerson.postalCode);
+    if (rpZip) rp.push(`<PostalCode>${escapeXml(rpZip)}</PostalCode>`);
+    const rpCountry = safeString(responsiblePerson.countryCode) || 'DE';
+    rp.push(`<CountryCode>${escapeXml(rpCountry)}</CountryCode>`);
+    const rpPhone = safeString(responsiblePerson.phone);
+    if (rpPhone) rp.push(`<Phone>${escapeXml(rpPhone)}</Phone>`);
+    const rpEmail = safeString(responsiblePerson.email);
+    if (rpEmail) rp.push(`<Email>${escapeXml(rpEmail)}</Email>`);
+    rp.push(`<Types><Type>EUResponsiblePerson</Type></Types>`);
+
+    if (rp.length > 1) { // at least countryCode + Types
+      parts.push(`<ResponsiblePersons><ResponsiblePerson>${rp.join('')}</ResponsiblePerson></ResponsiblePersons>`);
+    }
+  }
+
+  if (parts.length === 0) return '';
+  return `<Regulatory>${parts.join('')}</Regulatory>`;
 }
 
 // ---------------------------------------------------------------------------
@@ -845,6 +958,18 @@ function buildAddFixedPriceItemXml(item, cfg) {
 
   const compatibilityXml = buildCompatibilityListXml(item?.itemCompatibilityList);
   if (compatibilityXml) fields.push(compatibilityXml);
+
+  // --- VAT Details (MwSt) ---
+  const vatPercent = item?.vatPercent ?? 19.0;
+  fields.push(
+    `<VATDetails>` +
+    `<VATPercent>${escapeXml(String(vatPercent))}</VATPercent>` +
+    `</VATDetails>`
+  );
+
+  // --- Regulatory: GPSR Manufacturer + Responsible Person (EU Pflicht seit Juli 2024) ---
+  const regulatory = buildRegulatoryXml(item);
+  if (regulatory) fields.push(regulatory);
 
   const dispatchTimeMax = item?.dispatchTimeMax ?? 3;
   fields.push(`<DispatchTimeMax>${escapeXml(String(dispatchTimeMax))}</DispatchTimeMax>`);

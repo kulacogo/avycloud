@@ -4086,6 +4086,28 @@ function mapProductToEbayItem(product, overrides = {}) {
     itemSpecifics,
   });
 
+  // --- GPSR: Manufacturer data from product ---
+  const gpsr = product?.details?.gpsr || null;
+
+  // --- Responsible Person: EU-based entity (seller or authorized rep) ---
+  // Loaded from ENV or integration settings — this is the SELLER's EU contact,
+  // not the manufacturer. Required by GPSR for non-EU manufacturers.
+  const responsiblePerson = {
+    companyName: safeString(overrides.responsiblePersonName) || safeString(process.env.EBAY_RESPONSIBLE_PERSON_NAME) || 'TrendOcean',
+    street: safeString(overrides.responsiblePersonStreet) || safeString(process.env.EBAY_RESPONSIBLE_PERSON_STREET) || undefined,
+    city: safeString(overrides.responsiblePersonCity) || safeString(process.env.EBAY_RESPONSIBLE_PERSON_CITY) || undefined,
+    postalCode: safeString(overrides.responsiblePersonZip) || safeString(process.env.EBAY_RESPONSIBLE_PERSON_ZIP) || undefined,
+    countryCode: safeString(overrides.responsiblePersonCountry) || safeString(process.env.EBAY_RESPONSIBLE_PERSON_COUNTRY) || 'DE',
+    phone: safeString(overrides.responsiblePersonPhone) || safeString(process.env.EBAY_RESPONSIBLE_PERSON_PHONE) || undefined,
+    email: safeString(overrides.responsiblePersonEmail) || safeString(process.env.EBAY_RESPONSIBLE_PERSON_EMAIL) || undefined,
+  };
+  // Only include if at least company name + one contact field is set
+  const hasResponsiblePerson = responsiblePerson.companyName && (responsiblePerson.street || responsiblePerson.email || responsiblePerson.phone);
+
+  // --- Item location: warehouse address ---
+  const postalCode = safeString(overrides.postalCode) || safeString(process.env.EBAY_ITEM_POSTAL_CODE) || undefined;
+  const location = safeString(overrides.location) || safeString(process.env.EBAY_ITEM_LOCATION) || undefined;
+
   return {
     title,
     subtitle,
@@ -4105,8 +4127,11 @@ function mapProductToEbayItem(product, overrides = {}) {
     itemCompatibilityList,
     weightKg,
     country: safeString(overrides.country) || 'DE',
-    postalCode: safeString(overrides.postalCode) || undefined,
-    location: safeString(overrides.location) || undefined,
+    postalCode,
+    location,
+    vatPercent: overrides.vatPercent ?? 19.0,
+    gpsr: gpsr || undefined,
+    responsiblePerson: hasResponsiblePerson ? responsiblePerson : undefined,
     listingDuration: safeString(overrides.listingDuration) || 'GTC',
     dispatchTimeMax: overrides.dispatchTimeMax ?? 3,
     shippingProfileId: safeString(overrides.shippingProfileId) || safeString(process.env.EBAY_DEFAULT_SHIPPING_PROFILE_ID) || undefined,
