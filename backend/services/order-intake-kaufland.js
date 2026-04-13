@@ -257,11 +257,14 @@ async function syncKauflandOrders({ tenantId = 'default', lookbackDays = 7 } = {
         const chunk = skuArray.slice(i, i + 10);
         const products = await findProductsBySkuChunk(chunk);
         for (const product of products) {
-          syncStockWithRetry({ tenantId, product, reason: 'kaufland-order-intake' })
-            .catch((err) => console.warn(`[kaufland-intake] stock sync failed for ${product.id}: ${err.message}`));
+          try {
+            await syncStockWithRetry({ tenantId, product, reason: 'kaufland-order-intake' });
+          } catch (err) {
+            console.warn(`[kaufland-intake] stock sync failed for ${product.id}: ${err.message}`);
+          }
         }
       }
-      console.log(`[kaufland-intake] triggered stock sync for ${newOrderSkus.size} SKUs from ${totalSynced} new orders`);
+      console.log(`[kaufland-intake] completed stock sync for ${newOrderSkus.size} SKUs from ${totalSynced} new orders`);
     } catch (err) {
       console.warn(`[kaufland-intake] stock sync after import failed: ${err.message}`);
     }

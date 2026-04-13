@@ -234,7 +234,7 @@ async function _onOrderShipped({ orderId, tenantId }) {
   const items = order.items || [];
   if (items.length === 0) return;
 
-  // 3. Decrement + Sync per SKU (with stock-lock)
+  // 3. Build SKU→qty map
   const { syncStockWithRetry } = require('./stock-sync-dispatcher');
   const { decrementProductByIdOrSku } = require('../lib/warehouse');
   const { firestore: fs } = require('../lib/firestore');
@@ -247,6 +247,7 @@ async function _onOrderShipped({ orderId, tenantId }) {
     skuQtyMap[sku] = (skuQtyMap[sku] || 0) + (Number(item.quantity) || 1);
   }
 
+  // Phase A — Decrement ALL SKUs first (each under its own stock-lock)
   for (const [sku, sold] of Object.entries(skuQtyMap)) {
     await withStockLock(sku, async () => {
       try {
@@ -256,28 +257,31 @@ async function _onOrderShipped({ orderId, tenantId }) {
         console.error(`[order-state-machine] decrementProductByIdOrSku failed sku=${sku}: ${err.message}`);
         failures.push({ step: 'decrement', sku, qty: sold, error: err.message });
       }
+    });
+  }
 
-      try {
-        let snap = await fs.collection('products_v2')
-          .where('identification.sku', '==', sku)
+  // Phase B — THEN sync all SKUs to marketplaces (reads post-decrement data)
+  for (const sku of Object.keys(skuQtyMap)) {
+    try {
+      let snap = await fs.collection('products_v2')
+        .where('identification.sku', '==', sku)
+        .limit(1)
+        .get();
+      if (snap.empty) {
+        snap = await fs.collection('products_v2')
+          .where('details.identifiers.sku', '==', sku)
           .limit(1)
           .get();
-        if (snap.empty) {
-          snap = await fs.collection('products_v2')
-            .where('details.identifiers.sku', '==', sku)
-            .limit(1)
-            .get();
-        }
-        if (!snap.empty) {
-          const doc = snap.docs[0];
-          const product = { id: doc.id, ...doc.data() };
-          await syncStockWithRetry({ tenantId, product, reason: `shipped-${orderId}` });
-        }
-      } catch (err) {
-        console.warn(`[order-state-machine] marketplace sync failed sku=${sku}: ${err.message}`);
-        failures.push({ step: 'marketplaceSync', sku, error: err.message });
       }
-    });
+      if (!snap.empty) {
+        const doc = snap.docs[0];
+        const product = { id: doc.id, ...doc.data() };
+        await syncStockWithRetry({ tenantId, product, reason: `shipped-${orderId}` });
+      }
+    } catch (err) {
+      console.warn(`[order-state-machine] marketplace sync failed sku=${sku}: ${err.message}`);
+      failures.push({ step: 'marketplaceSync', sku, error: err.message });
+    }
   }
 
   // Persist failures for recovery

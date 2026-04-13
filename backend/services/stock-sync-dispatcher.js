@@ -54,11 +54,14 @@ async function computeAvailableQuantity(product, tenantId = 'default') {
   let reservedQty = 0;
   try {
     const { getReservedQuantity } = require('./stock-reservation');
+    const reservations = [];
     if (sku) {
-      reservedQty = await getReservedQuantity({ tenantId, sku });
-    } else if (productId) {
-      reservedQty = await getReservedQuantity({ tenantId, productId });
+      reservations.push(await getReservedQuantity({ tenantId, sku }));
     }
+    if (productId) {
+      reservations.push(await getReservedQuantity({ tenantId, productId }));
+    }
+    reservedQty = reservations.length > 0 ? Math.max(...reservations) : 0;
   } catch (err) {
     console.warn(`[stock-sync] reservation lookup failed for ${sku || productId}: ${err.message}`);
   }
@@ -113,23 +116,66 @@ async function syncStockToAllChannels({ tenantId = 'default', product, reason = 
     || freshProduct?.marketplace?.ebay?.itemId;
 
   if (ebayItemId) {
-    try {
-      const { reviseFixedPriceItem } = require('../lib/ebay-trading-api');
-      const result = await reviseFixedPriceItem({
-        itemId: String(ebayItemId),
-        quantity: Math.max(0, availableQuantity),
-      });
-      const status = result?.ack === 'Success' || result?.ack === 'Warning' ? 'success' : 'failed';
-      results.push({ channel: 'ebay', status, itemId: ebayItemId, quantityPushed: availableQuantity, zeroStock: isZeroStock });
-      console.log(
-        `[stock-sync] ebay product=${productId} itemId=${ebayItemId} qty=${availableQuantity} status=${status}${isZeroStock ? ' (DELIST)' : ''}`
-      );
-    } catch (err) {
-      results.push({ channel: 'ebay', status: 'error', error: err?.message });
-      console.warn(
-        `[stock-sync] ebay FAILED product=${productId} itemId=${ebayItemId}:`,
-        err?.message || err
-      );
+    const isEndedListing = (msg) => {
+      const lower = String(msg || '').toLowerCase();
+      return lower.includes('beendet') || lower.includes('ended') || lower.includes('1047');
+    };
+
+    const clearStaleItemId = async () => {
+      try {
+        await firestore.collection('products_v2').doc(productId).set(
+          { ops: { ebay: { itemId: null, itemIdCleared: new Date().toISOString(), itemIdClearReason: 'listing_ended' } } },
+          { merge: true }
+        );
+        console.log(`[stock-sync] Cleared stale ebay itemId for product=${productId} (listing ended)`);
+      } catch (clearErr) {
+        console.warn(`[stock-sync] Failed to clear stale ebay itemId: ${clearErr?.message}`);
+      }
+    };
+
+    if (isZeroStock) {
+      // Zero stock: end listing instead of revise(qty=0) which eBay rejects
+      try {
+        const { endFixedPriceItem } = require('../lib/ebay-trading-api');
+        await endFixedPriceItem(String(ebayItemId), { reason: 'NotAvailable' });
+        results.push({ channel: 'ebay', status: 'success', itemId: ebayItemId, quantityPushed: 0, zeroStock: true, action: 'ended' });
+        console.log(`[stock-sync] ebay END product=${productId} itemId=${ebayItemId} → ended (zero stock)`);
+      } catch (err) {
+        const errMsg = err?.message || String(err);
+        if (isEndedListing(errMsg)) {
+          // Listing was already ended — treat as success, clear stale itemId
+          results.push({ channel: 'ebay', status: 'success', itemId: ebayItemId, quantityPushed: 0, zeroStock: true, action: 'already_ended' });
+          console.log(`[stock-sync] ebay product=${productId} itemId=${ebayItemId} already ended, clearing stale itemId`);
+          await clearStaleItemId();
+        } else {
+          results.push({ channel: 'ebay', status: 'error', error: errMsg });
+          console.warn(`[stock-sync] ebay END FAILED product=${productId} itemId=${ebayItemId}:`, errMsg);
+          if (isEndedListing(errMsg)) await clearStaleItemId();
+        }
+      }
+    } else {
+      // Stock > 0: revise quantity as before
+      try {
+        const { reviseFixedPriceItem } = require('../lib/ebay-trading-api');
+        const result = await reviseFixedPriceItem({
+          itemId: String(ebayItemId),
+          quantity: availableQuantity,
+        });
+        const status = result?.ack === 'Success' || result?.ack === 'Warning' ? 'success' : 'failed';
+        results.push({ channel: 'ebay', status, itemId: ebayItemId, quantityPushed: availableQuantity, zeroStock: false });
+        console.log(`[stock-sync] ebay product=${productId} itemId=${ebayItemId} qty=${availableQuantity} status=${status}`);
+      } catch (err) {
+        const errMsg = err?.message || String(err);
+        if (isEndedListing(errMsg)) {
+          // Listing was ended — can't revise, clear stale itemId and skip
+          results.push({ channel: 'ebay', status: 'skipped', itemId: ebayItemId, error: 'listing_ended', quantityPushed: 0 });
+          console.warn(`[stock-sync] ebay product=${productId} itemId=${ebayItemId} listing ended, clearing stale itemId`);
+          await clearStaleItemId();
+        } else {
+          results.push({ channel: 'ebay', status: 'error', error: errMsg });
+          console.warn(`[stock-sync] ebay FAILED product=${productId} itemId=${ebayItemId}:`, errMsg);
+        }
+      }
     }
   }
 

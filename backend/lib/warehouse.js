@@ -566,8 +566,9 @@ async function decrementProductByIdOrSku(productIdOrSku, quantity) {
       productRef = ref;
       productSnap = await ref.get();
     } catch (e) {
-    console.warn('[decrementProductByIdOrSku] product not found', id);
-    return;
+      const msg = `[decrementProductByIdOrSku] CRITICAL: product not found for '${id}' — stock NOT decremented`;
+      console.error(msg);
+      throw new Error(msg);
     }
   }
   const productData = productSnap.data() || {};
@@ -587,7 +588,7 @@ async function decrementProductByIdOrSku(productIdOrSku, quantity) {
 
   const cleanedBins = bins.filter((b) => Number(b.quantity || 0) > 0);
   const invQty = Number(productData.inventory?.quantity || 0);
-  const newInv = Math.max(0, invQty - remaining);
+  const newInv = Math.max(0, invQty - (Number(quantity) || 0));
 
   let newStorage = productData.storage || null;
   if (newStorage?.binCode && !cleanedBins.find((b) => String(b.code).trim() === String(newStorage.binCode).trim())) {
