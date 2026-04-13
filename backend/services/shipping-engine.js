@@ -127,6 +127,22 @@ function germanAddressVariants(street) {
     variants.add(s.replace(/\bStr\.\s*$/i, 'Straße'));
   }
 
+  // "Str." mid-string with Ortsteil after it (e.g. "Lange Str. Hausen" → "Lange Str.")
+  // German rural addresses often embed the Ortsteil (sub-locality) in the street field
+  const ortsteilMatch = s.match(/^(.+?\bStr\.)\s+(\S.+)$/i);
+  if (ortsteilMatch) {
+    const streetOnly = ortsteilMatch[1].trim();
+    variants.add(streetOnly); // "Lange Str."
+    variants.add(streetOnly.replace(/\bStr\.$/i, 'Straße')); // "Lange Straße"
+  }
+  // Same for "Straße" mid-string: "Lange Straße Hausen" → "Lange Straße"
+  const ortsteilMatch2 = s.match(/^(.+?\b(?:Stra(?:ß|ss)e))\s+(\S.+)$/i);
+  if (ortsteilMatch2) {
+    const streetOnly = ortsteilMatch2[1].trim();
+    variants.add(streetOnly);
+    variants.add(streetOnly.replace(/Stra(?:ß|ss)e$/i, 'Str.'));
+  }
+
   // "ß" → "ss" (and reverse)
   if (s.includes('ß')) {
     variants.add(s.replace(/ß/g, 'ss'));
