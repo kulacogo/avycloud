@@ -768,6 +768,96 @@ async function endFixedPriceItem(itemId, { reason = 'NotAvailable', timeoutMs = 
 // Regulatory XML (GPSR — EU General Product Safety Regulation)
 // ---------------------------------------------------------------------------
 
+// Minimal country-name → ISO-3166-1 alpha-2 map for eBay Trading API.
+// Kept inline (no registry import) so this file stays self-contained and
+// safe to use from code paths that must not touch Firestore at module load.
+const MANUFACTURER_COUNTRY_CODE_MAP = {
+  deutschland: 'DE', germany: 'DE',
+  österreich: 'AT', osterreich: 'AT', austria: 'AT',
+  schweiz: 'CH', switzerland: 'CH',
+  frankreich: 'FR', france: 'FR',
+  italien: 'IT', italy: 'IT',
+  spanien: 'ES', spain: 'ES',
+  niederlande: 'NL', netherlands: 'NL',
+  belgien: 'BE', belgium: 'BE',
+  polen: 'PL', poland: 'PL',
+  tschechien: 'CZ', czechia: 'CZ', 'czech republic': 'CZ',
+  ungarn: 'HU', hungary: 'HU',
+  dänemark: 'DK', danemark: 'DK', denmark: 'DK',
+  schweden: 'SE', sweden: 'SE',
+  norwegen: 'NO', norway: 'NO',
+  finnland: 'FI', finland: 'FI',
+  portugal: 'PT',
+  irland: 'IE', ireland: 'IE',
+  griechenland: 'GR', greece: 'GR',
+  rumänien: 'RO', romania: 'RO',
+  bulgarien: 'BG', bulgaria: 'BG',
+  slowakei: 'SK', slovakia: 'SK',
+  slowenien: 'SI', slovenia: 'SI',
+  kroatien: 'HR', croatia: 'HR',
+  luxemburg: 'LU', luxembourg: 'LU',
+  estland: 'EE', estonia: 'EE',
+  lettland: 'LV', latvia: 'LV',
+  litauen: 'LT', lithuania: 'LT',
+  malta: 'MT',
+  zypern: 'CY', cyprus: 'CY',
+  türkei: 'TR', turkei: 'TR', turkey: 'TR',
+  'vereinigtes königreich': 'GB', 'united kingdom': 'GB',
+  'great britain': 'GB', 'großbritannien': 'GB', grossbritannien: 'GB',
+  england: 'GB',
+  usa: 'US', 'united states': 'US', 'vereinigte staaten': 'US',
+  china: 'CN', japan: 'JP', kanada: 'CA', canada: 'CA',
+};
+
+function normalizeManufacturerCountryCode(raw) {
+  const v = safeString(raw);
+  if (!v) return '';
+  if (/^[A-Z]{2}$/i.test(v)) return v.toUpperCase();
+  return MANUFACTURER_COUNTRY_CODE_MAP[v.toLowerCase()] || '';
+}
+
+/**
+ * Build the <Manufacturer> sub-block.
+ *
+ * Returns '' when the data is insufficient. eBay rejects a <Manufacturer>
+ * block that contains only CompanyName with:
+ *   "Der Verkäufer muss mindestens eine Methode zur Kontaktaufnahme mit dem
+ *    Hersteller angeben: entweder eine Adresse, eine E-Mail-Adresse, eine
+ *    Kontakt-URL oder eine Telefonnummer."
+ * GPSR itself is not required per-listing, so emitting no block at all is
+ * preferable to emitting an incomplete one.
+ */
+function buildManufacturerXml(gpsr) {
+  if (!gpsr) return '';
+  const companyName = safeString(gpsr.manufacturer_name);
+  if (!companyName) return '';
+
+  const street = safeString(gpsr.manufacturer_address);
+  const city = safeString(gpsr.manufacturer_city);
+  const state = safeString(gpsr.manufacturer_state_province);
+  const zip = safeString(gpsr.manufacturer_postalcode);
+  const countryCode = normalizeManufacturerCountryCode(gpsr.country_code || gpsr.entity_country);
+  const phone = safeString(gpsr.manufacturer_phone);
+  const email = safeString(gpsr.email);
+
+  const hasFullAddress = Boolean(street && city && zip && countryCode);
+  const hasContactMethod = hasFullAddress || Boolean(phone) || Boolean(email);
+  if (!hasContactMethod) return '';
+
+  const fields = [`<CompanyName>${escapeXml(companyName)}</CompanyName>`];
+  if (hasFullAddress) {
+    fields.push(`<Street1>${escapeXml(street)}</Street1>`);
+    fields.push(`<CityName>${escapeXml(city)}</CityName>`);
+    if (state) fields.push(`<StateOrProvince>${escapeXml(state)}</StateOrProvince>`);
+    fields.push(`<PostalCode>${escapeXml(zip)}</PostalCode>`);
+    fields.push(`<CountryCode>${escapeXml(countryCode)}</CountryCode>`);
+  }
+  if (phone) fields.push(`<Phone>${escapeXml(phone)}</Phone>`);
+  if (email) fields.push(`<Email>${escapeXml(email)}</Email>`);
+
+  return `<Manufacturer>${fields.join('')}</Manufacturer>`;
+}
+
 /**
  * Build <Regulatory> XML block for eBay Trading API.
  * Includes Manufacturer info and Responsible Person (EU GPSR, mandatory since July 2024).
@@ -807,34 +897,8 @@ function buildRegulatoryXml(item) {
 
   const parts = [];
 
-  // Manufacturer block (from product GPSR data)
-  if (gpsr) {
-    const mfr = [];
-    const companyName = safeString(gpsr.manufacturer_name);
-    if (companyName) mfr.push(`<CompanyName>${escapeXml(companyName)}</CompanyName>`);
-    const street = safeString(gpsr.manufacturer_address);
-    if (street) mfr.push(`<Street1>${escapeXml(street)}</Street1>`);
-    const city = safeString(gpsr.manufacturer_city);
-    if (city) mfr.push(`<CityName>${escapeXml(city)}</CityName>`);
-    const state = safeString(gpsr.manufacturer_state_province);
-    if (state) mfr.push(`<StateOrProvince>${escapeXml(state)}</StateOrProvince>`);
-    const zip = safeString(gpsr.manufacturer_postalcode);
-    if (zip) mfr.push(`<PostalCode>${escapeXml(zip)}</PostalCode>`);
-    const country = safeString(gpsr.country_code || gpsr.entity_country);
-    if (country) {
-      // eBay expects ISO 3166-1 alpha-2 codes (DE, US, CN, etc.)
-      const cc = country.length === 2 ? country.toUpperCase() : '';
-      if (cc) mfr.push(`<CountryCode>${escapeXml(cc)}</CountryCode>`);
-    }
-    const phone = safeString(gpsr.manufacturer_phone);
-    if (phone) mfr.push(`<Phone>${escapeXml(phone)}</Phone>`);
-    const email = safeString(gpsr.email);
-    if (email) mfr.push(`<Email>${escapeXml(email)}</Email>`);
-
-    if (mfr.length > 0) {
-      parts.push(`<Manufacturer>${mfr.join('')}</Manufacturer>`);
-    }
-  }
+  const manufacturerXml = buildManufacturerXml(gpsr);
+  if (manufacturerXml) parts.push(manufacturerXml);
 
   // Responsible Person block (EU GPSR — the EU-based contact person)
   if (responsiblePerson) {
@@ -1252,4 +1316,7 @@ module.exports = {
   mapListingDetail,
   normalizeSpecificsMap,
   isAckSuccess,
+  buildRegulatoryXml,
+  buildManufacturerXml,
+  normalizeManufacturerCountryCode,
 };
