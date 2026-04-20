@@ -10,10 +10,12 @@
  * - Dry-run by default (only reports, no changes)
  * - processShippedOrder() is idempotent (stockDecrementedAt prevents double decrement)
  * - Stock cannot go below 0 (Math.max(0, ...) in decrementProductByIdOrSku)
+ * - Filters by tenantId to avoid cross-tenant contamination
  *
  * Usage:
- *   node backend/scripts/fix-undecremented-shipped-orders.js           # dry-run
- *   node backend/scripts/fix-undecremented-shipped-orders.js --apply   # execute
+ *   node backend/scripts/fix-undecremented-shipped-orders.js                      # dry-run, tenant=default
+ *   node backend/scripts/fix-undecremented-shipped-orders.js --tenant=trendocean  # dry-run, specific tenant
+ *   node backend/scripts/fix-undecremented-shipped-orders.js --apply              # execute, tenant=default
  */
 
 const fs = require('fs');
@@ -23,14 +25,16 @@ const { processShippedOrder } = require('../services/order-state-machine');
 
 const argv = process.argv.slice(2);
 const APPLY = argv.includes('--apply');
+const TENANT_ID = (argv.find((a) => a.startsWith('--tenant=')) || '--tenant=default').split('=')[1];
 
 const ORDERS_COLLECTION = 'orders';
 
 async function main() {
-  console.log(`\n=== Fix Undecremented Shipped Orders (${APPLY ? 'APPLY MODE' : 'DRY-RUN'}) ===\n`);
+  console.log(`\n=== Fix Undecremented Shipped Orders (${APPLY ? 'APPLY MODE' : 'DRY-RUN'}, tenant=${TENANT_ID}) ===\n`);
 
-  // 1. Find all shipped orders without stockDecrementedAt
+  // 1. Find shipped orders without stockDecrementedAt (scoped to tenant)
   const snap = await firestore.collection(ORDERS_COLLECTION)
+    .where('tenantId', '==', TENANT_ID)
     .where('omsStatus', '==', 'shipped')
     .get();
 
@@ -73,6 +77,7 @@ async function main() {
   const report = {
     timestamp: new Date().toISOString(),
     mode: APPLY ? 'apply' : 'dry-run',
+    tenantId: TENANT_ID,
     totalShipped: snap.size,
     alreadyDecremented: alreadyDecremented.length,
     candidates: candidates.length,
@@ -94,7 +99,7 @@ async function main() {
       }
 
       try {
-        await processShippedOrder({ orderId: c.docId, tenantId: 'default' });
+        await processShippedOrder({ orderId: c.docId, tenantId: TENANT_ID });
         console.log(`  ✓ ${c.docId} — processShippedOrder completed`);
         report.fixed++;
         report.details.push({ docId: c.docId, status: 'fixed', skus: c.skus });

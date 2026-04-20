@@ -227,17 +227,35 @@ async function _onOrderShipped({ orderId, tenantId }) {
     failures.push({ step: 'confirmReservation', error: err.message });
   }
 
-  // 2. Fetch order
-  const orderDoc = await db.collection(ORDERS_COLLECTION).doc(orderId).get();
-  if (!orderDoc.exists) return;
-  const order = orderDoc.data();
-  const items = order.items || [];
-  if (items.length === 0) return;
+  // 2. Atomic Claim: Read order + claim stockDecrementedAt in EINER Transaction
+  // Verhindert Race Condition: Zwei gleichzeitige Aufrufe koennen nicht beide Phase A betreten.
+  // Ein Aufrufer "gewinnt" den Claim und fuehrt Phase A aus, der andere sieht `alreadyDecremented`.
+  const orderRef = db.collection(ORDERS_COLLECTION).doc(orderId);
+  const claim = await db.runTransaction(async (tx) => {
+    const snap = await tx.get(orderRef);
+    if (!snap.exists) return { skip: true, reason: 'not_found' };
+    const order = snap.data();
+    const items = order.items || [];
+    if (items.length === 0) return { skip: true, reason: 'no_items' };
 
-  // Idempotenz-Guard: Skip decrement wenn bereits durchgefuehrt
-  const alreadyDecremented = Boolean(order.stockDecrementedAt);
+    if (order.stockDecrementedAt) {
+      return { skip: false, alreadyDecremented: true, items, previousDecrementedAt: order.stockDecrementedAt };
+    }
+
+    // Claim atomically — setze Flag JETZT bevor Phase A startet.
+    // Wenn Phase A fuer ALLE SKUs fehlschlaegt, wird der Claim am Ende zurueckgesetzt.
+    const skus = items.map((i) => String(i.sku || '').trim()).filter(Boolean);
+    tx.update(orderRef, {
+      stockDecrementedAt: new Date().toISOString(),
+      stockDecrementedSkus: skus,
+    });
+    return { skip: false, alreadyDecremented: false, items };
+  });
+
+  if (claim.skip) return;
+  const { alreadyDecremented, items } = claim;
   if (alreadyDecremented) {
-    console.log(`[order-state-machine] Stock already decremented for ${orderId} at ${order.stockDecrementedAt} — skipping decrement, running marketplace sync only`);
+    console.log(`[order-state-machine] Stock already decremented for ${orderId} at ${claim.previousDecrementedAt} — skipping decrement, running marketplace sync only`);
   }
 
   // 3. Build SKU→qty map
@@ -253,7 +271,7 @@ async function _onOrderShipped({ orderId, tenantId }) {
     skuQtyMap[sku] = (skuQtyMap[sku] || 0) + (Number(item.quantity) || 1);
   }
 
-  // Phase A — Decrement ALL SKUs first (nur wenn noch nicht decrementiert)
+  // Phase A — Decrement ALL SKUs first (nur wenn Claim gewonnen)
   if (!alreadyDecremented) {
     for (const [sku, sold] of Object.entries(skuQtyMap)) {
       await withStockLock(sku, async () => {
@@ -267,16 +285,19 @@ async function _onOrderShipped({ orderId, tenantId }) {
       });
     }
 
-    // Flag setzen — NUR wenn mindestens 1 SKU erfolgreich decrementiert wurde
+    // Rollback: Wenn ALLE Decrements fehlgeschlagen sind, Claim zuruecksetzen damit Retry moeglich ist.
+    // Wenn mindestens 1 SKU erfolgreich war, bleibt der Claim bestehen (Teil-Erfolg = Flag bleibt).
     const decrementFailures = failures.filter((f) => f.step === 'decrement');
-    if (decrementFailures.length < Object.keys(skuQtyMap).length) {
+    const totalSkus = Object.keys(skuQtyMap).length;
+    if (totalSkus > 0 && decrementFailures.length === totalSkus) {
       try {
-        await db.collection(ORDERS_COLLECTION).doc(orderId).update({
-          stockDecrementedAt: new Date().toISOString(),
-          stockDecrementedSkus: Object.keys(skuQtyMap),
+        await orderRef.update({
+          stockDecrementedAt: FieldValue.delete(),
+          stockDecrementedSkus: FieldValue.delete(),
         });
-      } catch (flagErr) {
-        console.error(`[order-state-machine] Failed to set stockDecrementedAt for ${orderId}: ${flagErr.message}`);
+        console.warn(`[order-state-machine] All ${totalSkus} decrements failed for ${orderId} — claim released for retry`);
+      } catch (rollbackErr) {
+        console.error(`[order-state-machine] Failed to release claim after total failure for ${orderId}: ${rollbackErr.message}`);
       }
     }
   }

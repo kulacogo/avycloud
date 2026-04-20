@@ -127,8 +127,16 @@ router.post('/webhooks/sendcloud', async (req, res) => {
         const order = orderSnap.data();
         const currentOmsStatus = order.omsStatus || order.status || 'pending';
 
-        // Only update if the new status is "forward" in the pipeline
-        const statusOrder = { pending: 0, confirmed: 1, picking: 2, picked: 3, packing: 4, packed: 5, shipped: 6, delivered: 7, completed: 8 };
+        // Only update if the new status is "forward" in the pipeline.
+        // Terminal/non-progressable statuses (cancelled, on_hold) bekommen sehr hohen Rank,
+        // damit sie nicht durch spaete Webhooks "ueberschrieben" werden koennen.
+        // `returned` liegt nach `completed` — SendCloud kann Retouren melden, das ist vorwaerts.
+        const statusOrder = {
+          pending: 0, confirmed: 1, picking: 2, picked: 3,
+          packing: 4, packed: 5, shipped: 6, delivered: 7,
+          completed: 8, returned: 9,
+          on_hold: 98, cancelled: 99,
+        };
         const currentIdx = statusOrder[currentOmsStatus] ?? -1;
         const newIdx = statusOrder[omsStatus] ?? -1;
 

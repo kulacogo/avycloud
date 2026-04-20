@@ -44,15 +44,32 @@ const mockFirestore = {
       add: vi.fn().mockResolvedValue(),
     };
   }),
-  runTransaction: vi.fn(),
+  // Atomic claim: delegiert tx.get() → mockOrderGet und tx.update() → mockOrderUpdate
+  runTransaction: vi.fn(async (cb) => {
+    const tx = {
+      get: () => mockOrderGet(),
+      update: (_ref, data) => mockOrderUpdate(data),
+      set: vi.fn(),
+    };
+    return await cb(tx);
+  }),
 };
+
+// FieldValue Sentinel fuer Delete-Operationen
+const mockFieldValueDelete = Symbol('FieldValue.delete');
 
 // Patch @google-cloud/firestore — Firestore must be a constructor (new Firestore())
 function MockFirestore() { return mockFirestore; }
 const firestorePath = require.resolve('@google-cloud/firestore');
 require.cache[firestorePath] = {
   id: firestorePath, filename: firestorePath, loaded: true, children: [], paths: [],
-  exports: { Firestore: MockFirestore, FieldValue: { serverTimestamp: vi.fn() } },
+  exports: {
+    Firestore: MockFirestore,
+    FieldValue: {
+      serverTimestamp: vi.fn(),
+      delete: vi.fn(() => mockFieldValueDelete),
+    },
+  },
 };
 
 // Patch firebase-admin
@@ -265,7 +282,7 @@ describe('processShippedOrder idempotency', () => {
     );
   });
 
-  it('does not set stockDecrementedAt when ALL decrements fail', async () => {
+  it('rolls back stockDecrementedAt claim when ALL decrements fail', async () => {
     mockOrderGet.mockResolvedValue({
       exists: true,
       data: () => ({
@@ -275,11 +292,52 @@ describe('processShippedOrder idempotency', () => {
     });
     mockDecrement.mockRejectedValue(new Error('not found'));
 
+    const { FieldValue } = require('@google-cloud/firestore');
     await processShippedOrder({ orderId: 'order-allfail', tenantId: 'default' });
 
-    // stockDecrementedAt should NOT be set if all SKUs failed
-    expect(mockOrderUpdate).not.toHaveBeenCalledWith(
+    // Flag WIRD initial via Claim gesetzt
+    expect(mockOrderUpdate).toHaveBeenCalledWith(
       expect.objectContaining({ stockDecrementedAt: expect.any(String) })
+    );
+    // ABER: Rollback cleart das Flag via FieldValue.delete() nachdem alle Decrements fehlschlugen
+    expect(mockOrderUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        stockDecrementedAt: mockFieldValueDelete,
+        stockDecrementedSkus: mockFieldValueDelete,
+      })
+    );
+  });
+
+  it('sets stockDecrementedAt when PARTIAL failure (some succeed, some fail)', async () => {
+    mockOrderGet.mockResolvedValue({
+      exists: true,
+      data: () => ({
+        tenantId: 'default',
+        items: [{ sku: 'SKU-OK', quantity: 1 }, { sku: 'SKU-FAIL', quantity: 1 }],
+      }),
+    });
+    // SKU-OK succeeds, SKU-FAIL fails
+    mockDecrement
+      .mockResolvedValueOnce(undefined)
+      .mockRejectedValueOnce(new Error('not found'));
+
+    await processShippedOrder({ orderId: 'order-partial', tenantId: 'default' });
+
+    // Claim setzt Flag auf Timestamp-String
+    expect(mockOrderUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({ stockDecrementedAt: expect.any(String) })
+    );
+    // KEIN Rollback via FieldValue.delete() da mindestens 1 SKU erfolgreich war
+    expect(mockOrderUpdate).not.toHaveBeenCalledWith(
+      expect.objectContaining({ stockDecrementedAt: mockFieldValueDelete })
+    );
+    // Failure wird persistiert fuer SKU-FAIL
+    expect(mockCollectionAdd).toHaveBeenCalledWith(
+      expect.objectContaining({
+        failures: expect.arrayContaining([
+          expect.objectContaining({ sku: 'SKU-FAIL', step: 'decrement' }),
+        ]),
+      })
     );
   });
 
