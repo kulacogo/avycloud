@@ -73,12 +73,11 @@ bus.on('order:status_changed', async (payload) => {
   const { entityId: orderId, tenantId = 'default', toStatus, fromStatus, source } = payload;
   try {
     // 1. Sync stock to all channels (covers eBay, Kaufland)
-    // SKIP for 'shipped' — _onOrderShipped() in order-state-machine already handles decrement + sync in the correct order.
-    if (toStatus !== 'shipped') {
-      const { syncStockForOrderItems } = require('./stock-sync-dispatcher');
-      await syncStockForOrderItems({ tenantId, orderId, reason: `status:${toStatus}` })
-        .catch((err) => console.warn(`[sync-bus] stock sync failed for order ${orderId}: ${err.message}`));
-    }
+    // NOTE: syncStockForOrderItems reads current stock and pushes to marketplaces — it does NOT decrement.
+    // Decrement is handled by processShippedOrder() (idempotent). This sync is a safety-net.
+    const { syncStockForOrderItems } = require('./stock-sync-dispatcher');
+    await syncStockForOrderItems({ tenantId, orderId, reason: `status:${toStatus}` })
+      .catch((err) => console.warn(`[sync-bus] stock sync failed for order ${orderId}: ${err.message}`));
 
     // 2. If cancelled → release reservations + push cancellation to marketplace
     if (toStatus === 'cancelled') {
@@ -122,7 +121,10 @@ bus.on('order:status_changed', async (payload) => {
 bus.on('order:created', async (payload) => {
   const { entityId: orderId, tenantId = 'default', source } = payload;
   try {
-    // Stock sync is NOT triggered here — order intake already calls reserveStock() + syncStockWithRetry() explicitly.
+    // Safety-net: push current availability to marketplaces for order SKUs
+    const { syncStockForOrderItems } = require('./stock-sync-dispatcher');
+    await syncStockForOrderItems({ tenantId, orderId, reason: 'order-created' })
+      .catch((err) => console.warn(`[sync-bus] stock sync failed for new order ${orderId}: ${err.message}`));
 
     // Trigger marketplace sync to pick up any other new orders
     _debouncedMarketplaceOrderSync(tenantId);

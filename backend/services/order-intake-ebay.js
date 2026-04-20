@@ -400,24 +400,59 @@ async function saveOrderIfNew({ tenantId, order }) {
       const newRank = OMS_RANK[ebayStatus] ?? 0;
 
       if (newRank > currentRank || ebayStatus === 'cancelled') {
-        const updates = {
-          omsStatus: ebayStatus,
-          omsStatusLabel: OMS_STATUS_LABELS[ebayStatus] || ebayStatus,
-          status: ebayStatus,
-          statusLabel: OMS_STATUS_LABELS[ebayStatus] || ebayStatus,
-          updatedAt: new Date().toISOString(),
-          'ops.ebayStatusSync': { from: currentOms, to: ebayStatus, syncedAt: new Date().toISOString() },
-        };
-        // Update tracking if newly available
-        if (order.trackingNumber && !existingData.trackingNumber) {
-          updates.trackingNumber = order.trackingNumber;
-          updates.carrier = order.carrier;
+        if (ebayStatus === 'shipped') {
+          // SHIPPED → State Machine nutzen (triggert Stock-Decrement via processShippedOrder)
+          const { transitionOrder, processShippedOrder } = require('./order-state-machine');
+          const transResult = await transitionOrder({
+            tenantId, orderId: existingDoc.id,
+            toStatus: 'shipped', force: true,
+            actor: { uid: 'system', email: 'ebay-reconciliation' },
+            note: `eBay Status-Sync: ${currentOms} → shipped`,
+            timestamps: { shippedAt: order.shippedAt || new Date().toISOString() },
+          }).catch((err) => {
+            console.warn(`[ebay-intake] transitionOrder to shipped failed for ${existingDoc.id}: ${err.message}`);
+            return { ok: false };
+          });
+
+          // Fallback: Wenn Transition fehlschlaegt (z.B. already shipped), trotzdem processShippedOrder aufrufen
+          if (!transResult.ok) {
+            await processShippedOrder({ orderId: existingDoc.id, tenantId })
+              .catch((err) => console.warn(`[ebay-intake] processShippedOrder failed for ${existingDoc.id}: ${err.message}`));
+          }
+
+          // Tracking/shippedAt backfill (separate von Transition)
+          const backfill = {};
+          if (order.trackingNumber && !existingData.trackingNumber) {
+            backfill.trackingNumber = order.trackingNumber;
+            backfill.carrier = order.carrier;
+          }
+          if (order.shippedAt && !existingData.shippedAt) {
+            backfill.shippedAt = order.shippedAt;
+          }
+          if (Object.keys(backfill).length > 0) {
+            await existingDoc.ref.update(backfill);
+          }
+          console.log(`[ebay-intake] Status updated via state machine: ${existingData.orderId || existingDoc.id} ${currentOms} → shipped`);
+        } else {
+          // Andere Status (confirmed, cancelled, completed) → ref.update() bleibt OK
+          const updates = {
+            omsStatus: ebayStatus,
+            omsStatusLabel: OMS_STATUS_LABELS[ebayStatus] || ebayStatus,
+            status: ebayStatus,
+            statusLabel: OMS_STATUS_LABELS[ebayStatus] || ebayStatus,
+            updatedAt: new Date().toISOString(),
+            'ops.ebayStatusSync': { from: currentOms, to: ebayStatus, syncedAt: new Date().toISOString() },
+          };
+          if (order.trackingNumber && !existingData.trackingNumber) {
+            updates.trackingNumber = order.trackingNumber;
+            updates.carrier = order.carrier;
+          }
+          if (order.shippedAt && !existingData.shippedAt) {
+            updates.shippedAt = order.shippedAt;
+          }
+          await existingDoc.ref.update(updates);
+          console.log(`[ebay-intake] Status updated: ${existingData.orderId || existingDoc.id} ${currentOms} → ${ebayStatus}`);
         }
-        if (order.shippedAt && !existingData.shippedAt) {
-          updates.shippedAt = order.shippedAt;
-        }
-        await existingDoc.ref.update(updates);
-        console.log(`[ebay-intake] Status updated: ${existingData.orderId || existingDoc.id} ${currentOms} → ${ebayStatus}`);
       }
     }
     return false;
@@ -466,6 +501,14 @@ async function saveOrderIfNew({ tenantId, order }) {
 
   // Use marketplaceKey as doc ID for idempotent creation (prevents duplicates on race condition)
   await db.collection(ORDERS_COLLECTION).doc(marketplaceKey).set(doc);
+
+  // Pre-shipped orders: trigger stock decrement immediately (idempotent via stockDecrementedAt guard)
+  if (initialStatus === 'shipped') {
+    const { processShippedOrder } = require('./order-state-machine');
+    processShippedOrder({ orderId: marketplaceKey, tenantId })
+      .catch((err) => console.warn(`[ebay-intake] pre-shipped order stock-out failed for ${marketplaceKey}: ${err.message}`));
+  }
+
   return true;
 }
 

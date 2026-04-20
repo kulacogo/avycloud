@@ -289,15 +289,17 @@ async function createParcel({
   // Detect DHL Packstation/Postfiliale addresses and extract Postnummer
   // Patterns: "1818519, Packstation 514", "Packstation 514", "PACKSTATION 123"
   let toPostNumber = '';
+  let isPackstation = false;
   const packstationMatch = rawAddress.match(/(?:(\d{6,10})\s*[,.]?\s*)?(?:packstation|postfiliale)\s+(\d+)/i);
   if (packstationMatch) {
+    isPackstation = true;
     toPostNumber = packstationMatch[1] || '';
     const stationNumber = packstationMatch[2];
-    // Check if Postnummer is in a separate field (e.g. customer.postNumber)
     if (!toPostNumber) {
       toPostNumber = String(customer.postNumber || customer.post_number || customer.postnummer || '');
     }
-    addressStr = rawAddress.match(/packstation/i) ? 'PACKSTATION' : 'POSTFILIALE';
+    // SendCloud expects: address = "PACKSTATION 514", house_number = "514", to_post_number = DHL Postnummer
+    addressStr = `PACKSTATION ${stationNumber}`;
     houseNumberStr = stationNumber;
     console.log(`[createParcel] Packstation detected: postNumber="${toPostNumber}", station="${stationNumber}"`);
   }
@@ -337,60 +339,87 @@ async function createParcel({
     },
   };
 
-  if (toPostNumber) {
-    parcelData.parcel.to_post_number = toPostNumber;
-    console.log(`[createParcel] Packstation detected: postNumber="${toPostNumber}"`);
+  if (isPackstation) {
+    if (toPostNumber) parcelData.parcel.to_post_number = toPostNumber;
+    // DHL Kleinpaket (2830) doesn't support Packstation — force DHL Paket (89)
+    if (shippingMethodId === 2830) {
+      console.log(`[createParcel] Packstation: switching DHL Kleinpaket (2830) → DHL Paket (89)`);
+      shippingMethodId = 89;
+    }
   }
 
   if (shippingMethodId) {
     parcelData.parcel.shipment = { id: shippingMethodId };
   }
 
-  console.log(`[createParcel] Payload for ${order.id}: postal_code="${zipStr}", country="${countryRaw}", city="${cityStr}", address="${addressStr}", house_number="${houseNumberStr}", name="${nameStr}"${toPostNumber ? `, to_post_number="${toPostNumber}"` : ''}`);
-  console.log(`[createParcel] Raw customer zip: ${JSON.stringify(customer.zip)}, type: ${typeof customer.zip}, postal_code: ${JSON.stringify(customer.postal_code)}`);
+  // Safe label creation: first create WITHOUT label, then request label via PUT
+  // This prevents paying for labels that fail carrier validation
+  parcelData.parcel.request_label = false;
 
-  // Try original, then variants, then Packstation-specific retries
+  console.log(`[createParcel] Payload for ${order.id}: postal_code="${zipStr}", country="${countryRaw}", city="${cityStr}", address="${addressStr}", house_number="${houseNumberStr}", name="${nameStr}"${toPostNumber ? `, to_post_number="${toPostNumber}"` : ''}`);
+
+  // Try original, then address variants (no label cost on failure)
   let res;
   try {
     res = await _sendParcelRequest(parcelData, auth);
   } catch (err) {
-    // Packstation retry: if post_number is rejected, retry without it
-    if (toPostNumber && err.message.includes('post_number')) {
-      console.warn(`[createParcel] to_post_number rejected, retrying without it`);
-      delete parcelData.parcel.to_post_number;
+    const isAddrErr = err.message.includes('receiver_address') || err.message.includes('Adresse konnte');
+    if (!isAddrErr) throw err;
+
+    // Try normalized German address variants (Straße→Str., Ortsteil removal, ß→ss)
+    const variants = germanAddressVariants(parcelData.parcel.address);
+    if (variants.length === 0) throw err;
+
+    let resolved = false;
+    for (const variant of variants) {
+      console.warn(`[createParcel] Address rejected, trying variant: "${parcelData.parcel.address}" → "${variant}"`);
+      parcelData.parcel.address = variant;
       try {
         res = await _sendParcelRequest(parcelData, auth);
+        resolved = true;
+        break;
       } catch (retryErr) {
-        throw retryErr;
+        const stillAddrErr = retryErr.message.includes('receiver_address') || retryErr.message.includes('Adresse konnte');
+        if (!stillAddrErr) throw retryErr;
+        console.warn(`[createParcel] Variant "${variant}" also rejected`);
       }
-    } else {
-      const isAddrErr = err.message.includes('receiver_address') || err.message.includes('Adresse konnte');
-      if (!isAddrErr) throw err;
-
-      // Try normalized German address variants (Straße→Str., Ortsteil removal, ß→ss, etc.)
-      const variants = germanAddressVariants(parcelData.parcel.address);
-      if (variants.length === 0) throw err;
-
-      let resolved = false;
-      for (const variant of variants) {
-        console.warn(`[createParcel] Address rejected, trying variant: "${parcelData.parcel.address}" → "${variant}"`);
-        parcelData.parcel.address = variant;
-        try {
-          res = await _sendParcelRequest(parcelData, auth);
-          resolved = true;
-          break;
-        } catch (retryErr) {
-          const stillAddrErr = retryErr.message.includes('receiver_address') || retryErr.message.includes('Adresse konnte');
-          if (!stillAddrErr) throw retryErr;
-          console.warn(`[createParcel] Variant "${variant}" also rejected`);
-        }
-      }
-      if (!resolved) throw err;
     }
+    if (!resolved) throw err;
   }
 
   const result = await res.json();
   let parcel = result?.parcel || {};
+
+  // Step 2: Parcel created successfully (no label cost yet). Now request label via PUT.
+  if (requestLabel && parcel.id) {
+    console.log(`[createParcel] Parcel ${parcel.id} created. Now requesting label via PUT...`);
+    try {
+      const putRes = await fetch(`${SENDCLOUD_BASE_URL}/parcels`, {
+        method: 'PUT',
+        headers: { Authorization: auth, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ parcel: { id: parcel.id, request_label: true } }),
+      });
+      if (putRes.ok) {
+        const putData = await putRes.json();
+        parcel = putData?.parcel || parcel;
+        console.log(`[createParcel] Label requested for parcel ${parcel.id}`);
+      } else {
+        const errBody = await putRes.text().catch(() => '');
+        console.error(`[createParcel] Label request failed for parcel ${parcel.id}: ${errBody.slice(0, 300)}`);
+        // Cancel the parcel to avoid orphaned records
+        try {
+          await fetch(`${SENDCLOUD_BASE_URL}/parcels/${parcel.id}/cancel`, {
+            method: 'POST', headers: { Authorization: auth },
+          });
+          console.log(`[createParcel] Cancelled parcel ${parcel.id} after label failure`);
+        } catch (_) {}
+        throw new Error(`SendCloud label request failed: ${errBody.slice(0, 300)}`);
+      }
+    } catch (putErr) {
+      if (putErr.message.startsWith('SendCloud label')) throw putErr;
+      throw new Error(`SendCloud label request error: ${putErr.message}`);
+    }
+  }
 
   const trackingNumber = parcel.tracking_number || null;
   const isA4 = labelFormat === 'a4';
@@ -400,7 +429,7 @@ async function createParcel({
 
   // If label not in immediate response, poll parcel API until label is ready
   if (!labelUrl && parcel.id) {
-    console.log(`[createParcel] No label in POST response (parcel ${parcel.id}), polling for label...`);
+    console.log(`[createParcel] No label in PUT response (parcel ${parcel.id}), polling for label...`);
     const polled = await pollForLabel({ parcelId: parcel.id, labelFormat, maxAttempts: 10, intervalMs: 2000 });
     if (polled.labelUrl) {
       labelUrl = polled.labelUrl;
@@ -617,6 +646,25 @@ async function shipOrder({ orderId, tenantId = 'default', shippingMethodId, weig
       );
     }
     methodId = matchedRule.shippingMethodId;
+  }
+
+  // Guard: check if a shipment already exists for this order to prevent duplicate SendCloud parcels
+  const existingShipments = await db.collection(SHIPMENTS_COLLECTION)
+    .where('orderId', '==', orderId)
+    .where('status', '!=', 'cancelled')
+    .limit(1)
+    .get();
+  if (!existingShipments.empty) {
+    const existing = existingShipments.docs[0].data();
+    console.warn(`[shipOrder] Order ${orderId} already has shipment ${existingShipments.docs[0].id} (tracking: ${existing.trackingNumber}). Skipping duplicate.`);
+    return {
+      trackingNumber: existing.trackingNumber || null,
+      trackingUrl: existing.trackingUrl || null,
+      carrier: existing.carrier || null,
+      shipmentId: existingShipments.docs[0].id,
+      labelUrl: existing.labelUrl || null,
+      duplicate: true,
+    };
   }
 
   // Create parcel in SendCloud
@@ -892,9 +940,9 @@ async function syncSendCloudParcels({ tenantId = 'default', fromDate, toDate } =
     };
     await db.collection(ORDERS_COLLECTION).doc(order.id).set(orderUpdate, { merge: true });
 
-    // Auto-transition to shipped only if tracking is confirmed and order is in a valid pre-ship state
+    // Auto-transition to shipped if tracking is confirmed and order is NOT already in a terminal state
     const currentStatus = order.omsStatus || order.status || 'pending';
-    if (trackingNumber && ['packed', 'picked', 'packing'].includes(currentStatus)) {
+    if (trackingNumber && !['shipped', 'delivered', 'completed', 'cancelled', 'returned'].includes(currentStatus)) {
       const { transitionOrder } = require('./order-state-machine');
       await transitionOrder({
         tenantId,

@@ -133,32 +133,64 @@ router.post('/webhooks/sendcloud', async (req, res) => {
         const newIdx = statusOrder[omsStatus] ?? -1;
 
         if (newIdx > currentIdx) {
-          const { ORDER_STATUSES } = require('../services/order-state-machine');
-          const update = {
-            omsStatus,
-            omsStatusLabel: ORDER_STATUSES[omsStatus]?.label || omsStatus,
-            updatedAt: new Date().toISOString(),
-          };
-          if (trackingNumber) update.trackingNumber = trackingNumber;
-          if (trackingUrl) update.trackingUrl = trackingUrl;
-          if (omsStatus === 'shipped') update.shippedAt = new Date().toISOString();
-          if (omsStatus === 'delivered') update.deliveredAt = new Date().toISOString();
+          if (omsStatus === 'shipped' || omsStatus === 'delivered') {
+            // State Machine nutzen fuer shipped/delivered (triggert Stock-Decrement + Side-Effects)
+            const { transitionOrder, processShippedOrder } = require('../services/order-state-machine');
+            const webhookTenantId = shipData.tenantId || 'default';
+            const transResult = await transitionOrder({
+              tenantId: webhookTenantId,
+              orderId,
+              toStatus: omsStatus,
+              force: true,
+              actor: { uid: 'system', email: 'sendcloud-webhook' },
+              note: `SendCloud: ${statusMessage}`,
+              timestamps: omsStatus === 'shipped'
+                ? { shippedAt: new Date().toISOString() }
+                : { deliveredAt: new Date().toISOString() },
+            }).catch((err) => {
+              console.warn(`[webhook/sendcloud] transitionOrder failed for ${orderId}: ${err.message}`);
+              return { ok: false };
+            });
 
-          await orderRef.set(update, { merge: true });
+            // Fallback: processShippedOrder wenn Transition fehlschlaegt (already shipped)
+            if (!transResult.ok && omsStatus === 'shipped') {
+              await processShippedOrder({ orderId, tenantId: webhookTenantId })
+                .catch((err) => console.warn(`[webhook/sendcloud] processShippedOrder failed for ${orderId}: ${err.message}`));
+            }
 
-          // Log event
-          await db.collection(ORDER_EVENTS_COLLECTION).add({
-            orderId,
-            tenantId: shipData.tenantId || 'default',
-            event: 'status_change',
-            fromStatus: currentOmsStatus,
-            toStatus: omsStatus,
-            fromStatusLabel: ORDER_STATUSES[currentOmsStatus]?.label || currentOmsStatus,
-            toStatusLabel: ORDER_STATUSES[omsStatus]?.label || omsStatus,
-            actor: { uid: 'system', email: 'sendcloud-webhook' },
-            note: `SendCloud: ${statusMessage}`,
-            timestamp: FieldValue.serverTimestamp(),
-          });
+            // Tracking backfill
+            if (trackingNumber || trackingUrl) {
+              await orderRef.set({
+                ...(trackingNumber ? { trackingNumber } : {}),
+                ...(trackingUrl ? { trackingUrl } : {}),
+              }, { merge: true });
+            }
+          } else {
+            // Andere Status → direktes Update (wie bisher)
+            const { ORDER_STATUSES } = require('../services/order-state-machine');
+            const update = {
+              omsStatus,
+              omsStatusLabel: ORDER_STATUSES[omsStatus]?.label || omsStatus,
+              updatedAt: new Date().toISOString(),
+            };
+            if (trackingNumber) update.trackingNumber = trackingNumber;
+            if (trackingUrl) update.trackingUrl = trackingUrl;
+            await orderRef.set(update, { merge: true });
+
+            // Log event for non-shipped/delivered statuses
+            await db.collection(ORDER_EVENTS_COLLECTION).add({
+              orderId,
+              tenantId: shipData.tenantId || 'default',
+              event: 'status_change',
+              fromStatus: currentOmsStatus,
+              toStatus: omsStatus,
+              fromStatusLabel: (require('../services/order-state-machine').ORDER_STATUSES[currentOmsStatus] || {}).label || currentOmsStatus,
+              toStatusLabel: (require('../services/order-state-machine').ORDER_STATUSES[omsStatus] || {}).label || omsStatus,
+              actor: { uid: 'system', email: 'sendcloud-webhook' },
+              note: `SendCloud: ${statusMessage}`,
+              timestamp: FieldValue.serverTimestamp(),
+            });
+          }
 
           console.log(`[webhook/sendcloud] Order ${orderId}: ${currentOmsStatus} → ${omsStatus} (parcel ${parcelId})`);
         }

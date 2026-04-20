@@ -410,27 +410,50 @@ async function saveOrderIfNew({ tenantId, order }) {
           shipped: 'Versendet', delivered: 'Zugestellt', cancelled: 'Storniert',
           returned: 'Retoure', completed: 'Abgeschlossen', on_hold: 'Pausiert',
         };
-        const updateFields = {
-          omsStatus: mappedStatus,
-          omsStatusLabel: OMS_STATUS_LABELS[mappedStatus] || mappedStatus,
-          status: mappedStatus,
-          statusLabel: OMS_STATUS_LABELS[mappedStatus] || mappedStatus,
-          updatedAt: new Date().toISOString(),
-          'ops.kauflandStatusSync': { from: currentOms, to: mappedStatus, klUnitStatus, syncedAt: new Date().toISOString() },
-        };
-        // Backfill shippedAt when marketplace confirms shipment
-        if (mappedStatus === 'shipped' && !existingData.shippedAt) {
-          updateFields.shippedAt = new Date().toISOString();
+
+        if (mappedStatus === 'shipped') {
+          // SHIPPED → State Machine nutzen (triggert Stock-Decrement via processShippedOrder)
+          const { transitionOrder, processShippedOrder } = require('./order-state-machine');
+          const transResult = await transitionOrder({
+            tenantId, orderId: existingDoc.id,
+            toStatus: 'shipped', force: true,
+            actor: { uid: 'system', email: 'kaufland-reconciliation' },
+            note: `Kaufland Status-Sync: ${currentOms} → shipped (${klUnitStatus})`,
+            timestamps: { shippedAt: new Date().toISOString() },
+          }).catch((err) => {
+            console.warn(`[kaufland-intake] transitionOrder to shipped failed for ${existingDoc.id}: ${err.message}`);
+            return { ok: false };
+          });
+
+          // Fallback: processShippedOrder wenn Transition fehlschlaegt (already shipped)
+          if (!transResult.ok) {
+            await processShippedOrder({ orderId: existingDoc.id, tenantId })
+              .catch((err) => console.warn(`[kaufland-intake] processShippedOrder failed for ${existingDoc.id}: ${err.message}`));
+          }
+
+          // Backfill paidAt/paymentMethod if available
+          const backfill = {};
+          if (order.paidAt && !existingData.paidAt) backfill.paidAt = order.paidAt;
+          if (order.paymentMethod && !existingData.paymentMethod) backfill.paymentMethod = order.paymentMethod;
+          if (Object.keys(backfill).length > 0) {
+            await existingDoc.ref.update(backfill);
+          }
+          console.log(`[kaufland-intake] Status updated via state machine: ${existingData.orderId || existingDoc.id} ${currentOms} → shipped (Kaufland: ${klUnitStatus})`);
+        } else {
+          // Andere Status (confirmed, cancelled, etc.) → ref.update() bleibt OK
+          const updateFields = {
+            omsStatus: mappedStatus,
+            omsStatusLabel: OMS_STATUS_LABELS[mappedStatus] || mappedStatus,
+            status: mappedStatus,
+            statusLabel: OMS_STATUS_LABELS[mappedStatus] || mappedStatus,
+            updatedAt: new Date().toISOString(),
+            'ops.kauflandStatusSync': { from: currentOms, to: mappedStatus, klUnitStatus, syncedAt: new Date().toISOString() },
+          };
+          if (order.paidAt && !existingData.paidAt) updateFields.paidAt = order.paidAt;
+          if (order.paymentMethod && !existingData.paymentMethod) updateFields.paymentMethod = order.paymentMethod;
+          await existingDoc.ref.update(updateFields);
+          console.log(`[kaufland-intake] Status updated: ${existingData.orderId || existingDoc.id} ${currentOms} → ${mappedStatus} (Kaufland: ${klUnitStatus})`);
         }
-        // Backfill paidAt if payment is complete and not yet recorded
-        if (order.paidAt && !existingData.paidAt) {
-          updateFields.paidAt = order.paidAt;
-        }
-        if (order.paymentMethod && !existingData.paymentMethod) {
-          updateFields.paymentMethod = order.paymentMethod;
-        }
-        await existingDoc.ref.update(updateFields);
-        console.log(`[kaufland-intake] Status updated: ${existingData.orderId || existingDoc.id} ${currentOms} → ${mappedStatus} (Kaufland: ${klUnitStatus})`);
       }
 
       // Also backfill unitIds if missing (critical for tracking/cancel push)
@@ -517,6 +540,14 @@ async function saveOrderIfNew({ tenantId, order }) {
 
   // Use marketplaceKey as doc ID for idempotent creation (prevents duplicates on race condition)
   await db.collection(ORDERS_COLLECTION).doc(marketplaceKey).set(doc);
+
+  // Pre-shipped orders: trigger stock decrement immediately (idempotent via stockDecrementedAt guard)
+  if (initialStatus === 'shipped') {
+    const { processShippedOrder } = require('./order-state-machine');
+    processShippedOrder({ orderId: marketplaceKey, tenantId })
+      .catch((err) => console.warn(`[kaufland-intake] pre-shipped order stock-out failed for ${marketplaceKey}: ${err.message}`));
+  }
+
   return true;
 }
 

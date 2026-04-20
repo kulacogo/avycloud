@@ -234,6 +234,12 @@ async function _onOrderShipped({ orderId, tenantId }) {
   const items = order.items || [];
   if (items.length === 0) return;
 
+  // Idempotenz-Guard: Skip decrement wenn bereits durchgefuehrt
+  const alreadyDecremented = Boolean(order.stockDecrementedAt);
+  if (alreadyDecremented) {
+    console.log(`[order-state-machine] Stock already decremented for ${orderId} at ${order.stockDecrementedAt} — skipping decrement, running marketplace sync only`);
+  }
+
   // 3. Build SKU→qty map
   const { syncStockWithRetry } = require('./stock-sync-dispatcher');
   const { decrementProductByIdOrSku } = require('../lib/warehouse');
@@ -247,20 +253,35 @@ async function _onOrderShipped({ orderId, tenantId }) {
     skuQtyMap[sku] = (skuQtyMap[sku] || 0) + (Number(item.quantity) || 1);
   }
 
-  // Phase A — Decrement ALL SKUs first (each under its own stock-lock)
-  for (const [sku, sold] of Object.entries(skuQtyMap)) {
-    await withStockLock(sku, async () => {
+  // Phase A — Decrement ALL SKUs first (nur wenn noch nicht decrementiert)
+  if (!alreadyDecremented) {
+    for (const [sku, sold] of Object.entries(skuQtyMap)) {
+      await withStockLock(sku, async () => {
+        try {
+          await decrementProductByIdOrSku(sku, sold);
+          console.log(`[order-state-machine] stock-out sku=${sku} qty=${sold} (bins + inventory decremented)`);
+        } catch (err) {
+          console.error(`[order-state-machine] decrementProductByIdOrSku failed sku=${sku}: ${err.message}`);
+          failures.push({ step: 'decrement', sku, qty: sold, error: err.message });
+        }
+      });
+    }
+
+    // Flag setzen — NUR wenn mindestens 1 SKU erfolgreich decrementiert wurde
+    const decrementFailures = failures.filter((f) => f.step === 'decrement');
+    if (decrementFailures.length < Object.keys(skuQtyMap).length) {
       try {
-        await decrementProductByIdOrSku(sku, sold);
-        console.log(`[order-state-machine] stock-out sku=${sku} qty=${sold} (bins + inventory decremented)`);
-      } catch (err) {
-        console.error(`[order-state-machine] decrementProductByIdOrSku failed sku=${sku}: ${err.message}`);
-        failures.push({ step: 'decrement', sku, qty: sold, error: err.message });
+        await db.collection(ORDERS_COLLECTION).doc(orderId).update({
+          stockDecrementedAt: new Date().toISOString(),
+          stockDecrementedSkus: Object.keys(skuQtyMap),
+        });
+      } catch (flagErr) {
+        console.error(`[order-state-machine] Failed to set stockDecrementedAt for ${orderId}: ${flagErr.message}`);
       }
-    });
+    }
   }
 
-  // Phase B — THEN sync all SKUs to marketplaces (reads post-decrement data)
+  // Phase B — THEN sync all SKUs to marketplaces (reads post-decrement data, runs ALWAYS)
   for (const sku of Object.keys(skuQtyMap)) {
     try {
       let snap = await fs.collection('products_v2')
@@ -434,6 +455,7 @@ module.exports = {
   getStatusInfo,
   getAllStatuses,
   transitionOrder,
+  processShippedOrder: _onOrderShipped,
   getOrderTimeline,
   getStatusCounts,
   mapLegacyStatus,
