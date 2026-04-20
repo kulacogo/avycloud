@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Order, Product, getOrderStatus } from '../types';
 import { getProductQuantity } from '../utils/product';
-import { fetchOrders as fetchOrdersApi, syncOrders as syncOrdersApi, completeOrder, packOrder, packAndShip, printToLabelPrinter, stockInProduct, stockOutProduct, fetchProfile } from '../api/client';
+import { fetchOrders as fetchOrdersApi, syncOrders as syncOrdersApi, completeOrder, packOrder, packAndShip, stockInProduct, stockOutProduct, fetchProfile } from '../api/client';
 import { useI18n } from '../i18n';
 import { compareBinCodesForPickRoute } from '../utils/warehouseRoute';
 import type { UploadGroupPayload } from '../hooks/useIdentification';
@@ -790,15 +790,29 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
           setPackMessage(t('ops.mobile.pack.scan.notFound', { sku: rawTrimmed }));
           return;
         }
+
+        let item = candidates[0];
+        let ambiguousRemaining = 0;
         if (candidates.length > 1) {
-          setPackMessage(t('ops.mobile.pack.scan.ambiguous', { sku: rawTrimmed, count: candidates.length }));
-          return;
+          // FIFO: pick the candidate from the oldest picked order. readyToPackOrders is sorted
+          // by createdAt so its index is a stable age ranking. Scanning the order ID still
+          // overrides this choice, and "Zurücksetzen" clears the scope.
+          const rankByOrderKey = new Map(readyToPackOrders.map((o, idx) => [getOrderCouplingKey(o), idx]));
+          const rank = (key: string) => rankByOrderKey.get(key) ?? Number.MAX_SAFE_INTEGER;
+          item = [...candidates].sort((a, b) => rank(a.orderKey) - rank(b.orderKey))[0];
+          ambiguousRemaining = candidates.length - 1;
         }
 
-        const item = candidates[0];
-        setPackMessage(null);
         setPackScopedOrderKey(item.orderKey);
         setPackSelectedKey(`${item.orderKey}::${item.sku}::${item.binCode}`);
+        setPackMessage(
+          ambiguousRemaining > 0
+            ? t('ops.mobile.pack.scan.autoSelected', {
+                order: item.orderNumber || item.orderId,
+                remaining: ambiguousRemaining,
+              })
+            : null
+        );
         return;
       }
 
@@ -1555,26 +1569,27 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
             });
             const orderLabel = selectedItem.orderNumber || selectedItem.orderId;
 
-            if (result.labelBlob && printingPrefs.networkPrinterUrl) {
-              // Direct print to LAN label printer via print proxy (zero interaction)
-              if (result.labelBlobUrl) URL.revokeObjectURL(result.labelBlobUrl);
-              const printResult = await printToLabelPrinter(printingPrefs.networkPrinterUrl, result.labelBlob);
-              if (printResult.ok) {
-                setPackMessage(`${orderLabel} verpackt & Label gedruckt (${result.carrier || '?'})`);
-              } else {
-                setPackMessage(`${orderLabel} verpackt & versendet — Druckfehler: ${printResult.error}`);
-              }
-            } else if (result.labelBlobUrl) {
-              // Fallback: open label in new window (no print proxy configured)
-              const printWindow = window.open(result.labelBlobUrl, '_blank');
-              if (printWindow && printingPrefs.autoPrint) {
-                setTimeout(() => {
-                  try { printWindow.print(); } catch (_) { /* cross-origin or blocked */ }
-                }, 1200);
-              }
-              setTimeout(() => URL.revokeObjectURL(result.labelBlobUrl!), 60000);
+            if (result.labelBlobUrl) {
+              // Mobile UX: always open the label PDF in a new tab so the user can trigger
+              // the print manually from the viewer. The LAN-printer path is intentionally
+              // skipped on mobile — the phone is rarely on the same network as the printer
+              // and the proxy's HTTP 200 does not guarantee a physical print.
+              // Keep the blob URL alive for several minutes so the viewer tab stays valid.
+              window.open(result.labelBlobUrl, '_blank');
+              setTimeout(() => URL.revokeObjectURL(result.labelBlobUrl!), 5 * 60 * 1000);
               setPackMessage(
-                `${orderLabel} verpackt & Label erstellt (${result.carrier || '?'}) — ${printingPrefs.autoPrint ? 'Druckdialog geöffnet.' : 'Label-Fenster geöffnet.'}`
+                `${orderLabel} verpackt & Label erstellt (${result.carrier || '?'}) — PDF im neuen Tab geöffnet. Druck manuell starten.`
+              );
+            } else if (result.labelBlob) {
+              // Popup blocked: offer the PDF as a download so the user can still get it.
+              const url = URL.createObjectURL(result.labelBlob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = `label-${orderLabel}.pdf`;
+              a.click();
+              setTimeout(() => URL.revokeObjectURL(url), 5 * 60 * 1000);
+              setPackMessage(
+                `${orderLabel} verpackt & Label erstellt (${result.carrier || '?'}) — Label-PDF heruntergeladen.`
               );
             } else {
               setPackMessage(
