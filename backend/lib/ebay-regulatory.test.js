@@ -68,11 +68,11 @@ describe('buildManufacturerXml', () => {
     expect(xml).toContain('<Street1>Musterweg 1</Street1>');
     expect(xml).toContain('<CityName>Berlin</CityName>');
     expect(xml).toContain('<PostalCode>10115</PostalCode>');
-    expect(xml).toContain('<CountryCode>DE</CountryCode>');
+    expect(xml).toContain('<Country>DE</Country>');
   });
 
   // Regression: previously "Deutschland" was silently dropped because the XML
-  // builder only emitted <CountryCode> for inputs already of length 2.
+  // builder only emitted <Country> for inputs already of length 2.
   test('normalizes full country names to ISO-2 for CountryCode', () => {
     const gpsr = {
       manufacturer_name: 'Acme',
@@ -81,7 +81,7 @@ describe('buildManufacturerXml', () => {
       manufacturer_postalcode: '1010',
       entity_country: 'Österreich',
     };
-    expect(buildManufacturerXml(gpsr)).toContain('<CountryCode>AT</CountryCode>');
+    expect(buildManufacturerXml(gpsr)).toContain('<Country>AT</Country>');
   });
 
   test('emits block with name + email only when address is incomplete', () => {
@@ -116,7 +116,7 @@ describe('buildManufacturerXml', () => {
     };
     const xml = buildManufacturerXml(gpsr);
     expect(xml).not.toContain('<Street1>');
-    expect(xml).not.toContain('<CountryCode>');
+    expect(xml).not.toContain('<Country>');
     expect(xml).toContain('<Email>info@acme.example</Email>');
   });
 

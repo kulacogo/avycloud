@@ -850,7 +850,7 @@ function buildManufacturerXml(gpsr) {
     fields.push(`<CityName>${escapeXml(city)}</CityName>`);
     if (state) fields.push(`<StateOrProvince>${escapeXml(state)}</StateOrProvince>`);
     fields.push(`<PostalCode>${escapeXml(zip)}</PostalCode>`);
-    fields.push(`<CountryCode>${escapeXml(countryCode)}</CountryCode>`);
+    fields.push(`<Country>${escapeXml(countryCode)}</Country>`);
   }
   if (phone) fields.push(`<Phone>${escapeXml(phone)}</Phone>`);
   if (email) fields.push(`<Email>${escapeXml(email)}</Email>`);
@@ -870,7 +870,7 @@ function buildManufacturerXml(gpsr) {
  *     <CityName>...</CityName>
  *     <StateOrProvince>...</StateOrProvince>
  *     <PostalCode>...</PostalCode>
- *     <CountryCode>DE</CountryCode>
+ *     <Country>DE</Country>
  *     <Phone>...</Phone>
  *     <Email>...</Email>
  *   </Manufacturer>
@@ -880,7 +880,7 @@ function buildManufacturerXml(gpsr) {
  *       <Street1>...</Street1>
  *       <CityName>...</CityName>
  *       <PostalCode>...</PostalCode>
- *       <CountryCode>DE</CountryCode>
+ *       <Country>DE</Country>
  *       <Phone>...</Phone>
  *       <Email>...</Email>
  *       <Types>
@@ -912,7 +912,7 @@ function buildRegulatoryXml(item) {
     const rpZip = safeString(responsiblePerson.postalCode);
     if (rpZip) rp.push(`<PostalCode>${escapeXml(rpZip)}</PostalCode>`);
     const rpCountry = safeString(responsiblePerson.countryCode) || 'DE';
-    rp.push(`<CountryCode>${escapeXml(rpCountry)}</CountryCode>`);
+    rp.push(`<Country>${escapeXml(rpCountry)}</Country>`);
     const rpPhone = safeString(responsiblePerson.phone);
     if (rpPhone) rp.push(`<Phone>${escapeXml(rpPhone)}</Phone>`);
     const rpEmail = safeString(responsiblePerson.email);
