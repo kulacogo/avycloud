@@ -648,20 +648,22 @@ async function shipOrder({ orderId, tenantId = 'default', shippingMethodId, weig
     methodId = matchedRule.shippingMethodId;
   }
 
-  // Guard: check if a shipment already exists for this order to prevent duplicate SendCloud parcels
-  const existingShipments = await db.collection(SHIPMENTS_COLLECTION)
+  // Guard: check if a shipment already exists for this order to prevent duplicate SendCloud parcels.
+  // Fetch by orderId only (auto single-field index) and filter cancelled in-memory to avoid
+  // requiring a composite (orderId, status) index for the != inequality.
+  const shipmentSnap = await db.collection(SHIPMENTS_COLLECTION)
     .where('orderId', '==', orderId)
-    .where('status', '!=', 'cancelled')
-    .limit(1)
+    .limit(5)
     .get();
-  if (!existingShipments.empty) {
-    const existing = existingShipments.docs[0].data();
-    console.warn(`[shipOrder] Order ${orderId} already has shipment ${existingShipments.docs[0].id} (tracking: ${existing.trackingNumber}). Skipping duplicate.`);
+  const activeShipment = shipmentSnap.docs.find((doc) => (doc.data().status || '') !== 'cancelled');
+  if (activeShipment) {
+    const existing = activeShipment.data();
+    console.warn(`[shipOrder] Order ${orderId} already has shipment ${activeShipment.id} (tracking: ${existing.trackingNumber}). Skipping duplicate.`);
     return {
       trackingNumber: existing.trackingNumber || null,
       trackingUrl: existing.trackingUrl || null,
       carrier: existing.carrier || null,
-      shipmentId: existingShipments.docs[0].id,
+      shipmentId: activeShipment.id,
       labelUrl: existing.labelUrl || null,
       duplicate: true,
     };
