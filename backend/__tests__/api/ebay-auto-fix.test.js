@@ -70,17 +70,23 @@ describe('autoFixEbayProduct', () => {
     expect(out.fixes).toEqual([]);
   });
 
-  it('strips category on category-mismatch error', async () => {
+  it('does NOT mutate categoryId on category-mismatch error (handled by addFixedPriceItem retry)', async () => {
+    // Regression: previously this helper set product.details.categoryId = null, which was
+    // persisted and then caused "Produkt hat keine eBay-Kategorie" on subsequent runs
+    // because buildListingFromProduct requires a categoryId. eBay's own retry layer
+    // (inside addFixedPriceItem) already re-sends without <PrimaryCategory>, so this
+    // strategy is not needed here.
     const lastError = new Error('eBay rejected');
     lastError.details = {
       errors: [
         { errorCode: '21916582', longMessage: 'The item cannot be listed in the supplied category.' },
       ],
     };
+    const originalCategoryId = baseProduct.details.categoryId;
     const fakeGemini = async () => '{}';
     const out = await autoFixEbayProduct(baseProduct, { lastError, generateText: fakeGemini });
-    expect(out.fixes.some((f) => /Kategorie entfernt/i.test(f))).toBe(true);
-    expect(out.product.details.categoryId).toBeNull();
+    expect(out.fixes.some((f) => /Kategorie entfernt/i.test(f))).toBe(false);
+    expect(out.product.details.categoryId).toBe(originalCategoryId);
   });
 
   it('fills missing aspects from Gemini response', async () => {

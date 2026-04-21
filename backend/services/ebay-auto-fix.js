@@ -275,15 +275,13 @@ async function autoFixEbayProduct(product, opts = {}) {
   const messages = getErrorMessages(lastError);
   const generateText = opts.generateText || require('../lib/gemini').generateText;
 
-  // Strategy 1: Category mismatch → drop categoryId so eBay catalog matching kicks in.
-  if (isCategoryMismatchError(errs)) {
-    const had = fixed?.details?.categoryId;
-    if (had) {
-      if (!fixed.details) fixed.details = {};
-      fixed.details.categoryId = null;
-      fixes.push('Kategorie entfernt (eBay übernimmt Catalog-Matching)');
-    }
-  }
+  // Strategy 1: Category mismatch is ALREADY handled inside addFixedPriceItem's own
+  // retry loop (lib/ebay-trading-api.js), which re-sends the request with no
+  // <PrimaryCategory> so eBay catalog-matches via EAN/GTIN. Do NOT mutate
+  // product.details.categoryId here: that gets persisted to Firestore and makes
+  // the NEXT buildListingFromProduct throw "Produkt hat keine eBay-Kategorie"
+  // because its pre-flight check needs a categoryId. This loop should therefore
+  // skip the category strategy entirely.
 
   // Strategy 3: Image conflict (EPS + self-managed pictures cannot be combined) →
   // drop the catalog reference so only our own pictures are sent.
