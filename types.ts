@@ -135,6 +135,8 @@ export interface Details {
   pricing: Pricing;
   // canonical eBay category id (see backend enforceEbayAspects)
   categoryId?: string;
+  // set when a resolver or UI writes the category; 'manual' protects from auto-overrides
+  categorySource?: "manual" | "auto:catalog" | "auto:suggestions" | "auto:local" | "auto:gemini";
   gpsr?: {
     entity_country?: string;
     country_code?: string; // ISO-like code (see backend normalization)

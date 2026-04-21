@@ -72,6 +72,26 @@ const IMPROVE_INLINE = (process.env.IMPROVE_INLINE ?? 'false') === 'true';
 const MAX_QUALITY_BATCH = parseInt(process.env.MAX_QUALITY_BATCH || '50', 10);
 const GENERATED_IMAGE_SIGNATURE = /\b(generated|gpt|gemini|ai[-\s]?image|ai[-\s]?render)\b/i;
 
+// B2 — In-memory dedupe for post-save category-resolver triggers.
+// Prevents double-trigger when the UI fires rapid back-to-back saves for the
+// same product. Entries expire after CATEGORY_RESOLVER_DEDUPE_MS.
+const CATEGORY_RESOLVER_DEDUPE_MS = 60 * 1000;
+const categoryResolverPostSaveDedupe = new Map();
+function shouldTriggerCategoryResolverPostSave(productId) {
+  if (!productId) return false;
+  const now = Date.now();
+  // Opportunistic cleanup of stale entries (cheap, runs on every call)
+  for (const [key, ts] of categoryResolverPostSaveDedupe) {
+    if (now - ts > CATEGORY_RESOLVER_DEDUPE_MS) {
+      categoryResolverPostSaveDedupe.delete(key);
+    }
+  }
+  const last = categoryResolverPostSaveDedupe.get(productId);
+  if (last && now - last < CATEGORY_RESOLVER_DEDUPE_MS) return false;
+  categoryResolverPostSaveDedupe.set(productId, now);
+  return true;
+}
+
 // ── Helper Functions ─────────────────────────────────────────────────
 
 const normalizeIdentifyToken = (value) => String(value || '').trim();
@@ -1799,6 +1819,94 @@ router.post('/save', requirePermission('products', 'write'), async (req, res) =>
       enqueueQualityJob(jobId, true);
     } catch (qErr) {
       console.warn('Failed to enqueue quality job after save:', qErr?.message || qErr);
+    }
+
+    // B2 — Post-save category auto-correct (fire-and-forget).
+    // When the saved product has no/weak category AND was not manually set,
+    // trigger the v2 resolver in the background. Feature-flagged and deduped.
+    try {
+      const resolverV2Enabled =
+        String(process.env.CATEGORY_RESOLVER_V2 || '').toLowerCase() === 'true';
+      if (resolverV2Enabled) {
+        const savedProduct = result?.product || result;
+        const savedDetails = (savedProduct && savedProduct.details) || product.details || {};
+        const savedCategorySource =
+          typeof savedDetails.categorySource === 'string'
+            ? savedDetails.categorySource.trim()
+            : '';
+        const savedCategoryId = savedDetails.categoryId
+          ? String(savedDetails.categoryId).trim()
+          : '';
+        const savedBreadcrumb =
+          savedCategoryId && findEbayCategory(savedCategoryId)?.breadcrumb
+            ? String(findEbayCategory(savedCategoryId).breadcrumb)
+            : '';
+        // "bad" means: no id, or no breadcrumb resolvable, or breadcrumb banned/too-broad
+        const categoryBad =
+          !savedCategoryId ||
+          !savedBreadcrumb ||
+          !savedBreadcrumb.includes('>') ||
+          isBannedEbayBreadcrumb(savedBreadcrumb);
+
+        if (
+          savedCategorySource !== 'manual' &&
+          categoryBad &&
+          shouldTriggerCategoryResolverPostSave(product.id)
+        ) {
+          // eslint-disable-next-line global-require
+          const { resolveCategoryV2 } = require('../services/category-resolver');
+          console.log('[categoryResolver] post-save triggered for', product.id);
+          Promise.resolve()
+            .then(async () => {
+              const resolved = await resolveCategoryV2(savedProduct || product, {
+                reason: 'post-save-auto',
+              });
+              if (!resolved || !resolved.categoryId) return;
+              // Data-integrity guard: never persist a low-confidence category.
+              // Mirrors MIN_APPLY_CONFIDENCE in admin-bulk-actions.js.
+              const conf = Number(resolved.confidence) || 0;
+              if (conf < 0.8) {
+                console.warn(
+                  '[categoryResolver] post-save skipped (low confidence)',
+                  product.id,
+                  conf,
+                  resolved.source
+                );
+                return;
+              }
+              const next = JSON.parse(JSON.stringify(savedProduct || product));
+              next.details = next.details || {};
+              next.identification = next.identification || {};
+              next.details.categoryId = String(resolved.categoryId);
+              next.details.categorySource = `auto:${resolved.source}`;
+              if (resolved.breadcrumb) {
+                next.identification.category = String(resolved.breadcrumb);
+              }
+              await saveProductV2(next, {
+                source: 'category-resolver-v2-post-save',
+                allowCategoryChange: true,
+              });
+              console.log(
+                '[categoryResolver] post-save applied',
+                product.id,
+                resolved.source,
+                resolved.categoryId
+              );
+            })
+            .catch((resolveErr) => {
+              console.error(
+                '[categoryResolver] post-save failed for',
+                product.id,
+                resolveErr?.message || resolveErr
+              );
+            });
+        }
+      }
+    } catch (postSaveErr) {
+      console.error(
+        '[categoryResolver] post-save setup error:',
+        postSaveErr?.message || postSaveErr
+      );
     }
 
     // Auto-push price to marketplaces when pricing changes (async, non-blocking)

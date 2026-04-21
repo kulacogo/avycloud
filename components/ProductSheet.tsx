@@ -1006,6 +1006,8 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
         if (match?.breadcrumb) {
           next.identification.category = String(match.breadcrumb);
         }
+        // B2: mark source as manual so auto-resolvers do not override the user's choice
+        next.details.categorySource = "manual";
         return next;
       });
       const selected = categoryOptions.find((opt) => String(opt.id) === String(categoryId));

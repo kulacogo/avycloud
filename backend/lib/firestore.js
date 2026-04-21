@@ -441,6 +441,20 @@ function applyAttributeAliasesProfile(attrs = {}, { canonicalAttributes = [], at
   return normalized;
 }
 
+// B2 — Pure helper to decide whether the manual category lock applies.
+// Returns true when the existing product has `details.categorySource === 'manual'`
+// AND the current save is not a UI/manual-mode save. Auto-triggered saves
+// (bulk jobs, post-save resolver, scripts) must not override a manual choice
+// even when they pass `allowCategoryChange: true`.
+function shouldLockCategoryForManualSource(existingProduct, { isManualSave = false } = {}) {
+  if (isManualSave) return false;
+  const src =
+    existingProduct && existingProduct.details && typeof existingProduct.details.categorySource === 'string'
+      ? String(existingProduct.details.categorySource).trim()
+      : '';
+  return src === 'manual';
+}
+
 function enforceEbayAspects(product, { isManualSave = false } = {}) {
   const details = product.details || {};
   const attrs = details.attributes || {};
@@ -2288,6 +2302,38 @@ async function saveProduct(product, options = {}) {
       if (mergedDetails.ebayCategoryBreadcrumb) delete mergedDetails.ebayCategoryBreadcrumb;
     }
 
+    // B2 — Additive manual-source lock:
+    // When the existing product carries `details.categorySource === 'manual'`,
+    // the user has explicitly chosen the category. Auto-triggered saves (bulk
+    // jobs, post-save resolver hooks, scripts) must NOT override this even if
+    // they pass `allowCategoryChange: true`. Only UI saves (saveSource === 'ui'
+    // or mode === 'manual') can still change the category.
+    if (
+      existingCategoryId &&
+      hasExisting &&
+      shouldLockCategoryForManualSource(existingData, { isManualSave })
+    ) {
+      const incomingIdAfterFirstLock = pickStableCategoryId({ ...product, details: mergedDetails });
+      if (incomingIdAfterFirstLock && incomingIdAfterFirstLock !== existingCategoryId) {
+        mergedOps.category_write_blocked_manual = {
+          at_iso: new Date().toISOString(),
+          kept: existingCategoryId,
+          incoming: incomingIdAfterFirstLock,
+          source: 'manual',
+        };
+      }
+      mergedDetails.categoryId = existingCategoryId;
+      // Preserve the manual source flag so subsequent auto-saves keep respecting it.
+      mergedDetails.categorySource = 'manual';
+      const existingCategoryText = existingData?.identification?.category;
+      if (existingCategoryText && typeof existingCategoryText === 'string' && existingCategoryText.trim()) {
+        mergedIdentification.category = existingCategoryText;
+      }
+      if (mergedDetails.ebayCategoryId) delete mergedDetails.ebayCategoryId;
+      if (mergedDetails.ebayCategoryPath) delete mergedDetails.ebayCategoryPath;
+      if (mergedDetails.ebayCategoryBreadcrumb) delete mergedDetails.ebayCategoryBreadcrumb;
+    }
+
     // Add timestamps and identity metadata
     const identityKey = computeProductIdentityKey({ ...product, details: mergedDetails, identification: mergedIdentification });
     const pendingIntake =
@@ -3890,4 +3936,6 @@ module.exports = {
   logInventorySyncEvent,
   computeOrdersDeliveryTotal,
   firestore,
+  // B2 — pure helper exported for unit tests
+  shouldLockCategoryForManualSource,
 };
