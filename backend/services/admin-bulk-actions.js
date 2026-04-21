@@ -1283,6 +1283,324 @@ async function runBulkCategory({ apply = false, limit = 500, offset = 0, debug =
   return { summary, samples };
 }
 
+/**
+ * B3 — Bulk audit run "recategorize_v2".
+ *
+ * Iterates all (or a subset) of products, invokes category-resolver v2
+ * (`resolveCategoryV2`), and optionally rewrites `details.categoryId` /
+ * `details.categorySource` / `identification.category`.
+ *
+ * Safety mechanisms:
+ *  - Default is DryRun (`apply: false`) — no product is written.
+ *  - Pre-flight count guard: callers pass `expectedCount`; when the collection
+ *    size diverges we abort before writing.
+ *  - Post-flight count guard: re-check the collection size after the run.
+ *  - Skip UI-edited products (`ops.last_saved_source === 'ui'`) unless
+ *    `includeUi: true` is explicitly set.
+ *  - Skip products with `details.categorySource === 'manual'`.
+ *  - Reports (summary + per-product audit) are uploaded via `uploadJobFile`.
+ */
+// Data-integrity threshold: auto-apply only when the resolver is this confident.
+// Mirrors STRATEGY_ACCEPT_THRESHOLD in backend/services/category-resolver.js so
+// below-threshold "best candidate" fallbacks are never written to products.
+const MIN_APPLY_CONFIDENCE = 0.8;
+
+async function runBulkRecategorizeV2({
+  apply = false,
+  limit = 20000,
+  offset = 0,
+  productIds = null,
+  includeUi = false,
+  concurrency = 2,
+  expectedCount = null,
+  minConfidence = null,
+  jobId = null,
+  debug = false,
+} = {}) {
+  const startedAt = Date.now();
+  const PQueue = require('p-queue').default || require('p-queue');
+  const conc = Math.max(1, Math.min(5, Number(concurrency) || 2));
+  const queue = new PQueue({ concurrency: conc });
+  const effectiveMinConfidence =
+    Number.isFinite(Number(minConfidence)) && Number(minConfidence) > 0
+      ? Math.min(1, Math.max(0, Number(minConfidence)))
+      : MIN_APPLY_CONFIDENCE;
+
+  // Pre-flight count guard — only enforced when applying and an expected
+  // count was provided by the caller. Protects against runs scheduled for a
+  // different tenant/dataset size.
+  if (apply && typeof expectedCount === 'number' && Number.isFinite(expectedCount)) {
+    const all = await getAllProducts();
+    const preCount = Array.isArray(all) ? all.length : 0;
+    if (preCount !== expectedCount) {
+      throw new Error(
+        `Pre-flight count mismatch: expected ${expectedCount}, got ${preCount}`
+      );
+    }
+  }
+
+  const selected = await resolveTargetProducts({ productIds, limit, offset });
+  const total = selected.length;
+
+  const summary = {
+    action: 'recategorize_v2',
+    apply: Boolean(apply),
+    limit,
+    offset,
+    includeUi: Boolean(includeUi),
+    concurrency: conc,
+    selected: total,
+    updated: 0,
+    would_update: 0,
+    noop: 0,
+    skipped_ui: 0,
+    skipped_manual: 0,
+    unresolved: 0,
+    not_found: 0,
+    failed: 0,
+    durationMs: 0,
+    dryRun: !apply,
+  };
+  const samples = [];
+  const auditRows = [];
+
+  let processed = 0;
+
+  const maybeUpdateJob = async (patch) => {
+    if (!jobId) return;
+    try {
+      const { updateJob } = require('../lib/admin-bulk-jobs');
+      await updateJob(jobId, patch);
+    } catch (err) {
+      if (debug) console.warn('[recategorize_v2] updateJob failed:', err?.message || err);
+    }
+  };
+
+  const resolverMod = require('./category-resolver');
+
+  const workOne = async (p) => {
+    const id = p?.id;
+    const sku = pickSku(p);
+    try {
+      const cur = await getProduct(String(id));
+      if (!cur) {
+        summary.not_found += 1;
+        auditRows.push({ id, sku, status: 'not_found' });
+        return;
+      }
+
+      // Skip UI-edited products unless explicitly included.
+      if (!includeUi && cur?.ops?.last_saved_source === 'ui') {
+        summary.skipped_ui += 1;
+        auditRows.push({ id, sku, status: 'skipped_ui' });
+        return;
+      }
+
+      // Skip manually categorised products — never auto-override.
+      if (cur?.details?.categorySource === 'manual') {
+        summary.skipped_manual += 1;
+        auditRows.push({ id, sku, status: 'skipped_manual' });
+        return;
+      }
+
+      const result = await resolverMod.resolveCategoryV2(cur, { reason: 'bulk-audit-v2' });
+      if (!result || !result.categoryId || !result.breadcrumb) {
+        summary.unresolved += 1;
+        auditRows.push({
+          id,
+          sku,
+          status: 'unresolved',
+          log: Array.isArray(result?.log) ? result.log : undefined,
+        });
+        if (samples.length < 100) {
+          samples.push({ id, sku, status: 'unresolved', log: result?.log });
+        }
+        return;
+      }
+
+      // Data-integrity guard: never overwrite an existing category with a
+      // low-confidence resolver result. resolveCategoryV2 can return its
+      // best-below-threshold candidate when no strategy cleared the accept
+      // threshold — that must never be auto-applied.
+      const confidence = Number(result.confidence) || 0;
+      if (confidence < effectiveMinConfidence) {
+        summary.low_confidence = (summary.low_confidence || 0) + 1;
+        const row = {
+          id,
+          sku,
+          status: 'low_confidence',
+          confidence,
+          threshold: effectiveMinConfidence,
+          source: result.source,
+          from: { id: safeString(cur?.details?.categoryId) || null, breadcrumb: safeString(cur?.identification?.category) || null },
+          to: { id: String(result.categoryId), breadcrumb: String(result.breadcrumb) },
+        };
+        auditRows.push(row);
+        if (samples.length < 100) samples.push(row);
+        return;
+      }
+
+      const currentId = safeString(cur?.details?.categoryId);
+      const currentBreadcrumb = safeString(cur?.identification?.category);
+      if (currentId === String(result.categoryId) && currentBreadcrumb === String(result.breadcrumb)) {
+        summary.noop += 1;
+        auditRows.push({ id, sku, status: 'noop', categoryId: currentId });
+        return;
+      }
+
+      const fromPayload = {
+        id: currentId || null,
+        breadcrumb: currentBreadcrumb || null,
+      };
+      const toPayload = {
+        id: String(result.categoryId),
+        breadcrumb: String(result.breadcrumb),
+      };
+
+      if (!apply) {
+        summary.would_update += 1;
+        const row = {
+          id,
+          sku,
+          status: 'would_update',
+          from: fromPayload,
+          to: toPayload,
+          source: result.source,
+          confidence: result.confidence,
+        };
+        auditRows.push(row);
+        if (samples.length < 100) samples.push(row);
+        return;
+      }
+
+      // Apply mode — clone and rewrite.
+      const next = JSON.parse(JSON.stringify(cur));
+      next.details = next.details || {};
+      next.details.categoryId = String(result.categoryId);
+      next.details.categorySource = `auto:${result.source}`;
+      next.identification = next.identification || {};
+      next.identification.category = String(result.breadcrumb);
+
+      // Hard cleanup — legacy marketplace fields would otherwise reintroduce
+      // drift when the write path falls back to them.
+      if (next.details.ebayCategoryId) delete next.details.ebayCategoryId;
+      if (next.details.ebayCategoryPath) delete next.details.ebayCategoryPath;
+      if (next.details.ebayCategoryBreadcrumb) delete next.details.ebayCategoryBreadcrumb;
+      if (next.details.kauflandCategoryId) delete next.details.kauflandCategoryId;
+      if (next.details.kauflandCategoryPath) delete next.details.kauflandCategoryPath;
+
+      next.ops = next.ops || {};
+      next.ops.data_quality = next.ops.data_quality || {};
+      next.ops.data_quality.recategorize_v2 = {
+        at_iso: new Date().toISOString(),
+        from: fromPayload,
+        to: toPayload,
+        source: result.source,
+        confidence: result.confidence,
+      };
+
+      await saveProductV2(next, {
+        source: 'admin-bulk-recategorize-v2',
+        allowCategoryChange: true,
+      });
+      summary.updated += 1;
+      const row = {
+        id,
+        sku,
+        status: 'updated',
+        from: fromPayload,
+        to: toPayload,
+        source: result.source,
+        confidence: result.confidence,
+      };
+      auditRows.push(row);
+      if (samples.length < 100) samples.push(row);
+    } catch (e) {
+      summary.failed += 1;
+      const msg = e?.message || String(e);
+      auditRows.push({ id, sku, status: 'error', message: msg });
+      if (samples.length < 100) samples.push({ id, sku, status: 'error', message: msg });
+      if (debug) console.error(`[recategorize_v2] ${id}: ${msg}`);
+    }
+  };
+
+  for (const p of selected) {
+    queue.add(async () => {
+      await workOne(p);
+      processed += 1;
+      if (processed % 10 === 0) {
+        await maybeUpdateJob({
+          stage: `processing ${processed}/${total}`,
+          progress: {
+            current: processed,
+            total,
+            updated: summary.updated,
+            skipped: summary.skipped_ui + summary.skipped_manual,
+          },
+        });
+      }
+    });
+  }
+
+  await queue.onIdle();
+
+  summary.durationMs = Date.now() - startedAt;
+
+  // Upload reports BEFORE the post-flight count guard so audit trail survives
+  // even if the guard throws afterwards. Failures here must not destroy the
+  // summary — we log and continue so the caller still sees the in-memory result.
+  const files = [];
+  if (jobId) {
+    try {
+      const summaryBuf = Buffer.from(JSON.stringify(summary, null, 2), 'utf8');
+      const summaryMeta = await uploadJobFile(
+        summaryBuf,
+        'application/json',
+        jobId,
+        'summary.json'
+      );
+      files.push(summaryMeta);
+    } catch (err) {
+      console.warn('[recategorize_v2] summary upload failed:', err?.message || err);
+    }
+    try {
+      const auditName = apply ? 'apply_repairs.json' : 'dryrun_repairs.json';
+      const auditBuf = Buffer.from(JSON.stringify(auditRows, null, 2), 'utf8');
+      const auditMeta = await uploadJobFile(
+        auditBuf,
+        'application/json',
+        jobId,
+        auditName
+      );
+      files.push(auditMeta);
+    } catch (err) {
+      console.warn('[recategorize_v2] audit upload failed:', err?.message || err);
+    }
+  }
+
+  // Post-flight count guard — ensure we did not accidentally trigger deletes.
+  // Tolerance allows for concurrent creates during the run (realistic in prod).
+  if (apply && typeof expectedCount === 'number' && Number.isFinite(expectedCount)) {
+    const after = await getAllProducts();
+    const postCount = Array.isArray(after) ? after.length : 0;
+    const COUNT_DELTA_TOLERANCE = 10;
+    if (Math.abs(postCount - expectedCount) > COUNT_DELTA_TOLERANCE) {
+      throw new Error(
+        `Post-flight count mismatch: expected ≈${expectedCount} (±${COUNT_DELTA_TOLERANCE}), got ${postCount}`
+      );
+    }
+    if (postCount !== expectedCount) {
+      summary.post_count_delta = postCount - expectedCount;
+    }
+  }
+
+  return {
+    summary,
+    samples: samples.slice(0, 100),
+    files,
+  };
+}
+
 async function runBulkKType({ apply = false, limit = 500, offset = 0, debug = false, productIds = null } = {}) {
   const selected = await resolveTargetProducts({ productIds, limit, offset });
 
@@ -2081,6 +2399,26 @@ async function runBulkAction(action, payload = {}) {
   }
   if (a === 'category') {
     return runBulkCategory({ apply, limit, offset, debug, productIds });
+  }
+  if (a === 'recategorize_v2' || a === 'recategorize-v2') {
+    return runBulkRecategorizeV2({
+      apply,
+      limit,
+      offset,
+      productIds,
+      debug,
+      includeUi: parseBool(payload.includeUi, false),
+      concurrency: Math.max(1, Math.min(5, Number(payload.concurrency) || 2)),
+      expectedCount:
+        payload.expectedCount === undefined || payload.expectedCount === null
+          ? null
+          : Number(payload.expectedCount),
+      minConfidence:
+        payload.minConfidence === undefined || payload.minConfidence === null
+          ? null
+          : Number(payload.minConfidence),
+      jobId: jobId || null,
+    });
   }
   if (a === 'ktype' || a === 'k-typ') {
     return runBulkKType({ apply, limit, offset, debug, productIds });
