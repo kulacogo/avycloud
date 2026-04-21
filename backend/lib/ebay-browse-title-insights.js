@@ -444,4 +444,6 @@ module.exports = {
   fetchBrowsePriceSamples,
   fetchTopTitlesForCategory,
   tokenizeTitle,
+  getAppToken,
+  getIdentityBase,
 };

@@ -1224,6 +1224,9 @@ function applyKauflandTaxonomy(input) {
 
 // Ensure categories using Gemini fallback if missing
 async function ensureCategories(products = []) {
+  const RESOLVER_V2_ENABLED = String(process.env.CATEGORY_RESOLVER_V2 || '').toLowerCase() === 'true';
+  const RESOLVER_WRITE_THRESHOLD = 0.85;
+
   for (const p of products) {
     if (!p || !p.details) continue;
     const attrs = p.details.attributes || {};
@@ -1240,8 +1243,50 @@ async function ensureCategories(products = []) {
     // Prevent overly generic top-level categories (no '>' breadcrumb). We want a real category tree path.
     const ebayTooBroad = Boolean(existingBreadcrumb) && !existingBreadcrumb.includes('>');
     const ebayBanned = Boolean(existingBreadcrumb) && isBannedEbayBreadcrumb(existingBreadcrumb);
+    const currentBad = !ebayIdOk || ebayTooBroad || ebayBanned;
+    const isManual = safeString(p.details.categorySource) === 'manual';
 
-    if (!ebayIdOk || ebayTooBroad || ebayBanned) {
+    let handled = false;
+
+    if (RESOLVER_V2_ENABLED && !isManual) {
+      try {
+        // eslint-disable-next-line global-require
+        const { resolveCategoryV2 } = require('./category-resolver');
+        const resolved = await resolveCategoryV2(p, { reason: 'ensureCategories' });
+        if (
+          resolved &&
+          resolved.categoryId &&
+          Number(resolved.confidence) >= RESOLVER_WRITE_THRESHOLD &&
+          currentBad
+        ) {
+          const from = existingEbayId || existingBreadcrumb || '';
+          p.details.categoryId = String(resolved.categoryId);
+          p.details.ebayCategoryId = String(resolved.categoryId);
+          p.details.ebayCategoryPath = safeString(resolved.breadcrumb);
+          p.details.categorySource = `auto:${resolved.source}`;
+          if (!p.identification) p.identification = {};
+          p.identification.category = safeString(resolved.breadcrumb) || p.identification.category || '';
+
+          if (!p.ops || typeof p.ops !== 'object') p.ops = {};
+          if (!p.ops.data_quality || typeof p.ops.data_quality !== 'object') p.ops.data_quality = {};
+          p.ops.data_quality.category_decision_v1 = {
+            at_iso: new Date().toISOString(),
+            source: resolved.source,
+            confidence: resolved.confidence,
+            from,
+            to: String(resolved.categoryId),
+          };
+          handled = true;
+        } else if (resolved && resolved.categoryId && !currentBad) {
+          // Category is already OK — don't overwrite, but flag resolver as no-op
+          handled = true;
+        }
+      } catch (err) {
+        console.warn('[ensureCategories] resolveCategoryV2 failed:', err?.message || err);
+      }
+    }
+
+    if (!handled && currentBad) {
       const g = await resolveCategoryWithGemini(p, 'ebay');
       if (g?.id) {
         // Canonical category id is details.categoryId (single-category system).
