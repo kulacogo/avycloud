@@ -4516,8 +4516,8 @@ async function publishProduct(productId, overrides = {}, { actor = null } = {}) 
     throw publishErr;
   }
 
-  // Update reference for downstream code that reads `product` (e.g. logging).
-  product = workingProduct;
+  // Note: downstream code reads `workingProduct` directly (not `product`).
+  // The original `product` const stays as the input snapshot.
 
   const itemId = safeString(result?.itemId);
 
