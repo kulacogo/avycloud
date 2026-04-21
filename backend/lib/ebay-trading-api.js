@@ -1319,4 +1319,7 @@ module.exports = {
   buildRegulatoryXml,
   buildManufacturerXml,
   normalizeManufacturerCountryCode,
+  extractMisusedAspectNames,
+  isCategoryMismatchError,
+  isProductAspectMisuseError,
 };

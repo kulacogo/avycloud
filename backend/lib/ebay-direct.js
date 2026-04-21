@@ -4,7 +4,15 @@ const crypto = require('crypto');
 const { FieldValue } = require('@google-cloud/firestore');
 
 const { firestore, getAllProducts, PRODUCTS_COLLECTION } = require('./firestore');
-const { getRequiredAspects, getCategoryAspectCatalog } = require('./ebay-taxonomy');
+const { getRequiredAspects, getCategoryAspectCatalog, findEbayCategory } = require('./ebay-taxonomy');
+
+function resolveCategoryNameFromId(categoryId) {
+  if (categoryId === null || categoryId === undefined || categoryId === '') return null;
+  const id = typeof categoryId === 'number' ? String(categoryId) : String(categoryId).trim();
+  if (!/^\d+$/.test(id)) return null;
+  const cat = findEbayCategory(id);
+  return cat?.breadcrumb || null;
+}
 const {
   getMyeBaySellingActive,
   getItemDetails,
@@ -1905,7 +1913,7 @@ async function listLiveListings({
         currentPrice: typeof listing.currentPrice === 'number' ? listing.currentPrice : null,
         currency: listing.currency || null,
         quantityAvailable: typeof listing.quantityAvailable === 'number' ? listing.quantityAvailable : null,
-        categoryName: listing.categoryName || listing.primaryCategoryName || prod?.identification?.category || prod?.details?.categoryId || null,
+        categoryName: listing.categoryName || listing.primaryCategoryName || resolveCategoryNameFromId(listing.primaryCategoryId) || prod?.identification?.category || null,
         warehouseStock: typeof whStock === 'number' ? whStock : null,
         binLocation: binLoc,
         stockMismatch: mismatch,
@@ -4432,12 +4440,52 @@ async function publishProduct(productId, overrides = {}, { actor = null } = {}) 
     return { productId: id, ok: false, blockers: readiness.blockers, warnings: readiness.warnings };
   }
 
-  const item = mapProductToEbayItem(product, overrides);
-
+  // Auto-Fix-aware publish loop: up to MAX_AUTOFIX_ATTEMPTS retries with progressive
+  // remediation (category strip, aspect fill via Gemini). See backend/services/ebay-auto-fix.js.
+  const MAX_AUTOFIX_ATTEMPTS = 2;
+  let workingProduct = product;
+  let item = mapProductToEbayItem(workingProduct, overrides);
+  const appliedFixes = [];
   let result;
-  try {
-    result = await addFixedPriceItem(item);
-  } catch (publishErr) {
+  let lastPublishErr = null;
+
+  for (let attempt = 0; attempt <= MAX_AUTOFIX_ATTEMPTS; attempt += 1) {
+    try {
+      result = await addFixedPriceItem(item);
+      lastPublishErr = null;
+      break;
+    } catch (publishErr) {
+      lastPublishErr = publishErr;
+      if (attempt >= MAX_AUTOFIX_ATTEMPTS) break;
+
+      let fixOutcome;
+      try {
+        const { autoFixEbayProduct } = require('../services/ebay-auto-fix');
+        fixOutcome = await autoFixEbayProduct(workingProduct, { lastError: publishErr });
+      } catch (fixErr) {
+        console.error(`[publishProduct] Auto-fix threw for ${id}:`, fixErr?.message);
+        break;
+      }
+
+      if (!fixOutcome || fixOutcome.skip || !fixOutcome.fixes?.length) break;
+
+      workingProduct = fixOutcome.product;
+      appliedFixes.push(...fixOutcome.fixes);
+
+      try {
+        const { saveProductV2 } = require('./product-store');
+        await saveProductV2(workingProduct, { source: 'ebay-auto-fix', mode: 'system' });
+      } catch (persistErr) {
+        console.error(`[publishProduct] Failed to persist auto-fix for ${id}:`, persistErr?.message);
+        // Even if persist fails, retry the publish with the in-memory fix.
+      }
+
+      item = mapProductToEbayItem(workingProduct, overrides);
+    }
+  }
+
+  if (lastPublishErr) {
+    const publishErr = lastPublishErr;
     // Persist the eBay error on the product so it's visible in the Marktplätze tab
     const errorMessage = safeString(publishErr?.message) || 'Unbekannter eBay-Fehler';
     const ebayErrors = asArray(publishErr?.details?.errors).map((e) => ({
@@ -4448,14 +4496,28 @@ async function publishProduct(productId, overrides = {}, { actor = null } = {}) 
     const listingErrors = ebayErrors.length ? ebayErrors : [{ code: null, message: errorMessage, severity: 'Error' }];
     try {
       await firestore.collection(PRODUCTS_COLLECTION).doc(id).set(
-        { marketplace: { ebay: { listing_errors: listingErrors, listing_errors_at: new Date().toISOString() } } },
+        {
+          marketplace: {
+            ebay: {
+              listing_errors: listingErrors,
+              listing_errors_at: new Date().toISOString(),
+              autoFixAttempts: appliedFixes.length ? appliedFixes : FieldValue.delete(),
+            },
+          },
+        },
         { merge: true }
       );
     } catch (persistErr) {
       console.error(`[publishProduct] Failed to persist listing errors for ${id}:`, persistErr?.message);
     }
+    if (appliedFixes.length) {
+      publishErr.appliedFixes = appliedFixes;
+    }
     throw publishErr;
   }
+
+  // Update reference for downstream code that reads `product` (e.g. logging).
+  product = workingProduct;
 
   const itemId = safeString(result?.itemId);
 
@@ -4467,6 +4529,7 @@ async function publishProduct(productId, overrides = {}, { actor = null } = {}) 
     ack: result?.ack || null,
     fees: result?.fees || [],
     actor: safeString(actor) || null,
+    appliedFixes: appliedFixes.length ? appliedFixes : null,
     createdAt: FieldValue.serverTimestamp(),
     createdAtIso: new Date().toISOString(),
   });
@@ -4498,6 +4561,7 @@ async function publishProduct(productId, overrides = {}, { actor = null } = {}) 
       ...readiness.warnings,
       ...asArray(result?.warnings).map((w) => safeString(w?.longMessage || w?.shortMessage)).filter(Boolean),
     ],
+    appliedFixes: appliedFixes.length ? appliedFixes : null,
     startTime: result?.startTime || null,
     endTime: result?.endTime || null,
   };
@@ -4853,4 +4917,5 @@ module.exports = {
   reviseListingFromProduct,
   bulkReviseListingsFromProducts,
   reactivateWronglyDeactivatedListings,
+  resolveCategoryNameFromId,
 };

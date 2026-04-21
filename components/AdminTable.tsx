@@ -20,6 +20,8 @@ import { AdminTableHeader, AdminTableRow, AdminTableFilters, BulkActions } from 
 import type { ColumnId, ColumnPreset, ColumnDefinition, SortConfig } from './admin-table';
 import { useGridEdit } from '../hooks/useGridEdit';
 import { useBulkUpdate } from '../hooks/useBulkUpdate';
+import { useAuth } from '../context/AuthContext';
+import { deriveInitials } from '../utils/product';
 
 const safeCurrency = (code?: string) => {
   const c = (code || '').toString().trim().toUpperCase();
@@ -102,10 +104,10 @@ const AdminTable: React.FC<AdminTableProps> = ({
     if (typeof window === 'undefined') return '';
     return window.sessionStorage.getItem('avystock:admin-table:search') || '';
   });
-  const [filterStatus, setFilterStatus] = useState<Readiness | 'all'>(() => {
+  const [filterStatus, setFilterStatus] = useState<Readiness | 'all' | 'empty'>(() => {
     if (typeof window === 'undefined') return 'all';
-    const stored = window.sessionStorage.getItem('avystock:admin-table:filterStatus') as Readiness | 'all';
-    return stored === 'ready' || stored === 'pending' ? stored : 'all';
+    const stored = window.sessionStorage.getItem('avystock:admin-table:filterStatus') as Readiness | 'all' | 'empty';
+    return stored === 'ready' || stored === 'pending' || stored === 'empty' ? stored : 'all';
   });
   const [filterCategorySelection, setFilterCategorySelection] = useState<string[]>(() => {
     if (typeof window === 'undefined') return [];
@@ -157,6 +159,18 @@ const AdminTable: React.FC<AdminTableProps> = ({
     if (typeof window === 'undefined') return 'all';
     return (window.sessionStorage.getItem('avystock:admin-table:filterKaufland') as any) || 'all';
   });
+  const [filterEditor, setFilterEditor] = useState<string[]>(() => {
+    if (typeof window === 'undefined') return [];
+    const raw = window.sessionStorage.getItem('avystock:admin-table:filterEditor');
+    if (!raw) return [];
+    try {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed.filter(Boolean).map((v) => String(v)) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [editorFilterOpen, setEditorFilterOpen] = useState(false);
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(() => {
     if (typeof window === 'undefined') return { key: 'ops.last_saved_iso', direction: 'desc' };
     try {
@@ -394,6 +408,42 @@ const AdminTable: React.FC<AdminTableProps> = ({
       allKeys.forEach((k) => next.add(k));
     }
     setFilterCategorySelection(Array.from(next));
+  };
+
+  const { user } = useAuth();
+  const myInitials = useMemo(() => deriveInitials(user?.email || ''), [user?.email]);
+
+  const EDITOR_NONE = '__none__';
+  const editorOptions = useMemo(() => {
+    const counts = new Map<string, number>();
+    products.forEach((p) => {
+      const key = p.ops?.readiness_editor || EDITOR_NONE;
+      counts.set(key, (counts.get(key) || 0) + 1);
+    });
+    const entries = Array.from(counts.entries());
+    entries.sort((a, b) => {
+      if (a[0] === myInitials && b[0] !== myInitials) return -1;
+      if (b[0] === myInitials && a[0] !== myInitials) return 1;
+      if (a[0] === EDITOR_NONE) return 1;
+      if (b[0] === EDITOR_NONE) return -1;
+      return a[0].localeCompare(b[0]);
+    });
+    return entries.map(([value, count]) => ({ value, count }));
+  }, [products, myInitials]);
+
+  const editorSelectionSet = useMemo(() => new Set(filterEditor), [filterEditor]);
+
+  const toggleEditor = (value: string) => {
+    const next = new Set(editorSelectionSet);
+    if (next.has(value)) next.delete(value);
+    else next.add(value);
+    setFilterEditor(Array.from(next));
+  };
+
+  const isMyItemsActive = filterEditor.length === 1 && filterEditor[0] === myInitials;
+  const toggleMyItems = () => {
+    if (isMyItemsActive) setFilterEditor([]);
+    else setFilterEditor([myInitials]);
   };
 
   const primaryImage = (product: Product): string | null => {
@@ -833,10 +883,11 @@ const AdminTable: React.FC<AdminTableProps> = ({
     kauflandEanProductIdMap,
   ]);
 
-  const statusFilters: Array<{ value: Readiness | 'all'; label: string }> = [
+  const statusFilters: Array<{ value: Readiness | 'all' | 'empty'; label: string }> = [
     { value: 'all', label: t('table.readiness.all') },
     { value: 'ready', label: t('table.readiness.ready') },
     { value: 'pending', label: t('table.readiness.pending') },
+    { value: 'empty', label: t('table.readiness.empty') },
   ];
 
   const resolveInitialColumns = (): ColumnId[] => {
@@ -951,7 +1002,11 @@ const AdminTable: React.FC<AdminTableProps> = ({
         name.includes(term) ||
         brand.includes(term) ||
         identifiers.some((idVal) => idVal.includes(term));
-      const matchesStatus = filterStatus === 'all' || productReadiness === filterStatus;
+      const matchesStatus = (() => {
+        if (filterStatus === 'all') return true;
+        if (filterStatus === 'empty') return productReadiness === null;
+        return productReadiness === filterStatus;
+      })();
       const resolvedCategory = getProductDisplayCategory(p);
       const productCategory = resolvedCategory && resolvedCategory !== '—' ? resolvedCategory : 'Unbekannt';
       const matchesCategory = (() => {
@@ -1082,6 +1137,12 @@ const AdminTable: React.FC<AdminTableProps> = ({
         (filterKaufland === 'listed' && isKauflandListed) ||
         (filterKaufland === 'notListed' && !isKauflandListed);
 
+      const matchesEditor = (() => {
+        if (filterEditor.length === 0) return true;
+        const editor = p.ops?.readiness_editor || EDITOR_NONE;
+        return editorSelectionSet.has(editor);
+      })();
+
       return (
         matchesSearch &&
         matchesStatus &&
@@ -1094,7 +1155,8 @@ const AdminTable: React.FC<AdminTableProps> = ({
         matchesEanValid &&
         matchesGpsr &&
         matchesEbay &&
-        matchesKaufland
+        matchesKaufland &&
+        matchesEditor
       );
     });
 
@@ -1199,6 +1261,8 @@ const AdminTable: React.FC<AdminTableProps> = ({
     filterGpsr,
     filterEbay,
     filterKaufland,
+    filterEditor,
+    editorSelectionSet,
     ebayLinkedMap,
     ebayProductIdMap,
     ebayActiveItemIds,
@@ -1785,6 +1849,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
     setFilterGpsr('all');
     setFilterEbay('all');
     setFilterKaufland('all');
+    setFilterEditor([]);
     setPageSize(50);
     setCurrentPage(1);
   };
@@ -1845,6 +1910,14 @@ const AdminTable: React.FC<AdminTableProps> = ({
     if (typeof window === 'undefined') return;
     window.sessionStorage.setItem('avystock:admin-table:filterKaufland', filterKaufland);
   }, [filterKaufland]);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      window.sessionStorage.setItem('avystock:admin-table:filterEditor', JSON.stringify(filterEditor));
+    } catch {
+      // ignore session storage errors
+    }
+  }, [filterEditor]);
   // Note: legacy filters (inventoryId, eBay category) removed to reduce UI clutter.
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -1872,8 +1945,9 @@ const AdminTable: React.FC<AdminTableProps> = ({
     if (filterBinSplit !== 'all') count++;
     if (filterEanValid !== 'all') count++;
     if (filterGpsr !== 'all') count++;
+    if (filterEditor.length > 0) count++;
     return count;
-  }, [filterStatus, filterCategorySelection, filterBin, filterEbay, filterKaufland, filterWeight, filterReserved, filterSold, filterBinSplit, filterEanValid, filterGpsr]);
+  }, [filterStatus, filterCategorySelection, filterBin, filterEbay, filterKaufland, filterWeight, filterReserved, filterSold, filterBinSplit, filterEanValid, filterGpsr, filterEditor]);
 
   const activeFilterChips = useMemo(() => {
     const chips: Array<{ key: string; label: string; onClear: () => void }> = [];
@@ -1955,6 +2029,17 @@ const AdminTable: React.FC<AdminTableProps> = ({
       });
     }
 
+    if (filterEditor.length > 0) {
+      const labelParts = filterEditor.map((v) =>
+        v === EDITOR_NONE ? t('table.editor.none') : v === myInitials ? `${v} ${t('table.editor.you')}` : v
+      );
+      chips.push({
+        key: 'editor',
+        label: `${t('table.editor.label')}: ${labelParts.join(', ')}`,
+        onClear: () => setFilterEditor([]),
+      });
+    }
+
     return chips;
   }, [
     filterBin,
@@ -1962,11 +2047,13 @@ const AdminTable: React.FC<AdminTableProps> = ({
     filterCategorySelection,
     filterEanValid,
     filterEbay,
+    filterEditor,
     filterGpsr,
     filterKaufland,
     filterReserved,
     filterStatus,
     filterWeight,
+    myInitials,
     searchTerm,
     statusFilters,
     t,
@@ -2120,6 +2207,17 @@ const AdminTable: React.FC<AdminTableProps> = ({
                 setFilterReserved={setFilterReserved}
                 filterSold={filterSold}
                 setFilterSold={setFilterSold}
+                filterEditor={filterEditor}
+                setFilterEditor={setFilterEditor}
+                editorOptions={editorOptions}
+                editorSelectionSet={editorSelectionSet}
+                toggleEditor={toggleEditor}
+                editorFilterOpen={editorFilterOpen}
+                setEditorFilterOpen={setEditorFilterOpen}
+                myInitials={myInitials}
+                isMyItemsActive={isMyItemsActive}
+                toggleMyItems={toggleMyItems}
+                editorNoneSentinel={EDITOR_NONE}
                 columnPreset={columnPreset}
                 setColumnPreset={setColumnPreset}
                 visibleColumns={visibleColumns}

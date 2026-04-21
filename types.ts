@@ -853,6 +853,7 @@ export interface EbayPublishResult {
   blockers?: string[];
   warnings: string[];
   fees?: EbayPublishFee[];
+  appliedFixes?: string[] | null;
   startTime?: string | null;
   endTime?: string | null;
 }

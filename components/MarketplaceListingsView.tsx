@@ -397,8 +397,14 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
     setPublishResult(null);
     try {
       if (marketplace === "ebay") {
-        await publishToEbay(productId);
-        setPublishResult({ ok: true, message: "Erfolgreich auf eBay gelistet!" });
+        const r = await publishToEbay(productId);
+        const fixes = Array.isArray(r?.appliedFixes) && r.appliedFixes.length > 0 ? r.appliedFixes : null;
+        setPublishResult({
+          ok: true,
+          message: fixes
+            ? `Erfolgreich auf eBay gelistet. Automatisch korrigiert: ${fixes.join(", ")}`
+            : "Erfolgreich auf eBay gelistet!",
+        });
       } else {
         await publishToKaufland(productId);
         setPublishResult({ ok: true, message: "Erfolgreich auf Kaufland gelistet!" });
@@ -467,7 +473,24 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
           const reasons = Array.isArray(r.blockers) && r.blockers.length > 0 ? r.blockers.join(", ") : "Unbekannter Fehler";
           return `${name}: ${reasons}`;
         });
+        const ebayFixedResults = result.results.filter(
+          (r: any) => r.ok && Array.isArray(r.appliedFixes) && r.appliedFixes.length > 0
+        );
+        const ebayFixedDetails = ebayFixedResults.map((r: any) => {
+          const prod = publishProducts.find((p) => p.id === r.productId);
+          const name = prod?.identification?.name || r.productId;
+          const fixes = (r.appliedFixes as string[]).join(", ");
+          return `${name}: ${fixes}`;
+        });
         invalidateListings();
+        setBulkPublishSummary({
+          ...summary,
+          failedNames,
+          failedDetails,
+          fixedDetails: ebayFixedDetails.length ? ebayFixedDetails : undefined,
+        });
+        setPublishSelectedIds(new Set());
+        return;
       } else {
         // Build Kaufland overrides from policy selection
         const klOverrides: Record<string, string> = {};

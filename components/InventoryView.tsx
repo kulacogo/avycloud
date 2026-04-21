@@ -12,7 +12,7 @@ interface InventoryViewProps {
   onSelectProduct?: (product: Product) => void;
 }
 
-type QuickFilterKey = "all" | "low" | "nobin" | "stale" | "listed" | "unlisted" | "listingErrors" | "ready" | "pending" | "sold" | "unsold" | "listingReady";
+type QuickFilterKey = "all" | "low" | "nobin" | "stale" | "listed" | "unlisted" | "listingErrors" | "ready" | "pending" | "empty" | "sold" | "unsold" | "listingReady";
 type SortField = "name" | "sku" | "quantity" | "available" | "buyPrice" | "value" | "binCode" | "marketplace";
 type SortDir = "asc" | "desc";
 
@@ -292,13 +292,15 @@ const InventoryView: React.FC<InventoryViewProps> = ({ onNavigate, onSelectProdu
 
     let readyCount = 0;
     let pendingCount = 0;
+    let emptyCount = 0;
     let soldCount = 0;
     let unsoldCount = 0;
     let listingReadyCount = 0;
     withStock.forEach((p) => {
-      const readiness = p.ops?.readiness || "pending";
+      const readiness = p.ops?.readiness ?? null;
       if (readiness === "ready") readyCount++;
-      else pendingCount++;
+      else if (readiness === "pending") pendingCount++;
+      else emptyCount++;
       const isSold = (p.inventory?.soldQuantity ?? 0) > 0 || (p.inventory?.openOrderQuantity ?? 0) > 0;
       if (isSold) soldCount++;
       else unsoldCount++;
@@ -307,7 +309,7 @@ const InventoryView: React.FC<InventoryViewProps> = ({ onNavigate, onSelectProdu
       if (hasBin && !info.isListed && !isSold) listingReadyCount++;
     });
 
-    return { totalProducts, totalUnits, totalValue, lowStockCount, noBinCount, staleCount, listedCount, unlistedCount, listingErrorCount, readyCount, pendingCount, soldCount, unsoldCount, listingReadyCount };
+    return { totalProducts, totalUnits, totalValue, lowStockCount, noBinCount, staleCount, listedCount, unlistedCount, listingErrorCount, readyCount, pendingCount, emptyCount, soldCount, unsoldCount, listingReadyCount };
   }, [products, getMarketplaceInfo]);
 
   // ---- Filtering ----
@@ -336,10 +338,13 @@ const InventoryView: React.FC<InventoryViewProps> = ({ onNavigate, onSelectProdu
         list = list.filter((p) => getMarketplaceInfo(p).hasErrors);
         break;
       case "ready":
-        list = list.filter((p) => (p.ops?.readiness || "pending") === "ready");
+        list = list.filter((p) => p.ops?.readiness === "ready");
         break;
       case "pending":
-        list = list.filter((p) => (p.ops?.readiness || "pending") === "pending");
+        list = list.filter((p) => p.ops?.readiness === "pending");
+        break;
+      case "empty":
+        list = list.filter((p) => (p.ops?.readiness ?? null) === null);
         break;
       case "sold":
         list = list.filter((p) => (p.inventory?.soldQuantity ?? 0) > 0 || (p.inventory?.openOrderQuantity ?? 0) > 0);
@@ -535,6 +540,12 @@ const InventoryView: React.FC<InventoryViewProps> = ({ onNavigate, onSelectProdu
             active={quickFilter === "pending"}
             onClick={() => setQuickFilter("pending")}
             count={kpis.pendingCount}
+          />
+          <QuickFilter
+            label="Leer"
+            active={quickFilter === "empty"}
+            onClick={() => setQuickFilter("empty")}
+            count={kpis.emptyCount}
           />
           <span className="w-px h-5 bg-app-border mx-1 self-center" />
           <QuickFilter

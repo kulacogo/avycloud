@@ -60,9 +60,9 @@ interface CategoryNode {
 
 interface AdminTableFiltersProps {
   // Status filter
-  filterStatus: Readiness | "all";
-  setFilterStatus: (v: Readiness | "all") => void;
-  statusFilters: Array<{ value: Readiness | "all"; label: string }>;
+  filterStatus: Readiness | "all" | "empty";
+  setFilterStatus: (v: Readiness | "all" | "empty") => void;
+  statusFilters: Array<{ value: Readiness | "all" | "empty"; label: string }>;
 
   // Category filter
   filterCategorySelection: string[];
@@ -94,6 +94,19 @@ interface AdminTableFiltersProps {
   setFilterReserved: (v: "all" | "reserved" | "notReserved") => void;
   filterSold: "all" | "sold" | "unsold";
   setFilterSold: (v: "all" | "sold" | "unsold") => void;
+
+  // Editor (Bearbeiter) filter
+  filterEditor: string[];
+  setFilterEditor: (v: string[]) => void;
+  editorOptions: Array<{ value: string; count: number }>;
+  editorSelectionSet: Set<string>;
+  toggleEditor: (value: string) => void;
+  editorFilterOpen: boolean;
+  setEditorFilterOpen: (v: boolean) => void;
+  myInitials: string;
+  isMyItemsActive: boolean;
+  toggleMyItems: () => void;
+  editorNoneSentinel: string;
 
   // Column presets & visibility
   columnPreset: ColumnPreset;
@@ -172,6 +185,17 @@ const AdminTableFilters: React.FC<AdminTableFiltersProps> = ({
   setFilterReserved,
   filterSold,
   setFilterSold,
+  filterEditor,
+  setFilterEditor,
+  editorOptions,
+  editorSelectionSet,
+  toggleEditor,
+  editorFilterOpen,
+  setEditorFilterOpen,
+  myInitials,
+  isMyItemsActive,
+  toggleMyItems,
+  editorNoneSentinel,
   columnPreset,
   setColumnPreset,
   visibleColumns,
@@ -308,6 +332,89 @@ const AdminTableFilters: React.FC<AdminTableFiltersProps> = ({
               </div>
             </div>
           )}
+        </div>
+
+        <div className="flex items-stretch gap-2">
+          <button
+            type="button"
+            onClick={toggleMyItems}
+            disabled={!myInitials}
+            aria-pressed={isMyItemsActive}
+            title={t("table.editor.title")}
+            className={
+              isMyItemsActive
+                ? "px-3 py-2 text-sm rounded-xl border border-accent bg-accent-dim text-accent whitespace-nowrap"
+                : `${filterButtonClass} w-auto whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed`
+            }
+          >
+            {t("table.editor.mine")}
+          </button>
+          <div className="relative flex-1 min-w-[180px]">
+            <button
+              type="button"
+              onClick={() => setEditorFilterOpen(!editorFilterOpen)}
+              aria-expanded={editorFilterOpen}
+              className={filterButtonClass}
+            >
+              {filterEditor.length === 0
+                ? `${t("table.editor.label")}: ${t("table.editor.all")}`
+                : `${t("table.editor.label")}: ${filterEditor.length}`}
+            </button>
+            {editorFilterOpen && (
+              <div className="absolute z-30 mt-2 w-[280px] max-w-[90vw] rounded-xl border border-app-border bg-app-bg p-3 shadow-lg">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-txt-secondary">
+                    {t("table.editor.label")}
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setFilterEditor([])}
+                      className="text-xs text-accent hover:underline"
+                    >
+                      {t("table.editor.all")}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEditorFilterOpen(false)}
+                      className="text-xs text-txt-secondary hover:underline"
+                    >
+                      Schließen
+                    </button>
+                  </div>
+                </div>
+                {editorOptions.length === 0 ? (
+                  <p className="text-xs text-txt-muted px-1 py-2">—</p>
+                ) : (
+                  <div className="max-h-64 overflow-y-auto space-y-1 pr-1">
+                    {editorOptions.map((opt) => {
+                      const isNone = opt.value === editorNoneSentinel;
+                      const isMe = opt.value === myInitials;
+                      const label = isNone
+                        ? t("table.editor.none")
+                        : isMe
+                          ? `${opt.value} ${t("table.editor.you")}`
+                          : opt.value;
+                      return (
+                        <label
+                          key={opt.value}
+                          className="flex items-center gap-2 rounded-xl border border-app-border bg-app-surface px-2 py-2 text-sm text-txt-primary"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={editorSelectionSet.has(opt.value)}
+                            onChange={() => toggleEditor(opt.value)}
+                          />
+                          <span className="flex-1">{label}</span>
+                          <span className="text-xs text-txt-muted">({opt.count})</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
 
         <select
