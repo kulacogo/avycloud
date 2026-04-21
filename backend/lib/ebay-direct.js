@@ -4006,6 +4006,24 @@ function mapProductToEbayItem(product, overrides = {}) {
     if (/^https?:\/\//i.test(url) && !pictureUrls.includes(url)) pictureUrls.push(url);
   });
 
+  // eBay rejects listings that mix EPS-hosted images (i.ebayimg.com / ebaystatic.com —
+  // typically catalog/competitor stock photos pulled during enrichment) with
+  // self-hosted ones: "EPS-Bilder und selbstverwaltete Bilder können nicht kombiniert
+  // werden." When both kinds are present, drop the EPS URLs so only the seller's own
+  // photos remain. If ONLY EPS URLs exist, keep them — otherwise the listing would
+  // have no pictures at all.
+  const isEbayHostedUrl = (u) => /(^https?:\/\/)?(i\.ebayimg\.com|[a-z0-9.-]*\.ebaystatic\.com)\//i.test(u);
+  const hasOwnPicture = pictureUrls.some((u) => !isEbayHostedUrl(u));
+  if (hasOwnPicture) {
+    const beforeCount = pictureUrls.length;
+    for (let i = pictureUrls.length - 1; i >= 0; i -= 1) {
+      if (isEbayHostedUrl(pictureUrls[i])) pictureUrls.splice(i, 1);
+    }
+    if (pictureUrls.length < beforeCount) {
+      console.info(`[buildListingFromProduct] Dropped ${beforeCount - pictureUrls.length} EPS-hosted image(s) to avoid EPS/self-managed mix rejection.`);
+    }
+  }
+
   const heroPhoto = pictureUrls[0] || safeString(deriveProductPhotoUrl(product, null)) || '';
   const description =
     safeString(overrides.description) ||
@@ -4093,6 +4111,34 @@ function mapProductToEbayItem(product, overrides = {}) {
     listing: null,
     itemSpecifics,
   });
+
+  // eBay caps ItemSpecifics at 45 per listing. Trim here pre-flight (instead of relying
+  // solely on the post-error auto-fix) because the builder pulls aspects from multiple
+  // sources and can easily exceed the cap. Priority: identifiers first (Brand, MPN, EAN,
+  // etc.), then remaining keys in insertion order. Dropped keys are logged.
+  const EBAY_ITEM_SPECIFICS_CAP = 45;
+  const specificKeys = Object.keys(filteredSpecifics.itemSpecifics || {});
+  if (specificKeys.length > EBAY_ITEM_SPECIFICS_CAP) {
+    const priorityNames = ['Marke', 'Brand', 'Hersteller', 'Herstellernummer', 'MPN', 'EAN', 'UPC', 'GTIN', 'ISBN', 'SKU', 'Produktart', 'Modell', 'Farbe', 'Material', 'Größe', 'Gewicht'];
+    const keysLower = new Map(specificKeys.map((k) => [k.toLowerCase(), k]));
+    const kept = new Set();
+    for (const name of priorityNames) {
+      if (kept.size >= EBAY_ITEM_SPECIFICS_CAP) break;
+      const matchKey = keysLower.get(String(name).toLowerCase());
+      if (matchKey) kept.add(matchKey);
+    }
+    for (const k of specificKeys) {
+      if (kept.size >= EBAY_ITEM_SPECIFICS_CAP) break;
+      kept.add(k);
+    }
+    const next = {};
+    for (const k of specificKeys) {
+      if (kept.has(k)) next[k] = filteredSpecifics.itemSpecifics[k];
+    }
+    const dropped = specificKeys.filter((k) => !kept.has(k));
+    filteredSpecifics.itemSpecifics = next;
+    console.info(`[buildListingFromProduct] ItemSpecifics capped at ${EBAY_ITEM_SPECIFICS_CAP}; dropped ${dropped.length}: ${dropped.slice(0, 10).join(', ')}${dropped.length > 10 ? '…' : ''}`);
+  }
 
   // --- GPSR: Manufacturer data from product ---
   const gpsr = product?.details?.gpsr || null;

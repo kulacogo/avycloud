@@ -183,14 +183,22 @@ async function _sendParcelRequest(parcelData, auth) {
 
 /**
  * Extract label URL from a SendCloud parcel object.
- * Returns null if no label has been generated yet.
+ * Falls back to the constructed `/labels/:printer/:parcelId` endpoint when
+ * the response body has no populated label URL — required for Deutsche Post
+ * Brief / Internetmarke, which generates labels async and often returns an
+ * empty `parcel.label` object even though the PDF is retrievable on-demand.
  */
 function extractLabelUrl(parcel, isA4) {
-  if (!parcel || !parcel.label) return null;
+  if (!parcel) return null;
+  const label = parcel.label || {};
   if (isA4) {
-    return parcel.label.normal_printer?.[0] || parcel.label.label_printer || null;
+    const fromField = label.normal_printer?.[0] || label.label_printer;
+    if (fromField) return fromField;
+    return parcel.id ? `${SENDCLOUD_BASE_URL}/labels/normal_printer/${parcel.id}` : null;
   }
-  return parcel.label.label_printer || parcel.label.normal_printer?.[0] || null;
+  const fromField = label.label_printer || label.normal_printer?.[0];
+  if (fromField) return fromField;
+  return parcel.id ? `${SENDCLOUD_BASE_URL}/labels/label_printer/${parcel.id}` : null;
 }
 
 /**
