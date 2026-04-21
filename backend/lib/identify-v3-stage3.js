@@ -112,8 +112,9 @@ async function runStage3ContentGeneration(stage1, stage2, locale = 'de-DE') {
         result.item_specifics.filter((s) => s?.key).map((s) => [s.key, s.value])
       );
       const canonical = canonicalizeAttributesStrict(attrObj);
-      if (canonical && typeof canonical === 'object') {
-        result.item_specifics = Object.entries(canonical).map(([key, value]) => ({
+      const canonicalAttrs = canonical?.attributes;
+      if (canonicalAttrs && typeof canonicalAttrs === 'object') {
+        result.item_specifics = Object.entries(canonicalAttrs).map(([key, value]) => ({
           key,
           value: String(value).slice(0, 60),
         }));

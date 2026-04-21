@@ -73,4 +73,39 @@ describe('evaluateEbayReady — Quality Gate default ON', () => {
     );
     expect(result.ok).toBe(false);
   });
+
+  it('v3-pipeline flag does not alter quality evaluation — sparse v3 product still fails', () => {
+    // Task 13 from identify-v3 plan: verify evaluateEbayReady treats v3-labeled
+    // products with the same rigor as v2-labeled (no special bypass).
+    const { evaluateEbayReady } = loadModule(undefined);
+    const v3Sparse = evaluateEbayReady({
+      identification: { name: 'Unvollständiges V3-Produkt' },
+      details: {},
+      ops: { identify_pipeline: 'v3' },
+    });
+    expect(v3Sparse.ok).toBe(false);
+    expect(v3Sparse.issues.length).toBeGreaterThan(0);
+  });
+
+  it('v3-pipeline flag does not bypass title-policy when short', () => {
+    const { evaluateEbayReady } = loadModule(undefined);
+    const result = evaluateEbayReady({
+      identification: {
+        name: 'Kurztitel',
+        brand: 'X',
+        category: 'A > B',
+      },
+      details: {
+        categoryId: '14969',
+        short_description: 'x'.repeat(300),
+        key_features: ['a', 'b', 'c', 'd', 'e'],
+        images: [{ url_or_base64: 'https://example.com/x.jpg', source: 'upload', variant: 'reference' }],
+        pricing: { sellPrice: 10, currency: 'EUR', lowest_price: { amount: 9, sources: ['https://a', 'https://b'] } },
+        attributes: { Marke: 'X', Modell: 'Y', Farbe: 'Z', Material: 'M', Größe: 'L' },
+      },
+      ops: { identify_pipeline: 'v3' },
+    });
+    expect(result.ok).toBe(false);
+    expect(result.issues).toContain('title_too_short');
+  });
 });

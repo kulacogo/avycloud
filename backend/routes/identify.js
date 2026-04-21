@@ -517,14 +517,15 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
           groundedRecord.ean || groundedRecord.gtin,
         ].filter(Boolean).join(' ').trim();
 
-        // Map GPSR
+        // Map GPSR (canonical location: details.gpsr; canonical field names per schema)
         if (groundedRecord.gpsr_manufacturer_name) {
-          product.gpsr = {
+          product.details = product.details || {};
+          product.details.gpsr = {
             manufacturer_name: groundedRecord.gpsr_manufacturer_name || '',
             manufacturer_address: groundedRecord.gpsr_manufacturer_address || '',
-            manufacturer_email: groundedRecord.gpsr_manufacturer_email || '',
+            email: groundedRecord.gpsr_manufacturer_email || '',
             manufacturer_phone: groundedRecord.gpsr_manufacturer_phone || '',
-            manufacturer_country: groundedRecord.gpsr_manufacturer_country || '',
+            entity_country: groundedRecord.gpsr_manufacturer_country || '',
           };
         }
 

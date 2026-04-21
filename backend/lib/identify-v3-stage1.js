@@ -186,6 +186,9 @@ async function runStage1Recognition({ files = [], barcodes = '', hint = null, lo
     eanBrandMatch,
     ocrPayload,
     uploadedImages,
+    webImageUrls: Array.isArray(groundingResult.web_image_urls)
+      ? groundingResult.web_image_urls.filter((u) => typeof u === 'string' && /^https?:\/\//i.test(u))
+      : [],
     imageParts,
     v2FallbackRecord,
     _meta: {

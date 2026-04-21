@@ -113,13 +113,19 @@ function assembleProduct(id, stage1, stage2, stage3, opts) {
   if (identity.model && !attributes.Modell) attributes.Modell = identity.model;
   if (identity.color && !attributes.Farbe) attributes.Farbe = identity.color;
 
-  // Images: uploads + web search results
+  // Images: uploads + grounding web_image_urls + SerpAPI web search results
+  const groundingImageEntries = (stage1.webImageUrls || []).map((url) => ({
+    url_or_base64: url,
+    source: 'grounding_web',
+    variant: 'marketing',
+  }));
   const images = [
     ...(stage1.uploadedImages || []).map((img) => ({
       url_or_base64: img.url,
       source: 'upload',
       variant: 'reference',
     })),
+    ...groundingImageEntries,
     ...(stage2.webImages || []).map((img) => ({
       url_or_base64: img.url,
       source: 'web_search',
@@ -188,6 +194,7 @@ function assembleProduct(id, stage1, stage2, stage3, opts) {
       ebay: {
         title: titleEbay,
         description: stage3.description_ebay || '',
+        mobile_snippet: stage3.mobile_snippet || '',
       },
       kaufland: {
         title: stage3.title_kaufland || '',
