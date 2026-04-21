@@ -297,6 +297,39 @@ function extractMisusedAspectNames(errors) {
   return [];
 }
 
+// Detects the EPS/Catalog image-conflict error: eBay refuses to combine catalog
+// stock photos ("self-hosted" image URLs) with listings that also supply custom
+// pictureUrls, or vice versa. Manifests in German as "EPS ... kombiniert ..."
+// and in English as "cannot combine stock picture with self-hosted" etc.
+function isImageConflictError(errors) {
+  if (!Array.isArray(errors) || !errors.length) return false;
+  const msgs = errors
+    .flatMap((e) => [String(e?.longMessage || ''), String(e?.shortMessage || '')])
+    .filter(Boolean);
+  return msgs.some((m) => {
+    const l = m.toLowerCase();
+    return (l.includes('eps') && l.includes('kombiniert')) ||
+           (l.includes('stock') && l.includes('picture') && l.includes('self')) ||
+           l.includes('cannot combine');
+  });
+}
+
+// Detects the aspect-cap error: eBay limits item specifics to 45 per listing.
+// German: "... auf 45 oder weniger reduzieren / Artikelmerkmale ..."
+// English: "too many item specifics" / "aspect ... exceed(s)"
+function isAspectsCapExceededError(errors) {
+  if (!Array.isArray(errors) || !errors.length) return false;
+  const msgs = errors
+    .flatMap((e) => [String(e?.longMessage || ''), String(e?.shortMessage || '')])
+    .filter(Boolean);
+  return msgs.some((m) => {
+    const l = m.toLowerCase();
+    return (l.includes('artikelmerkmal') && (l.includes('45') || l.includes('reduzieren'))) ||
+           (l.includes('too many') && l.includes('item specific')) ||
+           (l.includes('aspect') && l.includes('exceed'));
+  });
+}
+
 function stripItemSpecificsByAspectNames(itemSpecifics, aspectNames = []) {
   const specifics = itemSpecifics && typeof itemSpecifics === 'object' ? itemSpecifics : {};
   const tokens = new Set(asArray(aspectNames).map((n) => normalizeAspectToken(n)).filter(Boolean));
@@ -993,7 +1026,10 @@ function buildAddFixedPriceItemXml(item, cfg) {
   const brand = safeString(item?.brand);
   // Always include ProductListingDetails — many eBay categories require product identifiers.
   // When no EAN/ISBN/MPN is available, send "Does not apply" so eBay accepts the listing.
-  {
+  // Exception: when item.skipProductListingDetails === true (e.g. after Image-Konflikt
+  // auto-fix), skip the catalog reference entirely so eBay does not attempt to merge
+  // catalog stock photos with the seller's own PictureDetails.
+  if (item?.skipProductListingDetails !== true) {
     const pld = [];
     pld.push(`<EAN>${escapeXml(ean || 'Does not apply')}</EAN>`);
     if (isbn) pld.push(`<ISBN>${escapeXml(isbn)}</ISBN>`);
@@ -1322,4 +1358,6 @@ module.exports = {
   extractMisusedAspectNames,
   isCategoryMismatchError,
   isProductAspectMisuseError,
+  isImageConflictError,
+  isAspectsCapExceededError,
 };

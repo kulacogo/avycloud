@@ -11,11 +11,15 @@
  * Idempotenz erreicht der Aufrufer durch Vergleich `fixes.length`.
  */
 
-const { getRequiredAspects, isKnownEbayCategoryId } = require('../lib/ebay-taxonomy');
+const { getRequiredAspects, isKnownEbayCategoryId, getCategoryAspectCatalog } = require('../lib/ebay-taxonomy');
 const {
   extractMisusedAspectNames,
   isCategoryMismatchError,
+  isImageConflictError,
+  isAspectsCapExceededError,
 } = require('../lib/ebay-trading-api');
+
+const EBAY_ASPECTS_CAP = 45;
 
 const ASPECT_GEMINI_TIMEOUT_MS = 8000;
 const ASPECT_GEMINI_MAX_TOKENS = 600;
@@ -112,6 +116,73 @@ function dedupeMerge(...arrays) {
     }
   }
   return out;
+}
+
+/**
+ * Reduce details.attributes down to EBAY_ASPECTS_CAP entries, prioritising
+ * required > recommended > optional (per eBay taxonomy for the product's
+ * categoryId) > the remaining attributes in insertion order.
+ *
+ * Mutates `product` and returns `{ removed, kept, dropped }`.
+ */
+function trimAspectsToCap(product) {
+  const attrs = product?.details?.attributes;
+  if (!attrs || typeof attrs !== 'object') return { removed: 0, kept: 0, dropped: [] };
+
+  const keys = Object.keys(attrs);
+  if (keys.length <= EBAY_ASPECTS_CAP) return { removed: 0, kept: keys.length, dropped: [] };
+
+  const categoryId = product?.details?.categoryId;
+  let catalog = null;
+  try {
+    catalog = isKnownEbayCategoryId(categoryId) ? getCategoryAspectCatalog(categoryId) : null;
+  } catch {
+    catalog = null;
+  }
+
+  // Universal fallback priority used when the category catalog is unknown —
+  // these are the aspects eBay requires across most leaf categories in DE.
+  const UNIVERSAL_PRIORITY = [
+    'Marke', 'Hersteller', 'Herstellernummer', 'MPN', 'Produktart',
+    'Modell', 'Farbe', 'Material', 'Größe', 'Gewicht',
+    'EAN', 'UPC', 'GTIN', 'ISBN',
+  ];
+  const priorityOrder = [
+    ...(catalog?.requiredAspects || []),
+    ...(catalog?.recommendedAspects || []),
+    ...(catalog?.optionalAspects || []),
+    ...UNIVERSAL_PRIORITY,
+  ];
+
+  // Case-insensitive lookup of attribute keys
+  const attrKeyLower = new Map(keys.map((k) => [k.toLowerCase(), k]));
+  const kept = [];
+  const keptSet = new Set();
+
+  for (const priorityName of priorityOrder) {
+    if (kept.length >= EBAY_ASPECTS_CAP) break;
+    const matchKey = attrKeyLower.get(String(priorityName).toLowerCase());
+    if (matchKey && !keptSet.has(matchKey)) {
+      kept.push(matchKey);
+      keptSet.add(matchKey);
+    }
+  }
+
+  // Fill remaining slots with the product's own keys in insertion order
+  for (const k of keys) {
+    if (kept.length >= EBAY_ASPECTS_CAP) break;
+    if (!keptSet.has(k)) {
+      kept.push(k);
+      keptSet.add(k);
+    }
+  }
+
+  const dropped = keys.filter((k) => !keptSet.has(k));
+  const nextAttrs = {};
+  for (const k of kept) nextAttrs[k] = attrs[k];
+  product.details.attributes = nextAttrs;
+
+  return { removed: dropped.length, kept: kept.length, dropped };
 }
 
 function buildProductContext(product) {
@@ -211,6 +282,36 @@ async function autoFixEbayProduct(product, opts = {}) {
       if (!fixed.details) fixed.details = {};
       fixed.details.categoryId = null;
       fixes.push('Kategorie entfernt (eBay übernimmt Catalog-Matching)');
+    }
+  }
+
+  // Strategy 3: Image conflict (EPS + self-managed pictures cannot be combined) →
+  // drop the catalog reference so only our own pictures are sent.
+  // Safety: only skip catalog if the product actually has its OWN pictures,
+  // otherwise the resulting listing would be image-less which eBay rejects.
+  if (isImageConflictError(errs)) {
+    const ownImages = Array.isArray(fixed?.details?.images)
+      ? fixed.details.images.filter((img) => {
+          const url = typeof img === 'string' ? img : (img?.url_or_base64 || img?.url || '');
+          return typeof url === 'string' && /^https?:\/\//i.test(url);
+        })
+      : [];
+    if (ownImages.length > 0) {
+      if (!fixed.details) fixed.details = {};
+      if (!fixed.details.skipEbayCatalogLookup) {
+        fixed.details.skipEbayCatalogLookup = true;
+        fixes.push('Katalog-Verknüpfung entfernt (eigene Bilder behalten)');
+      }
+    }
+    // else: skip the auto-fix; the publishing will surface the original error
+    // and the user must add own pictures before retrying.
+  }
+
+  // Strategy 4: Too many item specifics (>45) → priority-trim to 45.
+  if (isAspectsCapExceededError(errs)) {
+    const trimmed = trimAspectsToCap(fixed);
+    if (trimmed.removed > 0) {
+      fixes.push(`Artikelmerkmale auf ${EBAY_ASPECTS_CAP} reduziert (Pflicht zuerst)`);
     }
   }
 

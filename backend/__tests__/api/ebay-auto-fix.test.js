@@ -137,4 +137,64 @@ describe('autoFixEbayProduct', () => {
     const out = await autoFixEbayProduct(null);
     expect(out.skip).toBe(true);
   });
+
+  it('Strategy 4 — aspects cap exceeded error trims to 45 entries', async () => {
+    const manyAttrs = {};
+    for (let i = 1; i <= 55; i += 1) manyAttrs[`Attribut_${i}`] = `Wert ${i}`;
+    const product = {
+      id: 'p-cap',
+      identification: { name: 'Generic Product', brand: 'X' },
+      details: {
+        categoryId: '99999', // unknown — falls back to insertion order
+        identifiers: { ean: '0' },
+        attributes: manyAttrs,
+      },
+    };
+    const lastError = new Error('eBay rejected');
+    lastError.details = {
+      errors: [{ longMessage: 'Dieses Angebot enthält zu viele Artikelmerkmale. Reduzieren Sie die Anzahl auf 45 oder weniger.' }],
+    };
+    const out = await autoFixEbayProduct(product, { lastError, generateText: async () => '{}' });
+    expect(out.skip).toBe(false);
+    expect(out.fixes.some((f) => /auf 45 reduziert/i.test(f))).toBe(true);
+    expect(Object.keys(out.product.details.attributes).length).toBe(45);
+  });
+
+  it('Strategy 3 — image conflict error sets skipEbayCatalogLookup when own images exist', async () => {
+    const product = {
+      id: 'p-img',
+      identification: { name: 'Some Item', brand: 'X' },
+      details: {
+        categoryId: '99999',
+        identifiers: { ean: '4000000000001' },
+        attributes: {},
+        images: [{ url_or_base64: 'https://example.com/real.jpg', source: 'upload', variant: 'reference' }],
+      },
+    };
+    const lastError = new Error('eBay rejected');
+    lastError.details = {
+      errors: [{ longMessage: 'EPS-Bilder und selbstverwaltete Bilder können nicht kombiniert werden.' }],
+    };
+    const out = await autoFixEbayProduct(product, { lastError, generateText: async () => '{}' });
+    expect(out.skip).toBe(false);
+    expect(out.product.details.skipEbayCatalogLookup).toBe(true);
+    expect(out.fixes.some((f) => /Katalog-Verkn/i.test(f))).toBe(true);
+  });
+
+  it('Strategy 3 — skips when image conflict error but no own images (safety)', async () => {
+    // Without own images, dropping catalog would yield an image-less listing,
+    // which eBay rejects. Auto-fix must refuse to apply this strategy.
+    const product = {
+      id: 'p-img-none',
+      identification: { name: 'Some Item', brand: 'X' },
+      details: { categoryId: '99999', identifiers: { ean: '4000000000001' }, attributes: {}, images: [] },
+    };
+    const lastError = new Error('eBay rejected');
+    lastError.details = {
+      errors: [{ longMessage: 'EPS-Bilder und selbstverwaltete Bilder können nicht kombiniert werden.' }],
+    };
+    const out = await autoFixEbayProduct(product, { lastError, generateText: async () => '{}' });
+    expect(out.skip).toBe(true);
+    expect(out.product.details.skipEbayCatalogLookup).toBeUndefined();
+  });
 });

@@ -4133,6 +4133,7 @@ function mapProductToEbayItem(product, overrides = {}) {
     brand,
     itemSpecifics: filteredSpecifics.itemSpecifics,
     itemCompatibilityList,
+    skipProductListingDetails: product?.details?.skipEbayCatalogLookup === true,
     weightKg,
     country: safeString(overrides.country) || 'DE',
     postalCode,
