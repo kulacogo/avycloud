@@ -1287,15 +1287,22 @@ async function ensureCategories(products = []) {
     }
 
     if (!handled && currentBad) {
-      const g = await resolveCategoryWithGemini(p, 'ebay');
-      if (g?.id) {
-        // Canonical category id is details.categoryId (single-category system).
-        p.details.categoryId = g.id;
-        // Legacy fields for backward compatibility (some scripts still read them)
-        p.details.ebayCategoryId = g.id;
-        p.details.ebayCategoryPath = g.path;
-        if (!p.identification) p.identification = {};
-        p.identification.category = g.path || p.identification.category || '';
+      try {
+        const g = await resolveCategoryWithGemini(p, 'ebay');
+        if (g?.id) {
+          // Canonical category id is details.categoryId (single-category system).
+          p.details.categoryId = g.id;
+          // Legacy fields for backward compatibility (some scripts still read them)
+          p.details.ebayCategoryId = g.id;
+          p.details.ebayCategoryPath = g.path;
+          if (!p.identification) p.identification = {};
+          p.identification.category = g.path || p.identification.category || '';
+        }
+      } catch (gemErr) {
+        // Best-effort: never let a Gemini hiccup (rate limit, malformed JSON,
+        // auth timeout) break the whole identify. Product simply saves
+        // without a resolved category — can be fixed later.
+        console.warn('[ensureCategories] Gemini fallback failed:', gemErr?.message || gemErr);
       }
     }
 

@@ -246,15 +246,6 @@ const CaptureView: React.FC<CaptureViewProps> = ({ onProductCreated }) => {
           />
         )}
 
-        {/* Error recovery */}
-        {activeStep === "analysis" && analysisError && (
-          <div className="mt-4 flex gap-3">
-            <Button variant="secondary" onClick={handleStepBack}>Zurück</Button>
-            <Button onClick={() => { setAnalysisError(null); goTo("analysis"); }}>
-              Erneut versuchen
-            </Button>
-          </div>
-        )}
       </div>
     </div>
   );

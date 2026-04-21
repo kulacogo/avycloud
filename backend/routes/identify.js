@@ -619,7 +619,14 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
       });
 
       // Legacy post-processing (category + review + enrichments)
-      await ensureCategories([product]);
+      // Category resolution is best-effort: never fail the identify if Gemini
+      // or the eBay taxonomy API hiccups — a product without category can be
+      // fixed later via Improve/Chat (see Line 719 warn-only check).
+      try {
+        await ensureCategories([product]);
+      } catch (catErr) {
+        console.warn('[identify] ensureCategories (legacy) failed:', catErr?.message || catErr);
+      }
       product = applyEbayTaxonomy(product);
       product = applyKauflandTaxonomy(product);
 
@@ -650,11 +657,19 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
     if (groundingUsed) {
       // Category resolution + SerpAPI images + KTyp run in parallel (independent tasks)
       await Promise.all([
-        // Category + Taxonomy
+        // Category + Taxonomy (best-effort; must not fail the identify request)
         (async () => {
-          await ensureCategories([product]);
-          product = applyEbayTaxonomy(product);
-          product = applyKauflandTaxonomy(product);
+          try {
+            await ensureCategories([product]);
+          } catch (catErr) {
+            console.warn('[identify] ensureCategories failed:', catErr?.message || catErr);
+          }
+          try {
+            product = applyEbayTaxonomy(product);
+            product = applyKauflandTaxonomy(product);
+          } catch (taxErr) {
+            console.warn('[identify] applyTaxonomy failed:', taxErr?.message || taxErr);
+          }
         })(),
         // SerpAPI product images — skip for V3 (Stage 2 already fetched web images)
         (async () => {
