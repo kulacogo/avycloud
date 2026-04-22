@@ -40,6 +40,26 @@ const {
   DEFAULT_CHAT_TEMPERATURE,
 } = require('../lib/gemini-config');
 
+// FunctionCallingConfigMode: 'AUTO' | 'ANY' | 'NONE' | 'VALIDATED'.
+// We use ANY + allowedFunctionNames=['update_product_datasheet'] to force
+// Gemini to finalize each turn with a write-call (prevents the research-
+// attractor loop where the model keeps doing google_search / url_context /
+// atomic-tool calls and never emits the structured datasheet update).
+// Fallback literal `'ANY'` keeps us safe if the SDK ever trims the enum.
+let FunctionCallingConfigMode;
+try {
+  // eslint-disable-next-line global-require
+  ({ FunctionCallingConfigMode } = require('@google/genai'));
+} catch (err) {
+  FunctionCallingConfigMode = { AUTO: 'AUTO', ANY: 'ANY', NONE: 'NONE' };
+}
+if (!FunctionCallingConfigMode || !FunctionCallingConfigMode.ANY) {
+  FunctionCallingConfigMode = { AUTO: 'AUTO', ANY: 'ANY', NONE: 'NONE' };
+}
+
+const WRITE_TOOL = 'update_product_datasheet';
+const SOFT_RESEARCH_LIMIT = 3;
+
 const DEFAULT_MAX_ITERATIONS = 10;
 const DEFAULT_MAX_OUTPUT_TOKENS = 12000;
 const RETRY_DELAYS_MS = [500, 1000];
@@ -378,19 +398,24 @@ function buildSystemPromptV3(product, { locale = 'de-DE' } = {}) {
     '- googleSearch (native): breite Web-Recherche, Grounding Queries.',
     '- urlContext (native): konkrete URL tief lesen (bis zu 20 URLs pro Request).',
     toolList,
-    '- update_product_datasheet: MUSS aufgerufen werden, wenn Du Produktdaten ändern willst. Text allein reicht nicht.',
+    '- update_product_datasheet: PFLICHT-Finalisierung jedes Turns (siehe ARBEITSFLOW).',
     '- suggest_product_images: Reale Bildsuche per System (keine URLs erfinden).',
     '',
-    'WORKING-STYLE:',
-    '- Nutze googleSearch wenn Du breit suchen musst.',
-    '- Nutze urlContext wenn Du eine konkrete URL tief lesen willst.',
-    '- Nutze lookup_gtin wenn eine GTIN/EAN vorhanden ist.',
-    '- Nutze search_ebay_catalog für eBay-spezifische Kategorie-/Aspect-Daten.',
+    'ARBEITSFLOW (IMMER IN DIESER REIHENFOLGE):',
+    '1. RECHERCHE-PHASE: Nutze googleSearch, urlContext und die atomaren Tools (lookup_gtin, search_ebay_catalog, verify_brand, search_amazon_product, search_manufacturer_site, fetch_url_content, get_required_aspects) um Fakten über das Produkt zu sammeln und Quellen zu cross-referenzieren.',
+    '2. WRITE-PHASE (PFLICHT): Am Ende JEDES Turns MUSST du genau einmal update_product_datasheet aufrufen mit den konsolidierten Änderungsvorschlägen.',
+    '',
+    'REGELN (nicht verhandelbar):',
+    '- update_product_datasheet ist die FINALE Aktion jedes Turns. Ohne diesen Call sieht der Nutzer keinen "Übernehmen"-Button — also muss er IMMER kommen.',
+    '- Auch wenn du keine eindeutigen neuen Fakten gefunden hast: Rufe update_product_datasheet mit leeren arrays auf und erkläre im `summary`-Feld warum (z.B. "Keine verlässlichen Quellen gefunden, bitte manuell prüfen").',
+    '- Gib KEINE finalen Produktdaten nur als Text aus — sie MÜSSEN über update_product_datasheet strukturiert zurückkommen.',
+    '- Jeder datasheetChanges-Eintrag sollte source/evidence-URL enthalten wenn möglich.',
+    '- Research-Tools liefern structured outputs — Temperature ist 1.0 by design, aber sei konservativ bei confidence-Scores.',
     '- Cross-Referenziere mindestens 2 unabhängige Quellen bevor Du eine Behauptung übernimmst.',
     '',
     'OUTPUT-FORMAT:',
     '- Datenblatt-Änderung → function_call update_product_datasheet (inkl. confidence 0-1 und summary).',
-    '- Info-Antworten → direkter Text auf Deutsch.',
+    '- Info-Antworten → zuerst Text auf Deutsch, DANN trotzdem update_product_datasheet mit summary=Antwort aufrufen (leere Felder erlaubt).',
     '- Zitate inline als [Quelle: URL] mitgeben.',
     '',
     `SPRACHE: ${locale}`,
@@ -665,6 +690,10 @@ async function runProductChatV3({
     thoughts: [],
     groundingChunks: [],
     urls: [],
+    sawWriteCall: false,
+    forcedFinalizations: 0,
+    ultimateFallbackTriggered: false,
+    ultimateFallbackError: null,
   };
 
   const state = {
@@ -744,14 +773,22 @@ async function runProductChatV3({
     emitThoughts(response, trace, onProgress);
     collectGrounding(response, trace, onProgress);
 
+    let researchOnlyIters = 0;
+
     while (
       response &&
       Array.isArray(response.functionCalls) &&
       response.functionCalls.length > 0 &&
       trace.iterations < maxIterations
     ) {
-      trace.iterations += 1;
       const callList = response.functionCalls;
+      const hasWriteCall = callList.some((c) => c && c.name === WRITE_TOOL);
+      if (hasWriteCall) {
+        trace.sawWriteCall = true;
+        researchOnlyIters = 0;
+      } else {
+        researchOnlyIters += 1;
+      }
 
       // Dispatch function calls in parallel — atomic-tools executors are
       // guaranteed to never throw and always bounded by EXECUTOR_TIMEOUT_MS.
@@ -814,6 +851,8 @@ async function runProductChatV3({
             try { onProgress({ type: 'tool_done', name: callName, ok: Boolean(result?.ok) }); } catch {}
           }
 
+          // Gemini 3 mandate: preserve call.id on every functionResponse so the
+          // model can correlate tool results with its originating calls.
           return {
             functionResponse: {
               id: callId || undefined,
@@ -824,15 +863,145 @@ async function runProductChatV3({
         })
       );
 
+      trace.iterations += 1;
+
+      // Decide config for the NEXT sendMessage. If we're about to run out of
+      // iterations OR the model has been doing research-only turns for too
+      // long, force it to emit the datasheet write-call via mode=ANY +
+      // allowedFunctionNames. This is the official escape-hatch documented at
+      // ai.google.dev/gemini-api/docs/function-calling.
+      const atLastIter = trace.iterations >= maxIterations;
+      const softForce = !trace.sawWriteCall && researchOnlyIters >= SOFT_RESEARCH_LIMIT;
+      const forceFinalize = atLastIter || softForce;
+      if (forceFinalize) trace.forcedFinalizations += 1;
+
+      const sendConfig = forceFinalize
+        ? {
+            toolConfig: {
+              functionCallingConfig: {
+                mode: FunctionCallingConfigMode.ANY,
+                allowedFunctionNames: [WRITE_TOOL],
+              },
+            },
+          }
+        : undefined;
+
       // Feed tool responses back into the chat.
+      // IMPORTANT: `message` must be PartListUnion (string | Part | Part[]) per
+      // @google/genai SendMessageParameters. Passing a Content-shaped
+      // { role, parts } object causes the SDK to mis-serialize tool responses
+      // and the model never sees them — leading to "model answers in text
+      // without update_product_datasheet" (the exact P0 incident on 2026-04-22).
       // eslint-disable-next-line no-await-in-loop
       response = await withGeminiRetryV3(
-        () => chat.sendMessage({ message: { role: 'user', parts: toolResponses } }),
+        () =>
+          sendConfig
+            ? chat.sendMessage({ message: toolResponses, config: sendConfig })
+            : chat.sendMessage({ message: toolResponses }),
         { label: `sendMessage-iter-${trace.iterations}` }
       );
 
       emitThoughts(response, trace, onProgress);
       collectGrounding(response, trace, onProgress);
+
+      // If the forced iteration itself came back WITH function calls that
+      // include the write-tool, execute them on the next loop tick. If the
+      // response has no functionCalls at all, the while-predicate exits
+      // naturally and the ultimate-fallback block below runs as needed.
+    }
+
+    // Ultimate fallback — if the loop exited without ever producing a
+    // write-call (e.g. Gemini ended in plain text despite mode=ANY), send one
+    // explicit finalization message. Without this, state.datasheetChanges
+    // stays empty and the UI shows no "Übernehmen" button.
+    //
+    // Guard: only trigger when Gemini actually entered the research phase
+    // (iterations > 0). If the model replies directly to an informational
+    // question without calling any tools (e.g. "Alles okay — keine Änderungen
+    // nötig"), respect that direct answer instead of forcing a write-call.
+    if (!trace.sawWriteCall && state.datasheetChanges.length === 0 && trace.iterations > 0) {
+      console.warn(
+        '[chat-v3] No %s call after loop — triggering ultimate fallback',
+        WRITE_TOOL
+      );
+      try {
+        const fallbackResponse = await withGeminiRetryV3(
+          () =>
+            chat.sendMessage({
+              message:
+                'Bitte fasse deine Recherche-Ergebnisse JETZT zusammen und rufe update_product_datasheet mit den konkreten Änderungsvorschlägen auf.',
+              config: {
+                toolConfig: {
+                  functionCallingConfig: {
+                    mode: FunctionCallingConfigMode.ANY,
+                    allowedFunctionNames: [WRITE_TOOL],
+                  },
+                },
+              },
+            }),
+          { label: 'sendMessage-ultimate-fallback' }
+        );
+        emitThoughts(fallbackResponse, trace, onProgress);
+        collectGrounding(fallbackResponse, trace, onProgress);
+
+        const fallbackCalls = Array.isArray(fallbackResponse?.functionCalls)
+          ? fallbackResponse.functionCalls
+          : [];
+        for (const call of fallbackCalls) {
+          if (!call || call.name !== WRITE_TOOL) continue;
+          const callArgs = call.args || {};
+          const callId = call.id || null;
+          let result;
+          try {
+            result = ownExecutor(WRITE_TOOL, callArgs, state);
+          } catch (err) {
+            result = {
+              ok: false,
+              source: WRITE_TOOL,
+              data: null,
+              confidence: 0,
+              meta: { durationMs: 0 },
+              error: { code: 'EXECUTOR_THREW', message: err?.message || String(err) },
+            };
+          }
+          trace.toolCalls.push({
+            id: callId,
+            name: WRITE_TOOL,
+            ok: Boolean(result?.ok),
+            latencyMs: result?.meta?.durationMs ?? 0,
+            error: result?.error?.message || null,
+            fallback: true,
+          });
+          // Echo the functionResponse back so chat history stays consistent
+          // for any subsequent turns. `message` must be a Part array, not a
+          // Content object (see note at the loop sendMessage above).
+          try {
+            // eslint-disable-next-line no-await-in-loop
+            await chat.sendMessage({
+              message: [
+                {
+                  functionResponse: {
+                    id: callId || undefined,
+                    name: WRITE_TOOL,
+                    response: result,
+                  },
+                },
+              ],
+            });
+          } catch (echoErr) {
+            console.warn('[chat-v3] fallback echo send failed: %s', echoErr?.message || echoErr);
+          }
+          trace.sawWriteCall = true;
+        }
+        response = fallbackResponse;
+        trace.ultimateFallbackTriggered = true;
+      } catch (fallbackErr) {
+        console.error(
+          '[chat-v3] Ultimate fallback also failed: %s',
+          fallbackErr?.message || fallbackErr
+        );
+        trace.ultimateFallbackError = fallbackErr?.message || String(fallbackErr);
+      }
     }
 
     // ---- post-processing -----------------------------------------------------
@@ -889,6 +1058,17 @@ async function runProductChatV3({
         });
       } catch {}
     }
+
+    console.log(
+      '[chat-v3] done model=%s iters=%d changes=%d sawWrite=%s forcedFinalizations=%d ultimateFallback=%s durationMs=%d',
+      model,
+      trace.iterations,
+      state.datasheetChanges.length,
+      trace.sawWriteCall,
+      trace.forcedFinalizations,
+      trace.ultimateFallbackTriggered,
+      Date.now() - startedAt
+    );
 
     return {
       message: finalAnswer || '',

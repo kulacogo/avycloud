@@ -417,14 +417,17 @@ describe('runProductChatV3 — injected fake client', () => {
     expect(names).toEqual(['lookup_gtin', 'update_product_datasheet']);
 
     // Second sendMessage must feed functionResponses back.
+    // Per @google/genai SDK SendMessageParameters, `message` is a PartListUnion
+    // (string | Part | Part[]) — NOT a Content object. Tool responses must be
+    // passed as a flat Part[] array; wrapping in { role, parts } causes the
+    // SDK to mis-serialize and the model never sees the results.
     expect(aiClient.__chat.sendMessage).toHaveBeenCalledTimes(2);
     const secondCall = aiClient.__chat.sendMessage.mock.calls[1][0];
     expect(secondCall).toHaveProperty('message');
-    expect(secondCall.message).toHaveProperty('role', 'user');
-    expect(Array.isArray(secondCall.message.parts)).toBe(true);
-    expect(secondCall.message.parts).toHaveLength(2);
-    expect(secondCall.message.parts[0]).toHaveProperty('functionResponse');
-    expect(secondCall.message.parts[0].functionResponse.name).toBe('update_product_datasheet');
+    expect(Array.isArray(secondCall.message)).toBe(true);
+    expect(secondCall.message).toHaveLength(2);
+    expect(secondCall.message[0]).toHaveProperty('functionResponse');
+    expect(secondCall.message[0].functionResponse.name).toBe('update_product_datasheet');
 
     // tool_start + tool_done events must flow to onProgress.
     const toolStarts = progressEvents.filter((e) => e.type === 'tool_start');
