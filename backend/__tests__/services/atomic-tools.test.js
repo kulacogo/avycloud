@@ -175,9 +175,9 @@ describe('declarations — JSON Schema shape', () => {
 // ---------------------------------------------------------------------------
 
 describe('buildToolList / buildToolExecutorMap', () => {
-  it('buildToolList() returns all 7 declarations by default', () => {
+  it('buildToolList() returns all 9 declarations by default (7 base + 2 pricing)', () => {
     const list = buildToolList();
-    expect(list).toHaveLength(7);
+    expect(list).toHaveLength(9);
     const names = list.map((d) => d.name).sort();
     expect(names).toEqual(
       [
@@ -186,6 +186,8 @@ describe('buildToolList / buildToolExecutorMap', () => {
         'lookup_gtin',
         'search_amazon_product',
         'search_ebay_catalog',
+        'search_ebay_sold',
+        'search_idealo',
         'search_manufacturer_site',
         'verify_brand',
       ]
@@ -197,7 +199,13 @@ describe('buildToolList / buildToolExecutorMap', () => {
     expect(list.find((d) => d.name === 'search_amazon_product')).toBeUndefined();
   });
 
-  it('buildToolExecutorMap() contains all 7 keys and only functions', () => {
+  it('buildToolList({ includePricing: false }) omits search_ebay_sold + search_idealo', () => {
+    const list = buildToolList({ includePricing: false });
+    expect(list.find((d) => d.name === 'search_ebay_sold')).toBeUndefined();
+    expect(list.find((d) => d.name === 'search_idealo')).toBeUndefined();
+  });
+
+  it('buildToolExecutorMap() contains all 9 keys and only functions', () => {
     const map = buildToolExecutorMap();
     const keys = Object.keys(map).sort();
     expect(keys).toEqual(
@@ -207,6 +215,8 @@ describe('buildToolList / buildToolExecutorMap', () => {
         'lookup_gtin',
         'search_amazon_product',
         'search_ebay_catalog',
+        'search_ebay_sold',
+        'search_idealo',
         'search_manufacturer_site',
         'verify_brand',
       ]

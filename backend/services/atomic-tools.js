@@ -247,6 +247,45 @@ const fetchUrlContentDeclaration = {
   },
 };
 
+const searchEbaySoldDeclaration = {
+  name: 'search_ebay_sold',
+  description:
+    'Search eBay completed/sold listings for price discovery. Returns the ' +
+    'recent SOLD prices for a product (by GTIN preferred, or free-text query). ' +
+    'Use this for sweet-spot pricing analysis — SOLD data reflects real market ' +
+    'demand, not ask prices.',
+  parameters: {
+    type: 'object',
+    properties: {
+      gtin: { type: 'string', description: 'GTIN/EAN/UPC for exact match (preferred)' },
+      query: { type: 'string', description: 'Free-text fallback query' },
+      categoryId: { type: 'string', description: 'Optional eBay category id to narrow search' },
+      marketplaceId: {
+        type: 'string',
+        enum: ['EBAY_DE', 'EBAY_COM'],
+        default: 'EBAY_DE',
+      },
+      limit: { type: 'number', default: 20 },
+    },
+  },
+};
+
+const searchIdealoDeclaration = {
+  name: 'search_idealo',
+  description:
+    'Search idealo.de (German price-comparison portal) for competitor pricing. ' +
+    'Uses SerpAPI Google Shopping with site-restriction. Returns offer-prices ' +
+    'from multiple retailers for a product. Use for cross-marketplace pricing.',
+  parameters: {
+    type: 'object',
+    properties: {
+      gtin: { type: 'string' },
+      query: { type: 'string' },
+      limit: { type: 'number', default: 10 },
+    },
+  },
+};
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -303,7 +342,11 @@ function brandDomainGuess(brand) {
   return `${slug.replace(/-/g, '')}.de`;
 }
 
-function buildToolList({ includeAmazon = true, includeManufacturer = true } = {}) {
+function buildToolList({
+  includeAmazon = true,
+  includeManufacturer = true,
+  includePricing = true,
+} = {}) {
   const list = [
     lookupGtinDeclaration,
     searchEbayCatalogDeclaration,
@@ -313,6 +356,10 @@ function buildToolList({ includeAmazon = true, includeManufacturer = true } = {}
   ];
   if (includeAmazon) list.push(searchAmazonProductDeclaration);
   if (includeManufacturer) list.push(searchManufacturerSiteDeclaration);
+  if (includePricing) {
+    list.push(searchEbaySoldDeclaration);
+    list.push(searchIdealoDeclaration);
+  }
   return list;
 }
 
@@ -325,6 +372,8 @@ function buildToolExecutorMap() {
     search_amazon_product: executeSearchAmazonProduct,
     search_manufacturer_site: executeSearchManufacturerSite,
     fetch_url_content: executeFetchUrlContent,
+    search_ebay_sold: executeSearchEbaySold,
+    search_idealo: executeSearchIdealo,
   };
 }
 
@@ -812,6 +861,115 @@ async function executeFetchUrlContent({ url, extractImages } = {}) {
 }
 
 // ---------------------------------------------------------------------------
+// Pricing executors (V4 additions) — wrap ebay-sold-listings + SerpAPI-idealo
+// ---------------------------------------------------------------------------
+
+async function executeSearchEbaySold({ gtin, query, categoryId, marketplaceId, limit } = {}) {
+  const started = Date.now();
+  const source = 'search_ebay_sold';
+
+  if (!gtin && !query) {
+    return failure(source, 'MISSING_ARGUMENT', 'gtin or query is required', {
+      meta: { durationMs: Date.now() - started },
+    });
+  }
+
+  const soldLib = tryRequire('../lib/ebay-sold-listings');
+  if (!soldLib || typeof soldLib.searchSoldListings !== 'function') {
+    return failure(source, 'NOT_IMPLEMENTED', 'ebay-sold-listings module missing', {
+      meta: { durationMs: Date.now() - started },
+    });
+  }
+
+  try {
+    const result = await withTimeout(
+      soldLib.searchSoldListings({
+        gtin,
+        query,
+        categoryId,
+        marketplaceId: marketplaceId || 'EBAY_DE',
+        limit: Math.min(Number(limit) || 20, 50),
+      }),
+      EXECUTOR_TIMEOUT_MS,
+      source
+    );
+
+    const items = Array.isArray(result?.items) ? result.items : [];
+    const signals =
+      typeof soldLib.extractPricingSignals === 'function'
+        ? soldLib.extractPricingSignals(items)
+        : { count: items.length };
+
+    const confidence = items.length >= 5 ? 0.8 : items.length >= 2 ? 0.6 : 0.3;
+
+    return success(source, { items, signals, meta: result?.meta }, {
+      confidence,
+      meta: { durationMs: Date.now() - started, itemCount: items.length },
+    });
+  } catch (err) {
+    return failure(source, 'EXECUTOR_ERROR', err.message, {
+      meta: { durationMs: Date.now() - started },
+    });
+  }
+}
+
+async function executeSearchIdealo({ gtin, query, limit } = {}) {
+  const started = Date.now();
+  const source = 'search_idealo';
+
+  if (!gtin && !query) {
+    return failure(source, 'MISSING_ARGUMENT', 'gtin or query is required', {
+      meta: { durationMs: Date.now() - started },
+    });
+  }
+
+  const serp = tryRequire('../lib/serpapi');
+  if (!serp || typeof serp.fetchSerpApi !== 'function') {
+    return failure(source, 'NOT_IMPLEMENTED', 'serpapi module missing', {
+      meta: { durationMs: Date.now() - started },
+    });
+  }
+
+  const searchTerm = gtin ? `${gtin}` : query;
+  const fullQuery = `${searchTerm} site:idealo.de`;
+
+  try {
+    const result = await withTimeout(
+      serp.fetchSerpApi({
+        engine: 'google_shopping',
+        q: fullQuery,
+        gl: 'de',
+        hl: 'de',
+        num: Math.min(Number(limit) || 10, 20),
+      }),
+      EXECUTOR_TIMEOUT_MS,
+      source
+    );
+
+    const shoppingResults = Array.isArray(result?.shopping_results) ? result.shopping_results : [];
+    const offers = shoppingResults
+      .map((o) => ({
+        title: String(o?.title || '').slice(0, 200),
+        price: typeof o?.extracted_price === 'number' ? o.extracted_price : null,
+        source: String(o?.source || '').slice(0, 80),
+        link: String(o?.link || '').slice(0, 500),
+      }))
+      .filter((o) => o.price != null && o.title);
+
+    const confidence = offers.length >= 3 ? 0.75 : offers.length >= 1 ? 0.5 : 0.2;
+
+    return success(source, { offers, count: offers.length }, {
+      confidence,
+      meta: { durationMs: Date.now() - started, offerCount: offers.length },
+    });
+  } catch (err) {
+    return failure(source, 'EXECUTOR_ERROR', err.message, {
+      meta: { durationMs: Date.now() - started },
+    });
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Exports
 // ---------------------------------------------------------------------------
 
@@ -824,6 +982,8 @@ module.exports = {
     searchAmazonProduct: searchAmazonProductDeclaration,
     searchManufacturerSite: searchManufacturerSiteDeclaration,
     fetchUrlContent: fetchUrlContentDeclaration,
+    searchEbaySold: searchEbaySoldDeclaration,
+    searchIdealo: searchIdealoDeclaration,
   },
   executors: {
     executeLookupGtin,
@@ -833,6 +993,8 @@ module.exports = {
     executeSearchAmazonProduct,
     executeSearchManufacturerSite,
     executeFetchUrlContent,
+    executeSearchEbaySold,
+    executeSearchIdealo,
   },
   buildToolList,
   buildToolExecutorMap,

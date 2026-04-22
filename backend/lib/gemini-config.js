@@ -81,6 +81,30 @@ function resolveIntentModel() {
   return resolveModel(envKey, 'INTENT_MODEL', FLASH_MODEL);
 }
 
+/**
+ * Identify-V4 Haupt-Modell (Multi-Stage Pipeline).
+ * Default: DEFAULT_MODEL (gemini-3.1-pro-preview-customtools).
+ * Override via IDENTIFY_V4_MODEL ENV.
+ */
+function resolveIdentifyV4Model() {
+  return resolveModel(process.env.IDENTIFY_V4_MODEL, 'IDENTIFY_V4_MODEL', DEFAULT_MODEL);
+}
+
+/**
+ * Identify-V4 Image-Enhance-Modell (Hintergrund-Entfernung, Cleanup).
+ * Default: IMAGE_MODEL (gemini-3-pro-image-preview). Das Image-Modell steht
+ * nicht in ALLOWED_MODELS von model-select.js (bewusst — es ist ein Spezial-
+ * Modell), daher kurzer Direkt-Lookup statt resolveModel().
+ * Override via IDENTIFY_V4_IMAGE_MODEL ENV.
+ */
+function resolveImageEnhanceModel() {
+  const raw = process.env.IDENTIFY_V4_IMAGE_MODEL;
+  if (typeof raw === 'string' && raw.trim()) {
+    return raw.trim();
+  }
+  return IMAGE_MODEL;
+}
+
 module.exports = {
   DEFAULT_MODEL,
   FLASH_MODEL,
@@ -94,4 +118,6 @@ module.exports = {
   resolveChatModel,
   resolveIdentifyModel,
   resolveIntentModel,
+  resolveIdentifyV4Model,
+  resolveImageEnhanceModel,
 };

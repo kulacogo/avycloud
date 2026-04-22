@@ -9,6 +9,8 @@ describe('gemini-config helpers', () => {
     delete process.env.CHAT_MODEL;
     delete process.env.IDENTIFY_MODEL;
     delete process.env.INTENT_MODEL;
+    delete process.env.IDENTIFY_V4_MODEL;
+    delete process.env.IDENTIFY_V4_IMAGE_MODEL;
     // Force re-require so process.env changes are re-read cleanly
     delete require.cache[require.resolve('../../lib/gemini-config')];
   });
@@ -126,5 +128,29 @@ describe('gemini-config helpers', () => {
     const { resolveIntentModel, FLASH_MODEL } = require('../../lib/gemini-config');
     expect(resolveIntentModel()).toBe(FLASH_MODEL);
     expect(resolveIntentModel()).toBe('gemini-3-flash-preview');
+  });
+
+  it('resolveIdentifyV4Model() defaults to gemini-3.1-pro-preview-customtools', () => {
+    const { resolveIdentifyV4Model } = require('../../lib/gemini-config');
+    expect(resolveIdentifyV4Model()).toBe('gemini-3.1-pro-preview-customtools');
+  });
+
+  it('resolveIdentifyV4Model() respects IDENTIFY_V4_MODEL env override', () => {
+    process.env.IDENTIFY_V4_MODEL = 'gemini-3.1-flash-lite';
+    delete require.cache[require.resolve('../../lib/gemini-config')];
+    const { resolveIdentifyV4Model } = require('../../lib/gemini-config');
+    expect(resolveIdentifyV4Model()).toBe('gemini-3.1-flash-lite');
+  });
+
+  it('resolveImageEnhanceModel() defaults to gemini-3-pro-image-preview', () => {
+    const { resolveImageEnhanceModel } = require('../../lib/gemini-config');
+    expect(resolveImageEnhanceModel()).toBe('gemini-3-pro-image-preview');
+  });
+
+  it('resolveImageEnhanceModel() respects IDENTIFY_V4_IMAGE_MODEL env override', () => {
+    process.env.IDENTIFY_V4_IMAGE_MODEL = 'gemini-3-pro-image-preview-experimental';
+    delete require.cache[require.resolve('../../lib/gemini-config')];
+    const { resolveImageEnhanceModel } = require('../../lib/gemini-config');
+    expect(resolveImageEnhanceModel()).toBe('gemini-3-pro-image-preview-experimental');
   });
 });

@@ -259,6 +259,45 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
       });
     }
 
+    // ─── IDENTIFY V4: opt-in pipeline (IDENTIFY_V4=true) ───
+    // Runs BEFORE V3/V2/Legacy grounding. On throw or ok:false, falls through
+    // to the existing pipeline below — never returns a 500 from V4 itself.
+    try {
+      const { identifyProductV4, identifyV4Enabled } = require('../services/identify-v4');
+      if (typeof identifyV4Enabled === 'function' && identifyV4Enabled()) {
+        try {
+          const v4Result = await identifyProductV4({
+            files,
+            barcodes,
+            locale,
+            hint,
+            paletteCode,
+            inventoryId,
+            tenantId: req.tenantId || req.user?.tenantId || null,
+            userId: req.userId || req.user?.uid || null,
+            autosave: String(process.env.IDENTIFY_V4_AUTOSAVE || 'true').toLowerCase() !== 'false',
+          });
+          if (v4Result && v4Result.ok) {
+            return res.json({
+              ok: true,
+              data: v4Result.product,
+              meta: { ...(v4Result.meta || {}), pipeline: 'v4' },
+            });
+          }
+          console.warn(
+            '[identify] V4 returned ok:false, falling back to V3:',
+            v4Result?.error || 'unknown',
+          );
+        } catch (v4Err) {
+          console.warn('[identify] V4 threw, falling back to V3:', v4Err?.message || v4Err);
+        }
+        // Fall through to V3 below (no return)
+      }
+    } catch (v4RequireErr) {
+      // identify-v4 module not yet shipped — silently skip so V3 path runs.
+      console.warn('[identify] V4 module unavailable, using V3:', v4RequireErr?.message || v4RequireErr);
+    }
+
     // ─── PERF-001 v2: Google Search Grounding Pipeline ───
     // Single Gemini call with images + Google Search + Structured Output.
     // Replaces: runSerpapiFreePipeline + prefetchWebEvidence + runDatasheetReview ×2 + enrichPrice + fetchMarketingImages
@@ -777,6 +816,7 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
       data: saved || product,
       meta: {
         reused_existing: false,
+        pipeline: v3Meta ? 'v3' : (groundingUsed ? 'grounding' : 'legacy'),
         grounding: groundingUsed,
         locale: legacyResult?.locale || locale,
         barcodes: legacyResult?.barcodes || mergedBarcodes,
