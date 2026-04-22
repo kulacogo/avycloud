@@ -2,6 +2,8 @@
 
 // Mock dependencies via require.cache
 
+const gemini3GenerateJSONMock = vi.fn();
+
 const generateProductContentMock = vi.fn(async () => ({
   title_ebay: 'Sony WH-1000XM5 Kabellos Bluetooth Over-Ear Kopfhoerer Schwarz',
   title_kaufland: 'Sony WH-1000XM5 Noise-Cancelling Over-Ear Bluetooth Kopfhoerer Schwarz',
@@ -31,6 +33,7 @@ require.cache[geminiPath] = {
   id: geminiPath, filename: geminiPath, loaded: true,
   exports: {
     generateProductContent: generateProductContentMock,
+    gemini3GenerateJSON: gemini3GenerateJSONMock,
     buildImprovePromptExtension: vi.fn(() => ''),
     getGenAIClient: vi.fn(),
     identifyProductWithGrounding: vi.fn(),
@@ -116,7 +119,9 @@ describe('runStage3ContentGeneration', () => {
     const call = generateProductContentMock.mock.calls[0][0];
     expect(call.identity.brand).toBe('Sony');
     expect(call.identity.model).toBe('WH-1000XM5');
-    expect(call.enrichment.requiredAspects).toEqual(['Marke', 'Modell', 'Farbe']);
+    // Aspects with no allowed values from the catalog stay as plain strings.
+    expect(call.enrichment.requiredAspects.map(String))
+      .toEqual(['Marke', 'Modell', 'Farbe']);
   });
 
   it('returns generated content fields', async () => {
@@ -167,5 +172,161 @@ describe('runStage3ContentGeneration', () => {
     await runStage3ContentGeneration(makeStage1(), makeStage2());
     const call = generateProductContentMock.mock.calls[0][0];
     expect(call.imageParts.length).toBe(1);
+  });
+
+  it('fills missing required aspects with "Unbekannt" when Gemini omits them', async () => {
+    generateProductContentMock.mockResolvedValueOnce({
+      title_ebay: 'Sony WH-1000XM5 Kopfhoerer',
+      title_kaufland: 'Sony WH-1000XM5 Kopfhoerer',
+      description_ebay: '<p>Sony WH-1000XM5</p>',
+      description_kaufland: '<p>Sony WH-1000XM5</p>',
+      key_features: ['A', 'B', 'C'],
+      // Only 'Marke' present — 'Modell', 'Farbe', 'Konnektivitaet' are missing.
+      item_specifics: [{ key: 'Marke', value: 'Sony' }],
+      mobile_snippet: 'Sony WH-1000XM5',
+    });
+
+    const stage2 = makeStage2();
+    stage2.requiredAspects = ['Marke', 'Modell', 'Farbe', 'Konnektivitaet'];
+    const result = await runStage3ContentGeneration(makeStage1(), stage2);
+
+    const keys = result.item_specifics.map((s) => s.key);
+    expect(keys).toEqual(expect.arrayContaining(['Marke', 'Modell', 'Farbe', 'Konnektivitaet']));
+    const modellEntry = result.item_specifics.find((s) => s.key === 'Modell');
+    expect(modellEntry.value).toBe('Unbekannt');
+    expect(result.item_specifics_confidence.Modell).toBe(0);
+    expect(result._meta.aspectEnforcement.missing).toEqual(
+      expect.arrayContaining(['Modell', 'Farbe', 'Konnektivitaet'])
+    );
+  });
+
+  it('respects allowed values from requiredAspects[].values', async () => {
+    generateProductContentMock.mockResolvedValueOnce({
+      title_ebay: 'Produkt',
+      title_kaufland: 'Produkt',
+      description_ebay: '<p>x</p>',
+      description_kaufland: '<p>x</p>',
+      key_features: ['A', 'B'],
+      item_specifics: [{ key: 'Marke', value: 'Sony' }],
+      mobile_snippet: 'x',
+    });
+
+    const stage2 = makeStage2();
+    // Pass objects with allowed values — "Schwarz" is first, should be picked as
+    // the placeholder instead of literal "Unbekannt".
+    stage2.requiredAspects = [
+      { name: 'Marke' },
+      { name: 'Farbe', values: ['Schwarz', 'Weiß', 'Rot'] },
+    ];
+
+    const result = await runStage3ContentGeneration(makeStage1(), stage2);
+
+    const farbe = result.item_specifics.find((s) => s.key === 'Farbe');
+    expect(farbe).toBeDefined();
+    // Either picks one of the allowed values, not "Unbekannt" verbatim.
+    expect(['Schwarz', 'Weiß', 'Rot']).toContain(farbe.value);
+    // Also: the prompt-facing aspect is decorated with the allowed-values hint.
+    const call = generateProductContentMock.mock.calls[0][0];
+    const farbeAspect = call.enrichment.requiredAspects.find(
+      (a) => String(a).startsWith('Farbe')
+    );
+    expect(String(farbeAspect)).toContain('erlaubt: Schwarz, Weiß, Rot');
+  });
+
+  it('triggers repair call when > 30% of required aspects are unknown', async () => {
+    // Gemini returns 4 required aspects but only 'Marke' gets a value.
+    generateProductContentMock.mockResolvedValueOnce({
+      title_ebay: 't',
+      title_kaufland: 't',
+      description_ebay: '<p>x</p>',
+      description_kaufland: '<p>x</p>',
+      key_features: ['A'],
+      item_specifics: [{ key: 'Marke', value: 'Sony' }],
+      mobile_snippet: 'x',
+    });
+    gemini3GenerateJSONMock.mockResolvedValueOnce({
+      repaired: {
+        Modell: 'WH-1000XM5',
+        Farbe: 'Schwarz',
+        Konnektivitaet: 'Bluetooth',
+      },
+      confidence: {
+        Modell: 0.9,
+        Farbe: 0.8,
+        Konnektivitaet: 0.7,
+      },
+    });
+
+    const stage2 = makeStage2();
+    stage2.requiredAspects = ['Marke', 'Modell', 'Farbe', 'Konnektivitaet'];
+    const result = await runStage3ContentGeneration(makeStage1(), stage2);
+
+    expect(gemini3GenerateJSONMock).toHaveBeenCalledTimes(1);
+    const modell = result.item_specifics.find((s) => s.key === 'Modell');
+    expect(modell.value).toBe('WH-1000XM5');
+    expect(result.item_specifics_confidence.Modell).toBeCloseTo(0.9, 2);
+    expect(result._meta.aspectEnforcement.repairApplied).toBe(true);
+  });
+
+  it('does not trigger repair call when all required aspects are known', async () => {
+    // Default mock already has all required aspects filled.
+    const stage2 = makeStage2();
+    stage2.requiredAspects = ['Marke', 'Modell', 'Farbe'];
+    await runStage3ContentGeneration(makeStage1(), stage2);
+    expect(gemini3GenerateJSONMock).not.toHaveBeenCalled();
+  });
+
+  it('can disable aspect enforcement via STAGE3_ASPECT_ENFORCEMENT=false', async () => {
+    const original = process.env.STAGE3_ASPECT_ENFORCEMENT;
+    process.env.STAGE3_ASPECT_ENFORCEMENT = 'false';
+    try {
+      generateProductContentMock.mockResolvedValueOnce({
+        title_ebay: 'Produkt',
+        title_kaufland: 'Produkt',
+        description_ebay: '<p>x</p>',
+        description_kaufland: '<p>x</p>',
+        key_features: ['A', 'B'],
+        item_specifics: [{ key: 'Marke', value: 'Sony' }],
+        mobile_snippet: 'x',
+      });
+
+      const stage2 = makeStage2();
+      stage2.requiredAspects = ['Marke', 'Modell', 'Farbe'];
+      const result = await runStage3ContentGeneration(makeStage1(), stage2);
+
+      // Should NOT back-fill — only 'Marke' is present (after canonicalization).
+      const keys = result.item_specifics.map((s) => s.key);
+      expect(keys).not.toContain('Modell');
+      expect(keys).not.toContain('Farbe');
+      expect(result._meta.aspectEnforcement).toBeNull();
+    } finally {
+      if (original === undefined) delete process.env.STAGE3_ASPECT_ENFORCEMENT;
+      else process.env.STAGE3_ASPECT_ENFORCEMENT = original;
+    }
+  });
+
+  it('can disable repair call via STAGE3_ASPECT_REPAIR=false', async () => {
+    const original = process.env.STAGE3_ASPECT_REPAIR;
+    process.env.STAGE3_ASPECT_REPAIR = 'false';
+    try {
+      generateProductContentMock.mockResolvedValueOnce({
+        title_ebay: 't',
+        title_kaufland: 't',
+        description_ebay: '<p>x</p>',
+        description_kaufland: '<p>x</p>',
+        key_features: ['A'],
+        item_specifics: [{ key: 'Marke', value: 'Sony' }],
+        mobile_snippet: 'x',
+      });
+
+      const stage2 = makeStage2();
+      stage2.requiredAspects = ['Marke', 'Modell', 'Farbe', 'Konnektivitaet'];
+      await runStage3ContentGeneration(makeStage1(), stage2);
+
+      expect(gemini3GenerateJSONMock).not.toHaveBeenCalled();
+    } finally {
+      if (original === undefined) delete process.env.STAGE3_ASPECT_REPAIR;
+      else process.env.STAGE3_ASPECT_REPAIR = original;
+    }
   });
 });

@@ -35,7 +35,34 @@ const { fetchCategoryTitleInsights } = require('../lib/ebay-browse-title-insight
 const { htmlToText } = require('../lib/web-search-html');
 const { decodeHtmlEntitiesDeep } = require('../lib/html-entities');
 
-const MAX_CHAT_ITERATIONS = 5;
+const MAX_CHAT_ITERATIONS = 10;
+
+// Legacy-Chat Enhancement flag. Default: on (nur explicit 'false' deaktiviert die Härtungen).
+function chatLegacyEnhanced() {
+  const v = (process.env.CHAT_LEGACY_ENHANCED || '').toString().trim().toLowerCase();
+  return v !== 'false' && v !== '0' && v !== 'no';
+}
+
+// Resolved once at module load — single source of truth for Chat models.
+const CHAT_MODEL = resolveModel(process.env.CHAT_MODEL, 'CHAT_MODEL', 'gemini-3.1-pro-preview-customtools');
+const INTENT_MODEL = resolveModel(process.env.INTENT_MODEL, 'INTENT_MODEL', 'gemini-3-flash-preview');
+
+// Amazon ASIN pattern: B0 + 8 alphanumerics (total 10 chars starting with B).
+const AMAZON_ASIN_REGEX = /\bB0[0-9A-Z]{8}\b/;
+const AMAZON_MARKETPLACE_REGEX = /\b(amazon|amzn|asin)\b/i;
+const EBAY_MARKETPLACE_REGEX = /\b(ebay|e-bay)\b/i;
+
+/**
+ * Extracts the first Amazon ASIN from a text blob (B0 + 8 alphanumerics).
+ * Returns null if no match. Case-sensitive (ASINs are upper-case).
+ */
+function extractAsin(text) {
+  const s = typeof text === 'string' ? text : '';
+  if (!s) return null;
+  const m = s.match(AMAZON_ASIN_REGEX);
+  return m ? m[0] : null;
+}
+
 const DEEP_MODE_REGEX =
   /(mehr details|mehr detailliert|ausf(?:ue|ü)hrlich|voller report|lange analyse|bitte detailliert|detailliert|full report|detailed|long analysis)/i;
 // IMPORTANT: Be strict here. The chat prompts may contain the word "Marketing" (e.g. "keine Marketingfloskeln")
@@ -86,7 +113,8 @@ async function detectIntent(message) {
   try {
     const genAI = getGeminiClient();
     const model = genAI.getGenerativeModel({
-      model: resolveModel(null, 'CHAT_INTENT_MODEL', 'gemini-3-flash-preview'),
+      // INTENT_MODEL is resolved once at module load; CHAT_INTENT_MODEL (legacy) still wins if set.
+      model: resolveModel(process.env.CHAT_INTENT_MODEL, 'CHAT_INTENT_MODEL', INTENT_MODEL),
       generationConfig: { temperature: 0, maxOutputTokens: 10 },
     });
 
@@ -275,7 +303,7 @@ const EVIDENCE_URL_BONUS_TOKENS = [
   'produktseite',
 ];
 
-function scoreEvidenceUrl({ url = '', title = '', snippet = '' } = {}) {
+function scoreEvidenceUrl({ url = '', title = '', snippet = '', context = null } = {}) {
   const u = safeString(url).toLowerCase();
   const t = safeString(title).toLowerCase();
   const s = safeString(snippet);
@@ -286,17 +314,34 @@ function scoreEvidenceUrl({ url = '', title = '', snippet = '' } = {}) {
   if (EVIDENCE_URL_BONUS_TOKENS.some((tok) => u.includes(tok) || t.includes(tok))) score += 2;
   if (s.length >= 140) score += 1;
   if (/\.(jpg|jpeg|png|webp|gif)(\?|$)/i.test(u)) score -= 5;
+
+  // Context-aware boosts (only active when chatLegacyEnhanced() === true).
+  if (context && chatLegacyEnhanced()) {
+    if (context.asinContext && /(^|\.)amazon\.(de|com|co\.uk|fr|it|es|nl|pl)(\/|$)/i.test(u)) {
+      score += 3;
+    }
+    if (context.ebayContext && /(^|\.)ebay\.(de|com|co\.uk|fr|it|es|nl|pl|at|ch)(\/|$)/i.test(u)) {
+      score += 3;
+    }
+    const brandTok = safeString(context.brand).toLowerCase();
+    if (brandTok && brandTok.length >= 3) {
+      // Match brand as a host/subdomain token (e.g. "bosch" in "www.bosch.de" or "bosch-power.com").
+      const brandHostRegex = new RegExp(`(^|\\.|//|-)${brandTok.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(\\.|-|/|$)`, 'i');
+      if (brandHostRegex.test(u)) score += 2;
+    }
+  }
+
   return score;
 }
 
-function pickBestUrl(results = []) {
+function pickBestUrl(results = [], context = null) {
   const list = Array.isArray(results) ? results : [];
   const scored = list
     .map((r, idx) => ({
       url: r?.url || '',
       title: r?.title || '',
       snippet: r?.snippet || '',
-      score: scoreEvidenceUrl({ url: r?.url, title: r?.title, snippet: r?.snippet }),
+      score: scoreEvidenceUrl({ url: r?.url, title: r?.title, snippet: r?.snippet, context }),
       idx,
     }))
     .filter((r) => safeString(r.url).startsWith('http'));
@@ -304,7 +349,14 @@ function pickBestUrl(results = []) {
   return scored[0] || null;
 }
 
-async function forceOneEvidencePass(product, userMessage, { scope = null, notesOnly = false, titleHintTokens = [] } = {}) {
+async function forceOneEvidencePass(product, userMessage, {
+  scope = null,
+  notesOnly = false,
+  titleHintTokens = [],
+  // When true, skip the final LLM rewrite and return the raw evidence snippet.
+  // Used by info/analysis intents so the frontend can display the source directly.
+  evidenceOnly = false,
+} = {}) {
   const locale = 'de-DE';
   const title = safeString(product?.identification?.name);
   const brand = safeString(product?.identification?.brand);
@@ -313,9 +365,17 @@ async function forceOneEvidencePass(product, userMessage, { scope = null, notesO
   const barcode = safeString(barcodes.find(Boolean));
   const userHint = safeString(userMessage);
 
+  // Amazon / eBay routing hints derived from the user message.
+  const enhanced = chatLegacyEnhanced();
+  const asin = enhanced ? extractAsin(userHint) : null;
+  const amazonMarketplace = enhanced && AMAZON_MARKETPLACE_REGEX.test(userHint);
+  const ebayMarketplace = enhanced && EBAY_MARKETPLACE_REGEX.test(userHint);
+  const amazonHintSuffix = (asin || amazonMarketplace) ? ' site:amazon.de OR site:amazon.com' : '';
+
   // Build product-specific query candidates (do NOT rely on userMessage, which may be generic like "Titel verbessern").
   // Prefer short, high-signal queries to reduce SERP failures.
-  const candidates = [
+  const baseCandidates = [
+    asin || null,                                              // If ASIN was pasted, try that first.
     barcode || null,
     barcode && brand ? `${barcode} ${brand}` : null,
     brand && title ? `${brand} ${title}` : null,
@@ -325,40 +385,86 @@ async function forceOneEvidencePass(product, userMessage, { scope = null, notesO
   ]
     .filter(Boolean)
     .map((q) => String(q).trim())
-    .filter(Boolean)
-    .map((q) => q.slice(0, 120));
+    .filter(Boolean);
+
+  const candidates = baseCandidates
+    .map((q) => (amazonHintSuffix ? `${q}${amazonHintSuffix}` : q))
+    .map((q) => q.slice(0, 200));
   const traces = [];
 
   let results = [];
   let usedQuery = '';
 
-  for (const query of candidates) {
-    // Broad web search (no site-limits). We do NOT prefer marketplaces over the wider web.
-    const broad = await executeBrightdataSearchToolCall({
-      arguments: JSON.stringify({ query, locale, limit: 8 }),
+  // Amazon routing: if SerpAPI enabled + amazon/asin context, try serpapi engine='amazon' first.
+  const SERPAPI_ENABLED = (process.env.SERPAPI_ENABLED || '').toString().trim().toLowerCase() === 'true';
+  const tryAmazonSerp = enhanced && (asin || amazonMarketplace);
+
+  if (tryAmazonSerp && SERPAPI_ENABLED) {
+    const amazonQuery = asin || (baseCandidates[0] || title || userHint || '').slice(0, 200);
+    const serpRes = await executeSerpapiToolCall({
+      arguments: JSON.stringify({ engine: 'amazon', query: amazonQuery, domain: 'amazon.de' }),
     });
     traces.push({
-      type: 'brightdata',
-      engine: broad.engine,
-      query: broad.query,
-      summary: (broad.results || []).slice(0, 8).map((r) => ({
-        title: r.title || '',
-        source: r.site || 'web',
-        url: r.url || '',
-        snippet: r.snippet || '',
-        price: null,
-      })),
-      error: broad.error || null,
+      type: 'serpapi',
+      engine: serpRes.engine || 'amazon',
+      query: serpRes.query || amazonQuery,
+      summary: Array.isArray(serpRes.summary) ? serpRes.summary : [],
+      error: serpRes.error || null,
     });
-    results = broad?.results || [];
-    usedQuery = query;
+    const mapped = Array.isArray(serpRes.summary)
+      ? serpRes.summary
+          .map((r) => ({
+            title: r?.title || '',
+            url: r?.url || r?.link || '',
+            snippet: r?.snippet || r?.description || '',
+            site: 'amazon',
+          }))
+          .filter((r) => safeString(r.url).startsWith('http'))
+      : [];
+    if (mapped.length) {
+      results = mapped;
+      usedQuery = amazonQuery;
+    }
+  } else if (tryAmazonSerp && !SERPAPI_ENABLED) {
+    // Fallback: SerpAPI disabled — warn but continue with BrightData (amazon site-hint added below).
+    console.warn('[chat-legacy] amazon routing requested but SERPAPI_ENABLED=false; continuing with BrightData broad search');
+  }
 
-    if (Array.isArray(results) && results.length > 0) {
-      break;
+  if (!results.length) {
+    for (const query of candidates) {
+      // Broad web search (no site-limits). We do NOT prefer marketplaces over the wider web,
+      // unless the user explicitly referenced Amazon/ASIN (handled via amazonHintSuffix).
+      const broad = await executeBrightdataSearchToolCall({
+        arguments: JSON.stringify({ query, locale, limit: 8 }),
+      });
+      traces.push({
+        type: 'brightdata',
+        engine: broad.engine,
+        query: broad.query,
+        summary: (broad.results || []).slice(0, 8).map((r) => ({
+          title: r.title || '',
+          source: r.site || 'web',
+          url: r.url || '',
+          snippet: r.snippet || '',
+          price: null,
+        })),
+        error: broad.error || null,
+      });
+      results = broad?.results || [];
+      usedQuery = query;
+
+      if (Array.isArray(results) && results.length > 0) {
+        break;
+      }
     }
   }
 
-  const best = pickBestUrl(results);
+  const scoringContext = {
+    asinContext: Boolean(asin || amazonMarketplace),
+    ebayContext: ebayMarketplace,
+    brand,
+  };
+  const best = pickBestUrl(results, scoringContext);
   if (!best?.url) {
     // Ensure we still return *one* structured change (notes) so the UI always has "Übernehmen".
     return {
@@ -374,6 +480,7 @@ async function forceOneEvidencePass(product, userMessage, { scope = null, notesO
         },
       ],
       traces,
+      evidence: [],
     };
   }
 
@@ -391,11 +498,30 @@ async function forceOneEvidencePass(product, userMessage, { scope = null, notesO
   const html = typeof fetched?.body === 'string' ? fetched.body : '';
   const text = html ? htmlToText(html).slice(0, 20000) : '';
 
+  // Evidence payload for the frontend (info/analysis path may skip the LLM rewrite entirely).
+  const evidence = [
+    {
+      url: best.url,
+      title: best.title || '',
+      snippet: best.snippet || '',
+      excerpt: text ? text.slice(0, 2000) : '',
+    },
+  ];
+
+  if (evidenceOnly) {
+    // Short-circuit: frontend renders the evidence directly; no LLM-driven datasheet change.
+    return {
+      datasheetChanges: [],
+      traces,
+      evidence,
+    };
+  }
+
   // 4) Deterministic: force ONE update_product_datasheet tool call using evidence
   const client = await getGeminiClient();
   const updateOnlyTools = [{ functionDeclarations: [toGeminiTool(updateDatasheetTool)] }];
   const updateOnlyModel = client.getGenerativeModel({
-    model: resolveModel(null, 'CHAT_MODEL', 'gemini-3-pro-preview'),
+    model: CHAT_MODEL,
     tools: updateOnlyTools,
     toolConfig: {
       functionCallingConfig: {
@@ -451,9 +577,10 @@ async function forceOneEvidencePass(product, userMessage, { scope = null, notesO
         },
       ],
       traces,
+      evidence,
     };
   }
-  return { datasheetChanges: [nextChange], traces };
+  return { datasheetChanges: [nextChange], traces, evidence };
 }
 
 // Helper to recursively clean JSON schema for Gemini (e.g. remove null types)
@@ -2067,7 +2194,10 @@ async function runProductChat(product, userMessage, {
   onProgress = null, // Progress callback for SSE streaming: (event) => void
 } = {}) {
   const client = await getGeminiClient();
-  const modelName = resolveModel(modelOverride, 'CHAT_MODEL', 'gemini-3-pro-preview');
+  // Allow per-call override; otherwise use the module-level CHAT_MODEL constant.
+  const modelName = modelOverride
+    ? resolveModel(modelOverride, 'CHAT_MODEL', CHAT_MODEL)
+    : CHAT_MODEL;
 
   const locale = 'de-DE';
 
@@ -2098,6 +2228,20 @@ async function runProductChat(product, userMessage, {
   const barcodeIntent = BARCODE_INTENT_REGEX.test(userMessage || '');
   const hasLocalValidBarcode = hasValidLocalBarcode(product);
   const attachmentPayload = normalizeChatAttachments(attachments);
+
+  // Amazon routing hints derived from the user message (ASIN pattern + marketplace keywords).
+  const enhanced = chatLegacyEnhanced();
+  const asin = enhanced ? extractAsin(userMessage || '') : null;
+  const amazonIntent = enhanced && (asin || AMAZON_MARKETPLACE_REGEX.test(userMessage || ''));
+  const ebayIntent = enhanced && EBAY_MARKETPLACE_REGEX.test(userMessage || '');
+
+  console.log(
+    '[chat-legacy] model=%s iterations=%d intent=%s hasAsin=%s',
+    modelName,
+    MAX_CHAT_ITERATIONS,
+    intent,
+    Boolean(asin),
+  );
 
   if (marketingFocus) {
     const marketingResponse = await fulfillMarketingImageRequest(product, {
@@ -2211,10 +2355,18 @@ async function runProductChat(product, userMessage, {
   - Key features MUST be non-duplicative and factual.
   `;
 
+  // Thinking: old SDK (@google/generative-ai) expects thinkingConfig.thinkingBudget = -1
+  // ("dynamic thinking" — model decides how many thinking tokens to use). Only applied when
+  // the legacy-enhanced flag is on so the default behaviour can be preserved by toggling.
+  const generationConfig = enhanced
+    ? { thinkingConfig: { thinkingBudget: -1 } }
+    : undefined;
+
   const model = client.getGenerativeModel({
     model: modelName,
     tools: tools,
     systemInstruction: systemPromptText,
+    ...(generationConfig ? { generationConfig } : {}),
   });
 
   // Build Gemini history: product context first, then conversation history, then image turns.
@@ -2284,6 +2436,15 @@ async function runProductChat(product, userMessage, {
     .filter(Boolean);
 
 
+  // Amazon-routing state for the tool loop:
+  //   - forceFirstSerpapiAmazon: on the FIRST serpapi call, rewrite engine to 'amazon' if ASIN/amzn context.
+  //   - brightdataAmazonSiteHint: add site:amazon.de OR site:amazon.com to brightdata queries until we get a hit.
+  let forceFirstSerpapiAmazon = enhanced && amazonIntent && SERPAPI_ENABLED;
+  const brightdataAmazonSiteHint = enhanced && amazonIntent;
+  if (enhanced && amazonIntent && !SERPAPI_ENABLED) {
+    console.warn('[chat-legacy] amazon routing requested (asin/amzn) but SERPAPI_ENABLED=false; falling back to BrightData broad search with site:amazon hint');
+  }
+
   try {
     onProgress?.({ type: 'start', text: 'Starte Analyse…' });
 
@@ -2302,6 +2463,14 @@ async function runProductChat(product, userMessage, {
 
         if (name === 'brightdata_web_search') {
           const cleanedArgs = args && typeof args === 'object' ? { ...args } : {};
+          // Inject Amazon site hint when user explicitly referenced ASIN/amazon (non-destructive; leaves query if already scoped).
+          if (brightdataAmazonSiteHint
+              && typeof cleanedArgs.query === 'string'
+              && cleanedArgs.query
+              && !/site:amazon\./i.test(cleanedArgs.query)) {
+            const hinted = `${cleanedArgs.query} site:amazon.de OR site:amazon.com`;
+            cleanedArgs.query = hinted.slice(0, 200);
+          }
           onProgress?.({ type: 'tool_start', tool: 'brightdata_web_search', query: cleanedArgs.query || '' });
           const result = await executeBrightdataSearchToolCall({ arguments: JSON.stringify(cleanedArgs) });
           onProgress?.({ type: 'tool_done', tool: 'brightdata_web_search', count: (result.results || []).length });
@@ -2322,6 +2491,15 @@ async function runProductChat(product, userMessage, {
         }
         else if (name === 'serpapi_web_search') {
           const cleanedArgs = args && typeof args === 'object' ? { ...args } : {};
+          // Amazon routing: on the first serpapi call, rewrite engine to 'amazon' when ASIN/amazon context.
+          if (forceFirstSerpapiAmazon) {
+            cleanedArgs.engine = 'amazon';
+            if (!cleanedArgs.domain) cleanedArgs.domain = 'amazon.de';
+            if (asin && (!cleanedArgs.query || !String(cleanedArgs.query).trim())) {
+              cleanedArgs.query = asin;
+            }
+            forceFirstSerpapiAmazon = false;
+          }
           onProgress?.({ type: 'tool_start', tool: 'serpapi_web_search', query: cleanedArgs.query || '' });
           const result = await executeSerpapiToolCall({ arguments: JSON.stringify(cleanedArgs) });
           onProgress?.({ type: 'tool_done', tool: 'serpapi_web_search', count: (result.summary || []).length });
@@ -2493,24 +2671,46 @@ async function runProductChat(product, userMessage, {
       }
     }
 
-    // Hard guarantee: if we STILL have no datasheetChanges, run one forced BrightData search+fetch+update pass.
-    // Only for 'change' intent — info/analysis responses don't need a forced change card.
-    if (intent === 'change' && (!datasheetChanges || datasheetChanges.length === 0)) {
+    // Hard guarantee: if we STILL have no datasheetChanges OR intent is info/analysis,
+    // run one forced BrightData search+fetch pass to surface real evidence to the UI.
+    //
+    // For intent='info' or 'analysis' we bypass the LLM-driven datasheet rewrite (evidenceOnly=true)
+    // and instead return the raw WEB EVIDENCE snippet in result.evidence — the frontend uses it
+    // to enrich the assistant message with sources, without producing a spurious change card.
+    //
+    // When CHAT_LEGACY_ENHANCED=false the old behaviour (change-intent only) is preserved.
+    const legacyEnhanced = chatLegacyEnhanced();
+    const noChanges = !datasheetChanges || datasheetChanges.length === 0;
+    const shouldForceEvidencePass = legacyEnhanced
+      ? (noChanges || intent === 'info' || intent === 'analysis')
+      : (intent === 'change' && noChanges);
+    const evidenceOnlyPass = legacyEnhanced && (intent === 'info' || intent === 'analysis');
+    let evidencePayload = [];
+    if (shouldForceEvidencePass) {
       try {
-        const forced = await forceOneEvidencePass(product, userMessage, { scope, titleHintTokens });
+        const forced = await forceOneEvidencePass(product, userMessage, {
+          scope,
+          titleHintTokens,
+          evidenceOnly: evidenceOnlyPass,
+        });
         if (forced?.traces?.length) serpTrace.push(...forced.traces);
-        if (Array.isArray(forced?.datasheetChanges) && forced.datasheetChanges.length) {
+        if (Array.isArray(forced?.evidence)) {
+          evidencePayload = forced.evidence;
+        }
+        if (!evidenceOnlyPass && Array.isArray(forced?.datasheetChanges) && forced.datasheetChanges.length) {
           forced.datasheetChanges.forEach((c) => datasheetChanges.push(c));
         }
       } catch (e) {
-        // As a last resort, still return notes.
-        datasheetChanges.push({
-          summary: 'Web-Recherche (BrightData): interner Fehler',
-          notes: {
-            unsure: ['Automatischer Evidence-Fallback ist fehlgeschlagen. Bitte erneut versuchen.'],
-            warnings: [String(e?.message || e)],
-          },
-        });
+        // As a last resort, still return notes (only for 'change' intent — info/analysis silently skip).
+        if (intent === 'change') {
+          datasheetChanges.push({
+            summary: 'Web-Recherche (BrightData): interner Fehler',
+            notes: {
+              unsure: ['Automatischer Evidence-Fallback ist fehlgeschlagen. Bitte erneut versuchen.'],
+              warnings: [String(e?.message || e)],
+            },
+          });
+        }
       }
     }
 
@@ -2615,6 +2815,12 @@ async function runProductChat(product, userMessage, {
       ebayReadiness,
       modelUsed: modelName,
       intent,
+      // Evidence snippets from forceOneEvidencePass — populated for info/analysis intents so the
+      // frontend can show real source URLs alongside the assistant message. Always an array.
+      evidence: Array.isArray(evidencePayload) ? evidencePayload : [],
+      hasAsin: Boolean(asin),
+      amazonIntent: Boolean(amazonIntent),
+      ebayIntent: Boolean(ebayIntent),
     };
 
   } catch (error) {
@@ -2625,4 +2831,16 @@ async function runProductChat(product, userMessage, {
 
 module.exports = {
   runProductChat,
+  // Test-only hooks (not part of the public API). Used by
+  // __tests__/services/product-chat.test.js to verify the legacy-enhance helpers
+  // without spinning up a live Gemini client.
+  _testables: {
+    extractAsin,
+    chatLegacyEnhanced,
+    scoreEvidenceUrl,
+    pickBestUrl,
+    CHAT_MODEL,
+    INTENT_MODEL,
+    MAX_CHAT_ITERATIONS,
+  },
 };

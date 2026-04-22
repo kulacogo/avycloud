@@ -22,6 +22,19 @@ const searchProductImagesMock = vi.fn(async () => [
   { url: 'https://sony.com/xm5.jpg', title: 'Sony XM5' },
 ]);
 const confirmBarcodeWithWebMock = vi.fn(async () => ({ ok: true, barcode: '4548736132610', evidence: 'Sony WH-1000XM5' }));
+const lookupWeightFromWebMock = vi.fn(async () => ({
+  weight_grams: 280,
+  confidence: 0.85,
+  sources: ['https://vendor.de/spec'],
+}));
+const lookupGpsrFromWebMock = vi.fn(async () => ({
+  manufacturer_name: 'Beispiel GmbH',
+  manufacturer_address: 'Musterstr. 1, D-80331 München',
+  manufacturer_email: 'info@beispiel.de',
+  manufacturer_url: 'https://beispiel.de',
+  confidence: 0.75,
+  sources: ['https://beispiel.de/impressum'],
+}));
 
 // Patch require.cache
 const taxonomyPath = require.resolve('../../lib/ebay-taxonomy');
@@ -71,6 +84,34 @@ require(barcodeConfirmPath);
 require.cache[barcodeConfirmPath] = {
   id: barcodeConfirmPath, filename: barcodeConfirmPath, loaded: true,
   exports: { confirmBarcodeWithWeb: confirmBarcodeWithWebMock },
+};
+
+const weightWebPath = require.resolve('../../lib/weight-web-lookup');
+require(weightWebPath);
+require.cache[weightWebPath] = {
+  id: weightWebPath, filename: weightWebPath, loaded: true,
+  exports: {
+    lookupWeightFromWeb: lookupWeightFromWebMock,
+    brandDomainGuess: vi.fn(() => null),
+    parseWeightToGrams: vi.fn(() => null),
+    extractWeightCandidates: vi.fn(() => []),
+    buildQueries: vi.fn(() => []),
+  },
+};
+
+const gpsrWebPath = require.resolve('../../lib/gpsr-web-fallback');
+require(gpsrWebPath);
+require.cache[gpsrWebPath] = {
+  id: gpsrWebPath, filename: gpsrWebPath, loaded: true,
+  exports: {
+    lookupGpsrFromWeb: lookupGpsrFromWebMock,
+    stripTags: vi.fn(() => ''),
+    extractEmail: vi.fn(() => null),
+    extractAddress: vi.fn(() => null),
+    extractCompanyName: vi.fn(() => null),
+    computeConfidence: vi.fn(() => 0),
+    emailPriorityScore: vi.fn(() => 100),
+  },
 };
 
 const { runStage2Enrichment } = require('../../lib/identify-v3-stage2');
@@ -189,5 +230,64 @@ describe('runStage2Enrichment', () => {
     const result = await runStage2Enrichment(makeStage1());
     expect(result._meta.durationMs).toBeGreaterThanOrEqual(0);
     expect(result._meta.enrichmentResults).toBeDefined();
+  });
+
+  describe('web-based fallbacks', () => {
+    it('triggers weight web fallback when stage1 weight is null', async () => {
+      const stage1 = makeStage1();
+      stage1.identity.weight_grams = 0;
+      const result = await runStage2Enrichment(stage1);
+
+      expect(lookupWeightFromWebMock).toHaveBeenCalled();
+      expect(result.weightFallback).not.toBeNull();
+      expect(result.weightFallback.weight_grams).toBe(280);
+      expect(result._meta.stage2.webFallback.weightTried).toBe(true);
+      expect(result._meta.stage2.webFallback.weightFound).toBe(true);
+    });
+
+    it('triggers GPSR web fallback when registry result empty', async () => {
+      getManufacturerGpsrByNameMock.mockResolvedValueOnce({ found: false, data: null });
+      const result = await runStage2Enrichment(makeStage1());
+
+      expect(lookupGpsrFromWebMock).toHaveBeenCalledWith('Sony');
+      expect(result.gpsrWebFallback).not.toBeNull();
+      expect(result.gpsrWebFallback.manufacturer_name).toBe('Beispiel GmbH');
+      expect(result.gpsrWebFallback.manufacturer_email).toBe('info@beispiel.de');
+      expect(result._meta.stage2.webFallback.gpsrTried).toBe(true);
+      expect(result._meta.stage2.webFallback.gpsrFound).toBe(true);
+    });
+
+    it('skips both fallbacks when feature flags disabled', async () => {
+      const prevWeight = process.env.STAGE2_WEIGHT_WEB_FALLBACK;
+      const prevGpsr = process.env.STAGE2_GPSR_WEB_FALLBACK;
+      process.env.STAGE2_WEIGHT_WEB_FALLBACK = 'false';
+      process.env.STAGE2_GPSR_WEB_FALLBACK = 'false';
+      try {
+        // Force a scenario where both fallbacks would normally fire
+        getManufacturerGpsrByNameMock.mockResolvedValueOnce({ found: false, data: null });
+        const stage1 = makeStage1();
+        stage1.identity.weight_grams = 0;
+        const result = await runStage2Enrichment(stage1);
+
+        expect(lookupWeightFromWebMock).not.toHaveBeenCalled();
+        expect(lookupGpsrFromWebMock).not.toHaveBeenCalled();
+        expect(result.weightFallback).toBeNull();
+        expect(result.gpsrWebFallback).toBeNull();
+        expect(result._meta.stage2.webFallback.weightTried).toBe(false);
+        expect(result._meta.stage2.webFallback.gpsrTried).toBe(false);
+      } finally {
+        if (prevWeight == null) delete process.env.STAGE2_WEIGHT_WEB_FALLBACK;
+        else process.env.STAGE2_WEIGHT_WEB_FALLBACK = prevWeight;
+        if (prevGpsr == null) delete process.env.STAGE2_GPSR_WEB_FALLBACK;
+        else process.env.STAGE2_GPSR_WEB_FALLBACK = prevGpsr;
+      }
+    });
+
+    it('does not trigger weight fallback when stage1 weight present', async () => {
+      const result = await runStage2Enrichment(makeStage1()); // default weight=250
+      expect(lookupWeightFromWebMock).not.toHaveBeenCalled();
+      expect(result.weightFallback).toBeNull();
+      expect(result._meta.stage2.webFallback.weightTried).toBe(false);
+    });
   });
 });

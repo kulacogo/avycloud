@@ -6,6 +6,36 @@ const { getManufacturerGpsrByName } = require('./gpsr-manufacturer-registry');
 const { fetchCategoryTitleInsights } = require('./ebay-browse-title-insights');
 const { searchProductImages } = require('./image-search');
 const { confirmBarcodeWithWeb } = require('./barcode-web-confirm');
+const { lookupWeightFromWeb } = require('./weight-web-lookup');
+const { lookupGpsrFromWeb } = require('./gpsr-web-fallback');
+
+// Feature flags — default ON; set env var to 'false'/'0' to disable.
+function envFlag(name, defaultValue = true) {
+  const raw = process.env[name];
+  if (raw == null || raw === '') return defaultValue;
+  const v = String(raw).trim().toLowerCase();
+  if (v === 'false' || v === '0' || v === 'no' || v === 'off') return false;
+  return true;
+}
+
+function stage2WeightWebLookup() {
+  return envFlag('STAGE2_WEIGHT_WEB_FALLBACK', true);
+}
+
+function stage2GpsrWebFallback() {
+  return envFlag('STAGE2_GPSR_WEB_FALLBACK', true);
+}
+
+function hasMeaningfulGpsr(gpsr) {
+  if (!gpsr) return false;
+  if (gpsr.found === false) return false;
+  const data = gpsr.data || gpsr.gpsr || gpsr;
+  if (!data || typeof data !== 'object') return false;
+  const hasName = Boolean(data.manufacturer_name);
+  const hasAddress = Boolean(data.manufacturer_address);
+  const hasEmail = Boolean(data.email || data.manufacturer_email);
+  return hasName && (hasAddress || hasEmail);
+}
 
 /**
  * Stage 2: Parallel Enrichment
@@ -168,6 +198,61 @@ async function runStage2Enrichment(stage1, locale = 'de-DE') {
   enrichmentResults.webImages = webImagesResult.status;
   enrichmentResults.barcodeConfirmation = barcodeConfirmResult.status;
 
+  // -------------------------------------------------------------------------
+  // Web-based fallbacks (best-effort, additive — never block pipeline)
+  // -------------------------------------------------------------------------
+  const webFallback = {
+    weightTried: false,
+    weightFound: false,
+    gpsrTried: false,
+    gpsrFound: false,
+  };
+
+  let weightFallback = null;
+  let gpsrWebFallback = null;
+
+  const stage1Weight = Number(identity.weight_grams || 0);
+  const hasIdentityAnchor = Boolean(identity.brand || identity.model || identity.mpn);
+  const needWeightFallback = (!stage1Weight || stage1Weight <= 0) && stage2WeightWebLookup() && hasIdentityAnchor;
+  const needGpsrFallback = !hasMeaningfulGpsr(gpsr) && stage2GpsrWebFallback() && Boolean(identity.brand);
+
+  const fallbackJobs = [];
+  if (needWeightFallback) {
+    webFallback.weightTried = true;
+    fallbackJobs.push(
+      (async () => {
+        try {
+          const r = await lookupWeightFromWeb(identity);
+          if (r && r.weight_grams) {
+            webFallback.weightFound = true;
+            weightFallback = r;
+          }
+        } catch (err) {
+          console.warn('[stage2] weight web fallback failed:', err?.message || err);
+        }
+      })(),
+    );
+  }
+  if (needGpsrFallback) {
+    webFallback.gpsrTried = true;
+    fallbackJobs.push(
+      (async () => {
+        try {
+          const r = await lookupGpsrFromWeb(identity.brand);
+          if (r && (r.manufacturer_name || r.manufacturer_address || r.manufacturer_email)) {
+            webFallback.gpsrFound = true;
+            gpsrWebFallback = r;
+          }
+        } catch (err) {
+          console.warn('[stage2] GPSR web fallback failed:', err?.message || err);
+        }
+      })(),
+    );
+  }
+  if (fallbackJobs.length) {
+    await Promise.allSettled(fallbackJobs);
+  }
+
   return {
     category: {
       ebayId: categoryId,
@@ -184,14 +269,23 @@ async function runStage2Enrichment(stage1, locale = 'de-DE') {
       via: pricing.via || 'enrichPriceParallel',
     } : null,
     gpsr,
+    gpsrWebFallback,
     titleInsights,
     webImages: Array.isArray(webImages) ? webImages : [],
     barcodeConfirmation,
+    weightFallback,
     _meta: {
       durationMs: Date.now() - startTime,
       enrichmentResults,
+      stage2: {
+        webFallback,
+      },
     },
   };
 }
 
-module.exports = { runStage2Enrichment };
+module.exports = {
+  runStage2Enrichment,
+  stage2WeightWebLookup,
+  stage2GpsrWebFallback,
+};

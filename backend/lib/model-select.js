@@ -1,5 +1,9 @@
 const ALLOWED_MODELS = new Set([
-  // Gemini 3 (official model codes, see: https://ai.google.dev/gemini-api/docs/models)
+  // Gemini 3.1 (current preview, see: https://ai.google.dev/gemini-api/docs/models)
+  'gemini-3.1-pro-preview',
+  'gemini-3.1-pro-preview-customtools',
+  'gemini-3.1-flash-lite',
+  // Gemini 3 (still accepted — deprecated endpoints route to 3.1 server-side)
   'gemini-3-pro-preview',
   'gemini-3-flash-preview',
   // Gemini 2.5 (stable)
@@ -12,24 +16,27 @@ const ALLOWED_MODELS = new Set([
 ]);
 
 const MODEL_ALIASES = {
-  // All aliases now default to gemini-3-pro-preview.
+  // All aliases now default to the Gemini 3.1 Pro customtools variant
+  // (same price as gemini-3.1-pro-preview, but stabler function calling).
   // Lightweight tasks use gemini-3-flash-preview.
   mini: 'gemini-3-flash-preview',
   nano: 'gemini-3-flash-preview',
-  standard: 'gemini-3-pro-preview',
-  default: 'gemini-3-pro-preview',
-  thinking: 'gemini-3-pro-preview',
+  standard: 'gemini-3.1-pro-preview-customtools',
+  default: 'gemini-3.1-pro-preview-customtools',
+  thinking: 'gemini-3.1-pro-preview-customtools',
   // Common aliases
   flash: 'gemini-3-flash-preview',
-  pro: 'gemini-3-pro-preview',
+  pro: 'gemini-3.1-pro-preview-customtools',
   'gemini-flash': 'gemini-3-flash-preview',
-  'gemini-thinking': 'gemini-3-pro-preview',
-  'gemini-pro': 'gemini-3-pro-preview',
-  'gemini-3-pro': 'gemini-3-pro-preview',
+  'gemini-thinking': 'gemini-3.1-pro-preview-customtools',
+  'gemini-pro': 'gemini-3.1-pro-preview-customtools',
+  'gemini-3-pro': 'gemini-3.1-pro-preview-customtools',
   'gemini-3-flash': 'gemini-3-flash-preview',
-  // Legacy aliases — still resolve but to Gemini 3
+  // Legacy 3.0 preview alias — upstream deprecated 2026-03-26, route to 3.1 customtools
+  'gemini-3-pro-preview': 'gemini-3.1-pro-preview-customtools',
+  // Legacy 2.5 aliases — still resolve but to Gemini 3.1
   'gemini-2.5-flash': 'gemini-3-flash-preview',
-  'gemini-2.5-pro': 'gemini-3-pro-preview',
+  'gemini-2.5-pro': 'gemini-3.1-pro-preview-customtools',
 };
 
 function normalize(input) {
@@ -50,10 +57,10 @@ function normalizeModel(input) {
   return null;
 }
 
-function resolveModel(preferred, envKey, fallback = 'gemini-3-pro-preview') {
-  const absoluteFallback = fallback || 'gemini-3-pro-preview';
+function resolveModel(preferred, envKey, fallback = 'gemini-3.1-pro-preview-customtools') {
+  const absoluteFallback = fallback || 'gemini-3.1-pro-preview-customtools';
   const envRaw = process.env[envKey];
-  const chain = [preferred, envRaw, absoluteFallback, 'gemini-3-pro-preview'];
+  const chain = [preferred, envRaw, absoluteFallback, 'gemini-3.1-pro-preview-customtools'];
 
   for (const candidate of chain) {
     const normalized = normalizeModel(candidate);
@@ -62,7 +69,7 @@ function resolveModel(preferred, envKey, fallback = 'gemini-3-pro-preview') {
     }
   }
 
-  return 'gemini-3-pro-preview';
+  return 'gemini-3.1-pro-preview-customtools';
 }
 
 module.exports = {

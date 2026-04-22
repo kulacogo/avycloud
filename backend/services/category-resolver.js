@@ -17,8 +17,14 @@
  * via needsEvidenceRoot() require additional product signals (brand + name +
  * matching keyword) before being accepted; otherwise we fall through.
  *
+ * Dynamic confidence (CATEGORY_RESOLVER_DYNAMIC_CONFIDENCE=true, default on):
+ *   Every strategy produces a confidence score via a strategy-specific
+ *   compute*Confidence() helper instead of using hard-coded constants.
+ *   Each helper returns a breakdown (base, boosts, penalties) for telemetry.
+ *
  * Returns:
- *   { categoryId, breadcrumb, source, confidence, alternatives?, log[] } | null
+ *   { categoryId, breadcrumb, source, confidence,
+ *     confidenceBreakdown, keywordMatch, alternatives?, log[] } | null
  */
 
 const { isValidGtin } = require('../lib/gtin');
@@ -37,6 +43,132 @@ const path = require('path');
 const STRATEGY_ACCEPT_THRESHOLD = 0.8;
 const GEMINI_DEFAULT_CONFIDENCE = 0.75;
 const LOCAL_DEFAULT_CONFIDENCE = 0.9;
+
+// Dynamic confidence feature flag. Default ON. Set to 'false' to fall back
+// to the legacy hard-coded confidences (LOCAL_DEFAULT_CONFIDENCE etc.).
+function isDynamicConfidenceEnabled() {
+  const raw = process.env.CATEGORY_RESOLVER_DYNAMIC_CONFIDENCE;
+  if (raw == null || raw === '') return true;
+  return String(raw).toLowerCase() !== 'false';
+}
+
+// Minimal stopword list used by the keyword-overlap helper. Intentionally
+// small — we only want to strip very generic noise words in DE/EN so that
+// domain vocabulary still drives the match.
+const KEYWORD_STOPWORDS = new Set([
+  // German
+  'und', 'oder', 'für', 'fur', 'mit', 'von', 'der', 'die', 'das', 'den', 'dem',
+  'ein', 'eine', 'einen', 'zum', 'zur', 'im', 'am', 'bei', 'aus', 'nach',
+  // English
+  'the', 'and', 'or', 'for', 'with', 'from', 'to', 'of', 'a', 'an', 'in', 'on',
+  'at', 'by',
+]);
+
+function tokenizeForMatch(text) {
+  if (text == null) return [];
+  const lower = String(text).toLowerCase();
+  const raw = lower.split(/[^\p{L}\p{N}]+/u);
+  const tokens = [];
+  for (const tok of raw) {
+    if (!tok) continue;
+    if (tok.length < 2) continue;
+    if (KEYWORD_STOPWORDS.has(tok)) continue;
+    tokens.push(tok);
+  }
+  return tokens;
+}
+
+/**
+ * Returns true if two tokens can be considered equivalent. Exact match or
+ * prefix relationship (handles simple singular/plural variations like
+ * "powerbank" ↔ "powerbanks", "kopfhörer" ↔ "kopfhörern") when both tokens
+ * are at least 4 characters long.
+ */
+function tokensEquivalent(a, b) {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  if (a.length < 4 || b.length < 4) return false;
+  return a.startsWith(b) || b.startsWith(a);
+}
+
+/**
+ * Ratio of unique tokens from `text` (the product-describing text — typically
+ * brand + name) that have an equivalent token in `breadcrumb`. Matching is
+ * tolerant to simple singular/plural variants (prefix relationship ≥ 4 chars).
+ * Range [0, 1]; returns 0 when the product text is empty (no signal to score
+ * against).
+ *
+ * @param {string} text product-describing text (e.g. name, brand+name, …)
+ * @param {string} breadcrumb category breadcrumb ("A > B > C")
+ * @returns {number}
+ */
+function computeKeywordMatch(text, breadcrumb) {
+  const productTokens = tokenizeForMatch(text);
+  if (!productTokens.length) return 0;
+  const crumbTokens = tokenizeForMatch(breadcrumb);
+  if (!crumbTokens.length) return 0;
+  const uniqueProduct = Array.from(new Set(productTokens));
+  let common = 0;
+  for (const pt of uniqueProduct) {
+    if (crumbTokens.some((ct) => tokensEquivalent(pt, ct))) common += 1;
+  }
+  return common / uniqueProduct.length;
+}
+
+function clamp(value, min, max) {
+  const v = Number(value);
+  if (!Number.isFinite(v)) return min;
+  if (v < min) return min;
+  if (v > max) return max;
+  return v;
+}
+
+function buildProductText(product) {
+  const id = product?.identification || {};
+  const parts = [
+    safeString(id.name || id.title),
+    safeString(product?.details?.short_description),
+  ].filter(Boolean);
+  return parts.join(' ');
+}
+
+/**
+ * Remove brand tokens from text for keyword-match purposes. Brand words can
+ * appear coincidentally in unrelated categories (e.g. brand "Anker" in the
+ * sailing category "Bootsport > Anker & Festmacher"), which would otherwise
+ * cause a false-positive keyword match.
+ */
+function stripBrandFromText(text, brand) {
+  const b = safeString(brand).toLowerCase();
+  if (!b || b.length < 2 || b === 'unknown' || b === 'unbekannt') return text;
+  const re = new RegExp(`\\b${b.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'gi');
+  return String(text || '').replace(re, ' ');
+}
+
+function buildKeywordMatchText(product) {
+  const id = product?.identification || {};
+  const text = buildProductText(product);
+  return stripBrandFromText(text, id.brand);
+}
+
+function brandOrMpnAppearsIn(product, breadcrumb) {
+  const id = product?.identification || {};
+  const crumb = String(breadcrumb || '').toLowerCase();
+  if (!crumb) return false;
+  const candidates = [
+    safeString(id.brand),
+    safeString(id.mpn),
+    safeString(product?.details?.identifiers?.mpn),
+  ]
+    .map((v) => v && v.toLowerCase().trim())
+    .filter((v) => v && v !== 'unknown' && v !== 'unbekannt' && v.length >= 2);
+  return candidates.some((v) => crumb.includes(v));
+}
+
+function breadcrumbLevel(breadcrumb) {
+  if (!breadcrumb || typeof breadcrumb !== 'string') return 0;
+  return breadcrumb.split('>').map((s) => s.trim()).filter(Boolean).length;
+}
 
 // Lazy-load the marketplace lookup (CSV is large; do it once per process).
 let _lookup = null;
@@ -94,6 +226,35 @@ function buildSuggestionQuery(product) {
   return parts.join(' ').slice(0, 200).trim();
 }
 
+/**
+ * Stricter banned/too-generic breadcrumb check used by the dynamic confidence
+ * pipeline. Builds on isBannedEbayBreadcrumb() and additionally rejects:
+ *   - breadcrumbs without any ">" separator (single-level)
+ *   - leaves that literally read "Sonstige"/"Sonstiges"/"Andere" when
+ *     alternatives were available (caller signals via `hasAlternatives`)
+ *   - breadcrumbs with ≤2 levels unless the caller flags it as a direct
+ *     GTIN match (rare: we trust catalog voting for level-2 paths)
+ *
+ * @param {string} breadcrumb
+ * @param {{ hasAlternatives?: boolean, gtinExactMatch?: boolean }} [opts]
+ * @returns {boolean}
+ */
+function isBannedOrTooGenericBreadcrumb(breadcrumb, opts = {}) {
+  if (!breadcrumb || typeof breadcrumb !== 'string') return true;
+  if (isBannedEbayBreadcrumb(breadcrumb)) return true;
+  if (!breadcrumb.includes('>')) return true;
+  const levels = breadcrumbLevel(breadcrumb);
+  if (levels < 2) return true;
+  const leaf = breadcrumb.split('>').pop().trim().toLowerCase();
+  if (opts.hasAlternatives && /^(sonstige|sonstiges|andere|other|misc)$/i.test(leaf)) {
+    return true;
+  }
+  if (levels <= 2 && !opts.gtinExactMatch) {
+    return true;
+  }
+  return false;
+}
+
 function isAcceptableBreadcrumb(breadcrumb, product) {
   if (!breadcrumb || typeof breadcrumb !== 'string') return false;
   if (!breadcrumb.includes('>')) return false; // require leaf path
@@ -122,15 +283,154 @@ function appendLog(log, entry) {
   log.push({ at_iso: new Date().toISOString(), ...entry });
 }
 
-function buildResult({ categoryId, breadcrumb, source, confidence, alternatives, log }) {
+function buildResult({
+  categoryId,
+  breadcrumb,
+  source,
+  confidence,
+  alternatives,
+  log,
+  confidenceBreakdown,
+  keywordMatch,
+}) {
   return {
     categoryId: String(categoryId),
     breadcrumb: safeString(breadcrumb),
     source,
     confidence: Number(confidence.toFixed(4)),
     alternatives: alternatives && alternatives.length ? alternatives : undefined,
+    confidenceBreakdown: confidenceBreakdown || undefined,
+    keywordMatch: typeof keywordMatch === 'number' ? Number(keywordMatch.toFixed(4)) : undefined,
     log,
   };
+}
+
+function buildBreakdown(base, boosts, penalties, final) {
+  return {
+    base: Number(base.toFixed(4)),
+    boosts: boosts || {},
+    penalties: penalties || {},
+    final: Number(final.toFixed(4)),
+  };
+}
+
+/**
+ * Strategy 1 confidence: Catalog GTIN voting.
+ * Base 0.9 (GTIN-direct is strong); +0.05 if votes≥3; -0.10 if keyword-match<0.3.
+ * Cap [0.5, 0.98].
+ */
+function computeCatalogConfidence(catalogResult, product) {
+  const base = 0.9;
+  const boosts = {};
+  const penalties = {};
+  const votes = Number(catalogResult?.votes) || 0;
+  if (votes >= 3) boosts.strong_vote_count = 0.05;
+
+  const productText = buildKeywordMatchText(product);
+  const km = computeKeywordMatch(productText, catalogResult?.breadcrumb);
+  if (km < 0.3) penalties.low_keyword_match = -0.1;
+
+  let final = base;
+  for (const v of Object.values(boosts)) final += v;
+  for (const v of Object.values(penalties)) final += v;
+  final = clamp(final, 0.5, 0.98);
+  return { confidence: final, breakdown: buildBreakdown(base, boosts, penalties, final), keywordMatch: km };
+}
+
+/**
+ * Strategy 2 confidence: Taxonomy suggestions.
+ * Base = eBay relevancy (clamped). +0.10 brand/mpn in breadcrumb. -0.15 banned.
+ * Cap [0.4, 0.92].
+ */
+function computeSuggestionConfidence(suggestion, product) {
+  const rel = Number(suggestion?.relevancy);
+  const base = clamp(Number.isFinite(rel) ? rel : 0, 0, 1);
+  const boosts = {};
+  const penalties = {};
+
+  if (brandOrMpnAppearsIn(product, suggestion?.breadcrumb)) {
+    boosts.brand_or_mpn_in_breadcrumb = 0.1;
+  }
+  if (isBannedOrTooGenericBreadcrumb(suggestion?.breadcrumb, {
+    hasAlternatives: Boolean(suggestion?._hasAlternatives),
+    gtinExactMatch: false,
+  })) {
+    penalties.banned_breadcrumb = -0.15;
+  }
+
+  const productText = buildKeywordMatchText(product);
+  const km = computeKeywordMatch(productText, suggestion?.breadcrumb);
+
+  let final = base;
+  for (const v of Object.values(boosts)) final += v;
+  for (const v of Object.values(penalties)) final += v;
+  final = clamp(final, 0.4, 0.92);
+  return { confidence: final, breakdown: buildBreakdown(base, boosts, penalties, final), keywordMatch: km };
+}
+
+/**
+ * Strategy 3 confidence: Local breadcrumb lookup.
+ * Base 0.6 (no GTIN evidence, only text match).
+ *  +0.15 if leaf token-overlap(name) ≥ 30%
+ *  +0.10 if brand in breadcrumb
+ *  -0.20 if banned/too-generic
+ * Cap [0.3, 0.85].
+ */
+function computeLocalLookupConfidence(breadcrumb, product) {
+  const base = 0.6;
+  const boosts = {};
+  const penalties = {};
+
+  const name = stripBrandFromText(
+    safeString(product?.identification?.name || product?.identification?.title),
+    product?.identification?.brand,
+  );
+  const leaf = String(breadcrumb || '').split('>').pop();
+  const leafMatch = computeKeywordMatch(name, leaf);
+  if (leafMatch >= 0.3) boosts.leaf_keyword_match = 0.15;
+
+  if (brandOrMpnAppearsIn(product, breadcrumb)) {
+    boosts.brand_in_breadcrumb = 0.1;
+  }
+
+  if (isBannedOrTooGenericBreadcrumb(breadcrumb, { hasAlternatives: false, gtinExactMatch: false })) {
+    penalties.banned_breadcrumb = -0.2;
+  }
+
+  const productText = buildKeywordMatchText(product);
+  const km = computeKeywordMatch(productText, breadcrumb);
+
+  let final = base;
+  for (const v of Object.values(boosts)) final += v;
+  for (const v of Object.values(penalties)) final += v;
+  final = clamp(final, 0.3, 0.85);
+  return { confidence: final, breakdown: buildBreakdown(base, boosts, penalties, final), keywordMatch: km };
+}
+
+/**
+ * Strategy 4 confidence: Gemini fallback.
+ * Base 0.55 (LLM-only). Current resolveCategoryWithGemini returns a single
+ * pick, so we do NOT apply the multi-candidate boost — base 0.55 already
+ * reflects this. +0.10 keyword-match ≥ 0.3. Cap [0.3, 0.8].
+ */
+function computeGeminiConfidence(breadcrumb, product, ctx = {}) {
+  const base = 0.55;
+  const boosts = {};
+  const penalties = {};
+
+  const productText = buildKeywordMatchText(product);
+  const km = computeKeywordMatch(productText, breadcrumb);
+  if (km >= 0.3) boosts.keyword_match = 0.1;
+
+  if (ctx.hadAlternatives && ctx.pickedTop) {
+    boosts.top_of_multiple = 0.15;
+  }
+
+  let final = base;
+  for (const v of Object.values(boosts)) final += v;
+  for (const v of Object.values(penalties)) final += v;
+  final = clamp(final, 0.3, 0.8);
+  return { confidence: final, breakdown: buildBreakdown(base, boosts, penalties, final), keywordMatch: km };
 }
 
 /**
@@ -156,22 +456,32 @@ async function tryCatalogGtin(product, log) {
       total: result.total,
       confidence: result.confidence,
     });
-    if (!isAcceptableBreadcrumb(result.breadcrumb, product)) {
+
+    let breadcrumb = result.breadcrumb;
+    if (!isAcceptableBreadcrumb(breadcrumb, product)) {
       // Try local lookup to enrich/replace breadcrumb if catalog returned only an ID
       const local = findEbayCategory(result.categoryId);
       if (local?.breadcrumb && isAcceptableBreadcrumb(local.breadcrumb, product)) {
-        return {
-          categoryId: result.categoryId,
-          breadcrumb: local.breadcrumb,
-          confidence: result.confidence,
-        };
+        breadcrumb = local.breadcrumb;
+      } else {
+        appendLog(log, { strategy: 'catalog', rejected: 'breadcrumb_unacceptable', breadcrumb: result.breadcrumb });
+        return null;
       }
-      appendLog(log, { strategy: 'catalog', rejected: 'breadcrumb_unacceptable', breadcrumb: result.breadcrumb });
-      return null;
+    }
+
+    if (isDynamicConfidenceEnabled()) {
+      const scored = computeCatalogConfidence({ ...result, breadcrumb }, product);
+      return {
+        categoryId: result.categoryId,
+        breadcrumb,
+        confidence: scored.confidence,
+        confidenceBreakdown: scored.breakdown,
+        keywordMatch: scored.keywordMatch,
+      };
     }
     return {
       categoryId: result.categoryId,
-      breadcrumb: result.breadcrumb,
+      breadcrumb,
       confidence: result.confidence,
     };
   } catch (err) {
@@ -206,10 +516,26 @@ async function tryTaxonomySuggestions(product, log) {
       relevancy: top.relevancy,
       hits: suggestions.length,
     });
+
+    const hasAlternatives = suggestions.length > 1;
+    const pickAcceptable = (s) => ({ ...s, _hasAlternatives: hasAlternatives });
+
     if (!isAcceptableBreadcrumb(top.breadcrumb, product)) {
       // Try the next best one which is acceptable
       const next = suggestions.find((s) => isAcceptableBreadcrumb(s.breadcrumb, product));
       if (next) {
+        const tagged = pickAcceptable(next);
+        if (isDynamicConfidenceEnabled()) {
+          const scored = computeSuggestionConfidence(tagged, product);
+          return {
+            categoryId: next.categoryId,
+            breadcrumb: next.breadcrumb,
+            confidence: scored.confidence,
+            confidenceBreakdown: scored.breakdown,
+            keywordMatch: scored.keywordMatch,
+            alternatives,
+          };
+        }
         return {
           categoryId: next.categoryId,
           breadcrumb: next.breadcrumb,
@@ -219,6 +545,19 @@ async function tryTaxonomySuggestions(product, log) {
       }
       appendLog(log, { strategy: 'suggestions', rejected: 'no_acceptable_suggestion' });
       return null;
+    }
+
+    const tagged = pickAcceptable(top);
+    if (isDynamicConfidenceEnabled()) {
+      const scored = computeSuggestionConfidence(tagged, product);
+      return {
+        categoryId: top.categoryId,
+        breadcrumb: top.breadcrumb,
+        confidence: scored.confidence,
+        confidenceBreakdown: scored.breakdown,
+        keywordMatch: scored.keywordMatch,
+        alternatives,
+      };
     }
     return {
       categoryId: top.categoryId,
@@ -259,6 +598,17 @@ function tryLocalLookup(product, log) {
       return null;
     }
     appendLog(log, { strategy: 'local', categoryId: id, breadcrumb: fullBreadcrumb });
+
+    if (isDynamicConfidenceEnabled()) {
+      const scored = computeLocalLookupConfidence(fullBreadcrumb, product);
+      return {
+        categoryId: String(id),
+        breadcrumb: fullBreadcrumb,
+        confidence: scored.confidence,
+        confidenceBreakdown: scored.breakdown,
+        keywordMatch: scored.keywordMatch,
+      };
+    }
     return {
       categoryId: String(id),
       breadcrumb: fullBreadcrumb,
@@ -288,6 +638,20 @@ async function tryGeminiFallback(product, log) {
       return null;
     }
     appendLog(log, { strategy: 'gemini', categoryId: g.id, breadcrumb });
+
+    if (isDynamicConfidenceEnabled()) {
+      const scored = computeGeminiConfidence(breadcrumb, product, {
+        hadAlternatives: Array.isArray(g.alternatives) && g.alternatives.length > 0,
+        pickedTop: true,
+      });
+      return {
+        categoryId: String(g.id),
+        breadcrumb,
+        confidence: scored.confidence,
+        confidenceBreakdown: scored.breakdown,
+        keywordMatch: scored.keywordMatch,
+      };
+    }
     return {
       categoryId: String(g.id),
       breadcrumb,
@@ -304,7 +668,7 @@ async function tryGeminiFallback(product, log) {
  *
  * @param {object} product
  * @param {{ reason?: string, threshold?: number }} [options]
- * @returns {Promise<{ categoryId: string, breadcrumb: string, source: 'catalog'|'suggestions'|'local'|'gemini', confidence: number, alternatives?: Array, log: Array } | null>}
+ * @returns {Promise<{ categoryId: string, breadcrumb: string, source: 'catalog'|'suggestions'|'local'|'gemini', confidence: number, confidenceBreakdown?: object, keywordMatch?: number, alternatives?: Array, log: Array } | null>}
  */
 async function resolveCategoryV2(product, options = {}) {
   const log = [];
@@ -340,6 +704,8 @@ async function resolveCategoryV2(product, options = {}) {
       confidence: result.confidence,
       alternatives: result.alternatives,
       log,
+      confidenceBreakdown: result.confidenceBreakdown,
+      keywordMatch: result.keywordMatch,
     });
     if (!best || candidate.confidence > best.confidence) {
       best = candidate;
@@ -362,10 +728,17 @@ async function resolveCategoryV2(product, options = {}) {
 module.exports = {
   resolveCategoryV2,
   STRATEGY_ACCEPT_THRESHOLD,
+  computeKeywordMatch,
+  computeCatalogConfidence,
+  computeSuggestionConfidence,
+  computeLocalLookupConfidence,
+  computeGeminiConfidence,
+  isBannedOrTooGenericBreadcrumb,
   // exposed for tests
   _internal: {
     pickPrimaryGtin,
     buildSuggestionQuery,
     isAcceptableBreadcrumb,
+    isDynamicConfidenceEnabled,
   },
 };

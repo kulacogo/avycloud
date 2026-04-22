@@ -231,4 +231,57 @@ describe('runStage1Recognition', () => {
     expect(result.uploadedImages.length).toBeGreaterThan(0);
     expect(result.uploadedImages[0]).toHaveProperty('url');
   });
+
+  describe('image-quality gate integration', () => {
+    const sharp = require('sharp');
+
+    async function realBuffer(width, height) {
+      return sharp({ create: { width, height, channels: 3, background: { r: 255, g: 255, b: 255 } } })
+        .jpeg().toBuffer();
+    }
+
+    it('attaches _meta.imageQuality entries when gate is enabled (default)', async () => {
+      delete process.env.STAGE1_IMAGE_QUALITY_GATE;
+      const buf = await realBuffer(800, 800);
+      const result = await runStage1Recognition({
+        files: [{ buffer: buf, mimetype: 'image/jpeg', originalname: 'a.jpg', size: buf.length }],
+        barcodes: '4548736132610',
+      });
+
+      expect(result._meta.imageQualityGateEnabled).toBe(true);
+      expect(Array.isArray(result._meta.imageQuality)).toBe(true);
+      expect(result._meta.imageQuality.length).toBe(1);
+      expect(result._meta.imageQuality[0].fileIndex).toBe(0);
+      expect(result._meta.imageQuality[0].width).toBe(800);
+      expect(result._meta.imageQuality[0].meetsMinResolution).toBe(true);
+    });
+
+    it('skips quality analysis when STAGE1_IMAGE_QUALITY_GATE=false', async () => {
+      process.env.STAGE1_IMAGE_QUALITY_GATE = 'false';
+      const buf = await realBuffer(800, 800);
+      const result = await runStage1Recognition({
+        files: [{ buffer: buf, mimetype: 'image/jpeg', originalname: 'a.jpg', size: buf.length }],
+        barcodes: '4548736132610',
+      });
+
+      expect(result._meta.imageQualityGateEnabled).toBe(false);
+      expect(result._meta.imageQuality).toEqual([]);
+      delete process.env.STAGE1_IMAGE_QUALITY_GATE;
+    });
+
+    it('does NOT filter out low-resolution user images (they still pass through)', async () => {
+      delete process.env.STAGE1_IMAGE_QUALITY_GATE;
+      const buf = await realBuffer(200, 200);
+      const result = await runStage1Recognition({
+        files: [{ buffer: buf, mimetype: 'image/jpeg', originalname: 'tiny.jpg', size: buf.length }],
+        barcodes: '4548736132610',
+      });
+
+      // Image still processed (imageParts generated, upload attempted)
+      expect(result.imageParts.length).toBe(1);
+      expect(result._meta.imageQuality.length).toBe(1);
+      expect(result._meta.imageQuality[0].meetsMinResolution).toBe(false);
+      expect(result._meta.imageQuality[0].issues).toContain('low_resolution');
+    });
+  });
 });

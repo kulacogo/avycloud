@@ -45,9 +45,46 @@ const { getRulebookConfigCached } = require('../lib/rulebook-config');
 const { fetchCategoryTitleInsights } = require('../lib/ebay-browse-title-insights');
 const { decodeHtmlEntitiesDeep } = require('../lib/html-entities');
 
-const MAX_CHAT_ITERATIONS = 8;
+const MAX_CHAT_ITERATIONS = 12;
 const MAX_PRODUCT_IMAGE_PARTS = 4;
 const PRODUCT_IMAGE_TIMEOUT_MS = parseInt(process.env.CHAT_IMAGE_TIMEOUT_MS || '8000', 10);
+
+// Feature flag: CHAT_V2_ENHANCED enables Gemini 3 enhancements (urlContext tool,
+// temperature 1.0, thinkingConfig, higher token budget, 2x retry on 5xx).
+// Default: true. Set to 'false' to revert to original V2 behavior (temp 0.3,
+// 4096 tokens, no urlContext) if a production regression appears.
+function isChatV2Enhanced() {
+  const raw = (process.env.CHAT_V2_ENHANCED == null ? 'true' : String(process.env.CHAT_V2_ENHANCED))
+    .trim()
+    .toLowerCase();
+  return raw !== 'false' && raw !== '0' && raw !== 'no' && raw !== 'off';
+}
+
+// Exponential backoff helper for transient (5xx / network) Gemini failures.
+async function withGeminiRetry(operation, { label = 'gemini' } = {}) {
+  const delays = [500, 1000];
+  let lastErr = null;
+  for (let attempt = 0; attempt <= delays.length; attempt++) {
+    try {
+      return await operation();
+    } catch (err) {
+      lastErr = err;
+      const status = err?.status ?? err?.code ?? err?.response?.status ?? null;
+      const transient =
+        (typeof status === 'number' && status >= 500 && status < 600) ||
+        /\btimeout\b|ETIMEDOUT|ECONNRESET|ECONNREFUSED|EAI_AGAIN|socket hang up|fetch failed/i.test(
+          err?.message || ''
+        );
+      if (!transient || attempt === delays.length) {
+        throw err;
+      }
+      const delay = delays[attempt];
+      console.warn(`[chat-v2] ${label} transient failure (status=${status}, attempt=${attempt + 1}), retrying in ${delay}ms: ${err?.message || err}`);
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+  }
+  throw lastErr;
+}
 
 // ---------------------------------------------------------------------------
 // Helpers (shared with legacy, inlined here to keep the file self-contained)
@@ -779,7 +816,10 @@ async function runProductChatV2(product, userMessage, {
   onProgress = null,
 } = {}) {
   const ai = await getGenAIClient();
-  const modelName = resolveModel(modelOverride, 'CHAT_MODEL', 'gemini-3-pro-preview');
+  const enhanced = isChatV2Enhanced();
+  // Default target: Gemini 3.1 Pro customtools variant. resolveModel() will
+  // also normalize legacy aliases (gemini-3-pro-preview → customtools).
+  const modelName = resolveModel(modelOverride, 'CHAT_MODEL', 'gemini-3.1-pro-preview-customtools');
   const locale = 'de-DE';
 
   // Enrich: eBay taxonomy + K-Typ (non-blocking)
@@ -819,9 +859,12 @@ async function runProductChatV2(product, userMessage, {
     ? promptOverride
     : [baseSystemPrompt, promptOverride].filter(Boolean).join('\n\n');
 
-  // Build Gemini tools: Google Search Grounding + Function Declarations
+  // Build Gemini tools: Google Search Grounding (+ URL Context when enhanced) + Function Declarations.
+  // Since Gemini 3 Pro (Mar 2026) the three tool families can coexist in one request ("Context Circulation").
+  // urlContext: Gemini autonomously fetches URLs it recognizes in the conversation (up to 20 URLs/request).
   const tools = [
     { googleSearch: {} },
+    ...(enhanced ? [{ urlContext: {} }] : []),
     {
       functionDeclarations: [
         UPDATE_DATASHEET_DECLARATION,
@@ -857,17 +900,33 @@ async function runProductChatV2(product, userMessage, {
   // Create chat session
   // toolConfig.includeServerSideToolInvocations is REQUIRED when combining
   // built-in tools (googleSearch) with custom functionDeclarations.
+  //
+  // Gemini 3 Pro tuning (March 2026 guidance):
+  //   - temperature: 1.0   (lower values trigger looping/degenerate reasoning)
+  //   - maxOutputTokens: 8192 (thinking + tool calls + answer must all fit)
+  //   - thinkingConfig.thinkingLevel: 'high'  (deliberate multi-step reasoning)
+  //   - thinkingConfig.includeThoughts: true  (surface thought summaries to the client)
+  //   - mediaResolution: 'HIGH' (better vision quality on product images)
+  const chatConfig = {
+    tools,
+    toolConfig: {
+      includeServerSideToolInvocations: true,
+    },
+    systemInstruction: systemPromptText,
+    temperature: enhanced ? 1.0 : 0.3,
+    maxOutputTokens: enhanced ? 8192 : 4096,
+  };
+  if (enhanced) {
+    chatConfig.thinkingConfig = {
+      thinkingLevel: 'high',
+      includeThoughts: true,
+    };
+    chatConfig.mediaResolution = 'HIGH';
+  }
+
   const chat = ai.chats.create({
     model: modelName,
-    config: {
-      tools,
-      toolConfig: {
-        includeServerSideToolInvocations: true,
-      },
-      systemInstruction: systemPromptText,
-      temperature: 0.3,
-      maxOutputTokens: 4096,
-    },
+    config: chatConfig,
     history: chatHistory,
   });
 
@@ -881,6 +940,7 @@ async function runProductChatV2(product, userMessage, {
   const datasheetChanges = [];
   const imageSuggestions = [];
   const groundingTrace = [];
+  const thoughts = [];
   const existingImageKeys = new Set(
     (product?.details?.images || [])
       .map((img) => normalizeImageKey(img?.url_or_base64 || img?.url))
@@ -893,24 +953,32 @@ async function runProductChatV2(product, userMessage, {
     // Diagnostic: log chat setup before first API call
     console.log(`[chat-v2] model=${modelName}, historyLen=${chatHistory.length}, toolsCount=${tools.length}, productImages=${productImageParts.length}, userAttachments=${attachmentPayload.imageParts.length}, scopeLen=${(messageText || '').length}`);
 
-    // Send initial message
+    // Send initial message (with exponential backoff on transient 5xx/timeouts)
     let response;
     try {
-      response = await chat.sendMessage({ message: messageText });
+      response = await withGeminiRetry(
+        () => chat.sendMessage({ message: messageText }),
+        { label: 'sendMessage-initial' }
+      );
     } catch (sendError) {
       console.error(`[chat-v2] sendMessage FAILED:`, sendError?.message || sendError);
       console.error(`[chat-v2] sendMessage status:`, sendError?.status, 'code:', sendError?.code);
       if (sendError?.response) {
         try { console.error(`[chat-v2] API response body:`, JSON.stringify(sendError.response).slice(0, 1000)); } catch {}
       }
-      throw sendError;
+      // Re-throw with a clear message so route.js can fall back to legacy chat.
+      const wrapped = new Error(`chat-v2 Gemini request failed: ${sendError?.message || String(sendError)}`);
+      wrapped.cause = sendError;
+      wrapped.status = sendError?.status ?? sendError?.code ?? null;
+      throw wrapped;
     }
     let responseText = response.text || '';
     let functionCalls = response.functionCalls;
 
     console.log(`[chat-v2] initial response: textLen=${responseText.length}, functionCalls=${functionCalls?.length || 0}, candidates=${response?.candidates?.length || 0}`);
 
-    // Extract grounding metadata from response
+    // Extract thought-parts (if Gemini 3 thinking is enabled) and grounding metadata
+    extractThoughtParts(response, thoughts, onProgress);
     extractGroundingMetadata(response, groundingTrace);
 
     // Function calling loop
@@ -1009,17 +1077,30 @@ async function runProductChatV2(product, userMessage, {
         });
       }
 
-      // Send function responses back to model — SDK requires Content object with role
-      response = await chat.sendMessage({
-        message: {
-          role: 'user',
-          parts: functionResponseParts,
-        },
-      });
+      // Send function responses back to model — SDK requires Content object with role.
+      // Wrap in retry so transient 5xx mid-loop doesn't fail the entire request.
+      try {
+        response = await withGeminiRetry(
+          () => chat.sendMessage({
+            message: {
+              role: 'user',
+              parts: functionResponseParts,
+            },
+          }),
+          { label: `sendMessage-iter-${iterations}` }
+        );
+      } catch (loopError) {
+        console.error(`[chat-v2] sendMessage iter=${iterations} FAILED:`, loopError?.message || loopError);
+        const wrapped = new Error(`chat-v2 Gemini request failed (iter ${iterations}): ${loopError?.message || String(loopError)}`);
+        wrapped.cause = loopError;
+        wrapped.status = loopError?.status ?? loopError?.code ?? null;
+        throw wrapped;
+      }
       responseText = response.text || '';
       functionCalls = response.functionCalls;
 
-      // Extract grounding from follow-up response
+      // Extract thought-parts + grounding from follow-up response
+      extractThoughtParts(response, thoughts, onProgress);
       extractGroundingMetadata(response, groundingTrace);
     }
 
@@ -1037,15 +1118,21 @@ async function runProductChatV2(product, userMessage, {
 
     onProgress?.({ type: 'tool_done', tool: 'chat_complete' });
 
+    // Sanitize responseText: some SDK versions include thought text in `.text`.
+    // Strip any leading thought prefix if a plain answer part exists.
+    const cleanMessage = extractAnswerText(response) || responseText || 'Antwort generiert.';
+
     return {
-      message: responseText || 'Antwort generiert.',
+      message: cleanMessage,
       datasheetChanges: finalDatasheetChanges,
       imageSuggestions,
       serpTrace: groundingTrace,
       ebayReadiness,
       modelUsed: modelName,
       intent: finalDatasheetChanges.length ? 'change' : 'info',
+      trace: { thoughts },
       _pipeline: 'v2-grounding',
+      _enhanced: enhanced,
     };
 
   } catch (error) {
@@ -1077,9 +1164,72 @@ function extractGroundingMetadata(response, trace) {
         sources,
       });
     }
+
+    // urlContext metadata: Gemini 3 reports which URLs it opened via the URL Context tool.
+    const urlMeta = candidates[0]?.urlContextMetadata;
+    if (urlMeta && Array.isArray(urlMeta.urlMetadata) && urlMeta.urlMetadata.length) {
+      const urls = urlMeta.urlMetadata
+        .map((u) => ({ url: u?.retrievedUrl || u?.url, status: u?.urlRetrievalStatus || u?.status || '' }))
+        .filter((u) => u.url)
+        .slice(0, 20);
+      if (urls.length) {
+        trace.push({ type: 'url_context', urls });
+      }
+    }
   } catch {
     // Non-critical
   }
+}
+
+/**
+ * Extract thought-part text from a Gemini response and push it onto the `thoughts`
+ * array. If a `onProgress` streaming callback is provided, also emit each thought
+ * as a `{ type: 'thinking', text }` event so clients can show live reasoning.
+ *
+ * Thought parts are identified by `part.thought === true` (Gemini 3 SDK contract).
+ */
+function extractThoughtParts(response, thoughts, onProgress) {
+  try {
+    const candidates = response?.candidates || [];
+    for (const cand of candidates) {
+      const parts = cand?.content?.parts || [];
+      for (const part of parts) {
+        if (part && part.thought === true && typeof part.text === 'string' && part.text.trim()) {
+          const text = part.text.trim();
+          thoughts.push(text);
+          if (typeof onProgress === 'function') {
+            try {
+              onProgress({ type: 'thinking', text });
+            } catch {
+              // Streaming callback must never break the loop.
+            }
+          }
+        }
+      }
+    }
+  } catch {
+    // Non-critical
+  }
+}
+
+/**
+ * Return only the non-thought answer text from a Gemini response.
+ * Falls back to `response.text` when no explicit thought flags are present.
+ */
+function extractAnswerText(response) {
+  try {
+    const candidates = response?.candidates || [];
+    const parts = candidates[0]?.content?.parts || [];
+    const answerParts = parts
+      .filter((p) => p && p.thought !== true && typeof p.text === 'string')
+      .map((p) => p.text);
+    if (answerParts.length) {
+      return answerParts.join('').trim();
+    }
+  } catch {
+    // ignore
+  }
+  return typeof response?.text === 'string' ? response.text : '';
 }
 
 module.exports = {

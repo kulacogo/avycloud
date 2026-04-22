@@ -15,6 +15,7 @@ const { runSerpapiFreePipeline } = require('../services/enrichment-v2');
 const { buildProductFromV2Record } = require('../lib/v2-product-builder');
 const { runProductChat } = require('../services/product-chat');
 const { runProductChatV2 } = require('../services/product-chat-v2');
+const { runProductChatV3, chatV3Enabled } = require('../services/product-chat-v3');
 const { buildSessionId, getSession, appendMessages, clearSession, getGeminiHistory } = require('../lib/chat-sessions');
 const { isBannedEbayBreadcrumb } = require('../lib/ebay-category-governance');
 const { findEbayCategory } = require('../lib/ebay-taxonomy');
@@ -1036,8 +1037,34 @@ router.delete('/chat/session/:productId', requirePermission('ai', 'chat'), async
   }
 });
 
+// Pipeline override helper — parses optional `pipeline` param from body/query.
+// Valid values: 'v3' | 'v2' | 'legacy' | 'auto'. Invalid values fall back to
+// 'auto' (which defers to CHAT_V3 / CHAT_GROUNDING env flags).
+const VALID_CHAT_PIPELINES = new Set(['v3', 'v2', 'legacy', 'auto']);
+function normalizePipelineOverride(raw) {
+  if (raw == null) return 'auto';
+  const v = String(raw).trim().toLowerCase();
+  return VALID_CHAT_PIPELINES.has(v) ? v : 'auto';
+}
+
+// Persist the pipeline tag on the chat session doc (best-effort, non-blocking).
+// Separate write from appendMessages so we do not alter the shared lib signature.
+async function tagSessionPipeline(sessionId, pipeline) {
+  if (!sessionId || !pipeline) return;
+  try {
+    await firestore.collection('chatSessions').doc(sessionId).set(
+      { pipeline, pipelineUpdatedAt: new Date().toISOString() },
+      { merge: true },
+    );
+  } catch (err) {
+    console.warn('[chat] Failed to tag session pipeline:', err.message);
+  }
+}
+
 // POST /api/chat — Product chat via Gemini
 // Supports ?stream=true for SSE streaming (progress events + final result)
+// Pipeline cascade: V3 (CHAT_V3 / ?pipeline=v3) → V2 (CHAT_GROUNDING) → legacy.
+// Each tier falls back to the next on error, preserving production resilience.
 router.post('/chat', requirePermission('ai', 'chat'), identifyLimiter, chatUploadMiddleware, async (req, res) => {
   const streamMode = req.query.stream === 'true';
 
@@ -1115,38 +1142,120 @@ router.post('/chat', requirePermission('ai', 'chat'), identifyLimiter, chatUploa
       const chatGrounding = (process.env.CHAT_GROUNDING || 'true').toString().trim().toLowerCase();
       const useChatV2 = chatGrounding === 'true' || chatGrounding === '1';
 
-      const runChat = async (chatFn, label) => {
-        return chatFn(product, payloadMessage, {
-          modelOverride,
-          attachments,
-          scope: normalizedScope,
-          history: conversationHistory,
-          onProgress,
-        });
-      };
+      // Pipeline override from request (body or query). 'auto' = follow env flags.
+      const pipelineOverride = normalizePipelineOverride(
+        req.body?.pipeline != null ? req.body.pipeline : req.query?.pipeline,
+      );
+
+      // Should V3 be attempted? Explicit 'v3' override OR ('auto' + CHAT_V3=true).
+      const shouldTryV3 =
+        pipelineOverride === 'v3' ||
+        (pipelineOverride === 'auto' && chatV3Enabled());
+
+      // V2 is attempted unless explicitly forced to 'legacy'.
+      const allowV2 = pipelineOverride !== 'legacy';
+
+      // V2 runs when env flag says so, OR when override explicitly requests 'v2'.
+      const shouldTryV2 =
+        pipelineOverride === 'v2' ||
+        (allowV2 && useChatV2);
+
+      const runV2V3AttachmentParts = Array.isArray(attachments) ? attachments : [];
 
       try {
-        let chatResult;
-        if (useChatV2) {
+        let chatResult = null;
+        let pipelineUsed = 'legacy';
+        const pipelineErrors = {};
+
+        // ---- Attempt 1: V3 (context-circulation) ----
+        if (shouldTryV3) {
           try {
-            chatResult = await runChat(runProductChatV2, 'v2-grounding');
-          } catch (v2Error) {
-            const v2Msg = v2Error?.message || String(v2Error);
-            console.warn('[chat] V2 grounding failed, falling back to legacy:', v2Msg);
-            console.error('[chat] V2 full error:', v2Error);
-            onProgress?.({ type: 'tool_start', tool: 'fallback_legacy', error: v2Msg });
-            chatResult = await runChat(runProductChat, 'legacy');
+            chatResult = await runProductChatV3({
+              product,
+              message: payloadMessage,
+              history: conversationHistory,
+              attachments: runV2V3AttachmentParts,
+              onProgress,
+              tenantId: req.user?.tenantId || null,
+              userId,
+              modelOverride,
+            });
+            pipelineUsed = 'v3';
+          } catch (v3Error) {
+            pipelineErrors.v3 = v3Error?.message || String(v3Error);
+            console.warn('[chat] V3 failed, falling back to V2:', pipelineErrors.v3);
+            try { onProgress({ type: 'tool_start', tool: 'fallback_v2', error: pipelineErrors.v3 }); } catch {}
           }
-        } else {
-          chatResult = await runChat(runProductChat, 'legacy');
         }
+
+        // ---- Attempt 2: V2 (Google Search Grounding) ----
+        if (!chatResult && shouldTryV2) {
+          try {
+            chatResult = await runProductChatV2(product, payloadMessage, {
+              modelOverride,
+              attachments,
+              scope: normalizedScope,
+              history: conversationHistory,
+              onProgress,
+            });
+            pipelineUsed = 'v2';
+          } catch (v2Error) {
+            pipelineErrors.v2 = v2Error?.message || String(v2Error);
+            console.warn('[chat] V2 grounding failed, falling back to legacy:', pipelineErrors.v2);
+            console.error('[chat] V2 full error:', v2Error);
+            try { onProgress({ type: 'tool_start', tool: 'fallback_legacy', error: pipelineErrors.v2 }); } catch {}
+          }
+        }
+
+        // ---- Attempt 3: Legacy ----
+        if (!chatResult && pipelineOverride !== 'v3' && pipelineOverride !== 'v2') {
+          try {
+            chatResult = await runProductChat(product, payloadMessage, {
+              modelOverride,
+              attachments,
+              scope: normalizedScope,
+              history: conversationHistory,
+              onProgress,
+            });
+            pipelineUsed = 'legacy';
+          } catch (legacyError) {
+            pipelineErrors.legacy = legacyError?.message || String(legacyError);
+            console.error('[chat] Legacy also failed:', pipelineErrors.legacy);
+          }
+        }
+
+        if (!chatResult) {
+          // All attempted pipelines failed (or explicit override blocked fallback).
+          writeEvent({
+            type: 'error',
+            code: 'CHAT_ALL_PIPELINES_FAILED',
+            message: 'V3, V2, and Legacy all failed',
+            details: pipelineErrors,
+          });
+          return res.end();
+        }
+
+        // Enrich low-confidence flag for V3 results (others leave it undefined).
+        if (chatResult.confidence && chatResult.confidence.readyForPublish === false) {
+          chatResult.needsHumanReview = true;
+          chatResult.lowConfidenceFields = chatResult.confidence.missingCritical || [];
+        }
+        chatResult.pipeline = pipelineUsed;
+
+        console.log('[chat] pipeline=%s model=%s product=%s', pipelineUsed, chatResult.model || chatResult.modelUsed, productId);
 
         // Save messages to session (best-effort, non-blocking)
         appendMessages(sessionId, userId, productId, payloadMessage, chatResult.message || '').catch((e) => {
           console.warn('[chat] Failed to save session:', e.message);
         });
+        tagSessionPipeline(sessionId, pipelineUsed);
 
-        writeEvent({ type: 'result', data: chatResult, model: chatResult.modelUsed });
+        writeEvent({
+          type: 'result',
+          data: chatResult,
+          model: chatResult.model || chatResult.modelUsed,
+          pipeline: pipelineUsed,
+        });
         writeEvent({ type: 'done' });
       } catch (error) {
         console.error('[chat stream] Error:', error.message);
@@ -1159,8 +1268,42 @@ router.post('/chat', requirePermission('ai', 'chat'), identifyLimiter, chatUploa
     const chatGroundingSync = (process.env.CHAT_GROUNDING || 'true').toString().trim().toLowerCase();
     const useChatV2Sync = chatGroundingSync === 'true' || chatGroundingSync === '1';
 
-    let chatResult;
-    if (useChatV2Sync) {
+    const pipelineOverrideSync = normalizePipelineOverride(
+      req.body?.pipeline != null ? req.body.pipeline : req.query?.pipeline,
+    );
+    const shouldTryV3Sync =
+      pipelineOverrideSync === 'v3' ||
+      (pipelineOverrideSync === 'auto' && chatV3Enabled());
+    const allowV2Sync = pipelineOverrideSync !== 'legacy';
+    const shouldTryV2Sync =
+      pipelineOverrideSync === 'v2' ||
+      (allowV2Sync && useChatV2Sync);
+
+    let chatResult = null;
+    let pipelineUsed = 'legacy';
+    const pipelineErrors = {};
+
+    // ---- Attempt 1: V3 ----
+    if (shouldTryV3Sync) {
+      try {
+        chatResult = await runProductChatV3({
+          product,
+          message: payloadMessage,
+          history: conversationHistory,
+          attachments: Array.isArray(attachments) ? attachments : [],
+          tenantId: req.user?.tenantId || null,
+          userId,
+          modelOverride,
+        });
+        pipelineUsed = 'v3';
+      } catch (v3Error) {
+        pipelineErrors.v3 = v3Error?.message || String(v3Error);
+        console.warn('[chat] V3 failed (sync), falling back to V2:', pipelineErrors.v3);
+      }
+    }
+
+    // ---- Attempt 2: V2 ----
+    if (!chatResult && shouldTryV2Sync) {
       try {
         chatResult = await runProductChatV2(product, payloadMessage, {
           modelOverride,
@@ -1168,30 +1311,61 @@ router.post('/chat', requirePermission('ai', 'chat'), identifyLimiter, chatUploa
           scope: normalizedScope,
           history: conversationHistory,
         });
+        pipelineUsed = 'v2';
       } catch (v2Error) {
-        console.warn('[chat] V2 grounding failed (sync), falling back to legacy:', v2Error?.message);
+        pipelineErrors.v2 = v2Error?.message || String(v2Error);
+        console.warn('[chat] V2 grounding failed (sync), falling back to legacy:', pipelineErrors.v2);
+      }
+    }
+
+    // ---- Attempt 3: Legacy ----
+    if (!chatResult && pipelineOverrideSync !== 'v3' && pipelineOverrideSync !== 'v2') {
+      try {
         chatResult = await runProductChat(product, payloadMessage, {
           modelOverride,
           attachments,
           scope: normalizedScope,
           history: conversationHistory,
         });
+        pipelineUsed = 'legacy';
+      } catch (legacyError) {
+        pipelineErrors.legacy = legacyError?.message || String(legacyError);
+        console.error('[chat] Legacy also failed (sync):', pipelineErrors.legacy);
       }
-    } else {
-      chatResult = await runProductChat(product, payloadMessage, {
-        modelOverride,
-        attachments,
-        scope: normalizedScope,
-        history: conversationHistory,
+    }
+
+    if (!chatResult) {
+      return res.status(500).json({
+        ok: false,
+        error: {
+          code: 'CHAT_ALL_PIPELINES_FAILED',
+          message: 'V3, V2, and Legacy all failed',
+          details: pipelineErrors,
+        },
       });
     }
+
+    // Enrich low-confidence flags (V3-only fields; V2/legacy leave undefined).
+    if (chatResult.confidence && chatResult.confidence.readyForPublish === false) {
+      chatResult.needsHumanReview = true;
+      chatResult.lowConfidenceFields = chatResult.confidence.missingCritical || [];
+    }
+    chatResult.pipeline = pipelineUsed;
+
+    console.log('[chat] pipeline=%s model=%s product=%s', pipelineUsed, chatResult.model || chatResult.modelUsed, productId);
 
     // Save messages to session (best-effort, non-blocking)
     appendMessages(sessionId, userId, productId, payloadMessage, chatResult.message || '').catch((e) => {
       console.warn('[chat] Failed to save session:', e.message);
     });
+    tagSessionPipeline(sessionId, pipelineUsed);
 
-    res.json({ ok: true, model: chatResult.modelUsed, data: chatResult });
+    res.json({
+      ok: true,
+      model: chatResult.model || chatResult.modelUsed,
+      pipeline: pipelineUsed,
+      data: chatResult,
+    });
 
   } catch (error) {
     console.error('Error in chat endpoint:', error);

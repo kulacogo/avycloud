@@ -5,10 +5,16 @@ const { lookupEan } = require('./ean-database');
 const { identifyProductFocused, identifyProductWithGrounding } = require('../lib/gemini3-client');
 const { extractOcrPayload } = require('./vision-ocr');
 const { uploadImage } = require('./storage');
+const { analyzeImage } = require('./image-quality');
 
 const MAX_IMAGES = 4;
 const MAX_EDGE = 1600;
 const JPEG_QUALITY = 78;
+
+// Feature flag: Stage-1 Image Quality Gate (default ON, additive metadata only).
+function isImageQualityGateEnabled() {
+  return String(process.env.STAGE1_IMAGE_QUALITY_GATE || 'true').toLowerCase() !== 'false';
+}
 
 /**
  * Stage 1: Product Recognition
@@ -44,9 +50,12 @@ async function runStage1Recognition({ files = [], barcodes = '', hint = null, lo
       ).then((results) => results.filter(Boolean)),
     ]);
 
-    // Compress images for Gemini
+    // Compress images for Gemini + optionally analyze quality (additive metadata).
     const imageParts = [];
-    for (const f of files.slice(0, MAX_IMAGES)) {
+    const imageQuality = [];
+    const qualityGateOn = isImageQualityGateEnabled();
+    for (let i = 0; i < Math.min(files.length, MAX_IMAGES); i++) {
+      const f = files[i];
       if (!f?.buffer || !f?.mimetype?.startsWith('image/')) continue;
       try {
         const compressed = await sharp(f.buffer)
@@ -55,12 +64,28 @@ async function runStage1Recognition({ files = [], barcodes = '', hint = null, lo
           .jpeg({ quality: JPEG_QUALITY, chromaSubsampling: '4:2:0' })
           .toBuffer();
         imageParts.push({ data: compressed.toString('base64'), mimeType: 'image/jpeg' });
+
+        if (qualityGateOn) {
+          try {
+            const analysis = await analyzeImage(f.buffer, { computeHash: true });
+            imageQuality.push({ fileIndex: i, ...analysis });
+            if (analysis && analysis.meetsMinResolution === false) {
+              console.warn(`[stage1] image[${i}] below min resolution: ${analysis.width}x${analysis.height}`);
+            }
+            if (analysis && analysis.isLikelyStockPhoto === true) {
+              console.warn(`[stage1] image[${i}] flagged as likely stock photo (score=${analysis.qualityScore?.toFixed?.(2)})`);
+            }
+          } catch (qErr) {
+            // Never fail the pipeline because of quality analysis.
+            console.warn(`[stage1] image-quality analyze failed for index ${i}: ${qErr?.message || qErr}`);
+          }
+        }
       } catch {
         // Skip unprocessable image
       }
     }
 
-    return { ocrPayload, uploadedImages, imageParts };
+    return { ocrPayload, uploadedImages, imageParts, imageQuality };
   })();
 
   // Track B: EAN lookup (best-effort)
@@ -72,7 +97,7 @@ async function runStage1Recognition({ files = [], barcodes = '', hint = null, lo
   // Run A + B in parallel
   const [trackAResult, eanLookup] = await Promise.all([trackA, trackB]);
 
-  const { ocrPayload, uploadedImages, imageParts } = trackAResult;
+  const { ocrPayload, uploadedImages, imageParts, imageQuality } = trackAResult;
 
   // Merge barcodes from explicit + OCR
   const mergedBarcodes = [
@@ -197,6 +222,8 @@ async function runStage1Recognition({ files = [], barcodes = '', hint = null, lo
       usedV2Fallback: Boolean(v2FallbackRecord),
       groundingSources: groundingResult._grounding?.sources || [],
       groundingModel: groundingResult._grounding?.model || null,
+      imageQuality: Array.isArray(imageQuality) ? imageQuality : [],
+      imageQualityGateEnabled: isImageQualityGateEnabled(),
     },
   };
 }

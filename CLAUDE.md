@@ -45,6 +45,25 @@
 - `CATEGORY_RESOLVER_V2=true` — aktiviert mehrstufigen Kategorie-Resolver (`backend/services/category-resolver.js`). Strategie: eBay Catalog GTIN → Taxonomy Suggestions → Local Lookup → Gemini. Schreibt nur bei `confidence ≥ 0.85`. Default aus. Bei aktivem Flag: jeder UI-Save triggert fire-and-forget Auto-Correct für Produkte ohne `categorySource === 'manual'`.
 - `QUALITY_GATE_ENABLED=false` — Quality-Gate abschalten (Default an).
 
+### Chat-Assistant (neu seit 2026-04-22)
+- `CHAT_V3=false` (default) — aktiviert die neue Chat-V3-Pipeline mit Gemini 3 Context Circulation (googleSearch + urlContext + custom functions + structured output in einem Request). Routing: V3 → V2 → Legacy Fallback-Chain. Siehe `backend/services/product-chat-v3.js`.
+- `CHAT_V2_ENHANCED=true` (default) — Gemini-3-Enhancements in V2: urlContext tool, Temperature 1.0, Thinking Mode (level=high, includeThoughts), maxOutputTokens 8192, mediaResolution HIGH. Fallback auf altes V2-Verhalten wenn `false`.
+- `CHAT_LEGACY_ENHANCED=true` (default) — Legacy-Pipeline-Härtungen: ASIN-Detection, Amazon-Routing via SerpAPI `engine='amazon'`, forceOneEvidencePass bei allen Intents (nicht mehr nur `change`), Thinking Mode, erweitertes Evidence-URL-Scoring.
+- `CHAT_MODEL` (optional override) — default via model-select.js: `gemini-3.1-pro-preview-customtools`
+- `INTENT_MODEL` (optional override) — default: `gemini-3-flash-preview`
+
+### Identify-Module-Härtungen
+- `STAGE3_ASPECT_ENFORCEMENT=true` (default) — Stage 3 des Identify-V3 füllt systematisch alle eBay-RequiredAspects. Post-Gen-Validation + Backfill mit "Unbekannt" für fehlende. Siehe `backend/lib/identify-v3-stage3.js`.
+- `STAGE3_ASPECT_REPAIR=true` (default) — wenn > 30% der required Aspects "Unbekannt" nach Erstgenerierung, triggert ein zweiter Gemini-Call mit fokussiertem Prompt zur Reparatur.
+- `STAGE2_WEIGHT_WEB_FALLBACK=true` (default) — Stage 2 sucht Gewicht im Web wenn Stage 1 OCR/Grounding leer lieferte. Siehe `backend/lib/weight-web-lookup.js`.
+- `STAGE2_GPSR_WEB_FALLBACK=true` (default) — Stage 2 sucht Hersteller-Impressum im Web wenn Registry leer. Siehe `backend/lib/gpsr-web-fallback.js`.
+- `STAGE1_IMAGE_QUALITY_GATE=true` (default) — Bild-Qualitäts-Analyse in Stage 1 (Auflösung, Hintergrund, Perceptual Hash für Dedup). Filtert User-Uploads NICHT, hängt nur Metadata an. Siehe `backend/lib/image-quality.js`.
+- `CATEGORY_RESOLVER_DYNAMIC_CONFIDENCE=true` (default) — Category-Resolver berechnet Confidence dynamisch statt hard-coded. Boosts: Keyword-Match, Brand-im-Breadcrumb. Penalties: Banned-Breadcrumb, Generic-Levels. Siehe `backend/services/category-resolver.js`.
+
+### Gemini-Infrastructure
+- `GEMINI_PROMPT_CACHE=true` (default) — aktiviert Prompt-Caching via `backend/lib/prompt-cache.js`. 90 % Kosten-Ersparnis auf System-Prompts bei wiederholten Calls (Bulk-Ops, Multi-Turn-Chats). Min. 4096 Tokens für Cache-Eligibility, default TTL 60min.
+- `ATOMIC_TOOLS_TIMEOUT_MS=15000` (default) — Per-Executor-Timeout für atomic-tools Library (`lookup_gtin`, `search_ebay_catalog`, `get_required_aspects`, `verify_brand`, `search_amazon_product`, `search_manufacturer_site`, `fetch_url_content`).
+
 ## Admin Bulk-Actions
 
 - `recategorize_v2` (via `POST /api/admin/bulk/run`): massen-Korrektur der Kategorie für Bestandsprodukte. DryRun-first (`apply: false`), Safety-Mechanismen: Pre/Post-Count-Guard (Toleranz 10), `MIN_APPLY_CONFIDENCE = 0.8` (auch bei `minConfidence`-Override min 0), skip `categorySource === 'manual'`, skip `ops.last_saved_source === 'ui'` (außer `includeUi: true`). Reports: `summary.json` + `apply_repairs.json`/`dryrun_repairs.json` in GCS.
@@ -62,6 +81,33 @@ Beim Publish-Fehler greift `backend/services/ebay-auto-fix.js` mit 4 Strategien 
 - `details.categorySource: 'manual' | 'auto:catalog' | 'auto:suggestions' | 'auto:local' | 'auto:gemini'`
 - Wenn `manual`: `enforceEbayAspects` (`backend/lib/firestore.js`) blockt auto-Overrides.
 - UI setzt `manual` in `handleCategorySelect` (ProductSheet.tsx).
+
+## Chat-Assistant-Architektur (seit 2026-04-22)
+
+### 3 Pipelines in Kaskade
+1. **V3** (`backend/services/product-chat-v3.js`, flag `CHAT_V3`): Gemini 3.1 Pro Customtools mit `googleSearch + urlContext + 7 atomic-tools + update_datasheet` in einem Request. Thinking Mode high, Thoughts-Streaming, Cross-Reference + Confidence-Scoring post-generation. Opt-in, default aus.
+2. **V2** (`backend/services/product-chat-v2.js`): Google Search Grounding + custom function declarations. Mit `CHAT_V2_ENHANCED=true` zusätzlich urlContext, Temperature 1.0, Thinking. Default-Pipeline wenn V3 aus.
+3. **Legacy** (`backend/services/product-chat.js`): BrightData/SerpAPI external tools. Mit `CHAT_LEGACY_ENHANCED=true` Amazon-Routing, forceEvidencePass für alle Intents. Fallback-only.
+
+Routing: `req.body.pipeline` kann `'v3'|'v2'|'legacy'|'auto'` (default) setzen. Bei Error in einer Pipeline automatischer Fallback zur nächsten.
+
+### Neue Libraries (alle additiv)
+- `backend/lib/gemini-config.js` — zentrale Defaults (Model, Temperature, Thinking, Safety, Media Resolution)
+- `backend/lib/confidence-scoring.js` — Per-Field-Thresholds (GTIN 0.95, category 0.85, brand 0.9, etc.) + Multi-Source-Boost + Disagreement-Penalty
+- `backend/lib/cross-reference.js` — normalisiert Werte (GTIN digits-only, Brand strip GmbH), ermittelt Konsens aus mehreren Source-Results
+- `backend/lib/prompt-cache.js` — Gemini Context Caching wrapper (in-process LRU + remote cache)
+- `backend/lib/weight-web-lookup.js` — Best-effort Web-Search für Product-Gewicht
+- `backend/lib/gpsr-web-fallback.js` — Best-effort Impressum-Scrape für GPSR
+- `backend/lib/image-quality.js` — Bild-Analyse mit sharp (Auflösung, Hintergrund, aHash)
+- `backend/services/atomic-tools.js` — 7 atomare Gemini Function Declarations + Executors (lookup_gtin, search_ebay_catalog, get_required_aspects, verify_brand, search_amazon_product, search_manufacturer_site, fetch_url_content)
+
+### Confidence-Thresholds (per-field)
+gtin/ean/upc=0.95, categoryId=0.85, brand=0.90, mpn=0.85, title=0.70, description=0.60, requiredAspects=0.80, price=0.70, weight=0.70, gpsr=0.75
+
+### Pipeline-Rollout-Strategie
+1. Aktuell: CHAT_V3=false default. V2+Legacy mit allen Härtungen aktiv (CHAT_V2_ENHANCED + CHAT_LEGACY_ENHANCED default on).
+2. Nächster Schritt: CHAT_V3=true in Staging → A/B-Test 10% Traffic → schrittweise Rollout.
+3. Legacy bleibt auf unbestimmte Zeit als Notfall-Fallback.
 
 ## Weiterführende Regeln
 
