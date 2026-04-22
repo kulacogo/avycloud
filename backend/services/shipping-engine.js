@@ -360,11 +360,14 @@ async function createParcel({
     parcelData.parcel.shipment = { id: shippingMethodId };
   }
 
-  // Safe label creation: first create WITHOUT label, then request label via PUT
-  // This prevents paying for labels that fail carrier validation
-  parcelData.parcel.request_label = false;
+  // Single-call label creation: Deutsche Post Internetmarke (carrier=dp) only
+  // announces to the DP API during initial POST — a subsequent PUT re-announce
+  // is rejected and leaves the parcel in "Announcement failed" state. We therefore
+  // request the label in the same POST for ALL carriers. Failed carrier validation
+  // does not incur label cost; SendCloud only charges on successful announcement.
+  parcelData.parcel.request_label = requestLabel;
 
-  console.log(`[createParcel] Payload for ${order.id}: postal_code="${zipStr}", country="${countryRaw}", city="${cityStr}", address="${addressStr}", house_number="${houseNumberStr}", name="${nameStr}"${toPostNumber ? `, to_post_number="${toPostNumber}"` : ''}`);
+  console.log(`[createParcel] Payload for ${order.id}: postal_code="${zipStr}", country="${countryRaw}", city="${cityStr}", address="${addressStr}", house_number="${houseNumberStr}", name="${nameStr}", method=${shippingMethodId || 'default'}, request_label=${requestLabel}${toPostNumber ? `, to_post_number="${toPostNumber}"` : ''}`);
 
   // Try original, then address variants (no label cost on failure)
   let res;
@@ -398,46 +401,31 @@ async function createParcel({
   const result = await res.json();
   let parcel = result?.parcel || {};
 
-  // Step 2: Parcel created successfully (no label cost yet). Now request label via PUT.
-  if (requestLabel && parcel.id) {
-    console.log(`[createParcel] Parcel ${parcel.id} created. Now requesting label via PUT...`);
-    try {
-      const putRes = await fetch(`${SENDCLOUD_BASE_URL}/parcels`, {
-        method: 'PUT',
-        headers: { Authorization: auth, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ parcel: { id: parcel.id, request_label: true } }),
-      });
-      if (putRes.ok) {
-        const putData = await putRes.json();
-        parcel = putData?.parcel || parcel;
-        console.log(`[createParcel] Label requested for parcel ${parcel.id}`);
-      } else {
-        const errBody = await putRes.text().catch(() => '');
-        console.error(`[createParcel] Label request failed for parcel ${parcel.id}: ${errBody.slice(0, 300)}`);
-        // Cancel the parcel to avoid orphaned records
-        try {
-          await fetch(`${SENDCLOUD_BASE_URL}/parcels/${parcel.id}/cancel`, {
-            method: 'POST', headers: { Authorization: auth },
-          });
-          console.log(`[createParcel] Cancelled parcel ${parcel.id} after label failure`);
-        } catch (_) {}
-        throw new Error(`SendCloud label request failed: ${errBody.slice(0, 300)}`);
-      }
-    } catch (putErr) {
-      if (putErr.message.startsWith('SendCloud label')) throw putErr;
-      throw new Error(`SendCloud label request error: ${putErr.message}`);
-    }
-  }
-
   const trackingNumber = parcel.tracking_number || null;
   const isA4 = labelFormat === 'a4';
 
-  // Extract label URL from response — NEVER construct from parcel ID
+  // Detect carrier-level rejection (status 1002 "Announcement failed") and surface
+  // a clear error instead of persisting a useless parcel.
+  const statusId = Number(parcel.status?.id || 0);
+  if (statusId === 1002) {
+    const statusMsg = parcel.status?.message || 'Announcement failed';
+    const errMsgs = (parcel.errors && Object.values(parcel.errors).flat()).join('; ') || '';
+    console.error(`[createParcel] Parcel ${parcel.id} status 1002: ${statusMsg}. Errors: ${errMsgs}`);
+    try {
+      await fetch(`${SENDCLOUD_BASE_URL}/parcels/${parcel.id}/cancel`, {
+        method: 'POST', headers: { Authorization: auth },
+      });
+    } catch (_) {}
+    throw new Error(`SendCloud Announcement failed${errMsgs ? `: ${errMsgs}` : ''}. Methode/Adresse/Guthaben prüfen.`);
+  }
+
+  // Extract label URL from response (falls back to constructed /labels/:printer/:id
+  // endpoint for async carriers like DP Internetmarke — see extractLabelUrl).
   let labelUrl = extractLabelUrl(parcel, isA4);
 
-  // If label not in immediate response, poll parcel API until label is ready
-  if (!labelUrl && parcel.id) {
-    console.log(`[createParcel] No label in PUT response (parcel ${parcel.id}), polling for label...`);
+  // If label URL not in immediate response, poll parcel API until label is ready.
+  if (requestLabel && !labelUrl && parcel.id) {
+    console.log(`[createParcel] No label URL in POST response (parcel ${parcel.id}), polling...`);
     const polled = await pollForLabel({ parcelId: parcel.id, labelFormat, maxAttempts: 10, intervalMs: 2000 });
     if (polled.labelUrl) {
       labelUrl = polled.labelUrl;
@@ -657,16 +645,21 @@ async function shipOrder({ orderId, tenantId = 'default', shippingMethodId, weig
   }
 
   // Guard: check if a shipment already exists for this order to prevent duplicate SendCloud parcels.
-  // Fetch by orderId only (auto single-field index) and filter cancelled in-memory to avoid
+  // Fetch by orderId only (auto single-field index) and filter in-memory to avoid
   // requiring a composite (orderId, status) index for the != inequality.
+  // Only statuses that represent a live, usable shipment block a retry.
+  // 'problem' (SendCloud 1002 Announcement failed) and 'cancelled' are dead — the
+  // parcel is unusable and the user must be allowed to re-ship. Old 'problem' records
+  // stay as historical state; we mark them 'cancelled' so the guard is clean next time.
+  const BLOCKING_STATUSES = new Set(['ausstehend', 'in_zustellung', 'zugestellt']);
   const shipmentSnap = await db.collection(SHIPMENTS_COLLECTION)
     .where('orderId', '==', orderId)
-    .limit(5)
+    .limit(10)
     .get();
-  const activeShipment = shipmentSnap.docs.find((doc) => (doc.data().status || '') !== 'cancelled');
+  const activeShipment = shipmentSnap.docs.find((doc) => BLOCKING_STATUSES.has(doc.data().status || ''));
   if (activeShipment) {
     const existing = activeShipment.data();
-    console.warn(`[shipOrder] Order ${orderId} already has shipment ${activeShipment.id} (tracking: ${existing.trackingNumber}). Skipping duplicate.`);
+    console.warn(`[shipOrder] Order ${orderId} already has active shipment ${activeShipment.id} (status=${existing.status}, tracking=${existing.trackingNumber}). Skipping duplicate.`);
     return {
       trackingNumber: existing.trackingNumber || null,
       trackingUrl: existing.trackingUrl || null,
@@ -675,6 +668,17 @@ async function shipOrder({ orderId, tenantId = 'default', shippingMethodId, weig
       labelUrl: existing.labelUrl || null,
       duplicate: true,
     };
+  }
+
+  // Retire any stale 'problem' shipments for this order so the Firestore state
+  // reflects reality (the SendCloud parcels behind them are 404/cancelled).
+  const staleProblem = shipmentSnap.docs.filter((doc) => (doc.data().status || '') === 'problem');
+  for (const doc of staleProblem) {
+    await doc.ref.set({
+      status: 'cancelled',
+      statusRaw: `auto-retired: ${doc.data().statusRaw || 'problem'}`,
+      updatedAt: new Date().toISOString(),
+    }, { merge: true }).catch((err) => console.warn(`[shipOrder] Could not retire stale shipment ${doc.id}: ${err.message}`));
   }
 
   // Create parcel in SendCloud
