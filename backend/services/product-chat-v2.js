@@ -906,7 +906,11 @@ async function runProductChatV2(product, userMessage, {
   //   - maxOutputTokens: 8192 (thinking + tool calls + answer must all fit)
   //   - thinkingConfig.thinkingLevel: 'high'  (deliberate multi-step reasoning)
   //   - thinkingConfig.includeThoughts: true  (surface thought summaries to the client)
-  //   - mediaResolution: 'HIGH' (better vision quality on product images)
+  //
+  // NOTE: mediaResolution intentionally omitted — v1beta API rejects it with
+  // 'Invalid value at generation_config.media_resolution' even for documented
+  // enum values like 'HIGH'. Revisit when Gemini 3 Pro GA (non-preview) lands.
+  // Per-Part mediaResolution on Content.Part still works if needed later.
   const chatConfig = {
     tools,
     toolConfig: {
@@ -921,7 +925,6 @@ async function runProductChatV2(product, userMessage, {
       thinkingLevel: 'high',
       includeThoughts: true,
     };
-    chatConfig.mediaResolution = 'HIGH';
   }
 
   const chat = ai.chats.create({

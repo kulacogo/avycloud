@@ -2355,18 +2355,14 @@ async function runProductChat(product, userMessage, {
   - Key features MUST be non-duplicative and factual.
   `;
 
-  // Thinking: old SDK (@google/generative-ai) expects thinkingConfig.thinkingBudget = -1
-  // ("dynamic thinking" — model decides how many thinking tokens to use). Only applied when
-  // the legacy-enhanced flag is on so the default behaviour can be preserved by toggling.
-  const generationConfig = enhanced
-    ? { thinkingConfig: { thinkingBudget: -1 } }
-    : undefined;
-
+  // Removed: thinkingConfig not accepted by old SDK (@google/generative-ai) reliably.
+  // The legacy pipeline stays on defaults; thinking-budget tuning only applies to the
+  // new @google/genai-based V2/V3 services. Keeping the `enhanced` branch a no-op so
+  // the CHAT_LEGACY_ENHANCED flag can be re-purposed without crashing requests.
   const model = client.getGenerativeModel({
     model: modelName,
     tools: tools,
     systemInstruction: systemPromptText,
-    ...(generationConfig ? { generationConfig } : {}),
   });
 
   // Build Gemini history: product context first, then conversation history, then image turns.

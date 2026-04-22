@@ -695,11 +695,14 @@ async function runProductChatV3({
     },
   ];
 
+  // NOTE: mediaResolution intentionally omitted — v1beta API rejects it with
+  // 'Invalid value at generation_config.media_resolution' even for documented
+  // enum values like 'HIGH'. Per-Part mediaResolution on Content.Part can be
+  // re-introduced later once Gemini 3 Pro GA lands.
   const config = {
     temperature: DEFAULT_CHAT_TEMPERATURE,
     maxOutputTokens: DEFAULT_MAX_OUTPUT_TOKENS,
     thinkingConfig: defaultThinkingConfig({ level: 'high', includeThoughts: true }),
-    mediaResolution: 'HIGH',
     safetySettings: defaultSafetySettings(),
     tools,
     toolConfig: {
