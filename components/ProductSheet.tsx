@@ -25,6 +25,7 @@ import PricingInfo from './PricingInfo';
 import CompetitorPrices from './CompetitorPrices';
 import AssistantChat from './GeminiChat';
 import ValidationPanel from './ValidationPanel';
+import IdentifyV4Badge from './IdentifyV4Badge';
 import { Tabs, TabPanel } from './ui/Tabs';
 import { useI18n } from '../i18n';
 import { normalizeBarcode, summarizeBarcodes, isValidGtin, getGtinLabel } from '../utils/gtin';
@@ -1244,6 +1245,8 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
               {(localProduct as any)?.ops?.listingStatus?.kaufland === 'active' && (
                 <span className="inline-flex items-center rounded-full bg-success-dim px-2 py-0.5 text-[10px] font-semibold text-success">Kaufland</span>
               )}
+              {/* V4 pipeline-provenance badge (no-op for V3/legacy products) */}
+              <IdentifyV4Badge product={localProduct} compact />
             </div>
           </div>
 
@@ -1309,6 +1312,11 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
           </div>
         </div>
       </header>
+
+      {/* ─── V4 Needs-Review Banner (only shown for V4-produced products) ─── */}
+      <div className="mb-3">
+        <IdentifyV4Badge product={localProduct} />
+      </div>
 
       {/* ─── TABS ───────────────────────────────────────────── */}
       <Tabs tabs={sheetTabs} activeTab={activeTab} onTabChange={setActiveTab} className="mb-4" />
