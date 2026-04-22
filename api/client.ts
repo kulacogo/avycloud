@@ -4192,12 +4192,41 @@ export const refreshPrice = async (productId: string): Promise<{ ok: boolean; da
   }
 };
 
+export interface ChatAssistantConfidence {
+  overall?: number;
+  readyForPublish?: boolean;
+  fieldScores?: Record<string, { score: number; threshold: number; passes: boolean }>;
+  conflicts?: Array<{ field: string; alternatives: Array<{ value: string; sources: string[] }> }>;
+  missingCritical?: string[];
+}
+
+export interface ChatAssistantEvidence {
+  url: string;
+  title?: string;
+  snippet?: string;
+  source?: string;
+}
+
+export interface ChatAssistantTrace {
+  iterations?: number;
+  toolCalls?: Array<{ name: string; ok: boolean; latencyMs?: number }>;
+  groundingChunks?: Array<{ uri: string; title?: string }>;
+  urls?: string[];
+  thoughts?: string[];
+}
+
 export interface ChatAssistantPayload {
   message: string;
   datasheetChanges: DatasheetChange[];
   imageSuggestions: ImageSuggestionGroup[];
   serpTrace: SerpInsight[];
   intent?: 'change' | 'info' | 'analysis';
+  pipeline?: 'v3' | 'v2' | 'legacy';
+  evidence?: ChatAssistantEvidence[];
+  confidence?: ChatAssistantConfidence;
+  needsHumanReview?: boolean;
+  lowConfidenceFields?: string[];
+  trace?: ChatAssistantTrace;
 }
 
 export interface ChatSessionMessage {

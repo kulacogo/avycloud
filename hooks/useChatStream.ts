@@ -3,17 +3,25 @@ import { startChatStream, ChatAssistantPayload } from '../api/client';
 
 export type StreamEventType =
   | 'start'
+  | 'thinking'
+  | 'grounding'
   | 'tool_start'
   | 'tool_done'
+  | 'needs_human'
   | 'result'
   | 'done'
   | 'error';
 
+export type GroundingChunk = { uri: string; title?: string };
+
 export type StreamEvent =
   | { type: 'start'; text: string }
-  | { type: 'tool_start'; tool: string; query?: string; url?: string; error?: string }
-  | { type: 'tool_done'; tool: string; count?: number; status?: number; fields?: number }
-  | { type: 'result'; data: ChatAssistantPayload; model?: string }
+  | { type: 'thinking'; text: string }
+  | { type: 'grounding'; chunks?: GroundingChunk[]; urls?: string[] }
+  | { type: 'tool_start'; tool: string; query?: string; url?: string; args?: any; error?: string }
+  | { type: 'tool_done'; tool: string; count?: number; status?: number; fields?: number; ok?: boolean }
+  | { type: 'needs_human'; reason?: string; suggestions?: string[] }
+  | { type: 'result'; data: ChatAssistantPayload; model?: string; pipeline?: string }
   | { type: 'done' }
   | { type: 'error'; message: string };
 
@@ -22,6 +30,10 @@ interface UseChatStreamState {
   result: ChatAssistantPayload | null;
   isStreaming: boolean;
   error: string | null;
+  thoughts: string;
+  groundingUrls: GroundingChunk[];
+  needsHuman: { reason?: string; suggestions?: string[] } | null;
+  pipeline: string | null;
 }
 
 interface SendOptions {
@@ -31,6 +43,17 @@ interface SendOptions {
   scope?: string | null;
 }
 
+const INITIAL_STATE: UseChatStreamState = {
+  events: [],
+  result: null,
+  isStreaming: false,
+  error: null,
+  thoughts: '',
+  groundingUrls: [],
+  needsHuman: null,
+  pipeline: null,
+};
+
 /**
  * Hook for streaming chat responses via SSE from POST /api/chat?stream=true.
  *
@@ -39,25 +62,23 @@ interface SendOptions {
  *
  * Events emitted by the backend:
  *   { type: 'start' }
+ *   { type: 'thinking', text }                 // Gemini Thought-Summary (V3)
+ *   { type: 'grounding', chunks?, urls? }      // Web source grounding (V3)
  *   { type: 'tool_start', tool, query? }
  *   { type: 'tool_done', tool, count? }
- *   { type: 'result', data: ChatAssistantPayload }
+ *   { type: 'needs_human', reason?, suggestions? }  // Low-confidence flag (V3)
+ *   { type: 'result', data: ChatAssistantPayload, pipeline? }
  *   { type: 'done' }
  *   { type: 'error', message }
  */
 export function useChatStream() {
-  const [state, setState] = useState<UseChatStreamState>({
-    events: [],
-    result: null,
-    isStreaming: false,
-    error: null,
-  });
+  const [state, setState] = useState<UseChatStreamState>(INITIAL_STATE);
 
   // Used to cancel in-flight stream
   const abortRef = useRef<AbortController | null>(null);
 
   const reset = useCallback(() => {
-    setState({ events: [], result: null, isStreaming: false, error: null });
+    setState(INITIAL_STATE);
   }, []);
 
   const send = useCallback(async ({ productId, message, attachments = [], scope }: SendOptions): Promise<ChatAssistantPayload | null> => {
@@ -66,7 +87,7 @@ export function useChatStream() {
       abortRef.current.abort();
     }
 
-    setState({ events: [], result: null, isStreaming: true, error: null });
+    setState({ ...INITIAL_STATE, isStreaming: true });
 
     let finalResult: ChatAssistantPayload | null = null;
 
@@ -115,10 +136,22 @@ export function useChatStream() {
 
           if (event.type === 'result') {
             finalResult = event.data;
+            const eventPipeline = (event as { pipeline?: string }).pipeline
+              || (event.data && (event.data as ChatAssistantPayload).pipeline)
+              || null;
             setState((prev) => ({
               ...prev,
               events: [...prev.events, event],
               result: event.data,
+              pipeline: eventPipeline ?? prev.pipeline,
+              // Also surface needsHumanReview from the payload as a needsHuman flag if not already set
+              needsHuman: prev.needsHuman || (event.data?.needsHumanReview
+                ? {
+                    reason: event.data.lowConfidenceFields?.length
+                      ? `Folgende Felder benötigen Review: ${event.data.lowConfidenceFields.join(', ')}`
+                      : undefined,
+                  }
+                : null),
             }));
           } else if (event.type === 'done') {
             setState((prev) => ({
@@ -133,12 +166,60 @@ export function useChatStream() {
               isStreaming: false,
               error: (event as { type: 'error'; message: string }).message,
             }));
-          } else {
-            // Progress events (start, tool_start, tool_done)
+          } else if (event.type === 'thinking') {
+            const chunk = (event as { text?: string }).text || '';
+            setState((prev) => ({
+              ...prev,
+              events: [...prev.events, event],
+              thoughts: prev.thoughts ? `${prev.thoughts}${chunk}` : chunk,
+            }));
+          } else if (event.type === 'grounding') {
+            const chunks = Array.isArray(event.chunks) ? event.chunks : [];
+            const urls = Array.isArray(event.urls) ? event.urls : [];
+            // Normalize urls array into chunks if chunks missing
+            const derivedFromUrls: GroundingChunk[] = urls
+              .filter((u) => typeof u === 'string' && u)
+              .map((u) => ({ uri: u }));
+            const incoming: GroundingChunk[] = [...chunks, ...derivedFromUrls].filter(
+              (c) => c && typeof c.uri === 'string' && c.uri
+            );
+            setState((prev) => {
+              if (!incoming.length) {
+                return { ...prev, events: [...prev.events, event] };
+              }
+              const seen = new Set(prev.groundingUrls.map((c) => c.uri));
+              const deduped = [...prev.groundingUrls];
+              for (const c of incoming) {
+                if (!seen.has(c.uri)) {
+                  seen.add(c.uri);
+                  deduped.push(c);
+                }
+              }
+              return {
+                ...prev,
+                events: [...prev.events, event],
+                groundingUrls: deduped,
+              };
+            });
+          } else if (event.type === 'needs_human') {
+            const reason = (event as { reason?: string }).reason;
+            const suggestions = Array.isArray((event as { suggestions?: string[] }).suggestions)
+              ? (event as { suggestions?: string[] }).suggestions
+              : undefined;
+            setState((prev) => ({
+              ...prev,
+              events: [...prev.events, event],
+              needsHuman: { reason, suggestions },
+            }));
+          } else if (event.type === 'start' || event.type === 'tool_start' || event.type === 'tool_done') {
+            // Progress events
             setState((prev) => ({
               ...prev,
               events: [...prev.events, event],
             }));
+          } else {
+            // Unknown event type — ignore silently but do not crash
+            // (future-proofing for additional backend events)
           }
         }
       }

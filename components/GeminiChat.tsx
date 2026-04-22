@@ -1,7 +1,7 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Product, DatasheetChange, ProductImage, SerpInsight } from '../types';
-import { buildImageProxyUrl, getChatSession, clearChatSession } from '../api/client';
+import { buildImageProxyUrl, getChatSession, clearChatSession, ChatAssistantEvidence } from '../api/client';
 import { useChatStream, StreamEvent } from '../hooks/useChatStream';
 import ChatContainer from './chat/ChatContainer';
 import ChatInput, { ChatInputAttachment } from './chat/ChatInput';
@@ -286,6 +286,7 @@ const QUICK_PROMPTS: QuickPrompt[] = [
 ];
 
 const TOOL_LABELS: Record<string, string> = {
+  // Legacy tools
   brightdata_web_search: 'Websuche',
   serpapi_web_search: 'Websuche',
   web_fetch: 'Seite lesen',
@@ -294,6 +295,16 @@ const TOOL_LABELS: Record<string, string> = {
   generate_ai_images: 'KI-Bilder erstellen',
   fallback_legacy: 'Fallback (Legacy)',
   chat_complete: 'Fertig',
+  // New atomic tools (V3)
+  lookup_gtin: 'GTIN Lookup',
+  search_ebay_catalog: 'eBay Katalog',
+  get_required_aspects: 'Pflichtmerkmale',
+  verify_brand: 'Marke prüfen',
+  search_amazon_product: 'Amazon-Recherche',
+  search_manufacturer_site: 'Herstellerseite',
+  fetch_url_content: 'URL lesen',
+  googleSearch: 'Google-Suche',
+  urlContext: 'URL-Kontext',
 };
 
 const StreamProgressLine: React.FC<{ event: StreamEvent }> = ({ event }) => {
@@ -329,12 +340,38 @@ const StreamProgressLine: React.FC<{ event: StreamEvent }> = ({ event }) => {
       </div>
     );
   }
+  if (event.type === 'thinking') {
+    // Rendered separately as accumulated thoughts in a collapsible panel
+    return null;
+  }
+  if (event.type === 'grounding') {
+    // Rendered separately as a chip-row of grounding sources
+    return null;
+  }
+  if (event.type === 'needs_human') {
+    return (
+      <div className="flex items-center gap-2 text-warning">
+        <span>⚠️</span>
+        <span>Niedrige Konfidenz erkannt</span>
+      </div>
+    );
+  }
   return null;
 };
 
 const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheetChange, onAddImages }) => {
   const { t } = useI18n();
-  const { send: chatSend, isStreaming, events: streamEvents, reset: resetStream } = useChatStream();
+  const {
+    send: chatSend,
+    isStreaming,
+    events: streamEvents,
+    reset: resetStream,
+    result: streamResult,
+    thoughts,
+    groundingUrls,
+    needsHuman,
+    pipeline,
+  } = useChatStream();
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
@@ -342,6 +379,7 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
   const [pendingChanges, setPendingChanges] = useState<PendingChange[]>([]);
   const [pendingImages, setPendingImages] = useState<PendingImage[]>([]);
   const [serpInsights, setSerpInsights] = useState<SerpInsight[]>([]);
+  const [evidence, setEvidence] = useState<ChatAssistantEvidence[]>([]);
   const [stickToBottom, setStickToBottom] = useState(true);
   const [applyingChangeIds, setApplyingChangeIds] = useState<Set<string>>(new Set());
 
@@ -523,7 +561,7 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
     if (stickToBottom && chatBodyRef.current) {
       chatBodyRef.current.scrollTo({ top: chatBodyRef.current.scrollHeight, behavior: 'smooth' });
     }
-  }, [messages, pendingChanges, pendingImages, serpInsights, stickToBottom, streamEvents]);
+  }, [messages, pendingChanges, pendingImages, serpInsights, evidence, stickToBottom, streamEvents, thoughts, groundingUrls, needsHuman]);
 
   // Load existing conversation history from Firestore on mount
   useEffect(() => {
@@ -611,6 +649,7 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
     setPendingChanges([]);
     setPendingImages([]);
     setSerpInsights([]);
+    setEvidence([]);
     setAttachmentDrafts([]);
     setSessionId(null);
     resetStream();
@@ -816,6 +855,7 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
 
         appendPendingImages(data.imageSuggestions);
         setSerpInsights(data.serpTrace || []);
+        setEvidence(Array.isArray(data.evidence) ? data.evidence : []);
       } catch (error: any) {
         setMessages((prev) => [
           ...prev,
@@ -839,6 +879,11 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
           <SparklesIcon className="h-4 w-4 text-accent" />
           <span className="font-semibold text-sm text-txt-primary">{t('chat.header.title')}</span>
           <span className="text-[10px] text-txt-muted font-medium tracking-wide">{t('chat.header.subtitle')}</span>
+          {pipeline && (
+            <span className="ml-2 rounded-full bg-app-elevated/50 border border-app-border/30 px-2 py-0.5 text-[9px] font-mono text-txt-muted uppercase">
+              {pipeline}
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-1.5">
           <button
@@ -890,23 +935,83 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
           ))}
           {isStreaming && (
             <div className="flex justify-start" role="status" aria-live="polite">
-              <div className="rounded-xl bg-app-elevated/60 border border-app-border/30 px-3 py-2 text-xs text-txt-secondary space-y-0.5 min-w-[180px]">
+              <div className="rounded-xl bg-app-elevated/60 border border-app-border/30 px-3 py-2 text-xs text-txt-secondary space-y-1.5 min-w-[180px] max-w-full">
                 {streamEvents.length === 0 ? (
                   <div className="flex items-center gap-2">
                     <span className="inline-block h-1.5 w-1.5 rounded-full bg-accent animate-pulse" />
                     <span className="text-txt-muted">{t('chat.ui.thinking')}</span>
                   </div>
                 ) : (
-                  streamEvents.slice(-4).map((event, idx) => (
-                    <StreamProgressLine key={idx} event={event} />
-                  ))
+                  <div className="space-y-0.5">
+                    {streamEvents.slice(-4).map((event, idx) => (
+                      <StreamProgressLine key={idx} event={event} />
+                    ))}
+                  </div>
+                )}
+
+                {thoughts && (
+                  <details className="rounded-lg bg-app-elevated/40 border border-app-border/40 px-3 py-2 text-[11px]">
+                    <summary className="cursor-pointer text-txt-muted select-none">
+                      💭 Überlegung…
+                    </summary>
+                    <div className="mt-2 whitespace-pre-wrap text-txt-secondary">
+                      {thoughts}
+                    </div>
+                  </details>
+                )}
+
+                {groundingUrls.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 pt-1">
+                    {groundingUrls.slice(0, 6).map((chunk, idx) => {
+                      let label = chunk.title || chunk.uri;
+                      if (!chunk.title) {
+                        try {
+                          label = new URL(chunk.uri).hostname;
+                        } catch {
+                          label = chunk.uri;
+                        }
+                      }
+                      return (
+                        <a
+                          key={`${chunk.uri}-${idx}`}
+                          href={chunk.uri}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 rounded-full bg-app-elevated/50 border border-app-border/30 px-2 py-0.5 text-[10px] text-txt-muted hover:text-accent hover:border-accent/40"
+                        >
+                          🔗 {label}
+                        </a>
+                      );
+                    })}
+                  </div>
                 )}
               </div>
             </div>
           )}
+
+          {(needsHuman || streamResult?.needsHumanReview) && (
+            <div className="rounded-lg bg-warning-dim border border-warning/30 px-3 py-2 text-xs">
+              <p className="font-semibold text-warning">⚠️ Niedrige Konfidenz — manuelle Prüfung empfohlen</p>
+              {(needsHuman?.reason || streamResult?.needsHumanReview) && (
+                <p className="mt-1 text-txt-secondary">
+                  {needsHuman?.reason
+                    || (streamResult?.lowConfidenceFields?.length
+                      ? `Folgende Felder benötigen Review: ${streamResult.lowConfidenceFields.join(', ')}`
+                      : 'Die Antwort enthält unsichere Angaben — bitte manuell prüfen.')}
+                </p>
+              )}
+              {needsHuman?.suggestions?.length ? (
+                <ul className="mt-1 ml-4 list-disc text-txt-muted">
+                  {needsHuman.suggestions.map((s, i) => (
+                    <li key={i}>{s}</li>
+                  ))}
+                </ul>
+              ) : null}
+            </div>
+          )}
         </div>
 
-        {(pendingChanges.length > 0 || pendingImages.length > 0 || serpInsights.length > 0) && (
+        {(pendingChanges.length > 0 || pendingImages.length > 0 || serpInsights.length > 0 || evidence.length > 0) && (
           <div className="space-y-2 border-t border-app-border/40 pt-2 text-xs text-txt-secondary shrink-0">
             {pendingChanges.length > 0 && (
               <details className="rounded-xl border border-app-border bg-app-bg/60">
@@ -983,6 +1088,31 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
                     </div>
                   ))}
                   </div>
+                </div>
+              </details>
+            )}
+
+            {evidence.length > 0 && (
+              <details className="rounded-xl border border-app-border bg-app-bg/60">
+                <summary className="flex cursor-pointer items-center justify-between px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-txt-secondary">
+                  <span>Quellen</span>
+                  <span>{evidence.length}</span>
+                </summary>
+                <div className="space-y-1.5 p-3 text-[11px]">
+                  {evidence.slice(0, 10).map((e, idx) => (
+                    <div key={`${e.url}-${idx}`} className="rounded-lg border border-app-border bg-app-bg/70 p-2">
+                      <a
+                        href={e.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-accent hover:underline"
+                      >
+                        {e.title || e.url}
+                      </a>
+                      {e.source && <span className="ml-2 text-txt-muted">({e.source})</span>}
+                      {e.snippet && <p className="mt-1 text-txt-secondary">{e.snippet}</p>}
+                    </div>
+                  ))}
                 </div>
               </details>
             )}
