@@ -113,6 +113,35 @@ require.cache[criticPath] = {
   exports: { runCriticWorker: criticWorkerMock },
 };
 
+// --- Wave 2 worker mocks (Phase C) — all return minimal ok:true results ---
+const noopWaveWorker = (domain) => async () => ({
+  ok: true,
+  domain,
+  resolved: {},
+  confidence: {},
+  sources: [],
+  retriesRequested: [],
+  meta: { durationMs: 1, toolsCalled: [], geminiCalls: 0, error: null },
+});
+
+for (const [domain, relpath] of [
+  ['attributes', '../../lib/identify-workers/attributes-worker'],
+  ['seo', '../../lib/identify-workers/seo-worker'],
+  ['pricing', '../../lib/identify-workers/pricing-worker'],
+  ['image', '../../lib/identify-workers/image-worker'],
+  ['gpsr', '../../lib/identify-workers/gpsr-worker'],
+]) {
+  const p = require.resolve(relpath);
+  require(p);
+  const runnerName = `run${domain.charAt(0).toUpperCase()}${domain.slice(1)}Worker`;
+  require.cache[p] = {
+    id: p,
+    filename: p,
+    loaded: true,
+    exports: { [runnerName]: noopWaveWorker(domain), DOMAIN: domain },
+  };
+}
+
 // Patch product-store BEFORE loading SUT
 const productStorePath = require.resolve('../../lib/product-store');
 const realProductStore = require(productStorePath);
@@ -372,8 +401,12 @@ describe('internals', () => {
     expect(typeof WORKER_REGISTRY.identity).toBe('function');
     expect(typeof WORKER_REGISTRY.category).toBe('function');
     expect(typeof WORKER_REGISTRY.critic).toBe('function');
-    // Phase C placeholders are deliberately absent.
-    expect(WORKER_REGISTRY.attributes).toBeUndefined();
+    // Phase C: all 5 domain workers are now wired up.
+    expect(typeof WORKER_REGISTRY.attributes).toBe('function');
+    expect(typeof WORKER_REGISTRY.seo).toBe('function');
+    expect(typeof WORKER_REGISTRY.pricing).toBe('function');
+    expect(typeof WORKER_REGISTRY.image).toBe('function');
+    expect(typeof WORKER_REGISTRY.gpsr).toBe('function');
   });
 
   it('mergeWaveResults writes workerResults and merges resolved fields', () => {

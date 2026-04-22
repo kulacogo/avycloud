@@ -66,9 +66,35 @@ function identifyV4Enabled() {
 const WORKER_REGISTRY = Object.freeze({
   identity: () => require('../lib/identify-workers/identity-worker').runIdentityWorker,
   category: () => require('../lib/identify-workers/category-worker').runCategoryWorker,
+  attributes: () => require('../lib/identify-workers/attributes-worker').runAttributesWorker,
+  seo: () => require('../lib/identify-workers/seo-worker').runSeoWorker,
+  pricing: () => require('../lib/identify-workers/pricing-worker').runPricingWorker,
+  image: () => require('../lib/identify-workers/image-worker').runImageWorker,
+  gpsr: () => require('../lib/identify-workers/gpsr-worker').runGpsrWorker,
   critic: () => require('../lib/identify-workers/critic-worker').runCriticWorker,
-  // TODO(phase-c): attributes, seo, pricing, image, gpsr
 });
+
+// Maps product fields to the worker-domain responsible for them. Used by the
+// refinement loop to decide which workers to re-run when a field's confidence
+// falls below threshold.
+const FIELD_DOMAIN_MAP = Object.freeze({
+  ean: 'identity',
+  gtin: 'identity',
+  upc: 'identity',
+  mpn: 'identity',
+  brand: 'identity',
+  categoryId: 'category',
+  category: 'category',
+  requiredAspects: 'attributes',
+  item_specifics: 'attributes',
+  title: 'seo',
+  description: 'seo',
+  price: 'pricing',
+  images: 'image',
+  gpsr: 'gpsr',
+});
+
+const CONFIDENCE_THRESHOLD = 0.75;
 
 // --- Utils -----------------------------------------------------------------
 
@@ -278,6 +304,70 @@ function mergeWaveResults(context, results) {
   }
 
   return context;
+}
+
+// --- Refinement helpers ----------------------------------------------------
+
+/**
+ * Scans context.confidence (set by mergeWaveResults via crossReferenceProduct)
+ * and returns the unique set of worker-domains responsible for fields whose
+ * confidence is below CONFIDENCE_THRESHOLD. Skips 'identity' and 'category'
+ * which are locked in from Wave 1.
+ */
+function findLowConfidenceWorkers(context) {
+  const workersToRerun = new Set();
+  const confMap = context.confidence || {};
+
+  for (const [field, entry] of Object.entries(confMap)) {
+    const score = entry && typeof entry.score === 'number' ? entry.score : null;
+    if (score == null || score >= CONFIDENCE_THRESHOLD) continue;
+    const domain = FIELD_DOMAIN_MAP[field];
+    if (!domain) continue;
+    // Wave 1 workers are not re-run in refinement — they're the foundation
+    if (domain === 'identity' || domain === 'category') continue;
+    workersToRerun.add(domain);
+  }
+
+  // Also rerun any worker that returned ok:false on its previous turn and has
+  // low-confidence outputs (gives the worker another chance with augmented ctx)
+  const wr = context.workerResults || {};
+  for (const [domain, r] of Object.entries(wr)) {
+    if (r && r.ok === false && !['identity', 'category', 'critic'].includes(domain)) {
+      workersToRerun.add(domain);
+    }
+  }
+
+  return [...workersToRerun];
+}
+
+/**
+ * Compares refinement results against the pre-refinement confidence map.
+ * Returns true if the total confidence score across affected fields improved
+ * by at least MIN_IMPROVEMENT. Used to break out of the refinement loop early
+ * when retries stop delivering value.
+ */
+function hasConfidenceImproved(context, refinementResults) {
+  const MIN_IMPROVEMENT = 0.05;
+  if (!Array.isArray(refinementResults) || refinementResults.length === 0) {
+    return false;
+  }
+
+  const before = context.confidence || {};
+  let delta = 0;
+
+  for (const result of refinementResults) {
+    if (!result || !result.ok || !result.resolved) continue;
+    for (const [field] of Object.entries(result.resolved)) {
+      const newConf = result.confidence?.[field];
+      const newScore = typeof newConf === 'number' ? newConf : (newConf && newConf.score) || 0;
+      const oldScore = before[field]?.score || 0;
+      if (newScore > oldScore) {
+        delta += newScore - oldScore;
+      }
+    }
+  }
+
+  return delta >= MIN_IMPROVEMENT;
 }
 
 // --- Product assembly ------------------------------------------------------
@@ -527,15 +617,46 @@ async function identifyProductV4({
     });
     mergeWaveResults(context, wave1Results);
 
-    // --- 4. TODO(phase-c): Wave 2 --------------------------------------
-    // const wave2Results = await runWave(
-    //   ['attributes', 'seo', 'pricing', 'image', 'gpsr'],
-    //   context
-    // );
-    // mergeWaveResults(context, wave2Results);
+    // --- 4. Wave 2: 5 domain workers in parallel ----------------------
+    const WAVE2_WORKERS = ['attributes', 'seo', 'pricing', 'image', 'gpsr'];
+    const wave2Start = Date.now();
+    const wave2Results = await runWave(WAVE2_WORKERS, context);
+    waveHistory.push({
+      wave: 2,
+      workers: WAVE2_WORKERS,
+      durationMs: Date.now() - wave2Start,
+      results: wave2Results.map((r) => ({
+        domain: r.domain,
+        ok: r.ok,
+        error: r.meta?.error,
+      })),
+    });
+    mergeWaveResults(context, wave2Results);
 
-    // --- 5. TODO(phase-c): Refinement-Loop up to DEFAULT_MAX_ITERATIONS -
-    // while (context.iteration < DEFAULT_MAX_ITERATIONS) { ... }
+    // --- 5. Refinement-Loop (aggressive, up to DEFAULT_MAX_ITERATIONS) --
+    for (let iter = 1; iter <= DEFAULT_MAX_ITERATIONS; iter++) {
+      context.iteration = iter;
+      const lowConfWorkers = findLowConfidenceWorkers(context);
+      if (lowConfWorkers.length === 0) break;
+
+      const refinementStart = Date.now();
+      const refinementResults = await runWave(lowConfWorkers, context);
+      waveHistory.push({
+        wave: 2 + iter,
+        workers: lowConfWorkers,
+        refinement: true,
+        durationMs: Date.now() - refinementStart,
+        results: refinementResults.map((r) => ({
+          domain: r.domain,
+          ok: r.ok,
+          error: r.meta?.error,
+        })),
+      });
+
+      const improved = hasConfidenceImproved(context, refinementResults);
+      mergeWaveResults(context, refinementResults);
+      if (!improved) break;
+    }
 
     // --- 6. Critic ------------------------------------------------------
     const criticStart = Date.now();
@@ -684,7 +805,11 @@ module.exports = {
     runWave,
     mergeWaveResults,
     assembleProductV4,
+    findLowConfidenceWorkers,
+    hasConfidenceImproved,
     WORKER_REGISTRY,
+    FIELD_DOMAIN_MAP,
+    CONFIDENCE_THRESHOLD,
     DEFAULT_MAX_ITERATIONS,
     DEFAULT_WAVE_TIMEOUT_MS,
     DEFAULT_PIPELINE_TIMEOUT_MS,
