@@ -41,7 +41,8 @@
 
 ## Feature-Flags (Backend ENV-Vars)
 
-- `IDENTIFY_V3=true` — aktiviert Multi-Stage-Identify-Pipeline (`backend/services/identify-v3.js`). Default aus; V2-Fallback läuft automatisch wenn V3 failt. Produktions-ready (98% umgesetzt laut Audit 2026-04-21).
+- `IDENTIFY_V4=false` (default, dark-deployed seit 2026-04-23) — aktiviert die neue Orchestrator-Worker-Swarm-Pipeline (`backend/services/identify-v4.js`). Wave 1 (identity + category parallel) → Wave 2 (attributes, seo, pricing, image, gpsr parallel) → Refinement-Loop (max 5 Iterationen auf low-confidence Worker) → Critic. Autosave via saveProductV2 wenn `ebay_ready_score ≥ 0.6`. Fallback bei V4-Error: V3. Alle 8 Worker liefern einheitliche Shape `{ok, domain, resolved, confidence, sources, retriesRequested, meta}`. Kritische Libraries: `lib/sweet-spot-pricer.js`, `lib/seo-title-builder.js`, `lib/seo-description-builder.js`, `lib/aspect-cap-enforcer.js`, `lib/image-enhance.js`, `lib/ebay-sold-listings.js`, `lib/ebay-catalog.js`. Smoke-Test: `node backend/scripts/smoke-identify-v4.js`. Sub-Flags: `IDENTIFY_V4_AUTOSAVE=true`, `IDENTIFY_V4_MAX_ITERATIONS=5`, `IDENTIFY_V4_TIMEOUT_MS=180000`, `IDENTIFY_V4_IMAGE_ENHANCE=true`, `IDENTIFY_V4_IMAGE_ANGLE_CLASSIFY=true`, `IDENTIFY_V4_PRICING_SOLD=true`, `IDENTIFY_V4_CRITIC_FLASH=true`.
+- `IDENTIFY_V3=true` — aktiviert Multi-Stage-Identify-Pipeline (`backend/services/identify-v3.js`). Bleibt als V4-Fallback. Produktions-ready (98% umgesetzt laut Audit 2026-04-21).
 - `CATEGORY_RESOLVER_V2=true` — aktiviert mehrstufigen Kategorie-Resolver (`backend/services/category-resolver.js`). Strategie: eBay Catalog GTIN → Taxonomy Suggestions → Local Lookup → Gemini. Schreibt nur bei `confidence ≥ 0.85`. Default aus. Bei aktivem Flag: jeder UI-Save triggert fire-and-forget Auto-Correct für Produkte ohne `categorySource === 'manual'`.
 - `QUALITY_GATE_ENABLED=false` — Quality-Gate abschalten (Default an).
 
