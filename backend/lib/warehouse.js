@@ -133,11 +133,31 @@ async function refreshProductInventory(productId) {
 
   // Use update() to avoid creating documents by mistake, and update inventory.quantity as a field path
   // so we don't overwrite other inventory metadata (inventoryId, inventoryName, etc.).
+  const priorQty = productData?.inventory?.quantity;
   await docRef.update({
     'inventory.quantity': totalQty,
     storageBins,
     storage,
   });
+
+  // Stock-Change-Notify: emit stock:changed + append inventory_ledger, wenn Qty sich aenderte.
+  // Siehe CLAUDE.md Punkt 10 (Oversell-Verbot) und Plan P2.3 + P2.4.
+  if (priorQty !== undefined && priorQty !== null && Number(priorQty) !== Number(totalQty)) {
+    try {
+      const { notifyStockChange } = require('./stock-change-events');
+      await notifyStockChange({
+        tenantId: productData.tenantId || 'default',
+        productId: resolvedId,
+        sku: productData.identification?.sku || productData.details?.identifiers?.sku || null,
+        before: Number(priorQty),
+        after: Number(totalQty),
+        reason: 'warehouse-refresh',
+        source: 'warehouse.refreshProductInventory',
+      });
+    } catch (err) {
+      console.warn(`[refreshProductInventory] stock-change-notify failed for ${resolvedId}: ${err.message}`);
+    }
+  }
 
   // Dual-write: keep legacy collection in sync (best-effort)
   try {

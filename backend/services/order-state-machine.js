@@ -477,6 +477,7 @@ module.exports = {
   getAllStatuses,
   transitionOrder,
   processShippedOrder: _onOrderShipped,
+  processCancelledOrder: _onOrderCancelled,
   getOrderTimeline,
   getStatusCounts,
   mapLegacyStatus,

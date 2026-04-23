@@ -30,6 +30,29 @@ function getCollection() {
  * Signatur: saveProductV2(product, options) — identisch zu saveProduct().
  */
 async function saveProductV2(product, options = {}) {
+  const { PRODUCTS_COLLECTION } = require('./firestore');
+
+  // Pre-State-Read (best-effort): Qty vor der Mutation fuer Stock-Change-Detection.
+  // Skippable via options.skipStockEvent (z.B. bei Bulk-Imports).
+  // Siehe CLAUDE.md Punkt 10 (Oversell-Verbot) und Plan P2.3 + P2.4.
+  let preQty = null;
+  let preSku = null;
+  let preTenantId = null;
+  const productId = product?.id;
+  if (productId && !options.skipStockEvent) {
+    try {
+      const preSnap = await firestore.collection(PRODUCTS_COLLECTION).doc(productId).get();
+      if (preSnap.exists) {
+        const pre = preSnap.data() || {};
+        preQty = pre.inventory?.quantity ?? null;
+        preSku = pre.identification?.sku || pre.details?.identifiers?.sku || null;
+        preTenantId = pre.tenantId || null;
+      }
+    } catch (_) {
+      // non-fatal — Pre-Read ist optional
+    }
+  }
+
   // 1) Originale saveProduct() ausführen — alle Business-Logik bleibt erhalten
   //    (SKU-Allokation, Title-Policy, Category-Mapping, Identifier-Sync etc.)
   const result = await saveProduct(product, options);
@@ -39,12 +62,10 @@ async function saveProductV2(product, options = {}) {
   //    Wenn PRODUCTS_COLLECTION === V2_COLLECTION, schreibt saveProduct() bereits direkt
   //    nach products_v2 → Dual-Write ist redundant und erzeugt durch _pickCanonicalId
   //    sogar Duplikate unter abweichenden Document-IDs (BUG-085).
-  const { PRODUCTS_COLLECTION } = require('./firestore');
   const isDualWriteNeeded = PRODUCTS_COLLECTION !== V2_COLLECTION;
 
   if (USE_V2 && isDualWriteNeeded) {
     try {
-      const productId = product.id;
       const freshSnap = await firestore.collection(PRODUCTS_COLLECTION).doc(productId).get();
       const freshData = freshSnap.exists ? { id: productId, ...freshSnap.data() } : product;
 
@@ -59,6 +80,32 @@ async function saveProductV2(product, options = {}) {
       await firestore.collection(V2_COLLECTION).doc(targetId).set(normalized, { merge: true });
     } catch (err) {
       console.error(`[saveProductV2] v2 write failed for ${product.id}: ${err.message}`);
+    }
+  }
+
+  // Post-State-Read + Stock-Change-Notify (emit + ledger).
+  if (productId && !options.skipStockEvent && preQty !== null) {
+    try {
+      const postSnap = await firestore.collection(PRODUCTS_COLLECTION).doc(productId).get();
+      if (postSnap.exists) {
+        const post = postSnap.data() || {};
+        const postQty = post.inventory?.quantity ?? null;
+        if (postQty !== null && Number(preQty) !== Number(postQty)) {
+          const { notifyStockChange } = require('./stock-change-events');
+          await notifyStockChange({
+            tenantId: post.tenantId || preTenantId || 'default',
+            productId,
+            sku: post.identification?.sku || post.details?.identifiers?.sku || preSku,
+            before: Number(preQty),
+            after: Number(postQty),
+            reason: options.stockChangeReason || 'saveProductV2',
+            source: options.source || 'saveProductV2',
+            actor: options.actor || null,
+          });
+        }
+      }
+    } catch (err) {
+      console.warn(`[saveProductV2] stock-change-notify failed for ${productId}: ${err.message}`);
     }
   }
 

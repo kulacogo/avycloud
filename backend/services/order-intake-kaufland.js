@@ -440,19 +440,44 @@ async function saveOrderIfNew({ tenantId, order }) {
           }
           console.log(`[kaufland-intake] Status updated via state machine: ${existingData.orderId || existingDoc.id} ${currentOms} → shipped (Kaufland: ${klUnitStatus})`);
         } else {
-          // Andere Status (confirmed, cancelled, etc.) → ref.update() bleibt OK
-          const updateFields = {
-            omsStatus: mappedStatus,
-            omsStatusLabel: OMS_STATUS_LABELS[mappedStatus] || mappedStatus,
-            status: mappedStatus,
-            statusLabel: OMS_STATUS_LABELS[mappedStatus] || mappedStatus,
-            updatedAt: new Date().toISOString(),
+          // Andere Status (confirmed, cancelled, completed) — IMMER ueber state machine laufen
+          // lassen, damit order:status_changed emittiert wird und _onOrderCancelled/etc. laufen.
+          // Siehe CLAUDE.md Punkt 11 (kein omsStatus-Direct-Write).
+          const { transitionOrder } = require('./order-state-machine');
+          const transResult = await transitionOrder({
+            tenantId, orderId: existingDoc.id,
+            toStatus: mappedStatus, force: true,
+            actor: { uid: 'system', email: 'kaufland-reconciliation' },
+            note: `Kaufland Status-Sync: ${currentOms} → ${mappedStatus} (${klUnitStatus})`,
+          }).catch((err) => {
+            console.warn(`[kaufland-intake] transitionOrder to ${mappedStatus} failed for ${existingDoc.id}: ${err.message}`);
+            return { ok: false };
+          });
+
+          // Backfill-Only Updates (paidAt, paymentMethod, ops.kauflandStatusSync) — separat,
+          // denn transitionOrder setzt diese Felder nicht.
+          const backfill = {
             'ops.kauflandStatusSync': { from: currentOms, to: mappedStatus, klUnitStatus, syncedAt: new Date().toISOString() },
           };
-          if (order.paidAt && !existingData.paidAt) updateFields.paidAt = order.paidAt;
-          if (order.paymentMethod && !existingData.paymentMethod) updateFields.paymentMethod = order.paymentMethod;
-          await existingDoc.ref.update(updateFields);
-          console.log(`[kaufland-intake] Status updated: ${existingData.orderId || existingDoc.id} ${currentOms} → ${mappedStatus} (Kaufland: ${klUnitStatus})`);
+          if (order.paidAt && !existingData.paidAt) backfill.paidAt = order.paidAt;
+          if (order.paymentMethod && !existingData.paymentMethod) backfill.paymentMethod = order.paymentMethod;
+          await existingDoc.ref.update(backfill).catch((err) => {
+            console.warn(`[kaufland-intake] backfill update failed for ${existingDoc.id}: ${err.message}`);
+          });
+
+          // Legacy-Fallback: wenn transition fehlschlaegt UND es ist cancelled, direktes _onOrderCancelled triggern
+          if (!transResult.ok && mappedStatus === 'cancelled') {
+            try {
+              const { processCancelledOrder } = require('./order-state-machine');
+              if (typeof processCancelledOrder === 'function') {
+                await processCancelledOrder({ orderId: existingDoc.id, tenantId });
+              }
+            } catch (err) {
+              console.warn(`[kaufland-intake] processCancelledOrder fallback failed for ${existingDoc.id}: ${err.message}`);
+            }
+          }
+
+          console.log(`[kaufland-intake] Status updated via state machine: ${existingData.orderId || existingDoc.id} ${currentOms} → ${mappedStatus} (Kaufland: ${klUnitStatus})`);
         }
       }
 

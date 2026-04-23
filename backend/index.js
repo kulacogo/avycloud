@@ -434,6 +434,32 @@ const server = app.listen(PORT, () => {
     console.warn('[stock-reconciliation] failed to start:', err?.message || err);
   }
 
+  // Stock-Failure-Drain: retry fehlgeschlagene Marketplace-Syncs alle 2min
+  // Siehe CLAUDE.md Punkt 10 (Oversell-Verbot). Feature-Flag STOCK_FAILURE_DRAIN_ENABLED.
+  const STOCK_DRAIN_INTERVAL_MS = parseInt(process.env.STOCK_FAILURE_DRAIN_INTERVAL_MS || String(2 * 60 * 1000), 10);
+  const STOCK_DRAIN_TENANTS = (process.env.STOCK_FAILURE_DRAIN_TENANTS || 'trendocean').split(',').map((t) => t.trim()).filter(Boolean);
+  try {
+    const runStockFailureDrain = async () => {
+      if (process.env.STOCK_FAILURE_DRAIN_ENABLED === 'false') return;
+      try {
+        const { drainStockFailures } = require('./services/stock-failure-drain');
+        for (const tenantId of STOCK_DRAIN_TENANTS) {
+          const r = await drainStockFailures({ tenantId, limit: 50 });
+          if (r && (r.resolved > 0 || r.abandoned > 0 || r.needsManual > 0)) {
+            console.log(`[stock-failure-drain] tenant=${tenantId} total=${r.total} resolved=${r.resolved} stillFailing=${r.stillFailing} abandoned=${r.abandoned} needsManual=${r.needsManual}`);
+          }
+        }
+      } catch (err) {
+        console.warn('[stock-failure-drain] failed:', err?.message);
+      }
+    };
+    setTimeout(runStockFailureDrain, 60 * 1000); // First run after 60s
+    setInterval(runStockFailureDrain, STOCK_DRAIN_INTERVAL_MS);
+    console.log(`[stock-failure-drain] enabled: tenants=${STOCK_DRAIN_TENANTS.join(',')} interval=${STOCK_DRAIN_INTERVAL_MS}ms`);
+  } catch (err) {
+    console.warn('[stock-failure-drain] failed to start:', err?.message || err);
+  }
+
   // Restock alert: check for pending return restocks every 2 hours
   const RESTOCK_ALERT_INTERVAL_MS = parseInt(process.env.RESTOCK_ALERT_INTERVAL_MS || String(2 * 60 * 60 * 1000), 10);
   try {

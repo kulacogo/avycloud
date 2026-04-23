@@ -1,7 +1,22 @@
 # TASKS.md — AvyCloud Aktive Tasks
 
-> Letzte Aktualisierung: 2026-04-06
+> Letzte Aktualisierung: 2026-04-23
 > Nur aktive Items. Erledigte Tasks → `git log`. Bug-Historie → `docs/archive/`.
+
+## 🔴 [KRITISCH] Oversell-Prevention (seit 2026-04-23)
+
+**Trigger-Incident:** SKU-9871561937 (TrendOcean) — Kaufland verkauft, lokaler Bestand = 0, aber eBay-Angebot blieb aktiv mit positivem Bestand → Oversell-Risiko.
+
+**Root-Cause:** `stock_operation_failures` wird geschrieben, aber nie gedraint. Drain-Worker fehlt.
+
+**Plan:** `/Users/oguz/.claude/plans/kritisches-problem-alarmstufe-rot-lazy-bumblebee.md`
+
+**Status:** in Umsetzung.
+- [x] Phase 0: CLAUDE.md + decisions.md + TASKS.md — Oversell-Verbot verankert
+- [ ] Phase 1: Diagnose-Skript + Force-Resync-Endpoint + Incident-Fix SKU-9871561937
+- [ ] Phase 2: Drain-Worker + transitionOrder-Pflicht + stock:changed-Emit + Ledger + Regression-Test
+- [ ] Phase 3: Distributed Lock + Hot-SKU-Reconcile + Idempotency
+- [ ] Phase 4: Channel-Projektionen + Webhooks + Slack-Alerting + Firestore-TTL
 
 ## Zu verifizieren (deployed, Browser-Check nötig)
 

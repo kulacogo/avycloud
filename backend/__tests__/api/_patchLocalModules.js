@@ -276,4 +276,20 @@ patchLocalModule('../../lib/ebay-finances.js', {
   getEbayNetRevenueSummary: spies.getEbayNetRevenueSummary,
 });
 
+// services/stock-sync-dispatcher.js (for stock admin + drain tests)
+spies.syncStockWithRetry = vi.fn().mockResolvedValue({ ok: true, results: [] });
+spies.syncStockToAllChannels = vi.fn().mockResolvedValue({ ok: true, results: [] });
+spies.syncStockForOrderItems = vi.fn().mockResolvedValue({ synced: 0 });
+patchLocalModule('../../services/stock-sync-dispatcher.js', {
+  syncStockWithRetry: spies.syncStockWithRetry,
+  syncStockToAllChannels: spies.syncStockToAllChannels,
+  syncStockForOrderItems: spies.syncStockForOrderItems,
+});
+
+// services/stock-failure-drain.js (for drain admin tests)
+spies.drainStockFailures = vi.fn().mockResolvedValue({ total: 0, resolved: 0, stillFailing: 0, abandoned: 0 });
+patchLocalModule('../../services/stock-failure-drain.js', {
+  drainStockFailures: spies.drainStockFailures,
+});
+
 module.exports = { spies };

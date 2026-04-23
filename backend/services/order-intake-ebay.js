@@ -434,24 +434,49 @@ async function saveOrderIfNew({ tenantId, order }) {
           }
           console.log(`[ebay-intake] Status updated via state machine: ${existingData.orderId || existingDoc.id} ${currentOms} → shipped`);
         } else {
-          // Andere Status (confirmed, cancelled, completed) → ref.update() bleibt OK
-          const updates = {
-            omsStatus: ebayStatus,
-            omsStatusLabel: OMS_STATUS_LABELS[ebayStatus] || ebayStatus,
-            status: ebayStatus,
-            statusLabel: OMS_STATUS_LABELS[ebayStatus] || ebayStatus,
-            updatedAt: new Date().toISOString(),
+          // Andere Status (confirmed, cancelled, completed) — IMMER ueber state machine laufen
+          // lassen, damit order:status_changed emittiert wird und _onOrderCancelled/etc. laufen.
+          // Siehe CLAUDE.md Punkt 11 (kein omsStatus-Direct-Write).
+          const { transitionOrder } = require('./order-state-machine');
+          const transResult = await transitionOrder({
+            tenantId, orderId: existingDoc.id,
+            toStatus: ebayStatus, force: true,
+            actor: { uid: 'system', email: 'ebay-reconciliation' },
+            note: `eBay Status-Sync: ${currentOms} → ${ebayStatus}`,
+          }).catch((err) => {
+            console.warn(`[ebay-intake] transitionOrder to ${ebayStatus} failed for ${existingDoc.id}: ${err.message}`);
+            return { ok: false };
+          });
+
+          // Backfill-Only Updates (tracking, shippedAt, ops.ebayStatusSync) — separat,
+          // denn transitionOrder setzt diese Felder nicht.
+          const backfill = {
             'ops.ebayStatusSync': { from: currentOms, to: ebayStatus, syncedAt: new Date().toISOString() },
           };
           if (order.trackingNumber && !existingData.trackingNumber) {
-            updates.trackingNumber = order.trackingNumber;
-            updates.carrier = order.carrier;
+            backfill.trackingNumber = order.trackingNumber;
+            backfill.carrier = order.carrier;
           }
           if (order.shippedAt && !existingData.shippedAt) {
-            updates.shippedAt = order.shippedAt;
+            backfill.shippedAt = order.shippedAt;
           }
-          await existingDoc.ref.update(updates);
-          console.log(`[ebay-intake] Status updated: ${existingData.orderId || existingDoc.id} ${currentOms} → ${ebayStatus}`);
+          await existingDoc.ref.update(backfill).catch((err) => {
+            console.warn(`[ebay-intake] backfill update failed for ${existingDoc.id}: ${err.message}`);
+          });
+
+          // Legacy-Fallback fuer cancelled: wenn transition fehlschlaegt, direkt _onOrderCancelled
+          if (!transResult.ok && ebayStatus === 'cancelled') {
+            try {
+              const { processCancelledOrder } = require('./order-state-machine');
+              if (typeof processCancelledOrder === 'function') {
+                await processCancelledOrder({ orderId: existingDoc.id, tenantId });
+              }
+            } catch (err) {
+              console.warn(`[ebay-intake] processCancelledOrder fallback failed for ${existingDoc.id}: ${err.message}`);
+            }
+          }
+
+          console.log(`[ebay-intake] Status updated via state machine: ${existingData.orderId || existingDoc.id} ${currentOms} → ${ebayStatus}`);
         }
       }
     }

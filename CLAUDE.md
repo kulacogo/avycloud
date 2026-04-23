@@ -30,6 +30,9 @@
 7. Alle Produkt-Schreibpfade über `saveProductV2()` (lib/product-store.js)
 8. Alle neuen Queries/Collections mit `tenantId`
 9. **BaseLinker ist TABU** — keine neuen Referenzen, Imports oder ENV-Vars
+10. **OVERSELL-VERBOT:** Kein Code-Pfad darf `products_v2.inventory.quantity` mutieren ohne `saveProductV2()` UND `emitSyncEvent('stock:changed', ...)`. Jede Stock-Mutation MUSS innerhalb <60s einen Marketplace-Sync-Versuch triggern. Fehlgeschlagene Syncs MÜSSEN in `stock_operation_failures` landen UND vom Drain-Worker (`services/stock-failure-drain.js`) automatisch aufgegriffen werden. Siehe Incident 2026-04-23 (SKU-9871561937).
+11. **Kein `omsStatus`-Direct-Write:** Order-State-Übergänge laufen AUSSCHLIESSLICH über `transitionOrder()` (`services/order-state-machine.js`). Intake-Services (`order-intake-kaufland.js`, `order-intake-ebay.js`) dürfen `order.omsStatus` NIEMALS direkt via `orderRef.update()` schreiben — sonst fehlt `order:status_changed`, `_onOrderShipped` läuft nicht, Oversell-Risiko.
+12. **Kein In-Memory-Stock-Lock mehr:** Kritische Stock-Mutationen laufen durch `withStockLock()` mit Firestore-Backend (`STOCK_LOCK_BACKEND=firestore`). In-Memory-Lock nur als Test-Helper erlaubt.
 
 ## Code-Stil
 

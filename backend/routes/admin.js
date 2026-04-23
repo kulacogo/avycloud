@@ -1258,6 +1258,57 @@ router.get('/batch-optimize/preview', requirePermission('admin', 'products.write
  *
  * Returns results synchronously (long-running — use generous timeout).
  */
+// =====================================================================
+// Stock — Force-Resync & Drain-Failures (Oversell-Prevention)
+//
+// Siehe /Users/oguz/.claude/plans/kritisches-problem-alarmstufe-rot-lazy-bumblebee.md
+// und CLAUDE.md Punkt 10 (Oversell-Verbot).
+// =====================================================================
+
+router.post('/stock/force-resync', requirePermission('admin', 'write'), async (req, res) => {
+  if (process.env.STOCK_ADMIN_FORCE_RESYNC_ENABLED === 'false') {
+    return res.status(503).json({ ok: false, error: { code: 'DISABLED', message: 'STOCK_ADMIN_FORCE_RESYNC_ENABLED=false' } });
+  }
+  try {
+    const { sku, productId, reason = 'manual-resync' } = req.body || {};
+    const tenantId = req.body?.tenantId || req.user?.tenantId || 'default';
+    if (!sku && !productId) {
+      return res.status(400).json({ ok: false, error: { code: 'INVALID_INPUT', message: 'sku or productId required' } });
+    }
+    const { getProduct, findProductByStrictIdentifier } = require('../lib/firestore');
+    const product = productId
+      ? await getProduct(productId)
+      : await findProductByStrictIdentifier({ sku });
+    if (!product) {
+      return res.status(404).json({ ok: false, error: { code: 'NOT_FOUND', message: 'product not found' } });
+    }
+    if (product.tenantId && product.tenantId !== tenantId) {
+      return res.status(403).json({ ok: false, error: { code: 'TENANT_MISMATCH', message: `product belongs to tenant ${product.tenantId}, requested ${tenantId}` } });
+    }
+    const { syncStockWithRetry } = require('../services/stock-sync-dispatcher');
+    const result = await syncStockWithRetry({ tenantId, product, reason: `admin-force:${reason}` });
+    console.log(`[POST /api/admin/stock/force-resync] user=${req.user?.uid} tenant=${tenantId} productId=${product.id} sku=${product?.identification?.sku || sku} reason=${reason}`);
+    res.json({ ok: true, data: { productId: product.id, sku: product?.identification?.sku || sku, result } });
+  } catch (error) {
+    console.error('[POST /api/admin/stock/force-resync]', error.message, error);
+    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: error.message } });
+  }
+});
+
+router.post('/stock/drain-failures', requirePermission('admin', 'jobs.run'), async (req, res) => {
+  try {
+    const tenantId = req.body?.tenantId || req.user?.tenantId || 'default';
+    const limit = Math.min(Number(req.body?.limit) || 50, 200);
+    const { drainStockFailures } = require('../services/stock-failure-drain');
+    const result = await drainStockFailures({ tenantId, limit });
+    console.log(`[POST /api/admin/stock/drain-failures] user=${req.user?.uid} tenant=${tenantId} result=${JSON.stringify(result)}`);
+    res.json({ ok: true, data: result });
+  } catch (error) {
+    console.error('[POST /api/admin/stock/drain-failures]', error.message, error);
+    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: error.message } });
+  }
+});
+
 router.post('/batch-optimize/run', requirePermission('admin', 'products.write'), async (req, res) => {
   try {
     const { dryRun = false, limit = 0, offset = 0 } = req.body || {};
