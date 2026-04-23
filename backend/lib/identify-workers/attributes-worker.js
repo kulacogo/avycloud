@@ -700,8 +700,34 @@ async function runAttributesWorker(context = {}) {
     }
 
     const categoryResolved = context?.workerResults?.category?.resolved || {};
-    const requiredNames = toAspectNameList(categoryResolved.requiredAspects);
-    const recommendedNames = toAspectNameList(categoryResolved.recommendedAspects);
+    let requiredNames = toAspectNameList(categoryResolved.requiredAspects);
+    let recommendedNames = toAspectNameList(categoryResolved.recommendedAspects);
+
+    // FALLBACK: if the category-worker couldn't load aspects (e.g. eBay
+    // Catalog 403), try the get_required_aspects atomic-tool directly via
+    // the Taxonomy API (which doesn't need the Catalog OAuth scope).
+    if (
+      requiredNames.length === 0 &&
+      recommendedNames.length === 0 &&
+      categoryResolved.categoryId &&
+      atomicTools?.executors?.executeGetRequiredAspects
+    ) {
+      try {
+        toolsCalled.push('get_required_aspects_fallback');
+        const fallback = await atomicTools.executors.executeGetRequiredAspects({
+          categoryId: categoryResolved.categoryId,
+          marketplace: 'EBAY_DE',
+        });
+        if (fallback?.ok && fallback.data) {
+          requiredNames = toAspectNameList(fallback.data.required || fallback.data.requiredAspects);
+          recommendedNames = toAspectNameList(
+            fallback.data.recommended || fallback.data.recommendedAspects
+          );
+        }
+      } catch {
+        // best-effort — keep empty lists on failure
+      }
+    }
 
     // Early-exit: no aspects to fill.
     if (requiredNames.length === 0 && recommendedNames.length === 0) {

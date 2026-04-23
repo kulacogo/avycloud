@@ -356,11 +356,14 @@ function hasConfidenceImproved(context, refinementResults) {
   let delta = 0;
 
   for (const result of refinementResults) {
-    if (!result || !result.ok || !result.resolved) continue;
-    for (const [field] of Object.entries(result.resolved)) {
-      const newConf = result.confidence?.[field];
-      const newScore = typeof newConf === 'number' ? newConf : (newConf && newConf.score) || 0;
-      const oldScore = before[field]?.score || 0;
+    if (!result || !result.ok || !result.confidence) continue;
+    // Compare on confidence keys directly (not resolved keys — worker outputs
+    // like { title_ebay, description_ebay } don't match their confidence keys
+    // { title, description }). Iterating confidence-side is authoritative.
+    for (const [confField, entry] of Object.entries(result.confidence)) {
+      const newScore = typeof entry === 'number' ? entry : (entry && entry.score) || 0;
+      const oldEntry = before[confField];
+      const oldScore = typeof oldEntry === 'number' ? oldEntry : (oldEntry && oldEntry.score) || 0;
       if (newScore > oldScore) {
         delta += newScore - oldScore;
       }
@@ -409,23 +412,68 @@ function assembleProductV4(context) {
     || identity.internalCategory || 'Unkategorisiert';
   const categorySource = categoryResolved.categorySource || undefined;
 
+  // Start with identity-derived attributes, required-aspects skeleton
   const attributes = {};
   if (identity.brand) attributes.Marke = identity.brand;
   if (identity.model) attributes.Modell = identity.model;
   if (identity.color) attributes.Farbe = identity.color;
-  // Required-aspect name-list (placeholder, Phase C fills values)
   if (Array.isArray(categoryResolved.requiredAspects)) {
     for (const a of categoryResolved.requiredAspects) {
       if (a && a.name && attributes[a.name] == null) attributes[a.name] = 'Unbekannt';
     }
   }
+  // Wave 2: overlay attributes-worker output (Array<{key,value,confidence}>)
+  const attributesResolved = workerResults.attributes?.resolved || {};
+  if (Array.isArray(attributesResolved.item_specifics)) {
+    for (const spec of attributesResolved.item_specifics) {
+      if (spec && spec.key && spec.value) {
+        attributes[spec.key] = spec.value;
+      }
+    }
+  }
 
-  const images = (ctx.imageParts || [])
-    .map((_p, idx) => ({
-      url_or_base64: `inline://image-${idx}`,
-      source: 'upload',
-      variant: 'reference',
+  // Wave 2: seo-worker output
+  const seoResolved = workerResults.seo?.resolved || {};
+  const titleEbay = seoResolved.title_ebay || '';
+  const titleKaufland = seoResolved.title_kaufland || '';
+  const descEbay = seoResolved.description_ebay || '';
+  const descKaufland = seoResolved.description_kaufland || '';
+  const mobileSnippet = seoResolved.mobile_snippet || '';
+  const keyFeatures = Array.isArray(seoResolved.key_features) ? seoResolved.key_features : [];
+
+  // Wave 2: pricing-worker output
+  const pricingResolved = workerResults.pricing?.resolved || {};
+  const pricingAmount = typeof pricingResolved.price_suggested === 'number'
+    ? pricingResolved.price_suggested
+    : 0;
+  const pricingSources = Array.isArray(pricingResolved.sources) ? pricingResolved.sources : [];
+  const pricingConfidence = workerResults.pricing?.confidence?.price || 0;
+
+  // Wave 2: image-worker output (URL + meta, no buffers)
+  const imageResolved = workerResults.image?.resolved || {};
+  const workerImages = Array.isArray(imageResolved.images) ? imageResolved.images : [];
+  const imagesOut = workerImages
+    .filter((i) => i && (i.url || i.source === 'upload'))
+    .map((i, idx) => ({
+      url_or_base64: i.url || `inline://upload-${idx}`,
+      source: i.source || 'upload',
+      variant: i.angle || 'reference',
+      quality: typeof i.quality === 'number' ? i.quality : undefined,
     }));
+  // Fallback: Stage-1 upload-placeholders if image-worker returned nothing
+  const images = imagesOut.length > 0
+    ? imagesOut
+    : (ctx.imageParts || []).map((_p, idx) => ({
+        url_or_base64: `inline://image-${idx}`,
+        source: 'upload',
+        variant: 'reference',
+      }));
+
+  // Wave 2: gpsr-worker output
+  const gpsrResolved = workerResults.gpsr?.resolved || {};
+  const gpsrOut = gpsrResolved.gpsr && Object.keys(gpsrResolved.gpsr).length > 0
+    ? gpsrResolved.gpsr
+    : null;
 
   // Field-score map for aggregate confidence.
   const confidenceMap = {};
@@ -459,11 +507,9 @@ function assembleProductV4(context) {
           refinement_needed_workers: criticResolved.refinement_needed_workers || [],
         }
       : null,
-    worker_meta: {
-      identity: identityResult.meta || null,
-      category: categoryResult.meta || null,
-      critic: criticResult.meta || null,
-    },
+    worker_meta: Object.fromEntries(
+      Object.entries(workerResults).map(([domain, r]) => [domain, r?.meta || null])
+    ),
     conflicts: ctx._crossRefConflicts || [],
   };
 
@@ -481,8 +527,8 @@ function assembleProductV4(context) {
     details: {
       categoryId: categoryId || undefined,
       categorySource,
-      short_description: '',
-      key_features: [],
+      short_description: mobileSnippet || '',
+      key_features: keyFeatures,
       attributes,
       identifiers: {
         ean: ean || undefined,
@@ -492,13 +538,32 @@ function assembleProductV4(context) {
       },
       images,
       pricing: {
-        lowest_price: { amount: 0, currency: 'EUR', sources: [] },
-        price_confidence: 0,
+        lowest_price: {
+          amount: pricingAmount,
+          currency: 'EUR',
+          sources: pricingSources,
+        },
+        price_confidence: pricingConfidence,
+        ...(pricingResolved.price_min != null ? { price_min: pricingResolved.price_min } : {}),
+        ...(pricingResolved.price_max != null ? { price_max: pricingResolved.price_max } : {}),
+        ...(pricingResolved.fee_breakdown ? { fee_breakdown: pricingResolved.fee_breakdown } : {}),
       },
+      ...(gpsrOut ? { gpsr: gpsrOut } : {}),
+      title_ebay: titleEbay,
+      title_kaufland: titleKaufland,
+      description_ebay: descEbay,
+      description_kaufland: descKaufland,
     },
     marketplace: {
-      ebay: { title: '', description: '', mobile_snippet: '' },
-      kaufland: { title: '', description: '' },
+      ebay: {
+        title: titleEbay,
+        description: descEbay,
+        mobile_snippet: mobileSnippet,
+      },
+      kaufland: {
+        title: titleKaufland,
+        description: descKaufland,
+      },
     },
     ops: {
       sync_status: 'pending',
@@ -741,11 +806,7 @@ async function identifyProductV4({
           ),
         },
         critic: criticResult?.resolved || null,
-        workerReports: {
-          identity: context.workerResults.identity || null,
-          category: context.workerResults.category || null,
-          critic: context.workerResults.critic || null,
-        },
+        workerReports: { ...context.workerResults },
         saved: saved ? { id: saved.id || finalProduct.id, ok: true } : null,
         needs_human_review: needsHumanReview,
         timedOut: false,

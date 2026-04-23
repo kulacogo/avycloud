@@ -46,9 +46,14 @@ function pickQueryHint(context) {
 
 async function withTimeout(promise, ms, label) {
   let timer;
+  // Suppress orphan rejection from the source promise when timeout wins the
+  // race — prevents UnhandledPromiseRejection cascades and the downstream
+  // "RangeError: Maximum call stack size exceeded" in PromiseRejectCallback.
+  const guarded = Promise.resolve(promise);
+  guarded.catch(() => {});
   try {
     return await Promise.race([
-      promise,
+      guarded,
       new Promise((_, reject) => {
         timer = setTimeout(
           () => reject(new Error(`${label} timed out`)),

@@ -59,9 +59,17 @@ function isValidGtinDigits(value) {
 
 async function withTimeout(promise, ms, label) {
   let timer;
+  // Attach a .catch to the source promise BEFORE racing — this ensures that
+  // if `promise` rejects AFTER the timeout already won the race, the late
+  // rejection is silently absorbed rather than bubbling as UnhandledPromise-
+  // Rejection. Without this, repeated late-rejections cascade through Node's
+  // rejection handler and produce "RangeError: Maximum call stack size
+  // exceeded" in PromiseRejectCallback.
+  const guarded = Promise.resolve(promise);
+  guarded.catch(() => {}); // handle orphan rejection without blocking
   try {
     return await Promise.race([
-      promise,
+      guarded,
       new Promise((_, reject) => {
         timer = setTimeout(
           () => reject(new Error(`${label || 'operation'} timed out after ${ms}ms`)),

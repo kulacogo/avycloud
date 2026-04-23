@@ -25,10 +25,31 @@ function extractIdentityHints(context) {
   const ident = product.identification || {};
   const workerIdentity = context.workerResults?.identity?.resolved || {};
 
+  const brand = safeString(workerIdentity.brand || identity.brand || ident.brand);
+  const model = safeString(workerIdentity.model || identity.model || ident.model || ident.sku);
+
+  // productType: prefer identity.productType explicitly, else category-leaf,
+  // else fall back to ident.name minus brand+model tokens (avoids
+  // "Sony Sony WH-1000XM5 WH-1000XM5" duplication from name that includes
+  // brand+model).
+  let productType = safeString(identity.productType || ident.category);
+  if (!productType && ident.name) {
+    const nameTokens = safeString(ident.name).split(/\s+/);
+    const brandLower = brand.toLowerCase();
+    const modelLower = model.toLowerCase();
+    productType = nameTokens
+      .filter((t) => {
+        const tl = t.toLowerCase();
+        return tl && tl !== brandLower && tl !== modelLower;
+      })
+      .join(' ')
+      .trim();
+  }
+
   return {
-    brand: safeString(workerIdentity.brand || identity.brand || ident.brand),
-    model: safeString(workerIdentity.model || identity.model || ident.model || ident.sku),
-    productType: safeString(identity.productType || ident.name || ident.category),
+    brand,
+    model,
+    productType,
     color: safeString(identity.color),
     size: safeString(identity.size),
     material: safeString(identity.material),
