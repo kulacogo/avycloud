@@ -181,13 +181,13 @@ async function loadAspectCatalog(categoryId, counters) {
 /**
  * Priority-Path: eBay Catalog lookup via GTIN.
  */
-async function tryGtinCatalog(gtin, counters, sources) {
+async function tryGtinCatalog(gtin, counters, sources, fallbackQuery) {
   try {
     // eslint-disable-next-line global-require
     const ebayCatalog = require('../ebay-catalog');
     if (typeof ebayCatalog?.lookupByGtin !== 'function') return null;
     counters.toolsCalled += 1;
-    const res = await ebayCatalog.lookupByGtin({ gtin });
+    const res = await ebayCatalog.lookupByGtin({ gtin, fallbackQuery });
     if (!res || !res.ok || !res.product) return null;
     const product = res.product;
     const categoryId = product.categoryId ? String(product.categoryId) : '';
@@ -295,10 +295,24 @@ async function runCategoryWorker(context) {
 
   let resolved = null;
 
+  // Build a fallback keyword query (brand + name + model) so ebay-catalog
+  // can fall back to keyword Browse when GTIN returns 0 matches.
+  const ident = context.product.identification || {};
+  const workerIdBrand = context.workerResults?.identity?.resolved?.brand;
+  const fallbackQuery = [workerIdBrand || ident.brand, ident.name, context.identity?.model]
+    .filter(Boolean)
+    .join(' ')
+    .trim()
+    .slice(0, 200);
+
   // --- Priority-Path: GTIN catalog lookup -----------------------------------
   const gtin = pickContextGtin(context);
   if (gtin && isGtinValid(gtin)) {
-    const catalogHit = await tryGtinCatalog(gtin, counters, sources);
+    const catalogHit = await tryGtinCatalog(gtin, counters, sources, fallbackQuery);
+    if (catalogHit) resolved = catalogHit;
+  } else if (fallbackQuery && fallbackQuery.length >= 3) {
+    // No valid GTIN but have query → try catalog with query-only fallback
+    const catalogHit = await tryGtinCatalog('', counters, sources, fallbackQuery);
     if (catalogHit) resolved = catalogHit;
   }
 

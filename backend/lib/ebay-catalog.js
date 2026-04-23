@@ -224,12 +224,109 @@ async function tryBrowseFallback({ gtin, marketplaceId, env }) {
 }
 
 /**
- * lookupByGtin({ gtin, marketplaceId?, env? }) → normalized product or null.
+ * Keyword-based Browse API fallback. When GTIN lookup returns 0 items
+ * (happens often for regional GTIN variants), fall back to a free-text
+ * query using brand+name. Aggregates leaf-category + aspect-distributions
+ * across multiple result items for robustness.
+ */
+async function tryBrowseByQuery({ query, marketplaceId, env, limit = 25 }) {
+  const browse = getEbayBrowse();
+  if (!browse || typeof browse.getAppToken !== 'function') return null;
+
+  const token = await browse.getAppToken({ env }).catch(() => null);
+  if (!token) return null;
+
+  const url = `https://api.ebay.com/buy/browse/v1/item_summary/search?q=${encodeURIComponent(
+    query
+  )}&fieldgroups=ASPECT_REFINEMENTS,EXTENDED&limit=${limit}`;
+
+  try {
+    const res = await withTimeout(
+      fetch(url, {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'X-EBAY-C-MARKETPLACE-ID': marketplaceId,
+          'Content-Type': 'application/json',
+        },
+      }),
+      REQUEST_TIMEOUT_MS,
+      'browse-query'
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    const items = Array.isArray(data?.itemSummaries) ? data.itemSummaries : [];
+    if (items.length === 0) return null;
+
+    // Vote on leaf category across items
+    const categoryVotes = new Map();
+    let bestItem = items[0];
+    for (const it of items) {
+      const catId = it.leafCategoryIds?.[0] || it.categoryId || it.primaryCategoryId;
+      if (catId) categoryVotes.set(catId, (categoryVotes.get(catId) || 0) + 1);
+    }
+    let bestCatId = null;
+    let bestVotes = 0;
+    for (const [cid, count] of categoryVotes) {
+      if (count > bestVotes) {
+        bestVotes = count;
+        bestCatId = cid;
+      }
+    }
+    const winningItem =
+      items.find(
+        (it) => (it.leafCategoryIds?.[0] || it.categoryId) === bestCatId
+      ) || bestItem;
+    const categories = Array.isArray(winningItem.categories) ? winningItem.categories : [];
+    const breadcrumb = categories
+      .slice()
+      .reverse()
+      .map((c) => c.categoryName)
+      .filter(Boolean)
+      .join(' > ');
+
+    return normalizeCatalogProduct(
+      {
+        epid: winningItem.epid || winningItem.ebayProductId,
+        title: winningItem.title,
+        brand: winningItem.brand || winningItem.seller?.brandName,
+        categoryId: bestCatId,
+        categoryName: breadcrumb || winningItem.categoryPath,
+        image: winningItem.image,
+        aspectDistributions: data.aspectDistributions || [],
+      },
+      'ebay_browse_query'
+    );
+  } catch (err) {
+    return null;
+  }
+}
+
+/**
+ * lookupByGtin({ gtin, marketplaceId?, env?, fallbackQuery? }) → normalized product or null.
+ * When GTIN returns 0 matches and `fallbackQuery` is provided, falls back to
+ * keyword search (much higher hit-rate for regional products).
  */
 async function lookupByGtin(input = {}) {
-  const { gtin, marketplaceId = DEFAULT_MARKETPLACE, env } = input;
+  const { gtin, marketplaceId = DEFAULT_MARKETPLACE, env, fallbackQuery } = input;
 
   if (!gtin || typeof gtin !== 'string' || gtin.trim().length < 8) {
+    // If no valid gtin, try query-only fallback
+    if (fallbackQuery && typeof fallbackQuery === 'string' && fallbackQuery.trim().length >= 3) {
+      const queryResult = await tryBrowseByQuery({
+        query: fallbackQuery.trim(),
+        marketplaceId,
+        env,
+      });
+      if (queryResult) {
+        return {
+          ok: true,
+          product: queryResult,
+          cached: false,
+          source: 'ebay_browse_query',
+        };
+      }
+    }
     return { ok: false, product: null, reason: 'invalid_gtin' };
   }
 
@@ -249,6 +346,24 @@ async function lookupByGtin(input = {}) {
   if (browseResult) {
     cacheSet(key, browseResult);
     return { ok: true, product: browseResult, cached: false, source: 'ebay_browse_gtin' };
+  }
+
+  // GTIN returned 0 hits — fall back to keyword search if caller provided one
+  if (fallbackQuery && typeof fallbackQuery === 'string' && fallbackQuery.trim().length >= 3) {
+    const queryResult = await tryBrowseByQuery({
+      query: fallbackQuery.trim(),
+      marketplaceId,
+      env,
+    });
+    if (queryResult) {
+      cacheSet(key, queryResult);
+      return {
+        ok: true,
+        product: queryResult,
+        cached: false,
+        source: 'ebay_browse_query',
+      };
+    }
   }
 
   return { ok: false, product: null, reason: 'no_catalog_match' };
