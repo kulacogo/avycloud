@@ -117,6 +117,76 @@ describe('POST /api/stock/force-resync', () => {
   });
 });
 
+describe('POST /api/stock/force-resync-batch', () => {
+  beforeEach(() => {
+    firebaseSpies.findProductByStrictIdentifier?.mockReset();
+    firebaseSpies.getProduct?.mockReset();
+    localSpies.syncStockWithRetry.mockReset();
+    localSpies.syncStockWithRetry.mockResolvedValue({ results: [{ channel: 'ebay', status: 'success' }] });
+  });
+
+  it('returns 400 when skus and productIds are both empty', async () => {
+    const res = await request(app).post('/api/stock/force-resync-batch').send({});
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('INVALID_INPUT');
+  });
+
+  it('returns 400 when more than 200 items', async () => {
+    const skus = Array.from({ length: 201 }, (_, i) => `SKU-${i}`);
+    const res = await request(app).post('/api/stock/force-resync-batch').send({ skus });
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('TOO_MANY');
+  });
+
+  it('resyncs all matching skus sequentially and reports resolved/failed/notFound', async () => {
+    firebaseSpies.findProductByStrictIdentifier?.mockImplementation(async ({ sku }) => {
+      if (sku === 'SKU-A') return { id: 'prod-a', tenantId: 'trendocean', identification: { sku: 'SKU-A' } };
+      if (sku === 'SKU-B') return { id: 'prod-b', tenantId: 'trendocean', identification: { sku: 'SKU-B' } };
+      if (sku === 'SKU-MISSING') return null;
+      return null;
+    });
+    localSpies.syncStockWithRetry.mockImplementation(async ({ product }) => {
+      if (product.id === 'prod-a') return { results: [{ channel: 'ebay', status: 'success' }, { channel: 'kaufland', status: 'success' }] };
+      if (product.id === 'prod-b') return { results: [{ channel: 'ebay', status: 'error', error: 'eBay down' }] };
+      return { results: [] };
+    });
+
+    const res = await request(app)
+      .post('/api/stock/force-resync-batch')
+      .send({ skus: ['SKU-A', 'SKU-B', 'SKU-MISSING'], tenantId: 'trendocean' });
+    expect(res.status).toBe(200);
+    expect(res.body.data.total).toBe(3);
+    expect(res.body.data.resolved).toBe(1);
+    expect(res.body.data.failed).toBe(1);
+    expect(res.body.data.notFound).toBe(1);
+    expect(localSpies.syncStockWithRetry).toHaveBeenCalledTimes(2);
+  });
+
+  it('skips tenant-mismatched products with error code', async () => {
+    firebaseSpies.findProductByStrictIdentifier?.mockResolvedValue({ id: 'prod-x', tenantId: 'other', identification: { sku: 'SKU-X' } });
+    const res = await request(app)
+      .post('/api/stock/force-resync-batch')
+      .send({ skus: ['SKU-X'], tenantId: 'trendocean' });
+    expect(res.status).toBe(200);
+    expect(res.body.data.failed).toBe(1);
+    expect(res.body.data.results[0].error).toBe('TENANT_MISMATCH');
+    expect(localSpies.syncStockWithRetry).not.toHaveBeenCalled();
+  });
+
+  it('handles mixed productIds and skus', async () => {
+    firebaseSpies.getProduct?.mockResolvedValue({ id: 'prod-1', tenantId: 'trendocean', identification: { sku: 'SKU-1' } });
+    firebaseSpies.findProductByStrictIdentifier?.mockResolvedValue({ id: 'prod-2', tenantId: 'trendocean', identification: { sku: 'SKU-2' } });
+    const res = await request(app)
+      .post('/api/stock/force-resync-batch')
+      .send({ productIds: ['prod-1'], skus: ['SKU-2'], tenantId: 'trendocean' });
+    expect(res.status).toBe(200);
+    expect(res.body.data.total).toBe(2);
+    expect(res.body.data.resolved).toBe(2);
+    expect(firebaseSpies.getProduct).toHaveBeenCalledWith('prod-1');
+    expect(firebaseSpies.findProductByStrictIdentifier).toHaveBeenCalledWith({ sku: 'SKU-2' });
+  });
+});
+
 describe('POST /api/stock/drain-failures', () => {
   beforeEach(() => {
     localSpies.drainStockFailures.mockReset();

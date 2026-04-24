@@ -14,6 +14,7 @@ import {
   fetchProducts,
   fetchIntegrationConfig,
   repairEbayListings,
+  forceResyncStockBatch,
 } from "../api/client";
 import { useEbayListings, useKauflandListings } from "../hooks/useListings";
 import { useQueryClient } from "@tanstack/react-query";
@@ -244,6 +245,8 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
   const error = activeQuery.error ? (activeQuery.error as Error).message : null;
   const [repairing, setRepairing] = useState(false);
   const [repairResult, setRepairResult] = useState<string | null>(null);
+  const [resyncingDrifts, setResyncingDrifts] = useState(false);
+  const [resyncDriftsResult, setResyncDriftsResult] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabFilter>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -824,6 +827,62 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
           {repairResult && (
             <span className="text-xs text-success font-medium">{repairResult}</span>
           )}
+          {resyncDriftsResult && (
+            <span className="text-xs text-success font-medium">{resyncDriftsResult}</span>
+          )}
+          {(() => {
+            const driftListings = listings.filter(
+              (l) => (l.stockMismatch || l.warehouseStock === 0) && l.sku,
+            );
+            const driftCount = driftListings.length;
+            if (driftCount === 0) return null;
+            return (
+              <button
+                onClick={async () => {
+                  if (
+                    !window.confirm(
+                      `${driftCount} Listings haben Bestandsabweichung oder 0 Lagerbestand. ` +
+                        `Jetzt Firestore-Bestand an Marktplatz pushen? (eBay: qty=0 → Listing wird beendet)`,
+                    )
+                  ) {
+                    return;
+                  }
+                  setResyncingDrifts(true);
+                  setResyncDriftsResult(null);
+                  try {
+                    const skus = driftListings
+                      .map((l) => l.sku)
+                      .filter((s): s is string => Boolean(s));
+                    const chunks: string[][] = [];
+                    for (let i = 0; i < skus.length; i += 200) chunks.push(skus.slice(i, i + 200));
+                    let totalResolved = 0;
+                    let totalFailed = 0;
+                    for (const chunk of chunks) {
+                      const r = await forceResyncStockBatch({
+                        skus: chunk,
+                        reason: "ui-drift-batch-repair",
+                      });
+                      totalResolved += r.resolved;
+                      totalFailed += r.failed + r.notFound;
+                    }
+                    setResyncDriftsResult(
+                      `${totalResolved} repariert${totalFailed > 0 ? `, ${totalFailed} Fehler` : ""}`,
+                    );
+                    invalidateListings();
+                  } catch (err: any) {
+                    setResyncDriftsResult(`Fehler: ${err.message}`);
+                  } finally {
+                    setResyncingDrifts(false);
+                  }
+                }}
+                disabled={resyncingDrifts}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-danger bg-danger-dim rounded-lg hover:opacity-80 transition-opacity disabled:opacity-50"
+                title="Pusht den aktuellen Firestore-Bestand an eBay/Kaufland fuer alle Listings mit Drift oder 0 Lagerbestand"
+              >
+                {resyncingDrifts ? "Synchronisiere..." : `Bestand synchronisieren (${driftCount})`}
+              </button>
+            );
+          })()}
           {marketplace === "ebay" && tabCounts.inactive > 10 && (
             <button
               onClick={async () => {

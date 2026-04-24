@@ -1295,6 +1295,107 @@ router.post('/stock/force-resync', requirePermission('admin', 'write'), async (r
   }
 });
 
+/**
+ * Batch-Force-Resync: Pusht Firestore-Stock fuer N SKUs/productIds sequenziell
+ * an beide Marktplaetze. Gedacht fuer "Alle Drifts reparieren"-UI-Button.
+ *
+ * Body: { skus?: string[], productIds?: string[], tenantId?, reason?, limit? }
+ * - skus und productIds koennen gemischt sein (max. total 200 pro Call)
+ * - Sequenzielle Ausfuehrung schont eBay/Kaufland-Rate-Limits
+ * - Stoppt nicht bei einzelnen Failures, sammelt Ergebnisse
+ *
+ * Siehe CLAUDE.md Punkt 10 (Oversell-Verbot) und Incident 2026-04-23/24.
+ */
+router.post('/stock/force-resync-batch', requirePermission('admin', 'write'), async (req, res) => {
+  if (process.env.STOCK_ADMIN_FORCE_RESYNC_ENABLED === 'false') {
+    return res.status(503).json({ ok: false, error: { code: 'DISABLED', message: 'STOCK_ADMIN_FORCE_RESYNC_ENABLED=false' } });
+  }
+  try {
+    const tenantId = req.body?.tenantId || req.user?.tenantId || 'default';
+    const reason = req.body?.reason || 'batch-resync';
+    const skus = Array.isArray(req.body?.skus) ? req.body.skus.filter(Boolean).map(String) : [];
+    const productIds = Array.isArray(req.body?.productIds) ? req.body.productIds.filter(Boolean).map(String) : [];
+    const total = skus.length + productIds.length;
+    if (total === 0) {
+      return res.status(400).json({ ok: false, error: { code: 'INVALID_INPUT', message: 'skus or productIds required' } });
+    }
+    const HARD_LIMIT = 200;
+    if (total > HARD_LIMIT) {
+      return res.status(400).json({ ok: false, error: { code: 'TOO_MANY', message: `max ${HARD_LIMIT} items per call, got ${total}` } });
+    }
+
+    const { getProduct, findProductByStrictIdentifier } = require('../lib/firestore');
+    const { syncStockWithRetry } = require('../services/stock-sync-dispatcher');
+
+    const results = [];
+    let resolved = 0;
+    let failed = 0;
+    let notFound = 0;
+
+    // productIds first (unique lookup), then skus (fuzzy lookup). Sequenzielles for-await.
+    for (const productId of productIds) {
+      try {
+        const product = await getProduct(productId);
+        if (!product) {
+          results.push({ productId, ok: false, error: 'NOT_FOUND' });
+          notFound += 1;
+          continue;
+        }
+        if (product.tenantId && product.tenantId !== tenantId) {
+          results.push({ productId, sku: product?.identification?.sku, ok: false, error: 'TENANT_MISMATCH' });
+          failed += 1;
+          continue;
+        }
+        const r = await syncStockWithRetry({ tenantId, product, reason: `batch-resync:${reason}` });
+        const channelErrors = Array.isArray(r?.results) ? r.results.filter((c) => c && c.status === 'error') : [];
+        if (channelErrors.length > 0) {
+          results.push({ productId, sku: product?.identification?.sku, ok: false, error: `channels-failed:${channelErrors.map((c) => c.channel).join(',')}` });
+          failed += 1;
+        } else {
+          results.push({ productId, sku: product?.identification?.sku, ok: true });
+          resolved += 1;
+        }
+      } catch (err) {
+        results.push({ productId, ok: false, error: err.message });
+        failed += 1;
+      }
+    }
+    for (const sku of skus) {
+      try {
+        const product = await findProductByStrictIdentifier({ sku });
+        if (!product) {
+          results.push({ sku, ok: false, error: 'NOT_FOUND' });
+          notFound += 1;
+          continue;
+        }
+        if (product.tenantId && product.tenantId !== tenantId) {
+          results.push({ sku, productId: product.id, ok: false, error: 'TENANT_MISMATCH' });
+          failed += 1;
+          continue;
+        }
+        const r = await syncStockWithRetry({ tenantId, product, reason: `batch-resync:${reason}` });
+        const channelErrors = Array.isArray(r?.results) ? r.results.filter((c) => c && c.status === 'error') : [];
+        if (channelErrors.length > 0) {
+          results.push({ sku, productId: product.id, ok: false, error: `channels-failed:${channelErrors.map((c) => c.channel).join(',')}` });
+          failed += 1;
+        } else {
+          results.push({ sku, productId: product.id, ok: true });
+          resolved += 1;
+        }
+      } catch (err) {
+        results.push({ sku, ok: false, error: err.message });
+        failed += 1;
+      }
+    }
+
+    console.log(`[POST /api/admin/stock/force-resync-batch] user=${req.user?.uid} tenant=${tenantId} total=${total} resolved=${resolved} failed=${failed} notFound=${notFound} reason=${reason}`);
+    return res.json({ ok: true, data: { total, resolved, failed, notFound, results } });
+  } catch (error) {
+    console.error('[POST /api/admin/stock/force-resync-batch]', error.message, error);
+    return res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: error.message } });
+  }
+});
+
 router.post('/stock/drain-failures', requirePermission('admin', 'jobs.run'), async (req, res) => {
   try {
     const tenantId = req.body?.tenantId || req.user?.tenantId || 'default';

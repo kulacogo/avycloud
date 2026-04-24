@@ -1229,6 +1229,37 @@ export async function repairEbayListings(): Promise<{ repaired: number; skipped:
   return data?.data;
 }
 
+export type StockResyncBatchResult = {
+  total: number;
+  resolved: number;
+  failed: number;
+  notFound: number;
+  results: Array<{ sku?: string; productId?: string; ok: boolean; error?: string }>;
+};
+
+/**
+ * Force-resync Firestore-Bestand an eBay + Kaufland fuer N SKUs/productIds.
+ * Sequenziell im Backend (schont Rate-Limits). Max 200 pro Call.
+ * Siehe CLAUDE.md Punkt 10 (Oversell-Verbot).
+ */
+export async function forceResyncStockBatch(payload: {
+  skus?: string[];
+  productIds?: string[];
+  tenantId?: string;
+  reason?: string;
+}): Promise<StockResyncBatchResult> {
+  const res = await fetchApi(`${BACKEND_URL}/api/admin/stock/force-resync-batch`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) {
+    throw new Error(data?.error?.message || "Failed to batch-resync stock");
+  }
+  return data?.data;
+}
+
 export async function lightSyncEbayLiveListings(payload?: {
   maxPages?: number;
   entriesPerPage?: number;
