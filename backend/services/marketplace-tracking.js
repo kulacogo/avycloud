@@ -35,18 +35,47 @@ const EBAY_CARRIER_MAP = {
 
 /**
  * Carrier code mapping for Kaufland.
+ * Values MUST match Kaufland's accepted carrier_code list exactly (Title Case, spaces).
+ * See https://sellerapi.kaufland.com/?page=order-files#carrier-codes
  */
 const KAUFLAND_CARRIER_MAP = {
   dhl: 'DHL',
   'dhl-de': 'DHL',
-  dhl_express: 'DHL_EXPRESS',
+  dhlde: 'DHL',
+  dhlde_v2: 'DHL',
+  dhl_express: 'DHL',
+  dhlexpress: 'DHL',
   dpd: 'DPD',
   'dpd-de': 'DPD',
-  hermes: 'HERMES',
+  dpdde: 'DPD',
+  hermes: 'Hermes',
   gls: 'GLS',
   ups: 'UPS',
-  deutsche_post: 'DEUTSCHE_POST',
+  fedex: 'Fedex',
+  tnt: 'TNT',
+  deutsche_post: 'Deutsche Post',
+  deutschepost: 'Deutsche Post',
+  dhl_freight: 'DHL Freight',
+  dhl_ecommerce: 'DHL Ecommerce',
 };
+
+/**
+ * Normalize a carrier identifier to a Kaufland-accepted carrier_code.
+ * Falls back to 'Other' when no clean match is found — Kaufland accepts
+ * 'Other' as catch-all and never rejects on it.
+ *
+ * @param {string} carrier - Internal carrier identifier (e.g. "dhl", "DPD-DE")
+ * @returns {string} A valid Kaufland carrier_code
+ */
+function normalizeKauflandCarrier(carrier) {
+  if (!carrier) return 'Other';
+  const key = String(carrier).trim().toLowerCase().replace(/\s+/g, '_');
+  if (KAUFLAND_CARRIER_MAP[key]) return KAUFLAND_CARRIER_MAP[key];
+  // Strip common prefixes/suffixes and retry (e.g. "dhl_de_v2" → "dhl")
+  const stripped = key.replace(/_v\d+$/, '').replace(/_de$/, '');
+  if (KAUFLAND_CARRIER_MAP[stripped]) return KAUFLAND_CARRIER_MAP[stripped];
+  return 'Other';
+}
 
 /**
  * Push tracking info to the order's marketplace.
@@ -160,7 +189,7 @@ async function pushTrackingToKaufland({ order, trackingNumber, carrier, firestor
   try {
     const { kauflandRequest } = require('../lib/kaufland-api');
 
-    const klCarrier = KAUFLAND_CARRIER_MAP[(carrier || '').toLowerCase()] || carrier || 'OTHER';
+    const klCarrier = normalizeKauflandCarrier(carrier);
 
     // Kaufland needs per-unit shipment confirmation
     const items = order.items || [];
@@ -206,7 +235,7 @@ async function pushTrackingToKaufland({ order, trackingNumber, carrier, firestor
       try {
         await kauflandRequest('PATCH', `/order-units/${unitId}/send`, {
           body: {
-            tracking_number: trackingNumber,
+            tracking_numbers: trackingNumber,
             carrier_code: klCarrier,
           },
         });
@@ -535,6 +564,7 @@ module.exports = {
   pushCancellationToMarketplace,
   cancelOrderOnEbay,
   cancelOrderOnKaufland,
+  normalizeKauflandCarrier,
   EBAY_CARRIER_MAP,
   KAUFLAND_CARRIER_MAP,
   KAUFLAND_CANCEL_REASONS,
