@@ -22,6 +22,10 @@ export const useIdentificationQueue = () => {
   const [autoRefresh, setAutoRefresh] = useState(true);
   const abortRef = useRef<AbortController | null>(null);
 
+  // Keep `nextCursor` out of `loadJobs` dependencies. Including it caused a re-fetch loop:
+  // every successful fetch updated nextCursor → re-created loadJobs → re-triggered the mount
+  // and auto-refresh effects → another fetch. All callers that need pagination pass `cursor`
+  // explicitly via `loadMore`, so the previous `?? nextCursor` fallback was never load-bearing.
   const loadJobs = useCallback(
     async (options: LoadOptions = {}) => {
       if (abortRef.current) {
@@ -34,7 +38,7 @@ export const useIdentificationQueue = () => {
         const data = await fetchIdentificationJobs({
           statuses: statuses.length ? statuses : undefined,
           limit: 50,
-          cursor: options.append ? options.cursor ?? nextCursor : null,
+          cursor: options.append ? options.cursor ?? null : null,
           signal: controller.signal,
         });
         setStats(data.stats || {});
@@ -52,7 +56,7 @@ export const useIdentificationQueue = () => {
         setIsLoading(false);
       }
     },
-    [nextCursor, statuses]
+    [statuses]
   );
 
   useEffect(() => {
