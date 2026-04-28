@@ -33,6 +33,62 @@ const isIOSDevice =
 const supportsBrowserCamera =
   typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getUserMedia;
 
+// Backend pipeline expects JPEG/PNG/WebP. iPhone Photos default to HEIC, which decoders cannot
+// process — block at upload boundary so users get an actionable hint instead of a silent fail.
+const ACCEPTED_IMAGE_MIME = ['image/jpeg', 'image/png', 'image/webp'] as const;
+const ACCEPT_ATTR = ACCEPTED_IMAGE_MIME.join(',');
+
+const isHeicFile = (file: File): boolean => {
+  const type = (file.type || '').toLowerCase();
+  if (type === 'image/heic' || type === 'image/heif') return true;
+  const name = (file.name || '').toLowerCase();
+  return name.endsWith('.heic') || name.endsWith('.heif');
+};
+
+const isAcceptedImage = (file: File): boolean => {
+  if (isHeicFile(file)) return false;
+  const type = (file.type || '').toLowerCase();
+  if ((ACCEPTED_IMAGE_MIME as readonly string[]).includes(type)) return true;
+  // iOS sometimes leaves type empty — fall back to extension.
+  const name = (file.name || '').toLowerCase();
+  return /\.(jpe?g|png|webp)$/.test(name);
+};
+
+// Map standard MediaDevices DOMException names to actionable user messages. `error.name` is
+// stable across browsers per spec; `error.message` is not.
+const mapCameraError = (
+  error: any,
+  t: (key: string) => string
+): { title: string; details?: string } => {
+  const name = error?.name || '';
+  if (name === 'NotAllowedError' || name === 'PermissionDeniedError') {
+    return {
+      title: 'Kamera-Zugriff verweigert',
+      details:
+        'Bitte den Kamera-Zugriff in den Browser-Einstellungen erlauben. iOS: Einstellungen → Safari → Kamera.',
+    };
+  }
+  if (name === 'NotFoundError' || name === 'DevicesNotFoundError') {
+    return { title: 'Keine Kamera gefunden' };
+  }
+  if (name === 'NotReadableError' || name === 'TrackStartError') {
+    return {
+      title: 'Kamera ist belegt',
+      details: 'Die Kamera wird gerade von einer anderen App genutzt. Bitte schließen und erneut versuchen.',
+    };
+  }
+  if (name === 'OverconstrainedError' || name === 'ConstraintNotSatisfiedError') {
+    return { title: 'Kamera-Einstellungen werden nicht unterstützt' };
+  }
+  if (name === 'SecurityError') {
+    return {
+      title: 'Kamera blockiert (HTTPS erforderlich)',
+      details: 'Kamera-Zugriff funktioniert nur über HTTPS oder localhost.',
+    };
+  }
+  return { title: t('input.camera.error'), details: error?.message };
+};
+
 const createId = () => {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     return crypto.randomUUID();
@@ -89,9 +145,38 @@ const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
     );
   }, []);
 
+  const filterAndNotifyUnsupported = useCallback(
+    (files: File[]): File[] => {
+      if (!files.length) return [];
+      const heic = files.filter(isHeicFile);
+      const otherUnsupported = files.filter((f) => !isHeicFile(f) && !isAcceptedImage(f));
+      const accepted = files.filter(isAcceptedImage);
+      if (heic.length) {
+        setNotice({
+          tone: 'warning',
+          title: 'iPhone HEIC-Format wird nicht unterstützt',
+          details:
+            'Bitte unter iPhone-Einstellungen → Kamera → Formate „Maximal kompatibel" wählen, oder die Fotos vor dem Upload in JPG umwandeln.',
+        });
+      } else if (otherUnsupported.length) {
+        setNotice({
+          tone: 'warning',
+          title: 'Nicht unterstütztes Bildformat',
+          details: `Bitte JPG, PNG oder WebP nutzen. Übersprungen: ${otherUnsupported
+            .map((f) => f.name)
+            .slice(0, 3)
+            .join(', ')}${otherUnsupported.length > 3 ? ' …' : ''}`,
+        });
+      }
+      return accepted;
+    },
+    []
+  );
+
   const handleFileChange = (groupId: string, event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files ? Array.from(event.target.files) : [];
-    addImagesToGroup(groupId, files);
+    const accepted = filterAndNotifyUnsupported(files);
+    if (accepted.length) addImagesToGroup(groupId, accepted);
     event.target.value = '';
   };
 
@@ -145,10 +230,11 @@ const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
 
   const handleDrop = useCallback(
     (groupId: string, event: React.DragEvent<HTMLDivElement>) => {
-    event.preventDefault();
+      event.preventDefault();
       const hasFiles = event.dataTransfer.files && event.dataTransfer.files.length > 0;
       if (hasFiles) {
-        addImagesToGroup(groupId, Array.from(event.dataTransfer.files));
+        const accepted = filterAndNotifyUnsupported(Array.from(event.dataTransfer.files));
+        if (accepted.length) addImagesToGroup(groupId, accepted);
         return;
       }
       const payload = event.dataTransfer.getData('application/json');
@@ -157,12 +243,12 @@ const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
         const { sourceGroupId, imageId } = JSON.parse(payload);
         if (sourceGroupId && imageId) {
           moveImageBetweenGroups(sourceGroupId, groupId, imageId);
-    }
+        }
       } catch {
         // ignore parsing issues
       }
     },
-    [addImagesToGroup, moveImageBetweenGroups]
+    [addImagesToGroup, filterAndNotifyUnsupported, moveImageBetweenGroups]
   );
 
   const handleDragStart = (event: React.DragEvent<HTMLDivElement>, groupId: string, imageId: string) => {
@@ -216,24 +302,34 @@ const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
       return;
     }
 
-      try {
-        if (!supportsBrowserCamera) {
-          throw new Error(t('input.camera.unsupported'));
-        }
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment' },
+    let acquiredStream: MediaStream | null = null;
+    try {
+      if (!supportsBrowserCamera) {
+        throw new Error(t('input.camera.unsupported'));
+      }
+      // `ideal: 'environment'` falls back to any available camera if the rear camera is missing
+      // (e.g. external webcams), instead of failing outright.
+      acquiredStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: 'environment' } },
       });
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = acquiredStream;
         await videoRef.current.play();
-        }
-        setIsCameraOn(true);
-        setCameraError(null);
+      }
+      setIsCameraOn(true);
+      setCameraError(null);
     } catch (error: any) {
+      // If getUserMedia succeeded but play() threw, the stream is still live — stop it.
+      if (acquiredStream) {
+        acquiredStream.getTracks().forEach((track) => track.stop());
+        if (videoRef.current && videoRef.current.srcObject === acquiredStream) {
+          videoRef.current.srcObject = null;
+        }
+      }
       console.error('Camera error:', error);
-      const message = error?.message || t('input.camera.error');
-      setCameraError(message);
-      setNotice({ tone: 'error', title: 'Kamera Fehler', details: message });
+      const { title, details } = mapCameraError(error, t);
+      setCameraError(title);
+      setNotice({ tone: 'error', title, details });
     }
   };
 
@@ -333,7 +429,7 @@ const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
                       id={`group-files-${group.id}`}
                       type="file"
                       multiple
-                      accept="image/*"
+                      accept={ACCEPT_ATTR}
                       className="sr-only"
                       onChange={(event) => handleFileChange(group.id, event)}
                     />
@@ -351,7 +447,7 @@ const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
                         <input
                           id={`group-camera-${group.id}`}
                           type="file"
-                          accept="image/*"
+                          accept={ACCEPT_ATTR}
                           capture="environment"
                           className="sr-only"
                           onChange={(event) => handleFileChange(group.id, event)}
