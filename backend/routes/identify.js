@@ -371,15 +371,26 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
     let legacyResult = null;
     let groundingImageQuery = '';
 
+    // Wall-clock budget for the entire cascade (V3 → outer grounding → legacy). Without
+    // this, sequential per-stage caps stack up: 90s + 90s + N can easily exceed the
+    // frontend AbortController (180s) and trigger "Timeout nach 3 Minuten" while the
+    // backend is still working. Default 170s leaves headroom under the frontend limit.
+    const requestStartedAt = Date.now();
+    const IDENTIFY_TOTAL_TIMEOUT_MS = parseInt(process.env.IDENTIFY_TOTAL_TIMEOUT_MS || '170000', 10);
+    const elapsedMs = () => Date.now() - requestStartedAt;
+    const remainingMs = () => Math.max(0, IDENTIFY_TOTAL_TIMEOUT_MS - elapsedMs());
+
     if (V3_ENABLED) {
       try {
         const { identifyProductV3 } = require('../services/identify-v3');
         console.log('[identify] Using V3 multi-stage pipeline');
-        const V3_TIMEOUT_MS = parseInt(process.env.V3_TIMEOUT_MS || '90000', 10);
+        const V3_TIMEOUT_MS = parseInt(process.env.V3_TIMEOUT_MS || '60000', 10);
+        // Cap V3 by whichever is smaller: its own budget or the remaining wall-clock budget.
+        const v3Cap = Math.min(V3_TIMEOUT_MS, remainingMs());
         const v3Result = await Promise.race([
           identifyProductV3({ files, barcodes, locale, hint, paletteCode, inventoryId }),
           new Promise((_, reject) =>
-            setTimeout(() => reject(new Error(`V3 pipeline timeout after ${V3_TIMEOUT_MS}ms`)), V3_TIMEOUT_MS)
+            setTimeout(() => reject(new Error(`V3 pipeline timeout after ${v3Cap}ms`)), v3Cap)
           ),
         ]);
         product = v3Result.product;
@@ -463,21 +474,40 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
 
     // 4) Try Google Search Grounding pipeline (preferred) — skip if V3 already produced a product
     if (!product && GROUNDING_ENABLED && (imageParts.length || mergedBarcodes.length)) {
+      // Wall-clock guard: if there isn't enough budget left to plausibly complete grounding
+      // AND still leave room for the legacy fallback, surface a 504 immediately rather than
+      // letting the frontend AbortController fire mid-call (which leaves the user with a
+      // generic "Timeout nach 3 Minuten" message).
+      const MIN_GROUNDING_BUDGET_MS = 15000;
+      if (remainingMs() < MIN_GROUNDING_BUDGET_MS) {
+        console.warn(`[identify] Total budget exhausted (elapsed=${elapsedMs()}ms), skipping grounding pipeline`);
+        return res.status(504).json({
+          ok: false,
+          error: {
+            code: 'IDENTIFY_TOTAL_TIMEOUT',
+            message: 'Produkterkennung dauerte zu lange. Bitte mit weniger oder kleineren Bildern erneut versuchen.',
+            elapsedMs: elapsedMs(),
+          },
+        });
+      }
       try {
         const { identifyProductWithGrounding } = require('../lib/gemini3-client');
-        console.log(`[identify] Starting grounding pipeline (${imageParts.length} images, ${mergedBarcodes.length} barcodes)`);
+        console.log(`[identify] Starting grounding pipeline (${imageParts.length} images, ${mergedBarcodes.length} barcodes, elapsed=${elapsedMs()}ms)`);
 
-        const GROUNDING_TIMEOUT_MS = parseInt(process.env.GROUNDING_TIMEOUT_MS || '90000', 10);
+        const GROUNDING_TIMEOUT_MS = parseInt(process.env.GROUNDING_TIMEOUT_MS || '45000', 10);
+        const groundingCap = Math.min(GROUNDING_TIMEOUT_MS, remainingMs());
+        const groundingPromise = identifyProductWithGrounding({
+          imageParts,
+          ocrText,
+          barcodes: mergedBarcodes,
+          locale,
+          hint,
+        });
+        Promise.resolve(groundingPromise).catch(() => {});
         const groundedRecord = await Promise.race([
-          identifyProductWithGrounding({
-            imageParts,
-            ocrText,
-            barcodes: mergedBarcodes,
-            locale,
-            hint,
-          }),
+          groundingPromise,
           new Promise((_, reject) =>
-            setTimeout(() => reject(new Error('Grounding timeout after ' + GROUNDING_TIMEOUT_MS + 'ms')), GROUNDING_TIMEOUT_MS)
+            setTimeout(() => reject(new Error('Grounding timeout after ' + groundingCap + 'ms')), groundingCap)
           ),
         ]);
 
@@ -624,6 +654,22 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
 
     // 5) Fallback: Legacy pipeline (if grounding failed or disabled)
     if (!product) {
+      // Wall-clock guard before legacy: if grounding ate up the budget, fail fast with a
+      // proper 504 rather than starting another long-running pipeline that will overrun
+      // the frontend AbortController.
+      const MIN_LEGACY_BUDGET_MS = 25000;
+      if (remainingMs() < MIN_LEGACY_BUDGET_MS) {
+        console.warn(`[identify] Total budget exhausted (elapsed=${elapsedMs()}ms), skipping legacy fallback`);
+        return res.status(504).json({
+          ok: false,
+          error: {
+            code: 'IDENTIFY_TOTAL_TIMEOUT',
+            message: 'Produkterkennung dauerte zu lange. Bitte mit weniger oder kleineren Bildern erneut versuchen.',
+            elapsedMs: elapsedMs(),
+          },
+        });
+      }
+      console.log(`[identify] Starting legacy pipeline (elapsed=${elapsedMs()}ms, remaining=${remainingMs()}ms)`);
       const result = await runSerpapiFreePipeline({ files, barcodes, locale, inventoryId, hint });
       legacyResult = result;
 

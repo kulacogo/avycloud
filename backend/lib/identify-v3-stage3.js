@@ -50,11 +50,16 @@ async function runStage3ContentGeneration(stage1, stage2, locale = 'de-DE') {
     category: stage2.category || {},
   };
 
-  // Call Gemini with context-rich prompt
+  // Call Gemini with context-rich prompt. Hard cap (default 25s) so a slow Gemini response
+  // cannot consume the V3 master timeout — falls through to the V2/minimal fallback below.
+  const STAGE3_CONTENT_TIMEOUT_MS = parseInt(
+    process.env.STAGE3_CONTENT_TIMEOUT_MS || '25000',
+    10,
+  );
   let content;
   let usedFallback = false;
   try {
-    content = await generateProductContent({
+    const contentPromise = generateProductContent({
       identity: {
         brand: identity.brand,
         model: identity.model,
@@ -70,6 +75,16 @@ async function runStage3ContentGeneration(stage1, stage2, locale = 'de-DE') {
       imageParts: (stage1.imageParts || []).slice(0, 2),
       locale,
     });
+    Promise.resolve(contentPromise).catch(() => {});
+    content = await Promise.race([
+      contentPromise,
+      new Promise((_, reject) =>
+        setTimeout(
+          () => reject(new Error(`Stage 3 content generation timeout after ${STAGE3_CONTENT_TIMEOUT_MS}ms`)),
+          STAGE3_CONTENT_TIMEOUT_MS,
+        ),
+      ),
+    ]);
   } catch (err) {
     console.warn('[stage3] Content generation failed:', err?.message);
     // Fallback: use V2 grounding data if available (high quality), else minimal content

@@ -4475,9 +4475,13 @@ export const identifyProductV2 = async (
     formData.append('hint', hint);
   }
 
-  // BUG-091: AbortController with 180s timeout to prevent infinite hangs
+  // AbortController with 200s timeout. Backend wall-clock budget is 170s
+  // (IDENTIFY_TOTAL_TIMEOUT_MS), this leaves ~30s headroom for mobile-network
+  // upload time and Cloud Run cold starts so the backend always fails first
+  // with a structured 504 (IDENTIFY_TOTAL_TIMEOUT) instead of the frontend
+  // aborting mid-response with a generic message.
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 180_000);
+  const timeout = setTimeout(() => controller.abort(), 200_000);
 
   let response: Response | undefined;
   try {
@@ -4503,7 +4507,14 @@ export const identifyProductV2 = async (
     return { ok: true, data: product, meta: result?.meta };
   } catch (error) {
     if (error instanceof DOMException && error.name === 'AbortError') {
-      return { ok: false, error: { code: 408, message: 'Produkterkennung abgebrochen (Timeout nach 3 Minuten).' } };
+      return {
+        ok: false,
+        error: {
+          code: 408,
+          message:
+            'Produkterkennung abgebrochen (Timeout). Bitte mit weniger oder kleineren Bildern erneut versuchen.',
+        },
+      };
     }
     const errorInfo = extractErrorInfo(error, response);
     return { ok: false, error: errorInfo };

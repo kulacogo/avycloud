@@ -143,12 +143,25 @@ async function runStage1Recognition({ files = [], barcodes = '', hint = null, lo
     } catch (err) {
       console.warn('[stage1] Focused grounding failed, trying V2 grounding fallback:', err?.message);
 
-      // Fallback: Use production-proven V2 grounding (same call that powers V2 identify)
+      // Fallback: Use production-proven V2 grounding (same call that powers V2 identify).
+      // Tight cap (default 20s) — if focused grounding already failed, the OUTER grounding
+      // pipeline in routes/identify.js will retry the same call with its own budget. Long
+      // waits here only steal from the V3 master timeout for no recovery benefit.
       try {
-        const GROUNDING_TIMEOUT_MS = parseInt(process.env.GROUNDING_TIMEOUT_MS || '90000', 10);
+        const STAGE1_V2_FALLBACK_TIMEOUT_MS = parseInt(
+          process.env.STAGE1_V2_FALLBACK_TIMEOUT_MS || '20000',
+          10,
+        );
+        const v2FallbackPromise = identifyProductWithGrounding({ imageParts, ocrText, barcodes: mergedBarcodes, locale, hint });
+        Promise.resolve(v2FallbackPromise).catch(() => {});
         v2FallbackRecord = await Promise.race([
-          identifyProductWithGrounding({ imageParts, ocrText, barcodes: mergedBarcodes, locale, hint }),
-          new Promise((_, reject) => setTimeout(() => reject(new Error('V2 grounding fallback timeout')), GROUNDING_TIMEOUT_MS)),
+          v2FallbackPromise,
+          new Promise((_, reject) =>
+            setTimeout(
+              () => reject(new Error(`V2 grounding fallback timeout after ${STAGE1_V2_FALLBACK_TIMEOUT_MS}ms`)),
+              STAGE1_V2_FALLBACK_TIMEOUT_MS,
+            ),
+          ),
         ]);
         console.log('[stage1] V2 grounding fallback succeeded');
 
