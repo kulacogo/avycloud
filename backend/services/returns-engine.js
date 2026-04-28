@@ -578,6 +578,7 @@ async function syncKauflandReturns({ tenantId = 'default', lookbackDays = 30 } =
         const returnUnits = returnDetail?.return_units || [];
         const firstUnit = returnUnits[0] || {};
         const orderUnitId = firstUnit.id_order_unit ? String(firstUnit.id_order_unit) : null;
+        const returnUnitId = firstUnit.id_return_unit ? String(firstUnit.id_return_unit) : null;
         const unitReason = firstUnit.reason || kr.reason || 'OTHER';
 
         // Fetch order-unit detail for product, buyer, and order linkage
@@ -612,6 +613,9 @@ async function syncKauflandReturns({ tenantId = 'default', lookbackDays = 30 } =
           }
           if (orderUnitId && !existingData.orderUnitId) {
             updates.orderUnitId = orderUnitId;
+          }
+          if (returnUnitId && !existingData.returnUnitId) {
+            updates.returnUnitId = returnUnitId;
           }
           if (unitReason && unitReason !== 'OTHER' && unitReason.toLowerCase() !== 'other' && (!existingData.reasonRaw || existingData.reasonRaw === 'OTHER' || existingData.reason === 'sonstiges')) {
             updates.reasonRaw = unitReason;
@@ -672,6 +676,7 @@ async function syncKauflandReturns({ tenantId = 'default', lookbackDays = 30 } =
           marketplaceReturnId,
           marketplaceOrderId: orderUnitDetail?.id_order || orderUnitId,
           orderUnitId,
+          returnUnitId,
           orderId: null,
           customer: {
             name: buyerName,
@@ -847,20 +852,58 @@ async function issueKauflandRefund({ ret, returnId }) {
     const marketplaceReturnId = ret.marketplaceReturnId;
     if (!marketplaceReturnId) return { ok: false, marketplace: 'kaufland', error: 'No Kaufland return ID' };
 
-    await kauflandRequest('PATCH', `/returns/${marketplaceReturnId}/accept`, {
-      body: {
-        refund_amount: ret.refundAmount || 0,
-      },
-    });
+    // Kaufland accepts at the return-unit level (not the return level).
+    // Endpoint: PATCH /v2/return-units/{id_return_unit}/accept (no body).
+    // Auto-refund happens server-side when the unit is accepted.
+    let returnUnitIds = [];
+    if (ret.returnUnitId) {
+      returnUnitIds.push(String(ret.returnUnitId));
+    } else {
+      // Backfill: fetch the return-units for this return from Kaufland
+      try {
+        const detailRes = await kauflandRequest('GET', `/returns/${marketplaceReturnId}`, {
+          query: { 'embedded[]': 'return_units' },
+        });
+        const units = detailRes?.data?.data?.return_units || [];
+        returnUnitIds = units.map((u) => u.id_return_unit ? String(u.id_return_unit) : null).filter(Boolean);
+        if (returnUnitIds.length && !ret.returnUnitId) {
+          await getDb().collection(RETURNS_COLLECTION).doc(returnId).set({
+            returnUnitId: returnUnitIds[0],
+          }, { merge: true });
+        }
+      } catch (lookupErr) {
+        return { ok: false, marketplace: 'kaufland', error: `Return-unit lookup failed: ${lookupErr.message}` };
+      }
+    }
 
-    console.log(`[returns-engine] Kaufland refund for return ${marketplaceReturnId}`);
+    if (!returnUnitIds.length) {
+      return { ok: false, marketplace: 'kaufland', error: 'No return_unit IDs found' };
+    }
+
+    let success = 0;
+    let lastError = null;
+    for (const ruid of returnUnitIds) {
+      try {
+        await kauflandRequest('PATCH', `/return-units/${ruid}/accept`);
+        success++;
+      } catch (err) {
+        lastError = err.message;
+        console.error(`[returns-engine] Kaufland return-unit ${ruid} accept failed: ${err.message}`);
+      }
+    }
+
+    if (success === 0) {
+      return { ok: false, marketplace: 'kaufland', error: lastError || 'All return-unit accepts failed' };
+    }
+
+    console.log(`[returns-engine] Kaufland refund for return ${marketplaceReturnId}: ${success}/${returnUnitIds.length} units accepted`);
 
     await getDb().collection(RETURNS_COLLECTION).doc(returnId).set({
       marketplaceRefundStatus: 'issued',
       marketplaceRefundAt: new Date().toISOString(),
     }, { merge: true });
 
-    return { ok: true, marketplace: 'kaufland' };
+    return { ok: true, marketplace: 'kaufland', unitsAccepted: success };
   } catch (err) {
     console.error(`[returns-engine] Kaufland refund failed: ${err.message}`);
     return { ok: false, marketplace: 'kaufland', error: err.message };

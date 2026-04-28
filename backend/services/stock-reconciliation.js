@@ -11,8 +11,8 @@ const { computeAvailableQuantity, syncStockToAllChannels, findProductsBySkuChunk
  */
 function checkBinDrift(product) {
   const inventoryQty = Number(product.inventory?.quantity || 0);
-  const binTotal = (product.storageBins || [])
-    .reduce((sum, b) => sum + (Number(b.quantity) || 0), 0);
+  const bins = Array.isArray(product.storageBins) ? product.storageBins : [];
+  const binTotal = bins.reduce((sum, b) => sum + (Number(b?.quantity) || 0), 0);
 
   if (binTotal === inventoryQty) return null;
 

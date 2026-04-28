@@ -408,13 +408,25 @@ async function retryFailedMarketplacePushes({ tenantId = 'default', maxAge = 7 }
 
 /**
  * Cancel reason mapping for Kaufland API.
+ * Values MUST be PascalCase per Kaufland's enum: BuyerCancelled, ShippingAddressUndeliverable,
+ * WrongCatalogData, GeneralAdjustment, MerchandiseNotReceived, NoInventory, DelayedInventory,
+ * WrongPrice, NoReactionBuyer, UndeliverableRegion.
  */
 const KAUFLAND_CANCEL_REASONS = {
-  out_of_stock: 'OUT_OF_STOCK',
-  customer_requested: 'BUYER_CANCELLED',
-  defective: 'DEFECTIVE_GOODS',
-  wrong_address: 'CUSTOMER_DATA_INCORRECT',
-  other: 'GENERAL_ADJUSTMENT',
+  out_of_stock: 'NoInventory',
+  no_inventory: 'NoInventory',
+  delayed_inventory: 'DelayedInventory',
+  customer_requested: 'BuyerCancelled',
+  buyer_cancelled: 'BuyerCancelled',
+  defective: 'WrongCatalogData',
+  wrong_catalog_data: 'WrongCatalogData',
+  wrong_address: 'ShippingAddressUndeliverable',
+  shipping_undeliverable: 'ShippingAddressUndeliverable',
+  undeliverable_region: 'UndeliverableRegion',
+  not_received: 'MerchandiseNotReceived',
+  wrong_price: 'WrongPrice',
+  no_reaction_buyer: 'NoReactionBuyer',
+  other: 'GeneralAdjustment',
 };
 
 /**
@@ -519,10 +531,7 @@ async function cancelOrderOnKaufland({ order, reason, note }) {
     for (const unitId of unitIds) {
       try {
         await kauflandRequest('PATCH', `/order-units/${unitId}/cancel`, {
-          body: {
-            reason: klReason,
-            message: note || undefined,
-          },
+          body: { reason: klReason },
         });
         successCount++;
       } catch (err) {
