@@ -695,8 +695,10 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
 
     // 6) PERF-002: Post-processing (parallel where possible)
     if (groundingUsed) {
-      // Category resolution + SerpAPI images + KTyp run in parallel (independent tasks)
-      await Promise.all([
+      // Category resolution + SerpAPI images + KTyp run in parallel (independent tasks).
+      // allSettled ensures one task throwing (e.g. a sync error in applyTaxonomy slipping
+      // past the inner try/catch) cannot abort the others or 500 the request.
+      const postProcessingResults = await Promise.allSettled([
         // Category + Taxonomy (best-effort; must not fail the identify request)
         (async () => {
           try {
@@ -742,6 +744,11 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
           } catch {}
         })(),
       ]);
+      for (const r of postProcessingResults) {
+        if (r.status === 'rejected') {
+          console.warn('[identify] post-processing task rejected:', r.reason?.message || r.reason);
+        }
+      }
     } else {
       // Legacy path: KTyp only (categories already done above)
       try {

@@ -404,12 +404,34 @@ Nichts erfinden — wenn du nichts findest, lasse den Key weg.`;
     required: ['repaired'],
   };
 
-  const parsed = await gemini3GenerateJSON({
-    prompt,
-    schema,
-    temperature: 0.1,
-    maxOutputTokens: 1024,
-  });
+  // Hard cap on the repair Gemini call so it cannot consume the V3 master timeout.
+  // Returns null on timeout — caller treats that as "repair unavailable" and continues.
+  const ASPECT_REPAIR_TIMEOUT_MS = parseInt(
+    process.env.STAGE3_REPAIR_TIMEOUT_MS || '15000',
+    10,
+  );
+  let parsed;
+  try {
+    const repairPromise = gemini3GenerateJSON({
+      prompt,
+      schema,
+      temperature: 0.1,
+      maxOutputTokens: 1024,
+    });
+    Promise.resolve(repairPromise).catch(() => {});
+    parsed = await Promise.race([
+      repairPromise,
+      new Promise((_, reject) =>
+        setTimeout(
+          () => reject(new Error(`Aspect repair timeout after ${ASPECT_REPAIR_TIMEOUT_MS}ms`)),
+          ASPECT_REPAIR_TIMEOUT_MS,
+        ),
+      ),
+    ]);
+  } catch (err) {
+    console.warn('[stage3] Aspect repair Gemini call failed:', err?.message);
+    return null;
+  }
   if (!parsed || typeof parsed !== 'object') return null;
   if (!parsed.repaired || typeof parsed.repaired !== 'object') return null;
   return parsed;

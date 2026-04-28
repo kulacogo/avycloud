@@ -114,15 +114,31 @@ async function runStage1Recognition({ files = [], barcodes = '', hint = null, lo
   let groundingUsed = false;
   let v2FallbackRecord = null;
   if (imageParts.length || mergedBarcodes.length) {
-    // Try focused grounding first (narrow schema, fast)
+    // Try focused grounding first (narrow schema, fast). Hard cap so a hung Gemini call
+    // cannot consume the V3 master timeout — fall back to V2 grounding instead.
+    const FOCUSED_GROUNDING_TIMEOUT_MS = parseInt(
+      process.env.FOCUSED_GROUNDING_TIMEOUT_MS || '45000',
+      10,
+    );
     try {
-      groundingResult = await identifyProductFocused({
+      const focusedPromise = identifyProductFocused({
         imageParts,
         ocrText,
         barcodes: mergedBarcodes,
         locale,
         hint,
       });
+      // Suppress orphan rejection if the source resolves/rejects after the timeout fires.
+      Promise.resolve(focusedPromise).catch(() => {});
+      groundingResult = await Promise.race([
+        focusedPromise,
+        new Promise((_, reject) =>
+          setTimeout(
+            () => reject(new Error(`Focused grounding timeout after ${FOCUSED_GROUNDING_TIMEOUT_MS}ms`)),
+            FOCUSED_GROUNDING_TIMEOUT_MS,
+          ),
+        ),
+      ]);
       groundingUsed = true;
     } catch (err) {
       console.warn('[stage1] Focused grounding failed, trying V2 grounding fallback:', err?.message);

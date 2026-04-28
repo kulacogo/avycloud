@@ -114,7 +114,7 @@ require.cache[gpsrWebPath] = {
   },
 };
 
-const { runStage2Enrichment } = require('../../lib/identify-v3-stage2');
+const { runStage2Enrichment, withTimeout } = require('../../lib/identify-v3-stage2');
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -289,5 +289,37 @@ describe('runStage2Enrichment', () => {
       expect(result.weightFallback).toBeNull();
       expect(result._meta.stage2.webFallback.weightTried).toBe(false);
     });
+  });
+});
+
+describe('withTimeout', () => {
+  it('resolves with the source value when source completes before timeout', async () => {
+    const result = await withTimeout(Promise.resolve('ok'), 200, 'test');
+    expect(result).toBe('ok');
+  });
+
+  it('rejects with a timeout error when source hangs longer than the budget', async () => {
+    const hung = new Promise(() => {}); // never resolves
+    await expect(withTimeout(hung, 50, 'hung op')).rejects.toThrow(/hung op timeout after 50ms/);
+  });
+
+  it('does not surface a late source rejection as an unhandled rejection', async () => {
+    // Reproduces the V4 stack-overflow scenario: source rejects AFTER timeout fires.
+    let unhandled = null;
+    const onUnhandled = (reason) => {
+      unhandled = reason;
+    };
+    process.on('unhandledRejection', onUnhandled);
+    try {
+      const late = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('late boom')), 30);
+      });
+      await expect(withTimeout(late, 10, 'late')).rejects.toThrow(/late timeout/);
+      // Wait long enough for the late rejection to fire and be swallowed.
+      await new Promise((r) => setTimeout(r, 50));
+      expect(unhandled).toBeNull();
+    } finally {
+      process.off('unhandledRejection', onUnhandled);
+    }
   });
 });

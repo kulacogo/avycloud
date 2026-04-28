@@ -26,6 +26,25 @@ function stage2GpsrWebFallback() {
   return envFlag('STAGE2_GPSR_WEB_FALLBACK', true);
 }
 
+// Per-lookup hard cap for best-effort web enrichments. Kept well below the V3 master timeout
+// (90s) so a single hung HTTP call cannot stall the pipeline. Override via env if needed.
+const STAGE2_LOOKUP_TIMEOUT_MS = parseInt(process.env.STAGE2_LOOKUP_TIMEOUT_MS || '12000', 10);
+const STAGE2_FALLBACK_TIMEOUT_MS = parseInt(process.env.STAGE2_FALLBACK_TIMEOUT_MS || '15000', 10);
+
+// Race a promise against a timeout. The source promise is wrapped so that a late rejection
+// cannot escape as an unhandled rejection (which previously caused stack overflows in the
+// V4 pricing-worker — same pattern reused here defensively).
+function withTimeout(promise, ms, label) {
+  const guarded = Promise.resolve(promise);
+  guarded.catch(() => {});
+  return Promise.race([
+    guarded,
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error(`${label} timeout after ${ms}ms`)), ms),
+    ),
+  ]);
+}
+
 function hasMeaningfulGpsr(gpsr) {
   if (!gpsr) return false;
   if (gpsr.found === false) return false;
@@ -126,7 +145,11 @@ async function runStage2Enrichment(stage1, locale = 'de-DE') {
     (async () => {
       if (!identity.brand) return { found: false, data: null };
       try {
-        const gpsr = await getManufacturerGpsrByName(identity.brand);
+        const gpsr = await withTimeout(
+          getManufacturerGpsrByName(identity.brand),
+          STAGE2_LOOKUP_TIMEOUT_MS,
+          'GPSR registry',
+        );
         return gpsr || { found: false, data: null };
       } catch (err) {
         console.warn('[stage2] GPSR lookup failed:', err?.message);
@@ -139,7 +162,11 @@ async function runStage2Enrichment(stage1, locale = 'de-DE') {
       if (!categoryId) return null;
       try {
         const query = [identity.brand, identity.model].filter(Boolean).join(' ').trim();
-        const insights = await fetchCategoryTitleInsights({ categoryId, query, limit: 10 });
+        const insights = await withTimeout(
+          fetchCategoryTitleInsights({ categoryId, query, limit: 10 }),
+          STAGE2_LOOKUP_TIMEOUT_MS,
+          'Title insights',
+        );
         return insights;
       } catch (err) {
         console.warn('[stage2] Title insights failed:', err?.message);
@@ -151,12 +178,16 @@ async function runStage2Enrichment(stage1, locale = 'de-DE') {
     (async () => {
       if (!imageQuery) return [];
       try {
-        const images = await searchProductImages(tempProduct, {
-          query: imageQuery,
-          limit: 5,
-          minWidth: 400,
-          minHeight: 400,
-        });
+        const images = await withTimeout(
+          searchProductImages(tempProduct, {
+            query: imageQuery,
+            limit: 5,
+            minWidth: 400,
+            minHeight: 400,
+          }),
+          STAGE2_LOOKUP_TIMEOUT_MS,
+          'Web image search',
+        );
         return images || [];
       } catch (err) {
         console.warn('[stage2] Web image search failed:', err?.message);
@@ -169,11 +200,15 @@ async function runStage2Enrichment(stage1, locale = 'de-DE') {
       const barcode = barcodes.ean || barcodes.gtin || barcodes.upc;
       if (!barcode) return { confirmed: false };
       try {
-        const confirmation = await confirmBarcodeWithWeb({
-          barcode,
-          brand: identity.brand,
-          mpn: identity.mpn,
-        });
+        const confirmation = await withTimeout(
+          confirmBarcodeWithWeb({
+            barcode,
+            brand: identity.brand,
+            mpn: identity.mpn,
+          }),
+          STAGE2_LOOKUP_TIMEOUT_MS,
+          'Barcode confirmation',
+        );
         return { confirmed: Boolean(confirmation?.ok), barcode: confirmation?.barcode, evidence: confirmation?.evidence };
       } catch (err) {
         console.warn('[stage2] Barcode confirmation failed:', err?.message);
@@ -222,7 +257,11 @@ async function runStage2Enrichment(stage1, locale = 'de-DE') {
     fallbackJobs.push(
       (async () => {
         try {
-          const r = await lookupWeightFromWeb(identity);
+          const r = await withTimeout(
+            lookupWeightFromWeb(identity),
+            STAGE2_FALLBACK_TIMEOUT_MS,
+            'Weight web fallback',
+          );
           if (r && r.weight_grams) {
             webFallback.weightFound = true;
             weightFallback = r;
@@ -238,7 +277,11 @@ async function runStage2Enrichment(stage1, locale = 'de-DE') {
     fallbackJobs.push(
       (async () => {
         try {
-          const r = await lookupGpsrFromWeb(identity.brand);
+          const r = await withTimeout(
+            lookupGpsrFromWeb(identity.brand),
+            STAGE2_FALLBACK_TIMEOUT_MS,
+            'GPSR web fallback',
+          );
           if (r && (r.manufacturer_name || r.manufacturer_address || r.manufacturer_email)) {
             webFallback.gpsrFound = true;
             gpsrWebFallback = r;
@@ -288,4 +331,5 @@ module.exports = {
   runStage2Enrichment,
   stage2WeightWebLookup,
   stage2GpsrWebFallback,
+  withTimeout,
 };
