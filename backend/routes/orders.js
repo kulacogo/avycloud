@@ -718,12 +718,20 @@ router.put('/orders/settings', async (req, res) => {
           });
         }
       }
-      data.carrierRules = carrierRules.map((rule) => ({
-        ...rule,
-        minWeight: Number(rule.minWeight) || 0,
-        maxWeight: Number(rule.maxWeight) || 0,
-        shippingMethodId: Number(rule.shippingMethodId) || 0,
-      }));
+      data.carrierRules = carrierRules.map((rule, idx) => {
+        const out = {
+          ...rule,
+          minWeight: Number(rule.minWeight) || 0,
+          maxWeight: Number(rule.maxWeight) || 0,
+          shippingMethodId: Number(rule.shippingMethodId) || 0,
+          // Persist drag-and-drop order so matchCarrierRule honours user priority.
+          // Falls back to the array index when the client did not send an explicit value.
+          order: rule.order != null && Number.isFinite(Number(rule.order))
+            ? Math.max(0, Math.floor(Number(rule.order)))
+            : idx,
+        };
+        return out;
+      });
     }
 
     await firestore.collection('order_settings').doc(tenantId).set(data, { merge: true });
@@ -1121,6 +1129,89 @@ router.post('/shipping-methods/sync', requirePermission('orders', 'write'), asyn
     res.json({ ok: true, data: methods, syncedAt: new Date().toISOString() });
   } catch (err) {
     console.error(`[POST /api/shipping-methods/sync] ${err.message}`, err);
+    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: err.message } });
+  }
+});
+
+/**
+ * GET /api/orders/:orderId/shipping-preview — Diagnose ship-readiness.
+ *
+ * Returns:
+ *   - effective shipping weight (from order, items, or null)
+ *   - all carrier rules whose [min, max] range contains that weight
+ *   - whether the order has a usable address
+ *
+ * Used by the frontend (mobile pack flow + desktop OrderDetail) to:
+ *   1. prompt for weight when missing,
+ *   2. let the user pick when multiple rules match,
+ *   3. skip both prompts when there is exactly one match.
+ *
+ * Read-only — never mutates Firestore. Falls back to DEFAULT_CARRIER_RULES
+ * when the tenant has no configured rules.
+ */
+router.get('/orders/:orderId/shipping-preview', requirePermission('orders', 'read'), async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const tenantId = req.user?.tenantId || 'default';
+
+    const orderSnap = await firestore.collection('orders').doc(orderId).get();
+    if (!orderSnap.exists) {
+      return res.status(404).json({ ok: false, error: { code: 'NOT_FOUND', message: 'Auftrag nicht gefunden.' } });
+    }
+    const order = { id: orderSnap.id, ...orderSnap.data() };
+
+    const {
+      calculateOrderWeight,
+      matchAllCarrierRules,
+      DEFAULT_CARRIER_RULES,
+    } = require('../services/shipping-engine');
+
+    // Derive weight + its origin so the UI can explain to the user where the value comes from.
+    const orderLevelWeight = parseFloat(order.weight || '0') || 0;
+    let weightKg = null;
+    let weightSource = null;
+    if (orderLevelWeight > 0) {
+      weightKg = orderLevelWeight;
+      weightSource = 'order';
+    } else {
+      const fromItems = calculateOrderWeight(order);
+      if (fromItems != null && fromItems > 0) {
+        weightKg = fromItems;
+        weightSource = 'items';
+      }
+    }
+
+    // Load tenant carrier rules (mirrors shipOrder() so preview = decision).
+    const settingsSnap = await firestore.collection('order_settings').doc(tenantId).get();
+    const settings = settingsSnap.exists ? settingsSnap.data() : {};
+    const rules = (settings.carrierRules && settings.carrierRules.length)
+      ? settings.carrierRules
+      : (DEFAULT_CARRIER_RULES || []);
+
+    const matches = weightKg != null ? matchAllCarrierRules({ weight: weightKg, rules }) : [];
+
+    const customer = order.customer || {};
+    const hasAddress = Boolean(
+      String(customer.street || '').trim() &&
+      String(customer.city || '').trim() &&
+      String(customer.zip || '').trim()
+    );
+
+    res.json({
+      ok: true,
+      data: {
+        orderId,
+        weight: weightKg,
+        weightSource,
+        hasWeight: weightKg != null && weightKg > 0,
+        hasAddress,
+        matches,
+        // Distinguish "no rules configured at all" from "weight does not match any rule".
+        rulesConfigured: rules.length,
+      },
+    });
+  } catch (err) {
+    console.error(`[GET /api/orders/:orderId/shipping-preview] ${err.message}`, err);
     res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: err.message } });
   }
 });

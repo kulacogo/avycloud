@@ -11,6 +11,12 @@ interface CarrierRule {
   shippingMethodId: number;
   carrier: string;
   label: string;
+  /**
+   * Drag-and-drop priority. Persisted as a non-negative integer; the matcher
+   * sorts by `order` ascending, falling back to `maxWeight`.
+   * Always normalised to the array index on save so gaps never accumulate.
+   */
+  order?: number;
 }
 
 interface AutomationRule {
@@ -39,10 +45,10 @@ interface DocTemplate {
 
 /* ─── Default values for first-time setup ─── */
 const DEFAULT_CARRIER_RULES: CarrierRule[] = [
-  { id: "cr-1", minWeight: 0.5, maxWeight: 1.99, shippingMethodId: 2830, carrier: "dhl", label: "DHL Kleinpaket 0-1kg" },
-  { id: "cr-2", minWeight: 2, maxWeight: 4.99, shippingMethodId: 111, carrier: "dpd", label: "DPD Classic 0-5 kg" },
-  { id: "cr-3", minWeight: 5, maxWeight: 9.99, shippingMethodId: 112, carrier: "dpd", label: "DPD Classic 5-10 kg" },
-  { id: "cr-4", minWeight: 10, maxWeight: 31.5, shippingMethodId: 113, carrier: "dpd", label: "DPD Classic 10-20 kg" },
+  { id: "cr-1", minWeight: 0.5, maxWeight: 1.99, shippingMethodId: 2830, carrier: "dhl", label: "DHL Kleinpaket 0-1kg", order: 0 },
+  { id: "cr-2", minWeight: 2, maxWeight: 4.99, shippingMethodId: 111, carrier: "dpd", label: "DPD Classic 0-5 kg", order: 1 },
+  { id: "cr-3", minWeight: 5, maxWeight: 9.99, shippingMethodId: 112, carrier: "dpd", label: "DPD Classic 5-10 kg", order: 2 },
+  { id: "cr-4", minWeight: 10, maxWeight: 31.5, shippingMethodId: 113, carrier: "dpd", label: "DPD Classic 10-20 kg", order: 3 },
 ];
 
 const DEFAULT_RULES: AutomationRule[] = [
@@ -119,7 +125,21 @@ export const OrderSettingsView: React.FC = () => {
     try {
       const data = await fetchOrderSettings();
       setRules(data.rules?.length ? data.rules : DEFAULT_RULES);
-      setCarrierRules(data.carrierRules?.length ? data.carrierRules : DEFAULT_CARRIER_RULES);
+      // Backfill `order` for rules saved before drag-and-drop was added so the
+      // sort is stable on first render. Sort priority: explicit `order` →
+      // maxWeight ascending → original position.
+      const incomingRules: CarrierRule[] = data.carrierRules?.length
+        ? (data.carrierRules as CarrierRule[])
+        : DEFAULT_CARRIER_RULES;
+      const sorted = [...incomingRules].sort((a, b) => {
+        const aHas = a.order != null && Number.isFinite(Number(a.order));
+        const bHas = b.order != null && Number.isFinite(Number(b.order));
+        if (aHas && bHas) return Number(a.order) - Number(b.order);
+        if (aHas) return -1;
+        if (bHas) return 1;
+        return (Number(a.maxWeight) || 0) - (Number(b.maxWeight) || 0);
+      }).map((r, idx) => ({ ...r, order: idx }));
+      setCarrierRules(sorted);
       setStatuses(data.statuses?.length ? data.statuses : DEFAULT_STATUSES);
       if (data.numberRanges && Object.keys(data.numberRanges).length > 0) {
         setNumberRanges(data.numberRanges);
@@ -198,13 +218,46 @@ export const OrderSettingsView: React.FC = () => {
   const addCarrierRule = () => {
     setCarrierRules((prev) => [
       ...prev,
-      { id: `cr-${Date.now()}`, minWeight: 0, maxWeight: 0, shippingMethodId: 0, carrier: "dhl", label: "Neue Regel" },
+      {
+        id: `cr-${Date.now()}`,
+        minWeight: 0,
+        maxWeight: 0,
+        shippingMethodId: 0,
+        carrier: "dhl",
+        label: "Neue Regel",
+        order: prev.length,
+      },
     ]);
   };
 
   const removeCarrierRule = (id: string) => {
-    setCarrierRules((prev) => prev.filter((r) => r.id !== id));
+    // Re-pack `order` so saving never produces gaps.
+    setCarrierRules((prev) =>
+      prev
+        .filter((r) => r.id !== id)
+        .map((r, idx) => ({ ...r, order: idx }))
+    );
   };
+
+  /**
+   * Move a rule from `fromIdx` to `toIdx` and rewrite `order` to match the new
+   * positions. Pure index-based — works for both keyboard buttons and HTML5
+   * drag-and-drop drops.
+   */
+  const reorderCarrierRules = useCallback((fromIdx: number, toIdx: number) => {
+    setCarrierRules((prev) => {
+      if (fromIdx < 0 || fromIdx >= prev.length) return prev;
+      if (toIdx < 0 || toIdx >= prev.length) return prev;
+      if (fromIdx === toIdx) return prev;
+      const next = [...prev];
+      const [moved] = next.splice(fromIdx, 1);
+      next.splice(toIdx, 0, moved);
+      return next.map((r, idx) => ({ ...r, order: idx }));
+    });
+  }, []);
+
+  const [draggingRuleId, setDraggingRuleId] = useState<string | null>(null);
+  const [dragOverRuleId, setDragOverRuleId] = useState<string | null>(null);
 
   const updateRange = (key: string, field: keyof NumberRange, value: string) => {
     setNumberRanges((prev) => ({
@@ -218,7 +271,10 @@ export const OrderSettingsView: React.FC = () => {
     setError(null);
     setSaveSuccess(false);
     try {
-      await saveOrderSettings({ rules, statuses, numberRanges, templates, carrierRules });
+      // Normalise `order` to the array index right before persisting so the
+      // backend never sees gaps or duplicates from intermediate edits.
+      const carrierRulesToSave = carrierRules.map((r, idx) => ({ ...r, order: idx }));
+      await saveOrderSettings({ rules, statuses, numberRanges, templates, carrierRules: carrierRulesToSave });
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);
     } catch (err: any) {
@@ -276,80 +332,160 @@ export const OrderSettingsView: React.FC = () => {
       <div className="rounded-xl border border-app-border bg-app-surface p-6">
         <SectionHeader
           title="Versandregeln"
-          description="Automatische Carrier-Zuordnung nach Gewicht. Versandmethoden werden aus SendCloud synchronisiert."
+          description="Automatische Carrier-Zuordnung nach Gewicht. Reihenfolge per Drag & Drop ändern (oder Pfeiltasten ↑↓ am Griff). Bei mehreren Treffern entscheidet die Position. Bei Auswahl mehrerer passender Regeln wird im Pack-Modul nachgefragt."
         />
         <div className="space-y-3">
           {/* Header */}
           <div className="grid grid-cols-12 gap-2 px-2 text-xs font-semibold text-txt-muted">
+            <div className="col-span-1" />
             <div className="col-span-2">Min (kg)</div>
             <div className="col-span-2">Max (kg)</div>
-            <div className="col-span-7">Versandmethode</div>
+            <div className="col-span-6">Versandmethode</div>
             <div className="col-span-1" />
           </div>
-          {carrierRules.map((rule) => (
-            <div key={rule.id} className="grid grid-cols-12 gap-2 items-center rounded-xl border border-app-border bg-app-bg px-2 py-2">
-              <div className="col-span-2">
-                <input
-                  type="number"
-                  step="0.01"
-                  value={rule.minWeight}
-                  onChange={(e) => updateCarrierRule(rule.id, "minWeight", parseFloat(e.target.value) || 0)}
-                  className="w-full rounded-lg border border-app-border bg-app-bg px-2 py-1.5 text-sm text-txt-primary focus:outline-none focus:ring-1 focus:ring-accent"
-                />
-              </div>
-              <div className="col-span-2">
-                <input
-                  type="number"
-                  step="0.01"
-                  value={rule.maxWeight}
-                  onChange={(e) => updateCarrierRule(rule.id, "maxWeight", parseFloat(e.target.value) || 0)}
-                  className="w-full rounded-lg border border-app-border bg-app-bg px-2 py-1.5 text-sm text-txt-primary focus:outline-none focus:ring-1 focus:ring-accent"
-                />
-              </div>
-              <div className="col-span-7">
-                <select
-                  value={rule.shippingMethodId}
-                  onChange={(e) => updateCarrierRule(rule.id, "shippingMethodId", parseInt(e.target.value) || 0)}
-                  className="w-full rounded-lg border border-app-border bg-app-bg px-2 py-1.5 text-sm text-txt-primary focus:outline-none focus:ring-1 focus:ring-accent"
-                >
-                  <option value={0}>— Versandmethode wählen —</option>
-                  {Object.entries(
-                    shippingMethods.reduce<Record<string, ShippingMethod[]>>((acc, m) => {
-                      const key = m.carrierName || m.carrier || "Sonstige";
-                      if (!acc[key]) acc[key] = [];
-                      acc[key].push(m);
-                      return acc;
-                    }, {})
-                  ).map(([carrier, methods]) => (
-                    <optgroup key={carrier} label={carrier.toUpperCase()}>
-                      {methods.map((m) => (
-                        <option key={m.sendcloudId} value={m.sendcloudId}>
-                          {m.name} ({m.minWeight}–{m.maxWeight} kg)
-                        </option>
-                      ))}
-                    </optgroup>
-                  ))}
-                </select>
-                {rule.shippingMethodId > 0 && (
-                  <div className="mt-1 text-[11px] text-txt-muted">
-                    {rule.carrier?.toUpperCase()} — ID: {rule.shippingMethodId}
+          {carrierRules.map((rule, idx) => {
+            const isDragging = draggingRuleId === rule.id;
+            const isDropTarget = dragOverRuleId === rule.id && draggingRuleId && draggingRuleId !== rule.id;
+            return (
+              <div
+                key={rule.id}
+                onDragOver={(e) => {
+                  if (!draggingRuleId) return;
+                  e.preventDefault();
+                  e.dataTransfer.dropEffect = "move";
+                  if (dragOverRuleId !== rule.id) setDragOverRuleId(rule.id);
+                }}
+                onDragLeave={(e) => {
+                  // Only clear when the cursor actually leaves the row, not when
+                  // it crosses a child element. relatedTarget === null on iOS Safari.
+                  const next = e.relatedTarget as Node | null;
+                  if (!next || !(e.currentTarget as Node).contains(next)) {
+                    setDragOverRuleId((cur) => (cur === rule.id ? null : cur));
+                  }
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  if (!draggingRuleId || draggingRuleId === rule.id) {
+                    setDragOverRuleId(null);
+                    return;
+                  }
+                  const fromIdx = carrierRules.findIndex((r) => r.id === draggingRuleId);
+                  const toIdx = idx;
+                  reorderCarrierRules(fromIdx, toIdx);
+                  setDragOverRuleId(null);
+                  setDraggingRuleId(null);
+                }}
+                className={`grid grid-cols-12 gap-2 items-center rounded-xl border bg-app-bg px-2 py-2 transition-all ${
+                  isDragging ? "opacity-40 scale-[0.99]" : ""
+                } ${
+                  isDropTarget
+                    ? "border-accent ring-1 ring-accent/40 bg-accent-dim/40"
+                    : "border-app-border"
+                }`}
+              >
+                {/* Drag handle */}
+                <div className="col-span-1 flex items-center justify-center">
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`Regel verschieben (Position ${idx + 1})`}
+                    draggable
+                    onDragStart={(e) => {
+                      setDraggingRuleId(rule.id);
+                      e.dataTransfer.effectAllowed = "move";
+                      // Some browsers cancel drags without setData.
+                      try { e.dataTransfer.setData("text/plain", rule.id); } catch {}
+                    }}
+                    onDragEnd={() => {
+                      setDraggingRuleId(null);
+                      setDragOverRuleId(null);
+                    }}
+                    onKeyDown={(e) => {
+                      // Keyboard a11y: ↑/↓ on a focused handle reorders without a mouse.
+                      if (e.key === "ArrowUp" && idx > 0) {
+                        e.preventDefault();
+                        reorderCarrierRules(idx, idx - 1);
+                      } else if (e.key === "ArrowDown" && idx < carrierRules.length - 1) {
+                        e.preventDefault();
+                        reorderCarrierRules(idx, idx + 1);
+                      }
+                    }}
+                    title="Ziehen zum Sortieren oder Pfeiltasten verwenden"
+                    className="cursor-grab active:cursor-grabbing text-txt-muted hover:text-txt-primary p-1.5 rounded-md hover:bg-app-elevated focus:outline-none focus:ring-2 focus:ring-accent select-none"
+                  >
+                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
+                      <circle cx="7" cy="5" r="1.5" />
+                      <circle cx="13" cy="5" r="1.5" />
+                      <circle cx="7" cy="10" r="1.5" />
+                      <circle cx="13" cy="10" r="1.5" />
+                      <circle cx="7" cy="15" r="1.5" />
+                      <circle cx="13" cy="15" r="1.5" />
+                    </svg>
                   </div>
-                )}
+                </div>
+                <div className="col-span-2">
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={rule.minWeight}
+                    onChange={(e) => updateCarrierRule(rule.id, "minWeight", parseFloat(e.target.value) || 0)}
+                    className="w-full rounded-lg border border-app-border bg-app-bg px-2 py-1.5 text-sm text-txt-primary focus:outline-none focus:ring-1 focus:ring-accent"
+                  />
+                </div>
+                <div className="col-span-2">
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={rule.maxWeight}
+                    onChange={(e) => updateCarrierRule(rule.id, "maxWeight", parseFloat(e.target.value) || 0)}
+                    className="w-full rounded-lg border border-app-border bg-app-bg px-2 py-1.5 text-sm text-txt-primary focus:outline-none focus:ring-1 focus:ring-accent"
+                  />
+                </div>
+                <div className="col-span-6">
+                  <select
+                    value={rule.shippingMethodId}
+                    onChange={(e) => updateCarrierRule(rule.id, "shippingMethodId", parseInt(e.target.value) || 0)}
+                    className="w-full rounded-lg border border-app-border bg-app-bg px-2 py-1.5 text-sm text-txt-primary focus:outline-none focus:ring-1 focus:ring-accent"
+                  >
+                    <option value={0}>— Versandmethode wählen —</option>
+                    {Object.entries(
+                      shippingMethods.reduce<Record<string, ShippingMethod[]>>((acc, m) => {
+                        const key = m.carrierName || m.carrier || "Sonstige";
+                        if (!acc[key]) acc[key] = [];
+                        acc[key].push(m);
+                        return acc;
+                      }, {})
+                    ).map(([carrier, methods]) => (
+                      <optgroup key={carrier} label={carrier.toUpperCase()}>
+                        {methods.map((m) => (
+                          <option key={m.sendcloudId} value={m.sendcloudId}>
+                            {m.name} ({m.minWeight}–{m.maxWeight} kg)
+                          </option>
+                        ))}
+                      </optgroup>
+                    ))}
+                  </select>
+                  {rule.shippingMethodId > 0 && (
+                    <div className="mt-1 text-[11px] text-txt-muted">
+                      {rule.carrier?.toUpperCase()} — ID: {rule.shippingMethodId}
+                    </div>
+                  )}
+                </div>
+                <div className="col-span-1 flex justify-center">
+                  <button
+                    type="button"
+                    onClick={() => removeCarrierRule(rule.id)}
+                    className="text-txt-muted hover:text-danger transition p-1"
+                    title="Regel entfernen"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
               </div>
-              <div className="col-span-1 flex justify-center">
-                <button
-                  type="button"
-                  onClick={() => removeCarrierRule(rule.id)}
-                  className="text-txt-muted hover:text-danger transition p-1"
-                  title="Regel entfernen"
-                >
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-            </div>
-          ))}
+            );
+          })}
           <button
             type="button"
             onClick={addCarrierRule}

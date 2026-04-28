@@ -13,8 +13,11 @@ import {
   assignTracking,
   printAddressLabels,
   fetchShippingMethods,
+  fetchShippingPreview,
 } from "../api/client";
+import type { ShippingPreviewMatch } from "../api/client";
 import type { Order, OrderTimelineEvent, OmsStatus, ShippingMethod } from "../types";
+import { CarrierPickModal, WeightPromptModal } from "./orders/ShippingDecisionDialog";
 
 /* ─── OMS Status Colors ─── */
 const STATUS_COLORS: Record<string, { bg: string; text: string; dot: string }> = {
@@ -91,6 +94,19 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({ orderId, onClose, onSt
   const [methodsLoading, setMethodsLoading] = useState(false);
   const backdropRef = useRef<HTMLDivElement>(null);
 
+  // ── Versandlabel decision flow (shared with mobile pack module) ───────
+  // The "Versandlabel erstellen" button drives the same preview→prompt→pick
+  // pipeline as the mobile pack flow, but never auto-packs.  When the user
+  // has explicitly selected a `selectedMethodId` from the dropdown, we skip
+  // both modals and forward that ID verbatim.
+  type ShipDecisionStep = "idle" | "weight" | "pick" | "executing";
+  const [shipDecisionStep, setShipDecisionStep] = useState<ShipDecisionStep>("idle");
+  const [shipDecisionMatches, setShipDecisionMatches] = useState<ShippingPreviewMatch[]>([]);
+  const [shipDecisionWeight, setShipDecisionWeight] = useState<number | null>(null);
+  const [shipDecisionInitialWeight, setShipDecisionInitialWeight] = useState<number | null>(null);
+  const [shipDecisionBusy, setShipDecisionBusy] = useState(false);
+  const [shipDecisionError, setShipDecisionError] = useState<string | null>(null);
+
   const loadData = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -155,6 +171,133 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({ orderId, onClose, onSt
       setTransitioning(false);
     }
   }, [orderId, loadData, onStatusChange]);
+
+  /** Execute shipOrder with a known weight + method, reload, surface errors. */
+  const executeShip = useCallback(
+    async (weight: number, methodId: number | null) => {
+      await shipOrder(orderId, {
+        weight,
+        ...(methodId ? { shippingMethodId: methodId } : {}),
+        labelFormat,
+      });
+      await loadData();
+      onStatusChange?.();
+    },
+    [orderId, labelFormat, loadData, onStatusChange]
+  );
+
+  /**
+   * Run the preview→prompt→pick pipeline.
+   * If `forcedMethodId` is given (user picked from the dropdown), the carrier-pick
+   * modal is skipped and that method is used as soon as a weight is known.
+   */
+  const startShippingDecision = useCallback(
+    async (forcedMethodId: number | null) => {
+      setShipDecisionError(null);
+      try {
+        const preview = await fetchShippingPreview(orderId);
+
+        if (!preview.hasWeight) {
+          setShipDecisionInitialWeight(preview.weight);
+          setShipDecisionStep("weight");
+          return;
+        }
+
+        const weight = preview.weight!;
+        if (forcedMethodId) {
+          await executeShip(weight, forcedMethodId);
+          return;
+        }
+
+        const matches = preview.matches || [];
+        if (matches.length === 0) {
+          setError(
+            `Keine Versandregel passt zu ${weight.toLocaleString("de-DE")} kg. ` +
+            `Bitte Versandregeln in den Einstellungen prüfen oder Methode manuell wählen.`
+          );
+          return;
+        }
+        if (matches.length === 1) {
+          await executeShip(weight, matches[0].shippingMethodId);
+          return;
+        }
+
+        setShipDecisionMatches(matches);
+        setShipDecisionWeight(weight);
+        setShipDecisionStep("pick");
+      } catch (err: any) {
+        setError(err?.message || "Versand-Vorschau fehlgeschlagen");
+      }
+    },
+    [orderId, executeShip]
+  );
+
+  const handleWeightConfirm = useCallback(
+    async (kg: number) => {
+      setShipDecisionBusy(true);
+      setShipDecisionError(null);
+      try {
+        await updateOrderWeight(orderId, kg);
+        await loadData();
+        // Preview again so we know how many rules now match.
+        const preview = await fetchShippingPreview(orderId);
+        const weight = preview.weight ?? kg;
+        const matches = preview.matches || [];
+        if (matches.length === 0) {
+          setShipDecisionStep("idle");
+          setError(
+            `Keine Versandregel passt zu ${weight.toLocaleString("de-DE")} kg. ` +
+            `Bitte Versandregeln in den Einstellungen prüfen oder Methode manuell wählen.`
+          );
+          return;
+        }
+        if (matches.length === 1) {
+          setShipDecisionStep("executing");
+          await executeShip(weight, matches[0].shippingMethodId);
+          setShipDecisionStep("idle");
+          return;
+        }
+        setShipDecisionMatches(matches);
+        setShipDecisionWeight(weight);
+        setShipDecisionStep("pick");
+      } catch (err: any) {
+        setShipDecisionError(err?.message || "Gewicht-Update fehlgeschlagen");
+      } finally {
+        setShipDecisionBusy(false);
+      }
+    },
+    [orderId, loadData, executeShip]
+  );
+
+  const handleCarrierConfirm = useCallback(
+    async (match: ShippingPreviewMatch) => {
+      if (shipDecisionWeight == null) return;
+      setShipDecisionBusy(true);
+      setShipDecisionError(null);
+      try {
+        setShipDecisionStep("executing");
+        await executeShip(shipDecisionWeight, match.shippingMethodId);
+        setShipDecisionStep("idle");
+        setShipDecisionMatches([]);
+        setShipDecisionWeight(null);
+      } catch (err: any) {
+        setShipDecisionError(err?.message || "Versand fehlgeschlagen");
+        setShipDecisionStep("pick");
+      } finally {
+        setShipDecisionBusy(false);
+      }
+    },
+    [executeShip, shipDecisionWeight]
+  );
+
+  const cancelShipDecision = useCallback(() => {
+    if (shipDecisionBusy) return;
+    setShipDecisionStep("idle");
+    setShipDecisionMatches([]);
+    setShipDecisionWeight(null);
+    setShipDecisionInitialWeight(null);
+    setShipDecisionError(null);
+  }, [shipDecisionBusy]);
 
   const omsStatus = order?.omsStatus || order?.status || "pending";
   const statusColor = STATUS_COLORS[omsStatus] || STATUS_COLORS.pending;
@@ -555,13 +698,7 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({ orderId, onClose, onSt
                               label="Versandlabel erstellen"
                               icon="📦"
                               onClick={async () => {
-                                await shipOrder(orderId, {
-                                  ...(order.weight ? { weight: order.weight } : {}),
-                                  ...(selectedMethodId ? { shippingMethodId: selectedMethodId } : {}),
-                                  labelFormat,
-                                });
-                                await loadData();
-                                onStatusChange?.();
+                                await startShippingDecision(selectedMethodId);
                               }}
                             />
                           </>
@@ -843,6 +980,29 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({ orderId, onClose, onSt
           </>
         )}
       </div>
+
+      {shipDecisionStep === "weight" && (
+        <WeightPromptModal
+          initialKg={shipDecisionInitialWeight}
+          contextLabel={order?.marketplaceOrderId || order?.orderId || order?.number || orderId}
+          busy={shipDecisionBusy}
+          errorMessage={shipDecisionError}
+          onConfirm={handleWeightConfirm}
+          onCancel={cancelShipDecision}
+        />
+      )}
+
+      {shipDecisionStep === "pick" && shipDecisionWeight != null && (
+        <CarrierPickModal
+          weightKg={shipDecisionWeight}
+          matches={shipDecisionMatches}
+          contextLabel={order?.marketplaceOrderId || order?.orderId || order?.number || orderId}
+          busy={shipDecisionBusy}
+          errorMessage={shipDecisionError}
+          onConfirm={handleCarrierConfirm}
+          onCancel={cancelShipDecision}
+        />
+      )}
     </div>
   );
 };

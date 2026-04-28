@@ -555,14 +555,76 @@ function calculateOrderWeight(order) {
 }
 
 /**
+ * Sort rules by user-defined `order` (ascending) when present, falling back to
+ * `maxWeight` ascending so the smallest matching rule wins for legacy data.
+ * `order` is set by the drag-and-drop UI in OrderSettingsView.
+ *
+ * @param {object[]} rules
+ * @returns {object[]} new sorted array
+ */
+function _sortCarrierRules(rules) {
+  return [...rules].sort((a, b) => {
+    const aHasOrder = a && a.order != null && Number.isFinite(Number(a.order));
+    const bHasOrder = b && b.order != null && Number.isFinite(Number(b.order));
+    if (aHasOrder && bHasOrder) return Number(a.order) - Number(b.order);
+    if (aHasOrder) return -1;
+    if (bHasOrder) return 1;
+    return (Number(a.maxWeight) || 0) - (Number(b.maxWeight) || 0);
+  });
+}
+
+/**
+ * Return ALL carrier rules whose [minWeight, maxWeight] range contains `weight`.
+ * Used by the shipping-preview endpoint to surface multiple valid choices
+ * to the user when overlapping rules are configured (e.g. DHL Kleinpaket
+ * AND DP Maxibrief both cover 1 kg).
+ *
+ * Sorted by user-defined `order` first (drag-and-drop in OrderSettingsView),
+ * falling back to `maxWeight` ascending.
+ *
+ * @param {{ weight: number, rules: object[] }} opts
+ * @returns {Array<{ shippingMethodId: number, carrier: string, label: string,
+ *                   minWeight: number, maxWeight: number, order?: number, id?: string }>}
+ */
+function matchAllCarrierRules({ weight, rules }) {
+  if (!Array.isArray(rules) || rules.length === 0) return [];
+  const w = Number(weight);
+  if (!Number.isFinite(w)) return [];
+
+  const sorted = _sortCarrierRules(rules);
+  const matches = [];
+  for (const rule of sorted) {
+    const min = Number(rule.minWeight) || 0;
+    const max = Number(rule.maxWeight) || Infinity;
+    if (w >= min && w <= max) {
+      matches.push({
+        id: rule.id || null,
+        shippingMethodId: Number(rule.shippingMethodId) || 0,
+        carrier: rule.carrier || 'unknown',
+        label: rule.label || rule.carrier || 'Standard',
+        minWeight: min,
+        maxWeight: Number.isFinite(max) ? max : null,
+        order: rule.order != null ? Number(rule.order) : null,
+      });
+    }
+  }
+  return matches;
+}
+
+/**
  * Match shipping method based on carrier rules from order_settings.
  *
  * Rules format:
- *   { minWeight?: number, maxWeight: number, shippingMethodId: number, carrier: string, label: string }
+ *   { minWeight?: number, maxWeight: number, shippingMethodId: number, carrier: string, label: string, order?: number }
  *
  * Example rules:
  *   { minWeight: 0.5, maxWeight: 1.99, shippingMethodId: 89, carrier: 'dhl', label: 'DHL Kleinpaket' }
  *   { minWeight: 2,   maxWeight: 4.99, shippingMethodId: 201, carrier: 'dpd', label: 'DPD Classic 0-5 kg' }
+ *
+ * Selection precedence:
+ *   1. Highest-priority rule (lowest `order`) whose range contains `weight`.
+ *   2. Smallest-`maxWeight` rule whose range contains `weight` (legacy data without `order`).
+ *   3. Largest rule when `weight` exceeds every range (overflow fallback).
  *
  * @param {{ weight: number, rules: object[] }} opts
  * @returns {{ shippingMethodId: number, carrier: string, label: string } | null}
@@ -571,11 +633,8 @@ function matchCarrierRule({ weight, rules }) {
   if (!Array.isArray(rules) || rules.length === 0) return null;
 
   const w = Number(weight) || 0;
+  const sorted = _sortCarrierRules(rules);
 
-  // Sort by maxWeight ascending (type-safe)
-  const sorted = [...rules].sort((a, b) => (Number(a.maxWeight) || 0) - (Number(b.maxWeight) || 0));
-
-  // Find first rule where weight is within [minWeight, maxWeight]
   for (const rule of sorted) {
     const min = Number(rule.minWeight) || 0;
     const max = Number(rule.maxWeight) || Infinity;
@@ -588,9 +647,12 @@ function matchCarrierRule({ weight, rules }) {
     }
   }
 
-  // Fallback: if weight exceeds all rules, use the largest rule
-  const last = sorted[sorted.length - 1];
-  if (w > (Number(last.maxWeight) || 0)) {
+  // Fallback: if weight exceeds all rules, use the rule with the largest maxWeight.
+  // We deliberately ignore user-defined `order` here so the fallback still picks
+  // the physically largest carrier instead of an arbitrary high-priority one.
+  const byMax = [...rules].sort((a, b) => (Number(a.maxWeight) || 0) - (Number(b.maxWeight) || 0));
+  const last = byMax[byMax.length - 1];
+  if (last && w > (Number(last.maxWeight) || 0)) {
     return {
       shippingMethodId: last.shippingMethodId,
       carrier: last.carrier || 'unknown',
@@ -1235,8 +1297,10 @@ module.exports = {
   cancelParcel,
   calculateOrderWeight,
   matchCarrierRule,
+  matchAllCarrierRules,
   shipOrder,
   downloadLabelPdf,
   syncSendCloudParcels,
   pollDeliveryStatus,
+  DEFAULT_CARRIER_RULES,
 };

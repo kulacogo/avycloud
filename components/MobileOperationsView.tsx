@@ -1,7 +1,20 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Order, Product, getOrderStatus } from '../types';
 import { getProductQuantity } from '../utils/product';
-import { fetchOrders as fetchOrdersApi, syncOrders as syncOrdersApi, completeOrder, packOrder, packAndShip, stockInProduct, stockOutProduct, fetchProfile } from '../api/client';
+import {
+  fetchOrders as fetchOrdersApi,
+  syncOrders as syncOrdersApi,
+  completeOrder,
+  packOrder,
+  packAndShip,
+  stockInProduct,
+  stockOutProduct,
+  fetchProfile,
+  fetchShippingPreview,
+  updateOrderWeight,
+} from '../api/client';
+import type { ShippingPreview, ShippingPreviewMatch } from '../api/client';
+import { CarrierPickModal, WeightPromptModal } from './orders/ShippingDecisionDialog';
 import { useI18n } from '../i18n';
 import { compareBinCodesForPickRoute } from '../utils/warehouseRoute';
 import type { UploadGroupPayload } from '../hooks/useIdentification';
@@ -121,6 +134,27 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
   const [pickedFromBin, setPickedFromBin] = useState<Record<string, number>>({}); // key: `${productId}::${BIN}` -> pickedQty
   const [pendingPick, setPendingPick] = useState<MobilePickTask | null>(null);
   const [pendingPickQty, setPendingPickQty] = useState<number>(0);
+
+  // ── Pack decision flow ─────────────────────────────────────────────
+  // Two-step UX before creating a label:
+  //   1. If `weight` is missing on the order → ask the user, persist via
+  //      updateOrderWeight, re-run preview.
+  //   2. If multiple carrier rules match → ask the user to pick one;
+  //      forward the chosen `shippingMethodId` to packAndShip.
+  // Both modals are deliberately local to the pack mode — they unmount
+  // when leaving the screen.
+  type ShipDecisionStep = 'idle' | 'weight' | 'pick' | 'executing';
+  type PendingShipTarget = {
+    orderId: string;
+    orderLabel: string;
+    initialWeight: number | null;
+  };
+  const [shipDecisionStep, setShipDecisionStep] = useState<ShipDecisionStep>('idle');
+  const [shipDecisionTarget, setShipDecisionTarget] = useState<PendingShipTarget | null>(null);
+  const [shipDecisionMatches, setShipDecisionMatches] = useState<ShippingPreviewMatch[]>([]);
+  const [shipDecisionWeight, setShipDecisionWeight] = useState<number | null>(null);
+  const [shipDecisionError, setShipDecisionError] = useState<string | null>(null);
+  const [shipDecisionBusy, setShipDecisionBusy] = useState(false);
 
   const [identifyPaletteCode, setIdentifyPaletteCode] = useState('');
   const [identifySlots, setIdentifySlots] = useState<number[]>([0]);
@@ -1542,68 +1576,186 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
       setPackMessage(null);
     };
 
-    const submitPack = () => {
-      if (!selectedItem?.orderId) return;
-      setPackMessage(null);
-      void (async () => {
-        try {
-          // Find the order to pass weight for carrier rule matching
-          const order = readyToPackOrders.find((o) => o.id === selectedItem.orderId);
-          const weightOpt = order?.weight ? { weight: order.weight } : undefined;
+    /**
+     * Execute the actual pack + ship + print step.
+     * Used both as the happy-path tail of submitPack (single carrier match)
+     * AND from the CarrierPickModal's onConfirm.
+     */
+    const executePackAndShip = async (
+      orderId: string,
+      orderLabel: string,
+      weightKg: number,
+      shippingMethodId: number | null
+    ) => {
+      try {
+        const result = await packAndShip(orderId, {
+          weight: weightKg,
+          ...(shippingMethodId ? { shippingMethodId } : {}),
+          labelFormat: printingPrefs.labelFormat || 'a6',
+        });
 
-          // Check if address is complete enough for label creation
-          const cust = order?.customer;
-          const hasAddress = cust?.street && cust?.city && cust?.zip;
-
-          if (!hasAddress) {
-            // Pack only — no label possible without address
-            await packOrder(selectedItem.orderId);
-            setPackMessage(
-              `${selectedItem.orderNumber || selectedItem.orderId} verpackt — Versandlabel nicht möglich (Adresse unvollständig).`
-            );
-          } else {
-            // Pack + Ship + Print label (with user's preferred format)
-            const result = await packAndShip(selectedItem.orderId, {
-              ...weightOpt,
-              labelFormat: printingPrefs.labelFormat || 'a6',
-            });
-            const orderLabel = selectedItem.orderNumber || selectedItem.orderId;
-
-            if (result.labelBlobUrl) {
-              // Mobile UX: always open the label PDF in a new tab so the user can trigger
-              // the print manually from the viewer. The LAN-printer path is intentionally
-              // skipped on mobile — the phone is rarely on the same network as the printer
-              // and the proxy's HTTP 200 does not guarantee a physical print.
-              // Keep the blob URL alive for several minutes so the viewer tab stays valid.
-              window.open(result.labelBlobUrl, '_blank');
-              setTimeout(() => URL.revokeObjectURL(result.labelBlobUrl!), 5 * 60 * 1000);
-              setPackMessage(
-                `${orderLabel} verpackt & Label erstellt (${result.carrier || '?'}) — PDF im neuen Tab geöffnet. Druck manuell starten.`
-              );
-            } else if (result.labelBlob) {
-              // Popup blocked: offer the PDF as a download so the user can still get it.
-              const url = URL.createObjectURL(result.labelBlob);
-              const a = document.createElement('a');
-              a.href = url;
-              a.download = `label-${orderLabel}.pdf`;
-              a.click();
-              setTimeout(() => URL.revokeObjectURL(url), 5 * 60 * 1000);
-              setPackMessage(
-                `${orderLabel} verpackt & Label erstellt (${result.carrier || '?'}) — Label-PDF heruntergeladen.`
-              );
-            } else {
-              setPackMessage(
-                `${orderLabel} verpackt & versendet — kein Label-PDF verfügbar.${result.labelError ? ` (${result.labelError})` : ''}`
-              );
-            }
-          }
-        } catch (err: any) {
-          setPackMessage(t('ops.mobile.pack.scan.error', { message: err?.message || t('common.unknownError') }));
+        if (result.labelBlobUrl) {
+          window.open(result.labelBlobUrl, '_blank');
+          setTimeout(() => URL.revokeObjectURL(result.labelBlobUrl!), 5 * 60 * 1000);
+          setPackMessage(
+            `${orderLabel} verpackt & Label erstellt (${result.carrier || '?'}) — PDF im neuen Tab geöffnet. Druck manuell starten.`
+          );
+        } else if (result.labelBlob) {
+          const url = URL.createObjectURL(result.labelBlob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `label-${orderLabel}.pdf`;
+          a.click();
+          setTimeout(() => URL.revokeObjectURL(url), 5 * 60 * 1000);
+          setPackMessage(
+            `${orderLabel} verpackt & Label erstellt (${result.carrier || '?'}) — Label-PDF heruntergeladen.`
+          );
+        } else {
+          setPackMessage(
+            `${orderLabel} verpackt & versendet — kein Label-PDF verfügbar.${result.labelError ? ` (${result.labelError})` : ''}`
+          );
         }
+      } catch (err: any) {
+        setPackMessage(t('ops.mobile.pack.scan.error', { message: err?.message || t('common.unknownError') }));
+      } finally {
         void refreshOrders();
         setPackScopedOrderKey(null);
         setPackSelectedKey(null);
+      }
+    };
+
+    /**
+     * Drive the preview → decision pipeline.
+     * Returns once the next user prompt is open OR shipping has been triggered.
+     */
+    const driveShipping = async (
+      target: PendingShipTarget,
+      preview: ShippingPreview
+    ) => {
+      if (!preview.hasWeight) {
+        setShipDecisionTarget(target);
+        setShipDecisionMatches([]);
+        setShipDecisionWeight(null);
+        setShipDecisionError(null);
+        setShipDecisionStep('weight');
+        return;
+      }
+
+      const matches = preview.matches || [];
+      const weight = preview.weight!;
+
+      if (matches.length === 0) {
+        setPackMessage(
+          `${target.orderLabel}: Keine Versandregel passt zu ${weight.toLocaleString('de-DE')} kg. Bitte Versandregeln anpassen.`
+        );
+        return;
+      }
+
+      if (matches.length === 1) {
+        setShipDecisionStep('executing');
+        await executePackAndShip(target.orderId, target.orderLabel, weight, matches[0].shippingMethodId);
+        setShipDecisionStep('idle');
+        setShipDecisionTarget(null);
+        return;
+      }
+
+      setShipDecisionTarget(target);
+      setShipDecisionMatches(matches);
+      setShipDecisionWeight(weight);
+      setShipDecisionError(null);
+      setShipDecisionStep('pick');
+    };
+
+    const submitPack = () => {
+      if (!selectedItem?.orderId) return;
+      setPackMessage(null);
+
+      const order = readyToPackOrders.find((o) => o.id === selectedItem.orderId);
+      const orderLabel = selectedItem.orderNumber || selectedItem.orderId;
+
+      // No address → pack only, never attempt a label (avoids a guaranteed SendCloud 400).
+      const cust = order?.customer;
+      const hasAddress = cust?.street && cust?.city && cust?.zip;
+      if (!hasAddress) {
+        void (async () => {
+          try {
+            await packOrder(selectedItem.orderId);
+            setPackMessage(
+              `${orderLabel} verpackt — Versandlabel nicht möglich (Adresse unvollständig).`
+            );
+          } catch (err: any) {
+            setPackMessage(t('ops.mobile.pack.scan.error', { message: err?.message || t('common.unknownError') }));
+          } finally {
+            void refreshOrders();
+            setPackScopedOrderKey(null);
+            setPackSelectedKey(null);
+          }
+        })();
+        return;
+      }
+
+      void (async () => {
+        try {
+          const preview = await fetchShippingPreview(selectedItem.orderId);
+          await driveShipping(
+            {
+              orderId: selectedItem.orderId,
+              orderLabel,
+              initialWeight: preview.weight,
+            },
+            preview
+          );
+        } catch (err: any) {
+          setPackMessage(t('ops.mobile.pack.scan.error', { message: err?.message || t('common.unknownError') }));
+        }
       })();
+    };
+
+    const handleWeightConfirm = async (kg: number) => {
+      if (!shipDecisionTarget) return;
+      setShipDecisionBusy(true);
+      setShipDecisionError(null);
+      try {
+        await updateOrderWeight(shipDecisionTarget.orderId, kg);
+        const preview = await fetchShippingPreview(shipDecisionTarget.orderId);
+        await driveShipping(shipDecisionTarget, preview);
+      } catch (err: any) {
+        setShipDecisionError(err?.message || t('common.unknownError'));
+      } finally {
+        setShipDecisionBusy(false);
+      }
+    };
+
+    const handleCarrierConfirm = async (match: ShippingPreviewMatch) => {
+      if (!shipDecisionTarget || shipDecisionWeight == null) return;
+      setShipDecisionBusy(true);
+      setShipDecisionError(null);
+      try {
+        setShipDecisionStep('executing');
+        await executePackAndShip(
+          shipDecisionTarget.orderId,
+          shipDecisionTarget.orderLabel,
+          shipDecisionWeight,
+          match.shippingMethodId
+        );
+        setShipDecisionStep('idle');
+        setShipDecisionTarget(null);
+        setShipDecisionMatches([]);
+      } catch (err: any) {
+        setShipDecisionError(err?.message || t('common.unknownError'));
+        setShipDecisionStep('pick');
+      } finally {
+        setShipDecisionBusy(false);
+      }
+    };
+
+    const cancelShipDecision = () => {
+      if (shipDecisionBusy) return;
+      setShipDecisionStep('idle');
+      setShipDecisionTarget(null);
+      setShipDecisionMatches([]);
+      setShipDecisionWeight(null);
+      setShipDecisionError(null);
     };
     return (
       <div className="max-w-xl mx-auto flex flex-col gap-3">
@@ -1723,6 +1875,29 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
               Produkte durchgehen
             </button>
           </div>
+        ) : null}
+
+        {shipDecisionStep === 'weight' && shipDecisionTarget ? (
+          <WeightPromptModal
+            initialKg={shipDecisionTarget.initialWeight}
+            contextLabel={shipDecisionTarget.orderLabel}
+            busy={shipDecisionBusy}
+            errorMessage={shipDecisionError}
+            onConfirm={handleWeightConfirm}
+            onCancel={cancelShipDecision}
+          />
+        ) : null}
+
+        {shipDecisionStep === 'pick' && shipDecisionTarget && shipDecisionWeight != null ? (
+          <CarrierPickModal
+            weightKg={shipDecisionWeight}
+            matches={shipDecisionMatches}
+            contextLabel={shipDecisionTarget.orderLabel}
+            busy={shipDecisionBusy}
+            errorMessage={shipDecisionError}
+            onConfirm={handleCarrierConfirm}
+            onCancel={cancelShipDecision}
+          />
         ) : null}
       </div>
     );

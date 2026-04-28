@@ -693,6 +693,8 @@ export interface OrderSettingsData {
     shippingMethodId: number;
     carrier: string;
     label: string;
+    /** Drag-and-drop priority. Lowest number wins on tie-break. */
+    order?: number;
   }>;
   statuses?: Array<{ id: string; name: string; description: string; color: string }>;
   numberRanges?: Record<string, { prefix: string; startNumber: string }>;
@@ -3277,12 +3279,16 @@ export const packOrder = async (orderId: string): Promise<void> => {
 /**
  * Pack + Ship + Print in one step.
  * 1) Mark order as packed
- * 2) Create shipping label via SendCloud (carrier rules auto-select method)
+ * 2) Create shipping label via SendCloud
+ *    - if `opts.shippingMethodId` is given (user-picked from CarrierPickModal),
+ *      it is forwarded verbatim and the auto-rule is skipped server-side.
+ *    - otherwise the backend matches `opts.weight` against the tenant's
+ *      carrier rules.
  * 3) Download label PDF via authenticated proxy and open for printing
  */
 export async function packAndShip(
   orderId: string,
-  opts?: { weight?: number; labelFormat?: string }
+  opts?: { weight?: number; labelFormat?: string; shippingMethodId?: number }
 ): Promise<{ labelBlobUrl: string | null; labelBlob: Blob | null; trackingNumber: string | null; carrier: string | null; labelError?: string | null }> {
   await packOrder(orderId);
   const result = await shipOrder(orderId, opts);
@@ -3538,6 +3544,49 @@ export async function fetchReorderAlerts(): Promise<any[]> {
 }
 
 // ── OMS-B: Shipping & Invoices ──────────────────────────────
+
+/** A single carrier rule that matches the order weight. Returned by the preview endpoint. */
+export interface ShippingPreviewMatch {
+  id: string | null;
+  shippingMethodId: number;
+  carrier: string;
+  label: string;
+  minWeight: number;
+  maxWeight: number | null;
+  order: number | null;
+}
+
+export interface ShippingPreview {
+  orderId: string;
+  /** kg — null if neither order.weight nor item-sum produced a value > 0 */
+  weight: number | null;
+  weightSource: "order" | "items" | null;
+  hasWeight: boolean;
+  hasAddress: boolean;
+  matches: ShippingPreviewMatch[];
+  rulesConfigured: number;
+}
+
+/**
+ * Diagnose ship-readiness before creating a label.
+ *
+ * Pack-flow (mobile + desktop) drives off this:
+ *   - hasWeight === false        → prompt user for weight, persist via updateOrderWeight, retry
+ *   - matches.length === 0       → no rule fits (over-/underweight) → surface error
+ *   - matches.length === 1       → auto-pick that method
+ *   - matches.length > 1         → ask user to pick (CarrierPickModal)
+ */
+export async function fetchShippingPreview(orderId: string): Promise<ShippingPreview> {
+  const res = await fetchApi(
+    `${BACKEND_URL}/api/orders/${encodeURIComponent(orderId)}/shipping-preview`,
+    { method: "GET" }
+  );
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) {
+    throw new Error(data?.error?.message || "Versand-Vorschau fehlgeschlagen");
+  }
+  return data?.data;
+}
 
 export async function shipOrder(orderId: string, opts?: { shippingMethodId?: number; weight?: number; labelFormat?: string }): Promise<any> {
   const res = await fetchApi(`${BACKEND_URL}/api/orders/${encodeURIComponent(orderId)}/ship`, {
