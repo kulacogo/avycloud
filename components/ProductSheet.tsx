@@ -755,15 +755,21 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
 
         // Handle identity object
         if (change.identity) {
+          // Strip protocol-only `_clear` directive and `barcodes` (handled
+          // separately below) before spreading, so an empty `barcodes: []`
+          // never accidentally wipes valid existing codes via the spread.
+          const identityRest = { ...(change.identity as Record<string, unknown>) };
+          delete (identityRest as { _clear?: unknown })._clear;
+          delete (identityRest as { barcodes?: unknown }).barcodes;
           next.identification = {
             ...next.identification,
-            ...change.identity,
+            ...(identityRest as Partial<typeof next.identification>),
           };
           // Explicitly ensure name is overwritten if present in identity/title
           if (change.identity.name) {
             next.identification.name = change.identity.name;
-          } else if (change.identity.title) {
-            next.identification.name = change.identity.title;
+          } else if ((change.identity as { title?: string }).title) {
+            next.identification.name = (change.identity as { title?: string }).title!;
           }
           // Explicitly ensure brand is overwritten if present in identity
           if (change.identity.brand) {
@@ -772,7 +778,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
         }
 
         // Handle barcodes merging specifically
-        if (change.identity?.barcodes && Array.isArray(change.identity.barcodes)) {
+        if (change.identity?.barcodes && Array.isArray(change.identity.barcodes) && change.identity.barcodes.length > 0) {
           const merged = new Set([
             ...(next.identification.barcodes || []),
             ...change.identity.barcodes
@@ -781,6 +787,29 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
             .map(b => normalizeBarcode(String(b)))
             .filter(b => b && isValidGtin(b));
           incomingBarcodes = next.identification.barcodes;
+        }
+
+        // Honor explicit clear directive — see DatasheetChange.identity._clear.
+        // We delete from BOTH `identification.barcodes` (UI source of truth in
+        // Stammdaten) AND `details.identifiers.*` (eBay publish source of truth)
+        // to keep the two layers consistent. Without dual-clearing, eBay would
+        // still see the EAN in the catalog path OR the user would still see it
+        // in Stammdaten — the exact bug from the ATE auto-parts case.
+        const clearList = Array.isArray((change.identity as { _clear?: string[] } | undefined)?._clear)
+          ? (change.identity as { _clear?: string[] })._clear!
+          : [];
+        if (clearList.length) {
+          next.details = next.details || ({} as typeof next.details);
+          const detailsAny = next.details as unknown as { identifiers?: Record<string, string | undefined> };
+          const ids = detailsAny.identifiers || {};
+          if (clearList.includes('barcodes')) {
+            next.identification.barcodes = [];
+            incomingBarcodes = [];
+          }
+          if (clearList.includes('ean')) delete ids.ean;
+          if (clearList.includes('gtin')) delete ids.gtin;
+          if (clearList.includes('upc')) delete ids.upc;
+          detailsAny.identifiers = ids;
         }
       }
 
@@ -1860,7 +1889,11 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
       </TabPanel>
 
       {/* ─── TAB: KI-Assistent ──────────────────────────────── */}
-      <TabPanel tabId="assistent" activeTab={activeTab}>
+      {/* keepMounted: chat state (messages, pending suggestions, in-flight stream) must
+          survive tab switches. Otherwise users lose the "Übernehmen" button on the last
+          assistant suggestion (datasheetChanges live only in component state) and the
+          last user message can race the async server-side session persistence. */}
+      <TabPanel tabId="assistent" activeTab={activeTab} keepMounted>
         <div className="h-[calc(100vh-12rem)] min-h-[480px]">
           <AssistantChat
             product={localProduct}

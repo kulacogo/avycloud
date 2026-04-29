@@ -207,6 +207,27 @@ const sanitizeDatasheetChange = (entry: any = {}): DatasheetChange => {
   if (barcodeSet.size) {
     identityPatch.barcodes = Array.from(barcodeSet);
   }
+  // Forward explicit clear directive from the backend (see DatasheetChange.identity._clear).
+  // This is the only sanctioned way to delete identifier fields from the chat tool —
+  // empty arrays cannot do it because additive merges drop them.
+  if (entry.identity && Array.isArray(entry.identity._clear)) {
+    const allowed = new Set(['barcodes', 'ean', 'gtin', 'upc']);
+    const clear = Array.from(
+      new Set(
+        entry.identity._clear
+          .map((v: any) => normalizeLower(v))
+          .filter((v: string) => allowed.has(v))
+      )
+    );
+    if (clear.length) {
+      identityPatch._clear = clear;
+      // If the assistant asks to clear barcodes, do not also send an empty
+      // barcodes array (which the additive consolidator would just drop).
+      if (clear.includes('barcodes')) {
+        delete identityPatch.barcodes;
+      }
+    }
+  }
   if (Object.keys(identityPatch).length) {
     result.identity = identityPatch;
   }
@@ -563,9 +584,26 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
     }
   }, [messages, pendingChanges, pendingImages, serpInsights, evidence, stickToBottom, streamEvents, thoughts, groundingUrls, needsHuman]);
 
-  // Load existing conversation history from Firestore on mount
+  // Load existing conversation history from Firestore on mount.
+  //
+  // IMPORTANT: We only hydrate from the server if the local message buffer is empty.
+  // Otherwise we would clobber:
+  //   (a) the most recent assistant message's `datasheetChanges` (the "Übernehmen" button) —
+  //       Firestore only persists `{role, text, ts}`, not the structured edit payload, and
+  //   (b) optimistic user messages that haven't been flushed yet by the (async, best-effort)
+  //       backend `appendMessages` call.
+  // We track per-product hydration so switching to a different product still triggers a fresh load.
+  const hydratedProductIdRef = useRef<string | null>(null);
   useEffect(() => {
     if (!product?.id) return;
+    if (hydratedProductIdRef.current === product.id) return;
+    if (messages.length > 0) {
+      // Local state already has live messages (e.g. came back to this product after
+      // navigating away and back); do not blow them away with stale server data.
+      hydratedProductIdRef.current = product.id;
+      return;
+    }
+    hydratedProductIdRef.current = product.id;
     getChatSession(product.id).then((res) => {
       if (!res.ok || !res.session) return;
       const session = res.session;
@@ -582,7 +620,8 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
           timestamp: m.ts,
         }));
       if (loadedMessages.length > 0) {
-        setMessages(loadedMessages);
+        // Merge: only replace if local is still empty when the response arrives.
+        setMessages((prev) => (prev.length > 0 ? prev : loadedMessages));
       }
     }).catch(() => {
       // Session load is best-effort — don't block the chat

@@ -5,6 +5,7 @@ const { FieldValue } = require('@google-cloud/firestore');
 
 const { firestore, getAllProducts, PRODUCTS_COLLECTION } = require('./firestore');
 const { getRequiredAspects, getCategoryAspectCatalog, findEbayCategory } = require('./ebay-taxonomy');
+const { isValidGtin: isValidGtinShared } = require('./gtin');
 
 function resolveCategoryNameFromId(categoryId) {
   if (categoryId === null || categoryId === undefined || categoryId === '') return null;
@@ -4060,13 +4061,58 @@ function mapProductToEbayItem(product, overrides = {}) {
     ? rawWeight
     : (typeof rawWeight === 'string' && parseFloat(rawWeight) > 0 ? parseFloat(rawWeight) : null);
 
-  const ean = safeString(overrides.ean) || safeString(identifiers?.ean) || safeString(identifiers?.gtin) || undefined;
+  // EAN/GTIN resolution chain.
+  //
+  // Historical bug: identifiers (`details.identifiers.ean/.gtin`) and the UI's
+  // "Barcodes" field (`identification.barcodes`) are populated by different code
+  // paths. `saveProduct` only syncs from barcodes → identifiers when
+  // `syncIdentifiersFromBarcodes` is enabled (manual UI saves + opt-in automation).
+  // For products imported by intake services or by enrichment without a manual save,
+  // `identifiers.ean` can stay empty even though the user clearly sees an EAN in
+  // Stammdaten. Without a fallback, eBay receives `<EAN>Does not apply</EAN>` in
+  // ProductListingDetails and rejects the listing with "Das Feld EAN fehlt." for
+  // categories that require a real GTIN.
+  //
+  // Resolution order:
+  //   1. explicit override
+  //   2. `details.identifiers.ean` / `.gtin`
+  //   3. validated GTIN from `identification.barcodes` (preferred: 13-digit EAN)
+  //   4. EAN/GTIN from `details.attributes` (Item Specifics fallback)
+  const pickValidatedBarcode = () => {
+    const list = Array.isArray(product?.identification?.barcodes)
+      ? product.identification.barcodes
+      : [];
+    const candidates = list.map((b) => normalizeDigits(b)).filter(Boolean);
+    const valid = candidates.filter((d) => isValidGtinShared(d));
+    if (!valid.length) return '';
+    return (
+      valid.find((d) => d.length === 13) ||
+      valid.find((d) => d.length === 14) ||
+      valid.find((d) => d.length === 12) ||
+      valid[0] ||
+      ''
+    );
+  };
+  const eanFromAttributes =
+    pickAttributeValue('EAN', 'GTIN', 'GTIN-13', 'GTIN-14', 'EAN-13') || '';
+  const eanFromBarcodes = pickValidatedBarcode();
+  const ean =
+    safeString(overrides.ean) ||
+    safeString(identifiers?.ean) ||
+    safeString(identifiers?.gtin) ||
+    eanFromBarcodes ||
+    (isValidGtinShared(normalizeDigits(eanFromAttributes)) ? normalizeDigits(eanFromAttributes) : '') ||
+    undefined;
   const isbn =
     safeString(overrides.isbn) ||
     safeString(identifiers?.isbn) ||
     pickAttributeValue('ISBN', 'ISBN-13', 'ISBN 13', 'ISBN13', 'ISBN-10', 'ISBN 10', 'ISBN10') ||
     undefined;
-  const mpn = safeString(overrides.mpn) || safeString(identifiers?.mpn) || undefined;
+  const mpn =
+    safeString(overrides.mpn) ||
+    safeString(identifiers?.mpn) ||
+    pickAttributeValue('MPN', 'Herstellernummer', 'Hersteller-Nummer', 'Hersteller Nr.', 'Manufacturer Part Number') ||
+    undefined;
   const brand =
     safeString(overrides.brand) ||
     safeString(product?.identification?.brand) ||
@@ -4101,6 +4147,35 @@ function mapProductToEbayItem(product, overrides = {}) {
   const itemCompatibilityList = kTypeNumbers.length
     ? kTypeNumbers.slice(0, 1000).map((n) => ({ ktype: n }))
     : null;
+
+  // Auto-parts catalog conflict guard.
+  //
+  // eBay rejects automotive listings that combine a real GTIN/EAN catalog reference
+  // with a seller-provided ItemCompatibilityList (K-Typ): the catalog product's own
+  // fitment data must agree with the K-Typ list. In practice this nearly always fails
+  // and surfaces as "Das Feld EAN fehlt" or "Fahrzeugverwendungsliste/Catalog conflict".
+  // Sellers who curate K-Typ data manually want their list to win; the only reliable
+  // way to do that is to skip the catalog reference (`<ProductListingDetails>` block)
+  // entirely. We do that automatically when:
+  //   - the product carries a non-empty K-Typ compatibility list, AND
+  //   - the seller has at least one own picture (otherwise the listing would lose its
+  //     image basis when EPS catalog images are dropped).
+  // The product data itself (EAN/GTIN in identifiers/barcodes) stays untouched, so
+  // other marketplaces and product identity remain intact.
+  const hasOwnPictureForKtypeSkip = pictureUrls.some(
+    (u) => !/^https?:\/\/(?:i\.ebayimg\.com|[a-z0-9.-]*\.ebaystatic\.com)\//i.test(u),
+  );
+  const skipCatalogForKtype =
+    Array.isArray(itemCompatibilityList) &&
+    itemCompatibilityList.length > 0 &&
+    hasOwnPictureForKtypeSkip;
+  const skipProductListingDetails =
+    product?.details?.skipEbayCatalogLookup === true || skipCatalogForKtype;
+  if (skipCatalogForKtype && product?.details?.skipEbayCatalogLookup !== true) {
+    console.info(
+      `[buildListingFromProduct] Auto-skipped catalog reference for K-Typ listing (${itemCompatibilityList.length} kTypes) to avoid catalog/fitment conflict.`,
+    );
+  }
 
   // Publish path: Always remove technical keys (e.g. "Kategorie") and enforce maxLength.
   // Do NOT pre-drop PRODUCT aspects here because catalog matching may fail; eBay will then require seller-provided specifics.
@@ -4179,7 +4254,7 @@ function mapProductToEbayItem(product, overrides = {}) {
     brand,
     itemSpecifics: filteredSpecifics.itemSpecifics,
     itemCompatibilityList,
-    skipProductListingDetails: product?.details?.skipEbayCatalogLookup === true,
+    skipProductListingDetails,
     weightKg,
     country: safeString(overrides.country) || 'DE',
     postalCode,
@@ -4244,7 +4319,26 @@ function validatePublishReadiness(product, overrides = {}) {
     }
     return '';
   };
-  const ean = safeString(overrides.ean) || safeString(identifiers?.ean) || safeString(identifiers?.gtin);
+  // Mirror the EAN resolution chain from mapProductToEbayItem so the readiness
+  // gate doesn't warn about missing EAN when the data is just stored in barcodes
+  // or attributes (and will be picked up at publish-time).
+  const eanFromBarcodes = (() => {
+    const list = Array.isArray(product?.identification?.barcodes)
+      ? product.identification.barcodes
+      : [];
+    for (const raw of list) {
+      const digits = safeString(raw).replace(/\D+/g, '');
+      if (digits && isValidGtinShared(digits)) return digits;
+    }
+    return '';
+  })();
+  const eanFromAttributes = pickAttributeValue('EAN', 'GTIN', 'GTIN-13', 'GTIN-14', 'EAN-13');
+  const ean =
+    safeString(overrides.ean) ||
+    safeString(identifiers?.ean) ||
+    safeString(identifiers?.gtin) ||
+    eanFromBarcodes ||
+    (isValidGtinShared(eanFromAttributes.replace(/\D+/g, '')) ? eanFromAttributes.replace(/\D+/g, '') : '');
   const isbn =
     safeString(overrides.isbn) ||
     safeString(identifiers?.isbn) ||

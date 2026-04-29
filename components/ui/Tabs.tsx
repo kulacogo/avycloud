@@ -94,12 +94,27 @@ export interface TabPanelProps {
   activeTab: string;
   children: React.ReactNode;
   className?: string;
+  /**
+   * When true, the panel stays mounted while another tab is active and is
+   * only visually hidden via CSS. Use for panels whose internal state must
+   * survive tab switches (e.g. the KI-Assistent chat with in-flight
+   * suggestions). Default behaviour (unmount when inactive) is preserved.
+   */
+  keepMounted?: boolean;
 }
 
-export const TabPanel: React.FC<TabPanelProps> = ({ tabId, activeTab, children, className }) => {
-  if (tabId !== activeTab) return null;
+export const TabPanel: React.FC<TabPanelProps> = ({ tabId, activeTab, children, className, keepMounted = false }) => {
+  const isActive = tabId === activeTab;
+  if (!isActive && !keepMounted) return null;
   return (
-    <div id={`tabpanel-${tabId}`} role="tabpanel" aria-labelledby={tabId} className={className}>
+    <div
+      id={`tabpanel-${tabId}`}
+      role="tabpanel"
+      aria-labelledby={tabId}
+      className={className}
+      hidden={!isActive}
+      style={!isActive ? { display: "none" } : undefined}
+    >
       {children}
     </div>
   );

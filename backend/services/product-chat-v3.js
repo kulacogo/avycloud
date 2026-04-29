@@ -110,6 +110,11 @@ const UPDATE_DATASHEET_DECLARATION = {
           gtin: { type: 'string' },
           upc: { type: 'string' },
           mpn: { type: 'string' },
+          clear: {
+            type: 'array',
+            items: { type: 'string' },
+            description: 'Identity fields to delete (allowed: barcodes, ean, gtin, upc). Use only when the user explicitly asks to remove these values.',
+          },
         },
       },
       short_description: { type: 'string' },
@@ -266,6 +271,21 @@ function sanitizeDatasheetChangeV3(entry) {
             } else {
               const v = sanitizeString(raw[key], 120);
               if (v) id[key] = v;
+            }
+          }
+          // Explicit clear directive — see product-chat-v2.js for rationale.
+          if (Array.isArray(raw.clear)) {
+            const allowed = new Set(['barcodes', 'ean', 'gtin', 'upc']);
+            const requestedClear = Array.from(
+              new Set(
+                raw.clear
+                  .map((v) => sanitizeString(v, 16).toLowerCase())
+                  .filter((v) => allowed.has(v)),
+              ),
+            );
+            if (requestedClear.length) {
+              id._clear = requestedClear;
+              if (requestedClear.includes('barcodes')) delete id.barcodes;
             }
           }
           if (Object.keys(id).length) out.identity = id;

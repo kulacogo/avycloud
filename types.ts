@@ -265,10 +265,22 @@ export interface ProductBundle {
   };
 }
 
+export type DatasheetClearableField = "barcodes" | "ean" | "gtin" | "upc";
+
 export interface DatasheetChange {
   summary?: string;
   title?: string;
-  identity?: Partial<Identification>;
+  identity?: Partial<Identification> & {
+    /**
+     * Explicit field-clear directive. The KI-Assistent emits this when the user
+     * asks to delete identifier fields (e.g. clearing EAN/GTIN to resolve an
+     * eBay catalog vs K-Typ fitment conflict). Allowed values: "barcodes",
+     * "ean", "gtin", "upc". Frontend honours the list by deleting the
+     * corresponding fields from `identification.barcodes` and
+     * `details.identifiers.*` on apply.
+     */
+    _clear?: DatasheetClearableField[];
+  };
   categoryId?: string;
   categoryPath?: string;
   short_description?: string;

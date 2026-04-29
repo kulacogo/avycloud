@@ -163,6 +163,11 @@ const UPDATE_DATASHEET_DECLARATION = {
           ean: { type: 'STRING' },
           gtin: { type: 'STRING' },
           upc: { type: 'STRING' },
+          clear: {
+            type: 'ARRAY',
+            items: { type: 'STRING' },
+            description: 'List of identity fields to explicitly clear (e.g. ["barcodes", "ean", "gtin", "upc"]). Use only when the user explicitly asks to delete these values (e.g. resolving an eBay catalog vs K-Typ conflict).',
+          },
         },
       },
       short_description: { type: 'STRING', description: 'HTML product description (180-240 words).' },
@@ -319,6 +324,13 @@ QUALITÄT:
 - Kategorie: Wenn die bestehende Kategorie falsch ist, gib die korrekte Kategorie im identity-Objekt an.
 
 SCOPE-REGEL: Wenn ein SCOPE angegeben ist, ändere NUR Felder innerhalb dieses Scopes. AUSNAHME: Wenn die Kategorie offensichtlich falsch ist, korrigiere sie IMMER mit, auch wenn sie nicht im Scope ist.
+
+IDENTIFIER LÖSCHEN (EAN/GTIN/UPC/Barcodes):
+- Wenn der User explizit verlangt EAN/GTIN/Barcodes zu LÖSCHEN (z.B. eBay-Konflikt zwischen Katalog und K-Typ-Liste bei Auto-Teilen), verwende das Feld \`identity.clear\` im update_product_datasheet-Tool.
+- Beispiel: \`identity: { clear: ["barcodes", "ean", "gtin", "upc"] }\` löscht ALLE Identifier-Felder.
+- WICHTIG: Ein leeres \`barcodes: []\` Array reicht NICHT aus — der Sanitizer ignoriert leere Arrays. NUR \`identity.clear\` löscht wirklich.
+- Behaupte NIE im Text dass Felder gelöscht wurden, ohne den korrekten Tool-Call zu machen — das verwirrt den User.
+- Hinweis: Bei Auto-Teilen mit K-Typ-Liste ist das Löschen der EAN oft NICHT mehr nötig, da das System die Katalog-Verknüpfung automatisch überspringt wenn K-Typ vorhanden ist. Frag den User vorher, ob er die EAN-Daten wirklich aus dem Stammdatensatz löschen will.
 
 SPRACHE: ${locale}
 
@@ -618,6 +630,25 @@ function sanitizeDatasheetChangeV2(entry, product, { scope = null, titleHintToke
       .filter(isValidGtin);
     if (barcodeCandidates.length) id.barcodes = [...new Set(barcodeCandidates)];
 
+    // Explicit clear directive: AI can request deletion of identifier fields when
+    // the user explicitly asks to remove them (e.g. resolving an eBay catalog
+    // vs K-Typ fitment conflict). The frontend honours `_clear` as a list of
+    // dotted paths to wipe.
+    const clearList = Array.isArray(entry.identity.clear) ? entry.identity.clear : [];
+    if (clearList.length) {
+      const allowed = new Set(['barcodes', 'ean', 'gtin', 'upc']);
+      const requestedClear = Array.from(
+        new Set(clearList.map((v) => safeString(v).toLowerCase()).filter((v) => allowed.has(v))),
+      );
+      if (requestedClear.length) {
+        id._clear = requestedClear;
+        // If the user wants barcodes cleared, do not reintroduce them via candidates.
+        if (requestedClear.includes('barcodes')) {
+          delete id.barcodes;
+        }
+      }
+    }
+
     if (Object.keys(id).length) change.identity = id;
   }
 
@@ -699,6 +730,19 @@ function consolidateChanges(changes = []) {
       // Merge barcodes
       if (Array.isArray(entry.identity.barcodes)) {
         merged.identity.barcodes = [...new Set([...(prev.barcodes || []), ...entry.identity.barcodes])];
+      }
+      // Union explicit clear directives across multiple proposed edits.
+      if (Array.isArray(entry.identity._clear) || Array.isArray(prev._clear)) {
+        merged.identity._clear = Array.from(
+          new Set([
+            ...(Array.isArray(prev._clear) ? prev._clear : []),
+            ...(Array.isArray(entry.identity._clear) ? entry.identity._clear : []),
+          ]),
+        );
+        // If barcodes are slated for clearing, drop the merged barcode list.
+        if (merged.identity._clear.includes('barcodes')) {
+          delete merged.identity.barcodes;
+        }
       }
     }
     if (entry.notes) {
