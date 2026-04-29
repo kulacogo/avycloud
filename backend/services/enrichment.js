@@ -2914,7 +2914,11 @@ async function ensurePriceCoverage(products = [], serpTrace = [], options = {}) 
     if (!force && hasPrice && !stale) continue;
 
     // Deterministic query building (more robust than a single LLM-crafted query).
-    const negativeTerms = '-gebraucht -used -refurb -refurbished -renewed -b-ware -openbox';
+    //
+    // Note: We deliberately do NOT inject `-gebraucht -used …` into the query.
+    // Google Shopping ignores most negative operators and the long negative tail
+    // increases the empty-result rate dramatically. The condition filter is
+    // applied locally via `PRICE_USED_HINT` further down the pipeline.
     const brand = (product?.identification?.brand || '').toString().trim();
     const title = (product?.identification?.name || '').toString().trim();
     const mpn =
@@ -2938,31 +2942,51 @@ async function ensurePriceCoverage(products = [], serpTrace = [], options = {}) 
     const keywords = collectProductKeywords(product); // tokens for matching verification
 
     const queryCandidates = [];
-    if (barcodes.length) queryCandidates.push(`${barcodes[0]} neu preis ${negativeTerms}`);
-    if (brand && mpn) queryCandidates.push(`${brand} ${mpn} neu preis ${negativeTerms}`);
-    if (brand && title) queryCandidates.push(`${brand} ${title} neu preis ${negativeTerms}`);
-    if (title) queryCandidates.push(`${title} neu preis ${negativeTerms}`);
+    if (barcodes.length) queryCandidates.push(barcodes[0]);
+    if (brand && mpn) queryCandidates.push(`${brand} ${mpn}`);
+    if (brand && title) queryCandidates.push(`${brand} ${title}`);
+    if (title) queryCandidates.push(title);
     // Keep it bounded to reduce SerpAPI cost.
-    const queries = Array.from(new Set(queryCandidates.map((q) => q.replace(/\s+/g, ' ').trim()))).slice(0, 3);
+    const queries = Array.from(
+      new Set(queryCandidates.map((q) => q.replace(/\s+/g, ' ').trim()).filter(Boolean))
+    ).slice(0, 3);
 
     let candidates = collectPriceCandidates(product, serpTrace, keywords);
     if (!candidates.length && SERPAPI_ENABLED) {
+      const traceStats = { attempted: 0, empty: 0, errors: 0, hits: 0 };
       for (const q of queries) {
-      try {
+        traceStats.attempted += 1;
+        try {
           const raw = await callSerpApi('google_shopping', { q, num: 20 });
-        const summary = summarizeSerpEntries('google_shopping', raw, 15);
-          if (!summary.length) continue;
-          const traceEntry = {
+          if (raw && raw._empty) {
+            traceStats.empty += 1;
+            serpTrace.push({
+              engine: 'google_shopping',
+              query: q,
+              summary: [],
+              params: { q, num: 20 },
+              error: null,
+              empty: true,
+              fallback: true,
+            });
+            continue;
+          }
+          const summary = summarizeSerpEntries('google_shopping', raw, 15);
+          if (!summary.length) {
+            traceStats.empty += 1;
+            continue;
+          }
+          traceStats.hits += 1;
+          serpTrace.push({
             engine: 'google_shopping',
             query: q,
             summary,
             params: { q, num: 20 },
             error: null,
             fallback: true,
-          };
-          serpTrace.push(traceEntry);
-      } catch (err) {
-          console.warn('Price search failed:', err.message);
+          });
+        } catch (err) {
+          traceStats.errors += 1;
           serpTrace.push({
             engine: 'google_shopping',
             query: q,
@@ -2972,6 +2996,13 @@ async function ensurePriceCoverage(products = [], serpTrace = [], options = {}) 
             fallback: true,
           });
         }
+      }
+      // Single aggregated log per product instead of one per query — keeps
+      // Cloud Run logs readable and prevents the 20+/250ms burst pattern.
+      if (traceStats.errors > 0 || (traceStats.empty === traceStats.attempted && traceStats.attempted > 0)) {
+        console.warn(
+          `[price-coverage] product=${product?.id || '?'} queries=${traceStats.attempted} empty=${traceStats.empty} errors=${traceStats.errors} hits=${traceStats.hits}`
+        );
       }
       candidates = collectPriceCandidates(product, serpTrace, keywords);
     }

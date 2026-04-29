@@ -5,6 +5,36 @@ const SERPAPI_BASE_URL = 'https://serpapi.com/search.json';
 const MIN_IMAGE_WIDTH = parseInt(process.env.MIN_IMAGE_WIDTH || '900', 10);
 const MIN_IMAGE_HEIGHT = parseInt(process.env.MIN_IMAGE_HEIGHT || '900', 10);
 const SERPAPI_TIMEOUT_MS = Math.max(5_000, parseInt(process.env.SERPAPI_TIMEOUT_MS || '20000', 10) || 20_000);
+
+// ---------------------------------------------------------------------------
+// Resilience layer — additive, all opt-out via ENV.
+//
+// Background: SerpAPI returns HTTP 200 with a body like
+//   { "error": "Google hasn't returned any results for this query.",
+//     "search_information": { "local_results_state": "Fully empty" } }
+// for genuine empty searches. This is documented behavior
+// (https://serpapi.com/api-status-and-error-codes) — NOT a server error.
+// We must therefore distinguish empty-results from real errors and protect
+// the upstream service via cache, rate-limit and circuit breaker.
+// ---------------------------------------------------------------------------
+
+const CACHE_DISABLED = String(process.env.SERPAPI_DISABLE_CACHE || '').toLowerCase() === 'true';
+const POS_CACHE_TTL_MS = Math.max(0, parseInt(process.env.SERPAPI_CACHE_TTL_MS || `${6 * 60 * 60 * 1000}`, 10) || 0);
+const NEG_CACHE_TTL_MS = Math.max(0, parseInt(process.env.SERPAPI_NEG_CACHE_TTL_MS || `${60 * 60 * 1000}`, 10) || 0);
+const POS_CACHE_MAX = Math.max(0, parseInt(process.env.SERPAPI_CACHE_MAX || '500', 10) || 0);
+const NEG_CACHE_MAX = Math.max(0, parseInt(process.env.SERPAPI_NEG_CACHE_MAX || '1000', 10) || 0);
+
+const RATE_DISABLED = String(process.env.SERPAPI_DISABLE_RATE_LIMIT || '').toLowerCase() === 'true';
+const MAX_PER_SECOND = Math.max(1, parseInt(process.env.SERPAPI_MAX_PER_SECOND || '5', 10) || 5);
+const MAX_CONCURRENT = Math.max(1, parseInt(process.env.SERPAPI_MAX_CONCURRENT || '20', 10) || 20);
+const RATE_QUEUE_MAX = Math.max(0, parseInt(process.env.SERPAPI_RATE_QUEUE_MAX || '1000', 10) || 0);
+
+const BREAKER_DISABLED = String(process.env.SERPAPI_DISABLE_BREAKER || '').toLowerCase() === 'true';
+const BREAKER_THRESHOLD = Math.max(1, parseInt(process.env.SERPAPI_BREAKER_THRESHOLD || '5', 10) || 5);
+const BREAKER_OPEN_MS = Math.max(1_000, parseInt(process.env.SERPAPI_BREAKER_OPEN_MS || '60000', 10) || 60_000);
+
+const LOG_THROTTLE_MS = Math.max(0, parseInt(process.env.SERPAPI_LOG_THROTTLE_MS || '60000', 10) || 0);
+
 const ALLOWED_ENGINES = [
   'google',
   'google_shopping',
@@ -93,11 +123,194 @@ function buildDefaultParams(engine) {
   }
 }
 
-async function callSerpApi(engine, params = {}) {
-  if (!engine || !ALLOWED_ENGINES.includes(engine)) {
-    throw new Error(`Unsupported SerpAPI engine: ${engine}`);
-  }
+// ---------------------------------------------------------------------------
+// Empty-result detection.
+//
+// SerpAPI signals "no results" via either:
+//   - error: "Google hasn't returned any results for this query."
+//   - error: "We couldn't find any matching results for your search."
+//   - search_information.local_results_state: "Fully empty"
+// All of these are HTTP 200 successes — NOT server errors.
+// "We couldn't get valid results … Please try again later." IS a real error.
+// ---------------------------------------------------------------------------
 
+const EMPTY_ERROR_PATTERNS = [
+  /hasn'?t returned any results/i,
+  /couldn'?t find any matching results/i,
+  /no results found/i,
+];
+
+function isEmptyResultPayload(data) {
+  if (!data || typeof data !== 'object') return false;
+  const errMsg = typeof data.error === 'string' ? data.error : '';
+  if (errMsg && EMPTY_ERROR_PATTERNS.some((re) => re.test(errMsg))) return true;
+  const state = data.search_information?.local_results_state;
+  if (typeof state === 'string' && /fully empty/i.test(state)) return true;
+  return false;
+}
+
+// ---------------------------------------------------------------------------
+// LRU + Negative cache (size-bounded, TTL-based).
+// ---------------------------------------------------------------------------
+
+const _posCache = new Map(); // key -> { value, expiresAt }
+const _negCache = new Map();
+
+function _cacheKey(engine, params) {
+  // Stable JSON serialization (sorted keys, omit api_key + output)
+  const omit = new Set(['api_key', 'output']);
+  const entries = Object.keys(params || {})
+    .filter((k) => !omit.has(k))
+    .sort()
+    .map((k) => [k, params[k] == null ? '' : String(params[k])]);
+  return `${engine}|${JSON.stringify(entries)}`;
+}
+
+function _cacheGet(map, key) {
+  const entry = map.get(key);
+  if (!entry) return null;
+  if (entry.expiresAt < Date.now()) {
+    map.delete(key);
+    return null;
+  }
+  // LRU touch: re-insert to move to tail
+  map.delete(key);
+  map.set(key, entry);
+  return entry.value;
+}
+
+function _cachePut(map, max, key, value, ttlMs) {
+  if (CACHE_DISABLED || ttlMs <= 0 || max <= 0) return;
+  if (map.has(key)) map.delete(key);
+  map.set(key, { value, expiresAt: Date.now() + ttlMs });
+  while (map.size > max) {
+    const firstKey = map.keys().next().value;
+    if (firstKey === undefined) break;
+    map.delete(firstKey);
+  }
+}
+
+function _cacheClear() {
+  _posCache.clear();
+  _negCache.clear();
+}
+
+// ---------------------------------------------------------------------------
+// Rate limiter — token bucket per second + concurrency semaphore.
+// ---------------------------------------------------------------------------
+
+const _slotTimestamps = []; // sliding window of granted slots (last 1s)
+let _activeCalls = 0;
+const _waitQueue = []; // [{ resolve, reject, enqueuedAt }]
+
+function _pruneSlots(now) {
+  while (_slotTimestamps.length && now - _slotTimestamps[0] >= 1000) {
+    _slotTimestamps.shift();
+  }
+}
+
+function _tryGrant() {
+  while (_waitQueue.length) {
+    const now = Date.now();
+    _pruneSlots(now);
+    if (_slotTimestamps.length >= MAX_PER_SECOND) {
+      const waitMs = 1000 - (now - _slotTimestamps[0]) + 1;
+      setTimeout(_tryGrant, Math.max(1, waitMs));
+      return;
+    }
+    if (_activeCalls >= MAX_CONCURRENT) {
+      // Wait for a release event (see _release)
+      return;
+    }
+    const head = _waitQueue.shift();
+    _slotTimestamps.push(now);
+    _activeCalls += 1;
+    head.resolve();
+  }
+}
+
+function _acquireSlot() {
+  if (RATE_DISABLED) return Promise.resolve(() => {});
+  if (RATE_QUEUE_MAX > 0 && _waitQueue.length >= RATE_QUEUE_MAX) {
+    return Promise.reject(new Error('SerpAPI rate-limit queue is full'));
+  }
+  return new Promise((resolve, reject) => {
+    _waitQueue.push({ resolve: () => resolve(_release), reject, enqueuedAt: Date.now() });
+    _tryGrant();
+  });
+}
+
+function _release() {
+  if (RATE_DISABLED) return;
+  _activeCalls = Math.max(0, _activeCalls - 1);
+  if (_waitQueue.length) _tryGrant();
+}
+
+// ---------------------------------------------------------------------------
+// Circuit breaker — opens after N consecutive *real* errors (not empty-result).
+// ---------------------------------------------------------------------------
+
+const _breaker = {
+  state: 'closed', // 'closed' | 'open' | 'half_open'
+  consecutiveErrors: 0,
+  openedAt: 0,
+};
+
+function _breakerCheck() {
+  if (BREAKER_DISABLED) return;
+  if (_breaker.state === 'open') {
+    if (Date.now() - _breaker.openedAt >= BREAKER_OPEN_MS) {
+      _breaker.state = 'half_open';
+      return;
+    }
+    const err = new Error('SerpAPI circuit breaker is open');
+    err.code = 'SERPAPI_CIRCUIT_OPEN';
+    throw err;
+  }
+}
+
+function _breakerOnSuccess() {
+  if (BREAKER_DISABLED) return;
+  _breaker.consecutiveErrors = 0;
+  _breaker.state = 'closed';
+}
+
+function _breakerOnError() {
+  if (BREAKER_DISABLED) return;
+  _breaker.consecutiveErrors += 1;
+  if (_breaker.consecutiveErrors >= BREAKER_THRESHOLD || _breaker.state === 'half_open') {
+    _breaker.state = 'open';
+    _breaker.openedAt = Date.now();
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Log throttling — at most one warn per (key) per LOG_THROTTLE_MS.
+// ---------------------------------------------------------------------------
+
+const _logTimes = new Map();
+
+function _shouldLog(key) {
+  if (LOG_THROTTLE_MS <= 0) return true;
+  const last = _logTimes.get(key) || 0;
+  const now = Date.now();
+  if (now - last < LOG_THROTTLE_MS) return false;
+  _logTimes.set(key, now);
+  // Soft-bound the map
+  if (_logTimes.size > 2000) {
+    const cutoff = now - LOG_THROTTLE_MS;
+    for (const [k, t] of _logTimes) {
+      if (t < cutoff) _logTimes.delete(k);
+    }
+  }
+  return true;
+}
+
+// ---------------------------------------------------------------------------
+// Raw fetch — unchanged behavior aside from empty-result handling.
+// ---------------------------------------------------------------------------
+
+async function _fetchSerpApiRaw(engine, params) {
   const apiKey = await getSerpApiKey();
   const finalParams = {
     ...buildDefaultParams(engine),
@@ -134,12 +347,92 @@ async function callSerpApi(engine, params = {}) {
     throw new Error(`SerpAPI request failed (${response.status}): ${body}`);
   }
 
-  const data = await response.json();
-  if (data.error) {
-    throw new Error(`SerpAPI error: ${data.error}`);
+  return response.json();
+}
+
+// ---------------------------------------------------------------------------
+// Public entry point.
+// ---------------------------------------------------------------------------
+
+async function callSerpApi(engine, params = {}) {
+  if (!engine || !ALLOWED_ENGINES.includes(engine)) {
+    throw new Error(`Unsupported SerpAPI engine: ${engine}`);
   }
 
+  const key = _cacheKey(engine, params);
+
+  // Cache hits skip rate-limit + breaker entirely.
+  const posHit = _cacheGet(_posCache, key);
+  if (posHit) return posHit;
+  const negHit = _cacheGet(_negCache, key);
+  if (negHit) return negHit;
+
+  _breakerCheck();
+
+  let release = () => {};
+  try {
+    release = await _acquireSlot();
+  } catch (err) {
+    // queue full — surface as throw, callers already wrap in try/catch.
+    throw err;
+  }
+
+  let data;
+  try {
+    data = await _fetchSerpApiRaw(engine, params);
+  } catch (err) {
+    _breakerOnError();
+    if (_shouldLog(`err|${key}`)) {
+      console.warn(`[serpapi] ${engine} request failed: ${err.message}`);
+    }
+    throw err;
+  } finally {
+    if (typeof release === 'function') release();
+  }
+
+  if (isEmptyResultPayload(data)) {
+    // Treat as a *successful* empty response — do NOT throw, do NOT trip breaker.
+    const sanitized = { ...data, _empty: true };
+    _cachePut(_negCache, NEG_CACHE_MAX, key, sanitized, NEG_CACHE_TTL_MS);
+    _breakerOnSuccess();
+    if (_shouldLog(`empty|${key}`)) {
+      const reason = typeof data.error === 'string'
+        ? data.error
+        : (data.search_information?.local_results_state || 'empty');
+      console.info(`[serpapi] ${engine} returned no results: ${reason}`);
+    }
+    return sanitized;
+  }
+
+  // Any *other* `error` field is a real failure — preserve historic behavior.
+  if (typeof data?.error === 'string' && data.error) {
+    _breakerOnError();
+    if (_shouldLog(`apierr|${key}`)) {
+      console.warn(`[serpapi] ${engine} reported error: ${data.error}`);
+    }
+    const e = new Error(`SerpAPI error: ${data.error}`);
+    e.code = 'SERPAPI_API_ERROR';
+    throw e;
+  }
+
+  _cachePut(_posCache, POS_CACHE_MAX, key, data, POS_CACHE_TTL_MS);
+  _breakerOnSuccess();
   return data;
+}
+
+/**
+ * Object-style alias used by `atomic-tools.js` and `ebay-sold-listings.js`.
+ *
+ * Equivalent to `callSerpApi(engine, restOfParams)` but accepts a single
+ * `{ engine, ...params }` object to match the established convention used
+ * by the SerpAPI JavaScript SDK and our internal V4 worker contracts.
+ */
+async function fetchSerpApi(opts = {}) {
+  if (!opts || typeof opts !== 'object') {
+    throw new Error('fetchSerpApi: options object is required');
+  }
+  const { engine, ...params } = opts;
+  return callSerpApi(engine, params);
 }
 
 function parseDimension(value) {
@@ -278,12 +571,50 @@ function summarizeSerpEntries(engine, data, limit = 5) {
   return items;
 }
 
+// ---------------------------------------------------------------------------
+// Test helpers (not part of the public contract).
+// ---------------------------------------------------------------------------
+
+function _resetState() {
+  _cacheClear();
+  _slotTimestamps.length = 0;
+  _activeCalls = 0;
+  _waitQueue.length = 0;
+  _breaker.state = 'closed';
+  _breaker.consecutiveErrors = 0;
+  _breaker.openedAt = 0;
+  _logTimes.clear();
+}
+
+function _getStats() {
+  return {
+    cache: { positive: _posCache.size, negative: _negCache.size },
+    rate: { active: _activeCalls, queued: _waitQueue.length, slotsLastSec: _slotTimestamps.length },
+    breaker: { ..._breaker },
+    config: {
+      POS_CACHE_TTL_MS,
+      NEG_CACHE_TTL_MS,
+      MAX_PER_SECOND,
+      MAX_CONCURRENT,
+      BREAKER_THRESHOLD,
+      BREAKER_OPEN_MS,
+    },
+  };
+}
+
 module.exports = {
   callSerpApi,
+  fetchSerpApi,
   summarizeSerpEntries,
   ALLOWED_ENGINES,
   extractImageMeta,
   isLowResImage,
+  isEmptyResultPayload,
   MIN_IMAGE_WIDTH,
   MIN_IMAGE_HEIGHT,
+  _internal: {
+    resetState: _resetState,
+    getStats: _getStats,
+    cacheKey: _cacheKey,
+  },
 };
