@@ -77,6 +77,9 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({ orderId, onClose, onSt
   const [loading, setLoading] = useState(true);
   const [transitioning, setTransitioning] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Distinct from `error` so success/info messages from manual refreshes don't
+  // render in red. Auto-clears after a short timeout (set by the caller).
+  const [infoMessage, setInfoMessage] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"details" | "items" | "timeline">("details");
   const [editingAddress, setEditingAddress] = useState(false);
   const [addressForm, setAddressForm] = useState({ name: "", street: "", city: "", zip: "", country: "", phone: "", email: "" });
@@ -322,10 +325,30 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({ orderId, onClose, onSt
       const result = await refreshShipment(orderId, { labelFormat });
       await loadData();
       onStatusChange?.();
-      if (!result.updated || result.updated.length === 0) {
-        setError("Versand bereits aktuell — keine Änderungen von SendCloud.");
-        setTimeout(() => setError(null), 4000);
+      // Compose an actionable message instead of a silent "all good". The user
+      // already sees a stale UI — they need to know exactly what we found.
+      const parts: string[] = [];
+      const changedSomething = Array.isArray(result.updated) && result.updated.length > 0;
+      if (result.reboundParcel) {
+        parts.push(
+          `Versand auf SendCloud-Parcel #${result.sendcloudParcelId} umgebunden ` +
+          `(vorher #${result.previousSendcloudParcelId}).`
+        );
+      } else if (changedSomething) {
+        parts.push(`Versanddaten von SendCloud aktualisiert (${result.updated.length} Felder).`);
+      } else {
+        parts.push(
+          `SendCloud-Parcel #${result.sendcloudParcelId ?? "?"}` +
+          (result.parcelStatusMessage ? ` (${result.parcelStatusMessage})` : "") +
+          ` — keine neuen Daten gefunden.`
+        );
+        if (result.searchedAlternates && result.alternatesFound === 0) {
+          parts.push("Kein passendes Label in SendCloud unter dieser Bestellnummer.");
+        }
       }
+      // Surface as an info message — the refresh succeeded; this is just status.
+      setInfoMessage(parts.join(" "));
+      setTimeout(() => setInfoMessage(null), 6000);
     } catch (err: any) {
       setError(err?.message || "Versand-Aktualisierung fehlgeschlagen");
     }
@@ -373,6 +396,12 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({ orderId, onClose, onSt
         {error && (
           <div className="mx-5 mt-4 bg-danger-dim rounded-lg p-3">
             <p className="text-sm text-danger">{error}</p>
+          </div>
+        )}
+
+        {infoMessage && !error && (
+          <div className="mx-5 mt-4 bg-info-dim border border-info/20 rounded-lg p-3">
+            <p className="text-sm text-info">{infoMessage}</p>
           </div>
         )}
 

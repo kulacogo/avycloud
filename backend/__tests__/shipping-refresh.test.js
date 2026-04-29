@@ -281,8 +281,11 @@ describe('refreshShipmentFromSendCloud — recovery for incident 2026-04-29', ()
     seedOrder('order-1', { trackingNumber: '01596813323012' });
 
     // SendCloud returns a body with empty optional fields (rare, e.g. test mode).
+    // The search-by-order_number fallback ALSO returns nothing useful here so
+    // the function falls through to the additive-only reconciliation path.
     global.fetch = vi.fn(async (url) => {
-      if (/\/parcels\/12345$/.test(String(url))) {
+      const u = String(url);
+      if (/\/parcels\/12345$/.test(u)) {
         return {
           ok: true,
           json: async () => ({
@@ -297,7 +300,10 @@ describe('refreshShipmentFromSendCloud — recovery for incident 2026-04-29', ()
           }),
         };
       }
-      throw new Error(`unexpected fetch ${url}`);
+      if (/\/parcels\?order_number=/.test(u)) {
+        return { ok: true, json: async () => ({ parcels: [] }) };
+      }
+      throw new Error(`unexpected fetch ${u}`);
     });
 
     const result = await engine.refreshShipmentFromSendCloud({ orderId: 'order-1' });
@@ -330,5 +336,209 @@ describe('refreshShipmentFromSendCloud — recovery for incident 2026-04-29', ()
     global.fetch = vi.fn();
     await expect(engine.refreshShipmentFromSendCloud({ orderId: 'order-1' }))
       .rejects.toThrow(/SendCloud-Parcel-ID/);
+  });
+
+  it('FALLBACK: searches by order_number and re-binds when the stored parcel has no tracking', async () => {
+    // Reproduces the noon-2026-04-29 incident:
+    //   • Firestore has shipment pointing at parcel 99999 (stale, never got tracking).
+    //   • SendCloud actually issued parcel 12345 with tracking 01596813323012
+    //     under the same order_number "01-14582-82032".
+    //   • Refresh by stored ID returns "no changes" → user sees "Versand bereits aktuell".
+    //
+    // After the fix:
+    //   • parcel 99999 is loaded → empty tracking + empty label
+    //   • search /parcels?order_number=01-14582-82032 finds parcel 12345 (with tracking)
+    //   • shipment.sendcloudParcelId is rebound to 12345
+    //   • order.trackingNumber gets set
+    seedShipment('ship-1', {
+      orderId: 'order-1',
+      sendcloudParcelId: 99999,
+      trackingNumber: null,
+      trackingUrl: null,
+      labelUrl: null,
+      carrier: 'dpd',
+      status: 'ausstehend',
+      createdAt: '2026-04-29T08:04:00.000Z',
+    });
+    seedOrder('order-1', {
+      omsStatus: 'shipped',
+      shipmentId: 'ship-1',
+      shippingService: 'dpd',
+      trackingNumber: null,
+      marketplaceOrderId: '01-14582-82032',
+    });
+
+    global.fetch = vi.fn(async (url, init) => {
+      const u = String(url);
+      if (/\/parcels\/99999$/.test(u)) {
+        // Stale parcel, no tracking, empty label — exactly the user's symptom.
+        return {
+          ok: true,
+          json: async () => ({
+            parcel: {
+              id: 99999,
+              tracking_number: '',
+              tracking_url: '',
+              carrier: { code: 'dpd' },
+              status: { id: 1, message: 'Bereit zum Versand' },
+              label: {},
+            },
+          }),
+        };
+      }
+      if (/\/parcels\?order_number=01-14582-82032/.test(u)) {
+        return {
+          ok: true,
+          json: async () => ({
+            next: null,
+            previous: null,
+            parcels: [
+              {
+                id: 99999,
+                tracking_number: '',
+                date_created: '29-04-2026 09:50:00',
+                status: { id: 1, message: 'Bereit zum Versand' },
+                label: {},
+                carrier: { code: 'dpd' },
+              },
+              {
+                id: 12345,
+                tracking_number: '01596813323012',
+                tracking_url: 'https://tracking.example/12345',
+                date_created: '29-04-2026 10:04:00',
+                status: { id: 1, message: 'Bereit zum Versand' },
+                label: { label_printer: 'https://panel.sendcloud.sc/api/v2/labels/label_printer/12345' },
+                carrier: { code: 'dpd' },
+              },
+            ],
+          }),
+        };
+      }
+      throw new Error(`unexpected fetch ${u}`);
+    });
+
+    const result = await engine.refreshShipmentFromSendCloud({ orderId: 'order-1' });
+
+    expect(result.searchedAlternates).toBe(true);
+    expect(result.alternatesFound).toBe(2);
+    expect(result.reboundParcel).toBe(true);
+    expect(result.previousSendcloudParcelId).toBe(99999);
+    expect(result.sendcloudParcelId).toBe(12345);
+    expect(result.trackingNumber).toBe('01596813323012');
+    expect(result.labelUrl).toMatch(/label_printer/);
+    expect(result.updated).toEqual(expect.arrayContaining([
+      'shipment.sendcloudParcelId',
+      'shipment.trackingNumber',
+      'order.trackingNumber',
+    ]));
+
+    // Firestore was actually patched.
+    const ship = shipmentDocs.get('ship-1').data;
+    expect(ship.sendcloudParcelId).toBe(12345);
+    expect(ship.trackingNumber).toBe('01596813323012');
+
+    const order = orderDocs.get('order-1').data;
+    expect(order.trackingNumber).toBe('01596813323012');
+  });
+
+  it('does NOT re-bind when stored parcel already has tracking (avoid spurious changes)', async () => {
+    // Same order_number can match multiple parcels (e.g. retries) — but if the
+    // current binding is already valid, we must not flip-flop to another one.
+    seedShipment('ship-1', {
+      orderId: 'order-1',
+      sendcloudParcelId: 12345,
+      trackingNumber: '01596813323012',
+      trackingUrl: 'https://tracking.example/12345',
+      labelUrl: 'https://panel.sendcloud.sc/api/v2/labels/label_printer/12345',
+      carrier: 'dpd',
+      status: 'ausstehend',
+      createdAt: '2026-04-29T08:04:00.000Z',
+    });
+    seedOrder('order-1', {
+      omsStatus: 'shipped',
+      shipmentId: 'ship-1',
+      marketplaceOrderId: '01-14582-82032',
+      trackingNumber: '01596813323012',
+    });
+
+    global.fetch = vi.fn(async (url) => {
+      const u = String(url);
+      if (/\/parcels\/12345$/.test(u)) {
+        return {
+          ok: true,
+          json: async () => ({
+            parcel: {
+              id: 12345,
+              tracking_number: '01596813323012',
+              tracking_url: 'https://tracking.example/12345',
+              carrier: { code: 'dpd' },
+              status: { id: 3, message: 'in_transit' },
+              label: { label_printer: 'https://panel.sendcloud.sc/api/v2/labels/label_printer/12345' },
+            },
+          }),
+        };
+      }
+      throw new Error(`unexpected fetch ${u}`);
+    });
+
+    const result = await engine.refreshShipmentFromSendCloud({ orderId: 'order-1' });
+
+    expect(result.reboundParcel).toBe(false);
+    expect(result.searchedAlternates).toBe(false);
+    expect(result.sendcloudParcelId).toBe(12345);
+    expect(result.previousSendcloudParcelId).toBeNull();
+    // Status moved forward, but no parcel-id change.
+    expect(result.updated).not.toEqual(expect.arrayContaining(['shipment.sendcloudParcelId']));
+  });
+
+  it('FALLBACK falls through gracefully when stored parcel fetch 404s but search finds a real one', async () => {
+    seedShipment('ship-1', {
+      orderId: 'order-1',
+      sendcloudParcelId: 99999,
+      trackingNumber: null,
+      labelUrl: null,
+      carrier: null,
+      status: 'ausstehend',
+      createdAt: '2026-04-29T08:04:00.000Z',
+    });
+    seedOrder('order-1', {
+      marketplaceOrderId: '01-14582-82032',
+      omsStatus: 'shipped',
+      trackingNumber: null,
+    });
+
+    global.fetch = vi.fn(async (url) => {
+      const u = String(url);
+      if (/\/parcels\/99999$/.test(u)) {
+        return { ok: false, status: 404, text: async () => 'Not Found' };
+      }
+      if (/\/parcels\?order_number=/.test(u)) {
+        return {
+          ok: true,
+          json: async () => ({
+            parcels: [
+              {
+                id: 12345,
+                tracking_number: '01596813323012',
+                tracking_url: 'https://tracking.example/12345',
+                date_created: '29-04-2026 10:04:00',
+                status: { id: 1, message: 'Bereit zum Versand' },
+                label: { label_printer: 'https://panel.sendcloud.sc/api/v2/labels/label_printer/12345' },
+                carrier: { code: 'dpd' },
+              },
+            ],
+          }),
+        };
+      }
+      throw new Error(`unexpected fetch ${u}`);
+    });
+
+    const result = await engine.refreshShipmentFromSendCloud({ orderId: 'order-1' });
+
+    expect(result.reboundParcel).toBe(true);
+    expect(result.sendcloudParcelId).toBe(12345);
+    expect(result.previousSendcloudParcelId).toBe(99999);
+    expect(result.trackingNumber).toBe('01596813323012');
+    expect(shipmentDocs.get('ship-1').data.sendcloudParcelId).toBe(12345);
   });
 });

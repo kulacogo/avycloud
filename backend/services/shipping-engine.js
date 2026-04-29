@@ -480,26 +480,96 @@ async function createParcel({
 }
 
 /**
+ * Search SendCloud for parcels by `order_number`.
+ *
+ * Documented endpoint: GET /api/v2/parcels?order_number=...
+ * (https://www.sendcloud.dev/docs/shipping/orders-via-api)
+ *
+ * Returns the raw parcel objects sorted newest-first by `date_created`.
+ * Cancelled parcels (statusId=2000) are filtered out — we never want to
+ * re-bind a Firestore shipment to a parcel that is already dead at carrier
+ * level.
+ *
+ * Network/auth errors are swallowed — this is a best-effort recovery
+ * helper. Returns [] on failure so the caller can fall back to whatever
+ * data it already has.
+ *
+ * @param {{ orderNumber: string, auth: string }} opts
+ * @returns {Promise<object[]>}
+ */
+async function _searchParcelsByOrderNumber({ orderNumber, auth }) {
+  const trimmed = String(orderNumber || '').trim();
+  if (!trimmed) return [];
+  try {
+    const url = `${SENDCLOUD_BASE_URL}/parcels?order_number=${encodeURIComponent(trimmed)}`;
+    const res = await fetch(url, { headers: { Authorization: auth } });
+    if (!res.ok) {
+      console.warn(`[refreshShipment] SendCloud search by order_number "${trimmed}" returned ${res.status}`);
+      return [];
+    }
+    const data = await res.json();
+    const parcels = Array.isArray(data?.parcels) ? data.parcels : [];
+    return parcels
+      .filter((p) => Number(p?.status?.id) !== 2000)
+      .sort((a, b) => {
+        // SendCloud returns dates as "DD-MM-YYYY HH:mm:ss" — compare via Date.parse fallback.
+        const td = (raw) => {
+          if (!raw) return 0;
+          const t = Date.parse(raw);
+          if (!Number.isNaN(t)) return t;
+          // "16-07-2021 13:04:04" → "2021-07-16T13:04:04"
+          const m = String(raw).match(/^(\d{2})-(\d{2})-(\d{4})\s+(\d{2}):(\d{2}):(\d{2})$/);
+          if (m) return Date.parse(`${m[3]}-${m[2]}-${m[1]}T${m[4]}:${m[5]}:${m[6]}`);
+          return 0;
+        };
+        return td(b.date_updated || b.date_created) - td(a.date_updated || a.date_created);
+      });
+  } catch (err) {
+    console.warn(`[refreshShipment] SendCloud search by order_number "${trimmed}" failed: ${err.message}`);
+    return [];
+  }
+}
+
+/**
  * Re-pull the latest state of an order's most recent shipment from SendCloud
  * and reconcile both the `shipments` and `orders` Firestore docs with it.
  *
- * Self-heals incidents like "label exists in SendCloud but order shows no
- * tracking number" (2026-04-29) where async-populated fields (tracking,
- * carrier code, label URL) raced the initial parcel-create write.
+ * Self-heals two related incidents:
+ *   • 2026-04-29 morning: tracking populated async after the initial create →
+ *     never written back to Firestore (fixed in createParcel).
+ *   • 2026-04-29 noon: stored sendcloudParcelId points at a stale/wrong
+ *     parcel; the visible parcel in SendCloud has a different ID. Refresh
+ *     by stored ID alone returns "no changes" → the bug surfaced as
+ *     "Versand bereits aktuell — keine Änderungen von SendCloud."
  *
- * Reads `shipments` by `orderId` (auto single-field index, no composite needed)
- * and writes back any field that SendCloud now reports as non-empty — never
- * overwrites with null so a transient API blip cannot delete good data.
+ * Recovery strategy:
+ *   1. Load the parcel by stored sendcloudParcelId.
+ *   2. If that parcel has no tracking_number AND no label, search SendCloud
+ *      by `order_number` for alternates (incl. order.marketplaceOrderId,
+ *      order.orderId, order.number — exactly the values createParcel writes
+ *      into the `order_number` field).
+ *   3. If a non-cancelled alternate exists with a tracking_number that is
+ *      different from the stored ID, treat IT as the source of truth and
+ *      re-bind shipment.sendcloudParcelId.
+ *
+ * Reconciliation is strictly additive — a non-empty SendCloud value never
+ * gets overwritten by a later transient null response. Status-id transitions
+ * are the only exception (ausstehend → in_zustellung → zugestellt).
  *
  * @param {{ orderId: string, tenantId?: string, labelFormat?: 'a6' | 'a4' }} opts
  * @returns {Promise<{
  *   shipmentId: string,
  *   sendcloudParcelId: number | null,
+ *   previousSendcloudParcelId: number | null,
+ *   reboundParcel: boolean,
+ *   searchedAlternates: boolean,
+ *   alternatesFound: number,
  *   trackingNumber: string | null,
  *   trackingUrl: string | null,
  *   carrier: string | null,
  *   labelUrl: string | null,
  *   status: string,
+ *   parcelStatusMessage: string | null,
  *   updated: string[],
  * }>}
  */
@@ -507,7 +577,6 @@ async function refreshShipmentFromSendCloud({ orderId, tenantId = 'default', lab
   if (!orderId) throw new Error('orderId is required');
   const db = getDb();
 
-  // Newest shipment first (an order can have stale cancelled ones too).
   const snap = await db.collection(SHIPMENTS_COLLECTION)
     .where('orderId', '==', orderId)
     .limit(20)
@@ -528,31 +597,93 @@ async function refreshShipmentFromSendCloud({ orderId, tenantId = 'default', lab
   // Prefer the newest non-cancelled shipment so we don't reconcile against a stale 'problem' record.
   const shipmentEntry = docs.find((d) => (d.data.status || '') !== 'cancelled') || docs[0];
   const shipment = shipmentEntry.data;
-  const parcelId = Number(shipment.sendcloudParcelId || 0);
+  const initialParcelId = Number(shipment.sendcloudParcelId || 0);
 
-  if (!parcelId) {
+  if (!initialParcelId) {
     throw new Error('Versanddatensatz hat keine SendCloud-Parcel-ID. Manuelle Korrektur nötig.');
   }
 
   const auth = await getSendCloudAuth();
-  const res = await fetch(`${SENDCLOUD_BASE_URL}/parcels/${parcelId}`, {
-    headers: { Authorization: auth },
-  });
-  if (!res.ok) {
-    const body = await res.text().catch(() => '');
-    throw new Error(`SendCloud Parcel ${parcelId} konnte nicht geladen werden (${res.status}): ${body.slice(0, 200)}`);
-  }
-  const json = await res.json();
-  const parcel = json?.parcel || {};
-
   const isA4 = labelFormat === 'a4';
+
+  // ── 1. Load the parcel pointed at by the stored ID ────────────────────────
+  let parcel;
+  try {
+    const res = await fetch(`${SENDCLOUD_BASE_URL}/parcels/${initialParcelId}`, {
+      headers: { Authorization: auth },
+    });
+    if (!res.ok) {
+      const body = await res.text().catch(() => '');
+      throw new Error(`SendCloud Parcel ${initialParcelId} konnte nicht geladen werden (${res.status}): ${body.slice(0, 200)}`);
+    }
+    const json = await res.json();
+    parcel = json?.parcel || {};
+  } catch (err) {
+    // Don't bail yet — the alternate search below may still find a working parcel.
+    console.warn(`[refreshShipment] direct fetch of parcel ${initialParcelId} failed: ${err.message}`);
+    parcel = { id: initialParcelId };
+  }
+
+  let usedParcelId = Number(parcel?.id || initialParcelId);
+  let reboundParcel = false;
+
+  // ── 2. Fallback: search by order_number when the stored parcel is incomplete ──
+  const orderRef = db.collection(ORDERS_COLLECTION).doc(orderId);
+  const orderSnap = await orderRef.get();
+  const orderData = orderSnap.exists ? orderSnap.data() : null;
+
+  const lacksTracking = !parcel?.tracking_number;
+  const lacksLabel = !extractLabelUrl(parcel, isA4) || (parcel?.label && Object.keys(parcel.label).length === 0);
+  let searchedAlternates = false;
+  let alternatesFound = 0;
+
+  if (lacksTracking || lacksLabel) {
+    // Try every value `createParcel` may have written into SendCloud's order_number.
+    const candidates = [];
+    const pushCand = (v) => {
+      const s = v == null ? '' : String(v).trim();
+      if (s && !candidates.includes(s)) candidates.push(s);
+    };
+    if (orderData) {
+      pushCand(orderData.marketplaceOrderId);
+      pushCand(orderData.orderId);
+      pushCand(orderData.number);
+    }
+    pushCand(orderId);
+
+    for (const candidate of candidates) {
+      const matches = await _searchParcelsByOrderNumber({ orderNumber: candidate, auth });
+      searchedAlternates = true;
+      if (!matches.length) continue;
+      alternatesFound += matches.length;
+
+      // Best alternate: prefer ones with tracking_number; among those, the most
+      // recently-updated. Skip the parcel we already have unless it's the only match.
+      const withTracking = matches.filter((p) => p?.tracking_number);
+      const candidateList = withTracking.length ? withTracking : matches;
+      const best = candidateList[0];
+      if (!best) continue;
+
+      const bestId = Number(best.id || 0);
+      // Only re-bind when we found a strictly better source (different id AND has tracking,
+      // OR same id but the GET-by-id call failed and the search returned the full body).
+      if (bestId && (bestId !== initialParcelId || (lacksTracking && best.tracking_number))) {
+        parcel = best;
+        usedParcelId = bestId;
+        reboundParcel = bestId !== initialParcelId;
+        break;
+      }
+    }
+  }
+
+  // ── 3. Derive freshest values from whichever parcel we ended up with ──────
   const freshLabelUrl = extractLabelUrl(parcel, isA4);
-  const freshTracking = parcel.tracking_number || null;
-  const freshTrackingUrl = parcel.tracking_url || null;
-  const freshCarrier = parcel.carrier?.code || null;
-  const freshStatus = mapSendCloudStatus(parcel.status?.id);
-  const freshStatusId = parcel.status?.id || null;
-  const freshStatusMsg = parcel.status?.message || null;
+  const freshTracking = parcel?.tracking_number || null;
+  const freshTrackingUrl = parcel?.tracking_url || null;
+  const freshCarrier = parcel?.carrier?.code || null;
+  const freshStatus = mapSendCloudStatus(parcel?.status?.id);
+  const freshStatusId = parcel?.status?.id || null;
+  const freshStatusMsg = parcel?.status?.message || null;
   const nowIso = new Date().toISOString();
 
   // Build a strictly-additive shipment patch — never null out an existing value.
@@ -564,6 +695,12 @@ async function refreshShipmentFromSendCloud({ orderId, tenantId = 'default', lab
       updated.push(`shipment.${field}`);
     }
   };
+  // Re-link the shipment to the correct SendCloud parcel BEFORE writing other fields,
+  // so the rest of the patch is consistent with the parcel id we now claim ownership of.
+  if (reboundParcel) {
+    shipmentPatch.sendcloudParcelId = usedParcelId;
+    updated.push('shipment.sendcloudParcelId');
+  }
   setIfBetter('trackingNumber', shipment.trackingNumber, freshTracking);
   setIfBetter('trackingUrl',    shipment.trackingUrl,    freshTrackingUrl);
   setIfBetter('labelUrl',       shipment.labelUrl,       freshLabelUrl);
@@ -589,24 +726,21 @@ async function refreshShipmentFromSendCloud({ orderId, tenantId = 'default', lab
 
   // Mirror the reconciled fields to the order so the UI can show tracking + the
   // print button without a second sync. Same additive policy.
-  const orderRef = db.collection(ORDERS_COLLECTION).doc(orderId);
-  const orderSnap = await orderRef.get();
-  if (orderSnap.exists) {
-    const order = orderSnap.data();
+  if (orderData) {
     const orderPatch = { updatedAt: nowIso };
-    if (freshTracking && freshTracking !== order.trackingNumber) {
+    if (freshTracking && freshTracking !== orderData.trackingNumber) {
       orderPatch.trackingNumber = freshTracking;
       updated.push('order.trackingNumber');
     }
-    if (freshTrackingUrl && freshTrackingUrl !== order.trackingUrl) {
+    if (freshTrackingUrl && freshTrackingUrl !== orderData.trackingUrl) {
       orderPatch.trackingUrl = freshTrackingUrl;
       updated.push('order.trackingUrl');
     }
-    if (freshCarrier && freshCarrier !== order.shippingService) {
+    if (freshCarrier && freshCarrier !== orderData.shippingService) {
       orderPatch.shippingService = freshCarrier;
       updated.push('order.shippingService');
     }
-    if (!order.shipmentId && shipmentEntry.id) {
+    if (!orderData.shipmentId && shipmentEntry.id) {
       orderPatch.shipmentId = shipmentEntry.id;
       updated.push('order.shipmentId');
     }
@@ -617,12 +751,17 @@ async function refreshShipmentFromSendCloud({ orderId, tenantId = 'default', lab
 
   return {
     shipmentId: shipmentEntry.id,
-    sendcloudParcelId: parcelId,
+    sendcloudParcelId: usedParcelId || null,
+    previousSendcloudParcelId: reboundParcel ? initialParcelId : null,
+    reboundParcel,
+    searchedAlternates,
+    alternatesFound,
     trackingNumber: freshTracking || shipment.trackingNumber || null,
     trackingUrl: freshTrackingUrl || shipment.trackingUrl || null,
     carrier: freshCarrier || shipment.carrier || null,
     labelUrl: freshLabelUrl || shipment.labelUrl || null,
     status: freshStatus || shipment.status || 'unknown',
+    parcelStatusMessage: freshStatusMsg || shipment.statusRaw || null,
     updated,
   };
 }

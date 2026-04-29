@@ -3602,11 +3602,22 @@ export async function shipOrder(orderId: string, opts?: { shippingMethodId?: num
 export interface RefreshShipmentResult {
   shipmentId: string;
   sendcloudParcelId: number | null;
+  /** When the refresh re-bound the shipment to a different SendCloud parcel,
+   *  this is the OLD parcel id. null when no re-bind happened. */
+  previousSendcloudParcelId: number | null;
+  reboundParcel: boolean;
+  /** True when the fallback search by order_number was triggered. */
+  searchedAlternates: boolean;
+  /** How many parcels SendCloud returned for the order_number search. 0 when
+   *  no search was needed. */
+  alternatesFound: number;
   trackingNumber: string | null;
   trackingUrl: string | null;
   carrier: string | null;
   labelUrl: string | null;
   status: string;
+  /** Human-readable status text from SendCloud (e.g. "Bereit zum Versand"). */
+  parcelStatusMessage: string | null;
   /** Field paths that were actually changed (e.g. "order.trackingNumber"). */
   updated: string[];
   marketplacePush?: { ok: boolean; error?: string; skipped?: boolean } | null;
