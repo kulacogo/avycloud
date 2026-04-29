@@ -3599,6 +3599,44 @@ export async function shipOrder(orderId: string, opts?: { shippingMethodId?: num
   return data?.data;
 }
 
+export interface RefreshShipmentResult {
+  shipmentId: string;
+  sendcloudParcelId: number | null;
+  trackingNumber: string | null;
+  trackingUrl: string | null;
+  carrier: string | null;
+  labelUrl: string | null;
+  status: string;
+  /** Field paths that were actually changed (e.g. "order.trackingNumber"). */
+  updated: string[];
+  marketplacePush?: { ok: boolean; error?: string; skipped?: boolean } | null;
+}
+
+/**
+ * Reconcile the order's shipment with SendCloud — pulls the latest parcel
+ * state and writes back any non-empty field (tracking number, label URL,
+ * carrier, status) to both the shipment and the order.
+ *
+ * Self-heal for the "label exists in SendCloud but order shows no tracking +
+ * no print button" symptom (incident 2026-04-29). Idempotent + additive:
+ * never overwrites an existing field with null.
+ */
+export async function refreshShipment(
+  orderId: string,
+  opts?: { labelFormat?: string }
+): Promise<RefreshShipmentResult> {
+  const res = await fetchApi(`${BACKEND_URL}/api/orders/${encodeURIComponent(orderId)}/refresh-shipment`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(opts || {}),
+  });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) {
+    throw new Error(data?.error?.message || "Versand-Aktualisierung fehlgeschlagen");
+  }
+  return data?.data;
+}
+
 export async function generateInvoice(orderId: string, opts?: { vatRate?: number }): Promise<{ invoiceId: string; invoiceNumber: string; pdfUrl: string | null }> {
   const res = await fetchApi(`${BACKEND_URL}/api/orders/${encodeURIComponent(orderId)}/invoice`, {
     method: 'POST',

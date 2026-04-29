@@ -400,8 +400,6 @@ async function createParcel({
 
   const result = await res.json();
   let parcel = result?.parcel || {};
-
-  const trackingNumber = parcel.tracking_number || null;
   const isA4 = labelFormat === 'a4';
 
   // Detect carrier-level rejection (status 1002 "Announcement failed") and surface
@@ -424,6 +422,10 @@ async function createParcel({
   let labelUrl = extractLabelUrl(parcel, isA4);
 
   // If label URL not in immediate response, poll parcel API until label is ready.
+  // BUG-FIX: tracking_number, tracking_url and carrier may also be empty on the
+  // initial POST response (async carriers, high SendCloud load) and only populate
+  // once polling succeeds. We therefore reassign `parcel` to the polled body and
+  // re-derive ALL downstream fields from it — never from the initial response.
   if (requestLabel && !labelUrl && parcel.id) {
     console.log(`[createParcel] No label URL in POST response (parcel ${parcel.id}), polling...`);
     const polled = await pollForLabel({ parcelId: parcel.id, labelFormat, maxAttempts: 10, intervalMs: 2000 });
@@ -436,6 +438,13 @@ async function createParcel({
     }
   }
 
+  // Re-derive AFTER polling so async-populated fields (tracking_number for DPD,
+  // tracking_url, final carrier code) end up in Firestore. This was the root cause
+  // of "label exists in SendCloud but order shows no tracking" (incident 2026-04-29).
+  const trackingNumber = parcel.tracking_number || null;
+  const trackingUrl = parcel.tracking_url || null;
+  const carrierCode = parcel.carrier?.code || null;
+
   // Save shipment record to Firestore
   const shipmentDoc = {
     tenantId,
@@ -445,10 +454,10 @@ async function createParcel({
     marketplace: order.marketplace || order.source || null,
     sendcloudParcelId: parcel.id || null,
     trackingNumber,
-    trackingUrl: parcel.tracking_url || null,
+    trackingUrl,
     labelUrl,
-    carrier: parcel.carrier?.code || null,
-    carrierName: parcel.carrier?.code || null,
+    carrier: carrierCode,
+    carrierName: carrierCode,
     shippingMethodId: shippingMethodId || parcel.shipment?.id || null,
     weight: totalWeight,
     status: mapSendCloudStatus(parcel.status?.id),
@@ -464,9 +473,157 @@ async function createParcel({
     shipmentId: shipRef.id,
     parcel,
     trackingNumber,
-    trackingUrl: parcel.tracking_url || null,
+    trackingUrl,
     labelUrl,
-    carrier: parcel.carrier?.code || null,
+    carrier: carrierCode,
+  };
+}
+
+/**
+ * Re-pull the latest state of an order's most recent shipment from SendCloud
+ * and reconcile both the `shipments` and `orders` Firestore docs with it.
+ *
+ * Self-heals incidents like "label exists in SendCloud but order shows no
+ * tracking number" (2026-04-29) where async-populated fields (tracking,
+ * carrier code, label URL) raced the initial parcel-create write.
+ *
+ * Reads `shipments` by `orderId` (auto single-field index, no composite needed)
+ * and writes back any field that SendCloud now reports as non-empty — never
+ * overwrites with null so a transient API blip cannot delete good data.
+ *
+ * @param {{ orderId: string, tenantId?: string, labelFormat?: 'a6' | 'a4' }} opts
+ * @returns {Promise<{
+ *   shipmentId: string,
+ *   sendcloudParcelId: number | null,
+ *   trackingNumber: string | null,
+ *   trackingUrl: string | null,
+ *   carrier: string | null,
+ *   labelUrl: string | null,
+ *   status: string,
+ *   updated: string[],
+ * }>}
+ */
+async function refreshShipmentFromSendCloud({ orderId, tenantId = 'default', labelFormat = 'a6' }) {
+  if (!orderId) throw new Error('orderId is required');
+  const db = getDb();
+
+  // Newest shipment first (an order can have stale cancelled ones too).
+  const snap = await db.collection(SHIPMENTS_COLLECTION)
+    .where('orderId', '==', orderId)
+    .limit(20)
+    .get();
+
+  if (snap.empty) {
+    throw new Error('Kein Versanddatensatz für diesen Auftrag gefunden.');
+  }
+
+  const docs = snap.docs
+    .map((d) => ({ id: d.id, ref: d.ref, data: d.data() }))
+    .sort((a, b) => {
+      const ta = Date.parse(a.data.createdAt || '') || 0;
+      const tb = Date.parse(b.data.createdAt || '') || 0;
+      return tb - ta;
+    });
+
+  // Prefer the newest non-cancelled shipment so we don't reconcile against a stale 'problem' record.
+  const shipmentEntry = docs.find((d) => (d.data.status || '') !== 'cancelled') || docs[0];
+  const shipment = shipmentEntry.data;
+  const parcelId = Number(shipment.sendcloudParcelId || 0);
+
+  if (!parcelId) {
+    throw new Error('Versanddatensatz hat keine SendCloud-Parcel-ID. Manuelle Korrektur nötig.');
+  }
+
+  const auth = await getSendCloudAuth();
+  const res = await fetch(`${SENDCLOUD_BASE_URL}/parcels/${parcelId}`, {
+    headers: { Authorization: auth },
+  });
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    throw new Error(`SendCloud Parcel ${parcelId} konnte nicht geladen werden (${res.status}): ${body.slice(0, 200)}`);
+  }
+  const json = await res.json();
+  const parcel = json?.parcel || {};
+
+  const isA4 = labelFormat === 'a4';
+  const freshLabelUrl = extractLabelUrl(parcel, isA4);
+  const freshTracking = parcel.tracking_number || null;
+  const freshTrackingUrl = parcel.tracking_url || null;
+  const freshCarrier = parcel.carrier?.code || null;
+  const freshStatus = mapSendCloudStatus(parcel.status?.id);
+  const freshStatusId = parcel.status?.id || null;
+  const freshStatusMsg = parcel.status?.message || null;
+  const nowIso = new Date().toISOString();
+
+  // Build a strictly-additive shipment patch — never null out an existing value.
+  const shipmentPatch = { updatedAt: nowIso };
+  const updated = [];
+  const setIfBetter = (field, current, next) => {
+    if (next != null && next !== '' && next !== current) {
+      shipmentPatch[field] = next;
+      updated.push(`shipment.${field}`);
+    }
+  };
+  setIfBetter('trackingNumber', shipment.trackingNumber, freshTracking);
+  setIfBetter('trackingUrl',    shipment.trackingUrl,    freshTrackingUrl);
+  setIfBetter('labelUrl',       shipment.labelUrl,       freshLabelUrl);
+  setIfBetter('carrier',        shipment.carrier,        freshCarrier);
+  setIfBetter('carrierName',    shipment.carrierName,    freshCarrier);
+  // Status MAY transition (ausstehend → in_zustellung → zugestellt) — overwrite blindly.
+  if (freshStatus && freshStatus !== shipment.status) {
+    shipmentPatch.status = freshStatus;
+    updated.push('shipment.status');
+  }
+  if (freshStatusId && Number(freshStatusId) !== Number(shipment.statusId || 0)) {
+    shipmentPatch.statusId = freshStatusId;
+    updated.push('shipment.statusId');
+  }
+  if (freshStatusMsg && freshStatusMsg !== shipment.statusRaw) {
+    shipmentPatch.statusRaw = freshStatusMsg;
+    updated.push('shipment.statusRaw');
+  }
+
+  if (Object.keys(shipmentPatch).length > 1) {
+    await shipmentEntry.ref.set(shipmentPatch, { merge: true });
+  }
+
+  // Mirror the reconciled fields to the order so the UI can show tracking + the
+  // print button without a second sync. Same additive policy.
+  const orderRef = db.collection(ORDERS_COLLECTION).doc(orderId);
+  const orderSnap = await orderRef.get();
+  if (orderSnap.exists) {
+    const order = orderSnap.data();
+    const orderPatch = { updatedAt: nowIso };
+    if (freshTracking && freshTracking !== order.trackingNumber) {
+      orderPatch.trackingNumber = freshTracking;
+      updated.push('order.trackingNumber');
+    }
+    if (freshTrackingUrl && freshTrackingUrl !== order.trackingUrl) {
+      orderPatch.trackingUrl = freshTrackingUrl;
+      updated.push('order.trackingUrl');
+    }
+    if (freshCarrier && freshCarrier !== order.shippingService) {
+      orderPatch.shippingService = freshCarrier;
+      updated.push('order.shippingService');
+    }
+    if (!order.shipmentId && shipmentEntry.id) {
+      orderPatch.shipmentId = shipmentEntry.id;
+      updated.push('order.shipmentId');
+    }
+    if (Object.keys(orderPatch).length > 1) {
+      await orderRef.set(orderPatch, { merge: true });
+    }
+  }
+
+  return {
+    shipmentId: shipmentEntry.id,
+    sendcloudParcelId: parcelId,
+    trackingNumber: freshTracking || shipment.trackingNumber || null,
+    trackingUrl: freshTrackingUrl || shipment.trackingUrl || null,
+    carrier: freshCarrier || shipment.carrier || null,
+    labelUrl: freshLabelUrl || shipment.labelUrl || null,
+    status: freshStatus || shipment.status || 'unknown',
+    updated,
   };
 }
 
@@ -1299,6 +1456,7 @@ module.exports = {
   matchCarrierRule,
   matchAllCarrierRules,
   shipOrder,
+  refreshShipmentFromSendCloud,
   downloadLabelPdf,
   syncSendCloudParcels,
   pollDeliveryStatus,

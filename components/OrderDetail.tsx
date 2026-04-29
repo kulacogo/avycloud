@@ -14,6 +14,7 @@ import {
   printAddressLabels,
   fetchShippingMethods,
   fetchShippingPreview,
+  refreshShipment,
 } from "../api/client";
 import type { ShippingPreviewMatch } from "../api/client";
 import type { Order, OrderTimelineEvent, OmsStatus, ShippingMethod } from "../types";
@@ -301,6 +302,34 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({ orderId, onClose, onSt
 
   const omsStatus = order?.omsStatus || order?.status || "pending";
   const statusColor = STATUS_COLORS[omsStatus] || STATUS_COLORS.pending;
+
+  // A shipment exists iff any of these is true. The backend /label endpoint
+  // only needs `shipmentId` (it pulls the URL fresh from SendCloud), so the
+  // UI must show the print button as long as we have ANY evidence of a
+  // shipment — otherwise a missing trackingNumber (incident 2026-04-29)
+  // hides the print button even though the label is sittinPg in SendCloud.
+  const hasShipmentEvidence = Boolean(
+    order?.trackingNumber ||
+      (order as any)?.shipmentId ||
+      ["shipped", "delivered", "completed"].includes(omsStatus)
+  );
+  // Divergence: the order says we shipped, but we have no tracking on file.
+  // This is the exact symptom of incident 2026-04-29 — surface a one-click fix.
+  const trackingMissing = !order?.trackingNumber && ["shipped", "delivered"].includes(omsStatus);
+
+  const handleRefreshShipment = useCallback(async () => {
+    try {
+      const result = await refreshShipment(orderId, { labelFormat });
+      await loadData();
+      onStatusChange?.();
+      if (!result.updated || result.updated.length === 0) {
+        setError("Versand bereits aktuell — keine Änderungen von SendCloud.");
+        setTimeout(() => setError(null), 4000);
+      }
+    } catch (err: any) {
+      setError(err?.message || "Versand-Aktualisierung fehlgeschlagen");
+    }
+  }, [orderId, labelFormat, loadData, onStatusChange]);
 
   return (
     <div
@@ -652,6 +681,18 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({ orderId, onClose, onSt
                   {/* Actions */}
                   <section>
                     <h3 className="text-sm font-medium text-txt-primary mb-2">Aktionen</h3>
+                    {trackingMissing && (
+                      <div className="mb-2 flex flex-wrap items-center gap-2 rounded-lg border border-warning/20 bg-warning/10 px-3 py-2 text-xs text-warning">
+                        <span className="flex-1 min-w-[12rem]">
+                          Tracking fehlt obwohl der Auftrag versendet ist. SendCloud-Label könnte vorhanden sein.
+                        </span>
+                        <ActionButton
+                          label="Versanddaten von SendCloud holen"
+                          icon="↻"
+                          onClick={handleRefreshShipment}
+                        />
+                      </div>
+                    )}
                     <div className="flex flex-wrap gap-2">
                       {(omsStatus === "packed" || omsStatus === "picked") && !order.trackingNumber && (
                         order.customer?.street && order.customer?.city && order.customer?.zip ? (
@@ -766,7 +807,7 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({ orderId, onClose, onSt
                           />
                         )
                       )}
-                      {order.trackingNumber && (
+                      {hasShipmentEvidence && (
                         <>
                           <select
                             value={labelFormat}
@@ -801,6 +842,13 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({ orderId, onClose, onSt
                                 setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
                               }
                             }}
+                          />
+                          {/* Always-on refresh — useful as a manual SendCloud sync (status,
+                              tracking, label URL) even when nothing is currently divergent. */}
+                          <ActionButton
+                            label="Versand aktualisieren"
+                            icon="↻"
+                            onClick={handleRefreshShipment}
                           />
                         </>
                       )}

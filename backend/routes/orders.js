@@ -1288,6 +1288,54 @@ router.post('/orders/:orderId/ship', requirePermission('orders', 'write'), async
 });
 
 /**
+ * POST /api/orders/:orderId/refresh-shipment — Reconcile order/shipment with SendCloud.
+ *
+ * Self-heal endpoint for the "label exists in SendCloud but order shows no
+ * tracking number / no print button" symptom (incident 2026-04-29). Re-pulls
+ * the parcel by `sendcloudParcelId`, then writes back any non-empty field
+ * (tracking number, tracking URL, carrier code, label URL, status) to both
+ * the shipment and the order. NEVER overwrites with null.
+ *
+ * Idempotent — calling repeatedly is safe and re-checks the SendCloud status
+ * each time, so this also doubles as a manual delivery-status refresh.
+ */
+router.post('/orders/:orderId/refresh-shipment', requirePermission('orders', 'write'), async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const tenantId = req.user?.tenantId || 'default';
+    const { labelFormat } = req.body || {};
+    const validFormats = ['a4', 'a6'];
+    const resolvedFormat = validFormats.includes(labelFormat) ? labelFormat : 'a6';
+
+    const { refreshShipmentFromSendCloud } = require('../services/shipping-engine');
+    const result = await refreshShipmentFromSendCloud({ orderId, tenantId, labelFormat: resolvedFormat });
+
+    // If we just learned a tracking number, push it to the marketplace too.
+    // Best-effort: never block the refresh response on a marketplace failure.
+    let marketplacePush = null;
+    if (result.trackingNumber && result.updated.includes('order.trackingNumber')) {
+      try {
+        const { pushTrackingToMarketplace } = require('../services/marketplace-tracking');
+        marketplacePush = await pushTrackingToMarketplace({
+          orderId,
+          trackingNumber: result.trackingNumber,
+          carrier: result.carrier || '',
+        });
+      } catch (err) {
+        console.warn(`[refresh-shipment] Marketplace push failed for ${orderId}: ${err.message}`);
+        marketplacePush = { ok: false, error: err.message };
+      }
+    }
+
+    res.json({ ok: true, data: { ...result, marketplacePush } });
+  } catch (err) {
+    console.error(`[POST /api/orders/:orderId/refresh-shipment] ${err.message}`, err);
+    const code = /Kein Versand|Parcel.*konnte nicht/i.test(err.message) ? 'NOT_FOUND' : 'INTERNAL';
+    res.status(code === 'NOT_FOUND' ? 404 : 500).json({ ok: false, error: { code, message: err.message } });
+  }
+});
+
+/**
  * POST /api/orders/:orderId/cancel-label — Cancel shipping label and clear tracking.
  */
 router.post('/orders/:orderId/cancel-label', requirePermission('orders', 'write'), async (req, res) => {
