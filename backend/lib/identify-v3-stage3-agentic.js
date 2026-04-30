@@ -627,16 +627,24 @@ async function generateProductContentAgentic({
 
 function isAgenticEnabled() {
   const raw = String(process.env.STAGE3_AGENTIC || '').trim().toLowerCase();
+  // Explicit opt-out
+  if (raw === 'false' || raw === '0' || raw === 'no' || raw === 'off') return false;
+  // Explicit opt-in
   if (raw === 'true' || raw === '1' || raw === 'yes' || raw === 'on') return true;
   // Sample-based opt-in (deterministic per call) — sample = 0.0..1.0.
+  // Only consulted when STAGE3_AGENTIC itself is not set — useful for canary
+  // periods. With STAGE3_AGENTIC defaulting to ON below, sample is a way to
+  // partially DISABLE (sample=0).
   const sampleRaw = String(process.env.STAGE3_AGENTIC_SAMPLE || '').trim();
   if (sampleRaw) {
     const s = Number.parseFloat(sampleRaw);
-    if (Number.isFinite(s) && s > 0) {
-      return Math.random() < Math.min(1, s);
+    if (Number.isFinite(s) && s >= 0 && s <= 1) {
+      return Math.random() < s;
     }
   }
-  return false;
+  // Default: ON. The agentic path has a 3-tier fallback (single-shot → V2-record),
+  // so a runtime failure cannot break the pipeline — it gracefully degrades.
+  return true;
 }
 
 module.exports = {

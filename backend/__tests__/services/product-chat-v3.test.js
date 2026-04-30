@@ -192,9 +192,9 @@ describe('chatV3Enabled feature flag', () => {
     else process.env.CHAT_V3 = original;
   });
 
-  it('defaults to false when CHAT_V3 is unset', () => {
+  it('defaults to TRUE when CHAT_V3 is unset (V3 is the production default)', () => {
     delete process.env.CHAT_V3;
-    expect(chatV3Enabled()).toBe(false);
+    expect(chatV3Enabled()).toBe(true);
   });
 
   it('returns true when CHAT_V3=true / 1 / yes / on', () => {
@@ -204,10 +204,17 @@ describe('chatV3Enabled feature flag', () => {
     }
   });
 
-  it('returns false for arbitrary values', () => {
-    for (const v of ['false', '0', 'no', 'off', '', 'maybe']) {
+  it('returns false on explicit opt-out values', () => {
+    for (const v of ['false', '0', 'no', 'off']) {
       process.env.CHAT_V3 = v;
       expect(chatV3Enabled()).toBe(false);
+    }
+  });
+
+  it('treats arbitrary / empty values as default-ON', () => {
+    for (const v of ['', 'maybe', 'unknown']) {
+      process.env.CHAT_V3 = v;
+      expect(chatV3Enabled()).toBe(true);
     }
   });
 });

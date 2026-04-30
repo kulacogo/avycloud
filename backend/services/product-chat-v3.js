@@ -69,15 +69,19 @@ const RETRY_DELAYS_MS = [500, 1000];
 // ---------------------------------------------------------------------------
 
 /**
- * Returns true when the CHAT_V3 env-flag is explicitly enabled.
- * Default: false. V2 + legacy remain the production defaults until an
- * integration flip in routes/identify.js.
+ * Returns whether the CHAT_V3 path should be used.
+ *
+ * Default: ON. Routing in `routes/identify.js` already cascades V3 → V2 →
+ * legacy on any error, so flipping the default cannot break a chat request
+ * path. Set `CHAT_V3=false` to opt out (or `?pipeline=v2|legacy` per call).
  */
 function chatV3Enabled() {
   const raw = process.env.CHAT_V3;
-  if (raw == null) return false;
+  if (raw == null) return true;
   const v = String(raw).trim().toLowerCase();
-  return v === 'true' || v === '1' || v === 'yes' || v === 'on';
+  if (v === 'false' || v === '0' || v === 'no' || v === 'off') return false;
+  if (v === 'true' || v === '1' || v === 'yes' || v === 'on') return true;
+  return true;
 }
 
 // ---------------------------------------------------------------------------

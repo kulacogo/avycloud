@@ -2,7 +2,7 @@
  * Integration-Tests: Identify V4 Branch in /api/v2/identify
  *
  * Verifiziert das V4-Opt-In-Routing:
- * - IDENTIFY_V4=false (default) → V3 wird aufgerufen, V4 nicht
+ * - IDENTIFY_V4=false (opt-out) → V3 wird aufgerufen, V4 nicht
  * - IDENTIFY_V4=true + V4 ok:true → Response enthält meta.pipeline='v4'
  * - IDENTIFY_V4=true + V4 throws → V3-Fallback läuft
  * - IDENTIFY_V4=true + V4 ok:false → V3-Fallback läuft
@@ -224,7 +224,7 @@ describe('POST /api/v2/identify — V4 branch routing', () => {
     delete process.env.IDENTIFY_V3;
   });
 
-  it('IDENTIFY_V4=false (default) → V4 not called, V3 runs', async () => {
+  it('IDENTIFY_V4=false (opt-out) → V4 not called, V3 runs', async () => {
     v4EnabledSpy.mockReturnValue(false);
     process.env.IDENTIFY_V3 = 'true';
     v3Spy.mockResolvedValue(V3_RESULT);

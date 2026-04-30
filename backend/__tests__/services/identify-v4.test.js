@@ -216,9 +216,9 @@ beforeEach(() => {
 });
 
 describe('identifyV4Enabled', () => {
-  it('returns false by default', () => {
+  it('returns TRUE by default (V4 is the production default)', () => {
     delete process.env.IDENTIFY_V4;
-    expect(identifyV4Enabled()).toBe(false);
+    expect(identifyV4Enabled()).toBe(true);
   });
 
   it('returns true when IDENTIFY_V4=true', () => {
@@ -228,6 +228,14 @@ describe('identifyV4Enabled', () => {
     expect(identifyV4Enabled()).toBe(true);
     process.env.IDENTIFY_V4 = 'on';
     expect(identifyV4Enabled()).toBe(true);
+    delete process.env.IDENTIFY_V4;
+  });
+
+  it('returns false on explicit opt-out', () => {
+    for (const v of ['false', '0', 'no', 'off']) {
+      process.env.IDENTIFY_V4 = v;
+      expect(identifyV4Enabled()).toBe(false);
+    }
     delete process.env.IDENTIFY_V4;
   });
 });

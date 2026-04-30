@@ -78,6 +78,19 @@ require.cache[titlePath] = {
   },
 };
 
+// Mock the agentic stage-3 module so existing Stage-3 tests don't make real
+// Gemini calls now that STAGE3_AGENTIC defaults to ON. Tests that explicitly
+// exercise the agentic path live in `identify-v3-stage3-agentic.test.js`.
+const agenticPath = require.resolve('../../lib/identify-v3-stage3-agentic');
+require.cache[agenticPath] = {
+  id: agenticPath, filename: agenticPath, loaded: true,
+  exports: {
+    generateProductContentAgentic: vi.fn(),
+    isAgenticEnabled: vi.fn(() => false),
+    _internal: {},
+  },
+};
+
 const { runStage3ContentGeneration } = require('../../lib/identify-v3-stage3');
 
 beforeEach(() => {

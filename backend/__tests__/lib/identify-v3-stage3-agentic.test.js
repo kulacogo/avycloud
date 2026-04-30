@@ -14,12 +14,12 @@ describe('identify-v3-stage3-agentic — pure helpers', () => {
   });
 
   describe('isAgenticEnabled', () => {
-    it('returns false by default', () => {
+    it('returns TRUE by default (agentic is the production default)', () => {
       const original = process.env.STAGE3_AGENTIC;
       delete process.env.STAGE3_AGENTIC;
       delete process.env.STAGE3_AGENTIC_SAMPLE;
       try {
-        expect(agentic.isAgenticEnabled()).toBe(false);
+        expect(agentic.isAgenticEnabled()).toBe(true);
       } finally {
         if (original !== undefined) process.env.STAGE3_AGENTIC = original;
       }
@@ -49,18 +49,32 @@ describe('identify-v3-stage3-agentic — pure helpers', () => {
       }
     });
 
-    it('respects STAGE3_AGENTIC_SAMPLE for canary opt-in', () => {
-      const original = process.env.STAGE3_AGENTIC_SAMPLE;
+    it('returns false on explicit opt-out values', () => {
+      const original = process.env.STAGE3_AGENTIC;
+      try {
+        for (const v of ['false', '0', 'no', 'off']) {
+          process.env.STAGE3_AGENTIC = v;
+          expect(agentic.isAgenticEnabled()).toBe(false);
+        }
+      } finally {
+        if (original === undefined) delete process.env.STAGE3_AGENTIC;
+        else process.env.STAGE3_AGENTIC = original;
+      }
+    });
+
+    it('respects STAGE3_AGENTIC_SAMPLE when explicit flag is unset', () => {
+      const originalSample = process.env.STAGE3_AGENTIC_SAMPLE;
       const originalFlag = process.env.STAGE3_AGENTIC;
       delete process.env.STAGE3_AGENTIC;
       try {
         process.env.STAGE3_AGENTIC_SAMPLE = '1.0';
         expect(agentic.isAgenticEnabled()).toBe(true);
+        // Sample 0 is a partial-disable knob.
         process.env.STAGE3_AGENTIC_SAMPLE = '0';
         expect(agentic.isAgenticEnabled()).toBe(false);
       } finally {
-        if (original === undefined) delete process.env.STAGE3_AGENTIC_SAMPLE;
-        else process.env.STAGE3_AGENTIC_SAMPLE = original;
+        if (originalSample === undefined) delete process.env.STAGE3_AGENTIC_SAMPLE;
+        else process.env.STAGE3_AGENTIC_SAMPLE = originalSample;
         if (originalFlag !== undefined) process.env.STAGE3_AGENTIC = originalFlag;
       }
     });

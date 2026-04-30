@@ -57,7 +57,15 @@ const AUTOSAVE_MIN_SCORE = 0.6;
 
 function identifyV4Enabled() {
   const raw = String(process.env.IDENTIFY_V4 || '').toLowerCase();
-  return raw === 'true' || raw === '1' || raw === 'yes' || raw === 'on';
+  // Explicit opt-out wins.
+  if (raw === 'false' || raw === '0' || raw === 'no' || raw === 'off') return false;
+  // Explicit opt-in wins.
+  if (raw === 'true' || raw === '1' || raw === 'yes' || raw === 'on') return true;
+  // Default: ON. V4 has a complete fallback chain (V4 throws / ok:false → V3
+  // → outer-grounding → legacy) wired up in routes/identify.js, so flipping
+  // the default cannot break the request path. Each request that V4 cannot
+  // handle is silently re-tried with the V3 pipeline.
+  return true;
 }
 
 // --- Worker-Registry -------------------------------------------------------
