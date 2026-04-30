@@ -6,6 +6,21 @@ const { normalizeHighlightsStrict } = require('./highlights-policy');
 const { canonicalizeAttributesStrict } = require('./attribute-policy');
 const { coerceTitleToPolicy } = require('./title-policy');
 
+// Lazy-load the agentic module so that test fixtures that don't need it (and
+// don't have @google/genai stubbed at module-load time) are not affected.
+let _agenticModule = null;
+function _getAgenticModule() {
+  if (_agenticModule === null) {
+    try {
+      _agenticModule = require('./identify-v3-stage3-agentic');
+    } catch (err) {
+      console.warn('[stage3] agentic module unavailable:', err?.message || err);
+      _agenticModule = false;
+    }
+  }
+  return _agenticModule || null;
+}
+
 /**
  * Stage 3: Content Generation
  *
@@ -60,11 +75,13 @@ async function runStage3ContentGeneration(stage1, stage2, locale = 'de-DE') {
   );
   let content;
   let usedFallback = false;
+  let usedAgentic = false;
   try {
     const ocrSnippets = Array.isArray(stage1.ocrPayload?.textSnippets)
       ? stage1.ocrPayload.textSnippets
       : [];
-    const contentPromise = generateProductContent({
+
+    const generationInput = {
       identity: {
         brand: identity.brand,
         model: identity.model,
@@ -91,7 +108,27 @@ async function runStage3ContentGeneration(stage1, stage2, locale = 'de-DE') {
       // GPSR web fallback (Stage 2 actively searched for it) was previously discarded.
       gpsrWebFallback: stage2.gpsrWebFallback || null,
       barcodeConfirmation: stage2.barcodeConfirmation || null,
-    });
+    };
+
+    // Agentic path — Chat-V3 pattern: ai.chats.create + googleSearch +
+    // urlContext + 9 atomic-tools + write_product_datasheet, max 5 iterations
+    // with forced-finalization. Default OFF; opt-in via STAGE3_AGENTIC=true or
+    // STAGE3_AGENTIC_SAMPLE=0.X. Falls back to single-shot on any failure.
+    const agentic = _getAgenticModule();
+    const useAgentic = agentic && agentic.isAgenticEnabled();
+
+    let contentPromise;
+    if (useAgentic) {
+      usedAgentic = true;
+      contentPromise = agentic.generateProductContentAgentic(generationInput).catch(async (err) => {
+        // Soft-fall-through to single-shot — log but don't propagate.
+        console.warn('[stage3] agentic path failed, falling back to single-shot:', err?.message || err);
+        usedAgentic = false;
+        return generateProductContent(generationInput);
+      });
+    } else {
+      contentPromise = generateProductContent(generationInput);
+    }
     Promise.resolve(contentPromise).catch(() => {});
     content = await Promise.race([
       contentPromise,
@@ -231,8 +268,12 @@ async function runStage3ContentGeneration(stage1, stage2, locale = 'de-DE') {
   result._meta = {
     durationMs: Date.now() - startTime,
     fallbackUsed: usedFallback,
+    agenticUsed: usedAgentic,
+    agenticTrace: result._agentic || null,
     aspectEnforcement: aspectEnforcementMeta,
   };
+  // Don't bleed the internal `_agentic` field into the saved product.
+  delete result._agentic;
 
   return result;
 }

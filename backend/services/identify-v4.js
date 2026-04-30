@@ -258,6 +258,48 @@ function mergeWaveResults(context, results) {
 
     if (!result.resolved || typeof result.resolved !== 'object') continue;
 
+    // Map worker-domain to a SOURCE_WEIGHTS-known source key so the cross-
+    // referencer's score table works.  Previously we wrote `worker:${domain}`
+    // which is unknown to SOURCE_WEIGHTS and fell back to the 0.4 default —
+    // that systematically dropped per-field confidence below threshold and
+    // triggered an unnecessary refinement iteration on every run.
+    //
+    // The chosen mapping reflects each worker's *primary* evidence source:
+    //   identity     → ean_db (validated GTIN) | gemini_inference otherwise
+    //   category     → ebay_catalog (catalog/suggestions APIs)
+    //   attributes   → ebay_catalog (taxonomy) for required, gemini_inference else
+    //   seo          → gemini_inference (LLM-generated copy)
+    //   pricing      → amazon_product when amazon evidence dominates,
+    //                  web_search_broad otherwise
+    //   image        → manufacturer_website when sourced from manufacturer,
+    //                  gemini_vision otherwise
+    //   gpsr         → manufacturer_website (registry+web cascade)
+    //   critic       → does not write evidence rows — its job is to score
+    const domainToSource = (() => {
+      switch (domain) {
+        case 'identity': {
+          const r = result.resolved || {};
+          // GTIN/EAN got validated against external DB?
+          if (r.gtin_verified === true || r.ean_verified === true) return 'ean_db';
+          return 'gemini_inference';
+        }
+        case 'category':
+          return 'ebay_catalog';
+        case 'attributes':
+          return 'ebay_catalog';
+        case 'seo':
+          return 'gemini_inference';
+        case 'pricing':
+          return 'web_search_broad';
+        case 'image':
+          return result.resolved?.from_manufacturer ? 'manufacturer_website' : 'gemini_vision';
+        case 'gpsr':
+          return 'manufacturer_website';
+        default:
+          return 'gemini_inference';
+      }
+    })();
+
     for (const [field, value] of Object.entries(result.resolved)) {
       if (value == null) continue;
       // Confidence may be a number (worker-specific) or an object
@@ -265,7 +307,7 @@ function mergeWaveResults(context, results) {
       const conf = typeof rawConf === 'number' ? rawConf : (rawConf && rawConf.score) || undefined;
       crossRefEntries.push({
         field,
-        source: `worker:${domain}`,
+        source: domainToSource,
         value,
         confidence: typeof conf === 'number' ? conf : undefined,
       });
@@ -397,10 +439,18 @@ function assembleProductV4(context) {
   const id = (ctx.product && ctx.product.id) || crypto.randomUUID();
 
   const brand = crossRef.brand || identityResolved.brand || identity.brand || '';
-  const name = identity.brand || identity.model
-    ? [identity.brand, identity.model, identity.variant].filter(Boolean).join(' ').trim()
-    : '';
-  const finalName = name || 'Unbekanntes Produkt';
+  // Build product name from the SAME consensus brand we just chose, then layer
+  // model/variant from the resolved-identity worker (which may have replaced
+  // them via verify_brand / lookup_gtin). Falling back to the raw stage-1
+  // identity (the previous behaviour) means a brand correction in the worker
+  // stays inconsistent with the title — fixed here.
+  const resolvedModel = identityResolved.model || identity.model || '';
+  const resolvedVariant = identityResolved.variant || identity.variant || '';
+  // SEO worker title beats the synthesized name when present (it's already
+  // mobile-first + Cassini-tuned).
+  const seoNameCandidate = (workerResults.seo?.resolved?.title_ebay || '').trim();
+  const synthesizedName = [brand, resolvedModel, resolvedVariant].filter(Boolean).join(' ').trim();
+  const finalName = seoNameCandidate || synthesizedName || 'Unbekanntes Produkt';
 
   const ean = crossRef.ean || identityResolved.ean || '';
   const gtin = crossRef.gtin || identityResolved.gtin || '';
@@ -449,25 +499,65 @@ function assembleProductV4(context) {
   const pricingSources = Array.isArray(pricingResolved.sources) ? pricingResolved.sources : [];
   const pricingConfidence = workerResults.pricing?.confidence?.price || 0;
 
-  // Wave 2: image-worker output (URL + meta, no buffers)
+  // Wave 2: image-worker output (URL + meta, no buffers).
+  //
+  // Until 2026-04-30 this block fell back to `inline://upload-N` placeholders
+  // when the image-worker yielded no items — which happens routinely on
+  // upload-only flows because the worker has no manufacturer URL to scrape.
+  // `inline://…` strings are not valid eBay image URLs and would block the
+  // publish step. The fix: if the worker returned nothing usable, fall back
+  // to the GCS-backed `ctx.uploadedImages` from Stage 1 (real public URLs)
+  // before resorting to placeholders.
   const imageResolved = workerResults.image?.resolved || {};
   const workerImages = Array.isArray(imageResolved.images) ? imageResolved.images : [];
-  const imagesOut = workerImages
-    .filter((i) => i && (i.url || i.source === 'upload'))
-    .map((i, idx) => ({
-      url_or_base64: i.url || `inline://upload-${idx}`,
+  const stage1UploadImages = Array.isArray(ctx.uploadedImages) ? ctx.uploadedImages : [];
+
+  const imagesFromWorker = workerImages
+    .filter((i) => i && i.url && /^https?:\/\//i.test(i.url))
+    .map((i) => ({
+      url_or_base64: i.url,
       source: i.source || 'upload',
       variant: i.angle || 'reference',
       quality: typeof i.quality === 'number' ? i.quality : undefined,
     }));
-  // Fallback: Stage-1 upload-placeholders if image-worker returned nothing
-  const images = imagesOut.length > 0
-    ? imagesOut
-    : (ctx.imageParts || []).map((_p, idx) => ({
-        url_or_base64: `inline://image-${idx}`,
-        source: 'upload',
-        variant: 'reference',
-      }));
+
+  const imagesFromStage1Uploads = stage1UploadImages
+    .filter((u) => u && u.url && /^https?:\/\//i.test(u.url))
+    .map((u) => ({
+      url_or_base64: u.url,
+      source: 'upload',
+      variant: 'reference',
+      width: u.width || undefined,
+      height: u.height || undefined,
+    }));
+
+  // Dedupe by URL — worker may have re-emitted upload URLs in its own format.
+  const seenUrls = new Set();
+  const dedup = (arr) => arr.filter((img) => {
+    const u = img.url_or_base64;
+    if (!u || seenUrls.has(u)) return false;
+    seenUrls.add(u);
+    return true;
+  });
+
+  const merged = dedup([...imagesFromWorker, ...imagesFromStage1Uploads]);
+  const images = merged.length > 0
+    ? merged
+    // Last-resort placeholders only when everything else failed. Logged so we
+    // can detect the failure mode in production.
+    : (() => {
+        if ((ctx.imageParts || []).length) {
+          console.warn(
+            `[identify-v4] no image URLs available — emitting inline:// placeholders ` +
+            `(stage1Uploads=${stage1UploadImages.length}, workerImages=${workerImages.length})`
+          );
+        }
+        return (ctx.imageParts || []).map((_p, idx) => ({
+          url_or_base64: `inline://image-${idx}`,
+          source: 'upload',
+          variant: 'reference',
+        }));
+      })();
 
   // Wave 2: gpsr-worker output
   const gpsrResolved = workerResults.gpsr?.resolved || {};
@@ -650,6 +740,14 @@ async function identifyProductV4({
       tenantId,
       userId,
       imageParts: stage1.imageParts || [],
+      // Stage-1 has already uploaded the user-provided images to GCS and
+      // produced public URLs in `uploadedImages`. Without forwarding these to
+      // the orchestrator, the image-worker's URL pool is empty for upload-only
+      // flows (no GTIN, no web_image_urls) and `assembleProductV4` ends up
+      // emitting `inline://upload-N` placeholders that eBay rejects on
+      // publish. Forwarding closes that loop.
+      uploadedImages: Array.isArray(stage1.uploadedImages) ? stage1.uploadedImages : [],
+      eanLookup: stage1.eanLookup || null,
       identity: stage1.identity || {},
       ocrPayload: stage1.ocrPayload || {},
       workerResults: {},

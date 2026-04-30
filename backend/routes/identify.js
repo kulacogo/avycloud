@@ -264,7 +264,40 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
     // to the existing pipeline below — never returns a 500 from V4 itself.
     try {
       const { identifyProductV4, identifyV4Enabled } = require('../services/identify-v4');
-      if (typeof identifyV4Enabled === 'function' && identifyV4Enabled()) {
+      // Canary support — also activate V4 for a sampled fraction of traffic
+      // even when the master flag is off. Set IDENTIFY_V4_CANARY_RATE=0.1 to
+      // run V4 for 10 % of requests. Tenant whitelisting via
+      // IDENTIFY_V4_CANARY_TENANTS=tenantA,tenantB.
+      const canaryRate = Number(process.env.IDENTIFY_V4_CANARY_RATE || '0');
+      const canaryTenants = String(process.env.IDENTIFY_V4_CANARY_TENANTS || '')
+        .split(',')
+        .map((t) => t.trim())
+        .filter(Boolean);
+      const reqTenant = req.tenantId || req.user?.tenantId || null;
+      const v4ByCanaryRate =
+        Number.isFinite(canaryRate) && canaryRate > 0 && Math.random() < Math.min(1, canaryRate);
+      const v4ByTenant = canaryTenants.length > 0 && reqTenant && canaryTenants.includes(reqTenant);
+      const v4FlagEnabled =
+        typeof identifyV4Enabled === 'function' && identifyV4Enabled();
+      const useV4 = v4FlagEnabled || v4ByCanaryRate || v4ByTenant;
+
+      if (useV4) {
+        // Inject a pre-built Gemini client so identity-worker, attributes-
+        // worker, image-worker and critic-worker can actually run their
+        // Gemini-backed branches. Without this `aiClient` is null and the
+        // workers run in a heavily degraded "atomic-tools-only" mode that's
+        // worse than V3 — exactly the failure mode flagged in the V4 audit.
+        let injectedAiClient = null;
+        try {
+          const { getGenAIClient } = require('../lib/gemini3-client');
+          injectedAiClient = await getGenAIClient();
+        } catch (clientErr) {
+          console.warn(
+            '[identify] V4: failed to construct aiClient, workers will run degraded:',
+            clientErr?.message || clientErr,
+          );
+        }
+
         try {
           const v4Result = await identifyProductV4({
             files,
@@ -273,15 +306,20 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
             hint,
             paletteCode,
             inventoryId,
-            tenantId: req.tenantId || req.user?.tenantId || null,
+            tenantId: reqTenant,
             userId: req.userId || req.user?.uid || null,
+            aiClient: injectedAiClient,
             autosave: String(process.env.IDENTIFY_V4_AUTOSAVE || 'true').toLowerCase() !== 'false',
           });
           if (v4Result && v4Result.ok) {
             return res.json({
               ok: true,
               data: v4Result.product,
-              meta: { ...(v4Result.meta || {}), pipeline: 'v4' },
+              meta: {
+                ...(v4Result.meta || {}),
+                pipeline: 'v4',
+                v4_route: v4FlagEnabled ? 'flag' : (v4ByTenant ? 'tenant_canary' : 'rate_canary'),
+              },
             });
           }
           console.warn(

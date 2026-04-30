@@ -35,6 +35,11 @@ const lookupGpsrFromWebMock = vi.fn(async () => ({
   confidence: 0.75,
   sources: ['https://beispiel.de/impressum'],
 }));
+// Phase B (2026-04-30): category-resolver-v2 is loaded lazily inside Stage 2.
+// Default: returns null so the local findEbayCategory match wins (preserves
+// pre-existing test behaviour). Per-test overrides set this for the new V2-
+// integration assertions further down the file.
+const resolveCategoryV2Mock = vi.fn(async () => null);
 
 // Patch require.cache
 const taxonomyPath = require.resolve('../../lib/ebay-taxonomy');
@@ -114,10 +119,24 @@ require.cache[gpsrWebPath] = {
   },
 };
 
+// Mock category-resolver so Stage 2's lazy `_tryRequireCategoryResolverV2()`
+// returns our test double without hitting eBay APIs / Gemini.
+const categoryResolverPath = require.resolve('../../services/category-resolver');
+require.cache[categoryResolverPath] = {
+  id: categoryResolverPath, filename: categoryResolverPath, loaded: true,
+  exports: {
+    resolveCategoryV2: resolveCategoryV2Mock,
+    STRATEGY_ACCEPT_THRESHOLD: 0.85,
+  },
+};
+
 const { runStage2Enrichment, withTimeout } = require('../../lib/identify-v3-stage2');
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // Default: V2 returns null so the local lookup wins. Tests that need a V2
+  // result override via mockResolvedValueOnce.
+  resolveCategoryV2Mock.mockImplementation(async () => null);
 });
 
 const makeStage1 = (overrides = {}) => ({
@@ -320,6 +339,68 @@ describe('withTimeout', () => {
       expect(unhandled).toBeNull();
     } finally {
       process.off('unhandledRejection', onUnhandled);
+    }
+  });
+});
+
+// ─── Phase B (2026-04-30): Category-Resolver-V2 integration ──────────────────
+
+describe('runStage2Enrichment — Category-Resolver-V2 integration', () => {
+  it('uses local findEbayCategory by default when V2 returns no result', async () => {
+    resolveCategoryV2Mock.mockResolvedValueOnce(null);
+    const out = await runStage2Enrichment(makeStage1());
+    expect(out.category.ebayId).toBe('112529');
+    expect(out.category.resolver?.source).toBe('local');
+  });
+
+  it('prefers V2 result when confidence >= STRATEGY_ACCEPT_THRESHOLD (0.85)', async () => {
+    resolveCategoryV2Mock.mockResolvedValueOnce({
+      categoryId: '14969',
+      breadcrumb: 'TV, Video & Audio > Audio fuer Heim',
+      source: 'catalog',
+      confidence: 0.95,
+      keywordMatch: 0.7,
+    });
+    const out = await runStage2Enrichment(makeStage1());
+    expect(out.category.ebayId).toBe('14969');
+    expect(out.category.ebayBreadcrumb).toContain('Audio fuer Heim');
+    expect(out.category.resolver?.source).toBe('v2:catalog');
+    expect(out.category.resolver?.confidence).toBeCloseTo(0.95, 2);
+  });
+
+  it('falls back to local when V2 confidence is below threshold', async () => {
+    resolveCategoryV2Mock.mockResolvedValueOnce({
+      categoryId: '99999',
+      breadcrumb: 'Generic',
+      source: 'gemini',
+      confidence: 0.6,
+    });
+    const out = await runStage2Enrichment(makeStage1());
+    expect(out.category.ebayId).toBe('112529'); // local
+    expect(out.category.resolver?.source).toBe('local');
+    expect(out.category.resolver?.v2BelowThreshold).toMatchObject({
+      categoryId: '99999',
+      confidence: 0.6,
+    });
+  });
+
+  it('falls back to local when V2 throws', async () => {
+    resolveCategoryV2Mock.mockRejectedValueOnce(new Error('catalog API down'));
+    const out = await runStage2Enrichment(makeStage1());
+    expect(out.category.ebayId).toBe('112529');
+    expect(out.category.resolver?.source).toBe('local');
+  });
+
+  it('skips V2 entirely when STAGE2_USE_CATEGORY_V2=false', async () => {
+    const original = process.env.STAGE2_USE_CATEGORY_V2;
+    process.env.STAGE2_USE_CATEGORY_V2 = 'false';
+    try {
+      const out = await runStage2Enrichment(makeStage1());
+      expect(resolveCategoryV2Mock).not.toHaveBeenCalled();
+      expect(out.category.ebayId).toBe('112529');
+    } finally {
+      if (original === undefined) delete process.env.STAGE2_USE_CATEGORY_V2;
+      else process.env.STAGE2_USE_CATEGORY_V2 = original;
     }
   });
 });

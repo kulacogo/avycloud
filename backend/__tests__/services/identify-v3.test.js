@@ -365,4 +365,90 @@ describe('identifyProductV3', () => {
       expect(product.details.gpsr).toBeUndefined();
     });
   });
+
+  // ─── Phase B (2026-04-30): Stage 2 categorySource + Stage 4b cross-ref ────
+
+  describe('categorySource propagation (Phase B)', () => {
+    it('sets categorySource=auto:catalog when Stage 2 used V2 catalog', async () => {
+      runStage2Mock.mockImplementation(async () => ({
+        ...JSON.parse(JSON.stringify(mockStage2Result)),
+        category: {
+          ebayId: '14969',
+          ebayBreadcrumb: 'TV, Video & Audio > Kopfhoerer',
+          match: { id: '14969', breadcrumb: 'TV, Video & Audio > Kopfhoerer' },
+          resolver: { source: 'v2:catalog', confidence: 0.95 },
+        },
+      }));
+
+      const { product } = await identifyProductV3({ files: [], barcodes: '4548736132610' });
+      expect(product.details.categorySource).toBe('auto:catalog');
+    });
+
+    it('sets categorySource=auto:suggestions for V2 suggestions', async () => {
+      runStage2Mock.mockImplementation(async () => ({
+        ...JSON.parse(JSON.stringify(mockStage2Result)),
+        category: {
+          ebayId: '14969',
+          ebayBreadcrumb: 'TV, Video & Audio > Kopfhoerer',
+          resolver: { source: 'v2:suggestions', confidence: 0.88 },
+        },
+      }));
+
+      const { product } = await identifyProductV3({ files: [], barcodes: '4548736132610' });
+      expect(product.details.categorySource).toBe('auto:suggestions');
+    });
+
+    it('falls back to auto:local when no V2 resolver was used', async () => {
+      runStage2Mock.mockImplementation(async () => ({
+        ...JSON.parse(JSON.stringify(mockStage2Result)),
+        category: {
+          ebayId: '112529',
+          ebayBreadcrumb: 'TV, Video & Audio > Kopfhoerer',
+          resolver: { source: 'local', confidence: 0.9 },
+        },
+      }));
+
+      const { product } = await identifyProductV3({ files: [], barcodes: '4548736132610' });
+      expect(product.details.categorySource).toBe('auto:local');
+    });
+  });
+
+  describe('Stage 4b — Cross-Reference block', () => {
+    it('attaches cross_reference block by default (STAGE4_CROSS_REFERENCE not set)', async () => {
+      const original = process.env.STAGE4_CROSS_REFERENCE;
+      delete process.env.STAGE4_CROSS_REFERENCE;
+      try {
+        const { product } = await identifyProductV3({ files: [], barcodes: '4548736132610' });
+        const xref = product.ops.data_quality.identify_v3.cross_reference;
+        expect(xref).toBeDefined();
+        expect(typeof xref.evidence_count).toBe('number');
+        expect(xref.confidence).toBeDefined();
+        expect(xref.aggregate).toBeDefined();
+      } finally {
+        if (original === undefined) delete process.env.STAGE4_CROSS_REFERENCE;
+        else process.env.STAGE4_CROSS_REFERENCE = original;
+      }
+    });
+
+    it('omits cross_reference block when STAGE4_CROSS_REFERENCE=false', async () => {
+      const original = process.env.STAGE4_CROSS_REFERENCE;
+      process.env.STAGE4_CROSS_REFERENCE = 'false';
+      try {
+        const { product } = await identifyProductV3({ files: [], barcodes: '4548736132610' });
+        expect(product.ops.data_quality.identify_v3.cross_reference).toBeUndefined();
+      } finally {
+        if (original === undefined) delete process.env.STAGE4_CROSS_REFERENCE;
+        else process.env.STAGE4_CROSS_REFERENCE = original;
+      }
+    });
+
+    it('keeps the existing Stage-4 fields untouched (overall_score, field_confidence, etc.)', async () => {
+      const { product } = await identifyProductV3({ files: [], barcodes: '4548736132610' });
+      const dq = product.ops.data_quality.identify_v3;
+      expect(dq.overall_score).toBe(0.87);
+      expect(dq.field_confidence).toBeDefined();
+      expect(dq.aspect_coverage).toBeDefined();
+      expect(dq.marketplace_readiness).toBeDefined();
+    });
+  });
 });

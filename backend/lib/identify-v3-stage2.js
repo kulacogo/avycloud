@@ -9,6 +9,19 @@ const { confirmBarcodeWithWeb } = require('./barcode-web-confirm');
 const { lookupWeightFromWeb } = require('./weight-web-lookup');
 const { lookupGpsrFromWeb } = require('./gpsr-web-fallback');
 
+// Category-Resolver-V2 is the 4-stage cascade (catalog → suggestions → local → gemini)
+// in `services/category-resolver.js`. It produces structurally better results than
+// the local string match when GTIN/brand are available (eBay Catalog API beats
+// our local taxonomy lookup whenever the product is registered). We require()
+// inside the call to avoid an import cycle (category-resolver depends on Gemini).
+function _tryRequireCategoryResolverV2() {
+  try {
+    return require('../services/category-resolver');
+  } catch {
+    return null;
+  }
+}
+
 // Feature flags — default ON; set env var to 'false'/'0' to disable.
 function envFlag(name, defaultValue = true) {
   const raw = process.env[name];
@@ -105,9 +118,75 @@ async function runStage2Enrichment(stage1, locale = 'de-DE') {
     .join(' ')
     .trim();
 
-  // Resolve eBay category synchronously first (needed for aspects + title insights)
-  const categoryMatch = findEbayCategory(identity.internalCategory);
-  const categoryId = categoryMatch?.id || '';
+  // ─── Category resolution ───────────────────────────────────────────────
+  //
+  // We run TWO category resolvers in parallel:
+  //  - findEbayCategory(): local breadcrumb-string lookup (instant, but only
+  //    matches what's already in our local taxonomy — gemini-vision phantom
+  //    categories like "Bootsport" for Anker Powerbanks fall through).
+  //  - resolveCategoryV2(): 4-stage cascade (eBay Catalog by GTIN → eBay
+  //    Taxonomy Suggestions → local lookup → Gemini fallback). Confidence-
+  //    aware. This is the production-grade resolver used by the admin
+  //    bulk-recategorize. Returns `{ categoryId, breadcrumb, source, confidence }`.
+  //
+  // Selection rule (the new behaviour, default ON via STAGE2_USE_CATEGORY_V2):
+  //  - If V2 returns a result with confidence >= ACCEPT_THRESHOLD (0.85): use V2.
+  //  - Otherwise fall back to the local match (same behaviour as before).
+  //  - On any failure: use the local match — V2 must never break Stage 2.
+  //
+  // The previous behaviour can be re-enabled via STAGE2_USE_CATEGORY_V2=false.
+  const useV2 = envFlag('STAGE2_USE_CATEGORY_V2', true);
+  const localMatch = findEbayCategory(identity.internalCategory);
+  let categoryMatch = localMatch;
+  let categoryId = localMatch?.id || '';
+  let categoryResolveMeta = { source: 'local', confidence: localMatch ? 0.9 : 0 };
+
+  if (useV2) {
+    try {
+      const resolverModule = _tryRequireCategoryResolverV2();
+      if (resolverModule && typeof resolverModule.resolveCategoryV2 === 'function') {
+        const v2TimeoutMs = parseInt(process.env.STAGE2_CATEGORY_V2_TIMEOUT_MS || '8000', 10);
+        const v2Result = await withTimeout(
+          resolverModule.resolveCategoryV2(tempProduct, { reason: 'identify-v3-stage2' }),
+          v2TimeoutMs,
+          'CategoryResolverV2',
+        ).catch((err) => {
+          console.warn('[stage2] category-resolver-v2 failed:', err?.message || err);
+          return null;
+        });
+        const acceptThreshold = resolverModule.STRATEGY_ACCEPT_THRESHOLD || 0.85;
+        if (
+          v2Result &&
+          v2Result.categoryId &&
+          typeof v2Result.confidence === 'number' &&
+          v2Result.confidence >= acceptThreshold
+        ) {
+          categoryId = String(v2Result.categoryId);
+          categoryMatch = {
+            id: categoryId,
+            breadcrumb: v2Result.breadcrumb || localMatch?.breadcrumb || identity.internalCategory || '',
+          };
+          categoryResolveMeta = {
+            source: `v2:${v2Result.source}`,
+            confidence: v2Result.confidence,
+            keywordMatch: v2Result.keywordMatch,
+            confidenceBreakdown: v2Result.confidenceBreakdown,
+            alternatives: Array.isArray(v2Result.alternatives) ? v2Result.alternatives.slice(0, 3) : [],
+          };
+        } else if (v2Result && v2Result.categoryId) {
+          // V2 found something but below threshold — keep local, log for telemetry.
+          categoryResolveMeta.v2BelowThreshold = {
+            categoryId: v2Result.categoryId,
+            breadcrumb: v2Result.breadcrumb,
+            source: v2Result.source,
+            confidence: v2Result.confidence,
+          };
+        }
+      }
+    } catch (err) {
+      console.warn('[stage2] category-resolver-v2 wrapper error:', err?.message || err);
+    }
+  }
 
   // Run all 6 enrichments in parallel
   const enrichmentResults = {};
@@ -301,6 +380,7 @@ async function runStage2Enrichment(stage1, locale = 'de-DE') {
       ebayId: categoryId,
       ebayBreadcrumb: categoryMatch?.breadcrumb || identity.internalCategory || '',
       match: categoryMatch || null,
+      resolver: categoryResolveMeta,
     },
     requiredAspects: aspects.requiredAspects || [],
     aspectCatalog: aspects.catalog || null,

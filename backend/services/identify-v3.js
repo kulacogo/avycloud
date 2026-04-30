@@ -5,6 +5,12 @@ const { runStage1Recognition } = require('../lib/identify-v3-stage1');
 const { runStage2Enrichment } = require('../lib/identify-v3-stage2');
 const { runStage3ContentGeneration } = require('../lib/identify-v3-stage3');
 const { runStage4Validation } = require('../lib/identify-v3-stage4');
+const { runStage4CrossReference } = require('../lib/identify-v3-evidence');
+
+function _stage4CrossRefEnabled() {
+  const raw = String(process.env.STAGE4_CROSS_REFERENCE || 'true').trim().toLowerCase();
+  return raw !== 'false' && raw !== '0' && raw !== 'no' && raw !== 'off';
+}
 
 /**
  * Identify V3: Multi-Stage Pipeline
@@ -34,8 +40,30 @@ async function identifyProductV3({ files = [], barcodes = '', locale = 'de-DE', 
     locale, paletteCode, inventoryId,
   });
 
-  // Stage 4: Validation (synchronous scoring)
+  // Stage 4: Validation (synchronous scoring) — custom per-field scoring with
+  // hard-coded SOURCE_BASE_SCORES, kept for backward compat (downstream code
+  // and UI read its `overall_score` / `field_confidence` keys).
   const stage4 = runStage4Validation(stage1, stage2, stage3, product);
+
+  // Stage 4b: Cross-Reference + per-field-Confidence pass — additive, runs
+  // alongside the custom Stage 4 scoring. Uses the calibrated `SOURCE_WEIGHTS`
+  // table from `lib/confidence-scoring.js` (gs1_verified=0.98, ebay_catalog=0.95,
+  // manufacturer_website=0.90, ean_db=0.85, gemini_inference=0.55, …) and the
+  // multi-source consensus logic from `lib/cross-reference.js` (the same
+  // module Chat-V3 and Identify-V4 use). Output lands in
+  // `ops.data_quality.identify_v3.cross_reference` — Stage 4's output is NOT
+  // mutated, so UI and quality-gates that currently read `overall_score` are
+  // unchanged. Gated by STAGE4_CROSS_REFERENCE (default ON, additive only).
+  let crossRefBlock = null;
+  if (_stage4CrossRefEnabled()) {
+    try {
+      crossRefBlock = runStage4CrossReference(stage1, stage2, stage3);
+    } catch (err) {
+      // Never let an evidence/aggregation bug poison the pipeline.
+      console.warn('[identify-v3] cross-reference pass failed:', err?.message || err);
+      crossRefBlock = null;
+    }
+  }
 
   // Attach quality metadata to product
   product.ops = product.ops || {};
@@ -46,7 +74,32 @@ async function identifyProductV3({ files = [], barcodes = '', locale = 'de-DE', 
     field_confidence: stage4.fieldConfidence,
     aspect_coverage: stage4.requiredAspectsCoverage,
     marketplace_readiness: stage4.marketplaceReadiness,
+    ...(crossRefBlock
+      ? {
+          cross_reference: {
+            evidence_count: crossRefBlock.evidenceCount,
+            confidence: crossRefBlock.confidence,
+            conflicts: crossRefBlock.conflicts,
+            aggregate: crossRefBlock.aggregate,
+          },
+        }
+      : {}),
   };
+
+  // Surface conflicts as warnings so the editor sees them in the UI without
+  // any backend mutation of the resolved values (Phase 1 — observe, don't
+  // overwrite).
+  if (crossRefBlock?.conflicts?.length) {
+    product.notes = product.notes || {};
+    product.notes.warnings = Array.from(
+      new Set([
+        ...(product.notes.warnings || []),
+        ...crossRefBlock.conflicts.map(
+          (c) => `Cross-Reference-Konflikt: ${c.field} (${c.alternatives?.length || 0} Alternativen)`,
+        ),
+      ]),
+    );
+  }
 
   const totalDurationMs = Date.now() - startTime;
 
@@ -101,9 +154,18 @@ function assembleProduct(id, stage1, stage2, stage3, opts) {
   // by this point, leave it empty — Stage 4 marks the field low-confidence and
   // the editor can fix it manually instead of having to undo a wrong guess.
 
-  // Category: prefer Stage 2 resolved eBay breadcrumb
+  // Category: prefer Stage 2 resolved eBay breadcrumb. categorySource is set
+  // from the resolver meta so that downstream `enforceEbayAspects` knows
+  // whether the category is auto-resolved (and may be overridden) or sticky.
   const category = stage2.category?.ebayBreadcrumb || identity.internalCategory || 'Unkategorisiert';
   const categoryId = stage2.category?.ebayId || null;
+  const resolverSource = stage2.category?.resolver?.source || 'local';
+  // resolver.source is one of: 'local', 'v2:catalog', 'v2:suggestions',
+  // 'v2:local', 'v2:gemini'. The prefix-stripped form aligns with the
+  // taxonomy expected in details.categorySource per CLAUDE.md.
+  const categorySource = resolverSource.startsWith('v2:')
+    ? `auto:${resolverSource.slice(3)}`
+    : 'auto:local';
 
   // Barcodes array
   const barcodeArray = barcodes.ranked?.map((r) => r.code).filter(Boolean) || [];
@@ -199,6 +261,7 @@ function assembleProduct(id, stage1, stage2, stage3, opts) {
     },
     details: {
       categoryId: categoryId || undefined,
+      categorySource,
       short_description: stage3.description_ebay || '',
       key_features: Array.isArray(stage3.key_features) ? stage3.key_features : [],
       attributes,
