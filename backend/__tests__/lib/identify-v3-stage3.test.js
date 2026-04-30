@@ -330,3 +330,164 @@ describe('runStage3ContentGeneration', () => {
     }
   });
 });
+
+// ─── Phase 2 (2026-04-30): Stage 3 data-feeding regression tests ───────────────
+//
+// Verifies that the data Stage 1 + Stage 2 collected actually reaches Stage 3.
+// Until 2026-04-30 OCR text, EAN-DB hits, GPSR web fallback and 2 of 4 images
+// were silently dropped before generateProductContent — Stage 3 was effectively
+// blind.
+
+describe('runStage3ContentGeneration — data feed (Phase 2)', () => {
+  it('forwards OCR text snippets from stage1.ocrPayload.textSnippets', async () => {
+    const stage1 = makeStage1();
+    stage1.ocrPayload = {
+      barcodes: ['4548736132610'],
+      textSnippets: [
+        'Sony WH-1000XM5 Wireless Noise Cancelling Headphones',
+        'Bluetooth 5.2 / 30h Battery / Black',
+        'Made in Malaysia. Manufactured by Sony Corporation, Tokyo.',
+      ],
+    };
+    await runStage3ContentGeneration(stage1, makeStage2());
+    const call = generateProductContentMock.mock.calls[0][0];
+    expect(Array.isArray(call.ocrSnippets)).toBe(true);
+    expect(call.ocrSnippets.length).toBe(3);
+    expect(call.ocrSnippets[0]).toContain('Sony WH-1000XM5');
+  });
+
+  it('forwards eanLookup from stage1', async () => {
+    const stage1 = makeStage1();
+    stage1.eanLookup = { found: true, brand: 'Sony', productName: 'WH-1000XM5', category: 'Audio' };
+    await runStage3ContentGeneration(stage1, makeStage2());
+    const call = generateProductContentMock.mock.calls[0][0];
+    expect(call.eanLookup).toEqual(stage1.eanLookup);
+  });
+
+  it('forwards stage2.gpsrWebFallback (previously discarded)', async () => {
+    const stage2 = makeStage2();
+    stage2.gpsr = { found: false, data: null };
+    stage2.gpsrWebFallback = {
+      manufacturer_name: 'Sony Europe B.V.',
+      manufacturer_address: 'Da Vincilaan 7-D1, 1930 Zaventem',
+      email: 'gpsr@sony.eu',
+    };
+    await runStage3ContentGeneration(makeStage1(), stage2);
+    const call = generateProductContentMock.mock.calls[0][0];
+    expect(call.gpsrWebFallback).toEqual(stage2.gpsrWebFallback);
+  });
+
+  it('forwards stage2.weightFallback', async () => {
+    const stage2 = makeStage2();
+    stage2.weightFallback = { weight_grams: 250, sources: [{ url: 'https://sony.com' }] };
+    await runStage3ContentGeneration(makeStage1(), stage2);
+    const call = generateProductContentMock.mock.calls[0][0];
+    expect(call.weightFallback).toEqual(stage2.weightFallback);
+  });
+
+  it('forwards stage2.barcodeConfirmation', async () => {
+    const stage2 = makeStage2();
+    stage2.barcodeConfirmation = { confirmed: true, evidence: [{ url: 'https://sony.de', title: 'Sony XM5' }] };
+    await runStage3ContentGeneration(makeStage1(), stage2);
+    const call = generateProductContentMock.mock.calls[0][0];
+    expect(call.barcodeConfirmation).toEqual(stage2.barcodeConfirmation);
+  });
+
+  it('forwards ALL imageParts (no longer slice(0, 2))', async () => {
+    const stage1 = makeStage1();
+    stage1.imageParts = [
+      { data: 'img1', mimeType: 'image/jpeg' },
+      { data: 'img2', mimeType: 'image/jpeg' },
+      { data: 'img3', mimeType: 'image/jpeg' },
+      { data: 'img4', mimeType: 'image/jpeg' },
+    ];
+    await runStage3ContentGeneration(stage1, makeStage2());
+    const call = generateProductContentMock.mock.calls[0][0];
+    expect(call.imageParts.length).toBe(4);
+  });
+
+  it('handles missing optional fields gracefully (back-compat)', async () => {
+    const stage1 = makeStage1();
+    delete stage1.ocrPayload;
+    delete stage1.eanLookup;
+    const stage2 = makeStage2();
+    delete stage2.gpsrWebFallback;
+    delete stage2.weightFallback;
+    delete stage2.barcodeConfirmation;
+
+    const result = await runStage3ContentGeneration(stage1, stage2);
+    expect(result.title_ebay).toBeTruthy();
+    const call = generateProductContentMock.mock.calls[0][0];
+    expect(call.ocrSnippets).toEqual([]);
+    expect(call.eanLookup).toBeNull();
+    expect(call.gpsrWebFallback).toBeNull();
+    expect(call.weightFallback).toBeNull();
+    expect(call.barcodeConfirmation).toBeNull();
+  });
+});
+
+// ─── Phase 2 (2026-04-30): Lower aspect-repair threshold ─────────────────────
+//
+// Until 2026-04-30 the repair Gemini call only fired when MORE than 30 % of
+// required aspects were unknown. eBay Cassini penalises every individual gap
+// — at 25 % unknown the listing still loses ranking. Default lowered to 10 %.
+
+describe('runStage3ContentGeneration — aspect-repair threshold (Phase 2)', () => {
+  it('triggers repair when >= 10% (default) of required aspects are unknown', async () => {
+    // 1 of 10 unknown == 10 % — at the new default threshold, repair triggers.
+    generateProductContentMock.mockResolvedValueOnce({
+      title_ebay: 't', title_kaufland: 't',
+      description_ebay: '<p>x</p>', description_kaufland: '<p>x</p>',
+      key_features: ['A'],
+      item_specifics: [
+        { key: 'Marke', value: 'Sony' }, { key: 'Modell', value: 'X' },
+        { key: 'Farbe', value: 'Schwarz' }, { key: 'A', value: 'a' },
+        { key: 'B', value: 'b' }, { key: 'C', value: 'c' },
+        { key: 'D', value: 'd' }, { key: 'E', value: 'e' },
+        { key: 'F', value: 'f' },
+        // 'G' missing → 1/10 unknown = 10 %.
+      ],
+      mobile_snippet: 'x',
+    });
+    gemini3GenerateJSONMock.mockResolvedValueOnce({ repaired: { G: 'g-value' }, confidence: { G: 0.8 } });
+
+    const stage2 = makeStage2();
+    stage2.requiredAspects = ['Marke', 'Modell', 'Farbe', 'A', 'B', 'C', 'D', 'E', 'F', 'G'];
+    await runStage3ContentGeneration(makeStage1(), stage2);
+    expect(gemini3GenerateJSONMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('respects STAGE3_ASPECT_REPAIR_THRESHOLD env override (e.g. 0.5)', async () => {
+    const original = process.env.STAGE3_ASPECT_REPAIR_THRESHOLD;
+    process.env.STAGE3_ASPECT_REPAIR_THRESHOLD = '0.5';
+    try {
+      // 2 of 5 unknown = 40 % — below the 50 % threshold → no repair.
+      generateProductContentMock.mockResolvedValueOnce({
+        title_ebay: 't', title_kaufland: 't',
+        description_ebay: '<p>x</p>', description_kaufland: '<p>x</p>',
+        key_features: ['A'],
+        item_specifics: [
+          { key: 'Marke', value: 'Sony' },
+          { key: 'Modell', value: 'X' },
+          { key: 'Farbe', value: 'Schwarz' },
+        ],
+        mobile_snippet: 'x',
+      });
+
+      const stage2 = makeStage2();
+      stage2.requiredAspects = ['Marke', 'Modell', 'Farbe', 'D', 'E'];
+      await runStage3ContentGeneration(makeStage1(), stage2);
+      expect(gemini3GenerateJSONMock).not.toHaveBeenCalled();
+    } finally {
+      if (original === undefined) delete process.env.STAGE3_ASPECT_REPAIR_THRESHOLD;
+      else process.env.STAGE3_ASPECT_REPAIR_THRESHOLD = original;
+    }
+  });
+
+  it('does not fire repair when zero aspects are unknown', async () => {
+    const stage2 = makeStage2();
+    stage2.requiredAspects = ['Marke', 'Modell', 'Farbe'];
+    await runStage3ContentGeneration(makeStage1(), stage2);
+    expect(gemini3GenerateJSONMock).not.toHaveBeenCalled();
+  });
+});

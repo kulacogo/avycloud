@@ -18,6 +18,77 @@
 
 const { getGeminiApiKey } = require('./gemini-client');
 const { resolveModel } = require('./model-select');
+const {
+  defaultThinkingConfig,
+  defaultSafetySettings,
+  DEFAULT_STRUCTURED_TEMPERATURE,
+} = require('./gemini-config');
+
+/**
+ * Centralized helpers for the identify pipeline.
+ *
+ * Background: Until 2026-04-30 the identify-pipeline (Stage 1 / Stage 3 /
+ * outer grounding) ran Gemini 3 with Temperature 0.05–0.15, no thinkingConfig,
+ * no urlContext and small token budgets. The chat assistant in the same
+ * codebase ran the same model with thinking high, Temperature 1.0, urlContext
+ * and atomic tools — and produced markedly better results. This module now
+ * pulls the identify calls onto the chat-grade configuration. Each knob is
+ * tunable via ENV so we can roll back instantly if needed.
+ *
+ *   IDENTIFY_THINKING_LEVEL      'high' (default) | 'medium' | 'low' | 'off'
+ *   IDENTIFY_URL_CONTEXT         'true' (default) | 'false'
+ *   IDENTIFY_TEMP_RECOGNITION    default 0.4   (Stage 1, focused JSON)
+ *   IDENTIFY_TEMP_GROUNDING      default 0.6   (outer grounding)
+ *   IDENTIFY_TEMP_CONTENT        default 0.7   (Stage 3, content gen)
+ *   IDENTIFY_MAX_TOKENS_RECOG    default 4096
+ *   IDENTIFY_MAX_TOKENS_GROUND   default 8192
+ *   IDENTIFY_MAX_TOKENS_CONTENT  default 8192
+ */
+
+function _identifyThinkingLevel() {
+  const raw = String(process.env.IDENTIFY_THINKING_LEVEL || 'high').trim().toLowerCase();
+  if (raw === 'off' || raw === 'false' || raw === '0' || raw === 'none') return null;
+  if (raw === 'low' || raw === 'medium' || raw === 'high') return raw;
+  return 'high';
+}
+
+function _identifyThinkingConfig() {
+  const level = _identifyThinkingLevel();
+  if (!level) return null;
+  // includeThoughts:false because identify is a JSON producer — we don't ship
+  // the thoughts to the user; the reasoning still happens server-side.
+  return defaultThinkingConfig({ level, includeThoughts: false });
+}
+
+function _identifyUrlContextEnabled() {
+  const raw = String(process.env.IDENTIFY_URL_CONTEXT || 'true').trim().toLowerCase();
+  return raw === '1' || raw === 'true' || raw === 'yes' || raw === 'on';
+}
+
+function _identifyTools(extraTools = []) {
+  const tools = [{ googleSearch: {} }];
+  if (_identifyUrlContextEnabled()) {
+    tools.push({ urlContext: {} });
+  }
+  for (const t of extraTools) {
+    if (t) tools.push(t);
+  }
+  return tools;
+}
+
+function _envFloat(name, fallback) {
+  const raw = process.env[name];
+  if (raw == null || String(raw).trim() === '') return fallback;
+  const n = Number.parseFloat(raw);
+  return Number.isFinite(n) && n >= 0 && n <= 2 ? n : fallback;
+}
+
+function _envInt(name, fallback) {
+  const raw = process.env[name];
+  if (raw == null || String(raw).trim() === '') return fallback;
+  const n = Number.parseInt(raw, 10);
+  return Number.isFinite(n) && n > 0 ? n : fallback;
+}
 
 /**
  * Attempt to repair truncated JSON from Gemini.
@@ -407,17 +478,22 @@ ${improveContext ? buildImprovePromptExtension(improveContext) : ''}WICHTIG:
   });
 
   const GROUNDING_TIMEOUT_MS = parseInt(process.env.IDENTIFY_GROUNDING_TIMEOUT_MS || '90000', 10);
+  const groundingConfig = {
+    tools: _identifyTools(),
+    temperature: _envFloat('IDENTIFY_TEMP_GROUNDING', 0.6),
+    maxOutputTokens: _envInt('IDENTIFY_MAX_TOKENS_GROUND', 8192),
+    responseMimeType: 'application/json',
+    responseJsonSchema: FULL_PRODUCT_SCHEMA,
+    safetySettings: defaultSafetySettings(),
+    httpOptions: { timeout: GROUNDING_TIMEOUT_MS },
+  };
+  const groundingThinking = _identifyThinkingConfig();
+  if (groundingThinking) groundingConfig.thinkingConfig = groundingThinking;
+
   const response = await ai.models.generateContent({
     model: modelName,
     contents: [{ role: 'user', parts }],
-    config: {
-      tools: [{ googleSearch: {} }],
-      temperature: 0.1,
-      maxOutputTokens: 4096,
-      responseMimeType: 'application/json',
-      responseJsonSchema: FULL_PRODUCT_SCHEMA,
-      httpOptions: { timeout: GROUNDING_TIMEOUT_MS },
-    },
+    config: groundingConfig,
   });
 
   let text = (response.text || '').trim();
@@ -505,17 +581,22 @@ REGELN:
 - Nur Identifikationsdaten. Nichts erfinden.`
   });
 
+  const recognitionConfig = {
+    tools: _identifyTools(),
+    temperature: _envFloat('IDENTIFY_TEMP_RECOGNITION', DEFAULT_STRUCTURED_TEMPERATURE),
+    maxOutputTokens: _envInt('IDENTIFY_MAX_TOKENS_RECOG', 4096),
+    responseMimeType: 'application/json',
+    responseJsonSchema: RECOGNITION_SCHEMA,
+    safetySettings: defaultSafetySettings(),
+    httpOptions: { timeout: parseInt(process.env.IDENTIFY_RECOGNITION_TIMEOUT_MS || '45000', 10) },
+  };
+  const recognitionThinking = _identifyThinkingConfig();
+  if (recognitionThinking) recognitionConfig.thinkingConfig = recognitionThinking;
+
   const response = await ai.models.generateContent({
     model: modelName,
     contents: [{ role: 'user', parts }],
-    config: {
-      tools: [{ googleSearch: {} }],
-      temperature: 0.05,
-      maxOutputTokens: 1024,
-      responseMimeType: 'application/json',
-      responseJsonSchema: RECOGNITION_SCHEMA,
-      httpOptions: { timeout: 30000 },
-    },
+    config: recognitionConfig,
   });
 
   let text = (response.text || '').trim();
@@ -570,13 +651,32 @@ const CONTENT_SCHEMA = {
 
 /**
  * V3 Stage 3: Context-rich content generation with all enrichment data.
+ *
+ * Receives the full Stage 1 + Stage 2 output (OCR text, EAN-DB lookup, GPSR
+ * web fallback, image search results, weight fallback, all uploaded images).
+ * Previously Stage 3 saw only 2 images and the bare identity-block — Gemini
+ * was effectively asked to write a marketplace-ready datasheet blind. The new
+ * input surface mirrors what the chat assistant has access to, plus the
+ * verified ground-truth from the upstream stages.
  */
-async function generateProductContent({ identity, enrichment, imageParts = [], locale = 'de-DE' } = {}) {
+async function generateProductContent({
+  identity,
+  enrichment,
+  imageParts = [],
+  locale = 'de-DE',
+  ocrSnippets = [],
+  eanLookup = null,
+  webImages = [],
+  weightFallback = null,
+  gpsrWebFallback = null,
+  barcodeConfirmation = null,
+} = {}) {
   const ai = await getGenAIClient();
   const modelName = resolveModel(null, 'IDENTIFY_MODEL', DEFAULT_MODEL);
 
+  const maxImages = _envInt('STAGE3_MAX_IMAGES', 4);
   const parts = [];
-  for (const img of (imageParts || []).slice(0, 2)) {
+  for (const img of (imageParts || []).slice(0, maxImages)) {
     if (!img?.data) continue;
     parts.push({ inlineData: { mimeType: img.mimeType || 'image/jpeg', data: img.data } });
   }
@@ -590,11 +690,53 @@ async function generateProductContent({ identity, enrichment, imageParts = [], l
   if (identity.mpn) sections.push(`- MPN: ${identity.mpn}`);
   if (identity.ean) sections.push(`- EAN: ${identity.ean}`);
   if (identity.variant) sections.push(`- Variante: ${identity.variant}`);
+  if (identity.color) sections.push(`- Farbe: ${identity.color}`);
+  if (identity.size) sections.push(`- Groesse: ${identity.size}`);
+  if (identity.material) sections.push(`- Material: ${identity.material}`);
   sections.push('');
+
+  // OCR snippets — most valuable signal for warehouse-style packaging photos.
+  // Cap aggregate length so token budget stays sane; trim each snippet to 300 chars.
+  if (Array.isArray(ocrSnippets) && ocrSnippets.length) {
+    const cleaned = ocrSnippets
+      .map((s) => (typeof s === 'string' ? s.trim() : ''))
+      .filter(Boolean)
+      .map((s) => s.slice(0, 300))
+      .slice(0, 12);
+    if (cleaned.length) {
+      sections.push('OCR-TEXT (vom Verpackungs-Label, hochwertige Quelle fuer Aspekte):');
+      cleaned.forEach((s, i) => sections.push(`[${i + 1}] ${s}`));
+      sections.push('');
+    }
+  }
+
+  // External EAN-DB hit (when available — strong signal: brand, product name, category)
+  if (eanLookup && typeof eanLookup === 'object') {
+    const lines = [];
+    if (eanLookup.brand) lines.push(`- Marke (DB): ${eanLookup.brand}`);
+    if (eanLookup.productName) lines.push(`- Produkt (DB): ${eanLookup.productName}`);
+    if (eanLookup.category) lines.push(`- Kategorie (DB): ${eanLookup.category}`);
+    if (lines.length) {
+      sections.push('EAN-DATENBANK-TREFFER (verifiziert):');
+      sections.push(...lines);
+      sections.push('');
+    }
+  }
+
+  // Web-confirmed barcode evidence
+  if (barcodeConfirmation && Array.isArray(barcodeConfirmation.evidence) && barcodeConfirmation.evidence.length) {
+    sections.push('BARCODE-WEB-BESTAETIGUNG (Top-Treffer):');
+    barcodeConfirmation.evidence.slice(0, 5).forEach((e) => {
+      const t = (e?.title || '').slice(0, 140);
+      const u = e?.url || '';
+      if (t || u) sections.push(`- ${t}${u ? ` (${u})` : ''}`);
+    });
+    sections.push('');
+  }
 
   // Required aspects
   if (enrichment.requiredAspects?.length) {
-    sections.push('PFLICHT-ARTIKELMERKMALE (ALLE ausfuellen):');
+    sections.push('PFLICHT-ARTIKELMERKMALE (ALLE ausfuellen, KEIN "Unbekannt" wenn vermeidbar):');
     enrichment.requiredAspects.forEach((a) => sections.push(`- ${a}`));
     sections.push('');
   }
@@ -621,16 +763,49 @@ async function generateProductContent({ identity, enrichment, imageParts = [], l
     sections.push('');
   }
 
-  // GPSR data
+  // Weight fallback — when Stage 1 OCR didn't catch a weight, Stage 2 Web search did.
+  if (weightFallback && typeof weightFallback === 'object' && weightFallback.weight_grams) {
+    sections.push(`WEB-RECHERCHIERTES GEWICHT: ${weightFallback.weight_grams} g`);
+    if (Array.isArray(weightFallback.sources) && weightFallback.sources.length) {
+      sections.push(`Quellen: ${weightFallback.sources.slice(0, 3).map((s) => s.url || s).filter(Boolean).join(', ')}`);
+    }
+    sections.push('');
+  }
+
+  // GPSR data — registry first, then web fallback
   if (enrichment.gpsr?.found) {
-    sections.push('GPSR-DATEN AUS REGISTRY:');
+    sections.push('GPSR-DATEN AUS REGISTRY (verifiziert, NICHT aendern):');
     const g = enrichment.gpsr.data || {};
     if (g.manufacturer_name) sections.push(`- Name: ${g.manufacturer_name}`);
     if (g.manufacturer_address) sections.push(`- Adresse: ${g.manufacturer_address}`);
     if (g.email) sections.push(`- E-Mail: ${g.email}`);
     if (g.manufacturer_phone) sections.push(`- Telefon: ${g.manufacturer_phone}`);
-    sections.push('Nur fehlende GPSR-Felder via Web-Suche ergaenzen.');
+    if (g.entity_country) sections.push(`- Land: ${g.entity_country}`);
     sections.push('');
+  } else if (gpsrWebFallback && typeof gpsrWebFallback === 'object') {
+    const g = gpsrWebFallback;
+    const lines = [];
+    if (g.manufacturer_name) lines.push(`- Name: ${g.manufacturer_name}`);
+    if (g.manufacturer_address) lines.push(`- Adresse: ${g.manufacturer_address}`);
+    if (g.email) lines.push(`- E-Mail: ${g.email}`);
+    if (g.manufacturer_phone) lines.push(`- Telefon: ${g.manufacturer_phone}`);
+    if (g.entity_country) lines.push(`- Land: ${g.entity_country}`);
+    if (lines.length) {
+      sections.push('GPSR-DATEN AUS WEB-RECHERCHE (Hersteller-Impressum, bevorzugt nutzen wenn Registry leer):');
+      sections.push(...lines);
+      sections.push('Wenn diese Werte plausibel zur Marke passen, uebernehmen.');
+      sections.push('');
+    }
+  }
+
+  // Web images already collected (extra context for description)
+  if (Array.isArray(webImages) && webImages.length) {
+    const titles = webImages.map((i) => i?.title).filter(Boolean).slice(0, 6);
+    if (titles.length) {
+      sections.push('WEB-BILD-TITEL (Kontext fuer Produkt-Variante):');
+      titles.forEach((t) => sections.push(`- ${t.slice(0, 120)}`));
+      sections.push('');
+    }
   }
 
   // Category context
@@ -649,23 +824,33 @@ async function generateProductContent({ identity, enrichment, imageParts = [], l
 
 ${sections.join('\n')}
 
-AUFGABE: Erstelle ein vollstaendiges Produktdatenblatt basierend auf den obigen verifizierten Daten.
+AUFGABE: Erstelle ein VOLLSTAENDIGES Produktdatenblatt basierend auf den obigen verifizierten Daten und den Bildern.
 - Titel, Beschreibungen, Highlights, Artikelmerkmale, GPSR
-- Nutze Google Search nur fuer fehlende GPSR-Daten oder Luecken in Artikelmerkmalen
+- Nutze die OCR-Snippets als primaere Quelle fuer Pflicht-Artikelmerkmale (Material, Farbe, Groesse, Modell-Variante etc.)
+- Wenn Du Daten aus dem Web brauchst (Specs, Hersteller, Preise, Vergleichsprodukte): nutze googleSearch UND urlContext (nicht nur Snippets — folge Links zu Hersteller-Seiten und vollstaendige Datenblaetter).
+- Cross-Reference mindestens 2 unabhaengige Quellen wenn Du etwas aus dem Web uebernimmst.
+- Pflicht-Aspekte VOLLSTAENDIG ausfuellen — "Unbekannt" nur als allerletztes Mittel; recherchiere zuerst.
+- Item-Specifics: alle Pflicht-UND-empfohlene Aspekte; deutsche Schluessel; Werte praezise (max 60 Zeichen).
+- Beschreibung: 180-240 Woerter, HTML, faktenbasiert.
 - Nichts erfinden. Nur belegbare Fakten.`
   });
+
+  const contentConfig = {
+    tools: _identifyTools(),
+    temperature: _envFloat('IDENTIFY_TEMP_CONTENT', 0.7),
+    maxOutputTokens: _envInt('IDENTIFY_MAX_TOKENS_CONTENT', 8192),
+    responseMimeType: 'application/json',
+    responseJsonSchema: CONTENT_SCHEMA,
+    safetySettings: defaultSafetySettings(),
+    httpOptions: { timeout: parseInt(process.env.STAGE3_GEMINI_TIMEOUT_MS || '60000', 10) },
+  };
+  const contentThinking = _identifyThinkingConfig();
+  if (contentThinking) contentConfig.thinkingConfig = contentThinking;
 
   const response = await ai.models.generateContent({
     model: modelName,
     contents: [{ role: 'user', parts }],
-    config: {
-      tools: [{ googleSearch: {} }],
-      temperature: 0.15,
-      maxOutputTokens: 4096,
-      responseMimeType: 'application/json',
-      responseJsonSchema: CONTENT_SCHEMA,
-      httpOptions: { timeout: 45000 },
-    },
+    config: contentConfig,
   });
 
   let text = (response.text || '').trim();

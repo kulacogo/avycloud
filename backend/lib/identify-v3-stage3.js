@@ -50,15 +50,20 @@ async function runStage3ContentGeneration(stage1, stage2, locale = 'de-DE') {
     category: stage2.category || {},
   };
 
-  // Call Gemini with context-rich prompt. Hard cap (default 25s) so a slow Gemini response
-  // cannot consume the V3 master timeout — falls through to the V2/minimal fallback below.
+  // Call Gemini with context-rich prompt. Hard cap (default 60s — Stage 3 is now
+  // the heavy LLM call with thinking + urlContext + googleSearch; raised from
+  // 25s so Gemini can actually finish the agentic recherche before the master
+  // timeout fires) — falls through to the V2/minimal fallback below if exceeded.
   const STAGE3_CONTENT_TIMEOUT_MS = parseInt(
-    process.env.STAGE3_CONTENT_TIMEOUT_MS || '25000',
+    process.env.STAGE3_CONTENT_TIMEOUT_MS || '60000',
     10,
   );
   let content;
   let usedFallback = false;
   try {
+    const ocrSnippets = Array.isArray(stage1.ocrPayload?.textSnippets)
+      ? stage1.ocrPayload.textSnippets
+      : [];
     const contentPromise = generateProductContent({
       identity: {
         brand: identity.brand,
@@ -72,8 +77,20 @@ async function runStage3ContentGeneration(stage1, stage2, locale = 'de-DE') {
         condition: identity.condition,
       },
       enrichment,
-      imageParts: (stage1.imageParts || []).slice(0, 2),
+      // Pass ALL uploaded images (Stage 1 already capped to 4 + compressed). Previously we
+      // sliced to 2 here, which meant Stage 3 was effectively blind on multi-angle shots
+      // (front/back/box/label). Gemini-3 Pro handles 4 images comfortably.
+      imageParts: stage1.imageParts || [],
       locale,
+      // OCR is the most valuable signal for warehouse-style packaging photos —
+      // it was extracted in Stage 1 but never reached Stage 3 until now.
+      ocrSnippets,
+      eanLookup: stage1.eanLookup || null,
+      webImages: stage2.webImages || [],
+      weightFallback: stage2.weightFallback || null,
+      // GPSR web fallback (Stage 2 actively searched for it) was previously discarded.
+      gpsrWebFallback: stage2.gpsrWebFallback || null,
+      barcodeConfirmation: stage2.barcodeConfirmation || null,
     });
     Promise.resolve(contentPromise).catch(() => {});
     content = await Promise.race([
@@ -174,12 +191,22 @@ async function runStage3ContentGeneration(stage1, stage2, locale = 'de-DE') {
       );
     }
 
-    // Trigger Gemini repair call when >30% of required aspects are unknown.
+    // Trigger Gemini repair call when too many required aspects are unknown.
+    // Default threshold lowered from 0.30 → 0.10 (configurable) so partial
+    // gaps like 4 of 20 unknown ("only" 20% — but eBay Cassini still penalises
+    // each gap individually) still get a focused recherche pass.
+    const repairThreshold = (() => {
+      const raw = process.env.STAGE3_ASPECT_REPAIR_THRESHOLD;
+      if (raw == null || raw === '') return 0.1;
+      const n = Number.parseFloat(raw);
+      return Number.isFinite(n) && n > 0 && n <= 1 ? n : 0.1;
+    })();
     if (
       repairEnabled &&
       !usedFallback &&
       normalizedRequiredAspects.length > 0 &&
-      aspectEnforcementMeta.unknownCount / normalizedRequiredAspects.length > 0.3
+      aspectEnforcementMeta.unknownCount > 0 &&
+      aspectEnforcementMeta.unknownCount / normalizedRequiredAspects.length >= repairThreshold
     ) {
       try {
         const repaired = await runAspectRepair({

@@ -77,20 +77,29 @@ function assembleProduct(id, stage1, stage2, stage3, opts) {
   const titleEbay = stage3.title_ebay || '';
   const name = titleEbay || [identity.brand, identity.model, identity.variant].filter(Boolean).join(' ').trim() || 'Unbekanntes Produkt';
 
-  // Brand: if empty, try to extract from V2 fallback, Stage 3 attributes, or title
+  // Brand resolution — multi-source consensus (in order of trust).
   let brand = identity.brand || '';
+  if (!brand && stage1.eanLookup?.brand) {
+    brand = String(stage1.eanLookup.brand).trim();
+  }
   if (!brand && stage1.v2FallbackRecord?.brand) {
     brand = stage1.v2FallbackRecord.brand;
   }
   if (!brand && Array.isArray(stage3.item_specifics)) {
-    const markeSpec = stage3.item_specifics.find((s) => s?.key === 'Marke' && s?.value);
-    if (markeSpec) brand = String(markeSpec.value).trim();
+    const markeSpec = stage3.item_specifics.find(
+      (s) => s?.key && /^(marke|brand|hersteller)$/i.test(String(s.key).trim()) && s?.value
+    );
+    if (markeSpec) {
+      const v = String(markeSpec.value).trim();
+      if (v && !/^(unbekannt|unknown|n\/a|k\.a\.|sonstige|generic|noname)$/i.test(v)) {
+        brand = v;
+      }
+    }
   }
-  if (!brand && titleEbay) {
-    // First word of title is often the brand
-    const firstWord = titleEbay.split(/\s+/)[0];
-    if (firstWord && firstWord.length >= 2) brand = firstWord;
-  }
+  // First-word-of-title fallback removed: it produces false positives like
+  // "Hochwertige" or "Original" becoming brand. If we can't establish a brand
+  // by this point, leave it empty — Stage 4 marks the field low-confidence and
+  // the editor can fix it manually instead of having to undo a wrong guess.
 
   // Category: prefer Stage 2 resolved eBay breadcrumb
   const category = stage2.category?.ebayBreadcrumb || identity.internalCategory || 'Unkategorisiert';
@@ -148,7 +157,10 @@ function assembleProduct(id, stage1, stage2, stage3, opts) {
     price_confidence: 0,
   };
 
-  // GPSR: prefer registry data, fallback to Stage 3 generated
+  // GPSR: 3-tier precedence — Registry > Stage-3 LLM output > Stage-2 web-fallback.
+  // Stage-2 actively searches for the manufacturer's imprint when the registry
+  // lookup misses (`gpsr-web-fallback.js`). Until 2026-04-30 that result was
+  // collected but discarded by this assembler — fixed now.
   let gpsr;
   if (stage2.gpsr?.found && stage2.gpsr?.data) {
     gpsr = stage2.gpsr.data;
@@ -160,6 +172,17 @@ function assembleProduct(id, stage1, stage2, stage3, opts) {
       manufacturer_phone: stage3.gpsr_manufacturer_phone || '',
       entity_country: stage3.gpsr_manufacturer_country || '',
     };
+  } else if (stage2.gpsrWebFallback && typeof stage2.gpsrWebFallback === 'object') {
+    const wf = stage2.gpsrWebFallback;
+    if (wf.manufacturer_name || wf.manufacturer_address) {
+      gpsr = {
+        manufacturer_name: wf.manufacturer_name || '',
+        manufacturer_address: wf.manufacturer_address || '',
+        email: wf.email || '',
+        manufacturer_phone: wf.manufacturer_phone || '',
+        entity_country: wf.entity_country || '',
+      };
+    }
   }
 
   return {

@@ -233,4 +233,136 @@ describe('identifyProductV3', () => {
 
     expect(product.identification.name).toBe('Sony WH-1000XM5 Schwarz');
   });
+
+  // ─── Phase 2 (2026-04-30): Brand-resolution + GPSR tier 3 ──────────────────
+
+  describe('brand resolution', () => {
+    it('does NOT fall back to first word of title (regression: "Hochwertige" was becoming brand)', async () => {
+      // Stage 1 yields no brand, Stage 3 yields a generic adjective-led title.
+      runStage1Mock.mockImplementation(async () => ({
+        ...JSON.parse(JSON.stringify(mockStage1Result)),
+        identity: { ...mockStage1Result.identity, brand: '' },
+        eanLookup: null,
+        v2FallbackRecord: null,
+      }));
+      runStage3Mock.mockImplementation(async () => ({
+        ...JSON.parse(JSON.stringify(mockStage3Result)),
+        title_ebay: 'Hochwertige Powerbank 20000mAh USB-C',
+        item_specifics: [{ key: 'Modell', value: 'PB-20K' }],
+      }));
+
+      const { product } = await identifyProductV3({ files: [], barcodes: '' });
+      expect(product.identification.brand).toBe('');
+    });
+
+    it('uses Stage 3 item_specifics["Marke"] when identity.brand is missing', async () => {
+      runStage1Mock.mockImplementation(async () => ({
+        ...JSON.parse(JSON.stringify(mockStage1Result)),
+        identity: { ...mockStage1Result.identity, brand: '' },
+        eanLookup: null,
+        v2FallbackRecord: null,
+      }));
+      runStage3Mock.mockImplementation(async () => ({
+        ...JSON.parse(JSON.stringify(mockStage3Result)),
+        item_specifics: [{ key: 'Marke', value: 'Anker' }, { key: 'Modell', value: 'A1234' }],
+      }));
+
+      const { product } = await identifyProductV3({ files: [], barcodes: '' });
+      expect(product.identification.brand).toBe('Anker');
+    });
+
+    it('rejects placeholder values in Stage 3 brand spec', async () => {
+      runStage1Mock.mockImplementation(async () => ({
+        ...JSON.parse(JSON.stringify(mockStage1Result)),
+        identity: { ...mockStage1Result.identity, brand: '' },
+        eanLookup: null,
+        v2FallbackRecord: null,
+      }));
+      runStage3Mock.mockImplementation(async () => ({
+        ...JSON.parse(JSON.stringify(mockStage3Result)),
+        item_specifics: [{ key: 'Marke', value: 'Unbekannt' }],
+      }));
+
+      const { product } = await identifyProductV3({ files: [], barcodes: '' });
+      expect(product.identification.brand).toBe('');
+    });
+
+    it('uses stage1.eanLookup.brand when identity.brand is missing', async () => {
+      runStage1Mock.mockImplementation(async () => ({
+        ...JSON.parse(JSON.stringify(mockStage1Result)),
+        identity: { ...mockStage1Result.identity, brand: '' },
+        eanLookup: { found: true, brand: 'Bose' },
+      }));
+
+      const { product } = await identifyProductV3({ files: [], barcodes: '4548736132610' });
+      expect(product.identification.brand).toBe('Bose');
+    });
+  });
+
+  describe('GPSR tier resolution', () => {
+    it('uses gpsrWebFallback when registry empty AND Stage 3 yields no GPSR', async () => {
+      runStage2Mock.mockImplementation(async () => ({
+        ...JSON.parse(JSON.stringify(mockStage2Result)),
+        gpsr: { found: false, data: null },
+        gpsrWebFallback: {
+          manufacturer_name: 'Sony Europe B.V.',
+          manufacturer_address: 'Da Vincilaan 7-D1, 1930 Zaventem',
+          email: 'gpsr@sony.eu',
+        },
+      }));
+      runStage3Mock.mockImplementation(async () => ({
+        ...JSON.parse(JSON.stringify(mockStage3Result)),
+        gpsr_manufacturer_name: '',
+        gpsr_manufacturer_address: '',
+        gpsr_manufacturer_email: '',
+      }));
+
+      const { product } = await identifyProductV3({ files: [], barcodes: '4548736132610' });
+      expect(product.details.gpsr).toBeDefined();
+      expect(product.details.gpsr.manufacturer_name).toBe('Sony Europe B.V.');
+      expect(product.details.gpsr.manufacturer_address).toContain('Zaventem');
+    });
+
+    it('still prefers Registry data over web fallback', async () => {
+      runStage2Mock.mockImplementation(async () => ({
+        ...JSON.parse(JSON.stringify(mockStage2Result)),
+        gpsr: { found: true, data: { manufacturer_name: 'Registry Brand', email: 'reg@example.com' } },
+        gpsrWebFallback: { manufacturer_name: 'Wrong Web Brand' },
+      }));
+
+      const { product } = await identifyProductV3({ files: [], barcodes: '4548736132610' });
+      expect(product.details.gpsr.manufacturer_name).toBe('Registry Brand');
+    });
+
+    it('still prefers Stage 3 GPSR over web fallback', async () => {
+      runStage2Mock.mockImplementation(async () => ({
+        ...JSON.parse(JSON.stringify(mockStage2Result)),
+        gpsr: { found: false, data: null },
+        gpsrWebFallback: { manufacturer_name: 'Web Fallback Brand' },
+      }));
+      runStage3Mock.mockImplementation(async () => ({
+        ...JSON.parse(JSON.stringify(mockStage3Result)),
+        gpsr_manufacturer_name: 'Stage3 LLM Brand',
+        gpsr_manufacturer_address: 'LLM Address',
+      }));
+
+      const { product } = await identifyProductV3({ files: [], barcodes: '4548736132610' });
+      expect(product.details.gpsr.manufacturer_name).toBe('Stage3 LLM Brand');
+    });
+
+    it('leaves gpsr undefined when nothing is found', async () => {
+      runStage2Mock.mockImplementation(async () => ({
+        ...JSON.parse(JSON.stringify(mockStage2Result)),
+        gpsr: { found: false, data: null },
+        gpsrWebFallback: null,
+      }));
+      runStage3Mock.mockImplementation(async () => ({
+        ...JSON.parse(JSON.stringify(mockStage3Result)),
+        gpsr_manufacturer_name: '',
+      }));
+
+      const { product } = await identifyProductV3({ files: [], barcodes: '4548736132610' });
+      expect(product.details.gpsr).toBeUndefined();
+    });
+  });
 });
