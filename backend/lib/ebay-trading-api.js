@@ -330,25 +330,52 @@ function isAspectsCapExceededError(errors) {
   });
 }
 
+// Identifiers that must NEVER be stripped from ItemSpecifics, even if eBay's PBSE
+// error lists them as "product aspects sent as custom item specifics". Stripping
+// them creates an EAN-fehlt loop: eBay says "remove EAN as custom specific" → we
+// strip → eBay then says "EAN required" because the listing category needs the
+// identifier. The safe response is to keep the identifier as an Item Specific
+// AND let it stay in <ProductListingDetails>, then either (a) catalog matches
+// and merges silently, or (b) catalog-mode is identify-only and the seller's
+// EAN stands alone. Either way, "EAN fehlt" is never produced from this strip.
+const PROTECTED_IDENTIFIER_TOKENS = new Set([
+  'ean',
+  'gtin',
+  'upc',
+  'isbn',
+  'mpn',
+  'herstellernummer',
+  'brand',
+  'marke',
+  'hersteller',
+]);
+
 function stripItemSpecificsByAspectNames(itemSpecifics, aspectNames = []) {
   const specifics = itemSpecifics && typeof itemSpecifics === 'object' ? itemSpecifics : {};
   const tokens = new Set(asArray(aspectNames).map((n) => normalizeAspectToken(n)).filter(Boolean));
   if (!tokens.size) {
-    return { itemSpecifics: specifics, removed: [] };
+    return { itemSpecifics: specifics, removed: [], protected: [] };
   }
   const removed = [];
+  const protectedKeys = [];
   const out = {};
   Object.entries(specifics).forEach(([k, v]) => {
     const key = safeString(k);
     if (!key) return;
     const token = normalizeAspectToken(key);
     if (token && tokens.has(token)) {
+      // Never strip product identifiers — see PROTECTED_IDENTIFIER_TOKENS comment.
+      if (PROTECTED_IDENTIFIER_TOKENS.has(token)) {
+        protectedKeys.push(key);
+        out[key] = v;
+        return;
+      }
       removed.push(key);
       return;
     }
     out[key] = v;
   });
-  return { itemSpecifics: out, removed };
+  return { itemSpecifics: out, removed, protected: protectedKeys };
 }
 
 function mapItemSpecifics(itemSpecificsNode) {
@@ -1385,6 +1412,7 @@ module.exports = {
   addFixedPriceItem,
   verifyAddFixedPriceItem,
   buildAddFixedPriceItemXml,
+  stripItemSpecificsByAspectNames,
   mapItemSpecifics,
   mapListingDetail,
   normalizeSpecificsMap,

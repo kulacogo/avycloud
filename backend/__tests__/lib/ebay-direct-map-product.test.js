@@ -188,6 +188,54 @@ describe('mapProductToEbayItem — K-Typ specific is moved to ItemCompatibilityL
   });
 });
 
+describe('stripItemSpecificsByAspectNames — identifier protection', () => {
+  // PBSE retry strips ItemSpecifics named in eBay's error message. Identifiers
+  // (EAN/GTIN/UPC/ISBN/MPN/Brand) must NEVER be stripped, otherwise we end up in
+  // an "EAN fehlt" loop after the strip when the listing category requires
+  // the identifier as an Item Specific.
+  const { stripItemSpecificsByAspectNames } = require('../../lib/ebay-trading-api');
+
+  it('protects EAN from being stripped even when eBay names it as misused', () => {
+    const result = stripItemSpecificsByAspectNames(
+      { EAN: ['4211125658182'], Farbe: ['Schwarz'] },
+      ['EAN', 'Farbe'],
+    );
+    expect(result.itemSpecifics.EAN).toEqual(['4211125658182']);
+    expect(result.itemSpecifics.Farbe).toBeUndefined();
+    expect(result.removed).toEqual(['Farbe']);
+    expect(result.protected).toEqual(['EAN']);
+  });
+
+  it('protects GTIN, UPC, ISBN, MPN, Marke, Brand, Hersteller, Herstellernummer', () => {
+    const input = {
+      GTIN: ['1'],
+      UPC: ['2'],
+      ISBN: ['3'],
+      MPN: ['4'],
+      Marke: ['Beurer'],
+      Brand: ['Beurer'],
+      Hersteller: ['Beurer'],
+      Herstellernummer: ['BM27'],
+      OtherKey: ['x'],
+    };
+    const aspects = Object.keys(input);
+    const result = stripItemSpecificsByAspectNames(input, aspects);
+    expect(result.removed).toEqual(['OtherKey']);
+    expect(Object.keys(result.itemSpecifics).sort()).toEqual(
+      ['Brand', 'GTIN', 'Hersteller', 'Herstellernummer', 'ISBN', 'MPN', 'Marke', 'UPC'].sort(),
+    );
+  });
+
+  it('still strips non-identifier aspects normally', () => {
+    const result = stripItemSpecificsByAspectNames(
+      { Farbe: ['Schwarz'], EAN: ['4211125658182'] },
+      ['Farbe'],
+    );
+    expect(result.itemSpecifics).toEqual({ EAN: ['4211125658182'] });
+    expect(result.removed).toEqual(['Farbe']);
+  });
+});
+
 describe('Trading XML — catalogMode rendering', () => {
   // Lightweight smoke test: builds the AddFixedPriceItem XML and verifies the
   // ProductListingDetails block is rendered correctly per catalogMode. We only
