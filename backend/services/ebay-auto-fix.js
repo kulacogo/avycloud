@@ -284,8 +284,17 @@ async function autoFixEbayProduct(product, opts = {}) {
   // skip the category strategy entirely.
 
   // Strategy 3: Image conflict (EPS + self-managed pictures cannot be combined) →
-  // drop the catalog reference so only our own pictures are sent.
-  // Safety: only skip catalog if the product actually has its OWN pictures,
+  // switch the catalog reference to identify-only mode so eBay records the EAN
+  // for searchability but does NOT merge catalog stock photos into PictureDetails.
+  //
+  // Note: `details.skipEbayCatalogLookup === true` is interpreted by
+  // mapProductToEbayItem as `catalogMode = 'identify-only'` (PLD with
+  // <IncludeeBayProductDetails>false</…>), NOT as a full PLD omit. This is
+  // critical because the previous "omit PLD entirely" semantics silently dropped
+  // the EAN and produced "Das Feld EAN fehlt …" errors on every subsequent
+  // listing attempt (the flag persisted to Firestore and stuck around forever).
+  //
+  // Safety: only set the flag if the product actually has its OWN pictures,
   // otherwise the resulting listing would be image-less which eBay rejects.
   if (isImageConflictError(errs)) {
     const ownImages = Array.isArray(fixed?.details?.images)
@@ -298,7 +307,7 @@ async function autoFixEbayProduct(product, opts = {}) {
       if (!fixed.details) fixed.details = {};
       if (!fixed.details.skipEbayCatalogLookup) {
         fixed.details.skipEbayCatalogLookup = true;
-        fixes.push('Katalog-Verknüpfung entfernt (eigene Bilder behalten)');
+        fixes.push('Katalog-Adoption deaktiviert (EAN bleibt erhalten, eigene Bilder behalten)');
       }
     }
     // else: skip the auto-fix; the publishing will surface the original error

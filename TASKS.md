@@ -18,6 +18,34 @@
 - [ ] Phase 3: Distributed Lock + Hot-SKU-Reconcile + Idempotency
 - [ ] Phase 4: Channel-Projektionen + Webhooks + Slack-Alerting + Firestore-TTL
 
+## 🔴 [KRITISCH] Stock Single Writer Invariant (seit 2026-04-29)
+
+**Trigger-Incident:** SKU-0000108900 + SKU-0000041030 — Doppel-Decrement durch `bookStockOut(meta.orderId)` (Pick) + `_onOrderShipped → decrementProductByIdOrSku` (Ship). Beide eBay-Listings vorzeitig auf "ended" gepusht trotz physisch noch vorhandener Einheit.
+
+**Root-Cause:** Zwei orthogonale Mutations-Pfade ohne gemeinsamen Idempotency-Marker. State-Machine claim setzte `stockDecrementedAt` nur selber, Pick-Flow setzte ihn nie.
+
+**Implementiert (2026-04-29):**
+- [x] CLAUDE.md Punkt 13 (Stock Single Writer Invariant)
+- [x] `docs/architecture/stock-single-source-of-truth.md` (Sequence-Diagramm + Allowed/Forbidden-Liste)
+- [x] `backend/lib/order-stock-claim.js` (zentraler `claimOrderStockDecrementInTx` Helper)
+- [x] `backend/lib/warehouse.js` `bookStockOut(meta.orderId=…)` ruft Claim atomar in Tx + `notifyStockChange`
+- [x] `backend/lib/warehouse.js` `decrementProductByIdOrSku` defensive No-Op + `notifyStockChange`
+- [x] `backend/services/order-state-machine.js` Claim setzt `stockDecrementedBy='ship'`, Logging mit Pfad-Identifikation
+- [x] `backend/__tests__/stock-pick-then-ship-no-double-decrement.test.js`
+- [x] `backend/scripts/repair-double-decrement.js` (read-only audit + opt-in `--apply --confirm REPAIR_2026_04_29 --skus …`)
+
+**Repair-Apply-Run für betroffene SKUs (manuell auszuführen, sobald freigegeben):**
+- [ ] Audit-Run: `node backend/scripts/repair-double-decrement.js`
+- [ ] Apply für SKU-0000108900 + SKU-0000041030 nach physischer Bin-Verifikation
+- [ ] eBay-Listings reaktivieren (separater manueller Schritt — nicht im Repair-Script)
+
+**Bekannte Folge-Gaps (separate Tickets, nicht in diesem Patch):**
+- [ ] **Gap A** — `lib/warehouse.js refreshProductInventory` Diff-Check ist im Hot-Path strukturell broken: `priorQty` und `totalQty` werden beide nach der Bin-Tx gelesen → identisch → `notifyStockChange` fired nie. Folge: `inventory_ledger` bleibt leer ausser bei Drift. Fix: Diff vor Tx-Commit lesen ODER in der mutierenden Funktion direkt `notifyStockChange` aufrufen (für `bookStockIn`/`bookStockOut`/`decrementProductByIdOrSku` bereits durch CLAUDE.md-Punkt-13-Patch erledigt; für `assignProductToBin`/`removeProductFromBin`/`transferStock` noch offen).
+- [ ] **Gap C** — `backend/routes/marketplace.js:966` schreibt `inventory.quantity` direkt via `batch.update()` (Kaufland-Reconcile-Pfad). Verstößt gegen CLAUDE.md Punkt 10/13. Fix: über `bookStockIn`/`bookStockOut` routen ODER explizit als Reconciliation-Pfad mit `notifyStockChange`-Aufruf deklarieren.
+- [ ] **Gap D** — `backend/services/returns-engine.js restockItem` schreibt nur `warehouse_movements`-Log, mutiert nicht `inventory.quantity` und ruft nicht `bookStockIn`. Returns "restocken" effektiv gar nichts. Fix: `bookStockIn` aufrufen, Bin-Code aus Returns-Form / letzter bekannter Bin.
+- [ ] **Gap E** — `backend/lib/stock-lock.js` ist 100% in-memory (`Map`), trotz CLAUDE.md Punkt 12 (`STOCK_LOCK_BACKEND=firestore`). Bei Cloud-Run-Scale ≥2 Instanzen wirkungslos. Fix: Firestore-basierter Lock mit TTL via `stock_locks`-Collection.
+- [ ] **Gap F** — `backend/services/order-state-machine.js _onOrderCancelled` ist nicht symmetrisch zu `_onOrderShipped`: kein Re-Increment von `inventory.quantity`, keine Persistierung von Failures in `stock_operation_failures`. Fix: bei `cancelled` aus `shipped`/`packed`-State Bins+Inventory wiederherstellen.
+
 ## Zu verifizieren (deployed, Browser-Check nötig)
 
 - [ ] FIX-2: Inventar → Bestandswert KPI > €0

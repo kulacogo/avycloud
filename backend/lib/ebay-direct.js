@@ -4148,33 +4148,69 @@ function mapProductToEbayItem(product, overrides = {}) {
     ? kTypeNumbers.slice(0, 1000).map((n) => ({ ktype: n }))
     : null;
 
-  // Auto-parts catalog conflict guard.
+  // Catalog mode selection — see buildAddFixedPriceItemXml for full rationale.
   //
-  // eBay rejects automotive listings that combine a real GTIN/EAN catalog reference
-  // with a seller-provided ItemCompatibilityList (K-Typ): the catalog product's own
-  // fitment data must agree with the K-Typ list. In practice this nearly always fails
-  // and surfaces as "Das Feld EAN fehlt" or "Fahrzeugverwendungsliste/Catalog conflict".
-  // Sellers who curate K-Typ data manually want their list to win; the only reliable
-  // way to do that is to skip the catalog reference (`<ProductListingDetails>` block)
-  // entirely. We do that automatically when:
-  //   - the product carries a non-empty K-Typ compatibility list, AND
-  //   - the seller has at least one own picture (otherwise the listing would lose its
-  //     image basis when EPS catalog images are dropped).
-  // The product data itself (EAN/GTIN in identifiers/barcodes) stays untouched, so
-  // other marketplaces and product identity remain intact.
-  const hasOwnPictureForKtypeSkip = pictureUrls.some(
+  // Two situations require us to opt out of catalog adoption:
+  //
+  //   A. Image conflict: when the product was previously hit by the EPS-vs-self
+  //      pictures rejection ("EPS-Bilder und selbstverwaltete Bilder können nicht
+  //      kombiniert werden"), the auto-fix persists `details.skipEbayCatalogLookup`.
+  //      We must NOT adopt the catalog product (which would re-pull EPS images).
+  //
+  //   B. K-Typ fitment conflict: auto-parts categories with a seller-curated
+  //      ItemCompatibilityList must avoid catalog adoption, because the catalog
+  //      product's own fitment data nearly always disagrees with the seller's
+  //      K-Typ list and eBay rejects with "Das Feld EAN fehlt …" or fitment
+  //      conflict errors.
+  //
+  // Both cases use `catalogMode = 'identify-only'`. This sends the EAN inside
+  // <ProductListingDetails> with <IncludeeBayProductDetails>false</…> so the EAN
+  // requirement of the listing category is satisfied while no catalog merge
+  // happens. The seller's own title/description/specifics/pictures stand alone.
+  //
+  // Reference: eBay Trading API ProductListingDetailsType (IncludeeBayProductDetails).
+  const hasOwnPictureForCatalogSkip = pictureUrls.some(
     (u) => !/^https?:\/\/(?:i\.ebayimg\.com|[a-z0-9.-]*\.ebaystatic\.com)\//i.test(u),
   );
   const skipCatalogForKtype =
     Array.isArray(itemCompatibilityList) &&
     itemCompatibilityList.length > 0 &&
-    hasOwnPictureForKtypeSkip;
-  const skipProductListingDetails =
-    product?.details?.skipEbayCatalogLookup === true || skipCatalogForKtype;
-  if (skipCatalogForKtype && product?.details?.skipEbayCatalogLookup !== true) {
-    console.info(
-      `[buildListingFromProduct] Auto-skipped catalog reference for K-Typ listing (${itemCompatibilityList.length} kTypes) to avoid catalog/fitment conflict.`,
-    );
+    hasOwnPictureForCatalogSkip;
+  const legacySkipFlag = product?.details?.skipEbayCatalogLookup === true;
+  let catalogMode;
+  if (legacySkipFlag || skipCatalogForKtype) {
+    catalogMode = 'identify-only';
+    if (skipCatalogForKtype && !legacySkipFlag) {
+      console.info(
+        `[buildListingFromProduct] Catalog mode 'identify-only' for K-Typ listing (${itemCompatibilityList.length} kTypes) — sends EAN, suppresses catalog merge.`,
+      );
+    } else if (legacySkipFlag) {
+      console.info(
+        `[buildListingFromProduct] Catalog mode 'identify-only' (details.skipEbayCatalogLookup=true) — sends EAN, suppresses catalog merge.`,
+      );
+    }
+  } else {
+    catalogMode = 'merge';
+  }
+  // Backward compat: keep skipProductListingDetails as a derived boolean so any
+  // downstream consumer that still reads it sees a sensible value (true ONLY for
+  // a full PLD omit, which we no longer trigger by default).
+  const skipProductListingDetails = catalogMode === 'omit';
+
+  // Bridge the resolved EAN into ItemSpecifics if the category requires EAN as a
+  // custom Artikelmerkmal (and our ItemSpecifics don't already carry one). This is
+  // belt-and-braces: in 'identify-only' mode the EAN is in PLD; for German
+  // categories that ALSO require EAN as an Item Specific the duplication is
+  // harmless and prevents intermittent "EAN fehlt" rejections. We only add when
+  // we have a validated EAN AND no existing EAN/GTIN specific is present.
+  if (ean) {
+    const hasEanSpecific = Object.keys(itemSpecifics).some((k) => {
+      const t = normalizeSpecificToken(k);
+      return t === 'gtin' || t === 'ean' || t === 'upc' || t === 'isbn';
+    });
+    if (!hasEanSpecific) {
+      itemSpecifics.EAN = [String(ean)];
+    }
   }
 
   // Publish path: Always remove technical keys (e.g. "Kategorie") and enforce maxLength.
@@ -4254,6 +4290,7 @@ function mapProductToEbayItem(product, overrides = {}) {
     brand,
     itemSpecifics: filteredSpecifics.itemSpecifics,
     itemCompatibilityList,
+    catalogMode,
     skipProductListingDetails,
     weightKg,
     country: safeString(overrides.country) || 'DE',

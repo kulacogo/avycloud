@@ -244,9 +244,12 @@ async function _onOrderShipped({ orderId, tenantId }) {
 
     // Claim atomically — setze Flag JETZT bevor Phase A startet.
     // Wenn Phase A fuer ALLE SKUs fehlschlaegt, wird der Claim am Ende zurueckgesetzt.
+    // CLAUDE.md Punkt 13: stockDecrementedBy='ship' markiert diesen Pfad,
+    // damit `bookStockOut(meta.orderId)` (Pick-Flow) bei Konflikt erkannt werden kann.
     const skus = items.map((i) => String(i.sku || '').trim()).filter(Boolean);
     tx.update(orderRef, {
       stockDecrementedAt: new Date().toISOString(),
+      stockDecrementedBy: 'ship',
       stockDecrementedSkus: skus,
     });
     return { skip: false, alreadyDecremented: false, items };
@@ -255,7 +258,15 @@ async function _onOrderShipped({ orderId, tenantId }) {
   if (claim.skip) return;
   const { alreadyDecremented, items } = claim;
   if (alreadyDecremented) {
-    console.log(`[order-state-machine] Stock already decremented for ${orderId} at ${claim.previousDecrementedAt} — skipping decrement, running marketplace sync only`);
+    // Wer hat geclaimt? Pick-Flow (bookStockOut(meta.orderId)) oder Ship-Flow (frueherer _onOrderShipped-Aufruf)?
+    let claimedBy = null;
+    try {
+      const snap = await orderRef.get();
+      if (snap.exists) claimedBy = snap.data()?.stockDecrementedBy || null;
+    } catch { /* best-effort */ }
+    console.log(
+      `[order-state-machine] Stock already decremented for ${orderId} at ${claim.previousDecrementedAt} by='${claimedBy || 'unknown'}' — skipping Phase A, running marketplace sync only (CLAUDE.md Punkt 13)`
+    );
   }
 
   // 3. Build SKU→qty map

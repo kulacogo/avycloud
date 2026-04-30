@@ -33,6 +33,15 @@
 10. **OVERSELL-VERBOT:** Kein Code-Pfad darf `products_v2.inventory.quantity` mutieren ohne `saveProductV2()` UND `emitSyncEvent('stock:changed', ...)`. Jede Stock-Mutation MUSS innerhalb <60s einen Marketplace-Sync-Versuch triggern. Fehlgeschlagene Syncs MÜSSEN in `stock_operation_failures` landen UND vom Drain-Worker (`services/stock-failure-drain.js`) automatisch aufgegriffen werden. Siehe Incident 2026-04-23 (SKU-9871561937).
 11. **Kein `omsStatus`-Direct-Write:** Order-State-Übergänge laufen AUSSCHLIESSLICH über `transitionOrder()` (`services/order-state-machine.js`). Intake-Services (`order-intake-kaufland.js`, `order-intake-ebay.js`) dürfen `order.omsStatus` NIEMALS direkt via `orderRef.update()` schreiben — sonst fehlt `order:status_changed`, `_onOrderShipped` läuft nicht, Oversell-Risiko.
 12. **Kein In-Memory-Stock-Lock mehr:** Kritische Stock-Mutationen laufen durch `withStockLock()` mit Firestore-Backend (`STOCK_LOCK_BACKEND=firestore`). In-Memory-Lock nur als Test-Helper erlaubt.
+13. **STOCK SINGLE WRITER INVARIANT (seit 2026-04-29, Incident SKU-0000108900 + SKU-0000041030):** Für jede physische Einheit `(sku × order)` darf `products_v2.inventory.quantity` während des Order-Lifecycle **GENAU EINMAL** dekrementiert werden. Es existieren zwei legitime Decrement-Pfade — sie sind via `order.stockDecrementedAt`-Marker MUTUALLY EXCLUSIVE:
+    - **Pfad A — Pick-with-Order** (`lib/warehouse.js bookStockOut` mit `meta.orderId`): authoritativer Decrement bei physischer Pick-Bewegung. MUSS in derselben Firestore-Tx den Marker `orders/{orderId}.stockDecrementedAt + stockDecrementedBy='pick' + stockDecrementedSkus=[…]` setzen via `lib/order-stock-claim.js claimOrderStockDecrementInTx()`.
+    - **Pfad B — Ship-Decrement** (`services/order-state-machine.js _onOrderShipped` → `lib/warehouse.js decrementProductByIdOrSku`): authoritativer Decrement bei Versand, NUR wenn Pfad A nicht gelaufen ist. Wird durch existierenden `alreadyDecremented`-Skip-Pfad geschützt.
+    - **Verboten:**
+      a) `tx.update(productRef, { 'inventory.quantity': X })` außerhalb von `lib/warehouse.js`/`lib/product-store.js`. Sünder: `routes/marketplace.js:966` (Kaufland-Reconcile) — als bekannte Schuld in TASKS.md (Gap C).
+      b) `bookStockOut` mit `meta.orderId` ohne `claimOrderStockDecrementInTx()`-Aufruf in derselben Tx.
+      c) Stock-Mutation ohne anschließenden `notifyStockChange()`-Call (sonst kein `inventory_ledger`-Eintrag, Telemetrie blind).
+    - **Repair-Path:** `backend/scripts/repair-double-decrement.js` (read-only audit + opt-in `--apply`). Erkennt `(stock_out flow=pick) ⨯ (order_decrement)` Doppelpaare in `warehouseEvents`.
+    - **Regression-Test:** `backend/__tests__/stock-pick-then-ship-no-double-decrement.test.js`.
 
 ## Code-Stil
 

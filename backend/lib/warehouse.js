@@ -610,6 +610,19 @@ async function decrementProductByIdOrSku(productIdOrSku, quantity) {
   const invQty = Number(productData.inventory?.quantity || 0);
   const newInv = Math.max(0, invQty - (Number(quantity) || 0));
 
+  // Defensive no-op (CLAUDE.md Punkt 13): wenn bereits inventar=0 und keine Bins,
+  // dann ist hier nichts mehr zu decrementieren. Wir schreiben trotzdem ein
+  // warehouseEvent, damit der Aufruf nicht spurlos verschwindet, aber wir mutieren
+  // weder Produkt noch Bins. Dies kann legitim auftreten, wenn `bookStockOut`
+  // mit `meta.orderId` bereits per Pick-Pfad alles dekrementiert hat und
+  // `_onOrderShipped` faelschlicherweise erneut Phase A ausfuehrt (defense in depth).
+  if (invQty <= 0 && bins.length === 0) {
+    console.warn(
+      `[decrementProductByIdOrSku] no-op for productId=${productRef.id} — inventory.quantity already 0 and no bins. Possible duplicate decrement attempt; no mutation performed.`
+    );
+    return;
+  }
+
   let newStorage = productData.storage || null;
   if (newStorage?.binCode && !cleanedBins.find((b) => String(b.code).trim() === String(newStorage.binCode).trim())) {
     newStorage = null;
@@ -668,6 +681,30 @@ async function decrementProductByIdOrSku(productIdOrSku, quantity) {
   });
 
   await refreshProductInventory(productRef.id);
+
+  // Telemetrie: inventory_ledger-Eintrag (CLAUDE.md Punkt 10/13).
+  if (Number(invQty) !== Number(newInv)) {
+    try {
+      const { notifyStockChange } = require('./stock-change-events');
+      const skuValue =
+        productData.identification?.sku ||
+        productData.details?.identifiers?.sku ||
+        (typeof productIdOrSku === 'string' && /^SKU/i.test(productIdOrSku) ? productIdOrSku : null);
+      await notifyStockChange({
+        tenantId: productData.tenantId || 'default',
+        productId: productRef.id,
+        sku: skuValue,
+        before: Number(invQty),
+        after: Number(newInv),
+        reason: 'ship-decrement',
+        source: 'warehouse.decrementProductByIdOrSku',
+      });
+    } catch (err) {
+      console.warn(
+        `[decrementProductByIdOrSku] notifyStockChange failed productId=${productRef.id}: ${err.message}`
+      );
+    }
+  }
 }
 
 async function assignProductToBin(binCode, productId, quantity) {
@@ -896,13 +933,23 @@ async function bookStockOut({ productId, sku, barcode, binCode, quantity, meta }
 
   const { ref: productRef } = await findProductDocument({ productId, sku, barcode });
   const binRef = binsCollection.doc(binCode);
+  // STOCK SINGLE WRITER INVARIANT (CLAUDE.md Punkt 13): wenn meta.orderId gesetzt ist,
+  // claimen wir den Decrement atomar mit dem Bin-Decrement, damit `_onOrderShipped`
+  // im Ship-Trigger nicht ein zweites Mal decrementiert.
+  const orderIdMeta = meta && meta.orderId ? String(meta.orderId).trim() : null;
+  const orderRef = orderIdMeta ? firestore.collection('orders').doc(orderIdMeta) : null;
   const now = Timestamp.now();
   let updatedProduct = null;
   let updatedBin = null;
   let resolvedProductId = null;
+  let resolvedSkuValue = null;
+  let preInventoryQty = null;
+  let postInventoryQty = null;
+  let claimResult = null;
 
   await firestore.runTransaction(async (tx) => {
-    const [productSnap, binSnap] = await Promise.all([tx.get(productRef), tx.get(binRef)]);
+    const reads = [tx.get(productRef), tx.get(binRef)];
+    const [productSnap, binSnap] = await Promise.all(reads);
     if (!productSnap.exists) throw new Error('Produkt nicht gefunden.');
     if (!binSnap.exists) throw new Error('BIN nicht gefunden.');
 
@@ -910,6 +957,13 @@ async function bookStockOut({ productId, sku, barcode, binCode, quantity, meta }
     const binData = binSnap.data();
     const products = cloneProductsArray(binData);
     resolvedProductId = productData.id || productRef.id;
+    resolvedSkuValue =
+      productData.details?.identifiers?.sku ||
+      productData.identification?.sku ||
+      sku ||
+      null;
+    preInventoryQty = Number(productData?.inventory?.quantity);
+    if (!Number.isFinite(preInventoryQty)) preInventoryQty = null;
     let entry = products.find((p) => p.productId === resolvedProductId);
     if (!entry) {
       // Fallback: match per SKU aus Produktdaten
@@ -945,6 +999,7 @@ async function bookStockOut({ productId, sku, barcode, binCode, quantity, meta }
         storage: null,
         inventory: { ...(productData.inventory || {}), quantity: 0 },
       });
+      postInventoryQty = 0;
       updatedProduct = {
         ...productData,
         id: resolvedProductId,
@@ -969,6 +1024,7 @@ async function bookStockOut({ productId, sku, barcode, binCode, quantity, meta }
           quantity: entry.quantity,
         },
       });
+      postInventoryQty = entry.quantity;
       updatedProduct = {
         ...productData,
         id: resolvedProductId,
@@ -990,12 +1046,25 @@ async function bookStockOut({ productId, sku, barcode, binCode, quantity, meta }
       type: 'stock_out',
       binCode,
       productId: resolvedProductId,
-      sku: productData.details?.identifiers?.sku || productData.identification?.sku || null,
+      sku: resolvedSkuValue,
       delta: -(Number(quantity) || 0),
       quantityAfter: entry.quantity <= 0 ? 0 : entry.quantity,
       binProductCountAfter: productCount,
       meta: meta || null,
     });
+
+    // STOCK SINGLE WRITER CLAIM (CLAUDE.md Punkt 13): atomar mit Bin/Inventory-Decrement.
+    // Verhindert Doppel-Decrement durch `_onOrderShipped → decrementProductByIdOrSku`.
+    if (orderRef) {
+      const { claimOrderStockDecrementInTx } = require('./order-stock-claim');
+      claimResult = await claimOrderStockDecrementInTx({
+        tx,
+        orderRef,
+        by: 'pick',
+        skus: resolvedSkuValue ? [resolvedSkuValue] : [],
+        nowIso: now.toDate().toISOString(),
+      });
+    }
 
     updatedBin = {
       code: binCode,
@@ -1006,7 +1075,47 @@ async function bookStockOut({ productId, sku, barcode, binCode, quantity, meta }
     };
   });
 
+  // Logging des Claim-Resultats fuer Operator-Sichtbarkeit.
+  if (orderIdMeta) {
+    if (claimResult && claimResult.claimed) {
+      console.log(
+        `[bookStockOut] order=${orderIdMeta} sku=${resolvedSkuValue} claimed stockDecrementedAt by='pick' — ship-flow will skip Phase A`
+      );
+    } else if (claimResult && claimResult.alreadyClaimed) {
+      console.warn(
+        `[bookStockOut] order=${orderIdMeta} sku=${resolvedSkuValue} stockDecrementedAt already set at=${claimResult.at} by='${claimResult.by}' — investigate possible double-decrement`
+      );
+    } else if (claimResult && claimResult.reason === 'order-not-found') {
+      console.warn(
+        `[bookStockOut] order=${orderIdMeta} (referenced in meta) not found — bin/inventory dekrementiert ohne Order-Claim`
+      );
+    }
+  }
+
   await refreshProductInventory(productRef.id);
+
+  // Telemetrie: inventory_ledger-Eintrag (CLAUDE.md Punkt 10/13).
+  if (
+    preInventoryQty !== null &&
+    postInventoryQty !== null &&
+    Number(preInventoryQty) !== Number(postInventoryQty)
+  ) {
+    try {
+      const { notifyStockChange } = require('./stock-change-events');
+      await notifyStockChange({
+        tenantId: 'default',
+        productId: productRef.id,
+        sku: resolvedSkuValue,
+        before: Number(preInventoryQty),
+        after: Number(postInventoryQty),
+        reason: orderIdMeta ? `pick-stock-out:${orderIdMeta}` : 'manual-stock-out',
+        source: 'warehouse.bookStockOut',
+      });
+    } catch (err) {
+      console.warn(`[bookStockOut] notifyStockChange failed productId=${productRef.id}: ${err.message}`);
+    }
+  }
+
   const freshProduct = await getProduct(productRef.id);
   return { product: freshProduct || updatedProduct, bin: updatedBin };
 }

@@ -184,7 +184,10 @@ describe('autoFixEbayProduct', () => {
     const out = await autoFixEbayProduct(product, { lastError, generateText: async () => '{}' });
     expect(out.skip).toBe(false);
     expect(out.product.details.skipEbayCatalogLookup).toBe(true);
-    expect(out.fixes.some((f) => /Katalog-Verkn/i.test(f))).toBe(true);
+    // Message text was updated when the flag's runtime semantics changed from
+    // "omit PLD entirely" (silently dropped EAN → "EAN fehlt") to "identify-only
+    // mode" (PLD with IncludeeBayProductDetails=false, EAN preserved).
+    expect(out.fixes.some((f) => /Katalog-Adoption deaktiviert/i.test(f))).toBe(true);
   });
 
   it('Strategy 3 — skips when image conflict error but no own images (safety)', async () => {

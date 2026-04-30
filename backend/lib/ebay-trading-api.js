@@ -1024,17 +1024,53 @@ function buildAddFixedPriceItemXml(item, cfg) {
   const isbn = safeString(item?.isbn);
   const mpn = safeString(item?.mpn);
   const brand = safeString(item?.brand);
-  // Always include ProductListingDetails — many eBay categories require product identifiers.
-  // When no EAN/ISBN/MPN is available, send "Does not apply" so eBay accepts the listing.
-  // Exception: when item.skipProductListingDetails === true (e.g. after Image-Konflikt
-  // auto-fix), skip the catalog reference entirely so eBay does not attempt to merge
-  // catalog stock photos with the seller's own PictureDetails.
-  if (item?.skipProductListingDetails !== true) {
+
+  // ProductListingDetails — three modes:
+  //
+  //   1. 'merge'         (default): IncludeeBayProductDetails=true → eBay matches
+  //                                  the GTIN against its catalog and merges title,
+  //                                  description, item specifics and stock photo.
+  //   2. 'identify-only':            IncludeeBayProductDetails=false → eBay records
+  //                                  the EAN/UPC/ISBN as the product identifier but
+  //                                  does NOT adopt the catalog product (no merge of
+  //                                  catalog photos / item specifics / fitment data).
+  //                                  This satisfies German categories that require
+  //                                  an EAN ("Das Feld EAN fehlt …") while avoiding
+  //                                  catalog conflicts (image conflict, K-Typ vs.
+  //                                  catalog-fitment conflict for auto parts).
+  //   3. 'omit'          (legacy):   skip <ProductListingDetails> entirely. ONLY
+  //                                  use as a last resort — the EAN is then silently
+  //                                  dropped and category EAN-required listings fail.
+  //
+  // Backward compat: `item.skipProductListingDetails === true` resolves to 'omit' so
+  // older callers that explicitly opted out keep their behaviour. New callers should
+  // prefer `item.catalogMode = 'identify-only'`.
+  //
+  // Reference: eBay Trading API ProductListingDetailsType / IncludeeBayProductDetails
+  // (https://developer.ebay.com/devzone/xml/docs/reference/ebay/types/ProductListingDetailsType.html)
+  const catalogMode =
+    item?.catalogMode === 'identify-only' || item?.catalogMode === 'omit' || item?.catalogMode === 'merge'
+      ? item.catalogMode
+      : item?.skipProductListingDetails === true
+        ? 'omit'
+        : 'merge';
+
+  if (catalogMode !== 'omit') {
     const pld = [];
     pld.push(`<EAN>${escapeXml(ean || 'Does not apply')}</EAN>`);
     if (isbn) pld.push(`<ISBN>${escapeXml(isbn)}</ISBN>`);
     if (mpn) pld.push(`<BrandMPN><Brand>${escapeXml(brand || 'Unbranded')}</Brand><MPN>${escapeXml(mpn)}</MPN></BrandMPN>`);
-    if (ean || isbn || mpn) {
+    if (catalogMode === 'identify-only') {
+      // Send the identifier but do NOT adopt the catalog product. This is the eBay-
+      // approved escape hatch for image conflicts (no catalog stock photos merged
+      // into seller's PictureDetails) and for K-Typ vs. catalog-fitment conflicts
+      // (no catalog product whose own ItemCompatibilityList could clash with the
+      // seller's). The seller's title, description, specifics and pictures are used
+      // as-is; the EAN is just informational metadata for buyers/search.
+      pld.push('<IncludeeBayProductDetails>false</IncludeeBayProductDetails>');
+      pld.push('<IncludeStockPhotoURL>false</IncludeStockPhotoURL>');
+      pld.push('<UseStockPhotoURLAsGallery>false</UseStockPhotoURLAsGallery>');
+    } else if (ean || isbn || mpn) {
       pld.push('<IncludeeBayProductDetails>true</IncludeeBayProductDetails>');
     }
     fields.push(`<ProductListingDetails>${pld.join('')}</ProductListingDetails>`);
@@ -1348,6 +1384,7 @@ module.exports = {
   endFixedPriceItem,
   addFixedPriceItem,
   verifyAddFixedPriceItem,
+  buildAddFixedPriceItemXml,
   mapItemSpecifics,
   mapListingDetail,
   normalizeSpecificsMap,
