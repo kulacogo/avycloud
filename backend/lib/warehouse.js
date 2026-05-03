@@ -948,8 +948,19 @@ async function bookStockOut({ productId, sku, barcode, binCode, quantity, meta }
   let claimResult = null;
 
   await firestore.runTransaction(async (tx) => {
+    // ─── Phase READS ─────────────────────────────────────────────────────
+    // Firestore-Constraint: ALLE Reads MUESSEN vor JEDEM Write erfolgen
+    // (sonst: "Firestore transactions require all reads to be executed
+    //  before all writes."). Wenn `orderRef` gesetzt ist, lesen wir auch
+    // den Order-Claim-Zustand HIER, NICHT spaeter — siehe Bug-Fix
+    // 2026-05-03 (Pick-Modul "Pick failed: Firestore transaction
+    // requires all reads to be executed before all writes").
+    const { readOrderClaimStateInTx, writeOrderClaimInTx } = require('./order-stock-claim');
     const reads = [tx.get(productRef), tx.get(binRef)];
-    const [productSnap, binSnap] = await Promise.all(reads);
+    if (orderRef) {
+      reads.push(readOrderClaimStateInTx({ tx, orderRef }));
+    }
+    const [productSnap, binSnap, orderClaimState] = await Promise.all(reads);
     if (!productSnap.exists) throw new Error('Produkt nicht gefunden.');
     if (!binSnap.exists) throw new Error('BIN nicht gefunden.');
 
@@ -988,6 +999,43 @@ async function bookStockOut({ productId, sku, barcode, binCode, quantity, meta }
       throw new Error('Nicht genügend Bestand im BIN.');
     }
 
+    // ─── Claim-Entscheidung berechnen (rein) ────────────────────────────
+    // Vor dem ersten Write entscheiden, was am Ende der Tx mit dem Order-
+    // Claim passieren soll.
+    let pendingClaimWrite = null;
+    if (orderRef) {
+      if (!orderClaimState || !orderClaimState.exists) {
+        claimResult = {
+          claimed: false,
+          alreadyClaimed: false,
+          at: null,
+          by: null,
+          reason: 'order-not-found',
+        };
+      } else if (orderClaimState.alreadyClaimed) {
+        claimResult = {
+          claimed: false,
+          alreadyClaimed: true,
+          at: orderClaimState.at,
+          by: orderClaimState.by,
+        };
+      } else {
+        const claimedAt = now.toDate().toISOString();
+        pendingClaimWrite = {
+          by: 'pick',
+          skus: resolvedSkuValue ? [resolvedSkuValue] : [],
+          nowIso: claimedAt,
+        };
+        claimResult = {
+          claimed: true,
+          alreadyClaimed: false,
+          at: claimedAt,
+          by: 'pick',
+        };
+      }
+    }
+
+    // ─── Phase WRITES ───────────────────────────────────────────────────
     entry.quantity -= quantity;
     entry.lastUpdatedAt = now.toDate().toISOString();
 
@@ -1053,16 +1101,16 @@ async function bookStockOut({ productId, sku, barcode, binCode, quantity, meta }
       meta: meta || null,
     });
 
-    // STOCK SINGLE WRITER CLAIM (CLAUDE.md Punkt 13): atomar mit Bin/Inventory-Decrement.
-    // Verhindert Doppel-Decrement durch `_onOrderShipped → decrementProductByIdOrSku`.
-    if (orderRef) {
-      const { claimOrderStockDecrementInTx } = require('./order-stock-claim');
-      claimResult = await claimOrderStockDecrementInTx({
+    // STOCK SINGLE WRITER CLAIM (CLAUDE.md Punkt 13): Phase-2-Write des
+    // bereits in der Read-Phase entschiedenen Claims. Macht NUR `tx.update`,
+    // verletzt also nicht die Read-before-Write-Regel.
+    if (pendingClaimWrite) {
+      writeOrderClaimInTx({
         tx,
         orderRef,
-        by: 'pick',
-        skus: resolvedSkuValue ? [resolvedSkuValue] : [],
-        nowIso: now.toDate().toISOString(),
+        by: pendingClaimWrite.by,
+        skus: pendingClaimWrite.skus,
+        nowIso: pendingClaimWrite.nowIso,
       });
     }
 

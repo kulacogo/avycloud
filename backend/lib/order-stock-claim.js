@@ -14,23 +14,118 @@
  *     stockDecrementedBy: 'pick' | 'ship',
  *     stockDecrementedSkus: [sku, ...] }
  *
- * Diese Helper-Funktion ist der EINZIGE Ort, an dem `stockDecrementedAt`
- * im normalen Lifecycle gesetzt werden darf. (Ausnahme: Rollback-Path
- * via `FieldValue.delete()` in `order-state-machine.js`.)
+ * Diese Datei stellt zwei phasen-getrennte Helper bereit, damit Aufrufer,
+ * die in derselben Tx bereits andere Reads/Writes ausfuehren, die Firestore-
+ * Read-before-Write-Regel nicht verletzen:
+ *
+ *   • `readOrderClaimStateInTx({tx, orderRef})`
+ *       Reine LESE-Phase. MUSS vor dem ersten Write im Tx aufgerufen werden.
+ *
+ *   • `writeOrderClaimInTx({tx, orderRef, by, skus, nowIso})`
+ *       Reine SCHREIB-Phase. MUSS nach allen Reads aufgerufen werden.
+ *
+ *   • `claimOrderStockDecrementInTx({tx, orderRef, by, skus, nowIso})`
+ *       Backward-compatibler Komfort-Wrapper, der Read+Write in einem Aufruf
+ *       kombiniert. Nur sicher, wenn der Tx-Aufrufer noch keine Writes
+ *       gemacht hat. Sonst Firestore-Fehler:
+ *       "Firestore transactions require all reads to be executed before all writes."
+ *
+ * (Ausnahme fuer Marker-Loeschung: Rollback-Path via `FieldValue.delete()`
+ *  in `services/order-state-machine.js`.)
  */
 
 'use strict';
 
+function _validateTx(tx) {
+  if (!tx || typeof tx.get !== 'function' || typeof tx.update !== 'function') {
+    throw new Error('order-stock-claim: invalid tx');
+  }
+}
+
+function _validateBy(by) {
+  if (by !== 'pick' && by !== 'ship') {
+    throw new Error(`order-stock-claim: invalid by="${by}" (must be 'pick' | 'ship')`);
+  }
+}
+
 /**
- * Atomarer Claim innerhalb einer Firestore-Transaction.
+ * Phase 1 — reine Lese-Phase.
+ * Liest den aktuellen Claim-Zustand der Order. Macht KEINE Writes.
+ * Sicher in jeder Tx, solange noch kein Write erfolgt ist.
  *
- * Aufgabe des Aufrufers:
- *   - `tx` darf noch keine Writes gemacht haben (oder die Reads in
- *     `tx.get(orderRef)` muessen vor dem ersten Write passieren —
- *     Firestore-Regel "alle Reads vor allen Writes").
- *   - Aufrufer entscheidet selbst, ob er den Claim als Erfolg
- *     interpretiert (claimed=true) oder ob er die fremde Claim
- *     respektiert (alreadyClaimed=true).
+ * @param {object} args
+ * @param {FirestoreTransaction} args.tx
+ * @param {DocumentReference} args.orderRef
+ * @returns {Promise<{
+ *   exists: boolean,
+ *   alreadyClaimed: boolean,
+ *   at: string|null,
+ *   by: 'pick'|'ship'|null,
+ *   skus: string[]
+ * }>}
+ */
+async function readOrderClaimStateInTx({ tx, orderRef } = {}) {
+  _validateTx(tx);
+  if (!orderRef) throw new Error('order-stock-claim: orderRef missing');
+
+  const snap = await tx.get(orderRef);
+  if (!snap || !snap.exists) {
+    return { exists: false, alreadyClaimed: false, at: null, by: null, skus: [] };
+  }
+  const data = (snap.data && snap.data()) || {};
+  const at = data.stockDecrementedAt || null;
+  const by = data.stockDecrementedBy || null;
+  const skus = Array.isArray(data.stockDecrementedSkus) ? data.stockDecrementedSkus.map(String) : [];
+  return {
+    exists: true,
+    alreadyClaimed: Boolean(at),
+    at,
+    by: by === 'pick' || by === 'ship' ? by : null,
+    skus,
+  };
+}
+
+/**
+ * Phase 2 — reine Schreib-Phase.
+ * Setzt den Claim-Marker. Macht NUR `tx.update`. Aufrufer muss vorher mit
+ * `readOrderClaimStateInTx` verifiziert haben, dass die Order existiert
+ * und noch nicht geclaimt ist.
+ *
+ * @param {object} args
+ * @param {FirestoreTransaction} args.tx
+ * @param {DocumentReference} args.orderRef
+ * @param {'pick'|'ship'} args.by
+ * @param {string[]} [args.skus]
+ * @param {string} [args.nowIso]
+ * @returns {{claimed: true, at: string, by: 'pick'|'ship', skus: string[]}}
+ */
+function writeOrderClaimInTx({ tx, orderRef, by, skus, nowIso } = {}) {
+  _validateTx(tx);
+  if (!orderRef) throw new Error('order-stock-claim: orderRef missing');
+  _validateBy(by);
+
+  const claimedAt = nowIso || new Date().toISOString();
+  const skuList = Array.isArray(skus) ? skus.filter(Boolean).map(String) : [];
+  tx.update(orderRef, {
+    stockDecrementedAt: claimedAt,
+    stockDecrementedBy: by,
+    stockDecrementedSkus: skuList,
+  });
+  return { claimed: true, at: claimedAt, by, skus: skuList };
+}
+
+/**
+ * Komfort-Wrapper: kombiniert Read + Write in einem Aufruf.
+ *
+ * ⚠ ACHTUNG (Firestore-Read-before-Write):
+ * Diese Funktion macht zuerst `tx.get(orderRef)`, dann ggf. `tx.update`.
+ * Aufrufer, die in derselben Tx bereits andere Document-Writes ausgefuehrt
+ * haben, MUESSEN stattdessen die phasen-getrennten Helper verwenden:
+ *   1) `readOrderClaimStateInTx({tx, orderRef})` BEFORE the first write
+ *   2) `writeOrderClaimInTx({tx, orderRef, by, skus, nowIso})` AFTER all reads
+ *
+ * Sonst wirft Firestore:
+ *   "Firestore transactions require all reads to be executed before all writes."
  *
  * @param {object} args
  * @param {FirestoreTransaction} args.tx
@@ -41,36 +136,23 @@
  * @returns {Promise<{ claimed: boolean, alreadyClaimed: boolean, at: string|null, by: string|null, reason?: string }>}
  */
 async function claimOrderStockDecrementInTx({ tx, orderRef, by, skus, nowIso } = {}) {
-  if (!tx || typeof tx.get !== 'function' || typeof tx.update !== 'function') {
-    throw new Error('claimOrderStockDecrementInTx: invalid tx');
-  }
+  _validateTx(tx);
   if (!orderRef) throw new Error('claimOrderStockDecrementInTx: orderRef missing');
-  const validBy = by === 'pick' || by === 'ship';
-  if (!validBy) throw new Error(`claimOrderStockDecrementInTx: invalid by="${by}" (must be 'pick' | 'ship')`);
+  _validateBy(by);
 
-  const snap = await tx.get(orderRef);
-  if (!snap || !snap.exists) {
+  const state = await readOrderClaimStateInTx({ tx, orderRef });
+  if (!state.exists) {
     return { claimed: false, alreadyClaimed: false, at: null, by: null, reason: 'order-not-found' };
   }
-  const data = (snap.data && snap.data()) || {};
-  if (data.stockDecrementedAt) {
-    return {
-      claimed: false,
-      alreadyClaimed: true,
-      at: data.stockDecrementedAt,
-      by: data.stockDecrementedBy || null,
-    };
+  if (state.alreadyClaimed) {
+    return { claimed: false, alreadyClaimed: true, at: state.at, by: state.by };
   }
-  const claimedAt = nowIso || new Date().toISOString();
-  const skuList = Array.isArray(skus) ? skus.filter(Boolean).map(String) : [];
-  tx.update(orderRef, {
-    stockDecrementedAt: claimedAt,
-    stockDecrementedBy: by,
-    stockDecrementedSkus: skuList,
-  });
-  return { claimed: true, alreadyClaimed: false, at: claimedAt, by };
+  const written = writeOrderClaimInTx({ tx, orderRef, by, skus, nowIso });
+  return { claimed: true, alreadyClaimed: false, at: written.at, by: written.by };
 }
 
 module.exports = {
+  readOrderClaimStateInTx,
+  writeOrderClaimInTx,
   claimOrderStockDecrementInTx,
 };
