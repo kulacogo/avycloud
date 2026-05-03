@@ -282,6 +282,38 @@ describe('processShippedOrder idempotency', () => {
     );
   });
 
+  it('persists marketplaceSync failure when channel status is failed (no throw)', async () => {
+    mockOrderGet.mockResolvedValue({
+      exists: true,
+      data: () => ({
+        tenantId: 'default',
+        items: [{ sku: 'SKU-CHANFAIL', quantity: 1 }],
+      }),
+    });
+    mockQueryGet.mockResolvedValue({
+      empty: false,
+      docs: [{ id: 'prod-chanfail', data: () => ({ id: 'prod-chanfail' }) }],
+    });
+    mockSyncStockWithRetry.mockResolvedValue({
+      results: [{ channel: 'ebay', status: 'failed', error: 'ack=Failure' }],
+    });
+
+    await processShippedOrder({ orderId: 'order-chanfail', tenantId: 'default' });
+
+    expect(mockCollectionAdd).toHaveBeenCalledWith(
+      expect.objectContaining({
+        orderId: 'order-chanfail',
+        failures: expect.arrayContaining([
+          expect.objectContaining({
+            step: 'marketplaceSync',
+            sku: 'SKU-CHANFAIL',
+            channel: 'ebay',
+          }),
+        ]),
+      })
+    );
+  });
+
   it('rolls back stockDecrementedAt claim when ALL decrements fail', async () => {
     mockOrderGet.mockResolvedValue({
       exists: true,

@@ -329,7 +329,18 @@ async function _onOrderShipped({ orderId, tenantId }) {
       if (!snap.empty) {
         const doc = snap.docs[0];
         const product = { id: doc.id, ...doc.data() };
-        await syncStockWithRetry({ tenantId, product, reason: `shipped-${orderId}` });
+        const syncResult = await syncStockWithRetry({ tenantId, product, reason: `shipped-${orderId}` });
+        const channelErrors = Array.isArray(syncResult?.results)
+          ? syncResult.results.filter((c) => c && (c.status === 'error' || c.status === 'failed'))
+          : [];
+        for (const ch of channelErrors) {
+          failures.push({
+            step: 'marketplaceSync',
+            sku,
+            channel: ch.channel || null,
+            error: ch.error || `status:${ch.status || 'unknown'}`,
+          });
+        }
       }
     } catch (err) {
       console.warn(`[order-state-machine] marketplace sync failed sku=${sku}: ${err.message}`);

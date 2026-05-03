@@ -154,7 +154,8 @@ async function syncStockToAllChannels({ tenantId = 'default', product, reason = 
         }
       }
     } else {
-      // Stock > 0: revise quantity as before
+      // Stock > 0: revise quantity. If this fails, fail-safe end the listing
+      // to prevent oversell on stale higher marketplace quantity.
       try {
         const { reviseFixedPriceItem } = require('../lib/ebay-trading-api');
         const result = await reviseFixedPriceItem({
@@ -172,8 +173,33 @@ async function syncStockToAllChannels({ tenantId = 'default', product, reason = 
           console.warn(`[stock-sync] ebay product=${productId} itemId=${ebayItemId} listing ended, clearing stale itemId`);
           await clearStaleItemId();
         } else {
-          results.push({ channel: 'ebay', status: 'error', error: errMsg });
-          console.warn(`[stock-sync] ebay FAILED product=${productId} itemId=${ebayItemId}:`, errMsg);
+          // Fail-safe: if we cannot safely push the new quantity, end listing.
+          try {
+            const { endFixedPriceItem } = require('../lib/ebay-trading-api');
+            await endFixedPriceItem(String(ebayItemId), { reason: 'NotAvailable' });
+            results.push({
+              channel: 'ebay',
+              status: 'success',
+              itemId: ebayItemId,
+              quantityPushed: 0,
+              action: 'fail_safe_end',
+              note: 'quantity_update_failed_listing_ended',
+            });
+            console.warn(
+              `[stock-sync] ebay FAIL-SAFE END product=${productId} itemId=${ebayItemId} after revise failure: ${errMsg}`
+            );
+          } catch (fallbackErr) {
+            const fallbackMsg = fallbackErr?.message || String(fallbackErr);
+            results.push({
+              channel: 'ebay',
+              status: 'error',
+              error: `${errMsg}; fail_safe_end_failed: ${fallbackMsg}`,
+            });
+            console.warn(
+              `[stock-sync] ebay FAILED product=${productId} itemId=${ebayItemId}; fail-safe end failed:`,
+              fallbackMsg
+            );
+          }
         }
       }
     }
@@ -259,6 +285,7 @@ async function syncStockToAllChannels({ tenantId = 'default', product, reason = 
       }
     } else {
       // Stock > 0: full update (price + qty + sets status=AVAILABLE automatically)
+      // If update fails, fail-safe set ONHOLD to avoid oversell.
       try {
         const { updateUnit } = require('../lib/kaufland-api');
         const productWithAvailable = {
@@ -281,21 +308,39 @@ async function syncStockToAllChannels({ tenantId = 'default', product, reason = 
         );
       } catch (err) {
         const errMsg = err?.message || String(err);
-        results.push({ channel: 'kaufland', status: 'error', error: errMsg });
-        console.warn(
-          `[stock-sync] kaufland FAILED product=${productId} unitId=${kauflandUnitId}:`,
-          errMsg
-        );
-        // If unit no longer exists on Kaufland, clear the stale unitId to stop endless retries
-        if (errMsg.includes('Not Found') || errMsg.includes('404') || errMsg.includes('not_found')) {
-          try {
-            await firestore.collection('products_v2').doc(productId).set(
-              { ops: { kaufland: { unitId: null, unitIdCleared: new Date().toISOString(), unitIdClearReason: 'unit_not_found' } } },
-              { merge: true }
-            );
-            console.log(`[stock-sync] Cleared stale kaufland unitId for product=${productId} (Unit Not Found)`);
-          } catch (clearErr) {
-            console.warn(`[stock-sync] Failed to clear stale unitId: ${clearErr?.message}`);
+        try {
+          const { setUnitStatus } = require('../lib/kaufland-api');
+          await setUnitStatus(kauflandUnitId, 'ONHOLD', { storefront: 'de' });
+          results.push({
+            channel: 'kaufland',
+            status: 'success',
+            unitId: kauflandUnitId,
+            quantityPushed: 0,
+            action: 'fail_safe_onhold',
+            note: 'quantity_update_failed_unit_onhold',
+          });
+          console.warn(
+            `[stock-sync] kaufland FAIL-SAFE ONHOLD product=${productId} unitId=${kauflandUnitId} after update failure: ${errMsg}`
+          );
+        } catch (fallbackErr) {
+          const fallbackMsg = fallbackErr?.message || String(fallbackErr);
+          results.push({ channel: 'kaufland', status: 'error', error: `${errMsg}; fail_safe_onhold_failed: ${fallbackMsg}` });
+          console.warn(
+            `[stock-sync] kaufland FAILED product=${productId} unitId=${kauflandUnitId}; fail-safe ONHOLD failed:`,
+            fallbackMsg
+          );
+          // If unit no longer exists on Kaufland, clear the stale unitId to stop endless retries
+          if (errMsg.includes('Not Found') || errMsg.includes('404') || errMsg.includes('not_found')
+            || fallbackMsg.includes('Not Found') || fallbackMsg.includes('404') || fallbackMsg.includes('not_found')) {
+            try {
+              await firestore.collection('products_v2').doc(productId).set(
+                { ops: { kaufland: { unitId: null, unitIdCleared: new Date().toISOString(), unitIdClearReason: 'unit_not_found' } } },
+                { merge: true }
+              );
+              console.log(`[stock-sync] Cleared stale kaufland unitId for product=${productId} (Unit Not Found)`);
+            } catch (clearErr) {
+              console.warn(`[stock-sync] Failed to clear stale unitId: ${clearErr?.message}`);
+            }
           }
         }
       }
@@ -411,7 +456,8 @@ async function syncPriceToAllChannels({ tenantId = 'default', product, prices = 
  */
 async function syncStockWithRetry({ tenantId = 'default', product, reason = 'manual' }) {
   const first = await syncStockToAllChannels({ tenantId, product, reason });
-  const failedChannels = first.results.filter((r) => r.status === 'error');
+  const isFailedStatus = (s) => s === 'error' || s === 'failed';
+  const failedChannels = first.results.filter((r) => isFailedStatus(r?.status));
   if (failedChannels.length === 0) return first;
 
   // Schedule retry after 30s for failed channels
@@ -419,7 +465,7 @@ async function syncStockWithRetry({ tenantId = 'default', product, reason = 'man
   setTimeout(async () => {
     try {
       const retry = await syncStockToAllChannels({ tenantId, product, reason: `${reason}-retry` });
-      const stillFailed = retry.results.filter((r) => r.status === 'error');
+      const stillFailed = retry.results.filter((r) => isFailedStatus(r?.status));
       if (stillFailed.length > 0) {
         // Log persistent failure to Firestore for monitoring
         await firestore.collection('stock_sync_failures').add({

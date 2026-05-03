@@ -1347,7 +1347,9 @@ router.post('/stock/force-resync-batch', requirePermission('admin', 'write'), as
           continue;
         }
         const r = await syncStockWithRetry({ tenantId, product, reason: `batch-resync:${reason}` });
-        const channelErrors = Array.isArray(r?.results) ? r.results.filter((c) => c && c.status === 'error') : [];
+        const channelErrors = Array.isArray(r?.results)
+          ? r.results.filter((c) => c && (c.status === 'error' || c.status === 'failed'))
+          : [];
         if (channelErrors.length > 0) {
           results.push({ productId, sku: product?.identification?.sku, ok: false, error: `channels-failed:${channelErrors.map((c) => c.channel).join(',')}` });
           failed += 1;
@@ -1374,7 +1376,9 @@ router.post('/stock/force-resync-batch', requirePermission('admin', 'write'), as
           continue;
         }
         const r = await syncStockWithRetry({ tenantId, product, reason: `batch-resync:${reason}` });
-        const channelErrors = Array.isArray(r?.results) ? r.results.filter((c) => c && c.status === 'error') : [];
+        const channelErrors = Array.isArray(r?.results)
+          ? r.results.filter((c) => c && (c.status === 'error' || c.status === 'failed'))
+          : [];
         if (channelErrors.length > 0) {
           results.push({ sku, productId: product.id, ok: false, error: `channels-failed:${channelErrors.map((c) => c.channel).join(',')}` });
           failed += 1;

@@ -31,6 +31,7 @@ bus.setMaxListeners(50); // We'll have many handlers
 
 // Debounce map: `${event}:${entityId}` → timestamp
 const _lastEmitMs = new Map();
+const _pendingEmitTimers = new Map(); // `${event}:${entityId}` -> Timeout
 const DEBOUNCE_MS = 5000; // 5s debounce per entity per event type
 
 /**
@@ -48,7 +49,21 @@ function emitSyncEvent(event, payload = {}) {
   const last = _lastEmitMs.get(key) || 0;
 
   if (now - last < DEBOUNCE_MS) {
-    return; // Debounced — skip duplicate
+    // Coalesce bursts: ensure one trailing emit runs after debounce window.
+    const remainingMs = Math.max(25, DEBOUNCE_MS - (now - last));
+    const existingTimer = _pendingEmitTimers.get(key);
+    if (existingTimer) clearTimeout(existingTimer);
+    const timer = setTimeout(() => {
+      _pendingEmitTimers.delete(key);
+      emitSyncEvent(event, payload);
+    }, remainingMs);
+    _pendingEmitTimers.set(key, timer);
+    return;
+  }
+  const pendingTimer = _pendingEmitTimers.get(key);
+  if (pendingTimer) {
+    clearTimeout(pendingTimer);
+    _pendingEmitTimers.delete(key);
   }
   _lastEmitMs.set(key, now);
 

@@ -124,6 +124,12 @@ describe('Oversell-Invariante — Pipeline-Guard', () => {
       expect(src).toMatch(/notifyStockChange/);
       expect(src).toMatch(/stock-change-events/);
     });
+
+    it('marketplace.js enthält keinen inventory.quantity-Direct-Write im Kaufland-Reconcile', () => {
+      const src = fs.readFileSync(path.join(__dirname, '..', 'routes', 'marketplace.js'), 'utf8');
+      expect(src).not.toMatch(/reconBatch\.update\([\s\S]*inventory\.quantity/);
+      expect(src).toMatch(/kaufland-drift-detected/);
+    });
   });
 
   describe('Order-State-Machine schreibt Failures fuer Drain-Recovery', () => {

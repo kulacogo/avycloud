@@ -922,16 +922,19 @@ router.post('/kaufland/listings/sync', requirePermission('products', 'write'), a
       console.error('[kaufland-sync] ops backfill error (non-fatal):', opsErr.message);
     }
 
-    // ── Inventory reconciliation ──────────────────────────────────────────────
-    // When Kaufland reports amount > 0 for a unit that is matched to a
-    // products_v2 doc with inventory.quantity = 0, sync the warehouse quantity
-    // from Kaufland. This prevents active listings appearing with 0 stock.
+    // ── Drift detection (marketplace > warehouse) ────────────────────────────
+    // IMPORTANT: never pull `inventory.quantity` from marketplace into warehouse.
+    // If Kaufland reports stock > 0 while warehouse is 0, we queue an outbound
+    // stock sync to push local truth (and stop oversell).
     const { getAllProductsV2 } = require('../lib/product-store');
+    const { syncStockWithRetry } = require('../services/stock-sync-dispatcher');
     let reconciledCount = 0;
+    let driftDetectedCount = 0;
     try {
       const products = await getAllProductsV2();
       const skuMap = new Map();
       const eanMap = new Map();
+      const driftProducts = new Map();
       for (const p of products) {
         const sku = (p?.identification?.sku || '').trim().toLowerCase();
         if (sku) skuMap.set(sku, p);
@@ -939,18 +942,9 @@ router.post('/kaufland/listings/sync', requirePermission('products', 'write'), a
         if (ean) eanMap.set(ean, p);
       }
 
-      let reconBatch = firestore.batch();
-      let reconCount = 0;
-      const commitRecon = async () => {
-        if (!reconCount) return;
-        await reconBatch.commit();
-        reconBatch = firestore.batch();
-        reconCount = 0;
-      };
-
       for (const unit of units) {
         const klAmount = Number(unit?.amount || 0);
-        if (klAmount <= 0) continue; // Kaufland reports 0 — nothing to reconcile
+        if (klAmount <= 0) continue;
 
         const idOffer = String(unit?.id_offer || '').trim().toLowerCase();
         const ean = String(unit?.ean || '').trim();
@@ -958,20 +952,29 @@ router.post('/kaufland/listings/sync', requirePermission('products', 'write'), a
         if (!matched) continue;
 
         const whQty = typeof matched.inventory?.quantity === 'number' ? matched.inventory.quantity : null;
-        if (whQty !== 0) continue; // Only reconcile when warehouse shows exactly 0
+        if (whQty !== 0) continue;
 
-        // Kaufland says >0, warehouse says 0 → update warehouse to Kaufland amount
-        const docRef = firestore.collection('products_v2').doc(matched.id);
-        reconBatch.update(docRef, {
-          'inventory.quantity': klAmount,
-          updatedAt: new Date().toISOString(),
-        });
-        reconCount++;
-        reconciledCount++;
-        console.log(`[kaufland-sync] Reconciled inventory: ${matched.identification?.sku} warehouse 0 → ${klAmount} (from Kaufland)`);
-        if (reconCount >= 400) await commitRecon();
+        // marketplace>warehouse drift detected: push local stock truth outwards
+        // instead of mutating local inventory from remote marketplace state.
+        driftDetectedCount++;
+        if (matched?.id) {
+          driftProducts.set(String(matched.id), matched);
+        }
+        console.warn(`[kaufland-sync] Stock drift detected sku=${matched?.identification?.sku || idOffer || 'unknown'} warehouse=0 kaufland=${klAmount} -> queue outbound sync`);
       }
-      await commitRecon();
+
+      for (const product of driftProducts.values()) {
+        try {
+          await syncStockWithRetry({
+            tenantId: product?.tenantId || req.user?.tenantId || 'default',
+            product,
+            reason: 'kaufland-drift-detected',
+          });
+          reconciledCount++;
+        } catch (syncErr) {
+          console.warn(`[kaufland-sync] drift sync failed product=${product?.id || 'unknown'}: ${syncErr.message}`);
+        }
+      }
     } catch (reconErr) {
       console.error('[kaufland-sync] Reconciliation error (non-fatal):', reconErr.message);
     }
@@ -982,6 +985,7 @@ router.post('/kaufland/listings/sync', requirePermission('products', 'write'), a
         storefront,
         fetched: units.length,
         active: seenIds.size,
+        driftsDetected: driftDetectedCount,
         reconciled: reconciledCount,
       },
     });
@@ -1006,13 +1010,15 @@ router.get('/kaufland/sku-index', requirePermission('products', 'read'), async (
     const rows = [];
     snap.docs.forEach((doc) => {
       const d = doc.data() || {};
+      const normalizedStatus = String(d.status || '').trim().toUpperCase();
       rows.push({
         idUnit: doc.id,
         sku: d.id_offer || null,
         skuNormalized: d.id_offer_normalized || null,
         ean: d.ean || null,
         eans: Array.isArray(d.eans) ? d.eans : [],
-        status: d.status || null,
+        status: normalizedStatus || null,
+        active: normalizedStatus === 'AVAILABLE' || d.active === true,
         idProduct: Number.isFinite(Number(d.id_product)) ? Number(d.id_product) : null,
         viewItemUrl: d.view_item_url || null,
       });
@@ -1138,12 +1144,14 @@ router.get('/kaufland/listings', requirePermission('products', 'read'), async (r
       // Category: try multiple sources from matched product
       const categoryName = matched?.identification?.category || matched?.details?.category || matched?.details?.categoryId || null;
 
+      const normalizedStatus = String(d.status || '').trim().toUpperCase();
+      const isActive = normalizedStatus === 'AVAILABLE' || d.active === true;
       rows.push({
         idUnit: doc.id,
         sku: unitSku || null,
         ean: unitEan || null,
-        status: d.status || null,
-        active: d.active === true,
+        status: normalizedStatus || null,
+        active: isActive,
         quantity: mpQty,
         idProduct: Number.isFinite(Number(d.id_product)) ? Number(d.id_product) : null,
         viewItemUrl: d.view_item_url || null,

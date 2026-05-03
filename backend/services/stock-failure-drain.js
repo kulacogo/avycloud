@@ -97,7 +97,9 @@ async function drainStockFailures({ tenantId, limit = 50 } = {}) {
         const pDoc = productSnap.docs[0];
         const product = { id: pDoc.id, ...pDoc.data() };
         const r = await syncStockWithRetry({ tenantId, product, reason: `drain:${doc.id}` });
-        const channelErrors = Array.isArray(r?.results) ? r.results.filter((c) => c && c.status === 'error') : [];
+        const channelErrors = Array.isArray(r?.results)
+          ? r.results.filter((c) => c && (c.status === 'error' || c.status === 'failed'))
+          : [];
         if (channelErrors.length > 0) {
           retryResults.push({ sku, ok: false, error: `channels-failed:${channelErrors.map((c) => c.channel).join(',')}` });
           anyHardError = true;

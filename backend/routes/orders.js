@@ -560,7 +560,7 @@ router.get('/dashboard/activity', requirePermission('orders', 'read'), async (re
     for (const doc of syncSnap.docs) {
       const d = doc.data();
       const channels = (d.results || []).map((r) => r.channel).join(', ');
-      const hasError = (d.results || []).some((r) => r.status === 'error');
+      const hasError = (d.results || []).some((r) => r.status === 'error' || r.status === 'failed');
       activities.push({
         type: 'sync',
         id: doc.id,

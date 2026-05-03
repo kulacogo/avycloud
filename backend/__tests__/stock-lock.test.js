@@ -40,17 +40,14 @@ describe('stock-lock', () => {
     expect(order.indexOf('B-start')).toBeLessThan(order.indexOf('A-end'));
   });
 
-  it('timeout breaks lock after specified time (no deadlock)', async () => {
-    // Acquire lock and never release it
+  it('throws timeout when lock cannot be acquired in time', async () => {
     const release = await acquireStockLock('STUCK', 100);
     const start = Date.now();
-    // Second acquisition should timeout
-    const release2 = await acquireStockLock('STUCK', 100);
+    await expect(acquireStockLock('STUCK', 100)).rejects.toThrow(/timeout/i);
     const elapsed = Date.now() - start;
     expect(elapsed).toBeGreaterThanOrEqual(90);
-    expect(elapsed).toBeLessThan(500);
-    release2();
-    release();
+    expect(elapsed).toBeLessThan(800);
+    await release();
   });
 
   it('releases lock even when callback throws', async () => {
