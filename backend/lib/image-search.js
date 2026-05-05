@@ -4,6 +4,16 @@ const DEFAULT_LIMIT = 8;
 const DEFAULT_MIN_WIDTH = 600;
 const DEFAULT_MIN_HEIGHT = 600;
 
+function isSerpApiLikelyConfigured() {
+  if (process.env.SERPAPI_KEY) return true;
+  // In Cloud environments the key is typically loaded via Secret Manager.
+  return Boolean(
+    process.env.GCP_PROJECT ||
+      process.env.GOOGLE_CLOUD_PROJECT ||
+      process.env.GCLOUD_PROJECT
+  );
+}
+
 /**
  * Builds a search query from product identification data.
  * Uses brand + name + barcode for best specificity.
@@ -66,6 +76,9 @@ async function searchProductImages(product, options = {}) {
 
   const query = queryOverride || buildImageQuery(product);
   if (!query) {
+    return [];
+  }
+  if (!isSerpApiLikelyConfigured()) {
     return [];
   }
 
@@ -142,4 +155,5 @@ async function searchProductImages(product, options = {}) {
 module.exports = {
   searchProductImages,
   buildImageQuery,
+  isSerpApiLikelyConfigured,
 };

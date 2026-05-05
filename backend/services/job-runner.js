@@ -124,6 +124,7 @@ async function processJob(jobId) {
     };
 
     let result;
+    let identifyPipelineUsed = 'legacy';
     if (GROUNDING_ENABLED) {
       try {
         result = await withTimeout(
@@ -131,6 +132,7 @@ async function processJob(jobId) {
           JOB_TIMEOUT_MS,
           jobId
         );
+        identifyPipelineUsed = 'grounding';
       } catch (groundingError) {
         console.warn(`[job ${jobId}] Grounding pipeline failed, falling back to legacy:`, groundingError?.message);
         result = await withTimeout(
@@ -138,6 +140,7 @@ async function processJob(jobId) {
           JOB_TIMEOUT_MS,
           jobId
         );
+        identifyPipelineUsed = 'legacy';
       }
     } else {
       result = await withTimeout(
@@ -145,6 +148,7 @@ async function processJob(jobId) {
         JOB_TIMEOUT_MS,
         jobId
       );
+      identifyPipelineUsed = 'legacy';
     }
 
     // Auto-Save identifizierte Produkte
@@ -170,6 +174,7 @@ async function processJob(jobId) {
             sync_status: 'pending',
             last_synced_iso: null,
             pending_intake_quantity: product.ops?.pending_intake_quantity || 0,
+            identify_pipeline: product.ops?.identify_pipeline || identifyPipelineUsed,
           };
           const aliasSet = buildIdentityAliasSet(product);
           if (aliasSet.length) {
@@ -340,6 +345,17 @@ async function processJob(jobId) {
           // We do NOT persist identify outputs that are not "eBay-ready".
           // This prevents a workflow where empty datasheets are created and later "fixed" by Improve.
           const quality = evaluateEbayReady(product);
+          product.ops = product.ops || {};
+          product.ops.data_quality = product.ops.data_quality || {};
+          product.ops.data_quality.identify_job_quality_v1 = {
+            checked_at_iso: new Date().toISOString(),
+            ok: Boolean(quality.ok),
+            issues: Array.isArray(quality.issues) ? quality.issues.slice(0, 40) : [],
+            issues_detailed: Array.isArray(quality.issuesDetailed)
+              ? quality.issuesDetailed.slice(0, 60)
+              : [],
+            snapshot: quality.snapshot || null,
+          };
           if (!quality.ok) {
             const hint = JSON.stringify(quality.snapshot);
             const issues = quality.issues.join(',');
@@ -348,7 +364,16 @@ async function processJob(jobId) {
             );
           }
 
-          await saveProductV2(product);
+          const existingDoc = product.id ? await getProduct(product.id) : null;
+          const existingHasCategory = Boolean(existingDoc?.details?.categoryId);
+          await saveProductV2(product, {
+            allowCategoryChange: !existingHasCategory,
+            mode: 'system',
+            source: 'identify',
+            overwriteTextFields: true,
+            replaceAttributes: true,
+            syncIdentifiersFromBarcodes: true,
+          });
 
           // Auto-trigger Quality Gate for newly identified products.
           try {
@@ -489,4 +514,9 @@ module.exports = {
   enqueueJob,
   resumePendingJobs,
   startJobRunner,
+  _testables: {
+    processJob,
+    buildDedupeKey,
+    hasMinimalIdentification,
+  },
 };
