@@ -12,6 +12,79 @@
 const { firestore } = require('../lib/firestore');
 
 const SYNC_LOG_COLLECTION = 'stock_sync_log';
+const STOCK_SYNC_FAILURES_COLLECTION = 'stock_sync_failures';
+const STOCK_OPERATION_FAILURES_COLLECTION = 'stock_operation_failures';
+
+function extractProductSku(product) {
+  return String(
+    product?.identification?.sku
+    || product?.details?.identifiers?.sku
+    || ''
+  ).trim();
+}
+
+async function persistSyncFailureForDrain({
+  tenantId,
+  product,
+  reason,
+  failedChannels = [],
+}) {
+  const productId = String(product?.id || '');
+  const sku = extractProductSku(product);
+  const createdAt = new Date().toISOString();
+  const channels = failedChannels.map((r) => String(r?.channel || 'unknown'));
+  const errors = failedChannels.map((r) => String(r?.error || `status:${r?.status || 'unknown'}`));
+
+  await firestore.collection(STOCK_SYNC_FAILURES_COLLECTION).add({
+    tenantId,
+    productId,
+    reason,
+    failedChannels: channels,
+    errors,
+    createdAt,
+  }).catch(() => {});
+
+  await firestore.collection(STOCK_OPERATION_FAILURES_COLLECTION).add({
+    tenantId,
+    operation: 'stock-sync',
+    status: 'pending',
+    reason,
+    productId,
+    source: 'stock-sync-dispatcher',
+    failures: failedChannels.map((r) => ({
+      step: 'marketplaceSync',
+      sku: sku || null,
+      productId,
+      channel: r?.channel || null,
+      error: r?.error || `status:${r?.status || 'unknown'}`,
+    })),
+    createdAt,
+  }).catch(() => {});
+}
+
+async function resolveEbayItemIdFromLiveListing({ productId, freshProduct }) {
+  const sku = extractProductSku(freshProduct);
+  if (!sku) return null;
+  try {
+    const listingsSnap = await firestore.collection('ebayListingsLive')
+      .where('sku', '==', sku)
+      .limit(5)
+      .get();
+    if (listingsSnap.empty) return null;
+    const docs = listingsSnap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+    const activeListing = docs.find((row) => row && row.active !== false) || docs[0];
+    const itemId = String(activeListing?.itemId || activeListing?.id || '').trim();
+    if (!itemId) return null;
+    await firestore.collection('products_v2').doc(productId)
+      .set({ ops: { ebay: { itemId, itemIdSource: 'ebayListingsLive', itemIdResolvedAt: new Date().toISOString() } } }, { merge: true })
+      .catch(() => {});
+    console.log(`[stock-sync] ebay itemId resolved via listing lookup: ${itemId} (sku=${sku})`);
+    return itemId;
+  } catch (err) {
+    console.warn(`[stock-sync] ebay itemId lookup failed for product=${productId}: ${err.message}`);
+    return null;
+  }
+}
 
 /**
  * Find products by SKU — searches both identification.sku and details.identifiers.sku
@@ -114,8 +187,12 @@ async function syncStockToAllChannels({ tenantId = 'default', product, reason = 
   const ebayItemId = freshProduct?.ops?.ebay?.itemId
     || freshProduct?.ops?.ebay?.item_id
     || freshProduct?.marketplace?.ebay?.itemId;
+  let resolvedEbayItemId = ebayItemId;
+  if (!resolvedEbayItemId) {
+    resolvedEbayItemId = await resolveEbayItemIdFromLiveListing({ productId, freshProduct });
+  }
 
-  if (ebayItemId) {
+  if (resolvedEbayItemId) {
     const isEndedListing = (msg) => {
       const lower = String(msg || '').toLowerCase();
       return lower.includes('beendet') || lower.includes('ended') || lower.includes('1047');
@@ -137,19 +214,19 @@ async function syncStockToAllChannels({ tenantId = 'default', product, reason = 
       // Zero stock: end listing instead of revise(qty=0) which eBay rejects
       try {
         const { endFixedPriceItem } = require('../lib/ebay-trading-api');
-        await endFixedPriceItem(String(ebayItemId), { reason: 'NotAvailable' });
-        results.push({ channel: 'ebay', status: 'success', itemId: ebayItemId, quantityPushed: 0, zeroStock: true, action: 'ended' });
-        console.log(`[stock-sync] ebay END product=${productId} itemId=${ebayItemId} → ended (zero stock)`);
+        await endFixedPriceItem(String(resolvedEbayItemId), { reason: 'NotAvailable' });
+        results.push({ channel: 'ebay', status: 'success', itemId: resolvedEbayItemId, quantityPushed: 0, zeroStock: true, action: 'ended' });
+        console.log(`[stock-sync] ebay END product=${productId} itemId=${resolvedEbayItemId} → ended (zero stock)`);
       } catch (err) {
         const errMsg = err?.message || String(err);
         if (isEndedListing(errMsg)) {
           // Listing was already ended — treat as success, clear stale itemId
-          results.push({ channel: 'ebay', status: 'success', itemId: ebayItemId, quantityPushed: 0, zeroStock: true, action: 'already_ended' });
-          console.log(`[stock-sync] ebay product=${productId} itemId=${ebayItemId} already ended, clearing stale itemId`);
+          results.push({ channel: 'ebay', status: 'success', itemId: resolvedEbayItemId, quantityPushed: 0, zeroStock: true, action: 'already_ended' });
+          console.log(`[stock-sync] ebay product=${productId} itemId=${resolvedEbayItemId} already ended, clearing stale itemId`);
           await clearStaleItemId();
         } else {
           results.push({ channel: 'ebay', status: 'error', error: errMsg });
-          console.warn(`[stock-sync] ebay END FAILED product=${productId} itemId=${ebayItemId}:`, errMsg);
+          console.warn(`[stock-sync] ebay END FAILED product=${productId} itemId=${resolvedEbayItemId}:`, errMsg);
           if (isEndedListing(errMsg)) await clearStaleItemId();
         }
       }
@@ -159,34 +236,34 @@ async function syncStockToAllChannels({ tenantId = 'default', product, reason = 
       try {
         const { reviseFixedPriceItem } = require('../lib/ebay-trading-api');
         const result = await reviseFixedPriceItem({
-          itemId: String(ebayItemId),
+          itemId: String(resolvedEbayItemId),
           quantity: availableQuantity,
         });
         const status = result?.ack === 'Success' || result?.ack === 'Warning' ? 'success' : 'failed';
-        results.push({ channel: 'ebay', status, itemId: ebayItemId, quantityPushed: availableQuantity, zeroStock: false });
-        console.log(`[stock-sync] ebay product=${productId} itemId=${ebayItemId} qty=${availableQuantity} status=${status}`);
+        results.push({ channel: 'ebay', status, itemId: resolvedEbayItemId, quantityPushed: availableQuantity, zeroStock: false });
+        console.log(`[stock-sync] ebay product=${productId} itemId=${resolvedEbayItemId} qty=${availableQuantity} status=${status}`);
       } catch (err) {
         const errMsg = err?.message || String(err);
         if (isEndedListing(errMsg)) {
           // Listing was ended — can't revise, clear stale itemId and skip
-          results.push({ channel: 'ebay', status: 'skipped', itemId: ebayItemId, error: 'listing_ended', quantityPushed: 0 });
-          console.warn(`[stock-sync] ebay product=${productId} itemId=${ebayItemId} listing ended, clearing stale itemId`);
+          results.push({ channel: 'ebay', status: 'skipped', itemId: resolvedEbayItemId, error: 'listing_ended', quantityPushed: 0 });
+          console.warn(`[stock-sync] ebay product=${productId} itemId=${resolvedEbayItemId} listing ended, clearing stale itemId`);
           await clearStaleItemId();
         } else {
           // Fail-safe: if we cannot safely push the new quantity, end listing.
           try {
             const { endFixedPriceItem } = require('../lib/ebay-trading-api');
-            await endFixedPriceItem(String(ebayItemId), { reason: 'NotAvailable' });
+            await endFixedPriceItem(String(resolvedEbayItemId), { reason: 'NotAvailable' });
             results.push({
               channel: 'ebay',
               status: 'success',
-              itemId: ebayItemId,
+              itemId: resolvedEbayItemId,
               quantityPushed: 0,
               action: 'fail_safe_end',
               note: 'quantity_update_failed_listing_ended',
             });
             console.warn(
-              `[stock-sync] ebay FAIL-SAFE END product=${productId} itemId=${ebayItemId} after revise failure: ${errMsg}`
+              `[stock-sync] ebay FAIL-SAFE END product=${productId} itemId=${resolvedEbayItemId} after revise failure: ${errMsg}`
             );
           } catch (fallbackErr) {
             const fallbackMsg = fallbackErr?.message || String(fallbackErr);
@@ -196,7 +273,7 @@ async function syncStockToAllChannels({ tenantId = 'default', product, reason = 
               error: `${errMsg}; fail_safe_end_failed: ${fallbackMsg}`,
             });
             console.warn(
-              `[stock-sync] ebay FAILED product=${productId} itemId=${ebayItemId}; fail-safe end failed:`,
+              `[stock-sync] ebay FAILED product=${productId} itemId=${resolvedEbayItemId}; fail-safe end failed:`,
               fallbackMsg
             );
           }
@@ -454,7 +531,12 @@ async function syncPriceToAllChannels({ tenantId = 'default', product, prices = 
  * Sync stock with automatic retry on failure.
  * Retries once after 30s for channels that failed on first attempt.
  */
-async function syncStockWithRetry({ tenantId = 'default', product, reason = 'manual' }) {
+async function syncStockWithRetry({
+  tenantId = 'default',
+  product,
+  reason = 'manual',
+  skipPersistentFailureQueue = false,
+}) {
   const first = await syncStockToAllChannels({ tenantId, product, reason });
   const isFailedStatus = (s) => s === 'error' || s === 'failed';
   const failedChannels = first.results.filter((r) => isFailedStatus(r?.status));
@@ -467,15 +549,11 @@ async function syncStockWithRetry({ tenantId = 'default', product, reason = 'man
       const retry = await syncStockToAllChannels({ tenantId, product, reason: `${reason}-retry` });
       const stillFailed = retry.results.filter((r) => isFailedStatus(r?.status));
       if (stillFailed.length > 0) {
-        // Log persistent failure to Firestore for monitoring
-        await firestore.collection('stock_sync_failures').add({
-          tenantId,
-          productId: String(product?.id || ''),
-          reason,
-          failedChannels: stillFailed.map((r) => r.channel),
-          errors: stillFailed.map((r) => r.error),
-          createdAt: new Date().toISOString(),
-        }).catch(() => {});
+        const isDrainRetry = String(reason || '').startsWith('drain:');
+        if (!skipPersistentFailureQueue && !isDrainRetry) {
+          // Persist persistent failures for both monitoring and durable drain retries.
+          await persistSyncFailureForDrain({ tenantId, product, reason, failedChannels: stillFailed });
+        }
         console.warn(`[stock-sync] Retry still failed for product=${product?.id}: ${stillFailed.map((r) => `${r.channel}:${r.error}`).join(', ')}`);
       } else {
         console.log(`[stock-sync] Retry succeeded for product=${product?.id}`);

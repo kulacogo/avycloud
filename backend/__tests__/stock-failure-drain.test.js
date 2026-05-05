@@ -19,6 +19,7 @@ function makeFailureDoc({ id, tenantId = 'trendocean', status = 'pending', attem
 // Default query implementation - gets reassigned per test
 let _queryImpl = async () => ({ docs: [] });
 let _productQueryImpl = async () => ({ empty: true, docs: [] });
+let _productDocGetImpl = async () => ({ exists: false, id: null, data: () => ({}) });
 
 const mockFirestore = {
   collection: vi.fn((name) => {
@@ -35,6 +36,9 @@ const mockFirestore = {
         where: vi.fn().mockReturnThis(),
         limit: vi.fn().mockReturnThis(),
         get: async () => _productQueryImpl(),
+        doc: vi.fn((id) => ({
+          get: async () => _productDocGetImpl(id),
+        })),
       };
     }
     return { where: vi.fn().mockReturnThis(), orderBy: vi.fn().mockReturnThis(), limit: vi.fn().mockReturnThis(), get: async () => ({ docs: [] }) };
@@ -71,6 +75,7 @@ beforeEach(() => {
   syncStockWithRetryMock.mockReset();
   _queryImpl = async () => ({ docs: [] });
   _productQueryImpl = async () => ({ empty: true, docs: [] });
+  _productDocGetImpl = async () => ({ exists: false, id: null, data: () => ({}) });
 });
 
 describe('drainStockFailures', () => {
@@ -188,6 +193,26 @@ describe('drainStockFailures', () => {
     expect(syncStockWithRetryMock).toHaveBeenCalledTimes(1);
   });
 
+  it('deduplicates retry attempts for repeated channel failures of same product', async () => {
+    const doc = makeFailureDoc({
+      id: 'f-dedupe',
+      failures: [
+        { step: 'marketplaceSync', sku: 'SKU-DED', channel: 'ebay', error: 'timeout' },
+        { step: 'marketplaceSync', sku: 'SKU-DED', channel: 'kaufland', error: 'timeout' },
+      ],
+    });
+    _queryImpl = async () => ({ docs: [doc] });
+    _productQueryImpl = async () => ({
+      empty: false,
+      docs: [{ id: 'prod-ded', data: () => ({ identification: { sku: 'SKU-DED' }, tenantId: 'trendocean' }) }],
+    });
+    syncStockWithRetryMock.mockResolvedValue({ results: [{ channel: 'ebay', status: 'success' }] });
+
+    const r = await drainStockFailures({ tenantId: 'trendocean' });
+    expect(r.resolved).toBe(1);
+    expect(syncStockWithRetryMock).toHaveBeenCalledTimes(1);
+  });
+
   it('handles missing product gracefully', async () => {
     const doc = makeFailureDoc({
       id: 'f8',
@@ -199,6 +224,26 @@ describe('drainStockFailures', () => {
     const r = await drainStockFailures({ tenantId: 'trendocean' });
     expect(r.stillFailing + r.abandoned).toBe(1);
     expect(syncStockWithRetryMock).not.toHaveBeenCalled();
+  });
+
+  it('resolves product via productId fallback when failure has no sku', async () => {
+    const doc = makeFailureDoc({
+      id: 'f9',
+      failures: [{ step: 'marketplaceSync', productId: 'prod-9', error: 'sync timeout' }],
+    });
+    _queryImpl = async () => ({ docs: [doc] });
+    _productDocGetImpl = async (id) => ({
+      exists: id === 'prod-9',
+      id: 'prod-9',
+      data: () => ({ identification: { sku: 'SKU-P9' }, tenantId: 'trendocean' }),
+    });
+    syncStockWithRetryMock.mockResolvedValue({ results: [{ channel: 'ebay', status: 'success' }] });
+
+    const r = await drainStockFailures({ tenantId: 'trendocean' });
+    expect(r.resolved).toBe(1);
+    expect(syncStockWithRetryMock).toHaveBeenCalledTimes(1);
+    expect(syncStockWithRetryMock.mock.calls[0][0].product.id).toBe('prod-9');
+    expect(doc._currentData().status).toBe('resolved');
   });
 
   it('skips with skipped reason when STOCK_FAILURE_DRAIN_ENABLED=false', async () => {

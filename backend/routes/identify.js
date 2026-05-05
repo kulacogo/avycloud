@@ -259,6 +259,14 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
       });
     }
 
+    let v3Meta = null;
+    let v4Meta = null;
+    let pipelineUsed = null;
+    let product = null;
+    let groundingUsed = false;
+    let legacyResult = null;
+    let groundingImageQuery = '';
+
     // ─── IDENTIFY V4: opt-in pipeline (IDENTIFY_V4=true) ───
     // Runs BEFORE V3/V2/Legacy grounding. On throw or ok:false, falls through
     // to the existing pipeline below — never returns a 500 from V4 itself.
@@ -309,23 +317,27 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
             tenantId: reqTenant,
             userId: req.userId || req.user?.uid || null,
             aiClient: injectedAiClient,
-            autosave: String(process.env.IDENTIFY_V4_AUTOSAVE || 'true').toLowerCase() !== 'false',
+            // The route owns final persistence and must stay the single writer.
+            autosave: false,
           });
           if (v4Result && v4Result.ok) {
-            return res.json({
-              ok: true,
-              data: v4Result.product,
-              meta: {
-                ...(v4Result.meta || {}),
-                pipeline: 'v4',
-                v4_route: v4FlagEnabled ? 'flag' : (v4ByTenant ? 'tenant_canary' : 'rate_canary'),
-              },
-            });
+            product = v4Result.product || null;
+            v4Meta = {
+              ...(v4Result.meta || {}),
+              pipeline: 'v4',
+              v4_route: v4FlagEnabled ? 'flag' : (v4ByTenant ? 'tenant_canary' : 'rate_canary'),
+            };
+            pipelineUsed = 'v4';
+            groundingImageQuery = [
+              product?.identification?.brand,
+              product?.identification?.name?.split(' ').slice(0, 3).join(' '),
+            ].filter(Boolean).join(' ').trim();
+          } else {
+            console.warn(
+              '[identify] V4 returned ok:false, falling back to V3:',
+              v4Result?.error || 'unknown',
+            );
           }
-          console.warn(
-            '[identify] V4 returned ok:false, falling back to V3:',
-            v4Result?.error || 'unknown',
-          );
         } catch (v4Err) {
           console.warn('[identify] V4 threw, falling back to V3:', v4Err?.message || v4Err);
         }
@@ -402,13 +414,6 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
 
     // ─── IDENTIFY V3: Multi-Stage Pipeline ───
     const V3_ENABLED = String(process.env.IDENTIFY_V3 || 'false').toLowerCase() === 'true';
-    let v3Meta = null;
-
-    let product = null;
-    let groundingUsed = false;
-    let legacyResult = null;
-    let groundingImageQuery = '';
-
     // Wall-clock budget for the entire cascade (V3 → outer grounding → legacy). Without
     // this, sequential per-stage caps stack up: 90s + 90s + N can easily exceed the
     // frontend AbortController (180s) and trigger "Timeout nach 3 Minuten" while the
@@ -418,7 +423,7 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
     const elapsedMs = () => Date.now() - requestStartedAt;
     const remainingMs = () => Math.max(0, IDENTIFY_TOTAL_TIMEOUT_MS - elapsedMs());
 
-    if (V3_ENABLED) {
+    if (!product && V3_ENABLED) {
       try {
         const { identifyProductV3 } = require('../services/identify-v3');
         console.log('[identify] Using V3 multi-stage pipeline');
@@ -433,7 +438,8 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
         ]);
         product = v3Result.product;
         v3Meta = v3Result.meta;
-        groundingUsed = true;
+        pipelineUsed = 'v3';
+        groundingUsed = Boolean(v3Meta?.stages?.stage1?.groundingUsed);
         groundingImageQuery = [
           product.identification?.brand,
           product.identification?.name?.split(' ').slice(0, 3).join(' '),
@@ -646,6 +652,7 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
         }
 
         groundingUsed = true;
+        pipelineUsed = 'grounding';
         console.log(`[identify] Grounding pipeline complete for ${productId}`);
 
         // Post-grounding duplicate check with AI-resolved identifiers
@@ -710,6 +717,7 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
       console.log(`[identify] Starting legacy pipeline (elapsed=${elapsedMs()}ms, remaining=${remainingMs()}ms)`);
       const result = await runSerpapiFreePipeline({ files, barcodes, locale, inventoryId, hint });
       legacyResult = result;
+      pipelineUsed = 'legacy';
 
       // Re-check stock protection with legacy barcode resolution
       const legacyBarcodes = []
@@ -778,7 +786,7 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
     }
 
     // 6) PERF-002: Post-processing (parallel where possible)
-    if (groundingUsed) {
+    if (pipelineUsed !== 'legacy') {
       // Category resolution + SerpAPI images + KTyp run in parallel (independent tasks).
       // allSettled ensures one task throwing (e.g. a sync error in applyTaxonomy slipping
       // past the inner try/catch) cannot abort the others or 500 the request.
@@ -907,7 +915,7 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
       data: saved || product,
       meta: {
         reused_existing: false,
-        pipeline: v3Meta ? 'v3' : (groundingUsed ? 'grounding' : 'legacy'),
+        pipeline: pipelineUsed || (v3Meta ? 'v3' : (groundingUsed ? 'grounding' : 'legacy')),
         grounding: groundingUsed,
         locale: legacyResult?.locale || locale,
         barcodes: legacyResult?.barcodes || mergedBarcodes,
@@ -927,6 +935,7 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
           aspectCoverage: v3Meta.confidence?.requiredAspectsCoverage,
           marketplaceReadiness: v3Meta.confidence?.marketplaceReadiness,
         } : undefined,
+        v4: v4Meta || undefined,
       },
     });
   } catch (error) {

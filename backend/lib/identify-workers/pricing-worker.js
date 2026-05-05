@@ -17,7 +17,10 @@ const {
 } = require('../sweet-spot-pricer');
 
 const DOMAIN = 'pricing';
-const EXECUTOR_TIMEOUT_MS = 15000;
+const EXECUTOR_TIMEOUT_MS = Math.max(
+  1000,
+  parseInt(process.env.ATOMIC_TOOLS_TIMEOUT_MS || '15000', 10)
+);
 
 function safeString(v) {
   return v == null ? '' : String(v).trim();

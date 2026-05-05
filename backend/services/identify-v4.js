@@ -61,11 +61,8 @@ function identifyV4Enabled() {
   if (raw === 'false' || raw === '0' || raw === 'no' || raw === 'off') return false;
   // Explicit opt-in wins.
   if (raw === 'true' || raw === '1' || raw === 'yes' || raw === 'on') return true;
-  // Default: ON. V4 has a complete fallback chain (V4 throws / ok:false → V3
-  // → outer-grounding → legacy) wired up in routes/identify.js, so flipping
-  // the default cannot break the request path. Each request that V4 cannot
-  // handle is silently re-tried with the V3 pipeline.
-  return true;
+  // Default: OFF unless explicitly enabled/canary-routed by the HTTP layer.
+  return false;
 }
 
 // --- Worker-Registry -------------------------------------------------------
@@ -287,8 +284,12 @@ function mergeWaveResults(context, results) {
       switch (domain) {
         case 'identity': {
           const r = result.resolved || {};
+          const toolsCalled = Array.isArray(result?.meta?.toolsCalled) ? result.meta.toolsCalled : [];
+          const lookupConfirmed = toolsCalled.some(
+            (t) => t && t.name === 'lookup_gtin' && t.ok !== false
+          );
           // GTIN/EAN got validated against external DB?
-          if (r.gtin_verified === true || r.ean_verified === true) return 'ean_db';
+          if (r.gtin_verified === true || r.ean_verified === true || lookupConfirmed) return 'ean_db';
           return 'gemini_inference';
         }
         case 'category':
@@ -308,11 +309,39 @@ function mergeWaveResults(context, results) {
       }
     })();
 
+    const pickFieldConfidence = (field) => {
+      const conf = result.confidence || {};
+      if (typeof conf[field] === 'number') return conf[field];
+      if (conf[field] && typeof conf[field].score === 'number') return conf[field].score;
+
+      // Some workers expose canonical confidence keys while resolved fields are
+      // marketplace-specific aliases.
+      if (field.startsWith('title_')) {
+        if (typeof conf.title === 'number') return conf.title;
+        if (conf.title && typeof conf.title.score === 'number') return conf.title.score;
+      }
+      if (field.startsWith('description_')) {
+        if (typeof conf.description === 'number') return conf.description;
+        if (conf.description && typeof conf.description.score === 'number') return conf.description.score;
+      }
+      if (field.startsWith('price_') || field === 'currency' || field === 'data_points') {
+        if (typeof conf.price === 'number') return conf.price;
+        if (conf.price && typeof conf.price.score === 'number') return conf.price.score;
+      }
+      if (field.startsWith('image') || field === 'top_image_url' || field === 'meetsRecommendedCount') {
+        if (typeof conf.images === 'number') return conf.images;
+        if (conf.images && typeof conf.images.score === 'number') return conf.images.score;
+      }
+      if (field === 'gpsr' || field === 'gpsr_completeness') {
+        if (typeof conf.gpsr === 'number') return conf.gpsr;
+        if (conf.gpsr && typeof conf.gpsr.score === 'number') return conf.gpsr.score;
+      }
+      return undefined;
+    };
+
     for (const [field, value] of Object.entries(result.resolved)) {
       if (value == null) continue;
-      // Confidence may be a number (worker-specific) or an object
-      const rawConf = result.confidence && result.confidence[field];
-      const conf = typeof rawConf === 'number' ? rawConf : (rawConf && rawConf.score) || undefined;
+      const conf = pickFieldConfidence(field);
       crossRefEntries.push({
         field,
         source: domainToSource,
@@ -737,10 +766,16 @@ async function identifyProductV4({
     }
 
     // --- 2. Build orchestrator context ----------------------------------
+    const stage1Barcodes = stage1 && typeof stage1.barcodes === 'object' && !Array.isArray(stage1.barcodes)
+      ? stage1.barcodes
+      : {};
     const context = {
       product: null,
       files,
-      barcodes,
+      // Normalize barcodes from Stage 1 so downstream workers always receive
+      // { ean, gtin, upc, ... } instead of raw request strings.
+      barcodes: stage1Barcodes,
+      rawBarcodes: barcodes,
       hint,
       locale,
       paletteCode,
@@ -756,7 +791,10 @@ async function identifyProductV4({
       // publish. Forwarding closes that loop.
       uploadedImages: Array.isArray(stage1.uploadedImages) ? stage1.uploadedImages : [],
       eanLookup: stage1.eanLookup || null,
-      identity: stage1.identity || {},
+      identity: {
+        ...(stage1.identity || {}),
+        web_image_urls: Array.isArray(stage1.webImageUrls) ? stage1.webImageUrls : [],
+      },
       ocrPayload: stage1.ocrPayload || {},
       workerResults: {},
       iteration: 0,

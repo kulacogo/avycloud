@@ -135,7 +135,7 @@ patchLocalModule(path.resolve(__dirname, '../../lib/chat-sessions.js'), {
 });
 
 // ─── 3) Load route with _patchLocalModules (rbac etc.) ──────────────────────
-require('./_patchLocalModules');
+const { spies: localSpies } = require('./_patchLocalModules');
 const { spies: firebaseSpies, firestoreModule } = require('./_setupMocks');
 
 // Patch firestore.collection('warehouseBins').doc().get() to return exists:true.
@@ -205,6 +205,8 @@ function resetSpies() {
   firebaseSpies.adjustPendingIntakeQuantity?.mockReset();
   firebaseSpies.findProductByStrictIdentifier?.mockResolvedValue(null);
   firebaseSpies.getProduct?.mockResolvedValue(null);
+  localSpies.saveProductV2?.mockReset();
+  localSpies.saveProductV2?.mockResolvedValue({});
 }
 
 function postIdentify(body = {}) {
@@ -254,6 +256,31 @@ describe('POST /api/v2/identify — V4 branch routing', () => {
     expect(res.body.meta?.pipeline).toBe('v4');
     expect(res.body.data?.id).toBe('V4-SKU-1');
     expect(v4Spy).toHaveBeenCalledTimes(1);
+    expect(v3Spy).not.toHaveBeenCalled();
+  });
+
+  it('IDENTIFY_V4=true + V4 ok:true → runs shared finalize/save path', async () => {
+    v4EnabledSpy.mockReturnValue(true);
+    v4Spy.mockResolvedValue({
+      ok: true,
+      product: {
+        ...V4_PRODUCT,
+        details: { identifiers: {}, images: [], attributes: {}, pricing: {} },
+        marketplace: { ebay: {}, kaufland: {} },
+        ops: { identify_pipeline: 'v4' },
+        notes: {},
+      },
+      meta: { pipeline: 'v4', totalDurationMs: 987 },
+    });
+    firebaseSpies.getProduct
+      ?.mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({ ...V4_PRODUCT, ops: { identify_pipeline: 'v4' } });
+
+    const res = await postIdentify();
+    expect(res.status).toBe(200);
+    expect(res.body.ok).toBe(true);
+    expect(res.body.meta?.pipeline).toBe('v4');
+    expect(localSpies.saveProductV2).toHaveBeenCalledTimes(1);
     expect(v3Spy).not.toHaveBeenCalled();
   });
 
@@ -316,5 +343,18 @@ describe('POST /api/v2/identify — V4 branch routing', () => {
     expect(callArgs.userId).toBe('test-uid-001');
     expect(callArgs.paletteCode).toBe('PAL-001');
     expect(callArgs.barcodes).toBe('4012345678901');
+  });
+
+  it('forces autosave=false in V4 so route finalize path stays single-writer', async () => {
+    v4EnabledSpy.mockReturnValue(true);
+    v4Spy.mockResolvedValue({
+      ok: true,
+      product: V4_PRODUCT,
+      meta: { pipeline: 'v4' },
+    });
+
+    await postIdentify();
+    expect(v4Spy).toHaveBeenCalledTimes(1);
+    expect(v4Spy.mock.calls[0][0].autosave).toBe(false);
   });
 });

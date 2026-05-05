@@ -24,6 +24,7 @@ const baseStage1 = {
   ocrPayload: { text: 'Sony WH-1000XM5' },
   imageParts: [{ data: 'base64', mimeType: 'image/jpeg' }],
   uploadedImages: [{ url: 'https://storage.example/x.jpg' }],
+  webImageUrls: ['https://images.example/product-main.jpg'],
   _meta: { durationMs: 42 },
 };
 
@@ -124,6 +125,14 @@ const noopWaveWorker = (domain) => async () => ({
   meta: { durationMs: 1, toolsCalled: [], geminiCalls: 0, error: null },
 });
 
+const wave2WorkerMocks = {
+  attributes: vi.fn(noopWaveWorker('attributes')),
+  seo: vi.fn(noopWaveWorker('seo')),
+  pricing: vi.fn(noopWaveWorker('pricing')),
+  image: vi.fn(noopWaveWorker('image')),
+  gpsr: vi.fn(noopWaveWorker('gpsr')),
+};
+
 for (const [domain, relpath] of [
   ['attributes', '../../lib/identify-workers/attributes-worker'],
   ['seo', '../../lib/identify-workers/seo-worker'],
@@ -138,7 +147,7 @@ for (const [domain, relpath] of [
     id: p,
     filename: p,
     loaded: true,
-    exports: { [runnerName]: noopWaveWorker(domain), DOMAIN: domain },
+    exports: { [runnerName]: wave2WorkerMocks[domain], DOMAIN: domain },
   };
 }
 
@@ -212,13 +221,14 @@ beforeEach(() => {
     meta: { durationMs: 30, geminiCalls: 0 },
   }));
   saveProductV2Mock.mockImplementation(async (p) => ({ id: p.id, ok: true }));
+  for (const fn of Object.values(wave2WorkerMocks)) fn.mockClear();
   delete process.env.IDENTIFY_V4;
 });
 
 describe('identifyV4Enabled', () => {
-  it('returns TRUE by default (V4 is the production default)', () => {
+  it('returns FALSE by default (explicit opt-in only)', () => {
     delete process.env.IDENTIFY_V4;
-    expect(identifyV4Enabled()).toBe(true);
+    expect(identifyV4Enabled()).toBe(false);
   });
 
   it('returns true when IDENTIFY_V4=true', () => {
@@ -255,6 +265,18 @@ describe('identifyProductV4 orchestrator', () => {
     expect(res.meta.pipeline).toBe('v4');
     expect(Array.isArray(res.meta.waves)).toBe(true);
     expect(res.meta.waves[0].workers).toEqual(['identity', 'category']);
+    expect(categoryWorkerMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        barcodes: expect.objectContaining({ ean: '4548736132610' }),
+      })
+    );
+    expect(wave2WorkerMocks.image).toHaveBeenCalledWith(
+      expect.objectContaining({
+        identity: expect.objectContaining({
+          web_image_urls: ['https://images.example/product-main.jpg'],
+        }),
+      })
+    );
   });
 
   it('returns fallback: v3 when Stage 1 throws', async () => {
@@ -364,6 +386,21 @@ describe('identifyProductV4 orchestrator', () => {
     expect(res.meta.saved).toBeNull();
     // autosave explicitly off → not flagged for human review
     expect(res.meta.needs_human_review).toBe(false);
+  });
+
+  it('marks needs_human_review and autosave_error when saveProductV2 throws', async () => {
+    saveProductV2Mock.mockImplementationOnce(async () => {
+      throw new Error('firestore unavailable');
+    });
+    const res = await identifyProductV4({
+      files: [],
+      barcodes: '4548736132610',
+      autosave: true,
+    });
+    expect(res.ok).toBe(true);
+    expect(res.meta.saved).toBeNull();
+    expect(res.meta.needs_human_review).toBe(true);
+    expect(res.product.ops.data_quality.identify_v4.autosave_error).toMatch(/firestore unavailable/);
   });
 
   it('assembleProductV4 produces V2-shape with ops.data_quality.identify_v4 metadata', async () => {

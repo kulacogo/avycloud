@@ -651,7 +651,7 @@ async function runIdentityWorker(context = {}) {
     }
 
     const durationMs = Date.now() - startedAt;
-    const ok = Object.keys(resolved).length > 0 || !lastError;
+    const ok = Object.keys(resolved).length > 0;
 
     return {
       ok,

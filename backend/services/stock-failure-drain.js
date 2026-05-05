@@ -21,6 +21,67 @@
 
 const MAX_ATTEMPTS = 5;
 
+async function loadPendingFailureDocs({ firestore, tenantId, limit }) {
+  try {
+    return await firestore.collection('stock_operation_failures')
+      .where('tenantId', '==', tenantId)
+      .where('status', '==', 'pending')
+      .orderBy('createdAt', 'asc')
+      .limit(limit * 4)
+      .get();
+  } catch (err) {
+    // Backward-compatible fallback for environments where the composite index
+    // was not created yet.
+    const msg = String(err?.message || '').toLowerCase();
+    const isIndexIssue = msg.includes('index') || msg.includes('failed precondition');
+    if (!isIndexIssue) throw err;
+    console.warn('[stock-failure-drain] pending-index missing, falling back to tenant-only query');
+    return firestore.collection('stock_operation_failures')
+      .where('tenantId', '==', tenantId)
+      .orderBy('createdAt', 'asc')
+      .limit(limit * 4)
+      .get();
+  }
+}
+
+async function loadProductForFailure({ firestore, tenantId, failure }) {
+  const sku = String(failure?.sku || '').trim();
+  if (sku) {
+    let productSnap = await firestore.collection('products_v2')
+      .where('identification.sku', '==', sku)
+      .where('tenantId', '==', tenantId)
+      .limit(1)
+      .get();
+    if (productSnap.empty) {
+      productSnap = await firestore.collection('products_v2')
+        .where('details.identifiers.sku', '==', sku)
+        .where('tenantId', '==', tenantId)
+        .limit(1)
+        .get();
+    }
+    if (!productSnap.empty) {
+      const pDoc = productSnap.docs[0];
+      return { product: { id: pDoc.id, ...pDoc.data() }, lookupError: null };
+    }
+  }
+
+  const productId = String(failure?.productId || '').trim();
+  if (!productId) {
+    return { product: null, lookupError: sku ? 'product-not-found' : 'no-sku-and-no-productId' };
+  }
+
+  const productDoc = await firestore.collection('products_v2').doc(productId).get();
+  if (!productDoc.exists) {
+    return { product: null, lookupError: 'product-not-found' };
+  }
+
+  const productData = productDoc.data() || {};
+  if (productData.tenantId && String(productData.tenantId) !== String(tenantId)) {
+    return { product: null, lookupError: 'tenant-mismatch' };
+  }
+  return { product: { id: productDoc.id, ...productData }, lookupError: null };
+}
+
 async function drainStockFailures({ tenantId, limit = 50 } = {}) {
   if (process.env.STOCK_FAILURE_DRAIN_ENABLED === 'false') {
     return { skipped: true, reason: 'STOCK_FAILURE_DRAIN_ENABLED=false' };
@@ -32,13 +93,9 @@ async function drainStockFailures({ tenantId, limit = 50 } = {}) {
   const { firestore } = require('../lib/firestore');
   const { syncStockWithRetry } = require('./stock-sync-dispatcher');
 
-  // Tenant-scoped, single where clause to avoid index requirements on first run.
-  // Pending-Filter und attempts-Filter in Node.
-  const snap = await firestore.collection('stock_operation_failures')
-    .where('tenantId', '==', tenantId)
-    .orderBy('createdAt', 'asc')
-    .limit(limit * 4)
-    .get();
+  // Prefer status-filtered query to avoid starvation by old resolved docs.
+  // Falls back automatically if index is not ready yet.
+  const snap = await loadPendingFailureDocs({ firestore, tenantId, limit });
 
   const results = { total: 0, resolved: 0, stillFailing: 0, abandoned: 0, skipped: 0, needsManual: 0 };
 
@@ -66,37 +123,34 @@ async function drainStockFailures({ tenantId, limit = 50 } = {}) {
       continue;
     }
 
-    // Retry marketplaceSync-Failures.
+    // Retry marketplaceSync failures once per affected product key.
+    const dedupedRetryable = [];
+    const seenRetryKeys = new Set();
+    for (const failure of retryable) {
+      const key = String(failure?.productId || failure?.sku || '').trim();
+      const retryKey = key || `raw:${JSON.stringify(failure || {})}`;
+      if (seenRetryKeys.has(retryKey)) continue;
+      seenRetryKeys.add(retryKey);
+      dedupedRetryable.push(failure);
+    }
+
     const retryResults = [];
     let anyHardError = false;
-    for (const f of retryable) {
+    for (const f of dedupedRetryable) {
       try {
-        const sku = String(f.sku || '').trim();
-        if (!sku) {
-          retryResults.push({ sku: null, ok: false, error: 'no-sku' });
+        const { product, lookupError } = await loadProductForFailure({ firestore, tenantId, failure: f });
+        const sku = String(f?.sku || product?.identification?.sku || product?.details?.identifiers?.sku || '').trim() || null;
+        if (!product) {
+          retryResults.push({ sku, ok: false, error: lookupError || 'product-not-found' });
           anyHardError = true;
           continue;
         }
-        let productSnap = await firestore.collection('products_v2')
-          .where('identification.sku', '==', sku)
-          .where('tenantId', '==', tenantId)
-          .limit(1)
-          .get();
-        if (productSnap.empty) {
-          productSnap = await firestore.collection('products_v2')
-            .where('details.identifiers.sku', '==', sku)
-            .where('tenantId', '==', tenantId)
-            .limit(1)
-            .get();
-        }
-        if (productSnap.empty) {
-          retryResults.push({ sku, ok: false, error: 'product-not-found' });
-          anyHardError = true;
-          continue;
-        }
-        const pDoc = productSnap.docs[0];
-        const product = { id: pDoc.id, ...pDoc.data() };
-        const r = await syncStockWithRetry({ tenantId, product, reason: `drain:${doc.id}` });
+        const r = await syncStockWithRetry({
+          tenantId,
+          product,
+          reason: `drain:${doc.id}`,
+          skipPersistentFailureQueue: true,
+        });
         const channelErrors = Array.isArray(r?.results)
           ? r.results.filter((c) => c && (c.status === 'error' || c.status === 'failed'))
           : [];
