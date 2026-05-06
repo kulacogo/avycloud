@@ -1391,7 +1391,9 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({
                             {item.weight ? (
                               <span>{item.weight} kg</span>
                             ) : (
-                              <span className="text-warning">Gewicht fehlt</span>
+                              <span className="text-warning">
+                                Gewicht fehlt
+                              </span>
                             )}
                           </div>
                           {item.pickHint?.binCode && (
@@ -1403,7 +1405,9 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({
                           )}
                         </div>
                         <div className="text-sm font-semibold text-txt-primary whitespace-nowrap">
-                          {item.hasPrice ? `${item.lineTotal.toFixed(2)} €` : "—"}
+                          {item.hasPrice
+                            ? `${item.lineTotal.toFixed(2)} €`
+                            : "—"}
                         </div>
                       </div>
                     ))

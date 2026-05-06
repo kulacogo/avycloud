@@ -649,7 +649,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
       return next;
     });
 
-    if (pendingPick && !stillOpenItemIds.has(pendingPick.itemId)) {
+    if (pendingPick && !pendingPick.allocations.some((allocation) => stillOpenItemIds.has(allocation.itemId))) {
       setPendingPick(null);
       setPendingPickQty(0);
       setHighlightKey(null);
