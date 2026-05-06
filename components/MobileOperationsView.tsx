@@ -539,9 +539,8 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
           if (!existing.name && taskName) existing.name = taskName;
           if (!existing.thumbnailUrl && taskThumbnail) existing.thumbnailUrl = taskThumbnail;
           if (!existing.productId && resolvedProductId) existing.productId = resolvedProductId;
-          if (typeof availableInBin === 'number') {
-            const current = typeof existing.availableInBin === 'number' ? existing.availableInBin : 0;
-            existing.availableInBin = current + availableInBin;
+          if (typeof availableInBin === 'number' || typeof existing.availableInBin === 'number') {
+            existing.availableInBin = existing.suggestedQty;
           }
         } else {
           taskMap.set(taskKey, {
@@ -679,24 +678,53 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
       pickSubmitInFlightRef.current = true;
       try {
         try {
-          const stockResult = await stockOutProduct({
-            productId: task.productId || undefined,
-            sku: task.sku,
-            binCode: task.binCode,
-            quantity: numeric,
-            orderId: task.orderId,
-            orderItemId: task.itemId,
-            meta: { flow: 'pick', orderId: task.orderId, orderItemId: task.itemId },
-          });
-          if (!stockResult.ok) {
-            throw new Error(stockResult.error?.message || t('ops.errors.pick'));
+          let qtyLeftToBook = numeric;
+          const appliedByItemId: Record<string, number> = {};
+          const orderedAllocations = [...task.allocations].sort((a, b) => a.itemId.localeCompare(b.itemId));
+
+          for (const allocation of orderedAllocations) {
+            if (qtyLeftToBook <= 0) break;
+            const splitQty = Math.min(allocation.remaining, qtyLeftToBook);
+            if (splitQty <= 0) continue;
+
+            const stockResult = await stockOutProduct({
+              productId: allocation.productId || task.productId || undefined,
+              sku: task.sku,
+              binCode: task.binCode,
+              quantity: splitQty,
+              orderId: task.orderId,
+              orderItemId: allocation.orderItemId,
+              meta: {
+                flow: 'pick',
+                orderId: task.orderId,
+                orderItemId: allocation.orderItemId,
+                groupedTaskKey: task.taskKey,
+              },
+            });
+            if (!stockResult.ok) {
+              throw new Error(stockResult.error?.message || t('ops.errors.pick'));
+            }
+
+            appliedByItemId[allocation.itemId] = (Number(appliedByItemId[allocation.itemId] || 0) || 0) + splitQty;
+            qtyLeftToBook -= splitQty;
           }
 
-          const newPickedForItem = Math.min(task.itemTotal, task.pickedSoFar + numeric);
-          setPickedByItemId((prev) => ({
-            ...prev,
-            [task.itemId]: Math.min(task.itemTotal, (Number(prev[task.itemId] || 0) || 0) + numeric),
-          }));
+          if (qtyLeftToBook > 0) {
+            throw new Error(t('ops.mobile.pick.errorQtyExceedsRemaining', { qty: numeric, remaining: task.remainingTotal }));
+          }
+
+          setPickedByItemId((prev) => {
+            const next = { ...prev };
+            task.allocations.forEach((allocation) => {
+              const delta = Number(appliedByItemId[allocation.itemId] || 0) || 0;
+              if (!delta) return;
+              next[allocation.itemId] = Math.min(
+                allocation.itemTotal,
+                (Number(next[allocation.itemId] || 0) || 0) + delta
+              );
+            });
+            return next;
+          });
           if (task.productId && task.binCode) {
             const key = `${task.productId}::${task.binCode.toUpperCase()}`;
             setPickedFromBin((prev) => ({
@@ -706,11 +734,19 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
           }
 
           const targetOrder = openOrders.find((o) => o.id === task.orderId) || null;
+          const projectedPickedByItemId = { ...pickedByItemId };
+          task.allocations.forEach((allocation) => {
+            const delta = Number(appliedByItemId[allocation.itemId] || 0) || 0;
+            if (!delta) return;
+            projectedPickedByItemId[allocation.itemId] = Math.min(
+              allocation.itemTotal,
+              (Number(projectedPickedByItemId[allocation.itemId] || 0) || 0) + delta
+            );
+          });
           const isOrderDone = targetOrder
             ? targetOrder.items.every((it) => {
                 const total = Number(it.quantity || 0) || 0;
-                const picked =
-                  it.id === task.itemId ? newPickedForItem : Number(pickedByItemId[it.id] || 0) || 0;
+                const picked = Number(projectedPickedByItemId[it.id] || 0) || 0;
                 return picked >= total;
               })
             : false;
@@ -914,25 +950,29 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
       const skuMatches = pickTasks.filter((it) => equalsSkuScan(it.sku, normalized));
 
       // If a pick task is already active:
-      // - SKU scan confirms quantity (1 scan = qty 1).
-      // - numeric scan is supported as an optional override (e.g. scan "3" to pick 3).
+      // - numeric scan updates the pending quantity and confirms immediately.
+      // - scanning the matching SKU confirms the currently shown quantity.
       if (pendingPick) {
-        const targetQty = Math.max(1, Number(pendingPick.suggestedQty || 1) || 1);
+        const maxQtyByBin =
+          typeof pendingPick.availableInBin === 'number'
+            ? Math.min(pendingPick.remainingTotal, pendingPick.availableInBin)
+            : pendingPick.remainingTotal;
+        const targetQty = Math.max(1, Math.min(maxQtyByBin, Number(pendingPick.suggestedQty || 1) || 1));
         if (isNumericOnly) {
           const n = Number(normalized);
           if (Number.isFinite(n) && n > 0) {
-            void submitPick(pendingPick, n);
+            const bounded = Math.max(1, Math.min(maxQtyByBin, n));
+            setPendingPickQty(bounded);
+            void submitPick(pendingPick, bounded);
           }
           return;
         }
         if (equalsSkuScan(pendingPick.sku, normalized)) {
-          const nextCount = Math.min(targetQty, (Number(pendingPickQty || 0) || 0) + 1);
-          setPendingPickQty(nextCount);
-          setPickMessage(`SKU bestätigt: ${nextCount}/${targetQty}`);
+          const confirmQty = Math.max(1, Math.min(maxQtyByBin, Number(pendingPickQty || targetQty) || targetQty));
+          setPendingPickQty(confirmQty);
+          setPickMessage(t('ops.mobile.pick.scan.ready'));
           setPickMessageTone('info');
-          if (nextCount >= targetQty) {
-            void submitPick(pendingPick, nextCount);
-          }
+          void submitPick(pendingPick, confirmQty);
           return;
         }
         // Any other scan resets the pending pick selection (user started scanning another task)
@@ -969,7 +1009,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
         return;
       }
 
-      // SKU scan with BIN: resolve exact task and start counting scans.
+      // SKU scan with BIN: resolve exact task and open quantity confirmation.
       if (activeBin && skuMatches.length) {
         const sku = skuMatches[0]?.sku || '';
         setActiveSku(sku);
@@ -990,19 +1030,20 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
                 const aOrder = (a.orderNumber || a.orderId || '').toString();
                 const bOrder = (b.orderNumber || b.orderId || '').toString();
                 if (aOrder !== bOrder) return aOrder.localeCompare(bOrder);
-                return (a.itemId || '').localeCompare(b.itemId || '');
+                return a.taskKey.localeCompare(b.taskKey);
               })[0]
             : matches[0];
-        const key = `${candidate.orderId}-${candidate.itemId}-${candidate.binCode}`;
-        const targetQty = Math.max(1, Number(candidate.suggestedQty || 1) || 1);
+        const key = candidate.taskKey;
+        const maxQtyByBin =
+          typeof candidate.availableInBin === 'number'
+            ? Math.min(candidate.remainingTotal, candidate.availableInBin)
+            : candidate.remainingTotal;
+        const targetQty = Math.max(1, Math.min(maxQtyByBin, Number(candidate.suggestedQty || 1) || 1));
         setHighlightKey(key);
         setPendingPick(candidate);
-        setPendingPickQty(1); // the SKU scan itself confirms qty=1
-        setPickMessage(`SKU bestätigt: 1/${targetQty}`);
+        setPendingPickQty(targetQty);
+        setPickMessage(t('ops.mobile.pick.scan.ready'));
         setPickMessageTone('info');
-        if (targetQty <= 1) {
-          void submitPick(candidate, 1);
-        }
         return;
       }
 
@@ -1238,63 +1279,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
             </div>
           </div>
           {showKeypad && (
-            <div className="rounded-xl bg-app-bg/60 border border-app-border p-3 space-y-3">
-              <p className="text-[11px] uppercase tracking-widest text-txt-muted">{t('ops.mobile.qtyScannerOrPad')}</p>
-              <div className="flex items-center gap-2">
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  readOnly
-                  value={stowQty}
-                  aria-label="Einlagerungsmenge"
-                  className="flex-1 rounded-xl bg-app-surface text-txt-primary border border-app-border text-xl font-semibold px-3 py-2 border border-app-border"
-                />
-                <button
-                  type="button"
-                  aria-label="Menge zuruecksetzen"
-                  className="rounded-xl px-3 py-2 bg-app-surface text-txt-primary text-sm font-semibold border border-app-border"
-                  onClick={() => setStowQty(0)}
-                >
-                  {t('common.clear')}
-                </button>
-              </div>
-              <div className="grid grid-cols-3 gap-2">
-                {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
-                  <button
-                    key={n}
-                    type="button"
-                    className="rounded-xl bg-app-surface text-txt-primary border border-app-border text-xl font-semibold py-3"
-                    onClick={() => setStowQty((prev) => Number(`${prev}${n}`))}
-                  >
-                    {n}
-                  </button>
-                ))}
-                <button
-                  type="button"
-                  aria-label="Letzte Ziffer loeschen"
-                  className="rounded-xl bg-app-surface text-txt-primary border border-app-border text-lg font-semibold py-3"
-                  onClick={() => setStowQty((prev) => Math.max(0, Math.floor(prev / 10)))}
-                >
-                  <span aria-hidden="true">⌫</span>
-                </button>
-                <button
-                  type="button"
-                  className="rounded-xl bg-app-surface text-txt-primary border border-app-border text-xl font-semibold py-3"
-                  onClick={() => setStowQty((prev) => Number(`${prev}0`))}
-                >
-                  0
-                </button>
-                <button
-                  type="button"
-                  aria-label="Menge auf Null setzen"
-                  className="rounded-xl bg-app-surface text-txt-primary border border-app-border text-lg font-semibold py-3"
-                  onClick={() => setStowQty(0)}
-                >
-                  C
-                </button>
-              </div>
-            </div>
+            <QuantityNumpad value={stowQty} onChange={setStowQty} min={0} />
           )}
           <div className="grid grid-cols-2 gap-2">
             <button
@@ -1467,9 +1452,16 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
                       {t('common.order')} {pendingPick.orderNumber || pendingPick.orderId}
                     </p>
                     <p className="text-[11px] text-txt-muted mt-1 tabular-nums">
-                      Scan SKU:{' '}
+                      {t('ops.mobile.pick.qtyPadHint')}:{' '}
                       <span className="font-semibold text-txt-secondary">
-                        {Math.max(0, Number(pendingPickQty || 0) || 0)}/{Math.max(1, Number(pendingPick.suggestedQty || 1) || 1)}
+                        {Math.max(0, Number(pendingPickQty || 0) || 0)}/{Math.max(
+                          1,
+                          Number(
+                            typeof pendingPick.availableInBin === 'number'
+                              ? Math.min(pendingPick.remainingTotal, pendingPick.availableInBin)
+                              : pendingPick.remainingTotal
+                          ) || 1
+                        )}
                       </span>
                     </p>
                   </div>
@@ -1502,6 +1494,25 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
                   </>
                 ) : null}
               </p>
+              <QuantityNumpad
+                value={pendingPickQty}
+                onChange={setPendingPickQty}
+                min={1}
+                max={
+                  typeof pendingPick.availableInBin === 'number'
+                    ? Math.min(pendingPick.remainingTotal, pendingPick.availableInBin)
+                    : pendingPick.remainingTotal
+                }
+                readOnlyLabel={t('ops.mobile.pick.qtyPadHint')}
+                onConfirm={() => void submitPick(pendingPick, pendingPickQty)}
+                confirmLabel={t('ops.pick.submit')}
+                confirmDisabled={
+                  pickSubmitInFlightRef.current ||
+                  pendingPickQty <= 0 ||
+                  pendingPickQty > pendingPick.remainingTotal ||
+                  (typeof pendingPick.availableInBin === 'number' && pendingPickQty > pendingPick.availableInBin)
+                }
+              />
             </div>
           ) : pickTasks.length === 0 && !ordersLoading ? (
             <p className="text-sm text-txt-secondary">{t('ops.orders.none')}</p>
@@ -1552,15 +1563,19 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
             </summary>
             <div className="mt-3 space-y-2">
               {pickTasks.slice(0, 100).map((task) => {
-                const key = `${task.orderId}-${task.itemId}-${task.binCode}`;
+                const key = task.taskKey;
                 const isHighlighted = highlightKey === key;
                 return (
                   <button
                     type="button"
                     key={key}
                     onClick={() => {
+                      const maxQtyByBin =
+                        typeof task.availableInBin === 'number'
+                          ? Math.min(task.remainingTotal, task.availableInBin)
+                          : task.remainingTotal;
                       setPendingPick(task);
-                      setPendingPickQty(0);
+                      setPendingPickQty(Math.max(1, Math.min(maxQtyByBin, Number(task.suggestedQty || 1) || 1)));
                       setActiveBin(task.binCode || '');
                       setActiveSku(task.sku || '');
                       setHighlightKey(key);

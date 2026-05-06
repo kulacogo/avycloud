@@ -411,10 +411,12 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({
       const eanKey = (item.ean || "").trim().toLowerCase();
       const nameKey = (item.name || "").trim().toLowerCase();
       const binKey = (item.pickHint?.binCode || "").trim().toLowerCase();
-      const hasIdentity = Boolean(skuKey || eanKey || nameKey);
-      const identityKey = hasIdentity
-        ? `${skuKey}|${eanKey}|${nameKey}|${binKey}`
-        : `fallback-${item.id || idx}|${binKey}`;
+      const hasStableIdentity = Boolean(skuKey || eanKey);
+      const identityKey = hasStableIdentity
+        ? `${skuKey || "-"}|${eanKey || "-"}|${binKey}`
+        : nameKey
+          ? `name|${nameKey}|${binKey}`
+          : `fallback-${item.id || idx}|${binKey}`;
 
       const quantity = Number(item.quantity) || 0;
       const lineAmount =
