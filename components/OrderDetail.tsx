@@ -1,4 +1,10 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  useMemo,
+} from "react";
 import {
   fetchOrderDetail,
   transitionOrderStatus,
@@ -17,40 +23,68 @@ import {
   refreshShipment,
 } from "../api/client";
 import type { ShippingPreviewMatch } from "../api/client";
-import type { Order, OrderTimelineEvent, OmsStatus, ShippingMethod } from "../types";
-import { CarrierPickModal, WeightPromptModal } from "./orders/ShippingDecisionDialog";
+import type {
+  Order,
+  OrderTimelineEvent,
+  OmsStatus,
+  ShippingMethod,
+} from "../types";
+import {
+  CarrierPickModal,
+  WeightPromptModal,
+} from "./orders/ShippingDecisionDialog";
 
 /* ─── OMS Status Colors ─── */
-const STATUS_COLORS: Record<string, { bg: string; text: string; dot: string }> = {
-  pending:    { bg: "bg-info-dim",    text: "text-info",    dot: "bg-info" },
-  confirmed:  { bg: "bg-info-dim",    text: "text-info",    dot: "bg-info" },
-  picking:    { bg: "bg-warning-dim", text: "text-warning", dot: "bg-warning" },
-  picked:     { bg: "bg-accent-dim",  text: "text-accent",  dot: "bg-accent" },
-  packing:    { bg: "bg-warning-dim", text: "text-warning", dot: "bg-warning" },
-  packed:     { bg: "bg-success-dim", text: "text-success", dot: "bg-success" },
-  shipped:    { bg: "bg-success-dim", text: "text-success", dot: "bg-success" },
-  delivered:  { bg: "bg-success-dim", text: "text-success", dot: "bg-success" },
-  completed:  { bg: "bg-app-elevated", text: "text-txt-secondary", dot: "bg-txt-muted" },
-  cancelled:  { bg: "bg-danger-dim",  text: "text-danger",  dot: "bg-danger" },
-  returned:   { bg: "bg-danger-dim",  text: "text-danger",  dot: "bg-danger" },
-  on_hold:    { bg: "bg-warning-dim", text: "text-warning", dot: "bg-warning" },
-};
+const STATUS_COLORS: Record<string, { bg: string; text: string; dot: string }> =
+  {
+    pending: { bg: "bg-info-dim", text: "text-info", dot: "bg-info" },
+    confirmed: { bg: "bg-info-dim", text: "text-info", dot: "bg-info" },
+    picking: { bg: "bg-warning-dim", text: "text-warning", dot: "bg-warning" },
+    picked: { bg: "bg-accent-dim", text: "text-accent", dot: "bg-accent" },
+    packing: { bg: "bg-warning-dim", text: "text-warning", dot: "bg-warning" },
+    packed: { bg: "bg-success-dim", text: "text-success", dot: "bg-success" },
+    shipped: { bg: "bg-success-dim", text: "text-success", dot: "bg-success" },
+    delivered: {
+      bg: "bg-success-dim",
+      text: "text-success",
+      dot: "bg-success",
+    },
+    completed: {
+      bg: "bg-app-elevated",
+      text: "text-txt-secondary",
+      dot: "bg-txt-muted",
+    },
+    cancelled: { bg: "bg-danger-dim", text: "text-danger", dot: "bg-danger" },
+    returned: { bg: "bg-danger-dim", text: "text-danger", dot: "bg-danger" },
+    on_hold: { bg: "bg-warning-dim", text: "text-warning", dot: "bg-warning" },
+  };
 
 const STATUS_LABELS: Record<string, string> = {
-  pending: "Neu", confirmed: "Bestätigt", picking: "Kommissionierung",
-  picked: "Kommissioniert", packing: "Verpackung", packed: "Verpackt",
-  shipped: "Versendet", delivered: "Zugestellt", completed: "Abgeschlossen",
-  cancelled: "Storniert", returned: "Retourniert", on_hold: "Zurückgestellt",
+  pending: "Neu",
+  confirmed: "Bestätigt",
+  picking: "Kommissionierung",
+  picked: "Kommissioniert",
+  packing: "Verpackung",
+  packed: "Verpackt",
+  shipped: "Versendet",
+  delivered: "Zugestellt",
+  completed: "Abgeschlossen",
+  cancelled: "Storniert",
+  returned: "Retourniert",
+  on_hold: "Zurückgestellt",
 };
 
 /* ─── Tracking URL builder ─── */
 const TRACKING_URLS: Record<string, string> = {
   dhl: "https://www.dhl.de/de/privatkunden/pakete-empfangen/verfolgen.html?piececode=",
-  dhl_de: "https://www.dhl.de/de/privatkunden/pakete-empfangen/verfolgen.html?piececode=",
-  dhl_express: "https://www.dhl.com/de-de/home/tracking/tracking-express.html?submit=1&tracking-id=",
+  dhl_de:
+    "https://www.dhl.de/de/privatkunden/pakete-empfangen/verfolgen.html?piececode=",
+  dhl_express:
+    "https://www.dhl.com/de-de/home/tracking/tracking-express.html?submit=1&tracking-id=",
   dpd: "https://tracking.dpd.de/parcelstatus?query=",
   gls: "https://gls-group.eu/DE/de/paketverfolgung?match=",
-  hermes: "https://www.myhermes.de/empfangen/sendungsverfolgung/sendungsinformation#",
+  hermes:
+    "https://www.myhermes.de/empfangen/sendungsverfolgung/sendungsinformation#",
   ups: "https://www.ups.com/track?tracknum=",
 };
 
@@ -69,26 +103,44 @@ interface OrderDetailProps {
 }
 
 /* ─── Component ─── */
-export const OrderDetail: React.FC<OrderDetailProps> = ({ orderId, onClose, onStatusChange }) => {
+export const OrderDetail: React.FC<OrderDetailProps> = ({
+  orderId,
+  onClose,
+  onStatusChange,
+}) => {
   const [order, setOrder] = useState<Order | null>(null);
   const [timeline, setTimeline] = useState<OrderTimelineEvent[]>([]);
   const [nextStatuses, setNextStatuses] = useState<string[]>([]);
-  const [allStatuses, setAllStatuses] = useState<Record<string, { label: string; color: string; sortOrder: number }>>({});
+  const [allStatuses, setAllStatuses] = useState<
+    Record<string, { label: string; color: string; sortOrder: number }>
+  >({});
   const [loading, setLoading] = useState(true);
   const [transitioning, setTransitioning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // Distinct from `error` so success/info messages from manual refreshes don't
   // render in red. Auto-clears after a short timeout (set by the caller).
   const [infoMessage, setInfoMessage] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"details" | "items" | "timeline">("details");
+  const [activeTab, setActiveTab] = useState<"details" | "items" | "timeline">(
+    "details",
+  );
   const [editingAddress, setEditingAddress] = useState(false);
-  const [addressForm, setAddressForm] = useState({ name: "", street: "", city: "", zip: "", country: "", phone: "", email: "" });
+  const [addressForm, setAddressForm] = useState({
+    name: "",
+    street: "",
+    city: "",
+    zip: "",
+    country: "",
+    phone: "",
+    email: "",
+  });
   const [savingAddress, setSavingAddress] = useState(false);
   const [editingWeight, setEditingWeight] = useState(false);
   const [weightInput, setWeightInput] = useState("");
   const [savingWeight, setSavingWeight] = useState(false);
   const [selectedVatRate, setSelectedVatRate] = useState<number>(0.19);
-  const [labelFormat, setLabelFormat] = useState<string>(() => localStorage.getItem("avycloud_label_format") || "a6");
+  const [labelFormat, setLabelFormat] = useState<string>(
+    () => localStorage.getItem("avycloud_label_format") || "a6",
+  );
   const [showManualTracking, setShowManualTracking] = useState(false);
   const [manualTrackingNumber, setManualTrackingNumber] = useState("");
   const [manualCarrier, setManualCarrier] = useState("");
@@ -104,12 +156,21 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({ orderId, onClose, onSt
   // has explicitly selected a `selectedMethodId` from the dropdown, we skip
   // both modals and forward that ID verbatim.
   type ShipDecisionStep = "idle" | "weight" | "pick" | "executing";
-  const [shipDecisionStep, setShipDecisionStep] = useState<ShipDecisionStep>("idle");
-  const [shipDecisionMatches, setShipDecisionMatches] = useState<ShippingPreviewMatch[]>([]);
-  const [shipDecisionWeight, setShipDecisionWeight] = useState<number | null>(null);
-  const [shipDecisionInitialWeight, setShipDecisionInitialWeight] = useState<number | null>(null);
+  const [shipDecisionStep, setShipDecisionStep] =
+    useState<ShipDecisionStep>("idle");
+  const [shipDecisionMatches, setShipDecisionMatches] = useState<
+    ShippingPreviewMatch[]
+  >([]);
+  const [shipDecisionWeight, setShipDecisionWeight] = useState<number | null>(
+    null,
+  );
+  const [shipDecisionInitialWeight, setShipDecisionInitialWeight] = useState<
+    number | null
+  >(null);
   const [shipDecisionBusy, setShipDecisionBusy] = useState(false);
-  const [shipDecisionError, setShipDecisionError] = useState<string | null>(null);
+  const [shipDecisionError, setShipDecisionError] = useState<string | null>(
+    null,
+  );
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -127,54 +188,78 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({ orderId, onClose, onSt
     }
   }, [orderId]);
 
-  const loadShippingMethods = useCallback(async (weight?: number, country?: string) => {
-    setMethodsLoading(true);
-    try {
-      const methods = await fetchShippingMethods({
-        weight: weight || undefined,
-        country: country || undefined,
-      });
-      setShippingMethods(methods);
-    } catch {
-      // silent — dropdown will be empty, auto-rule still works
-    } finally {
-      setMethodsLoading(false);
-    }
-  }, []);
+  const loadShippingMethods = useCallback(
+    async (weight?: number, country?: string) => {
+      setMethodsLoading(true);
+      try {
+        const methods = await fetchShippingMethods({
+          weight: weight || undefined,
+          country: country || undefined,
+        });
+        setShippingMethods(methods);
+      } catch {
+        // silent — dropdown will be empty, auto-rule still works
+      } finally {
+        setMethodsLoading(false);
+      }
+    },
+    [],
+  );
 
   useEffect(() => {
     loadData();
   }, [loadData]);
 
   useEffect(() => {
-    if (order && (order.omsStatus === "packed" || order.omsStatus === "picked") && !order.trackingNumber) {
-      loadShippingMethods(order.weight || undefined, order.customer?.country || "DE");
+    if (
+      order &&
+      (order.omsStatus === "packed" || order.omsStatus === "picked") &&
+      !order.trackingNumber
+    ) {
+      loadShippingMethods(
+        order.weight || undefined,
+        order.customer?.country || "DE",
+      );
     }
-  }, [order?.omsStatus, order?.weight, order?.customer?.country, order?.trackingNumber, loadShippingMethods]);
+  }, [
+    order?.omsStatus,
+    order?.weight,
+    order?.customer?.country,
+    order?.trackingNumber,
+    loadShippingMethods,
+  ]);
 
   useEffect(() => {
-    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
   }, [onClose]);
 
-  const handleBackdropClick = useCallback((e: React.MouseEvent) => {
-    if (e.target === backdropRef.current) onClose();
-  }, [onClose]);
+  const handleBackdropClick = useCallback(
+    (e: React.MouseEvent) => {
+      if (e.target === backdropRef.current) onClose();
+    },
+    [onClose],
+  );
 
-  const handleTransition = useCallback(async (toStatus: string, force = false) => {
-    setTransitioning(true);
-    setError(null);
-    try {
-      await transitionOrderStatus(orderId, toStatus, { force });
-      await loadData();
-      onStatusChange?.();
-    } catch (err: any) {
-      setError(err.message || "Statusübergang fehlgeschlagen");
-    } finally {
-      setTransitioning(false);
-    }
-  }, [orderId, loadData, onStatusChange]);
+  const handleTransition = useCallback(
+    async (toStatus: string, force = false) => {
+      setTransitioning(true);
+      setError(null);
+      try {
+        await transitionOrderStatus(orderId, toStatus, { force });
+        await loadData();
+        onStatusChange?.();
+      } catch (err: any) {
+        setError(err.message || "Statusübergang fehlgeschlagen");
+      } finally {
+        setTransitioning(false);
+      }
+    },
+    [orderId, loadData, onStatusChange],
+  );
 
   /** Execute shipOrder with a known weight + method, reload, surface errors. */
   const executeShip = useCallback(
@@ -187,7 +272,7 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({ orderId, onClose, onSt
       await loadData();
       onStatusChange?.();
     },
-    [orderId, labelFormat, loadData, onStatusChange]
+    [orderId, labelFormat, loadData, onStatusChange],
   );
 
   /**
@@ -217,7 +302,7 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({ orderId, onClose, onSt
         if (matches.length === 0) {
           setError(
             `Keine Versandregel passt zu ${weight.toLocaleString("de-DE")} kg. ` +
-            `Bitte Versandregeln in den Einstellungen prüfen oder Methode manuell wählen.`
+              `Bitte Versandregeln in den Einstellungen prüfen oder Methode manuell wählen.`,
           );
           return;
         }
@@ -233,7 +318,7 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({ orderId, onClose, onSt
         setError(err?.message || "Versand-Vorschau fehlgeschlagen");
       }
     },
-    [orderId, executeShip]
+    [orderId, executeShip],
   );
 
   const handleWeightConfirm = useCallback(
@@ -251,7 +336,7 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({ orderId, onClose, onSt
           setShipDecisionStep("idle");
           setError(
             `Keine Versandregel passt zu ${weight.toLocaleString("de-DE")} kg. ` +
-            `Bitte Versandregeln in den Einstellungen prüfen oder Methode manuell wählen.`
+              `Bitte Versandregeln in den Einstellungen prüfen oder Methode manuell wählen.`,
           );
           return;
         }
@@ -270,7 +355,7 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({ orderId, onClose, onSt
         setShipDecisionBusy(false);
       }
     },
-    [orderId, loadData, executeShip]
+    [orderId, loadData, executeShip],
   );
 
   const handleCarrierConfirm = useCallback(
@@ -291,7 +376,7 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({ orderId, onClose, onSt
         setShipDecisionBusy(false);
       }
     },
-    [executeShip, shipDecisionWeight]
+    [executeShip, shipDecisionWeight],
   );
 
   const cancelShipDecision = useCallback(() => {
@@ -305,6 +390,61 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({ orderId, onClose, onSt
 
   const omsStatus = order?.omsStatus || order?.status || "pending";
   const statusColor = STATUS_COLORS[omsStatus] || STATUS_COLORS.pending;
+  const aggregatedItems = useMemo(() => {
+    const groups = new Map<
+      string,
+      {
+        key: string;
+        name: string;
+        sku?: string;
+        ean?: string;
+        weight?: number;
+        quantity: number;
+        lineTotal: number;
+        hasPrice: boolean;
+        pickHint?: { binCode?: string; quantityAvailable?: number };
+      }
+    >();
+
+    (order?.items || []).forEach((item, idx) => {
+      const skuKey = (item.sku || "").trim().toLowerCase();
+      const eanKey = (item.ean || "").trim().toLowerCase();
+      const nameKey = (item.name || "").trim().toLowerCase();
+      const binKey = (item.pickHint?.binCode || "").trim().toLowerCase();
+      const hasIdentity = Boolean(skuKey || eanKey || nameKey);
+      const identityKey = hasIdentity
+        ? `${skuKey}|${eanKey}|${nameKey}|${binKey}`
+        : `fallback-${item.id || idx}|${binKey}`;
+
+      const quantity = Number(item.quantity) || 0;
+      const lineAmount =
+        item.priceBrutto != null ? item.priceBrutto * quantity : 0;
+
+      const existing = groups.get(identityKey);
+      if (existing) {
+        existing.quantity += quantity;
+        if (item.priceBrutto != null) {
+          existing.lineTotal += lineAmount;
+          existing.hasPrice = true;
+        }
+        return;
+      }
+
+      groups.set(identityKey, {
+        key: identityKey,
+        name: item.name || "Unbekanntes Produkt",
+        sku: item.sku,
+        ean: item.ean,
+        weight: item.weight,
+        quantity,
+        lineTotal: lineAmount,
+        hasPrice: item.priceBrutto != null,
+        pickHint: item.pickHint,
+      });
+    });
+
+    return Array.from(groups.values());
+  }, [order?.items]);
 
   // A shipment exists iff any of these is true. The backend /label endpoint
   // only needs `shipmentId` (it pulls the URL fresh from SendCloud), so the
@@ -313,12 +453,13 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({ orderId, onClose, onSt
   // hides the print button even though the label is sittinPg in SendCloud.
   const hasShipmentEvidence = Boolean(
     order?.trackingNumber ||
-      (order as any)?.shipmentId ||
-      ["shipped", "delivered", "completed"].includes(omsStatus)
+    (order as any)?.shipmentId ||
+    ["shipped", "delivered", "completed"].includes(omsStatus),
   );
   // Divergence: the order says we shipped, but we have no tracking on file.
   // This is the exact symptom of incident 2026-04-29 — surface a one-click fix.
-  const trackingMissing = !order?.trackingNumber && ["shipped", "delivered"].includes(omsStatus);
+  const trackingMissing =
+    !order?.trackingNumber && ["shipped", "delivered"].includes(omsStatus);
 
   const handleRefreshShipment = useCallback(async () => {
     try {
@@ -328,22 +469,29 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({ orderId, onClose, onSt
       // Compose an actionable message instead of a silent "all good". The user
       // already sees a stale UI — they need to know exactly what we found.
       const parts: string[] = [];
-      const changedSomething = Array.isArray(result.updated) && result.updated.length > 0;
+      const changedSomething =
+        Array.isArray(result.updated) && result.updated.length > 0;
       if (result.reboundParcel) {
         parts.push(
           `Versand auf SendCloud-Parcel #${result.sendcloudParcelId} umgebunden ` +
-          `(vorher #${result.previousSendcloudParcelId}).`
+            `(vorher #${result.previousSendcloudParcelId}).`,
         );
       } else if (changedSomething) {
-        parts.push(`Versanddaten von SendCloud aktualisiert (${result.updated.length} Felder).`);
+        parts.push(
+          `Versanddaten von SendCloud aktualisiert (${result.updated.length} Felder).`,
+        );
       } else {
         parts.push(
           `SendCloud-Parcel #${result.sendcloudParcelId ?? "?"}` +
-          (result.parcelStatusMessage ? ` (${result.parcelStatusMessage})` : "") +
-          ` — keine neuen Daten gefunden.`
+            (result.parcelStatusMessage
+              ? ` (${result.parcelStatusMessage})`
+              : "") +
+            ` — keine neuen Daten gefunden.`,
         );
         if (result.searchedAlternates && result.alternatesFound === 0) {
-          parts.push("Kein passendes Label in SendCloud unter dieser Bestellnummer.");
+          parts.push(
+            "Kein passendes Label in SendCloud unter dieser Bestellnummer.",
+          );
         }
       }
       // Surface as an info message — the refresh succeeded; this is just status.
@@ -366,30 +514,59 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({ orderId, onClose, onSt
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
               <h2 className="text-lg font-semibold text-txt-primary truncate">
-                {order?.marketplaceOrderId || order?.orderId || order?.number || order?.id || "..."}
+                {order?.marketplaceOrderId ||
+                  order?.orderId ||
+                  order?.number ||
+                  order?.id ||
+                  "..."}
               </h2>
               {omsStatus && (
-                <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-medium ${statusColor.bg} ${statusColor.text}`}>
-                  <span className={`w-1.5 h-1.5 rounded-full ${statusColor.dot}`} />
+                <span
+                  className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-medium ${statusColor.bg} ${statusColor.text}`}
+                >
+                  <span
+                    className={`w-1.5 h-1.5 rounded-full ${statusColor.dot}`}
+                  />
                   {STATUS_LABELS[omsStatus] || omsStatus}
                 </span>
               )}
             </div>
             {order?.marketplace && (
               <p className="text-xs text-txt-muted mt-0.5">
-                {order.marketplace === "ebay" ? "eBay" : order.marketplace === "kaufland" ? "Kaufland" : order.marketplace}
+                {order.marketplace === "ebay"
+                  ? "eBay"
+                  : order.marketplace === "kaufland"
+                    ? "Kaufland"
+                    : order.marketplace}
               </p>
             )}
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-app-elevated text-txt-muted hover:text-txt-primary transition-colors">
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+          <button
+            onClick={onClose}
+            className="p-1.5 rounded-lg hover:bg-app-elevated text-txt-muted hover:text-txt-primary transition-colors"
+          >
+            <svg
+              className="w-5 h-5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
           </button>
         </div>
 
         {/* Loading / Error */}
         {loading && (
           <div className="flex-1 flex items-center justify-center">
-            <div className="animate-pulse text-txt-muted">Lade Auftragsdaten...</div>
+            <div className="animate-pulse text-txt-muted">
+              Lade Auftragsdaten...
+            </div>
           </div>
         )}
 
@@ -414,7 +591,10 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({ orderId, onClose, onSt
                 {/* Quick-action buttons for recommended next statuses */}
                 {nextStatuses.map((status) => {
                   const color = STATUS_COLORS[status] || STATUS_COLORS.pending;
-                  const isCancelOrReturn = status === "cancelled" || status === "returned" || status === "on_hold";
+                  const isCancelOrReturn =
+                    status === "cancelled" ||
+                    status === "returned" ||
+                    status === "on_hold";
                   return (
                     <button
                       key={status}
@@ -426,42 +606,49 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({ orderId, onClose, onSt
                           : `${color.bg} ${color.text} hover:opacity-80`
                       }`}
                     >
-                      {transitioning ? "..." : `→ ${STATUS_LABELS[status] || status}`}
+                      {transitioning
+                        ? "..."
+                        : `→ ${STATUS_LABELS[status] || status}`}
                     </button>
                   );
                 })}
                 {/* Dropdown for other valid transitions + force override */}
-                {Object.keys(allStatuses).length > 0 && (() => {
-                  const validSet = new Set(nextStatuses);
-                  const otherValid = Object.entries(allStatuses)
-                    .filter(([key]) => key !== omsStatus && !validSet.has(key))
-                    .sort(([, a], [, b]) => a.sortOrder - b.sortOrder);
-                  const forceTargets = otherValid.filter(([key]) => !validSet.has(key));
-                  return (
-                    <select
-                      value=""
-                      disabled={transitioning}
-                      onChange={(e) => {
-                        if (e.target.value) {
-                          const isForce = !validSet.has(e.target.value);
-                          handleTransition(e.target.value, isForce);
-                        }
-                      }}
-                      className="h-7 px-2 rounded-lg text-xs bg-app-elevated border border-app-border text-txt-secondary hover:text-txt-primary cursor-pointer disabled:opacity-50 focus:outline-none focus:ring-1 focus:ring-accent"
-                    >
-                      <option value="">Status setzen...</option>
-                      {forceTargets.length > 0 && (
-                        <optgroup label="Manuell erzwingen">
-                          {forceTargets.map(([key, info]) => (
-                            <option key={key} value={key}>
-                              {info.label}
-                            </option>
-                          ))}
-                        </optgroup>
-                      )}
-                    </select>
-                  );
-                })()}
+                {Object.keys(allStatuses).length > 0 &&
+                  (() => {
+                    const validSet = new Set(nextStatuses);
+                    const otherValid = Object.entries(allStatuses)
+                      .filter(
+                        ([key]) => key !== omsStatus && !validSet.has(key),
+                      )
+                      .sort(([, a], [, b]) => a.sortOrder - b.sortOrder);
+                    const forceTargets = otherValid.filter(
+                      ([key]) => !validSet.has(key),
+                    );
+                    return (
+                      <select
+                        value=""
+                        disabled={transitioning}
+                        onChange={(e) => {
+                          if (e.target.value) {
+                            const isForce = !validSet.has(e.target.value);
+                            handleTransition(e.target.value, isForce);
+                          }
+                        }}
+                        className="h-7 px-2 rounded-lg text-xs bg-app-elevated border border-app-border text-txt-secondary hover:text-txt-primary cursor-pointer disabled:opacity-50 focus:outline-none focus:ring-1 focus:ring-accent"
+                      >
+                        <option value="">Status setzen...</option>
+                        {forceTargets.length > 0 && (
+                          <optgroup label="Manuell erzwingen">
+                            {forceTargets.map(([key, info]) => (
+                              <option key={key} value={key}>
+                                {info.label}
+                              </option>
+                            ))}
+                          </optgroup>
+                        )}
+                      </select>
+                    );
+                  })()}
               </div>
             </div>
 
@@ -478,7 +665,11 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({ orderId, onClose, onSt
                         : "border-transparent text-txt-muted hover:text-txt-primary"
                     }`}
                   >
-                    {tab === "details" ? "Details" : tab === "items" ? `Positionen (${order.items?.length || 0})` : `Verlauf (${timeline.length})`}
+                    {tab === "details"
+                      ? "Details"
+                      : tab === "items"
+                        ? `Positionen (${aggregatedItems.length})`
+                        : `Verlauf (${timeline.length})`}
                   </button>
                 ))}
               </div>
@@ -491,13 +682,17 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({ orderId, onClose, onSt
                   {/* Customer */}
                   <section>
                     <div className="flex items-center justify-between mb-2">
-                      <h3 className="text-sm font-medium text-txt-primary">Kunde</h3>
+                      <h3 className="text-sm font-medium text-txt-primary">
+                        Kunde
+                      </h3>
                       {!editingAddress && (
                         <div className="flex items-center gap-3">
                           <button
                             type="button"
                             className="text-xs text-accent hover:text-accent/80 transition-colors"
-                            onClick={() => printAddressLabels([orderId]).catch(() => {})}
+                            onClick={() =>
+                              printAddressLabels([orderId]).catch(() => {})
+                            }
                           >
                             Adresslabel
                           </button>
@@ -534,19 +729,29 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({ orderId, onClose, onSt
                           { key: "email", label: "E-Mail" },
                         ].map(({ key, label }) => (
                           <div key={key}>
-                            <label className="block text-xs text-txt-muted mb-0.5">{label}</label>
+                            <label className="block text-xs text-txt-muted mb-0.5">
+                              {label}
+                            </label>
                             <input
                               type="text"
                               value={(addressForm as any)[key]}
-                              onChange={(e) => setAddressForm((prev) => ({ ...prev, [key]: e.target.value }))}
+                              onChange={(e) =>
+                                setAddressForm((prev) => ({
+                                  ...prev,
+                                  [key]: e.target.value,
+                                }))
+                              }
                               className="w-full h-8 px-2.5 text-sm rounded-md bg-app-surface border border-app-border text-txt-primary focus:outline-none focus:ring-1 focus:ring-accent"
                             />
                           </div>
                         ))}
                         {/* Address completeness warning */}
-                        {(!addressForm.street || !addressForm.city || !addressForm.zip) && (
+                        {(!addressForm.street ||
+                          !addressForm.city ||
+                          !addressForm.zip) && (
                           <div className="text-xs text-warning bg-warning/10 px-2.5 py-1.5 rounded">
-                            Adresse unvollständig — Versandlabel kann nicht erstellt werden.
+                            Adresse unvollständig — Versandlabel kann nicht
+                            erstellt werden.
                           </div>
                         )}
                         <div className="flex gap-2 pt-1">
@@ -581,16 +786,40 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({ orderId, onClose, onSt
                       </div>
                     ) : (
                       <div className="bg-app-bg rounded-lg p-3 space-y-1.5 text-sm">
-                        <div className="font-medium text-txt-primary">{order.customer?.name || "Unbekannt"}</div>
-                        {order.customer?.street && <div className="text-txt-secondary">{order.customer.street}</div>}
-                        {(order.customer?.zip || order.customer?.city) && (
-                          <div className="text-txt-secondary">{[order.customer.zip, order.customer.city].filter(Boolean).join(" ")}</div>
+                        <div className="font-medium text-txt-primary">
+                          {order.customer?.name || "Unbekannt"}
+                        </div>
+                        {order.customer?.street && (
+                          <div className="text-txt-secondary">
+                            {order.customer.street}
+                          </div>
                         )}
-                        {order.customer?.country && <div className="text-txt-muted text-xs">{order.customer.country}</div>}
-                        {order.customer?.email && <div className="text-txt-muted text-xs">{order.customer.email}</div>}
-                        {order.customer?.phone && <div className="text-txt-muted text-xs">{order.customer.phone}</div>}
+                        {(order.customer?.zip || order.customer?.city) && (
+                          <div className="text-txt-secondary">
+                            {[order.customer.zip, order.customer.city]
+                              .filter(Boolean)
+                              .join(" ")}
+                          </div>
+                        )}
+                        {order.customer?.country && (
+                          <div className="text-txt-muted text-xs">
+                            {order.customer.country}
+                          </div>
+                        )}
+                        {order.customer?.email && (
+                          <div className="text-txt-muted text-xs">
+                            {order.customer.email}
+                          </div>
+                        )}
+                        {order.customer?.phone && (
+                          <div className="text-txt-muted text-xs">
+                            {order.customer.phone}
+                          </div>
+                        )}
                         {/* Address incomplete warning */}
-                        {(!order.customer?.street || !order.customer?.city || !order.customer?.zip) && (
+                        {(!order.customer?.street ||
+                          !order.customer?.city ||
+                          !order.customer?.zip) && (
                           <div className="text-xs text-warning mt-1">
                             Adresse unvollständig
                           </div>
@@ -601,16 +830,40 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({ orderId, onClose, onSt
 
                   {/* Order Info */}
                   <section>
-                    <h3 className="text-sm font-medium text-txt-primary mb-2">Auftragsdaten</h3>
+                    <h3 className="text-sm font-medium text-txt-primary mb-2">
+                      Auftragsdaten
+                    </h3>
                     <div className="bg-app-bg rounded-lg p-3 space-y-2 text-sm">
-                      <Row label="Betrag" value={order.totalAmount != null ? `${order.totalAmount.toFixed(2)} ${order.currency || "EUR"}` : "—"} />
-                      <Row label="Erstellt" value={order.createdAt ? new Date(order.createdAt).toLocaleString("de-DE") : "—"} />
-                      <Row label="Zahlung" value={
-                        order.paymentStatus === "NoPaymentFailure" ? "Bezahlt" :
-                        order.paymentStatus === "PaymentComplete" ? "Bezahlt" :
-                        order.paymentStatus || "—"
-                      } />
-                      <Row label="Versand" value={order.shippingService || "—"} />
+                      <Row
+                        label="Betrag"
+                        value={
+                          order.totalAmount != null
+                            ? `${order.totalAmount.toFixed(2)} ${order.currency || "EUR"}`
+                            : "—"
+                        }
+                      />
+                      <Row
+                        label="Erstellt"
+                        value={
+                          order.createdAt
+                            ? new Date(order.createdAt).toLocaleString("de-DE")
+                            : "—"
+                        }
+                      />
+                      <Row
+                        label="Zahlung"
+                        value={
+                          order.paymentStatus === "NoPaymentFailure"
+                            ? "Bezahlt"
+                            : order.paymentStatus === "PaymentComplete"
+                              ? "Bezahlt"
+                              : order.paymentStatus || "—"
+                        }
+                      />
+                      <Row
+                        label="Versand"
+                        value={order.shippingService || "—"}
+                      />
                       {/* Editable Weight */}
                       <div className="flex items-start justify-between gap-4">
                         <span className="text-txt-muted shrink-0">Gewicht</span>
@@ -632,8 +885,13 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({ orderId, onClose, onSt
                                   if (!isNaN(w) && w >= 0) {
                                     setSavingWeight(true);
                                     updateOrderWeight(orderId, w)
-                                      .then(() => { setEditingWeight(false); loadData(); })
-                                      .catch((err: any) => setError(err.message))
+                                      .then(() => {
+                                        setEditingWeight(false);
+                                        loadData();
+                                      })
+                                      .catch((err: any) =>
+                                        setError(err.message),
+                                      )
                                       .finally(() => setSavingWeight(false));
                                   }
                                 }
@@ -649,7 +907,10 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({ orderId, onClose, onSt
                                 if (!isNaN(w) && w >= 0) {
                                   setSavingWeight(true);
                                   updateOrderWeight(orderId, w)
-                                    .then(() => { setEditingWeight(false); loadData(); })
+                                    .then(() => {
+                                      setEditingWeight(false);
+                                      loadData();
+                                    })
                                     .catch((err: any) => setError(err.message))
                                     .finally(() => setSavingWeight(false));
                                 }
@@ -657,7 +918,13 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({ orderId, onClose, onSt
                             >
                               {savingWeight ? "..." : "✓"}
                             </button>
-                            <button type="button" className="text-xs text-txt-muted hover:text-txt-primary" onClick={() => setEditingWeight(false)}>✕</button>
+                            <button
+                              type="button"
+                              className="text-xs text-txt-muted hover:text-txt-primary"
+                              onClick={() => setEditingWeight(false)}
+                            >
+                              ✕
+                            </button>
                           </div>
                         ) : (
                           <span
@@ -668,52 +935,110 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({ orderId, onClose, onSt
                               setEditingWeight(true);
                             }}
                           >
-                            {order.weight ? `${order.weight} kg` : <span className="text-warning">nicht angegeben ✎</span>}
+                            {order.weight ? (
+                              `${order.weight} kg`
+                            ) : (
+                              <span className="text-warning">
+                                nicht angegeben ✎
+                              </span>
+                            )}
                           </span>
                         )}
                       </div>
                       {order.trackingNumber && (
-                        <Row label="Tracking" value={
-                          (() => {
+                        <Row
+                          label="Tracking"
+                          value={(() => {
                             const url = buildTrackingUrl(order);
                             return url ? (
-                              <a href={url} target="_blank" rel="noopener noreferrer" className="text-accent hover:underline font-mono text-xs">
+                              <a
+                                href={url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-accent hover:underline font-mono text-xs"
+                              >
                                 {order.trackingNumber}
                               </a>
-                            ) : order.trackingNumber;
-                          })()
-                        } />
+                            ) : (
+                              order.trackingNumber
+                            );
+                          })()}
+                        />
                       )}
-                      {order.buyerNote && <Row label="Kundennotiz" value={order.buyerNote} />}
+                      {order.buyerNote && (
+                        <Row label="Kundennotiz" value={order.buyerNote} />
+                      )}
                     </div>
                   </section>
 
                   {/* Timestamps — only show if status has actually reached that stage */}
                   <section>
-                    <h3 className="text-sm font-medium text-txt-primary mb-2">Zeitstempel</h3>
+                    <h3 className="text-sm font-medium text-txt-primary mb-2">
+                      Zeitstempel
+                    </h3>
                     <div className="bg-app-bg rounded-lg p-3 space-y-2 text-sm">
-                      {order.pickedAt && ["picked", "packed", "shipped", "delivered", "completed"].includes(omsStatus) && (
-                        <Row label="Kommissioniert" value={new Date(order.pickedAt).toLocaleString("de-DE")} />
-                      )}
-                      {order.packedAt && ["packed", "shipped", "delivered", "completed"].includes(omsStatus) && (
-                        <Row label="Verpackt" value={new Date(order.packedAt).toLocaleString("de-DE")} />
-                      )}
-                      {order.shippedAt && ["shipped", "delivered", "completed"].includes(omsStatus) && (
-                        <Row label="Versendet" value={new Date(order.shippedAt).toLocaleString("de-DE")} />
-                      )}
-                      {order.deliveredAt && ["delivered", "completed"].includes(omsStatus) && (
-                        <Row label="Zugestellt" value={new Date(order.deliveredAt).toLocaleString("de-DE")} />
-                      )}
+                      {order.pickedAt &&
+                        [
+                          "picked",
+                          "packed",
+                          "shipped",
+                          "delivered",
+                          "completed",
+                        ].includes(omsStatus) && (
+                          <Row
+                            label="Kommissioniert"
+                            value={new Date(order.pickedAt).toLocaleString(
+                              "de-DE",
+                            )}
+                          />
+                        )}
+                      {order.packedAt &&
+                        [
+                          "packed",
+                          "shipped",
+                          "delivered",
+                          "completed",
+                        ].includes(omsStatus) && (
+                          <Row
+                            label="Verpackt"
+                            value={new Date(order.packedAt).toLocaleString(
+                              "de-DE",
+                            )}
+                          />
+                        )}
+                      {order.shippedAt &&
+                        ["shipped", "delivered", "completed"].includes(
+                          omsStatus,
+                        ) && (
+                          <Row
+                            label="Versendet"
+                            value={new Date(order.shippedAt).toLocaleString(
+                              "de-DE",
+                            )}
+                          />
+                        )}
+                      {order.deliveredAt &&
+                        ["delivered", "completed"].includes(omsStatus) && (
+                          <Row
+                            label="Zugestellt"
+                            value={new Date(order.deliveredAt).toLocaleString(
+                              "de-DE",
+                            )}
+                          />
+                        )}
                     </div>
                   </section>
 
                   {/* Actions */}
                   <section>
-                    <h3 className="text-sm font-medium text-txt-primary mb-2">Aktionen</h3>
+                    <h3 className="text-sm font-medium text-txt-primary mb-2">
+                      Aktionen
+                    </h3>
                     {trackingMissing && (
                       <div className="mb-2 flex flex-wrap items-center gap-2 rounded-lg border border-warning/20 bg-warning/10 px-3 py-2 text-xs text-warning">
                         <span className="flex-1 min-w-[12rem]">
-                          Tracking fehlt obwohl der Auftrag versendet ist. SendCloud-Label könnte vorhanden sein.
+                          Tracking fehlt obwohl der Auftrag versendet ist.
+                          SendCloud-Label könnte vorhanden sein.
                         </span>
                         <ActionButton
                           label="Versanddaten von SendCloud holen"
@@ -723,14 +1048,20 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({ orderId, onClose, onSt
                       </div>
                     )}
                     <div className="flex flex-wrap gap-2">
-                      {(omsStatus === "packed" || omsStatus === "picked") && !order.trackingNumber && (
-                        order.customer?.street && order.customer?.city && order.customer?.zip ? (
+                      {(omsStatus === "packed" || omsStatus === "picked") &&
+                        !order.trackingNumber &&
+                        (order.customer?.street &&
+                        order.customer?.city &&
+                        order.customer?.zip ? (
                           <>
                             <select
                               value={labelFormat}
                               onChange={(e) => {
                                 setLabelFormat(e.target.value);
-                                localStorage.setItem("avycloud_label_format", e.target.value);
+                                localStorage.setItem(
+                                  "avycloud_label_format",
+                                  e.target.value,
+                                );
                               }}
                               className="rounded-md border border-app-border bg-app-surface text-txt-primary text-xs px-2 py-1.5 self-center"
                               title="Label-Format"
@@ -741,22 +1072,37 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({ orderId, onClose, onSt
                             {shippingMethods.length > 0 && (
                               <select
                                 value={selectedMethodId ?? ""}
-                                onChange={(e) => setSelectedMethodId(e.target.value ? Number(e.target.value) : null)}
+                                onChange={(e) =>
+                                  setSelectedMethodId(
+                                    e.target.value
+                                      ? Number(e.target.value)
+                                      : null,
+                                  )
+                                }
                                 className="rounded-md border border-app-border bg-app-surface text-txt-primary text-xs px-2 py-1.5 self-center max-w-[200px]"
                                 title="Versandmethode"
                               >
                                 <option value="">Auto (Regel)</option>
                                 {Object.entries(
-                                  shippingMethods.reduce<Record<string, ShippingMethod[]>>((acc, m) => {
-                                    const key = m.carrierName || m.carrier || "Sonstige";
+                                  shippingMethods.reduce<
+                                    Record<string, ShippingMethod[]>
+                                  >((acc, m) => {
+                                    const key =
+                                      m.carrierName || m.carrier || "Sonstige";
                                     if (!acc[key]) acc[key] = [];
                                     acc[key].push(m);
                                     return acc;
-                                  }, {})
+                                  }, {}),
                                 ).map(([carrier, methods]) => (
-                                  <optgroup key={carrier} label={carrier.toUpperCase()}>
+                                  <optgroup
+                                    key={carrier}
+                                    label={carrier.toUpperCase()}
+                                  >
                                     {methods.map((m) => (
-                                      <option key={m.sendcloudId} value={m.sendcloudId}>
+                                      <option
+                                        key={m.sendcloudId}
+                                        value={m.sendcloudId}
+                                      >
                                         {m.name}
                                       </option>
                                     ))}
@@ -774,19 +1120,21 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({ orderId, onClose, onSt
                           </>
                         ) : (
                           <div className="text-xs text-warning bg-warning/10 px-3 py-2 rounded-lg">
-                            Versandlabel nicht möglich — Adresse unvollständig. Bitte oben bearbeiten.
+                            Versandlabel nicht möglich — Adresse unvollständig.
+                            Bitte oben bearbeiten.
                           </div>
-                        )
-                      )}
+                        ))}
                       {/* Manual tracking input */}
-                      {!order.trackingNumber && (
-                        showManualTracking ? (
+                      {!order.trackingNumber &&
+                        (showManualTracking ? (
                           <div className="flex flex-wrap items-center gap-2 w-full">
                             <input
                               type="text"
                               placeholder="Tracking-Nummer"
                               value={manualTrackingNumber}
-                              onChange={(e) => setManualTrackingNumber(e.target.value)}
+                              onChange={(e) =>
+                                setManualTrackingNumber(e.target.value)
+                              }
                               className="rounded-md border border-app-border bg-app-surface text-txt-primary text-xs px-2 py-1.5 w-48"
                             />
                             <select
@@ -804,7 +1152,9 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({ orderId, onClose, onSt
                             <ActionButton
                               label="Speichern"
                               icon="✓"
-                              disabled={!manualTrackingNumber.trim() || savingTracking}
+                              disabled={
+                                !manualTrackingNumber.trim() || savingTracking
+                              }
                               onClick={async () => {
                                 setSavingTracking(true);
                                 try {
@@ -825,7 +1175,10 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({ orderId, onClose, onSt
                             <ActionButton
                               label="Abbrechen"
                               icon="✕"
-                              onClick={() => { setShowManualTracking(false); setManualTrackingNumber(""); }}
+                              onClick={() => {
+                                setShowManualTracking(false);
+                                setManualTrackingNumber("");
+                              }}
                             />
                           </div>
                         ) : (
@@ -834,15 +1187,17 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({ orderId, onClose, onSt
                             icon="✎"
                             onClick={() => setShowManualTracking(true)}
                           />
-                        )
-                      )}
+                        ))}
                       {hasShipmentEvidence && (
                         <>
                           <select
                             value={labelFormat}
                             onChange={(e) => {
                               setLabelFormat(e.target.value);
-                              localStorage.setItem("avycloud_label_format", e.target.value);
+                              localStorage.setItem(
+                                "avycloud_label_format",
+                                e.target.value,
+                              );
                             }}
                             className="rounded-md border border-app-border bg-app-surface text-txt-primary text-xs px-2 py-1.5 self-center"
                             title="Label-Format"
@@ -854,21 +1209,32 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({ orderId, onClose, onSt
                             label="Label drucken"
                             icon="🖨"
                             onClick={async () => {
-                              const blob = await fetchLabelPdfBlob(orderId, { labelFormat });
+                              const blob = await fetchLabelPdfBlob(orderId, {
+                                labelFormat,
+                              });
                               const blobUrl = URL.createObjectURL(blob);
-                              const printWindow = window.open(blobUrl, '_blank');
+                              const printWindow = window.open(
+                                blobUrl,
+                                "_blank",
+                              );
                               if (printWindow) {
-                                printWindow.addEventListener('load', () => {
+                                printWindow.addEventListener("load", () => {
                                   printWindow.print();
                                 });
-                                setTimeout(() => URL.revokeObjectURL(blobUrl), 120000);
+                                setTimeout(
+                                  () => URL.revokeObjectURL(blobUrl),
+                                  120000,
+                                );
                               } else {
                                 // Fallback: download if popup blocked
-                                const a = document.createElement('a');
+                                const a = document.createElement("a");
                                 a.href = blobUrl;
                                 a.download = `label-${orderId}.pdf`;
                                 a.click();
-                                setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+                                setTimeout(
+                                  () => URL.revokeObjectURL(blobUrl),
+                                  10000,
+                                );
                               }
                             }}
                           />
@@ -896,7 +1262,9 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({ orderId, onClose, onSt
                         <>
                           <select
                             value={selectedVatRate}
-                            onChange={(e) => setSelectedVatRate(parseFloat(e.target.value))}
+                            onChange={(e) =>
+                              setSelectedVatRate(parseFloat(e.target.value))
+                            }
                             className="rounded-md border border-app-border bg-app-surface text-txt-primary text-xs px-2 py-1.5 self-center"
                             title="MwSt.-Satz"
                           >
@@ -908,7 +1276,9 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({ orderId, onClose, onSt
                             label="Rechnung erstellen"
                             icon="📄"
                             onClick={async () => {
-                              await generateInvoice(orderId, { vatRate: selectedVatRate });
+                              await generateInvoice(orderId, {
+                                vatRate: selectedVatRate,
+                              });
                               await loadData();
                             }}
                           />
@@ -937,25 +1307,49 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({ orderId, onClose, onSt
                               className="inline-flex items-center gap-1 rounded bg-accent-dim px-1.5 py-0.5 text-[11px] font-semibold text-accent hover:opacity-80 transition"
                               onClick={async () => {
                                 try {
-                                  const blob = await downloadInvoicePdfBlob(order.invoiceId!);
+                                  const blob = await downloadInvoicePdfBlob(
+                                    order.invoiceId!,
+                                  );
                                   const blobUrl = URL.createObjectURL(blob);
-                                  const printWindow = window.open(blobUrl, "_blank");
+                                  const printWindow = window.open(
+                                    blobUrl,
+                                    "_blank",
+                                  );
                                   if (!printWindow) {
                                     const a = document.createElement("a");
                                     a.href = blobUrl;
                                     a.download = `Rechnung-${order.invoiceNumber}.pdf`;
                                     a.click();
-                                    setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+                                    setTimeout(
+                                      () => URL.revokeObjectURL(blobUrl),
+                                      10000,
+                                    );
                                   } else {
-                                    setTimeout(() => URL.revokeObjectURL(blobUrl), 120000);
+                                    setTimeout(
+                                      () => URL.revokeObjectURL(blobUrl),
+                                      120000,
+                                    );
                                   }
                                 } catch (err: any) {
-                                  console.error("[OrderDetail] Invoice PDF download failed:", err);
+                                  console.error(
+                                    "[OrderDetail] Invoice PDF download failed:",
+                                    err,
+                                  );
                                 }
                               }}
                             >
-                              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                              <svg
+                                className="w-3 h-3"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                                strokeWidth={2}
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                                />
                               </svg>
                               PDF
                             </button>
@@ -963,7 +1357,9 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({ orderId, onClose, onSt
                         </span>
                       )}
                       {order.deliveryNoteNumber && (
-                        <span className="text-xs text-txt-muted self-center">Lieferschein: {order.deliveryNoteNumber}</span>
+                        <span className="text-xs text-txt-muted self-center">
+                          Lieferschein: {order.deliveryNoteNumber}
+                        </span>
                       )}
                     </div>
                   </section>
@@ -972,41 +1368,56 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({ orderId, onClose, onSt
 
               {activeTab === "items" && (
                 <div className="space-y-3">
-                  {order.items?.map((item, idx) => (
-                    <div key={item.id || idx} className="bg-app-bg rounded-lg p-3 flex items-start gap-3">
-                      <div className="w-8 h-8 rounded-md bg-app-elevated flex items-center justify-center text-xs text-txt-muted font-bold shrink-0">
-                        {item.quantity}x
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-txt-primary truncate">{item.name}</p>
-                        <div className="flex items-center gap-3 mt-1 text-xs text-txt-muted">
-                          {item.sku && <span>SKU: {item.sku}</span>}
-                          {item.ean && <span>EAN: {item.ean}</span>}
-                          {item.weight
-                            ? <span>{item.weight} kg</span>
-                            : <span className="text-warning">Gewicht fehlt</span>
-                          }
-                        </div>
-                        {item.pickHint?.binCode && (
-                          <div className="mt-1 text-xs text-accent">
-                            Lagerplatz: {item.pickHint.binCode}
-                            {item.pickHint.quantityAvailable != null && ` (${item.pickHint.quantityAvailable} verfügbar)`}
-                          </div>
-                        )}
-                      </div>
-                      <div className="text-sm font-semibold text-txt-primary whitespace-nowrap">
-                        {item.priceBrutto != null ? `${(item.priceBrutto * item.quantity).toFixed(2)} €` : "—"}
-                      </div>
+                  {aggregatedItems.length === 0 ? (
+                    <div className="text-center text-txt-muted text-sm py-8">
+                      Keine Positionen
                     </div>
-                  )) || (
-                    <div className="text-center text-txt-muted text-sm py-8">Keine Positionen</div>
+                  ) : (
+                    aggregatedItems.map((item) => (
+                      <div
+                        key={item.key}
+                        className="bg-app-bg rounded-lg p-3 flex items-start gap-3"
+                      >
+                        <div className="w-8 h-8 rounded-md bg-app-elevated flex items-center justify-center text-xs text-txt-muted font-bold shrink-0">
+                          {item.quantity}x
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-txt-primary truncate">
+                            {item.name}
+                          </p>
+                          <div className="flex items-center gap-3 mt-1 text-xs text-txt-muted">
+                            {item.sku && <span>SKU: {item.sku}</span>}
+                            {item.ean && <span>EAN: {item.ean}</span>}
+                            {item.weight ? (
+                              <span>{item.weight} kg</span>
+                            ) : (
+                              <span className="text-warning">Gewicht fehlt</span>
+                            )}
+                          </div>
+                          {item.pickHint?.binCode && (
+                            <div className="mt-1 text-xs text-accent">
+                              Lagerplatz: {item.pickHint.binCode}
+                              {item.pickHint.quantityAvailable != null &&
+                                ` (${item.pickHint.quantityAvailable} verfügbar)`}
+                            </div>
+                          )}
+                        </div>
+                        <div className="text-sm font-semibold text-txt-primary whitespace-nowrap">
+                          {item.hasPrice ? `${item.lineTotal.toFixed(2)} €` : "—"}
+                        </div>
+                      </div>
+                    ))
                   )}
 
                   {/* Total */}
                   <div className="flex items-center justify-between pt-2 border-t border-app-border">
-                    <span className="text-sm font-medium text-txt-primary">Gesamt</span>
+                    <span className="text-sm font-medium text-txt-primary">
+                      Gesamt
+                    </span>
                     <span className="text-lg font-bold text-txt-primary">
-                      {order.totalAmount != null ? `${order.totalAmount.toFixed(2)} €` : "—"}
+                      {order.totalAmount != null
+                        ? `${order.totalAmount.toFixed(2)} €`
+                        : "—"}
                     </span>
                   </div>
                 </div>
@@ -1015,16 +1426,23 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({ orderId, onClose, onSt
               {activeTab === "timeline" && (
                 <div className="space-y-0">
                   {timeline.length === 0 ? (
-                    <div className="text-center text-txt-muted text-sm py-8">Noch keine Einträge</div>
+                    <div className="text-center text-txt-muted text-sm py-8">
+                      Noch keine Einträge
+                    </div>
                   ) : (
                     timeline.map((event, idx) => {
-                      const toColor = STATUS_COLORS[event.toStatus] || STATUS_COLORS.pending;
+                      const toColor =
+                        STATUS_COLORS[event.toStatus] || STATUS_COLORS.pending;
                       return (
                         <div key={event.id} className="flex gap-3">
                           {/* Timeline Line */}
                           <div className="flex flex-col items-center">
-                            <div className={`w-2.5 h-2.5 rounded-full mt-1.5 ${toColor.dot}`} />
-                            {idx < timeline.length - 1 && <div className="w-px flex-1 bg-app-border" />}
+                            <div
+                              className={`w-2.5 h-2.5 rounded-full mt-1.5 ${toColor.dot}`}
+                            />
+                            {idx < timeline.length - 1 && (
+                              <div className="w-px flex-1 bg-app-border" />
+                            )}
                           </div>
                           {/* Event Content */}
                           <div className="pb-4 flex-1">
@@ -1035,16 +1453,22 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({ orderId, onClose, onSt
                             </div>
                             <div className="flex items-center gap-2 mt-0.5">
                               {event.actor?.email && (
-                                <span className="text-xs text-txt-muted">{event.actor.email}</span>
+                                <span className="text-xs text-txt-muted">
+                                  {event.actor.email}
+                                </span>
                               )}
                               {event.timestamp && (
                                 <span className="text-xs text-txt-muted">
-                                  {new Date(event.timestamp).toLocaleString("de-DE")}
+                                  {new Date(event.timestamp).toLocaleString(
+                                    "de-DE",
+                                  )}
                                 </span>
                               )}
                             </div>
                             {event.note && (
-                              <p className="text-xs text-txt-secondary mt-1">{event.note}</p>
+                              <p className="text-xs text-txt-secondary mt-1">
+                                {event.note}
+                              </p>
                             )}
                           </div>
                         </div>
@@ -1061,7 +1485,12 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({ orderId, onClose, onSt
       {shipDecisionStep === "weight" && (
         <WeightPromptModal
           initialKg={shipDecisionInitialWeight}
-          contextLabel={order?.marketplaceOrderId || order?.orderId || order?.number || orderId}
+          contextLabel={
+            order?.marketplaceOrderId ||
+            order?.orderId ||
+            order?.number ||
+            orderId
+          }
           busy={shipDecisionBusy}
           errorMessage={shipDecisionError}
           onConfirm={handleWeightConfirm}
@@ -1073,7 +1502,12 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({ orderId, onClose, onSt
         <CarrierPickModal
           weightKg={shipDecisionWeight}
           matches={shipDecisionMatches}
-          contextLabel={order?.marketplaceOrderId || order?.orderId || order?.number || orderId}
+          contextLabel={
+            order?.marketplaceOrderId ||
+            order?.orderId ||
+            order?.number ||
+            orderId
+          }
           busy={shipDecisionBusy}
           errorMessage={shipDecisionError}
           onConfirm={handleCarrierConfirm}
@@ -1085,7 +1519,11 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({ orderId, onClose, onSt
 };
 
 /* Helper: Action Button */
-const ActionButton: React.FC<{ label: string; icon: string; onClick: () => Promise<void> }> = ({ label, icon, onClick }) => {
+const ActionButton: React.FC<{
+  label: string;
+  icon: string;
+  onClick: () => Promise<void>;
+}> = ({ label, icon, onClick }) => {
   const [busy, setBusy] = React.useState(false);
   const [err, setErr] = React.useState<string | null>(null);
   const handleClick = async () => {

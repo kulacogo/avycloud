@@ -18,24 +18,31 @@ import { CarrierPickModal, WeightPromptModal } from './orders/ShippingDecisionDi
 import { useI18n } from '../i18n';
 import { compareBinCodesForPickRoute } from '../utils/warehouseRoute';
 import type { UploadGroupPayload } from '../hooks/useIdentification';
+import QuantityNumpad from './operations/QuantityNumpad';
 
 type OpsMode = 'operations' | 'operations-identify' | 'operations-stow' | 'operations-pick' | 'operations-pack';
 
 type MobilePickTask = {
+  taskKey: string;
   orderId: string;
   orderNumber?: string | null;
   orderCreatedAt?: string | null;
-  itemId: string;
   name: string;
   sku: string;
   binCode: string;
   thumbnailUrl?: string | null;
   suggestedQty: number;
   remainingTotal: number;
-  itemTotal: number;
-  pickedSoFar: number;
   productId?: string | null;
   availableInBin?: number | null;
+  allocations: Array<{
+    itemId: string;
+    orderItemId: string;
+    remaining: number;
+    itemTotal: number;
+    pickedSoFar: number;
+    productId?: string | null;
+  }>;
 };
 
 interface MobileOperationsViewProps {
@@ -434,7 +441,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
   );
 
   const pickTasks = useMemo(() => {
-    const tasks: MobilePickTask[] = [];
+    const taskMap = new Map<string, MobilePickTask>();
 
     // Allocate available BIN quantities across tasks deterministically so multiple orders
     // don't all "claim" the same BIN when stock is split (prevents impossible pick routes).
@@ -511,23 +518,66 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
           allocatedBin.quantity = Math.max(0, allocatedBin.quantity - suggestedQty);
         }
 
-        tasks.push({
-          orderId: order.id,
-          orderNumber: (order as any).marketplaceOrderId || order.number || (order as any).orderId || order.id,
-          orderCreatedAt: order.createdAt || null,
-          itemId,
-          name: hint?.productName || product?.identification?.name || it.name,
-          sku: skuCandidate,
-          binCode,
-          thumbnailUrl: product?.details?.images?.[0]?.url_or_base64 || null,
-          suggestedQty,
-          remainingTotal,
-          itemTotal: total,
-          pickedSoFar,
-          productId: (product?.id || hint?.productId || it.productId || null) as any,
-          availableInBin: typeof availableInBin === 'number' ? availableInBin : null,
+        const orderNumber = (order as any).marketplaceOrderId || order.number || (order as any).orderId || order.id;
+        const taskKey = `${order.id}::${binCode || '-'}::${skuCandidate}`;
+        const resolvedProductId = (product?.id || hint?.productId || it.productId || null) as any;
+        const taskName = hint?.productName || product?.identification?.name || it.name;
+        const taskThumbnail = product?.details?.images?.[0]?.url_or_base64 || null;
+        const existing = taskMap.get(taskKey);
+
+        if (existing) {
+          existing.remainingTotal += remainingTotal;
+          existing.suggestedQty += suggestedQty;
+          existing.allocations.push({
+            itemId,
+            orderItemId: itemId,
+            remaining: remainingTotal,
+            itemTotal: total,
+            pickedSoFar,
+            productId: resolvedProductId,
+          });
+          if (!existing.name && taskName) existing.name = taskName;
+          if (!existing.thumbnailUrl && taskThumbnail) existing.thumbnailUrl = taskThumbnail;
+          if (!existing.productId && resolvedProductId) existing.productId = resolvedProductId;
+          if (typeof availableInBin === 'number') {
+            const current = typeof existing.availableInBin === 'number' ? existing.availableInBin : 0;
+            existing.availableInBin = current + availableInBin;
+          }
+        } else {
+          taskMap.set(taskKey, {
+            taskKey,
+            orderId: order.id,
+            orderNumber,
+            orderCreatedAt: order.createdAt || null,
+            name: taskName,
+            sku: skuCandidate,
+            binCode,
+            thumbnailUrl: taskThumbnail,
+            suggestedQty,
+            remainingTotal,
+            productId: resolvedProductId,
+            availableInBin: typeof availableInBin === 'number' ? availableInBin : null,
+            allocations: [
+              {
+                itemId,
+                orderItemId: itemId,
+                remaining: remainingTotal,
+                itemTotal: total,
+                pickedSoFar,
+                productId: resolvedProductId,
+              },
+            ],
+          });
+        }
         });
-        });
+    });
+
+    const tasks = Array.from(taskMap.values()).map((task) => {
+      const maxByBin = typeof task.availableInBin === 'number' ? task.availableInBin : task.remainingTotal;
+      return {
+        ...task,
+        suggestedQty: Math.max(1, Math.min(task.suggestedQty, task.remainingTotal, maxByBin)),
+      };
     });
 
     tasks.sort((a, b) => compareBinCodesForPickRoute(a.binCode, b.binCode));

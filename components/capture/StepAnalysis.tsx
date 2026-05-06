@@ -30,6 +30,9 @@ const SUB_STEPS: SubStep[] = [
 ];
 
 const PHASE_ORDER: Phase[] = ["upload", "vision", "barcode", "web", "llm", "pricing", "done"];
+const TRANSIENT_IDENTIFY_CODES = new Set([408, 429, 500, 502, 503, 504]);
+
+const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const StepAnalysis: React.FC<StepAnalysisProps> = ({
   uploadData,
@@ -41,6 +44,7 @@ const StepAnalysis: React.FC<StepAnalysisProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [phaseLabel, setPhaseLabel] = useState<string | null>(null);
   const [groupProgress, setGroupProgress] = useState({ current: 0, total: 0 });
+  const [retryNonce, setRetryNonce] = useState(0);
   const startedRef = useRef(false);
 
   useEffect(() => {
@@ -53,6 +57,7 @@ const StepAnalysis: React.FC<StepAnalysisProps> = ({
       const groups = uploadData.groups;
       const total = groups.length;
       setGroupProgress({ current: 0, total });
+      setPhaseLabel(null);
 
       if (total <= 1) {
         // Single group: original behavior with phase simulation
@@ -98,11 +103,59 @@ const StepAnalysis: React.FC<StepAnalysisProps> = ({
           onError(msg);
         }
       } else {
-        // BUG-091: Multi-group with concurrency limit + phase progress
-        const CONCURRENCY = 3;
+        // Multi-group mode:
+        // Pass 1 runs with limited concurrency. If ALL groups fail, run one
+        // sequential pass to reduce transient overload/rate-limit failures.
+        const CONCURRENCY = 2;
         const results: Product[] = [];
         const errors: { label: string; error: string }[] = [];
         let completed = 0;
+
+        const identifyGroupWithRetry = async (group: CaptureUploadData["groups"][number]) => {
+          const maxAttempts = 2;
+          let lastMessage = "Unbekannter Fehler";
+          for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+            if (cancelled) {
+              return { ok: false as const, error: "Abgebrochen" };
+            }
+            try {
+              const parts = [group.label, group.barcodes, group.hint].filter(Boolean);
+              const combinedHint = parts.length ? parts.join(" — ") : undefined;
+              const result = await identifyProductV2(
+                group.images || [],
+                group.barcodes || "",
+                "de-DE",
+                undefined,
+                uploadData.paletteCode || undefined,
+                combinedHint
+              );
+              if (result.ok && result.data) {
+                return { ok: true as const, data: result.data };
+              }
+              const code = result.error?.code;
+              const msg = result.error?.message || "Unbekannter Fehler";
+              lastMessage = code ? `${msg} (HTTP ${code})` : msg;
+              const retryable = typeof code === "number" && TRANSIENT_IDENTIFY_CODES.has(code);
+              if (attempt < maxAttempts && retryable) {
+                setPhaseLabel(`Retry für ${group.label} (${attempt + 1}/${maxAttempts}) ...`);
+                await wait(900 * attempt);
+                continue;
+              }
+              return { ok: false as const, error: lastMessage };
+            } catch (err: any) {
+              const raw = err?.message || "Netzwerkfehler";
+              lastMessage = String(raw);
+              const retryable = /timeout|network|fetch|abgebrochen|429|5\d\d/i.test(lastMessage);
+              if (attempt < maxAttempts && retryable) {
+                setPhaseLabel(`Retry für ${group.label} (${attempt + 1}/${maxAttempts}) ...`);
+                await wait(900 * attempt);
+                continue;
+              }
+              return { ok: false as const, error: lastMessage };
+            }
+          }
+          return { ok: false as const, error: lastMessage };
+        };
 
         // Phase progress timer (simulates sub-steps like single-mode)
         const phaseTimers: NodeJS.Timeout[] = [];
@@ -112,49 +165,53 @@ const StepAnalysis: React.FC<StepAnalysisProps> = ({
           phaseTimers.push(setTimeout(() => { if (!cancelled) setPhase(p); }, multiDelays[i]));
         });
 
-        // Process in concurrent chunks
-        for (let batchStart = 0; batchStart < total; batchStart += CONCURRENCY) {
-          if (cancelled) { phaseTimers.forEach(clearTimeout); return; }
-          const chunk = groups.slice(batchStart, batchStart + CONCURRENCY);
-          setGroupProgress({ current: Math.min(batchStart + CONCURRENCY, total), total });
-          setPhaseLabel(`Produkte ${batchStart + 1}–${Math.min(batchStart + CONCURRENCY, total)} von ${total}...`);
+        const processGroups = async (concurrency: number, targetGroups = groups) => {
+          for (let batchStart = 0; batchStart < targetGroups.length; batchStart += concurrency) {
+            if (cancelled) return;
+            const chunk = targetGroups.slice(batchStart, batchStart + concurrency);
+            setPhaseLabel(
+              concurrency === 1
+                ? `Fallback-Retry: Produkt ${batchStart + 1} von ${targetGroups.length}...`
+                : `Produkte ${batchStart + 1}–${Math.min(batchStart + concurrency, targetGroups.length)} von ${targetGroups.length}...`
+            );
 
-          const chunkResults = await Promise.allSettled(
-            chunk.map((group) => {
-              // Build hint from group label + barcode so Gemini focuses on the right product
-              const parts = [group.label, group.barcodes, group.hint].filter(Boolean);
-              const combinedHint = parts.length ? parts.join(" — ") : undefined;
-              return identifyProductV2(
-                group.images || [],
-                group.barcodes || "",
-                "de-DE",
-                undefined,
-                uploadData.paletteCode || undefined,
-                combinedHint
-              );
-            })
-          );
+            const chunkResults = await Promise.allSettled(chunk.map((group) => identifyGroupWithRetry(group)));
 
-          for (let i = 0; i < chunkResults.length; i++) {
-            const settled = chunkResults[i];
-            const group = chunk[i];
-            completed++;
-            if (settled.status === "fulfilled" && settled.value.ok && settled.value.data) {
-              results.push(settled.value.data);
-            } else {
-              const msg = settled.status === "rejected"
-                ? settled.reason?.message || "Netzwerkfehler"
-                : settled.value.error?.message || "Unbekannter Fehler";
-              errors.push({ label: group.label, error: msg });
+            for (let i = 0; i < chunkResults.length; i++) {
+              const settled = chunkResults[i];
+              const group = chunk[i];
+              completed++;
+              setGroupProgress({ current: completed, total });
+              if (settled.status === "fulfilled" && settled.value.ok && settled.value.data) {
+                results.push(settled.value.data);
+              } else {
+                const msg = settled.status === "rejected"
+                  ? settled.reason?.message || "Netzwerkfehler"
+                  : settled.value.error || "Unbekannter Fehler";
+                errors.push({ label: group.label, error: msg });
+              }
             }
           }
+        };
+
+        await processGroups(CONCURRENCY);
+
+        // If everything failed in parallel mode, retry once sequentially.
+        if (!cancelled && results.length === 0 && errors.length === total) {
+          const failedGroups = groups.filter((g) => errors.some((e) => e.label === g.label));
+          errors.length = 0;
+          completed = 0;
+          setGroupProgress({ current: 0, total: failedGroups.length || total });
+          await processGroups(1, failedGroups.length ? failedGroups : groups);
         }
 
         phaseTimers.forEach(clearTimeout);
         if (cancelled) return;
 
         if (results.length === 0) {
-          const msg = `Alle ${errors.length} Produkte fehlgeschlagen: ${errors.map((e) => e.label).join(", ")}`;
+          const grouped = errors.slice(0, 3).map((e) => `${e.label}: ${e.error}`).join(" | ");
+          const more = errors.length > 3 ? ` (+${errors.length - 3} weitere)` : "";
+          const msg = `Alle ${errors.length} Produkte fehlgeschlagen. ${grouped}${more}`;
           setPhase("error");
           setError(msg);
           onError(msg);
@@ -162,7 +219,8 @@ const StepAnalysis: React.FC<StepAnalysisProps> = ({
         }
 
         if (errors.length > 0) {
-          setError(`${errors.length} von ${total} Produkten fehlgeschlagen`);
+          const first = errors[0];
+          setError(`${errors.length} von ${total} Produkten fehlgeschlagen (z. B. ${first.label}: ${first.error})`);
         }
 
         setPhase("done");
@@ -174,7 +232,7 @@ const StepAnalysis: React.FC<StepAnalysisProps> = ({
 
     run();
     return () => { cancelled = true; };
-  }, [uploadData, onComplete, onError]);
+  }, [uploadData, onComplete, onError, retryNonce]);
 
   const currentIndex = PHASE_ORDER.indexOf(phase);
   const isMulti = groupProgress.total > 1;
@@ -269,7 +327,10 @@ const StepAnalysis: React.FC<StepAnalysisProps> = ({
               startedRef.current = false;
               setPhase("upload");
               setError(null);
+              setPhaseLabel(null);
+              setGroupProgress({ current: 0, total: uploadData.groups.length });
               onError("");
+              setRetryNonce((v) => v + 1);
             }}
           >
             Erneut versuchen
