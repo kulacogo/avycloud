@@ -190,9 +190,21 @@ async function gemini3GenerateJSON({
   model,
   temperature = 0.1,
   maxOutputTokens = 1024,
+  timeoutMs,
 }) {
   const ai = await getGenAIClient();
   const modelName = resolveModel(model, 'GEMINI_MODEL', DEFAULT_MODEL);
+  // SDK-level safety net so a hanging connection cannot live longer than the
+  // wall-clock budget. Without this, the @google/genai HTTP transport keeps
+  // sockets alive in the background even when callers gave up via Promise.race
+  // — that has been linked to Cloud-Run concurrency starvation during the
+  // identify cascade. Default 30s; override via timeoutMs arg or
+  // GEMINI_GENERIC_TIMEOUT_MS env. Identify-specific timeouts (Stage 1/3 etc.)
+  // are still applied at their dedicated call sites.
+  const resolvedTimeoutMs =
+    Number.isFinite(timeoutMs) && timeoutMs > 0
+      ? Math.floor(timeoutMs)
+      : parseInt(process.env.GEMINI_GENERIC_TIMEOUT_MS || '30000', 10);
 
   const response = await ai.models.generateContent({
     model: modelName,
@@ -202,6 +214,7 @@ async function gemini3GenerateJSON({
       maxOutputTokens,
       responseMimeType: 'application/json',
       responseJsonSchema: schema,
+      httpOptions: { timeout: resolvedTimeoutMs },
     },
   });
 
@@ -240,9 +253,15 @@ async function gemini3GenerateText({
   model,
   temperature = 0.7,
   maxOutputTokens = 2048,
+  timeoutMs,
 }) {
   const ai = await getGenAIClient();
   const modelName = resolveModel(model, 'GEMINI_MODEL', DEFAULT_MODEL);
+  // See gemini3GenerateJSON for rationale.
+  const resolvedTimeoutMs =
+    Number.isFinite(timeoutMs) && timeoutMs > 0
+      ? Math.floor(timeoutMs)
+      : parseInt(process.env.GEMINI_GENERIC_TIMEOUT_MS || '30000', 10);
 
   const response = await ai.models.generateContent({
     model: modelName,
@@ -250,6 +269,7 @@ async function gemini3GenerateText({
     config: {
       temperature,
       maxOutputTokens,
+      httpOptions: { timeout: resolvedTimeoutMs },
     },
   });
 

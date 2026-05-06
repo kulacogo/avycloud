@@ -4573,13 +4573,14 @@ export const identifyProductV2 = async (
     formData.append('hint', hint);
   }
 
-  // AbortController with 200s timeout. Backend wall-clock budget is 170s
-  // (IDENTIFY_TOTAL_TIMEOUT_MS), this leaves ~30s headroom for mobile-network
-  // upload time and Cloud Run cold starts so the backend always fails first
-  // with a structured 504 (IDENTIFY_TOTAL_TIMEOUT) instead of the frontend
-  // aborting mid-response with a generic message.
+  // Abort after backend wall-clock + upload slack. Backend starts
+  // IDENTIFY_TOTAL_TIMEOUT_MS (default 360s) after palette validation so V4 /
+  // OCR / GCS uploads count against the same budget; keep this slightly higher
+  // so the server can return 504 (IDENTIFY_TOTAL_TIMEOUT) before we abort.
+  const IDENTIFY_FETCH_MS = parseInt(String(import.meta.env?.VITE_IDENTIFY_TIMEOUT_MS || ''), 10);
+  const fetchBudgetMs = Number.isFinite(IDENTIFY_FETCH_MS) && IDENTIFY_FETCH_MS > 0 ? IDENTIFY_FETCH_MS : 390_000;
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 200_000);
+  const timeout = setTimeout(() => controller.abort(), fetchBudgetMs);
 
   let response: Response | undefined;
   try {
@@ -4610,7 +4611,7 @@ export const identifyProductV2 = async (
         error: {
           code: 408,
           message:
-            'Produkterkennung abgebrochen (Timeout). Bitte mit weniger oder kleineren Bildern erneut versuchen.',
+            'Produkterkennung abgebrochen (Timeout beim Warten auf den Server). Netzwerk prüfen und erneut versuchen. Bei sehr vielen Bildern helfen weniger Aufnahmen oder geringere Auflösung.',
         },
       };
     }

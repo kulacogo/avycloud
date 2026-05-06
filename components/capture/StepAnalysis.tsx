@@ -5,6 +5,8 @@ import { Card } from "../ui/Card";
 import { Button } from "../ui/Button";
 import { ProgressBar } from "../ui/ProgressBar";
 import type { CaptureUploadData } from "./CaptureView";
+import { compressImagesForUpload } from "../../utils/imageCompress";
+import { beginIdentifyRun } from "../../utils/identifyRunFlag";
 
 interface StepAnalysisProps {
   uploadData: CaptureUploadData;
@@ -31,8 +33,38 @@ const SUB_STEPS: SubStep[] = [
 
 const PHASE_ORDER: Phase[] = ["upload", "vision", "barcode", "web", "llm", "pricing", "done"];
 const TRANSIENT_IDENTIFY_CODES = new Set([408, 429, 500, 502, 503, 504]);
+const SINGLE_MODE_MAX_ATTEMPTS = 3;
+const SINGLE_MODE_BACKOFF_MS = [0, 4_000, 10_000];
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const isTransientIdentifyError = (errOrResult: {
+  code?: number | string;
+  message?: string;
+}) => {
+  const code = errOrResult?.code;
+  if (typeof code === "number" && TRANSIENT_IDENTIFY_CODES.has(code)) return true;
+  const msg = String(errOrResult?.message || "").toLowerCase();
+  return /timeout|abgebrochen|netzwerk|network|fetch|429|408|5\d\d/.test(msg);
+};
+
+const formatIdentifyError = (
+  rawMessage: string | null | undefined,
+  attemptsTried: number
+): string => {
+  const base = (rawMessage || "Produkterkennung fehlgeschlagen.").trim();
+  const isTimeout = /timeout|abgebrochen/i.test(base);
+  if (!isTimeout) return base;
+  return [
+    base,
+    attemptsTried > 1
+      ? `Nach ${attemptsTried} Versuchen weiterhin Timeout.`
+      : null,
+    "Tipp: Versuche es mit weniger Bildern (3-4 reichen meist) oder kleinerer Auflösung.",
+  ]
+    .filter(Boolean)
+    .join(" ");
+};
 
 const StepAnalysis: React.FC<StepAnalysisProps> = ({
   uploadData,
@@ -52,6 +84,10 @@ const StepAnalysis: React.FC<StepAnalysisProps> = ({
     startedRef.current = true;
 
     let cancelled = false;
+    // Tell App.tsx to pause the 60s products polling while we're busy.
+    // Released in the finally block below — also called automatically if
+    // the component unmounts mid-run via the useEffect cleanup.
+    const releaseIdentifyFlag = beginIdentifyRun();
 
     const run = async () => {
       const groups = uploadData.groups;
@@ -60,48 +96,112 @@ const StepAnalysis: React.FC<StepAnalysisProps> = ({
       setPhaseLabel(null);
 
       if (total <= 1) {
-        // Single group: original behavior with phase simulation
+        // Single group: phase animation + retry-with-backoff on transient errors.
         const phaseTimers: NodeJS.Timeout[] = [];
         const delays = [800, 2500, 4000, 7000, 12000];
         const phases: Phase[] = ["vision", "barcode", "web", "llm", "pricing"];
-        phases.forEach((p, i) => {
-          phaseTimers.push(setTimeout(() => { if (!cancelled) setPhase(p); }, delays[i]));
-        });
 
-        try {
-          const group = groups[0];
-          const result = await identifyProductV2(
-            group?.images || [],
-            uploadData.barcodes,
-            "de-DE",
-            undefined,
-            uploadData.paletteCode || undefined,
-            group?.hint || undefined
-          );
-
+        const startPhaseAnimation = () => {
           phaseTimers.forEach(clearTimeout);
-          if (cancelled) return;
+          phaseTimers.length = 0;
+          setPhase("upload");
+          phases.forEach((p, i) => {
+            phaseTimers.push(
+              setTimeout(() => {
+                if (!cancelled) setPhase(p);
+              }, delays[i])
+            );
+          });
+        };
 
-          if (!result.ok || !result.data) {
-            const msg = result.error?.message || "Produkterkennung fehlgeschlagen.";
-            setPhase("error");
-            setError(msg);
-            onError(msg);
-            return;
+        const group = groups[0];
+        let compressedImages: File[] = group?.images || [];
+        try {
+          if (compressedImages.length) {
+            const { files: compressed, bytesBefore, bytesAfter } =
+              await compressImagesForUpload(compressedImages, {
+                maxDim: 1600,
+                quality: 0.78,
+              });
+            compressedImages = compressed;
+            const mbBefore = (bytesBefore / 1_048_576).toFixed(1);
+            const mbAfter = (bytesAfter / 1_048_576).toFixed(1);
+            console.log(
+              `[StepAnalysis] Compressed ${compressed.length} image(s): ${mbBefore} MB → ${mbAfter} MB`
+            );
+          }
+        } catch (compErr) {
+          console.warn(
+            "[StepAnalysis] image compression failed, using originals",
+            compErr
+          );
+        }
+
+        let lastMessage: string | null = null;
+        let lastCode: number | undefined;
+        let attemptsTried = 0;
+
+        for (let attempt = 1; attempt <= SINGLE_MODE_MAX_ATTEMPTS; attempt++) {
+          if (cancelled) return;
+          attemptsTried = attempt;
+
+          if (attempt > 1) {
+            const backoffMs = SINGLE_MODE_BACKOFF_MS[attempt - 1] || 0;
+            setPhaseLabel(
+              `Versuch ${attempt}/${SINGLE_MODE_MAX_ATTEMPTS} läuft…${
+                backoffMs ? ` (warte ${Math.round(backoffMs / 1000)}s)` : ""
+              }`
+            );
+            if (backoffMs) await wait(backoffMs);
+            if (cancelled) return;
           }
 
-          setPhase("done");
-          setTimeout(() => {
-            if (!cancelled) onComplete(result.data!);
-          }, 600);
-        } catch (err: any) {
-          phaseTimers.forEach(clearTimeout);
-          if (cancelled) return;
-          const msg = err?.message || "Ein unerwarteter Fehler ist aufgetreten.";
-          setPhase("error");
-          setError(msg);
-          onError(msg);
+          startPhaseAnimation();
+
+          try {
+            const result = await identifyProductV2(
+              compressedImages,
+              uploadData.barcodes,
+              "de-DE",
+              undefined,
+              uploadData.paletteCode || undefined,
+              group?.hint || undefined
+            );
+
+            phaseTimers.forEach(clearTimeout);
+            if (cancelled) return;
+
+            if (result.ok && result.data) {
+              setPhaseLabel(null);
+              setPhase("done");
+              setTimeout(() => {
+                if (!cancelled) onComplete(result.data!);
+              }, 600);
+              return;
+            }
+
+            // Soft failure (4xx/5xx via API client). Retry only on transient codes.
+            lastMessage = result.error?.message || "Produkterkennung fehlgeschlagen.";
+            lastCode = typeof result.error?.code === "number" ? result.error.code : undefined;
+            const transient = isTransientIdentifyError({
+              code: lastCode,
+              message: lastMessage,
+            });
+            if (!transient || attempt >= SINGLE_MODE_MAX_ATTEMPTS) break;
+          } catch (err: any) {
+            phaseTimers.forEach(clearTimeout);
+            if (cancelled) return;
+            lastMessage = err?.message || "Ein unerwarteter Fehler ist aufgetreten.";
+            const transient = isTransientIdentifyError({ message: lastMessage });
+            if (!transient || attempt >= SINGLE_MODE_MAX_ATTEMPTS) break;
+          }
         }
+
+        if (cancelled) return;
+        const finalMessage = formatIdentifyError(lastMessage, attemptsTried);
+        setPhase("error");
+        setError(finalMessage);
+        onError(finalMessage);
       } else {
         // Multi-group mode:
         // Pass 1 runs with limited concurrency. If ALL groups fail, run one
@@ -110,6 +210,28 @@ const StepAnalysis: React.FC<StepAnalysisProps> = ({
         const results: Product[] = [];
         const errors: { label: string; error: string }[] = [];
         let completed = 0;
+
+        // Pre-compress images per group ONCE so we don't redo the canvas work
+        // on retries. Falls back to originals if anything throws.
+        const compressedByGroup = new WeakMap<
+          CaptureUploadData["groups"][number],
+          File[]
+        >();
+        await Promise.all(
+          groups.map(async (g) => {
+            try {
+              const { files } = await compressImagesForUpload(g.images || [], {
+                maxDim: 1600,
+                quality: 0.78,
+              });
+              compressedByGroup.set(g, files);
+            } catch (err) {
+              console.warn("[StepAnalysis] multi-group compression failed for", g.label, err);
+              compressedByGroup.set(g, g.images || []);
+            }
+          })
+        );
+        if (cancelled) return;
 
         const identifyGroupWithRetry = async (group: CaptureUploadData["groups"][number]) => {
           const maxAttempts = 2;
@@ -121,8 +243,9 @@ const StepAnalysis: React.FC<StepAnalysisProps> = ({
             try {
               const parts = [group.label, group.barcodes, group.hint].filter(Boolean);
               const combinedHint = parts.length ? parts.join(" — ") : undefined;
+              const imagesToSend = compressedByGroup.get(group) || group.images || [];
               const result = await identifyProductV2(
-                group.images || [],
+                imagesToSend,
                 group.barcodes || "",
                 "de-DE",
                 undefined,
@@ -230,8 +353,15 @@ const StepAnalysis: React.FC<StepAnalysisProps> = ({
       }
     };
 
-    run();
-    return () => { cancelled = true; };
+    run().finally(() => {
+      releaseIdentifyFlag();
+    });
+    return () => {
+      cancelled = true;
+      // Defensive: if the component unmounts before run() finishes (user
+      // navigates away mid-identify), release immediately so polling resumes.
+      releaseIdentifyFlag();
+    };
   }, [uploadData, onComplete, onError, retryNonce]);
 
   const currentIndex = PHASE_ORDER.indexOf(phase);

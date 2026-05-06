@@ -46,6 +46,8 @@ declare global {
     readonly VITE_FIREBASE_STORAGE_BUCKET?: string;
     readonly VITE_FIREBASE_MESSAGING_SENDER_ID?: string;
     readonly VITE_AUTH_PERSISTENCE?: 'local' | 'session' | 'none';
+    /** Optional ms override for `/api/v2/identify` fetch (see api/client.ts; default ~390000) */
+    readonly VITE_IDENTIFY_TIMEOUT_MS?: string;
   }
 
   interface ImportMeta {

@@ -6,6 +6,7 @@ import { ProgressBar } from "../ui/ProgressBar";
 import { groupImages } from "../../api/client";
 import type { ProductGroupProposal } from "../../api/client";
 import type { ImagePreview, ConfirmedGroup } from "./CaptureView";
+import { compressImageForUpload } from "../../utils/imageCompress";
 
 interface StepGroupingProps {
   images: ImagePreview[];
@@ -30,54 +31,12 @@ const createId = () =>
     ? crypto.randomUUID()
     : `g_${Math.random().toString(36).slice(2, 9)}`;
 
-/**
- * Compress images client-side before uploading for grouping.
- * Grouping only needs low-res images — 1024px JPEG 60% is plenty.
- * This reduces 25 × 5MB photos (~125MB) to ~25 × 80KB (~2MB).
- */
-async function compressForGrouping(file: File): Promise<File> {
-  const MAX_DIM = 1024;
-  const QUALITY = 0.6;
-
-  return new Promise<File>((resolve) => {
-    const img = new Image();
-    img.onload = () => {
-      let { width, height } = img;
-      if (width <= MAX_DIM && height <= MAX_DIM && file.size < 200_000) {
-        URL.revokeObjectURL(img.src);
-        resolve(file);
-        return;
-      }
-      const scale = Math.min(MAX_DIM / width, MAX_DIM / height, 1);
-      width = Math.round(width * scale);
-      height = Math.round(height * scale);
-
-      const canvas = document.createElement("canvas");
-      canvas.width = width;
-      canvas.height = height;
-      const ctx = canvas.getContext("2d");
-      ctx?.drawImage(img, 0, 0, width, height);
-      URL.revokeObjectURL(img.src);
-
-      canvas.toBlob(
-        (blob) => {
-          if (blob) {
-            resolve(new File([blob], file.name, { type: "image/jpeg" }));
-          } else {
-            resolve(file);
-          }
-        },
-        "image/jpeg",
-        QUALITY
-      );
-    };
-    img.onerror = () => {
-      URL.revokeObjectURL(img.src);
-      resolve(file);
-    };
-    img.src = URL.createObjectURL(file);
-  });
-}
+// Grouping only needs low-res images — 1024px JPEG 60% is plenty and reduces
+// 25 × 5MB photos (~125MB) to ~25 × 80KB (~2MB), well under Cloud Run's 32MB
+// limit. The implementation lives in utils/imageCompress.ts and is shared with
+// StepAnalysis (which uses higher-fidelity defaults for actual identify).
+const compressForGrouping = (file: File) =>
+  compressImageForUpload(file, { maxDim: 1024, quality: 0.6, skipIfSmallerThanBytes: 200_000 });
 
 const ConfidenceBadge: React.FC<{ value: number }> = ({ value }) => (
   <span className={`text-xs px-2 py-0.5 rounded-full ${

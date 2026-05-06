@@ -10,7 +10,7 @@ const { saveProductV2 } = require('../lib/product-store');
 const { getJob, listJobs, FieldValue } = require('../lib/jobs');
 const { updateJob } = require('../lib/improve-jobs');
 const { enqueueJob } = require('../services/job-runner');
-const { ensureCategories, runDatasheetReview, prefetchWebEvidenceForIdentify, applyEbayTaxonomy, applyKauflandTaxonomy } = require('../services/enrichment');
+const { ensureCategories, runDatasheetReview, prefetchWebEvidenceForIdentify, prefetchWebEvidenceParallel, applyEbayTaxonomy, applyKauflandTaxonomy } = require('../services/enrichment');
 const { runSerpapiFreePipeline } = require('../services/enrichment-v2');
 const { buildProductFromV2Record } = require('../lib/v2-product-builder');
 const { runProductChat } = require('../services/product-chat');
@@ -259,6 +259,15 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
       });
     }
 
+    // Wall-clock for the heavy path must start HERE — not after V4 / OCR / uploads.
+    // Otherwise elapsedMs() ignores early work while the browser timer runs from fetch()
+    // start, producing client AbortErrors ("Timeout"/"Failed to fetch") mid-response.
+    // Default aligns with IDENTIFY_TOTAL_TIMEOUT_MS in api/client.ts + Cloud Run (--timeout 600).
+    const requestStartedAt = Date.now();
+    const IDENTIFY_TOTAL_TIMEOUT_MS = parseInt(process.env.IDENTIFY_TOTAL_TIMEOUT_MS || '360000', 10);
+    const elapsedMs = () => Date.now() - requestStartedAt;
+    const remainingMs = () => Math.max(0, IDENTIFY_TOTAL_TIMEOUT_MS - elapsedMs());
+
     let v3Meta = null;
     let v4Meta = null;
     let pipelineUsed = null;
@@ -413,21 +422,16 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
     }
 
     // ─── IDENTIFY V3: Multi-Stage Pipeline ───
-    const V3_ENABLED = String(process.env.IDENTIFY_V3 || 'false').toLowerCase() === 'true';
-    // Wall-clock budget for the entire cascade (V3 → outer grounding → legacy). Without
-    // this, sequential per-stage caps stack up: 90s + 90s + N can easily exceed the
-    // frontend AbortController (180s) and trigger "Timeout nach 3 Minuten" while the
-    // backend is still working. Default 170s leaves headroom under the frontend limit.
-    const requestStartedAt = Date.now();
-    const IDENTIFY_TOTAL_TIMEOUT_MS = parseInt(process.env.IDENTIFY_TOTAL_TIMEOUT_MS || '170000', 10);
-    const elapsedMs = () => Date.now() - requestStartedAt;
-    const remainingMs = () => Math.max(0, IDENTIFY_TOTAL_TIMEOUT_MS - elapsedMs());
+    // Aligned with CLAUDE.md "IDENTIFY_V3=true (default-on)". Explicit
+    // IDENTIFY_V3=false in env disables it again. Total wall-clock starts after
+    // palette validation (IDENTIFY_TOTAL_TIMEOUT_MS); V3 cap is min(V3_TIMEOUT_MS, remainingMs()).
+    const V3_ENABLED = String(process.env.IDENTIFY_V3 || 'true').toLowerCase() === 'true';
 
     if (!product && V3_ENABLED) {
       try {
         const { identifyProductV3 } = require('../services/identify-v3');
         console.log('[identify] Using V3 multi-stage pipeline');
-        const V3_TIMEOUT_MS = parseInt(process.env.V3_TIMEOUT_MS || '60000', 10);
+        const V3_TIMEOUT_MS = parseInt(process.env.V3_TIMEOUT_MS || '120000', 10);
         // Cap V3 by whichever is smaller: its own budget or the remaining wall-clock budget.
         const v3Cap = Math.min(V3_TIMEOUT_MS, remainingMs());
         const v3Result = await Promise.race([
@@ -768,7 +772,11 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
       };
 
       try {
-        const webEnrich = await prefetchWebEvidenceForIdentify({
+        // Parallel variant: 3 queries × up to 4 page fetches concurrently with
+        // 8s per fetch instead of serial 25s. Cuts the legacy-pipeline web
+        // evidence step from a worst-case ~5min to ~10s and is the single
+        // biggest budget eater in the legacy fallback path.
+        const webEnrich = await prefetchWebEvidenceParallel({
           barcodeList: result.barcodes || [],
           ocrTextSnippets: result?.ocr?.textSnippets || [],
           locale,

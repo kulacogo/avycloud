@@ -46,6 +46,7 @@ import { BillingSettings } from './components/settings/BillingSettings';
 import PricingDashboard from './components/PricingDashboard';
 import RuleDashboard from './components/RuleDashboard';
 import { fetchOrders, fetchProducts, refreshPrice } from './api/client';
+import { isIdentifyRunning, subscribeIdentifyRun } from './utils/identifyRunFlag';
 import { useI18n } from './i18n';
 import { addMediaQueryListener } from './utils/mediaQuery';
 import { isInventoryItem, isProductBacklogItem } from './utils/inventorySplit';
@@ -538,13 +539,28 @@ const AppInner: React.FC = () => {
     }
   }, [t]);
 
-  // Load products from backend on mount + lightweight polling
+  // Load products from backend on mount + lightweight polling.
+  // Skip the polling tick while an identify call is in flight: a 30-180s
+  // identify request runs through the same Cloud-Run service and can starve
+  // available connections, which produced the spurious "Failed to fetch"
+  // banner during product capture (see utils/identifyRunFlag.ts).
   useEffect(() => {
     loadProducts();
     const interval = setInterval(() => {
+      if (isIdentifyRunning()) return;
       loadProducts();
     }, 60000);
-    return () => clearInterval(interval);
+    // Re-fetch immediately when an identify run finishes so the user sees
+    // the freshly captured product without waiting up to 60s.
+    const unsubscribe = subscribeIdentifyRun(() => {
+      if (!isIdentifyRunning()) {
+        loadProducts();
+      }
+    });
+    return () => {
+      clearInterval(interval);
+      unsubscribe();
+    };
   }, [loadProducts]);
 
   // keep hash + storage in sync when view changes (for back/forward navigation)
