@@ -1,5 +1,7 @@
 const { getGeminiClient } = require('./gemini-client');
 const { HarmCategory, HarmBlockThreshold } = require('@google/generative-ai');
+const { resolveModel } = require('./model-select');
+const { callGeminiWithRetry } = require('./gemini-retry');
 
 // Permissive safety settings — product images from warehouses should never be blocked
 const PERMISSIVE_SAFETY = [
@@ -9,10 +11,16 @@ const PERMISSIVE_SAFETY = [
   { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
 ];
 
-const GEMINI_MULTIMODAL_MODEL =
-  process.env.GEMINI_MULTIMODAL_MODEL ||
-  process.env.GEMINI_STRUCTURED_MODEL ||
-  'gemini-3-pro-preview';
+// Resolve at call-time so env changes & alias updates are picked up;
+// resolveModel() ensures deprecated `gemini-3-pro-preview` is auto-aliased
+// to the supported preview model (see lib/model-select.js).
+function getStructuredModelName() {
+  return resolveModel(
+    process.env.GEMINI_MULTIMODAL_MODEL,
+    'GEMINI_STRUCTURED_MODEL',
+    'gemini-3.1-pro-preview-customtools'
+  );
+}
 
 // Keep the schema compatible with Gemini responseSchema constrained decoding.
 // Inspired by the (working) legacy identify pipeline in backend/services/enrichment.js.
@@ -82,7 +90,9 @@ async function callGeminiStructured({
   }
 
   const client = await getGeminiClient();
-  const model = client.getGenerativeModel({ model: GEMINI_MULTIMODAL_MODEL });
+  const modelName = getStructuredModelName();
+  console.log('[gemini-structured] model=' + modelName);
+  const model = client.getGenerativeModel({ model: modelName });
 
   const generationConfig = {
     temperature,
@@ -99,11 +109,16 @@ async function callGeminiStructured({
   }
 
   const sdkParts = toSdkParts(parts);
-  const result = await model.generateContent({
-    contents: [{ role: 'user', parts: sdkParts }],
-    generationConfig,
-    safetySettings: PERMISSIVE_SAFETY,
-  });
+  // Wrap only the network call in retry — empty-payload / blocked-prompt errors
+  // are deterministic and must NOT be retried (see callGeminiWithRetry guards).
+  const result = await callGeminiWithRetry(
+    () => model.generateContent({
+      contents: [{ role: 'user', parts: sdkParts }],
+      generationConfig,
+      safetySettings: PERMISSIVE_SAFETY,
+    }),
+    { maxRetries: 2, delayMs: 1500 }
+  );
 
   // IMPORTANT:
   // @google/generative-ai can return multiple content parts. Some deployments have shown
@@ -159,5 +174,6 @@ async function callGeminiStructured({
 
 module.exports = {
   callGeminiStructured,
+  getStructuredModelName,
 };
 

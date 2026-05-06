@@ -1602,15 +1602,35 @@ router.post('/v2/group-images', requirePermission('identify', 'run'), upload.arr
       groups = await groupImagesStructured(imageBuffers, files.length);
     } catch (err) {
       console.error(`[group-images] Structured grouping THREW for ${files.length} images:`, err.message, err.stack?.split('\n').slice(0, 3).join(' | '));
-      // Instead of silent 1-group fallback, create individual groups so user can merge manually
-      groups = Array.from({ length: files.length }, (_, i) => ({
-        id: `group_${i}`,
-        label: `Produkt ${i + 1}`,
-        image_indices: [i],
-        confidence: 0.3,
-        reason: 'KI-Gruppierung fehlgeschlagen — bitte manuell prüfen',
-        detected_barcode: null,
-      }));
+
+      // Tier 1: local perceptual-hash (aHash) clustering. Avoids dumping every
+      // image into its own 30%-confidence group when Gemini is unavailable but
+      // images still share strong visual similarity (same product, different
+      // angles/lighting).
+      try {
+        const { clusterImagesByPerceptualHash, clustersToGroups } = require('../lib/image-grouping-fallback');
+        const clusters = await clusterImagesByPerceptualHash(imageBuffers, { maxDistance: 10 });
+        if (clusters && clusters.length > 0) {
+          groups = clustersToGroups(clusters);
+          console.warn(`[group-images] Gemini failed; local aHash fallback produced ${groups.length} group(s) from ${files.length} images`);
+        }
+      } catch (fallbackErr) {
+        console.error('[group-images] Local aHash fallback also failed:', fallbackErr.message);
+      }
+
+      // Tier 2: last-resort 1-group-per-image with low confidence so the user
+      // can merge manually. Triggered when sharp is missing or the aHash
+      // fallback otherwise produced no clusters.
+      if (!groups.length) {
+        groups = Array.from({ length: files.length }, (_, i) => ({
+          id: `group_${i}`,
+          label: `Produkt ${i + 1}`,
+          image_indices: [i],
+          confidence: 0.3,
+          reason: 'KI-Gruppierung fehlgeschlagen — bitte manuell prüfen',
+          detected_barcode: null,
+        }));
+      }
     }
 
     // Ensure every image is in at least one group
