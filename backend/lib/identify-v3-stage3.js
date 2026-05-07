@@ -571,20 +571,81 @@ function isFlagEnabled(envValue, defaultValue) {
 function buildFallbackContent(identity, stage2) {
   const nameParts = [identity.brand, identity.model, identity.variant].filter(Boolean);
   const name = nameParts.join(' ').trim() || 'Produkt';
+  const description = buildFallbackDescription(name, identity, stage2);
+  const features = buildFallbackKeyFeatures(identity, stage2);
+  const baseSpecs = [
+    identity.brand ? { key: 'Marke', value: identity.brand } : null,
+    identity.model ? { key: 'Modell', value: identity.model } : null,
+    identity.color ? { key: 'Farbe', value: identity.color } : null,
+    identity.material ? { key: 'Material', value: identity.material } : null,
+    identity.size ? { key: 'Größe', value: identity.size } : null,
+    identity.condition ? { key: 'Zustand', value: identity.condition } : null,
+  ].filter(Boolean);
 
   return {
     title_ebay: name.slice(0, 80),
     title_kaufland: name.slice(0, 100),
-    description_ebay: `<p>${name}</p>`,
-    description_kaufland: `<p>${name}</p>`,
-    key_features: nameParts.map((p) => p),
-    item_specifics: [
-      identity.brand ? { key: 'Marke', value: identity.brand } : null,
-      identity.model ? { key: 'Modell', value: identity.model } : null,
-      identity.color ? { key: 'Farbe', value: identity.color } : null,
-    ].filter(Boolean),
-    mobile_snippet: name,
+    description_ebay: description,
+    description_kaufland: description,
+    key_features: features,
+    item_specifics: baseSpecs,
+    mobile_snippet: name.slice(0, 60),
   };
+}
+
+/**
+ * Build a richer fallback description than `<p>${name}</p>`. Uses identity
+ * + stage2 enrichment signals so users get something useful even when Gemini
+ * times out. Keeps HTML simple (one <p> + one <ul>) so sanitizeDescriptionToHtml
+ * doesn't strip anything.
+ */
+function buildFallbackDescription(name, identity, stage2) {
+  const facts = [];
+  if (stage2?.category?.ebayBreadcrumb) {
+    facts.push(`Kategorie: ${stage2.category.ebayBreadcrumb}`);
+  }
+  if (identity?.color) facts.push(`Farbe: ${identity.color}`);
+  if (identity?.material) facts.push(`Material: ${identity.material}`);
+  if (identity?.size) facts.push(`Größe: ${identity.size}`);
+  const weightG =
+    Number.isFinite(identity?.weight_grams) && identity.weight_grams > 0
+      ? identity.weight_grams
+      : Number.isFinite(stage2?.weightFallback?.weight_grams) && stage2.weightFallback.weight_grams > 0
+        ? stage2.weightFallback.weight_grams
+        : null;
+  if (weightG) facts.push(`Gewicht: ${formatWeight(weightG)}`);
+  if (identity?.mpn) facts.push(`Hersteller-Nr.: ${identity.mpn}`);
+
+  let html = `<p>${name}</p>`;
+  if (facts.length) {
+    const items = facts.map((f) => `<li>${f}</li>`).join('');
+    html += `<ul>${items}</ul>`;
+  }
+  return html;
+}
+
+function buildFallbackKeyFeatures(identity, stage2) {
+  const features = [];
+  if (identity?.brand) features.push(identity.brand);
+  if (identity?.model) features.push(identity.model);
+  if (identity?.variant) features.push(identity.variant);
+  if (identity?.color) features.push(identity.color);
+  if (identity?.size) features.push(identity.size);
+  if (stage2?.category?.ebayBreadcrumb) {
+    const leaf = String(stage2.category.ebayBreadcrumb).split(/[>\/]/).pop()?.trim();
+    if (leaf) features.push(leaf);
+  }
+  return [...new Set(features.map((f) => String(f).trim()).filter(Boolean))];
+}
+
+function formatWeight(grams) {
+  if (!Number.isFinite(grams) || grams <= 0) return '';
+  if (grams >= 1000) {
+    const kg = grams / 1000;
+    const rounded = kg >= 10 ? kg.toFixed(1) : kg.toFixed(2);
+    return `${rounded.replace(/\.0+$/, '').replace(/(\.\d*?)0+$/, '$1')} kg`;
+  }
+  return `${grams} g`;
 }
 
 /**
@@ -592,17 +653,33 @@ function buildFallbackContent(identity, stage2) {
  * instead of the minimal fallback. Quality floor = V2.
  */
 function buildFallbackFromV2(v2Record, identity, stage2) {
+  const baseName = `${identity.brand || ''} ${identity.model || ''}`.trim() || 'Produkt';
+  const titleEbay = v2Record.title_ebay || baseName.slice(0, 80);
+  const titleKaufland = v2Record.title_kaufland || v2Record.title_ebay || baseName.slice(0, 100);
+  // Description fallback: use V2 record when present, otherwise build a richer
+  // template from identity + stage2 instead of repeating the title.
+  const richDescription = buildFallbackDescription(baseName, identity, stage2);
+  const descEbay = v2Record.description_ebay && v2Record.description_ebay.trim()
+    ? v2Record.description_ebay
+    : richDescription;
+  const descKaufland = v2Record.description_kaufland && v2Record.description_kaufland.trim()
+    ? v2Record.description_kaufland
+    : v2Record.description_ebay && v2Record.description_ebay.trim()
+      ? v2Record.description_ebay
+      : richDescription;
   return {
-    title_ebay: v2Record.title_ebay || `${identity.brand} ${identity.model}`.trim().slice(0, 80),
-    title_kaufland: v2Record.title_kaufland || v2Record.title_ebay || `${identity.brand} ${identity.model}`.trim().slice(0, 100),
-    description_ebay: v2Record.description_ebay || `<p>${identity.brand} ${identity.model}</p>`,
-    description_kaufland: v2Record.description_kaufland || v2Record.description_ebay || `<p>${identity.brand} ${identity.model}</p>`,
-    key_features: Array.isArray(v2Record.key_features) ? v2Record.key_features : [],
+    title_ebay: titleEbay,
+    title_kaufland: titleKaufland,
+    description_ebay: descEbay,
+    description_kaufland: descKaufland,
+    key_features: Array.isArray(v2Record.key_features) && v2Record.key_features.length
+      ? v2Record.key_features
+      : buildFallbackKeyFeatures(identity, stage2),
     item_specifics: Array.isArray(v2Record.item_specifics) ? v2Record.item_specifics : [
       identity.brand ? { key: 'Marke', value: identity.brand } : null,
       identity.model ? { key: 'Modell', value: identity.model } : null,
     ].filter(Boolean),
-    mobile_snippet: (v2Record.title_ebay || `${identity.brand} ${identity.model}`).slice(0, 60),
+    mobile_snippet: (v2Record.title_ebay || baseName).slice(0, 60),
     gpsr_manufacturer_name: v2Record.gpsr_manufacturer_name || '',
     gpsr_manufacturer_address: v2Record.gpsr_manufacturer_address || '',
     gpsr_manufacturer_email: v2Record.gpsr_manufacturer_email || '',

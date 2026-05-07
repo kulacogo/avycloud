@@ -504,3 +504,69 @@ describe('runStage3ContentGeneration — aspect-repair threshold (Phase 2)', () 
     expect(gemini3GenerateJSONMock).not.toHaveBeenCalled();
   });
 });
+
+// ─── Phase 3 (2026-05-07): Fallback description regression tests ───────────────
+//
+// When Gemini fails, buildFallbackContent() previously returned
+// `<p>${name}</p>` — title repeated as description. The wizard then showed a
+// near-empty product. The new fallback enriches the description from
+// identity + stage2 signals (category, color, weight, MPN, ...).
+describe('runStage3ContentGeneration — richer fallback (Phase 3)', () => {
+  it('builds a description with category + color bullets when Gemini fails', async () => {
+    generateProductContentMock.mockRejectedValueOnce(new Error('Gemini timeout'));
+    const stage1 = makeStage1();
+    stage1.identity.color = 'Schwarz';
+    stage1.identity.material = 'Aluminium';
+    const stage2 = makeStage2();
+    stage2.category.ebayBreadcrumb = 'TV, Video & Audio > Kopfhoerer';
+    stage2.weightFallback = { weight_grams: 250, confidence: 0.6 };
+
+    const result = await runStage3ContentGeneration(stage1, stage2);
+
+    expect(result.description_ebay).toContain('Sony WH-1000XM5');
+    expect(result.description_ebay).toContain('Kopfhoerer');
+    expect(result.description_ebay).toContain('Schwarz');
+    expect(result.description_ebay).toContain('Aluminium');
+    expect(result.description_ebay).toMatch(/250 g|0\.25 kg/);
+    expect(result.description_ebay).toContain('<ul>');
+    expect(result.description_ebay).not.toBe(result.title_ebay);
+  });
+
+  it('falls back to plain <p>name</p> when no enrichment context is available', async () => {
+    generateProductContentMock.mockRejectedValueOnce(new Error('Gemini failed'));
+    const stage1 = makeStage1();
+    stage1.identity.color = '';
+    stage1.identity.material = '';
+    stage1.identity.size = '';
+    stage1.identity.mpn = '';
+    const stage2 = makeStage2();
+    stage2.category.ebayBreadcrumb = '';
+
+    const result = await runStage3ContentGeneration(stage1, stage2);
+
+    expect(result.description_ebay).toContain('<p>');
+    expect(result.description_ebay).toContain('Sony WH-1000XM5');
+    expect(result.description_ebay).not.toContain('<ul>');
+  });
+
+  it('formats kg weights for items above 1000 g', async () => {
+    generateProductContentMock.mockRejectedValueOnce(new Error('boom'));
+    const stage1 = makeStage1();
+    stage1.identity.weight_grams = 2500;
+    const stage2 = makeStage2();
+
+    const result = await runStage3ContentGeneration(stage1, stage2);
+    expect(result.description_ebay).toMatch(/2[.,]5\s*kg/);
+  });
+
+  it('builds key_features from identity + category leaf in fallback', async () => {
+    generateProductContentMock.mockRejectedValueOnce(new Error('boom'));
+    const stage1 = makeStage1();
+    stage1.identity.color = 'Schwarz';
+    const stage2 = makeStage2();
+    stage2.category.ebayBreadcrumb = 'TV, Video & Audio > Kopfhoerer';
+
+    const result = await runStage3ContentGeneration(stage1, stage2);
+    expect(result.key_features).toEqual(expect.arrayContaining(['Sony', 'WH-1000XM5', 'Schwarz', 'Kopfhoerer']));
+  });
+});

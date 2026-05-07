@@ -184,6 +184,17 @@ function assembleProduct(id, stage1, stage2, stage3, opts) {
   if (identity.model && !attributes.Modell) attributes.Modell = identity.model;
   if (identity.color && !attributes.Farbe) attributes.Farbe = identity.color;
 
+  // Per-attribute confidence map. Stage 3 builds this in
+  // `enforceRequiredAspectsPostGen()` (sets confidence=0 for "Unbekannt"
+  // back-fills) and `applyRepairValues()` (sets confidence from the repair
+  // Gemini call). Until 2026-05-07 this was discarded — only the aggregate
+  // overall_score in ops.data_quality survived. The UI/QA-Gates can now
+  // distinguish "verified value" from "Unbekannt placeholder" per field.
+  const attributeConfidence =
+    stage3.item_specifics_confidence && typeof stage3.item_specifics_confidence === 'object'
+      ? { ...stage3.item_specifics_confidence }
+      : null;
+
   // Images: uploads + grounding web_image_urls + SerpAPI web search results
   const groundingImageEntries = (stage1.webImageUrls || []).map((url) => ({
     url_or_base64: url,
@@ -219,33 +230,68 @@ function assembleProduct(id, stage1, stage2, stage3, opts) {
     price_confidence: 0,
   };
 
-  // GPSR: 3-tier precedence — Registry > Stage-3 LLM output > Stage-2 web-fallback.
-  // Stage-2 actively searches for the manufacturer's imprint when the registry
-  // lookup misses (`gpsr-web-fallback.js`). Until 2026-04-30 that result was
-  // collected but discarded by this assembler — fixed now.
-  let gpsr;
-  if (stage2.gpsr?.found && stage2.gpsr?.data) {
-    gpsr = stage2.gpsr.data;
-  } else if (stage3.gpsr_manufacturer_name) {
-    gpsr = {
-      manufacturer_name: stage3.gpsr_manufacturer_name || '',
-      manufacturer_address: stage3.gpsr_manufacturer_address || '',
-      email: stage3.gpsr_manufacturer_email || '',
-      manufacturer_phone: stage3.gpsr_manufacturer_phone || '',
-      entity_country: stage3.gpsr_manufacturer_country || '',
+  // GPSR: field-by-field merge across 3 sources, in priority order:
+  //   Registry (`stage2.gpsr.data`) > Stage-3 LLM > Stage-2 web fallback.
+  // Until 2026-05-07 this was a strict whole-record precedence — if the
+  // highest-priority source had even a partial hit (e.g. registry only knew
+  // the name), every lower-priority field was discarded even when the
+  // registry lacked address/email. Now each field falls through independently
+  // so a name from Registry can co-exist with an address+email from the web
+  // fallback. The strict precedence pattern was a known leak after the GPSR
+  // assembler bug fix on 2026-04-30 (see history of this comment).
+  // Note: `gpsr-web-fallback.js` returns `manufacturer_email` (not `email`),
+  // so the previous read of `wf.email` was always undefined — fixed here.
+  const gpsr = (() => {
+    const registryData = stage2.gpsr?.found && stage2.gpsr?.data ? stage2.gpsr.data : null;
+    const wf = stage2.gpsrWebFallback && typeof stage2.gpsrWebFallback === 'object'
+      ? stage2.gpsrWebFallback
+      : null;
+    const pickFrom = (...sources) => {
+      for (const v of sources) {
+        if (v == null) continue;
+        const s = String(v).trim();
+        if (s) return s;
+      }
+      return '';
     };
-  } else if (stage2.gpsrWebFallback && typeof stage2.gpsrWebFallback === 'object') {
-    const wf = stage2.gpsrWebFallback;
-    if (wf.manufacturer_name || wf.manufacturer_address) {
-      gpsr = {
-        manufacturer_name: wf.manufacturer_name || '',
-        manufacturer_address: wf.manufacturer_address || '',
-        email: wf.email || '',
-        manufacturer_phone: wf.manufacturer_phone || '',
-        entity_country: wf.entity_country || '',
-      };
+    const manufacturer_name = pickFrom(
+      registryData?.manufacturer_name,
+      stage3.gpsr_manufacturer_name,
+      wf?.manufacturer_name,
+    );
+    const manufacturer_address = pickFrom(
+      registryData?.manufacturer_address,
+      stage3.gpsr_manufacturer_address,
+      wf?.manufacturer_address,
+    );
+    const email = pickFrom(
+      registryData?.email,
+      registryData?.manufacturer_email,
+      stage3.gpsr_manufacturer_email,
+      wf?.manufacturer_email,
+      wf?.email,
+    );
+    const manufacturer_phone = pickFrom(
+      registryData?.manufacturer_phone,
+      stage3.gpsr_manufacturer_phone,
+      wf?.manufacturer_phone,
+    );
+    const entity_country = pickFrom(
+      registryData?.entity_country,
+      stage3.gpsr_manufacturer_country,
+      wf?.entity_country,
+    );
+    if (
+      !manufacturer_name &&
+      !manufacturer_address &&
+      !email &&
+      !manufacturer_phone &&
+      !entity_country
+    ) {
+      return undefined;
     }
-  }
+    return { manufacturer_name, manufacturer_address, email, manufacturer_phone, entity_country };
+  })();
 
   return {
     id,
@@ -275,6 +321,7 @@ function assembleProduct(id, stage1, stage2, stage3, opts) {
       images,
       pricing,
       gpsr: gpsr || undefined,
+      attribute_confidence: attributeConfidence || undefined,
     },
     marketplace: {
       ebay: {
@@ -291,7 +338,16 @@ function assembleProduct(id, stage1, stage2, stage3, opts) {
       sync_status: 'pending',
       revision: 0,
       pending_intake_quantity: 0,
-      weight_grams: identity.weight_grams || null,
+      // Weight precedence: Stage 1 OCR/grounding (most authoritative — printed on box)
+      // → Stage 2 web fallback (best-effort search of brand+model+gewicht).
+      // Until 2026-05-07 the fallback was computed but discarded — same bug
+      // pattern as the GPSR fallback fixed 2026-04-30.
+      weight_grams:
+        identity.weight_grams ||
+        (Number.isFinite(stage2.weightFallback?.weight_grams)
+          ? stage2.weightFallback.weight_grams
+          : null) ||
+        null,
       identify_pipeline: 'v3',
       sourcePalette: opts.paletteCode || null,
       sourcePaletteAt: opts.paletteCode ? new Date().toISOString() : null,
@@ -305,4 +361,11 @@ function assembleProduct(id, stage1, stage2, stage3, opts) {
   };
 }
 
-module.exports = { identifyProductV3 };
+module.exports = {
+  identifyProductV3,
+  // Exported for unit testing of the stage-output → product-shape assembly
+  // (weight fallback routing, GPSR field-merge, attribute_confidence
+  // propagation). Not a stable public API — internal contract may shift
+  // between V3 and V4 unification.
+  _assembleProduct: assembleProduct,
+};
