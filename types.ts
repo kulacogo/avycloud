@@ -528,6 +528,15 @@ export interface DashboardMetrics {
       cancelled: number;
       other: number;
     };
+    status_breakdown_lifetime?: {
+      neu: number;
+      kommissioniert: number;
+      verpackt: number;
+      versendet: number;
+      zugestellt: number;
+      cancelled: number;
+      other: number;
+    };
   };
   volume_7d: {
     window_days: number;
@@ -552,6 +561,7 @@ export interface FinanceShipping {
   parcel_count: number;
   dhl_count?: number;
   dpd_count?: number;
+  other_count?: number;
   direct_dhl_cost_netto?: number;
   source?: string;
   currency: string;

@@ -298,10 +298,23 @@ router.get('/dashboard/finance', requirePermission('dashboard', 'read'), async (
   const pad = (n) => String(n).padStart(2, '0');
   const toDateStr = (d) => `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
 
+  // IMPORTANT: This range computation MUST stay aligned with `getDashboardMetrics()`
+  // in lib/firestore.js. Pre-2026-05 these two endpoints disagreed on `last7`
+  // (rolling 7×24h here vs. 7 calendar days there) which caused Umsatz and Versand
+  // to be summed over different windows even though they appeared on the same card.
+  const utcDayStart = (d) =>
+    new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 0, 0, 0));
+
   let rangeFrom;
   switch (preset) {
     case 'today': {
-      rangeFrom = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+      rangeFrom = utcDayStart(now);
+      break;
+    }
+    case 'last7': {
+      // 7 calendar days inclusive of today (matches firestore.js getDashboardMetrics).
+      rangeFrom = utcDayStart(now);
+      rangeFrom.setUTCDate(rangeFrom.getUTCDate() - 6);
       break;
     }
     case 'this_week': {
@@ -330,16 +343,22 @@ router.get('/dashboard/finance', requirePermission('dashboard', 'read'), async (
       break;
     }
     case 'custom': {
-      rangeFrom = customFromDate ? new Date(customFromDate + 'T00:00:00Z') : new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      rangeFrom = customFromDate ? new Date(customFromDate + 'T00:00:00Z') : utcDayStart(now);
+      if (!customFromDate) {
+        rangeFrom.setUTCDate(rangeFrom.getUTCDate() - 6);
+      }
       break;
     }
-    default: { // last7 and any unknown
-      rangeFrom = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    default: { // unknown → last7 semantics
+      rangeFrom = utcDayStart(now);
+      rangeFrom.setUTCDate(rangeFrom.getUTCDate() - 6);
       break;
     }
   }
 
-  // Range end
+  // Range end. rangeTo is later passed through toDateStr() and treated as INCLUSIVE
+  // by the external SevDesk / SendCloud APIs. Do not switch to exclusive semantics
+  // here without also adjusting toDateStr() and the consumers downstream.
   let rangeTo = now;
   if (preset === 'last_month') {
     rangeTo = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 0, 23, 59, 59));
@@ -395,13 +414,23 @@ router.get('/dashboard/finance', requirePermission('dashboard', 'read'), async (
       ? Math.round((sv.direct_shipping_cost / 1.19) * 100) / 100
       : 0;
 
-    // SendCloud is preferred source for parcel count, carrier breakdown, and cost
+    // SendCloud is preferred source for parcel count, carrier breakdown, and cost.
+    // dhl + dpd + other_count == parcel_count so the dashboard's "DHL X · DPD Y · Sonstige Z"
+    // labels add up to the total without a hidden ghost bucket.
     if (sc && sc.parcel_count > 0) {
+      const dhl = sc.dhl_count || 0;
+      const dpd = sc.dpd_count || 0;
+      // Older SendCloud responses may not carry `other_count`; derive it as the
+      // remainder so the invariant holds for backwards-compat callers.
+      const other = typeof sc.other_count === 'number'
+        ? sc.other_count
+        : Math.max(0, sc.parcel_count - dhl - dpd);
       return {
         total_cost: Math.round((sc.total_cost + svDirectNetto) * 100) / 100,
         parcel_count: sc.parcel_count,
-        dhl_count: sc.dhl_count || 0,
-        dpd_count: sc.dpd_count || 0,
+        dhl_count: dhl,
+        dpd_count: dpd,
+        other_count: other,
         direct_dhl_cost_netto: svDirectNetto,
         currency: 'EUR',
         source: svDirectNetto > 0 ? 'sendcloud+sevdesk' : 'sendcloud',

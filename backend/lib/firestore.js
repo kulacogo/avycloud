@@ -3330,9 +3330,17 @@ async function getDashboardMetrics({ days = 7, preset = null, fromDate = null, t
     rangeLabel = 'Gesamter Zeitraum';
   } else if (canonicalPreset === 'custom') {
     const from = fromDate ? new Date(fromDate + 'T00:00:00Z') : null;
-    const to   = toDate   ? new Date(toDate   + 'T23:59:59Z') : null;
+    // Exclusive upper bound = start of the day AFTER `toDate`. Previously the code
+    // used T23:59:59Z which silently dropped any order timestamped between
+    // .000Z and .999Z of the last second.
+    const to = toDate ? (() => {
+      const d = new Date(toDate + 'T00:00:00Z');
+      if (isNaN(d.getTime())) return null;
+      d.setUTCDate(d.getUTCDate() + 1);
+      return d;
+    })() : null;
     rangeStart = from && !isNaN(from.getTime()) ? from : utcDayStart(now);
-    rangeEndExclusive = to && !isNaN(to.getTime()) ? to : now;
+    rangeEndExclusive = to ? to : now;
     const fmt = (d) => d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'UTC' });
     rangeLabel = `${fmt(rangeStart)} – ${fmt(new Date(rangeEndExclusive.getTime() - 1))}`;
   } else if (canonicalPreset === 'month_to_date') {
@@ -3505,7 +3513,20 @@ async function getDashboardMetrics({ days = 7, preset = null, fromDate = null, t
   const yearStart = utcYearStart(now.getUTCFullYear());
   const KAUFLAND_PAYOUT_FACTOR = 0.8334; // 1 - (0.14 * 1.19) = 14% Provision + MwSt
 
+  // statusBreakdown is the *window-scoped* pipeline view (orders with createdAt in range).
+  // statusBreakdownLifetime is the all-time snapshot (kept for compatibility / future use).
+  // Pre-2026-05 this single counter mixed both, so "Zugestellt 676" appeared next to a
+  // 7-day "Umsatz 3.820 €" — comparing lifetime to window. Fixed by splitting.
   const statusBreakdown = {
+    neu: 0,
+    kommissioniert: 0,
+    verpackt: 0,
+    versendet: 0,
+    zugestellt: 0,
+    cancelled: 0,
+    other: 0,
+  };
+  const statusBreakdownLifetime = {
     neu: 0,
     kommissioniert: 0,
     verpackt: 0,
@@ -3555,13 +3576,26 @@ async function getDashboardMetrics({ days = 7, preset = null, fromDate = null, t
     const cancelled = isCancelled(order);
     const returned = isReturn(order);
     const closed = isClosed(order);
+    const inWindow = createdAt >= rangeStart && createdAt < rangeEndExclusive;
 
-    // Status breakdown (for dashboards)
+    // Lifetime breakdown — full pipeline snapshot regardless of selected range.
     if (cancelled) {
-      statusBreakdown.cancelled += 1;
+      statusBreakdownLifetime.cancelled += 1;
     } else {
       const cat = categorizeStatus(order);
-      statusBreakdown[cat] += 1;
+      statusBreakdownLifetime[cat] += 1;
+    }
+
+    // Window breakdown — only orders created inside the selected range.
+    // This is what the dashboard's "Auftragsfluss" pills consume so that the
+    // numbers line up with the windowed Umsatz / Aufträge KPIs above.
+    if (inWindow) {
+      if (cancelled) {
+        statusBreakdown.cancelled += 1;
+      } else {
+        const cat = categorizeStatus(order);
+        statusBreakdown[cat] += 1;
+      }
     }
 
     const rawStatusId = order?.statusId != null ? String(order.statusId).trim() : '';
@@ -3676,6 +3710,7 @@ async function getDashboardMetrics({ days = 7, preset = null, fromDate = null, t
       returns_total: returnsTotal,
       returns_month: returnsMonth,
       status_breakdown: statusBreakdown,
+      status_breakdown_lifetime: statusBreakdownLifetime,
     },
     volume_7d: {
       window_days: rangeDays,

@@ -1,4 +1,14 @@
 import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
+import {
+  ComposedChart,
+  Bar,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from 'recharts';
 import { DashboardMetrics, FinanceMetrics, Product } from '../types';
 import { fetchDashboardMetrics, fetchFinanceMetrics, fetchSyncStatus, fetchReorderAlerts, fetchActivityFeed, type SyncStatusData, type ActivityEvent } from '../api/client';
 import {
@@ -62,44 +72,41 @@ interface CardProps {
   size?: 'hero' | 'normal' | 'sm';
 }
 
-const colorVal: Record<NonNullable<CardProps['color']>, string> = {
-  green: 'text-success',
-  blue: 'text-info',
-  amber: 'text-warning',
-  violet: 'text-accent',
-  red: 'text-danger',
-  neutral: 'text-txt-primary',
+// Calmer dashboard palette: every KPI card sits on the same neutral surface so
+// the eye can scan numbers without colour fatigue. Tone is conveyed only via a
+// 2px left accent bar + (subtle) value tinting. Keeps both dark and light mode
+// readable; the previous full-card tint was unreadable on white in light mode.
+const colorVal: Record<NonNullable<CardProps["color"]>, string> = {
+  green: "text-success",
+  blue: "text-info",
+  amber: "text-warning",
+  violet: "text-accent",
+  red: "text-danger",
+  neutral: "text-txt-primary",
 };
-const colorBorder: Record<NonNullable<CardProps['color']>, string> = {
-  green: 'border-success/20',
-  blue: 'border-info/20',
-  amber: 'border-warning/20',
-  violet: 'border-accent/20',
-  red: 'border-danger/20',
-  neutral: 'border-app-border',
-};
-const colorBg: Record<NonNullable<CardProps['color']>, string> = {
-  green: 'bg-success-dim',
-  blue: 'bg-info-dim',
-  amber: 'bg-warning-dim',
-  violet: 'bg-accent-dim',
-  red: 'bg-danger-dim',
-  neutral: 'bg-app-surface',
+const colorAccentBar: Record<NonNullable<CardProps["color"]>, string> = {
+  green: "bg-success",
+  blue: "bg-info",
+  amber: "bg-warning",
+  violet: "bg-accent",
+  red: "bg-danger",
+  neutral: "bg-app-border",
 };
 
 const Card: React.FC<CardProps> = ({
-  label, value, sub, badge, color = 'neutral', loading, onClick, size = 'normal',
+  label, value, sub, badge, color = "neutral", loading, onClick, size = "normal",
 }) => {
-  const valClass = size === 'hero' ? 'text-4xl' : size === 'sm' ? 'text-xl' : 'text-2xl lg:text-3xl';
-  const Tag = onClick ? 'button' : 'div';
+  const valClass = size === "hero" ? "text-3xl lg:text-4xl" : size === "sm" ? "text-xl" : "text-2xl lg:text-[28px]";
+  const Tag = onClick ? "button" : "div";
   return (
     <Tag
-      {...(onClick ? { type: 'button', onClick } : {})}
-      className={`relative rounded-2xl border p-5 text-left flex flex-col gap-1 transition-colors
-        ${colorBg[color]} ${colorBorder[color]}
-        ${onClick ? 'cursor-pointer hover:brightness-110 active:scale-[0.99]' : ''}
+      {...(onClick ? { type: "button", onClick } : {})}
+      className={`relative overflow-hidden rounded-xl border border-app-border bg-app-surface p-5 text-left flex flex-col gap-1.5 transition-colors
+        ${onClick ? "cursor-pointer hover:bg-app-elevated active:scale-[0.99]" : ""}
       `}
     >
+      {/* 2px accent stripe — the only carrier of "tone" in the card */}
+      <span aria-hidden className={`absolute inset-y-0 left-0 w-[3px] ${colorAccentBar[color]}`} />
       {badge && (
         <span className="absolute top-3 right-3 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-app-elevated text-txt-muted">
           {badge}
@@ -107,12 +114,12 @@ const Card: React.FC<CardProps> = ({
       )}
       <p className="text-xs text-txt-muted font-medium">{label}</p>
       {loading ? (
-        <Skel w="w-28" h={size === 'hero' ? 'h-10' : 'h-8'} />
+        <Skel w="w-28" h={size === "hero" ? "h-10" : "h-8"} />
       ) : (
-        <p className={`font-bold ${valClass} ${colorVal[color]} tabular-nums leading-none`}>{value}</p>
+        <p className={`font-semibold ${valClass} ${colorVal[color]} tabular-nums leading-tight`}>{value}</p>
       )}
       {!loading && sub && (
-        <p className="text-xs text-txt-muted leading-snug mt-0.5">{sub}</p>
+        <div className="text-xs text-txt-muted leading-snug mt-0.5">{sub}</div>
       )}
       {loading && <Skel w="w-16" h="h-3" />}
     </Tag>
@@ -120,12 +127,14 @@ const Card: React.FC<CardProps> = ({
 };
 
 // ─── Order pipeline ───────────────────────────────────────────────────────────
+// Tokens only — see styles/main.css. Pipeline reads as a temperature gradient:
+// warning (offen) → muted (in arbeit) → success (versendet/zugestellt).
 const STEPS = [
-  { key: 'neu', label: 'Offen', dot: 'bg-amber-400', text: 'text-amber-400' },
-  { key: 'kommissioniert', label: 'Komm.', dot: 'bg-blue-400', text: 'text-blue-400' },
-  { key: 'verpackt', label: 'Verpackt', dot: 'bg-blue-400', text: 'text-blue-400' },
-  { key: 'versendet', label: 'Versendet', dot: 'bg-sky-400', text: 'text-sky-400' },
-  { key: 'zugestellt', label: 'Zugestellt', dot: 'bg-success', text: 'text-success' },
+  { key: "neu", label: "Offen", dot: "bg-warning", text: "text-warning" },
+  { key: "kommissioniert", label: "Komm.", dot: "bg-info", text: "text-info" },
+  { key: "verpackt", label: "Verpackt", dot: "bg-info", text: "text-info" },
+  { key: "versendet", label: "Versendet", dot: "bg-success", text: "text-success" },
+  { key: "zugestellt", label: "Zugestellt", dot: "bg-success", text: "text-success" },
 ];
 
 const Pipeline: React.FC<{
@@ -173,61 +182,74 @@ const Pipeline: React.FC<{
   );
 };
 
-// ─── SVG Dual-Axis Chart ──────────────────────────────────────────────────────
+// ─── Order volume + revenue chart (Recharts) ──────────────────────────────────
+//
+// Replaces a 200-line hand-rolled SVG with Recharts ComposedChart. Drives the
+// hover/touch experience natively, formats Y-axis ticks as integers (no more
+// "750.3"), and renders the *running* day with a hatched bar so the user
+// immediately sees that today is incomplete data — solves the "heute looks like
+// the worst day" UX trap of the previous chart.
 interface ChartDay {
   key: string;
   label: string;
   count: number;
   revenue: number;
+  isToday: boolean;
 }
 
-const DualChart: React.FC<{
+const fmtAxisCurrency = (v: number) => {
+  const n = Math.round(v);
+  if (Math.abs(n) >= 1000) return `${Math.round(n / 100) / 10}k`;
+  return String(n);
+};
+
+const ChartTooltip: React.FC<any> = ({ active, payload, label, currency }) => {
+  if (!active || !payload?.length) return null;
+  const orders = payload.find((p: any) => p.dataKey === 'count')?.value ?? 0;
+  const revenue = payload.find((p: any) => p.dataKey === 'revenue')?.value ?? 0;
+  const day: ChartDay | undefined = payload[0]?.payload;
+  return (
+    <div
+      className="rounded-lg border px-3 py-2 text-xs shadow-app"
+      style={{
+        background: 'var(--elevated)',
+        borderColor: 'var(--border)',
+        color: 'var(--text-primary)',
+      }}
+    >
+      <p className="font-semibold mb-1">
+        {label}
+        {day?.isToday && (
+          <span className="ml-2 text-[10px] font-normal" style={{ color: 'var(--text-muted)' }}>· läuft</span>
+        )}
+      </p>
+      <p className="flex items-center gap-1.5" style={{ color: 'var(--info)' }}>
+        <span className="inline-block w-2 h-2 rounded-sm" style={{ background: 'var(--info)' }} />
+        {fmtNum(orders)} Aufträge
+      </p>
+      <p className="flex items-center gap-1.5" style={{ color: 'var(--success)' }}>
+        <span className="inline-block w-2 h-0.5 rounded" style={{ background: 'var(--success)' }} />
+        {fmtCur(revenue, currency)}
+      </p>
+    </div>
+  );
+};
+
+// Custom bar: hatched fill for the "today/running" bucket so an in-progress day
+// is clearly distinguishable from completed days even before hover.
+const RunningBar: React.FC<any> = (props) => {
+  const { x, y, width, height, payload } = props;
+  if (typeof x !== 'number' || typeof y !== 'number' || !width || height < 0) return null;
+  const isToday = !!payload?.isToday;
+  const fill = isToday ? 'url(#runningHatch)' : 'var(--info)';
+  return <rect x={x} y={y} width={width} height={height} fill={fill} rx={3} ry={3} />;
+};
+
+const OrderVolumeChart: React.FC<{
   data: ChartDay[];
   currency: string;
   loading?: boolean;
 }> = ({ data, currency, loading }) => {
-  const [hovered, setHovered] = useState<number | null>(null);
-  const touchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const W = 560, H = 220;
-  const PAD = { top: 14, right: 52, bottom: 26, left: 40 };
-  const PW = W - PAD.left - PAD.right;
-  const PH = H - PAD.top - PAD.bottom;
-
-  const n = data.length || 1;
-  const maxOrders = Math.max(1, ...data.map(d => d.count));
-  const maxRevenue = Math.max(1, ...data.map(d => d.revenue));
-
-  const slotW = PW / n;
-  const barW = Math.max(4, slotW * 0.55);
-  const barX = (i: number) => PAD.left + slotW * i + (slotW - barW) / 2;
-  const barTop = (v: number) => PAD.top + PH - Math.max(3, (v / maxOrders) * PH);
-  const barH = (v: number) => Math.max(3, (v / maxOrders) * PH);
-
-  const lineX = (i: number) => PAD.left + slotW * i + slotW / 2;
-  const lineY = (v: number) => PAD.top + PH - (v / maxRevenue) * PH;
-
-  const linePath = data.length > 1
-    ? data.map((d, i) => `${i === 0 ? 'M' : 'L'} ${lineX(i)} ${lineY(d.revenue)}`).join(' ')
-    : '';
-  const fillPath = data.length > 1
-    ? `${linePath} L ${lineX(n - 1)} ${PAD.top + PH} L ${lineX(0)} ${PAD.top + PH} Z`
-    : '';
-
-  const orderTicks = [0, 0.5, 1].map(f => ({
-    y: PAD.top + PH - f * PH,
-    v: Math.round(f * maxOrders),
-  }));
-  const revTicks = [0, 0.5, 1].map(f => ({
-    y: PAD.top + PH - f * PH,
-    v: f * maxRevenue,
-  }));
-
-  const fmtRevAxis = (v: number) => {
-    if (v >= 1000) return `${(v / 1000).toFixed(0)}k`;
-    return v.toFixed(0);
-  };
-
   if (loading) {
     return (
       <div className="w-full h-56 flex items-end gap-1.5 px-2 pb-4">
@@ -247,126 +269,72 @@ const DualChart: React.FC<{
     );
   }
 
-  const handleTouchStart = (e: React.TouchEvent<SVGSVGElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const touch = e.touches[0];
-    const svgX = ((touch.clientX - rect.left) / rect.width) * W;
-    const slotIdx = Math.floor((svgX - PAD.left) / slotW);
-    if (slotIdx >= 0 && slotIdx < n) {
-      if (touchTimerRef.current) clearTimeout(touchTimerRef.current);
-      setHovered(slotIdx);
-      touchTimerRef.current = setTimeout(() => setHovered(null), 2000);
-    }
-  };
+  const hasRunningBar = data.some(d => d.isToday);
 
   return (
-    <div className="relative w-full select-none">
-      <svg
-        viewBox={`0 0 ${W} ${H}`}
-        className="w-full"
-        style={{ height: '220px' }}
-        onMouseLeave={() => setHovered(null)}
-        onTouchStart={handleTouchStart}
-      >
+    <ResponsiveContainer width="100%" height={240}>
+      <ComposedChart data={data} margin={{ top: 16, right: 12, left: 0, bottom: 8 }}>
         <defs>
-          <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#34d399" stopOpacity="0.18" />
-            <stop offset="100%" stopColor="#34d399" stopOpacity="0" />
-          </linearGradient>
+          {/* 45° diagonal hatch — applied to the running (today) bar */}
+          <pattern id="runningHatch" patternUnits="userSpaceOnUse" width="6" height="6" patternTransform="rotate(45)">
+            <rect width="6" height="6" fill="var(--info)" fillOpacity="0.35" />
+            <line x1="0" y1="0" x2="0" y2="6" stroke="var(--info)" strokeWidth="3" />
+          </pattern>
         </defs>
-
-        {/* Grid */}
-        {orderTicks.map((t, i) => (
-          <line key={i} x1={PAD.left} y1={t.y} x2={W - PAD.right} y2={t.y}
-            stroke="rgba(255,255,255,0.04)" strokeWidth="1" />
-        ))}
-
-        {/* Revenue fill */}
-        {fillPath && <path d={fillPath} fill="url(#revGrad)" />}
-
-        {/* Hover zone + bars */}
-        {data.map((d, i) => (
-          <g key={d.key}
-            onMouseEnter={() => setHovered(i)}
-            style={{ cursor: 'pointer' }}
-          >
-            {/* Hover highlight */}
-            {hovered === i && (
-              <rect x={PAD.left + slotW * i} y={PAD.top} width={slotW} height={PH}
-                fill="rgba(255,255,255,0.03)" rx="3" />
-            )}
-            {/* Order bar */}
-            <rect x={barX(i)} y={barTop(d.count)} width={barW} height={barH(d.count)}
-              fill={hovered === i ? '#60a5fa' : '#3b82f6'} rx="2"
-              style={{ transition: 'fill 0.1s' }} />
-          </g>
-        ))}
-
-        {/* Revenue line */}
-        {linePath && (
-          <path d={linePath} fill="none" stroke="#34d399" strokeWidth="2"
-            strokeLinejoin="round" strokeLinecap="round" />
+        <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" vertical={false} />
+        <XAxis
+          dataKey="label"
+          tick={{ fontSize: 11, fill: 'var(--text-muted)' }}
+          tickLine={false}
+          axisLine={{ stroke: 'var(--border)' }}
+        />
+        <YAxis
+          yAxisId="left"
+          tick={{ fontSize: 11, fill: 'var(--text-muted)' }}
+          tickLine={false}
+          axisLine={false}
+          allowDecimals={false}
+          width={32}
+        />
+        <YAxis
+          yAxisId="right"
+          orientation="right"
+          tick={{ fontSize: 11, fill: 'var(--text-muted)' }}
+          tickLine={false}
+          axisLine={false}
+          tickFormatter={(v: number) => fmtAxisCurrency(v)}
+          width={42}
+        />
+        <Tooltip
+          cursor={{ fill: 'var(--border)', fillOpacity: 0.25 }}
+          content={(props: any) => <ChartTooltip {...props} currency={currency} />}
+        />
+        <Bar
+          yAxisId="left"
+          dataKey="count"
+          name="Aufträge"
+          shape={<RunningBar />}
+          isAnimationActive={false}
+          maxBarSize={36}
+        />
+        <Line
+          yAxisId="right"
+          type="monotone"
+          dataKey="revenue"
+          name="Umsatz"
+          stroke="var(--success)"
+          strokeWidth={2}
+          dot={{ r: 2, fill: 'var(--success)', strokeWidth: 0 }}
+          activeDot={{ r: 4, fill: 'var(--success)' }}
+          isAnimationActive={false}
+        />
+        {hasRunningBar && (
+          // Footnote rendered by parent — we keep the chart purely visual.
+          // (Parent renders the "läuft"-Hinweis under the chart.)
+          <></>
         )}
-
-        {/* Revenue dots */}
-        {data.map((d, i) => (
-          <circle key={d.key} cx={lineX(i)} cy={lineY(d.revenue)} r={hovered === i ? 4 : 2.5}
-            fill={hovered === i ? '#6ee7b7' : '#34d399'}
-            style={{ transition: 'r 0.1s, fill 0.1s' }} />
-        ))}
-
-        {/* X-axis labels */}
-        {data.map((d, i) => {
-          // Skip labels when too dense
-          const step = n > 20 ? 4 : n > 12 ? 2 : 1;
-          if (i % step !== 0) return null;
-          return (
-            <text key={d.key} x={lineX(i)} y={H - 6}
-              textAnchor="middle" fill="#4b5563" fontSize="9" fontFamily="system-ui">
-              {d.label}
-            </text>
-          );
-        })}
-
-        {/* Left Y-axis (orders) */}
-        {orderTicks.map((t, i) => (
-          <text key={i} x={PAD.left - 5} y={t.y + 3.5}
-            textAnchor="end" fill="#4b5563" fontSize="9" fontFamily="system-ui">
-            {t.v}
-          </text>
-        ))}
-
-        {/* Right Y-axis (revenue) */}
-        {revTicks.map((t, i) => (
-          <text key={i} x={W - PAD.right + 5} y={t.y + 3.5}
-            textAnchor="start" fill="#059669" fontSize="9" fontFamily="system-ui">
-            {fmtRevAxis(t.v)}
-          </text>
-        ))}
-
-        {/* Axis border */}
-        <line x1={PAD.left} y1={PAD.top} x2={PAD.left} y2={PAD.top + PH}
-          stroke="rgba(255,255,255,0.06)" strokeWidth="1" />
-        <line x1={W - PAD.right} y1={PAD.top} x2={W - PAD.right} y2={PAD.top + PH}
-          stroke="rgba(16,185,129,0.2)" strokeWidth="1" />
-      </svg>
-
-      {/* Hover tooltip */}
-      {hovered !== null && data[hovered] && (
-        <div
-          className="absolute pointer-events-none z-10 bg-app-elevated border border-app-border rounded-lg px-3 py-2 text-xs shadow-app"
-          style={{
-            left: `${((hovered + 0.5) / n) * 100}%`,
-            top: '4px',
-            transform: hovered > n / 2 ? 'translateX(-110%)' : 'translateX(10%)',
-          }}
-        >
-          <p className="text-txt-primary font-semibold mb-1">{data[hovered].label}</p>
-          <p className="text-info">{fmtNum(data[hovered].count)} Aufträge</p>
-          <p className="text-success">{fmtCur(data[hovered].revenue, currency)}</p>
-        </div>
-      )}
-    </div>
+      </ComposedChart>
+    </ResponsiveContainer>
   );
 };
 
@@ -625,6 +593,15 @@ export const Dashboard: React.FC<DashboardProps> = ({
     const days = metrics?.volume_7d?.days ?? [];
     const bucket = metrics?.range?.bucket ?? 'day';
     const n = days.length;
+    // Today key in the same UTC YYYY-MM-DD format the backend buckets use, so
+    // the running-bar marker survives a UTC↔Berlin DST shift correctly.
+    const todayUtcKey = (() => {
+      const t = new Date();
+      const y = t.getUTCFullYear();
+      const m = String(t.getUTCMonth() + 1).padStart(2, '0');
+      const d = String(t.getUTCDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    })();
     const chart: ChartDay[] = days.map(d => {
       const dt = (() => { try { return new Date(d.date); } catch { return null; } })();
       const label = (() => {
@@ -632,10 +609,23 @@ export const Dashboard: React.FC<DashboardProps> = ({
         if (bucket === 'month') return dt.toLocaleDateString('de-DE', { month: 'short' });
         if (bucket === 'week') return dt.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' });
         if (bucket === 'hour') return dt.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
-        if (n <= 14) return dt.toLocaleDateString('de-DE', { weekday: 'short' });
+        // Compact day label: "Fr 02.05" — Wochentag plus date, scannable for any
+        // 7–14 day range; falls back to date-only beyond 14 days to stay readable.
+        if (n <= 14) {
+          const wd = dt.toLocaleDateString('de-DE', { weekday: 'short' });
+          const dm = dt.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' });
+          return `${wd} ${dm}`;
+        }
         return dt.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' });
       })();
-      return { key: d.date, label, count: Number(d.orders || 0), revenue: Number(d.revenue || 0) };
+      const isToday = bucket === 'day' && d.date.slice(0, 10) === todayUtcKey;
+      return {
+        key: d.date,
+        label,
+        count: Number(d.orders || 0),
+        revenue: Number(d.revenue || 0),
+        isToday,
+      };
     });
     const totalOrdersInWindow = chart.reduce((s, d) => s + d.count, 0);
     return {
@@ -645,8 +635,16 @@ export const Dashboard: React.FC<DashboardProps> = ({
       versendet: bd?.versendet ?? 0,
       zugestellt: bd?.zugestellt ?? 0,
       totalOrdersInWindow,
-      revenueYtd: metrics?.revenue?.payout_brutto_ytd ?? metrics?.revenue?.all_non_cancelled_total ?? 0,
-      revenueWindow: metrics?.revenue?.payout_brutto_window ?? metrics?.revenue?.window_non_cancelled_total ?? 0,
+      // True gross revenue: SUM(order.totalAmount) — net of cancellations and returns,
+      // before any marketplace fees. This is what most accountants mean by "Umsatz".
+      revenueYtd: metrics?.revenue?.all_non_cancelled_total ?? 0,
+      revenueWindow: metrics?.revenue?.window_non_cancelled_total ?? 0,
+      // Marketplace payout: what eBay+Kaufland actually transfer to the bank
+      // (after fees). Differs from gross by ~14–16% on average; shown as a
+      // secondary value so you can see the fee bite without it replacing brutto.
+      payoutYtd: metrics?.revenue?.payout_brutto_ytd ?? null,
+      payoutWindow: metrics?.revenue?.payout_brutto_window ?? null,
+      payoutSource: metrics?.revenue?.payout_source ?? null,
       returnsTotal: metrics?.orders?.returns_total ?? 0,
       returnsYtd: metrics?.orders?.returns_ytd ?? 0,
       returnsWindowCount: metrics?.returns?.window?.count ?? 0,
@@ -681,7 +679,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
       {/* Header */}
       <div className="flex items-center justify-between">
         <p className="text-xs text-txt-muted">
-          {nowStr ? `Stand: ${nowStr}` : 'Wird geladen\u2026'}
+          {nowStr ? `Aktualisiert: ${nowStr}` : 'Wird geladen\u2026'}
         </p>
         <DateRangePicker
           activePreset={activePreset}
@@ -714,7 +712,17 @@ export const Dashboard: React.FC<DashboardProps> = ({
           <Card
             label="Jahresumsatz"
             value={fmtCur(ord.revenueYtd, ord.currency, true)}
-            sub="Brutto"
+            sub={(
+              <span className="flex flex-col gap-0.5">
+                <span>Brutto \u00b7 netto Stornos und Retouren</span>
+                {ord.payoutYtd !== null && ord.payoutYtd > 0 && (
+                  <span className="text-[10px] text-txt-muted">
+                    Auszahlung {fmtCur(ord.payoutYtd, ord.currency, true)}
+                    {ord.payoutSource === 'estimated' && ' \u00b7 gesch\u00e4tzt'}
+                  </span>
+                )}
+              </span>
+            )}
             color="green"
             loading={metricsLoading}
             size="hero"
@@ -725,13 +733,17 @@ export const Dashboard: React.FC<DashboardProps> = ({
             sub={shippingYtd !== null ? (
               <span className="flex flex-col gap-0.5">
                 <span>{fmtNum(finance?.shipping_ytd?.parcel_count ?? 0)} Sendungen</span>
-                {((finance?.shipping_ytd?.dhl_count ?? 0) > 0 || (finance?.shipping_ytd?.dpd_count ?? 0) > 0) && (
-                  <span className="text-[10px] text-txt-muted">
-                    {(finance?.shipping_ytd?.dhl_count ?? 0) > 0 && `DHL ${fmtNum(finance!.shipping_ytd!.dhl_count!)}`}
-                    {(finance?.shipping_ytd?.dhl_count ?? 0) > 0 && (finance?.shipping_ytd?.dpd_count ?? 0) > 0 && ' · '}
-                    {(finance?.shipping_ytd?.dpd_count ?? 0) > 0 && `DPD ${fmtNum(finance!.shipping_ytd!.dpd_count!)}`}
-                  </span>
-                )}
+                {(() => {
+                  const dhl = finance?.shipping_ytd?.dhl_count ?? 0;
+                  const dpd = finance?.shipping_ytd?.dpd_count ?? 0;
+                  const other = finance?.shipping_ytd?.other_count ?? 0;
+                  if (!dhl && !dpd && !other) return null;
+                  const parts: string[] = [];
+                  if (dhl) parts.push(`DHL ${fmtNum(dhl)}`);
+                  if (dpd) parts.push(`DPD ${fmtNum(dpd)}`);
+                  if (other) parts.push(`Sonstige ${fmtNum(other)}`);
+                  return <span className="text-[10px] text-txt-muted">{parts.join(' · ')}</span>;
+                })()}
               </span>
             ) : undefined}
             color="amber"
@@ -756,14 +768,38 @@ export const Dashboard: React.FC<DashboardProps> = ({
           <Card
             label="Umsatz"
             value={fmtCur(ord.revenueWindow, ord.currency, true)}
-            sub={`${fmtNum(ord.totalOrdersInWindow)} Aufträge`}
+            sub={(
+              <span className="flex flex-col gap-0.5">
+                <span>{fmtNum(ord.totalOrdersInWindow)} Aufträge</span>
+                {ord.payoutWindow !== null && ord.payoutWindow > 0 && (
+                  <span className="text-[10px] text-txt-muted">
+                    Auszahlung {fmtCur(ord.payoutWindow, ord.currency, true)}
+                  </span>
+                )}
+              </span>
+            )}
             color="green"
             loading={metricsLoading}
           />
           <Card
             label="Versand"
             value={shippingWindow !== null ? fmtCur(shippingWindow, 'EUR', true) : '\u2014'}
-            sub={shippingWindow !== null ? `${fmtNum(finance?.shipping?.parcel_count ?? 0)} Sendungen` : undefined}
+            sub={shippingWindow !== null ? (
+              <span className="flex flex-col gap-0.5">
+                <span>{fmtNum(finance?.shipping?.parcel_count ?? 0)} Sendungen</span>
+                {(() => {
+                  const dhl = finance?.shipping?.dhl_count ?? 0;
+                  const dpd = finance?.shipping?.dpd_count ?? 0;
+                  const other = finance?.shipping?.other_count ?? 0;
+                  if (!dhl && !dpd && !other) return null;
+                  const parts: string[] = [];
+                  if (dhl) parts.push(`DHL ${fmtNum(dhl)}`);
+                  if (dpd) parts.push(`DPD ${fmtNum(dpd)}`);
+                  if (other) parts.push(`Sonstige ${fmtNum(other)}`);
+                  return <span className="text-[10px] text-txt-muted">{parts.join(' \u00b7 ')}</span>;
+                })()}
+              </span>
+            ) : undefined}
             color="amber"
             loading={financeLoading && shippingWindow === null}
           />
@@ -777,24 +813,37 @@ export const Dashboard: React.FC<DashboardProps> = ({
         </div>
 
         {/* Chart */}
-        <div className="rounded-lg border border-app-border bg-app-surface p-5">
-          <div className="flex items-center justify-between mb-3">
-            <div>
-              <p className="text-xs font-semibold text-txt-primary">Auftragsvolumen & Umsatz</p>
-              <p className="text-[10px] text-txt-muted">{presetLabel}</p>
-            </div>
-            <div className="flex items-center gap-4 text-[10px] text-txt-muted">
+        <div className="rounded-xl border border-app-border bg-app-surface p-5">
+          <div className="flex items-center justify-between mb-4">
+            <p className="text-sm font-semibold text-txt-primary">Auftragsvolumen &amp; Umsatz</p>
+            <div className="flex items-center gap-4 text-[11px] text-txt-muted">
               <span className="flex items-center gap-1.5">
                 <span className="inline-block w-3 h-3 rounded-sm bg-info" />
-                Aufträge (links)
+                Aufträge
               </span>
               <span className="flex items-center gap-1.5">
                 <span className="inline-block w-3 h-1.5 rounded-full bg-success" />
-                Umsatz (rechts)
+                Umsatz
               </span>
+              {ord.chart.some(d => d.isToday) && (
+                <span className="flex items-center gap-1.5">
+                  <span
+                    className="inline-block w-3 h-3 rounded-sm border border-info/40"
+                    style={{
+                      backgroundImage: 'repeating-linear-gradient(45deg, var(--info) 0 2px, transparent 2px 4px)',
+                    }}
+                  />
+                  läuft
+                </span>
+              )}
             </div>
           </div>
-          <DualChart data={ord.chart} currency={ord.currency} loading={metricsLoading} />
+          <OrderVolumeChart data={ord.chart} currency={ord.currency} loading={metricsLoading} />
+          {ord.chart.some(d => d.isToday) && nowStr && (
+            <p className="text-[11px] text-txt-muted mt-2">
+              Heute · Stand {nowStr} (Tag noch nicht abgeschlossen)
+            </p>
+          )}
         </div>
       </Section>
 
@@ -829,32 +878,39 @@ export const Dashboard: React.FC<DashboardProps> = ({
         </div>
       </Section>
 
-      {/* 4. BESTAND & SYNC (kompakte Leiste) */}
+      {/* 4. BESTAND & SYNC (zwei Subsektionen) */}
       <Section title="Bestand & Sync">
-        <div className="rounded-lg border border-app-border bg-app-surface px-5 py-3">
+        <div className="rounded-xl border border-app-border bg-app-surface p-5">
           {syncLoading && metricsLoading ? (
             <div className="h-6 w-full rounded bg-app-border/50 animate-pulse" />
           ) : (
-            <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
-              <span className="text-txt-primary">
-                <span className="font-semibold">{fmtNum(inv.inStock)}</span>
-                <span className="text-txt-muted"> Produkte</span>
-              </span>
-              <span className="text-txt-primary">
-                <span className="font-semibold">{fmtNum(inv.available)}</span>
-                <span className="text-txt-muted"> verfügbar</span>
-                {inv.reserved > 0 && (
-                  <span className="text-txt-muted"> · {fmtNum(inv.reserved)} reserviert</span>
-                )}
-              </span>
-              <span className="text-txt-primary">
-                <span className="text-txt-muted">Wert </span>
-                <span className="font-semibold">{fmtCur(inv.totalValue, inv.primaryCur, true)}</span>
-              </span>
-
-              <span className="w-px h-4 bg-app-border" />
-
-              {syncStatus && (['ebay', 'kaufland'] as const).map(ch => {
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4 text-sm">
+              {/* Bestand */}
+              <div className="space-y-2">
+                <p className="text-[11px] font-medium text-txt-muted uppercase tracking-wide">Bestand</p>
+                <div className="flex flex-wrap items-baseline gap-x-5 gap-y-2">
+                  <span>
+                    <span className="text-base font-semibold text-txt-primary tabular-nums">{fmtNum(inv.inStock)}</span>
+                    <span className="text-txt-muted text-xs"> Produkte</span>
+                  </span>
+                  <span>
+                    <span className="text-base font-semibold text-txt-primary tabular-nums">{fmtNum(inv.available)}</span>
+                    <span className="text-txt-muted text-xs"> verfügbar</span>
+                    {inv.reserved > 0 && (
+                      <span className="text-txt-muted text-xs"> · {fmtNum(inv.reserved)} reserviert</span>
+                    )}
+                  </span>
+                  <span>
+                    <span className="text-txt-muted text-xs">Wert (VK) </span>
+                    <span className="text-base font-semibold text-txt-primary tabular-nums">{fmtCur(inv.totalValue, inv.primaryCur, true)}</span>
+                  </span>
+                </div>
+              </div>
+              {/* Marketplace-Sync */}
+              <div className="space-y-2 md:border-l md:border-app-border md:pl-8">
+                <p className="text-[11px] font-medium text-txt-muted uppercase tracking-wide">Marketplace-Sync (24h)</p>
+                <div className="flex flex-wrap items-baseline gap-x-5 gap-y-2">
+                  {syncStatus && (['ebay', 'kaufland'] as const).map(ch => {
                 const c = syncStatus.channels[ch];
                 if (!c) return (
                   <span key={ch} className="text-xs text-txt-muted">{ch.charAt(0).toUpperCase() + ch.slice(1)} {'\u2014'}</span>
@@ -871,7 +927,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   </span>
                 );
               })}
-              {!syncStatus && <span className="text-xs text-txt-muted">Sync: kein Status</span>}
+                  {!syncStatus && <span className="text-xs text-txt-muted">Kein Status</span>}
+                </div>
+              </div>
             </div>
           )}
         </div>

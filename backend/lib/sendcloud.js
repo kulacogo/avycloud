@@ -168,6 +168,7 @@ async function getShippingCostsSummary(fromDate, toDate, { timeoutMs = 30000, fo
   let parcelCount = 0;
   let dhlCount = 0;
   let dpdCount = 0;
+  let otherCount = 0;
   let page = 1;
   const limit = 100;
   let consecutivePagesWithNoMatch = 0;
@@ -265,10 +266,13 @@ async function getShippingCostsSummary(fromDate, toDate, { timeoutMs = 30000, fo
       totalCost += cost;
       parcelCount++;
 
-      // Track carrier breakdown
+      // Track carrier breakdown. Anything that is neither DHL nor DPD lands in
+      // `otherCount` so the total of (dhl + dpd + other) equals parcel_count and
+      // the dashboard no longer shows a hidden ghost-bucket of unclassified parcels.
       const carrierCode = String(parcel.carrier?.code || '').toLowerCase();
       if (carrierCode.includes('dhl')) dhlCount++;
       else if (carrierCode.includes('dpd')) dpdCount++;
+      else otherCount++;
     }
 
     if (parcels.length < limit) break;
@@ -301,6 +305,7 @@ async function getShippingCostsSummary(fromDate, toDate, { timeoutMs = 30000, fo
     parcel_count: parcelCount,
     dhl_count: dhlCount,
     dpd_count: dpdCount,
+    other_count: otherCount,
     currency: 'EUR',
     csv_fallback_count: csvFallbackCount,
   };
