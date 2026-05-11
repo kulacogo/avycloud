@@ -78,8 +78,11 @@ function isChatV2Enhanced() {
 }
 
 // Exponential backoff helper for transient (5xx / network) Gemini failures.
+// Tuned for Gemini API overload bursts: 4 attempts (initial + 3 retries) with
+// exponential backoff up to 8s. Total worst-case wait: ~14s before giving up,
+// which is acceptable for a chat user vs. seeing an immediate "no answer".
 async function withGeminiRetry(operation, { label = 'gemini' } = {}) {
-  const delays = [500, 1000];
+  const delays = [1000, 3000, 8000];
   let lastErr = null;
   for (let attempt = 0; attempt <= delays.length; attempt++) {
     try {

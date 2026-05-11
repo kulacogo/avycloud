@@ -113,14 +113,21 @@ async function runStage1Recognition({ files = [], barcodes = '', hint = null, lo
   let groundingResult = {};
   let groundingUsed = false;
   let v2FallbackRecord = null;
+  const SKIP_FOCUSED = String(process.env.STAGE1_SKIP_FOCUSED_GROUNDING || 'false').toLowerCase() === 'true';
+  const SKIP_V2_FALLBACK = String(process.env.STAGE1_SKIP_V2_FALLBACK || 'false').toLowerCase() === 'true';
   if (imageParts.length || mergedBarcodes.length) {
     // Try focused grounding first (narrow schema, fast). Hard cap so a hung Gemini call
     // cannot consume the V3 master timeout — fall back to V2 grounding instead.
+    // STAGE1_SKIP_FOCUSED_GROUNDING=true bypasses this entirely (emergency-bypass when
+    // Gemini Grounding API has known 504/503 issues; goes straight to V2 fallback).
     const FOCUSED_GROUNDING_TIMEOUT_MS = parseInt(
       process.env.FOCUSED_GROUNDING_TIMEOUT_MS || '45000',
       10,
     );
     try {
+      if (SKIP_FOCUSED) {
+        throw new Error('STAGE1_SKIP_FOCUSED_GROUNDING=true — skipping focused grounding');
+      }
       const focusedPromise = identifyProductFocused({
         imageParts,
         ocrText,
@@ -147,7 +154,12 @@ async function runStage1Recognition({ files = [], barcodes = '', hint = null, lo
       // Tight cap (default 20s) — if focused grounding already failed, the OUTER grounding
       // pipeline in routes/identify.js will retry the same call with its own budget. Long
       // waits here only steal from the V3 master timeout for no recovery benefit.
+      // STAGE1_SKIP_V2_FALLBACK=true bypasses this entirely (emergency-bypass when both
+      // grounding APIs are known broken; Stage1 continues without grounding using OCR+images).
       try {
+        if (SKIP_V2_FALLBACK) {
+          throw new Error('STAGE1_SKIP_V2_FALLBACK=true — skipping V2 grounding fallback');
+        }
         const STAGE1_V2_FALLBACK_TIMEOUT_MS = parseInt(
           process.env.STAGE1_V2_FALLBACK_TIMEOUT_MS || '20000',
           10,

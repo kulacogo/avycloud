@@ -80,7 +80,7 @@ const SOFT_RESEARCH_LIMIT = 3;
 
 const DEFAULT_MAX_ITERATIONS = 10;
 const DEFAULT_MAX_OUTPUT_TOKENS = 12000;
-const RETRY_DELAYS_MS = [500, 1000];
+const RETRY_DELAYS_MS = [1000, 3000, 8000];
 
 // ---------------------------------------------------------------------------
 // Feature flag
