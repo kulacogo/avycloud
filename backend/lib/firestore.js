@@ -2658,6 +2658,10 @@ async function saveProduct(product, options = {}) {
 
     const productData = {
       ...productWithEbay,
+      // D.0b-Hotfix 2026-05-11: defensiver tenantId-Default. Neue Produkte
+      // ohne explicit tenantId bekommen 'default' damit Multi-Tenant-Queries
+      // (getAllProductsForTenant) sie finden. Existing tenantId wird preservt.
+      tenantId: productWithEbay.tenantId || existingData?.tenantId || 'default',
       ops: {
         ...productWithEbay.ops,
         deleted_images: deletedImages.length ? deletedImages : undefined,
