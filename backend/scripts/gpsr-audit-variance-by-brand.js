@@ -1,6 +1,11 @@
 #!/usr/bin/env node
 /* eslint-disable no-console */
 /**
+ * D.0b-Migration 2026-05-10: Migrated to getAllProductsForTenant().
+ * See /Users/oguz/.claude/plans/sieht-ziemlich-komplex-unstrukturiert-woolly-tulip.md (Phase D.0)
+ * D.0b-Migration: Default to avycloud. Override via TENANT_ID env var.
+ */
+/**
  * Audit GPSR variance per Brand (Brand == Hersteller).
  *
  * Outputs:
@@ -23,7 +28,11 @@
 const fs = require('fs');
 const path = require('path');
 
-const { getAllProducts } = require('../lib/firestore');
+const { getAllProductsForTenant } = require('../lib/firestore');
+
+// D.0b-Hardening 2026-05-11: read script — default avycloud OK, but log effective tenant prominently
+const TENANT_ID = process.env.TENANT_ID || 'avycloud';
+console.log('[INFO] Running with TENANT_ID=%s (read-only; override via TENANT_ID env var)', TENANT_ID);
 const {
   getManufacturerGpsrByName,
   normalizeGpsrObject,
@@ -131,7 +140,7 @@ async function main() {
   const brandFilterKey = brandFilter ? normalizeManufacturerKey(brandFilter) : '';
   const limit = Math.max(1, parseInt(argValue('--limit', process.env.LIMIT || '999999') || '999999', 10));
 
-  const all = await getAllProducts();
+  const all = await getAllProductsForTenant(TENANT_ID);
   const products = Array.isArray(all) ? all.filter((p) => p?.id) : [];
   const selected = products.slice(0, limit);
 

@@ -1,6 +1,6 @@
 'use strict';
 
-const { getAllProducts, firestore } = require('../lib/firestore');
+const { getAllProducts, getAllProductsForTenant, firestore } = require('../lib/firestore');
 const { refreshProductInventory } = require('../lib/warehouse');
 const { computeAvailableQuantity, syncStockToAllChannels, findProductsBySkuChunk } = require('./stock-sync-dispatcher');
 
@@ -104,7 +104,12 @@ async function reconcileRecentActivity({ tenantId = 'default' } = {}) {
  * Aufgerufen 1x täglich nachts.
  */
 async function reconcileFullScan({ tenantId = 'default' } = {}) {
-  const products = await getAllProducts();
+  // D.0b — Tenant-scoped read; getAllProducts() retained as fallback only
+  // for ad-hoc callers that pass no tenantId (signature still defaults to
+  // 'default' so this branch is unreachable today).
+  const products = tenantId
+    ? await getAllProductsForTenant(tenantId)
+    : await getAllProducts();
   const productIds = products.map((p) => p.id);
   return _runDriftChecks(productIds, tenantId, 'full_scan');
 }

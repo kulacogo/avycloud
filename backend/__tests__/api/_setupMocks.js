@@ -33,6 +33,7 @@ for (const [key, value] of Object.entries(firestoreModule)) {
 
 // Set sensible default return types
 spies.getAllProducts?.mockResolvedValue([]);
+spies.getAllProductsForTenant?.mockResolvedValue([]);
 spies.listOrders?.mockResolvedValue([]);
 spies.listInventories?.mockResolvedValue([]);
 spies.listOrdersByStatus?.mockResolvedValue([]);

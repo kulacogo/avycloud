@@ -6,9 +6,10 @@ import { AdminLlmManagement } from './AdminLlmManagement';
 import { AdminBulkActions } from './AdminBulkActions';
 import { AdminIntegrations } from './AdminIntegrations';
 import { AdminEbayTaxonomy } from './AdminEbayTaxonomy';
+import { AdminIdentifyRunsDashboard } from './AdminIdentifyRunsDashboard';
 import { PageHeader } from '../ui/PageHeader';
 
-type Tab = 'users' | 'groups' | 'roles' | 'llm' | 'bulk' | 'integrations' | 'ebay';
+type Tab = 'users' | 'groups' | 'roles' | 'llm' | 'bulk' | 'integrations' | 'ebay' | 'identify-runs';
 
 export const AdminPanel: React.FC = () => {
   const [tab, setTab] = React.useState<Tab>('users');
@@ -81,6 +82,15 @@ export const AdminPanel: React.FC = () => {
         >
           eBay
         </button>
+        <button
+          type="button"
+          onClick={() => setTab('identify-runs')}
+          className={`rounded-xl px-4 py-2 text-sm font-semibold transition-colors ${
+            tab === 'identify-runs' ? 'bg-accent text-txt-primary' : 'bg-app-surface text-txt-secondary hover:bg-white/10'
+          }`}
+        >
+          Identify Runs
+        </button>
       </div>
 
       {tab === 'users' ? (
@@ -95,6 +105,8 @@ export const AdminPanel: React.FC = () => {
         <AdminEbayTaxonomy />
       ) : tab === 'integrations' ? (
         <AdminIntegrations />
+      ) : tab === 'identify-runs' ? (
+        <AdminIdentifyRunsDashboard />
       ) : (
         <AdminRoleManagement />
       )}

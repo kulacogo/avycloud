@@ -112,10 +112,32 @@ async function detectIntent(message) {
 
   try {
     const genAI = getGeminiClient();
+    // Phase F.1b.3 — best-effort scope-config (additive, never throws).
+    // Intent detection is a tight single-token classifier — preserve the
+    // current temperature=0/maxOutputTokens=10 defaults via callerOverrides.
+    const _intentLegacy = { temperature: 0, maxOutputTokens: 10 };
+    let _intentScopeConfig = null;
+    try {
+      const { resolveScopeConfig } = require('../lib/llm-config');
+      _intentScopeConfig = await resolveScopeConfig('chat.product', null, _intentLegacy);
+    } catch (err) {
+      let logger = null;
+      try { logger = require('../lib/logger'); } catch (_) { /* logger optional in tests */ }
+      if (logger && typeof logger.warn === 'function') {
+        logger.warn(
+          { scopeId: 'chat.product', reason: err?.message || String(err) },
+          '[chat-legacy/detectIntent] resolveScopeConfig failed, using hardcoded defaults'
+        );
+      }
+    }
+    const _intentScopeGenCfg =
+      _intentScopeConfig && _intentScopeConfig.generationConfig && typeof _intentScopeConfig.generationConfig === 'object'
+        ? _intentScopeConfig.generationConfig
+        : {};
     const model = genAI.getGenerativeModel({
       // INTENT_MODEL is resolved once at module load; CHAT_INTENT_MODEL (legacy) still wins if set.
       model: resolveModel(process.env.CHAT_INTENT_MODEL, 'CHAT_INTENT_MODEL', INTENT_MODEL),
-      generationConfig: { temperature: 0, maxOutputTokens: 10 },
+      generationConfig: { ..._intentLegacy, ..._intentScopeGenCfg },
     });
 
     const result = await Promise.race([
@@ -2838,5 +2860,7 @@ module.exports = {
     CHAT_MODEL,
     INTENT_MODEL,
     MAX_CHAT_ITERATIONS,
+    // F.1b.3 test-only: snapshot caller-migration shape via the intent path.
+    detectIntent,
   },
 };

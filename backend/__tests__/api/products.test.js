@@ -53,11 +53,14 @@ const SAMPLE_INVENTORY = {
 
 describe('GET /api/products', () => {
   beforeEach(() => {
+    // D.0b migration: route now reads via getAllProductsForTenant(tenantId).
+    // Reset both helpers to keep the contract stable across tests.
     firebaseSpies.getAllProducts?.mockReset();
+    firebaseSpies.getAllProductsForTenant?.mockReset();
   });
 
   it('returns 200 with products array', async () => {
-    firebaseSpies.getAllProducts?.mockResolvedValue([SAMPLE_PRODUCT]);
+    firebaseSpies.getAllProductsForTenant?.mockResolvedValue([SAMPLE_PRODUCT]);
     const res = await request(app).get('/api/products');
     expect(res.status).toBe(200);
     expect(res.body.ok).toBe(true);
@@ -66,14 +69,14 @@ describe('GET /api/products', () => {
   });
 
   it('returns 200 with empty array when no products exist', async () => {
-    firebaseSpies.getAllProducts?.mockResolvedValue([]);
+    firebaseSpies.getAllProductsForTenant?.mockResolvedValue([]);
     const res = await request(app).get('/api/products');
     expect(res.status).toBe(200);
     expect(res.body.products).toEqual([]);
   });
 
   it('returns 500 when firestore throws', async () => {
-    firebaseSpies.getAllProducts?.mockRejectedValue(new Error('Firestore unavailable'));
+    firebaseSpies.getAllProductsForTenant?.mockRejectedValue(new Error('Firestore unavailable'));
     const res = await request(app).get('/api/products');
     expect(res.status).toBe(500);
   });

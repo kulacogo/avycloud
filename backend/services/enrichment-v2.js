@@ -1,3 +1,9 @@
+/**
+ * @deprecated-target 2026-08 — LEGACY-LOCAL Fallback-Pipeline. SUNSET-BEDINGUNG: V4 30 Tage stable ohne Fallback-Trigger.
+ * Aufrufer: `routes/identify.js` (Z.14, 193, 722) als Legacy-Fallback nach V3-Failure.
+ * SOURCE_WEIGHTS-Skala 1–6 (Ganzzahlen) NICHT außerhalb dieses Moduls konsumieren.
+ * Plan: /Users/oguz/.claude/plans/sieht-ziemlich-komplex-unstrukturiert-woolly-tulip.md (Phase A.2 + B.2)
+ */
 const { extractOcrPayload } = require('../lib/vision-ocr');
 const { uploadImage } = require('../lib/storage');
 const { findEbayCategory } = require('../lib/ebay-taxonomy');

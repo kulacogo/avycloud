@@ -1,0 +1,50 @@
+--- a/backend/lib/firestore.js
++++ b/backend/lib/firestore.js
+@@ async function getAllProducts(options = {}) {
+-async function getAllProducts(options = {}) {
+-  // Phase D.0c — deprecation warning (Schritt 1). Captures a stack so any
+-  // remaining caller (in case audit-script missed it) is identifiable in logs.
+-  const stack = new Error('getAllProducts deprecation').stack;
+-  console.warn(
+-    '[DEPRECATED] getAllProducts() called without tenantId — cross-tenant data leak risk. ' +
+-      'Migrate to getAllProductsForTenant(tenantId). Stack: ' +
+-      stack
+-  );
+-
+-  // Bestehende Implementation BLEIBT fuer >=7d Production-Beobachtung.
+-  // Throw-Flip-Variante siehe docs/runbooks/d0c-throw-flip.md.
+-  try {
+-    const applyLimit = Number.isFinite(PRODUCT_LIST_LIMIT) && PRODUCT_LIST_LIMIT > 0;
+-    if (applyLimit) {
+-      console.warn(
+-        `[firestore] PRODUCT_LIST_LIMIT=${PRODUCT_LIST_LIMIT} konfiguriert – wird ignoriert, um fehlende Produkte im Inventar zu vermeiden.`
+-      );
+-    }
+-
+-    // Wichtiger Fix: orderBy auf einem optionalen Feld filtert alle Dokumente ohne dieses Feld heraus.
+-    // Wir holen deshalb alle Dokumente ohne orderBy, damit keine Produkte fehlen.
+-    const snapshot = await firestore.collection(PRODUCTS_COLLECTION).get();
+-
+-    const products = [];
+-    snapshot.forEach((doc) => {
+-      const data = doc.data();
+-      products.push({
+-        ...data,
+-        id: data?.id || doc.id,
+-      });
+-    });
+-
+-    console.log(`Loaded ${products.length} products from Firestore`);
+-    return products;
+-  } catch (error) {
+-    console.error('Failed to get products from Firestore:', error);
+-    throw new Error(`Failed to get products: ${error.message}`);
+-  }
+-}
++async function getAllProducts(options = {}) {
++  // Phase D.0c — Schritt 2: Throw-Flip nach >=7d Wait + 0 [DEPRECATED]-Hits.
++  // Pre-Conditions siehe docs/runbooks/d0c-throw-flip.md.
++  throw new Error(
++    'getAllProducts() removed (Phase D.0c). Use getAllProductsForTenant(tenantId).'
++  );
++}

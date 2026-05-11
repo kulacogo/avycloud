@@ -139,6 +139,47 @@
         { "fieldPath": "status", "order": "ASCENDING" },
         { "fieldPath": "expiresAt", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "llm_call_telemetry",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "tenantId", "order": "ASCENDING" },
+        { "fieldPath": "scope", "order": "ASCENDING" },
+        { "fieldPath": "timestamp", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "products_v2",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "tenantId", "order": "ASCENDING" },
+        { "fieldPath": "identifyCheckedAtIso", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "products_v2",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "tenantId", "order": "ASCENDING" },
+        { "fieldPath": "identifyV3CheckedAtIso", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "products_v2",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "tenantId", "order": "ASCENDING" },
+        { "fieldPath": "identifyCheckedAtIso", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "products_v2",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "tenantId", "order": "ASCENDING" },
+        { "fieldPath": "identifyV3CheckedAtIso", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

@@ -1,5 +1,10 @@
 /* eslint-disable no-console */
 /**
+ * D.0b-Migration 2026-05-10: Migrated to getAllProductsForTenant().
+ * See /Users/oguz/.claude/plans/sieht-ziemlich-komplex-unstrukturiert-woolly-tulip.md (Phase D.0)
+ * D.0b-Migration: Default to avycloud. Override via TENANT_ID env var.
+ */
+/**
  * Rollback barcodes applied by barcode-backfill-web apply_report.json.
  *
  * Why:
@@ -25,7 +30,15 @@
 
 const fs = require('fs');
 const path = require('path');
-const { getAllProducts, getProduct, saveProduct } = require('../lib/firestore');
+const { getAllProductsForTenant, getProduct, saveProduct } = require('../lib/firestore');
+
+// D.0b-Hardening 2026-05-11: mandatory TENANT_ID for write scripts (prevents silent cross-tenant writes)
+const TENANT_ID = process.env.TENANT_ID;
+if (!TENANT_ID) {
+  console.error('TENANT_ID env var required. Example: TENANT_ID=avycloud node <script>.js');
+  process.exit(1);
+}
+console.warn(`[D.0b-Hardening] Running for tenantId='${TENANT_ID}'.`);
 const { normalizeDigits, isValidGtin, getGtinType } = require('../lib/gtin');
 
 function safeString(v) {
@@ -104,7 +117,7 @@ async function main() {
   const outDir = args.outDir || path.join(process.cwd(), 'exports', 'barcode-backfill-web-rollback', stamp);
   fs.mkdirSync(outDir, { recursive: true });
 
-  const pre = await getAllProducts();
+  const pre = await getAllProductsForTenant(TENANT_ID);
   if (args.expectedCount != null && pre.length !== args.expectedCount) {
     throw new Error(`Count guard failed: expected ${args.expectedCount}, got ${pre.length}`);
   }
@@ -159,7 +172,7 @@ async function main() {
   fs.writeFileSync(path.join(outDir, 'report.json'), JSON.stringify(out, null, 2), 'utf-8');
   console.log(`[barcode-rollback] ${args.apply ? 'APPLY' : 'DRY-RUN'} rollback=${summary.rolledBack} skipped=${summary.skipped} failed=${summary.failed} out=${outDir}`);
 
-  const post = await getAllProducts();
+  const post = await getAllProductsForTenant(TENANT_ID);
   console.log(`[barcode-rollback] count guard: ${pre.length} -> ${post.length}`);
   if (args.expectedCount != null && post.length !== args.expectedCount) {
     throw new Error(`Count guard failed post: expected ${args.expectedCount}, got ${post.length}`);

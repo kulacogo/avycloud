@@ -487,4 +487,186 @@ describe('runProductChatV3 — injected fake client', () => {
       /^chat-v3 failed: message is required/
     );
   });
+
+  it('switches toolConfig to ANY+allowedFunctionNames after SOFT_RESEARCH_LIMIT', async () => {
+    // SOFT_RESEARCH_LIMIT = 3. The agentic loop counts consecutive iterations
+    // without a `update_product_datasheet` call. After the 3rd research-only
+    // iteration, the NEXT sendMessage MUST be sent with
+    // toolConfig.functionCallingConfig = { mode: 'ANY', allowedFunctionNames: [WRITE_TOOL] }.
+    //
+    // Scripted flow:
+    //   - Initial sendMessage  → response with 1 atomic-tool function_call (no write).
+    //   - Iteration 1 sendMessage (researchOnlyIters=1) → response with 1 atomic-tool call.
+    //   - Iteration 2 sendMessage (researchOnlyIters=2) → response with 1 atomic-tool call.
+    //   - Iteration 3 sendMessage (researchOnlyIters=3) → response with text only (no functionCalls)
+    //                                                     and the sendConfig MUST be forced.
+    //
+    // We capture the per-call args via the fake client's recorder and assert
+    // that the 4th sendMessage was invoked with the forced sendConfig.
+    const product = mkProduct();
+    const researchResponse = () =>
+      mkFakeResponse({
+        functionCalls: [
+          { id: 'a', name: 'lookup_gtin', args: { gtin: '4548736132610' } },
+        ],
+      });
+    const aiClient = mkFakeAiClient([
+      researchResponse(),                         // initial
+      researchResponse(),                         // after iter 1
+      researchResponse(),                         // after iter 2
+      mkFakeResponse({ text: 'final, no calls' }), // after iter 3 (loop exits)
+    ]);
+
+    const result = await runProductChatV3({
+      product,
+      message: 'recherchiere bitte',
+      aiClient,
+      maxIterations: 10,
+    });
+
+    // 1 initial + 3 iterations = at least 4 sendMessage invocations on chat.
+    // The loop ended without a write-call, so the ultimate-fallback path
+    // adds one extra finalization sendMessage (5 total). We assert on the
+    // forced 4th call here — the ultimate fallback is covered separately by
+    // the "respects maxIterations" + "throws with chat-v3 failed" tests.
+    expect(aiClient.__chat.sendMessage.mock.calls.length).toBeGreaterThanOrEqual(4);
+
+    // The 4th call (index 3) is the one sent AFTER the 3rd research-only
+    // iteration — it must carry the forced sendConfig.
+    const forcedCallArgs = aiClient.__chat.sendMessage.mock.calls[3][0];
+    expect(forcedCallArgs).toHaveProperty('config');
+    expect(forcedCallArgs.config).toMatchObject({
+      toolConfig: {
+        functionCallingConfig: {
+          mode: 'ANY',
+          allowedFunctionNames: ['update_product_datasheet'],
+        },
+      },
+    });
+
+    // The earlier iterations must NOT carry the forced sendConfig.
+    expect(aiClient.__chat.sendMessage.mock.calls[1][0].config).toBeUndefined();
+    expect(aiClient.__chat.sendMessage.mock.calls[2][0].config).toBeUndefined();
+
+    // Trace records at least one forced finalization.
+    expect(result.trace.toolCalls.length).toBeGreaterThanOrEqual(3);
+  });
+
+  it('runs crossReferenceProduct after agentic loop and exposes field confidence', async () => {
+    // Two consecutive update_product_datasheet calls — second one overrides
+    // brand (last-wins on draft). After the loop, crossReferenceProduct must
+    // run on the draft and populate result.confidence.fieldScores for the
+    // resolved brand field. This proves the post-loop cross-reference path
+    // was reached (covered by lib/cross-reference.js + confidence-scoring.js).
+    const product = mkProduct();
+    const aiClient = mkFakeAiClient([
+      mkFakeResponse({
+        functionCalls: [
+          {
+            id: 'c1',
+            name: 'update_product_datasheet',
+            args: {
+              summary: 'first guess',
+              title: 'Sony WH-1000XM5 Schwarz',
+              identity: { brand: 'Sony' },
+              confidence: 0.7,
+            },
+          },
+        ],
+      }),
+      mkFakeResponse({
+        functionCalls: [
+          {
+            id: 'c2',
+            name: 'update_product_datasheet',
+            args: {
+              summary: 'second source disagrees',
+              identity: { brand: 'Samsung' },
+              confidence: 0.6,
+            },
+          },
+        ],
+      }),
+      mkFakeResponse({ text: 'fertig.' }),
+    ]);
+
+    const result = await runProductChatV3({
+      product,
+      message: 'check brand from multiple sources',
+      aiClient,
+    });
+
+    // Both datasheet changes were captured.
+    expect(result.datasheetChanges).toHaveLength(2);
+    expect(result.datasheetChanges[0].identity.brand).toBe('Sony');
+    expect(result.datasheetChanges[1].identity.brand).toBe('Samsung');
+
+    // Post-loop crossReferenceProduct ran — confidence shape is populated.
+    expect(result.confidence).toBeTypeOf('object');
+    expect(result.confidence).toHaveProperty('fieldScores');
+    expect(result.confidence.fieldScores).toBeTypeOf('object');
+    // Draft.brand (last-wins) was 'Samsung' — it must appear in field scores.
+    expect(result.confidence.fieldScores).toHaveProperty('brand');
+    expect(result.confidence.fieldScores.brand).toMatchObject({
+      score: expect.any(Number),
+      passes: expect.any(Boolean),
+    });
+    // conflicts array is always present (may be empty without atomic-tool
+    // evidence rows; structure is what we assert here).
+    expect(Array.isArray(result.confidence.conflicts)).toBe(true);
+    // overall + readyForPublish were computed via aggregateProductConfidence.
+    expect(result.confidence).toHaveProperty('overall');
+    expect(result.confidence).toHaveProperty('readyForPublish');
+    expect(result.confidence).toHaveProperty('missingCritical');
+    expect(Array.isArray(result.confidence.missingCritical)).toBe(true);
+  });
+
+  it('emits a needs_human progress event when readyForPublish is false', async () => {
+    // Minimal datasheet change → critical fields (brand, category, title,
+    // requiredAspects, gpsr) are NOT all confidently filled →
+    // aggregate.readyForPublish === false → onProgress receives a
+    // 'needs_human' event before 'complete'.
+    const product = mkProduct();
+    const aiClient = mkFakeAiClient([
+      mkFakeResponse({
+        functionCalls: [
+          {
+            id: 'c1',
+            name: 'update_product_datasheet',
+            args: {
+              summary: 'cannot verify all critical fields',
+              confidence: 0.4,
+            },
+          },
+        ],
+      }),
+      mkFakeResponse({ text: 'done.' }),
+    ]);
+
+    const progressEvents = [];
+    const result = await runProductChatV3({
+      product,
+      message: 'try to publish',
+      onProgress: (e) => progressEvents.push(e),
+      aiClient,
+    });
+
+    expect(result.confidence.readyForPublish).toBe(false);
+    expect(result.confidence.missingCritical.length).toBeGreaterThan(0);
+
+    const needsHuman = progressEvents.find((e) => e.type === 'needs_human');
+    expect(needsHuman).toBeTruthy();
+    expect(needsHuman).toMatchObject({
+      type: 'needs_human',
+      reason: 'missing_critical',
+    });
+    expect(Array.isArray(needsHuman.missing)).toBe(true);
+    expect(needsHuman.missing.length).toBeGreaterThan(0);
+    expect(Array.isArray(needsHuman.suggestions)).toBe(true);
+    // needs_human must fire BEFORE complete.
+    const needsHumanIdx = progressEvents.findIndex((e) => e.type === 'needs_human');
+    const completeIdx = progressEvents.findIndex((e) => e.type === 'complete');
+    expect(needsHumanIdx).toBeGreaterThan(-1);
+    expect(completeIdx).toBeGreaterThan(needsHumanIdx);
+  });
 });

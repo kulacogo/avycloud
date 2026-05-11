@@ -1,0 +1,804 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8" />
+<title>AvyCloud — Anreicherungs-Regeln (Identify + Chat)</title>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<style>
+  :root{
+    --bg:#0b0d12; --panel:#11141b; --panel2:#161a23; --line:#222837;
+    --txt:#e7eaf2; --muted:#8a93a8; --acc:#7c5cff; --acc2:#39d0a8;
+    --warn:#ffb547; --bad:#ff6b6b; --ok:#39d0a8;
+    --chip:#1c2230; --chip2:#252c3d;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--txt);
+    font:14px/1.55 -apple-system,BlinkMacSystemFont,"Inter",system-ui,sans-serif}
+  a{color:var(--acc2);text-decoration:none}
+  header{
+    position:sticky;top:0;z-index:10;
+    background:linear-gradient(180deg,#0b0d12 70%,rgba(11,13,18,.6) 100%);
+    border-bottom:1px solid var(--line);padding:18px 24px 14px;
+  }
+  h1{margin:0 0 4px;font-size:22px;letter-spacing:.2px}
+  .sub{color:var(--muted);font-size:13px;margin-bottom:14px}
+  .stats{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px}
+  .stat{
+    background:var(--panel);border:1px solid var(--line);border-radius:10px;
+    padding:8px 12px;font-size:12px;color:var(--muted);
+  }
+  .stat b{color:var(--txt);font-weight:600;font-size:14px;margin-right:6px}
+  .controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+  input[type=search]{
+    flex:1;min-width:240px;background:var(--panel2);border:1px solid var(--line);
+    color:var(--txt);padding:9px 12px;border-radius:9px;font-size:13px;
+  }
+  input[type=search]:focus{outline:none;border-color:var(--acc)}
+  .filters{display:flex;flex-wrap:wrap;gap:6px}
+  .chip{
+    background:var(--chip);border:1px solid var(--line);color:var(--muted);
+    padding:6px 10px;border-radius:999px;font-size:12px;cursor:pointer;
+    user-select:none;transition:.15s
+  }
+  .chip:hover{color:var(--txt)}
+  .chip.active{background:var(--acc);color:#fff;border-color:var(--acc)}
+  .chip.cat-pipeline.active{background:#7c5cff}
+  .chip.cat-worker.active{background:#39d0a8;color:#0b0d12}
+  .chip.cat-chat.active{background:#ffb547;color:#0b0d12}
+  .chip.cat-tool.active{background:#ff6b6b}
+  .chip.cat-conf.active{background:#5cb8ff;color:#0b0d12}
+  .chip.cat-field.active{background:#c46cff}
+  .chip.cat-flag.active{background:#39d0a8;color:#0b0d12}
+  .chip.cat-safe.active{background:#ff6b6b}
+  .chip.cat-spec.active{background:#5cb8ff;color:#0b0d12}
+
+  main{max-width:1400px;margin:0 auto;padding:18px 24px 80px}
+  section.group{margin:24px 0 0}
+  section.group > h2{
+    font-size:16px;margin:0 0 4px;display:flex;align-items:center;gap:10px;
+    padding:8px 0;border-bottom:1px solid var(--line)
+  }
+  section.group > h2 .count{color:var(--muted);font-weight:400;font-size:13px}
+  section.group > p.intro{color:var(--muted);font-size:13px;margin:6px 0 12px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:12px;margin-top:10px}
+  .rule{
+    background:var(--panel);border:1px solid var(--line);border-radius:12px;
+    padding:14px;display:flex;flex-direction:column;gap:8px;
+    transition:.15s;
+  }
+  .rule:hover{border-color:#3a4358}
+  .rule .top{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
+  .rule .name{font-weight:600;font-size:14px;line-height:1.35}
+  .rule .id{
+    font:11px/1 ui-monospace,Menlo,Consolas,monospace;color:var(--muted);
+    background:var(--chip);padding:3px 6px;border-radius:6px;flex-shrink:0
+  }
+  .rule .field{
+    display:inline-block;background:var(--chip2);color:var(--acc2);
+    padding:2px 8px;border-radius:6px;font-size:11px;
+    font:11px/1.4 ui-monospace,Menlo,Consolas,monospace;width:fit-content
+  }
+  .rule .what{color:var(--txt);font-size:13px}
+  .rule .when{color:var(--muted);font-size:12px;font-style:italic}
+  .rule .src{
+    font:11px/1.4 ui-monospace,Menlo,Consolas,monospace;color:var(--muted);
+    border-top:1px dashed var(--line);padding-top:6px;word-break:break-all
+  }
+  .badge{font-size:10px;padding:2px 6px;border-radius:4px;background:var(--chip);color:var(--muted);margin-left:4px}
+  .badge.flag-on{background:#143b2c;color:#39d0a8}
+  .badge.flag-off{background:#3b1d1d;color:#ff8b8b}
+  details > summary{
+    cursor:pointer;list-style:none;color:var(--muted);font-size:12px;
+    padding:6px 0;user-select:none
+  }
+  details > summary::-webkit-details-marker{display:none}
+  details > summary::before{content:"▶ ";color:var(--acc);font-size:10px}
+  details[open] > summary::before{content:"▼ "}
+  table.tbl{
+    width:100%;border-collapse:collapse;font-size:12px;
+    background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden
+  }
+  table.tbl th,table.tbl td{
+    padding:8px 10px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top
+  }
+  table.tbl th{background:var(--panel2);color:var(--muted);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.5px}
+  table.tbl tr:last-child td{border-bottom:none}
+  table.tbl code{background:var(--chip);padding:1px 5px;border-radius:4px;font-size:11px}
+  .legend{display:flex;flex-wrap:wrap;gap:14px;color:var(--muted);font-size:12px;margin:6px 0 0}
+  .legend span{display:inline-flex;align-items:center;gap:6px}
+  .legend .dot{width:9px;height:9px;border-radius:50%}
+  .toc{
+    background:var(--panel);border:1px solid var(--line);border-radius:12px;
+    padding:14px 16px;margin-top:14px
+  }
+  .toc h3{margin:0 0 8px;font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+  .toc ol{margin:0;padding-left:18px;column-count:2;column-gap:30px}
+  .toc li{margin:3px 0;break-inside:avoid;font-size:13px}
+  .toc a{color:var(--txt)}
+  .toc a:hover{color:var(--acc2)}
+  footer{
+    margin-top:50px;padding-top:18px;border-top:1px solid var(--line);
+    color:var(--muted);font-size:12px;text-align:center
+  }
+  .empty{padding:30px;text-align:center;color:var(--muted)}
+  @media (max-width:680px){
+    .grid{grid-template-columns:1fr}
+    .toc ol{column-count:1}
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>AvyCloud — Anreicherungs-Regeln</h1>
+  <div class="sub">
+    Konsolidierte Regelbasis für <b>Identify-Pipeline</b> (V4 Orchestrator + V3 Multi-Stage)
+    und <b>Chat-Assistant</b> (V3 / V2 / Legacy) — alle Regeln, mit denen Felder eines Produktdatenblatts
+    angereichert werden. Stand: 2026-05-10.
+  </div>
+  <div class="stats" id="stats"></div>
+  <div class="controls">
+    <input id="q" type="search" placeholder="Suchen — Feldname, Regel, Datei, Flag …" />
+    <div class="filters" id="filters"></div>
+  </div>
+  <div class="legend">
+    <span><span class="dot" style="background:#7c5cff"></span>Pipeline</span>
+    <span><span class="dot" style="background:#39d0a8"></span>Worker / Flag</span>
+    <span><span class="dot" style="background:#ffb547"></span>Chat</span>
+    <span><span class="dot" style="background:#ff6b6b"></span>Tool / Safety</span>
+    <span><span class="dot" style="background:#5cb8ff"></span>Confidence / Spec</span>
+    <span><span class="dot" style="background:#c46cff"></span>Feld-Anreicherung</span>
+  </div>
+</header>
+<main>
+  <section class="toc">
+    <h3>Inhalt</h3>
+    <ol>
+      <li><a href="#docs">Quelldokumente (Übersicht)</a></li>
+      <li><a href="#flags">Feature-Flags</a></li>
+      <li><a href="#thresholds">Confidence-Thresholds</a></li>
+      <li><a href="#sources">Source-Weights</a></li>
+      <li><a href="#pipeline">Identify-Pipeline (V4 Orchestration)</a></li>
+      <li><a href="#stages">Identify-V3 Multi-Stage</a></li>
+      <li><a href="#workers">V4 Worker (8)</a></li>
+      <li><a href="#chat">Chat-Assistant (V3 / V2 / Legacy)</a></li>
+      <li><a href="#tools">Atomic Tools (8)</a></li>
+      <li><a href="#xref">Cross-Reference &amp; Konsens</a></li>
+      <li><a href="#fields">Per-Feld-Anreicherung</a></li>
+      <li><a href="#quality">Quality-Gate &amp; Auto-Fix</a></li>
+      <li><a href="#safety">Save-Pfad &amp; Schreibschutz</a></li>
+      <li><a href="#specs">Spec-Dokumente (Listing-Validierung &amp; Bulk)</a></li>
+    </ol>
+  </section>
+
+  <section id="rules-root"></section>
+
+  <footer>
+    Diese Seite wurde lokal generiert für <code>/Users/oguz/Dev/avycloud/</code>.
+    Quellen: 14 Doku-/Spec-Dateien + ~30 Backend-Code-Module. Stichtag 2026-05-10.
+  </footer>
+</main>
+
+<script>
+/* ============================================================
+   DATEN — alle Regeln, gruppiert. Felder pro Regel:
+   { id, name, field, what, when, src, cat, sub }
+   cat: pipeline | worker | chat | tool | conf | field | flag | safe | spec
+   ============================================================ */
+
+const DOCS = [
+  { name: "CLAUDE.md (Hauptregelwerk)", path: "CLAUDE.md", lines: 130, kind: "rules" },
+  { name: ".claude/rules/decisions.md", path: ".claude/rules/decisions.md", lines: 42, kind: "rules" },
+  { name: ".claude/rules/backend.md", path: ".claude/rules/backend.md", lines: 22, kind: "rules" },
+  { name: ".claude/rules/frontend.md", path: ".claude/rules/frontend.md", lines: 24, kind: "rules" },
+  { name: ".claude/rules/production-safety.md", path: ".claude/rules/production-safety.md", lines: 40, kind: "rules" },
+  { name: ".claude/rules/workflow.md", path: ".claude/rules/workflow.md", lines: 40, kind: "rules" },
+  { name: "docs/features/identify-v4/spec.md", path: "docs/features/identify-v4/spec.md", lines: 145, kind: "spec" },
+  { name: "docs/features/chat-assistant-v3/spec.md", path: "docs/features/chat-assistant-v3/spec.md", lines: 49, kind: "spec" },
+  { name: "docs/features/AI-001-ai-listing-pipeline/spec.md", path: "docs/features/AI-001-ai-listing-pipeline/spec.md", lines: 443, kind: "spec" },
+  { name: "docs/features/RULE-001-rule-engine/spec.md", path: "docs/features/RULE-001-rule-engine/spec.md", lines: 672, kind: "spec" },
+  { name: "docs/features/VAL-001-pre-listing-validation/spec.md", path: "docs/features/VAL-001-pre-listing-validation/spec.md", lines: 399, kind: "spec" },
+  { name: "docs/features/BULK-001-bulk-editing/spec.md", path: "docs/features/BULK-001-bulk-editing/spec.md", lines: 643, kind: "spec" },
+  { name: "docs/features/IMG-001-image-enhancement/spec.md", path: "docs/features/IMG-001-image-enhancement/spec.md", lines: null, kind: "spec" },
+  { name: "docs/features/PRICE-001-pricing-engine-ui/spec.md", path: "docs/features/PRICE-001-pricing-engine-ui/spec.md", lines: null, kind: "spec" },
+  { name: "docs/features/weight-reliability/spec.md", path: "docs/features/weight-reliability/spec.md", lines: 192, kind: "spec" }
+];
+
+const FLAGS = [
+  ["IDENTIFY_V4","false","Master-Switch der V4-Pipeline (Orchestrator + 8 Worker, Wave 1/2 + Refinement + Critic). Fallback auf V3 bei Error.","CLAUDE.md"],
+  ["IDENTIFY_V4_AUTOSAVE","true","Autosave via saveProductV2() wenn ebay_ready_score ≥ 0.6 UND identity+category ok.","CLAUDE.md"],
+  ["IDENTIFY_V4_MAX_ITERATIONS","5","Max. Refinement-Iterationen bei Worker mit confidence < 0.75.","CLAUDE.md"],
+  ["IDENTIFY_V4_TIMEOUT_MS","180000","Hard-Pipeline-Cap (3 min) — danach Fallback V3.","CLAUDE.md"],
+  ["IDENTIFY_V4_WAVE_TIMEOUT_MS","60000","Per-Wave-Timeout für Wave 1 + Wave 2.","identify-v4.js"],
+  ["IDENTIFY_V4_IMAGE_ENHANCE","true","Gemini-Image: Hintergrund entfernen + Upscale Top-3 Bilder.","CLAUDE.md"],
+  ["IDENTIFY_V4_IMAGE_ANGLE_CLASSIFY","true","Multi-Angle-Erkennung via Gemini Flash (front/side/back/detail/pack/lifestyle).","CLAUDE.md"],
+  ["IDENTIFY_V4_PRICING_SOLD","true","eBay-SOLD-Listings als primäre Pricing-Quelle.","CLAUDE.md"],
+  ["IDENTIFY_V4_CRITIC_FLASH","true","Critic darf Gemini-Flash für max. 3 Fix-Hints nutzen.","CLAUDE.md"],
+  ["IDENTIFY_V3","true","Multi-Stage-Pipeline (Stage 1–4). Bleibt als V4-Fallback aktiv.","CLAUDE.md"],
+  ["STAGE1_IMAGE_QUALITY_GATE","true","Stage 1 hängt Auflösungs-/Hintergrund-/aHash-Metadaten an Bilder (filtert nicht).","CLAUDE.md"],
+  ["STAGE2_USE_CATEGORY_V2","true","Stage 2 nutzt 4-stufigen Category-Resolver-V2 (Catalog→Suggest→Local→Gemini).","identify-v3-stage2.js"],
+  ["STAGE2_CATEGORY_V2_TIMEOUT_MS","8000","Timeout für Category-Resolver-V2-Call in Stage 2.","identify-v3-stage2.js"],
+  ["STAGE2_WEIGHT_WEB_FALLBACK","true","Web-Search nach Gewicht wenn Stage 1 (OCR/Grounding) leer.","CLAUDE.md"],
+  ["STAGE2_GPSR_WEB_FALLBACK","true","Web-Search nach Hersteller-Impressum wenn Registry leer.","CLAUDE.md"],
+  ["STAGE2_FALLBACK_TIMEOUT_MS","15000","Timeout für Weight-/GPSR-Web-Fallback.","identify-v3-stage2.js"],
+  ["STAGE2_LOOKUP_TIMEOUT_MS","12000","Timeout für eBay-Title-Insights-Mining.","identify-v3-stage2.js"],
+  ["STAGE3_ASPECT_ENFORCEMENT","true","Stage 3 füllt alle eBay-RequiredAspects, fehlende → 'Unbekannt'.","CLAUDE.md"],
+  ["STAGE3_ASPECT_REPAIR","true","2. Gemini-Call wenn >30% der Required Aspects 'Unbekannt' nach Stage 3.","CLAUDE.md"],
+  ["STAGE3_ASPECT_REPAIR_THRESHOLD","0.1","Default-Schwelle für Aspect-Repair (konfigurierbar).","identify-v3-stage3.js"],
+  ["STAGE3_CONTENT_TIMEOUT_MS","60000","Timeout für Stage-3-Content-Generierung.","identify-v3-stage3.js"],
+  ["STAGE3_AGENTIC","false","Agentic Stage-3 mit atomic-tools + forced finalization (Sample-Prozent via _SAMPLE).","identify-v3-stage3.js"],
+  ["STAGE4_CROSS_REFERENCE","true","Cross-Reference-Pass mit SOURCE_WEIGHTS in Stage 4.","identify-v3.js"],
+  ["CATEGORY_RESOLVER_V2","true","4-Stufen-Resolver: eBay-Catalog GTIN → Taxonomy-Suggest → Local-CSV → Gemini. Schreibt nur ≥ 0.85.","CLAUDE.md"],
+  ["CATEGORY_RESOLVER_DYNAMIC_CONFIDENCE","true","Confidence dynamisch: Boosts (Keyword-Match, Brand-im-Breadcrumb) / Penalties (Banned, Generic).","CLAUDE.md"],
+  ["QUALITY_GATE_ENABLED","true","Quality-Gate aktiv (false = Bypass).","CLAUDE.md"],
+  ["QUALITY_GATE_USE_LLM","optional","Optionaler Gemini-Plausibility-Review im Quality-Gate.","quality-gate.js"],
+  ["CHAT_V3","false","Opt-in Chat-V3-Pipeline (Gemini 3.1 Pro Customtools, googleSearch + urlContext + 7 atomic-tools in 1 Request).","CLAUDE.md"],
+  ["CHAT_V2_ENHANCED","true","V2-Härtungen: urlContext, Temp 1.0, Thinking-Mode high, includeThoughts, maxOutputTokens 8192, mediaResolution HIGH.","CLAUDE.md"],
+  ["CHAT_LEGACY_ENHANCED","true","Legacy-Härtungen: ASIN-Detection, SerpAPI engine='amazon', forceOneEvidencePass für alle Intents, Thinking-Mode.","CLAUDE.md"],
+  ["CHAT_STRICT_RULES_ENABLED","true","Legacy: strenge Titel-Regeln (Marketing-Floskeln raus, Umlaute, Hochzeits-Filter).","product-chat.js"],
+  ["CHAT_MODEL","gemini-3.1-pro-preview-customtools","Default-Model (override).","model-select.js"],
+  ["INTENT_MODEL","gemini-3-flash-preview","Default-Model für Intent-Detection.","model-select.js"],
+  ["GEMINI_PROMPT_CACHE","true","Prompt-Caching (90% Kosten-Ersparnis, min. 4096 Tokens, TTL 60min).","CLAUDE.md"],
+  ["ATOMIC_TOOLS_TIMEOUT_MS","15000","Per-Executor-Timeout für atomic-tools.","CLAUDE.md"],
+  ["IMAGE_VERIFY_MODE","auto","Image-URL-Probe: auto (fail-open ohne Brightdata), strict (reject), off.","marketing-images.js"],
+  ["USE_PRODUCTS_V2","true","Schreibpfad zu products_v2 (kein Dual-Write zu legacy products).","decisions.md"],
+  ["STOCK_LOCK_BACKEND","firestore","Stock-Locks via Firestore (kein In-Memory mehr).","CLAUDE.md"]
+];
+
+const THRESHOLDS = [
+  ["gtin / ean / upc","0.95","Barcode-Identität — höchste Sicherheit, falscher GTIN = eBay-Reject.","confidence-scoring.js"],
+  ["brand","0.90","Markenidentifikation kritisch (Compliance, GPSR-Mapping).","confidence-scoring.js"],
+  ["categoryId / category","0.85","Kategorie-Mapping (Marketplace-Validierung). Auch Schreibschwelle Category-Resolver.","confidence-scoring.js"],
+  ["mpn","0.85","Hersteller-Teilenummer für Katalog-Matching.","confidence-scoring.js"],
+  ["requiredAspects","0.80","Pflicht-Item-Specifics für eBay.","confidence-scoring.js"],
+  ["gpsr","0.75","Hersteller-Daten (Compliance).","confidence-scoring.js"],
+  ["title","0.70","Titel teils LLM-generiert.","confidence-scoring.js"],
+  ["price / weight / color / size","0.70","Verfeinerbar.","confidence-scoring.js"],
+  ["material","0.65","Niedriger Threshold, oft schwer eindeutig.","confidence-scoring.js"],
+  ["description","0.60","Höchste Flexibilität.","confidence-scoring.js"],
+  ["default","0.70","Fallback für unklassifizierte Felder.","confidence-scoring.js"],
+  ["ebay_ready_score (Autosave)","0.60","V4-Autosave-Schwelle (zusätzlich identity+category ok).","identify-v4.js"],
+  ["Worker low-confidence (Refinement)","0.75","Unter dieser Schwelle wird Worker im Refinement-Loop wiederholt.","identify-v4.js"],
+  ["Refinement min-improvement","0.05","Break-Bedingung: Δconfidence < 0.05 → Loop-Ende.","identify-v4.js"],
+  ["Aspect-Coverage marketplace ready","0.70","ebayReady = qualityGate.ok AND aspectCoverage ≥ 0.7","identify-v3-stage4.js"],
+  ["Conflict-Support-Ratio","0.70","Cross-Reference: runner-up ≥ 0.7 × winner = Konflikt.","cross-reference.js"]
+];
+
+const SOURCES = [
+  ["user_input","1.00","Benutzer-Eingabe — vertraut (immer Sieger)."],
+  ["gs1_verified","0.98","GS1-Registry, höchste maschinelle Quelle."],
+  ["ebay_catalog","0.95","eBay-Catalog-Lookup via GTIN."],
+  ["barcode_confirm","0.90","Web-bestätigter Barcode."],
+  ["manufacturer_website","0.90","Direktes Hersteller-Datenblatt."],
+  ["registry","0.85","GPSR-Registry (Hersteller)."],
+  ["ean_db / icecat","0.85","Externe EAN-Datenbanken."],
+  ["amazon_product","0.80","Amazon Product API (SerpAPI/BrightData)."],
+  ["upcitemdb","0.80","UPC-Datenbank."],
+  ["url_context","0.75","Gemini urlContext-Tool."],
+  ["ebay_browse / grounding","0.70","eBay Browse API / Google Search Grounding."],
+  ["gemini_vision / ocr","0.65","OCR aus Bild / Vision-Model."],
+  ["llm_generated","0.65","Frei generiert durch LLM."],
+  ["gemini_inference","0.55","Gemini-Inferenz ohne externe Quelle."],
+  ["web (broad)","0.50","Allgemeine Web-Suche."]
+];
+
+/* === Identify Pipeline V4 (Orchestrator) === */
+const PIPELINE = [
+  ["V4 Master-Cap","_pipeline","Hard-Cap 180s; bei Überschreitung Error + Fallback auf V3.","Immer aktiv","backend/services/identify-v4.js","pipeline","V4 Orchestrator"],
+  ["V4 Enable-Gate","_pipeline","Pipeline läuft nur wenn IDENTIFY_V4 ∈ {true,1,yes,on}.","Vor Pipeline-Start","identify-v4.js Z.58–66","pipeline","V4 Orchestrator"],
+  ["Stage-1 Recognition reuse","identity","V4 nutzt Stage 1 von V3 (OCR + Grounding + Image-Quality-Gate).","Pre-Wave-1","identify-v4.js Z.119–189","pipeline","V4 Orchestrator"],
+  ["Focused Grounding-Timeout","identity","identifyProductFocused > 45s → Fallback auf V2 Grounding-Mapping.","Stage 1","identify-v4.js Z.119–189","pipeline","V4 Orchestrator"],
+  ["Wave 1 — identity + category parallel","identity, categoryId","Beide Worker laufen gleichzeitig in Wave 1.","Nach Stage 1","identify-v4.js Z.132–226","pipeline","V4 Orchestrator"],
+  ["Wave-Merge via crossReferenceProduct","_all","Per-Domain-Mapping (identity→ean_db/gemini, category→ebay_catalog…) + Konsens.","Nach jeder Wave","identify-v4.js Z.242–386","pipeline","V4 Orchestrator"],
+  ["Wave 2 — 5 Worker parallel","attributes, seo, pricing, image, gpsr","Alle 5 Domain-Worker gleichzeitig.","Nach Wave 1","identify-v4.js Z.830–843","pipeline","V4 Orchestrator"],
+  ["Refinement-Loop Trigger","_per-worker","Worker mit field.confidence < 0.75 werden für Rerun markiert.","Nach Wave 2","identify-v4.js Z.396–420","pipeline","V4 Orchestrator"],
+  ["Refinement-Improvement-Break","_per-worker","Δconfidence < 0.05 → Loop-Ende vor max-Iterationen.","Refinement-Loop","identify-v4.js Z.428–453","pipeline","V4 Orchestrator"],
+  ["Wave-1 Lock","identity, categoryId","Identity + Category werden NIE im Refinement wiederholt (zu kritisch).","Refinement-Loop","identify-v4.js Z.405–407","pipeline","V4 Orchestrator"],
+  ["Critic-Wave","_quality","Critic-Worker läuft solo mit eigenem Timeout, vor Assembly.","Nach Refinement","identify-v4.js Z.870–906","pipeline","V4 Orchestrator"],
+  ["Autosave-Gate","_save","Autosave nur wenn ebay_ready_score ≥ 0.6 UND identity.ok UND category.ok.","Nach Critic","identify-v4.js Z.912–937","pipeline","V4 Orchestrator"],
+  ["Worker-Shape-Vertrag","_all","Alle 8 Worker liefern { ok, domain, resolved, confidence, sources, retriesRequested, meta } — never throws.","Worker-API","identify-v4/spec.md Z.61","pipeline","V4 Orchestrator"],
+  ["Domain-Source-Mapping","_all","identity → ean_db/gemini; category → ebay_catalog; attributes → ebay_catalog/amazon; pricing → ebay_sold/amazon/idealo …","Wave-Merge","identify-v4.js Z.283–310","pipeline","V4 Orchestrator"],
+  ["V3 Fallback-Pfad","_pipeline","V4-Error oder Timeout → identifyProductV3 wird aufgerufen.","Catch-Block","identify-v4.js Z.964–987","pipeline","V4 Orchestrator"]
+];
+
+/* === Identify V3 Multi-Stage === */
+const STAGES = [
+  ["Stage 1 — OCR + Grounding parallel","identity","OCR + Gemini-Grounding + EAN-Lookup parallel (best-effort, je 45s Timeout).","Stage 1","identify-v3-stage1.js","pipeline","V3 Stage 1"],
+  ["Image-Quality-Analyse","details.images[].quality","sharp-basiert: Auflösung, Hintergrund, aHash. Filtert nicht — Metadaten additiv.","Stage 1","identify-v3-stage1.js Z.56–82","pipeline","V3 Stage 1"],
+  ["Barcode-Merge & Ranking","identity.barcodes","OCR + explicit + Grounding zusammenführen, dedupe, ranken: EAN-13 > GTIN-14 > UPC-12 > 8-digit.","Stage 1","identify-v3-stage1.js Z.193–212","pipeline","V3 Stage 1"],
+  ["V2-Fallback-Mapping","identity","Bei V3-Fallback wird V2-Record auf focused-Format gemappt.","Stage 1","identify-v3-stage1.js Z.169–184","pipeline","V3 Stage 1"],
+  ["Category Resolution","categoryId","Lokal findEbayCategory + Fallback Resolver-V2 mit Acceptance-Threshold 0.85.","Stage 2","identify-v3-stage2.js Z.138–189","pipeline","V3 Stage 2"],
+  ["Weight Web-Fallback","weight","Web-Search wenn identity.weight_grams leer.","Stage 2","identify-v3-stage2.js Z.330–352","pipeline","V3 Stage 2"],
+  ["GPSR Web-Fallback","gpsr","Impressum-Scrape wenn registry.found=false oder name+(address|email) fehlt.","Stage 2","identify-v3-stage2.js Z.331–372","pipeline","V3 Stage 2"],
+  ["Barcode-Confirmation","identity.barcodes","Web-Verify des Primary-Barcode (zusätzliche Source).","Stage 2","identify-v3-stage2.js Z.278–296","pipeline","V3 Stage 2"],
+  ["Price 3-Source Enrichment","pricing","eBay Browse + Amazon + web parallel, hard-cap 15s.","Stage 2","identify-v3-stage2.js Z.211–220","pipeline","V3 Stage 2"],
+  ["Title-Insights Mining","seo","eBay-Wettbewerber: top tokens + sample titles für Keyword-Hinweise.","Stage 2","identify-v3-stage2.js Z.240–254","pipeline","V3 Stage 2"],
+  ["Required-Aspects Normalisierung","details.attributes","Strings → Rich-Objects { name, localizedName, values }.","Stage 3","identify-v3-stage3.js Z.46–57","pipeline","V3 Stage 3"],
+  ["Aspect-Enforcement Backfill","details.attributes","Fehlende Required Aspects mit 'Unbekannt' füllen.","Stage 3","identify-v3-stage3.js Z.221–266","pipeline","V3 Stage 3"],
+  ["Aspect-Repair-Call","details.attributes","Wenn unknown_count / required_count ≥ 0.1: zweiter fokussierter Gemini-Call.","Stage 3","identify-v3-stage3.js Z.235–266","pipeline","V3 Stage 3"],
+  ["Agentic Stage-3 (Opt-in)","_content","Chat-V3-Pattern mit atomic-tools + forced finalization (Sample-%).","Stage 3","identify-v3-stage3-agentic.js","pipeline","V3 Stage 3"],
+  ["Title coerceTitleToPolicy","title","Titel auf eBay-Token-Policy zwingen (Brand vorne, ≤80 chars).","Stage 3","identify-v3-stage3.js Z.159–167","pipeline","V3 Stage 3"],
+  ["Description sanitizeToHtml","description","HTML-Sanitizer auf generierte Beschreibung.","Stage 3","identify-v3-stage3.js Z.171–183","pipeline","V3 Stage 3"],
+  ["Highlights normalizeHighlightsStrict","key_features","Strict-Schema für Highlight-Bullets.","Stage 3","identify-v3-stage3.js Z.187–200","pipeline","V3 Stage 3"],
+  ["Attributes canonicalizeStrict","details.attributes","Kanonische Keys (z.B. 'Marke', 'Farbe', 'Material').","Stage 3","identify-v3-stage3.js Z.203–219","pipeline","V3 Stage 3"],
+  ["Field-Confidence per Source","_per-field","SOURCE_BASE_SCORES mit Bonus 2+ Sources +0.15, 3+ +0.25.","Stage 4","identify-v3-stage4.js Z.17–43","pipeline","V3 Stage 4"],
+  ["Aspect-Coverage Score","details.attributes","filled / required ≥ Schwelle.","Stage 4","identify-v3-stage4.js Z.45–62","pipeline","V3 Stage 4"],
+  ["Marketplace-Readiness","_quality","ebayReady = qualityGate.ok AND aspectCoverage ≥ 0.7.","Stage 4","identify-v3-stage4.js Z.115–116","pipeline","V3 Stage 4"],
+  ["Overall-Score (gewichtet)","_score","Komposit: brand .15, ean .10, category .15, price .10, title .15, gpsr .10, aspectCov .15, qGate .10.","Stage 4","identify-v3-stage4.js Z.119–132","pipeline","V3 Stage 4"],
+  ["Cross-Reference Pass (Stage 4b)","_all","buildEvidenceRows + crossReferenceProduct → ops.data_quality.identify_v3.cross_reference.","Stage 4","identify-v3-evidence.js","pipeline","V3 Stage 4"],
+  ["Brand Konsens-Reihenfolge","brand","identity > eanLookup > v2FallbackRecord > marke-Aspect.","Assembly","identify-v3.js Z.134–155","pipeline","V3 Assembly"],
+  ["Category-Source-Tag","details.categorySource","auto:catalog | auto:suggestions | auto:local | auto:gemini.","Assembly","identify-v3.js Z.160–168","pipeline","V3 Assembly"],
+  ["Image-Merge-Reihenfolge","details.images","uploads + grounding_web + web_search (Order).","Assembly","identify-v3.js Z.199–217","pipeline","V3 Assembly"],
+  ["Weight-Cascade","weight","identity.weight_grams > stage2.weightFallback > null.","Assembly","identify-v3.js Z.345–350","pipeline","V3 Assembly"],
+  ["GPSR Field-by-Field-Merge","gpsr","Pro Feld unabhängig: registry > stage3_llm > web_fallback.","Assembly","identify-v3.js Z.244–294","pipeline","V3 Assembly"]
+];
+
+/* === V4 Worker === */
+const WORKERS = [
+  // Identity-Worker
+  ["GTIN-Kandidaten extrahieren","identity.gtin","Aus Barcodes + Text-Regex (8–14 Ziffern).","Identity-Worker","identify-workers/identity-worker.js Z.128–148","worker","Identity"],
+  ["GTIN Mod-10-Validierung","identity.gtin","isValidGtin (Mod-10-Checksumme) — invalide werden verworfen.","Identity-Worker","identify-workers/identity-worker.js Z.134–148","worker","Identity"],
+  ["Primary-GTIN-Auswahl","identity.gtin","Präferenz: 13 > 14 > 12 > 8 Ziffern.","Identity-Worker","identify-workers/identity-worker.js Z.150–159","worker","Identity"],
+  ["Atomic-Tools parallel","identity.brand, identity.gtin","lookup_gtin + verify_brand + search_amazon_product (wenn GTIN da).","Identity-Worker","identify-workers/identity-worker.js","worker","Identity"],
+  ["Agentic Fallback (no-GTIN)","identity","Multi-turn Gemini mit finalize_identity-Tool, max 4 Iterationen, Mode=ANY.","Identity-Worker (kein GTIN)","identify-workers/identity-worker.js","worker","Identity"],
+  ["Corporate-Suffix-Stripping","brand","Entfernt gmbh/ag/se/inc/ltd/llc/kg/bv/sa/co/corp.","Identity-Worker","identify-workers/identity-worker.js Z.165–170","worker","Identity"],
+  // Category
+  ["Priority Path: GTIN-Catalog","categoryId","Bei valid GTIN: tryGtinCatalog zuerst, Confidence 0.95 (auto:catalog).","Category-Worker","identify-workers/category-worker.js Z.184–215","worker","Category"],
+  ["Fallback Path: Resolver-V2","categoryId","4-Stage-Cascade (catalog → suggestions → local → gemini).","Category-Worker","identify-workers/category-worker.js Z.220–250","worker","Category"],
+  ["Aspect-Catalog-Loading","details.attributes (meta)","executeGetRequiredAspects > getCategoryAspectCatalog (Fallback).","Category-Worker","identify-workers/category-worker.js Z.103–179","worker","Category"],
+  ["GTIN Validity-Check","_input","Digits-only, Length ∈ {8,12,13,14}.","Category-Worker","identify-workers/category-worker.js Z.67–77","worker","Category"],
+  // Attributes
+  ["3-Source Aspect-Lookup","details.attributes","executeSearchEbayCatalog + search_amazon_product + search_manufacturer_site parallel.","Attributes-Worker","identify-workers/attributes-worker.js","worker","Attributes"],
+  ["Aspect Cross-Reference","details.attributes","resolveConsensus über alle Sources.","Attributes-Worker","identify-workers/attributes-worker.js","worker","Attributes"],
+  ["Aspect-Cap 45 Hard-Limit","details.attributes","enforceAspectCap (max 45 Specifics).","Attributes-Worker","identify-workers/attributes-worker.js","worker","Attributes"],
+  ["finalize_attributes Forced","details.attributes","Mode=ANY mit allowedFunctionNames=[finalize_attributes], max 3 Iterationen.","Attributes-Worker","identify-workers/attributes-worker.js Z.80–105","worker","Attributes"],
+  ["'Unbekannt' Backfill","details.attributes","Bei fehlender Source: value='Unbekannt', confidence=0.","Attributes-Worker","identify-workers/attributes-worker.js","worker","Attributes"],
+  // SEO
+  ["Deterministic Title-Building","title","buildEbayTitle: Brand → ProductType → Model → Differentiator → KeySpec → Condition.","SEO-Worker","identify-workers/seo-worker.js Z.121–145","worker","SEO"],
+  ["Competitor-Keyword-Mining","title","fetchCategoryTitleInsights (top tokens + sample titles), Timeout 8s.","SEO-Worker","identify-workers/seo-worker.js Z.61–79","worker","SEO"],
+  ["Deterministic Description-Building","description","buildEbayDescription mit HTML-Template (5 Sections).","SEO-Worker","identify-workers/seo-worker.js Z.153–181","worker","SEO"],
+  ["Mobile-Snippet","mobile_snippet","Strip HTML, max 800 chars für mobile View.","SEO-Worker","identify-workers/seo-worker.js Z.183–187","worker","SEO"],
+  ["Title-Confidence-Score","title","ebayTitleResult.score?.overall || 0.4.","SEO-Worker","identify-workers/seo-worker.js Z.189","worker","SEO"],
+  ["Description-Confidence","description","0.75 (no warnings) / 0.5 (with warnings).","SEO-Worker","identify-workers/seo-worker.js Z.190","worker","SEO"],
+  // Pricing
+  ["4-Source Pricing parallel","pricing.sellPrice","search_ebay_sold + search_amazon + search_idealo + enrichPriceParallel.","Pricing-Worker","identify-workers/pricing-worker.js Z.114–151","worker","Pricing"],
+  ["Sweet-Spot-Compute","pricing.sellPrice","computeSweetSpotPrice (Median Sold + Trimmed-Mean Active + Amazon).","Pricing-Worker","identify-workers/pricing-worker.js","worker","Pricing"],
+  ["Fee-Aware Pricing","pricing.netPayout","applyFeeAwareness pro Marketplace.","Pricing-Worker","identify-workers/pricing-worker.js","worker","Pricing"],
+  ["Source-Weighting Pricing","pricing","ebay_sold 0.6 + amazon 0.15 + idealo 0.1 (Active 0.25 wenn da).","Pricing-Worker","identify-workers/pricing-worker.js Z.162–190","worker","Pricing"],
+  // Image
+  ["Multi-Source Image Collection","details.images","Upload-Buffer + grounding-web + manufacturer-site (atomic-tool), max 12 final.","Image-Worker","identify-workers/image-worker.js Z.68–116","worker","Image"],
+  ["analyzeImage (sharp)","details.images[].quality","Auflösung + qualityScore + aHash für Dedup.","Image-Worker","identify-workers/image-worker.js Z.118–145","worker","Image"],
+  ["Sequential Enhancement Top-3","details.images","Top-3 by quality via Gemini-Image (BG-Removal, Upscale).","Image-Worker","identify-workers/image-worker.js Z.147–150","worker","Image"],
+  ["Angle-Classification (Flash)","details.images[].angle","front/side/back/detail/pack/lifestyle via Gemini-Flash.","Image-Worker","identify-workers/image-worker.js","worker","Image"],
+  ["Image-Ranking","details.images","rankImages-Library (Phase A).","Image-Worker","identify-workers/image-worker.js","worker","Image"],
+  ["aHash-Dedup","details.images","Hash bereits gesehen → skip.","Image-Worker","identify-workers/image-worker.js Z.119–130","worker","Image"],
+  // GPSR
+  ["GPSR-Cascade","gpsr","Registry > Web-Fallback > Manufacturer-Site > optional Gemini.","GPSR-Worker","identify-workers/gpsr-worker.js Z.64–160","worker","GPSR"],
+  ["GPSR Registry-Lookup","gpsr","getManufacturerGpsrByName (brand-based), Confidence 0.9.","GPSR-Worker","identify-workers/gpsr-worker.js Z.99–118","worker","GPSR"],
+  ["GPSR Web-Fallback","gpsr","lookupGpsrFromWeb wenn registry incomplete, Confidence 0.65.","GPSR-Worker","identify-workers/gpsr-worker.js Z.121–142","worker","GPSR"],
+  ["Manufacturer-Site Fallback","gpsr","executeSearchManufacturerSite wenn completeness < 0.75.","GPSR-Worker","identify-workers/gpsr-worker.js Z.145–150","worker","GPSR"],
+  ["Completeness-Score","gpsr","filled_fields / REQUIRED_FIELDS (name, address, email, country).","GPSR-Worker","identify-workers/gpsr-worker.js Z.31–38","worker","GPSR"],
+  ["Early-Exit at 0.75","gpsr","Cascade bricht ab wenn completeness ≥ 0.75.","GPSR-Worker","identify-workers/gpsr-worker.js Z.64–160","worker","GPSR"],
+  // Critic
+  ["evaluateEbayReady","_quality","Quality-Gate-Evaluation auf vollem Datasheet.","Critic-Worker","identify-workers/critic-worker.js Z.126–236","worker","Critic"],
+  ["GTIN-Checksum","identity.gtin","Mod-10-Check als Critic-Issue.","Critic-Worker","identify-workers/critic-worker.js","worker","Critic"],
+  ["Aspect-Cap 45","details.attributes","Hard-Limit als Critic-Issue.","Critic-Worker","identify-workers/critic-worker.js","worker","Critic"],
+  ["GPSR Completeness-Issue","gpsr","scorGpsr-Function im Critic.","Critic-Worker","identify-workers/critic-worker.js","worker","Critic"],
+  ["Image-Presence","details.images","hasAcceptableImages (present + qualified resolution).","Critic-Worker","identify-workers/critic-worker.js Z.92–107","worker","Critic"],
+  ["Required-Aspect-Coverage","details.attributes","resolveRequiredAspects + tally für Coverage-Score.","Critic-Worker","identify-workers/critic-worker.js Z.78–90","worker","Critic"],
+  ["Penalty-System","_score","ERROR -0.15, WARNING -0.05.","Critic-Worker","identify-workers/critic-worker.js Z.33–34","worker","Critic"],
+  ["Field-to-Worker-Mapping","_refinement","mapFieldToWorker für gezielte Refinement-Suggestions.","Critic-Worker","identify-workers/critic-worker.js Z.37–50","worker","Critic"],
+  ["Flash Fix-Hints (max 3)","_refinement","maybeFlashFixHints via Gemini-Flash.","Critic-Worker (Flag)","identify-workers/critic-worker.js Z.126–236","worker","Critic"],
+  ["ebay_ready_score Composite","_quality","Score (0..1) basierend auf allen Issues.","Critic-Worker","identify-workers/critic-worker.js","worker","Critic"]
+];
+
+/* === Chat-Assistant === */
+const CHAT = [
+  ["Pipeline-Routing V3→V2→Legacy","_router","Bei Error/Timeout automatischer Fallback zur nächsten Pipeline.","POST /api/chat","backend/routes/identify.js","chat","Routing"],
+  ["Pipeline-Override per Request","_router","req.body.pipeline ∈ {v3, v2, legacy, auto} (default auto).","POST /api/chat","routes/identify.js","chat","Routing"],
+  ["Attachment-Whitelist","_input","CHAT_ATTACHMENT_MIME_WHITELIST (image/*, pdf, plain, csv, json, xlsx). Max 6 × 6 MB.","POST /api/chat","routes/identify.js Z.30–37","chat","Routing"],
+  ["Intent-Detection Regex (Fallback)","_intent","change | info | analysis via Wortliste, sofort.","Pre-Routing","product-chat.js Z.112–148","chat","Intent"],
+  ["Intent-Detection LLM (Race)","_intent","INTENT_MODEL vs 3000ms Timeout, bei Timeout: Regex-Fallback.","Pre-Routing","product-chat.js Z.150–178","chat","Intent"],
+  ["Barcode-Intent","identity.gtin","Regex /\\b(ean|gtin|upc)\\b/i triggert spezielle GTIN-Lookup-Route.","Intent-Detection","product-chat.js Z.111","chat","Intent"],
+  // V3
+  ["V3 Context Circulation","_v3","googleSearch + urlContext + 7 atomic-tools + update_datasheet in 1 Request.","V3-Pipeline","product-chat-v3.js Z.739–749","chat","V3"],
+  ["V3 Forced Finalization","_v3","Nach SOFT_RESEARCH_LIMIT=3 ohne write-call: mode=ANY, allowedFunctionNames=[update_product_datasheet].","V3 Loop","product-chat-v3.js Z.897–911","chat","V3"],
+  ["V3 Ultimate-Fallback","_v3","sawWriteCall=false + iterations>0 → Prompt 'Fasse zusammen + ruf update_datasheet'.","V3 End-of-Loop","product-chat-v3.js Z.946–1029","chat","V3"],
+  ["V3 sanitizeDatasheetChange Whitelist","_save","Top-Level-Felder: summary, title, confidence, identity, short_description, key_features, attributes, gpsr, pricing, notes.","V3 Write-Path","product-chat-v3.js Z.232–359","chat","V3"],
+  ["V3 String-Length-Caps","_save","title 120, description 8000, gtin 24 chars; key_features 12, barcodes 6 items.","V3 Sanitize","product-chat-v3.js Z.232–359","chat","V3"],
+  ["V3 identity.clear Whitelist","identity","Nur barcodes/ean/gtin/upc dürfen via _clear gelöscht werden.","V3 Sanitize","product-chat-v3.js","chat","V3"],
+  ["V3 Evidence-Extraction","_evidence","lookup_gtin → brand/title/category; search_ebay_catalog → categoryId 0.9/0.3; verify_brand → brand 0.8/0.3.","Per Tool-Call","product-chat-v3.js Z.611–660","chat","V3"],
+  ["V3 Cross-Reference Post-Loop","_all","crossReferenceProduct(datasheetChanges + evidenceRows) NACH Loop.","V3 Post-Generation","product-chat-v3.js Z.1048–1053","chat","V3"],
+  ["V3 readyForPublish-Gate","_save","aggregateProductConfidence: alle CRITICAL_FIELDS pass=true sonst SSE 'needs_human'.","V3 Post-Generation","product-chat-v3.js Z.1055–1071","chat","V3"],
+  ["V3 System-Prompt Tool-Workflow","_v3","Phase 1 RECHERCHE → Phase 2 WRITE (PFLICHT update_product_datasheet).","V3 Setup","product-chat-v3.js Z.407–447","chat","V3"],
+  // V2
+  ["V2 Product-Image-Vision","_v2","Bis 4 Bilder inline (Buffer 500B–10MB, je 8s Timeout).","V2-Setup","product-chat-v2.js Z.496–534","chat","V2"],
+  ["V2 Title-Insights Injection","title","topTokens (max 8) + sample titles in Context. Bei Kategorie-Wechsel: alte Tokens NICHT injizieren.","V2-Setup","product-chat-v2.js Z.442–456","chat","V2"],
+  ["V2 Enhanced-Mode","_v2","Temperature 1.0, maxOutputTokens 8192, thinking.level=high+thoughts, urlContext-Tool.","V2-Setup","product-chat-v2.js Z.56–61, 964–972","chat","V2"],
+  ["V2 sanitizeDatasheetChange","_save","coerceTitleToPolicy auf Title (70–80 chars). normalizeDigits + isValidGtin auf Barcodes.","V2 Write-Path","product-chat-v2.js Z.540–710","chat","V2"],
+  ["V2 Category-Reset-Rule","details.attributes","Bei Kategorie-Änderung: alte Attributes werden GELÖSCHT.","V2 Sanitize","product-chat-v2.js","chat","V2"],
+  ["V2 Scope-Enforcement","_save","SCOPE-Param begrenzt Felder; AUSNAHME: falsche Kategorie wird IMMER korrigiert.","V2 Loop","product-chat-v2.js Z.326, 982–984","chat","V2"],
+  ["V2 SerpAPI suggest_product_images","details.images","searchProductImages, minWidth/minHeight=400, max 6 neue Bilder/Call.","V2 Tool","product-chat-v2.js Z.1055–1091","chat","V2"],
+  ["V2 Hint-Injection in Context","_context","Warnt 'Bestehende Daten können FALSCH sein' + injiziert allowed_aspects + required_aspects_meta.","V2-Setup","product-chat-v2.js Z.344–401","chat","V2"],
+  ["V2 consolidateChanges (last-wins)","_save","Mehrere update_datasheet-Calls werden gemerged: Barcodes Set-Union, _clear-Direktiven respektiert.","V2 Multi-Call","product-chat-v2.js Z.712–769","chat","V2"],
+  ["V2 evaluateReadiness Diff","_quality","applyChangeToPreview + evaluateEbayReady vor/nach → Issue-Vergleich.","V2 Pre-Save","product-chat-v2.js Z.808–838","chat","V2"],
+  // Legacy
+  ["Legacy ASIN-Detection","identity.asin","Regex /\\bB0[0-9A-Z]{8}\\b/ + 'amazon' Text → searchAmazonProduct().","Legacy Routing","product-chat.js Z.73–91","chat","Legacy"],
+  ["Legacy Evidence-URL-Bonus","_evidence","URLs mit datenblatt|datasheet|manual|spec|bedienungsanleitung → Bonus.","Legacy Score","product-chat.js Z.171+","chat","Legacy"],
+  ["Legacy Strict Title-Rules","title","Marketing-Floskeln entfernen, Umlaute normalisieren, Hochzeits-Begriffe AUSSER bei Hochzeits-Evidenz.","Legacy Sanitize","product-chat.js Z.156–166, 189–240","chat","Legacy"],
+  ["Legacy Title-Candidate-Extraction","title","Pattern 'Titel-Vorschlag:' oder erste Zeile 12–140 chars.","Legacy Parse","product-chat.js Z.242–269","chat","Legacy"],
+  ["Legacy forceOneEvidencePass","_loop","Auch bei info/analysis (nicht nur change) wird ein Evidence-Pass forciert.","Legacy Loop","product-chat.js (CHAT_LEGACY_ENHANCED)","chat","Legacy"],
+  ["Legacy Thinking-Mode","_v3","includeThoughts + level=high auch in Legacy.","Legacy Enhanced","product-chat.js","chat","Legacy"]
+];
+
+/* === Atomic Tools === */
+const TOOLS = [
+  ["lookup_gtin","identity.brand, title, category","Provider-Array {provider, data, confidence}. Mod-10-Validation. open_ean_db 0.7 / andere 0.65.","Tool-Call","atomic-tools.js Z.392–454","tool","Tools"],
+  ["search_ebay_catalog (GTIN)","categoryId","searchCatalogByGtin → categoryId, catalog entry. Confidence 0.9 (match) / 0.3 (no match).","Tool-Call","atomic-tools.js Z.456–528","tool","Tools"],
+  ["search_ebay_catalog (Query)","categoryId","getCategorySuggestions → suggestions+fuzzy-scores. Confidence 0.75 / 0.25.","Tool-Call","atomic-tools.js Z.456–528","tool","Tools"],
+  ["get_required_aspects","details.attributes","categoryId+marketplace → required+recommended+optional+all. Confidence 0.95 / 0.1.","Tool-Call","atomic-tools.js Z.530–581","tool","Tools"],
+  ["verify_brand","brand, gpsr","GPSR-Registry > brandDomainGuess (Heuristik). Confidence 0.8 / 0.3 / 0.1.","Tool-Call","atomic-tools.js Z.583–643","tool","Tools"],
+  ["search_amazon_product","title, brand, mpn","SerpAPI engine=amazon (preferred) > BrightData (Fallback). Confidence 0.75 / 0.6 / 0.25.","Tool-Call","atomic-tools.js Z.645–751","tool","Tools"],
+  ["search_manufacturer_site","gpsr, attributes","brandDomainGuess + BRAND_DOMAIN_MAP, Query 'model mpn site:domain'. Confidence 0.7 / 0.25.","Tool-Call","atomic-tools.js Z.753–812","tool","Tools"],
+  ["fetch_url_content","_evidence","HTML/PDF/JSON Parser via toolkit, max 34 MB. Confidence 0.8 / 0.2.","Tool-Call","atomic-tools.js Z.814–869","tool","Tools"],
+  ["search_ebay_sold","pricing","searchSoldListings + extractPricingSignals. Confidence 0.8 (5+ Items) / 0.6 (2–4) / 0.3 (<2).","Tool-Call","atomic-tools.js Z.875–922","tool","Tools"],
+  ["search_idealo","pricing","SerpAPI google_shopping site:idealo.de. Confidence 0.75 (3+) / 0.5 (1–2) / 0.2 (0).","Tool-Call","atomic-tools.js Z.924–978","tool","Tools"]
+];
+
+/* === Confidence + Cross-Reference + Sessions === */
+const CONFIDENCE = [
+  ["Multi-Source-Boost","_score","+0.05 pro zusätzlicher matching Source, Cap +0.15 (3+ Sources).","Score-Compute","confidence-scoring.js Z.60–61, 163–174","conf","Confidence"],
+  ["Disagreement-Penalty","_score","Bei conflicting evidence: -0.10.","Score-Compute","confidence-scoring.js Z.62, 177–181","conf","Confidence"],
+  ["Format-Bonus","gtin, category","GTIN mit valider Mod-10: +0.05. Category mit '>'-Breadcrumb: +0.05.","Score-Compute","confidence-scoring.js Z.63, 183–192","conf","Confidence"],
+  ["Invalid-GTIN-Penalty","gtin/ean/upc","Wenn isValidGtin=false: -0.5 (hart).","Score-Compute","confidence-scoring.js Z.195–199","conf","Confidence"],
+  ["scoreField Final-Compute","_score","baseScore = max(SOURCE_WEIGHTS matching) + boost - penalty + format - invalidPenalty, clamp [0,1].","Score-Compute","confidence-scoring.js Z.120–214","conf","Confidence"],
+  ["AGGREGATION_WEIGHTS Composite","_score","brand .15, category .15, title .15, requiredAspects .15, gtin .10, price .10, description .10, gpsr .10.","Aggregate","confidence-scoring.js Z.46–55","conf","Confidence"],
+  ["CRITICAL_FIELDS Gate","_save","readyForPublish=true NUR wenn alle: brand, category, title, requiredAspects, gpsr passen.","Aggregate","confidence-scoring.js Z.57–58","conf","Confidence"]
+];
+
+const XREF = [
+  ["normalizeForCompare","_compare","gtin/ean/upc digits-only, mpn alphanumeric, brand stripCorpSuffixes, category split>filter trim rejoin.","Cross-Ref","cross-reference.js Z.74–111","conf","Cross-Ref"],
+  ["stripCorpSuffixes (43 Suffixe)","brand","inc, gmbh, ag, ltd, llc, bv, nv, kg, kgaa, sa, se, co, corp, … (43 total).","brand-Normalize","cross-reference.js Z.9–66","conf","Cross-Ref"],
+  ["resolveConsensus Voting","_all","effectiveSupport = Σ(confidence) × √uniqueSourceCount. Conflict wenn runner-up ≥ 0.7 × winner.","Cross-Ref","cross-reference.js Z.131–192","conf","Cross-Ref"],
+  ["crossReferenceProduct Flow","_all","Per-Field Konsens, dann scoreField. user_input ohne candidates → evidence={user_input}.","Cross-Ref","cross-reference.js Z.205–255","conf","Cross-Ref"],
+  ["Session-Build","_chat","Erste Turn: Produktkontext-JSON + 4 Bilder; zweite Turn: Gemini ACK 'Verstanden…'.","Chat-Init","product-chat-v2.js Z.926–942","conf","Sessions"],
+  ["Session-ID Hashing","_chat","Format ${safeUserId}__${safeProductId}, alphanum+hyphen, max 64 chars, 1 Session pro (User,Produkt).","Chat-Init","chat-sessions.js Z.13–16","conf","Sessions"],
+  ["Atomic Append + Trim","_chat","Firestore-Tx, append (user, model)-Pair, Trim auf MAX_MESSAGES=20 (10 Runden).","Chat-Persist","chat-sessions.js Z.33–60","conf","Sessions"],
+  ["Strict Role-Alternation","_chat","getGeminiHistory filtert auf alternating user/model (Gemini-API-Pflicht).","Chat-Replay","chat-sessions.js Z.75–87","conf","Sessions"]
+];
+
+/* === Per-Feld-Anreicherung === */
+const FIELDS = [
+  // SEO Title
+  ["eBay-Titel Hard-Cap","title","Max 80 chars (eBay) / 150 (Kaufland). safeTruncate respektiert Wort-Grenze.","Composition","seo-title-builder.js Z.23–24","field","SEO Title"],
+  ["Mobile-First Window 65 chars","title","Brand + Model/ProductType in ersten 65 chars (Grid-View). mobileCoverage 0.5× Gewicht im Score.","Composition","seo-title-builder.js Z.25, 254–267","field","SEO Title"],
+  ["Bad-Prefix-Strip","title","Entferne 'neu:', 'top:', 'angebot:', 'premium:', 'original:', 'rabatt:'.","Post-Composition","seo-title-builder.js Z.37–44","field","SEO Title"],
+  ["Brand-Pflicht-Warning","title","Wenn schema.brand leer: Warning 'missing_brand'.","Always","seo-title-builder.js Z.192","field","SEO Title"],
+  ["Top-3 Competitor-Keyword-Inject","title","Wenn maxLen-composed.length-1 > 10: Top-3 Keywords nicht-im-Title injizieren, max 3.","Composition","seo-title-builder.js Z.198–212","field","SEO Title"],
+  ["Stopword-Filter im Score","title","Stopwords (der/die/und…) ignoriert; Jaccard-Overlap vs. Competitor-Keywords.","Score","seo-title-builder.js Z.47–75, 270–284","field","SEO Title"],
+  // SEO Description
+  ["Description Hard-Cap","description","Max 500.000 chars (eBay). Empfohlen 3.000.","Composition","seo-description-builder.js Z.22–24, 217–227","field","SEO Description"],
+  ["5-Section HTML-Template","description","Reihenfolge: <section.hero> → features → specs → condition → gpsr.","Always","seo-description-builder.js Z.26–28","field","SEO Description"],
+  ["Low-Density-Warning","description","Wenn seoKeywords gegeben aber overall density < 0.5%: Warning 'low_keyword_density'.","Post-Composition","seo-description-builder.js Z.231–234","field","SEO Description"],
+  ["Features Cap 12","description","Max 12 Items in Features-Liste.","Composition","seo-description-builder.js Z.119–127","field","SEO Description"],
+  ["Specs Cap 20","description","Max 20 Rows in Specs-Tabelle.","Composition","seo-description-builder.js Z.129–143","field","SEO Description"],
+  // eBay Aspects
+  ["Aspect Hard-Cap 45","details.attributes","eBay-API-Limit; trim mit Priorität required > recommended > optional.","Always","aspect-cap-enforcer.js Z.20","field","Aspects"],
+  ["Aspect-Priority-Ranking","details.attributes","Stable Sort: priorityRank (req=0 < rec=1 < opt=2 < unk=3) → confidence DESC → insertOrder.","Cap-Enforce","aspect-cap-enforcer.js Z.116–128","field","Aspects"],
+  ["Aspect-Dedup per Key","details.attributes","Pro Key Eintrag mit höchster Confidence, bei Gleichstand: zuerst eingefügt.","Always","aspect-cap-enforcer.js Z.134–153","field","Aspects"],
+  ["Required-Missing Meta","details.attributes","Nach Trim: Liste fehlender Required-Aspects in meta.requiredMissing.","Always","aspect-cap-enforcer.js Z.206–208","field","Aspects"],
+  ["Aspect-Confidence-Tracking","details.attributes[].confidence","Optionales 0..1 Feld pro Aspect, fließt in Priorisierung ein.","Sortierung","aspect-cap-enforcer.js Z.61–99","field","Aspects"],
+  // Pricing
+  ["Multi-Source Price-Blend","pricing.sellPrice","Sold 60% (Median) + Active 25% (Trimmed-Mean) + Amazon 15%.","Always","sweet-spot-pricer.js Z.37–42, 178–207","field","Pricing"],
+  ["Psychological-Rounding","pricing.sellPrice","<10€ keine .99 / <50€ → .99 / ≤100€ → .95 / >100€ → 5er-Grenze + .99.","Post Sweet-Spot","sweet-spot-pricer.js Z.49–54, 116–149","field","Pricing"],
+  ["Condition-Discount","pricing.sellPrice","USED -15%, REFURBISHED/OPEN_BOX -10%.","Wenn Condition","sweet-spot-pricer.js Z.291–305","field","Pricing"],
+  ["Min/Max-Price Bounds","price_min, price_max","MIN_VIABLE 0.50€, MAX_VIABLE 100k€. Min=min(sold) oder 85%, Max=max(sold) oder 115%.","Always","sweet-spot-pricer.js Z.56–58, 307–312","field","Pricing"],
+  ["Pricing Confidence-Scoring","pricing.confidence","Base 0.3 + (sold≥5 +0.35 / ≥2 +0.2) + (active≥3 +0.15) + (amazon +0.1) + (sold/active ≤15% diff +0.1).","Always","sweet-spot-pricer.js Z.314–330","field","Pricing"],
+  ["Marketplace-Fee-Awareness","pricing.netPayout","eBay DE 12.5%, Kaufland 16.66% (14% + 19% MwSt), Amazon DE 15%. netPayout = gross - (gross×% + fixed).","Always","sweet-spot-pricer.js Z.22–35, 152–171","field","Pricing"],
+  // Category
+  ["Category-Strategie 1: Catalog-GTIN","categoryId","searchCatalogByGtin: Voting über primaryCategory; Confidence = Votes/Total.","Wenn GTIN da","category-resolver.js, ebay-taxonomy-remote.js","field","Category"],
+  ["Category-Strategie 2: Taxonomy-Suggestions","categoryId","Query=brand+name+key-features → eBay ranked Suggestions.","Fallback < 0.8","ebay-taxonomy-remote.js Z.112–182","field","Category"],
+  ["Category-Strategie 3: Local-Lookup","categoryId","identification.category → split Breadcrumb → MarketplaceLookup CSV.","Fallback < 0.8","category-resolver.js Z.98–166","field","Category"],
+  ["Category-Strategie 4: Gemini","categoryId","Deterministic Candidate List → Gemini ranking. Default-Confidence 0.75.","Fallback < 0.8","category-resolver.js Z.44+","field","Category"],
+  ["Banned Roots Hard-Reject","categoryId","Antiquitäten, Briefmarken, Feinschmecker, Filme, Immobilien, Münzen, Business&Industrie, Sammeln.","Always","ebay-category-governance.js Z.5–14","field","Category"],
+  ["Evidence-Required Roots","categoryId","Z.B. 'Bücher & Zeitschriften' braucht Brand+Name-Match sonst Fallthrough.","Soft-Gate","ebay-category-governance.js Z.19–21","field","Category"],
+  ["Keyword-Match-Score","categoryId","Token-Overlap Product↔Breadcrumb, Brand-Tokens strippen (z.B. 'Anker' nicht→Bootsport).","Local + Dynamic","category-resolver.js Z.105–116","field","Category"],
+  ["Dynamic-Confidence Boosts/Penalties","categoryId","Boost: Keyword-Match, Brand-im-Breadcrumb. Penalty: Banned, Generic-Levels.","Flag aktiv","category-resolver.js Z.47–53","field","Category"],
+  // Weight
+  ["Weight Plausibility-Window","weight","Valid 1g–50.000g (50kg). Outside → reject.","Always","weight-web-lookup.js Z.21–23","field","Weight"],
+  ["Weight Web-Search","weight","Brightdata Query brand+model+'weight grams'+DE-Variant, Snippet-Parser.","Stage1 leer","weight-web-lookup.js Z.132–192","field","Weight"],
+  ["Weight Cluster-Consensus","weight","1 Kandidat → 0.6, 2+ in 5%-Cluster → 0.85 (Median), Rest → 0.4 (Median).","Post Web-Search","weight-web-lookup.js Z.79–96, 176–191","field","Weight"],
+  ["Weight Read-Fallback (FE)","weight (Anzeige)","details.weight → attributes.weight → 'Gewicht (kg)' → 'Gewicht' → leer.","Anzeige","weight-reliability/spec.md Z.44–49","field","Weight"],
+  ["Weight Plausibility (Gemini)","weight","Handy/Elektronik ≤5kg, Möbel ≥1kg; absurd → leer (kein Setzen).","Backfill","weight-reliability/spec.md Z.74","field","Weight"],
+  ["No Partial Order-Weight","order.weight","Mind. 1 Item ohne Gewicht → order.weight=null.","Order-Compute","weight-reliability/spec.md Z.124","field","Weight"],
+  ["No 0.5kg-Fallback","order.weight","Versand-Engine: bei null Abort, NIEMALS auf 0.5kg fallback.","Shipping","weight-reliability/spec.md Z.139–143","field","Weight"],
+  // GPSR
+  ["GPSR Registry-Lookup","gpsr","getManufacturerGpsrByName: Hersteller-Name → gpsrManufacturers Collection (mit/ohne Suffix).","Always","gpsr-manufacturer-registry.js Z.262–291","field","GPSR"],
+  ["GPSR Placeholder-Reject","gpsr","Reject '-', '—', N/A, 'unknown', 'nicht angegeben', 'Beispiel.com', '+49 000', 'Musterstraße'.","Normalize","gpsr-manufacturer-registry.js Z.66–76","field","GPSR"],
+  ["GPSR Merge-Strategy","gpsr","mergePreferMoreComplete: Existing behalten, nur Non-Empty&Non-Placeholder überschreiben, nie löschen.","Upsert","gpsr-manufacturer-registry.js Z.236–246, 293–363","field","GPSR"],
+  ["GPSR Web-Fallback Query","gpsr","Brightdata '[brand] Impressum GmbH OR AG OR Ltd', max 2 URLs fetchen.","Registry leer","gpsr-web-fallback.js Z.186–261","field","GPSR"],
+  ["Email-Priority","gpsr.email","legal > rechtsabteilung > kontakt > compliance > impressum > info > contact. Block: newsletter, no-reply, marketing, presse.","Multi-Email","gpsr-web-fallback.js Z.22–38, 63–97","field","GPSR"],
+  ["DE-Address-Pattern","gpsr.address","Regex Straße/Weg/Platz + Nr, dann PLZ (5-digit) + Stadt.","Web-Parse","gpsr-web-fallback.js Z.99–128","field","GPSR"],
+  ["GPSR Completeness-Score","gpsr.confidence","name+address+email = 0.75 / 2 of 3 = 0.5 / name only = 0.3 / empty = 0.","Fallback-Result","gpsr-web-fallback.js Z.165–173","field","GPSR"],
+  // Images
+  ["Min-Resolution Gate","details.images","Min 500×500, Recommended 1200×1200. Issue 'low_resolution'.","Always","image-quality.js Z.7–10","field","Images"],
+  ["aHash 64-bit Dedup","details.images","8×8 grayscale → mean threshold → hex (16 chars). Hamming ≤ 10 = duplicate, keep first.","Always","image-quality.js Z.109–129","field","Images"],
+  ["Background Classification","details.images","32×32 RGB Sample 4 corners + variance. White (>230)=1.0, Neutral (>180,Δ<20)=0.7, Colored (>500)=0.3–0.4.","Always","image-quality.js Z.96–225","field","Images"],
+  ["Stock-Photo Heuristik","details.images.isLikelyStockPhoto","(1920×1280 OR 1500×1000) + bg-score > 0.85 → flag.","Always","image-quality.js Z.134–141","field","Images"],
+  ["Image Quality-Score","details.images.qualityScore","+0.4 Min-Res, +0.2 Rec-Res, +0.3×bg-Score, -0.1 Stock. Max 1.","Always","image-quality.js Z.143–149","field","Images"],
+  ["Image Cap 12","details.images","eBay-Limit nach Quality-Filter.","Final-Step","image-quality.js Z.11","field","Images"],
+  ["Angle-Priority-Sort","details.images.angle","front(0) → detail(1) → side(2) → back(3) → pack(4) → lifestyle(5) → unknown(6).","Wenn Gemini","image-enhance.js Z.27–35, 161–199","field","Images"],
+  ["Smart-Upscale (sharp)","details.images","Target 1600px max-edge, lanczos3, JPEG q88, nur wenn current×1.2 < target.","Wenn sharp","image-enhance.js Z.23–25, 56–102","field","Images"],
+  ["Background-Removal (Gemini)","details.images","Prompt 'Remove background, neutral white #FFFFFF'. Best-Effort, Original on failure.","Wenn Gemini","image-enhance.js Z.114–151","field","Images"],
+  ["Image-Relevance-Filtering","details.images","Token-Set aus Name+Category, Score Image-Title vs. Tokens, Threshold 15%.","Web-Bilder","marketing-images.js Z.166–196","field","Images"],
+  ["Image-URL-Probe-Mode","details.images","auto (fail-open ohne Brightdata) | strict (reject) | off.","Web-Bilder","marketing-images.js Z.91–160","field","Images"],
+  ["Multi-Source Image-Limit","details.images","Max 12 final aus Upload+Grounding+Manufacturer-Site.","Worker","image-worker.js Z.68–116","field","Images"]
+];
+
+/* === Quality-Gate + Auto-Fix === */
+const QUALITY = [
+  ["Auto-Fix #1 — Category-Mismatch","details.categoryId","primaryCategoryId droppen, eBay matcht via GTIN/EAN selbst.","Publish-Error","ebay-auto-fix.js Z.1–12","field","Quality-Gate"],
+  ["Auto-Fix #2 — Missing-Aspects","details.attributes","Parse Error → Load Aspect-Catalog → Gemini generiert Werte → write.","Publish-Error","ebay-auto-fix.js Z.49–80, 121–149","field","Quality-Gate"],
+  ["Auto-Fix #3 — Image-Conflict","_publish","skipEbayCatalogLookup wenn eigene Bilder vorhanden.","Publish-Error","CLAUDE.md Z.88","field","Quality-Gate"],
+  ["Auto-Fix #4 — Aspect-Cap-Trim","details.attributes",">45 → trimAspectsToCap (req > rec > opt > universal-fallback).","Publish-Error","ebay-auto-fix.js Z.128–157","field","Quality-Gate"],
+  ["Auto-Fix Max-Retries","_publish","Maximal 2 Retries pro Strategie.","Publish-Error","CLAUDE.md Z.84","field","Quality-Gate"],
+  ["evaluateEbayReady","_quality","Deterministic + optional Gemini-Plausibility. Persist ops.data_quality.quality_gate_v1.","Pre-Publish","quality-gate.js Z.23, 33–46","field","Quality-Gate"]
+];
+
+/* === Save-Pfad / Schreibschutz === */
+const SAFETY = [
+  ["saveProductV2() Single-Writer","_save","Alle Produkt-Schreibpfade laufen über lib/product-store.js saveProductV2().","Always","CLAUDE.md Z.30","safe","Save"],
+  ["categorySource='manual' Schutz","details.categoryId","enforceEbayAspects blockt Auto-Override wenn manuell gesetzt.","UI-Save","CLAUDE.md Z.94–96, lib/firestore.js","safe","Save"],
+  ["No legacy Dual-Write","_save","USE_PRODUCTS_V2=true → kein Dual-Write zu legacy products-Collection.","Always","decisions.md Z.8–9","safe","Save"],
+  ["transitionOrder() Pflicht","order.omsStatus","Status-Übergänge NUR über services/order-state-machine.js, nie direkt via orderRef.update().","Always","CLAUDE.md Z.34","safe","Save"],
+  ["Stock Single-Writer Invariant","products_v2.inventory.quantity","GENAU EINMAL pro (sku × order) — Pfad A (Pick) ODER Pfad B (Ship), via stockDecrementedAt-Marker.","Order-Lifecycle","CLAUDE.md Z.36–44","safe","Save"],
+  ["No In-Memory-Stock-Lock","_lock","Nur Firestore-basierte Locks (STOCK_LOCK_BACKEND=firestore).","Stock-Mutation","CLAUDE.md Z.35","safe","Save"],
+  ["notifyStockChange() obligatorisch","_telemetrie","Nach jedem Decrement/Increment Pflicht — sonst kein inventory_ledger.","Always","CLAUDE.md Z.42","safe","Save"],
+  ["No-omsStatus-Direct-Write","order.omsStatus","Intake-Services dürfen omsStatus NICHT direkt setzen (sonst kein status_changed-Event).","Order-Intake","CLAUDE.md Z.34, decisions.md Z.40–41","safe","Save"],
+  ["BaseLinker-Tabu","_arch","Keine neuen BaseLinker-Refs/Imports/ENV-Vars.","Always","CLAUDE.md Z.30","safe","Save"],
+  ["Tenant-Scope auf neuen Queries","_db","Alle neuen Queries/Collections mit tenantId.","New-Code","CLAUDE.md Z.30","safe","Save"]
+];
+
+/* === Spec-Dokument-Regeln === */
+const SPECS = [
+  // RULE-001
+  ["RULE-Operatoren","_rules","10 Operators: equals, not_equals, greater_than, less_than, contains, not_contains, starts_with, ends_with, is_empty, is_not_empty.","Rule-Engine","RULE-001/spec.md Z.508–520","spec","RULE-001"],
+  ["RULE-Actions","_rules","5 Action-Types: set_field, adjust_price (percent/absolute), prepend_text, append_text, replace_text.","Rule-Engine","RULE-001/spec.md Z.368","spec","RULE-001"],
+  ["RULE-Templates","_rules","6 Pre-built: .99-Pricing, eBay-Title-Prefix, Niedrigbestand, fehlende Beschreibung, Zustand standardisieren, Mindestpreis-Guard.","Rule-Engine","RULE-001/spec.md Z.378–385","spec","RULE-001"],
+  ["RULE-AND-Logic","_rules","Conditions in einer Regel sind AND-verknüpft (kein OR).","Rule-Eval","RULE-001/spec.md Z.136–143","spec","RULE-001"],
+  ["RULE-Sequential Actions","_rules","Actions sequenziell, nicht parallel.","Rule-Apply","RULE-001/spec.md Z.145","spec","RULE-001"],
+  ["RULE-Concurrency","_rules","p-queue concurrency=1, retry max 2×.","Rule-Run","RULE-001/spec.md Z.562","spec","RULE-001"],
+  // VAL-001
+  ["VAL eBay Title ≤ 80","title","≤ 80 chars, nicht leer.","Pre-Publish","VAL-001/spec.md Z.187","spec","VAL-001"],
+  ["VAL eBay Images ≥ 1","details.images","≥ 1 Bild, ≤ 24 (best-practice).","Pre-Publish","VAL-001/spec.md Z.257","spec","VAL-001"],
+  ["VAL eBay Category Leaf","details.categoryId","Muss Leaf-Kategorie sein, nicht banned.","Pre-Publish","VAL-001/spec.md Z.243","spec","VAL-001"],
+  ["VAL eBay Required-Aspects","details.attributes","Alle Required vorhanden (kein 'Unbekannt').","Pre-Publish","VAL-001/spec.md Z.243","spec","VAL-001"],
+  ["VAL Kaufland EAN-Pflicht","identification.ean","EAN muss vorhanden sein.","Kaufland-Save","VAL-001/spec.md Z.269","spec","VAL-001"],
+  ["VAL Kaufland Title (kein Hardcap)","title","Optimale Länge, kein 80-char-Cap.","Kaufland-Save","VAL-001/spec.md Z.315","spec","VAL-001"],
+  ["VAL GPSR Presence","details.gpsr","Bei bestimmten Kategorien Pflicht; Warning/Error je Kategorie.","Pre-Publish","VAL-001/spec.md Z.242","spec","VAL-001"],
+  ["VAL Score-Mapping","_score","90–100 green (Bereit), 70–89 yellow (Eingeschränkt), 0–69 red (Nicht bereit).","Validation","VAL-001/spec.md Z.148–151","spec","VAL-001"],
+  ["VAL GTIN-Checksum","identity.gtin","Mod-10 Check; Warning falls invalid.","Pre-Publish","VAL-001/spec.md Z.331","spec","VAL-001"],
+  // BULK-001
+  ["BULK editierbare Felder","_bulk","price, inventory, category, name, sync_status.","Bulk-Edit","BULK-001/spec.md Z.64","spec","BULK-001"],
+  ["BULK Select-All-Filtered","_bulk","Cross-Page Selection: alle gefilterten Produkte.","Bulk-Select","BULK-001/spec.md Z.69","spec","BULK-001"],
+  ["BULK Keyboard-Nav","_bulk","Tab→nächste Zelle, Enter→bestätigen+down, Escape→discard.","Bulk-Edit","BULK-001/spec.md Z.342–349","spec","BULK-001"],
+  ["BULK Dirty-Tracking (no-op)","_bulk","Nur geänderte Zellen committen, no-op-Detection.","Bulk-Save","BULK-001/spec.md Z.537","spec","BULK-001"],
+  ["BULK Last-Write-Wins","_bulk","Kein optimistic locking im MVP.","Bulk-Save","BULK-001/spec.md Z.533","spec","BULK-001"],
+  ["BULK CSV UTF-8 BOM","_bulk","Excel-Kompatibilität.","CSV-Export","BULK-001/spec.md Z.371","spec","BULK-001"],
+  ["BULK Max 500/Request","_bulk","Keine Anfrage > 500 Produkte.","Bulk-API","BULK-001/spec.md Z.416","spec","BULK-001"],
+  ["BULK Pre/Post-Count-Guard","_bulk","DryRun-Count vs Apply-Count Toleranz 10 (Anomalie).","Bulk-Apply","BULK-001/spec.md Z.288","spec","BULK-001"],
+  ["BULK DryRun-First-Pflicht","_bulk","apply:false vor apply:true Pflicht.","Bulk-Apply","BULK-001/spec.md Z.288","spec","BULK-001"],
+  ["BULK No negative prices","details.pricing","Alle Preise ≥ 0 (Client-Validation).","Bulk-Save","BULK-001/spec.md Z.531","spec","BULK-001"],
+  // recategorize_v2
+  ["recategorize_v2 MIN-Confidence","details.categoryId","Mindestens 0.8 Confidence (auch wenn Override < 0.8).","Bulk-Recat","CLAUDE.md Z.82","spec","recategorize_v2"],
+  ["recategorize_v2 skip manual","details.categoryId","categorySource='manual' → skip.","Bulk-Recat","CLAUDE.md Z.82","spec","recategorize_v2"],
+  ["recategorize_v2 skip UI-saved","details.categoryId","ops.last_saved_source='ui' → skip (außer includeUi:true).","Bulk-Recat","CLAUDE.md Z.82","spec","recategorize_v2"],
+  // Identify-V4 spec
+  ["ID-V4 Worker-Shape","_pipeline","Alle Worker liefern { ok, domain, resolved, confidence, sources, retriesRequested, meta } — never throws.","Worker-API","identify-v4/spec.md Z.61","spec","Identify-V4"],
+  ["ID-V4 Refinement-Break","_pipeline","Δconfidence < 0.05 ODER max 5 Iterationen.","Refinement","identify-v4/spec.md Z.31–32","spec","Identify-V4"],
+  ["ID-V4 Autosave-Logic","_save","ebay_ready_score ≥ 0.6 UND identity.ok UND category.ok.","Post-Critic","identify-v4/spec.md Z.42","spec","Identify-V4"],
+  ["ID-V4 Fallback V3","_pipeline","Bei V4-Error → identifyProductV3.","Catch","identify-v4/spec.md Z.76","spec","Identify-V4"],
+  // Chat-V3 spec
+  ["CHAT-V3 Tools","_v3","googleSearch + urlContext (20 URLs/Request) + 7 atomic-tools + 2 writable.","V3-Pipeline","chat-assistant-v3/spec.md Z.17–19","spec","Chat-V3"],
+  ["CHAT-V3 Generation-Config","_v3","Temp 1.0, thinking_level=high, includeThoughts, maxOutputTokens 12000, mediaResolution HIGH.","V3-Pipeline","chat-assistant-v3/spec.md Z.20","spec","Chat-V3"],
+  ["CHAT-V3 Post-Processing","_save","crossReferenceProduct (2+ Quellen) → aggregateProductConfidence → readyForPublish-Check → SSE 'needs_human'.","Post-Generation","chat-assistant-v3/spec.md Z.22–25","spec","Chat-V3"],
+  ["CHAT-V3 Fallback-Chain","_router","V3 fail → V2; V2 fail → Legacy; alle 3 fail → 500 CHAT_ALL_PIPELINES_FAILED.","Routing","chat-assistant-v3/spec.md Z.27–30","spec","Chat-V3"],
+  // AI-001
+  ["AI Channel-Specific-Optim","_listing","eBay Titel ≤ 80, Kaufland Titel ≤ 150.","Listing-Build","AI-001/spec.md Z.299–314","spec","AI-001"],
+  ["AI Pre-Publish Validation","_save","Validate gegen Marketplace-Anforderungen vor save.","Pre-Save","AI-001/spec.md Z.41–44","spec","AI-001"],
+  ["AI Channel-Persistence","marketplace_listings","marketplace_listings.{ebay|kaufland} mit generated_at-Timestamp.","Save","AI-001/spec.md Z.104–120","spec","AI-001"]
+];
+
+const ALL_GROUPS = [
+  { id:"flags",      title:"Feature-Flags (alle ENV-Vars)",                 intro:"Schalter, die das Verhalten der Pipelines steuern. Default-Werte fett.", data: FLAGS,        kind:"flag-table"   },
+  { id:"thresholds", title:"Confidence-Thresholds (per Feld)",              intro:"Ab welcher Konfidenz ein Wert geschrieben/akzeptiert wird.",             data: THRESHOLDS,   kind:"thr-table"    },
+  { id:"sources",    title:"Source-Weights (Hierarchie der Datenquellen)",  intro:"Verwendet in scoreField() und resolveConsensus().",                       data: SOURCES,      kind:"src-table"    },
+  { id:"pipeline",   title:"Identify-Pipeline (V4 Orchestration)",          intro:"Wave 1 → Wave 2 → Refinement → Critic → Autosave.",                       data: PIPELINE,     kind:"rules"        },
+  { id:"stages",     title:"Identify-V3 Multi-Stage (Stage 1–4 + Assembly)",intro:"V3 bleibt als Fallback aktiv und liefert Wave-1-Input für V4.",           data: STAGES,       kind:"rules"        },
+  { id:"workers",    title:"V4 Worker (8 Domains)",                          intro:"Identity, Category, Attributes, SEO, Pricing, Image, GPSR, Critic.",     data: WORKERS,      kind:"rules"        },
+  { id:"chat",       title:"Chat-Assistant (V3 / V2 / Legacy + Routing)",   intro:"Drei Pipelines in Kaskade mit automatischem Fallback.",                   data: CHAT,         kind:"rules"        },
+  { id:"tools",      title:"Atomic Tools (8 Gemini Function Declarations)", intro:"Per-Tool: Inputs, Confidence-Werte, Timeout (ATOMIC_TOOLS_TIMEOUT_MS=15s).",data: TOOLS,       kind:"rules"        },
+  { id:"xref",       title:"Confidence-Scoring + Cross-Reference + Sessions",intro:"Wie Multi-Source-Werte gemerged + bewertet werden, plus Chat-Memory-Regeln.",data: [...CONFIDENCE,...XREF], kind:"rules" },
+  { id:"fields",     title:"Per-Feld-Anreicherung (SEO / Aspects / Pricing / Category / Weight / GPSR / Images)", intro:"Konkrete Regeln pro Feld-Domain — deterministische Builder + LLM-Fallbacks.", data: FIELDS, kind:"rules" },
+  { id:"quality",    title:"Quality-Gate &amp; eBay Auto-Fix (4 Strategien)",intro:"Pre-Publish-Check + automatische Reparatur bei eBay-Errors.",            data: QUALITY,      kind:"rules"        },
+  { id:"safety",     title:"Save-Pfad &amp; Schreibschutz",                  intro:"Single-Writer-Invarianten, Manual-Schutz, Stock-Decrement-Regeln.",      data: SAFETY,       kind:"rules"        },
+  { id:"specs",      title:"Spec-Dokumente (Listing-Validierung, Bulk-Action, RULE-Engine)", intro:"Aus den Feature-Specs extrahierte Regeln, die Anreicherung beeinflussen.", data: SPECS, kind:"rules" },
+  { id:"docs",       title:"Quelldokumente",                                  intro:"Konsultierte Dateien: 14 Doku-/Spec-Files + ~30 Backend-Code-Module.",  data: DOCS,         kind:"docs-table"   }
+];
+
+/* ==== Render ==== */
+const root = document.getElementById("rules-root");
+const filtersEl = document.getElementById("filters");
+const statsEl = document.getElementById("stats");
+
+const ruleGroups = ALL_GROUPS.filter(g => g.kind === "rules");
+const totalRules = ruleGroups.reduce((s,g) => s + g.data.length, 0);
+const totalDocs = DOCS.length;
+const ruleCats = new Set(ruleGroups.flatMap(g => g.data.map(r => r[5])));
+
+statsEl.innerHTML = `
+  <div class="stat"><b>${totalRules}</b>Regeln</div>
+  <div class="stat"><b>${totalDocs}</b>Doku-/Spec-Dateien</div>
+  <div class="stat"><b>${FLAGS.length}</b>Feature-Flags</div>
+  <div class="stat"><b>${THRESHOLDS.length}</b>Confidence-Schwellen</div>
+  <div class="stat"><b>${TOOLS.length}</b>Atomic Tools</div>
+  <div class="stat"><b>${WORKERS.length}</b>Worker-Regeln</div>
+  <div class="stat"><b>${FIELDS.length}</b>Feld-Regeln</div>
+  <div class="stat"><b>~30</b>Code-Module</div>`;
+
+const CATS = [
+  ["all","Alle"],
+  ["pipeline","Pipeline"],
+  ["worker","Worker"],
+  ["chat","Chat"],
+  ["tool","Tools"],
+  ["conf","Confidence"],
+  ["field","Felder"],
+  ["safe","Safety"],
+  ["spec","Specs"]
+];
+filtersEl.innerHTML = CATS.map(([k,v]) =>
+  `<span class="chip cat-${k} ${k==='all'?'active':''}" data-cat="${k}">${v}</span>`
+).join('');
+
+let activeCat = "all";
+let q = "";
+
+function escapeHtml(s){
+  return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function renderRule(r){
+  const [name, field, what, when, src, cat, sub] = r;
+  return `<div class="rule" data-cat="${cat}" data-search="${escapeHtml((name+' '+field+' '+what+' '+when+' '+src+' '+sub).toLowerCase())}">
+    <div class="top">
+      <div class="name">${escapeHtml(name)}</div>
+      <div class="id">${escapeHtml(sub)}</div>
+    </div>
+    <div class="field">${escapeHtml(field)}</div>
+    <div class="what">${escapeHtml(what)}</div>
+    <div class="when">→ ${escapeHtml(when)}</div>
+    <div class="src">${escapeHtml(src)}</div>
+  </div>`;
+}
+
+function renderFlagTable(rows){
+  return `<table class="tbl"><thead><tr><th>Flag</th><th>Default</th><th>Effekt</th><th>Quelle</th></tr></thead><tbody>${
+    rows.map(([f,d,e,s])=>{
+      const onoff = (d==='true')?'flag-on':(d==='false')?'flag-off':'';
+      return `<tr data-search="${escapeHtml((f+' '+d+' '+e+' '+s).toLowerCase())}"><td><code>${escapeHtml(f)}</code></td><td><span class="badge ${onoff}">${escapeHtml(d)}</span></td><td>${escapeHtml(e)}</td><td><code>${escapeHtml(s)}</code></td></tr>`;
+    }).join('')
+  }</tbody></table>`;
+}
+function renderThrTable(rows){
+  return `<table class="tbl"><thead><tr><th>Feld</th><th>Schwelle</th><th>Kontext</th><th>Quelle</th></tr></thead><tbody>${
+    rows.map(([f,t,c,s])=>`<tr data-search="${escapeHtml((f+' '+t+' '+c+' '+s).toLowerCase())}"><td><code>${escapeHtml(f)}</code></td><td><b>${escapeHtml(t)}</b></td><td>${escapeHtml(c)}</td><td><code>${escapeHtml(s)}</code></td></tr>`).join('')
+  }</tbody></table>`;
+}
+function renderSrcTable(rows){
+  return `<table class="tbl"><thead><tr><th>Source</th><th>Weight</th><th>Beschreibung</th></tr></thead><tbody>${
+    rows.map(([n,w,d])=>`<tr data-search="${escapeHtml((n+' '+w+' '+d).toLowerCase())}"><td><code>${escapeHtml(n)}</code></td><td><b>${escapeHtml(w)}</b></td><td>${escapeHtml(d)}</td></tr>`).join('')
+  }</tbody></table>`;
+}
+function renderDocsTable(rows){
+  return `<table class="tbl"><thead><tr><th>Datei</th><th>Pfad</th><th>Zeilen</th><th>Typ</th></tr></thead><tbody>${
+    rows.map(d=>`<tr data-search="${escapeHtml((d.name+' '+d.path).toLowerCase())}"><td>${escapeHtml(d.name)}</td><td><code>${escapeHtml(d.path)}</code></td><td>${d.lines||'—'}</td><td><span class="badge">${escapeHtml(d.kind)}</span></td></tr>`).join('')
+  }</tbody></table>`;
+}
+
+function renderGroup(g){
+  let body = '';
+  if (g.kind === 'rules'){
+    const subgroups = {};
+    for (const r of g.data){
+      const sub = r[6];
+      if (!subgroups[sub]) subgroups[sub] = [];
+      subgroups[sub].push(r);
+    }
+    body = Object.entries(subgroups).map(([sub, rs])=>`
+      <details open>
+        <summary>${escapeHtml(sub)} <span style="color:var(--muted)">— ${rs.length}</span></summary>
+        <div class="grid">${rs.map(renderRule).join('')}</div>
+      </details>
+    `).join('');
+  } else if (g.kind === 'flag-table'){
+    body = renderFlagTable(g.data);
+  } else if (g.kind === 'thr-table'){
+    body = renderThrTable(g.data);
+  } else if (g.kind === 'src-table'){
+    body = renderSrcTable(g.data);
+  } else if (g.kind === 'docs-table'){
+    body = renderDocsTable(g.data);
+  }
+  const count = g.kind === 'rules' ? g.data.length : g.data.length;
+  return `<section class="group" id="${g.id}" data-kind="${g.kind}">
+    <h2>${g.title} <span class="count">— ${count}</span></h2>
+    <p class="intro">${g.intro}</p>
+    ${body}
+  </section>`;
+}
+
+root.innerHTML = ALL_GROUPS.map(renderGroup).join('');
+
+/* Filter logic */
+function applyFilter(){
+  document.querySelectorAll('section.group').forEach(sec=>{
+    const kind = sec.dataset.kind;
+    let visible = 0;
+
+    if (kind === 'rules'){
+      sec.querySelectorAll('.rule').forEach(r=>{
+        const cat = r.dataset.cat;
+        const txt = r.dataset.search;
+        const matchCat = activeCat === 'all' || cat === activeCat;
+        const matchQ = !q || txt.includes(q);
+        const show = matchCat && matchQ;
+        r.style.display = show ? '' : 'none';
+        if (show) visible++;
+      });
+      sec.querySelectorAll('details').forEach(d=>{
+        const anyVisible = Array.from(d.querySelectorAll('.rule')).some(r=>r.style.display !== 'none');
+        d.style.display = anyVisible ? '' : 'none';
+      });
+    } else {
+      // tables
+      sec.querySelectorAll('tbody tr').forEach(tr=>{
+        const txt = tr.dataset.search || '';
+        const matchQ = !q || txt.includes(q);
+        // category-filter affects only rules; tables shown unless searching
+        const show = matchQ && (activeCat === 'all' || activeCat === 'flag' || activeCat === 'conf' || activeCat === 'spec' || true);
+        // For category-chip filter, only hide section if the cat is "rules-only"
+        tr.style.display = show ? '' : 'none';
+        if (show) visible++;
+      });
+      // hide entire section if cat-filter excludes table-kind
+      if (activeCat !== 'all'){
+        const sectionMatchesCat = (
+          (activeCat === 'flag' && sec.id === 'flags') ||
+          (activeCat === 'conf' && (sec.id === 'thresholds' || sec.id === 'sources')) ||
+          (activeCat === 'spec' && sec.id === 'docs')
+        );
+        if (!sectionMatchesCat && (sec.id === 'flags' || sec.id === 'thresholds' || sec.id === 'sources' || sec.id === 'docs')){
+          sec.style.display = 'none';
+          return;
+        }
+      }
+    }
+    sec.style.display = (visible > 0) ? '' : 'none';
+  });
+}
+
+document.getElementById('q').addEventListener('input', e=>{
+  q = e.target.value.trim().toLowerCase();
+  applyFilter();
+});
+filtersEl.addEventListener('click', e=>{
+  const chip = e.target.closest('.chip');
+  if (!chip) return;
+  filtersEl.querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));
+  chip.classList.add('active');
+  activeCat = chip.dataset.cat;
+  applyFilter();
+});
+</script>
+</body>
+</html>

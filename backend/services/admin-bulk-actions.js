@@ -1,6 +1,6 @@
 const path = require('path');
 const { MarketplaceLookup } = require('../lib/marketplace-lookup');
-const { firestore, getAllProducts, getProduct } = require('../lib/firestore');
+const { firestore, getAllProducts, getAllProductsForTenant, getProduct } = require('../lib/firestore');
 const { saveProductV2 } = require('../lib/product-store');
 const { findEbayCategory } = require('../lib/ebay-taxonomy');
 const { ensurePriceCoverage } = require('./enrichment');
@@ -202,7 +202,7 @@ function getMvlPath() {
   return null;
 }
 
-async function resolveTargetProducts({ productIds, limit, offset }) {
+async function resolveTargetProducts({ productIds, limit, offset, tenantId }) {
   const ids = Array.isArray(productIds) ? Array.from(new Set(productIds.map((x) => safeString(x)).filter(Boolean))) : [];
   if (ids.length) {
     const selected = ids.slice(0, Math.max(1, limit || ids.length));
@@ -213,7 +213,13 @@ async function resolveTargetProducts({ productIds, limit, offset }) {
     }
     return out;
   }
-  const products = await getAllProducts();
+  // D.0b — Prefer tenant-scoped read when payload carries tenantId. Falls
+  // back to getAllProducts() for callers that have not yet been migrated
+  // (TODO D.0c: must iterate over all tenants before flipping the legacy
+  // helper to throw).
+  const products = tenantId
+    ? await getAllProductsForTenant(tenantId)
+    : await getAllProducts();
   const list = Array.isArray(products) ? products.filter((p) => p?.id) : [];
   const off = Math.max(0, Number(offset) || 0);
   const lim = Math.max(1, Number(limit) || 500);
@@ -251,11 +257,11 @@ function pickKTypeValue(p) {
   return key ? safeString(attrs[key]) : '';
 }
 
-async function runExportMarketplace({ jobId, productIds = null, limit = 500, offset = 0, debug = false } = {}) {
+async function runExportMarketplace({ jobId, productIds = null, limit = 500, offset = 0, debug = false, tenantId = null } = {}) {
   if (!jobId) {
     throw new Error('export_marketplace requires jobId');
   }
-  const selected = await resolveTargetProducts({ productIds, limit, offset });
+  const selected = await resolveTargetProducts({ productIds, limit, offset, tenantId });
   const rows = [];
 
   for (const p of selected) {
@@ -335,8 +341,8 @@ async function runExportMarketplace({ jobId, productIds = null, limit = 500, off
   };
 }
 
-async function runBulkPrice({ apply = false, limit = 500, offset = 0, maxAgeDays = 0, force = false, debug = false, productIds = null } = {}) {
-  const selected = await resolveTargetProducts({ productIds, limit, offset });
+async function runBulkPrice({ apply = false, limit = 500, offset = 0, maxAgeDays = 0, force = false, debug = false, productIds = null, tenantId = null } = {}) {
+  const selected = await resolveTargetProducts({ productIds, limit, offset, tenantId });
 
   const summary = {
     action: 'price',
@@ -422,8 +428,9 @@ async function runBulkTitle({
   titleInsightsLimit = 80,
   titleInsightsMaxHints = 8,
   marketplaceId = '',
+  tenantId = null,
 } = {}) {
-  const selected = await resolveTargetProducts({ productIds, limit, offset });
+  const selected = await resolveTargetProducts({ productIds, limit, offset, tenantId });
   const useTitleInsights = parseBool(titleInsights, true);
   const insightsForceRefresh = parseBool(titleInsightsForceRefresh, false);
   const insightsQuery = safeString(titleInsightsQuery);
@@ -617,8 +624,9 @@ async function runBulkTitleTrailingDashFix({
   debug = false,
   productIds = null,
   inventoryId = null,
+  tenantId = null,
 } = {}) {
-  const selected = await resolveTargetProducts({ productIds, limit, offset });
+  const selected = await resolveTargetProducts({ productIds, limit, offset, tenantId });
 
   const summary = {
     action: 'title_trailing_dash_fix',
@@ -731,8 +739,9 @@ async function runBulkHighlightsHtml({
   debug = false,
   productIds = null,
   inventoryId = null,
+  tenantId = null,
 } = {}) {
-  const selected = await resolveTargetProducts({ productIds, limit, offset });
+  const selected = await resolveTargetProducts({ productIds, limit, offset, tenantId });
 
   const summary = {
     action: 'highlights_html',
@@ -870,8 +879,9 @@ async function runBulkDescriptionHtml({
   debug = false,
   productIds = null,
   inventoryId = null,
+  tenantId = null,
 } = {}) {
-  const selected = await resolveTargetProducts({ productIds, limit, offset });
+  const selected = await resolveTargetProducts({ productIds, limit, offset, tenantId });
 
   const summary = {
     action: 'description_html',
@@ -989,8 +999,9 @@ async function runBulkListingReadiness({
   debug = false,
   productIds = null,
   inventoryId = null,
+  tenantId = null,
 } = {}) {
-  const selected = await resolveTargetProducts({ productIds, limit, offset });
+  const selected = await resolveTargetProducts({ productIds, limit, offset, tenantId });
 
   const summary = {
     action: 'listing_readiness',
@@ -1123,9 +1134,9 @@ async function runBulkListingReadiness({
   return { summary, samples };
 }
 
-async function runBulkCategory({ apply = false, limit = 500, offset = 0, debug = false, productIds = null } = {}) {
+async function runBulkCategory({ apply = false, limit = 500, offset = 0, debug = false, productIds = null, tenantId = null } = {}) {
   const lookup = buildMarketplaceLookup();
-  const selected = await resolveTargetProducts({ productIds, limit, offset });
+  const selected = await resolveTargetProducts({ productIds, limit, offset, tenantId });
 
   const summary = {
     action: 'category',
@@ -1316,6 +1327,7 @@ async function runBulkRecategorizeV2({
   minConfidence = null,
   jobId = null,
   debug = false,
+  tenantId = null,
 } = {}) {
   const startedAt = Date.now();
   const PQueue = require('p-queue').default || require('p-queue');
@@ -1330,7 +1342,10 @@ async function runBulkRecategorizeV2({
   // count was provided by the caller. Protects against runs scheduled for a
   // different tenant/dataset size.
   if (apply && typeof expectedCount === 'number' && Number.isFinite(expectedCount)) {
-    const all = await getAllProducts();
+    // D.0b — When tenantId is present, use tenant-scoped count to avoid
+    // false alarms across tenants. Fallback to legacy global count when
+    // no tenantId is in scope.
+    const all = tenantId ? await getAllProductsForTenant(tenantId) : await getAllProducts();
     const preCount = Array.isArray(all) ? all.length : 0;
     if (preCount !== expectedCount) {
       throw new Error(
@@ -1339,7 +1354,7 @@ async function runBulkRecategorizeV2({
     }
   }
 
-  const selected = await resolveTargetProducts({ productIds, limit, offset });
+  const selected = await resolveTargetProducts({ productIds, limit, offset, tenantId });
   const total = selected.length;
 
   const summary = {
@@ -1581,7 +1596,8 @@ async function runBulkRecategorizeV2({
   // Post-flight count guard — ensure we did not accidentally trigger deletes.
   // Tolerance allows for concurrent creates during the run (realistic in prod).
   if (apply && typeof expectedCount === 'number' && Number.isFinite(expectedCount)) {
-    const after = await getAllProducts();
+    // D.0b — Match pre-flight read scope to keep counts apples-to-apples.
+    const after = tenantId ? await getAllProductsForTenant(tenantId) : await getAllProducts();
     const postCount = Array.isArray(after) ? after.length : 0;
     const COUNT_DELTA_TOLERANCE = 10;
     if (Math.abs(postCount - expectedCount) > COUNT_DELTA_TOLERANCE) {
@@ -1601,8 +1617,8 @@ async function runBulkRecategorizeV2({
   };
 }
 
-async function runBulkKType({ apply = false, limit = 500, offset = 0, debug = false, productIds = null } = {}) {
-  const selected = await resolveTargetProducts({ productIds, limit, offset });
+async function runBulkKType({ apply = false, limit = 500, offset = 0, debug = false, productIds = null, tenantId = null } = {}) {
+  const selected = await resolveTargetProducts({ productIds, limit, offset, tenantId });
 
   const summary = {
     action: 'ktype',
@@ -2174,8 +2190,9 @@ async function runBulkKauflandSync({
   productIds = null,
   storefront = 'de',
   mode = 'upsert',
+  tenantId = null,
 } = {}) {
-  const selected = await resolveTargetProducts({ productIds, limit, offset });
+  const selected = await resolveTargetProducts({ productIds, limit, offset, tenantId });
   const opMode = String(mode || 'upsert').toLowerCase();
 
   const summary = {
@@ -2356,11 +2373,15 @@ async function runBulkAction(action, payload = {}) {
   const productIds = Array.isArray(payload.productIds) ? payload.productIds : null;
   const jobId = safeString(payload.jobId) || null;
   const inventoryId = safeString(payload.inventoryId) || null;
+  // D.0b — tenantId is propagated through every sub-action so resolveTargetProducts
+  // can scope its read. Bulk jobs are queued via /api/admin/bulk/run which now
+  // injects req.user.tenantId into the payload.
+  const tenantId = safeString(payload.tenantId) || null;
 
   if (a === 'price') {
     const maxAgeDays = Math.max(0, Number(payload.maxAgeDays) || 0);
     const force = parseBool(payload.force, false);
-    return runBulkPrice({ apply, limit, offset, maxAgeDays, force, debug, productIds });
+    return runBulkPrice({ apply, limit, offset, maxAgeDays, force, debug, productIds, tenantId });
   }
   if (a === 'title') {
     const includeUi = parseBool(payload.includeUi, false);
@@ -2383,22 +2404,23 @@ async function runBulkAction(action, payload = {}) {
       titleInsightsLimit,
       titleInsightsMaxHints,
       marketplaceId,
+      tenantId,
     });
   }
   if (a === 'title_trailing_dash' || a === 'title_trailing_dash_fix' || a === 'title_cleanup' || a === 'title-cleanup') {
-    return runBulkTitleTrailingDashFix({ apply, limit, offset, debug, productIds, inventoryId });
+    return runBulkTitleTrailingDashFix({ apply, limit, offset, debug, productIds, inventoryId, tenantId });
   }
   if (a === 'highlights_html' || a === 'highlights-html' || a === 'format_highlights_html') {
-    return runBulkHighlightsHtml({ apply, limit, offset, debug, productIds, inventoryId });
+    return runBulkHighlightsHtml({ apply, limit, offset, debug, productIds, inventoryId, tenantId });
   }
   if (a === 'description_html' || a === 'description-html' || a === 'format_description_html') {
-    return runBulkDescriptionHtml({ apply, limit, offset, debug, productIds, inventoryId });
+    return runBulkDescriptionHtml({ apply, limit, offset, debug, productIds, inventoryId, tenantId });
   }
   if (a === 'listing_readiness' || a === 'listing-readiness' || a === 'audit_listing_readiness') {
-    return runBulkListingReadiness({ apply, limit, offset, debug, productIds, inventoryId });
+    return runBulkListingReadiness({ apply, limit, offset, debug, productIds, inventoryId, tenantId });
   }
   if (a === 'category') {
-    return runBulkCategory({ apply, limit, offset, debug, productIds });
+    return runBulkCategory({ apply, limit, offset, debug, productIds, tenantId });
   }
   if (a === 'recategorize_v2' || a === 'recategorize-v2') {
     return runBulkRecategorizeV2({
@@ -2418,10 +2440,11 @@ async function runBulkAction(action, payload = {}) {
           ? null
           : Number(payload.minConfidence),
       jobId: jobId || null,
+      tenantId,
     });
   }
   if (a === 'ktype' || a === 'k-typ') {
-    return runBulkKType({ apply, limit, offset, debug, productIds });
+    return runBulkKType({ apply, limit, offset, debug, productIds, tenantId });
   }
   if (a === 'kaufland_create' || a === 'kaufland-create') {
     return runBulkKauflandSync({
@@ -2432,6 +2455,7 @@ async function runBulkAction(action, payload = {}) {
       productIds,
       storefront: safeString(payload.storefront) || 'de',
       mode: 'create_only',
+      tenantId,
     });
   }
   if (a === 'kaufland_update' || a === 'kaufland-update') {
@@ -2443,10 +2467,11 @@ async function runBulkAction(action, payload = {}) {
       productIds,
       storefront: safeString(payload.storefront) || 'de',
       mode: 'update_only',
+      tenantId,
     });
   }
   if (a === 'export_marketplace' || a === 'export' || a === 'export-marketplace') {
-    return runExportMarketplace({ jobId, productIds, limit, offset, debug });
+    return runExportMarketplace({ jobId, productIds, limit, offset, debug, tenantId });
   }
   if (a === 'validate' || a === 'schnell-check' || a === 'quick-check') {
     const { runBatchValidate } = require('./product-validator');

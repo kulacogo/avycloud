@@ -39,6 +39,33 @@ const REQUEST_BODY_LIMIT =
   process.env.REQUEST_BODY_LIMIT ||
   '50mb';
 
+// --- Pre-Flip-Gate: IDENTIFY_V4 promotion acknowledge ----------------------
+// Phase-E bug-fix (2026-05-10): if IDENTIFY_V4=true is flipped in production
+// without the operator having acknowledged the critic-hints code path, log a
+// loud startup warning. NEVER throw or process.exit() — Cloud Run service
+// MUST start. The flag IDENTIFY_V4_CRITIC_HINTS_VERIFIED is set by the
+// operator after reading docs/runbooks/identify-v4-promotion.md.
+if (process.env.IDENTIFY_V4 === 'true' && process.env.IDENTIFY_V4_CRITIC_HINTS_VERIFIED !== 'true') {
+  const msg = '[STARTUP-WARN] IDENTIFY_V4=true but IDENTIFY_V4_CRITIC_HINTS_VERIFIED!=true. ' +
+    'Phase-E-Code-Pfad nicht verifiziert. Siehe docs/runbooks/identify-v4-promotion.md';
+  console.error(msg);
+  // Optional best-effort Slack alert — never blocks startup.
+  if (process.env.SLACK_ALERTS_URL) {
+    try {
+      // Fire-and-forget — node 20 has global fetch.
+      Promise.resolve()
+        .then(() => fetch(process.env.SLACK_ALERTS_URL, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ text: msg }),
+        }))
+        .catch((err) => console.warn('[STARTUP-WARN] slack alert failed:', err?.message || err));
+    } catch (err) {
+      console.warn('[STARTUP-WARN] slack alert dispatch error:', err?.message || err);
+    }
+  }
+}
+
 // --- Initialization ---
 const app = express();
 
@@ -240,6 +267,32 @@ const server = app.listen(PORT, () => {
   // the event-driven system might miss (e.g. webhook delivery failure).
   // Primary sync happens via emitSyncEvent() on every data mutation.
 
+  // ─── Multi-Tenant background-job loop (additive, default off) ─────
+  // Mirrors STOCK_FAILURE_DRAIN_TENANTS pattern. Set
+  //   BACKGROUND_JOB_TENANTS=tenantA,tenantB
+  // to fan out the 6 safety-net cron jobs below across multiple tenants.
+  // When unset (default) the legacy single-tenant behaviour (tenantId:'default')
+  // is preserved verbatim — no behaviour change for existing deployments.
+  // Activation runbook: docs/runbooks/multi-tenant-activation.md
+  // Plan-D.0c — helpers extracted to lib/background-job-tenants.js for testability.
+  const {
+    getBackgroundJobTenants,
+    runForEachBackgroundJobTenant,
+  } = require('./lib/background-job-tenants');
+  /**
+   * Run `fn({ tenantId })` once per configured tenant when
+   * BACKGROUND_JOB_TENANTS is set, otherwise once with tenantId='default'.
+   * Errors per-tenant are caught + logged so one bad tenant doesn't break
+   * the remaining iterations.
+   * Thin adapter that preserves the legacy `{ tenantId }` object signature
+   * used by all six cron call sites below.
+   */
+  const runForAllTenants = (label, fn) => runForEachBackgroundJobTenant(label, (tenantId) => fn({ tenantId }));
+  const _backgroundJobTenantList = getBackgroundJobTenants();
+  if (_backgroundJobTenantList.length > 1 || _backgroundJobTenantList[0] !== 'default') {
+    console.log(`[background-jobs] multi-tenant mode: tenants=${_backgroundJobTenantList.join(',')}`);
+  }
+
   // Safety-net: order sync every 6h (primary: event-driven on every mutation)
   const ORDER_SYNC_INTERVAL_MS = parseInt(process.env.ORDER_SYNC_INTERVAL_MS || String(6 * 60 * 60 * 1000), 10);
   try {
@@ -253,18 +306,15 @@ const server = app.listen(PORT, () => {
   // Safety-net: returns sync every 6h (primary: event-driven on return mutations + webhooks)
   const RETURNS_SYNC_INTERVAL_MS = parseInt(process.env.RETURNS_SYNC_INTERVAL_MS || String(6 * 60 * 60 * 1000), 10);
   try {
-    setTimeout(() => {
+    const runReturnsSync = async () => {
       const { syncAllReturns } = require('./services/returns-engine');
-      syncAllReturns({ tenantId: 'default', lookbackDays: 30 })
-        .then((r) => console.log('[returns-sync] safety-net sync done:', JSON.stringify(r)))
-        .catch((err) => console.warn('[returns-sync] safety-net sync failed:', err?.message));
-    }, 60_000);
-    setInterval(() => {
-      const { syncAllReturns } = require('./services/returns-engine');
-      syncAllReturns({ tenantId: 'default', lookbackDays: 30 })
-        .then((r) => console.log('[returns-sync] safety-net sync done:', JSON.stringify(r)))
-        .catch((err) => console.warn('[returns-sync] safety-net sync failed:', err?.message));
-    }, RETURNS_SYNC_INTERVAL_MS);
+      await runForAllTenants('returns-sync', async ({ tenantId }) => {
+        const r = await syncAllReturns({ tenantId, lookbackDays: 30 });
+        console.log(`[returns-sync] tenant=${tenantId} done:`, JSON.stringify(r));
+      });
+    };
+    setTimeout(() => { runReturnsSync().catch((err) => console.warn('[returns-sync] failed:', err?.message)); }, 60_000);
+    setInterval(() => { runReturnsSync().catch((err) => console.warn('[returns-sync] failed:', err?.message)); }, RETURNS_SYNC_INTERVAL_MS);
     console.log(`[returns-sync] safety-net enabled: every ${RETURNS_SYNC_INTERVAL_MS}ms (primary: event-driven)`);
   } catch (err) {
     console.warn('[returns-sync] failed to start safety-net:', err?.message || err);
@@ -273,16 +323,17 @@ const server = app.listen(PORT, () => {
   // Safety-net: SendCloud parcel sync every 6h (primary: SendCloud webhooks)
   const SENDCLOUD_SYNC_INTERVAL_MS = parseInt(process.env.SENDCLOUD_SYNC_INTERVAL_MS || String(6 * 60 * 60 * 1000), 10);
   try {
-    const runSendCloudSync = () => {
+    const runSendCloudSync = async () => {
       const { syncSendCloudParcels } = require('./services/shipping-engine');
       const fromDate = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString();
-      return syncSendCloudParcels({ tenantId: 'default', fromDate })
-        .then((r) => console.log('[sendcloud-sync] safety-net sync done: matched=%d, unmatched=%d, skipped=%d',
-          r.matched?.length || 0, r.unmatched?.length || 0, r.skipped?.length || 0))
-        .catch((err) => console.warn('[sendcloud-sync] safety-net sync failed:', err?.message));
+      await runForAllTenants('sendcloud-sync', async ({ tenantId }) => {
+        const r = await syncSendCloudParcels({ tenantId, fromDate });
+        console.log('[sendcloud-sync] tenant=%s done: matched=%d, unmatched=%d, skipped=%d',
+          tenantId, r.matched?.length || 0, r.unmatched?.length || 0, r.skipped?.length || 0);
+      });
     };
-    setTimeout(runSendCloudSync, 90_000);
-    setInterval(runSendCloudSync, SENDCLOUD_SYNC_INTERVAL_MS);
+    setTimeout(() => { runSendCloudSync().catch((err) => console.warn('[sendcloud-sync] failed:', err?.message)); }, 90_000);
+    setInterval(() => { runSendCloudSync().catch((err) => console.warn('[sendcloud-sync] failed:', err?.message)); }, SENDCLOUD_SYNC_INTERVAL_MS);
     console.log(`[sendcloud-sync] safety-net enabled: every ${SENDCLOUD_SYNC_INTERVAL_MS}ms (primary: event-driven)`);
   } catch (err) {
     console.warn('[sendcloud-sync] failed to start safety-net:', err?.message || err);
@@ -293,18 +344,16 @@ const server = app.listen(PORT, () => {
   try {
     const TRACKING_CATCHUP_INTERVAL_MS = 2 * 60 * 60 * 1000; // 2h
     const runTrackingCatchup = async () => {
-      try {
-        const { retryFailedMarketplacePushes } = require('./services/marketplace-tracking');
-        const result = await retryFailedMarketplacePushes({ maxAge: 7 });
+      const { retryFailedMarketplacePushes } = require('./services/marketplace-tracking');
+      await runForAllTenants('tracking-catchup', async ({ tenantId }) => {
+        const result = await retryFailedMarketplacePushes({ tenantId, maxAge: 7 });
         if (result.retried > 0) {
-          console.log(`[tracking-catchup] retried=${result.retried} succeeded=${result.succeeded} failed=${result.failed}`);
+          console.log(`[tracking-catchup] tenant=${tenantId} retried=${result.retried} succeeded=${result.succeeded} failed=${result.failed}`);
         }
-      } catch (err) {
-        console.warn('[tracking-catchup] catch-up failed:', err?.message);
-      }
+      });
     };
-    setTimeout(runTrackingCatchup, 120_000); // First run after 2 min
-    setInterval(runTrackingCatchup, TRACKING_CATCHUP_INTERVAL_MS);
+    setTimeout(() => { runTrackingCatchup().catch((err) => console.warn('[tracking-catchup] failed:', err?.message)); }, 120_000); // First run after 2 min
+    setInterval(() => { runTrackingCatchup().catch((err) => console.warn('[tracking-catchup] failed:', err?.message)); }, TRACKING_CATCHUP_INTERVAL_MS);
     console.log(`[tracking-catchup] safety-net enabled: every ${TRACKING_CATCHUP_INTERVAL_MS}ms`);
   } catch (err) {
     console.warn('[tracking-catchup] failed to start safety-net:', err?.message || err);
@@ -314,18 +363,16 @@ const server = app.listen(PORT, () => {
   try {
     const DELIVERY_POLL_INTERVAL_MS = 2 * 60 * 60 * 1000; // 2h
     const runDeliveryPoll = async () => {
-      try {
-        const { pollDeliveryStatus } = require('./services/shipping-engine');
-        const result = await pollDeliveryStatus({ tenantId: 'default' });
+      const { pollDeliveryStatus } = require('./services/shipping-engine');
+      await runForAllTenants('delivery-poll', async ({ tenantId }) => {
+        const result = await pollDeliveryStatus({ tenantId });
         if (result.delivered > 0 || result.errors > 0) {
-          console.log(`[delivery-poll] checked=${result.checked} delivered=${result.delivered} errors=${result.errors}`);
+          console.log(`[delivery-poll] tenant=${tenantId} checked=${result.checked} delivered=${result.delivered} errors=${result.errors}`);
         }
-      } catch (err) {
-        console.warn('[delivery-poll] poll failed:', err?.message);
-      }
+      });
     };
-    setTimeout(runDeliveryPoll, 150_000); // First run after 2.5 min
-    setInterval(runDeliveryPoll, DELIVERY_POLL_INTERVAL_MS);
+    setTimeout(() => { runDeliveryPoll().catch((err) => console.warn('[delivery-poll] failed:', err?.message)); }, 150_000); // First run after 2.5 min
+    setInterval(() => { runDeliveryPoll().catch((err) => console.warn('[delivery-poll] failed:', err?.message)); }, DELIVERY_POLL_INTERVAL_MS);
     console.log(`[delivery-poll] enabled: every ${DELIVERY_POLL_INTERVAL_MS}ms`);
   } catch (err) {
     console.warn('[delivery-poll] failed to start:', err?.message || err);
@@ -336,23 +383,21 @@ const server = app.listen(PORT, () => {
   // Runs again every 24h to catch any gaps. Fully idempotent.
   const INVOICE_SYNC_INTERVAL_MS = 24 * 60 * 60 * 1000;
   const runInvoiceSync = async () => {
-    try {
-      const { importFromSevDesk, bulkGenerateForShippedOrders } = require('./services/invoice-engine');
-      const importResult = await importFromSevDesk({ tenantId: 'default' });
+    const { importFromSevDesk, bulkGenerateForShippedOrders } = require('./services/invoice-engine');
+    await runForAllTenants('invoice-sync', async ({ tenantId }) => {
+      const importResult = await importFromSevDesk({ tenantId });
       if (importResult.imported > 0 || importResult.matched > 0) {
-        console.log(`[invoice-sync] SevDesk import: imported=${importResult.imported} matched=${importResult.matched} skipped=${importResult.skipped}`);
+        console.log(`[invoice-sync] tenant=${tenantId} SevDesk import: imported=${importResult.imported} matched=${importResult.matched} skipped=${importResult.skipped}`);
       }
-      const genResult = await bulkGenerateForShippedOrders({ tenantId: 'default' });
+      const genResult = await bulkGenerateForShippedOrders({ tenantId });
       if (genResult.generated > 0) {
-        console.log(`[invoice-sync] bulk generate: generated=${genResult.generated} skipped=${genResult.skipped} errors=${genResult.errors.length}`);
+        console.log(`[invoice-sync] tenant=${tenantId} bulk generate: generated=${genResult.generated} skipped=${genResult.skipped} errors=${genResult.errors.length}`);
       }
-    } catch (err) {
-      console.warn('[invoice-sync] sync failed:', err?.message);
-    }
+    });
   };
   try {
-    setTimeout(runInvoiceSync, 5 * 60 * 1000); // First run 5 min after startup
-    setInterval(runInvoiceSync, INVOICE_SYNC_INTERVAL_MS);
+    setTimeout(() => { runInvoiceSync().catch((err) => console.warn('[invoice-sync] failed:', err?.message)); }, 5 * 60 * 1000); // First run 5 min after startup
+    setInterval(() => { runInvoiceSync().catch((err) => console.warn('[invoice-sync] failed:', err?.message)); }, INVOICE_SYNC_INTERVAL_MS);
     console.log('[invoice-sync] enabled: startup + every 24h');
   } catch (err) {
     console.warn('[invoice-sync] failed to schedule:', err?.message);
@@ -363,18 +408,16 @@ const server = app.listen(PORT, () => {
   try {
     const REFUND_PUSH_INTERVAL_MS = 4 * 60 * 60 * 1000; // 4h
     const runRefundPush = async () => {
-      try {
-        const { runRefundPush: pushRefunds } = require('./services/returns-engine');
-        const result = await pushRefunds({ tenantId: 'default' });
+      const { runRefundPush: pushRefunds } = require('./services/returns-engine');
+      await runForAllTenants('refund-push', async ({ tenantId }) => {
+        const result = await pushRefunds({ tenantId });
         if (result.processed > 0) {
-          console.log(`[refund-push] processed=${result.processed} success=${result.success} errors=${result.errors.length}`);
+          console.log(`[refund-push] tenant=${tenantId} processed=${result.processed} success=${result.success} errors=${result.errors.length}`);
         }
-      } catch (err) {
-        console.warn('[refund-push] runner failed:', err?.message);
-      }
+      });
     };
-    setTimeout(runRefundPush, 180_000); // First run after 3 min
-    setInterval(runRefundPush, REFUND_PUSH_INTERVAL_MS);
+    setTimeout(() => { runRefundPush().catch((err) => console.warn('[refund-push] failed:', err?.message)); }, 180_000); // First run after 3 min
+    setInterval(() => { runRefundPush().catch((err) => console.warn('[refund-push] failed:', err?.message)); }, REFUND_PUSH_INTERVAL_MS);
     console.log(`[refund-push] safety-net enabled: every ${REFUND_PUSH_INTERVAL_MS}ms`);
   } catch (err) {
     console.warn('[refund-push] failed to start safety-net:', err?.message || err);

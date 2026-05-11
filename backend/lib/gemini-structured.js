@@ -2,6 +2,82 @@ const { getGeminiClient } = require('./gemini-client');
 const { HarmCategory, HarmBlockThreshold } = require('@google/generative-ai');
 const { resolveModel } = require('./model-select');
 const { callGeminiWithRetry } = require('./gemini-retry');
+const logger = require('./logger');
+const { getSchemaForScope, isStrictMode, validateRate } = require('./llm-schemas/_index');
+
+/**
+ * Phase F.3 — 2-stufige zod-Schema-Validation (mirrors gemini3-client).
+ *
+ * Stufe 1 (default): safeParse + warn — returns the unmodified textPayload.
+ * Stufe 2 (LLM_SCHEMA_STRICT=true): parse + throw with clear error.
+ */
+function _resolveScopeName(scopeConfig) {
+  if (!scopeConfig || typeof scopeConfig !== 'object') return null;
+  const hint = scopeConfig.outputSchemaHint;
+  if (typeof hint === 'string' && hint.trim() && !hint.trim().startsWith('{') && !hint.trim().startsWith('[')) {
+    return hint.trim();
+  }
+  if (typeof scopeConfig.scopeId === 'string' && scopeConfig.scopeId.trim()) {
+    return scopeConfig.scopeId.trim();
+  }
+  return null;
+}
+
+function _summarizeZodIssues(issues) {
+  if (!Array.isArray(issues)) return [];
+  return issues.slice(0, 10).map((iss) => ({
+    path: Array.isArray(iss.path) ? iss.path.join('.') : String(iss.path || ''),
+    code: iss.code,
+    message: iss.message,
+  }));
+}
+
+function _validateTextPayload(textPayload, scopeConfig) {
+  const scopeName = _resolveScopeName(scopeConfig);
+  if (!scopeName) return textPayload;
+  const schema = getSchemaForScope(scopeName);
+  if (!schema) return textPayload;
+
+  let parsed;
+  try {
+    parsed = JSON.parse(textPayload);
+  } catch (_) {
+    // Caller will hit the parse error themselves — do not double-throw here.
+    return textPayload;
+  }
+
+  const strict = isStrictMode();
+  if (strict) {
+    try {
+      schema.parse(parsed);
+    } catch (err) {
+      const summary = _summarizeZodIssues(err && err.issues);
+      const e = new Error(
+        `llm-schemas: strict validation failed for scope='${scopeName}'. issues=${JSON.stringify(summary)}`
+      );
+      e.code = 'LLM_SCHEMA_VALIDATION_FAILED';
+      e.scope = scopeName;
+      e.issues = summary;
+      throw e;
+    }
+    return textPayload;
+  }
+
+  const rate = validateRate();
+  const shouldLog = rate >= 1.0 || Math.random() < rate;
+  if (!shouldLog) return textPayload;
+  const result = schema.safeParse(parsed);
+  if (!result.success) {
+    const summary = _summarizeZodIssues(result.error && result.error.issues);
+    try {
+      logger.warn(
+        { scope: scopeName, issues: summary, mode: 'safeparse' },
+        '[llm-schemas] safeParse mismatch — Stufe 1 (non-throwing)'
+      );
+    } catch (_) { /* logger unavailable in some test setups */ }
+  }
+  return textPayload;
+}
 
 // Permissive safety settings — product images from warehouses should never be blocked
 const PERMISSIVE_SAFETY = [
@@ -75,37 +151,79 @@ function toSdkParts(parts = []) {
     .filter(Boolean);
 }
 
-async function callGeminiStructured({
-  parts,
-  responseSchema,
-  temperature = 0.0,
-  topP = 0.8,
-  topK = 40,
-  maxOutputTokens = 1024,
-  candidateCount = 1,
-  stopSequences = ['```'],
-}) {
-  if (!Array.isArray(parts) || parts.length === 0) {
-    throw new Error('Structured Gemini call requires at least one part (text or inline_data).');
-  }
-
-  const client = await getGeminiClient();
-  const modelName = getStructuredModelName();
-  console.log('[gemini-structured] model=' + modelName);
-  const model = client.getGenerativeModel({ model: modelName });
-
-  const generationConfig = {
+async function callGeminiStructured(opts = {}) {
+  const {
+    parts,
+    responseSchema,
     temperature,
     topP,
     topK,
     maxOutputTokens,
     candidateCount,
+    stopSequences,
+    scopeConfig, // Phase F.1b — optional resolveScopeConfig result
+  } = opts;
+
+  if (!Array.isArray(parts) || parts.length === 0) {
+    throw new Error('Structured Gemini call requires at least one part (text or inline_data).');
+  }
+
+  const client = await getGeminiClient();
+
+  // Phase F.1b: scopeConfig.model wins over the env-resolved default if provided.
+  const scopeModel =
+    scopeConfig && typeof scopeConfig === 'object' && typeof scopeConfig.model === 'string' && scopeConfig.model.trim()
+      ? scopeConfig.model.trim()
+      : null;
+  const modelName = scopeModel ? resolveModel(scopeModel, 'GEMINI_STRUCTURED_MODEL', getStructuredModelName()) : getStructuredModelName();
+  console.log('[gemini-structured] model=' + modelName);
+  const model = client.getGenerativeModel({ model: modelName });
+
+  // Phase F.1b: merge helper-internal defaults < scopeConfig.generationConfig < explicit caller-overrides.
+  const helperDefaults = {
+    temperature: 0.0,
+    topP: 0.8,
+    topK: 40,
+    maxOutputTokens: 1024,
+    candidateCount: 1,
+  };
+  const callerOverrides = {};
+  if (Object.prototype.hasOwnProperty.call(opts, 'temperature') && temperature !== undefined) callerOverrides.temperature = temperature;
+  if (Object.prototype.hasOwnProperty.call(opts, 'topP') && topP !== undefined) callerOverrides.topP = topP;
+  if (Object.prototype.hasOwnProperty.call(opts, 'topK') && topK !== undefined) callerOverrides.topK = topK;
+  if (Object.prototype.hasOwnProperty.call(opts, 'maxOutputTokens') && maxOutputTokens !== undefined) callerOverrides.maxOutputTokens = maxOutputTokens;
+  if (Object.prototype.hasOwnProperty.call(opts, 'candidateCount') && candidateCount !== undefined) callerOverrides.candidateCount = candidateCount;
+
+  const scopeGenCfg =
+    scopeConfig && typeof scopeConfig === 'object' && scopeConfig.generationConfig && typeof scopeConfig.generationConfig === 'object'
+      ? scopeConfig.generationConfig
+      : null;
+
+  const merged = { ...helperDefaults };
+  if (scopeGenCfg) Object.assign(merged, scopeGenCfg);
+  Object.assign(merged, callerOverrides);
+
+  const generationConfig = {
+    ...merged,
     responseMimeType: 'application/json',
     // SDK uses responseSchema (constrained decoding); this is the same approach as the legacy pipeline.
     responseSchema: cleanSchemaForGemini(responseSchema),
   };
-  if (Array.isArray(stopSequences) && stopSequences.length > 0) {
-    generationConfig.stopSequences = stopSequences;
+
+  // stopSequences: explicit caller wins; else scopeConfig.generationConfig.stopSequences (if present); else default ['```'].
+  let effectiveStopSequences;
+  if (Object.prototype.hasOwnProperty.call(opts, 'stopSequences')) {
+    effectiveStopSequences = stopSequences;
+  } else if (scopeGenCfg && Array.isArray(scopeGenCfg.stopSequences)) {
+    effectiveStopSequences = scopeGenCfg.stopSequences;
+  } else {
+    effectiveStopSequences = ['```'];
+  }
+  if (Array.isArray(effectiveStopSequences) && effectiveStopSequences.length > 0) {
+    generationConfig.stopSequences = effectiveStopSequences;
+  } else {
+    // Make sure we don't carry over a scope-level stopSequences as a non-array.
+    delete generationConfig.stopSequences;
   }
 
   const sdkParts = toSdkParts(parts);
@@ -169,11 +287,15 @@ async function callGeminiStructured({
     textPayload = textPayload.slice(jsonStart).trim();
   }
 
-  return textPayload;
+  // Phase F.3 — 2-stufige zod-Schema-Validation (safeParse Stufe 1 default).
+  return _validateTextPayload(textPayload, scopeConfig);
 }
 
 module.exports = {
   callGeminiStructured,
   getStructuredModelName,
+  // Phase F.3 — exposed for unit tests.
+  __validateTextPayload: _validateTextPayload,
+  __resolveScopeName: _resolveScopeName,
 };
 

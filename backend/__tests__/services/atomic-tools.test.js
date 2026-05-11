@@ -84,6 +84,20 @@ patchLocalModule('../../services/toolkit', {
   webFetchToolDefinition: { name: 'web_fetch' },
 });
 
+// ebay-sold-listings (V4 pricing)
+const searchSoldListingsMock = vi.fn();
+const extractPricingSignalsMock = vi.fn();
+patchLocalModule('../../lib/ebay-sold-listings', {
+  searchSoldListings: searchSoldListingsMock,
+  extractPricingSignals: extractPricingSignalsMock,
+});
+
+// serpapi (V4 pricing — idealo)
+const fetchSerpApiMock = vi.fn();
+patchLocalModule('../../lib/serpapi', {
+  fetchSerpApi: fetchSerpApiMock,
+});
+
 // ---------------------------------------------------------------------------
 // 2. Now load the module under test.
 // ---------------------------------------------------------------------------
@@ -114,6 +128,9 @@ beforeEach(() => {
   executeSerpapiToolCallMock.mockReset();
   executeBrightdataSearchToolCallMock.mockReset();
   executeWebFetchToolCallMock.mockReset();
+  searchSoldListingsMock.mockReset();
+  extractPricingSignalsMock.mockReset();
+  fetchSerpApiMock.mockReset();
 });
 
 // Helper — every executor must return this shape.
@@ -514,6 +531,114 @@ describe('executeFetchUrlContent', () => {
 });
 
 // ---------------------------------------------------------------------------
+// executeSearchEbaySold
+// ---------------------------------------------------------------------------
+
+describe('executeSearchEbaySold', () => {
+  it('errors when neither gtin nor query is given', async () => {
+    const res = await executors.executeSearchEbaySold({});
+    assertResponseShape(res, 'search_ebay_sold');
+    expect(res.ok).toBe(false);
+    expect(res.error.code).toBe('MISSING_ARGUMENT');
+    expect(searchSoldListingsMock).not.toHaveBeenCalled();
+  });
+
+  it('forwards valid GTIN to ebay-sold-listings module', async () => {
+    const items = [
+      { title: 'Echo Dot', price: 29.9 },
+      { title: 'Echo Dot 2', price: 31.5 },
+      { title: 'Echo Dot 3', price: 28.9 },
+      { title: 'Echo Dot 4', price: 30.0 },
+      { title: 'Echo Dot 5', price: 33.1 },
+    ];
+    searchSoldListingsMock.mockResolvedValueOnce({ items, meta: { source: 'ebay-browse' } });
+    extractPricingSignalsMock.mockReturnValueOnce({ count: items.length, median: 30 });
+
+    const res = await executors.executeSearchEbaySold({
+      gtin: '4006381333931',
+      categoryId: '15052',
+      marketplaceId: 'EBAY_DE',
+      limit: 20,
+    });
+
+    assertResponseShape(res, 'search_ebay_sold');
+    expect(searchSoldListingsMock).toHaveBeenCalledTimes(1);
+    const callArg = searchSoldListingsMock.mock.calls[0][0];
+    expect(callArg.gtin).toBe('4006381333931');
+    expect(callArg.categoryId).toBe('15052');
+    expect(callArg.marketplaceId).toBe('EBAY_DE');
+    expect(callArg.limit).toBe(20);
+    expect(res.ok).toBe(true);
+    expect(res.data.items).toHaveLength(5);
+    expect(res.data.signals).toEqual({ count: 5, median: 30 });
+    expect(res.confidence).toBeGreaterThanOrEqual(0.8);
+    expect(res.meta.itemCount).toBe(5);
+  });
+
+  it('returns empty sources gracefully when sold-listings finds nothing', async () => {
+    searchSoldListingsMock.mockResolvedValueOnce({ items: [], meta: {} });
+    extractPricingSignalsMock.mockReturnValueOnce({ count: 0 });
+
+    const res = await executors.executeSearchEbaySold({ query: 'obscure thing' });
+
+    assertResponseShape(res, 'search_ebay_sold');
+    expect(res.ok).toBe(true);
+    expect(res.data.items).toEqual([]);
+    expect(res.confidence).toBeLessThan(0.3 + 1e-9);
+    expect(res.meta.itemCount).toBe(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// executeSearchIdealo
+// ---------------------------------------------------------------------------
+
+describe('executeSearchIdealo', () => {
+  it('errors when neither gtin nor query is given', async () => {
+    const res = await executors.executeSearchIdealo({});
+    assertResponseShape(res, 'search_idealo');
+    expect(res.ok).toBe(false);
+    expect(res.error.code).toBe('MISSING_ARGUMENT');
+    expect(fetchSerpApiMock).not.toHaveBeenCalled();
+  });
+
+  it('forwards query to serpapi with site:idealo.de', async () => {
+    fetchSerpApiMock.mockResolvedValueOnce({
+      shopping_results: [
+        { title: 'Echo Dot 5. Gen', extracted_price: 29.99, source: 'Amazon', link: 'https://idealo.de/a' },
+        { title: 'Echo Dot 5. Gen', extracted_price: 32.0, source: 'MediaMarkt', link: 'https://idealo.de/b' },
+        { title: 'Echo Dot 5. Gen', extracted_price: 31.5, source: 'Saturn', link: 'https://idealo.de/c' },
+      ],
+    });
+
+    const res = await executors.executeSearchIdealo({ query: 'Echo Dot 5', limit: 10 });
+
+    assertResponseShape(res, 'search_idealo');
+    expect(fetchSerpApiMock).toHaveBeenCalledTimes(1);
+    const callArg = fetchSerpApiMock.mock.calls[0][0];
+    expect(callArg.engine).toBe('google_shopping');
+    expect(callArg.q).toContain('site:idealo.de');
+    expect(callArg.q).toContain('Echo Dot 5');
+    expect(callArg.gl).toBe('de');
+    expect(res.ok).toBe(true);
+    expect(res.data.offers).toHaveLength(3);
+    expect(res.data.offers[0]).toMatchObject({ title: expect.any(String), price: expect.any(Number) });
+    expect(res.confidence).toBeGreaterThanOrEqual(0.75);
+  });
+
+  it('returns empty result gracefully on SerpAPI error', async () => {
+    fetchSerpApiMock.mockRejectedValueOnce(new Error('serpapi 429 rate limit'));
+
+    const res = await executors.executeSearchIdealo({ gtin: '4006381333931' });
+
+    assertResponseShape(res, 'search_idealo');
+    expect(res.ok).toBe(false);
+    expect(res.error.code).toBe('EXECUTOR_ERROR');
+    expect(res.confidence).toBeLessThan(0.3);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Uniform response shape — exhaustive sweep
 // ---------------------------------------------------------------------------
 
@@ -527,6 +652,8 @@ describe('uniform response shape', () => {
       [executors.executeSearchAmazonProduct, {}, 'search_amazon_product'],
       [executors.executeSearchManufacturerSite, {}, 'search_manufacturer_site'],
       [executors.executeFetchUrlContent, {}, 'fetch_url_content'],
+      [executors.executeSearchEbaySold, {}, 'search_ebay_sold'],
+      [executors.executeSearchIdealo, {}, 'search_idealo'],
     ];
     for (const [fn, args, source] of sweep) {
       // eslint-disable-next-line no-await-in-loop

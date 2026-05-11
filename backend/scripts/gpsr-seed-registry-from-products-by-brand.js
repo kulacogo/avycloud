@@ -1,6 +1,11 @@
 #!/usr/bin/env node
 /* eslint-disable no-console */
 /**
+ * D.0b-Migration 2026-05-10: Migrated to getAllProductsForTenant().
+ * See /Users/oguz/.claude/plans/sieht-ziemlich-komplex-unstrukturiert-woolly-tulip.md (Phase D.0)
+ * D.0b-Migration: Default to avycloud. Override via TENANT_ID env var.
+ */
+/**
  * Seed manufacturer GPSR registry from existing products, grouped by Brand (Brand == Hersteller).
  *
  * This is a bootstrap tool when:
@@ -27,7 +32,15 @@ const {
   scoreGpsr,
   upsertManufacturerGpsr,
 } = require('../lib/gpsr-manufacturer-registry');
-const { getAllProducts } = require('../lib/firestore');
+const { getAllProductsForTenant } = require('../lib/firestore');
+
+// D.0b-Hardening 2026-05-11: mandatory TENANT_ID for write scripts (prevents silent cross-tenant writes)
+const TENANT_ID = process.env.TENANT_ID;
+if (!TENANT_ID) {
+  console.error('TENANT_ID env var required. Example: TENANT_ID=avycloud node <script>.js');
+  process.exit(1);
+}
+console.warn(`[D.0b-Hardening] Running for tenantId='${TENANT_ID}'.`);
 
 function argFlag(name) {
   return process.argv.includes(name);
@@ -74,7 +87,7 @@ async function main() {
 
   console.log(JSON.stringify({ action: 'gpsr-seed-registry-from-products-by-brand', dryRun, brandFilter, brandLimit, minScore }, null, 2));
 
-  const all = await getAllProducts();
+  const all = await getAllProductsForTenant(TENANT_ID);
   const products = Array.isArray(all) ? all.filter((p) => p?.id) : [];
 
   const bestByBrand = new Map(); // brandKey -> { brand, gpsr, score, boosted, productId, confidence, sources }

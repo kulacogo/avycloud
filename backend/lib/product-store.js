@@ -131,6 +131,39 @@ async function getAllProductsV2(queryFn) {
 }
 
 /**
+ * Tenant-scoped variant of getAllProductsV2. MANDATORY tenantId.
+ *
+ * Mirror of firestore.js#getAllProductsForTenant but for the V2 collection
+ * (products_v2). Additive helper — does NOT replace getAllProductsV2(). Call
+ * sites should opt-in via the D.0b-style ternary fallback:
+ *
+ *   const products = tenantId
+ *     ? await getAllProductsV2ForTenant(tenantId)
+ *     : await getAllProductsV2();
+ *
+ * This guarantees zero behaviour change for routes that don't yet plumb a
+ * tenantId through, while letting attachUserContext-mounted routes get
+ * Firestore-side filtering (cheaper reads, no cross-tenant leakage).
+ *
+ * @param {string} tenantId - non-empty tenant identifier
+ * @param {object} [options] - reserved for future query options
+ * @param {Function} [options.queryFn] - optional query refiner (chains after
+ *   the tenantId where-clause).
+ * @returns {Promise<Array>} - product docs filtered by tenantId
+ * @throws {Error} - if tenantId is missing, not a string, or empty/whitespace
+ */
+async function getAllProductsV2ForTenant(tenantId, options = {}) {
+  if (!tenantId || typeof tenantId !== 'string' || !tenantId.trim()) {
+    throw new Error('getAllProductsV2ForTenant: tenantId is required and must be a non-empty string');
+  }
+
+  let ref = firestore.collection(getCollection()).where('tenantId', '==', tenantId);
+  if (typeof options.queryFn === 'function') ref = options.queryFn(ref);
+  const snap = await ref.get();
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+}
+
+/**
  * Lookup product weight by SKU or EAN.
  * Returns weight in kg (number) or null if not found / no weight.
  *
@@ -172,6 +205,7 @@ module.exports = {
   saveProductV2,
   getProductV2,
   getAllProductsV2,
+  getAllProductsV2ForTenant,
   getProductWeightBySku,
   getCollection,
   COLLECTION,

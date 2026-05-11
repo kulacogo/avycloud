@@ -22,6 +22,26 @@ const { isValidGtin } = require('../gtin');
 const { enforceAspectCap } = require('../aspect-cap-enforcer');
 const { FLASH_MODEL } = require('../gemini-config');
 
+// F.1b.2 — caller-migration. Scope 'identify.critic' is not yet seeded in
+// Firestore (lands in F.2). Until then resolveScopeConfig() will fail; we
+// catch + fall back to hardcoded defaults below.
+let _resolveScopeConfig = null;
+try {
+  // eslint-disable-next-line global-require
+  ({ resolveScopeConfig: _resolveScopeConfig } = require('../llm-config'));
+} catch (_err) {
+  _resolveScopeConfig = null;
+}
+let _logger = null;
+try {
+  // eslint-disable-next-line global-require
+  _logger = require('../logger');
+} catch (_err) {
+  _logger = null;
+}
+
+const SCOPE_NAME = 'identify.critic';
+
 let getRequiredAspectsFn = null;
 try {
   // best-effort: ebay-taxonomy may load large JSON on require — lazy guard.
@@ -166,13 +186,49 @@ async function maybeFlashFixHints(aiClient, product, issues) {
     JSON.stringify(compactIssues, null, 2),
   ].join('\n');
 
+  // F.1b.2 — scope-resolution with graceful fallback. Pass current hardcoded
+  // values as callerOverrides so behaviour is unchanged when scope-version has
+  // no generationConfig override.
+  const fallbackTemperature = 0.1;
+  const fallbackModel = FLASH_MODEL;
+  let scopeModel = fallbackModel;
+  let scopeGenCfg = { temperature: fallbackTemperature, responseMimeType: 'application/json' };
+  if (typeof _resolveScopeConfig === 'function') {
+    try {
+      const resolved = await _resolveScopeConfig(SCOPE_NAME, null, {
+        generationConfig: {
+          temperature: fallbackTemperature,
+          responseMimeType: 'application/json',
+        },
+        model: fallbackModel,
+      });
+      if (resolved && resolved.generationConfig && typeof resolved.generationConfig === 'object') {
+        scopeGenCfg = resolved.generationConfig;
+      }
+      if (resolved && typeof resolved.model === 'string' && resolved.model.trim()) {
+        scopeModel = resolved.model.trim();
+      }
+    } catch (err) {
+      if (_logger && typeof _logger.warn === 'function') {
+        _logger.warn(
+          { scope: SCOPE_NAME, reason: err && err.message ? err.message : String(err) },
+          '[critic-worker] resolveScopeConfig failed, using hardcoded defaults'
+        );
+      }
+    }
+  }
+
   try {
     const resp = await aiClient.models.generateContent({
-      model: FLASH_MODEL,
+      model: scopeModel,
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
       config: {
-        responseMimeType: 'application/json',
-        temperature: 0.1,
+        responseMimeType:
+          typeof scopeGenCfg.responseMimeType === 'string'
+            ? scopeGenCfg.responseMimeType
+            : 'application/json',
+        temperature:
+          typeof scopeGenCfg.temperature === 'number' ? scopeGenCfg.temperature : fallbackTemperature,
       },
     });
     const text =

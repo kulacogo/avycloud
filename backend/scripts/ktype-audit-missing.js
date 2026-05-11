@@ -1,5 +1,10 @@
 /* eslint-disable no-console */
 /**
+ * D.0b-Migration 2026-05-10: Migrated to getAllProductsForTenant().
+ * See /Users/oguz/.claude/plans/sieht-ziemlich-komplex-unstrukturiert-woolly-tulip.md (Phase D.0)
+ * D.0b-Migration: Default to avycloud. Override via TENANT_ID env var.
+ */
+/**
  * Audit missing K-Typ for products where eBay category supports vehicle fitment lists.
  *
  * Goal:
@@ -11,7 +16,11 @@
  *   node backend/scripts/ktype-audit-missing.js --limit 2000 --show 20
  */
 
-const { getAllProducts } = require('../lib/firestore');
+const { getAllProductsForTenant } = require('../lib/firestore');
+
+// D.0b-Hardening 2026-05-11: read script — default avycloud OK, but log effective tenant prominently
+const TENANT_ID = process.env.TENANT_ID || 'avycloud';
+console.log('[INFO] Running with TENANT_ID=%s (read-only; override via TENANT_ID env var)', TENANT_ID);
 const { getVehicleFitmentMode } = require('../lib/vehicle-fitment');
 
 function argValue(name, fallback = null) {
@@ -64,7 +73,7 @@ async function main() {
   const limit = Math.max(1, parseInt(argValue('--limit', '2000') || '2000', 10));
   const show = Math.max(0, parseInt(argValue('--show', '10') || '10', 10));
 
-  const all = await getAllProducts();
+  const all = await getAllProductsForTenant(TENANT_ID);
   const products = Array.isArray(all) ? all.filter((p) => p?.id).slice(0, limit) : [];
 
   const counters = {

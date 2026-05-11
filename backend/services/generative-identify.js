@@ -1,3 +1,8 @@
+/**
+ * @deprecated-target 2026-08 — Wird mit enrichment-v2.js zusammen entfernt.
+ * Einziger Aufrufer: enrichment-v2.js.
+ * Plan: /Users/oguz/.claude/plans/sieht-ziemlich-komplex-unstrukturiert-woolly-tulip.md (Phase B.2)
+ */
 const { callGeminiStructured } = require('../lib/gemini-structured');
 const { buildCommonPolicyText } = require('../lib/llm-policy-pack');
 const sharp = require('sharp');

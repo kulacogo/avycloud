@@ -1,5 +1,10 @@
 /* eslint-disable no-console */
 /**
+ * D.0b-Migration 2026-05-10: Migrated to getAllProductsForTenant().
+ * See /Users/oguz/.claude/plans/sieht-ziemlich-komplex-unstrukturiert-woolly-tulip.md (Phase D.0)
+ * D.0b-Migration: Default to avycloud. Add --tenant flag for multi-tenant runs.
+ */
+/**
  * Apply eBay category suggestions from a review CSV to Firestore products.
  *
  * Input: a CSV like `exports/category_review_suspicious_roots__suggested_*.csv` containing:
@@ -27,7 +32,15 @@ const fs = require('fs');
 const path = require('path');
 const PQueue = require('p-queue').default || require('p-queue');
 const { parse } = require('csv-parse/sync');
-const { getAllProducts, getProduct, saveProduct } = require('../lib/firestore');
+const { getAllProducts, getAllProductsForTenant, getProduct, saveProduct } = require('../lib/firestore');
+
+// D.0b-Hardening 2026-05-11: mandatory TENANT_ID for write scripts (prevents silent cross-tenant writes)
+const TENANT_ID = process.env.TENANT_ID;
+if (!TENANT_ID) {
+  console.error('TENANT_ID env var required. Example: TENANT_ID=avycloud node <script>.js');
+  process.exit(1);
+}
+console.warn(`[D.0b-Hardening] Running for tenantId='${TENANT_ID}'.`);
 
 const EBAY_CATEGORIES_JSON = path.join(__dirname, '..', 'ebay-data', 'categories.json');
 // eslint-disable-next-line import/no-dynamic-require, global-require
@@ -103,7 +116,7 @@ async function main() {
 
   console.log(`[category-apply] mode=${args.apply ? 'APPLY' : 'DRY_RUN'} in=${inPath} out=${outDir}`);
 
-  const products = await getAllProducts();
+  const products = await getAllProductsForTenant(TENANT_ID);
   const preCount = products.length;
   console.log(`[category-apply] preCount=${preCount}`);
   if (args.apply && preCount !== args.expectedCount) {
@@ -222,7 +235,7 @@ async function main() {
     return;
   }
 
-  const post = await getAllProducts();
+  const post = await getAllProductsForTenant(TENANT_ID);
   const postCount = post.length;
   console.log(`[category-apply] postCount=${postCount}`);
   if (postCount !== preCount) {

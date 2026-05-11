@@ -23,6 +23,149 @@ const {
   defaultSafetySettings,
   DEFAULT_STRUCTURED_TEMPERATURE,
 } = require('./gemini-config');
+const logger = require('./logger');
+const { getSchemaForScope, isStrictMode, validateRate } = require('./llm-schemas/_index');
+
+/**
+ * Phase F.3 — 2-stufige zod-Schema-Validation.
+ *
+ * Stufe 1 (default, LLM_SCHEMA_STRICT != 'true'):
+ *   safeParse + structured warn-log on failure. Returns the unvalidated payload.
+ *   This is the production-default — we do NOT throw to avoid breaking the
+ *   Gemini pipeline on Schema-Drift.
+ *
+ * Stufe 2 (LLM_SCHEMA_STRICT === 'true'):
+ *   parse + throw with a clear error containing scope + zod issue summary.
+ *
+ * If scopeConfig has no resolvable schema name OR the schema lookup misses,
+ * validation is silently skipped (additive helper — no breaking change).
+ */
+function _resolveScopeForValidation(scopeConfig) {
+  if (!scopeConfig || typeof scopeConfig !== 'object') return null;
+  // Prefer explicit outputSchemaHint string aliases; fall back to scopeId.
+  const hint = scopeConfig.outputSchemaHint;
+  if (typeof hint === 'string' && hint.trim()) {
+    const trimmed = hint.trim();
+    // outputSchemaHint in scope JSONs is typically a JSON-shape string starting
+    // with '{' — those are NOT looked up directly; we use scopeId for those.
+    if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) {
+      return trimmed;
+    }
+  }
+  if (typeof scopeConfig.scopeId === 'string' && scopeConfig.scopeId.trim()) {
+    return scopeConfig.scopeId.trim();
+  }
+  return null;
+}
+
+function _summarizeZodIssues(issues) {
+  if (!Array.isArray(issues)) return [];
+  return issues.slice(0, 10).map((iss) => ({
+    path: Array.isArray(iss.path) ? iss.path.join('.') : String(iss.path || ''),
+    code: iss.code,
+    message: iss.message,
+  }));
+}
+
+/**
+ * Validate `payload` against the zod schema for `scopeConfig`.
+ *
+ * Two modes:
+ *   - Stufe 2 (strict): throws on failure with a clear error.
+ *   - Stufe 1 (default): warns + returns the original payload unchanged.
+ *
+ * If no schema is resolvable (no scopeConfig / unknown scope), returns payload
+ * unchanged.
+ *
+ * @param {object|array} payload    The parsed Gemini response.
+ * @param {object|undefined} scopeConfig
+ * @returns {object|array}
+ */
+function _validateAgainstScope(payload, scopeConfig) {
+  const scopeName = _resolveScopeForValidation(scopeConfig);
+  if (!scopeName) return payload;
+  const schema = getSchemaForScope(scopeName);
+  if (!schema) return payload;
+
+  const strict = isStrictMode();
+  if (strict) {
+    try {
+      schema.parse(payload);
+    } catch (err) {
+      const issues = err && err.issues ? err.issues : [];
+      const summary = _summarizeZodIssues(issues);
+      const e = new Error(
+        `llm-schemas: strict validation failed for scope='${scopeName}'. issues=${JSON.stringify(summary)}`
+      );
+      e.code = 'LLM_SCHEMA_VALIDATION_FAILED';
+      e.scope = scopeName;
+      e.issues = summary;
+      throw e;
+    }
+    return payload;
+  }
+
+  // Stufe 1 — safeParse + warn at sample-rate.
+  const rate = validateRate();
+  const shouldLog = rate >= 1.0 || Math.random() < rate;
+  if (!shouldLog) return payload;
+  const result = schema.safeParse(payload);
+  if (!result.success) {
+    const summary = _summarizeZodIssues(result.error && result.error.issues);
+    try {
+      logger.warn(
+        { scope: scopeName, issues: summary, mode: 'safeparse' },
+        '[llm-schemas] safeParse mismatch — Stufe 1 (non-throwing)'
+      );
+    } catch (_) { /* logger unavailable in some test setups */ }
+  }
+  return payload;
+}
+
+/**
+ * Phase F.1b — Helper-Layer scopeConfig augmentation (ADDITIVE).
+ *
+ * Pulls scopeConfig (from lib/llm-config.resolveScopeConfig) into the merge
+ * order for model + generationConfig. Backwards compatible: if scopeConfig is
+ * not provided, behaviour is unchanged.
+ *
+ * Merge order (last wins):
+ *   1. Helper-internal defaults (e.g. temperature 0.1, maxOutputTokens 1024)
+ *   2. scopeConfig.generationConfig (when provided)
+ *   3. Explicit caller overrides (only when the caller actually passed them)
+ *
+ * Model resolution:
+ *   - Explicit caller `model` arg wins (when truthy)
+ *   - else scopeConfig.model (when truthy)
+ *   - else existing default (resolveModel(...))
+ */
+function _resolveScopeModel(callerModel, scopeConfig) {
+  if (typeof callerModel === 'string' && callerModel.trim()) return callerModel.trim();
+  if (scopeConfig && typeof scopeConfig.model === 'string' && scopeConfig.model.trim()) {
+    return scopeConfig.model.trim();
+  }
+  return null;
+}
+
+function _pickScopeGenCfg(scopeConfig) {
+  if (!scopeConfig || typeof scopeConfig !== 'object') return null;
+  const gc = scopeConfig.generationConfig;
+  if (gc && typeof gc === 'object') return gc;
+  return null;
+}
+
+/**
+ * Merge helper-internal defaults + scopeConfig.generationConfig +
+ * explicit caller overrides. callerOverrides is an object describing ONLY
+ * values the caller explicitly set (so destructuring-defaults don't shadow).
+ */
+function _mergeGenCfgLayers(defaults, scopeGenCfg, callerOverrides) {
+  const out = {};
+  if (defaults && typeof defaults === 'object') Object.assign(out, defaults);
+  if (scopeGenCfg && typeof scopeGenCfg === 'object') Object.assign(out, scopeGenCfg);
+  if (callerOverrides && typeof callerOverrides === 'object') Object.assign(out, callerOverrides);
+  return out;
+}
 
 /**
  * Centralized helpers for the identify pipeline.
@@ -181,19 +324,30 @@ function getGenAIClient() {
  *   model?: string,
  *   temperature?: number,
  *   maxOutputTokens?: number,
+ *   timeoutMs?: number,
+ *   scopeConfig?: object, // Phase F.1b — optional resolveScopeConfig result
  * }} opts
  * @returns {Promise<object>} Parsed JSON response
  */
-async function gemini3GenerateJSON({
-  prompt,
-  schema,
-  model,
-  temperature = 0.1,
-  maxOutputTokens = 1024,
-  timeoutMs,
-}) {
-  const ai = await getGenAIClient();
-  const modelName = resolveModel(model, 'GEMINI_MODEL', DEFAULT_MODEL);
+async function gemini3GenerateJSON(opts = {}) {
+  const {
+    prompt,
+    schema,
+    model,
+    temperature,
+    maxOutputTokens,
+    timeoutMs,
+    scopeConfig,
+  } = opts;
+
+  const ai = await module.exports.getGenAIClient();
+
+  // Phase F.1b: scopeConfig may override the model; explicit caller arg wins.
+  const scopeModel = _resolveScopeModel(model, scopeConfig);
+  const modelName = scopeModel
+    ? resolveModel(scopeModel, 'GEMINI_MODEL', DEFAULT_MODEL)
+    : resolveModel(model, 'GEMINI_MODEL', DEFAULT_MODEL);
+
   // SDK-level safety net so a hanging connection cannot live longer than the
   // wall-clock budget. Without this, the @google/genai HTTP transport keeps
   // sockets alive in the background even when callers gave up via Promise.race
@@ -206,12 +360,27 @@ async function gemini3GenerateJSON({
       ? Math.floor(timeoutMs)
       : parseInt(process.env.GEMINI_GENERIC_TIMEOUT_MS || '30000', 10);
 
+  // Phase F.1b: merge helper-defaults < scopeConfig.generationConfig < explicit caller-overrides.
+  // Only forward keys the caller actually set so the merge does not shadow scopeConfig values
+  // with destructuring-defaults.
+  const callerOverrides = {};
+  if (Object.prototype.hasOwnProperty.call(opts, 'temperature') && temperature !== undefined) {
+    callerOverrides.temperature = temperature;
+  }
+  if (Object.prototype.hasOwnProperty.call(opts, 'maxOutputTokens') && maxOutputTokens !== undefined) {
+    callerOverrides.maxOutputTokens = maxOutputTokens;
+  }
+  const mergedGenCfg = _mergeGenCfgLayers(
+    { temperature: 0.1, maxOutputTokens: 1024 },
+    _pickScopeGenCfg(scopeConfig),
+    callerOverrides
+  );
+
   const response = await ai.models.generateContent({
     model: modelName,
     contents: prompt,
     config: {
-      temperature,
-      maxOutputTokens,
+      ...mergedGenCfg,
       responseMimeType: 'application/json',
       responseJsonSchema: schema,
       httpOptions: { timeout: resolvedTimeoutMs },
@@ -234,7 +403,8 @@ async function gemini3GenerateJSON({
 
   const parsed = repairTruncatedJson(text);
   if (!parsed) throw new Error('Failed to parse Gemini JSON (even after repair attempt)');
-  return parsed;
+  // Phase F.3: 2-stufige zod-Schema-Validation (safeParse Stufe 1 default).
+  return _validateAgainstScope(parsed, scopeConfig);
 }
 
 /**
@@ -245,30 +415,52 @@ async function gemini3GenerateJSON({
  *   model?: string,
  *   temperature?: number,
  *   maxOutputTokens?: number,
+ *   timeoutMs?: number,
+ *   scopeConfig?: object, // Phase F.1b — optional resolveScopeConfig result
  * }} opts
  * @returns {Promise<string>}
  */
-async function gemini3GenerateText({
-  prompt,
-  model,
-  temperature = 0.7,
-  maxOutputTokens = 2048,
-  timeoutMs,
-}) {
-  const ai = await getGenAIClient();
-  const modelName = resolveModel(model, 'GEMINI_MODEL', DEFAULT_MODEL);
+async function gemini3GenerateText(opts = {}) {
+  const {
+    prompt,
+    model,
+    temperature,
+    maxOutputTokens,
+    timeoutMs,
+    scopeConfig,
+  } = opts;
+
+  const ai = await module.exports.getGenAIClient();
+
+  const scopeModel = _resolveScopeModel(model, scopeConfig);
+  const modelName = scopeModel
+    ? resolveModel(scopeModel, 'GEMINI_MODEL', DEFAULT_MODEL)
+    : resolveModel(model, 'GEMINI_MODEL', DEFAULT_MODEL);
+
   // See gemini3GenerateJSON for rationale.
   const resolvedTimeoutMs =
     Number.isFinite(timeoutMs) && timeoutMs > 0
       ? Math.floor(timeoutMs)
       : parseInt(process.env.GEMINI_GENERIC_TIMEOUT_MS || '30000', 10);
 
+  const callerOverrides = {};
+  if (Object.prototype.hasOwnProperty.call(opts, 'temperature') && temperature !== undefined) {
+    callerOverrides.temperature = temperature;
+  }
+  if (Object.prototype.hasOwnProperty.call(opts, 'maxOutputTokens') && maxOutputTokens !== undefined) {
+    callerOverrides.maxOutputTokens = maxOutputTokens;
+  }
+  const mergedGenCfg = _mergeGenCfgLayers(
+    { temperature: 0.7, maxOutputTokens: 2048 },
+    _pickScopeGenCfg(scopeConfig),
+    callerOverrides
+  );
+
   const response = await ai.models.generateContent({
     model: modelName,
     contents: prompt,
     config: {
-      temperature,
-      maxOutputTokens,
+      ...mergedGenCfg,
       httpOptions: { timeout: resolvedTimeoutMs },
     },
   });
@@ -424,7 +616,7 @@ async function identifyProductWithGrounding({
   hint = null,
   improveContext = null,
 } = {}) {
-  const ai = await getGenAIClient();
+  const ai = await module.exports.getGenAIClient();
   const modelName = resolveModel(null, 'IDENTIFY_MODEL', DEFAULT_MODEL);
 
   const parts = [];
@@ -573,7 +765,7 @@ const RECOGNITION_SCHEMA = {
  * V3 Stage 1: Focused product recognition — identity only, no content generation.
  */
 async function identifyProductFocused({ imageParts = [], ocrText = '', barcodes = [], locale = 'de-DE', hint = null } = {}) {
-  const ai = await getGenAIClient();
+  const ai = await module.exports.getGenAIClient();
   const modelName = resolveModel(null, 'IDENTIFY_MODEL', DEFAULT_MODEL);
 
   const parts = [];
@@ -691,7 +883,7 @@ async function generateProductContent({
   gpsrWebFallback = null,
   barcodeConfirmation = null,
 } = {}) {
-  const ai = await getGenAIClient();
+  const ai = await module.exports.getGenAIClient();
   const modelName = resolveModel(null, 'IDENTIFY_MODEL', DEFAULT_MODEL);
 
   const maxImages = _envInt('STAGE3_MAX_IMAGES', 4);
@@ -898,4 +1090,11 @@ module.exports = {
   RECOGNITION_SCHEMA,
   CONTENT_SCHEMA,
   DEFAULT_MODEL,
+  // Phase F.1b — pure helpers exposed for unit tests.
+  __resolveScopeModel: _resolveScopeModel,
+  __pickScopeGenCfg: _pickScopeGenCfg,
+  __mergeGenCfgLayers: _mergeGenCfgLayers,
+  // Phase F.3 — zod-Schema-Validation helpers exposed for unit tests.
+  __validateAgainstScope: _validateAgainstScope,
+  __resolveScopeForValidation: _resolveScopeForValidation,
 };

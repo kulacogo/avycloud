@@ -17,8 +17,11 @@
  * - Strict pre/post count guard (no creates/deletes).
  *
  * Usage:
- *   node backend/scripts/fix-suspicious-categories-with-web.js --dry-run
- *   node backend/scripts/fix-suspicious-categories-with-web.js --apply --expected-count 420
+ *   node backend/scripts/fix-suspicious-categories-with-web.js --dry-run --tenant avycloud
+ *   node backend/scripts/fix-suspicious-categories-with-web.js --apply --expected-count 420 --tenant avycloud
+ *
+ * D.0b-Migration 2026-05-10: Migrated to getAllProductsForTenant().
+ * See /Users/oguz/.claude/plans/sieht-ziemlich-komplex-unstrukturiert-woolly-tulip.md (Phase D.0)
  */
 
 const fs = require('fs');
@@ -28,7 +31,15 @@ const { getGeminiClient } = require('../lib/gemini-client');
 const { resolveModel } = require('../lib/model-select');
 const { callSerpApi, summarizeSerpEntries } = require('../lib/serpapi');
 const { findEbayCategory } = require('../lib/ebay-taxonomy');
-const { getAllProducts, saveProduct } = require('../lib/firestore');
+const { getAllProductsForTenant, saveProduct } = require('../lib/firestore');
+
+// D.0b-Hardening 2026-05-11: mandatory TENANT_ID for write scripts (prevents silent cross-tenant writes)
+const TENANT_ID = process.env.TENANT_ID;
+if (!TENANT_ID) {
+  console.error('TENANT_ID env var required. Example: TENANT_ID=avycloud node <script>.js');
+  process.exit(1);
+}
+console.warn(`[D.0b-Hardening] Running for tenantId='${TENANT_ID}'.`);
 const { buildCommonPolicyText } = require('../lib/llm-policy-pack');
 const { MarketplaceLookup } = require('../lib/marketplace-lookup');
 const { BANNED_EBAY_CATEGORY_ROOTS, isBannedEbayBreadcrumb } = require('../lib/ebay-category-governance');
@@ -449,7 +460,7 @@ async function main() {
   ensureDir(outDir);
 
   console.log(`[category-fix-web] mode=${args.apply ? 'APPLY' : 'DRY_RUN'} out=${outDir}`);
-  const products = await getAllProducts();
+  const products = await getAllProductsForTenant(TENANT_ID);
   const preCount = products.length;
   console.log(`[category-fix-web] preCount=${preCount}`);
   if (args.apply && preCount !== args.expectedCount) {
@@ -591,7 +602,7 @@ async function main() {
     return;
   }
 
-  const post = await getAllProducts();
+  const post = await getAllProductsForTenant(TENANT_ID);
   const postCount = post.length;
   console.log(`[category-fix-web] postCount=${postCount}`);
   if (postCount !== preCount) {

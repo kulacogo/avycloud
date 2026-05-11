@@ -1,5 +1,10 @@
 /* eslint-disable no-console */
 /**
+ * D.0b-Migration 2026-05-10: Migrated to getAllProductsForTenant().
+ * See /Users/oguz/.claude/plans/sieht-ziemlich-komplex-unstrukturiert-woolly-tulip.md (Phase D.0)
+ * D.0b-Migration: Default to avycloud. Add --tenant flag for multi-tenant runs.
+ */
+/**
  * Enrich missing "K-Typ" for AUTO parts using:
  * 1) Web search (SerpAPI) for HSN/TSN or vehicle fitment clues
  * 2) MVL dataset (exports/DE_MVL_2025_10.compact.jsonl) to map HSN/TSN or vehicle rows -> K-Type IDs
@@ -18,7 +23,15 @@ const fs = require('fs');
 const path = require('path');
 const { fetchPageText } = require('../lib/web-search-html');
 const { callSerpApi } = require('../lib/serpapi');
-const { getAllProducts, saveProduct } = require('../lib/firestore');
+const { getAllProducts, getAllProductsForTenant, saveProduct } = require('../lib/firestore');
+
+// D.0b-Hardening 2026-05-11: mandatory TENANT_ID for write scripts (prevents silent cross-tenant writes)
+const TENANT_ID = process.env.TENANT_ID;
+if (!TENANT_ID) {
+  console.error('TENANT_ID env var required. Example: TENANT_ID=avycloud node <script>.js');
+  process.exit(1);
+}
+console.warn(`[D.0b-Hardening] Running for tenantId='${TENANT_ID}'.`);
 const { getVehicleFitmentMode } = require('../lib/vehicle-fitment');
 const { findEbayCategory } = require('../lib/ebay-taxonomy');
 
@@ -309,7 +322,7 @@ async function main() {
   const mvl = loadMvlIndex(mvlPath);
   console.log('[ktype-enrich] mvl_rows=', mvl.parsed, 'hsn_tsn_keys=', mvl.byHsnTsn.size);
 
-  const products = await getAllProducts();
+  const products = await getAllProductsForTenant(TENANT_ID);
   const candidates = products
     .filter((p) => looksLikeAutoProduct(p))
     .filter((p) => pickMpnOrPartNumber(p))

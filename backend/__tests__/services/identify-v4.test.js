@@ -173,7 +173,16 @@ const {
   identifyV4Enabled,
   _testables,
 } = require('../../services/identify-v4');
-const { runWave, mergeWaveResults, assembleProductV4, WORKER_REGISTRY } = _testables;
+const {
+  runWave,
+  mergeWaveResults,
+  assembleProductV4,
+  WORKER_REGISTRY,
+  hasConfidenceImproved,
+  findLowConfidenceWorkers,
+  mergeRefinementWorkers,
+  WAVE_1_WORKERS,
+} = _testables;
 
 // -------------------------------------------------------------------------
 // 3. Tests
@@ -494,5 +503,241 @@ describe('internals', () => {
     expect(p.ops.identify_pipeline).toBe('v4');
     expect(p.ops.data_quality.identify_v4).toBeTruthy();
     expect(p.identification.name).toBe('Unbekanntes Produkt');
+  });
+
+  // -----------------------------------------------------------------------
+  // C.1 — Zusatz-Tests (Refinement-Loop early-break + domainToSource +
+  // aspect-cap trimming)
+  // -----------------------------------------------------------------------
+
+  it('breaks refinement loop when confidence delta < MIN_IMPROVEMENT', () => {
+    // hasConfidenceImproved returns false when refinement gain < 0.05.
+    // Use only refinement-eligible fields (seo/pricing/...) — Wave 1 fields
+    // (identity/category) are explicitly skipped by findLowConfidenceWorkers.
+    const ctx = {
+      confidence: {
+        title: { score: 0.60 },
+        price: { score: 0.60 },
+      },
+      workerResults: {},
+    };
+    // Refinement result: delta from 0.60 -> 0.62 == 0.02 per field, total 0.04
+    // < MIN_IMPROVEMENT 0.05 -> should break the loop.
+    const refinementBelow = [
+      {
+        ok: true,
+        domain: 'seo',
+        resolved: { title_ebay: 'x' },
+        confidence: { title: 0.62 },
+      },
+      {
+        ok: true,
+        domain: 'pricing',
+        resolved: { price_suggested: 10 },
+        confidence: { price: 0.62 },
+      },
+    ];
+    expect(hasConfidenceImproved(ctx, refinementBelow)).toBe(false);
+
+    // Refinement result above threshold should signal improvement.
+    const refinementAbove = [
+      {
+        ok: true,
+        domain: 'seo',
+        resolved: { title_ebay: 'x' },
+        confidence: { title: 0.80 },
+      },
+    ];
+    expect(hasConfidenceImproved(ctx, refinementAbove)).toBe(true);
+
+    // findLowConfidenceWorkers must skip Wave 1 workers even when their
+    // confidence is low — only refinement-eligible domains are returned.
+    const ctxWithWave1 = {
+      confidence: {
+        brand: { score: 0.10 },
+        categoryId: { score: 0.10 },
+        title: { score: 0.50 },
+      },
+      workerResults: {},
+    };
+    const lowConf = findLowConfidenceWorkers(ctxWithWave1);
+    expect(lowConf).toContain('seo');
+    expect(lowConf).not.toContain('identity');
+    expect(lowConf).not.toContain('category');
+  });
+
+  it('domainToSource maps identity to ean_db when gtin_verified=true', () => {
+    const ctx = {
+      product: { identification: { brand: '' }, details: { identifiers: {} } },
+      confidence: {},
+      workerResults: {},
+      additionalSources: [],
+    };
+    const results = [
+      {
+        ok: true,
+        domain: 'identity',
+        resolved: { brand: 'Sony', gtin: '4548736132610', gtin_verified: true },
+        confidence: { brand: 0.92, gtin: 0.95 },
+        sources: [{ type: 'lookup_gtin', ok: true }],
+        meta: { toolsCalled: [{ name: 'lookup_gtin', ok: true }] },
+      },
+    ];
+    const merged = mergeWaveResults(ctx, results);
+    // The cross-ref confidence MUST cite ean_db as a contributing source so the
+    // 0.85-weight applies (instead of the 0.55 gemini_inference fallback).
+    const brandConf = merged._crossRefConfidence?.brand;
+    expect(brandConf).toBeTruthy();
+    expect(Array.isArray(brandConf.sources)).toBe(true);
+    expect(brandConf.sources).toContain('ean_db');
+    expect(brandConf.sources).not.toContain('gemini_inference');
+    // Score reflects ean_db base weight (0.85) — not the gemini_inference 0.55.
+    expect(brandConf.score).toBeGreaterThanOrEqual(0.85);
+  });
+
+  it('domainToSource falls back to gemini_inference when no GTIN verified', () => {
+    const ctx = {
+      product: { identification: { brand: '' }, details: { identifiers: {} } },
+      confidence: {},
+      workerResults: {},
+      additionalSources: [],
+    };
+    const results = [
+      {
+        ok: true,
+        domain: 'identity',
+        resolved: { brand: 'Sony', gtin_verified: false },
+        confidence: { brand: 0.7 },
+        sources: [],
+        meta: { toolsCalled: [] },
+      },
+    ];
+    const merged = mergeWaveResults(ctx, results);
+    const brandConf = merged._crossRefConfidence?.brand;
+    expect(brandConf).toBeTruthy();
+    expect(Array.isArray(brandConf.sources)).toBe(true);
+    expect(brandConf.sources).toContain('gemini_inference');
+    expect(brandConf.sources).not.toContain('ean_db');
+    // Score reflects gemini_inference base weight (0.55) — strictly below ean_db.
+    expect(brandConf.score).toBeLessThan(0.85);
+  });
+
+  // -----------------------------------------------------------------------
+  // E.1 — Critic-Refinement-Hint-Merge tests
+  // -----------------------------------------------------------------------
+
+  describe('mergeRefinementWorkers (critic hint merge — Phase E)', () => {
+    afterEach(() => {
+      delete process.env.IDENTIFY_V4_CRITIC_HINTS;
+    });
+
+    it('merges critic.refinement_needed_workers with confidence-based detection', () => {
+      // Confidence-only path detects 'seo' as low; critic flags 'attributes'.
+      // Expectation: union of both, Wave-1-Lock untouched.
+      const confidenceBased = ['seo'];
+      const criticResult = {
+        resolved: { refinement_needed_workers: ['attributes'] },
+      };
+      const merged = mergeRefinementWorkers(confidenceBased, criticResult);
+      expect(merged.sort()).toEqual(['attributes', 'seo']);
+    });
+
+    it('respects Wave-1-Lock when critic suggests identity/category', () => {
+      // Critic suggested identity + category + attributes — both Wave-1
+      // workers MUST be stripped, only 'attributes' remains.
+      const confidenceBased = [];
+      const criticResult = {
+        resolved: { refinement_needed_workers: ['identity', 'category', 'attributes'] },
+      };
+      const merged = mergeRefinementWorkers(confidenceBased, criticResult);
+      expect(merged).toEqual(['attributes']);
+      // And confirm WAVE_1_WORKERS is what we expect (foundation contract).
+      expect(WAVE_1_WORKERS).toEqual(['identity', 'category']);
+    });
+
+    it('skips critic-hint-merge when IDENTIFY_V4_CRITIC_HINTS=false', () => {
+      // Flag off → critic suggestions ignored; only confidence-based workers
+      // are returned (i.e. behaviour identical to pre-fix).
+      process.env.IDENTIFY_V4_CRITIC_HINTS = 'false';
+      const confidenceBased = ['seo'];
+      const criticResult = {
+        resolved: { refinement_needed_workers: ['attributes', 'pricing'] },
+      };
+      const merged = mergeRefinementWorkers(confidenceBased, criticResult);
+      expect(merged).toEqual(['seo']);
+    });
+
+    it('dedupes overlapping suggestions and tolerates missing critic result', () => {
+      // Same worker on both lists must appear once. Undefined critic =
+      // confidence-only path, no crash.
+      expect(mergeRefinementWorkers(['seo'], { resolved: { refinement_needed_workers: ['seo'] } }))
+        .toEqual(['seo']);
+      expect(mergeRefinementWorkers(['seo'], undefined)).toEqual(['seo']);
+      expect(mergeRefinementWorkers(['seo'], null)).toEqual(['seo']);
+      expect(mergeRefinementWorkers(['seo'], {})).toEqual(['seo']);
+    });
+  });
+
+  it('aspect-cap-trim path in critic enforces 45-limit when attributes-worker emits 50 items', async () => {
+    // Unmock the critic-worker for this single test so the real
+    // enforceAspectCap path is exercised end-to-end.
+    require.cache[criticPath] = {
+      id: criticPath,
+      filename: criticPath,
+      loaded: true,
+      exports: require.cache[criticPath].exports, // placeholder, replaced below
+    };
+    delete require.cache[criticPath];
+    delete require.cache[require.resolve('../../services/identify-v4')];
+    const realCritic = require('../../lib/identify-workers/critic-worker');
+    require.cache[criticPath] = {
+      id: criticPath,
+      filename: criticPath,
+      loaded: true,
+      exports: realCritic,
+    };
+    const { identifyProductV4: orchestratorWithRealCritic } = require('../../services/identify-v4');
+
+    // Mock attributes-worker to emit 50 distinct item_specifics — assembled
+    // product.details.attributes will exceed the 45-cap and the critic must
+    // flag aspect_cap_applied via enforceAspectCap.
+    const fiftySpecs = Array.from({ length: 50 }, (_v, i) => ({
+      key: `Aspect_${String(i + 1).padStart(2, '0')}`,
+      value: `Value_${i + 1}`,
+    }));
+    wave2WorkerMocks.attributes.mockImplementationOnce(async () => ({
+      ok: true,
+      domain: 'attributes',
+      resolved: { item_specifics: fiftySpecs },
+      confidence: { requiredAspects: 0.8 },
+      sources: [],
+      meta: { durationMs: 5 },
+    }));
+
+    try {
+      const res = await orchestratorWithRealCritic({
+        files: [],
+        barcodes: '4548736132610',
+        autosave: false,
+      });
+      expect(res.ok).toBe(true);
+      const critic = res.product.ops.data_quality.identify_v4.critic;
+      expect(critic).toBeTruthy();
+      // enforceAspectCap is invoked on the assembled product (which carries
+      // 50+ attribute keys); removedCount > 0 -> aspect_cap_applied=true.
+      expect(critic.aspect_cap_applied).toBe(true);
+    } finally {
+      // Restore the critic mock for downstream tests.
+      delete require.cache[criticPath];
+      require.cache[criticPath] = {
+        id: criticPath,
+        filename: criticPath,
+        loaded: true,
+        exports: { runCriticWorker: criticWorkerMock },
+      };
+      delete require.cache[require.resolve('../../services/identify-v4')];
+      // Re-require SUT so subsequent test files see the original mock graph.
+      require('../../services/identify-v4');
+    }
   });
 });

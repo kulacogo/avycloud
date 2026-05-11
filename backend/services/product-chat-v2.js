@@ -25,7 +25,24 @@ const { searchProductImages } = require('../lib/image-search');
 const { normalizeDigits, isValidGtin } = require('../lib/gtin');
 const { coerceTitleToPolicy } = require('../lib/title-policy');
 const { buildCommonPolicyText } = require('../lib/llm-policy-pack');
-const { getActiveLlmConfig } = require('../lib/llm-config');
+const { getActiveLlmConfig, resolveScopeConfig } = require('../lib/llm-config');
+
+// Phase F.1b.3 — best-effort scope-config (additive, never throws).
+async function _tryResolveScopeConfigChatV2(scopeName, tenantId, callerOverrides) {
+  try {
+    return await resolveScopeConfig(scopeName, tenantId || null, callerOverrides || {});
+  } catch (err) {
+    let logger = null;
+    try { logger = require('../lib/logger'); } catch (_) { /* logger optional in tests */ }
+    if (logger && typeof logger.warn === 'function') {
+      logger.warn(
+        { scopeId: scopeName, tenantId: tenantId || null, reason: err?.message || String(err) },
+        '[chat-v2] resolveScopeConfig failed, using hardcoded defaults'
+      );
+    }
+    return null;
+  }
+}
 const { sanitizeListingText, sanitizeDescriptionToHtml, sanitizeHighlights } = require('../lib/listing-sanitize');
 const { normalizeHighlightsStrict } = require('../lib/highlights-policy');
 const {
@@ -858,6 +875,7 @@ async function runProductChatV2(product, userMessage, {
   scope = null,
   history = [],
   onProgress = null,
+  tenantId = null,
 } = {}) {
   const ai = await getGenAIClient();
   const enhanced = isChatV2Enhanced();
@@ -955,21 +973,40 @@ async function runProductChatV2(product, userMessage, {
   // 'Invalid value at generation_config.media_resolution' even for documented
   // enum values like 'HIGH'. Revisit when Gemini 3 Pro GA (non-preview) lands.
   // Per-Part mediaResolution on Content.Part still works if needed later.
+  //
+  // Phase F.1b.3 — load scope-config best-effort. callerOverrides preserve the
+  // legacy enhanced/non-enhanced values so a missing scope keeps byte-identical
+  // generationConfig. tenantId is not available in the chat-v2 signature today;
+  // F.2 may thread it through if per-tenant tuning is required.
+  const _legacyTemperatureV2 = enhanced ? 1.0 : 0.3;
+  const _legacyMaxOutputTokensV2 = enhanced ? 8192 : 4096;
+  const _legacyThinkingV2 = enhanced
+    ? { thinkingLevel: 'high', includeThoughts: true }
+    : undefined;
+  const scopeConfigV2 = await _tryResolveScopeConfigChatV2('chat.product', tenantId, {
+    temperature: _legacyTemperatureV2,
+    maxOutputTokens: _legacyMaxOutputTokensV2,
+    ...(_legacyThinkingV2 ? { thinkingConfig: _legacyThinkingV2 } : {}),
+  });
+  const _scopeGenCfgV2 =
+    scopeConfigV2 && scopeConfigV2.generationConfig && typeof scopeConfigV2.generationConfig === 'object'
+      ? scopeConfigV2.generationConfig
+      : {};
+
   const chatConfig = {
     tools,
     toolConfig: {
       includeServerSideToolInvocations: true,
     },
     systemInstruction: systemPromptText,
-    temperature: enhanced ? 1.0 : 0.3,
-    maxOutputTokens: enhanced ? 8192 : 4096,
+    temperature: _legacyTemperatureV2,
+    maxOutputTokens: _legacyMaxOutputTokensV2,
   };
   if (enhanced) {
-    chatConfig.thinkingConfig = {
-      thinkingLevel: 'high',
-      includeThoughts: true,
-    };
+    chatConfig.thinkingConfig = _legacyThinkingV2;
   }
+  // Apply scopeConfig.generationConfig last (scope overrides legacy knobs).
+  Object.assign(chatConfig, _scopeGenCfgV2);
 
   const chat = ai.chats.create({
     model: modelName,

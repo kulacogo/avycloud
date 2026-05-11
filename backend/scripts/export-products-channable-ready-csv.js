@@ -18,12 +18,16 @@
  *     --delimiter "," \
  *     --maxImages 5 \
  *     --minStock 1 \
- *     --requireLocation true
+ *     --requireLocation true \
+ *     --tenant avycloud
+ *
+ * D.0b-Migration 2026-05-10: Migrated to getAllProductsForTenant().
+ * See /Users/oguz/.claude/plans/sieht-ziemlich-komplex-unstrukturiert-woolly-tulip.md (Phase D.0)
  */
 
 const fs = require('fs');
 const path = require('path');
-const { getAllProducts } = require('../lib/firestore');
+const { getAllProductsForTenant } = require('../lib/firestore');
 const { isValidGtin, normalizeDigits, getGtinType } = require('../lib/gtin');
 const XLSX = require('xlsx');
 
@@ -94,9 +98,16 @@ function parseArgs(argv) {
     } else if (t === '--requireLocation') {
       args.requireLocation = parseBool(argv[i + 1], true);
       i += 1;
+    } else if (t === '--tenant') {
+      args.tenant = argv[i + 1];
+      i += 1;
     }
   }
   args.maxImages = Math.max(0, Math.min(20, Number.isFinite(args.maxImages) ? args.maxImages : 5));
+  if (!args.tenant || typeof args.tenant !== 'string' || !args.tenant.trim()) {
+    console.warn('[export-products-channable-ready-csv] No --tenant provided, defaulting to "avycloud".');
+    args.tenant = 'avycloud';
+  }
   return args;
 }
 
@@ -308,7 +319,7 @@ async function main() {
     : null;
   if (xlsxOutPath) ensureDir(path.dirname(xlsxOutPath));
 
-  const productsAll = await getAllProducts();
+  const productsAll = await getAllProductsForTenant(args.tenant);
   const productsFiltered = productsAll.filter((p) => {
     const stock = pickStock(p);
     const loc = pickLocation(p);

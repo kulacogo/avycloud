@@ -6,6 +6,26 @@ const { normalizeHighlightsStrict } = require('./highlights-policy');
 const { canonicalizeAttributesStrict } = require('./attribute-policy');
 const { coerceTitleToPolicy } = require('./title-policy');
 
+// Phase F.1b.3 — best-effort scope-config loader (additive, never throws).
+// Returns a scopeConfig object suitable to forward to gemini3GenerateJSON /
+// gemini3-client helpers, or null when Firestore/scope is unavailable.
+async function _tryResolveScopeConfig(scopeName, tenantId, callerOverrides) {
+  try {
+    const { resolveScopeConfig } = require('./llm-config');
+    return await resolveScopeConfig(scopeName, tenantId || null, callerOverrides || {});
+  } catch (err) {
+    let logger = null;
+    try { logger = require('./logger'); } catch (_) { /* logger optional in tests */ }
+    if (logger && typeof logger.warn === 'function') {
+      logger.warn(
+        { scopeId: scopeName, tenantId: tenantId || null, reason: err?.message || String(err) },
+        '[stage3] resolveScopeConfig failed, using hardcoded defaults'
+      );
+    }
+    return null;
+  }
+}
+
 // Lazy-load the agentic module so that test fixtures that don't need it (and
 // don't have @google/genai stubbed at module-load time) are not affected.
 let _agenticModule = null;
@@ -493,6 +513,15 @@ Nichts erfinden — wenn du nichts findest, lasse den Key weg.`;
     process.env.STAGE3_REPAIR_TIMEOUT_MS || '15000',
     10,
   );
+  // Phase F.1b.3 — load scope-config best-effort. Pass the legacy hardcoded
+  // values as callerOverrides so a missing/stale scope still produces the same
+  // generationConfig (byte-identical fallback). When the scope exists, its
+  // version-level config can refine these knobs without code changes.
+  const scopeConfig = await _tryResolveScopeConfig('identify.v2', null, {
+    temperature: 0.1,
+    maxOutputTokens: 1024,
+  });
+
   let parsed;
   try {
     const repairPromise = gemini3GenerateJSON({
@@ -500,6 +529,7 @@ Nichts erfinden — wenn du nichts findest, lasse den Key weg.`;
       schema,
       temperature: 0.1,
       maxOutputTokens: 1024,
+      scopeConfig,
     });
     Promise.resolve(repairPromise).catch(() => {});
     parsed = await Promise.race([

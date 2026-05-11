@@ -2759,9 +2759,37 @@ async function getProduct(productId) {
 }
 
 /**
- * Get all products from Firestore
+ * Get all products from Firestore.
+ *
+ * @deprecated 2026-05-10 — Phase D.0c. Use getAllProductsForTenant(tenantId) instead.
+ *
+ * Plan: /Users/oguz/.claude/plans/sieht-ziemlich-komplex-unstrukturiert-woolly-tulip.md
+ * Runbook: docs/runbooks/d0c-throw-flip.md
+ *
+ * As of Sprint 7 all 9 production callers + 43 scripts have been migrated to
+ * getAllProductsForTenant(tenantId) (audit-script exits 0). To guarantee
+ * production safety the helper keeps its existing behaviour for >=7 days of
+ * Cloud-Logging observation; a [DEPRECATED] log line is emitted on every call
+ * so we can verify zero hits before flipping the body to throw.
+ *
+ * Throw-flip variant lives in docs/runbooks/d0c-throw-flip.md and will be
+ * applied as a separate commit once the wait period elapses with zero hits.
+ *
+ * IMPORTANT: cross-tenant data leak risk — never call this helper from
+ * tenant-scoped code paths.
  */
-async function getAllProducts() {
+async function getAllProducts(options = {}) {
+  // Phase D.0c — deprecation warning (Schritt 1). Captures a stack so any
+  // remaining caller (in case audit-script missed it) is identifiable in logs.
+  const stack = new Error('getAllProducts deprecation').stack;
+  console.warn(
+    '[DEPRECATED] getAllProducts() called without tenantId — cross-tenant data leak risk. ' +
+      'Migrate to getAllProductsForTenant(tenantId). Stack: ' +
+      stack
+  );
+
+  // Bestehende Implementation BLEIBT fuer >=7d Production-Beobachtung.
+  // Throw-Flip-Variante siehe docs/runbooks/d0c-throw-flip.md.
   try {
     const applyLimit = Number.isFinite(PRODUCT_LIST_LIMIT) && PRODUCT_LIST_LIMIT > 0;
     if (applyLimit) {
@@ -2773,21 +2801,72 @@ async function getAllProducts() {
     // Wichtiger Fix: orderBy auf einem optionalen Feld filtert alle Dokumente ohne dieses Feld heraus.
     // Wir holen deshalb alle Dokumente ohne orderBy, damit keine Produkte fehlen.
     const snapshot = await firestore.collection(PRODUCTS_COLLECTION).get();
-    
+
     const products = [];
-    snapshot.forEach(doc => {
+    snapshot.forEach((doc) => {
       const data = doc.data();
       products.push({
         ...data,
         id: data?.id || doc.id,
       });
     });
-    
+
     console.log(`Loaded ${products.length} products from Firestore`);
     return products;
   } catch (error) {
     console.error('Failed to get products from Firestore:', error);
     throw new Error(`Failed to get products: ${error.message}`);
+  }
+}
+
+/**
+ * Tenant-aware version of getAllProducts. MANDATORY tenantId parameter.
+ * Phase D.0a — see /Users/oguz/.claude/plans/sieht-ziemlich-komplex-unstrukturiert-woolly-tulip.md
+ *
+ * Additive helper — does NOT replace getAllProducts(). Existing call-sites
+ * remain unchanged. New tenant-scoped flows should prefer this helper so
+ * Firestore-side filtering (instead of in-memory filtering) reduces read
+ * cost and avoids cross-tenant leakage.
+ *
+ * @param {string} tenantId - non-empty tenant identifier
+ * @param {object} [options] - reserved for future extensions (limit, orderBy, etc.)
+ * @returns {Promise<Array>} - product docs filtered by tenantId (empty array if none match)
+ * @throws {Error} - if tenantId is missing, not a string, or empty/whitespace
+ */
+async function getAllProductsForTenant(tenantId, options = {}) {
+  if (!tenantId || typeof tenantId !== 'string' || !tenantId.trim()) {
+    throw new Error('getAllProductsForTenant: tenantId is required and must be a non-empty string');
+  }
+
+  try {
+    const applyLimit = Number.isFinite(PRODUCT_LIST_LIMIT) && PRODUCT_LIST_LIMIT > 0;
+    if (applyLimit) {
+      console.warn(
+        `[firestore] PRODUCT_LIST_LIMIT=${PRODUCT_LIST_LIMIT} konfiguriert – wird ignoriert, um fehlende Produkte im Inventar zu vermeiden.`
+      );
+    }
+
+    // Mirror getAllProducts(): no orderBy on optional fields (would silently
+    // drop docs without that field). Filter server-side by tenantId.
+    const snapshot = await firestore
+      .collection(PRODUCTS_COLLECTION)
+      .where('tenantId', '==', tenantId)
+      .get();
+
+    const products = [];
+    snapshot.forEach((doc) => {
+      const data = doc.data();
+      products.push({
+        ...data,
+        id: data?.id || doc.id,
+      });
+    });
+
+    console.log(`Loaded ${products.length} products for tenant=${tenantId} from Firestore`);
+    return products;
+  } catch (error) {
+    console.error(`Failed to get products for tenant=${tenantId} from Firestore:`, error);
+    throw new Error(`Failed to get products for tenant ${tenantId}: ${error.message}`);
   }
 }
 
@@ -3944,6 +4023,7 @@ module.exports = {
   saveProduct,
   getProduct,
   getAllProducts,
+  getAllProductsForTenant,
   deleteProduct,
   updateProductSyncStatus,
   findProductByIdentityKey,

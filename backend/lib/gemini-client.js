@@ -45,12 +45,28 @@ const { callGeminiWithRetry } = require('./gemini-retry');
  * Send a text prompt + inline images to Gemini Vision.
  * @param {string} textPrompt
  * @param {Array<{buffer: Buffer, mimeType: string}>} imageBuffers
- * @param {object} [options]
+ * @param {object} [options]  May contain `scopeConfig` (Phase F.1b, optional
+ *   resolveScopeConfig result) plus the legacy `temperature` / `maxOutputTokens` /
+ *   `model` overrides.
  * @returns {Promise<string>} The model's text response.
  */
 async function callGeminiVision(textPrompt, imageBuffers = [], options = {}) {
-  const client = await getGeminiClient();
-  const modelName = resolveModel(null, 'GROUPING_MODEL', 'gemini-2.0-flash');
+  // Use module.exports indirection so tests can swap getGeminiClient.
+  const client = await module.exports.getGeminiClient();
+
+  // Phase F.1b: scopeConfig.model wins over the env-resolved default if provided.
+  // Explicit options.model wins over scopeConfig.model.
+  const scopeConfig = options && typeof options === 'object' ? options.scopeConfig : null;
+  const callerModel =
+    options && typeof options === 'object' && typeof options.model === 'string' && options.model.trim()
+      ? options.model.trim()
+      : null;
+  const scopeModel =
+    scopeConfig && typeof scopeConfig === 'object' && typeof scopeConfig.model === 'string' && scopeConfig.model.trim()
+      ? scopeConfig.model.trim()
+      : null;
+  const preferred = callerModel || scopeModel || null;
+  const modelName = resolveModel(preferred, 'GROUPING_MODEL', 'gemini-2.0-flash');
   const model = client.getGenerativeModel({ model: modelName });
 
   const parts = [
@@ -63,14 +79,28 @@ async function callGeminiVision(textPrompt, imageBuffers = [], options = {}) {
     })),
   ];
 
+  // Phase F.1b: merge helper-defaults < scopeConfig.generationConfig < explicit caller overrides.
+  const helperDefaults = { temperature: 0.1, maxOutputTokens: 2048 };
+  const scopeGenCfg =
+    scopeConfig && typeof scopeConfig === 'object' && scopeConfig.generationConfig && typeof scopeConfig.generationConfig === 'object'
+      ? scopeConfig.generationConfig
+      : null;
+  const callerOverrides = {};
+  if (options && Object.prototype.hasOwnProperty.call(options, 'temperature') && options.temperature !== undefined) {
+    callerOverrides.temperature = options.temperature;
+  }
+  if (options && Object.prototype.hasOwnProperty.call(options, 'maxOutputTokens') && options.maxOutputTokens !== undefined) {
+    callerOverrides.maxOutputTokens = options.maxOutputTokens;
+  }
+  const generationConfig = { ...helperDefaults };
+  if (scopeGenCfg) Object.assign(generationConfig, scopeGenCfg);
+  Object.assign(generationConfig, callerOverrides);
+
   const result = await callGeminiWithRetry(
     () =>
       model.generateContent({
         contents: [{ role: 'user', parts }],
-        generationConfig: {
-          temperature: options.temperature ?? 0.1,
-          maxOutputTokens: options.maxOutputTokens ?? 2048,
-        },
+        generationConfig,
       }),
     { maxRetries: 1, delayMs: 2000 }
   );

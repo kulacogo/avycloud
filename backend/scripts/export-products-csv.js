@@ -16,16 +16,19 @@
  * - Quantity
  *
  * Usage:
- *   node backend/scripts/export-products-csv.js --out exports/products_export.csv
+ *   node backend/scripts/export-products-csv.js --out exports/products_export.csv --tenant avycloud
  *
  * Notes:
  * - Uses Application Default Credentials (ADC) via @google-cloud/firestore.
  * - Attributes are exported as JSON in a single cell to keep CSV reliably parseable.
+ *
+ * D.0b-Migration 2026-05-10: Migrated to getAllProductsForTenant().
+ * See /Users/oguz/.claude/plans/sieht-ziemlich-komplex-unstrukturiert-woolly-tulip.md (Phase D.0)
  */
 
 const fs = require('fs');
 const path = require('path');
-const { getAllProducts } = require('../lib/firestore');
+const { getAllProductsForTenant } = require('../lib/firestore');
 const { getProductBinSummaryMap } = require('../lib/warehouse');
 const { findEbayCategory } = require('../lib/ebay-taxonomy');
 
@@ -149,7 +152,14 @@ function parseArgs(argv) {
     if (token === '--out') {
       args.out = argv[i + 1];
       i += 1;
+    } else if (token === '--tenant') {
+      args.tenant = argv[i + 1];
+      i += 1;
     }
+  }
+  if (!args.tenant || typeof args.tenant !== 'string' || !args.tenant.trim()) {
+    console.warn('[export-products-csv] No --tenant provided, defaulting to "avycloud".');
+    args.tenant = 'avycloud';
   }
   return args;
 }
@@ -159,7 +169,7 @@ async function main() {
   const outPath = path.isAbsolute(args.out) ? args.out : path.join(process.cwd(), args.out);
   ensureDir(path.dirname(outPath));
 
-  const products = await getAllProducts();
+  const products = await getAllProductsForTenant(args.tenant);
   // Build a robust SKU->productId map for warehouse bin matching.
   const skuToProductId = new Map();
   products.forEach((p) => {

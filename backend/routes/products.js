@@ -6,6 +6,7 @@ const {
   saveProduct,
   getProduct,
   getAllProducts,
+  getAllProductsForTenant,
   deleteProduct,
   updateProductSyncStatus,
   findProductIdsByAliases,
@@ -1445,7 +1446,9 @@ router.delete('/products/cleanup-by-alias/:alias', async (req, res) => {
 // --- Bulk Improve (must be before /:id routes) ---
 router.post('/products/bulk-improve', requirePermission('ai', 'improve'), async (req, res) => {
   try {
-    const products = await getAllProducts();
+    // D.0b — Tenant-scoped read: pull only products belonging to caller tenant.
+    const tenantId = req.user?.tenantId || 'default';
+    const products = await getAllProductsForTenant(tenantId);
     const queuedJobs = [];
 
     console.log(`[bulk-improve] Starting bulk improvement for ${products.length} products...`);
@@ -1497,9 +1500,11 @@ router.post('/products/bulk-improve', requirePermission('ai', 'improve'), async 
 // --- Get all products ---
 router.get('/products', requirePermission('products', 'read'), async (req, res) => {
   try {
+    // D.0b — Tenant-scoped read: pull only products belonging to caller tenant.
+    const tenantId = req.user?.tenantId || 'default';
     // Parallelise independent Firestore queries to cut latency (mobile timeout fix)
     const [products, reservedMap, soldMap] = await Promise.all([
-      getAllProducts(),
+      getAllProductsForTenant(tenantId),
       buildReservedOpenOrderMap(),
       buildSoldQuantityMap(),
     ]);

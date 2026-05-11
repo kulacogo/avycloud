@@ -101,6 +101,42 @@ const FIELD_DOMAIN_MAP = Object.freeze({
 
 const CONFIDENCE_THRESHOLD = 0.75;
 
+// Wave-1 workers that are NEVER re-run in the refinement loop (foundation
+// layer — identity + category lock in the product's identity and taxonomy).
+const WAVE_1_WORKERS = Object.freeze(['identity', 'category']);
+
+// Feature-flag gate for the critic-refinement-hint merge (Phase E bug-fix).
+// Default ON: orchestrator consumes critic.refinement_needed_workers in
+// addition to the confidence-based detection. Set IDENTIFY_V4_CRITIC_HINTS=false
+// to revert to pre-fix behaviour (confidence-only) — used as opt-out escape
+// hatch in case the hint-merge regresses something.
+function criticHintsEnabled() {
+  return String(process.env.IDENTIFY_V4_CRITIC_HINTS || '').toLowerCase() !== 'false';
+}
+
+/**
+ * Compute the union of confidence-low and critic-suggested workers to re-run
+ * in the refinement loop, with Wave-1 workers filtered out.
+ *
+ *   - confidenceBased: result of findLowConfidenceWorkers(context)
+ *   - criticResult:    context.workerResults.critic (may be undefined)
+ *
+ * Returns the final ordered list (dedup'd, Wave-1 stripped). Honours the
+ * IDENTIFY_V4_CRITIC_HINTS env flag — when set to "false" the critic suggestions
+ * are ignored entirely (pre-fix behaviour).
+ *
+ * Pure function — exposed via _testables for unit tests.
+ */
+function mergeRefinementWorkers(confidenceBased, criticResult) {
+  const fromConfidence = Array.isArray(confidenceBased) ? confidenceBased : [];
+  const criticSuggested = criticHintsEnabled()
+    && Array.isArray(criticResult?.resolved?.refinement_needed_workers)
+    ? criticResult.resolved.refinement_needed_workers
+    : [];
+  const union = [...new Set([...fromConfidence, ...criticSuggested])];
+  return union.filter((w) => !WAVE_1_WORKERS.includes(w));
+}
+
 // --- Utils -----------------------------------------------------------------
 
 function makeTimeoutPromise(ms, label) {
@@ -640,9 +676,17 @@ function assembleProductV4(context) {
     conflicts: ctx._crossRefConflicts || [],
   };
 
+  // Top-Level-Spiegel-Feld für effiziente Composite-Index-Queries.
+  // Firestore-Composite-Indexes können nested map-fields nicht effizient
+  // indizieren, deshalb spiegeln wir `ops.data_quality.identify_v4.checked_at_iso`
+  // additiv auf das Top-Level-Feld `identifyCheckedAtIso`. Bestehende
+  // `ops.data_quality.identify_v4`-Struktur bleibt unverändert.
+  const identifyCheckedAtIso = dataQualityV4.checked_at_iso || null;
+
   return {
     id,
     locale: ctx.locale || 'de-DE',
+    identifyCheckedAtIso,
     identification: {
       method: (ean || gtin || upc) ? 'barcode' : 'image',
       barcodes: [ean, gtin, upc].filter(Boolean),
@@ -843,9 +887,18 @@ async function identifyProductV4({
     mergeWaveResults(context, wave2Results);
 
     // --- 5. Refinement-Loop (aggressive, up to DEFAULT_MAX_ITERATIONS) --
+    //
+    // Phase-E bug-fix (2026-05-10): in addition to the confidence-based worker
+    // detection, also consume `critic.refinement_needed_workers` if a Critic
+    // result is already on the context from a prior iteration. Wave-1 workers
+    // (identity + category) are NEVER re-run — the WAVE_1_WORKERS filter
+    // protects against the Critic suggesting `identity`/`category`.
+    // Gated by IDENTIFY_V4_CRITIC_HINTS (default ON) for safe opt-out.
     for (let iter = 1; iter <= DEFAULT_MAX_ITERATIONS; iter++) {
       context.iteration = iter;
-      const lowConfWorkers = findLowConfidenceWorkers(context);
+      const confidenceBasedWorkers = findLowConfidenceWorkers(context);
+      const criticResultSoFar = context.workerResults && context.workerResults.critic;
+      const lowConfWorkers = mergeRefinementWorkers(confidenceBasedWorkers, criticResultSoFar);
       if (lowConfWorkers.length === 0) break;
 
       const refinementStart = Date.now();
@@ -1015,6 +1068,9 @@ module.exports = {
     WORKER_REGISTRY,
     FIELD_DOMAIN_MAP,
     CONFIDENCE_THRESHOLD,
+    WAVE_1_WORKERS,
+    criticHintsEnabled,
+    mergeRefinementWorkers,
     DEFAULT_MAX_ITERATIONS,
     DEFAULT_WAVE_TIMEOUT_MS,
     DEFAULT_PIPELINE_TIMEOUT_MS,

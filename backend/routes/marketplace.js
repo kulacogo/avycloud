@@ -690,10 +690,13 @@ router.post('/ebay/listing-links/rebuild', requirePermission('products', 'write'
     const itemIds = Array.isArray(body.itemIds) ? body.itemIds.map((x) => String(x || '').trim()).filter(Boolean) : null;
     const runId = typeof body.runId === 'string' && body.runId.trim() ? body.runId.trim() : `links-${Date.now()}`;
     const { buildProductListingLinks } = require('../lib/ebay-direct');
+    // D.0b — Tenant-scoped read in buildProductListingLinks.
+    const tenantId = req.user?.tenantId || 'default';
     const summary = await buildProductListingLinks({
       itemIds,
       runId,
       actor: req.user?.email || req.user?.uid || 'api',
+      tenantId,
     });
     return res.status(200).json({ ok: true, data: summary });
   } catch (error) {
@@ -883,8 +886,14 @@ router.post('/kaufland/listings/sync', requirePermission('products', 'write'), a
     // write ops.kaufland.unitId so the stock-sync-dispatcher can push to
     // Kaufland without a separate lookup. Fire-and-forget, non-critical.
     try {
-      const { getAllProductsV2 } = require('../lib/product-store');
-      const allProds = await getAllProductsV2();
+      const { getAllProductsV2, getAllProductsV2ForTenant } = require('../lib/product-store');
+      // D.0c-style tenant fallback: prefer Firestore-side filter when the
+      // request carries an authenticated tenantId, else fall back to legacy
+      // global read (preserves current behaviour for un-decorated requests).
+      const tenantIdForRead = req.user?.tenantId;
+      const allProds = tenantIdForRead
+        ? await getAllProductsV2ForTenant(tenantIdForRead)
+        : await getAllProductsV2();
       const skuToProduct = new Map();
       const eanToProduct = new Map();
       for (const p of allProds) {
@@ -926,12 +935,17 @@ router.post('/kaufland/listings/sync', requirePermission('products', 'write'), a
     // IMPORTANT: never pull `inventory.quantity` from marketplace into warehouse.
     // If Kaufland reports stock > 0 while warehouse is 0, we queue an outbound
     // stock sync to push local truth (and stop oversell).
-    const { getAllProductsV2 } = require('../lib/product-store');
+    const { getAllProductsV2, getAllProductsV2ForTenant } = require('../lib/product-store');
     const { syncStockWithRetry } = require('../services/stock-sync-dispatcher');
     let reconciledCount = 0;
     let driftDetectedCount = 0;
     try {
-      const products = await getAllProductsV2();
+      // D.0c-style tenant fallback: prefer Firestore-side filter when a
+      // tenantId is on req.user, else read globally (legacy behaviour).
+      const tenantIdForDrift = req.user?.tenantId;
+      const products = tenantIdForDrift
+        ? await getAllProductsV2ForTenant(tenantIdForDrift)
+        : await getAllProductsV2();
       const skuMap = new Map();
       const eanMap = new Map();
       const driftProducts = new Map();
@@ -1037,7 +1051,7 @@ router.get('/kaufland/sku-index', requirePermission('products', 'read'), async (
 router.get('/kaufland/listings', requirePermission('products', 'read'), async (req, res) => {
   try {
     const storefront = String(req.query?.storefront || 'de').trim().toLowerCase();
-    const { getAllProductsV2 } = require('../lib/product-store');
+    const { getAllProductsV2, getAllProductsV2ForTenant } = require('../lib/product-store');
 
     // Fetch both collections in parallel
     // Try with storefront filter first, fall back to all units if empty
@@ -1049,7 +1063,12 @@ router.get('/kaufland/listings', requirePermission('products', 'read'), async (r
       // Storefront field might be missing or use different case — fetch all
       unitsSnap = await firestore.collection('kauflandUnitsLive').get();
     }
-    const products = await getAllProductsV2();
+    // D.0c-style tenant fallback: prefer Firestore-side filter when a
+    // tenantId is on req.user, else read globally (legacy behaviour).
+    const tenantIdForListings = req.user?.tenantId;
+    const products = tenantIdForListings
+      ? await getAllProductsV2ForTenant(tenantIdForListings)
+      : await getAllProductsV2();
 
     // BUG-070: storageBins are in `products` (legacy), not products_v2.
     // Build a lookup from legacy docs to merge BIN data.

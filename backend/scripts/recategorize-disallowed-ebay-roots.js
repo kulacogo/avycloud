@@ -1,5 +1,10 @@
 /* eslint-disable no-console */
 /**
+ * D.0b-Migration 2026-05-10: Migrated to getAllProductsForTenant().
+ * See /Users/oguz/.claude/plans/sieht-ziemlich-komplex-unstrukturiert-woolly-tulip.md (Phase D.0)
+ * D.0b-Migration: Default to avycloud. Override via TENANT_ID env var.
+ */
+/**
  * Recategorize products that are currently assigned to DISALLOWED eBay category roots.
  *
  * Strict rule: these roots must not be used in AvyCloud.
@@ -12,7 +17,15 @@
  */
 
 const { findEbayCategory } = require('../lib/ebay-taxonomy');
-const { getAllProducts, saveProduct } = require('../lib/firestore');
+const { getAllProductsForTenant, saveProduct } = require('../lib/firestore');
+
+// D.0b-Hardening 2026-05-11: mandatory TENANT_ID for write scripts (prevents silent cross-tenant writes)
+const TENANT_ID = process.env.TENANT_ID;
+if (!TENANT_ID) {
+  console.error('TENANT_ID env var required. Example: TENANT_ID=avycloud node <script>.js');
+  process.exit(1);
+}
+console.warn(`[D.0b-Hardening] Running for tenantId='${TENANT_ID}'.`);
 const {
   BANNED_EBAY_CATEGORY_ROOTS,
   isBannedEbayBreadcrumb,
@@ -207,7 +220,7 @@ async function main() {
   console.log(`[recategorize-disallowed-roots] mode=${args.apply ? 'APPLY' : 'DRY_RUN'}`);
   console.log(`[recategorize-disallowed-roots] bannedRoots=${BANNED_EBAY_CATEGORY_ROOTS.join(' | ')}`);
 
-  const products = await getAllProducts();
+  const products = await getAllProductsForTenant(TENANT_ID);
   const preCount = products.length;
   console.log(`[recategorize-disallowed-roots] preCount=${preCount}`);
   if (args.apply && preCount !== Number(args.expectedCount || 0)) {
@@ -307,7 +320,7 @@ async function main() {
 
   // Final safety check (apply mode): ensure no product remains in banned roots.
   if (args.apply) {
-    const after = await getAllProducts();
+    const after = await getAllProductsForTenant(TENANT_ID);
     const stillBanned = after.filter((p) => isBannedCategoryId(safeString(p?.details?.categoryId)));
     console.log(`[recategorize-disallowed-roots] stillBanned=${stillBanned.length}`);
     if (stillBanned.length) {

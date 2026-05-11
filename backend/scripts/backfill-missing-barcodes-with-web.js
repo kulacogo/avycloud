@@ -1,5 +1,10 @@
 /* eslint-disable no-console */
 /**
+ * D.0b-Migration 2026-05-10: Migrated to getAllProductsForTenant().
+ * See /Users/oguz/.claude/plans/sieht-ziemlich-komplex-unstrukturiert-woolly-tulip.md (Phase D.0)
+ * D.0b-Migration: Default to avycloud. Add --tenant flag for multi-tenant runs.
+ */
+/**
  * Backfill missing barcodes (EAN/GTIN/UPC) using web evidence WITHOUT SerpAPI.
  *
  * Approach:
@@ -28,7 +33,15 @@ const path = require('path');
 // Node 18+ provides global fetch. Keep node-fetch optional for older runtimes.
 const fetch = global.fetch || require('node-fetch');
 const PQueue = require('p-queue').default || require('p-queue');
-const { getAllProducts, getProduct, saveProduct } = require('../lib/firestore');
+const { getAllProducts, getAllProductsForTenant, getProduct, saveProduct } = require('../lib/firestore');
+
+// D.0b-Hardening 2026-05-11: mandatory TENANT_ID for write scripts (prevents silent cross-tenant writes)
+const TENANT_ID = process.env.TENANT_ID;
+if (!TENANT_ID) {
+  console.error('TENANT_ID env var required. Example: TENANT_ID=avycloud node <script>.js');
+  process.exit(1);
+}
+console.warn(`[D.0b-Hardening] Running for tenantId='${TENANT_ID}'.`);
 const { isValidGtin, getGtinType, normalizeDigits } = require('../lib/gtin');
 const { fetchWithUnlocker } = require('../lib/web-unlocker');
 const { getGeminiClient } = require('../lib/gemini-client');
@@ -573,7 +586,7 @@ async function main() {
 
   console.log(`[barcode-backfill-web] mode=${args.apply ? 'APPLY' : 'DRY_RUN'} out=${outDir} unlocker=${USE_UNLOCKER}`);
 
-  const products = await getAllProducts();
+  const products = await getAllProductsForTenant(TENANT_ID);
   const preCount = products.length;
   console.log(`[barcode-backfill-web] preCount=${preCount}`);
   if (args.apply && preCount !== args.expectedCount) {
@@ -778,7 +791,7 @@ async function main() {
   console.log(`[barcode-backfill-web] applied=${applied} wouldApply=${wouldApply} skipped=${skipped} failed=${failed}`);
 
   if (args.apply) {
-    const post = await getAllProducts();
+    const post = await getAllProductsForTenant(TENANT_ID);
     const postCount = post.length;
     if (postCount !== preCount) {
       throw new Error(`[barcode-backfill-web] COUNT MISMATCH pre=${preCount} post=${postCount}`);

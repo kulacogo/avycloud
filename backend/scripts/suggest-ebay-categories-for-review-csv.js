@@ -1,5 +1,10 @@
 /* eslint-disable no-console */
 /**
+ * D.0b-Migration 2026-05-10: Migrated to getAllProductsForTenant().
+ * See /Users/oguz/.claude/plans/sieht-ziemlich-komplex-unstrukturiert-woolly-tulip.md (Phase D.0)
+ * D.0b-Migration: Default to avycloud. Override via TENANT_ID env var.
+ */
+/**
  * Suggest eBay categoryId/breadcrumb for each row in a review CSV by:
  * - fetching web evidence (SerpAPI) using barcode/title/brand/mpn and optional reverse-image
  * - building a candidate shortlist from the canonical taxonomy (backend/ebay-data/categories.json)
@@ -25,7 +30,11 @@ const path = require('path');
 const PQueue = require('p-queue').default || require('p-queue');
 const { parse } = require('csv-parse/sync');
 
-const { getAllProducts } = require('../lib/firestore');
+const { getAllProductsForTenant } = require('../lib/firestore');
+
+// D.0b-Hardening 2026-05-11: read script — default avycloud OK, but log effective tenant prominently
+const TENANT_ID = process.env.TENANT_ID || 'avycloud';
+console.log('[INFO] Running with TENANT_ID=%s (read-only; override via TENANT_ID env var)', TENANT_ID);
 const { callSerpApi, summarizeSerpEntries } = require('../lib/serpapi');
 const { getGeminiClient } = require('../lib/gemini-client');
 const { resolveModel } = require('../lib/model-select');
@@ -509,7 +518,7 @@ async function main() {
   const rowsAll = loadCsv(inPath);
   const rows = args.limit > 0 ? rowsAll.slice(0, args.limit) : rowsAll;
 
-  const products = await getAllProducts();
+  const products = await getAllProductsForTenant(TENANT_ID);
   const bySku = new Map();
   const byId = new Map();
   for (const p of products) {

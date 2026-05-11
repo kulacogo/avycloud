@@ -3,7 +3,7 @@ const path = require('path');
 const crypto = require('crypto');
 const { FieldValue } = require('@google-cloud/firestore');
 
-const { firestore, getAllProducts, PRODUCTS_COLLECTION } = require('./firestore');
+const { firestore, getAllProducts, getAllProductsForTenant, PRODUCTS_COLLECTION } = require('./firestore');
 const { getRequiredAspects, getCategoryAspectCatalog, findEbayCategory } = require('./ebay-taxonomy');
 const { isValidGtin: isValidGtinShared } = require('./gtin');
 
@@ -2092,7 +2092,7 @@ function collectBrandMpnCandidates(indexes, identifiers) {
   return hits;
 }
 
-async function buildProductListingLinks({ itemIds = null, runId = null, actor = null } = {}) {
+async function buildProductListingLinks({ itemIds = null, runId = null, actor = null, tenantId = null } = {}) {
   const allListingsSnapshot = itemIds?.length
     ? await firestore.getAll(
         ...itemIds.map((id) => firestore.collection(EBAY_LISTINGS_COLLECTION).doc(String(id)))
@@ -2109,7 +2109,14 @@ async function buildProductListingLinks({ itemIds = null, runId = null, actor = 
     return { total: 0, matched: 0, ambiguous: 0, unmatched: 0 };
   }
 
-  const products = await getAllProducts();
+  // D.0b — Tenant-scoped read when caller supplies tenantId. Internal eBay
+  // sync paths still call without it; getAllProducts() acts as the legacy
+  // bridge until D.0c flips it to throw.
+  // TODO(D.0c): the two internal callers (ingest + revise links) must
+  // iterate over all tenants OR carry tenantId from their entry points.
+  const products = tenantId
+    ? await getAllProductsForTenant(tenantId)
+    : await getAllProducts();
   const indexes = buildProductIndexes(products);
   const nowIso = new Date().toISOString();
 

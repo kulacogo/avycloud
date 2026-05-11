@@ -40,6 +40,25 @@ const {
   DEFAULT_CHAT_TEMPERATURE,
 } = require('./gemini-config');
 
+// Phase F.1b.3 — best-effort scope-config loader (additive, never throws).
+// Returns a scopeConfig-like object or null when Firestore/scope is unavailable.
+async function _tryResolveScopeConfig(scopeName, tenantId, callerOverrides) {
+  try {
+    const { resolveScopeConfig } = require('./llm-config');
+    return await resolveScopeConfig(scopeName, tenantId || null, callerOverrides || {});
+  } catch (err) {
+    let logger = null;
+    try { logger = require('./logger'); } catch (_) { /* logger optional in tests */ }
+    if (logger && typeof logger.warn === 'function') {
+      logger.warn(
+        { scopeId: scopeName, tenantId: tenantId || null, reason: err?.message || String(err) },
+        '[stage3-agentic] resolveScopeConfig failed, using hardcoded defaults'
+      );
+    }
+    return null;
+  }
+}
+
 // FunctionCallingConfigMode is exported by the SDK; fall back to a literal map
 // if the SDK ever trims the enum (defensive).
 let FunctionCallingConfigMode;
@@ -378,7 +397,37 @@ async function generateProductContentAgentic({
 } = {}) {
   const startedAt = Date.now();
   const ai = aiClient || (await _getClient());
-  const model = modelOverride || resolveModel(null, 'IDENTIFY_MODEL', DEFAULT_MODEL);
+
+  // Phase F.1b.3 — best-effort scope-config (additive). Caller-overrides pin
+  // the current hardcoded knobs so a missing/stale scope produces a byte-
+  // identical generationConfig. Try identify.v2-agentic first, fall back to
+  // identify.v2 if the more specific scope does not exist yet.
+  const _envBackedTemperature = _envFloat('STAGE3_AGENTIC_TEMPERATURE', DEFAULT_CHAT_TEMPERATURE);
+  const _envBackedMaxTokens = _envInt('STAGE3_AGENTIC_MAX_TOKENS', 12000);
+  const _envBackedThinking = defaultThinkingConfig({ level: 'high', includeThoughts: false });
+  let scopeConfig = await _tryResolveScopeConfig('identify.v2-agentic', null, {
+    temperature: _envBackedTemperature,
+    maxOutputTokens: _envBackedMaxTokens,
+    thinkingConfig: _envBackedThinking,
+  });
+  if (!scopeConfig) {
+    scopeConfig = await _tryResolveScopeConfig('identify.v2', null, {
+      temperature: _envBackedTemperature,
+      maxOutputTokens: _envBackedMaxTokens,
+      thinkingConfig: _envBackedThinking,
+    });
+  }
+  const _scopeGenCfg =
+    scopeConfig && scopeConfig.generationConfig && typeof scopeConfig.generationConfig === 'object'
+      ? scopeConfig.generationConfig
+      : {};
+  const _scopeModel =
+    scopeConfig && typeof scopeConfig.model === 'string' && scopeConfig.model.trim()
+      ? scopeConfig.model.trim()
+      : null;
+
+  // model precedence: explicit caller override > scopeConfig.model > env/default
+  const model = modelOverride || _scopeModel || resolveModel(null, 'IDENTIFY_MODEL', DEFAULT_MODEL);
 
   const trace = {
     iterations: 0,
@@ -414,10 +463,15 @@ async function generateProductContentAgentic({
     },
   ];
 
+  // Merge order (last wins): hardcoded/env defaults < scopeConfig.generationConfig.
+  // Plan F.2 will decide whether ENV-var reads stay or move into scope; for now
+  // keep them as the local default so production behaviour is unchanged when no
+  // scope is configured.
   const config = {
-    temperature: _envFloat('STAGE3_AGENTIC_TEMPERATURE', DEFAULT_CHAT_TEMPERATURE),
-    maxOutputTokens: _envInt('STAGE3_AGENTIC_MAX_TOKENS', 12000),
-    thinkingConfig: defaultThinkingConfig({ level: 'high', includeThoughts: false }),
+    temperature: _envBackedTemperature,
+    maxOutputTokens: _envBackedMaxTokens,
+    thinkingConfig: _envBackedThinking,
+    ..._scopeGenCfg,
     safetySettings: defaultSafetySettings(),
     tools,
     toolConfig: {

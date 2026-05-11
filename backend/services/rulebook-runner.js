@@ -6,7 +6,7 @@ const {
   listJobsByStatus,
   Timestamp,
 } = require('../lib/rulebook-apply-jobs');
-const { getProduct, getAllProducts } = require('../lib/firestore');
+const { getProduct, getAllProducts, getAllProductsForTenant } = require('../lib/firestore');
 const { saveProductV2 } = require('../lib/product-store');
 const { normalizeProductForPolicyApply } = require('../lib/llm-rulebook');
 const { getProductBinSummaryMap } = require('../lib/warehouse');
@@ -120,7 +120,17 @@ async function processRulebookJob(jobId) {
       return bins.reduce((s, b) => s + (Number(b?.quantity) || 0), 0);
     };
 
-    const all = await getAllProducts();
+    // D.0b — Prefer tenant-scoped read when the job payload carries tenantId.
+    // Legacy jobs (created before D.0b) lack the field; fall back to the
+    // global helper. Once all production callers have been migrated, D.0c
+    // will flip getAllProducts() to throw.
+    const payloadTenantId =
+      typeof jobSnapshot?.payload?.tenantId === 'string' && jobSnapshot.payload.tenantId.trim()
+        ? jobSnapshot.payload.tenantId.trim()
+        : null;
+    const all = payloadTenantId
+      ? await getAllProductsForTenant(payloadTenantId)
+      : await getAllProducts();
     const productsRaw = Array.isArray(all) ? all.filter((p) => p?.id && !isGhostProduct(p)) : [];
     const products = await enrichProductsWithBinSummaries(productsRaw);
     const filtered = products

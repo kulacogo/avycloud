@@ -10,12 +10,15 @@
  * - Artikelnummer
  *
  * Usage:
- *   node backend/scripts/export-products-valid-barcodes-csv.js --out exports/products_valid_barcodes.csv
+ *   node backend/scripts/export-products-valid-barcodes-csv.js --out exports/products_valid_barcodes.csv --tenant avycloud
+ *
+ * D.0b-Migration 2026-05-10: Migrated to getAllProductsForTenant().
+ * See /Users/oguz/.claude/plans/sieht-ziemlich-komplex-unstrukturiert-woolly-tulip.md (Phase D.0)
  */
 
 const fs = require('fs');
 const path = require('path');
-const { getAllProducts } = require('../lib/firestore');
+const { getAllProductsForTenant } = require('../lib/firestore');
 const { isValidGtin, normalizeDigits } = require('../lib/gtin');
 
 function ensureDir(dir) {
@@ -107,7 +110,14 @@ function parseArgs(argv) {
     if (token === '--out') {
       args.out = argv[i + 1];
       i += 1;
+    } else if (token === '--tenant') {
+      args.tenant = argv[i + 1];
+      i += 1;
     }
+  }
+  if (!args.tenant || typeof args.tenant !== 'string' || !args.tenant.trim()) {
+    console.warn('[export-products-valid-barcodes-csv] No --tenant provided, defaulting to "avycloud".');
+    args.tenant = 'avycloud';
   }
   return args;
 }
@@ -117,7 +127,7 @@ async function main() {
   const outPath = path.isAbsolute(args.out) ? args.out : path.join(process.cwd(), args.out);
   ensureDir(path.dirname(outPath));
 
-  const products = await getAllProducts();
+  const products = await getAllProductsForTenant(args.tenant);
   const headers = ['Name', 'Marke', 'EAN', 'Herstellernummer', 'Artikelnummer'];
   const lines = [];
   lines.push(headers.join(','));

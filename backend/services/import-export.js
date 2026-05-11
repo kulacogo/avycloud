@@ -5,7 +5,7 @@
  * Import: Accepts parsed CSV rows, validates, and saves via saveProductV2().
  */
 
-const { getAllProductsV2, saveProductV2 } = require('../lib/product-store');
+const { getAllProductsV2, getAllProductsV2ForTenant, saveProductV2 } = require('../lib/product-store');
 
 // ─── Column definitions ───────────────────────────────────────
 
@@ -70,10 +70,19 @@ function escapeCsvField(value) {
  * @param {Object} options
  * @param {string[]} [options.columns] - Column keys to include (default: all)
  * @param {string} [options.delimiter] - CSV delimiter (default: ';')
+ * @param {string} [options.tenantId] - Optional tenant scope. When set, only
+ *   exports products with matching `tenantId`. When omitted, falls back to the
+ *   legacy global read (current behaviour preserved). Callers in routes/*
+ *   should plumb `req.user?.tenantId` so attachUserContext-decorated requests
+ *   get tenant-scoped exports.
  * @returns {Promise<{ csv: string, count: number }>}
  */
-async function exportProductsCsv({ columns, delimiter = ';' } = {}) {
-  const products = await getAllProductsV2();
+async function exportProductsCsv({ columns, delimiter = ';', tenantId } = {}) {
+  // D.0c-style tenant fallback — additive, default-off. Existing callers that
+  // do not pass `tenantId` continue to see the global read result.
+  const products = tenantId
+    ? await getAllProductsV2ForTenant(tenantId)
+    : await getAllProductsV2();
   const cols = columns
     ? PRODUCT_EXPORT_COLUMNS.filter((c) => columns.includes(c.key))
     : PRODUCT_EXPORT_COLUMNS;

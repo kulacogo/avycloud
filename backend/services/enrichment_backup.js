@@ -1,3 +1,10 @@
+/**
+ * @deprecated 2026-05-10 — Geplante Entfernung nach 35 Tagen Cloud-Logging-Beobachtung (kein Treffer).
+ * 0 Referenzen im Repo (verifiziert). Falls dieser Code geladen wird → bitte sofort melden.
+ * Plan: /Users/oguz/.claude/plans/sieht-ziemlich-komplex-unstrukturiert-woolly-tulip.md (Phase B.2)
+ */
+console.warn('[DEPRECATED] enrichment_backup.js loaded — should never happen in production. Stack:', new Error().stack);
+
 const Ajv = require('ajv');
 const addFormats = require('ajv-formats');
 const sharp = require('sharp');

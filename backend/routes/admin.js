@@ -373,8 +373,9 @@ router.post('/rulebook/apply', requirePermission('admin', 'jobs.run'), async (re
     const minQty =
       req.body?.minQty != null && String(req.body.minQty).trim() !== '' ? Math.max(1, Math.min(9999, Number(req.body.minQty))) : null;
     const requireBin = typeof req.body?.requireBin === 'boolean' ? req.body.requireBin : null;
+    const tenantId = req.user?.tenantId || 'default';
     const job = await createRulebookApplyJob({
-      payload: { inventoryId: invId, limit, chunkSize, minQty, requireBin },
+      payload: { inventoryId: invId, limit, chunkSize, minQty, requireBin, tenantId },
       requestedBy: req.user?.email || req.user?.uid || 'admin',
     });
     enqueueRulebookJob(job.id, true);
@@ -402,12 +403,14 @@ router.get('/rulebook/apply/:id', requirePermission('admin', 'jobs.read'), async
 
 router.get('/metrics/product-coverage', requirePermission('admin', 'users.read'), async (req, res) => {
   try {
-    const { getAllProducts } = require('../lib/firestore');
+    const { getAllProductsForTenant } = require('../lib/firestore');
     const { getVehicleFitmentMode } = require('../lib/vehicle-fitment');
     const { coerceTitleToPolicy, validateTitleToPolicy, inferTitleCategory } = require('../lib/title-policy');
     const { getRulebookConfigCached } = require('../lib/rulebook-config');
     const { normalizeManufacturerKey, normalizeGpsrObject } = require('../lib/gpsr-manufacturer-registry');
-    const products = await getAllProducts();
+    // D.0b — Tenant-scoped read.
+    const tenantId = req.user?.tenantId || 'default';
+    const products = await getAllProductsForTenant(tenantId);
 
     const safe = (v) => (typeof v === 'string' ? v.trim() : v == null ? '' : String(v).trim());
     const lower = (v) => safe(v).toLowerCase();
@@ -851,6 +854,11 @@ router.post('/bulk/run', requirePermission('admin', 'jobs.run'), async (req, res
       titleInsightsMaxHints:
         Number.isFinite(Number(body.titleInsightsMaxHints)) ? Number(body.titleInsightsMaxHints) : undefined,
       requestedBy: req.user?.email || req.user?.uid || 'admin',
+      // D.0b — Carry caller's tenantId into the bulk job payload so the
+      // background runner can scope getAllProductsForTenant() correctly.
+      tenantId: typeof body.tenantId === 'string' && body.tenantId.trim()
+        ? body.tenantId.trim()
+        : (req.user?.tenantId || 'default'),
     };
 
     const job = await createAdminBulkJob({ payload, requestedBy: payload.requestedBy, action });
@@ -1411,6 +1419,69 @@ router.post('/stock/drain-failures', requirePermission('admin', 'jobs.run'), asy
   } catch (error) {
     console.error('[POST /api/admin/stock/drain-failures]', error.message, error);
     res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: error.message } });
+  }
+});
+
+// =====================================================================
+// Identify-Runs Audit + LLM-Parity (Plan D.1 + F.4b — additive read-only)
+// =====================================================================
+
+/**
+ * GET /api/admin/identify-runs
+ *
+ * Paginated audit list of recent identify pipeline runs (V3+V4 normalized).
+ * Query params: confidence_min, confidence_max, domain, dateFrom, dateTo,
+ *               pipeline ('v3'|'v4'|'all'), page, pageSize (cap 100).
+ * Returns: { runs: [...], total, page, pageSize }
+ */
+router.get('/identify-runs', requirePermission('admin', 'read'), async (req, res) => {
+  try {
+    const { listIdentifyRuns } = require('../services/identify-runs-dashboard');
+    const tenantId = req.user?.tenantId || 'default';
+    const result = await listIdentifyRuns({
+      tenantId,
+      confidence_min: req.query?.confidence_min,
+      confidence_max: req.query?.confidence_max,
+      domain: req.query?.domain,
+      dateFrom: req.query?.dateFrom,
+      dateTo: req.query?.dateTo,
+      pipeline: req.query?.pipeline,
+      page: req.query?.page,
+      pageSize: req.query?.pageSize,
+    });
+    res.json({ ok: true, data: result });
+  } catch (error) {
+    const code = error?.statusCode || 500;
+    console.error(`[GET /api/admin/identify-runs] ${error.message}`, error);
+    res.status(code).json({ ok: false, error: { code, message: error?.message || 'Failed to list identify runs' } });
+  }
+});
+
+/**
+ * GET /api/admin/llm-parity
+ *
+ * LLM-Quality parity aggregates across pipelines (identify-v3, identify-v4,
+ * chat-v3, …) per scope/domain. Surfaces drift alerts when one pipeline
+ * trails another by > LLM_PARITY_DRIFT_THRESHOLD.
+ * Query params: domain, dateFrom, dateTo, pipeline.
+ * Returns: { pipelines: [...], drift_alerts: [...], total, hard_cap }
+ */
+router.get('/llm-parity', requirePermission('admin', 'read'), async (req, res) => {
+  try {
+    const { listLlmParity } = require('../services/llm-parity-dashboard');
+    const tenantId = req.user?.tenantId || 'default';
+    const result = await listLlmParity({
+      tenantId,
+      domain: req.query?.domain,
+      dateFrom: req.query?.dateFrom,
+      dateTo: req.query?.dateTo,
+      pipeline: req.query?.pipeline,
+    });
+    res.json({ ok: true, data: result });
+  } catch (error) {
+    const code = error?.statusCode || 500;
+    console.error(`[GET /api/admin/llm-parity] ${error.message}`, error);
+    res.status(code).json({ ok: false, error: { code, message: error?.message || 'Failed to compute LLM parity' } });
   }
 });
 

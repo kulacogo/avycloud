@@ -1,5 +1,10 @@
 /* eslint-disable no-console */
 /**
+ * D.0b-Migration 2026-05-10: Migrated to getAllProductsForTenant().
+ * See /Users/oguz/.claude/plans/sieht-ziemlich-komplex-unstrukturiert-woolly-tulip.md (Phase D.0)
+ * D.0b-Migration: Default to avycloud. Add --tenant flag for multi-tenant runs.
+ */
+/**
  * backfill-weight-enrichment.js
  *
  * Enriches all products with inventory (quantity > 0) that have no weight set.
@@ -31,7 +36,15 @@
 
 const https = require('https');
 const http = require('http');
-const { getAllProducts, saveProduct } = require('../lib/firestore');
+const { getAllProducts, getAllProductsForTenant, saveProduct } = require('../lib/firestore');
+
+// D.0b-Hardening 2026-05-11: mandatory TENANT_ID for write scripts (prevents silent cross-tenant writes)
+const TENANT_ID = process.env.TENANT_ID;
+if (!TENANT_ID) {
+  console.error('TENANT_ID env var required. Example: TENANT_ID=avycloud node <script>.js');
+  process.exit(1);
+}
+console.warn(`[D.0b-Hardening] Running for tenantId='${TENANT_ID}'.`);
 const { saveProductV2 } = require('../lib/product-store');
 const { gemini3GenerateJSON } = require('../lib/gemini3-client');
 
@@ -301,7 +314,7 @@ async function run() {
 
   // 1. Load all products
   console.log('\nLoading products from Firestore...');
-  const allProducts = await getAllProducts();
+  const allProducts = await getAllProductsForTenant(TENANT_ID);
   console.log(`Total products loaded: ${allProducts.length}`);
 
   // 2. Filter: only products with stock > 0 AND no weight

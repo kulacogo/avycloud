@@ -25,6 +25,7 @@ const FIELD_THRESHOLDS = Object.freeze({
   _default: 0.70,
 });
 
+// V3 stage4 aliases — preserved for backward-compat (Phase A.1 migration)
 const SOURCE_WEIGHTS = Object.freeze({
   ebay_catalog: 0.95,
   gs1_verified: 0.98,
@@ -40,6 +41,13 @@ const SOURCE_WEIGHTS = Object.freeze({
   gemini_inference: 0.55,
   gemini_vision: 0.65,
   web_search_broad: 0.50,
+  // V3 stage4 aliases (additive — values preserved 1:1 from identify-v3-stage4.js)
+  grounding: 0.70,
+  barcode_confirm: 0.90,
+  ebay_browse: 0.70,
+  registry: 0.85,
+  llm_generated: 0.65,
+  web: 0.60,
 });
 
 // Aggregations-Gewichte für den Gesamt-Produkt-Score.

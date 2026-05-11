@@ -1,17 +1,30 @@
 /* eslint-disable no-console */
 /**
+ * D.0b-Migration 2026-05-10: Migrated to getAllProductsForTenant().
+ * See /Users/oguz/.claude/plans/sieht-ziemlich-komplex-unstrukturiert-woolly-tulip.md (Phase D.0)
+ * D.0b-Migration: Default to avycloud. Override via TENANT_ID env var.
+ */
+/**
  * Apply manufacturer GPSR registry to all products (fill missing fields, replace placeholders).
  *
  * Usage:
- *   GOOGLE_CLOUD_PROJECT=avycloud node backend/scripts/gpsr-apply-registry-to-all-products.js --dry-run
- *   GOOGLE_CLOUD_PROJECT=avycloud node backend/scripts/gpsr-apply-registry-to-all-products.js --apply
+ *   TENANT_ID=avycloud GOOGLE_CLOUD_PROJECT=avycloud node backend/scripts/gpsr-apply-registry-to-all-products.js --dry-run
+ *   TENANT_ID=avycloud GOOGLE_CLOUD_PROJECT=avycloud node backend/scripts/gpsr-apply-registry-to-all-products.js --apply
  *
  * Options:
  *   --concurrency <n> (default 8, max 12)
  */
 
 const PQueue = require('p-queue').default || require('p-queue');
-const { getAllProducts, getProduct, saveProduct } = require('../lib/firestore');
+const { getAllProductsForTenant, getProduct, saveProduct } = require('../lib/firestore');
+
+// D.0b-Hardening 2026-05-11: mandatory TENANT_ID for write scripts (prevents silent cross-tenant writes)
+const TENANT_ID = process.env.TENANT_ID;
+if (!TENANT_ID) {
+  console.error('TENANT_ID env var required. Example: TENANT_ID=avycloud node <script>.js');
+  process.exit(1);
+}
+console.warn(`[D.0b-Hardening] Running for tenantId='${TENANT_ID}'.`);
 const { getManufacturerGpsrByName, mergePreferMoreComplete } = require('../lib/gpsr-manufacturer-registry');
 
 function argFlag(name) {
@@ -42,7 +55,7 @@ async function main() {
 
   console.log(JSON.stringify({ action: 'gpsr-apply-registry-to-all-products', dryRun, concurrency }, null, 2));
 
-  const all = await getAllProducts();
+  const all = await getAllProductsForTenant(TENANT_ID);
   const products = Array.isArray(all) ? all.filter((p) => p?.id) : [];
 
   const queue = new PQueue({ concurrency });

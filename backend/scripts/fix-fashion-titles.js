@@ -15,11 +15,14 @@
  * - Uses saveProduct invariants (warehouse fields are preserved).
  *
  * Usage:
- *   node backend/scripts/fix-fashion-titles.js --dry-run
- *   node backend/scripts/fix-fashion-titles.js --apply
+ *   node backend/scripts/fix-fashion-titles.js --dry-run --tenant avycloud
+ *   node backend/scripts/fix-fashion-titles.js --apply --tenant avycloud
+ *
+ * D.0b-Migration 2026-05-10: Migrated to getAllProductsForTenant().
+ * See /Users/oguz/.claude/plans/sieht-ziemlich-komplex-unstrukturiert-woolly-tulip.md (Phase D.0)
  */
 
-const { getAllProducts, saveProduct } = require('../lib/firestore');
+const { getAllProductsForTenant, saveProduct } = require('../lib/firestore');
 const { coerceTitleToPolicy } = require('../lib/title-policy');
 
 function safeString(v) {
@@ -42,6 +45,14 @@ function parseArgs(argv) {
       args.limit = Number(argv[i + 1]);
       i += 1;
     }
+    if (t === '--tenant') {
+      args.tenant = argv[i + 1];
+      i += 1;
+    }
+  }
+  if (!args.tenant || typeof args.tenant !== 'string' || !args.tenant.trim()) {
+    console.warn('[fix-fashion-titles] No --tenant provided, defaulting to "avycloud".');
+    args.tenant = 'avycloud';
   }
   return args;
 }
@@ -59,7 +70,7 @@ function isLikelyFashionProduct(product) {
 
 async function main() {
   const args = parseArgs(process.argv);
-  const products = await getAllProducts();
+  const products = await getAllProductsForTenant(args.tenant);
 
   let changed = 0;
   let saved = 0;

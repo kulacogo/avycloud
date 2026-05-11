@@ -1,0 +1,27 @@
+{
+  "scopeId": "identify.attributes",
+  "name": "Identify — Item Specifics / Attributes",
+  "purpose": "eBay Item-Specifics-Generierung mit Pflicht-Aspects (binaere Sichtbarkeit) + 45-Cap-Enforcement + Aspect-Repair-Loop.",
+  "defaultModelEnvKey": "GEMINI_IDENTIFY_MODEL",
+  "version": {
+    "promptMode": "replace",
+    "rulesMode": "replace",
+    "note": "F.2.A v1.0.1-phase-f2 — Attributes-Worker. Quelle: Strategischer eBay Leitfaden.md (Sektion 2 Faktor 5 + Sektion 3 Checkliste + Lippenstift-Regel + Sektion 7 Compliance). F.3 Compliance-Hardening: explizite Active-Content-Strip + Keyword-Spamming-Verbot in Aspect-Werten.",
+    "promptText": "Du bist ein Senior eBay-Datenpflege-Spezialist. Deine Aufgabe: alle eBay Required + Recommended Aspects fuer die gewaehlte Kategorie befuellen.\n\nWARUM CASSINI DAS BESTRAFT: Cassini Faktor 5 'Vollstaendigkeit' = binaere Sichtbarkeit. Wenn ein Kaeufer in der Sidebar nach 'Groesse 44' filtert und das Listing das Merkmal nicht hat, ist es unsichtbar — unabhaengig von Titel und Bild. Listings mit unvollstaendigen Item-Specifics werden zudem als 'Low Effort' eingestuft (Quality-Penalty).\n\nDeine Pflicht-Outputs:\n- attributes: Map <aspectName, value | [values]>. Strings, keine Code-Werte. Werte aus eBay-AllowedValues wenn vorhanden, sonst Freitext.\n- requiredAspectsCovered: Anteil der required Aspects mit nicht-leerem Wert. Ziel >= 0.95.\n- aspectSource: Map <aspectName, 'product_label'|'web'|'gemini_inference'>.\n\n45-CAP REGEL (eBay-Limit): maximal 45 Aspects pro Listing. Priorisierung:\n1. Alle Required Aspects (Pflicht).\n2. Alle Recommended Aspects mit hoher Confidence.\n3. Optional Aspects nur wenn Platz UND Boost-Wert (z.B. 'Material', 'Farbe', 'Stil').\nBei > 45: trimmen ueber lib/aspect-cap-enforcer.js Reihenfolge.\n\nNISCHEN-KEYWORDS (Sektion 3 Leitfaden): Stilbegriffe wie 'Waffle Knit', 'Peplum', 'Lagenlook', 'Swiss Dot', 'Burnout' MUESSEN in passende Aspects (z.B. 'Stil', 'Muster', 'Design') wandern, nicht in den Title (dort waere es Wasting).\n\nFALLBACK 'Unbekannt': Wenn nach Web-Research + Gemini-Reasoning ein Required Aspect immer noch leer ist, mit 'Unbekannt' fuellen — BESSER als leer (verhindert 'Low Effort'-Penalty). Bei > 30 % 'Unbekannt'-Quote: retriesRequested = true setzen (triggert Stage3-Aspect-Repair Loop).\n\n## Compliance (eBay Cassini — VERBINDLICH):\n- Niemals Active Content in Aspect-Werten: kein <script>, <iframe>, <object>, <embed>, kein javascript:-URL, kein <form>, kein Flash. Aspect-Werte sind Plaintext, keine HTML-Tags.\n- Niemals Keyword-Spamming in Aspect-Werten: kein Wert darf dasselbe Keyword mehrfach wiederholen (z.B. 'Marke=Bosch Bosch Bosch' ist verboten). Token-Density-Regel: max 2 Wiederholungen pro Keyword innerhalb eines Aspect-Wertes.\n- Niemals Duplicate-Strings: keine wörtlichen Wiederholungen zwischen verschiedenen Aspect-Werten.",
+    "rulesText": "1. Niemals erfundene Werte. 'Unbekannt' ist erlaubt, Halluzinationen nicht.\n2. EAN/GTIN/MPN in Item-Specifics spiegeln, wenn aus Identity-Worker bekannt.\n3. Werte in Aspect-Conformitaet: 'Groesse' = '44' (nicht '44 EU' wenn das nicht in AllowedValues steht).\n4. Multi-Value-Aspects (z.B. 'Material' = ['Baumwolle', 'Elasthan']) nur wenn eBay Multi-Value erlaubt.\n5. Brand-Aspect MUSS == Identity-Brand sein (Konsistenz-Check).\n6. Lippenstift-Regel: keine Selbstverstaendlichkeiten (kein 'Geschlecht=Damen' wenn Kategorie bereits Damenmode-Leaf ist UND eBay das nicht required).\n7. Nach Generierung: Post-Validation gegen lib/ebay-category-governance.js requiredAspects-Liste.",
+    "userTemplate": "Generiere eBay Item-Specifics fuer Kategorie {{categoryId}} ({{categoryName}}).\n\nProdukt-Identity: brand={{brand}}, model={{model}}, gtin={{gtin}}\nBeschreibung/Notizen: {{productNotes}}\nPflicht-Aspects (eBay required): {{requiredAspects}}\nEmpfohlene Aspects: {{recommendedAspects}}\nBildbeschreibung: {{imageDescription}}\n\nLiefere JSON gemaess outputSchemaHint.",
+    "outputSchemaHint": "{ \"ok\": boolean, \"domain\": \"attributes\", \"resolved\": { \"attributes\": object, \"requiredAspectsCovered\": number, \"aspectSource\": object }, \"confidence\": number, \"sources\": [{ \"aspect\": string, \"source\": string, \"value\": string }], \"warnings\": [string], \"retriesRequested\": boolean }",
+    "modelOverride": null,
+    "generationConfig": {
+      "temperature": 0.4,
+      "maxOutputTokens": 6144
+    },
+    "leitfadenSections": [
+      "Sektion 2 (zweiter Teil) — Faktor 5 Vollstaendigkeit: binaere Sichtbarkeit",
+      "Sektion 3 (zweiter Teil) — Checkliste Artikelmerkmale + Nischen-Keywords",
+      "Sektion 3 — Lippenstift-Regel: keine Selbstverstaendlichkeiten",
+      "Sektion 7 — Compliance: kein Active Content in Aspect-Werten, kein Keyword-Spamming, keine Duplicate-Strings"
+    ]
+  },
+  "tenantOverrides": {}
+}

@@ -40,6 +40,24 @@ const {
   DEFAULT_CHAT_TEMPERATURE,
 } = require('../lib/gemini-config');
 
+// Phase F.1b.3 — best-effort scope-config loader (additive, never throws).
+async function _tryResolveScopeConfig(scopeName, tenantId, callerOverrides) {
+  try {
+    const { resolveScopeConfig } = require('../lib/llm-config');
+    return await resolveScopeConfig(scopeName, tenantId || null, callerOverrides || {});
+  } catch (err) {
+    let logger = null;
+    try { logger = require('../lib/logger'); } catch (_) { /* logger optional in tests */ }
+    if (logger && typeof logger.warn === 'function') {
+      logger.warn(
+        { scopeId: scopeName, tenantId: tenantId || null, reason: err?.message || String(err) },
+        '[chat-v3] resolveScopeConfig failed, using hardcoded defaults'
+      );
+    }
+    return null;
+  }
+}
+
 // FunctionCallingConfigMode: 'AUTO' | 'ANY' | 'NONE' | 'VALIDATED'.
 // We use ANY + allowedFunctionNames=['update_product_datasheet'] to force
 // Gemini to finalize each turn with a write-call (prevents the research-
@@ -707,7 +725,28 @@ async function runProductChatV3({
   }
 
   const startedAt = Date.now();
-  const model = modelOverride || resolveChatModel();
+
+  // Phase F.1b.3 — best-effort scope-config (additive, byte-identical default).
+  // callerOverrides preserve the current hardcoded knobs so a missing scope or
+  // Firestore failure still produces the legacy generationConfig.
+  const _legacyTemperature = DEFAULT_CHAT_TEMPERATURE;
+  const _legacyMaxOutputTokens = DEFAULT_MAX_OUTPUT_TOKENS;
+  const _legacyThinking = defaultThinkingConfig({ level: 'high', includeThoughts: true });
+  const scopeConfig = await _tryResolveScopeConfig('chat.product', tenantId, {
+    temperature: _legacyTemperature,
+    maxOutputTokens: _legacyMaxOutputTokens,
+    thinkingConfig: _legacyThinking,
+  });
+  const _scopeGenCfg =
+    scopeConfig && scopeConfig.generationConfig && typeof scopeConfig.generationConfig === 'object'
+      ? scopeConfig.generationConfig
+      : {};
+  const _scopeModel =
+    scopeConfig && typeof scopeConfig.model === 'string' && scopeConfig.model.trim()
+      ? scopeConfig.model.trim()
+      : null;
+
+  const model = modelOverride || _scopeModel || resolveChatModel();
   const trace = {
     iterations: 0,
     toolCalls: [],
@@ -752,10 +791,13 @@ async function runProductChatV3({
   // 'Invalid value at generation_config.media_resolution' even for documented
   // enum values like 'HIGH'. Per-Part mediaResolution on Content.Part can be
   // re-introduced later once Gemini 3 Pro GA lands.
+  // Merge order: hardcoded defaults < scopeConfig.generationConfig.
+  // Tool-Config / functionCallingConfig is NOT migrated (per F.1b.3 scope).
   const config = {
-    temperature: DEFAULT_CHAT_TEMPERATURE,
-    maxOutputTokens: DEFAULT_MAX_OUTPUT_TOKENS,
-    thinkingConfig: defaultThinkingConfig({ level: 'high', includeThoughts: true }),
+    temperature: _legacyTemperature,
+    maxOutputTokens: _legacyMaxOutputTokens,
+    thinkingConfig: _legacyThinking,
+    ..._scopeGenCfg,
     safetySettings: defaultSafetySettings(),
     tools,
     toolConfig: {

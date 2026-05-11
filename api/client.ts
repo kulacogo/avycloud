@@ -1876,6 +1876,29 @@ export type AdminLlmScopeRecord = {
   activeVersionId?: string | null;
 };
 
+export type AdminLlmThinkingLevel = '' | 'none' | 'low' | 'medium' | 'high';
+export type AdminLlmMediaResolution = '' | 'LOW' | 'MEDIUM' | 'HIGH';
+
+export type AdminLlmGenerationConfig = {
+  temperature?: number | null;
+  maxOutputTokens?: number | null;
+  thinkingConfig?: { level?: AdminLlmThinkingLevel } | null;
+  mediaResolution?: AdminLlmMediaResolution | null;
+};
+
+export type AdminLlmScopeVersionInput = {
+  promptText: string;
+  rulesText: string;
+  promptMode?: 'append' | 'replace';
+  rulesMode?: 'append' | 'replace';
+  note?: string;
+  // F.1a additive fields (backend backfills defaults if omitted)
+  userTemplate?: string;
+  outputSchemaHint?: string;
+  modelOverride?: string;
+  generationConfig?: AdminLlmGenerationConfig;
+};
+
 export type AdminLlmScopeDetail = {
   scope: AdminLlmScopeRecord;
   versions: Array<{
@@ -1885,6 +1908,10 @@ export type AdminLlmScopeDetail = {
     promptMode?: 'append' | 'replace';
     rulesMode?: 'append' | 'replace';
     note?: string | null;
+    userTemplate?: string | null;
+    outputSchemaHint?: string | null;
+    modelOverride?: string | null;
+    generationConfig?: AdminLlmGenerationConfig | null;
     createdByUid?: string | null;
     createdAt?: any;
   }>;
@@ -2145,7 +2172,7 @@ export const adminGetLlmScope = async (scopeId: string): Promise<AdminLlmScopeDe
 
 export const adminCreateLlmVersion = async (
   scopeId: string,
-  version: { promptText: string; rulesText: string; promptMode?: 'append' | 'replace'; rulesMode?: 'append' | 'replace'; note?: string }
+  version: AdminLlmScopeVersionInput
 ) => {
   const res = await fetchApi(`${BACKEND_URL}/api/admin/llm/scopes/${encodeURIComponent(scopeId)}/versions`, {
     method: 'POST',
@@ -2329,6 +2356,150 @@ export const adminGetProductCoverageMetrics = async (params?: {
     throw new Error(details ? `${message} (${String(details)})` : message);
   }
   return result?.data as AdminProductCoverageMetrics;
+};
+
+// =====================================================================
+// Identify-Runs Audit + LLM-Parity (Plan D.1 + F.4b — additive read-only)
+// =====================================================================
+
+export type AdminIdentifyRunWorker = {
+  confidence: number | null;
+  ok: boolean | null;
+  retriesRequested: number | null;
+  sources: string[];
+};
+
+export type AdminIdentifyRunCassiniSubscores = {
+  overall: number | null;
+  title: number | null;
+  description: number | null;
+  image: number | null;
+  specifics: number | null;
+  compliance: number | null;
+} | null;
+
+export type AdminIdentifyRunIssue = {
+  rule?: string;
+  severity?: string;
+  message?: string;
+  leitfaden_section?: string;
+  [key: string]: unknown;
+};
+
+export type AdminIdentifyRun = {
+  pipeline: "v3" | "v4" | null;
+  productId: string | null;
+  sku: string | null;
+  checkedAtIso: string | null;
+  confidence: {
+    aggregate: number | null;
+    readyForPublish: boolean | null;
+    missingCritical: string[];
+  };
+  workerSummary: Record<string, AdminIdentifyRunWorker>;
+  criticScore: number | null;
+  cassiniSubscores: AdminIdentifyRunCassiniSubscores;
+  issues: AdminIdentifyRunIssue[];
+  conflicts: unknown[];
+  autosaved?: boolean | null;
+  raw?: Record<string, unknown>;
+};
+
+export type AdminIdentifyRunsResponse = {
+  runs: AdminIdentifyRun[];
+  total: number;
+  page: number;
+  pageSize: number;
+};
+
+export type AdminIdentifyRunsFilters = {
+  confidence_min?: number | null;
+  confidence_max?: number | null;
+  cassini_min?: number | null;
+  cassini_max?: number | null;
+  domain?: string | null;
+  dateFrom?: string | null;
+  dateTo?: string | null;
+  pipeline?: "v3" | "v4" | "all" | null;
+  page?: number | null;
+  pageSize?: number | null;
+};
+
+export const adminListIdentifyRuns = async (
+  filters?: AdminIdentifyRunsFilters
+): Promise<AdminIdentifyRunsResponse> => {
+  const url = new URL(`${BACKEND_URL}/api/admin/identify-runs`);
+  const f = filters || {};
+  if (f.confidence_min != null) url.searchParams.set("confidence_min", String(f.confidence_min));
+  if (f.confidence_max != null) url.searchParams.set("confidence_max", String(f.confidence_max));
+  // cassini_min/max are accepted by client but server-side filtering happens in-memory.
+  if (f.cassini_min != null) url.searchParams.set("cassini_min", String(f.cassini_min));
+  if (f.cassini_max != null) url.searchParams.set("cassini_max", String(f.cassini_max));
+  if (f.domain) url.searchParams.set("domain", String(f.domain));
+  if (f.dateFrom) url.searchParams.set("dateFrom", String(f.dateFrom));
+  if (f.dateTo) url.searchParams.set("dateTo", String(f.dateTo));
+  if (f.pipeline) url.searchParams.set("pipeline", String(f.pipeline));
+  if (f.page != null) url.searchParams.set("page", String(f.page));
+  if (f.pageSize != null) url.searchParams.set("pageSize", String(f.pageSize));
+  const res = await fetchApi(url.toString(), { method: "GET" });
+  const result = await parseResponse(res);
+  if (!res.ok || result?.ok === false) {
+    const message = result?.error?.message || "Failed to load identify runs";
+    throw new Error(message);
+  }
+  return result?.data as AdminIdentifyRunsResponse;
+};
+
+export type AdminLlmParityRow = {
+  pipeline: string;
+  domain: string;
+  mean_quality: number | null;
+  mean_latency_ms: number | null;
+  mean_cost_usd: number | null;
+  count: number;
+  models: string[];
+};
+
+export type AdminLlmParityDriftAlert = {
+  domain: string;
+  gap: number;
+  best_pipeline: string;
+  best_mean_quality: number;
+  worst_pipeline: string;
+  worst_mean_quality: number;
+  threshold: number;
+};
+
+export type AdminLlmParityResponse = {
+  pipelines: AdminLlmParityRow[];
+  drift_alerts: AdminLlmParityDriftAlert[];
+  total: number;
+  hard_cap: number;
+};
+
+export type AdminLlmParityFilters = {
+  domain?: string | null;
+  dateFrom?: string | null;
+  dateTo?: string | null;
+  pipeline?: string | null;
+};
+
+export const adminListLlmParity = async (
+  filters?: AdminLlmParityFilters
+): Promise<AdminLlmParityResponse> => {
+  const url = new URL(`${BACKEND_URL}/api/admin/llm-parity`);
+  const f = filters || {};
+  if (f.domain) url.searchParams.set("domain", String(f.domain));
+  if (f.dateFrom) url.searchParams.set("dateFrom", String(f.dateFrom));
+  if (f.dateTo) url.searchParams.set("dateTo", String(f.dateTo));
+  if (f.pipeline) url.searchParams.set("pipeline", String(f.pipeline));
+  const res = await fetchApi(url.toString(), { method: "GET" });
+  const result = await parseResponse(res);
+  if (!res.ok || result?.ok === false) {
+    const message = result?.error?.message || "Failed to load LLM parity";
+    throw new Error(message);
+  }
+  return result?.data as AdminLlmParityResponse;
 };
 
 export const buildImageProxyUrl = (sourceUrl?: string | null) => {

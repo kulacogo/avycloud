@@ -53,13 +53,14 @@
 
 ## Feature-Flags (Backend ENV-Vars)
 
-- `IDENTIFY_V4=false` (default, dark-deployed seit 2026-04-23) — aktiviert die neue Orchestrator-Worker-Swarm-Pipeline (`backend/services/identify-v4.js`). Wave 1 (identity + category parallel) → Wave 2 (attributes, seo, pricing, image, gpsr parallel) → Refinement-Loop (max 5 Iterationen auf low-confidence Worker) → Critic. Autosave via saveProductV2 wenn `ebay_ready_score ≥ 0.6`. Fallback bei V4-Error: V3. Alle 8 Worker liefern einheitliche Shape `{ok, domain, resolved, confidence, sources, retriesRequested, meta}`. Kritische Libraries: `lib/sweet-spot-pricer.js`, `lib/seo-title-builder.js`, `lib/seo-description-builder.js`, `lib/aspect-cap-enforcer.js`, `lib/image-enhance.js`, `lib/ebay-sold-listings.js`, `lib/ebay-catalog.js`. Smoke-Test: `node backend/scripts/smoke-identify-v4.js`. Sub-Flags: `IDENTIFY_V4_AUTOSAVE=true`, `IDENTIFY_V4_MAX_ITERATIONS=5`, `IDENTIFY_V4_TIMEOUT_MS=180000`, `IDENTIFY_V4_IMAGE_ENHANCE=true`, `IDENTIFY_V4_IMAGE_ANGLE_CLASSIFY=true`, `IDENTIFY_V4_PRICING_SOLD=true`, `IDENTIFY_V4_CRITIC_FLASH=true`.
+- `IDENTIFY_V4=false` (default, dark-deployed seit 2026-04-23) — aktiviert die neue Orchestrator-Worker-Swarm-Pipeline (`backend/services/identify-v4.js`). Wave 1 (identity + category parallel) → Wave 2 (attributes, seo, pricing, image, gpsr parallel) → Refinement-Loop (max 5 Iterationen auf low-confidence Worker) → Critic. Autosave via saveProductV2 wenn `ebay_ready_score ≥ 0.6`. Fallback bei V4-Error: V3. Alle 8 Worker liefern einheitliche Shape `{ok, domain, resolved, confidence, sources, retriesRequested, meta}`. Kritische Libraries: `lib/sweet-spot-pricer.js`, `lib/seo-title-builder.js`, `lib/seo-description-builder.js`, `lib/aspect-cap-enforcer.js`, `lib/image-enhance.js`, `lib/ebay-sold-listings.js`, `lib/ebay-catalog.js`. Smoke-Test: `node backend/scripts/smoke-identify-v4.js`. Sub-Flags: `IDENTIFY_V4_AUTOSAVE=true`, `IDENTIFY_V4_MAX_ITERATIONS=5`, `IDENTIFY_V4_TIMEOUT_MS=180000`, `IDENTIFY_V4_IMAGE_ENHANCE=true`, `IDENTIFY_V4_IMAGE_ANGLE_CLASSIFY=true`, `IDENTIFY_V4_PRICING_SOLD=true`, `IDENTIFY_V4_CRITIC_FLASH=true`, `IDENTIFY_V4_CRITIC_HINTS=true` (default — Refinement-Loop konsumiert `critic.resolved.refinement_needed_workers` zusätzlich zur Confidence-Detection; Wave-1-Lock auf `identity`+`category` wird respektiert; `=false` revertet zu pre-fix Confidence-only-Verhalten; siehe `mergeRefinementWorkers()`).
+- `IDENTIFY_V4_CRITIC_HINTS_VERIFIED=false` (default, optionaler Promotion-Acknowledge-Flag) — beim Flip von `IDENTIFY_V4=true` in Production loggt `backend/index.js` ein Startup-WARN (NIE Throw/Exit), wenn dieser Flag nicht auf `true` steht. Operator muss `docs/runbooks/identify-v4-promotion.md` lesen + bestätigen. Best-effort Slack-Alert via `SLACK_ALERTS_URL`.
 - `IDENTIFY_V3=true` — aktiviert Multi-Stage-Identify-Pipeline (`backend/services/identify-v3.js`). Bleibt als V4-Fallback. Produktions-ready (98% umgesetzt laut Audit 2026-04-21).
 - `CATEGORY_RESOLVER_V2=true` — aktiviert mehrstufigen Kategorie-Resolver (`backend/services/category-resolver.js`). Strategie: eBay Catalog GTIN → Taxonomy Suggestions → Local Lookup → Gemini. Schreibt nur bei `confidence ≥ 0.85`. Default aus. Bei aktivem Flag: jeder UI-Save triggert fire-and-forget Auto-Correct für Produkte ohne `categorySource === 'manual'`.
 - `QUALITY_GATE_ENABLED=false` — Quality-Gate abschalten (Default an).
 
 ### Chat-Assistant (neu seit 2026-04-22)
-- `CHAT_V3=false` (default) — aktiviert die neue Chat-V3-Pipeline mit Gemini 3 Context Circulation (googleSearch + urlContext + custom functions + structured output in einem Request). Routing: V3 → V2 → Legacy Fallback-Chain. Siehe `backend/services/product-chat-v3.js`.
+- `CHAT_V3=true` (default) — aktiviert die neue Chat-V3-Pipeline mit Gemini 3 Context Circulation (googleSearch + urlContext + custom functions + structured output in einem Request). Routing: V3 → V2 → Legacy Fallback-Chain. Siehe `backend/services/product-chat-v3.js`. **Code-Default: true (`product-chat-v3.js:80` `chatV3Enabled()`). CLAUDE.md zuvor falsch dokumentiert (false) — korrigiert 2026-05-10.** Set `CHAT_V3=false` zum Opt-out, `?pipeline=v2|legacy` per call.
 - `CHAT_V2_ENHANCED=true` (default) — Gemini-3-Enhancements in V2: urlContext tool, Temperature 1.0, Thinking Mode (level=high, includeThoughts), maxOutputTokens 8192, mediaResolution HIGH. Fallback auf altes V2-Verhalten wenn `false`.
 - `CHAT_LEGACY_ENHANCED=true` (default) — Legacy-Pipeline-Härtungen: ASIN-Detection, Amazon-Routing via SerpAPI `engine='amazon'`, forceOneEvidencePass bei allen Intents (nicht mehr nur `change`), Thinking Mode, erweitertes Evidence-URL-Scoring.
 - `CHAT_MODEL` (optional override) — default via model-select.js: `gemini-3.1-pro-preview-customtools`
@@ -68,14 +69,52 @@
 ### Identify-Module-Härtungen
 - `STAGE3_ASPECT_ENFORCEMENT=true` (default) — Stage 3 des Identify-V3 füllt systematisch alle eBay-RequiredAspects. Post-Gen-Validation + Backfill mit "Unbekannt" für fehlende. Siehe `backend/lib/identify-v3-stage3.js`.
 - `STAGE3_ASPECT_REPAIR=true` (default) — wenn > 30% der required Aspects "Unbekannt" nach Erstgenerierung, triggert ein zweiter Gemini-Call mit fokussiertem Prompt zur Reparatur.
+- `STAGE3_AGENTIC=true` (default) — aktiviert die agentic Stage-3-Pipeline (`backend/lib/identify-v3-stage3-agentic.js:647` `isAgenticEnabled()`) als bevorzugten Content-Generator. Multi-Tool-Loop (research + write_datasheet) statt Single-Shot. 3-Tier-Fallback: agentic → single-shot → V2-record, daher kann Runtime-Failure die Pipeline nicht brechen — graceful degradation. Sub-Flag `STAGE3_AGENTIC_SAMPLE` (0..1, deterministischer Canary-Anteil) wird NUR konsultiert wenn `STAGE3_AGENTIC` selbst nicht gesetzt ist.
 - `STAGE2_WEIGHT_WEB_FALLBACK=true` (default) — Stage 2 sucht Gewicht im Web wenn Stage 1 OCR/Grounding leer lieferte. Siehe `backend/lib/weight-web-lookup.js`.
 - `STAGE2_GPSR_WEB_FALLBACK=true` (default) — Stage 2 sucht Hersteller-Impressum im Web wenn Registry leer. Siehe `backend/lib/gpsr-web-fallback.js`.
 - `STAGE1_IMAGE_QUALITY_GATE=true` (default) — Bild-Qualitäts-Analyse in Stage 1 (Auflösung, Hintergrund, Perceptual Hash für Dedup). Filtert User-Uploads NICHT, hängt nur Metadata an. Siehe `backend/lib/image-quality.js`.
 - `CATEGORY_RESOLVER_DYNAMIC_CONFIDENCE=true` (default) — Category-Resolver berechnet Confidence dynamisch statt hard-coded. Boosts: Keyword-Match, Brand-im-Breadcrumb. Penalties: Banned-Breadcrumb, Generic-Levels. Siehe `backend/services/category-resolver.js`.
+- `IDENTIFY_V3_GPSR_CONSENSUS=false|shadow|true` (default `false`) — GPSR-Merge in `services/identify-v3.js assembleProduct()` (Felder: manufacturer_name, manufacturer_address, email, manufacturer_phone, entity_country). Drei Modi:
+    - **`false` (default)**: legacy `pickFrom()`-Fallback — strikte Priorität Registry > Stage-3 LLM > Web-Fallback. Bestehendes Verhalten unverändert.
+    - **`shadow`**: beide Pfade laufen (alt + neu), Diffs werden via `lib/logger` mit Tag `[GPSR-Consensus-Shadow] Diff detected` geprotokolliert, aber der **alte** Pfad gewinnt. Beobachtungs-Modus für Behavior-Change-Risiko.
+    - **`true`**: `resolveConsensus()` aus `lib/cross-reference.js` wird genutzt. Source-Confidenzen aus `SOURCE_WEIGHTS`: registry=0.85, gemini_inference=0.55, manufacturer_website=0.90. Bei mehrfacher Zustimmung gewinnt die Mehrheit; sonst der Kandidat mit höchstem effective-support (confidence × unique-source-count). Rollout-Plan + Diff-Thresholds: `docs/runbooks/gpsr-consensus-rollout.md`.
+
+#### Stage3-Agentic Tuning (Sub-Flags)
+Nur bei aktivem `STAGE3_AGENTIC=true` relevant. Werte ohne Suffix `_MS` sind Counts/Floats.
+- `STAGE3_AGENTIC_SAMPLE` — 0.0..1.0, Canary-Sample (nur wirksam wenn `STAGE3_AGENTIC` unset).
+- `STAGE3_AGENTIC_MAX_ITERATIONS=5` (default) — Max Tool-Loop-Iterationen.
+- `STAGE3_AGENTIC_TIMEOUT_MS=90000` (default) — Total-Timeout der agentic Stage 3.
+- `STAGE3_AGENTIC_TEMPERATURE` — default `DEFAULT_CHAT_TEMPERATURE` (siehe `lib/gemini-config.js`).
+- `STAGE3_AGENTIC_MAX_TOKENS=12000` (default) — `maxOutputTokens` für agentic Calls.
+- `STAGE3_AGENTIC_MAX_IMAGES=4` (default) — Max Bilder die im Initial-Prompt mitgereicht werden.
+- `STAGE3_AGENTIC_SOFT_RESEARCH_LIMIT=3` (default) — Soft-Limit für Research-Tool-Calls bevor Modell zum Write gedrängt wird.
+
+### Feature-Flags (Canary + Timeouts)
+Master-Timeouts und Canary-Steuerung für Identify-Pipelines (`routes/identify.js:265-289`, `lib/gemini3-client.js:500`).
+- `IDENTIFY_TOTAL_TIMEOUT_MS=360000` (default, 6 min) — Master-Timeout für gesamten `POST /api/identify`-Request. Aligned mit Cloud Run `--timeout 600` und Frontend `api/client.ts`.
+- `IDENTIFY_V4_CANARY_RATE=0` (default) — Float 0..1, randomer Canary-Anteil der V4 nutzt selbst wenn `IDENTIFY_V4=false`. `0.1` = 10 % der Requests gehen an V4.
+- `IDENTIFY_V4_CANARY_TENANTS=''` (default) — Komma-separierte Tenant-IDs die V4 nutzen, unabhängig von `IDENTIFY_V4_CANARY_RATE`.
+- `IDENTIFY_GROUNDING=true` (default) — V2-Identify-Pipeline mit Google Search Grounding aktiviert (`services/identify-grounding.js`, `services/job-runner.js:116`).
+- `IDENTIFY_GROUNDING_TIMEOUT_MS=90000` (default) — Timeout für einzelnen Grounding-Call (`lib/gemini3-client.js:500`).
+- `CHAT_GROUNDING=true` (default) — Chat-V2-Pipeline (Google Search Grounding) als Fallback hinter V3 (`services/product-chat-v2.js`, `routes/identify.js:1290`).
+
+### Background-Cron Multi-Tenant (Plan-D.0c)
+- `BACKGROUND_JOB_TENANTS=''` (Komma-separiert, default leer == single tenant `'default'`) — fan-out der 6 Safety-Net-Cron-Jobs in `backend/index.js` (returns-sync, sendcloud-sync, tracking-catchup, delivery-poll, invoice-sync, refund-push) über mehrere Tenants. Mirror des `STOCK_FAILURE_DRAIN_TENANTS`-Patterns. Helpers: `lib/background-job-tenants.js` (`getBackgroundJobTenants()`, `runForEachBackgroundJobTenant()`). Bei leerem ENV unverändertes Single-Tenant-Verhalten (`tenantId:'default'`). Errors per-tenant werden gefangen + geloggt, eine bad-tenant-Iteration unterbricht nicht die übrigen.
 
 ### Gemini-Infrastructure
 - `GEMINI_PROMPT_CACHE=true` (default) — aktiviert Prompt-Caching via `backend/lib/prompt-cache.js`. 90 % Kosten-Ersparnis auf System-Prompts bei wiederholten Calls (Bulk-Ops, Multi-Turn-Chats). Min. 4096 Tokens für Cache-Eligibility, default TTL 60min.
 - `ATOMIC_TOOLS_TIMEOUT_MS=15000` (default) — Per-Executor-Timeout für atomic-tools Library (`lookup_gtin`, `search_ebay_catalog`, `get_required_aspects`, `verify_brand`, `search_amazon_product`, `search_manufacturer_site`, `fetch_url_content`).
+
+### LLM-Quality-Parity (Phase F.3 + Telemetry)
+Schema-Validation und Telemetrie-Sampling für die LLM-Quality-Parity-Charta (`docs/standards/llm-quality-parity.md`).
+- `LLM_SCHEMA_STRICT=false` (default) — Phase F.3 Stufe 1 (safeParse-warn). Validiert LLM-Responses gegen Zod-Schemas und loggt nur Warnings bei Fehlern. Setze `true` für Stufe-2-strict-throw NUR nach min. 7d safeparse-Beobachtung pro Scope ohne neue Schema-Violations. ENV-Var. Sub-Flag `LLM_SCHEMA_VALIDATE_RATE` steuert das Sampling.
+- `LLM_SCHEMA_VALIDATE_RATE=1.0` (default) — Sample-Rate für Stufe-1-Logging (Float 0..1). `1.0` validiert jeden Call, `0.1` nur 10 % der Calls. Volume-Drossel für hot scopes.
+- `LLM_TELEMETRY_SAMPLE=0.1` (default) — Sample-Rate für `llm_call_telemetry`-Schreibungen in Firestore (Float 0..1). Auto-Downgrade auf 0.1 nach 24h wenn ENV-Wert >0.5 (Cost-Guard). Kann via Firestore-Doc `system/llm-telemetry-state` runtime-überschrieben werden — ENV gewinnt bei Konflikt. Siehe `docs/standards/llm-quality-parity.md` §Telemetrie.
+- `TENANT_ID=avycloud` (default, Scripts-only) — Default-Tenant für CLI-Scripts ohne explizites `--tenant`-Flag. Operator muss explizit `--tenant trendocean` setzen oder `TENANT_ID=trendocean` exportieren für Multi-Tenant-Runs. NIE für Production-Backend-Code lesen; nur Scripts.
+
+### Background-Jobs + LLM-Model-Overrides
+- `BACKGROUND_JOB_TENANTS` (default empty) — Komma-separierte Liste von Tenant-IDs für den Multi-Tenant-Fan-Out der 6 safety-net cron jobs in `backend/index.js`. Leer → legacy single-tenant Mode (`tenantId='default'`). Per-Tenant-Errors werden gefangen und geloggt; ein kaputter Tenant blockt keinen anderen.
+- `GEMINI_CHAT_MODEL` (optional override) — ENV-Key in `backend/lib/llm-prompts/scopes/chat-context.json` (`defaultModelEnvKey`) zur Override des Default-Chat-Models. Default kommt aus `model-select.js` (`gemini-3.1-pro-preview-customtools`). Setzen nur für gezielte Canary-/Rollback-Tests pro Scope.
 
 ## Admin Bulk-Actions
 
@@ -98,7 +137,7 @@ Beim Publish-Fehler greift `backend/services/ebay-auto-fix.js` mit 4 Strategien 
 ## Chat-Assistant-Architektur (seit 2026-04-22)
 
 ### 3 Pipelines in Kaskade
-1. **V3** (`backend/services/product-chat-v3.js`, flag `CHAT_V3`): Gemini 3.1 Pro Customtools mit `googleSearch + urlContext + 7 atomic-tools + update_datasheet` in einem Request. Thinking Mode high, Thoughts-Streaming, Cross-Reference + Confidence-Scoring post-generation. Opt-in, default aus.
+1. **V3** (`backend/services/product-chat-v3.js`, flag `CHAT_V3`): Gemini 3.1 Pro Customtools mit `googleSearch + urlContext + 7 atomic-tools + update_datasheet` in einem Request. Thinking Mode high, Thoughts-Streaming, Cross-Reference + Confidence-Scoring post-generation. **Default ON (Code-Default: true).**
 2. **V2** (`backend/services/product-chat-v2.js`): Google Search Grounding + custom function declarations. Mit `CHAT_V2_ENHANCED=true` zusätzlich urlContext, Temperature 1.0, Thinking. Default-Pipeline wenn V3 aus.
 3. **Legacy** (`backend/services/product-chat.js`): BrightData/SerpAPI external tools. Mit `CHAT_LEGACY_ENHANCED=true` Amazon-Routing, forceEvidencePass für alle Intents. Fallback-only.
 
@@ -118,8 +157,8 @@ Routing: `req.body.pipeline` kann `'v3'|'v2'|'legacy'|'auto'` (default) setzen. 
 gtin/ean/upc=0.95, categoryId=0.85, brand=0.90, mpn=0.85, title=0.70, description=0.60, requiredAspects=0.80, price=0.70, weight=0.70, gpsr=0.75
 
 ### Pipeline-Rollout-Strategie
-1. Aktuell: CHAT_V3=false default. V2+Legacy mit allen Härtungen aktiv (CHAT_V2_ENHANCED + CHAT_LEGACY_ENHANCED default on).
-2. Nächster Schritt: CHAT_V3=true in Staging → A/B-Test 10% Traffic → schrittweise Rollout.
+1. Aktuell: **CHAT_V3=true default (Code seit `product-chat-v3.js:80`)**. V2+Legacy mit allen Härtungen aktiv (CHAT_V2_ENHANCED + CHAT_LEGACY_ENHANCED default on) als Fallback-Chain.
+2. Routing-Cascade: V3 → V2 → Legacy. Bei Error in einer Pipeline automatischer Fallback zur nächsten.
 3. Legacy bleibt auf unbestimmte Zeit als Notfall-Fallback.
 
 ## Weiterführende Regeln
@@ -127,3 +166,4 @@ gtin/ean/upc=0.95, categoryId=0.85, brand=0.90, mpn=0.85, title=0.70, descriptio
 Path-scoped Rules in `.claude/rules/` werden automatisch geladen wenn relevante Dateien bearbeitet werden.
 Feature-Specs unter `docs/features/<ID>/spec.md` enthalten alle Details pro Feature.
 Aktuelle Roadmap: `/Users/oguz/.claude/plans/avycloud-roadmap-nachhaltig.md`
+- LLM-Quality-Parity-Charta: alle LLM-Calls folgen [docs/standards/llm-quality-parity.md](docs/standards/llm-quality-parity.md). Inventur in [docs/standards/llm-callers-inventory.md](docs/standards/llm-callers-inventory.md).

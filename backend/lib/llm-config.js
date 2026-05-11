@@ -1,7 +1,49 @@
+const fs = require('fs');
+const path = require('path');
 const { firestore } = require('./firestore');
 const { FieldValue } = require('@google-cloud/firestore');
+const {
+  DEFAULT_MODEL,
+  DEFAULT_CHAT_TEMPERATURE,
+  defaultThinkingConfig,
+  buildGenerationConfig,
+} = require('./gemini-config');
 
 const SCOPES_COLLECTION = 'llmScopes';
+const SNAPSHOT_FILE = path.join(__dirname, 'llm-scopes-snapshot.json');
+
+// Lazy snapshot cache to avoid repeated disk reads after first fallback.
+let _snapshotCache = null;
+
+function loadSnapshotFromDisk() {
+  if (_snapshotCache !== null) return _snapshotCache;
+  try {
+    if (!fs.existsSync(SNAPSHOT_FILE)) {
+      _snapshotCache = { scopes: [], snapshotGeneratedAt: null };
+      return _snapshotCache;
+    }
+    const raw = fs.readFileSync(SNAPSHOT_FILE, 'utf8');
+    const parsed = JSON.parse(raw);
+    _snapshotCache = {
+      snapshotGeneratedAt: parsed?.snapshotGeneratedAt || null,
+      scopes: Array.isArray(parsed?.scopes) ? parsed.scopes : [],
+    };
+    return _snapshotCache;
+  } catch (err) {
+    _snapshotCache = { scopes: [], snapshotGeneratedAt: null, error: err.message };
+    return _snapshotCache;
+  }
+}
+
+// Test-only helper to clear the snapshot cache between tests.
+function __resetSnapshotCacheForTests() {
+  _snapshotCache = null;
+}
+
+// Test-only helper to clear the in-memory active-config cache between tests.
+function __resetActiveConfigCacheForTests() {
+  cache.clear();
+}
 
 // Simple in-memory cache to avoid repeated Firestore reads per request.
 const cache = new Map(); // scopeId -> { value, expiresAt }
@@ -299,6 +341,268 @@ async function getActiveLlmConfig(scopeId) {
   return value;
 }
 
+/**
+ * Phase F.1a — Schema-Extension (ADDITIVE, opt-in).
+ *
+ * Existing scope-versions remain functional. New optional fields per version:
+ *   - userTemplate?: string         template-string for user-args (e.g. '{{productName}}')
+ *   - outputSchemaHint?: string     JSON-schema hint for F.3 zod-migration
+ *   - modelOverride?: string        per-scope model override
+ *   - generationConfig?: object     per-scope generationConfig override
+ *   - tenantOverrides?: object      per-tenant overrides: { [tenantId]: { version?, modelOverride?, generationConfig? } }
+ *
+ * Merge order (last wins): gemini-config defaults < scope.generationConfig
+ *                         < tenantOverrides[tenantId].generationConfig
+ *                         < callerOverrides.
+ */
+
+function _baseGenerationConfig() {
+  // Mirrors the gemini-config standard agentic defaults.
+  return buildGenerationConfig({
+    temperature: DEFAULT_CHAT_TEMPERATURE,
+    maxOutputTokens: 8192,
+    thinkingConfig: defaultThinkingConfig(),
+  });
+}
+
+function _mergeGenerationConfig(...layers) {
+  const merged = {};
+  for (const layer of layers) {
+    if (!layer || typeof layer !== 'object') continue;
+    Object.assign(merged, layer);
+  }
+  return merged;
+}
+
+/**
+ * Resolves the effective config for a scope considering optional tenant
+ * override and per-call caller overrides.
+ *
+ * @param {string} scopeName       e.g. 'chat.product', 'identify.v2'
+ * @param {string|null} tenantId   tenantId for per-tenant scope-version override
+ * @param {object} callerOverrides ad-hoc generationConfig overrides. Accepts
+ *                                 BOTH shapes (HIGH-10 cross-check fix):
+ *                                 - flat:   { temperature: 0.5, model: 'x' }
+ *                                 - nested: { generationConfig: { temperature: 0.5 }, model: 'x' }
+ *                                 Top-level keys take precedence over nested
+ *                                 ones if both are provided. `model` always
+ *                                 stays at the top level.
+ * @returns {Promise<object>} { system_prompt, rules_text, generationConfig, model, userTemplate?, outputSchemaHint? }
+ */
+async function resolveScopeConfig(scopeName, tenantId, callerOverrides = {}) {
+  const id = String(scopeName || '').trim();
+  if (!id) throw new Error('resolveScopeConfig: scopeName is required');
+
+  // Unwrap nested `{ generationConfig: {...} }` shape so callers can pass
+  // either flat or nested without silent no-ops. Top-level keys win over
+  // nested values when both are present.
+  if (
+    callerOverrides &&
+    typeof callerOverrides === 'object' &&
+    callerOverrides.generationConfig &&
+    typeof callerOverrides.generationConfig === 'object'
+  ) {
+    const nested = callerOverrides.generationConfig;
+    const { generationConfig: _drop, ...topLevel } = callerOverrides;
+    callerOverrides = { ...nested, ...topLevel };
+  }
+
+  // Load the scope-level metadata to discover active + tenantOverrides.
+  const scope = await getScope(id);
+  if (!scope) {
+    const err = new Error(`resolveScopeConfig: unknown scope '${id}'`);
+    err.statusCode = 404;
+    throw err;
+  }
+
+  const tenantOverride =
+    tenantId && scope.tenantOverrides && typeof scope.tenantOverrides === 'object'
+      ? scope.tenantOverrides[tenantId] || null
+      : null;
+
+  // Resolve which version to load — tenantOverride.version wins if set.
+  const effectiveVersionId =
+    (tenantOverride && tenantOverride.version) || scope.activeVersionId || null;
+
+  if (!effectiveVersionId) {
+    const err = new Error(`resolveScopeConfig: scope '${id}' has no active version`);
+    err.statusCode = 404;
+    throw err;
+  }
+
+  const versionSnap = await firestore
+    .collection(SCOPES_COLLECTION)
+    .doc(id)
+    .collection('versions')
+    .doc(String(effectiveVersionId))
+    .get();
+  if (!versionSnap.exists) {
+    const err = new Error(`resolveScopeConfig: version '${effectiveVersionId}' not found for scope '${id}'`);
+    err.statusCode = 404;
+    throw err;
+  }
+  const versionData = versionSnap.data() || {};
+
+  // Merge generation-config layers — last writer wins per key (ADDITIVE,
+  // not replace). tenantOverride.generationConfig is NOT a full-replacement
+  // of the version-level config; both layers contribute fields and the
+  // tenant layer can override per-field. callerOverrides win over both.
+  const tenantGenCfg =
+    tenantOverride && tenantOverride.generationConfig && typeof tenantOverride.generationConfig === 'object'
+      ? tenantOverride.generationConfig
+      : {};
+
+  const generationConfig = _mergeGenerationConfig(
+    _baseGenerationConfig(),
+    versionData.generationConfig && typeof versionData.generationConfig === 'object' ? versionData.generationConfig : {},
+    tenantGenCfg,
+    callerOverrides && typeof callerOverrides === 'object' ? callerOverrides : {}
+  );
+
+  // Resolve model — caller > tenantOverride > version > scope default > DEFAULT_MODEL.
+  const callerModel =
+    callerOverrides && typeof callerOverrides === 'object' && typeof callerOverrides.model === 'string'
+      ? callerOverrides.model.trim()
+      : '';
+  const tenantModel =
+    tenantOverride && typeof tenantOverride.modelOverride === 'string' ? tenantOverride.modelOverride.trim() : '';
+  const versionModel =
+    typeof versionData.modelOverride === 'string' ? versionData.modelOverride.trim() : '';
+
+  let model = callerModel || tenantModel || versionModel;
+  if (!model) {
+    // Honour scope.defaultModelEnvKey if set and env populated.
+    const envKey = typeof scope.defaultModelEnvKey === 'string' ? scope.defaultModelEnvKey : '';
+    const envVal = envKey ? String(process.env[envKey] || '').trim() : '';
+    model = envVal || DEFAULT_MODEL;
+  }
+
+  return {
+    scopeId: id,
+    versionId: versionSnap.id,
+    system_prompt: String(versionData.promptText || ''),
+    rules_text: String(versionData.rulesText || ''),
+    promptMode: versionData.promptMode === 'replace' ? 'replace' : 'append',
+    rulesMode: versionData.rulesMode === 'replace' ? 'replace' : 'append',
+    userTemplate: typeof versionData.userTemplate === 'string' ? versionData.userTemplate : '',
+    outputSchemaHint: typeof versionData.outputSchemaHint === 'string' ? versionData.outputSchemaHint : '',
+    generationConfig,
+    model,
+  };
+}
+
+/**
+ * Resolves a model from a snapshot/version data object for the fallback path.
+ * Honours version-level modelOverride, then scope.defaultModelEnvKey from ENV,
+ * else DEFAULT_MODEL. (Mirrors resolveScopeConfig precedence without tenant/
+ * caller layers since loadScopeWithFallback is the snapshot-only path.)
+ *
+ * @param {object} hit          snapshot scope entry (may include modelOverride, defaultModelEnvKey)
+ * @returns {string} resolved model id
+ */
+function _resolveModelFromSnapshotHit(hit) {
+  const versionModel =
+    typeof hit?.modelOverride === 'string' && hit.modelOverride.trim()
+      ? hit.modelOverride.trim()
+      : '';
+  if (versionModel) return versionModel;
+  const envKey = typeof hit?.defaultModelEnvKey === 'string' ? hit.defaultModelEnvKey : '';
+  const envVal = envKey ? String(process.env[envKey] || '').trim() : '';
+  return envVal || DEFAULT_MODEL;
+}
+
+/**
+ * Defensive loader that prefers Firestore but falls back to the bundled
+ * snapshot file when Firestore is unreachable. Throws when both fail.
+ *
+ * Returns BOTH the legacy snapshot-shape fields (`promptText`/`rulesText`/
+ * `modelOverride`) AND the normalized fields that `resolveScopeConfig`
+ * exposes (`system_prompt`/`rules_text`/`model`). Callers may consume either
+ * shape — both are populated additively for backwards-compat. (HIGH-2
+ * cross-check fix.)
+ *
+ * @param {string} scopeName
+ * @param {string|null} tenantId
+ */
+async function loadScopeWithFallback(scopeName, tenantId = null) {
+  const id = String(scopeName || '').trim();
+  if (!id) throw new Error('loadScopeWithFallback: scopeName is required');
+
+  let firestoreError = null;
+  try {
+    const cfg = await getActiveLlmConfig(id);
+    if (cfg) {
+      return { ...cfg, source: 'firestore' };
+    }
+    firestoreError = new Error(`loadScopeWithFallback: scope '${id}' has no active version in Firestore`);
+  } catch (err) {
+    firestoreError = err;
+  }
+
+  // Fallback: bundled snapshot.
+  let logger = null;
+  try { logger = require('./logger'); } catch (_) { /* logger optional in tests */ }
+  if (logger && typeof logger.warn === 'function') {
+    logger.warn(
+      { scopeId: id, tenantId: tenantId || null, reason: firestoreError ? firestoreError.message : 'unknown' },
+      '[llm-config] Firestore-load failed, falling back to bundled snapshot'
+    );
+  }
+
+  const snapshot = loadSnapshotFromDisk();
+  if (!snapshot || !Array.isArray(snapshot.scopes) || snapshot.scopes.length === 0) {
+    const e = new Error(
+      `loadScopeWithFallback: Firestore failed AND no bundled snapshot available for scope '${id}' ` +
+        `(firestoreError=${firestoreError ? firestoreError.message : 'n/a'})`
+    );
+    e.statusCode = 503;
+    throw e;
+  }
+
+  const hit = snapshot.scopes.find((s) => s && s.id === id);
+  if (!hit) {
+    const e = new Error(
+      `loadScopeWithFallback: scope '${id}' missing in snapshot and Firestore-load failed ` +
+        `(firestoreError=${firestoreError ? firestoreError.message : 'n/a'})`
+    );
+    e.statusCode = 503;
+    throw e;
+  }
+
+  const promptText = String(hit.promptText || hit.system_prompt || '');
+  const rulesText = String(hit.rulesText || hit.rules_text || '');
+  const generationConfig =
+    hit.generationConfig && typeof hit.generationConfig === 'object' ? { ...hit.generationConfig } : {};
+  const modelOverride = typeof hit.modelOverride === 'string' ? hit.modelOverride : null;
+  const tenantOverrides =
+    hit.tenantOverrides && typeof hit.tenantOverrides === 'object' ? hit.tenantOverrides : {};
+  const resolvedModel = _resolveModelFromSnapshotHit(hit);
+
+  return {
+    scopeId: id,
+    versionId: hit.versionId || hit.activeVersionId || null,
+    // ── Legacy snapshot shape (backwards-compat — existing callers/tests) ──
+    promptText,
+    rulesText,
+    promptMode: hit.promptMode === 'replace' ? 'replace' : 'append',
+    rulesMode: hit.rulesMode === 'replace' ? 'replace' : 'append',
+    userTemplate: typeof hit.userTemplate === 'string' ? hit.userTemplate : '',
+    outputSchemaHint: typeof hit.outputSchemaHint === 'string' ? hit.outputSchemaHint : '',
+    generationConfig,
+    modelOverride,
+    source: 'snapshot',
+    snapshotGeneratedAt: snapshot.snapshotGeneratedAt || null,
+    // ── Normalized shape (mirrors resolveScopeConfig — HIGH-2 fix) ─────────
+    system_prompt: promptText,
+    rules_text: rulesText,
+    model: resolvedModel,
+    user_template: typeof hit.userTemplate === 'string' ? hit.userTemplate : '',
+    output_schema_hint: typeof hit.outputSchemaHint === 'string' ? hit.outputSchemaHint : '',
+    generation_config: { ...generationConfig },
+    tenantOverrides,
+  };
+}
+
 module.exports = {
   ensureDefaultLlmScopes,
   ensureDefaultLlmScopeVersions,
@@ -308,5 +612,13 @@ module.exports = {
   createScopeVersion,
   activateScopeVersion,
   getActiveLlmConfig,
+  // Phase F.1a additions:
+  resolveScopeConfig,
+  loadScopeWithFallback,
+  loadSnapshotFromDisk,
+  __resetSnapshotCacheForTests,
+  __resetActiveConfigCacheForTests,
+  SNAPSHOT_FILE,
+  SCOPES_COLLECTION,
 };
 

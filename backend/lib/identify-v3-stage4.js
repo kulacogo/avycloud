@@ -2,17 +2,14 @@
 
 const { evaluateEbayReady } = require('./datasheet-quality');
 const { scoreGpsr } = require('./gpsr-manufacturer-registry');
+const { SOURCE_WEIGHTS } = require('./confidence-scoring');
 
-const SOURCE_BASE_SCORES = {
-  grounding: 0.7,
-  ean_db: 0.8,
-  ocr: 0.6,
-  barcode_confirm: 0.9,
-  ebay_browse: 0.7,
-  registry: 0.85,
-  llm_generated: 0.65,
-  web: 0.6,
-};
+// Phase A.1: Stage4 nutzt zentrale SOURCE_WEIGHTS aus confidence-scoring.js.
+// 2 historische Werte (ean_db=0.80, ocr=0.60) weichen vom zentralen Wert ab (0.85, 0.65).
+// Werte-erhaltend: STAGE4_OVERRIDES preserven den V3-Stage4-Behavior.
+// Reconciliation als bewusste Verhaltensänderung in separater Folge-PR (TBD).
+const STAGE4_OVERRIDES = { ean_db: 0.8, ocr: 0.6 };
+const SOURCE_BASE_SCORES = { ...SOURCE_WEIGHTS, ...STAGE4_OVERRIDES };
 
 function computeFieldConfidence(fieldName, value, sources) {
   if (!value || (typeof value === 'string' && !value.trim())) {

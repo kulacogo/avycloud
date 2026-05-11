@@ -1,5 +1,10 @@
 /* eslint-disable no-console */
 /**
+ * D.0b-Migration 2026-05-10: Migrated to getAllProductsForTenant().
+ * See /Users/oguz/.claude/plans/sieht-ziemlich-komplex-unstrukturiert-woolly-tulip.md (Phase D.0)
+ * D.0b-Migration: Default to avycloud. Add --tenant flag for multi-tenant runs.
+ */
+/**
  * Audit (and optionally fix) products where details.attributes.Zustand indicates USED/Gebraucht.
  *
  * Why:
@@ -21,8 +26,16 @@
 
 const fs = require('fs');
 const path = require('path');
-const { getAllProducts, saveProduct } = require('../lib/firestore');
+const { getAllProducts, getAllProductsForTenant, saveProduct } = require('../lib/firestore');
 
+
+// D.0b-Hardening 2026-05-11: mandatory TENANT_ID for write scripts (prevents silent cross-tenant writes)
+const TENANT_ID = process.env.TENANT_ID;
+if (!TENANT_ID) {
+  console.error('TENANT_ID env var required. Example: TENANT_ID=avycloud node <script>.js');
+  process.exit(1);
+}
+console.warn(`[D.0b-Hardening] Running for tenantId='${TENANT_ID}'.`);
 function nowStamp() {
   const d = new Date();
   const pad = (n) => String(n).padStart(2, '0');
@@ -55,7 +68,7 @@ async function main() {
   const outDir = path.join(process.cwd(), 'exports', 'condition_audit', stamp);
   fs.mkdirSync(outDir, { recursive: true });
 
-  const products = await getAllProducts();
+  const products = await getAllProductsForTenant(TENANT_ID);
   const hits = [];
 
   for (const p of products) {

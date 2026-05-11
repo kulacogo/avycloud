@@ -35,8 +35,26 @@ const {
   defaultSafetySettings,
   DEFAULT_CHAT_TEMPERATURE,
 } = require('../gemini-config');
+// F.1b.2 — caller-migration. The scope 'identify.identity' is not yet seeded
+// in Firestore (lands in F.2). Until then resolveScopeConfig() will fail; we
+// catch + fall back to hardcoded defaults below.
+let _resolveScopeConfig = null;
+try {
+  // eslint-disable-next-line global-require
+  ({ resolveScopeConfig: _resolveScopeConfig } = require('../llm-config'));
+} catch (_err) {
+  _resolveScopeConfig = null;
+}
+let _logger = null;
+try {
+  // eslint-disable-next-line global-require
+  _logger = require('../logger');
+} catch (_err) {
+  _logger = null;
+}
 
 const DOMAIN = 'identity';
+const SCOPE_NAME = 'identify.identity';
 const MAX_WORKER_ITERATIONS = 4;
 const MAX_OUTPUT_TOKENS = 4096;
 const GTIN_REGEX = /\b\d{8,14}\b/g;
@@ -306,7 +324,6 @@ async function runGeminiFallback({
     return { rows: [], citations: [], finalized: null };
   }
 
-  const model = resolveChatModel();
   const executorMap = atomicTools.buildToolExecutorMap();
   const identity = context.identity || {};
   const hints = [
@@ -327,10 +344,54 @@ async function runGeminiFallback({
     },
   ];
 
+  // F.1b.2 — try Firestore-backed scope config first; on failure (scope not
+  // seeded yet, Firestore unreachable) fall back to hardcoded values. Pass
+  // current defaults as callerOverrides so behaviour is unchanged when scope
+  // resolution succeeds but the scope-version has no generationConfig override.
+  const fallbackTemperature = DEFAULT_CHAT_TEMPERATURE;
+  const fallbackMaxTokens = MAX_OUTPUT_TOKENS;
+  const fallbackThinking = defaultThinkingConfig({ level: 'high', includeThoughts: false });
+  const fallbackModel = resolveChatModel();
+
+  let scopeModel = fallbackModel;
+  let scopeGenCfg = {
+    temperature: fallbackTemperature,
+    maxOutputTokens: fallbackMaxTokens,
+    thinkingConfig: fallbackThinking,
+  };
+  if (typeof _resolveScopeConfig === 'function') {
+    try {
+      const tenantId = (context && context.tenantId) || null;
+      const resolved = await _resolveScopeConfig(SCOPE_NAME, tenantId, {
+        generationConfig: {
+          temperature: fallbackTemperature,
+          maxOutputTokens: fallbackMaxTokens,
+          thinkingConfig: fallbackThinking,
+        },
+        model: fallbackModel,
+      });
+      if (resolved && resolved.generationConfig && typeof resolved.generationConfig === 'object') {
+        scopeGenCfg = resolved.generationConfig;
+      }
+      if (resolved && typeof resolved.model === 'string' && resolved.model.trim()) {
+        scopeModel = resolved.model.trim();
+      }
+    } catch (err) {
+      if (_logger && typeof _logger.warn === 'function') {
+        _logger.warn(
+          { scope: SCOPE_NAME, reason: err && err.message ? err.message : String(err) },
+          '[identity-worker] resolveScopeConfig failed, using hardcoded defaults'
+        );
+      }
+    }
+  }
+
   const config = {
-    temperature: DEFAULT_CHAT_TEMPERATURE,
-    maxOutputTokens: MAX_OUTPUT_TOKENS,
-    thinkingConfig: defaultThinkingConfig({ level: 'high', includeThoughts: false }),
+    temperature:
+      typeof scopeGenCfg.temperature === 'number' ? scopeGenCfg.temperature : fallbackTemperature,
+    maxOutputTokens:
+      typeof scopeGenCfg.maxOutputTokens === 'number' ? scopeGenCfg.maxOutputTokens : fallbackMaxTokens,
+    thinkingConfig: scopeGenCfg.thinkingConfig || fallbackThinking,
     safetySettings: defaultSafetySettings(),
     tools,
     toolConfig: {
@@ -339,6 +400,7 @@ async function runGeminiFallback({
     },
     systemInstruction: SYSTEM_PROMPT,
   };
+  const model = scopeModel;
 
   let chat;
   try {

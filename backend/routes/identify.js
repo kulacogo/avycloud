@@ -1345,6 +1345,7 @@ router.post('/chat', requirePermission('ai', 'chat'), identifyLimiter, chatUploa
               scope: normalizedScope,
               history: conversationHistory,
               onProgress,
+              tenantId: req.user?.tenantId || null,
             });
             pipelineUsed = 'v2';
           } catch (v2Error) {
@@ -1458,6 +1459,7 @@ router.post('/chat', requirePermission('ai', 'chat'), identifyLimiter, chatUploa
           attachments,
           scope: normalizedScope,
           history: conversationHistory,
+          tenantId: req.user?.tenantId || null,
         });
         pipelineUsed = 'v2';
       } catch (v2Error) {

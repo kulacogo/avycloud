@@ -6,6 +6,109 @@ const { runStage2Enrichment } = require('../lib/identify-v3-stage2');
 const { runStage3ContentGeneration } = require('../lib/identify-v3-stage3');
 const { runStage4Validation } = require('../lib/identify-v3-stage4');
 const { runStage4CrossReference } = require('../lib/identify-v3-evidence');
+const { resolveConsensus } = require('../lib/cross-reference');
+
+// GPSR-Consensus Feature-Flag (task D.3)
+// Modi:
+//   'false' (default)  — alter pickFrom() Pfad bleibt aktiv, neuer Pfad inaktiv
+//   'shadow'           — beide Pfade laufen, Diff wird geloggt, alter Pfad gewinnt
+//   'true'             — neuer resolveConsensus() Pfad gewinnt
+// Source-Konfidenzen entsprechen SOURCE_WEIGHTS aus lib/confidence-scoring.js:
+//   registry=0.85, gemini_inference=0.55, manufacturer_website=0.90
+function _gpsrConsensusMode() {
+  const raw = String(process.env.IDENTIFY_V3_GPSR_CONSENSUS || 'false').trim().toLowerCase();
+  if (raw === 'true' || raw === '1' || raw === 'on') return 'true';
+  if (raw === 'shadow') return 'shadow';
+  return 'false';
+}
+
+function _gpsrLogger() {
+  // Lazy logger require — pino is already a dep, aber kein hard-require auf Modul-Level
+  // damit Tests den Logger bei Bedarf stubben können ohne pino mitzumocken.
+  try {
+    return require('../lib/logger');
+  } catch (_err) {
+    return {
+      info: (...args) => console.log('[GPSR-Consensus]', ...args),
+      warn: (...args) => console.warn('[GPSR-Consensus]', ...args),
+    };
+  }
+}
+
+// pickFrom: linearer Priority-Fallback (Registry → Stage3 → Web).
+// Wird sowohl im alten Pfad als auch als Shadow-Referenz genutzt.
+function _pickFromFallback(...sources) {
+  for (const v of sources) {
+    if (v == null) continue;
+    const s = String(v).trim();
+    if (s) return s;
+  }
+  return '';
+}
+
+/**
+ * Merge a single GPSR field across the 3 known sources using either the
+ * legacy pickFrom() priority-fallback or the resolveConsensus() multi-source
+ * consensus algorithm, depending on IDENTIFY_V3_GPSR_CONSENSUS.
+ *
+ * @param {string} fieldName              field key for consensus normalization
+ * @param {string|null} registryValue     value from stage2.gpsr.data
+ * @param {string|null} stage3Value       value from stage3 LLM output
+ * @param {string|null} webFallbackValue  value from stage2.gpsrWebFallback
+ * @param {object} [extras]               optional extra registry fallbacks
+ *                                        (e.g. registryEmailAlias). Treated as
+ *                                        equivalent to registryValue for legacy
+ *                                        path so existing behavior is preserved.
+ * @returns {string}                      the merged value or '' if none
+ */
+function _pickGpsrField(fieldName, registryValue, stage3Value, webFallbackValue, extras = {}) {
+  // Legacy pickFrom honours `extras.registryEmailAlias` (used for the email
+  // field where the registry returns either `email` or `manufacturer_email`).
+  const oldResult = _pickFromFallback(
+    registryValue,
+    extras.registryEmailAlias,
+    stage3Value,
+    webFallbackValue,
+    extras.webFallbackEmailAlias,
+  );
+
+  const mode = _gpsrConsensusMode();
+  if (mode === 'false') return oldResult;
+
+  const registryEffective = (registryValue == null || String(registryValue).trim() === '')
+    ? (extras.registryEmailAlias || null)
+    : registryValue;
+  const webEffective = (webFallbackValue == null || String(webFallbackValue).trim() === '')
+    ? (extras.webFallbackEmailAlias || null)
+    : webFallbackValue;
+
+  const candidates = [];
+  if (registryEffective != null && String(registryEffective).trim() !== '') {
+    candidates.push({ source: 'registry', value: String(registryEffective).trim(), confidence: 0.85 });
+  }
+  if (stage3Value != null && String(stage3Value).trim() !== '') {
+    candidates.push({ source: 'gemini_inference', value: String(stage3Value).trim(), confidence: 0.55 });
+  }
+  if (webEffective != null && String(webEffective).trim() !== '') {
+    candidates.push({ source: 'manufacturer_website', value: String(webEffective).trim(), confidence: 0.90 });
+  }
+
+  const consensus = resolveConsensus(fieldName, candidates);
+  const newResult = (consensus && consensus.value != null) ? String(consensus.value) : '';
+
+  if (mode === 'shadow') {
+    if (oldResult !== newResult) {
+      _gpsrLogger().info(
+        { fieldName, oldResult, newResult, candidates, conflict: !!consensus.conflict },
+        '[GPSR-Consensus-Shadow] Diff detected',
+      );
+    }
+    return oldResult;
+  }
+
+  // mode === 'true'
+  return newResult;
+}
 
 function _stage4CrossRefEnabled() {
   const raw = String(process.env.STAGE4_CROSS_REFERENCE || 'true').trim().toLowerCase();
@@ -85,6 +188,13 @@ async function identifyProductV3({ files = [], barcodes = '', locale = 'de-DE', 
         }
       : {}),
   };
+
+  // Top-Level-Spiegel-Feld für effiziente Composite-Index-Queries.
+  // Firestore-Composite-Indexes können nested map-fields nicht effizient
+  // indizieren, deshalb spiegeln wir `ops.data_quality.identify_v3.checked_at_iso`
+  // additiv auf das Top-Level-Feld `identifyV3CheckedAtIso`. Bestehende
+  // `ops.data_quality.identify_v3`-Struktur bleibt unverändert.
+  product.identifyV3CheckedAtIso = product.ops.data_quality.identify_v3.checked_at_iso || null;
 
   // Surface conflicts as warnings so the editor sees them in the UI without
   // any backend mutation of the resolved values (Phase 1 — observe, don't
@@ -246,37 +356,39 @@ function assembleProduct(id, stage1, stage2, stage3, opts) {
     const wf = stage2.gpsrWebFallback && typeof stage2.gpsrWebFallback === 'object'
       ? stage2.gpsrWebFallback
       : null;
-    const pickFrom = (...sources) => {
-      for (const v of sources) {
-        if (v == null) continue;
-        const s = String(v).trim();
-        if (s) return s;
-      }
-      return '';
-    };
-    const manufacturer_name = pickFrom(
+    // Field-by-field merge. Modus wird via IDENTIFY_V3_GPSR_CONSENSUS gesteuert
+    // (siehe `_pickGpsrField`-Header). Default-Verhalten = pickFrom-Fallback,
+    // identisch zum bisherigen Code. Shadow- und Active-Mode laufen on-demand.
+    const manufacturer_name = _pickGpsrField(
+      'gpsr_manufacturer_name',
       registryData?.manufacturer_name,
       stage3.gpsr_manufacturer_name,
       wf?.manufacturer_name,
     );
-    const manufacturer_address = pickFrom(
+    const manufacturer_address = _pickGpsrField(
+      'gpsr_manufacturer_address',
       registryData?.manufacturer_address,
       stage3.gpsr_manufacturer_address,
       wf?.manufacturer_address,
     );
-    const email = pickFrom(
+    const email = _pickGpsrField(
+      'gpsr_manufacturer_email',
       registryData?.email,
-      registryData?.manufacturer_email,
       stage3.gpsr_manufacturer_email,
       wf?.manufacturer_email,
-      wf?.email,
+      {
+        registryEmailAlias: registryData?.manufacturer_email,
+        webFallbackEmailAlias: wf?.email,
+      },
     );
-    const manufacturer_phone = pickFrom(
+    const manufacturer_phone = _pickGpsrField(
+      'gpsr_manufacturer_phone',
       registryData?.manufacturer_phone,
       stage3.gpsr_manufacturer_phone,
       wf?.manufacturer_phone,
     );
-    const entity_country = pickFrom(
+    const entity_country = _pickGpsrField(
+      'gpsr_manufacturer_country',
       registryData?.entity_country,
       stage3.gpsr_manufacturer_country,
       wf?.entity_country,
@@ -368,4 +480,6 @@ module.exports = {
   // propagation). Not a stable public API — internal contract may shift
   // between V3 and V4 unification.
   _assembleProduct: assembleProduct,
+  // Internals exported for GPSR-Consensus migration tests (task D.3).
+  _pickGpsrField,
 };
