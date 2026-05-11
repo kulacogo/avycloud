@@ -426,7 +426,7 @@ async function findWebPriceForProductV1(product) {
   };
 }
 
-async function enrichPriceForProductBestEffort(product, { force = false, reason = 'price-refresh' } = {}) {
+async function enrichPriceForProductBestEffort(product, { force = false, reason = 'price-refresh', _fromEnsurePriceCoverage = false } = {}) {
   if (!product) return { ok: false, updated: false, error: 'product_missing' };
   product.details = product.details || {};
   product.details.pricing = product.details.pricing || {};
@@ -445,10 +445,12 @@ async function enrichPriceForProductBestEffort(product, { force = false, reason 
   }
 
   const serpTrace = [];
-  try {
-    await ensurePriceCoverage([product], serpTrace, { force });
-  } catch (e) {
-    // best-effort: SerpAPI may be disabled
+  if (!_fromEnsurePriceCoverage) {
+    try {
+      await ensurePriceCoverage([product], serpTrace, { force });
+    } catch (e) {
+      // best-effort: SerpAPI may be disabled
+    }
   }
 
   const afterSerp = product.details?.pricing?.lowest_price;

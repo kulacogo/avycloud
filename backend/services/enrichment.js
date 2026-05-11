@@ -3011,7 +3011,7 @@ async function ensurePriceCoverage(products = [], serpTrace = [], options = {}) 
     if (!candidates.length) {
       try {
         const { enrichPriceForProductBestEffort } = require('../lib/price-enrichment');
-        const browseResult = await enrichPriceForProductBestEffort(product, { force: true, reason: 'identify' });
+        const browseResult = await enrichPriceForProductBestEffort(product, { force: true, reason: 'identify', _fromEnsurePriceCoverage: true });
         if (browseResult?.ok && browseResult?.updated) {
           continue; // Price set by eBay Browse — skip to next product
         }

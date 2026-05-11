@@ -4,7 +4,7 @@
   "description": "Backend server for the Product Intelligence Hub",
   "main": "index.js",
   "scripts": {
-    "start": "node --max-old-space-size=5120 index.js",
+    "start": "node --max-old-space-size=3584 index.js",
     "test": "vitest run",
     "test:watch": "vitest"
   },
