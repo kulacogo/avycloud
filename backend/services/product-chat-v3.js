@@ -468,18 +468,32 @@ function buildSystemPromptV3(product, { locale = 'de-DE' } = {}) {
 // Retry helpers (Gemini 5xx / network flakes)
 // ---------------------------------------------------------------------------
 
-async function withGeminiRetryV3(operation, { label = 'gemini-v3' } = {}) {
+const PER_ATTEMPT_TIMEOUT_MS_V3 = parseInt(
+  process.env.GEMINI_RETRY_PER_ATTEMPT_TIMEOUT_MS || '30000',
+  10,
+);
+async function withGeminiRetryV3(operation, { label = 'gemini-v3', perAttemptTimeoutMs = PER_ATTEMPT_TIMEOUT_MS_V3 } = {}) {
   let lastErr = null;
   for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt++) {
     try {
+      const opPromise = Promise.resolve().then(() => operation());
+      opPromise.catch(() => {});
       // eslint-disable-next-line no-await-in-loop
-      return await operation();
+      return await Promise.race([
+        opPromise,
+        new Promise((_, reject) =>
+          setTimeout(
+            () => reject(new Error(`${label} per-attempt timeout after ${perAttemptTimeoutMs}ms`)),
+            perAttemptTimeoutMs,
+          ),
+        ),
+      ]);
     } catch (err) {
       lastErr = err;
       const status = err?.status ?? err?.code ?? err?.response?.status ?? null;
       const transient =
         (typeof status === 'number' && status >= 500 && status < 600) ||
-        /\btimeout\b|ETIMEDOUT|ECONNRESET|ECONNREFUSED|EAI_AGAIN|socket hang up|fetch failed/i.test(
+        /\btimeout\b|ETIMEDOUT|ECONNRESET|ECONNREFUSED|EAI_AGAIN|socket hang up|fetch failed|per-attempt timeout/i.test(
           err?.message || ''
         );
       if (!transient || attempt === RETRY_DELAYS_MS.length) throw err;

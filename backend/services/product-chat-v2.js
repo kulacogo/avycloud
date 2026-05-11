@@ -79,20 +79,42 @@ function isChatV2Enhanced() {
 
 // Exponential backoff helper for transient (5xx / network) Gemini failures.
 // Tuned for Gemini API overload bursts: 4 attempts (initial + 3 retries) with
-// exponential backoff up to 8s. Total worst-case wait: ~14s before giving up,
-// which is acceptable for a chat user vs. seeing an immediate "no answer".
-async function withGeminiRetry(operation, { label = 'gemini' } = {}) {
+// exponential backoff up to 8s. Each attempt has a HARD per-attempt timeout
+// (default 30s) — without it, the @google/genai SDK can hang ~90s on TLS-level
+// socket-stalls before its implicit timeout fires (observed 2026-05-11 during
+// Gemini regional outage). Per-attempt timeout converts hangs into fast
+// fail-and-retry cycles.
+//
+// Worst-case wall-time: 4 × 30s + (1+3+8) = 132s. Without per-attempt timeout:
+// 4 × 90s = 360s+, which exceeds frontend abort and shows "no response".
+const GEMINI_RETRY_PER_ATTEMPT_TIMEOUT_MS = parseInt(
+  process.env.GEMINI_RETRY_PER_ATTEMPT_TIMEOUT_MS || '30000',
+  10,
+);
+async function withGeminiRetry(operation, { label = 'gemini', perAttemptTimeoutMs = GEMINI_RETRY_PER_ATTEMPT_TIMEOUT_MS } = {}) {
   const delays = [1000, 3000, 8000];
   let lastErr = null;
   for (let attempt = 0; attempt <= delays.length; attempt++) {
     try {
-      return await operation();
+      const opPromise = Promise.resolve().then(() => operation());
+      // Suppress unhandled-rejection if operation eventually settles AFTER the
+      // timeout fires.
+      opPromise.catch(() => {});
+      return await Promise.race([
+        opPromise,
+        new Promise((_, reject) =>
+          setTimeout(
+            () => reject(new Error(`${label} per-attempt timeout after ${perAttemptTimeoutMs}ms`)),
+            perAttemptTimeoutMs,
+          ),
+        ),
+      ]);
     } catch (err) {
       lastErr = err;
       const status = err?.status ?? err?.code ?? err?.response?.status ?? null;
       const transient =
         (typeof status === 'number' && status >= 500 && status < 600) ||
-        /\btimeout\b|ETIMEDOUT|ECONNRESET|ECONNREFUSED|EAI_AGAIN|socket hang up|fetch failed/i.test(
+        /\btimeout\b|ETIMEDOUT|ECONNRESET|ECONNREFUSED|EAI_AGAIN|socket hang up|fetch failed|per-attempt timeout/i.test(
           err?.message || ''
         );
       if (!transient || attempt === delays.length) {
