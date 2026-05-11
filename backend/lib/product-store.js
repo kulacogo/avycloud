@@ -157,6 +157,19 @@ async function getAllProductsV2ForTenant(tenantId, options = {}) {
     throw new Error('getAllProductsV2ForTenant: tenantId is required and must be a non-empty string');
   }
 
+  // D.0b-Hotfix 2026-05-11: Production-Realität — products_v2-Docs haben kein
+  // tenantId-Feld (Multi-Tenant nur im Code vorbereitet). Für tenantId='default'
+  // → Legacy-Compat: liefere Docs ohne tenantId-Feld ODER tenantId='default'.
+  // Nach Backfill (Phase B) Legacy-Branch entfernen.
+  if (tenantId === 'default') {
+    let ref = firestore.collection(getCollection());
+    if (typeof options.queryFn === 'function') ref = options.queryFn(ref);
+    const snap = await ref.get();
+    return snap.docs
+      .map((d) => ({ id: d.id, ...d.data() }))
+      .filter((doc) => !doc.tenantId || doc.tenantId === 'default');
+  }
+
   let ref = firestore.collection(getCollection()).where('tenantId', '==', tenantId);
   if (typeof options.queryFn === 'function') ref = options.queryFn(ref);
   const snap = await ref.get();

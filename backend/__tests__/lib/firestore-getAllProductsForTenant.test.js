@@ -211,3 +211,51 @@ describe('getAllProductsForTenant — query behaviour', () => {
     queryState.getResponse = original;
   });
 });
+
+describe('getAllProductsForTenant — D.0b-Hotfix Legacy-Compat for default tenant', () => {
+  // D.0b-Hotfix 2026-05-11: Production-Reality — products_v2-Docs lack tenantId field.
+  // tenantId='default' must liefer all docs that either have no tenantId field OR tenantId='default'.
+
+  it('default-tenant: returns docs without tenantId field', async () => {
+    setSnapshotDocs([
+      makeDoc('p1', { id: 'p1', name: 'Legacy product without tenantId', sku: 'SKU-1' }),
+      makeDoc('p2', { id: 'p2', name: 'Another legacy', sku: 'SKU-2' }),
+    ]);
+
+    const result = await getAllProductsForTenant('default');
+    expect(result).toHaveLength(2);
+    expect(result.map(p => p.sku)).toEqual(['SKU-1', 'SKU-2']);
+  });
+
+  it('default-tenant: returns docs with explicit tenantId=default', async () => {
+    setSnapshotDocs([
+      makeDoc('p1', { id: 'p1', name: 'Tagged default', tenantId: 'default', sku: 'SKU-D' }),
+    ]);
+
+    const result = await getAllProductsForTenant('default');
+    expect(result).toHaveLength(1);
+    expect(result[0].sku).toBe('SKU-D');
+  });
+
+  it('default-tenant: EXCLUDES docs with explicit non-default tenantId (isolation)', async () => {
+    setSnapshotDocs([
+      makeDoc('p1', { id: 'p1', name: 'Legacy', sku: 'SKU-1' }), // included
+      makeDoc('p2', { id: 'p2', name: 'Avycloud-only', tenantId: 'avycloud', sku: 'SKU-A' }), // excluded
+      makeDoc('p3', { id: 'p3', name: 'TrendOcean-only', tenantId: 'trendocean', sku: 'SKU-T' }), // excluded
+      makeDoc('p4', { id: 'p4', name: 'Tagged default', tenantId: 'default', sku: 'SKU-D' }), // included
+    ]);
+
+    const result = await getAllProductsForTenant('default');
+    const skus = result.map(p => p.sku).sort();
+    expect(skus).toEqual(['SKU-1', 'SKU-D']);
+  });
+
+  it('default-tenant: does NOT apply where-filter (full-collection-scan)', async () => {
+    queryState.whereCalls = [];
+    setSnapshotDocs([makeDoc('p1', { id: 'p1', sku: 'SKU-1' })]);
+
+    await getAllProductsForTenant('default');
+    // Legacy-Compat-Branch reads full collection, no where('tenantId','==','default')
+    expect(queryState.whereCalls).toEqual([]);
+  });
+});

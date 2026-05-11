@@ -2846,6 +2846,26 @@ async function getAllProductsForTenant(tenantId, options = {}) {
       );
     }
 
+    // D.0b-Hotfix 2026-05-11: Production-Realität — die meisten products-Docs
+    // haben kein tenantId-Feld (Multi-Tenant wurde im Code vorbereitet, aber Daten
+    // nie tagged). Für tenantId='default' → Legacy-Compat: liefere ALLE Docs
+    // zurück die entweder kein tenantId-Feld haben ODER tenantId === 'default'.
+    // Nach Backfill (Phase B) kann diese Branch entfernt werden (Phase C).
+    if (tenantId === 'default') {
+      const snapshot = await firestore.collection(PRODUCTS_COLLECTION).get();
+      const products = [];
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        const docTenant = data?.tenantId;
+        if (!docTenant || docTenant === 'default') {
+          products.push({ ...data, id: data?.id || doc.id });
+        }
+      });
+      console.log(`Loaded ${products.length} products for tenant='default' (legacy-compat: includes docs without tenantId field) from Firestore`);
+      return products;
+    }
+
+    // Echter Multi-Tenant-Filter für nicht-'default' Tenants
     // Mirror getAllProducts(): no orderBy on optional fields (would silently
     // drop docs without that field). Filter server-side by tenantId.
     const snapshot = await firestore
