@@ -21,6 +21,8 @@ const { isBannedEbayBreadcrumb } = require('../lib/ebay-category-governance');
 const { findEbayCategory } = require('../lib/ebay-taxonomy');
 const { enrichPriceParallel } = require('../lib/price-enrichment');
 const { searchProductImages } = require('../lib/image-search');
+const { recordIdentifyMetric, getIdentifyHealth } = require('../lib/identify-metrics');
+const logger = require('../lib/logger');
 
 // --- Constants ---
 const MAX_IMAGE_FILES = 30;
@@ -274,6 +276,46 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
     let product = null;
     let groundingUsed = false;
     let legacyResult = null;
+
+    // Sprint 1 — Observability. Single fire-and-forget Firestore write per request via
+    // res.on('finish'). All variables below are captured by closure so the hook always
+    // sees the final state. Validation errors (4xx) are skipped — they reflect user input,
+    // not pipeline behavior. Never throws; never blocks the response.
+    const tenantIdForMetric = req.tenantId || req.user?.tenantId || 'default';
+    const imageCountForMetric = files.length;
+    const barcodeCountForMetric = String(barcodes || '')
+      .split(/[\n,;]+/)
+      .map((s) => s.trim())
+      .filter(Boolean).length;
+    let metricErrorMessage = null;
+    let metricDuplicateReused = false;
+    res.on('finish', () => {
+      const code = res.statusCode;
+      let status;
+      if (code >= 200 && code < 300) {
+        status = metricDuplicateReused ? 'duplicate_reused' : 'success';
+      } else if (code === 504 || code === 408) {
+        status = 'timeout';
+      } else if (code >= 500) {
+        status = 'error';
+      } else {
+        // 4xx (validation, palette missing, etc.) — not a pipeline signal
+        return;
+      }
+      recordIdentifyMetric({
+        tenantId: tenantIdForMetric,
+        pipeline:
+          pipelineUsed ||
+          (v3Meta ? 'v3' : groundingUsed ? 'grounding' : legacyResult ? 'legacy' : 'unknown'),
+        durationMs: elapsedMs(),
+        status,
+        errorCode: code !== 200 ? `HTTP_${code}` : null,
+        errorMessage: metricErrorMessage,
+        imageCount: imageCountForMetric,
+        barcodeCount: barcodeCountForMetric,
+        productId: product?.id || null,
+      });
+    });
     let groundingImageQuery = '';
 
     // ─── IDENTIFY V4: opt-in pipeline (IDENTIFY_V4=true) ───
@@ -414,6 +456,7 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
         } catch {}
       }
       const refreshed = await getProduct(existing.id);
+      metricDuplicateReused = true;
       return res.json({
         ok: true,
         data: refreshed || existing,
@@ -479,6 +522,7 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
               } catch {}
             }
             const refreshed = await getProduct(v3Existing.id);
+            metricDuplicateReused = true;
             return res.json({
               ok: true,
               data: refreshed || v3Existing,
@@ -688,6 +732,7 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
               } catch {}
             }
             const refreshed = await getProduct(groundedExisting.id);
+            metricDuplicateReused = true;
             return res.json({
               ok: true,
               data: refreshed || groundedExisting,
@@ -744,6 +789,7 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
           } catch {}
         }
         const refreshed = await getProduct(legacyExisting.id);
+        metricDuplicateReused = true;
         return res.json({
           ok: true, data: refreshed || legacyExisting,
           meta: { reused_existing: true, paletteCode: paletteCode || null, locale: result.locale, barcodes: result.barcodes },
@@ -947,9 +993,19 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
       },
     });
   } catch (error) {
-    console.error('v2 identify failed:', error);
+    // logger.error (Pino → severity=ERROR) gets auto-picked up by Cloud Error Reporting.
+    // Stack trace is required for grouping in the Error Reporting UI.
+    logger.error(
+      {
+        err: error?.message,
+        stack: error?.stack,
+        route: 'POST /api/v2/identify',
+      },
+      'v2 identify failed',
+    );
     const detailsRaw = error?.message || 'Unknown error';
     const details = String(detailsRaw).replace(/\s+/g, ' ').trim().slice(0, 400);
+    metricErrorMessage = details;
     return res.status(500).json({
       ok: false,
       error: {
@@ -957,6 +1013,33 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
         message: details ? `Identify (v2) fehlgeschlagen. (${details})` : 'Identify (v2) fehlgeschlagen.',
         details: details || 'Unknown error',
       },
+    });
+  }
+});
+
+// GET /api/health/identify — Aggregated identify pipeline health for the last 24h.
+// Returns counts by status/pipeline/error, success rate, avg/p50/p95 durations, and the
+// most recent failure. Used by the frontend dashboard tile and by ops for live triage.
+// No auth on read — the data is operational, not sensitive (no product details, no PII).
+router.get('/health/identify', async (req, res) => {
+  try {
+    const windowHours = Math.max(1, Math.min(168, parseInt(req.query?.hours, 10) || 24));
+    const tenantId = typeof req.query?.tenantId === 'string' && req.query.tenantId.trim()
+      ? req.query.tenantId.trim()
+      : null;
+    const health = await getIdentifyHealth({
+      tenantId,
+      windowMs: windowHours * 60 * 60 * 1000,
+    });
+    return res.json({ ok: true, data: health });
+  } catch (error) {
+    logger.error(
+      { err: error?.message, stack: error?.stack, route: 'GET /api/health/identify' },
+      'identify health aggregation failed',
+    );
+    return res.status(500).json({
+      ok: false,
+      error: { code: 'INTERNAL', message: error?.message || 'Unknown error' },
     });
   }
 });
