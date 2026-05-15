@@ -22,6 +22,7 @@ const { findEbayCategory } = require('../lib/ebay-taxonomy');
 const { enrichPriceParallel } = require('../lib/price-enrichment');
 const { searchProductImages } = require('../lib/image-search');
 const { recordIdentifyMetric, getIdentifyHealth } = require('../lib/identify-metrics');
+const { getExternalApiStats } = require('../lib/external-api-tracker');
 const logger = require('../lib/logger');
 
 // --- Constants ---
@@ -1013,6 +1014,32 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
         message: details ? `Identify (v2) fehlgeschlagen. (${details})` : 'Identify (v2) fehlgeschlagen.',
         details: details || 'Unknown error',
       },
+    });
+  }
+});
+
+// GET /api/health/external-apis — Aggregated usage stats for BrightData / SerpAPI
+// and any other instrumented external HTTP service. Drives the operator decision
+// "do we still need this service?" with hard numbers (calls/day, success rate, latency).
+router.get('/health/external-apis', async (req, res) => {
+  try {
+    const windowHours = Math.max(1, Math.min(168, parseInt(req.query?.hours, 10) || 24));
+    const service = typeof req.query?.service === 'string' && req.query.service.trim()
+      ? req.query.service.trim()
+      : null;
+    const stats = await getExternalApiStats({
+      service,
+      windowMs: windowHours * 60 * 60 * 1000,
+    });
+    return res.json({ ok: true, data: stats });
+  } catch (error) {
+    logger.error(
+      { err: error?.message, stack: error?.stack, route: 'GET /api/health/external-apis' },
+      'external api stats aggregation failed',
+    );
+    return res.status(500).json({
+      ok: false,
+      error: { code: 'INTERNAL', message: error?.message || 'Unknown error' },
     });
   }
 });

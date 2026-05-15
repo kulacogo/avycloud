@@ -1,5 +1,6 @@
 const fetch = require('node-fetch');
 const { getSecretValue } = require('./secret-values');
+const { instrumentExternalCall } = require('./external-api-tracker');
 
 const DEFAULT_ENDPOINT = process.env.BRIGHTDATA_ENDPOINT || 'https://api.brightdata.com/request';
 const DEFAULT_ZONE =
@@ -40,7 +41,20 @@ function sanitizeHeaders(headers = {}) {
   return Object.keys(result).length ? result : undefined;
 }
 
-async function fetchWithUnlocker({
+async function fetchWithUnlocker(opts = {}) {
+  // Instrumentation wrapper: records every BrightData call into external_api_calls
+  // (service='brightdata', endpoint=hostname). Used to answer "do we still need
+  // BrightData?" with data. Inner function preserves the original implementation.
+  let endpointLabel = 'unknown';
+  try {
+    if (opts?.url) endpointLabel = new URL(opts.url).hostname;
+  } catch {
+    /* leave as 'unknown' if URL is malformed */
+  }
+  return instrumentExternalCall('brightdata', endpointLabel, () => _fetchWithUnlockerImpl(opts));
+}
+
+async function _fetchWithUnlockerImpl({
   url,
   method = 'GET',
   headers = undefined,

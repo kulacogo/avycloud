@@ -3151,6 +3151,39 @@ export const fetchIdentificationJobs = async (
   };
 };
 
+export interface IdentifyHealthSnapshot {
+  windowMs: number;
+  sinceIso: string;
+  total: number;
+  success: number;
+  successRate: number | null;
+  byStatus: Record<string, number>;
+  byPipeline: Record<string, number>;
+  byError: Record<string, number>;
+  durations: { count: number; avgMs: number; p50Ms: number; p95Ms: number };
+  lastFailure: {
+    timestampIso: string;
+    pipeline: string;
+    errorCode: string | null;
+    errorMessage: string | null;
+  } | null;
+}
+
+export const fetchIdentifyHealth = async (
+  params: { hours?: number; tenantId?: string; signal?: AbortSignal } = {}
+): Promise<IdentifyHealthSnapshot> => {
+  const q = new URLSearchParams();
+  if (params.hours) q.set('hours', String(params.hours));
+  if (params.tenantId) q.set('tenantId', params.tenantId);
+  const url = `${BACKEND_URL}/api/health/identify${q.toString() ? `?${q}` : ''}`;
+  const response = await fetchApi(url, { method: 'GET', signal: params.signal });
+  const result = await parseResponse(response);
+  if (!response.ok) {
+    throw new Error(result?.error?.message || 'Identify-Health konnte nicht geladen werden.');
+  }
+  return result?.data as IdentifyHealthSnapshot;
+};
+
 export const retryIdentificationJob = async (
   jobId: string
 ): Promise<{ ok: boolean; error?: { code: number; message: string } }> => {

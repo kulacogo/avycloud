@@ -1,5 +1,6 @@
 const { URLSearchParams } = require('url');
 const { getSecretValue } = require('./secret-values');
+const { instrumentExternalCall } = require('./external-api-tracker');
 
 const SERPAPI_BASE_URL = 'https://serpapi.com/search.json';
 const MIN_IMAGE_WIDTH = parseInt(process.env.MIN_IMAGE_WIDTH || '900', 10);
@@ -379,7 +380,9 @@ async function callSerpApi(engine, params = {}) {
 
   let data;
   try {
-    data = await _fetchSerpApiRaw(engine, params);
+    // Wrap the actual network call so cache-hits aren't counted as external calls
+    // (those skipped past the cache check at the top of this function).
+    data = await instrumentExternalCall('serpapi', engine, () => _fetchSerpApiRaw(engine, params));
   } catch (err) {
     _breakerOnError();
     if (_shouldLog(`err|${key}`)) {

@@ -3,6 +3,7 @@ import { useIdentificationQueue } from '../hooks/useIdentificationQueue';
 import { useI18n } from '../i18n';
 import { IdentificationJob } from '../types';
 import { Spinner } from './Spinner';
+import { IdentifyHealthTile } from './IdentifyHealthTile';
 
 const STATUS_META = {
   pending: { color: 'bg-amber-500/20 text-amber-100 border border-amber-400/40' },
@@ -109,6 +110,7 @@ const IdentifyQueueView: React.FC = () => {
 
   return (
     <section className="space-y-5">
+      <IdentifyHealthTile />
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-txt-primary">{t('identifyQueue.title')}</h1>
