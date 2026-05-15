@@ -696,49 +696,15 @@ async function executeSearchAmazonProduct({ asin, gtin, query, region } = {}) {
           }
         );
       }
-      // SerpAPI returned an error payload — fall through to brightdata.
-    } catch (err) {
-      console.warn(`[atomic-tools] serpapi amazon failed: ${err.message}`);
-    }
-  }
-
-  // Fallback: BrightData search with site: hint.
-  if (typeof toolkit.executeBrightdataSearchToolCall === 'function') {
-    try {
-      const queryText = query || asin || gtin;
-      const args = {
-        query: `${queryText}`,
-        sites: [amazonDomain],
-        limit: 8,
-      };
-      const result = await withTimeout(
-        toolkit.executeBrightdataSearchToolCall({ arguments: JSON.stringify(args) }),
-        EXECUTOR_TIMEOUT_MS,
-        'search_amazon_product'
-      );
-      if (result && result.ok !== false) {
-        return success(
-          source,
-          {
-            region: regionCode,
-            provider: 'brightdata',
-            query: queryText,
-            domain: amazonDomain,
-            result,
-          },
-          {
-            confidence: Array.isArray(result.results) && result.results.length ? 0.6 : 0.25,
-            meta: { durationMs: Date.now() - started },
-          }
-        );
-      }
+      // SerpAPI returned an error payload — no fallback (BrightData removed in Sprint 1).
       return failure(
         source,
         'NO_RESULTS',
-        result && result.error ? result.error : 'brightdata returned no results',
+        result?.error || 'serpapi returned no usable amazon result',
         { meta: { durationMs: Date.now() - started } }
       );
     } catch (err) {
+      console.warn(`[atomic-tools] serpapi amazon failed: ${err.message}`);
       return failure(source, 'SEARCH_FAILED', err.message || String(err), {
         meta: { durationMs: Date.now() - started },
       });

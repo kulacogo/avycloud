@@ -442,18 +442,16 @@ describe('executeSearchAmazonProduct', () => {
     expect(res.data.domain).toBe('amazon.de');
   });
 
-  it('falls back to BrightData when SerpAPI errors', async () => {
+  it('returns NO_RESULTS when SerpAPI errors (Sprint 1: BrightData fallback removed)', async () => {
+    // Pre-Sprint-1: this test asserted a BrightData fallback. The fallback was removed
+    // because SerpAPI already covers the Amazon engine and the BrightData path required
+    // a separate paid integration. SerpAPI error now surfaces directly as NO_RESULTS.
     executeSerpapiToolCallMock.mockResolvedValueOnce({ error: 'disabled' });
-    executeBrightdataSearchToolCallMock.mockResolvedValueOnce({
-      ok: true,
-      engine: 'brightdata',
-      results: [{ url: 'https://amazon.com/product' }],
-    });
     const res = await executors.executeSearchAmazonProduct({ query: 'Echo Dot', region: 'COM' });
-    expect(executeBrightdataSearchToolCallMock).toHaveBeenCalled();
-    expect(res.ok).toBe(true);
-    expect(res.data.provider).toBe('brightdata');
-    expect(res.data.domain).toBe('amazon.com');
+    expect(executeSerpapiToolCallMock).toHaveBeenCalled();
+    expect(executeBrightdataSearchToolCallMock).not.toHaveBeenCalled();
+    expect(res.ok).toBe(false);
+    expect(res.error.code).toBe('NO_RESULTS');
   });
 });
 
