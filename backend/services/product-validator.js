@@ -16,6 +16,7 @@
  */
 
 const { gemini3GenerateJSON } = require('../lib/gemini3-client');
+const { FLASH_MODEL } = require('../lib/gemini-config');
 const { saveProductV2 } = require('../lib/product-store');
 const { getProduct } = require('../lib/firestore');
 const { normalizeDigits, isValidGtin } = require('../lib/gtin');
@@ -223,7 +224,7 @@ ${candidateList}`;
   const result = await gemini3GenerateJSON({
     prompt,
     schema: CATEGORY_PICK_SCHEMA,
-    model: 'gemini-3-flash-preview',
+    model: FLASH_MODEL,
     temperature: 0.1,
     maxOutputTokens: 64,
   });
@@ -372,7 +373,7 @@ async function validateProduct(product) {
     const result = await gemini3GenerateJSON({
       prompt,
       schema: VALIDATION_SCHEMA,
-      model: 'gemini-3-flash-preview',
+      model: FLASH_MODEL,
       temperature: 0.1,
       maxOutputTokens: 16384,
     });
@@ -393,7 +394,7 @@ async function validateProduct(product) {
       const result = await gemini3GenerateJSON({
         prompt: retryPrompt,
         schema: VALIDATION_SCHEMA,
-        model: 'gemini-3-flash-preview',
+        model: FLASH_MODEL,
         temperature: 0.1,
         maxOutputTokens: 16384,
       });
