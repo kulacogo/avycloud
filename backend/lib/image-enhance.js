@@ -1,5 +1,7 @@
 'use strict';
 
+const { FLASH_MODEL, resolveImageEnhanceModel, buildGenerationConfig } = require('./gemini-config');
+
 /**
  * image-enhance.js
  *
@@ -129,7 +131,7 @@ async function removeBackground(buffer, options = {}) {
 
   try {
     const result = await geminiClient.generateImage({
-      model: 'gemini-3-pro-image-preview',
+      model: resolveImageEnhanceModel(),
       prompt: effectivePrompt,
       inputImage: { inlineData: { data: buffer.toString('base64'), mimeType: 'image/jpeg' } },
     });
@@ -177,9 +179,9 @@ async function classifyImageAngle(imagePart, options = {}) {
 
   try {
     const response = await geminiClient.generateContent({
-      model: 'gemini-3-flash-preview',
+      model: FLASH_MODEL,
       contents: [imagePart, { text: instruction }],
-      config: { responseMimeType: 'application/json', temperature: 0.1 },
+      config: buildGenerationConfig({ responseMimeType: 'application/json', temperature: 0.1 }),
     });
 
     const text = response?.text || response?.candidates?.[0]?.content?.parts?.[0]?.text || '';
