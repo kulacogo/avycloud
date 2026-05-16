@@ -423,6 +423,34 @@ const server = app.listen(PORT, () => {
     console.warn('[refund-push] failed to start safety-net:', err?.message || err);
   }
 
+  // ─── Kaufland Listings Cache Sync (every 15min) ─────────────
+  // Refreshes the `kauflandUnitsLive` cache used by the Inventory UI for
+  // listed/not-listed badges, backfills `ops.kaufland.unitId` into products_v2,
+  // detects forward drift (kaufland>0 while warehouse=0 → outbound stock sync)
+  // and surfaces reverse drift (warehouse>0 while kaufland=0/ONHOLD → report-only).
+  // Same service is called by `POST /api/marketplace/kaufland/listings/sync` so
+  // ad-hoc manual sync and the cron stay perfectly in lockstep.
+  try {
+    const KAUFLAND_LISTINGS_SYNC_INTERVAL_MS = parseInt(
+      process.env.KAUFLAND_LISTINGS_SYNC_INTERVAL_MS || String(15 * 60 * 1000),
+      10,
+    );
+    const KAUFLAND_LISTINGS_SYNC_STOREFRONT = String(process.env.KAUFLAND_LISTINGS_SYNC_STOREFRONT || 'de').trim().toLowerCase();
+    const runKauflandListingsSync = async () => {
+      const { syncKauflandListingsCache } = require('./services/kaufland-listings-sync');
+      await runForAllTenants('kaufland-listings-sync', async ({ tenantId }) => {
+        const r = await syncKauflandListingsCache({ tenantId, storefront: KAUFLAND_LISTINGS_SYNC_STOREFRONT });
+        console.log('[kaufland-listings-sync] tenant=%s storefront=%s fetched=%d active=%d driftsDetected=%d reconciled=%d reverseDriftsDetected=%d',
+          tenantId, r.storefront, r.fetched, r.active, r.driftsDetected, r.reconciled, r.reverseDriftsDetected);
+      });
+    };
+    setTimeout(() => { runKauflandListingsSync().catch((err) => console.warn('[kaufland-listings-sync] failed:', err?.message)); }, 210_000); // First run after 3.5 min
+    setInterval(() => { runKauflandListingsSync().catch((err) => console.warn('[kaufland-listings-sync] failed:', err?.message)); }, KAUFLAND_LISTINGS_SYNC_INTERVAL_MS);
+    console.log(`[kaufland-listings-sync] safety-net enabled: every ${KAUFLAND_LISTINGS_SYNC_INTERVAL_MS}ms storefront=${KAUFLAND_LISTINGS_SYNC_STOREFRONT}`);
+  } catch (err) {
+    console.warn('[kaufland-listings-sync] failed to start safety-net:', err?.message || err);
+  }
+
   // Safety-net: expire stale stock reservations every 5 minutes
   const RESERVATION_CLEANUP_MS = parseInt(process.env.RESERVATION_CLEANUP_INTERVAL_MS || String(5 * 60 * 1000), 10);
   try {

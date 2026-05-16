@@ -292,4 +292,50 @@ patchLocalModule('../../services/stock-failure-drain.js', {
   drainStockFailures: spies.drainStockFailures,
 });
 
+// lib/kaufland-api.js (for kaufland-listings-sync + kaufland-bookings tests)
+spies.kauflandListUnits = vi.fn().mockResolvedValue([]);
+spies.kauflandGetBookings = vi.fn().mockResolvedValue({
+  from: '2026-01-01',
+  to: '2026-01-31',
+  storefront: 'de',
+  bookings: [],
+  count: 0,
+  total_payout_cents: 0,
+  total_payout_eur: 0,
+  currency: 'EUR',
+  reportId: 0,
+  reportUrl: null,
+  endpointUsed: '/reports/bookings-new',
+});
+patchLocalModule('../../lib/kaufland-api.js', {
+  listUnits: spies.kauflandListUnits,
+  getBookings: spies.kauflandGetBookings,
+  // remaining exports kept as identity stubs so accidental requires don't break
+  findUnit: vi.fn(),
+  getUnit: vi.fn(),
+  getProductByEan: vi.fn(),
+  getProductData: vi.fn(),
+  getProductDataStatus: vi.fn(),
+  putProductData: vi.fn(),
+  patchProductData: vi.fn(),
+  createUnit: vi.fn(),
+  updateUnit: vi.fn(),
+  setUnitStatus: vi.fn(),
+  pickUnitData: vi.fn(),
+  listShippingGroups: vi.fn().mockResolvedValue([]),
+  listWarehouses: vi.fn().mockResolvedValue([]),
+  kauflandRequest: vi.fn(),
+});
+
+// lib/product-store.js — extend with getAllProductsV2(ForTenant) for kaufland-sync drift test
+spies.getAllProductsV2 = vi.fn().mockResolvedValue([]);
+spies.getAllProductsV2ForTenant = vi.fn().mockResolvedValue([]);
+spies.getProductV2 = vi.fn().mockResolvedValue(null);
+patchLocalModule('../../lib/product-store.js', {
+  saveProductV2: spies.saveProductV2,
+  getAllProductsV2: spies.getAllProductsV2,
+  getAllProductsV2ForTenant: spies.getAllProductsV2ForTenant,
+  getProductV2: spies.getProductV2,
+});
+
 module.exports = { spies };

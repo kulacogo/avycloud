@@ -11,8 +11,11 @@
  *     : await getAllProductsV2();
  *
  * The actual V2 call-sites live in:
- *   - backend/routes/marketplace.js (3 occurrences: kaufland-sync ops backfill,
- *     kaufland-sync drift detection, GET /kaufland/listings)
+ *   - backend/routes/marketplace.js (GET /kaufland/listings — 1 occurrence)
+ *   - backend/services/kaufland-listings-sync.js (kaufland-sync ops backfill +
+ *     drift detection — 2 occurrences. Extracted from routes/marketplace.js
+ *     in Plan-D.0d so the safety-net cron in backend/index.js can share the
+ *     same code path.)
  *   - backend/services/import-export.js (exportProductsCsv)
  *
  * routes/admin.js currently has NO `getAllProductsV2(` invocations; the file
@@ -61,17 +64,26 @@ function hasTernaryFallbackNear(src, lineNumber, windowLines = 4) {
 }
 
 describe('D.0c — getAllProductsV2 callers wear the ternary fallback', () => {
-  it('routes/marketplace.js: every V2 call-site uses the tenant ternary', () => {
-    const { src } = loadSource('routes/marketplace.js');
-    const callerLines = findV2CallSiteLines(src);
+  it('routes/marketplace.js + services/kaufland-listings-sync.js: every V2 call-site uses the tenant ternary', () => {
+    // Plan-D.0d: the two heavy Kaufland sync call-sites moved from the route
+    // file into `services/kaufland-listings-sync.js`. routes/marketplace.js
+    // still hosts the legacy `GET /kaufland/listings` call-site. We assert
+    // a combined floor of 3 ternary-fallbacks (route + service) and verify
+    // each is correctly wrapped.
+    const route = loadSource('routes/marketplace.js');
+    const service = loadSource('services/kaufland-listings-sync.js');
 
-    // Sanity: routes/marketplace.js is expected to host the 3 V2 call-sites
-    // documented in CLAUDE.md / decisions.md (Kaufland ops backfill, drift,
-    // /kaufland/listings). If the count drifts, the test surfaces it.
-    expect(callerLines.length).toBeGreaterThanOrEqual(3);
+    const routeCallers = findV2CallSiteLines(route.src);
+    const serviceCallers = findV2CallSiteLines(service.src);
+    const total = routeCallers.length + serviceCallers.length;
 
-    for (const ln of callerLines) {
-      expect(hasTernaryFallbackNear(src, ln)).toBe(true);
+    expect(total).toBeGreaterThanOrEqual(3);
+
+    for (const ln of routeCallers) {
+      expect(hasTernaryFallbackNear(route.src, ln)).toBe(true);
+    }
+    for (const ln of serviceCallers) {
+      expect(hasTernaryFallbackNear(service.src, ln)).toBe(true);
     }
   });
 

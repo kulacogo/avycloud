@@ -794,220 +794,76 @@ router.get('/ebay/sku-index', requirePermission('products', 'read'), async (req,
 // =====================================================================
 
 // Pull latest Kaufland units and cache them in Firestore for fast Inventory UI indicators.
+// Sync-Logik lebt in services/kaufland-listings-sync.js (Plan-D.0d Extract). Derselbe
+// Service wird vom Safety-Net-Cron in backend/index.js verwendet. Response-Shape ist
+// identisch zur pre-extraction Implementierung (storefront, fetched, active,
+// driftsDetected, reconciled, reverseDriftsDetected, reverseDriftSamples).
 router.post('/kaufland/listings/sync', requirePermission('products', 'write'), async (req, res) => {
   try {
     const storefront = String(req.body?.storefront || req.query?.storefront || 'de').trim().toLowerCase();
-    const { listUnits } = require('../lib/kaufland-api');
-    const { Timestamp } = require('@google-cloud/firestore');
-
-    const units = await listUnits({ storefront, limit: 100, maxPages: 300 });
-    const now = Timestamp.now();
-    const collection = firestore.collection('kauflandUnitsLive');
-    const seenIds = new Set();
-
-    let batch = firestore.batch();
-    let batchCount = 0;
-    const commitBatch = async () => {
-      if (!batchCount) return;
-      await batch.commit();
-      batch = firestore.batch();
-      batchCount = 0;
-    };
-
-    for (const unit of units) {
-      const idUnit = Number(unit?.id_unit || 0);
-      if (!Number.isFinite(idUnit) || idUnit <= 0) continue;
-      const docId = String(idUnit);
-      seenIds.add(docId);
-
-      const product = unit?.product && typeof unit.product === 'object' ? unit.product : {};
-      const productEans = Array.isArray(product?.eans) ? product.eans : [];
-      const normalizedEans = Array.from(
-        new Set(
-          productEans
-            .map((v) => normalizeMarketplaceEan(v))
-            .filter(Boolean)
-        )
-      );
-
-      const idProduct = Number(unit?.id_product || product?.id_product || 0);
-      const normalizedIdProduct = Number.isFinite(idProduct) && idProduct > 0 ? idProduct : null;
-      const productUrl = String(product?.url || '').trim();
-      const viewItemUrl = productUrl || (normalizedIdProduct ? `https://www.kaufland.de/product/${normalizedIdProduct}/` : null);
-
-      // Extract title and price from Kaufland API response
-      const klTitle = typeof product?.title === 'string' && product.title.trim() ? product.title.trim() : null;
-      const rawPrice = unit?.listing_price ?? unit?.price ?? null;
-      const klListingPrice = Number.isFinite(Number(rawPrice)) ? Number(rawPrice) : null;
-
-      const payload = {
-        id_unit: idUnit,
-        id_offer: String(unit?.id_offer || '').trim() || null,
-        id_offer_normalized: normalizeMarketplaceSku(unit?.id_offer),
-        ean: normalizeMarketplaceEan(unit?.ean),
-        eans: normalizedEans,
-        id_product: normalizedIdProduct,
-        view_item_url: viewItemUrl,
-        amount: Number.isFinite(Number(unit?.amount)) ? Number(unit.amount) : null,
-        status: String(unit?.status || '').trim() || null,
-        storefront: String(unit?.storefront || storefront || 'de').trim().toLowerCase(),
-        active: String(unit?.status || '').trim().toUpperCase() === 'AVAILABLE',
-        title: klTitle,
-        listing_price: klListingPrice,
-        updatedAt: now,
-        source: 'kaufland-sync',
-      };
-
-      batch.set(collection.doc(docId), payload, { merge: true });
-      batchCount += 1;
-      if (batchCount >= 400) await commitBatch();
-    }
-    await commitBatch();
-
-    // Mark stale cached rows inactive (units no longer returned by API).
-    const existingSnap = await collection.where('storefront', '==', storefront).where('active', '==', true).get();
-    if (!existingSnap.empty) {
-      batch = firestore.batch();
-      batchCount = 0;
-      existingSnap.docs.forEach((doc) => {
-        if (seenIds.has(doc.id)) return;
-        batch.set(
-          collection.doc(doc.id),
-          { active: false, updatedAt: now, source: 'kaufland-sync' },
-          { merge: true }
-        );
-        batchCount += 1;
-      });
-      await commitBatch();
-    }
-
-    // ── Backfill ops.kaufland.unitId into products_v2 ────────────────────────
-    // For every active unit, find the matching product_v2 doc (by SKU/EAN) and
-    // write ops.kaufland.unitId so the stock-sync-dispatcher can push to
-    // Kaufland without a separate lookup. Fire-and-forget, non-critical.
-    try {
-      const { getAllProductsV2, getAllProductsV2ForTenant } = require('../lib/product-store');
-      // D.0c-style tenant fallback: prefer Firestore-side filter when the
-      // request carries an authenticated tenantId, else fall back to legacy
-      // global read (preserves current behaviour for un-decorated requests).
-      const tenantIdForRead = req.user?.tenantId;
-      const allProds = tenantIdForRead
-        ? await getAllProductsV2ForTenant(tenantIdForRead)
-        : await getAllProductsV2();
-      const skuToProduct = new Map();
-      const eanToProduct = new Map();
-      for (const p of allProds) {
-        const sku = (p?.identification?.sku || p?.details?.identifiers?.sku || '').trim();
-        if (sku) skuToProduct.set(sku.toLowerCase(), p);
-        const ean = (p?.identification?.ean || p?.details?.identifiers?.ean || '').trim();
-        if (ean) eanToProduct.set(ean, p);
-      }
-
-      let opsBatch = firestore.batch();
-      let opsBatchCount = 0;
-      for (const unit of units) {
-        const idUnit = Number(unit?.id_unit || 0);
-        if (!Number.isFinite(idUnit) || idUnit <= 0) continue;
-        const unitSku = String(unit?.id_offer || '').trim();
-        const unitEan = String(unit?.ean || '').trim();
-        const prod = (unitSku && skuToProduct.get(unitSku.toLowerCase()))
-          || (unitEan && eanToProduct.get(unitEan)) || null;
-        if (!prod) continue;
-        const existing = prod?.ops?.kaufland?.unitId;
-        if (String(existing || '') === String(idUnit)) continue; // already correct
-        opsBatch.update(firestore.collection('products_v2').doc(prod.id), {
-          'ops.kaufland.unitId': String(idUnit),
-        });
-        opsBatchCount++;
-        if (opsBatchCount >= 400) {
-          await opsBatch.commit();
-          opsBatch = firestore.batch();
-          opsBatchCount = 0;
-        }
-      }
-      if (opsBatchCount > 0) await opsBatch.commit();
-      if (opsBatchCount > 0) console.log(`[kaufland-sync] Backfilled ops.kaufland.unitId for ${opsBatchCount} products`);
-    } catch (opsErr) {
-      console.error('[kaufland-sync] ops backfill error (non-fatal):', opsErr.message);
-    }
-
-    // ── Drift detection (marketplace > warehouse) ────────────────────────────
-    // IMPORTANT: never pull `inventory.quantity` from marketplace into warehouse.
-    // If Kaufland reports stock > 0 while warehouse is 0, we queue an outbound
-    // stock sync to push local truth (and stop oversell).
-    const { getAllProductsV2, getAllProductsV2ForTenant } = require('../lib/product-store');
-    const { syncStockWithRetry } = require('../services/stock-sync-dispatcher');
-    let reconciledCount = 0;
-    let driftDetectedCount = 0;
-    try {
-      // D.0c-style tenant fallback: prefer Firestore-side filter when a
-      // tenantId is on req.user, else read globally (legacy behaviour).
-      const tenantIdForDrift = req.user?.tenantId;
-      const products = tenantIdForDrift
-        ? await getAllProductsV2ForTenant(tenantIdForDrift)
-        : await getAllProductsV2();
-      const skuMap = new Map();
-      const eanMap = new Map();
-      const driftProducts = new Map();
-      for (const p of products) {
-        const sku = (p?.identification?.sku || '').trim().toLowerCase();
-        if (sku) skuMap.set(sku, p);
-        const ean = (p?.identification?.ean || '').trim();
-        if (ean) eanMap.set(ean, p);
-      }
-
-      for (const unit of units) {
-        const klAmount = Number(unit?.amount || 0);
-        if (klAmount <= 0) continue;
-
-        const idOffer = String(unit?.id_offer || '').trim().toLowerCase();
-        const ean = String(unit?.ean || '').trim();
-        const matched = (idOffer && skuMap.get(idOffer)) || (ean && eanMap.get(ean)) || null;
-        if (!matched) continue;
-
-        const whQty = typeof matched.inventory?.quantity === 'number' ? matched.inventory.quantity : null;
-        if (whQty !== 0) continue;
-
-        // marketplace>warehouse drift detected: push local stock truth outwards
-        // instead of mutating local inventory from remote marketplace state.
-        driftDetectedCount++;
-        if (matched?.id) {
-          driftProducts.set(String(matched.id), matched);
-        }
-        console.warn(`[kaufland-sync] Stock drift detected sku=${matched?.identification?.sku || idOffer || 'unknown'} warehouse=0 kaufland=${klAmount} -> queue outbound sync`);
-      }
-
-      for (const product of driftProducts.values()) {
-        try {
-          await syncStockWithRetry({
-            tenantId: product?.tenantId || req.user?.tenantId || 'default',
-            product,
-            reason: 'kaufland-drift-detected',
-          });
-          reconciledCount++;
-        } catch (syncErr) {
-          console.warn(`[kaufland-sync] drift sync failed product=${product?.id || 'unknown'}: ${syncErr.message}`);
-        }
-      }
-    } catch (reconErr) {
-      console.error('[kaufland-sync] Reconciliation error (non-fatal):', reconErr.message);
-    }
-
-    return res.status(200).json({
-      ok: true,
-      data: {
-        storefront,
-        fetched: units.length,
-        active: seenIds.size,
-        driftsDetected: driftDetectedCount,
-        reconciled: reconciledCount,
-      },
-    });
+    const { syncKauflandListingsCache } = require('../services/kaufland-listings-sync');
+    const tenantId = req.user?.tenantId;
+    const result = await syncKauflandListingsCache({ tenantId, storefront });
+    return res.status(200).json({ ok: true, data: result });
   } catch (error) {
     console.error('Failed to sync Kaufland listings:', error);
     return res.status(500).json({
       ok: false,
       error: { code: 500, message: error?.message || 'Failed to sync Kaufland listings' },
+    });
+  }
+});
+
+// Bookings/payout data from Kaufland Reports API (true payouts, not the
+// 0.8334 estimate the dashboard currently shows).
+// GET /api/marketplace/kaufland/bookings?from=YYYY-MM-DD&to=YYYY-MM-DD&storefront=de
+router.get('/kaufland/bookings', requirePermission('products', 'read'), async (req, res) => {
+  try {
+    const from = String(req.query?.from || '').trim();
+    const to = String(req.query?.to || '').trim();
+    const storefront = String(req.query?.storefront || 'de').trim().toLowerCase();
+    const limit = Math.max(0, parseInt(req.query?.limit, 10) || 0);
+    const offset = Math.max(0, parseInt(req.query?.offset, 10) || 0);
+
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(from) || !/^\d{4}-\d{2}-\d{2}$/.test(to)) {
+      return res.status(400).json({
+        ok: false,
+        error: {
+          code: 'INVALID_DATE_RANGE',
+          message: 'from and to query params must be YYYY-MM-DD',
+        },
+      });
+    }
+
+    const { getBookings } = require('../lib/kaufland-api');
+    const result = await getBookings({ from, to, storefront, limit, offset });
+
+    return res.status(200).json({
+      ok: true,
+      data: {
+        from: result.from,
+        to: result.to,
+        storefront: result.storefront,
+        total_payout_cents: result.total_payout_cents,
+        total_payout_eur: result.total_payout_eur,
+        currency: result.currency,
+        count: result.count,
+        bookings: result.bookings,
+        reportId: result.reportId,
+        reportUrl: result.reportUrl,
+        endpointUsed: result.endpointUsed,
+      },
+    });
+  } catch (error) {
+    console.error(`[GET /api/marketplace/kaufland/bookings] ${error.message}`, error);
+    const status =
+      error.code === 'KAUFLAND_BOOKINGS_DATE_INVALID' ? 400 :
+      error.code === 'KAUFLAND_BOOKINGS_TIMEOUT' ? 504 :
+      error.code === 'KAUFLAND_BOOKINGS_ENDPOINT_UNKNOWN' ? 502 :
+      500;
+    return res.status(status).json({
+      ok: false,
+      error: { code: error.code || 'INTERNAL', message: error.message },
     });
   }
 });

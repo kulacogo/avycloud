@@ -698,6 +698,215 @@ async function listWarehouses() {
   }));
 }
 
+/**
+ * Fetch bookings (payout transactions) from Kaufland Reports API.
+ *
+ * Reports API is async-CSV-based:
+ *   1. POST /reports/bookings-new?storefront=de&version=v2  body {date_from,date_to}
+ *      → returns {data:{id_report}} with HTTP 202
+ *   2. Poll GET /reports/{id_report} until status === 'done'
+ *   3. Download CSV from response.data.url
+ *   4. Parse CSV and aggregate into structured bookings
+ *
+ * Operator note: the actual endpoint used is
+ *   POST {baseUrl}/reports/bookings-new (verified via swagger.json)
+ *
+ * @param {Object} opts
+ * @param {string} opts.from - ISO date YYYY-MM-DD (inclusive)
+ * @param {string} opts.to - ISO date YYYY-MM-DD (inclusive)
+ * @param {string} [opts.storefront='de'] - one of de|cz|sk|pl|at|fr|it
+ * @param {number} [opts.limit=0] - 0 = no limit, otherwise cap returned bookings
+ * @param {number} [opts.offset=0] - skip first N bookings (post-aggregation)
+ * @param {number} [opts.pollIntervalMs=5000]
+ * @param {number} [opts.pollTimeoutMs=180000]
+ * @returns {Promise<{from,to,storefront,bookings,count,total_payout_cents,total_payout_eur,currency,reportUrl,reportId,endpointUsed}>}
+ */
+async function getBookings({
+  from,
+  to,
+  storefront = 'de',
+  limit = 0,
+  offset = 0,
+  pollIntervalMs = 5_000,
+  pollTimeoutMs = 180_000,
+} = {}) {
+  const dateFrom = safeString(from);
+  const dateTo = safeString(to);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateFrom) || !/^\d{4}-\d{2}-\d{2}$/.test(dateTo)) {
+    const err = new Error('getBookings requires from and to as YYYY-MM-DD');
+    err.code = 'KAUFLAND_BOOKINGS_DATE_INVALID';
+    throw err;
+  }
+
+  // Step 1: queue the report. Verified endpoint per swagger.json:
+  //   POST /reports/bookings-new
+  // Fallback path /reports/bookings is retained for resilience in case
+  // Kaufland renames or deprecates the endpoint — we surface which path
+  // actually succeeded via `endpointUsed` in the response for operator clarity.
+  const candidatePaths = ['/reports/bookings-new', '/reports/bookings'];
+  let queued = null;
+  let endpointUsed = null;
+  let lastErr = null;
+  for (const candidate of candidatePaths) {
+    try {
+      const res = await kauflandRequest('POST', candidate, {
+        query: { storefront, version: 'v2' },
+        body: { date_from: dateFrom, date_to: dateTo },
+      });
+      queued = res?.data?.data || res?.data || null;
+      endpointUsed = candidate;
+      break;
+    } catch (err) {
+      lastErr = err;
+      // 404 means this candidate path doesn't exist on the current API version
+      // — try the next one. Anything else is a real failure, re-raise.
+      if (err?.status !== 404) {
+        throw err;
+      }
+    }
+  }
+  if (!queued) {
+    const err = new Error(
+      `Kaufland bookings report could not be queued at any known path: ${candidatePaths.join(', ')}`
+    );
+    err.code = 'KAUFLAND_BOOKINGS_ENDPOINT_UNKNOWN';
+    err.cause = lastErr;
+    throw err;
+  }
+
+  const reportId = Number(queued?.id_report || 0);
+  if (!Number.isFinite(reportId) || reportId <= 0) {
+    const err = new Error('Kaufland bookings report queued but id_report missing');
+    err.code = 'KAUFLAND_BOOKINGS_QUEUE_INVALID';
+    throw err;
+  }
+  console.log(`[kaufland-bookings] Queued report id=${reportId} via ${endpointUsed} from=${dateFrom} to=${dateTo} storefront=${storefront}`);
+
+  // Step 2: poll until done
+  const startedAt = Date.now();
+  let reportMeta = null;
+  while (Date.now() - startedAt < Math.max(5_000, pollTimeoutMs)) {
+    await sleep(Math.max(500, pollIntervalMs));
+    const pollRes = await kauflandRequest('GET', `/reports/${encodeURIComponent(String(reportId))}`);
+    reportMeta = pollRes?.data?.data || null;
+    const status = String(reportMeta?.status || '').toLowerCase();
+    if (status === 'done') break;
+    if (status === 'failed' || status === 'error') {
+      const err = new Error(`Kaufland bookings report ${reportId} failed (status=${status})`);
+      err.code = 'KAUFLAND_BOOKINGS_REPORT_FAILED';
+      throw err;
+    }
+  }
+  if (!reportMeta || String(reportMeta?.status || '').toLowerCase() !== 'done') {
+    const err = new Error(`Kaufland bookings report ${reportId} did not finish within ${pollTimeoutMs}ms`);
+    err.code = 'KAUFLAND_BOOKINGS_TIMEOUT';
+    throw err;
+  }
+
+  // Step 3: download CSV
+  const reportUrl = safeString(reportMeta?.url);
+  if (!reportUrl) {
+    const err = new Error(`Kaufland bookings report ${reportId} done but url missing`);
+    err.code = 'KAUFLAND_BOOKINGS_URL_MISSING';
+    throw err;
+  }
+  const csvResp = await fetch(reportUrl, { method: 'GET' });
+  if (!csvResp.ok) {
+    const err = new Error(`Kaufland bookings CSV download failed (${csvResp.status}) for report ${reportId}`);
+    err.code = `KAUFLAND_BOOKINGS_DOWNLOAD_${csvResp.status}`;
+    throw err;
+  }
+  const csvText = await csvResp.text();
+
+  // Step 4: parse CSV. Kaufland CSV reports are semicolon-delimited UTF-8.
+  // Schema is not fully documented and varies by version, so we extract
+  // defensively: row → object, then pick common amount/currency columns.
+  // Kaufland CSV reports are semicolon-delimited (EU convention; comma is the
+  // decimal separator inside numeric columns). We sniff the header row and
+  // pick ';' or ',' accordingly — never both, because mixing breaks values
+  // like "12,50".
+  let records = [];
+  try {
+    const headerLine = csvText.split(/\r?\n/, 1)[0] || '';
+    const delimiter = headerLine.includes(';') ? ';' : ',';
+    const { parse } = require('csv-parse/sync');
+    records = parse(csvText, {
+      columns: true,
+      delimiter,
+      skip_empty_lines: true,
+      trim: true,
+      bom: true,
+      relax_quotes: true,
+      relax_column_count: true,
+    });
+  } catch (parseErr) {
+    const err = new Error(`Kaufland bookings CSV parse failed for report ${reportId}: ${parseErr?.message || parseErr}`);
+    err.code = 'KAUFLAND_BOOKINGS_PARSE_FAILED';
+    throw err;
+  }
+
+  const amountKeyCandidates = ['amount', 'amount_total', 'total_amount', 'value', 'booking_amount', 'sum', 'gross_amount', 'net_amount'];
+  const currencyKeyCandidates = ['currency', 'currency_code', 'iso_currency'];
+  const typeKeyCandidates = ['type', 'booking_type', 'transaction_type'];
+  const dateKeyCandidates = ['date', 'ts_created', 'date_created', 'booking_date', 'transaction_date'];
+  const orderKeyCandidates = ['id_order', 'order_id', 'order_number'];
+
+  function pickFirst(row, keys) {
+    for (const k of keys) {
+      if (row[k] != null && String(row[k]).trim() !== '') return row[k];
+      const lowerK = k.toLowerCase();
+      for (const rk of Object.keys(row)) {
+        if (rk.toLowerCase() === lowerK && row[rk] != null && String(row[rk]).trim() !== '') {
+          return row[rk];
+        }
+      }
+    }
+    return null;
+  }
+
+  let totalPayoutCents = 0;
+  let detectedCurrency = null;
+  const bookings = records.map((row) => {
+    const amountRaw = pickFirst(row, amountKeyCandidates);
+    const cents = toPriceCents(
+      typeof amountRaw === 'string'
+        ? amountRaw.replace(/\s/g, '').replace(',', '.')
+        : amountRaw
+    );
+    if (cents != null) totalPayoutCents += cents;
+    const currency = safeString(pickFirst(row, currencyKeyCandidates)).toUpperCase() || null;
+    if (currency && !detectedCurrency) detectedCurrency = currency;
+    return {
+      amount_cents: cents,
+      currency,
+      type: safeString(pickFirst(row, typeKeyCandidates)) || null,
+      date: safeString(pickFirst(row, dateKeyCandidates)) || null,
+      order_id: safeString(pickFirst(row, orderKeyCandidates)) || null,
+      raw: row,
+    };
+  });
+
+  const cappedOffset = Math.max(0, Number(offset) || 0);
+  const cappedLimit = Math.max(0, Number(limit) || 0);
+  const paged = cappedLimit > 0
+    ? bookings.slice(cappedOffset, cappedOffset + cappedLimit)
+    : bookings.slice(cappedOffset);
+
+  return {
+    from: dateFrom,
+    to: dateTo,
+    storefront,
+    bookings: paged,
+    count: bookings.length,
+    total_payout_cents: totalPayoutCents,
+    total_payout_eur: Math.round(totalPayoutCents) / 100,
+    currency: detectedCurrency || 'EUR',
+    reportId,
+    reportUrl,
+    endpointUsed,
+  };
+}
+
 module.exports = {
   kauflandRequest,
   findUnit,
@@ -714,4 +923,5 @@ module.exports = {
   pickUnitData,
   listShippingGroups,
   listWarehouses,
+  getBookings,
 };

@@ -126,9 +126,17 @@ describe('Oversell-Invariante — Pipeline-Guard', () => {
     });
 
     it('marketplace.js enthält keinen inventory.quantity-Direct-Write im Kaufland-Reconcile', () => {
-      const src = fs.readFileSync(path.join(__dirname, '..', 'routes', 'marketplace.js'), 'utf8');
-      expect(src).not.toMatch(/reconBatch\.update\([\s\S]*inventory\.quantity/);
-      expect(src).toMatch(/kaufland-drift-detected/);
+      // Plan-D.0d: die Kaufland-Listings-Sync-Logik wohnt jetzt im Service
+      // `services/kaufland-listings-sync.js`. Marketplace-Route delegiert nur.
+      // Wir prüfen daher BEIDE Dateien: weder marketplace.js noch der Service
+      // dürfen einen inventory.quantity-Direct-Write enthalten, und das
+      // drift-Signal MUSS in einer von beiden weiter existieren.
+      const routeSrc = fs.readFileSync(path.join(__dirname, '..', 'routes', 'marketplace.js'), 'utf8');
+      const serviceSrc = fs.readFileSync(path.join(__dirname, '..', 'services', 'kaufland-listings-sync.js'), 'utf8');
+      expect(routeSrc).not.toMatch(/reconBatch\.update\([\s\S]*inventory\.quantity/);
+      expect(serviceSrc).not.toMatch(/reconBatch\.update\([\s\S]*inventory\.quantity/);
+      const combined = `${routeSrc}\n${serviceSrc}`;
+      expect(combined).toMatch(/kaufland-drift-detected/);
     });
   });
 

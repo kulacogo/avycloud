@@ -51,12 +51,16 @@ describe('audit-getAllProducts-callers.js (pre-D.0c gate)', () => {
     expect(out.production_caller_count_v2).toBe(out.production_callers_v2.length);
     expect(out.script_caller_count_v2).toBe(out.script_callers_v2.length);
 
-    // We expect at least the three known marketplace.js call-sites to surface.
-    const marketplaceHits = out.production_callers_v2.filter((c) =>
+    // Plan-D.0d: the two heavy Kaufland sync call-sites moved out of
+    // routes/marketplace.js into services/kaufland-listings-sync.js. The
+    // combined `production_callers_v2` bucket must still surface ≥3 hits
+    // across the Kaufland code path.
+    const kauflandHits = out.production_callers_v2.filter((c) =>
       c.file.endsWith('routes/marketplace.js')
+      || c.file.endsWith('services/kaufland-listings-sync.js')
     );
-    expect(marketplaceHits.length).toBeGreaterThanOrEqual(3);
-    for (const hit of marketplaceHits) {
+    expect(kauflandHits.length).toBeGreaterThanOrEqual(3);
+    for (const hit of kauflandHits) {
       expect(hit.code).toMatch(/getAllProductsV2\s*\(/);
     }
 
@@ -66,8 +70,14 @@ describe('audit-getAllProducts-callers.js (pre-D.0c gate)', () => {
 
   it('CC4-C-4: findV2Callers detects calls but ignores destructuring imports', () => {
     const { findV2Callers } = require('../../scripts/audit-getAllProducts-callers');
+    // Plan-D.0d: aggregate across the route + the extracted service to keep
+    // the historical "3 known call-sites" invariant.
     const marketplace = path.resolve(__dirname, '..', '..', 'routes', 'marketplace.js');
-    const hits = findV2Callers(marketplace);
+    const kauflandSyncService = path.resolve(__dirname, '..', '..', 'services', 'kaufland-listings-sync.js');
+    const hits = [
+      ...findV2Callers(marketplace),
+      ...findV2Callers(kauflandSyncService),
+    ];
     // 3 known call-sites
     expect(hits.length).toBeGreaterThanOrEqual(3);
     for (const hit of hits) {

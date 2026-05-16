@@ -29,7 +29,14 @@ interface MarketplaceListingsViewProps {
   marketplace: "ebay" | "kaufland";
 }
 
-type ListingStatus = "active" | "inactive" | "unknown";
+type ListingStatus =
+  | "active"
+  | "paused"
+  | "deactivated"
+  | "blocked"
+  | "in_review"
+  | "inactive"
+  | "unknown";
 type TabFilter = "all" | "active" | "inactive";
 
 interface NormalizedListing {
@@ -56,9 +63,23 @@ interface NormalizedListing {
 
 const STATUS_CONFIG: Record<ListingStatus, { label: string; bg: string; text: string }> = {
   active: { label: "Aktiv", bg: "bg-success-dim", text: "text-success" },
+  paused: { label: "Pausiert", bg: "bg-warning-dim", text: "text-warning" },
+  deactivated: { label: "Deaktiviert", bg: "bg-app-elevated", text: "text-txt-muted" },
+  blocked: { label: "Blockiert", bg: "bg-danger-dim", text: "text-danger" },
+  in_review: { label: "In Prüfung", bg: "bg-warning-dim", text: "text-warning" },
   inactive: { label: "Inaktiv", bg: "bg-app-elevated", text: "text-txt-muted" },
   unknown: { label: "Unbekannt", bg: "bg-app-elevated", text: "text-txt-muted" },
 };
+
+// Granulare Kaufland-Status (alles außer "active") für KPI-Untertitel
+const NON_ACTIVE_STATUSES: ListingStatus[] = [
+  "paused",
+  "deactivated",
+  "blocked",
+  "in_review",
+  "inactive",
+  "unknown",
+];
 
 const TAB_LABELS: Record<TabFilter, string> = {
   all: "Alle",
@@ -158,13 +179,18 @@ function normalizeEbayRow(row: EbayListingRow): NormalizedListing {
 
 function normalizeKauflandRow(row: KauflandListingRow): NormalizedListing {
   let status: ListingStatus = "unknown";
-  if (row.active === true) {
-    status = "active";
-  } else if (row.status != null) {
-    // Map Kaufland unit statuses to our schema
+  if (row.status != null && String(row.status).trim() !== "") {
+    // Map raw Kaufland unit statuses to our granular schema so Operator
+    // sieht WARUM ein Listing nicht aktiv ist (nicht nur "Inaktiv").
     const s = String(row.status).toUpperCase();
     if (s === "AVAILABLE") status = "active";
-    else status = "inactive"; // ONHOLD, DEACTIVATED, blocked, etc.
+    else if (s === "ONHOLD") status = "paused";
+    else if (s === "DEACTIVATED") status = "deactivated";
+    else if (s === "BLOCKED") status = "blocked";
+    else if (s === "IN_REVIEW") status = "in_review";
+    else status = "inactive"; // Catch-all für unbekannte Kaufland-Status
+  } else if (row.active === true) {
+    status = "active";
   }
 
   return {
@@ -603,18 +629,28 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
 
   const tabCounts = useMemo(() => {
     const counts: Record<TabFilter, number> = { all: 0, active: 0, inactive: 0 };
+    const byStatus: Record<ListingStatus, number> = {
+      active: 0,
+      paused: 0,
+      deactivated: 0,
+      blocked: 0,
+      in_review: 0,
+      inactive: 0,
+      unknown: 0,
+    };
     listings.forEach((l) => {
       counts.all++;
+      byStatus[l.status]++;
       if (l.status === "active") counts.active++;
-      else if (l.status === "inactive" || l.status === "unknown") counts.inactive++;
+      else counts.inactive++;
     });
-    return counts;
+    return { ...counts, byStatus };
   }, [listings]);
 
   const filteredListings = useMemo(() => {
     let result = listings;
     if (activeTab === "active") result = result.filter((l) => l.status === "active");
-    else if (activeTab === "inactive") result = result.filter((l) => l.status === "inactive" || l.status === "unknown");
+    else if (activeTab === "inactive") result = result.filter((l) => l.status !== "active");
 
     if (stockFilter === "inStock") result = result.filter((l) => l.quantity != null && l.quantity > 3);
     else if (stockFilter === "low") result = result.filter((l) => l.quantity != null && l.quantity > 0 && l.quantity <= 3);
@@ -797,6 +833,17 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
         <div className="bg-app-surface border border-app-border rounded-xl p-4">
           <div className="text-sm text-txt-muted mb-1">Inaktiv</div>
           <div className="text-2xl font-bold text-txt-primary">{tabCounts.inactive}</div>
+          {(() => {
+            const parts = NON_ACTIVE_STATUSES
+              .filter((s) => tabCounts.byStatus[s] > 0)
+              .map((s) => `${tabCounts.byStatus[s]} ${STATUS_CONFIG[s].label}`);
+            if (parts.length === 0) return null;
+            return (
+              <div className="text-xs text-txt-muted mt-0.5 truncate" title={parts.join(" · ")}>
+                {parts.join(" · ")}
+              </div>
+            );
+          })()}
         </div>
         <div className="bg-app-surface border border-app-border rounded-xl p-4">
           <div className="text-sm text-txt-muted mb-1">Bestandsabweichungen</div>
@@ -1205,10 +1252,10 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
                               !
                             </span>
                           )}
-                          {listing.status === "inactive" && listing.warehouseStock != null && listing.warehouseStock > 0 && (
+                          {listing.status !== "active" && listing.warehouseStock != null && listing.warehouseStock > 0 && (
                             <span
                               className="inline-flex px-1 py-0.5 rounded text-[10px] font-semibold bg-warning-dim text-warning"
-                              title="Lagerbestand vorhanden, aber Listing inaktiv"
+                              title={`Lagerbestand vorhanden, aber Listing ${STATUS_CONFIG[listing.status].label.toLowerCase()}`}
                             >
                               ⚠
                             </span>
