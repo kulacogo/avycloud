@@ -12,7 +12,15 @@
 
 const { getProductV2 } = require('../lib/product-store');
 const { callGeminiStructured } = require('../lib/gemini-structured');
+const { buildGenerationConfig } = require('../lib/gemini-config');
 const { coerceTitleToPolicy } = require('../lib/title-policy');
+
+// Listing post-process config — moderate creativity for marketplace-optimized
+// titles + descriptions. Centralized via buildGenerationConfig (Phase F.1b).
+const LISTING_GENERATION_CONFIG = buildGenerationConfig({
+  temperature: 0.3,
+  maxOutputTokens: 2048,
+});
 const { sanitizeDescriptionToHtml } = require('../lib/listing-sanitize');
 const { applyEbayTaxonomy, applyKauflandTaxonomy } = require('./enrichment');
 
@@ -108,8 +116,7 @@ Gib das Ergebnis als JSON zurück.`;
     const raw = await callGeminiStructured({
       parts: [{ text: prompt }],
       responseSchema: LISTING_RESPONSE_SCHEMA,
-      temperature: 0.3,
-      maxOutputTokens: 2048,
+      ...LISTING_GENERATION_CONFIG,
     });
 
     const parsed = JSON.parse(raw);

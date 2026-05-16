@@ -19,10 +19,16 @@ const {
   isAspectsCapExceededError,
 } = require('../lib/ebay-trading-api');
 
+const { buildGenerationConfig } = require('../lib/gemini-config');
+
 const EBAY_ASPECTS_CAP = 45;
 
 const ASPECT_GEMINI_TIMEOUT_MS = 8000;
 const ASPECT_GEMINI_MAX_TOKENS = 600;
+const ASPECT_GEMINI_CONFIG = buildGenerationConfig({
+  temperature: 0.3,
+  maxOutputTokens: ASPECT_GEMINI_MAX_TOKENS,
+});
 
 function safeString(v) {
   return v == null ? '' : String(v);
@@ -226,7 +232,7 @@ async function fillAspectsViaGemini(product, missingNames, generateText) {
   let raw;
   try {
     raw = await Promise.race([
-      generateText(prompt, { temperature: 0.3, maxOutputTokens: ASPECT_GEMINI_MAX_TOKENS }),
+      generateText(prompt, ASPECT_GEMINI_CONFIG),
       new Promise((_, reject) =>
         setTimeout(
           () => reject(new Error('Gemini timeout')),

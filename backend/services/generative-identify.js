@@ -4,8 +4,18 @@
  * Plan: /Users/oguz/.claude/plans/sieht-ziemlich-komplex-unstrukturiert-woolly-tulip.md (Phase B.2)
  */
 const { callGeminiStructured } = require('../lib/gemini-structured');
+const { buildGenerationConfig } = require('../lib/gemini-config');
 const { buildCommonPolicyText } = require('../lib/llm-policy-pack');
 const sharp = require('sharp');
+
+// Legacy V2 identify config — strict JSON, low creativity, narrow output.
+// Centralized via buildGenerationConfig (Phase F.1b).
+const LEGACY_IDENTIFY_CONFIG = buildGenerationConfig({
+  temperature: 0.0,
+  topP: 0.8,
+  topK: 16,
+  maxOutputTokens: 1200,
+});
 
 // Default to 4 images (not just 3) to better match "Google Lens-like" robustness on packaging/back labels.
 const MAX_MODEL_IMAGES = parseInt(process.env.PIPELINE_V2_IMAGE_LIMIT || '4', 10);
@@ -198,10 +208,7 @@ async function generateStructuredProductRecord({ files, ocrLines, barcodes, loca
   const raw = await callGeminiStructured({
     parts,
     responseSchema: PRODUCT_RECORD_SCHEMA,
-    temperature: 0.0,
-    topP: 0.8,
-    topK: 16,
-    maxOutputTokens: 1200,
+    ...LEGACY_IDENTIFY_CONFIG,
     candidateCount: 1,
     // IMPORTANT:
     // - Do NOT use stopSequences like ``` here. The model often wraps JSON in fenced blocks,
