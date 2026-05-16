@@ -178,19 +178,26 @@ function normalizeEbayRow(row: EbayListingRow): NormalizedListing {
 }
 
 function normalizeKauflandRow(row: KauflandListingRow): NormalizedListing {
+  // active flag is the primary signal — set by the sync only when Kaufland's
+  // /units API actually returned this unit with AVAILABLE in the latest run.
+  // Status field is used only to disambiguate WHY a non-active listing is
+  // inactive (paused vs deactivated vs blocked vs in-review vs stale ghost).
+  const rawStatus = row.status != null ? String(row.status).trim().toUpperCase() : "";
   let status: ListingStatus = "unknown";
-  if (row.status != null && String(row.status).trim() !== "") {
-    // Map raw Kaufland unit statuses to our granular schema so Operator
-    // sieht WARUM ein Listing nicht aktiv ist (nicht nur "Inaktiv").
-    const s = String(row.status).toUpperCase();
-    if (s === "AVAILABLE") status = "active";
-    else if (s === "ONHOLD") status = "paused";
-    else if (s === "DEACTIVATED") status = "deactivated";
-    else if (s === "BLOCKED") status = "blocked";
-    else if (s === "IN_REVIEW") status = "in_review";
-    else status = "inactive"; // Catch-all für unbekannte Kaufland-Status
-  } else if (row.active === true) {
+
+  if (row.active === true) {
     status = "active";
+  } else if (row.active === false) {
+    if (rawStatus === "ONHOLD") status = "paused";
+    else if (rawStatus === "DEACTIVATED") status = "deactivated";
+    else if (rawStatus === "BLOCKED") status = "blocked";
+    else if (rawStatus === "IN_REVIEW") status = "in_review";
+    else status = "inactive"; // STALE, AVAILABLE-ghost, or unknown → catch-all
+  } else if (rawStatus) {
+    // Legacy data: active flag missing, fall back to status field.
+    if (rawStatus === "AVAILABLE") status = "active";
+    else if (rawStatus === "ONHOLD") status = "paused";
+    else status = "inactive";
   }
 
   return {

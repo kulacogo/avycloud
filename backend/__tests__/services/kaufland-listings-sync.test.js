@@ -225,6 +225,39 @@ describe('syncKauflandListingsCache', () => {
     }));
   });
 
+  it('tombstones stale docs with status=STALE when they disappear from API response', async () => {
+    // Pre-existing cache: two docs about to vanish, plus one already tombstoned.
+    _kauflandUnitsLiveExistingDocs = [
+      {
+        id: '5001',
+        data: () => ({ active: true, status: 'AVAILABLE', storefront: 'de' }),
+      },
+      {
+        id: '5002',
+        data: () => ({ active: false, status: 'ONHOLD', storefront: 'de' }),
+      },
+      {
+        id: '5003', // already tombstoned — must NOT be re-written
+        data: () => ({ active: false, status: 'STALE', storefront: 'de' }),
+      },
+    ];
+    listUnitsMock.mockResolvedValueOnce([]); // API returns nothing → all existing docs are ghosts
+    getAllProductsV2ForTenantMock.mockResolvedValue([]);
+
+    await syncKauflandListingsCache({ tenantId: 'trendocean', storefront: 'de' });
+
+    const staleWrites = writes.filter(
+      (w) => w.kind === 'set' && w.payload && w.payload.status === 'STALE'
+    );
+    expect(staleWrites).toHaveLength(2);
+    expect(staleWrites.map((w) => w.ref.__id).sort()).toEqual(['5001', '5002']);
+    for (const w of staleWrites) {
+      expect(w.payload.active).toBe(false);
+      expect(w.payload.removedAt).toBeDefined();
+      expect(w.payload.source).toBe('kaufland-sync-stale');
+    }
+  });
+
   it('reports reverse drift WITHOUT auto-reactivating (warehouse>0 vs kaufland=0/ONHOLD)', async () => {
     listUnitsMock.mockResolvedValueOnce([
       {

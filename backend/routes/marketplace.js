@@ -888,7 +888,12 @@ router.get('/kaufland/sku-index', requirePermission('products', 'read'), async (
         ean: d.ean || null,
         eans: Array.isArray(d.eans) ? d.eans : [],
         status: normalizedStatus || null,
-        active: normalizedStatus === 'AVAILABLE' || d.active === true,
+        // Trust the `active` flag set by the sync after Kaufland's /units
+        // API confirms the unit is live AVAILABLE. The old fallback
+        // (status === 'AVAILABLE' || active === true) coerced ghost docs
+        // (active=false with stale status='AVAILABLE') back to active=true,
+        // producing false-positive "gelistet" badges in the Inventory table.
+        active: d.active === true,
         idProduct: Number.isFinite(Number(d.id_product)) ? Number(d.id_product) : null,
         viewItemUrl: d.view_item_url || null,
       });
@@ -1020,7 +1025,9 @@ router.get('/kaufland/listings', requirePermission('products', 'read'), async (r
       const categoryName = matched?.identification?.category || matched?.details?.category || matched?.details?.categoryId || null;
 
       const normalizedStatus = String(d.status || '').trim().toUpperCase();
-      const isActive = normalizedStatus === 'AVAILABLE' || d.active === true;
+      // Trust the `active` flag set by the sync — see comment in the
+      // /kaufland/sku-index route above for the rationale.
+      const isActive = d.active === true;
       rows.push({
         idUnit: doc.id,
         sku: unitSku || null,

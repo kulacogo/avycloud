@@ -105,21 +105,45 @@ async function syncKauflandListingsCache({ tenantId, storefront = 'de' } = {}) {
   }
   await commitBatch();
 
-  // Mark stale cached rows inactive (units no longer returned by API).
-  const existingSnap = await collection.where('storefront', '==', sf).where('active', '==', true).get();
+  // Mark stale cached rows as STALE (units no longer returned by API).
+  //
+  // Important: query ALL docs for this storefront, not just active=true.
+  // Older code filtered to active=true which missed two ghost classes:
+  //   1) ONHOLD docs that later disappeared from the API entirely → kept
+  //      status='ONHOLD' forever, polluting "paused" count.
+  //   2) AVAILABLE docs marked active=false by an earlier sync but never
+  //      had their status field cleared → kept status='AVAILABLE',
+  //      causing the listings endpoint to coerce isActive back to true.
+  //
+  // Setting status='STALE' makes the tombstone explicit so the route + UI
+  // can filter cleanly. active=false is preserved as the primary signal.
+  const existingSnap = await collection.where('storefront', '==', sf).get();
   if (!existingSnap.empty) {
-    batch = firestore.batch();
-    batchCount = 0;
-    existingSnap.docs.forEach((doc) => {
-      if (seenIds.has(doc.id)) return;
-      batch.set(
+    let staleBatch = firestore.batch();
+    let staleBatchCount = 0;
+    for (const doc of existingSnap.docs) {
+      if (seenIds.has(doc.id)) continue;
+      const existing = doc.data() || {};
+      if (existing.status === 'STALE' && existing.active === false) continue; // already tombstoned
+      staleBatch.set(
         collection.doc(doc.id),
-        { active: false, updatedAt: now, source: 'kaufland-sync' },
+        {
+          active: false,
+          status: 'STALE',
+          removedAt: now,
+          updatedAt: now,
+          source: 'kaufland-sync-stale',
+        },
         { merge: true }
       );
-      batchCount += 1;
-    });
-    await commitBatch();
+      staleBatchCount += 1;
+      if (staleBatchCount >= 400) {
+        await staleBatch.commit();
+        staleBatch = firestore.batch();
+        staleBatchCount = 0;
+      }
+    }
+    if (staleBatchCount > 0) await staleBatch.commit();
   }
 
   // ── Backfill ops.kaufland.unitId into products_v2 ────────────────────────
