@@ -1,5 +1,26 @@
 'use strict';
 
+const { buildGenerationConfig } = require('../lib/gemini-config');
+
+// Vision classification calls need deterministic output (low temp) and
+// constrained sampling (low topP/topK). Token limits differ per call site:
+// large output for multi-image grouping (8192), small for single-image
+// detection (1024). Centralizing via buildGenerationConfig hooks into the
+// shared defaults from lib/gemini-config.js.
+const VISION_GROUPING_CONFIG = buildGenerationConfig({
+  temperature: 0.1,
+  topP: 0.8,
+  topK: 16,
+  maxOutputTokens: 8192,
+});
+
+const VISION_DETECTION_CONFIG = buildGenerationConfig({
+  temperature: 0.1,
+  topP: 0.8,
+  topK: 16,
+  maxOutputTokens: 1024,
+});
+
 // BUG-090: Structured output schema for grouping (replaces free-text JSON)
 const GROUPING_SCHEMA = {
   type: 'object',
@@ -162,10 +183,7 @@ async function groupImagesStructured(imageBuffers, imageCount) {
     const raw = await callGeminiStructured({
       parts,
       responseSchema: GROUPING_SCHEMA,
-      temperature: 0.1,
-      topP: 0.8,
-      topK: 16,
-      maxOutputTokens: 8192,
+      ...VISION_GROUPING_CONFIG,
       stopSequences: [],
     });
 
@@ -192,10 +210,7 @@ async function groupImagesStructured(imageBuffers, imageCount) {
       const raw = await callGeminiStructured({
         parts,
         responseSchema: GROUPING_SCHEMA,
-        temperature: 0.1,
-        topP: 0.8,
-        topK: 16,
-        maxOutputTokens: 8192,
+        ...VISION_GROUPING_CONFIG,
         stopSequences: [],
       });
 
@@ -368,10 +383,7 @@ async function detectMultipleProducts(imageBuffers) {
   const raw = await callGeminiStructured({
     parts,
     responseSchema: MULTI_PRODUCT_DETECTION_SCHEMA,
-    temperature: 0.1,
-    topP: 0.8,
-    topK: 16,
-    maxOutputTokens: 1024,
+    ...VISION_DETECTION_CONFIG,
     stopSequences: [],
   });
 
