@@ -4,6 +4,7 @@ const sharp = require('sharp');
 const crypto = require('crypto');
 const { productBundleSchema } = require('../lib/product-schema');
 const { getGeminiClient } = require('../lib/gemini-client'); // Replaced OpenAI
+const { buildGenerationConfig } = require('../lib/gemini-config');
 const { uploadImage } = require('../lib/storage');
 const { extractOcrPayload } = require('../lib/vision-ocr');
 const { callSerpApi, summarizeSerpEntries } = require('../lib/serpapi');
@@ -2208,13 +2209,14 @@ async function runDatasheetReview(
         limit: Math.max(10, Math.min(200, Number(process.env.ENRICHMENT_TITLE_INSIGHTS_LIMIT) || 80)),
         maxTokens: Math.max(1, Math.min(20, Number(process.env.ENRICHMENT_TITLE_INSIGHTS_MAX_TOKENS) || 8)),
       });
-      const generationConfig = {
-        temperature: 0.2, // Low temperature for consistent reasoning
+      // Phase F.1b — datasheet-review: low temp for consistent reasoning.
+      const generationConfig = buildGenerationConfig({
+        temperature: 0.2,
         topP: 0.95,
         topK: 64,
         responseMimeType: "application/json",
-        responseSchema: cleanSchemaForGemini(DATASHEET_REVIEW_SCHEMA)
-      };
+        responseSchema: cleanSchemaForGemini(DATASHEET_REVIEW_SCHEMA),
+      });
 
       // Optional: attach marketplace evidence (eBay/Amazon/Kaufland/Shopping) so the LLM can validate plausibility
       // and fill missing specs based on sources, not guesses.
@@ -2437,13 +2439,14 @@ async function ensureMarketingCopy(products = [], locale = 'de-DE') {
       : [];
     if (needsMarketingRewrite(product)) {
       try {
-        const generationConfig = {
-          temperature: 0.7, // Higher creativity for marketing
+        // Phase F.1b — marketing-copy: higher creativity for engaging copy.
+        const generationConfig = buildGenerationConfig({
+          temperature: 0.7,
           topP: 0.95,
           topK: 64,
           responseMimeType: "application/json",
-          responseSchema: cleanSchemaForGemini(marketingCopySchema)
-        };
+          responseSchema: cleanSchemaForGemini(marketingCopySchema),
+        });
 
         const result = await model.generateContent({
           contents: [{ role: "user", parts: [{ text: buildMarketingPrompt(product, locale) }] }],
@@ -3236,13 +3239,14 @@ async function runProductIdentification({
   const targetModelName = resolveModel(modelOverride, 'IDENTIFY_MODEL', 'gemini-3-pro-preview');
   const model = client.getGenerativeModel({ model: targetModelName });
 
-  const generationConfig = {
+  // Phase F.1b — product-bundle: low temp + narrow sampling for deterministic JSON.
+  const generationConfig = buildGenerationConfig({
     temperature: 0.2,
     topP: 0.8,
     topK: 40,
     responseMimeType: "application/json",
-    responseSchema: cleanSchemaForGemini(productBundleSchema)
-  };
+    responseSchema: cleanSchemaForGemini(productBundleSchema),
+  });
 
   let bundle;
   try {

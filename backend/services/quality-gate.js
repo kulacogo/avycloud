@@ -13,6 +13,7 @@
  */
 
 const crypto = require('crypto');
+const { buildGenerationConfig } = require('../lib/gemini-config');
 const sharp = require('sharp');
 const { Firestore, Timestamp } = require('@google-cloud/firestore');
 
@@ -544,13 +545,15 @@ async function runLlmQualityCheck({ product, webEvidence, ruleIssues, locale = '
     parts.push({ inline_data: { mime_type: compressed.mimeType, data: compressed.base64 } });
   }
 
-  const generationConfig = {
+  // Phase F.1b — quality-gate uses moderate determinism (low temp, narrow sampling)
+  // for consistent eBay-readiness scoring. Centralized via buildGenerationConfig.
+  const generationConfig = buildGenerationConfig({
     temperature: 0.2,
     topP: 0.9,
     topK: 40,
     responseMimeType: 'application/json',
     responseSchema: cleanSchemaForGemini(QUALITY_GATE_SCHEMA),
-  };
+  });
 
   const result = await model.generateContent({
     contents: [{ role: 'user', parts }],

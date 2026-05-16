@@ -517,18 +517,16 @@ Nichts erfinden — wenn du nichts findest, lasse den Key weg.`;
   // values as callerOverrides so a missing/stale scope still produces the same
   // generationConfig (byte-identical fallback). When the scope exists, its
   // version-level config can refine these knobs without code changes.
-  const scopeConfig = await _tryResolveScopeConfig('identify.v2', null, {
-    temperature: 0.1,
-    maxOutputTokens: 1024,
-  });
+  // Phase F.1b batch 3 — extracted to single source of truth (was 4x literal).
+  const REPAIR_FALLBACK = { temperature: 0.1, maxOutputTokens: 1024 };
+  const scopeConfig = await _tryResolveScopeConfig('identify.v2', null, REPAIR_FALLBACK);
 
   let parsed;
   try {
     const repairPromise = gemini3GenerateJSON({
       prompt,
       schema,
-      temperature: 0.1,
-      maxOutputTokens: 1024,
+      ...REPAIR_FALLBACK,
       scopeConfig,
     });
     Promise.resolve(repairPromise).catch(() => {});
