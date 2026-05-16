@@ -5,7 +5,7 @@
  *
  * Strategy:
  *  - Build 2-3 localized queries (brand + model + weight/gewicht)
- *  - Call Brightdata search (toolkit.executeBrightdataSearchToolCall)
+ *  - Call Brightdata search (toolkit.executeWebSearchToolCall)
  *  - Parse snippets/titles of top results for weight patterns
  *  - Validate sanity (1g - 50000g) and combine signals across results
  *
@@ -119,9 +119,9 @@ function buildQueries(identity = {}) {
 }
 
 async function runSearch(query, timeoutMs) {
-  const { executeBrightdataSearchToolCall } = require('../services/toolkit.js');
+  const { executeWebSearchToolCall } = require('../services/toolkit.js');
   const toolCall = { arguments: JSON.stringify({ query, limit: 5 }) };
-  const resultPromise = executeBrightdataSearchToolCall(toolCall);
+  const resultPromise = executeWebSearchToolCall(toolCall);
   if (!timeoutMs) return resultPromise;
   return Promise.race([
     resultPromise,

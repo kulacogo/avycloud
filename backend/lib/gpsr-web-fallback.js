@@ -196,12 +196,12 @@ async function lookupGpsrFromWeb(brand, options = {}) {
   const brandStr = safeString(brand);
   if (!brandStr) return empty;
 
-  const { executeBrightdataSearchToolCall } = require('../services/toolkit.js');
+  const { executeWebSearchToolCall } = require('../services/toolkit.js');
   const query = `"${brandStr}" Impressum GmbH OR AG OR Ltd`;
   let searchRes;
   try {
     searchRes = await Promise.race([
-      executeBrightdataSearchToolCall({ arguments: JSON.stringify({ query, limit: 5 }) }),
+      executeWebSearchToolCall({ arguments: JSON.stringify({ query, limit: 5 }) }),
       new Promise((_, reject) => setTimeout(() => reject(new Error('gpsr search timeout')), timeout)),
     ]);
   } catch (err) {

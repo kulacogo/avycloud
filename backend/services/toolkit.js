@@ -532,16 +532,16 @@ async function executeSerpapiToolCall(toolCall) {
   }
 }
 
-async function executeBrightdataSearchToolCall(toolCall) {
+async function executeWebSearchToolCall(toolCall) {
   let args = {};
   try {
     args = JSON.parse(toolCall.arguments || '{}');
   } catch (error) {
-    return { ok: false, engine: 'brightdata', query: '', results: [], error: `Invalid arguments: ${error.message}` };
+    return { ok: false, engine: 'web', query: '', results: [], error: `Invalid arguments: ${error.message}` };
   }
   const q = (args.query || '').toString().trim();
   if (!q) {
-    return { ok: false, engine: 'brightdata', query: '', results: [], error: 'query is required' };
+    return { ok: false, engine: 'web', query: '', results: [], error: 'query is required' };
   }
   const locale = (args.locale || 'de-DE').toString().trim() || 'de-DE';
   const limit = Math.max(1, Math.min(20, Math.floor(Number(args.limit || 8))));
@@ -576,7 +576,7 @@ async function executeBrightdataSearchToolCall(toolCall) {
 
   return {
     ok: combined.length > 0,
-    engine: 'brightdata',
+    engine: 'web',
     query: q,
     results: combined.slice(0, limit),
     error: combined.length ? null : 'no_results',
@@ -626,6 +626,6 @@ module.exports = {
   brightdataSearchToolDefinition,
   webFetchToolDefinition,
   executeSerpapiToolCall,
-  executeBrightdataSearchToolCall,
+  executeWebSearchToolCall,
   executeWebFetchToolCall,
 };

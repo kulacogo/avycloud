@@ -73,11 +73,11 @@ patchLocalModule('../../lib/gpsr-manufacturer-registry', {
 
 // toolkit (serpapi + brightdata + web fetch)
 const executeSerpapiToolCallMock = vi.fn();
-const executeBrightdataSearchToolCallMock = vi.fn();
+const executeWebSearchToolCallMock = vi.fn();
 const executeWebFetchToolCallMock = vi.fn();
 patchLocalModule('../../services/toolkit', {
   executeSerpapiToolCall: executeSerpapiToolCallMock,
-  executeBrightdataSearchToolCall: executeBrightdataSearchToolCallMock,
+  executeWebSearchToolCall: executeWebSearchToolCallMock,
   executeWebFetchToolCall: executeWebFetchToolCallMock,
   serpapiToolDefinition: { name: 'serpapi' },
   brightdataSearchToolDefinition: { name: 'brightdata' },
@@ -126,7 +126,7 @@ beforeEach(() => {
   getCategoryAspectCatalogMock.mockReset();
   getManufacturerGpsrByNameMock.mockReset();
   executeSerpapiToolCallMock.mockReset();
-  executeBrightdataSearchToolCallMock.mockReset();
+  executeWebSearchToolCallMock.mockReset();
   executeWebFetchToolCallMock.mockReset();
   searchSoldListingsMock.mockReset();
   extractPricingSignalsMock.mockReset();
@@ -449,7 +449,7 @@ describe('executeSearchAmazonProduct', () => {
     executeSerpapiToolCallMock.mockResolvedValueOnce({ error: 'disabled' });
     const res = await executors.executeSearchAmazonProduct({ query: 'Echo Dot', region: 'COM' });
     expect(executeSerpapiToolCallMock).toHaveBeenCalled();
-    expect(executeBrightdataSearchToolCallMock).not.toHaveBeenCalled();
+    expect(executeWebSearchToolCallMock).not.toHaveBeenCalled();
     expect(res.ok).toBe(false);
     expect(res.error.code).toBe('NO_RESULTS');
   });
@@ -467,7 +467,7 @@ describe('executeSearchManufacturerSite', () => {
   });
 
   it('builds a site-scoped query for known brands', async () => {
-    executeBrightdataSearchToolCallMock.mockResolvedValueOnce({
+    executeWebSearchToolCallMock.mockResolvedValueOnce({
       ok: true,
       results: [{ url: 'https://philips.de/x' }],
     });
@@ -478,7 +478,7 @@ describe('executeSearchManufacturerSite', () => {
     expect(res.ok).toBe(true);
     expect(res.data.domain).toBe('philips.de');
     expect(res.data.query).toContain('site:philips.de');
-    const callArgs = JSON.parse(executeBrightdataSearchToolCallMock.mock.calls[0][0].arguments);
+    const callArgs = JSON.parse(executeWebSearchToolCallMock.mock.calls[0][0].arguments);
     expect(callArgs.sites).toEqual(['philips.de']);
   });
 });

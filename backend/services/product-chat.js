@@ -4,7 +4,7 @@ const {
   brightdataSearchToolDefinition,
   webFetchToolDefinition,
   executeSerpapiToolCall,
-  executeBrightdataSearchToolCall,
+  executeWebSearchToolCall,
   executeWebFetchToolCall,
 } = require('./toolkit');
 const { resolveModel } = require('../lib/model-select');
@@ -456,7 +456,7 @@ async function forceOneEvidencePass(product, userMessage, {
     for (const query of candidates) {
       // Broad web search (no site-limits). We do NOT prefer marketplaces over the wider web,
       // unless the user explicitly referenced Amazon/ASIN (handled via amazonHintSuffix).
-      const broad = await executeBrightdataSearchToolCall({
+      const broad = await executeWebSearchToolCall({
         arguments: JSON.stringify({ query, locale, limit: 8 }),
       });
       traces.push({
@@ -2490,7 +2490,7 @@ async function runProductChat(product, userMessage, {
             cleanedArgs.query = hinted.slice(0, 200);
           }
           onProgress?.({ type: 'tool_start', tool: 'brightdata_web_search', query: cleanedArgs.query || '' });
-          const result = await executeBrightdataSearchToolCall({ arguments: JSON.stringify(cleanedArgs) });
+          const result = await executeWebSearchToolCall({ arguments: JSON.stringify(cleanedArgs) });
           onProgress?.({ type: 'tool_done', tool: 'brightdata_web_search', count: (result.results || []).length });
           serpTrace.push({
             type: 'brightdata',

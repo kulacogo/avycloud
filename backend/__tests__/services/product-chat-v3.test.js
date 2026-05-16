@@ -66,7 +66,7 @@ patchLocalModule('../../lib/gpsr-manufacturer-registry', {
 
 patchLocalModule('../../services/toolkit', {
   executeSerpapiToolCall: vi.fn(),
-  executeBrightdataSearchToolCall: vi.fn(),
+  executeWebSearchToolCall: vi.fn(),
   executeWebFetchToolCall: vi.fn(),
   serpapiToolDefinition: { name: 'serpapi' },
   brightdataSearchToolDefinition: { name: 'brightdata' },

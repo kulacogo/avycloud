@@ -11,7 +11,7 @@ require.cache[toolkitPath] = {
   filename: toolkitPath,
   loaded: true,
   exports: {
-    executeBrightdataSearchToolCall: brightdataMock,
+    executeWebSearchToolCall: brightdataMock,
     executeWebFetchToolCall: webFetchMock,
     executeSerpapiToolCall: vi.fn(),
     serpapiToolDefinition: {},

@@ -734,11 +734,11 @@ async function executeSearchManufacturerSite({ brand, model, mpn } = {}) {
   const queryWithSite = domain ? `${baseQuery} site:${domain}` : `"${brand}" ${baseQuery} specifications`;
 
   const toolkit = tryRequire('./toolkit');
-  if (!toolkit || typeof toolkit.executeBrightdataSearchToolCall !== 'function') {
+  if (!toolkit || typeof toolkit.executeWebSearchToolCall !== 'function') {
     return failure(
       source,
       'NOT_IMPLEMENTED',
-      'toolkit.executeBrightdataSearchToolCall not available',
+      'toolkit.executeWebSearchToolCall not available',
       { meta: { durationMs: Date.now() - started } }
     );
   }
@@ -750,7 +750,7 @@ async function executeSearchManufacturerSite({ brand, model, mpn } = {}) {
     };
     if (domain) args.sites = [domain];
     const result = await withTimeout(
-      toolkit.executeBrightdataSearchToolCall({ arguments: JSON.stringify(args) }),
+      toolkit.executeWebSearchToolCall({ arguments: JSON.stringify(args) }),
       EXECUTOR_TIMEOUT_MS,
       'search_manufacturer_site'
     );
