@@ -1110,7 +1110,11 @@ router.post('/kaufland/publish/bulk', requirePermission('products', 'write'), as
   let KL_DEFAULT_SHIPPING_GROUP = klDefaults.shippingGroupId || 144080;
   let KL_DEFAULT_WAREHOUSE = klDefaults.warehouseId || 70462;
 
-  function autoFixProduct(product) {
+  // Body-level Optionen werden in der äußeren try gelesen — Default für die
+  // autoFixProduct-Closure aber bereits hier setzen, damit es nie undefined ist.
+  let publishWithOnHold = true;
+
+  async function autoFixProduct(product) {
     const fixes = [];
     const p = JSON.parse(JSON.stringify(product));
     const pricing = p.details?.pricing || {};
@@ -1166,8 +1170,54 @@ router.post('/kaufland/publish/bulk', requirePermission('products', 'write'), as
       fixes.push('Lager: Standard (Temp Warehouse)');
     }
 
+    // --- 0-Stock Handling (Deliverable 3): publishWithOnHold default = true ---
+    // Spiegelt pickUnitData(): availableQuantity || quantity || storageBins-sum || storage.quantity
+    const binStockSum = Array.isArray(p?.storageBins)
+      ? p.storageBins.reduce((sum, b) => sum + (Number(b?.quantity) || 0), 0)
+      : null;
+    const qtyRaw = p?.inventory?.availableQuantity
+      ?? p?.inventory?.quantity
+      ?? binStockSum
+      ?? p?.storage?.quantity
+      ?? 0;
+    const qty = Math.max(0, Number(qtyRaw) || 0);
+    if (qty <= 0) {
+      if (publishWithOnHold) {
+        fixes.push('Listing mit 0 Bestand (ONHOLD bis Stock-Eingang)');
+      } else {
+        return { product: p, fixes, skip: true, reason: 'Kein Bestand vorhanden (publishWithOnHold=false)' };
+      }
+    }
+
+    // --- GPSR auto-enrichment via web-fallback (Deliverable 2, best-effort, timeout 8s) ---
+    const hasGpsr = (p?.details?.gpsr?.manufacturer_name || p?.details?.gpsr?.name)
+                 && (p?.details?.gpsr?.address || p?.details?.gpsr?.manufacturer_address);
+    if (!hasGpsr) {
+      try {
+        const { lookupGpsrFromWeb } = require('../lib/gpsr-web-fallback');
+        const brand = p?.identification?.brand || p?.details?.brand || '';
+        if (brand) {
+          const result = await Promise.race([
+            lookupGpsrFromWeb(brand, { timeout: 8000 }),
+            new Promise((_, rej) => setTimeout(() => rej(new Error('gpsr-timeout')), 8000)),
+          ]);
+          const gotName = result && (result.manufacturer_name || result.name);
+          const gotAddr = result && (result.manufacturer_address || result.address);
+          if (gotName || gotAddr) {
+            p.details = p.details || {};
+            p.details.gpsr = { ...(p.details.gpsr || {}), ...result };
+            fixes.push('GPSR-Daten via Web-Lookup ergaenzt');
+          }
+        }
+      } catch (_) { /* swallow — non-blocking */ }
+    }
+
     return { product: p, fixes, skip: false };
   }
+
+  // Bulk-Run-Audit (Deliverable 1, best-effort — Publish darf nie blockieren)
+  let audit = null;
+  let runId = null;
 
   try {
     const body = req.body && typeof req.body === 'object' ? req.body : {};
@@ -1178,6 +1228,8 @@ router.post('/kaufland/publish/bulk', requirePermission('products', 'write'), as
       return res.status(400).json({ ok: false, error: { code: 'MISSING_PRODUCT_IDS', message: 'productIds array is required' } });
     }
     const storefront = body.storefront || 'de';
+    // publishWithOnHold default true — falls explizit false gesetzt, bisheriges Skip-Verhalten
+    if (body.publishWithOnHold === false) publishWithOnHold = false;
     // Per-request overrides from publish dialog take priority over Firestore defaults
     const requestOverrides = body.overrides && typeof body.overrides === 'object' ? body.overrides : {};
     const reqShippingGroup = Number(requestOverrides.shippingGroupId) || 0;
@@ -1186,62 +1238,186 @@ router.post('/kaufland/publish/bulk', requirePermission('products', 'write'), as
     if (reqWarehouse > 0) KL_DEFAULT_WAREHOUSE = reqWarehouse;
     const { getProductV2 } = require('../lib/product-store');
     const { createUnit } = require('../lib/kaufland-api');
+
+    // Audit-Run starten — best-effort, Publish darf nie blockieren
+    try {
+      audit = require('../services/kaufland-publish-audit');
+      runId = await audit.startRun({
+        tenantId: req.user?.tenantId,
+        storefront,
+        source: 'ui-bulk',
+        requestedProductIds: productIds,
+      }).catch(() => null);
+    } catch (_) {
+      audit = null;
+      runId = null;
+    }
+
     const results = [];
+    let repairedCount = 0;
     for (const id of productIds) {
+      const startedAt = Date.now();
+      let perProductFixes = [];
+      let perProductSku = null;
+      let perProductIdUnit = null;
+      let perProductRepaired = false;
+      let perProductOk = false;
+      let perProductStatus = 'failed';
+      let perProductReason = null;
       try {
         const product = await getProductV2(id);
         if (!product) {
-          results.push({ productId: id, ok: false, status: 'skipped', reason: `Produkt ${id} nicht gefunden` });
+          perProductStatus = 'skipped';
+          perProductReason = `Produkt ${id} nicht gefunden`;
+          results.push({ productId: id, ok: false, status: perProductStatus, reason: perProductReason });
           continue;
         }
 
-        const { product: fixedProduct, fixes, skip, reason } = autoFixProduct(product);
+        perProductSku = product?.identification?.sku || product?.details?.identifiers?.sku || null;
+
+        const { product: fixedProduct, fixes, skip, reason } = await autoFixProduct(product);
+        perProductFixes = fixes || [];
         if (skip) {
-          results.push({ productId: id, ok: false, status: 'skipped', reason });
+          perProductStatus = 'skipped';
+          perProductReason = reason;
+          results.push({ productId: id, ok: false, status: perProductStatus, reason: perProductReason });
           continue;
         }
 
         try {
           const result = await createUnit(fixedProduct, { storefront });
-          const status = result.productDataSubmitted
+          perProductIdUnit = result?.id_unit || null;
+          perProductOk = true;
+          perProductStatus = result.productDataSubmitted
             ? 'fixed'
-            : (fixes.length ? 'fixed' : 'published');
-          if (result.productDataSubmitted) fixes.push('Produktdaten bei Kaufland eingereicht');
+            : (perProductFixes.length ? 'fixed' : 'published');
+          if (result.productDataSubmitted) perProductFixes.push('Produktdaten bei Kaufland eingereicht');
           results.push({
             productId: id,
             ok: true,
-            status,
-            fixes: fixes.length ? fixes : undefined,
+            status: perProductStatus,
+            fixes: perProductFixes.length ? perProductFixes : undefined,
             data: result,
           });
         } catch (publishErr) {
           if (publishErr.code === 'KAUFLAND_PRODUCT_DATA_PENDING') {
-            fixes.push('Produktdaten bei Kaufland eingereicht (asynchrone Verarbeitung)');
+            // Deliverable 4: try-repair-hook post-create
+            if (publishErr.productDataSubmitted) {
+              try {
+                const repair = require('../services/kaufland-product-data-repair');
+                let pickedEan = null;
+                try {
+                  const { pickUnitData } = require('../lib/kaufland-api');
+                  const picked = pickUnitData(fixedProduct, { mode: 'create', storefront });
+                  pickedEan = picked?.ean || null;
+                } catch (_) { /* fallback to identifiers below */ }
+                if (!pickedEan) {
+                  pickedEan =
+                    String(fixedProduct?.details?.identifiers?.ean || '').replace(/\D+/g, '') ||
+                    (Array.isArray(fixedProduct?.identification?.barcodes)
+                      ? fixedProduct.identification.barcodes
+                          .map((v) => String(v || '').replace(/\D+/g, ''))
+                          .find((v) => v.length === 13 || v.length === 14) || null
+                      : null);
+                }
+                const repairResult = await repair.tryRepairKauflandProductData({
+                  product: fixedProduct,
+                  ean: pickedEan,
+                  idUnit: null,
+                  storefront,
+                });
+                // Repair service may use either `repaired` (legacy contract) or
+                // `attempted + patchedKeys.length > 0` (actual implementation).
+                const didRepair = !!(
+                  repairResult && (
+                    repairResult.repaired === true ||
+                    (repairResult.attempted === true && Array.isArray(repairResult.patchedKeys) && repairResult.patchedKeys.length > 0)
+                  )
+                );
+                if (didRepair) {
+                  perProductRepaired = true;
+                  repairedCount += 1;
+                  perProductStatus = 'pending-repaired';
+                  perProductReason = 'Produktdaten ergaenzt — Kaufland indexiert asynchron (24h)';
+                  perProductFixes.push('Produktdaten ergaenzt (Repair-Hook)');
+                  results.push({
+                    productId: id,
+                    ok: false,
+                    status: perProductStatus,
+                    reason: perProductReason,
+                    fixes: perProductFixes,
+                    repaired: true,
+                  });
+                  continue;
+                }
+              } catch (_) { /* swallow — repair is best-effort */ }
+            }
+            perProductFixes.push('Produktdaten bei Kaufland eingereicht (asynchrone Verarbeitung)');
+            perProductStatus = 'pending';
+            perProductReason = publishErr.message;
             results.push({
               productId: id,
               ok: false,
-              status: 'pending',
-              reason: publishErr.message,
-              fixes,
+              status: perProductStatus,
+              reason: perProductReason,
+              fixes: perProductFixes,
             });
           } else {
-            results.push({ productId: id, ok: false, status: 'failed', error: publishErr.message || 'Publish fehlgeschlagen' });
+            perProductStatus = 'failed';
+            perProductReason = publishErr.message || 'Publish fehlgeschlagen';
+            results.push({ productId: id, ok: false, status: perProductStatus, error: perProductReason });
           }
         }
       } catch (err) {
-        results.push({ productId: id, ok: false, status: 'failed', error: err.message || 'Unbekannter Fehler' });
+        perProductStatus = 'failed';
+        perProductReason = err.message || 'Unbekannter Fehler';
+        results.push({ productId: id, ok: false, status: perProductStatus, error: perProductReason });
+      } finally {
+        if (runId && audit) {
+          await audit.appendResult({
+            runId,
+            productId: id,
+            sku: perProductSku,
+            ok: perProductOk,
+            status: perProductStatus,
+            reason: perProductReason,
+            fixes: perProductFixes,
+            idUnit: perProductIdUnit,
+            durationMs: Date.now() - startedAt,
+            repaired: perProductRepaired,
+          }).catch(() => null);
+        }
       }
     }
     const published = results.filter((r) => r.ok && r.status === 'published').length;
     const fixed = results.filter((r) => r.ok && r.status === 'fixed').length;
-    const pending = results.filter((r) => r.status === 'pending').length;
+    const pending = results.filter((r) => r.status === 'pending' || r.status === 'pending-repaired').length;
     const skipped = results.filter((r) => r.status === 'skipped').length;
     const failed = results.filter((r) => r.status === 'failed').length;
+    const success = published + fixed;
+
+    // Audit-Run abschließen — best-effort
+    if (runId && audit) {
+      await audit.finalizeRun({
+        runId,
+        summary: {
+          total: productIds.length,
+          success,
+          failed,
+          fixed,
+          pending,
+          skipped,
+          repaired: repairedCount,
+        },
+      }).catch(() => null);
+    }
+
     return res.status(200).json({
       ok: true,
       data: {
-        summary: { total: productIds.length, success: published + fixed, published, fixed, pending, skipped, failed },
+        summary: { total: productIds.length, success, published, fixed, pending, skipped, failed, repaired: repairedCount },
         results,
+        auditRunId: runId || null,
       },
     });
   } catch (error) {
@@ -1250,6 +1426,21 @@ router.post('/kaufland/publish/bulk', requirePermission('products', 'write'), as
       ok: false,
       error: { code: 'INTERNAL', message: error.message },
     });
+  }
+});
+
+// ── Kaufland: List recent publish runs (Deliverable 5) ──────────────
+router.get('/kaufland/publish-runs', requirePermission('products', 'read'), async (req, res) => {
+  try {
+    const limit = Math.min(50, parseInt(req.query.limit, 10) || 20);
+    let q = firestore.collection('kaufland_publish_runs').orderBy('startedAt', 'desc').limit(limit);
+    if (req.user?.tenantId) q = q.where('tenantId', '==', req.user.tenantId);
+    const snap = await q.get();
+    const runs = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    return res.json({ ok: true, data: runs });
+  } catch (err) {
+    console.error(`[GET /api/kaufland/publish-runs] ${err.message}`, err);
+    return res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: err.message } });
   }
 });
 

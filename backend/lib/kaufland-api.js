@@ -567,7 +567,9 @@ async function createUnit(product, { storefront = 'de', autoCreateProductData = 
       const desc = safeString(product?.details?.short_description) || '';
 
       const pdAttributes = {};
-      if (title) pdAttributes.title = [title];
+      // Kaufland rejects titles > 255 characters. Trim defensively before submit
+      // (mirrors the existing `note.slice(0, 250)` pattern elsewhere in this file).
+      if (title) pdAttributes.title = [title.slice(0, 255).trim()];
       if (brand) pdAttributes.brand = [brand];
       if (category) pdAttributes.category = [category];
       if (desc) pdAttributes.description = [desc];
