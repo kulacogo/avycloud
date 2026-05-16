@@ -189,7 +189,32 @@ function seedVersion(sid, vid, data) {
 // SNAPSHOT_FILE consumer by using llmConfig.SNAPSHOT_FILE? It's bound at load
 // time, so we instead write the actual lib/llm-scopes-snapshot.json during the
 // snapshot tests and clean up after.
+//
+// IMPORTANT: lib/llm-scopes-snapshot.json is a CHECKED-IN production artifact
+// (Phase F.1a bundled fallback). Tests must back it up before mutating + restore
+// after, otherwise running the test suite locally wipes the deployed snapshot.
 const REAL_SNAPSHOT = llmConfig.SNAPSHOT_FILE;
+let _snapshotBackup = null;
+let _snapshotExistedBefore = false;
+
+function backupRealSnapshot() {
+  try {
+    _snapshotBackup = fs.readFileSync(REAL_SNAPSHOT, 'utf8');
+    _snapshotExistedBefore = true;
+  } catch (_) {
+    _snapshotBackup = null;
+    _snapshotExistedBefore = false;
+  }
+}
+
+function restoreRealSnapshot() {
+  if (_snapshotExistedBefore && _snapshotBackup !== null) {
+    fs.writeFileSync(REAL_SNAPSHOT, _snapshotBackup, 'utf8');
+  } else {
+    try { fs.unlinkSync(REAL_SNAPSHOT); } catch (_) {}
+  }
+  llmConfig.__resetSnapshotCacheForTests();
+}
 
 function writeSnapshotFixture(payload) {
   fs.writeFileSync(REAL_SNAPSHOT, JSON.stringify(payload, null, 2), 'utf8');
@@ -200,6 +225,14 @@ function removeSnapshotFixture() {
   try { fs.unlinkSync(REAL_SNAPSHOT); } catch (_) {}
   llmConfig.__resetSnapshotCacheForTests();
 }
+
+beforeAll(() => {
+  backupRealSnapshot();
+});
+
+afterAll(() => {
+  restoreRealSnapshot();
+});
 
 beforeEach(() => {
   resetState();
