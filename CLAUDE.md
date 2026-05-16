@@ -73,6 +73,8 @@
 - `STAGE2_WEIGHT_WEB_FALLBACK=true` (default) — Stage 2 sucht Gewicht im Web wenn Stage 1 OCR/Grounding leer lieferte. Siehe `backend/lib/weight-web-lookup.js`.
 - `STAGE2_GPSR_WEB_FALLBACK=true` (default) — Stage 2 sucht Hersteller-Impressum im Web wenn Registry leer. Siehe `backend/lib/gpsr-web-fallback.js`.
 - `STAGE1_IMAGE_QUALITY_GATE=true` (default) — Bild-Qualitäts-Analyse in Stage 1 (Auflösung, Hintergrund, Perceptual Hash für Dedup). Filtert User-Uploads NICHT, hängt nur Metadata an. Siehe `backend/lib/image-quality.js`.
+- `STAGE1_SKIP_FOCUSED_GROUNDING=false` (default) — Emergency-Bypass: setzt `=true` wenn Gemini Grounding API bekannte 503/504-Outages hat. Stage 1 springt dann direkt zum V2-Fallback (`backend/lib/identify-v3-stage1.js:116`). NUR während Incidents setzen, zurücksetzen sobald Grounding wieder gesund (siehe `routes/identify.js` Health-Check).
+- `STAGE1_SKIP_V2_FALLBACK=false` (default) — Emergency-Bypass: setzt `=true` wenn beide Grounding-APIs (focused + V2) broken sind. Stage 1 läuft dann ohne Grounding (nur OCR + Images), Confidence sinkt entsprechend. NUR im Doppel-Outage-Fall setzen, sonst massive Quality-Drop für ID-Step.
 - `CATEGORY_RESOLVER_DYNAMIC_CONFIDENCE=true` (default) — Category-Resolver berechnet Confidence dynamisch statt hard-coded. Boosts: Keyword-Match, Brand-im-Breadcrumb. Penalties: Banned-Breadcrumb, Generic-Levels. Siehe `backend/services/category-resolver.js`.
 - `IDENTIFY_V3_GPSR_CONSENSUS=false|shadow|true` (default `false`) — GPSR-Merge in `services/identify-v3.js assembleProduct()` (Felder: manufacturer_name, manufacturer_address, email, manufacturer_phone, entity_country). Drei Modi:
     - **`false` (default)**: legacy `pickFrom()`-Fallback — strikte Priorität Registry > Stage-3 LLM > Web-Fallback. Bestehendes Verhalten unverändert.
@@ -104,6 +106,9 @@ Master-Timeouts und Canary-Steuerung für Identify-Pipelines (`routes/identify.j
 ### Gemini-Infrastructure
 - `GEMINI_PROMPT_CACHE=true` (default) — aktiviert Prompt-Caching via `backend/lib/prompt-cache.js`. 90 % Kosten-Ersparnis auf System-Prompts bei wiederholten Calls (Bulk-Ops, Multi-Turn-Chats). Min. 4096 Tokens für Cache-Eligibility, default TTL 60min.
 - `ATOMIC_TOOLS_TIMEOUT_MS=15000` (default) — Per-Executor-Timeout für atomic-tools Library (`lookup_gtin`, `search_ebay_catalog`, `get_required_aspects`, `verify_brand`, `search_amazon_product`, `search_manufacturer_site`, `fetch_url_content`).
+
+### Observability (Sprint 1 Tag 1+2)
+- `EXTERNAL_API_TRACKER_SAMPLE_RATE=1.0` (default, 0..1) — Sample-Rate für `external_api_calls`-Firestore-Writes (`backend/lib/external-api-tracker.js`). Tracker erfasst pro Call: service (`serpapi`, `brightdata`, …), endpoint, success, latencyMs, errorCode — fire-and-forget, NIE blocking. Default 1.0 sammelt jeden Call; nach Baseline-Daten (~2 Wochen) auf `0.1` drosseln, um Firestore-Write-Volumen zu reduzieren. Genutzt von `/api/health/identify` (Aggregat-Stats für Operator-Dashboard) — Antwort auf „brauchen wir BrightData noch?" mit Daten statt Meinungen.
 
 ### LLM-Quality-Parity (Phase F.3 + Telemetry)
 Schema-Validation und Telemetrie-Sampling für die LLM-Quality-Parity-Charta (`docs/standards/llm-quality-parity.md`).

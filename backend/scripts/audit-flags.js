@@ -233,18 +233,29 @@ function extractFlagsFromSource(src) {
   return flags;
 }
 
+// SCREAMING_SNAKE_CASE tokens that appear in CLAUDE.md but are NOT env-flags:
+// JS constants/identifiers, planned-but-unimplemented sub-flags, doc-only labels.
+// Excluded from documented_but_no_code so the report stays signal-heavy.
+const DOC_NON_FLAG_TOKENS = new Set([
+  'DEFAULT_CHAT_TEMPERATURE',  // JS constant in backend/lib/gemini-config.js
+  'SOURCE_WEIGHTS',            // JS constant in backend/lib/confidence-scoring.js
+  'IDENTIFY_V4_PRICING_SOLD',  // planned sub-flag, not yet wired in code
+]);
+
 /**
  * Extract documented flags from CLAUDE.md.
  *
  * Matches backtick-fenced tokens that look like SCREAMING_SNAKE_CASE flags,
  * optionally followed by `=value` (e.g. `CHAT_V3=true`). Length >= 3 to
- * avoid catching ad-hoc inline-code labels.
+ * avoid catching ad-hoc inline-code labels. Filters out known JS-constants
+ * via DOC_NON_FLAG_TOKENS.
  */
 function extractFlagsFromClaudeMd(src) {
   const flags = new Set();
   const re = /`([A-Z][A-Z0-9_]{2,})(?:=[^`]*)?`/g;
   let m;
   while ((m = re.exec(src)) !== null) {
+    if (DOC_NON_FLAG_TOKENS.has(m[1])) continue;
     flags.add(m[1]);
   }
   return flags;
@@ -326,4 +337,5 @@ module.exports = {
   isTrivial,
   TRIVIAL_EXACT,
   TRIVIAL_PATTERNS,
+  DOC_NON_FLAG_TOKENS,
 };
