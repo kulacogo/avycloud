@@ -43,7 +43,7 @@ type ListingStatus =
 //   live      → product.is_valid === true  (matches Kaufland Portal "Aktiv")
 //   indexing  → product.is_valid === false (Kaufland still indexing, <24h)
 //   active    → product.is_valid unknown   (legacy data fallback)
-type TabFilter = "all" | "active" | "inactive";
+type TabFilter = "all" | "active" | "indexing" | "paused" | "inactive";
 
 interface NormalizedListing {
   id: string;
@@ -94,6 +94,8 @@ const NON_ACTIVE_STATUSES: ListingStatus[] = [
 const TAB_LABELS: Record<TabFilter, string> = {
   all: "Alle",
   active: "Aktiv",
+  indexing: "Indexierung",
+  paused: "Pausiert",
   inactive: "Inaktiv",
 };
 
@@ -654,7 +656,9 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
   // ─── Computed Data ───────────────────────────────────────
 
   const tabCounts = useMemo(() => {
-    const counts: Record<TabFilter, number> = { all: 0, active: 0, inactive: 0 };
+    const counts: Record<TabFilter, number> = {
+      all: 0, active: 0, indexing: 0, paused: 0, inactive: 0,
+    };
     const byStatus: Record<ListingStatus, number> = {
       live: 0,
       indexing: 0,
@@ -666,30 +670,49 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
       inactive: 0,
       unknown: 0,
     };
-    // Granulare Sub-Counts: `live` matches Kaufland Portal "Aktiv"; `indexing`
-    // is Kaufland-side quality indexing (<24h, not yet shown as Aktiv in
-    // Portal); `active` (no productValid signal) folds into the `active` tab
-    // for backwards-compat.
-    let live = 0;
-    let indexing = 0;
+    // Tab counts mirror Kaufland Portal exactly:
+    //   active  → Portal "Aktiv"               (live + legacy active fallback)
+    //   indexing → Portal "Angebotsdaten fehlen" (product.is_valid=false, <24h)
+    //   paused  → Portal "Pausiert"            (ONHOLD)
+    //   inactive → Portal "Inaktiv"            (everything else: STALE-tombstones,
+    //                                          deactivated, blocked, in_review, unknown)
     listings.forEach((l) => {
       counts.all++;
       byStatus[l.status]++;
-      if (l.status === "live") { live++; counts.active++; }
-      else if (l.status === "indexing") { indexing++; counts.active++; }
-      else if (l.status === "active") counts.active++;
+      if (l.status === "live" || l.status === "active") counts.active++;
+      else if (l.status === "indexing") counts.indexing++;
+      else if (l.status === "paused") counts.paused++;
       else counts.inactive++;
     });
-    return { ...counts, live, indexing, byStatus };
+    return { ...counts, byStatus };
+  }, [listings]);
+
+  // Derive "Letzter Sync" from the newest updatedAt across all cached listings.
+  // The backend writes `updatedAt` on every cache row each sync, so the freshest
+  // entry's timestamp == last successful sync run. Avoids needing a separate
+  // "last sync" persistence layer.
+  const derivedLastSync = useMemo<string | null>(() => {
+    let newest: string | null = null;
+    for (const l of listings) {
+      if (l.lastSync && (!newest || l.lastSync > newest)) newest = l.lastSync;
+    }
+    return newest;
   }, [listings]);
 
   const filteredListings = useMemo(() => {
     let result = listings;
-    // "active" tab is the union of granular live + indexing + legacy active,
-    // otherwise indexing-only rows would vanish from the default view.
-    const isActiveLike = (s: ListingStatus) => s === "live" || s === "indexing" || s === "active";
-    if (activeTab === "active") result = result.filter((l) => isActiveLike(l.status));
-    else if (activeTab === "inactive") result = result.filter((l) => !isActiveLike(l.status));
+    // Each tab maps to one bucket; no unions — badges match KPI numbers.
+    if (activeTab === "active") {
+      result = result.filter((l) => l.status === "live" || l.status === "active");
+    } else if (activeTab === "indexing") {
+      result = result.filter((l) => l.status === "indexing");
+    } else if (activeTab === "paused") {
+      result = result.filter((l) => l.status === "paused");
+    } else if (activeTab === "inactive") {
+      result = result.filter(
+        (l) => !["live", "active", "indexing", "paused"].includes(l.status)
+      );
+    }
 
     if (stockFilter === "inStock") result = result.filter((l) => l.quantity != null && l.quantity > 3);
     else if (stockFilter === "low") result = result.filter((l) => l.quantity != null && l.quantity > 0 && l.quantity <= 3);
@@ -825,6 +848,12 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
             <h1 className="text-xl font-bold text-txt-primary">{label} Listings</h1>
             <p className="text-sm text-txt-muted">
               {listings.length} Listings · {tabCounts.active} aktiv
+              {marketplace === "kaufland" && tabCounts.indexing > 0 && (
+                <> · {tabCounts.indexing} in Indexierung</>
+              )}
+              {marketplace === "kaufland" && tabCounts.paused > 0 && (
+                <> · {tabCounts.paused} pausiert</>
+              )}
             </p>
           </div>
         </div>
@@ -875,9 +904,7 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
         >
           <div className="text-sm text-txt-muted mb-1">Aktiv</div>
           <div className="text-2xl font-bold text-success">
-            {marketplace === "kaufland" && (tabCounts.live > 0 || tabCounts.indexing > 0)
-              ? tabCounts.live
-              : tabCounts.active}
+            {tabCounts.active}
           </div>
           {marketplace === "kaufland" && tabCounts.indexing > 0 && (
             <div className="text-xs text-warning mt-0.5">
@@ -889,7 +916,12 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
           <div className="text-sm text-txt-muted mb-1">Inaktiv</div>
           <div className="text-2xl font-bold text-txt-primary">{tabCounts.inactive}</div>
           {(() => {
-            const parts = NON_ACTIVE_STATUSES
+            // For Kaufland, `paused` has its own tab/count — exclude from subtitle
+            // to avoid double-counting. Other marketplaces keep full breakdown.
+            const subtitleStatuses = marketplace === "kaufland"
+              ? NON_ACTIVE_STATUSES.filter((s) => s !== "paused")
+              : NON_ACTIVE_STATUSES;
+            const parts = subtitleStatuses
               .filter((s) => tabCounts.byStatus[s] > 0)
               .map((s) => `${tabCounts.byStatus[s]} ${STATUS_CONFIG[s].label}`);
             if (parts.length === 0) return null;
@@ -921,7 +953,7 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
           <span>
             Letzter Sync:{" "}
             <span className="text-txt-primary font-medium">
-              {formatRelativeTime(lastSyncTime)}
+              {formatRelativeTime(derivedLastSync ?? lastSyncTime)}
             </span>
           </span>
         </div>
@@ -1019,9 +1051,17 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
         </div>
       </div>
 
-      {/* Tab Bar */}
+      {/* Tab Bar — render Indexierung/Pausiert only for Kaufland when present */}
       <div className="flex gap-1 border-b border-app-border overflow-x-auto">
-        {(Object.keys(TAB_LABELS) as TabFilter[]).map((tab) => (
+        {((): TabFilter[] => {
+          const tabs: TabFilter[] = ["all", "active"];
+          if (marketplace === "kaufland") {
+            if (tabCounts.indexing > 0) tabs.push("indexing");
+            if (tabCounts.paused > 0) tabs.push("paused");
+          }
+          tabs.push("inactive");
+          return tabs;
+        })().map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
