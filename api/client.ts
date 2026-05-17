@@ -1382,6 +1382,13 @@ export interface KauflandListingRow {
   ean: string | null;
   status: string | null;
   active: boolean;
+  /**
+   * Kaufland `product.is_valid` boolean as cached by the validity-refresh
+   * phase of the listings sync. `true` = Portal "Aktiv" (Live), `false` =
+   * "Indexierung läuft" (typically <24h after first publish), `null` = legacy
+   * doc / validity not yet checked → fall back to the binary `active` flag.
+   */
+  productValid?: boolean | null;
   quantity: number | null;
   idProduct: number | null;
   viewItemUrl: string | null;

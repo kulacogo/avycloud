@@ -73,9 +73,10 @@ const mockFirestore = {
 // lib/firestore — only `firestore` is needed by the service.
 installModuleMock('../../lib/firestore', { firestore: mockFirestore });
 
-// lib/kaufland-api — fake listUnits()
+// lib/kaufland-api — fake listUnits() + getUnit()
 const listUnitsMock = vi.fn();
-installModuleMock('../../lib/kaufland-api', { listUnits: listUnitsMock });
+const getUnitMock = vi.fn();
+installModuleMock('../../lib/kaufland-api', { listUnits: listUnitsMock, getUnit: getUnitMock });
 
 // lib/product-store — both reads
 const getAllProductsV2Mock = vi.fn();
@@ -120,6 +121,7 @@ beforeEach(() => {
   writes.length = 0;
   _kauflandUnitsLiveExistingDocs = [];
   listUnitsMock.mockReset();
+  getUnitMock.mockReset();
   getAllProductsV2Mock.mockReset();
   getAllProductsV2ForTenantMock.mockReset();
   syncStockWithRetryMock.mockReset();
@@ -162,13 +164,20 @@ describe('syncKauflandListingsCache', () => {
     expect(result.reverseDriftsDetected).toBe(0);
     expect(result.reverseDriftSamples).toEqual([]);
 
-    // Each unit triggered a batch.set onto kauflandUnitsLive
-    const cacheWrites = writes.filter((w) => w.kind === 'set' && w.ref.__collection === 'kauflandUnitsLive');
-    expect(cacheWrites.length).toBe(2);
-    expect(cacheWrites[0].payload.id_unit).toBe(1001);
-    expect(cacheWrites[0].payload.active).toBe(true); // AVAILABLE
-    expect(cacheWrites[1].payload.id_unit).toBe(1002);
-    expect(cacheWrites[1].payload.active).toBe(false); // ONHOLD
+    // Each unit triggered a batch.set onto kauflandUnitsLive (main payload).
+    // The validity-refresh phase may add additional product_valid-only writes
+    // for AVAILABLE units — filter them out to assert the main sync writes.
+    const mainCacheWrites = writes.filter(
+      (w) => w.kind === 'set'
+        && w.ref.__collection === 'kauflandUnitsLive'
+        && w.payload
+        && Object.prototype.hasOwnProperty.call(w.payload, 'id_unit')
+    );
+    expect(mainCacheWrites.length).toBe(2);
+    expect(mainCacheWrites[0].payload.id_unit).toBe(1001);
+    expect(mainCacheWrites[0].payload.active).toBe(true); // AVAILABLE
+    expect(mainCacheWrites[1].payload.id_unit).toBe(1002);
+    expect(mainCacheWrites[1].payload.active).toBe(false); // ONHOLD
 
     // listUnits was called with the storefront param
     expect(listUnitsMock).toHaveBeenCalledWith(expect.objectContaining({ storefront: 'de', limit: 100, maxPages: 300 }));
@@ -292,5 +301,137 @@ describe('syncKauflandListingsCache', () => {
     }));
     // Report-only path: no outbound sync
     expect(syncStockWithRetryMock).not.toHaveBeenCalled();
+  });
+
+  // ── Validity-refresh phase ─────────────────────────────────────────────
+  // Splits the binary AVAILABLE bucket into Live (product.is_valid=true ==
+  // Kaufland Portal "Aktiv") and Indexierung läuft (product.is_valid=false,
+  // freshly listed, Kaufland still indexing).
+
+  it('fetches product.is_valid for newly-AVAILABLE units (no cache entry)', async () => {
+    listUnitsMock.mockResolvedValueOnce([
+      {
+        id_unit: 7001,
+        id_offer: 'SKU-NEW',
+        ean: '4012345678901',
+        amount: 5,
+        status: 'AVAILABLE',
+        storefront: 'de',
+        product: {},
+      },
+    ]);
+    // No existing cache doc → neverChecked → enqueued for validity refresh.
+    _kauflandUnitsLiveExistingDocs = [];
+    getAllProductsV2ForTenantMock.mockResolvedValue([]);
+    getUnitMock.mockResolvedValueOnce({ product: { is_valid: true } });
+
+    const result = await syncKauflandListingsCache({ tenantId: 'trendocean', storefront: 'de' });
+
+    expect(getUnitMock).toHaveBeenCalledTimes(1);
+    expect(getUnitMock).toHaveBeenCalledWith(7001, expect.objectContaining({
+      storefront: 'de',
+      embedded: 'products',
+    }));
+    expect(result.validityChecked).toBe(1);
+    expect(result.validityValid).toBe(1);
+    expect(result.validityInvalid).toBe(0);
+
+    const validityWrites = writes.filter(
+      (w) => w.kind === 'set' && w.payload && Object.prototype.hasOwnProperty.call(w.payload, 'product_valid')
+    );
+    expect(validityWrites).toHaveLength(1);
+    expect(validityWrites[0].payload.product_valid).toBe(true);
+    expect(validityWrites[0].payload.product_validity_checked_at).toBeDefined();
+    expect(validityWrites[0].ref.__id).toBe('7001');
+  });
+
+  it('skips validity check when cached fresh (<24h) and was valid', async () => {
+    const oneHourAgo = Date.now() - 60 * 60 * 1000;
+    listUnitsMock.mockResolvedValueOnce([
+      {
+        id_unit: 7100,
+        id_offer: 'SKU-CACHED',
+        ean: '',
+        amount: 5,
+        status: 'AVAILABLE',
+        storefront: 'de',
+        product: {},
+      },
+    ]);
+    // Pre-existing cache doc: product_valid=true, checked 1h ago (fresh).
+    _kauflandUnitsLiveExistingDocs = [
+      {
+        id: '7100',
+        data: () => ({
+          active: true,
+          status: 'AVAILABLE',
+          storefront: 'de',
+          product_valid: true,
+          // numeric timestamp path (also supports Firestore Timestamp w/ toDate())
+          product_validity_checked_at: oneHourAgo,
+        }),
+      },
+    ];
+    getAllProductsV2ForTenantMock.mockResolvedValue([]);
+
+    const result = await syncKauflandListingsCache({ tenantId: 'trendocean', storefront: 'de' });
+
+    // No getUnit call because cache is fresh + was valid.
+    expect(getUnitMock).not.toHaveBeenCalled();
+    expect(result.validityChecked).toBe(0);
+    expect(result.validityValid).toBe(0);
+    expect(result.validityInvalid).toBe(0);
+
+    // No product_valid write either (only the main payload set).
+    const validityWrites = writes.filter(
+      (w) => w.kind === 'set' && w.payload && Object.prototype.hasOwnProperty.call(w.payload, 'product_valid')
+    );
+    expect(validityWrites).toHaveLength(0);
+  });
+
+  it('re-checks validity when last seen invalid (allows flip to valid)', async () => {
+    const fiveMinAgo = Date.now() - 5 * 60 * 1000;
+    listUnitsMock.mockResolvedValueOnce([
+      {
+        id_unit: 7200,
+        id_offer: 'SKU-FLIP',
+        ean: '',
+        amount: 2,
+        status: 'AVAILABLE',
+        storefront: 'de',
+        product: {},
+      },
+    ]);
+    // Cache: was invalid 5 min ago (fresh by TTL, but wasInvalid → re-check).
+    _kauflandUnitsLiveExistingDocs = [
+      {
+        id: '7200',
+        data: () => ({
+          active: true,
+          status: 'AVAILABLE',
+          storefront: 'de',
+          product_valid: false,
+          product_validity_checked_at: fiveMinAgo,
+        }),
+      },
+    ];
+    getAllProductsV2ForTenantMock.mockResolvedValue([]);
+    getUnitMock.mockResolvedValueOnce({ product: { is_valid: true } });
+
+    const result = await syncKauflandListingsCache({ tenantId: 'trendocean', storefront: 'de' });
+
+    expect(getUnitMock).toHaveBeenCalledTimes(1);
+    expect(getUnitMock).toHaveBeenCalledWith(7200, expect.objectContaining({
+      embedded: 'products',
+    }));
+    expect(result.validityChecked).toBe(1);
+    expect(result.validityValid).toBe(1);
+    expect(result.validityInvalid).toBe(0);
+
+    const validityWrites = writes.filter(
+      (w) => w.kind === 'set' && w.payload && Object.prototype.hasOwnProperty.call(w.payload, 'product_valid')
+    );
+    expect(validityWrites).toHaveLength(1);
+    expect(validityWrites[0].payload.product_valid).toBe(true);
   });
 });

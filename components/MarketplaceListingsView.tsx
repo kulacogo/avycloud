@@ -30,6 +30,8 @@ interface MarketplaceListingsViewProps {
 }
 
 type ListingStatus =
+  | "live"
+  | "indexing"
   | "active"
   | "paused"
   | "deactivated"
@@ -37,6 +39,10 @@ type ListingStatus =
   | "in_review"
   | "inactive"
   | "unknown";
+// "live" + "indexing" are granular Kaufland sub-states of "active":
+//   live      → product.is_valid === true  (matches Kaufland Portal "Aktiv")
+//   indexing  → product.is_valid === false (Kaufland still indexing, <24h)
+//   active    → product.is_valid unknown   (legacy data fallback)
 type TabFilter = "all" | "active" | "inactive";
 
 interface NormalizedListing {
@@ -62,6 +68,10 @@ interface NormalizedListing {
 // ─── Constants ───────────────────────────────────────────────
 
 const STATUS_CONFIG: Record<ListingStatus, { label: string; bg: string; text: string }> = {
+  live: { label: "Live", bg: "bg-success-dim", text: "text-success" },
+  indexing: { label: "Indexierung läuft", bg: "bg-warning-dim", text: "text-warning" },
+  // `active` remains as legacy/fallback (productValid unknown) — same colour
+  // as `live` so old data renders identically until validity is cached.
   active: { label: "Aktiv", bg: "bg-success-dim", text: "text-success" },
   paused: { label: "Pausiert", bg: "bg-warning-dim", text: "text-warning" },
   deactivated: { label: "Deaktiviert", bg: "bg-app-elevated", text: "text-txt-muted" },
@@ -180,13 +190,17 @@ function normalizeEbayRow(row: EbayListingRow): NormalizedListing {
 function normalizeKauflandRow(row: KauflandListingRow): NormalizedListing {
   // active flag is the primary signal — set by the sync only when Kaufland's
   // /units API actually returned this unit with AVAILABLE in the latest run.
+  // productValid (Kaufland product.is_valid) further splits active into Live
+  // (Portal-Aktiv) vs Indexierung läuft (Kaufland-side quality indexing).
   // Status field is used only to disambiguate WHY a non-active listing is
   // inactive (paused vs deactivated vs blocked vs in-review vs stale ghost).
   const rawStatus = row.status != null ? String(row.status).trim().toUpperCase() : "";
   let status: ListingStatus = "unknown";
 
   if (row.active === true) {
-    status = "active";
+    if (row.productValid === true) status = "live";
+    else if (row.productValid === false) status = "indexing";
+    else status = "active"; // legacy data with no validity check yet
   } else if (row.active === false) {
     if (rawStatus === "ONHOLD") status = "paused";
     else if (rawStatus === "DEACTIVATED") status = "deactivated";
@@ -397,7 +411,12 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
         return getProductAvailableQuantity(p) > 0;
       });
       // Bereits aktiv gelistete Produkte ausfiltern (SKU + EAN + listingStatus)
-      const activeListings = listings.filter((l) => l.status === "active");
+      // "live" und "indexing" sind Kaufland-Sub-Status von "active" — auch
+      // diese müssen rausgefiltert werden damit Produkte nicht doppelt gelistet
+      // werden während Kaufland noch indexiert.
+      const activeListings = listings.filter(
+        (l) => l.status === "active" || l.status === "live" || l.status === "indexing"
+      );
       const listedSkus = new Set(
         activeListings
           .filter((l) => l.sku)
@@ -637,6 +656,8 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
   const tabCounts = useMemo(() => {
     const counts: Record<TabFilter, number> = { all: 0, active: 0, inactive: 0 };
     const byStatus: Record<ListingStatus, number> = {
+      live: 0,
+      indexing: 0,
       active: 0,
       paused: 0,
       deactivated: 0,
@@ -645,19 +666,30 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
       inactive: 0,
       unknown: 0,
     };
+    // Granulare Sub-Counts: `live` matches Kaufland Portal "Aktiv"; `indexing`
+    // is Kaufland-side quality indexing (<24h, not yet shown as Aktiv in
+    // Portal); `active` (no productValid signal) folds into the `active` tab
+    // for backwards-compat.
+    let live = 0;
+    let indexing = 0;
     listings.forEach((l) => {
       counts.all++;
       byStatus[l.status]++;
-      if (l.status === "active") counts.active++;
+      if (l.status === "live") { live++; counts.active++; }
+      else if (l.status === "indexing") { indexing++; counts.active++; }
+      else if (l.status === "active") counts.active++;
       else counts.inactive++;
     });
-    return { ...counts, byStatus };
+    return { ...counts, live, indexing, byStatus };
   }, [listings]);
 
   const filteredListings = useMemo(() => {
     let result = listings;
-    if (activeTab === "active") result = result.filter((l) => l.status === "active");
-    else if (activeTab === "inactive") result = result.filter((l) => l.status !== "active");
+    // "active" tab is the union of granular live + indexing + legacy active,
+    // otherwise indexing-only rows would vanish from the default view.
+    const isActiveLike = (s: ListingStatus) => s === "live" || s === "indexing" || s === "active";
+    if (activeTab === "active") result = result.filter((l) => isActiveLike(l.status));
+    else if (activeTab === "inactive") result = result.filter((l) => !isActiveLike(l.status));
 
     if (stockFilter === "inStock") result = result.filter((l) => l.quantity != null && l.quantity > 3);
     else if (stockFilter === "low") result = result.filter((l) => l.quantity != null && l.quantity > 0 && l.quantity <= 3);
@@ -833,9 +865,25 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
           <div className="text-sm text-txt-muted mb-1">Gesamt</div>
           <div className="text-2xl font-bold text-txt-primary">{listings.length}</div>
         </div>
-        <div className="bg-app-surface border border-app-border rounded-xl p-4">
+        <div
+          className="bg-app-surface border border-app-border rounded-xl p-4"
+          title={
+            marketplace === "kaufland"
+              ? "Live = von Kaufland validiert (Portal-Aktiv). Indexierung läuft = bei Kaufland in Bearbeitung (bis 24h)."
+              : undefined
+          }
+        >
           <div className="text-sm text-txt-muted mb-1">Aktiv</div>
-          <div className="text-2xl font-bold text-success">{tabCounts.active}</div>
+          <div className="text-2xl font-bold text-success">
+            {marketplace === "kaufland" && (tabCounts.live > 0 || tabCounts.indexing > 0)
+              ? tabCounts.live
+              : tabCounts.active}
+          </div>
+          {marketplace === "kaufland" && tabCounts.indexing > 0 && (
+            <div className="text-xs text-warning mt-0.5">
+              + {tabCounts.indexing} in Indexierung
+            </div>
+          )}
         </div>
         <div className="bg-app-surface border border-app-border rounded-xl p-4">
           <div className="text-sm text-txt-muted mb-1">Inaktiv</div>
@@ -1259,7 +1307,7 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
                               !
                             </span>
                           )}
-                          {listing.status !== "active" && listing.warehouseStock != null && listing.warehouseStock > 0 && (
+                          {listing.status !== "active" && listing.status !== "live" && listing.status !== "indexing" && listing.warehouseStock != null && listing.warehouseStock > 0 && (
                             <span
                               className="inline-flex px-1 py-0.5 rounded text-[10px] font-semibold bg-warning-dim text-warning"
                               title={`Lagerbestand vorhanden, aber Listing ${STATUS_CONFIG[listing.status].label.toLowerCase()}`}

@@ -894,6 +894,11 @@ router.get('/kaufland/sku-index', requirePermission('products', 'read'), async (
         // (active=false with stale status='AVAILABLE') back to active=true,
         // producing false-positive "gelistet" badges in the Inventory table.
         active: d.active === true,
+        // product.is_valid as cached by the validity-refresh phase of the
+        // listings-sync. true = Kaufland Portal "Aktiv", false = "Indexierung
+        // läuft" (typically <24h after first publish), null = legacy doc or
+        // validity not yet checked (fall back to legacy "active" semantics).
+        productValid: typeof d.product_valid === 'boolean' ? d.product_valid : null,
         idProduct: Number.isFinite(Number(d.id_product)) ? Number(d.id_product) : null,
         viewItemUrl: d.view_item_url || null,
       });
@@ -1034,6 +1039,10 @@ router.get('/kaufland/listings', requirePermission('products', 'read'), async (r
         ean: unitEan || null,
         status: normalizedStatus || null,
         active: isActive,
+        // product.is_valid as cached by the validity-refresh phase of the
+        // listings-sync. true = Portal "Aktiv" (Live), false = "Indexierung
+        // läuft", null = legacy doc / validity not yet checked.
+        productValid: typeof d.product_valid === 'boolean' ? d.product_valid : null,
         quantity: mpQty,
         idProduct: Number.isFinite(Number(d.id_product)) ? Number(d.id_product) : null,
         viewItemUrl: d.view_item_url || null,

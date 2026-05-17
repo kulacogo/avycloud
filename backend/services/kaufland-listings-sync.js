@@ -23,19 +23,25 @@
  * stock sync to push local truth (and stop oversell).
  *
  * Returns `{ storefront, fetched, active, driftsDetected, reconciled,
- * reverseDriftsDetected, reverseDriftSamples }` — same shape as the
- * pre-extraction route response payload.
+ * reverseDriftsDetected, reverseDriftSamples, validityChecked, validityValid,
+ * validityInvalid }` — additive extension of the pre-extraction route response
+ * payload (older fields unchanged, new fields default to 0 when no validity
+ * refresh ran).
  */
+
+// TTL for the `product_valid` cache: Kaufland's indexing pipeline can take up
+// to 24h to flip is_valid from false → true on freshly published listings.
+const VALIDITY_TTL_MS = 24 * 3600 * 1000;
 
 /**
  * @param {object} opts
  * @param {string} [opts.tenantId]   tenant for product reads (optional; legacy global read when absent)
  * @param {string} [opts.storefront='de']
- * @returns {Promise<{storefront:string, fetched:number, active:number, driftsDetected:number, reconciled:number, reverseDriftsDetected:number, reverseDriftSamples:Array<object>}>}
+ * @returns {Promise<{storefront:string, fetched:number, active:number, driftsDetected:number, reconciled:number, reverseDriftsDetected:number, reverseDriftSamples:Array<object>, validityChecked:number, validityValid:number, validityInvalid:number}>}
  */
 async function syncKauflandListingsCache({ tenantId, storefront = 'de' } = {}) {
   const sf = String(storefront || 'de').trim().toLowerCase();
-  const { listUnits } = require('../lib/kaufland-api');
+  const { listUnits, getUnit } = require('../lib/kaufland-api');
   const { Timestamp } = require('@google-cloud/firestore');
   const { firestore } = require('../lib/firestore');
   const { getAllProductsV2, getAllProductsV2ForTenant } = require('../lib/product-store');
@@ -144,6 +150,77 @@ async function syncKauflandListingsCache({ tenantId, storefront = 'de' } = {}) {
       }
     }
     if (staleBatchCount > 0) await staleBatch.commit();
+  }
+
+  // ── Phase: refresh product.is_valid for AVAILABLE units ─────────────────
+  // Kaufland's /units list API does NOT include product.is_valid — only the
+  // single-unit GET with embedded=products carries it. Without this field we
+  // would report Kaufland's binary `unit.status=AVAILABLE` as "Aktiv" and
+  // overcount versus the Kaufland Portal, which additionally requires
+  // `product.is_valid=true` (i.e. the product has finished Kaufland's quality
+  // indexing pipeline). Freshly listed units can stay `is_valid=false` for up
+  // to ~24h after publish.
+  //
+  // We fetch product.is_valid via getUnit(embedded='products') for units that:
+  //   - are currently AVAILABLE (other statuses irrelevant for Portal "Aktiv")
+  //   - AND either: lack the product_valid cache OR cache is stale (>24h)
+  //                 OR were last seen invalid (re-check, may have indexed)
+  //
+  // Cost: bounded by AVAILABLE-count; after initial seed only ~freshly-listed
+  // + stale-cache units (typically <50/sync) due to the 24h TTL.
+  let validityChecked = 0;
+  let validityValid = 0;
+  let validityInvalid = 0;
+  try {
+    const validitySnap = await collection.where('storefront', '==', sf).get();
+    const cachedById = new Map();
+    validitySnap.docs.forEach((d) => cachedById.set(d.id, d.data() || {}));
+
+    const validityCheckList = [];
+    for (const unit of units) {
+      if (String(unit?.status || '').toUpperCase() !== 'AVAILABLE') continue;
+      const docId = String(unit.id_unit);
+      const cached = cachedById.get(docId) || {};
+      const lastCheckedRaw = cached.product_validity_checked_at;
+      const lastChecked = (typeof lastCheckedRaw?.toDate === 'function'
+        ? lastCheckedRaw.toDate().getTime()
+        : (typeof lastCheckedRaw === 'number' ? lastCheckedRaw : 0));
+      const isStale = !lastChecked || (Date.now() - lastChecked) > VALIDITY_TTL_MS;
+      const wasInvalid = cached.product_valid === false;
+      const neverChecked = cached.product_valid === undefined;
+      if (neverChecked || wasInvalid || isStale) {
+        validityCheckList.push(unit);
+      }
+    }
+
+    if (validityCheckList.length > 0) {
+      let valBatch = firestore.batch();
+      let valBatchCount = 0;
+      for (const unit of validityCheckList) {
+        try {
+          const detail = await getUnit(unit.id_unit, { storefront: sf, embedded: 'products' });
+          const product = detail?.product;
+          const isValid = product?.is_valid === true;
+          valBatch.set(
+            collection.doc(String(unit.id_unit)),
+            { product_valid: isValid, product_validity_checked_at: now },
+            { merge: true }
+          );
+          valBatchCount += 1;
+          validityChecked += 1;
+          if (isValid) validityValid++; else validityInvalid++;
+          if (valBatchCount >= 400) {
+            await valBatch.commit();
+            valBatch = firestore.batch();
+            valBatchCount = 0;
+          }
+        } catch (_) { /* swallow per-unit, continue */ }
+        await new Promise((r) => setTimeout(r, 50)); // rate-limit friendly
+      }
+      if (valBatchCount > 0) await valBatch.commit();
+    }
+  } catch (validityErr) {
+    console.error('[kaufland-sync] validity refresh error (non-fatal):', validityErr.message);
   }
 
   // ── Backfill ops.kaufland.unitId into products_v2 ────────────────────────
@@ -284,6 +361,9 @@ async function syncKauflandListingsCache({ tenantId, storefront = 'de' } = {}) {
     reconciled: reconciledCount,
     reverseDriftsDetected,
     reverseDriftSamples,
+    validityChecked,
+    validityValid,
+    validityInvalid,
   };
 }
 
