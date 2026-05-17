@@ -82,10 +82,17 @@ async function syncKauflandListingsCache({ tenantId, storefront = 'de' } = {}) {
     const productUrl = String(product?.url || '').trim();
     const viewItemUrl = productUrl || (normalizedIdProduct ? `https://www.kaufland.de/product/${normalizedIdProduct}/` : null);
 
-    // Extract title and price from Kaufland API response
+    // Extract title and three distinct prices from Kaufland API response:
+    //   listing_price → max price set by seller (what we configure)
+    //   minimum_price → min price floor set by seller
+    //   price         → CURRENT customer-facing sell price (Kaufland's auto-pricer
+    //                   adjusts dynamically between min and max). This is what
+    //                   the Seller Portal displays as the active price — we need
+    //                   it as the primary value in our UI so it matches Portal.
     const klTitle = typeof product?.title === 'string' && product.title.trim() ? product.title.trim() : null;
-    const rawPrice = unit?.listing_price ?? unit?.price ?? null;
-    const klListingPrice = Number.isFinite(Number(rawPrice)) ? Number(rawPrice) : null;
+    const klListingPrice = Number.isFinite(Number(unit?.listing_price)) ? Number(unit.listing_price) : null;
+    const klCurrentPrice = Number.isFinite(Number(unit?.price)) ? Number(unit.price) : null;
+    const klMinimumPrice = Number.isFinite(Number(unit?.minimum_price)) ? Number(unit.minimum_price) : null;
 
     const payload = {
       id_unit: idUnit,
@@ -101,6 +108,8 @@ async function syncKauflandListingsCache({ tenantId, storefront = 'de' } = {}) {
       active: String(unit?.status || '').trim().toUpperCase() === 'AVAILABLE',
       title: klTitle,
       listing_price: klListingPrice,
+      current_price: klCurrentPrice,
+      minimum_price: klMinimumPrice,
       updatedAt: now,
       source: 'kaufland-sync',
     };

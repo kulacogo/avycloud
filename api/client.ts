@@ -1396,7 +1396,18 @@ export interface KauflandListingRow {
   productId: string | null;
   title: string | null;
   brand: string | null;
+  /**
+   * Primary display price = Kaufland's current customer-facing sell price
+   * (`currentPrice` if available, else `listingPrice`, else matched product's
+   * sellPrice). Matches what the Seller Portal shows as the active price.
+   */
   price: number | null;
+  /** Current customer-facing sell price set by Kaufland's auto-pricer */
+  currentPrice?: number | null;
+  /** Max price set by seller (upper bound for the auto-pricer) */
+  listingPrice?: number | null;
+  /** Min price floor (auto-pricer won't undercut below this) */
+  minimumPrice?: number | null;
   imageUrl: string | null;
   category: string | null;
   warehouseStock?: number | null;

@@ -51,6 +51,12 @@ interface NormalizedListing {
   sku: string | null;
   ean: string | null;
   price: number | null;
+  /** Kaufland auto-pricer current sell price (if different from listing max) */
+  currentPrice?: number | null;
+  /** Seller-set max price (upper bound for auto-pricer) */
+  listingPrice?: number | null;
+  /** Seller-set min price floor */
+  minimumPrice?: number | null;
   currency: string | null;
   quantity: number | null;
   status: ListingStatus;
@@ -222,6 +228,9 @@ function normalizeKauflandRow(row: KauflandListingRow): NormalizedListing {
     sku: row.sku,
     ean: row.ean || null,
     price: row.price,
+    currentPrice: row.currentPrice ?? null,
+    listingPrice: row.listingPrice ?? null,
+    minimumPrice: row.minimumPrice ?? null,
     currency: "EUR",
     quantity: row.quantity ?? null,
     status,
@@ -1309,9 +1318,20 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
                         </span>
                       </td>
                       <td className="px-4 py-3 text-right">
-                        <span className="text-txt-primary font-medium">
-                          {formatPrice(listing.price, listing.currency)}
-                        </span>
+                        <div className="flex flex-col items-end leading-tight">
+                          <span className="text-txt-primary font-medium" title={
+                            listing.listingPrice != null && listing.currentPrice != null && listing.listingPrice !== listing.currentPrice
+                              ? `Aktuell: ${formatPrice(listing.currentPrice, listing.currency)} · Max: ${formatPrice(listing.listingPrice, listing.currency)}${listing.minimumPrice != null ? ` · Min: ${formatPrice(listing.minimumPrice, listing.currency)}` : ""}`
+                              : undefined
+                          }>
+                            {formatPrice(listing.price, listing.currency)}
+                          </span>
+                          {listing.listingPrice != null && listing.currentPrice != null && listing.listingPrice > listing.currentPrice && (
+                            <span className="text-xs text-txt-muted">
+                              max {formatPrice(listing.listingPrice, listing.currency)}
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="px-4 py-3 text-right">
                         <span className={`font-medium ${

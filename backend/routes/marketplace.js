@@ -1001,9 +1001,14 @@ router.get('/kaufland/listings', requirePermission('products', 'read'), async (r
 
       // Use Kaufland product title as fallback if no AvyCloud product match
       const klTitle = typeof d.title === 'string' ? d.title : null;
-      const klPrice = Number.isFinite(Number(d.listing_price)) ? Number(d.listing_price) / 100
-        : Number.isFinite(Number(d.price)) ? Number(d.price) / 100
-        : null;
+
+      // Three distinct Kaufland prices, all stored in cents in cache:
+      //   currentPrice  → what Kaufland's auto-pricer shows customers now (Portal-bold)
+      //   listingPrice  → max price set by seller (our setting)
+      //   minimumPrice  → min price floor (auto-pricer won't go below)
+      const klCurrentPrice = Number.isFinite(Number(d.current_price)) ? Number(d.current_price) / 100 : null;
+      const klListingPrice = Number.isFinite(Number(d.listing_price)) ? Number(d.listing_price) / 100 : null;
+      const klMinimumPrice = Number.isFinite(Number(d.minimum_price)) ? Number(d.minimum_price) / 100 : null;
 
       // updatedAt for "Letztes Update" column
       const updatedAtRaw = d.updatedAt;
@@ -1022,9 +1027,12 @@ router.get('/kaufland/listings', requirePermission('products', 'read'), async (r
       const mpQty = Number.isFinite(Number(d.amount)) ? Number(d.amount) : null;
       const mismatch = typeof whStock === 'number' && mpQty !== null && whStock !== mpQty;
 
-      // Price: prefer matched product price, then Kaufland unit price fields
+      // Primary price = Kaufland's actual customer-facing sell price (Portal-truth).
+      // Fallback chain: current → listing → matched product sellPrice.
       const matchedPrice = matched?.details?.pricing?.sellPrice ?? null;
-      const unitPrice = matchedPrice !== null ? matchedPrice : klPrice;
+      const unitPrice = klCurrentPrice !== null ? klCurrentPrice
+        : klListingPrice !== null ? klListingPrice
+        : matchedPrice;
 
       // Category: try multiple sources from matched product
       const categoryName = matched?.identification?.category || matched?.details?.category || matched?.details?.categoryId || null;
@@ -1052,6 +1060,12 @@ router.get('/kaufland/listings', requirePermission('products', 'read'), async (r
         title: matched?.identification?.name || klTitle || null,
         brand: matched?.identification?.brand || null,
         price: unitPrice,
+        // All three Kaufland prices so the UI can show the spread (max/current/min).
+        // When currentPrice < listingPrice the seller is being underbid; min shows
+        // the floor before pricing engine stops competing.
+        currentPrice: klCurrentPrice,
+        listingPrice: klListingPrice,
+        minimumPrice: klMinimumPrice,
         imageUrl: matched?.details?.images?.[0]?.url_or_base64 || matched?.details?.images?.[0]?.url || null,
         category: categoryName,
         warehouseStock: typeof whStock === 'number' ? whStock : null,
