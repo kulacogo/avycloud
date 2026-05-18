@@ -240,10 +240,9 @@ async function enrichProductForKaufland(product, missingAttributes = [], opts = 
 
   if (buckets.has('gpsr')) {
     const gpsrExisting = enriched.details.gpsr && typeof enriched.details.gpsr === 'object' ? enriched.details.gpsr : {};
-    const gpsrAlreadyComplete = safeString(gpsrExisting.manufacturer_name)
-      && safeString(gpsrExisting.manufacturer_address)
-      && safeString(gpsrExisting.email);
-    if (brand && !gpsrAlreadyComplete) {
+    // Kaufland complained → don't trust our existing GPSR even if "complete".
+    // Try web-fallback to add any missing subfields (phone, city, postalcode).
+    if (brand) {
       tasks.push((async () => {
         try {
           const webResult = await withTimeout(
@@ -268,8 +267,10 @@ async function enrichProductForKaufland(product, missingAttributes = [], opts = 
   }
 
   if (buckets.has('description')) {
-    const haveDescription = safeString(enriched.details.description) || safeString(enriched.details.short_description);
-    if (!haveDescription && title) {
+    const descCurrent = safeString(enriched.details.description) || safeString(enriched.details.short_description);
+    // Kaufland complained → regenerate if missing OR too short (<50 chars).
+    // Kaufland validator probably wants substantial product info.
+    if ((!descCurrent || descCurrent.length < 50) && title) {
       tasks.push((async () => {
         try {
           const desc = await withTimeout(
@@ -292,11 +293,20 @@ async function enrichProductForKaufland(product, missingAttributes = [], opts = 
     const attrsForMaterial = enriched.details.attributes && typeof enriched.details.attributes === 'object' && !Array.isArray(enriched.details.attributes)
       ? enriched.details.attributes
       : {};
-    const haveMaterial = Object.keys(attrsForMaterial).some((k) => {
+    // Kaufland complained → check our existing material value for QUALITY,
+    // not mere presence. Kaufland validator rejects free-text without
+    // percentage (e.g., "Baumwollmischung mit Stretch") even if stored.
+    // Re-format whenever the existing value doesn't match `XX% Y` pattern.
+    let existingMaterialValue = '';
+    for (const [k, v] of Object.entries(attrsForMaterial)) {
       const token = normalizeToken(k);
-      return token.includes('material') && (token.includes('zusammensetzung') || token === 'material' || token.includes('composition'));
-    });
-    if (!haveMaterial && title) {
+      if (token.includes('material') && (token.includes('zusammensetzung') || token === 'material' || token.includes('composition'))) {
+        const candidate = Array.isArray(v) ? safeString(v[0]) : safeString(v);
+        if (candidate) { existingMaterialValue = candidate; break; }
+      }
+    }
+    const hasValidMaterialFormat = existingMaterialValue && /\d{1,3}\s*%/.test(existingMaterialValue);
+    if (!hasValidMaterialFormat && title) {
       tasks.push((async () => {
         try {
           const material = await withTimeout(

@@ -199,7 +199,12 @@ describe('enrichProductForKaufland', () => {
     expect(lookupGpsrFromWebMock).toHaveBeenCalledTimes(1);
   });
 
-  it('skips already-complete GPSR (does not call web fallback)', async () => {
+  it('still tries GPSR web-fallback when Kaufland says missing (might add phone/city/postalcode)', async () => {
+    // Behaviour change 2026-05-18: Kaufland's "missing" signal trumps our
+    // local "looks complete" heuristic. We always try the fallback when the
+    // attribute is in missing_attributes — extra subfields like phone/city
+    // never hurt and may unblock Kaufland's validator.
+    lookupGpsrFromWebMock.mockResolvedValueOnce(null); // simulate no new web data
     const product = {
       id: 'p1',
       identification: { name: 'X', brand: 'ACME' },
@@ -212,8 +217,10 @@ describe('enrichProductForKaufland', () => {
       },
     };
     const out = await enrichProductForKaufland(product, ['product_safety_contact']);
+    // Web returned null → nothing added → enrichedFields stays empty
     expect(out.enrichedFields).toEqual([]);
-    expect(lookupGpsrFromWebMock).not.toHaveBeenCalled();
+    // ... but the lookup IS attempted
+    expect(lookupGpsrFromWebMock).toHaveBeenCalledTimes(1);
   });
 
   it('swallows Gemini errors per-field without crashing (no enrichment, no throw)', async () => {
