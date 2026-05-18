@@ -360,6 +360,7 @@ Vollständiger Report: [docs/kb/17-cleanup-report.md](docs/kb/17-cleanup-report.
 - [ ] **KB-Drift-2**: Re-Run `audit-kb-coverage.js` nach KB-Build → erwartete Coverage-Verbesserung dokumentieren
 - [ ] **KB-Drift-3**: Quarterly-Refresh-Reminder (90 Tage) in CI-Workflow ergänzen
 - [ ] **KB-Drift-4**: Fehlendes Runbook `docs/runbooks/multi-tenant-activation.md` anlegen oder Referenz in `backend/index.js` entfernen
+- [ ] **KB-Drift-5**: Pre-Commit-Hook oder `lint-staged` hinzufügen, der `cd backend && npm run sync-help` bei KB-Änderungen automatisch triggert, damit `backend/data/help-bundle.json` nie veraltet — heute manuell via `cd backend && npm run sync-help` aufzurufen wenn `docs/kb/` geändert wird
 
 ## 🔴 Hardening (aus /Users/oguz/.cursor/plans/avycloud-deep-dive-hardening_3e075f5e.plan.md)
 

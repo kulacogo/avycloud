@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node --max-old-space-size=3584 index.js",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "sync-help": "node scripts/sync-help-bundle.js"
   },
   "dependencies": {
     "@google-cloud/firestore": "^7.11.0",
