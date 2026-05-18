@@ -541,48 +541,63 @@ async function createUnit(product, { storefront = 'de', autoCreateProductData = 
   const picked = pickUnitData(product, { mode: 'create', storefront });
   const createData = { ...(picked.unitData || {}) };
   let productDataSubmitted = false;
+  let catalogMatched = false;
 
   if (picked.ean) {
-    // Step 1: Try to find existing product in Kaufland catalog
-    let idProduct = null;
-    try {
-      const productData = await getProductByEan(picked.ean, { storefront: picked.storefront });
-      idProduct = Number(productData?.id_product || 0);
-      if (!Number.isFinite(idProduct) || idProduct <= 0) idProduct = null;
-    } catch (lookupErr) {
-      // Lookup failed — not fatal, we can still try to create the unit
-      console.warn(`[createUnit] EAN lookup failed for ${picked.ean}: ${lookupErr?.message || lookupErr}`);
-    }
-
-    if (idProduct) {
-      createData.id_product = idProduct;
-    } else if (autoCreateProductData) {
-      // Step 2: Product not in catalog — submit product data so Kaufland indexes it
-      const title =
-        safeString(product?.identification?.name) ||
-        safeString(product?.details?.title) ||
-        '';
-      const brand = safeString(product?.identification?.brand) || safeString(product?.details?.brand) || '';
-      const category = safeString(product?.identification?.category) || '';
-      const desc = safeString(product?.details?.short_description) || '';
-
-      const pdAttributes = {};
-      // Kaufland rejects titles > 255 characters. Trim defensively before submit
-      // (mirrors the existing `note.slice(0, 250)` pattern elsewhere in this file).
-      if (title) pdAttributes.title = [title.slice(0, 255).trim()];
-      if (brand) pdAttributes.brand = [brand];
-      if (category) pdAttributes.category = [category];
-      if (desc) pdAttributes.description = [desc];
-
-      if (Object.keys(pdAttributes).length) {
+    // Step 1: ALWAYS push full product data — regardless of catalog match.
+    //
+    // Old behaviour: when Kaufland catalog already had the EAN (id_product
+    // match) we set createData.id_product and skipped putProductData entirely.
+    // Kaufland then used its own catalog entry — which is often incomplete
+    // (missing GPSR Verantwortliche Person, Manufacturer, full image set,
+    // Material). Result: Kaufland's validator left the listing as
+    // `product.is_valid=false` → Portal bucket "Angebotsdaten fehlen" for
+    // hours/days. The 50+ "Product Data not found" and 37+ missing
+    // GPSR-EU-contact failures observed in production trace back to this.
+    //
+    // New behaviour: always submit our authoritative attribute set via
+    // putProductData BEFORE creating the unit. Kaufland merges; our data
+    // wins over a sparse catalog entry. Lazy-require breaks the circular
+    // dependency with services/kaufland-product-data-repair.js (which itself
+    // calls patchProductData from this module).
+    if (autoCreateProductData) {
+      let fullAttrs = {};
+      try {
+        const { buildKauflandProductDataAttributes } = require('../services/kaufland-product-data-repair');
+        fullAttrs = buildKauflandProductDataAttributes(product, {}) || {};
+      } catch (buildErr) {
+        console.warn(`[createUnit] buildKauflandProductDataAttributes failed for EAN ${picked.ean}: ${buildErr?.message || buildErr}`);
+      }
+      // Defensive title-trim (255-char Kaufland limit) — buildKauflandProductDataAttributes
+      // should already do this but we re-clamp just in case.
+      if (Array.isArray(fullAttrs.title) && fullAttrs.title[0]) {
+        fullAttrs.title = [String(fullAttrs.title[0]).slice(0, 255).trim()];
+      }
+      if (Object.keys(fullAttrs).length > 0) {
         try {
-          await putProductData({ ean: picked.ean, attributes: pdAttributes, locale: 'de-DE' });
+          await putProductData({ ean: picked.ean, attributes: fullAttrs, locale: 'de-DE' });
           productDataSubmitted = true;
-          console.log(`[createUnit] Product data submitted for EAN ${picked.ean}`);
+          console.log(`[createUnit] Full product data submitted for EAN ${picked.ean} — keys: ${Object.keys(fullAttrs).join(',')}`);
         } catch (pdErr) {
           console.warn(`[createUnit] putProductData failed for EAN ${picked.ean}: ${pdErr?.message || pdErr}`);
         }
       }
+    }
+
+    // Step 2: Try to find existing product in Kaufland catalog — bind via
+    // id_product if available so Kaufland routes the unit to the right
+    // catalog node. Our PUT above ensures the node is enriched with our data
+    // regardless of whether it pre-existed.
+    try {
+      const productData = await getProductByEan(picked.ean, { storefront: picked.storefront });
+      const idProduct = Number(productData?.id_product || 0);
+      if (Number.isFinite(idProduct) && idProduct > 0) {
+        createData.id_product = idProduct;
+        catalogMatched = true;
+      }
+    } catch (lookupErr) {
+      // Lookup failed — not fatal, POST /units accepts EAN alone
+      console.warn(`[createUnit] EAN lookup failed for ${picked.ean}: ${lookupErr?.message || lookupErr}`);
     }
   }
 
