@@ -270,12 +270,16 @@ async function syncKauflandListingsCache({ tenantId, storefront = 'de' } = {}) {
   let repairSucceeded = 0;
   try {
     const repairSnap = await collection.where('storefront', '==', sf).get();
-    // NOTE: getAllProductsV2/getAllProductsV2ForTenant currently returns only
-    // ~half of products_v2 (663/1382 observed in production 2026-05-18) — root
-    // cause TBD in product-store.js. We bypass with a direct Firestore read
-    // so the repair phase can see all SKUs. Same data, no pagination/cache.
-    const allProdsSnap = await firestore.collection('products_v2').get();
-    const allProdsForRepair = allProdsSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    // Tenant-scoped read (D.0c pattern): when tenantId is given prefer the
+    // tenant-filter path so we don't enumerate other tenants' products and
+    // accidentally repair Kaufland units with mismatched-tenant data.
+    // (Earlier "half-results" symptom turned out to be a local-test artifact:
+    // USE_PRODUCTS_V2 env-var wasn't set, so getCollection() defaulted to the
+    // legacy `products` collection. Production has USE_PRODUCTS_V2=true and
+    // the function returns all products correctly.)
+    const allProdsForRepair = tenantId
+      ? await getAllProductsV2ForTenant(tenantId)
+      : await getAllProductsV2();
     const skuMapRepair = new Map();
     const eanMapRepair = new Map();
     for (const p of allProdsForRepair) {
