@@ -232,6 +232,95 @@ async function syncKauflandListingsCache({ tenantId, storefront = 'de' } = {}) {
     console.error('[kaufland-sync] validity refresh error (non-fatal):', validityErr.message);
   }
 
+  // ── Phase: auto-repair invalid units ─────────────────────────────────────
+  // Background-Heilung für Altbestand: für jeden AVAILABLE-Unit mit
+  // product_valid=false reichen wir unsere VOLLE Produktdaten via
+  // tryRepairKauflandProductData nochmal an Kaufland — dieselbe Mechanik
+  // wie der neue Initial-Create-Pfad in lib/kaufland-api.js (Commit a24a19a),
+  // nur als systemischer Background-Heilungs-Job für Listings die mit der
+  // alten Skip-on-catalog-match Logik gepublished wurden.
+  //
+  // Schutz vor Repair-Spam:
+  //   - `last_repair_at`-Marker im Cache, Re-Repair frühestens nach 6h
+  //   - Hard-Cap MAX_REPAIRS_PER_RUN — spreads load über mehrere Sync-Läufe
+  //
+  // Steady state: nach 24h sollte die invalide-Backlog gegen 0 tendieren
+  // (Kaufland indexiert die gepatchten Daten asynchron). Danach laufen
+  // Repairs nur noch für sporadisch neu auftauchende Invalid-Items.
+  const REPAIR_TTL_MS = 6 * 3600 * 1000;
+  const MAX_REPAIRS_PER_RUN = 50;
+  let repairAttempted = 0;
+  let repairSucceeded = 0;
+  try {
+    const repairSnap = await collection.where('storefront', '==', sf).get();
+    const allProdsForRepair = tenantId
+      ? await getAllProductsV2ForTenant(tenantId)
+      : await getAllProductsV2();
+    const skuMapRepair = new Map();
+    const eanMapRepair = new Map();
+    for (const p of allProdsForRepair) {
+      const sku = (p?.identification?.sku || p?.details?.identifiers?.sku || '').trim();
+      if (sku) skuMapRepair.set(sku.toLowerCase(), p);
+      const ean = (p?.identification?.ean || p?.details?.identifiers?.ean || '').trim();
+      if (ean) eanMapRepair.set(ean, p);
+    }
+
+    const { tryRepairKauflandProductData } = require('./kaufland-product-data-repair');
+
+    const candidates = [];
+    repairSnap.forEach((d) => {
+      const v = d.data() || {};
+      if (v.active !== true) return;
+      if (v.product_valid !== false) return;
+      const lastRepairRaw = v.last_repair_at;
+      const lastRepair = (typeof lastRepairRaw?.toDate === 'function'
+        ? lastRepairRaw.toDate().getTime()
+        : (typeof lastRepairRaw === 'number' ? lastRepairRaw : 0));
+      if (lastRepair && (Date.now() - lastRepair) < REPAIR_TTL_MS) return;
+      candidates.push({ docId: d.id, data: v });
+    });
+
+    const toRepair = candidates.slice(0, MAX_REPAIRS_PER_RUN);
+
+    let repairBatch = firestore.batch();
+    let repairBatchCount = 0;
+    for (const { docId, data: v } of toRepair) {
+      const sku = String(v.id_offer || '').toLowerCase();
+      const eanCandidate = String(v.ean || '').trim()
+        || (Array.isArray(v.eans) && v.eans[0]) || '';
+      const matched = (sku && skuMapRepair.get(sku))
+        || (eanCandidate && eanMapRepair.get(eanCandidate))
+        || null;
+      if (!matched || !eanCandidate) continue;
+      try {
+        const r = await tryRepairKauflandProductData({
+          product: matched,
+          ean: eanCandidate,
+          idUnit: Number(v.id_unit),
+          storefront: sf,
+        });
+        repairAttempted += 1;
+        repairBatch.set(collection.doc(docId), { last_repair_at: now }, { merge: true });
+        repairBatchCount += 1;
+        if (r && (r.attempted || r.repaired) && Array.isArray(r.patchedKeys) && r.patchedKeys.length > 0) {
+          repairSucceeded += 1;
+        }
+        if (repairBatchCount >= 400) {
+          await repairBatch.commit();
+          repairBatch = firestore.batch();
+          repairBatchCount = 0;
+        }
+      } catch (_) { /* swallow per-unit, continue */ }
+      await new Promise((r) => setTimeout(r, 100));
+    }
+    if (repairBatchCount > 0) await repairBatch.commit();
+    if (repairAttempted > 0) {
+      console.log(`[kaufland-sync] auto-repair attempted=${repairAttempted} succeeded=${repairSucceeded} (cap=${MAX_REPAIRS_PER_RUN}, candidates=${candidates.length})`);
+    }
+  } catch (repairErr) {
+    console.error('[kaufland-sync] auto-repair error (non-fatal):', repairErr.message);
+  }
+
   // ── Backfill ops.kaufland.unitId into products_v2 ────────────────────────
   // For every active unit, find the matching product_v2 doc (by SKU/EAN) and
   // write ops.kaufland.unitId so the stock-sync-dispatcher can push to
@@ -373,6 +462,8 @@ async function syncKauflandListingsCache({ tenantId, storefront = 'de' } = {}) {
     validityChecked,
     validityValid,
     validityInvalid,
+    repairAttempted,
+    repairSucceeded,
   };
 }
 
