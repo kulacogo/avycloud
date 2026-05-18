@@ -210,11 +210,25 @@ async function syncKauflandListingsCache({ tenantId, storefront = 'de' } = {}) {
           const detail = await getUnit(unit.id_unit, { storefront: sf, embedded: 'products' });
           const product = detail?.product;
           const isValid = product?.is_valid === true;
-          valBatch.set(
-            collection.doc(String(unit.id_unit)),
-            { product_valid: isValid, product_validity_checked_at: now },
-            { merge: true }
-          );
+
+          // Backfill EAN from product.eans (list-API doesn't return ean for
+          // catalog-matched units → cache has ean=''). Without this the
+          // auto-repair phase can't call putProductData and skips them all.
+          const docId = String(unit.id_unit);
+          const cached = cachedById.get(docId) || {};
+          const eansFromDetail = Array.isArray(product?.eans) ? product.eans : [];
+          const normalizedEans = eansFromDetail
+            .map((e) => String(e || '').replace(/\D+/g, '').trim())
+            .filter((e) => e.length >= 8);
+          const primaryEan = normalizedEans[0] || '';
+
+          const update = { product_valid: isValid, product_validity_checked_at: now };
+          if (!cached.ean && primaryEan) {
+            update.ean = primaryEan;
+            update.eans = normalizedEans;
+          }
+
+          valBatch.set(collection.doc(docId), update, { merge: true });
           valBatchCount += 1;
           validityChecked += 1;
           if (isValid) validityValid++; else validityInvalid++;
@@ -253,9 +267,12 @@ async function syncKauflandListingsCache({ tenantId, storefront = 'de' } = {}) {
   let repairSucceeded = 0;
   try {
     const repairSnap = await collection.where('storefront', '==', sf).get();
-    const allProdsForRepair = tenantId
-      ? await getAllProductsV2ForTenant(tenantId)
-      : await getAllProductsV2();
+    // NOTE: getAllProductsV2/getAllProductsV2ForTenant currently returns only
+    // ~half of products_v2 (663/1382 observed in production 2026-05-18) — root
+    // cause TBD in product-store.js. We bypass with a direct Firestore read
+    // so the repair phase can see all SKUs. Same data, no pagination/cache.
+    const allProdsSnap = await firestore.collection('products_v2').get();
+    const allProdsForRepair = allProdsSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
     const skuMapRepair = new Map();
     const eanMapRepair = new Map();
     for (const p of allProdsForRepair) {
