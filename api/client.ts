@@ -246,7 +246,7 @@ const buildHeadersWithAuth = async (base?: HeadersInit, forceRefresh = false): P
   return headers;
 };
 
-const fetchApi = async (input: RequestInfo | URL, init: RequestInit = {}) => {
+export const fetchApi = async (input: RequestInfo | URL, init: RequestInit = {}) => {
   const configuredOrigin = toOrigin(BACKEND_URL);
   const initialUrl = toUrl(input);
   const isEbayRequest = Boolean(initialUrl?.pathname?.startsWith('/api/ebay/'));

@@ -4,6 +4,8 @@ import ReactDOM from 'react-dom/client';
 import App from './App';
 import './styles/main.css';
 import { I18nProvider } from './i18n';
+import HelpProvider from './components/help/HelpProvider';
+import HelpButton from './components/help/HelpButton';
 
 const container = document.getElementById('root');
 if (container) {
@@ -12,6 +14,8 @@ if (container) {
     <React.StrictMode>
       <I18nProvider>
         <App />
+        <HelpButton />
+        <HelpProvider />
       </I18nProvider>
     </React.StrictMode>
   );

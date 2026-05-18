@@ -5,10 +5,12 @@
 
 ## Session-Start
 
-1. Lies diese Datei
-2. Lies `TASKS.md` — aktive Tasks + Bugs
-3. Bei Feature-Arbeit: lies `docs/features/<ID>/spec.md`
-4. `cd backend && npm test` + `npm run build` — Baseline prüfen
+1. Lies `AGENTS.md` im Repo-Root (oberster Einstieg)
+2. Lies `docs/kb/00-INDEX.md` und `docs/kb/13-personas/for-coding-agents.md` falls in dieser Session noch nicht gelesen
+3. Lies diese Datei (`CLAUDE.md`)
+4. Lies `TASKS.md` — aktive Tasks + Bugs
+5. Bei Feature-Arbeit: lies `docs/kb/06-features/<feature>.md` bzw. `docs/features/<ID>/spec.md`
+6. `cd backend && npm test` + `npm run build` — Baseline prüfen
 
 ## Architektur (Kurzform)
 

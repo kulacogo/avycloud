@@ -295,3 +295,83 @@
 ## Backlog (Someday)
 
 GDPR, API-Docs (OpenAPI), E2E-Tests (Playwright), Mobile App, Multi-Tenancy, Stripe Billing
+
+## 🟢 Erledigt am 2026-05-18 — Knowledge Base + Drift-Schutz
+
+- ✅ **AGENTS.md** im Repo-Root als Coding-Agent-Pflichtlektüre
+- ✅ **docs/kb/** Vollständige Knowledge Base in 17 Sektionen (~115 Markdown-Dateien)
+- ✅ **CLAUDE.md** Session-Start additiv erweitert (Punkt 1 + 2 zeigen auf AGENTS + KB)
+- ✅ **UI Help-Drawer** live (Backend-Route `/api/help/*` + `components/help/HelpDrawer.tsx` + `HelpButton.tsx` + `HelpProvider.tsx`)
+- ✅ **7 Audit-Skripte** unter `backend/scripts/audit-*.js` (read-only) plus initial Reports unter `docs/kb/_audit-runs/`
+- ✅ **CI Drift-Protection-Workflow** `.github/workflows/kb-drift-and-tests.yml`
+- ✅ **Cleanup-Report** unter `docs/kb/17-cleanup-report.md`
+- ✅ **Gap-Analysis** unter `docs/kb/15-gap-analysis.md`
+- ✅ **6 ADRs** unter `docs/kb/02-architecture/adr/`
+
+Tests grün: 1970 backend tests passing. Frontend build grün.
+
+## 🟡 Cleanup Operator Decisions (offen seit 2026-05-18)
+
+Vollständiger Report: [docs/kb/17-cleanup-report.md](docs/kb/17-cleanup-report.md). Operator-Sign-off pro Item:
+
+### A. Sicher löschbar (LOW Risk) — können beim nächsten Sprint mit erledigt werden
+
+- [ ] **Repo-Cleanup-1**: `backend/services/enrichment_backup.js` löschen (43.4 KB, dead per dead-code.test.js)
+- [ ] **Repo-Cleanup-2**: `archive/uiv2/backend/services/enrichment_backup.js` löschen (42.9 KB)
+- [ ] **Repo-Cleanup-3**: `git rm --cached **/.DS_Store` (bereits in .gitignore, nur Index-Cleanup)
+
+### B. ARCHIVE statt löschen (Reversibel, MEDIUM Risk) — Operator-Approval
+
+- [ ] **Repo-Cleanup-4**: 24 BaseLinker-Skripte in `backend/scripts/` → `backend/scripts/archive/baselinker/` + README "do not run"
+- [ ] **Repo-Cleanup-5**: Binary-Docs aus Repo-Root → `docs/archive/2026-Q2/repo-root-binaries/` (AvyCloud_*.docx/pdf, BL_*.csv, 04_baselinker_categories.xlsx, etc.)
+- [ ] **Repo-Cleanup-6**: `docs/ebay_orders.xls` + `.txt` → `docs/archive/2026-Q2/`
+- [ ] **Repo-Cleanup-7**: Erledigte Prompts in `docs/prompts/` annotieren (Frontmatter `status: done`) + älter als 6 Monate → `docs/archive/prompts-2026-Q1/`
+
+### C. Firestore Operator-Aktionen (HIGH Risk) — manueller Operator-Run
+
+- [ ] **FS-Cleanup-1**: `stock_sync_failures` (51.380 Docs) — verifizieren ob durch `stock_operation_failures` ersetzt; falls ja: Export + Delete
+- [ ] **FS-Cleanup-2**: `inventorySyncLogs` (16.557 Docs) — Legacy V1, Export + Delete
+- [ ] **FS-Cleanup-3**: `baselinker_sku_index` (1.634) + `baselinkerSyncJobs` (230) — BaseLinker-Legacy, Export + Delete
+- [ ] **FS-Cleanup-4**: `qualityJobs` (10.930) — Naming-Drift verifizieren; TTL setzen wenn aktiv
+- [ ] **FS-Cleanup-5**: TTL-Policies via Firestore-Console für: `stock_sync_log` (183k Docs, 30d), `stock_reconciliation_log` (90d), `warehouseEvents` (90d), `chatSessions` (60d), `identificationJobs`/`improveJobs` (30d completed)
+- [ ] **FS-Cleanup-6**: Fehlende Composite-Indexes ergänzen: `(status, completedAt)` für `identificationJobs` + `improveJobs`, `(tenantId, status, createdAt)` für `stock_operation_failures`
+
+### D. GCS Lifecycle-Policies (Operator via GCP-Console)
+
+- [ ] **GCS-Cleanup-1**: `avycloud-genai-images/jobs` — Lifecycle 90d→Coldline, 180d→Delete
+- [ ] **GCS-Cleanup-2**: `avycloud-product-images/jobs` — Lifecycle gleich
+- [ ] **GCS-Cleanup-3**: `trendocean/jobs` — Lifecycle 90d→Delete
+- [ ] **GCS-Cleanup-4**: `avycloud_cloudbuild/source` + `run-sources-avycloud-europe-west3/services` — Lifecycle 30d→Delete (Build-Snapshots)
+- [ ] **GCS-Cleanup-5**: `products-and-jobs/products`, `trendocean/product_images`, `trendocean/products` — verifizieren ob aktiv, sonst ARCHIVE
+
+### E. Cloud Run Hygiene (Operator)
+
+- [ ] **CR-Cleanup-1**: `product-hub-backend` — Status-Anomalie klären (Audit zeigt "dormant" + LastDeploy 2025-11-09 vs OldestWithTraffic-Revision 2026-05-18)
+- [ ] **CR-Cleanup-2**: 50 Revisionen prune auf aktive + letzte 5 für Rollback
+
+### F. Dependencies (Operator)
+
+- [ ] **Deps-Cleanup-1**: `npm uninstall framer-motion` (DEAD im Frontend)
+- [ ] **Deps-Cleanup-2**: `npm install node-fetch@2 p-limit` im backend/ (ERROR: imported aber nicht declared)
+
+### G. KB-Drift schließen
+
+- [ ] **KB-Drift-1**: 53 ENV-Flags in `docs/kb/03-development/feature-flags.md` ergänzen (Subagent füllte 39 von 53)
+- [ ] **KB-Drift-2**: Re-Run `audit-kb-coverage.js` nach KB-Build → erwartete Coverage-Verbesserung dokumentieren
+- [ ] **KB-Drift-3**: Quarterly-Refresh-Reminder (90 Tage) in CI-Workflow ergänzen
+- [ ] **KB-Drift-4**: Fehlendes Runbook `docs/runbooks/multi-tenant-activation.md` anlegen oder Referenz in `backend/index.js` entfernen
+
+## 🔴 Hardening (aus /Users/oguz/.cursor/plans/avycloud-deep-dive-hardening_3e075f5e.plan.md)
+
+Master-Plan mit 8 Waves. Siehe **[docs/kb/15-gap-analysis.md](docs/kb/15-gap-analysis.md)** für Übersicht.
+
+### P0 (sofort) — Wave 1 Items
+- [ ] **HARDEN-1**: `runRefundPush` Cross-Tenant-Query mit `tenantId`-Filter — `backend/services/returns-engine.js`
+- [ ] **HARDEN-2**: eBay-Webhook-Signatur-Verifikation — `backend/routes/webhooks.js`
+- [ ] **HARDEN-3**: Kaufland-HMAC fix (Raw-Body-Middleware vor `express.json`) — `backend/routes/webhooks.js`
+- [ ] **HARDEN-4**: SendCloud fail-closed bei fehlendem Secret in Production — `backend/routes/webhooks.js`
+- [ ] **HARDEN-5**: `/api/image-proxy` hinter `requireAuth` + URL-Allow-List + Private-IP-Deny — `backend/routes/products.js`
+- [ ] **HARDEN-6**: `restockItem` auf echten `bookStockIn`-Pfad — `backend/services/returns-engine.js`
+- [ ] **HARDEN-7**: Tenant-Hardcodes raus in `bookStockOut`, alle `emitSyncEvent` in `webhooks.js`, `syncOrdersNative` in `order-source-router.js`
+- [ ] **HARDEN-8**: `bookStockOut(meta.orderId)` Guard für invalide Order-Doc — `backend/lib/warehouse.js`
+- [ ] **HARDEN-9**: Stock-Lock fail-closed in Prod statt silent-degrade — `backend/lib/stock-lock.js`

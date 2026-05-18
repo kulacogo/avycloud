@@ -1,0 +1,217 @@
+name: KB Drift and Tests
+
+# Additive CI workflow. Does NOT replace `.github/workflows/firebase-hosting.yml`.
+# Goal: run backend tests + frontend typecheck/build on every PR, and gate the
+# Knowledge-Base coverage check ONLY for files newly introduced in the diff —
+# pre-existing KB gaps are surfaced as warnings instead of failing the run.
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  backend-tests:
+    name: Backend Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm ci
+
+      - name: Run backend tests
+        working-directory: backend
+        run: npm test
+
+  frontend-build-and-typecheck:
+    name: Frontend Build + Typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Typecheck frontend (tsc --noEmit)
+        run: npx tsc -p tsconfig.json --noEmit
+
+      - name: Build frontend (vite build)
+        run: npm run build
+
+  kb-coverage:
+    name: KB Coverage (gated to new files only)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository (full history for diff)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm ci
+
+      - name: Run KB coverage audit
+        working-directory: backend
+        run: node scripts/audit-kb-coverage.js --json > /tmp/coverage.json
+
+      - name: Run extended flags audit
+        working-directory: backend
+        run: node scripts/audit-flags-extended.js --json > /tmp/flags.json
+
+      - name: Determine diff base SHA
+        id: diffbase
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${GITHUB_EVENT_NAME}" = "pull_request" ]; then
+            BASE_SHA="${{ github.event.pull_request.base.sha }}"
+          else
+            # Push to main: compare against immediate parent if it exists.
+            if git rev-parse HEAD^ >/dev/null 2>&1; then
+              BASE_SHA="$(git rev-parse HEAD^)"
+            else
+              BASE_SHA=""
+            fi
+          fi
+          echo "base_sha=${BASE_SHA}" >> "$GITHUB_OUTPUT"
+          echo "Diff base SHA: ${BASE_SHA:-<none>}"
+
+      - name: Gate KB coverage on newly added routes/views
+        shell: bash
+        env:
+          BASE_SHA: ${{ steps.diffbase.outputs.base_sha }}
+        run: |
+          set -euo pipefail
+
+          # 1) Collect newly added files (status A) via git diff.
+          if [ -n "${BASE_SHA}" ]; then
+            # Ensure we have the base commit locally (no-op if already present).
+            git fetch --no-tags --depth=200 origin "${BASE_SHA}" 2>/dev/null || true
+            ADDED_FILES="$(git diff --name-status --diff-filter=A "${BASE_SHA}" HEAD 2>/dev/null | awk '$1=="A"{print $2}')" || ADDED_FILES=""
+          else
+            echo "::warning::No diff base detected; KB coverage gating runs as informational only."
+            ADDED_FILES=""
+          fi
+
+          NEW_ROUTES="$(printf '%s\n' "${ADDED_FILES}" | grep -E '^backend/routes/[^/]+\.js$' || true)"
+          NEW_VIEWS="$(printf '%s\n' "${ADDED_FILES}" | grep -E '^components/.+View\.tsx$' || true)"
+
+          echo "Newly added files:"
+          printf '%s\n' "${ADDED_FILES:-<none>}"
+          echo "New backend routes:"
+          printf '%s\n' "${NEW_ROUTES:-<none>}"
+          echo "New view components:"
+          printf '%s\n' "${NEW_VIEWS:-<none>}"
+
+          export NEW_ROUTES NEW_VIEWS
+
+          # 2) Parse coverage.json and gate.
+          node <<'NODE'
+          const fs = require('fs');
+
+          function lines(value) {
+            return String(value || '')
+              .split(/\r?\n/)
+              .map((s) => s.trim())
+              .filter(Boolean);
+          }
+
+          const newRoutes = lines(process.env.NEW_ROUTES);
+          const newViews = lines(process.env.NEW_VIEWS);
+
+          let coverage;
+          try {
+            coverage = JSON.parse(fs.readFileSync('/tmp/coverage.json', 'utf8'));
+          } catch (err) {
+            console.log(`::warning::Could not read /tmp/coverage.json: ${err.message}`);
+            process.exit(0);
+          }
+
+          const findings = Array.isArray(coverage.findings) ? coverage.findings : [];
+          const byItem = new Map(findings.map((f) => [f.item, f]));
+
+          let failures = 0;
+          let warnings = 0;
+
+          // Pre-existing missing entries: warn only — never fail the build.
+          for (const f of findings) {
+            if (f.documented) continue;
+            if (newRoutes.includes(f.item) || newViews.includes(f.item)) continue;
+            console.log(`::warning file=${f.item}::Missing KB doc (${f.type}). Suggested: ${f.suggested}`);
+            warnings++;
+          }
+
+          // Newly added routes must have docs/kb/09-api/<name>.md.
+          for (const file of newRoutes) {
+            const f = byItem.get(file);
+            if (!f) {
+              console.log(`::warning file=${file}::New route detected but no audit entry; skipping gate.`);
+              continue;
+            }
+            if (!f.documented) {
+              console.log(`::error file=${file}::New backend route is missing KB doc. Create ${f.suggested}`);
+              failures++;
+            }
+          }
+
+          // Newly added view components must be mentioned in docs/kb/05-pages/README.md.
+          for (const file of newViews) {
+            const f = byItem.get(file);
+            if (!f) {
+              console.log(`::warning file=${file}::New view detected but no audit entry; skipping gate.`);
+              continue;
+            }
+            if (!f.documented) {
+              console.log(`::error file=${file}::New view must be mentioned in docs/kb/05-pages/README.md`);
+              failures++;
+            }
+          }
+
+          console.log(`KB coverage gating: ${failures} failure(s), ${warnings} pre-existing warning(s).`);
+          if (failures > 0) {
+            console.log('::error::KB coverage gate failed for newly added files. Add the missing KB entries and retry.');
+            process.exit(1);
+          }
+          NODE
+
+      - name: Upload audit reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kb-audit-reports
+          path: |
+            /tmp/coverage.json
+            /tmp/flags.json
+          if-no-files-found: warn
+          retention-days: 14
