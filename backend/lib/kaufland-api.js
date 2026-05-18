@@ -248,12 +248,25 @@ function pickUnitData(product, { mode = 'create', storefront = 'de' } = {}) {
     safeString(product?.identification?.sku) ||
     safeString(product?.details?.identifiers?.sku) ||
     safeString(product?.id);
-  const eanFromIdentifiers = safeString(product?.details?.identifiers?.ean);
+  // EAN-Selection: Kaufland akzeptiert nur EAN-13 oder EAN-14 (GTIN-14).
+  // Frühere Logik nahm `details.identifiers.ean` blind — auch wenn dort eine
+  // 12-stellige UPC stand (z.B. "442922550988"). Kaufland antwortet dann mit
+  // dem kryptischen "Parameter [item] is missing or has wrong value" statt
+  // einer sauberen EAN-Fehlermeldung. Fix: nur akzeptieren wenn 13 oder 14
+  // Digits; sonst auf identification.barcodes ausweichen die oft den korrekten
+  // EAN-13 enthalten.
+  const eanFromIdentifiersDigits = safeString(product?.details?.identifiers?.ean).replace(/\D+/g, '');
+  const eanFromIdentifiers = (eanFromIdentifiersDigits.length === 13 || eanFromIdentifiersDigits.length === 14)
+    ? eanFromIdentifiersDigits
+    : '';
   const barcodes = Array.isArray(product?.identification?.barcodes) ? product.identification.barcodes : [];
   const eanFromBarcodes = barcodes
     .map((v) => String(v || '').replace(/\D+/g, ''))
     .find((v) => v.length === 13 || v.length === 14) || '';
-  const ean = eanFromIdentifiers || eanFromBarcodes;
+  // Letzter Fallback: 12-stellige UPC mit führender 0 zu EAN-13 padden
+  // (UPC → EAN-13 ist legitimer Standard-Konversionspfad).
+  const eanFromUpcPad = eanFromIdentifiersDigits.length === 12 ? '0' + eanFromIdentifiersDigits : '';
+  const ean = eanFromIdentifiers || eanFromBarcodes || eanFromUpcPad;
 
   const rawPrice =
     product?.details?.pricing?.sellPrice ??
