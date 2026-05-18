@@ -129,12 +129,16 @@ function main() {
       // keep raw body, empty frontmatter
     }
     const titleFromMeta = typeof frontmatter.title === 'string' && frontmatter.title.length ? frontmatter.title : null;
+    const orderNum = Number.parseInt(frontmatter.order, 10);
     articles.push({
       slug,
       title: titleFromMeta || slug.split('/').pop() || slug,
       for: Array.isArray(frontmatter.for) ? frontmatter.for : [],
       lastReviewed: typeof frontmatter.lastReviewed === 'string' ? frontmatter.lastReviewed : '',
       section: sectionForSlug(slug),
+      topic: typeof frontmatter.topic === 'string' ? frontmatter.topic : '',
+      icon: typeof frontmatter.icon === 'string' ? frontmatter.icon : '',
+      order: Number.isFinite(orderNum) ? orderNum : null,
       content: body,
     });
   }

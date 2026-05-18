@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from "react";
 import { useI18n } from "../i18n";
 import { useAuth } from "../context/AuthContext";
 import { Breadcrumb, type BreadcrumbItem } from "./ui/Breadcrumb";
+import { HelpButton } from "./help/HelpButton";
 
 type View =
   | "dashboard"
@@ -197,6 +198,9 @@ export const Topbar: React.FC<TopbarProps> = ({ currentView, theme, onToggleThem
             </svg>
           )}
         </button>
+
+        {/* Help drawer trigger */}
+        <HelpButton variant="topbar" />
 
         {/* Notification bell (placeholder) */}
         <button

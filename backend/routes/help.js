@@ -99,6 +99,9 @@ function loadBundleSync() {
         for: Array.isArray(a.for) ? a.for : [],
         lastReviewed: typeof a.lastReviewed === 'string' ? a.lastReviewed : '',
         section: typeof a.section === 'string' ? a.section : (a.slug.includes('/') ? a.slug.split('/')[0] : 'root'),
+        topic: typeof a.topic === 'string' ? a.topic : '',
+        icon: typeof a.icon === 'string' ? a.icon : '',
+        order: Number.isFinite(a.order) ? a.order : null,
       });
     }
     listMeta.sort((x, y) => x.slug.localeCompare(y.slug));
@@ -158,16 +161,20 @@ async function buildFsIndex() {
       const { frontmatter } = parseFrontmatter(raw);
       const slug = toSlug(abs);
       const title = (typeof frontmatter.title === 'string' && frontmatter.title) || slug.split('/').pop() || slug;
+      const orderNum = Number.parseInt(frontmatter.order, 10);
       metas.push({
         slug,
         title,
         for: Array.isArray(frontmatter.for) ? frontmatter.for : [],
         lastReviewed: typeof frontmatter.lastReviewed === 'string' ? frontmatter.lastReviewed : '',
         section: sectionForSlug(slug),
+        topic: typeof frontmatter.topic === 'string' ? frontmatter.topic : '',
+        icon: typeof frontmatter.icon === 'string' ? frontmatter.icon : '',
+        order: Number.isFinite(orderNum) ? orderNum : null,
       });
     } catch (_) {
       const slug = toSlug(abs);
-      metas.push({ slug, title: slug, for: [], lastReviewed: '', section: sectionForSlug(slug) });
+      metas.push({ slug, title: slug, for: [], lastReviewed: '', section: sectionForSlug(slug), topic: '', icon: '', order: null });
     }
   }
   metas.sort((a, b) => a.slug.localeCompare(b.slug));

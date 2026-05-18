@@ -6,6 +6,9 @@ export interface HelpIndexEntry {
   for: string[];
   lastReviewed: string;
   section: string;
+  topic?: string;
+  icon?: string;
+  order?: number | null;
 }
 
 export interface HelpArticle {
@@ -14,6 +17,9 @@ export interface HelpArticle {
   for: string[];
   lastReviewed: string;
   content: string;
+  topic?: string;
+  icon?: string;
+  order?: number | null;
 }
 
 export type HelpIndex = Record<string, HelpIndexEntry[]>;
