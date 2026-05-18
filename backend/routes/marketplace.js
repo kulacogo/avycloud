@@ -59,6 +59,97 @@ const ktypeUploadMiddleware = (req, res, next) =>
 
 // --- Helper functions ---
 
+/**
+ * Optimistic upsert into kauflandUnitsLive after a successful createUnit().
+ *
+ * Why: the periodic kaufland-listings-sync runs every few minutes, so without
+ * this helper a freshly published unit only appears in the UI after the next
+ * sync + manual hard refresh. The frontend already subscribes to changes on
+ * `system/kaufland-sync-state` via Firestore onSnapshot — writing the unit row
+ * + bumping the marker doc means the UI updates within <1s of publish.
+ *
+ * Best-effort: must never throw / never block the publish response.
+ */
+async function optimisticUpsertKauflandUnit({ product, createResult, storefront }) {
+  try {
+    if (!createResult || !createResult.id_unit) return;
+    const { Timestamp } = require('@google-cloud/firestore');
+    const idUnit = String(createResult.id_unit);
+    const sf = String(storefront || 'de').trim().toLowerCase();
+
+    // Best-available EAN (mirror autoFixProduct/pickUnitData logic).
+    const ean =
+      String(product?.identification?.ean || product?.details?.identifiers?.ean || '').replace(/\D+/g, '') ||
+      (Array.isArray(product?.identification?.barcodes)
+        ? product.identification.barcodes
+            .map((v) => String(v || '').replace(/\D+/g, ''))
+            .find((v) => v.length === 13 || v.length === 14) || null
+        : null);
+
+    // Quantity mirrors pickUnitData precedence.
+    const binStock = Array.isArray(product?.storageBins)
+      ? product.storageBins.reduce((sum, b) => sum + (Number(b?.quantity) || 0), 0)
+      : null;
+    const qtyRaw = product?.inventory?.availableQuantity
+      ?? product?.inventory?.quantity
+      ?? binStock
+      ?? product?.storage?.quantity
+      ?? 0;
+    const amount = Math.max(0, Number(qtyRaw) || 0);
+    const status = amount > 0 ? 'AVAILABLE' : 'ONHOLD';
+    const active = status === 'AVAILABLE';
+
+    // Pricing in cents (Kaufland API contract — matches pickUnitData output).
+    const toCents = (v) => {
+      const n = Number(v);
+      if (!Number.isFinite(n) || n <= 0) return null;
+      return Math.round(n * 100);
+    };
+    const listingPrice = toCents(
+      product?.details?.pricing?.sellPrice
+        ?? product?.pricing?.sellPrice
+        ?? product?.details?.pricing?.amount
+    );
+    const minimumPrice = toCents(
+      product?.details?.pricing?.minimum_price?.amount
+        ?? product?.details?.pricing?.minimum_price
+        ?? product?.details?.pricing?.minimumPrice
+    );
+
+    const now = Timestamp.now();
+    const sku = String(product?.identification?.sku || product?.details?.identifiers?.sku || '').trim() || null;
+    const title = (typeof product?.identification?.name === 'string' && product.identification.name.trim())
+      ? product.identification.name.trim()
+      : null;
+
+    await firestore.collection('kauflandUnitsLive').doc(idUnit).set({
+      id_unit: Number(idUnit),
+      id_offer: sku,
+      ean: ean || null,
+      amount,
+      status,
+      storefront: sf,
+      active,
+      title,
+      listing_price: listingPrice,
+      current_price: listingPrice, // initial = listing; auto-pricer will adjust
+      minimum_price: minimumPrice,
+      product_valid: null, // validity-refresh phase sets this later
+      source: 'kaufland-publish-optimistic',
+      updatedAt: now,
+    }, { merge: true });
+
+    // Bump the realtime marker so any open frontend listener invalidates instantly.
+    await firestore.collection('system').doc('kaufland-sync-state').set({
+      lastSyncAt: now,
+      source: 'optimistic-publish',
+    }, { merge: true });
+  } catch (e) {
+    // Non-blocking — publish must never fail because of cache write.
+    try { console.warn('[kaufland-publish] optimistic upsert failed (non-fatal):', e.message); } catch (_) {}
+  }
+}
+
 let EBAY_CATEGORY_ENTRIES = null;
 let EBAY_CATEGORY_BY_ID = null;
 
@@ -1109,6 +1200,9 @@ router.post('/kaufland/publish', requirePermission('products', 'write'), async (
     }
     const { createUnit } = require('../lib/kaufland-api');
     const result = await createUnit(product, { storefront });
+    // Realtime: optimistic upsert into kauflandUnitsLive so UI listeners see
+    // the row immediately, no wait for next periodic sync.
+    await optimisticUpsertKauflandUnit({ product, createResult: result, storefront });
     return res.status(201).json({ ok: true, data: result });
   } catch (error) {
     console.error(`[POST /api/marketplace/kaufland/publish] ${error.message}`, error);
@@ -1315,6 +1409,9 @@ router.post('/kaufland/publish/bulk', requirePermission('products', 'write'), as
             ? 'fixed'
             : (perProductFixes.length ? 'fixed' : 'published');
           if (result.productDataSubmitted) perProductFixes.push('Produktdaten bei Kaufland eingereicht');
+          // Realtime: optimistic upsert into kauflandUnitsLive so UI listeners
+          // see the row immediately, no wait for next periodic sync.
+          await optimisticUpsertKauflandUnit({ product: fixedProduct, createResult: result, storefront });
           results.push({
             productId: id,
             ok: true,

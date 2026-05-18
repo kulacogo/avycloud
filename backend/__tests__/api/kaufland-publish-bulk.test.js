@@ -241,6 +241,150 @@ describe('POST /api/marketplace/kaufland/publish/bulk — repair-hook on KAUFLAN
   });
 });
 
+describe('POST /api/marketplace/kaufland/publish/bulk — optimistic kauflandUnitsLive upsert', () => {
+  beforeEach(() => {
+    auditSpies.startRun.mockClear();
+    auditSpies.appendResult.mockClear();
+    auditSpies.finalizeRun.mockClear();
+    productStoreSpies.getProductV2.mockReset();
+    kauflandApiSpies.createUnit.mockReset();
+  });
+
+  it('writes a kauflandUnitsLive row + bumps system/kaufland-sync-state on successful create', async () => {
+    productStoreSpies.getProductV2.mockResolvedValueOnce(buildProduct({ id: 'P-OPT', sku: 'SKU-OPT', qty: 5 }));
+    kauflandApiSpies.createUnit.mockResolvedValueOnce({ created: true, productDataSubmitted: false, id_unit: 12345, data: {} });
+
+    // Capture writes to firestore.collection(...).doc(...).set(...)
+    const calls = [];
+    const docFactory = (collectionName) => (id) => ({
+      set: vi.fn(async (payload, opts) => {
+        calls.push({ collection: collectionName, id, payload, opts });
+      }),
+      get: vi.fn().mockResolvedValue({ exists: false, data: () => ({}) }),
+    });
+    const collectionSpy = vi.spyOn(firestoreModule.firestore, 'collection').mockImplementation((name) => {
+      // Match the chained API surface the bulk-publish handler hits:
+      // .collection(name).doc(id).set(...)
+      // For other paths (e.g. audit which is mocked above), return a permissive shim.
+      return {
+        doc: docFactory(name),
+        where: vi.fn().mockReturnThis(),
+        orderBy: vi.fn().mockReturnThis(),
+        limit: vi.fn().mockReturnThis(),
+        get: vi.fn().mockResolvedValue({ docs: [], empty: true }),
+        add: vi.fn().mockResolvedValue({ id: 'mock-auto-id' }),
+      };
+    });
+
+    try {
+      const res = await request(app)
+        .post('/api/kaufland/publish/bulk')
+        .send({ productIds: ['P-OPT'], storefront: 'de' });
+
+      expect(res.status).toBe(200);
+      expect(res.body.ok).toBe(true);
+      expect(res.body.data.summary.success).toBe(1);
+
+      // The optimistic helper writes (1) the unit row, (2) the marker doc.
+      const unitWrite = calls.find(
+        (c) => c.collection === 'kauflandUnitsLive' && c.id === '12345'
+      );
+      expect(unitWrite).toBeDefined();
+      expect(unitWrite.payload).toEqual(expect.objectContaining({
+        id_unit: 12345,
+        id_offer: 'SKU-OPT',
+        amount: 5,
+        status: 'AVAILABLE',
+        active: true,
+        storefront: 'de',
+        source: 'kaufland-publish-optimistic',
+      }));
+      expect(unitWrite.opts).toEqual({ merge: true });
+
+      const markerWrite = calls.find(
+        (c) => c.collection === 'system' && c.id === 'kaufland-sync-state'
+      );
+      expect(markerWrite).toBeDefined();
+      expect(markerWrite.payload).toEqual(expect.objectContaining({
+        source: 'optimistic-publish',
+      }));
+      expect(markerWrite.payload.lastSyncAt).toBeDefined();
+    } finally {
+      collectionSpy.mockRestore();
+    }
+  });
+
+  it('marks 0-stock optimistic upsert as ONHOLD + active=false', async () => {
+    productStoreSpies.getProductV2.mockResolvedValueOnce(buildProduct({ id: 'P-OH', sku: 'SKU-OH', qty: 0 }));
+    kauflandApiSpies.createUnit.mockResolvedValueOnce({ created: true, productDataSubmitted: false, id_unit: 55555, data: {} });
+
+    const calls = [];
+    const collectionSpy = vi.spyOn(firestoreModule.firestore, 'collection').mockImplementation((name) => ({
+      doc: (id) => ({
+        set: vi.fn(async (payload, opts) => {
+          calls.push({ collection: name, id, payload, opts });
+        }),
+        get: vi.fn().mockResolvedValue({ exists: false, data: () => ({}) }),
+      }),
+      where: vi.fn().mockReturnThis(),
+      orderBy: vi.fn().mockReturnThis(),
+      limit: vi.fn().mockReturnThis(),
+      get: vi.fn().mockResolvedValue({ docs: [], empty: true }),
+      add: vi.fn().mockResolvedValue({ id: 'mock-auto-id' }),
+    }));
+
+    try {
+      const res = await request(app)
+        .post('/api/kaufland/publish/bulk')
+        .send({ productIds: ['P-OH'] }); // publishWithOnHold default true
+
+      expect(res.status).toBe(200);
+      const unitWrite = calls.find(
+        (c) => c.collection === 'kauflandUnitsLive' && c.id === '55555'
+      );
+      expect(unitWrite).toBeDefined();
+      expect(unitWrite.payload).toEqual(expect.objectContaining({
+        id_unit: 55555,
+        amount: 0,
+        status: 'ONHOLD',
+        active: false,
+      }));
+    } finally {
+      collectionSpy.mockRestore();
+    }
+  });
+
+  it('does NOT throw the publish response when optimistic upsert fails', async () => {
+    productStoreSpies.getProductV2.mockResolvedValueOnce(buildProduct({ id: 'P-FAIL' }));
+    kauflandApiSpies.createUnit.mockResolvedValueOnce({ created: true, productDataSubmitted: false, id_unit: 77777, data: {} });
+
+    const collectionSpy = vi.spyOn(firestoreModule.firestore, 'collection').mockImplementation((name) => ({
+      doc: (_id) => ({
+        // Simulate a Firestore outage for the optimistic write.
+        set: vi.fn().mockRejectedValue(new Error('firestore-down')),
+        get: vi.fn().mockResolvedValue({ exists: false, data: () => ({}) }),
+      }),
+      where: vi.fn().mockReturnThis(),
+      orderBy: vi.fn().mockReturnThis(),
+      limit: vi.fn().mockReturnThis(),
+      get: vi.fn().mockResolvedValue({ docs: [], empty: true }),
+      add: vi.fn().mockResolvedValue({ id: 'mock-auto-id' }),
+    }));
+
+    try {
+      const res = await request(app)
+        .post('/api/kaufland/publish/bulk')
+        .send({ productIds: ['P-FAIL'] });
+
+      expect(res.status).toBe(200);
+      expect(res.body.ok).toBe(true);
+      expect(res.body.data.summary.success).toBe(1);
+    } finally {
+      collectionSpy.mockRestore();
+    }
+  });
+});
+
 describe('GET /api/marketplace/kaufland/publish-runs', () => {
   beforeEach(() => {
     // Reset firestore mock chain

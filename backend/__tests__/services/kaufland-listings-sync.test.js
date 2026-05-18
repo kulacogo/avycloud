@@ -42,6 +42,20 @@ function makeBatch() {
   };
 }
 
+// Doc-level direct writes (.collection(name).doc(id).set(...)) — used by the
+// post-sync marker write into `system/kaufland-sync-state`.
+const directDocWrites = [];
+
+function makeDirectDoc(collectionName, id) {
+  return {
+    __collection: collectionName,
+    __id: id,
+    set: vi.fn(async (payload, opts) => {
+      directDocWrites.push({ collection: collectionName, id, payload, opts });
+    }),
+  };
+}
+
 let _kauflandUnitsLiveExistingDocs = [];
 
 const mockFirestore = {
@@ -59,6 +73,13 @@ const mockFirestore = {
     if (name === 'products_v2') {
       return {
         doc: vi.fn((id) => ({ __collection: 'products_v2', __id: id })),
+        // Used by the auto-repair phase as `firestore.collection('products_v2').get()`
+        get: async () => ({ docs: [] }),
+      };
+    }
+    if (name === 'system') {
+      return {
+        doc: vi.fn((id) => makeDirectDoc('system', id)),
       };
     }
     return {
@@ -119,6 +140,7 @@ const { syncKauflandListingsCache } = require('../../services/kaufland-listings-
 
 beforeEach(() => {
   writes.length = 0;
+  directDocWrites.length = 0;
   _kauflandUnitsLiveExistingDocs = [];
   listUnitsMock.mockReset();
   getUnitMock.mockReset();
@@ -433,5 +455,55 @@ describe('syncKauflandListingsCache', () => {
     );
     expect(validityWrites).toHaveLength(1);
     expect(validityWrites[0].payload.product_valid).toBe(true);
+  });
+
+  // ── Realtime marker: signals frontend listeners that sync completed ──────
+  // Frontend hooks subscribe to system/kaufland-sync-state via onSnapshot.
+  // The marker write must run at the end of every sync (even when 0 units
+  // were fetched) and must NEVER throw — best-effort try/catch swallow.
+  it('writes a marker doc to system/kaufland-sync-state at the end of every sync', async () => {
+    listUnitsMock.mockResolvedValueOnce([
+      {
+        id_unit: 8001,
+        id_offer: 'SKU-MARK',
+        ean: '4012345678901',
+        amount: 1,
+        status: 'AVAILABLE',
+        storefront: 'de',
+        product: {},
+      },
+    ]);
+    getAllProductsV2ForTenantMock.mockResolvedValue([]);
+    getUnitMock.mockResolvedValueOnce({ product: { is_valid: true } });
+
+    await syncKauflandListingsCache({ tenantId: 'trendocean', storefront: 'de' });
+
+    const markerWrites = directDocWrites.filter(
+      (w) => w.collection === 'system' && w.id === 'kaufland-sync-state'
+    );
+    expect(markerWrites.length).toBeGreaterThanOrEqual(1);
+    const marker = markerWrites[markerWrites.length - 1];
+    expect(marker.payload).toEqual(expect.objectContaining({
+      storefront: 'de',
+      tenantId: 'trendocean',
+      fetched: 1,
+      live: 1,
+    }));
+    expect(marker.payload.lastSyncAt).toBeDefined();
+    expect(marker.opts).toEqual({ merge: true });
+  });
+
+  it('writes marker doc even when no units are returned (empty sync)', async () => {
+    listUnitsMock.mockResolvedValueOnce([]);
+    getAllProductsV2ForTenantMock.mockResolvedValue([]);
+
+    await syncKauflandListingsCache({ tenantId: 'trendocean', storefront: 'de' });
+
+    const markerWrites = directDocWrites.filter(
+      (w) => w.collection === 'system' && w.id === 'kaufland-sync-state'
+    );
+    expect(markerWrites.length).toBe(1);
+    expect(markerWrites[0].payload.fetched).toBe(0);
+    expect(markerWrites[0].payload.live).toBe(0);
   });
 });

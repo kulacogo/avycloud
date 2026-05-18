@@ -31,7 +31,10 @@
 
 // TTL for the `product_valid` cache: Kaufland's indexing pipeline can take up
 // to 24h to flip is_valid from false → true on freshly published listings.
-const VALIDITY_TTL_MS = 24 * 3600 * 1000;
+// Lowered from 24h → 2h so freshly indexed units flip to Live in the UI faster
+// (Kaufland frequently completes indexing well before 24h; 2h keeps API cost
+// bounded while letting the dashboard reflect changes within the same session).
+const VALIDITY_TTL_MS = 2 * 3600 * 1000;
 
 /**
  * @param {object} opts
@@ -466,6 +469,22 @@ async function syncKauflandListingsCache({ tenantId, storefront = 'de' } = {}) {
     }
   } catch (reconErr) {
     console.error('[kaufland-sync] Reconciliation error (non-fatal):', reconErr.message);
+  }
+
+  // ── Realtime marker: signal frontend listeners that sync completed ──────
+  // Frontend hooks subscribe to `system/kaufland-sync-state` via Firestore
+  // onSnapshot and invalidate the listings React-Query cache when this doc
+  // changes. Best-effort write — must NEVER throw and break the sync result.
+  try {
+    await firestore.collection('system').doc('kaufland-sync-state').set({
+      lastSyncAt: now,
+      storefront: sf,
+      tenantId: tenantId || 'default',
+      fetched: units.length,
+      live: seenIds.size,
+    }, { merge: true });
+  } catch (markerErr) {
+    console.warn('[kaufland-sync] marker write failed (non-fatal):', markerErr.message);
   }
 
   return {

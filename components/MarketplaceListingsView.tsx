@@ -350,6 +350,25 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
     }
   }, [marketplace]);
 
+  // Background-Refresh beim Mount: wenn der letzte Kaufland-Sync älter als 5min ist
+  // → fire-and-forget einen Sync triggern. Frontend bleibt responsive (der Realtime-
+  // Listener auf system/kaufland-sync-state invalidiert die React-Query sobald
+  // der Sync fertig ist). User sieht nach Page-Reload sofort frische Daten.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (marketplace !== "kaufland") return;
+    // Wait until we have at least one cached entry to derive the staleness.
+    // (If null, fall back to lastSyncTime; if both null, skip — first sync UX
+    // is handled by the React-Query loading state.)
+    const ref = derivedLastSync ?? lastSyncTime;
+    if (!ref) return;
+    const ageMs = Date.now() - new Date(ref).getTime();
+    if (Number.isFinite(ageMs) && ageMs > 5 * 60 * 1000) {
+      syncKauflandListings("de").catch(() => { /* swallow — best-effort */ });
+    }
+    // Intentionally only re-runs when marketplace changes (mount-once-with-marketplace).
+  }, [marketplace]);
+
   // ─── Actions ─────────────────────────────────────────────
 
   const invalidateListings = useCallback(() => {
@@ -965,6 +984,15 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
               {formatRelativeTime(derivedLastSync ?? lastSyncTime)}
             </span>
           </span>
+          {marketplace === "kaufland" && (
+            <span
+              className="inline-flex items-center gap-1.5 text-xs text-success"
+              title="Realtime-Listener auf Sync-Marker aktiv — neue Listings erscheinen automatisch"
+            >
+              <span className="w-2 h-2 rounded-full bg-success animate-pulse" />
+              Live verbunden
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-2">
           {repairResult && (

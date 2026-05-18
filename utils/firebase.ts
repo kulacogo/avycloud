@@ -7,6 +7,7 @@ import {
   type Auth,
   type Persistence,
 } from 'firebase/auth';
+import { getFirestore, type Firestore } from 'firebase/firestore';
 
 export type FirebaseConfigStatus = {
   ok: boolean;
@@ -49,12 +50,26 @@ const getFirebaseConfigOrThrow = () => {
 
 let app: FirebaseApp | null = null;
 let auth: Auth | null = null;
+let firestoreDb: Firestore | null = null;
 
 export function getFirebaseApp(): FirebaseApp {
   if (!app) {
     app = initializeApp(getFirebaseConfigOrThrow());
   }
   return app;
+}
+
+/**
+ * Lazily-initialized Firestore client used for realtime listeners
+ * (e.g. system/kaufland-sync-state marker doc for listings invalidation).
+ * Backend remains the single source of truth — frontend Firestore reads are
+ * realtime-only, no writes.
+ */
+export function getFirestoreDb(): Firestore {
+  if (!firestoreDb) {
+    firestoreDb = getFirestore(getFirebaseApp());
+  }
+  return firestoreDb;
 }
 
 export function getFirebaseAuth(): Auth {
