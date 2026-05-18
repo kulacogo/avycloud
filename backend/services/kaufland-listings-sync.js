@@ -265,9 +265,14 @@ async function syncKauflandListingsCache({ tenantId, storefront = 'de' } = {}) {
   // (Kaufland indexiert die gepatchten Daten asynchron). Danach laufen
   // Repairs nur noch für sporadisch neu auftauchende Invalid-Items.
   const REPAIR_TTL_MS = 6 * 3600 * 1000;
-  const MAX_REPAIRS_PER_RUN = 50;
+  // Lowered from 50 → 30 to bound Gemini-cost from the new enrichment layer.
+  // Throughput math: 120 backlog / 30 per-run / 4 runs/h = ~1h catch-up.
+  const MAX_REPAIRS_PER_RUN = 30;
   let repairAttempted = 0;
   let repairSucceeded = 0;
+  let enrichmentAttempted = 0;
+  let enrichmentSucceeded = 0;
+  const enrichmentFields = Object.create(null); // counter per field type
   try {
     const repairSnap = await collection.where('storefront', '==', sf).get();
     // Tenant-scoped read (D.0c pattern): when tenantId is given prefer the
@@ -317,8 +322,50 @@ async function syncKauflandListingsCache({ tenantId, storefront = 'de' } = {}) {
         || null;
       if (!matched || !eanCandidate) continue;
       try {
+        // ── Enrichment pass ────────────────────────────────────────────
+        // Fetch Kauflands view of the gaps + fill what we can via
+        // GPSR-web/Gemini before handing off to the repair-call. Persist
+        // the enriched product to products_v2 so future syncs benefit.
+        // ALL errors are swallowed — sync must never crash on enrichment.
+        let enrichedProduct = matched;
+        try {
+          const { getProductDataStatus } = require('../lib/kaufland-api');
+          const status = await getProductDataStatus(eanCandidate).catch(() => null);
+          const missing = Array.isArray(status?.missing_attributes) ? status.missing_attributes : [];
+          const minOne = Array.isArray(status?.min_one_missing_attributes) ? status.min_one_missing_attributes : [];
+          const fullList = [...missing, ...minOne];
+          if (fullList.length) {
+            const { enrichProductForKaufland } = require('./kaufland-attribute-enricher');
+            const er = await enrichProductForKaufland(matched, fullList);
+            if (er?.enriched && Array.isArray(er.enrichedFields) && er.enrichedFields.length) {
+              enrichmentAttempted += 1;
+              enrichedProduct = er.enriched;
+              enrichmentSucceeded += 1;
+              for (const f of er.enrichedFields) {
+                enrichmentFields[f] = (enrichmentFields[f] || 0) + 1;
+              }
+              // Persist enriched data to products_v2 so future syncs benefit.
+              // skipStockEvent: this is an attribute-only update — no stock change.
+              try {
+                const { saveProductV2 } = require('../lib/product-store');
+                await saveProductV2(er.enriched, {
+                  source: 'kaufland-attribute-enrichment',
+                  stockChangeReason: 'attribute-enrichment',
+                  skipStockEvent: true,
+                });
+              } catch (saveErr) {
+                console.warn('[kaufland-sync] saveProductV2 after enrichment failed:', saveErr.message);
+              }
+            } else if (fullList.length) {
+              enrichmentAttempted += 1;
+            }
+          }
+        } catch (enrichErr) {
+          console.warn('[kaufland-sync] enrichment phase failed (non-fatal):', enrichErr.message);
+        }
+
         const r = await tryRepairKauflandProductData({
-          product: matched,
+          product: enrichedProduct,
           ean: eanCandidate,
           idUnit: Number(v.id_unit),
           storefront: sf,
@@ -339,7 +386,10 @@ async function syncKauflandListingsCache({ tenantId, storefront = 'de' } = {}) {
     }
     if (repairBatchCount > 0) await repairBatch.commit();
     if (repairAttempted > 0) {
-      console.log(`[kaufland-sync] auto-repair attempted=${repairAttempted} succeeded=${repairSucceeded} (cap=${MAX_REPAIRS_PER_RUN}, candidates=${candidates.length})`);
+      const fieldsSummary = Object.keys(enrichmentFields).length
+        ? ' enrich=' + Object.entries(enrichmentFields).map(([k, v]) => `${k}:${v}`).join(',')
+        : '';
+      console.log(`[kaufland-sync] auto-repair attempted=${repairAttempted} succeeded=${repairSucceeded} (cap=${MAX_REPAIRS_PER_RUN}, candidates=${candidates.length})${fieldsSummary}`);
     }
   } catch (repairErr) {
     console.error('[kaufland-sync] auto-repair error (non-fatal):', repairErr.message);
@@ -504,6 +554,9 @@ async function syncKauflandListingsCache({ tenantId, storefront = 'de' } = {}) {
     validityInvalid,
     repairAttempted,
     repairSucceeded,
+    enrichmentAttempted,
+    enrichmentSucceeded,
+    enrichmentFields,
   };
 }
 
