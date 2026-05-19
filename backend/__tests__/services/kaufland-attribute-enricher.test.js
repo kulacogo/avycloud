@@ -199,12 +199,11 @@ describe('enrichProductForKaufland', () => {
     expect(lookupGpsrFromWebMock).toHaveBeenCalledTimes(1);
   });
 
-  it('still tries GPSR web-fallback when Kaufland says missing (might add phone/city/postalcode)', async () => {
-    // Behaviour change 2026-05-18: Kaufland's "missing" signal trumps our
-    // local "looks complete" heuristic. We always try the fallback when the
-    // attribute is in missing_attributes — extra subfields like phone/city
-    // never hurt and may unblock Kaufland's validator.
-    lookupGpsrFromWebMock.mockResolvedValueOnce(null); // simulate no new web data
+  it('skips GPSR web-fallback when existing data is already complete (name+address)', async () => {
+    // Behaviour change 2026-05-20: brand-lookup is the new 1st-tier (cheap,
+    // no IO). Web-fallback only runs when GPSR still lacks name OR address
+    // AFTER brand-lookup. If already complete locally → both pathways are
+    // skipped (saves time + API calls).
     const product = {
       id: 'p1',
       identification: { name: 'X', brand: 'ACME' },
@@ -217,10 +216,41 @@ describe('enrichProductForKaufland', () => {
       },
     };
     const out = await enrichProductForKaufland(product, ['product_safety_contact']);
-    // Web returned null → nothing added → enrichedFields stays empty
     expect(out.enrichedFields).toEqual([]);
-    // ... but the lookup IS attempted
-    expect(lookupGpsrFromWebMock).toHaveBeenCalledTimes(1);
+    // Complete GPSR → no web-fallback needed
+    expect(lookupGpsrFromWebMock).not.toHaveBeenCalled();
+  });
+
+  it('uses brand-lookup as 1st-tier when sibling product has GPSR (no web call needed)', async () => {
+    // The new flow: if opts.brandGpsrMap has a hit for the same brand,
+    // merge that GPSR (existing-wins) and skip web-scrape entirely.
+    const brandGpsrMap = new Map();
+    brandGpsrMap.set('anker', {
+      score: 11,
+      fromSku: 'SKU-9303003754',
+      gpsr: {
+        manufacturer_name: 'Anker Innovations Deutschland GmbH',
+        manufacturer_address: 'Georg-Muche-Straße 3',
+        manufacturer_city: 'München',
+        manufacturer_postalcode: '80807',
+        country_code: 'DE',
+        email: 'support@anker.com',
+        manufacturer_phone: '+496995797960',
+      },
+    });
+    const product = {
+      id: 'p1',
+      identification: { name: 'Anker Charger', brand: 'Anker' },
+      details: { gpsr: { manufacturer_name: 'Anker' } }, // incomplete
+    };
+    const out = await enrichProductForKaufland(product, ['product_safety_contact'], { brandGpsrMap });
+    expect(out.enrichedFields).toContain('gpsr-brand');
+    expect(out.enriched.details.gpsr.manufacturer_address).toBe('Georg-Muche-Straße 3');
+    expect(out.enriched.details.gpsr.email).toBe('support@anker.com');
+    // Existing manufacturer_name wins (we don't overwrite)
+    expect(out.enriched.details.gpsr.manufacturer_name).toBe('Anker');
+    // Web-fallback not needed because brand-lookup completed the GPSR
+    expect(lookupGpsrFromWebMock).not.toHaveBeenCalled();
   });
 
   it('swallows Gemini errors per-field without crashing (no enrichment, no throw)', async () => {

@@ -287,11 +287,38 @@ async function syncKauflandListingsCache({ tenantId, storefront = 'de' } = {}) {
       : await getAllProductsV2();
     const skuMapRepair = new Map();
     const eanMapRepair = new Map();
+    // brandGpsrMap: brand-lc → { gpsr, score, fromSku }
+    // Vorberechnet einmal pro sync-run, an Enricher gereicht. Ermöglicht
+    // "GPSR von einem Anker-Produkt auf alle anderen Anker-Produkte
+    // mitnehmen" — fundus für invalide Listings die selbst keine GPSR haben.
+    const brandGpsrMap = new Map();
     for (const p of allProdsForRepair) {
       const sku = (p?.identification?.sku || p?.details?.identifiers?.sku || '').trim();
       if (sku) skuMapRepair.set(sku.toLowerCase(), p);
       const ean = (p?.identification?.ean || p?.details?.identifiers?.ean || '').trim();
       if (ean) eanMapRepair.set(ean, p);
+      // Build brand-GPSR-Map
+      const brand = (p?.identification?.brand || p?.details?.brand || '').trim();
+      const gpsr = p?.details?.gpsr;
+      if (brand && gpsr && (gpsr.manufacturer_name || gpsr.name)) {
+        // Score nach Vollständigkeit + DE-Country-Bonus (EU-Listing braucht EU-Entity)
+        const hasAddr = gpsr.manufacturer_address || gpsr.address;
+        const hasEmail = gpsr.email || gpsr.manufacturer_email;
+        const hasUrl = gpsr.url || gpsr.manufacturer_url;
+        const hasCity = gpsr.manufacturer_city;
+        const hasPostal = gpsr.manufacturer_postalcode;
+        const hasCountry = gpsr.country_code || gpsr.entity_country;
+        const isEUEntity = /^DE$|^AT$|^FR$|^NL$|^IT$|^ES$|^BE$|^IE$|^LU$/i.test(String(gpsr.country_code || ''))
+          || /germany|deutschland|österreich|france|italy|spain|netherlands|belgium/i.test(String(gpsr.entity_country || ''));
+        const score = (hasAddr ? 3 : 0) + (hasEmail ? 1 : 0) + (hasUrl ? 1 : 0)
+          + (hasCity ? 1 : 0) + (hasPostal ? 1 : 0) + (hasCountry ? 1 : 0)
+          + (isEUEntity ? 5 : 0); // EU-Entity bonus — Kaufland EU-Marktplatz braucht EU-Verantwortlichen
+        const key = brand.toLowerCase();
+        const existing = brandGpsrMap.get(key);
+        if (!existing || score > existing.score) {
+          brandGpsrMap.set(key, { gpsr, score, fromSku: sku });
+        }
+      }
     }
 
     const { tryRepairKauflandProductData } = require('./kaufland-product-data-repair');
@@ -336,7 +363,7 @@ async function syncKauflandListingsCache({ tenantId, storefront = 'de' } = {}) {
           const fullList = [...missing, ...minOne];
           if (fullList.length) {
             const { enrichProductForKaufland } = require('./kaufland-attribute-enricher');
-            const er = await enrichProductForKaufland(matched, fullList);
+            const er = await enrichProductForKaufland(matched, fullList, { brandGpsrMap });
             if (er?.enriched && Array.isArray(er.enrichedFields) && er.enrichedFields.length) {
               enrichmentAttempted += 1;
               enrichedProduct = er.enriched;

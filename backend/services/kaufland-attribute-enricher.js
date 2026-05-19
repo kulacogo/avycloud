@@ -240,9 +240,49 @@ async function enrichProductForKaufland(product, missingAttributes = [], opts = 
 
   if (buckets.has('gpsr')) {
     const gpsrExisting = enriched.details.gpsr && typeof enriched.details.gpsr === 'object' ? enriched.details.gpsr : {};
-    // Kaufland complained → don't trust our existing GPSR even if "complete".
-    // Try web-fallback to add any missing subfields (phone, city, postalcode).
-    if (brand) {
+
+    // ── 1st-Tier: Brand-Lookup in unserer eigenen DB ────────────────────────
+    // Wenn der Aufrufer einen brandGpsrMap mitliefert (vorbereitet im
+    // sync-phase aus allen products_v2), nutze Geschwister-Produkte derselben
+    // Brand als Datenquelle. Beispiel: Anker-Charger ohne GPSR — wir haben
+    // GPSR auf einem anderen Anker-Produkt → kopieren statt scrapen.
+    //
+    // Brand-Quelle hat dieselbe Shape wie products_v2 GPSR (email, url,
+    // manufacturer_address, manufacturer_city etc. — NICHT die web-fallback
+    // shape mit "manufacturer_email"). Daher inline-Merge mit existing-wins.
+    if (brand && opts.brandGpsrMap && typeof opts.brandGpsrMap.get === 'function') {
+      const fromBrand = opts.brandGpsrMap.get(brand.toLowerCase());
+      if (fromBrand && fromBrand.gpsr) {
+        const merged = {};
+        // Brand-Quelle als Defaults
+        for (const [k, v] of Object.entries(fromBrand.gpsr)) {
+          const sv = typeof v === 'string' ? v.trim() : v;
+          if (sv !== '' && sv != null) merged[k] = sv;
+        }
+        // Existing gewinnt wo non-empty (nicht überschreiben)
+        for (const [k, v] of Object.entries(gpsrExisting)) {
+          const sv = typeof v === 'string' ? v.trim() : v;
+          if (sv !== '' && sv != null) merged[k] = sv;
+        }
+        const existingKeys = Object.keys(gpsrExisting).filter((k) => {
+          const v = gpsrExisting[k];
+          return typeof v === 'string' ? v.trim() : v != null;
+        });
+        const mergedKeys = Object.keys(merged);
+        const changed = mergedKeys.length > existingKeys.length;
+        if (changed) {
+          enriched.details.gpsr = merged;
+          enrichedFields.push('gpsr-brand');
+        }
+      }
+    }
+
+    // ── 2nd-Tier: Web-Fallback (falls Brand-Map nichts brachte) ─────────────
+    const gpsrAfterBrand = enriched.details.gpsr || {};
+    const stillIncomplete = !safeString(gpsrAfterBrand.manufacturer_name)
+      || !safeString(gpsrAfterBrand.manufacturer_address);
+
+    if (brand && stillIncomplete) {
       tasks.push((async () => {
         try {
           const webResult = await withTimeout(
