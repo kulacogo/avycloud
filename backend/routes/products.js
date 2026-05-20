@@ -881,25 +881,30 @@ router.get('/image-proxy', async (req, res) => {
     });
   }
 
+  // HARDEN-5 (2026-05-20): SSRF-Guard für die unauth-Route.
+  // Frontend nutzt `<img src>` ohne Header, daher KEIN Auth-Gate möglich;
+  // stattdessen Private-IP/Link-Local/Metadata-Endpoint-Block via dns-lookup.
+  // Siehe backend/lib/ssrf-guard.js für Details.
+  const { assertPublicHost, SSRFError } = require('../lib/ssrf-guard');
   let target;
   try {
-    target = new URL(sourceUrl);
-  } catch (error) {
+    target = await assertPublicHost(sourceUrl);
+  } catch (err) {
+    if (err instanceof SSRFError) {
+      console.warn(`[image-proxy] SSRF-Block: ${err.code} url=${String(sourceUrl).slice(0, 200)}`);
+      return res.status(400).json({
+        ok: false,
+        error: {
+          code: 400,
+          message: 'URL not allowed.',
+        },
+      });
+    }
     return res.status(400).json({
       ok: false,
       error: {
         code: 400,
         message: 'Invalid image URL.',
-      },
-    });
-  }
-
-  if (!['http:', 'https:'].includes(target.protocol)) {
-    return res.status(400).json({
-      ok: false,
-      error: {
-        code: 400,
-        message: 'Only http/https protocols are supported.',
       },
     });
   }

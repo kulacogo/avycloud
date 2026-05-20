@@ -354,7 +354,13 @@ describe('bookStockOut: Firestore-Tx Read-before-Write (Regression Pick-Bug 2026
     expect(orderUpdates.length).toBe(0);
   });
 
-  it('verhindert auch fehl, wenn die referenzierte Order nicht existiert (kein Throw, kein Claim)', async () => {
+  it('wirft fail-fast wenn referenzierte Order nicht existiert (HARDEN-8 2026-05-20)', async () => {
+    // HARDEN-8 (2026-05-20): vor diesem Fix decrementierte bookStockOut den
+    // Bestand SILENT auch wenn die als orderId angegebene Order nicht in der DB
+    // existierte. Folge: orphan-decrement OHNE `stockDecrementedAt`-Marker →
+    // `_onOrderShipped` decrementiert beim Ship-Trigger ein zweites Mal
+    // (double-decrement, CLAUDE.md Punkt 13).
+    // Nach dem Fix: fail-fast Throw mit klarer Fehlermeldung.
     seedHappyPath({ orderExists: false });
 
     await expect(
@@ -364,9 +370,10 @@ describe('bookStockOut: Firestore-Tx Read-before-Write (Regression Pick-Bug 2026
         quantity: 1,
         meta: { orderId: 'ORDER-PICK-1' },
       })
-    ).resolves.toBeDefined();
+    ).rejects.toThrow(/Order.*nicht gefunden.*Stock-Decrement abgebrochen/i);
 
-    const calls = _capturedTx.__calls;
+    // Wichtig: kein Order-Update geschrieben (Tx wurde aborted).
+    const calls = _capturedTx?.__calls || [];
     const orderUpdates = calls.filter((c) => c.op === 'update' && c.id === 'orders/ORDER-PICK-1');
     expect(orderUpdates.length).toBe(0);
   });

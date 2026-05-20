@@ -1005,13 +1005,19 @@ async function bookStockOut({ productId, sku, barcode, binCode, quantity, meta }
     let pendingClaimWrite = null;
     if (orderRef) {
       if (!orderClaimState || !orderClaimState.exists) {
-        claimResult = {
-          claimed: false,
-          alreadyClaimed: false,
-          at: null,
-          by: null,
-          reason: 'order-not-found',
-        };
+        // HARDEN-8 (2026-05-20): Order-Doc-Guard.
+        // Wenn `meta.orderId` gesetzt ist aber das Order-Doc nicht existiert,
+        // ist das ein integrität-kritischer Zustand: wir würden Bestand
+        // dekrementieren OHNE den `stockDecrementedAt`-Marker zu setzen
+        // (orphan decrement). Im nächsten Ship-Flow würde `_onOrderShipped`
+        // ein zweites Mal decrementieren (double-decrement window — siehe
+        // CLAUDE.md Punkt 13 + Incident 2026-04-29).
+        //
+        // Fail-fast statt silent-write.
+        throw new Error(
+          `bookStockOut: order "${orderIdMeta}" nicht gefunden — Stock-Decrement abgebrochen ` +
+          `(verhindert orphan-decrement gemäß CLAUDE.md Punkt 13).`
+        );
       } else if (orderClaimState.alreadyClaimed) {
         claimResult = {
           claimed: false,

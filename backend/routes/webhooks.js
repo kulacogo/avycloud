@@ -222,9 +222,12 @@ router.post('/webhooks/sendcloud', async (req, res) => {
     }
 
     // Event-driven sync: SendCloud status change → trigger full sync cascade
+    // HARDEN-7 (2026-05-20): nutze den Tenant aus dem geladenen Shipment-Doc
+    // statt hardcoded 'default'. Multi-Tenant-Sync-Cascade läuft sonst auf
+    // falschem Tenant.
     emitSyncEvent('shipment:updated', {
       entityId: orderId || `parcel-${parcelId}`,
-      tenantId: 'default',
+      tenantId: shipData.tenantId || 'default',
       statusId,
       source: 'sendcloud-webhook',
     });
