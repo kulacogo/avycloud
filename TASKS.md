@@ -310,21 +310,21 @@ GDPR, API-Docs (OpenAPI), E2E-Tests (Playwright), Mobile App, Multi-Tenancy, Str
 
 Tests grün: 1970 backend tests passing. Frontend build grün.
 
-## 🟡 Cleanup Operator Decisions (offen seit 2026-05-18)
+## 🟡 Cleanup Operator Decisions (Stand 2026-05-20)
 
-Vollständiger Report: [docs/kb/17-cleanup-report.md](docs/kb/17-cleanup-report.md). Operator-Sign-off pro Item:
+Vollständiger Report: [docs/kb/17-cleanup-report.md](docs/kb/17-cleanup-report.md).
 
-### A. Sicher löschbar (LOW Risk) — können beim nächsten Sprint mit erledigt werden
+### A. Sicher löschbar (LOW Risk)
 
-- [ ] **Repo-Cleanup-1**: `backend/services/enrichment_backup.js` löschen (43.4 KB, dead per dead-code.test.js)
-- [ ] **Repo-Cleanup-2**: `archive/uiv2/backend/services/enrichment_backup.js` löschen (42.9 KB)
-- [ ] **Repo-Cleanup-3**: `git rm --cached **/.DS_Store` (bereits in .gitignore, nur Index-Cleanup)
+- [x] **Repo-Cleanup-1**: `backend/services/enrichment_backup.js` → archive verschoben (2026-05-20, additive: nicht gelöscht, falls Bezug nötig)
+- [ ] **Repo-Cleanup-2**: `archive/uiv2/backend/services/enrichment_backup.js` (alte Kopie im archive/uiv2) — kann gelöscht werden falls Operator OK
+- [ ] **Repo-Cleanup-3**: `git rm --cached **/.DS_Store` — bereits keine getrackt (Audit zeigt 0)
 
-### B. ARCHIVE statt löschen (Reversibel, MEDIUM Risk) — Operator-Approval
+### B. ARCHIVE statt löschen (DONE 2026-05-20)
 
-- [ ] **Repo-Cleanup-4**: 24 BaseLinker-Skripte in `backend/scripts/` → `backend/scripts/archive/baselinker/` + README "do not run"
-- [ ] **Repo-Cleanup-5**: Binary-Docs aus Repo-Root → `docs/archive/2026-Q2/repo-root-binaries/` (AvyCloud_*.docx/pdf, BL_*.csv, 04_baselinker_categories.xlsx, etc.)
-- [ ] **Repo-Cleanup-6**: `docs/ebay_orders.xls` + `.txt` → `docs/archive/2026-Q2/`
+- [x] **Repo-Cleanup-4**: 24 BaseLinker-Skripte → `backend/scripts/archive/baselinker/` + README "do not run" ✅
+- [x] **Repo-Cleanup-5**: 10 Binary-Docs aus Repo-Root → `docs/archive/2026-Q2/repo-root-binaries/` ✅
+- [x] **Repo-Cleanup-6**: `docs/ebay_orders.xls` + `.txt` → `docs/archive/2026-Q2/ebay-orders-export/` ✅
 - [ ] **Repo-Cleanup-7**: Erledigte Prompts in `docs/prompts/` annotieren (Frontmatter `status: done`) + älter als 6 Monate → `docs/archive/prompts-2026-Q1/`
 
 ### C. Firestore Operator-Aktionen (HIGH Risk) — manueller Operator-Run
@@ -349,10 +349,10 @@ Vollständiger Report: [docs/kb/17-cleanup-report.md](docs/kb/17-cleanup-report.
 - [ ] **CR-Cleanup-1**: `product-hub-backend` — Status-Anomalie klären (Audit zeigt "dormant" + LastDeploy 2025-11-09 vs OldestWithTraffic-Revision 2026-05-18)
 - [ ] **CR-Cleanup-2**: 50 Revisionen prune auf aktive + letzte 5 für Rollback
 
-### F. Dependencies (Operator)
+### F. Dependencies
 
-- [ ] **Deps-Cleanup-1**: `npm uninstall framer-motion` (DEAD im Frontend)
-- [ ] **Deps-Cleanup-2**: `npm install node-fetch@2 p-limit` im backend/ (ERROR: imported aber nicht declared)
+- [ ] **Deps-Cleanup-1**: `npm uninstall framer-motion` (DEAD im Frontend) — Operator-Entscheidung, CLAUDE Regel #3 ("Keine Dependencies entfernen") blockt autonomes Entfernen
+- [x] **Deps-Cleanup-2**: `node-fetch@2` + `p-limit@3` im backend/ hinzugefügt (additive, fixt ERROR: imported aber nicht declared) ✅ (2026-05-20)
 
 ### G. KB-Drift schließen
 
