@@ -372,7 +372,7 @@ Master-Plan mit 8 Waves. Siehe **[docs/kb/15-gap-analysis.md](docs/kb/15-gap-ana
 - [ ] **HARDEN-3**: Kaufland-HMAC fix (Raw-Body-Middleware vor `express.json`) — `backend/routes/webhooks.js`
 - [x] **HARDEN-4**: SendCloud fail-closed bei fehlendem Secret in Production — `backend/routes/webhooks.js` ✅ (2026-05-20) + Basic-Auth-Match gehärtet (kein `includes`-Bypass mehr) + 5 Tests
 - [x] **HARDEN-5**: SSRF-Härtung `/api/image-proxy` — Private-IP-Deny + Banned-Hostnames + DNS-Resolve-Check via `backend/lib/ssrf-guard.js` ✅ (2026-05-20). Auth-Gate weggelassen weil `<img src>` keine Headers senden kann (Frontend würde brechen).
-- [ ] **HARDEN-6**: `restockItem` auf echten `bookStockIn`-Pfad — `backend/services/returns-engine.js`
+- [x] **HARDEN-6**: `restockItem` auf echten `bookStockIn`-Pfad — `backend/services/returns-engine.js` ✅ (2026-05-20). A-Ware: automatischer `bookStockIn` auf last-known-storage-binCode mit Product-Lookup. B-Ware: explizit manueller Operator-Schritt (Qualitäts-Sichtung). Warehouse-Movement-Log um `restocked`/`restockError`/`binCode`/`newInventory` ergänzt.
 - [x] **HARDEN-7 (partial)**: SendCloud-Webhook `emitSyncEvent` nutzt `shipData.tenantId` statt `'default'` ✅ (2026-05-20). eBay+Kaufland-Webhook-Tenant-Inferenz pending bis HARDEN-2/3 (Signatur-Verifikation) abgeschlossen — sonst würden wir geleakte/spoofed Tenant-Werte aus unauth-Webhooks vertrauen.
 - [x] **HARDEN-8**: `bookStockOut(meta.orderId)` Fail-fast wenn Order-Doc fehlt — `backend/lib/warehouse.js` ✅ (2026-05-20). Verhindert orphan-decrement und damit double-decrement-Window (CLAUDE.md Punkt 13).
 - [x] **HARDEN-9**: Stock-Lock fail-closed in Prod statt silent-degrade — `backend/lib/stock-lock.js` ✅ (2026-05-20)

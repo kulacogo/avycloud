@@ -202,3 +202,49 @@ describe('HARDEN-1: runRefundPush tenant-filter contract', () => {
     expect(source).toMatch(/tenant mismatch returnId/);
   });
 });
+
+// ────────────────────────────────────────────────────────────────────────────
+// HARDEN-6: restockItem must perform real inventory mutation, not just audit log
+// ────────────────────────────────────────────────────────────────────────────
+
+describe('HARDEN-6: restockItem actual inventory mutation', () => {
+  it('source code calls bookStockIn for A-Ware returns', () => {
+    const fs = require('fs');
+    const path = require('path');
+    const source = fs.readFileSync(
+      path.resolve(__dirname, '..', 'services', 'returns-engine.js'),
+      'utf8'
+    );
+
+    // Must reference bookStockIn inside the restockItem function.
+    const restockItemMatch = source.match(/async function restockItem[\s\S]+?\n\}\n/);
+    expect(restockItemMatch).not.toBeNull();
+    const restockBody = restockItemMatch[0];
+
+    expect(restockBody).toMatch(/bookStockIn/);
+    // Must gate on itemCondition === 'a_ware' (B-Ware = manual sorting).
+    expect(restockBody).toMatch(/itemCondition\s*===\s*['"]a_ware['"]/);
+    // Must persist warehouse_movements (audit trail) regardless of result.
+    expect(restockBody).toMatch(/warehouse_movements/);
+  });
+});
+
+// ────────────────────────────────────────────────────────────────────────────
+// HARDEN-8: bookStockOut must fail-fast if meta.orderId references missing order
+// ────────────────────────────────────────────────────────────────────────────
+
+describe('HARDEN-8: bookStockOut order-doc guard', () => {
+  it('source code throws fail-fast when order does not exist', () => {
+    const fs = require('fs');
+    const path = require('path');
+    const source = fs.readFileSync(
+      path.resolve(__dirname, '..', 'lib', 'warehouse.js'),
+      'utf8'
+    );
+
+    // Inside the order-not-found branch we now throw instead of setting a
+    // reason and continuing.
+    expect(source).toMatch(/Stock-Decrement abgebrochen/);
+    expect(source).toMatch(/order.+nicht gefunden/i);
+  });
+});

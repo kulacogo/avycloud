@@ -300,17 +300,109 @@ async function restockItem({ returnId, orderId, itemCondition, tenantId = 'defau
 
   if (!returnedItem) return;
 
-  // Log warehouse movement for restock
+  const normalizedQty = Number(returnedItem.quantity || 1);
+  const restockQty = Number.isFinite(normalizedQty) && normalizedQty > 0 ? normalizedQty : 1;
+
+  // HARDEN-6 (2026-05-20): vor diesem Fix wurde NUR ein warehouse_movements-Log
+  // geschrieben — die tatsächliche Inventory-Quantity blieb unverändert. Folge:
+  // ein Return war "operativ erledigt" aber das Produkt blieb als verkauft
+  // markiert → Oversell-Risiko bei jeder Folge-Bestellung.
+  //
+  // Nur A-Ware automatisch restocken. B-Ware/defekt bleibt manueller Operator-
+  // Schritt (Qualitäts-Sichtung → bookStockIn auf B-Ware-BIN durch User).
+  let restockResult = null;
+  let restockError = null;
+  let resolvedBinCode = null;
+
+  if (itemCondition === 'a_ware') {
+    try {
+      // Bestimme den BIN: letzter bekannter Storage-Bin des Produkts.
+      const { firestore, PRODUCTS_COLLECTION } = require('../lib/firestore');
+      let productData = null;
+      try {
+        const productsCol = firestore.collection(PRODUCTS_COLLECTION || 'products_v2');
+        // 1) Try SKU via identification
+        let prodSnap = await productsCol
+          .where('identification.sku', '==', returnedItem.sku || '')
+          .where('tenantId', '==', tenantId)
+          .limit(1)
+          .get();
+        if (prodSnap.empty) {
+          // 2) Fallback: details.identifiers.sku
+          prodSnap = await productsCol
+            .where('details.identifiers.sku', '==', returnedItem.sku || '')
+            .where('tenantId', '==', tenantId)
+            .limit(1)
+            .get();
+        }
+        if (!prodSnap.empty) {
+          productData = prodSnap.docs[0].data();
+        }
+      } catch (lookupErr) {
+        console.warn(`[returns/restock] Produkt-Lookup für SKU ${returnedItem.sku} fehlgeschlagen: ${lookupErr.message}`);
+      }
+
+      if (productData) {
+        // Priorität: storage.binCode > storageBins[0].code
+        resolvedBinCode = productData?.storage?.binCode
+          || (Array.isArray(productData?.storageBins) && productData.storageBins[0]?.code)
+          || null;
+      }
+
+      if (resolvedBinCode) {
+        const { bookStockIn } = require('../lib/warehouse');
+        const stockResult = await bookStockIn({
+          productId: productData?.id,
+          sku: returnedItem.sku || undefined,
+          binCode: resolvedBinCode,
+          quantity: restockQty,
+          meta: {
+            source: 'returns-restock',
+            returnId,
+            orderId,
+            condition: itemCondition,
+          },
+        });
+        restockResult = {
+          ok: true,
+          binCode: resolvedBinCode,
+          quantity: restockQty,
+          newInventory: stockResult?.product?.inventory?.quantity ?? null,
+        };
+        console.log(`[returns/restock] ${returnedItem.sku}: +${restockQty} → BIN ${resolvedBinCode} (return ${returnId})`);
+      } else {
+        // Kein BIN bekannt — kann nicht automatisch restocken. Operator muss
+        // bookStockIn manuell durchführen (z.B. via Wareneingangs-Flow).
+        restockError = 'no_known_bin';
+        console.warn(`[returns/restock] ${returnedItem.sku}: kein BIN bekannt — restock manuell durchführen (return ${returnId})`);
+      }
+    } catch (err) {
+      restockError = err.message || 'unknown_error';
+      console.error(`[returns/restock] ${returnedItem.sku}: bookStockIn fehlgeschlagen — ${err.message}`);
+    }
+  } else {
+    // B-Ware / defekt → operator-flow, kein Auto-Restock.
+    restockError = 'b_ware_manual_sorting_required';
+  }
+
+  // Log warehouse movement for restock — always (audit trail), enriched with
+  // result/error so operators can find returns that need manual restocking.
   await db.collection('warehouse_movements').add({
     tenantId,
     type: 'restock_return',
     productSku: returnedItem.sku || null,
     productName: returnedItem.name || null,
-    quantity: returnedItem.quantity || 1,
+    quantity: restockQty,
     condition: itemCondition,
     returnId,
     orderId,
-    note: `Wiedereinlagerung aus Retoure (${itemCondition === 'a_ware' ? 'A-Ware' : 'B-Ware reduziert'})`,
+    binCode: resolvedBinCode || null,
+    restocked: Boolean(restockResult?.ok),
+    restockError: restockError || null,
+    newInventory: restockResult?.newInventory ?? null,
+    note: restockResult?.ok
+      ? `Wiedereinlagerung A-Ware: +${restockQty} → ${resolvedBinCode}`
+      : `Restock pending: ${restockError || 'unknown'} (${itemCondition === 'a_ware' ? 'A-Ware' : 'B-Ware'})`,
     createdAt: new Date().toISOString(),
   });
 }
