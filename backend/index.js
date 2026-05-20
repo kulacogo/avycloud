@@ -182,7 +182,20 @@ app.use((err, req, res, next) => {
   }
   return next(err);
 });
-app.use(express.json({ limit: REQUEST_BODY_LIMIT }));
+// HARDEN-2/3 (2026-05-20): Raw-Body für Webhook-Signatur-Verifikation capturen.
+// Webhooks (eBay/Kaufland/SendCloud) signieren über den EXAKTEN Byte-Stream;
+// nach `express.json()` ist `req.body` ein geparstes Objekt → re-stringify
+// produziert andere Bytes (whitespace, key-order, escapes) → HMAC fail.
+// Wir speichern den Buffer NUR für /api/webhooks/* — sonst leere CPU-Last
+// und unnötiger Memory-Hold.
+app.use(express.json({
+  limit: REQUEST_BODY_LIMIT,
+  verify: (req, _res, buf) => {
+    if (buf && buf.length && typeof req.url === 'string' && req.url.startsWith('/api/webhooks/')) {
+      req.rawBody = buf; // Buffer (raw bytes), nicht decoded string
+    }
+  },
+}));
 app.use(express.urlencoded({ extended: true, limit: REQUEST_BODY_LIMIT }));
 
 // Compatibility bridge: older frontend builds may call "/app/api/*" instead of "/api/*".

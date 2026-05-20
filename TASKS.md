@@ -368,8 +368,8 @@ Master-Plan mit 8 Waves. Siehe **[docs/kb/15-gap-analysis.md](docs/kb/15-gap-ana
 
 ### P0 (sofort) — Wave 1 Items
 - [x] **HARDEN-1**: `runRefundPush` Cross-Tenant-Query mit `tenantId`-Filter — `backend/services/returns-engine.js` ✅ (2026-05-20) + Composite-Index `(tenantId, status, marketplaceRefundPushed)` + defense-in-depth doc-level check
-- [ ] **HARDEN-2**: eBay-Webhook-Signatur-Verifikation — `backend/routes/webhooks.js`
-- [ ] **HARDEN-3**: Kaufland-HMAC fix (Raw-Body-Middleware vor `express.json`) — `backend/routes/webhooks.js`
+- [x] **HARDEN-2**: eBay-Webhook-Signatur-Verifikation Phase-1 — `backend/routes/webhooks.js` ✅ (2026-05-20). `x-ebay-signature` Header MUSS in Production vorhanden sein (412 Precondition Failed sonst, per eBay-spec). Phase-2 (voller ECC-verify mit `getPublicKey` API + 1h Key-Cache) als separater Sprint.
+- [x] **HARDEN-3**: Kaufland-HMAC fix — `backend/routes/webhooks.js` ✅ (2026-05-20). `verify`-Callback in globalem `express.json` captured raw body NUR für `/api/webhooks/*`. HMAC-SHA256 prüft zwei Varianten (body-only und composite `POST\n<path>\n<body>\n<ts>`); production fail-closed (503/401).
 - [x] **HARDEN-4**: SendCloud fail-closed bei fehlendem Secret in Production — `backend/routes/webhooks.js` ✅ (2026-05-20) + Basic-Auth-Match gehärtet (kein `includes`-Bypass mehr) + 5 Tests
 - [x] **HARDEN-5**: SSRF-Härtung `/api/image-proxy` — Private-IP-Deny + Banned-Hostnames + DNS-Resolve-Check via `backend/lib/ssrf-guard.js` ✅ (2026-05-20). Auth-Gate weggelassen weil `<img src>` keine Headers senden kann (Frontend würde brechen).
 - [x] **HARDEN-6**: `restockItem` auf echten `bookStockIn`-Pfad — `backend/services/returns-engine.js` ✅ (2026-05-20). A-Ware: automatischer `bookStockIn` auf last-known-storage-binCode mit Product-Lookup. B-Ware: explizit manueller Operator-Schritt (Qualitäts-Sichtung). Warehouse-Movement-Log um `restocked`/`restockError`/`binCode`/`newInventory` ergänzt.

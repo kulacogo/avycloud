@@ -248,16 +248,67 @@ router.post('/webhooks/sendcloud', async (req, res) => {
  */
 router.post('/webhooks/kaufland', async (req, res) => {
   try {
-    // Verify Kaufland webhook signature (HMAC-SHA256)
+    // HARDEN-3 (2026-05-20): Kaufland Push-Notification Signatur-Verifikation.
+    //
+    // Spec (Kaufland Marketplace Seller API):
+    //   - Header `Shop-Signature`: HMAC-SHA256 hex digest of the request.
+    //   - Header `Shop-Timestamp`: Unix-Sekunden des Events.
+    //   - "Same function as API signing" — wir prüfen zwei plausible Varianten:
+    //     a) HMAC(secret, rawBody)                        — body-only
+    //     b) HMAC(secret, "POST\n<path>\n<rawBody>\n<ts>") — full API-signing-style
+    //
+    // Wenn EINE Variante matched (timing-safe) → akzeptiert. Sonst:
+    //   - production: 401
+    //   - dev: warn + pass (kein lokales Kaufland-Setup)
+    //
+    // Vorheriger Code: re-stringify(req.body) → byte mismatch → HMAC immer falsch
+    // ABER fail-open mit 200 bei missing secret → spoofable.
+    //
+    // GET-Challenge (?mode=subscribe&challenge=...) wird in einer separaten
+    // GET-Route behandelt — siehe unten.
     const { getSecretValue } = require('../lib/secret-values');
     const webhookSecret = await getSecretValue('KAUFLAND_WEBHOOK_SECRET').catch(() => null);
+
+    if (!webhookSecret) {
+      if (process.env.NODE_ENV === 'production') {
+        console.error('[webhook/kaufland] CRITICAL: KAUFLAND_WEBHOOK_SECRET missing in production — refusing webhook');
+        return res.status(503).json({ ok: false, error: 'webhook_secret_unavailable' });
+      }
+      console.warn('[webhook/kaufland] KAUFLAND_WEBHOOK_SECRET missing — skipping verification (NODE_ENV != production)');
+    }
+
     if (webhookSecret) {
-      const signature = req.headers['x-kaufland-signature'] || req.headers['x-signature'] || '';
-      const rawBody = typeof req.body === 'string' ? req.body : JSON.stringify(req.body || {});
-      const expected = crypto.createHmac('sha256', webhookSecret).update(rawBody).digest('hex');
-      if (!signature || !crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) {
-        console.warn('[webhook/kaufland] Invalid HMAC signature — possible spoofing attempt');
-        return res.status(200).json({ ok: false, error: 'invalid signature' });
+      const signature = String(req.headers['shop-signature'] || req.headers['x-kaufland-signature'] || req.headers['x-signature'] || '').trim();
+      const timestamp = String(req.headers['shop-timestamp'] || '').trim();
+      const rawBuf = Buffer.isBuffer(req.rawBody) ? req.rawBody : Buffer.from(JSON.stringify(req.body || {}), 'utf8');
+
+      if (!signature) {
+        console.warn('[webhook/kaufland] missing Shop-Signature header');
+        return res.status(401).json({ ok: false, error: 'unauthorized' });
+      }
+
+      // Variante A: HMAC(secret, body)
+      const hmacBodyOnly = crypto.createHmac('sha256', webhookSecret).update(rawBuf).digest('hex');
+      // Variante B: HMAC(secret, METHOD\nPATH\nBODY\nTIMESTAMP)
+      const requestPath = req.originalUrl?.split('?')[0] || req.url?.split('?')[0] || '/api/webhooks/kaufland';
+      const composite = Buffer.concat([
+        Buffer.from(`POST\n${requestPath}\n`, 'utf8'),
+        rawBuf,
+        Buffer.from(`\n${timestamp}`, 'utf8'),
+      ]);
+      const hmacComposite = crypto.createHmac('sha256', webhookSecret).update(composite).digest('hex');
+
+      function timingSafeMatch(a, b) {
+        const ba = Buffer.from(a, 'utf8');
+        const bb = Buffer.from(b, 'utf8');
+        if (ba.length !== bb.length) return false;
+        return crypto.timingSafeEqual(ba, bb);
+      }
+
+      const matched = timingSafeMatch(signature, hmacBodyOnly) || timingSafeMatch(signature, hmacComposite);
+      if (!matched) {
+        console.warn(`[webhook/kaufland] HMAC mismatch — possible spoofing (sig=${signature.slice(0, 12)}…, ts=${timestamp})`);
+        return res.status(401).json({ ok: false, error: 'invalid_signature' });
       }
     }
 
@@ -311,11 +362,35 @@ router.post('/webhooks/kaufland', async (req, res) => {
  */
 router.post('/webhooks/ebay', async (req, res) => {
   try {
+    // HARDEN-2 (2026-05-20): eBay POST-Notification-Signatur-Verifikation.
+    //
+    // Spec (eBay Notification API):
+    //   - Header `x-ebay-signature`: base64-encoded JSON {kid, alg, signature}
+    //   - Vollständige Verifikation = ECC-signature über payload mit public key
+    //     den man via getPublicKey API holt (1h cache). Komplex; SDK empfohlen.
+    //
+    // Phase-1 (heute): minimaler Schutz — Header MUSS vorhanden sein.
+    //   - production: 412 Precondition Failed (per eBay spec) wenn header fehlt
+    //   - dev: warn + pass
+    // Phase-2 (eigener Sprint): voller ECC-verify mit Notification-API-Public-Key.
+    //
+    // Vorher: jede POST-Request wurde ungeprüft akzeptiert → emitSyncEvent-DoS,
+    // potenzielle Pollution der Sync-Cascade.
+    const sigHeader = String(req.headers['x-ebay-signature'] || '').trim();
+    if (!sigHeader) {
+      if (process.env.NODE_ENV === 'production') {
+        console.warn('[webhook/ebay] missing x-ebay-signature header — rejecting (HARDEN-2 phase-1)');
+        return res.status(412).json({ ok: false, error: 'precondition_failed_missing_signature' });
+      }
+      console.warn('[webhook/ebay] missing x-ebay-signature header — passing in non-production');
+    }
+
     const body = req.body || {};
 
     // eBay Marketplace Account Deletion/Closure (GDPR) — required endpoint
     if (body.metadata?.topic === 'MARKETPLACE_ACCOUNT_DELETION') {
       console.log('[webhook/ebay] Account deletion notification received');
+      // HARDEN-2 phase-2 TODO: voller ECC-verify mit getPublicKey API + cache.
       return res.status(200).json({ ok: true });
     }
 
