@@ -36,6 +36,17 @@ installModuleMock('../../lib/gemini-client', {
   getGeminiApiKey: vi.fn(),
 });
 
+// Mock gpsr-gemini-lookup so existing enricher tests don't try to reach the real
+// Gemini API for the new 1.5-tier orphan-brand lookup. Returns null → falls
+// through to web-fallback (existing behaviour preserved).
+const getOrFetchBrandGpsrMock = vi.fn();
+installModuleMock('../../lib/gpsr-gemini-lookup', {
+  getOrFetchBrandGpsr: getOrFetchBrandGpsrMock,
+  lookupGpsrViaGemini: vi.fn(async () => null),
+  readBrandGpsrCache: vi.fn(async () => null),
+  writeBrandGpsrCache: vi.fn(async () => {}),
+});
+
 // ─── SUT ──────────────────────────────────────────────────────────────────
 const {
   enrichProductForKaufland,
@@ -46,6 +57,9 @@ const {
 beforeEach(() => {
   lookupGpsrFromWebMock.mockReset();
   callGeminiVisionMock.mockReset();
+  getOrFetchBrandGpsrMock.mockReset();
+  // Default: no orphan-brand-lookup hit → existing tests fall through to web-fallback
+  getOrFetchBrandGpsrMock.mockResolvedValue(null);
 });
 
 // ─── classifyMissingAttribute ─────────────────────────────────────────────
@@ -219,6 +233,59 @@ describe('enrichProductForKaufland', () => {
     expect(out.enrichedFields).toEqual([]);
     // Complete GPSR → no web-fallback needed
     expect(lookupGpsrFromWebMock).not.toHaveBeenCalled();
+  });
+
+  it('uses Gemini-googleSearch (1.5-tier) for orphan brand and skips web-fallback when complete', async () => {
+    // No brandGpsrMap (orphan brand) → 1st-tier skipped.
+    // Gemini-lookup returns full GPSR → 2nd-tier (web-fallback) NOT called.
+    getOrFetchBrandGpsrMock.mockResolvedValueOnce({
+      gpsr: {
+        manufacturer_name: 'GANT International GmbH',
+        manufacturer_address: 'Frankfurter Str. 12',
+        manufacturer_city: 'Eschborn',
+        manufacturer_postalcode: '65760',
+        country_code: 'DE',
+        email: 'info-de@gant.com',
+        url: 'https://www.gant.de',
+      },
+      confidence: 0.9,
+      source: 'gemini-googleSearch',
+      cached: false,
+    });
+    const product = {
+      id: 'p1',
+      identification: { name: 'GANT Shirt', brand: 'GANT' },
+      details: { gpsr: {} },
+    };
+    const out = await enrichProductForKaufland(product, ['product_safety_contact']);
+    expect(out.enrichedFields).toContain('gpsr-gemini');
+    expect(out.enriched.details.gpsr.manufacturer_name).toBe('GANT International GmbH');
+    expect(out.enriched.details.gpsr.email).toBe('info-de@gant.com');
+    expect(getOrFetchBrandGpsrMock).toHaveBeenCalledWith('GANT');
+    // GPSR is complete (name + address) → no web-fallback
+    expect(lookupGpsrFromWebMock).not.toHaveBeenCalled();
+  });
+
+  it('falls back to web-fallback when Gemini-1.5-tier returns null (orphan brand)', async () => {
+    getOrFetchBrandGpsrMock.mockResolvedValueOnce(null);
+    lookupGpsrFromWebMock.mockResolvedValueOnce({
+      manufacturer_name: 'Backup GmbH',
+      manufacturer_address: 'Backupstr. 1, D-10115 Berlin',
+      manufacturer_email: 'info@backup.de',
+      manufacturer_url: 'https://backup.de',
+      confidence: 0.75,
+      sources: [],
+    });
+    const product = {
+      id: 'p1',
+      identification: { name: 'Foo Item', brand: 'ObscureBrand' },
+      details: { gpsr: {} },
+    };
+    const out = await enrichProductForKaufland(product, ['product_safety_contact']);
+    expect(getOrFetchBrandGpsrMock).toHaveBeenCalledTimes(1);
+    expect(lookupGpsrFromWebMock).toHaveBeenCalledTimes(1);
+    expect(out.enrichedFields).toContain('gpsr');
+    expect(out.enriched.details.gpsr.manufacturer_name).toBe('Backup GmbH');
   });
 
   it('uses brand-lookup as 1st-tier when sibling product has GPSR (no web call needed)', async () => {

@@ -277,11 +277,60 @@ async function enrichProductForKaufland(product, missingAttributes = [], opts = 
       }
     }
 
-    // ── 2nd-Tier: Web-Fallback (falls Brand-Map nichts brachte) ─────────────
-    const gpsrAfterBrand = enriched.details.gpsr || {};
-    const stillIncomplete = !safeString(gpsrAfterBrand.manufacturer_name)
+    // ── 1.5-Tier: Gemini-Lookup mit googleSearch (orphan brands) ───────────
+    // Wenn brand-map nichts hatte, versuche Gemini-3-Flash mit googleSearch
+    // BEVOR wir das regex-basierte Web-Fallback antasten. Gemini findet das
+    // EU-verantwortliche Impressum bei Marken wie GANT, Desigual, TOMMY JEANS
+    // wo wir keine Sibling-Produkte haben. Cache in Firestore (30d TTL) damit
+    // wir denselben Brand nicht 100x pro Sync abfragen.
+    //
+    // Output-Shape ist identisch mit unserer products_v2-GPSR-Shape
+    // (email, url, manufacturer_address, manufacturer_city, …), also Inline-
+    // Merge mit existing-wins — kein mergeGpsr(), das ist für die web-fallback
+    // shape mit "manufacturer_email"/"manufacturer_url".
+    let gpsrAfterBrand = enriched.details.gpsr || {};
+    let stillIncomplete = !safeString(gpsrAfterBrand.manufacturer_name)
       || !safeString(gpsrAfterBrand.manufacturer_address);
 
+    if (brand && stillIncomplete && opts.useGeminiLookup !== false) {
+      try {
+        const { getOrFetchBrandGpsr } = require('../lib/gpsr-gemini-lookup');
+        const geminiResult = await withTimeout(
+          getOrFetchBrandGpsr(brand),
+          15000,
+          'gemini-gpsr'
+        );
+        if (geminiResult && geminiResult.gpsr
+            && (geminiResult.gpsr.manufacturer_name || geminiResult.gpsr.manufacturer_address)) {
+          const merged = {};
+          // Gemini-Quelle als Defaults
+          for (const [k, v] of Object.entries(geminiResult.gpsr)) {
+            const sv = typeof v === 'string' ? v.trim() : v;
+            if (sv !== '' && sv != null) merged[k] = sv;
+          }
+          // Existing gewinnt wo non-empty (nicht überschreiben)
+          for (const [k, v] of Object.entries(gpsrAfterBrand)) {
+            const sv = typeof v === 'string' ? v.trim() : v;
+            if (sv !== '' && sv != null) merged[k] = sv;
+          }
+          const existingKeys = Object.keys(gpsrAfterBrand).filter((k) => {
+            const v = gpsrAfterBrand[k];
+            return typeof v === 'string' ? v.trim() !== '' : v != null;
+          });
+          if (Object.keys(merged).length > existingKeys.length) {
+            enriched.details.gpsr = merged;
+            enrichedFields.push('gpsr-gemini');
+          }
+        }
+      } catch (_) { /* swallow — fall through to web-fallback */ }
+    }
+
+    // Re-check whether GPSR is still incomplete after Gemini-lookup
+    gpsrAfterBrand = enriched.details.gpsr || {};
+    stillIncomplete = !safeString(gpsrAfterBrand.manufacturer_name)
+      || !safeString(gpsrAfterBrand.manufacturer_address);
+
+    // ── 2nd-Tier: Web-Fallback (falls Brand-Map + Gemini nichts brachte) ────
     if (brand && stillIncomplete) {
       tasks.push((async () => {
         try {
