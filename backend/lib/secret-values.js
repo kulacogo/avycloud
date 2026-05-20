@@ -16,6 +16,13 @@ async function getSecretValue(secretName) {
     throw new Error('Secret name is required');
   }
 
+  // Test-only escape hatch: setting `${secretName}=__NULL__` simulates a
+  // missing secret without needing to mock the Secret-Manager-Client.
+  // No production code path uses this — it's strictly a test affordance.
+  if (process.env[secretName] === '__NULL__') {
+    return null;
+  }
+
   if (process.env[secretName]) {
     return process.env[secretName];
   }

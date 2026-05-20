@@ -118,8 +118,17 @@ async function acquireStockLock(key, timeoutMs = 15000) {
   try {
     return await acquireFirestoreLock(normalizedKey, timeoutMs);
   } catch (err) {
-    // Fail-safe for local/dev outages: degrade to memory lock instead of unguarded writes.
-    console.warn(`[stock-lock] firestore acquire failed for key=${normalizedKey}, fallback=memory: ${err.message}`);
+    // HARDEN-9 (2026-05-20): in Production NICHT auf memory degradieren — mehrere
+    // Cloud-Run-Instanzen würden Stock-Mutationen ohne echte Synchronisation fahren
+    // (silent oversell, race conditions). Stattdessen loud-fail.
+    // CLAUDE.md Regel #12: kein In-Memory-Stock-Lock in Production.
+    const isProd = process.env.NODE_ENV === 'production';
+    if (isProd) {
+      console.error(`[stock-lock] CRITICAL: firestore acquire failed in production for key=${normalizedKey}: ${err.message}`);
+      throw new Error(`stock-lock unavailable (firestore failed, no memory-fallback in production): key=${normalizedKey} reason=${err.message}`);
+    }
+    // Dev / local / test outage: degrade to memory lock so devs can keep working.
+    console.warn(`[stock-lock] firestore acquire failed for key=${normalizedKey}, fallback=memory (dev/local): ${err.message}`);
     return acquireMemoryLock(normalizedKey, timeoutMs);
   }
 }

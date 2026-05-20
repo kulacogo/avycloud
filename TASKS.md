@@ -367,12 +367,12 @@ Vollständiger Report: [docs/kb/17-cleanup-report.md](docs/kb/17-cleanup-report.
 Master-Plan mit 8 Waves. Siehe **[docs/kb/15-gap-analysis.md](docs/kb/15-gap-analysis.md)** für Übersicht.
 
 ### P0 (sofort) — Wave 1 Items
-- [ ] **HARDEN-1**: `runRefundPush` Cross-Tenant-Query mit `tenantId`-Filter — `backend/services/returns-engine.js`
+- [x] **HARDEN-1**: `runRefundPush` Cross-Tenant-Query mit `tenantId`-Filter — `backend/services/returns-engine.js` ✅ (2026-05-20) + Composite-Index `(tenantId, status, marketplaceRefundPushed)` + defense-in-depth doc-level check
 - [ ] **HARDEN-2**: eBay-Webhook-Signatur-Verifikation — `backend/routes/webhooks.js`
 - [ ] **HARDEN-3**: Kaufland-HMAC fix (Raw-Body-Middleware vor `express.json`) — `backend/routes/webhooks.js`
-- [ ] **HARDEN-4**: SendCloud fail-closed bei fehlendem Secret in Production — `backend/routes/webhooks.js`
+- [x] **HARDEN-4**: SendCloud fail-closed bei fehlendem Secret in Production — `backend/routes/webhooks.js` ✅ (2026-05-20) + Basic-Auth-Match gehärtet (kein `includes`-Bypass mehr) + 5 Tests
 - [ ] **HARDEN-5**: `/api/image-proxy` hinter `requireAuth` + URL-Allow-List + Private-IP-Deny — `backend/routes/products.js`
 - [ ] **HARDEN-6**: `restockItem` auf echten `bookStockIn`-Pfad — `backend/services/returns-engine.js`
 - [ ] **HARDEN-7**: Tenant-Hardcodes raus in `bookStockOut`, alle `emitSyncEvent` in `webhooks.js`, `syncOrdersNative` in `order-source-router.js`
 - [ ] **HARDEN-8**: `bookStockOut(meta.orderId)` Guard für invalide Order-Doc — `backend/lib/warehouse.js`
-- [ ] **HARDEN-9**: Stock-Lock fail-closed in Prod statt silent-degrade — `backend/lib/stock-lock.js`
+- [x] **HARDEN-9**: Stock-Lock fail-closed in Prod statt silent-degrade — `backend/lib/stock-lock.js` ✅ (2026-05-20)

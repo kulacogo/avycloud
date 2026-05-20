@@ -943,10 +943,17 @@ async function runRefundPush({ tenantId = 'default', limit = 50 } = {}) {
   let processed = 0;
   let success = 0;
 
+  // HARDEN-1 (2026-05-20): Cross-Tenant-Schutz — die Queries MÜSSEN nach tenantId filtern,
+  // sonst greift sich Tenant A ein Return von Tenant B und ruft `issueMarketplaceRefund`
+  // mit den Credentials von A auf → fremder Marketplace-Account, Geldfluss / Compliance-Bruch.
+  // Siehe docs/kb/17-cleanup-report.md + Hardening-Plan Wave 1.
+  const normalizedTenantId = String(tenantId || 'default').trim() || 'default';
+
   // Find returns that need marketplace refund push
   const refundStatuses = ['erstattet', 'teilweise_erstattet'];
   for (const status of refundStatuses) {
     const snap = await db.collection(RETURNS_COLLECTION)
+      .where('tenantId', '==', normalizedTenantId)
       .where('status', '==', status)
       .where('marketplaceRefundPushed', '==', false)
       .limit(limit)
@@ -954,6 +961,7 @@ async function runRefundPush({ tenantId = 'default', limit = 50 } = {}) {
 
     // Also check returns without the field set (legacy)
     const snapLegacy = await db.collection(RETURNS_COLLECTION)
+      .where('tenantId', '==', normalizedTenantId)
       .where('status', '==', status)
       .limit(limit)
       .get();
@@ -970,9 +978,17 @@ async function runRefundPush({ tenantId = 'default', limit = 50 } = {}) {
       const mp = (data.marketplace || '').toLowerCase();
       if (!mp || (mp !== 'ebay' && mp !== 'kaufland')) continue;
 
+      // Defense-in-depth: trotz query-filter prüfen wir den tenantId am Doc nochmal —
+      // schützt vor Indizes / Legacy-Docs ohne Feld.
+      const docTenant = String(data.tenantId || '').trim();
+      if (docTenant && docTenant !== normalizedTenantId) {
+        console.warn(`[returns/refund-push] tenant mismatch returnId=${returnId} doc=${docTenant} requested=${normalizedTenantId} — skipping`);
+        continue;
+      }
+
       processed++;
       try {
-        await issueMarketplaceRefund({ returnId, tenantId });
+        await issueMarketplaceRefund({ returnId, tenantId: normalizedTenantId });
         await doc.ref.set({ marketplaceRefundPushed: true, marketplaceRefundPushedAt: new Date().toISOString() }, { merge: true });
         success++;
       } catch (err) {

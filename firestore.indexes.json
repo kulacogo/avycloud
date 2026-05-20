@@ -18,6 +18,15 @@
       ]
     },
     {
+      "collectionGroup": "returns",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "tenantId", "order": "ASCENDING" },
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "marketplaceRefundPushed", "order": "ASCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "shipments",
       "queryScope": "COLLECTION",
       "fields": [

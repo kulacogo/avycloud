@@ -60,6 +60,19 @@ router.post('/webhooks/sendcloud', async (req, res) => {
     // Verify SendCloud webhook authenticity via secret key in query or basic auth
     const { getSecretValue } = require('../lib/secret-values');
     const webhookSecret = await getSecretValue('SENDCLOUD_SECRET_KEY').catch(() => null);
+
+    // HARDEN-4 (2026-05-20): fail-closed in Production wenn Secret fehlt.
+    // Vorher: kein Secret → Block übersprungen → jede Anfrage akzeptiert.
+    // Spoofed-Webhook konnte `omsStatus` und Stock pushen ohne Auth.
+    if (!webhookSecret) {
+      if (process.env.NODE_ENV === 'production') {
+        console.error('[webhook/sendcloud] CRITICAL: SENDCLOUD_SECRET_KEY missing in production — refusing webhook');
+        return res.status(503).json({ ok: false, error: 'webhook_secret_unavailable' });
+      }
+      // Dev / local: warn aber nicht blocken (kein Secret-Manager lokal).
+      console.warn('[webhook/sendcloud] SENDCLOUD_SECRET_KEY missing — skipping verification (NODE_ENV != production)');
+    }
+
     if (webhookSecret) {
       const authHeader = req.headers.authorization || '';
       const querySecret = req.query?.secret || '';
@@ -67,12 +80,15 @@ router.post('/webhooks/sendcloud', async (req, res) => {
       let verified = false;
       if (authHeader.startsWith('Basic ')) {
         const decoded = Buffer.from(authHeader.slice(6), 'base64').toString('utf-8');
-        verified = decoded.includes(webhookSecret);
+        // HARDEN-4: nutze exakten Match auf `<public_key>:<secret_key>` statt naivem includes()
+        // (vorher: ein böser public_key der den secret enthält wäre durchgekommen).
+        const [, candidateSecret] = decoded.split(':');
+        verified = typeof candidateSecret === 'string' && candidateSecret.length > 0 && candidateSecret === webhookSecret;
       }
       if (!verified && querySecret === webhookSecret) verified = true;
       if (!verified) {
         console.warn('[webhook/sendcloud] Unauthorized webhook attempt');
-        return res.status(200).json({ ok: false, error: 'unauthorized' });
+        return res.status(401).json({ ok: false, error: 'unauthorized' });
       }
     }
 
