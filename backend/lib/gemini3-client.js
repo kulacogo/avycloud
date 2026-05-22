@@ -376,19 +376,50 @@ async function gemini3GenerateJSON(opts = {}) {
     callerOverrides
   );
 
-  const response = await ai.models.generateContent({
-    model: modelName,
-    contents: prompt,
-    config: {
-      ...mergedGenCfg,
-      responseMimeType: 'application/json',
-      responseJsonSchema: schema,
-      httpOptions: { timeout: resolvedTimeoutMs },
-    },
-  });
+  // HARDEN-Wave-4 (2026-05-22): LLM-Telemetrie aktivieren.
+  // Tracking pro Call: latency, token-usage, schema-validity. Fire-and-forget,
+  // sampled via LLM_TELEMETRY_SAMPLE, schreibt in `llm_call_telemetry`.
+  // Macht /api/admin/llm-parity endlich nutzbar (vorher: keine Daten).
+  const _startMs = Date.now();
+  let _response;
+  let _telemetrySchemaValid = null;
+  try {
+    _response = await ai.models.generateContent({
+      model: modelName,
+      contents: prompt,
+      config: {
+        ...mergedGenCfg,
+        responseMimeType: 'application/json',
+        responseJsonSchema: schema,
+        httpOptions: { timeout: resolvedTimeoutMs },
+      },
+    });
+  } catch (err) {
+    _trackLlmCallSafely({
+      pipeline: scopeConfig?.pipeline || 'gemini3-json',
+      scope: scopeConfig?.id || scopeConfig?.scope || 'gemini3GenerateJSON',
+      model: modelName,
+      temperature: mergedGenCfg.temperature,
+      latencyMs: Date.now() - _startMs,
+      schemaValid: false,
+      error: err && err.message,
+    });
+    throw err;
+  }
+  const response = _response;
 
   let text = (response.text || '').trim();
   if (!text) {
+    _trackLlmCallSafely({
+      pipeline: scopeConfig?.pipeline || 'gemini3-json',
+      scope: scopeConfig?.id || scopeConfig?.scope || 'gemini3GenerateJSON',
+      model: modelName,
+      temperature: mergedGenCfg.temperature,
+      latencyMs: Date.now() - _startMs,
+      schemaValid: false,
+      promptTokens: response?.usageMetadata?.promptTokenCount,
+      completionTokens: response?.usageMetadata?.candidatesTokenCount,
+    });
     throw new Error(`Gemini (${modelName}) returned empty response`);
   }
 
@@ -402,9 +433,33 @@ async function gemini3GenerateJSON(opts = {}) {
   if (start > 0) text = text.slice(start);
 
   const parsed = repairTruncatedJson(text);
-  if (!parsed) throw new Error('Failed to parse Gemini JSON (even after repair attempt)');
+  if (!parsed) {
+    _trackLlmCallSafely({
+      pipeline: scopeConfig?.pipeline || 'gemini3-json',
+      scope: scopeConfig?.id || scopeConfig?.scope || 'gemini3GenerateJSON',
+      model: modelName,
+      temperature: mergedGenCfg.temperature,
+      latencyMs: Date.now() - _startMs,
+      schemaValid: false,
+      promptTokens: response?.usageMetadata?.promptTokenCount,
+      completionTokens: response?.usageMetadata?.candidatesTokenCount,
+    });
+    throw new Error('Failed to parse Gemini JSON (even after repair attempt)');
+  }
   // Phase F.3: 2-stufige zod-Schema-Validation (safeParse Stufe 1 default).
-  return _validateAgainstScope(parsed, scopeConfig);
+  const validated = _validateAgainstScope(parsed, scopeConfig);
+  _telemetrySchemaValid = true;
+  _trackLlmCallSafely({
+    pipeline: scopeConfig?.pipeline || 'gemini3-json',
+    scope: scopeConfig?.id || scopeConfig?.scope || 'gemini3GenerateJSON',
+    model: modelName,
+    temperature: mergedGenCfg.temperature,
+    latencyMs: Date.now() - _startMs,
+    schemaValid: _telemetrySchemaValid,
+    promptTokens: response?.usageMetadata?.promptTokenCount,
+    completionTokens: response?.usageMetadata?.candidatesTokenCount,
+  });
+  return validated;
 }
 
 /**
@@ -456,16 +511,59 @@ async function gemini3GenerateText(opts = {}) {
     callerOverrides
   );
 
-  const response = await ai.models.generateContent({
+  // HARDEN-Wave-4 (2026-05-22): LLM-Telemetrie aktivieren (siehe gemini3GenerateJSON).
+  const _startMs = Date.now();
+  let response;
+  try {
+    response = await ai.models.generateContent({
+      model: modelName,
+      contents: prompt,
+      config: {
+        ...mergedGenCfg,
+        httpOptions: { timeout: resolvedTimeoutMs },
+      },
+    });
+  } catch (err) {
+    _trackLlmCallSafely({
+      pipeline: scopeConfig?.pipeline || 'gemini3-text',
+      scope: scopeConfig?.id || scopeConfig?.scope || 'gemini3GenerateText',
+      model: modelName,
+      temperature: mergedGenCfg.temperature,
+      latencyMs: Date.now() - _startMs,
+      schemaValid: null,
+      error: err && err.message,
+    });
+    throw err;
+  }
+  const text = (response.text || '').trim();
+  _trackLlmCallSafely({
+    pipeline: scopeConfig?.pipeline || 'gemini3-text',
+    scope: scopeConfig?.id || scopeConfig?.scope || 'gemini3GenerateText',
     model: modelName,
-    contents: prompt,
-    config: {
-      ...mergedGenCfg,
-      httpOptions: { timeout: resolvedTimeoutMs },
-    },
+    temperature: mergedGenCfg.temperature,
+    latencyMs: Date.now() - _startMs,
+    schemaValid: null,
+    promptTokens: response?.usageMetadata?.promptTokenCount,
+    completionTokens: response?.usageMetadata?.candidatesTokenCount,
   });
+  return text;
+}
 
-  return (response.text || '').trim();
+// HARDEN-Wave-4 (2026-05-22): zentraler Safe-Wrapper für llm-telemetry.
+// Fire-and-forget — schluckt jeden Fehler, blockiert NIEMALS den Caller.
+// Wird inline in den hot paths gerufen (gemini3GenerateJSON/Text).
+function _trackLlmCallSafely(payload) {
+  try {
+    // Lazy-require so test files that mock '../lib/llm-telemetry' work
+    // (and so a missing module never explodes the LLM path).
+    const { logLlmCall } = require('./llm-telemetry');
+    // We deliberately don't await — telemetry write is batched + async.
+    Promise.resolve()
+      .then(() => logLlmCall(payload))
+      .catch(() => { /* swallow */ });
+  } catch (_err) {
+    // Never propagate.
+  }
 }
 
 // ─── PERF-001: Full Product Schema for Google Search Grounding ───
