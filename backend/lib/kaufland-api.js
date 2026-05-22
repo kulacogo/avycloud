@@ -577,7 +577,8 @@ async function createUnit(product, { storefront = 'de', autoCreateProductData = 
       let fullAttrs = {};
       try {
         const { buildKauflandProductDataAttributes } = require('../services/kaufland-product-data-repair');
-        fullAttrs = buildKauflandProductDataAttributes(product, {}) || {};
+        // Now async (resolves manufacturer against Kaufland whitelist).
+        fullAttrs = (await buildKauflandProductDataAttributes(product, { storefront: picked.storefront })) || {};
       } catch (buildErr) {
         console.warn(`[createUnit] buildKauflandProductDataAttributes failed for EAN ${picked.ean}: ${buildErr?.message || buildErr}`);
       }

@@ -39,6 +39,22 @@ installModuleMock('../../lib/kaufland-api', {
   patchProductData: patchProductDataMock,
 });
 
+// ─── Mock kaufland-manufacturer-whitelist so build() doesn't hit Firestore ─
+// Default: no whitelist match → falls through to legacy legal-entity > brand.
+const findManufacturerInWhitelistMock = vi.fn(async () => ({
+  found: false,
+  label: null,
+  exactMatch: false,
+  total: 0,
+  suggestions: [],
+  source: 'api',
+}));
+installModuleMock('../../lib/kaufland-manufacturer-whitelist', {
+  findManufacturerInWhitelist: findManufacturerInWhitelistMock,
+  getManufacturerAttributeId: vi.fn(async () => 21),
+  __resetForTests() {},
+});
+
 // ─── SUT ──────────────────────────────────────────────────────────────────
 const repair = require('../../services/kaufland-product-data-repair');
 
@@ -47,6 +63,16 @@ beforeEach(() => {
   getProductDataStatusMock.mockReset();
   putProductDataMock.mockReset();
   patchProductDataMock.mockReset();
+  findManufacturerInWhitelistMock.mockReset();
+  // Default: no match → legacy fallback path used.
+  findManufacturerInWhitelistMock.mockResolvedValue({
+    found: false,
+    label: null,
+    exactMatch: false,
+    total: 0,
+    suggestions: [],
+    source: 'api',
+  });
 });
 
 // ─── Tests ────────────────────────────────────────────────────────────────
@@ -110,8 +136,8 @@ describe('buildKauflandComplianceContact', () => {
 });
 
 describe('buildKauflandProductDataAttributes', () => {
-  it('builds the base attributes (title, description, picture, manufacturer) from identification + details', () => {
-    const attrs = repair.buildKauflandProductDataAttributes({
+  it('builds the base attributes (title, description, picture, manufacturer) from identification + details', async () => {
+    const attrs = await repair.buildKauflandProductDataAttributes({
       identification: { name: 'Test Title', brand: 'BrandY' },
       details: {
         short_description: '<p>Hello <b>world</b></p>',
@@ -131,8 +157,8 @@ describe('buildKauflandProductDataAttributes', () => {
     expect(attrs.manufacturer).toEqual(['BrandY']);
   });
 
-  it('emits product_safety_contact when gpsr data is complete', () => {
-    const attrs = repair.buildKauflandProductDataAttributes({
+  it('emits product_safety_contact when gpsr data is complete', async () => {
+    const attrs = await repair.buildKauflandProductDataAttributes({
       identification: { name: 'X', brand: 'BrandZ' },
       details: {
         gpsr: {
@@ -150,8 +176,8 @@ describe('buildKauflandProductDataAttributes', () => {
     });
   });
 
-  it('honours missingAttributes by pulling values from details.attributes', () => {
-    const attrs = repair.buildKauflandProductDataAttributes(
+  it('honours missingAttributes by pulling values from details.attributes', async () => {
+    const attrs = await repair.buildKauflandProductDataAttributes(
       {
         identification: { name: 'X', brand: 'BrandY' },
         details: {
@@ -161,6 +187,23 @@ describe('buildKauflandProductDataAttributes', () => {
       { missingAttributes: ['color'] }
     );
     expect(attrs.color).toEqual(['red']);
+  });
+
+  it('uses Kaufland whitelist label instead of input brand when exact-match (case-preserving)', async () => {
+    findManufacturerInWhitelistMock.mockResolvedValueOnce({
+      found: true,
+      label: 'Brax',           // Kauflands EXAKTE Schreibweise
+      exactMatch: true,
+      total: 16,
+      suggestions: [{ label: 'Brax', value: 'brax-id' }],
+      source: 'api',
+    });
+    const attrs = await repair.buildKauflandProductDataAttributes({
+      identification: { name: 'Hose', brand: 'BRAX' }, // user-input upper-case
+      details: {},
+    });
+    expect(attrs.manufacturer).toEqual(['Brax']);
+    expect(findManufacturerInWhitelistMock).toHaveBeenCalledWith('BRAX', expect.objectContaining({ storefront: 'de' }));
   });
 });
 

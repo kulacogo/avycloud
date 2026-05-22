@@ -28,6 +28,9 @@ const {
   patchProductData,
 } = require('../lib/kaufland-api');
 const { enforceAspectCap } = require('../lib/aspect-cap-enforcer');
+// Lazy-require kaufland-manufacturer-whitelist to avoid pulling firestore into
+// pure-function test paths that only exercise buildKauflandComplianceContact.
+// The require happens inside buildKauflandProductDataAttributes.
 
 // ─── Local helpers (mirror of admin-bulk-actions.js helpers) ──────────────
 
@@ -159,13 +162,22 @@ function buildKauflandComplianceContact(product, fallbackName = '') {
  * Build the full attributes object Kaufland expects, drawing from
  * `product.details.attributes`, `.attributes_extra` and `.gpsr.*`.
  *
+ * Async since 2026-05 because we resolve the `manufacturer` attribute against
+ * Kaufland's controlled whitelist (attribute id=21). Match-logic prefers the
+ * exact Kaufland-side label (e.g. "Brax" instead of "BRAX") so the validator
+ * does not reject with `not_manufacturer_name, invalid_value`.
+ *
+ * Whitelist-lookup failure is non-fatal — falls through to legacy behavior
+ * (legal-entity > brand) on any error.
+ *
  * @param {object} product
  * @param {object} [opts]
  * @param {string[]} [opts.missingAttributes=[]]       — from product-data/status
  * @param {string[]} [opts.minOneMissingAttributes=[]] — from product-data/status
- * @returns {object} attributes ready for putProductData/patchProductData.
+ * @param {string}   [opts.storefront='de']            — Kaufland storefront for whitelist lookup
+ * @returns {Promise<object>} attributes ready for putProductData/patchProductData.
  */
-function buildKauflandProductDataAttributes(product, { missingAttributes = [], minOneMissingAttributes = [] } = {}) {
+async function buildKauflandProductDataAttributes(product, { missingAttributes = [], minOneMissingAttributes = [], storefront = 'de' } = {}) {
   const attributes = {};
 
   const title = safeString(product?.identification?.name).replace(/\s+/g, ' ').trim();
@@ -212,17 +224,79 @@ function buildKauflandProductDataAttributes(product, { missingAttributes = [], m
       pickFromAttrsByNeedle('marke', 'brand', 'hersteller')
   );
 
-  // ── Manufacturer-Picker: Legal Entity > Brand ────────────────────────────
+  // ── Manufacturer-Picker: Whitelist-Lookup > Legal Entity > Brand ────────
   // Kaufland's Validator declined pure brand names with hint:
-  // "not_manufacturer_name, reason: invalid_value" — sie wollen die LEGALE
-  // ENTITÄT (z.B. "Namuk AG", "Anker Innovations Deutschland GmbH"), nicht
-  // den Markennamen. Wir greifen auf gpsr.manufacturer_name zurück wenn der
-  // eine erkennbare Rechtsform enthält. Fallback auf brand für Backwards-
-  // Compat damit alte Produkte nicht plötzlich gar nichts mehr senden.
+  // "not_manufacturer_name, reason: invalid_value" — sie haben eine
+  // kontrollierte Whitelist (attribute id=21). Bei Mismatch (Case, Variante,
+  // unregistriert) wird der ganze Push als incomplete-product abgewiesen.
+  //
+  // Strategie (additiv, fail-safe):
+  //   1. Wenn GPSR-Legal-Entity vorhanden ist → in Whitelist suchen
+  //      (manche Hersteller registrieren ihren legalen Namen, nicht den Brand).
+  //   2. Sonst (oder bei Miss) → brand in Whitelist suchen.
+  //   3. Bei exact-match: Kauflands EXAKTEN Wert nehmen (z.B. "Brax", nicht "BRAX").
+  //   4. Bei keinem Match: legacy Verhalten (legal-entity > brand) bleibt
+  //      bestehen → Push schlägt zwar mglw. fehl, aber wir blockieren ihn
+  //      nicht artifiziell (Whitelist-API könnte down sein).
+  //
+  // Whitelist-API-Failure ist NIE blockierend — silently fall back.
   const gpsrEntityName = safeString(product?.details?.gpsr?.manufacturer_name);
   const LEGAL_ENTITY_RX = /\b(GmbH|AG|Inc\.?|Ltd\.?|LLC|S\.?p\.?A\.?|B\.?V\.?|S\.?A\.?S?|SE|S\.?r\.?l\.?|Limited|Co\.,?\s*Ltd|Co\.\s*KG|OHG|KG|UG)\b/i;
   const gpsrHasLegalSuffix = gpsrEntityName && LEGAL_ENTITY_RX.test(gpsrEntityName);
-  const manufacturerName = gpsrHasLegalSuffix ? gpsrEntityName : brand;
+  const legacyManufacturerName = gpsrHasLegalSuffix ? gpsrEntityName : brand;
+
+  let kauflandManufacturerLabel = null;
+  let manufacturerOperatorNote = null;
+  let whitelistLookup = { findManufacturerInWhitelist: null };
+  try {
+    // Lazy-require so pure-function tests of this module don't need a firestore mock.
+    whitelistLookup = require('../lib/kaufland-manufacturer-whitelist');
+  } catch (requireErr) {
+    // Module unavailable (shouldn't happen in normal builds) — skip lookup.
+    whitelistLookup = { findManufacturerInWhitelist: null };
+  }
+  const lookupWhitelist = whitelistLookup?.findManufacturerInWhitelist;
+
+  if (typeof lookupWhitelist === 'function') {
+    // Attempt 1: legal-entity in whitelist.
+    if (gpsrHasLegalSuffix && gpsrEntityName) {
+      try {
+        const r = await lookupWhitelist(gpsrEntityName, { storefront });
+        if (r && r.exactMatch && r.label) {
+          kauflandManufacturerLabel = r.label;
+        }
+      } catch (whitelistErr) {
+        console.warn(
+          `[kaufland-product-data-repair] manufacturer whitelist lookup (legal-entity="${gpsrEntityName}") failed: ${safeString(whitelistErr?.message)}`
+        );
+      }
+    }
+    // Attempt 2: brand in whitelist (fallback).
+    if (!kauflandManufacturerLabel && brand) {
+      try {
+        const r = await lookupWhitelist(brand, { storefront });
+        if (r && r.exactMatch && r.label) {
+          kauflandManufacturerLabel = r.label; // Kauflands exakter Wert (Case-preserving)
+        } else if (r && !r.found && r.source !== 'error') {
+          manufacturerOperatorNote =
+            `Brand "${brand}" nicht in Kaufland-Whitelist (hits=${r.total}). ` +
+            'Registrieren via Kaufland Kontaktformular/Hersteller-Anfrage.';
+        }
+      } catch (whitelistErr) {
+        console.warn(
+          `[kaufland-product-data-repair] manufacturer whitelist lookup (brand="${brand}") failed: ${safeString(whitelistErr?.message)}`
+        );
+      }
+    }
+  }
+
+  if (manufacturerOperatorNote) {
+    const sku = safeString(product?.identification?.sku || product?.details?.identifiers?.sku || product?.id);
+    console.warn(`[kaufland-product-data-repair] sku=${sku} brand="${brand}" ${manufacturerOperatorNote}`);
+  }
+
+  // Final manufacturer value: whitelist-label > legal-entity > brand.
+  const manufacturerName = kauflandManufacturerLabel || legacyManufacturerName;
   if (manufacturerName) attributes.manufacturer = [manufacturerName];
 
   const complianceContact = buildKauflandComplianceContact(product, brand);
@@ -292,9 +366,9 @@ function buildKauflandProductDataAttributes(product, { missingAttributes = [], m
       return;
     }
     if ((requiredToken === 'hersteller' || requiredToken.includes('manufacturer'))) {
-      // Bevorzuge legal-entity-name (z.B. "namuk GmbH") über brand ("Namuk")
-      // — Kaufland-Validator declined pure Brand-Strings als manufacturer.
-      const candidate = manufacturerName || brand;
+      // Bevorzuge whitelist-label > legal-entity-name > brand.
+      // Kaufland-Validator declined pure Brand-Strings als manufacturer.
+      const candidate = kauflandManufacturerLabel || legacyManufacturerName || brand;
       if (candidate) {
         attributes[requiredName] = [candidate];
         return;
@@ -376,9 +450,10 @@ async function tryRepairKauflandProductData({
     productDataBeforeError = Number(error?.status) === 404 ? 'product-data=404' : safeString(error?.message);
   }
 
-  const attributes = buildKauflandProductDataAttributes(product, {
+  const attributes = await buildKauflandProductDataAttributes(product, {
     missingAttributes: statusBefore?.missing_attributes || [],
     minOneMissingAttributes: statusBefore?.min_one_missing_attributes || [],
+    storefront: safeString(storefront) || 'de',
   });
   const patchedKeys = Object.keys(attributes);
   if (!patchedKeys.length) {
