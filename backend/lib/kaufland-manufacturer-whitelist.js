@@ -235,6 +235,38 @@ async function writeCache(brandSlug, payload) {
  *   cachedAt?: Date,
  * }>}
  */
+/**
+ * Generate Brand-Search-Varianten für Robustheit gegen Schreibweise-Unterschiede.
+ * Beispiel: "Levi's" → ["Levi's", "Levis", "Levi"]
+ *           "Levi Strauss & Co. BV" → ["Levi Strauss & Co. BV", "Levi Strauss & Co.", "Levi Strauss & Co", "Levi Strauss", "Levi"]
+ * Erst-Treffer mit exact-match gewinnt.
+ */
+function generateBrandVariants(brand) {
+  const variants = [];
+  const seen = new Set();
+  const add = (s) => {
+    const v = safeString(s);
+    if (!v) return;
+    const key = v.toLowerCase();
+    if (seen.has(key)) return;
+    seen.add(key);
+    variants.push(v);
+  };
+  add(brand);
+  // ohne Apostroph(e)
+  add(brand.replace(/['']/g, ''));
+  // ohne possessives 's
+  add(brand.replace(/['']s\b/gi, ''));
+  // Legal-Suffix-Stripping (iteratively)
+  const LEGAL_SUFFIX_RX = /\s+(GmbH|AG|Inc\.?|Ltd\.?|LLC|S\.?p\.?A\.?|B\.?V\.?|S\.?A\.?S?|SE|S\.?r\.?l\.?|Limited|Co\.,?\s*Ltd|Co\.\s*KG|OHG|KG|UG|& Co\.?( KG)?)\b\.?/i;
+  let stripped = brand;
+  for (let i = 0; i < 5 && LEGAL_SUFFIX_RX.test(stripped); i += 1) {
+    stripped = stripped.replace(LEGAL_SUFFIX_RX, '').trim().replace(/,\s*$/, '').trim();
+    add(stripped);
+  }
+  return variants;
+}
+
 async function findManufacturerInWhitelist(brand, opts = {}) {
   const cleanedBrand = safeString(brand);
   const storefront = safeString(opts?.storefront) || 'de';
@@ -267,37 +299,49 @@ async function findManufacturerInWhitelist(brand, opts = {}) {
     }
   }
 
-  // ── 2. Live whitelist lookup ────────────────────────────────────────────
-  let apiResult = null;
+  // ── 2. Live whitelist lookup — try variants until first exact match ─────
+  // "Levi's" alleine matcht nicht (Whitelist hat "Levis" ohne Apostroph).
+  // Daher generieren wir Varianten + nehmen den ersten exact-match.
   let attributeId = FALLBACK_MANUFACTURER_ATTRIBUTE_ID;
   try {
     attributeId = await getManufacturerAttributeId();
-    const res = await kauflandRequest(
-      'GET',
-      `/attributes/${encodeURIComponent(String(attributeId))}/shared-set`,
-      {
-        query: { q: cleanedBrand, storefront, locale, limit: SHARED_SET_LIMIT },
-      }
-    );
-    apiResult = res?.data || null;
-  } catch (err) {
-    console.warn(
-      `[kaufland-manufacturer-whitelist] findManufacturer "${cleanedBrand}" lookup failed: ${safeString(err?.message)}`
-    );
+  } catch (_) { /* fallback already set */ }
+
+  const variants = generateBrandVariants(cleanedBrand);
+  let lastApiResult = null;
+  let exactLabel = null;
+  let usedVariant = cleanedBrand;
+  for (const variant of variants) {
+    try {
+      const res = await kauflandRequest(
+        'GET',
+        `/attributes/${encodeURIComponent(String(attributeId))}/shared-set`,
+        { query: { q: variant, storefront, locale, limit: SHARED_SET_LIMIT } }
+      );
+      const items = Array.isArray(res?.data?.data) ? res.data.data : [];
+      lastApiResult = res?.data || null;
+      const m = findExactMatch(variant, items);
+      if (m) { exactLabel = m; usedVariant = variant; break; }
+      // Auch gegen original-brand prüfen falls Variante was Brauchbares findet
+      const m2 = findExactMatch(cleanedBrand, items);
+      if (m2) { exactLabel = m2; usedVariant = variant; break; }
+    } catch (err) {
+      console.warn(
+        `[kaufland-manufacturer-whitelist] findManufacturer "${variant}" lookup failed: ${safeString(err?.message)}`
+      );
+      // Continue with next variant
+    }
+  }
+
+  if (!lastApiResult) {
     return {
-      found: false,
-      label: null,
-      exactMatch: false,
-      total: 0,
-      suggestions: [],
-      source: 'error',
+      found: false, label: null, exactMatch: false, total: 0, suggestions: [], source: 'error',
     };
   }
 
-  const rawSuggestions = Array.isArray(apiResult?.data) ? apiResult.data : [];
+  const rawSuggestions = Array.isArray(lastApiResult?.data) ? lastApiResult.data : [];
   const suggestions = sanitizeSuggestionList(rawSuggestions);
-  const total = Number(apiResult?.pagination?.total ?? rawSuggestions.length) || 0;
-  const exactLabel = findExactMatch(cleanedBrand, rawSuggestions);
+  const total = Number(lastApiResult?.pagination?.total ?? rawSuggestions.length) || 0;
   const exactMatch = !!exactLabel;
   const found = exactMatch;
   const label = exactLabel || null;
