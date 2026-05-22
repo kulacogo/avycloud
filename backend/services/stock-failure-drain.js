@@ -120,6 +120,14 @@ async function drainStockFailures({ tenantId, limit = 50 } = {}) {
       });
       results.needsManual += 1;
       console.warn(`[stock-failure-drain] ${doc.id} needs_manual: ${manual.length} decrement failure(s)`);
+      // HARDEN-Wave-2 (2026-05-22): Operator-Alert über best-effort Slack.
+      await _emitTerminalAlert({
+        tenantId,
+        failureDocId: doc.id,
+        terminalStatus: 'needs_manual',
+        reason: `${manual.length} decrement failure(s) — manual intervention required`,
+        failures: manual.slice(0, 3),
+      });
       continue;
     }
 
@@ -191,6 +199,14 @@ async function drainStockFailures({ tenantId, limit = 50 } = {}) {
       if (nextStatus === 'abandoned') {
         results.abandoned += 1;
         console.error(`[stock-failure-drain] ABANDONED after ${MAX_ATTEMPTS} attempts: ${doc.id} — ${JSON.stringify(retryResults)}`);
+        // HARDEN-Wave-2 (2026-05-22): Operator-Alert über best-effort Slack.
+        await _emitTerminalAlert({
+          tenantId,
+          failureDocId: doc.id,
+          terminalStatus: 'abandoned',
+          reason: `After ${MAX_ATTEMPTS} attempts, marketplaceSync still failing`,
+          failures: (retryResults || []).slice(0, 3),
+        });
       } else {
         results.stillFailing += 1;
       }
@@ -198,6 +214,58 @@ async function drainStockFailures({ tenantId, limit = 50 } = {}) {
   }
 
   return results;
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+// Best-effort Terminal-State Alerting (Slack-Webhook).
+// HARDEN-Wave-2 (2026-05-22): Drain markiert Failures als `abandoned` oder
+// `needs_manual` — vorher passierte da NICHTS außer einem console.error.
+// Jetzt: zusätzlich ein Slack-POST an SLACK_ALERTS_URL (wenn gesetzt) und
+// ein structured Firestore-Eintrag in `stock_failure_alerts` (queryable).
+// Fire-and-forget — NIE blocking, NIE failing.
+// ───────────────────────────────────────────────────────────────────────────
+
+async function _emitTerminalAlert({ tenantId, failureDocId, terminalStatus, reason, failures }) {
+  try {
+    const summary = `🚨 [stock-drain] ${terminalStatus.toUpperCase()} — tenant=${tenantId} doc=${failureDocId}\n${reason}`;
+    const detail = (failures || []).map((f) => {
+      if (!f) return null;
+      return `  • ${f.step || 'unknown'}: sku=${f.sku || f.productKey || '?'} error=${(f.error || f.message || '').toString().slice(0, 200)}`;
+    }).filter(Boolean).join('\n');
+    const text = detail ? `${summary}\n${detail}` : summary;
+
+    // Best-effort Slack post
+    const slackUrl = process.env.SLACK_ALERTS_URL;
+    if (slackUrl) {
+      // node 20 has global fetch; never await result
+      Promise.resolve()
+        .then(() => fetch(slackUrl, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ text }),
+        }))
+        .catch((err) => console.warn(`[stock-failure-drain] slack alert failed: ${err.message}`));
+    }
+
+    // Audit-trail in Firestore (queryable für Ops-Dashboard)
+    try {
+      const { firestore } = require('../lib/firestore');
+      await firestore.collection('stock_failure_alerts').add({
+        tenantId: tenantId || 'default',
+        failureDocId,
+        terminalStatus,
+        reason,
+        failures: failures || [],
+        text,
+        createdAt: new Date().toISOString(),
+      });
+    } catch (writeErr) {
+      console.warn(`[stock-failure-drain] alert audit write failed: ${writeErr.message}`);
+    }
+  } catch (err) {
+    // Alerting must NEVER break the drain loop.
+    console.warn(`[stock-failure-drain] _emitTerminalAlert failed: ${err.message}`);
+  }
 }
 
 module.exports = { drainStockFailures, MAX_ATTEMPTS };

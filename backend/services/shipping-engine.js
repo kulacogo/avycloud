@@ -1546,28 +1546,59 @@ async function pollDeliveryStatus({ tenantId = 'default' } = {}) {
         updatedAt: now,
       }, { merge: true });
 
-      // Update order
-      const { ORDER_STATUSES } = require('./order-state-machine');
-      await orderDoc.ref.set({
-        omsStatus: 'delivered',
-        omsStatusLabel: ORDER_STATUSES?.delivered?.label || 'Zugestellt',
-        deliveredAt: now,
-        updatedAt: now,
-      }, { merge: true });
-
-      // Log event
-      await db.collection('order_events').add({
-        orderId: orderDoc.id,
-        tenantId,
-        event: 'status_change',
-        fromStatus: 'shipped',
-        toStatus: 'delivered',
-        fromStatusLabel: ORDER_STATUSES?.shipped?.label || 'Versendet',
-        toStatusLabel: ORDER_STATUSES?.delivered?.label || 'Zugestellt',
-        actor: { uid: 'system', email: 'delivery-poll' },
-        note: `SendCloud: ${statusMessage} (parcel ${parcelId})`,
-        timestamp: FieldValue.serverTimestamp(),
-      });
+      // HARDEN-Wave-2 (2026-05-22): nutze state-machine statt direct-set,
+      // damit alle Status-Übergänge denselben Pfad nehmen (Event-Log,
+      // Side-Effects, future hooks). Vorher: direct orderRef.set →
+      // `order:status_changed` Event wurde nie emittiert, Sync-Cascade
+      // (tracking-backfill, marketplace push) lief nicht.
+      try {
+        const { transitionOrder } = require('./order-state-machine');
+        await transitionOrder({
+          tenantId,
+          orderId: orderDoc.id,
+          toStatus: 'delivered',
+          force: true,
+          actor: { uid: 'system', email: 'delivery-poll' },
+          note: `SendCloud: ${statusMessage} (parcel ${parcelId})`,
+          timestamps: { deliveredAt: now },
+        });
+        // Fan-out via sync-bus damit downstream listeners (z.B. marketplace
+        // status push, KPI refresh) reagieren können.
+        try {
+          const { emitSyncEvent } = require('./sync-event-bus');
+          emitSyncEvent('order:status_changed', {
+            entityId: orderDoc.id,
+            tenantId,
+            fromStatus: 'shipped',
+            toStatus: 'delivered',
+            source: 'delivery-poll',
+          });
+        } catch (_) {
+          // sync-bus error must never block the poll
+        }
+      } catch (txErr) {
+        // Falls transitionOrder fehlschlägt (z.B. invalid transition):
+        // direct-set als Notfall-Fallback + Audit-Log, damit der Status
+        // wenigstens visuell stimmt. NICHT silent — wir loggen den Fall.
+        console.warn(`[delivery-poll] transitionOrder failed for ${orderDoc.id}: ${txErr.message} — fallback direct set`);
+        const { ORDER_STATUSES } = require('./order-state-machine');
+        await orderDoc.ref.set({
+          omsStatus: 'delivered',
+          omsStatusLabel: ORDER_STATUSES?.delivered?.label || 'Zugestellt',
+          deliveredAt: now,
+          updatedAt: now,
+        }, { merge: true });
+        await db.collection('order_events').add({
+          orderId: orderDoc.id,
+          tenantId,
+          event: 'status_change_fallback',
+          fromStatus: 'shipped',
+          toStatus: 'delivered',
+          actor: { uid: 'system', email: 'delivery-poll' },
+          note: `Fallback direct-set (transitionOrder failed: ${txErr.message})`,
+          timestamp: FieldValue.serverTimestamp(),
+        });
+      }
 
       delivered++;
       console.log(`[delivery-poll] Order ${orderDoc.id}: shipped → delivered (parcel ${parcelId})`);

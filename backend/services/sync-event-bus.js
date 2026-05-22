@@ -243,57 +243,67 @@ bus.on('stock:changed', async (payload) => {
   }
 });
 
-// ─── Debounced Aggregate Syncs ──────────────────────────────
-// These prevent hammering external APIs when many events fire in quick succession.
+// ─── Debounced Aggregate Syncs (per-tenant) ──────────────────
+// HARDEN-Wave-2 (2026-05-22): Debounce-Timer waren VORHER GLOBAL — wenn
+// Tenant A und Tenant B im selben 3s-Fenster ein Event auslösten, gewann
+// der erste und der zweite Tenant wurde übersprungen ("Cross-Tenant-
+// Starvation"). Jetzt: Map<tenantId, Timer> pro Sync-Typ — jeder Tenant
+// bekommt sein eigenes Debounce-Fenster.
 
-let _marketplaceSyncTimer = null;
+const _marketplaceSyncTimers = new Map(); // tenantId -> Timeout
 function _debouncedMarketplaceOrderSync(tenantId) {
-  if (_marketplaceSyncTimer) return; // Already scheduled
-  _marketplaceSyncTimer = setTimeout(async () => {
-    _marketplaceSyncTimer = null;
+  const tenant = String(tenantId || 'default').trim() || 'default';
+  if (_marketplaceSyncTimers.has(tenant)) return; // Already scheduled for this tenant
+  const timer = setTimeout(async () => {
+    _marketplaceSyncTimers.delete(tenant);
     try {
       const { syncEbayOrders } = require('./order-intake-ebay');
       const { syncKauflandOrders } = require('./order-intake-kaufland');
       const [ebay, kaufland] = await Promise.allSettled([
-        syncEbayOrders({ tenantId, lookbackDays: 3 }),
-        syncKauflandOrders({ tenantId, lookbackDays: 3 }),
+        syncEbayOrders({ tenantId: tenant, lookbackDays: 3 }),
+        syncKauflandOrders({ tenantId: tenant, lookbackDays: 3 }),
       ]);
-      console.log(`[sync-bus] marketplace order sync: ebay=${ebay.status} kaufland=${kaufland.status}`);
+      console.log(`[sync-bus] marketplace order sync (tenant=${tenant}): ebay=${ebay.status} kaufland=${kaufland.status}`);
     } catch (err) {
-      console.warn(`[sync-bus] marketplace order sync failed: ${err.message}`);
-    }
-  }, 3000); // 3s debounce
-}
-
-let _returnSyncTimer = null;
-function _debouncedReturnSync(tenantId) {
-  if (_returnSyncTimer) return;
-  _returnSyncTimer = setTimeout(async () => {
-    _returnSyncTimer = null;
-    try {
-      const { syncAllReturns } = require('./returns-engine');
-      const result = await syncAllReturns({ tenantId, lookbackDays: 14 });
-      console.log(`[sync-bus] return sync: ebay=${JSON.stringify(result.ebay)} kaufland=${JSON.stringify(result.kaufland)}`);
-    } catch (err) {
-      console.warn(`[sync-bus] return sync failed: ${err.message}`);
+      console.warn(`[sync-bus] marketplace order sync failed (tenant=${tenant}): ${err.message}`);
     }
   }, 3000);
+  _marketplaceSyncTimers.set(tenant, timer);
 }
 
-let _sendCloudSyncTimer = null;
+const _returnSyncTimers = new Map();
+function _debouncedReturnSync(tenantId) {
+  const tenant = String(tenantId || 'default').trim() || 'default';
+  if (_returnSyncTimers.has(tenant)) return;
+  const timer = setTimeout(async () => {
+    _returnSyncTimers.delete(tenant);
+    try {
+      const { syncAllReturns } = require('./returns-engine');
+      const result = await syncAllReturns({ tenantId: tenant, lookbackDays: 14 });
+      console.log(`[sync-bus] return sync (tenant=${tenant}): ebay=${JSON.stringify(result.ebay)} kaufland=${JSON.stringify(result.kaufland)}`);
+    } catch (err) {
+      console.warn(`[sync-bus] return sync failed (tenant=${tenant}): ${err.message}`);
+    }
+  }, 3000);
+  _returnSyncTimers.set(tenant, timer);
+}
+
+const _sendCloudSyncTimers = new Map();
 function _debouncedSendCloudSync(tenantId) {
-  if (_sendCloudSyncTimer) return;
-  _sendCloudSyncTimer = setTimeout(async () => {
-    _sendCloudSyncTimer = null;
+  const tenant = String(tenantId || 'default').trim() || 'default';
+  if (_sendCloudSyncTimers.has(tenant)) return;
+  const timer = setTimeout(async () => {
+    _sendCloudSyncTimers.delete(tenant);
     try {
       const { syncSendCloudParcels } = require('./shipping-engine');
       const fromDate = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString();
-      const result = await syncSendCloudParcels({ tenantId, fromDate });
-      console.log(`[sync-bus] sendcloud sync: matched=${result.matched?.length || 0}`);
+      const result = await syncSendCloudParcels({ tenantId: tenant, fromDate });
+      console.log(`[sync-bus] sendcloud sync (tenant=${tenant}): matched=${result.matched?.length || 0}`);
     } catch (err) {
-      console.warn(`[sync-bus] sendcloud sync failed: ${err.message}`);
+      console.warn(`[sync-bus] sendcloud sync failed (tenant=${tenant}): ${err.message}`);
     }
   }, 3000);
+  _sendCloudSyncTimers.set(tenant, timer);
 }
 
 module.exports = {
