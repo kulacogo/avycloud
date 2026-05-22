@@ -437,8 +437,20 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
     try {
       const products = await fetchProducts();
       // Nur Produkte mit verfügbarem Bestand (physisch minus reserviert durch Bestellungen)
+      // + bei Kaufland zusätzlich: nur Produkte mit gültiger EAN-13/14 (createUnit
+      //   wirft sonst KAUFLAND_EAN_MISSING und das Listing scheitert sicher).
+      //   eBay akzeptiert auch ohne EAN, daher kein Filter dort.
       const inStockProducts = products.filter((p) => {
-        return getProductAvailableQuantity(p) > 0;
+        if (getProductAvailableQuantity(p) <= 0) return false;
+        if (marketplace === "kaufland") {
+          const raw = (p as any)?.identification?.ean
+            || ((p as any)?.identification?.barcodes || []).find?.((b: any) =>
+              /^\d{13,14}$/.test(String(b || "").replace(/\D+/g, ""))
+            );
+          const digits = String(raw || "").replace(/\D+/g, "");
+          if (digits.length < 13 || digits.length > 14) return false;
+        }
+        return true;
       });
       // Bereits aktiv gelistete Produkte ausfiltern (SKU + EAN + listingStatus)
       // "live" und "indexing" sind Kaufland-Sub-Status von "active" — auch
