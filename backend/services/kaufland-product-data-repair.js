@@ -211,7 +211,20 @@ function buildKauflandProductDataAttributes(product, { missingAttributes = [], m
       product?.details?.identifiers?.brand ||
       pickFromAttrsByNeedle('marke', 'brand', 'hersteller')
   );
-  if (brand) attributes.manufacturer = [brand];
+
+  // ── Manufacturer-Picker: Legal Entity > Brand ────────────────────────────
+  // Kaufland's Validator declined pure brand names with hint:
+  // "not_manufacturer_name, reason: invalid_value" — sie wollen die LEGALE
+  // ENTITÄT (z.B. "Namuk AG", "Anker Innovations Deutschland GmbH"), nicht
+  // den Markennamen. Wir greifen auf gpsr.manufacturer_name zurück wenn der
+  // eine erkennbare Rechtsform enthält. Fallback auf brand für Backwards-
+  // Compat damit alte Produkte nicht plötzlich gar nichts mehr senden.
+  const gpsrEntityName = safeString(product?.details?.gpsr?.manufacturer_name);
+  const LEGAL_ENTITY_RX = /\b(GmbH|AG|Inc\.?|Ltd\.?|LLC|S\.?p\.?A\.?|B\.?V\.?|S\.?A\.?S?|SE|S\.?r\.?l\.?|Limited|Co\.,?\s*Ltd|Co\.\s*KG|OHG|KG|UG)\b/i;
+  const gpsrHasLegalSuffix = gpsrEntityName && LEGAL_ENTITY_RX.test(gpsrEntityName);
+  const manufacturerName = gpsrHasLegalSuffix ? gpsrEntityName : brand;
+  if (manufacturerName) attributes.manufacturer = [manufacturerName];
+
   const complianceContact = buildKauflandComplianceContact(product, brand);
   if (complianceContact) attributes.product_safety_contact = complianceContact;
 

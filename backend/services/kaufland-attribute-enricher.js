@@ -139,8 +139,8 @@ async function generateMaterial({ title, brand, category }) {
       maxOutputTokens: 80,
     });
     const cleaned = safeString(text).replace(/^["'`]+|["'`]+$/g, '').replace(/\n.*$/s, '').trim();
-    // Sanity: must contain at least one "% Material" pattern
-    if (!cleaned || !/\d{1,3}\s*%/.test(cleaned)) return null;
+    // Sanity: must contain percent + actual material name (not just "100%")
+    if (!cleaned || !/\d{1,3}\s*%\s*[A-Za-zÄÖÜäöüß]{3,}/.test(cleaned)) return null;
     return cleaned.slice(0, 250);
   } catch (err) {
     console.warn('[kaufland-enricher] material gen failed:', err?.message || err);
@@ -394,7 +394,12 @@ async function enrichProductForKaufland(product, missingAttributes = [], opts = 
         if (candidate) { existingMaterialValue = candidate; break; }
       }
     }
-    const hasValidMaterialFormat = existingMaterialValue && /\d{1,3}\s*%/.test(existingMaterialValue);
+    // Kaufland-Format: "98% Baumwolle, 2% Elasthan" — Prozent UND Materialname.
+    // Vorheriger Regex matched "100%" alleine (kein Material). Verschärft:
+    // Prozent (1-3 Digits) + optionales Leerzeichen + mindestens 3-Buchstaben-
+    // Material-Token. Schmeißt "100%" und "%" zurück → Gemini regeneriert.
+    const VALID_MATERIAL_RX = /\d{1,3}\s*%\s*[A-Za-zÄÖÜäöüß]{3,}/;
+    const hasValidMaterialFormat = existingMaterialValue && VALID_MATERIAL_RX.test(existingMaterialValue);
     if (!hasValidMaterialFormat && title) {
       tasks.push((async () => {
         try {
