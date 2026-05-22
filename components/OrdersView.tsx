@@ -14,6 +14,7 @@ import { EmptyState } from "./ui/EmptyState";
 import { exportToCsv } from "../utils/csv-export";
 import { SyncIcon } from "./icons/Icons";
 import { OrderDetail } from "./OrderDetail";
+import { OMS_STATUS_LABELS } from "../lib/oms-labels";
 
 /* ─── Status filter config ─── */
 type StatusFilter = "all" | OrderStatus;
@@ -28,13 +29,7 @@ const STATUS_FILTERS: { key: StatusFilter; labelKey: string; tone: string }[] = 
   { key: "other", labelKey: "orders.filter.other", tone: "bg-app-elevated text-txt-secondary" },
 ];
 
-/* ─── OMS Status Labels ─── */
-const OMS_STATUS_LABELS: Record<string, string> = {
-  pending: "Neu", confirmed: "Bestätigt", picking: "Kommissionierung",
-  picked: "Kommissioniert", packing: "Verpackung", packed: "Verpackt",
-  shipped: "Versendet", delivered: "Zugestellt", cancelled: "Storniert",
-  returned: "Retoure", on_hold: "Pausiert", refunded: "Erstattet",
-};
+/* ─── OMS Status Labels: zentrale Quelle in lib/oms-labels.ts (HARDEN-Wave-5 2026-05-22) ─── */
 
 /* ─── Status badge styling ─── */
 const statusBadge = (status: string) => {
@@ -154,6 +149,48 @@ const OrdersView: React.FC = () => {
       setSyncingMp(false);
     }
   }, [queryClient]);
+
+  /* ─── HARDEN-Wave-5 (2026-05-22): Dashboard-Drilldown via #/orders?orderStatus=… lesen ───
+   * Vorher: Dashboard verlinkt z.B. zu `#/orders?orderStatus=picking` — OrdersView
+   * ignorierte den Parameter komplett, User landete auf ungefilterter Liste.
+   * Jetzt: hash-Query wird einmalig beim Mount + bei hashchange gelesen und
+   * mappt auf den lokalen StatusFilter. Dashboard-Keys: neu/picking/picked/packed/shipped.
+   */
+  useEffect(() => {
+    const DASHBOARD_KEY_MAP: Record<string, StatusFilter> = {
+      neu: "new",
+      new: "new",
+      pending: "new",
+      confirmed: "new",
+      picking: "picking",
+      kommissionierung: "picking",
+      picked: "picked",
+      kommissioniert: "picked",
+      packed: "packed",
+      verpackt: "packed",
+      shipped: "shipped",
+      versendet: "shipped",
+      delivered: "shipped",
+      zugestellt: "shipped",
+    };
+    function applyHashFilter() {
+      try {
+        const raw = window.location.hash.replace(/^#/, "");
+        const qIdx = raw.indexOf("?");
+        if (qIdx === -1) return;
+        const params = new URLSearchParams(raw.slice(qIdx + 1));
+        const requested = params.get("orderStatus");
+        if (!requested) return;
+        const mapped = DASHBOARD_KEY_MAP[requested.toLowerCase()];
+        if (mapped) setFilter(mapped);
+      } catch {
+        /* ignore malformed hash */
+      }
+    }
+    applyHashFilter();
+    window.addEventListener("hashchange", applyHashFilter);
+    return () => window.removeEventListener("hashchange", applyHashFilter);
+  }, []);
 
   /* ─── Pipeline counts (BUG-071: computed from same orders array as tabs) ─── */
   const omsCounts = useMemo(() => {
@@ -287,7 +324,9 @@ const OrdersView: React.FC = () => {
       } else if (sortField === "totalAmount") {
         cmp = (a.totalAmount || 0) - (b.totalAmount || 0);
       } else if (sortField === "status") {
-        cmp = a.status.localeCompare(b.status);
+        // HARDEN-Wave-5 (2026-05-22): nutze getOrderStatus damit OMS-Status
+        // korrekt sortiert wird (sonst sortiert legacy `status`-Feld).
+        cmp = getOrderStatus(a).localeCompare(getOrderStatus(b));
       }
       return sortAsc ? cmp : -cmp;
     });
