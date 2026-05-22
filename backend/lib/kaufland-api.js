@@ -498,7 +498,21 @@ async function getProductData(ean, { locale = 'de-DE' } = {}) {
   return res?.data?.data || null;
 }
 
-async function putProductData({ ean, attributes = {}, locale = 'de-DE' } = {}) {
+// Kaufland validates product-data against the category schema of the bound
+// catalog product. EANs that auto-resolve to category=46001 "Sonstiges-
+// Sonstiges" (catch-all stub) cannot be validated because that category has
+// no real required-attribute set — the validator silently leaves
+// attribute_values empty. Passing ?id_category=<X> as query param forces
+// Kaufland to validate against that category instead. Live-verified
+// 2026-05-22 against EAN 4060413606127 (stub product 559526566): without
+// id_category attribute_values=[], with id_category=52671 attribute_values
+// contained TRANSFORMED states for manufacturer + product_safety_contact.
+//
+// This query param is undocumented in swagger.json (which only lists
+// `locale`) but accepted by the production API. Both PUT and PATCH support
+// it. Omit it for EANs that already have a real catalog category — passing a
+// conflicting id_category there could mis-route the data.
+async function putProductData({ ean, attributes = {}, locale = 'de-DE', idCategory } = {}) {
   const eans = normalizeProductDataEans(ean);
   if (!eans.length) {
     const err = new Error('ean is required for product-data put');
@@ -514,8 +528,12 @@ async function putProductData({ ean, attributes = {}, locale = 'de-DE' } = {}) {
   }
 
   const normalizedLocale = safeString(locale) || 'de-DE';
+  const query = { locale: normalizedLocale };
+  const idCat = toInteger(idCategory);
+  if (idCat && idCat > 0) query.id_category = idCat;
+
   const res = await kauflandRequest('PUT', '/product-data', {
-    query: { locale: normalizedLocale },
+    query,
     body: {
       ean: eans,
       attributes: normalizedAttributes,
@@ -524,7 +542,7 @@ async function putProductData({ ean, attributes = {}, locale = 'de-DE' } = {}) {
   return res?.data?.data || res?.data || null;
 }
 
-async function patchProductData({ ean, attributes = {}, locale = 'de-DE' } = {}) {
+async function patchProductData({ ean, attributes = {}, locale = 'de-DE', idCategory } = {}) {
   const eans = normalizeProductDataEans(ean);
   if (!eans.length) {
     const err = new Error('ean is required for product-data patch');
@@ -540,14 +558,55 @@ async function patchProductData({ ean, attributes = {}, locale = 'de-DE' } = {})
   }
 
   const normalizedLocale = safeString(locale) || 'de-DE';
+  const query = { locale: normalizedLocale };
+  const idCat = toInteger(idCategory);
+  if (idCat && idCat > 0) query.id_category = idCat;
+
   const res = await kauflandRequest('PATCH', '/product-data', {
-    query: { locale: normalizedLocale },
+    query,
     body: {
       ean: eans,
       attributes: normalizedAttributes,
     },
   });
   return res?.data?.data || res?.data || null;
+}
+
+// POST /categories/decide — Kaufland's category-suggestion endpoint. Given
+// item.{title,description,manufacturer} + price (in eurocents), returns an
+// ordered array of leaf categories ranked by likelihood. First element is
+// the best match. Used to predict id_category for EANs that would otherwise
+// auto-resolve to the 46001 "Sonstiges-Sonstiges" stub.
+async function decideCategory({ title, description, manufacturer, priceCents = 1000, storefront = 'de', locale = 'de-DE' } = {}) {
+  const t = safeString(title);
+  const d = safeString(description);
+  const m = safeString(manufacturer);
+  if (!t || !d || !m) {
+    const err = new Error('decideCategory requires non-empty title, description, manufacturer');
+    err.code = 'KAUFLAND_DECIDE_INPUT_REQUIRED';
+    throw err;
+  }
+  const price = Number(priceCents);
+  if (!Number.isFinite(price) || price <= 0) {
+    const err = new Error('decideCategory requires positive priceCents');
+    err.code = 'KAUFLAND_DECIDE_PRICE_REQUIRED';
+    throw err;
+  }
+  const res = await kauflandRequest('POST', '/categories/decide', {
+    query: { storefront: storefront || 'de', locale: locale || 'de-DE' },
+    body: {
+      item: { title: t, description: d, manufacturer: m },
+      price,
+    },
+  });
+  const list = Array.isArray(res?.data?.data) ? res.data.data : [];
+  return list.map((c) => ({
+    id_category: Number(c.id_category) || 0,
+    name: safeString(c.name),
+    title_singular: safeString(c.title_singular),
+    is_leaf: c.is_leaf !== false,
+    level: Number(c.level) || 0,
+  }));
 }
 
 async function createUnit(product, { storefront = 'de', autoCreateProductData = true } = {}) {
@@ -557,51 +616,13 @@ async function createUnit(product, { storefront = 'de', autoCreateProductData = 
   let catalogMatched = false;
 
   if (picked.ean) {
-    // Step 1: ALWAYS push full product data — regardless of catalog match.
-    //
-    // Old behaviour: when Kaufland catalog already had the EAN (id_product
-    // match) we set createData.id_product and skipped putProductData entirely.
-    // Kaufland then used its own catalog entry — which is often incomplete
-    // (missing GPSR Verantwortliche Person, Manufacturer, full image set,
-    // Material). Result: Kaufland's validator left the listing as
-    // `product.is_valid=false` → Portal bucket "Angebotsdaten fehlen" for
-    // hours/days. The 50+ "Product Data not found" and 37+ missing
-    // GPSR-EU-contact failures observed in production trace back to this.
-    //
-    // New behaviour: always submit our authoritative attribute set via
-    // putProductData BEFORE creating the unit. Kaufland merges; our data
-    // wins over a sparse catalog entry. Lazy-require breaks the circular
-    // dependency with services/kaufland-product-data-repair.js (which itself
-    // calls patchProductData from this module).
-    if (autoCreateProductData) {
-      let fullAttrs = {};
-      try {
-        const { buildKauflandProductDataAttributes } = require('../services/kaufland-product-data-repair');
-        // Now async (resolves manufacturer against Kaufland whitelist).
-        fullAttrs = (await buildKauflandProductDataAttributes(product, { storefront: picked.storefront })) || {};
-      } catch (buildErr) {
-        console.warn(`[createUnit] buildKauflandProductDataAttributes failed for EAN ${picked.ean}: ${buildErr?.message || buildErr}`);
-      }
-      // Defensive title-trim (255-char Kaufland limit) — buildKauflandProductDataAttributes
-      // should already do this but we re-clamp just in case.
-      if (Array.isArray(fullAttrs.title) && fullAttrs.title[0]) {
-        fullAttrs.title = [String(fullAttrs.title[0]).slice(0, 255).trim()];
-      }
-      if (Object.keys(fullAttrs).length > 0) {
-        try {
-          await putProductData({ ean: picked.ean, attributes: fullAttrs, locale: 'de-DE' });
-          productDataSubmitted = true;
-          console.log(`[createUnit] Full product data submitted for EAN ${picked.ean} — keys: ${Object.keys(fullAttrs).join(',')}`);
-        } catch (pdErr) {
-          console.warn(`[createUnit] putProductData failed for EAN ${picked.ean}: ${pdErr?.message || pdErr}`);
-        }
-      }
-    }
-
-    // Step 2: Try to find existing product in Kaufland catalog — bind via
-    // id_product if available so Kaufland routes the unit to the right
-    // catalog node. Our PUT above ensures the node is enriched with our data
-    // regardless of whether it pre-existed.
+    // Step 1: Resolve catalog state FIRST so we know whether Kaufland already
+    // has a real category for this EAN, or whether it sits in the 46001
+    // "Sonstiges-Sonstiges" stub bucket. This drives both:
+    //  - id_product binding (Step 3, unchanged purpose)
+    //  - idCategory hint for putProductData (Step 2, new — see decideCategory)
+    let catalogIdCategory = 0;
+    let catalogIsValid = false;
     try {
       const productData = await getProductByEan(picked.ean, { storefront: picked.storefront });
       const idProduct = Number(productData?.id_product || 0);
@@ -609,9 +630,95 @@ async function createUnit(product, { storefront = 'de', autoCreateProductData = 
         createData.id_product = idProduct;
         catalogMatched = true;
       }
+      catalogIdCategory = Number(productData?.id_category || 0) || 0;
+      catalogIsValid = !!productData?.is_valid;
     } catch (lookupErr) {
       // Lookup failed — not fatal, POST /units accepts EAN alone
       console.warn(`[createUnit] EAN lookup failed for ${picked.ean}: ${lookupErr?.message || lookupErr}`);
+    }
+
+    // Step 2: ALWAYS push full product data — regardless of catalog match.
+    //
+    // Old behaviour: when Kaufland catalog already had the EAN (id_product
+    // match) we set createData.id_product and skipped putProductData entirely.
+    // Kaufland then used its own catalog entry — which is often incomplete
+    // (missing GPSR Verantwortliche Person, Manufacturer, full image set,
+    // Material). Result: Kaufland's validator left the listing as
+    // `product.is_valid=false` → Portal bucket "Angebotsdaten fehlen".
+    //
+    // Always submit our authoritative attribute set via putProductData BEFORE
+    // creating the unit. Kaufland merges; our data wins over a sparse catalog
+    // entry. Lazy-require breaks the circular dependency with
+    // services/kaufland-product-data-repair.js (which itself calls
+    // patchProductData from this module).
+    //
+    // For EANs that resolve to a 46001-stub (or no catalog entry at all),
+    // we predict the real id_category via POST /categories/decide and pass
+    // it as ?id_category=X to PUT /product-data. Without that hint, Kaufland
+    // validates against the empty 46001 schema and silently rejects
+    // everything (attribute_values stays []). Verified 2026-05-22 against
+    // EAN 4060413606127: same payload, with idCategory=52671 the validator
+    // accepted manufacturer + product_safety_contact (TRANSFORMED) and
+    // surfaced specific issues (DECLINED: media_not_downloadable) instead of
+    // the silent-ignore behaviour.
+    if (autoCreateProductData) {
+      let fullAttrs = {};
+      try {
+        const { buildKauflandProductDataAttributes } = require('../services/kaufland-product-data-repair');
+        fullAttrs = (await buildKauflandProductDataAttributes(product, { storefront: picked.storefront })) || {};
+      } catch (buildErr) {
+        console.warn(`[createUnit] buildKauflandProductDataAttributes failed for EAN ${picked.ean}: ${buildErr?.message || buildErr}`);
+      }
+      // Defensive title-trim (255-char Kaufland limit)
+      if (Array.isArray(fullAttrs.title) && fullAttrs.title[0]) {
+        fullAttrs.title = [String(fullAttrs.title[0]).slice(0, 255).trim()];
+      }
+
+      // Predict id_category for stubs / unknown EANs.
+      // Skip prediction when Kaufland already has a real, validated category
+      // — passing a conflicting hint there could mis-route data.
+      let predictedIdCategory = 0;
+      const isStubOrUnknown = !catalogMatched || !catalogIsValid || catalogIdCategory === 46001;
+      if (isStubOrUnknown && fullAttrs.title?.[0] && fullAttrs.description?.[0] && fullAttrs.manufacturer?.[0]) {
+        const priceCents = toPriceCents(
+          product?.details?.pricing?.sellPrice
+          ?? product?.pricing?.kaufland?.price
+          ?? product?.pricing?.sellPrice
+          ?? product?.details?.pricing?.lowest_price?.amount
+          ?? product?.details?.pricing?.amount
+        );
+        try {
+          const suggestions = await decideCategory({
+            title: fullAttrs.title[0],
+            description: fullAttrs.description[0],
+            manufacturer: fullAttrs.manufacturer[0],
+            priceCents: priceCents && priceCents > 0 ? priceCents : 1000,
+            storefront: picked.storefront,
+          });
+          const top = suggestions.find((s) => s.is_leaf && s.id_category && s.id_category !== 46001);
+          if (top) {
+            predictedIdCategory = top.id_category;
+            console.log(`[createUnit] Category predicted for EAN ${picked.ean}: id=${top.id_category} (${top.title_singular}) — catalogStub=${catalogIdCategory}, matched=${catalogMatched}`);
+          }
+        } catch (decideErr) {
+          console.warn(`[createUnit] decideCategory failed for EAN ${picked.ean}: ${decideErr?.message || decideErr}`);
+        }
+      }
+
+      if (Object.keys(fullAttrs).length > 0) {
+        try {
+          await putProductData({
+            ean: picked.ean,
+            attributes: fullAttrs,
+            locale: 'de-DE',
+            idCategory: predictedIdCategory || undefined,
+          });
+          productDataSubmitted = true;
+          console.log(`[createUnit] Full product data submitted for EAN ${picked.ean} — keys: ${Object.keys(fullAttrs).join(',')}${predictedIdCategory ? `, idCategory=${predictedIdCategory}` : ''}`);
+        } catch (pdErr) {
+          console.warn(`[createUnit] putProductData failed for EAN ${picked.ean}: ${pdErr?.message || pdErr}`);
+        }
+      }
     }
   }
 
@@ -948,6 +1055,7 @@ module.exports = {
   getProductDataStatus,
   putProductData,
   patchProductData,
+  decideCategory,
   createUnit,
   updateUnit,
   setUnitStatus,

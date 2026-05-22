@@ -490,8 +490,46 @@ async function tryRepairKauflandProductData({
     };
   }
 
+  // Predict id_category for repair targets that are still sitting in the
+  // 46001 "Sonstiges-Sonstiges" stub bucket — without this hint Kaufland
+  // validates against an empty schema and leaves attribute_values=[] even
+  // after our PATCH/PUT. See kaufland-api.js putProductData() comment for
+  // the underlying mechanism. We skip prediction when the status response
+  // confirms a non-stub id_product is bound (existing real catalog).
+  let predictedIdCategory = 0;
+  const { getProductByEan, decideCategory } = require('../lib/kaufland-api');
+  try {
+    const cat = await getProductByEan(normalizedEan, { storefront: safeString(storefront) || 'de' });
+    const catIdCategory = Number(cat?.id_category || 0);
+    const catIsValid = !!cat?.is_valid;
+    const isStub = !cat?.id_product || catIdCategory === 46001 || !catIsValid;
+    if (isStub && attributes.title?.[0] && attributes.description?.[0] && attributes.manufacturer?.[0]) {
+      const priceCents = (() => {
+        const raw = product?.details?.pricing?.sellPrice
+          ?? product?.pricing?.kaufland?.price
+          ?? product?.pricing?.sellPrice
+          ?? product?.details?.pricing?.amount;
+        const n = Number(raw);
+        return Number.isFinite(n) && n > 0 ? Math.round(n * 100) : 1000;
+      })();
+      const sug = await decideCategory({
+        title: attributes.title[0],
+        description: attributes.description[0],
+        manufacturer: attributes.manufacturer[0],
+        priceCents,
+        storefront: safeString(storefront) || 'de',
+        locale: normalizedLocale,
+      });
+      const top = sug.find((s) => s.is_leaf && s.id_category && s.id_category !== 46001);
+      if (top) predictedIdCategory = top.id_category;
+    }
+  } catch (catErr) {
+    // non-fatal — we proceed without the hint
+    void catErr;
+  }
+
   let writeMode = 'patch';
-  await patchProductData({ ean: [normalizedEan], locale: normalizedLocale, attributes });
+  await patchProductData({ ean: [normalizedEan], locale: normalizedLocale, attributes, idCategory: predictedIdCategory || undefined });
 
   let storedProductData = null;
   let storedProductDataError = '';
@@ -502,7 +540,7 @@ async function tryRepairKauflandProductData({
   }
   if (!storedProductData) {
     writeMode = 'patch+put';
-    await putProductData({ ean: [normalizedEan], locale: normalizedLocale, attributes });
+    await putProductData({ ean: [normalizedEan], locale: normalizedLocale, attributes, idCategory: predictedIdCategory || undefined });
     try {
       storedProductData = await getProductData(normalizedEan, { locale: normalizedLocale });
       storedProductDataError = '';
