@@ -188,19 +188,14 @@ const enrichProductsWithBinSummaries = async (products = []) => {
   });
 };
 
-const normalizeSkuKey = (val) =>
-  (val || '')
-    .toString()
-    .trim()
-    .toLowerCase()
-    .replace(/^sku[-_\s]*/i, '')
-    .replace(/\s+/g, '');
-
-// All pre-shipment statuses where items are still in the warehouse and should be
-// considered reserved (not available for new listings or other marketplace stock).
-const RESERVED_ORDER_STATUSES = new Set([
-  'new', 'pending', 'confirmed', 'picking', 'picked', 'packing', 'packed', 'on_hold',
-]);
+// HARDEN-Wave-7 (2026-05-22): zentrale Helper, vorher inline dupliziert
+// mit backend/services/batch-optimize.js.
+const {
+  normalizeSkuKey,
+  RESERVED_ORDER_STATUSES,
+  EXCLUDED_ORDER_STATUSES: _EXCLUDED_FROM_HELPER,
+  SHIPPED_ORDER_STATUSES: _SHIPPED_FROM_HELPER,
+} = require('../lib/order-status-helpers');
 
 async function buildReservedOpenOrderMap() {
   const map = new Map(); // normalizeSkuKey -> qty
@@ -230,9 +225,11 @@ async function buildReservedOpenOrderMap() {
 }
 
 // Orders that don't count as sold (everything else = sold)
-const EXCLUDED_ORDER_STATUSES = new Set(['cancelled', 'returned']);
+// HARDEN-Wave-7 (2026-05-22): re-export from helper so existing references
+// in this file continue to work without further changes.
+const EXCLUDED_ORDER_STATUSES = _EXCLUDED_FROM_HELPER;
 // Orders where the item has already left the warehouse
-const SHIPPED_ORDER_STATUSES = new Set(['shipped', 'delivered', 'completed']);
+const SHIPPED_ORDER_STATUSES = _SHIPPED_FROM_HELPER;
 
 async function buildSoldQuantityMap() {
   const map = new Map(); // normalizeSkuKey -> { sold: number, open: number }

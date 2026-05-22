@@ -111,11 +111,12 @@ function isEbayListed(product, ebayIndex) {
 // attachReservedAvailability so we use live order data, not stale inventory
 // ---------------------------------------------------------------------------
 
-const EXCLUDED_ORDER_STATUSES = new Set(['cancelled', 'returned']);
-const SHIPPED_ORDER_STATUSES = new Set(['shipped', 'delivered', 'completed']);
-
-const normalizeSkuKey = (val) =>
-  (val || '').toString().trim().toLowerCase().replace(/^sku[-_\s]*/i, '').replace(/\s+/g, '');
+// HARDEN-Wave-7 (2026-05-22): aus zentralem Helper statt inline dupliziert.
+const {
+  EXCLUDED_ORDER_STATUSES,
+  SHIPPED_ORDER_STATUSES,
+  normalizeSkuKey,
+} = require('../lib/order-status-helpers');
 
 async function buildSoldQuantityMap() {
   const map = new Map();

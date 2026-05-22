@@ -395,9 +395,12 @@ async function saveOrderIfNew({ tenantId, order }) {
     // Only update if eBay reports a terminal/advanced status we don't have yet
     if (ebayStatus && ebayStatus !== currentOms && ['cancelled', 'shipped', 'confirmed', 'completed'].includes(ebayStatus)) {
       // Don't downgrade: don't go from shipped → confirmed
-      const OMS_RANK = { pending: 0, confirmed: 1, picking: 2, picked: 3, packing: 4, packed: 5, shipped: 6, delivered: 7, completed: 8, cancelled: 9, returned: 10 };
-      const currentRank = OMS_RANK[currentOms] ?? 0;
-      const newRank = OMS_RANK[ebayStatus] ?? 0;
+      // HARDEN-Wave-7 (2026-05-22): aus zentralem Helper (Sort-Order, nicht
+      // Forward-Rank — wir vergleichen hier reine Pipeline-Position, nicht
+      // Terminal-Block-Logik).
+      const { getOmsSortOrder } = require('../lib/order-status-helpers');
+      const currentRank = Math.max(0, getOmsSortOrder(currentOms));
+      const newRank = Math.max(0, getOmsSortOrder(ebayStatus));
 
       if (newRank > currentRank || ebayStatus === 'cancelled') {
         if (ebayStatus === 'shipped') {

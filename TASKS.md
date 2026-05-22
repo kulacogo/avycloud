@@ -394,6 +394,15 @@ Master-Plan mit 8 Waves. Siehe **[docs/kb/15-gap-analysis.md](docs/kb/15-gap-ana
 - [x] DELETE /api/settings/webhooks/:id: tenant-scoped safeDelete + requirePermission
 - [ ] requirePermission auf rules/returns routes (separater Sprint)
 
+### Wave 7 — Dedupe/Legacy ✅ (2026-05-22)
+- [x] OMS-Status-Konstanten zentralisiert in `backend/lib/order-status-helpers.js` (`EXCLUDED_ORDER_STATUSES`, `SHIPPED_ORDER_STATUSES`, `RESERVED_ORDER_STATUSES`)
+- [x] `normalizeSkuKey` zentralisiert (vorher dupliziert in routes/products.js + batch-optimize.js)
+- [x] Forward-Rank-Map (cancelled=99/on_hold=98) zentralisiert (vorher inline in routes/webhooks.js)
+- [x] OMS-Sort-Order-Helper (vorher inline `OMS_RANK` in services/order-intake-ebay.js)
+- [x] 11 neue Pure-Function-Tests in `__tests__/lib/order-status-helpers.test.js`
+- [x] BaseLinker-Skripte schon in Cleanup-Wave-7 archiviert
+- [ ] Identify-Legacy / Chat-Legacy Sunset — DEFERRED bis 2 Wochen LLM-Telemetrie-Daten verfügbar (Wave 4 produziert sie jetzt)
+
 ### Wave 9 — Operator-Visibility-Layer ✅ (2026-05-22)
 - [x] Backend: GET /api/admin/alerts/recent — liest stock_failure_alerts (tenant-scoped, days=1..90, mit graceful Index-Fallback)
 - [x] Backend: GET /api/admin/system-health — Aggregat-Endpoint (drain+llm+externalApis+meta in einer Response, never-fail per-section try/catch)
