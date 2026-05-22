@@ -362,9 +362,37 @@ Vollständiger Report: [docs/kb/17-cleanup-report.md](docs/kb/17-cleanup-report.
 - [ ] **KB-Drift-4**: Fehlendes Runbook `docs/runbooks/multi-tenant-activation.md` anlegen oder Referenz in `backend/index.js` entfernen
 - [ ] **KB-Drift-5**: Pre-Commit-Hook oder `lint-staged` hinzufügen, der `cd backend && npm run sync-help` bei KB-Änderungen automatisch triggert, damit `backend/data/help-bundle.json` nie veraltet — heute manuell via `cd backend && npm run sync-help` aufzurufen wenn `docs/kb/` geändert wird
 
-## 🔴 Hardening (aus /Users/oguz/.cursor/plans/avycloud-deep-dive-hardening_3e075f5e.plan.md)
+## 🟢 Hardening (aus /Users/oguz/.cursor/plans/avycloud-deep-dive-hardening_3e075f5e.plan.md)
 
 Master-Plan mit 8 Waves. Siehe **[docs/kb/15-gap-analysis.md](docs/kb/15-gap-analysis.md)** für Übersicht.
+
+**Stand 2026-05-22:** Waves 1-6 komplett deployed.
+
+### Wave 2 — Eventing + Recovery ✅ (2026-05-22)
+- [x] sync-event-bus: per-tenant Debounce-Map statt globalem Timer
+- [x] pollDeliveryStatus via transitionOrder (statt direct set) + order:status_changed emit
+- [x] stock-failure-drain: terminal-state alerts (Slack + stock_failure_alerts collection)
+
+### Wave 3 — Firestore Performance ✅ (2026-05-22)
+- [x] 4 neue Composite-Indexes: stock_operation_failures, identificationJobs, improveJobs, stock_failure_alerts
+- [x] GET /api/products optionale Pagination (?limit&offset, hard-cap 5000)
+- [ ] TTL-Policies via Firestore-Console (Operator-Aktion offen)
+
+### Wave 4 — LLM-Observability ✅ (2026-05-22)
+- [x] logLlmCall integriert in gemini3GenerateJSON + gemini3GenerateText
+- [x] Tracking: latency, promptTokens, completionTokens, schemaValid
+- [x] Fire-and-forget — telemetry-fehler killen niemals den LLM-Path
+- [ ] Prompt-Cache aktivieren (separater Sprint)
+
+### Wave 5 — Frontend UX-Konsistenz ✅ (2026-05-22)
+- [x] OrdersView: zentrale OMS_STATUS_LABELS aus lib/oms-labels.ts
+- [x] Sort fix: getOrderStatus statt raw `status`
+- [x] Dashboard-Drilldown Hash-Filter (#/orders?orderStatus=…) funktioniert
+
+### Wave 6 — RBAC + IDOR-Guards ✅ (2026-05-22)
+- [x] DELETE /api/settings/api-keys/:id: tenant-scoped safeDelete + requirePermission
+- [x] DELETE /api/settings/webhooks/:id: tenant-scoped safeDelete + requirePermission
+- [ ] requirePermission auf rules/returns routes (separater Sprint)
 
 ### P0 (sofort) — Wave 1 Items
 - [x] **HARDEN-1**: `runRefundPush` Cross-Tenant-Query mit `tenantId`-Filter — `backend/services/returns-engine.js` ✅ (2026-05-20) + Composite-Index `(tenantId, status, marketplaceRefundPushed)` + defense-in-depth doc-level check
