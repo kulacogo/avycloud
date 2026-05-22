@@ -2520,6 +2520,109 @@ export const adminListLlmParity = async (
   return result?.data as AdminLlmParityResponse;
 };
 
+/* ─── HARDEN-Wave-9 (2026-05-22): Operator-Visibility-Layer ─── */
+
+export interface AdminStockFailureAlert {
+  id: string;
+  tenantId?: string;
+  failureDocId?: string;
+  terminalStatus?: "abandoned" | "needs_manual";
+  reason?: string;
+  failures?: Array<{ step?: string; sku?: string; productKey?: string; error?: string; message?: string }>;
+  text?: string;
+  createdAt?: string;
+}
+
+export interface AdminRecentAlertsResponse {
+  alerts: AdminStockFailureAlert[];
+  total: number;
+  windowDays: number;
+  windowSince: string;
+}
+
+export interface AdminSystemHealthDrain {
+  abandoned_24h: number;
+  abandoned_7d: number;
+  needs_manual_24h: number;
+  needs_manual_7d: number;
+  total_alerts_24h: number;
+  total_alerts_7d: number;
+  latest: { failureDocId?: string; terminalStatus?: string; reason?: string; createdAt?: string } | null;
+}
+
+export interface AdminSystemHealthLlmPipelineRow {
+  pipeline: string;
+  calls: number;
+  costUsd: number;
+  avgLatencyMs: number | null;
+}
+
+export interface AdminSystemHealthLlm {
+  calls_24h: number;
+  totalCostUsd_24h: number;
+  avgLatencyMs: number | null;
+  schemaValidRate: number | null;
+  byPipeline: AdminSystemHealthLlmPipelineRow[];
+  driftAlerts: number;
+}
+
+export interface AdminSystemHealthExternalApiService {
+  total: number;
+  success: number;
+  failure: number;
+  successRate: number | null;
+  avgLatencyMs: number;
+  topErrors: Array<{ code: string; count: number }>;
+}
+
+export interface AdminSystemHealthExternalApis {
+  totalRecords: number;
+  windowMs: number;
+  byService: Record<string, AdminSystemHealthExternalApiService>;
+}
+
+export interface AdminSystemHealthMeta {
+  nodeEnv: string;
+  slackAlertsConfigured: boolean;
+  llmTelemetrySampleRate: string;
+  backgroundJobTenants: string;
+  aggregateLatencyMs: number;
+}
+
+export interface AdminSystemHealthResponse {
+  tenantId: string;
+  generatedAt: string;
+  drain: AdminSystemHealthDrain | { error: string };
+  llm: AdminSystemHealthLlm | { error: string };
+  externalApis: AdminSystemHealthExternalApis | { error: string };
+  health: AdminSystemHealthMeta;
+}
+
+export const adminGetSystemHealth = async (): Promise<AdminSystemHealthResponse> => {
+  const url = new URL(`${BACKEND_URL}/api/admin/system-health`);
+  const res = await fetchApi(url.toString(), { method: "GET" });
+  const result = await parseResponse(res);
+  if (!res.ok || result?.ok === false) {
+    const message = result?.error?.message || "Failed to load system health";
+    throw new Error(message);
+  }
+  return result?.data as AdminSystemHealthResponse;
+};
+
+export const adminListRecentAlerts = async (
+  days: number = 7
+): Promise<AdminRecentAlertsResponse> => {
+  const url = new URL(`${BACKEND_URL}/api/admin/alerts/recent`);
+  url.searchParams.set("days", String(Math.max(1, Math.min(90, days))));
+  const res = await fetchApi(url.toString(), { method: "GET" });
+  const result = await parseResponse(res);
+  if (!res.ok || result?.ok === false) {
+    const message = result?.error?.message || "Failed to load alerts";
+    throw new Error(message);
+  }
+  return result?.data as AdminRecentAlertsResponse;
+};
+
 export const buildImageProxyUrl = (sourceUrl?: string | null) => {
   if (!sourceUrl) return '';
   if (!/^https?:\/\//i.test(sourceUrl)) {

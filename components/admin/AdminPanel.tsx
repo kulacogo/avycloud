@@ -7,18 +7,30 @@ import { AdminBulkActions } from './AdminBulkActions';
 import { AdminIntegrations } from './AdminIntegrations';
 import { AdminEbayTaxonomy } from './AdminEbayTaxonomy';
 import { AdminIdentifyRunsDashboard } from './AdminIdentifyRunsDashboard';
+import { AdminSystemHealth } from './AdminSystemHealth';
 import { PageHeader } from '../ui/PageHeader';
 
-type Tab = 'users' | 'groups' | 'roles' | 'llm' | 'bulk' | 'integrations' | 'ebay' | 'identify-runs';
+type Tab = 'health' | 'users' | 'groups' | 'roles' | 'llm' | 'bulk' | 'integrations' | 'ebay' | 'identify-runs';
 
 export const AdminPanel: React.FC = () => {
-  const [tab, setTab] = React.useState<Tab>('users');
+  // HARDEN-Wave-9 (2026-05-22): System-Health als Default-Tab beim Öffnen.
+  // Damit sieht der Operator beim Klick auf "Admin" sofort den Live-Status.
+  const [tab, setTab] = React.useState<Tab>('health');
 
   return (
     <div className="space-y-5">
       <PageHeader title="Admin" />
 
       <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={() => setTab('health')}
+          className={`rounded-xl px-4 py-2 text-sm font-semibold transition-colors ${
+            tab === 'health' ? 'bg-accent text-txt-primary' : 'bg-app-surface text-txt-secondary hover:bg-white/10'
+          }`}
+        >
+          System-Status
+        </button>
         <button
           type="button"
           onClick={() => setTab('users')}
@@ -93,7 +105,9 @@ export const AdminPanel: React.FC = () => {
         </button>
       </div>
 
-      {tab === 'users' ? (
+      {tab === 'health' ? (
+        <AdminSystemHealth />
+      ) : tab === 'users' ? (
         <AdminUserManagement />
       ) : tab === 'groups' ? (
         <AdminGroupManagement />

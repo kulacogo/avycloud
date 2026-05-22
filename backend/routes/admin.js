@@ -1485,6 +1485,253 @@ router.get('/llm-parity', requirePermission('admin', 'read'), async (req, res) =
   }
 });
 
+// ───────────────────────────────────────────────────────────────────────────
+// HARDEN-Wave-9 (2026-05-22): Operator-Visibility-Layer
+//
+// Zwei neue Endpoints liefern Daten fuer das neue AdminSystemHealth UI.
+// Beide read-only, tenant-scoped, hinter requirePermission('admin', 'read').
+// ───────────────────────────────────────────────────────────────────────────
+
+/**
+ * GET /api/admin/alerts/recent?days=7
+ *
+ * Liest stock_failure_alerts (geschrieben durch services/stock-failure-drain.js
+ * Wave 2 — terminal-state alerts) der letzten N Tage. Tenant-scoped.
+ *
+ * Returns: { ok: true, data: { alerts: [...], total, windowDays } }
+ */
+router.get('/alerts/recent', requirePermission('admin', 'read'), async (req, res) => {
+  try {
+    const { firestore } = require('../lib/firestore');
+    const tenantId = req.user?.tenantId || 'default';
+    const days = Math.max(1, Math.min(90, Number.parseInt(req.query?.days, 10) || 7));
+    const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+
+    let snap;
+    try {
+      snap = await firestore.collection('stock_failure_alerts')
+        .where('tenantId', '==', tenantId)
+        .where('createdAt', '>=', since)
+        .orderBy('createdAt', 'desc')
+        .limit(100)
+        .get();
+    } catch (err) {
+      // Falls Composite-Index noch nicht gebaut: graceful Fallback ohne orderBy.
+      if (err?.code === 9 || /FAILED_PRECONDITION|requires an index/i.test(err?.message || '')) {
+        console.warn('[admin/alerts/recent] composite index missing, fallback to in-memory sort');
+        snap = await firestore.collection('stock_failure_alerts')
+          .where('tenantId', '==', tenantId)
+          .limit(500)
+          .get();
+      } else {
+        throw err;
+      }
+    }
+
+    const alerts = snap.docs
+      .map((d) => ({ id: d.id, ...d.data() }))
+      .filter((a) => !a.createdAt || a.createdAt >= since)
+      .sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')))
+      .slice(0, 100);
+
+    res.json({
+      ok: true,
+      data: {
+        alerts,
+        total: alerts.length,
+        windowDays: days,
+        windowSince: since,
+      },
+    });
+  } catch (error) {
+    const code = error?.statusCode || 500;
+    console.error(`[GET /api/admin/alerts/recent] ${error.message}`, error);
+    res.status(code).json({ ok: false, error: { code, message: error?.message || 'Failed to list alerts' } });
+  }
+});
+
+/**
+ * GET /api/admin/system-health
+ *
+ * Aggregat-Response fuer das AdminSystemHealth Dashboard. Fasst die 3
+ * Datenquellen aus den Hardening-Waves 1/2/4 in einer Response zusammen:
+ *  - drain:        stock_failure_alerts last 24h + 7d (Counts)
+ *  - llm:          llm_call_telemetry aggregates last 24h
+ *  - externalApis: external_api_calls aggregates last 24h
+ *  - health:       Konfig-Snapshot (slack URL gesetzt?, NODE_ENV)
+ *
+ * NEVER fails — wenn eine Sub-Quelle 503/Index-Fehler wirft, wird das Sub-Objekt
+ * mit {error: '...'} markiert und der Rest geliefert.
+ */
+router.get('/system-health', requirePermission('admin', 'read'), async (req, res) => {
+  const tenantId = req.user?.tenantId || 'default';
+  const startMs = Date.now();
+  const data = {
+    tenantId,
+    generatedAt: new Date().toISOString(),
+    drain: null,
+    llm: null,
+    externalApis: null,
+    health: null,
+  };
+
+  // ─── Drain Alerts (last 24h + 7d) ─────────────────────────────────────
+  try {
+    const { firestore } = require('../lib/firestore');
+    const now = Date.now();
+    const since24h = new Date(now - 24 * 60 * 60 * 1000).toISOString();
+    const since7d = new Date(now - 7 * 24 * 60 * 60 * 1000).toISOString();
+
+    // Single query for last 7d, then filter in-memory for 24h subset to save one round-trip.
+    let snap;
+    try {
+      snap = await firestore.collection('stock_failure_alerts')
+        .where('tenantId', '==', tenantId)
+        .where('createdAt', '>=', since7d)
+        .orderBy('createdAt', 'desc')
+        .limit(200)
+        .get();
+    } catch (err) {
+      if (err?.code === 9 || /requires an index/i.test(err?.message || '')) {
+        snap = await firestore.collection('stock_failure_alerts')
+          .where('tenantId', '==', tenantId)
+          .limit(500)
+          .get();
+      } else {
+        throw err;
+      }
+    }
+
+    const docs = snap.docs.map((d) => d.data()).filter((a) => a.createdAt && a.createdAt >= since7d);
+    docs.sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
+
+    const last24h = docs.filter((a) => a.createdAt >= since24h);
+    const abandoned24h = last24h.filter((a) => a.terminalStatus === 'abandoned').length;
+    const abandoned7d = docs.filter((a) => a.terminalStatus === 'abandoned').length;
+    const needsManual24h = last24h.filter((a) => a.terminalStatus === 'needs_manual').length;
+    const needsManual7d = docs.filter((a) => a.terminalStatus === 'needs_manual').length;
+    const latest = docs[0] || null;
+
+    data.drain = {
+      abandoned_24h: abandoned24h,
+      abandoned_7d: abandoned7d,
+      needs_manual_24h: needsManual24h,
+      needs_manual_7d: needsManual7d,
+      total_alerts_24h: last24h.length,
+      total_alerts_7d: docs.length,
+      latest: latest ? {
+        failureDocId: latest.failureDocId,
+        terminalStatus: latest.terminalStatus,
+        reason: latest.reason,
+        createdAt: latest.createdAt,
+      } : null,
+    };
+  } catch (err) {
+    console.warn(`[system-health] drain section failed: ${err.message}`);
+    data.drain = { error: err.message || 'drain_query_failed' };
+  }
+
+  // ─── LLM Telemetry (last 24h aggregates) ──────────────────────────────
+  try {
+    const { listLlmParity } = require('../services/llm-parity-dashboard');
+    const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const parity = await listLlmParity({
+      tenantId,
+      dateFrom: since24h,
+    });
+
+    // Roll up across all pipelines into headline numbers.
+    let calls = 0;
+    let totalCostUsd = 0;
+    let latencySum = 0;
+    let latencyCount = 0;
+    let schemaValidCount = 0;
+    let schemaTotalCount = 0;
+    const byPipeline = [];
+
+    for (const pipeline of parity.pipelines || []) {
+      calls += pipeline.total_events || 0;
+      let pipelineCost = 0;
+      let pipelineLatencySum = 0;
+      let pipelineLatencyCount = 0;
+      for (const row of pipeline.rows || []) {
+        if (Number.isFinite(row.mean_cost_usd) && Number.isFinite(row.count)) {
+          const c = row.mean_cost_usd * row.count;
+          totalCostUsd += c;
+          pipelineCost += c;
+        }
+        if (Number.isFinite(row.mean_latency_ms) && Number.isFinite(row.count)) {
+          latencySum += row.mean_latency_ms * row.count;
+          latencyCount += row.count;
+          pipelineLatencySum += row.mean_latency_ms * row.count;
+          pipelineLatencyCount += row.count;
+        }
+        if (Number.isFinite(row.schema_valid_count) && Number.isFinite(row.schema_total_count)) {
+          schemaValidCount += row.schema_valid_count;
+          schemaTotalCount += row.schema_total_count;
+        }
+      }
+      byPipeline.push({
+        pipeline: pipeline.pipeline,
+        calls: pipeline.total_events || 0,
+        costUsd: Math.round(pipelineCost * 10000) / 10000,
+        avgLatencyMs: pipelineLatencyCount > 0 ? Math.round(pipelineLatencySum / pipelineLatencyCount) : null,
+      });
+    }
+
+    data.llm = {
+      calls_24h: calls,
+      totalCostUsd_24h: Math.round(totalCostUsd * 10000) / 10000,
+      avgLatencyMs: latencyCount > 0 ? Math.round(latencySum / latencyCount) : null,
+      schemaValidRate: schemaTotalCount > 0 ? Math.round((schemaValidCount / schemaTotalCount) * 1000) / 1000 : null,
+      byPipeline,
+      driftAlerts: (parity.drift_alerts || []).length,
+    };
+  } catch (err) {
+    console.warn(`[system-health] llm section failed: ${err.message}`);
+    data.llm = { error: err.message || 'llm_query_failed' };
+  }
+
+  // ─── External APIs (SerpAPI/BrightData/...) ────────────────────────────
+  try {
+    const { getExternalApiStats } = require('../lib/external-api-tracker');
+    const stats = await getExternalApiStats({ windowMs: 24 * 60 * 60 * 1000 });
+    const byService = {};
+    for (const [name, bucket] of Object.entries(stats.byService || {})) {
+      byService[name] = {
+        total: bucket.total,
+        success: bucket.success,
+        failure: bucket.failure,
+        successRate: bucket.successRate,
+        avgLatencyMs: bucket.avgLatencyMs,
+        topErrors: Object.entries(bucket.topErrors || {})
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 3)
+          .map(([code, count]) => ({ code, count })),
+      };
+    }
+    data.externalApis = {
+      totalRecords: stats.totalRecords,
+      windowMs: stats.windowMs,
+      byService,
+    };
+  } catch (err) {
+    console.warn(`[system-health] external-apis section failed: ${err.message}`);
+    data.externalApis = { error: err.message || 'external_api_query_failed' };
+  }
+
+  // ─── Health/Konfig-Snapshot ───────────────────────────────────────────
+  data.health = {
+    nodeEnv: process.env.NODE_ENV || 'unknown',
+    slackAlertsConfigured: Boolean(process.env.SLACK_ALERTS_URL),
+    llmTelemetrySampleRate: process.env.LLM_TELEMETRY_SAMPLE || '0.1',
+    backgroundJobTenants: process.env.BACKGROUND_JOB_TENANTS || '(empty=default-only)',
+    aggregateLatencyMs: Date.now() - startMs,
+  };
+
+  res.json({ ok: true, data });
+});
+
 router.post('/batch-optimize/run', requirePermission('admin', 'products.write'), async (req, res) => {
   try {
     const { dryRun = false, limit = 0, offset = 0 } = req.body || {};

@@ -3,6 +3,7 @@ import { useI18n } from "../i18n";
 import { useAuth } from "../context/AuthContext";
 import { Breadcrumb, type BreadcrumbItem } from "./ui/Breadcrumb";
 import { HelpButton } from "./help/HelpButton";
+import { useSystemAlerts } from "../hooks/useSystemAlerts";
 
 type View =
   | "dashboard"
@@ -99,6 +100,36 @@ export const Topbar: React.FC<TopbarProps> = ({ currentView, theme, onToggleThem
   const title = VIEW_TITLES[currentView] || "Dashboard";
   const breadcrumb = VIEW_BREADCRUMBS[currentView];
   const userInitial = user?.email?.charAt(0)?.toUpperCase() || "?";
+
+  // HARDEN-Wave-9 (2026-05-22): Bell-Badge — polls /api/admin/alerts/recent?days=1
+  // every 60s if the current user has admin access. Non-admins see no badge,
+  // no API spam.
+  const isAdminUser = Boolean((user as { isAdmin?: boolean } | null | undefined)?.isAdmin);
+  const { count: alertCount, latest: alertLatest } = useSystemAlerts(isAdminUser);
+  const [bellOpen, setBellOpen] = useState(false);
+  const bellRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!bellOpen) return;
+    const onClickOutside = (e: MouseEvent) => {
+      if (bellRef.current && !bellRef.current.contains(e.target as Node)) {
+        setBellOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onClickOutside);
+    return () => document.removeEventListener("mousedown", onClickOutside);
+  }, [bellOpen]);
+
+  const formatRel = (iso?: string) => {
+    if (!iso) return "—";
+    const ts = Date.parse(iso);
+    if (!Number.isFinite(ts)) return "—";
+    const diff = Math.round((Date.now() - ts) / 1000);
+    if (diff < 60) return `${diff}s`;
+    if (diff < 3600) return `${Math.round(diff / 60)} Min`;
+    if (diff < 86400) return `${Math.round(diff / 3600)} Std`;
+    return `${Math.round(diff / 86400)} T`;
+  };
 
   const [searchValue, setSearchValue] = useState("");
   const searchRef = useRef<HTMLInputElement>(null);
@@ -202,18 +233,91 @@ export const Topbar: React.FC<TopbarProps> = ({ currentView, theme, onToggleThem
         {/* Help drawer trigger */}
         <HelpButton variant="topbar" />
 
-        {/* Notification bell (placeholder) */}
-        <button
-          type="button"
-          className="flex items-center justify-center w-8 h-8 rounded-md text-txt-muted hover:text-txt-primary hover:bg-app-elevated transition-colors"
-          aria-label="Benachrichtigungen"
-          title="Benachrichtigungen"
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
-            <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
-          </svg>
-        </button>
+        {/* HARDEN-Wave-9 (2026-05-22): Bell mit Live-Badge fuer System-Alerts (admin-only) */}
+        <div ref={bellRef} className="relative">
+          <button
+            type="button"
+            onClick={() => setBellOpen((v) => !v)}
+            className={`relative flex items-center justify-center w-8 h-8 rounded-md transition-colors ${
+              alertCount && alertCount > 0
+                ? "text-danger hover:bg-danger-dim"
+                : "text-txt-muted hover:text-txt-primary hover:bg-app-elevated"
+            }`}
+            aria-label={alertCount && alertCount > 0 ? `${alertCount} neue Alerts` : "Benachrichtigungen"}
+            title={alertCount && alertCount > 0 ? `${alertCount} neue Alerts` : "Benachrichtigungen"}
+            aria-haspopup="true"
+            aria-expanded={bellOpen}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
+              <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
+            </svg>
+            {alertCount !== null && alertCount > 0 && (
+              <span
+                className="absolute -right-0.5 -top-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-danger px-1 text-[10px] font-bold text-white"
+                aria-hidden="true"
+              >
+                {alertCount > 9 ? "9+" : alertCount}
+              </span>
+            )}
+          </button>
+          {bellOpen && (
+            <div
+              role="menu"
+              className="absolute right-0 top-9 z-50 w-80 rounded-xl border border-app-border bg-app-surface shadow-xl"
+            >
+              <div className="flex items-center justify-between border-b border-app-border px-3 py-2">
+                <h4 className="text-sm font-semibold text-txt-primary">System-Alerts</h4>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setBellOpen(false);
+                    window.location.hash = "#/admin";
+                    onNavigate?.("admin");
+                  }}
+                  className="text-xs font-medium text-accent hover:underline"
+                >
+                  Alle anzeigen
+                </button>
+              </div>
+              <div className="max-h-72 overflow-y-auto">
+                {!alertCount && (
+                  <div className="px-3 py-6 text-center text-sm text-txt-muted">
+                    Keine offenen Alerts. Alles ruhig.
+                  </div>
+                )}
+                {alertCount !== null && alertCount > 0 && alertLatest.length === 0 && (
+                  <div className="px-3 py-6 text-center text-sm text-txt-muted">Lade…</div>
+                )}
+                {alertLatest.map((a) => (
+                  <div
+                    key={a.id}
+                    className="border-b border-app-border px-3 py-2 last:border-b-0 hover:bg-app-elevated"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span
+                        className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${
+                          a.terminalStatus === "abandoned"
+                            ? "bg-danger-dim text-danger"
+                            : "bg-warning-dim text-warning"
+                        }`}
+                      >
+                        {a.terminalStatus?.toUpperCase()}
+                      </span>
+                      <span className="text-[11px] text-txt-muted">vor {formatRel(a.createdAt)}</span>
+                    </div>
+                    <p className="mt-1 truncate text-xs text-txt-primary" title={a.reason}>
+                      {a.reason || "Kein Detail"}
+                    </p>
+                    {a.failureDocId && (
+                      <p className="mt-0.5 font-mono text-[10px] text-txt-muted">{a.failureDocId}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* User avatar */}
         <div

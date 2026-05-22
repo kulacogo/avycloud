@@ -180,12 +180,28 @@ function buildKauflandComplianceContact(product, fallbackName = '') {
 async function buildKauflandProductDataAttributes(product, { missingAttributes = [], minOneMissingAttributes = [], storefront = 'de' } = {}) {
   const attributes = {};
 
+  // Kaufland DE-Storefront-Validator (May 2026): die englischen Standard-keys
+  // (title/description/picture/manufacturer) werden zwar gespeichert aber NICHT
+  // für Validation gezählt. Deutsche Storefront erfordert die DEUTSCHEN keys
+  // (Titel/Beschreibung/Bild/Hersteller). Wir senden BEIDE damit es egal ist.
+  // Beispiel-Beweis: putProductData mit nur englischem "title" → Kaufland
+  // antwortet missing_attributes:["Titel"] obwohl title-key gespeichert ist.
+  const isGermanStorefront = String(storefront || '').toLowerCase() === 'de';
+
   const title = safeString(product?.identification?.name).replace(/\s+/g, ' ').trim();
-  if (title) attributes.title = [title.slice(0, 250)];
+  if (title) {
+    const trimmed = title.slice(0, 250);
+    attributes.title = [trimmed];
+    if (isGermanStorefront) attributes.Titel = [trimmed];
+  }
 
   const descriptionRaw = safeString(product?.details?.short_description || product?.details?.description);
   const description = stripHtmlToPlainText(descriptionRaw);
-  if (description) attributes.description = [description.slice(0, 4000)];
+  if (description) {
+    const trimmed = description.slice(0, 4000);
+    attributes.description = [trimmed];
+    if (isGermanStorefront) attributes.Beschreibung = [trimmed];
+  }
 
   const pictureUrls = Array.from(
     new Set(
@@ -194,7 +210,11 @@ async function buildKauflandProductDataAttributes(product, { missingAttributes =
         .filter((url) => /^https?:\/\//i.test(url))
     )
   );
-  if (pictureUrls.length) attributes.picture = pictureUrls.slice(0, 20);
+  if (pictureUrls.length) {
+    const trimmed = pictureUrls.slice(0, 20);
+    attributes.picture = trimmed;
+    if (isGermanStorefront) attributes.Bild = trimmed;
+  }
 
   const attrsPrimary =
     product?.details?.attributes && typeof product.details.attributes === 'object' && !Array.isArray(product.details.attributes)
@@ -297,7 +317,13 @@ async function buildKauflandProductDataAttributes(product, { missingAttributes =
 
   // Final manufacturer value: whitelist-label > legal-entity > brand.
   const manufacturerName = kauflandManufacturerLabel || legacyManufacturerName;
-  if (manufacturerName) attributes.manufacturer = [manufacturerName];
+  if (manufacturerName) {
+    attributes.manufacturer = [manufacturerName];
+    // DE-Storefront erfordert "Hersteller"-Key zusätzlich (siehe Doppelschreibung
+    // bei title/description/picture oben). Sonst missing_attributes:["Hersteller"]
+    // obwohl manufacturer-Key gespeichert wurde.
+    if (isGermanStorefront) attributes.Hersteller = [manufacturerName];
+  }
 
   const complianceContact = buildKauflandComplianceContact(product, brand);
   if (complianceContact) attributes.product_safety_contact = complianceContact;

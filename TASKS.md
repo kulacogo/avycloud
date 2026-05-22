@@ -394,6 +394,15 @@ Master-Plan mit 8 Waves. Siehe **[docs/kb/15-gap-analysis.md](docs/kb/15-gap-ana
 - [x] DELETE /api/settings/webhooks/:id: tenant-scoped safeDelete + requirePermission
 - [ ] requirePermission auf rules/returns routes (separater Sprint)
 
+### Wave 9 — Operator-Visibility-Layer ✅ (2026-05-22)
+- [x] Backend: GET /api/admin/alerts/recent — liest stock_failure_alerts (tenant-scoped, days=1..90, mit graceful Index-Fallback)
+- [x] Backend: GET /api/admin/system-health — Aggregat-Endpoint (drain+llm+externalApis+meta in einer Response, never-fail per-section try/catch)
+- [x] Frontend: components/admin/AdminSystemHealth.tsx — 4 Kacheln (Drain-Alerts, KI-Kosten, KI-Qualität, Externe APIs) mit Drill-Down-Modals und Auto-Refresh alle 30s
+- [x] Frontend: hooks/useSystemAlerts.ts — Bell-Polling alle 60s (5min Backoff bei consecutive errors, nur für isAdmin user)
+- [x] Frontend: Topbar Bell-Badge mit count + Dropdown der letzten 5 Alerts + "Alle anzeigen" Link → Admin/System-Status
+- [x] Frontend: AdminSystemHealth als DEFAULT Admin-Tab (vorher: 'users') — Operator sieht beim Admin-Klick sofort den Status
+- [x] api/client.ts: TypeScript-Types + adminGetSystemHealth + adminListRecentAlerts
+
 ### P0 (sofort) — Wave 1 Items
 - [x] **HARDEN-1**: `runRefundPush` Cross-Tenant-Query mit `tenantId`-Filter — `backend/services/returns-engine.js` ✅ (2026-05-20) + Composite-Index `(tenantId, status, marketplaceRefundPushed)` + defense-in-depth doc-level check
 - [x] **HARDEN-2**: eBay-Webhook-Signatur-Verifikation Phase-1 — `backend/routes/webhooks.js` ✅ (2026-05-20). `x-ebay-signature` Header MUSS in Production vorhanden sein (412 Precondition Failed sonst, per eBay-spec). Phase-2 (voller ECC-verify mit `getPublicKey` API + 1h Key-Cache) als separater Sprint.
