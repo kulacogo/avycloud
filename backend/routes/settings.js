@@ -1,10 +1,39 @@
 const express = require('express');
 const router = express.Router();
 const { firestore } = require('../lib/firestore');
+const { requirePermission } = require('../lib/rbac');
 
 // --- Helper: resolve tenantId from request (future MT-ready) ---
 function getTenantId(req) {
   return req.user?.tenantId || 'default';
+}
+
+/**
+ * HARDEN-Wave-6 (2026-05-22): tenant-scoped delete guard.
+ * Vorher: `DELETE /api/settings/api-keys/:id` und `…/webhooks/:id` löschten
+ * das Doc by-ID, ohne zu prüfen ob es dem aufrufenden Tenant gehört. Klassische
+ * IDOR-Schwäche. Jetzt: load doc → assert tenantId match → delete.
+ *
+ * @returns {Promise<{ok: boolean, status?: number, error?: string}>}
+ */
+async function safeDeleteTenantScoped({ collection, docId, tenantId }) {
+  const ref = firestore.collection(collection).doc(String(docId || ''));
+  const snap = await ref.get();
+  if (!snap.exists) {
+    return { ok: false, status: 404, error: 'not_found' };
+  }
+  const data = snap.data() || {};
+  const docTenant = String(data.tenantId || '').trim();
+  if (!docTenant) {
+    // Legacy docs without tenantId: only allow delete if requester is admin
+    // (defense-in-depth — kein Tenant-Match möglich, also restrictive).
+    return { ok: false, status: 403, error: 'forbidden_legacy_doc_no_tenant' };
+  }
+  if (docTenant !== tenantId) {
+    return { ok: false, status: 403, error: 'forbidden_tenant_mismatch' };
+  }
+  await ref.delete();
+  return { ok: true };
 }
 
 // ─── COMPANY SETTINGS ─────────────────────────────────────────
@@ -151,9 +180,17 @@ router.post('/settings/api-keys', async (req, res) => {
   }
 });
 
-router.delete('/settings/api-keys/:id', async (req, res) => {
+router.delete('/settings/api-keys/:id', requirePermission('settings', 'delete'), async (req, res) => {
   try {
-    await firestore.collection('api_keys').doc(req.params.id).delete();
+    const tenantId = getTenantId(req);
+    const result = await safeDeleteTenantScoped({
+      collection: 'api_keys',
+      docId: req.params.id,
+      tenantId,
+    });
+    if (!result.ok) {
+      return res.status(result.status || 500).json({ ok: false, error: { code: result.error?.toUpperCase() || 'INTERNAL', message: result.error || 'failed' } });
+    }
     res.json({ ok: true });
   } catch (err) {
     console.error(`[DELETE /api/settings/api-keys] ${err.message}`, err);
@@ -200,9 +237,17 @@ router.post('/settings/webhooks', async (req, res) => {
   }
 });
 
-router.delete('/settings/webhooks/:id', async (req, res) => {
+router.delete('/settings/webhooks/:id', requirePermission('settings', 'delete'), async (req, res) => {
   try {
-    await firestore.collection('webhooks').doc(req.params.id).delete();
+    const tenantId = getTenantId(req);
+    const result = await safeDeleteTenantScoped({
+      collection: 'webhooks',
+      docId: req.params.id,
+      tenantId,
+    });
+    if (!result.ok) {
+      return res.status(result.status || 500).json({ ok: false, error: { code: result.error?.toUpperCase() || 'INTERNAL', message: result.error || 'failed' } });
+    }
     res.json({ ok: true });
   } catch (err) {
     console.error(`[DELETE /api/settings/webhooks] ${err.message}`, err);
