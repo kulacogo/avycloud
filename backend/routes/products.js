@@ -1507,6 +1507,17 @@ router.get('/products', requirePermission('products', 'read'), async (req, res) 
   try {
     // D.0b — Tenant-scoped read: pull only products belonging to caller tenant.
     const tenantId = req.user?.tenantId || 'default';
+
+    // HARDEN-Wave-3 (2026-05-22): optionale Pagination als Performance-Schutz.
+    // Default: unverändertes Verhalten (alle Produkte) damit kein Frontend bricht.
+    // Mit `?limit=N&offset=M` wird das Response auf eine Seite begrenzt + Meta
+    // (`total`, `hasMore`, `nextOffset`) zurückgegeben. Sortierreihenfolge bleibt
+    // wie sie aus getAllProductsForTenant kommt (Firestore-Doc-ID stable).
+    const limitRaw = Number.parseInt(req.query?.limit, 10);
+    const offsetRaw = Number.parseInt(req.query?.offset, 10);
+    const limit = Number.isFinite(limitRaw) && limitRaw > 0 && limitRaw <= 5000 ? limitRaw : null;
+    const offset = Number.isFinite(offsetRaw) && offsetRaw >= 0 ? offsetRaw : 0;
+
     // Parallelise independent Firestore queries to cut latency (mobile timeout fix)
     const [products, reservedMap, soldMap] = await Promise.all([
       getAllProductsForTenant(tenantId),
@@ -1518,7 +1529,16 @@ router.get('/products', requirePermission('products', 'read'), async (req, res) 
       : [];
     // NOTE: Filter ghost/stub docs early to avoid showing meaningless rows in the AdminTable.
     // Rebuild enriched pipeline using the filtered set to keep counts consistent.
-    const enrichedFiltered = await enrichProductsWithBinSummaries(filteredProducts);
+
+    // Pagination-Schnitt VOR Enrichment-Pipeline: spart Bin-Summary-Scans
+    // proportional zur page-size statt zur Gesamt-Collection.
+    const total = filteredProducts.length;
+    const paginatedProducts = limit !== null
+      ? filteredProducts.slice(offset, offset + limit)
+      : filteredProducts;
+    const hasMore = limit !== null ? offset + paginatedProducts.length < total : false;
+
+    const enrichedFiltered = await enrichProductsWithBinSummaries(paginatedProducts);
     const withReservedFiltered = attachReservedAvailability(enrichedFiltered, reservedMap, soldMap);
     const withCompletenessFiltered = withReservedFiltered.map((p) => {
       const normalized = normalizeProductForApi(p);
@@ -1528,7 +1548,18 @@ router.get('/products', requirePermission('products', 'read'), async (req, res) 
       };
     });
 
-    res.json({ ok: true, products: withCompletenessFiltered });
+    const response = { ok: true, products: withCompletenessFiltered };
+    if (limit !== null) {
+      response.pagination = {
+        total,
+        offset,
+        limit,
+        returned: withCompletenessFiltered.length,
+        hasMore,
+        nextOffset: hasMore ? offset + limit : null,
+      };
+    }
+    res.json(response);
   } catch (error) {
     console.error('Error getting products:', error);
     res.status(500).json({

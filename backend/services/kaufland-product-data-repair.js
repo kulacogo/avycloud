@@ -291,9 +291,14 @@ function buildKauflandProductDataAttributes(product, { missingAttributes = [], m
       attributes[requiredName] = pictureUrls.slice(0, 20);
       return;
     }
-    if ((requiredToken === 'hersteller' || requiredToken.includes('manufacturer')) && brand) {
-      attributes[requiredName] = [brand];
-      return;
+    if ((requiredToken === 'hersteller' || requiredToken.includes('manufacturer'))) {
+      // Bevorzuge legal-entity-name (z.B. "namuk GmbH") über brand ("Namuk")
+      // — Kaufland-Validator declined pure Brand-Strings als manufacturer.
+      const candidate = manufacturerName || brand;
+      if (candidate) {
+        attributes[requiredName] = [candidate];
+        return;
+      }
     }
 
     const rawValue = sourceByToken.get(requiredToken);
