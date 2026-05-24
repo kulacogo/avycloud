@@ -124,6 +124,51 @@ function pickImageUrl(entry) {
   return safeString(entry?.url_or_base64 || entry?.url || entry?.src || entry?.link);
 }
 
+// Kaufland requires a real fabric/material NAME for "Materialzusammensetzung"
+// (technical key material_composition), the #1 attribute still missing on
+// freshly-listed textiles (verified live 2026-05-24). Our internal data
+// fragments this across inconsistent keys: "Materialzusammensetzung" sometimes
+// holds only a bare percentage ("80%", "100%") while the actual fabric sits
+// under "Material" / "Hauptmaterial" / "Außenmaterial". A bare percentage is
+// rejected by Kaufland (reason: invalid_value).
+//
+// This scans candidate keys across both attribute pools and returns the best
+// value that actually contains a fabric NAME (>=3 consecutive letters),
+// preferring values that ALSO carry percentages (more complete composition).
+// Returns '' if no usable fabric name exists anywhere.
+function buildKauflandMaterialComposition(pools) {
+  const FABRIC_NAME_RX = /[A-Za-zÄÖÜäöüß]{3,}/;
+  // Priority order: explicit composition field first, then generic material,
+  // then weave/fabric-type fallbacks.
+  const CANDIDATE_TOKENS = [
+    'materialzusammensetzung', 'materialcomposition',
+    'material', 'hauptmaterial', 'aussenmaterial', 'obermaterial',
+    'gewebeart', 'stoffart', 'gewebe', 'textil',
+  ];
+  const found = [];
+  for (const pool of pools) {
+    if (!pool || typeof pool !== 'object' || Array.isArray(pool)) continue;
+    for (const [rawKey, rawValue] of Object.entries(pool)) {
+      const token = normalizeKauflandAttributeToken(rawKey);
+      const priority = CANDIDATE_TOKENS.indexOf(token);
+      if (priority === -1) continue;
+      for (const v of normalizeKauflandAttributeValues(rawValue)) {
+        if (FABRIC_NAME_RX.test(v)) {
+          found.push({ value: v.slice(0, 200), priority, hasPercent: /%/.test(v) });
+        }
+      }
+    }
+  }
+  if (!found.length) return '';
+  // A composition WITH percentages is more complete; within that, lower
+  // priority index (more authoritative key) wins.
+  found.sort((a, b) => {
+    if (a.hasPercent !== b.hasPercent) return a.hasPercent ? -1 : 1;
+    return a.priority - b.priority;
+  });
+  return found[0].value;
+}
+
 // ─── Public API ───────────────────────────────────────────────────────────
 
 /**
@@ -327,6 +372,16 @@ async function buildKauflandProductDataAttributes(product, { missingAttributes =
 
   const complianceContact = buildKauflandComplianceContact(product, brand);
   if (complianceContact) attributes.product_safety_contact = complianceContact;
+
+  // Material composition — CORE phase (always send if derivable), because it is
+  // the #1 attribute that keeps freshly-listed textiles non-buyable. The
+  // missing-backfill phase below alone is not enough: on initial listing the
+  // `missing` list is empty, so without this the field would never be sent.
+  const materialComposition = buildKauflandMaterialComposition([attrsPrimary, attrsExtra]);
+  if (materialComposition) {
+    attributes.material_composition = [materialComposition];
+    if (isGermanStorefront) attributes.Materialzusammensetzung = [materialComposition];
+  }
 
   const missing = Array.from(
     new Set(
