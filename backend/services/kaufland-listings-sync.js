@@ -135,33 +135,69 @@ async function syncKauflandListingsCache({ tenantId, storefront = 'de' } = {}) {
   //
   // Setting status='STALE' makes the tombstone explicit so the route + UI
   // can filter cleanly. active=false is preserved as the primary signal.
+  //
+  // Cleanup policy (added 2026-05-24): tombstones must not accumulate forever.
+  // A snapshot showed 468 STALE docs vs only 397 real Kaufland units — the
+  // ghosts inflated every count and produced SKU duplicates (a re-listed
+  // product whose unit-ID changed appeared once live + once STALE, e.g. ZMH
+  // Pendelleuchte). We now HARD-DELETE two ghost classes instead of keeping
+  // them as tombstones:
+  //   a) superseded ghosts — a non-seen doc whose SKU now has a live unit
+  //      (unit-ID rotated). Delete immediately; the live doc is the truth.
+  //   b) aged-out tombstones — already STALE and removed > GHOST_TTL ago
+  //      (genuinely gone from Kaufland; products_v2 still holds the product
+  //      so it can be re-listed from there if needed).
+  // First-time disappearances (still within grace period) are tombstoned as
+  // before, so a transient /units API hiccup never deletes live data outright.
+  const GHOST_TTL_MS = 7 * 24 * 3600 * 1000;
+  const liveSkus = new Set();
+  for (const unit of units) {
+    const s = normalizeMarketplaceSku(unit?.id_offer);
+    if (s) liveSkus.add(String(s).toLowerCase());
+  }
   const existingSnap = await collection.where('storefront', '==', sf).get();
   if (!existingSnap.empty) {
     let staleBatch = firestore.batch();
     let staleBatchCount = 0;
-    for (const doc of existingSnap.docs) {
-      if (seenIds.has(doc.id)) continue;
-      const existing = doc.data() || {};
-      if (existing.status === 'STALE' && existing.active === false) continue; // already tombstoned
-      staleBatch.set(
-        collection.doc(doc.id),
-        {
-          active: false,
-          status: 'STALE',
-          removedAt: now,
-          updatedAt: now,
-          source: 'kaufland-sync-stale',
-        },
-        { merge: true }
-      );
-      staleBatchCount += 1;
-      if (staleBatchCount >= 400) {
+    const flush = async () => {
+      if (staleBatchCount > 0) {
         await staleBatch.commit();
         staleBatch = firestore.batch();
         staleBatchCount = 0;
       }
+    };
+    for (const doc of existingSnap.docs) {
+      if (seenIds.has(doc.id)) continue;
+      const existing = doc.data() || {};
+      const docSku = String(existing.id_offer_normalized || existing.id_offer || '').trim().toLowerCase();
+      const isSupersededGhost = docSku && liveSkus.has(docSku);
+      const removedAtMs = typeof existing.removedAt?.toDate === 'function'
+        ? existing.removedAt.toDate().getTime()
+        : (typeof existing.removedAt === 'number' ? existing.removedAt : 0);
+      const agedOut = existing.status === 'STALE' && removedAtMs && (Date.now() - removedAtMs) > GHOST_TTL_MS;
+
+      if (isSupersededGhost || agedOut) {
+        staleBatch.delete(collection.doc(doc.id)); // hard-remove ghost
+        staleBatchCount += 1;
+      } else if (existing.status === 'STALE' && existing.active === false) {
+        continue; // already tombstoned, still within grace period
+      } else {
+        staleBatch.set(
+          collection.doc(doc.id),
+          {
+            active: false,
+            status: 'STALE',
+            removedAt: now,
+            updatedAt: now,
+            source: 'kaufland-sync-stale',
+          },
+          { merge: true }
+        );
+        staleBatchCount += 1;
+      }
+      if (staleBatchCount >= 400) await flush();
     }
-    if (staleBatchCount > 0) await staleBatch.commit();
+    await flush();
   }
 
   // ── Phase: refresh product.is_valid for AVAILABLE units ─────────────────

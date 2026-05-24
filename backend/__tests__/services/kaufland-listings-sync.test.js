@@ -38,6 +38,9 @@ function makeBatch() {
     update: vi.fn((ref, patch) => {
       writes.push({ kind: 'update', ref, patch });
     }),
+    delete: vi.fn((ref) => {
+      writes.push({ kind: 'delete', ref });
+    }),
     commit: vi.fn().mockResolvedValue([]),
   };
 }
@@ -287,6 +290,48 @@ describe('syncKauflandListingsCache', () => {
       expect(w.payload.removedAt).toBeDefined();
       expect(w.payload.source).toBe('kaufland-sync-stale');
     }
+  });
+
+  it('hard-deletes ghost tombstones: superseded SKU (unit-ID rotated) + aged-out STALE', async () => {
+    // Live unit SKU-ROT is the NEW unit-ID for a product whose old unit-ID
+    // (6001) is still cached as STALE → that old doc is a superseded ghost.
+    // 6002 is an aged-out tombstone (removed > 7 days ago) → delete.
+    // 6003 is a fresh tombstone (removed yesterday) → keep (grace period).
+    const eightDaysAgo = Date.now() - 8 * 24 * 3600 * 1000;
+    const oneDayAgo = Date.now() - 1 * 24 * 3600 * 1000;
+    _kauflandUnitsLiveExistingDocs = [
+      {
+        id: '6001', // old unit-ID of SKU-ROT, now superseded by live unit 7001
+        data: () => ({ active: false, status: 'STALE', storefront: 'de', id_offer_normalized: 'SKU-ROT' }),
+      },
+      {
+        id: '6002', // aged-out tombstone
+        data: () => ({ active: false, status: 'STALE', storefront: 'de', id_offer_normalized: 'SKU-OLD', removedAt: eightDaysAgo }),
+      },
+      {
+        id: '6003', // fresh tombstone — within grace period, must survive
+        data: () => ({ active: false, status: 'STALE', storefront: 'de', id_offer_normalized: 'SKU-RECENT', removedAt: oneDayAgo }),
+      },
+    ];
+    listUnitsMock.mockResolvedValueOnce([
+      {
+        id_unit: 7001,
+        id_offer: 'SKU-ROT', // same SKU as ghost 6001 but new unit-ID
+        ean: '4012345678999',
+        amount: 3,
+        status: 'AVAILABLE',
+        storefront: 'de',
+        product: { title: 'Rotated Unit', eans: ['4012345678999'], id_product: 555 },
+      },
+    ]);
+    getAllProductsV2ForTenantMock.mockResolvedValue([]);
+
+    await syncKauflandListingsCache({ tenantId: 'trendocean', storefront: 'de' });
+
+    const deletes = writes.filter((w) => w.kind === 'delete').map((w) => w.ref.__id).sort();
+    expect(deletes).toContain('6001'); // superseded ghost deleted
+    expect(deletes).toContain('6002'); // aged-out tombstone deleted
+    expect(deletes).not.toContain('6003'); // fresh tombstone preserved
   });
 
   it('reports reverse drift WITHOUT auto-reactivating (warehouse>0 vs kaufland=0/ONHOLD)', async () => {

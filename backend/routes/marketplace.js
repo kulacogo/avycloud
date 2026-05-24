@@ -1071,10 +1071,29 @@ router.get('/kaufland/listings', requirePermission('products', 'read'), async (r
 
     let matchCount = 0;
     const rows = [];
+    // Track which SKUs have a live (non-STALE) unit, so a SKU whose Kaufland
+    // unit-ID changed (e.g. ZMH Pendelleuchte 391697909106 → 392125425300)
+    // does not also surface its old STALE ghost as a separate "inactive" row.
+    const liveSkus = new Set();
+    unitsSnap.docs.forEach((doc) => {
+      const d = doc.data() || {};
+      if (String(d.status || '').trim().toUpperCase() !== 'STALE') {
+        const s = String(d.id_offer_normalized || d.id_offer || '').trim().toLowerCase();
+        if (s) liveSkus.add(s);
+      }
+    });
+
     unitsSnap.docs.forEach((doc) => {
       const d = doc.data() || {};
       const unitSku = (d.id_offer || '').trim();
       const unitEan = (d.ean || '').trim();
+
+      // Exclude STALE tombstones — units no longer returned by Kaufland's
+      // /units API. Keeping them inflated the total (cache 865 vs real 397 on
+      // Kaufland) and lumped 468 dead rows into a misleading "Inaktiv" count.
+      // The current marketplace reality is exactly the non-STALE rows.
+      // (Verified 2026-05-24: cache had 394 AVAILABLE + 3 ONHOLD + 468 STALE.)
+      if (String(d.status || '').trim().toUpperCase() === 'STALE') return;
 
       // Try matching: exact SKU → stripped SKU → EAN
       let matched = null;
