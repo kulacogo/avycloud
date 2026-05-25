@@ -1,0 +1,564 @@
+- generic [ref=e4]:
+  - banner [ref=e5]:
+    - navigation [ref=e6]:
+      - link "Zum Hauptinhalt springen" [ref=e7]:
+        - generic [ref=e8]: Zum Hauptinhalt springen
+    - generic [ref=e9]:
+      - link "Kaufland Online-Marktplatz" [ref=e10] [cursor=pointer]:
+        - /url: /
+        - img "Kaufland" [ref=e13]
+        - generic [ref=e17]: Online-Marktplatz
+      - generic [ref=e18]:
+        - link "Online-Marktplatz" [ref=e19] [cursor=pointer]:
+          - /url: https://www.kaufland.de
+          - generic [ref=e20]: Online-Marktplatz
+        - link "Filial-Angebote" [ref=e21]:
+          - generic [ref=e22]: Filial-Angebote
+      - generic [ref=e23]:
+        - link "Kaufland Card" [ref=e27] [cursor=pointer]:
+          - img [ref=e29]
+          - generic [ref=e31]: Kaufland Card
+        - link "Wunschliste" [ref=e34] [cursor=pointer]:
+          - img [ref=e36]
+          - generic [ref=e38]: Wunschliste
+        - link "Anmelden" [ref=e42] [cursor=pointer]:
+          - img [ref=e44]
+          - generic [ref=e47]: Anmelden
+        - link "Zum Warenkorb" [ref=e50] [cursor=pointer]:
+          - generic [ref=e51]: Zum Warenkorb
+          - generic [ref=e52]:
+            - img [ref=e55]
+            - generic [ref=e57]: Warenkorb
+      - button "Alle Kategorien" [ref=e58]:
+        - generic [ref=e61] [cursor=pointer]: Alle Kategorien
+      - search [ref=e63]:
+        - generic [ref=e64]:
+          - generic [ref=e65]:
+            - textbox "Suchfeld" [ref=e66]:
+              - /placeholder: Durchsuchen
+            - generic: Suchfeld
+          - button "Jetzt suchen" [ref=e67] [cursor=pointer]:
+            - img [ref=e69]
+            - generic [ref=e71]: Jetzt suchen
+  - generic [ref=e72]:
+    - generic [ref=e73]:
+      - heading "Entschuldigung! Hier geht's gerade nicht weiter." [level=1] [ref=e74]
+      - paragraph [ref=e75]: Diese Seite gibt es nicht.
+      - paragraph [ref=e76]: Aber du findest bei uns viele weitere spannende Produkte. Viel Spaß beim Stöbern und Shoppen!
+      - link "Zur Startseite gehen" [ref=e77] [cursor=pointer]:
+        - /url: /
+        - generic [ref=e78]: Zur Startseite gehen
+    - generic [ref=e79]:
+      - generic [ref=e80]: Ähnliche Produkte
+      - generic [ref=e81]:
+        - button "Letztes Produkt anzeigen" [disabled] [ref=e82]:
+          - generic [ref=e83]: Letztes Produkt anzeigen
+          - img [ref=e85]
+        - generic [ref=e87]:
+          - 'link "Produkt zur Wunschliste hinzufügen Produktbild von Smuk Barhocker Alice Grau Smuk Barhocker Alice Grau 99,00 € Verkäufer: Zesso" [ref=e88]':
+            - button "Produkt zur Wunschliste hinzufügen" [ref=e90] [cursor=pointer]:
+              - generic [ref=e91]: Produkt zur Wunschliste hinzufügen
+              - img
+            - img "Produktbild von Smuk Barhocker Alice Grau" [ref=e93]
+            - generic "Smuk Barhocker Alice Grau" [ref=e95]
+            - generic [ref=e101]: 99,00 €
+            - generic [ref=e106]: "Verkäufer: Zesso"
+          - 'link "Produkt zur Wunschliste hinzufügen Produktbild von Lausanne Barhocker 2er-Set Lausanne Barhocker 2er-Set UVP128,00 € 83,72 € Kostenloser Versand Verkäufer: AMBIENDO" [ref=e107]':
+            - button "Produkt zur Wunschliste hinzufügen" [ref=e109] [cursor=pointer]:
+              - generic [ref=e110]: Produkt zur Wunschliste hinzufügen
+              - img
+            - img "Produktbild von Lausanne Barhocker 2er-Set" [ref=e112]
+            - generic "Lausanne Barhocker 2er-Set" [ref=e114]
+            - generic [ref=e119]:
+              - generic [ref=e122]: UVP128,00 €
+              - generic [ref=e123]: 83,72 €
+            - generic [ref=e124]:
+              - generic [ref=e125]: Kostenloser Versand
+              - generic [ref=e129]: "Verkäufer: AMBIENDO"
+          - 'link "Produkt zur Wunschliste hinzufügen A single gray bar stool with a chrome base and adjustable height. Barhocker Jax HTI-Line 45,99 € Verkäufer: HTI-Living" [ref=e130]':
+            - button "Produkt zur Wunschliste hinzufügen" [ref=e132] [cursor=pointer]:
+              - generic [ref=e133]: Produkt zur Wunschliste hinzufügen
+              - img
+            - img "A single gray bar stool with a chrome base and adjustable height." [ref=e135]
+            - generic "Barhocker Jax HTI-Line" [ref=e137]
+            - generic [ref=e143]: 45,99 €
+            - generic [ref=e148]: "Verkäufer: HTI-Living"
+          - 'link "Produkt zur Wunschliste hinzufügen A globe bar with bottles and glasses inside. Globusbar Zoffoli Durchschnittsbewertung: 5,0 von 5 Anzahl Bewertungen: 1 UVP549,00 € 320,43 € Kostenloser Versand Verkäufer: Kaufland" [ref=e149] [cursor=pointer]':
+            - /url: /product/431075963/
+            - button "Produkt zur Wunschliste hinzufügen" [ref=e151]:
+              - generic [ref=e152]: Produkt zur Wunschliste hinzufügen
+              - img
+            - img "A globe bar with bottles and glasses inside." [ref=e154]
+            - generic "Globusbar Zoffoli" [ref=e156]
+            - generic [ref=e157]:
+              - generic [ref=e160]:
+                - generic [ref=e161]: "Durchschnittsbewertung: 5,0 von 5"
+                - generic [ref=e162]: "1"
+                - generic [ref=e163]: "Anzahl Bewertungen: 1"
+              - generic [ref=e165]:
+                - generic [ref=e168]: UVP549,00 €
+                - generic [ref=e169]: 320,43 €
+            - generic [ref=e170]:
+              - generic [ref=e171]: Kostenloser Versand
+              - generic [ref=e175]: "Verkäufer: Kaufland"
+          - 'link "Produkt zur Wunschliste hinzufügen Produktbild von House Collection Barhocker Ruben Schwarz House Collection Barhocker Ruben Schwarz 149,00 € Verkäufer: Zesso" [ref=e176]':
+            - button "Produkt zur Wunschliste hinzufügen" [ref=e178] [cursor=pointer]:
+              - generic [ref=e179]: Produkt zur Wunschliste hinzufügen
+              - img
+            - img "Produktbild von House Collection Barhocker Ruben Schwarz" [ref=e181]
+            - generic "House Collection Barhocker Ruben Schwarz" [ref=e183]
+            - generic [ref=e189]: 149,00 €
+            - generic [ref=e194]: "Verkäufer: Zesso"
+          - 'link "Produkt zur Wunschliste hinzufügen Produktbild von Lula Barhocker Alma Hellgrau Lula Barhocker Alma Hellgrau 59,00 € Verkäufer: Zesso" [ref=e195]':
+            - button "Produkt zur Wunschliste hinzufügen" [ref=e197] [cursor=pointer]:
+              - generic [ref=e198]: Produkt zur Wunschliste hinzufügen
+              - img
+            - img "Produktbild von Lula Barhocker Alma Hellgrau" [ref=e200]
+            - generic "Lula Barhocker Alma Hellgrau" [ref=e202]
+            - generic [ref=e208]: 59,00 €
+            - generic [ref=e213]: "Verkäufer: Zesso"
+          - 'link "Produkt zur Wunschliste hinzufügen Produktbild von Zatalo Barhocker Viktor Schwarz Zatalo Barhocker Viktor Schwarz 139,00 € Verkäufer: Zesso" [ref=e214]':
+            - button "Produkt zur Wunschliste hinzufügen" [ref=e216] [cursor=pointer]:
+              - generic [ref=e217]: Produkt zur Wunschliste hinzufügen
+              - img
+            - img "Produktbild von Zatalo Barhocker Viktor Schwarz" [ref=e219]
+            - generic "Zatalo Barhocker Viktor Schwarz" [ref=e221]
+            - generic [ref=e227]: 139,00 €
+            - generic [ref=e232]: "Verkäufer: Zesso"
+          - 'link "Produkt zur Wunschliste hinzufügen Produktbild von Schwarz-weißer Barhocker JASPER Schwarz-weißer Barhocker JASPER 74,90 € Kostenloser Versand Verkäufer: Happy_Garden" [ref=e233]':
+            - button "Produkt zur Wunschliste hinzufügen" [ref=e235] [cursor=pointer]:
+              - generic [ref=e236]: Produkt zur Wunschliste hinzufügen
+              - img
+            - img "Produktbild von Schwarz-weißer Barhocker JASPER" [ref=e238]
+            - generic "Schwarz-weißer Barhocker JASPER" [ref=e240]
+            - generic [ref=e246]: 74,90 €
+            - generic [ref=e247]:
+              - generic [ref=e248]: Kostenloser Versand
+              - generic [ref=e252]: "Verkäufer: Happy_Garden"
+          - 'link "Produkt zur Wunschliste hinzufügen Produktbild von Loka-Hochtisch Loka-Hochtisch 93,99 € Kostenloser Versand Verkäufer: The Concept Factory" [ref=e253]':
+            - button "Produkt zur Wunschliste hinzufügen" [ref=e255] [cursor=pointer]:
+              - generic [ref=e256]: Produkt zur Wunschliste hinzufügen
+              - img
+            - img "Produktbild von Loka-Hochtisch" [ref=e258]
+            - generic "Loka-Hochtisch" [ref=e260]
+            - generic [ref=e266]: 93,99 €
+            - generic [ref=e267]:
+              - generic [ref=e268]: Kostenloser Versand
+              - generic [ref=e272]: "Verkäufer: The Concept Factory"
+          - 'link "Produkt zur Wunschliste hinzufügen Produktbild von Home24 Home24 114,99 € Verkäufer: home24" [ref=e273]':
+            - button "Produkt zur Wunschliste hinzufügen" [ref=e275] [cursor=pointer]:
+              - generic [ref=e276]: Produkt zur Wunschliste hinzufügen
+              - img
+            - img "Produktbild von Home24" [ref=e278]
+            - generic "Home24" [ref=e280]
+            - generic [ref=e286]: 114,99 €
+            - generic [ref=e291]: "Verkäufer: home24"
+          - 'link "Produkt zur Wunschliste hinzufügen A green bar stool with black legs against a white background. Milton & Oldbrook Cordstoff Barhocker Rome Grün 69,00 € Verkäufer: Zesso" [ref=e292] [cursor=pointer]':
+            - /url: /product/462019892/
+            - button "Produkt zur Wunschliste hinzufügen" [ref=e294]:
+              - generic [ref=e295]: Produkt zur Wunschliste hinzufügen
+              - img
+            - img "A green bar stool with black legs against a white background." [ref=e297]
+            - generic "Milton & Oldbrook Cordstoff Barhocker Rome Grün" [ref=e299]
+            - generic [ref=e305]: 69,00 €
+            - generic [ref=e310]: "Verkäufer: Zesso"
+          - 'link "Produkt zur Wunschliste hinzufügen Produktbild von Milton & Oldbrook Barhocker Arouca Schwarz Milton & Oldbrook Barhocker Arouca Schwarz 99,00 € Verkäufer: Zesso" [ref=e311]':
+            - button "Produkt zur Wunschliste hinzufügen" [ref=e313] [cursor=pointer]:
+              - generic [ref=e314]: Produkt zur Wunschliste hinzufügen
+              - img
+            - img "Produktbild von Milton & Oldbrook Barhocker Arouca Schwarz" [ref=e316]
+            - generic "Milton & Oldbrook Barhocker Arouca Schwarz" [ref=e318]
+            - generic [ref=e324]: 99,00 €
+            - generic [ref=e329]: "Verkäufer: Zesso"
+          - 'link "Produkt zur Wunschliste hinzufügen Produktbild von Milton & Oldbrook Barhocker Luzia Braun Milton & Oldbrook Barhocker Luzia Braun 69,00 € Verkäufer: Zesso" [ref=e330]':
+            - button "Produkt zur Wunschliste hinzufügen" [ref=e332] [cursor=pointer]:
+              - generic [ref=e333]: Produkt zur Wunschliste hinzufügen
+              - img
+            - img "Produktbild von Milton & Oldbrook Barhocker Luzia Braun" [ref=e335]
+            - generic "Milton & Oldbrook Barhocker Luzia Braun" [ref=e337]
+            - generic [ref=e343]: 69,00 €
+            - generic [ref=e348]: "Verkäufer: Zesso"
+          - 'link "Produkt zur Wunschliste hinzufügen Produktbild von Barhocker mit gepolsterter Sitzfläche \"Isak\" Barhocker mit gepolsterter Sitzfläche \"Isak\" 109,99 € Kostenloser Versand Verkäufer: The Concept Factory" [ref=e349]':
+            - button "Produkt zur Wunschliste hinzufügen" [ref=e351] [cursor=pointer]:
+              - generic [ref=e352]: Produkt zur Wunschliste hinzufügen
+              - img
+            - img "Produktbild von Barhocker mit gepolsterter Sitzfläche \"Isak\"" [ref=e354]
+            - generic "Barhocker mit gepolsterter Sitzfläche \"Isak\"" [ref=e356]
+            - generic [ref=e362]: 109,99 €
+            - generic [ref=e363]:
+              - generic [ref=e364]: Kostenloser Versand
+              - generic [ref=e368]: "Verkäufer: The Concept Factory"
+          - 'link "Produkt zur Wunschliste hinzufügen Produktbild von Halmar Barhocker H-103 - Grauschwarz Halmar Barhocker H-103 - Grauschwarz 95,11 € Verkäufer: Eoshop" [ref=e369]':
+            - button "Produkt zur Wunschliste hinzufügen" [ref=e371] [cursor=pointer]:
+              - generic [ref=e372]: Produkt zur Wunschliste hinzufügen
+              - img
+            - img "Produktbild von Halmar Barhocker H-103 - Grauschwarz" [ref=e374]
+            - generic "Halmar Barhocker H-103 - Grauschwarz" [ref=e376]
+            - generic [ref=e382]: 95,11 €
+            - generic [ref=e387]: "Verkäufer: Eoshop"
+        - button "Nächstes Produkt anzeigen" [ref=e388] [cursor=pointer]:
+          - generic [ref=e389]: Nächstes Produkt anzeigen
+          - img [ref=e391]
+    - generic [ref=e393]:
+      - generic [ref=e394]: Online-Themen
+      - generic [ref=e395]:
+        - generic [ref=e396]:
+          - link "Online-Deals" [ref=e397] [cursor=pointer]:
+            - /url: /deals/
+            - figure "Online-Deals" [ref=e398]:
+              - generic [ref=e401]: Sale %
+              - generic [ref=e402]: Online-Deals
+          - link "Wohnen" [ref=e403] [cursor=pointer]:
+            - /url: /c/wohnen/~1931/
+            - figure "Wohnen" [ref=e404]:
+              - img "Wohnen Kategoriebild" [ref=e408]
+              - generic [ref=e409]: Wohnen
+          - link "Elektronik" [ref=e410] [cursor=pointer]:
+            - /url: /c/elektronik-und-computer/~34331/
+            - figure "Elektronik" [ref=e411]:
+              - img "Elektronik Kategoriebild" [ref=e415]
+              - generic [ref=e416]: Elektronik
+          - link "Garten" [ref=e417] [cursor=pointer]:
+            - /url: /c/garten/~23711/
+            - figure "Garten" [ref=e418]:
+              - img "Garten Kategoriebild" [ref=e422]
+              - generic [ref=e423]: Garten
+          - link "Baumarkt" [ref=e424] [cursor=pointer]:
+            - /url: /c/baumarkt/~23721/
+            - figure "Baumarkt" [ref=e425]:
+              - img "Baumarkt Kategoriebild" [ref=e429]
+              - generic [ref=e430]: Baumarkt
+          - link "Haushalt" [ref=e431] [cursor=pointer]:
+            - /url: /c/kueche-und-haushalt/~9541/
+            - figure "Haushalt" [ref=e432]:
+              - img "Haushalt Kategoriebild" [ref=e436]
+              - generic [ref=e437]: Haushalt
+          - link "Baby & Kind" [ref=e438] [cursor=pointer]:
+            - /url: /c/baby-kind/~8321/
+            - figure "Baby & Kind" [ref=e439]:
+              - img "Baby & Kind Kategoriebild" [ref=e443]
+              - generic [ref=e444]: Baby & Kind
+          - link "Sport" [ref=e445] [cursor=pointer]:
+            - /url: /c/sport-outdoor/~69055/
+            - figure "Sport" [ref=e446]:
+              - img "Sport Kategoriebild" [ref=e450]
+              - generic [ref=e451]: Sport
+          - link "Drogerie" [ref=e452] [cursor=pointer]:
+            - /url: /c/koerperpflege-und-gesundheit/~11/
+            - figure "Drogerie" [ref=e453]:
+              - img "Drogerie Kategoriebild" [ref=e457]
+              - generic [ref=e458]: Drogerie
+          - link "Mode" [ref=e459] [cursor=pointer]:
+            - /url: /c/mode-accessoires/~1711/
+            - figure "Mode" [ref=e460]:
+              - img "Mode Kategoriebild" [ref=e464]
+              - generic [ref=e465]: Mode
+          - link "KFZ" [ref=e466] [cursor=pointer]:
+            - /url: /c/auto-und-motorrad/~16341/
+            - figure "KFZ" [ref=e467]:
+              - img "KFZ Kategoriebild" [ref=e471]
+              - generic [ref=e472]: KFZ
+          - link "Lebensmittel" [ref=e473] [cursor=pointer]:
+            - /url: /c/lebensmittel/~1311/
+            - figure "Lebensmittel" [ref=e474]:
+              - img "Lebensmittel Kategoriebild" [ref=e478]
+              - generic [ref=e479]: Lebensmittel
+        - button "Zurück" [disabled] [ref=e480]:
+          - img [ref=e482]
+        - button "Weiter" [ref=e484] [cursor=pointer]:
+          - img [ref=e486]
+  - contentinfo [ref=e488]:
+    - generic [ref=e491]:
+      - generic [ref=e492]:
+        - generic [ref=e493]: Sparen und stöbern – mit dem Kaufland-Marktplatz-Newsletter
+        - generic [ref=e494]: Jede Woche Angebote von über 13.000 Verkäufern entdecken
+        - generic [ref=e495]:
+          - generic [ref=e496]:
+            - img [ref=e499]
+            - text: Regelmäßig neueste Angebote erhalten
+          - generic [ref=e501]:
+            - img [ref=e504]
+            - text: Nie wieder besondere Aktionen verpassen
+          - generic [ref=e506]:
+            - img [ref=e509]
+            - text: Von exklusiven Rabatten profitieren
+          - generic [ref=e511]:
+            - img [ref=e514]
+            - text: Neuheiten und Top-Marken zuerst entdecken
+      - generic [ref=e516]:
+        - generic [ref=e518]:
+          - textbox "Deine E-Mail-Adresse" [ref=e519]
+          - generic: Deine E-Mail-Adresse
+        - generic [ref=e520]:
+          - generic [ref=e521] [cursor=pointer]:
+            - checkbox "Ja, ich möchte den oben gewählten Newsletter per E-Mail erhalten und willige daher in die Erhebung und Verarbeitung der Pflichtdaten gemäß dem Kapitel Standardnewsletter der Datenschutzgrundsätze ein. Die Einwilligung kann ich jederzeit widerrufen. Bis zum Widerruf ist die Datenverarbeitung aufgrund dieser Einwilligung rechtmäßig." [ref=e522]
+            - generic [ref=e526]:
+              - text: Ja, ich möchte den oben gewählten Newsletter per E-Mail erhalten und willige daher in die Erhebung und Verarbeitung der Pflichtdaten gemäß dem Kapitel
+              - link "Standardnewsletter der Datenschutzgrundsätze" [ref=e527]
+              - text: ein. Die Einwilligung kann ich jederzeit widerrufen. Bis zum Widerruf ist die Datenverarbeitung aufgrund dieser Einwilligung rechtmäßig.
+          - generic [ref=e528] [cursor=pointer]:
+            - checkbox "Ja, ich willige zudem ergänzend zur Bestellung des Newsletters in die Verknüpfung des Newsletters mit meinem Kaufland Kundenkonto entsprechend dem Kapitel Einwilligung in die Personalisierung des Newsletters ein. Dadurch werden die Inhalte des Newsletters an meine Interessen entsprechend meinen Transaktionsdaten (bspw. Kaufhistorie) sowie bei Cookie-Einwilligung an mein Klick- und Surfverhalten auf den Kaufland Webseiten und der App und an mein Leseverhalten im Newsletter angepasst." [ref=e529]
+            - generic [ref=e533]:
+              - text: Ja, ich willige zudem ergänzend zur Bestellung des Newsletters in die Verknüpfung des Newsletters mit meinem Kaufland Kundenkonto entsprechend dem Kapitel
+              - link "Einwilligung in die Personalisierung des Newsletters" [ref=e534]
+              - text: ein. Dadurch werden die Inhalte des Newsletters an meine Interessen entsprechend meinen Transaktionsdaten (bspw. Kaufhistorie) sowie bei Cookie-Einwilligung an mein Klick- und Surfverhalten auf den Kaufland Webseiten und der App und an mein Leseverhalten im Newsletter angepasst.
+        - button "Zum Newsletter anmelden" [ref=e535] [cursor=pointer]:
+          - generic [ref=e536]: Zum Newsletter anmelden
+    - generic [ref=e538]:
+      - generic [ref=e539]:
+        - link "undefined Logo" [ref=e540] [cursor=pointer]:
+          - img "undefined Logo" [ref=e542]
+        - link "undefined Logo" [ref=e543] [cursor=pointer]:
+          - img "undefined Logo" [ref=e545]
+        - link "undefined Logo" [ref=e546] [cursor=pointer]:
+          - img "undefined Logo" [ref=e548]
+        - link "undefined Logo" [ref=e549] [cursor=pointer]:
+          - img "undefined Logo" [ref=e551]
+        - link "undefined Logo" [ref=e552] [cursor=pointer]:
+          - img "undefined Logo" [ref=e554]
+        - link "undefined Logo" [ref=e555] [cursor=pointer]:
+          - img "undefined Logo" [ref=e557]
+        - link "undefined Logo" [ref=e558] [cursor=pointer]:
+          - img "undefined Logo" [ref=e560]
+        - link "undefined Logo" [ref=e561] [cursor=pointer]:
+          - img "undefined Logo" [ref=e563]
+        - link "undefined Logo" [ref=e564] [cursor=pointer]:
+          - img "undefined Logo" [ref=e566]
+      - generic [ref=e569]:
+        - link "Facebook" [ref=e570] [cursor=pointer]:
+          - generic [ref=e571]: Facebook
+          - img [ref=e573]
+        - link "Instagram" [ref=e576] [cursor=pointer]:
+          - generic [ref=e577]: Instagram
+          - img [ref=e579]
+        - link "TikTok" [ref=e582] [cursor=pointer]:
+          - generic [ref=e583]: TikTok
+          - img [ref=e585]
+        - link "Pinterest" [ref=e587] [cursor=pointer]:
+          - generic [ref=e588]: Pinterest
+          - img [ref=e590]
+        - link "YouTube" [ref=e592] [cursor=pointer]:
+          - generic [ref=e593]: YouTube
+          - img [ref=e595]
+        - link "Whatsapp" [ref=e597] [cursor=pointer]:
+          - generic [ref=e598]: Whatsapp
+          - img [ref=e600]
+    - generic [ref=e603]:
+      - generic [ref=e605]:
+        - generic [ref=e607]: Unsere Kategorien
+        - region "Unsere Kategorien" [ref=e608]:
+          - list [ref=e609]:
+            - listitem [ref=e610]:
+              - link "Urlaubs Deals" [ref=e611] [cursor=pointer]:
+                - /url: /deals/urlaubsequipment/~58/
+                - img [ref=e613]
+                - text: Urlaubs Deals
+            - listitem [ref=e615]:
+              - link "Elektronik" [ref=e616] [cursor=pointer]:
+                - /url: https://www.kaufland.de/c/elektronik-und-computer/~34331/
+                - img [ref=e618]
+                - text: Elektronik
+            - listitem [ref=e620]:
+              - link "Garten & Baumarkt" [ref=e621] [cursor=pointer]:
+                - /url: https://www.kaufland.de/c/garten-heimwerken/~23671/
+                - img [ref=e623]
+                - text: Garten & Baumarkt
+            - listitem [ref=e625]:
+              - link "Küche & Haushalt" [ref=e626] [cursor=pointer]:
+                - /url: https://www.kaufland.de/c/kueche-und-haushalt/~9541/
+                - img [ref=e628]
+                - text: Küche & Haushalt
+            - listitem [ref=e630]:
+              - link "Baby & Kind" [ref=e631] [cursor=pointer]:
+                - /url: https://www.kaufland.de/c/baby-kind/~8321/
+                - img [ref=e633]
+                - text: Baby & Kind
+            - listitem [ref=e635]:
+              - link "Wohnen" [ref=e636] [cursor=pointer]:
+                - /url: https://www.kaufland.de/c/wohnen/~1931/
+                - img [ref=e638]
+                - text: Wohnen
+            - listitem [ref=e640]:
+              - link "Mode" [ref=e641] [cursor=pointer]:
+                - /url: https://www.kaufland.de/c/mode-accessoires/~1711/
+                - img [ref=e643]
+                - text: Mode
+            - listitem [ref=e645]:
+              - link "Drogerie" [ref=e646] [cursor=pointer]:
+                - /url: https://www.kaufland.de/c/koerperpflege-und-gesundheit/~11/
+                - img [ref=e648]
+                - text: Drogerie
+            - listitem [ref=e650]:
+              - link "Sport" [ref=e651] [cursor=pointer]:
+                - /url: https://www.kaufland.de/c/sport-outdoor/~69055/
+                - img [ref=e653]
+                - text: Sport
+            - listitem [ref=e655]:
+              - link "KFZ" [ref=e656] [cursor=pointer]:
+                - /url: https://www.kaufland.de/c/auto-und-motorrad/~16341/
+                - img [ref=e658]
+                - text: KFZ
+            - listitem [ref=e660]:
+              - link "Essen & Trinken" [ref=e661] [cursor=pointer]:
+                - /url: https://www.kaufland.de/c/lebensmittel/~1311/
+                - img [ref=e663]
+                - text: Essen & Trinken
+            - listitem [ref=e665]:
+              - link "Marken-Übersicht" [ref=e666] [cursor=pointer]:
+                - /url: https://www.kaufland.de/i/marken/~5o5ZW5QNrcggfP9Y98mhxi/
+                - img [ref=e668]
+                - text: Marken-Übersicht
+      - generic [ref=e670]:
+        - generic [ref=e671]:
+          - generic [ref=e673]: Unsere Ratgeber
+          - region "Unsere Ratgeber" [ref=e674]:
+            - list [ref=e675]:
+              - listitem [ref=e676]:
+                - link "Übersicht" [ref=e677] [cursor=pointer]:
+                  - /url: https://www.kaufland.de/i/ratgeber/~780qYW1cICOZOeVyvu5kZQ/
+                  - img [ref=e679]
+                  - text: Übersicht
+              - listitem [ref=e681]:
+                - link "A - F" [ref=e682] [cursor=pointer]:
+                  - /url: https://www.kaufland.de/i/ratgeber/a-f/~1scgAcBpC4b9LY4PxcIaRe/
+                  - img [ref=e684]
+                  - text: A - F
+              - listitem [ref=e686]:
+                - link "G - L" [ref=e687] [cursor=pointer]:
+                  - /url: https://www.kaufland.de/i/ratgeber/g-l/~7x2vxTXp5RE2MX4Gu1wBjI/
+                  - img [ref=e689]
+                  - text: G - L
+              - listitem [ref=e691]:
+                - link "M - R" [ref=e692] [cursor=pointer]:
+                  - /url: https://www.kaufland.de/i/ratgeber/m-r/~4cj2fsCRkkAkuLU8YiDBcB/
+                  - img [ref=e694]
+                  - text: M - R
+              - listitem [ref=e696]:
+                - link "S - Z" [ref=e697] [cursor=pointer]:
+                  - /url: https://www.kaufland.de/i/ratgeber/s-z/~2KgdAD1BCvl3f0psKMW5bM/
+                  - img [ref=e699]
+                  - text: S - Z
+        - generic [ref=e701]:
+          - generic [ref=e703]: Hilfe & Kontakt
+          - region "Hilfe & Kontakt" [ref=e704]:
+            - list [ref=e705]:
+              - listitem [ref=e706]:
+                - link "Alle Hilfethemen" [ref=e707] [cursor=pointer]:
+                  - img [ref=e709]
+                  - text: Alle Hilfethemen
+              - listitem [ref=e711]:
+                - link "Fragen zur Bestellung" [ref=e712] [cursor=pointer]:
+                  - img [ref=e714]
+                  - text: Fragen zur Bestellung
+              - listitem [ref=e716]:
+                - link "Widerruf & Rücksendung" [ref=e717] [cursor=pointer]:
+                  - img [ref=e719]
+                  - text: Widerruf & Rücksendung
+              - listitem [ref=e721]:
+                - link "Schaden & Reklamation" [ref=e722] [cursor=pointer]:
+                  - img [ref=e724]
+                  - text: Schaden & Reklamation
+              - listitem [ref=e726]:
+                - link "Versand & Lieferung" [ref=e727] [cursor=pointer]:
+                  - img [ref=e729]
+                  - text: Versand & Lieferung
+              - listitem [ref=e731]:
+                - link "Rechtsverletzung melden" [ref=e732] [cursor=pointer]:
+                  - img [ref=e734]
+                  - text: Rechtsverletzung melden
+      - generic [ref=e737]:
+        - generic [ref=e739]: Filial-Angebote
+        - region "Filial-Angebote" [ref=e740]:
+          - list [ref=e741]:
+            - listitem [ref=e742]:
+              - link "Angebote" [ref=e743] [cursor=pointer]:
+                - img [ref=e745]
+                - text: Angebote
+            - listitem [ref=e747]:
+              - link "Prospekte" [ref=e748] [cursor=pointer]:
+                - img [ref=e750]
+                - text: Prospekte
+            - listitem [ref=e752]:
+              - link "Kaufland Card" [ref=e753] [cursor=pointer]:
+                - img [ref=e755]
+                - text: Kaufland Card
+            - listitem [ref=e757]:
+              - link "Sortiment" [ref=e758] [cursor=pointer]:
+                - img [ref=e760]
+                - text: Sortiment
+            - listitem [ref=e762]:
+              - link "Rezepte" [ref=e763] [cursor=pointer]:
+                - img [ref=e765]
+                - text: Rezepte
+            - listitem [ref=e767]:
+              - link "Treueaktion" [ref=e768] [cursor=pointer]:
+                - img [ref=e770]
+                - text: Treueaktion
+            - listitem [ref=e772]:
+              - link "Gewinnspiele" [ref=e773] [cursor=pointer]:
+                - img [ref=e775]
+                - text: Gewinnspiele
+            - listitem [ref=e777]:
+              - link "Ernährung" [ref=e778] [cursor=pointer]:
+                - img [ref=e780]
+                - text: Ernährung
+            - listitem [ref=e782]:
+              - link "FamilienMomente" [ref=e783] [cursor=pointer]:
+                - img [ref=e785]
+                - text: FamilienMomente
+            - listitem [ref=e787]:
+              - link "WhatsApp-Service" [ref=e788] [cursor=pointer]:
+                - img [ref=e790]
+                - text: WhatsApp-Service
+      - generic [ref=e792]:
+        - generic [ref=e793]:
+          - generic [ref=e795]: Jobs & Karriere
+          - region "Jobs & Karriere" [ref=e796]:
+            - list [ref=e797]:
+              - listitem [ref=e798]:
+                - link "Karriere Kaufland" [ref=e799] [cursor=pointer]:
+                  - img [ref=e801]
+                  - text: Karriere Kaufland
+              - listitem [ref=e803]:
+                - link "Karriere Kaufland e-commerce" [ref=e804] [cursor=pointer]:
+                  - img [ref=e806]
+                  - text: Karriere Kaufland e-commerce
+        - generic [ref=e808]:
+          - generic [ref=e810]: Unser Unternehmen
+          - region "Unser Unternehmen" [ref=e811]:
+            - list [ref=e812]:
+              - listitem [ref=e813]:
+                - link "Reporte & Statistiken" [ref=e814] [cursor=pointer]:
+                  - img [ref=e816]
+                  - text: Reporte & Statistiken
+              - listitem [ref=e818]:
+                - link "Über uns" [ref=e819] [cursor=pointer]:
+                  - img [ref=e821]
+                  - text: Über uns
+        - generic [ref=e823]:
+          - generic [ref=e825]: Für Händler & Partner
+          - region "Für Händler & Partner" [ref=e826]:
+            - list [ref=e827]:
+              - listitem [ref=e828]:
+                - link "Händler-Infobereich" [ref=e829] [cursor=pointer]:
+                  - img [ref=e831]
+                  - text: Händler-Infobereich
+        - generic [ref=e833]:
+          - generic [ref=e834]: Unser Partner
+          - link "idealo" [ref=e836] [cursor=pointer]:
+            - /url: https://www.idealo.de/preisvergleich/Shop/26895.html
+            - img "idealo" [ref=e837]
+    - generic [ref=e839]:
+      - img "Kaufland" [ref=e841]
+      - generic [ref=e845]:
+        - link "Impressum" [ref=e846] [cursor=pointer]
+        - link "Compliance" [ref=e847] [cursor=pointer]
+        - link "Datenschutz" [ref=e848] [cursor=pointer]
+        - link "AGB" [ref=e849] [cursor=pointer]
+        - link "Entsorgungs- und Umweltbestimmungen" [ref=e850] [cursor=pointer]
+        - link "Barrierefreiheit" [ref=e851] [cursor=pointer]
+      - generic [ref=e853]:
+        - link [ref=e854] [cursor=pointer]:
+          - img [ref=e855]
+        - link [ref=e856] [cursor=pointer]:
+          - img [ref=e857]

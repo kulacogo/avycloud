@@ -1,0 +1,422 @@
+- generic [active] [ref=e1]:
+  - banner [ref=e3]:
+    - navigation [ref=e4]:
+      - link "Zum Hauptinhalt springen" [ref=e5]:
+        - generic [ref=e6]: Zum Hauptinhalt springen
+    - generic [ref=e7]:
+      - link "Kaufland Online-Marktplatz" [ref=e8] [cursor=pointer]:
+        - /url: /
+        - img "Kaufland" [ref=e11]
+        - generic [ref=e15]: Online-Marktplatz
+      - generic [ref=e16]:
+        - link "Online-Marktplatz" [ref=e17] [cursor=pointer]:
+          - /url: https://www.kaufland.de/
+          - generic [ref=e18]: Online-Marktplatz
+        - link "Filial-Angebote" [ref=e19]:
+          - generic [ref=e20]: Filial-Angebote
+      - generic [ref=e21]:
+        - link "Kaufland Card" [ref=e25] [cursor=pointer]:
+          - img [ref=e27]
+          - generic [ref=e29]: Kaufland Card
+        - link "Wunschliste" [ref=e32] [cursor=pointer]:
+          - img [ref=e34]
+          - generic [ref=e36]: Wunschliste
+        - link [ref=e40] [cursor=pointer]:
+          - img [ref=e42]
+      - link "Zum Warenkorb" [ref=e47] [cursor=pointer]:
+        - generic [ref=e48]: Zum Warenkorb
+        - generic [ref=e49]:
+          - img [ref=e52]
+          - generic [ref=e54]: Warenkorb
+      - button "Alle Kategorien" [ref=e55]:
+        - generic [ref=e58] [cursor=pointer]: Alle Kategorien
+      - search [ref=e60]:
+        - generic [ref=e61]:
+          - generic [ref=e62]:
+            - textbox "Suchfeld" [ref=e63]:
+              - /placeholder: Durchsuchen
+            - generic: Suchfeld
+          - button "Jetzt suchen" [ref=e64] [cursor=pointer]:
+            - img [ref=e66]
+            - generic [ref=e68]: Jetzt suchen
+  - main "House Nordic Vita Servierwagen schwarz, Barwagen mit Rollen inkl. Bremsen" [ref=e70]:
+    - navigation [ref=e71]:
+      - link "Zu den Produktbildern springen" [ref=e72]:
+        - generic [ref=e73]: Zu den Produktbildern springen
+      - link "Zu den Bestell-Details und der Kauf-Option springen" [ref=e74]:
+        - generic [ref=e75]: Zu den Bestell-Details und der Kauf-Option springen
+      - link "Zur Produktbeschreibung springen" [ref=e76]:
+        - generic [ref=e77]: Zur Produktbeschreibung springen
+      - link "Zu den Kundenbewertungen springen" [ref=e78]:
+        - generic [ref=e79]: Zu den Kundenbewertungen springen
+    - generic [ref=e80]:
+      - navigation "Du bist hier" [ref=e82]:
+        - list [ref=e83]:
+          - listitem [ref=e84]:
+            - link "Startseite" [ref=e85] [cursor=pointer]:
+              - /url: /
+              - generic [ref=e86]: Startseite
+            - img [ref=e88]
+          - listitem [ref=e90]:
+            - link "Wohnen & Einrichten" [ref=e91] [cursor=pointer]:
+              - /url: https://www.kaufland.de/c/wohnen/~1931/
+              - generic [ref=e92]: Wohnen & Einrichten
+            - img [ref=e94]
+          - listitem [ref=e96]:
+            - link "Möbel" [ref=e97] [cursor=pointer]:
+              - /url: https://www.kaufland.de/c/moebel/~1961/
+              - generic [ref=e98]: Möbel
+            - img [ref=e100]
+          - listitem [ref=e102]:
+            - link "Stühle" [ref=e103] [cursor=pointer]:
+              - /url: https://www.kaufland.de/c/stuehle/~2341/
+              - generic [ref=e104]: Stühle
+            - img [ref=e106]
+          - listitem [ref=e108]:
+            - link "Hocker" [ref=e109] [cursor=pointer]:
+              - /url: https://www.kaufland.de/c/hocker/~4321/
+              - generic [ref=e110]: Hocker
+            - img [ref=e112]
+          - listitem [ref=e114]:
+            - link "Barhocker" [ref=e115] [cursor=pointer]:
+              - /url: https://www.kaufland.de/c/barhocker/~6431/
+              - generic [ref=e116]: Barhocker
+      - generic [ref=e118]:
+        - generic [ref=e119]:
+          - region "Produktbilderübersicht" [ref=e120]:
+            - navigation:
+              - link "Weiter zum nächsten Produktbild"
+            - list "Produktbilderübersicht" [ref=e121]:
+              - listitem [ref=e122]:
+                - button "Produktbild 1 anzeigen" [ref=e123]:
+                  - img "House Nordic Vita Servierwagen schwarz, Barwagen mit Rollen Produktbild-Vorschau 1" [ref=e124]
+              - listitem [ref=e125]:
+                - button "Produktbild 2 anzeigen" [ref=e126]:
+                  - img "House Nordic Vita Servierwagen schwarz, Barwagen mit Rollen Produktbild-Vorschau 2" [ref=e127]
+              - listitem [ref=e128]:
+                - button "Produktbild 3 anzeigen" [ref=e129]:
+                  - img "House Nordic Vita Servierwagen schwarz, Barwagen mit Rollen Produktbild-Vorschau 3" [ref=e130]
+              - listitem [ref=e131]:
+                - button "Produktbild 4 anzeigen" [ref=e132]:
+                  - img "House Nordic Vita Servierwagen schwarz, Barwagen mit Rollen Produktbild-Vorschau 4" [ref=e133]
+              - listitem [ref=e134]:
+                - button "Produktbild 5 anzeigen" [ref=e135]:
+                  - img "House Nordic Vita Servierwagen schwarz, Barwagen mit Rollen Produktbild-Vorschau 5" [ref=e136]
+              - listitem [ref=e137]:
+                - button "Produktbild 6 anzeigen" [ref=e138]:
+                  - img "House Nordic Vita Servierwagen schwarz, Barwagen mit Rollen Produktbild-Vorschau 6" [ref=e139]
+              - listitem [ref=e140]:
+                - button "Produktbild 7 anzeigen" [ref=e141]:
+                  - img "House Nordic Vita Servierwagen schwarz, Barwagen mit Rollen Produktbild-Vorschau 7" [ref=e142]
+              - listitem [ref=e143]:
+                - button "Produktbild 8 anzeigen" [ref=e144]:
+                  - img "House Nordic Vita Servierwagen schwarz, Barwagen mit Rollen Produktbild-Vorschau 8" [ref=e145]
+              - listitem [ref=e146]:
+                - button "Produktbild 9 anzeigen" [ref=e147]:
+                  - img "House Nordic Vita Servierwagen schwarz, Barwagen mit Rollen Produktbild-Vorschau 9" [ref=e148]
+            - button "Nächstes Produktbild anzeigen" [ref=e149]:
+              - img [ref=e151]
+            - navigation:
+              - link "Zurück zum vorherigen Produktbild"
+          - generic [ref=e153]:
+            - button "Produktbild im Vollbild anzeigen" [ref=e154]:
+              - img "House Nordic Vita Servierwagen schwarz, Barwagen mit Rollen Produktbild" [ref=e156] [cursor=pointer]
+            - generic:
+              - region "Nur noch 1 Stück auf Lager Abzeichen" [ref=e157]: Nur noch 1 Stück auf Lager
+              - generic:
+                - button "Dieses Produkt mit anderen teilen" [ref=e158] [cursor=pointer]:
+                  - generic:
+                    - img
+                - button "Produkt zur Wunschliste hinzufügen" [ref=e159] [cursor=pointer]:
+                  - generic [ref=e160]: Produkt zur Wunschliste hinzufügen
+                  - img
+        - region "Produktvarianten" [ref=e161]:
+          - navigation:
+            - link "Weiter zur nächsten Produktvariante"
+          - button "Alle Varianten ansehen" [ref=e162] [cursor=pointer]:
+            - img [ref=e164]
+            - paragraph [ref=e167]: Alle Varianten ansehen
+          - navigation:
+            - link "Zurück zur vorherigen Produktvariante"
+        - generic [ref=e169]:
+          - heading "Wichtigste Infos auf einen Blick" [level=3] [ref=e170]
+          - list [ref=e171]:
+            - listitem [ref=e172]:
+              - generic [ref=e174]: Mit seinen vier Rollen und praktischen Bremsen kannst du ihn flexibel und sicher überallhin bewegen.
+            - listitem [ref=e175]:
+              - generic [ref=e177]: Die zwei großzügigen Ablagen bieten dir viel Platz für Getränke, Snacks oder Deko.
+            - listitem [ref=e178]:
+              - generic [ref=e180]: Sein elegantes schwarzes Design aus robustem Metall macht ihn zu einem echten Blickfang in jedem Raum.
+            - listitem [ref=e181]:
+              - generic [ref=e183]: Er ist vielseitig einsetzbar – perfekt als Servierwagen, Barwagen oder stilvolles Beistellmöbel.
+          - generic [ref=e184]: KI-generiert auf Basis der Produktdaten
+          - button "Alle Produktinfos anzeigen" [ref=e186] [cursor=pointer]:
+            - generic [ref=e187]: Alle Produktinfos
+      - generic [ref=e189]:
+        - heading "House Nordic Vita Servierwagen schwarz, Barwagen mit Rollen inkl. Bremsen" [level=1] [ref=e190]
+        - button "Die Produktbewertung beträgt 5 Stern. Es basiert auf 8 Bewertungen." [ref=e193] [cursor=pointer]:
+          - generic [ref=e194]: Die Produktbewertung beträgt 5 Stern. Es basiert auf 8 Bewertungen.
+          - paragraph [ref=e196]: (8)
+        - generic [ref=e197]:
+          - link "Spare ganz einfach 5 € Registriere dich, stimme Werbe-E-Mails zu und spare 5 €." [ref=e198] [cursor=pointer]:
+            - generic [ref=e199]:
+              - img [ref=e201]
+              - generic [ref=e204]:
+                - generic [ref=e205]: Spare ganz einfach 5 €
+                - generic [ref=e206]: Registriere dich, stimme Werbe-E-Mails zu und spare 5 €.
+              - img [ref=e208]
+          - region "Bestell-Details und Kauf-Option" [ref=e211]:
+            - generic [ref=e212]:
+              - generic [ref=e213]:
+                - region "Die unverbindliche Preisempfehlung lag bei 106,00 €." [ref=e214]:
+                  - paragraph [ref=e215]: UVP 106,00 €
+                - paragraph [ref=e216]:
+                  - 'region "Preis: 78,39 €" [ref=e217]': 78,39 €
+              - region "Hammer-Preis" [ref=e218]:
+                - button "Weitere Informationen zu Hammer-Preis-Abzeichen" [ref=e219] [cursor=pointer]:
+                  - generic [ref=e221]: Hammer-Preis
+                  - generic [ref=e222]:
+                    - generic [ref=e223]: im deutschlandweiten Vergleich
+                    - img [ref=e225]
+              - generic [ref=e229]:
+                - region "Infos zum Versand und Rückversand" [ref=e231]:
+                  - img [ref=e233]
+                  - generic [ref=e237]:
+                    - paragraph [ref=e239]: zzgl. 3,49 € Versand
+                    - paragraph [ref=e241]: Versand aus Deutschland
+                - region "Lieferdetails" [ref=e242]:
+                  - region "Lieferzeitraum" [ref=e243]:
+                    - img [ref=e246]
+                    - generic [ref=e251]: Fr. 29. Mai – Mo. 01. Juni
+                - region "Kostenlose Rückgabe – 14 Tage" [ref=e252]:
+                  - img [ref=e255]
+                  - paragraph [ref=e260]: Kostenlose Rückgabe – 14 Tage
+                - region "Informationen zum Verkäufer TrendOcean" [ref=e261]:
+                  - button "Weitere Informationen zum Verkäufer TrendOcean" [ref=e262] [cursor=pointer]:
+                    - img [ref=e265]
+                    - generic [ref=e267]:
+                      - paragraph [ref=e268]:
+                        - text: Verkauf durch
+                        - generic [ref=e269]:
+                          - generic [ref=e270]: TrendOcean
+                          - img [ref=e272]
+                      - paragraph [ref=e276]: Gewerblicher Verkäufer
+                      - paragraph [ref=e277]: AGB / Impressum / Widerruf / Datenschutz
+              - button "In den Warenkorb legen" [ref=e279] [cursor=pointer]:
+                - img [ref=e281]
+                - generic [ref=e283]: In den Warenkorb
+              - generic [ref=e285]:
+                - button "Jetzt kaufen mit 3 Teilzahlungen" [ref=e286] [cursor=pointer]:
+                  - generic [ref=e287]: Jetzt kaufen mit 3 Teilzahlungen
+                - generic [ref=e288]:
+                  - generic [ref=e289]: 3 zinsfreie Teilzahlungen mit Klarna
+                  - paragraph [ref=e290]: 3 zinsfreie Teilzahlungen mit
+                  - img [ref=e292]
+                  - button "Mehr erfahren" [ref=e294] [cursor=pointer]:
+                    - generic [ref=e295]: Mehr erfahren
+          - region "Angebote von anderen Verkäufern anzeigen. Neu & gebraucht (ab 79,60 €)" [ref=e298]:
+            - button "Angebote von anderen Verkäufern Neu & gebraucht (ab 79,60 €)" [ref=e299] [cursor=pointer]:
+              - generic [ref=e300]:
+                - generic [ref=e301]: Angebote von anderen Verkäufern
+                - generic [ref=e302]: Neu & gebraucht (ab 79,60 €)
+              - img [ref=e305]
+          - region "Rechtliche Informationen" [ref=e307]:
+            - generic [ref=e308]:
+              - paragraph [ref=e309]: Alle Preise inkl. MwSt. /
+              - button "Aufklärung gemäß Verpackungsgesetz" [ref=e312] [cursor=pointer]:
+                - generic [ref=e313]: Aufklärung gemäß Verpackungsgesetz
+            - paragraph [ref=e314]:
+              - text: "Informationen zur Produktsicherheit:"
+              - button "Verantwortliche Person für die EU anzeigen" [ref=e315] [cursor=pointer]:
+                - generic [ref=e316]: Hersteller / Verantwortliche Person für die EU
+    - generic [ref=e317]:
+      - region "Weitere Produktempfehlungen Ähnliche Produkte" [ref=e318]:
+        - generic [ref=e321]:
+          - button "Letztes Produkt anzeigen" [disabled] [ref=e322]:
+            - generic [ref=e323]: Letztes Produkt anzeigen
+            - img [ref=e325]
+          - button "Nächstes Produkt anzeigen" [ref=e418] [cursor=pointer]:
+            - generic [ref=e419]: Nächstes Produkt anzeigen
+            - img [ref=e421]
+      - generic [ref=e423]:
+        - heading "Mehr zum Produkt" [level=2] [ref=e426]
+        - generic [ref=e429]:
+          - heading "Produktbeschreibung & Produktdaten" [level=2] [ref=e430]
+          - generic [ref=e432]:
+            - region "Produktinformationen" [ref=e433]:
+              - generic [ref=e434]:
+                - paragraph [ref=e435]: "Frühstück im Bett? Eine Cocktailparty im Wohnzimmer? Egal, was du planst: Mit dem eleganten House Nordic Servierwagen Vita transportierst du deine Lieblingsleckereien problemlos durch die Wohnung."
+                - paragraph [ref=e436]:
+                  - strong [ref=e437]: Zeitloses Design mit maximalem Stauraum
+                - paragraph [ref=e438]: "Ein Küchenwagen wie dieses Modell von House Nordic ist flexibel einsetzbar: Auf zwei Ebenen finden verschiedene Utensilien wie Getränke, Gläser, Teller oder Schüsseln für deinen nächsten Brunch oder die nächste Party Platz. Damit du ihn im Handumdrehen neu positionieren kannst, ist der Servierwagen mit vier Rollen und einem Griff ausgestattet."
+                - paragraph [ref=e439]:
+                  - strong [ref=e440]: Stabil und robust
+                - paragraph [ref=e441]: Dank des schlichten Looks aus schwarzem Metall macht der Barwagen jedoch auch als Dekorationselement eine gute Figur. Die cleane Optik passt sowohl zum Industrial Look als auch zu modernen oder zeitlosen Einrichtungsstilen. Darüber hinaus ist er dank des stabilen Metallgestells und den Arbeitsplatten aus Holz nicht nur robust, sondern auch leicht zu reinigen.
+                - paragraph [ref=e442]: "Alle Eigenschaften im Überblick:"
+                - list [ref=e443]:
+                  - listitem [ref=e444]: schwarzer Servierwagen Vita mit 2 Regalen
+                  - listitem [ref=e445]: "Regalmaterial: Partikelbord"
+                  - listitem [ref=e446]: "Rahmenmaterial: Stahl"
+                  - listitem [ref=e447]: "Form: Rechteck"
+                  - listitem [ref=e448]: "Gewicht: 7,5 kg"
+                  - listitem [ref=e449]: "Maße: 40 x 49 x 7 cm (B x H x T)"
+                  - listitem [ref=e450]: "Verpackungsmaße: 86 x 43 x 7 cm (B x H x T)"
+                  - listitem [ref=e451]: "Paketgewicht: 8,5 kg"
+                - paragraph [ref=e452]: Servierwagen Vita in schwarz von House Nordic
+                - paragraph [ref=e453]
+                - list [ref=e454]:
+                  - listitem [ref=e455]: House Nordic Servierwagen
+                  - listitem [ref=e456]: Arbeitsplatte aus Holz
+                  - listitem [ref=e457]: stabiles Metallgestell, 2 Etagen
+                  - listitem [ref=e458]: Mit 4 Rollen
+                - paragraph [ref=e459]
+                - heading "Produktbeschreibung" [level=3] [ref=e460]
+                - paragraph [ref=e461]
+                - paragraph [ref=e462]: Liebst Du es auch, das Frühstück im Bett? Mit dem schicken House Nordic Servierwagen Vita lassen sich die sonntäglichen Frühstücksleckereien bequem aus der Küche ins Schlafzimmer transportieren.
+                - paragraph [ref=e463]: Auf zwei Ebenen bietet der attraktive House Nordic Beistelltisch viel Platz für Tassen, Teller, Schüsseln, die Gebäckauswahl und das Obst fürs Müsli.
+                - paragraph [ref=e464]: Mit einem praktischen Griff lässt sich der smarte Teewagen auf seinen vier Rollen mühelos durch die Wohnung schieben. Wenn Du lieber am Küchentisch frühstückst, nutzt Du den rechteckigen House Nordic Beistelltisch als extravagantes Dekorationselement.
+                - paragraph [ref=e465]: In elegantem Schwarz harmoniert er perfekt mit dunklem Mobiliar und setzt neben hellen Möbeln einen stilvollen Akzent.
+                - paragraph [ref=e466]: Geradlinig und schlicht bringt der geschmackvolle House Nordic Servierwagen im modernen Einrichtungsstil Deine Lieblingspflanze hervorragend zur Geltung.
+                - paragraph [ref=e467]
+                - heading "Produktinformation" [level=3] [ref=e468]
+                - table [ref=e469]:
+                  - rowgroup [ref=e470]:
+                    - 'row "Artikelnummer: 69.210-1530" [ref=e471]':
+                      - cell "Artikelnummer:" [ref=e472]
+                      - cell "69.210-1530" [ref=e473]
+                    - 'row "Material: Metall, Laminiertes Holz" [ref=e474]':
+                      - cell "Material:" [ref=e475]
+                      - cell "Metall, Laminiertes Holz" [ref=e476]
+                    - 'row "Abmessungen: Höhe ca. 79 cm, Breite ca. 40 cm, Länge ca. 68 cm" [ref=e477]':
+                      - cell "Abmessungen:" [ref=e478]:
+                        - paragraph [ref=e479]: "Abmessungen:"
+                      - cell "Höhe ca. 79 cm, Breite ca. 40 cm, Länge ca. 68 cm" [ref=e480]:
+                        - paragraph [ref=e481]: Höhe ca. 79 cm, Breite ca. 40 cm, Länge ca. 68 cm
+                    - 'row "Gewicht: Ca. 7,5 Kg" [ref=e482]':
+                      - cell "Gewicht:" [ref=e483]
+                      - cell "Ca. 7,5 Kg" [ref=e484]
+                    - 'row "Lieferumfang: 1 House Nordic Servierwagen Vita Schwarz Dekorationsartikel gehören nicht zum Leistungsumfang" [ref=e485]':
+                      - cell "Lieferumfang:" [ref=e486]
+                      - cell "1 House Nordic Servierwagen Vita Schwarz Dekorationsartikel gehören nicht zum Leistungsumfang" [ref=e487]:
+                        - paragraph [ref=e488]: 1 House Nordic Servierwagen Vita Schwarz
+                        - paragraph [ref=e489]: Dekorationsartikel gehören nicht zum Leistungsumfang
+                - paragraph [ref=e490]: Im Wohnzimmer, im Flur oder doch lieber in der Küche... egal wo, Deine Getränke folgen Dir auf unserem schicken Servierwagen. Praktisch auf seinen Rollen lässt er sich überalle hinstellen und bietet in seinem Industrial Style einen wahren Blickfang.
+                - paragraph [ref=e491]: Vita Barwagen
+                - text: "Barwagen mit 2 Ablagen, schwarz mit schwarzem GestellMaterial: Stahl, Spanplatte, MelaminfolieColor: Schwarz"
+                - text: Der Barwagen Vita auf Rädern mit 2 Regalen in Schwarz ist ein Couchtisch in der Farbe Schwarz, der sowohl Stil als auch Funktionalität in Ihr Zuhause bringt. Vita Barwagen auf Rollen mit 2 Ablagen, schwarz. Bei der Gestaltung wurde sowohl auf Funktionalität als auch auf Stil geachtet, was es zur perfekten Wahl für jeden Raum in Ihrem Zuhause macht. Die verwendeten Materialien sind von hoher Qualität, was dem Produkt eine lange Lebensdauer verleiht und dafür sorgt, dass es dem täglichen Gebrauch standhält. Ob zur Aufbewahrung oder als dekorative Ergänzung, dieses Produkt wertet Ihre Einrichtung auf und bringt zusätzlichen Komfort und Eleganz in Ihr Zuhause.
+                - text: "Dieses hübsche Beistellmöbel wird sich perfekt in Ihr Wohn- oder Esszimmer einfügen! Dieser Beistelltisch ist ideal, um Ihren Lieben einen Aperitif zu servieren. Er hat 4 Rollen und einen Griff, damit Sie ihn leicht bewegen können. Sie können ihn auch in Ihrer Eingangshalle wie einen Konsolentisch aufstellen, um Ihre Deko-Objekte darauf zu platzieren. Seine schwarze Farbe wird Ihrer Dekoration einen modernen Touch verleihen! Maße: Länge 68 cm / Höhe 79 cm / Breite 40 cm. Material des Gestells: Stahl. Material der Tischplatten : Melamin. Das Möbelstück wird zerlegt geliefert und lässt sich leicht zusammenbauen."
+                - text: Der House Nordic Servierwagen Vita ist eine stilvolle und funktionale Ergänzung für jedes moderne Zuhause. Gefertigt aus robustem schwarzem Stahl, bietet er eine zeitlose Ästhetik und beeindruckende Langlebigkeit für den täglichen Gebrauch. Mit zwei großzügigen Ablageflächen schafft dieser Servierwagen optimalen Stauraum für Getränke, Geschirr oder Dekorationsartikel. Die unkomplizierte Montage ermöglicht eine schnelle Einsatzbereitschaft, sodass Sie sofort von seinen praktischen Vorteilen profitieren können.
+                - text: Eleganter schwarzer Barwagen mit 2 Ablagen zur praktischen Aufbewahrung. Hergestellt aus robustem Stahl und Spanplatte.
+                - text: Barwagen mit schwarzem Rahmen und Rädern und zwei schwarzen Regalen 68 x 40 x 79 cm
+                - text: Schwarzer Barwagen mit zwei Ablagen und schlankem schwarzem Rahmen. Hergestellt aus robustem Stahl, Spanplatten und Melaminfolie.
+            - region "Produktdaten" [ref=e493]:
+              - generic [ref=e494]:
+                - generic [ref=e495]:
+                  - term [ref=e496]: Maße
+                  - definition [ref=e497]:
+                    - generic [ref=e500]: "Maße: 40 x 49 x 7 cm (B x H x T)"
+                - generic [ref=e501]:
+                  - term [ref=e502]: Höhe
+                  - definition [ref=e503]:
+                    - generic [ref=e506]: 79 cm
+                - generic [ref=e507]:
+                  - term [ref=e508]: Breite
+                  - definition [ref=e509]:
+                    - generic [ref=e512]: 40 cm
+                - generic [ref=e513]:
+                  - term [ref=e514]: Tiefe
+                  - definition [ref=e515]:
+                    - generic [ref=e518]: 40 cm
+                - generic [ref=e519]:
+                  - term [ref=e520]: Länge
+                  - definition [ref=e521]:
+                    - generic [ref=e524]: 68 cm
+                - generic [ref=e525]:
+                  - term [ref=e526]: Gewicht
+                  - definition [ref=e527]:
+                    - generic [ref=e530]: 7.5 kg
+                - generic [ref=e531]:
+                  - term [ref=e532]: Farbe
+                  - definition [ref=e533]:
+                    - link "Schwarz" [ref=e535] [cursor=pointer]:
+                      - /url: https://www.kaufland.de/c/barhocker/schwarz/~6431/ref-351=1883/
+                      - generic [ref=e538]: Schwarz
+                - generic [ref=e539]:
+                  - term [ref=e540]: Höhenverstellbar
+                  - definition [ref=e541]:
+                    - generic [ref=e544]: Nein
+                - generic [ref=e545]:
+                  - term [ref=e546]: Material
+                  - definition [ref=e547]:
+                    - link "Holz" [ref=e549] [cursor=pointer]:
+                      - /url: https://www.kaufland.de/c/barhocker/holz/~6431/ref-1051=33/
+                      - generic [ref=e552]: Holz
+                - generic [ref=e553]:
+                  - term [ref=e554]: Materialzusammensetzung
+                  - definition [ref=e555]:
+                    - generic [ref=e558]: keine Angaben erforderlich
+                - generic [ref=e559]:
+                  - term [ref=e560]: Modell
+                  - definition [ref=e561]:
+                    - generic [ref=e564]: Vita
+                - generic [ref=e565]:
+                  - term [ref=e566]: Holzart / Dekor
+                  - definition [ref=e567]:
+                    - generic [ref=e570]: Spanplatte
+                - generic [ref=e571]:
+                  - term [ref=e572]: Hersteller
+                  - definition [ref=e573]:
+                    - link "House Nordic ApS" [ref=e575] [cursor=pointer]:
+                      - generic [ref=e578]: House Nordic ApS
+                - generic [ref=e579]:
+                  - term [ref=e580]: Geeignet für Hersteller
+                  - definition [ref=e581]:
+                    - generic [ref=e584]: House Nordic_FR
+                - generic [ref=e585]:
+                  - term [ref=e586]: Klappbar
+                  - definition [ref=e587]:
+                    - generic [ref=e590]: Nein
+                - generic [ref=e591]:
+                  - term [ref=e592]: Form
+                  - definition [ref=e593]:
+                    - generic [ref=e596]: Rechteckig
+                - generic [ref=e597]:
+                  - term [ref=e598]: Lieferumfang
+                  - definition [ref=e599]:
+                    - generic [ref=e602]: 1x Servierwagen
+                - generic [ref=e603]:
+                  - term [ref=e604]: Einsatzort
+                  - definition [ref=e605]:
+                    - generic [ref=e608]: Innen
+                - generic [ref=e609]:
+                  - term [ref=e610]: Rollen vorhanden
+                  - definition [ref=e611]:
+                    - generic [ref=e614]: Ja
+                - generic [ref=e615]:
+                  - term [ref=e616]: EAN
+                  - definition [ref=e617]:
+                    - generic [ref=e620]: "5713917008889"
+                - generic [ref=e621]:
+                  - term [ref=e622]: Herstellernummer
+                  - definition [ref=e623]:
+                    - generic [ref=e626]: "2101530"
+        - region [ref=e627]:
+          - button "Sicherheitshinweise & Infos" [ref=e628] [cursor=pointer]:
+            - img [ref=e630]
+            - heading "Sicherheitshinweise & Infos" [level=2] [ref=e633]
+          - region "Sicherheitshinweise & Infos" [ref=e634]:
+            - heading "Sicherheitshinweise" [level=3] [ref=e638]
+      - region "Produktempfehlungen basierend auf anderen Bestellungen Passt auch dazu" [ref=e639]:
+        - generic [ref=e642]:
+          - button "Letztes Produkt anzeigen" [disabled] [ref=e643]:
+            - generic [ref=e644]: Letztes Produkt anzeigen
+            - img [ref=e646]
+          - button "Nächstes Produkt anzeigen" [ref=e739] [cursor=pointer]:
+            - generic [ref=e740]: Nächstes Produkt anzeigen
+            - img [ref=e742]
+      - region [ref=e744]:
+        - generic [ref=e745]:
+          - heading "Noch keine Kundenbewertungen" [level=4] [ref=e746]
+          - paragraph [ref=e749]: Für dieses Produkt sind noch keine Bewertungen vorhanden.
+      - region "Weitere Produktempfehlungen Unsere Empfehlungen für dich" [ref=e750]:
+        - generic [ref=e753]: Unsere Empfehlungen für dich

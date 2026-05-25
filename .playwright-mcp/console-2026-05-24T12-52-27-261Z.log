@@ -1,0 +1,3 @@
+[     275ms] [WARNING] Error with Feature-Policy header: Unrecognized origin: 'usb'. @ :0
+[     275ms] [WARNING] Error with Feature-Policy header: Some features are specified in both Feature-Policy and Permissions-Policy header: camera, microphone, geolocation, encrypted-media, payment. Values defined in Permissions-Policy header will be used. @ :0
+[     275ms] [ERROR] Failed to load resource: the server responded with a status of 404 () @ https://www.kaufland.de/product/552617885/:0
