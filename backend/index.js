@@ -69,6 +69,9 @@ if (process.env.IDENTIFY_V4 === 'true' && process.env.IDENTIFY_V4_CRITIC_HINTS_V
 
 // --- Initialization ---
 const app = express();
+// Behind Cloud Run's front-end proxy: trust X-Forwarded-For so req.ip is the real
+// client IP, giving each client its own rate-limit bucket (not one shared proxy IP).
+app.set('trust proxy', true);
 
 // --- Helper: order sync best-effort in background; never block responses ---
 const ORDER_SYNC_TIMEOUT_MS = parseInt(process.env.ORDER_SYNC_TIMEOUT_MS || '8000', 10);
