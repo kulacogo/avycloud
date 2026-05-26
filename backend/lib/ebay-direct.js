@@ -1590,6 +1590,7 @@ async function syncLiveListingsLight(options = {}) {
           activeItemIds: ingest.listings.map((x) => safeString(x?.itemId)).filter(Boolean),
           runId,
           actor,
+          ingestComplete: ingestIsComplete,
         })
       : {
           scanned: 0,
@@ -1637,7 +1638,7 @@ async function syncLiveListingsLight(options = {}) {
   }
 }
 
-async function deactivateListingsMissingFromActiveSet({ activeItemIds = [], runId = null, actor = null } = {}) {
+async function deactivateListingsMissingFromActiveSet({ activeItemIds = [], runId = null, actor = null, ingestComplete = false } = {}) {
   const keepSet = new Set(asArray(activeItemIds).map((id) => safeString(id)).filter(Boolean));
   const snapshot = await firestore.collection(EBAY_LISTINGS_COLLECTION).where('active', '==', true).get();
   const docs = Array.isArray(snapshot?.docs) ? snapshot.docs : [];
@@ -1645,25 +1646,57 @@ async function deactivateListingsMissingFromActiveSet({ activeItemIds = [], runI
     return { scanned: 0, deactivated: 0, keptActive: 0 };
   }
 
-  // ── Safety threshold: refuse to deactivate >20% of active listings ──
-  // Prevents mass deactivation from partial/rate-limited API responses.
-  const MAX_DEACTIVATION_RATIO = 0.20;
+  const activeSetSize = keepSet.size;
   const wouldDeactivate = docs.filter((d) => !keepSet.has(safeString(d?.id))).length;
   const ratio = docs.length > 0 ? wouldDeactivate / docs.length : 0;
 
-  if (ratio > MAX_DEACTIVATION_RATIO && wouldDeactivate > 5) {
+  // ── Smart safety guard ──────────────────────────────────────────────
+  // Protects against deactivating from a BROKEN fetch (auth failure /
+  // silently-truncated pages) — NOT against genuine accumulated drift.
+  // Incident 2026-05-26: a fixed 20% cap froze 630 active docs in place
+  // while eBay actually had 454 (28% real drift misread as "unsafe"),
+  // a self-reinforcing deadlock the system could never recover from.
+  //
+  // (1) An empty active set with existing active docs is almost certainly an
+  //     auth/API failure: a live seller always has active listings. Never
+  //     wipe everything to zero.
+  if (activeSetSize === 0 && docs.length > 0) {
     console.warn(
-      `[ebay-deactivation] BLOCKED: would deactivate ${wouldDeactivate}/${docs.length} (${(ratio * 100).toFixed(1)}%) — exceeds safety threshold of ${MAX_DEACTIVATION_RATIO * 100}%. activeSet=${keepSet.size}, runId=${runId}`
+      `[ebay-deactivation] BLOCKED (empty_active_set): keepSet=0 but ${docs.length} docs marked active — treating as broken fetch, not deactivating. runId=${runId}`
     );
     return {
       scanned: docs.length,
       deactivated: 0,
       keptActive: docs.length,
       blocked: true,
-      reason: 'safety_threshold_exceeded',
+      reason: 'empty_active_set',
       wouldHaveDeactivated: wouldDeactivate,
       ratio: Math.round(ratio * 100),
-      activeSetSize: keepSet.size,
+      activeSetSize,
+    };
+  }
+
+  // (2) Pick the deactivation ceiling by how much we trust the ingest:
+  //     - complete ingest  → eBay's active list is authoritative; only a
+  //       catastrophic collapse (default >60%) looks like a truncated fetch.
+  //     - incomplete ingest → conservative 20% cap (known-partial window).
+  const CONSERVATIVE_RATIO = 0.20;
+  const CATASTROPHIC_RATIO = parseFloat(process.env.EBAY_CATASTROPHIC_DEACTIVATION_RATIO || '0.6');
+  const maxRatio = ingestComplete ? CATASTROPHIC_RATIO : CONSERVATIVE_RATIO;
+  if (ratio > maxRatio && wouldDeactivate > 5) {
+    const reason = ingestComplete ? 'catastrophic_collapse_suspected' : 'safety_threshold_exceeded';
+    console.warn(
+      `[ebay-deactivation] BLOCKED (${reason}): would deactivate ${wouldDeactivate}/${docs.length} (${(ratio * 100).toFixed(1)}%) — exceeds ${(maxRatio * 100).toFixed(0)}% ceiling. activeSet=${activeSetSize}, ingestComplete=${ingestComplete}, runId=${runId}`
+    );
+    return {
+      scanned: docs.length,
+      deactivated: 0,
+      keptActive: docs.length,
+      blocked: true,
+      reason,
+      wouldHaveDeactivated: wouldDeactivate,
+      ratio: Math.round(ratio * 100),
+      activeSetSize,
     };
   }
 
@@ -3919,6 +3952,7 @@ async function syncLiveListingsAndAudit(options = {}) {
         activeItemIds: ingest.listings.map((x) => safeString(x?.itemId)).filter(Boolean),
         runId,
         actor,
+        ingestComplete: ingestIsComplete,
       })
     : {
         scanned: 0,
@@ -5102,5 +5136,6 @@ module.exports = {
   reviseListingFromProduct,
   bulkReviseListingsFromProducts,
   reactivateWronglyDeactivatedListings,
+  deactivateListingsMissingFromActiveSet,
   resolveCategoryNameFromId,
 };
