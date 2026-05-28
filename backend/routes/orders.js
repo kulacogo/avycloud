@@ -1785,7 +1785,7 @@ router.post('/orders/bulk-transition', requirePermission('orders', 'write'), asy
 const { updateOrder } = require('../lib/firestore');
 const { logAudit } = require('../services/audit-log');
 
-const ALLOWED_CUSTOMER_FIELDS = ['name', 'street', 'city', 'zip', 'country', 'phone', 'email'];
+const ALLOWED_CUSTOMER_FIELDS = ['name', 'street', 'city', 'zip', 'country', 'phone', 'email', 'postNumber'];
 
 router.put('/orders/:orderId', requirePermission('orders', 'write'), async (req, res) => {
   try {

@@ -132,6 +132,7 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({
     country: "",
     phone: "",
     email: "",
+    postNumber: "",
   });
   const [savingAddress, setSavingAddress] = useState(false);
   const [editingWeight, setEditingWeight] = useState(false);
@@ -710,6 +711,7 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({
                                 country: order.customer?.country || "",
                                 phone: order.customer?.phone || "",
                                 email: order.customer?.email || "",
+                                postNumber: order.customer?.postNumber || "",
                               });
                               setEditingAddress(true);
                             }}
@@ -747,6 +749,35 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({
                             />
                           </div>
                         ))}
+                        {/* DHL Postnummer — required for Packstation/Postfiliale */}
+                        {/(packstation|postfiliale|filiale)/i.test(
+                          addressForm.street,
+                        ) && (
+                          <div>
+                            <label className="block text-xs text-txt-muted mb-0.5">
+                              DHL Postnummer (Packstation/Postfiliale)
+                            </label>
+                            <input
+                              type="text"
+                              inputMode="numeric"
+                              placeholder="z. B. 1234567"
+                              value={addressForm.postNumber}
+                              onChange={(e) =>
+                                setAddressForm((prev) => ({
+                                  ...prev,
+                                  postNumber: e.target.value,
+                                }))
+                              }
+                              className="w-full h-8 px-2.5 text-sm rounded-md bg-app-surface border border-app-border text-txt-primary focus:outline-none focus:ring-1 focus:ring-accent"
+                            />
+                            {!addressForm.postNumber && (
+                              <div className="text-xs text-warning mt-1">
+                                Pflichtfeld für Packstation — ohne Postnummer
+                                kann DHL kein Label erstellen.
+                              </div>
+                            )}
+                          </div>
+                        )}
                         {/* Address completeness warning */}
                         {(!addressForm.street ||
                           !addressForm.city ||
@@ -796,6 +827,11 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({
                             {order.customer.street}
                           </div>
                         )}
+                        {order.customer?.postNumber && (
+                          <div className="text-txt-secondary">
+                            Postnummer: {order.customer.postNumber}
+                          </div>
+                        )}
                         {(order.customer?.zip || order.customer?.city) && (
                           <div className="text-txt-secondary">
                             {[order.customer.zip, order.customer.city]
@@ -826,6 +862,16 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({
                             Adresse unvollständig
                           </div>
                         )}
+                        {/* Packstation without Postnummer — blocks DHL label */}
+                        {/(packstation|postfiliale|filiale)/i.test(
+                          order.customer?.street || "",
+                        ) &&
+                          !order.customer?.postNumber && (
+                            <div className="text-xs text-warning mt-1">
+                              Packstation ohne Postnummer — bitte „Bearbeiten"
+                              und DHL Postnummer eintragen.
+                            </div>
+                          )}
                       </div>
                     )}
                   </section>

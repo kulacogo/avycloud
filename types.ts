@@ -407,6 +407,8 @@ export interface OrderCustomer {
   country?: string | null;
   phone?: string | null;
   email?: string | null;
+  /** DHL Postnummer (6–10 digits) — required for Packstation/Postfiliale deliveries. */
+  postNumber?: string | null;
 }
 
 export interface Order {

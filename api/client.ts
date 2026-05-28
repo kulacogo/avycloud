@@ -3690,7 +3690,7 @@ export async function fetchOrderDetail(orderId: string): Promise<{ order: any; t
 
 export async function updateOrderCustomer(
   orderId: string,
-  customer: { name?: string; street?: string; city?: string; zip?: string; country?: string; phone?: string; email?: string }
+  customer: { name?: string; street?: string; city?: string; zip?: string; country?: string; phone?: string; email?: string; postNumber?: string }
 ): Promise<void> {
   const res = await fetchApi(`${BACKEND_URL}/api/orders/${encodeURIComponent(orderId)}`, {
     method: "PUT",

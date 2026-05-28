@@ -10,6 +10,7 @@
 const { Firestore, FieldValue } = require('@google-cloud/firestore');
 const { callTradingApi } = require('../lib/ebay-trading-api');
 const { sanitizeText, validateEmail } = require('../lib/html-entities');
+const { parsePackstation } = require('../lib/packstation');
 const { getNextNumber } = require('./number-sequence');
 const { reserveStock } = require('./stock-reservation');
 const { syncStockWithRetry, findProductsBySkuChunk } = require('./stock-sync-dispatcher');
@@ -152,6 +153,10 @@ function mapEbayOrder(ebayOrder) {
   });
 
   const shippingAddr = ebayOrder?.ShippingAddress || {};
+  const customerStreet = [shippingAddr?.Street1, shippingAddr?.Street2].filter(Boolean).map(sanitizeText).join(', ') || null;
+  // DHL Packstation/Postfiliale: capture the Postnummer at intake so the
+  // shipping label can be created without manual re-entry (see lib/packstation.js).
+  const customerPostNumber = customerStreet ? parsePackstation(customerStreet).postNumber || null : null;
   const totalAmount = parseFloat(ebayOrder?.Total?.['#text'] || ebayOrder?.Total || '0');
 
   // Extract tracking from ShipmentTrackingDetails
@@ -173,12 +178,13 @@ function mapEbayOrder(ebayOrder) {
     currency: ebayOrder?.Total?.['@_currencyID'] || 'EUR',
     customer: {
       name: sanitizeText(shippingAddr?.Name) || ebayOrder?.BuyerUserID || 'Unbekannt',
-      street: [shippingAddr?.Street1, shippingAddr?.Street2].filter(Boolean).map(sanitizeText).join(', ') || null,
+      street: customerStreet,
       city: sanitizeText(shippingAddr?.CityName) || null,
       zip: shippingAddr?.PostalCode != null ? String(shippingAddr.PostalCode).trim() : null,
       country: shippingAddr?.Country || null,
       phone: sanitizeContactField(shippingAddr?.Phone),
       email: validateEmail(sanitizeContactField(ebayOrder?.TransactionArray?.Transaction?.[0]?.Buyer?.Email)),
+      postNumber: customerPostNumber,
     },
     items,
     paymentStatus: ebayOrder?.CheckoutStatus?.eBayPaymentStatus || ebayOrder?.PaymentStatus || null,

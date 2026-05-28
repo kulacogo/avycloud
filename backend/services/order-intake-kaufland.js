@@ -10,6 +10,7 @@
 const { Firestore, FieldValue } = require('@google-cloud/firestore');
 const { kauflandRequest } = require('../lib/kaufland-api');
 const { sanitizeText, validateEmail } = require('../lib/html-entities');
+const { parsePackstation } = require('../lib/packstation');
 const { getNextNumber } = require('./number-sequence');
 const productStore = require('../lib/product-store');
 const { reserveStock } = require('./stock-reservation');
@@ -144,6 +145,8 @@ function mapKauflandOrder(klOrder) {
       country: shippingAddr.country || billingAddr.country || 'DE',
       phone: shippingAddr.phone || billingAddr.phone || buyer.phone || null,
       email: validateEmail(buyer.email),
+      // DHL Packstation/Postfiliale: capture Postnummer at intake (lib/packstation.js)
+      postNumber: parsePackstation(sanitizeText([shippingAddr.street, shippingAddr.house_number].filter(Boolean).join(' ')) || '').postNumber || null,
     },
     billingAddress: {
       name: [billingAddr.first_name, billingAddr.last_name].filter(Boolean).join(' ')

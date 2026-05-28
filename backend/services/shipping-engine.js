@@ -10,6 +10,7 @@
 const { Firestore, FieldValue } = require('@google-cloud/firestore');
 const { getSecretValue } = require('../lib/secret-values');
 const { lookupCsvPrice } = require('../lib/sendcloud');
+const { parsePackstation, resolvePostNumber } = require('../lib/packstation');
 
 const SENDCLOUD_BASE_URL = 'https://panel.sendcloud.sc/api/v2';
 const SHIPMENTS_COLLECTION = 'shipments';
@@ -294,22 +295,19 @@ async function createParcel({
   let addressStr = parsedStreet;
   let houseNumberStr = explicitHouseNumber || parsedHouseNumber;
 
-  // Detect DHL Packstation/Postfiliale addresses and extract Postnummer
-  // Patterns: "1818519, Packstation 514", "Packstation 514", "PACKSTATION 123"
+  // Detect DHL Packstation/Postfiliale and resolve the required Postnummer.
+  // The Postnummer may sit before/after the station token in the address or in
+  // an explicit customer field — see lib/packstation.js.
   let toPostNumber = '';
   let isPackstation = false;
-  const packstationMatch = rawAddress.match(/(?:(\d{6,10})\s*[,.]?\s*)?(?:packstation|postfiliale)\s+(\d+)/i);
-  if (packstationMatch) {
+  const pack = parsePackstation(rawAddress);
+  if (pack.isPackstation) {
     isPackstation = true;
-    toPostNumber = packstationMatch[1] || '';
-    const stationNumber = packstationMatch[2];
-    if (!toPostNumber) {
-      toPostNumber = String(customer.postNumber || customer.post_number || customer.postnummer || '');
-    }
+    toPostNumber = resolvePostNumber(pack, customer);
     // SendCloud expects: address = "PACKSTATION 514", house_number = "514", to_post_number = DHL Postnummer
-    addressStr = `PACKSTATION ${stationNumber}`;
-    houseNumberStr = stationNumber;
-    console.log(`[createParcel] Packstation detected: postNumber="${toPostNumber}", station="${stationNumber}"`);
+    addressStr = `${pack.kind === 'postfiliale' ? 'POSTFILIALE' : 'PACKSTATION'} ${pack.stationNumber}`;
+    houseNumberStr = pack.stationNumber;
+    console.log(`[createParcel] ${pack.kind} detected: postNumber="${toPostNumber}", station="${pack.stationNumber}"`);
   }
 
   // Validate required fields before calling SendCloud
@@ -323,6 +321,15 @@ async function createParcel({
     throw new Error(
       `Versandlabel kann nicht erstellt werden — fehlende Adressdaten: ${missingFields.join(', ')}. ` +
       `Bitte Kundendaten im Auftrag vervollständigen.`
+    );
+  }
+
+  // Packstation/Postfiliale need the recipient's DHL Postnummer. Fail fast with
+  // an actionable message instead of an opaque SendCloud 400 (receiver_address).
+  if (isPackstation && !toPostNumber) {
+    throw new Error(
+      'DHL Postnummer fehlt für diese Packstation/Postfiliale. Bitte im Auftrag unter ' +
+      '„Kunde → Bearbeiten" die Postnummer des Empfängers eintragen und erneut versuchen.'
     );
   }
 
