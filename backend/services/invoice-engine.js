@@ -427,13 +427,19 @@ function buildInvoicePdf(data) {
       const MARGIN = 50;
       const CONTENT_WIDTH = PAGE_WIDTH - 2 * MARGIN;
 
-      // ── Logo (top-left, if available) + Company name (top-right) ──
+      // ── Header: logo top-left when available, else company name as text. ──
+      // When a real logo image is present we do NOT also print the company name
+      // + legal form on the right (that text block is only a fallback for
+      // tenants without a logo). Avoids the redundant "TrendOcean /
+      // einzelunternehmen" next to the logo.
+      let logoRendered = false;
       if (co.logoUrl && co._logoBuffer) {
         try {
           doc.image(co._logoBuffer, MARGIN, 35, { width: 120, height: 50, fit: [120, 50] });
-        } catch { /* logo rendering failed — skip silently */ }
+          logoRendered = true;
+        } catch { /* logo rendering failed — fall back to the text header below */ }
       }
-      if (co.name) {
+      if (!logoRendered && co.name) {
         doc.fontSize(20).fillColor('#1a1a2e').font('Helvetica-Bold');
         doc.text(co.name, MARGIN, 40, { align: 'right', width: CONTENT_WIDTH });
         if (co.legalForm) {
