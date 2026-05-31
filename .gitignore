@@ -190,3 +190,6 @@ exports/Main_2026-01-20_05_00_2_import_long.csv
 exports/Main_2026-01-20_05_00_2_import.csv
 exports/Main_2026-01-20_05_00_2_shopify_import.csv
 .claude/worktrees/
+
+# Accounting/marketplace exports — contain customer PII, never commit
+/buchhaltung_marktplatz/

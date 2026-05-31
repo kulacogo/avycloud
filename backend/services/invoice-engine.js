@@ -120,13 +120,36 @@ async function generateInvoice({
   const db = getDb();
 
   // Load order
-  const orderSnap = await db.collection(ORDERS_COLLECTION).doc(orderId).get();
+  const orderRef = db.collection(ORDERS_COLLECTION).doc(orderId);
+  const orderSnap = await orderRef.get();
   if (!orderSnap.exists) throw new Error('Auftrag nicht gefunden');
   const order = { id: orderSnap.id, ...orderSnap.data() };
 
-  // Idempotency: skip if order already has an invoice
-  if (order.invoiceId) {
-    return { invoiceId: order.invoiceId, invoiceNumber: order.invoiceNumber || null, pdfUrl: order.pdfUrl || null };
+  // Idempotency + concurrency guard: atomically claim invoice generation for
+  // this order. Several triggers can fire for one order (pick event, ship
+  // transition, bulk cron, manual UI button) — without an atomic claim two of
+  // them both read "no invoiceId yet" and each create an invoice + SevDesk
+  // voucher. The plain `if (order.invoiceId)` check below was a TOCTOU race
+  // because invoiceId is only written at the very end (after the slow SevDesk
+  // round-trip). See Incident: doubled invoices (paid + draft, same number).
+  const CLAIM_TTL_MS = 5 * 60 * 1000;
+  const claim = await db.runTransaction(async (tx) => {
+    const s = await tx.get(orderRef);
+    const d = s.data() || {};
+    if (d.invoiceId) {
+      return { existing: { invoiceId: d.invoiceId, invoiceNumber: d.invoiceNumber || null, pdfUrl: d.pdfUrl || null } };
+    }
+    const claimedAt = d.invoiceClaimedAt ? Date.parse(d.invoiceClaimedAt) : 0;
+    if (claimedAt && (Date.now() - claimedAt) < CLAIM_TTL_MS) {
+      return { busy: true };
+    }
+    tx.set(orderRef, { invoiceClaimedAt: new Date().toISOString() }, { merge: true });
+    return { claimed: true };
+  });
+  if (claim.existing) return claim.existing;
+  if (claim.busy) {
+    console.warn(`[invoice-engine] generateInvoice skipped — claim active for order ${orderId}`);
+    return { invoiceId: null, invoiceNumber: null, pdfUrl: null, skipped: true };
   }
 
   // Load company settings + SevDesk token + logo
@@ -155,6 +178,17 @@ async function generateInvoice({
   const invoiceDate = new Date().toISOString().split('T')[0];
   const dueDate = new Date(Date.now() + paymentTermDays * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
   const marketplaceOrderRef = order.marketplaceOrderId || order.orderId || order.number || orderId;
+
+  // Guard: never issue a 0 € or customer-less invoice. This is what produced
+  // the 47 "eBay Käufer / 0,00 €" finalized invoices (real sales mis-booked as
+  // zero). Defer instead — the order keeps no invoiceId and a later run with
+  // proper amount/customer data will pick it up. See Incident: invoice cleanup.
+  const customerName = (order.customer?.name || '').trim();
+  if (totalBrutto <= 0 || !customerName) {
+    await orderRef.set({ invoiceClaimedAt: null }, { merge: true }).catch(() => {});
+    console.warn(`[invoice-engine] generateInvoice übersprungen — fehlender Betrag/Kunde (order ${orderId}, brutto=${totalBrutto}, kunde='${customerName}')`);
+    return { invoiceId: null, invoiceNumber: null, pdfUrl: null, skipped: true, reason: 'no_amount_or_customer' };
+  }
 
   // ── Create invoice in SevDesk first to get the official invoice number ──
   let invoiceNumber = null;
@@ -205,6 +239,10 @@ async function generateInvoice({
           discount: 0,
           smallSettlement: 0,
           address: addressParts.join('\n') || null,
+          // Marketplace order number on the invoice — required for traceability
+          // and as the join key for accounting reconciliation (it was missing,
+          // which is why eBay/Kaufland sales could not be matched 1:1).
+          headText: `Marktplatz-Bestellnummer: ${marketplaceOrderRef}`,
           ...(dueDate ? { payDate: toSevdeskDate(dueDate) } : {}),
           ...(userId ? { contactPerson: { id: userId, objectName: 'SevUser' } } : {}),
           mapAll: true,
@@ -241,11 +279,14 @@ async function generateInvoice({
     }
   }
 
-  // Fallback if SevDesk unavailable: generate local number (temporary until synced)
+  // SevDesk is the single source of truth for the invoice number. If it did not
+  // assign one (API down / error), we DEFER instead of inventing a local number.
+  // Previously a local "RE-2026-xxxx" was issued and later pushed to SevDesk,
+  // creating the non-sequential numbers. Releasing the claim lets a later run
+  // (next pick/ship trigger or the cron) retry once SevDesk is healthy again.
   if (!invoiceNumber) {
-    const seq = await getNextNumber({ tenantId, type: 'invoice' });
-    invoiceNumber = seq.formatted;
-    console.warn(`[invoice-engine] SevDesk unavailable — using local number ${invoiceNumber} (will be corrected on next sync)`);
+    await orderRef.set({ invoiceClaimedAt: null }, { merge: true }).catch(() => {});
+    throw new Error(`SevDesk hat keine Rechnungsnummer vergeben (order ${orderId}) — Rechnung verschoben statt mit lokaler Ersatznummer ausgestellt.`);
   }
 
   // Generate PDF with the (SevDesk-assigned) invoice number
@@ -304,10 +345,13 @@ async function generateInvoice({
 
   const ref = await db.collection(INVOICES_COLLECTION).add(invoiceDoc);
 
-  // Link invoice to order
-  await orderSnap.ref.set({
+  // Link invoice to order and release the generation claim. invoiceId is now
+  // the authoritative idempotency marker; if anything threw before this point
+  // the claim simply expires after CLAIM_TTL_MS so a later retry can proceed.
+  await orderRef.set({
     invoiceId: ref.id,
     invoiceNumber,
+    invoiceClaimedAt: null,
     updatedAt: new Date().toISOString(),
   }, { merge: true });
 
@@ -645,6 +689,17 @@ async function exportToSevDesk({ invoiceId }) {
     if (!snap.exists) throw new Error('Rechnung nicht gefunden');
     const invoice = snap.data();
 
+    // Idempotency: never create a SECOND SevDesk invoice for the same record.
+    // generateInvoice already creates AND finalizes the invoice in SevDesk, so
+    // when sevdeskId is present this export must do nothing. This is the core
+    // fix for the duplicate-draft bug: previously this function ran after every
+    // generateInvoice and POSTed a fresh saveInvoice (id:null, status 100) —
+    // producing a second SevDesk invoice as a permanent draft, carrying the
+    // SAME invoiceNumber. See Incident: doubled invoices (paid + draft).
+    if (invoice.sevdeskId) {
+      return { ok: true, sevdeskId: invoice.sevdeskId, skipped: true };
+    }
+
     const { getSecretValue } = require('../lib/secret-values');
     const token = await getSecretValue('SEVDESK_API_TOKEN');
     if (!token) throw new Error('SevDesk API Token not configured');
@@ -706,7 +761,10 @@ async function exportToSevDesk({ invoiceId }) {
       invoice: {
         id: null,
         objectName: 'Invoice',
-        invoiceNumber: invoice.invoiceNumber,
+        // Do NOT pass a client-side invoiceNumber. SevDesk assigns the official
+        // sequential number on finalize (sendBy). Passing our local fallback
+        // number (e.g. RE-2026-0059) is what pushed non-sequential numbers into
+        // SevDesk. See Incident: wrong-format invoice numbers.
         invoiceDate: toSevdeskDate(invoice.date),
         deliveryDate: toSevdeskDate(invoice.date),
         deliveryDateUntil: null,
@@ -739,13 +797,36 @@ async function exportToSevDesk({ invoiceId }) {
     const data = await r.json();
     const sevdeskId = data?.objects?.invoice?.id || null;
 
-    // Update invoice with SevDesk ID
+    // Finalize the draft (sendBy VPDF) → transitions 100→200 and lets SevDesk
+    // assign the official sequential number. Without this the export would
+    // leave a permanent draft (exactly the symptom we are fixing).
+    let assignedNumber = invoice.invoiceNumber || null;
+    if (sevdeskId) {
+      try {
+        const rSend = await fetch(`https://my.sevdesk.de/api/v1/Invoice/${sevdeskId}/sendBy`, {
+          method: 'PUT', headers, body: JSON.stringify({ sendType: 'VPDF' }),
+        });
+        if (rSend.ok) {
+          const sd = await rSend.json().catch(() => ({}));
+          assignedNumber = sd?.objects?.invoiceNumber || assignedNumber;
+        } else {
+          const t = await rSend.text().catch(() => '');
+          console.warn(`[invoice-engine] sendBy finalize failed for ${sevdeskId}: ${rSend.status} ${t.slice(0, 150)}`);
+        }
+      } catch (sendErr) {
+        console.warn(`[invoice-engine] sendBy finalize error for ${sevdeskId}: ${sendErr.message}`);
+      }
+    }
+
+    // Update invoice with SevDesk ID + official number
     await snap.ref.set({
       sevdeskId,
+      invoiceNumber: assignedNumber,
+      status: 'offen',
       sevdeskExportedAt: new Date().toISOString(),
     }, { merge: true });
 
-    return { ok: true, sevdeskId };
+    return { ok: true, sevdeskId, invoiceNumber: assignedNumber };
   } catch (err) {
     console.error(`[invoice-engine] SevDesk export failed: ${err.message}`);
     return { ok: false, error: err.message };
