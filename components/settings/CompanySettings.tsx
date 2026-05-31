@@ -53,6 +53,7 @@ export const CompanySettings: React.FC = () => {
   const [bic, setBic] = useState("");
   const [bank, setBank] = useState("");
   const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [logoUrl, setLogoUrl] = useState("");
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -78,6 +79,7 @@ export const CompanySettings: React.FC = () => {
       if (data.iban) setIban(data.iban);
       if (data.bic) setBic(data.bic);
       if (data.bank) setBank(data.bank);
+      if (data.logoUrl) setLogoUrl(data.logoUrl);
     } catch (err: any) {
       setError(err.message || "Fehler beim Laden der Firmendaten");
     } finally {
@@ -89,17 +91,32 @@ export const CompanySettings: React.FC = () => {
     loadSettings();
   }, [loadSettings]);
 
+  const readFileAsDataUrl = (file: File): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = () => reject(new Error("Logo konnte nicht gelesen werden"));
+      reader.readAsDataURL(file);
+    });
+
   const handleSave = async () => {
     setSaving(true);
     setError(null);
     setSaveSuccess(false);
     try {
-      await saveCompanySettings({
+      // Upload the picked logo (if any) as a base64 data URL — the backend
+      // stores it in GCS (tenant-scoped) and returns the public logoUrl.
+      const logoBase64 = logoFile ? await readFileAsDataUrl(logoFile) : undefined;
+      const saved = await saveCompanySettings({
         firmenname, rechtsform, ustIdNr, steuernummer,
         strasse, plz, ort, land,
         email, telefon, website,
         iban, bic, bank,
+        logoUrl,
+        ...(logoBase64 ? { logoBase64 } : {}),
       });
+      if (saved.logoUrl) setLogoUrl(saved.logoUrl);
+      setLogoFile(null);
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);
     } catch (err: any) {
@@ -109,15 +126,27 @@ export const CompanySettings: React.FC = () => {
     }
   };
 
+  const acceptLogo = (file: File | undefined) => {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setError("Bitte eine Bilddatei wählen (PNG, JPG oder SVG)");
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      setError("Logo ist größer als 2 MB");
+      return;
+    }
+    setError(null);
+    setLogoFile(file);
+  };
+
   const handleLogoDrop = (e: React.DragEvent) => {
     e.preventDefault();
-    const file = e.dataTransfer.files?.[0];
-    if (file && file.type.startsWith("image/")) setLogoFile(file);
+    acceptLogo(e.dataTransfer.files?.[0]);
   };
 
   const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) setLogoFile(file);
+    acceptLogo(e.target.files?.[0]);
   };
 
   if (loading) {
@@ -210,9 +239,13 @@ export const CompanySettings: React.FC = () => {
           onDragOver={(e) => e.preventDefault()}
           onDrop={handleLogoDrop}
         >
-          <UploadIcon />
+          {logoUrl && !logoFile ? (
+            <img src={logoUrl} alt="Firmenlogo" className="max-h-20 object-contain" />
+          ) : (
+            <UploadIcon />
+          )}
           <p className="text-sm text-txt-secondary">
-            {logoFile ? logoFile.name : "Logo hochladen"}
+            {logoFile ? logoFile.name : logoUrl ? "Logo ersetzen" : "Logo hochladen"}
           </p>
           <p className="text-xs text-txt-muted">PNG, JPG oder SVG, max. 2 MB</p>
           <input

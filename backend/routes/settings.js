@@ -73,6 +73,17 @@ router.put('/settings/company', async (req, res) => {
         data[key] = req.body[key];
       }
     }
+
+    // Logo upload: a base64 data URL → upload to tenant-scoped GCS path and
+    // store the resulting public URL in logoUrl. (Previously the frontend never
+    // persisted the picked logo, so company_settings.logoUrl stayed empty and
+    // invoices showed only the text fallback.)
+    if (req.body.logoBase64) {
+      const { uploadLogoImage } = require('../lib/storage');
+      const up = await uploadLogoImage(req.body.logoBase64, tenantId);
+      data.logoUrl = up.url;
+    }
+
     data.tenantId = tenantId;
     data.updatedAt = new Date().toISOString();
     data.updatedBy = req.user?.uid || null;

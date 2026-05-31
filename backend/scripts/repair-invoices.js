@@ -83,14 +83,20 @@ async function fetchAllSevdeskInvoices(token) {
     }
   }
 
+  // Optional canary limit: --limit N restricts this run to the first N drafts.
+  const li = process.argv.indexOf('--limit');
+  const LIMIT = li >= 0 ? parseInt(process.argv[li + 1], 10) : null;
+  const work = (LIMIT && LIMIT > 0) ? deletable.slice(0, LIMIT) : deletable;
+
   console.log(`  SevDesk Rechnungen gesamt        : ${invoices.length}`);
   console.log(`  Sicher löschbare Dubletten-Entwürfe: ${deletable.length}`);
+  if (LIMIT) console.log(`  → in DIESEM Lauf (--limit ${LIMIT})   : ${work.length}`);
   console.log(`  (jeweils existiert die echte Rechnung mit gleicher Nummer)\n`);
 
   // Firestore docs that point at a soon-to-be-deleted draft → must be repointed
   let repointPlanned = 0;
   const repointOps = [];
-  for (const d of deletable) {
+  for (const d of work) {
     const snap = await db.collection('invoices')
       .where('tenantId', '==', TENANT)
       .where('sevdeskId', '==', d.draftId)
@@ -103,12 +109,12 @@ async function fetchAllSevdeskInvoices(token) {
   console.log(`  Firestore-Rechnungen, deren sevdeskId auf einen Entwurf zeigt: ${repointPlanned}`);
   console.log(`  → werden auf die echte Rechnung umgebogen (statt ins Leere zu zeigen)\n`);
 
-  if (deletable.length) {
+  if (work.length) {
     console.log('  Beispiele (erste 15):');
-    for (const d of deletable.slice(0, 15)) {
+    for (const d of work.slice(0, 15)) {
       console.log(`    Nr ${d.number.padEnd(10)} Entwurf-ID ${d.draftId}  → behalte echte ID ${d.keepId}`);
     }
-    if (deletable.length > 15) console.log(`    … und ${deletable.length - 15} weitere`);
+    if (work.length > 15) console.log(`    … und ${work.length - 15} weitere`);
     console.log('');
   }
 
@@ -143,7 +149,7 @@ async function fetchAllSevdeskInvoices(token) {
   console.log(`  Firestore umgebogen: ${repointed}/${repointOps.length}\n`);
 
   // 2. Delete the draft duplicates in SevDesk
-  for (const d of deletable) {
+  for (const d of work) {
     try {
       const r = await fetch(`${SEVDESK_BASE_URL}/Invoice/${d.draftId}`, { method: 'DELETE', headers });
       if (r.ok) {

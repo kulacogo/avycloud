@@ -191,6 +191,22 @@ async function uploadBase64Image(base64Data, productId, variant = 'main') {
   return uploadImage(imageBuffer, mimeType, productId, variant);
 }
 
+/**
+ * Upload a company/tenant logo from a base64 data URL. Tenant-scoped path so
+ * every tenant keeps its own logo. Returns { url, width, height, mimeType }.
+ * @param {string} base64Data - data:<mime>;base64,<...>
+ * @param {string} tenantId
+ */
+async function uploadLogoImage(base64Data, tenantId) {
+  const matches = String(base64Data || '').match(/^data:([A-Za-z-+/.]+);base64,(.+)$/);
+  if (!matches || matches.length !== 3) {
+    throw new Error('Invalid base64 image data');
+  }
+  const mimeType = matches[1];
+  const imageBuffer = Buffer.from(matches[2], 'base64');
+  return saveBufferToBucket(imageBuffer, mimeType, `company/${tenantId || 'default'}/logo`);
+}
+
 async function deleteProductImages(productId) {
   try {
     await ensureBucket();
@@ -256,6 +272,7 @@ async function downloadFile(filePath) {
 module.exports = {
   uploadImage,
   uploadBase64Image,
+  uploadLogoImage,
   deleteProductImages,
   uploadJobFile,
   downloadFile,

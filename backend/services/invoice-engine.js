@@ -511,34 +511,48 @@ function buildInvoicePdf(data) {
       doc.font('Helvetica').fillColor('#333');
       const items = data.items || [];
       const vatPct = Math.round((data.vatRate || 0.19) * 100);
+      const NAME_W = 195; // Bezeichnung column width (ends before the Menge column at x=280)
       items.forEach((item, idx) => {
-        if (y > 690) {
-          doc.addPage();
-          y = 50;
-        }
-
         const qty = item.quantity || 1;
         const price = item.priceBrutto || 0;
         const lineTotal = price * qty;
 
-        // Alternating row background
-        if (idx % 2 === 1) {
-          doc.rect(MARGIN, y - 3, CONTENT_WIDTH, 20).fill('#fafafa');
-          doc.fillColor('#333');
+        const name = item.name || 'Artikel';
+        const extra = [];
+        if (item.sku) extra.push(`SKU: ${item.sku}`);
+        if (item.ean) extra.push(`EAN: ${item.ean}`);
+        const extraText = extra.join(' \u00B7 ');
+
+        // Measure the real row height UP FRONT \u2014 long product names wrap to
+        // multiple lines. The old code assumed a fixed height and drew the
+        // SKU/EAN line at y+12, which overlapped the wrapped name. Now we size
+        // the row to the actual content. (Fix: invoice position text overlap.)
+        doc.font('Helvetica').fontSize(9);
+        const nameH = doc.heightOfString(name, { width: NAME_W });
+        let extraH = 0;
+        if (extraText) {
+          doc.fontSize(7);
+          extraH = doc.heightOfString(extraText, { width: NAME_W }) + 1;
+        }
+        const rowH = Math.max(18, nameH + extraH + 6);
+
+        // Page break using the real row height
+        if (y + rowH > 700) {
+          doc.addPage();
+          y = 50;
         }
 
-        doc.fontSize(9);
+        // Alternating row background, sized to the real content
+        if (idx % 2 === 1) {
+          doc.rect(MARGIN, y - 3, CONTENT_WIDTH, rowH).fill('#fafafa');
+        }
+
+        doc.font('Helvetica').fontSize(9).fillColor('#333');
         doc.text(String(idx + 1), MARGIN + 5, y, { width: 25 });
-
-        const nameLines = [];
-        nameLines.push(item.name || 'Artikel');
-        if (item.sku) nameLines.push(`SKU: ${item.sku}`);
-        if (item.ean) nameLines.push(`EAN: ${item.ean}`);
-
-        doc.text(nameLines[0], MARGIN + 32, y, { width: 210 });
-        if (nameLines.length > 1) {
+        doc.text(name, MARGIN + 32, y, { width: NAME_W });
+        if (extraText) {
           doc.fontSize(7).fillColor('#999');
-          doc.text(nameLines.slice(1).join(' \u00B7 '), MARGIN + 32, y + 12, { width: 210 });
+          doc.text(extraText, MARGIN + 32, y + nameH + 1, { width: NAME_W });
           doc.fontSize(9).fillColor('#333');
         }
 
@@ -549,7 +563,7 @@ function buildInvoicePdf(data) {
           doc.text(fmtEur(lineTotal), 435, y, { width: 80, align: 'right' });
         }
 
-        y += nameLines.length > 1 ? 28 : 20;
+        y += rowH;
       });
 
       // ── Totals (invoice only) ──
