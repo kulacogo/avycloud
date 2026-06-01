@@ -356,6 +356,16 @@ export const IntegrationWizard: React.FC<IntegrationWizardProps> = ({
                         Zugangsdaten aktualisieren
                       </button>
                     )}
+                    {provider.authType === "oauth2" && (
+                      <button
+                        onClick={handleOAuthConnect}
+                        disabled={connecting}
+                        className="flex-1 px-4 py-2.5 bg-accent text-white rounded-lg text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
+                        title="Erneut autorisieren — erneuert die Berechtigungen (Scopes)"
+                      >
+                        {connecting ? "Verbinde..." : "Neu verbinden"}
+                      </button>
+                    )}
                     <button
                       onClick={() => setStep("disconnect-confirm")}
                       className="px-4 py-2.5 text-danger border border-danger/30 rounded-lg text-sm font-medium hover:bg-danger-dim transition-colors"
