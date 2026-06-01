@@ -31,6 +31,11 @@ const QuantityNumpad: React.FC<QuantityNumpadProps> = ({
   const { t } = useI18n();
   const safeValue = Number.isFinite(value) ? value : 0;
 
+  // Responsive key height: shrinks on short viewports so the whole pad +
+  // confirm button fit without scrolling, but never below a 40px tap target.
+  const keyBase =
+    "flex items-center justify-center rounded-xl bg-app-surface text-txt-primary border border-app-border font-semibold h-[clamp(2.5rem,6.2dvh,3.25rem)]";
+
   const appendDigit = (digit: number) => {
     const normalized = Math.max(0, Math.floor(safeValue));
     const nextRaw = Number(`${normalized}${digit}`);
@@ -48,7 +53,7 @@ const QuantityNumpad: React.FC<QuantityNumpadProps> = ({
   };
 
   return (
-    <div className="rounded-xl bg-app-bg/60 border border-app-border p-3 space-y-3">
+    <div className="rounded-xl bg-app-bg/60 border border-app-border p-2.5 space-y-2">
       <p className="text-[11px] uppercase tracking-widest text-txt-muted">
         {readOnlyLabel || t("ops.mobile.qtyScannerOrPad")}
       </p>
@@ -59,23 +64,23 @@ const QuantityNumpad: React.FC<QuantityNumpadProps> = ({
           pattern="[0-9]*"
           readOnly
           value={Math.max(0, Math.floor(safeValue))}
-          className="flex-1 rounded-xl bg-app-surface text-txt-primary border border-app-border text-xl font-semibold px-3 py-2"
+          className="flex-1 rounded-xl bg-app-surface text-txt-primary border border-app-border text-xl font-semibold px-3 h-11"
         />
         <button
           type="button"
           aria-label={t("common.clear")}
-          className="rounded-xl px-3 py-2 bg-app-surface text-txt-primary text-sm font-semibold border border-app-border"
+          className="rounded-xl px-3 h-11 bg-app-surface text-txt-primary text-sm font-semibold border border-app-border"
           onClick={clear}
         >
           {t("common.clear")}
         </button>
       </div>
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-3 gap-1.5">
         {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
           <button
             key={n}
             type="button"
-            className="rounded-xl bg-app-surface text-txt-primary border border-app-border text-xl font-semibold py-3"
+            className={`${keyBase} text-xl`}
             onClick={() => appendDigit(n)}
           >
             {n}
@@ -84,14 +89,14 @@ const QuantityNumpad: React.FC<QuantityNumpadProps> = ({
         <button
           type="button"
           aria-label="Delete last digit"
-          className="rounded-xl bg-app-surface text-txt-primary border border-app-border text-lg font-semibold py-3"
+          className={`${keyBase} text-lg`}
           onClick={dropLastDigit}
         >
           <span aria-hidden="true">⌫</span>
         </button>
         <button
           type="button"
-          className="rounded-xl bg-app-surface text-txt-primary border border-app-border text-xl font-semibold py-3"
+          className={`${keyBase} text-xl`}
           onClick={() => appendDigit(0)}
         >
           0
@@ -99,7 +104,7 @@ const QuantityNumpad: React.FC<QuantityNumpadProps> = ({
         <button
           type="button"
           aria-label="Set quantity to zero"
-          className="rounded-xl bg-app-surface text-txt-primary border border-app-border text-lg font-semibold py-3"
+          className={`${keyBase} text-lg`}
           onClick={clear}
         >
           C
@@ -110,7 +115,7 @@ const QuantityNumpad: React.FC<QuantityNumpadProps> = ({
           type="button"
           onClick={onConfirm}
           disabled={Boolean(confirmDisabled)}
-          className="w-full rounded-xl bg-success-dim text-success font-semibold py-3 disabled:opacity-40"
+          className="w-full flex items-center justify-center rounded-xl bg-success-dim text-success font-semibold h-12 disabled:opacity-40"
         >
           {confirmLabel || t("ops.pick.submit")}
         </button>

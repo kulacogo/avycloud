@@ -1220,7 +1220,7 @@ const AppInner: React.FC = () => {
           <Topbar currentView={view} theme={theme} onToggleTheme={toggleTheme} onNavigate={(v) => setView(v as View)} />
         )}
 
-        <main className="flex-1 overflow-y-auto px-4 sm:px-6 lg:px-8 py-6 safe-area-content">
+        <main className={`flex-1 overflow-y-auto px-4 sm:px-6 lg:px-8 safe-area-content ${isMobile && view.startsWith('operations') ? 'pt-3' : 'py-6'}`}>
           {productsError && (
             <div className="mb-4 flex flex-wrap items-center gap-3 rounded-lg border border-danger/30 bg-danger-dim px-4 py-3 text-sm text-danger">
               <span>{productsError}</span>
