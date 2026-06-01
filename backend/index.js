@@ -338,6 +338,28 @@ const server = app.listen(PORT, () => {
     console.warn('[returns-sync] failed to start safety-net:', err?.message || err);
   }
 
+  // Safety-net: marketplace refund → correction invoice (every 6h)
+  // Auto-creates a Teil-Gutschrift (SR) in SevDesk for eBay/Kaufland refunds so
+  // the invoice reflects reduced revenue + VAT. Lookback window limits the scope
+  // so the historical refund backlog is NOT mass-processed (separate backfill).
+  // Set REFUND_SYNC_SINCE=YYYY-MM-DD as a hard floor if needed.
+  const REFUND_SYNC_INTERVAL_MS = parseInt(process.env.REFUND_SYNC_INTERVAL_MS || String(6 * 60 * 60 * 1000), 10);
+  const REFUND_SYNC_LOOKBACK_DAYS = parseInt(process.env.REFUND_SYNC_LOOKBACK_DAYS || '7', 10);
+  try {
+    const runRefundSync = async () => {
+      const { syncRefunds } = require('./services/refund-sync');
+      await runForAllTenants('refund-sync', async ({ tenantId }) => {
+        const r = await syncRefunds({ tenantId, sinceDate: process.env.REFUND_SYNC_SINCE || null, lookbackDays: REFUND_SYNC_LOOKBACK_DAYS });
+        console.log(`[refund-sync] tenant=${tenantId} done:`, JSON.stringify(r));
+      });
+    };
+    setTimeout(() => { runRefundSync().catch((err) => console.warn('[refund-sync] failed:', err?.message)); }, 120_000);
+    setInterval(() => { runRefundSync().catch((err) => console.warn('[refund-sync] failed:', err?.message)); }, REFUND_SYNC_INTERVAL_MS);
+    console.log(`[refund-sync] enabled: every ${REFUND_SYNC_INTERVAL_MS}ms, lookback ${REFUND_SYNC_LOOKBACK_DAYS}d`);
+  } catch (err) {
+    console.warn('[refund-sync] failed to start:', err?.message || err);
+  }
+
   // Safety-net: SendCloud parcel sync every 6h (primary: SendCloud webhooks)
   const SENDCLOUD_SYNC_INTERVAL_MS = parseInt(process.env.SENDCLOUD_SYNC_INTERVAL_MS || String(6 * 60 * 60 * 1000), 10);
   try {

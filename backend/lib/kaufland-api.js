@@ -1045,8 +1045,40 @@ async function getBookings({
   };
 }
 
+/**
+ * Returns Kaufland refund bookings in the date range (money refunded to buyers).
+ * Detection is by booking text (Erstattung/Storno/Gutschrift/Retoure) — NOT by
+ * negative amount, because fee/commission bookings are also negative and must
+ * NOT be treated as refunds (that would wrongly reduce VAT).
+ *
+ * @returns {Promise<Array<{refundId:string, orderId:string, amount:number, currency:string, date:string|null}>>}
+ */
+async function getKauflandRefunds({ from, to, storefront = 'de' } = {}) {
+  const { bookings } = await getBookings({ from, to, storefront });
+  const REFUND_RE = /(erstattung|r[uü]ckerstattung|storno|stornier|gutschrift|retoure|refund)/i;
+
+  const refunds = [];
+  for (const b of bookings) {
+    const text = safeString(b?.raw?.booking_text || b?.raw?.bookingText || b?.type || '');
+    if (!REFUND_RE.test(text)) continue;
+    const orderId = b.order_id || safeString(b?.raw?.order_number) || null;
+    const amount = Math.abs(Number(b.amount_cents) || 0) / 100;
+    if (!orderId || !amount) continue;
+    refunds.push({
+      refundId: `kaufland:${orderId}:${amount.toFixed(2)}:${safeString(b.date)}`,
+      orderId: String(orderId),
+      amount,
+      currency: b.currency || 'EUR',
+      date: (safeString(b.date).split(' ')[0] || '').split('T')[0] || null,
+    });
+  }
+  console.log(`[kaufland] ${from}–${to}: ${refunds.length} refund bookings erkannt`);
+  return refunds;
+}
+
 module.exports = {
   kauflandRequest,
+  getKauflandRefunds,
   findUnit,
   listUnits,
   getUnit,

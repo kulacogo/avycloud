@@ -237,4 +237,75 @@ async function getEbayNetRevenueSeries(fromDate, toDate, { forceRefresh = false,
   return series;
 }
 
-module.exports = { getEbayNetRevenueSummary, getEbayNetRevenueSeries };
+/**
+ * Returns eBay REFUND transactions in the date range — money refunded to buyers
+ * (with or without a return). Used to auto-create correction invoices (Teil-
+ * Gutschrift) so the invoice reflects the reduced revenue.
+ *
+ * @param {string} fromDate - 'YYYY-MM-DD'
+ * @param {string} toDate   - 'YYYY-MM-DD'
+ * @returns {Promise<Array<{refundId:string, orderId:string|null, amount:number, currency:string, date:string}> | null>}
+ *          null if the sell.finances scope is not authorized.
+ */
+async function getEbayRefunds(fromDate, toDate, { timeoutMs = 30000 } = {}) {
+  const fromIso = `${fromDate}T00:00:00.000Z`;
+  const toIso = `${toDate}T23:59:59.999Z`;
+  const filter = `transactionDate:[${fromIso}..${toIso}],transactionType:{REFUND}`;
+
+  const out = [];
+  let offset = 0;
+  const limit = 200;
+  const deadline = Date.now() + timeoutMs;
+
+  for (let page = 0; page < 50; page++) {
+    if (Date.now() > deadline) { console.warn('[ebay-finances] refund timeout'); break; }
+    let res;
+    try {
+      res = await financesFetch(
+        '/sell/finances/v1/transaction',
+        { filter, limit: String(limit), offset: String(offset) },
+        { timeoutMs: Math.min(15000, deadline - Date.now()) }
+      );
+    } catch (err) {
+      console.error('[ebay-finances] refund fetch error:', err.message);
+      return null;
+    }
+    if (res.status === 403 || res.status === 401) {
+      console.log(`[ebay-finances] refund ${res.status} – sell.finances scope not authorized`);
+      return null;
+    }
+    if (!res.ok) {
+      console.error(`[ebay-finances] refund API ${res.status}: ${(await res.text().catch(() => '')).slice(0, 200)}`);
+      return null;
+    }
+    const data = await res.json().catch(() => null);
+    if (!data) return null;
+    const txs = Array.isArray(data?.transactions) ? data.transactions : [];
+    if (!txs.length) break;
+
+    for (const tx of txs) {
+      const amount = Math.abs(parseFloat(tx?.amount?.value || '0') || 0);
+      if (!amount) continue;
+      let orderId = tx?.orderId || null;
+      if (!orderId && Array.isArray(tx?.references)) {
+        const r = tx.references.find((x) => String(x?.referenceType || '').toUpperCase() === 'ORDER_ID');
+        orderId = r?.referenceId || null;
+      }
+      out.push({
+        refundId: String(tx?.transactionId || `${orderId}:${amount}:${tx?.transactionDate || ''}`),
+        orderId: orderId ? String(orderId) : null,
+        amount,
+        currency: (tx?.amount?.currency || 'EUR').toString().toUpperCase(),
+        date: String(tx?.transactionDate || '').split('T')[0],
+      });
+    }
+    const total = Number(data?.total || 0);
+    offset += txs.length;
+    if (offset >= total || txs.length < limit) break;
+  }
+
+  console.log(`[ebay-finances] ${fromDate}–${toDate}: ${out.length} REFUND transactions`);
+  return out;
+}
+
+module.exports = { getEbayNetRevenueSummary, getEbayNetRevenueSeries, getEbayRefunds };
