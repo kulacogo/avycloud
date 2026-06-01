@@ -108,6 +108,14 @@ const sanitizeDatasheetChange = (entry: any = {}): DatasheetChange => {
       'email',
       'manufacturer_phone',
       'url',
+      'eu_responsible_name',
+      'eu_responsible_address',
+      'eu_responsible_city',
+      'eu_responsible_postalcode',
+      'eu_responsible_country',
+      'eu_responsible_country_code',
+      'eu_responsible_email',
+      'eu_responsible_phone',
     ].forEach((k) => {
       const v = typeof entry.gpsr?.[k] === 'string' ? entry.gpsr[k].trim() : '';
       if (v) next[k] = v;

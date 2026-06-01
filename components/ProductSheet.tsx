@@ -1601,10 +1601,10 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
           </section>
         </div>
 
-        {/* GPSR */}
+        {/* GPSR — Hersteller */}
         <section className="p-5 bg-app-surface border border-app-border rounded-2xl">
           <div className="flex items-center gap-2 mb-3">
-            <h3 className="text-sm font-semibold text-txt-muted uppercase tracking-wide">GPSR / Compliance</h3>
+            <h3 className="text-sm font-semibold text-txt-muted uppercase tracking-wide">GPSR / Hersteller</h3>
             {!hasAnyGpsr && !isEditing && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-app-elevated text-txt-muted">leer</span>}
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -1617,6 +1617,37 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
               ['email', 'E-Mail'],
               ['manufacturer_phone', 'Telefon'],
               ['url', 'Website'],
+            ] as [string, string][]).map(([key, label]) => {
+              const value = typeof gpsr?.[key] === 'string' ? gpsr[key] : '';
+              return (
+                <div key={key}>
+                  <label className="block text-xs text-txt-muted mb-0.5">{label}</label>
+                  {isEditing ? (
+                    <input value={value} onChange={(e) => updateGpsrField(key, e.target.value)} className="w-full text-sm bg-app-elevated border border-app-border rounded-lg px-2.5 py-1.5" placeholder="—" />
+                  ) : (
+                    <p className="text-sm text-txt-secondary">{value || '—'}</p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </section>
+
+        {/* GPSR — EU-Verantwortlicher (Pflicht bei Nicht-EU-Herstellern) */}
+        <section className="p-5 bg-app-surface border border-app-border rounded-2xl">
+          <div className="flex items-center gap-2 mb-1">
+            <h3 className="text-sm font-semibold text-txt-muted uppercase tracking-wide">GPSR / EU-Verantwortlicher</h3>
+          </div>
+          <p className="text-xs text-txt-muted mb-3">Pflicht bei Herstellern außerhalb der EU (z. B. China, USA, UK, Schweiz).</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {([
+              ['eu_responsible_name', 'Firma'],
+              ['eu_responsible_address', 'Adresse'],
+              ['eu_responsible_city', 'Stadt'],
+              ['eu_responsible_postalcode', 'PLZ'],
+              ['eu_responsible_country', 'Land'],
+              ['eu_responsible_email', 'E-Mail'],
+              ['eu_responsible_phone', 'Telefon'],
             ] as [string, string][]).map(([key, label]) => {
               const value = typeof gpsr?.[key] === 'string' ? gpsr[key] : '';
               return (

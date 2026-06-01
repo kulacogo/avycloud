@@ -182,6 +182,13 @@ function buildKauflandMaterialComposition(pools) {
  */
 function buildKauflandComplianceContact(product, fallbackName = '') {
   const gpsr = product?.details?.gpsr && typeof product.details.gpsr === 'object' ? product.details.gpsr : {};
+  const { buildKauflandContactFromGpsr, isNonEuManufacturer, hasEuRepFields } = require('../lib/gpsr-eu-rep');
+
+  if (isNonEuManufacturer(gpsr) || hasEuRepFields(gpsr)) {
+    const euContact = buildKauflandContactFromGpsr(gpsr);
+    if (euContact) return euContact;
+  }
+
   const name = safeString(gpsr?.manufacturer_name || fallbackName).replace(/\s+/g, ' ').trim();
   const countryCode = normalizeKauflandCountryCode(gpsr?.country_code || gpsr?.entity_country);
   const addressParts = [

@@ -148,6 +148,15 @@ export interface Details {
     email?: string;
     manufacturer_phone?: string;
     url?: string;
+    /** EU authorized representative (required when manufacturer is outside EU). */
+    eu_responsible_name?: string;
+    eu_responsible_address?: string;
+    eu_responsible_city?: string;
+    eu_responsible_postalcode?: string;
+    eu_responsible_country?: string;
+    eu_responsible_country_code?: string;
+    eu_responsible_email?: string;
+    eu_responsible_phone?: string;
   };
 }
 
@@ -297,6 +306,14 @@ export interface DatasheetChange {
     email?: string;
     manufacturer_phone?: string;
     url?: string;
+    eu_responsible_name?: string;
+    eu_responsible_address?: string;
+    eu_responsible_city?: string;
+    eu_responsible_postalcode?: string;
+    eu_responsible_country?: string;
+    eu_responsible_country_code?: string;
+    eu_responsible_email?: string;
+    eu_responsible_phone?: string;
   };
   pricing?: Pricing;
   notes?: Notes;

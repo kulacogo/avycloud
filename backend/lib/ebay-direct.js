@@ -4295,17 +4295,26 @@ function mapProductToEbayItem(product, overrides = {}) {
   // --- GPSR: Manufacturer data from product ---
   const gpsr = product?.details?.gpsr || null;
 
-  // --- Responsible Person: EU-based entity (seller or authorized rep) ---
-  // Loaded from ENV or integration settings — this is the SELLER's EU contact,
-  // not the manufacturer. Required by GPSR for non-EU manufacturers.
-  const responsiblePerson = {
-    companyName: safeString(overrides.responsiblePersonName) || safeString(process.env.EBAY_RESPONSIBLE_PERSON_NAME) || 'TrendOcean',
+  // --- Responsible Person: EU-based entity (authorized rep for non-EU manufacturers) ---
+  const { buildResponsiblePersonFromGpsr } = require('./gpsr-eu-rep');
+  const envResponsibleFallback = {
+    companyName: safeString(overrides.responsiblePersonName) || safeString(process.env.EBAY_RESPONSIBLE_PERSON_NAME) || undefined,
     street: safeString(overrides.responsiblePersonStreet) || safeString(process.env.EBAY_RESPONSIBLE_PERSON_STREET) || undefined,
     city: safeString(overrides.responsiblePersonCity) || safeString(process.env.EBAY_RESPONSIBLE_PERSON_CITY) || undefined,
     postalCode: safeString(overrides.responsiblePersonZip) || safeString(process.env.EBAY_RESPONSIBLE_PERSON_ZIP) || undefined,
-    countryCode: safeString(overrides.responsiblePersonCountry) || safeString(process.env.EBAY_RESPONSIBLE_PERSON_COUNTRY) || 'DE',
+    countryCode: safeString(overrides.responsiblePersonCountry) || safeString(process.env.EBAY_RESPONSIBLE_PERSON_COUNTRY) || undefined,
     phone: safeString(overrides.responsiblePersonPhone) || safeString(process.env.EBAY_RESPONSIBLE_PERSON_PHONE) || undefined,
     email: safeString(overrides.responsiblePersonEmail) || safeString(process.env.EBAY_RESPONSIBLE_PERSON_EMAIL) || undefined,
+  };
+  const fromProduct = buildResponsiblePersonFromGpsr(gpsr, envResponsibleFallback);
+  const responsiblePerson = fromProduct || {
+    companyName: envResponsibleFallback.companyName || 'TrendOcean',
+    street: envResponsibleFallback.street,
+    city: envResponsibleFallback.city,
+    postalCode: envResponsibleFallback.postalCode,
+    countryCode: envResponsibleFallback.countryCode || 'DE',
+    phone: envResponsibleFallback.phone,
+    email: envResponsibleFallback.email,
   };
   // Only include if at least company name + one contact field is set
   const hasResponsiblePerson = responsiblePerson.companyName && (responsiblePerson.street || responsiblePerson.email || responsiblePerson.phone);

@@ -2656,6 +2656,16 @@ async function saveProduct(product, options = {}) {
       // non-blocking
     }
 
+    // GPSR: separate EU responsible person from manufacturer contacts (non-EU imports).
+    try {
+      const { demixManufacturerEuRepContacts } = require('./gpsr-eu-rep');
+      if (productWithEbay?.details?.gpsr && typeof productWithEbay.details.gpsr === 'object') {
+        productWithEbay.details.gpsr = demixManufacturerEuRepContacts(productWithEbay.details.gpsr);
+      }
+    } catch {
+      // non-blocking
+    }
+
     const productData = {
       ...productWithEbay,
       // D.0b-Hotfix 2026-05-11: defensiver tenantId-Default. Neue Produkte
