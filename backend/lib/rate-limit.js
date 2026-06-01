@@ -26,9 +26,14 @@ const identifyLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+// NOTE: this limiter runs BEFORE auth (index.js), so req.user is not yet set →
+// requests are keyed by IP. A whole company (multiple users, tabs, IDE
+// "In App öffnen" + browser) shares ONE bucket. 120/min was far too low for an
+// authenticated internal SPA and 429'd the integrations page ("Failed to fetch").
+// Raised + env-configurable. The identifyLimiter (LLM, expensive) stays strict.
 const generalLimiter = rateLimit({
   windowMs: 1 * 60 * 1000,
-  max: 120,
+  max: parseInt(process.env.GENERAL_RATE_LIMIT_MAX || '1000', 10),
   keyGenerator: rateLimitKey,
   skip: skipPreflight,
   validate: sharedValidate,
