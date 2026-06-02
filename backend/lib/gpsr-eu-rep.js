@@ -79,8 +79,9 @@ function looksLikeEuRepContact(email, phone) {
 
 // Structural marker: an entity acting *on behalf of* a manufacturer is, by definition,
 // not the manufacturer itself — it is the EU responsible person. A real manufacturer never
-// names itself "X GmbH (für Y)".
-const EU_REP_ON_BEHALF_RE = /\((?:f(?:ü|ue?)r|for|on behalf of|i\.?\s?a\.?)\s+([^)]+)\)|\bim auftrag(?:\s+von)?\s+(.+)$/i;
+// names itself "X GmbH (für Y)". Requires parentheses (or "im Auftrag") so a plain "für" in a
+// real company name (e.g. "Möbel für Dich GmbH") is not falsely flagged.
+const EU_REP_ON_BEHALF_RE = /\([^)]*\b(?:f(?:ü|ue?)r|for|on behalf of)\b[^)]*\)|\bim auftrag\b/i;
 
 // Known professional EU-authorized-representative / responsible-person service providers.
 // Conservative list — these names are essentially never an actual product manufacturer.
@@ -97,18 +98,33 @@ function looksLikeEuRepEntity(name) {
   return EU_REP_ON_BEHALF_RE.test(n) || EU_REP_PROVIDER_RE.test(n);
 }
 
-/** Pull the real manufacturer out of an "(für X)" / "im Auftrag von X" suffix, if present. */
+const ROLE_ONLY_RE = /^(?:eu[-\s]?rep(?:resentative)?|eu[-\s]?verantwortlich(?:e[r]?)?|authori[sz]ed\s+representative|bevollm[aä]chtigt(?:er?)?)$/i;
+
+/**
+ * Pull the real manufacturer out of the company name, e.g.
+ *   "Apex CE Specialists GmbH (für Ominia)"          -> "Ominia"
+ *   "Apex CE Specialists GmbH (Ominia)"              -> "Ominia"
+ *   "Oasis Service Sp. z o.o. (EU Rep für DeerValley)" -> "DeerValley"
+ * Returns '' when no brand can be recovered.
+ */
 function extractRepresentedManufacturer(name) {
   const n = safeString(name);
-  const m = n.match(EU_REP_ON_BEHALF_RE);
-  if (!m) return '';
-  return safeString(m[1] || m[2]).replace(/[.,;)]+$/, '').trim();
+  // 1) "… für|for|on behalf of <Brand>" anywhere — brand runs to closing paren / end.
+  let m = n.match(/\b(?:f(?:ü|ue?)r|for|on behalf of|im auftrag von)\s+([^)]+?)\s*\)?\s*$/i);
+  if (m && m[1]) return m[1].replace(/[.,;]+$/, '').trim();
+  // 2) Trailing "(<Brand>)" without "für" — ignore pure role annotations like "(EU Rep)".
+  m = n.match(/\(([^)]+)\)\s*$/);
+  if (m && m[1]) {
+    const inner = m[1].trim();
+    if (!ROLE_ONLY_RE.test(inner)) return inner.replace(/[.,;]+$/, '').trim();
+  }
+  return '';
 }
 
-/** Strip the "(für X)" / "im Auftrag von X" suffix to get the clean rep company name. */
+/** Strip the brand/role annotation to get the clean rep company name. */
 function cleanRepName(name) {
   return safeString(name)
-    .replace(/\s*\((?:f(?:ü|ue?)r|for|on behalf of|i\.?\s?a\.?)\s+[^)]*\)/i, '')
+    .replace(/\s*\([^)]*\)\s*$/, '') // trailing "(…)" annotation: "(für X)", "(Ominia)", "(EU Rep für Y)"
     .replace(/\s*\bim auftrag(?:\s+von)?\s+.+$/i, '')
     .trim();
 }

@@ -330,6 +330,45 @@ function isAspectsCapExceededError(errors) {
   });
 }
 
+// Detects eBay error 240 — the policy / restricted-terms rejection.
+// English: "The item cannot be listed or modified. The title and/or
+// description may contain improper words, or the listing or seller may be in
+// violation of eBay policy." German: "Der Artikel kann weder eingestellt noch
+// bearbeitet werden. Die Artikelbezeichnung und/oder -beschreibung enthalten
+// unter Umständen unzulässige Begriffe ... eBay-Grundsätze".
+// This is policy-driven (keyword/category/account), NOT a payload data bug —
+// it cannot be auto-fixed; we classify it so the operator gets actionable text.
+function isRestrictedTermsError(errors) {
+  if (!Array.isArray(errors) || !errors.length) return false;
+  return errors.some((e) => {
+    const code = String(e?.errorCode || e?.code || '');
+    if (code === '240') return true;
+    const l = `${e?.longMessage || ''} ${e?.shortMessage || ''}`.toLowerCase();
+    return (
+      (l.includes('weder eingestellt noch bearbeitet') &&
+        (l.includes('unzulässige begriffe') || l.includes('grundsätze'))) ||
+      (l.includes('cannot be listed or modified') &&
+        (l.includes('improper words') || l.includes('violation of ebay policy')))
+    );
+  });
+}
+
+// Returns an actionable German operator message for a restricted-terms (240)
+// rejection, or null if it doesn't apply. Surfaced in the Marktplätze tab in
+// place of eBay's vague boilerplate so the operator knows what to do.
+function describeRestrictedTermsError(errors) {
+  if (!isRestrictedTermsError(errors)) return null;
+  return (
+    'eBay hat dieses Angebot wegen seiner Grundsätze abgelehnt (Fehler 240). ' +
+    'Das ist KEIN Datenfehler, sondern eine Inhalts-/Richtlinienprüfung. ' +
+    'Bitte prüfen: Titel und Beschreibung auf unzulässige Begriffe ' +
+    '(z. B. Gesundheits-/Heilversprechen bei Futtermitteln, Kontaktdaten, ' +
+    'Marken-/Trademark-Missbrauch), und ob die Kategorie auf eBay.de ' +
+    'eingeschränkt ist oder das Verkäuferkonto eine Freischaltung benötigt. ' +
+    'Manuelle Überarbeitung erforderlich.'
+  );
+}
+
 // Identifiers that must NEVER be stripped from ItemSpecifics, even if eBay's PBSE
 // error lists them as "product aspects sent as custom item specifics". Stripping
 // them creates an EAN-fehlt loop: eBay says "remove EAN as custom specific" → we
@@ -651,14 +690,14 @@ function buildReviseItemRequestXml(callName, patch, cfg) {
     itemFields.push(`<SubTitle>${escapeXml(subtitle)}</SubTitle>`);
   }
   if (typeof patch?.description === 'string') {
-    itemFields.push(`<Description>${asCdata(patch.description)}</Description>`);
+    itemFields.push(`<Description>${asCdata(forceHttpsInHtml(patch.description))}</Description>`);
   }
   const specificsXml = buildNameValueListXml(patch?.itemSpecifics || {});
   if (specificsXml) {
     itemFields.push(specificsXml);
   }
   const pictureUrls = asArray(patch?.pictureUrls || patch?.pictureDetails)
-    .map((u) => safeString(u))
+    .map((u) => forceHttpsUrl(u))
     .filter(Boolean);
   if (pictureUrls.length) {
     // Per Trading API docs: for revise calls, provide the complete set of PictureURL values you want the listing to include.
@@ -869,11 +908,37 @@ const MANUFACTURER_COUNTRY_CODE_MAP = {
   china: 'CN', japan: 'JP', kanada: 'CA', canada: 'CA',
 };
 
+// Non-ISO 2-letter aliases that eBay's CountryCodeType (ISO 3166-1 alpha-2)
+// rejects. The GPSR registry stores "UK" by marketplace convention
+// (gpsr-manufacturer-registry.js), but eBay only accepts "GB"; "EL" is the
+// EU statistical alias for Greece, whose ISO code is "GR". Without this remap
+// eBay rejects the listing with "Eingabedaten für Tag
+// <Item.Regulatory.Manufacturer.Country> sind ungültig oder fehlen".
+const NON_ISO_COUNTRY_ALIASES = { UK: 'GB', EL: 'GR' };
+
 function normalizeManufacturerCountryCode(raw) {
   const v = safeString(raw);
   if (!v) return '';
-  if (/^[A-Z]{2}$/i.test(v)) return v.toUpperCase();
+  if (/^[A-Z]{2}$/i.test(v)) {
+    const up = v.toUpperCase();
+    return NON_ISO_COUNTRY_ALIASES[up] || up;
+  }
   return MANUFACTURER_COUNTRY_CODE_MAP[v.toLowerCase()] || '';
+}
+
+// eBay rejects listings containing non-HTTPS resources (error 21919490:
+// "Security policy violation. Description contains HTTP resources").
+// This applies to <PictureURL> values AND any http:// resource embedded in
+// the description HTML. Upgrade the scheme to https:// (eBay's own
+// recommended remediation) rather than dropping images.
+function forceHttpsUrl(raw) {
+  const v = safeString(raw);
+  if (!v) return '';
+  return v.replace(/^http:\/\//i, 'https://');
+}
+
+function forceHttpsInHtml(raw) {
+  return safeString(raw).replace(/http:\/\//gi, 'https://');
 }
 
 /**
@@ -971,7 +1036,7 @@ function buildRegulatoryXml(item) {
     if (rpCity) rp.push(`<CityName>${escapeXml(rpCity)}</CityName>`);
     const rpZip = safeString(responsiblePerson.postalCode);
     if (rpZip) rp.push(`<PostalCode>${escapeXml(rpZip)}</PostalCode>`);
-    const rpCountry = safeString(responsiblePerson.countryCode) || 'DE';
+    const rpCountry = normalizeManufacturerCountryCode(responsiblePerson.countryCode) || 'DE';
     rp.push(`<Country>${escapeXml(rpCountry)}</Country>`);
     const rpPhone = safeString(responsiblePerson.phone);
     if (rpPhone) rp.push(`<Phone>${escapeXml(rpPhone)}</Phone>`);
@@ -1008,7 +1073,7 @@ function buildAddFixedPriceItemXml(item, cfg) {
   }
 
   if (typeof item?.description === 'string') {
-    fields.push(`<Description>${asCdata(item.description)}</Description>`);
+    fields.push(`<Description>${asCdata(forceHttpsInHtml(item.description))}</Description>`);
   }
 
   const price = item?.startPrice ?? item?.price;
@@ -1042,7 +1107,7 @@ function buildAddFixedPriceItemXml(item, cfg) {
   const sku = safeString(item?.sku);
   if (sku) fields.push(`<SKU>${escapeXml(sku)}</SKU>`);
 
-  const pictureUrls = asArray(item?.pictureUrls || item?.pictureDetails).map((u) => safeString(u)).filter(Boolean);
+  const pictureUrls = asArray(item?.pictureUrls || item?.pictureDetails).map((u) => forceHttpsUrl(u)).filter(Boolean);
   if (pictureUrls.length) {
     fields.push(`<PictureDetails>${pictureUrls.map((u) => `<PictureURL>${escapeXml(u)}</PictureURL>`).join('')}</PictureDetails>`);
   }
@@ -1425,4 +1490,8 @@ module.exports = {
   isProductAspectMisuseError,
   isImageConflictError,
   isAspectsCapExceededError,
+  isRestrictedTermsError,
+  describeRestrictedTermsError,
+  forceHttpsUrl,
+  forceHttpsInHtml,
 };

@@ -23,6 +23,7 @@ const {
   reviseItem,
   addFixedPriceItem,
   verifyAddFixedPriceItem,
+  describeRestrictedTermsError,
 } = require('./ebay-trading-api');
 const { decodeHtmlEntitiesDeep } = require('./html-entities');
 
@@ -4722,6 +4723,12 @@ async function publishProduct(productId, overrides = {}, { actor = null } = {}) 
       severity: safeString(e?.severityCode) || 'Error',
     }));
     const listingErrors = ebayErrors.length ? ebayErrors : [{ code: null, message: errorMessage, severity: 'Error' }];
+    // Error 240 (restricted terms / policy) is not auto-fixable — replace
+    // eBay's vague boilerplate with an actionable operator hint.
+    const policyHint = describeRestrictedTermsError(asArray(publishErr?.details?.errors));
+    if (policyHint) {
+      listingErrors.unshift({ code: '240', message: policyHint, severity: 'Error', kind: 'policy' });
+    }
     try {
       await firestore.collection(PRODUCTS_COLLECTION).doc(id).set(
         {

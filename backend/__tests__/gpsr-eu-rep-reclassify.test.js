@@ -91,6 +91,26 @@ describe('reclassifyEuRepAsManufacturer', () => {
     expect(out.eu_responsible_name).toBe('Existing Rep GmbH');
   });
 
+  it('recovers the brand from a "(Brand)" suffix without "für" (real data: Apex CE … (Ominia))', () => {
+    const out = reclassifyEuRepAsManufacturer({
+      manufacturer_name: 'Apex CE Specialists GmbH (Ominia)',
+      manufacturer_address: 'Grafenberger Allee 277',
+      manufacturer_city: 'Düsseldorf',
+    });
+    expect(out.eu_responsible_name).toBe('Apex CE Specialists GmbH');
+    expect(out.manufacturer_name).toBe('Ominia');
+  });
+
+  it('recovers the brand when "für" is mid-parenthetical (real data: … (EU Rep für DeerValley))', () => {
+    const out = reclassifyEuRepAsManufacturer({
+      manufacturer_name: 'Oasis Service Sp. z o.o. (EU Rep für DeerValley)',
+      manufacturer_address: 'ul. Przykładowa 1',
+      manufacturer_city: 'Warszawa',
+    });
+    expect(out.eu_responsible_name).toBe('Oasis Service Sp. z o.o.');
+    expect(out.manufacturer_name).toBe('DeerValley');
+  });
+
   it('handles a provider name without a "(für X)" suffix (no manufacturer to restore)', () => {
     const gpsr = {
       manufacturer_name: 'eVatmaster Consulting GmbH',
