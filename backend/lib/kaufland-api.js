@@ -80,6 +80,43 @@ function toInteger(value) {
   return Math.trunc(n);
 }
 
+// GS1 GTIN validation. A Kaufland unit ("Angebot") can only bind to a catalog
+// item keyed by a valid, globally-unique GTIN. Returns true only for
+// structurally listable EANs. Rejects (incident 2026-06-02):
+//   - wrong length (must be 13 = EAN-13 or 14 = GTIN-14 digits)
+//   - failed mod-10 check digit (malformed / fabricated codes)
+//   - EAN-13 with GS1 prefix 2xx / 02x — "restricted distribution" in-store
+//     codes (e.g. 2001166900003, 2452014202112) that are never globally
+//     unique and are always rejected by Kaufland.
+// The restricted-prefix rule only applies to EAN-13: in a GTIN-14 the leading
+// digit is a packaging indicator, not part of the GS1 prefix.
+function isValidGtin(value) {
+  const digits = String(value || '').replace(/\D+/g, '');
+  if (digits.length !== 13 && digits.length !== 14) return false;
+  if (digits.length === 13 && (digits[0] === '2' || (digits[0] === '0' && digits[1] === '2'))) {
+    return false;
+  }
+  const body = digits.slice(0, -1);
+  const check = Number(digits[digits.length - 1]);
+  let sum = 0;
+  for (let i = 0; i < body.length; i += 1) {
+    const d = Number(body[body.length - 1 - i]);
+    sum += i % 2 === 0 ? d * 3 : d;
+  }
+  const computed = (10 - (sum % 10)) % 10;
+  return computed === check;
+}
+
+// Detect Kaufland's own "this EAN is not acceptable" responses so we can
+// surface a clear, actionable error instead of the downstream cryptic
+// "Parameter [item] is missing or has wrong value" from POST /units.
+// Kaufland phrases it as "Invalid EAN provided" (GET /products/ean) and
+// 'EAN "<x>" is not valid' (PUT /product-data).
+function isEanRejectionError(message) {
+  const m = String(message || '').toLowerCase();
+  return m.includes('invalid ean') || (m.includes('ean') && m.includes('not valid'));
+}
+
 function normalizeCondition(value) {
   const raw = safeString(value).toUpperCase();
   if (!raw) return 'NEW';
@@ -614,6 +651,24 @@ async function createUnit(product, { storefront = 'de', autoCreateProductData = 
   const createData = { ...(picked.unitData || {}) };
   let productDataSubmitted = false;
   let catalogMatched = false;
+  // Tracks whether Kaufland actively rejected the EAN (lookup/product-data).
+  // Used to short-circuit before the doomed POST /units and surface a clear
+  // KAUFLAND_EAN_INVALID instead of "Parameter [item] is missing or has
+  // wrong value". See incident 2026-06-02.
+  let eanRejectedByKaufland = false;
+
+  // Pre-flight: structurally invalid or GS1 restricted-distribution EANs can
+  // never bind to a Kaufland catalog item — reject immediately with a clear,
+  // actionable message instead of wasting 3 API calls that all end in the
+  // cryptic "Parameter [item] is missing or has wrong value".
+  if (picked.ean && !isValidGtin(picked.ean)) {
+    const err = new Error(
+      `EAN "${picked.ean}" ist keine gueltige GTIN — Kaufland benoetigt eine ` +
+      `registrierte EAN/GTIN zum Listen. Bitte eine gueltige EAN hinterlegen.`
+    );
+    err.code = 'KAUFLAND_EAN_INVALID';
+    throw err;
+  }
 
   if (picked.ean) {
     // Step 1: Resolve catalog state FIRST so we know whether Kaufland already
@@ -633,7 +688,10 @@ async function createUnit(product, { storefront = 'de', autoCreateProductData = 
       catalogIdCategory = Number(productData?.id_category || 0) || 0;
       catalogIsValid = !!productData?.is_valid;
     } catch (lookupErr) {
-      // Lookup failed — not fatal, POST /units accepts EAN alone
+      // Lookup failed — not fatal, POST /units accepts EAN alone. But if
+      // Kaufland says the EAN itself is invalid, remember it: the unit can
+      // never be created and we want a clear error, not the cryptic one.
+      if (isEanRejectionError(lookupErr?.message)) eanRejectedByKaufland = true;
       console.warn(`[createUnit] EAN lookup failed for ${picked.ean}: ${lookupErr?.message || lookupErr}`);
     }
 
@@ -716,10 +774,26 @@ async function createUnit(product, { storefront = 'de', autoCreateProductData = 
           productDataSubmitted = true;
           console.log(`[createUnit] Full product data submitted for EAN ${picked.ean} — keys: ${Object.keys(fullAttrs).join(',')}${predictedIdCategory ? `, idCategory=${predictedIdCategory}` : ''}`);
         } catch (pdErr) {
+          if (isEanRejectionError(pdErr?.message)) eanRejectedByKaufland = true;
           console.warn(`[createUnit] putProductData failed for EAN ${picked.ean}: ${pdErr?.message || pdErr}`);
         }
       }
     }
+  }
+
+  // Short-circuit: Kaufland already rejected this EAN as invalid AND we have
+  // neither a catalog match nor a successful product-data submission to bind
+  // to. POST /units would fail with the cryptic "Parameter [item] is missing
+  // or has wrong value" — throw a clear, actionable error instead and skip
+  // the doomed call. See incident 2026-06-02.
+  if (eanRejectedByKaufland && !catalogMatched && !productDataSubmitted) {
+    const err = new Error(
+      `EAN "${picked.ean}" wurde von Kaufland als ungueltig abgelehnt — ` +
+      `Kaufland benoetigt eine registrierte EAN/GTIN zum Listen. ` +
+      `Bitte eine gueltige EAN hinterlegen.`
+    );
+    err.code = 'KAUFLAND_EAN_INVALID';
+    throw err;
   }
 
   // Step 3: Create the unit — Kaufland accepts EAN without id_product
@@ -1095,4 +1169,6 @@ module.exports = {
   listShippingGroups,
   listWarehouses,
   getBookings,
+  isValidGtin,
+  isEanRejectionError,
 };
