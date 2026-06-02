@@ -15,6 +15,7 @@
 
 const { getValidEbayAccessToken } = require('./ebay-oauth');
 const { acquireSlot } = require('./ebay-rate-limiter');
+const { callTradingApi } = require('./ebay-trading-api');
 
 // eBay Finances API uses a different subdomain than the rest of the eBay API
 const FINANCES_BASE_URL = 'https://apiz.ebay.com';
@@ -247,64 +248,69 @@ async function getEbayNetRevenueSeries(fromDate, toDate, { forceRefresh = false,
  * @returns {Promise<Array<{refundId:string, orderId:string|null, amount:number, currency:string, date:string}> | null>}
  *          null if the sell.finances scope is not authorized.
  */
-async function getEbayRefunds(fromDate, toDate, { timeoutMs = 30000 } = {}) {
+async function getEbayRefunds(fromDate, toDate, { timeoutMs = 60000 } = {}) {
+  // eBay refunds via the TRADING API (GetOrders, filtered by modification time —
+  // a refund modifies the order). The REST Finances API is intentionally NOT
+  // used here: it requires eBay Digital Signatures (x-ebay-signature-key, RFC
+  // 9421) and returns 403 (errorId 215001) without them. The Trading API needs
+  // no signature. Refunds live in Order.MonetaryDetails.Refunds.
   const fromIso = `${fromDate}T00:00:00.000Z`;
   const toIso = `${toDate}T23:59:59.999Z`;
-  const filter = `transactionDate:[${fromIso}..${toIso}],transactionType:{REFUND}`;
+  const fromMs = Date.parse(fromIso), toMs = Date.parse(toIso);
 
   const out = [];
-  let offset = 0;
-  const limit = 200;
-  const deadline = Date.now() + timeoutMs;
-
-  for (let page = 0; page < 50; page++) {
-    if (Date.now() > deadline) { console.warn('[ebay-finances] refund timeout'); break; }
-    let res;
+  let page = 1;
+  let totalPages = 1;
+  do {
+    const innerXml = `
+      <ModTimeFrom>${fromIso}</ModTimeFrom>
+      <ModTimeTo>${toIso}</ModTimeTo>
+      <OrderRole>Seller</OrderRole>
+      <OrderStatus>All</OrderStatus>
+      <Pagination><EntriesPerPage>100</EntriesPerPage><PageNumber>${page}</PageNumber></Pagination>`;
+    let resp;
     try {
-      res = await financesFetch(
-        '/sell/finances/v1/transaction',
-        { filter, limit: String(limit), offset: String(offset) },
-        { timeoutMs: Math.min(15000, deadline - Date.now()) }
-      );
+      const result = await callTradingApi('GetOrders', innerXml, { timeoutMs });
+      resp = result.response;
     } catch (err) {
-      console.error('[ebay-finances] refund fetch error:', err.message);
+      console.error('[ebay-refunds] GetOrders error:', err.message);
       return null;
     }
-    if (res.status === 403 || res.status === 401) {
-      console.log(`[ebay-finances] refund ${res.status} – sell.finances scope not authorized`);
+    if (resp?.Ack === 'Failure') {
+      const errs = Array.isArray(resp.Errors) ? resp.Errors : resp.Errors ? [resp.Errors] : [];
+      console.error('[ebay-refunds] GetOrders failure:', errs.map((e) => e.ShortMessage || e.LongMessage).join('; '));
       return null;
     }
-    if (!res.ok) {
-      console.error(`[ebay-finances] refund API ${res.status}: ${(await res.text().catch(() => '')).slice(0, 200)}`);
-      return null;
-    }
-    const data = await res.json().catch(() => null);
-    if (!data) return null;
-    const txs = Array.isArray(data?.transactions) ? data.transactions : [];
-    if (!txs.length) break;
-
-    for (const tx of txs) {
-      const amount = Math.abs(parseFloat(tx?.amount?.value || '0') || 0);
-      if (!amount) continue;
-      let orderId = tx?.orderId || null;
-      if (!orderId && Array.isArray(tx?.references)) {
-        const r = tx.references.find((x) => String(x?.referenceType || '').toUpperCase() === 'ORDER_ID');
-        orderId = r?.referenceId || null;
+    totalPages = parseInt(resp?.PaginationResult?.TotalNumberOfPages || '1', 10);
+    const arr = resp?.OrderArray?.Order;
+    const orders = Array.isArray(arr) ? arr : arr ? [arr] : [];
+    for (const o of orders) {
+      const orderId = o?.OrderID != null ? String(o.OrderID) : null;
+      const totalRaw = o?.Total;
+      const ebayOrderTotal = Math.abs(parseFloat((totalRaw && totalRaw['#text']) ?? totalRaw ?? '0') || 0);
+      const node = o?.MonetaryDetails?.Refunds?.Refund;
+      const refunds = Array.isArray(node) ? node : node ? [node] : [];
+      for (const r of refunds) {
+        const amtRaw = r?.RefundAmount;
+        const amount = Math.abs(parseFloat((amtRaw && amtRaw['#text']) ?? amtRaw ?? '0') || 0);
+        if (!amount) continue;
+        const rt = r?.RefundTime ? Date.parse(r.RefundTime) : null;
+        if (rt && (rt < fromMs || rt > toMs)) continue; // refund itself must be in window
+        const refId = (r?.ReferenceID && (r.ReferenceID['#text'] ?? r.ReferenceID)) || r?.RefundID;
+        out.push({
+          refundId: String(refId || `${orderId}:${amount}:${r?.RefundTime || ''}`),
+          orderId,
+          ebayOrderTotal,                 // current eBay order total (already reduced by refunds)
+          sellerNetRefund: amount,        // seller-net amount eBay reports (after fee credit) — reference only
+          currency: (amtRaw && amtRaw['@_currencyID']) || 'EUR',
+          date: String(r?.RefundTime || '').split('T')[0] || null,
+        });
       }
-      out.push({
-        refundId: String(tx?.transactionId || `${orderId}:${amount}:${tx?.transactionDate || ''}`),
-        orderId: orderId ? String(orderId) : null,
-        amount,
-        currency: (tx?.amount?.currency || 'EUR').toString().toUpperCase(),
-        date: String(tx?.transactionDate || '').split('T')[0],
-      });
     }
-    const total = Number(data?.total || 0);
-    offset += txs.length;
-    if (offset >= total || txs.length < limit) break;
-  }
+    page++;
+  } while (page <= totalPages && page <= 20);
 
-  console.log(`[ebay-finances] ${fromDate}–${toDate}: ${out.length} REFUND transactions`);
+  console.log(`[ebay-refunds] ${fromDate}–${toDate}: ${out.length} refunds (Trading API)`);
   return out;
 }
 
