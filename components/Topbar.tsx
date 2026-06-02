@@ -4,38 +4,7 @@ import { useAuth } from "../context/AuthContext";
 import { Breadcrumb, type BreadcrumbItem } from "./ui/Breadcrumb";
 import { HelpButton } from "./help/HelpButton";
 import { useSystemAlerts } from "../hooks/useSystemAlerts";
-
-type View =
-  | "dashboard"
-  | "home"
-  | "search"
-  | "input"
-  | "sheet"
-  | "inventory"
-  | "products"
-  | "admin"
-  | "categories"
-  | "ebay-listings"
-  | "warehouse"
-  | "warehouse-settings"
-  | "orders"
-  | "orders-returns"
-  | "orders-shipping"
-  | "orders-invoices"
-  | "orders-settings"
-  | "operations"
-  | "operations-identify"
-  | "operations-stow"
-  | "operations-pick"
-  | "operations-pack"
-  | "marketplace-ebay"
-  | "marketplace-kaufland"
-  | "integrations"
-  | "settings"
-  | "settings-profile"
-  | "settings-team"
-  | "settings-api"
-  | "settings-billing";
+import type { View } from "../types";
 
 interface TopbarProps {
   currentView: View;

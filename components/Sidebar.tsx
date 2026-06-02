@@ -1,45 +1,8 @@
 import React, { useState, useCallback, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
+import type { View } from "../types";
 
-export type View =
-  | "dashboard"
-  | "home"
-  | "search"
-  | "admin"
-  | "categories"
-  | "operations"
-  | "operations-identify"
-  | "operations-stow"
-  | "operations-pick"
-  | "operations-pack"
-  | "input"
-  | "sheet"
-  | "inventory"
-  | "products"
-  | "orders"
-  | "orders-returns"
-  | "orders-shipping"
-  | "orders-invoices"
-  | "orders-settings"
-  | "warehouse"
-  | "warehouse-settings"
-  | "marketplace-ebay"
-  | "marketplace-kaufland"
-  | "integrations"
-  | "integrations-ebay"
-  | "integrations-kaufland"
-  | "integrations-sendcloud"
-  | "integrations-sevdesk"
-  | "settings"
-  | "settings-profile"
-  | "settings-team"
-  | "settings-api"
-  | "settings-billing"
-  | "ebay-listings"
-  | "duplicates"
-  | "audit-log"
-  | "pricing"
-  | "rules";
+export type { View };
 
 interface SidebarProps {
   currentView: View;

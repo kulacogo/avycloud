@@ -2719,7 +2719,7 @@ const normalizeProduct = (raw: any): Product => {
       url_or_base64: img?.url_or_base64 || img?.url || img?.href || '',
       source: (img?.source as any) || 'web',
     }))
-    .filter((img) => Boolean(img.url_or_base64));
+    .filter((img: any) => Boolean(img.url_or_base64));
 
   return {
     ...input,
@@ -3681,7 +3681,7 @@ export async function fetchOrderStatuses(): Promise<{ statuses: Record<string, a
   return data?.data || { statuses: {}, counts: {} };
 }
 
-export async function fetchOrderDetail(orderId: string): Promise<{ order: any; timeline: any[]; nextStatuses: string[] }> {
+export async function fetchOrderDetail(orderId: string): Promise<{ order: any; timeline: any[]; nextStatuses: string[]; allStatuses?: Record<string, any> }> {
   const res = await fetchApi(`${BACKEND_URL}/api/orders/${encodeURIComponent(orderId)}/detail`, { method: 'GET' });
   const data = await parseResponse(res);
   if (!res.ok || data?.ok === false) throw new Error(data?.error?.message || 'Failed to load order detail');
@@ -5224,7 +5224,7 @@ export interface ImportPreviewResult {
     errors: { row: number; message: string }[];
     preview: { name: string; brand: string; sku: string; ean: string; sellPrice: number }[];
   };
-  error?: { code: string; message: string };
+  error?: { code: number; message: string };
 }
 
 export interface ColumnMapping {
@@ -5260,7 +5260,7 @@ export interface ImportExecuteResult {
     validationErrors: { row: number; message: string }[];
     importErrors: { row: number; message: string }[];
   };
-  error?: { code: string; message: string };
+  error?: { code: number; message: string };
 }
 
 // --- Deduplication ---
@@ -5354,7 +5354,7 @@ export interface BulkUpdateResult {
     diff?: BulkUpdateDiffEntry[];
     duration_ms: number;
   };
-  error?: { code: string; message: string };
+  error?: { code: number; message: string };
 }
 
 export async function bulkUpdateProducts(params: {
@@ -5600,6 +5600,23 @@ export interface UserSessionClient {
   colorScheme: "dark" | "light";
   reducedMotion: boolean;
   pdfViewerEnabled: boolean;
+  // Extended fingerprint fields (optional; mirror SessionClientInfo). Captured by
+  // newer clients and surfaced read-only in UserSessionsTab.
+  screenColorDepth?: number | null;
+  screenOrientation?: string | null;
+  gpuRenderer?: string | null;
+  gpuVendor?: string | null;
+  onLine?: boolean;
+  storageQuotaMb?: number | null;
+  storageUsageMb?: number | null;
+  batteryLevel?: number | null;
+  batteryCharging?: boolean | null;
+  mediaDeviceCounts?: { audioinput: number; videoinput: number; audiooutput: number } | null;
+  pointerType?: "fine" | "coarse" | "none";
+  hoverCapable?: boolean;
+  forcedColors?: boolean;
+  prefersContrast?: "more" | "less" | "no-preference";
+  connectionPhysicalType?: string | null;
 }
 
 export interface UserSession {
@@ -5675,6 +5692,116 @@ export async function heartbeatSession(sessionId: string): Promise<void> {
   await fetchApi(`${BACKEND_URL}/api/sessions/${encodeURIComponent(sessionId)}/heartbeat`, {
     method: "POST",
   });
+}
+
+// ── Operational error dashboard ───────────────────────────────────────────
+// Mirrors the `operationalErrors` Firestore documents written by the backend
+// error-collector (backend/lib/error-collector.js). Consumed by hooks/useErrors
+// and components/error-dashboard/*.
+export type OperationalErrorType =
+  | "sync_failure"
+  | "api_error"
+  | "job_failure"
+  | "validation_error"
+  | "webhook_error";
+export type OperationalErrorSeverity = "critical" | "warning" | "info";
+export type OperationalErrorChannel = "ebay" | "kaufland" | "sendcloud" | "internal";
+export type OperationalErrorStatus = "open" | "resolved";
+
+export interface OperationalError {
+  id: string;
+  tenantId?: string;
+  type: OperationalErrorType | string;
+  severity: OperationalErrorSeverity | string;
+  channel: OperationalErrorChannel | string;
+  message: string;
+  details?: string | null;
+  entityType?: string | null;
+  entityId?: string | null;
+  entityName?: string | null;
+  source: string;
+  status: OperationalErrorStatus | string;
+  fixSuggestion?: string | null;
+  createdAt: string | null;
+}
+
+export interface ErrorSummary {
+  total: number;
+  bySeverity: { critical: number; warning: number; info: number };
+  byStatus: { open: number; resolved: number };
+  byType: Record<string, number>;
+  byChannel: Record<string, number>;
+}
+
+export interface FetchErrorsParams {
+  type?: string;
+  channel?: string;
+  severity?: string;
+  status?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface FetchErrorsResult {
+  errors: OperationalError[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export async function fetchErrors(params: FetchErrorsParams = {}): Promise<FetchErrorsResult> {
+  const q = new URLSearchParams();
+  if (params.type) q.set("type", params.type);
+  if (params.channel) q.set("channel", params.channel);
+  if (params.severity) q.set("severity", params.severity);
+  if (params.status) q.set("status", params.status);
+  if (params.page) q.set("page", String(params.page));
+  if (params.pageSize) q.set("pageSize", String(params.pageSize));
+  const url = `${BACKEND_URL}/api/errors${q.toString() ? `?${q}` : ""}`;
+  const response = await fetchApi(url, { method: "GET" });
+  const result = await parseResponse(response);
+  if (!response.ok) {
+    throw new Error(result?.error?.message || "Fehler konnten nicht geladen werden.");
+  }
+  return {
+    errors: Array.isArray(result?.errors) ? result.errors : [],
+    total: Number(result?.total) || 0,
+    page: Number(result?.page) || params.page || 1,
+    pageSize: Number(result?.pageSize) || params.pageSize || 50,
+  };
+}
+
+export async function fetchErrorSummary(): Promise<ErrorSummary> {
+  const response = await fetchApi(`${BACKEND_URL}/api/errors/summary`, { method: "GET" });
+  const result = await parseResponse(response);
+  if (!response.ok) {
+    throw new Error(result?.error?.message || "Fehler-Zusammenfassung konnte nicht geladen werden.");
+  }
+  return {
+    total: Number(result?.total) || 0,
+    bySeverity: {
+      critical: Number(result?.bySeverity?.critical) || 0,
+      warning: Number(result?.bySeverity?.warning) || 0,
+      info: Number(result?.bySeverity?.info) || 0,
+    },
+    byStatus: {
+      open: Number(result?.byStatus?.open) || 0,
+      resolved: Number(result?.byStatus?.resolved) || 0,
+    },
+    byType: result?.byType || {},
+    byChannel: result?.byChannel || {},
+  };
+}
+
+export async function resolveError(errorId: string): Promise<void> {
+  const response = await fetchApi(
+    `${BACKEND_URL}/api/errors/${encodeURIComponent(errorId)}/resolve`,
+    { method: "POST" }
+  );
+  if (!response.ok) {
+    const result = await parseResponse(response);
+    throw new Error(result?.error?.message || "Fehler konnte nicht als erledigt markiert werden.");
+  }
 }
 
 export async function endSessionApi(sessionId: string): Promise<void> {

@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { BrowserMultiFormatReader } from '@zxing/browser';
-import { Product, WarehouseBin, Order } from '../types';
+import { Product, WarehouseBin, Order, View } from '../types';
 import {
   fetchWarehouseBinDetail,
   stockInProduct,
@@ -20,9 +20,7 @@ interface OperationsViewProps {
   products: Product[];
   onProductUpdate: (product: Product) => void;
   onStockChanged?: (bin: WarehouseBin) => void;
-  onSwitchView?: (
-    view: 'dashboard' | 'input' | 'sheet' | 'inventory' | 'warehouse' | 'operations' | 'queue'
-  ) => void;
+  onSwitchView?: (view: View) => void;
 }
 
 type WorkflowMode = 'stow' | 'pick';
