@@ -45,8 +45,8 @@ const fmtCur = (v: number, c = 'EUR') => {
 const fmtNum = (n: number) => new Intl.NumberFormat('de-DE').format(n);
 
 // ─── Skeleton ─────────────────────────────────────────────────────────────────
-const Skel: React.FC<{ w?: string; h?: string }> = ({ w = 'w-20', h = 'h-7' }) => (
-  <div className={`animate-pulse rounded bg-white/6 ${w} ${h}`} />
+const Skel: React.FC<{ w?: string; h?: string; className?: string }> = ({ w = 'w-20', h = 'h-7', className = '' }) => (
+  <div className={`animate-pulse rounded bg-white/6 ${w} ${h} ${className}`} />
 );
 
 // ─── Tile ─────────────────────────────────────────────────────────────────────
@@ -423,9 +423,9 @@ const DashboardMobile: React.FC<DashboardMobileProps> = ({
             <span>{fmtNum(finance?.shipping?.parcel_count ?? 0)} Sendungen</span>
             {((finance?.shipping?.dhl_count ?? 0) > 0 || (finance?.shipping?.dpd_count ?? 0) > 0) && (
               <span className="text-[10px] text-txt-muted">
-                {(finance?.shipping?.dhl_count ?? 0) > 0 && `DHL ${finance.shipping.dhl_count}`}
+                {(finance?.shipping?.dhl_count ?? 0) > 0 && `DHL ${finance?.shipping?.dhl_count ?? 0}`}
                 {(finance?.shipping?.dhl_count ?? 0) > 0 && (finance?.shipping?.dpd_count ?? 0) > 0 && ' · '}
-                {(finance?.shipping?.dpd_count ?? 0) > 0 && `DPD ${finance.shipping.dpd_count}`}
+                {(finance?.shipping?.dpd_count ?? 0) > 0 && `DPD ${finance?.shipping?.dpd_count ?? 0}`}
               </span>
             )}
           </span>}
@@ -456,9 +456,9 @@ const DashboardMobile: React.FC<DashboardMobileProps> = ({
             <span>{fmtNum(finance?.shipping_ytd?.parcel_count ?? 0)} Sendungen</span>
             {((finance?.shipping_ytd?.dhl_count ?? 0) > 0 || (finance?.shipping_ytd?.dpd_count ?? 0) > 0) && (
               <span className="text-[10px] text-txt-muted">
-                {(finance?.shipping_ytd?.dhl_count ?? 0) > 0 && `DHL ${fmtNum(finance.shipping_ytd.dhl_count)}`}
+                {(finance?.shipping_ytd?.dhl_count ?? 0) > 0 && `DHL ${fmtNum(finance?.shipping_ytd?.dhl_count ?? 0)}`}
                 {(finance?.shipping_ytd?.dhl_count ?? 0) > 0 && (finance?.shipping_ytd?.dpd_count ?? 0) > 0 && ' · '}
-                {(finance?.shipping_ytd?.dpd_count ?? 0) > 0 && `DPD ${fmtNum(finance.shipping_ytd.dpd_count)}`}
+                {(finance?.shipping_ytd?.dpd_count ?? 0) > 0 && `DPD ${fmtNum(finance?.shipping_ytd?.dpd_count ?? 0)}`}
               </span>
             )}
           </span>}

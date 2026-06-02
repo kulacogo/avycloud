@@ -291,11 +291,12 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
           ...(prev.storage || {}),
           binCode: primary.code,
           quantity: qty,
-          zone: primary.zone,
+          zone: primary.zone as NonNullable<Product["storage"]>["zone"],
           etage: primary.etage,
           gang: primary.gang,
           regal: primary.regal,
           ebene: primary.ebene,
+          assigned_at: prev.storage?.assigned_at || new Date().toISOString(),
         },
       }));
       setBinCodeInput(primary.code);
@@ -955,8 +956,13 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
     setIsDirty(true);
     // Signal dirty state immediately (not via useEffect) to prevent SSE race conditions
     onDirtyChange?.(true);
-    if (incomingBarcodes) {
-      setBarcodeInput(incomingBarcodes.join('\n'));
+    // `incomingBarcodes` is only ever assigned inside the setLocalProduct
+    // updater closure above, which TS's control-flow analysis cannot observe —
+    // so it resets the variable to its `null` initializer here, narrowing the
+    // truthy branch to `never`. Re-assert the declared type to recover it.
+    const resolvedBarcodes = incomingBarcodes as string[] | null;
+    if (resolvedBarcodes) {
+      setBarcodeInput(resolvedBarcodes.join('\n'));
     }
     showNotification('success', t('sheet.msg.changeApplied'));
   };
@@ -1003,7 +1009,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
     };
   }, [barcodeInput, localProduct, parseBarcodes]);
 
-  const handleFieldChange = (field: string, value: string) => {
+  const handleFieldChange = (field: string, value: string | number | null) => {
     const keys = field.split('.');
     setLocalProduct(prev => {
       const newProd = JSON.parse(JSON.stringify(prev)); // Deep copy
@@ -1555,7 +1561,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                       <input
                         type="number"
                         step="0.01"
-                        value={weightValue}
+                        value={typeof weightValue === 'boolean' ? String(weightValue) : weightValue}
                         onChange={(e) => handleFieldChange('details.weight', e.target.value ? parseFloat(e.target.value) : null)}
                         placeholder="z.B. 2.5"
                         className="w-full text-sm bg-app-elevated border border-app-border rounded-lg px-3 py-2 outline-none focus:border-accent font-mono"

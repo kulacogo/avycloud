@@ -2017,6 +2017,7 @@ export type ProductBulkActionName =
   | 'price'
   | 'category'
   | 'ktype'
+  | 'validate'
   | 'kaufland_create'
   | 'kaufland_update'
   | 'export_marketplace';

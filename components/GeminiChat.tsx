@@ -563,8 +563,8 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
   const productImageKeys = useMemo(() => {
     const keys = new Set<string>();
     (product?.details?.images || []).forEach((img) => {
-      const raw = img?.url_or_base64;
-      const src = typeof raw === 'string' ? raw : raw && typeof raw === 'object' && typeof raw.url === 'string' ? raw.url : null;
+      const raw: unknown = img?.url_or_base64;
+      const src = typeof raw === "string" ? raw : raw && typeof raw === "object" && typeof (raw as { url?: unknown }).url === "string" ? (raw as { url: string }).url : null;
       const key = normalizeImageKey(src);
       if (key) keys.add(key);
     });

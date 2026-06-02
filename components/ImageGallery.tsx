@@ -643,12 +643,12 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
           <span className={`absolute bottom-2 left-2 px-2 py-1 text-[10px] font-semibold rounded ${
             activeImage.source === 'generated' ? 'bg-accent text-txt-primary' :
             activeImage.source === 'upload' ? 'bg-success-dim text-success' :
-            activeImage.source === 'web_search' || activeImage.source === 'web' ? 'bg-warning-dim text-warning' :
+            activeImage.source === 'web' ? 'bg-warning-dim text-warning' :
             'bg-app-elevated text-txt-secondary'
           }`}>
             {activeImage.source === 'generated' ? 'KI-generiert' :
              activeImage.source === 'upload' ? 'Hochgeladen' :
-             activeImage.source === 'web_search' || activeImage.source === 'web' ? 'Web' :
+             activeImage.source === 'web' ? 'Web' :
              activeImage.source}
           </span>
         )}
@@ -657,6 +657,7 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
       <div className="grid grid-cols-4 gap-2 mt-2">
         {padded.map((image, index) => {
           const isReal = index < originalCount;
+          const sourceText: string = image?.source ?? "";
           return (
           <div
             key={index}
@@ -690,13 +691,13 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
               <span className={`absolute bottom-0.5 left-0.5 px-1 py-px text-[8px] font-semibold rounded ${
                 image.source === 'generated' ? 'bg-accent/80 text-txt-primary' :
                 image.source === 'upload' ? 'bg-success/80 text-white' :
-                image.source === 'web_search' || image.source === 'web' ? 'bg-warning/80 text-white' :
+                image.source === 'web' ? 'bg-warning/80 text-white' :
                 'bg-app-elevated/80 text-txt-secondary'
               }`}>
                 {image.source === 'generated' ? 'KI' :
                  image.source === 'upload' ? 'UP' :
-                 image.source === 'web_search' || image.source === 'web' ? 'WEB' :
-                 image.source.slice(0, 3).toUpperCase()}
+                 image.source === 'web' ? 'WEB' :
+                 sourceText.slice(0, 3).toUpperCase()}
               </span>
             )}
             {isEditing && onDeleteImage && isReal && (

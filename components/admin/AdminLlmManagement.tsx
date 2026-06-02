@@ -133,9 +133,9 @@ export const AdminLlmManagement: React.FC = () => {
       setDetail(d);
       // Prefill editor with the active version so current prompts/rules are visible.
       const active =
-        d?.scope?.activeVersionId &&
-        Array.isArray(d?.versions) &&
-        d.versions.find((v: any) => String(v?.id) === String(d.scope.activeVersionId));
+        d?.scope?.activeVersionId && Array.isArray(d?.versions)
+          ? d.versions.find((v: any) => String(v?.id) === String(d.scope.activeVersionId))
+          : undefined;
 
       setPromptText(active?.promptText || "");
       setRulesText(active?.rulesText || "");

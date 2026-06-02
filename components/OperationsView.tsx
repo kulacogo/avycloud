@@ -336,7 +336,7 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
 
         const allocatedBin = chooseAllocatableBin(product);
         const fallbackHintBin = hint?.binCode ? String(hint.binCode).toUpperCase() : '';
-        const bestBin = allocatedBin || (fallbackHintBin ? { code: fallbackHintBin, quantity: Number(hint.quantityAvailable || 0) || 0 } : null);
+        const bestBin = allocatedBin || (fallbackHintBin ? { code: fallbackHintBin, quantity: Number(hint?.quantityAvailable || 0) || 0 } : null);
 
         const binCode = bestBin?.code || '';
         const availableInBin =

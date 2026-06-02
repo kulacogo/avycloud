@@ -438,13 +438,15 @@ export interface WarehouseBin {
   childrenProductCount?: number;
 }
 
-export type OrderStatus = 'new' | 'picking' | 'picked' | 'packed' | 'other';
+export type OrderStatus = 'new' | 'picking' | 'picked' | 'packed' | 'shipped' | 'other';
 
 export type OmsStatus = 'pending' | 'confirmed' | 'picking' | 'picked' | 'packing' | 'packed' | 'shipped' | 'delivered' | 'completed' | 'cancelled' | 'returned' | 'on_hold';
 
 /** Resolve effective OMS status from an order — prefers omsStatus, falls back to legacy status. */
-export function getOrderStatus(order: Order): OmsStatus {
-  return (order.omsStatus || order.status || 'pending') as OmsStatus;
+export function getOrderStatus(order: Order): OmsStatus | OrderStatus {
+  // May return an OmsStatus (order.omsStatus) or a coarse OrderStatus bucket
+  // (order.status, e.g. 'new'), hence the union — callers compare against both.
+  return (order.omsStatus || order.status || 'pending') as OmsStatus | OrderStatus;
 }
 
 export interface OrderItemPickHint {
