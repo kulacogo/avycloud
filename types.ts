@@ -153,6 +153,7 @@ export interface Details {
     eu_responsible_address?: string;
     eu_responsible_city?: string;
     eu_responsible_postalcode?: string;
+    eu_responsible_state_province?: string;
     eu_responsible_country?: string;
     eu_responsible_country_code?: string;
     eu_responsible_email?: string;
@@ -310,6 +311,7 @@ export interface DatasheetChange {
     eu_responsible_address?: string;
     eu_responsible_city?: string;
     eu_responsible_postalcode?: string;
+    eu_responsible_state_province?: string;
     eu_responsible_country?: string;
     eu_responsible_country_code?: string;
     eu_responsible_email?: string;

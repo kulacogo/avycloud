@@ -2658,8 +2658,12 @@ async function saveProduct(product, options = {}) {
 
     // GPSR: separate EU responsible person from manufacturer contacts (non-EU imports).
     try {
-      const { demixManufacturerEuRepContacts } = require('./gpsr-eu-rep');
+      const { demixManufacturerEuRepContacts, reclassifyEuRepAsManufacturer } = require('./gpsr-eu-rep');
       if (productWithEbay?.details?.gpsr && typeof productWithEbay.details.gpsr === 'object') {
+        // First: if the whole manufacturer block is actually an EU responsible person
+        // (e.g. "Apex CE Specialists GmbH (für Ominia)"), move it into eu_responsible_*.
+        productWithEbay.details.gpsr = reclassifyEuRepAsManufacturer(productWithEbay.details.gpsr);
+        // Then: move any EU-rep-looking contacts (email/phone) out of manufacturer fields.
         productWithEbay.details.gpsr = demixManufacturerEuRepContacts(productWithEbay.details.gpsr);
       }
     } catch {

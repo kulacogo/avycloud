@@ -266,6 +266,16 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
   const hasAnyGpsr = useMemo(() => {
     return Object.values(gpsr || {}).some((v) => typeof v === 'string' && v.trim().length > 0);
   }, [gpsr]);
+  // GPSR-Hersteller-Block nur zeigen, wenn echte Hersteller-Kontaktdaten vorliegen
+  // (volle Adresse, E-Mail oder Telefon). Bei Nicht-EU-Importen ohne EU-Herstelleradresse
+  // sendet eBay ohnehin keinen Hersteller-Block — dann ist die EU-Verantwortliche Person
+  // die einzige relevante GPSR-Angabe. Siehe backend/lib/ebay-trading-api.js buildManufacturerXml.
+  const hasManufacturerContact = useMemo(() => {
+    const s = (k: string) => (typeof gpsr?.[k] === "string" ? gpsr[k].trim() : "");
+    const fullAddress = Boolean(s("manufacturer_address") && s("manufacturer_city") && s("manufacturer_postalcode"));
+    return Boolean(fullAddress || s("email") || s("manufacturer_phone"));
+  }, [gpsr]);
+  const showManufacturerBlock = hasManufacturerContact;
 
   // Falls Storage leer, aber Bins vorhanden: erste Bin übernehmen, damit Remove-Button und Anzeige stimmen
   useEffect(() => {
@@ -1601,11 +1611,12 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
           </section>
         </div>
 
-        {/* GPSR — Hersteller */}
+        {/* GPSR — Hersteller (nur bei echten Hersteller-Kontaktdaten, z. B. EU-Fertigung).
+            Bei Nicht-EU-Importen trägt die EU-Verantwortliche Person die GPSR-Pflicht. */}
+        {showManufacturerBlock && (
         <section className="p-5 bg-app-surface border border-app-border rounded-2xl">
           <div className="flex items-center gap-2 mb-3">
             <h3 className="text-sm font-semibold text-txt-muted uppercase tracking-wide">GPSR / Hersteller</h3>
-            {!hasAnyGpsr && !isEditing && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-app-elevated text-txt-muted">leer</span>}
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {([
@@ -1632,6 +1643,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
             })}
           </div>
         </section>
+        )}
 
         {/* GPSR — EU-Verantwortlicher (Pflicht bei Nicht-EU-Herstellern) */}
         <section className="p-5 bg-app-surface border border-app-border rounded-2xl">
@@ -1645,6 +1657,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
               ['eu_responsible_address', 'Adresse'],
               ['eu_responsible_city', 'Stadt'],
               ['eu_responsible_postalcode', 'PLZ'],
+              ['eu_responsible_state_province', 'Bundesland'],
               ['eu_responsible_country', 'Land'],
               ['eu_responsible_email', 'E-Mail'],
               ['eu_responsible_phone', 'Telefon'],

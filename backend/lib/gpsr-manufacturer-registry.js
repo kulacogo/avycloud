@@ -201,6 +201,7 @@ function normalizeGpsrObject(gpsr) {
     'eu_responsible_address',
     'eu_responsible_city',
     'eu_responsible_postalcode',
+    'eu_responsible_state_province',
     'eu_responsible_country',
     'eu_responsible_country_code',
     'eu_responsible_email',
