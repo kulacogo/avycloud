@@ -567,6 +567,38 @@ const AdminTable: React.FC<AdminTableProps> = ({
         },
       },
       {
+        id: 'mpn',
+        label: t('table.mpn'),
+        sortKey: 'details.identifiers.mpn',
+        render: ({ product }) => (
+          <div className="text-txt-secondary text-sm font-mono leading-tight whitespace-nowrap">
+            {product.details?.identifiers?.mpn || (product as any)?.identification?.mpn || '—'}
+          </div>
+        ),
+      },
+      {
+        id: 'weight',
+        label: t('table.weight'),
+        sortKey: 'details.weight',
+        render: ({ product }) => {
+          const d: any = product.details || {};
+          const raw =
+            d.weight ??
+            d.attributes?.weight ??
+            d.attributes?.['Gewicht (kg)'] ??
+            d.attributes?.['Gewicht'];
+          const num = Number(raw);
+          if (raw === undefined || raw === null || raw === '' || !Number.isFinite(num) || num <= 0) {
+            return <span className="text-txt-secondary text-sm">—</span>;
+          }
+          return (
+            <div className="text-txt-secondary text-sm font-mono leading-tight whitespace-nowrap">
+              {`${num} kg`}
+            </div>
+          );
+        },
+      },
+      {
         id: 'price',
         label: t('table.price'),
         sortKey: 'details.pricing.lowest_price.amount',
@@ -1173,6 +1205,15 @@ const AdminTable: React.FC<AdminTableProps> = ({
             return getProductQuantity(product);
           case 'storage.binCode':
             return (primaryBin(product) || '').toString().toLowerCase();
+          case 'details.weight': {
+            const d: any = product.details || {};
+            const w =
+              d.weight ??
+              d.attributes?.weight ??
+              d.attributes?.['Gewicht (kg)'] ??
+              d.attributes?.['Gewicht'];
+            return Number(w) || 0;
+          }
           case 'identification.name':
             return (product.identification?.name || '').toString().toLowerCase();
           case 'ebay.listed': {
