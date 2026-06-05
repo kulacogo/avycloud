@@ -13,11 +13,16 @@ const { getProductV2, saveProductV2 } = require('../lib/product-store');
 const MAX_PRODUCTS_PER_BATCH = 500;
 const CONCURRENCY = 5;
 
-// Allowed field paths that users can bulk-update
+// Allowed field paths that users can bulk-update.
+// NOTE: inventory.quantity is intentionally NOT here — stock mutations must go through
+// withStockLock() + the warehouse flow (CLAUDE.md #10/#12/#13, oversell / single-writer
+// invariant), never this generic path.
 const ALLOWED_FIELDS = new Set([
   'identification.name',
   'identification.brand',
   'identification.category',
+  'details.identifiers.mpn',
+  'details.weight',
   'details.pricing.sellPrice',
   'details.pricing.buyPrice',
   'details.pricing.lowest_price.amount',

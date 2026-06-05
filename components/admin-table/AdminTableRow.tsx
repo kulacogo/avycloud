@@ -2,12 +2,19 @@ import React from "react";
 import { Product, ColumnDefinition } from "./types";
 import EditableCell from "./EditableCell";
 
-// Columns that support inline editing and their field paths
+// Columns that support inline editing and their field paths.
+// IMPORTANT: each edit field MUST match the field the column's render() displays,
+// otherwise a save persists to a field the column never shows → looks "not saved".
+// The backend whitelist (backend/services/bulk-update.js ALLOWED_FIELDS) must also
+// permit every field listed here, or one dirty cell rejects the whole batch (HTTP 400).
+// `inventory` is deliberately NOT editable here — stock quantity is mutated through the
+// warehouse flow (withStockLock + oversell protection), never the generic bulk-update path.
 const EDITABLE_COLUMN_MAP: Record<string, { field: string; type: "text" | "number" | "select"; options?: { value: string; label: string }[] }> = {
   nameBrand: { field: "identification.name", type: "text" },
   category: { field: "identification.category", type: "text" },
-  price: { field: "details.pricing.sellPrice", type: "number" },
-  inventory: { field: "details.pricing.buyPrice", type: "number" },
+  mpn: { field: "details.identifiers.mpn", type: "text" },
+  weight: { field: "details.weight", type: "number" },
+  price: { field: "details.pricing.lowest_price.amount", type: "number" },
 };
 
 function getNestedValue(obj: any, path: string): any {
