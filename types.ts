@@ -1,6 +1,50 @@
 
 // Based on the provided JSON Schema
 
+// Canonical navigation view union. Single source of truth — App.tsx, Sidebar,
+// Topbar, Header and OperationsView all import this to avoid drift (the cause of
+// the recurring "two different types named View" typecheck failures).
+export type View =
+  | "dashboard"
+  | "home"
+  | "search"
+  | "admin"
+  | "categories"
+  | "operations"
+  | "operations-identify"
+  | "operations-stow"
+  | "operations-pick"
+  | "operations-pack"
+  | "ebay-listings"
+  | "input"
+  | "sheet"
+  | "inventory"
+  | "products"
+  | "orders"
+  | "orders-returns"
+  | "orders-shipping"
+  | "orders-invoices"
+  | "orders-settings"
+  | "warehouse"
+  | "warehouse-settings"
+  | "marketplace-ebay"
+  | "marketplace-kaufland"
+  | "integrations"
+  | "integrations-ebay"
+  | "integrations-kaufland"
+  | "integrations-sendcloud"
+  | "integrations-sevdesk"
+  | "settings"
+  | "settings-profile"
+  | "settings-team"
+  | "settings-api"
+  | "settings-billing"
+  | "pricing"
+  | "rules"
+  | "duplicates"
+  | "audit-log"
+  | "queue";
+
 export type IdentificationMethod = "image" | "barcode" | "hybrid";
 export type ImageSource = "upload" | "generated" | "web";
 export type ImageVariant = "front" | "angle" | "detail" | "pack" | "other";
@@ -133,6 +177,8 @@ export interface Details {
   identifiers: Identifiers;
   images: ProductImage[];
   pricing: Pricing;
+  // Product weight in kg (edited in ProductSheet; mirrors attributes.weight)
+  weight?: number | null;
   // canonical eBay category id (see backend enforceEbayAspects)
   categoryId?: string;
   // set when a resolver or UI writes the category; 'manual' protects from auto-overrides
@@ -229,6 +275,9 @@ export interface InventoryInfo {
   physicalQuantity?: number;
   reservedQuantity?: number;
   availableQuantity?: number;
+  // Marketplace-derived counters surfaced in inventory/admin filters
+  soldQuantity?: number;
+  openOrderQuantity?: number;
 }
 
 export interface InventoryRecord {
@@ -373,6 +422,9 @@ export interface WarehouseBin {
   regal: number;
   ebene: string;
   productCount: number;
+  // Aggregate stored quantity for this bin (optional; some backend paths
+  // provide it alongside productCount).
+  quantity?: number;
   products: BinProductEntry[];
   createdAt: string;
   firstStoredAt?: string | null;
@@ -386,13 +438,15 @@ export interface WarehouseBin {
   childrenProductCount?: number;
 }
 
-export type OrderStatus = 'new' | 'picking' | 'picked' | 'packed' | 'other';
+export type OrderStatus = 'new' | 'picking' | 'picked' | 'packed' | 'shipped' | 'other';
 
 export type OmsStatus = 'pending' | 'confirmed' | 'picking' | 'picked' | 'packing' | 'packed' | 'shipped' | 'delivered' | 'completed' | 'cancelled' | 'returned' | 'on_hold';
 
 /** Resolve effective OMS status from an order — prefers omsStatus, falls back to legacy status. */
-export function getOrderStatus(order: Order): OmsStatus {
-  return (order.omsStatus || order.status || 'pending') as OmsStatus;
+export function getOrderStatus(order: Order): OmsStatus | OrderStatus {
+  // May return an OmsStatus (order.omsStatus) or a coarse OrderStatus bucket
+  // (order.status, e.g. 'new'), hence the union — callers compare against both.
+  return (order.omsStatus || order.status || 'pending') as OmsStatus | OrderStatus;
 }
 
 export interface OrderItemPickHint {
@@ -414,6 +468,7 @@ export interface OrderItem {
   priceBrutto?: number;
   taxRate?: number;
   currency?: string;
+  weight?: number | null;
   pickHint?: OrderItemPickHint | null;
   pickCompleted?: boolean;
 }

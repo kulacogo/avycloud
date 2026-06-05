@@ -436,13 +436,18 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({
       groups.set(identityKey, {
         key: identityKey,
         name: item.name || "Unbekanntes Produkt",
-        sku: item.sku,
-        ean: item.ean,
-        weight: item.weight,
+        sku: item.sku ?? undefined,
+        ean: item.ean ?? undefined,
+        weight: item.weight ?? undefined,
         quantity,
         lineTotal: lineAmount,
         hasPrice: item.priceBrutto != null,
-        pickHint: item.pickHint,
+        pickHint: item.pickHint
+          ? {
+              binCode: item.pickHint.binCode ?? undefined,
+              quantityAvailable: item.pickHint.quantityAvailable ?? undefined,
+            }
+          : undefined,
       });
     });
 
@@ -1574,8 +1579,9 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({
 const ActionButton: React.FC<{
   label: string;
   icon: string;
-  onClick: () => Promise<void>;
-}> = ({ label, icon, onClick }) => {
+  onClick: () => void | Promise<void>;
+  disabled?: boolean;
+}> = ({ label, icon, onClick, disabled }) => {
   const [busy, setBusy] = React.useState(false);
   const [err, setErr] = React.useState<string | null>(null);
   const handleClick = async () => {
@@ -1593,7 +1599,7 @@ const ActionButton: React.FC<{
     <div className="flex flex-col">
       <button
         onClick={handleClick}
-        disabled={busy}
+        disabled={busy || disabled}
         className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-app-elevated rounded-lg text-xs font-medium text-txt-primary hover:bg-app-border transition-colors disabled:opacity-50"
       >
         <span>{icon}</span>
@@ -1605,7 +1611,7 @@ const ActionButton: React.FC<{
 };
 
 /* Helper: Key-Value Row */
-const Row: React.FC<{ label: string; value: string }> = ({ label, value }) => (
+const Row: React.FC<{ label: string; value: React.ReactNode }> = ({ label, value }) => (
   <div className="flex items-start justify-between gap-4">
     <span className="text-txt-muted shrink-0">{label}</span>
     <span className="text-txt-primary text-right">{value}</span>

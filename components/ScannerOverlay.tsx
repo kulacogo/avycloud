@@ -68,6 +68,7 @@ export const ScannerOverlay: React.FC<ScannerOverlayProps> = ({
     try {
       const { Html5Qrcode, Html5QrcodeSupportedFormats } = await import('html5-qrcode');
       const instance = new Html5Qrcode(html5Id, {
+        verbose: false,
         formatsToSupport: [
           Html5QrcodeSupportedFormats.QR_CODE,
           Html5QrcodeSupportedFormats.AZTEC,

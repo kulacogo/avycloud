@@ -39,8 +39,8 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
               "focus:outline-none focus:ring-1 focus:ring-accent focus:border-accent",
               error ? "border-danger focus:ring-danger focus:border-danger" : "border-app-border",
               sizeStyles[inputSize],
-              iconLeft && "pl-9",
-              iconRight && "pr-9",
+              Boolean(iconLeft) && "pl-9",
+              Boolean(iconRight) && "pr-9",
               props.disabled && "opacity-50 cursor-not-allowed",
               className
             )}

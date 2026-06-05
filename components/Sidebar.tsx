@@ -1,45 +1,8 @@
 import React, { useState, useCallback, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
+import type { View } from "../types";
 
-export type View =
-  | "dashboard"
-  | "home"
-  | "search"
-  | "admin"
-  | "categories"
-  | "operations"
-  | "operations-identify"
-  | "operations-stow"
-  | "operations-pick"
-  | "operations-pack"
-  | "input"
-  | "sheet"
-  | "inventory"
-  | "products"
-  | "orders"
-  | "orders-returns"
-  | "orders-shipping"
-  | "orders-invoices"
-  | "orders-settings"
-  | "warehouse"
-  | "warehouse-settings"
-  | "marketplace-ebay"
-  | "marketplace-kaufland"
-  | "integrations"
-  | "integrations-ebay"
-  | "integrations-kaufland"
-  | "integrations-sendcloud"
-  | "integrations-sevdesk"
-  | "settings"
-  | "settings-profile"
-  | "settings-team"
-  | "settings-api"
-  | "settings-billing"
-  | "ebay-listings"
-  | "duplicates"
-  | "audit-log"
-  | "pricing"
-  | "rules";
+export type { View };
 
 interface SidebarProps {
   currentView: View;
@@ -241,6 +204,12 @@ const icons = {
     <Icon>
       <path d="M12 2H2v10l9.29 9.29c.94.94 2.48.94 3.42 0l6.58-6.58c.94-.94.94-2.48 0-3.42L12 2Z" />
       <path d="M7 7h.01" />
+    </Icon>
+  ),
+  settings: (
+    <Icon>
+      <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2Z" />
+      <circle cx="12" cy="12" r="3" />
     </Icon>
   ),
   logout: (

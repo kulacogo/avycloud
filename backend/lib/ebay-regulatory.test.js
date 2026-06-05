@@ -22,6 +22,29 @@ describe('normalizeManufacturerCountryCode', () => {
     expect(normalizeManufacturerCountryCode('United Kingdom')).toBe('GB');
   });
 
+  // Regression: the GPSR registry stores "UK" by marketplace convention, but
+  // eBay's CountryCodeType only accepts ISO "GB". A bare "UK" previously passed
+  // the 2-letter passthrough unchanged and triggered:
+  //   "Eingabedaten für Tag <Item.Regulatory.Manufacturer.Country> ... ungültig oder fehlen"
+  test('remaps non-ISO 2-letter aliases (UK->GB, EL->GR)', () => {
+    expect(normalizeManufacturerCountryCode('UK')).toBe('GB');
+    expect(normalizeManufacturerCountryCode('uk')).toBe('GB');
+    expect(normalizeManufacturerCountryCode('EL')).toBe('GR');
+  });
+
+  test('full address with country_code "UK" emits <Country>GB</Country>', () => {
+    const gpsr = {
+      manufacturer_name: 'Taylor & Francis',
+      manufacturer_address: '4 Park Square',
+      manufacturer_city: 'Abingdon',
+      manufacturer_postalcode: 'OX14 4RN',
+      country_code: 'UK',
+    };
+    const xml = buildManufacturerXml(gpsr);
+    expect(xml).toContain('<Country>GB</Country>');
+    expect(xml).not.toContain('<Country>UK</Country>');
+  });
+
   test('returns empty string for unknown or empty input', () => {
     expect(normalizeManufacturerCountryCode('')).toBe('');
     expect(normalizeManufacturerCountryCode(null)).toBe('');

@@ -7,6 +7,8 @@ export type ColumnId =
   | "category"
   | "sku"
   | "barcode"
+  | "mpn"
+  | "weight"
   | "price"
   | "inventory"
   | "pendingIntake"

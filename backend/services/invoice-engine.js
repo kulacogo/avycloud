@@ -600,20 +600,12 @@ function buildInvoicePdf(data) {
       if (isInvoice) {
         y = Math.max(y, 520);
         doc.fontSize(9).fillColor('#333').font('Helvetica');
-        if (co.iban) {
-          doc.text('Bitte überweisen Sie den Betrag unter Angabe der Rechnungsnummer auf folgendes Konto:', MARGIN, y, { width: CONTENT_WIDTH });
-          y += 16;
-          doc.font('Helvetica-Bold');
-          doc.text(`IBAN: ${formatIban(co.iban)}`, MARGIN, y);
-          y += 14;
-          const bankParts = [];
-          if (co.bic) bankParts.push(`BIC: ${co.bic}`);
-          if (co.bankName) bankParts.push(co.bankName);
-          if (bankParts.length) {
-            doc.font('Helvetica').text(bankParts.join('  \u00B7  '), MARGIN, y);
-            y += 14;
-          }
-        }
+        // Marketplace orders (eBay/Kaufland) are already paid through the
+        // platform — do NOT ask the buyer to transfer money to us. Bank
+        // details stay in the footer as company/Impressum info only.
+        doc.fillColor('#666');
+        doc.text('Zahlung über den Marktplatz – keine Überweisung erforderlich.', MARGIN, y, { width: CONTENT_WIDTH });
+        y += 16;
       }
 
       // ── Footer (4-column, at bottom of page) ──

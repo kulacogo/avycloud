@@ -38,8 +38,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { getAllProductsForTenant } = require('../lib/firestore');
-const { saveProductV2 } = require('../lib/product-store');
+const { getAllProductsV2ForTenant, saveProductV2 } = require('../lib/product-store');
 const {
   looksLikeEuRepEntity,
   reclassifyEuRepAsManufacturer,
@@ -84,7 +83,13 @@ async function main() {
     throw new Error(`--apply requires --confirm ${CONFIRM_TOKEN}`);
   }
 
-  const all = await getAllProductsForTenant(args.tenantId);
+  // Safety: the canonical product collection is products_v2 (USE_PRODUCTS_V2=true in prod).
+  // Without it, get/saveProductV2 would read/write the legacy `products` collection — wrong target.
+  if (process.env.USE_PRODUCTS_V2 !== 'true') {
+    throw new Error('Set USE_PRODUCTS_V2=true (same as production) so this reads/writes products_v2, not legacy products.');
+  }
+
+  const all = await getAllProductsV2ForTenant(args.tenantId);
   const inScope = args.includeZeroStock ? all : all.filter((p) => productStock(p) > 0);
   const list = args.limit ? inScope.slice(0, args.limit) : inScope;
 
@@ -112,7 +117,7 @@ async function main() {
     report.candidates += 1;
     const item = {
       id: p.id,
-      sku: p.sku || p.details?.sku || null,
+      sku: p.sku || p.details?.sku || p.identification?.sku || null,
       before_manufacturer_name: mfgName,
       after_manufacturer_name: next.manufacturer_name || '',
       after_eu_responsible_name: next.eu_responsible_name || '',

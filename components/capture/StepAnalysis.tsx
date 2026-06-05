@@ -192,7 +192,7 @@ const StepAnalysis: React.FC<StepAnalysisProps> = ({
             phaseTimers.forEach(clearTimeout);
             if (cancelled) return;
             lastMessage = err?.message || "Ein unerwarteter Fehler ist aufgetreten.";
-            const transient = isTransientIdentifyError({ message: lastMessage });
+            const transient = isTransientIdentifyError({ message: lastMessage ?? undefined });
             if (!transient || attempt >= SINGLE_MODE_MAX_ATTEMPTS) break;
           }
         }

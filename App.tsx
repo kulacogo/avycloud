@@ -1,6 +1,6 @@
 
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
-import { Product, WarehouseBin } from './types';
+import { Product, WarehouseBin, View } from './types';
 import { useIdentification, UploadGroupPayload } from './hooks/useIdentification';
 import { useImproveQueue } from './hooks/useImproveQueue';
 import ProductInput from './components/ProductInput';
@@ -68,43 +68,6 @@ const queryClient = new QueryClient({
   },
 });
 
-type View =
-  | 'dashboard'
-  | 'home'
-  | 'search'
-  | 'admin'
-  | 'categories'
-  | 'operations'
-  | 'operations-identify'
-  | 'operations-stow'
-  | 'operations-pick'
-  | 'operations-pack'
-  | 'ebay-listings'
-  | 'input'
-  | 'sheet'
-  | 'inventory'
-  | 'products'
-  | 'orders'
-  | 'orders-returns'
-  | 'orders-shipping'
-  | 'orders-invoices'
-  | 'orders-settings'
-  | 'warehouse'
-  | 'warehouse-settings'
-  | 'marketplace-ebay'
-  | 'marketplace-kaufland'
-  | 'integrations'
-  | 'integrations-ebay'
-  | 'integrations-kaufland'
-  | 'integrations-sendcloud'
-  | 'integrations-sevdesk'
-  | 'settings'
-  | 'settings-profile'
-  | 'settings-team'
-  | 'settings-api'
-  | 'settings-billing'
-  | 'pricing'
-  | 'rules';
 const VIEW_STORAGE_KEY = 'avystock:view';
 const VIEW_PRODUCT_KEY = 'avystock:view:productId';
 const THEME_STORAGE_KEY = 'avystock:theme';

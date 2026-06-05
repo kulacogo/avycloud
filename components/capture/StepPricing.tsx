@@ -22,11 +22,11 @@ const StepPricing: React.FC<StepPricingProps> = ({ product, onComplete, onBack }
   );
   const [quantity, setQuantity] = useState<string>("1");
   const [bin, setBin] = useState<string>(
-    product.storageBins?.[0]?.binCode || product.storage?.binCode || ""
+    product.storageBins?.[0]?.code || product.storage?.binCode || ""
   );
 
-  const suggestedPrice = pricing?.suggestedPrice || pricing?.lowest_price?.lowest || null;
-  const priceSource = pricing?.pricingMatchBasis || (pricing?.lowest_price?.source ? `${pricing.lowest_price.source}` : null);
+  const suggestedPrice = pricing?.suggestedPrice || pricing?.lowest_price?.amount || null;
+  const priceSource = pricing?.pricingMatchBasis || (pricing?.lowest_price?.sources?.[0]?.name ? `${pricing.lowest_price.sources[0].name}` : null);
 
   const margin = useMemo(() => {
     const sell = parseFloat(sellPrice);
@@ -57,7 +57,17 @@ const StepPricing: React.FC<StepPricingProps> = ({ product, onComplete, onBack }
         pending_intake_quantity: qty,
       },
       storage: bin.trim()
-        ? { binCode: bin.trim(), zone: product.storage?.zone || null, addedAt: new Date().toISOString() }
+        ? {
+            zone: product.storage?.zone ?? "M",
+            etage: product.storage?.etage ?? "EG",
+            gang: product.storage?.gang ?? 0,
+            regal: product.storage?.regal ?? 0,
+            ebene: product.storage?.ebene ?? "",
+            quantity: product.storage?.quantity ?? qty,
+            ...product.storage,
+            binCode: bin.trim(),
+            assigned_at: new Date().toISOString(),
+          }
         : product.storage || null,
     };
     onComplete(updated);

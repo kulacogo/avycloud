@@ -1,33 +1,30 @@
 'use strict';
 
 /**
- * refund-sync.js — Detect marketplace refunds (money returned to buyers, with
- * or without a return) and create a GoBD-correct correction invoice
- * (Teil-Gutschrift / Stornorechnung) for each, so the invoice reflects the
- * reduced revenue + VAT.
+ * refund-sync.js — Detect marketplace refunds (eBay + Kaufland) and RAISE A
+ * NOTIFICATION (bell alert) for each so a human issues the correction invoice
+ * (Teil-Gutschrift). It does NOT auto-book anything — the VAT-relevant amount
+ * needs manual confirmation.
  *
- * Sources: eBay Finances API (transactionType REFUND) + Kaufland bookings
- * (refund-text entries). Each refund is matched to its order's invoice and
- * passed to createCorrectionInvoice({type:'gutschrift'}).
+ * Amount shown (the revenue/VAT reduction):
+ *   - eBay:     invoice gross − current eBay order total (= what the BUYER got
+ *               back; eBay's Trading-API RefundAmount is the seller-net figure
+ *               after fee credits and is NOT VAT-correct, so we derive it).
+ *   - Kaufland: the refund amount from the bookings report (already buyer gross).
  *
- * SAFETY:
- *   - Idempotent per refund: every marketplace refundId is recorded in the
- *     `refund_corrections` collection; a refund is never processed twice.
- *   - SINCE cutoff: only refunds within the lookback window are processed, so
- *     enabling this does NOT mass-correct the entire history at once. Historical
- *     backfill is a separate, explicit run.
- *   - Refunds whose order/invoice can't be found are recorded as 'no_order'
- *     (logged, not retried forever) for manual handling.
+ * Bell: writes to `stock_failure_alerts` (the collection the topbar bell polls
+ * via /api/admin/alerts/recent) with kind:'refund_review',
+ * terminalStatus:'needs_manual'. Idempotent per marketplace refundId via the
+ * `refund_corrections` collection — a refund is alerted exactly once.
  *
- * Known limitation: createCorrectionInvoice enforces one correction per order;
- * if an order receives MULTIPLE partial refunds, only the first is auto-booked,
- * the rest are recorded as 'skipped_existing_correction' for manual handling.
+ * SINCE/lookback bounds the window so the historical backlog isn't surfaced all
+ * at once.
  */
 
 const { Firestore } = require('@google-cloud/firestore');
 
 const COLL = 'refund_corrections';
-const ORDERS = 'orders';
+const ALERTS = 'stock_failure_alerts';
 const INVOICES = 'invoices';
 
 let _db;
@@ -36,31 +33,22 @@ function getDb() {
   return _db;
 }
 
-function ymd(d) {
-  return new Date(d).toISOString().split('T')[0];
+function ymd(ms) {
+  return new Date(ms).toISOString().split('T')[0];
 }
 
-/**
- * Resolve the AvyCloud order doc id for a marketplace refund.
- * Order doc ids follow `<marketplace>__<orderNumber>`; fall back to looking up
- * the invoice by orderNumber to read its orderId.
- */
-async function resolveOrderDocId(db, tenantId, refund) {
-  const guess = `${refund.marketplace}__${refund.orderId}`;
-  const o = await db.collection(ORDERS).doc(guess).get();
-  if (o.exists && (o.data().tenantId || 'default') === tenantId) return guess;
-
-  const inv = await db.collection(INVOICES)
+async function findInvoiceForOrder(db, tenantId, orderNumber) {
+  const snap = await db.collection(INVOICES)
     .where('tenantId', '==', tenantId)
-    .where('orderNumber', '==', refund.orderId)
+    .where('orderNumber', '==', orderNumber)
     .limit(1)
     .get();
-  if (!inv.empty) return inv.docs[0].data().orderId || null;
-  return null;
+  if (snap.empty) return null;
+  const d = snap.docs[0].data();
+  return { invoiceNumber: d.invoiceNumber || null, amountBrutto: d.amountBrutto ?? d.amountGross ?? null };
 }
 
 /**
- * Sync marketplace refunds → correction invoices.
  * @param {{ tenantId?: string, sinceDate?: string, lookbackDays?: number }} opts
  */
 async function syncRefunds({ tenantId = 'default', sinceDate = null, lookbackDays = 14 } = {}) {
@@ -68,7 +56,7 @@ async function syncRefunds({ tenantId = 'default', sinceDate = null, lookbackDay
   const to = ymd(Date.now());
   const from = sinceDate || ymd(Date.now() - lookbackDays * 24 * 60 * 60 * 1000);
 
-  const results = { from, to, ebay: 0, kaufland: 0, corrected: 0, skipped: 0, noOrder: 0, errors: [] };
+  const results = { from, to, ebay: 0, kaufland: 0, notified: 0, skipped: 0, noInvoice: 0, errors: [] };
   const refunds = [];
 
   try {
@@ -83,43 +71,68 @@ async function syncRefunds({ tenantId = 'default', sinceDate = null, lookbackDay
     if (Array.isArray(kl)) { for (const r of kl) refunds.push({ ...r, marketplace: 'kaufland' }); results.kaufland = kl.length; }
   } catch (err) { results.errors.push({ src: 'kaufland', error: err.message }); }
 
-  const { createCorrectionInvoice } = require('./invoice-engine');
-
   for (const r of refunds) {
-    if (!r.orderId || !r.amount) { results.skipped++; continue; }
+    if (!r.orderId || !r.refundId) { results.skipped++; continue; }
 
     const key = `${tenantId}__${r.marketplace}__${r.refundId}`.replace(/[^a-zA-Z0-9_]/g, '_');
     const ref = db.collection(COLL).doc(key);
-    const existing = await ref.get();
-    if (existing.exists) { results.skipped++; continue; } // already processed
+    if ((await ref.get()).exists) { results.skipped++; continue; } // already alerted
 
-    const orderDocId = await resolveOrderDocId(db, tenantId, r);
-    if (!orderDocId) {
-      await ref.set({ tenantId, ...r, status: 'no_order', createdAt: new Date().toISOString() }, { merge: true });
-      results.noOrder++;
-      continue;
+    const inv = await findInvoiceForOrder(db, tenantId, r.orderId);
+
+    // Compute the VAT-relevant (buyer) refund amount.
+    let amount = null;
+    let basis = null;
+    if (r.marketplace === 'ebay') {
+      if (inv?.amountBrutto != null && r.ebayOrderTotal != null) {
+        amount = Math.round(Math.max(0, inv.amountBrutto - r.ebayOrderTotal) * 100) / 100;
+        basis = 'invoice_minus_ebay_total';
+      } else {
+        amount = r.sellerNetRefund ?? null; // fallback (flagged) when invoice/total missing
+        basis = 'seller_net_fallback';
+      }
+    } else {
+      amount = r.amount ?? null; // Kaufland bookings report is buyer-gross
+      basis = 'kaufland_booking';
     }
 
+    const amtLabel = amount != null ? `${amount.toFixed(2)} ${r.currency || 'EUR'}` : `? ${r.currency || 'EUR'}`;
+    const invLabel = inv?.invoiceNumber ? ` / ${inv.invoiceNumber}` : ' (keine Rechnung gefunden)';
+    const reason = `Erstattung ${r.marketplace} – Order ${r.orderId}${invLabel}: ${amtLabel} – bitte Gutschrift (Teil-Storno) prüfen/ausstellen.`;
+
     try {
-      const res = await createCorrectionInvoice({
-        orderId: orderDocId,
+      await db.collection(ALERTS).add({
         tenantId,
-        type: 'gutschrift',
-        refundAmount: r.amount,
-        reason: `Erstattung ${r.marketplace} ${r.orderId} (${r.amount.toFixed(2)} ${r.currency || 'EUR'})`,
+        kind: 'refund_review',
+        terminalStatus: 'needs_manual',
+        reason,
+        failureDocId: `${r.marketplace}:${r.orderId}`,
+        marketplace: r.marketplace,
+        orderId: r.orderId,
+        refundId: r.refundId,
+        invoiceNumber: inv?.invoiceNumber || null,
+        amount,
+        amountBasis: basis,
+        currency: r.currency || 'EUR',
+        refundDate: r.date || null,
+        createdAt: new Date().toISOString(),
       });
-      const status = !res.ok ? (res.reason || 'failed')
-        : res.skipped ? 'skipped_existing_correction'
-        : 'corrected';
-      await ref.set({ tenantId, ...r, orderDocId, status, correctionId: res.correctionId || null, createdAt: new Date().toISOString() }, { merge: true });
-      if (status === 'corrected') results.corrected++; else results.skipped++;
+      await ref.set({
+        tenantId, marketplace: r.marketplace, orderId: r.orderId, refundId: r.refundId,
+        invoiceNumber: inv?.invoiceNumber || null, computedAmount: amount, amountBasis: basis,
+        currency: r.currency || 'EUR', refundDate: r.date || null,
+        status: inv ? 'notified' : 'notified_no_invoice',
+        createdAt: new Date().toISOString(),
+      }, { merge: true });
+      if (!inv) results.noInvoice++;
+      results.notified++;
     } catch (err) {
       results.errors.push({ refundId: r.refundId, error: err.message });
     }
   }
 
-  console.log(`[refund-sync] tenant=${tenantId} ${from}–${to}: ebay=${results.ebay} kaufland=${results.kaufland} corrected=${results.corrected} skipped=${results.skipped} noOrder=${results.noOrder} errors=${results.errors.length}`);
+  console.log(`[refund-sync] tenant=${tenantId} ${from}–${to}: ebay=${results.ebay} kaufland=${results.kaufland} notified=${results.notified} skipped=${results.skipped} noInvoice=${results.noInvoice} errors=${results.errors.length}`);
   return results;
 }
 
-module.exports = { syncRefunds, resolveOrderDocId };
+module.exports = { syncRefunds, findInvoiceForOrder };

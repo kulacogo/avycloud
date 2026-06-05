@@ -2,26 +2,10 @@
 import React from 'react';
 import { useI18n } from '../i18n';
 import { useAuth } from '../context/AuthContext';
+import type { View } from '../types';
 
 interface HeaderProps {
-  currentView:
-    | 'dashboard'
-    | 'home'
-    | 'search'
-    | 'input'
-    | 'sheet'
-    | 'inventory'
-    | 'products'
-    | 'admin'
-    | 'categories'
-    | 'ebay-listings'
-    | 'warehouse'
-    | 'operations'
-    | 'operations-identify'
-    | 'operations-stow'
-    | 'operations-pick'
-    | 'operations-pack'
-    ;
+  currentView: View;
   setView: (view: HeaderProps['currentView']) => void;
   theme: 'light' | 'dark';
   onToggleTheme: () => void;
