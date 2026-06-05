@@ -601,15 +601,19 @@ const AdminTable: React.FC<AdminTableProps> = ({
       {
         id: 'price',
         label: t('table.price'),
-        sortKey: 'details.pricing.lowest_price.amount',
+        sortKey: 'details.pricing.sellPrice',
         defaultVisible: true,
-        render: ({ product }) =>
-          product.details?.pricing?.lowest_price?.amount
+        // Shows the Verkaufspreis (sellPrice) — the price we actually sell at / push to
+        // marketplaces. Other prices (buyPrice, lowest_price, suggestedPrice) stay background-only.
+        render: ({ product }) => {
+          const sell = product.details?.pricing?.sellPrice;
+          return typeof sell === 'number' && Number.isFinite(sell) && sell > 0
             ? new Intl.NumberFormat('de-DE', {
               style: 'currency',
               currency: safeCurrency(product.details?.pricing?.lowest_price?.currency),
-            }).format(product.details?.pricing?.lowest_price?.amount as number)
-            : '—',
+            }).format(sell)
+            : '—';
+        },
       },
       {
         id: 'inventory',
@@ -1198,8 +1202,8 @@ const AdminTable: React.FC<AdminTableProps> = ({
         switch (key) {
           case 'category.display':
             return getProductDisplayCategory(product).toLowerCase();
-          case 'details.pricing.lowest_price.amount':
-            return Number(product.details?.pricing?.lowest_price?.amount || 0);
+          case 'details.pricing.sellPrice':
+            return Number(product.details?.pricing?.sellPrice || 0);
           case 'inventory.quantity':
             // Sort by effektiver Bestand (summe aus inventory + storageBins)
             return getProductQuantity(product);

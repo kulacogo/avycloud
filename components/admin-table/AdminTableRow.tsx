@@ -14,7 +14,7 @@ const EDITABLE_COLUMN_MAP: Record<string, { field: string; type: "text" | "numbe
   category: { field: "identification.category", type: "text" },
   mpn: { field: "details.identifiers.mpn", type: "text" },
   weight: { field: "details.weight", type: "number" },
-  price: { field: "details.pricing.lowest_price.amount", type: "number" },
+  price: { field: "details.pricing.sellPrice", type: "number" },
 };
 
 function getNestedValue(obj: any, path: string): any {

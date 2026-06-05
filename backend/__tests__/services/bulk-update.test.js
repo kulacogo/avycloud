@@ -69,14 +69,14 @@ describe('bulk-update field whitelist', () => {
     expect(saved[0].product.details.weight).toBe(2.5);
   });
 
-  it('accepts price edits on the displayed field (details.pricing.lowest_price.amount)', async () => {
+  it('accepts price edits on the displayed field (details.pricing.sellPrice = Verkaufspreis)', async () => {
     const res = await bulkUpdateProducts({
       productIds: ['p1'],
-      updates: [{ field: 'details.pricing.lowest_price.amount', value: 19.99 }],
+      updates: [{ field: 'details.pricing.sellPrice', value: 19.99 }],
       dryRun: false,
     });
     expect(res.updated).toBe(1);
-    expect(saved[0].product.details.pricing.lowest_price.amount).toBe(19.99);
+    expect(saved[0].product.details.pricing.sellPrice).toBe(19.99);
   });
 
   it('REJECTS inventory.quantity to preserve the stock single-writer invariant', async () => {
