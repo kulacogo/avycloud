@@ -603,16 +603,32 @@ const AdminTable: React.FC<AdminTableProps> = ({
         label: t('table.price'),
         sortKey: 'details.pricing.sellPrice',
         defaultVisible: true,
-        // Shows the Verkaufspreis (sellPrice) — the price we actually sell at / push to
-        // marketplaces. Other prices (buyPrice, lowest_price, suggestedPrice) stay background-only.
+        // Effective Verkaufspreis = the price the marketplace actually uses:
+        // sellPrice (your durable, enrichment-safe override) if set, else the researched
+        // lowest_price as a fallback (mirrors lib/kaufland-api.js price resolution).
+        // Editing writes sellPrice (see EDITABLE_COLUMN_MAP). Fallback shown muted so you
+        // can see at a glance which products still need a confirmed sell price.
         render: ({ product }) => {
-          const sell = product.details?.pricing?.sellPrice;
-          return typeof sell === 'number' && Number.isFinite(sell) && sell > 0
-            ? new Intl.NumberFormat('de-DE', {
-              style: 'currency',
-              currency: safeCurrency(product.details?.pricing?.lowest_price?.currency),
-            }).format(sell)
-            : '—';
+          const pricing = product.details?.pricing;
+          const sell = Number(pricing?.sellPrice);
+          const hasSell = Number.isFinite(sell) && sell > 0;
+          const market = Number(pricing?.lowest_price?.amount);
+          const hasMarket = Number.isFinite(market) && market > 0;
+          const value = hasSell ? sell : hasMarket ? market : null;
+          if (value === null) {
+            return <span className="text-txt-muted text-sm">—</span>;
+          }
+          const formatted = new Intl.NumberFormat('de-DE', {
+            style: 'currency',
+            currency: safeCurrency(pricing?.lowest_price?.currency),
+          }).format(value);
+          return hasSell ? (
+            <span className="text-txt-primary">{formatted}</span>
+          ) : (
+            <span className="text-txt-muted" title="Marktpreis-Schätzung — noch kein Verkaufspreis gesetzt">
+              {formatted}
+            </span>
+          );
         },
       },
       {
@@ -1202,8 +1218,12 @@ const AdminTable: React.FC<AdminTableProps> = ({
         switch (key) {
           case 'category.display':
             return getProductDisplayCategory(product).toLowerCase();
-          case 'details.pricing.sellPrice':
-            return Number(product.details?.pricing?.sellPrice || 0);
+          case 'details.pricing.sellPrice': {
+            // Sort by the effective price (sellPrice override, else researched lowest_price)
+            const sell = Number(product.details?.pricing?.sellPrice);
+            if (Number.isFinite(sell) && sell > 0) return sell;
+            return Number(product.details?.pricing?.lowest_price?.amount) || 0;
+          }
           case 'inventory.quantity':
             // Sort by effektiver Bestand (summe aus inventory + storageBins)
             return getProductQuantity(product);
