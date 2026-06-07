@@ -4,6 +4,7 @@ const { firestore, getAllProducts, getAllProductsForTenant, getProduct } = requi
 const { saveProductV2 } = require('../lib/product-store');
 const { findEbayCategory } = require('../lib/ebay-taxonomy');
 const { ensurePriceCoverage } = require('./enrichment');
+const { applyEnrichmentToProduct } = require('./content-enrich-runner');
 const { coerceTitleToPolicy, validateTitleToPolicy, inferTitleCategory } = require('../lib/title-policy');
 const { getRulebookConfigCached } = require('../lib/rulebook-config');
 const { fetchCategoryTitleInsights } = require('../lib/ebay-browse-title-insights');
@@ -2110,6 +2111,82 @@ async function runBulkKauflandSync({
   return { summary, samples };
 }
 
+// ── reenrich_content — bring existing datasheets up to the eBay-ready standard ──
+// CONTENT ONLY, in-place, never touches inventory/sku/storage, never publishes.
+// Manual only (no cron). Dry-run by default. See content-enrich-runner.js.
+async function runBulkReenrichContent({
+  apply = false,
+  limit = 500,
+  offset = 0,
+  debug = false,
+  productIds = null,
+  tenantId = null,
+  brands = null,
+  maxIter = 4,
+  marketplace = 'EBAY_DE',
+} = {}) {
+  const selected = await resolveTargetProducts({ productIds, limit, offset, tenantId });
+
+  const targetBrands =
+    Array.isArray(brands) && brands.length
+      ? new Set(brands.map((b) => safeString(b).toLowerCase()).filter(Boolean))
+      : null;
+  const filtered = targetBrands
+    ? selected.filter((p) => targetBrands.has(safeString(p && p.identification && p.identification.brand).toLowerCase()))
+    : selected;
+
+  const summary = {
+    action: 'reenrich_content',
+    apply: Boolean(apply),
+    limit,
+    offset,
+    selected: selected.length,
+    filtered: filtered.length,
+    considered: 0,
+    ready: 0,
+    improved: 0,
+    needs_human: 0,
+    applied: 0,
+    failed: 0,
+  };
+  const samples = [];
+  const needsHuman = [];
+
+  for (const p of filtered) {
+    const id = p.id;
+    const sku = pickSku(p);
+    try {
+      const cur = await getProduct(String(id));
+      if (!cur) continue;
+      summary.considered += 1;
+
+      const r = await applyEnrichmentToProduct(cur, { apply, maxIter, marketplace });
+      summary[r.bucket] = (summary[r.bucket] || 0) + 1;
+      if (r.applied) summary.applied += 1;
+
+      if (!r.ready && needsHuman.length < 500) {
+        needsHuman.push({ id, sku, bucket: r.bucket, changed: r.changedFields, missing: (r.remainingIssues || []).slice(0, 10) });
+      }
+      if (samples.length < 25) {
+        samples.push({
+          id,
+          sku,
+          bucket: r.bucket,
+          applied: r.applied,
+          ready: r.ready,
+          changed: r.changedFields,
+          remaining: (r.remainingIssues || []).slice(0, 8),
+        });
+      }
+    } catch (e) {
+      summary.failed += 1;
+      if (samples.length < 25) samples.push({ id, sku, status: 'error', message: e && e.message ? e.message : String(e) });
+    }
+  }
+
+  return { summary, samples, needsHuman: needsHuman.slice(0, 200) };
+}
+
 async function runBulkAction(action, payload = {}) {
   const a = String(action || '').trim().toLowerCase();
   const apply = parseBool(payload.apply, false);
@@ -2222,6 +2299,19 @@ async function runBulkAction(action, payload = {}) {
   if (a === 'validate' || a === 'schnell-check' || a === 'quick-check') {
     const { runBatchValidate } = require('./product-validator');
     return runBatchValidate({ productIds, dryRun: !apply });
+  }
+  if (a === 'reenrich_content' || a === 'reenrich-content' || a === 'veredeln') {
+    return runBulkReenrichContent({
+      apply,
+      limit,
+      offset,
+      debug,
+      productIds,
+      tenantId,
+      brands: Array.isArray(payload.brands) ? payload.brands : null,
+      maxIter: Math.max(1, Math.min(8, Number(payload.maxIter) || 4)),
+      marketplace: safeString(payload.marketplace) || 'EBAY_DE',
+    });
   }
   if (a === 'gpsr') {
     throw new Error('GPSR bulk action is not exposed here (use GPSR jobs/scripts).');

@@ -76,6 +76,19 @@ const ReadinessBadge: React.FC<{ readiness?: string | null; editor?: string | nu
   );
 };
 
+const AutoImproveBadge: React.FC<{ ops?: Product["ops"] }> = ({ ops }) => {
+  const ai = ops?.autoImprove;
+  if (!ai || ai.reviewStatus !== "pending_review") return null;
+  const when = ai.lastAppliedAt ? new Date(ai.lastAppliedAt).toLocaleString("de-DE") : "";
+  const fields = ai.appliedChanges?.length ? ai.appliedChanges.join(", ") : "";
+  const title = `Auto-verbessert${when ? " am " + when : ""}${fields ? " · " + fields : ""} — bitte prüfen`;
+  return (
+    <span className="px-2 py-1 text-xs font-bold rounded-full inline-flex items-center gap-1 bg-info-dim text-info" title={title}>
+      ✨ Auto
+    </span>
+  );
+};
+
 const SaveStatusBadge: React.FC<{ saved: boolean }> = ({ saved }) => {
   return (
     <span
@@ -880,7 +893,10 @@ const AdminTable: React.FC<AdminTableProps> = ({
         sortKey: 'ops.readiness',
         defaultVisible: true,
         render: ({ product }) => (
-          <ReadinessBadge readiness={product.ops?.readiness} editor={product.ops?.readiness_editor} />
+          <div className="flex items-center gap-1.5">
+            <ReadinessBadge readiness={product.ops?.readiness} editor={product.ops?.readiness_editor} />
+            <AutoImproveBadge ops={product.ops} />
+          </div>
         ),
       },
       {

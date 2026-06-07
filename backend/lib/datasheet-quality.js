@@ -207,5 +207,6 @@ function evaluateEbayReady(product, options = {}) {
 
 module.exports = {
   evaluateEbayReady,
+  getPriceStatus,
 };
 
