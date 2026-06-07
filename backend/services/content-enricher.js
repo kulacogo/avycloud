@@ -337,13 +337,19 @@ async function enrichProductContent(product, opts = {}) {
     };
   }
 
+  // Title rewriting is OPT-IN and OFF by default. Reason: policy-coercion can
+  // drop the brand and pick the wrong product type from the category breadcrumb
+  // (prod incident 2026-06-07 on the markisen). Existing titles are usually fine.
+  const titleRewrite = opts.titleRewrite === true;
+  const activeFillers = FILLERS.filter((f) => f.name !== 'title' || titleRewrite);
+
   // Bounded bring-up loop: each pass tries every gap-aware filler, re-scores,
   // and stops when ready or when no filler can make further progress.
   const ctx = { getDep, marketplace };
   for (let iter = 0; iter < maxIter; iter++) {
     if (scoreOf(evaluateEbayReady, work).ready) break;
     let progressed = false;
-    for (const filler of FILLERS) {
+    for (const filler of activeFillers) {
       const result = await filler.run(work, ctx);
       if (result) {
         changed[filler.name] = result;

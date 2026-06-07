@@ -185,7 +185,7 @@ describe('enrichProductContent — title fill (policy)', () => {
       coerceTitleToPolicy: () => coerced,
     };
 
-    const res = await enrichProductContent(product, { deps, maxIter: 4 });
+    const res = await enrichProductContent(product, { deps, maxIter: 4, titleRewrite: true });
 
     expect(res.product.identification.name).toBe(coerced);
     expect(res.changed.title).toBeTruthy();
@@ -203,7 +203,26 @@ describe('enrichProductContent — title fill (policy)', () => {
       coerceTitleToPolicy: (p, t) => t, // no change → no improvement
     };
 
-    const res = await enrichProductContent(product, { deps, maxIter: 2 });
+    const res = await enrichProductContent(product, { deps, maxIter: 2, titleRewrite: true });
+
+    expect(res.product.identification.name).toBe(original);
+    expect(res.changed.title).toBeFalsy();
+  });
+
+  it('leaves the title UNTOUCHED by default (titleRewrite off) — brand-drop incident guard', async () => {
+    const product = baseProduct();
+    const original = product.identification.name;
+    const deps = {
+      evaluateEbayReady: (p) => {
+        const name = (p.identification && p.identification.name) || '';
+        const ok = name.startsWith('ZZZ'); // never ready on title
+        return { ok, issues: ok ? [] : ['priority_a_missing_in_title'], snapshot: {}, missingRequiredAspects: [] };
+      },
+      getPriceStatus: () => ({ ok: true, amount: 99.9, hasEvidence: true, sourceCount: 1 }),
+      coerceTitleToPolicy: () => 'TITEL OHNE MARKE',
+    };
+
+    const res = await enrichProductContent(product, { deps, maxIter: 2 }); // no titleRewrite
 
     expect(res.product.identification.name).toBe(original);
     expect(res.changed.title).toBeFalsy();
