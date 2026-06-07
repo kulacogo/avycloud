@@ -66,13 +66,13 @@ function arg(name, def) {
       console.log(`  ✖ ${s.sku}  ERROR: ${s.message}`);
       continue;
     }
-    const mark = s.bucket === 'ready' ? '✅' : s.bucket === 'improved' ? '🟡' : '🔧';
-    console.log(`  ${mark} ${s.sku}  [${s.bucket}]  changed=${(s.changed || []).join(',') || '-'}  remaining=${(s.remaining || []).join(' | ') || '-'}`);
+    const mark = s.bucket === 'enriched' ? '✅' : s.bucket === 'unchanged' ? '➖' : '✖';
+    console.log(`  ${mark} ${s.sku}  [${s.bucket}]  conf=${s.confidence ?? '?'}  geändert=${(s.changed || []).join(',') || '-'}${s.error ? '  ERROR: ' + s.error : ''}`);
   }
 
-  console.log('\n=== NEEDS HUMAN (SKU -> still-missing fields) ===');
-  for (const n of res.needsHuman || []) {
-    console.log(`  ${n.sku}  [${n.bucket}]  fixed=${(n.changed || []).join(',') || '-'}  missing=${(n.missing || []).join(' | ') || '-'}`);
+  console.log('\n=== BRAUCHT AUFMERKSAMKEIT (nicht angereichert) ===');
+  for (const n of res.attention || []) {
+    console.log(`  ${n.sku}  [${n.bucket}]${n.error ? '  ' + n.error : ''}`);
   }
 
   process.exit(0);

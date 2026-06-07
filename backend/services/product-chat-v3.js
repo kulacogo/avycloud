@@ -814,17 +814,23 @@ async function runProductChatV3({
   }
 
   const systemPrompt = buildSystemPromptV3(product);
+  const functionDeclarations = [
+    ...atomicTools.buildToolList({ includeAmazon: true, includeManufacturer: true }),
+    UPDATE_DATASHEET_DECLARATION,
+    SUGGEST_IMAGES_DECLARATION,
+  ];
   const tools = [
     { googleSearch: {} },
     { urlContext: {} },
-    {
-      functionDeclarations: [
-        ...atomicTools.buildToolList({ includeAmazon: true, includeManufacturer: true }),
-        UPDATE_DATASHEET_DECLARATION,
-        SUGGEST_IMAGES_DECLARATION,
-      ],
-    },
+    { functionDeclarations },
   ];
+  // Write-only toolset for FORCED finalization turns. Gemini rejects
+  // functionCallingConfig.allowedFunctionNames when a native tool
+  // (googleSearch/urlContext) is present in the SAME request:
+  // "allowed_function_names should be a subset of the provided function_declarations".
+  // The forced turn only needs to WRITE (research already happened), so we drop
+  // the native grounding tools and pass only the function declarations.
+  const writeOnlyTools = [{ functionDeclarations }];
 
   // NOTE: mediaResolution intentionally omitted — v1beta API rejects it with
   // 'Invalid value at generation_config.media_resolution' even for documented
@@ -982,6 +988,7 @@ async function runProductChatV3({
 
       const sendConfig = forceFinalize
         ? {
+            tools: writeOnlyTools,
             toolConfig: {
               functionCallingConfig: {
                 mode: FunctionCallingConfigMode.ANY,
@@ -1036,6 +1043,7 @@ async function runProductChatV3({
               message:
                 'Bitte fasse deine Recherche-Ergebnisse JETZT zusammen und rufe update_product_datasheet mit den konkreten Änderungsvorschlägen auf.',
               config: {
+                tools: writeOnlyTools,
                 toolConfig: {
                   functionCallingConfig: {
                     mode: FunctionCallingConfigMode.ANY,

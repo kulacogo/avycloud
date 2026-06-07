@@ -2143,14 +2143,14 @@ async function runBulkReenrichContent({
     selected: selected.length,
     filtered: filtered.length,
     considered: 0,
-    ready: 0,
-    improved: 0,
-    needs_human: 0,
+    enriched: 0,
+    unchanged: 0,
+    error: 0,
     applied: 0,
     failed: 0,
   };
   const samples = [];
-  const needsHuman = [];
+  const attention = [];
 
   for (const p of filtered) {
     const id = p.id;
@@ -2160,12 +2160,12 @@ async function runBulkReenrichContent({
       if (!cur) continue;
       summary.considered += 1;
 
-      const r = await applyEnrichmentToProduct(cur, { apply, maxIter, marketplace });
+      const r = await applyEnrichmentToProduct(cur, { apply, tenantId });
       summary[r.bucket] = (summary[r.bucket] || 0) + 1;
       if (r.applied) summary.applied += 1;
 
-      if (!r.ready && needsHuman.length < 500) {
-        needsHuman.push({ id, sku, bucket: r.bucket, changed: r.changedFields, missing: (r.remainingIssues || []).slice(0, 10) });
+      if (r.bucket !== 'enriched' && attention.length < 500) {
+        attention.push({ id, sku, bucket: r.bucket, error: r.error || null });
       }
       if (samples.length < 25) {
         samples.push({
@@ -2173,9 +2173,10 @@ async function runBulkReenrichContent({
           sku,
           bucket: r.bucket,
           applied: r.applied,
-          ready: r.ready,
           changed: r.changedFields,
-          remaining: (r.remainingIssues || []).slice(0, 8),
+          confidence: r.confidence,
+          model: r.model,
+          error: r.error || null,
         });
       }
     } catch (e) {
@@ -2184,7 +2185,7 @@ async function runBulkReenrichContent({
     }
   }
 
-  return { summary, samples, needsHuman: needsHuman.slice(0, 200) };
+  return { summary, samples, attention: attention.slice(0, 200) };
 }
 
 async function runBulkAction(action, payload = {}) {

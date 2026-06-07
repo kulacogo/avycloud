@@ -1,25 +1,22 @@
 'use strict';
 
 // TDD for backend/services/content-enrich-runner.js
-// applyEnrichmentToProduct: per-product orchestration used by the bulk action.
-//  - dry-run (apply:false): never saves, just reports the proposed result
-//  - apply:true: saves CONTENT ONLY via injected save, stamps the
-//    ops.autoImprove indicator, and NEVER enables warehouse writes
-//  - buckets each product: ready | improved | needs_human
+// applyEnrichmentToProduct runs the chat-based full enricher (injected), then on
+// apply persists content-only via saveProductV2 + stamps ops.autoImprove.
+// NEVER enables warehouse writes. Buckets: enriched | unchanged | error.
 
 const { applyEnrichmentToProduct } = require('../../services/content-enrich-runner');
 
-const now = () => '2026-06-07T00:00:00.000Z';
+const now = () => '2026-06-08T00:00:00.000Z';
 
-describe('applyEnrichmentToProduct', () => {
-  it('dry-run never saves and reports the proposed changes + bucket', async () => {
+describe('applyEnrichmentToProduct (chat-based)', () => {
+  it('dry-run never saves and reports changed fields + bucket', async () => {
     const enrich = async () => ({
       product: { id: 'p1', ops: {}, details: {} },
-      changed: { price: { after: 99.95 } },
-      ready: true,
-      scoreBefore: { ready: false },
-      scoreAfter: { ready: true },
-      remainingIssues: [],
+      changed: ['title', 'pricing'],
+      confidence: 0.9,
+      evidence: [{ url: 'https://x' }],
+      model: 'gemini-3.1-pro-preview-customtools',
     });
     const save = vi.fn();
 
@@ -27,95 +24,54 @@ describe('applyEnrichmentToProduct', () => {
 
     expect(save).not.toHaveBeenCalled();
     expect(res.applied).toBe(false);
-    expect(res.bucket).toBe('ready');
-    expect(res.changedFields).toEqual(['price']);
-    expect(res.ready).toBe(true);
+    expect(res.bucket).toBe('enriched');
+    expect(res.changedFields).toEqual(['title', 'pricing']);
+    expect(res.confidence).toBe(0.9);
   });
 
   it('apply stamps ops.autoImprove (pending_review) and saves content-only, never warehouse', async () => {
-    const product = { id: 'p1', ops: {}, details: {}, inventory: { quantity: 5 } };
-    const enriched = { id: 'p1', ops: {}, details: { pricing: { sellPrice: 99.95 } }, inventory: { quantity: 5 } };
+    const enriched = { id: 'p1', ops: {}, details: { pricing: { lowest_price: { amount: 64.59 } } }, inventory: { quantity: 3 } };
     const enrich = async () => ({
       product: enriched,
-      changed: { price: { after: 99.95 }, title: { after: 'Better Title' } },
-      ready: true,
-      scoreBefore: { ready: false },
-      scoreAfter: { ready: true },
-      remainingIssues: [],
+      changed: ['title', 'pricing', 'gpsr'],
+      confidence: 0.99,
+      evidence: [{ url: 'https://a' }, { url: 'https://b' }],
+      model: 'gemini-3.1-pro-preview-customtools',
     });
     const save = vi.fn(async () => ({ ok: true }));
 
-    const res = await applyEnrichmentToProduct(product, { apply: true, deps: { enrich, save, now } });
+    const res = await applyEnrichmentToProduct({ id: 'p1' }, { apply: true, deps: { enrich, save, now } });
 
     expect(save).toHaveBeenCalledTimes(1);
     const [savedProduct, savedOpts] = save.mock.calls[0];
-
-    // indicator stamped
     expect(savedProduct.ops.autoImprove.reviewStatus).toBe('pending_review');
-    expect(savedProduct.ops.autoImprove.appliedChanges).toEqual(['price', 'title']);
+    expect(savedProduct.ops.autoImprove.appliedChanges).toEqual(['title', 'pricing', 'gpsr']);
     expect(savedProduct.ops.autoImprove.source).toBe('bulk:reenrich_content');
-    expect(savedProduct.ops.autoImprove.lastAppliedAt).toBe('2026-06-07T00:00:00.000Z');
+    expect(savedProduct.ops.autoImprove.evidenceCount).toBe(2);
     expect(savedProduct.ops.last_saved_source).toBe('content-enrich');
-
-    // safe save options
     expect(savedOpts.skipStockEvent).toBe(true);
-    expect(savedOpts.allowWarehouseFields).toBeUndefined(); // MUST never enable warehouse writes
-
+    expect(savedOpts.skipTitlePolicy).toBe(true); // keep brand-first title, no re-coercion
+    expect(savedOpts.allowWarehouseFields).toBeUndefined();
+    expect(savedOpts.allowCategoryChange).toBeUndefined();
     expect(res.applied).toBe(true);
-    expect(res.bucket).toBe('ready');
+    expect(res.bucket).toBe('enriched');
   });
 
-  it('apply with no changes does not save (nothing to write)', async () => {
-    const enrich = async () => ({
-      product: { id: 'p1', ops: {} },
-      changed: {},
-      ready: true,
-      scoreBefore: { ready: true },
-      scoreAfter: { ready: true },
-      remainingIssues: [],
-    });
+  it('apply with no changes does not save (bucket unchanged)', async () => {
+    const enrich = async () => ({ product: { id: 'p1', ops: {} }, changed: [], confidence: 0.99, evidence: [] });
     const save = vi.fn();
-
     const res = await applyEnrichmentToProduct({ id: 'p1' }, { apply: true, deps: { enrich, save, now } });
-
     expect(save).not.toHaveBeenCalled();
     expect(res.applied).toBe(false);
-    expect(res.bucket).toBe('ready');
+    expect(res.bucket).toBe('unchanged');
   });
 
-  it('buckets not-ready-with-no-changes as needs_human and surfaces remaining issues', async () => {
-    const enrich = async () => ({
-      product: { id: 'p1' },
-      changed: {},
-      ready: false,
-      scoreBefore: { ready: false },
-      scoreAfter: { ready: false },
-      remainingIssues: ['price_missing'],
-    });
+  it('reports bucket error when the enricher returns an error and never saves', async () => {
+    const enrich = async () => ({ product: { id: 'p1' }, changed: [], error: 'gemini down' });
     const save = vi.fn();
-
     const res = await applyEnrichmentToProduct({ id: 'p1' }, { apply: true, deps: { enrich, save, now } });
-
-    expect(res.bucket).toBe('needs_human');
-    expect(res.remainingIssues).toContain('price_missing');
+    expect(res.bucket).toBe('error');
+    expect(res.error).toMatch(/gemini down/);
     expect(save).not.toHaveBeenCalled();
-  });
-
-  it('buckets not-ready-but-improved as improved', async () => {
-    const enrich = async () => ({
-      product: { id: 'p1', ops: {} },
-      changed: { title: { after: 'X' } },
-      ready: false,
-      scoreBefore: { ready: false },
-      scoreAfter: { ready: false },
-      remainingIssues: ['price_missing'],
-    });
-    const save = vi.fn(async () => ({}));
-
-    const res = await applyEnrichmentToProduct({ id: 'p1' }, { apply: true, deps: { enrich, save, now } });
-
-    expect(res.bucket).toBe('improved');
-    expect(res.applied).toBe(true);
-    expect(save).toHaveBeenCalledTimes(1);
   });
 });

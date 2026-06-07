@@ -1,44 +1,41 @@
 'use strict';
 
 /**
- * content-enrich-runner.js — per-product orchestration around the content
- * enricher, used by the `reenrich_content` bulk action.
- *
- * Responsibilities:
- *   - run enrichProductContent on a single product
- *   - bucket the outcome: ready | improved | needs_human
- *   - on apply: persist CONTENT ONLY via saveProductV2 (never warehouse fields)
- *     and stamp the ops.autoImprove indicator (reviewStatus 'pending_review')
- *
- * Dependencies are injectable via opts.deps for deterministic testing.
+ * content-enrich-runner.js — per-product orchestration for the `reenrich_content`
+ * bulk action. Uses the chat pipeline (enrichViaChatV3) to enrich the FULL
+ * datasheet (title, price, gpsr, attributes, description, weight) with research,
+ * then persists CONTENT ONLY via saveProductV2 and stamps the ops.autoImprove
+ * indicator. Never touches inventory/sku/storage; never changes category; never
+ * publishes. Dependencies injectable via opts.deps for deterministic tests.
  */
 
-function bucketOf(ready, changedFields) {
-  if (ready) return 'ready';
-  return changedFields.length ? 'improved' : 'needs_human';
+function bucketOf(errored, changedCount) {
+  if (errored) return 'error';
+  return changedCount ? 'enriched' : 'unchanged';
 }
 
 async function applyEnrichmentToProduct(product, opts = {}) {
   const apply = Boolean(opts.apply);
   const deps = opts.deps || {};
-  const enrich = deps.enrich || require('./content-enricher').enrichProductContent;
+  const enrich = deps.enrich || require('./chat-enricher').enrichViaChatV3;
   const save = deps.save || require('../lib/product-store').saveProductV2;
   const now = deps.now || (() => new Date().toISOString());
 
-  const r = await enrich(product, { maxIter: opts.maxIter, marketplace: opts.marketplace });
-  const changedFields = Object.keys((r && r.changed) || {});
-  const ready = Boolean(r && r.ready);
-  const bucket = bucketOf(ready, changedFields);
+  const r = await enrich(product, { tenantId: opts.tenantId || null, nowIso: now });
+  const changedFields = Array.isArray(r && r.changed) ? r.changed : [];
+  const errored = Boolean(r && r.error);
+  const bucket = bucketOf(errored, changedFields.length);
 
   let applied = false;
-  if (apply && changedFields.length) {
+  if (apply && !errored && changedFields.length) {
     const next = r.product;
     next.ops = next.ops || {};
     next.ops.autoImprove = {
       lastAppliedAt: now(),
       appliedChanges: changedFields,
-      readyBefore: Boolean(r.scoreBefore && r.scoreBefore.ready),
-      readyAfter: ready,
+      confidence: r.confidence ?? null,
+      model: r.model || null,
+      evidenceCount: Array.isArray(r.evidence) ? r.evidence.length : 0,
       reviewStatus: 'pending_review',
       reviewedBy: null,
       reviewedAt: null,
@@ -50,11 +47,12 @@ async function applyEnrichmentToProduct(product, opts = {}) {
     next.ops.data_quality.reenrich_content_v1 = {
       at_iso: now(),
       changed: changedFields,
-      ready,
-      remaining_issues: (r.remainingIssues || []).slice(0, 40),
+      confidence: r.confidence ?? null,
+      model: r.model || null,
     };
 
-    // CONTENT ONLY: no allowWarehouseFields → inventory/storage/sku preserved by saveProductV2.
+    // CONTENT ONLY. skipTitlePolicy: keep our brand-first title (no re-coercion).
+    // No allowCategoryChange / allowWarehouseFields → category + inventory protected.
     await save(next, {
       source: 'content-enrich',
       skipStockEvent: true,
@@ -69,9 +67,11 @@ async function applyEnrichmentToProduct(product, opts = {}) {
     id: product && product.id,
     bucket,
     applied,
-    ready,
     changedFields,
-    remainingIssues: (r && r.remainingIssues) || [],
+    confidence: r ? r.confidence ?? null : null,
+    evidenceCount: Array.isArray(r && r.evidence) ? r.evidence.length : 0,
+    model: (r && r.model) || null,
+    error: (r && r.error) || null,
   };
 }
 
