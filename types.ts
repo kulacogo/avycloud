@@ -236,6 +236,16 @@ export interface Ops {
   readiness?: Readiness | null;
   readiness_editor?: string | null;
   readiness_set_at?: string | null;
+  autoImprove?: {
+    lastAppliedAt?: string | null;
+    appliedChanges?: string[];
+    readyBefore?: boolean;
+    readyAfter?: boolean;
+    reviewStatus?: "pending_review" | "approved" | "rejected" | "reviewed";
+    reviewedBy?: string | null;
+    reviewedAt?: string | null;
+    source?: string;
+  } | null;
 }
 
 export interface Notes {
