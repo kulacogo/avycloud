@@ -1,5 +1,6 @@
 # Worktrees
 .worktrees/
+.claude/worktrees/
 
 # Firebase
 .firebase/
@@ -13,183 +14,31 @@ node_modules/
 # Testing
 coverage/
 
-# Production
+# Build output
 build/
 dist/
 
-# Misc
-.DS_Store
+# Local environment
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
 
-#Archive
-/archive
-
 # Logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# Local/system files
+.DS_Store
+
+# Generated or local data
 products/
 jobs/
-// End of Selection
-```
-ex-backend/.dockerignore
-ex-backend/.gcloudignore
-ex-backend/cloudbuild.yaml
-ex-backend/cors.json
-ex-backend/Dockerfile
-ex-backend/index.js
-ex-backend/package-lock.json
-ex-backend/package.json
-ex-backend/test-imagen1-var.js
-ex-backend/test-imagen2-mask.js
-ex-backend/test-imagen2-modes.js
-ex-backend/test-imagen2-ref-images.js
-ex-backend/test-imagen2-ref.js
-ex-backend/test-imagen2-retry.js
-ex-backend/verify-pipeline.js
-ex-backend/api/client.ts -> Wait wrong path? Actually file path /Users/oguz/Dev/avycloud/api/client.ts. Need patch there.***
-ex-backend/data/ebay-categories.json
-ex-backend/data/kaufland-categories.json
-ex-backend/ebay/DE_New_Structure_(May2023).csv
-ex-backend/ebay-data/categories.json
-ex-backend/ebay-data/required-aspects.json
-ex-backend/kaufland/attribute_values_all_languages.csv
-ex-backend/kaufland/category_tree_all_languages.csv
-ex-backend/lib/baselinker.js
-ex-backend/lib/ebay-taxonomy.js
-ex-backend/lib/firestore.js
-ex-backend/lib/gemini-client.js
-ex-backend/lib/gemini-structured.js
-ex-backend/lib/gemini.js
-ex-backend/lib/gpt-image.js
-ex-backend/lib/gtin.js
-ex-backend/lib/improve-jobs.js
-ex-backend/lib/jobs.js
-ex-backend/lib/kaufland-taxonomy.js
-ex-backend/lib/marketing-images.js
-ex-backend/lib/marketplace-lookup.js
-ex-backend/lib/model-select.js
-ex-backend/lib/product-identity.js
-ex-backend/lib/product-images.js
-ex-backend/lib/product-schema.js
-ex-backend/lib/secret-values.js
-ex-backend/lib/secrets.js
-ex-backend/lib/serpapi.js
-ex-backend/lib/sku.js
-ex-backend/lib/storage.js
-ex-backend/lib/vertex-ai.js
-ex-backend/lib/vision-ocr.js
-ex-backend/lib/warehouse.js
-ex-backend/lib/web-unlocker.js
-ex-backend/prompts/product-identification.txt
-ex-backend/scripts/fill-categories-gemini.js
-ex-backend/scripts/fill-missing-categories.js
-ex-backend/scripts/import-missing-products-from-export.js
-ex-backend/scripts/inspect-job.js
-ex-backend/scripts/manual-improve.js
-ex-backend/scripts/purge-jobs.js
-ex-backend/scripts/report-missing-prices.js
-ex-backend/scripts/set-sku-by-barcode.js
-ex-backend/scripts/sync-to-baselinker.js
-ex-backend/services/enrichment_backup.js
-ex-backend/services/enrichment-v2.js
-ex-backend/services/enrichment.js
-ex-backend/services/generative-identify.js
-ex-backend/services/image-generation.js
-ex-backend/services/improve-runner.js
-ex-backend/services/improve.js
-ex-backend/services/inventory-sync.js
-ex-backend/services/job-runner.js
-ex-backend/services/label-printer.js
-ex-backend/services/order-sync.js
-ex-backend/services/pick-hints.js
-ex-backend/services/product-chat.js
-ex-backend/services/prompt-engine.js
-ex-backend/services/scanner.js
-ex-backend/services/toolkit.js
-components example/AdminTable.tsx
-components example/AttributeTable.tsx
-components example/Dashboard.tsx
-components example/GeminiChat.tsx
-components example/Header.tsx
-components example/IdentifyQueueView.tsx
-components example/ImageGallery.tsx
-components example/JobStatusPopup.tsx
-components example/OperationsView.tsx
-components example/PricingInfo.tsx
-components example/ProcessStatusBar.tsx
-components example/ProductInput.tsx
-components example/ProductSheet.tsx
-components example/ScannerOverlay.tsx
-components example/Spinner.tsx
-components example/WarehouseView.tsx
-components example/chat/AttachmentMessage.tsx
-components example/chat/ChatContainer.tsx
-components example/chat/ChatInput.tsx
-components example/chat/FileAttachmentPreview.tsx
-components example/chat/MessageBubble.tsx
-components example/icons/Icons.tsx
-.gitignore
-exports/bin_mismatches.csv
-exports/products.csv
-exports/warehouse_bins.csv
-exports/firestore/baselinker_sku_index.csv
-exports/firestore/identificationJobs.csv
-exports/firestore/improveJobs.csv
-exports/firestore/inventories.csv
-exports/firestore/inventorySyncLogs.csv
-exports/firestore/orders.csv
-exports/firestore/products.csv
-exports/firestore/trendocean.csv
-exports/firestore/warehouseBins.csv
-exports/firestore/warehouseZones.csv
-Unbenannte Tabelle - Tabellenblatt1 (5).csv
-ebay/aktuelle_artikelmerkmale_radsport.xlsx
-ebay/alle ebay kategorien.xlsx
-ebay/artikelmerkmale_agrar_forst_kommune.xlsx
-ebay/artikelmerkmale_baugewerbe.xlsx
-ebay/artikelmerkmale_buero_schreibwaren.xlsx
-ebay/artikelmerkmale_camping_outdoor.xlsx
-ebay/artikelmerkmale_fitness_jogging.xlsx
-ebay/artikelmerkmale_gastro_nahrungsmittel.xlsx
-ebay/artikelmerkmale_transport_logistik.xlsx
-ebay/DE_New_Structure_(May2023).csv
-ebay/verpflichtende_artikelmerkmale_auto_motorradteile_24.10.2023.xlsx
-ebay/verpflichtende_artikelmerkmale_beauty_gesundheit_juli_2022.xlsx
-ebay/verpflichtende_artikelmerkmale_business_industrie_juli_2022.xlsx
-ebay/verpflichtende_artikelmerkmale_elektronik_2020.xlsx
-ebay/verpflichtende_artikelmerkmale_fashion_22022021.xlsx
-ebay/verpflichtende_artikelmerkmale_foto_camcorder_juli_2022.xlsx
-ebay/verpflichtende_artikelmerkmale_haus_garten_juli_2022.xlsx
-ebay/verpflichtende_artikelmerkmale_medien_12072021.xlsx
-ebay/verpflichtende_artikelmerkmale_modellbau_februar_2022.xlsx
-ebay/Verpflichtende_Artikelmerkmale_Moebel_Wohnen_Dekoration_Februar 2023.xlsx
-ebay/verpflichtende_artikelmerkmale_musikinstrumente_februar_2022.xlsx
-ebay/Verpflichtende_Artikelmerkmale_Schmuck_September 2022.xlsx
-ebay/verpflichtende_artikelmerkmale_spielzeug_februar_2022.xlsx
-ebay/verpflichtende_artikelmerkmale_sport_februar_2022.xlsx
-ebay/verpflichtende_artikelmerkmale_sport_juli_2022.xlsx
-exports/baselinker-sync/20260114-200604/products.csv
-exports/baselinker-sync/20260114-200604/summary.json
-exports/baselinker-sync/20260114-200615/products.csv
-exports/baselinker-sync/20260114-200615/summary.json
-exports/baselinker-sync/20260114-214750/products.csv
-exports/baselinker-sync/20260114-214750/results_summary.json
-exports/baselinker-sync/20260114-214750/results.json
-exports/baselinker-sync/20260114-214750/summary.json
-exports/baselinker-sync/20260114-220010/products.csv
-exports/baselinker-sync/20260114-220010/summary.json
-ex-backend.zip
 exports/
-exports/avystock_shopify_import.csv
-exports/channable_example_csv.png
-exports/Main_2026-01-20_05_00_2_import_long.csv
-exports/Main_2026-01-20_05_00_2_import.csv
-exports/Main_2026-01-20_05_00_2_shopify_import.csv
-.claude/worktrees/
 
-# Accounting/marketplace exports — contain customer PII, never commit
-/buchhaltung_marktplatz/
+# Local accounting/marketplace exports can contain PII
+buchhaltung_marktplatz/
+
+# Legacy archive outside docs/archive
+/archive/

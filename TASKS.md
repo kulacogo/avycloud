@@ -177,11 +177,11 @@
   - Pipeline zeigt: 22 Neu + 6 Bestätigt + 341 Versendet = 369
   - Tabs zeigen: Alle 490, Neu 28, Versendet 411, Sonstige 51
   - Weder Pipeline noch Tabs summieren sich korrekt
-- [x] **BUG-072** Versand-Tabelle: Geisterdaten + BaseLinker-Referenz (P0!)
-  - ✅ BaseLinker-Badge gefiltert (bereits vorher)
+- [x] **BUG-072** Versand-Tabelle: Geisterdaten + retired middleware-Referenz (P0!)
+  - ✅ retired middleware-Badge gefiltert (bereits vorher)
   - ✅ Zustellquote gefixt (bereits vorher)
   - ✅ Versandkosten 0€: CSV-Fallback via lookupCsvPrice in shipping-engine.js
-  - ✅ Ghost-Einträge: baselinker-source Einträge komplett aus Tabelle gefiltert
+  - ✅ Ghost-Einträge: retired_middleware-source Einträge komplett aus Tabelle gefiltert
   - ⚠️ Offen: Kaufland-Eintrag M9YQ4P5 ohne Kundenname (Datenqualität, nicht filtrierbar)
 - [ ] **BUG-073** Rechnungen: Fehler beim Klick auf grünen Haken (P1)
   - "Als bezahlt markieren" wirft Fehler
@@ -322,7 +322,7 @@ Vollständiger Report: [docs/kb/17-cleanup-report.md](docs/kb/17-cleanup-report.
 
 ### B. ARCHIVE statt löschen (DONE 2026-05-20)
 
-- [x] **Repo-Cleanup-4**: 24 BaseLinker-Skripte → `backend/scripts/archive/baselinker/` + README "do not run" ✅
+- [x] **Repo-Cleanup-4**: 24 retired middleware-Skripte → `backend/scripts/archive/retired_middleware/` + README "do not run" ✅
 - [x] **Repo-Cleanup-5**: 10 Binary-Docs aus Repo-Root → `docs/archive/2026-Q2/repo-root-binaries/` ✅
 - [x] **Repo-Cleanup-6**: `docs/ebay_orders.xls` + `.txt` → `docs/archive/2026-Q2/ebay-orders-export/` ✅
 - [ ] **Repo-Cleanup-7**: Erledigte Prompts in `docs/prompts/` annotieren (Frontmatter `status: done`) + älter als 6 Monate → `docs/archive/prompts-2026-Q1/`
@@ -331,7 +331,7 @@ Vollständiger Report: [docs/kb/17-cleanup-report.md](docs/kb/17-cleanup-report.
 
 - [ ] **FS-Cleanup-1**: `stock_sync_failures` (51.380 Docs) — verifizieren ob durch `stock_operation_failures` ersetzt; falls ja: Export + Delete
 - [ ] **FS-Cleanup-2**: `inventorySyncLogs` (16.557 Docs) — Legacy V1, Export + Delete
-- [ ] **FS-Cleanup-3**: `baselinker_sku_index` (1.634) + `baselinkerSyncJobs` (230) — BaseLinker-Legacy, Export + Delete
+- [ ] **FS-Cleanup-3**: `retired_middleware_sku_index` (1.634) + `retired_middlewareSyncJobs` (230) — retired middleware-Legacy, Export + Delete
 - [ ] **FS-Cleanup-4**: `qualityJobs` (10.930) — Naming-Drift verifizieren; TTL setzen wenn aktiv
 - [ ] **FS-Cleanup-5**: TTL-Policies via Firestore-Console für: `stock_sync_log` (183k Docs, 30d), `stock_reconciliation_log` (90d), `warehouseEvents` (90d), `chatSessions` (60d), `identificationJobs`/`improveJobs` (30d completed)
 - [ ] **FS-Cleanup-6**: Fehlende Composite-Indexes ergänzen: `(status, completedAt)` für `identificationJobs` + `improveJobs`, `(tenantId, status, createdAt)` für `stock_operation_failures`
@@ -400,7 +400,7 @@ Master-Plan mit 8 Waves. Siehe **[docs/kb/15-gap-analysis.md](docs/kb/15-gap-ana
 - [x] Forward-Rank-Map (cancelled=99/on_hold=98) zentralisiert (vorher inline in routes/webhooks.js)
 - [x] OMS-Sort-Order-Helper (vorher inline `OMS_RANK` in services/order-intake-ebay.js)
 - [x] 11 neue Pure-Function-Tests in `__tests__/lib/order-status-helpers.test.js`
-- [x] BaseLinker-Skripte schon in Cleanup-Wave-7 archiviert
+- [x] retired middleware-Skripte schon in Cleanup-Wave-7 archiviert
 - [ ] Identify-Legacy / Chat-Legacy Sunset — DEFERRED bis 2 Wochen LLM-Telemetrie-Daten verfügbar (Wave 4 produziert sie jetzt)
 
 ### Wave 9 — Operator-Visibility-Layer ✅ (2026-05-22)

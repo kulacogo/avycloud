@@ -22,7 +22,7 @@
 6. Keine Änderung an Auth (`backend/lib/auth.js`, `backend/lib/rbac.js`) ohne Anweisung.
 7. Alle Produkt-Schreibpfade über `saveProductV2()` ([backend/lib/product-store.js](backend/lib/product-store.js)).
 8. Alle neuen Queries und Collections mit `tenantId`.
-9. **BaseLinker ist TABU** — keine neuen Referenzen, Imports oder ENV-Vars.
+9. **Retired Middleware ist TABU** — keine alten Middleware-Integrationen reaktivieren, importieren oder per ENV konfigurieren.
 10. **Oversell-Verbot**: keine `products_v2.inventory.quantity`-Mutation ohne `saveProductV2()` UND `emitSyncEvent('stock:changed', …)`.
 11. **Kein `omsStatus`-Direct-Write** — Order-State-Übergänge AUSSCHLIESSLICH über `transitionOrder()`.
 12. **Kein In-Memory-Stock-Lock** in Produktion — `withStockLock()` mit Firestore-Backend ist Pflicht.

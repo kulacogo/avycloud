@@ -50,7 +50,7 @@ Alle drei Endpoints sind **public** (kein `requireAuth`), Verifikation pro Provi
 
 ## Tabu
 
-- **BaseLinker ist verboten** (CLAUDE.md Punkt 9). Keine neuen Imports, Referenzen oder ENV-Vars.
+- **retired middleware ist verboten** (CLAUDE.md Punkt 9). Keine neuen Imports, Referenzen oder ENV-Vars.
 
 ## Owner
 

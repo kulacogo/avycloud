@@ -118,13 +118,7 @@ export const ShippingView: React.FC = () => {
         const key = s.sendcloudParcelId ? String(s.sendcloudParcelId) : s.id;
         seen.set(key, s);
       }
-      // BUG-072: Filter out baselinker ghost entries (no tracking, no customer)
-      const cleaned = Array.from(seen.values()).filter((s: any) => {
-        const src = String(s.source || s.marketplace || "").toLowerCase();
-        if (src.includes("baselinker")) return false;
-        return true;
-      });
-      setShipments(cleaned);
+      setShipments(Array.from(seen.values()));
     } catch (err: any) {
       console.error("[ShippingView] load failed:", err);
       setError(err?.message || "Sendungen konnten nicht geladen werden");
@@ -473,8 +467,6 @@ export const ShippingView: React.FC = () => {
                         <span className="font-mono text-xs text-txt-primary font-medium block">{(shp as any).marketplaceOrderId || shp.orderNumber || shp.orderId}</span>
                         {(() => {
                           const mp = String((shp as any).marketplace || (shp as any).source || "").toLowerCase();
-                          // BUG-072: BaseLinker ist TABU — Badge nicht anzeigen. Nur bekannte Marktplätze.
-                          if (mp.includes('baselinker')) return null;
                           if (mp.includes('ebay')) return <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-semibold mt-0.5 bg-warning-dim text-warning">eBay</span>;
                           if (mp.includes('kaufland')) return <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-semibold mt-0.5 bg-danger-dim text-danger">Kaufland</span>;
                           if (mp && mp !== 'unknown') return <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-semibold mt-0.5 bg-app-elevated text-txt-muted">{(shp as any).marketplace || (shp as any).source}</span>;

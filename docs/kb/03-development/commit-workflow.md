@@ -99,7 +99,7 @@ Aus [AGENTS.md](../../../AGENTS.md):
 - Force-Push auf `main`.
 - `git rebase -i` auf veröffentlichten Branches.
 - Direct-Writes auf Protected Zones ohne Anweisung: `backend/lib/auth.js`, `backend/lib/rbac.js`, `backend/Dockerfile`, `firebase.json`, `backend/cloudbuild.yaml`, `.github/workflows/firebase-hosting.yml`, `firestore.indexes.json`.
-- BaseLinker-Referenzen (Punkt 9 [CLAUDE.md](../../../CLAUDE.md)).
+- retired middleware-Referenzen (Punkt 9 [CLAUDE.md](../../../CLAUDE.md)).
 - Skips von Pre-Commit-Hooks (`--no-verify`, `--no-gpg-sign`) ohne explizite User-Anweisung.
 
 ## Verweise

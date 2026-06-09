@@ -37,7 +37,7 @@ lastReviewed: 2026-05-18
 - `14-faq.md`, `15-gap-analysis.md`, `16-changelog.md`, `17-cleanup-report.md`
 
 ### Audit-Skripte (7 read-only)
-- `backend/scripts/audit-repo-cruft.js` — 3592 Findings (24 BaseLinker-Skripte, 2 enrichment_backup.js, 634 Binary-Docs)
+- `backend/scripts/audit-repo-cruft.js` — 3592 Findings (24 retired middleware-Skripte, 2 enrichment_backup.js, 634 Binary-Docs)
 - `backend/scripts/audit-firestore-cruft.js` — 19 von 55 Collections POTENTIALLY_DEAD
 - `backend/scripts/audit-gcs-cruft.js` — 8 Buckets, 7 STALE-Prefixes
 - `backend/scripts/audit-cloud-run.js` — `product-hub-backend` mit 50 Revisionen

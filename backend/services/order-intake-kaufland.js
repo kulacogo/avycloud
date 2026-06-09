@@ -359,7 +359,7 @@ async function saveOrderIfNew({ tenantId, order }) {
     }
   }
 
-  // Fallback: old BaseLinker imports have no marketplaceOrderId — match by createdAt + marketplace
+  // Fallback: old imports have no marketplaceOrderId — match by createdAt + marketplace
   if (existing.empty && order.createdAt && order.marketplace) {
     existing = await db.collection(ORDERS_COLLECTION)
       .where('createdAt', '==', order.createdAt)

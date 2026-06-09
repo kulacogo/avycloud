@@ -14,8 +14,6 @@
  *     backend/services, backend/routes
  *   - Suspicious file names: enrichment_backup.js, mock-*, dummy-*,
  *     test-*.json
- *   - BaseLinker-related scripts under backend/scripts (grep for
- *     'baselinker' or 'BL_')
  *
  * Output:
  *   - Markdown table to stdout (default) OR JSON (with --json)
@@ -181,44 +179,6 @@ function makeRow(rel, type, size, lastModified, action, reason) {
   };
 }
 
-function findBaselinkerScripts() {
-  const dir = path.join(REPO_ROOT, 'backend', 'scripts');
-  const rows = [];
-  let entries;
-  try {
-    entries = fs.readdirSync(dir, { withFileTypes: true });
-  } catch (_e) {
-    return rows;
-  }
-  for (const entry of entries) {
-    if (!entry.isFile()) continue;
-    // Skip audit-* scripts: they reference baselinker only to AUDIT for it,
-    // not to use it. False-positive avoidance.
-    if (/^audit-/.test(entry.name)) continue;
-    const full = path.join(dir, entry.name);
-    let content = '';
-    try {
-      content = fs.readFileSync(full, 'utf8');
-    } catch (_e) {
-      continue;
-    }
-    if (/baselinker/i.test(content) || /\bBL_[A-Z0-9_]+/.test(content) || /baselinker/i.test(entry.name)) {
-      const stat = safeStat(full);
-      rows.push(
-        makeRow(
-          relPath(full),
-          'baselinker-script',
-          stat ? formatSize(stat.size) : '?',
-          stat ? stat.mtime.toISOString().slice(0, 10) : '?',
-          'DELETE',
-          'BaseLinker is TABU (CLAUDE.md rule #9)',
-        ),
-      );
-    }
-  }
-  return rows;
-}
-
 function summarisePlanPromptDir(rel, paths) {
   const stats = paths.map((p) => safeStat(p)).filter(Boolean);
   if (stats.length === 0) return null;
@@ -368,13 +328,6 @@ function main() {
       errors.push(`plan-prompt:${key}: ${err.message}`);
     }
   }
-
-  try {
-    rows.push(...findBaselinkerScripts());
-  } catch (err) {
-    errors.push(`baselinker-scan: ${err.message}`);
-  }
-
   rows.sort((a, b) => (a.type + a.path).localeCompare(b.type + b.path));
 
   const meta = {

@@ -47,7 +47,7 @@ AvyCloud is the only multi-channel platform that combines all five pillars in a 
 - **eBay.de:** Full OAuth, Trading API, Finances API — orders, listings, tracking, cancellations
 - **Kaufland.de:** Full API integration — orders, listings, tracking, status sync
 - **Expanding:** Amazon.de and OTTO Market on the roadmap
-- **No intermediary:** Direct API connections, no BaseLinker or other middleware dependency
+- **No intermediary:** Direct API connections, no retired middleware or other middleware dependency
 
 ### 3. Modern Cloud-Native UX
 

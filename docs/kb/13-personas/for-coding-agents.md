@@ -34,7 +34,7 @@ Vollständig in [CLAUDE.md](../../../CLAUDE.md). Kurz:
 6. Keine Änderung an [backend/lib/auth.js](../../../backend/lib/auth.js), [backend/lib/rbac.js](../../../backend/lib/rbac.js) ohne Anweisung.
 7. Alle Produkt-Schreibpfade über `saveProductV2()` in [backend/lib/product-store.js](../../../backend/lib/product-store.js).
 8. Alle neuen Queries und Collections mit `tenantId`.
-9. **BaseLinker ist TABU** — keine neuen Referenzen, Imports oder ENV-Vars.
+9. **retired middleware ist TABU** — keine neuen Referenzen, Imports oder ENV-Vars.
 10. **Oversell-Verbot**: keine `products_v2.inventory.quantity`-Mutation ohne `saveProductV2()` UND `emitSyncEvent('stock:changed', …)`.
 11. **Kein `omsStatus`-Direct-Write** — Order-State-Übergänge AUSSCHLIESSLICH über `transitionOrder()` in [backend/services/order-state-machine.js](../../../backend/services/order-state-machine.js).
 12. **Kein In-Memory-Stock-Lock** in Produktion — `withStockLock()` mit Firestore-Backend.

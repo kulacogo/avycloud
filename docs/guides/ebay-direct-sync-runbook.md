@@ -2,7 +2,7 @@
 
 ## Ziel
 
-Direkte AvyCloud ↔ eBay Synchronisation ohne BaseLinker fuer:
+Direkte AvyCloud ↔ eBay Synchronisation ohne retired middleware fuer:
 
 - Live Listing Import (GetMyeBaySelling + GetItem)
 - Produkt-Linking (SKU/EAN/GTIN/MPN)

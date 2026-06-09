@@ -163,7 +163,7 @@ const TECHNICAL_SPECIFIC_TOKENS = new Set([
   'ebaycategorybreadcrumb',
 ]);
 
-// K-Typ (TecDoc kType) keys as they appear in product attributes (Baselinker format).
+// K-Typ (TecDoc kType) keys as they appear in product attributes.
 // Values can be canonical pipe-separated entries ("12345|67890" or "12345,note|67890")
 // or legacy plain numeric lists ("12345,67890"). They must NOT be sent as ItemSpecifics —
 // they belong in ItemCompatibilityList instead.

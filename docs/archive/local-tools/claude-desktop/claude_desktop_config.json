@@ -1,0 +1,26 @@
+{
+  "mcpServers": {
+    "home-assistant": {
+      "command": "uvx",
+      "args": ["ha-mcp@latest"],
+      "env": {
+        "HOMEASSISTANT_URL": "http://homeassistant.local:8123",
+        "HOMEASSISTANT_TOKEN": "REDACTED_SET_IN_LOCAL_CLAUDE_DESKTOP_CONFIG"
+      }
+    },
+    "serena": {
+      "command": "uvx",
+      "args": ["--from", "git+https://github.com/oraios/serena", "serena", "start-mcp-server", "/Users/oguz/avycloud"]
+    }
+  },
+  "preferences": {
+    "coworkScheduledTasksEnabled": true,
+    "ccdScheduledTasksEnabled": true,
+    "sidebarMode": "task",
+    "bypassPermissionsModeEnabled": true,
+    "coworkWebSearchEnabled": true,
+    "localAgentModeTrustedFolders": [
+      "/Users/oguz"
+    ]
+  }
+}

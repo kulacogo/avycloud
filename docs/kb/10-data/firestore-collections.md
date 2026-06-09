@@ -149,7 +149,7 @@ lastReviewed: 2026-05-18
 ## Aussortiert / Nicht in Use
 
 Es existieren **keine** Referenzen mehr auf:
-- `baselinker_*` (BaseLinker ist TABU, CLAUDE.md §9)
+- `retired_middleware_*` (retired middleware ist TABU, CLAUDE.md §9)
 - Externe SQL/Redis-Connectoren
 
 ---

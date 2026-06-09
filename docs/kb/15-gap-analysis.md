@@ -94,7 +94,7 @@ lastReviewed: 2026-05-18
 
 | Wave | Was fehlt | Status |
 |------|-----------|--------|
-| Wave 7 | BaseLinker-Skripte archivieren | Operator-Approval offen |
+| Wave 7 | retired middleware-Skripte archivieren | Operator-Approval offen |
 | Wave 7 | Binary-Docs aus Repo-Root nach `docs/archive/` | Operator-Approval offen |
 | Wave 8 | Firestore-Tote-Collections löschen | Operator-Approval offen |
 | Wave 8 | GCS-Lifecycle-Policies | Operator (GCP-Console) |

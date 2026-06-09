@@ -41,7 +41,7 @@ ENV-Var `BACKGROUND_JOB_TENANTS=trendocean,avycloud` setzen. Siehe [04-deploymen
 **Darf ich Firestore-Felder umbenennen?**
 **NEIN.** Additive only. Punkt 2 in [11-rules-and-invariants/README.md](11-rules-and-invariants/README.md).
 
-**Darf ich BaseLinker neu einbauen?**
+**Darf ich retired middleware neu einbauen?**
 **NEIN.** Tabu. Punkt 9.
 
 **Wie commit ich richtig?**

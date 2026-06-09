@@ -40,7 +40,7 @@ Quelle: [13-personas/for-coding-agents.md](../13-personas/for-coding-agents.md) 
 | **Goal** | Sauberes, dokumentiertes Coding, das die 13 Nicht-Verhandelbaren respektiert. |
 | **Pain-Points** | Versteckte Protected Zones (Auth, Dockerfile, cloudbuild.yaml), implizite Invarianten (Stock Single Writer, OMS-Transition). |
 | **Daily-Tasks** | KB lesen → Pre-Flight-Checklist → Code + Test → Post-Flight → Commit (nur bei expliziter User-Anweisung). |
-| **Verboten** | Force-Push auf `main`, BaseLinker-Referenzen, Direct-Writes auf `inventory.quantity` oder `omsStatus`, Raten ohne Doku. |
+| **Verboten** | Force-Push auf `main`, retired middleware-Referenzen, Direct-Writes auf `inventory.quantity` oder `omsStatus`, Raten ohne Doku. |
 
 ## Admin / Operator
 

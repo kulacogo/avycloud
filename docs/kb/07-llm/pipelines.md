@@ -267,7 +267,7 @@ sequenceDiagram
   Legacy-->>UI: answer + datasheetChanges
 ```
 
-> **TABU-Hinweis:** BaseLinker ist verboten (CLAUDE.md Punkt 9). Die Legacy-Pipeline nutzt **SerpAPI + BrightData** als externe Such-Provider — nicht BaseLinker. BrightData wird per Sprint-1-Plan langsam abgelöst (siehe [cost-and-budgets.md](cost-and-budgets.md), `external_api_calls`-Tracking).
+> **TABU-Hinweis:** retired middleware ist verboten (CLAUDE.md Punkt 9). Die Legacy-Pipeline nutzt **SerpAPI + BrightData** als externe Such-Provider — nicht retired middleware. BrightData wird per Sprint-1-Plan langsam abgelöst (siehe [cost-and-budgets.md](cost-and-budgets.md), `external_api_calls`-Tracking).
 
 ---
 

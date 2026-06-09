@@ -25,7 +25,7 @@ lastReviewed: 2026-05-18
 | `marketplaceKey` | string | ja | DocID-Spiegel (`source__marketplaceOrderId`). |
 | `marketplaceOrderId` | string \| null | ja (sobald moeglich) | Original-ID vom Marketplace (eBay OrderID, Kaufland id_order). |
 | `externalOrderId` | string \| null | optional | Synonym zu `marketplaceOrderId`, redundant fuer Compat. |
-| `source` | string | ja | `'ebay'` / `'kaufland'` / `'baselinker'` (legacy, BaseLinker ist TABU — keine Neu-Writes). |
+| `source` | string | ja | `'ebay'` / `'kaufland'` / `'retired_middleware'` (legacy, retired middleware ist TABU — keine Neu-Writes). |
 | `marketplace` | string | ja | Spiegel von `source` (UI-Kompat). |
 | `number` | string \| undefined | legacy | Alter Auftragsnummer-Feld vor `orderId`. **TBD** — pruefen welche Stelle noch schreibt. |
 
@@ -37,7 +37,7 @@ lastReviewed: 2026-05-18
 | `omsStatusLabel` | string | ja | German label (`'Neu'`, `'Kommissionierung'`, …). |
 | `status` | string | ja | **Legacy-Spiegel** von `omsStatus`. Wird auch von Intake-Services parallel gesetzt. Lesepfade nutzen Fallback `order.omsStatus || order.status || 'pending'`. |
 | `statusLabel` | string | optional | Legacy-Spiegel von `omsStatusLabel`. |
-| `statusId` | string \| undefined | legacy | Alter BaseLinker-Status-ID. Fallback fuer `getOrderSummary()` ([firestore.js:3352](../../../../backend/lib/firestore.js)). |
+| `statusId` | string \| undefined | legacy | Alter retired middleware-Status-ID. Fallback fuer `getOrderSummary()` ([firestore.js:3352](../../../../backend/lib/firestore.js)). |
 | `ebayStatus` / `kauflandStatus` | string \| undefined | optional | Original-Status vom Marketplace. **TBD** — vollstaendige Werte im Code verifizieren. |
 
 ### Timestamps (von `transitionOrder()` gesetzt)
@@ -140,8 +140,8 @@ Werden bei Total-Failure aller Decrements zurueckgesetzt ([order-state-machine.j
 
 | Feld | Herkunft | Status |
 |------|----------|--------|
-| `baselinkerId` | BaseLinker-Sync (TABU, CLAUDE.md §9) | Nur Lesen. Dedup-Filter in `listOrders()` ([firestore.js:3288-3297](../../../../backend/lib/firestore.js)). |
-| `source: 'baselinker'` | dito | dito. |
+| `retired_middlewareId` | retired middleware-Sync (TABU, CLAUDE.md §9) | Nur Lesen. Dedup-Filter in `listOrders()` ([firestore.js:3288-3297](../../../../backend/lib/firestore.js)). |
+| `source: 'retired_middleware'` | dito | dito. |
 
 ## Sub-Events
 

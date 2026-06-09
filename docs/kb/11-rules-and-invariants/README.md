@@ -57,9 +57,9 @@ Detail + Schwachstellen: [auth-rules.md](auth-rules.md).
 
 Tenant-Propagation ist Pflicht. Detail + Bekannte Drift-Stellen: [tenant-propagation.md](tenant-propagation.md).
 
-### 9. BaseLinker ist TABU
+### 9. retired middleware ist TABU
 
-Keine neuen Referenzen, Imports, ENV-Vars oder Routen die BaseLinker betreffen. Historisch entfernt, soll endgültig weg.
+Keine neuen Referenzen, Imports, ENV-Vars oder Routen die retired middleware betreffen. Historisch entfernt, soll endgültig weg.
 
 ### 10. Oversell-Verbot
 

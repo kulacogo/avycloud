@@ -16,7 +16,7 @@ AvyCloud trägt sichtbare technische Schulden in 6 Dimensionen:
 
 | Bereich | Finding-Count | Top-Empfehlung |
 |---------|---------------|----------------|
-| **Repo** | 3592 Findings | 24 BaseLinker-Skripte archivieren, 2 `enrichment_backup.js` löschen, 634 Binary-Docs in `docs/archive/` |
+| **Repo** | 3592 Findings | 24 retired middleware-Skripte archivieren, 2 `enrichment_backup.js` löschen, 634 Binary-Docs in `docs/archive/` |
 | **Firestore** | 19 von 55 POTENTIALLY_DEAD | Top-Liste: `stock_sync_failures` 51.380 Docs (kein Code-Ref!), `qualityJobs` 10.930, `inventorySyncLogs` 16.557 |
 | **GCS** | 8 Buckets, 7 STALE-Prefixes | `avycloud-genai-images/jobs`, `avycloud-product-images/jobs`, `products-and-jobs/products`, alle 4 `trendocean/*`-Prefixes |
 | **Cloud Run** | 1 Service, 50 Revisions | `product-hub-backend` dormant seit 2025-11-09, alte Revisionen prunen |
@@ -38,12 +38,12 @@ AvyCloud trägt sichtbare technische Schulden in 6 Dimensionen:
 
 **Operator-Entscheidung nötig**: nein — Backup-Files mit verifiziertem Dead-Status sind sicher.
 
-### 1.2 BaseLinker-Skripte (CLAUDE.md Regel #9)
+### 1.2 retired middleware-Skripte (CLAUDE.md Regel #9)
 
-24 Skripte unter `backend/scripts/` referenzieren BaseLinker:
+24 Skripte unter `backend/scripts/` referenzieren retired middleware:
 
 ```
-add-ebay-categories-to-inventory.js     backfill-baselinker-orders.js
+add-ebay-categories-to-inventory.js     backfill-retired_middleware-orders.js
 backfill-kaufland-marketplace-id.js     check-bl-order-fields.js
 check-current-dupes.js                  check-dupes-and-counts.js
 check-kaufland-dupes.js                 check-orders-now.js
@@ -57,14 +57,14 @@ inspect-new-dup.js                      investigate-issues.js
 purge-all-bl-orders.js                  remove-bl-ebay-duplicates.js
 ```
 
-**Aktion**: ARCHIVE nach `backend/scripts/archive/baselinker/` mit `README.md` "do not run, historic only".
+**Aktion**: ARCHIVE nach `backend/scripts/archive/retired_middleware/` mit `README.md` "do not run, historic only".
 **Operator-Entscheidung nötig**: ja — könnte für Ad-hoc-Daten-Surgery noch gebraucht werden.
 
 ### 1.3 Binary-Docs im Repo (634 Findings)
 
 Top-Treffer:
 - Root: `AvyCloud_Analyse_Marktbewertung*.docx/.pdf`, `AvyCloud_Roadmap.pptx`, `AvyCloud_KnowledgeBase.html`, `AvyCloud_Produktdaten_QuickGuide.pdf`
-- Root: `BL__Products__default_CSV_*.csv`, `04_baselinker_categories.xlsx`, `2022_September_Kategorien_*.xlsx`
+- Root: `BL__Products__default_CSV_*.csv`, `04_retired_middleware_categories.xlsx`, `2022_September_Kategorien_*.xlsx`
 - `docs/`: `ebay_orders.xls` (389 KB) + `.txt` (484 KB) — sind Snapshots, keine Doku
 - `archive/uiv2/`: ~500 historische Files (bereits archiviert, OK)
 
@@ -107,11 +107,11 @@ Diese Collections werden im Backend-Code nicht (mehr) referenziert:
 | `userSessions` | 1.251 | Session-Tracking-Collection unklar |
 | `ebayPublishLog` | 962 | Publish-Audit, evtl. ersetzt durch `kaufland_publish_runs`-Pattern |
 | `external_api_calls` | 927 | Wird laut Code geschrieben (`external-api-tracker.js`) — Audit hat False-Negative wegen Match-Pattern. **Verifizieren!** |
-| `baselinker_sku_index` | 1.634 | BaseLinker-Legacy (CLAUDE #9) |
+| `retired_middleware_sku_index` | 1.634 | retired middleware-Legacy (CLAUDE #9) |
 | `audit_log` | 2.026 | Naming-Variant von `auditLogs`? |
 | `auditLogs` | 43 | Mini-Variant |
 | `adminBulkJobs` | 98 | Bulk-Action-Runner schreibt evtl. unter anderem Namen |
-| `baselinkerSyncJobs` | 230 | BaseLinker-Legacy |
+| `retired_middlewareSyncJobs` | 230 | retired middleware-Legacy |
 | `ebayListingReports` | 120 | Reports-Pipeline |
 | `integration_settings` | 3 | Settings-Doppelpfad zu `company_settings`? |
 | `inventories` | 9 | Legacy |
@@ -131,8 +131,8 @@ Diese Collections werden im Backend-Code nicht (mehr) referenziert:
 
 | Collection | Doc-Count | Empfehlung |
 |------------|-----------|------------|
-| `baselinker_sku_index` | 1.634 | EXPORT → DELETE (BaseLinker-Legacy) |
-| `baselinkerSyncJobs` | 230 | EXPORT → DELETE |
+| `retired_middleware_sku_index` | 1.634 | EXPORT → DELETE (retired middleware-Legacy) |
+| `retired_middlewareSyncJobs` | 230 | EXPORT → DELETE |
 | `inventorySyncLogs` | 16.557 | EXPORT → DELETE (Legacy V1) |
 | `stock_sync_failures` | 51.380 | EXPORT → ARCHIVE (verifizieren ob `stock_operation_failures` Nachfolger; massive Storage-Ersparnis) |
 | `qualityJobs` | 10.930 | Verifizieren + TTL-Policy |

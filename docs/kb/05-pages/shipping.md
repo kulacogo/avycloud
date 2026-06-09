@@ -37,5 +37,5 @@ Pro-Endpunkt-Doku: `docs/kb/09-api/shipping.md`, `docs/kb/09-api/sendcloud.md` (
 
 ## Bekannte Issues
 
-- [TASKS.md](../../../TASKS.md) — **BUG-072** Versand-Tabelle: Geisterdaten + BaseLinker-Referenz (✅ gefixt, P0!). Falls BaseLinker-Felder neu auftauchen → CLAUDE.md §9 (BaseLinker ist TABU) prüfen.
+- [TASKS.md](../../../TASKS.md) — **BUG-072** Versand-Tabelle: Geisterdaten + retired middleware-Referenz (✅ gefixt, P0!). Falls retired middleware-Felder neu auftauchen → CLAUDE.md §9 (retired middleware ist TABU) prüfen.
 - **BUG-092** Versand: Duplikat-Einträge + falscher „Problem"-Status bei versendeten Paketen (P1, offen). Workaround: erneuter `syncSendCloudParcels`-Trigger.
