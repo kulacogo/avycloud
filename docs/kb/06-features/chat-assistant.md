@@ -113,7 +113,7 @@ Verweis auf `docs/kb/05-pages/` (TBD).
 
 ## Spec
 
-- [docs/features/chat-assistant-v3/spec.md](../../features/chat-assistant-v3/spec.md) — V3-Spezifikation (Architektur, Tools, Post-Processing, Fallback-Chain).
+- [archivierte Chat-V3-Spec](../../archive/features/implemented-llm/chat-assistant-v3-spec.md) — V3-Spezifikation (Architektur, Tools, Post-Processing, Fallback-Chain).
 
 ## Bekannte Issues
 

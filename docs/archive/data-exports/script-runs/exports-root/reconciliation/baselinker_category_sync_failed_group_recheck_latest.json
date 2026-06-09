@@ -1,0 +1,218 @@
+{
+  "summary": {
+    "total": 40,
+    "synced": 4,
+    "failed": 36,
+    "other": 0
+  },
+  "results": [
+    {
+      "id": "00174600185032",
+      "status": "failed",
+      "message": "BaseLinker Kategorie fehlt"
+    },
+    {
+      "id": "0250237001502",
+      "status": "failed",
+      "message": "BaseLinker Kategorie fehlt"
+    },
+    {
+      "id": "20221705000003",
+      "status": "failed",
+      "message": "BaseLinker Kategorie fehlt"
+    },
+    {
+      "id": "2024010542503",
+      "status": "failed",
+      "message": "BaseLinker Kategorie fehlt"
+    },
+    {
+      "id": "25004695020111",
+      "status": "failed",
+      "message": "BaseLinker Kategorie fehlt"
+    },
+    {
+      "id": "3339082c-5066-4322-a318-4b8732a19d83",
+      "status": "failed",
+      "message": "BaseLinker Kategorie fehlt"
+    },
+    {
+      "id": "34bb265f-a1ad-4850-a2ec-71bf44c1ad68",
+      "status": "failed",
+      "message": "BaseLinker Kategorie fehlt"
+    },
+    {
+      "id": "3573994006336",
+      "status": "failed",
+      "message": "BaseLinker Kategorie fehlt"
+    },
+    {
+      "id": "36f71981-e45d-478a-a80d-4e665f0e3352",
+      "status": "failed",
+      "message": "BaseLinker Kategorie fehlt"
+    },
+    {
+      "id": "3f1a8ee4-8e40-4f90-af9a-deade528551c",
+      "status": "failed",
+      "message": "BaseLinker Kategorie fehlt"
+    },
+    {
+      "id": "4007066810273",
+      "status": "failed",
+      "message": "BaseLinker Kategorie fehlt"
+    },
+    {
+      "id": "4007126365101",
+      "status": "failed",
+      "message": "BaseLinker Kategorie fehlt"
+    },
+    {
+      "id": "4008177077142",
+      "status": "failed",
+      "message": "BaseLinker Kategorie fehlt"
+    },
+    {
+      "id": "4011097314013",
+      "status": "failed",
+      "message": "BaseLinker Kategorie fehlt"
+    },
+    {
+      "id": "4011097314037",
+      "status": "failed",
+      "message": "BaseLinker Kategorie fehlt"
+    },
+    {
+      "id": "4011097775111",
+      "status": "failed",
+      "message": "BaseLinker Kategorie fehlt"
+    },
+    {
+      "id": "4013361212134",
+      "status": "failed",
+      "message": "BaseLinker Kategorie fehlt"
+    },
+    {
+      "id": "4036021157276",
+      "status": "failed",
+      "message": "BaseLinker Kategorie fehlt"
+    },
+    {
+      "id": "4036021163093",
+      "status": "failed",
+      "message": "BaseLinker Kategorie fehlt"
+    },
+    {
+      "id": "4058213275261",
+      "status": "failed",
+      "message": "BaseLinker Kategorie fehlt"
+    },
+    {
+      "id": "4059625316214",
+      "status": "failed",
+      "message": "BaseLinker Kategorie fehlt"
+    },
+    {
+      "id": "4059625401927",
+      "status": "failed",
+      "message": "BaseLinker Kategorie fehlt"
+    },
+    {
+      "id": "4067522073659",
+      "status": "failed",
+      "message": "BaseLinker Kategorie fehlt"
+    },
+    {
+      "id": "4260281755686",
+      "status": "failed",
+      "message": "BaseLinker Kategorie fehlt"
+    },
+    {
+      "id": "43422328612861",
+      "status": "failed",
+      "message": "BaseLinker Kategorie fehlt"
+    },
+    {
+      "id": "5059556377703",
+      "status": "failed",
+      "message": "BaseLinker Kategorie fehlt"
+    },
+    {
+      "id": "5702015867535",
+      "status": "failed",
+      "message": "BaseLinker Kategorie fehlt"
+    },
+    {
+      "id": "8003558071647",
+      "status": "failed",
+      "message": "BaseLinker Kategorie fehlt"
+    },
+    {
+      "id": "8026196116716",
+      "status": "failed",
+      "message": "BaseLinker Kategorie fehlt"
+    },
+    {
+      "id": "8719114322466",
+      "status": "failed",
+      "message": "BaseLinker Kategorie fehlt"
+    },
+    {
+      "id": "8b18f8c1-5ced-4f9d-989d-35fb729415fe",
+      "status": "failed",
+      "message": "BaseLinker Kategorie fehlt"
+    },
+    {
+      "id": "8c326f7a-d1df-447c-ab0c-c39d136ac565",
+      "status": "failed",
+      "message": "BaseLinker Kategorie fehlt"
+    },
+    {
+      "id": "SKU-0000524938",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 518782747,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-2135446963",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 518782738,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-5403685857",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 518782810,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-6586579725",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458453073,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "c98d74fd-e1a0-42fd-ba6d-2ea526b6e643",
+      "status": "failed",
+      "message": "BaseLinker Kategorie fehlt"
+    },
+    {
+      "id": "c9fb6dc8-5db9-455d-a9b6-a8cadf694909",
+      "status": "failed",
+      "message": "BaseLinker Kategorie fehlt"
+    },
+    {
+      "id": "e0a338cc-0fd6-4625-8c0c-054308424954",
+      "status": "failed",
+      "message": "BaseLinker Kategorie fehlt"
+    },
+    {
+      "id": "f0796a2b-7a12-4f55-b343-cf8e47e35ad0",
+      "status": "failed",
+      "message": "BaseLinker Kategorie fehlt"
+    }
+  ]
+}

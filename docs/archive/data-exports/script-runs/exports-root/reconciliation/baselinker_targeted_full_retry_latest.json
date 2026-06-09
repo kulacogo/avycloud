@@ -1,0 +1,29 @@
+{
+  "summary": {
+    "total": 4,
+    "synced": 3,
+    "failed": 1
+  },
+  "results": [
+    {
+      "id": "SKU-0000524938",
+      "status": "synced",
+      "message": "Successfully synced to BaseLinker"
+    },
+    {
+      "id": "SKU-2135446963",
+      "status": "synced",
+      "message": "Successfully synced to BaseLinker"
+    },
+    {
+      "id": "SKU-5403685857",
+      "status": "synced",
+      "message": "Successfully synced to BaseLinker"
+    },
+    {
+      "id": "SKU-6586579725",
+      "status": "failed",
+      "message": "ERROR_CATEGORY_ID: Invalid category identifier provided (the category does not exist)."
+    }
+  ]
+}

@@ -1,0 +1,402 @@
+[
+  {
+    "id": "00174600185032",
+    "sku": "SKU-7538503265",
+    "message": "BaseLinker Kategorie fehlt",
+    "categoryId": "",
+    "identificationCategory": "",
+    "baselinkerCategoryPath": "",
+    "baselinkerCategory78659": "",
+    "baselinkerProductId": "489021138"
+  },
+  {
+    "id": "0250237001502",
+    "sku": "SKU-4846246443",
+    "message": "BaseLinker Kategorie fehlt",
+    "categoryId": "",
+    "identificationCategory": "",
+    "baselinkerCategoryPath": "",
+    "baselinkerCategory78659": "",
+    "baselinkerProductId": "499980912"
+  },
+  {
+    "id": "20221705000003",
+    "sku": "SKU-5134751391",
+    "message": "BaseLinker Kategorie fehlt",
+    "categoryId": "",
+    "identificationCategory": "",
+    "baselinkerCategoryPath": "",
+    "baselinkerCategory78659": "",
+    "baselinkerProductId": "489024185"
+  },
+  {
+    "id": "2024010542503",
+    "sku": "SKU-1164276787",
+    "message": "BaseLinker Kategorie fehlt",
+    "categoryId": "",
+    "identificationCategory": "",
+    "baselinkerCategoryPath": "",
+    "baselinkerCategory78659": "",
+    "baselinkerProductId": "492850567"
+  },
+  {
+    "id": "25004695020111",
+    "sku": "SKU-0704619212",
+    "message": "BaseLinker Kategorie fehlt",
+    "categoryId": "",
+    "identificationCategory": "",
+    "baselinkerCategoryPath": "",
+    "baselinkerCategory78659": "",
+    "baselinkerProductId": "487365277"
+  },
+  {
+    "id": "3339082c-5066-4322-a318-4b8732a19d83",
+    "sku": "SKU-8229761001",
+    "message": "BaseLinker Kategorie fehlt",
+    "categoryId": "",
+    "identificationCategory": "Sport & Outdoor > Camping & Outdoor",
+    "baselinkerCategoryPath": "",
+    "baselinkerCategory78659": "",
+    "baselinkerProductId": "492850690"
+  },
+  {
+    "id": "34bb265f-a1ad-4850-a2ec-71bf44c1ad68",
+    "sku": "SKU-5700317364",
+    "message": "BaseLinker Kategorie fehlt",
+    "categoryId": "",
+    "identificationCategory": "",
+    "baselinkerCategoryPath": "",
+    "baselinkerCategory78659": "",
+    "baselinkerProductId": "491621770"
+  },
+  {
+    "id": "3573994006336",
+    "sku": "SKU-8192040791",
+    "message": "BaseLinker Kategorie fehlt",
+    "categoryId": "",
+    "identificationCategory": "",
+    "baselinkerCategoryPath": "",
+    "baselinkerCategory78659": "",
+    "baselinkerProductId": "489021518"
+  },
+  {
+    "id": "36f71981-e45d-478a-a80d-4e665f0e3352",
+    "sku": "SKU-3867423041",
+    "message": "BaseLinker Kategorie fehlt",
+    "categoryId": "",
+    "identificationCategory": "",
+    "baselinkerCategoryPath": "",
+    "baselinkerCategory78659": "",
+    "baselinkerProductId": "499982507"
+  },
+  {
+    "id": "3f1a8ee4-8e40-4f90-af9a-deade528551c",
+    "sku": "SKU-8897137065",
+    "message": "BaseLinker Kategorie fehlt",
+    "categoryId": "",
+    "identificationCategory": "Auto & Motorrad > Wohnmobil- & Caravan-Teile & Zubehör > Heizungen & Klimaanlagen > Standheizungen",
+    "baselinkerCategoryPath": "",
+    "baselinkerCategory78659": "",
+    "baselinkerProductId": "499982788"
+  },
+  {
+    "id": "4007066810273",
+    "sku": "SKU-1523043917",
+    "message": "BaseLinker Kategorie fehlt",
+    "categoryId": "",
+    "identificationCategory": "",
+    "baselinkerCategoryPath": "",
+    "baselinkerCategory78659": "",
+    "baselinkerProductId": "499983188"
+  },
+  {
+    "id": "4007126365101",
+    "sku": "SKU-3266280359",
+    "message": "BaseLinker Kategorie fehlt",
+    "categoryId": "",
+    "identificationCategory": "Haushalt & Küche > Sonstige",
+    "baselinkerCategoryPath": "",
+    "baselinkerCategory78659": "",
+    "baselinkerProductId": "504395007"
+  },
+  {
+    "id": "4008177077142",
+    "sku": "SKU-2748406604",
+    "message": "BaseLinker Kategorie fehlt",
+    "categoryId": "",
+    "identificationCategory": "",
+    "baselinkerCategoryPath": "",
+    "baselinkerCategory78659": "",
+    "baselinkerProductId": "489023692"
+  },
+  {
+    "id": "4011097314013",
+    "sku": "SKU-7745371992",
+    "message": "BaseLinker Kategorie fehlt",
+    "categoryId": "",
+    "identificationCategory": "",
+    "baselinkerCategoryPath": "",
+    "baselinkerCategory78659": "",
+    "baselinkerProductId": "490679631"
+  },
+  {
+    "id": "4011097314037",
+    "sku": "SKU-5493501888",
+    "message": "BaseLinker Kategorie fehlt",
+    "categoryId": "",
+    "identificationCategory": "",
+    "baselinkerCategoryPath": "",
+    "baselinkerCategory78659": "",
+    "baselinkerProductId": "490679626"
+  },
+  {
+    "id": "4011097775111",
+    "sku": "SKU-4766228789",
+    "message": "BaseLinker Kategorie fehlt",
+    "categoryId": "",
+    "identificationCategory": "Heimwerker & Garten > Baumarkt > Badausstattung",
+    "baselinkerCategoryPath": "",
+    "baselinkerCategory78659": "",
+    "baselinkerProductId": "490679639"
+  },
+  {
+    "id": "4013361212134",
+    "sku": "SKU-2139913486",
+    "message": "BaseLinker Kategorie fehlt",
+    "categoryId": "",
+    "identificationCategory": "Spielwaren > Spielzeug für draußen",
+    "baselinkerCategoryPath": "",
+    "baselinkerCategory78659": "",
+    "baselinkerProductId": "491623179"
+  },
+  {
+    "id": "4036021157276",
+    "sku": "SKU-4110694191",
+    "message": "BaseLinker Kategorie fehlt",
+    "categoryId": "",
+    "identificationCategory": "Auto & Motorrad > Autoteile & Zubehör > Motoren & Motorenteile",
+    "baselinkerCategoryPath": "",
+    "baselinkerCategory78659": "",
+    "baselinkerProductId": "489024624"
+  },
+  {
+    "id": "4036021163093",
+    "sku": "SKU-5320936983",
+    "message": "BaseLinker Kategorie fehlt",
+    "categoryId": "",
+    "identificationCategory": "",
+    "baselinkerCategoryPath": "",
+    "baselinkerCategory78659": "",
+    "baselinkerProductId": "489024713"
+  },
+  {
+    "id": "4058213275261",
+    "sku": "SKU-2816924302",
+    "message": "BaseLinker Kategorie fehlt",
+    "categoryId": "",
+    "identificationCategory": "Sport & Outdoor > Sportausrüstung > Sportbekleidung",
+    "baselinkerCategoryPath": "",
+    "baselinkerCategory78659": "",
+    "baselinkerProductId": "518401762"
+  },
+  {
+    "id": "4059625316214",
+    "sku": "SKU-6046815482",
+    "message": "BaseLinker Kategorie fehlt",
+    "categoryId": "",
+    "identificationCategory": "",
+    "baselinkerCategoryPath": "",
+    "baselinkerCategory78659": "",
+    "baselinkerProductId": "491622621"
+  },
+  {
+    "id": "4059625401927",
+    "sku": "SKU-5940997361",
+    "message": "BaseLinker Kategorie fehlt",
+    "categoryId": "",
+    "identificationCategory": "",
+    "baselinkerCategoryPath": "",
+    "baselinkerCategory78659": "",
+    "baselinkerProductId": "490679653"
+  },
+  {
+    "id": "4067522073659",
+    "sku": "SKU-3831935492",
+    "message": "BaseLinker Kategorie fehlt",
+    "categoryId": "",
+    "identificationCategory": "",
+    "baselinkerCategoryPath": "",
+    "baselinkerCategory78659": "",
+    "baselinkerProductId": "491623754"
+  },
+  {
+    "id": "4260281755686",
+    "sku": "SKU-5207774112",
+    "message": "BaseLinker Kategorie fehlt",
+    "categoryId": "",
+    "identificationCategory": "",
+    "baselinkerCategoryPath": "",
+    "baselinkerCategory78659": "",
+    "baselinkerProductId": "489026794"
+  },
+  {
+    "id": "43422328612861",
+    "sku": "SKU-2424861616",
+    "message": "BaseLinker Kategorie fehlt",
+    "categoryId": "",
+    "identificationCategory": "",
+    "baselinkerCategoryPath": "",
+    "baselinkerCategory78659": "",
+    "baselinkerProductId": "499985855"
+  },
+  {
+    "id": "5059556377703",
+    "sku": "SKU-1000000004",
+    "message": "BaseLinker Kategorie fehlt",
+    "categoryId": "",
+    "identificationCategory": "Mode & Accessoires > Herren > Herren",
+    "baselinkerCategoryPath": "",
+    "baselinkerCategory78659": "",
+    "baselinkerProductId": "499986916"
+  },
+  {
+    "id": "5702015867535",
+    "sku": "SKU-6986483321",
+    "message": "BaseLinker Kategorie fehlt",
+    "categoryId": "",
+    "identificationCategory": "",
+    "baselinkerCategoryPath": "",
+    "baselinkerCategory78659": "",
+    "baselinkerProductId": "489182830"
+  },
+  {
+    "id": "8003558071647",
+    "sku": "SKU-7025517137",
+    "message": "BaseLinker Kategorie fehlt",
+    "categoryId": "",
+    "identificationCategory": "",
+    "baselinkerCategoryPath": "",
+    "baselinkerCategory78659": "",
+    "baselinkerProductId": "489688593"
+  },
+  {
+    "id": "8026196116716",
+    "sku": "SKU-5173627811",
+    "message": "BaseLinker Kategorie fehlt",
+    "categoryId": "",
+    "identificationCategory": "Baby & Kind > Spielwaren",
+    "baselinkerCategoryPath": "",
+    "baselinkerCategory78659": "",
+    "baselinkerProductId": "489688851"
+  },
+  {
+    "id": "8719114322466",
+    "sku": "SKU-4961159565",
+    "message": "BaseLinker Kategorie fehlt",
+    "categoryId": "",
+    "identificationCategory": "Mode & Accessoires > Kleidung > Unterwäsche & Dessous",
+    "baselinkerCategoryPath": "",
+    "baselinkerCategory78659": "",
+    "baselinkerProductId": "489184355"
+  },
+  {
+    "id": "8b18f8c1-5ced-4f9d-989d-35fb729415fe",
+    "sku": "SKU-3055174422",
+    "message": "BaseLinker Kategorie fehlt",
+    "categoryId": "",
+    "identificationCategory": "",
+    "baselinkerCategoryPath": "",
+    "baselinkerCategory78659": "",
+    "baselinkerProductId": "489184647"
+  },
+  {
+    "id": "8c326f7a-d1df-447c-ab0c-c39d136ac565",
+    "sku": "SKU-0780623565",
+    "message": "BaseLinker Kategorie fehlt",
+    "categoryId": "",
+    "identificationCategory": "",
+    "baselinkerCategoryPath": "",
+    "baselinkerCategory78659": "",
+    "baselinkerProductId": "492851206"
+  },
+  {
+    "id": "SKU-0000524938",
+    "sku": "SKU-0000524938",
+    "message": "ERROR_PRODUCT_ID: No product with ID 462089163",
+    "categoryId": "3676",
+    "identificationCategory": "Computer, Tablets & Netzwerk > Tastaturen, Mäuse & Pointing",
+    "baselinkerCategoryPath": "Computer, Tablets & Netzwerk > Tastaturen, Mäuse & Pointing",
+    "baselinkerCategory78659": "Computer, Tablets & Netzwerk > Tastaturen, Mäuse & Pointing",
+    "baselinkerProductId": "462089163"
+  },
+  {
+    "id": "SKU-2135446963",
+    "sku": "SKU-2135446963",
+    "message": "ERROR_PRODUCT_ID: No product with ID 458514654",
+    "categoryId": "11778",
+    "identificationCategory": "Beauty & Gesundheit > Hilfsmittel",
+    "baselinkerCategoryPath": "Beauty & Gesundheit > Hilfsmittel",
+    "baselinkerCategory78659": "Beauty & Gesundheit > Hilfsmittel",
+    "baselinkerProductId": "458514654"
+  },
+  {
+    "id": "SKU-5403685857",
+    "sku": "SKU-5403685857",
+    "message": "ERROR_PRODUCT_ID: No product with ID 449820995",
+    "categoryId": "259273",
+    "identificationCategory": "Heimwerker > Elektromaterial > Steckdosen, Schalter & Zubehör",
+    "baselinkerCategoryPath": "Heimwerker > Elektromaterial > Steckdosen, Schalter & Zubehör",
+    "baselinkerCategory78659": "Heimwerker > Elektromaterial > Steckdosen, Schalter & Zubehör",
+    "baselinkerProductId": "449820995"
+  },
+  {
+    "id": "SKU-6586579725",
+    "sku": "SKU-6586579725",
+    "message": "ERROR_CATEGORY_ID: Invalid category identifier provided (the category does not exist).",
+    "categoryId": "66728",
+    "identificationCategory": "Möbel & Wohnen > Kindermöbel & Wohnen > Bettwaren & -wäsche > Bettdecken",
+    "baselinkerCategoryPath": "Spielzeug > Bausets & Konstruktion > Sonstige",
+    "baselinkerCategory78659": "Spielzeug > Bausets & Konstruktion > Sonstige",
+    "baselinkerProductId": "458453073"
+  },
+  {
+    "id": "c98d74fd-e1a0-42fd-ba6d-2ea526b6e643",
+    "sku": "SKU-6703015625",
+    "message": "BaseLinker Kategorie fehlt",
+    "categoryId": "",
+    "identificationCategory": "",
+    "baselinkerCategoryPath": "",
+    "baselinkerCategory78659": "",
+    "baselinkerProductId": "489186525"
+  },
+  {
+    "id": "c9fb6dc8-5db9-455d-a9b6-a8cadf694909",
+    "sku": "SKU-4995445480",
+    "message": "BaseLinker Kategorie fehlt",
+    "categoryId": "",
+    "identificationCategory": "",
+    "baselinkerCategoryPath": "",
+    "baselinkerCategory78659": "",
+    "baselinkerProductId": "489186632"
+  },
+  {
+    "id": "e0a338cc-0fd6-4625-8c0c-054308424954",
+    "sku": "SKU-9445536447",
+    "message": "BaseLinker Kategorie fehlt",
+    "categoryId": "",
+    "identificationCategory": "Sport & Freizeit > Sportbekleidung > Herren > Trainingsjacken",
+    "baselinkerCategoryPath": "",
+    "baselinkerCategory78659": "",
+    "baselinkerProductId": "489187106"
+  },
+  {
+    "id": "f0796a2b-7a12-4f55-b343-cf8e47e35ad0",
+    "sku": "SKU-8261682619",
+    "message": "BaseLinker Kategorie fehlt",
+    "categoryId": "",
+    "identificationCategory": "",
+    "baselinkerCategoryPath": "",
+    "baselinkerCategory78659": "",
+    "baselinkerProductId": "489187395"
+  }
+]

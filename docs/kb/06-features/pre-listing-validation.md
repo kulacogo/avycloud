@@ -115,7 +115,7 @@ Verweis auf `docs/kb/05-pages/` (TBD).
 
 ## Spec
 
-- [docs/features/VAL-001-pre-listing-validation/spec.md](../../features/VAL-001-pre-listing-validation/spec.md)
+- [archivierte VAL-001-Spec](../../archive/features/completed/VAL-001-pre-listing-validation-spec.md)
 
 ## Bekannte Issues
 

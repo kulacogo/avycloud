@@ -1,0 +1,733 @@
+[
+  {
+    "docId": "0098931289601",
+    "sku": "SKU-2231367173",
+    "status": "update",
+    "catText": "Beauty & Gesundheit > Hautpflege > Körperpflege",
+    "match": {
+      "id": "11838",
+      "breadcrumb": "Beauty & Gesundheit > Körperpflege",
+      "score": 152,
+      "margin": 152
+    }
+  },
+  {
+    "docId": "0197777317636",
+    "sku": "SKU-4209249383",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Kleidung & Accessoires > Herren > Herrenmode > Shirts & Hemden > T-Shirts"
+  },
+  {
+    "docId": "0456566400136",
+    "sku": "SKU-4138606905",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Mode & Accessoires > Damen > Damen"
+  },
+  {
+    "docId": "054cc567-225b-481e-a9c6-b05e5af6e042",
+    "sku": "SKU-5977619283",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Sport > Outdoor-Sport > Wandern > Bekleidung > Herren > Hosen"
+  },
+  {
+    "docId": "0814914026519",
+    "sku": "SKU-0279594894",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Elektronik > Computer > Hardware"
+  },
+  {
+    "docId": "0d94ddad-a508-4700-bbb8-b2b315ee44a3",
+    "sku": "SKU-1301976218",
+    "status": "update",
+    "catText": "Sport > Radsport > Fahrradzubehör > Fahrradständer & Aufbewahrung",
+    "match": {
+      "id": "158997",
+      "breadcrumb": "Sport > Radsport > Fahrradzubehör > Fahrradständer & Aufbewahrung",
+      "score": 339,
+      "margin": 339
+    }
+  },
+  {
+    "docId": "1018510600326",
+    "sku": "SKU-9327047261",
+    "status": "update",
+    "catText": "Auto & Motorrad: Teile > Autoteile & Zubehör > Bremsen & Bremsenteile > Bremsscheiben",
+    "match": {
+      "id": "33564",
+      "breadcrumb": "Auto & Motorrad: Teile > Autoteile & Zubehör > Bremsen & Bremsenteile > Bremsscheiben",
+      "score": 204,
+      "margin": 30
+    }
+  },
+  {
+    "docId": "1055333038622",
+    "sku": "SKU-9069717966",
+    "status": "update",
+    "catText": "Kleidung & Accessoires > Herren > Herrenmode > Jacken, Mäntel & Westen",
+    "match": {
+      "id": "57988",
+      "breadcrumb": "Kleidung & Accessoires > Herren > Herrenmode > Jacken, Mäntel & Westen",
+      "score": 444,
+      "margin": 19
+    }
+  },
+  {
+    "docId": "12192006315063",
+    "sku": "SKU-1000000000",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Sport & Outdoor > Fitness & Jogging > Bekleidung"
+  },
+  {
+    "docId": "13544006636695",
+    "sku": "SKU-5722011324",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Auto & Motorrad > Spezielle Fahrzeug-Teile > Wohnmobil- & Wohnwagenteile & Zubehör"
+  },
+  {
+    "docId": "1795362000001",
+    "sku": "SKU-4026350484",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Mode & Accessoires > Herren > Herren"
+  },
+  {
+    "docId": "17b6a516-9f48-4d61-ac69-7a2633ee0332",
+    "sku": "SKU-5849023699",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Baby > Autositze & Z"
+  },
+  {
+    "docId": "18023030150200",
+    "sku": "SKU-7569423484",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Heimwerker & Garten > Baumarkt > Innenausbau"
+  },
+  {
+    "docId": "1852315181124",
+    "sku": "SKU-8073301246",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Mode & Accessoires > Herren > Herren"
+  },
+  {
+    "docId": "1bdce1f7-aa59-4b85-a9a8-3488141ae012",
+    "sku": "SKU-0789448642",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Haushalt & Küche > Alles rund um Geschirr & Gläser,"
+  },
+  {
+    "docId": "2021128071268",
+    "sku": "SKU-5135958988",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Garten & Terrasse > Garten-Power-Tools > Heckenscheren"
+  },
+  {
+    "docId": "20250518576436",
+    "sku": "SKU-3648203777",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Sport & Freizeit > Scooter & Tretroller > Stunt Scooter"
+  },
+  {
+    "docId": "2493370000004",
+    "sku": "SKU-3476455542",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Mode & Accessoires > Herren"
+  },
+  {
+    "docId": "28ea2956-bd28-4fd6-afb4-bf3707ca4cf1",
+    "sku": "SKU-1290834130",
+    "status": "update",
+    "catText": "Kleidung & Accessoires > Herren > Herrenmode > Jacken, Mäntel & Westen",
+    "match": {
+      "id": "57988",
+      "breadcrumb": "Kleidung & Accessoires > Herren > Herrenmode > Jacken, Mäntel & Westen",
+      "score": 444,
+      "margin": 19
+    }
+  },
+  {
+    "docId": "295c4789-b314-43ba-a18c-274b6ac422ef",
+    "sku": "SKU-6634800828",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Mode & Accessoires > Herren > Herren"
+  },
+  {
+    "docId": "2d3f8a0d-2c5f-4852-a241-8281d55e418a",
+    "sku": "SKU-7824016126",
+    "status": "update",
+    "catText": "Business & Industrie > Transport & Logistik > Winden, Seilzüge & Rigging",
+    "match": {
+      "id": "109551",
+      "breadcrumb": "Business & Industrie > Transport & Logistik > Winden, Seilzüge & Rigging",
+      "score": 433,
+      "margin": 238
+    }
+  },
+  {
+    "docId": "3339082c-5066-4322-a318-4b8732a19d83",
+    "sku": "SKU-8229761001",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Sport & Outdoor > Camping & Outdoor"
+  },
+  {
+    "docId": "3613379433101",
+    "sku": "SKU-5526640633",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Mode & Accessoires > Herren > Herren"
+  },
+  {
+    "docId": "3aaed3ff-192f-4dbf-a8da-da12514e14b8",
+    "sku": "SKU-5496567952",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Mode & Accessoires > Kleidung > Unterwäsche & Dessous"
+  },
+  {
+    "docId": "3f1a8ee4-8e40-4f90-af9a-deade528551c",
+    "sku": "SKU-8897137065",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Auto & Motorrad > Wohnmobil- & Caravan-Teile & Zubehör > Heizungen & Klimaanlagen > Standheizungen"
+  },
+  {
+    "docId": "4005046205217",
+    "sku": "SKU-4191907503",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Heimwerker & Garten > Baumarkt > Innenausbau"
+  },
+  {
+    "docId": "4005176388538",
+    "sku": "SKU-1186485817",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Heimwerker & Garten > Bad & Küche > Bad"
+  },
+  {
+    "docId": "4007060000236",
+    "sku": "SKU-3455080661",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Mode & Accessoires > Kleidung > Unterwäsche & Dessous"
+  },
+  {
+    "docId": "4007065867636",
+    "sku": "SKU-1708759606",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Mode & Accessoires > Kleidung > Unterwäsche & Dessous"
+  },
+  {
+    "docId": "4007066272026",
+    "sku": "SKU-7707703650",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Mode & Accessoires > Kleidung > Unterwäsche & Dessous"
+  },
+  {
+    "docId": "4007126365101",
+    "sku": "SKU-3266280359",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Haushalt & Küche > Sonstige"
+  },
+  {
+    "docId": "4011097775111",
+    "sku": "SKU-4766228789",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Heimwerker & Garten > Baumarkt > Badausstattung"
+  },
+  {
+    "docId": "4013361212134",
+    "sku": "SKU-2139913486",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Spielwaren > Spielzeug für draußen"
+  },
+  {
+    "docId": "4036021157276",
+    "sku": "SKU-4110694191",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Auto & Motorrad > Autoteile & Zubehör > Motoren & Motorenteile"
+  },
+  {
+    "docId": "4036021157795",
+    "sku": "SKU-8786582366",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Auto & Motorrad: Teile > Auto-Anbauteile & -Zubehör > Öle, Flüssigkeiten & Schmiermittel > Frostschutzmittel"
+  },
+  {
+    "docId": "4058213275261",
+    "sku": "SKU-2816924302",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Sport & Outdoor > Sportausrüstung > Sportbekleidung"
+  },
+  {
+    "docId": "4063382129727",
+    "sku": "SKU-2691901913",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Heimwerker > Bad &"
+  },
+  {
+    "docId": "4063544824545",
+    "sku": "SKU-5749801311",
+    "status": "update",
+    "catText": "Business & Industrie > Sonstige",
+    "match": {
+      "id": "35378",
+      "breadcrumb": "Business & Industrie > Großhandel & Sonderposten > Kleidung & Accessoires(Posten) > Damenbekleidung > Sonstige",
+      "score": 175,
+      "margin": 9
+    }
+  },
+  {
+    "docId": "4063846033713",
+    "sku": "SKU-2126872416",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Baby & Kind > Babyartikel"
+  },
+  {
+    "docId": "4064502768789",
+    "sku": "SKU-5292025204",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Kleidung & Accessoires > Herren > Herrenmode > Hosen"
+  },
+  {
+    "docId": "4065377033750",
+    "sku": "SKU-9464897506",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Kleidung & Accessoires > Damen > Damenmode > Pullover & Strick > Kapuzenpullover & Sweats"
+  },
+  {
+    "docId": "4066551928015",
+    "sku": "SKU-9824375922",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Kleidung & Accessoires > Damenmode > Jacken & Mäntel > Daunenjacken"
+  },
+  {
+    "docId": "4251665310447",
+    "sku": "SKU-1198160025",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Beauty & Gesundheit > Sonstige"
+  },
+  {
+    "docId": "4260168332719",
+    "sku": "SKU-0336723314",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Beauty & Gesundheit > Medizin & Erste Hilfe"
+  },
+  {
+    "docId": "4260332056441",
+    "sku": "SKU-9342783880",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Baby > Autositze & Zubehör > Autositze"
+  },
+  {
+    "docId": "4260633240822",
+    "sku": "SKU-8972624246",
+    "status": "update",
+    "catText": "Heimwerker > Farben, Tapeten &",
+    "match": {
+      "id": "180165",
+      "breadcrumb": "Heimwerker > Farben, Tapeten & Zubehör",
+      "score": 272,
+      "margin": 118
+    }
+  },
+  {
+    "docId": "4260755120385",
+    "sku": "SKU-1377750386",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Sport & Outdoor > Camping & Outdoor"
+  },
+  {
+    "docId": "5020570328828",
+    "sku": "SKU-8223313532",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Mode & Accessoires > Spezielle Anlässe > Kostüme & Verkleidungen"
+  },
+  {
+    "docId": "5059556377703",
+    "sku": "SKU-1000000004",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Mode & Accessoires > Herren > Herren"
+  },
+  {
+    "docId": "5059732709403",
+    "sku": "SKU-8447826159",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Kleidung & Accessoires > Herrenmode > Unterwäsche > Boxershorts"
+  },
+  {
+    "docId": "5063019974637",
+    "sku": "SKU-8351368256",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Kleidung & Accessoires > Hosen > Shorts"
+  },
+  {
+    "docId": "5401105149574",
+    "sku": "SKU-8162676252",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Kleidung & Accessoires > Damenmode > Shirts & Tops > Longsleeves"
+  },
+  {
+    "docId": "5713842433497",
+    "sku": "SKU-2349563176",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Bekleidung > Herren > Hosen > Chinos"
+  },
+  {
+    "docId": "5714487284420",
+    "sku": "SKU-6033365611",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Mode & Accessoires > Damen > Damen"
+  },
+  {
+    "docId": "5902211129912",
+    "sku": "SKU-9377695108",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Computer, Tablets & Netzwerk > Notebook-Zubehör > Sonstige"
+  },
+  {
+    "docId": "596430bd-0f13-4c6e-83ed-b34e9afb9778",
+    "sku": "SKU-8160398821",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Kleidung & Accessoires > Herren > Herrenmode > Bademode"
+  },
+  {
+    "docId": "6acf0526-65bd-4c5a-bd00-abe9bfb5f483",
+    "sku": "SKU-3748510561",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Heimwerker & Garten > Garten > Gartenmöbel & Zubehör"
+  },
+  {
+    "docId": "7325707913594",
+    "sku": "SKU-1000000007",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Mode & Accessoires > Herren > Herren"
+  },
+  {
+    "docId": "7613108798545",
+    "sku": "SKU-3857652007",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Mode & Accessoires > Damen > Damen"
+  },
+  {
+    "docId": "7613709517538",
+    "sku": "SKU-8630306073",
+    "status": "update",
+    "catText": "Kleidung & Accessoires > Herren > Herrenmode > Jacken, Mäntel & Westen",
+    "match": {
+      "id": "57988",
+      "breadcrumb": "Kleidung & Accessoires > Herren > Herrenmode > Jacken, Mäntel & Westen",
+      "score": 444,
+      "margin": 19
+    }
+  },
+  {
+    "docId": "7af13bca-f166-45e6-a55e-31a3ec9bad64",
+    "sku": "SKU-7812130183",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Auto-Ersatz- & -Reparaturteile > Kühlung > Wasserkühler"
+  },
+  {
+    "docId": "80035581118830",
+    "sku": "SKU-3425228384",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Haushalt & Küche > Sonstige"
+  },
+  {
+    "docId": "8026196116716",
+    "sku": "SKU-5173627811",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Baby & Kind > Spielwaren"
+  },
+  {
+    "docId": "8033805473085",
+    "sku": "SKU-1000000008",
+    "status": "update",
+    "catText": "Kleidung & Accessoires > Damen > Damenmode > Leggings",
+    "match": {
+      "id": "169001",
+      "breadcrumb": "Kleidung & Accessoires > Damen > Damenmode > Leggings",
+      "score": 204,
+      "margin": 19
+    }
+  },
+  {
+    "docId": "8058138600380",
+    "sku": "SKU-9263477487",
+    "status": "update",
+    "catText": "Kleidung & Accessoires > Damen > Damenmode > Pullover & Strick",
+    "match": {
+      "id": "63866",
+      "breadcrumb": "Kleidung & Accessoires > Damen > Damenmode > Pullover & Strick",
+      "score": 334,
+      "margin": 19
+    }
+  },
+  {
+    "docId": "8058992115532",
+    "sku": "SKU-6000704656",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Kleidung & Accessoires > Damen > Damenmode > Jeans"
+  },
+  {
+    "docId": "8719114322466",
+    "sku": "SKU-4961159565",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Mode & Accessoires > Kleidung > Unterwäsche & Dessous"
+  },
+  {
+    "docId": "8719769449228",
+    "sku": "SKU-2003016705",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Kleidung & Accessoires > Damen > Damenmode > Jeans"
+  },
+  {
+    "docId": "8720639011261",
+    "sku": "SKU-4139674677",
+    "status": "update",
+    "catText": "Kleidung & Accessoires > Herren > Herrenmode > Jacken, Mäntel & Westen",
+    "match": {
+      "id": "57988",
+      "breadcrumb": "Kleidung & Accessoires > Herren > Herrenmode > Jacken, Mäntel & Westen",
+      "score": 464,
+      "margin": 19
+    }
+  },
+  {
+    "docId": "8720646885909",
+    "sku": "SKU-6560672722",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Kleidung & Accessoires > Damenbekleidung > Shirts & Blusen > T-Shirts"
+  },
+  {
+    "docId": "8720646885916",
+    "sku": "SKU-3825799024",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Mode & Accessoires > Damen > Damen"
+  },
+  {
+    "docId": "8720672452144",
+    "sku": "SKU-4465818458",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Mode & Accessoires > Herren > Herren"
+  },
+  {
+    "docId": "8720672452250",
+    "sku": "SKU-8896806933",
+    "status": "update",
+    "catText": "Kleidung & Accessoires > Herren-T-Shirts & Hemden > Poloshirts",
+    "match": {
+      "id": "185101",
+      "breadcrumb": "Kleidung & Accessoires > Herren > Herrenmode > Shirts & Hemden > Poloshirts",
+      "score": 215,
+      "margin": 215
+    }
+  },
+  {
+    "docId": "8720672452267",
+    "sku": "SKU-4906689601",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Mode & Accessoires > Herren > Herren"
+  },
+  {
+    "docId": "8720672452274",
+    "sku": "SKU-4129459884",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Mode & Accessoires > Herren > Herren"
+  },
+  {
+    "docId": "8720672457576",
+    "sku": "SKU-0167269441",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Mode & Accessoires > Herren > Herren"
+  },
+  {
+    "docId": "8720672457590",
+    "sku": "SKU-8923961743",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Kleidung & Accessoires > Herrenmode > Hosen > Cargohosen"
+  },
+  {
+    "docId": "8720672457606",
+    "sku": "SKU-2215117275",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Mode & Accessoires > Herren > Herren"
+  },
+  {
+    "docId": "8720672457613",
+    "sku": "SKU-6508368269",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Mode & Accessoires > Herren"
+  },
+  {
+    "docId": "8720672457651",
+    "sku": "SKU-0231755176",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Herrenmode > Hosen > Cargohosen"
+  },
+  {
+    "docId": "8720672457682",
+    "sku": "SKU-7739152864",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Kleidung & Accessoires > Herrenmode > Hosen > Cargohosen"
+  },
+  {
+    "docId": "8720672457705",
+    "sku": "SKU-4271597760",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Mode & Accessoires > Herren > Herren"
+  },
+  {
+    "docId": "8720672457712",
+    "sku": "SKU-7167329167",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Kleidung & Accessoires > Hosen > Cargohosen"
+  },
+  {
+    "docId": "8809629526326",
+    "sku": "SKU-5827856071",
+    "status": "update",
+    "catText": "Auto & Motorrad: Teile > Motorrad- & Rollerteile & -zubehör > Audio, Kommunikation & Navigation > Gegensprechanlagen",
+    "match": {
+      "id": "180518",
+      "breadcrumb": "Auto & Motorrad: Teile > Motorrad- & Rollerteile & -zubehör > Audio, Kommunikation & Navigation > Headsets & Gegensprechanlagen",
+      "score": 269,
+      "margin": 35
+    }
+  },
+  {
+    "docId": "9002759957889",
+    "sku": "SKU-5602954541",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Heimwerker & Garten > Sonstige"
+  },
+  {
+    "docId": "9368205000005",
+    "sku": "SKU-0457243849",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Sport & Outdoor > Camping & Outdoor > Bekleidung"
+  },
+  {
+    "docId": "a143ab8d-0a86-426e-a2b5-cae8ae8bdf54",
+    "sku": "SKU-4244843376",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Haushalt & Küche > Sonstige"
+  },
+  {
+    "docId": "a428eb0d-0983-4acc-9d11-6ef647bf1798",
+    "sku": "SKU-5346464828",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Kleidung & Accessoires > Damen > Damenmode > Kleider"
+  },
+  {
+    "docId": "ad41bd2c-b32b-4f84-8e10-70a3933b51e6",
+    "sku": "SKU-5198272869",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Mode & Accessoires > Kleidung"
+  },
+  {
+    "docId": "e0a338cc-0fd6-4625-8c0c-054308424954",
+    "sku": "SKU-9445536447",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Sport & Freizeit > Sportbekleidung > Herren > Trainingsjacken"
+  },
+  {
+    "docId": "e0c07c0f-ca71-4706-87a1-506ba3c139ca",
+    "sku": "SKU-9044953878",
+    "status": "update",
+    "catText": "Heimwerker > Bad & Küche > Bad > Duschen > Duschschläuche",
+    "match": {
+      "id": "147153",
+      "breadcrumb": "Heimwerker > Bad & Küche > Bad > Duschen, Badewannen & Teile > Duschschläuche",
+      "score": 185,
+      "margin": 185
+    }
+  },
+  {
+    "docId": "e8f548b0-5b46-488a-8ea9-b525f6381ab2",
+    "sku": "SKU-1000000010",
+    "status": "skip",
+    "reason": "no_match",
+    "catText": "Mode & Accessoires > Kleidung > Unterwäsche & Dessous"
+  },
+  {
+    "docId": "ecaf5cd2-6c48-4634-bd6f-34445eb5a00a",
+    "sku": "SKU-7161321663",
+    "status": "update",
+    "catText": "Computer, Tablets & Netzwerk > Monitore, Projektoren & Zubehör > Monitor-Halterungen & -Ständer",
+    "match": {
+      "id": "51052",
+      "breadcrumb": "Computer, Tablets & Netzwerk > Monitore, Projektoren & Zubehör > Monitor-Halterungen & -Ständer",
+      "score": 483,
+      "margin": 150
+    }
+  }
+]

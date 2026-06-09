@@ -1,0 +1,2050 @@
+[
+  {
+    "docId": "00174600185032",
+    "sku": "SKU-7538503265",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Sitzkissen"
+  },
+  {
+    "docId": "0019451391762",
+    "sku": "SKU-1041822612",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Funktionsshirt"
+  },
+  {
+    "docId": "00619498373000",
+    "sku": "SKU-6960304898",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Wassertank"
+  },
+  {
+    "docId": "0198303486543",
+    "sku": "SKU-7255766247",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "T-Shirt"
+  },
+  {
+    "docId": "0250237001502",
+    "sku": "SKU-4846246443",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "CO2-Zylinder"
+  },
+  {
+    "docId": "0402019292922",
+    "sku": "SKU-9400450055",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Außenspiegel"
+  },
+  {
+    "docId": "04250859611636",
+    "sku": "SKU-6890180207",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "3-Wege-Hahn"
+  },
+  {
+    "docId": "0456566400136",
+    "sku": "SKU-4138606905",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Mode & Accessoires",
+    "leaf": "Hose"
+  },
+  {
+    "docId": "054cc567-225b-481e-a9c6-b05e5af6e042",
+    "sku": "SKU-5977619283",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Sport",
+    "leaf": "Softshellhose"
+  },
+  {
+    "docId": "0703212290001",
+    "sku": "SKU-8559262370",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Langarmshirt"
+  },
+  {
+    "docId": "0814914026519",
+    "sku": "SKU-0279594894",
+    "status": "update",
+    "root": "Elektronik",
+    "leaf": "Interne Solid State Drive",
+    "match": {
+      "id": "175669",
+      "breadcrumb": "Computer, Tablets & Netzwerk > Laufwerke & Speichermedien > Festplatten (HDD, SSD & NAS) > Solid State Drives (SSD)",
+      "score": 304,
+      "margin": 160
+    }
+  },
+  {
+    "docId": "0840353901100",
+    "sku": "SKU-4747629782",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Fitness-Tracker"
+  },
+  {
+    "docId": "1004393023135",
+    "sku": "SKU-9143128563",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Gürtel"
+  },
+  {
+    "docId": "12192006315063",
+    "sku": "SKU-1000000000",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Sport & Outdoor",
+    "leaf": "T-Shirt"
+  },
+  {
+    "docId": "1294514013516",
+    "sku": "SKU-8884319986",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Sport-BH"
+  },
+  {
+    "docId": "13544006636695",
+    "sku": "SKU-5722011324",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Auto & Motorrad",
+    "leaf": "Wechselrichter"
+  },
+  {
+    "docId": "1516171646061",
+    "sku": "SKU-3150649680",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "x001bzffct"
+  },
+  {
+    "docId": "1795362000001",
+    "sku": "SKU-4026350484",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Mode & Accessoires",
+    "leaf": "T-Shirt"
+  },
+  {
+    "docId": "17b6a516-9f48-4d61-ac69-7a2633ee0332",
+    "sku": "SKU-5849023699",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Baby",
+    "leaf": "Kinderautositz"
+  },
+  {
+    "docId": "18023030150200",
+    "sku": "SKU-7569423484",
+    "status": "update",
+    "root": "Heimwerker & Garten",
+    "leaf": "Revisionsklappe",
+    "match": {
+      "id": "30527",
+      "breadcrumb": "Heimwerker > Baustoffe & Holz > Trockenausbau > Revisionsklappen & -türen",
+      "score": 144,
+      "margin": 144
+    }
+  },
+  {
+    "docId": "1852315181124",
+    "sku": "SKU-8073301246",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Mode & Accessoires",
+    "leaf": "Wachsjacke"
+  },
+  {
+    "docId": "19303435363740",
+    "sku": "SKU-1000000001",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "shimano"
+  },
+  {
+    "docId": "1bdce1f7-aa59-4b85-a9a8-3488141ae012",
+    "sku": "SKU-0789448642",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Haushalt & Küche",
+    "leaf": "Wassergläser Set"
+  },
+  {
+    "docId": "1d5b4c7f-5b0b-42ac-a3a4-1ff4ce852794",
+    "sku": "SKU-4762036663",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Flut- & Spotlights"
+  },
+  {
+    "docId": "1ef0194d-907c-4fb8-9102-bdf632c18fe6",
+    "sku": "SKU-9784535248",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Hose"
+  },
+  {
+    "docId": "1f9cd161-e4dd-4fd0-98d8-8e8a16ed9287",
+    "sku": "SKU-6018787799",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Vogelschutzgitter"
+  },
+  {
+    "docId": "2021128071268",
+    "sku": "SKU-5135958988",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Garten & Terrasse",
+    "leaf": "Akku-Heckenscheren-Set"
+  },
+  {
+    "docId": "2021181818184",
+    "sku": "SKU-0997953441",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Multitool"
+  },
+  {
+    "docId": "20221705000003",
+    "sku": "SKU-5134751391",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Solar-Außenleuchte"
+  },
+  {
+    "docId": "2024010542503",
+    "sku": "SKU-1164276787",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Kompressor Kühlbox"
+  },
+  {
+    "docId": "20250518576436",
+    "sku": "SKU-3648203777",
+    "status": "update",
+    "root": "Sport & Freizeit",
+    "leaf": "Stunt Scooter",
+    "match": {
+      "id": "47349",
+      "breadcrumb": "Sport > Funsport > Elektro-Scooter",
+      "score": 153,
+      "margin": 153
+    }
+  },
+  {
+    "docId": "24196924186507",
+    "sku": "SKU-5133324860",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Freizeithemd"
+  },
+  {
+    "docId": "2493370000004",
+    "sku": "SKU-3476455542",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Mode & Accessoires",
+    "leaf": "Sweatshirt"
+  },
+  {
+    "docId": "25004695020111",
+    "sku": "SKU-0704619212",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "SSD"
+  },
+  {
+    "docId": "295c4789-b314-43ba-a18c-274b6ac422ef",
+    "sku": "SKU-6634800828",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Mode & Accessoires",
+    "leaf": "Pullover"
+  },
+  {
+    "docId": "2d1365d3-cea9-4187-8daa-ea7ed01bf2a2",
+    "sku": "SKU-9247228090",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "CO2-Zylinder"
+  },
+  {
+    "docId": "31253003125300",
+    "sku": "SKU-4092578845",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Lastenwechsler"
+  },
+  {
+    "docId": "3219110502725",
+    "sku": "SKU-3877364215",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Trolley"
+  },
+  {
+    "docId": "3276428373058",
+    "sku": "SKU-8382962920",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Kupplungssatz"
+  },
+  {
+    "docId": "3339082c-5066-4322-a318-4b8732a19d83",
+    "sku": "SKU-8229761001",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Sport & Outdoor",
+    "leaf": "Kompressor Kühlbox"
+  },
+  {
+    "docId": "34bb265f-a1ad-4850-a2ec-71bf44c1ad68",
+    "sku": "SKU-5700317364",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Waschtischarmatur"
+  },
+  {
+    "docId": "3573994006336",
+    "sku": "SKU-8192040791",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Pflegecreme"
+  },
+  {
+    "docId": "3613379433101",
+    "sku": "SKU-5526640633",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Mode & Accessoires",
+    "leaf": "Hemd"
+  },
+  {
+    "docId": "36f71981-e45d-478a-a80d-4e665f0e3352",
+    "sku": "SKU-3867423041",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "BH"
+  },
+  {
+    "docId": "3700436086780",
+    "sku": "SKU-0000608676",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "String"
+  },
+  {
+    "docId": "3800861117162",
+    "sku": "SKU-2429027891",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Duschsystem"
+  },
+  {
+    "docId": "3aaed3ff-192f-4dbf-a8da-da12514e14b8",
+    "sku": "SKU-5496567952",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Mode & Accessoires",
+    "leaf": "Tanga"
+  },
+  {
+    "docId": "3f1a8ee4-8e40-4f90-af9a-deade528551c",
+    "sku": "SKU-8897137065",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Auto & Motorrad",
+    "leaf": "Standheizung"
+  },
+  {
+    "docId": "4000660171795",
+    "sku": "SKU-3818329805",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Sport-BH"
+  },
+  {
+    "docId": "4001690500234",
+    "sku": "SKU-4832582390",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Fahrzeugadapter"
+  },
+  {
+    "docId": "4001807905976",
+    "sku": "SKU-5144694690",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Trolley"
+  },
+  {
+    "docId": "4001807906881",
+    "sku": "SKU-8242720178",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Hartschalenkoffer"
+  },
+  {
+    "docId": "4003773014232",
+    "sku": "SKU-3150255217",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Eckrohrzange"
+  },
+  {
+    "docId": "4005046205217",
+    "sku": "SKU-4191907503",
+    "status": "update",
+    "root": "Heimwerker & Garten",
+    "leaf": "Revisionsklappe",
+    "match": {
+      "id": "30527",
+      "breadcrumb": "Heimwerker > Baustoffe & Holz > Trockenausbau > Revisionsklappen & -türen",
+      "score": 144,
+      "margin": 144
+    }
+  },
+  {
+    "docId": "4005176388538",
+    "sku": "SKU-1186485817",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Heimwerker & Garten",
+    "leaf": "Einhand-Waschtischarmatur"
+  },
+  {
+    "docId": "4007060000236",
+    "sku": "SKU-3455080661",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Mode & Accessoires",
+    "leaf": "Slip"
+  },
+  {
+    "docId": "4007065867636",
+    "sku": "SKU-1708759606",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Mode & Accessoires",
+    "leaf": "Bustier"
+  },
+  {
+    "docId": "4007066272026",
+    "sku": "SKU-7707703650",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Mode & Accessoires",
+    "leaf": "Schlafanzug-Set"
+  },
+  {
+    "docId": "4007066810273",
+    "sku": "SKU-1523043917",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Boxershorts"
+  },
+  {
+    "docId": "4007126365101",
+    "sku": "SKU-3266280359",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Haushalt & Küche",
+    "leaf": "Einbau-Abfallsammler"
+  },
+  {
+    "docId": "4008177077142",
+    "sku": "SKU-2748406604",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Motoröl"
+  },
+  {
+    "docId": "4011097314013",
+    "sku": "SKU-7745371992",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Brauseschlauch"
+  },
+  {
+    "docId": "4011097314037",
+    "sku": "SKU-5493501888",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Duschschlauch"
+  },
+  {
+    "docId": "4011097775111",
+    "sku": "SKU-4766228789",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Heimwerker & Garten",
+    "leaf": "Duschthermostat"
+  },
+  {
+    "docId": "4011097792026",
+    "sku": "SKU-8709444914",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Duschset"
+  },
+  {
+    "docId": "4013361212134",
+    "sku": "SKU-2139913486",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Spielwaren",
+    "leaf": "Lenkschlitten"
+  },
+  {
+    "docId": "4015413341981",
+    "sku": "SKU-3919798352",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Waschtischarmatur"
+  },
+  {
+    "docId": "4034398403774",
+    "sku": "SKU-7173240599",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Handtuchständer"
+  },
+  {
+    "docId": "4034398403828",
+    "sku": "SKU-6945793120",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Heimwerker",
+    "leaf": "Toilettenbutler"
+  },
+  {
+    "docId": "4036021157276",
+    "sku": "SKU-4110694191",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Auto & Motorrad",
+    "leaf": "Kühlerfrostschutzkonzentrat"
+  },
+  {
+    "docId": "4036021157795",
+    "sku": "SKU-8786582366",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Auto & Motorrad: Teile",
+    "leaf": "Kühlerfrostschutz"
+  },
+  {
+    "docId": "4036021163093",
+    "sku": "SKU-5320936983",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "mannol"
+  },
+  {
+    "docId": "4043861438014",
+    "sku": "SKU-7156173748",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Socken"
+  },
+  {
+    "docId": "4049369015061",
+    "sku": "SKU-6010539655",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Druckwellenvibrator"
+  },
+  {
+    "docId": "4052199582351",
+    "sku": "SKU-4961180992",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Einlagen"
+  },
+  {
+    "docId": "4053838528228",
+    "sku": "SKU-1000000002",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Leggings"
+  },
+  {
+    "docId": "4055333068964",
+    "sku": "SKU-3855746092",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Benzin-Rucksack-Kombigerät"
+  },
+  {
+    "docId": "4058213275186",
+    "sku": "SKU-4269501540",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "T-Shirt"
+  },
+  {
+    "docId": "4058213275261",
+    "sku": "SKU-2816924302",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Sport & Outdoor",
+    "leaf": "T-Shirt"
+  },
+  {
+    "docId": "4059625316214",
+    "sku": "SKU-6046815482",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Waschtischarmatur"
+  },
+  {
+    "docId": "4059625401927",
+    "sku": "SKU-5940997361",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Waschtischarmatur"
+  },
+  {
+    "docId": "4061393249854",
+    "sku": "SKU-9881775692",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Skihose"
+  },
+  {
+    "docId": "4061458034781",
+    "sku": "SKU-6689911886",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Allgemeiner Artikel"
+  },
+  {
+    "docId": "4061462474781",
+    "sku": "SKU-2054351224",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Wärmesitzkissen"
+  },
+  {
+    "docId": "4061504006000",
+    "sku": "SKU-8205373469",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "String Ouvert"
+  },
+  {
+    "docId": "4061504016139",
+    "sku": "SKU-0563915773",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "String"
+  },
+  {
+    "docId": "4061945368361",
+    "sku": "SKU-7924141652",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "T-Shirt"
+  },
+  {
+    "docId": "4062493735872",
+    "sku": "SKU-6154185094",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Wintermantel"
+  },
+  {
+    "docId": "4063367064357",
+    "sku": "SKU-3244413909",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Grillkorb Set"
+  },
+  {
+    "docId": "4063382129727",
+    "sku": "SKU-2691901913",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Heimwerker",
+    "leaf": "WC-Sitz"
+  },
+  {
+    "docId": "4063543580763",
+    "sku": "SKU-3010724612",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Jeans"
+  },
+  {
+    "docId": "4063846033713",
+    "sku": "SKU-2126872416",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Baby & Kind",
+    "leaf": "Kindersitz"
+  },
+  {
+    "docId": "4064464829931",
+    "sku": "SKU-2603681659",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Weekender"
+  },
+  {
+    "docId": "4064886306904",
+    "sku": "SKU-2733489996",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Outdoorjacke"
+  },
+  {
+    "docId": "4065377033750",
+    "sku": "SKU-9464897506",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Kleidung & Accessoires",
+    "leaf": "Kapuzenpullover"
+  },
+  {
+    "docId": "4066224571531",
+    "sku": "SKU-3615815054",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Skijacke",
+    "leaf": "Skijacke"
+  },
+  {
+    "docId": "4066551928015",
+    "sku": "SKU-9824375922",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Kleidung & Accessoires",
+    "leaf": "Daunenjacke"
+  },
+  {
+    "docId": "4067266427411",
+    "sku": "SKU-1479525764",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Stiefelette"
+  },
+  {
+    "docId": "4067522073659",
+    "sku": "SKU-3831935492",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Polster- und Teppichreiniger"
+  },
+  {
+    "docId": "4250518576153",
+    "sku": "SKU-8243336834",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "vendome"
+  },
+  {
+    "docId": "4260120775608",
+    "sku": "SKU-2324825310",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Dutch Oven"
+  },
+  {
+    "docId": "4260168332719",
+    "sku": "SKU-0336723314",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Beauty & Gesundheit",
+    "leaf": "Rettungsmesser"
+  },
+  {
+    "docId": "4260281755686",
+    "sku": "SKU-5207774112",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Waschbeckenunterschrank"
+  },
+  {
+    "docId": "4260332056441",
+    "sku": "SKU-9342783880",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Baby",
+    "leaf": "Kindersitz"
+  },
+  {
+    "docId": "4260540640425",
+    "sku": "SKU-9287597645",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Unkrautvlies"
+  },
+  {
+    "docId": "4260600260419",
+    "sku": "SKU-5565646486",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Garagenwandschutz"
+  },
+  {
+    "docId": "4260613499578",
+    "sku": "SKU-0121175685",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Transportbox"
+  },
+  {
+    "docId": "4260716810041",
+    "sku": "SKU-2433624992",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Mobiles Sportnetz"
+  },
+  {
+    "docId": "4260755120385",
+    "sku": "SKU-1377750386",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Sport & Outdoor",
+    "leaf": "Campingteppich"
+  },
+  {
+    "docId": "43422328612861",
+    "sku": "SKU-2424861616",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Gartenmöbel-Set"
+  },
+  {
+    "docId": "436ccc2b-8047-41a7-955c-6b4b2626a124",
+    "sku": "SKU-4867865757",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Moving Head"
+  },
+  {
+    "docId": "46212223242526",
+    "sku": "SKU-5946446734",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Lenkradkralle"
+  },
+  {
+    "docId": "48093417-f9ef-497f-96a7-e17838a5280f",
+    "sku": "SKU-5660339205",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Holzkohlegrill"
+  },
+  {
+    "docId": "49035818999884",
+    "sku": "SKU-5094533501",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Leinöl-Firnis"
+  },
+  {
+    "docId": "4917616740531",
+    "sku": "SKU-1468228360",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Kinderkostüm"
+  },
+  {
+    "docId": "4940538092888",
+    "sku": "SKU-8313895093",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "CEE Steckdose"
+  },
+  {
+    "docId": "4958043515516",
+    "sku": "SKU-5368405324",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Auto Lautsprecher Komponentensystem"
+  },
+  {
+    "docId": "4958043515554",
+    "sku": "SKU-5454278825",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Koaxial-Lautsprecher"
+  },
+  {
+    "docId": "5020570328828",
+    "sku": "SKU-8223313532",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Mode & Accessoires",
+    "leaf": "Kostüm"
+  },
+  {
+    "docId": "5025155058336",
+    "sku": "SKU-8945251431",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Staubsaugerzubehör-Set"
+  },
+  {
+    "docId": "5050192020075",
+    "sku": "SKU-2454152281",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Wandspiegel"
+  },
+  {
+    "docId": "5059556144763",
+    "sku": "SKU-1000000003",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Jeanshose"
+  },
+  {
+    "docId": "5059556377703",
+    "sku": "SKU-1000000004",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Mode & Accessoires",
+    "leaf": "Hemd"
+  },
+  {
+    "docId": "5059556377758",
+    "sku": "SKU-1000000005",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Hemd"
+  },
+  {
+    "docId": "5059556444917",
+    "sku": "SKU-4324829129",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Boxershorts"
+  },
+  {
+    "docId": "5059732709403",
+    "sku": "SKU-8447826159",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Kleidung & Accessoires",
+    "leaf": "Boxershorts"
+  },
+  {
+    "docId": "5063019974637",
+    "sku": "SKU-8351368256",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Kleidung & Accessoires",
+    "leaf": "Shorts"
+  },
+  {
+    "docId": "51d329b1-b104-47b9-9ce4-e0e93797b2de",
+    "sku": "SKU-7819343007",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Heimwerker",
+    "leaf": "Funktürklingel"
+  },
+  {
+    "docId": "5265145c-c73e-4905-b442-9584eb0b5d89",
+    "sku": "SKU-4870064003",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Matratze"
+  },
+  {
+    "docId": "52c25fb6-2f7a-48b8-8f85-430a36f26fae",
+    "sku": "SKU-4817360056",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "T-Shirt"
+  },
+  {
+    "docId": "5400585052930",
+    "sku": "SKU-7702312083",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Vogelvoliere"
+  },
+  {
+    "docId": "5400806991130",
+    "sku": "SKU-3186173398",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Reisetasche"
+  },
+  {
+    "docId": "5400898678865",
+    "sku": "SKU-0196260000",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Jeans"
+  },
+  {
+    "docId": "5401105149574",
+    "sku": "SKU-8162676252",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Kleidung & Accessoires",
+    "leaf": "Langarmshirt"
+  },
+  {
+    "docId": "5702015867535",
+    "sku": "SKU-6986483321",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Konstruktionsspielzeug"
+  },
+  {
+    "docId": "5713504000661",
+    "sku": "SKU-6725568671",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Rollator"
+  },
+  {
+    "docId": "5713842433497",
+    "sku": "SKU-2349563176",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Bekleidung",
+    "leaf": "Chino"
+  },
+  {
+    "docId": "5714487284420",
+    "sku": "SKU-6033365611",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Mode & Accessoires",
+    "leaf": "Minirock"
+  },
+  {
+    "docId": "5714508372894",
+    "sku": "SKU-7334344420",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Socken"
+  },
+  {
+    "docId": "5715313967852",
+    "sku": "SKU-1000000006",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Jeansjacke"
+  },
+  {
+    "docId": "5715574371849",
+    "sku": "SKU-4874908260",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Langmantel"
+  },
+  {
+    "docId": "576b0538-f1ce-47a2-824e-0297a80247a5",
+    "sku": "SKU-4870667582",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Ultraschall-Inhalator"
+  },
+  {
+    "docId": "5902211129912",
+    "sku": "SKU-9377695108",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Computer, Tablets & Netzwerk",
+    "leaf": "Tischhalterung für Steckdosenleiste"
+  },
+  {
+    "docId": "5902605478275",
+    "sku": "SKU-5561398463",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Wickelauflage"
+  },
+  {
+    "docId": "6220160202030",
+    "sku": "SKU-7199945280",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "CO2-Zylinder"
+  },
+  {
+    "docId": "680a3eea-2f84-4e25-9106-8cbcaeefe72c",
+    "sku": "SKU-4583716812",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "T-Shirt"
+  },
+  {
+    "docId": "6941876218462",
+    "sku": "SKU-8049033555",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "KFZ Handyhalterung"
+  },
+  {
+    "docId": "6acf0526-65bd-4c5a-bd00-abe9bfb5f483",
+    "sku": "SKU-3748510561",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Heimwerker & Garten",
+    "leaf": "Sonnenliege"
+  },
+  {
+    "docId": "7313020097503",
+    "sku": "SKU-9706798890",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Befestigungskit"
+  },
+  {
+    "docId": "7319f91f-5656-490e-bdfa-0aa526b0a9d1",
+    "sku": "SKU-0015305033",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Kohlensäurezylinder"
+  },
+  {
+    "docId": "7322780072569",
+    "sku": "SKU-8344329494",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Tischleuchte"
+  },
+  {
+    "docId": "7325706169114",
+    "sku": "SKU-6810770905",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "gant"
+  },
+  {
+    "docId": "7325707913594",
+    "sku": "SKU-1000000007",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Mode & Accessoires",
+    "leaf": "Hemd"
+  },
+  {
+    "docId": "7325720928841",
+    "sku": "SKU-1018841553",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Wintermantel"
+  },
+  {
+    "docId": "7332543751525",
+    "sku": "SKU-5959163333",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Akku-Staubsauger"
+  },
+  {
+    "docId": "7332543822751",
+    "sku": "SKU-2670059438",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Bodenstaubsauger mit Beutel"
+  },
+  {
+    "docId": "7394410136491",
+    "sku": "SKU-4998968854",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Fahrwerksfeder"
+  },
+  {
+    "docId": "74667d87-aea5-40ee-ab65-f01b9c820e62",
+    "sku": "SKU-1125185965",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Faltreifen"
+  },
+  {
+    "docId": "7538f896-fb64-40ee-a606-65e08665fc2a",
+    "sku": "SKU-9166429134",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Schubladenteiler"
+  },
+  {
+    "docId": "76113588807201",
+    "sku": "SKU-6099828388",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Bralette Top"
+  },
+  {
+    "docId": "7613108798545",
+    "sku": "SKU-3857652007",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Mode & Accessoires",
+    "leaf": "Bikinihose"
+  },
+  {
+    "docId": "7613108802860",
+    "sku": "SKU-5583443162",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Bikini-Oberteil"
+  },
+  {
+    "docId": "7613109117017",
+    "sku": "SKU-1814556864",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Mini Slip"
+  },
+  {
+    "docId": "7613136901818",
+    "sku": "SKU-4208989688",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Hipster"
+  },
+  {
+    "docId": "7630751727135",
+    "sku": "SKU-1055381582",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Kaffeegläser Set"
+  },
+  {
+    "docId": "7640415026184",
+    "sku": "SKU-0500263191",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Schneehose"
+  },
+  {
+    "docId": "7af13bca-f166-45e6-a55e-31a3ec9bad64",
+    "sku": "SKU-7812130183",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Auto-Ersatz- & -Reparaturteile",
+    "leaf": "Motorkühler"
+  },
+  {
+    "docId": "7c4d3bb6-e7a1-4fa0-aa88-3da9b25134d8",
+    "sku": "SKU-3324867175",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Handtuchhalter"
+  },
+  {
+    "docId": "7f48539c-7e01-452d-9cf8-373d709440f9",
+    "sku": "SKU-5277674690",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Hula Hoop Reifen"
+  },
+  {
+    "docId": "8003558071647",
+    "sku": "SKU-7025517137",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Piratenmantel"
+  },
+  {
+    "docId": "8003558101221",
+    "sku": "SKU-2007106780",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Kostüm Set"
+  },
+  {
+    "docId": "8003558101238",
+    "sku": "SKU-8934718651",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Kostümhemd"
+  },
+  {
+    "docId": "80035581118830",
+    "sku": "SKU-3425228384",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Haushalt & Küche",
+    "leaf": "Schlaghose"
+  },
+  {
+    "docId": "8019606021557",
+    "sku": "SKU-4777479586",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Windschild"
+  },
+  {
+    "docId": "8026196116716",
+    "sku": "SKU-5173627811",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Baby & Kind",
+    "leaf": "Kostüm"
+  },
+  {
+    "docId": "8096291527538",
+    "sku": "SKU-7256443179",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Motorrad-Kommunikation & Geg",
+    "leaf": "Motorrad-Kommunikationssystem"
+  },
+  {
+    "docId": "8445621048635",
+    "sku": "SKU-5997333151",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Fleecejacke"
+  },
+  {
+    "docId": "8445623762195",
+    "sku": "SKU-6388963375",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Bodysuit"
+  },
+  {
+    "docId": "8445623774655",
+    "sku": "SKU-5530631035",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Stoffhose"
+  },
+  {
+    "docId": "8712026440952",
+    "sku": "SKU-8529737282",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Poncho"
+  },
+  {
+    "docId": "8712026447449",
+    "sku": "SKU-3582144495",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Schlaghose"
+  },
+  {
+    "docId": "8719114322466",
+    "sku": "SKU-4961159565",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Mode & Accessoires",
+    "leaf": "Boxershorts"
+  },
+  {
+    "docId": "8719922586272",
+    "sku": "SKU-6298806455",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Thermoleggings"
+  },
+  {
+    "docId": "8720245556002",
+    "sku": "SKU-7977735758",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Boxershorts"
+  },
+  {
+    "docId": "8720389034565",
+    "sku": "SKU-7514362439",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Heißluftfritteuse"
+  },
+  {
+    "docId": "8720636438269",
+    "sku": "SKU-5980539717",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "T-Shirt"
+  },
+  {
+    "docId": "8720644940723",
+    "sku": "SKU-4500500397",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Zip-Off Cargo Hose"
+  },
+  {
+    "docId": "8720646885909",
+    "sku": "SKU-6560672722",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Kleidung & Accessoires",
+    "leaf": "Langarmshirt"
+  },
+  {
+    "docId": "8720646885916",
+    "sku": "SKU-3825799024",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Mode & Accessoires",
+    "leaf": "Langarmshirt"
+  },
+  {
+    "docId": "8720672452137",
+    "sku": "SKU-9245031381",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Poloshirt"
+  },
+  {
+    "docId": "8720672452144",
+    "sku": "SKU-4465818458",
+    "status": "update",
+    "root": "Mode & Accessoires",
+    "leaf": "Langarm-Poloshirt",
+    "match": {
+      "id": "185101",
+      "breadcrumb": "Kleidung & Accessoires > Herren > Herrenmode > Shirts & Hemden > Poloshirts",
+      "score": 155,
+      "margin": 155
+    }
+  },
+  {
+    "docId": "8720672452267",
+    "sku": "SKU-4906689601",
+    "status": "update",
+    "root": "Mode & Accessoires",
+    "leaf": "Poloshirt",
+    "match": {
+      "id": "185101",
+      "breadcrumb": "Kleidung & Accessoires > Herren > Herrenmode > Shirts & Hemden > Poloshirts",
+      "score": 155,
+      "margin": 155
+    }
+  },
+  {
+    "docId": "8720672452274",
+    "sku": "SKU-4129459884",
+    "status": "update",
+    "root": "Mode & Accessoires",
+    "leaf": "Poloshirt",
+    "match": {
+      "id": "185101",
+      "breadcrumb": "Kleidung & Accessoires > Herren > Herrenmode > Shirts & Hemden > Poloshirts",
+      "score": 155,
+      "margin": 155
+    }
+  },
+  {
+    "docId": "8720672457576",
+    "sku": "SKU-0167269441",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Mode & Accessoires",
+    "leaf": "Cargohose"
+  },
+  {
+    "docId": "8720672457583",
+    "sku": "SKU-0606185267",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Cargohose"
+  },
+  {
+    "docId": "8720672457590",
+    "sku": "SKU-8923961743",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Kleidung & Accessoires",
+    "leaf": "Cargohose"
+  },
+  {
+    "docId": "8720672457606",
+    "sku": "SKU-2215117275",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Mode & Accessoires",
+    "leaf": "Cargohose"
+  },
+  {
+    "docId": "8720672457613",
+    "sku": "SKU-6508368269",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Mode & Accessoires",
+    "leaf": "Cargohose"
+  },
+  {
+    "docId": "8720672457620",
+    "sku": "SKU-9543142444",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Cargohose"
+  },
+  {
+    "docId": "8720672457644",
+    "sku": "SKU-9495443556",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Cargohose"
+  },
+  {
+    "docId": "8720672457651",
+    "sku": "SKU-0231755176",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Herrenmode",
+    "leaf": "Hose"
+  },
+  {
+    "docId": "8720672457682",
+    "sku": "SKU-7739152864",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Kleidung & Accessoires",
+    "leaf": "Cargohose"
+  },
+  {
+    "docId": "8720672457705",
+    "sku": "SKU-4271597760",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Mode & Accessoires",
+    "leaf": "Cargohose"
+  },
+  {
+    "docId": "8720672457712",
+    "sku": "SKU-7167329167",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Kleidung & Accessoires",
+    "leaf": "Cargohose"
+  },
+  {
+    "docId": "8720672457736",
+    "sku": "SKU-2808592829",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Cargohose"
+  },
+  {
+    "docId": "8720676510376",
+    "sku": "SKU-2005525534",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Shapewear Body"
+  },
+  {
+    "docId": "8b18f8c1-5ced-4f9d-989d-35fb729415fe",
+    "sku": "SKU-3055174422",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Powerbank"
+  },
+  {
+    "docId": "8c326f7a-d1df-447c-ab0c-c39d136ac565",
+    "sku": "SKU-0780623565",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Hartschalenkoffer"
+  },
+  {
+    "docId": "9001778410887",
+    "sku": "SKU-5932239224",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Motorrad Abdeckplane"
+  },
+  {
+    "docId": "9002759957889",
+    "sku": "SKU-5602954541",
+    "status": "update",
+    "root": "Heimwerker & Garten",
+    "leaf": "Tischleuchte",
+    "match": {
+      "id": "21863",
+      "breadcrumb": "Büro & Schreibwaren > Büromöbel > Leuchten & Leuchtmittel > Tischleuchten",
+      "score": 144,
+      "margin": 144
+    }
+  },
+  {
+    "docId": "9101113151619",
+    "sku": "SKU-8096141671",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Wechselrichter"
+  },
+  {
+    "docId": "9101213141516",
+    "sku": "SKU-5892452614",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Boxhandschuhe"
+  },
+  {
+    "docId": "9368205000005",
+    "sku": "SKU-0457243849",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Sport & Outdoor",
+    "leaf": "Weste"
+  },
+  {
+    "docId": "9504579178456",
+    "sku": "SKU-1665721376",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Glas-Set"
+  },
+  {
+    "docId": "9598aed7-fe7a-426e-afcc-08ca0d925270",
+    "sku": "SKU-0026867017",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Beauty & Gesundheit",
+    "leaf": "Tattoo Armlehne"
+  },
+  {
+    "docId": "992c90f7-4b46-4306-8849-68b584459a4d",
+    "sku": "SKU-2574433036",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "3D Drucker Filament"
+  },
+  {
+    "docId": "a143ab8d-0a86-426e-a2b5-cae8ae8bdf54",
+    "sku": "SKU-4244843376",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Haushalt & Küche",
+    "leaf": "Saugroboter"
+  },
+  {
+    "docId": "a18d09b8-ae6e-4114-9b82-f7cf388905d0",
+    "sku": "SKU-2365442999",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "unbekannt"
+  },
+  {
+    "docId": "a2ad1a25-85f0-4206-ba2d-f718e75b5942",
+    "sku": "SKU-2002593737",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Hartschalenkoffer"
+  },
+  {
+    "docId": "a306ee5a-9713-4ee0-8e51-a97b458577d5",
+    "sku": "SKU-1769600457",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "In-Ear Kopfhörer"
+  },
+  {
+    "docId": "a4e24a7c-447b-49af-add1-d667f360611d",
+    "sku": "SKU-3132874789",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Schwimmflossen"
+  },
+  {
+    "docId": "a65f35c5-a17f-41d7-9166-6d17f6a158ba",
+    "sku": "SKU-3849647644",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Ergometer & Heimtrainer"
+  },
+  {
+    "docId": "ab8921aa-074a-4d89-beb7-b4236133851e",
+    "sku": "SKU-8463577445",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "LED-Streifen"
+  },
+  {
+    "docId": "ac5a1129-af86-4956-9a3b-ad732f8788bf",
+    "sku": "SKU-7123124767",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "T-Shirt"
+  },
+  {
+    "docId": "ad41bd2c-b32b-4f84-8e10-70a3933b51e6",
+    "sku": "SKU-5198272869",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Mode & Accessoires",
+    "leaf": "Pullover"
+  },
+  {
+    "docId": "adb302b7-663c-4f2d-931d-b633f3745d62",
+    "sku": "SKU-6625137611",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Socken"
+  },
+  {
+    "docId": "aea6179e-a548-4891-8239-a986e778094a",
+    "sku": "SKU-5500133555",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Laufshorts"
+  },
+  {
+    "docId": "b5c12f09-3a02-42fe-b848-a62da3ce4474",
+    "sku": "SKU-5059471242",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Langarmshirt"
+  },
+  {
+    "docId": "b67ef6c7-35fe-4adc-9563-64cf76108187",
+    "sku": "SKU-3368308242",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Einbauspüle"
+  },
+  {
+    "docId": "b6ad22cd-c13d-4256-88e7-977c86896368",
+    "sku": "SKU-6856686072",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Brauseset"
+  },
+  {
+    "docId": "c1497bbf-f2e9-4e9a-9d75-7b31d2c0891d",
+    "sku": "SKU-9116827107",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Zahlenwurfspiel"
+  },
+  {
+    "docId": "c98d74fd-e1a0-42fd-ba6d-2ea526b6e643",
+    "sku": "SKU-6703015625",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Trainingshose"
+  },
+  {
+    "docId": "c9fb6dc8-5db9-455d-a9b6-a8cadf694909",
+    "sku": "SKU-4995445480",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Trainingshose"
+  },
+  {
+    "docId": "cb10e1bd-003d-4a97-a1ba-9d6a1ace1f91",
+    "sku": "SKU-1292060664",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Schienbeinschoner"
+  },
+  {
+    "docId": "cf7216b6-fbad-4d0f-bb94-10c5ffe3a605",
+    "sku": "SKU-5238535935",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Hoverboard"
+  },
+  {
+    "docId": "cfdc7655-8dd2-4b9e-80f0-8ab292072eac",
+    "sku": "SKU-8262235363",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Vollgesichtsmaske"
+  },
+  {
+    "docId": "d5ebb4cc-55b0-4b01-a52b-14af5f5e48dd",
+    "sku": "SKU-6221197450",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Fitnessbänder Set"
+  },
+  {
+    "docId": "d7fe958d-e961-4da4-841c-056d2d07081f",
+    "sku": "SKU-1000000009",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Gürtel"
+  },
+  {
+    "docId": "daff6593-8cf1-4290-b164-30ff627317a0",
+    "sku": "SKU-9612106646",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Wandgarderobe"
+  },
+  {
+    "docId": "ddf71447-e7dd-4f92-afa1-9fc1b7fad114",
+    "sku": "SKU-5047615558",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "3D-Drucker Filament"
+  },
+  {
+    "docId": "deeada2f-20dc-475c-af0e-d2584d9183e2",
+    "sku": "SKU-4530412000",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Balance Board"
+  },
+  {
+    "docId": "e0a338cc-0fd6-4625-8c0c-054308424954",
+    "sku": "SKU-9445536447",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Sport & Freizeit",
+    "leaf": "Trainingsanzug"
+  },
+  {
+    "docId": "e0b19bc2-5f5a-4339-ab8e-5fbdb3cf5137",
+    "sku": "SKU-3473800757",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Shorts"
+  },
+  {
+    "docId": "e4d53426-7f90-47c2-b3ab-587f887fe81d",
+    "sku": "SKU-6366017224",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Hose"
+  },
+  {
+    "docId": "e8f548b0-5b46-488a-8ea9-b525f6381ab2",
+    "sku": "SKU-1000000010",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Mode & Accessoires",
+    "leaf": "String Tanga"
+  },
+  {
+    "docId": "efa941f1-acbb-4f59-a204-0312a506c46e",
+    "sku": "SKU-1053914877",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Tischdeckenrolle"
+  },
+  {
+    "docId": "f0796a2b-7a12-4f55-b343-cf8e47e35ad0",
+    "sku": "SKU-8261682619",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Interdentalbürsten"
+  },
+  {
+    "docId": "f19c6d73-628b-424c-9d89-d950ebafb74b",
+    "sku": "SKU-6536943755",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "3D Drucker Filament"
+  },
+  {
+    "docId": "f34aeded-183f-461f-8b6d-f899c863bddb",
+    "sku": "SKU-2693030055",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Jogginghose"
+  },
+  {
+    "docId": "f42902e6-fbd5-40b3-ab2e-754199627da6",
+    "sku": "SKU-7676899776",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Rangierwagenheber"
+  },
+  {
+    "docId": "fab309b3-784b-4e9a-861b-a53eca92313d",
+    "sku": "SKU-5978901641",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Strumpfhose"
+  }
+]

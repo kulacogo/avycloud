@@ -12,11 +12,11 @@
 | **ID** | `[CATEGORY-NNN]` (e.g., BULK-001, AI-002, MP-001) |
 | **Priority** | `P0` / `P1` / `P2` / `P3` |
 | **Status** | `Draft` / `Ready` / `In Progress` / `Complete` |
-| **Change Level** | `L0` / `L1` / `L2` / `L3` (see AGENT_RULES.md §2) |
+| **Change Level** | `L0` / `L1` / `L2` / `L3` (see CLAUDE.md + AGENTS.md) |
 | **Effort Estimate** | `S` (1-3d) / `M` (3-7d) / `L` (1-3w) / `XL` (3w+) |
 | **Dependencies** | List other feature IDs this depends on, or "None" |
 | **Source** | `competitive-analysis` / `user-request` / `bug` / `marktanalyse` |
-| **Protected Zones Affected** | List any Yellow/Red Zone files from AGENT_RULES.md §3 |
+| **Protected Zones Affected** | List any protected files from CLAUDE.md / AGENTS.md |
 
 ---
 
@@ -316,7 +316,7 @@ Step 5: [Integration] End-to-end flow
 ### 7.1 Competitor Benchmarks
 
 > How do competitors implement this feature? What can we learn?
-> Reference specific competitor findings from docs/competitive-analysis/
+> Reference specific competitor findings from docs/archive/competitive-analysis/2026-03/ if using the 2026-03 snapshot.
 
 ### 7.2 Related Features
 

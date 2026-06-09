@@ -1,0 +1,12 @@
+{
+  "mode": "APPLY",
+  "inventoryId": "78659",
+  "minQty": 1,
+  "limit": 3,
+  "counts": {
+    "total": 531,
+    "eligible": 378,
+    "selected": 3
+  },
+  "timestamp": "2026-01-14T20:47:55.086Z"
+}

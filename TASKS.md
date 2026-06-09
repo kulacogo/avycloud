@@ -202,7 +202,7 @@
 
 ## OMS Audit — Sprint-Block 10
 
-> Details: `oms-audit-report.html` im Root
+> Details: `docs/archive/root-mockups/html/oms-audit-report.html`
 
 **Critical (P0):** ✅ erledigt
 - ~~B001~~ ~~B002~~ ~~B003~~ ~~B004~~ ~~B005~~ ~~B006~~ ~~B007~~ ~~B008~~ ~~B009~~ — alle gefixt
@@ -279,11 +279,11 @@
 | **P0** | **PERF-002 eBay API Rate-Limiting & Call-Optimierung** | `docs/prompts/perf-002-ebay-api-rate-limiting.md` |
 | **P0** | **PERF-001 Identify Pipeline Overhaul (Sub-60s)** | `docs/prompts/perf-001-identify-pipeline-overhaul.md` |
 | **P1** | **BUG-092 Versand Duplikate + falscher Problem-Status** | `docs/prompts/bug-092-shipping-duplicate-problem-status.md` |
-| P0 | LLM Pipeline + Preise | `docs/prompts/fix-llm-pipeline-quality.md` |
-| P0 | 292 unsichtbare Produkte (V2 Migration) | `docs/prompts/feat-complete-products-v2-migration.md` |
-| P0 | Multi-Identify nur letztes Produkt | `docs/prompts/bug-079-multi-identify-only-last-product-saved.md` |
+| P0 | LLM Pipeline + Preise | archiviert: `docs/archive/completed-feature-prompts/fix-llm-pipeline-quality.md` |
+| P0 | 292 unsichtbare Produkte (V2 Migration) | archiviert: `docs/archive/completed-feature-prompts/feat-complete-products-v2-migration.md` |
+| P0 | Multi-Identify nur letztes Produkt | archiviert: `docs/archive/completed-bugfix-prompts/bug-079-multi-identify-only-last-product-saved.md` |
 | P1 | ADDR-001 Empfänger-Adresslabel 62×29mm | `docs/prompts/feat-address-labels-62x29.md` |
-| P1 | Erfassen-Modul UI Overhaul | `docs/prompts/feat-erfassen-modul-ui-overhaul.md` |
+| P1 | Erfassen-Modul UI Overhaul | archiviert: `docs/archive/completed-feature-prompts/feat-erfassen-modul-ui-overhaul.md` |
 | P1 | Child-BINs / Container | `docs/prompts/feat-warehouse-child-bins.md` |
 
 ## Waiting On
@@ -302,7 +302,7 @@ GDPR, API-Docs (OpenAPI), E2E-Tests (Playwright), Mobile App, Multi-Tenancy, Str
 - ✅ **docs/kb/** Vollständige Knowledge Base in 17 Sektionen (~115 Markdown-Dateien)
 - ✅ **CLAUDE.md** Session-Start additiv erweitert (Punkt 1 + 2 zeigen auf AGENTS + KB)
 - ✅ **UI Help-Drawer** live (Backend-Route `/api/help/*` + `components/help/HelpDrawer.tsx` + `HelpButton.tsx` + `HelpProvider.tsx`)
-- ✅ **7 Audit-Skripte** unter `backend/scripts/audit-*.js` (read-only) plus initial Reports unter `docs/kb/_audit-runs/`
+- ✅ **7 Audit-Skripte** unter `backend/scripts/audit-*.js` (read-only) plus initial Reports unter `docs/archive/audit-runs/2026-05-18/`
 - ✅ **CI Drift-Protection-Workflow** `.github/workflows/kb-drift-and-tests.yml`
 - ✅ **Cleanup-Report** unter `docs/kb/17-cleanup-report.md`
 - ✅ **Gap-Analysis** unter `docs/kb/15-gap-analysis.md`

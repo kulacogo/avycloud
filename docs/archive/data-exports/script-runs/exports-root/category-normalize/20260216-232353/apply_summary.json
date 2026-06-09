@@ -1,0 +1,15 @@
+{
+  "preCount": 774,
+  "total": 774,
+  "touched": 78,
+  "flags": {
+    "category_missing": 176,
+    "category_normalized_from_id": 526,
+    "category_breadcrumb_unresolved": 70,
+    "category_leaf_only_unresolved": 2
+  },
+  "changedFields": {
+    "details.categoryId": 7,
+    "identification.category": 71
+  }
+}

@@ -106,7 +106,7 @@ Verweis auf `docs/kb/05-pages/` (TBD).
 
 ## Spec
 
-- [docs/features/ERR-001-error-dashboard/spec.md](../../features/ERR-001-error-dashboard/spec.md)
+- [archivierte ERR-001-Spec](../../archive/features/completed/ERR-001-error-dashboard-spec.md)
 
 ## Bekannte Issues
 

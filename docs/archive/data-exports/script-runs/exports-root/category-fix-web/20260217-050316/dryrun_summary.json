@@ -1,0 +1,15 @@
+{
+  "preCount": 774,
+  "targets": 21,
+  "processed": 21,
+  "would_update": 8,
+  "update": 0,
+  "noop": 0,
+  "skip": 13,
+  "skipReasons": {
+    "forbidden_root": 4,
+    "not_in_taxonomy": 1,
+    "no_leaf_evidence": 7,
+    "leaf_incompatible": 1
+  }
+}

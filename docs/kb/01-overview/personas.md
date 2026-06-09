@@ -62,7 +62,7 @@ Quelle: [13-personas/for-managers.md](../13-personas/for-managers.md).
 | **Goal** | Roadmap-Fortschritt sehen, Kosten/Qualität überblicken, Architektur-Entscheidungen nachvollziehen. |
 | **Pain-Points** | Roadmap und tatsächlicher Status weichen manchmal voneinander ab — Gap-Analyse hilft. |
 | **Daily-Tasks** | Status aus [TASKS.md](../../../TASKS.md) lesen, [15-gap-analysis.md](../15-gap-analysis.md) checken, LLM-Kosten via Cloud-Billing prüfen. |
-| **Wichtige Referenzen** | [docs/product-strategy/roadmap.md](../../product-strategy/roadmap.md) *(Annahme — separates Strategie-Doc; muss verifiziert werden)*, [02-architecture/adr/](../02-architecture/adr/). |
+| **Wichtige Referenzen** | [archivierte Roadmap](../../archive/product-strategy/roadmaps/roadmap.md), [02-architecture/adr/](../02-architecture/adr/). |
 
 ## Persona-Matrix (was wer wo liest)
 

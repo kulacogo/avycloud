@@ -123,7 +123,7 @@ Verweis auf `docs/kb/05-pages/` (TBD).
 
 ## Spec
 
-- [docs/features/RULE-001-rule-engine/spec.md](../../features/RULE-001-rule-engine/spec.md) — Vollständige Spec inkl. Architektur, Datenmodell, API-Contracts, Templates, Edge-Cases.
+- [archivierte RULE-001-Spec](../../archive/features/completed/RULE-001-rule-engine-spec.md) — Vollständige Spec inkl. Architektur, Datenmodell, API-Contracts, Templates, Edge-Cases.
 
 ## Bekannte Issues
 

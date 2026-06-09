@@ -1,0 +1,4 @@
+id,createdAt,ebenen,binCount,etage,zone,gangs,regale
+XQ_GA,"{""_seconds"":1765636490,""_nanoseconds"":492000000}","[""A""]",1,GA,XQ,[1],[1]
+XS_GA,"{""_seconds"":1763739076,""_nanoseconds"":487000000}","[""A"",""B""]",4,GA,XS,[1],"[3,4]"
+X_GA,"{""_seconds"":1766417239,""_nanoseconds"":533000000}","[""A"",""B"",""C"",""D""]",4,GA,X,[1],[6]

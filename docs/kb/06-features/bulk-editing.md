@@ -123,7 +123,7 @@ Verweis auf `docs/kb/05-pages/` (TBD).
 
 ## Spec
 
-- [docs/features/BULK-001-bulk-editing/spec.md](../../features/BULK-001-bulk-editing/spec.md) — Drei-Layer-Spec mit kompletter Build-Sequenz.
+- [archivierte BULK-001-Spec](../../archive/features/completed/BULK-001-bulk-editing-spec.md) — Drei-Layer-Spec mit kompletter Build-Sequenz.
 
 ## Bekannte Issues
 

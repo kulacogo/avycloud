@@ -7,7 +7,7 @@ lastReviewed: 2026-05-18
 # Gap Analysis
 
 > **Letzter Audit-Lauf:** 2026-05-18
-> **Quelle:** [audit-kb-coverage-2026-05-18.md](_audit-runs/audit-kb-coverage-2026-05-18.md), [audit-flags-extended-2026-05-18.md](_audit-runs/audit-flags-extended-2026-05-18.md)
+> **Quelle:** [audit-kb-coverage-2026-05-18.md](../archive/audit-runs/2026-05-18/audit-kb-coverage-2026-05-18.md), [audit-flags-extended-2026-05-18.md](../archive/audit-runs/2026-05-18/audit-flags-extended-2026-05-18.md)
 > **Komplementär zu:** [17-cleanup-report.md](17-cleanup-report.md) (was zu VIEL ist)
 
 ## Methode

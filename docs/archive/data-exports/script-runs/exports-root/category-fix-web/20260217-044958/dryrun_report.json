@@ -1,0 +1,207 @@
+[
+  {
+    "sku": "SKU-0789448642",
+    "status": "skip",
+    "reason": "leaf_incompatible",
+    "query": "8029121951734",
+    "current": "Business & Industrie > Gastro & Nahrungsmittelgewerbe > Gedeckter Tisch & Servieren > Gedeckter Tisch > Restaurant Gläser > Trinkgläser",
+    "proposedPath": "Möbel & Wohnen > Kochen & Genießen > Gedeckter Tisch > Gläser & Glaswaren",
+    "resolvedId": "20658",
+    "canonical": "Möbel & Wohnen > Kochen & Genießen > Gedeckter Tisch > Serviettenringe & -halter",
+    "resolvedBy": "findEbayCategory"
+  },
+  {
+    "sku": "SKU-5135958988",
+    "status": "skip",
+    "reason": "not_in_taxonomy",
+    "query": "4059952519265",
+    "current": "Business & Industrie > Gastro & Nahrungsmittelgewerbe > Gastronomie-Küchenausstattung > Vorbereitungsgeräte > Gastronomie-Metzgereiausstattung > Messer, Beile & Sägen",
+    "proposedPath": "Garten & Terrasse > Motor-Gartengeräte > Heckenscheren"
+  },
+  {
+    "sku": "SKU-7824016126",
+    "status": "skip",
+    "reason": "leaf_incompatible",
+    "query": "LADYHOW LADYHOW Handseilzug 1215",
+    "current": "Business & Industrie > Transport & Logistik > Winden, Seilzüge & Rigging > Krane & Hebezüge > Seilzüge",
+    "proposedPath": "Heimwerker > Werkstattausrüstung > Hebezeuge > Ketten- & Seilzüge",
+    "resolvedId": "30543",
+    "canonical": "Heimwerker > Werkstattausrüstung > Werkzeugkoffer & Lagersysteme > Regalsysteme",
+    "resolvedBy": "findEbayCategory"
+  },
+  {
+    "sku": "SKU-5749801311",
+    "status": "skip",
+    "reason": "not_in_taxonomy",
+    "query": "4063544824545",
+    "current": "Business & Industrie > Großhandel & Sonderposten > Kleidung & Accessoires(Posten) > Damenbekleidung > Sonstige",
+    "proposedPath": "Kleidung & Accessoires > Damenmode > Anzüge & Kombinationen"
+  },
+  {
+    "sku": "SKU-0135090467",
+    "status": "skip",
+    "reason": "not_in_taxonomy",
+    "query": "4262427090057",
+    "current": "Business & Industrie > Sicherheit & Gebäudeinstandhaltung > Persönliche Schutzausrüstung > Sicherheitswesten",
+    "proposedPath": "Auto & Motorrad: Teile > Autozubehör > Pannen- & Notfallhilfe > Warnwesten"
+  },
+  {
+    "sku": "SKU-4870667582",
+    "status": "skip",
+    "reason": "not_in_taxonomy",
+    "query": "0614141728480",
+    "current": "Business & Industrie > Elektronik & Messtechnik > Elektronische Komponenten & Halbleiter > Halbleiter & Aktive Elemente > Integrierte Schaltungen (ICs) > Chipsätze",
+    "proposedPath": "Beauty & Gesundheit > Gesundheits- & Wellnessprodukte > Gesundheitspflege > Inhalatoren & Vernebler"
+  },
+  {
+    "sku": "SKU-5561398463",
+    "status": "skip",
+    "reason": "leaf_incompatible",
+    "query": "5902605478275",
+    "current": "Business & Industrie > Gebäudereinigung > Schädlingsbekämpfung > Schädlingsabwehr & Gifte > Polyurethan-Schaum",
+    "proposedPath": "Baby > Möbel > Wickeltische & Zubehör > Wickelauflagen",
+    "resolvedId": "66674",
+    "canonical": "Baby > Möbel > Wickeltische & Zubehör > Auflagen",
+    "resolvedBy": "findEbayCategory"
+  },
+  {
+    "sku": "SKU-0015305033",
+    "status": "skip",
+    "reason": "leaf_incompatible",
+    "query": "8719128118499",
+    "current": "Business & Industrie > Gastro & Nahrungsmittelgewerbe > Bar- & Ausschankausstattung > Bierausschanktechnik > CO2- & Stickstoffflaschen",
+    "proposedPath": "Haushaltsgeräte > Kleingeräte Küche > Wassersprudler & Filter > Wassersprudler-Zylinder",
+    "resolvedId": "20669",
+    "canonical": "Haushaltsgeräte > Kleingeräte Küche > Brotbackautomaten",
+    "resolvedBy": "findEbayCategory"
+  },
+  {
+    "sku": "SKU-3988740005",
+    "status": "skip",
+    "reason": "no_leaf_evidence",
+    "query": "4250983259612",
+    "current": "Business & Industrie > Elektronik & Messtechnik > Kabel & Leitungen > Kabelverbinder & Anschlussklemmen > Leitungs- & Kabelverbinder",
+    "proposedPath": "Heimwerker > Erneuerbare Energie > Solarenergie-Zubehör > Kabel & Steckverbinder",
+    "resolvedId": "182094",
+    "canonical": "Computer, Tablets & Netzwerk > Kabel & Steckverbinder",
+    "resolvedBy": "marketplaceLookup_leaf"
+  },
+  {
+    "sku": "SKU-1665721376",
+    "status": "skip",
+    "reason": "leaf_incompatible",
+    "query": "9504579178456",
+    "current": "Business & Industrie > Gastro & Nahrungsmittelgewerbe > Gedeckter Tisch & Servieren > Gedeckter Tisch > Restaurant Gläser > Trinkgläser",
+    "proposedPath": "Möbel & Wohnen > Kochen & Genießen > Gedeckter Tisch > Gläser & Glaswaren",
+    "resolvedId": "20658",
+    "canonical": "Möbel & Wohnen > Kochen & Genießen > Gedeckter Tisch > Serviettenringe & -halter",
+    "resolvedBy": "findEbayCategory"
+  },
+  {
+    "sku": "SKU-6803336223",
+    "status": "noop",
+    "query": "781513603581",
+    "current": "Business & Industrie > Sicherheit & Gebäudeinstandhaltung > Persönliche Schutzausrüstung > Arbeitshandschuhe",
+    "resolvedId": "67023",
+    "canonical": "Business & Industrie > Sicherheit & Gebäudeinstandhaltung > Persönliche Schutzausrüstung > Arbeitshandschuhe",
+    "resolvedBy": "marketplaceLookup_leaf"
+  },
+  {
+    "sku": "SKU-3046032177",
+    "status": "skip",
+    "reason": "not_in_taxonomy",
+    "query": "6972200196132",
+    "current": "Briefmarken > Afrika > Niger",
+    "proposedPath": "Haushaltsgeräte > Staubsauger & Reinigungsgeräte > Staubsauger"
+  },
+  {
+    "sku": "SKU-7473377331",
+    "status": "would_update",
+    "query": "840006667636",
+    "current": "Münzen > Historische Wertpapiere > USA & Kanada > Elektronik & Computer",
+    "currentId": "8012",
+    "proposedPath": "Computer, Tablets & Netzwerk > Computer-Komponenten & -Teile > Netzteile",
+    "resolvedId": "42017",
+    "canonical": "Computer, Tablets & Netzwerk > Computer-Komponenten & -Teile > Netzteile",
+    "resolvedBy": "marketplaceLookup"
+  },
+  {
+    "sku": "SKU-7721659409",
+    "status": "skip",
+    "reason": "not_in_taxonomy",
+    "query": "DB-Tronic SKU-7721659409",
+    "current": "Münzen > Historische Wertpapiere > USA & Kanada > Elektronik & Computer",
+    "proposedPath": "Computer, Tablets & Netzwerk > Einplatinencomputer & Mikrocontroller > Einplatinencomputer"
+  },
+  {
+    "sku": "SKU-8483173682",
+    "status": "skip",
+    "reason": "not_in_taxonomy",
+    "query": "9783956195242",
+    "current": "Briefmarken > Motive > Geschichte",
+    "proposedPath": "Bücher, Comics & Zeitschriften > Bücher"
+  },
+  {
+    "sku": "SKU-9876441475",
+    "status": "skip",
+    "reason": "not_in_taxonomy",
+    "query": "9783845118116",
+    "current": "Filme & Serien > Film-Fanartikel > Bücher & Skripte",
+    "proposedPath": "Bücher, Zeitschriften & Zeitungen > Bücher"
+  },
+  {
+    "sku": "SKU-2365442999",
+    "status": "skip",
+    "reason": "no_leaf_evidence",
+    "query": "Unbekannt Unbekannt Gastronorm-Behälter 176mm 2.4 Liter Edelstahl 150mm",
+    "current": "Business & Industrie > Gastro & Nahrungsmittelgewerbe > Gedeckter Tisch & Servieren > Buffet & Catering > Gastronorm-Behälter",
+    "proposedPath": "Möbel & Wohnen > Kochen & Genießen > Ordnung & Aufbewahrung > Vorratsgefäße & -gläser",
+    "resolvedId": "20654",
+    "canonical": "Möbel & Wohnen > Kochen & Genießen > Ordnung & Aufbewahrung > Vorratsgefäße & -gläser",
+    "resolvedBy": "marketplaceLookup"
+  },
+  {
+    "sku": "SKU-7957694387",
+    "status": "would_update",
+    "query": "4047371128199",
+    "current": "Münzen > Historische Wertpapiere > USA & Kanada > Elektronik & Computer",
+    "currentId": "8012",
+    "proposedPath": "Musikinstrumente > Pro-Audio Equipment > Ständer & Stative",
+    "resolvedId": "29948",
+    "canonical": "Musikinstrumente > Pro-Audio Equipment > Ständer & Stützen",
+    "resolvedBy": "findEbayCategory"
+  },
+  {
+    "sku": "SKU-5238535935",
+    "status": "skip",
+    "reason": "no_leaf_evidence",
+    "query": "8747930156231",
+    "current": "Business & Industrie > Automation, Antriebe & Motoren > Antriebe & Bewegungssteuerung > Motorenantriebe & Steuerungen",
+    "proposedPath": "Sport > Funsport > Elektro-Scooter > Self Balance Scooter",
+    "resolvedId": "47349",
+    "canonical": "Sport > Funsport > Elektro-Scooter",
+    "resolvedBy": "findEbayCategory"
+  },
+  {
+    "sku": "SKU-4465485856",
+    "status": "skip",
+    "reason": "leaf_incompatible",
+    "query": "4260120779378",
+    "current": "Business & Industrie > Gastro & Nahrungsmittelgewerbe > Gastronomie-Küchenausstattung",
+    "proposedPath": "Möbel & Wohnen > Kochen & Genießen > Serviergeschirr > Warmhalteplatten & Speisewärmer",
+    "resolvedId": "177011",
+    "canonical": "Möbel & Wohnen > Kochen & Genießen > Backzubehör & Kuchendekoration > Deko-Werkzeug > Fondant- & Schokoladenformen",
+    "resolvedBy": "findEbayCategory"
+  },
+  {
+    "sku": "SKU-1053914877",
+    "status": "would_update",
+    "query": "7321011854844",
+    "current": "Business & Industrie > Dienstleistungen > Partys, Catering & Events > Sonstige",
+    "currentId": "110763",
+    "proposedPath": "Möbel & Wohnen > Kochen & Genießen > Gedeckter Tisch > Tischwäsche > Tischdecken",
+    "resolvedId": "20663",
+    "canonical": "Möbel & Wohnen > Kochen & Genießen > Gedeckter Tisch > Tischdecken",
+    "resolvedBy": "findEbayCategory"
+  }
+]

@@ -1,0 +1,1221 @@
+{
+  "summary": {
+    "total": 173,
+    "synced": 173,
+    "failed": 0,
+    "other": 0
+  },
+  "results": [
+    {
+      "id": "00872299043330",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 485930713,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "0098931289601",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 491621018,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "0099557e-b9f0-45a4-9c7c-d6418e7daac5",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 473049821,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "0197777317636",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 514940626,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "0652ed9b-7af0-4390-809b-ab3ae8a75fdd",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 499981089,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "07901010300000",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 467513671,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "0800633445532",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 491621239,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "0810123671069",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 465111098,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "0814914026519",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 484709451,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "09be7756-7b4f-4dda-bda0-799754052fff",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 467385468,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "0d94ddad-a508-4700-bbb8-b2b315ee44a3",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 514941431,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "1004200304684",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 473049813,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "1018510600326",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 514941809,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "1055333038622",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 514941855,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "14006633314036",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 467473501,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "18023030150200",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 484714753,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "182c0593-5b66-4304-80fa-d1a56eb08210",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 473049898,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "1900201150572",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 467513300,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "20220424000047",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 473189266,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "2024080701046",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 473189306,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "20250518576436",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 514942276,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "2290601009009",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 476175324,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "2640f8be-81e3-4d78-b73c-14f234d26721",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 489020796,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "28ea2956-bd28-4fd6-afb4-bf3707ca4cf1",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 518401115,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "2d3f8a0d-2c5f-4852-a241-8281d55e418a",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 489021110,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "31080024102010",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 476175269,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "3154020086005",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 467514564,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "3165143111321",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 467473614,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "395730b7-67d0-4880-a770-f85086b71052",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 489022050,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "3f04dd7f-e8a9-4c1e-9b07-793fa6c539c9",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 518401153,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "4005046205217",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 489022680,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "4006633310222",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 467473617,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "4009384341071",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 465272140,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "4010886516256",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 465108003,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "4013556577007",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 464298782,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "4013556577144",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 464298809,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "4023103244009",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 465272159,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "4027816273868",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 467476162,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "4030434105633",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 476175293,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "4036021579191",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 486212653,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "4040074053454",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 467474894,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "4040074266946",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 467549470,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "4046001447266",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 467476418,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "4047059413104",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 465272155,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "4052138007280",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 476510014,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "4063544824545",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 489026464,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "4064502768789",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 514944727,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "4067266427367",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 489688584,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "4067266427374",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 489182011,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "4067266427381",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 489182043,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "4067266427398",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 489182030,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "4067266427404",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 489182136,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "4069092282370",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 465273421,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "4082300855241",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 467476419,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "4211125274160",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 491624706,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "4251665310447",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 491624637,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "4260526472194",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 467476726,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "4260540640876",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 517265634,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "4270001051905",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 467476724,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "4906958001464",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 467527296,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "4958043515530",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 518402700,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "4dd32c21-2afe-4c13-b354-605f97e6f590",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 476219900,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "5010996282880",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 476236714,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "5055350245538",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 499986878,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "5060570201660",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 476547664,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "5111359756525",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 491625224,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "52820776-34bb-4776-b728-06c521593d3a",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 476525545,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "5702017567501",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 476548413,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "5715422473657",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 489182991,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "5722008213828",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 491625271,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "57380a89-b13c-470c-8167-aa51b43eb78e",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 467476972,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "578c3341-658b-46d1-b419-b4ce60b534a5",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 467476970,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "5902811100663",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 489183278,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "5904270013775",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 467477119,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "5908242693453",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 467477094,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "596430bd-0f13-4c6e-83ed-b34e9afb9778",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 514946429,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "60539f7f-f556-4103-bc2c-cc17f5a455c3",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 481212553,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "6078c5f0-fb52-4c9c-b795-12a136ba6c79",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 467477308,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "6957303824717",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 489183295,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "6972782765627",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 508516949,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "7212913647233",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 476372298,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "7316577150929",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 467533465,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "74429111967912",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 467533464,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "7613709517538",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 514947326,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "7649988997723",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 489184070,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "8033805473085",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 499990525,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "8051385880857",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 504385847,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "8052694010041",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 465278478,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "8058138600380",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 514947690,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "8058992115532",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 518403205,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "8088208802015",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 489183973,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "8435017325303",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 489027162,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "8712013813820",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 476389909,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "8712364370409",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 489688890,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "8717475102703",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 467527298,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "8719076052258",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 465278485,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "8719115000028",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 480589246,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "8719769449228",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 514948200,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "8720639011261",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 514948835,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "8720646475988",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 489184725,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "8720672452144",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 493973829,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "8720672452151",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 493971485,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "8720672452168",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 493975036,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "8720672452250",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 493982185,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "8720672452267",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 493975264,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "8720672452274",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 493973434,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "8720672452281",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 493974113,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "8720672543033",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 493983636,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "8b41bda6-bc97-4d34-8644-f081c7d180cb",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 476399956,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "8bc07ed5-5cee-4d00-abb3-00dd4f20439d",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 467478011,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "9002759957889",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 491627999,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "90090043468127",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 467527299,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "SKU-0058749943",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 463190152,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "SKU-0172791378",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 449821071,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "SKU-0522930788",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 459737337,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "SKU-0611814591",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 458974924,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "SKU-0698797502",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 458457459,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "SKU-1181918814",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 462091600,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "SKU-1230781227",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 449821878,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "SKU-1419839651",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 458456584,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "SKU-1782951292",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 462106849,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "SKU-1825816304",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 462110860,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "SKU-1961998362",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 465038138,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "SKU-2151943751",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 458470102,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "SKU-2561166298",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 458459208,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "SKU-2566552410",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 458453071,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "SKU-2609353370",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 449822721,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "SKU-2621538468",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 449826140,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "SKU-2633108165",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 465090922,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "SKU-2636479706",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 458454058,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "SKU-3095199472",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 458453033,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "SKU-3132130051",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 458453023,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "SKU-3149269291",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 449822230,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "SKU-3210037840",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 465097958,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "SKU-3475457190",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 458479465,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "SKU-3622017850",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 459966535,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "SKU-3818412905",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 458453067,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "SKU-4008377248",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 458453056,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "SKU-4118229261",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 465097988,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "SKU-4541378818",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 462181513,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "SKU-4561934561",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 449821605,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "SKU-4607569519",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 465100160,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "SKU-4679981655",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 458470427,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "SKU-4919757592",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 458478956,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "SKU-4930006198",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 449821333,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "SKU-5127373339",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 458506064,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "SKU-5780092798",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 462237005,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "SKU-6148008788",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 458975013,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "SKU-6315915149",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 458470397,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "SKU-6369067650",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 465103281,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "SKU-7499091535",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 449821192,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "SKU-7627745924",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 449821792,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "SKU-8064565799",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 458975017,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "SKU-8112287411",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 458468605,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "SKU-8747609895",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 449824232,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "SKU-9031958971",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 449824146,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "SKU-9289261489",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 458474714,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "SKU-9317337160",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 465283074,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "SKU-9454243198",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 458470408,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "SKU-9820031170",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 449824067,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "SKU-9979752242",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 465284299,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "SKU-9988960743",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 458468907,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "a428eb0d-0983-4acc-9d11-6ef647bf1798",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 514948628,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "a52ad537-120e-426d-9887-f873d36bcdaa",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 489186241,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "acbaf936-25b4-4850-a552-4af9871abe8c",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 489027495,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "ad08f46f-d233-4c4f-b5c5-bc803ce5018e",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 476400081,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "c02f6527-8651-429c-8022-31eb90f6aaaa",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 467527321,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "c6d932e0-cd68-4d66-8212-d98f5d10e8d2",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 467533470,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "e0c07c0f-ca71-4706-87a1-506ba3c139ca",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 514949181,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "e26d55d7-61d2-463d-9bb8-44a4c2e4c090",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 508518502,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "e29c131f-ec89-434c-b216-90f28330918d",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 467533485,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "ecaf5cd2-6c48-4634-bd6f-34445eb5a00a",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 514949429,
+      "baseProductIdSource": "product.ops"
+    },
+    {
+      "id": "fad41e15-2900-414a-b739-2ed02d4394fe",
+      "status": "synced",
+      "message": "Synced (text_fields only)",
+      "baseProductId": 467533508,
+      "baseProductIdSource": "product.ops"
+    }
+  ]
+}

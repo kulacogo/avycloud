@@ -1,0 +1,5271 @@
+{
+  "summary": {
+    "total": 763,
+    "synced": 723,
+    "failed": 40,
+    "other": 0
+  },
+  "results": [
+    {
+      "id": "00174600185032",
+      "status": "failed",
+      "message": "BaseLinker Kategorie fehlt"
+    },
+    {
+      "id": "0019451391762",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 504380894,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "00442039661193",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 467513684,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "0060cdec-9193-411b-af64-4754ca0226bd",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 465111088,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "00619498373000",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 514940672,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "00872299043330",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 485930713,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "0098931289601",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 491621018,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "0099557e-b9f0-45a4-9c7c-d6418e7daac5",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 473049821,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "0191169564783",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 504381602,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "0196214105119",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 467385470,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "0197777317636",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 514940626,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "0198303486543",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 484709398,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "0250237001502",
+      "status": "failed",
+      "message": "BaseLinker Kategorie fehlt"
+    },
+    {
+      "id": "03142017000003",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 467473381,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "0402019292922",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 486559124,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "04052938000016",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 467473379,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "04250859611636",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 518400757,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "04262372160096",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 508515095,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "0456566400136",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 499981015,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "054cc567-225b-481e-a9c6-b05e5af6e042",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 514940698,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "0562769421460",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 499981058,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "0615272916159",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 491621064,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "0652ed9b-7af0-4390-809b-ab3ae8a75fdd",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 499981089,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "0700153955478",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 467473380,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "0703212290001",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 504404597,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "07901010300000",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 467513671,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "0800633445532",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 491621239,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "0810043373685",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 508515067,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "0810123671069",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 465111098,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "0814914026519",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 484709451,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "0840353901100",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 484709463,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "09be7756-7b4f-4dda-bda0-799754052fff",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 467385468,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "0d94ddad-a508-4700-bbb8-b2b315ee44a3",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 514941431,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "1004200304684",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 473049813,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "1004393023135",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 499981363,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "1011190149611",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 473047241,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "1018510600326",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 514941809,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "1055333038622",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 514941855,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "11850025732208",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 484714743,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "12192006315063",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 499981441,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "1294514013516",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 504418609,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "13544006636695",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 508515085,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "14006633314036",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 467473501,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "1472920275814",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 467385469,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "14f93c3a-6902-4da3-8a00-991a13958570",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 476509916,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "1507000192029",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 467380161,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "1516171646061",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 508515372,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "1795362000001",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 488457239,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "17b6a516-9f48-4d61-ac69-7a2633ee0332",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 518400721,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "18023030150200",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 484714753,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "182c0593-5b66-4304-80fa-d1a56eb08210",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 473049898,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "1852315181124",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 488505117,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "1853864926223",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 492850586,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "1900201150572",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 467513300,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "1900201900525",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 467473502,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "19303435363740",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 499981734,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "1bdce1f7-aa59-4b85-a9a8-3488141ae012",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 487361824,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "1d5b4c7f-5b0b-42ac-a3a4-1ff4ce852794",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 487361823,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "1e369bf5-e5e6-460c-b595-8a08a2bbaf2d",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 467473615,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "1ef0194d-907c-4fb8-9102-bdf632c18fe6",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 518400741,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "1f9cd161-e4dd-4fd0-98d8-8e8a16ed9287",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 508515336,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "2021181818184",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 491621852,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "20220424000047",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 473189266,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "20221212000014",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 489024424,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "20221705000003",
+      "status": "failed",
+      "message": "BaseLinker Kategorie fehlt"
+    },
+    {
+      "id": "2024010542503",
+      "status": "failed",
+      "message": "BaseLinker Kategorie fehlt"
+    },
+    {
+      "id": "20240129000072",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 467513707,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "2024080701046",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 473189306,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "20250518576436",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 514942276,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "2074133001002",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 465111103,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "2290601009009",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 476175324,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "2312388888888",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 467514082,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "24196924186507",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 487361826,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "2437760239514",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 508515332,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "2452014202112",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 467527271,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "247e01a5-fa99-4b01-be0a-fefbe97a145d",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 467514567,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "2493370000004",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 489020645,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "25004695020111",
+      "status": "failed",
+      "message": "BaseLinker Kategorie fehlt"
+    },
+    {
+      "id": "2640f8be-81e3-4d78-b73c-14f234d26721",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 489020796,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "2810449728013",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 467473504,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "28ea2956-bd28-4fd6-afb4-bf3707ca4cf1",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 518401115,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "295c4789-b314-43ba-a18c-274b6ac422ef",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 489020673,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "2d1365d3-cea9-4187-8daa-ea7ed01bf2a2",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 497952264,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "2d3f8a0d-2c5f-4852-a241-8281d55e418a",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 489021110,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "2f144eb7-126a-43ac-90cc-c6dbf899a7d6",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 487365293,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "3016203080128",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 508515537,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "3031321404445",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 514942372,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "3045380024533",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 508515528,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "30c418b6-000b-47e9-8252-3478b4693cda",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 473189030,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "31080024102010",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 476175269,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "31253003125300",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 508515532,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "3154020086005",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 467514564,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "3165143111321",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 467473614,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "3219110502725",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 492850561,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "3276428373058",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 514942612,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "3322937241712",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 467473506,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "3339082c-5066-4322-a318-4b8732a19d83",
+      "status": "failed",
+      "message": "BaseLinker Kategorie fehlt"
+    },
+    {
+      "id": "3374650257716",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 473188306,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "34bb265f-a1ad-4850-a2ec-71bf44c1ad68",
+      "status": "failed",
+      "message": "BaseLinker Kategorie fehlt"
+    },
+    {
+      "id": "3558380099390",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 473188370,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "3573994006336",
+      "status": "failed",
+      "message": "BaseLinker Kategorie fehlt"
+    },
+    {
+      "id": "3613379433101",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 489021502,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "3662775243128",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 467473616,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "36f71981-e45d-478a-a80d-4e665f0e3352",
+      "status": "failed",
+      "message": "BaseLinker Kategorie fehlt"
+    },
+    {
+      "id": "3700436086780",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 499982613,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "3701425602462",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 499982615,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "3770010398363",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 467476316,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "3800861117162",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 517266641,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "395730b7-67d0-4880-a770-f85086b71052",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 489022050,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "39efa6f8-6aa9-4d2a-8999-97a80cda44ea",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 508515741,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "3aaed3ff-192f-4dbf-a8da-da12514e14b8",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 504405292,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "3f04dd7f-e8a9-4c1e-9b07-793fa6c539c9",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 518401153,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "3f1a8ee4-8e40-4f90-af9a-deade528551c",
+      "status": "failed",
+      "message": "BaseLinker Kategorie fehlt"
+    },
+    {
+      "id": "3f55c3c8-0603-4563-be53-8591b104d26e",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 489022295,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4000660171795",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 518401072,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4001690500234",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 489022119,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4001807905976",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 492850711,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4001807906881",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 492850761,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4003318620911",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 467476315,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4003773014232",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 514943180,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4004133669093",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 465112797,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4005046205217",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 489022680,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4005176388538",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 504381292,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4005414511612",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 473211933,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4006094887004",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 473213026,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4006387029807",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 465107999,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4006387050412",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 491621988,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4006633310222",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 467473617,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4007060000236",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 489022994,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4007065867636",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 489022944,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4007066272026",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 489023216,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4007066810273",
+      "status": "failed",
+      "message": "BaseLinker Kategorie fehlt"
+    },
+    {
+      "id": "4007126365101",
+      "status": "failed",
+      "message": "BaseLinker Kategorie fehlt"
+    },
+    {
+      "id": "4007126366610",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 499983338,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4008177077142",
+      "status": "failed",
+      "message": "BaseLinker Kategorie fehlt"
+    },
+    {
+      "id": "4009384341071",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 465272140,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4009384458304",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 465280625,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4010886516256",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 465108003,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4011097314013",
+      "status": "failed",
+      "message": "BaseLinker Kategorie fehlt"
+    },
+    {
+      "id": "4011097314037",
+      "status": "failed",
+      "message": "BaseLinker Kategorie fehlt"
+    },
+    {
+      "id": "4011097775111",
+      "status": "failed",
+      "message": "BaseLinker Kategorie fehlt"
+    },
+    {
+      "id": "4011097792026",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 504417928,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4011558058401",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 514943298,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4013361212134",
+      "status": "failed",
+      "message": "BaseLinker Kategorie fehlt"
+    },
+    {
+      "id": "4013556577007",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 464298782,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4013556577076",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 464298793,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4013556577120",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 464298807,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4013556577144",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 464298809,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4013556592796",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 464298810,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4013594537810",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 473213041,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4015413341981",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 517270563,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4016417025303",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 465112806,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4023103244009",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 465272159,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4025457166471",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 489023773,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4026947097541",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 489024228,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4027816273868",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 467476162,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4027816321033",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 467474755,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4030434105633",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 476175293,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4034144003036",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 473223837,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4034398403774",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 508515810,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4034398403828",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 518401477,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4036021157276",
+      "status": "failed",
+      "message": "BaseLinker Kategorie fehlt"
+    },
+    {
+      "id": "4036021157795",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 514943635,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4036021163093",
+      "status": "failed",
+      "message": "BaseLinker Kategorie fehlt"
+    },
+    {
+      "id": "4036021579191",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 486212653,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4040074053454",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 467474894,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4040074122754",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 473224960,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4040074137246",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 467514130,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4040074266946",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 467549470,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4041248145418",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 467474893,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4041248434536",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 467474896,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4041248450864",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 467474903,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4041248450871",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 467474900,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4041248450888",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 467476189,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4043861438014",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 504411629,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4043962306996",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 467476317,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4046001447266",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 467476418,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4046068604954",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 508515788,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4047059413104",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 465272155,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4049369015061",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 518401573,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4052138007280",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 476510014,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4052199275499",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 508515931,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4052199582351",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 508515952,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4053202268477",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 476182574,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4053479285122",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 465273410,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4053838528228",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 499985127,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4055333068964",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 489025786,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4058213275186",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 504398657,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4058213275261",
+      "status": "failed",
+      "message": "BaseLinker Kategorie fehlt"
+    },
+    {
+      "id": "4059625316214",
+      "status": "failed",
+      "message": "BaseLinker Kategorie fehlt"
+    },
+    {
+      "id": "4059625401927",
+      "status": "failed",
+      "message": "BaseLinker Kategorie fehlt"
+    },
+    {
+      "id": "4061275132182",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 491623264,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4061393249854",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 499985156,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4061462474781",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 517178083,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4061504006000",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 491623664,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4061504016139",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 491623731,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4061945368361",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 504414336,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4062493521000",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 514944479,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4062493735872",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 489025803,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4063217299953",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 465107989,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4063367064357",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 489026231,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4063382129727",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 517267505,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4063541990120",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 476182584,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4063543580763",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 489026093,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4063544208888",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 476200784,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4063544824545",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 489026464,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4063846033713",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 489181873,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4064464829931",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 492850891,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4064502768789",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 514944727,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4064886306904",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 489181810,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4065377033750",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 514944831,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4066224571531",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 518401814,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4066551928015",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 489181898,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4067266427367",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 489688584,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4067266427374",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 489182011,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4067266427381",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 489182043,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4067266427398",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 489182030,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4067266427404",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 489182136,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4067266427411",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 488094185,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4067522073659",
+      "status": "failed",
+      "message": "BaseLinker Kategorie fehlt"
+    },
+    {
+      "id": "4069092282370",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 465273421,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4078500055604",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 476200511,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4082300855241",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 467476419,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4100420037405",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 476200310,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4100420037412",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 476201135,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4100420206474",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 467514576,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4211125274160",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 491624706,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4250153617556",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 465274650,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4250358601817",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 467476420,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4250454729170",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 465274659,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4250518576153",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 489182261,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4251175827556",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 467476534,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4251665310447",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 491624637,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4251806427775",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 476216251,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4255599753875",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 514945363,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4260120775608",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 518401994,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4260168332719",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 485998935,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4260281755686",
+      "status": "failed",
+      "message": "BaseLinker Kategorie fehlt"
+    },
+    {
+      "id": "4260332056441",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 518402227,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4260443571086",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 476510048,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4260477289667",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 508516067,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4260499852344",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 467476527,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4260526472194",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 467476726,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4260527480433",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 491624601,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4260532290669",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 476219230,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4260540640425",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 518402181,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4260540640876",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 517265634,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4260600260419",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 508516269,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4260613499578",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 485963049,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4260716810041",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 489182272,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4260755120385",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 488078915,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4262382491098",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 491625419,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4262405220148",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 465274669,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4262427090057",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 476524830,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4262472110243",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 476236056,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4270001051905",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 467476724,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "43422328612861",
+      "status": "failed",
+      "message": "BaseLinker Kategorie fehlt"
+    },
+    {
+      "id": "436ccc2b-8047-41a7-955c-6b4b2626a124",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 508516204,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "45005591930000",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 476236252,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "46212223242526",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 508516588,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4806633149839",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 467476553,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "48093417-f9ef-497f-96a7-e17838a5280f",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 489026812,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "48fe16c6-bdc6-42f6-862e-fc9eb4962c93",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 476524656,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "49035818999884",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 489182374,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4906958001464",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 467527296,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4909500898543",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 467476727,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4917616740531",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 488088781,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4940538092888",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 508516667,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4958043515516",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 518402433,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4958043515530",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 518402700,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4958043515554",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 518402776,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4960999610955",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 467476847,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "4dd32c21-2afe-4c13-b354-605f97e6f590",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 476219900,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "5010996282880",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 476236714,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "5011987005952",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 476547233,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "5020570328828",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 489182506,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "5025155058336",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 489182553,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "5050192020075",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 489182613,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "5055350245538",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 499986878,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "5055350248140",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 476241691,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "5056106718191",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 508516653,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "5056106718207",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 508516802,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "5059556144763",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 499986923,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "5059556377703",
+      "status": "failed",
+      "message": "BaseLinker Kategorie fehlt"
+    },
+    {
+      "id": "5059556377758",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 499987026,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "5059556444917",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 504398830,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "5059732709403",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 489688591,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "5060570201660",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 476547664,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "5060941713129",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 465275945,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "5063019974637",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 489182739,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "5111359756525",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 491625224,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "5265145c-c73e-4905-b442-9584eb0b5d89",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 489688589,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "52820776-34bb-4776-b728-06c521593d3a",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 476525545,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "52876b9a-421b-4a98-a347-a13d9e88b434",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 514945167,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "52c25fb6-2f7a-48b8-8f85-430a36f26fae",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 499987105,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "5400585052930",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 492850890,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "5400806991130",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 504394637,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "5400898678865",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 499987258,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "5401105149574",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 504415712,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "54c1a366-798b-42bf-9014-95729468c623",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 467533484,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "56cdbf05-ce59-43c9-be15-6cc63c6dae93",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 464035688,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "5702015867535",
+      "status": "failed",
+      "message": "BaseLinker Kategorie fehlt"
+    },
+    {
+      "id": "5702017153599",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 476548144,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "5702017567501",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 476548413,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "5713487061253",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 476359386,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "5713487061277",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 476359403,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "5713504000661",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 492850956,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "5713842433497",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 514945556,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "5714487284420",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 489182852,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "5714508372894",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 489688592,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "5715313967852",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 499987799,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "5715335047020",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 489182937,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "5715422473657",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 489182991,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "5715553520374",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 518403020,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "5715574371849",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 489183055,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "5722008213828",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 491625271,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "57380a89-b13c-470c-8167-aa51b43eb78e",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 467476972,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "576b0538-f1ce-47a2-824e-0297a80247a5",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 514946050,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "578c3341-658b-46d1-b419-b4ce60b534a5",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 467476970,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "5820082016105",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 468322483,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "5900811829102",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 465275951,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "5901532626087",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 467476969,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "5902211129912",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 514946289,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "5902605478275",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 492851140,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "5902811100663",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 489183278,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "5904270013775",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 467477119,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "5908242693453",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 467477094,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "59151383083624",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 476359286,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "596430bd-0f13-4c6e-83ed-b34e9afb9778",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 514946429,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "5efeec09-d60d-46ef-a4cd-3cf4d9a6f564",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 508516900,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "60539f7f-f556-4103-bc2c-cc17f5a455c3",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 481212553,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "6078c5f0-fb52-4c9c-b795-12a136ba6c79",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 467477308,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "61921411800024",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 499988387,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "61cb13b8-ef09-4959-821e-c2d63fcd8038",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 489026717,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "6220160202030",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 510885018,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "651b7ad5-c22a-4295-ae75-f78af064e2cd",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 514946774,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "680a3eea-2f84-4e25-9106-8cbcaeefe72c",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 504399664,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "6922738000364",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 464302815,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "6941057422886",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 476372121,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "6941876218462",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 489183312,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "6954850111741",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 464303135,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "6957303824717",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 489183295,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "6972782765627",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 508516949,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "6acf0526-65bd-4c5a-bd00-abe9bfb5f483",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 489183604,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "6be95318-1354-4b38-9526-aab48b727982",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 467477301,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "7082024102510",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 467477315,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "7212913647233",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 476372298,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "7290006780805",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 465277230,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "7290116742380",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 465277231,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "7313020097503",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 491625823,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "7316577150929",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 467533465,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "7319f91f-5656-490e-bdfa-0aa526b0a9d1",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 499989221,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "7322780072569",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 508517106,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "7325549884427",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 467533463,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "7325706169114",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 504410821,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "7325707913594",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 499989311,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "7325720928841",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 489183572,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "7332543751525",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 508517205,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "7332543822751",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 508517228,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "7394410136491",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 508517410,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "74429111967912",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 467533464,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "74667d87-aea5-40ee-ab65-f01b9c820e62",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 508517490,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "7538f896-fb64-40ee-a606-65e08665fc2a",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 491625788,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "76113588807201",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 491626608,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "7611916163227",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 465277232,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "7613108798545",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 504396953,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "7613108802860",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 504405449,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "7613109117017",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 491626761,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "7613136901818",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 489183649,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "7613709517538",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 514947326,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "7630751727135",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 488052027,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "763e9b24-a1d8-4ff7-9103-553bf078e49c",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 514947218,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "7640169714771",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 508517444,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "7640415026184",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 491627108,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "7649988997723",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 489184070,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "76a7cc4f-9aa4-4149-ad6b-9cc4ef1dc1df",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 476389851,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "7778bbb4-0a11-414b-a323-1573ab313f48",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 467533468,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "7af13bca-f166-45e6-a55e-31a3ec9bad64",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 518403117,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "7b442083-e5d5-43c0-92ef-76c6432fe919",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 467533467,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "7c4d3bb6-e7a1-4fa0-aa88-3da9b25134d8",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 491627248,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "7f48539c-7e01-452d-9cf8-373d709440f9",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 508517685,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "8003558071647",
+      "status": "failed",
+      "message": "BaseLinker Kategorie fehlt"
+    },
+    {
+      "id": "8003558101221",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 489688594,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "8003558101238",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 489688634,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "80035581118830",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 489688704,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "8004815313234",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 488068691,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "8019606021557",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 489027192,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "8026196116716",
+      "status": "failed",
+      "message": "BaseLinker Kategorie fehlt"
+    },
+    {
+      "id": "8033805473085",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 499990525,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "8051385880857",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 504385847,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "8052694010041",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 465278478,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "8058138600380",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 514947690,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "8058992115532",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 518403205,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "8088208802015",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 489183973,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "81715585302754",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 489184098,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "81717285233178",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 476389691,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "83e404aa-90ab-4ebe-a933-039625bb1df9",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 480589133,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "8435017325303",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 489027162,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "8445621048635",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 518403558,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "8445623762195",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 504409221,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "8445623774655",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 504405494,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "849e919f-0898-4df7-8fbb-e141c351cba4",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 489184354,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "85020cb2-38be-42d7-a2d1-bb5aa92d9e36",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 467533471,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "8712013813820",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 476389909,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "8712026440952",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 497025814,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "8712026447449",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 489688891,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "8712364370409",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 489688890,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "8712930172352",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 514947969,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "8717475102703",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 467527298,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "8718042150288",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 467478016,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "8719076052258",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 465278485,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "8719114322466",
+      "status": "failed",
+      "message": "BaseLinker Kategorie fehlt"
+    },
+    {
+      "id": "8719115000028",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 480589246,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "8719769449228",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 514948200,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "8719922586272",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 514948205,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "8720245556002",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 489184292,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "8720389034565",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 492851071,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "8720636438269",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 504407877,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "8720639011261",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 514948835,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "8720644940723",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 499991432,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "8720646475988",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 489184725,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "8720646487387",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 488047821,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "8720646885909",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 504409915,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "8720646885916",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 504396877,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "8720672452137",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 493982950,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "8720672452144",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 493973829,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "8720672452151",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 493971485,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "8720672452168",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 493975036,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "8720672452250",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 493982185,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "8720672452267",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 493975264,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "8720672452274",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 493973434,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "8720672452281",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 493974113,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "8720672457576",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 493965028,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "8720672457583",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 493966547,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "8720672457590",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 493982312,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "8720672457606",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 493969717,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "8720672457613",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 493978215,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "8720672457620",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 493983383,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "8720672457644",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 493983365,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "8720672457651",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 493965240,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "8720672457682",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 493979932,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "8720672457705",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 493973542,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "8720672457712",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 493979194,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "8720672457736",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 493970758,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "8720672543033",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 493983636,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "8720676510376",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 489184620,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "8720828172452",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 465280616,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "8720892260901",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 489688894,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "8b18f8c1-5ced-4f9d-989d-35fb729415fe",
+      "status": "failed",
+      "message": "BaseLinker Kategorie fehlt"
+    },
+    {
+      "id": "8b41bda6-bc97-4d34-8644-f081c7d180cb",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 476399956,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "8bc07ed5-5cee-4d00-abb3-00dd4f20439d",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 467478011,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "8c326f7a-d1df-447c-ab0c-c39d136ac565",
+      "status": "failed",
+      "message": "BaseLinker Kategorie fehlt"
+    },
+    {
+      "id": "9001778410887",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 491627441,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "9002759957889",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 491627999,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "90090043468127",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 467527299,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "9101113151619",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 508517786,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "9101213141516",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 508517922,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "9132580602006",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 465280624,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "914f7e36-2a57-4a6c-94e3-441532afad65",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 467533469,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "9368205000005",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 489185872,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "9504579178456",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 499992301,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "95501012009291",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 504410861,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "9598aed7-fe7a-426e-afcc-08ca0d925270",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 492851312,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "992c90f7-4b46-4306-8849-68b584459a4d",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 489185849,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "9aff4795-bed9-4a09-ba98-77c2e138b511",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 468324400,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "9e35f9b4-5df8-4db7-9dd7-31e4491488ef",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 489185837,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-0000524938",
+      "status": "failed",
+      "message": "ERROR_PRODUCT_ID: No product with ID 462089163"
+    },
+    {
+      "id": "SKU-0058749943",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 463190152,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-0110888325",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458465245,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-0114729665",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458456583,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-0152828115",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 463191244,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-0172791378",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 449821071,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-0236764953",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 463235479,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-0280699295",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458453030,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-0310087435",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 449821704,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-0362404564",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 449822902,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-0403766178",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458470419,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-0411747828",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458462471,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-0522930788",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 459737337,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-0611814591",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458974924,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-0619911931",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 449822976,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-0651722148",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 449821438,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-0698797502",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458457459,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-0785869755",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 449822125,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-0808524453",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458460887,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-0871959830",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 462089181,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-0974179694",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 462089960,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-0982370040",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458469209,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-0989494543",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458456587,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-1040274599",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458473855,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-1066852367",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458467745,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-1153910217",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 462090779,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-1181918814",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 462091600,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-1230781227",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 449821878,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-1419839651",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458456584,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-1483282001",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 465027644,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-1566313678",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458472538,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-1612836881",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 462092417,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-1618101796",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458513307,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-1782951292",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 462106849,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-1789286937",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458974880,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-1825816304",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 462110860,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-1887574140",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 449823156,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-1937479862",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 454979099,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-1961998362",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 465038138,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-2019125675",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 462106216,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-2114384722",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458468329,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-2123165909",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 462109943,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-2135446963",
+      "status": "failed",
+      "message": "ERROR_PRODUCT_ID: No product with ID 458514654"
+    },
+    {
+      "id": "SKU-2151943751",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458470102,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-2152217706",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 459794734,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-2384085318",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458456175,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-2384804976",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458453020,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-2388529978",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458469510,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-2391228513",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458456589,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-2417212434",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 459967606,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-2561166298",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458459208,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-2566552410",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458453071,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-2609353370",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 449822721,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-2611077541",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458456653,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-2621538468",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 449826140,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-2633108165",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 465090922,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-2636479706",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458454058,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-2638568297",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458468908,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-2638580995",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 449822798,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-2690684566",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 465094422,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-2789683373",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 449825783,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-2804135383",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 462138578,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-2841208491",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458476579,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-2965430996",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 449823903,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-3046032177",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 449825443,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-3047799035",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 465085103,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-3086033338",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458477182,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-3093460977",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 449823262,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-3095199472",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458453033,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-3132130051",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458453023,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-3149269291",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 449822230,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-3190070125",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458460263,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-3210037840",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 465097958,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-3213392901",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458974961,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-3226209432",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 449823357,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-3368481451",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458974976,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-3475457190",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458479465,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-3566484007",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 465066047,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-3588671475",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 449821152,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-3622017850",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 459966535,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-3734657776",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 459736332,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-3783198734",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 462181816,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-3818412905",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458453067,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-3963918245",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458514311,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-3992211748",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458974959,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-4008377248",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458453056,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-4017783375",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 449824000,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-4069701323",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458470423,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-4118229261",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 465097988,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-4204090012",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 449821837,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-4212491486",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 449822625,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-4264334297",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458453039,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-4304000683",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458467756,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-4349960147",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 449822267,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-4358173575",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 465074749,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-4391085581",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458463796,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-4433223955",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 449823701,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-4434702791",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 465085102,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-4488972962",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 465100094,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-4541378818",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 462181513,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-4541440236",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 449825163,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-4561934561",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 449821605,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-4607569519",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 465100160,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-4660262942",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458456586,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-4679981655",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458470427,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-4743695203",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458974941,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-4802639881",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 465027960,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-4820097368",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 449821480,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-4846525236",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 465085060,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-4919757592",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458478956,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-4930006198",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 449821333,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-4949389854",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 465069064,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-4990478200",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 449823072,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-4996518676",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 449821266,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-5017039989",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458463095,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-5032047149",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458466968,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-5037405516",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 462237006,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-5091393302",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458453027,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-5127373339",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458506064,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-5320447988",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458470428,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-5392843955",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 462239023,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-5403685857",
+      "status": "failed",
+      "message": "ERROR_PRODUCT_ID: No product with ID 449820995"
+    },
+    {
+      "id": "SKU-5427858806",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 462239147,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-5462953053",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 449824939,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-5582443660",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458516641,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-5598085433",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 462242170,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-5633394973",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 449823462,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-5638382329",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458518756,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-5658638116",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458470425,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-5674295862",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 462245701,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-5687802687",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 449821653,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-5701110636",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 465103746,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-5722168408",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458456592,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-5729537867",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458475277,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-5740515403",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458453019,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-5740939127",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458453376,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-5780092798",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 462237005,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-5795572847",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 449823557,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-5799111421",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 449822177,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-5814356347",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 462239039,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-5842899450",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 462241974,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-5869700759",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458461774,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-5943400007",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458515696,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-5946216503",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 459968749,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-6099130668",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458453032,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-6148008788",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458975013,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-6307001376",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458470093,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-6315915149",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458470397,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-6346907299",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 462245531,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-6369067650",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 465103281,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-6427883146",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458497701,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-6537574821",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458455710,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-6544112261",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 449824776,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-6558668236",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 449821521,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-6586579725",
+      "status": "failed",
+      "message": "ERROR_CATEGORY_ID: Invalid category identifier provided (the category does not exist)."
+    },
+    {
+      "id": "SKU-6603765179",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 449822072,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-6614383452",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 449821746,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-6673544963",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458456593,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-6830410442",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 449822362,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-6847456474",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 449821915,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-6965414859",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458470429,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-7049665224",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458453029,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-7151143475",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458456447,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-7209250640",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 465281863,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-7234186083",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458460825,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-7237772440",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 449822440,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-7245071607",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 465103318,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-7270723982",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458470733,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-7290912165",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458456580,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-7350795017",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 465103326,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-7473377331",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 464488486,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-7499091535",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 449821192,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-7543211550",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458468368,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-7627745924",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 449821792,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-7680238839",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458452967,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-7721659409",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458477722,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-7800997883",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458975006,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-7892887285",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458519090,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-7926913408",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458453028,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-7948301538",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458469804,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-7961309823",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458466308,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-7998641824",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458512998,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-8004480244",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 449824682,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-8035511646",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458452983,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-8064565799",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458975017,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-8112287411",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458468605,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-8133187753",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 449821041,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-8151275535",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 449824580,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-8197874459",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458974947,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-8236064906",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 465105467,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-8245288059",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458455660,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-8249181407",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 462182183,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-8310896573",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 449822551,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-8317603092",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458453024,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-8367978772",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 465283094,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-8380347833",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458456918,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-8462375603",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458456261,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-8483173682",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458516052,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-8605082485",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 449824370,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-8640590578",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 449822031,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-8689351772",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458496970,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-8742112863",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458974953,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-8747609895",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 449824232,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-8779940575",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458503880,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-8835594725",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458464475,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-8843412443",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 465105281,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-8857013241",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458453008,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-8919591829",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458455688,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-9031958971",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 449824146,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-9035689627",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458515360,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-9073986145",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 449821228,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-9091395294",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458467756,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-9142845763",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 449823796,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-9146759920",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458456585,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-9289261489",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458474714,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-9317337160",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 465283074,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-9335260557",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 465085198,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-9428729031",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458453025,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-9431798499",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458468043,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-9436640030",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458974981,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-9454243198",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458470408,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-9564743151",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 465105299,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-9603350817",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 449821382,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-9627368343",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 449821110,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-9671499764",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 449823978,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-9787450821",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 449821953,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-9804667250",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458456590,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-9820031170",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 449824067,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-9834509499",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 449821560,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-9876441475",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458475940,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-9912977908",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 509690051,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-9933881904",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458974939,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-9968230318",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 465283082,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-9979752242",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 465284299,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "SKU-9988960743",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 458468907,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "a11d13d2-573e-401e-bf44-f5eff249743f",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 491628080,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "a143ab8d-0a86-426e-a2b5-cae8ae8bdf54",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 504398701,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "a18d09b8-ae6e-4114-9b82-f7cf388905d0",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 489186099,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "a2ad1a25-85f0-4206-ba2d-f718e75b5942",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 492851385,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "a306ee5a-9713-4ee0-8e51-a97b458577d5",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 489027220,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "a428eb0d-0983-4acc-9d11-6ef647bf1798",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 514948628,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "a4e24a7c-447b-49af-add1-d667f360611d",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 504394228,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "a52ad537-120e-426d-9887-f873d36bcdaa",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 489186241,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "a65f35c5-a17f-41d7-9166-6d17f6a158ba",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 508518032,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "a7fbf83a-10da-453f-974b-4d71c9e7e626",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 465217812,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "ab8921aa-074a-4d89-beb7-b4236133851e",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 480593369,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "ac5a1129-af86-4956-9a3b-ad732f8788bf",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 504411573,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "acbaf936-25b4-4850-a552-4af9871abe8c",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 489027495,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "ad08f46f-d233-4c4f-b5c5-bc803ce5018e",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 476400081,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "ad41bd2c-b32b-4f84-8e10-70a3933b51e6",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 493976051,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "adb302b7-663c-4f2d-931d-b633f3745d62",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 504410324,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "aea6179e-a548-4891-8239-a986e778094a",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 504405091,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "b17bc8c9-7097-40af-ba51-02491a3cb01e",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 489186378,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "b5c12f09-3a02-42fe-b848-a62da3ce4474",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 504404597,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "b6ad22cd-c13d-4256-88e7-977c86896368",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 508518031,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "b82f2e03-f4e9-4cef-8984-364a6a8cfc8e",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 489027425,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "b9682eb9-a9aa-415e-898f-7b9bf915e42f",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 465217822,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "c02f6527-8651-429c-8022-31eb90f6aaaa",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 467527321,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "c1497bbf-f2e9-4e9a-9d75-7b31d2c0891d",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 491628405,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "c6d932e0-cd68-4d66-8212-d98f5d10e8d2",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 467533470,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "c98d74fd-e1a0-42fd-ba6d-2ea526b6e643",
+      "status": "failed",
+      "message": "BaseLinker Kategorie fehlt"
+    },
+    {
+      "id": "c9fb6dc8-5db9-455d-a9b6-a8cadf694909",
+      "status": "failed",
+      "message": "BaseLinker Kategorie fehlt"
+    },
+    {
+      "id": "cb10e1bd-003d-4a97-a1ba-9d6a1ace1f91",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 504381515,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "cf7216b6-fbad-4d0f-bb94-10c5ffe3a605",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 508518094,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "cfdc7655-8dd2-4b9e-80f0-8ab292072eac",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 514948886,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "d26c1381-e411-4bd2-a9fd-fdd8e408a28a",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 465217929,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "d5ebb4cc-55b0-4b01-a52b-14af5f5e48dd",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 489187059,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "d7360291-deb4-4b2b-8251-b756f2572c94",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 492851460,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "d7fe958d-e961-4da4-841c-056d2d07081f",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 499986360,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "daff6593-8cf1-4290-b164-30ff627317a0",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 489027512,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "dd33369c-9a31-4c00-960d-3832f1e3fbeb",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 508518404,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "dd602152-c85f-4a41-b405-0b04e500834f",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 491628674,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "ddf71447-e7dd-4f92-afa1-9fc1b7fad114",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 492851509,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "deeada2f-20dc-475c-af0e-d2584d9183e2",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 508518460,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "e063029c-2cbb-4eb2-8718-6dd4643af9d4",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 514949153,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "e0a338cc-0fd6-4625-8c0c-054308424954",
+      "status": "failed",
+      "message": "BaseLinker Kategorie fehlt"
+    },
+    {
+      "id": "e0b19bc2-5f5a-4339-ab8e-5fbdb3cf5137",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 504395602,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "e0c07c0f-ca71-4706-87a1-506ba3c139ca",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 514949181,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "e26d55d7-61d2-463d-9bb8-44a4c2e4c090",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 508518502,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "e29c131f-ec89-434c-b216-90f28330918d",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 467533485,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "e4d53426-7f90-47c2-b3ab-587f887fe81d",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 518403647,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "e5672822-b0fc-46c7-bd7c-c7f53097ce60",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 508518637,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "e73c69ce-6582-4454-adab-52b418a775d0",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 489187162,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "e8f548b0-5b46-488a-8ea9-b525f6381ab2",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 499986495,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "ea75ec18-8ebd-4623-8b72-bdc796af7bfb",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 499986442,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "ecaf5cd2-6c48-4634-bd6f-34445eb5a00a",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 514949429,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "efa941f1-acbb-4f59-a204-0312a506c46e",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 518403694,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "f0796a2b-7a12-4f55-b343-cf8e47e35ad0",
+      "status": "failed",
+      "message": "BaseLinker Kategorie fehlt"
+    },
+    {
+      "id": "f19c6d73-628b-424c-9d89-d950ebafb74b",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 492851519,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "f2028097-7287-47f8-b694-d663960758ec",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 489187457,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "f20fc23c-f6dc-476a-9070-d943caec409f",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 467533483,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "f34aeded-183f-461f-8b6d-f899c863bddb",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 493970493,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "f42902e6-fbd5-40b3-ab2e-754199627da6",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 491628585,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "f7a5bb4a-9e13-4a67-8065-996f9a809f26",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 467533509,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "f8fc404d-90b9-408f-a0a5-53038fdbd793",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 489187553,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "fab309b3-784b-4e9a-861b-a53eca92313d",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 504407598,
+      "baseProductIdSource": "product.ops.inventory"
+    },
+    {
+      "id": "fad41e15-2900-414a-b739-2ed02d4394fe",
+      "status": "synced",
+      "message": "Synced (category only)",
+      "baseProductId": 467533508,
+      "baseProductIdSource": "product.ops.inventory"
+    }
+  ]
+}

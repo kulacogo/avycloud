@@ -128,7 +128,7 @@ Verweis auf `docs/kb/05-pages/` (TBD).
 
 ## Spec
 
-- [docs/features/PRICE-001-pricing-engine-ui/spec.md](../../features/PRICE-001-pricing-engine-ui/spec.md) — UI-Spec (Layer 1: Backend + Modal, Layer 2: Inline, Layer 3: CSV)
+- [archivierte PRICE-001-Spec](../../archive/features/completed/PRICE-001-pricing-engine-ui-spec.md) — UI-Spec (Layer 1: Backend + Modal, Layer 2: Inline, Layer 3: CSV)
 
 ## Bekannte Issues
 

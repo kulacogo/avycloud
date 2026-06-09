@@ -1,0 +1,370 @@
+[
+  {
+    "docId": "00174600185032",
+    "sku": "SKU-7538503265",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Sitzkissen"
+  },
+  {
+    "docId": "0250237001502",
+    "sku": "SKU-4846246443",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "CO2-Zylinder"
+  },
+  {
+    "docId": "20221705000003",
+    "sku": "SKU-5134751391",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Solar-Außenleuchte"
+  },
+  {
+    "docId": "2024010542503",
+    "sku": "SKU-1164276787",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Kompressor Kühlbox"
+  },
+  {
+    "docId": "25004695020111",
+    "sku": "SKU-0704619212",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "SSD"
+  },
+  {
+    "docId": "3339082c-5066-4322-a318-4b8732a19d83",
+    "sku": "SKU-8229761001",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Sport & Outdoor",
+    "leaf": "Kompressor Kühlbox"
+  },
+  {
+    "docId": "34bb265f-a1ad-4850-a2ec-71bf44c1ad68",
+    "sku": "SKU-5700317364",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Waschtischarmatur"
+  },
+  {
+    "docId": "3573994006336",
+    "sku": "SKU-8192040791",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Pflegecreme"
+  },
+  {
+    "docId": "36f71981-e45d-478a-a80d-4e665f0e3352",
+    "sku": "SKU-3867423041",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "BH"
+  },
+  {
+    "docId": "3f1a8ee4-8e40-4f90-af9a-deade528551c",
+    "sku": "SKU-8897137065",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Auto & Motorrad",
+    "leaf": "Standheizung"
+  },
+  {
+    "docId": "4007066810273",
+    "sku": "SKU-1523043917",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Boxershorts"
+  },
+  {
+    "docId": "4007126365101",
+    "sku": "SKU-3266280359",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Haushalt & Küche",
+    "leaf": "Einbau-Abfallsammler"
+  },
+  {
+    "docId": "4008177077142",
+    "sku": "SKU-2748406604",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Motoröl"
+  },
+  {
+    "docId": "4011097314013",
+    "sku": "SKU-7745371992",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Brauseschlauch"
+  },
+  {
+    "docId": "4011097314037",
+    "sku": "SKU-5493501888",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Duschschlauch"
+  },
+  {
+    "docId": "4011097775111",
+    "sku": "SKU-4766228789",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Heimwerker & Garten",
+    "leaf": "Duschthermostat"
+  },
+  {
+    "docId": "4013361212134",
+    "sku": "SKU-2139913486",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Spielwaren",
+    "leaf": "Lenkschlitten"
+  },
+  {
+    "docId": "4034398403828",
+    "sku": "SKU-6945793120",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Heimwerker",
+    "leaf": "Toilettenbutler"
+  },
+  {
+    "docId": "4036021157276",
+    "sku": "SKU-4110694191",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Auto & Motorrad",
+    "leaf": "Kühlerfrostschutzkonzentrat"
+  },
+  {
+    "docId": "4036021163093",
+    "sku": "SKU-5320936983",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "mannol"
+  },
+  {
+    "docId": "4055333068964",
+    "sku": "SKU-3855746092",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Benzin-Rucksack-Kombigerät"
+  },
+  {
+    "docId": "4058213275261",
+    "sku": "SKU-2816924302",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Sport & Outdoor",
+    "leaf": "T-Shirt"
+  },
+  {
+    "docId": "4059625316214",
+    "sku": "SKU-6046815482",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Waschtischarmatur"
+  },
+  {
+    "docId": "4059625401927",
+    "sku": "SKU-5940997361",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Waschtischarmatur"
+  },
+  {
+    "docId": "4061458034781",
+    "sku": "SKU-6689911886",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Allgemeiner Artikel"
+  },
+  {
+    "docId": "4061462474781",
+    "sku": "SKU-2054351224",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Wärmesitzkissen"
+  },
+  {
+    "docId": "4067522073659",
+    "sku": "SKU-3831935492",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Polster- und Teppichreiniger"
+  },
+  {
+    "docId": "4260281755686",
+    "sku": "SKU-5207774112",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Waschbeckenunterschrank"
+  },
+  {
+    "docId": "43422328612861",
+    "sku": "SKU-2424861616",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Gartenmöbel-Set"
+  },
+  {
+    "docId": "436ccc2b-8047-41a7-955c-6b4b2626a124",
+    "sku": "SKU-4867865757",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Moving Head"
+  },
+  {
+    "docId": "48093417-f9ef-497f-96a7-e17838a5280f",
+    "sku": "SKU-5660339205",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Holzkohlegrill"
+  },
+  {
+    "docId": "5059556377703",
+    "sku": "SKU-1000000004",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Mode & Accessoires",
+    "leaf": "Hemd"
+  },
+  {
+    "docId": "51d329b1-b104-47b9-9ce4-e0e93797b2de",
+    "sku": "SKU-7819343007",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Heimwerker",
+    "leaf": "Funktürklingel"
+  },
+  {
+    "docId": "5702015867535",
+    "sku": "SKU-6986483321",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Konstruktionsspielzeug"
+  },
+  {
+    "docId": "8003558071647",
+    "sku": "SKU-7025517137",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Piratenmantel"
+  },
+  {
+    "docId": "8026196116716",
+    "sku": "SKU-5173627811",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Baby & Kind",
+    "leaf": "Kostüm"
+  },
+  {
+    "docId": "8719114322466",
+    "sku": "SKU-4961159565",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Mode & Accessoires",
+    "leaf": "Boxershorts"
+  },
+  {
+    "docId": "8b18f8c1-5ced-4f9d-989d-35fb729415fe",
+    "sku": "SKU-3055174422",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Powerbank"
+  },
+  {
+    "docId": "8c326f7a-d1df-447c-ab0c-c39d136ac565",
+    "sku": "SKU-0780623565",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Hartschalenkoffer"
+  },
+  {
+    "docId": "9598aed7-fe7a-426e-afcc-08ca0d925270",
+    "sku": "SKU-0026867017",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Beauty & Gesundheit",
+    "leaf": "Tattoo Armlehne"
+  },
+  {
+    "docId": "992c90f7-4b46-4306-8849-68b584459a4d",
+    "sku": "SKU-2574433036",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "3D Drucker Filament"
+  },
+  {
+    "docId": "c98d74fd-e1a0-42fd-ba6d-2ea526b6e643",
+    "sku": "SKU-6703015625",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Trainingshose"
+  },
+  {
+    "docId": "c9fb6dc8-5db9-455d-a9b6-a8cadf694909",
+    "sku": "SKU-4995445480",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Trainingshose"
+  },
+  {
+    "docId": "e0a338cc-0fd6-4625-8c0c-054308424954",
+    "sku": "SKU-9445536447",
+    "status": "skip",
+    "reason": "no_match",
+    "root": "Sport & Freizeit",
+    "leaf": "Trainingsanzug"
+  },
+  {
+    "docId": "f0796a2b-7a12-4f55-b343-cf8e47e35ad0",
+    "sku": "SKU-8261682619",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "Interdentalbürsten"
+  },
+  {
+    "docId": "f19c6d73-628b-424c-9d89-d950ebafb74b",
+    "sku": "SKU-6536943755",
+    "status": "skip",
+    "reason": "missing_root_or_leaf",
+    "root": "",
+    "leaf": "3D Drucker Filament"
+  }
+]

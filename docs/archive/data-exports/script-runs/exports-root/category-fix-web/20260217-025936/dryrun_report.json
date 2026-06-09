@@ -1,0 +1,207 @@
+[
+  {
+    "sku": "SKU-7538503265",
+    "status": "skip",
+    "reason": "leaf_incompatible",
+    "query": "72352731",
+    "current": "",
+    "proposedPath": "Möbel & Wohnen > Dekoration > Kissen",
+    "resolvedId": "20549",
+    "canonical": "Möbel & Wohnen > Dekoration > Deko-Accessoires > Sofa- & Sesselüberwürfe",
+    "resolvedBy": "findEbayCategory"
+  },
+  {
+    "sku": "SKU-4310621602",
+    "status": "skip",
+    "reason": "leaf_incompatible",
+    "query": "0196214105119",
+    "current": "Sammeln & Seltenes > Sammelkartenspiele/TCGs > TCG Zubehör > TCG Ordner, Sammelmappen & -hüllen",
+    "proposedPath": "Sammeln & Seltenes > Sammelkartenspiele/TCGs > TCG Originalverpackte Sets & Displays",
+    "resolvedId": "183459",
+    "canonical": "Sammeln & Seltenes > Sammelkartenspiele/TCGs > TCG Sets",
+    "resolvedBy": "findEbayCategory"
+  },
+  {
+    "sku": "SKU-4846246443",
+    "status": "skip",
+    "reason": "leaf_incompatible",
+    "query": "Quooker 60.237.00V02",
+    "current": "",
+    "proposedPath": "Haushaltsgeräte > Kleingeräte Küche > Wasseraufbereitung > Wassersprudler-Zylinder",
+    "resolvedId": "20669",
+    "canonical": "Haushaltsgeräte > Kleingeräte Küche > Brotbackautomaten",
+    "resolvedBy": "findEbayCategory"
+  },
+  {
+    "sku": "SKU-0789448642",
+    "status": "skip",
+    "reason": "leaf_incompatible",
+    "query": "8029121951734",
+    "current": "Business & Industrie > Gastro & Nahrungsmittelgewerbe > Gedeckter Tisch & Servieren > Gedeckter Tisch > Restaurant Gläser > Trinkgläser",
+    "proposedPath": "Möbel & Wohnen > Kochen & Genießen > Gedeckter Tisch > Gläser & Glaswaren",
+    "resolvedId": "20658",
+    "canonical": "Möbel & Wohnen > Kochen & Genießen > Gedeckter Tisch > Serviettenringe & -halter",
+    "resolvedBy": "findEbayCategory"
+  },
+  {
+    "sku": "SKU-5135958988",
+    "status": "skip",
+    "reason": "not_in_taxonomy",
+    "query": "4059952519265",
+    "current": "Business & Industrie > Gastro & Nahrungsmittelgewerbe > Gastronomie-Küchenausstattung > Vorbereitungsgeräte > Gastronomie-Metzgereiausstattung > Messer, Beile & Sägen",
+    "proposedPath": "Garten & Terrasse > Gartengeräte & -technik > Heckenscheren"
+  },
+  {
+    "sku": "SKU-5134751391",
+    "status": "would_update",
+    "query": "Intelamp X0020KCWST",
+    "current": "",
+    "currentId": "",
+    "proposedPath": "Garten & Terrasse > Beleuchtung > Außenstrahler & Flutlichter",
+    "resolvedId": "183393",
+    "canonical": "Garten & Terrasse > Beleuchtung > Strahler & Flutlichter",
+    "resolvedBy": "findEbayCategory"
+  },
+  {
+    "sku": "SKU-0922374624",
+    "status": "skip",
+    "reason": "no_leaf_evidence",
+    "query": "195166279855",
+    "current": "Sammeln & Seltenes > Sammelkartenspiele/TCGs > TCG OVP Decks & Starter",
+    "proposedPath": "Sammeln & Seltenes > Sammelkartenspiele/TCGs > TCG OVP Decks & Starter",
+    "resolvedId": "183457",
+    "canonical": "Sammeln & Seltenes > Sammelkartenspiele/TCGs > TCG OVP Decks & Starter",
+    "resolvedBy": "marketplaceLookup_leaf"
+  },
+  {
+    "sku": "SKU-0704619212",
+    "status": "would_update",
+    "query": "4712702659122",
+    "current": "",
+    "currentId": "",
+    "proposedPath": "Computer, Tablets & Netzwerk > Laufwerke & Speichermedien > Festplatten (HDD, SSD & NAS) > Interne Festplatten",
+    "resolvedId": "56083",
+    "canonical": "Computer, Tablets & Netzwerk > Laufwerke & Speichermedien > Festplatten (HDD, SSD & NAS) > Interne Festplatten",
+    "resolvedBy": "marketplaceLookup_leaf"
+  },
+  {
+    "sku": "SKU-7824016126",
+    "status": "would_update",
+    "query": "LADYHOW LADYHOW Handseilzug 1215",
+    "current": "Business & Industrie > Transport & Logistik > Winden, Seilzüge & Rigging",
+    "currentId": "109551",
+    "proposedPath": "Business & Industrie > Transport & Logistik > Winden, Seilzüge & Rigging > Seilzüge",
+    "resolvedId": "184197",
+    "canonical": "Business & Industrie > Transport & Logistik > Winden, Seilzüge & Rigging > Krane & Hebezüge > Seilzüge",
+    "resolvedBy": "marketplaceLookup_leaf"
+  },
+  {
+    "sku": "SKU-5700317364",
+    "status": "skip",
+    "reason": "leaf_incompatible",
+    "query": "4059625316177",
+    "current": "",
+    "proposedPath": "Heimwerker > Bad & Küche > Bad > Armaturen > Waschtischarmaturen",
+    "resolvedId": "259861",
+    "canonical": "Heimwerker > Bad & Küche > Bad > WCs, Bidets & Teile > Bidet-Armaturen",
+    "resolvedBy": "findEbayCategory"
+  },
+  {
+    "sku": "SKU-8192040791",
+    "status": "skip",
+    "reason": "not_in_taxonomy",
+    "query": "3573994006336",
+    "current": "",
+    "proposedPath": "Beauty & Gesundheit > Pflege & Medical Beauty > Körperpflege > Körperlotionen & Feuchtigkeitscremes"
+  },
+  {
+    "sku": "SKU-3867423041",
+    "status": "skip",
+    "reason": "leaf_incompatible",
+    "query": "Unbekannt 63189",
+    "current": "",
+    "proposedPath": "Kleidung & Accessoires > Damen > Damenmode > Damenunterwäsche > BHs & BH-Sets",
+    "resolvedId": "63853",
+    "canonical": "Kleidung & Accessoires > Damen > Damenmode > Unterwäsche > BHs & BH-Sets",
+    "resolvedBy": "findEbayCategory"
+  },
+  {
+    "sku": "SKU-1523043917",
+    "status": "skip",
+    "reason": "no_leaf_evidence",
+    "query": "4007066810273",
+    "current": "",
+    "proposedPath": "Kleidung & Accessoires > Herren > Herrenmode > Unterwäsche",
+    "resolvedId": "11507",
+    "canonical": "Kleidung & Accessoires > Herren > Herrenmode > Unterwäsche",
+    "resolvedBy": "marketplaceLookup"
+  },
+  {
+    "sku": "SKU-3266280359",
+    "status": "skip",
+    "reason": "leaf_incompatible",
+    "query": "4007126365101",
+    "current": "",
+    "proposedPath": "Möbel & Wohnen > Haushalt > Mülleimer",
+    "resolvedId": "20608",
+    "canonical": "Möbel & Wohnen > Haushalt > Haushaltswaren > Müll- & Abfalleimer",
+    "resolvedBy": "findEbayCategory"
+  },
+  {
+    "sku": "SKU-2748406604",
+    "status": "skip",
+    "reason": "not_in_taxonomy",
+    "query": "4008177077142",
+    "current": "",
+    "proposedPath": "Auto & Motorrad: Teile > Öle, Flüssigkeiten & Schmiermittel > Motoröle"
+  },
+  {
+    "sku": "SKU-7745371992",
+    "status": "skip",
+    "reason": "leaf_incompatible",
+    "query": "4011097314013",
+    "current": "",
+    "proposedPath": "Heimwerker > Bad & Küche > Bad > Duschen, Badewannen & Teile > Brauseschläuche",
+    "resolvedId": "42025",
+    "canonical": "Heimwerker > Bad & Küche > Bad > Duschen, Badewannen & Teile > Badewannen",
+    "resolvedBy": "findEbayCategory"
+  },
+  {
+    "sku": "SKU-4766228789",
+    "status": "would_update",
+    "query": "4011097775111",
+    "current": "",
+    "currentId": "",
+    "proposedPath": "Heimwerker > Bad & Küche > Bad > Armaturen > Duscharmaturen",
+    "resolvedId": "259834",
+    "canonical": "Heimwerker > Bad & Küche > Bad > Duschen, Badewannen & Teile > Duscharmaturen & Thermostate",
+    "resolvedBy": "findEbayCategory"
+  },
+  {
+    "sku": "SKU-4110694191",
+    "status": "skip",
+    "reason": "not_in_taxonomy",
+    "query": "4036021157276",
+    "current": "",
+    "proposedPath": "Auto & Motorrad: Teile > Öle, Flüssigkeiten & Schmiermittel > Frostschutz & Kühlflüssigkeiten"
+  },
+  {
+    "sku": "SKU-5320936983",
+    "status": "skip",
+    "reason": "not_in_taxonomy",
+    "query": "4036021163093",
+    "current": "",
+    "proposedPath": "Auto & Motorrad: Teile > Öle, Flüssigkeiten & Schmiermittel > Motoröle"
+  },
+  {
+    "sku": "SKU-3855746092",
+    "status": "skip",
+    "reason": "leaf_incompatible",
+    "query": "4055333068964",
+    "current": "",
+    "proposedPath": "Garten & Terrasse > Motor-Gartengeräte & -zubehör > Multifunktionsgeräte",
+    "resolvedId": "29519",
+    "canonical": "Garten & Terrasse > Motor-Gartengeräte & -zubehör > Hacken & Fräsen",
+    "resolvedBy": "findEbayCategory"
+  }
+]

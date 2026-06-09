@@ -45,7 +45,7 @@ lastReviewed: 2026-05-18
 - `backend/scripts/audit-kb-coverage.js` — Cross-Check für Drift-Protection
 - `backend/scripts/audit-flags-extended.js` — 424 ENV-Vars im Code, 53 Production-Flags in KB dokumentiert
 
-Reports unter `docs/kb/_audit-runs/<script>-2026-05-18.md`.
+Reports unter `docs/archive/audit-runs/2026-05-18/<script>-2026-05-18.md`.
 
 ### UI Help-Drawer (live)
 - `backend/routes/help.js` — `/api/help/index`, `/api/help/articles`, `/api/help/articles/:slug(*)` mit 60s-Cache + Path-Traversal-Guard

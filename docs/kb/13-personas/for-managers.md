@@ -21,9 +21,9 @@ Detail: [01-overview/what-is-avycloud.md](../01-overview/what-is-avycloud.md).
 
 ## Roadmap und Strategie
 
-- [docs/product-strategy/roadmap.md](../../product-strategy/roadmap.md) — 4-Phasen-Plan
+- [archivierte Roadmap](../../archive/product-strategy/roadmaps/roadmap.md) — 4-Phasen-Plan
 - [docs/product-strategy/positioning.md](../../product-strategy/positioning.md) — DACH-native, KI-first
-- [docs/competitive-analysis/](../../competitive-analysis/) — Wettbewerber
+- [archivierte Competitive Analysis](../../archive/competitive-analysis/2026-03/) — Wettbewerber-Snapshot
 
 ## Status
 

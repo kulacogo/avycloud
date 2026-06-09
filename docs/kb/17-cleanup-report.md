@@ -6,7 +6,7 @@ lastReviewed: 2026-05-18
 
 # Cleanup Report
 
-> **Letzter Audit-Lauf:** 2026-05-18 ([siehe Rohdaten](_audit-runs/))
+> **Letzter Audit-Lauf:** 2026-05-18 ([siehe Rohdaten](../archive/audit-runs/2026-05-18/))
 > **Skripte:** `audit-repo-cruft.js`, `audit-firestore-cruft.js`, `audit-gcs-cruft.js`, `audit-cloud-run.js`, `audit-deps.js`, `audit-flags-extended.js`
 > **Regel:** Kein Auto-Delete in Firestore, GCS, Cloud Run, oder bei Risiko ≥ MEDIUM. Operator-Sign-off via Eintrag in [TASKS.md](../../TASKS.md) Sektion "Cleanup Operator Decisions".
 
@@ -242,7 +242,7 @@ Hinweis: `node-fetch@2` für CommonJS-Kompatibilität. Node 20 hat zwar globales
 
 ### 6.1 ENV-Vars in CLAUDE aber nicht in Feature-Flags-Doku (53 Stück)
 
-Alle dokumentiert in CLAUDE.md, aber nicht in [docs/kb/03-development/feature-flags.md](03-development/feature-flags.md). Siehe `_audit-runs/audit-kb-coverage-2026-05-18.md` Sektion `env-flag`.
+Alle dokumentiert in CLAUDE.md, aber nicht in [docs/kb/03-development/feature-flags.md](03-development/feature-flags.md). Siehe `../archive/audit-runs/2026-05-18/audit-kb-coverage-2026-05-18.md` Sektion `env-flag`.
 
 **Aktion**: Subagent "Foundation-Docs" hat den Katalog auf 39 Einträge erweitert; weitere 14 müssen ergänzt werden. Siehe Drift-Workflow.
 
@@ -268,7 +268,7 @@ Hinweis: API + Features + Integrations + Pages wurden in dieser Session bereits 
 ✅ Help-Drawer Backend-Route mountiert (additive, hinter requireAuth)
 ✅ Help-Drawer Frontend-Component live (additive via Portal in index.tsx)
 ✅ CI-Drift-Protection-Workflow `.github/workflows/kb-drift-and-tests.yml` angelegt
-✅ 7 Audit-Skripte ausgeführt, Reports unter `docs/kb/_audit-runs/`
+✅ 7 Audit-Skripte ausgeführt, Reports unter `docs/archive/audit-runs/2026-05-18/`
 
 ## Wave 8 — Offene Operator-Entscheidungen
 
