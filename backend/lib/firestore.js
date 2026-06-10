@@ -3285,14 +3285,51 @@ async function saveOrders(orders = []) {
   return orders;
 }
 
-async function listOrders(limit = 50) {
+async function listOrders(limit = 50, { tenantId } = {}) {
+  // Without a tenant filter this returns EVERY tenant's orders — a cross-tenant
+  // PII leak via GET /orders. When a tenantId is given we must scope to it.
+  // The orders collection has no (tenantId, createdAt) composite index, so we
+  // keep the existing createdAt ordering and filter in-memory (no index, no
+  // breaking change). Legacy docs missing tenantId are treated as 'default'
+  // (they predate multi-tenant). Over-fetch to compensate for filtered rows.
+  if (!tenantId) {
+    const snapshot = await firestore
+      .collection(ORDERS_COLLECTION)
+      .orderBy('createdAt', 'desc')
+      .limit(limit)
+      .get();
+    return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+  }
+
+  const want = Math.max(Number(limit) || 0, 0);
+  const overFetch = Math.min(Math.max(want * 5, want + 100), 3000);
   const snapshot = await firestore
     .collection(ORDERS_COLLECTION)
     .orderBy('createdAt', 'desc')
-    .limit(limit)
+    .limit(overFetch)
     .get();
 
-  return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+  const rows = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+  return filterOrdersByTenant(rows, tenantId, want);
+}
+
+/**
+ * Pure tenant filter for already-fetched, createdAt-ordered order rows.
+ * Legacy docs without tenantId resolve to 'default'. Stops once `want` matches
+ * are collected (rows must already be in the desired order). Exported for tests.
+ */
+function filterOrdersByTenant(rows, tenantId, want) {
+  if (!tenantId) return Array.isArray(rows) ? rows.slice(0, want || undefined) : [];
+  const cap = Math.max(Number(want) || 0, 0);
+  const matches = [];
+  for (const row of (Array.isArray(rows) ? rows : [])) {
+    const docTenant = (row && row.tenantId) || 'default';
+    if (docTenant === tenantId) {
+      matches.push(row);
+      if (cap && matches.length >= cap) break;
+    }
+  }
+  return matches;
 }
 
 async function listOrdersByStatus(status, limit = 200) {
@@ -4058,6 +4095,7 @@ module.exports = {
   removeProductIdentityAliases,
   saveOrders,
   listOrders,
+  filterOrdersByTenant,
   listOrdersByStatus,
   getOrderSummary,
   getDashboardMetrics,

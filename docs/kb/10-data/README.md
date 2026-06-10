@@ -75,4 +75,22 @@ Inventur siehe [firestore-collections.md](firestore-collections.md).
 
 ## Backup
 
-Firestore Native-Mode-Backups laufen ueber GCP-Default-Schedule. Es gibt **keinen** App-seitigen Backup-Job. Restore-Pfad ist `gcloud firestore import` — siehe [docs/kb/04-deployment/rollback.md](../04-deployment/rollback.md) (falls vorhanden).
+> **WICHTIG:** Firestore hat **keinen** automatischen "Default-Schedule". Backups und PITR
+> müssen explizit aktiviert sein. Stand **verifiziert 2026-06-10** (GCP-Console-State,
+> nicht im Repo/IaC versioniert — daher hier dokumentiert):
+
+- **Scheduled Backups:** aktiv. Täglicher Schedule auf DB `(default)`
+  (`backupSchedules/8844a720-1252-4937-bf01-fed0d79254e4`, angelegt 2025-12-15),
+  **Retention 30 Tage** (2592000s).
+  Prüfen: `gcloud firestore backups schedules list --database='(default)'`
+- **Point-in-Time Recovery (PITR):** aktiv (`POINT_IN_TIME_RECOVERY_ENABLED`, 7-Tage-Fenster).
+  Prüfen: `gcloud firestore databases describe --database='(default)' --format='value(pointInTimeRecoveryEnablement)'`
+- **Kein App-seitiger Backup-Job** (kein Cron, kein IaC). Die Konfiguration lebt nur in der
+  GCP-Console → bei Projekt-/DB-Neuanlage **manuell wieder einrichten**.
+- **Restore:** `gcloud firestore backups list` → `gcloud firestore databases restore`
+  (aus Backup) bzw. PITR via `--source-database` + `--snapshot-time`. Siehe
+  [docs/kb/04-deployment/rollback.md](../04-deployment/rollback.md).
+
+⚠️ Backup ist **Recovery, nicht Prävention**: ein Restore verliert alle Writes seit dem
+letzten Snapshot. Destruktive Pfade trotzdem absichern (RBAC auf Delete-Endpoints,
+Dry-Run-Guards in `backend/scripts/`).

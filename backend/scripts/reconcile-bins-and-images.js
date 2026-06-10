@@ -9,6 +9,7 @@
 
 const { firestore } = require('../lib/firestore');
 const { getProductBinSummaryMap } = require('../lib/warehouse');
+const { parseApplyArgs } = require('./_apply-guard');
 
 function normSku(val) {
   return (val || '')
@@ -150,7 +151,7 @@ function mergeProducts(primary, duplicate) {
   return merged;
 }
 
-async function dedupeProducts(byId, bySku) {
+async function dedupeProducts(byId, bySku, apply) {
   let deduped = 0;
   for (const [skuKey, ids] of bySku.entries()) {
     if (ids.length <= 1) continue;
@@ -164,16 +165,24 @@ async function dedupeProducts(byId, bySku) {
       const dupe = byId.get(id);
       if (!dupe) continue;
       merged = mergeProducts(merged, dupe);
-      await firestore.collection('products').doc(id).delete();
+      if (apply) {
+        await firestore.collection('products').doc(id).delete();
+      } else {
+        console.log('  [DRY-RUN] would delete duplicate product', id, '(merge into', primaryId + ')');
+      }
       deduped += 1;
     }
-    await firestore.collection('products').doc(primaryId).set(merged, { merge: true });
+    if (apply) {
+      await firestore.collection('products').doc(primaryId).set(merged, { merge: true });
+    } else {
+      console.log('  [DRY-RUN] would merge into primary product', primaryId);
+    }
     byId.set(primaryId, merged);
   }
   return deduped;
 }
 
-async function reconcileBins(byId, bySku) {
+async function reconcileBins(byId, bySku, apply) {
   const skuToId = new Map();
   for (const [skuKey, ids] of bySku.entries()) {
     const primaryId = choosePrimaryId(ids, skuKey);
@@ -210,17 +219,21 @@ async function reconcileBins(byId, bySku) {
             assigned_at: product.storage?.assigned_at || primaryBin.lastUpdatedAt || primaryBin.firstStoredAt || new Date().toISOString(),
           }
         : null;
-    await firestore.collection('products').doc(productId).set(
-      {
-        storageBins: bins,
-        storage,
-        inventory: {
-          ...(product.inventory || {}),
-          quantity: summary.totalQuantity || 0,
+    if (apply) {
+      await firestore.collection('products').doc(productId).set(
+        {
+          storageBins: bins,
+          storage,
+          inventory: {
+            ...(product.inventory || {}),
+            quantity: summary.totalQuantity || 0,
+          },
         },
-      },
-      { merge: true }
-    );
+        { merge: true }
+      );
+    } else {
+      console.log('  [DRY-RUN] would update bins/storage for product', productId);
+    }
     updated += 1;
   }
   return updated;
@@ -258,7 +271,7 @@ function normalizeImages(imgs = []) {
   return list;
 }
 
-async function reconcileImages(byId, bySku) {
+async function reconcileImages(byId, bySku, apply) {
   const skuToId = new Map();
   for (const [skuKey, ids] of bySku.entries()) {
     const primaryId = choosePrimaryId(ids, skuKey);
@@ -278,32 +291,38 @@ async function reconcileImages(byId, bySku) {
     if (!product) return;
     const existing = Array.isArray(product.details?.images) ? product.details.images : [];
     const merged = uniqBy([...existing, ...normalizeImages(imgsRaw)], (img) => img.url_or_base64).slice(0, 10);
-    firestore.collection('products').doc(productId).set(
-      {
-        details: {
-          ...(product.details || {}),
-          images: merged,
+    if (apply) {
+      firestore.collection('products').doc(productId).set(
+        {
+          details: {
+            ...(product.details || {}),
+            images: merged,
+          },
         },
-      },
-      { merge: true }
-    );
+        { merge: true }
+      );
+    } else {
+      console.log('  [DRY-RUN] would relink', merged.length, 'images for product', productId);
+    }
     updated += 1;
   });
   return updated;
 }
 
 async function main() {
+  const { apply } = parseApplyArgs();
+
   console.log('Lade Produkte …');
   const { byId, bySku } = await loadProducts();
 
   console.log('Dedupliziere Produkte mit gleicher SKU …');
-  const deduped = await dedupeProducts(byId, bySku);
+  const deduped = await dedupeProducts(byId, bySku, apply);
 
   console.log('Rekonstruiere BIN-Zuordnungen aus warehouseBins …');
-  const binsUpdated = await reconcileBins(byId, bySku);
+  const binsUpdated = await reconcileBins(byId, bySku, apply);
 
   console.log('Verknüpfe Improve-Job-Bilder zurück in Produkte …');
-  const imagesUpdated = await reconcileImages(byId, bySku);
+  const imagesUpdated = await reconcileImages(byId, bySku, apply);
 
   console.log(
     JSON.stringify(

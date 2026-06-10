@@ -15,6 +15,7 @@ const { getNextNumber } = require('./number-sequence');
 const { reserveStock } = require('./stock-reservation');
 const { syncStockWithRetry, findProductsBySkuChunk } = require('./stock-sync-dispatcher');
 const { emitSyncEvent } = require('./sync-event-bus');
+const { sendOpsAlert } = require('../lib/ops-alert');
 const productStore = require('../lib/product-store');
 
 const ORDERS_COLLECTION = 'orders';
@@ -248,6 +249,14 @@ async function syncEbayOrders({ tenantId = 'default', lookbackDays = 7 } = {}) {
           await reserveStock({ tenantId, orderId, items });
         } catch (err) {
           console.warn(`[ebay-intake] reserveStock failed for ${order.marketplaceOrderId}: ${err.message}`);
+          // Oversell precursor: a sold item was not reserved, no durable retry. Alert a human.
+          sendOpsAlert({
+            source: 'order-intake-ebay',
+            severity: 'critical',
+            tenantId,
+            message: `reserveStock failed for order ${order.marketplaceOrderId}: ${err.message}`,
+            context: { orderId, marketplaceOrderId: order.marketplaceOrderId, items },
+          }).catch(() => {});
         }
       } else {
         totalSkipped++;
@@ -270,6 +279,13 @@ async function syncEbayOrders({ tenantId = 'default', lookbackDays = 7 } = {}) {
             await syncStockWithRetry({ tenantId, product, reason: 'ebay-order-intake' });
           } catch (err) {
             console.warn(`[ebay-intake] stock sync failed for ${product.id}: ${err.message}`);
+            sendOpsAlert({
+              source: 'order-intake-ebay',
+              severity: 'critical',
+              tenantId,
+              message: `stock sync threw for product ${product.id}: ${err.message}`,
+              context: { productId: product.id, reason: 'ebay-order-intake' },
+            }).catch(() => {});
           }
         }
       }

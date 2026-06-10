@@ -11,10 +11,12 @@
  */
 
 const { Firestore, Timestamp } = require('@google-cloud/firestore');
+const { parseApplyArgs } = require('./_apply-guard');
 
 const ZONE = 'X';
 
 async function main() {
+  const { apply } = parseApplyArgs();
   const db = new Firestore({ projectId: process.env.GOOGLE_CLOUD_PROJECT || 'avycloud' });
   const binsCollection = db.collection('warehouseBins');
   const productsCollection = db.collection('products');
@@ -44,6 +46,9 @@ async function main() {
     console.log(`BIN ${binCode} (Gang ${data.gang}, Regal ${data.regal}, Ebene ${data.ebene}): ${products.length} Produkte → ${skus.join(', ')}`);
 
     try {
+      if (!apply) {
+        console.log(`  [DRY-RUN] would clear BIN ${binCode} and detach ${products.length} product(s)`);
+      } else {
       // 1. BIN-Dokument leeren
       await binDoc.ref.update({
         products: [],
@@ -65,6 +70,7 @@ async function main() {
         reason: 'Zone X komplett — Neueinlagerung via Stow',
         createdAt: Timestamp.now(),
       });
+      }
 
       // 3. Für jedes Produkt: storage + storageBins bereinigen (quantity bleibt!)
       for (const p of products) {
@@ -119,12 +125,15 @@ async function main() {
             };
           }
 
-          await productRef.update({
-            storage: newStorage,
-            storageBins: updatedBins,
-          });
-
-          console.log(`  ✅ ${p.sku || productId} → BIN-Zuordnung entfernt`);
+          if (apply) {
+            await productRef.update({
+              storage: newStorage,
+              storageBins: updatedBins,
+            });
+            console.log(`  ✅ ${p.sku || productId} → BIN-Zuordnung entfernt`);
+          } else {
+            console.log(`  [DRY-RUN] ${p.sku || productId} → würde BIN-Zuordnung entfernen`);
+          }
         } catch (err) {
           console.error(`  ❌ ${productId}: ${err.message}`);
           errors++;

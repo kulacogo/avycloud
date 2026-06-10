@@ -22,6 +22,19 @@ function getCollection() {
 }
 
 /**
+ * Whether the non-blocking schema validation on the prod direct-write path runs.
+ * Off via PRODUCT_SCHEMA_VALIDATE=false. Sampled via PRODUCT_SCHEMA_VALIDATE_RATE
+ * (0..1, default 1.0) to throttle the extra Firestore read on hot save paths.
+ */
+function schemaValidateEnabled() {
+  if (process.env.PRODUCT_SCHEMA_VALIDATE === 'false') return false;
+  const rate = parseFloat(process.env.PRODUCT_SCHEMA_VALIDATE_RATE || '1');
+  if (!(rate > 0)) return false;
+  if (rate >= 1) return true;
+  return Math.random() < rate;
+}
+
+/**
  * Produkt speichern — Drop-in-Replacement für saveProduct().
  *
  * 1. Ruft die originale saveProduct(product, options) auf → volle Business-Logik
@@ -80,6 +93,31 @@ async function saveProductV2(product, options = {}) {
       await firestore.collection(V2_COLLECTION).doc(targetId).set(normalized, { merge: true });
     } catch (err) {
       console.error(`[saveProductV2] v2 write failed for ${product.id}: ${err.message}`);
+    }
+  } else if (USE_V2 && productId && schemaValidateEnabled()) {
+    // Prod direct-write path (PRODUCTS_COLLECTION === products_v2): saveProduct()
+    // already wrote to products_v2, so the dual-write validation above never ran
+    // and corrupt schema could land silently. Validate here too — but PURELY
+    // observationally: log + record violations, NEVER block or mutate the save.
+    try {
+      const freshSnap = await firestore.collection(V2_COLLECTION).doc(productId).get();
+      if (freshSnap.exists) {
+        const normalized = normalizeProduct({ id: productId, ...freshSnap.data() });
+        const validation = validateCanonical(normalized);
+        if (!validation.valid) {
+          console.warn(`[saveProductV2] schema validation (non-blocking) failed for ${productId}:`, validation.errors);
+          // Best-effort telemetry; must never block or fail the save.
+          firestore.collection('product_schema_violations').add({
+            productId,
+            tenantId: normalized.tenantId || 'default',
+            errors: validation.errors,
+            source: options.source || 'saveProductV2',
+            createdAt: new Date().toISOString(),
+          }).catch(() => {});
+        }
+      }
+    } catch (err) {
+      console.warn(`[saveProductV2] non-blocking validation failed for ${productId}: ${err.message}`);
     }
   }
 

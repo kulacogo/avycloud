@@ -14,6 +14,22 @@ steps:
     entrypoint: node
     args: ["--check", "index.js"]
 
+  # ── TEST GATE ──────────────────────────────────────────────────────────────
+  # Run the FULL backend test suite before building/deploying. Previously the
+  # deploy ran only `node --check`, so a logically-broken but syntactically-valid
+  # change (stock / order / payment paths) could reach production untested.
+  # Installs full deps (incl. dev/vitest); the prod-only `npm ci --omit=dev`
+  # below resets node_modules for the runtime image. A red suite fails the build.
+  - name: gcr.io/cloud-builders/npm
+    id: 'install-test-deps'
+    dir: backend
+    args: ["ci"]
+
+  - name: gcr.io/cloud-builders/npm
+    id: 'test-gate'
+    dir: backend
+    args: ["test"]
+
   # Generate motorcycle ePID compact dataset into /exports so the runtime image contains it.
   # Source XLSX is stored at repo root (build context).
   #
@@ -83,6 +99,28 @@ steps:
         '--update-env-vars',
         'USE_PRODUCTS_V2=true',
       ]
+
+  # ── POST-DEPLOY SMOKE CHECK ─────────────────────────────────────────────────
+  # The deploy shifts 100% traffic immediately with no canary/rollback. At least
+  # verify the new revision serves /health, so a crash-on-boot fails the build
+  # loudly instead of silently going live. ($$ escapes bash vars from Cloud Build
+  # substitution; $_SERVICE/$_REGION are real substitutions.)
+  - name: gcr.io/cloud-builders/gcloud
+    id: 'smoke-check'
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        URL=$$(gcloud run services describe $_SERVICE --region $_REGION --platform managed --format='value(status.url)')
+        echo "Smoke-checking $$URL/health"
+        for i in 1 2 3 4 5 6; do
+          code=$$(curl -s -o /dev/null -w "%{http_code}" "$$URL/health" || echo "000")
+          echo "  attempt $$i -> $$code"
+          if [ "$$code" = "200" ]; then echo "Smoke OK"; exit 0; fi
+          sleep 5
+        done
+        echo "SMOKE FAILED: /health did not return 200 after deploy"
+        exit 1
 
 images:
   - 'gcr.io/${PROJECT_ID}/$_IMAGE:${_TAG}'

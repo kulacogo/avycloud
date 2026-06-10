@@ -33,6 +33,39 @@ const { ensureDefaultRoles } = require('./lib/rbac');
 const { ensureBootstrapAdmin } = require('./lib/bootstrap-admin');
 const { ensureDefaultLlmScopes } = require('./lib/llm-config');
 
+// --- Global safety-net for otherwise-silent process failures -----------------
+// Before this, an unhandled rejection (Node 20 default) would terminate the
+// process with no alert, and an uncaught exception would crash silently — a
+// dead/crash-looping instance that nobody learned about. We add visibility.
+// unhandledRejection: log + alert, but do NOT exit — keep the HTTP server up
+//   (improves availability vs. the previous crash-on-rejection default).
+// uncaughtException: log + alert, then exit so the platform restarts cleanly
+//   (the process state is undefined after an uncaught throw).
+process.on('unhandledRejection', (reason) => {
+  const msg = (reason && reason.stack) ? reason.stack : String(reason);
+  console.error('[unhandledRejection]', msg);
+  try {
+    require('./lib/ops-alert').sendOpsAlert({
+      source: 'process',
+      severity: 'critical',
+      message: `unhandledRejection: ${msg}`.slice(0, 1500),
+    }).catch(() => {});
+  } catch (_) { /* alerting must never throw */ }
+});
+process.on('uncaughtException', (err) => {
+  const msg = (err && err.stack) ? err.stack : String(err);
+  console.error('[uncaughtException]', msg);
+  try {
+    require('./lib/ops-alert').sendOpsAlert({
+      source: 'process',
+      severity: 'critical',
+      message: `uncaughtException: ${msg}`.slice(0, 1500),
+    }).catch(() => {});
+  } catch (_) { /* alerting must never throw */ }
+  // Give the alert a moment to flush, then restart the instance.
+  setTimeout(() => process.exit(1), 1500).unref();
+});
+
 // --- Configuration ---
 const PORT = process.env.PORT || 8080;
 const REQUEST_BODY_LIMIT =
@@ -513,34 +546,56 @@ const server = app.listen(PORT, () => {
 
   // Stock reconciliation: activity-based every 30min, full scan daily at 3 AM
   const RECONCILIATION_INTERVAL_MS = parseInt(process.env.RECONCILIATION_INTERVAL_MS || String(30 * 60 * 1000), 10);
+  // Must cover the SAME tenants as the stock-failure-drain — both are stock-integrity
+  // safety nets. Previously this ran with no tenantId. Follows STOCK_FAILURE_DRAIN_TENANTS
+  // unless RECONCILIATION_TENANTS overrides it.
+  // NOTE: the real production data tenant is 'default' (verified 2026-06-10: all
+  // orders/products_v2/users carry tenantId='default'); the historical 'trendocean'
+  // default was a misconfiguration that pointed the safety nets at an empty tenant.
+  const RECONCILIATION_TENANTS = (
+    process.env.RECONCILIATION_TENANTS ||
+    process.env.STOCK_FAILURE_DRAIN_TENANTS ||
+    'default'
+  ).split(',').map((t) => t.trim()).filter(Boolean);
+  const heartbeat = require('./lib/cron-heartbeat');
+  // Watch: allow 2 missed intervals + a 5min cushion before flagging a stall.
+  heartbeat.registerCronJob('stock-reconciliation', RECONCILIATION_INTERVAL_MS * 2 + 5 * 60 * 1000);
   try {
     let lastFullScanDate = null;
     const runReconciliation = async () => {
       try {
         const { reconcileRecentActivity, reconcileFullScan } = require('./services/stock-reconciliation');
 
-        // Full scan 1x pro Tag zwischen 3:00-3:29 Uhr
+        // Full scan 1x pro Tag zwischen 3:00-3:29 Uhr (für alle Tenants)
         const now = new Date();
         const today = now.toISOString().slice(0, 10);
-        if (now.getHours() === 3 && now.getMinutes() < 30 && lastFullScanDate !== today) {
-          lastFullScanDate = today;
-          const result = await reconcileFullScan();
-          console.log(`[stock-reconciliation] full-scan: checked=${result.checked} drifts=${result.driftsFound} fixed=${result.autoFixed}`);
-          return;
-        }
+        const isFullScanWindow =
+          now.getHours() === 3 && now.getMinutes() < 30 && lastFullScanDate !== today;
+        if (isFullScanWindow) lastFullScanDate = today;
 
-        // Activity-based alle 30min
-        const result = await reconcileRecentActivity();
-        if (result.driftsFound > 0) {
-          console.log(`[stock-reconciliation] activity: checked=${result.checked} drifts=${result.driftsFound} fixed=${result.autoFixed}`);
+        for (const tenantId of RECONCILIATION_TENANTS) {
+          try {
+            if (isFullScanWindow) {
+              const result = await reconcileFullScan({ tenantId });
+              console.log(`[stock-reconciliation] tenant=${tenantId} full-scan: checked=${result.checked} drifts=${result.driftsFound} fixed=${result.autoFixed}`);
+            } else {
+              const result = await reconcileRecentActivity({ tenantId });
+              if (result.driftsFound > 0) {
+                console.log(`[stock-reconciliation] tenant=${tenantId} activity: checked=${result.checked} drifts=${result.driftsFound} fixed=${result.autoFixed}`);
+              }
+            }
+          } catch (err) {
+            console.warn(`[stock-reconciliation] tenant=${tenantId} failed:`, err?.message);
+          }
         }
+        heartbeat.beat('stock-reconciliation');
       } catch (err) {
         console.warn('[stock-reconciliation] failed:', err?.message);
       }
     };
     setTimeout(runReconciliation, 4 * 60 * 1000); // First run after 4 min
     setInterval(runReconciliation, RECONCILIATION_INTERVAL_MS);
-    console.log(`[stock-reconciliation] enabled: activity every ${RECONCILIATION_INTERVAL_MS}ms, full scan daily at 03:00`);
+    console.log(`[stock-reconciliation] enabled: tenants=${RECONCILIATION_TENANTS.join(',')} activity every ${RECONCILIATION_INTERVAL_MS}ms, full scan daily at 03:00`);
   } catch (err) {
     console.warn('[stock-reconciliation] failed to start:', err?.message || err);
   }
@@ -548,8 +603,17 @@ const server = app.listen(PORT, () => {
   // Stock-Failure-Drain: retry fehlgeschlagene Marketplace-Syncs alle 2min
   // Siehe CLAUDE.md Punkt 10 (Oversell-Verbot). Feature-Flag STOCK_FAILURE_DRAIN_ENABLED.
   const STOCK_DRAIN_INTERVAL_MS = parseInt(process.env.STOCK_FAILURE_DRAIN_INTERVAL_MS || String(2 * 60 * 1000), 10);
-  const STOCK_DRAIN_TENANTS = (process.env.STOCK_FAILURE_DRAIN_TENANTS || 'trendocean').split(',').map((t) => t.trim()).filter(Boolean);
+  // Default tenant is 'default' — the real production data tenant (verified
+  // 2026-06-10). The previous 'trendocean' default drained an EMPTY tenant while
+  // real tenantId='default' failures piled up unretried (Incident-class
+  // SKU-9871561937). Override via STOCK_FAILURE_DRAIN_TENANTS if multi-tenant.
+  const STOCK_DRAIN_TENANTS = (process.env.STOCK_FAILURE_DRAIN_TENANTS || 'default').split(',').map((t) => t.trim()).filter(Boolean);
   try {
+    // Dead-man-switch: the drain is the only push-alert path AND a core oversell
+    // backstop. If it silently dies, both go dark. Watch it (unless disabled).
+    if (process.env.STOCK_FAILURE_DRAIN_ENABLED !== 'false') {
+      heartbeat.registerCronJob('stock-failure-drain', STOCK_DRAIN_INTERVAL_MS * 3 + 60 * 1000);
+    }
     const runStockFailureDrain = async () => {
       if (process.env.STOCK_FAILURE_DRAIN_ENABLED === 'false') return;
       try {
@@ -560,12 +624,15 @@ const server = app.listen(PORT, () => {
             console.log(`[stock-failure-drain] tenant=${tenantId} total=${r.total} resolved=${r.resolved} stillFailing=${r.stillFailing} abandoned=${r.abandoned} needsManual=${r.needsManual}`);
           }
         }
+        heartbeat.beat('stock-failure-drain');
       } catch (err) {
         console.warn('[stock-failure-drain] failed:', err?.message);
       }
     };
     setTimeout(runStockFailureDrain, 60 * 1000); // First run after 60s
     setInterval(runStockFailureDrain, STOCK_DRAIN_INTERVAL_MS);
+    // Start the watchdog once, now that the critical jobs are registered.
+    heartbeat.startCronWatchdog();
     console.log(`[stock-failure-drain] enabled: tenants=${STOCK_DRAIN_TENANTS.join(',')} interval=${STOCK_DRAIN_INTERVAL_MS}ms`);
   } catch (err) {
     console.warn('[stock-failure-drain] failed to start:', err?.message || err);

@@ -41,6 +41,38 @@ const express = require('express');
 const helpRouter = require('../../routes/help');
 const { createTestApp } = require('./_createApp');
 
+/**
+ * Robust GET helper for the slug-validation tests.
+ *
+ * The help router is fully deterministic for these inputs (the slug regex is a
+ * pure check), so the *only* way a `200`/`400`/`404` assertion can flake in the
+ * full suite is a transient socket-level failure of supertest's per-request
+ * ephemeral server under heavy parallel-worker CPU/port contention. In that
+ * case superagent surfaces an error response whose `.status` is `undefined`
+ * (no HTTP round-trip completed), which then fails `expect(res.status).toBe(400)`
+ * even though the route itself never returned a wrong status.
+ *
+ * This helper retries the request a few times *only* when the response carries
+ * no HTTP status (i.e. a connection error, not a real status code). It never
+ * swallows or rewrites a genuine status — if the server actually answers, that
+ * response is returned verbatim and the assertion stands unchanged.
+ */
+async function getDeterministic(app, url, attempts = 4) {
+  let last;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      const res = await request(app).get(url);
+      if (typeof res.status === 'number') return res;
+      last = res;
+    } catch (err) {
+      // Connection-level failure (ECONNRESET / EADDRINUSE / socket hang up):
+      // not a routing decision — retry rather than fail the assertion.
+      last = err && err.response ? err.response : err;
+    }
+  }
+  return last;
+}
+
 // Auth-enforced app: real requireAuth middleware in front of helpRouter
 function createAuthEnforcedApp() {
   const { requireAuth } = require('../../lib/auth');
@@ -118,30 +150,30 @@ describe('GET /api/help/articles/:slug', () => {
     // so the realistic attack vector is percent-encoded segments which Express
     // decodes only after route matching and which our slug regex must reject.
     const encoded = '%2E%2E%2F%2E%2E%2F%2E%2E%2Fetc%2Fpasswd';
-    const res = await request(app).get(`/api/help/articles/${encoded}`);
+    const res = await getDeterministic(app, `/api/help/articles/${encoded}`);
     expect(res.status).toBe(400);
     expect(res.body?.error?.code).toBe('INVALID_SLUG');
   });
 
   it('returns 400 for slug containing literal ".."', async () => {
-    const res = await request(app).get('/api/help/articles/..%2F..%2Fetc%2Fpasswd');
+    const res = await getDeterministic(app, '/api/help/articles/..%2F..%2Fetc%2Fpasswd');
     expect(res.status).toBe(400);
     expect(res.body?.error?.code).toBe('INVALID_SLUG');
   });
 
   it('returns 400 for slug pointing at excluded folder _audit-runs', async () => {
-    const res = await request(app).get('/api/help/articles/_audit-runs/audit-deps-2026-05-18');
+    const res = await getDeterministic(app, '/api/help/articles/_audit-runs/audit-deps-2026-05-18');
     expect(res.status).toBe(400);
     expect(res.body?.error?.code).toBe('INVALID_SLUG');
   });
 
   it('returns 400 for slug with disallowed characters', async () => {
-    const res = await request(app).get('/api/help/articles/foo$bar');
+    const res = await getDeterministic(app, '/api/help/articles/foo$bar');
     expect(res.status).toBe(400);
   });
 
   it('returns 404 for non-existent slug', async () => {
-    const res = await request(app).get('/api/help/articles/non-existent-section/non-existent-slug');
+    const res = await getDeterministic(app, '/api/help/articles/non-existent-section/non-existent-slug');
     expect(res.status).toBe(404);
   });
 });

@@ -84,8 +84,11 @@ router.get('/orders', requirePermission('orders', 'read'), async (req, res) => {
   try {
     const limit = Math.min(Number(req.query.limit) || 50, 500);
     const offset = Math.max(Number(req.query.offset) || 0, 0);
+    // Scope to the caller's tenant — otherwise this leaks every tenant's orders
+    // (incl. customer PII). Legacy docs missing tenantId resolve to 'default'.
+    const tenantId = req.user?.tenantId || 'default';
     // Return cached orders immediately; trigger background sync best-effort
-    let rawOrders = await listOrders(limit + offset);
+    let rawOrders = await listOrders(limit + offset, { tenantId });
     _backgroundSyncOrders();
 
     if (!Array.isArray(rawOrders)) {
@@ -612,7 +615,8 @@ router.post('/orders/sync', requirePermission('orders', 'read'), async (req, res
   try {
     // Kick off background sync, but respond immediately with cached orders
     _backgroundSyncOrders();
-    const rawOrders = await listOrders(500);
+    const tenantId = req.user?.tenantId || 'default';
+    const rawOrders = await listOrders(500, { tenantId });
 
     const orders = await attachPickHintsToOrders(rawOrders || []);
     res.json({ ok: true, data: orders.map(normalizeOrderForResponse) });

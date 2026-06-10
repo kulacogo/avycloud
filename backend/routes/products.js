@@ -1081,7 +1081,7 @@ router.post('/intake/resolve', async (req, res) => {
 });
 
 // --- Image Generation Endpoint ---
-router.post('/generate-images', async (req, res) => {
+router.post('/generate-images', requirePermission('products', 'write'), async (req, res) => {
   try {
     const { productId, product, referenceImage } = req.body || {};
 
@@ -1416,7 +1416,9 @@ router.post('/products/bulk-delete', requirePermission('products', 'delete'), as
 });
 
 // --- Cleanup by Alias (must be before /:id routes) ---
-router.delete('/products/cleanup-by-alias/:alias', async (req, res) => {
+// Destructive mass-delete: gate behind products.delete (catalog/admin only).
+// Without this, any authenticated user (incl. read-only roles) could wipe products.
+router.delete('/products/cleanup-by-alias/:alias', requirePermission('products', 'delete'), async (req, res) => {
   try {
     const { alias } = req.params;
     if (!alias || !alias.trim()) {
@@ -2101,7 +2103,7 @@ router.delete('/products/:id', requirePermission('products', 'delete'), async (r
 });
 
 // --- Price Refresh ---
-router.post('/price-refresh', async (req, res) => {
+router.post('/price-refresh', requirePermission('products', 'write'), async (req, res) => {
   try {
     const { productId } = req.body;
 

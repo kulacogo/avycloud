@@ -82,7 +82,8 @@ Firestore ist **schemafrei und additive-only** (Punkt 2 [CLAUDE.md](../../../CLA
 | Versehentliche Bulk-Mutation | Stop des Bulk-Runners; betroffene Dokumente aus Backup wiederherstellen oder per Script kompensieren. |
 | Daten-Korruption (z. B. Geister-Produkte) | Audit-Script nutzen (`backend/scripts/audit-ghost-products.js`), Bestätigung, dann `--apply`. |
 | Stock-Double-Decrement | `node backend/scripts/repair-double-decrement.js` (read-only audit + opt-in `--apply --confirm REPAIR_<DATE> --skus <list>`). Siehe [adr/0002-stock-single-writer.md](../02-architecture/adr/0002-stock-single-writer.md). |
-| Firestore Point-in-Time-Recovery | **Annahme** — GCP-Standard ist aktiv (7 d Window). **Muss verifiziert werden** in der GCP Console. |
+| Firestore Point-in-Time-Recovery | **Aktiv ✅ (verifiziert 2026-06-10)** — `POINT_IN_TIME_RECOVERY_ENABLED`, 7-Tage-Window auf DB `(default)`. Restore: `gcloud firestore databases restore` / PITR `--snapshot-time`. Prüfen: `gcloud firestore databases describe --database='(default)' --format='value(pointInTimeRecoveryEnablement)'`. |
+| Firestore Scheduled Backup | **Aktiv ✅ (verifiziert 2026-06-10)** — täglich, 30 Tage Retention (`backupSchedules/8844a720-…`). Liste: `gcloud firestore backups list`. Nicht im IaC versioniert → bei DB-Neuanlage manuell wieder einrichten (Details: [docs/kb/10-data/README.md](../10-data/README.md#backup)). |
 
 ## ENV-Var-Rollback (Cloud Run)
 
