@@ -1903,10 +1903,24 @@ const AdminTable: React.FC<AdminTableProps> = ({
     await enqueueBulkForSelection('export_marketplace');
   };
 
+  // `focusProductId` is a one-shot command ("scroll to this product once"), not
+  // persistent state — it is set whenever a product is opened/acted upon and is
+  // never cleared by the parent. `filteredAndSortedProducts` stays in the deps so a
+  // not-yet-rendered row (e.g. a freshly identified product) still gets scrolled to
+  // once its row appears. Without the ref guard the effect re-fires on every 60s
+  // product poll (the memo returns a new array reference each time), which silently
+  // scrolls the table back to the last-focused product even though nothing was
+  // opened. The guard makes us act exactly once per focus value.
+  const scrolledFocusRef = useRef<string | null>(null);
   useEffect(() => {
-    if (!focusProductId) return;
+    if (!focusProductId) {
+      scrolledFocusRef.current = null;
+      return;
+    }
+    if (scrolledFocusRef.current === focusProductId) return;
     const row = rowRefs.current[focusProductId];
     if (!row) return;
+    scrolledFocusRef.current = focusProductId;
     row.scrollIntoView({ behavior: 'smooth', block: 'center' });
     row.classList.add('ring-2', 'ring-accent', 'ring-offset-2', 'ring-offset-app-surface');
     const timeout = window.setTimeout(() => {
