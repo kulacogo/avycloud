@@ -3414,7 +3414,7 @@ async function getOrderSummary() {
  * - Returns are detected by statusLabel/status text containing "retour/return/rücksend".
  * - Revenue is derived from totalAmount (best-effort, assumes a single currency).
  */
-async function getDashboardMetrics({ days = 7, preset = null, fromDate = null, toDate = null } = {}) {
+async function getDashboardMetrics({ days = 7, preset = null, fromDate = null, toDate = null, tenantId = null } = {}) {
   const defaultDays = Number.isFinite(Number(days)) ? Math.max(1, Math.min(60, Number(days))) : 7;
   const now = new Date();
   const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1, 0, 0, 0));
@@ -3633,7 +3633,12 @@ async function getDashboardMetrics({ days = 7, preset = null, fromDate = null, t
     return Number.isNaN(d.getTime()) ? null : d;
   };
 
-  const snapshot = await firestore.collection(ORDERS_COLLECTION).get();
+  // Scope to the caller's tenant (CLAUDE.md #8). Single equality filter → served
+  // by the auto single-field index, no composite index needed. tenantId=null
+  // keeps the legacy all-tenant behaviour for any internal caller that omits it.
+  let ordersRef = firestore.collection(ORDERS_COLLECTION);
+  if (tenantId) ordersRef = ordersRef.where('tenantId', '==', tenantId);
+  const snapshot = await ordersRef.get();
 
   let currency = 'EUR';
   let revenueTotal = 0;
@@ -3775,8 +3780,12 @@ async function getDashboardMetrics({ days = 7, preset = null, fromDate = null, t
       }
     }
 
-    // Revenue across ALL orders excluding cancelled (regardless of closed/return)
-    if (!cancelled) {
+    // YTD revenue excluding cancelled (regardless of closed/return).
+    // The field is named "all_…" for back-compat, but ALL of its consumers treat
+    // it as a current-year value ("Jahresumsatz", payout_brutto_ytd). Without the
+    // createdAt>=yearStart filter it leaked prior-year revenue into every "year"
+    // KPI and grew monotonically across years. See dashboard audit 2026-06-10.
+    if (!cancelled && createdAt >= yearStart) {
       revenueAllNonCancelledTotal += totalAmount;
     }
 

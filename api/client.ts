@@ -1118,7 +1118,7 @@ export interface SyncChannelStatus {
 export interface SyncStatusData {
   channels: Record<string, SyncChannelStatus>;
   reservations: { count: number; totalQuantity: number };
-  summary: { totalSyncs: number; totalErrors: number; since: string };
+  summary: { totalSyncs: number; totalErrors: number; pendingFailures?: number | null; since: string };
   generatedAt: string;
 }
 

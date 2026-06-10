@@ -774,6 +774,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 {ord.payoutWindow !== null && ord.payoutWindow > 0 && (
                   <span className="text-[10px] text-txt-muted">
                     Auszahlung {fmtCur(ord.payoutWindow, ord.currency, true)}
+                    {ord.payoutSource === "estimated" && " · geschätzt"}
                   </span>
                 )}
               </span>
@@ -917,7 +918,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 );
                 const hasErrors = c.errorCount > 0;
                 return (
-                  <span key={ch} className="flex items-center gap-1 text-xs">
+                  <span
+                    key={ch}
+                    className="flex items-center gap-1 text-xs"
+                    title="Erfolgreiche/gesamte Sync-Versuche der letzten 24h — NICHT aktive vs. gesamte Listings"
+                  >
                     <span className={`w-1.5 h-1.5 rounded-full ${hasErrors ? 'bg-danger' : 'bg-success'}`} />
                     <span className="text-txt-secondary">{ch.charAt(0).toUpperCase() + ch.slice(1)}</span>
                     <span className={`font-medium ${hasErrors ? 'text-danger' : 'text-success'}`}>
@@ -927,6 +932,16 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   </span>
                 );
               })}
+                  {typeof syncStatus?.summary?.pendingFailures === "number" && syncStatus.summary.pendingFailures > 0 && (
+                    <span
+                      className="flex items-center gap-1 rounded-md bg-danger-dim px-1.5 py-0.5 text-xs text-danger"
+                      title="Bestands-Syncs, die nie beim Marktplatz ankamen (unabhängig von 24h) — direktes Oversell-Risiko"
+                    >
+                      <span className="w-1.5 h-1.5 rounded-full bg-danger" />
+                      <span className="font-semibold tabular-nums">{syncStatus.summary.pendingFailures}</span>
+                      <span>offene Sync-Fehler</span>
+                    </span>
+                  )}
                   {!syncStatus && <span className="text-xs text-txt-muted">Kein Status</span>}
                 </div>
               </div>

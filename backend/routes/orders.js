@@ -133,7 +133,7 @@ router.get('/dashboard/metrics', requirePermission('dashboard', 'read'), async (
     } catch {
       // ignore
     }
-    const metrics = await getDashboardMetrics({ days, preset, fromDate, toDate });
+    const metrics = await getDashboardMetrics({ days, preset, fromDate, toDate, tenantId: req.user?.tenantId || 'default' });
 
     // Pull returns from Firestore `returns` collection for KPIs (net revenue + returns counts).
     // Single source of truth — order-status-based return counting in getDashboardMetrics() is ignored.
@@ -845,8 +845,13 @@ router.get('/sync/status', requirePermission('dashboard', 'read'), async (req, r
     const now = new Date();
     const since24h = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
 
-    // Fetch recent sync logs (last 24h, max 500)
-    const [logsSnap, reservationsSnap] = await Promise.all([
+    // Fetch recent sync logs (last 24h, max 500). The "errors" derived from these
+    // only cover the last 24h — they do NOT show the durable backlog of failed
+    // syncs sitting in stock_operation_failures (which is where unresolved
+    // oversell-risk syncs accumulate). So we ALSO surface the all-time pending
+    // failure count, scoped to the tenant. Best-effort: a missing index or old
+    // SDK must never break the dashboard endpoint.
+    const [logsSnap, reservationsSnap, pendingFailures] = await Promise.all([
       firestore.collection('stock_sync_log')
         .where('tenantId', '==', tenantId)
         .where('createdAt', '>=', since24h)
@@ -858,6 +863,19 @@ router.get('/sync/status', requirePermission('dashboard', 'read'), async (req, r
         .where('status', '==', 'reserved')
         .limit(500)
         .get(),
+      (async () => {
+        try {
+          const agg = await firestore.collection('stock_operation_failures')
+            .where('tenantId', '==', tenantId)
+            .where('status', '==', 'pending')
+            .count()
+            .get();
+          return agg.data().count || 0;
+        } catch (e) {
+          console.warn(`[GET /api/sync/status] pending-failure count failed: ${e.message}`);
+          return null; // unknown — UI shows neutral, not falsely "0"
+        }
+      })(),
     ]);
 
     // Aggregate per-channel stats from logs
@@ -896,7 +914,9 @@ router.get('/sync/status', requirePermission('dashboard', 'read'), async (req, r
       data: {
         channels,
         reservations: { count: reservedCount, totalQuantity: reservedQuantity },
-        summary: { totalSyncs, totalErrors, since: since24h },
+        // pendingFailures = durable backlog of unresolved syncs (all-time), NOT
+        // the 24h totalErrors. >0 means real syncs never reached the marketplace.
+        summary: { totalSyncs, totalErrors, pendingFailures, since: since24h },
         generatedAt: now.toISOString(),
       },
     });
