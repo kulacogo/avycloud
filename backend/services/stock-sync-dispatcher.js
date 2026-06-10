@@ -23,6 +23,27 @@ function extractProductSku(product) {
   ).trim();
 }
 
+/**
+ * Pick the eBay live-listing row that is still ACTIVE. NEVER falls back to an
+ * ended/inactive row — doing so made stock-sync resolve a dead itemId and
+ * re-push to it on every cycle (production logs: 600+ wasted "already ended"
+ * eBay Trading-API calls/day, from just 14 dead listings, one hit 234×/day).
+ * Returns null when there is no active listing (→ no eBay call is made).
+ */
+function pickActiveListing(docs) {
+  return (Array.isArray(docs) ? docs : []).find((row) => row && row.active !== false) || null;
+}
+
+/**
+ * Whether an eBay error message is a transient daily-call-limit error. Such
+ * errors must NOT trigger the fail-safe-end (it would kill a healthy listing and
+ * the end call is itself rate-limited) — defer and let the drain retry instead.
+ */
+function isRateLimited(msg) {
+  const lower = String(msg || '').toLowerCase();
+  return lower.includes('exceeded usage limit') || lower.includes('check your call usage');
+}
+
 async function persistSyncFailureForDrain({
   tenantId,
   product,
@@ -72,7 +93,8 @@ async function resolveEbayItemIdFromLiveListing({ productId, freshProduct }) {
       .get();
     if (listingsSnap.empty) return null;
     const docs = listingsSnap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-    const activeListing = docs.find((row) => row && row.active !== false) || docs[0];
+    const activeListing = pickActiveListing(docs);
+    if (!activeListing) return null; // no ACTIVE listing → don't revive a dead itemId
     const itemId = String(activeListing?.itemId || activeListing?.id || '').trim();
     if (!itemId) return null;
     await firestore.collection('products_v2').doc(productId)
@@ -201,10 +223,26 @@ async function syncStockToAllChannels({ tenantId = 'default', product, reason = 
     const clearStaleItemId = async () => {
       try {
         await firestore.collection('products_v2').doc(productId).set(
-          { ops: { ebay: { itemId: null, itemIdCleared: new Date().toISOString(), itemIdClearReason: 'listing_ended' } } },
+          {
+            ops: { ebay: { itemId: null, itemIdCleared: new Date().toISOString(), itemIdClearReason: 'listing_ended' } },
+            listingStatus: { ebay: 'inactive' },
+          },
           { merge: true }
         );
-        console.log(`[stock-sync] Cleared stale ebay itemId for product=${productId} (listing ended)`);
+        // Mark the cached live listing inactive too, so resolveEbayItemIdFromLiveListing
+        // stops handing the stale itemId straight back next cycle (the loop behind
+        // 600+ wasted "already ended" eBay calls/day). A re-list re-activates it via
+        // the listing ingest.
+        try {
+          const sku = extractProductSku(freshProduct);
+          if (sku) {
+            const snap = await firestore.collection('ebayListingsLive').where('sku', '==', sku).limit(5).get();
+            await Promise.all(snap.docs.map((d) =>
+              d.ref.set({ active: false, endedDetectedAt: new Date().toISOString() }, { merge: true }).catch(() => {})
+            ));
+          }
+        } catch (_) { /* best-effort cache cleanup */ }
+        console.log(`[stock-sync] Cleared stale ebay itemId + marked listing inactive for product=${productId} (listing ended)`);
       } catch (clearErr) {
         console.warn(`[stock-sync] Failed to clear stale ebay itemId: ${clearErr?.message}`);
       }
@@ -249,6 +287,14 @@ async function syncStockToAllChannels({ tenantId = 'default', product, reason = 
           results.push({ channel: 'ebay', status: 'skipped', itemId: resolvedEbayItemId, error: 'listing_ended', quantityPushed: 0 });
           console.warn(`[stock-sync] ebay product=${productId} itemId=${resolvedEbayItemId} listing ended, clearing stale itemId`);
           await clearStaleItemId();
+        } else if (isRateLimited(errMsg)) {
+          // Transient eBay rate limit — the listing is NOT dead. Ending it would
+          // be WRONG (lose a live sale) and the end call would itself be rate-
+          // limited ("fail_safe_end_failed"). Defer: record a retryable failure;
+          // the drain retries once quota resets. Avoids a doomed 2nd call AND
+          // avoids killing healthy listings on a transient error.
+          results.push({ channel: 'ebay', status: 'failed', itemId: resolvedEbayItemId, error: errMsg, retryable: true });
+          console.warn(`[stock-sync] ebay RATE-LIMITED product=${productId} itemId=${resolvedEbayItemId} — deferring (no fail-safe end): ${errMsg}`);
         } else {
           // Fail-safe: if we cannot safely push the new quantity, end listing.
           try {
@@ -604,4 +650,6 @@ module.exports = {
   syncPriceToAllChannels,
   findProductsBySkuChunk,
   computeAvailableQuantity,
+  pickActiveListing,
+  isRateLimited,
 };
