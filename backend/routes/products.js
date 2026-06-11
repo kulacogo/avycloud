@@ -604,7 +604,15 @@ function sanitizeAliasMap(value, { max = 500 } = {}) {
 }
 
 // ── Improve Job Inline Helper ────────────────────────────────────────
-async function runImproveJobInline(jobId, productId) {
+// Initials for datasheet ownership (mirrors frontend utils/product deriveInitials).
+function deriveInitials(email) {
+  const local = String(email || '').split('@')[0] || '';
+  const parts = local.split(/[.\-_]/).filter(Boolean);
+  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+  return local.slice(0, 2).toUpperCase();
+}
+
+async function runImproveJobInline(jobId, productId, editorInitials = 'KI') {
   // Fallback: verarbeitet den Improve-Job synchron im Request, wenn IMPROVE_INLINE=true
   try {
     await updateJob(jobId, { status: 'processing', stage: 'inline', startedAt: Timestamp.now() });
@@ -614,7 +622,7 @@ async function runImproveJobInline(jobId, productId) {
       } catch (err) {
         console.warn(`Inline updateJob stage failed for ${jobId}:`, err.message);
       }
-    });
+    }, { editorInitials });
     await updateJob(jobId, {
       status: 'done',
       stage: 'complete',
@@ -2172,7 +2180,7 @@ router.post('/products/:id/improve', requirePermission('ai', 'improve'), async (
         error: { code: 400, message: 'Product ID is required' },
       });
     }
-    const improved = await improveExistingProduct(productId);
+    const improved = await improveExistingProduct(productId, undefined, { editorInitials: deriveInitials(req.user?.email || '') });
     res.json({ ok: true, data: improved });
   } catch (error) {
     const status = error.code === 404 ? 404 : 500;
@@ -2206,6 +2214,7 @@ router.post('/improve/jobs', requirePermission('ai', 'improve'), async (req, res
 
     const jobs = [];
     const missing = [];
+    const editorInitials = deriveInitials(req.user?.email || '');
 
     for (const productId of uniqueIds) {
       const product = await getProduct(productId);
@@ -2216,9 +2225,10 @@ router.post('/improve/jobs', requirePermission('ai', 'improve'), async (req, res
       const jobId = crypto.randomUUID();
       await createImproveJob(
         {
-          payload: { productId },
+          payload: { productId, editorInitials },
           productId,
           productName: product.identification?.name || '',
+          editorInitials,
         },
         jobId
       );
@@ -2241,7 +2251,7 @@ router.post('/improve/jobs', requirePermission('ai', 'improve'), async (req, res
     const inlineAllowed = IMPROVE_INLINE && jobs.length <= 3;
     if (inlineAllowed) {
       for (const job of jobs) {
-        await runImproveJobInline(job.jobId, job.productId);
+        await runImproveJobInline(job.jobId, job.productId, editorInitials);
       }
     }
 

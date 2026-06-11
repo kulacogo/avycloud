@@ -49,7 +49,7 @@ export type IdentificationMethod = "image" | "barcode" | "hybrid";
 export type ImageSource = "upload" | "generated" | "web";
 export type ImageVariant = "front" | "angle" | "detail" | "pack" | "other";
 export type SyncStatus = "pending" | "synced" | "failed";
-export type Readiness = "ready" | "pending";
+export type Readiness = "ready" | "in_progress" | "pending";
 
 export interface Completeness {
   percent: number;

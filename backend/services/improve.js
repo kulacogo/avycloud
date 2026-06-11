@@ -911,7 +911,7 @@ async function buildReferenceFiles(product) {
   return results.filter(Boolean);
 }
 
-async function improveExistingProduct(productId, onProgress) {
+async function improveExistingProduct(productId, onProgress, opts = {}) {
   console.log(`[improveExistingProduct] Starting for ${productId}`);
   const product = await getProduct(productId);
   if (!product) {
@@ -937,16 +937,18 @@ async function improveExistingProduct(productId, onProgress) {
       if (!er.error && Array.isArray(er.changed) && er.changed.length) {
         const next = er.product;
         next.ops = next.ops || {};
-        next.ops.autoImprove = {
-          lastAppliedAt: nowIso(),
-          appliedChanges: er.changed,
+        // KI change → datasheet status "In Bearbeitung" + ownership initials of
+        // whoever triggered it, so the change surfaces for human review via the
+        // STATUS (not a badge). Falls back to "KI" when no user is known.
+        next.ops.readiness = 'in_progress';
+        next.ops.readiness_editor = (opts.editorInitials && String(opts.editorInitials).trim()) || 'KI';
+        next.ops.readiness_set_at = nowIso();
+        next.ops.data_quality = next.ops.data_quality || {};
+        next.ops.data_quality.ki_improve_v1 = {
+          at_iso: nowIso(),
+          changed: er.changed,
           confidence: er.confidence ?? null,
           model: er.model || null,
-          evidenceCount: Array.isArray(er.evidence) ? er.evidence.length : 0,
-          reviewStatus: 'pending_review',
-          reviewedBy: null,
-          reviewedAt: null,
-          source: 'ki-verbessern',
         };
         await saveProductV2(next, {
           source: 'job-improve',

@@ -1,6 +1,7 @@
 
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { Product, Readiness } from '../types';
+import { readinessLabel, readinessBadgeClasses } from '../utils/readiness';
 import { fetchProducts, getProductBulkJob, runProductBulkAction, deleteProductsBulk, openProductLabelBatchWindow, assignInventoryToProducts, uploadKTypeCsv, bulkVerifyEbayPublish, bulkPublishToEbay, fetchEbaySkuIndex, lightSyncEbayLiveListings, bulkUpdateEbayListings, fetchKauflandSkuIndex, syncKauflandListings, type ProductBulkActionName } from '../api/client';
 import { SearchIcon } from './icons/Icons';
 import {
@@ -62,15 +63,10 @@ interface AdminTableProps {
 }
 
 const ReadinessBadge: React.FC<{ readiness?: string | null; editor?: string | null }> = ({ readiness, editor }) => {
-  if (!readiness) return <span className="text-txt-muted text-xs">—</span>;
   const base = "px-2 py-1 text-xs font-bold rounded-full inline-flex items-center gap-1";
-  const style = readiness === "ready"
-    ? "bg-success-dim text-success"
-    : "bg-warning-dim text-warning";
-  const label = readiness === "ready" ? "Ready" : "Pending";
   return (
-    <span className={`${base} ${style}`}>
-      {label}
+    <span className={`${base} ${readinessBadgeClasses(readiness)}`}>
+      {readinessLabel(readiness)}
       {editor && <span className="opacity-60 text-[10px]">({editor})</span>}
     </span>
   );

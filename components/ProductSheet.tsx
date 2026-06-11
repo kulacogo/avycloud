@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import DOMPurify from 'dompurify';
 import { Product, DatasheetChange, ProductImage, WarehouseBin, EbayCategoryOption, Readiness } from '../types';
+import { READINESS_LABELS, normalizeReadiness } from '../utils/readiness';
 import {
   saveProduct,
   openSkuLabelWindow,
@@ -1023,18 +1024,50 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
     setIsDirty(true);
   };
 
-  const handleReadinessChange = useCallback((value: Readiness | null) => {
+  const handleReadinessChange = useCallback((value: Readiness) => {
     setLocalProduct(prev => ({
       ...prev,
       ops: {
         ...prev.ops,
         readiness: value,
-        readiness_editor: value ? editorInitials : null,
-        readiness_set_at: value ? new Date().toISOString() : null,
+        readiness_editor: editorInitials,
+        readiness_set_at: new Date().toISOString(),
       },
     }));
     setIsDirty(true);
   }, [editorInitials]);
+
+  // Ownership: clicking "Bearbeiten" claims the datasheet → status "In Bearbeitung"
+  // + the editor's initials, persisted immediately (not only on save). A sheet
+  // already marked "Bereit" is left untouched (no accidental downgrade).
+  const handleToggleEdit = useCallback(async () => {
+    const entering = !isEditing;
+    setIsEditing(entering);
+    if (!entering) return;
+    const current = latestProductRef.current;
+    if (!current || current.ops?.readiness === "ready") return;
+    if (current.ops?.readiness === "in_progress" && current.ops?.readiness_editor === editorInitials) return;
+    const next: Product = {
+      ...current,
+      ops: {
+        ...(current.ops || {}),
+        readiness: "in_progress",
+        readiness_editor: editorInitials,
+        readiness_set_at: new Date().toISOString(),
+      },
+    };
+    setLocalProduct(next);
+    try {
+      const r = await saveProduct(next);
+      if (r.ok && r.data) {
+        const merged: Product = { ...next, ops: { ...next.ops, revision: r.data.revision } };
+        setLocalProduct(merged);
+        onUpdate(merged);
+      }
+    } catch {
+      // best-effort ownership write; full save will persist later
+    }
+  }, [isEditing, editorInitials, onUpdate]);
 
   const handleCategorySelect = useCallback(
     (categoryId: string) => {
@@ -1300,13 +1333,13 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
             {/* Readiness status + editor initials */}
             <div className="flex items-center gap-1.5 mr-2">
               <select
-                value={localProduct.ops?.readiness || ""}
-                onChange={(e) => handleReadinessChange(e.target.value === "" ? null : e.target.value as Readiness)}
+                value={normalizeReadiness(localProduct.ops?.readiness)}
+                onChange={(e) => handleReadinessChange(e.target.value as Readiness)}
                 className="px-2 py-1.5 text-sm rounded-lg bg-app-elevated text-txt-primary border border-app-border"
               >
-                <option value="">{t("sheet.readiness.unset")}</option>
-                <option value="pending">{t("sheet.readiness.pending")}</option>
-                <option value="ready">{t("sheet.readiness.ready")}</option>
+                <option value="pending">{READINESS_LABELS.pending}</option>
+                <option value="in_progress">{READINESS_LABELS.in_progress}</option>
+                <option value="ready">{READINESS_LABELS.ready}</option>
               </select>
               {localProduct.ops?.readiness_editor && (
                 <span className="text-xs text-txt-muted font-medium">
@@ -1316,7 +1349,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
             </div>
             <button
               id="btn-edit"
-              onClick={() => setIsEditing(v => !v)}
+              onClick={handleToggleEdit}
               aria-pressed={isEditing}
               className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${isEditing ? 'bg-accent text-white' : 'bg-app-elevated text-txt-primary hover:bg-app-border border border-app-border'}`}
             >

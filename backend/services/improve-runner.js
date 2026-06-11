@@ -33,6 +33,7 @@ async function processImproveJob(jobId) {
     if (!productId) {
       throw new Error('Job has no productId payload');
     }
+    const editorInitials = jobSnapshot.editorInitials || jobSnapshot.payload?.editorInitials || 'KI';
 
     const improvedProduct = await improveExistingProduct(productId, async (stage) => {
       try {
@@ -41,7 +42,7 @@ async function processImproveJob(jobId) {
       } catch (err) {
         console.warn(`Failed to update job stage to ${stage}:`, err);
       }
-    });
+    }, { editorInitials });
 
     console.log(`[ImproveRunner] Job ${jobId} COMPLETED.`);
     await updateJob(jobId, {

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { Product } from "../types";
 import { fetchProducts, fetchEbaySkuIndex, fetchKauflandSkuIndex } from "../api/client";
+import { READINESS_LABELS, normalizeReadiness } from "../utils/readiness";
 import { Spinner } from "./Spinner";
 
 // ---------------------------------------------------------------------------
@@ -12,7 +13,7 @@ interface InventoryViewProps {
   onSelectProduct?: (product: Product) => void;
 }
 
-type QuickFilterKey = "all" | "low" | "nobin" | "stale" | "listed" | "unlisted" | "listingErrors" | "ready" | "pending" | "empty" | "sold" | "unsold" | "listingReady";
+type QuickFilterKey = "all" | "low" | "nobin" | "stale" | "listed" | "unlisted" | "listingErrors" | "ready" | "in_progress" | "pending" | "sold" | "unsold" | "listingReady";
 type SortField = "name" | "sku" | "quantity" | "available" | "buyPrice" | "value" | "binCode" | "marketplace";
 type SortDir = "asc" | "desc";
 
@@ -292,15 +293,15 @@ const InventoryView: React.FC<InventoryViewProps> = ({ onNavigate, onSelectProdu
 
     let readyCount = 0;
     let pendingCount = 0;
-    let emptyCount = 0;
+    let inProgressCount = 0;
     let soldCount = 0;
     let unsoldCount = 0;
     let listingReadyCount = 0;
     withStock.forEach((p) => {
-      const readiness = p.ops?.readiness ?? null;
+      const readiness = normalizeReadiness(p.ops?.readiness);
       if (readiness === "ready") readyCount++;
-      else if (readiness === "pending") pendingCount++;
-      else emptyCount++;
+      else if (readiness === "in_progress") inProgressCount++;
+      else pendingCount++;
       const isSold = (p.inventory?.soldQuantity ?? 0) > 0 || (p.inventory?.openOrderQuantity ?? 0) > 0;
       if (isSold) soldCount++;
       else unsoldCount++;
@@ -309,7 +310,7 @@ const InventoryView: React.FC<InventoryViewProps> = ({ onNavigate, onSelectProdu
       if (hasBin && !info.isListed && !isSold) listingReadyCount++;
     });
 
-    return { totalProducts, totalUnits, totalValue, lowStockCount, noBinCount, staleCount, listedCount, unlistedCount, listingErrorCount, readyCount, pendingCount, emptyCount, soldCount, unsoldCount, listingReadyCount };
+    return { totalProducts, totalUnits, totalValue, lowStockCount, noBinCount, staleCount, listedCount, unlistedCount, listingErrorCount, readyCount, pendingCount, inProgressCount, soldCount, unsoldCount, listingReadyCount };
   }, [products, getMarketplaceInfo]);
 
   // ---- Filtering ----
@@ -338,13 +339,13 @@ const InventoryView: React.FC<InventoryViewProps> = ({ onNavigate, onSelectProdu
         list = list.filter((p) => getMarketplaceInfo(p).hasErrors);
         break;
       case "ready":
-        list = list.filter((p) => p.ops?.readiness === "ready");
+        list = list.filter((p) => normalizeReadiness(p.ops?.readiness) === "ready");
+        break;
+      case "in_progress":
+        list = list.filter((p) => normalizeReadiness(p.ops?.readiness) === "in_progress");
         break;
       case "pending":
-        list = list.filter((p) => p.ops?.readiness === "pending");
-        break;
-      case "empty":
-        list = list.filter((p) => (p.ops?.readiness ?? null) === null);
+        list = list.filter((p) => normalizeReadiness(p.ops?.readiness) === "pending");
         break;
       case "sold":
         list = list.filter((p) => (p.inventory?.soldQuantity ?? 0) > 0 || (p.inventory?.openOrderQuantity ?? 0) > 0);
@@ -530,22 +531,22 @@ const InventoryView: React.FC<InventoryViewProps> = ({ onNavigate, onSelectProdu
           )}
           <span className="w-px h-5 bg-app-border mx-1 self-center" />
           <QuickFilter
-            label="Bereit"
+            label={READINESS_LABELS.ready}
             active={quickFilter === "ready"}
             onClick={() => setQuickFilter("ready")}
             count={kpis.readyCount}
           />
           <QuickFilter
-            label="Ausstehend"
+            label={READINESS_LABELS.in_progress}
+            active={quickFilter === "in_progress"}
+            onClick={() => setQuickFilter("in_progress")}
+            count={kpis.inProgressCount}
+          />
+          <QuickFilter
+            label={READINESS_LABELS.pending}
             active={quickFilter === "pending"}
             onClick={() => setQuickFilter("pending")}
             count={kpis.pendingCount}
-          />
-          <QuickFilter
-            label="Leer"
-            active={quickFilter === "empty"}
-            onClick={() => setQuickFilter("empty")}
-            count={kpis.emptyCount}
           />
           <span className="w-px h-5 bg-app-border mx-1 self-center" />
           <QuickFilter

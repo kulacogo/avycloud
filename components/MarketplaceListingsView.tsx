@@ -97,6 +97,22 @@ const NON_ACTIVE_STATUSES: ListingStatus[] = [
   "unknown",
 ];
 
+// A listing is "active" (live on the marketplace) if its status is NOT one of
+// the non-active states. Mirrors the "Aktiv" tab count.
+const isListingActive = (l: { status: ListingStatus }): boolean =>
+  !NON_ACTIVE_STATUSES.includes(l.status);
+
+// The ONLY stock deviation that can actually hurt: a LIVE listing offering MORE
+// than we physically have → you can sell what you don't own (oversell).
+// Deviations on inactive/dead listings, or where warehouse >= marketplace, are
+// harmless noise — they must not inflate the scary number.
+const isOversellRisk = (l: {
+  status: ListingStatus;
+  quantity: number | null;
+  warehouseStock: number | null;
+}): boolean =>
+  isListingActive(l) && l.warehouseStock !== null && (l.quantity ?? 0) > l.warehouseStock;
+
 const TAB_LABELS: Record<TabFilter, string> = {
   all: "Alle",
   active: "Aktiv",
@@ -973,17 +989,27 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
           })()}
         </div>
         <div className="bg-app-surface border border-app-border rounded-xl p-4">
-          <div className="text-sm text-txt-muted mb-1">Bestandsabweichungen</div>
-          <div className={`text-2xl font-bold ${
-            listings.filter((l) => l.stockMismatch).length > 0 ? "text-warning" : "text-txt-primary"
-          }`}>
-            {listings.filter((l) => l.stockMismatch).length}
+          <div
+            className="text-sm text-txt-muted mb-1"
+            title="Aktive Listings, die MEHR anbieten als im Lager liegt — nur hier kannst du etwas verkaufen, das du nicht hast. Abweichungen auf inaktiven Listings sind harmlos und zählen hier nicht mit."
+          >
+            Oversell-Risiko
           </div>
-          {listings.filter((l) => l.warehouseStock === 0).length > 0 && (
-            <div className="text-xs text-danger mt-0.5">
-              {listings.filter((l) => l.warehouseStock === 0).length} nicht auf Lager
-            </div>
-          )}
+          {(() => {
+            const oversell = listings.filter(isOversellRisk).length;
+            const benign = listings.filter((l) => l.stockMismatch && !isOversellRisk(l)).length;
+            return (
+              <>
+                <div className={`text-2xl font-bold ${oversell > 0 ? "text-danger" : "text-success"}`}>
+                  {oversell}
+                </div>
+                <div className="text-xs text-txt-muted mt-0.5">
+                  {oversell > 0 ? "aktiv · Marktplatz > Lager" : "Marktplatz ≤ Lager ✓"}
+                  {benign > 0 && ` · ${benign} unkritische Abweichung${benign === 1 ? "" : "en"}`}
+                </div>
+              </>
+            );
+          })()}
         </div>
       </div>
 
@@ -1014,8 +1040,11 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
             <span className="text-xs text-success font-medium">{resyncDriftsResult}</span>
           )}
           {(() => {
+            // Only ACTIVE listings need a push. Re-syncing inactive/dead listings
+            // just wastes (rate-limited) marketplace calls and was a big driver of
+            // the eBay quota exhaustion — exclude them.
             const driftListings = listings.filter(
-              (l) => (l.stockMismatch || l.warehouseStock === 0) && l.sku,
+              (l) => isListingActive(l) && (l.stockMismatch || l.warehouseStock === 0) && l.sku,
             );
             const driftCount = driftListings.length;
             if (driftCount === 0) return null;
@@ -1060,7 +1089,7 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
                 }}
                 disabled={resyncingDrifts}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-danger bg-danger-dim rounded-lg hover:opacity-80 transition-opacity disabled:opacity-50"
-                title="Pusht den aktuellen Firestore-Bestand an eBay/Kaufland fuer alle Listings mit Drift oder 0 Lagerbestand"
+                title="Drückt den Lagerbestand auf den Marktplatz — nur für AKTIVE Listings mit Abweichung. Bestand 0 → das Listing wird beendet (kein Oversell). Sollte normal automatisch laufen; dies ist der manuelle Notfall-Knopf."
               >
                 {resyncingDrifts ? "Synchronisiere..." : `Bestand synchronisieren (${driftCount})`}
               </button>
@@ -1082,6 +1111,7 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
                 }
               }}
               disabled={repairing}
+              title="Reaktiviert eBay-Listings, die fälschlich deaktiviert wurden (z. B. durch einen früheren Sync-Fehler beim Bestands-Push). Setzt keine Mengen — bringt nur versehentlich beendete Listings zurück."
               className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-warning bg-warning-dim rounded-lg hover:opacity-80 transition-opacity disabled:opacity-50"
             >
               {repairing ? "Repariere..." : "Listings reparieren"}

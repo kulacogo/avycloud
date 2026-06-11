@@ -1,0 +1,56 @@
+name: Deploy Firestore Indexes
+
+# Keeps the LIVE Firestore composite indexes in sync with firestore.indexes.json.
+#
+# Root cause this fixes (audit 2026-06-10/11): the 27 indexes were declared in
+# the repo but NEVER deployed — so every composite query (drain, returns,
+# shipments, invoices, products_v2 …) ran degraded or failed. The stock-failure
+# drain in particular fell back to a partial query and never cleared its backlog.
+#
+# Decoupled by design: this is a SEPARATE workflow that runs only when the index
+# config changes (plus a weekly re-assert + manual trigger). It cannot break the
+# hosting or backend deploys. It is additive — it NEVER passes --force, so it
+# never deletes indexes that exist live but aren't in the file.
+#
+# REQUIRES: the FIREBASE_SERVICE_ACCOUNT secret's service account needs the
+# "Cloud Datastore Index Admin" role (roles/datastore.indexAdmin) in addition to
+# Firebase Hosting. If this workflow fails with a 403/permission error, grant
+# that role to the service account — nothing else deploys indexes.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "firestore.indexes.json"
+      - "firebase.json"
+      - ".github/workflows/deploy-firestore-indexes.yml"
+  schedule:
+    # Weekly re-assert so indexes self-heal even if they drift out-of-band
+    # (e.g. deleted in the console / DB recreated). Idempotent.
+    - cron: "17 4 * * 1"
+  workflow_dispatch: {}
+
+jobs:
+  deploy-indexes:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Pinned to match the hosting workflow (avoids the broken minimatch dep in
+      # firebase-tools@15.7.0).
+      - name: Install firebase-tools (pinned)
+        run: npm install -g firebase-tools@14
+
+      - name: Deploy Firestore indexes
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          if [ -z "$FIREBASE_SERVICE_ACCOUNT" ]; then
+            echo "::error::FIREBASE_SERVICE_ACCOUNT secret is not set — cannot deploy indexes."
+            exit 1
+          fi
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$RUNNER_TEMP/firebase-sa.json"
+          export GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/firebase-sa.json"
+          # Additive only (no --force): creates missing indexes, never deletes.
+          firebase deploy --only firestore:indexes --project avycloud --non-interactive
