@@ -920,6 +920,57 @@ async function improveExistingProduct(productId, onProgress) {
     throw error;
   }
 
+  // ─── Chat-grounded FULL enrichment (preferred path) ──────────────────────
+  // The "KI verbessern" button routes here. Use the SAME research pipeline as
+  // the chat assistant (runProductChatV3 via chat-enricher) to enrich the whole
+  // datasheet (title brand-first, price+source, gpsr, attributes, description,
+  // weight), then persist CONTENT ONLY. Inventory/sku/storage stay untouched;
+  // category is not changed; nothing is published. Falls back to the legacy
+  // grounding path below if disabled, errored, or it produced no changes.
+  const USE_CHAT_ENRICH = String(process.env.IMPROVE_USE_CHAT_ENRICH || 'true').toLowerCase() === 'true';
+  if (USE_CHAT_ENRICH) {
+    try {
+      if (onProgress) await onProgress('identifying');
+      const { enrichViaChatV3 } = require('./chat-enricher');
+      const nowIso = () => new Date().toISOString();
+      const er = await enrichViaChatV3(product, { tenantId: product.tenantId || null, nowIso });
+      if (!er.error && Array.isArray(er.changed) && er.changed.length) {
+        const next = er.product;
+        next.ops = next.ops || {};
+        next.ops.autoImprove = {
+          lastAppliedAt: nowIso(),
+          appliedChanges: er.changed,
+          confidence: er.confidence ?? null,
+          model: er.model || null,
+          evidenceCount: Array.isArray(er.evidence) ? er.evidence.length : 0,
+          reviewStatus: 'pending_review',
+          reviewedBy: null,
+          reviewedAt: null,
+          source: 'ki-verbessern',
+        };
+        await saveProductV2(next, {
+          source: 'job-improve',
+          skipStockEvent: true,
+          overwriteTextFields: true,
+          skipTitlePolicy: true,
+          skipKeyFeaturesNormalize: true,
+        });
+        if (onProgress) await onProgress('done');
+        console.log(`[improve] chat-enrich SUCCESS for ${productId} (${er.changed.join(',')})`);
+        try {
+          const fresh = await getProduct(next.id);
+          if (fresh) return fresh;
+        } catch (e) {
+          // best-effort fresh read
+        }
+        return next;
+      }
+      console.log(`[improve] chat-enrich produced no changes for ${productId} — falling back to legacy improve`);
+    } catch (e) {
+      console.warn(`[improve] chat-enrich failed for ${productId}, falling back to legacy improve:`, (e && e.message) || e);
+    }
+  }
+
   // ─── PERF: Parallelize independent setup calls ───
   // eBay listing lookup, title insights, and image downloads are independent.
   // Title insights uses ebayListing.categoryId as fallback, so we run those two
