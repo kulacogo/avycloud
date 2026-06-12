@@ -502,6 +502,21 @@ function mapListingDetail(item = {}) {
 
 const RATE_LIMIT_MAX_RETRIES = parseInt(process.env.EBAY_RATE_LIMIT_MAX_RETRIES || '3', 10);
 
+// ── Daily-quota circuit breaker (incident 2026-06-12) ────────────────────────
+// When eBay returns "exceeded usage limit" (the daily Trading-API call cap),
+// every further call (a) keeps the quota pinned at zero and (b) starves the
+// calls that matter — GetOrders (order intake) and CompleteSale (tracking) —
+// which is exactly how ~5 zero-stock products looping EndFixedPriceItem (~78
+// calls/min) made "nothing sync". While the breaker is open we fail fast WITHOUT
+// hitting eBay so the quota can recover; the cooldown auto-expires so the next
+// call probes, and any success closes the breaker.
+const EBAY_QUOTA_COOLDOWN_MS = parseInt(process.env.EBAY_QUOTA_COOLDOWN_MS || '300000', 10); // 5 min
+let _quotaExhaustedUntil = 0;
+function ebayQuotaCooldownActive() { return Date.now() < _quotaExhaustedUntil; }
+function ebayQuotaCooldownRemainingMs() { return Math.max(0, _quotaExhaustedUntil - Date.now()); }
+function openEbayQuotaBreaker() { _quotaExhaustedUntil = Date.now() + EBAY_QUOTA_COOLDOWN_MS; }
+function closeEbayQuotaBreaker() { _quotaExhaustedUntil = 0; }
+
 function isRateLimitError(text, errors) {
   if (typeof text === 'string' && text.includes('exceeded usage limit')) return true;
   if (Array.isArray(errors)) {
@@ -512,6 +527,18 @@ function isRateLimitError(text, errors) {
 
 async function callTradingApi(callName, bodyXml, { timeoutMs = DEFAULT_TIMEOUT_MS } = {}) {
   const { acquireSlot } = require('./ebay-rate-limiter');
+
+  // Circuit breaker: while the daily quota is exhausted, fail fast WITHOUT
+  // hitting eBay so it can recover instead of staying pinned by a retry storm.
+  // Message keeps the "exceeded usage limit" marker so callers' rate-limit
+  // detection (stock-sync / marketplace-tracking) still defers correctly.
+  if (ebayQuotaCooldownActive()) {
+    const err = new Error(`eBay Trading skipped for ${callName}: exceeded usage limit (quota cooldown ${Math.ceil(ebayQuotaCooldownRemainingMs() / 1000)}s)`);
+    err.code = 'EBAY_QUOTA_COOLDOWN';
+    err.quotaCooldown = true;
+    throw err;
+  }
+
   const cfg = await getEbayTradingConfig();
 
   // Prefer the fresh OAuth access token from Firestore over the static GCP Secret token.
@@ -557,11 +584,14 @@ async function callTradingApi(callName, bodyXml, { timeoutMs = DEFAULT_TIMEOUT_M
 
     // Retry on HTTP-level rate limit (429 or similar)
     if (!res.ok) {
-      if (text.includes('exceeded usage limit') && attempt < RATE_LIMIT_MAX_RETRIES) {
-        const backoffMs = Math.pow(2, attempt + 1) * 1000; // 2s, 4s, 8s
-        console.warn(`[callTradingApi] Rate limit hit for ${callName} (attempt ${attempt + 1}/${RATE_LIMIT_MAX_RETRIES}), retrying in ${backoffMs}ms...`);
-        await new Promise((r) => setTimeout(r, backoffMs));
-        continue;
+      if (text.includes('exceeded usage limit')) {
+        // Daily quota exhausted — open the breaker and stop hammering (retrying
+        // in 8s is futile and just keeps the quota at zero).
+        openEbayQuotaBreaker();
+        const error = new Error(`eBay Trading exceeded usage limit for ${callName} (HTTP ${res.status}) — quota breaker opened`);
+        error.code = 'EBAY_TRADING_RATE_LIMIT';
+        error.quotaExhausted = true;
+        throw error;
       }
       const error = new Error(`eBay Trading HTTP ${res.status} for ${callName}: ${text.slice(0, 500)}`);
       error.code = 'EBAY_TRADING_HTTP_ERROR';
@@ -580,12 +610,13 @@ async function callTradingApi(callName, bodyXml, { timeoutMs = DEFAULT_TIMEOUT_M
     const ack = safeString(responseNode?.Ack);
     const errors = parseErrors(responseNode?.Errors);
 
-    // Retry on API-level rate limit error
-    if (!isAckSuccess(ack) && isRateLimitError(text, errors) && attempt < RATE_LIMIT_MAX_RETRIES) {
-      const backoffMs = Math.pow(2, attempt + 1) * 1000;
-      console.warn(`[callTradingApi] Rate limit error for ${callName} (attempt ${attempt + 1}/${RATE_LIMIT_MAX_RETRIES}), retrying in ${backoffMs}ms...`);
-      await new Promise((r) => setTimeout(r, backoffMs));
-      continue;
+    // API-level rate limit (daily quota) — open the breaker, stop hammering.
+    if (!isAckSuccess(ack) && isRateLimitError(text, errors)) {
+      openEbayQuotaBreaker();
+      const error = new Error(`eBay Trading exceeded usage limit for ${callName} — quota breaker opened (cooldown ${Math.ceil(EBAY_QUOTA_COOLDOWN_MS / 1000)}s)`);
+      error.code = 'EBAY_TRADING_RATE_LIMIT';
+      error.quotaExhausted = true;
+      throw error;
     }
 
     if (!isAckSuccess(ack)) {
@@ -596,6 +627,8 @@ async function callTradingApi(callName, bodyXml, { timeoutMs = DEFAULT_TIMEOUT_M
       throw error;
     }
 
+    // Success — the quota is flowing again; make sure the breaker is closed.
+    closeEbayQuotaBreaker();
     return {
       ack,
       errors,
@@ -1494,4 +1527,8 @@ module.exports = {
   describeRestrictedTermsError,
   forceHttpsUrl,
   forceHttpsInHtml,
+  ebayQuotaCooldownActive,
+  ebayQuotaCooldownRemainingMs,
+  openEbayQuotaBreaker,
+  closeEbayQuotaBreaker,
 };
