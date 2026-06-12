@@ -588,6 +588,20 @@ async function syncStockWithRetry({
   const failedChannels = first.results.filter((r) => isFailedStatus(r?.status));
   if (failedChannels.length === 0) return first;
 
+  // If EVERY failure is a marketplace rate-limit (quota), an immediate 30s retry
+  // is futile — it burns another quota-blocked call and piles Firestore
+  // stock-lock contention (the 2026-06-12 sync-storm root cause). Hand straight
+  // to the durable drain instead of hammering in-process.
+  const isDrainRetry = String(reason || '').startsWith('drain:');
+  const allRateLimited = failedChannels.length > 0 && failedChannels.every((r) => isRateLimited(r?.error));
+  if (allRateLimited) {
+    console.warn(`[stock-sync] ${failedChannels.length} channel(s) rate-limited for product=${product?.id}; deferring to drain (no immediate retry)`);
+    if (!skipPersistentFailureQueue && !isDrainRetry) {
+      await persistSyncFailureForDrain({ tenantId, product, reason, failedChannels }).catch(() => {});
+    }
+    return first;
+  }
+
   // Schedule retry after 30s for failed channels
   console.log(`[stock-sync] ${failedChannels.length} channel(s) failed, scheduling retry in 30s`);
   setTimeout(async () => {
@@ -595,7 +609,6 @@ async function syncStockWithRetry({
       const retry = await syncStockToAllChannels({ tenantId, product, reason: `${reason}-retry` });
       const stillFailed = retry.results.filter((r) => isFailedStatus(r?.status));
       if (stillFailed.length > 0) {
-        const isDrainRetry = String(reason || '').startsWith('drain:');
         if (!skipPersistentFailureQueue && !isDrainRetry) {
           // Persist persistent failures for both monitoring and durable drain retries.
           await persistSyncFailureForDrain({ tenantId, product, reason, failedChannels: stillFailed });

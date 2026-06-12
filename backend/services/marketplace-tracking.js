@@ -78,6 +78,77 @@ function normalizeKauflandCarrier(carrier) {
 }
 
 /**
+ * Max number of tracking-push attempts before a failure is abandoned.
+ * Without a cap, a permanently-rejected push (e.g. Kaufland "Validation Failed")
+ * loops forever across the in-memory timer + ensure + catch-up triggers — the
+ * 2026-06-12 sync-storm that hammered the marketplace APIs + Firestore.
+ */
+const MAX_PUSH_ATTEMPTS = 6;
+
+/** eBay/Kaufland API rate-limit signature — transient, retry LATER (not immediately). */
+function isRateLimitedError(msg) {
+  const m = String(msg || '').toLowerCase();
+  return (
+    m.includes('exceeded usage limit') ||
+    m.includes('check your call usage') ||
+    m.includes('too many requests') ||
+    m.includes('rate limit') ||
+    m.includes('429')
+  );
+}
+
+/** Errors that will NEVER succeed on retry — abandon immediately instead of looping. */
+function isPermanentPushError(msg) {
+  const m = String(msg || '').toLowerCase();
+  return (
+    m.includes('validation failed') ||
+    m.includes('no ebay order id') ||
+    m.includes('order not found') ||
+    m.includes('already shipped') ||
+    m.includes('already acknowledged') ||
+    m.includes('invalid order')
+  );
+}
+
+/**
+ * Decide the marketplacePush status + attempt count for a push result.
+ * Pure + exported so the retry-cap behavior is unit-tested without Firestore.
+ *
+ * @param {{ ok: boolean, error?: string, prevAttempts?: number }} opts
+ * @returns {{ status: 'success'|'failed'|'abandoned', attempts: number, rateLimited: boolean, permanent: boolean }}
+ */
+function deriveMarketplacePushStatus({ ok, error, prevAttempts = 0 }) {
+  const base = Number(prevAttempts) || 0;
+  if (ok) return { status: 'success', attempts: base, rateLimited: false, permanent: false };
+  const attempts = base + 1;
+  const permanent = isPermanentPushError(error);
+  const rateLimited = isRateLimitedError(error);
+  const status = permanent || attempts >= MAX_PUSH_ATTEMPTS ? 'abandoned' : 'failed';
+  return { status, attempts, rateLimited, permanent };
+}
+
+/**
+ * Persist the marketplacePush status with a short retry. A transient Firestore
+ * blip must NOT lose a 'success' marker — otherwise every later trigger re-reads
+ * the order as "not pushed" and re-pushes forever (the infinite-loop trap).
+ */
+async function saveMarketplacePushStatus(ref, marketplacePush, orderId) {
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      await ref.set({ marketplacePush }, { merge: true });
+      return true;
+    } catch (err) {
+      if (attempt === 3) {
+        console.warn(`[marketplace-tracking] Failed to save push status for ${orderId}: ${err.message}`);
+        return false;
+      }
+      await new Promise((r) => setTimeout(r, 400 * attempt));
+    }
+  }
+  return false;
+}
+
+/**
  * Push tracking info to the order's marketplace.
  *
  * @param {{
@@ -107,27 +178,38 @@ async function pushTrackingToMarketplace({ orderId, trackingNumber, carrier }) {
     result = { ok: true, marketplace, skipped: 'no marketplace push needed' };
   }
 
-  // Track push status on the order document for retry/audit
-  try {
-    await orderSnap.ref.set({
-      marketplacePush: {
-        status: result.ok ? 'success' : 'failed',
-        marketplace,
-        lastAttempt: new Date().toISOString(),
-        error: result.ok ? null : (result.error || 'unknown'),
-        trackingNumber,
-        carrier: carrier || null,
-      },
-    }, { merge: true });
-  } catch (err) {
-    console.warn(`[marketplace-tracking] Failed to save push status for ${orderId}: ${err.message}`);
+  // Decide status + attempt count (capped) and persist durably for retry/audit.
+  const prevAttempts = Number(order.marketplacePush?.attempts) || 0;
+  const { status, attempts, rateLimited, permanent } = deriveMarketplacePushStatus({
+    ok: result.ok,
+    error: result.error,
+    prevAttempts,
+  });
+
+  await saveMarketplacePushStatus(orderSnap.ref, {
+    status,
+    marketplace,
+    attempts,
+    lastAttempt: new Date().toISOString(),
+    error: result.ok ? null : (result.error || 'unknown'),
+    trackingNumber,
+    carrier: carrier || null,
+  }, orderId);
+
+  if (status === 'abandoned') {
+    console.warn(`[marketplace-tracking] ABANDONED push for ${orderId} after ${attempts} attempt(s)${permanent ? ' (permanent error)' : ''}: ${result.error || ''}`);
+    collectError({ type: 'api_error', severity: 'warning', channel: marketplace || 'internal', message: `Tracking-Push aufgegeben nach ${attempts} Versuch(en): ${result.error || 'unknown'}`, entityType: 'order', entityId: orderId, source: 'marketplace-tracking' });
   }
 
-  // Schedule immediate retry on failure (5 min delay) instead of waiting for 24h batch
-  if (!result.ok && marketplace) {
+  // Schedule ONE in-memory 5-min retry ONLY for transient, non-rate-limited
+  // failures still under the cap. Rate-limited failures wait for the
+  // tracking-catchup cron — retrying immediately just burns more quota and
+  // hammers Firestore (the 2026-06-12 sync-storm). 'abandoned'/'success' never
+  // reschedule, which is what breaks the infinite loop.
+  if (status === 'failed' && !rateLimited && marketplace) {
     const RETRY_DELAY_MS = 5 * 60 * 1000;
     setTimeout(() => {
-      console.log(`[marketplace-tracking] Auto-retry push for ${orderId} after failure`);
+      console.log(`[marketplace-tracking] Auto-retry push for ${orderId} after failure (next attempt ${attempts + 1}/${MAX_PUSH_ATTEMPTS})`);
       pushTrackingToMarketplace({ orderId, trackingNumber, carrier })
         .catch((err) => console.warn(`[marketplace-tracking] Auto-retry failed for ${orderId}: ${err.message}`));
     }, RETRY_DELAY_MS);
@@ -283,8 +365,8 @@ async function ensureMarketplaceTrackingPushed({ orderId }) {
     return { ok: true, skipped: true };
   }
 
-  // Already successfully pushed?
-  if (order.marketplacePush?.status === 'success') {
+  // Already successfully pushed, or abandoned after the retry cap? Don't re-drive.
+  if (order.marketplacePush?.status === 'success' || order.marketplacePush?.status === 'abandoned') {
     return { ok: true, skipped: true };
   }
 
@@ -329,7 +411,7 @@ async function retryFailedMarketplacePushes({ tenantId = 'default', maxAge = 7 }
     const marketplace = (order.marketplace || order.orderSource || '').toLowerCase();
 
     if (!['ebay', 'kaufland'].includes(marketplace)) continue;
-    if (order.marketplacePush?.status === 'success') continue;
+    if (order.marketplacePush?.status === 'success' || order.marketplacePush?.status === 'abandoned') continue;
 
     const trackingNumber = order.trackingNumber || order.tracking?.trackingNumber;
     if (!trackingNumber) continue;
@@ -574,6 +656,10 @@ module.exports = {
   cancelOrderOnEbay,
   cancelOrderOnKaufland,
   normalizeKauflandCarrier,
+  deriveMarketplacePushStatus,
+  isRateLimitedError,
+  isPermanentPushError,
+  MAX_PUSH_ATTEMPTS,
   EBAY_CARRIER_MAP,
   KAUFLAND_CARRIER_MAP,
   KAUFLAND_CANCEL_REASONS,
