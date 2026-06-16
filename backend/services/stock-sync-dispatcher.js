@@ -296,33 +296,29 @@ async function syncStockToAllChannels({ tenantId = 'default', product, reason = 
           results.push({ channel: 'ebay', status: 'failed', itemId: resolvedEbayItemId, error: errMsg, retryable: true });
           console.warn(`[stock-sync] ebay RATE-LIMITED product=${productId} itemId=${resolvedEbayItemId} — deferring (no fail-safe end): ${errMsg}`);
         } else {
-          // Fail-safe: if we cannot safely push the new quantity, end listing.
-          try {
-            const { endFixedPriceItem } = require('../lib/ebay-trading-api');
-            await endFixedPriceItem(String(resolvedEbayItemId), { reason: 'NotAvailable' });
-            results.push({
-              channel: 'ebay',
-              status: 'success',
-              itemId: resolvedEbayItemId,
-              quantityPushed: 0,
-              action: 'fail_safe_end',
-              note: 'quantity_update_failed_listing_ended',
-            });
-            console.warn(
-              `[stock-sync] ebay FAIL-SAFE END product=${productId} itemId=${resolvedEbayItemId} after revise failure: ${errMsg}`
-            );
-          } catch (fallbackErr) {
-            const fallbackMsg = fallbackErr?.message || String(fallbackErr);
-            results.push({
-              channel: 'ebay',
-              status: 'error',
-              error: `${errMsg}; fail_safe_end_failed: ${fallbackMsg}`,
-            });
-            console.warn(
-              `[stock-sync] ebay FAILED product=${productId} itemId=${resolvedEbayItemId}; fail-safe end failed:`,
-              fallbackMsg
-            );
-          }
+          // A revise failure at stock > 0 means the eBay listing is UNCHANGED —
+          // it does NOT prove the stock is gone. Ending it here was a silent,
+          // destructive over-reaction: Incident 2026-06-16 killed 66 healthy
+          // listings in 30d this way (Best-Offer pricing-config errors,
+          // transient "operation aborted", image errors) — 0 were genuine
+          // stock-outs. The fake-`success` end also bypassed the drain, so no
+          // repair was ever queued. Per the oversell architecture
+          // (decisions.md), a failed sync belongs in the durable drain, NOT a
+          // marketplace mutation: record a retryable failure so
+          // syncStockWithRetry → stock_operation_failures → stock-failure-drain
+          // retries, and stock-reconciliation independently reconciles. The true
+          // zero-stock end is handled above in the isZeroStock branch.
+          results.push({
+            channel: 'ebay',
+            status: 'failed',
+            itemId: resolvedEbayItemId,
+            error: errMsg,
+            retryable: true,
+            action: 'revise_failed_deferred',
+          });
+          console.warn(
+            `[stock-sync] ebay REVISE FAILED product=${productId} itemId=${resolvedEbayItemId} — deferring to drain (NOT ending healthy listing): ${errMsg}`
+          );
         }
       }
     }
