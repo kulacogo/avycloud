@@ -1570,6 +1570,7 @@ router.get('/system-health', requirePermission('admin', 'read'), async (req, res
     tenantId,
     generatedAt: new Date().toISOString(),
     drain: null,
+    sync: null,
     llm: null,
     externalApis: null,
     health: null,
@@ -1728,6 +1729,55 @@ router.get('/system-health', requirePermission('admin', 'read'), async (req, res
     backgroundJobTenants: process.env.BACKGROUND_JOB_TENANTS || '(empty=default-only)',
     aggregateLatencyMs: Date.now() - startMs,
   };
+
+  // ─── Sync-SLO (pending stock_operation_failures backlog) ───────────────
+  // Teil E, Task 7: Ampel ueber den offenen Marketplace-Sync-Backlog.
+  // ok / warn (>=25 ODER >30min) / critical (>=100 ODER >60min). Reine
+  // Klassifizierung in lib/sync-slo.js (computeSyncSlo) — hier nur die Query.
+  try {
+    const { firestore } = require('../lib/firestore');
+    const { computeSyncSlo } = require('../lib/sync-slo');
+    const now = Date.now();
+    const PENDING_FETCH_LIMIT = 500;
+
+    let snap;
+    let docs;
+    try {
+      snap = await firestore.collection('stock_operation_failures')
+        .where('tenantId', '==', tenantId)
+        .where('status', '==', 'pending')
+        .orderBy('createdAt', 'asc')
+        .limit(PENDING_FETCH_LIMIT)
+        .get();
+      docs = snap.docs.map((d) => d.data());
+    } catch (err) {
+      // Composite-Index (tenantId + status + createdAt) evtl. nicht vorhanden →
+      // Fallback auf tenant-only Query und Status-Filter in-memory (wie der Drain).
+      const msg = String(err?.message || '').toLowerCase();
+      const isIndexIssue = err?.code === 9 || msg.includes('index') || msg.includes('failed precondition');
+      if (!isIndexIssue) throw err;
+      console.warn('[system-health] sync-slo pending-index missing, falling back to tenant-only query');
+      snap = await firestore.collection('stock_operation_failures')
+        .where('tenantId', '==', tenantId)
+        .limit(PENDING_FETCH_LIMIT)
+        .get();
+      docs = snap.docs.map((d) => d.data()).filter((d) => d.status === 'pending');
+    }
+
+    const slo = computeSyncSlo({ pending: docs, now });
+    data.sync = {
+      status: slo.status,
+      pendingCount: slo.pendingCount,
+      oldestAgeMinutes: slo.oldestAgeMinutes,
+      oldestCreatedAt: slo.oldestCreatedAt,
+      reasons: slo.reasons,
+      thresholds: slo.thresholds,
+      capped: docs.length >= PENDING_FETCH_LIMIT,
+    };
+  } catch (err) {
+    console.warn(`[system-health] sync section failed: ${err.message}`);
+    data.sync = { error: err.message || 'sync_query_failed' };
+  }
 
   res.json({ ok: true, data });
 });

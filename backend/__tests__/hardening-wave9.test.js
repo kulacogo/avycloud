@@ -48,4 +48,16 @@ describe('HARDEN Wave 9: admin endpoints for system health', () => {
     // Config snapshot reports Slack-Wiring
     expect(body).toMatch(/slackAlertsConfigured/);
   });
+
+  it('wires the sync-SLO section into system-health (Teil E, Task 7)', () => {
+    // Robust source-contract check: window-INDEPENDENT (scans the full file),
+    // so adding/moving sections never breaks it the way a fixed-offset slice would.
+    // Uses the pure classifier and exposes it under data.sync.
+    expect(source).toMatch(/computeSyncSlo/);
+    expect(source).toMatch(/require\(\s*['"]\.\.\/lib\/sync-slo['"]\s*\)/);
+    expect(source).toMatch(/data\.sync\s*=/);
+    // Reads the pending marketplace-sync backlog it grades.
+    expect(source).toMatch(/stock_operation_failures/);
+    expect(source).toMatch(/['"]pending['"]/);
+  });
 });
