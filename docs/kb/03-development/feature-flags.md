@@ -171,6 +171,18 @@ lastReviewed: 2026-05-18
 | `GEMINI_API_KEY` | unset | API-Key wenn nicht ADC. **Muss verifiziert werden** wie heute genau in Production aufgelöst. |
 | `STOCK_LOCK_BACKEND` | unset (in-memory) | Plan-Soll `firestore` (Punkt 12 [CLAUDE.md](../../../CLAUDE.md)). Heute Gap E — siehe [TASKS.md](../../../TASKS.md). |
 
+## F0 Slice 1 — Durable, non-destructive Sync-Recovery (WP1)
+
+Kill-Switches für den durable Stock-Sync-Recovery-Pfad (Master-Plan Teil E, Tasks 4–6).
+Beide **default OFF** → exakt heutiges Verhalten. Rollback = Flag auf `false`.
+
+| ENV | Default | Wirkung | Anker |
+|-----|---------|---------|-------|
+| `SYNC_DURABLE_DRAIN` | `false` | `true` → der Dispatcher persistiert Sync-Failures **synchron** in die durable Queue (statt In-Process-`setTimeout`-Retry) und stempelt `classification` (Klassifizierer) + `nextRetryAt` (Backoff); der Drain retried nur **fällige** Docs (`nextRetryAt <= now`, Legacy-Docs ohne Feld = sofort fällig) und stempelt bei Fehlschlag den nächsten Backoff. `false` = In-Process-30s-Retry wie bisher. | [services/stock-sync-dispatcher.js](../../../backend/services/stock-sync-dispatcher.js) (`durableDrainEnabled`), [services/stock-failure-drain.js](../../../backend/services/stock-failure-drain.js) (`isDue`) |
+| `EBAY_QUOTA_BREAKER_SHARED` | `false` | `true` → der In-Process-eBay-Quota-Breaker delegiert zusätzlich an den **Firestore-shared** Breaker (`system/ebay_quota_breaker`, 10s-Cache), sodass alle Cloud-Run-Instanzen gemeinsam zurückfallen. Der synchrone In-Call-Guard bleibt. Fail-safe: ein Breaker-Read-Fehler blockt nie einen Call. | [lib/ebay-trading-api.js](../../../backend/lib/ebay-trading-api.js) (`sharedQuotaBreakerEnabled`), [lib/ebay-quota-breaker.js](../../../backend/lib/ebay-quota-breaker.js) |
+
+> Zugehörige reine Libs (additiv, immer aktiv, kein Flag): [lib/marketplace-error-classifier.js](../../../backend/lib/marketplace-error-classifier.js) (5 Klassen, keine destruktiv), [lib/retry-backoff.js](../../../backend/lib/retry-backoff.js) (60/120/240s, Cap 30 min), [lib/ebay-quota-breaker.js](../../../backend/lib/ebay-quota-breaker.js).
+
 ## Hinweise
 
 - **ENV-Var-Rename** ist verboten, wenn sie in CI/CD referenziert wird (Punkt 4 [CLAUDE.md](../../../CLAUDE.md)).

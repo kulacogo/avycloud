@@ -2,8 +2,10 @@
 
 // ─── Mock Setup (require.cache patching for CJS) ──────────────────────
 
-function makeFailureDoc({ id, tenantId = 'trendocean', status = 'pending', attempts = 0, failures = [], createdAt = new Date().toISOString() }) {
+function makeFailureDoc({ id, tenantId = 'trendocean', status = 'pending', attempts = 0, failures = [], createdAt = new Date().toISOString(), nextRetryAt, classification }) {
   const data = { tenantId, status, attempts, failures, createdAt };
+  if (nextRetryAt !== undefined) data.nextRetryAt = nextRetryAt;
+  if (classification !== undefined) data.classification = classification;
   const updates = [];
   return {
     id,
@@ -257,5 +259,107 @@ describe('drainStockFailures', () => {
       if (prev === undefined) delete process.env.STOCK_FAILURE_DRAIN_ENABLED;
       else process.env.STOCK_FAILURE_DRAIN_ENABLED = prev;
     }
+  });
+});
+
+describe('drainStockFailures — backoff / isDue (WP1 Task 5)', () => {
+  const PREV = process.env.SYNC_DURABLE_DRAIN;
+  afterEach(() => {
+    if (PREV === undefined) delete process.env.SYNC_DURABLE_DRAIN;
+    else process.env.SYNC_DURABLE_DRAIN = PREV;
+  });
+
+  const productSuccess = () => {
+    _productQueryImpl = async () => ({
+      empty: false,
+      docs: [{ id: 'prod-x', data: () => ({ id: 'prod-x', identification: { sku: 'SKU-X' }, tenantId: 'trendocean' }) }],
+    });
+  };
+
+  it('flag ON: skips a doc whose nextRetryAt is still in the future', async () => {
+    process.env.SYNC_DURABLE_DRAIN = 'true';
+    const doc = makeFailureDoc({
+      id: 'due-future',
+      failures: [{ step: 'marketplaceSync', sku: 'SKU-X' }],
+      nextRetryAt: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
+    });
+    _queryImpl = async () => ({ docs: [doc] });
+    productSuccess();
+    syncStockWithRetryMock.mockResolvedValue({ results: [{ channel: 'ebay', status: 'success' }] });
+
+    const r = await drainStockFailures({ tenantId: 'trendocean' });
+    expect(syncStockWithRetryMock).not.toHaveBeenCalled();
+    expect(r.skipped).toBe(1);
+    expect(r.total).toBe(0);
+  });
+
+  it('flag ON: retries a doc whose nextRetryAt is in the past', async () => {
+    process.env.SYNC_DURABLE_DRAIN = 'true';
+    const doc = makeFailureDoc({
+      id: 'due-past',
+      failures: [{ step: 'marketplaceSync', sku: 'SKU-X' }],
+      nextRetryAt: new Date(Date.now() - 1000).toISOString(),
+    });
+    _queryImpl = async () => ({ docs: [doc] });
+    productSuccess();
+    syncStockWithRetryMock.mockResolvedValue({ results: [{ channel: 'ebay', status: 'success' }] });
+
+    const r = await drainStockFailures({ tenantId: 'trendocean' });
+    expect(syncStockWithRetryMock).toHaveBeenCalledTimes(1);
+    expect(r.resolved).toBe(1);
+  });
+
+  it('flag ON: treats a legacy doc with NO nextRetryAt as due', async () => {
+    process.env.SYNC_DURABLE_DRAIN = 'true';
+    const doc = makeFailureDoc({
+      id: 'legacy',
+      failures: [{ step: 'marketplaceSync', sku: 'SKU-X' }],
+    });
+    _queryImpl = async () => ({ docs: [doc] });
+    productSuccess();
+    syncStockWithRetryMock.mockResolvedValue({ results: [{ channel: 'ebay', status: 'success' }] });
+
+    const r = await drainStockFailures({ tenantId: 'trendocean' });
+    expect(syncStockWithRetryMock).toHaveBeenCalledTimes(1);
+    expect(r.resolved).toBe(1);
+  });
+
+  it('flag ON: stamps a future nextRetryAt + classification when a retry fails', async () => {
+    process.env.SYNC_DURABLE_DRAIN = 'true';
+    const doc = makeFailureDoc({
+      id: 'backoff',
+      attempts: 0,
+      classification: 'transient',
+      failures: [{ step: 'marketplaceSync', sku: 'SKU-X' }],
+      nextRetryAt: new Date(Date.now() - 1000).toISOString(),
+    });
+    _queryImpl = async () => ({ docs: [doc] });
+    productSuccess();
+    syncStockWithRetryMock.mockResolvedValue({ results: [{ channel: 'ebay', status: 'error', error: 'still down' }] });
+
+    const before = Date.now();
+    const r = await drainStockFailures({ tenantId: 'trendocean' });
+    expect(r.stillFailing).toBe(1);
+    const after = doc._currentData();
+    expect(after.status).toBe('pending');
+    expect(after.attempts).toBe(1);
+    expect(after.classification).toBe('transient');
+    expect(Date.parse(after.nextRetryAt)).toBeGreaterThan(before); // pushed into the future
+  });
+
+  it('flag OFF: ignores nextRetryAt and retries every pending doc (legacy behaviour)', async () => {
+    process.env.SYNC_DURABLE_DRAIN = 'false';
+    const doc = makeFailureDoc({
+      id: 'off-future',
+      failures: [{ step: 'marketplaceSync', sku: 'SKU-X' }],
+      nextRetryAt: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
+    });
+    _queryImpl = async () => ({ docs: [doc] });
+    productSuccess();
+    syncStockWithRetryMock.mockResolvedValue({ results: [{ channel: 'ebay', status: 'success' }] });
+
+    const r = await drainStockFailures({ tenantId: 'trendocean' });
+    expect(syncStockWithRetryMock).toHaveBeenCalledTimes(1);
+    expect(r.resolved).toBe(1);
   });
 });

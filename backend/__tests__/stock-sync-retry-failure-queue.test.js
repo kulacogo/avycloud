@@ -103,6 +103,7 @@ require.cache[require.resolve('../lib/ebay-trading-api')] = {
 };
 
 const { syncStockWithRetry } = require('../services/stock-sync-dispatcher');
+const { MARKETPLACE_ERROR_CLASSES } = require('../lib/marketplace-error-classifier');
 
 describe('syncStockWithRetry failure queue integration', () => {
   beforeEach(() => {
@@ -186,5 +187,74 @@ describe('syncStockWithRetry failure queue integration', () => {
 
     expect(reviseCalls.length).toBeGreaterThan(0);
     expect(reviseCalls[0].itemId).toBe('389918495952');
+  });
+});
+
+describe('syncStockWithRetry — durable drain flag (WP1 Task 4)', () => {
+  const PREV = process.env.SYNC_DURABLE_DRAIN;
+
+  beforeEach(() => {
+    stockSyncFailuresAdds = [];
+    stockOperationFailuresAdds = [];
+    ebayListingsLiveDocs = [];
+    reviseCalls.length = 0;
+    mockReviseImpl = async () => { throw new Error('ebay revise down'); };
+    mockEndImpl = async () => { throw new Error('ebay fail-safe down'); };
+  });
+
+  afterEach(() => {
+    if (PREV === undefined) delete process.env.SYNC_DURABLE_DRAIN;
+    else process.env.SYNC_DURABLE_DRAIN = PREV;
+  });
+
+  it('flag ON: persists synchronously (no 30s setTimeout) and stamps classification + nextRetryAt', async () => {
+    process.env.SYNC_DURABLE_DRAIN = 'true';
+    const before = Date.now();
+
+    await syncStockWithRetry({
+      tenantId: 'trendocean',
+      reason: 'event:stock-changed',
+      product: {
+        id: 'prod-durable-1',
+        tenantId: 'trendocean',
+        identification: { sku: 'SKU-DUR-1' },
+        inventory: { quantity: 3 },
+        ops: { ebay: { itemId: 'EBAY-DUR-1' } },
+      },
+    });
+
+    // No timer advance — proves the persist happened synchronously, not via setTimeout.
+    expect(stockOperationFailuresAdds.length).toBe(1);
+    const doc = stockOperationFailuresAdds[0];
+    expect(doc.status).toBe('pending');
+    expect(doc.attempts).toBe(0);
+    expect(MARKETPLACE_ERROR_CLASSES).toContain(doc.classification);
+    expect(Date.parse(doc.nextRetryAt)).toBeGreaterThanOrEqual(before);
+    expect(doc.failures[0].step).toBe('marketplaceSync');
+  });
+
+  it('flag OFF: keeps legacy setTimeout path (no persist until 30s elapse)', async () => {
+    process.env.SYNC_DURABLE_DRAIN = 'false';
+    vi.useFakeTimers();
+    try {
+      await syncStockWithRetry({
+        tenantId: 'trendocean',
+        reason: 'event:stock-changed',
+        product: {
+          id: 'prod-legacy-1',
+          tenantId: 'trendocean',
+          identification: { sku: 'SKU-LEG-1' },
+          inventory: { quantity: 3 },
+          ops: { ebay: { itemId: 'EBAY-LEG-1' } },
+        },
+      });
+
+      // setTimeout still pending → nothing persisted yet.
+      expect(stockOperationFailuresAdds.length).toBe(0);
+      await vi.advanceTimersByTimeAsync(30000);
+      expect(stockOperationFailuresAdds.length).toBe(1);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

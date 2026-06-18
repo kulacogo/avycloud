@@ -19,7 +19,27 @@
 
 'use strict';
 
+const { computeNextRetryAt } = require('../lib/retry-backoff');
+
 const MAX_ATTEMPTS = 5;
+
+// WP1 Kill-Switch (Teil E, Task 5). Spiegelt das Flag im Dispatcher.
+// OFF → heutiges Verhalten (alle pending Docs jeden Lauf retrien, kein Backoff).
+// ON → nur fällige Docs (nextRetryAt <= now), Backoff-Stempel bei Fehlschlag.
+function durableDrainEnabled() {
+  return String(process.env.SYNC_DURABLE_DRAIN || '').toLowerCase() === 'true';
+}
+
+// Ein Failure-Doc ist fällig, wenn es keinen (Legacy/unstamped) oder einen
+// vergangenen nextRetryAt hat. Legacy-Docs ohne Feld → SOFORT fällig, damit der
+// Backoff-Rollout keine bestehenden pending Failures stranden lässt.
+function isDue(data, now) {
+  const nra = data && data.nextRetryAt;
+  if (!nra) return true;
+  const ms = Date.parse(nra);
+  if (!Number.isFinite(ms)) return true;
+  return ms <= now;
+}
 
 async function loadPendingFailureDocs({ firestore, tenantId, limit }) {
   try {
@@ -92,6 +112,8 @@ async function drainStockFailures({ tenantId, limit = 50 } = {}) {
 
   const { firestore } = require('../lib/firestore');
   const { syncStockWithRetry } = require('./stock-sync-dispatcher');
+  const now = Date.now();
+  const durable = durableDrainEnabled();
 
   // Prefer status-filtered query to avoid starvation by old resolved docs.
   // Falls back automatically if index is not ready yet.
@@ -105,6 +127,12 @@ async function drainStockFailures({ tenantId, limit = 50 } = {}) {
     if (data.status !== 'pending') continue;
     const attempts = Number(data.attempts || 0);
     if (attempts >= MAX_ATTEMPTS) continue;
+    // WP1 Task 5: respect backoff — only retry docs whose nextRetryAt is due.
+    // Off by flag → legacy behaviour (every pending doc each run).
+    if (durable && !isDue(data, now)) {
+      results.skipped += 1;
+      continue;
+    }
     results.total += 1;
 
     const failuresArr = Array.isArray(data.failures) ? data.failures : [];
@@ -190,12 +218,20 @@ async function drainStockFailures({ tenantId, limit = 50 } = {}) {
       console.log(`[stock-failure-drain] ${doc.id} resolved after attempt ${nextAttempts} (${retryable.length} marketplaceSync)`);
     } else {
       const nextStatus = nextAttempts >= MAX_ATTEMPTS ? 'abandoned' : 'pending';
-      await doc.ref.update({
+      const updatePayload = {
         status: nextStatus,
         attempts: nextAttempts,
         lastAttemptAt: new Date().toISOString(),
         drainResults: retryResults,
-      });
+      };
+      // WP1 Task 5: stamp the next backoff window so the doc is skipped until due.
+      // classification was set at creation (Task 4); default unknown for legacy docs.
+      if (durable && nextStatus === 'pending') {
+        const classification = data.classification || 'unknown';
+        updatePayload.classification = classification;
+        updatePayload.nextRetryAt = computeNextRetryAt({ attempts: nextAttempts, now, classification });
+      }
+      await doc.ref.update(updatePayload);
       if (nextStatus === 'abandoned') {
         results.abandoned += 1;
         console.error(`[stock-failure-drain] ABANDONED after ${MAX_ATTEMPTS} attempts: ${doc.id} — ${JSON.stringify(retryResults)}`);

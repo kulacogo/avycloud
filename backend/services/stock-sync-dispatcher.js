@@ -10,10 +10,30 @@
  */
 
 const { firestore } = require('../lib/firestore');
+const { classifyMarketplaceError } = require('../lib/marketplace-error-classifier');
+const { computeNextRetryAt } = require('../lib/retry-backoff');
 
 const SYNC_LOG_COLLECTION = 'stock_sync_log';
 const STOCK_SYNC_FAILURES_COLLECTION = 'stock_sync_failures';
 const STOCK_OPERATION_FAILURES_COLLECTION = 'stock_operation_failures';
+
+// WP1 Kill-Switch (Teil E, Task 4/5). default OFF → exakt heutiges Verhalten
+// (In-Process-30s-setTimeout-Retry). ON → durable Pfad: synchron in die Queue,
+// Drain retried per nextRetryAt/Backoff. Rollback = Flag auf false.
+function durableDrainEnabled() {
+  return String(process.env.SYNC_DURABLE_DRAIN || '').toLowerCase() === 'true';
+}
+
+// Aggregierte Fehlerklasse für ein Failure-Bündel. Precedence wählt die Klasse,
+// die das Retry-Scheduling treiben soll (retrybare zuerst, rate_limited dominiert
+// wegen Quota-Wartezeit). Nie destruktiv (Klassen-Invariante, Task 1).
+const CLASS_PRECEDENCE = ['rate_limited', 'transient', 'unknown', 'listing_config', 'auth'];
+function classifyFailureBundle(failedChannels) {
+  const classes = (failedChannels || []).map(
+    (r) => classifyMarketplaceError(r?.error || `status:${r?.status || ''}`).class
+  );
+  return CLASS_PRECEDENCE.find((c) => classes.includes(c)) || 'unknown';
+}
 
 function extractProductSku(product) {
   return String(
@@ -52,9 +72,15 @@ async function persistSyncFailureForDrain({
 }) {
   const productId = String(product?.id || '');
   const sku = extractProductSku(product);
-  const createdAt = new Date().toISOString();
+  const now = Date.now();
+  const createdAt = new Date(now).toISOString();
   const channels = failedChannels.map((r) => String(r?.channel || 'unknown'));
   const errors = failedChannels.map((r) => String(r?.error || `status:${r?.status || 'unknown'}`));
+
+  // Klassifizieren + initialen Backoff stempeln (additive Felder; der Drain liest
+  // sie nur bei aktivem Flag, ignoriert sie sonst). attempts=0 → erster Drain-Lauf.
+  const classification = classifyFailureBundle(failedChannels);
+  const nextRetryAt = computeNextRetryAt({ attempts: 1, now, classification });
 
   await firestore.collection(STOCK_SYNC_FAILURES_COLLECTION).add({
     tenantId,
@@ -72,6 +98,9 @@ async function persistSyncFailureForDrain({
     reason,
     productId,
     source: 'stock-sync-dispatcher',
+    classification,
+    nextRetryAt,
+    attempts: 0,
     failures: failedChannels.map((r) => ({
       step: 'marketplaceSync',
       sku: sku || null,
@@ -598,7 +627,19 @@ async function syncStockWithRetry({
     return first;
   }
 
-  // Schedule retry after 30s for failed channels
+  // WP1 Task 4: durable path — no in-process setTimeout retry. Persist
+  // synchronously to the drain queue (with classification + nextRetryAt) and
+  // let the backoff-aware drain own the retry. Removes the fire-and-forget
+  // setTimeout that could be lost on instance shutdown.
+  if (durableDrainEnabled()) {
+    if (!skipPersistentFailureQueue && !isDrainRetry) {
+      await persistSyncFailureForDrain({ tenantId, product, reason, failedChannels }).catch(() => {});
+    }
+    console.log(`[stock-sync] ${failedChannels.length} channel(s) failed for product=${product?.id}; durable-drain ON → persisted for drain (no in-process retry)`);
+    return first;
+  }
+
+  // Legacy path (flag OFF): schedule retry after 30s for failed channels.
   console.log(`[stock-sync] ${failedChannels.length} channel(s) failed, scheduling retry in 30s`);
   setTimeout(async () => {
     try {

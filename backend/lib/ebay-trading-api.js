@@ -514,8 +514,49 @@ const EBAY_QUOTA_COOLDOWN_MS = parseInt(process.env.EBAY_QUOTA_COOLDOWN_MS || '3
 let _quotaExhaustedUntil = 0;
 function ebayQuotaCooldownActive() { return Date.now() < _quotaExhaustedUntil; }
 function ebayQuotaCooldownRemainingMs() { return Math.max(0, _quotaExhaustedUntil - Date.now()); }
-function openEbayQuotaBreaker() { _quotaExhaustedUntil = Date.now() + EBAY_QUOTA_COOLDOWN_MS; }
-function closeEbayQuotaBreaker() { _quotaExhaustedUntil = 0; }
+
+// WP1 Task 6: optional cross-instance delegation. The local breaker only protects
+// ONE Cloud-Run instance; with the flag on we also broadcast the open/close to the
+// Firestore-shared breaker (lib/ebay-quota-breaker.js) so all instances back off
+// together. The fast synchronous in-call guard below stays as the hot path; the
+// shared consult is an additional, 10s-cached read. Default OFF → unchanged.
+function sharedQuotaBreakerEnabled() {
+  return String(process.env.EBAY_QUOTA_BREAKER_SHARED || '').toLowerCase() === 'true';
+}
+function _sharedBreaker() { return require('./ebay-quota-breaker'); }
+
+function openEbayQuotaBreaker() {
+  _quotaExhaustedUntil = Date.now() + EBAY_QUOTA_COOLDOWN_MS;
+  if (sharedQuotaBreakerEnabled()) {
+    try { _sharedBreaker().openEbayQuotaBreaker({ cooldownMs: EBAY_QUOTA_COOLDOWN_MS, reason: 'exceeded usage limit' }).catch(() => {}); } catch (_) { /* fire-and-forget */ }
+  }
+}
+function closeEbayQuotaBreaker() {
+  _quotaExhaustedUntil = 0;
+  if (sharedQuotaBreakerEnabled()) {
+    try { _sharedBreaker().closeEbayQuotaBreaker({}).catch(() => {}); } catch (_) { /* fire-and-forget */ }
+  }
+}
+
+// Cross-instance defer: if another instance opened the shared breaker, back off
+// here too. Fail-safe: a breaker READ error never blocks a call. Mirrors the
+// remaining cooldown into the local breaker so subsequent calls fail fast sync.
+async function _consultSharedQuotaBreaker(callName) {
+  if (!sharedQuotaBreakerEnabled()) return;
+  try {
+    const state = await _sharedBreaker().getEbayQuotaBreakerState({});
+    if (state && state.open) {
+      _quotaExhaustedUntil = Math.max(_quotaExhaustedUntil, Date.now() + (state.remainingMs || 0));
+      const err = new Error(`eBay Trading skipped for ${callName}: exceeded usage limit (shared quota cooldown ${Math.ceil((state.remainingMs || 0) / 1000)}s)`);
+      err.code = 'EBAY_QUOTA_COOLDOWN';
+      err.quotaCooldown = true;
+      throw err;
+    }
+  } catch (err) {
+    if (err && err.quotaCooldown) throw err;
+    // read failure → fail-safe, do not block calls on breaker unavailability
+  }
+}
 
 function isRateLimitError(text, errors) {
   if (typeof text === 'string' && text.includes('exceeded usage limit')) return true;
@@ -538,6 +579,10 @@ async function callTradingApi(callName, bodyXml, { timeoutMs = DEFAULT_TIMEOUT_M
     err.quotaCooldown = true;
     throw err;
   }
+
+  // Cross-instance breaker (flag-gated, cached). Throws EBAY_QUOTA_COOLDOWN when
+  // another instance has the shared quota breaker open.
+  await _consultSharedQuotaBreaker(callName);
 
   const cfg = await getEbayTradingConfig();
 
@@ -1531,4 +1576,5 @@ module.exports = {
   ebayQuotaCooldownRemainingMs,
   openEbayQuotaBreaker,
   closeEbayQuotaBreaker,
+  _consultSharedQuotaBreaker,
 };
