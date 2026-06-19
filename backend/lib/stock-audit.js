@@ -43,15 +43,23 @@ function buildAuditRow({ productId, sku = null, projectionOnHand, events = [], b
   const binVsProjection = bins - projection;
 
   const flags = [];
-  // The dangerous one first: projection says empty, but stock exists elsewhere.
-  if (projection === 0 && (bins > 0 || ledgerOnHand > 0)) flags.push('projection-zero-but-stock-elsewhere');
+  // MAJOR = real physical stock (bins) that the projection misses → would be
+  // LOST if the ledger is opened from the projection. The original zeroing fire.
+  const binOrphanedStock = projection === 0 && bins > 0;
+  // Ledger over-counts physical reality (stock_in booked, stock_out missing) →
+  // opening onHand=Σ events would RESURRECT phantom stock → oversell. Not data
+  // loss, but a hard cutover blocker; must be reconciled before STOCK_LEDGER.
+  const ledgerOvercount = ledgerOnHand > bins && ledgerOnHand > projection;
+
+  if (binOrphanedStock) flags.push('bin-orphaned-stock');
+  if (ledgerOvercount) flags.push('ledger-overcount');
   if (ledgerOnHand === 0 && (bins > 0 || projection > 0)) flags.push('ledger-empty');
   if (binVsLedger !== 0) flags.push('bin-ledger-mismatch');
   if (projVsLedger !== 0) flags.push('projection-ledger-mismatch');
 
   const inSync = projVsLedger === 0 && binVsLedger === 0;
   let severity = 'ok';
-  if (!inSync) severity = flags.includes('projection-zero-but-stock-elsewhere') ? 'major' : 'minor';
+  if (!inSync) severity = binOrphanedStock ? 'major' : 'minor';
 
   return {
     productId: productId || null,

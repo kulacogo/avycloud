@@ -11,12 +11,20 @@ describe('buildAuditRow (read-only 3-source reconcile)', () => {
     expect(row.flags).toEqual([]);
   });
 
-  it('flags the dangerous zeroing case (projection 0 but stock elsewhere) as MAJOR', () => {
+  it('flags real bin-orphaned stock (projection 0 but bins>0) as MAJOR — data-loss risk', () => {
     const row = buildAuditRow({ productId: 'p2', sku: 'SKU-2', projectionOnHand: 0, events: [{ delta: 3 }], binQuantity: 3 });
     expect(row.ledgerOnHand).toBe(3);
     expect(row.severity).toBe('major');
-    expect(row.flags).toContain('projection-zero-but-stock-elsewhere');
+    expect(row.flags).toContain('bin-orphaned-stock');
     expect(row.inSync).toBe(false);
+  });
+
+  it('flags ledger over-count (ledger>0, bins=0, projection=0) as MINOR — oversell/hygiene, not loss', () => {
+    const row = buildAuditRow({ productId: 'p2b', sku: 'SKU-2B', projectionOnHand: 0, events: [{ delta: 1 }], binQuantity: 0 });
+    expect(row.ledgerOnHand).toBe(1);
+    expect(row.severity).toBe('minor');
+    expect(row.flags).toContain('ledger-overcount');
+    expect(row.flags).not.toContain('bin-orphaned-stock');
   });
 
   it('flags an empty ledger when stock exists in projection/bins (minor)', () => {
@@ -50,16 +58,18 @@ describe('summarizeAudit', () => {
   it('counts rows by severity and aggregates flags', () => {
     const rows = [
       buildAuditRow({ productId: 'a', projectionOnHand: 5, events: [{ delta: 5 }], binQuantity: 5 }),  // ok
-      buildAuditRow({ productId: 'b', projectionOnHand: 0, events: [{ delta: 3 }], binQuantity: 3 }),  // major
+      buildAuditRow({ productId: 'b', projectionOnHand: 0, events: [{ delta: 3 }], binQuantity: 3 }),  // major (bin-orphaned)
       buildAuditRow({ productId: 'c', projectionOnHand: 5, events: [], binQuantity: 5 }),              // minor
-      buildAuditRow({ productId: 'd', projectionOnHand: 0, events: [], binQuantity: 2 }),              // major
+      buildAuditRow({ productId: 'd', projectionOnHand: 0, events: [], binQuantity: 2 }),              // major (bin-orphaned)
+      buildAuditRow({ productId: 'e', projectionOnHand: 0, events: [{ delta: 1 }], binQuantity: 0 }),  // minor (ledger-overcount)
     ];
     const s = summarizeAudit(rows);
-    expect(s.total).toBe(4);
+    expect(s.total).toBe(5);
     expect(s.ok).toBe(1);
     expect(s.major).toBe(2);
-    expect(s.minor).toBe(1);
-    expect(s.byFlag['projection-zero-but-stock-elsewhere']).toBe(2);
+    expect(s.minor).toBe(2);
+    expect(s.byFlag['bin-orphaned-stock']).toBe(2);
+    expect(s.byFlag['ledger-overcount']).toBe(1);
   });
 
   it('handles an empty audit', () => {
