@@ -80,9 +80,85 @@ function reconcileLedger({ events = [], projectionOnHand = 0 } = {}) {
   };
 }
 
+/**
+ * applyMovement — der EINZIGE Schreiber (WP3, „dunkel" gebaut, noch nicht in
+ * transitionOrder verdrahtet). Eine Firestore-Tx unter withStockLock:
+ *   validieren → Idempotenz über deterministische Event-Doc-ID → Event anhängen
+ *   → Projektion fortschreiben (onHand += delta, availableToSell, nie negativ).
+ * Nach Commit best-effort notifyStockChange + emitSyncEvent (F0-Enqueue),
+ * sofern als deps übergeben.
+ *
+ * Abhängigkeiten werden injiziert (firestore, withStockLock, now, optional
+ * notifyStockChange/emitSyncEvent) → voll testbar ohne echte Infrastruktur.
+ *
+ * @returns {Promise<{applied:boolean, eventId:string, reason?:string, onHand?:number, availableToSell?:number}>}
+ */
+async function applyMovement(movement, deps = {}) {
+  const { tenantId = 'default', productId, delta, type = 'adjust', idempotencyKey, meta = null } = movement || {};
+  const { firestore, withStockLock, now = Date.now(), notifyStockChange, emitSyncEvent } = deps;
+
+  if (!firestore) throw new Error('applyMovement: firestore dependency required');
+  if (!productId) throw new Error('applyMovement: productId required');
+  if (!idempotencyKey || typeof idempotencyKey !== 'string') {
+    throw new Error('applyMovement: idempotencyKey (string) required');
+  }
+  const d = Number(delta);
+  if (!Number.isFinite(d)) throw new Error('applyMovement: numeric delta required');
+
+  const lock = typeof withStockLock === 'function' ? withStockLock : (_k, fn) => fn();
+  const eventId = buildMovementEventId({ tenantId, idempotencyKey });
+
+  const result = await lock(`stock:${productId}`, () => firestore.runTransaction(async (tx) => {
+    const eventRef = firestore.collection('warehouseEvents').doc(eventId);
+    const existing = await tx.get(eventRef);
+    if (existing && existing.exists) {
+      return { applied: false, reason: 'duplicate', eventId };
+    }
+
+    const productRef = firestore.collection('products_v2').doc(productId);
+    const prodSnap = await tx.get(productRef);
+    const prod = prodSnap && prodSnap.exists ? (prodSnap.data() || {}) : {};
+    const inv = prod.inventory || {};
+    const currentOnHand = Number(inv.onHand ?? inv.quantity ?? 0) || 0;
+    const reserved = Number(inv.reserved ?? 0) || 0;
+    const newOnHand = currentOnHand + d;
+    if (newOnHand < 0) {
+      throw new Error(`applyMovement: refusing to drive onHand negative (current=${currentOnHand}, delta=${d}) for ${productId}`);
+    }
+    const availableToSell = computeAvailableToSell({ onHand: newOnHand, allocated: reserved });
+
+    tx.set(eventRef, {
+      type,
+      tenantId,
+      productId,
+      delta: d,
+      quantityAfter: newOnHand,
+      idempotencyKey,
+      meta,
+      createdAt: new Date(now).toISOString(),
+    });
+    // Whole-inventory merge keeps unrelated sub-fields; quantity stays an alias of onHand.
+    tx.update(productRef, { inventory: { ...inv, onHand: newOnHand, quantity: newOnHand, reserved, availableToSell } });
+
+    return { applied: true, eventId, onHand: newOnHand, availableToSell };
+  }));
+
+  // Best-effort post-commit fan-out (never throws — telemetry/sync must not break the write).
+  if (result && result.applied) {
+    if (typeof notifyStockChange === 'function') {
+      try { await notifyStockChange({ tenantId, productId, delta: d, onHand: result.onHand }); } catch (_) { /* best-effort */ }
+    }
+    if (typeof emitSyncEvent === 'function') {
+      try { emitSyncEvent('stock:changed', { tenantId, productId, onHand: result.onHand }); } catch (_) { /* best-effort */ }
+    }
+  }
+  return result;
+}
+
 module.exports = {
   computeOnHandFromEvents,
   computeAvailableToSell,
   buildMovementEventId,
   reconcileLedger,
+  applyMovement,
 };
