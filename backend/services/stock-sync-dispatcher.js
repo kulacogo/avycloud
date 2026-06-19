@@ -12,6 +12,7 @@
 const { firestore } = require('../lib/firestore');
 const { classifyMarketplaceError } = require('../lib/marketplace-error-classifier');
 const { computeNextRetryAt } = require('../lib/retry-backoff');
+const { guardListingPrice } = require('../lib/best-offer-guard');
 
 const SYNC_LOG_COLLECTION = 'stock_sync_log';
 const STOCK_SYNC_FAILURES_COLLECTION = 'stock_sync_failures';
@@ -22,6 +23,27 @@ const STOCK_OPERATION_FAILURES_COLLECTION = 'stock_operation_failures';
 // Drain retried per nextRetryAt/Backoff. Rollback = Flag auf false.
 function durableDrainEnabled() {
   return String(process.env.SYNC_DURABLE_DRAIN || '').toLowerCase() === 'true';
+}
+
+// WP2 Kill-Switch (Teil E / F0.X). default OFF → Preis-Push unverändert.
+// ON → vor dem eBay-Revise die Best-Offer-Auto-Ablehnungsschwelle lesen und
+// einen BIN ≤ Schwelle NICHT senden (Listing kann nicht un-änderbar werden).
+function bestOfferGuardEnabled() {
+  return String(process.env.BEST_OFFER_PRICE_GUARD || '').toLowerCase() === 'true';
+}
+
+// Best-effort read of the live auto-decline threshold (MinimumBestOfferPrice).
+// Fail-open: on any read error returns null → guard treats as unknown → push proceeds.
+async function readEbayAutoDeclineThreshold(itemId) {
+  try {
+    const { getEbayItem } = require('../lib/ebay-trading-api');
+    const observed = await getEbayItem(String(itemId));
+    const t = observed?.item?.minimumBestOfferPrice;
+    return Number.isFinite(Number(t)) ? Number(t) : null;
+  } catch (err) {
+    console.warn(`[price-sync] best-offer threshold read failed for ${itemId}: ${err.message}`);
+    return null;
+  }
 }
 
 // Aggregierte Fehlerklasse für ein Failure-Bündel. Precedence wählt die Klasse,
@@ -540,19 +562,41 @@ async function syncPriceToAllChannels({ tenantId = 'default', product, prices = 
   const ebayPrice = prices.ebay ?? product?.pricing?.ebay?.price ?? product?.details?.pricing?.sellPrice ?? product?.pricing?.sellPrice;
 
   if (ebayItemId && Number.isFinite(ebayPrice) && ebayPrice > 0) {
-    try {
-      const { reviseFixedPriceItem } = require('../lib/ebay-trading-api');
-      const result = await reviseFixedPriceItem({
-        itemId: String(ebayItemId),
-        startPrice: ebayPrice,
-        currency: 'EUR',
-      });
-      const status = result?.ack === 'Success' || result?.ack === 'Warning' ? 'success' : 'failed';
-      results.push({ channel: 'ebay', status, pricePushed: ebayPrice });
-      console.log(`[price-sync] ebay product=${productId} price=${ebayPrice} status=${status}`);
-    } catch (err) {
-      results.push({ channel: 'ebay', status: 'error', error: err?.message });
-      console.warn(`[price-sync] ebay FAILED product=${productId}:`, err?.message || err);
+    // WP2 / F0.X: never push a Sofortkaufpreis at or below the Best-Offer
+    // auto-decline threshold — that revise would jam the listing un-changeably.
+    let guardBlocked = false;
+    if (bestOfferGuardEnabled()) {
+      const threshold = await readEbayAutoDeclineThreshold(ebayItemId);
+      const guard = guardListingPrice({ newPrice: ebayPrice, autoDeclineThreshold: threshold });
+      if (!guard.safe) {
+        guardBlocked = true;
+        results.push({
+          channel: 'ebay',
+          status: 'skipped',
+          reason: 'best-offer-guard',
+          attemptedPrice: ebayPrice,
+          autoDeclineThreshold: threshold,
+          minSafePrice: guard.minSafePrice,
+        });
+        console.warn(`[price-sync] ebay BLOCKED by best-offer-guard product=${productId}: price ${ebayPrice} <= auto-decline ${threshold} (minSafe ${guard.minSafePrice})`);
+      }
+    }
+
+    if (!guardBlocked) {
+      try {
+        const { reviseFixedPriceItem } = require('../lib/ebay-trading-api');
+        const result = await reviseFixedPriceItem({
+          itemId: String(ebayItemId),
+          startPrice: ebayPrice,
+          currency: 'EUR',
+        });
+        const status = result?.ack === 'Success' || result?.ack === 'Warning' ? 'success' : 'failed';
+        results.push({ channel: 'ebay', status, pricePushed: ebayPrice });
+        console.log(`[price-sync] ebay product=${productId} price=${ebayPrice} status=${status}`);
+      } catch (err) {
+        results.push({ channel: 'ebay', status: 'error', error: err?.message });
+        console.warn(`[price-sync] ebay FAILED product=${productId}:`, err?.message || err);
+      }
     }
   }
 

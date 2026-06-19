@@ -497,6 +497,21 @@ function mapListingDetail(item = {}) {
     itemSpecifics: mapItemSpecifics(item?.ItemSpecifics),
     variationSpecificsSet: mapItemSpecifics(item?.Variations?.VariationSpecificsSet),
     productListingDetails: item?.ProductListingDetails || null,
+    // WP2 / F0.X — Best-Offer thresholds. `minimumBestOfferPrice` is the
+    // auto-DECLINE threshold: a revise with BIN ≤ this jams the listing.
+    bestOfferEnabled: String(item?.BestOfferDetails?.BestOfferEnabled ?? '').toLowerCase() === 'true',
+    minimumBestOfferPrice: toNumber(
+      item?.ListingDetails?.MinimumBestOfferPrice?.['#text']
+      ?? item?.ListingDetails?.MinimumBestOfferPrice
+      ?? item?.BestOfferDetails?.MinimumBestOfferPrice?.['#text']
+      ?? item?.BestOfferDetails?.MinimumBestOfferPrice
+    ),
+    bestOfferAutoAcceptPrice: toNumber(
+      item?.BestOfferDetails?.BestOfferAutoAcceptPrice?.['#text']
+      ?? item?.BestOfferDetails?.BestOfferAutoAcceptPrice
+      ?? item?.ListingDetails?.BestOfferAutoAcceptPrice?.['#text']
+      ?? item?.ListingDetails?.BestOfferAutoAcceptPrice
+    ),
   };
 }
 

@@ -183,6 +183,14 @@ Beide **default OFF** → exakt heutiges Verhalten. Rollback = Flag auf `false`.
 
 > Zugehörige reine Libs (additiv, immer aktiv, kein Flag): [lib/marketplace-error-classifier.js](../../../backend/lib/marketplace-error-classifier.js) (5 Klassen, keine destruktiv), [lib/retry-backoff.js](../../../backend/lib/retry-backoff.js) (60/120/240s, Cap 30 min), [lib/ebay-quota-breaker.js](../../../backend/lib/ebay-quota-breaker.js).
 
+## F0.X — Best-Offer-/Preis-Schutz (WP2)
+
+| ENV | Default | Wirkung | Anker |
+|-----|---------|---------|-------|
+| `BEST_OFFER_PRICE_GUARD` | `false` | `true` → vor jedem eBay-Preis-Push (`syncPriceToAllChannels`) wird die Best-Offer-Auto-Ablehnungsschwelle (`MinimumBestOfferPrice`) live via `getEbayItem` gelesen; ein Sofortkaufpreis **≤ Schwelle** wird NICHT gesendet (Status `skipped`, `reason:'best-offer-guard'`) → das Listing kann nicht un-änderbar werden (Incident 2026-06-16). Fail-open: Schwelle nicht lesbar → Push läuft normal. `false` = heutiges Verhalten. | [services/stock-sync-dispatcher.js](../../../backend/services/stock-sync-dispatcher.js) (`bestOfferGuardEnabled`), [lib/best-offer-guard.js](../../../backend/lib/best-offer-guard.js) |
+
+> Zugehörige reine Lib (immer aktiv, kein Flag): [lib/best-offer-guard.js](../../../backend/lib/best-offer-guard.js) (`guardListingPrice`). Lese-Pfad: `mapListingDetail` in [lib/ebay-trading-api.js](../../../backend/lib/ebay-trading-api.js) liest jetzt `minimumBestOfferPrice`/`bestOfferAutoAcceptPrice`/`bestOfferEnabled` in den `observed`-Detail.
+
 ## Hinweise
 
 - **ENV-Var-Rename** ist verboten, wenn sie in CI/CD referenziert wird (Punkt 4 [CLAUDE.md](../../../CLAUDE.md)).
