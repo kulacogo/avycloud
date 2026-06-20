@@ -87,6 +87,18 @@ async function notifyStockChange({
       console.warn(`[stock-change-events] ledger write failed productId=${productId}: ${err.message}`);
     }
   }
+
+  // 3) WP3 F1 SHADOW (flag STOCK_LEDGER_SHADOW, default off) — observe the new
+  // ledger (Σ warehouseEvents vs projection) and LOG diffs only. Changes nothing;
+  // fail-safe so the shadow can never break the triggering mutation.
+  try {
+    const { ledgerShadowEnabled, recordLedgerShadowDiff } = require('./stock-ledger-shadow');
+    if (ledgerShadowEnabled()) {
+      await recordLedgerShadowDiff({ tenantId, productId, sku, projectionAfter: aNum, reason, source });
+    }
+  } catch (err) {
+    console.warn(`[stock-change-events] ledger-shadow failed productId=${productId}: ${err.message}`);
+  }
 }
 
 module.exports = { notifyStockChange };

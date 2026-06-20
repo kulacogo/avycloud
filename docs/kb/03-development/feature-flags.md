@@ -183,6 +183,13 @@ Beide **default OFF** → exakt heutiges Verhalten. Rollback = Flag auf `false`.
 
 > Zugehörige reine Libs (additiv, immer aktiv, kein Flag): [lib/marketplace-error-classifier.js](../../../backend/lib/marketplace-error-classifier.js) (5 Klassen, keine destruktiv), [lib/retry-backoff.js](../../../backend/lib/retry-backoff.js) (60/120/240s, Cap 30 min), [lib/ebay-quota-breaker.js](../../../backend/lib/ebay-quota-breaker.js).
 
+## F1 — Stock-Ledger Shadow (WP3, sicher)
+
+| ENV | Default | Wirkung | Anker |
+|-----|---------|---------|-------|
+| `STOCK_LEDGER_SHADOW` | `false` | `true` → nach jeder echten Bestandsbewegung (`notifyStockChange`) rechnet das neue Ledger PARALLEL nach (Σ `warehouseEvents.delta` vs. Projektion) und LOGGT nur die Differenz (+ bei Drift ein Doc in `stock_ledger_shadow`). **Ändert NICHTS am Bestand/Verhalten**, fail-safe (Fehler bricht nie die Mutation). Das „messbare Shadow"-Tor vor dem Cutover. | [lib/stock-ledger-shadow.js](../../../backend/lib/stock-ledger-shadow.js), [lib/stock-change-events.js](../../../backend/lib/stock-change-events.js) |
+| `STOCK_LEDGER` | (not set) | **CUTOVER — owner-gated, NICHT scharfschalten** ohne Export+PITR+Restore-Probe. Schaltet die Projektion auf den Ledger um (`applyMovement` wird Wahrheit). | [lib/stock-core.js](../../../backend/lib/stock-core.js) (`applyMovement`, dark) |
+
 ## F0.X — Best-Offer-/Preis-Schutz (WP2)
 
 | ENV | Default | Wirkung | Anker |
