@@ -167,4 +167,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { parseArgs, loadBinQuantities };
+module.exports = { parseArgs, loadProjections, loadLedgerByProduct, loadBinQuantities };

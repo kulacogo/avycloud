@@ -14,6 +14,8 @@
 
 'use strict';
 
+const { buildMovementEventId } = require('./stock-core');
+
 function num(v) {
   const n = Number(v);
   return Number.isFinite(n) ? n : 0;
@@ -68,4 +70,47 @@ function planCorrections(rows, opts) {
   };
 }
 
-module.exports = { planLedgerCorrection, planCorrections };
+/**
+ * applyLedgerCorrection — schreibt EINE idempotente `adjust`-Buchung, die den
+ * Ledger (Σ warehouseEvents) zur physischen Wahrheit bringt. Fasst die Projektion
+ * NICHT an (die wird erst beim STOCK_LEDGER-Cutover aus dem Ledger gespeist) →
+ * verhaltensneutral bis zum Flip. Deterministischer Key → Doppellauf bucht nie doppelt.
+ *
+ * @param {Object} c - { tenantId, productId, adjustDelta, target, idempotencyKey, sku? }
+ * @param {Object} deps - { firestore, now }
+ * @returns {Promise<{applied:boolean, reason?:string, eventId?:string, delta?:number}>}
+ */
+async function applyLedgerCorrection({ tenantId = 'default', productId, adjustDelta, target, idempotencyKey, sku = null }, deps = {}) {
+  const { firestore, now = Date.now() } = deps;
+  if (!firestore) throw new Error('applyLedgerCorrection: firestore dependency required');
+  if (!productId) throw new Error('applyLedgerCorrection: productId required');
+  if (!idempotencyKey || typeof idempotencyKey !== 'string') throw new Error('applyLedgerCorrection: idempotencyKey required');
+  const delta = Number(adjustDelta);
+  if (!Number.isFinite(delta)) throw new Error('applyLedgerCorrection: numeric adjustDelta required');
+  if (Number.isFinite(Number(target)) && Number(target) < 0) {
+    throw new Error(`applyLedgerCorrection: refusing correction to negative target=${target} for ${productId}`);
+  }
+  if (delta === 0) return { applied: false, reason: 'noop', delta: 0 };
+
+  const eventId = buildMovementEventId({ tenantId, idempotencyKey });
+  return firestore.runTransaction(async (tx) => {
+    const eventRef = firestore.collection('warehouseEvents').doc(eventId);
+    const existing = await tx.get(eventRef);
+    if (existing && existing.exists) return { applied: false, reason: 'duplicate', eventId };
+
+    tx.set(eventRef, {
+      type: 'adjust',
+      tenantId,
+      productId,
+      sku: sku || null,
+      delta,
+      quantityAfter: Number.isFinite(Number(target)) ? Number(target) : null,
+      idempotencyKey,
+      meta: { kind: 'f1x-opening-correction' },
+      createdAt: new Date(now).toISOString(),
+    });
+    return { applied: true, eventId, delta };
+  });
+}
+
+module.exports = { planLedgerCorrection, planCorrections, applyLedgerCorrection };
