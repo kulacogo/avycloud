@@ -155,10 +155,36 @@ async function applyMovement(movement, deps = {}) {
   return result;
 }
 
+// WP3 cutover flag. default OFF → projection sourced from warehouseBins (today).
+// ON → refreshProductInventory sources inventory.quantity from the ledger (Σ events).
+function stockLedgerEnabled() {
+  return String(process.env.STOCK_LEDGER || '').toLowerCase() === 'true';
+}
+
+/**
+ * Σ warehouseEvents.delta for one product (the ledger onHand). Throws on read
+ * error so the caller can decide to fall back to bins (never a silent 0).
+ * @param {{productId:string, firestore?:object}} params
+ * @returns {Promise<number>}
+ */
+async function sumProductLedger({ productId, firestore } = {}) {
+  if (!productId) throw new Error('sumProductLedger: productId required');
+  const db = firestore || require('./firestore').firestore;
+  const snap = await db.collection('warehouseEvents').where('productId', '==', productId).select('delta').get();
+  let sum = 0;
+  snap.forEach((d) => {
+    const x = Number(d.data() && d.data().delta);
+    if (Number.isFinite(x)) sum += x;
+  });
+  return sum;
+}
+
 module.exports = {
   computeOnHandFromEvents,
   computeAvailableToSell,
   buildMovementEventId,
   reconcileLedger,
   applyMovement,
+  sumProductLedger,
+  stockLedgerEnabled,
 };

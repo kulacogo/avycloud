@@ -131,18 +131,39 @@ async function refreshProductInventory(productId) {
         }
       : null;
 
+  // WP3 cutover (flag STOCK_LEDGER, default OFF): source the authoritative
+  // quantity from the LEDGER (Σ warehouseEvents) instead of from bins — bins
+  // remain only the layout source (storageBins/storage). This is THE single
+  // writer of inventory.quantity, so gating it here cuts the whole projection
+  // over to the ledger. Fail-safe: a ledger read error falls back to the
+  // bins-derived total (never blocks the refresh).
+  let effectiveQty = totalQty;
+  let qtySource = 'bins';
+  try {
+    const { stockLedgerEnabled, sumProductLedger } = require('./stock-core');
+    if (stockLedgerEnabled()) {
+      effectiveQty = await sumProductLedger({ productId: resolvedId, firestore });
+      qtySource = 'ledger';
+    }
+  } catch (err) {
+    console.warn(`[refreshProductInventory] ledger source failed for ${resolvedId}, falling back to bins: ${err.message}`);
+    effectiveQty = totalQty;
+    qtySource = 'bins-fallback';
+  }
+
   // Use update() to avoid creating documents by mistake, and update inventory.quantity as a field path
   // so we don't overwrite other inventory metadata (inventoryId, inventoryName, etc.).
   const priorQty = productData?.inventory?.quantity;
   await docRef.update({
-    'inventory.quantity': totalQty,
+    'inventory.quantity': effectiveQty,
+    'inventory.quantitySource': qtySource,
     storageBins,
     storage,
   });
 
   // Stock-Change-Notify: emit stock:changed + append inventory_ledger, wenn Qty sich aenderte.
   // Siehe CLAUDE.md Punkt 10 (Oversell-Verbot) und Plan P2.3 + P2.4.
-  if (priorQty !== undefined && priorQty !== null && Number(priorQty) !== Number(totalQty)) {
+  if (priorQty !== undefined && priorQty !== null && Number(priorQty) !== Number(effectiveQty)) {
     try {
       const { notifyStockChange } = require('./stock-change-events');
       await notifyStockChange({
@@ -150,7 +171,7 @@ async function refreshProductInventory(productId) {
         productId: resolvedId,
         sku: productData.identification?.sku || productData.details?.identifiers?.sku || null,
         before: Number(priorQty),
-        after: Number(totalQty),
+        after: Number(effectiveQty),
         reason: 'warehouse-refresh',
         source: 'warehouse.refreshProductInventory',
       });
