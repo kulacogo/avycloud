@@ -3529,6 +3529,66 @@ export const fetchDashboardMetrics = async (
   return result?.data;
 };
 
+// ─── Operational dashboard (counts, not euros) ──────────────────────────────
+export interface OpsMarketplaceBucket {
+  orders: number;
+  units: number;
+  cancellations: number;
+  returns: number;
+}
+
+export interface OperationalMetrics {
+  range: { preset: string; label: string; from_iso: string; to_iso: string };
+  live: { waiting_picking: number; in_progress: number; shipped_today: number };
+  window: {
+    marketplaces: {
+      ebay: OpsMarketplaceBucket;
+      kaufland: OpsMarketplaceBucket;
+      other: OpsMarketplaceBucket;
+      total: OpsMarketplaceBucket;
+    };
+  };
+  statusCounts: Record<string, number>;
+  carriers: { dhl: number; dpd: number; dp: number; other: number; total: number } | null;
+}
+
+export const fetchOperationalMetrics = async (
+  input: { preset?: string | null; from_date?: string | null; to_date?: string | null } = {},
+  options?: { timeoutMs?: number }
+): Promise<OperationalMetrics> => {
+  const url = new URL(`${BACKEND_URL}/api/dashboard/ops`);
+  if (input.preset != null && String(input.preset).trim()) url.searchParams.set('preset', String(input.preset).trim());
+  if (input.from_date) url.searchParams.set('from_date', input.from_date);
+  if (input.to_date) url.searchParams.set('to_date', input.to_date);
+
+  const response = await fetchWithTimeout(url.toString(), undefined, options?.timeoutMs || 40000);
+  const result = await parseResponse(response);
+  if (!response.ok) {
+    throw new Error(result?.error?.message || 'Operative Kennzahlen konnten nicht geladen werden.');
+  }
+  return result?.data;
+};
+
+export interface OrderStatusCounts {
+  statusCounts: Record<string, number>;
+  live: { waiting_picking: number; in_progress: number; shipped_today: number };
+}
+
+export const fetchOrderStatusCounts = async (
+  options?: { timeoutMs?: number }
+): Promise<OrderStatusCounts> => {
+  const response = await fetchWithTimeout(
+    `${BACKEND_URL}/api/orders/status-counts`,
+    undefined,
+    options?.timeoutMs || 30000
+  );
+  const result = await parseResponse(response);
+  if (!response.ok) {
+    throw new Error(result?.error?.message || 'Status-Zähler konnten nicht geladen werden.');
+  }
+  return result?.data;
+};
+
 export const fetchFinanceMetrics = async (
   preset: string = 'last7',
   options?: { timeoutMs?: number; from_date?: string; to_date?: string }

@@ -168,6 +168,7 @@ async function getShippingCostsSummary(fromDate, toDate, { timeoutMs = 30000, fo
   let parcelCount = 0;
   let dhlCount = 0;
   let dpdCount = 0;
+  let dpCount = 0;
   let otherCount = 0;
   let page = 1;
   const limit = 100;
@@ -272,6 +273,9 @@ async function getShippingCostsSummary(fromDate, toDate, { timeoutMs = 30000, fo
       const carrierCode = String(parcel.carrier?.code || '').toLowerCase();
       if (carrierCode.includes('dhl')) dhlCount++;
       else if (carrierCode.includes('dpd')) dpdCount++;
+      // Deutsche Post (Brief/Warenpost). SendCloud codes it `deutsche_post`;
+      // split it out of `other` so the dashboard can show DHL · DPD · DP.
+      else if (carrierCode.includes('deutsche_post') || carrierCode.includes('deutsche-post') || carrierCode === 'dp') dpCount++;
       else otherCount++;
     }
 
@@ -305,6 +309,7 @@ async function getShippingCostsSummary(fromDate, toDate, { timeoutMs = 30000, fo
     parcel_count: parcelCount,
     dhl_count: dhlCount,
     dpd_count: dpdCount,
+    dp_count: dpCount,
     other_count: otherCount,
     currency: 'EUR',
     csv_fallback_count: csvFallbackCount,

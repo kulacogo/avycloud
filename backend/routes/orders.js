@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const { requirePermission } = require('../lib/rbac');
 const { listOrders, getDashboardMetrics, computeOrdersDeliveryTotal, firestore } = require('../lib/firestore');
+const { getOperationalMetrics } = require('../lib/dashboard-ops');
 const { markOrderAsPicked, markOrderAsPacked } = require('../services/order-sync');
 const { attachPickHintsToOrders } = require('../services/pick-hints');
 const { getCheckAccountBalances, getShippingCostsFromSevDesk } = require('../lib/sevdesk');
@@ -116,6 +117,28 @@ router.get('/orders', requirePermission('orders', 'read'), async (req, res) => {
         message: 'Aufträge konnten nicht geladen werden.',
         details: error.message,
       },
+    });
+  }
+});
+
+// Authoritative OMS status counts over the FULL tenant order set. The Orders
+// page uses this for its status bar so the counts are reliable instead of being
+// tallied from the (capped) page of orders loaded in the browser.
+router.get('/orders/status-counts', requirePermission('orders', 'read'), async (req, res) => {
+  try {
+    const tenantId = req.user?.tenantId || 'default';
+    const ops = await getOperationalMetrics({ preset: 'all_time', tenantId });
+    const body = { ok: true, data: { statusCounts: ops.statusCounts, live: ops.live } };
+    const etag = '"' + crypto.createHash('md5').update(JSON.stringify(body)).digest('hex') + '"';
+    if (req.headers['if-none-match'] === etag) return res.status(304).end();
+    res.setHeader('Cache-Control', 'private, max-age=30');
+    res.setHeader('ETag', etag);
+    res.json(body);
+  } catch (error) {
+    console.error(`[GET /api/orders/status-counts] ${error.message}`, error);
+    res.status(500).json({
+      ok: false,
+      error: { code: 'INTERNAL', message: 'Status-Zähler konnten nicht geladen werden.', details: error.message },
     });
   }
 });
@@ -283,6 +306,66 @@ router.get('/dashboard/metrics', requirePermission('dashboard', 'read'), async (
         message: 'Dashboard-Metriken konnten nicht geladen werden.',
         details: error.message,
       },
+    });
+  }
+});
+
+// ─── Operational Dashboard Endpoint ──────────────────────────────────────────
+// COUNTS, not euros. Server-side aggregation over the FULL tenant order set so
+// the numbers are trustworthy (no client-side tally of a loaded page):
+//  - live:   current operational backlog (waiting/in-progress/shipped today)
+//  - window: per-marketplace order/unit/storno/return counts for the time range
+//  - carriers: shipping labels per carrier (DHL/DPD/DP) for the time range
+//  - statusCounts: authoritative full-collection OMS status breakdown
+router.get('/dashboard/ops', requirePermission('dashboard', 'read'), async (req, res) => {
+  try {
+    const preset = typeof req.query?.preset === 'string' ? req.query.preset.trim() : null;
+    const fromDate = typeof req.query?.from_date === 'string' ? req.query.from_date.trim() : null;
+    const toDate = typeof req.query?.to_date === 'string' ? req.query.to_date.trim() : null;
+    const tenantId = req.user?.tenantId || 'default';
+
+    // Keep dashboard fresh without blocking on the sync.
+    try { _backgroundSyncOrders(); } catch { /* ignore */ }
+
+    const ops = await getOperationalMetrics({ preset, fromDate, toDate, tenantId });
+
+    // Carrier label counts (DHL/DPD/DP) from SendCloud — the authoritative label
+    // system. Best-effort: a SendCloud outage must not break the counts above.
+    let carriers = null;
+    try {
+      const pad = (n) => String(n).padStart(2, '0');
+      const toDateStr = (iso) => {
+        const d = new Date(iso);
+        return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
+      };
+      const fromStr = toDateStr(ops.range.from_iso);
+      // to_iso is exclusive; SendCloud treats the range end as inclusive, so step back one day.
+      const toStr = toDateStr(new Date(new Date(ops.range.to_iso).getTime() - 1));
+      const sc = await getSendCloudShippingSummary(fromStr, toStr, { timeoutMs: 20000 });
+      if (sc) {
+        carriers = {
+          dhl: sc.dhl_count || 0,
+          dpd: sc.dpd_count || 0,
+          dp: sc.dp_count || 0,
+          other: sc.other_count || 0,
+          total: sc.parcel_count || 0,
+        };
+      }
+    } catch (err) {
+      console.warn('[GET /api/dashboard/ops] carrier summary failed:', err?.message || err);
+    }
+
+    const body = { ok: true, data: { ...ops, carriers } };
+    const etag = '"' + crypto.createHash('md5').update(JSON.stringify(body)).digest('hex') + '"';
+    if (req.headers['if-none-match'] === etag) return res.status(304).end();
+    res.setHeader('Cache-Control', 'private, max-age=30');
+    res.setHeader('ETag', etag);
+    res.json(body);
+  } catch (error) {
+    console.error(`[GET /api/dashboard/ops] ${error.message}`, error);
+    res.status(500).json({
+      ok: false,
+      error: { code: 'INTERNAL', message: 'Operative Kennzahlen konnten nicht geladen werden.', details: error.message },
     });
   }
 });

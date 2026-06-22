@@ -6,6 +6,8 @@ import {
   buildImageProxyUrl,
   bulkTransitionOrders,
   printAddressLabels,
+  fetchOrderStatusCounts,
+  type OrderStatusCounts,
 } from "../api/client";
 import { Order, OrderStatus, getOrderStatus } from "../types";
 import { useOrders } from "../hooks/useOrders";
@@ -18,16 +20,6 @@ import { OMS_STATUS_LABELS } from "../lib/oms-labels";
 
 /* ─── Status filter config ─── */
 type StatusFilter = "all" | OrderStatus;
-
-const STATUS_FILTERS: { key: StatusFilter; labelKey: string; tone: string }[] = [
-  { key: "all", labelKey: "orders.filter.all", tone: "bg-app-elevated text-txt-primary" },
-  { key: "new", labelKey: "orders.filter.new", tone: "bg-info-dim text-info" },
-  { key: "picking", labelKey: "orders.filter.picking", tone: "bg-warning-dim text-warning" },
-  { key: "picked", labelKey: "orders.filter.picked", tone: "bg-accent-dim text-accent" },
-  { key: "packed", labelKey: "orders.filter.packed", tone: "bg-success-dim text-success" },
-  { key: "shipped", labelKey: "orders.filter.shipped", tone: "bg-success-dim text-success" },
-  { key: "other", labelKey: "orders.filter.other", tone: "bg-app-elevated text-txt-secondary" },
-];
 
 /* ─── OMS Status Labels: zentrale Quelle in lib/oms-labels.ts (HARDEN-Wave-5 2026-05-22) ─── */
 
@@ -71,20 +63,6 @@ const sourceBadge = (source?: string | null) => {
   return null;
 };
 
-/* ─── KPI Card ─── */
-const KpiCard: React.FC<{
-  label: string;
-  value: string | number;
-  sub?: string;
-  tone?: string;
-}> = ({ label, value, sub, tone = "text-txt-primary" }) => (
-  <div className="rounded-2xl border border-app-border bg-app-surface p-4 flex flex-col gap-1">
-    <span className="text-xs font-medium text-txt-muted uppercase tracking-wider">{label}</span>
-    <span className={`text-2xl font-bold ${tone}`}>{value}</span>
-    {sub && <span className="text-xs text-txt-muted">{sub}</span>}
-  </div>
-);
-
 /* ─── OMS Pipeline Stages ─── */
 const PIPELINE_STAGES: { key: string; label: string; color: string; dotColor: string }[] = [
   { key: "pending",   label: "Neu",           color: "bg-info-dim text-info",    dotColor: "bg-info" },
@@ -108,8 +86,11 @@ const OrdersView: React.FC = () => {
   const [sortField, setSortField] = useState<"createdAt" | "totalAmount" | "status">("createdAt");
   const [sortAsc, setSortAsc] = useState(false);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
-  // BUG-071: Pipeline counts computed from local orders to match tab counts
-  // Previously fetched from separate backend endpoint which had different filtering.
+  // Authoritative status counts from the server (full collection). The orders
+  // array is capped at 500, so tallying it in the browser undercounts once there
+  // are more orders than that. These server counts are the reliable source for
+  // the status bar / filter pills; the local tally is only a loading fallback.
+  const [serverCounts, setServerCounts] = useState<OrderStatusCounts | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
   const [bulkResult, setBulkResult] = useState<string | null>(null);
@@ -192,41 +173,42 @@ const OrdersView: React.FC = () => {
     return () => window.removeEventListener("hashchange", applyHashFilter);
   }, []);
 
-  /* ─── Pipeline counts (BUG-071: computed from same orders array as tabs) ─── */
+  /* ─── Authoritative status counts (full collection, not the loaded page) ─── */
+  useEffect(() => {
+    let cancelled = false;
+    fetchOrderStatusCounts()
+      .then((c) => { if (!cancelled) setServerCounts(c); })
+      .catch(() => { /* keep last value; UI falls back to the local tally */ });
+    return () => { cancelled = true; };
+    // Re-pull whenever the loaded set changes (e.g. after a sync) so the bar tracks reality.
+  }, [orders.length]);
+
+  /* ─── Pipeline (funnel) counts — prefer server counts, fall back to local ─── */
   const omsCounts = useMemo(() => {
+    const sc = serverCounts?.statusCounts;
     const counts: Record<string, number> = {};
     for (const stage of PIPELINE_STAGES) counts[stage.key] = 0;
+    if (sc) {
+      for (const stage of PIPELINE_STAGES) counts[stage.key] = sc[stage.key] || 0;
+      return counts;
+    }
     for (const o of orders) {
       const s = getOrderStatus(o);
       if (s in counts) counts[s]++;
-      // "confirmed" in OMS maps to "pending"+"confirmed" — also count "new"
-      else if (s === 'new') counts['pending'] = (counts['pending'] || 0) + 1;
+      else if (s === "new") counts["pending"] = (counts["pending"] || 0) + 1;
     }
     return counts;
-  }, [orders]);
+  }, [orders, serverCounts]);
 
-  /* ─── KPIs ─── */
-  const kpis = useMemo(() => {
-    const now = new Date();
-    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-
-    const openCount = orders.filter((o) => { const s = getOrderStatus(o); return s === "new" || s === "pending" || s === "picking"; }).length;
-    const pickedToday = orders.filter(
-      (o) => o.pickedAt && new Date(o.pickedAt).getTime() >= todayStart
-    ).length;
-    const packedCount = orders.filter((o) => getOrderStatus(o) === "packed").length;
-
-    // Avg processing time: from createdAt to pickedAt for picked/packed orders
+  /* ─── Avg processing time (soft metric from the loaded page) ─── */
+  const avgHours = useMemo(() => {
     const processedOrders = orders.filter((o) => o.pickedAt && o.createdAt);
-    let avgHours = 0;
-    if (processedOrders.length > 0) {
-      const totalMs = processedOrders.reduce((sum, o) => {
-        return sum + (new Date(o.pickedAt!).getTime() - new Date(o.createdAt).getTime());
-      }, 0);
-      avgHours = Math.round(totalMs / processedOrders.length / (1000 * 60 * 60) * 10) / 10;
-    }
-
-    return { openCount, pickedToday, packedCount, avgHours, total: orders.length };
+    if (processedOrders.length === 0) return 0;
+    const totalMs = processedOrders.reduce(
+      (sum, o) => sum + (new Date(o.pickedAt!).getTime() - new Date(o.createdAt).getTime()),
+      0
+    );
+    return Math.round((totalMs / processedOrders.length / (1000 * 60 * 60)) * 10) / 10;
   }, [orders]);
 
   /* ─── Backfill ─── */
@@ -407,8 +389,19 @@ const OrdersView: React.FC = () => {
   // Clear selection when filter changes
   useEffect(() => { setSelectedIds(new Set()); }, [filter]);
 
-  /* ─── Status counts for filter pills ─── */
+  /* ─── Status counts for filter pills — prefer server counts, fall back to local ─── */
   const statusCounts = useMemo(() => {
+    const sc = serverCounts?.statusCounts;
+    if (sc) {
+      const newC = (sc.pending || 0) + (sc.confirmed || 0);
+      const pickingC = (sc.picking || 0) + (sc.packing || 0);
+      const pickedC = sc.picked || 0;
+      const packedC = sc.packed || 0;
+      const shippedC = (sc.shipped || 0) + (sc.delivered || 0);
+      const total = sc.total || 0;
+      const other = Math.max(0, total - newC - pickingC - pickedC - packedC - shippedC);
+      return { all: total, new: newC, picking: pickingC, picked: pickedC, packed: packedC, shipped: shippedC, other };
+    }
     const counts: Record<string, number> = { all: orders.length, new: 0, picking: 0, picked: 0, packed: 0, shipped: 0, other: 0 };
     const newStatuses = new Set(["pending", "confirmed", "new"]);
     const pickingStatuses = new Set(["picking", "packing"]);
@@ -423,7 +416,7 @@ const OrdersView: React.FC = () => {
       else if (!coveredStatuses.has(s)) counts.other++;
     }
     return counts;
-  }, [orders]);
+  }, [orders, serverCounts]);
 
   return (
     <div className="max-w-7xl mx-auto space-y-5">
@@ -603,34 +596,46 @@ const OrdersView: React.FC = () => {
         </div>
       )}
 
-      {/* KPIs */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <KpiCard
-          label={t("orders.kpi.open")}
-          value={kpis.openCount}
-          sub={`${kpis.total} ${t("ops.orders.total")}`}
-          tone="text-info"
-        />
-        <KpiCard
-          label={t("orders.kpi.pickedToday")}
-          value={kpis.pickedToday}
-          tone="text-accent"
-        />
-        <KpiCard
-          label={t("orders.kpi.packed")}
-          value={kpis.packedCount}
-          tone="text-success"
-        />
-        <KpiCard
-          label={t("orders.kpi.avgTime")}
-          value={kpis.avgHours > 0 ? `${kpis.avgHours}h` : "—"}
-          sub={t("orders.kpi.avgTimeSub")}
-          tone="text-warning"
-        />
-      </div>
-
-      {/* OMS Pipeline */}
+      {/* OMS-Statusleiste — eine einzige, verlässliche Anzeige (serverseitige
+          Zähler über alle Aufträge). Ersetzt die vorher doppelte KPI-Karten +
+          Funnel-Darstellung. Klick filtert die Tabelle. */}
       <div className="rounded-2xl border border-app-border bg-app-surface p-4">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-semibold text-txt-muted uppercase tracking-wider">Auftragsstatus</span>
+            <button
+              type="button"
+              onClick={() => setFilter("all")}
+              className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-semibold transition border ${
+                filter === "all"
+                  ? "bg-app-elevated text-txt-primary border-current/20 ring-1 ring-current/20"
+                  : "bg-app-surface text-txt-muted border-app-border hover:border-txt-muted"
+              }`}
+            >
+              {t("orders.filter.all")}
+              <span className="text-[10px] opacity-60">{statusCounts.all}</span>
+            </button>
+            {statusCounts.other > 0 && (
+              <button
+                type="button"
+                onClick={() => setFilter("other")}
+                className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-semibold transition border ${
+                  filter === "other"
+                    ? "bg-app-elevated text-txt-secondary border-current/20 ring-1 ring-current/20"
+                    : "bg-app-surface text-txt-muted border-app-border hover:border-txt-muted"
+                }`}
+              >
+                {t("orders.filter.other")}
+                <span className="text-[10px] opacity-60">{statusCounts.other}</span>
+              </button>
+            )}
+          </div>
+          {avgHours > 0 && (
+            <span className="text-[11px] text-txt-muted">
+              Ø Bearbeitungszeit <span className="font-semibold text-txt-secondary">{avgHours}h</span> · {t("orders.kpi.avgTimeSub")}
+            </span>
+          )}
+        </div>
         <div className="flex items-center gap-1">
           {PIPELINE_STAGES.map((stage, idx) => {
             const count = omsCounts[stage.key] || 0;
@@ -662,31 +667,6 @@ const OrdersView: React.FC = () => {
             );
           })}
         </div>
-      </div>
-
-      {/* Filter Pills */}
-      <div className="flex flex-wrap gap-2">
-        {STATUS_FILTERS.map((sf) => {
-          const count = statusCounts[sf.key] || 0;
-          const active = filter === sf.key;
-          return (
-            <button
-              key={sf.key}
-              type="button"
-              onClick={() => setFilter(sf.key)}
-              className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition border ${
-                active
-                  ? `${sf.tone} border-current/20 ring-1 ring-current/20`
-                  : "bg-app-surface text-txt-muted border-app-border hover:border-txt-muted"
-              }`}
-            >
-              {t(sf.labelKey)}
-              <span className={`text-[10px] ${active ? "opacity-80" : "opacity-50"}`}>
-                {count}
-              </span>
-            </button>
-          );
-        })}
       </div>
 
       {/* Bulk Action Bar */}

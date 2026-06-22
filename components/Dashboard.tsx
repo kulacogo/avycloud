@@ -9,8 +9,8 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts';
-import { DashboardMetrics, FinanceMetrics, Product } from '../types';
-import { fetchDashboardMetrics, fetchFinanceMetrics, fetchSyncStatus, fetchReorderAlerts, fetchActivityFeed, type SyncStatusData, type ActivityEvent } from '../api/client';
+import { DashboardMetrics, Product } from '../types';
+import { fetchDashboardMetrics, fetchOperationalMetrics, fetchSyncStatus, fetchReorderAlerts, fetchActivityFeed, type OperationalMetrics, type SyncStatusData, type ActivityEvent } from '../api/client';
 import {
   getProductAvailableQuantity,
   getProductPhysicalQuantity,
@@ -126,61 +126,15 @@ const Card: React.FC<CardProps> = ({
   );
 };
 
-// ─── Order pipeline ───────────────────────────────────────────────────────────
-// Tokens only — see styles/main.css. Pipeline reads as a temperature gradient:
-// warning (offen) → muted (in arbeit) → success (versendet/zugestellt).
-const STEPS = [
-  { key: "neu", label: "Offen", dot: "bg-warning", text: "text-warning" },
-  { key: "kommissioniert", label: "Komm.", dot: "bg-info", text: "text-info" },
-  { key: "verpackt", label: "Verpackt", dot: "bg-info", text: "text-info" },
-  { key: "versendet", label: "Versendet", dot: "bg-success", text: "text-success" },
-  { key: "zugestellt", label: "Zugestellt", dot: "bg-success", text: "text-success" },
+// ─── Marketplace breakdown rows ─────────────────────────────────────────────
+// Order of rows in the "Verkäufe" table. `total` is rendered bold; `other` is
+// hidden when there is no non-eBay/Kaufland activity.
+const MARKETPLACE_ROWS: { key: "ebay" | "kaufland" | "other" | "total"; label: string }[] = [
+  { key: "ebay", label: "eBay" },
+  { key: "kaufland", label: "Kaufland" },
+  { key: "other", label: "Andere" },
+  { key: "total", label: "Gesamt" },
 ];
-
-const Pipeline: React.FC<{
-  bd: Record<string, number>;
-  loading?: boolean;
-  onClickStatus: (k: string) => void;
-}> = ({ bd, loading, onClickStatus }) => {
-  const total = STEPS.reduce((s, st) => s + (bd[st.key] || 0), 0);
-  return (
-    <div className="space-y-3">
-      {!loading && total > 0 && (
-        <div className="flex h-1 rounded-full overflow-hidden gap-px bg-app-border">
-          {STEPS.map(st => {
-            const pct = total > 0 ? ((bd[st.key] || 0) / total) * 100 : 0;
-            if (!pct) return null;
-            return <div key={st.key} className={`${st.dot} transition-all`} style={{ width: `${pct}%` }} />;
-          })}
-        </div>
-      )}
-      {loading && <div className="h-1 w-full rounded-full bg-app-border/50 animate-pulse" />}
-      <div className="grid grid-cols-5 gap-2">
-        {STEPS.map((st, i) => (
-          <button
-            key={st.key}
-            type="button"
-            onClick={() => onClickStatus(st.key)}
-            className="group flex flex-col items-center gap-2 rounded-lg bg-app-bg hover:bg-app-elevated border border-app-border py-3 px-2 transition-colors cursor-pointer"
-          >
-            <div className={`flex items-center gap-1.5 text-xs ${st.text} font-medium`}>
-              <span className={`w-1.5 h-1.5 rounded-full ${st.dot}`} />
-              {st.label}
-            </div>
-            {loading ? (
-              <Skel w="w-8" h="h-7" />
-            ) : (
-              <span className="text-2xl font-bold text-txt-primary tabular-nums">{fmtNum(bd[st.key] || 0)}</span>
-            )}
-            {i < STEPS.length - 1 && (
-              <span className="text-app-border text-xs">→</span>
-            )}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-};
 
 // ─── Order volume + revenue chart (Recharts) ──────────────────────────────────
 //
@@ -203,10 +157,9 @@ const fmtAxisCurrency = (v: number) => {
   return String(n);
 };
 
-const ChartTooltip: React.FC<any> = ({ active, payload, label, currency }) => {
+const ChartTooltip: React.FC<any> = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null;
   const orders = payload.find((p: any) => p.dataKey === 'count')?.value ?? 0;
-  const revenue = payload.find((p: any) => p.dataKey === 'revenue')?.value ?? 0;
   const day: ChartDay | undefined = payload[0]?.payload;
   return (
     <div
@@ -225,11 +178,7 @@ const ChartTooltip: React.FC<any> = ({ active, payload, label, currency }) => {
       </p>
       <p className="flex items-center gap-1.5" style={{ color: 'var(--info)' }}>
         <span className="inline-block w-2 h-2 rounded-sm" style={{ background: 'var(--info)' }} />
-        {fmtNum(orders)} Aufträge
-      </p>
-      <p className="flex items-center gap-1.5" style={{ color: 'var(--success)' }}>
-        <span className="inline-block w-2 h-0.5 rounded" style={{ background: 'var(--success)' }} />
-        {fmtCur(revenue, currency)}
+        {fmtNum(orders)} Bestellungen
       </p>
     </div>
   );
@@ -247,9 +196,8 @@ const RunningBar: React.FC<any> = (props) => {
 
 const OrderVolumeChart: React.FC<{
   data: ChartDay[];
-  currency: string;
   loading?: boolean;
-}> = ({ data, currency, loading }) => {
+}> = ({ data, loading }) => {
   if (loading) {
     return (
       <div className="w-full h-56 flex items-end gap-1.5 px-2 pb-4">
@@ -296,37 +244,17 @@ const OrderVolumeChart: React.FC<{
           allowDecimals={false}
           width={32}
         />
-        <YAxis
-          yAxisId="right"
-          orientation="right"
-          tick={{ fontSize: 11, fill: 'var(--text-muted)' }}
-          tickLine={false}
-          axisLine={false}
-          tickFormatter={(v: number) => fmtAxisCurrency(v)}
-          width={42}
-        />
         <Tooltip
           cursor={{ fill: 'var(--border)', fillOpacity: 0.25 }}
-          content={(props: any) => <ChartTooltip {...props} currency={currency} />}
+          content={(props: any) => <ChartTooltip {...props} />}
         />
         <Bar
           yAxisId="left"
           dataKey="count"
-          name="Aufträge"
+          name="Bestellungen"
           shape={<RunningBar />}
           isAnimationActive={false}
           maxBarSize={36}
-        />
-        <Line
-          yAxisId="right"
-          type="monotone"
-          dataKey="revenue"
-          name="Umsatz"
-          stroke="var(--success)"
-          strokeWidth={2}
-          dot={{ r: 2, fill: 'var(--success)', strokeWidth: 0 }}
-          activeDot={{ r: 4, fill: 'var(--success)' }}
-          isAnimationActive={false}
         />
         {hasRunningBar && (
           // Footnote rendered by parent — we keep the chart purely visual.
@@ -483,11 +411,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
   rangePreset,
   onRangePresetChange,
 }) => {
+  const [ops, setOps] = useState<OperationalMetrics | null>(null);
+  const [opsLoading, setOpsLoading] = useState(true);
+  const [opsError, setOpsError] = useState<string | null>(null);
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
   const [metricsLoading, setMetricsLoading] = useState(true);
-  const [metricsError, setMetricsError] = useState<string | null>(null);
-  const [finance, setFinance] = useState<FinanceMetrics | null>(null);
-  const [financeLoading, setFinanceLoading] = useState(true);
   const [syncStatus, setSyncStatus] = useState<SyncStatusData | null>(null);
   const [syncLoading, setSyncLoading] = useState(true);
   const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
@@ -523,32 +451,32 @@ export const Dashboard: React.FC<DashboardProps> = ({
     if (activePreset === 'custom' && (!from || !to)) return;
     loadingRef.current = true;
     const long = activePreset === 'year_to_date' || activePreset === 'last_year' || activePreset === 'all_time';
+    setOpsLoading(true);
     setMetricsLoading(true);
-    setFinanceLoading(true);
     setSyncLoading(true);
     const fromDate = activePreset === 'custom' ? from : undefined;
     const toDate = activePreset === 'custom' ? to : undefined;
     try {
-      const [mResult, fResult, sResult, aResult, actResult] = await Promise.allSettled([
+      const [oResult, mResult, sResult, aResult, actResult] = await Promise.allSettled([
+        fetchOperationalMetrics({ preset: activePreset, from_date: fromDate, to_date: toDate }, { timeoutMs: long ? 90000 : 45000 }),
         fetchDashboardMetrics({ days: 7, preset: activePreset, from_date: fromDate, to_date: toDate }, { timeoutMs: long ? 90000 : 28000 }),
-        fetchFinanceMetrics(activePreset, { timeoutMs: 40000, from_date: fromDate, to_date: toDate }),
         fetchSyncStatus(),
         fetchReorderAlerts(),
         fetchActivityFeed(15),
       ]);
-      if (mResult.status === 'fulfilled') {
-        setMetrics(mResult.value);
-        setMetricsError(null);
+      if (oResult.status === 'fulfilled') {
+        setOps(oResult.value);
+        setOpsError(null);
       } else {
-        setMetricsError((mResult.reason as any)?.message || 'Fehler beim Laden');
+        setOpsError((oResult.reason as any)?.message || 'Fehler beim Laden der Kennzahlen');
       }
-      if (fResult.status === 'fulfilled') setFinance(fResult.value);
+      if (mResult.status === 'fulfilled') setMetrics(mResult.value);
       if (sResult.status === 'fulfilled') setSyncStatus(sResult.value);
       if (aResult.status === 'fulfilled') setReorderAlerts(aResult.value || []);
       if (actResult.status === 'fulfilled') setActivities(actResult.value || []);
     } finally {
+      setOpsLoading(false);
       setMetricsLoading(false);
-      setFinanceLoading(false);
       setSyncLoading(false);
       setAlertsLoading(false);
       loadingRef.current = false;
@@ -628,43 +556,14 @@ export const Dashboard: React.FC<DashboardProps> = ({
       };
     });
     const totalOrdersInWindow = chart.reduce((s, d) => s + d.count, 0);
-    return {
-      neu: bd?.neu ?? 0,
-      kommissioniert: bd?.kommissioniert ?? 0,
-      verpackt: (bd as any)?.verpackt ?? 0,
-      versendet: bd?.versendet ?? 0,
-      zugestellt: bd?.zugestellt ?? 0,
-      totalOrdersInWindow,
-      // True gross revenue: SUM(order.totalAmount) — net of cancellations and returns,
-      // before any marketplace fees. This is what most accountants mean by "Umsatz".
-      revenueYtd: metrics?.revenue?.all_non_cancelled_total ?? 0,
-      revenueWindow: metrics?.revenue?.window_non_cancelled_total ?? 0,
-      // Marketplace payout: what eBay+Kaufland actually transfer to the bank
-      // (after fees). Differs from gross by ~14–16% on average; shown as a
-      // secondary value so you can see the fee bite without it replacing brutto.
-      payoutYtd: metrics?.revenue?.payout_brutto_ytd ?? null,
-      payoutWindow: metrics?.revenue?.payout_brutto_window ?? null,
-      payoutSource: metrics?.revenue?.payout_source ?? null,
-      returnsTotal: metrics?.orders?.returns_total ?? 0,
-      returnsYtd: metrics?.orders?.returns_ytd ?? 0,
-      returnsWindowCount: metrics?.returns?.window?.count ?? 0,
-      returnsWindowValue: metrics?.returns?.window?.value_by_currency?.EUR ?? 0,
-      currency: safeCur(metrics?.currency),
-      chart,
-    };
+    return { totalOrdersInWindow, chart };
   }, [metrics]);
 
-  const presetLabel = metrics?.range?.label ?? PRESETS.find(p => p.id === activePreset)?.label ?? activePreset;
-
-  // Finance derived — shipping costs are netto from SendCloud, multiply by 1.19 for brutto
-  const shippingWindowNetto = finance?.shipping?.total_cost ?? null;
-  const shippingYtdNetto = finance?.shipping_ytd?.total_cost ?? null;
-  const shippingWindow = shippingWindowNetto !== null ? Math.round(shippingWindowNetto * 1.19 * 100) / 100 : null;
-  const shippingYtd = shippingYtdNetto !== null ? Math.round(shippingYtdNetto * 1.19 * 100) / 100 : null;
-
-  // Total balance (Gesamtsaldo) — combined Sichteinlagen + BusinessCard
-  const totalBalance = finance?.total_balance ?? null;
-
+  // Operational data (counts) — straight from the server-side aggregator.
+  const live = ops?.live ?? null;
+  const mp = ops?.window?.marketplaces ?? null;
+  const carriers = ops?.carriers ?? null;
+  const presetLabel = ops?.range?.label ?? metrics?.range?.label ?? PRESETS.find(p => p.id === activePreset)?.label ?? activePreset;
 
   const navigateTo = useCallback((statusKey: string) => {
     window.location.hash = `#/orders?orderStatus=${encodeURIComponent(statusKey)}`;
@@ -692,154 +591,120 @@ export const Dashboard: React.FC<DashboardProps> = ({
         />
       </div>
 
-      {metricsError && (
+      {opsError && (
         <div className="rounded-md border border-danger/20 bg-danger-dim px-4 py-2.5 text-sm text-danger">
-          {metricsError}
+          {opsError}
         </div>
       )}
 
-      {/* 1. HERO-KPIs (3 Karten) */}
-      <Section title="Jahresüberblick">
+      {/* 1. AKTUELLER STAND — immer tagesaktuell, unabhängig vom Zeitraum */}
+      <Section title="Aktueller Stand" badge="live">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <Card
-            label="Kontostand"
-            value={totalBalance !== null ? fmtCur(totalBalance, 'EUR') : '\u2014'}
-            sub="SevDesk"
-            color={totalBalance !== null && totalBalance < 0 ? 'red' : 'violet'}
-            loading={financeLoading}
-            size="hero"
-          />
-          <Card
-            label="Jahresumsatz"
-            value={fmtCur(ord.revenueYtd, ord.currency, true)}
-            sub={(
-              <span className="flex flex-col gap-0.5">
-                <span>Brutto \u00b7 netto Stornos und Retouren</span>
-                {ord.payoutYtd !== null && ord.payoutYtd > 0 && (
-                  <span className="text-[10px] text-txt-muted">
-                    Auszahlung {fmtCur(ord.payoutYtd, ord.currency, true)}
-                    {ord.payoutSource === 'estimated' && ' \u00b7 gesch\u00e4tzt'}
-                  </span>
-                )}
-              </span>
-            )}
-            color="green"
-            loading={metricsLoading}
-            size="hero"
-          />
-          <Card
-            label="Versand (Jahr)"
-            value={shippingYtd !== null ? fmtCur(shippingYtd, 'EUR', true) : '\u2014'}
-            sub={shippingYtd !== null ? (
-              <span className="flex flex-col gap-0.5">
-                <span>{fmtNum(finance?.shipping_ytd?.parcel_count ?? 0)} Sendungen</span>
-                {(() => {
-                  const dhl = finance?.shipping_ytd?.dhl_count ?? 0;
-                  const dpd = finance?.shipping_ytd?.dpd_count ?? 0;
-                  const other = finance?.shipping_ytd?.other_count ?? 0;
-                  if (!dhl && !dpd && !other) return null;
-                  const parts: string[] = [];
-                  if (dhl) parts.push(`DHL ${fmtNum(dhl)}`);
-                  if (dpd) parts.push(`DPD ${fmtNum(dpd)}`);
-                  if (other) parts.push(`Sonstige ${fmtNum(other)}`);
-                  return <span className="text-[10px] text-txt-muted">{parts.join(' · ')}</span>;
-                })()}
-              </span>
-            ) : undefined}
+            label="Wartet auf Kommissionierung"
+            value={fmtNum(live?.waiting_picking ?? 0)}
+            sub="Bestätigt · muss kommissioniert werden"
             color="amber"
-            loading={financeLoading && shippingYtd === null}
+            loading={opsLoading}
+            onClick={() => navigateTo('new')}
+            size="hero"
+          />
+          <Card
+            label="In Bearbeitung"
+            value={fmtNum(live?.in_progress ?? 0)}
+            sub="Kommissioniert/verpackt · noch nicht versendet"
+            color="blue"
+            loading={opsLoading}
+            onClick={() => navigateTo('picked')}
+            size="hero"
+          />
+          <Card
+            label="Heute versendet"
+            value={fmtNum(live?.shipped_today ?? 0)}
+            sub="Versandlabel heute erstellt"
+            color="green"
+            loading={opsLoading}
+            onClick={() => navigateTo('shipped')}
             size="hero"
           />
         </div>
-        {finance?.errors && finance.errors.length > 0 && (
-          <div className="mt-2 flex flex-wrap gap-2">
-            {finance.errors.map((e, i) => (
-              <span key={i} className="text-[11px] text-warning bg-warning-dim border border-warning/20 px-2 py-0.5 rounded">
-                {e}
-              </span>
-            ))}
-          </div>
+      </Section>
+
+      {/* 2. VERKÄUFE NACH MARKTPLATZ — folgt dem Zeitraum */}
+      <Section title={`Verkäufe · ${presetLabel}`}>
+        <div className="rounded-xl border border-app-border bg-app-surface overflow-hidden">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-app-border bg-app-bg/40">
+                <th className="text-left px-4 py-2.5 text-xs font-semibold text-txt-muted uppercase tracking-wider">Marktplatz</th>
+                <th className="text-right px-4 py-2.5 text-xs font-semibold text-txt-muted uppercase tracking-wider">Bestellungen</th>
+                <th className="text-right px-4 py-2.5 text-xs font-semibold text-txt-muted uppercase tracking-wider">Einheiten</th>
+                <th className="text-right px-4 py-2.5 text-xs font-semibold text-txt-muted uppercase tracking-wider">Stornos</th>
+                <th className="text-right px-4 py-2.5 text-xs font-semibold text-txt-muted uppercase tracking-wider">Retouren</th>
+              </tr>
+            </thead>
+            <tbody>
+              {MARKETPLACE_ROWS.map(row => {
+                const b = mp?.[row.key];
+                const isTotal = row.key === 'total';
+                if (row.key === 'other' && b && !b.orders && !b.units && !b.cancellations && !b.returns) return null;
+                return (
+                  <tr key={row.key} className={`border-b border-app-border last:border-b-0 ${isTotal ? 'bg-app-bg/30 font-semibold' : ''}`}>
+                    <td className="px-4 py-2.5 text-txt-primary">{row.label}</td>
+                    <td className="px-4 py-2.5 text-right tabular-nums text-txt-primary">{opsLoading ? '…' : fmtNum(b?.orders ?? 0)}</td>
+                    <td className="px-4 py-2.5 text-right tabular-nums text-txt-primary">{opsLoading ? '…' : fmtNum(b?.units ?? 0)}</td>
+                    <td className={`px-4 py-2.5 text-right tabular-nums ${(b?.cancellations ?? 0) > 0 ? 'text-danger' : 'text-txt-muted'}`}>{opsLoading ? '…' : fmtNum(b?.cancellations ?? 0)}</td>
+                    <td className={`px-4 py-2.5 text-right tabular-nums ${(b?.returns ?? 0) > 0 ? 'text-danger' : 'text-txt-muted'}`}>{opsLoading ? '…' : fmtNum(b?.returns ?? 0)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </Section>
+
+      {/* 3. VERSANDLABELS NACH CARRIER — folgt dem Zeitraum */}
+      <Section title={`Versandlabels · ${presetLabel}`}>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <Card label="DHL" value={fmtNum(carriers?.dhl ?? 0)} color="amber" loading={opsLoading} size="sm" />
+          <Card label="DPD" value={fmtNum(carriers?.dpd ?? 0)} color="red" loading={opsLoading} size="sm" />
+          <Card label="DP (Deutsche Post)" value={fmtNum(carriers?.dp ?? 0)} color="blue" loading={opsLoading} size="sm" />
+          <Card
+            label="Gesamt"
+            value={fmtNum(carriers?.total ?? 0)}
+            sub={carriers?.other ? `${fmtNum(carriers.other)} sonstige` : undefined}
+            color="neutral"
+            loading={opsLoading}
+            size="sm"
+          />
+        </div>
+        {!opsLoading && carriers === null && (
+          <p className="text-[11px] text-txt-muted mt-2">Versanddaten (SendCloud) momentan nicht verfügbar.</p>
         )}
       </Section>
 
-      {/* 2. KENNZAHLEN + CHART */}
-      <Section title={`Kennzahlen · ${presetLabel}`}>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
-          <Card
-            label="Umsatz"
-            value={fmtCur(ord.revenueWindow, ord.currency, true)}
-            sub={(
-              <span className="flex flex-col gap-0.5">
-                <span>{fmtNum(ord.totalOrdersInWindow)} Aufträge</span>
-                {ord.payoutWindow !== null && ord.payoutWindow > 0 && (
-                  <span className="text-[10px] text-txt-muted">
-                    Auszahlung {fmtCur(ord.payoutWindow, ord.currency, true)}
-                    {ord.payoutSource === "estimated" && " · geschätzt"}
-                  </span>
-                )}
-              </span>
-            )}
-            color="green"
-            loading={metricsLoading}
-          />
-          <Card
-            label="Versand"
-            value={shippingWindow !== null ? fmtCur(shippingWindow, 'EUR', true) : '\u2014'}
-            sub={shippingWindow !== null ? (
-              <span className="flex flex-col gap-0.5">
-                <span>{fmtNum(finance?.shipping?.parcel_count ?? 0)} Sendungen</span>
-                {(() => {
-                  const dhl = finance?.shipping?.dhl_count ?? 0;
-                  const dpd = finance?.shipping?.dpd_count ?? 0;
-                  const other = finance?.shipping?.other_count ?? 0;
-                  if (!dhl && !dpd && !other) return null;
-                  const parts: string[] = [];
-                  if (dhl) parts.push(`DHL ${fmtNum(dhl)}`);
-                  if (dpd) parts.push(`DPD ${fmtNum(dpd)}`);
-                  if (other) parts.push(`Sonstige ${fmtNum(other)}`);
-                  return <span className="text-[10px] text-txt-muted">{parts.join(' \u00b7 ')}</span>;
-                })()}
-              </span>
-            ) : undefined}
-            color="amber"
-            loading={financeLoading && shippingWindow === null}
-          />
-          <Card
-            label="Retouren"
-            value={fmtNum(ord.returnsWindowCount)}
-            sub={ord.returnsWindowValue > 0 ? fmtCur(ord.returnsWindowValue, 'EUR') : undefined}
-            color={ord.returnsWindowCount > 0 ? 'red' : 'neutral'}
-            loading={metricsLoading}
-          />
-        </div>
-
-        {/* Chart */}
+      {/* 4. BESTELLVOLUMEN — Bestellungen pro Tag, folgt dem Zeitraum */}
+      <Section title={`Bestellvolumen · ${presetLabel}`}>
         <div className="rounded-xl border border-app-border bg-app-surface p-5">
           <div className="flex items-center justify-between mb-4">
-            <p className="text-sm font-semibold text-txt-primary">Auftragsvolumen &amp; Umsatz</p>
+            <p className="text-sm font-semibold text-txt-primary">Bestellungen pro Tag</p>
             <div className="flex items-center gap-4 text-[11px] text-txt-muted">
               <span className="flex items-center gap-1.5">
                 <span className="inline-block w-3 h-3 rounded-sm bg-info" />
-                Aufträge
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="inline-block w-3 h-1.5 rounded-full bg-success" />
-                Umsatz
+                Bestellungen
               </span>
               {ord.chart.some(d => d.isToday) && (
                 <span className="flex items-center gap-1.5">
                   <span
                     className="inline-block w-3 h-3 rounded-sm border border-info/40"
-                    style={{
-                      backgroundImage: 'repeating-linear-gradient(45deg, var(--info) 0 2px, transparent 2px 4px)',
-                    }}
+                    style={{ backgroundImage: 'repeating-linear-gradient(45deg, var(--info) 0 2px, transparent 2px 4px)' }}
                   />
                   läuft
                 </span>
               )}
             </div>
           </div>
-          <OrderVolumeChart data={ord.chart} currency={ord.currency} loading={metricsLoading} />
+          <OrderVolumeChart data={ord.chart} loading={metricsLoading} />
           {ord.chart.some(d => d.isToday) && nowStr && (
             <p className="text-[11px] text-txt-muted mt-2">
               Heute · Stand {nowStr} (Tag noch nicht abgeschlossen)
@@ -848,38 +713,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
         </div>
       </Section>
 
-      {/* 3. AUFTRAGSFLUSS (kompakt) */}
-      <Section title="Auftragsfluss" badge={!metricsLoading && ord.neu > 0 ? `${ord.neu} offen` : undefined}>
-        <div className="rounded-lg border border-app-border bg-app-surface px-5 py-3">
-          {metricsLoading ? (
-            <div className="h-8 w-full rounded bg-app-border/50 animate-pulse" />
-          ) : (
-            <div className="flex items-center gap-1">
-              {STEPS.map((st, i) => {
-                const count = ({ neu: ord.neu, kommissioniert: ord.kommissioniert, verpackt: ord.verpackt, versendet: ord.versendet, zugestellt: ord.zugestellt } as Record<string, number>)[st.key] || 0;
-                return (
-                  <React.Fragment key={st.key}>
-                    <button
-                      type="button"
-                      onClick={() => navigateTo(st.key)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-md hover:bg-app-elevated transition-colors cursor-pointer"
-                    >
-                      <span className={`w-1.5 h-1.5 rounded-full ${st.dot}`} />
-                      <span className="text-xs text-txt-muted">{st.label}</span>
-                      <span className={`text-sm font-bold tabular-nums ${st.text}`}>{fmtNum(count)}</span>
-                    </button>
-                    {i < STEPS.length - 1 && (
-                      <span className="text-app-border text-xs select-none">{'\u203A'}</span>
-                    )}
-                  </React.Fragment>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      </Section>
-
-      {/* 4. BESTAND & SYNC (zwei Subsektionen) */}
+      {/* 5. BESTAND & SYNC (zwei Subsektionen) */}
       <Section title="Bestand & Sync">
         <div className="rounded-xl border border-app-border bg-app-surface p-5">
           {syncLoading && metricsLoading ? (
@@ -900,10 +734,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     {inv.reserved > 0 && (
                       <span className="text-txt-muted text-xs"> · {fmtNum(inv.reserved)} reserviert</span>
                     )}
-                  </span>
-                  <span>
-                    <span className="text-txt-muted text-xs">Wert (VK) </span>
-                    <span className="text-base font-semibold text-txt-primary tabular-nums">{fmtCur(inv.totalValue, inv.primaryCur, true)}</span>
                   </span>
                 </div>
               </div>
