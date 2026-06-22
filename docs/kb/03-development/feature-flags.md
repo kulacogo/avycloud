@@ -198,6 +198,14 @@ Beide **default OFF** → exakt heutiges Verhalten. Rollback = Flag auf `false`.
 
 > Zugehörige reine Lib (immer aktiv, kein Flag): [lib/best-offer-guard.js](../../../backend/lib/best-offer-guard.js) (`guardListingPrice`). Lese-Pfad: `mapListingDetail` in [lib/ebay-trading-api.js](../../../backend/lib/ebay-trading-api.js) liest jetzt `minimumBestOfferPrice`/`bestOfferAutoAcceptPrice`/`bestOfferEnabled` in den `observed`-Detail.
 
+## eBay-Listings-Deaktivierung — Confirm-Mode
+
+| ENV | Default | Wirkung | Anker |
+|-----|---------|---------|-------|
+| `EBAY_DEACTIVATION_CONFIRM_MODE` | `false` | `true` → ein **großer** Listing-Rückgang (über der 60%-Catastrophic-Schwelle) auf einem **vollständigen** eBay-Abruf wird nicht mehr dauerhaft blockiert, sondern über **zwei aufeinanderfolgende vollständige Abrufe bestätigt** (gleiche Active-Set-Größe) und dann ausgeführt → echter Rückgang heilt sich in ~2 Sync-Zyklen, ein einmaliger Fehlabruf wird weiterhin geblockt. Unvollständige Abrufe bleiben hart geblockt. `false` = altes Verhalten (Dauer-Block). Pending-State im Lock-Doc `ops/ebayLightSync.pendingLargeDeactivation`. | [lib/ebay-deactivation-guard.js](../../../backend/lib/ebay-deactivation-guard.js) (`decideLargeDeactivation`), [lib/ebay-direct.js](../../../backend/lib/ebay-direct.js) (`deactivateListingsMissingFromActiveSet`) |
+
+> Hintergrund: 2026-06-22 fror der Sync bei 305 aktiv ein, obwohl eBay nur 106 hatte (199 bewusst beendet = 65% Rückgang → über der 60%-Schwelle → als „kaputter Abruf" fehlinterpretiert). Verwandter Incident 2026-05-26.
+
 ## Hinweise
 
 - **ENV-Var-Rename** ist verboten, wenn sie in CI/CD referenziert wird (Punkt 4 [CLAUDE.md](../../../CLAUDE.md)).

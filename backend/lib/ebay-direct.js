@@ -1586,12 +1586,19 @@ async function syncLiveListingsLight(options = {}) {
     const ingestPagesFetched = Number(ingest?.summary?.pagesFetched) || 0;
     const ingestTotalPages = Number(ingest?.summary?.totalPagesReported) || 0;
     const ingestIsComplete = ingestPagesFetched > 0 && ingestTotalPages > 0 && ingestPagesFetched >= ingestTotalPages;
+    // Durable large-drop confirm mode (flag): pass the prior pending observation
+    // from the lock doc so a genuine large drop confirmed across two consecutive
+    // complete ingests is executed instead of frozen forever.
+    const confirmMode = String(process.env.EBAY_DEACTIVATION_CONFIRM_MODE || '').toLowerCase() === 'true';
+    const priorObservation = lock?.pendingLargeDeactivation || null;
     const deactivation = ingestIsComplete
       ? await deactivateListingsMissingFromActiveSet({
           activeItemIds: ingest.listings.map((x) => safeString(x?.itemId)).filter(Boolean),
           runId,
           actor,
           ingestComplete: ingestIsComplete,
+          confirmMode,
+          priorObservation,
         })
       : {
           scanned: 0,
@@ -1613,6 +1620,16 @@ async function syncLiveListingsLight(options = {}) {
       deactivation,
     };
 
+    // Persist or clear the pending large-deactivation observation for the next
+    // run's confirmation. Store when a complete ingest reported a (new) large
+    // drop; clear once acted on, or on any complete run without a pending drop.
+    let pendingPatch = {};
+    if (deactivation && deactivation.pendingObservation) {
+      pendingPatch = { pendingLargeDeactivation: deactivation.pendingObservation };
+    } else if (ingestIsComplete) {
+      pendingPatch = { pendingLargeDeactivation: null };
+    }
+
     await lockRef.set(
       cleanUndefined({
         running: false,
@@ -1620,6 +1637,7 @@ async function syncLiveListingsLight(options = {}) {
         lastCompletedRunId: runId,
         lastSummary: summary,
         lastError: null,
+        ...pendingPatch,
         updatedAt: FieldValue.serverTimestamp(),
       }),
       { merge: true }
@@ -1639,7 +1657,7 @@ async function syncLiveListingsLight(options = {}) {
   }
 }
 
-async function deactivateListingsMissingFromActiveSet({ activeItemIds = [], runId = null, actor = null, ingestComplete = false } = {}) {
+async function deactivateListingsMissingFromActiveSet({ activeItemIds = [], runId = null, actor = null, ingestComplete = false, priorObservation = null, confirmMode = false } = {}) {
   const keepSet = new Set(asArray(activeItemIds).map((id) => safeString(id)).filter(Boolean));
   const snapshot = await firestore.collection(EBAY_LISTINGS_COLLECTION).where('active', '==', true).get();
   const docs = Array.isArray(snapshot?.docs) ? snapshot.docs : [];
@@ -1684,21 +1702,45 @@ async function deactivateListingsMissingFromActiveSet({ activeItemIds = [], runI
   const CONSERVATIVE_RATIO = 0.20;
   const CATASTROPHIC_RATIO = parseFloat(process.env.EBAY_CATASTROPHIC_DEACTIVATION_RATIO || '0.6');
   const maxRatio = ingestComplete ? CATASTROPHIC_RATIO : CONSERVATIVE_RATIO;
+  let clearPendingObservation = false;
   if (ratio > maxRatio && wouldDeactivate > 5) {
-    const reason = ingestComplete ? 'catastrophic_collapse_suspected' : 'safety_threshold_exceeded';
-    console.warn(
-      `[ebay-deactivation] BLOCKED (${reason}): would deactivate ${wouldDeactivate}/${docs.length} (${(ratio * 100).toFixed(1)}%) — exceeds ${(maxRatio * 100).toFixed(0)}% ceiling. activeSet=${activeSetSize}, ingestComplete=${ingestComplete}, runId=${runId}`
-    );
-    return {
-      scanned: docs.length,
-      deactivated: 0,
-      keptActive: docs.length,
-      blocked: true,
-      reason,
-      wouldHaveDeactivated: wouldDeactivate,
-      ratio: Math.round(ratio * 100),
-      activeSetSize,
-    };
+    if (confirmMode) {
+      // Durable fix: a large drop on a COMPLETE ingest is confirmed across two
+      // consecutive complete ingests (a genuine drop persists; a one-off broken
+      // fetch won't reproduce the same active set). Incomplete ingest → hard block.
+      const { decideLargeDeactivation } = require('./ebay-deactivation-guard');
+      const decision = decideLargeDeactivation({
+        ingestComplete, ratio, wouldDeactivate, activeSetSize, prior: priorObservation, nowMs: Date.now(),
+        options: { conservativeRatio: CONSERVATIVE_RATIO, catastrophicRatio: CATASTROPHIC_RATIO },
+      });
+      if (decision.action === 'pending') {
+        console.warn(`[ebay-deactivation] PENDING confirmation (${decision.reason}): would deactivate ${wouldDeactivate}/${docs.length} (${(ratio * 100).toFixed(1)}%). Will act if the next complete ingest agrees. runId=${runId}`);
+        return { scanned: docs.length, deactivated: 0, keptActive: docs.length, blocked: true, reason: decision.reason, wouldHaveDeactivated: wouldDeactivate, ratio: Math.round(ratio * 100), activeSetSize, pendingObservation: decision.observation };
+      }
+      if (decision.action === 'block') {
+        console.warn(`[ebay-deactivation] BLOCKED (${decision.reason}): would deactivate ${wouldDeactivate}/${docs.length} (${(ratio * 100).toFixed(1)}%). activeSet=${activeSetSize}, ingestComplete=${ingestComplete}, runId=${runId}`);
+        return { scanned: docs.length, deactivated: 0, keptActive: docs.length, blocked: true, reason: decision.reason, wouldHaveDeactivated: wouldDeactivate, ratio: Math.round(ratio * 100), activeSetSize };
+      }
+      // decision.action === 'proceed' → genuine drop confirmed; fall through, clear the pending marker.
+      console.warn(`[ebay-deactivation] CONFIRMED (${decision.reason}): proceeding to deactivate ${wouldDeactivate}/${docs.length} (${(ratio * 100).toFixed(1)}%). runId=${runId}`);
+      clearPendingObservation = true;
+    } else {
+      // Legacy behaviour (flag off): permanently block large drops.
+      const reason = ingestComplete ? 'catastrophic_collapse_suspected' : 'safety_threshold_exceeded';
+      console.warn(
+        `[ebay-deactivation] BLOCKED (${reason}): would deactivate ${wouldDeactivate}/${docs.length} (${(ratio * 100).toFixed(1)}%) — exceeds ${(maxRatio * 100).toFixed(0)}% ceiling. activeSet=${activeSetSize}, ingestComplete=${ingestComplete}, runId=${runId}`
+      );
+      return {
+        scanned: docs.length,
+        deactivated: 0,
+        keptActive: docs.length,
+        blocked: true,
+        reason,
+        wouldHaveDeactivated: wouldDeactivate,
+        ratio: Math.round(ratio * 100),
+        activeSetSize,
+      };
+    }
   }
 
   let scanned = 0;
@@ -1740,6 +1782,7 @@ async function deactivateListingsMissingFromActiveSet({ activeItemIds = [], runI
     scanned,
     deactivated,
     keptActive: Math.max(0, scanned - deactivated),
+    clearPendingObservation,
   };
 }
 
