@@ -214,13 +214,13 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onT
                 src="/avycloud_logo_name_darkmode.png"
                 alt="avycloud"
                 draggable={false}
-                className="h-7 object-contain logo-dark"
+                className="h-9 object-contain logo-dark"
               />
               <img
                 src="/avycloud_logo_name.png"
                 alt="avycloud"
                 draggable={false}
-                className="h-7 object-contain logo-light"
+                className="h-9 object-contain logo-light"
               />
             </div>
 

@@ -68,7 +68,7 @@ const MobileTabBar: React.FC<MobileTabBarProps> = ({ currentView, onNavigate }) 
   }, [hasPermission]);
   return (
     <nav
-      className="bg-app-sidebar/95 backdrop-blur-lg border-t border-app-border px-3 pt-2 pb-1 flex justify-around gap-2 safe-area-bottom shadow-app"
+      className="bg-app-sidebar/95 backdrop-blur-lg border-t border-app-border px-3 pt-1.5 flex justify-around gap-2 safe-area-bottom shadow-app"
       role="tablist"
       aria-label="Navigation"
     >

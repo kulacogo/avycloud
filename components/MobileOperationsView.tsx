@@ -2008,7 +2008,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
   ];
 
   return (
-    <div className="flex flex-col min-h-full pb-24 max-w-xl mx-auto w-full">
+    <div className="flex flex-col flex-1 min-h-0 max-w-xl mx-auto w-full">
       <h1 className="text-2xl font-semibold text-txt-primary mb-3 shrink-0">{t('ops.title')}</h1>
       <div className="flex-1 flex flex-col gap-3 min-h-0">
         {hubActions.map((action) => (

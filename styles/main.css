@@ -211,7 +211,7 @@ tr {
 }
 
 .safe-area-bottom {
-  padding-bottom: calc(constant(safe-area-inset-bottom) + 1rem);
-  padding-bottom: calc(env(safe-area-inset-bottom) + 1rem);
+  padding-bottom: calc(constant(safe-area-inset-bottom) + 0.25rem);
+  padding-bottom: calc(env(safe-area-inset-bottom) + 0.25rem);
 }
 
