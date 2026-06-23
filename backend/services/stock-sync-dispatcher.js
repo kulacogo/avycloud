@@ -86,6 +86,48 @@ function isRateLimited(msg) {
   return lower.includes('exceeded usage limit') || lower.includes('check your call usage');
 }
 
+// A definitive "this Kaufland unit does not exist" signal (404). Distinct from a
+// transient error: the unit is gone, so retrying it is pointless.
+function isUnitNotFound(msg) {
+  const lower = String(msg || '').toLowerCase();
+  return lower.includes('not found') || lower.includes('404') || lower.includes('not_found');
+}
+
+/**
+ * Retire a dead Kaufland unit so the stock-sync loop stops hammering it.
+ *
+ * The dispatcher already cleared the stale unitId on the product, but the SKU/EAN
+ * resolver re-pulled the SAME dead unit from `kauflandUnitsLive` (still active=true)
+ * and wrote it back → endless loop (diagnosed 2026-06-23, ~117 fails/24h for 2 SKUs).
+ *
+ * Fix: clear the product unitId AND mark the mirror entry inactive so the resolver
+ * (which filters active==true) stops re-selecting it. `kaufland-listings-sync`
+ * re-activates the entry if the unit genuinely still exists, so this self-corrects
+ * a (hypothetical) transient 404.
+ */
+async function retireKauflandUnit({ productId, unitId, reason = 'unit_not_found' }) {
+  const now = new Date().toISOString();
+  try {
+    await firestore.collection('products_v2').doc(productId).set(
+      { ops: { kaufland: { unitId: null, unitIdCleared: now, unitIdClearReason: reason } } },
+      { merge: true }
+    );
+  } catch (clearErr) {
+    console.warn(`[stock-sync] Failed to clear stale kaufland unitId for product=${productId}: ${clearErr?.message}`);
+  }
+  if (unitId) {
+    try {
+      await firestore.collection('kauflandUnitsLive').doc(String(unitId)).set(
+        { active: false, status: 'NOT_FOUND', notFoundAt: now, notFoundReason: reason },
+        { merge: true }
+      );
+    } catch (mirrorErr) {
+      console.warn(`[stock-sync] Failed to deactivate stale kaufland mirror unit=${unitId}: ${mirrorErr?.message}`);
+    }
+  }
+  console.log(`[stock-sync] Retired stale kaufland unit=${unitId} for product=${productId} (${reason})`);
+}
+
 async function persistSyncFailureForDrain({
   tenantId,
   product,
@@ -435,22 +477,19 @@ async function syncStockToAllChannels({ tenantId = 'default', product, reason = 
         );
       } catch (err) {
         const errMsg = err?.message || String(err);
-        results.push({ channel: 'kaufland', status: 'error', error: errMsg, action: 'onhold' });
-        console.warn(
-          `[stock-sync] kaufland ONHOLD FAILED product=${productId} unitId=${kauflandUnitId}:`,
-          errMsg
-        );
-        // If unit no longer exists on Kaufland, clear the stale unitId to stop endless retries
-        if (errMsg.includes('Not Found') || errMsg.includes('404') || errMsg.includes('not_found')) {
-          try {
-            await firestore.collection('products_v2').doc(productId).set(
-              { ops: { kaufland: { unitId: null, unitIdCleared: new Date().toISOString(), unitIdClearReason: 'unit_not_found' } } },
-              { merge: true }
-            );
-            console.log(`[stock-sync] Cleared stale kaufland unitId for product=${productId} (Unit Not Found)`);
-          } catch (clearErr) {
-            console.warn(`[stock-sync] Failed to clear stale unitId: ${clearErr?.message}`);
-          }
+        if (isUnitNotFound(errMsg)) {
+          // Unit is gone on Kaufland — retire it (clear product + deactivate mirror
+          // so the resolver stops re-pulling the dead unit) and record a
+          // non-retryable skip, NOT an error: no drain retry, no activity-feed noise.
+          await retireKauflandUnit({ productId, unitId: kauflandUnitId });
+          results.push({ channel: 'kaufland', status: 'skipped', unitId: kauflandUnitId, action: 'unit_retired', error: 'unit_not_found' });
+          console.warn(`[stock-sync] kaufland ONHOLD product=${productId} unitId=${kauflandUnitId}: Unit Not Found → retired (no retry)`);
+        } else {
+          results.push({ channel: 'kaufland', status: 'error', error: errMsg, action: 'onhold' });
+          console.warn(
+            `[stock-sync] kaufland ONHOLD FAILED product=${productId} unitId=${kauflandUnitId}:`,
+            errMsg
+          );
         }
       }
     } else {
@@ -494,23 +533,19 @@ async function syncStockToAllChannels({ tenantId = 'default', product, reason = 
           );
         } catch (fallbackErr) {
           const fallbackMsg = fallbackErr?.message || String(fallbackErr);
-          results.push({ channel: 'kaufland', status: 'error', error: `${errMsg}; fail_safe_onhold_failed: ${fallbackMsg}` });
-          console.warn(
-            `[stock-sync] kaufland FAILED product=${productId} unitId=${kauflandUnitId}; fail-safe ONHOLD failed:`,
-            fallbackMsg
-          );
-          // If unit no longer exists on Kaufland, clear the stale unitId to stop endless retries
-          if (errMsg.includes('Not Found') || errMsg.includes('404') || errMsg.includes('not_found')
-            || fallbackMsg.includes('Not Found') || fallbackMsg.includes('404') || fallbackMsg.includes('not_found')) {
-            try {
-              await firestore.collection('products_v2').doc(productId).set(
-                { ops: { kaufland: { unitId: null, unitIdCleared: new Date().toISOString(), unitIdClearReason: 'unit_not_found' } } },
-                { merge: true }
-              );
-              console.log(`[stock-sync] Cleared stale kaufland unitId for product=${productId} (Unit Not Found)`);
-            } catch (clearErr) {
-              console.warn(`[stock-sync] Failed to clear stale unitId: ${clearErr?.message}`);
-            }
+          if (isUnitNotFound(errMsg) || isUnitNotFound(fallbackMsg)) {
+            // Unit is gone on Kaufland — retire it and skip (non-retryable): clear
+            // the product unitId AND deactivate the mirror entry so the resolver
+            // stops re-pulling the dead unit. No drain retry, no activity-feed noise.
+            await retireKauflandUnit({ productId, unitId: kauflandUnitId });
+            results.push({ channel: 'kaufland', status: 'skipped', unitId: kauflandUnitId, action: 'unit_retired', error: 'unit_not_found' });
+            console.warn(`[stock-sync] kaufland product=${productId} unitId=${kauflandUnitId}: Unit Not Found → retired (no retry)`);
+          } else {
+            results.push({ channel: 'kaufland', status: 'error', error: `${errMsg}; fail_safe_onhold_failed: ${fallbackMsg}` });
+            console.warn(
+              `[stock-sync] kaufland FAILED product=${productId} unitId=${kauflandUnitId}; fail-safe ONHOLD failed:`,
+              fallbackMsg
+            );
           }
         }
       }
