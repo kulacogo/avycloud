@@ -101,18 +101,9 @@ const ProductCard: React.FC<{ product: Product; footer?: React.ReactNode }> = ({
 
 const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, mode, onNavigate, onSelectProduct, onIdentify }) => {
   const { t } = useI18n();
+  // Einlagern = Produkte mit Bestand aber ohne Lagerplatz (echte Einlager-Arbeit).
   const stowList = useMemo(
     () => products.filter((p) => getProductQuantity(p) > 0 && !p.storage?.binCode),
-    [products]
-  );
-  // Nur offene Kommissionierungen: nehmen wir als Heuristik ops.sync_status === 'pending'
-  const pickList = useMemo(
-    () => products.filter((p) => getProductQuantity(p) > 0 && p.storage?.binCode && (p.ops?.sync_status ?? 'pending') === 'pending'),
-    [products]
-  );
-  // Pack: nutze "synced" als konservative Heuristik, da "picked" kein gültiger SyncStatus ist
-  const packList = useMemo(
-    () => products.filter((p) => (p.ops?.sync_status ?? 'pending') === 'synced' && getProductQuantity(p) > 0),
     [products]
   );
 
@@ -303,9 +294,13 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
       return raw.includes('storniert') || raw.includes('cancel');
     };
     return orders.filter((o) => {
-      // OMS orders use 'pending'/'confirmed'/'picking'; legacy BL orders used 'new'
+      // Kommissionieren = nur vom Marktplatz freigegebene Aufträge: 'confirmed'
+      // (bereit zum Picken) + 'picking' (bereits in Arbeit). 'pending'/'new' sind
+      // importiert aber noch nicht freigegeben (z. B. Kaufland setzt confirmed
+      // erst bei need_to_be_sent) und sind daher KEINE Pick-Arbeit — sonst stauen
+      // veraltete unbestätigte Aufträge die Pick-Liste auf.
       const oms = getOrderStatus(o);
-      const isOpen = oms === 'new' || oms === 'pending' || oms === 'confirmed' || oms === 'picking';
+      const isOpen = oms === 'confirmed' || oms === 'picking';
       return isOpen && !isCancelled(o.statusLabel);
     });
   }, [orders]);
@@ -1968,66 +1963,69 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
     );
   }
 
-  // Hub
+  // Hub — vier gleich große Aktions-Buttons, die den Bildschirm füllen.
+  const hubActions = [
+    {
+      mode: 'operations-identify' as const,
+      labelKey: 'ops.mode.identify',
+      count: null as number | null,
+      cardClass: 'bg-accent-dim text-accent border-accent/20',
+      badgeClass: 'bg-accent/20 text-accent',
+      icon: (
+        <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0"><path d="M3 7V5a2 2 0 0 1 2-2h2" /><path d="M17 3h2a2 2 0 0 1 2 2v2" /><path d="M21 17v2a2 2 0 0 1-2 2h-2" /><path d="M7 21H5a2 2 0 0 1-2-2v-2" /><line x1="7" y1="12" x2="17" y2="12" /><line x1="7" y1="8" x2="13" y2="8" /><line x1="7" y1="16" x2="11" y2="16" /></svg>
+      ),
+    },
+    {
+      mode: 'operations-stow' as const,
+      labelKey: 'ops.mode.stow',
+      count: stowList.length,
+      cardClass: 'bg-success-dim text-success border-success/30',
+      badgeClass: 'bg-success/20 text-success',
+      icon: (
+        <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0"><path d="M12 3h7a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-7" /><path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h7" /><path d="M12 12v9" /><path d="M12 3v9" /><line x1="9" y1="15" x2="15" y2="15" /><line x1="12" y1="12" x2="12" y2="18" /></svg>
+      ),
+    },
+    {
+      mode: 'operations-pick' as const,
+      labelKey: 'ops.mode.pick',
+      count: openOrders.length,
+      cardClass: 'bg-warning-dim text-warning border-warning/20',
+      badgeClass: 'bg-warning/20 text-warning',
+      icon: (
+        <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0"><rect x="3" y="3" width="18" height="18" rx="2" ry="2" /><line x1="8" y1="8" x2="8.01" y2="8" /><line x1="12" y1="8" x2="16" y2="8" /><line x1="8" y1="12" x2="8.01" y2="12" /><line x1="12" y1="12" x2="16" y2="12" /><line x1="8" y1="16" x2="8.01" y2="16" /><line x1="12" y1="16" x2="16" y2="16" /></svg>
+      ),
+    },
+    {
+      mode: 'operations-pack' as const,
+      labelKey: 'ops.mode.pack',
+      count: readyToPackOrders.length,
+      cardClass: 'bg-app-surface text-txt-primary border-app-border',
+      badgeClass: 'bg-app-elevated text-txt-secondary',
+      icon: (
+        <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" /><polyline points="3.27 6.96 12 12.01 20.73 6.96" /><line x1="12" y1="22.08" x2="12" y2="12" /></svg>
+      ),
+    },
+  ];
+
   return (
-    <div className="space-y-4 max-w-xl mx-auto">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold text-txt-primary">{t('ops.title')}</h1>
-          <p className="text-txt-muted text-sm">{t('ops.subtitle')}</p>
-        </div>
-        <div className="text-right text-xs text-txt-muted space-y-0.5">
-          <p>
-            {t('ops.mode.stow')}: {stowList.length}
-          </p>
-          <p>
-            {t('ops.mode.pick')}: {pickList.length}
-          </p>
-          <p>
-            {t('ops.mode.pack')}: {readyToPackOrders.length}
-          </p>
-        </div>
-      </div>
-      <div className="flex flex-col gap-3">
-        <button
-          type="button"
-          aria-label={t('ops.mode.identify')}
-          className="w-full rounded-2xl bg-accent-dim text-accent font-semibold py-4 px-5 text-lg border border-accent/20 flex items-center gap-3"
-          onClick={() => onNavigate('operations-identify')}
-        >
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0"><path d="M3 7V5a2 2 0 0 1 2-2h2" /><path d="M17 3h2a2 2 0 0 1 2 2v2" /><path d="M21 17v2a2 2 0 0 1-2 2h-2" /><path d="M7 21H5a2 2 0 0 1-2-2v-2" /><line x1="7" y1="12" x2="17" y2="12" /><line x1="7" y1="8" x2="13" y2="8" /><line x1="7" y1="16" x2="11" y2="16" /></svg>
-          <span className="flex-1 text-left">{t('ops.mode.identify')}</span>
-        </button>
-        <button
-          type="button"
-          aria-label={t('ops.mode.stow')}
-          className="w-full rounded-2xl bg-success-dim text-success font-semibold py-4 px-5 text-lg border border-success/30 flex items-center gap-3"
-          onClick={() => onNavigate('operations-stow')}
-        >
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0"><path d="M12 3h7a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-7" /><path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h7" /><path d="M12 12v9" /><path d="M12 3v9" /><line x1="9" y1="15" x2="15" y2="15" /><line x1="12" y1="12" x2="12" y2="18" /></svg>
-          <span className="flex-1 text-left">{t('ops.mode.stow')}</span>
-          {stowList.length > 0 && <span className="bg-success/20 text-success text-sm font-bold px-2.5 py-0.5 rounded-full">{stowList.length}</span>}
-        </button>
-        <button
-          type="button"
-          aria-label={t('ops.mode.pick')}
-          className="w-full rounded-2xl bg-warning-dim text-warning font-semibold py-4 px-5 text-lg border border-warning/20 flex items-center gap-3"
-          onClick={() => onNavigate('operations-pick')}
-        >
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0"><rect x="3" y="3" width="18" height="18" rx="2" ry="2" /><line x1="8" y1="8" x2="8.01" y2="8" /><line x1="12" y1="8" x2="16" y2="8" /><line x1="8" y1="12" x2="8.01" y2="12" /><line x1="12" y1="12" x2="16" y2="12" /><line x1="8" y1="16" x2="8.01" y2="16" /><line x1="12" y1="16" x2="16" y2="16" /></svg>
-          <span className="flex-1 text-left">{t('ops.mode.pick')}</span>
-          {pickList.length > 0 && <span className="bg-warning/20 text-warning text-sm font-bold px-2.5 py-0.5 rounded-full">{pickList.length}</span>}
-        </button>
-        <button
-          type="button"
-          aria-label={t('ops.mode.pack')}
-          className="w-full rounded-2xl bg-app-surface text-txt-primary font-semibold py-4 px-5 text-lg border border-app-border flex items-center gap-3"
-          onClick={() => onNavigate('operations-pack')}
-        >
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" /><polyline points="3.27 6.96 12 12.01 20.73 6.96" /><line x1="12" y1="22.08" x2="12" y2="12" /></svg>
-          <span className="flex-1 text-left">{t('ops.mode.pack')}</span>
-          {readyToPackOrders.length > 0 && <span className="bg-accent/15 text-txt-secondary text-sm font-bold px-2.5 py-0.5 rounded-full">{readyToPackOrders.length}</span>}
-        </button>
+    <div className="flex flex-col min-h-full pb-24 max-w-xl mx-auto w-full">
+      <h1 className="text-2xl font-semibold text-txt-primary mb-3 shrink-0">{t('ops.title')}</h1>
+      <div className="flex-1 flex flex-col gap-3 min-h-0">
+        {hubActions.map((action) => (
+          <button
+            key={action.mode}
+            type="button"
+            aria-label={t(action.labelKey)}
+            className={`flex-1 min-h-[76px] w-full rounded-2xl border px-6 flex items-center gap-4 font-semibold text-xl transition active:scale-[0.99] ${action.cardClass}`}
+            onClick={() => onNavigate(action.mode)}
+          >
+            <span className="shrink-0">{action.icon}</span>
+            <span className="flex-1 text-left">{t(action.labelKey)}</span>
+            {action.count != null && action.count > 0 && (
+              <span className={`text-base font-bold px-3 py-1 rounded-full ${action.badgeClass}`}>{action.count}</span>
+            )}
+          </button>
+        ))}
       </div>
     </div>
   );

@@ -208,13 +208,19 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onT
         <div className="w-full px-3 sm:px-5 lg:px-8 py-1.5">
           <div className="flex items-center gap-4 w-full h-[50px]">
 
-            {/* Logo */}
+            {/* Logo — Wortmarke "avycloud" (Light/Dark via logo-light/logo-dark) */}
             <div className="flex-shrink-0 sm:ml-2 lg:ml-4">
               <img
-                src="/avycloud_logo_icon.png"
+                src="/avycloud_logo_name_darkmode.png"
                 alt="avycloud"
                 draggable={false}
-                className="h-10 w-10 object-contain"
+                className="h-7 object-contain logo-dark"
+              />
+              <img
+                src="/avycloud_logo_name.png"
+                alt="avycloud"
+                draggable={false}
+                className="h-7 object-contain logo-light"
               />
             </div>
 

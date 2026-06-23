@@ -15,7 +15,8 @@ const RANGE_START = new Date('2026-06-01T00:00:00Z');
 const RANGE_END_EXCLUSIVE = new Date('2026-06-23T00:00:00Z');
 
 const ORDERS = [
-  // o1: eBay, waiting for picking, created in window, 2 units
+  // o1: eBay, imported but NOT yet released (pending), created in window, 2 units.
+  // Pending orders are not pickable yet, so they must NOT count as waiting_picking.
   { id: 'o1', marketplace: 'ebay', omsStatus: 'pending', createdAt: '2026-06-20T10:00:00Z', items: [{ quantity: 2 }] },
   // o2: Kaufland, picked (in progress), created in window, 4 units
   { id: 'o2', marketplace: 'kaufland', omsStatus: 'picked', createdAt: '2026-06-21T10:00:00Z', pickedAt: '2026-06-21T11:00:00Z', items: [{ quantity: 1 }, { quantity: 3 }] },
@@ -47,9 +48,19 @@ function run() {
 }
 
 describe('aggregateOperationalMetrics — live operational counts (current state, not windowed)', () => {
-  it('counts orders waiting for picking regardless of order date', () => {
-    // o1 (pending, in window) + o6 (confirmed, BEFORE window) = 2
-    expect(run().live.waiting_picking).toBe(2);
+  it('counts ONLY confirmed orders waiting for picking, regardless of order date', () => {
+    // o6 (confirmed, BEFORE window) = 1. o1 (pending) is imported but not yet
+    // released by the marketplace, so it is excluded from the pick backlog.
+    expect(run().live.waiting_picking).toBe(1);
+  });
+
+  it('excludes pending/unconfirmed orders from the picking backlog', () => {
+    const orders = [
+      { id: 'p1', omsStatus: 'pending', createdAt: '2026-06-20T10:00:00Z', items: [{ quantity: 1 }] },
+      { id: 'p2', omsStatus: 'pending', createdAt: '2025-12-10T10:00:00Z', items: [{ quantity: 1 }] },
+    ];
+    const r = aggregateOperationalMetrics({ orders, returns: [], rangeStart: RANGE_START, rangeEndExclusive: RANGE_END_EXCLUSIVE, now: NOW });
+    expect(r.live.waiting_picking).toBe(0);
   });
 
   it('counts in-progress orders (picked/packed, not yet shipped)', () => {

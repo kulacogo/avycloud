@@ -17,7 +17,13 @@
 const KNOWN_MARKETPLACES = new Set(['ebay', 'kaufland', 'amazon', 'otto', 'shopify']);
 
 // Current-state OMS buckets for the live operational row.
-const WAITING_PICKING_STATUSES = new Set(['pending', 'confirmed', 'new']);
+// "Waiting for picking" = ONLY orders the marketplace has released for fulfilment
+// (omsStatus 'confirmed'). 'pending'/'new' orders are imported but not yet
+// released (e.g. Kaufland flips pending→confirmed only at klUnitStatus
+// 'need_to_be_sent'), so they are NOT actionable warehouse work and must not be
+// counted here — otherwise stale unconfirmed orders inflate the "zu kommiss."
+// backlog (see stale Dec-2025 Kaufland orders stuck in 'pending').
+const WAITING_PICKING_STATUSES = new Set(['confirmed']);
 const IN_PROGRESS_STATUSES = new Set(['picking', 'picked', 'packing', 'packed']);
 const SHIPPED_STATUSES = new Set(['shipped', 'delivered', 'completed']);
 

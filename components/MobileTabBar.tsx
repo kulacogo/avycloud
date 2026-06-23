@@ -12,7 +12,7 @@ interface MobileTabBarProps {
 
 /* ─── Inline SVG Icons (replace pixelated PNGs) ─── */
 const TabIcon: React.FC<{ id: MobileTab; active: boolean }> = ({ id, active }) => {
-  const cls = `w-6 h-6 ${active ? 'text-accent' : 'text-current'}`;
+  const cls = `w-7 h-7 ${active ? 'text-accent' : 'text-current'}`;
   switch (id) {
     case 'home':
       return (
@@ -68,7 +68,7 @@ const MobileTabBar: React.FC<MobileTabBarProps> = ({ currentView, onNavigate }) 
   }, [hasPermission]);
   return (
     <nav
-      className="bg-app-sidebar/95 backdrop-blur-lg border-t border-app-border px-4 py-2 flex justify-around gap-2 safe-area-bottom shadow-app"
+      className="bg-app-sidebar/95 backdrop-blur-lg border-t border-app-border px-3 pt-2 pb-1 flex justify-around gap-2 safe-area-bottom shadow-app"
       role="tablist"
       aria-label="Navigation"
     >
@@ -80,14 +80,14 @@ const MobileTabBar: React.FC<MobileTabBarProps> = ({ currentView, onNavigate }) 
             type="button"
             role="tab"
             onClick={() => onNavigate(tab.id)}
-            className={`flex flex-col items-center justify-center flex-1 min-h-[48px] min-w-[48px] rounded-xl px-3 py-2 text-xs font-semibold transition-all active:scale-95 ${
+            className={`flex flex-col items-center justify-center flex-1 min-h-[60px] min-w-[60px] rounded-xl px-3 py-2.5 text-sm font-semibold transition-all active:scale-95 ${
               active ? 'bg-accent-dim text-accent' : 'text-txt-secondary hover:bg-app-elevated/60'
             }`}
             aria-selected={active}
             aria-label={t(tab.labelKey)}
           >
             <TabIcon id={tab.id} active={active} />
-            <span className="mt-1">{t(tab.labelKey)}</span>
+            <span className="mt-1.5">{t(tab.labelKey)}</span>
           </button>
         );
       })}
