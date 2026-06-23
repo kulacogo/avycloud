@@ -534,7 +534,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
       const dt = (() => { try { return new Date(d.date); } catch { return null; } })();
       const label = (() => {
         if (!dt) return d.date;
-        if (bucket === 'month') return dt.toLocaleDateString('de-DE', { month: 'short' });
+        if (bucket === 'month') return dt.toLocaleDateString('de-DE', { month: 'short', year: '2-digit' });
         if (bucket === 'week') return dt.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' });
         if (bucket === 'hour') return dt.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
         // Compact day label: "Fr 02.05" — Wochentag plus date, scannable for any
@@ -555,8 +555,20 @@ export const Dashboard: React.FC<DashboardProps> = ({
         isToday,
       };
     });
-    const totalOrdersInWindow = chart.reduce((s, d) => s + d.count, 0);
-    return { totalOrdersInWindow, chart };
+    // Long (monthly) ranges like "Gesamter Zeitraum" start at the platform epoch
+    // (2020) and carry a long tail of empty months. Drop leading/trailing months
+    // with no orders so the chart starts at first activity. Interior zero-months
+    // (real no-sale gaps) are kept.
+    let trimmed = chart;
+    if (bucket === 'month') {
+      let s = 0;
+      while (s < trimmed.length && trimmed[s].count === 0) s++;
+      let e = trimmed.length - 1;
+      while (e >= s && trimmed[e].count === 0) e--;
+      trimmed = s <= e ? trimmed.slice(s, e + 1) : [];
+    }
+    const totalOrdersInWindow = trimmed.reduce((sum, d) => sum + d.count, 0);
+    return { totalOrdersInWindow, chart: trimmed };
   }, [metrics]);
 
   // Operational data (counts) — straight from the server-side aggregator.
