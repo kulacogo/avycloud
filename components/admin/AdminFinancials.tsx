@@ -408,9 +408,9 @@ export const AdminFinancials: React.FC = () => {
           <div className="rounded-xl border border-app-border bg-app-surface p-5 flex flex-wrap items-center justify-between gap-4">
             <div className="flex items-center gap-6">
               <div>
-                <p className="text-xs text-txt-muted">Artikel online (eBay, aktuell)</p>
+                <p className="text-xs text-txt-muted">Artikel online (eBay, interne Liste)</p>
                 <p className="text-2xl font-semibold tabular-nums text-txt-primary">{fmtNum(report.listingsOnline.currentActive)}</p>
-                <p className="text-[11px] text-txt-muted">aktiv jetzt · <TrustBadge trust="exakt" /></p>
+                <p className="text-[11px] text-warning">⚠ kann von eBay abweichen (Sync-Drift)</p>
               </div>
               <div>
                 <p className="text-xs text-txt-muted">Ø online im Zeitraum</p>
