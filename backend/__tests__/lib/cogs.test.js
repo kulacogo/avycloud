@@ -181,13 +181,14 @@ describe('computeInventoryValue', () => {
     expect(r.unitCount).toBe(0);
   });
 
-  it('estimates capital from the cost model when buyPrice is absent', () => {
+  it('estimates capital at the flat avg unit cost (what was paid per unit), not sell-proportional', () => {
+    // Capital = "what you paid for the stock on hand" → flat avg cost/unit, NOT sell × ratio.
     const model = deriveCostModel({ mode: 'proportional', vatMode: 'netto', palletCostBrutto: 400, unitsPerPallet: 18 }, 30);
     const r = computeInventoryValue([
-      product({ sku: 'A', buyPrice: 5, sellPrice: 12, qty: 2 }), // real EK
-      product({ sku: 'B', lowest: 40, qty: 3 }), // no EK → estimate 40 * ratio
+      product({ sku: 'A', buyPrice: 5, sellPrice: 12, qty: 2 }), // real EK → 10
+      product({ sku: 'B', lowest: 40, qty: 3 }), // no EK → 3 × avgUnitCostNetto
     ], model);
-    expect(r.capitalAtCost).toBeCloseTo(2 * 5 + 3 * (40 * model.ratio), 0); // 10 + ~74.7
+    expect(r.capitalAtCost).toBeCloseTo(2 * 5 + 3 * model.avgUnitCostNetto, 0); // 10 + ~56
     expect(r.articlesWithCost).toBe(1); // only A has a real buyPrice
     expect(r.articlesEstimated).toBe(1); // B costed via model
   });

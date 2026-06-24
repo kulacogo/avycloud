@@ -146,8 +146,9 @@ function computeInventoryValue(products, costModel) {
     if (buy > 0) {
       capitalAtCost += qty * buy;
       articlesWithCost += 1;
-    } else if (modelUsable) {
-      capitalAtCost += qty * estimatedUnitCost(sell, costModel);
+    } else if (costModel && costModel.avgUnitCostNetto > 0) {
+      // Capital = stock units × flat avg cost/unit (what was actually paid), not sell × ratio.
+      capitalAtCost += qty * costModel.avgUnitCostNetto;
       articlesEstimated += 1;
     }
     potentialRevenue += qty * sell;

@@ -276,14 +276,19 @@ async function getFinancialReport({ preset = null, fromDate = null, toDate = nul
   if (!sevdeskPayout) errors.push('Auszahlungen (SevDesk) nicht verfügbar — Schätzung genutzt.');
 
   // ── Cost model (pallet-based estimated COGS where no real buyPrice) ──
+  // Calibrate the cost ratio against the period's avg SOLD price so that total COGS =
+  // soldUnits × avgUnitCostNetto (matches the owner's "total spend ÷ total units" math).
+  // The sold mix is pricier than the catalog stock average, so using the stock average
+  // would overstate COGS by ~⅓.
   const costConfig = costCfgRes.status === 'fulfilled' && costCfgRes.value ? costCfgRes.value : null;
-  const inv0 = computeInventoryValue(products); // no model → gives avg sell price
-  const avgSellPrice = inv0.unitCount > 0 ? round2(inv0.potentialRevenue / inv0.unitCount) : 0;
-  const costModel = deriveCostModel(costConfig || {}, avgSellPrice);
-
-  // ── Aggregation + P&L ──
   const costIndex = buildProductCostIndex(products);
-  const agg = aggregateOrders(orderDocs, costIndex, { fromIso, toIso, bucket, costModel });
+
+  const agg0 = aggregateOrders(orderDocs, costIndex, { fromIso, toIso, bucket }); // pass 1: no model
+  const soldUnits = ['ebay', 'kaufland', 'other'].reduce((s, k) => s + agg0.byMarketplace[k].units, 0);
+  const avgSoldPrice = soldUnits > 0 ? round2(agg0.totalItemRevenue / soldUnits) : 0;
+  const costModel = deriveCostModel(costConfig || {}, avgSoldPrice);
+
+  const agg = aggregateOrders(orderDocs, costIndex, { fromIso, toIso, bucket, costModel }); // pass 2: COGS
   const inventory = computeInventoryValue(products, costModel);
 
   // ── Ø Artikel online ──
