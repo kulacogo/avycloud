@@ -4,6 +4,7 @@
  * Mounted at /api/admin in index.js.
  * All routes require requirePermission('admin', ...).
  */
+const crypto = require('crypto');
 const router = require('express').Router();
 const { requirePermission } = require('../lib/rbac');
 
@@ -1800,6 +1801,31 @@ router.post('/batch-optimize/run', requirePermission('admin', 'products.write'),
   } catch (error) {
     console.error('[POST /api/admin/batch-optimize/run]', error.message, error);
     res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: error.message } });
+  }
+});
+
+// --- Financial Report (Umsatz/Kosten/Gewinn mit Zeitraum) ---
+// Admin-only: gated via 'reports.read'. Admins pass through requirePermission's
+// isAdmin-bypass; non-admins without the permission get 403. No rbac.js change needed.
+router.get('/financials', requirePermission('admin', 'reports.read'), async (req, res) => {
+  try {
+    const { getFinancialReport } = require('../services/financial-report');
+    const preset = typeof req.query?.preset === 'string' ? req.query.preset.trim() : null;
+    const fromDate = typeof req.query?.from_date === 'string' ? req.query.from_date.trim() : null;
+    const toDate = typeof req.query?.to_date === 'string' ? req.query.to_date.trim() : null;
+    const tenantId = req.user?.tenantId || 'default';
+
+    const report = await getFinancialReport({ preset, fromDate, toDate, tenantId });
+
+    const body = { ok: true, data: report };
+    const etag = '"' + crypto.createHash('md5').update(JSON.stringify(body)).digest('hex') + '"';
+    if (req.headers['if-none-match'] === etag) return res.status(304).end();
+    res.setHeader('Cache-Control', 'private, max-age=30');
+    res.setHeader('ETag', etag);
+    res.json(body);
+  } catch (error) {
+    console.error('[GET /api/admin/financials]', error.message, error);
+    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: 'Finanzbericht konnte nicht geladen werden.' } });
   }
 });
 

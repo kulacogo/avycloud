@@ -18,6 +18,7 @@ import {
   EbayCategoryAspectCatalog,
   DashboardMetrics,
   FinanceMetrics,
+  FinancialReport,
   EbayListingRow,
   EbayListingDetail,
   EbayGapDoc,
@@ -3602,6 +3603,24 @@ export const fetchFinanceMetrics = async (
   const result = await parseResponse(response);
   if (!response.ok) {
     throw new Error(result?.error?.message || 'Finanzdaten konnten nicht geladen werden.');
+  }
+  return result?.data;
+};
+
+// Admin financial report (Umsatz/Kosten/Gewinn + Bestand + Kontostand) for a date range.
+export const fetchFinancialReport = async (
+  preset: string = 'month_to_date',
+  options?: { timeoutMs?: number; from_date?: string; to_date?: string }
+): Promise<FinancialReport> => {
+  const url = new URL(`${BACKEND_URL}/api/admin/financials`);
+  url.searchParams.set('preset', String(preset).trim() || 'month_to_date');
+  if (options?.from_date) url.searchParams.set('from_date', options.from_date);
+  if (options?.to_date) url.searchParams.set('to_date', options.to_date);
+
+  const response = await fetchWithTimeout(url.toString(), { method: 'GET' }, options?.timeoutMs || 60000);
+  const result = await parseResponse(response);
+  if (!response.ok || result?.ok === false) {
+    throw new Error(result?.error?.message || 'Finanzbericht konnte nicht geladen werden.');
   }
   return result?.data;
 };

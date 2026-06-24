@@ -664,6 +664,94 @@ export interface FinanceMetrics {
   errors: string[];
 }
 
+// ─── Admin financial report (Umsatz/Kosten/Gewinn with date range) ──────────────
+export interface FinancialReportRange {
+  preset: string;
+  label: string | null;
+  from_iso: string | null;
+  to_iso: string | null;
+  bucket: "day" | "month";
+}
+
+export interface FinancialReportPnl {
+  umsatzBrutto: number;
+  marketplaceFees: number;
+  auszahlung: number;
+  auszahlungSource: "ebay_finances" | "estimated";
+  ebayPayout: number;
+  kauflandPayout: number;
+  versandBrutto: number | null;
+  retouren: number;
+  cogs: number;
+  rohgewinn: number;
+  margePct: number | null;
+  coveragePct: number | null;
+  matchedItemCount: number;
+  unmatchedItemCount: number;
+  orderCount: number;
+}
+
+export interface FinancialReportMarketplaceRow {
+  orders: number;
+  units: number;
+  umsatz: number;
+  payout: number;
+  fees: number;
+  feePct: number | null;
+  cogs: number;
+}
+
+export interface FinancialReportInventory {
+  capitalAtCost: number;
+  potentialRevenue: number;
+  articleCount: number;
+  articlesWithCost: number;
+  unitCount: number;
+}
+
+export interface FinancialReportBucket {
+  date: string;
+  umsatz: number;
+  cogs: number;
+  rohertrag: number;
+  orders: number;
+}
+
+export interface FinancialReportShipping {
+  brutto: number;
+  netto: number;
+  parcelCount: number;
+  dhl: number;
+  dpd: number;
+  other: number;
+  source: string;
+}
+
+export interface FinancialReport {
+  generated_at_iso: string;
+  currency: string;
+  range: FinancialReportRange;
+  pnl: FinancialReportPnl;
+  marketplace: {
+    ebay: FinancialReportMarketplaceRow;
+    kaufland: FinancialReportMarketplaceRow;
+    other: FinancialReportMarketplaceRow;
+  };
+  inventory: FinancialReportInventory;
+  balances: { accounts: FinanceAccountBalance[]; total: number };
+  shipping: FinancialReportShipping | null;
+  timeseries: FinancialReportBucket[];
+  quality: {
+    cogsCoveragePct: number | null;
+    matchedItemCount: number;
+    unmatchedItemCount: number;
+    payoutSource: "ebay_finances" | "estimated";
+    shippingSource: string | null;
+    productCount: number;
+  };
+  errors: string[];
+}
+
 export type IdentifyPhase =
   | 'idle'
   | 'upload'

@@ -8,9 +8,10 @@ import { AdminIntegrations } from './AdminIntegrations';
 import { AdminEbayTaxonomy } from './AdminEbayTaxonomy';
 import { AdminIdentifyRunsDashboard } from './AdminIdentifyRunsDashboard';
 import { AdminSystemHealth } from './AdminSystemHealth';
+import { AdminFinancials } from './AdminFinancials';
 import { PageHeader } from '../ui/PageHeader';
 
-type Tab = 'health' | 'users' | 'groups' | 'roles' | 'llm' | 'bulk' | 'integrations' | 'ebay' | 'identify-runs';
+type Tab = 'health' | 'financials' | 'users' | 'groups' | 'roles' | 'llm' | 'bulk' | 'integrations' | 'ebay' | 'identify-runs';
 
 export const AdminPanel: React.FC = () => {
   // HARDEN-Wave-9 (2026-05-22): System-Health als Default-Tab beim Öffnen.
@@ -30,6 +31,15 @@ export const AdminPanel: React.FC = () => {
           }`}
         >
           System-Status
+        </button>
+        <button
+          type="button"
+          onClick={() => setTab('financials')}
+          className={`rounded-xl px-4 py-2 text-sm font-semibold transition-colors ${
+            tab === 'financials' ? 'bg-accent text-txt-primary' : 'bg-app-surface text-txt-secondary hover:bg-white/10'
+          }`}
+        >
+          Finanzen
         </button>
         <button
           type="button"
@@ -107,6 +117,8 @@ export const AdminPanel: React.FC = () => {
 
       {tab === 'health' ? (
         <AdminSystemHealth />
+      ) : tab === 'financials' ? (
+        <AdminFinancials />
       ) : tab === 'users' ? (
         <AdminUserManagement />
       ) : tab === 'groups' ? (
