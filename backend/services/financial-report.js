@@ -26,6 +26,8 @@ const { buildProductCostIndex, computeOrderCogs, computeInventoryValue } = requi
 const { buildPnl } = require('../lib/financial-pnl');
 const { deriveCostModel } = require('../lib/cost-model');
 const { getCostModelConfig } = require('../lib/cost-model-store');
+const { computeOnlineListings } = require('../lib/listings-online');
+const { getListingSnapshotsInRange, snapshotAverage } = require('../lib/listing-snapshot');
 
 const KAUFLAND_PAYOUT_FACTOR = 0.8334; // 1 - (0.14 * 1.19)
 
@@ -231,7 +233,7 @@ async function getFinancialReport({ preset = null, fromDate = null, toDate = nul
   const bucket = pickBucket(fromIso, toIso);
 
   // ── Best-effort parallel IO ──
-  const [returnsRes, ebayRes, ordersRes, productsRes, balancesRes, sevdeskRes, sendcloudRes, payoutRes, costCfgRes] =
+  const [returnsRes, ebayRes, ordersRes, productsRes, balancesRes, sevdeskRes, sendcloudRes, payoutRes, costCfgRes, ebayListingsRes] =
     await Promise.allSettled([
       queryReturnsWindow(fromIso, toIso),
       getEbayNetRevenueSummary(fromDateStr, toDateStr, { timeoutMs: 15000 }),
@@ -242,6 +244,7 @@ async function getFinancialReport({ preset = null, fromDate = null, toDate = nul
       getSendCloudShippingSummary(fromDateStr, toDateStr, { timeoutMs: 20000 }),
       getMarketplacePayoutsFromSevDesk(fromDateStr, toDateStr, { timeoutMs: 20000 }),
       getCostModelConfig(tenantId),
+      firestore.collection('ebayListingsLive').get(),
     ]);
 
   const returns = returnsRes.status === 'fulfilled' ? returnsRes.value : (errors.push('Retouren konnten nicht geladen werden.'), { value: 0, count: 0 });
@@ -282,6 +285,35 @@ async function getFinancialReport({ preset = null, fromDate = null, toDate = nul
   const costIndex = buildProductCostIndex(products);
   const agg = aggregateOrders(orderDocs, costIndex, { fromIso, toIso, bucket, costModel });
   const inventory = computeInventoryValue(products, costModel);
+
+  // ── Ø Artikel online ──
+  // Exact source = daily snapshots (marketplace_daily_snapshots) when they cover the
+  // window (records eBay + Kaufland active counts going forward). Otherwise fall back
+  // to the eBay interval estimate (only the active set is datable; ended listings carry
+  // no offline date → historical undercount, flagged via `reliable`/coverage).
+  const nowIso = new Date().toISOString();
+  const ebayListingDocs = ebayListingsRes.status === 'fulfilled' ? ebayListingsRes.value.docs.map((d) => d.data()) : [];
+  if (ebayListingsRes.status === 'rejected') errors.push('eBay-Listings (Online-Bestand) nicht verfügbar.');
+  const interval = computeOnlineListings(ebayListingDocs, { fromIso, toIso, nowIso });
+
+  let snapAvg = { avgOnline: 0, avgEbay: 0, avgKaufland: 0, days: 0 };
+  try {
+    snapAvg = snapshotAverage(await getListingSnapshotsInRange(fromIso, toIso, tenantId));
+  } catch (err) {
+    console.warn('[financial-report] snapshot read failed:', err && err.message);
+  }
+  const useSnapshots = snapAvg.days > 0;
+  const listingsOnline = {
+    avgOnline: useSnapshots ? snapAvg.avgOnline : interval.avgOnline,
+    avgEbay: useSnapshots ? snapAvg.avgEbay : interval.avgOnline,
+    avgKaufland: useSnapshots ? snapAvg.avgKaufland : null,
+    currentActive: interval.currentActive, // eBay active right now (exact)
+    source: useSnapshots ? 'snapshot' : 'estimate',
+    snapshotDays: snapAvg.days,
+    coverage: interval.coverage,
+    // Reliable when snapshots cover the window, or the active set covers nearly all listings.
+    reliable: useSnapshots || (interval.coverage != null && interval.coverage >= 80),
+  };
 
   // Resolve payout: SevDesk (exact) > eBay Finances + Kaufland-factor (exact-ish) > estimate.
   const realPayout = sevdeskPayout ? num(sevdeskPayout.total) : null;
@@ -350,6 +382,7 @@ async function getFinancialReport({ preset = null, fromDate = null, toDate = nul
     },
     marketplace: mkOut,
     inventory,
+    listingsOnline,
     costModel: {
       mode: costModel.mode,
       vatMode: costModel.vatMode,

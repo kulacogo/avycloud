@@ -716,6 +716,17 @@ export interface FinancialReportInventory {
   unitCount: number;
 }
 
+export interface FinancialReportListingsOnline {
+  avgOnline: number; // time-weighted avg active listings in the period
+  avgEbay: number;
+  avgKaufland: number | null;
+  currentActive: number; // eBay listings active right now (exact)
+  source: "snapshot" | "estimate";
+  snapshotDays: number;
+  coverage: number | null; // % of listings with a datable online interval
+  reliable: boolean;
+}
+
 export interface FinancialReportCostModel {
   mode: "proportional" | "flat";
   vatMode: "netto" | "brutto";
@@ -760,6 +771,7 @@ export interface FinancialReport {
     other: FinancialReportMarketplaceRow;
   };
   inventory: FinancialReportInventory;
+  listingsOnline: FinancialReportListingsOnline;
   costModel: FinancialReportCostModel;
   balances: { accounts: FinanceAccountBalance[]; total: number };
   shipping: FinancialReportShipping | null;

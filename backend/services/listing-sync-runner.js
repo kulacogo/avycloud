@@ -463,6 +463,15 @@ async function runListingSyncCycle() {
     } catch {
       // Non-critical
     }
+
+    // Record today's active-listing snapshot (idempotent, 1×/day) → builds the
+    // exact historical "Ø Artikel online" series. Never let this break the cycle.
+    try {
+      const { recordDailyListingSnapshot } = require('../lib/listing-snapshot');
+      await recordDailyListingSnapshot({ tenantId: 'default' });
+    } catch (err) {
+      console.warn(`[ListingSyncRunner] snapshot failed: ${err.message}`);
+    }
   } catch (err) {
     console.error('[ListingSyncRunner] Cycle failed:', err.message);
   } finally {

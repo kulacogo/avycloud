@@ -404,6 +404,34 @@ export const AdminFinancials: React.FC = () => {
               sub={`${fmtNum(report.balances.accounts.length)} Konten`} />
           </div>
 
+          {/* Articles online — sales driver (more listings → more sales) */}
+          <div className="rounded-xl border border-app-border bg-app-surface p-5 flex flex-wrap items-center justify-between gap-4">
+            <div className="flex items-center gap-6">
+              <div>
+                <p className="text-xs text-txt-muted">Artikel online (eBay, aktuell)</p>
+                <p className="text-2xl font-semibold tabular-nums text-txt-primary">{fmtNum(report.listingsOnline.currentActive)}</p>
+                <p className="text-[11px] text-txt-muted">aktiv jetzt · <TrustBadge trust="exakt" /></p>
+              </div>
+              <div>
+                <p className="text-xs text-txt-muted">Ø online im Zeitraum</p>
+                <p className="text-2xl font-semibold tabular-nums text-txt-primary">
+                  {report.listingsOnline.reliable ? fmtNum(Math.round(report.listingsOnline.avgOnline)) : "~" + fmtNum(Math.round(report.listingsOnline.avgOnline))}
+                </p>
+                <p className="text-[11px] text-txt-muted">
+                  {report.listingsOnline.source === "snapshot"
+                    ? `aus Tages-Snapshots (${fmtNum(report.listingsOnline.snapshotDays)} Tage) · exakt`
+                    : "Näherung (nur aktive Listings)"}
+                </p>
+              </div>
+            </div>
+            <p className="text-[11px] text-txt-muted max-w-md leading-snug">
+              These je mehr Artikel online, desto mehr Verkäufe — vergleiche „Ø online" mit dem Umsatz über die Zeiträume.
+              {!report.listingsOnline.reliable
+                ? " Hinweis: historisch nur näherungsweise (beendete Listings tragen kein Offline-Datum). Ab jetzt werden Tages-Snapshots erfasst → ab dem nächsten Monat exakt, auch für Kaufland."
+                : ""}
+            </p>
+          </div>
+
           {/* P&L breakdown + Chart */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <div className="rounded-xl border border-app-border bg-app-surface p-5">
