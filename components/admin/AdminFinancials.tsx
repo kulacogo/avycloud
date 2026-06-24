@@ -9,8 +9,8 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
-import { fetchFinancialReport } from "../../api/client";
-import type { FinancialReport, FinancialReportMarketplaceRow } from "../../types";
+import { fetchFinancialReport, saveFinancialCostModel } from "../../api/client";
+import type { FinancialReport, FinancialReportMarketplaceRow, FinancialCostModelInput } from "../../types";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 const safeCur = (c?: string) => (/^[A-Z]{3}$/.test((c || "").toUpperCase()) ? c!.toUpperCase() : "EUR");
@@ -192,6 +192,105 @@ const PnlRow: React.FC<{ label: string; value: React.ReactNode; trust?: Trust; t
 
 const mkLabel: Record<string, string> = { ebay: "eBay", kaufland: "Kaufland", other: "Sonstige" };
 
+// ─── Cost model editor (pallet economics + marketplace fee rates) ───────────────
+const CostModelEditor: React.FC<{ report: FinancialReport; open: boolean; onToggle: () => void; onSaved: () => void }> = ({ report, open, onToggle, onSaved }) => {
+  const cm = report.costModel;
+  const [palletCostBrutto, setPalletCostBrutto] = useState(String(cm.palletCostBrutto || ""));
+  const [unitsPerPallet, setUnitsPerPallet] = useState(String(cm.unitsPerPallet || ""));
+  const [vatMode, setVatMode] = useState<"netto" | "brutto">(cm.vatMode);
+  const [mode, setMode] = useState<"proportional" | "flat">(cm.mode);
+  const [feeEbay, setFeeEbay] = useState(String(Math.round((cm.feeRateEbay || 0) * 10000) / 100));
+  const [feeKaufland, setFeeKaufland] = useState(String(Math.round((cm.feeRateKaufland || 0) * 10000) / 100));
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  const save = async () => {
+    setSaving(true);
+    setErr(null);
+    try {
+      const input: FinancialCostModelInput = {
+        mode,
+        vatMode,
+        palletCostBrutto: parseFloat(palletCostBrutto.replace(",", ".")) || 0,
+        unitsPerPallet: parseFloat(unitsPerPallet.replace(",", ".")) || 0,
+        feeRateEbay: (parseFloat(feeEbay.replace(",", ".")) || 0) / 100,
+        feeRateKaufland: (parseFloat(feeKaufland.replace(",", ".")) || 0) / 100,
+      };
+      await saveFinancialCostModel(input);
+      onSaved();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Speichern fehlgeschlagen.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const field = "w-full bg-app-surface border border-app-border rounded-md px-2.5 py-1.5 text-sm text-txt-primary focus:outline-none focus:border-accent/50";
+  const lbl = "text-xs text-txt-muted mb-1 block";
+
+  return (
+    <div className="rounded-xl border border-app-border bg-app-surface p-5">
+      <button type="button" onClick={onToggle} className="w-full flex items-center justify-between">
+        <div className="text-left">
+          <h3 className="text-sm font-semibold text-txt-primary">Kostenmodell (Wareneinsatz &amp; Gebühren)</h3>
+          <p className="text-[11px] text-txt-muted">
+            {cm.usable
+              ? `Quote ${cm.ratio != null ? (cm.ratio * 100).toFixed(1) + " %" : "—"} · Ø-EK ${fmtCur(cm.avgUnitCostNetto, "EUR")} netto · Ø-VK ${fmtCur(cm.avgSellPrice, "EUR")} · eBay ${fmtPct(Math.round(cm.feeRateEbay * 1000) / 10)} · Kaufland ${fmtPct(Math.round(cm.feeRateKaufland * 1000) / 10)}`
+              : "Nicht eingestellt — Palettenpreis + Einheiten eingeben, um den Wareneinsatz zu berechnen"}
+          </p>
+        </div>
+        <span className="text-txt-muted text-xs">{open ? "▲" : "▾ bearbeiten"}</span>
+      </button>
+
+      {open ? (
+        <div className="mt-4 space-y-4">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div>
+              <label className={lbl}>Palettenpreis (brutto €)</label>
+              <input className={field} value={palletCostBrutto} onChange={(e) => setPalletCostBrutto(e.target.value)} inputMode="decimal" placeholder="400" />
+            </div>
+            <div>
+              <label className={lbl}>Einheiten je Palette</label>
+              <input className={field} value={unitsPerPallet} onChange={(e) => setUnitsPerPallet(e.target.value)} inputMode="decimal" placeholder="18" />
+            </div>
+            <div>
+              <label className={lbl}>Kostenbasis</label>
+              <select className={field} value={vatMode} onChange={(e) => setVatMode(e.target.value as "netto" | "brutto")}>
+                <option value="netto">Netto (Vorsteuer abziehbar)</option>
+                <option value="brutto">Brutto (wie bezahlt)</option>
+              </select>
+            </div>
+            <div>
+              <label className={lbl}>Verteilung</label>
+              <select className={field} value={mode} onChange={(e) => setMode(e.target.value as "proportional" | "flat")}>
+                <option value="proportional">Proportional z. Verkaufspreis</option>
+                <option value="flat">Pauschal gleich je Stück</option>
+              </select>
+            </div>
+            <div>
+              <label className={lbl}>eBay-Gebühr (%)</label>
+              <input className={field} value={feeEbay} onChange={(e) => setFeeEbay(e.target.value)} inputMode="decimal" placeholder="11" />
+            </div>
+            <div>
+              <label className={lbl}>Kaufland-Gebühr (%)</label>
+              <input className={field} value={feeKaufland} onChange={(e) => setFeeKaufland(e.target.value)} inputMode="decimal" placeholder="16.66" />
+            </div>
+          </div>
+          {err ? <p className="text-xs text-danger">{err}</p> : null}
+          <div className="flex items-center gap-2">
+            <button type="button" onClick={save} disabled={saving} className="rounded-md bg-accent px-4 py-1.5 text-sm font-semibold text-txt-primary hover:bg-accent/90 disabled:opacity-50">
+              {saving ? "Speichere …" : "Speichern & neu berechnen"}
+            </button>
+            <p className="text-[11px] text-txt-muted">
+              EK je Artikel = Verkaufspreis × Kostenquote. Echter Einkaufspreis am Produkt schlägt das Modell.
+            </p>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+};
+
 // ─── Main ─────────────────────────────────────────────────────────────────────
 export const AdminFinancials: React.FC = () => {
   const [preset, setPreset] = useState("month_to_date");
@@ -227,14 +326,17 @@ export const AdminFinancials: React.FC = () => {
     return PRESETS.find((p) => p.id === preset)?.label || "Zeitraum";
   }, [report, preset]);
 
+  const [editCost, setEditCost] = useState(false);
+
   const pnl = report?.pnl;
   const cur = report?.currency || "EUR";
-  const payoutExact = pnl?.auszahlungSource === "ebay_finances";
-  // When (almost) no sold item has a buyPrice, COGS can't be computed → the
-  // "Rohgewinn" excludes goods cost and would overstate profit. Flag it loudly.
+  const payoutExact = pnl?.auszahlungSource === "sevdesk";
+  const cm = report?.costModel;
+  // COGS comes from a configured pallet model (kalkulatorisch) OR real buyPrice.
+  // If the model is not usable AND no real EK exists, COGS can't be computed → flag it.
+  const cogsModelActive = !!cm?.usable;
   const cov = pnl?.coveragePct;
-  const cogsMissing = cov == null || cov < 50;
-  const cogsAbsent = cov == null || cov <= 0;
+  const cogsUnavailable = !cogsModelActive && (cov == null || cov <= 0);
 
   const chartData = useMemo(
     () => (report?.timeseries || []).map((b) => ({ date: b.date, Umsatz: b.umsatz, Rohertrag: b.rohertrag })),
@@ -264,13 +366,15 @@ export const AdminFinancials: React.FC = () => {
         <div className="rounded-xl border border-danger/40 bg-danger-dim p-4 text-sm text-danger">{error}</div>
       ) : null}
 
-      {!loading && report && cogsMissing ? (
-        <div className="rounded-xl border border-warning/40 bg-warning-dim p-4 text-sm text-warning">
-          <span className="font-semibold">Gewinn unvollständig:</span>{" "}
-          Für {fmtPct(cov == null ? 0 : 100 - cov)} der Verkäufe ist kein Einkaufspreis hinterlegt
-          {report.inventory.articlesWithCost === 0 ? " (0 Produkte mit Einkaufspreis)" : ""}.
-          Der Wareneinsatz ist daher kalkulatorisch unvollständig und der Rohgewinn überschätzt.
-          Sobald Einkaufspreise gepflegt sind (Produkt-UI oder CSV-Import „Einkaufspreis"), füllt sich die Marge automatisch.
+      {!loading && report && cogsUnavailable ? (
+        <div className="rounded-xl border border-warning/40 bg-warning-dim p-4 text-sm text-warning flex items-center justify-between gap-3">
+          <span>
+            <span className="font-semibold">Wareneinsatz fehlt:</span>{" "}
+            Kein Einkaufspreis hinterlegt und kein Kostenmodell eingestellt — der Rohgewinn enthält keine Warenkosten und ist überschätzt.
+          </span>
+          <button type="button" onClick={() => setEditCost(true)} className="shrink-0 rounded-md bg-warning/20 px-3 py-1.5 text-xs font-semibold text-warning hover:bg-warning/30">
+            Kostenmodell einstellen
+          </button>
         </div>
       ) : null}
 
@@ -285,15 +389,15 @@ export const AdminFinancials: React.FC = () => {
             <Card label="Umsatz (brutto)" value={fmtCur(pnl?.umsatzBrutto, cur, true)} tone="blue" size="hero"
               badge={<TrustBadge trust="exakt" />}
               sub={`${fmtNum(pnl?.orderCount)} Aufträge`} />
-            <Card label="Auszahlung" value={fmtCur(pnl?.auszahlung, cur, true)} tone="violet" size="hero"
-              badge={<TrustBadge trust={payoutExact ? "exakt" : "geschätzt"} />}
-              sub={payoutExact ? "eBay Finances + Kaufland" : "geschätzt (eBay ×0,75 · Kaufland ×0,8334)"} />
+            <Card label="Auszahlung (tatsächlich)" value={fmtCur(pnl?.auszahlung, cur, true)} tone="violet" size="hero"
+              badge={<TrustBadge trust={payoutExact ? "exakt" : "geschätzt"} note={payoutExact ? "SevDesk" : undefined} />}
+              sub={payoutExact ? "Bank-Gutschriften eBay + Kaufland" : "erwartet aus Umsatz − Gebühren"} />
             <Card
-              label={cogsAbsent ? "Deckungsbeitrag (ohne Wareneinsatz)" : "Rohgewinn / Deckungsbeitrag"}
+              label="Rohgewinn / Deckungsbeitrag"
               value={fmtCur(pnl?.rohgewinn, cur, true)}
-              tone={cogsMissing ? "amber" : (pnl?.rohgewinn ?? 0) >= 0 ? "green" : "red"} size="hero"
+              tone={cogsUnavailable ? "amber" : (pnl?.rohgewinn ?? 0) >= 0 ? "green" : "red"} size="hero"
               badge={<TrustBadge trust="kalkulatorisch" />}
-              sub={cogsAbsent ? "⚠ Einkaufspreise fehlen — Gewinn überschätzt" : `Marge ${fmtPct(pnl?.margePct)} · COGS-Abdeckung ${fmtPct(cov)}`} />
+              sub={cogsUnavailable ? "⚠ ohne Warenkosten — Kostenmodell einstellen" : `Marge ${fmtPct(pnl?.margePct)}`} />
             <Card label="Kontostand (SevDesk)" value={fmtCur(report.balances.total, cur, true)}
               tone={report.balances.total >= 0 ? "neutral" : "red"} size="hero"
               badge={<TrustBadge trust="exakt" note="Stichtag" />}
@@ -305,15 +409,31 @@ export const AdminFinancials: React.FC = () => {
             <div className="rounded-xl border border-app-border bg-app-surface p-5">
               <h3 className="text-sm font-semibold text-txt-primary mb-2">Gewinn &amp; Verlust</h3>
               <PnlRow label="Umsatz (brutto)" value={fmtCur(pnl?.umsatzBrutto, cur)} trust="exakt" />
-              <PnlRow label="Marktplatz-Gebühren" value={fmtCur(pnl?.marketplaceFees, cur)} trust="abgeleitet" sign="minus" />
-              <PnlRow label="Auszahlung" value={fmtCur(pnl?.auszahlung, cur)} trust={payoutExact ? "exakt" : "geschätzt"} sign="eq" />
+              <PnlRow label="Marktplatz-Gebühren" value={fmtCur(pnl?.marketplaceFees, cur)} trust="abgeleitet" trustNote="Gebührensätze" sign="minus" />
+              <PnlRow label="Wareneinsatz (COGS)" value={fmtCur(pnl?.cogs, cur)} trust={cogsModelActive ? "kalkulatorisch" : "exakt"} trustNote={cogsModelActive ? "Paletten-Pauschale" : undefined} sign="minus" />
               <PnlRow label="Versandkosten (brutto)" value={fmtCur(pnl?.versandBrutto, cur)} trust="exakt" sign="minus" />
-              <PnlRow label="Wareneinsatz (COGS)" value={fmtCur(pnl?.cogs, cur)} trust="kalkulatorisch" trustNote={`${fmtPct(pnl?.coveragePct)} Abdeckung`} sign="minus" />
               <PnlRow label="Retouren (Erstattungen)" value={fmtCur(pnl?.retouren, cur)} trust="exakt" sign="minus" />
               <PnlRow label="Rohgewinn / Deckungsbeitrag" value={fmtCur(pnl?.rohgewinn, cur)} sign="eq" strong />
-              <p className="text-[11px] text-txt-muted mt-3 leading-snug">
-                Rohgewinn = Auszahlung − Versand − Wareneinsatz − Retouren. Fixkosten (z. B. Monatsgebühren)
-                sind nicht enthalten — daher Deckungsbeitrag, nicht Reingewinn.
+
+              {/* Cash cross-check: real payout vs expected */}
+              <div className="mt-3 rounded-lg border border-app-border bg-app-bg/40 p-3 text-xs">
+                <div className="flex items-center justify-between">
+                  <span className="text-txt-secondary">Auszahlung tatsächlich (SevDesk)</span>
+                  <span className="tabular-nums text-txt-primary">{fmtCur(pnl?.auszahlungReal, cur)}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-txt-muted">erwartet (Umsatz − Gebühren)</span>
+                  <span className="tabular-nums text-txt-muted">{fmtCur(pnl?.expectedPayout, cur)}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-txt-muted">Differenz (Settlement-Timing / Gebührensatz)</span>
+                  <span className={`tabular-nums ${(pnl?.payoutVariance ?? 0) < 0 ? "text-warning" : "text-txt-muted"}`}>{fmtCur(pnl?.payoutVariance, cur)}</span>
+                </div>
+              </div>
+              <p className="text-[11px] text-txt-muted mt-2 leading-snug">
+                Rohgewinn = Umsatz − Gebühren − Wareneinsatz − Versand − Retouren (Bestelldatum-Basis).
+                Gebühren aus Sätzen; die tatsächliche Auszahlung kommt exakt aus SevDesk. Eine negative Differenz heißt:
+                realer Gebührensatz höher als eingestellt (z. B. eBay Promoted Listings). Fixkosten nicht enthalten — daher Deckungsbeitrag.
               </p>
             </div>
 
@@ -364,9 +484,9 @@ export const AdminFinancials: React.FC = () => {
                     <th className="font-medium py-1.5 pr-3">Marktplatz</th>
                     <th className="font-medium py-1.5 px-3 text-right">Aufträge</th>
                     <th className="font-medium py-1.5 px-3 text-right">Umsatz</th>
-                    <th className="font-medium py-1.5 px-3 text-right">Auszahlung</th>
-                    <th className="font-medium py-1.5 px-3 text-right">Gebühren</th>
-                    <th className="font-medium py-1.5 pl-3 text-right">Wareneinsatz</th>
+                    <th className="font-medium py-1.5 px-3 text-right">Gebühren (Satz)</th>
+                    <th className="font-medium py-1.5 px-3 text-right">Auszahlung (SevDesk)</th>
+                    <th className="font-medium py-1.5 pl-3 text-right">eff. Quote</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -378,16 +498,20 @@ export const AdminFinancials: React.FC = () => {
                         <td className="py-2 pr-3 text-txt-primary font-medium">{mkLabel[k]}</td>
                         <td className="py-2 px-3 text-right tabular-nums text-txt-secondary">{fmtNum(m.orders)}</td>
                         <td className="py-2 px-3 text-right tabular-nums text-txt-primary">{fmtCur(m.umsatz, cur)}</td>
-                        <td className="py-2 px-3 text-right tabular-nums text-txt-secondary">{fmtCur(m.payout, cur)}</td>
                         <td className="py-2 px-3 text-right tabular-nums text-txt-muted">{fmtCur(m.fees, cur)} <span className="text-[10px]">({fmtPct(m.feePct)})</span></td>
-                        <td className="py-2 pl-3 text-right tabular-nums text-txt-secondary">{fmtCur(m.cogs, cur)}</td>
+                        <td className="py-2 px-3 text-right tabular-nums text-txt-secondary">{m.payout != null ? fmtCur(m.payout, cur) : "—"}</td>
+                        <td className="py-2 pl-3 text-right tabular-nums text-txt-muted">{m.effectiveFeePct != null ? fmtPct(m.effectiveFeePct) : "—"}</td>
                       </tr>
                     );
                   })}
                 </tbody>
               </table>
             </div>
+            <p className="text-[11px] text-txt-muted mt-2">„eff. Quote" = (Umsatz − tatsächliche Auszahlung) / Umsatz. Über kurze Zeiträume durch Settlement-Timing verzerrt; über Jahr aussagekräftig — Basis zum Kalibrieren der Gebührensätze.</p>
           </div>
+
+          {/* Cost model editor */}
+          <CostModelEditor report={report} open={editCost} onToggle={() => setEditCost((v) => !v)} onSaved={() => void load()} />
 
           {/* Inventory + balances */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -405,12 +529,12 @@ export const AdminFinancials: React.FC = () => {
                 <div>
                   <p className="text-xs text-txt-muted">Gebundenes Kapital</p>
                   <p className="text-xl font-semibold tabular-nums text-txt-primary">
-                    {report.inventory.articlesWithCost > 0 ? fmtCur(report.inventory.capitalAtCost, cur, true) : "—"}
+                    {(report.inventory.articlesWithCost + report.inventory.articlesEstimated) > 0 ? fmtCur(report.inventory.capitalAtCost, cur, true) : "—"}
                   </p>
                   <p className="text-[11px] text-txt-muted">
-                    {report.inventory.articlesWithCost > 0
-                      ? `Menge × Einkaufspreis · ${fmtNum(report.inventory.articlesWithCost)}/${fmtNum(report.inventory.articleCount)} Artikel mit EK`
-                      : "Einkaufspreise fehlen"}
+                    {report.inventory.articlesWithCost > 0 || report.inventory.articlesEstimated > 0
+                      ? `${fmtNum(report.inventory.articlesWithCost)} exakt · ${fmtNum(report.inventory.articlesEstimated)} kalkulatorisch`
+                      : "Einkaufspreise / Kostenmodell fehlen"}
                   </p>
                 </div>
               </div>
@@ -446,14 +570,14 @@ export const AdminFinancials: React.FC = () => {
             <h3 className="text-sm font-semibold text-txt-primary mb-3">Datenqualität</h3>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
               <div>
-                <p className="text-xs text-txt-muted">COGS-Abdeckung</p>
-                <p className="font-semibold tabular-nums text-txt-primary">{fmtPct(report.quality.cogsCoveragePct)}</p>
-                <p className="text-[11px] text-txt-muted">{fmtNum(report.quality.unmatchedItemCount)} Posten ohne Kostendaten</p>
+                <p className="text-xs text-txt-muted">Wareneinsatz-Quelle</p>
+                <p className="font-semibold text-txt-primary">{report.quality.exactItemCount > 0 ? "EK + Pauschale" : cogsModelActive ? "Paletten-Pauschale" : "—"}</p>
+                <p className="text-[11px] text-txt-muted">{fmtNum(report.quality.exactItemCount)} exakt · {fmtNum(report.quality.estimatedItemCount)} kalk. · {fmtNum(report.quality.unmatchedItemCount)} offen</p>
               </div>
               <div>
                 <p className="text-xs text-txt-muted">Auszahlungs-Quelle</p>
-                <p className="font-semibold text-txt-primary">{payoutExact ? "eBay Finances" : "Geschätzt"}</p>
-                <p className="text-[11px] text-txt-muted">{payoutExact ? "exakt nach Gebühren" : "×0,75 / ×0,8334"}</p>
+                <p className="font-semibold text-txt-primary">{payoutExact ? "SevDesk (exakt)" : "Gebührensätze"}</p>
+                <p className="text-[11px] text-txt-muted">{payoutExact ? "echte Bank-Gutschriften" : "erwartet aus Umsatz − Gebühren"}</p>
               </div>
               <div>
                 <p className="text-xs text-txt-muted">Versand-Quelle</p>
@@ -476,8 +600,8 @@ export const AdminFinancials: React.FC = () => {
               </ul>
             ) : null}
             <p className="text-[11px] text-txt-muted mt-3">
-              „Kalkulatorisch": Wareneinsatz basiert auf dem heutigen Einkaufspreis je verkauftem Artikel
-              (historische Preisänderungen nicht erfasst). Stand: {new Date(report.generated_at_iso).toLocaleString("de-DE")}.
+              „Kalkulatorisch": Wareneinsatz aus dem Paletten-Kostenmodell (Verkaufspreis × Kostenquote) wo kein echter
+              Einkaufspreis hinterlegt ist. Stand: {new Date(report.generated_at_iso).toLocaleString("de-DE")}.
             </p>
           </div>
         </>

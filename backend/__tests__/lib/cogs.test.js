@@ -6,6 +6,7 @@ const {
   computeOrderCogs,
   computeInventoryValue,
 } = require('../../lib/cogs');
+const { deriveCostModel } = require('../../lib/cost-model');
 
 function product({ sku, ean, barcodes, buyPrice, sellPrice, lowest, qty } = {}) {
   return {
@@ -97,6 +98,39 @@ describe('computeOrderCogs', () => {
   });
 });
 
+describe('computeOrderCogs — with cost model (pallet estimate)', () => {
+  const idx = buildProductCostIndex([
+    { identification: { sku: 'REAL' }, details: { pricing: { buyPrice: 5 } } }, // has real EK
+    { identification: { sku: 'NOCOST' }, details: { pricing: { lowest_price: { amount: 40 } } } }, // no EK
+  ]);
+  // ratio = 18.67 / 30 ≈ 0.622
+  const model = deriveCostModel({ mode: 'proportional', vatMode: 'netto', palletCostBrutto: 400, unitsPerPallet: 18 }, 30);
+
+  it('estimates COGS for items without a real buyPrice using sale price × ratio', () => {
+    const order = { items: [{ sku: 'NOCOST', quantity: 2, priceBrutto: 40 }] };
+    const r = computeOrderCogs(order, idx, model);
+    expect(r.cogs).toBeCloseTo(2 * 40 * model.ratio, 1); // 2 * (40 * 0.622) ≈ 49.8
+    expect(r.estimatedItemCount).toBe(1);
+    expect(r.exactItemCount).toBe(0);
+    expect(r.unmatchedItemCount).toBe(0); // now covered by the estimate
+  });
+
+  it('still prefers a real buyPrice over the pallet estimate', () => {
+    const order = { items: [{ sku: 'REAL', quantity: 3, priceBrutto: 50 }] };
+    const r = computeOrderCogs(order, idx, model);
+    expect(r.cogs).toBe(15); // 3 * 5 real EK, NOT the estimate
+    expect(r.exactItemCount).toBe(1);
+    expect(r.estimatedItemCount).toBe(0);
+  });
+
+  it('without a model, a no-buyPrice item stays unmatched (honest 0% coverage)', () => {
+    const order = { items: [{ sku: 'NOCOST', quantity: 2, priceBrutto: 40 }] };
+    const r = computeOrderCogs(order, idx); // no model
+    expect(r.cogs).toBe(0);
+    expect(r.unmatchedItemCount).toBe(1);
+  });
+});
+
 describe('computeInventoryValue', () => {
   it('values capital at buyPrice (cost) and potential revenue at sellPrice', () => {
     const r = computeInventoryValue([
@@ -145,5 +179,16 @@ describe('computeInventoryValue', () => {
     const r = computeInventoryValue([product({ sku: 'A', buyPrice: 5, qty: -4 })]);
     expect(r.capitalAtCost).toBe(0);
     expect(r.unitCount).toBe(0);
+  });
+
+  it('estimates capital from the cost model when buyPrice is absent', () => {
+    const model = deriveCostModel({ mode: 'proportional', vatMode: 'netto', palletCostBrutto: 400, unitsPerPallet: 18 }, 30);
+    const r = computeInventoryValue([
+      product({ sku: 'A', buyPrice: 5, sellPrice: 12, qty: 2 }), // real EK
+      product({ sku: 'B', lowest: 40, qty: 3 }), // no EK → estimate 40 * ratio
+    ], model);
+    expect(r.capitalAtCost).toBeCloseTo(2 * 5 + 3 * (40 * model.ratio), 0); // 10 + ~74.7
+    expect(r.articlesWithCost).toBe(1); // only A has a real buyPrice
+    expect(r.articlesEstimated).toBe(1); // B costed via model
   });
 });

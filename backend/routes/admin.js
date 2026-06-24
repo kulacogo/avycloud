@@ -1829,4 +1829,17 @@ router.get('/financials', requirePermission('admin', 'reports.read'), async (req
   }
 });
 
+// Save the COGS cost model (pallet economics) for the tenant.
+router.post('/financials/cost-model', requirePermission('admin', 'reports.read'), async (req, res) => {
+  try {
+    const { saveCostModelConfig } = require('../lib/cost-model-store');
+    const tenantId = req.user?.tenantId || 'default';
+    const saved = await saveCostModelConfig(tenantId, req.body || {}, req.user?.uid || null);
+    res.json({ ok: true, data: saved });
+  } catch (error) {
+    console.error('[POST /api/admin/financials/cost-model]', error.message, error);
+    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: 'Kostenmodell konnte nicht gespeichert werden.' } });
+  }
+});
+
 module.exports = router;

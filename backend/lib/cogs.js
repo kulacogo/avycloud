@@ -27,6 +27,8 @@ function key(x) {
   return String(x).trim();
 }
 
+const { estimatedUnitCost } = require('./cost-model');
+
 /**
  * Baut einen In-Memory-Index sku/ean/barcode → { buyPrice, sellPrice, lowestPrice }.
  * Einmal pro Report-Request über den gesamten Produktkatalog — vermeidet N+1-Reads.
@@ -62,16 +64,23 @@ function buildProductCostIndex(products) {
 
 /**
  * COGS eines Auftrags. `item.priceBrutto` ist der Stückpreis; Zeilenumsatz = qty × priceBrutto.
- * Ein Posten zählt nur dann zur Kostendeckung, wenn ein Produkt MIT echtem buyPrice (> 0)
- * gefunden wurde — sonst unmatched (ehrliche Abdeckung).
+ * Kostenquelle je Posten, in Priorität:
+ *   1. echter `buyPrice` am Produkt (> 0)            → exakt
+ *   2. Kostenmodell (Paletten-Pauschale), falls usable → kalkulatorisch (Stückkosten aus
+ *      Verkaufspreis × Kostenquote bzw. flat Ø-EK)
+ *   3. sonst                                          → unmatched (keine Kostendaten)
+ * `matchedRevenue` = Umsatz der Posten mit irgendeiner Kostenbasis (für die Abdeckung).
  */
-function computeOrderCogs(order, index) {
+function computeOrderCogs(order, index, costModel) {
   const items = (order && Array.isArray(order.items)) ? order.items : [];
   let cogs = 0;
   let matchedRevenue = 0;
   let totalItemRevenue = 0;
-  let matchedItemCount = 0;
+  let exactItemCount = 0;
+  let estimatedItemCount = 0;
   let unmatchedItemCount = 0;
+
+  const modelUsable = !!(costModel && costModel.usable);
 
   for (const item of items) {
     const qty = Math.max(0, num(item && item.quantity));
@@ -83,7 +92,11 @@ function computeOrderCogs(order, index) {
     if (entry && entry.buyPrice > 0) {
       cogs += qty * entry.buyPrice;
       matchedRevenue += lineRevenue;
-      matchedItemCount += 1;
+      exactItemCount += 1;
+    } else if (modelUsable) {
+      cogs += qty * estimatedUnitCost(unitPrice, costModel);
+      matchedRevenue += lineRevenue;
+      estimatedItemCount += 1;
     } else {
       unmatchedItemCount += 1;
     }
@@ -93,7 +106,10 @@ function computeOrderCogs(order, index) {
     cogs: round2(cogs),
     matchedRevenue: round2(matchedRevenue),
     totalItemRevenue: round2(totalItemRevenue),
-    matchedItemCount,
+    exactItemCount,
+    estimatedItemCount,
+    // Posten mit irgendeiner Kostenbasis (exakt ODER geschätzt).
+    matchedItemCount: exactItemCount + estimatedItemCount,
     unmatchedItemCount,
   };
 }
@@ -108,12 +124,15 @@ function computeOrderCogs(order, index) {
  * - articlesWithCost: wie viele bestandsführende Artikel überhaupt einen buyPrice haben
  *   (Abdeckung — macht sichtbar, wie aussagekräftig das gebundene Kapital ist).
  */
-function computeInventoryValue(products) {
+function computeInventoryValue(products, costModel) {
   let capitalAtCost = 0;
   let potentialRevenue = 0;
   let articleCount = 0;
   let articlesWithCost = 0;
+  let articlesEstimated = 0;
   let unitCount = 0;
+
+  const modelUsable = !!(costModel && costModel.usable);
 
   for (const p of products || []) {
     const qty = Math.max(0, num(p && p.inventory && p.inventory.quantity));
@@ -121,12 +140,15 @@ function computeInventoryValue(products) {
 
     const pricing = (p && p.details && p.details.pricing) || {};
     const lowest = num(pricing.lowest_price && pricing.lowest_price.amount);
-    const buy = num(pricing.buyPrice); // cost only — no lowest fallback
+    const buy = num(pricing.buyPrice); // real cost only — never lowest as cost
     const sell = num(pricing.sellPrice) || lowest;
 
     if (buy > 0) {
       capitalAtCost += qty * buy;
       articlesWithCost += 1;
+    } else if (modelUsable) {
+      capitalAtCost += qty * estimatedUnitCost(sell, costModel);
+      articlesEstimated += 1;
     }
     potentialRevenue += qty * sell;
     unitCount += qty;
@@ -138,6 +160,7 @@ function computeInventoryValue(products) {
     potentialRevenue: round2(potentialRevenue),
     articleCount,
     articlesWithCost,
+    articlesEstimated,
     unitCount,
   };
 }

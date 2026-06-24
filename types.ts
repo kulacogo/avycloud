@@ -675,11 +675,13 @@ export interface FinancialReportRange {
 
 export interface FinancialReportPnl {
   umsatzBrutto: number;
-  marketplaceFees: number;
-  auszahlung: number;
-  auszahlungSource: "ebay_finances" | "estimated";
-  ebayPayout: number;
-  kauflandPayout: number;
+  marketplaceFees: number; // rate-based (researched marketplace fee rates)
+  feeSource: "rates";
+  auszahlung: number; // real SevDesk if available, else expected (rates)
+  auszahlungReal: number | null; // exact SevDesk bank credits
+  auszahlungSource: "sevdesk" | "rates";
+  expectedPayout: number; // Umsatz − Gebühren (accrual)
+  payoutVariance: number | null; // real − expected (settlement timing / data gap)
   versandBrutto: number | null;
   retouren: number;
   cogs: number;
@@ -687,6 +689,8 @@ export interface FinancialReportPnl {
   margePct: number | null;
   coveragePct: number | null;
   matchedItemCount: number;
+  exactItemCount: number;
+  estimatedItemCount: number;
   unmatchedItemCount: number;
   orderCount: number;
 }
@@ -695,9 +699,11 @@ export interface FinancialReportMarketplaceRow {
   orders: number;
   units: number;
   umsatz: number;
-  payout: number;
-  fees: number;
-  feePct: number | null;
+  fees: number; // rate-based
+  feePct: number | null; // the applied fee rate %
+  payout: number | null; // real SevDesk credits (null for 'other'/unavailable)
+  payoutSource: "sevdesk" | null;
+  effectiveFeePct: number | null; // (Umsatz − real payout) / Umsatz — cross-check
   cogs: number;
 }
 
@@ -706,7 +712,23 @@ export interface FinancialReportInventory {
   potentialRevenue: number;
   articleCount: number;
   articlesWithCost: number;
+  articlesEstimated: number;
   unitCount: number;
+}
+
+export interface FinancialReportCostModel {
+  mode: "proportional" | "flat";
+  vatMode: "netto" | "brutto";
+  ratio: number | null;
+  avgUnitCostNetto: number;
+  avgSellPrice: number;
+  usable: boolean;
+  source: string;
+  palletCostBrutto: number;
+  unitsPerPallet: number;
+  manualRatio: number | null;
+  feeRateEbay: number;
+  feeRateKaufland: number;
 }
 
 export interface FinancialReportBucket {
@@ -738,18 +760,31 @@ export interface FinancialReport {
     other: FinancialReportMarketplaceRow;
   };
   inventory: FinancialReportInventory;
+  costModel: FinancialReportCostModel;
   balances: { accounts: FinanceAccountBalance[]; total: number };
   shipping: FinancialReportShipping | null;
   timeseries: FinancialReportBucket[];
   quality: {
     cogsCoveragePct: number | null;
     matchedItemCount: number;
+    exactItemCount: number;
+    estimatedItemCount: number;
     unmatchedItemCount: number;
-    payoutSource: "ebay_finances" | "estimated";
+    payoutSource: "sevdesk" | "rates";
     shippingSource: string | null;
     productCount: number;
   };
   errors: string[];
+}
+
+export interface FinancialCostModelInput {
+  mode?: "proportional" | "flat";
+  vatMode?: "netto" | "brutto";
+  palletCostBrutto?: number;
+  unitsPerPallet?: number;
+  manualRatio?: number | null;
+  feeRateEbay?: number;
+  feeRateKaufland?: number;
 }
 
 export type IdentifyPhase =

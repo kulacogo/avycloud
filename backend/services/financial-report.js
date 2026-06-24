@@ -19,11 +19,13 @@
 
 const { getDashboardMetrics, firestore } = require('../lib/firestore');
 const { getAllProductsV2ForTenant } = require('../lib/product-store');
-const { getCheckAccountBalances, getShippingCostsFromSevDesk } = require('../lib/sevdesk');
+const { getCheckAccountBalances, getShippingCostsFromSevDesk, getMarketplacePayoutsFromSevDesk } = require('../lib/sevdesk');
 const { getShippingCostsSummary: getSendCloudShippingSummary } = require('../lib/sendcloud');
 const { getEbayNetRevenueSummary } = require('../lib/ebay-finances');
 const { buildProductCostIndex, computeOrderCogs, computeInventoryValue } = require('../lib/cogs');
 const { buildPnl } = require('../lib/financial-pnl');
+const { deriveCostModel } = require('../lib/cost-model');
+const { getCostModelConfig } = require('../lib/cost-model-store');
 
 const KAUFLAND_PAYOUT_FACTOR = 0.8334; // 1 - (0.14 * 1.19)
 
@@ -69,7 +71,7 @@ function bucketKey(date, bucket) {
  * Pure: aggregiert Aufträge im Fenster zu COGS, Markt­platz-Split und Zeitreihe.
  * Storno + außerhalb des Fensters werden ausgeschlossen — gespiegelt aus getDashboardMetrics.
  */
-function aggregateOrders(orders, costIndex, { fromIso, toIso, bucket = 'day' } = {}) {
+function aggregateOrders(orders, costIndex, { fromIso, toIso, bucket = 'day', costModel = null } = {}) {
   const from = parseDate(fromIso);
   const toExcl = parseDate(toIso);
 
@@ -77,6 +79,8 @@ function aggregateOrders(orders, costIndex, { fromIso, toIso, bucket = 'day' } =
   let matchedRevenue = 0;
   let totalItemRevenue = 0;
   let matchedItemCount = 0;
+  let exactItemCount = 0;
+  let estimatedItemCount = 0;
   let unmatchedItemCount = 0;
   let orderCount = 0;
 
@@ -92,11 +96,13 @@ function aggregateOrders(orders, costIndex, { fromIso, toIso, bucket = 'day' } =
     if (toExcl && created >= toExcl) continue;
 
     orderCount += 1;
-    const oc = computeOrderCogs(o, costIndex);
+    const oc = computeOrderCogs(o, costIndex, costModel);
     cogs += oc.cogs;
     matchedRevenue += oc.matchedRevenue;
     totalItemRevenue += oc.totalItemRevenue;
     matchedItemCount += oc.matchedItemCount;
+    exactItemCount += oc.exactItemCount;
+    estimatedItemCount += oc.estimatedItemCount;
     unmatchedItemCount += oc.unmatchedItemCount;
 
     const umsatz = num(o.totalAmount);
@@ -136,6 +142,8 @@ function aggregateOrders(orders, costIndex, { fromIso, toIso, bucket = 'day' } =
     matchedRevenue: round2(matchedRevenue),
     totalItemRevenue: round2(totalItemRevenue),
     matchedItemCount,
+    exactItemCount,
+    estimatedItemCount,
     unmatchedItemCount,
     orderCount,
     byMarketplace,
@@ -223,7 +231,7 @@ async function getFinancialReport({ preset = null, fromDate = null, toDate = nul
   const bucket = pickBucket(fromIso, toIso);
 
   // ── Best-effort parallel IO ──
-  const [returnsRes, ebayRes, ordersRes, productsRes, balancesRes, sevdeskRes, sendcloudRes] =
+  const [returnsRes, ebayRes, ordersRes, productsRes, balancesRes, sevdeskRes, sendcloudRes, payoutRes, costCfgRes] =
     await Promise.allSettled([
       queryReturnsWindow(fromIso, toIso),
       getEbayNetRevenueSummary(fromDateStr, toDateStr, { timeoutMs: 15000 }),
@@ -232,11 +240,12 @@ async function getFinancialReport({ preset = null, fromDate = null, toDate = nul
       getCheckAccountBalances({ timeoutMs: 15000 }),
       getShippingCostsFromSevDesk(fromDateStr, toDateStr, { timeoutMs: 20000 }),
       getSendCloudShippingSummary(fromDateStr, toDateStr, { timeoutMs: 20000 }),
+      getMarketplacePayoutsFromSevDesk(fromDateStr, toDateStr, { timeoutMs: 20000 }),
+      getCostModelConfig(tenantId),
     ]);
 
   const returns = returnsRes.status === 'fulfilled' ? returnsRes.value : (errors.push('Retouren konnten nicht geladen werden.'), { value: 0, count: 0 });
   const ebayNet = ebayRes.status === 'fulfilled' && ebayRes.value ? ebayRes.value : null;
-  if (ebayRes.status === 'rejected') errors.push('eBay-Auszahlung (Finances API) nicht verfügbar — Schätzung genutzt.');
 
   const products = productsRes.status === 'fulfilled' && Array.isArray(productsRes.value) ? productsRes.value : [];
   if (productsRes.status === 'rejected') errors.push('Produktkatalog konnte nicht geladen werden — COGS/Bestand unvollständig.');
@@ -258,16 +267,38 @@ async function getFinancialReport({ preset = null, fromDate = null, toDate = nul
   );
   if (!shipping) errors.push('Versandkosten nicht verfügbar (SevDesk + SendCloud).');
 
+  // Real marketplace payouts from SevDesk bank credits (cflox=Kaufland, eBay S.a.r.l.=eBay).
+  // EXACT money received — preferred over any estimate.
+  const sevdeskPayout = payoutRes.status === 'fulfilled' && payoutRes.value ? payoutRes.value : null;
+  if (!sevdeskPayout) errors.push('Auszahlungen (SevDesk) nicht verfügbar — Schätzung genutzt.');
+
+  // ── Cost model (pallet-based estimated COGS where no real buyPrice) ──
+  const costConfig = costCfgRes.status === 'fulfilled' && costCfgRes.value ? costCfgRes.value : null;
+  const inv0 = computeInventoryValue(products); // no model → gives avg sell price
+  const avgSellPrice = inv0.unitCount > 0 ? round2(inv0.potentialRevenue / inv0.unitCount) : 0;
+  const costModel = deriveCostModel(costConfig || {}, avgSellPrice);
+
   // ── Aggregation + P&L ──
   const costIndex = buildProductCostIndex(products);
-  const agg = aggregateOrders(orderDocs, costIndex, { fromIso, toIso, bucket });
-  const inventory = computeInventoryValue(products);
+  const agg = aggregateOrders(orderDocs, costIndex, { fromIso, toIso, bucket, costModel });
+  const inventory = computeInventoryValue(products, costModel);
+
+  // Resolve payout: SevDesk (exact) > eBay Finances + Kaufland-factor (exact-ish) > estimate.
+  const realPayout = sevdeskPayout ? num(sevdeskPayout.total) : null;
+  const realPayoutSource = sevdeskPayout ? 'sevdesk' : null;
+
+  const feeRateEbay = num((costConfig && costConfig.feeRateEbay) ?? 0.11) || 0.11;
+  const feeRateKaufland = num((costConfig && costConfig.feeRateKaufland) ?? 0.1666) || 0.1666;
+  const ebayGross = Math.max(0, grossRevenue - kauflandGross);
 
   const pnl = buildPnl({
     grossRevenue,
+    ebayGross,
     kauflandGross,
-    kauflandPayout,
-    ebayNetWindow: ebayNet ? num(ebayNet.net_revenue) : null,
+    feeRateEbay,
+    feeRateKaufland,
+    realPayout,
+    realPayoutSource,
     returnsValue: returns.value,
     shippingNetto: shipping ? shipping.netto : null,
     cogs: agg.cogs,
@@ -277,26 +308,23 @@ async function getFinancialReport({ preset = null, fromDate = null, toDate = nul
     ? round1((agg.matchedRevenue / agg.totalItemRevenue) * 100)
     : null;
 
-  // ── Markt­platz-Aufschlüsselung mit Payout + effektiver Gebühr ──
+  // ── Markt­platz-Aufschlüsselung: Gebühren aus Sätzen (accrual), echte Auszahlung (SevDesk)
+  // als Cross-Check + effektive Quote (Umsatz − echte Auszahlung) / Umsatz. ──
+  const feeRateOf = { ebay: feeRateEbay, kaufland: feeRateKaufland, other: feeRateEbay };
   const mkOut = {};
   for (const key of ['ebay', 'kaufland', 'other']) {
     const m = agg.byMarketplace[key];
-    let payout;
-    if (key === 'kaufland') {
-      payout = round2(m.umsatz * KAUFLAND_PAYOUT_FACTOR);
-    } else if (key === 'ebay') {
-      payout = ebayNet ? round2(num(ebayNet.net_revenue)) : round2(m.umsatz * 0.75);
-    } else {
-      payout = round2(m.umsatz * 0.75);
-    }
-    const fees = round2(m.umsatz - payout);
+    const fees = round2(m.umsatz * feeRateOf[key]);
+    const realPay = sevdeskPayout && key !== 'other' ? round2(num(sevdeskPayout[key])) : null;
     mkOut[key] = {
       orders: m.orders,
       units: m.units,
       umsatz: m.umsatz,
-      payout,
-      fees,
-      feePct: m.umsatz > 0 ? round1((fees / m.umsatz) * 100) : null,
+      fees, // rate-based
+      feePct: round1(feeRateOf[key] * 100),
+      payout: realPay, // real SevDesk credits (null for 'other' / when unavailable)
+      payoutSource: realPay != null ? 'sevdesk' : null,
+      effectiveFeePct: realPay != null && m.umsatz > 0 ? round1(((m.umsatz - realPay) / m.umsatz) * 100) : null,
       cogs: m.cogs,
     };
   }
@@ -315,11 +343,27 @@ async function getFinancialReport({ preset = null, fromDate = null, toDate = nul
       ...pnl,
       coveragePct,
       matchedItemCount: agg.matchedItemCount,
+      exactItemCount: agg.exactItemCount,
+      estimatedItemCount: agg.estimatedItemCount,
       unmatchedItemCount: agg.unmatchedItemCount,
       orderCount: agg.orderCount,
     },
     marketplace: mkOut,
     inventory,
+    costModel: {
+      mode: costModel.mode,
+      vatMode: costModel.vatMode,
+      ratio: costModel.ratio,
+      avgUnitCostNetto: costModel.avgUnitCostNetto,
+      avgSellPrice: costModel.avgSellPrice,
+      usable: costModel.usable,
+      source: costModel.source,
+      palletCostBrutto: num(costConfig && costConfig.palletCostBrutto),
+      unitsPerPallet: num(costConfig && costConfig.unitsPerPallet),
+      manualRatio: costConfig && costConfig.manualRatio != null ? num(costConfig.manualRatio) : null,
+      feeRateEbay,
+      feeRateKaufland,
+    },
     balances: {
       accounts: Array.isArray(balances.accounts) ? balances.accounts : [],
       total: round2(balances.total),
@@ -331,6 +375,8 @@ async function getFinancialReport({ preset = null, fromDate = null, toDate = nul
     quality: {
       cogsCoveragePct: coveragePct,
       matchedItemCount: agg.matchedItemCount,
+      exactItemCount: agg.exactItemCount,
+      estimatedItemCount: agg.estimatedItemCount,
       unmatchedItemCount: agg.unmatchedItemCount,
       payoutSource: pnl.auszahlungSource,
       shippingSource: shipping ? shipping.source : null,

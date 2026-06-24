@@ -199,6 +199,96 @@ async function getShippingCostsFromSevDesk(fromDate, toDate, { forceRefresh = fa
   return result;
 }
 
+// Payer-name fragments identifying actual marketplace payouts on the bank statement.
+// Source: real SevDesk Kontoauszug (cflox GmbH = Kaufland payout; eBay S.a.r.l.,
+// Boulevard Royal = eBay payout). Add more fragments here if a payer name changes.
+const MARKETPLACE_PAYOUT_PAYERS = {
+  kaufland: ['cflox'],
+  ebay: ['ebay', 'boulevard royal'],
+};
+const PAYOUT_CACHE = new Map();
+const PAYOUT_TTL_MS = 15 * 60 * 1000;
+
+/**
+ * Real marketplace payouts (incoming bank credits) booked in SevDesk for the range.
+ * This is the EXACT money eBay/Kaufland transferred (net of all marketplace fees) —
+ * no estimation. Filtered by payer name + positive amount (credits only).
+ *
+ * NOTE: amounts are by bank settlement date, which lags order date (eBay/Kaufland pay
+ * out on a cycle). Over a month/year this reflects "cash actually received".
+ *
+ * @returns {Promise<{ebay:number, kaufland:number, total:number, tx_count:number, currency:string, source:string}>}
+ */
+async function getMarketplacePayoutsFromSevDesk(fromDate, toDate, { forceRefresh = false, timeoutMs = 15000 } = {}) {
+  const cacheKey = `payout:${fromDate}:${toDate}`;
+  const now = Date.now();
+  const cached = PAYOUT_CACHE.get(cacheKey);
+  if (!forceRefresh && cached && now - cached.atMs < PAYOUT_TTL_MS) return cached.data;
+
+  const apiKey = await getSevDeskApiKey();
+  if (!apiKey) throw new Error('SEVDESK_API_TOKEN not configured');
+
+  const startTs = Math.floor(new Date(fromDate + 'T00:00:00Z').getTime() / 1000);
+  const endTs = Math.floor(new Date(toDate + 'T23:59:59Z').getTime() / 1000);
+  const params = new URLSearchParams({ startDate: String(startTs), endDate: String(endTs), limit: '500' });
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  let transactions = [];
+  try {
+    const response = await fetch(`${SEVDESK_BASE_URL}/CheckAccountTransaction?${params}`, {
+      headers: { Authorization: apiKey, 'Content-Type': 'application/json' },
+      signal: controller.signal,
+    });
+    if (!response.ok) {
+      const body = await response.text().catch(() => '');
+      throw new Error(`SevDesk CheckAccountTransaction API ${response.status}: ${body.slice(0, 200)}`);
+    }
+    const data = await response.json();
+    transactions = Array.isArray(data?.objects) ? data.objects : [];
+  } finally {
+    clearTimeout(timer);
+  }
+
+  const classify = (payee) => {
+    const p = (payee || '').toLowerCase();
+    if (MARKETPLACE_PAYOUT_PAYERS.kaufland.some((kw) => p.includes(kw))) return 'kaufland';
+    if (MARKETPLACE_PAYOUT_PAYERS.ebay.some((kw) => p.includes(kw))) return 'ebay';
+    return null;
+  };
+
+  let ebay = 0;
+  let kaufland = 0;
+  let txCount = 0;
+  const matched = [];
+  for (const t of transactions) {
+    const raw = parseFloat(String(t?.amount || '0').replace(',', '.')) || 0;
+    if (raw <= 0) continue; // payouts are incoming credits
+    const mk = classify(t?.payeePayerName);
+    if (!mk) continue;
+    if (mk === 'kaufland') kaufland += raw; else ebay += raw;
+    txCount++;
+    matched.push({ payee: t?.payeePayerName || '?', amount: raw, date: t?.valueDate || '', mk });
+  }
+
+  if (matched.length > 0) {
+    console.log(`[sevdesk-payout] ${fromDate}–${toDate}: ${txCount} Gutschriften, eBay ${ebay.toFixed(2)}€ + Kaufland ${kaufland.toFixed(2)}€`);
+  } else {
+    console.log(`[sevdesk-payout] ${fromDate}–${toDate}: keine Marktplatz-Auszahlungen (${transactions.length} Buchungen total)`);
+  }
+
+  const result = {
+    ebay: Math.round(ebay * 100) / 100,
+    kaufland: Math.round(kaufland * 100) / 100,
+    total: Math.round((ebay + kaufland) * 100) / 100,
+    tx_count: txCount,
+    currency: 'EUR',
+    source: 'sevdesk',
+  };
+  PAYOUT_CACHE.set(cacheKey, { atMs: now, data: result });
+  return result;
+}
+
 // ─── Settings API ──────────────────────────────────────────────────────────
 
 /**
@@ -264,4 +354,4 @@ async function listCheckAccounts({ timeoutMs = 15000 } = {}) {
   }
 }
 
-module.exports = { getCheckAccountBalances, getShippingCostsFromSevDesk, listTaxRates, listCheckAccounts };
+module.exports = { getCheckAccountBalances, getShippingCostsFromSevDesk, getMarketplacePayoutsFromSevDesk, listTaxRates, listCheckAccounts };

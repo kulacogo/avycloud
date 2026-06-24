@@ -19,6 +19,7 @@ import {
   DashboardMetrics,
   FinanceMetrics,
   FinancialReport,
+  FinancialCostModelInput,
   EbayListingRow,
   EbayListingDetail,
   EbayGapDoc,
@@ -3623,6 +3624,19 @@ export const fetchFinancialReport = async (
     throw new Error(result?.error?.message || 'Finanzbericht konnte nicht geladen werden.');
   }
   return result?.data;
+};
+
+// Save the COGS cost model (pallet economics + marketplace fee rates) for the tenant.
+export const saveFinancialCostModel = async (input: FinancialCostModelInput): Promise<void> => {
+  const response = await fetchApi(`${BACKEND_URL}/api/admin/financials/cost-model`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  const result = await parseResponse(response);
+  if (!response.ok || result?.ok === false) {
+    throw new Error(result?.error?.message || 'Kostenmodell konnte nicht gespeichert werden.');
+  }
 };
 
 export interface ActivityEvent {
