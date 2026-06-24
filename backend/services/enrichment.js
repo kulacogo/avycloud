@@ -21,7 +21,7 @@ const { findKauflandCategory, getKauflandAttributes } = require('../lib/kaufland
 const { MarketplaceLookup } = require('../lib/marketplace-lookup');
 const { isValidGtin, normalizeDigits, getGtinType } = require('../lib/gtin');
 const { coerceTitleToPolicy } = require('../lib/title-policy');
-const { sanitizeListingText, sanitizeDescriptionToHtml } = require('../lib/listing-sanitize');
+const { sanitizeListingText, sanitizeDescriptionProse } = require('../lib/listing-sanitize');
 const { decodeHtmlEntitiesDeep } = require('../lib/html-entities');
 const { buildCommonPolicyText } = require('../lib/llm-policy-pack');
 const { normalizeProductStrict } = require('../lib/llm-rulebook');
@@ -1815,9 +1815,8 @@ function applyReviewResult(product, review, { titleHintTokens = [] } = {}) {
       : '';
 
   if (typeof review.short_description === 'string' && review.short_description.trim().length > 0) {
-    const cleanedDescription = sanitizeDescriptionToHtml(review.short_description, {
+    const cleanedDescription = sanitizeDescriptionProse(review.short_description, {
       maxLen: 3000,
-      minVisibleChars: 260,
     });
     if (cleanedDescription) {
       product.details.short_description = cleanedDescription;

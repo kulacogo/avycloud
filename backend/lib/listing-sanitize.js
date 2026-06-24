@@ -203,6 +203,73 @@ function sanitizeDescriptionToHtml(
   return html;
 }
 
+/**
+ * Prose-preserving description sanitizer.
+ *
+ * Unlike sanitizeDescriptionToHtml (which sentence-splits text and rebuilds it
+ * as intro <p> + <ul><li> + closing <p>), this keeps the model's PARAGRAPH
+ * structure as flowing prose and NEVER emits bullet lists. Block tags become
+ * paragraph boundaries; any model-supplied <ul>/<li> is flattened into prose.
+ * This matches the lived datasheet standard: Beschreibung = Fließtext, bullets
+ * live only in the separate key_features (Highlights) field.
+ *
+ * Same safety/cleaning guarantees as the bulletizer: strips active content,
+ * drops price/placeholder/UI-template sentences, escapes HTML, caps length.
+ */
+function sanitizeDescriptionProse(
+  text = '',
+  { maxLen = 3000, fallbackFacts = [] } = {}
+) {
+  const hardMax = Math.max(500, Number(maxLen) || 3000);
+  const PARA = '\n\n';
+
+  // Turn block-level boundaries into paragraph delimiters, drop scripted
+  // content, then strip every remaining tag. Inline markup (e.g. <strong>) is
+  // removed for safety — parity with the existing sanitizer's strip-then-escape
+  // approach — but paragraph breaks survive as blank lines.
+  const withBreaks = decodeHtmlEntitiesDeep(safeString(text))
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<form\b[^>]*>[\s\S]*?<\/form>/gi, ' ')
+    .replace(/<\/(p|div|section|article|ul|ol|li|h[1-6]|tr|blockquote)\s*>/gi, PARA)
+    .replace(/<br\s*\/?>/gi, PARA)
+    .replace(/<[^>]+>/g, ' ');
+
+  const paragraphs = [];
+  const seen = new Set();
+  for (const rawPara of withBreaks.split(/\n\s*\n/)) {
+    // Reuse the delete-only sentence cleaner (drops banned/price/placeholder).
+    const cleaned = normalizeSpaces(sanitizeListingText(rawPara, { maxLen: hardMax }));
+    if (!cleaned) continue;
+    const key = cleaned.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    paragraphs.push(cleaned);
+  }
+
+  if (!paragraphs.length) {
+    const facts = (Array.isArray(fallbackFacts) ? fallbackFacts : [])
+      .map(normalizeFactSentence)
+      .filter(Boolean);
+    if (facts.length) paragraphs.push(normalizeSpaces(facts.join(' ')));
+  }
+  if (!paragraphs.length) return '';
+
+  // Assemble <p> blocks, staying under the length cap.
+  let html = '';
+  for (const para of paragraphs) {
+    const next = `${html}<p>${escapeHtml(para)}</p>`;
+    if (next.length > hardMax) break;
+    html = next;
+  }
+  if (!html) {
+    // First paragraph alone exceeds the cap — hard-trim it.
+    const truncated = sanitizeListingText(paragraphs.join(' '), { maxLen: hardMax - 7 });
+    return truncated ? `<p>${escapeHtml(truncated)}</p>` : '';
+  }
+  return html;
+}
+
 function sanitizeHighlights(list = [], { minLen = 8, maxItems = 7 } = {}) {
   if (!Array.isArray(list)) return [];
   const seen = new Set();
@@ -227,6 +294,7 @@ module.exports = {
   containsBannedListingText,
   sanitizeListingText,
   sanitizeDescriptionToHtml,
+  sanitizeDescriptionProse,
   sanitizeHighlights,
   PLACEHOLDER_RE,
   UI_TEMPLATE_RE,

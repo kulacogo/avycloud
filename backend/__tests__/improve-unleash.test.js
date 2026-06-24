@@ -220,4 +220,27 @@ describe('Rulebook warn checks', () => {
     // Even with warnings, ok should be true (best-effort)
     expect(result.ok).toBe(true);
   });
+
+  it('renders the datasheet description as flowing prose, never bullets', () => {
+    // A multi-sentence description that the legacy bulletizer would have turned
+    // into <p> intro + <ul><li> benefits. The lived standard is Fließtext.
+    const product = {
+      identification: { name: 'Test Produkt Marke Modell Variante', brand: 'Marke' },
+      details: {
+        short_description:
+          '<p>Erster Einleitungssatz mit ausreichender Laenge hier drin. ' +
+          'Zweiter Satz ebenfalls lang genug fuer eine Liste hier. ' +
+          'Dritter Benefit-Satz mit genuegend Zeichen fuer Bullets hier. ' +
+          'Vierter Benefit-Satz auch lang genug um aufzutauchen hier.</p>',
+        key_features: ['Nutzen A – Spec', 'Nutzen B – Spec', 'Nutzen C – Spec'],
+        attributes: {},
+      },
+    };
+
+    const result = normalizeProductForPolicyApply(product, { source: 'test' });
+    const desc = result.product.details.short_description;
+    expect(desc).toContain('<p>');
+    expect(desc).not.toContain('<ul>');
+    expect(desc).not.toContain('<li>');
+  });
 });

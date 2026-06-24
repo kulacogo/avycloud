@@ -1,7 +1,7 @@
 'use strict';
 
 const { generateProductContent, gemini3GenerateJSON } = require('./gemini3-client');
-const { sanitizeDescriptionToHtml } = require('./listing-sanitize');
+const { sanitizeDescriptionProse } = require('./listing-sanitize');
 const { normalizeHighlightsStrict } = require('./highlights-policy');
 const { canonicalizeAttributesStrict } = require('./attribute-policy');
 const { coerceTitleToPolicy } = require('./title-policy');
@@ -187,17 +187,19 @@ async function runStage3ContentGeneration(stage1, stage2, locale = 'de-DE') {
     }
   }
 
-  // Description sanitization
+  // Description sanitization — Beschreibung = Fließtext (prose), NEVER bullets.
+  // Bullets belong only in key_features (Highlights). See prose-vs-bulletizer
+  // contrast in lib/listing-sanitize.js.
   if (result.description_ebay) {
     try {
-      result.description_ebay = sanitizeDescriptionToHtml(result.description_ebay);
+      result.description_ebay = sanitizeDescriptionProse(result.description_ebay);
     } catch {
       // Keep as-is
     }
   }
   if (result.description_kaufland) {
     try {
-      result.description_kaufland = sanitizeDescriptionToHtml(result.description_kaufland);
+      result.description_kaufland = sanitizeDescriptionProse(result.description_kaufland);
     } catch {
       // Keep as-is
     }
@@ -210,9 +212,12 @@ async function runStage3ContentGeneration(stage1, stage2, locale = 'de-DE') {
         identification: { brand: identity.brand },
         details: { key_features: result.key_features },
       };
-      const normalized = normalizeHighlightsStrict(dummyProduct, result.key_features);
-      if (Array.isArray(normalized) && normalized.length) {
-        result.key_features = normalized;
+      // normalizeHighlightsStrict returns { ok, highlights, issues } — use the
+      // cleaned .highlights array, not the object itself (previously the
+      // Array.isArray() guard was always false, silently discarding the policy).
+      const { highlights } = normalizeHighlightsStrict(dummyProduct, result.key_features);
+      if (Array.isArray(highlights) && highlights.length) {
+        result.key_features = highlights;
       }
     } catch {
       // Keep as-is

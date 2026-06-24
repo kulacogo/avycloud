@@ -81,7 +81,27 @@ Neue/erweiterte Unit-Tests:
 
 ## Out of Scope
 
-- Keine Änderung am Publish-Pfad (eBay/Kaufland) — der gelebte Standard funktioniert bereits.
+- Keine Änderung am Publish-Pfad (eBay/Kaufland) — der gelebte Standard funktioniert bereits. `listing-pipeline.js` ruft den Bulletizer ohnehin nur bei Plain-Text auf (`!startsWith('<')`); unsere `<p>`-Prosa läuft unverändert durch.
+- Keine Änderung am Chat (Gold-Standard, speichert bereits verbatim als Prosa).
 - Keine Feld-Umbenennung, keine Firestore-Migration.
-- Keine V4-Änderungen außer optionaler Konsistenz (V4 ist dark; nur falls trivial mitgenommen).
+- Keine V4-Änderungen (V4 ist dark, 0 % Traffic; `seo-description-builder.js` ist ein separater Bulletizer → eigener Follow-up falls V4 jemals live geht).
 - Titel: Erfassen ist hier bereits regelkonform; keine Änderung nötig.
+
+## Umgesetzt (2026-06-24)
+
+Root-Cause + Pfade durch 20 Sub-Agenten verifiziert (Bullets = Generierung/Post-Processing, **nicht** Rendering; Frontend unangetastet).
+
+**A — Beschreibung = Fließtext (Foundation breiter als ursprünglich):**
+Der Bulletizer wird von ALLEN Datenblatt-Content-Generatoren genutzt (Erfassen, **Verbessern**, geteiltes Rulebook, enrichment) — Chat nie. Ein reiner Stage-3-Fix wäre zurückgefallen, sobald „Verbessern" ein Produkt anfasst. Daher:
+- Neue prosa-erhaltende Primitive `sanitizeDescriptionProse()` in `lib/listing-sanitize.js` (erhält `<p>`-Absatzstruktur, flacht Modell-`<ul>` zu Prosa ab, nie `<li>`; gleiche Banned-/Escape-/maxLen-Garantien). `sanitizeDescriptionToHtml` bleibt unverändert für Publish/Chat-Fallbacks.
+- Umgestellt auf Prosa: `identify-v3-stage3.js` (193/200), `services/improve.js` (1289), `lib/llm-rulebook.js` (4 Sites: 47/85/135/177), `services/enrichment.js` (1818).
+- Prompts/Schemas auf „Fließtext, KEINE Aufzählung": `identify-v3-stage3-agentic.js` (Write-Tool + System-Prompt), `gemini3-client.js` (Cassini-Block, V2-Block, CONTENT_SCHEMA + FULL_PRODUCT_SCHEMA).
+
+**B — Highlights-Bug behoben:** `identify-v3-stage3.js:213-216` nutzt jetzt `.highlights` aus `normalizeHighlightsStrict(...)` → Dash-Template/Längen/Dedup greifen endlich (waren wegen `Array.isArray(objekt)`-Guard immer übersprungen).
+
+**Tests (TDD, RED→GREEN):** 10 Unit-Tests `sanitizeDescriptionProse` + Stage-3 „prose-not-bullets" + Stage-3 Highlights-Policy + Rulebook „prose, never bullets". Volle Suite: **2422/2422 grün** (vorher 2410).
+
+## Bewusst zurückgestellt (Follow-up, NICHT Bandaid)
+
+- **C — Attribute-Hygiene** (`pickLikeliestFallback` erfindet ersten Enum-Wert statt „Unbekannt"; UI-Confidence-Surfacing): berührt den Publish-Pfad (eBay-Block-Risiko bei geschlossenen Enums ohne „Unbekannt"). Braucht eigene Verifikation gegen eBay-Auto-Fix/Cassini — separater, sorgfältiger Pass. Golden Rule > schneller Patch.
+- **D — Repair-Schwellen-Drift** (Code 10 % vs. CLAUDE.md 30 %): die json-30 % steuert einen anderen Knopf (V4 `retriesRequested`), nicht den Stage-3-Threshold. Nur eine CLAUDE.md-Notiz nötig; marginal, getrennt.

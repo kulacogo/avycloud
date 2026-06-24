@@ -1,7 +1,7 @@
 const { getProduct } = require('../lib/firestore');
 const { saveProductV2 } = require('../lib/product-store');
 const { coerceTitleToPolicy } = require('../lib/title-policy');
-const { sanitizeDescriptionToHtml, PRICE_SENTENCE_RE } = require('../lib/listing-sanitize');
+const { sanitizeDescriptionProse, PRICE_SENTENCE_RE } = require('../lib/listing-sanitize');
 const {
   runProductIdentification,
   runDatasheetReview,
@@ -1286,9 +1286,9 @@ async function improveExistingProduct(productId, onProgress, opts = {}) {
   // even if the review step fails or the model violates instructions.
   mergedProduct.details = mergedProduct.details || {};
   if (typeof mergedProduct.details.short_description === 'string') {
-    mergedProduct.details.short_description = sanitizeDescriptionToHtml(
+    mergedProduct.details.short_description = sanitizeDescriptionProse(
       mergedProduct.details.short_description,
-      { maxLen: 3000, minVisibleChars: 260 }
+      { maxLen: 3000 }
     );
   }
   if (Array.isArray(mergedProduct.details.key_features)) {

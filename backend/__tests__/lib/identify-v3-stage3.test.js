@@ -50,14 +50,21 @@ const sanitizePath = require.resolve('../../lib/listing-sanitize');
 require(sanitizePath);
 require.cache[sanitizePath] = {
   id: sanitizePath, filename: sanitizePath, loaded: true,
-  exports: { sanitizeDescriptionToHtml: vi.fn((html) => html), PRICE_SENTENCE_RE: /preis/i },
+  exports: {
+    sanitizeDescriptionToHtml: vi.fn((html) => html),
+    sanitizeDescriptionProse: vi.fn((html) => html),
+    PRICE_SENTENCE_RE: /preis/i,
+  },
 };
 
 const highlightsPath = require.resolve('../../lib/highlights-policy');
 require(highlightsPath);
 require.cache[highlightsPath] = {
   id: highlightsPath, filename: highlightsPath, loaded: true,
-  exports: { normalizeHighlightsStrict: vi.fn((_, list) => list) },
+  // Mirror the REAL return shape: an object { ok, highlights, issues }, NOT a bare array.
+  exports: {
+    normalizeHighlightsStrict: vi.fn((_, list) => ({ ok: true, highlights: list, issues: [] })),
+  },
 };
 
 const attrPath = require.resolve('../../lib/attribute-policy');
@@ -154,11 +161,28 @@ describe('runStage3ContentGeneration', () => {
     expect(coerceTitleToPolicy).toHaveBeenCalled();
   });
 
-  it('applies description sanitization', async () => {
-    const { sanitizeDescriptionToHtml } = require('../../lib/listing-sanitize');
+  it('sanitizes the description as flowing prose, not bullets', async () => {
+    const { sanitizeDescriptionProse, sanitizeDescriptionToHtml } = require('../../lib/listing-sanitize');
     await runStage3ContentGeneration(makeStage1(), makeStage2());
 
-    expect(sanitizeDescriptionToHtml).toHaveBeenCalled();
+    // Beschreibung = Fließtext: the prose sanitizer runs, the bulletizer does NOT.
+    expect(sanitizeDescriptionProse).toHaveBeenCalled();
+    expect(sanitizeDescriptionToHtml).not.toHaveBeenCalled();
+  });
+
+  it('applies the normalized highlights (uses .highlights from the policy result)', async () => {
+    const { normalizeHighlightsStrict } = require('../../lib/highlights-policy');
+    // The policy returns a CLEANED list distinct from the raw model output.
+    normalizeHighlightsStrict.mockReturnValueOnce({
+      ok: true,
+      highlights: ['Kundennutzen – technische Spec'],
+      issues: [],
+    });
+
+    const result = await runStage3ContentGeneration(makeStage1(), makeStage2());
+
+    // The cleaned highlights must win — not the raw passthrough.
+    expect(result.key_features).toEqual(['Kundennutzen – technische Spec']);
   });
 
   it('uses fallback content when Gemini fails', async () => {

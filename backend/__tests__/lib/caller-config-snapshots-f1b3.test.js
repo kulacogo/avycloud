@@ -96,7 +96,11 @@ describe('F.1b.3 snapshot: identify-v3-stage3 (aspect repair)', () => {
   require(sanitizePath);
   require.cache[sanitizePath] = {
     id: sanitizePath, filename: sanitizePath, loaded: true,
-    exports: { sanitizeDescriptionToHtml: vi.fn((html) => html), PRICE_SENTENCE_RE: /preis/i },
+    exports: {
+      sanitizeDescriptionToHtml: vi.fn((html) => html),
+      sanitizeDescriptionProse: vi.fn((html) => html),
+      PRICE_SENTENCE_RE: /preis/i,
+    },
   };
 
   const _stage3 = require('../../lib/identify-v3-stage3');

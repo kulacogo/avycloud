@@ -120,7 +120,10 @@ const WRITE_DATASHEET_DECLARATION = {
       title_kaufland: { type: 'string', description: 'Kaufland title up to 100 chars.' },
       description_ebay: {
         type: 'string',
-        description: 'eBay HTML description, 180-240 words, <p>+<ul>+<li>+<strong>.',
+        description:
+          'eBay description as FLOWING PROSE (Fließtext): 180-240 words in 2-3 <p> ' +
+          'paragraphs. NO bullet lists — do NOT use <ul>/<li>. Benefits as bullets ' +
+          'belong in key_features, not here.',
       },
       description_kaufland: {
         type: 'string',
@@ -247,7 +250,7 @@ function _buildSystemPrompt({
     '  • Pflicht-Artikelmerkmale VOLLSTAENDIG ausfuellen — "Unbekannt" nur als allerletztes Mittel.',
     '  • Cross-Reference: 2+ Quellen bevor Du eine Behauptung uebernimmst.',
     '  • Nichts erfinden. Nur belegbare Fakten.',
-    '  • Beschreibung: 180-240 Woerter, HTML, faktenbasiert.',
+    '  • Beschreibung: 180-240 Woerter Fließtext in 2-3 <p>-Absaetzen, faktenbasiert. KEINE Aufzählung/<ul> — Bulletpoints gehoeren in key_features.',
     '  • Titel: 70-80 Zeichen, mobile-first, keine Marketingfloskeln.',
     '',
   );

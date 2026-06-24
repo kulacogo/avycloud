@@ -587,7 +587,7 @@ const FULL_PRODUCT_SCHEMA = {
     internalCategory: { type: 'string', description: 'Kategorie-Pfad z.B. Elektronik > Kopfhoerer' },
     title_ebay: { type: 'string', description: 'eBay Titel, 70-80 Zeichen, kaeufergerecht. Nur wahre kaufrelevante Fakten. Groessen (XS,S,M,L,XL,XXL) GROSSBUCHSTABEN' },
     title_kaufland: { type: 'string', description: 'Kaufland Titel, bis 100 Zeichen' },
-    description_ebay: { type: 'string', description: 'eBay Beschreibung in HTML, 180-240 Woerter' },
+    description_ebay: { type: 'string', description: 'eBay Beschreibung als Fließtext in 2-3 <p>-Absaetzen, 180-240 Woerter, KEINE Aufzählung/<ul>' },
     description_kaufland: { type: 'string', description: 'Kaufland Beschreibung in HTML' },
     key_features: {
       type: 'array',
@@ -668,7 +668,7 @@ function buildImprovePromptExtension(ctx) {
   lines.push('- TITEL: Studiere die Wettbewerber-Titel oben und uebernimm erfolgreiche Muster.');
   lines.push('- SYNONYME: Ergaenze in der Beschreibung Synonyme und semantische Variationen. Beispiel: "Schreibtisch" → auch "Arbeitstisch", "Buerotisch" erwaehnen.');
   lines.push('- KEYWORD-DICHTE: Verteile die wichtigsten 2-3 Suchbegriffe und ihre Synonyme so, dass sie insgesamt 10-14 Mal in der Beschreibung vorkommen (bei ~200 Woertern = 5-7% Dichte). Natuerlich einweben, KEIN Stuffing.');
-  lines.push('- BESCHREIBUNG: ~200 Woerter. HTML: 1x <p> Einleitung (emotionaler Hook) + <ul> mit 5-7 Benefits + 1x <p> technische Details. Professionell und verkaufspsychologisch.');
+  lines.push('- BESCHREIBUNG: ~200 Woerter als FLIESSTEXT in 2-3 <p>-Absaetzen: emotionaler Hook, Kernnutzen, technische Details. KEINE Aufzählung, KEIN <ul>/<li> — Bulletpoints gehoeren ausschliesslich in die Highlights (key_features). Professionell und verkaufspsychologisch.');
   lines.push('- HIGHLIGHTS: Mindestens 50% der Bulletpoints im Benefits-Format: "[Kundennutzen] – [technische Spec]". SCHLECHT: "512GB SSD". GUT: "512GB SSD – genug Platz fuer Ihre gesamte Mediathek".');
   lines.push('- ITEM SPECIFICS: Alle Pflicht-UND-empfohlene Artikelmerkmale befuellen. Cassini macht Produkte in Filtern UNSICHTBAR wenn Merkmale fehlen.');
   lines.push('');
@@ -771,7 +771,7 @@ RECHERCHE-STRATEGIE:
 QUALITAETSANFORDERUNGEN:
 - Titel: 70-80 Zeichen, kaeufergerecht fuer eBay/Kaufland. Orientiere dich an echten Top-Seller-Titeln auf ebay.de fuer dieses Produkt. Nur wahre, kaufrelevante Fakten. Groessenangaben (XS, S, M, L, XL, XXL) immer GROSSBUCHSTABEN. Keine Marketingfloskeln, keine irrelevanten Specs, KEINE Woerter aus falschen Kategorien.
 - Kategorie (internalCategory): MUSS das Produkt korrekt beschreiben. Basierend auf Web-Recherche, nicht auf Vermutungen.
-- Beschreibung: 180-240 Woerter, HTML (<p>, <ul>, <li>, <strong>), faktenbasiert aus Web-Recherche. Keine Wiederholungen.
+- Beschreibung: 180-240 Woerter als Fließtext in 2-3 <p>-Absaetzen (KEINE Aufzählung, kein <ul>/<li>), faktenbasiert aus Web-Recherche. Keine Wiederholungen. Bulletpoints nur in key_features.
 - Highlights (key_features): 5-7 Bulletpoints, Format "[Nutzen] - [Eigenschaft]", je 70-120 Zeichen
 - Attribute (item_specifics): mindestens 10, technisch/granular, keine Dubletten, deutsche Schluessel. Aus Hersteller-Datenblatt.
 - Gewicht: In Gramm, ganzzahlig. Aus Bild/OCR/Web extrahieren. Bei Unsicherheit schaetzen. Nie 0.
@@ -941,7 +941,7 @@ const CONTENT_SCHEMA = {
   properties: {
     title_ebay: { type: 'string', description: 'eBay Titel, 70-80 Zeichen' },
     title_kaufland: { type: 'string', description: 'Kaufland Titel, bis 100 Zeichen' },
-    description_ebay: { type: 'string', description: 'eBay Beschreibung in HTML, 180-240 Woerter' },
+    description_ebay: { type: 'string', description: 'eBay Beschreibung als Fließtext in 2-3 <p>-Absaetzen, 180-240 Woerter, KEINE Aufzählung/<ul>' },
     description_kaufland: { type: 'string', description: 'Kaufland Beschreibung in HTML' },
     key_features: { type: 'array', items: { type: 'string' }, description: '5-7 Bulletpoints' },
     item_specifics: {
