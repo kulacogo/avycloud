@@ -725,8 +725,135 @@ async function resolveCategoryV2(product, options = {}) {
   return null;
 }
 
+/**
+ * Resolve a category PROPOSED by the chat assistant into a real eBay categoryId
+ * and attach it to the datasheet change(s) IN PLACE.
+ *
+ * Background (chat "Kategorie-Korrektur" bug, 2026-06-24): the assistant proposes
+ * a category as a breadcrumb string (e.g. "Sammeln & Seltenes > Figuren >
+ * Action-Figuren"). Two compounding defects meant the correction never landed:
+ *   1. findEbayCategory() requires a strict 2-segment prefix match, so an
+ *      approximate/LLM breadcrumb ("Figuren" vs the real "Figuren & Statuen")
+ *      resolved to null and was silently dropped — while the prose still claimed
+ *      success.
+ *   2. consolidateChanges() (chat-v2) only whitelists a few fields and strips the
+ *      top-level categoryId/categoryPath, so even a SUCCESSFUL local match was
+ *      discarded before reaching the client.
+ *
+ * This helper runs AFTER consolidation, on the final change(s). For every change
+ * that proposes a category but has no resolved categoryId, it tries the fast
+ * local strict match first, then the existing robust resolveCategoryV2 (eBay
+ * Catalog GTIN -> Taxonomy Suggestions -> local -> Gemini). On success it sets a
+ * real categoryId + canonical breadcrumb so the frontend apply path can write
+ * details.categoryId. When nothing resolves it DROPS the unverified breadcrumb
+ * (so the UI never shows/persists a fake category) and records a warning — never
+ * a silent false claim.
+ *
+ * Designed to never throw: any resolver failure degrades to drop + warning.
+ *
+ * @param {Array<object>} changes datasheet changes (mutated in place)
+ * @param {object} product the product being edited
+ * @param {{ resolver?: function, reason?: string }} [opts] resolver is injectable for tests
+ * @returns {Promise<Array<object>>} the same `changes` array
+ */
+async function resolveProposedCategoryForChanges(changes, product, opts = {}) {
+  const list = Array.isArray(changes) ? changes : [];
+  const resolve = typeof opts.resolver === 'function' ? opts.resolver : resolveCategoryV2;
+  const reason = safeString(opts.reason) || 'chat_category';
+
+  for (const change of list) {
+    if (!change || typeof change !== 'object') continue;
+    // Already carries a resolved numeric id (e.g. a future pipeline set it) — keep.
+    if (safeString(change.categoryId)) continue;
+
+    const proposed = safeString(change.categoryPath) || safeString(change.identity && change.identity.category);
+    if (!proposed) continue; // No category proposed -> never touch the category.
+
+    // 1) Fast, deterministic local match (covers exact/known breadcrumbs).
+    const strict = findEbayCategory(proposed);
+    if (strict && (strict.id || strict.categoryId)) {
+      attachCategory(change, String(strict.id || strict.categoryId), strict.breadcrumb || proposed);
+      continue;
+    }
+
+    // 2) Robust resolver (reuses resolveCategoryV2). The preview reflects the
+    //    assistant's proposed category so the suggestion/local tiers act on the
+    //    intended category rather than the stale one stored on the product.
+    let resolved = null;
+    try {
+      resolved = await resolve(buildCategoryPreviewProduct(product, change, proposed), { reason });
+    } catch (err) {
+      console.warn(`[category-resolver] proposed-category resolve failed: ${err?.message || err}`);
+      resolved = null;
+    }
+
+    if (resolved && safeString(resolved.categoryId)) {
+      attachCategory(change, String(resolved.categoryId), safeString(resolved.breadcrumb) || proposed);
+      continue;
+    }
+
+    // 3) Unresolvable -> drop the unverified breadcrumb and surface a warning so
+    //    the prose "Kategorie-Korrektur" is never silently false.
+    dropProposedCategory(change);
+    addChangeWarning(
+      change,
+      `Kategorie "${proposed}" konnte keiner gültigen eBay-Kategorie zugeordnet werden — bitte manuell auswählen.`,
+    );
+  }
+
+  return list;
+}
+
+function attachCategory(change, categoryId, breadcrumb) {
+  const digits = String(categoryId).replace(/\D+/g, '').trim();
+  if (!digits) {
+    dropProposedCategory(change);
+    return;
+  }
+  const bc = safeString(breadcrumb);
+  change.categoryId = digits;
+  if (bc) {
+    change.categoryPath = bc;
+    change.identity = { ...(change.identity || {}), category: bc };
+  }
+}
+
+function dropProposedCategory(change) {
+  delete change.categoryPath;
+  if (change.identity && typeof change.identity === 'object') {
+    delete change.identity.category;
+  }
+}
+
+function addChangeWarning(change, message) {
+  const notes = change.notes && typeof change.notes === 'object' ? change.notes : {};
+  const warnings = Array.isArray(notes.warnings) ? notes.warnings : [];
+  if (!warnings.includes(message)) warnings.push(message);
+  change.notes = { ...notes, warnings };
+}
+
+// Lightweight preview: the product with the assistant's proposed identity/category
+// overlaid, so resolveCategoryV2's suggestion/local tiers reflect the intended
+// product. Reuses the product's GTIN/brand/name signals (strongest for catalog).
+function buildCategoryPreviewProduct(product, change, proposed) {
+  const base = product && typeof product === 'object' ? product : {};
+  const preview = JSON.parse(JSON.stringify(base));
+  preview.identification = preview.identification || {};
+  preview.details = preview.details || {};
+  const id = change && change.identity && typeof change.identity === 'object' ? change.identity : {};
+  if (safeString(change && change.title)) preview.identification.name = safeString(change.title);
+  if (safeString(id.name)) preview.identification.name = safeString(id.name);
+  if (safeString(id.brand)) preview.identification.brand = safeString(id.brand);
+  if (Array.isArray(change && change.key_features) && change.key_features.length) {
+    preview.details.key_features = change.key_features;
+  }
+  preview.identification.category = proposed;
+  return preview;
+}
+
 module.exports = {
   resolveCategoryV2,
+  resolveProposedCategoryForChanges,
   STRATEGY_ACCEPT_THRESHOLD,
   computeKeywordMatch,
   computeCatalogConfidence,

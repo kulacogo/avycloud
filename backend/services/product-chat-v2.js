@@ -651,14 +651,17 @@ function sanitizeDatasheetChangeV2(entry, product, { scope = null, titleHintToke
     if (change.title) id.name = change.title;
     if (entry.identity.brand) id.brand = safeString(entry.identity.brand);
     if (entry.identity.category) {
-      // Only accept categories that exist in the local eBay taxonomy
+      // Normalize to the canonical eBay breadcrumb when the local taxonomy
+      // recognises it; otherwise KEEP the raw proposal so the post-consolidation
+      // resolver (resolveProposedCategoryForChanges) can map an approximate/LLM
+      // breadcrumb (e.g. "… > Figuren > Action-Figuren" vs the real
+      // "… > Figuren & Statuen") to a real categoryId. categoryId is intentionally
+      // NOT set here: consolidateChanges() strips top-level fields, so the
+      // authoritative attach happens after consolidation.
+      const rawCategory = safeString(entry.identity.category);
       const { findEbayCategory } = require('../lib/ebay-taxonomy');
-      const resolved = findEbayCategory(safeString(entry.identity.category));
-      if (resolved?.id) {
-        id.category = resolved.breadcrumb;
-        change.categoryId = String(resolved.id);
-        change.categoryPath = resolved.breadcrumb;
-      }
+      const resolved = findEbayCategory(rawCategory);
+      id.category = (resolved && resolved.breadcrumb) || rawCategory;
     }
     if (entry.identity.sku) id.sku = safeString(entry.identity.sku);
 
@@ -1216,6 +1219,18 @@ async function runProductChatV2(product, userMessage, {
     // Build final result
     const consolidatedChange = consolidateChanges(datasheetChanges);
     const finalDatasheetChanges = consolidatedChange ? [consolidatedChange] : [];
+
+    // Resolve any assistant-proposed category to a REAL eBay categoryId before
+    // the change reaches the client. Without this the "Kategorie-Korrektur" never
+    // lands: findEbayCategory() can't match approximate LLM breadcrumbs and
+    // consolidateChanges() drops top-level categoryId. See
+    // services/category-resolver.js#resolveProposedCategoryForChanges.
+    try {
+      const { resolveProposedCategoryForChanges } = require('./category-resolver');
+      await resolveProposedCategoryForChanges(finalDatasheetChanges, product, { reason: 'chat_v2' });
+    } catch (catErr) {
+      console.warn(`[chat-v2] category resolution skipped: ${catErr?.message || catErr}`);
+    }
 
     console.log(`[chat-v2] done: iterations=${iterations}, datasheetChanges=${datasheetChanges.length}, consolidated=${finalDatasheetChanges.length}, images=${imageSuggestions.length}, textLen=${responseText.length}`);
     if (!finalDatasheetChanges.length && responseText.length > 200) {

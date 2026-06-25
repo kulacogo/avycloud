@@ -2002,8 +2002,12 @@ function sanitizeDatasheetChange(entry, product, { scope = null, titleHintTokens
           result.categoryId = String(resolved.id);
           result.categoryPath = resolved.breadcrumb || rawCategoryBreadcrumb;
         } else {
-          // Not in local taxonomy — do NOT propagate unvalidated breadcrumbs
-          console.warn(`[product-chat] Category "${rawCategoryBreadcrumb}" not found in eBay taxonomy — ignoring`);
+          // Not in the local taxonomy. KEEP the raw proposal (instead of dropping
+          // it) so the post-consolidation resolver (resolveProposedCategoryForChanges)
+          // can map an approximate/LLM breadcrumb to a real categoryId via
+          // resolveCategoryV2 — without it the "Kategorie-Korrektur" is silently lost.
+          identityPatch.category = rawCategoryBreadcrumb;
+          console.warn(`[product-chat] Category "${rawCategoryBreadcrumb}" not in local taxonomy — deferring to resolveCategoryV2`);
         }
       } catch (err) {
         console.warn(`[product-chat] Taxonomy lookup failed: ${err.message}`);
@@ -2788,6 +2792,18 @@ async function runProductChat(product, userMessage, {
 
     const consolidatedChange = consolidateDatasheetChanges(datasheetChanges);
     const finalDatasheetChanges = consolidatedChange ? [consolidatedChange] : [];
+
+    // Resolve any assistant-proposed category to a REAL eBay categoryId before the
+    // change reaches the client (parity with chat-v2/v3). Runs before the readiness
+    // preview so the preview reflects the resolved category. See
+    // services/category-resolver.js#resolveProposedCategoryForChanges.
+    try {
+      const { resolveProposedCategoryForChanges } = require('./category-resolver');
+      await resolveProposedCategoryForChanges(finalDatasheetChanges, product, { reason: 'chat_legacy' });
+    } catch (catErr) {
+      console.warn(`[product-chat] category resolution skipped: ${catErr?.message || catErr}`);
+    }
+
     const imageOnlyScope = scopeSet.size > 0 && Array.from(scopeSet).every((token) => token === 'images');
     // Only push the "no changes" placeholder for 'change' intent — info/analysis responses just return text.
     if (!finalDatasheetChanges.length && !imageOnlyScope && intent === 'change') {

@@ -1183,6 +1183,18 @@ async function runProductChatV3({
       Date.now() - startedAt
     );
 
+    // Resolve any assistant-proposed category to a REAL eBay categoryId before
+    // the change reaches the client (parity with chat-v2). V3 never resolves the
+    // category itself, so without this the proposed "Kategorie-Korrektur" never
+    // reaches details.categoryId on apply. See
+    // services/category-resolver.js#resolveProposedCategoryForChanges.
+    try {
+      const { resolveProposedCategoryForChanges } = require('./category-resolver');
+      await resolveProposedCategoryForChanges(state.datasheetChanges, product, { reason: 'chat_v3' });
+    } catch (catErr) {
+      console.warn(`[chat-v3] category resolution skipped: ${catErr?.message || catErr}`);
+    }
+
     return {
       message: finalAnswer || '',
       datasheetChanges: state.datasheetChanges,
