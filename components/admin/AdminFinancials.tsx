@@ -437,31 +437,20 @@ export const AdminFinancials: React.FC = () => {
             <div className="rounded-xl border border-app-border bg-app-surface p-5">
               <h3 className="text-sm font-semibold text-txt-primary mb-2">Gewinn &amp; Verlust</h3>
               <PnlRow label="Umsatz (brutto)" value={fmtCur(pnl?.umsatzBrutto, cur)} trust="exakt" />
-              <PnlRow label="Marktplatz-Gebühren" value={fmtCur(pnl?.marketplaceFees, cur)} trust="abgeleitet" trustNote="Gebührensätze" sign="minus" />
+              <PnlRow label="Marktplatz-Gebühren" value={fmtCur(pnl?.marketplaceFees, cur)}
+                trust={pnl?.feeSource === "flow" ? "exakt" : "abgeleitet"}
+                trustNote={pnl?.feeSource === "flow" ? "alle Gebühren" : "Sätze (Fallback)"} sign="minus" />
+              <PnlRow label="Retouren (Erstattungen)" value={fmtCur(pnl?.retouren, cur)} trust="exakt" sign="minus" />
+              <PnlRow label="Auszahlung" value={fmtCur(pnl?.auszahlung, cur)}
+                trust={payoutExact ? "exakt" : "abgeleitet"} trustNote={payoutExact ? "SevDesk" : undefined} sign="eq" />
               <PnlRow label="Wareneinsatz (COGS)" value={fmtCur(pnl?.cogs, cur)} trust={cogsModelActive ? "kalkulatorisch" : "exakt"} trustNote={cogsModelActive ? "Paletten-Pauschale" : undefined} sign="minus" />
               <PnlRow label="Versandkosten (brutto)" value={fmtCur(pnl?.versandBrutto, cur)} trust="exakt" sign="minus" />
-              <PnlRow label="Retouren (Erstattungen)" value={fmtCur(pnl?.retouren, cur)} trust="exakt" sign="minus" />
               <PnlRow label="Rohgewinn / Deckungsbeitrag" value={fmtCur(pnl?.rohgewinn, cur)} sign="eq" strong />
-
-              {/* Cash cross-check: real payout vs expected */}
-              <div className="mt-3 rounded-lg border border-app-border bg-app-bg/40 p-3 text-xs">
-                <div className="flex items-center justify-between">
-                  <span className="text-txt-secondary">Auszahlung tatsächlich (SevDesk)</span>
-                  <span className="tabular-nums text-txt-primary">{fmtCur(pnl?.auszahlungReal, cur)}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-txt-muted">erwartet (Umsatz − Gebühren)</span>
-                  <span className="tabular-nums text-txt-muted">{fmtCur(pnl?.expectedPayout, cur)}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-txt-muted">Differenz (Settlement-Timing / Gebührensatz)</span>
-                  <span className={`tabular-nums ${(pnl?.payoutVariance ?? 0) < 0 ? "text-warning" : "text-txt-muted"}`}>{fmtCur(pnl?.payoutVariance, cur)}</span>
-                </div>
-              </div>
-              <p className="text-[11px] text-txt-muted mt-2 leading-snug">
-                Rohgewinn = Umsatz − Gebühren − Wareneinsatz − Versand − Retouren (Bestelldatum-Basis).
-                Gebühren aus Sätzen; die tatsächliche Auszahlung kommt exakt aus SevDesk. Eine negative Differenz heißt:
-                realer Gebührensatz höher als eingestellt (z. B. eBay Promoted Listings). Fixkosten nicht enthalten — daher Deckungsbeitrag.
+              <p className="text-[11px] text-txt-muted mt-3 leading-snug">
+                {pnl?.feeSource === "flow"
+                  ? "Gebühren = Umsatz − Retouren − Auszahlung (alle Marktplatzgebühren inkl. Werbung, zeitraum-spezifisch). Rohgewinn = Auszahlung − Wareneinsatz − Versand. Bei kurzen Zeiträumen kann die Auszahlung durch Settlement-Timing (verzögerte Überweisung) abweichen — über Monat/Jahr stimmig."
+                  : "Auszahlung (SevDesk) nicht verfügbar → Gebühren aus Sätzen geschätzt."}{" "}
+                Fixkosten nicht enthalten — daher Deckungsbeitrag.
               </p>
             </div>
 
@@ -512,9 +501,9 @@ export const AdminFinancials: React.FC = () => {
                     <th className="font-medium py-1.5 pr-3">Marktplatz</th>
                     <th className="font-medium py-1.5 px-3 text-right">Aufträge</th>
                     <th className="font-medium py-1.5 px-3 text-right">Umsatz</th>
-                    <th className="font-medium py-1.5 px-3 text-right">Gebühren (Satz)</th>
-                    <th className="font-medium py-1.5 px-3 text-right">Auszahlung (SevDesk)</th>
-                    <th className="font-medium py-1.5 pl-3 text-right">eff. Quote</th>
+                    <th className="font-medium py-1.5 px-3 text-right">Retouren</th>
+                    <th className="font-medium py-1.5 px-3 text-right">Gebühren</th>
+                    <th className="font-medium py-1.5 pl-3 text-right">Auszahlung (SevDesk)</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -526,16 +515,16 @@ export const AdminFinancials: React.FC = () => {
                         <td className="py-2 pr-3 text-txt-primary font-medium">{mkLabel[k]}</td>
                         <td className="py-2 px-3 text-right tabular-nums text-txt-secondary">{fmtNum(m.orders)}</td>
                         <td className="py-2 px-3 text-right tabular-nums text-txt-primary">{fmtCur(m.umsatz, cur)}</td>
+                        <td className="py-2 px-3 text-right tabular-nums text-txt-muted">{fmtCur(m.retouren, cur)}</td>
                         <td className="py-2 px-3 text-right tabular-nums text-txt-muted">{fmtCur(m.fees, cur)} <span className="text-[10px]">({fmtPct(m.feePct)})</span></td>
-                        <td className="py-2 px-3 text-right tabular-nums text-txt-secondary">{m.payout != null ? fmtCur(m.payout, cur) : "—"}</td>
-                        <td className="py-2 pl-3 text-right tabular-nums text-txt-muted">{m.effectiveFeePct != null ? fmtPct(m.effectiveFeePct) : "—"}</td>
+                        <td className="py-2 pl-3 text-right tabular-nums text-txt-secondary">{m.payout != null ? fmtCur(m.payout, cur) : "—"}</td>
                       </tr>
                     );
                   })}
                 </tbody>
               </table>
             </div>
-            <p className="text-[11px] text-txt-muted mt-2">„eff. Quote" = (Umsatz − tatsächliche Auszahlung) / Umsatz. Über kurze Zeiträume durch Settlement-Timing verzerrt; über Jahr aussagekräftig — Basis zum Kalibrieren der Gebührensätze.</p>
+            <p className="text-[11px] text-txt-muted mt-2">Gebühren = Umsatz − Retouren − Auszahlung (alle Marktplatzgebühren, %=effektive Quote). Auszahlung = echte SevDesk-Gutschriften. <span className="text-warning">Negative Gebühren</span> = Auszahlung &gt; erfasster Umsatz: entweder Settlement-Timing (kurzer Zeitraum) oder unvollständige Marktplatz-Erfassung (Kaufland-Aufträge werden aktuell unterzählt).</p>
           </div>
 
           {/* Cost model editor */}

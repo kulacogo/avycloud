@@ -47,36 +47,46 @@ function buildPnl({
   cogs = 0,
 } = {}) {
   const umsatzBrutto = round2(grossRevenue);
-  const kGross = num(kauflandGross);
-  const eGross = ebayGross != null ? num(ebayGross) : Math.max(0, num(grossRevenue) - kGross);
-
-  // Gebühren aus recherchierten Sätzen (accrual, bestelldatum-konsistent) — NICHT aus der
-  // Auszahlung abgeleitet (die hinkt per Settlement-Datum hinterher → kurze Fenster ergäben
-  // negative Gebühren). Die echte SevDesk-Auszahlung dient als exakter Cross-Check.
-  const fees = round2(eGross * num(feeRateEbay) + kGross * num(feeRateKaufland));
-  const expectedPayout = round2(umsatzBrutto - fees);
-
-  const auszahlungReal = realPayout != null ? round2(realPayout) : null;
-  const auszahlung = auszahlungReal != null ? auszahlungReal : expectedPayout;
-  const auszahlungSource = auszahlungReal != null ? (realPayoutSource || 'sevdesk') : 'rates';
-  const payoutVariance = auszahlungReal != null ? round2(auszahlungReal - expectedPayout) : null;
-
   const versandBrutto = shippingNetto != null ? round2(num(shippingNetto) * 1.19) : null;
   const retouren = round2(returnsValue);
   const cogsValue = round2(cogs);
 
-  const rohgewinn = round2(umsatzBrutto - fees - cogsValue - num(versandBrutto) - retouren);
+  let marketplaceFees;
+  let feeSource;
+  let auszahlung;
+  let auszahlungSource;
+  let rohgewinn;
+
+  if (realPayout != null) {
+    // FLOW-BASED (preferred): the real SevDesk payout is what actually arrived — already net of
+    // ALL marketplace fees (commission + ads/Promoted Listings + store fees …) AND refunds.
+    //   Gebühren = Umsatz − Retouren − Auszahlung  (period-specific, captures everything)
+    //   Rohgewinn = Auszahlung − COGS − Versand    (fees & returns are already inside the payout)
+    auszahlung = round2(realPayout);
+    auszahlungSource = realPayoutSource || 'sevdesk';
+    marketplaceFees = round2(umsatzBrutto - retouren - auszahlung);
+    feeSource = 'flow';
+    rohgewinn = round2(auszahlung - cogsValue - num(versandBrutto));
+  } else {
+    // FALLBACK (no real payout): researched fee rates + accrual margin.
+    const kGross = num(kauflandGross);
+    const eGross = ebayGross != null ? num(ebayGross) : Math.max(0, num(grossRevenue) - kGross);
+    marketplaceFees = round2(eGross * num(feeRateEbay) + kGross * num(feeRateKaufland));
+    feeSource = 'rates';
+    auszahlung = round2(umsatzBrutto - marketplaceFees);
+    auszahlungSource = 'rates';
+    rohgewinn = round2(umsatzBrutto - marketplaceFees - cogsValue - num(versandBrutto) - retouren);
+  }
+
   const margePct = umsatzBrutto > 0 ? round1((rohgewinn / umsatzBrutto) * 100) : null;
 
   return {
     umsatzBrutto,
-    marketplaceFees: fees,
-    feeSource: 'rates',
-    auszahlung, // shown figure: real SevDesk if available, else expected (rates)
-    auszahlungReal, // exact SevDesk bank credits, or null
+    marketplaceFees,
+    feeSource, // 'flow' (real) | 'rates' (fallback)
+    auszahlung,
+    auszahlungReal: realPayout != null ? round2(realPayout) : null,
     auszahlungSource, // 'sevdesk' | 'rates'
-    expectedPayout, // Umsatz − Gebühren (accrual)
-    payoutVariance, // real − expected (settlement timing / data gap), or null
     versandBrutto,
     retouren,
     cogs: cogsValue,

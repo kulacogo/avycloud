@@ -196,19 +196,29 @@ async function queryReturnsWindow(fromIso, toIso) {
   // single-tenant 'default'; ein tenantId-Filter würde feldlose Docs fälschlich droppen).
   const from = parseDate(fromIso);
   const toExcl = parseDate(toIso);
-  const snap = await firestore.collection('returns').select('refundAmount', 'currency', 'createdAt').get();
+  const snap = await firestore.collection('returns').select('refundAmount', 'currency', 'createdAt', 'marketplace').get();
   let value = 0;
   let count = 0;
+  const byMarketplace = { ebay: 0, kaufland: 0, other: 0 };
   for (const doc of snap.docs) {
     const d = doc.data();
     const created = parseDate(d.createdAt);
     if (!created) continue;
     if (from && created < from) continue;
     if (toExcl && created >= toExcl) continue;
-    value += num(d.refundAmount);
+    const amount = num(d.refundAmount);
+    value += amount;
     count += 1;
+    const mk = `${d.marketplace || ''}`.toLowerCase();
+    if (mk.includes('ebay')) byMarketplace.ebay += amount;
+    else if (mk.includes('kaufland')) byMarketplace.kaufland += amount;
+    else byMarketplace.other += amount;
   }
-  return { value: round2(value), count };
+  return {
+    value: round2(value),
+    count,
+    byMarketplace: { ebay: round2(byMarketplace.ebay), kaufland: round2(byMarketplace.kaufland), other: round2(byMarketplace.other) },
+  };
 }
 
 /**
@@ -345,23 +355,34 @@ async function getFinancialReport({ preset = null, fromDate = null, toDate = nul
     ? round1((agg.matchedRevenue / agg.totalItemRevenue) * 100)
     : null;
 
-  // ── Markt­platz-Aufschlüsselung: Gebühren aus Sätzen (accrual), echte Auszahlung (SevDesk)
-  // als Cross-Check + effektive Quote (Umsatz − echte Auszahlung) / Umsatz. ──
+  // ── Markt­platz-Aufschlüsselung: flow-basierte Gebühren (Umsatz − Retouren − echte Auszahlung),
+  // sonst Satz-Fallback. ──
   const feeRateOf = { ebay: feeRateEbay, kaufland: feeRateKaufland, other: feeRateEbay };
+  const retByMk = returns.byMarketplace || { ebay: 0, kaufland: 0, other: 0 };
   const mkOut = {};
   for (const key of ['ebay', 'kaufland', 'other']) {
     const m = agg.byMarketplace[key];
-    const fees = round2(m.umsatz * feeRateOf[key]);
     const realPay = sevdeskPayout && key !== 'other' ? round2(num(sevdeskPayout[key])) : null;
+    const ret = num(retByMk[key]);
+    let fees;
+    let feeSource;
+    if (realPay != null) {
+      fees = round2(m.umsatz - ret - realPay); // flow-based, all fees
+      feeSource = 'flow';
+    } else {
+      fees = round2(m.umsatz * feeRateOf[key]); // rate fallback
+      feeSource = 'rates';
+    }
     mkOut[key] = {
       orders: m.orders,
       units: m.units,
       umsatz: m.umsatz,
-      fees, // rate-based
-      feePct: round1(feeRateOf[key] * 100),
-      payout: realPay, // real SevDesk credits (null for 'other' / when unavailable)
+      fees,
+      feeSource,
+      feePct: m.umsatz > 0 ? round1((fees / m.umsatz) * 100) : null,
+      payout: realPay,
       payoutSource: realPay != null ? 'sevdesk' : null,
-      effectiveFeePct: realPay != null && m.umsatz > 0 ? round1(((m.umsatz - realPay) / m.umsatz) * 100) : null,
+      retouren: ret,
       cogs: m.cogs,
     };
   }

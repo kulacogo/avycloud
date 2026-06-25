@@ -675,13 +675,11 @@ export interface FinancialReportRange {
 
 export interface FinancialReportPnl {
   umsatzBrutto: number;
-  marketplaceFees: number; // rate-based (researched marketplace fee rates)
-  feeSource: "rates";
+  marketplaceFees: number; // flow-based (Umsatz − Retouren − Auszahlung) or rate fallback
+  feeSource: "flow" | "rates";
   auszahlung: number; // real SevDesk if available, else expected (rates)
   auszahlungReal: number | null; // exact SevDesk bank credits
   auszahlungSource: "sevdesk" | "rates";
-  expectedPayout: number; // Umsatz − Gebühren (accrual)
-  payoutVariance: number | null; // real − expected (settlement timing / data gap)
   versandBrutto: number | null;
   retouren: number;
   cogs: number;
@@ -699,11 +697,12 @@ export interface FinancialReportMarketplaceRow {
   orders: number;
   units: number;
   umsatz: number;
-  fees: number; // rate-based
-  feePct: number | null; // the applied fee rate %
+  fees: number; // flow-based (Umsatz − Retouren − Auszahlung) or rate fallback
+  feeSource: "flow" | "rates";
+  feePct: number | null; // effective fee rate %
   payout: number | null; // real SevDesk credits (null for 'other'/unavailable)
   payoutSource: "sevdesk" | null;
-  effectiveFeePct: number | null; // (Umsatz − real payout) / Umsatz — cross-check
+  retouren: number;
   cogs: number;
 }
 
