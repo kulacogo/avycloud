@@ -249,7 +249,29 @@ async function pushTrackingToEbay({ order, trackingNumber, carrier }) {
     const fullXml = buildRequestRoot('CompleteSale', innerXml, cfg.userToken, cfg.compatibilityLevel);
 
     const result = await callTradingApi('CompleteSale', fullXml);
+    const ack = String(result?.ack || '').toLowerCase();
     console.log(`[marketplace-tracking] eBay CompleteSale for order ${ebayOrderId}: Ack=${result.ack}`);
+
+    // eBay can answer HTTP 200 with a body-level Ack='Failure' WITHOUT callTradingApi
+    // throwing. Treating that as success silently loses the tracking number forever
+    // (never retried). Surface it as ok:false so the cap/retry/abandon logic runs.
+    // Ack='Warning' means eBay accepted it (success) but flagged something — log it.
+    if (ack === 'failure') {
+      const errs = Array.isArray(result?.errors) ? result.errors : [];
+      const message =
+        errs[0]?.longMessage ||
+        errs[0]?.shortMessage ||
+        `CompleteSale failed with Ack=${result.ack || 'Failure'}`;
+      console.error(`[marketplace-tracking] eBay CompleteSale Ack=Failure for order ${ebayOrderId}: ${message}`);
+      collectError({ type: 'api_error', severity: 'warning', channel: 'ebay', message: `Tracking-Push eBay abgelehnt (Ack=Failure): ${message}`, entityType: 'order', entityId: ebayOrderId, source: 'marketplace-tracking' });
+      return { ok: false, marketplace: 'ebay', error: message };
+    }
+
+    if (ack === 'warning') {
+      const errs = Array.isArray(result?.errors) ? result.errors : [];
+      const warnMsg = errs[0]?.longMessage || errs[0]?.shortMessage || 'unspecified warning';
+      console.warn(`[marketplace-tracking] eBay CompleteSale Ack=Warning for order ${ebayOrderId} (accepted): ${warnMsg}`);
+    }
 
     return { ok: true, marketplace: 'ebay' };
   } catch (err) {
