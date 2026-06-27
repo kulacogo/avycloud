@@ -1,0 +1,705 @@
+- generic [active] [ref=e1]:
+  - banner [ref=e3]:
+    - generic [ref=e7]:
+      - link "Orchestrate revenue agents with the new Workflows" [ref=e8] [cursor=pointer]:
+        - /url: /platform/workflows
+        - generic [ref=e9]: Orchestrate revenue agents with the new Workflows
+        - img [ref=e10]
+      - button "Dismiss banner" [ref=e12] [cursor=pointer]:
+        - img [ref=e13]
+    - navigation [ref=e16]:
+      - generic [ref=e17]:
+        - generic [ref=e18]:
+          - link "Attio homepage" [ref=e19] [cursor=pointer]:
+            - /url: /
+            - img [ref=e20]
+          - navigation [ref=e28]:
+            - list [ref=e29]:
+              - listitem [ref=e30]:
+                - button "Platform" [ref=e31] [cursor=pointer]:
+                  - generic [ref=e32]: Platform
+                  - img [ref=e33]
+              - listitem [ref=e35]:
+                - button "Resources" [ref=e36] [cursor=pointer]:
+                  - generic [ref=e37]: Resources
+                  - img [ref=e38]
+              - listitem [ref=e40]:
+                - link "Customers" [ref=e41] [cursor=pointer]:
+                  - /url: /customers
+              - listitem [ref=e42]:
+                - link "Pricing" [ref=e43] [cursor=pointer]:
+                  - /url: /pricing
+        - generic [ref=e44]:
+          - link "Sign in" [ref=e45] [cursor=pointer]:
+            - /url: https://app.attio.com/
+          - link "Start for free" [ref=e46] [cursor=pointer]:
+            - /url: https://app.attio.com/welcome/sign-in
+  - generic [ref=e48]:
+    - navigation [ref=e49]:
+      - generic [ref=e50]:
+        - button "Search..." [ref=e52] [cursor=pointer]:
+          - img [ref=e53]
+          - paragraph [ref=e55]: Search...
+          - paragraph [ref=e56]: ⌘K
+        - generic [ref=e57]:
+          - generic [ref=e59]:
+            - link "Academy" [ref=e60] [cursor=pointer]:
+              - /url: /help/academy
+              - generic [ref=e61]: Academy
+            - heading "Introductions Workflows Sequences Reports Attio for product-led growth" [level=2] [ref=e62]:
+              - heading "Introductions" [level=3] [ref=e64]:
+                - button [ref=e65] [cursor=pointer]:
+                  - img [ref=e66]
+                - link "Introductions" [ref=e68] [cursor=pointer]:
+                  - /url: /help/academy/introduction
+              - heading "Workflows" [level=3] [ref=e70]:
+                - button [ref=e71] [cursor=pointer]:
+                  - img [ref=e72]
+                - link "Workflows" [ref=e74] [cursor=pointer]:
+                  - /url: /help/academy/workflows-course
+              - heading "Sequences" [level=3] [ref=e76]:
+                - button [ref=e77] [cursor=pointer]:
+                  - img [ref=e78]
+                - link "Sequences" [ref=e80] [cursor=pointer]:
+                  - /url: /help/academy/sequences
+              - heading "Reports" [level=3] [ref=e82]:
+                - button [ref=e83] [cursor=pointer]:
+                  - img [ref=e84]
+                - link "Reports" [ref=e86] [cursor=pointer]:
+                  - /url: /help/academy/reports-course
+              - heading "Attio for product-led growth" [level=3] [ref=e88]:
+                - button [ref=e89] [cursor=pointer]:
+                  - img [ref=e90]
+                - link "Attio for product-led growth" [ref=e92] [cursor=pointer]:
+                  - /url: /help/academy/attio-for-product-led-growth
+          - generic [ref=e93]:
+            - generic [ref=e94]:
+              - link "Reference" [ref=e95] [cursor=pointer]:
+                - /url: /help/reference
+                - generic [ref=e96]: Reference
+              - heading "Attio 101 Attio AI Ask Attio Chat with Ask Attio Manage Ask Attio settings Create and use Ask Attio prompts AI attributes Attio MCP Attio AI Policy Managing your data Email & calendar Imports & exports Productivity & collaborating Automations Tools and extensions Account settings Workspace settings & billing Industry guides Support" [level=2] [ref=e97]:
+                - heading "Attio 101" [level=3] [ref=e99]:
+                  - button [ref=e100] [cursor=pointer]:
+                    - img [ref=e101]
+                  - link "Attio 101" [ref=e103] [cursor=pointer]:
+                    - /url: /help/reference/attio-101
+                - generic [ref=e104]:
+                  - heading "Attio AI" [level=3] [ref=e105]:
+                    - button [expanded] [ref=e106] [cursor=pointer]:
+                      - img [ref=e107]
+                    - link "Attio AI" [ref=e109] [cursor=pointer]:
+                      - /url: /help/reference/attio-ai
+                  - region [ref=e110]:
+                    - generic [ref=e114]:
+                      - generic [ref=e115]:
+                        - link "Ask Attio" [ref=e116] [cursor=pointer]:
+                          - /url: /help/reference/attio-ai/ask-attio
+                        - generic [ref=e117]:
+                          - link "Chat with Ask Attio" [ref=e119] [cursor=pointer]:
+                            - /url: /help/reference/attio-ai/ask-attio/chat-with-ask-attio
+                          - link "Manage Ask Attio settings" [ref=e121] [cursor=pointer]:
+                            - /url: /help/reference/attio-ai/ask-attio/manage-ask-attio-settings
+                          - link "Create and use Ask Attio prompts" [ref=e123] [cursor=pointer]:
+                            - /url: /help/reference/attio-ai/ask-attio/create-and-use-ask-attio-prompts
+                      - link "AI attributes" [ref=e125] [cursor=pointer]:
+                        - /url: /help/reference/attio-ai/ai-attributes
+                      - link "Attio MCP" [ref=e127] [cursor=pointer]:
+                        - /url: /help/reference/attio-ai/attio-mcp
+                      - link "Attio AI Policy" [ref=e129] [cursor=pointer]:
+                        - /url: /help/reference/attio-ai/attio-ai-policy
+                - heading "Managing your data" [level=3] [ref=e131]:
+                  - button [ref=e132] [cursor=pointer]:
+                    - img [ref=e133]
+                  - link "Managing your data" [ref=e135] [cursor=pointer]:
+                    - /url: /help/reference/managing-your-data
+                - heading "Email & calendar" [level=3] [ref=e137]:
+                  - button [ref=e138] [cursor=pointer]:
+                    - img [ref=e139]
+                  - link "Email & calendar" [ref=e141] [cursor=pointer]:
+                    - /url: /help/reference/email-calendar
+                - heading "Imports & exports" [level=3] [ref=e143]:
+                  - button [ref=e144] [cursor=pointer]:
+                    - img [ref=e145]
+                  - link "Imports & exports" [ref=e147] [cursor=pointer]:
+                    - /url: /help/reference/imports-exports
+                - heading "Productivity & collaborating" [level=3] [ref=e149]:
+                  - button [ref=e150] [cursor=pointer]:
+                    - img [ref=e151]
+                  - link "Productivity & collaborating" [ref=e153] [cursor=pointer]:
+                    - /url: /help/reference/productivity-collaborating
+                - heading "Automations" [level=3] [ref=e155]:
+                  - button [ref=e156] [cursor=pointer]:
+                    - img [ref=e157]
+                  - link "Automations" [ref=e159] [cursor=pointer]:
+                    - /url: /help/reference/automations
+                - heading "Tools and extensions" [level=3] [ref=e161]:
+                  - button [ref=e162] [cursor=pointer]:
+                    - img [ref=e163]
+                  - link "Tools and extensions" [ref=e165] [cursor=pointer]:
+                    - /url: /help/reference/tools-and-extensions
+                - heading "Account settings" [level=3] [ref=e167]:
+                  - button [ref=e168] [cursor=pointer]:
+                    - img [ref=e169]
+                  - link "Account settings" [ref=e171] [cursor=pointer]:
+                    - /url: /help/reference/account-settings
+                - heading "Workspace settings & billing" [level=3] [ref=e173]:
+                  - button [ref=e174] [cursor=pointer]:
+                    - img [ref=e175]
+                  - link "Workspace settings & billing" [ref=e177] [cursor=pointer]:
+                    - /url: /help/reference/workspace-settings-billing
+                - heading "Industry guides" [level=3] [ref=e179]:
+                  - button [ref=e180] [cursor=pointer]:
+                    - img [ref=e181]
+                  - link "Industry guides" [ref=e183] [cursor=pointer]:
+                    - /url: /help/reference/industry-guides
+                - heading "Support" [level=3] [ref=e185]:
+                  - button [ref=e186] [cursor=pointer]:
+                    - img [ref=e187]
+                  - link "Support" [ref=e189] [cursor=pointer]:
+                    - /url: /help/reference/support
+            - generic [ref=e190]:
+              - link "Apps" [ref=e191] [cursor=pointer]:
+                - /url: /help/apps
+                - generic [ref=e192]: Apps
+              - heading "Automations apps Zapier app Other apps" [level=2] [ref=e193]:
+                - heading "Automations apps" [level=3] [ref=e195]:
+                  - button [ref=e196] [cursor=pointer]:
+                    - img [ref=e197]
+                  - link "Automations apps" [ref=e199] [cursor=pointer]:
+                    - /url: /help/apps/automations-apps
+                - heading "Zapier app" [level=3] [ref=e201]:
+                  - button [ref=e202] [cursor=pointer]:
+                    - img [ref=e203]
+                  - link "Zapier app" [ref=e205] [cursor=pointer]:
+                    - /url: /help/apps/zapier-integration
+                - heading "Other apps" [level=3] [ref=e207]:
+                  - button [ref=e208] [cursor=pointer]:
+                    - img [ref=e209]
+                  - link "Other apps" [ref=e211] [cursor=pointer]:
+                    - /url: /help/apps/other-apps
+    - main [ref=e213]:
+      - list [ref=e218]:
+        - listitem [ref=e219]:
+          - generic [ref=e220]:
+            - link "Help" [ref=e221] [cursor=pointer]:
+              - /url: /help
+            - generic [ref=e222]: /
+        - listitem [ref=e223]:
+          - generic [ref=e224]:
+            - link "Reference" [ref=e225] [cursor=pointer]:
+              - /url: /help/reference
+            - generic [ref=e226]: /
+        - listitem [ref=e227]:
+          - generic [ref=e228]:
+            - link "Attio AI" [ref=e229] [cursor=pointer]:
+              - /url: /help/reference/attio-ai
+            - generic [ref=e230]: /
+        - listitem [ref=e231]:
+          - paragraph [ref=e232]: AI attributes
+      - article [ref=e233]:
+        - generic [ref=e234]:
+          - heading "AI attributes" [level=1] [ref=e235]
+          - paragraph [ref=e239]: Leverage AI to generate attribute data for your records and lists.
+        - generic [ref=e241]:
+          - generic [ref=e243]:
+            - img [ref=e245]
+            - paragraph [ref=e247]: Available on all plans.
+            - generic [ref=e248]:
+              - img [ref=e250]
+              - paragraph [ref=e254]: Available for all workspace members.
+            - generic [ref=e255]:
+              - img [ref=e257]
+              - paragraph [ref=e261]:
+                - text: Workspace credit limits depend on
+                - link "your Attio plan" [ref=e262] [cursor=pointer]:
+                  - /url: /pricing
+                - text: .
+          - paragraph [ref=e263]:
+            - text: Leverage AI to automatically generate useful attribute data for your records or lists. When creating an attribute, simply enable the
+            - generic [ref=e264]: AI autofill
+            - text: toggle to activate AI-powered generation for that attribute.
+          - generic [ref=e266]:
+            - img [ref=e267]
+            - paragraph [ref=e271]:
+              - text: For more inspiration on how to use AI attributes, see our
+              - link "Introducing AI Attributes" [ref=e272] [cursor=pointer]:
+                - /url: https://attio.com/blog/introducing-ai-attributes
+              - text: blog post.
+          - heading "Creating and using AI attributes Copy link" [level=2] [ref=e273]:
+            - generic [ref=e274]:
+              - generic [ref=e275]: Creating and using AI attributes
+              - button "Copy link" [ref=e276] [cursor=pointer]:
+                - img [ref=e278]
+                - generic [ref=e281]: Copy link
+          - paragraph [ref=e282]:
+            - text: AI autofill is available when creating certain types of custom attributes. When adding a new text, number, currency, select, or multi-select attribute, you can enable AI autofill and choose the autofill type you’d like to use. For step-by-step guidance on creating attributes, see
+            - link "Create and manage attributes" [ref=e283] [cursor=pointer]:
+              - /url: /help/reference/managing-your-data/attributes/create-manage-attributes
+            - text: .
+          - paragraph [ref=e284]:
+            - text: AI attribute values must be generated manually, either for individual records or in bulk. They do not run automatically. If you want AI-generated values to update automatically based on triggers or changes in your workspace, use
+            - link "AI workflow blocks" [ref=e285] [cursor=pointer]:
+              - /url: /help/reference/automations/workflows/workflows-block-library#ai-actions
+            - text: instead.
+          - heading "Best practices for AI attributes Copy link" [level=2] [ref=e286]:
+            - generic [ref=e287]:
+              - text: Best practices for AI attributes
+              - button "Copy link" [ref=e288] [cursor=pointer]:
+                - img [ref=e290]
+                - generic [ref=e293]: Copy link
+          - paragraph [ref=e294]: Follow these tips to improve the effectiveness and reliability of results using AI autofill.
+          - heading "Writing effective prompts Copy link" [level=3] [ref=e295]:
+            - generic [ref=e296]:
+              - text: Writing effective prompts
+              - button "Copy link" [ref=e297] [cursor=pointer]:
+                - img [ref=e299]
+                - generic [ref=e302]: Copy link
+          - list [ref=e303]:
+            - listitem [ref=e304]:
+              - paragraph [ref=e305]: While the AI may have access to your attributes, keep in mind that it may not understand what they represent. If a prompt requires an understanding of your data model or use case, be sure to include an explanation in your prompt.
+            - listitem [ref=e306]:
+              - paragraph [ref=e307]: Even when the Guidance field is optional, it's best to provide clear and detailed instructions. If the AI doesn't understand a prompt, it will not return a value.
+            - listitem [ref=e308]:
+              - paragraph [ref=e309]:
+                - text: "Tell the AI how you want the response formatted, and include an example if possible. For instance:"
+                - text: "\"List the city, state, and country in this order, separated by a comma and space. Example: 'San Francisco, California, United States'\"."
+          - heading "Filtering bulk recalculations Copy link" [level=3] [ref=e310]:
+            - generic [ref=e311]:
+              - text: Filtering bulk recalculations
+              - button "Copy link" [ref=e312] [cursor=pointer]:
+                - img [ref=e314]
+                - generic [ref=e317]: Copy link
+          - list [ref=e318]:
+            - listitem [ref=e319]:
+              - paragraph [ref=e320]: To recalculate in bulk but skip certain records, filter and save the view first. Telling the AI to skip specific records in the prompt (e.g. "Only run for accounts with a known subscription status") will not work.
+          - heading "Understanding recalculations that return no results Copy link" [level=3] [ref=e321]:
+            - generic [ref=e322]:
+              - text: Understanding recalculations that return no results
+              - button "Copy link" [ref=e323] [cursor=pointer]:
+                - img [ref=e325]
+                - generic [ref=e328]: Copy link
+          - list [ref=e329]:
+            - listitem [ref=e330]:
+              - paragraph [ref=e331]: If AI can't return a value during recalculation, the cell will stay blank, and you won't be charged. This can happen if there's no information available or if the prompt is unclear.
+            - listitem [ref=e332]:
+              - paragraph [ref=e333]: Keep in mind, the agent may not be able to reliably reference websites that are private or require a login.
+          - generic [ref=e335]:
+            - img [ref=e336]
+            - paragraph [ref=e340]:
+              - link "Learn more about writing effective AI prompts in this guide" [ref=e341] [cursor=pointer]:
+                - /url: https://www.atlassian.com/blog/artificial-intelligence/ultimate-guide-writing-ai-prompts
+              - text: .
+          - heading "Attribute AI autofill options Copy link" [level=2] [ref=e342]:
+            - generic [ref=e343]:
+              - text: Attribute AI autofill options
+              - button "Copy link" [ref=e344] [cursor=pointer]:
+                - img [ref=e346]
+                - generic [ref=e349]: Copy link
+          - paragraph [ref=e350]:
+            - text: Choose from the following
+            - generic [ref=e351]: AI Autofill
+            - text: options. Note that the options available depend on the
+            - link "attribute type" [ref=e352] [cursor=pointer]:
+              - /url: /help/reference/managing-your-data/attributes/create-manage-attributes#choose-an-attribute-type
+            - text: .
+          - generic [ref=e354]:
+            - generic [ref=e355]:
+              - img "AI attributes" [ref=e357]
+              - paragraph [ref=e360]: For a video walkthrough, see AI attributes in Attio Academy.
+            - button "Watch" [ref=e361] [cursor=pointer]:
+              - link "Watch" [ref=e362]:
+                - /url: /help/academy/introduction/ai-attributes
+                - img [ref=e363]
+                - text: Watch
+          - heading "Summarize record Copy link" [level=3] [ref=e365]:
+            - generic [ref=e366]:
+              - text: Summarize record
+              - button "Copy link" [ref=e367] [cursor=pointer]:
+                - img [ref=e369]
+                - generic [ref=e372]: Copy link
+          - paragraph [ref=e373]: Available for text type attributes, Summarize record creates a written summary of the record based on its existing attributes’ values.
+          - paragraph [ref=e374]: Optionally, you can add Guidance to specify the key record details you’d like included in the summary. For example, for an attribute on Companies, you could ask it to tell you the companies’ estimated size in employee count and revenue. Keep in mind, it can access all attribute values on the record, but not things like notes or emails.
+          - heading "Web research agent Copy link" [level=3] [ref=e375]:
+            - generic [ref=e376]:
+              - text: Web research agent
+              - button "Copy link" [ref=e377] [cursor=pointer]:
+                - img [ref=e379]
+                - generic [ref=e382]: Copy link
+          - paragraph [ref=e383]: Available for text, number, and currency attributes, Web research agent generates answers or summaries by researching external web sources in real time.
+          - paragraph [ref=e384]: This autofill type is designed primarily for researching information that lives outside your workspace. It’s best used when the relevant details are not already stored in Attio, such as recent news, company background, industry information, or other publicly available details. It can also access all attribute data on the record.
+          - heading "Name, description, and prompt for the agent Copy link" [level=4] [ref=e385]:
+            - generic [ref=e386]:
+              - text: Name, description, and prompt for the agent
+              - button "Copy link" [ref=e387] [cursor=pointer]:
+                - img [ref=e389]
+                - generic [ref=e392]: Copy link
+          - paragraph [ref=e393]: "When configuring a Web research agent attribute, you’ll provide:"
+          - list [ref=e394]:
+            - listitem [ref=e395]:
+              - paragraph [ref=e396]: A Name, which defines what the attribute represents
+            - listitem [ref=e397]:
+              - paragraph [ref=e398]: An optional Description, to help your internal team understand what the attribute is used for
+            - listitem [ref=e399]:
+              - paragraph [ref=e400]: A Prompt, which tells the agent what to research online
+          - paragraph [ref=e401]: Your prompt should be specific about the information you want returned. You can also use variables to reference attributes from the record, such as a company's name or domain, to help guide the research.
+          - figure [ref=e402]:
+            - button "Create attribute window with options to set up AI autofill" [ref=e403]:
+              - img "Create attribute window with options to set up AI autofill" [ref=e404]
+          - heading "Web research agent example use cases Copy link" [level=4] [ref=e405]:
+            - generic [ref=e406]:
+              - text: Web research agent example use cases
+              - button "Copy link" [ref=e407] [cursor=pointer]:
+                - img [ref=e409]
+                - generic [ref=e412]: Copy link
+          - paragraph [ref=e413]: Web research agent is useful for adding publicly available information to your records. Here are some example use cases.
+          - table [ref=e415]:
+            - rowgroup [ref=e416]:
+              - row "Attribute name Prompt" [ref=e417]:
+                - cell "Attribute name" [ref=e418]:
+                  - paragraph [ref=e419]: Attribute name
+                - cell "Prompt" [ref=e420]:
+                  - paragraph [ref=e421]: Prompt
+              - row "Market category Identify the primary market category this company operates in and describe it in one sentence." [ref=e422]:
+                - cell "Market category" [ref=e423]:
+                  - paragraph [ref=e424]: Market category
+                - cell "Identify the primary market category this company operates in and describe it in one sentence." [ref=e425]:
+                  - paragraph [ref=e426]: Identify the primary market category this company operates in and describe it in one sentence.
+              - row "Recent funding Find the most recent funding round for this company, including amount, date, and lead investors." [ref=e427]:
+                - cell "Recent funding" [ref=e428]:
+                  - paragraph [ref=e429]: Recent funding
+                - cell "Find the most recent funding round for this company, including amount, date, and lead investors." [ref=e430]:
+                  - paragraph [ref=e431]: Find the most recent funding round for this company, including amount, date, and lead investors.
+              - row "Recent news summary Summarize notable news or announcements about this company from the past six months." [ref=e432]:
+                - cell "Recent news summary" [ref=e433]:
+                  - paragraph [ref=e434]: Recent news summary
+                - cell "Summarize notable news or announcements about this company from the past six months." [ref=e435]:
+                  - paragraph [ref=e436]: Summarize notable news or announcements about this company from the past six months.
+          - paragraph [ref=e437]: In each case, the agent searches the web and returns structured or summarized information based on your instructions.
+          - heading "Show confidence levels Copy link" [level=4] [ref=e438]:
+            - generic [ref=e439]:
+              - text: Show confidence levels
+              - button "Copy link" [ref=e440] [cursor=pointer]:
+                - img [ref=e442]
+                - generic [ref=e445]: Copy link
+          - paragraph [ref=e446]: You can choose to Show confidence levels alongside the agent’s output.
+          - paragraph [ref=e447]: "When enabled, a small colored dot appears next to each result to indicate how confident the agent is in its response:"
+          - list [ref=e448]:
+            - listitem [ref=e449]:
+              - paragraph [ref=e450]: Green means high confidence
+            - listitem [ref=e451]:
+              - paragraph [ref=e452]: Yellow means medium confidence
+            - listitem [ref=e453]:
+              - paragraph [ref=e454]: Red means low confidence
+          - paragraph [ref=e455]: Hover over the dot to see more detail, including the agent’s reasoning and the web sources it used.
+          - figure [ref=e456]:
+            - button [ref=e457]
+          - heading "Prompt completion Copy link" [level=3] [ref=e458]:
+            - generic [ref=e459]:
+              - text: Prompt completion
+              - button "Copy link" [ref=e460] [cursor=pointer]:
+                - img [ref=e462]
+                - generic [ref=e465]: Copy link
+          - paragraph [ref=e466]:
+            - text: Available for text, number, and currency type attributes,
+            - generic [ref=e467]: Prompt completion
+            - text: produces a text response based on a custom prompt you define. Use the
+            - generic [ref=e468]: Use variable
+            - text: option to incorporate specific attribute data into the prompt for it to utilize. It can only access attribute values on the record that you specify using variables, and can't access things like notes or emails.
+          - heading "Classify record Copy link" [level=3] [ref=e469]:
+            - generic [ref=e470]:
+              - text: Classify record
+              - button "Copy link" [ref=e471] [cursor=pointer]:
+                - img [ref=e473]
+                - generic [ref=e476]: Copy link
+          - paragraph [ref=e477]: The Classify record AI attribute helps you automatically tag records based on their attributes. It works with select and multi-select attributes. AI can look at all of a record’s attribute values, but it won’t reference notes or emails. It also cannot remove attribute values or set them to empty.
+          - paragraph [ref=e478]: "Use the toggle Allow AI to generate new options to control how results are handled:"
+          - list [ref=e479]:
+            - listitem [ref=e480]:
+              - paragraph [ref=e481]: "Disabled: AI can only choose from the options you’ve already created."
+            - listitem [ref=e482]:
+              - paragraph [ref=e483]: "Enabled: AI can create new options if none of the existing ones fit."
+          - paragraph [ref=e484]: "To handle edge cases, consider adding a fallback option (like \"Other\"). Provide Guidance to clarify how you want the classification to work. For example, if you have an “Other” tag and have also enabled Allow AI to generate new options, you could include this guidance: “Prefer new options to ‘Other’”. This encourages AI to create a more specific tag instead of defaulting to the generalized “Other” option."
+          - paragraph [ref=e485]: If you don’t provide a fallback or allow new options, and the AI result doesn’t match your existing choices, nothing will be generated and credits will still be used.
+          - heading "Recalculate values Copy link" [level=2] [ref=e486]:
+            - generic [ref=e487]:
+              - text: Recalculate values
+              - button "Copy link" [ref=e488] [cursor=pointer]:
+                - img [ref=e490]
+                - generic [ref=e493]: Copy link
+          - paragraph [ref=e494]: AI attributes do not run automatically, since each recalculation uses workspace credits. To generate or refresh values, you can recalculate an AI attribute for a single record or for all records in a view.
+          - list [ref=e495]:
+            - listitem [ref=e496]:
+              - paragraph [ref=e497]: "For a single record: Hover over the attribute cell and click the Run AI autofill icon."
+            - listitem [ref=e498]:
+              - paragraph [ref=e499]: "For multiple records in bulk: Click and drag to select the attribute cells you want to recalculate, then right-click the cells and select Recalculate with AI."
+            - listitem [ref=e500]:
+              - paragraph [ref=e501]: "For all records in a view: Click the attribute’s column header and select Run AI autofill. A confirmation will appear showing how many credits will be used. Click Confirm to proceed."
+          - heading "AI attributes billing Copy link" [level=2] [ref=e502]:
+            - generic [ref=e503]:
+              - text: AI attributes billing
+              - button "Copy link" [ref=e504] [cursor=pointer]:
+                - img [ref=e506]
+                - generic [ref=e509]: Copy link
+          - paragraph [ref=e510]: Each recalculation of AI attributes uses workspace credits, which are limited per plan. The Web research agent attribute type consumes 10 credits for each record, and all other types consume one credit for each record.
+          - paragraph [ref=e511]:
+            - link "Learn more about workspace and seat credits" [ref=e512] [cursor=pointer]:
+              - /url: /help/reference/integrations-automations/workflows/automations-billing
+            - text: .
+        - generic [ref=e513]:
+          - heading "Frequently asked questions" [level=2] [ref=e514]
+          - heading "Can I run AI attributes automatically?" [level=3] [ref=e517]:
+            - button "Can I run AI attributes automatically?" [ref=e518] [cursor=pointer]:
+              - generic [ref=e519]: Can I run AI attributes automatically?
+              - img [ref=e520]
+      - complementary [ref=e521]:
+        - navigation [ref=e522]:
+          - heading "Table of Contents" [level=2] [ref=e524]
+          - generic [ref=e525]:
+            - button "Creating and using AI attributes" [ref=e526] [cursor=pointer]:
+              - paragraph [ref=e527]: Creating and using AI attributes
+            - button "Best practices for AI attributes" [ref=e528] [cursor=pointer]:
+              - paragraph [ref=e529]: Best practices for AI attributes
+            - button "Writing effective prompts" [ref=e530] [cursor=pointer]:
+              - img [ref=e531]
+              - img [ref=e532]
+              - paragraph [ref=e533]: Writing effective prompts
+            - button "Filtering bulk recalculations" [ref=e534] [cursor=pointer]:
+              - img [ref=e535]
+              - img [ref=e536]
+              - paragraph [ref=e537]: Filtering bulk recalculations
+            - button "Understanding recalculations that return no results" [ref=e538] [cursor=pointer]:
+              - img [ref=e539]
+              - img [ref=e540]
+              - paragraph [ref=e541]: Understanding recalculations that return no results
+            - button "Attribute AI autofill options" [ref=e542] [cursor=pointer]:
+              - paragraph [ref=e543]: Attribute AI autofill options
+            - button "Summarize record" [ref=e544] [cursor=pointer]:
+              - img [ref=e545]
+              - img [ref=e546]
+              - paragraph [ref=e547]: Summarize record
+            - button "Web research agent" [ref=e548] [cursor=pointer]:
+              - img [ref=e549]
+              - img [ref=e550]
+              - paragraph [ref=e551]: Web research agent
+            - button "Prompt completion" [ref=e552] [cursor=pointer]:
+              - img [ref=e553]
+              - img [ref=e554]
+              - paragraph [ref=e555]: Prompt completion
+            - button "Classify record" [ref=e556] [cursor=pointer]:
+              - img [ref=e557]
+              - img [ref=e558]
+              - paragraph [ref=e559]: Classify record
+            - button "Recalculate values" [ref=e560] [cursor=pointer]:
+              - paragraph [ref=e561]: Recalculate values
+            - button "AI attributes billing" [ref=e562] [cursor=pointer]:
+              - paragraph [ref=e563]: AI attributes billing
+            - button "FAQ" [ref=e564] [cursor=pointer]:
+              - paragraph [ref=e565]: FAQ
+      - complementary [ref=e566]:
+        - img [ref=e567]
+        - generic [ref=e569]:
+          - generic [ref=e570]: Did this article answer your question?
+          - generic [ref=e571]:
+            - button "Yes" [ref=e572] [cursor=pointer]:
+              - img [ref=e573]
+              - generic [ref=e577]: "Yes"
+            - button "No" [ref=e578] [cursor=pointer]:
+              - img [ref=e579]
+              - generic [ref=e583]: "No"
+  - contentinfo [ref=e584]:
+    - img [ref=e585]
+    - generic [ref=e587]:
+      - link "Attio homepage" [ref=e589] [cursor=pointer]:
+        - /url: /
+        - img [ref=e590]
+      - generic [ref=e598]:
+        - generic [ref=e599]:
+          - heading "Platform" [level=2] [ref=e601]
+          - list [ref=e602]:
+            - listitem [ref=e603]:
+              - link "Refer a team New" [ref=e604] [cursor=pointer]:
+                - /url: /refer
+                - generic [ref=e605]: Refer a team
+                - generic [ref=e606]: New
+            - listitem [ref=e607]:
+              - link "Changelog" [ref=e608] [cursor=pointer]:
+                - /url: /changelog
+                - generic [ref=e609]: Changelog
+            - listitem [ref=e610]:
+              - link "Gmail extension" [ref=e611] [cursor=pointer]:
+                - /url: https://chrome.google.com/webstore/detail/attio/legacbojjmajoedfolbjlekjjkepadph/
+                - generic [ref=e612]: Gmail extension
+                - img [ref=e613]
+            - listitem [ref=e615]:
+              - link "iOS app" [ref=e616] [cursor=pointer]:
+                - /url: https://apps.apple.com/gb/app/attio/id1511545395
+                - generic [ref=e617]: iOS app
+                - img [ref=e618]
+            - listitem [ref=e620]:
+              - link "Android app" [ref=e621] [cursor=pointer]:
+                - /url: https://play.google.com/store/apps/details?id=com.attio&gl=GB
+                - generic [ref=e622]: Android app
+                - img [ref=e623]
+        - generic [ref=e625]:
+          - heading "Company" [level=2] [ref=e627]
+          - list [ref=e628]:
+            - listitem [ref=e629]:
+              - link "Customers" [ref=e630] [cursor=pointer]:
+                - /url: /customers
+                - generic [ref=e631]: Customers
+            - listitem [ref=e632]:
+              - link "Announcements" [ref=e633] [cursor=pointer]:
+                - /url: /blog
+                - generic [ref=e634]: Announcements
+            - listitem [ref=e635]:
+              - link "Engineering blog New" [ref=e636] [cursor=pointer]:
+                - /url: /engineering/blog
+                - generic [ref=e637]: Engineering blog
+                - generic [ref=e638]: New
+            - listitem [ref=e639]:
+              - link "Careers" [ref=e640] [cursor=pointer]:
+                - /url: /careers
+                - generic [ref=e641]: Careers
+            - listitem [ref=e642]:
+              - link "Manifesto" [ref=e643] [cursor=pointer]:
+                - /url: /redefine
+                - generic [ref=e644]: Manifesto
+            - listitem [ref=e645]:
+              - link "Become a partner" [ref=e646] [cursor=pointer]:
+                - /url: /partners
+                - generic [ref=e647]: Become a partner
+        - generic [ref=e648]:
+          - heading "Import from" [level=2] [ref=e650]
+          - list [ref=e651]:
+            - listitem [ref=e652]:
+              - link "Salesforce" [ref=e653] [cursor=pointer]:
+                - /url: /help/reference/imports-and-exports/migrate-data-from-another-crm?source=footer_salesforce
+                - generic [ref=e654]: Salesforce
+            - listitem [ref=e655]:
+              - link "Hubspot" [ref=e656] [cursor=pointer]:
+                - /url: /help/reference/imports-and-exports/migrate-data-from-another-crm?source=footer_hubspot
+                - generic [ref=e657]: Hubspot
+            - listitem [ref=e658]:
+              - link "Pipedrive" [ref=e659] [cursor=pointer]:
+                - /url: /help/reference/imports-and-exports/migrate-data-from-another-crm?source=footer_pipedrive
+                - generic [ref=e660]: Pipedrive
+            - listitem [ref=e661]:
+              - link "Zoho" [ref=e662] [cursor=pointer]:
+                - /url: /help/reference/imports-and-exports/migrate-data-from-another-crm?source=footer_zoho
+                - generic [ref=e663]: Zoho
+            - listitem [ref=e664]:
+              - link "Excel" [ref=e665] [cursor=pointer]:
+                - /url: /help/reference/imports-and-exports/import-data-into-attio?source=footer_excel
+                - generic [ref=e666]: Excel
+            - listitem [ref=e667]:
+              - link "CSV" [ref=e668] [cursor=pointer]:
+                - /url: /help/reference/imports-and-exports/import-data-into-attio?source=footer_csv
+                - generic [ref=e669]: CSV
+        - generic [ref=e670]:
+          - heading "Attio for" [level=2] [ref=e672]
+          - list [ref=e673]:
+            - listitem [ref=e674]:
+              - link "Startups" [ref=e675] [cursor=pointer]:
+                - /url: /solutions/startup-crm
+                - generic [ref=e676]: Startups
+            - listitem [ref=e677]:
+              - link "Deal flow" [ref=e678] [cursor=pointer]:
+                - /url: /solutions/deal-flow-management-software
+                - generic [ref=e679]: Deal flow
+        - generic [ref=e680]:
+          - heading "Apps" [level=2] [ref=e682]
+          - list [ref=e683]:
+            - listitem [ref=e684]:
+              - link "Gmail" [ref=e685] [cursor=pointer]:
+                - /url: https://attio.com/apps/gmail
+                - generic [ref=e686]: Gmail
+            - listitem [ref=e687]:
+              - link "Outlook" [ref=e688] [cursor=pointer]:
+                - /url: https://attio.com/apps/outlook
+                - generic [ref=e689]: Outlook
+            - listitem [ref=e690]:
+              - link "Segment" [ref=e691] [cursor=pointer]:
+                - /url: https://attio.com/apps/segment
+                - generic [ref=e692]: Segment
+            - listitem [ref=e693]:
+              - link "Mailchimp" [ref=e694] [cursor=pointer]:
+                - /url: https://attio.com/apps/mailchimp
+                - generic [ref=e695]: Mailchimp
+            - listitem [ref=e696]:
+              - link "Slack" [ref=e697] [cursor=pointer]:
+                - /url: https://attio.com/apps/slack
+                - generic [ref=e698]: Slack
+            - listitem [ref=e699]:
+              - link "Outreach" [ref=e700] [cursor=pointer]:
+                - /url: https://attio.com/apps/outreach
+                - generic [ref=e701]: Outreach
+            - listitem [ref=e702]:
+              - link "Mixmax" [ref=e703] [cursor=pointer]:
+                - /url: https://attio.com/apps/mixmax
+                - generic [ref=e704]: Mixmax
+            - listitem [ref=e705]:
+              - link "Typeform" [ref=e706] [cursor=pointer]:
+                - /url: https://attio.com/apps/typeform
+                - generic [ref=e707]: Typeform
+            - listitem [ref=e708]:
+              - link "Zapier" [ref=e709] [cursor=pointer]:
+                - /url: https://attio.com/apps/zapier
+                - generic [ref=e710]: Zapier
+        - generic [ref=e711]:
+          - heading "Resources" [level=2] [ref=e713]
+          - list [ref=e714]:
+            - listitem [ref=e715]:
+              - link "Startup program" [ref=e716] [cursor=pointer]:
+                - /url: /startups
+                - generic [ref=e717]: Startup program
+            - listitem [ref=e718]:
+              - link "Help center" [ref=e719] [cursor=pointer]:
+                - /url: /help
+                - generic [ref=e720]: Help center
+            - listitem [ref=e721]:
+              - link "Developers" [ref=e722] [cursor=pointer]:
+                - /url: https://docs.attio.com/
+                - generic [ref=e723]: Developers
+                - img [ref=e724]
+            - listitem [ref=e726]:
+              - link "System status" [ref=e727] [cursor=pointer]:
+                - /url: https://status.attio.com/
+                - generic [ref=e728]: System status
+                - img [ref=e729]
+            - listitem [ref=e731]:
+              - link "Hire an expert" [ref=e732] [cursor=pointer]:
+                - /url: /experts
+                - generic [ref=e733]: Hire an expert
+            - listitem [ref=e734]:
+              - link "Downloads" [ref=e735] [cursor=pointer]:
+                - /url: /download
+                - generic [ref=e736]: Downloads
+            - listitem [ref=e737]:
+              - link "Trust Center" [ref=e738] [cursor=pointer]:
+                - /url: https://trust.attio.com/
+                - generic [ref=e739]: Trust Center
+                - img [ref=e740]
+    - generic [ref=e744]:
+      - generic [ref=e745]:
+        - link "Attio on LinkedIn" [ref=e746] [cursor=pointer]:
+          - /url: https://linkedin.com/company/attio
+          - img [ref=e747]
+        - link "Attio on X" [ref=e749] [cursor=pointer]:
+          - /url: https://twitter.com/attio
+          - img [ref=e750]
+        - link "Attio on Dribbble" [ref=e752] [cursor=pointer]:
+          - /url: https://dribbble.com/attio
+          - img [ref=e753]
+        - link "Attio on YouTube" [ref=e755] [cursor=pointer]:
+          - /url: https://www.youtube.com/@attioCRM
+          - img [ref=e756]
+      - generic [ref=e758]:
+        - paragraph [ref=e759]: © 2026 Attio Ltd. All rights reserved.
+        - generic [ref=e760]:
+          - link "Services Agreement" [ref=e761] [cursor=pointer]:
+            - /url: /legal/services-agreement
+          - link "Privacy Policy" [ref=e762] [cursor=pointer]:
+            - /url: /legal/privacy
+          - link "LLMs" [ref=e763] [cursor=pointer]:
+            - /url: https://attio.com/llms.txt
+  - region "Notifications alt+T"

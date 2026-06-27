@@ -1,0 +1,521 @@
+- generic [active] [ref=e1]:
+  - banner [ref=e3]:
+    - generic [ref=e7]:
+      - link "Orchestrate revenue agents with the new Workflows" [ref=e8] [cursor=pointer]:
+        - /url: /platform/workflows
+        - generic [ref=e9]: Orchestrate revenue agents with the new Workflows
+        - img [ref=e10]
+      - button "Dismiss banner" [ref=e12] [cursor=pointer]:
+        - img [ref=e13]
+    - navigation [ref=e16]:
+      - generic [ref=e17]:
+        - generic [ref=e18]:
+          - link "Attio homepage" [ref=e19] [cursor=pointer]:
+            - /url: /
+            - img [ref=e20]
+          - navigation [ref=e28]:
+            - list [ref=e29]:
+              - listitem [ref=e30]:
+                - button "Platform" [ref=e31] [cursor=pointer]:
+                  - generic [ref=e32]: Platform
+                  - img [ref=e33]
+              - listitem [ref=e35]:
+                - button "Resources" [ref=e36] [cursor=pointer]:
+                  - generic [ref=e37]: Resources
+                  - img [ref=e38]
+              - listitem [ref=e40]:
+                - link "Customers" [ref=e41] [cursor=pointer]:
+                  - /url: /customers
+              - listitem [ref=e42]:
+                - link "Pricing" [ref=e43] [cursor=pointer]:
+                  - /url: /pricing
+        - generic [ref=e44]:
+          - link "Sign in" [ref=e45] [cursor=pointer]:
+            - /url: https://app.attio.com/
+          - link "Start for free" [ref=e46] [cursor=pointer]:
+            - /url: https://app.attio.com/welcome/sign-in
+  - generic [ref=e48]:
+    - navigation [ref=e49]:
+      - generic [ref=e50]:
+        - button "Search..." [ref=e52] [cursor=pointer]:
+          - img [ref=e53]
+          - paragraph [ref=e55]: Search...
+          - paragraph [ref=e56]: ⌘K
+        - generic [ref=e57]:
+          - generic [ref=e59]:
+            - link "Academy" [ref=e60] [cursor=pointer]:
+              - /url: /help/academy
+              - generic [ref=e61]: Academy
+            - heading "Introductions Workflows Sequences Reports Attio for product-led growth" [level=2] [ref=e62]:
+              - heading "Introductions" [level=3] [ref=e64]:
+                - button [ref=e65] [cursor=pointer]:
+                  - img [ref=e66]
+                - link "Introductions" [ref=e68] [cursor=pointer]:
+                  - /url: /help/academy/introduction
+              - heading "Workflows" [level=3] [ref=e70]:
+                - button [ref=e71] [cursor=pointer]:
+                  - img [ref=e72]
+                - link "Workflows" [ref=e74] [cursor=pointer]:
+                  - /url: /help/academy/workflows-course
+              - heading "Sequences" [level=3] [ref=e76]:
+                - button [ref=e77] [cursor=pointer]:
+                  - img [ref=e78]
+                - link "Sequences" [ref=e80] [cursor=pointer]:
+                  - /url: /help/academy/sequences
+              - heading "Reports" [level=3] [ref=e82]:
+                - button [ref=e83] [cursor=pointer]:
+                  - img [ref=e84]
+                - link "Reports" [ref=e86] [cursor=pointer]:
+                  - /url: /help/academy/reports-course
+              - heading "Attio for product-led growth" [level=3] [ref=e88]:
+                - button [ref=e89] [cursor=pointer]:
+                  - img [ref=e90]
+                - link "Attio for product-led growth" [ref=e92] [cursor=pointer]:
+                  - /url: /help/academy/attio-for-product-led-growth
+          - generic [ref=e93]:
+            - generic [ref=e94]:
+              - link "Reference" [ref=e95] [cursor=pointer]:
+                - /url: /help/reference
+                - generic [ref=e96]: Reference
+              - heading "Attio 101 Attio AI Managing your data Email & calendar Imports & exports Productivity & collaborating Automations Workflows Overview of workflows Create a workflow Workflows block library Manage workflows Troubleshooting workflows Migrate your legacy workflows Legacy workflows Legacy workflows builder Legacy workflows block library Manage legacy workflows Troubleshooting legacy workflows Sequences Create a sequence Manage sequences Track status of sequence recipients Email deliverability guide Understanding email bounces Tools and extensions Account settings Workspace settings & billing Industry guides Support" [level=2] [ref=e97]:
+                - heading "Attio 101" [level=3] [ref=e99]:
+                  - button [ref=e100] [cursor=pointer]:
+                    - img [ref=e101]
+                  - link "Attio 101" [ref=e103] [cursor=pointer]:
+                    - /url: /help/reference/attio-101
+                - heading "Attio AI" [level=3] [ref=e105]:
+                  - button [ref=e106] [cursor=pointer]:
+                    - img [ref=e107]
+                  - link "Attio AI" [ref=e109] [cursor=pointer]:
+                    - /url: /help/reference/attio-ai
+                - heading "Managing your data" [level=3] [ref=e111]:
+                  - button [ref=e112] [cursor=pointer]:
+                    - img [ref=e113]
+                  - link "Managing your data" [ref=e115] [cursor=pointer]:
+                    - /url: /help/reference/managing-your-data
+                - heading "Email & calendar" [level=3] [ref=e117]:
+                  - button [ref=e118] [cursor=pointer]:
+                    - img [ref=e119]
+                  - link "Email & calendar" [ref=e121] [cursor=pointer]:
+                    - /url: /help/reference/email-calendar
+                - heading "Imports & exports" [level=3] [ref=e123]:
+                  - button [ref=e124] [cursor=pointer]:
+                    - img [ref=e125]
+                  - link "Imports & exports" [ref=e127] [cursor=pointer]:
+                    - /url: /help/reference/imports-exports
+                - heading "Productivity & collaborating" [level=3] [ref=e129]:
+                  - button [ref=e130] [cursor=pointer]:
+                    - img [ref=e131]
+                  - link "Productivity & collaborating" [ref=e133] [cursor=pointer]:
+                    - /url: /help/reference/productivity-collaborating
+                - generic [ref=e134]:
+                  - heading "Automations" [level=3] [ref=e135]:
+                    - button [expanded] [ref=e136] [cursor=pointer]:
+                      - img [ref=e137]
+                    - link "Automations" [ref=e139] [cursor=pointer]:
+                      - /url: /help/reference/automations
+                  - region [ref=e140]:
+                    - generic [ref=e144]:
+                      - generic [ref=e145]:
+                        - link "Workflows" [ref=e146] [cursor=pointer]:
+                          - /url: /help/reference/automations/workflows
+                        - generic [ref=e147]:
+                          - link "Overview of workflows" [ref=e149] [cursor=pointer]:
+                            - /url: /help/reference/automations/workflows/overview-of-workflows
+                          - link "Create a workflow" [ref=e151] [cursor=pointer]:
+                            - /url: /help/reference/automations/workflows/create-a-workflow
+                          - link "Workflows block library" [ref=e153] [cursor=pointer]:
+                            - /url: /help/reference/automations/workflows/workflows-block-library
+                          - link "Manage workflows" [ref=e155] [cursor=pointer]:
+                            - /url: /help/reference/automations/workflows/manage-workflows
+                          - link "Troubleshooting workflows" [ref=e157] [cursor=pointer]:
+                            - /url: /help/reference/automations/workflows/troubleshooting-workflows
+                          - link "Migrate your legacy workflows" [ref=e159] [cursor=pointer]:
+                            - /url: /help/reference/automations/workflows/migrate-your-legacy-workflows
+                      - generic [ref=e160]:
+                        - link "Legacy workflows" [ref=e161] [cursor=pointer]:
+                          - /url: /help/reference/automations/legacy-workflows
+                        - generic [ref=e162]:
+                          - link "Legacy workflows builder" [ref=e164] [cursor=pointer]:
+                            - /url: /help/reference/automations/legacy-workflows/legacy-workflows-builder
+                          - link "Legacy workflows block library" [ref=e166] [cursor=pointer]:
+                            - /url: /help/reference/automations/legacy-workflows/legacy-workflows-block-library
+                          - link "Manage legacy workflows" [ref=e168] [cursor=pointer]:
+                            - /url: /help/reference/automations/legacy-workflows/manage-legacy-workflows
+                          - link "Troubleshooting legacy workflows" [ref=e170] [cursor=pointer]:
+                            - /url: /help/reference/automations/legacy-workflows/troubleshooting-legacy-workflows
+                      - generic [ref=e171]:
+                        - link "Sequences" [ref=e172] [cursor=pointer]:
+                          - /url: /help/reference/automations/sequences
+                        - generic [ref=e173]:
+                          - link "Create a sequence" [ref=e175] [cursor=pointer]:
+                            - /url: /help/reference/automations/sequences/create-a-sequence
+                          - link "Manage sequences" [ref=e177] [cursor=pointer]:
+                            - /url: /help/reference/automations/sequences/manage-sequences
+                          - link "Track status of sequence recipients" [ref=e179] [cursor=pointer]:
+                            - /url: /help/reference/automations/sequences/track-status-of-sequence-recipients
+                          - link "Email deliverability guide" [ref=e181] [cursor=pointer]:
+                            - /url: /help/reference/automations/sequences/email-deliverability-guide
+                          - link "Understanding email bounces" [ref=e183] [cursor=pointer]:
+                            - /url: /help/reference/automations/sequences/understanding-email-bounces
+                - heading "Tools and extensions" [level=3] [ref=e186]:
+                  - button [ref=e187] [cursor=pointer]:
+                    - img [ref=e188]
+                  - link "Tools and extensions" [ref=e190] [cursor=pointer]:
+                    - /url: /help/reference/tools-and-extensions
+                - heading "Account settings" [level=3] [ref=e192]:
+                  - button [ref=e193] [cursor=pointer]:
+                    - img [ref=e194]
+                  - link "Account settings" [ref=e196] [cursor=pointer]:
+                    - /url: /help/reference/account-settings
+                - heading "Workspace settings & billing" [level=3] [ref=e198]:
+                  - button [ref=e199] [cursor=pointer]:
+                    - img [ref=e200]
+                  - link "Workspace settings & billing" [ref=e202] [cursor=pointer]:
+                    - /url: /help/reference/workspace-settings-billing
+                - heading "Industry guides" [level=3] [ref=e204]:
+                  - button [ref=e205] [cursor=pointer]:
+                    - img [ref=e206]
+                  - link "Industry guides" [ref=e208] [cursor=pointer]:
+                    - /url: /help/reference/industry-guides
+                - heading "Support" [level=3] [ref=e210]:
+                  - button [ref=e211] [cursor=pointer]:
+                    - img [ref=e212]
+                  - link "Support" [ref=e214] [cursor=pointer]:
+                    - /url: /help/reference/support
+            - generic [ref=e215]:
+              - link "Apps" [ref=e216] [cursor=pointer]:
+                - /url: /help/apps
+                - generic [ref=e217]: Apps
+              - heading "Automations apps Zapier app Other apps" [level=2] [ref=e218]:
+                - heading "Automations apps" [level=3] [ref=e220]:
+                  - button [ref=e221] [cursor=pointer]:
+                    - img [ref=e222]
+                  - link "Automations apps" [ref=e224] [cursor=pointer]:
+                    - /url: /help/apps/automations-apps
+                - heading "Zapier app" [level=3] [ref=e226]:
+                  - button [ref=e227] [cursor=pointer]:
+                    - img [ref=e228]
+                  - link "Zapier app" [ref=e230] [cursor=pointer]:
+                    - /url: /help/apps/zapier-integration
+                - heading "Other apps" [level=3] [ref=e232]:
+                  - button [ref=e233] [cursor=pointer]:
+                    - img [ref=e234]
+                  - link "Other apps" [ref=e236] [cursor=pointer]:
+                    - /url: /help/apps/other-apps
+    - main [ref=e238]:
+      - list [ref=e243]:
+        - listitem [ref=e244]:
+          - generic [ref=e245]:
+            - link "Help" [ref=e246] [cursor=pointer]:
+              - /url: /help
+            - generic [ref=e247]: /
+        - listitem [ref=e248]:
+          - generic [ref=e249]:
+            - link "Reference" [ref=e250] [cursor=pointer]:
+              - /url: /help/reference
+            - generic [ref=e251]: /
+        - listitem [ref=e252]:
+          - generic [ref=e253]:
+            - link "Automations" [ref=e254] [cursor=pointer]:
+              - /url: /help/reference/automations
+            - generic [ref=e255]: /
+        - listitem [ref=e256]:
+          - generic [ref=e257]:
+            - link "Workflows" [ref=e258] [cursor=pointer]:
+              - /url: /help/reference/automations/workflows
+            - generic [ref=e259]: /
+        - listitem [ref=e260]:
+          - paragraph [ref=e261]: Overview of workflows
+      - article [ref=e262]:
+        - generic [ref=e263]:
+          - heading "Overview of workflows" [level=1] [ref=e264]
+          - paragraph [ref=e268]: Understand what workflows are and how they're structured in Attio.
+        - generic [ref=e270]:
+          - generic [ref=e272]:
+            - img [ref=e274]
+            - paragraph [ref=e276]: Available on all plans.
+            - generic [ref=e277]:
+              - img [ref=e279]
+              - paragraph [ref=e283]: Available for all workspace members.
+            - generic [ref=e284]:
+              - img [ref=e286]
+              - paragraph [ref=e290]:
+                - text: Workspace credit limits depend on
+                - link "your Attio plan" [ref=e291] [cursor=pointer]:
+                  - /url: /pricing
+                - text: .
+          - paragraph [ref=e292]: "A workflow is a set of automated rules that runs inside Attio: when something happens, take these actions. Instead of manually updating records, sending notifications, or moving data between tools, you define the logic once and Attio handles it every time the conditions are met."
+          - paragraph [ref=e293]: You can build workflows manually using the canvas, or describe your goal in plain language and let Ask Attio construct it for you.
+          - paragraph [ref=e294]:
+            - text: Each run consumes workspace credits, and how many depends on the complexity of the workflow. Learn more about
+            - link "how workflows consume credits" [ref=e295] [cursor=pointer]:
+              - /url: /help/reference/workspace-settings-billing/manage-workspace-and-seat-credits
+            - text: .
+          - heading "How a workflow is structured Copy link" [level=2] [ref=e296]:
+            - generic [ref=e297]:
+              - text: How a workflow is structured
+              - button "Copy link" [ref=e298] [cursor=pointer]:
+                - img [ref=e300]
+                - generic [ref=e303]: Copy link
+          - paragraph [ref=e304]: Every workflow is made up of a trigger and one or more steps.
+          - paragraph [ref=e305]: A trigger is the event that starts a workflow. Triggers include events like a record being created or updated, an attribute changing value, a recurring schedule, or a webhook from an external tool.
+          - paragraph [ref=e306]: "Steps define what the workflow does once it's triggered. Each block performs one operation: updating a record, creating a task, sending a Slack message, enrolling someone in a sequence, making an HTTP request, and so on."
+          - paragraph [ref=e307]: You chain blocks together on the canvas to build the full logic you need. Some blocks apply conditional logic, such as a filter that stops the run if certain conditions aren't met, or an if block that routes the run down different paths.
+          - heading "What you can build Copy link" [level=2] [ref=e308]:
+            - generic [ref=e309]:
+              - text: What you can build
+              - button "Copy link" [ref=e310] [cursor=pointer]:
+                - img [ref=e312]
+                - generic [ref=e315]: Copy link
+          - paragraph [ref=e316]: Workflows handle a wide range of automation use cases. For example, you could automatically notify your sales team in Slack whenever a deal is marked as won, or assign new leads to team members on a round-robin basis, or enroll a contact in an email sequence the moment they hit a specific stage in your pipeline.
+          - heading "Learn more about workflows Copy link" [level=2] [ref=e317]:
+            - generic [ref=e318]:
+              - text: Learn more about workflows
+              - button "Copy link" [ref=e319] [cursor=pointer]:
+                - img [ref=e321]
+                - generic [ref=e324]: Copy link
+          - paragraph [ref=e325]:
+            - text: To start building, see
+            - link "Create a workflow" [ref=e326] [cursor=pointer]:
+              - /url: /help/reference/automations/workflows/create-a-workflow
+            - text: for a step-by-step walkthrough of building and publishing your first workflow.
+          - paragraph [ref=e327]:
+            - text: For a reference of every available trigger and step, see the
+            - link "Workflows block library" [ref=e328] [cursor=pointer]:
+              - /url: /help/reference/automations/workflows/workflows-block-library
+            - text: .
+          - paragraph [ref=e329]:
+            - text: Once your workflow is live, you can review individual runs, see what each block executed, and debug errors using the
+            - link "run viewer" [ref=e330] [cursor=pointer]:
+              - /url: /help/reference/automations/workflows/troubleshooting-workflows
+            - text: .
+      - complementary [ref=e331]:
+        - navigation [ref=e332]:
+          - heading "Table of Contents" [level=2] [ref=e334]
+          - generic [ref=e335]:
+            - button "How a workflow is structured":
+              - paragraph: How a workflow is structured
+            - button "What you can build" [ref=e336] [cursor=pointer]:
+              - paragraph [ref=e337]: What you can build
+            - button "Learn more about workflows" [ref=e338] [cursor=pointer]:
+              - paragraph [ref=e339]: Learn more about workflows
+      - complementary [ref=e340]:
+        - img [ref=e341]
+        - generic [ref=e343]:
+          - generic [ref=e344]: Did this article answer your question?
+          - generic [ref=e345]:
+            - button "Yes" [ref=e346] [cursor=pointer]:
+              - img [ref=e347]
+              - generic [ref=e351]: "Yes"
+            - button "No" [ref=e352] [cursor=pointer]:
+              - img [ref=e353]
+              - generic [ref=e357]: "No"
+  - contentinfo [ref=e358]:
+    - img [ref=e359]
+    - generic [ref=e361]:
+      - link "Attio homepage" [ref=e363] [cursor=pointer]:
+        - /url: /
+        - img [ref=e364]
+      - generic [ref=e372]:
+        - generic [ref=e373]:
+          - heading "Platform" [level=2] [ref=e375]
+          - list [ref=e376]:
+            - listitem [ref=e377]:
+              - link "Refer a team New" [ref=e378] [cursor=pointer]:
+                - /url: /refer
+                - generic [ref=e379]: Refer a team
+                - generic [ref=e380]: New
+            - listitem [ref=e381]:
+              - link "Changelog" [ref=e382] [cursor=pointer]:
+                - /url: /changelog
+                - generic [ref=e383]: Changelog
+            - listitem [ref=e384]:
+              - link "Gmail extension" [ref=e385] [cursor=pointer]:
+                - /url: https://chrome.google.com/webstore/detail/attio/legacbojjmajoedfolbjlekjjkepadph/
+                - generic [ref=e386]: Gmail extension
+                - img [ref=e387]
+            - listitem [ref=e389]:
+              - link "iOS app" [ref=e390] [cursor=pointer]:
+                - /url: https://apps.apple.com/gb/app/attio/id1511545395
+                - generic [ref=e391]: iOS app
+                - img [ref=e392]
+            - listitem [ref=e394]:
+              - link "Android app" [ref=e395] [cursor=pointer]:
+                - /url: https://play.google.com/store/apps/details?id=com.attio&gl=GB
+                - generic [ref=e396]: Android app
+                - img [ref=e397]
+        - generic [ref=e399]:
+          - heading "Company" [level=2] [ref=e401]
+          - list [ref=e402]:
+            - listitem [ref=e403]:
+              - link "Customers" [ref=e404] [cursor=pointer]:
+                - /url: /customers
+                - generic [ref=e405]: Customers
+            - listitem [ref=e406]:
+              - link "Announcements" [ref=e407] [cursor=pointer]:
+                - /url: /blog
+                - generic [ref=e408]: Announcements
+            - listitem [ref=e409]:
+              - link "Engineering blog New" [ref=e410] [cursor=pointer]:
+                - /url: /engineering/blog
+                - generic [ref=e411]: Engineering blog
+                - generic [ref=e412]: New
+            - listitem [ref=e413]:
+              - link "Careers" [ref=e414] [cursor=pointer]:
+                - /url: /careers
+                - generic [ref=e415]: Careers
+            - listitem [ref=e416]:
+              - link "Manifesto" [ref=e417] [cursor=pointer]:
+                - /url: /redefine
+                - generic [ref=e418]: Manifesto
+            - listitem [ref=e419]:
+              - link "Become a partner" [ref=e420] [cursor=pointer]:
+                - /url: /partners
+                - generic [ref=e421]: Become a partner
+        - generic [ref=e422]:
+          - heading "Import from" [level=2] [ref=e424]
+          - list [ref=e425]:
+            - listitem [ref=e426]:
+              - link "Salesforce" [ref=e427] [cursor=pointer]:
+                - /url: /help/reference/imports-and-exports/migrate-data-from-another-crm?source=footer_salesforce
+                - generic [ref=e428]: Salesforce
+            - listitem [ref=e429]:
+              - link "Hubspot" [ref=e430] [cursor=pointer]:
+                - /url: /help/reference/imports-and-exports/migrate-data-from-another-crm?source=footer_hubspot
+                - generic [ref=e431]: Hubspot
+            - listitem [ref=e432]:
+              - link "Pipedrive" [ref=e433] [cursor=pointer]:
+                - /url: /help/reference/imports-and-exports/migrate-data-from-another-crm?source=footer_pipedrive
+                - generic [ref=e434]: Pipedrive
+            - listitem [ref=e435]:
+              - link "Zoho" [ref=e436] [cursor=pointer]:
+                - /url: /help/reference/imports-and-exports/migrate-data-from-another-crm?source=footer_zoho
+                - generic [ref=e437]: Zoho
+            - listitem [ref=e438]:
+              - link "Excel" [ref=e439] [cursor=pointer]:
+                - /url: /help/reference/imports-and-exports/import-data-into-attio?source=footer_excel
+                - generic [ref=e440]: Excel
+            - listitem [ref=e441]:
+              - link "CSV" [ref=e442] [cursor=pointer]:
+                - /url: /help/reference/imports-and-exports/import-data-into-attio?source=footer_csv
+                - generic [ref=e443]: CSV
+        - generic [ref=e444]:
+          - heading "Attio for" [level=2] [ref=e446]
+          - list [ref=e447]:
+            - listitem [ref=e448]:
+              - link "Startups" [ref=e449] [cursor=pointer]:
+                - /url: /solutions/startup-crm
+                - generic [ref=e450]: Startups
+            - listitem [ref=e451]:
+              - link "Deal flow" [ref=e452] [cursor=pointer]:
+                - /url: /solutions/deal-flow-management-software
+                - generic [ref=e453]: Deal flow
+        - generic [ref=e454]:
+          - heading "Apps" [level=2] [ref=e456]
+          - list [ref=e457]:
+            - listitem [ref=e458]:
+              - link "Gmail" [ref=e459] [cursor=pointer]:
+                - /url: https://attio.com/apps/gmail
+                - generic [ref=e460]: Gmail
+            - listitem [ref=e461]:
+              - link "Outlook" [ref=e462] [cursor=pointer]:
+                - /url: https://attio.com/apps/outlook
+                - generic [ref=e463]: Outlook
+            - listitem [ref=e464]:
+              - link "Segment" [ref=e465] [cursor=pointer]:
+                - /url: https://attio.com/apps/segment
+                - generic [ref=e466]: Segment
+            - listitem [ref=e467]:
+              - link "Mailchimp" [ref=e468] [cursor=pointer]:
+                - /url: https://attio.com/apps/mailchimp
+                - generic [ref=e469]: Mailchimp
+            - listitem [ref=e470]:
+              - link "Slack" [ref=e471] [cursor=pointer]:
+                - /url: https://attio.com/apps/slack
+                - generic [ref=e472]: Slack
+            - listitem [ref=e473]:
+              - link "Outreach" [ref=e474] [cursor=pointer]:
+                - /url: https://attio.com/apps/outreach
+                - generic [ref=e475]: Outreach
+            - listitem [ref=e476]:
+              - link "Mixmax" [ref=e477] [cursor=pointer]:
+                - /url: https://attio.com/apps/mixmax
+                - generic [ref=e478]: Mixmax
+            - listitem [ref=e479]:
+              - link "Typeform" [ref=e480] [cursor=pointer]:
+                - /url: https://attio.com/apps/typeform
+                - generic [ref=e481]: Typeform
+            - listitem [ref=e482]:
+              - link "Zapier" [ref=e483] [cursor=pointer]:
+                - /url: https://attio.com/apps/zapier
+                - generic [ref=e484]: Zapier
+        - generic [ref=e485]:
+          - heading "Resources" [level=2] [ref=e487]
+          - list [ref=e488]:
+            - listitem [ref=e489]:
+              - link "Startup program" [ref=e490] [cursor=pointer]:
+                - /url: /startups
+                - generic [ref=e491]: Startup program
+            - listitem [ref=e492]:
+              - link "Help center" [ref=e493] [cursor=pointer]:
+                - /url: /help
+                - generic [ref=e494]: Help center
+            - listitem [ref=e495]:
+              - link "Developers" [ref=e496] [cursor=pointer]:
+                - /url: https://docs.attio.com/
+                - generic [ref=e497]: Developers
+                - img [ref=e498]
+            - listitem [ref=e500]:
+              - link "System status" [ref=e501] [cursor=pointer]:
+                - /url: https://status.attio.com/
+                - generic [ref=e502]: System status
+                - img [ref=e503]
+            - listitem [ref=e505]:
+              - link "Hire an expert" [ref=e506] [cursor=pointer]:
+                - /url: /experts
+                - generic [ref=e507]: Hire an expert
+            - listitem [ref=e508]:
+              - link "Downloads" [ref=e509] [cursor=pointer]:
+                - /url: /download
+                - generic [ref=e510]: Downloads
+            - listitem [ref=e511]:
+              - link "Trust Center" [ref=e512] [cursor=pointer]:
+                - /url: https://trust.attio.com/
+                - generic [ref=e513]: Trust Center
+                - img [ref=e514]
+    - generic [ref=e518]:
+      - generic [ref=e519]:
+        - link "Attio on LinkedIn" [ref=e520] [cursor=pointer]:
+          - /url: https://linkedin.com/company/attio
+          - img [ref=e521]
+        - link "Attio on X" [ref=e523] [cursor=pointer]:
+          - /url: https://twitter.com/attio
+          - img [ref=e524]
+        - link "Attio on Dribbble" [ref=e526] [cursor=pointer]:
+          - /url: https://dribbble.com/attio
+          - img [ref=e527]
+        - link "Attio on YouTube" [ref=e529] [cursor=pointer]:
+          - /url: https://www.youtube.com/@attioCRM
+          - img [ref=e530]
+      - generic [ref=e532]:
+        - paragraph [ref=e533]: © 2026 Attio Ltd. All rights reserved.
+        - generic [ref=e534]:
+          - link "Services Agreement" [ref=e535] [cursor=pointer]:
+            - /url: /legal/services-agreement
+          - link "Privacy Policy" [ref=e536] [cursor=pointer]:
+            - /url: /legal/privacy
+          - link "LLMs" [ref=e537] [cursor=pointer]:
+            - /url: https://attio.com/llms.txt
+  - region "Cookie consent":
+    - generic [ref=e539]:
+      - paragraph [ref=e542]:
+        - text: We use cookies to improve your experience. You can opt out of certain cookies. Find out more in our
+        - link "privacy policy" [ref=e543] [cursor=pointer]:
+          - /url: /legal/privacy
+        - text: .
+      - generic [ref=e544]:
+        - button "Continue" [ref=e545] [cursor=pointer]
+        - button "Reject" [ref=e546] [cursor=pointer]
+  - region "Notifications alt+T"
+  - alert [ref=e547]

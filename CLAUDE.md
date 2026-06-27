@@ -44,6 +44,7 @@
       c) Stock-Mutation ohne anschließenden `notifyStockChange()`-Call (sonst kein `inventory_ledger`-Eintrag, Telemetrie blind).
     - **Repair-Path:** `backend/scripts/repair-double-decrement.js` (read-only audit + opt-in `--apply`). Erkennt `(stock_out flow=pick) ⨯ (order_decrement)` Doppelpaare in `warehouseEvents`.
     - **Regression-Test:** `backend/__tests__/stock-pick-then-ship-no-double-decrement.test.js`.
+14. **KEIN DESTRUKTIVER MARKTPLATZ-FEHLERPFAD (seit 2026-06-16, Incident: 66 getötete eBay-Angebote):** Keine Fehlerbehandlung in `services/stock-sync-dispatcher.js`, `lib/ebay-trading-api.js`, `services/kaufland-listings-sync.js` darf als Reaktion auf einen Sync-/Revise-Fehler ein Listing beenden/löschen (kein Fail-safe-`EndFixedPriceItem` o. Ä.). Pflichtpfad: Fehler **klassifizieren** (keine Klasse ist destruktiv) → durable Queue → idempotenter Retry mit Backoff. Zementiert Brandfix `c339184`. Ergänzend: der Repricer darf den eBay-Sofortkaufpreis nie unter die Best-Offer-Auto-Ablehnungsschwelle senken (sonst un-synchronisierbares Listing). Plan/Detail: `docs/superpowers/avycloud-master-plan.md` (F0).
 
 ## Code-Stil
 
@@ -173,4 +174,5 @@ gtin/ean/upc=0.95, categoryId=0.85, brand=0.90, mpn=0.85, title=0.70, descriptio
 Path-scoped Rules in `.claude/rules/` werden automatisch geladen wenn relevante Dateien bearbeitet werden.
 Feature-Specs unter `docs/features/<ID>/spec.md` enthalten alle Details pro Feature.
 Aktuelle Roadmap: `/Users/oguz/.claude/plans/avycloud-roadmap-nachhaltig.md`
+Aktiver Stabilisierungs-/Fundament-Plan (verbindlich für Reliability/Bestand/Sync): `docs/superpowers/avycloud-master-plan.md` — Umsetzung **Track 1** in Teil K. Übergabe-/Abnahme-Logik für Coding-Agenten (ein Branch/PR pro Arbeitspaket, Tests zuerst, Owner-Abnahme): `docs/superpowers/avycloud-execution-guide.md`.
 - LLM-Quality-Parity-Charta: alle LLM-Calls folgen [docs/standards/llm-quality-parity.md](docs/standards/llm-quality-parity.md). Inventur in [docs/standards/llm-callers-inventory.md](docs/standards/llm-callers-inventory.md).

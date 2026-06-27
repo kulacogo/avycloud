@@ -1,0 +1,955 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - banner [ref=e4]:
+      - generic [ref=e8]:
+        - link "Orchestrate revenue agents with the new Workflows" [ref=e9] [cursor=pointer]:
+          - /url: /platform/workflows
+          - generic [ref=e10]: Orchestrate revenue agents with the new Workflows
+          - img [ref=e11]
+        - button "Dismiss banner" [ref=e13] [cursor=pointer]:
+          - img [ref=e14]
+      - navigation [ref=e17]:
+        - generic [ref=e18]:
+          - generic [ref=e19]:
+            - link "Attio homepage" [ref=e20] [cursor=pointer]:
+              - /url: /
+              - img [ref=e21]
+            - navigation [ref=e29]:
+              - list [ref=e30]:
+                - listitem [ref=e31]:
+                  - button "Platform" [ref=e32] [cursor=pointer]:
+                    - generic [ref=e33]: Platform
+                    - img [ref=e34]
+                - listitem [ref=e36]:
+                  - button "Resources" [ref=e37] [cursor=pointer]:
+                    - generic [ref=e38]: Resources
+                    - img [ref=e39]
+                - listitem [ref=e41]:
+                  - link "Customers" [ref=e42] [cursor=pointer]:
+                    - /url: /customers
+                - listitem [ref=e43]:
+                  - link "Pricing" [ref=e44] [cursor=pointer]:
+                    - /url: /pricing
+          - generic [ref=e45]:
+            - link "Sign in" [ref=e46] [cursor=pointer]:
+              - /url: https://app.attio.com/
+            - link "Start for free" [ref=e47] [cursor=pointer]:
+              - /url: https://app.attio.com/welcome/sign-in
+    - main [ref=e48]:
+      - generic [ref=e50]:
+        - generic [ref=e51]:
+          - heading "Workflows" [level=1] [ref=e53]
+          - heading "Revenue agents at your team's command." [level=2] [ref=e54]
+          - paragraph [ref=e55]: Orchestrate your best plays, on every account, over the deepest context layer in AI CRM.
+          - generic [ref=e56]:
+            - link "Start for free" [ref=e57] [cursor=pointer]:
+              - /url: https://app.attio.com/welcome/sign-in
+            - button "Talk to sales" [ref=e58] [cursor=pointer]
+        - generic [ref=e59]:
+          - generic [ref=e60]:
+            - generic [ref=e61]:
+              - img [ref=e62]
+              - generic [ref=e65]: Running
+            - generic [ref=e66]:
+              - img [ref=e67]
+              - generic [ref=e69]: Completed
+            - generic [ref=e70]:
+              - generic [ref=e71]:
+                - img [ref=e73]
+                - generic [ref=e75]: When a new deal is created
+              - paragraph [ref=e76]: Trigger when a new deal record is created.
+            - img [ref=e77]
+            - generic [ref=e80]:
+              - img [ref=e81]
+              - generic [ref=e83]: Trigger
+          - generic [ref=e84]:
+            - generic [ref=e85]:
+              - img [ref=e86]
+              - generic [ref=e89]: Running
+            - generic [ref=e90]:
+              - img [ref=e91]
+              - generic [ref=e93]: Completed
+            - generic [ref=e94]:
+              - generic [ref=e95]:
+                - img [ref=e97]
+                - generic [ref=e100]: Web Agent
+              - paragraph [ref=e101]: Enrich the record with web research.
+            - img [ref=e102]
+          - generic [ref=e105]:
+            - generic [ref=e106]:
+              - img [ref=e107]
+              - generic [ref=e110]: Running
+            - generic [ref=e111]:
+              - img [ref=e112]
+              - generic [ref=e114]: Completed
+            - generic [ref=e115]:
+              - generic [ref=e116]:
+                - img [ref=e118]
+                - generic [ref=e121]: Custom Agent
+              - paragraph [ref=e122]: Score the lead and route to the right AE.
+            - img [ref=e123]
+          - generic [ref=e126]:
+            - generic [ref=e127]:
+              - img [ref=e128]
+              - generic [ref=e131]: Running
+            - generic [ref=e132]:
+              - img [ref=e133]
+              - generic [ref=e135]: Completed
+            - generic [ref=e136]:
+              - generic [ref=e137]:
+                - img [ref=e139]
+                - generic [ref=e142]: Add to Enterprise target list
+              - paragraph [ref=e143]: Route lead to Enterprise and draft outreach.
+            - img [ref=e144]
+          - generic [ref=e147]:
+            - generic [ref=e148]:
+              - img [ref=e149]
+              - generic [ref=e152]: Running
+            - generic [ref=e153]:
+              - img [ref=e154]
+              - generic [ref=e156]: Completed
+            - generic [ref=e157]:
+              - generic [ref=e158]:
+                - img [ref=e160]
+                - generic [ref=e163]: Add to SMB target list
+              - paragraph [ref=e164]: Route lead to SMB and draft outreach.
+            - img [ref=e165]
+          - img [ref=e169]
+          - img [ref=e174]
+          - img [ref=e179]
+          - img [ref=e182]
+      - img [ref=e187]
+      - img [ref=e194]
+      - generic [ref=e196]:
+        - generic [ref=e197]:
+          - img [ref=e198]
+          - img [ref=e199]
+          - img [ref=e200]
+          - img [ref=e201]
+          - img [ref=e202]
+          - img [ref=e203]
+          - img [ref=e204]
+          - img [ref=e205]
+          - img [ref=e206]
+          - img [ref=e207]
+          - img [ref=e208]
+          - img [ref=e209]
+          - img [ref=e210]
+          - img [ref=e211]
+          - img [ref=e212]
+          - img [ref=e213]
+          - img [ref=e214]
+          - img [ref=e215]
+          - img [ref=e216]
+          - img [ref=e217]
+          - img [ref=e218]
+          - img [ref=e219]
+          - img [ref=e220]
+          - img [ref=e221]
+          - img [ref=e222]
+          - img [ref=e223]
+          - img [ref=e224]
+          - img [ref=e225]
+          - img [ref=e226]
+          - img [ref=e227]
+          - img [ref=e228]
+          - img [ref=e229]
+          - img [ref=e230]
+          - img [ref=e231]
+          - img [ref=e232]
+          - img [ref=e233]
+          - img [ref=e234]
+          - img [ref=e235]
+          - img [ref=e236]
+          - img [ref=e237]
+          - img [ref=e238]
+          - img [ref=e239]
+          - img [ref=e240]
+          - img [ref=e241]
+          - img [ref=e242]
+          - img [ref=e243]
+          - img [ref=e244]
+          - img [ref=e245]
+          - img [ref=e246]
+          - img [ref=e247]
+          - img [ref=e248]
+          - img [ref=e249]
+          - img [ref=e250]
+          - img [ref=e251]
+          - img [ref=e252]
+          - img [ref=e253]
+          - img [ref=e254]
+          - img [ref=e255]
+          - img [ref=e256]
+          - img [ref=e257]
+          - img [ref=e258]
+          - img [ref=e259]
+          - img [ref=e260]
+          - img [ref=e261]
+          - img [ref=e262]
+          - img [ref=e263]
+          - img [ref=e264]
+          - img [ref=e265]
+          - img [ref=e266]
+          - img [ref=e267]
+          - img [ref=e268]
+          - img [ref=e269]
+          - img [ref=e270]
+          - img [ref=e271]
+          - img [ref=e272]
+          - img [ref=e273]
+          - img [ref=e274]
+          - img [ref=e275]
+          - img [ref=e276]
+          - img [ref=e277]
+          - img [ref=e278]
+          - img [ref=e279]
+          - img [ref=e280]
+          - img [ref=e281]
+          - img [ref=e282]
+          - img [ref=e283]
+          - img [ref=e284]
+          - img [ref=e285]
+          - img [ref=e286]
+          - img [ref=e287]
+          - img [ref=e288]
+          - img [ref=e289]
+          - img [ref=e290]
+          - img [ref=e291]
+          - img [ref=e292]
+          - img [ref=e293]
+          - img [ref=e294]
+          - img [ref=e295]
+          - img [ref=e296]
+          - img [ref=e297]
+          - img [ref=e298]
+          - img [ref=e299]
+          - img [ref=e300]
+          - img [ref=e301]
+          - img [ref=e302]
+          - img [ref=e303]
+          - img [ref=e304]
+          - img [ref=e305]
+          - img [ref=e306]
+          - img [ref=e307]
+          - img [ref=e308]
+          - img [ref=e309]
+          - img [ref=e310]
+          - img [ref=e311]
+          - img [ref=e312]
+          - img [ref=e313]
+          - img [ref=e314]
+          - img [ref=e315]
+          - img [ref=e316]
+          - img [ref=e317]
+        - generic [ref=e319]:
+          - heading "Cue the agents." [level=2] [ref=e320]
+          - paragraph [ref=e321]: Agents for every job in revenue. Made for you, run by Attio, moving deals forward with your team.
+        - generic [ref=e323]:
+          - generic [ref=e325]:
+            - generic [ref=e327]:
+              - generic [ref=e329]:
+                - paragraph [ref=e330]: Web Agent
+                - paragraph [ref=e331]: Researches accounts for the latest on the web.
+              - generic [ref=e335]: Attio
+            - generic [ref=e337]:
+              - generic [ref=e339]:
+                - paragraph [ref=e340]: Scoring Agent
+                - paragraph [ref=e341]: Assigns fit to leads based on your ICP criteria.
+              - generic [ref=e345]: Attio
+            - generic [ref=e347]:
+              - generic [ref=e349]:
+                - paragraph [ref=e350]: Routing Agent
+                - paragraph [ref=e351]: Routes every lead to the right rep or channel.
+              - generic [ref=e355]: Attio
+            - generic [ref=e357]:
+              - generic [ref=e359]:
+                - paragraph [ref=e360]: Win/Loss Agent
+                - paragraph [ref=e361]: Pulls the patterns from every win and every loss.
+              - generic [ref=e365]: Attio
+            - generic [ref=e367]:
+              - generic [ref=e369]:
+                - paragraph [ref=e370]: Onboarding Agent
+                - paragraph [ref=e371]: Walks every customer to first value, milestone by milestone.
+              - generic [ref=e375]: Attio
+            - generic [ref=e377]:
+              - generic [ref=e379]:
+                - paragraph [ref=e380]: Coaching Agent
+                - paragraph [ref=e381]: Reviews every call from your reps and flags the coaching moments.
+              - generic [ref=e385]: Attio
+            - generic [ref=e387]:
+              - generic [ref=e389]:
+                - paragraph [ref=e390]: Prospecting Agent
+                - paragraph [ref=e391]: Finds your next best customers before you have to ask.
+              - generic [ref=e395]: Attio
+            - generic [ref=e397]:
+              - generic [ref=e399]:
+                - paragraph [ref=e400]: Enrichment Agent
+                - paragraph [ref=e401]: Adds signals and preps them for the team to act on.
+              - generic [ref=e405]: Attio
+            - generic [ref=e407]:
+              - generic [ref=e409]:
+                - paragraph [ref=e410]: Web Agent
+                - paragraph [ref=e411]: Researches accounts for the latest on the web.
+              - generic [ref=e415]: Attio
+            - generic [ref=e417]:
+              - generic [ref=e419]:
+                - paragraph [ref=e420]: Scoring Agent
+                - paragraph [ref=e421]: Assigns fit to leads based on your ICP criteria.
+              - generic [ref=e425]: Attio
+            - generic [ref=e427]:
+              - generic [ref=e429]:
+                - paragraph [ref=e430]: Routing Agent
+                - paragraph [ref=e431]: Routes every lead to the right rep or channel.
+              - generic [ref=e435]: Attio
+            - generic [ref=e437]:
+              - generic [ref=e439]:
+                - paragraph [ref=e440]: Win/Loss Agent
+                - paragraph [ref=e441]: Pulls the patterns from every win and every loss.
+              - generic [ref=e445]: Attio
+            - generic [ref=e447]:
+              - generic [ref=e449]:
+                - paragraph [ref=e450]: Onboarding Agent
+                - paragraph [ref=e451]: Walks every customer to first value, milestone by milestone.
+              - generic [ref=e455]: Attio
+            - generic [ref=e457]:
+              - generic [ref=e459]:
+                - paragraph [ref=e460]: Coaching Agent
+                - paragraph [ref=e461]: Reviews every call from your reps and flags the coaching moments.
+              - generic [ref=e465]: Attio
+            - generic [ref=e467]:
+              - generic [ref=e469]:
+                - paragraph [ref=e470]: Prospecting Agent
+                - paragraph [ref=e471]: Finds your next best customers before you have to ask.
+              - generic [ref=e475]: Attio
+            - generic [ref=e477]:
+              - generic [ref=e479]:
+                - paragraph [ref=e480]: Enrichment Agent
+                - paragraph [ref=e481]: Adds signals and preps them for the team to act on.
+              - generic [ref=e485]: Attio
+          - generic [ref=e487]:
+            - generic [ref=e489]:
+              - generic [ref=e491]:
+                - paragraph [ref=e492]: Briefing Agent
+                - paragraph [ref=e493]: Hands reps a full brief of what to know before their call.
+              - generic [ref=e497]: Attio
+            - generic [ref=e499]:
+              - generic [ref=e501]:
+                - paragraph [ref=e502]: Follow-Up Agent
+                - paragraph [ref=e503]: Recaps every call, updates the deal, drafts the next move.
+              - generic [ref=e507]: Attio
+            - generic [ref=e509]:
+              - generic [ref=e511]:
+                - paragraph [ref=e512]: Churn Risk Agent
+                - paragraph [ref=e513]: Spots accounts cooling off and drafts the save play.
+              - generic [ref=e517]: Attio
+            - generic [ref=e519]:
+              - generic [ref=e521]:
+                - paragraph [ref=e522]: Expansion Agent
+                - paragraph [ref=e523]: Spots upsell signals and queues the play for the team to run.
+              - generic [ref=e527]: Attio
+            - generic [ref=e529]:
+              - generic [ref=e531]:
+                - paragraph [ref=e532]: Pipeline Review Agent
+                - paragraph [ref=e533]: Creates a view of pipeline to report for sales leadership.
+              - generic [ref=e537]: Attio
+            - generic [ref=e539]:
+              - generic [ref=e541]:
+                - paragraph [ref=e542]: Onboarding prep
+                - paragraph [ref=e543]: Create a concise brief to prep for a customer onboarding call.
+              - generic [ref=e547]: Attio
+            - generic [ref=e549]:
+              - generic [ref=e551]:
+                - paragraph [ref=e552]: Outbound Agent
+                - paragraph [ref=e553]: Drafts and sends personalized sequences to target accounts.
+              - generic [ref=e557]: Attio
+            - generic [ref=e559]:
+              - generic [ref=e561]:
+                - paragraph [ref=e562]: Briefing Agent
+                - paragraph [ref=e563]: Hands reps a full brief of what to know before their call.
+              - generic [ref=e567]: Attio
+            - generic [ref=e569]:
+              - generic [ref=e571]:
+                - paragraph [ref=e572]: Follow-Up Agent
+                - paragraph [ref=e573]: Recaps every call, updates the deal, drafts the next move.
+              - generic [ref=e577]: Attio
+            - generic [ref=e579]:
+              - generic [ref=e581]:
+                - paragraph [ref=e582]: Churn Risk Agent
+                - paragraph [ref=e583]: Spots accounts cooling off and drafts the save play.
+              - generic [ref=e587]: Attio
+            - generic [ref=e589]:
+              - generic [ref=e591]:
+                - paragraph [ref=e592]: Expansion Agent
+                - paragraph [ref=e593]: Spots upsell signals and queues the play for the team to run.
+              - generic [ref=e597]: Attio
+            - generic [ref=e599]:
+              - generic [ref=e601]:
+                - paragraph [ref=e602]: Pipeline Review Agent
+                - paragraph [ref=e603]: Creates a view of pipeline to report for sales leadership.
+              - generic [ref=e607]: Attio
+            - generic [ref=e609]:
+              - generic [ref=e611]:
+                - paragraph [ref=e612]: Onboarding prep
+                - paragraph [ref=e613]: Create a concise brief to prep for a customer onboarding call.
+              - generic [ref=e617]: Attio
+            - generic [ref=e619]:
+              - generic [ref=e621]:
+                - paragraph [ref=e622]: Outbound Agent
+                - paragraph [ref=e623]: Drafts and sends personalized sequences to target accounts.
+              - generic [ref=e627]: Attio
+      - img [ref=e631]
+      - generic [ref=e633]:
+        - generic [ref=e635]:
+          - heading "Hire the best rep. Again. Again. And again." [level=2] [ref=e636]
+          - paragraph [ref=e637]: Agents in concert on every deal, beside your team.
+        - generic [ref=e639]:
+          - generic [ref=e641]:
+            - generic [ref=e642]:
+              - heading "Enrichment Agent" [level=3] [ref=e644]
+              - paragraph [ref=e645]: Waterfall enrichment. Every source.
+            - generic [ref=e646]:
+              - heading "Web Agent" [level=3] [ref=e648]
+              - paragraph [ref=e649]: Account research, decision makers, recent signals.
+            - generic [ref=e650]:
+              - heading "Scoring Agent" [level=3] [ref=e652]
+              - paragraph [ref=e653]: Scores every lead for fit and priority.
+            - generic [ref=e654]:
+              - heading "Routing Agent" [level=3] [ref=e656]
+              - paragraph [ref=e657]: Right lead, right rep, draft email attached.
+            - generic [ref=e658]:
+              - heading "Briefing Agent" [level=3] [ref=e660]
+              - paragraph [ref=e661]: Full brief in hand before every call.
+          - generic [ref=e662]:
+            - img [ref=e663]
+            - img [ref=e664]
+            - img [ref=e665]
+            - img [ref=e666]
+            - img [ref=e667]
+            - img [ref=e668]
+            - img [ref=e669]
+            - img [ref=e670]
+            - img [ref=e671]
+            - img [ref=e672]
+            - img [ref=e673]
+            - img [ref=e674]
+            - img [ref=e675]
+            - img [ref=e676]
+            - img [ref=e677]
+            - img [ref=e678]
+            - img [ref=e679]
+            - img [ref=e680]
+            - img [ref=e681]
+            - img [ref=e682]
+            - img [ref=e683]
+            - img [ref=e684]
+            - img [ref=e685]
+            - img [ref=e686]
+            - img [ref=e687]
+            - img [ref=e688]
+            - img [ref=e689]
+            - img [ref=e690]
+            - img [ref=e691]
+            - img [ref=e692]
+            - img [ref=e693]
+            - img [ref=e694]
+            - img [ref=e695]
+            - img [ref=e696]
+            - img [ref=e697]
+            - img [ref=e698]
+            - img [ref=e699]
+            - img [ref=e700]
+            - img [ref=e701]
+            - img [ref=e702]
+            - img [ref=e703]
+            - img [ref=e704]
+            - img [ref=e705]
+            - img [ref=e706]
+            - img [ref=e707]
+            - img [ref=e708]
+            - img [ref=e709]
+            - img [ref=e710]
+            - img [ref=e711]
+            - img [ref=e712]
+            - img [ref=e713]
+            - img [ref=e714]
+            - img [ref=e715]
+            - img [ref=e716]
+            - img [ref=e717]
+            - img [ref=e718]
+            - img [ref=e719]
+            - img [ref=e720]
+            - img [ref=e721]
+            - img [ref=e722]
+            - img [ref=e723]
+            - img [ref=e724]
+            - img [ref=e725]
+            - img [ref=e726]
+            - img [ref=e727]
+            - img [ref=e728]
+            - img [ref=e729]
+            - img [ref=e730]
+            - img [ref=e731]
+            - img [ref=e732]
+            - img [ref=e733]
+            - img [ref=e734]
+            - img [ref=e735]
+            - img [ref=e736]
+            - img [ref=e737]
+            - img [ref=e738]
+            - img [ref=e739]
+            - img [ref=e740]
+            - img [ref=e741]
+            - img [ref=e742]
+            - img [ref=e743]
+            - img [ref=e744]
+            - img [ref=e745]
+            - img [ref=e746]
+            - img [ref=e747]
+            - img [ref=e748]
+            - img [ref=e749]
+            - img [ref=e750]
+            - img [ref=e751]
+            - img [ref=e752]
+            - img [ref=e753]
+            - img [ref=e754]
+            - img [ref=e755]
+            - img [ref=e756]
+            - img [ref=e757]
+            - img [ref=e758]
+            - img [ref=e759]
+            - img [ref=e760]
+            - img [ref=e761]
+            - img [ref=e762]
+            - img [ref=e763]
+            - img [ref=e764]
+            - img [ref=e765]
+            - img [ref=e766]
+            - img [ref=e767]
+            - img [ref=e768]
+            - img [ref=e769]
+            - img [ref=e770]
+            - img [ref=e771]
+            - img [ref=e772]
+            - img [ref=e773]
+            - img [ref=e774]
+            - img [ref=e775]
+            - img [ref=e776]
+            - img [ref=e777]
+            - img [ref=e778]
+            - img [ref=e779]
+            - img [ref=e780]
+            - img [ref=e781]
+            - img [ref=e782]
+            - img [ref=e783]
+            - img [ref=e784]
+            - img [ref=e785]
+            - img [ref=e786]
+            - img [ref=e787]
+            - img [ref=e788]
+            - img [ref=e789]
+            - img [ref=e790]
+            - img [ref=e791]
+            - img [ref=e792]
+            - img [ref=e793]
+      - img [ref=e795]
+      - generic [ref=e798]:
+        - img [ref=e799]
+        - generic [ref=e804]:
+          - paragraph [ref=e805]:
+            - generic [ref=e806]: “Before
+            - generic [ref=e807]: every
+            - generic [ref=e808]: meeting,
+            - generic [ref=e809]: Attio
+            - generic [ref=e810]: centralizes,
+            - generic [ref=e811]: summarizes,
+            - generic [ref=e812]: and
+            - generic [ref=e813]: surfaces
+            - generic [ref=e814]: everything
+            - generic [ref=e815]: I
+            - generic [ref=e816]: need
+            - generic [ref=e817]: to
+            - generic [ref=e818]: know
+            - generic [ref=e819]: to
+            - generic [ref=e820]: give
+            - generic [ref=e821]: a
+            - generic [ref=e822]: great
+            - generic [ref=e823]: first
+            - generic [ref=e824]: impression
+            - generic [ref=e825]: or
+            - generic [ref=e826]: close
+            - generic [ref=e827]: the
+            - generic [ref=e828]: deal.”
+          - paragraph [ref=e829]: Ian Ahuja
+          - paragraph [ref=e830]: Head of Sales & Partnerships · Lightdash
+      - img [ref=e834]
+      - generic [ref=e838]:
+        - img
+        - img [ref=e839]
+        - generic [ref=e840]:
+          - generic [ref=e841]:
+            - generic [ref=e842]:
+              - heading "From idea to live agent, before your next meeting." [level=2] [ref=e843]
+              - paragraph [ref=e844]: Describe it. Test it. Ship it. Run it back.
+            - generic [ref=e845]:
+              - generic [ref=e846]:
+                - heading "Say it in a sentence." [level=3] [ref=e848]
+                - paragraph [ref=e850]: Describe the goal. Attio assembles the workflow for you to approve.
+                - progressbar [ref=e852]
+              - heading "Test it block by block." [level=3] [ref=e856] [cursor=pointer]
+              - heading "Run once or a million times." [level=3] [ref=e859] [cursor=pointer]
+          - img [ref=e861]
+          - img [ref=e864]
+          - generic [ref=e865]:
+            - img [ref=e866]
+            - img [ref=e867]
+        - img [ref=e868]
+        - img
+      - generic [ref=e869]:
+        - generic [ref=e875]:
+          - paragraph [ref=e876]: Powered by
+          - heading "Universal Context TM" [level=2] [ref=e877]:
+            - text: Universal
+            - generic [ref=e878]:
+              - text: Context
+              - generic [ref=e879]: TM
+        - generic [ref=e885]:
+          - img [ref=e886]
+          - img [ref=e887]
+          - generic [ref=e888]:
+            - paragraph [ref=e891]:
+              - text: The deepest context in AI CRM.
+              - generic [ref=e892]: So your agents make better calls.
+            - img [ref=e893]
+            - img [ref=e894]
+            - img [ref=e895]
+            - img [ref=e896]
+          - generic [ref=e901]:
+            - paragraph [ref=e904]:
+              - text: Always online.
+              - generic [ref=e905]: Your agents act right now, not next week.
+            - img [ref=e906]
+            - img [ref=e907]
+            - img [ref=e908]
+            - img [ref=e909]
+          - generic [ref=e914]:
+            - paragraph [ref=e917]:
+              - text: Made for agents.
+              - generic [ref=e918]: Engineered so they find, reason, and act.
+            - img [ref=e919]
+            - img [ref=e920]
+            - img [ref=e921]
+            - img [ref=e922]
+          - generic [ref=e927]:
+            - paragraph [ref=e930]:
+              - text: Patterns, not flares.
+              - generic [ref=e931]: Agents read the trend, not the noise.
+            - img [ref=e932]
+            - img [ref=e933]
+            - img [ref=e934]
+            - img [ref=e935]
+          - generic [ref=e940]:
+            - paragraph [ref=e943]:
+              - text: Wired into your stack.
+              - generic [ref=e944]: Agents reach Notion, Linear, Fin and more.
+            - img [ref=e945]
+            - img [ref=e946]
+            - img [ref=e947]
+            - img [ref=e948]
+      - generic [ref=e956]:
+        - generic [ref=e958]:
+          - heading "Built for the long run." [level=2] [ref=e959]
+          - paragraph [ref=e960]: Fire from any signal. Model any logic. Replay any run.
+        - generic [ref=e961]:
+          - generic [ref=e963]:
+            - img [ref=e964]
+            - img [ref=e965]
+          - img [ref=e966]
+          - generic [ref=e969]:
+            - generic [ref=e971]:
+              - img [ref=e973]
+              - generic [ref=e975]:
+                - heading "Trigger from any signal." [level=3] [ref=e976]
+                - paragraph [ref=e977]: Record changes, schedules, webhooks, manual runs.
+            - generic [ref=e979]:
+              - img [ref=e981]
+              - generic [ref=e983]:
+                - heading "Loops, branches, fallbacks." [level=3] [ref=e984]
+                - paragraph [ref=e985]: Model the messy logic your business needs — even with code.
+            - generic [ref=e987]:
+              - img [ref=e989]
+              - generic [ref=e991]:
+                - heading "Build your own blocks." [level=3] [ref=e992]
+                - paragraph [ref=e993]: Drop in custom JS, ship with the App SDK, or connect MCP.
+          - img [ref=e994]
+        - generic [ref=e996]:
+          - img [ref=e997]
+          - img [ref=e998]
+      - img [ref=e1000]
+      - generic [ref=e1002]:
+        - generic [ref=e1004]:
+          - heading "Trust by default." [level=2] [ref=e1005]
+          - paragraph [ref=e1006]: Assigned permissions. Traceable steps. Pause anytime.
+        - generic [ref=e1007]:
+          - img [ref=e1008]
+          - generic [ref=e1011]:
+            - generic [ref=e1014]:
+              - heading "Assigned user permissions." [level=3] [ref=e1016]
+              - paragraph [ref=e1017]: Workflows inherit the permissions of whoever you assign.
+            - generic [ref=e1020]:
+              - heading "Every run, on the record." [level=3] [ref=e1022]
+              - paragraph [ref=e1023]: Open any run. See what each agent read, decided, and did.
+            - generic [ref=e1026]:
+              - heading "Pause anything. Rerun anything." [level=3] [ref=e1028]
+              - paragraph [ref=e1029]: Pause anytime. Rerun any single run without redoing the rest.
+          - img [ref=e1030]
+        - generic [ref=e1032]:
+          - img [ref=e1033]
+          - img [ref=e1034]
+      - generic [ref=e1037]:
+        - generic [ref=e1039]:
+          - img [ref=e1040]
+          - img [ref=e1041]
+          - img [ref=e1042]
+        - img [ref=e1043]
+        - generic [ref=e1044]:
+          - img [ref=e1045]
+          - generic [ref=e1046]:
+            - heading "Ask more from CRM. Ask Attio." [level=2] [ref=e1047]
+            - generic [ref=e1048]:
+              - link "Start for free" [ref=e1049] [cursor=pointer]:
+                - /url: https://app.attio.com/welcome/sign-in
+              - button "Talk to sales" [ref=e1050] [cursor=pointer]
+          - generic [ref=e1052]:
+            - generic [ref=e1053]:
+              - img [ref=e1054]
+              - img [ref=e1055]
+              - img [ref=e1056]
+              - img [ref=e1057]
+              - img [ref=e1058]
+              - img [ref=e1059]
+              - img [ref=e1060]
+              - img [ref=e1061]
+              - img [ref=e1062]
+              - img [ref=e1063]
+              - img [ref=e1064]
+            - generic [ref=e1065]:
+              - img [ref=e1066]
+              - img [ref=e1067]
+              - img [ref=e1068]
+              - img [ref=e1069]
+              - img [ref=e1070]
+            - img [ref=e1072]
+        - img [ref=e1104]
+        - generic [ref=e1106]:
+          - img [ref=e1107]
+          - img [ref=e1108]
+          - img [ref=e1109]
+    - contentinfo [ref=e1110]:
+      - img [ref=e1111]
+      - generic [ref=e1113]:
+        - link "Attio homepage" [ref=e1115] [cursor=pointer]:
+          - /url: /
+          - img [ref=e1116]
+        - generic [ref=e1124]:
+          - generic [ref=e1125]:
+            - heading "Platform" [level=2] [ref=e1127]
+            - list [ref=e1128]:
+              - listitem [ref=e1129]:
+                - link "Refer a team New" [ref=e1130] [cursor=pointer]:
+                  - /url: /refer
+                  - generic [ref=e1131]: Refer a team
+                  - generic [ref=e1132]: New
+              - listitem [ref=e1133]:
+                - link "Changelog" [ref=e1134] [cursor=pointer]:
+                  - /url: /changelog
+                  - generic [ref=e1135]: Changelog
+              - listitem [ref=e1136]:
+                - link "Gmail extension" [ref=e1137] [cursor=pointer]:
+                  - /url: https://chrome.google.com/webstore/detail/attio/legacbojjmajoedfolbjlekjjkepadph/
+                  - generic [ref=e1138]: Gmail extension
+                  - img [ref=e1139]
+              - listitem [ref=e1141]:
+                - link "iOS app" [ref=e1142] [cursor=pointer]:
+                  - /url: https://apps.apple.com/gb/app/attio/id1511545395
+                  - generic [ref=e1143]: iOS app
+                  - img [ref=e1144]
+              - listitem [ref=e1146]:
+                - link "Android app" [ref=e1147] [cursor=pointer]:
+                  - /url: https://play.google.com/store/apps/details?id=com.attio&gl=GB
+                  - generic [ref=e1148]: Android app
+                  - img [ref=e1149]
+          - generic [ref=e1151]:
+            - heading "Company" [level=2] [ref=e1153]
+            - list [ref=e1154]:
+              - listitem [ref=e1155]:
+                - link "Customers" [ref=e1156] [cursor=pointer]:
+                  - /url: /customers
+                  - generic [ref=e1157]: Customers
+              - listitem [ref=e1158]:
+                - link "Announcements" [ref=e1159] [cursor=pointer]:
+                  - /url: /blog
+                  - generic [ref=e1160]: Announcements
+              - listitem [ref=e1161]:
+                - link "Engineering blog New" [ref=e1162] [cursor=pointer]:
+                  - /url: /engineering/blog
+                  - generic [ref=e1163]: Engineering blog
+                  - generic [ref=e1164]: New
+              - listitem [ref=e1165]:
+                - link "Careers" [ref=e1166] [cursor=pointer]:
+                  - /url: /careers
+                  - generic [ref=e1167]: Careers
+              - listitem [ref=e1168]:
+                - link "Manifesto" [ref=e1169] [cursor=pointer]:
+                  - /url: /redefine
+                  - generic [ref=e1170]: Manifesto
+              - listitem [ref=e1171]:
+                - link "Become a partner" [ref=e1172] [cursor=pointer]:
+                  - /url: /partners
+                  - generic [ref=e1173]: Become a partner
+          - generic [ref=e1174]:
+            - heading "Import from" [level=2] [ref=e1176]
+            - list [ref=e1177]:
+              - listitem [ref=e1178]:
+                - link "Salesforce" [ref=e1179] [cursor=pointer]:
+                  - /url: /help/reference/imports-and-exports/migrate-data-from-another-crm?source=footer_salesforce
+                  - generic [ref=e1180]: Salesforce
+              - listitem [ref=e1181]:
+                - link "Hubspot" [ref=e1182] [cursor=pointer]:
+                  - /url: /help/reference/imports-and-exports/migrate-data-from-another-crm?source=footer_hubspot
+                  - generic [ref=e1183]: Hubspot
+              - listitem [ref=e1184]:
+                - link "Pipedrive" [ref=e1185] [cursor=pointer]:
+                  - /url: /help/reference/imports-and-exports/migrate-data-from-another-crm?source=footer_pipedrive
+                  - generic [ref=e1186]: Pipedrive
+              - listitem [ref=e1187]:
+                - link "Zoho" [ref=e1188] [cursor=pointer]:
+                  - /url: /help/reference/imports-and-exports/migrate-data-from-another-crm?source=footer_zoho
+                  - generic [ref=e1189]: Zoho
+              - listitem [ref=e1190]:
+                - link "Excel" [ref=e1191] [cursor=pointer]:
+                  - /url: /help/reference/imports-and-exports/import-data-into-attio?source=footer_excel
+                  - generic [ref=e1192]: Excel
+              - listitem [ref=e1193]:
+                - link "CSV" [ref=e1194] [cursor=pointer]:
+                  - /url: /help/reference/imports-and-exports/import-data-into-attio?source=footer_csv
+                  - generic [ref=e1195]: CSV
+          - generic [ref=e1196]:
+            - heading "Attio for" [level=2] [ref=e1198]
+            - list [ref=e1199]:
+              - listitem [ref=e1200]:
+                - link "Startups" [ref=e1201] [cursor=pointer]:
+                  - /url: /solutions/startup-crm
+                  - generic [ref=e1202]: Startups
+              - listitem [ref=e1203]:
+                - link "Deal flow" [ref=e1204] [cursor=pointer]:
+                  - /url: /solutions/deal-flow-management-software
+                  - generic [ref=e1205]: Deal flow
+          - generic [ref=e1206]:
+            - heading "Apps" [level=2] [ref=e1208]
+            - list [ref=e1209]:
+              - listitem [ref=e1210]:
+                - link "Gmail" [ref=e1211] [cursor=pointer]:
+                  - /url: https://attio.com/apps/gmail
+                  - generic [ref=e1212]: Gmail
+              - listitem [ref=e1213]:
+                - link "Outlook" [ref=e1214] [cursor=pointer]:
+                  - /url: https://attio.com/apps/outlook
+                  - generic [ref=e1215]: Outlook
+              - listitem [ref=e1216]:
+                - link "Segment" [ref=e1217] [cursor=pointer]:
+                  - /url: https://attio.com/apps/segment
+                  - generic [ref=e1218]: Segment
+              - listitem [ref=e1219]:
+                - link "Mailchimp" [ref=e1220] [cursor=pointer]:
+                  - /url: https://attio.com/apps/mailchimp
+                  - generic [ref=e1221]: Mailchimp
+              - listitem [ref=e1222]:
+                - link "Slack" [ref=e1223] [cursor=pointer]:
+                  - /url: https://attio.com/apps/slack
+                  - generic [ref=e1224]: Slack
+              - listitem [ref=e1225]:
+                - link "Outreach" [ref=e1226] [cursor=pointer]:
+                  - /url: https://attio.com/apps/outreach
+                  - generic [ref=e1227]: Outreach
+              - listitem [ref=e1228]:
+                - link "Mixmax" [ref=e1229] [cursor=pointer]:
+                  - /url: https://attio.com/apps/mixmax
+                  - generic [ref=e1230]: Mixmax
+              - listitem [ref=e1231]:
+                - link "Typeform" [ref=e1232] [cursor=pointer]:
+                  - /url: https://attio.com/apps/typeform
+                  - generic [ref=e1233]: Typeform
+              - listitem [ref=e1234]:
+                - link "Zapier" [ref=e1235] [cursor=pointer]:
+                  - /url: https://attio.com/apps/zapier
+                  - generic [ref=e1236]: Zapier
+          - generic [ref=e1237]:
+            - heading "Resources" [level=2] [ref=e1239]
+            - list [ref=e1240]:
+              - listitem [ref=e1241]:
+                - link "Startup program" [ref=e1242] [cursor=pointer]:
+                  - /url: /startups
+                  - generic [ref=e1243]: Startup program
+              - listitem [ref=e1244]:
+                - link "Help center" [ref=e1245] [cursor=pointer]:
+                  - /url: /help
+                  - generic [ref=e1246]: Help center
+              - listitem [ref=e1247]:
+                - link "Developers" [ref=e1248] [cursor=pointer]:
+                  - /url: https://docs.attio.com/
+                  - generic [ref=e1249]: Developers
+                  - img [ref=e1250]
+              - listitem [ref=e1252]:
+                - link "System status" [ref=e1253] [cursor=pointer]:
+                  - /url: https://status.attio.com/
+                  - generic [ref=e1254]: System status
+                  - img [ref=e1255]
+              - listitem [ref=e1257]:
+                - link "Hire an expert" [ref=e1258] [cursor=pointer]:
+                  - /url: /experts
+                  - generic [ref=e1259]: Hire an expert
+              - listitem [ref=e1260]:
+                - link "Downloads" [ref=e1261] [cursor=pointer]:
+                  - /url: /download
+                  - generic [ref=e1262]: Downloads
+              - listitem [ref=e1263]:
+                - link "Trust Center" [ref=e1264] [cursor=pointer]:
+                  - /url: https://trust.attio.com/
+                  - generic [ref=e1265]: Trust Center
+                  - img [ref=e1266]
+      - generic [ref=e1270]:
+        - generic [ref=e1271]:
+          - link "Attio on LinkedIn" [ref=e1272] [cursor=pointer]:
+            - /url: https://linkedin.com/company/attio
+            - img [ref=e1273]
+          - link "Attio on X" [ref=e1275] [cursor=pointer]:
+            - /url: https://twitter.com/attio
+            - img [ref=e1276]
+          - link "Attio on Dribbble" [ref=e1278] [cursor=pointer]:
+            - /url: https://dribbble.com/attio
+            - img [ref=e1279]
+          - link "Attio on YouTube" [ref=e1281] [cursor=pointer]:
+            - /url: https://www.youtube.com/@attioCRM
+            - img [ref=e1282]
+        - generic [ref=e1284]:
+          - paragraph [ref=e1285]: © 2026 Attio Ltd. All rights reserved.
+          - generic [ref=e1286]:
+            - link "Services Agreement" [ref=e1287] [cursor=pointer]:
+              - /url: /legal/services-agreement
+            - link "Privacy Policy" [ref=e1288] [cursor=pointer]:
+              - /url: /legal/privacy
+            - link "LLMs" [ref=e1289] [cursor=pointer]:
+              - /url: https://attio.com/llms.txt
+  - region "Cookie consent":
+    - generic [ref=e1291]:
+      - paragraph [ref=e1294]:
+        - text: We use cookies to improve your experience. You can opt out of certain cookies. Find out more in our
+        - link "privacy policy" [ref=e1295] [cursor=pointer]:
+          - /url: /legal/privacy
+        - text: .
+      - generic [ref=e1296]:
+        - button "Continue" [ref=e1297] [cursor=pointer]
+        - button "Reject" [ref=e1298] [cursor=pointer]
+  - region "Notifications alt+T"
+  - alert [ref=e1299]

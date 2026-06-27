@@ -2,6 +2,8 @@
 
 > Letzte Aktualisierung: 2026-04-23
 > Nur aktive Items. Erledigte Tasks → `git log`. Bug-Historie → `docs/archive/`.
+>
+> **Aktueller Gesamt-/Fundament-Plan (Stand 2026-06-17):** `docs/superpowers/avycloud-master-plan.md`. Umsetzung beginnt mit **Track 1** (Teil K) nach `docs/superpowers/avycloud-execution-guide.md`. Die Oversell-/Single-Writer-Items unten sind darin als F0/F1/F2 aufgegangen; ältere Plan-Pfade unter `~/.claude/plans/` sind historisch.
 
 ## 🔴 [KRITISCH] Oversell-Prevention (seit 2026-04-23)
 

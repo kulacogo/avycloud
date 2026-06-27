@@ -1,0 +1,1924 @@
+- generic [active] [ref=e1]:
+  - banner [ref=e3]:
+    - navigation [ref=e6]:
+      - generic [ref=e7]:
+        - generic [ref=e8]:
+          - link "Attio homepage" [ref=e9] [cursor=pointer]:
+            - /url: /
+            - img [ref=e10]
+          - navigation [ref=e18]:
+            - list [ref=e19]:
+              - listitem [ref=e20]:
+                - button "Platform" [ref=e21] [cursor=pointer]:
+                  - generic [ref=e22]: Platform
+                  - img [ref=e23]
+              - listitem [ref=e25]:
+                - button "Resources" [ref=e26] [cursor=pointer]:
+                  - generic [ref=e27]: Resources
+                  - img [ref=e28]
+              - listitem [ref=e30]:
+                - link "Customers" [ref=e31] [cursor=pointer]:
+                  - /url: /customers
+              - listitem [ref=e32]:
+                - link "Pricing" [ref=e33] [cursor=pointer]:
+                  - /url: /pricing
+        - generic [ref=e34]:
+          - link "Sign in" [ref=e35] [cursor=pointer]:
+            - /url: https://app.attio.com/
+          - link "Start for free" [ref=e36] [cursor=pointer]:
+            - /url: https://app.attio.com/welcome/sign-in
+  - generic [ref=e38]:
+    - navigation [ref=e39]:
+      - generic [ref=e40]:
+        - button "Search..." [ref=e42] [cursor=pointer]:
+          - img [ref=e43]
+          - paragraph [ref=e45]: Search...
+          - paragraph [ref=e46]: ⌘K
+        - generic [ref=e47]:
+          - generic [ref=e49]:
+            - link "Academy" [ref=e50] [cursor=pointer]:
+              - /url: /help/academy
+              - generic [ref=e51]: Academy
+            - heading "Introductions Workflows Sequences Reports Attio for product-led growth" [level=2] [ref=e52]:
+              - heading "Introductions" [level=3] [ref=e54]:
+                - button [ref=e55] [cursor=pointer]:
+                  - img [ref=e56]
+                - link "Introductions" [ref=e58] [cursor=pointer]:
+                  - /url: /help/academy/introduction
+              - heading "Workflows" [level=3] [ref=e60]:
+                - button [ref=e61] [cursor=pointer]:
+                  - img [ref=e62]
+                - link "Workflows" [ref=e64] [cursor=pointer]:
+                  - /url: /help/academy/workflows-course
+              - heading "Sequences" [level=3] [ref=e66]:
+                - button [ref=e67] [cursor=pointer]:
+                  - img [ref=e68]
+                - link "Sequences" [ref=e70] [cursor=pointer]:
+                  - /url: /help/academy/sequences
+              - heading "Reports" [level=3] [ref=e72]:
+                - button [ref=e73] [cursor=pointer]:
+                  - img [ref=e74]
+                - link "Reports" [ref=e76] [cursor=pointer]:
+                  - /url: /help/academy/reports-course
+              - heading "Attio for product-led growth" [level=3] [ref=e78]:
+                - button [ref=e79] [cursor=pointer]:
+                  - img [ref=e80]
+                - link "Attio for product-led growth" [ref=e82] [cursor=pointer]:
+                  - /url: /help/academy/attio-for-product-led-growth
+          - generic [ref=e83]:
+            - generic [ref=e84]:
+              - link "Reference" [ref=e85] [cursor=pointer]:
+                - /url: /help/reference
+                - generic [ref=e86]: Reference
+              - heading "Attio 101 Attio AI Managing your data Email & calendar Imports & exports Productivity & collaborating Automations Workflows Overview of workflows Create a workflow Workflows block library Manage workflows Troubleshooting workflows Migrate your legacy workflows Legacy workflows Legacy workflows builder Legacy workflows block library Manage legacy workflows Troubleshooting legacy workflows Sequences Create a sequence Manage sequences Track status of sequence recipients Email deliverability guide Understanding email bounces Tools and extensions Account settings Workspace settings & billing Industry guides Support" [level=2] [ref=e87]:
+                - heading "Attio 101" [level=3] [ref=e89]:
+                  - button [ref=e90] [cursor=pointer]:
+                    - img [ref=e91]
+                  - link "Attio 101" [ref=e93] [cursor=pointer]:
+                    - /url: /help/reference/attio-101
+                - heading "Attio AI" [level=3] [ref=e95]:
+                  - button [ref=e96] [cursor=pointer]:
+                    - img [ref=e97]
+                  - link "Attio AI" [ref=e99] [cursor=pointer]:
+                    - /url: /help/reference/attio-ai
+                - heading "Managing your data" [level=3] [ref=e101]:
+                  - button [ref=e102] [cursor=pointer]:
+                    - img [ref=e103]
+                  - link "Managing your data" [ref=e105] [cursor=pointer]:
+                    - /url: /help/reference/managing-your-data
+                - heading "Email & calendar" [level=3] [ref=e107]:
+                  - button [ref=e108] [cursor=pointer]:
+                    - img [ref=e109]
+                  - link "Email & calendar" [ref=e111] [cursor=pointer]:
+                    - /url: /help/reference/email-calendar
+                - heading "Imports & exports" [level=3] [ref=e113]:
+                  - button [ref=e114] [cursor=pointer]:
+                    - img [ref=e115]
+                  - link "Imports & exports" [ref=e117] [cursor=pointer]:
+                    - /url: /help/reference/imports-exports
+                - heading "Productivity & collaborating" [level=3] [ref=e119]:
+                  - button [ref=e120] [cursor=pointer]:
+                    - img [ref=e121]
+                  - link "Productivity & collaborating" [ref=e123] [cursor=pointer]:
+                    - /url: /help/reference/productivity-collaborating
+                - generic [ref=e124]:
+                  - heading "Automations" [level=3] [ref=e125]:
+                    - button [expanded] [ref=e126] [cursor=pointer]:
+                      - img [ref=e127]
+                    - link "Automations" [ref=e129] [cursor=pointer]:
+                      - /url: /help/reference/automations
+                  - region [ref=e130]:
+                    - generic [ref=e134]:
+                      - generic [ref=e135]:
+                        - link "Workflows" [ref=e136] [cursor=pointer]:
+                          - /url: /help/reference/automations/workflows
+                        - generic [ref=e137]:
+                          - link "Overview of workflows" [ref=e139] [cursor=pointer]:
+                            - /url: /help/reference/automations/workflows/overview-of-workflows
+                          - link "Create a workflow" [ref=e141] [cursor=pointer]:
+                            - /url: /help/reference/automations/workflows/create-a-workflow
+                          - link "Workflows block library" [ref=e143] [cursor=pointer]:
+                            - /url: /help/reference/automations/workflows/workflows-block-library
+                          - link "Manage workflows" [ref=e145] [cursor=pointer]:
+                            - /url: /help/reference/automations/workflows/manage-workflows
+                          - link "Troubleshooting workflows" [ref=e147] [cursor=pointer]:
+                            - /url: /help/reference/automations/workflows/troubleshooting-workflows
+                          - link "Migrate your legacy workflows" [ref=e149] [cursor=pointer]:
+                            - /url: /help/reference/automations/workflows/migrate-your-legacy-workflows
+                      - generic [ref=e150]:
+                        - link "Legacy workflows" [ref=e151] [cursor=pointer]:
+                          - /url: /help/reference/automations/legacy-workflows
+                        - generic [ref=e152]:
+                          - link "Legacy workflows builder" [ref=e154] [cursor=pointer]:
+                            - /url: /help/reference/automations/legacy-workflows/legacy-workflows-builder
+                          - link "Legacy workflows block library" [ref=e156] [cursor=pointer]:
+                            - /url: /help/reference/automations/legacy-workflows/legacy-workflows-block-library
+                          - link "Manage legacy workflows" [ref=e158] [cursor=pointer]:
+                            - /url: /help/reference/automations/legacy-workflows/manage-legacy-workflows
+                          - link "Troubleshooting legacy workflows" [ref=e160] [cursor=pointer]:
+                            - /url: /help/reference/automations/legacy-workflows/troubleshooting-legacy-workflows
+                      - generic [ref=e161]:
+                        - link "Sequences" [ref=e162] [cursor=pointer]:
+                          - /url: /help/reference/automations/sequences
+                        - generic [ref=e163]:
+                          - link "Create a sequence" [ref=e165] [cursor=pointer]:
+                            - /url: /help/reference/automations/sequences/create-a-sequence
+                          - link "Manage sequences" [ref=e167] [cursor=pointer]:
+                            - /url: /help/reference/automations/sequences/manage-sequences
+                          - link "Track status of sequence recipients" [ref=e169] [cursor=pointer]:
+                            - /url: /help/reference/automations/sequences/track-status-of-sequence-recipients
+                          - link "Email deliverability guide" [ref=e171] [cursor=pointer]:
+                            - /url: /help/reference/automations/sequences/email-deliverability-guide
+                          - link "Understanding email bounces" [ref=e173] [cursor=pointer]:
+                            - /url: /help/reference/automations/sequences/understanding-email-bounces
+                - heading "Tools and extensions" [level=3] [ref=e176]:
+                  - button [ref=e177] [cursor=pointer]:
+                    - img [ref=e178]
+                  - link "Tools and extensions" [ref=e180] [cursor=pointer]:
+                    - /url: /help/reference/tools-and-extensions
+                - heading "Account settings" [level=3] [ref=e182]:
+                  - button [ref=e183] [cursor=pointer]:
+                    - img [ref=e184]
+                  - link "Account settings" [ref=e186] [cursor=pointer]:
+                    - /url: /help/reference/account-settings
+                - heading "Workspace settings & billing" [level=3] [ref=e188]:
+                  - button [ref=e189] [cursor=pointer]:
+                    - img [ref=e190]
+                  - link "Workspace settings & billing" [ref=e192] [cursor=pointer]:
+                    - /url: /help/reference/workspace-settings-billing
+                - heading "Industry guides" [level=3] [ref=e194]:
+                  - button [ref=e195] [cursor=pointer]:
+                    - img [ref=e196]
+                  - link "Industry guides" [ref=e198] [cursor=pointer]:
+                    - /url: /help/reference/industry-guides
+                - heading "Support" [level=3] [ref=e200]:
+                  - button [ref=e201] [cursor=pointer]:
+                    - img [ref=e202]
+                  - link "Support" [ref=e204] [cursor=pointer]:
+                    - /url: /help/reference/support
+            - generic [ref=e205]:
+              - link "Apps" [ref=e206] [cursor=pointer]:
+                - /url: /help/apps
+                - generic [ref=e207]: Apps
+              - heading "Automations apps Zapier app Other apps" [level=2] [ref=e208]:
+                - heading "Automations apps" [level=3] [ref=e210]:
+                  - button [ref=e211] [cursor=pointer]:
+                    - img [ref=e212]
+                  - link "Automations apps" [ref=e214] [cursor=pointer]:
+                    - /url: /help/apps/automations-apps
+                - heading "Zapier app" [level=3] [ref=e216]:
+                  - button [ref=e217] [cursor=pointer]:
+                    - img [ref=e218]
+                  - link "Zapier app" [ref=e220] [cursor=pointer]:
+                    - /url: /help/apps/zapier-integration
+                - heading "Other apps" [level=3] [ref=e222]:
+                  - button [ref=e223] [cursor=pointer]:
+                    - img [ref=e224]
+                  - link "Other apps" [ref=e226] [cursor=pointer]:
+                    - /url: /help/apps/other-apps
+    - main [ref=e228]:
+      - list [ref=e233]:
+        - listitem [ref=e234]:
+          - generic [ref=e235]:
+            - link "Help" [ref=e236] [cursor=pointer]:
+              - /url: /help
+            - generic [ref=e237]: /
+        - listitem [ref=e238]:
+          - generic [ref=e239]:
+            - link "Reference" [ref=e240] [cursor=pointer]:
+              - /url: /help/reference
+            - generic [ref=e241]: /
+        - listitem [ref=e242]:
+          - generic [ref=e243]:
+            - link "Automations" [ref=e244] [cursor=pointer]:
+              - /url: /help/reference/automations
+            - generic [ref=e245]: /
+        - listitem [ref=e246]:
+          - generic [ref=e247]:
+            - link "Workflows" [ref=e248] [cursor=pointer]:
+              - /url: /help/reference/automations/workflows
+            - generic [ref=e249]: /
+        - listitem [ref=e250]:
+          - paragraph [ref=e251]: Workflows block library
+      - article [ref=e252]:
+        - generic [ref=e253]:
+          - heading "Workflows block library" [level=1] [ref=e254]
+          - paragraph [ref=e258]: Understand the building blocks that power workflows.
+        - generic [ref=e260]:
+          - generic [ref=e262]:
+            - img [ref=e263]
+            - paragraph [ref=e268]:
+              - text: If you're working with legacy workflows, see the
+              - link "Legacy workflows block library" [ref=e269] [cursor=pointer]:
+                - /url: /help/reference/automations/legacy-workflows/legacy-workflows-block-library
+              - text: instead.
+          - generic [ref=e271]:
+            - img [ref=e273]
+            - paragraph [ref=e275]: Available on all plans.
+            - generic [ref=e276]:
+              - img [ref=e278]
+              - paragraph [ref=e282]: Available for all workspace members.
+          - paragraph [ref=e283]:
+            - text: This is your comprehensive guide to understanding and using the building blocks that power
+            - link "workflows" [ref=e284] [cursor=pointer]:
+              - /url: /help/reference/automations/workflows/getting-started-with-workflows
+            - text: . Workflows gives your team the control and flexibility to build out virtually any go-to-market process you need, right inside Attio.
+          - paragraph [ref=e285]:
+            - text: "We’ll break down the various triggers and steps that you can use to automate your processes. At the heart of workflows are two primary components: trigger blocks that initiate the workflow, and steps that execute specific tasks. For a step-by-step walkthrough to set up workflows, see"
+            - link "Create a workflow" [ref=e286] [cursor=pointer]:
+              - /url: /help/reference/automations/workflows/create-a-workflow
+            - text: .
+          - paragraph [ref=e287]:
+            - text: Reference the
+            - link "Attio glossary" [ref=e288] [cursor=pointer]:
+              - /url: /help/reference/attio-101/attio-glossary
+            - text: to understand the feature terms used in these block descriptions.
+          - heading "What are workflow blocks? Copy link" [level=2] [ref=e289]:
+            - generic [ref=e290]:
+              - text: What are workflow blocks?
+              - button "Copy link" [ref=e291] [cursor=pointer]:
+                - img [ref=e293]
+                - generic [ref=e296]: Copy link
+          - paragraph [ref=e297]: Workflows are made up of blocks, which define how a workflow runs. Every workflow starts with a trigger block, then continues through one or more steps.
+          - paragraph [ref=e298]: Inputs are the values you configure in the block, such as the object, list, conditions, or instructions. Outputs are the values a block returns during a workflow run, which you can use later in the workflow as variables.
+          - heading "Trigger blocks Copy link" [level=2] [ref=e299]:
+            - generic [ref=e300]:
+              - text: Trigger blocks
+              - button "Copy link" [ref=e301] [cursor=pointer]:
+                - img [ref=e303]
+                - generic [ref=e306]: Copy link
+          - paragraph [ref=e307]: Trigger blocks start a workflow. You can use trigger blocks to start workflows automatically, on a schedule, from an incoming webhook, or manually.
+          - heading "Record triggers Copy link" [level=3] [ref=e308]:
+            - generic [ref=e309]:
+              - text: Record triggers
+              - button "Copy link" [ref=e310] [cursor=pointer]:
+                - img [ref=e312]
+                - generic [ref=e315]: Copy link
+          - paragraph [ref=e316]: Record triggers start workflows from a specific object, such as Companies, People, or Deals.
+          - heading "Record command Copy link" [level=4] [ref=e317]:
+            - generic [ref=e318]:
+              - text: Record command
+              - button "Copy link" [ref=e319] [cursor=pointer]:
+                - img [ref=e321]
+                - generic [ref=e324]: Copy link
+          - paragraph [ref=e325]: Record command adds a button to records so you can run the workflow manually for one or more records.
+          - paragraph [ref=e326]: "Input:"
+          - list [ref=e327]:
+            - listitem [ref=e328]:
+              - paragraph [ref=e329]: "Object: The button will be available for all records in the object you select."
+          - paragraph [ref=e330]: "Outputs:"
+          - list [ref=e331]:
+            - listitem [ref=e332]:
+              - paragraph [ref=e333]: The record’s data
+            - listitem [ref=e334]:
+              - paragraph [ref=e335]: Which actor performed the trigger
+            - listitem [ref=e336]:
+              - paragraph [ref=e337]: When the trigger happened
+          - paragraph [ref=e338]: How to run it
+          - paragraph [ref=e339]: "There are a few ways to run a Record command workflow:"
+          - list [ref=e340]:
+            - listitem [ref=e341]:
+              - paragraph [ref=e342]: "From an individual record page: Click the Run workflow icon in the top-left."
+            - listitem [ref=e343]:
+              - paragraph [ref=e344]: "From an all records page or list: Select the checkboxes next to the records you want to enroll in the workflow, then click Run workflow and select the workflow."
+            - listitem [ref=e345]:
+              - paragraph [ref=e346]: "From the workflow editor: Click Trigger workflow in the top-right and select a record."
+            - listitem [ref=e347]:
+              - paragraph [ref=e348]:
+                - text: From the
+                - link "Chrome extension" [ref=e350] [cursor=pointer]:
+                  - /url: /help/reference/tools-and-extensions/attio-chrome-extension
+                - text: ": Open a record and click the Run workflow icon in the toolbar at the bottom."
+          - heading "Record created Copy link" [level=4] [ref=e351]:
+            - generic [ref=e352]:
+              - text: Record created
+              - button "Copy link" [ref=e353] [cursor=pointer]:
+                - img [ref=e355]
+                - generic [ref=e358]: Copy link
+          - paragraph [ref=e359]: Record created starts a workflow whenever a new record is created in a selected object.
+          - paragraph [ref=e360]: "Input:"
+          - list [ref=e361]:
+            - listitem [ref=e362]:
+              - paragraph [ref=e363]: "Object: Select the object the workflow should monitor."
+          - paragraph [ref=e364]: "Outputs:"
+          - list [ref=e365]:
+            - listitem [ref=e366]:
+              - paragraph [ref=e367]: The record’s data
+            - listitem [ref=e368]:
+              - paragraph [ref=e369]: Which actor performed the trigger
+            - listitem [ref=e370]:
+              - paragraph [ref=e371]: When the trigger happened
+          - heading "Record updated Copy link" [level=4] [ref=e372]:
+            - generic [ref=e373]:
+              - text: Record updated
+              - button "Copy link" [ref=e374] [cursor=pointer]:
+                - img [ref=e376]
+                - generic [ref=e379]: Copy link
+          - paragraph [ref=e380]: Record updated starts a workflow whenever a record is updated in a selected object.
+          - generic [ref=e382]:
+            - img [ref=e383]
+            - generic [ref=e386]:
+              - paragraph [ref=e387]:
+                - generic [ref=e388]: "Note:"
+                - text: "Record updated does not trigger when:"
+              - list [ref=e389]:
+                - listitem [ref=e390]:
+                  - paragraph [ref=e391]: An attribute value is first set during record creation (use Attribute value changed instead)
+                - listitem [ref=e392]:
+                  - paragraph [ref=e393]: List attributes are updated (use List entry updated instead)
+          - paragraph [ref=e394]: "Inputs:"
+          - list [ref=e395]:
+            - listitem [ref=e396]:
+              - paragraph [ref=e397]: "Object: Select the object the workflow should monitor."
+            - listitem [ref=e398]:
+              - paragraph [ref=e399]: "Attribute (optional): Select a specific object attribute if you only want the workflow to run when that attribute is updated."
+          - generic [ref=e401]:
+            - img [ref=e402]
+            - paragraph [ref=e407]:
+              - generic [ref=e408]: "Note:"
+              - text: If you do not select an attribute, the workflow runs every time any object attribute on any record in the selected object is updated.
+          - paragraph [ref=e409]: "Outputs:"
+          - list [ref=e410]:
+            - listitem [ref=e411]:
+              - paragraph [ref=e412]: The record’s data
+            - listitem [ref=e413]:
+              - paragraph [ref=e414]: Which actor performed the trigger
+            - listitem [ref=e415]:
+              - paragraph [ref=e416]: When the trigger happened
+            - listitem [ref=e417]:
+              - paragraph [ref=e418]: The record’s new and previous values, if an attribute is selected
+          - heading "Lists triggers Copy link" [level=3] [ref=e419]:
+            - generic [ref=e420]:
+              - text: Lists triggers
+              - button "Copy link" [ref=e421] [cursor=pointer]:
+                - img [ref=e423]
+                - generic [ref=e426]: Copy link
+          - paragraph [ref=e427]:
+            - text: List triggers start workflows from a specific
+            - link "list" [ref=e428] [cursor=pointer]:
+              - /url: /help/reference/managing-your-data/lists
+            - text: ", such as a pipeline, process, or project list."
+          - heading "List entry command Copy link" [level=4] [ref=e429]:
+            - generic [ref=e430]:
+              - text: List entry command
+              - button "Copy link" [ref=e431] [cursor=pointer]:
+                - img [ref=e433]
+                - generic [ref=e436]: Copy link
+          - paragraph [ref=e437]: List entry command adds a button so you can run the workflow manually for selected list entries.
+          - paragraph [ref=e438]: "Input:"
+          - list [ref=e439]:
+            - listitem [ref=e440]:
+              - paragraph [ref=e441]: "List: The button will be available in the list you select."
+          - paragraph [ref=e442]: "Outputs:"
+          - list [ref=e443]:
+            - listitem [ref=e444]:
+              - paragraph [ref=e445]: The list entry’s data
+            - listitem [ref=e446]:
+              - paragraph [ref=e447]: Which actor performed the trigger
+            - listitem [ref=e448]:
+              - paragraph [ref=e449]: When the trigger happened
+          - paragraph [ref=e450]: "There are a few ways to run a List command workflow:"
+          - list [ref=e451]:
+            - listitem [ref=e452]:
+              - paragraph [ref=e453]: "From an individual record page: Click the Run workflow icon on the list entry in the left-hand sidebar."
+            - listitem [ref=e454]:
+              - paragraph [ref=e455]: "From a list: Select the checkboxes next to the list entries you want to enroll in the workflow, then click Run workflow and select the workflow."
+            - listitem [ref=e456]:
+              - paragraph [ref=e457]:
+                - text: From the
+                - link "Chrome extension" [ref=e459] [cursor=pointer]:
+                  - /url: /help/reference/tools-and-extensions/attio-chrome-extension
+                - text: ": Open a record and click the Run workflow icon in the toolbar at the bottom."
+          - heading "Record added to list Copy link" [level=4] [ref=e460]:
+            - generic [ref=e461]:
+              - text: Record added to list
+              - button "Copy link" [ref=e462] [cursor=pointer]:
+                - img [ref=e464]
+                - generic [ref=e467]: Copy link
+          - paragraph [ref=e468]: Record added to list starts a workflow whenever a record is added to a selected list.
+          - paragraph [ref=e469]: "Input:"
+          - list [ref=e470]:
+            - listitem [ref=e471]:
+              - paragraph [ref=e472]: "List: Select the list the workflow should monitor."
+          - paragraph [ref=e473]: "Outputs:"
+          - list [ref=e474]:
+            - listitem [ref=e475]:
+              - paragraph [ref=e476]: The list entry’s data
+            - listitem [ref=e477]:
+              - paragraph [ref=e478]: Which actor performed the trigger
+            - listitem [ref=e479]:
+              - paragraph [ref=e480]: When the trigger happened
+          - heading "List entry updated Copy link" [level=4] [ref=e481]:
+            - generic [ref=e482]:
+              - text: List entry updated
+              - button "Copy link" [ref=e483] [cursor=pointer]:
+                - img [ref=e485]
+                - generic [ref=e488]: Copy link
+          - paragraph [ref=e489]: List entry updated starts a workflow whenever a list entry is updated for a selected list.
+          - generic [ref=e491]:
+            - img [ref=e492]
+            - generic [ref=e495]:
+              - paragraph [ref=e496]:
+                - generic [ref=e497]: "Note:"
+                - text: "List entry updated does not trigger when:"
+              - list [ref=e498]:
+                - listitem [ref=e499]:
+                  - paragraph [ref=e500]: An attribute value is first set while adding a record to the list (use Attribute value changed instead)
+                - listitem [ref=e501]:
+                  - paragraph [ref=e502]: Object attributes are updated (use Record updated instead)
+          - paragraph [ref=e503]: "Inputs:"
+          - list [ref=e504]:
+            - listitem [ref=e505]:
+              - paragraph [ref=e506]: "List: Select the list the workflow should monitor."
+            - listitem [ref=e507]:
+              - paragraph [ref=e508]: "Attribute (optional): Select a specific list attribute if you only want the workflow to run when that attribute is updated."
+          - generic [ref=e510]:
+            - img [ref=e511]
+            - paragraph [ref=e516]:
+              - generic [ref=e517]: "Note:"
+              - text: If you do not select an attribute, the workflow runs whenever any list attribute on any entry in the selected list is updated.
+          - paragraph [ref=e518]: "Outputs:"
+          - list [ref=e519]:
+            - listitem [ref=e520]:
+              - paragraph [ref=e521]: The list entry’s data
+            - listitem [ref=e522]:
+              - paragraph [ref=e523]: Which actor performed the trigger
+            - listitem [ref=e524]:
+              - paragraph [ref=e525]: When the trigger happened
+            - listitem [ref=e526]:
+              - paragraph [ref=e527]: The list entry’s new and previous values, if an attribute is selected
+          - heading "Data triggers Copy link" [level=3] [ref=e528]:
+            - generic [ref=e529]:
+              - text: Data triggers
+              - button "Copy link" [ref=e530] [cursor=pointer]:
+                - img [ref=e532]
+                - generic [ref=e535]: Copy link
+          - paragraph [ref=e536]: Start workflows when a specific attribute changes.
+          - heading "Attribute value changed Copy link" [level=4] [ref=e537]:
+            - generic [ref=e538]:
+              - text: Attribute value changed
+              - button "Copy link" [ref=e539] [cursor=pointer]:
+                - img [ref=e541]
+                - generic [ref=e544]: Copy link
+          - paragraph [ref=e545]: Attribute value changed starts a workflow whenever the attribute's value is set or changed, whether on record creation or in a later update.
+          - generic [ref=e547]:
+            - img [ref=e548]
+            - paragraph [ref=e552]:
+              - generic [ref=e553]: "Note:"
+              - text: In legacy workflows, this block is called Attribute updated. The functionality is the same.
+          - paragraph [ref=e554]: "Inputs:"
+          - list [ref=e555]:
+            - listitem [ref=e556]:
+              - paragraph [ref=e557]: "Object or List: Select the object or list that contains the attribute."
+            - listitem [ref=e558]:
+              - paragraph [ref=e559]: "Attribute: Select the attribute the workflow should monitor."
+          - paragraph [ref=e560]: Unlike Record updated and List entry updated, this trigger also fires if the attribute is given a value when a record or list entry is created.
+          - paragraph [ref=e561]: "Outputs:"
+          - list [ref=e562]:
+            - listitem [ref=e563]:
+              - paragraph [ref=e564]: The parent record’s data for object attributes, or the entry’s data for list attributes
+            - listitem [ref=e565]:
+              - paragraph [ref=e566]: The attribute’s new and previous values
+            - listitem [ref=e567]:
+              - paragraph [ref=e568]: Which actor performed the trigger
+            - listitem [ref=e569]:
+              - paragraph [ref=e570]: When the trigger happened
+          - heading "Task triggers Copy link" [level=3] [ref=e571]:
+            - generic [ref=e572]:
+              - text: Task triggers
+              - button "Copy link" [ref=e573] [cursor=pointer]:
+                - img [ref=e575]
+                - generic [ref=e578]: Copy link
+          - paragraph [ref=e579]: Task triggers start workflows from task activity.
+          - heading "Task created Copy link" [level=4] [ref=e580]:
+            - generic [ref=e581]:
+              - text: Task created
+              - button "Copy link" [ref=e582] [cursor=pointer]:
+                - img [ref=e584]
+                - generic [ref=e587]: Copy link
+          - paragraph [ref=e588]: Task created starts a workflow whenever a new task is created.
+          - paragraph [ref=e589]: "Input:"
+          - list [ref=e590]:
+            - listitem [ref=e591]:
+              - paragraph [ref=e592]: This block has nothing to configure.
+          - paragraph [ref=e593]: "Outputs:"
+          - list [ref=e594]:
+            - listitem [ref=e595]:
+              - paragraph [ref=e596]: The task’s data
+            - listitem [ref=e597]:
+              - paragraph [ref=e598]: Which actor performed the trigger
+            - listitem [ref=e599]:
+              - paragraph [ref=e600]: When the trigger happened
+          - heading "Utilities triggers Copy link" [level=3] [ref=e601]:
+            - generic [ref=e602]:
+              - text: Utilities triggers
+              - button "Copy link" [ref=e603] [cursor=pointer]:
+                - img [ref=e605]
+                - generic [ref=e608]: Copy link
+          - paragraph [ref=e609]: Utility triggers start workflows manually, on a schedule, or from an external request.
+          - heading "Webhook received Copy link" [level=4] [ref=e610]:
+            - generic [ref=e611]:
+              - text: Webhook received
+              - button "Copy link" [ref=e612] [cursor=pointer]:
+                - img [ref=e614]
+                - generic [ref=e617]: Copy link
+          - paragraph [ref=e618]: Webhook received starts a workflow when an external application sends a request to a provided URL.
+          - paragraph [ref=e619]:
+            - text: Configure your application to send requests to the Webhook URL. Requests to the webhook should set
+            - code [ref=e620]: "Content-Type: application/json"
+            - text: .
+          - paragraph [ref=e621]: "Outputs:"
+          - list [ref=e622]:
+            - listitem [ref=e623]:
+              - paragraph [ref=e624]: Webhook Payload Body
+            - listitem [ref=e625]:
+              - paragraph [ref=e626]: When the trigger happened
+          - paragraph [ref=e627]:
+            - text: Follow this block with a
+            - link "Parse JSON block" [ref=e628] [cursor=pointer]:
+              - /url: /help/reference/automations/workflows/workflows-block-library#parse-json
+            - text: to extract structured data from the request body and use it in later blocks.
+          - heading "Manual run Copy link" [level=4] [ref=e629]:
+            - generic [ref=e630]:
+              - text: Manual run
+              - button "Copy link" [ref=e631] [cursor=pointer]:
+                - img [ref=e633]
+                - generic [ref=e636]: Copy link
+          - paragraph [ref=e637]: Manual run lets you start a workflow on demand from the workflow page.
+          - generic [ref=e639]:
+            - img [ref=e640]
+            - generic [ref=e643]:
+              - paragraph [ref=e644]:
+                - generic [ref=e645]: "Note:"
+                - text: "This trigger is useful for testing while you build, but it starts a workflow without selecting any records or list entries. If you want to run a workflow on specific items, you can either:"
+              - list [ref=e646]:
+                - listitem [ref=e647]:
+                  - paragraph [ref=e648]:
+                    - text: Use a
+                    - link "Record command" [ref=e651] [cursor=pointer]:
+                      - /url: /help/reference/automations/workflows/workflows-block-library#record-command
+                    - text: or
+                    - link "List entry command" [ref=e654] [cursor=pointer]:
+                      - /url: /help/reference/automations/workflows/workflows-block-library#list-entry-command
+                    - text: trigger instead, or
+                - listitem [ref=e655]:
+                  - paragraph [ref=e656]:
+                    - text: Combine Manual run with
+                    - link "Find records" [ref=e659] [cursor=pointer]:
+                      - /url: /help/reference/automations/workflows/workflows-block-library#find-records
+                    - text: or
+                    - link "Find list entries" [ref=e662] [cursor=pointer]:
+                      - /url: /help/reference/automations/workflows/workflows-block-library#find-list-entries
+          - paragraph [ref=e663]: "Input:"
+          - list [ref=e664]:
+            - listitem [ref=e665]:
+              - paragraph [ref=e666]: This block has nothing to configure.
+          - paragraph [ref=e667]: "Outputs:"
+          - list [ref=e668]:
+            - listitem [ref=e669]:
+              - paragraph [ref=e670]: Which actor performed the trigger
+            - listitem [ref=e671]:
+              - paragraph [ref=e672]: When the trigger happened
+          - paragraph [ref=e673]: How to run it
+          - paragraph [ref=e674]: To run a Manual run workflow, open the workflow editor and click Trigger workflow in the upper-right.
+          - heading "Recurring schedule Copy link" [level=4] [ref=e675]:
+            - generic [ref=e676]:
+              - text: Recurring schedule
+              - button "Copy link" [ref=e677] [cursor=pointer]:
+                - img [ref=e679]
+                - generic [ref=e682]: Copy link
+          - paragraph [ref=e683]: Recurring schedule starts a workflow on a defined schedule.
+          - paragraph [ref=e684]: "Inputs:"
+          - list [ref=e685]:
+            - listitem [ref=e686]:
+              - paragraph [ref=e687]: "Frequency: Select daily, weekly, monthly, or an advanced schedule using a Cron expression."
+            - listitem [ref=e688]:
+              - paragraph [ref=e689]: "Timezone: Select the timezone for the schedule."
+            - listitem [ref=e690]:
+              - paragraph [ref=e691]: "Frequency-specific settings:"
+              - list [ref=e692]:
+                - listitem [ref=e693]:
+                  - paragraph [ref=e694]: "Daily: Select the time of day."
+                - listitem [ref=e695]:
+                  - paragraph [ref=e696]: "Weekly: Select the day or days of the week and the time of day."
+                - listitem [ref=e697]:
+                  - paragraph [ref=e698]: "Monthly: Select the day or days of the month and the time of day."
+          - paragraph [ref=e699]: "Output:"
+          - list [ref=e700]:
+            - listitem [ref=e701]:
+              - paragraph [ref=e702]: When the trigger happened
+          - heading "Steps Copy link" [level=2] [ref=e703]:
+            - generic [ref=e704]:
+              - text: Steps
+              - button "Copy link" [ref=e705] [cursor=pointer]:
+                - img [ref=e707]
+                - generic [ref=e710]: Copy link
+          - paragraph [ref=e711]: Steps define what happens after a workflow triggers.
+          - heading "Agent steps Copy link" [level=3] [ref=e712]:
+            - generic [ref=e713]:
+              - text: Agent steps
+              - button "Copy link" [ref=e714] [cursor=pointer]:
+                - img [ref=e716]
+                - generic [ref=e719]: Copy link
+          - paragraph [ref=e720]: Agent steps do research and return text that you can use in later blocks or save to an attribute.
+          - paragraph [ref=e721]:
+            - text: Agent outputs are not saved to attributes automatically. You can use the answers directly in later blocks that accept text. If you want to store an answer,
+            - link "create a text type attribute" [ref=e722] [cursor=pointer]:
+              - /url: /help/reference/managing-your-data/attributes/create-manage-attributes
+            - text: first, then follow the agent block with Update record or Update list entry and map the returned text into that attribute.
+          - generic [ref=e724]:
+            - img [ref=e725]
+            - paragraph [ref=e730]:
+              - generic [ref=e731]: "Note:"
+              - text: Agents may not be able to reliably reference some websites such as LinkedIn that are private or require a login.
+          - heading "Custom agent Copy link" [level=4] [ref=e732]:
+            - generic [ref=e733]:
+              - text: Custom agent
+              - button "Copy link" [ref=e734] [cursor=pointer]:
+                - img [ref=e736]
+                - generic [ref=e739]: Copy link
+          - paragraph [ref=e740]: Custom agent deploys an AI agent to perform tasks based on your instructions, with optional access to Attio data, MCP tools, and the web.
+          - paragraph [ref=e741]: "Inputs:"
+          - list [ref=e742]:
+            - listitem [ref=e743]:
+              - paragraph [ref=e744]: "Prompt: Enter the instructions for the agent. The agent has no data by default. Use variables to pass in context from earlier blocks, and configure Tool access to give it access to Attio data or connected apps."
+            - listitem [ref=e745]:
+              - paragraph [ref=e746]: "Output mode: Select how the agent returns its response."
+              - list [ref=e747]:
+                - listitem [ref=e748]:
+                  - paragraph [ref=e749]: "Plaintext: The agent returns a free-text response."
+                - listitem [ref=e750]:
+                  - paragraph [ref=e751]: "Structured: The agent returns output that conforms to a schema you define. Each property in the schema becomes a separate output variable you can use in subsequent blocks."
+            - listitem [ref=e752]:
+              - paragraph [ref=e753]: "Output schema (required when Output mode is Structured): Click Set a schema to open the schema editor. Paste a sample JSON payload to generate a schema automatically, or click + Create manually to build it yourself."
+            - listitem [ref=e754]:
+              - paragraph [ref=e755]: "Advanced options > System prompt (optional): Define the agent's role, rules, and behavior. You can use variables from earlier blocks."
+            - listitem [ref=e756]:
+              - paragraph [ref=e757]: "Model: Select the OpenAI, Google, or Anthropic model you want to use. To learn more about the models, refer to the vendor documentation:"
+              - list [ref=e758]:
+                - listitem [ref=e759]:
+                  - paragraph [ref=e760]:
+                    - 'link "Anthropic: Sonnet and Opus" [ref=e761] [cursor=pointer]':
+                      - /url: https://platform.claude.com/docs/en/about-claude/models/overview
+                - listitem [ref=e762]:
+                  - paragraph [ref=e763]:
+                    - 'link "Google: Gemini Flash and Gemini Pro" [ref=e764] [cursor=pointer]':
+                      - /url: https://ai.google.dev/gemini-api/docs/models
+                - listitem [ref=e765]:
+                  - paragraph [ref=e766]:
+                    - 'link "OpenAI: GPT" [ref=e767] [cursor=pointer]':
+                      - /url: https://platform.openai.com/docs/models
+            - listitem [ref=e768]:
+              - paragraph [ref=e769]: "Tool access (optional): Click Add tools to open the Tool access panel. All tools available are read-only."
+              - list [ref=e770]:
+                - listitem [ref=e771]:
+                  - paragraph [ref=e772]:
+                    - text: "Run as: Select the workspace member or workflow whose credentials the agent uses when calling tools. If a member is selected, they will receive a notification and must grant access via the"
+                    - link "Share access" [ref=e774] [cursor=pointer]:
+                      - /url: https://app.attio.com/_/settings/ask-attio/share-access
+                    - text: tab in their Ask Attio account settings.
+                - listitem [ref=e775]:
+                  - paragraph [ref=e776]:
+                    - generic [ref=e777]: Attio
+                    - text: ": Expand"
+                    - generic [ref=e778]: Read tools
+                    - text: "and select which Attio data the agent can read:"
+                  - list [ref=e779]:
+                    - listitem [ref=e780]:
+                      - paragraph [ref=e781]: Call recordings
+                    - listitem [ref=e782]:
+                      - paragraph [ref=e783]: Emails
+                    - listitem [ref=e784]:
+                      - paragraph [ref=e785]: Lists
+                    - listitem [ref=e786]:
+                      - paragraph [ref=e787]: Meetings
+                    - listitem [ref=e788]:
+                      - paragraph [ref=e789]: Notes
+                    - listitem [ref=e790]:
+                      - paragraph [ref=e791]: Tasks
+                    - listitem [ref=e792]:
+                      - paragraph [ref=e793]: Workspace members
+                    - listitem [ref=e794]:
+                      - paragraph [ref=e795]: Records
+                - listitem [ref=e796]:
+                  - paragraph [ref=e797]: "Web access: Toggle on to allow the agent to browse external URLs to find and retrieve information. Content from external sites may influence how the agent behaves."
+                - listitem [ref=e798]:
+                  - paragraph [ref=e799]:
+                    - text: "Apps: Connected MCP-enabled apps appear here. Expand an app to select which individual tools the agent can use. If you select another workspace member in Run as, Attio will send them a permission request. They must connect their apps via"
+                    - link "App connections" [ref=e801] [cursor=pointer]:
+                      - /url: https://app.attio.com/_/settings/app-connections
+                    - text: in their account settings before the agent can use their app tools.
+          - generic [ref=e803]:
+            - img [ref=e804]
+            - paragraph [ref=e809]:
+              - generic [ref=e810]: "Note:"
+              - text: Selecting a workflow to
+              - generic [ref=e811]: Run as
+              - text: gives the agent access to anything visible across the workspace, such as call recordings and notes, plus any objects and lists the workflow has read access to.
+              - text: Selecting a specific workspace member to
+              - generic [ref=e812]: Run as
+              - text: gives the agent access to everything that member can access.
+          - paragraph [ref=e813]: "Output:"
+          - list [ref=e814]:
+            - listitem [ref=e815]:
+              - paragraph [ref=e816]: Custom agent's response
+          - heading "Web agent Copy link" [level=4] [ref=e817]:
+            - generic [ref=e818]:
+              - text: Web agent
+              - button "Copy link" [ref=e819] [cursor=pointer]:
+                - img [ref=e821]
+                - generic [ref=e824]: Copy link
+          - paragraph [ref=e825]: Web agent deploys an AI agent to answer questions about a record based on research it performs across the web.
+          - generic [ref=e827]:
+            - img [ref=e828]
+            - paragraph [ref=e832]:
+              - generic [ref=e833]: "Note:"
+              - text: In legacy workflows, this block is called Research record. The functionality is the same.
+          - paragraph [ref=e834]: "Inputs:"
+          - list [ref=e835]:
+            - listitem [ref=e836]:
+              - paragraph [ref=e837]: "Record: Select the record you want to research. Use a variable to provide a record from a previous block. The input must be a record; the agent cannot research list entries."
+            - listitem [ref=e838]:
+              - paragraph [ref=e839]: "Questions: Enter a question you want the agent to answer. Click + Add question to add more questions, or click the trash can icon next to a question to remove it."
+          - paragraph [ref=e840]: "Output:"
+          - list [ref=e841]:
+            - listitem [ref=e842]:
+              - paragraph [ref=e843]: Question answers
+          - heading "AI steps Copy link" [level=3] [ref=e844]:
+            - generic [ref=e845]:
+              - text: AI steps
+              - button "Copy link" [ref=e846] [cursor=pointer]:
+                - img [ref=e848]
+                - generic [ref=e851]: Copy link
+          - paragraph [ref=e852]: AI steps generate tags or text from record data or text inputs.
+          - heading "Classify record Copy link" [level=4] [ref=e853]:
+            - generic [ref=e854]:
+              - text: Classify record
+              - button "Copy link" [ref=e855] [cursor=pointer]:
+                - img [ref=e857]
+                - generic [ref=e860]: Copy link
+          - paragraph [ref=e861]: Classify record uses AI to summarize the record into one or more tags based on its attributes.
+          - paragraph [ref=e862]: "Inputs:"
+          - list [ref=e863]:
+            - listitem [ref=e864]:
+              - paragraph [ref=e865]: "Record: Select the record to classify."
+            - listitem [ref=e866]:
+              - paragraph [ref=e867]: "Tags: Enter the tags AI should choose from. Type a tag and press ⏎ Enter or the return key to add each one."
+            - listitem [ref=e868]:
+              - paragraph [ref=e869]: "Allow multiple tags (optional): Check to let AI select more than one tag."
+          - paragraph [ref=e870]: "Output:"
+          - list [ref=e871]:
+            - listitem [ref=e872]:
+              - paragraph [ref=e873]: Record classification
+          - paragraph [ref=e874]:
+            - link "Follow this block with another step to use or save the tags" [ref=e875] [cursor=pointer]:
+              - /url: /help/reference/integrations-automations/automations/workflows-block-library#save-ai-block-outputs
+            - text: .
+          - heading "Classify text Copy link" [level=4] [ref=e876]:
+            - generic [ref=e877]:
+              - text: Classify text
+              - button "Copy link" [ref=e878] [cursor=pointer]:
+                - img [ref=e880]
+                - generic [ref=e883]: Copy link
+          - paragraph [ref=e884]: Classify text uses AI to classify text into one or more tags.
+          - paragraph [ref=e885]: "Inputs:"
+          - list [ref=e886]:
+            - listitem [ref=e887]:
+              - paragraph [ref=e888]: "Input: Provide the text to classify."
+            - listitem [ref=e889]:
+              - paragraph [ref=e890]: "Tags: Enter the tags AI should choose from. Type a tag and press ⏎ Enter or the return key to add each one."
+            - listitem [ref=e891]:
+              - paragraph [ref=e892]: "Allow multiple tags (optional): Check to let AI select more than one tag."
+          - paragraph [ref=e893]: "Output:"
+          - list [ref=e894]:
+            - listitem [ref=e895]:
+              - paragraph [ref=e896]: Text classification
+          - paragraph [ref=e897]:
+            - link "Follow this block with another step to use or save the tags" [ref=e898] [cursor=pointer]:
+              - /url: /help/reference/integrations-automations/automations/workflows-block-library#save-ai-block-outputs
+            - text: .
+          - heading "Summarize record Copy link" [level=4] [ref=e899]:
+            - generic [ref=e900]:
+              - text: Summarize record
+              - button "Copy link" [ref=e901] [cursor=pointer]:
+                - img [ref=e903]
+                - generic [ref=e906]: Copy link
+          - paragraph [ref=e907]: Summarize record uses AI to generate a text summary of the attributes for a record.
+          - paragraph [ref=e908]: "Inputs:"
+          - list [ref=e909]:
+            - listitem [ref=e910]:
+              - paragraph [ref=e911]: "Record: Select the record to classify."
+            - listitem [ref=e912]:
+              - paragraph [ref=e913]: "Instructions: Enter what you want AI to summarize and include."
+          - paragraph [ref=e914]: "Output:"
+          - list [ref=e915]:
+            - listitem [ref=e916]:
+              - paragraph [ref=e917]: Record summary
+          - paragraph [ref=e918]:
+            - link "Follow this block with another step to use or save the text" [ref=e919] [cursor=pointer]:
+              - /url: /help/reference/integrations-automations/automations/workflows-block-library#save-ai-block-outputs
+            - text: .
+          - heading "Save AI block outputs Copy link" [level=4] [ref=e920]:
+            - generic [ref=e921]:
+              - text: Save AI block outputs
+              - button "Copy link" [ref=e922] [cursor=pointer]:
+                - img [ref=e924]
+                - generic [ref=e927]: Copy link
+          - paragraph [ref=e928]: AI outputs are not saved to attributes automatically.
+          - paragraph [ref=e929]: "To store AI outputs in an attribute:"
+          - list [ref=e930]:
+            - listitem [ref=e931]:
+              - paragraph [ref=e932]: For Classify record and Classify text, create a select or multi-select attribute with the same tags you use in the block.
+            - listitem [ref=e933]:
+              - paragraph [ref=e934]: For Summarize record, create a text attribute.
+          - paragraph [ref=e935]: Then follow the AI block with Update record or Update list entry and map the block output into that attribute.
+          - heading "Record steps Copy link" [level=3] [ref=e936]:
+            - generic [ref=e937]:
+              - text: Record steps
+              - button "Copy link" [ref=e938] [cursor=pointer]:
+                - img [ref=e940]
+                - generic [ref=e943]: Copy link
+          - paragraph [ref=e944]: Record steps create, update, find, or delete records.
+          - heading "Create record Copy link" [level=4] [ref=e945]:
+            - generic [ref=e946]:
+              - text: Create record
+              - button "Copy link" [ref=e947] [cursor=pointer]:
+                - img [ref=e949]
+                - generic [ref=e952]: Copy link
+          - paragraph [ref=e953]: Create record creates a new record.
+          - generic [ref=e955]:
+            - img [ref=e956]
+            - paragraph [ref=e960]:
+              - generic [ref=e961]: Note
+              - text: ": If the record may already exist, use Create or update record instead."
+          - paragraph [ref=e962]: "Inputs:"
+          - list [ref=e963]:
+            - listitem [ref=e964]:
+              - paragraph [ref=e965]: "Object: Select the object of the records you want to create."
+            - listitem [ref=e966]:
+              - paragraph [ref=e967]: "Attributes to set (optional): Set values for other object attributes."
+          - paragraph [ref=e968]: "Outputs:"
+          - list [ref=e969]:
+            - listitem [ref=e970]:
+              - paragraph [ref=e971]: The record’s data
+          - heading "Create or update record Copy link" [level=4] [ref=e972]:
+            - generic [ref=e973]:
+              - text: Create or update record
+              - button "Copy link" [ref=e974] [cursor=pointer]:
+                - img [ref=e976]
+                - generic [ref=e979]: Copy link
+          - paragraph [ref=e980]: Create or update record checks for an existing record and updates it if it exists. If no matching record exists, the block creates a new record.
+          - paragraph [ref=e981]: "Inputs:"
+          - list [ref=e982]:
+            - listitem [ref=e983]:
+              - paragraph [ref=e984]: "Object: Select the object of the records you want to create or update."
+            - listitem [ref=e985]:
+              - paragraph [ref=e986]: "Matching attribute: Select the unique object attribute used to check whether a record with a matching value already exists."
+            - listitem [ref=e987]:
+              - paragraph [ref=e988]: "Attributes to set (optional): Set values for other object attributes."
+            - listitem [ref=e989]:
+              - paragraph [ref=e990]: "Replace existing values (optional): When this is not enabled, new multi-select values are added to existing values. When selected, existing values are replaced."
+          - paragraph [ref=e991]: "Outputs:"
+          - list [ref=e992]:
+            - listitem [ref=e993]:
+              - paragraph [ref=e994]: The record’s data
+          - heading "Update record Copy link" [level=4] [ref=e995]:
+            - generic [ref=e996]:
+              - text: Update record
+              - button "Copy link" [ref=e997] [cursor=pointer]:
+                - img [ref=e999]
+                - generic [ref=e1002]: Copy link
+          - paragraph [ref=e1003]: Update record updates an existing record’s attribute values.
+          - paragraph [ref=e1004]: "Inputs:"
+          - list [ref=e1005]:
+            - listitem [ref=e1006]:
+              - paragraph [ref=e1007]: "Object: Select the object of the records you want to update."
+            - listitem [ref=e1008]:
+              - paragraph [ref=e1009]: "Record: Set the record you want to update by selecting a specific record or using a variable from an earlier block."
+            - listitem [ref=e1010]:
+              - paragraph [ref=e1011]: "Attributes to set: Set values for other object attributes."
+            - listitem [ref=e1012]:
+              - paragraph [ref=e1013]: "Replace existing values (optional): When this is not enabled, new multi-select values are added to existing values. When selected, existing values are replaced."
+          - paragraph [ref=e1014]: "Outputs:"
+          - list [ref=e1015]:
+            - listitem [ref=e1016]:
+              - paragraph [ref=e1017]: The record’s data
+          - heading "Find records Copy link" [level=4] [ref=e1018]:
+            - generic [ref=e1019]:
+              - text: Find records
+              - button "Copy link" [ref=e1020] [cursor=pointer]:
+                - img [ref=e1022]
+                - generic [ref=e1025]: Copy link
+          - paragraph [ref=e1026]: Find records returns records that match filter conditions so you can use them later in the workflow.
+          - paragraph [ref=e1027]: "Inputs:"
+          - list [ref=e1028]:
+            - listitem [ref=e1029]:
+              - paragraph [ref=e1030]: "Object: Select the object to search."
+            - listitem [ref=e1031]:
+              - paragraph [ref=e1032]: "Limit: Set how many records to return. The maximum is 100, and a value is required."
+            - listitem [ref=e1033]:
+              - paragraph [ref=e1034]:
+                - text: "Filter: Set the filter conditions that return the records you want."
+                - link "Learn how to set filter conditions or groups" [ref=e1035] [cursor=pointer]:
+                  - /url: /help/reference/integrations-automations/automations/workflows-block-library#set-filter-conditions-or-groups
+                - text: .
+          - paragraph [ref=e1036]: "Outputs:"
+          - list [ref=e1037]:
+            - listitem [ref=e1038]:
+              - paragraph [ref=e1039]: "Matching records: The records found that met the filter conditions."
+            - listitem [ref=e1040]:
+              - paragraph [ref=e1041]: "Number of matches: The number of records found that met the filter conditions."
+          - heading "List steps Copy link" [level=3] [ref=e1042]:
+            - generic [ref=e1043]:
+              - text: List steps
+              - button "Copy link" [ref=e1044] [cursor=pointer]:
+                - img [ref=e1046]
+                - generic [ref=e1049]: Copy link
+          - paragraph [ref=e1050]: List steps create, find, update, or delete list entries.
+          - generic [ref=e1052]:
+            - img [ref=e1053]
+            - paragraph [ref=e1057]:
+              - generic [ref=e1058]: "Note:"
+              - text: List entries and records are different entities. Entry inputs only accept a list entry and will fail if you provide a record. If you are starting with a record, use the Find list entries block to locate the entry, then pass the result using a variable.
+          - heading "Add record to list Copy link" [level=4] [ref=e1059]:
+            - generic [ref=e1060]:
+              - text: Add record to list
+              - button "Copy link" [ref=e1061] [cursor=pointer]:
+                - img [ref=e1063]
+                - generic [ref=e1066]: Copy link
+          - paragraph [ref=e1067]: Add record to list adds a record to a specific list.
+          - paragraph [ref=e1068]: "Inputs:"
+          - list [ref=e1069]:
+            - listitem [ref=e1070]:
+              - paragraph [ref=e1071]: "List: Select the list where the record should be added."
+            - listitem [ref=e1072]:
+              - paragraph [ref=e1073]: "Record: Set the record you want to add by selecting a specific record or using a variable from an earlier block."
+            - listitem [ref=e1074]:
+              - paragraph [ref=e1075]: "Attributes to set (optional): Set values for the new entry’s list attributes."
+          - paragraph [ref=e1076]: "Outputs:"
+          - list [ref=e1077]:
+            - listitem [ref=e1078]:
+              - paragraph [ref=e1079]: The list entry’s data
+          - heading "Update list entry Copy link" [level=4] [ref=e1080]:
+            - generic [ref=e1081]:
+              - text: Update list entry
+              - button "Copy link" [ref=e1082] [cursor=pointer]:
+                - img [ref=e1084]
+                - generic [ref=e1087]: Copy link
+          - paragraph [ref=e1088]: Update list entry modifies an existing entry within a selected list.
+          - paragraph [ref=e1089]: "Inputs:"
+          - list [ref=e1090]:
+            - listitem [ref=e1091]:
+              - paragraph [ref=e1092]: "List: Select the list the entry belongs to."
+            - listitem [ref=e1093]:
+              - paragraph [ref=e1094]: "Entry: Set the list entry you want to update by selecting a specific list entry or using a variable from an earlier block."
+            - listitem [ref=e1095]:
+              - paragraph [ref=e1096]: "Attributes to set: Set values for list attributes."
+            - listitem [ref=e1097]:
+              - paragraph [ref=e1098]: "Replace existing values (optional): When this is not selected, new multi-select values are added to existing values. When selected, existing values are replaced."
+          - paragraph [ref=e1099]: "Outputs:"
+          - list [ref=e1100]:
+            - listitem [ref=e1101]:
+              - paragraph [ref=e1102]: The list entry’s data
+          - heading "Delete list entry Copy link" [level=4] [ref=e1103]:
+            - generic [ref=e1104]:
+              - text: Delete list entry
+              - button "Copy link" [ref=e1105] [cursor=pointer]:
+                - img [ref=e1107]
+                - generic [ref=e1110]: Copy link
+          - paragraph [ref=e1111]: Delete list entry removes an entry from a list.
+          - paragraph [ref=e1112]: "Inputs:"
+          - list [ref=e1113]:
+            - listitem [ref=e1114]:
+              - paragraph [ref=e1115]: "List: Select the list the entry belongs to."
+            - listitem [ref=e1116]:
+              - paragraph [ref=e1117]: "Entry: Set the list entry you want to delete by selecting a specific list entry or using a variable from an earlier block."
+          - heading "Find list entries Copy link" [level=4] [ref=e1118]:
+            - generic [ref=e1119]:
+              - text: Find list entries
+              - button "Copy link" [ref=e1120] [cursor=pointer]:
+                - img [ref=e1122]
+                - generic [ref=e1125]: Copy link
+          - paragraph [ref=e1126]: Find list entries returns list entries that match filter conditions.
+          - paragraph [ref=e1127]: "Inputs:"
+          - list [ref=e1128]:
+            - listitem [ref=e1129]:
+              - paragraph [ref=e1130]: "List: Select the list containing the entries you want to find."
+            - listitem [ref=e1131]:
+              - paragraph [ref=e1132]: "Limit: Set how many list entries to return. The maximum is 100, and a value is required."
+            - listitem [ref=e1133]:
+              - paragraph [ref=e1134]:
+                - text: "Filter: Set the filter conditions that return the list entries you want."
+                - link "Learn how to set filter conditions or groups" [ref=e1135] [cursor=pointer]:
+                  - /url: /help/reference/integrations-automations/automations/workflows-block-library#set-filter-conditions-or-groups
+                - text: .
+          - paragraph [ref=e1136]: "Outputs:"
+          - list [ref=e1137]:
+            - listitem [ref=e1138]:
+              - paragraph [ref=e1139]: "Matching list entries: The list entries found that met the filter conditions."
+            - listitem [ref=e1140]:
+              - paragraph [ref=e1141]: "Number of matches: The number of list entries found that met the filter conditions."
+          - heading "Sequence steps Copy link" [level=3] [ref=e1142]:
+            - generic [ref=e1143]:
+              - text: Sequence steps
+              - button "Copy link" [ref=e1144] [cursor=pointer]:
+                - img [ref=e1146]
+                - generic [ref=e1149]: Copy link
+          - paragraph [ref=e1150]: Sequence steps enroll or remove person records from sequences.
+          - heading "Enroll in sequence Copy link" [level=4] [ref=e1151]:
+            - generic [ref=e1152]:
+              - text: Enroll in sequence
+              - button "Copy link" [ref=e1153] [cursor=pointer]:
+                - img [ref=e1155]
+                - generic [ref=e1158]: Copy link
+          - paragraph [ref=e1159]: Enroll in sequence adds a person record as a recipient in an Attio email sequence.
+          - paragraph [ref=e1160]: "Inputs:"
+          - list [ref=e1161]:
+            - listitem [ref=e1162]:
+              - paragraph [ref=e1163]: "Sequence: Select the sequence."
+            - listitem [ref=e1164]:
+              - paragraph [ref=e1165]: "Recipient: Select the person record to enroll. It is not possible to enroll a company, user, list entry, or any entity other than a person record."
+            - listitem [ref=e1166]:
+              - paragraph [ref=e1167]: "Sender: Select the workspace member who will send the emails."
+          - paragraph [ref=e1168]: "Output:"
+          - list [ref=e1169]:
+            - listitem [ref=e1170]:
+              - paragraph [ref=e1171]: "Enrolled successfully: True or false"
+          - paragraph [ref=e1172]: In a case where the recipient is already enrolled, the workflow run will not fail.
+          - generic [ref=e1174]:
+            - img [ref=e1175]
+            - paragraph [ref=e1180]:
+              - generic [ref=e1181]: "Note:"
+              - text: The selected sender must have
+              - link "delegated sending enabled" [ref=e1184] [cursor=pointer]:
+                - /url: /help/reference/integrations-automations/sequences/create-a-sequence#enable-delegated-sending
+              - text: for the sequence or the workflow run will fail and the recipient will not be added. The sender can also choose which email address to send from within the delegated sending settings.
+          - heading "Exit from sequence Copy link" [level=4] [ref=e1185]:
+            - generic [ref=e1186]:
+              - text: Exit from sequence
+              - button "Copy link" [ref=e1187] [cursor=pointer]:
+                - img [ref=e1189]
+                - generic [ref=e1192]: Copy link
+          - paragraph [ref=e1193]: Exit from sequence stops future emails in a sequence from being sent to an enrolled person record.
+          - paragraph [ref=e1194]: "Inputs:"
+          - list [ref=e1195]:
+            - listitem [ref=e1196]:
+              - paragraph [ref=e1197]: "Sequence: Select the sequence."
+            - listitem [ref=e1198]:
+              - paragraph [ref=e1199]: "Recipient: Select the person record to remove."
+          - paragraph [ref=e1200]: If the recipient provided is not in the sequence, the workflow run will not fail.
+          - heading "Task steps Copy link" [level=3] [ref=e1201]:
+            - generic [ref=e1202]:
+              - text: Task steps
+              - button "Copy link" [ref=e1203] [cursor=pointer]:
+                - img [ref=e1205]
+                - generic [ref=e1208]: Copy link
+          - paragraph [ref=e1209]: Task steps create tasks or mark tasks complete.
+          - heading "Complete task Copy link" [level=4] [ref=e1210]:
+            - generic [ref=e1211]:
+              - text: Complete task
+              - button "Copy link" [ref=e1212] [cursor=pointer]:
+                - img [ref=e1214]
+                - generic [ref=e1217]: Copy link
+          - paragraph [ref=e1218]: Complete task marks a selected task as complete.
+          - paragraph [ref=e1219]: "Input:"
+          - list [ref=e1220]:
+            - listitem [ref=e1221]:
+              - paragraph [ref=e1222]: "Task: Use a variable to select a task from an earlier Create task block."
+          - heading "Create task Copy link" [level=4] [ref=e1223]:
+            - generic [ref=e1224]:
+              - text: Create task
+              - button "Copy link" [ref=e1225] [cursor=pointer]:
+                - img [ref=e1227]
+                - generic [ref=e1230]: Copy link
+          - paragraph [ref=e1231]: Creates a new task.
+          - paragraph [ref=e1232]: "Inputs:"
+          - list [ref=e1233]:
+            - listitem [ref=e1234]:
+              - paragraph [ref=e1235]: "Task: Enter the task text."
+            - listitem [ref=e1236]:
+              - paragraph [ref=e1237]: "Due (optional): Select a fixed date if all tasks should have the same due date, or use a variable."
+            - listitem [ref=e1238]:
+              - paragraph [ref=e1239]: "Linked records (optional): Select a fixed record if all tasks should be linked to the same record, or use a variable."
+            - listitem [ref=e1240]:
+              - paragraph [ref=e1241]: "Assignees (optional): Select a fixed user if all tasks should be assigned to the same person, or use a variable."
+          - generic [ref=e1243]:
+            - img [ref=e1244]
+            - paragraph [ref=e1248]:
+              - generic [ref=e1249]: "Note:"
+              - text: If Due, Linked records, or Assignees are left empty, the created task will not include those values. When the workflow runs, the assignee will be notified that the workflow assigned a task to them.
+          - paragraph [ref=e1250]: "Outputs:"
+          - list [ref=e1251]:
+            - listitem [ref=e1252]:
+              - paragraph [ref=e1253]: The created task’s data
+          - heading "Calculation steps Copy link" [level=3] [ref=e1254]:
+            - generic [ref=e1255]:
+              - text: Calculation steps
+              - button "Copy link" [ref=e1256] [cursor=pointer]:
+                - img [ref=e1258]
+                - generic [ref=e1261]: Copy link
+          - paragraph [ref=e1262]: Calculation steps transform values or return derived values that you can use in later blocks.
+          - heading "Execute code Copy link" [level=4] [ref=e1263]:
+            - generic [ref=e1264]:
+              - text: Execute code
+              - button "Copy link" [ref=e1265] [cursor=pointer]:
+                - img [ref=e1267]
+                - generic [ref=e1270]: Copy link
+          - paragraph [ref=e1271]: Execute code runs a custom JavaScript function as a step in your workflow, letting you apply custom logic or data transformations using code.
+          - paragraph [ref=e1272]: "Input:"
+          - list [ref=e1273]:
+            - listitem [ref=e1274]:
+              - paragraph [ref=e1275]:
+                - text: "Code: Click Add code to open the code editor. Your code must include a function called"
+                - code [ref=e1276]: main
+                - text: . Whatever it returns will be the block's output.
+                - code [ref=e1277]: main
+                - text: "should accept a single argument: an object containing your configured input names and values. Example:"
+          - code [ref=e1280]: "async function main(inputs) { // Access your configured inputs as inputs.<name> return \"\" }"
+          - paragraph [ref=e1281]: "Output:"
+          - list [ref=e1282]:
+            - listitem [ref=e1283]:
+              - paragraph [ref=e1284]: The value returned by the function
+          - generic [ref=e1286]:
+            - img [ref=e1287]
+            - paragraph [ref=e1292]: "Note: The timeout duration for the Execute code block is 100 seconds."
+          - heading "Adjust time Copy link" [level=4] [ref=e1293]:
+            - generic [ref=e1294]:
+              - text: Adjust time
+              - button "Copy link" [ref=e1295] [cursor=pointer]:
+                - img [ref=e1297]
+                - generic [ref=e1300]: Copy link
+          - paragraph [ref=e1301]: Adjust time shifts a timestamp forward or backward by a set amount. You can use a variable to reference a timestamp from earlier in the workflow, such as Triggered at for when the current workflow run began.
+          - paragraph [ref=e1302]: "Inputs:"
+          - list [ref=e1303]:
+            - listitem [ref=e1304]:
+              - paragraph [ref=e1305]: "Timestamp: Select a fixed timestamp or use a variable."
+            - listitem [ref=e1306]:
+              - paragraph [ref=e1307]: "Offset: Enter a positive or negative number. A positive number moves time ahead, and a negative number moves time backward."
+            - listitem [ref=e1308]:
+              - paragraph [ref=e1309]: "Unit: Select Seconds, Minutes, Hours, Days, Weeks, Months, or Years."
+          - paragraph [ref=e1310]: "Output:"
+          - list [ref=e1311]:
+            - listitem [ref=e1312]:
+              - paragraph [ref=e1313]: Adjusted timestamp
+          - paragraph [ref=e1314]: Example
+          - paragraph [ref=e1315]: "For example, whenever a deal moves to In Progress, this workflow creates a task due 5 days later:"
+          - list [ref=e1316]:
+            - listitem [ref=e1317]:
+              - paragraph [ref=e1318]: "Attribute changed block (trigger): Select the Deals object and Deal stage attribute."
+            - listitem [ref=e1319]:
+              - paragraph [ref=e1320]: "Filter block: Add a condition where New value > equals > In Progress."
+            - listitem [ref=e1321]:
+              - paragraph [ref=e1322]: "Adjust time block: Add Updated at for the Timestamp, and offset by 5 days."
+            - listitem [ref=e1323]:
+              - paragraph [ref=e1324]: "Create task block: For Due, add Adjusted timestamp."
+          - heading "Aggregate values Copy link" [level=4] [ref=e1325]:
+            - generic [ref=e1326]:
+              - text: Aggregate values
+              - button "Copy link" [ref=e1327] [cursor=pointer]:
+                - img [ref=e1329]
+                - generic [ref=e1332]: Copy link
+          - paragraph [ref=e1333]: "Aggregate values combines a list of numeric values using a selected aggregation method: sum, average, min, or max."
+          - paragraph [ref=e1334]: "Inputs:"
+          - list [ref=e1335]:
+            - listitem [ref=e1336]:
+              - paragraph [ref=e1337]: "Values: Use a variable to select the number or currency values you want to aggregate."
+            - listitem [ref=e1338]:
+              - paragraph [ref=e1339]: "Aggregation type: Select Sum, Average, Minimum, or Maximum."
+          - paragraph [ref=e1340]: Example
+          - paragraph [ref=e1341]: You can use this block to calculate the sum of deal values across all deals associated with a company record. Follow the block with an Update list entry or Update record block to save the Result in an attribute.
+          - figure [ref=e1342]:
+            - button "Aggregate values workflow block showing path selected" [ref=e1343]:
+              - img "Aggregate values workflow block showing path selected" [ref=e1344]
+          - heading "Formula Copy link" [level=4] [ref=e1345]:
+            - generic [ref=e1346]:
+              - text: Formula
+              - button "Copy link" [ref=e1347] [cursor=pointer]:
+                - img [ref=e1349]
+                - generic [ref=e1352]: Copy link
+          - paragraph [ref=e1353]: Formula calculates a result from a mathematical expression.
+          - paragraph [ref=e1354]: "Inputs:"
+          - list [ref=e1355]:
+            - listitem [ref=e1356]:
+              - paragraph [ref=e1357]: "Formula: Type the mathematical formula, using variables to provide the values from Number or Currency type attributes that you want to use in your calculation. The following are supported: +, -, /, and *."
+          - paragraph [ref=e1358]: "Output:"
+          - list [ref=e1359]:
+            - listitem [ref=e1360]:
+              - paragraph [ref=e1361]: Formula result
+          - paragraph [ref=e1362]: Example
+          - paragraph [ref=e1363]: You could use a variable for an “MRR” attribute and multiply it by 12 to calculate the ARR. Follow the block with an Update list entry or Update record block to save the Result in an attribute.
+          - figure [ref=e1364]:
+            - button "Formula block showing formula of MRR * 12" [ref=e1365]:
+              - img "Formula block showing formula of MRR * 12" [ref=e1366]
+          - heading "Random number Copy link" [level=4] [ref=e1367]:
+            - generic [ref=e1368]:
+              - text: Random number
+              - button "Copy link" [ref=e1369] [cursor=pointer]:
+                - img [ref=e1371]
+                - generic [ref=e1374]: Copy link
+          - paragraph [ref=e1375]: Random number generates a number between a minimum and maximum value.
+          - paragraph [ref=e1376]: "Inputs:"
+          - list [ref=e1377]:
+            - listitem [ref=e1378]:
+              - paragraph [ref=e1379]: "Minimum: Enter a number."
+            - listitem [ref=e1380]:
+              - paragraph [ref=e1381]: "Maximum: Enter a number."
+          - paragraph [ref=e1382]: "Output:"
+          - list [ref=e1383]:
+            - listitem [ref=e1384]:
+              - paragraph [ref=e1385]: Random number
+          - paragraph [ref=e1386]: Example
+          - paragraph [ref=e1387]: One use case for this block is assigning work randomly across team members. For example, if you had two Sales team members and want to route half of new leads to each member, you could generate a random number between 0 and 1, follow it with an If block, and when the number is over 0.5 assign to one team member, and when it’s under 0.5 assign to the other team member. If one team member should have more leads assigned than the other, you can adjust the If block’s condition numbers accordingly.
+          - heading "Condition steps Copy link" [level=3] [ref=e1388]:
+            - generic [ref=e1389]:
+              - text: Condition steps
+              - button "Copy link" [ref=e1390] [cursor=pointer]:
+                - img [ref=e1392]
+                - generic [ref=e1395]: Copy link
+          - paragraph [ref=e1396]: Condition steps control whether a workflow continues and which path it follows.
+          - heading "Set filter conditions or groups Copy link" [level=4] [ref=e1397]:
+            - generic [ref=e1398]:
+              - text: Set filter conditions or groups
+              - button "Copy link" [ref=e1399] [cursor=pointer]:
+                - img [ref=e1401]
+                - generic [ref=e1404]: Copy link
+          - paragraph [ref=e1405]: Use filter conditions to control when a workflow continues or which records or list entries a block returns.
+          - paragraph [ref=e1406]: "To add filter conditions:"
+          - list [ref=e1407]:
+            - listitem [ref=e1408]:
+              - paragraph [ref=e1409]: Click Add condition.
+            - listitem [ref=e1410]:
+              - paragraph [ref=e1411]: Select the attribute you want to filter by.
+            - listitem [ref=e1412]:
+              - paragraph [ref=e1413]: Select an operator.
+            - listitem [ref=e1414]:
+              - paragraph [ref=e1415]: Select or enter a value, if the operator requires one.
+            - listitem [ref=e1416]:
+              - paragraph [ref=e1417]: Click + Add condition to add another condition.
+            - listitem [ref=e1418]:
+              - paragraph [ref=e1419]: Toggle and or or.
+          - paragraph [ref=e1420]: "To combine conditions and nest groups for more precise logic:"
+          - list [ref=e1421]:
+            - listitem [ref=e1422]:
+              - paragraph [ref=e1423]: Open the ⋮ menu next to a condition.
+            - listitem [ref=e1424]:
+              - paragraph [ref=e1425]: Click Convert to advanced condition.
+            - listitem [ref=e1426]:
+              - paragraph [ref=e1427]: Add more conditions.
+            - listitem [ref=e1428]:
+              - paragraph [ref=e1429]: Select and or or to control how the group is evaluated.
+          - paragraph [ref=e1430]: "To remove a condition or group:"
+          - list [ref=e1431]:
+            - listitem [ref=e1432]:
+              - paragraph [ref=e1433]: Open the ⋮ menu next to the condition or group.
+            - listitem [ref=e1434]:
+              - paragraph [ref=e1435]: Click Delete condition or Delete group.
+          - heading "Understanding condition operators Copy link" [level=4] [ref=e1436]:
+            - generic [ref=e1437]:
+              - text: Understanding condition operators
+              - button "Copy link" [ref=e1438] [cursor=pointer]:
+                - img [ref=e1440]
+                - generic [ref=e1443]: Copy link
+          - paragraph [ref=e1444]: Condition operators compare an attribute value against the value you enter or select. The operators available depend on the type of attribute you select.
+          - paragraph [ref=e1445]: "Common operator types in workflows include:"
+          - list [ref=e1446]:
+            - listitem [ref=e1447]:
+              - paragraph [ref=e1448]: is and is not for exact matches
+            - listitem [ref=e1449]:
+              - paragraph [ref=e1450]: contains and does not contain for partial text matches
+            - listitem [ref=e1451]:
+              - paragraph [ref=e1452]: starts with and ends with for text values
+            - listitem [ref=e1453]:
+              - paragraph [ref=e1454]: greater than, greater or equal to, less than, and less or equal to for number and currency values
+            - listitem [ref=e1455]:
+              - paragraph [ref=e1456]: after, at or after, before, and at or before for date and timestamp values
+            - listitem [ref=e1457]:
+              - paragraph [ref=e1458]: empty and not empty to check whether a value is present
+          - paragraph [ref=e1459]: Use and when every condition in a group must be true. Use or when any condition in a group can be true. For attributes that can hold multiple values, a condition is true if any one of the values matches.
+          - heading "Filter Copy link" [level=4] [ref=e1460]:
+            - generic [ref=e1461]:
+              - text: Filter
+              - button "Copy link" [ref=e1462] [cursor=pointer]:
+                - img [ref=e1464]
+                - generic [ref=e1467]: Copy link
+          - paragraph [ref=e1468]: Filter checks whether selected conditions are true. If the conditions are true, the workflow continues. If the conditions are not true, the workflow stops.
+          - paragraph [ref=e1469]: "Inputs:"
+          - list [ref=e1470]:
+            - listitem [ref=e1471]:
+              - paragraph [ref=e1472]: "Add condition: Set the condition(s) that must be true for the workflow to continue."
+          - paragraph [ref=e1473]:
+            - link "Learn how to set filter conditions or groups" [ref=e1474] [cursor=pointer]:
+              - /url: /help/reference/integrations-automations/automations/workflows-block-library#set-filter-conditions-or-groups
+            - text: .
+          - heading "If Copy link" [level=4] [ref=e1475]:
+            - generic [ref=e1476]:
+              - text: If
+              - button "Copy link" [ref=e1477] [cursor=pointer]:
+                - img [ref=e1479]
+                - generic [ref=e1482]: Copy link
+          - paragraph [ref=e1483]: If creates two paths and routes the workflow based on conditions.
+          - generic [ref=e1485]:
+            - img [ref=e1486]
+            - paragraph [ref=e1490]:
+              - generic [ref=e1491]: "Note:"
+              - text: In Legacy workflows, this block is called If/else. The functionality is the same.
+          - paragraph [ref=e1492]: "Inputs:"
+          - list [ref=e1493]:
+            - listitem [ref=e1494]:
+              - paragraph [ref=e1495]: "Add condition: Set the condition or conditions that, when true, cause the workflow to continue on the True path, and when false cause it to continue on the False path."
+          - paragraph [ref=e1496]:
+            - link "Learn how to set filter conditions or groups" [ref=e1497] [cursor=pointer]:
+              - /url: /help/reference/integrations-automations/automations/workflows-block-library#set-filter-conditions-or-groups
+            - text: . Once you set the conditions, select the next block for True and False paths.
+          - heading "Switch Copy link" [level=4] [ref=e1498]:
+            - generic [ref=e1499]:
+              - text: Switch
+              - button "Copy link" [ref=e1500] [cursor=pointer]:
+                - img [ref=e1502]
+                - generic [ref=e1505]: Copy link
+          - paragraph [ref=e1506]: Switch routes the workflow into multiple paths based on conditions. These paths are called cases.
+          - paragraph [ref=e1507]: "Inputs:"
+          - list [ref=e1508]:
+            - listitem [ref=e1509]:
+              - paragraph [ref=e1510]: "Add condition: Set condition(s) that must be true for the workflow to follow each case path."
+          - paragraph [ref=e1511]:
+            - link "Learn how to set filter conditions or groups" [ref=e1512] [cursor=pointer]:
+              - /url: /help/reference/integrations-automations/automations/workflows-block-library#set-filter-conditions-or-groups
+            - text: . Once you set the conditions, select the next block for each case path.
+          - paragraph [ref=e1513]: Which path is taken in a Switch block?
+          - paragraph [ref=e1514]: "If multiple paths are true, paths are evaluated in order: Case 1, Case 2, Case 3, then Default. The first path that returns true is the only path that runs."
+          - paragraph [ref=e1515]: The Default path is taken if no other case’s conditions are met. If no case conditions are met and there are no blocks on the Default path, the run does not continue past the Switch block.
+          - heading "Delay steps Copy link" [level=3] [ref=e1516]:
+            - generic [ref=e1517]:
+              - text: Delay steps
+              - button "Copy link" [ref=e1518] [cursor=pointer]:
+                - img [ref=e1520]
+                - generic [ref=e1523]: Copy link
+          - paragraph [ref=e1524]: Delay steps pause a workflow for a set amount of time or until a selected timestamp.
+          - heading "Delay Copy link" [level=4] [ref=e1525]:
+            - generic [ref=e1526]:
+              - text: Delay
+              - button "Copy link" [ref=e1527] [cursor=pointer]:
+                - img [ref=e1529]
+                - generic [ref=e1532]: Copy link
+          - paragraph [ref=e1533]: Delay pauses the workflow run for a specified duration.
+          - paragraph [ref=e1534]: "Inputs:"
+          - list [ref=e1535]:
+            - listitem [ref=e1536]:
+              - paragraph [ref=e1537]: "Delay: Enter a number, then select Seconds, Minutes, Hours, Days, or Weeks."
+          - heading "Delay until Copy link" [level=4] [ref=e1538]:
+            - generic [ref=e1539]:
+              - text: Delay until
+              - button "Copy link" [ref=e1540] [cursor=pointer]:
+                - img [ref=e1542]
+                - generic [ref=e1545]: Copy link
+          - paragraph [ref=e1546]: Delay until pauses the workflow until a specific date and time.
+          - paragraph [ref=e1547]: "Inputs:"
+          - list [ref=e1548]:
+            - listitem [ref=e1549]:
+              - paragraph [ref=e1550]: "Delay until: Select a date and time or use a variable from an earlier block, such as an Adjust time block."
+          - heading "Workspace steps Copy link" [level=3] [ref=e1551]:
+            - generic [ref=e1552]:
+              - text: Workspace steps
+              - button "Copy link" [ref=e1553] [cursor=pointer]:
+                - img [ref=e1555]
+                - generic [ref=e1558]: Copy link
+          - paragraph [ref=e1559]: Workspace steps help you route work and communicate with people in your workspace.
+          - heading "Round robin Copy link" [level=4] [ref=e1560]:
+            - generic [ref=e1561]:
+              - text: Round robin
+              - button "Copy link" [ref=e1562] [cursor=pointer]:
+                - img [ref=e1564]
+                - generic [ref=e1567]: Copy link
+          - paragraph [ref=e1568]: Round robin selects a user from a defined set of users and cycles through the list in order across the workflow’s runs.
+          - paragraph [ref=e1569]: "Inputs:"
+          - list [ref=e1570]:
+            - listitem [ref=e1571]:
+              - paragraph [ref=e1572]: "Users: Select the users to include."
+          - paragraph [ref=e1573]: "Output:"
+          - list [ref=e1574]:
+            - listitem [ref=e1575]:
+              - paragraph [ref=e1576]: Picked user or their Email address
+          - heading "Celebration Copy link" [level=4] [ref=e1577]:
+            - generic [ref=e1578]:
+              - text: Celebration
+              - button "Copy link" [ref=e1579] [cursor=pointer]:
+                - img [ref=e1581]
+                - generic [ref=e1584]: Copy link
+          - paragraph [ref=e1585]: Celebration shows an animation to selected users in your workspace.
+          - paragraph [ref=e1586]: "Inputs:"
+          - list [ref=e1587]:
+            - listitem [ref=e1588]:
+              - paragraph [ref=e1589]: "Type: Select an animation: Ceiling drop, Fireworks, or Cannons. Select an option for a preview."
+            - listitem [ref=e1590]:
+              - paragraph [ref=e1591]: "Target: Select which users should see the animation."
+          - heading "Broadcast message Copy link" [level=4] [ref=e1592]:
+            - generic [ref=e1593]:
+              - text: Broadcast message
+              - button "Copy link" [ref=e1594] [cursor=pointer]:
+                - img [ref=e1596]
+                - generic [ref=e1599]: Copy link
+          - paragraph [ref=e1600]: Broadcast message shows a popup notification to users in your workspace.
+          - paragraph [ref=e1601]: "Inputs:"
+          - list [ref=e1602]:
+            - listitem [ref=e1603]:
+              - paragraph [ref=e1604]: "Style: Customize the message appearance."
+              - list [ref=e1605]:
+                - listitem [ref=e1606]:
+                  - paragraph [ref=e1607]: Neutral shows a grey informational icon.
+                - listitem [ref=e1608]:
+                  - paragraph [ref=e1609]: Success shows a green checkmark icon.
+                - listitem [ref=e1610]:
+                  - paragraph [ref=e1611]: Warning shows a yellow caution icon.
+                - listitem [ref=e1612]:
+                  - paragraph [ref=e1613]: Error shows a red error icon.
+            - listitem [ref=e1614]:
+              - paragraph [ref=e1615]: "Target: Select which users should see the message."
+            - listitem [ref=e1616]:
+              - paragraph [ref=e1617]: "Title: Enter a title."
+            - listitem [ref=e1618]:
+              - paragraph [ref=e1619]: "Description (optional): Enter the message body."
+            - listitem [ref=e1620]:
+              - paragraph [ref=e1621]: "Duration (seconds): Select how long the message stays visible."
+          - heading "Utilities steps Copy link" [level=3] [ref=e1622]:
+            - generic [ref=e1623]:
+              - text: Utilities steps
+              - button "Copy link" [ref=e1624] [cursor=pointer]:
+                - img [ref=e1626]
+                - generic [ref=e1629]: Copy link
+          - paragraph [ref=e1630]: Utility steps support iteration, data parsing, and external requests.
+          - heading "Loop Copy link" [level=4] [ref=e1631]:
+            - generic [ref=e1632]:
+              - text: Loop
+              - button "Copy link" [ref=e1633] [cursor=pointer]:
+                - img [ref=e1635]
+                - generic [ref=e1638]: Copy link
+          - paragraph [ref=e1639]: Loop repeats a set of nested blocks for each item in a list.
+          - paragraph [ref=e1640]: Use Loop when you want to perform the same set of steps for multiple values returned by an earlier block. Those values might be records, list entries, linked records, multi-select values, or other iterable outputs.
+          - paragraph [ref=e1641]: "Inputs:"
+          - list [ref=e1642]:
+            - listitem [ref=e1643]:
+              - paragraph [ref=e1644]: "Iterable: Use a variable to select the list of things to iterate over. You can either select an attribute that allows for multiple values, or any attribute of objects linked by multi-reference attributes."
+            - listitem [ref=e1645]:
+              - paragraph [ref=e1646]: "Limit (optional): Set the maximum number of iterations to run. If left blank, the loop runs for every item in the list."
+          - paragraph [ref=e1647]: "Outputs available for blocks inside the loop:"
+          - list [ref=e1648]:
+            - listitem [ref=e1649]:
+              - paragraph [ref=e1650]: "Current item: The item the loop is currently iterating over"
+            - listitem [ref=e1651]:
+              - paragraph [ref=e1652]: "Item position: The numerical position of the current item in the list of items the loop will iterate over"
+            - listitem [ref=e1653]:
+              - paragraph [ref=e1654]: "Count: The number of items that are being iterated over"
+            - listitem [ref=e1655]:
+              - paragraph [ref=e1656]: "Total count: The number of items provided to the loop block (can be higher than Count if a limit is set)"
+            - listitem [ref=e1657]:
+              - paragraph [ref=e1658]: "Limit (optional): The limit that was configured"
+          - paragraph [ref=e1659]: Navigating loop blocks on the canvas
+          - paragraph [ref=e1660]: Click Select next block under Next step to select the first block you want to run in the loop. Blocks that should run for each iteration should be added inside the loop container, indicated by the dotted line.
+          - figure [ref=e1661]:
+            - button [ref=e1662]
+          - paragraph [ref=e1663]: To add steps after the looping blocks have finished, open the Loop block and click Select next block under Complete.
+          - heading "Parse JSON Copy link" [level=4] [ref=e1664]:
+            - generic [ref=e1665]:
+              - text: Parse JSON
+              - button "Copy link" [ref=e1666] [cursor=pointer]:
+                - img [ref=e1668]
+                - generic [ref=e1671]: Copy link
+          - paragraph [ref=e1672]: Parse JSON parses a JSON string into structured values you can use in later workflow steps.
+          - paragraph [ref=e1673]: "Inputs:"
+          - list [ref=e1674]:
+            - listitem [ref=e1675]:
+              - paragraph [ref=e1676]: "Input: Enter the JSON string you want to parse. You can paste in a value directly or use a variable from an earlier block, such as Webhook received or Send HTTP request."
+            - listitem [ref=e1677]:
+              - paragraph [ref=e1678]: "Schema: Define the shape of the JSON you want to extract."
+              - list [ref=e1679]:
+                - listitem [ref=e1680]:
+                  - paragraph [ref=e1681]: Paste a sample JSON payload to generate a schema automatically.
+                - listitem [ref=e1682]:
+                  - paragraph [ref=e1683]: Or select Create manually to build the schema yourself.
+            - listitem [ref=e1684]:
+              - paragraph [ref=e1685]: "Root type: Select the top-level structure of the JSON schema."
+            - listitem [ref=e1686]:
+              - paragraph [ref=e1687]: "Properties: Add each property you want to extract and assign it a type."
+              - list [ref=e1688]:
+                - listitem [ref=e1689]:
+                  - paragraph [ref=e1690]: Supported types include String, Number, Boolean, Object, Array of Strings, Array of Numbers, Array of Booleans, and Array of Objects.
+            - listitem [ref=e1691]:
+              - paragraph [ref=e1692]: "Set optional: Mark a property as optional if it may not always be present in the JSON."
+          - paragraph [ref=e1693]: "Outputs:"
+          - list [ref=e1694]:
+            - listitem [ref=e1695]:
+              - paragraph [ref=e1696]: Parsed values based on the schema you define. These values can be used as variables in subsequent blocks.
+          - paragraph [ref=e1697]: Defining the schema
+          - paragraph [ref=e1698]: Your schema should match the structure of the JSON you expect to receive.
+          - paragraph [ref=e1699]: "For example:"
+          - list [ref=e1700]:
+            - listitem [ref=e1701]:
+              - paragraph [ref=e1702]: Use a top-level property for values at the root of the JSON object.
+            - listitem [ref=e1703]:
+              - paragraph [ref=e1704]: Use Object for nested JSON objects.
+            - listitem [ref=e1705]:
+              - paragraph [ref=e1706]: Use an array type for lists of values or nested objects.
+          - paragraph [ref=e1707]: If a value is missing, the block returns an empty value instead of failing. If the incoming value does not match the type defined in your schema, the block will fail. For example, a property defined as Number will fail if the JSON contains a string or array at that location.
+          - paragraph [ref=e1708]: "If your input JSON looks like this:"
+          - code [ref=e1711]: "{ \"name\": \"Jane\", \"email\": \"jane@company.com\", \"subscribed\": true, \"tags\": [\"customer\", \"newsletter\"] }"
+          - paragraph [ref=e1712]: "Set the Root type to Object, then add these properties to your schema:"
+          - list [ref=e1713]:
+            - listitem [ref=e1714]:
+              - paragraph [ref=e1715]: name as String
+            - listitem [ref=e1716]:
+              - paragraph [ref=e1717]: email as String
+            - listitem [ref=e1718]:
+              - paragraph [ref=e1719]: subscribed as Boolean
+            - listitem [ref=e1720]:
+              - paragraph [ref=e1721]: tags as Array of Strings
+          - paragraph [ref=e1722]: After the block runs, each parsed value can be used in later workflow steps.
+          - paragraph [ref=e1723]: Mapping parsed values to Attio attributes
+          - paragraph [ref=e1724]: Parsed values from the Parse JSON block can be mapped to supported Attio attribute types in later steps.
+          - list [ref=e1725]:
+            - listitem [ref=e1726]:
+              - paragraph [ref=e1727]: Boolean values can be mapped to Checkbox attributes.
+            - listitem [ref=e1728]:
+              - paragraph [ref=e1729]: Number and Array of Numbers values can be mapped to Number and Rating attributes.
+            - listitem [ref=e1730]:
+              - paragraph [ref=e1731]: String and Array of Strings values can be mapped to Text, Email Address, Domain, Select, Multi-select, Currency, Status, and Phone attributes.
+          - heading "Send HTTP request Copy link" [level=4] [ref=e1732]:
+            - generic [ref=e1733]:
+              - text: Send HTTP request
+              - button "Copy link" [ref=e1734] [cursor=pointer]:
+                - img [ref=e1736]
+                - generic [ref=e1739]: Copy link
+          - paragraph [ref=e1740]: Send HTTP request sends an HTTP request to another system from a workflow. Use Send HTTP request to send data to, or trigger actions in, external systems.
+          - paragraph [ref=e1741]: "Inputs:"
+          - list [ref=e1742]:
+            - listitem [ref=e1743]:
+              - paragraph [ref=e1744]: "Method: Select the HTTP method to use. Supported methods are DELETE, GET, HEAD, PATCH, POST, and PUT."
+            - listitem [ref=e1745]:
+              - paragraph [ref=e1746]: "URL: Enter the URL Attio should send the request to. You can use hard-coded text, variables from earlier steps, or a combination of both."
+            - listitem [ref=e1747]:
+              - paragraph [ref=e1748]:
+                - text: "Headers (optional): Add any headers required by the receiving system as header and value pairs. You can use hard-coded text, variables, or a combination of both. Custom headers are generally supported, though"
+                - link "these headers" [ref=e1749] [cursor=pointer]:
+                  - /url: https://developer.mozilla.org/en-US/docs/Glossary/Forbidden_header_name
+                - text: are not, and Attio may also block other headers as needed to maintain platform security.
+            - listitem [ref=e1750]:
+              - paragraph [ref=e1751]: "Content-Type header (optional): Specify the format of the request body. This is required for requests that include a message body, such as POST and PUT requests."
+            - listitem [ref=e1752]:
+              - paragraph [ref=e1753]: "Body (optional): Enter the request body in the format required by the receiving system. If a Content-Type header is set, the body will be validated against it."
+          - paragraph [ref=e1754]: "Outputs:"
+          - list [ref=e1755]:
+            - listitem [ref=e1756]:
+              - paragraph [ref=e1757]: "HTTP status code: The HTTP status code returned by the receiving system."
+            - listitem [ref=e1758]:
+              - paragraph [ref=e1759]: "HTTP response body: The response body returned by the receiving system."
+            - listitem [ref=e1760]:
+              - paragraph [ref=e1761]: "Whether the response was successful: Returns true when the response status code is in the 200-299 range."
+          - paragraph [ref=e1762]: If the response body contains JSON, follow this block with Parse JSON to extract structured values for use elsewhere in the workflow.
+          - generic [ref=e1764]:
+            - img [ref=e1765]
+            - paragraph [ref=e1770]:
+              - generic [ref=e1771]: "Note:"
+              - text: The timeout duration for the Send HTTP request block is 2 minutes.
+          - heading "Third-party blocks Copy link" [level=2] [ref=e1772]:
+            - generic [ref=e1773]:
+              - text: Third-party blocks
+              - button "Copy link" [ref=e1774] [cursor=pointer]:
+                - img [ref=e1776]
+                - generic [ref=e1779]: Copy link
+          - paragraph [ref=e1780]: Third-party blocks are provided by connected integrations, which allow other apps to trigger workflows or take actions within workflows.
+          - paragraph [ref=e1781]: Use third-party blocks when you want a workflow to interact with another system, such as sending information to that app, receiving information from it, or taking action based on activity that happens there. The blocks available in your workspace depend on which integrations are connected.
+          - paragraph [ref=e1782]:
+            - text: To use third-party blocks, connect your workspace to the corresponding app first. Many apps offer workflow blocks, including
+            - link "Slack" [ref=e1783] [cursor=pointer]:
+              - /url: /help/apps/automations-apps/slack-app
+            - text: ","
+            - link "Outreach" [ref=e1784] [cursor=pointer]:
+              - /url: /help/apps/automations-apps/outreach-app
+            - text: ","
+            - link "Mailchimp" [ref=e1785] [cursor=pointer]:
+              - /url: /help/apps/automations-apps/mailchimp-app
+            - text: ","
+            - link "Mixmax" [ref=e1786] [cursor=pointer]:
+              - /url: /help/apps/automations-apps/mixmax-app
+            - text: ", and"
+            - link "Typeform" [ref=e1787] [cursor=pointer]:
+              - /url: /help/apps/automations-apps/typeform-app
+            - text: blocks. Explore all integrations in
+            - link "Attio’s App Store" [ref=e1788] [cursor=pointer]:
+              - /url: /apps
+            - text: .
+      - complementary [ref=e1789]:
+        - navigation [ref=e1790]:
+          - heading "Table of Contents" [level=2] [ref=e1792]
+          - generic [ref=e1793]:
+            - button "What are workflow blocks?":
+              - paragraph: What are workflow blocks?
+            - button "Trigger blocks" [ref=e1794] [cursor=pointer]:
+              - paragraph [ref=e1795]: Trigger blocks
+            - button "Record triggers" [ref=e1796] [cursor=pointer]:
+              - img [ref=e1797]
+              - img [ref=e1798]
+              - paragraph [ref=e1799]: Record triggers
+            - button "Lists triggers" [ref=e1800] [cursor=pointer]:
+              - img [ref=e1801]
+              - img [ref=e1802]
+              - paragraph [ref=e1803]: Lists triggers
+            - button "Data triggers" [ref=e1804] [cursor=pointer]:
+              - img [ref=e1805]
+              - img [ref=e1806]
+              - paragraph [ref=e1807]: Data triggers
+            - button "Task triggers" [ref=e1808] [cursor=pointer]:
+              - img [ref=e1809]
+              - img [ref=e1810]
+              - paragraph [ref=e1811]: Task triggers
+            - button "Utilities triggers" [ref=e1812] [cursor=pointer]:
+              - img [ref=e1813]
+              - img [ref=e1814]
+              - paragraph [ref=e1815]: Utilities triggers
+            - button "Steps" [ref=e1816] [cursor=pointer]:
+              - paragraph [ref=e1817]: Steps
+            - button "Agent steps" [ref=e1818] [cursor=pointer]:
+              - img [ref=e1819]
+              - img [ref=e1820]
+              - paragraph [ref=e1821]: Agent steps
+            - button "AI steps" [ref=e1822] [cursor=pointer]:
+              - img [ref=e1823]
+              - img [ref=e1824]
+              - paragraph [ref=e1825]: AI steps
+            - button "Record steps" [ref=e1826] [cursor=pointer]:
+              - img [ref=e1827]
+              - img [ref=e1828]
+              - paragraph [ref=e1829]: Record steps
+            - button "List steps" [ref=e1830] [cursor=pointer]:
+              - img [ref=e1831]
+              - img [ref=e1832]
+              - paragraph [ref=e1833]: List steps
+            - button "Sequence steps" [ref=e1834] [cursor=pointer]:
+              - img [ref=e1835]
+              - img [ref=e1836]
+              - paragraph [ref=e1837]: Sequence steps
+            - button "Task steps" [ref=e1838] [cursor=pointer]:
+              - img [ref=e1839]
+              - img [ref=e1840]
+              - paragraph [ref=e1841]: Task steps
+            - button "Calculation steps" [ref=e1842] [cursor=pointer]:
+              - img [ref=e1843]
+              - img [ref=e1844]
+              - paragraph [ref=e1845]: Calculation steps
+            - button "Condition steps" [ref=e1846] [cursor=pointer]:
+              - img [ref=e1847]
+              - img [ref=e1848]
+              - paragraph [ref=e1849]: Condition steps
+            - button "Delay steps" [ref=e1850] [cursor=pointer]:
+              - img [ref=e1851]
+              - img [ref=e1852]
+              - paragraph [ref=e1853]: Delay steps
+            - button "Workspace steps" [ref=e1854] [cursor=pointer]:
+              - img [ref=e1855]
+              - img [ref=e1856]
+              - paragraph [ref=e1857]: Workspace steps
+            - button "Utilities steps" [ref=e1858] [cursor=pointer]:
+              - img [ref=e1859]
+              - img [ref=e1860]
+              - paragraph [ref=e1861]: Utilities steps
+            - button "Third-party blocks" [ref=e1862] [cursor=pointer]:
+              - paragraph [ref=e1863]: Third-party blocks
+      - complementary [ref=e1864]:
+        - img [ref=e1865]
+        - generic [ref=e1867]:
+          - generic [ref=e1868]: Did this article answer your question?
+          - generic [ref=e1869]:
+            - button "Yes" [ref=e1870] [cursor=pointer]:
+              - img [ref=e1871]
+              - generic [ref=e1875]: "Yes"
+            - button "No" [ref=e1876] [cursor=pointer]:
+              - img [ref=e1877]
+              - generic [ref=e1881]: "No"
+  - contentinfo [ref=e1882]:
+    - img [ref=e1883]
+    - generic [ref=e1885]:
+      - link "Attio homepage" [ref=e1887] [cursor=pointer]:
+        - /url: /
+        - img [ref=e1888]
+      - generic [ref=e1896]:
+        - generic [ref=e1897]:
+          - heading "Platform" [level=2] [ref=e1899]
+          - list [ref=e1900]:
+            - listitem [ref=e1901]:
+              - link "Refer a team New" [ref=e1902] [cursor=pointer]:
+                - /url: /refer
+                - generic [ref=e1903]: Refer a team
+                - generic [ref=e1904]: New
+            - listitem [ref=e1905]:
+              - link "Changelog" [ref=e1906] [cursor=pointer]:
+                - /url: /changelog
+                - generic [ref=e1907]: Changelog
+            - listitem [ref=e1908]:
+              - link "Gmail extension" [ref=e1909] [cursor=pointer]:
+                - /url: https://chrome.google.com/webstore/detail/attio/legacbojjmajoedfolbjlekjjkepadph/
+                - generic [ref=e1910]: Gmail extension
+                - img [ref=e1911]
+            - listitem [ref=e1913]:
+              - link "iOS app" [ref=e1914] [cursor=pointer]:
+                - /url: https://apps.apple.com/gb/app/attio/id1511545395
+                - generic [ref=e1915]: iOS app
+                - img [ref=e1916]
+            - listitem [ref=e1918]:
+              - link "Android app" [ref=e1919] [cursor=pointer]:
+                - /url: https://play.google.com/store/apps/details?id=com.attio&gl=GB
+                - generic [ref=e1920]: Android app
+                - img [ref=e1921]
+        - generic [ref=e1923]:
+          - heading "Company" [level=2] [ref=e1925]
+          - list [ref=e1926]:
+            - listitem [ref=e1927]:
+              - link "Customers" [ref=e1928] [cursor=pointer]:
+                - /url: /customers
+                - generic [ref=e1929]: Customers
+            - listitem [ref=e1930]:
+              - link "Announcements" [ref=e1931] [cursor=pointer]:
+                - /url: /blog
+                - generic [ref=e1932]: Announcements
+            - listitem [ref=e1933]:
+              - link "Engineering blog New" [ref=e1934] [cursor=pointer]:
+                - /url: /engineering/blog
+                - generic [ref=e1935]: Engineering blog
+                - generic [ref=e1936]: New
+            - listitem [ref=e1937]:
+              - link "Careers" [ref=e1938] [cursor=pointer]:
+                - /url: /careers
+                - generic [ref=e1939]: Careers
+            - listitem [ref=e1940]:
+              - link "Manifesto" [ref=e1941] [cursor=pointer]:
+                - /url: /redefine
+                - generic [ref=e1942]: Manifesto
+            - listitem [ref=e1943]:
+              - link "Become a partner" [ref=e1944] [cursor=pointer]:
+                - /url: /partners
+                - generic [ref=e1945]: Become a partner
+        - generic [ref=e1946]:
+          - heading "Import from" [level=2] [ref=e1948]
+          - list [ref=e1949]:
+            - listitem [ref=e1950]:
+              - link "Salesforce" [ref=e1951] [cursor=pointer]:
+                - /url: /help/reference/imports-and-exports/migrate-data-from-another-crm?source=footer_salesforce
+                - generic [ref=e1952]: Salesforce
+            - listitem [ref=e1953]:
+              - link "Hubspot" [ref=e1954] [cursor=pointer]:
+                - /url: /help/reference/imports-and-exports/migrate-data-from-another-crm?source=footer_hubspot
+                - generic [ref=e1955]: Hubspot
+            - listitem [ref=e1956]:
+              - link "Pipedrive" [ref=e1957] [cursor=pointer]:
+                - /url: /help/reference/imports-and-exports/migrate-data-from-another-crm?source=footer_pipedrive
+                - generic [ref=e1958]: Pipedrive
+            - listitem [ref=e1959]:
+              - link "Zoho" [ref=e1960] [cursor=pointer]:
+                - /url: /help/reference/imports-and-exports/migrate-data-from-another-crm?source=footer_zoho
+                - generic [ref=e1961]: Zoho
+            - listitem [ref=e1962]:
+              - link "Excel" [ref=e1963] [cursor=pointer]:
+                - /url: /help/reference/imports-and-exports/import-data-into-attio?source=footer_excel
+                - generic [ref=e1964]: Excel
+            - listitem [ref=e1965]:
+              - link "CSV" [ref=e1966] [cursor=pointer]:
+                - /url: /help/reference/imports-and-exports/import-data-into-attio?source=footer_csv
+                - generic [ref=e1967]: CSV
+        - generic [ref=e1968]:
+          - heading "Attio for" [level=2] [ref=e1970]
+          - list [ref=e1971]:
+            - listitem [ref=e1972]:
+              - link "Startups" [ref=e1973] [cursor=pointer]:
+                - /url: /solutions/startup-crm
+                - generic [ref=e1974]: Startups
+            - listitem [ref=e1975]:
+              - link "Deal flow" [ref=e1976] [cursor=pointer]:
+                - /url: /solutions/deal-flow-management-software
+                - generic [ref=e1977]: Deal flow
+        - generic [ref=e1978]:
+          - heading "Apps" [level=2] [ref=e1980]
+          - list [ref=e1981]:
+            - listitem [ref=e1982]:
+              - link "Gmail" [ref=e1983] [cursor=pointer]:
+                - /url: https://attio.com/apps/gmail
+                - generic [ref=e1984]: Gmail
+            - listitem [ref=e1985]:
+              - link "Outlook" [ref=e1986] [cursor=pointer]:
+                - /url: https://attio.com/apps/outlook
+                - generic [ref=e1987]: Outlook
+            - listitem [ref=e1988]:
+              - link "Segment" [ref=e1989] [cursor=pointer]:
+                - /url: https://attio.com/apps/segment
+                - generic [ref=e1990]: Segment
+            - listitem [ref=e1991]:
+              - link "Mailchimp" [ref=e1992] [cursor=pointer]:
+                - /url: https://attio.com/apps/mailchimp
+                - generic [ref=e1993]: Mailchimp
+            - listitem [ref=e1994]:
+              - link "Slack" [ref=e1995] [cursor=pointer]:
+                - /url: https://attio.com/apps/slack
+                - generic [ref=e1996]: Slack
+            - listitem [ref=e1997]:
+              - link "Outreach" [ref=e1998] [cursor=pointer]:
+                - /url: https://attio.com/apps/outreach
+                - generic [ref=e1999]: Outreach
+            - listitem [ref=e2000]:
+              - link "Mixmax" [ref=e2001] [cursor=pointer]:
+                - /url: https://attio.com/apps/mixmax
+                - generic [ref=e2002]: Mixmax
+            - listitem [ref=e2003]:
+              - link "Typeform" [ref=e2004] [cursor=pointer]:
+                - /url: https://attio.com/apps/typeform
+                - generic [ref=e2005]: Typeform
+            - listitem [ref=e2006]:
+              - link "Zapier" [ref=e2007] [cursor=pointer]:
+                - /url: https://attio.com/apps/zapier
+                - generic [ref=e2008]: Zapier
+        - generic [ref=e2009]:
+          - heading "Resources" [level=2] [ref=e2011]
+          - list [ref=e2012]:
+            - listitem [ref=e2013]:
+              - link "Startup program" [ref=e2014] [cursor=pointer]:
+                - /url: /startups
+                - generic [ref=e2015]: Startup program
+            - listitem [ref=e2016]:
+              - link "Help center" [ref=e2017] [cursor=pointer]:
+                - /url: /help
+                - generic [ref=e2018]: Help center
+            - listitem [ref=e2019]:
+              - link "Developers" [ref=e2020] [cursor=pointer]:
+                - /url: https://docs.attio.com/
+                - generic [ref=e2021]: Developers
+                - img [ref=e2022]
+            - listitem [ref=e2024]:
+              - link "System status" [ref=e2025] [cursor=pointer]:
+                - /url: https://status.attio.com/
+                - generic [ref=e2026]: System status
+                - img [ref=e2027]
+            - listitem [ref=e2029]:
+              - link "Hire an expert" [ref=e2030] [cursor=pointer]:
+                - /url: /experts
+                - generic [ref=e2031]: Hire an expert
+            - listitem [ref=e2032]:
+              - link "Downloads" [ref=e2033] [cursor=pointer]:
+                - /url: /download
+                - generic [ref=e2034]: Downloads
+            - listitem [ref=e2035]:
+              - link "Trust Center" [ref=e2036] [cursor=pointer]:
+                - /url: https://trust.attio.com/
+                - generic [ref=e2037]: Trust Center
+                - img [ref=e2038]
+    - generic [ref=e2042]:
+      - generic [ref=e2043]:
+        - link "Attio on LinkedIn" [ref=e2044] [cursor=pointer]:
+          - /url: https://linkedin.com/company/attio
+          - img [ref=e2045]
+        - link "Attio on X" [ref=e2047] [cursor=pointer]:
+          - /url: https://twitter.com/attio
+          - img [ref=e2048]
+        - link "Attio on Dribbble" [ref=e2050] [cursor=pointer]:
+          - /url: https://dribbble.com/attio
+          - img [ref=e2051]
+        - link "Attio on YouTube" [ref=e2053] [cursor=pointer]:
+          - /url: https://www.youtube.com/@attioCRM
+          - img [ref=e2054]
+      - generic [ref=e2056]:
+        - paragraph [ref=e2057]: © 2026 Attio Ltd. All rights reserved.
+        - generic [ref=e2058]:
+          - link "Services Agreement" [ref=e2059] [cursor=pointer]:
+            - /url: /legal/services-agreement
+          - link "Privacy Policy" [ref=e2060] [cursor=pointer]:
+            - /url: /legal/privacy
+          - link "LLMs" [ref=e2061] [cursor=pointer]:
+            - /url: https://attio.com/llms.txt
+  - region "Cookie consent":
+    - generic [ref=e2063]:
+      - paragraph [ref=e2066]:
+        - text: We use cookies to improve your experience. You can opt out of certain cookies. Find out more in our
+        - link "privacy policy" [ref=e2067] [cursor=pointer]:
+          - /url: /legal/privacy
+        - text: .
+      - generic [ref=e2068]:
+        - button "Continue" [ref=e2069] [cursor=pointer]
+        - button "Reject" [ref=e2070] [cursor=pointer]
+  - region "Notifications alt+T"
+  - alert [ref=e2071]

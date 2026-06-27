@@ -11,6 +11,7 @@
 4. [CLAUDE.md](CLAUDE.md) — Projekt-Regeln, harte Invarianten, Feature-Flags. **Single Source of Truth für „nicht verhandelbar".**
 5. [TASKS.md](TASKS.md) — Aktive Tasks und Bugs. **Quelle für was gerade läuft.**
 6. Bei Feature-Arbeit: `docs/kb/06-features/<feature>.md` und ggf. `docs/features/<ID>/spec.md`.
+7. **Bei Reliability-/Sync-/Bestand-Arbeit (aktueller Fokus „Track 1"):** [docs/superpowers/avycloud-master-plan.md](docs/superpowers/avycloud-master-plan.md) (Teil K) **und** [docs/superpowers/avycloud-execution-guide.md](docs/superpowers/avycloud-execution-guide.md) — **Pflicht** für Übergabe- und Abnahme-Logik (ein Branch/PR pro Arbeitspaket, Tests zuerst, Commit nur auf OK).
 
 ## Die 13 Nicht-Verhandelbaren (Kurzform — Volltext in [CLAUDE.md](CLAUDE.md))
 
@@ -27,6 +28,7 @@
 11. **Kein `omsStatus`-Direct-Write** — Order-State-Übergänge AUSSCHLIESSLICH über `transitionOrder()`.
 12. **Kein In-Memory-Stock-Lock** in Produktion — `withStockLock()` mit Firestore-Backend ist Pflicht.
 13. **Stock Single Writer Invariant** — jede physische Einheit darf während des Order-Lifecycle GENAU EINMAL dekrementiert werden. Volltext in [CLAUDE.md](CLAUDE.md) Punkt 13.
+14. **Kein destruktiver Marktplatz-Fehlerpfad** — keine Fehlerbehandlung im Sync darf ein Listing beenden/löschen; Fehler → klassifizieren → durable Queue → Retry. Zementiert Brandfix `c339184`. Volltext in [CLAUDE.md](CLAUDE.md) Punkt 14.
 
 ## Pre-Flight Checklist (vor jedem Tool-Call der etwas ändert)
 

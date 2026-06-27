@@ -1,0 +1,332 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - banner [ref=e4]:
+      - generic [ref=e8]:
+        - link "Orchestrate revenue agents with the new Workflows" [ref=e9] [cursor=pointer]:
+          - /url: /platform/workflows
+          - generic [ref=e10]: Orchestrate revenue agents with the new Workflows
+          - img [ref=e11]
+        - button "Dismiss banner" [ref=e13] [cursor=pointer]:
+          - img [ref=e14]
+      - navigation [ref=e17]:
+        - generic [ref=e18]:
+          - generic [ref=e19]:
+            - link "Attio homepage" [ref=e20] [cursor=pointer]:
+              - /url: /
+              - img [ref=e21]
+            - navigation [ref=e29]:
+              - list [ref=e30]:
+                - listitem [ref=e31]:
+                  - button "Platform" [ref=e32] [cursor=pointer]:
+                    - generic [ref=e33]: Platform
+                    - img [ref=e34]
+                - listitem [ref=e36]:
+                  - button "Resources" [ref=e37] [cursor=pointer]:
+                    - generic [ref=e38]: Resources
+                    - img [ref=e39]
+                - listitem [ref=e41]:
+                  - link "Customers" [ref=e42] [cursor=pointer]:
+                    - /url: /customers
+                - listitem [ref=e43]:
+                  - link "Pricing" [ref=e44] [cursor=pointer]:
+                    - /url: /pricing
+          - generic [ref=e45]:
+            - link "Sign in" [ref=e46] [cursor=pointer]:
+              - /url: https://app.attio.com/
+            - link "Start for free" [ref=e47] [cursor=pointer]:
+              - /url: https://app.attio.com/welcome/sign-in
+    - generic [ref=e49]:
+      - article [ref=e50]:
+        - generic [ref=e51]:
+          - time [ref=e53]: Aug '24
+          - generic [ref=e54]:
+            - navigation "breadcrumbs" [ref=e55]:
+              - list [ref=e56]:
+                - listitem [ref=e57]:
+                  - link "blog" [ref=e58] [cursor=pointer]:
+                    - /url: /blog
+                - listitem [ref=e59]: /Product
+            - paragraph [ref=e60]: 3 min read
+          - img [ref=e61]
+          - generic [ref=e62]:
+            - heading "Introducing Attio's AI-powered research agent" [level=1] [ref=e63]
+            - paragraph [ref=e67]: Ilan Cedillos Brand & Comms
+        - img [ref=e68]
+        - generic [ref=e69]:
+          - img [ref=e70]
+          - generic [ref=e73]:
+            - iframe [ref=e75]:
+              - img [ref=f13e1]
+            - paragraph [ref=e76]: One of the ultimate goals of every high-performing GTM team is to build powerful systems that automate as much as possible. Eventually, however, we all hit a wall with tasks that require manual research and human judgment.
+            - paragraph [ref=e77]: "These tasks are everywhere in our GTM processes: from prospecting and lead qualification to competitive analysis and account expansion planning. Each of them demands time and effort, whether it's researching basic information or tackling critical questions with nuanced answers."
+            - paragraph [ref=e78]: "Teams are always forced into a trade-off: they can opt for speed by using broad datasets that lack nuance, or choose accuracy through time-intensive human analysis."
+            - paragraph [ref=e79]: "Today, we’re excited to introduce a feature that pushes past this limitation: our new AI agent that can research anything on the web right inside of Attio workflows. Whether you need to determine if a company fits your ICP, identify key-decision makers, or understand a company’s funding history, our research agent can find the answers you need and let you automate and scale processes you never thought possible."
+            - heading "Key features of our research agent" [level=2] [ref=e80]
+            - figure [ref=e81]:
+              - button [ref=e82]
+            - paragraph [ref=e83]: "We've integrated our research agent into our Automations product, allowing you to deploy it in any workflow you've built or easily incorporate it into new ones. Here's what sets it apart:"
+            - list [ref=e84]:
+              - listitem [ref=e85]:
+                - paragraph [ref=e86]: "Context-informed questions: Our AI agent understands the context of your query by leveraging existing Attio data as it researches the web. It considers company details, interaction history, and custom attributes to deliver relevant, accurate answers."
+              - listitem [ref=e87]:
+                - paragraph [ref=e88]: "Seamless workflow integration: Our research agent doesn’t just find answers – it helps you act on them. You can use what it finds to trigger processes within your Attio workflows. This turns research into action, automating tasks that once required manual effort."
+              - listitem [ref=e89]:
+                - paragraph [ref=e90]: "Everything in one place: Any answer that our research agent finds is stored directly in your Attio records. This means you always have the latest information right where you need it, whether you're reaching out to a new lead or planning a renewal conversation."
+            - heading "From research to action" [level=2] [ref=e91]
+            - paragraph [ref=e92]: Our research agent opens up new possibilities for automating critical parts of your go-to-market strategy. For the first time, you can instantly answer nuanced questions about prospects that don't have clear-cut answers, augment data enrichment with precise information, and uncover details not available from standard data providers.
+            - paragraph [ref=e93]:
+              - text: "Whether you're product-led, sales-led, or have a unique go-to-market approach, here are some ways you can leverage our research agent:"
+              - text: "1. Automatically qualify leads: Set up workflows to research new leads, determine if they match your ICP, and route qualified prospects directly to your sales team."
+            - iframe [ref=e95]:
+              - img [ref=f14e1]
+            - paragraph [ref=e96]: "2. Accelerate PLG motions: Automatically assess new sign-ups based on company information and product usage data. Route high-value prospects to specialized onboarding flows or direct sales outreach."
+            - iframe [ref=e98]:
+              - img [ref=f15e1]
+            - paragraph [ref=e99]: "3. Proactively identify expansion opportunities: Set up recurring workflows to check for significant events like recent funding rounds. Automatically trigger personalized outreach to congratulate customers and discuss how your product can support their growth."
+            - iframe [ref=e101]:
+              - img [ref=f16e1]
+            - paragraph [ref=e102]: "4. Monitor for churn risks: Regularly scan for leadership changes in customer organizations, such as a new VP or a director. This allows you to proactively engage with new decision-makers and mitigate potential churn risks."
+            - iframe [ref=e104]:
+              - img [ref=f17e1]
+            - paragraph [ref=e105]: "5. Go beyond data enrichment: Uncover precise details about a company and pinpoint key decision-makers. Get exact information, like funding raised, pricing models, and presence in different territories."
+            - iframe [ref=e107]:
+              - img [ref=f18e1]
+            - paragraph [ref=e108]: And that's just scratching the surface. The possibilities are infinite.
+            - paragraph [ref=e109]:
+              - text: Our research agent is another step in our journey to revolutionize how revenue teams operate with AI. It's the first step in our
+              - link "vision" [ref=e110] [cursor=pointer]:
+                - /url: /blog/ai-and-the-next-generation-of-CRM
+              - text: to create an intelligent, autonomous system of action that automates complex business processes and augments human decision-making.
+            - paragraph [ref=e111]:
+              - text: See how our research agent can transform your GTM processes.
+              - link "Start today" [ref=e112] [cursor=pointer]:
+                - /url: https://app.attio.com
+              - text: .
+            - paragraph [ref=e113]:
+              - emphasis [ref=e114]: We’re also hosting a research agent workshop in the Attio community on August 15th to help you get started and answer any of your questions.
+              - emphasis [ref=e115]:
+                - link "Become a member" [ref=e116] [cursor=pointer]:
+                  - /url: https://www.attio.community/join?invitation_token=dcd248d5e2d9c4d59ef93a7ee8d0488c802395b5-5eb1f392-be41-4776-9130-6aa1d6df126c
+              - emphasis [ref=e117]: to register for the workshop.
+          - navigation [ref=e122]:
+            - heading "Table of Contents" [level=2] [ref=e124]
+            - generic [ref=e125]:
+              - button "Key features of our research agent":
+                - paragraph: Key features of our research agent
+              - button "From research to action" [ref=e126] [cursor=pointer]:
+                - paragraph [ref=e127]: From research to action
+      - img [ref=e130]
+    - contentinfo [ref=e133]:
+      - img [ref=e134]
+      - generic [ref=e136]:
+        - link "Attio homepage" [ref=e138] [cursor=pointer]:
+          - /url: /
+          - img [ref=e139]
+        - generic [ref=e147]:
+          - generic [ref=e148]:
+            - heading "Platform" [level=2] [ref=e150]
+            - list [ref=e151]:
+              - listitem [ref=e152]:
+                - link "Refer a team New" [ref=e153] [cursor=pointer]:
+                  - /url: /refer
+                  - generic [ref=e154]: Refer a team
+                  - generic [ref=e155]: New
+              - listitem [ref=e156]:
+                - link "Changelog" [ref=e157] [cursor=pointer]:
+                  - /url: /changelog
+                  - generic [ref=e158]: Changelog
+              - listitem [ref=e159]:
+                - link "Gmail extension" [ref=e160] [cursor=pointer]:
+                  - /url: https://chrome.google.com/webstore/detail/attio/legacbojjmajoedfolbjlekjjkepadph/
+                  - generic [ref=e161]: Gmail extension
+                  - img [ref=e162]
+              - listitem [ref=e164]:
+                - link "iOS app" [ref=e165] [cursor=pointer]:
+                  - /url: https://apps.apple.com/gb/app/attio/id1511545395
+                  - generic [ref=e166]: iOS app
+                  - img [ref=e167]
+              - listitem [ref=e169]:
+                - link "Android app" [ref=e170] [cursor=pointer]:
+                  - /url: https://play.google.com/store/apps/details?id=com.attio&gl=GB
+                  - generic [ref=e171]: Android app
+                  - img [ref=e172]
+          - generic [ref=e174]:
+            - heading "Company" [level=2] [ref=e176]
+            - list [ref=e177]:
+              - listitem [ref=e178]:
+                - link "Customers" [ref=e179] [cursor=pointer]:
+                  - /url: /customers
+                  - generic [ref=e180]: Customers
+              - listitem [ref=e181]:
+                - link "Announcements" [ref=e182] [cursor=pointer]:
+                  - /url: /blog
+                  - generic [ref=e183]: Announcements
+              - listitem [ref=e184]:
+                - link "Engineering blog New" [ref=e185] [cursor=pointer]:
+                  - /url: /engineering/blog
+                  - generic [ref=e186]: Engineering blog
+                  - generic [ref=e187]: New
+              - listitem [ref=e188]:
+                - link "Careers" [ref=e189] [cursor=pointer]:
+                  - /url: /careers
+                  - generic [ref=e190]: Careers
+              - listitem [ref=e191]:
+                - link "Manifesto" [ref=e192] [cursor=pointer]:
+                  - /url: /redefine
+                  - generic [ref=e193]: Manifesto
+              - listitem [ref=e194]:
+                - link "Become a partner" [ref=e195] [cursor=pointer]:
+                  - /url: /partners
+                  - generic [ref=e196]: Become a partner
+          - generic [ref=e197]:
+            - heading "Import from" [level=2] [ref=e199]
+            - list [ref=e200]:
+              - listitem [ref=e201]:
+                - link "Salesforce" [ref=e202] [cursor=pointer]:
+                  - /url: /help/reference/imports-and-exports/migrate-data-from-another-crm?source=footer_salesforce
+                  - generic [ref=e203]: Salesforce
+              - listitem [ref=e204]:
+                - link "Hubspot" [ref=e205] [cursor=pointer]:
+                  - /url: /help/reference/imports-and-exports/migrate-data-from-another-crm?source=footer_hubspot
+                  - generic [ref=e206]: Hubspot
+              - listitem [ref=e207]:
+                - link "Pipedrive" [ref=e208] [cursor=pointer]:
+                  - /url: /help/reference/imports-and-exports/migrate-data-from-another-crm?source=footer_pipedrive
+                  - generic [ref=e209]: Pipedrive
+              - listitem [ref=e210]:
+                - link "Zoho" [ref=e211] [cursor=pointer]:
+                  - /url: /help/reference/imports-and-exports/migrate-data-from-another-crm?source=footer_zoho
+                  - generic [ref=e212]: Zoho
+              - listitem [ref=e213]:
+                - link "Excel" [ref=e214] [cursor=pointer]:
+                  - /url: /help/reference/imports-and-exports/import-data-into-attio?source=footer_excel
+                  - generic [ref=e215]: Excel
+              - listitem [ref=e216]:
+                - link "CSV" [ref=e217] [cursor=pointer]:
+                  - /url: /help/reference/imports-and-exports/import-data-into-attio?source=footer_csv
+                  - generic [ref=e218]: CSV
+          - generic [ref=e219]:
+            - heading "Attio for" [level=2] [ref=e221]
+            - list [ref=e222]:
+              - listitem [ref=e223]:
+                - link "Startups" [ref=e224] [cursor=pointer]:
+                  - /url: /solutions/startup-crm
+                  - generic [ref=e225]: Startups
+              - listitem [ref=e226]:
+                - link "Deal flow" [ref=e227] [cursor=pointer]:
+                  - /url: /solutions/deal-flow-management-software
+                  - generic [ref=e228]: Deal flow
+          - generic [ref=e229]:
+            - heading "Apps" [level=2] [ref=e231]
+            - list [ref=e232]:
+              - listitem [ref=e233]:
+                - link "Gmail" [ref=e234] [cursor=pointer]:
+                  - /url: https://attio.com/apps/gmail
+                  - generic [ref=e235]: Gmail
+              - listitem [ref=e236]:
+                - link "Outlook" [ref=e237] [cursor=pointer]:
+                  - /url: https://attio.com/apps/outlook
+                  - generic [ref=e238]: Outlook
+              - listitem [ref=e239]:
+                - link "Segment" [ref=e240] [cursor=pointer]:
+                  - /url: https://attio.com/apps/segment
+                  - generic [ref=e241]: Segment
+              - listitem [ref=e242]:
+                - link "Mailchimp" [ref=e243] [cursor=pointer]:
+                  - /url: https://attio.com/apps/mailchimp
+                  - generic [ref=e244]: Mailchimp
+              - listitem [ref=e245]:
+                - link "Slack" [ref=e246] [cursor=pointer]:
+                  - /url: https://attio.com/apps/slack
+                  - generic [ref=e247]: Slack
+              - listitem [ref=e248]:
+                - link "Outreach" [ref=e249] [cursor=pointer]:
+                  - /url: https://attio.com/apps/outreach
+                  - generic [ref=e250]: Outreach
+              - listitem [ref=e251]:
+                - link "Mixmax" [ref=e252] [cursor=pointer]:
+                  - /url: https://attio.com/apps/mixmax
+                  - generic [ref=e253]: Mixmax
+              - listitem [ref=e254]:
+                - link "Typeform" [ref=e255] [cursor=pointer]:
+                  - /url: https://attio.com/apps/typeform
+                  - generic [ref=e256]: Typeform
+              - listitem [ref=e257]:
+                - link "Zapier" [ref=e258] [cursor=pointer]:
+                  - /url: https://attio.com/apps/zapier
+                  - generic [ref=e259]: Zapier
+          - generic [ref=e260]:
+            - heading "Resources" [level=2] [ref=e262]
+            - list [ref=e263]:
+              - listitem [ref=e264]:
+                - link "Startup program" [ref=e265] [cursor=pointer]:
+                  - /url: /startups
+                  - generic [ref=e266]: Startup program
+              - listitem [ref=e267]:
+                - link "Help center" [ref=e268] [cursor=pointer]:
+                  - /url: /help
+                  - generic [ref=e269]: Help center
+              - listitem [ref=e270]:
+                - link "Developers" [ref=e271] [cursor=pointer]:
+                  - /url: https://docs.attio.com/
+                  - generic [ref=e272]: Developers
+                  - img [ref=e273]
+              - listitem [ref=e275]:
+                - link "System status" [ref=e276] [cursor=pointer]:
+                  - /url: https://status.attio.com/
+                  - generic [ref=e277]: System status
+                  - img [ref=e278]
+              - listitem [ref=e280]:
+                - link "Hire an expert" [ref=e281] [cursor=pointer]:
+                  - /url: /experts
+                  - generic [ref=e282]: Hire an expert
+              - listitem [ref=e283]:
+                - link "Downloads" [ref=e284] [cursor=pointer]:
+                  - /url: /download
+                  - generic [ref=e285]: Downloads
+              - listitem [ref=e286]:
+                - link "Trust Center" [ref=e287] [cursor=pointer]:
+                  - /url: https://trust.attio.com/
+                  - generic [ref=e288]: Trust Center
+                  - img [ref=e289]
+      - generic [ref=e293]:
+        - generic [ref=e294]:
+          - link "Attio on LinkedIn" [ref=e295] [cursor=pointer]:
+            - /url: https://linkedin.com/company/attio
+            - img [ref=e296]
+          - link "Attio on X" [ref=e298] [cursor=pointer]:
+            - /url: https://twitter.com/attio
+            - img [ref=e299]
+          - link "Attio on Dribbble" [ref=e301] [cursor=pointer]:
+            - /url: https://dribbble.com/attio
+            - img [ref=e302]
+          - link "Attio on YouTube" [ref=e304] [cursor=pointer]:
+            - /url: https://www.youtube.com/@attioCRM
+            - img [ref=e305]
+        - generic [ref=e307]:
+          - paragraph [ref=e308]: © 2026 Attio Ltd. All rights reserved.
+          - generic [ref=e309]:
+            - link "Services Agreement" [ref=e310] [cursor=pointer]:
+              - /url: /legal/services-agreement
+            - link "Privacy Policy" [ref=e311] [cursor=pointer]:
+              - /url: /legal/privacy
+            - link "LLMs" [ref=e312] [cursor=pointer]:
+              - /url: https://attio.com/llms.txt
+  - region "Cookie consent":
+    - generic [ref=e314]:
+      - paragraph [ref=e317]:
+        - text: We use cookies to improve your experience. You can opt out of certain cookies. Find out more in our
+        - link "privacy policy" [ref=e318] [cursor=pointer]:
+          - /url: /legal/privacy
+        - text: .
+      - generic [ref=e319]:
+        - button "Continue" [ref=e320] [cursor=pointer]
+        - button "Reject" [ref=e321] [cursor=pointer]
+  - region "Notifications alt+T"
+  - alert [ref=e322]
+  - iframe [ref=e323]:
+    
+  - button "Open Intercom Messenger" [ref=e324] [cursor=pointer]:
+    - img [ref=e326]
+    - generic:
+      - img

@@ -1,0 +1,846 @@
+- generic [active] [ref=e1]:
+  - banner [ref=e3]:
+    - generic [ref=e7]:
+      - link "Orchestrate revenue agents with the new Workflows" [ref=e8] [cursor=pointer]:
+        - /url: /platform/workflows
+        - generic [ref=e9]: Orchestrate revenue agents with the new Workflows
+        - img [ref=e10]
+      - button "Dismiss banner" [ref=e12] [cursor=pointer]:
+        - img [ref=e13]
+    - navigation [ref=e16]:
+      - generic [ref=e17]:
+        - generic [ref=e18]:
+          - link "Attio homepage" [ref=e19] [cursor=pointer]:
+            - /url: /
+            - img [ref=e20]
+          - navigation [ref=e28]:
+            - list [ref=e29]:
+              - listitem [ref=e30]:
+                - button "Platform" [ref=e31] [cursor=pointer]:
+                  - generic [ref=e32]: Platform
+                  - img [ref=e33]
+              - listitem [ref=e35]:
+                - button "Resources" [ref=e36] [cursor=pointer]:
+                  - generic [ref=e37]: Resources
+                  - img [ref=e38]
+              - listitem [ref=e40]:
+                - link "Customers" [ref=e41] [cursor=pointer]:
+                  - /url: /customers
+              - listitem [ref=e42]:
+                - link "Pricing" [ref=e43] [cursor=pointer]:
+                  - /url: /pricing
+        - generic [ref=e44]:
+          - link "Sign in" [ref=e45] [cursor=pointer]:
+            - /url: https://app.attio.com/
+          - link "Start for free" [ref=e46] [cursor=pointer]:
+            - /url: https://app.attio.com/welcome/sign-in
+  - generic [ref=e48]:
+    - navigation [ref=e49]:
+      - generic [ref=e50]:
+        - button "Search..." [ref=e52] [cursor=pointer]:
+          - img [ref=e53]
+          - paragraph [ref=e55]: Search...
+          - paragraph [ref=e56]: ⌘K
+        - generic [ref=e57]:
+          - generic [ref=e59]:
+            - link "Academy" [ref=e60] [cursor=pointer]:
+              - /url: /help/academy
+              - generic [ref=e61]: Academy
+            - heading "Introductions Workflows Sequences Reports Attio for product-led growth" [level=2] [ref=e62]:
+              - heading "Introductions" [level=3] [ref=e64]:
+                - button [ref=e65] [cursor=pointer]:
+                  - img [ref=e66]
+                - link "Introductions" [ref=e68] [cursor=pointer]:
+                  - /url: /help/academy/introduction
+              - heading "Workflows" [level=3] [ref=e70]:
+                - button [ref=e71] [cursor=pointer]:
+                  - img [ref=e72]
+                - link "Workflows" [ref=e74] [cursor=pointer]:
+                  - /url: /help/academy/workflows-course
+              - heading "Sequences" [level=3] [ref=e76]:
+                - button [ref=e77] [cursor=pointer]:
+                  - img [ref=e78]
+                - link "Sequences" [ref=e80] [cursor=pointer]:
+                  - /url: /help/academy/sequences
+              - heading "Reports" [level=3] [ref=e82]:
+                - button [ref=e83] [cursor=pointer]:
+                  - img [ref=e84]
+                - link "Reports" [ref=e86] [cursor=pointer]:
+                  - /url: /help/academy/reports-course
+              - heading "Attio for product-led growth" [level=3] [ref=e88]:
+                - button [ref=e89] [cursor=pointer]:
+                  - img [ref=e90]
+                - link "Attio for product-led growth" [ref=e92] [cursor=pointer]:
+                  - /url: /help/academy/attio-for-product-led-growth
+          - generic [ref=e93]:
+            - generic [ref=e94]:
+              - link "Reference" [ref=e95] [cursor=pointer]:
+                - /url: /help/reference
+                - generic [ref=e96]: Reference
+              - heading [level=2] [ref=e97]:
+                - heading "Attio 101" [level=3] [ref=e99]:
+                  - button [ref=e100] [cursor=pointer]:
+                    - img [ref=e101]
+                  - link "Attio 101" [ref=e103] [cursor=pointer]:
+                    - /url: /help/reference/attio-101
+                - heading "Attio AI" [level=3] [ref=e105]:
+                  - button [ref=e106] [cursor=pointer]:
+                    - img [ref=e107]
+                  - link "Attio AI" [ref=e109] [cursor=pointer]:
+                    - /url: /help/reference/attio-ai
+                - generic [ref=e110]:
+                  - heading "Managing your data" [level=3] [ref=e111]:
+                    - button [expanded] [ref=e112] [cursor=pointer]:
+                      - img [ref=e113]
+                    - link "Managing your data" [ref=e115] [cursor=pointer]:
+                      - /url: /help/reference/managing-your-data
+                  - region [ref=e116]:
+                    - generic [ref=e120]:
+                      - generic [ref=e121]:
+                        - link "Objects" [ref=e122] [cursor=pointer]:
+                          - /url: /help/reference/managing-your-data/objects
+                        - generic [ref=e123]:
+                          - link "Manage standard objects" [ref=e125] [cursor=pointer]:
+                            - /url: /help/reference/managing-your-data/objects/manage-standard-objects
+                          - link "Create and manage custom objects" [ref=e127] [cursor=pointer]:
+                            - /url: /help/reference/managing-your-data/objects/create-and-manage-custom-objects
+                          - link "Manage access to objects" [ref=e129] [cursor=pointer]:
+                            - /url: /help/reference/managing-your-data/objects/manage-access-to-objects
+                      - generic [ref=e130]:
+                        - link "Records" [ref=e131] [cursor=pointer]:
+                          - /url: /help/reference/managing-your-data/records
+                        - generic [ref=e132]:
+                          - link "Create and view records" [ref=e134] [cursor=pointer]:
+                            - /url: /help/reference/managing-your-data/records/create-and-view-records
+                          - link "Merge and delete records" [ref=e136] [cursor=pointer]:
+                            - /url: /help/reference/managing-your-data/records/merge-and-delete-records
+                          - link "Configure record pages" [ref=e138] [cursor=pointer]:
+                            - /url: /help/reference/managing-your-data/records/configure-record-pages
+                          - link "Add record activities" [ref=e140] [cursor=pointer]:
+                            - /url: /help/reference/managing-your-data/records/add-record-activities
+                      - generic [ref=e141]:
+                        - link "Attributes" [ref=e142] [cursor=pointer]:
+                          - /url: /help/reference/managing-your-data/attributes
+                        - generic [ref=e143]:
+                          - link "Create and manage attributes" [ref=e145] [cursor=pointer]:
+                            - /url: /help/reference/managing-your-data/attributes/create-manage-attributes
+                          - link "Relationship attributes" [ref=e147] [cursor=pointer]:
+                            - /url: /help/reference/managing-your-data/attributes/relationship-attributes
+                      - link "Enriched data" [ref=e149] [cursor=pointer]:
+                        - /url: /help/reference/managing-your-data/enriched-data
+                      - generic [ref=e150]:
+                        - link "Lists" [ref=e151] [cursor=pointer]:
+                          - /url: /help/reference/managing-your-data/lists
+                        - generic [ref=e152]:
+                          - link "Create lists" [ref=e154] [cursor=pointer]:
+                            - /url: /help/reference/managing-your-data/lists/create-lists
+                          - link "Manage lists" [ref=e156] [cursor=pointer]:
+                            - /url: /help/reference/managing-your-data/lists/manage-lists
+                          - link "Manage access to lists" [ref=e158] [cursor=pointer]:
+                            - /url: /help/reference/managing-your-data/lists/lists-access
+                          - link "Bulk update lists and records" [ref=e160] [cursor=pointer]:
+                            - /url: /help/reference/managing-your-data/lists/bulk-updating-lists
+                      - generic [ref=e161]:
+                        - link "Views" [ref=e162] [cursor=pointer]:
+                          - /url: /help/reference/managing-your-data/views
+                        - generic [ref=e163]:
+                          - link "Create and manage table views" [ref=e165] [cursor=pointer]:
+                            - /url: /help/reference/managing-your-data/views/create-and-manage-table-views
+                          - link "Create and manage kanban views" [ref=e167] [cursor=pointer]:
+                            - /url: /help/reference/managing-your-data/views/create-and-manage-kanban-views
+                          - link "Filter and sort views" [ref=e169] [cursor=pointer]:
+                            - /url: /help/reference/managing-your-data/views/filter-and-sort-views
+                      - generic [ref=e170]:
+                        - link "Dashboards and reports" [ref=e171] [cursor=pointer]:
+                          - /url: /help/reference/managing-your-data/dashboard-and-reports
+                        - generic [ref=e172]:
+                          - link "Dashboards" [ref=e174] [cursor=pointer]:
+                            - /url: /help/reference/managing-your-data/dashboard-and-reports/dashboards
+                          - link "Create reports" [ref=e176] [cursor=pointer]:
+                            - /url: /help/reference/managing-your-data/dashboard-and-reports/reports
+                          - link "Set up an Insight report" [ref=e178] [cursor=pointer]:
+                            - /url: /help/reference/managing-your-data/dashboard-and-reports/set-up-an-insight-report
+                          - link "Set up a Historical values report" [ref=e180] [cursor=pointer]:
+                            - /url: /help/reference/managing-your-data/dashboard-and-reports/set-up-a-historical-values-report
+                          - link "Set up a Funnel report" [ref=e182] [cursor=pointer]:
+                            - /url: /help/reference/managing-your-data/dashboard-and-reports/set-up-a-funnel-report
+                          - link "Set up a Time in stage report" [ref=e184] [cursor=pointer]:
+                            - /url: /help/reference/managing-your-data/dashboard-and-reports/set-up-a-time-in-stage-report
+                          - link "Set up a Stage changed report" [ref=e186] [cursor=pointer]:
+                            - /url: /help/reference/managing-your-data/dashboard-and-reports/set-up-a-stage-changed-report
+                          - link "Manage reports" [ref=e188] [cursor=pointer]:
+                            - /url: /help/reference/managing-your-data/dashboard-and-reports/manage-reports
+                          - link "Build a sales reporting dashboard" [ref=e190] [cursor=pointer]:
+                            - /url: /help/reference/managing-your-data/dashboard-and-reports/build-a-sales-reporting-dashboard
+                      - link "Create record and list entry templates" [ref=e192] [cursor=pointer]:
+                        - /url: /help/reference/managing-your-data/create-record-and-list-entry-templates
+                - heading "Email & calendar" [level=3] [ref=e195]:
+                  - button [ref=e196] [cursor=pointer]:
+                    - img [ref=e197]
+                  - link "Email & calendar" [ref=e199] [cursor=pointer]:
+                    - /url: /help/reference/email-calendar
+                - heading "Imports & exports" [level=3] [ref=e201]:
+                  - button [ref=e202] [cursor=pointer]:
+                    - img [ref=e203]
+                  - link "Imports & exports" [ref=e205] [cursor=pointer]:
+                    - /url: /help/reference/imports-exports
+                - heading "Productivity & collaborating" [level=3] [ref=e207]:
+                  - button [ref=e208] [cursor=pointer]:
+                    - img [ref=e209]
+                  - link "Productivity & collaborating" [ref=e211] [cursor=pointer]:
+                    - /url: /help/reference/productivity-collaborating
+                - heading "Automations" [level=3] [ref=e213]:
+                  - button [ref=e214] [cursor=pointer]:
+                    - img [ref=e215]
+                  - link "Automations" [ref=e217] [cursor=pointer]:
+                    - /url: /help/reference/automations
+                - heading "Tools and extensions" [level=3] [ref=e219]:
+                  - button [ref=e220] [cursor=pointer]:
+                    - img [ref=e221]
+                  - link "Tools and extensions" [ref=e223] [cursor=pointer]:
+                    - /url: /help/reference/tools-and-extensions
+                - heading "Account settings" [level=3] [ref=e225]:
+                  - button [ref=e226] [cursor=pointer]:
+                    - img [ref=e227]
+                  - link "Account settings" [ref=e229] [cursor=pointer]:
+                    - /url: /help/reference/account-settings
+                - heading "Workspace settings & billing" [level=3] [ref=e231]:
+                  - button [ref=e232] [cursor=pointer]:
+                    - img [ref=e233]
+                  - link "Workspace settings & billing" [ref=e235] [cursor=pointer]:
+                    - /url: /help/reference/workspace-settings-billing
+                - heading "Industry guides" [level=3] [ref=e237]:
+                  - button [ref=e238] [cursor=pointer]:
+                    - img [ref=e239]
+                  - link "Industry guides" [ref=e241] [cursor=pointer]:
+                    - /url: /help/reference/industry-guides
+                - heading "Support" [level=3] [ref=e243]:
+                  - button [ref=e244] [cursor=pointer]:
+                    - img [ref=e245]
+                  - link "Support" [ref=e247] [cursor=pointer]:
+                    - /url: /help/reference/support
+            - generic [ref=e248]:
+              - link "Apps" [ref=e249] [cursor=pointer]:
+                - /url: /help/apps
+                - generic [ref=e250]: Apps
+              - heading "Automations apps Zapier app Other apps" [level=2] [ref=e251]:
+                - heading "Automations apps" [level=3] [ref=e253]:
+                  - button [ref=e254] [cursor=pointer]:
+                    - img [ref=e255]
+                  - link "Automations apps" [ref=e257] [cursor=pointer]:
+                    - /url: /help/apps/automations-apps
+                - heading "Zapier app" [level=3] [ref=e259]:
+                  - button [ref=e260] [cursor=pointer]:
+                    - img [ref=e261]
+                  - link "Zapier app" [ref=e263] [cursor=pointer]:
+                    - /url: /help/apps/zapier-integration
+                - heading "Other apps" [level=3] [ref=e265]:
+                  - button [ref=e266] [cursor=pointer]:
+                    - img [ref=e267]
+                  - link "Other apps" [ref=e269] [cursor=pointer]:
+                    - /url: /help/apps/other-apps
+    - main [ref=e271]:
+      - list [ref=e276]:
+        - listitem [ref=e277]:
+          - generic [ref=e278]:
+            - link "Help" [ref=e279] [cursor=pointer]:
+              - /url: /help
+            - generic [ref=e280]: /
+        - listitem [ref=e281]:
+          - generic [ref=e282]:
+            - link "Reference" [ref=e283] [cursor=pointer]:
+              - /url: /help/reference
+            - generic [ref=e284]: /
+        - listitem [ref=e285]:
+          - generic [ref=e286]:
+            - link "Managing your data" [ref=e287] [cursor=pointer]:
+              - /url: /help/reference/managing-your-data
+            - generic [ref=e288]: /
+        - listitem [ref=e289]:
+          - paragraph [ref=e290]: Enriched data
+      - article [ref=e291]:
+        - generic [ref=e292]:
+          - heading "Enriched data" [level=1] [ref=e293]
+          - paragraph [ref=e297]: Discover how Attio automatically enriches your records with dozens of new, powerful data points.
+        - generic [ref=e299]:
+          - generic [ref=e301]:
+            - img [ref=e303]
+            - paragraph [ref=e305]: Available on all plans.
+            - generic [ref=e306]:
+              - img [ref=e308]
+              - paragraph [ref=e312]: Available for all workspace members.
+            - generic [ref=e313]:
+              - img [ref=e315]
+              - paragraph [ref=e319]:
+                - text: The enriched attributes available depend on
+                - link "your Attio plan" [ref=e320] [cursor=pointer]:
+                  - /url: /pricing
+                - text: .
+          - paragraph [ref=e321]: Attio automatically enriches person and company records with useful data points like logos and profile pictures, social media handles, and descriptions. Enriched data removes the need for manually sourcing and adding data to your records. In addition, when Attio has new data it will automatically update enriched attributes so your data is always current.
+          - paragraph [ref=e322]: "Attributes that have been enriched by Attio are distinguished with lilac colored cells and the sparkle icon in column headers:"
+          - figure "Lilac colored cells represent enriched data points automatically populated by Attio" [ref=e323]:
+            - button "A table view showing lilac-colored cells, representing data points automatically populated by Attio" [ref=e324]:
+              - img "A table view showing lilac-colored cells, representing data points automatically populated by Attio" [ref=e325]
+            - generic [ref=e326]: Lilac colored cells represent enriched data points automatically populated by Attio
+          - generic [ref=e328]:
+            - img [ref=e329]
+            - paragraph [ref=e334]: "Note: Please note that Attio's ability to enrich each record is dependent on data availability."
+          - heading "How enriched data is used Copy link" [level=2] [ref=e335]:
+            - generic [ref=e336]:
+              - text: How enriched data is used
+              - button "Copy link" [ref=e337] [cursor=pointer]:
+                - img [ref=e339]
+                - generic [ref=e342]: Copy link
+          - paragraph [ref=e343]: Attio’s enriched data saves you time and clicks, giving your team a centralized place to find all the data they need about a person or company record.
+          - paragraph [ref=e344]: "Within seconds of adding a new record your team can:"
+          - list [ref=e345]:
+            - listitem [ref=e346]:
+              - paragraph [ref=e347]: See automatically populated description, industry, location, ARR, and employee range at a glance
+            - listitem [ref=e348]:
+              - paragraph [ref=e349]: Understand the status of each relationship and your team’s interactions with each person and company
+            - listitem [ref=e350]:
+              - paragraph [ref=e351]:
+                - text: Sort and
+                - link "filter views" [ref=e352] [cursor=pointer]:
+                  - /url: /help/reference/managing-your-data/views/views#filtering-views
+                - text: by using enriched data such as location, industry type, or Twitter following
+            - listitem [ref=e353]:
+              - paragraph [ref=e354]: Navigate lists easily by displaying record photos and company logos
+            - listitem [ref=e355]:
+              - paragraph [ref=e356]: Locate the social media profiles of leads or job applicants with one click
+          - paragraph [ref=e357]:
+            - text: Enriched data in Attio is automatically populated within attributes that can be
+            - link "surfaced in views" [ref=e358] [cursor=pointer]:
+              - /url: /help/reference/managing-your-data/views/create-and-manage-table-views#display-attributes
+            - text: ", used for"
+            - link "filtering and sorting" [ref=e359] [cursor=pointer]:
+              - /url: /help/reference/managing-your-data/views/views#filtering-views
+            - text: ", and"
+            - link "viewed on record pages" [ref=e360] [cursor=pointer]:
+              - /url: /help/reference/managing-your-data/records#record-pages
+            - text: . ⁠
+          - generic [ref=e362]:
+            - img [ref=e363]
+            - paragraph [ref=e368]: "Note: It is not possible to export enriched data from Attio. If you overwrite Attio's enriched data manually, data that you have entered yourself is able to be exported."
+          - heading "Enriched object attributes Copy link" [level=2] [ref=e369]:
+            - generic [ref=e370]:
+              - text: Enriched object attributes
+              - button "Copy link" [ref=e371] [cursor=pointer]:
+                - img [ref=e373]
+                - generic [ref=e376]: Copy link
+          - paragraph [ref=e377]:
+            - text: You can find a number of attributes automatically enriched by Attio on each person or company
+            - link "record page" [ref=e378] [cursor=pointer]:
+              - /url: /help/reference/managing-your-data/records#record-pages
+            - text: . Note that in order for Attio to enrich records, people records must have an email address, and company records must have a domain, and Attio's ability to enrich each record is dependent on data availability.
+          - figure [ref=e379]:
+            - button [ref=e380]
+          - paragraph [ref=e381]: "For company records, Attio enriches the following attributes:"
+          - list [ref=e382]:
+            - listitem [ref=e383]:
+              - paragraph [ref=e384]: Name
+            - listitem [ref=e385]:
+              - paragraph [ref=e386]: Logo
+            - listitem [ref=e387]:
+              - paragraph [ref=e388]: Description
+            - listitem [ref=e389]:
+              - paragraph [ref=e390]: Categories
+            - listitem [ref=e391]:
+              - paragraph [ref=e392]: Location (City, State, and Country)
+            - listitem [ref=e393]:
+              - paragraph [ref=e394]: Estimated ARR*
+            - listitem [ref=e395]:
+              - paragraph [ref=e396]: Employee Range*
+            - listitem [ref=e397]:
+              - paragraph [ref=e398]: Funding Raised*
+            - listitem [ref=e399]:
+              - paragraph [ref=e400]: Social media (AngelList, Facebook, and Twitter)
+            - listitem [ref=e401]:
+              - paragraph [ref=e402]: Foundation date
+            - listitem [ref=e403]:
+              - paragraph [ref=e404]: Team
+            - listitem [ref=e405]:
+              - paragraph [ref=e406]: Twitter Follower Count
+          - generic [ref=e408]:
+            - img [ref=e409]
+            - paragraph [ref=e413]:
+              - text: "*Not available on the Free plan."
+              - link "Learn more about plans and pricing" [ref=e414] [cursor=pointer]:
+                - /url: /pricing
+              - text: .
+          - paragraph [ref=e415]: "For people records, Attio enriches:"
+          - list [ref=e416]:
+            - listitem [ref=e417]:
+              - paragraph [ref=e418]: Name
+            - listitem [ref=e419]:
+              - paragraph [ref=e420]: Profile picture
+            - listitem [ref=e421]:
+              - paragraph [ref=e422]: Description
+            - listitem [ref=e423]:
+              - paragraph [ref=e424]: Location (City, State, and Country)
+            - listitem [ref=e425]:
+              - paragraph [ref=e426]: Social media (Facebook and Twitter)
+            - listitem [ref=e427]:
+              - paragraph [ref=e428]: Company
+            - listitem [ref=e429]:
+              - paragraph [ref=e430]: Job title
+            - listitem [ref=e431]:
+              - paragraph [ref=e432]: Twitter Follower Count
+          - paragraph [ref=e433]:
+            - link "Learn more about" [ref=e434] [cursor=pointer]:
+              - /url: /help/reference/managing-your-data/enriched-data#company,-team,-and-job-title-attributes
+            - link "Team" [ref=e436] [cursor=pointer]:
+              - /url: /help/reference/managing-your-data/enriched-data#company,-team,-and-job-title-attributes
+            - link "," [ref=e437] [cursor=pointer]:
+              - /url: /help/reference/managing-your-data/enriched-data#company,-team,-and-job-title-attributes
+            - link "Company" [ref=e439] [cursor=pointer]:
+              - /url: /help/reference/managing-your-data/enriched-data#company,-team,-and-job-title-attributes
+            - link ", and" [ref=e440] [cursor=pointer]:
+              - /url: /help/reference/managing-your-data/enriched-data#company,-team,-and-job-title-attributes
+            - link "Job title" [ref=e442] [cursor=pointer]:
+              - /url: /help/reference/managing-your-data/enriched-data#company,-team,-and-job-title-attributes
+            - link "attributes" [ref=e443] [cursor=pointer]:
+              - /url: /help/reference/managing-your-data/enriched-data#company,-team,-and-job-title-attributes
+            - text: .
+          - paragraph [ref=e444]: You can manually update most enriched attributes with your own data as desired, and any values you add manually will not be overwritten by Attio’s enrichment.
+          - heading "Communication intelligence Copy link" [level=2] [ref=e445]:
+            - generic [ref=e446]:
+              - text: Communication intelligence
+              - button "Copy link" [ref=e447] [cursor=pointer]:
+                - img [ref=e449]
+                - generic [ref=e452]: Copy link
+          - paragraph [ref=e453]:
+            - text: Attio automatically populates communication intelligence attributes using data from
+            - link "email and calendar sync" [ref=e454] [cursor=pointer]:
+              - /url: /help/reference/email-calendar/email-and-calendar-syncing
+            - text: ", as well as"
+            - link "meetings" [ref=e455] [cursor=pointer]:
+              - /url: /help/reference/managing-your-data/records/add-record-activities
+            - text: added manually to records. These attributes show who is interacting with records and when, providing valuable insights to help you manage relationships and stay on top of communications.
+          - generic [ref=e457]:
+            - img [ref=e458]
+            - paragraph [ref=e462]:
+              - text: "Note: Access to certain enriched and communication intelligence attributes will depend on your Attio plan."
+              - link "Learn more about the different plans available." [ref=e463] [cursor=pointer]:
+                - /url: https://attio.com/pricing
+          - paragraph [ref=e464]: "The following enriched communication intelligence attributes factor in emails, calendar events, and meetings interactions:"
+          - list [ref=e465]:
+            - listitem [ref=e466]:
+              - paragraph [ref=e467]: "First interaction: The first interaction any workspace member had with the record"
+            - listitem [ref=e468]:
+              - paragraph [ref=e469]: "Last interaction: The most recent interaction any workspace member had with the record"
+            - listitem [ref=e470]:
+              - paragraph [ref=e471]: "Connection strength: The strength of your connection with the record, No Connection, Very Weak, Weak, Good, Strong, or Very Strong, based on all workspace members' interactions with the record, and factors like response frequency and recency"
+            - listitem [ref=e472]:
+              - paragraph [ref=e473]: "Strongest connection: The workspace member with the strongest connection with the record based on all interactions"
+          - paragraph [ref=e474]: "For the following enriched communication intelligence attributes, there is an option for each type of interaction, emails or calendar events (which also includes manually added meetings):"
+          - list [ref=e475]:
+            - listitem [ref=e476]:
+              - paragraph [ref=e477]: "First [type] interaction: The earliest interaction of that type that any workspace member had with the record"
+            - listitem [ref=e478]:
+              - paragraph [ref=e479]: "Last [type] interaction: The most recent interaction of that type that any workspace member had with the record"
+            - listitem [ref=e480]:
+              - paragraph [ref=e481]: "Next [type] interaction: The soonest upcoming interaction of that type that any workspace member has scheduled with the record"
+          - generic [ref=e483]:
+            - img [ref=e484]
+            - paragraph [ref=e489]: "Note: Workspace members must sync their email and calendar for those interactions to be included in communication intelligence attributes. Additionally, communication intelligence for company records only includes people with email domains matching the company's domain."
+          - heading "Search communication intelligence attributes Copy link" [level=3] [ref=e490]:
+            - generic [ref=e491]:
+              - text: Search communication intelligence attributes
+              - button "Copy link" [ref=e492] [cursor=pointer]:
+                - img [ref=e494]
+                - generic [ref=e497]: Copy link
+          - paragraph [ref=e498]: "When searching for a communication intelligence attribute (except Connection strength or Strongest connection) to display in a view or use in a filter:"
+          - paragraph [ref=e499]: "Choose whether you're looking for a First, Last, or Next interaction:"
+          - figure [ref=e500]:
+            - button [ref=e501]
+          - paragraph [ref=e502]: "Next, choose the type(s) of interactions:"
+          - figure [ref=e503]:
+            - button [ref=e504]
+          - paragraph [ref=e505]: "Then, choose whether to show the workspace member who had the interaction, when it took place, or both:"
+          - list [ref=e506]:
+            - listitem [ref=e507]:
+              - paragraph [ref=e508]: "When: The date of the interaction"
+            - listitem [ref=e509]:
+              - paragraph [ref=e510]: "With: The workspace member who had the interaction"
+          - figure [ref=e511]:
+            - button [ref=e512]
+          - heading "When do emails, calendar events, and meetings count toward communication intelligence attributes? Copy link" [level=3] [ref=e513]:
+            - generic [ref=e514]:
+              - text: When do emails, calendar events, and meetings count toward communication intelligence attributes?
+              - button "Copy link" [ref=e515] [cursor=pointer]:
+                - img [ref=e517]
+                - generic [ref=e520]: Copy link
+          - paragraph [ref=e521]: "Communication intelligence attributes are updated based on email, calendar, and meeting activity for people and companies in your workspace. Here's how different types of interactions are matched:"
+          - heading "Emails Copy link" [level=4] [ref=e522]:
+            - generic [ref=e523]:
+              - text: Emails
+              - button "Copy link" [ref=e524] [cursor=pointer]:
+                - img [ref=e526]
+                - generic [ref=e529]: Copy link
+          - paragraph [ref=e530]: "Emails will count toward a person record's communication intelligence attributes when:"
+          - list [ref=e531]:
+            - listitem [ref=e532]:
+              - paragraph [ref=e533]: At least one participant’s email address matches an email on the person record.
+          - paragraph [ref=e534]: "Emails will count toward a company record's communication intelligence attributes when:"
+          - list [ref=e535]:
+            - listitem [ref=e536]:
+              - paragraph [ref=e537]: At least one participant’s email address includes a domain that matches a domain on the company record.
+          - heading "Synced calendar event meetings Copy link" [level=4] [ref=e538]:
+            - generic [ref=e539]:
+              - text: Synced calendar event meetings
+              - button "Copy link" [ref=e540] [cursor=pointer]:
+                - img [ref=e542]
+                - generic [ref=e545]: Copy link
+          - paragraph [ref=e546]: "Synced calendar event meetings will count toward a person record's communication intelligence attributes when:"
+          - list [ref=e547]:
+            - listitem [ref=e548]:
+              - paragraph [ref=e549]: At least one participant’s email address matches an email on the person record.
+            - listitem [ref=e550]:
+              - paragraph [ref=e551]: A manually linked person's email address matches an email on the person record.
+          - paragraph [ref=e552]: "Synced calendar event meetings will count toward a company record's communication intelligence attributes when:"
+          - list [ref=e553]:
+            - listitem [ref=e554]:
+              - paragraph [ref=e555]: At least one participant’s email address includes a domain that matches a domain on the company record.
+            - listitem [ref=e556]:
+              - paragraph [ref=e557]: A manually linked person's email address includes a domain that matches a domain on the company record.
+          - paragraph [ref=e558]: "In addition, for synced calendar event meetings to count toward communication intelligence attributes:"
+          - list [ref=e559]:
+            - listitem [ref=e560]:
+              - paragraph [ref=e561]: The meeting must be active (not canceled).
+            - listitem [ref=e562]:
+              - paragraph [ref=e563]: There must be at least one workspace member participating, and they haven't declined the meeting.
+          - heading "Manually added meetings Copy link" [level=4] [ref=e564]:
+            - generic [ref=e565]:
+              - text: Manually added meetings
+              - button "Copy link" [ref=e566] [cursor=pointer]:
+                - img [ref=e568]
+                - generic [ref=e571]: Copy link
+          - paragraph [ref=e572]: "Manually added meetings will count toward a person record's communication intelligence attributes when:"
+          - list [ref=e573]:
+            - listitem [ref=e574]:
+              - paragraph [ref=e575]: A participant’s email address matches an email on the person record, or
+            - listitem [ref=e576]:
+              - paragraph [ref=e577]: The person record is manually linked to the meeting.
+          - paragraph [ref=e578]: "Manually added meetings will count toward a company record's communication intelligence attributes when:"
+          - list [ref=e579]:
+            - listitem [ref=e580]:
+              - paragraph [ref=e581]: A participant’s email address includes a domain that matches a domain on the company record, or
+            - listitem [ref=e582]:
+              - paragraph [ref=e583]: The company record is manually linked to the meeting.
+          - heading "Company, Team, and Job title attributes Copy link" [level=2] [ref=e584]:
+            - generic [ref=e585]:
+              - text: Company, Team, and Job title attributes
+              - button "Copy link" [ref=e586] [cursor=pointer]:
+                - img [ref=e588]
+                - generic [ref=e591]: Copy link
+          - paragraph [ref=e592]: Attio will automatically populate Company and Job title for people records and the Team of company records wherever possible.
+          - heading "Company Copy link" [level=3] [ref=e593]:
+            - generic [ref=e594]:
+              - generic [ref=e595]: Company
+              - button "Copy link" [ref=e596] [cursor=pointer]:
+                - img [ref=e598]
+                - generic [ref=e601]: Copy link
+          - paragraph [ref=e602]: The Company a person is associated with is automatically set by Attio based on the domain of the first listed email address on the person's record page. If the domain of the email address matches an existing company record's domain, Attio will automatically link the person to the company.
+          - generic [ref=e604]:
+            - img [ref=e605]
+            - paragraph [ref=e610]: "Note: If a person’s first email address uses a public domain (such as gmail.com or outlook.com), Attio will check the next email address. If all listed addresses use public domains, Attio will not create a company for that person."
+          - figure [ref=e611]:
+            - button "A table view of people records including columns for Company, Description, and Job title attributes" [ref=e612]:
+              - img "A table view of people records including columns for Company, Description, and Job title attributes" [ref=e613]
+          - heading "Team Copy link" [level=3] [ref=e614]:
+            - generic [ref=e615]:
+              - generic [ref=e616]: Team
+              - button "Copy link" [ref=e617] [cursor=pointer]:
+                - img [ref=e619]
+                - generic [ref=e622]: Copy link
+          - paragraph [ref=e623]: The Team of a company will include all person records that are connected to the company, either manually or via Attio's automatic enrichment outlined above.
+          - paragraph [ref=e624]:
+            - text: You can manually update a person's Company or a company's Team. This can be done on
+            - link "record pages" [ref=e625] [cursor=pointer]:
+              - /url: /help/reference/managing-your-data/records#team-and-company
+            - text: or from a view where the attribute has been surfaced (which will also update the record pages).
+          - paragraph [ref=e626]: Updating a person's Company will automatically update their company's Team, and updating a company's Team will automatically update those people records' Company.
+          - heading "Job title Copy link" [level=3] [ref=e627]:
+            - generic [ref=e628]:
+              - generic [ref=e629]: Job title
+              - button "Copy link" [ref=e630] [cursor=pointer]:
+                - img [ref=e632]
+                - generic [ref=e635]: Copy link
+          - paragraph [ref=e636]:
+            - text: Attio will also enrich Job title for people records wherever possible. The Job title attribute can be added to views like any other attribute and used for filters and sorts. You can also manually update the Job title from the Companies tab of person
+            - link "record pages" [ref=e637] [cursor=pointer]:
+              - /url: /help/reference/managing-your-data/records#team-and-company
+            - text: .
+        - generic [ref=e638]:
+          - heading "Frequently asked questions" [level=2] [ref=e639]
+          - generic [ref=e640]:
+            - heading "How does Attio enrich a person record with multiple email addresses?" [level=3] [ref=e642]:
+              - button "How does Attio enrich a person record with multiple email addresses?" [ref=e643] [cursor=pointer]:
+                - generic [ref=e644]: How does Attio enrich a person record with multiple email addresses?
+                - img [ref=e645]
+            - heading "What information does Attio require in order to enrich a record?" [level=3] [ref=e647]:
+              - button "What information does Attio require in order to enrich a record?" [ref=e648] [cursor=pointer]:
+                - generic [ref=e649]: What information does Attio require in order to enrich a record?
+                - img [ref=e650]
+            - heading "Regarding communication intelligence attributes like ‘connection strength’, whose interactions are used to calculate this data point for companies?" [level=3] [ref=e652]:
+              - button "Regarding communication intelligence attributes like ‘connection strength’, whose interactions are used to calculate this data point for companies?" [ref=e653] [cursor=pointer]:
+                - generic [ref=e654]: Regarding communication intelligence attributes like ‘connection strength’, whose interactions are used to calculate this data point for companies?
+                - img [ref=e655]
+            - heading "Why isn't Attio enriching an attribute or adding an image to a record?" [level=3] [ref=e657]:
+              - button "Why isn't Attio enriching an attribute or adding an image to a record?" [ref=e658] [cursor=pointer]:
+                - generic [ref=e659]: Why isn't Attio enriching an attribute or adding an image to a record?
+                - img [ref=e660]
+      - complementary [ref=e661]:
+        - navigation [ref=e662]:
+          - heading "Table of Contents" [level=2] [ref=e664]
+          - generic [ref=e665]:
+            - button "How enriched data is used":
+              - paragraph: How enriched data is used
+            - button "Enriched object attributes" [ref=e666] [cursor=pointer]:
+              - paragraph [ref=e667]: Enriched object attributes
+            - button "Communication intelligence" [ref=e668] [cursor=pointer]:
+              - paragraph [ref=e669]: Communication intelligence
+            - button "Search communication intelligence attributes" [ref=e670] [cursor=pointer]:
+              - img [ref=e671]
+              - img [ref=e672]
+              - paragraph [ref=e673]: Search communication intelligence attributes
+            - button "When do emails, calendar events, and meetings count toward communication intelligence attributes?" [ref=e674] [cursor=pointer]:
+              - img [ref=e675]
+              - img [ref=e676]
+              - paragraph [ref=e677]: When do emails, calendar events, and meetings count toward communication intelligence attributes?
+            - button "Company, Team, and Job title attributes" [ref=e678] [cursor=pointer]:
+              - paragraph [ref=e679]: Company, Team, and Job title attributes
+            - button "Company" [ref=e680] [cursor=pointer]:
+              - img [ref=e681]
+              - img [ref=e682]
+              - paragraph [ref=e683]: Company
+            - button "Team" [ref=e684] [cursor=pointer]:
+              - img [ref=e685]
+              - img [ref=e686]
+              - paragraph [ref=e687]: Team
+            - button "Job title" [ref=e688] [cursor=pointer]:
+              - img [ref=e689]
+              - img [ref=e690]
+              - paragraph [ref=e691]: Job title
+            - button "FAQ" [ref=e692] [cursor=pointer]:
+              - paragraph [ref=e693]: FAQ
+      - complementary [ref=e694]:
+        - img [ref=e695]
+        - generic [ref=e697]:
+          - generic [ref=e698]: Did this article answer your question?
+          - generic [ref=e699]:
+            - button "Yes" [ref=e700] [cursor=pointer]:
+              - img [ref=e701]
+              - generic [ref=e705]: "Yes"
+            - button "No" [ref=e706] [cursor=pointer]:
+              - img [ref=e707]
+              - generic [ref=e711]: "No"
+  - contentinfo [ref=e712]:
+    - img [ref=e713]
+    - generic [ref=e715]:
+      - link "Attio homepage" [ref=e717] [cursor=pointer]:
+        - /url: /
+        - img [ref=e718]
+      - generic [ref=e726]:
+        - generic [ref=e727]:
+          - heading "Platform" [level=2] [ref=e729]
+          - list [ref=e730]:
+            - listitem [ref=e731]:
+              - link "Refer a team New" [ref=e732] [cursor=pointer]:
+                - /url: /refer
+                - generic [ref=e733]: Refer a team
+                - generic [ref=e734]: New
+            - listitem [ref=e735]:
+              - link "Changelog" [ref=e736] [cursor=pointer]:
+                - /url: /changelog
+                - generic [ref=e737]: Changelog
+            - listitem [ref=e738]:
+              - link "Gmail extension" [ref=e739] [cursor=pointer]:
+                - /url: https://chrome.google.com/webstore/detail/attio/legacbojjmajoedfolbjlekjjkepadph/
+                - generic [ref=e740]: Gmail extension
+                - img [ref=e741]
+            - listitem [ref=e743]:
+              - link "iOS app" [ref=e744] [cursor=pointer]:
+                - /url: https://apps.apple.com/gb/app/attio/id1511545395
+                - generic [ref=e745]: iOS app
+                - img [ref=e746]
+            - listitem [ref=e748]:
+              - link "Android app" [ref=e749] [cursor=pointer]:
+                - /url: https://play.google.com/store/apps/details?id=com.attio&gl=GB
+                - generic [ref=e750]: Android app
+                - img [ref=e751]
+        - generic [ref=e753]:
+          - heading "Company" [level=2] [ref=e755]
+          - list [ref=e756]:
+            - listitem [ref=e757]:
+              - link "Customers" [ref=e758] [cursor=pointer]:
+                - /url: /customers
+                - generic [ref=e759]: Customers
+            - listitem [ref=e760]:
+              - link "Announcements" [ref=e761] [cursor=pointer]:
+                - /url: /blog
+                - generic [ref=e762]: Announcements
+            - listitem [ref=e763]:
+              - link "Engineering blog New" [ref=e764] [cursor=pointer]:
+                - /url: /engineering/blog
+                - generic [ref=e765]: Engineering blog
+                - generic [ref=e766]: New
+            - listitem [ref=e767]:
+              - link "Careers" [ref=e768] [cursor=pointer]:
+                - /url: /careers
+                - generic [ref=e769]: Careers
+            - listitem [ref=e770]:
+              - link "Manifesto" [ref=e771] [cursor=pointer]:
+                - /url: /redefine
+                - generic [ref=e772]: Manifesto
+            - listitem [ref=e773]:
+              - link "Become a partner" [ref=e774] [cursor=pointer]:
+                - /url: /partners
+                - generic [ref=e775]: Become a partner
+        - generic [ref=e776]:
+          - heading "Import from" [level=2] [ref=e778]
+          - list [ref=e779]:
+            - listitem [ref=e780]:
+              - link "Salesforce" [ref=e781] [cursor=pointer]:
+                - /url: /help/reference/imports-and-exports/migrate-data-from-another-crm?source=footer_salesforce
+                - generic [ref=e782]: Salesforce
+            - listitem [ref=e783]:
+              - link "Hubspot" [ref=e784] [cursor=pointer]:
+                - /url: /help/reference/imports-and-exports/migrate-data-from-another-crm?source=footer_hubspot
+                - generic [ref=e785]: Hubspot
+            - listitem [ref=e786]:
+              - link "Pipedrive" [ref=e787] [cursor=pointer]:
+                - /url: /help/reference/imports-and-exports/migrate-data-from-another-crm?source=footer_pipedrive
+                - generic [ref=e788]: Pipedrive
+            - listitem [ref=e789]:
+              - link "Zoho" [ref=e790] [cursor=pointer]:
+                - /url: /help/reference/imports-and-exports/migrate-data-from-another-crm?source=footer_zoho
+                - generic [ref=e791]: Zoho
+            - listitem [ref=e792]:
+              - link "Excel" [ref=e793] [cursor=pointer]:
+                - /url: /help/reference/imports-and-exports/import-data-into-attio?source=footer_excel
+                - generic [ref=e794]: Excel
+            - listitem [ref=e795]:
+              - link "CSV" [ref=e796] [cursor=pointer]:
+                - /url: /help/reference/imports-and-exports/import-data-into-attio?source=footer_csv
+                - generic [ref=e797]: CSV
+        - generic [ref=e798]:
+          - heading "Attio for" [level=2] [ref=e800]
+          - list [ref=e801]:
+            - listitem [ref=e802]:
+              - link "Startups" [ref=e803] [cursor=pointer]:
+                - /url: /solutions/startup-crm
+                - generic [ref=e804]: Startups
+            - listitem [ref=e805]:
+              - link "Deal flow" [ref=e806] [cursor=pointer]:
+                - /url: /solutions/deal-flow-management-software
+                - generic [ref=e807]: Deal flow
+        - generic [ref=e808]:
+          - heading "Apps" [level=2] [ref=e810]
+          - list [ref=e811]:
+            - listitem [ref=e812]:
+              - link "Gmail" [ref=e813] [cursor=pointer]:
+                - /url: https://attio.com/apps/gmail
+                - generic [ref=e814]: Gmail
+            - listitem [ref=e815]:
+              - link "Outlook" [ref=e816] [cursor=pointer]:
+                - /url: https://attio.com/apps/outlook
+                - generic [ref=e817]: Outlook
+            - listitem [ref=e818]:
+              - link "Segment" [ref=e819] [cursor=pointer]:
+                - /url: https://attio.com/apps/segment
+                - generic [ref=e820]: Segment
+            - listitem [ref=e821]:
+              - link "Mailchimp" [ref=e822] [cursor=pointer]:
+                - /url: https://attio.com/apps/mailchimp
+                - generic [ref=e823]: Mailchimp
+            - listitem [ref=e824]:
+              - link "Slack" [ref=e825] [cursor=pointer]:
+                - /url: https://attio.com/apps/slack
+                - generic [ref=e826]: Slack
+            - listitem [ref=e827]:
+              - link "Outreach" [ref=e828] [cursor=pointer]:
+                - /url: https://attio.com/apps/outreach
+                - generic [ref=e829]: Outreach
+            - listitem [ref=e830]:
+              - link "Mixmax" [ref=e831] [cursor=pointer]:
+                - /url: https://attio.com/apps/mixmax
+                - generic [ref=e832]: Mixmax
+            - listitem [ref=e833]:
+              - link "Typeform" [ref=e834] [cursor=pointer]:
+                - /url: https://attio.com/apps/typeform
+                - generic [ref=e835]: Typeform
+            - listitem [ref=e836]:
+              - link "Zapier" [ref=e837] [cursor=pointer]:
+                - /url: https://attio.com/apps/zapier
+                - generic [ref=e838]: Zapier
+        - generic [ref=e839]:
+          - heading "Resources" [level=2] [ref=e841]
+          - list [ref=e842]:
+            - listitem [ref=e843]:
+              - link "Startup program" [ref=e844] [cursor=pointer]:
+                - /url: /startups
+                - generic [ref=e845]: Startup program
+            - listitem [ref=e846]:
+              - link "Help center" [ref=e847] [cursor=pointer]:
+                - /url: /help
+                - generic [ref=e848]: Help center
+            - listitem [ref=e849]:
+              - link "Developers" [ref=e850] [cursor=pointer]:
+                - /url: https://docs.attio.com/
+                - generic [ref=e851]: Developers
+                - img [ref=e852]
+            - listitem [ref=e854]:
+              - link "System status" [ref=e855] [cursor=pointer]:
+                - /url: https://status.attio.com/
+                - generic [ref=e856]: System status
+                - img [ref=e857]
+            - listitem [ref=e859]:
+              - link "Hire an expert" [ref=e860] [cursor=pointer]:
+                - /url: /experts
+                - generic [ref=e861]: Hire an expert
+            - listitem [ref=e862]:
+              - link "Downloads" [ref=e863] [cursor=pointer]:
+                - /url: /download
+                - generic [ref=e864]: Downloads
+            - listitem [ref=e865]:
+              - link "Trust Center" [ref=e866] [cursor=pointer]:
+                - /url: https://trust.attio.com/
+                - generic [ref=e867]: Trust Center
+                - img [ref=e868]
+    - generic [ref=e872]:
+      - generic [ref=e873]:
+        - link "Attio on LinkedIn" [ref=e874] [cursor=pointer]:
+          - /url: https://linkedin.com/company/attio
+          - img [ref=e875]
+        - link "Attio on X" [ref=e877] [cursor=pointer]:
+          - /url: https://twitter.com/attio
+          - img [ref=e878]
+        - link "Attio on Dribbble" [ref=e880] [cursor=pointer]:
+          - /url: https://dribbble.com/attio
+          - img [ref=e881]
+        - link "Attio on YouTube" [ref=e883] [cursor=pointer]:
+          - /url: https://www.youtube.com/@attioCRM
+          - img [ref=e884]
+      - generic [ref=e886]:
+        - paragraph [ref=e887]: © 2026 Attio Ltd. All rights reserved.
+        - generic [ref=e888]:
+          - link "Services Agreement" [ref=e889] [cursor=pointer]:
+            - /url: /legal/services-agreement
+          - link "Privacy Policy" [ref=e890] [cursor=pointer]:
+            - /url: /legal/privacy
+          - link "LLMs" [ref=e891] [cursor=pointer]:
+            - /url: https://attio.com/llms.txt
+  - region "Cookie consent":
+    - generic [ref=e893]:
+      - paragraph [ref=e896]:
+        - text: We use cookies to improve your experience. You can opt out of certain cookies. Find out more in our
+        - link "privacy policy" [ref=e897] [cursor=pointer]:
+          - /url: /legal/privacy
+        - text: .
+      - generic [ref=e898]:
+        - button "Continue" [ref=e899] [cursor=pointer]
+        - button "Reject" [ref=e900] [cursor=pointer]
+  - region "Notifications alt+T"
+  - alert [ref=e901]

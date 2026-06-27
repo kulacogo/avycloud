@@ -1,0 +1,541 @@
+- generic [active] [ref=e1]:
+  - banner [ref=e3]:
+    - generic [ref=e7]:
+      - link "Orchestrate revenue agents with the new Workflows" [ref=e8] [cursor=pointer]:
+        - /url: /platform/workflows
+        - generic [ref=e9]: Orchestrate revenue agents with the new Workflows
+        - img [ref=e10]
+      - button "Dismiss banner" [ref=e12] [cursor=pointer]:
+        - img [ref=e13]
+    - navigation [ref=e16]:
+      - generic [ref=e17]:
+        - generic [ref=e18]:
+          - link "Attio homepage" [ref=e19] [cursor=pointer]:
+            - /url: /
+            - img [ref=e20]
+          - navigation [ref=e28]:
+            - list [ref=e29]:
+              - listitem [ref=e30]:
+                - button "Platform" [ref=e31] [cursor=pointer]:
+                  - generic [ref=e32]: Platform
+                  - img [ref=e33]
+              - listitem [ref=e35]:
+                - button "Resources" [ref=e36] [cursor=pointer]:
+                  - generic [ref=e37]: Resources
+                  - img [ref=e38]
+              - listitem [ref=e40]:
+                - link "Customers" [ref=e41] [cursor=pointer]:
+                  - /url: /customers
+              - listitem [ref=e42]:
+                - link "Pricing" [ref=e43] [cursor=pointer]:
+                  - /url: /pricing
+        - generic [ref=e44]:
+          - link "Sign in" [ref=e45] [cursor=pointer]:
+            - /url: https://app.attio.com/
+          - link "Start for free" [ref=e46] [cursor=pointer]:
+            - /url: https://app.attio.com/welcome/sign-in
+  - generic [ref=e48]:
+    - navigation [ref=e49]:
+      - generic [ref=e50]:
+        - button "Search..." [ref=e52] [cursor=pointer]:
+          - img [ref=e53]
+          - paragraph [ref=e55]: Search...
+          - paragraph [ref=e56]: ⌘K
+        - generic [ref=e57]:
+          - generic [ref=e59]:
+            - link "Academy" [ref=e60] [cursor=pointer]:
+              - /url: /help/academy
+              - generic [ref=e61]: Academy
+            - heading "Introductions Workflows Legacy Trigger blocks Legacy Condition and Delay blocks Legacy Calculation blocks Legacy Record and List blocks Legacy AI blocks Legacy Research agent Legacy Loops and Find blocks Legacy HTTP and JSON blocks Legacy Integration blocks Sequences Reports Attio for product-led growth" [level=2] [ref=e62]:
+              - heading "Introductions" [level=3] [ref=e64]:
+                - button [ref=e65] [cursor=pointer]:
+                  - img [ref=e66]
+                - link "Introductions" [ref=e68] [cursor=pointer]:
+                  - /url: /help/academy/introduction
+              - generic [ref=e69]:
+                - heading "Workflows" [level=3] [ref=e70]:
+                  - button [expanded] [ref=e71] [cursor=pointer]:
+                    - img [ref=e72]
+                  - link "Workflows" [ref=e74] [cursor=pointer]:
+                    - /url: /help/academy/workflows-course
+                - region [ref=e75]:
+                  - generic [ref=e79]:
+                    - link "Legacy Trigger blocks" [ref=e81] [cursor=pointer]:
+                      - /url: /help/academy/workflows-course/trigger-blocks
+                    - link "Legacy Condition and Delay blocks" [ref=e83] [cursor=pointer]:
+                      - /url: /help/academy/workflows-course/condition-and-delay-blocks
+                    - link "Legacy Calculation blocks" [ref=e85] [cursor=pointer]:
+                      - /url: /help/academy/workflows-course/calculation-blocks
+                    - link "Legacy Record and List blocks" [ref=e87] [cursor=pointer]:
+                      - /url: /help/academy/workflows-course/record-and-list-blocks
+                    - link "Legacy AI blocks" [ref=e89] [cursor=pointer]:
+                      - /url: /help/academy/workflows-course/ai-blocks
+                    - link "Legacy Research agent" [ref=e91] [cursor=pointer]:
+                      - /url: /help/academy/workflows-course/research-agent
+                    - link "Legacy Loops and Find blocks" [ref=e93] [cursor=pointer]:
+                      - /url: /help/academy/workflows-course/loops-and-find-blocks
+                    - link "Legacy HTTP and JSON blocks" [ref=e95] [cursor=pointer]:
+                      - /url: /help/academy/workflows-course/http-and-json-blocks
+                    - link "Legacy Integration blocks" [ref=e97] [cursor=pointer]:
+                      - /url: /help/academy/workflows-course/integration-blocks
+              - heading "Sequences" [level=3] [ref=e100]:
+                - button [ref=e101] [cursor=pointer]:
+                  - img [ref=e102]
+                - link "Sequences" [ref=e104] [cursor=pointer]:
+                  - /url: /help/academy/sequences
+              - heading "Reports" [level=3] [ref=e106]:
+                - button [ref=e107] [cursor=pointer]:
+                  - img [ref=e108]
+                - link "Reports" [ref=e110] [cursor=pointer]:
+                  - /url: /help/academy/reports-course
+              - heading "Attio for product-led growth" [level=3] [ref=e112]:
+                - button [ref=e113] [cursor=pointer]:
+                  - img [ref=e114]
+                - link "Attio for product-led growth" [ref=e116] [cursor=pointer]:
+                  - /url: /help/academy/attio-for-product-led-growth
+          - generic [ref=e117]:
+            - generic [ref=e118]:
+              - link "Reference" [ref=e119] [cursor=pointer]:
+                - /url: /help/reference
+                - generic [ref=e120]: Reference
+              - heading "Attio 101 Attio AI Managing your data Email & calendar Imports & exports Productivity & collaborating Automations Tools and extensions Account settings Workspace settings & billing Industry guides Support" [level=2] [ref=e121]:
+                - heading "Attio 101" [level=3] [ref=e123]:
+                  - button [ref=e124] [cursor=pointer]:
+                    - img [ref=e125]
+                  - link "Attio 101" [ref=e127] [cursor=pointer]:
+                    - /url: /help/reference/attio-101
+                - heading "Attio AI" [level=3] [ref=e129]:
+                  - button [ref=e130] [cursor=pointer]:
+                    - img [ref=e131]
+                  - link "Attio AI" [ref=e133] [cursor=pointer]:
+                    - /url: /help/reference/attio-ai
+                - heading "Managing your data" [level=3] [ref=e135]:
+                  - button [ref=e136] [cursor=pointer]:
+                    - img [ref=e137]
+                  - link "Managing your data" [ref=e139] [cursor=pointer]:
+                    - /url: /help/reference/managing-your-data
+                - heading "Email & calendar" [level=3] [ref=e141]:
+                  - button [ref=e142] [cursor=pointer]:
+                    - img [ref=e143]
+                  - link "Email & calendar" [ref=e145] [cursor=pointer]:
+                    - /url: /help/reference/email-calendar
+                - heading "Imports & exports" [level=3] [ref=e147]:
+                  - button [ref=e148] [cursor=pointer]:
+                    - img [ref=e149]
+                  - link "Imports & exports" [ref=e151] [cursor=pointer]:
+                    - /url: /help/reference/imports-exports
+                - heading "Productivity & collaborating" [level=3] [ref=e153]:
+                  - button [ref=e154] [cursor=pointer]:
+                    - img [ref=e155]
+                  - link "Productivity & collaborating" [ref=e157] [cursor=pointer]:
+                    - /url: /help/reference/productivity-collaborating
+                - heading "Automations" [level=3] [ref=e159]:
+                  - button [ref=e160] [cursor=pointer]:
+                    - img [ref=e161]
+                  - link "Automations" [ref=e163] [cursor=pointer]:
+                    - /url: /help/reference/automations
+                - heading "Tools and extensions" [level=3] [ref=e165]:
+                  - button [ref=e166] [cursor=pointer]:
+                    - img [ref=e167]
+                  - link "Tools and extensions" [ref=e169] [cursor=pointer]:
+                    - /url: /help/reference/tools-and-extensions
+                - heading "Account settings" [level=3] [ref=e171]:
+                  - button [ref=e172] [cursor=pointer]:
+                    - img [ref=e173]
+                  - link "Account settings" [ref=e175] [cursor=pointer]:
+                    - /url: /help/reference/account-settings
+                - heading "Workspace settings & billing" [level=3] [ref=e177]:
+                  - button [ref=e178] [cursor=pointer]:
+                    - img [ref=e179]
+                  - link "Workspace settings & billing" [ref=e181] [cursor=pointer]:
+                    - /url: /help/reference/workspace-settings-billing
+                - heading "Industry guides" [level=3] [ref=e183]:
+                  - button [ref=e184] [cursor=pointer]:
+                    - img [ref=e185]
+                  - link "Industry guides" [ref=e187] [cursor=pointer]:
+                    - /url: /help/reference/industry-guides
+                - heading "Support" [level=3] [ref=e189]:
+                  - button [ref=e190] [cursor=pointer]:
+                    - img [ref=e191]
+                  - link "Support" [ref=e193] [cursor=pointer]:
+                    - /url: /help/reference/support
+            - generic [ref=e194]:
+              - link "Apps" [ref=e195] [cursor=pointer]:
+                - /url: /help/apps
+                - generic [ref=e196]: Apps
+              - heading "Automations apps Zapier app Other apps" [level=2] [ref=e197]:
+                - heading "Automations apps" [level=3] [ref=e199]:
+                  - button [ref=e200] [cursor=pointer]:
+                    - img [ref=e201]
+                  - link "Automations apps" [ref=e203] [cursor=pointer]:
+                    - /url: /help/apps/automations-apps
+                - heading "Zapier app" [level=3] [ref=e205]:
+                  - button [ref=e206] [cursor=pointer]:
+                    - img [ref=e207]
+                  - link "Zapier app" [ref=e209] [cursor=pointer]:
+                    - /url: /help/apps/zapier-integration
+                - heading "Other apps" [level=3] [ref=e211]:
+                  - button [ref=e212] [cursor=pointer]:
+                    - img [ref=e213]
+                  - link "Other apps" [ref=e215] [cursor=pointer]:
+                    - /url: /help/apps/other-apps
+    - article [ref=e217]:
+      - list [ref=e222]:
+        - listitem [ref=e223]:
+          - generic [ref=e224]:
+            - link "Help" [ref=e225] [cursor=pointer]:
+              - /url: /help
+            - generic [ref=e226]: /
+        - listitem [ref=e227]:
+          - generic [ref=e228]:
+            - link "Academy" [ref=e229] [cursor=pointer]:
+              - /url: /help/academy
+            - generic [ref=e230]: /
+        - listitem [ref=e231]:
+          - paragraph [ref=e232]: Workflows
+      - button "Play" [ref=e237] [cursor=pointer]:
+        - generic [ref=e238]: Play
+      - generic [ref=e239]:
+        - generic [ref=e240]:
+          - heading "Legacy Research agent" [level=1] [ref=e241]
+          - paragraph [ref=e242]: Research the web to bring context about your prospects and customers into workflows.
+        - generic [ref=e243]:
+          - heading "What you will learn" [level=2] [ref=e244]
+          - list [ref=e247]:
+            - listitem [ref=e248]:
+              - paragraph [ref=e249]:
+                - text: Ask the agent questions
+                - text: The AI agent considers record attributes and interaction history to deliver relevant, accurate answers from the internet.
+            - listitem [ref=e250]:
+              - paragraph [ref=e251]:
+                - text: Use these answers in your workflows
+                - text: The agent's answers are available as attributes to use in further steps of a workflow.
+      - complementary [ref=e252]:
+        - generic [ref=e253]:
+          - generic [ref=e254]:
+            - heading "Workflows" [level=2] [ref=e255]
+            - generic [ref=e256]:
+              - generic [ref=e257]:
+                - img [ref=e258]
+                - paragraph [ref=e260]: 9 lessons
+              - generic [ref=e261]:
+                - img [ref=e262]
+                - paragraph [ref=e264]: Approx. 41 min
+          - img [ref=e265]
+          - generic [ref=e267]:
+            - heading "Your progress" [level=2] [ref=e268]
+            - generic [ref=e269]: 0%
+          - link "Legacy Trigger blocks 4:49" [ref=e271] [cursor=pointer]:
+            - /url: /help/academy/workflows-course/trigger-blocks
+            - img [ref=e272]
+            - generic [ref=e274]: Legacy Trigger blocks
+            - generic [ref=e276]: 4:49
+          - link "Legacy Condition and Delay blocks 3:45" [ref=e277] [cursor=pointer]:
+            - /url: /help/academy/workflows-course/condition-and-delay-blocks
+            - img [ref=e278]
+            - generic [ref=e280]: Legacy Condition and Delay blocks
+            - generic [ref=e282]: 3:45
+          - link "Legacy Calculation blocks 5:22" [ref=e283] [cursor=pointer]:
+            - /url: /help/academy/workflows-course/calculation-blocks
+            - img [ref=e284]
+            - generic [ref=e286]: Legacy Calculation blocks
+            - generic [ref=e288]: 5:22
+          - link "Legacy Record and List blocks 6:05" [ref=e289] [cursor=pointer]:
+            - /url: /help/academy/workflows-course/record-and-list-blocks
+            - img [ref=e290]
+            - generic [ref=e292]: Legacy Record and List blocks
+            - generic [ref=e294]: 6:05
+          - link "Legacy AI blocks 6:01" [ref=e295] [cursor=pointer]:
+            - /url: /help/academy/workflows-course/ai-blocks
+            - img [ref=e296]
+            - generic [ref=e298]: Legacy AI blocks
+            - generic [ref=e300]: 6:01
+          - button "Legacy Research agent 3:24" [ref=e301] [cursor=pointer]:
+            - img [ref=e302]
+            - generic [ref=e304]: Legacy Research agent
+            - generic [ref=e306]: 3:24
+          - link "Legacy Loops and Find blocks 3:22" [ref=e307] [cursor=pointer]:
+            - /url: /help/academy/workflows-course/loops-and-find-blocks
+            - img [ref=e308]
+            - generic [ref=e310]: Legacy Loops and Find blocks
+            - generic [ref=e312]: 3:22
+          - link "Legacy HTTP and JSON blocks 4:16" [ref=e313] [cursor=pointer]:
+            - /url: /help/academy/workflows-course/http-and-json-blocks
+            - img [ref=e314]
+            - generic [ref=e316]: Legacy HTTP and JSON blocks
+            - generic [ref=e318]: 4:16
+          - link "Legacy Integration blocks 4:37" [ref=e319] [cursor=pointer]:
+            - /url: /help/academy/workflows-course/integration-blocks
+            - img [ref=e320]
+            - generic [ref=e322]: Legacy Integration blocks
+            - generic [ref=e324]: 4:37
+          - img [ref=e325]
+          - generic [ref=e326]:
+            - link [ref=e327] [cursor=pointer]:
+              - /url: /help/academy/workflows-course/ai-blocks
+              - img [ref=e328]
+            - button "Mark as completed Completed" [ref=e331] [cursor=pointer]:
+              - generic [ref=e332]:
+                - generic [ref=e333]:
+                  - img [ref=e334]
+                  - generic [ref=e336]: Mark as completed
+                - generic [ref=e337]:
+                  - img [ref=e338]
+                  - generic [ref=e340]: Completed
+            - link [ref=e342] [cursor=pointer]:
+              - /url: /help/academy/workflows-course/loops-and-find-blocks
+              - img [ref=e343]
+      - complementary [ref=e345]:
+        - img [ref=e346]
+        - heading "Related articles" [level=2] [ref=e347]
+        - generic [ref=e348]:
+          - link "Overview of workflows Understand what workflows are and how they're structured in Attio." [ref=e349] [cursor=pointer]:
+            - /url: /help/reference/automations/workflows/overview-of-workflows
+            - img [ref=e351]
+            - generic [ref=e353]:
+              - heading "Overview of workflows" [level=3] [ref=e354]
+              - paragraph [ref=e355]: Understand what workflows are and how they're structured in Attio.
+          - link "Create a workflow Learn how to navigate and build workflows." [ref=e356] [cursor=pointer]:
+            - /url: /help/reference/automations/workflows/create-a-workflow
+            - img [ref=e358]
+            - generic [ref=e360]:
+              - heading "Create a workflow" [level=3] [ref=e361]
+              - paragraph [ref=e362]: Learn how to navigate and build workflows.
+          - link "Workflows block library Understand the building blocks that power workflows." [ref=e363] [cursor=pointer]:
+            - /url: /help/reference/automations/workflows/workflows-block-library
+            - img [ref=e365]
+            - generic [ref=e367]:
+              - heading "Workflows block library" [level=3] [ref=e368]
+              - paragraph [ref=e369]: Understand the building blocks that power workflows.
+          - link "Manage workflows Learn how to manage workflows." [ref=e370] [cursor=pointer]:
+            - /url: /help/reference/automations/workflows/manage-workflows
+            - img [ref=e372]
+            - generic [ref=e374]:
+              - heading "Manage workflows" [level=3] [ref=e375]
+              - paragraph [ref=e376]: Learn how to manage workflows.
+          - link "Troubleshooting workflows Learn how to monitor and fix issues with your workflows." [ref=e377] [cursor=pointer]:
+            - /url: /help/reference/automations/workflows/troubleshooting-workflows
+            - img [ref=e379]
+            - generic [ref=e381]:
+              - heading "Troubleshooting workflows" [level=3] [ref=e382]
+              - paragraph [ref=e383]: Learn how to monitor and fix issues with your workflows.
+          - link "Manage workspace and seat credits Learn how workspace and seat credits are consumed and billed." [ref=e384] [cursor=pointer]:
+            - /url: /help/reference/workspace-settings-billing/manage-workspace-and-seat-credits
+            - img [ref=e386]
+            - generic [ref=e388]:
+              - heading "Manage workspace and seat credits" [level=3] [ref=e389]
+              - paragraph [ref=e390]: Learn how workspace and seat credits are consumed and billed.
+  - contentinfo [ref=e391]:
+    - img [ref=e392]
+    - generic [ref=e394]:
+      - link "Attio homepage" [ref=e396] [cursor=pointer]:
+        - /url: /
+        - img [ref=e397]
+      - generic [ref=e405]:
+        - generic [ref=e406]:
+          - heading "Platform" [level=2] [ref=e408]
+          - list [ref=e409]:
+            - listitem [ref=e410]:
+              - link "Refer a team New" [ref=e411] [cursor=pointer]:
+                - /url: /refer
+                - generic [ref=e412]: Refer a team
+                - generic [ref=e413]: New
+            - listitem [ref=e414]:
+              - link "Changelog" [ref=e415] [cursor=pointer]:
+                - /url: /changelog
+                - generic [ref=e416]: Changelog
+            - listitem [ref=e417]:
+              - link "Gmail extension" [ref=e418] [cursor=pointer]:
+                - /url: https://chrome.google.com/webstore/detail/attio/legacbojjmajoedfolbjlekjjkepadph/
+                - generic [ref=e419]: Gmail extension
+                - img [ref=e420]
+            - listitem [ref=e422]:
+              - link "iOS app" [ref=e423] [cursor=pointer]:
+                - /url: https://apps.apple.com/gb/app/attio/id1511545395
+                - generic [ref=e424]: iOS app
+                - img [ref=e425]
+            - listitem [ref=e427]:
+              - link "Android app" [ref=e428] [cursor=pointer]:
+                - /url: https://play.google.com/store/apps/details?id=com.attio&gl=GB
+                - generic [ref=e429]: Android app
+                - img [ref=e430]
+        - generic [ref=e432]:
+          - heading "Company" [level=2] [ref=e434]
+          - list [ref=e435]:
+            - listitem [ref=e436]:
+              - link "Customers" [ref=e437] [cursor=pointer]:
+                - /url: /customers
+                - generic [ref=e438]: Customers
+            - listitem [ref=e439]:
+              - link "Announcements" [ref=e440] [cursor=pointer]:
+                - /url: /blog
+                - generic [ref=e441]: Announcements
+            - listitem [ref=e442]:
+              - link "Engineering blog New" [ref=e443] [cursor=pointer]:
+                - /url: /engineering/blog
+                - generic [ref=e444]: Engineering blog
+                - generic [ref=e445]: New
+            - listitem [ref=e446]:
+              - link "Careers" [ref=e447] [cursor=pointer]:
+                - /url: /careers
+                - generic [ref=e448]: Careers
+            - listitem [ref=e449]:
+              - link "Manifesto" [ref=e450] [cursor=pointer]:
+                - /url: /redefine
+                - generic [ref=e451]: Manifesto
+            - listitem [ref=e452]:
+              - link "Become a partner" [ref=e453] [cursor=pointer]:
+                - /url: /partners
+                - generic [ref=e454]: Become a partner
+        - generic [ref=e455]:
+          - heading "Import from" [level=2] [ref=e457]
+          - list [ref=e458]:
+            - listitem [ref=e459]:
+              - link "Salesforce" [ref=e460] [cursor=pointer]:
+                - /url: /help/reference/imports-and-exports/migrate-data-from-another-crm?source=footer_salesforce
+                - generic [ref=e461]: Salesforce
+            - listitem [ref=e462]:
+              - link "Hubspot" [ref=e463] [cursor=pointer]:
+                - /url: /help/reference/imports-and-exports/migrate-data-from-another-crm?source=footer_hubspot
+                - generic [ref=e464]: Hubspot
+            - listitem [ref=e465]:
+              - link "Pipedrive" [ref=e466] [cursor=pointer]:
+                - /url: /help/reference/imports-and-exports/migrate-data-from-another-crm?source=footer_pipedrive
+                - generic [ref=e467]: Pipedrive
+            - listitem [ref=e468]:
+              - link "Zoho" [ref=e469] [cursor=pointer]:
+                - /url: /help/reference/imports-and-exports/migrate-data-from-another-crm?source=footer_zoho
+                - generic [ref=e470]: Zoho
+            - listitem [ref=e471]:
+              - link "Excel" [ref=e472] [cursor=pointer]:
+                - /url: /help/reference/imports-and-exports/import-data-into-attio?source=footer_excel
+                - generic [ref=e473]: Excel
+            - listitem [ref=e474]:
+              - link "CSV" [ref=e475] [cursor=pointer]:
+                - /url: /help/reference/imports-and-exports/import-data-into-attio?source=footer_csv
+                - generic [ref=e476]: CSV
+        - generic [ref=e477]:
+          - heading "Attio for" [level=2] [ref=e479]
+          - list [ref=e480]:
+            - listitem [ref=e481]:
+              - link "Startups" [ref=e482] [cursor=pointer]:
+                - /url: /solutions/startup-crm
+                - generic [ref=e483]: Startups
+            - listitem [ref=e484]:
+              - link "Deal flow" [ref=e485] [cursor=pointer]:
+                - /url: /solutions/deal-flow-management-software
+                - generic [ref=e486]: Deal flow
+        - generic [ref=e487]:
+          - heading "Apps" [level=2] [ref=e489]
+          - list [ref=e490]:
+            - listitem [ref=e491]:
+              - link "Gmail" [ref=e492] [cursor=pointer]:
+                - /url: https://attio.com/apps/gmail
+                - generic [ref=e493]: Gmail
+            - listitem [ref=e494]:
+              - link "Outlook" [ref=e495] [cursor=pointer]:
+                - /url: https://attio.com/apps/outlook
+                - generic [ref=e496]: Outlook
+            - listitem [ref=e497]:
+              - link "Segment" [ref=e498] [cursor=pointer]:
+                - /url: https://attio.com/apps/segment
+                - generic [ref=e499]: Segment
+            - listitem [ref=e500]:
+              - link "Mailchimp" [ref=e501] [cursor=pointer]:
+                - /url: https://attio.com/apps/mailchimp
+                - generic [ref=e502]: Mailchimp
+            - listitem [ref=e503]:
+              - link "Slack" [ref=e504] [cursor=pointer]:
+                - /url: https://attio.com/apps/slack
+                - generic [ref=e505]: Slack
+            - listitem [ref=e506]:
+              - link "Outreach" [ref=e507] [cursor=pointer]:
+                - /url: https://attio.com/apps/outreach
+                - generic [ref=e508]: Outreach
+            - listitem [ref=e509]:
+              - link "Mixmax" [ref=e510] [cursor=pointer]:
+                - /url: https://attio.com/apps/mixmax
+                - generic [ref=e511]: Mixmax
+            - listitem [ref=e512]:
+              - link "Typeform" [ref=e513] [cursor=pointer]:
+                - /url: https://attio.com/apps/typeform
+                - generic [ref=e514]: Typeform
+            - listitem [ref=e515]:
+              - link "Zapier" [ref=e516] [cursor=pointer]:
+                - /url: https://attio.com/apps/zapier
+                - generic [ref=e517]: Zapier
+        - generic [ref=e518]:
+          - heading "Resources" [level=2] [ref=e520]
+          - list [ref=e521]:
+            - listitem [ref=e522]:
+              - link "Startup program" [ref=e523] [cursor=pointer]:
+                - /url: /startups
+                - generic [ref=e524]: Startup program
+            - listitem [ref=e525]:
+              - link "Help center" [ref=e526] [cursor=pointer]:
+                - /url: /help
+                - generic [ref=e527]: Help center
+            - listitem [ref=e528]:
+              - link "Developers" [ref=e529] [cursor=pointer]:
+                - /url: https://docs.attio.com/
+                - generic [ref=e530]: Developers
+                - img [ref=e531]
+            - listitem [ref=e533]:
+              - link "System status" [ref=e534] [cursor=pointer]:
+                - /url: https://status.attio.com/
+                - generic [ref=e535]: System status
+                - img [ref=e536]
+            - listitem [ref=e538]:
+              - link "Hire an expert" [ref=e539] [cursor=pointer]:
+                - /url: /experts
+                - generic [ref=e540]: Hire an expert
+            - listitem [ref=e541]:
+              - link "Downloads" [ref=e542] [cursor=pointer]:
+                - /url: /download
+                - generic [ref=e543]: Downloads
+            - listitem [ref=e544]:
+              - link "Trust Center" [ref=e545] [cursor=pointer]:
+                - /url: https://trust.attio.com/
+                - generic [ref=e546]: Trust Center
+                - img [ref=e547]
+    - generic [ref=e551]:
+      - generic [ref=e552]:
+        - link "Attio on LinkedIn" [ref=e553] [cursor=pointer]:
+          - /url: https://linkedin.com/company/attio
+          - img [ref=e554]
+        - link "Attio on X" [ref=e556] [cursor=pointer]:
+          - /url: https://twitter.com/attio
+          - img [ref=e557]
+        - link "Attio on Dribbble" [ref=e559] [cursor=pointer]:
+          - /url: https://dribbble.com/attio
+          - img [ref=e560]
+        - link "Attio on YouTube" [ref=e562] [cursor=pointer]:
+          - /url: https://www.youtube.com/@attioCRM
+          - img [ref=e563]
+      - generic [ref=e565]:
+        - paragraph [ref=e566]: © 2026 Attio Ltd. All rights reserved.
+        - generic [ref=e567]:
+          - link "Services Agreement" [ref=e568] [cursor=pointer]:
+            - /url: /legal/services-agreement
+          - link "Privacy Policy" [ref=e569] [cursor=pointer]:
+            - /url: /legal/privacy
+          - link "LLMs" [ref=e570] [cursor=pointer]:
+            - /url: https://attio.com/llms.txt
+  - region "Cookie consent":
+    - generic [ref=e572]:
+      - paragraph [ref=e575]:
+        - text: We use cookies to improve your experience. You can opt out of certain cookies. Find out more in our
+        - link "privacy policy" [ref=e576] [cursor=pointer]:
+          - /url: /legal/privacy
+        - text: .
+      - generic [ref=e577]:
+        - button "Continue" [ref=e578] [cursor=pointer]
+        - button "Reject" [ref=e579] [cursor=pointer]
+  - region "Notifications alt+T"
+  - alert [ref=e580]
+  - iframe [ref=e581]:
+    
+  - button "Open Intercom Messenger" [ref=e582] [cursor=pointer]:
+    - img [ref=e584]
+    - generic:
+      - img

@@ -1,0 +1,880 @@
+- generic [active] [ref=e1]:
+  - banner [ref=e3]:
+    - generic [ref=e7]:
+      - link "Orchestrate revenue agents with the new Workflows" [ref=e8] [cursor=pointer]:
+        - /url: /platform/workflows
+        - generic [ref=e9]: Orchestrate revenue agents with the new Workflows
+        - img [ref=e10]
+      - button "Dismiss banner" [ref=e12] [cursor=pointer]:
+        - img [ref=e13]
+    - navigation [ref=e16]:
+      - generic [ref=e17]:
+        - generic [ref=e18]:
+          - link "Attio homepage" [ref=e19] [cursor=pointer]:
+            - /url: /
+            - img [ref=e20]
+          - navigation [ref=e28]:
+            - list [ref=e29]:
+              - listitem [ref=e30]:
+                - button "Platform" [ref=e31] [cursor=pointer]:
+                  - generic [ref=e32]: Platform
+                  - img [ref=e33]
+              - listitem [ref=e35]:
+                - button "Resources" [ref=e36] [cursor=pointer]:
+                  - generic [ref=e37]: Resources
+                  - img [ref=e38]
+              - listitem [ref=e40]:
+                - link "Customers" [ref=e41] [cursor=pointer]:
+                  - /url: /customers
+              - listitem [ref=e42]:
+                - link "Pricing" [ref=e43] [cursor=pointer]:
+                  - /url: /pricing
+        - generic [ref=e44]:
+          - link "Sign in" [ref=e45] [cursor=pointer]:
+            - /url: https://app.attio.com/
+          - link "Start for free" [ref=e46] [cursor=pointer]:
+            - /url: https://app.attio.com/welcome/sign-in
+  - generic [ref=e48]:
+    - navigation [ref=e49]:
+      - generic [ref=e50]:
+        - button "Search..." [ref=e52] [cursor=pointer]:
+          - img [ref=e53]
+          - paragraph [ref=e55]: Search...
+          - paragraph [ref=e56]: ⌘K
+        - generic [ref=e57]:
+          - generic [ref=e59]:
+            - link "Academy" [ref=e60] [cursor=pointer]:
+              - /url: /help/academy
+              - generic [ref=e61]: Academy
+            - heading "Introductions Workflows Sequences Reports Attio for product-led growth" [level=2] [ref=e62]:
+              - heading "Introductions" [level=3] [ref=e64]:
+                - button [ref=e65] [cursor=pointer]:
+                  - img [ref=e66]
+                - link "Introductions" [ref=e68] [cursor=pointer]:
+                  - /url: /help/academy/introduction
+              - heading "Workflows" [level=3] [ref=e70]:
+                - button [ref=e71] [cursor=pointer]:
+                  - img [ref=e72]
+                - link "Workflows" [ref=e74] [cursor=pointer]:
+                  - /url: /help/academy/workflows-course
+              - heading "Sequences" [level=3] [ref=e76]:
+                - button [ref=e77] [cursor=pointer]:
+                  - img [ref=e78]
+                - link "Sequences" [ref=e80] [cursor=pointer]:
+                  - /url: /help/academy/sequences
+              - heading "Reports" [level=3] [ref=e82]:
+                - button [ref=e83] [cursor=pointer]:
+                  - img [ref=e84]
+                - link "Reports" [ref=e86] [cursor=pointer]:
+                  - /url: /help/academy/reports-course
+              - heading "Attio for product-led growth" [level=3] [ref=e88]:
+                - button [ref=e89] [cursor=pointer]:
+                  - img [ref=e90]
+                - link "Attio for product-led growth" [ref=e92] [cursor=pointer]:
+                  - /url: /help/academy/attio-for-product-led-growth
+          - generic [ref=e93]:
+            - generic [ref=e94]:
+              - link "Reference" [ref=e95] [cursor=pointer]:
+                - /url: /help/reference
+                - generic [ref=e96]: Reference
+              - heading "Attio 101 Attio AI Managing your data Email & calendar Imports & exports Productivity & collaborating Automations Workflows Overview of workflows Create a workflow Workflows block library Manage workflows Troubleshooting workflows Migrate your legacy workflows Legacy workflows Legacy workflows builder Legacy workflows block library Manage legacy workflows Troubleshooting legacy workflows Sequences Create a sequence Manage sequences Track status of sequence recipients Email deliverability guide Understanding email bounces Tools and extensions Account settings Workspace settings & billing Industry guides Support" [level=2] [ref=e97]:
+                - heading "Attio 101" [level=3] [ref=e99]:
+                  - button [ref=e100] [cursor=pointer]:
+                    - img [ref=e101]
+                  - link "Attio 101" [ref=e103] [cursor=pointer]:
+                    - /url: /help/reference/attio-101
+                - heading "Attio AI" [level=3] [ref=e105]:
+                  - button [ref=e106] [cursor=pointer]:
+                    - img [ref=e107]
+                  - link "Attio AI" [ref=e109] [cursor=pointer]:
+                    - /url: /help/reference/attio-ai
+                - heading "Managing your data" [level=3] [ref=e111]:
+                  - button [ref=e112] [cursor=pointer]:
+                    - img [ref=e113]
+                  - link "Managing your data" [ref=e115] [cursor=pointer]:
+                    - /url: /help/reference/managing-your-data
+                - heading "Email & calendar" [level=3] [ref=e117]:
+                  - button [ref=e118] [cursor=pointer]:
+                    - img [ref=e119]
+                  - link "Email & calendar" [ref=e121] [cursor=pointer]:
+                    - /url: /help/reference/email-calendar
+                - heading "Imports & exports" [level=3] [ref=e123]:
+                  - button [ref=e124] [cursor=pointer]:
+                    - img [ref=e125]
+                  - link "Imports & exports" [ref=e127] [cursor=pointer]:
+                    - /url: /help/reference/imports-exports
+                - heading "Productivity & collaborating" [level=3] [ref=e129]:
+                  - button [ref=e130] [cursor=pointer]:
+                    - img [ref=e131]
+                  - link "Productivity & collaborating" [ref=e133] [cursor=pointer]:
+                    - /url: /help/reference/productivity-collaborating
+                - generic [ref=e134]:
+                  - heading "Automations" [level=3] [ref=e135]:
+                    - button [expanded] [ref=e136] [cursor=pointer]:
+                      - img [ref=e137]
+                    - link "Automations" [ref=e139] [cursor=pointer]:
+                      - /url: /help/reference/automations
+                  - region [ref=e140]:
+                    - generic [ref=e144]:
+                      - generic [ref=e145]:
+                        - link "Workflows" [ref=e146] [cursor=pointer]:
+                          - /url: /help/reference/automations/workflows
+                        - generic [ref=e147]:
+                          - link "Overview of workflows" [ref=e149] [cursor=pointer]:
+                            - /url: /help/reference/automations/workflows/overview-of-workflows
+                          - link "Create a workflow" [ref=e151] [cursor=pointer]:
+                            - /url: /help/reference/automations/workflows/create-a-workflow
+                          - link "Workflows block library" [ref=e153] [cursor=pointer]:
+                            - /url: /help/reference/automations/workflows/workflows-block-library
+                          - link "Manage workflows" [ref=e155] [cursor=pointer]:
+                            - /url: /help/reference/automations/workflows/manage-workflows
+                          - link "Troubleshooting workflows" [ref=e157] [cursor=pointer]:
+                            - /url: /help/reference/automations/workflows/troubleshooting-workflows
+                          - link "Migrate your legacy workflows" [ref=e159] [cursor=pointer]:
+                            - /url: /help/reference/automations/workflows/migrate-your-legacy-workflows
+                      - generic [ref=e160]:
+                        - link "Legacy workflows" [ref=e161] [cursor=pointer]:
+                          - /url: /help/reference/automations/legacy-workflows
+                        - generic [ref=e162]:
+                          - link "Legacy workflows builder" [ref=e164] [cursor=pointer]:
+                            - /url: /help/reference/automations/legacy-workflows/legacy-workflows-builder
+                          - link "Legacy workflows block library" [ref=e166] [cursor=pointer]:
+                            - /url: /help/reference/automations/legacy-workflows/legacy-workflows-block-library
+                          - link "Manage legacy workflows" [ref=e168] [cursor=pointer]:
+                            - /url: /help/reference/automations/legacy-workflows/manage-legacy-workflows
+                          - link "Troubleshooting legacy workflows" [ref=e170] [cursor=pointer]:
+                            - /url: /help/reference/automations/legacy-workflows/troubleshooting-legacy-workflows
+                      - generic [ref=e171]:
+                        - link "Sequences" [ref=e172] [cursor=pointer]:
+                          - /url: /help/reference/automations/sequences
+                        - generic [ref=e173]:
+                          - link "Create a sequence" [ref=e175] [cursor=pointer]:
+                            - /url: /help/reference/automations/sequences/create-a-sequence
+                          - link "Manage sequences" [ref=e177] [cursor=pointer]:
+                            - /url: /help/reference/automations/sequences/manage-sequences
+                          - link "Track status of sequence recipients" [ref=e179] [cursor=pointer]:
+                            - /url: /help/reference/automations/sequences/track-status-of-sequence-recipients
+                          - link "Email deliverability guide" [ref=e181] [cursor=pointer]:
+                            - /url: /help/reference/automations/sequences/email-deliverability-guide
+                          - link "Understanding email bounces" [ref=e183] [cursor=pointer]:
+                            - /url: /help/reference/automations/sequences/understanding-email-bounces
+                - heading "Tools and extensions" [level=3] [ref=e186]:
+                  - button [ref=e187] [cursor=pointer]:
+                    - img [ref=e188]
+                  - link "Tools and extensions" [ref=e190] [cursor=pointer]:
+                    - /url: /help/reference/tools-and-extensions
+                - heading "Account settings" [level=3] [ref=e192]:
+                  - button [ref=e193] [cursor=pointer]:
+                    - img [ref=e194]
+                  - link "Account settings" [ref=e196] [cursor=pointer]:
+                    - /url: /help/reference/account-settings
+                - heading "Workspace settings & billing" [level=3] [ref=e198]:
+                  - button [ref=e199] [cursor=pointer]:
+                    - img [ref=e200]
+                  - link "Workspace settings & billing" [ref=e202] [cursor=pointer]:
+                    - /url: /help/reference/workspace-settings-billing
+                - heading "Industry guides" [level=3] [ref=e204]:
+                  - button [ref=e205] [cursor=pointer]:
+                    - img [ref=e206]
+                  - link "Industry guides" [ref=e208] [cursor=pointer]:
+                    - /url: /help/reference/industry-guides
+                - heading "Support" [level=3] [ref=e210]:
+                  - button [ref=e211] [cursor=pointer]:
+                    - img [ref=e212]
+                  - link "Support" [ref=e214] [cursor=pointer]:
+                    - /url: /help/reference/support
+            - generic [ref=e215]:
+              - link "Apps" [ref=e216] [cursor=pointer]:
+                - /url: /help/apps
+                - generic [ref=e217]: Apps
+              - heading "Automations apps Zapier app Other apps" [level=2] [ref=e218]:
+                - heading "Automations apps" [level=3] [ref=e220]:
+                  - button [ref=e221] [cursor=pointer]:
+                    - img [ref=e222]
+                  - link "Automations apps" [ref=e224] [cursor=pointer]:
+                    - /url: /help/apps/automations-apps
+                - heading "Zapier app" [level=3] [ref=e226]:
+                  - button [ref=e227] [cursor=pointer]:
+                    - img [ref=e228]
+                  - link "Zapier app" [ref=e230] [cursor=pointer]:
+                    - /url: /help/apps/zapier-integration
+                - heading "Other apps" [level=3] [ref=e232]:
+                  - button [ref=e233] [cursor=pointer]:
+                    - img [ref=e234]
+                  - link "Other apps" [ref=e236] [cursor=pointer]:
+                    - /url: /help/apps/other-apps
+    - main [ref=e238]:
+      - list [ref=e243]:
+        - listitem [ref=e244]:
+          - generic [ref=e245]:
+            - link "Help" [ref=e246] [cursor=pointer]:
+              - /url: /help
+            - generic [ref=e247]: /
+        - listitem [ref=e248]:
+          - generic [ref=e249]:
+            - link "Reference" [ref=e250] [cursor=pointer]:
+              - /url: /help/reference
+            - generic [ref=e251]: /
+        - listitem [ref=e252]:
+          - generic [ref=e253]:
+            - link "Automations" [ref=e254] [cursor=pointer]:
+              - /url: /help/reference/automations
+            - generic [ref=e255]: /
+        - listitem [ref=e256]:
+          - generic [ref=e257]:
+            - link "Workflows" [ref=e258] [cursor=pointer]:
+              - /url: /help/reference/automations/workflows
+            - generic [ref=e259]: /
+        - listitem [ref=e260]:
+          - paragraph [ref=e261]: Troubleshooting workflows
+      - article [ref=e262]:
+        - generic [ref=e263]:
+          - heading "Troubleshooting workflows" [level=1] [ref=e264]
+          - paragraph [ref=e268]: Learn how to monitor and fix issues with your workflows.
+        - generic [ref=e270]:
+          - generic [ref=e272]:
+            - img [ref=e273]
+            - paragraph [ref=e278]:
+              - text: If you're working with legacy workflows, see
+              - link "Troubleshooting legacy workflows" [ref=e279] [cursor=pointer]:
+                - /url: /help/reference/automations/legacy-workflows/troubleshooting-legacy-workflows
+              - text: instead.
+          - paragraph [ref=e280]: Troubleshooting helps you understand why a workflow did not run as expected and identify where an error occurred. The run viewer shows each run step by step so you can inspect block behavior, review run data, and diagnose failures. You can also rerun failed executions, compare retry attempts, and troubleshoot common configuration issues.
+          - heading "Access the run viewer Copy link" [level=2] [ref=e281]:
+            - generic [ref=e282]:
+              - text: Access the run viewer
+              - button "Copy link" [ref=e283] [cursor=pointer]:
+                - img [ref=e285]
+                - generic [ref=e288]: Copy link
+          - paragraph [ref=e289]: The run viewer shows a complete history of your workflow runs.
+          - list [ref=e290]:
+            - listitem [ref=e291]:
+              - paragraph [ref=e292]: From the Workflows page, open the workflow you want to troubleshoot.
+            - listitem [ref=e293]:
+              - paragraph [ref=e294]: Click the Runs tab.
+            - listitem [ref=e295]:
+              - paragraph [ref=e296]: Browse the list of runs and click a run to view its details.
+          - figure [ref=e297]:
+            - button "Workflow canvas showing past runs, current run in progress" [ref=e298]:
+              - img "Workflow canvas showing past runs, current run in progress" [ref=e299]
+          - heading "Run viewer overview Copy link" [level=2] [ref=e300]:
+            - generic [ref=e301]:
+              - text: Run viewer overview
+              - button "Copy link" [ref=e302] [cursor=pointer]:
+                - img [ref=e304]
+                - generic [ref=e307]: Copy link
+          - paragraph [ref=e308]: "The run viewer has two sections: a read-only workflow canvas on the left and a sidebar on the right."
+          - paragraph [ref=e309]: The sidebar shows summary details for the selected workflow and a list of all runs. By default, the most recent run is selected. Hover over a run to reveal the runtime, start and end times, and the number of credits consumed.
+          - paragraph [ref=e310]: Click a run to open the workflow canvas for that execution and show the blocks as they appeared when the run happened. Green arrows indicate the path that executed. Green checkmarks indicate blocks that executed successfully, and failed blocks are marked in red.
+          - heading "Inspect block inputs and outputs Copy link" [level=3] [ref=e311]:
+            - generic [ref=e312]:
+              - text: Inspect block inputs and outputs
+              - button "Copy link" [ref=e313] [cursor=pointer]:
+                - img [ref=e315]
+                - generic [ref=e318]: Copy link
+          - paragraph [ref=e319]: Click any block in a completed run to see a detailed view of that block’s execution in the sidebar. Scroll down to find Inputs and Outputs.
+          - list [ref=e320]:
+            - listitem [ref=e321]:
+              - paragraph [ref=e322]: Inputs show the values that were passed into the block when it executed.
+            - listitem [ref=e323]:
+              - paragraph [ref=e324]: Outputs show the data that block passed to later blocks in the workflow.
+          - paragraph [ref=e325]: For example, a Formula block displays its calculated value, and a Create record block shows the created record along with who created it and when. Not all blocks display outputs.
+          - paragraph [ref=e326]: "Use inputs and outputs together to trace where something went wrong:"
+          - list [ref=e327]:
+            - listitem [ref=e328]:
+              - paragraph [ref=e329]: Start with the block that failed or behaved unexpectedly.
+            - listitem [ref=e330]:
+              - paragraph [ref=e331]: Check that block’s Inputs to see what data it received.
+            - listitem [ref=e332]:
+              - paragraph [ref=e333]: Then open any blocks it pulled data from and review their Outputs.
+            - listitem [ref=e334]:
+              - paragraph [ref=e335]: Compare the two to see whether the issue came from the input data, the block configuration, or the block’s logic.
+          - paragraph [ref=e336]: This is often the fastest way to diagnose a workflow. In many cases, the error starts in an earlier block, even though it only becomes visible later in the run.
+          - figure [ref=e337]:
+            - button [ref=e338]
+          - heading "Identify failed blocks Copy link" [level=3] [ref=e339]:
+            - generic [ref=e340]:
+              - text: Identify failed blocks
+              - button "Copy link" [ref=e341] [cursor=pointer]:
+                - img [ref=e343]
+                - generic [ref=e346]: Copy link
+          - paragraph [ref=e347]: Any block that failed is highlighted in red on the canvas. Click a failed block to display a detailed error message in the sidebar. Failed blocks do not count toward credit usage.
+          - paragraph [ref=e348]:
+            - text: For common errors and how to fix them, see
+            - link "Common error messages" [ref=e349] [cursor=pointer]:
+              - /url: /help/reference/automations/workflows/troubleshooting-workflows#resolve-common-error-messages
+            - text: below.
+          - figure [ref=e350]:
+            - button [ref=e351]
+          - heading "Navigate loop iterations Copy link" [level=3] [ref=e352]:
+            - generic [ref=e353]:
+              - text: Navigate loop iterations
+              - button "Copy link" [ref=e354] [cursor=pointer]:
+                - img [ref=e356]
+                - generic [ref=e359]: Copy link
+          - paragraph [ref=e360]: If your workflow contains a Loop block, use the < and > buttons above the block on the canvas to step through individual iterations. This helps you identify whether a failure occurred on one specific iteration or across all of them.
+          - paragraph [ref=e361]: This is especially useful when a loop succeeds for some iterations but fails for others.
+          - iframe [ref=e363]:
+            - img [ref=f104e1]
+          - heading "View agent results Copy link" [level=3] [ref=e364]:
+            - generic [ref=e365]:
+              - text: View agent results
+              - button "Copy link" [ref=e366] [cursor=pointer]:
+                - img [ref=e368]
+                - generic [ref=e371]: Copy link
+          - paragraph [ref=e372]: If your workflow contains an agent block, click the block to show each step the agent took, the questions it investigated, and the outputs it produced. If the agent could not find an answer to a question, that question’s output will be empty.
+          - heading "Rerun or retry a run Copy link" [level=2] [ref=e373]:
+            - generic [ref=e374]:
+              - text: Rerun or retry a run
+              - button "Copy link" [ref=e375] [cursor=pointer]:
+                - img [ref=e377]
+                - generic [ref=e380]: Copy link
+          - paragraph [ref=e381]: You can execute any completed run again from the run viewer.
+          - list [ref=e382]:
+            - listitem [ref=e383]:
+              - paragraph [ref=e384]: Open the workflow and click the Runs tab.
+            - listitem [ref=e385]:
+              - paragraph [ref=e386]: Select the run from the list.
+            - listitem [ref=e387]:
+              - paragraph [ref=e388]: "Click Rerun to run a successful run again, or click Retry for a failed run and select one of the following options:"
+              - list [ref=e389]:
+                - listitem [ref=e390]:
+                  - paragraph [ref=e391]: Retry from start re-executes the entire workflow from the beginning using the original trigger data.
+                - listitem [ref=e392]:
+                  - paragraph [ref=e393]: Retry from failed re-executes the workflow starting from the block that failed and skips blocks that already completed.
+          - generic [ref=e395]:
+            - img [ref=e396]
+            - paragraph [ref=e401]: "Note: Retrying a run always uses the version of the workflow that was published when the original run triggered, not the currently published version."
+          - figure [ref=e402]:
+            - button "Run viewer of workflow showing options to retry from start or from failed" [ref=e403]:
+              - img "Run viewer of workflow showing options to retry from start or from failed" [ref=e404]
+          - paragraph [ref=e405]:
+            - text: After rerunning or retrying, a new attempt is created under the same run. Click the
+            - generic [ref=e406]: Attempt
+            - text: dropdown next to the run number to switch between attempts. Each attempt shows its status and execution time so you can compare results across retries. This helps you confirm whether a change fixed the issue or whether the failure is still occurring in the same place.
+          - figure [ref=e407]:
+            - button "Run viewer showing where to toggle between run attempts" [ref=e408]:
+              - img "Run viewer showing where to toggle between run attempts" [ref=e409]
+          - heading "Pause, cancel, or resume a run Copy link" [level=2] [ref=e410]:
+            - generic [ref=e411]:
+              - text: Pause, cancel, or resume a run
+              - button "Copy link" [ref=e412] [cursor=pointer]:
+                - img [ref=e414]
+                - generic [ref=e417]: Copy link
+          - paragraph [ref=e418]: "While a run is in progress, you can use the toolbar at the top of the run viewer to pause, resume, or cancel it. From here you have these options:"
+          - list [ref=e419]:
+            - listitem [ref=e420]:
+              - paragraph [ref=e421]: Pause temporarily stops execution. The currently executing block completes before the run pauses. Use this if you want to investigate an issue mid-run before the workflow continues.
+            - listitem [ref=e422]:
+              - paragraph [ref=e423]: Resume continues a paused run from where it stopped.
+            - listitem [ref=e424]:
+              - paragraph [ref=e425]: Cancel permanently stops execution. The currently executing block still completes and counts toward credit usage, but no further blocks execute or consume credits. Use this if you know the run should not proceed.
+          - figure [ref=e426]:
+            - button "Run viewer showing cancel button in the upper-left" [ref=e427]:
+              - img "Run viewer showing cancel button in the upper-left" [ref=e428]
+          - heading "Resolve common workflow issues Copy link" [level=2] [ref=e429]:
+            - generic [ref=e430]:
+              - text: Resolve common workflow issues
+              - button "Copy link" [ref=e431] [cursor=pointer]:
+                - img [ref=e433]
+                - generic [ref=e436]: Copy link
+          - paragraph [ref=e437]: These are some of the most frequent workflow issues and how to resolve them.
+          - heading "Prevent infinite loops Copy link" [level=3] [ref=e438]:
+            - generic [ref=e439]:
+              - text: Prevent infinite loops
+              - button "Copy link" [ref=e440] [cursor=pointer]:
+                - img [ref=e442]
+                - generic [ref=e445]: Copy link
+          - paragraph [ref=e446]: A common issue occurs when a workflow updates a record in a way that triggers the same workflow again, or when two workflows repeatedly trigger each other. For example, a workflow triggered by Record updated that also updates the same record could trigger itself repeatedly.
+          - paragraph [ref=e447]: "There are a couple of ways to prevent this:"
+          - list [ref=e448]:
+            - listitem [ref=e449]:
+              - paragraph [ref=e450]: Filter out workflow-initiated updates. Add a Filter block immediately after the trigger with a condition Updated by > Type > is not > Workflow. This ensures the workflow ignores updates made by any workflow automation. This filter applies to updates from all workflows, not a specific workflow.
+            - listitem [ref=e451]:
+              - paragraph [ref=e452]: Scope the trigger to a specific attribute. For Record updated, List entry updated, and Attribute value changed triggers, configure the trigger to run only when a specific attribute changes that your workflow's actions do not modify. For example, if the workflow updates Deal owner, scope the trigger to run only when Deal stage changes.
+          - heading "An attribute update isn't triggering a workflow Copy link" [level=3] [ref=e453]:
+            - generic [ref=e454]:
+              - text: An attribute update isn't triggering a workflow
+              - button "Copy link" [ref=e455] [cursor=pointer]:
+                - img [ref=e457]
+                - generic [ref=e460]: Copy link
+          - paragraph [ref=e461]: If a workflow uses a Record updated or List entry updated trigger but does not fire when you expect it to, the attribute value may have been set during creation rather than updated afterward. These triggers fire only when changes happen after the record or list entry is created. If the attribute value is set at creation time, such as a deal created with the stage already set to “Won,” the trigger does not fire because the value was never updated.
+          - paragraph [ref=e462]: To catch attribute values set at creation time, use the Attribute value changed trigger instead. This trigger fires whenever the specified attribute's state changes, including values set when the record or list entry is first created.
+          - heading "Filter conditions are returning unexpected results Copy link" [level=3] [ref=e463]:
+            - generic [ref=e464]:
+              - text: Filter conditions are returning unexpected results
+              - button "Copy link" [ref=e465] [cursor=pointer]:
+                - img [ref=e467]
+                - generic [ref=e470]: Copy link
+          - paragraph [ref=e471]:
+            - text: If filter conditions are not working as you expect, check the operators between your conditions. Conditions joined by and require every condition to be true, while conditions joined by or require only one to be true. When conditions are organized into groups, verify the operator both within each group and between groups. Learn more about
+            - link "setting filter conditions and using condition operators" [ref=e472] [cursor=pointer]:
+              - /url: /help/reference/automations/workflows/workflows-block-library#set-filter-conditions-or-groups
+            - text: .
+          - paragraph [ref=e473]: For example, a filter that checks “Deal stage is Won” or “Deal owner is Alex” will match records that meet either condition, while and matches only records that meet both.
+          - heading "A block is only processing one record or list entry Copy link" [level=3] [ref=e474]:
+            - generic [ref=e475]:
+              - text: A block is only processing one record or list entry
+              - button "Copy link" [ref=e476] [cursor=pointer]:
+                - img [ref=e478]
+                - generic [ref=e481]: Copy link
+          - paragraph [ref=e482]: If a block is connected directly to the output of a Find records or Find list entries block that returns multiple records or entries, the block processes only the first result by default. This is usually indicated by a warning icon on the block.
+          - paragraph [ref=e483]: "To process every matching record or list entry:"
+          - list [ref=e484]:
+            - listitem [ref=e485]:
+              - paragraph [ref=e486]: Add a Loop block after the Find records or Find list entries block.
+            - listitem [ref=e487]:
+              - paragraph [ref=e488]: Configure the Loop block to iterate through the returned records or list entries.
+            - listitem [ref=e489]:
+              - paragraph [ref=e490]: Place the block you want to run for each result inside the Loop block.
+          - paragraph [ref=e491]:
+            - text: This ensures the workflow takes action on each returned record or list entry instead of only the first one. Learn
+            - link "how to use Loop blocks" [ref=e492] [cursor=pointer]:
+              - /url: /help/reference/automations/workflows/workflows-block-library#loop
+            - text: .
+          - heading "Resolve common error messages Copy link" [level=2] [ref=e493]:
+            - generic [ref=e494]:
+              - text: Resolve common error messages
+              - button "Copy link" [ref=e495] [cursor=pointer]:
+                - img [ref=e497]
+                - generic [ref=e500]: Copy link
+          - paragraph [ref=e501]: When a block fails, the error message in the run viewer indicates what went wrong. Here are common errors and how to resolve them.
+          - heading "“The provided sender has not enabled delegated sending” Copy link" [level=3] [ref=e502]:
+            - generic [ref=e503]:
+              - text: “The provided sender has not enabled delegated sending”
+              - button "Copy link" [ref=e504] [cursor=pointer]:
+                - img [ref=e506]
+                - generic [ref=e509]: Copy link
+          - paragraph [ref=e510]: "This error occurs when delegated sending is not enabled for the sender used in your workflow’s sequence. To fix it:"
+          - list [ref=e511]:
+            - listitem [ref=e512]:
+              - paragraph [ref=e513]: Go to Sequences in the main sidebar and open the sequence used in your workflow.
+            - listitem [ref=e514]:
+              - paragraph [ref=e515]: Open the Settings tab at the top.
+            - listitem [ref=e516]:
+              - paragraph [ref=e517]: If you want to send emails from your own address, enable the toggle for Enable delegated sending.
+            - listitem [ref=e518]:
+              - paragraph [ref=e519]: If you want to send emails from someone else’s address, search for and invite them as a delegated sender. They’ll receive a notification to approve the invite before emails can be sent from their address.
+          - paragraph [ref=e520]:
+            - text: Once delegated sending is enabled for the sender used in your workflow, the error should no longer appear.
+            - link "Learn more about delegated sending" [ref=e521] [cursor=pointer]:
+              - /url: /help/reference/automations/sequences/create-a-sequence#enable-delegated-sending
+            - text: .
+          - heading "“Company records cannot be enrolled into a sequence” or similar Copy link" [level=3] [ref=e522]:
+            - generic [ref=e523]:
+              - text: “Company records cannot be enrolled into a sequence” or similar
+              - button "Copy link" [ref=e524] [cursor=pointer]:
+                - img [ref=e526]
+                - generic [ref=e529]: Copy link
+          - paragraph [ref=e530]: Sequences send to people, not companies. Only person records can be enrolled in sequences as recipients, and they must have an email address to enroll successfully. If the record you were trying to enroll is not a person, consider whether it is connected to a person via a relationship attribute. If so, use a variable to select the person via the relationship attribute for the Recipient input.
+          - paragraph [ref=e531]:
+            - text: If the relationship attribute may hold more than one person and you want to enroll all of them, add a Loop block before the Enroll in sequence block and place the Enroll in sequence block inside the Loop.
+            - link "Learn how to use Loop blocks" [ref=e532] [cursor=pointer]:
+              - /url: /help/reference/automations/workflows/workflows-block-library#loop
+            - text: .
+          - heading "“Step took too long to execute” Copy link" [level=3] [ref=e533]:
+            - generic [ref=e534]:
+              - text: “Step took too long to execute”
+              - button "Copy link" [ref=e535] [cursor=pointer]:
+                - img [ref=e537]
+                - generic [ref=e540]: Copy link
+          - paragraph [ref=e541]: A block exceeded the 2-minute maximum execution time. This can affect the Send HTTP request block when an external service is slow to respond. Check whether the external endpoint is available and responding within the time limit. If the service requires more processing time, consider breaking the request into smaller operations. Retry the run if the delay was temporary.
+          - heading "“This workflow does not have permission to write for this object” Copy link" [level=3] [ref=e542]:
+            - generic [ref=e543]:
+              - text: “This workflow does not have permission to write for this object”
+              - button "Copy link" [ref=e544] [cursor=pointer]:
+                - img [ref=e546]
+                - generic [ref=e549]: Copy link
+          - paragraph [ref=e550]:
+            - text: This appears when a workflow can read from an object but has not been granted write access to update it. Workflows do not automatically inherit write access to every object. To fix this, a workspace member with full access or admin permissions for the relevant object needs to
+            - link "give the workflow access to the object" [ref=e551] [cursor=pointer]:
+              - /url: /help/reference/managing-your-data/objects/manage-access-to-objects#configure-object-access
+            - text: .
+          - generic [ref=e553]:
+            - img [ref=e554]
+            - paragraph [ref=e559]: "Note: To update a relationship attribute, the workflow needs write access to the objects on both sides of the relationship."
+          - heading "“Invalid formula” Copy link" [level=3] [ref=e560]:
+            - generic [ref=e561]:
+              - text: “Invalid formula”
+              - button "Copy link" [ref=e562] [cursor=pointer]:
+                - img [ref=e564]
+                - generic [ref=e567]: Copy link
+          - paragraph [ref=e568]: This error appears on the Formula block when one or more variables in the formula have no value. For example, if your formula sums four currency attributes and one is empty, the formula fails because empty is not treated as zero.
+          - paragraph [ref=e569]: To fix this, set a fallback value on each variable in the formula.
+          - list [ref=e570]:
+            - listitem [ref=e571]:
+              - paragraph [ref=e572]: In the Formula block, click the variable you want to update.
+            - listitem [ref=e573]:
+              - paragraph [ref=e574]: Toggle Fallback on.
+            - listitem [ref=e575]:
+              - paragraph [ref=e576]:
+                - text: Set the fallback value to
+                - code [ref=e577]: "0"
+                - text: .
+            - listitem [ref=e578]:
+              - paragraph [ref=e579]: Repeat for every variable that could be empty when the workflow runs.
+          - paragraph [ref=e580]: Once fallback values are in place, empty attributes are treated as zero and the formula calculates as expected.
+          - heading "“Please provide a List Entry, not a Record” or similar Copy link" [level=3] [ref=e581]:
+            - generic [ref=e582]:
+              - text: “Please provide a List Entry, not a Record” or similar
+              - button "Copy link" [ref=e583] [cursor=pointer]:
+                - img [ref=e585]
+                - generic [ref=e588]: Copy link
+          - paragraph [ref=e589]: "This error appears when a block receives the wrong type of input. Some blocks expect a list entry and fail if they receive a record. Others expect a specific type of record and fail if they receive a list entry or a different kind of record. For example:"
+          - list [ref=e590]:
+            - listitem [ref=e591]:
+              - paragraph [ref=e592]: An Update list entry block requires a list entry and will fail if a record is provided.
+            - listitem [ref=e593]:
+              - paragraph [ref=e594]: An Enroll in sequence block requires a person record for the recipient and will fail if a list entry or a different kind of record is provided.
+          - paragraph [ref=e595]: To fix a block that needs a list entry but received a record, add a Find list entries block before the failing block. Configure it with a condition where Parent record > is > and select the record from your previous block as the variable. Then use the output of the Find list entries block as the input for the block that requires a list entry.
+          - paragraph [ref=e596]: You can verify which type a block received by clicking the failed block in the run viewer and checking its Inputs in the sidebar.
+          - heading "“The provided Record is from a different Object” Copy link" [level=3] [ref=e597]:
+            - generic [ref=e598]:
+              - text: “The provided Record is from a different Object”
+              - button "Copy link" [ref=e599] [cursor=pointer]:
+                - img [ref=e601]
+                - generic [ref=e604]: Copy link
+          - paragraph [ref=e605]: When a block such as Update record has both an object input and a record input, this error means the record provided belongs to a different object than the one selected. For example, this can happen if the block’s object is set to Companies but receives a person record. Update the object or record so they match.
+          - heading "“Request failed (invalid JSON)” Copy link" [level=3] [ref=e606]:
+            - generic [ref=e607]:
+              - text: “Request failed (invalid JSON)”
+              - button "Copy link" [ref=e608] [cursor=pointer]:
+                - img [ref=e610]
+                - generic [ref=e613]: Copy link
+          - paragraph [ref=e614]:
+            - text: This error appears on the Send HTTP request block when the request body contains malformed JSON. Common causes include missing or extra commas, unclosed brackets, or incorrect quote characters. To identify the issue, copy the body content and paste it into a JSON validator such as
+            - link "JSONLint" [ref=e615] [cursor=pointer]:
+              - /url: https://jsonlint.com/
+            - text: to pinpoint the exact error.
+          - heading "Related resources Copy link" [level=2] [ref=e616]:
+            - generic [ref=e617]:
+              - text: Related resources
+              - button "Copy link" [ref=e618] [cursor=pointer]:
+                - img [ref=e620]
+                - generic [ref=e623]: Copy link
+          - list [ref=e624]:
+            - listitem [ref=e625]:
+              - paragraph [ref=e626]:
+                - text: Learn
+                - link "how to create a workflow" [ref=e627] [cursor=pointer]:
+                  - /url: /help/reference/automations/workflows/create-a-workflow
+                - text: from scratch.
+            - listitem [ref=e628]:
+              - paragraph [ref=e629]:
+                - text: Explore the
+                - link "workflows block library" [ref=e630] [cursor=pointer]:
+                  - /url: /help/reference/automations/workflows/workflows-block-library
+                - text: for a full list of available blocks.
+            - listitem [ref=e631]:
+              - paragraph [ref=e632]:
+                - text: Learn
+                - link "how to manage your workflows" [ref=e633] [cursor=pointer]:
+                  - /url: /help/reference/automations/workflows/manage-workflows
+                - text: ", including enabling, disabling, and organizing them."
+      - complementary [ref=e634]:
+        - navigation [ref=e635]:
+          - heading "Table of Contents" [level=2] [ref=e637]
+          - generic [ref=e638]:
+            - button "Access the run viewer":
+              - paragraph: Access the run viewer
+            - button "Run viewer overview" [ref=e639] [cursor=pointer]:
+              - paragraph [ref=e640]: Run viewer overview
+            - button "Inspect block inputs and outputs" [ref=e641] [cursor=pointer]:
+              - img [ref=e642]
+              - img [ref=e643]
+              - paragraph [ref=e644]: Inspect block inputs and outputs
+            - button "Identify failed blocks" [ref=e645] [cursor=pointer]:
+              - img [ref=e646]
+              - img [ref=e647]
+              - paragraph [ref=e648]: Identify failed blocks
+            - button "Navigate loop iterations" [ref=e649] [cursor=pointer]:
+              - img [ref=e650]
+              - img [ref=e651]
+              - paragraph [ref=e652]: Navigate loop iterations
+            - button "View agent results" [ref=e653] [cursor=pointer]:
+              - img [ref=e654]
+              - img [ref=e655]
+              - paragraph [ref=e656]: View agent results
+            - button "Rerun or retry a run" [ref=e657] [cursor=pointer]:
+              - paragraph [ref=e658]: Rerun or retry a run
+            - button "Pause, cancel, or resume a run" [ref=e659] [cursor=pointer]:
+              - paragraph [ref=e660]: Pause, cancel, or resume a run
+            - button "Resolve common workflow issues" [ref=e661] [cursor=pointer]:
+              - paragraph [ref=e662]: Resolve common workflow issues
+            - button "Prevent infinite loops" [ref=e663] [cursor=pointer]:
+              - img [ref=e664]
+              - img [ref=e665]
+              - paragraph [ref=e666]: Prevent infinite loops
+            - button "An attribute update isn't triggering a workflow" [ref=e667] [cursor=pointer]:
+              - img [ref=e668]
+              - img [ref=e669]
+              - paragraph [ref=e670]: An attribute update isn't triggering a workflow
+            - button "Filter conditions are returning unexpected results" [ref=e671] [cursor=pointer]:
+              - img [ref=e672]
+              - img [ref=e673]
+              - paragraph [ref=e674]: Filter conditions are returning unexpected results
+            - button "A block is only processing one record or list entry" [ref=e675] [cursor=pointer]:
+              - img [ref=e676]
+              - img [ref=e677]
+              - paragraph [ref=e678]: A block is only processing one record or list entry
+            - button "Resolve common error messages" [ref=e679] [cursor=pointer]:
+              - paragraph [ref=e680]: Resolve common error messages
+            - button "“The provided sender has not enabled delegated sending”" [ref=e681] [cursor=pointer]:
+              - img [ref=e682]
+              - img [ref=e683]
+              - paragraph [ref=e684]: “The provided sender has not enabled delegated sending”
+            - button "“Company records cannot be enrolled into a sequence” or similar" [ref=e685] [cursor=pointer]:
+              - img [ref=e686]
+              - img [ref=e687]
+              - paragraph [ref=e688]: “Company records cannot be enrolled into a sequence” or similar
+            - button "“Step took too long to execute”" [ref=e689] [cursor=pointer]:
+              - img [ref=e690]
+              - img [ref=e691]
+              - paragraph [ref=e692]: “Step took too long to execute”
+            - button "“This workflow does not have permission to write for this object”" [ref=e693] [cursor=pointer]:
+              - img [ref=e694]
+              - img [ref=e695]
+              - paragraph [ref=e696]: “This workflow does not have permission to write for this object”
+            - button "“Invalid formula”" [ref=e697] [cursor=pointer]:
+              - img [ref=e698]
+              - img [ref=e699]
+              - paragraph [ref=e700]: “Invalid formula”
+            - button "“Please provide a List Entry, not a Record” or similar" [ref=e701] [cursor=pointer]:
+              - img [ref=e702]
+              - img [ref=e703]
+              - paragraph [ref=e704]: “Please provide a List Entry, not a Record” or similar
+            - button "“The provided Record is from a different Object”" [ref=e705] [cursor=pointer]:
+              - img [ref=e706]
+              - img [ref=e707]
+              - paragraph [ref=e708]: “The provided Record is from a different Object”
+            - button "“Request failed (invalid JSON)”" [ref=e709] [cursor=pointer]:
+              - img [ref=e710]
+              - img [ref=e711]
+              - paragraph [ref=e712]: “Request failed (invalid JSON)”
+            - button "Related resources" [ref=e713] [cursor=pointer]:
+              - paragraph [ref=e714]: Related resources
+      - complementary [ref=e715]:
+        - img [ref=e716]
+        - generic [ref=e718]:
+          - generic [ref=e719]: Did this article answer your question?
+          - generic [ref=e720]:
+            - button "Yes" [ref=e721] [cursor=pointer]:
+              - img [ref=e722]
+              - generic [ref=e726]: "Yes"
+            - button "No" [ref=e727] [cursor=pointer]:
+              - img [ref=e728]
+              - generic [ref=e732]: "No"
+  - contentinfo [ref=e733]:
+    - img [ref=e734]
+    - generic [ref=e736]:
+      - link "Attio homepage" [ref=e738] [cursor=pointer]:
+        - /url: /
+        - img [ref=e739]
+      - generic [ref=e747]:
+        - generic [ref=e748]:
+          - heading "Platform" [level=2] [ref=e750]
+          - list [ref=e751]:
+            - listitem [ref=e752]:
+              - link "Refer a team New" [ref=e753] [cursor=pointer]:
+                - /url: /refer
+                - generic [ref=e754]: Refer a team
+                - generic [ref=e755]: New
+            - listitem [ref=e756]:
+              - link "Changelog" [ref=e757] [cursor=pointer]:
+                - /url: /changelog
+                - generic [ref=e758]: Changelog
+            - listitem [ref=e759]:
+              - link "Gmail extension" [ref=e760] [cursor=pointer]:
+                - /url: https://chrome.google.com/webstore/detail/attio/legacbojjmajoedfolbjlekjjkepadph/
+                - generic [ref=e761]: Gmail extension
+                - img [ref=e762]
+            - listitem [ref=e764]:
+              - link "iOS app" [ref=e765] [cursor=pointer]:
+                - /url: https://apps.apple.com/gb/app/attio/id1511545395
+                - generic [ref=e766]: iOS app
+                - img [ref=e767]
+            - listitem [ref=e769]:
+              - link "Android app" [ref=e770] [cursor=pointer]:
+                - /url: https://play.google.com/store/apps/details?id=com.attio&gl=GB
+                - generic [ref=e771]: Android app
+                - img [ref=e772]
+        - generic [ref=e774]:
+          - heading "Company" [level=2] [ref=e776]
+          - list [ref=e777]:
+            - listitem [ref=e778]:
+              - link "Customers" [ref=e779] [cursor=pointer]:
+                - /url: /customers
+                - generic [ref=e780]: Customers
+            - listitem [ref=e781]:
+              - link "Announcements" [ref=e782] [cursor=pointer]:
+                - /url: /blog
+                - generic [ref=e783]: Announcements
+            - listitem [ref=e784]:
+              - link "Engineering blog New" [ref=e785] [cursor=pointer]:
+                - /url: /engineering/blog
+                - generic [ref=e786]: Engineering blog
+                - generic [ref=e787]: New
+            - listitem [ref=e788]:
+              - link "Careers" [ref=e789] [cursor=pointer]:
+                - /url: /careers
+                - generic [ref=e790]: Careers
+            - listitem [ref=e791]:
+              - link "Manifesto" [ref=e792] [cursor=pointer]:
+                - /url: /redefine
+                - generic [ref=e793]: Manifesto
+            - listitem [ref=e794]:
+              - link "Become a partner" [ref=e795] [cursor=pointer]:
+                - /url: /partners
+                - generic [ref=e796]: Become a partner
+        - generic [ref=e797]:
+          - heading "Import from" [level=2] [ref=e799]
+          - list [ref=e800]:
+            - listitem [ref=e801]:
+              - link "Salesforce" [ref=e802] [cursor=pointer]:
+                - /url: /help/reference/imports-and-exports/migrate-data-from-another-crm?source=footer_salesforce
+                - generic [ref=e803]: Salesforce
+            - listitem [ref=e804]:
+              - link "Hubspot" [ref=e805] [cursor=pointer]:
+                - /url: /help/reference/imports-and-exports/migrate-data-from-another-crm?source=footer_hubspot
+                - generic [ref=e806]: Hubspot
+            - listitem [ref=e807]:
+              - link "Pipedrive" [ref=e808] [cursor=pointer]:
+                - /url: /help/reference/imports-and-exports/migrate-data-from-another-crm?source=footer_pipedrive
+                - generic [ref=e809]: Pipedrive
+            - listitem [ref=e810]:
+              - link "Zoho" [ref=e811] [cursor=pointer]:
+                - /url: /help/reference/imports-and-exports/migrate-data-from-another-crm?source=footer_zoho
+                - generic [ref=e812]: Zoho
+            - listitem [ref=e813]:
+              - link "Excel" [ref=e814] [cursor=pointer]:
+                - /url: /help/reference/imports-and-exports/import-data-into-attio?source=footer_excel
+                - generic [ref=e815]: Excel
+            - listitem [ref=e816]:
+              - link "CSV" [ref=e817] [cursor=pointer]:
+                - /url: /help/reference/imports-and-exports/import-data-into-attio?source=footer_csv
+                - generic [ref=e818]: CSV
+        - generic [ref=e819]:
+          - heading "Attio for" [level=2] [ref=e821]
+          - list [ref=e822]:
+            - listitem [ref=e823]:
+              - link "Startups" [ref=e824] [cursor=pointer]:
+                - /url: /solutions/startup-crm
+                - generic [ref=e825]: Startups
+            - listitem [ref=e826]:
+              - link "Deal flow" [ref=e827] [cursor=pointer]:
+                - /url: /solutions/deal-flow-management-software
+                - generic [ref=e828]: Deal flow
+        - generic [ref=e829]:
+          - heading "Apps" [level=2] [ref=e831]
+          - list [ref=e832]:
+            - listitem [ref=e833]:
+              - link "Gmail" [ref=e834] [cursor=pointer]:
+                - /url: https://attio.com/apps/gmail
+                - generic [ref=e835]: Gmail
+            - listitem [ref=e836]:
+              - link "Outlook" [ref=e837] [cursor=pointer]:
+                - /url: https://attio.com/apps/outlook
+                - generic [ref=e838]: Outlook
+            - listitem [ref=e839]:
+              - link "Segment" [ref=e840] [cursor=pointer]:
+                - /url: https://attio.com/apps/segment
+                - generic [ref=e841]: Segment
+            - listitem [ref=e842]:
+              - link "Mailchimp" [ref=e843] [cursor=pointer]:
+                - /url: https://attio.com/apps/mailchimp
+                - generic [ref=e844]: Mailchimp
+            - listitem [ref=e845]:
+              - link "Slack" [ref=e846] [cursor=pointer]:
+                - /url: https://attio.com/apps/slack
+                - generic [ref=e847]: Slack
+            - listitem [ref=e848]:
+              - link "Outreach" [ref=e849] [cursor=pointer]:
+                - /url: https://attio.com/apps/outreach
+                - generic [ref=e850]: Outreach
+            - listitem [ref=e851]:
+              - link "Mixmax" [ref=e852] [cursor=pointer]:
+                - /url: https://attio.com/apps/mixmax
+                - generic [ref=e853]: Mixmax
+            - listitem [ref=e854]:
+              - link "Typeform" [ref=e855] [cursor=pointer]:
+                - /url: https://attio.com/apps/typeform
+                - generic [ref=e856]: Typeform
+            - listitem [ref=e857]:
+              - link "Zapier" [ref=e858] [cursor=pointer]:
+                - /url: https://attio.com/apps/zapier
+                - generic [ref=e859]: Zapier
+        - generic [ref=e860]:
+          - heading "Resources" [level=2] [ref=e862]
+          - list [ref=e863]:
+            - listitem [ref=e864]:
+              - link "Startup program" [ref=e865] [cursor=pointer]:
+                - /url: /startups
+                - generic [ref=e866]: Startup program
+            - listitem [ref=e867]:
+              - link "Help center" [ref=e868] [cursor=pointer]:
+                - /url: /help
+                - generic [ref=e869]: Help center
+            - listitem [ref=e870]:
+              - link "Developers" [ref=e871] [cursor=pointer]:
+                - /url: https://docs.attio.com/
+                - generic [ref=e872]: Developers
+                - img [ref=e873]
+            - listitem [ref=e875]:
+              - link "System status" [ref=e876] [cursor=pointer]:
+                - /url: https://status.attio.com/
+                - generic [ref=e877]: System status
+                - img [ref=e878]
+            - listitem [ref=e880]:
+              - link "Hire an expert" [ref=e881] [cursor=pointer]:
+                - /url: /experts
+                - generic [ref=e882]: Hire an expert
+            - listitem [ref=e883]:
+              - link "Downloads" [ref=e884] [cursor=pointer]:
+                - /url: /download
+                - generic [ref=e885]: Downloads
+            - listitem [ref=e886]:
+              - link "Trust Center" [ref=e887] [cursor=pointer]:
+                - /url: https://trust.attio.com/
+                - generic [ref=e888]: Trust Center
+                - img [ref=e889]
+    - generic [ref=e893]:
+      - generic [ref=e894]:
+        - link "Attio on LinkedIn" [ref=e895] [cursor=pointer]:
+          - /url: https://linkedin.com/company/attio
+          - img [ref=e896]
+        - link "Attio on X" [ref=e898] [cursor=pointer]:
+          - /url: https://twitter.com/attio
+          - img [ref=e899]
+        - link "Attio on Dribbble" [ref=e901] [cursor=pointer]:
+          - /url: https://dribbble.com/attio
+          - img [ref=e902]
+        - link "Attio on YouTube" [ref=e904] [cursor=pointer]:
+          - /url: https://www.youtube.com/@attioCRM
+          - img [ref=e905]
+      - generic [ref=e907]:
+        - paragraph [ref=e908]: © 2026 Attio Ltd. All rights reserved.
+        - generic [ref=e909]:
+          - link "Services Agreement" [ref=e910] [cursor=pointer]:
+            - /url: /legal/services-agreement
+          - link "Privacy Policy" [ref=e911] [cursor=pointer]:
+            - /url: /legal/privacy
+          - link "LLMs" [ref=e912] [cursor=pointer]:
+            - /url: https://attio.com/llms.txt
+  - region "Cookie consent":
+    - generic [ref=e914]:
+      - paragraph [ref=e917]:
+        - text: We use cookies to improve your experience. You can opt out of certain cookies. Find out more in our
+        - link "privacy policy" [ref=e918] [cursor=pointer]:
+          - /url: /legal/privacy
+        - text: .
+      - generic [ref=e919]:
+        - button "Continue" [ref=e920] [cursor=pointer]
+        - button "Reject" [ref=e921] [cursor=pointer]
+  - region "Notifications alt+T"
+  - alert [ref=e922]
+  - iframe [ref=e923]:
+    
+  - button "Open Intercom Messenger" [ref=e924] [cursor=pointer]:
+    - img [ref=e926]
+    - generic:
+      - img
