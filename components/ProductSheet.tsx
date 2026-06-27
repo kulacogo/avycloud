@@ -728,7 +728,6 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
   };
 
   const applyAssistantChange = (change: DatasheetChange) => {
-    console.log('Applying Assistant Change:', change);
     let incomingBarcodes: string[] | null = null;
 
     const normalizeLower = (v: any) => (v == null ? '' : String(v).trim().toLowerCase());
@@ -831,6 +830,11 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
         next.identification = next.identification || {};
         if (change.categoryId) {
           (next.details as any).categoryId = String(change.categoryId).replace(/\D+/g, '').trim();
+          // BUG-094: accepting a chat-proposed category is an explicit user choice,
+          // exactly like picking from the dropdown (handleCategorySelect). Mark the
+          // source as manual so the fire-and-forget CATEGORY_RESOLVER_V2 auto-correct
+          // does not overwrite it post-save (the "springs back" race).
+          (next.details as any).categorySource = "manual";
         }
         if (change.categoryPath) {
           next.identification.category = String(change.categoryPath).trim();
@@ -1077,14 +1081,12 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
         next.details = next.details || {};
         next.identification = next.identification || {};
         const match = categoryOptions.find((opt) => String(opt.id) === String(categoryId));
-        if (match?.id) {
-          next.details.categoryId = String(match.id);
-        } else {
-          next.details.categoryId = String(categoryId);
-        }
-        if (match?.breadcrumb) {
-          next.identification.category = String(match.breadcrumb);
-        }
+        const resolvedId = match?.id ? String(match.id) : String(categoryId);
+        next.details.categoryId = resolvedId;
+        // B2: always set a human-readable category label alongside the id, so a
+        // product can never end up with a categoryId but no readable name. Prefer
+        // the breadcrumb, then the option name, then fall back to the id itself.
+        next.identification.category = String(match?.breadcrumb || match?.name || resolvedId);
         // B2: mark source as manual so auto-resolvers do not override the user's choice
         next.details.categorySource = "manual";
         return next;

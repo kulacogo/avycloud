@@ -21,7 +21,12 @@ import { useQueryClient } from "@tanstack/react-query";
 import type { Product } from "../types";
 import type { EbayListingRow, } from "../types";
 import type { EbayConnectionStatus, KauflandListingRow, IntegrationConfig } from "../api/client";
-import { getProductAvailableQuantity, getProductReservedQuantity } from "../utils/product";
+import {
+  getProductAvailableQuantity,
+  getProductReservedQuantity,
+  getProductPhysicalQuantity,
+  getProductDisplayCategory,
+} from "../utils/product";
 
 // ─── Types ───────────────────────────────────────────────────
 
@@ -69,6 +74,14 @@ interface NormalizedListing {
   warehouseStock: number | null;
   binLocation: string | null;
   stockMismatch: boolean;
+}
+
+// Lightweight product-master lookup joined to listing rows so a row can borrow
+// the matched product's stock/category when the listing-level field is missing.
+// byId is keyed on Product.id (== listing.productId); bySku on lowercased SKU.
+interface ProductMasterMap {
+  byId: Map<string, Product>;
+  bySku: Map<string, Product>;
 }
 
 // ─── Constants ───────────────────────────────────────────────
@@ -192,7 +205,32 @@ function normalizeEbayStatus(row: EbayListingRow): ListingStatus {
   return "unknown";
 }
 
-function normalizeEbayRow(row: EbayListingRow): NormalizedListing {
+// Best-effort product-master fallback resolved from the already-fetched product
+// map (keyed by productId, then SKU). Lets a listing row borrow the master
+// product's stock/category when the listing-level fields were never populated
+// (e.g. eBay rows whose backend join missed → warehouseStock null → "—").
+function resolveMaster(
+  row: { productId?: string | null; sku?: string | null },
+  productMaster?: ProductMasterMap,
+): Product | undefined {
+  if (!productMaster) return undefined;
+  if (row.productId && productMaster.byId.has(row.productId)) {
+    return productMaster.byId.get(row.productId);
+  }
+  if (row.sku) {
+    const hit = productMaster.bySku.get(String(row.sku).toLowerCase());
+    if (hit) return hit;
+  }
+  return undefined;
+}
+
+function normalizeEbayRow(row: EbayListingRow, productMaster?: ProductMasterMap): NormalizedListing {
+  const master = resolveMaster(row, productMaster);
+  // C1: eBay rows often arrive with warehouseStock null (backend join miss) →
+  // fall back to the matched product master's physical inventory quantity so the
+  // "Lager" column stops showing "—" and operators are no longer oversell-blind.
+  const warehouseStock =
+    row.warehouseStock ?? (master ? getProductPhysicalQuantity(master) : null);
   return {
     id: row.itemId,
     title: row.title || row.sku || row.itemId,
@@ -202,16 +240,30 @@ function normalizeEbayRow(row: EbayListingRow): NormalizedListing {
     currency: row.currency ?? null,
     quantity: row.quantityAvailable ?? null,
     status: normalizeEbayStatus(row),
-    category: row.categoryName || (row.primaryCategoryId ? `Kat. ${row.primaryCategoryId}` : null),
+    // C4: fall back to the product master's display category when the listing
+    // carries neither a category name nor a primary category id.
+    category:
+      row.categoryName ||
+      (row.primaryCategoryId ? `Kat. ${row.primaryCategoryId}` : null) ||
+      (master ? masterCategoryOrNull(master) : null),
     viewItemUrl: row.viewItemUrl || (row.itemId ? `https://www.ebay.de/itm/${row.itemId}` : null),
-    lastSync: row.updatedAt || null,
-    warehouseStock: row.warehouseStock ?? null,
+    // C4: eBay rows missing updatedAt → no "Letztes Update". updatedAt is the only
+    // timestamp on the row; keep null otherwise (formatRelativeTime renders "—").
+    lastSync: row.updatedAt ?? null,
+    warehouseStock,
     binLocation: row.binLocation ?? null,
     stockMismatch: row.stockMismatch === true,
   };
 }
 
-function normalizeKauflandRow(row: KauflandListingRow): NormalizedListing {
+// getProductDisplayCategory returns "—" when unknown; normalise that placeholder
+// back to null so the row's own "—" fallback handling stays consistent.
+function masterCategoryOrNull(master: Product): string | null {
+  const cat = getProductDisplayCategory(master);
+  return cat && cat !== "—" ? cat : null;
+}
+
+function normalizeKauflandRow(row: KauflandListingRow, productMaster?: ProductMasterMap): NormalizedListing {
   // active flag is the primary signal — set by the sync only when Kaufland's
   // /units API actually returned this unit with AVAILABLE in the latest run.
   // productValid (Kaufland product.is_valid) further splits active into Live
@@ -238,24 +290,28 @@ function normalizeKauflandRow(row: KauflandListingRow): NormalizedListing {
     else status = "inactive";
   }
 
+  const master = resolveMaster(row, productMaster);
   return {
     id: row.idUnit,
     title: row.title || row.sku || row.ean || row.idUnit,
     sku: row.sku,
     ean: row.ean || null,
-    price: row.price,
+    // C3: when only currentPrice/listingPrice are present (no top-level price),
+    // fall back so the "Preis" column stops showing "—".
+    price: row.price ?? row.currentPrice ?? row.listingPrice ?? null,
     currentPrice: row.currentPrice ?? null,
     listingPrice: row.listingPrice ?? null,
     minimumPrice: row.minimumPrice ?? null,
     currency: "EUR",
     quantity: row.quantity ?? null,
     status,
-    category: row.category || null,
+    // C4: fall back to the matched product master's display category.
+    category: row.category || (master ? masterCategoryOrNull(master) : null),
     viewItemUrl: row.viewItemUrl || null,
     lastSync: row.updatedAt || null,
     imageUrl: row.imageUrl || null,
     brand: row.brand || null,
-    warehouseStock: row.warehouseStock ?? null,
+    warehouseStock: row.warehouseStock ?? (master ? getProductPhysicalQuantity(master) : null),
     binLocation: row.binLocation ?? null,
     stockMismatch: row.stockMismatch === true,
   };
@@ -306,13 +362,19 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
   const ebayQuery = useEbayListings();
   const kauflandQuery = useKauflandListings("de");
 
+  // Product-master lookup (id + SKU) used as a fallback source for listing-row
+  // stock/category when the listing itself carries none. Fetched once on mount,
+  // best-effort — a failure leaves rows on their existing (listing-level) data.
+  const [productMaster, setProductMaster] = useState<ProductMasterMap | null>(null);
+
   // Derive listings from React Query data
   const listings = useMemo<NormalizedListing[]>(() => {
+    const master = productMaster ?? undefined;
     if (marketplace === "ebay") {
-      return (ebayQuery.data ?? []).map((r) => normalizeEbayRow(r));
+      return (ebayQuery.data ?? []).map((r) => normalizeEbayRow(r, master));
     }
-    return (kauflandQuery.data ?? []).map((r: any) => normalizeKauflandRow(r));
-  }, [marketplace, ebayQuery.data, kauflandQuery.data]);
+    return (kauflandQuery.data ?? []).map((r: any) => normalizeKauflandRow(r, master));
+  }, [marketplace, ebayQuery.data, kauflandQuery.data, productMaster]);
 
   const activeQuery = marketplace === "ebay" ? ebayQuery : kauflandQuery;
   const loading = activeQuery.isLoading;
@@ -333,6 +395,7 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
   const [connectionStatus, setConnectionStatus] = useState<EbayConnectionStatus | null>(null);
   const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
   const [bulkUpdating, setBulkUpdating] = useState(false);
+  const [bulkActionResult, setBulkActionResult] = useState<{ ok: boolean; message: string } | null>(null);
   const [endingItemId, setEndingItemId] = useState<string | null>(null);
   const [showPublishModal, setShowPublishModal] = useState(false);
   const [publishProducts, setPublishProducts] = useState<Product[]>([]);
@@ -365,6 +428,26 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
       fetchEbayStatus().then((s) => { if (s) setConnectionStatus(s); }).catch(() => {});
     }
   }, [marketplace]);
+
+  // Fetch the product master once on mount to back-fill listing-row stock/category
+  // when the listing itself has none (BUG-070 C1/C4). Best-effort, fire-and-forget.
+  useEffect(() => {
+    let cancelled = false;
+    fetchProducts()
+      .then((products) => {
+        if (cancelled) return;
+        const byId = new Map<string, Product>();
+        const bySku = new Map<string, Product>();
+        for (const p of products) {
+          if (p.id) byId.set(p.id, p);
+          const sku = String(p.identification?.sku || p.details?.identifiers?.sku || "").toLowerCase();
+          if (sku) bySku.set(sku, p);
+        }
+        setProductMaster({ byId, bySku });
+      })
+      .catch(() => { /* swallow — rows fall back to listing-level data */ });
+    return () => { cancelled = true; };
+  }, []);
 
   // Background-Refresh beim Mount: wenn der letzte Kaufland-Sync älter als 5min ist
   // → fire-and-forget einen Sync triggern. Frontend bleibt responsive (der Realtime-
@@ -420,6 +503,35 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
       setBulkUpdating(false);
     }
   }, [marketplace, selectedIds, invalidateListings]);
+
+  // C5: shared runner for the Kaufland bulk buttons — mirrors the eBay path's
+  // loading/disabled handling (guards double-click) and replaces blocking
+  // alert() with a non-blocking inline result banner.
+  const runKauflandBulk = useCallback(
+    async (
+      verb: string,
+      action: (ids: string[]) => Promise<{ success: number; total: number; failed: number }>,
+    ) => {
+      if (selectedIds.size === 0) return;
+      setBulkUpdating(true);
+      setBulkActionResult(null);
+      try {
+        const result = await action([...selectedIds]);
+        setBulkActionResult({
+          ok: result.failed === 0,
+          message: `${verb}: ${result.success}/${result.total}${result.failed > 0 ? ` (${result.failed} fehlgeschlagen)` : ""}`,
+        });
+        // Keep the selection so the inline result banner stays visible (the bar is
+        // gated on selectedIds.size > 0). User dismisses via "Auswahl aufheben".
+        await invalidateListings();
+      } catch (err: any) {
+        setBulkActionResult({ ok: false, message: `Fehler: ${err.message}` });
+      } finally {
+        setBulkUpdating(false);
+      }
+    },
+    [selectedIds, invalidateListings],
+  );
 
   const handleEndListing = useCallback(async (itemId: string) => {
     if (marketplace !== "ebay") return;
@@ -1192,6 +1304,11 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
       {selectedIds.size > 0 && (
         <div className="bg-accent-dim border border-app-border rounded-xl px-4 py-3 flex flex-wrap items-center gap-3">
           <span className="text-sm font-medium text-accent">{selectedIds.size} ausgewählt</span>
+          {bulkActionResult && (
+            <span className={`text-xs font-medium ${bulkActionResult.ok ? "text-success" : "text-danger"}`}>
+              {bulkActionResult.message}
+            </span>
+          )}
           <div className="flex items-center gap-2 ml-auto">
             {marketplace === "ebay" && (
               <button
@@ -1205,67 +1322,32 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
             {marketplace === "kaufland" && (
               <>
                 <button
-                  onClick={async () => {
-                    setBulkUpdating(true);
-                    try {
-                      const ids = [...selectedIds];
-                      const result = await bulkUpdateKauflandUnits(ids);
-                      alert(`Aktualisiert: ${result.success}/${result.total}${result.failed > 0 ? ` (${result.failed} fehlgeschlagen)` : ""}`);
-                      invalidateListings();
-                    } catch (err: any) {
-                      alert(`Fehler: ${err.message}`);
-                    } finally {
-                      setBulkUpdating(false);
-                    }
-                  }}
+                  onClick={() => runKauflandBulk("Aktualisiert", (ids) => bulkUpdateKauflandUnits(ids))}
                   disabled={bulkUpdating}
                   className="px-3 py-1.5 text-sm font-medium text-txt-primary bg-app-surface border border-app-border rounded-lg hover:bg-app-elevated transition-colors disabled:opacity-50"
                 >
                   {bulkUpdating ? "Aktualisiere..." : "Preis & Bestand aktualisieren"}
                 </button>
                 <button
-                  onClick={async () => {
-                    setBulkUpdating(true);
-                    try {
-                      const ids = [...selectedIds];
-                      const result = await bulkSetKauflandUnitStatus(ids, "AVAILABLE");
-                      alert(`Aktiviert: ${result.success}/${result.total}${result.failed > 0 ? ` (${result.failed} fehlgeschlagen)` : ""}`);
-                      invalidateListings();
-                    } catch (err: any) {
-                      alert(`Fehler: ${err.message}`);
-                    } finally {
-                      setBulkUpdating(false);
-                    }
-                  }}
+                  onClick={() => runKauflandBulk("Aktiviert", (ids) => bulkSetKauflandUnitStatus(ids, "AVAILABLE"))}
                   disabled={bulkUpdating}
                   className="px-3 py-1.5 text-sm font-medium text-success bg-success-dim border border-success/20 rounded-lg hover:brightness-110 transition-colors disabled:opacity-50"
                 >
-                  Aktivieren
+                  {bulkUpdating ? "Aktiviere..." : "Aktivieren"}
                 </button>
                 <button
-                  onClick={async () => {
-                    setBulkUpdating(true);
-                    try {
-                      const ids = [...selectedIds];
-                      const result = await bulkSetKauflandUnitStatus(ids, "ONHOLD");
-                      alert(`Deaktiviert: ${result.success}/${result.total}${result.failed > 0 ? ` (${result.failed} fehlgeschlagen)` : ""}`);
-                      invalidateListings();
-                    } catch (err: any) {
-                      alert(`Fehler: ${err.message}`);
-                    } finally {
-                      setBulkUpdating(false);
-                    }
-                  }}
+                  onClick={() => runKauflandBulk("Deaktiviert", (ids) => bulkSetKauflandUnitStatus(ids, "ONHOLD"))}
                   disabled={bulkUpdating}
                   className="px-3 py-1.5 text-sm font-medium text-warning bg-warning-dim border border-warning/20 rounded-lg hover:brightness-110 transition-colors disabled:opacity-50"
                 >
-                  Deaktivieren
+                  {bulkUpdating ? "Deaktiviere..." : "Deaktivieren"}
                 </button>
               </>
             )}
             <button
-              onClick={() => setSelectedIds(new Set())}
-              className="px-3 py-1.5 text-sm font-medium text-txt-muted bg-app-surface border border-app-border rounded-lg hover:bg-app-elevated transition-colors"
+              onClick={() => { setSelectedIds(new Set()); setBulkActionResult(null); }}
+              disabled={bulkUpdating}
+              className="px-3 py-1.5 text-sm font-medium text-txt-muted bg-app-surface border border-app-border rounded-lg hover:bg-app-elevated transition-colors disabled:opacity-50"
             >
               Auswahl aufheben
             </button>
@@ -1394,7 +1476,8 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
                               ? `Aktuell: ${formatPrice(listing.currentPrice, listing.currency)} · Max: ${formatPrice(listing.listingPrice, listing.currency)}${listing.minimumPrice != null ? ` · Min: ${formatPrice(listing.minimumPrice, listing.currency)}` : ""}`
                               : undefined
                           }>
-                            {formatPrice(listing.price, listing.currency)}
+                            {/* C3: prefer top-level price, else current/listing price. */}
+                            {formatPrice(listing.price ?? listing.currentPrice ?? listing.listingPrice, listing.currency)}
                           </span>
                           {listing.listingPrice != null && listing.currentPrice != null && listing.listingPrice > listing.currentPrice && (
                             <span className="text-xs text-txt-muted">
@@ -1404,13 +1487,20 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
                         </div>
                       </td>
                       <td className="px-4 py-3 text-right">
-                        <span className={`font-medium ${
-                          listing.quantity != null && listing.quantity <= 0 ? "text-danger" :
-                          listing.quantity != null && listing.quantity <= 3 ? "text-warning" :
-                          "text-txt-primary"
-                        }`}>
-                          {listing.quantity != null ? listing.quantity : "—"}
-                        </span>
+                        {/* C2: only live/active listings carry a meaningful marketplace
+                            quantity. Inactive/sold listings show "—" so a stale number
+                            isn't mistaken for live offered stock. */}
+                        {isListingActive(listing) ? (
+                          <span className={`font-medium ${
+                            listing.quantity != null && listing.quantity <= 0 ? "text-danger" :
+                            listing.quantity != null && listing.quantity <= 3 ? "text-warning" :
+                            "text-txt-primary"
+                          }`}>
+                            {listing.quantity != null ? listing.quantity : "—"}
+                          </span>
+                        ) : (
+                          <span className="text-txt-muted">—</span>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-right hidden sm:table-cell">
                         <div className="flex items-center justify-end gap-1.5">

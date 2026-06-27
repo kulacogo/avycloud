@@ -127,16 +127,19 @@ export const BillingSettings: React.FC = () => {
     return () => { cancelled = true; };
   }, []);
 
+  // The corresponding buttons are disabled ("demnächst verfügbar") until the
+  // Stripe-backed billing endpoints exist — these handlers stay as no-op
+  // placeholders so the disabled controls never trigger a dead action.
   const handleChangePlan = (): void => {
-    // TODO: Open plan selection modal or navigate to plan page
+    // Coming soon: plan selection (no backend endpoint yet)
   };
 
   const handleChangePayment = (): void => {
-    // TODO: Open Stripe payment method update (POST /api/billing/update-payment-method)
+    // Coming soon: Stripe payment method update (POST /api/billing/update-payment-method — not implemented)
   };
 
   const handleDownloadInvoice = (_invoiceId: string): void => {
-    // TODO: API call to download invoice PDF (GET /api/billing/invoices/:id/pdf)
+    // Coming soon: invoice PDF download (GET /api/billing/invoices/:id/pdf — not implemented)
   };
 
   const usageRows = usage ? buildUsageRows(usage) : [];
@@ -163,16 +166,19 @@ export const BillingSettings: React.FC = () => {
               ))}
             </ul>
           </div>
-          <Button
-            variant="secondary"
-            size="md"
-            loading={changingPlan}
-            iconLeft={<EditIcon />}
-            onClick={handleChangePlan}
-            className="shrink-0"
-          >
-            Plan ändern
-          </Button>
+          <div className="shrink-0 flex flex-col items-end gap-1" title="Plan-Verwaltung ist demnächst verfügbar">
+            <Button
+              variant="secondary"
+              size="md"
+              loading={changingPlan}
+              disabled
+              iconLeft={<EditIcon />}
+              onClick={handleChangePlan}
+            >
+              Plan ändern
+            </Button>
+            <span className="text-[11px] text-txt-muted">demnächst verfügbar</span>
+          </div>
         </div>
       </Card>
 
@@ -224,9 +230,12 @@ export const BillingSettings: React.FC = () => {
               <p className="text-sm text-txt-muted italic">Noch keine Zahlungsmethode hinterlegt</p>
             </div>
           </div>
-          <Button variant="secondary" size="sm" onClick={handleChangePayment}>
-            Zahlungsmethode ändern
-          </Button>
+          <div className="shrink-0 flex flex-col sm:items-end gap-1" title="Zahlungsmethoden-Verwaltung ist demnächst verfügbar">
+            <Button variant="secondary" size="sm" disabled onClick={handleChangePayment}>
+              Zahlungsmethode ändern
+            </Button>
+            <span className="text-[11px] text-txt-muted">demnächst verfügbar</span>
+          </div>
         </div>
       </Card>
 
@@ -264,9 +273,10 @@ export const BillingSettings: React.FC = () => {
                     <td className="py-3 px-3 text-right">
                       <button
                         type="button"
+                        disabled
                         onClick={() => handleDownloadInvoice(invoice.id)}
-                        className="p-1.5 rounded-lg text-txt-muted hover:text-txt-primary hover:bg-app-elevated transition-colors inline-flex"
-                        title="PDF herunterladen"
+                        className="p-1.5 rounded-lg text-txt-muted inline-flex opacity-50 cursor-not-allowed"
+                        title="PDF-Download ist demnächst verfügbar"
                       >
                         <DownloadIcon />
                       </button>
