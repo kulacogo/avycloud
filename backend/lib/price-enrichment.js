@@ -200,6 +200,95 @@ function pickProductTypeForBrowseQuery(product) {
   );
 }
 
+/**
+ * Normalize free text for best-effort title matching (German diacritics folded,
+ * separators collapsed). Mirrors the spirit of services/enrichment.js
+ * normalizeMatchText without importing it (keep price-enrichment self-contained).
+ */
+function normalizeForMatch(raw) {
+  return String(raw == null ? '' : raw)
+    .toLowerCase()
+    .replace(/ä/g, 'a')
+    .replace(/ö/g, 'o')
+    .replace(/ü/g, 'u')
+    .replace(/ß/g, 'ss')
+    .replace(/[‐-―-]/g, ' ')
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/**
+ * Build a conservative match descriptor for a product so we can verify that a
+ * given eBay-Browse sample title actually refers to the same product.
+ *
+ * Returns:
+ *   { brand, mpn, keywords[] }  — all lowercased / normalized tokens.
+ *
+ * Keywords are derived from the product title (>=4 chars, stopwords removed),
+ * loosely mirroring services/enrichment.js collectProductKeywords but kept local
+ * and purely in-memory (no network).
+ */
+function buildBrowseMatchDescriptor(product) {
+  const brand = normalizeForMatch(
+    priceSafeString(product?.identification?.brand)
+  );
+  const mpnRaw =
+    priceSafeString(product?.details?.identifiers?.mpn) ||
+    priceSafeString(product?.details?.attributes?.Herstellernummer) ||
+    priceSafeString(product?.details?.attributes?.MPN) ||
+    priceSafeString(product?.details?.attributes?.mpn);
+  const mpn = normalizeForMatch(mpnRaw);
+
+  const STOP = new Set([
+    'und', 'oder', 'mit', 'fur', 'fuer', 'der', 'die', 'das', 'ein', 'eine',
+    'einer', 'eines', 'zum', 'zur', 'set', 'kit', 'neu', 'new', 'ovp',
+  ]);
+  const title = normalizeForMatch(priceSafeString(product?.identification?.name));
+  const keywords = Array.from(
+    new Set(
+      title
+        .split(/\s+/)
+        .map((t) => t.trim())
+        .filter((t) => t.length >= 4 && !STOP.has(t))
+    )
+  ).slice(0, 12);
+
+  return { brand, mpn, keywords };
+}
+
+/**
+ * BUG-089 / BUG-093: best-effort, purely in-memory check that an eBay-Browse
+ * sample title actually refers to the product. Used ONLY on the loose
+ * keyword-query path (no GTIN constraint). When a strong GTIN/EAN match is
+ * available, eBay already constrained the result set and this gate is skipped.
+ *
+ * A sample passes when its title contains the brand AND
+ * (the MPN OR at least 2 product keywords).
+ *
+ * No HTTP/HEAD validation — matching is title-only to avoid worsening the
+ * already-slow improve pipeline (BUG-086).
+ */
+function browseSampleMatchesProduct(sampleTitle, descriptor) {
+  if (!descriptor) return false;
+  const { brand, mpn, keywords } = descriptor;
+  const title = normalizeForMatch(sampleTitle);
+  if (!title) return false;
+
+  // Brand is required. If we don't even know the brand, we cannot safely gate —
+  // require an MPN match instead (otherwise reject as un-verifiable).
+  if (brand) {
+    if (!title.includes(brand)) return false;
+  } else if (!mpn || !title.includes(mpn)) {
+    return false;
+  }
+
+  // Secondary signal: MPN present, OR >= 2 distinct product keywords present.
+  if (mpn && title.includes(mpn)) return true;
+  const kwHits = (keywords || []).filter((k) => k && title.includes(k)).length;
+  return kwHits >= 2;
+}
+
 function buildBrowseQueryForProduct(product) {
   const brand = priceSafeString(product?.identification?.brand);
   const title = priceSafeString(product?.identification?.name);
@@ -234,18 +323,35 @@ async function findEbayBrowsePriceForProductV1(product) {
       limit: 60,
     });
     const samples = Array.isArray(res?.samples) ? res.samples : [];
-    const eur = samples
+    let eur = samples
       .filter((s) => (s?.currency ? String(s.currency).toUpperCase() === 'EUR' : true))
       .filter((s) => typeof s?.value === 'number' && Number.isFinite(s.value) && s.value >= 1)
       .filter((s) => priceSafeString(s?.url).startsWith('http'));
 
+    // BUG-089 / BUG-093: when NO GTIN constraint was used, eBay returned a loose
+    // keyword-query result set that may contain different products. Gate each
+    // sample by its title (brand AND (MPN OR >=2 keywords)) before it can count
+    // toward the median or be stored as evidence. With a GTIN, eBay already
+    // constrained the set to the product — skip the gate to preserve behavior.
+    let matchGated = false;
+    if (!gtin) {
+      const descriptor = buildBrowseMatchDescriptor(product);
+      // Only gate if we actually have a usable signal (brand or MPN). If neither
+      // is known we cannot verify — leave samples untouched (legacy behavior) but
+      // this is rare because buildBrowseQueryForProduct needs brand/type/mpn.
+      if (descriptor.brand || descriptor.mpn) {
+        eur = eur.filter((s) => browseSampleMatchesProduct(s?.title, descriptor));
+        matchGated = true;
+      }
+    }
+
     if (eur.length < 3) {
       return {
         ok: false,
-        reason: 'too_few_samples',
+        reason: matchGated ? 'too_few_matching_samples' : 'too_few_samples',
         amount: null,
         sources: [],
-        meta: { sampleCount: eur.length, total: Number(res?.total || 0) },
+        meta: { sampleCount: eur.length, total: Number(res?.total || 0), matchGated },
       };
     }
 
@@ -277,6 +383,8 @@ async function findEbayBrowsePriceForProductV1(product) {
         query: gtin ? gtin : query,
         categoryId: categoryId || null,
         total: Number(res?.total || 0),
+        matchGated,
+        matchedCount: eur.length,
       },
     };
   } catch (e) {
@@ -644,4 +752,11 @@ async function enrichPriceParallel(product, { force = false, reason = 'identify'
   return { ok: true, updated: true, serpTrace };
 }
 
-module.exports = { enrichPriceForProductBestEffort, enrichPriceParallel };
+module.exports = {
+  enrichPriceForProductBestEffort,
+  enrichPriceParallel,
+  // Exported for testing the BUG-089/BUG-093 product-match gate.
+  findEbayBrowsePriceForProductV1,
+  browseSampleMatchesProduct,
+  buildBrowseMatchDescriptor,
+};
