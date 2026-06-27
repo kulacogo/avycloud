@@ -39,7 +39,7 @@
     - **Pfad A — Pick-with-Order** (`lib/warehouse.js bookStockOut` mit `meta.orderId`): authoritativer Decrement bei physischer Pick-Bewegung. MUSS in derselben Firestore-Tx den Marker `orders/{orderId}.stockDecrementedAt + stockDecrementedBy='pick' + stockDecrementedSkus=[…]` setzen via `lib/order-stock-claim.js claimOrderStockDecrementInTx()`.
     - **Pfad B — Ship-Decrement** (`services/order-state-machine.js _onOrderShipped` → `lib/warehouse.js decrementProductByIdOrSku`): authoritativer Decrement bei Versand, NUR wenn Pfad A nicht gelaufen ist. Wird durch existierenden `alreadyDecremented`-Skip-Pfad geschützt.
     - **Verboten:**
-      a) `tx.update(productRef, { 'inventory.quantity': X })` außerhalb von `lib/warehouse.js`/`lib/product-store.js`. Sünder: `routes/marketplace.js:966` (Kaufland-Reconcile) — als bekannte Schuld in TASKS.md (Gap C).
+      a) `tx.update(productRef, { 'inventory.quantity': X })` außerhalb von `lib/warehouse.js`/`lib/product-store.js`. (Früherer Sünder `routes/marketplace.js` Kaufland-Reconcile ist seit 2026-06-28 RESOLVED — der Pfad ist heute eine read-only `kauflandUnitsLive`-Query, kein `inventory.quantity`-Write mehr; abgesichert durch `backend/__tests__/oversell-invariant.test.js`, das marketplace.js + kaufland-listings-sync.js gegen `reconBatch.update(...inventory.quantity)` grept.)
       b) `bookStockOut` mit `meta.orderId` ohne `claimOrderStockDecrementInTx()`-Aufruf in derselben Tx.
       c) Stock-Mutation ohne anschließenden `notifyStockChange()`-Call (sonst kein `inventory_ledger`-Eintrag, Telemetrie blind).
     - **Repair-Path:** `backend/scripts/repair-double-decrement.js` (read-only audit + opt-in `--apply`). Erkennt `(stock_out flow=pick) ⨯ (order_decrement)` Doppelpaare in `warehouseEvents`.

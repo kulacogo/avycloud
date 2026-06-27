@@ -7,7 +7,7 @@
  * Critic-Feedback-Schleife. Baut auf dem Stage-1-Recognition von V3 auf (REUSE
  * 1:1) und delegiert pro Domain an einen Worker-Agent.
  *
- * Architektur (Phase B — Skeleton):
+ * Architektur (implementiert):
  *
  *   ┌─ Stage 1 (V3 Recognition) ──────────────┐
  *   │   OCR + EAN-DB + focused grounding      │
@@ -20,7 +20,7 @@
  *             └──────┬──────┘
  *                    │
  *         ┌──────────▼──────────┐
- *         │  Wave 2 (Phase C)   │  TODO: attributes/seo/pricing/image/gpsr
+ *         │      Wave 2         │  parallel: attributes/seo/pricing/image/gpsr
  *         └──────────┬──────────┘
  *                    │
  *             ┌──────▼──────┐
