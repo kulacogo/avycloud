@@ -3333,8 +3333,7 @@ export const retryIdentificationJob = async (
   }
 };
 
-// --- The rest of the functions remain as mocks for now ---
-// In a real application, these would also be implemented on the backend.
+// --- The functions below call the real backend via fetchApi. ---
 
 export const saveProduct = async (product: Product): Promise<{ ok: boolean; data?: { id: string; revision: number; sku?: string | null }; error?: { code: number; message: string } }> => {
   let response: Response | undefined;
@@ -4893,7 +4892,8 @@ export const startChatStream = async (
   productId: string,
   message: string,
   attachments: File[] = [],
-  scope?: string | null
+  scope?: string | null,
+  signal?: AbortSignal
 ): Promise<Response> => {
   const hasAttachments = Array.isArray(attachments) && attachments.length > 0;
   let requestInit: RequestInit;
@@ -4904,12 +4904,13 @@ export const startChatStream = async (
     formData.append('message', message);
     if (scope) formData.append('scope', scope);
     attachments.forEach((file) => formData.append('attachments', file));
-    requestInit = { method: 'POST', body: formData };
+    requestInit = { method: 'POST', body: formData, signal };
   } else {
     requestInit = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ productId, message, scope }),
+      signal,
     };
   }
 
@@ -4969,7 +4970,8 @@ export const identifyProductV2 = async (
   locale = 'de-DE',
   inventoryId?: string,
   paletteCode?: string,
-  hint?: string
+  hint?: string,
+  signal?: AbortSignal
 ): Promise<{ ok: boolean; data?: Product; meta?: any; error?: { code: number; message: string } }> => {
   if (!files.length && (!barcodes || !barcodes.trim())) {
     return {
@@ -5000,6 +5002,17 @@ export const identifyProductV2 = async (
   const fetchBudgetMs = Number.isFinite(IDENTIFY_FETCH_MS) && IDENTIFY_FETCH_MS > 0 ? IDENTIFY_FETCH_MS : 390_000;
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), fetchBudgetMs);
+  // Allow an external caller (e.g. a per-group "Abbrechen" button) to abort this
+  // request by forwarding its signal to the internal controller. Backward-compatible:
+  // when no signal is passed, behaviour is unchanged.
+  const onExternalAbort = () => controller.abort();
+  if (signal) {
+    if (signal.aborted) {
+      controller.abort();
+    } else {
+      signal.addEventListener('abort', onExternalAbort, { once: true });
+    }
+  }
 
   let response: Response | undefined;
   try {
@@ -5038,6 +5051,9 @@ export const identifyProductV2 = async (
     return { ok: false, error: errorInfo };
   } finally {
     clearTimeout(timeout);
+    if (signal) {
+      signal.removeEventListener('abort', onExternalAbort);
+    }
   }
 };
 

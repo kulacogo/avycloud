@@ -87,12 +87,17 @@ export function useChatStream() {
       abortRef.current.abort();
     }
 
+    // Wire a fresh AbortController for THIS stream so cancel()/a 2nd send()
+    // can actually abort the in-flight fetch+reader.
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     setState({ ...INITIAL_STATE, isStreaming: true });
 
     let finalResult: ChatAssistantPayload | null = null;
 
     try {
-      const response = await startChatStream(productId, message, attachments, scope);
+      const response = await startChatStream(productId, message, attachments, scope, controller.signal);
 
       if (!response.ok || !response.body) {
         // Non-streaming error: try to parse body as JSON
@@ -111,11 +116,12 @@ export function useChatStream() {
       const decoder = new TextDecoder();
       let buffer = '';
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
 
-        buffer += decoder.decode(value, { stream: true });
+          buffer += decoder.decode(value, { stream: true });
 
         // SSE events are separated by \n\n
         const parts = buffer.split('\n\n');
@@ -223,7 +229,16 @@ export function useChatStream() {
           }
         }
       }
-
+      } finally {
+        // Guarantee the spinner stops even on a mid-read network drop —
+        // terminal done/error events are no longer the only off-switch.
+        try {
+          reader.releaseLock();
+        } catch {
+          // ignore — lock may already be released
+        }
+        setState((prev) => (prev.isStreaming ? { ...prev, isStreaming: false } : prev));
+      }
     } catch (error: any) {
       const msg = error?.name === 'AbortError' ? null : (error?.message || 'Stream abgebrochen');
       setState((prev) => ({
@@ -231,6 +246,12 @@ export function useChatStream() {
         isStreaming: false,
         error: msg,
       }));
+    } finally {
+      // Only clear if this send() still owns the controller — a newer send()
+      // may have already replaced it.
+      if (abortRef.current === controller) {
+        abortRef.current = null;
+      }
     }
 
     return finalResult;

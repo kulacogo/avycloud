@@ -39,6 +39,15 @@ const PHASE_MESSAGES: Record<string, string> = {
   cancelled: 'Upload wurde abgebrochen.',
 };
 
+// Client-side guard so a stalled backend identify job doesn't pin a popup row
+// forever. The server's own IDENTIFY_TOTAL_TIMEOUT (default 360s) is longer; this
+// is a UX safety net per group.
+const IDENTIFY_CLIENT_TIMEOUT_MS = 180_000;
+
+// Max identify jobs running at once. Sequential processing made 9 products take
+// ~18 min; a small pool keeps Gemini happy while cutting wall-clock ~3×.
+const IDENTIFY_CONCURRENCY = 3;
+
 const isPlaceholderIdentifiedName = (value?: string | null) => {
   const v = String(value || '').trim();
   if (!v) return true;
@@ -125,7 +134,24 @@ export const useIdentification = (options?: UseIdentificationOptions) => {
           phase: 'enriching',
           message: 'Datenblatt wird erstellt …',
         });
-        const identifyResult = await identifyProductV2(group.images, barcodes, 'de-DE', inventoryId || undefined, paletteCode || undefined, group.hint || undefined);
+        // Client-side timeout so a stalled backend job can't hang the popup forever.
+        // Aborts via the same controller the "Abbrechen" button uses, so the
+        // identify fetch is actually cancelled (not just the UI promise).
+        const timeoutId = setTimeout(() => controller.abort(), IDENTIFY_CLIENT_TIMEOUT_MS);
+        let identifyResult: Awaited<ReturnType<typeof identifyProductV2>>;
+        try {
+          identifyResult = await identifyProductV2(
+            group.images,
+            barcodes,
+            'de-DE',
+            inventoryId || undefined,
+            paletteCode || undefined,
+            group.hint || undefined,
+            controller.signal
+          );
+        } finally {
+          clearTimeout(timeoutId);
+        }
         if (!identifyResult.ok || !identifyResult.data) {
           throw new Error(identifyResult.error?.message || 'Identify (v2) fehlgeschlagen.');
         }
@@ -179,7 +205,10 @@ export const useIdentification = (options?: UseIdentificationOptions) => {
           finishedAt: new Date().toISOString(),
         });
       } catch (err: any) {
-        if (err?.name === 'AbortError') {
+        // identifyProductV2 converts an aborted fetch into a 408 result object
+        // (so err.name is usually not "AbortError" here) — fall back to the
+        // controller's own aborted flag to render a "cancelled" row, not an error.
+        if (err?.name === 'AbortError' || controller.signal.aborted) {
           updateJob(localId, {
             phase: 'cancelled',
             message: PHASE_MESSAGES.cancelled,
@@ -246,14 +275,29 @@ export const useIdentification = (options?: UseIdentificationOptions) => {
 
       setError(null);
 
-      // Sequential processing — avoids Gemini rate-limiting and ensures all products are saved.
-      // Only pass barcodes to single-group or barcode-only groups to prevent cross-contamination
-      // (e.g. barcode for product A being sent to product B's identify call).
+      // Bounded-concurrency processing (pool of IDENTIFY_CONCURRENCY workers) —
+      // caps parallel Gemini calls to avoid rate-limiting while not forcing 9
+      // products through one-at-a-time (~18 min). startJobForGroup never throws
+      // (it catches + records per group), so one failed/aborted group can't kill
+      // the others; allSettled is a belt-and-braces guard.
+      // Only pass barcodes to single-group or barcode-only groups to prevent
+      // cross-contamination (barcode for product A sent to product B's call).
       const isSingleGroup = groupsToProcess.length === 1;
-      for (const group of groupsToProcess) {
-        const groupBarcodes = isSingleGroup || group.id === 'barcode-only' ? barcodes : '';
-        await startJobForGroup(group, groupBarcodes, inventoryId, inventoryName, paletteCode);
-      }
+      const queue = [...groupsToProcess];
+
+      const runWorker = async (): Promise<void> => {
+        while (queue.length) {
+          const group = queue.shift();
+          if (!group) break;
+          const groupBarcodes = isSingleGroup || group.id === 'barcode-only' ? barcodes : '';
+          await startJobForGroup(group, groupBarcodes, inventoryId, inventoryName, paletteCode);
+        }
+      };
+
+      const workerCount = Math.min(IDENTIFY_CONCURRENCY, groupsToProcess.length);
+      await Promise.allSettled(
+        Array.from({ length: workerCount }, () => runWorker())
+      );
     },
     [startJobForGroup, validateGroup]
   );

@@ -20,12 +20,23 @@ const JobStatusPopup: React.FC<JobStatusPopupProps> = ({ jobs, onCancel, onDismi
   const allFinished = jobs.every((j) => j.finishedAt);
   const successCount = jobs.filter((j) => j.phase === 'complete').length;
   const errorCount = jobs.filter((j) => j.phase === 'error').length;
+  const finishedCount = jobs.filter((j) => j.finishedAt).length;
   const showSummary = allFinished && jobs.length > 1;
+  // Live "X von Y" progress so a multi-product run never looks frozen while one
+  // group is still streaming through the backend.
+  const showProgress = jobs.length > 1 && !allFinished;
 
   return (
     <div className="fixed bottom-6 right-6 z-50 w-full max-w-sm">
       <div className="rounded-2xl border border-app-border bg-app-bg/95 shadow-lg shadow-black/40 p-4 space-y-3">
-        <p className="text-sm font-semibold text-txt-secondary">Produkt-Uploads</p>
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-sm font-semibold text-txt-secondary">Produkt-Uploads</p>
+          {showProgress && (
+            <span className="text-xs text-txt-muted tabular-nums">
+              {finishedCount} von {jobs.length} fertig
+            </span>
+          )}
+        </div>
 
         {showSummary && (
           <div className="rounded-xl border border-app-border bg-app-elevated p-3 space-y-1">
@@ -47,7 +58,7 @@ const JobStatusPopup: React.FC<JobStatusPopupProps> = ({ jobs, onCancel, onDismi
         )}
 
         <div className="flex flex-col gap-3 max-h-96 overflow-y-auto pr-2">
-          {jobs.map((job) => {
+          {jobs.map((job, index) => {
             const isActive =
               !job.finishedAt && job.phase !== 'error' && job.phase !== 'cancelled';
             const icon = job.phase === 'error'
@@ -65,7 +76,14 @@ const JobStatusPopup: React.FC<JobStatusPopupProps> = ({ jobs, onCancel, onDismi
               >
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <p className="text-sm font-semibold text-txt-primary">{job.label}</p>
+                    <p className="text-sm font-semibold text-txt-primary">
+                      {job.label}
+                      {jobs.length > 1 && (
+                        <span className="ml-2 text-xs font-normal text-txt-muted tabular-nums">
+                          Produkt {index + 1} von {jobs.length}
+                        </span>
+                      )}
+                    </p>
                     <p className={`text-xs ${phaseColor(job)}`}>{icon} {job.message}</p>
                   </div>
                   {isActive ? (
