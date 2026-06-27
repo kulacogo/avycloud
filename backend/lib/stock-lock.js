@@ -122,7 +122,12 @@ async function acquireStockLock(key, timeoutMs = 15000) {
     // Cloud-Run-Instanzen würden Stock-Mutationen ohne echte Synchronisation fahren
     // (silent oversell, race conditions). Stattdessen loud-fail.
     // CLAUDE.md Regel #12: kein In-Memory-Stock-Lock in Production.
-    const isProd = process.env.NODE_ENV === 'production';
+    // ACHTUNG: In Cloud Run ist NODE_ENV NICHT gesetzt (verifiziert). Würde der
+    // Guard nur strikt auf === 'production' prüfen, wäre isProd dort false und der
+    // gefährliche Memory-Fallback griffe → kein Cross-Instance-Lock → Oversell.
+    // Daher fail-closed by default: ALLES außer 'test'/'development' gilt als Prod.
+    const env = process.env.NODE_ENV;
+    const isProd = env !== 'test' && env !== 'development';
     if (isProd) {
       console.error(`[stock-lock] CRITICAL: firestore acquire failed in production for key=${normalizedKey}: ${err.message}`);
       throw new Error(`stock-lock unavailable (firestore failed, no memory-fallback in production): key=${normalizedKey} reason=${err.message}`);

@@ -68,8 +68,13 @@ describe('HARDEN-9: stock-lock production fail-closed', () => {
       'utf8'
     );
 
-    // Must check NODE_ENV === 'production' before deciding to fall back.
-    expect(source).toMatch(/process\.env\.NODE_ENV\s*===\s*['"]production['"]/);
+    // Must gate the memory-fallback fail-CLOSED by default. Cloud Run does NOT
+    // set NODE_ENV, so a strict `=== 'production'` check would wrongly fall back
+    // to the per-instance memory lock there (oversell hole). The hardened guard
+    // treats anything that is NOT 'test'/'development' as production.
+    expect(source).toMatch(/process\.env\.NODE_ENV/);
+    expect(source).toMatch(/!==\s*['"]test['"]/);
+    expect(source).toMatch(/!==\s*['"]development['"]/);
 
     // Must throw an "stock-lock unavailable" error rather than fall back silently.
     expect(source).toMatch(/stock-lock unavailable/i);

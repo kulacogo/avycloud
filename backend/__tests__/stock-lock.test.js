@@ -71,3 +71,54 @@ describe('stock-lock', () => {
     expect(result).toBe(42);
   });
 });
+
+// Regression guard for the oversell hole: when the firestore lock backend is
+// active and the acquire path errors transiently, withStockLock MUST fail closed
+// (surface the error) instead of silently degrading to the per-instance in-memory
+// Map lock. In Cloud Run NODE_ENV is UNSET (not 'test'/'development'), so the
+// fail-closed guard must treat any non-test/non-dev env as production.
+// CLAUDE.md rule #12: kein In-Memory-Stock-Lock in Production.
+describe('stock-lock fail-closed (no silent memory fallback in prod)', () => {
+  const ORIGINAL_NODE_ENV = process.env.NODE_ENV;
+  const ORIGINAL_BACKEND = process.env.STOCK_LOCK_BACKEND;
+  let firestore;
+  let originalRunTransaction;
+
+  beforeEach(() => {
+    // Force the firestore backend regardless of NODE_ENV.
+    process.env.STOCK_LOCK_BACKEND = 'firestore';
+    // Patch the shared firestore module export so acquire fails transiently.
+    ({ firestore } = require('../lib/firestore'));
+    originalRunTransaction = firestore.runTransaction;
+    firestore.runTransaction = async () => {
+      throw new Error('simulated firestore outage (DEADLINE_EXCEEDED)');
+    };
+  });
+
+  afterEach(() => {
+    firestore.runTransaction = originalRunTransaction;
+    if (ORIGINAL_NODE_ENV === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = ORIGINAL_NODE_ENV;
+    if (ORIGINAL_BACKEND === undefined) delete process.env.STOCK_LOCK_BACKEND;
+    else process.env.STOCK_LOCK_BACKEND = ORIGINAL_BACKEND;
+  });
+
+  it('fails closed when NODE_ENV is unset (Cloud Run) and firestore acquire errors', async () => {
+    // Cloud Run reality: NODE_ENV is not set at all.
+    delete process.env.NODE_ENV;
+    await expect(acquireStockLock('OVERSELL-SKU', 200)).rejects.toThrow(/stock-lock unavailable/i);
+  });
+
+  it('fails closed when NODE_ENV=production and firestore acquire errors', async () => {
+    process.env.NODE_ENV = 'production';
+    await expect(acquireStockLock('OVERSELL-SKU', 200)).rejects.toThrow(/stock-lock unavailable/i);
+  });
+
+  it('still degrades to memory in development when firestore acquire errors', async () => {
+    process.env.NODE_ENV = 'development';
+    // Dev convenience: degrade to in-memory lock so devs can keep working.
+    const release = await acquireStockLock('DEV-SKU', 200);
+    expect(typeof release).toBe('function');
+    await release();
+  });
+});
