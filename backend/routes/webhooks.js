@@ -11,12 +11,11 @@
 const express = require('express');
 const crypto = require('crypto');
 const router = express.Router();
-const { Firestore, FieldValue } = require('@google-cloud/firestore');
+const { Firestore } = require('@google-cloud/firestore');
 const { emitSyncEvent } = require('../services/sync-event-bus');
 
 const SHIPMENTS_COLLECTION = 'shipments';
 const ORDERS_COLLECTION = 'orders';
-const ORDER_EVENTS_COLLECTION = 'order_events';
 
 let _db;
 function getDb() {
@@ -184,30 +183,34 @@ router.post('/webhooks/sendcloud', async (req, res) => {
               }, { merge: true });
             }
           } else {
-            // Andere Status → direktes Update (wie bisher)
-            const { ORDER_STATUSES } = require('../services/order-state-machine');
-            const update = {
-              omsStatus,
-              omsStatusLabel: ORDER_STATUSES[omsStatus]?.label || omsStatus,
-              updatedAt: new Date().toISOString(),
-            };
-            if (trackingNumber) update.trackingNumber = trackingNumber;
-            if (trackingUrl) update.trackingUrl = trackingUrl;
-            await orderRef.set(update, { merge: true });
-
-            // Log event for non-shipped/delivered statuses
-            await db.collection(ORDER_EVENTS_COLLECTION).add({
+            // CLAUDE.md Punkt 11: KEIN omsStatus-Direct-Write mehr.
+            // Andere Status (z.B. 'returned' aus SendCloud-IDs 15/32/33) laufen
+            // jetzt AUSSCHLIESSLICH ueber die State-Machine. force:true umgeht die
+            // Transition-Whitelist (Out-of-Order-Webhooks). transitionOrder schreibt
+            // omsStatus + Timestamp + den order_events-Log atomar in EINER Tx UND
+            // emittiert `order:status_changed`, damit Post-Transition-Hooks feuern.
+            // Forward-Rank-Guard oben verhindert weiterhin Rueckwaerts-Spruenge.
+            const { transitionOrder } = require('../services/order-state-machine');
+            const webhookTenantId = shipData.tenantId || 'default';
+            await transitionOrder({
+              tenantId: webhookTenantId,
               orderId,
-              tenantId: shipData.tenantId || 'default',
-              event: 'status_change',
-              fromStatus: currentOmsStatus,
               toStatus: omsStatus,
-              fromStatusLabel: (require('../services/order-state-machine').ORDER_STATUSES[currentOmsStatus] || {}).label || currentOmsStatus,
-              toStatusLabel: (require('../services/order-state-machine').ORDER_STATUSES[omsStatus] || {}).label || omsStatus,
+              force: true,
+              source: 'sendcloud-webhook',
               actor: { uid: 'system', email: 'sendcloud-webhook' },
               note: `SendCloud: ${statusMessage}`,
-              timestamp: FieldValue.serverTimestamp(),
+            }).catch((err) => {
+              console.warn(`[webhook/sendcloud] transitionOrder failed for ${orderId} (${omsStatus}): ${err.message}`);
             });
+
+            // Tracking backfill (additive, never via omsStatus)
+            if (trackingNumber || trackingUrl) {
+              await orderRef.set({
+                ...(trackingNumber ? { trackingNumber } : {}),
+                ...(trackingUrl ? { trackingUrl } : {}),
+              }, { merge: true });
+            }
           }
 
           console.log(`[webhook/sendcloud] Order ${orderId}: ${currentOmsStatus} → ${omsStatus} (parcel ${parcelId})`);
