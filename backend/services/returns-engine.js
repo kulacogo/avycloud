@@ -19,6 +19,15 @@ function getDb() {
   return firestore;
 }
 
+// WP4 (symmetric stock re-credit) — Flag-Spiegel von order-state-machine.js.
+// 'false' (default) → heutiges Verhalten exakt. 'shadow'|'true' → idempotenter
+// Re-Credit-Claim beim A-Ware-Grading (verhindert Doppel-Credit bei Doppel-Grading).
+function recreditMode() {
+  const raw = String(process.env.STOCK_RECREDIT_ENABLED || 'false').toLowerCase().trim();
+  if (raw === 'true' || raw === 'shadow') return raw;
+  return 'false';
+}
+
 // ─── Return Status Flow ──────────────────────────────────────
 
 const RETURN_STATUSES = [
@@ -350,26 +359,61 @@ async function restockItem({ returnId, orderId, itemCondition, tenantId = 'defau
       }
 
       if (resolvedBinCode) {
-        const { bookStockIn } = require('../lib/warehouse');
-        const stockResult = await bookStockIn({
-          productId: productData?.id,
-          sku: returnedItem.sku || undefined,
-          binCode: resolvedBinCode,
-          quantity: restockQty,
-          meta: {
-            source: 'returns-restock',
-            returnId,
-            orderId,
-            condition: itemCondition,
-          },
-        });
-        restockResult = {
-          ok: true,
-          binCode: resolvedBinCode,
-          quantity: restockQty,
-          newInventory: stockResult?.product?.inventory?.quantity ?? null,
-        };
-        console.log(`[returns/restock] ${returnedItem.sku}: +${restockQty} → BIN ${resolvedBinCode} (return ${returnId})`);
+        // WP4 (flag-gated): idempotenter Re-Credit-Claim auf der Order, damit
+        // Doppel-Grading nicht doppelt gutschreibt. Bei flag OFF unveraendert
+        // (Gap D: A-Ware bucht heute schon ohne Marker ein).
+        const mode = recreditMode();
+        let claimAllows = true; // flag OFF → heutiges Verhalten: immer einbuchen
+        if (mode !== 'false' && orderId) {
+          const skuForClaim = String(returnedItem.sku || '').trim();
+          const skus = skuForClaim ? [skuForClaim] : [];
+          if (mode === 'shadow') {
+            console.log(`[recredit-shadow] order=${orderId} return=${returnId} would claim+bookStockIn sku=${skuForClaim} qty=${restockQty} bin=${resolvedBinCode}`);
+            claimAllows = false; // shadow → keine Mutation
+          } else {
+            try {
+              const { claimOrderStockRecreditInTx } = require('../lib/order-stock-recredit-claim');
+              const orderRef = db.collection(ORDERS_COLLECTION).doc(orderId);
+              const claim = await firestore.runTransaction(async (tx) =>
+                claimOrderStockRecreditInTx({ tx, orderRef, by: 'return', skus })
+              );
+              // Nur einbuchen wenn der Claim gewonnen wurde. never-decremented /
+              // already-recredited → kein (weiterer) Credit, aber kein Fehler.
+              claimAllows = Boolean(claim.claimed);
+              if (!claimAllows) {
+                restockError = claim.alreadyRecredited ? 'already-recredited' : (claim.reason || 'not-claimed');
+                console.log(`[returns/restock] ${returnedItem.sku}: re-credit skip (${restockError}) for return ${returnId}`);
+              }
+            } catch (claimErr) {
+              console.error(`[returns/restock] re-credit claim failed for ${orderId}: ${claimErr.message}`);
+              claimAllows = false;
+              restockError = `claim_failed: ${claimErr.message}`;
+            }
+          }
+        }
+
+        if (claimAllows) {
+          const { bookStockIn } = require('../lib/warehouse');
+          const stockResult = await bookStockIn({
+            productId: productData?.id,
+            sku: returnedItem.sku || undefined,
+            binCode: resolvedBinCode,
+            quantity: restockQty,
+            meta: {
+              source: 'returns-restock',
+              returnId,
+              orderId,
+              condition: itemCondition,
+            },
+          });
+          restockResult = {
+            ok: true,
+            binCode: resolvedBinCode,
+            quantity: restockQty,
+            newInventory: stockResult?.product?.inventory?.quantity ?? null,
+          };
+          console.log(`[returns/restock] ${returnedItem.sku}: +${restockQty} → BIN ${resolvedBinCode} (return ${returnId})`);
+        }
       } else {
         // Kein BIN bekannt — kann nicht automatisch restocken. Operator muss
         // bookStockIn manuell durchführen (z.B. via Wareneingangs-Flow).

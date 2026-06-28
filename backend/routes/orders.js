@@ -1522,8 +1522,8 @@ router.post('/orders/:orderId/cancel-label', requirePermission('orders', 'write'
     }, { merge: true });
 
     // Transition order back to packed
-    const { transitionOrder } = require('../services/order-state-machine');
-    await transitionOrder({
+    const { transitionOrder, processLabelCancelled } = require('../services/order-state-machine');
+    const transitionResult = await transitionOrder({
       tenantId,
       orderId,
       toStatus: 'packed',
@@ -1531,6 +1531,15 @@ router.post('/orders/:orderId/cancel-label', requirePermission('orders', 'write'
       note: 'Versandlabel storniert — Tracking entfernt',
       force: true,
     });
+
+    // WP4 (flag-gated): wenn die Order beim Versand dekrementiert war, Bestand
+    // symmetrisch wieder gutschreiben + Decrement-Marker loeschen (Re-Ship-fähig).
+    // INERT bei STOCK_RECREDIT_ENABLED='false' (heutiges No-Op-Verhalten).
+    if (transitionResult?.ok && transitionResult.fromStatus === 'shipped') {
+      processLabelCancelled({ orderId, tenantId, fromStatus: 'shipped' }).catch((err) => {
+        console.warn(`[cancel-label] re-credit on label-cancel failed for ${orderId}: ${err.message}`);
+      });
+    }
 
     // Event-driven sync: shipment cancelled → resync stock + shipments
     emitSyncEvent('order:status_changed', {
