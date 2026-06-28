@@ -17,6 +17,7 @@ import { exportToCsv } from "../utils/csv-export";
 import { SyncIcon } from "./icons/Icons";
 import { OrderDetail } from "./OrderDetail";
 import { OMS_STATUS_LABELS } from "../lib/oms-labels";
+import { useToast } from "../context/ToastContext";
 
 /* ─── Status filter config ─── */
 type StatusFilter = "all" | OrderStatus;
@@ -77,6 +78,7 @@ const PIPELINE_STAGES: { key: string; label: string; color: string; dotColor: st
 /* ─── Main Component ─── */
 const OrdersView: React.FC = () => {
   const { t } = useI18n();
+  const toast = useToast();
   const queryClient = useQueryClient();
   const { data: orders = [], isLoading: loading, error: queryError, refetch } = useOrders(500);
   const [syncing, setSyncing] = useState(false);
@@ -112,24 +114,28 @@ const OrdersView: React.FC = () => {
     try {
       await syncOrders();
       await queryClient.invalidateQueries({ queryKey: ["orders"] });
-    } catch {
-      // Error handled by React Query refetch
+      toast.success("Bestellungen synchronisiert");
+    } catch (err: any) {
+      // A failed sync used to look like success — surface it.
+      toast.error(err?.message || "Synchronisierung fehlgeschlagen");
     } finally {
       setSyncing(false);
     }
-  }, [queryClient]);
+  }, [queryClient, toast]);
 
   const handleMarketplaceSync = useCallback(async () => {
     setSyncingMp(true);
     try {
       await syncMarketplaceOrders();
       await queryClient.invalidateQueries({ queryKey: ["orders"] });
-    } catch {
-      // Error handled by React Query
+      toast.success("Marktplätze synchronisiert");
+    } catch (err: any) {
+      // A failed sync used to look like success — surface it.
+      toast.error(err?.message || "Marktplatz-Synchronisierung fehlgeschlagen");
     } finally {
       setSyncingMp(false);
     }
-  }, [queryClient]);
+  }, [queryClient, toast]);
 
   /* ─── HARDEN-Wave-5 (2026-05-22): Dashboard-Drilldown via #/orders?orderStatus=… lesen ───
    * Vorher: Dashboard verlinkt z.B. zu `#/orders?orderStatus=picking` — OrdersView
@@ -178,10 +184,14 @@ const OrdersView: React.FC = () => {
     let cancelled = false;
     fetchOrderStatusCounts()
       .then((c) => { if (!cancelled) setServerCounts(c); })
-      .catch(() => { /* keep last value; UI falls back to the local tally */ });
+      .catch(() => {
+        // Keep last value; UI falls back to the (capped) local tally. Warn the
+        // user so they know the status counts may be incomplete.
+        if (!cancelled) toast.warning("Status-Zähler konnten nicht geladen werden — Zahlen evtl. unvollständig.");
+      });
     return () => { cancelled = true; };
     // Re-pull whenever the loaded set changes (e.g. after a sync) so the bar tracks reality.
-  }, [orders.length]);
+  }, [orders.length, toast]);
 
   /* ─── Pipeline (funnel) counts — prefer server counts, fall back to local ─── */
   const omsCounts = useMemo(() => {

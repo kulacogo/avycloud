@@ -6,7 +6,7 @@ import { Spinner } from './Spinner';
 import { IdentifyHealthTile } from './IdentifyHealthTile';
 
 const STATUS_META = {
-  pending: { color: 'bg-amber-500/20 text-amber-100 border border-amber-400/40' },
+  pending: { color: 'bg-warning-dim text-warning border border-warning/30' },
   processing: { color: 'bg-accent-dim text-accent border border-accent/30' },
   failed: { color: 'bg-danger-dim text-danger border border-danger/30' },
   done: { color: 'bg-success-dim text-success border border-success/30' },

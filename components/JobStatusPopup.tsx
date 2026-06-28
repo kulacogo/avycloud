@@ -10,7 +10,7 @@ interface JobStatusPopupProps {
 const phaseColor = (job: IdentificationJobStatus) => {
   if (job.phase === 'error') return 'text-danger';
   if (job.phase === 'complete') return 'text-success';
-  if (job.phase === 'cancelled') return 'text-amber-300';
+  if (job.phase === 'cancelled') return 'text-warning';
   return 'text-accent';
 };
 

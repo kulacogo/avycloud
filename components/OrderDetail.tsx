@@ -33,6 +33,7 @@ import {
   CarrierPickModal,
   WeightPromptModal,
 } from "./orders/ShippingDecisionDialog";
+import { useToast } from "../context/ToastContext";
 
 /* ─── OMS Status Colors ─── */
 const STATUS_COLORS: Record<string, { bg: string; text: string; dot: string }> =
@@ -108,6 +109,7 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({
   onClose,
   onStatusChange,
 }) => {
+  const toast = useToast();
   const [order, setOrder] = useState<Order | null>(null);
   const [timeline, setTimeline] = useState<OrderTimelineEvent[]>([]);
   const [nextStatuses, setNextStatuses] = useState<string[]>([]);
@@ -1387,6 +1389,10 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({
                                   console.error(
                                     "[OrderDetail] Invoice PDF download failed:",
                                     err,
+                                  );
+                                  toast.error(
+                                    err?.message ||
+                                      "Rechnungs-PDF konnte nicht geladen werden",
                                   );
                                 }
                               }}
