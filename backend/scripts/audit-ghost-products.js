@@ -32,6 +32,47 @@ function safeStr(v) {
   return v == null ? '' : String(v).trim();
 }
 
+/**
+ * STOCK-BEARING SAFETY GUARD.
+ *
+ * AvyCloud derives physical stock from warehouseBins / inventory.quantity and
+ * the per-product `storageBins`/`warehouseBins` arrays. A ghost-SHAPED doc that
+ * still holds real inventory must NEVER be deleted — otherwise a future
+ * `--apply` run would cause silent stock loss.
+ *
+ * Returns true if the product carries ANY physical stock signal:
+ *   - inventory.quantity > 0
+ *   - a non-empty storageBins array (a bin assignment exists at all)
+ *   - a non-empty warehouseBins array (embedded mirror, if present)
+ *   - any positive bin quantity
+ */
+function hasPhysicalStock(data) {
+  if (!data || typeof data !== 'object') return false;
+
+  const qty = Number(data?.inventory?.quantity);
+  if (Number.isFinite(qty) && qty > 0) return true;
+
+  const binArrays = [data?.storageBins, data?.warehouseBins];
+  for (const bins of binArrays) {
+    if (Array.isArray(bins) && bins.length > 0) {
+      // A bin assignment existing at all is a stock signal — protect it.
+      return true;
+    }
+  }
+
+  // Defensive: any positive bin quantity, even if the array shape differs.
+  for (const bins of binArrays) {
+    if (Array.isArray(bins)) {
+      for (const b of bins) {
+        const bq = Number(b?.quantity);
+        if (Number.isFinite(bq) && bq > 0) return true;
+      }
+    }
+  }
+
+  return false;
+}
+
 function classifyGhost(docId, data) {
   const name = safeStr(data?.identification?.name);
   const brand = safeStr(data?.identification?.brand);
@@ -55,6 +96,19 @@ function classifyGhost(docId, data) {
   // Never delete products with real activity
   if (hasOrders) return null;
 
+  // STOCK-BEARING SAFETY GUARD — a ghost-shaped doc holding physical stock
+  // must never be deletable (silent stock loss). It is still reported so an
+  // operator can see it, but lands in the `protected_has_stock` bucket.
+  const hasStock = hasPhysicalStock(data);
+
+  // A product is only deletable if it has NO marketplace listings/sync AND
+  // NO physical stock. This single source of truth is consumed by main()
+  // for both dry-run and --apply paths.
+  const deletable = !hasEbayListing && !hasKauflandListing && !hasSyncStatus && !hasStock;
+  const protectedReason = hasStock
+    ? 'has_stock'
+    : (hasEbayListing || hasKauflandListing || hasSyncStatus ? 'has_listing' : null);
+
   const result = {
     docId,
     name: name || docId,
@@ -71,6 +125,11 @@ function classifyGhost(docId, data) {
     hasEbayListing,
     hasKauflandListing,
     hasSyncStatus,
+    hasStock,
+    inventoryQty: Number(data?.inventory?.quantity) || 0,
+    binCount: Array.isArray(data?.storageBins) ? data.storageBins.length : 0,
+    deletable,
+    protectedReason,
     palette: safeStr(data?.ops?.sourcePalette),
     createdAt: safeStr(data?.ops?.last_saved_iso || data?.createdAt),
   };
@@ -174,6 +233,18 @@ async function main() {
     if (items.length > 5) console.log(`    ... und ${items.length - 5} weitere`);
   }
 
+  // STOCK-BEARING SAFETY GUARD — ghosts that still hold physical stock.
+  // These are NEVER deleted (silent stock loss) and are reported separately so
+  // an operator can investigate them.
+  const protectedHasStock = ghosts.filter((g) => g.hasStock);
+  if (protectedHasStock.length) {
+    console.log(`\n🛡️  ${protectedHasStock.length} Ghost-Produkte halten physischen Bestand — NICHT löschbar:`);
+    protectedHasStock.forEach((g) => {
+      console.log(`    - ${g.docId} | qty: ${g.inventoryQty} | bins: ${g.binCount} | SKU: ${g.sku || '—'}`);
+    });
+    console.log(`    → protected_has_stock: werden NIEMALS gelöscht (Bestandsverlust-Schutz)`);
+  }
+
   // Warn about ghosts with marketplace listings
   const withListings = ghosts.filter((g) => g.hasEbayListing || g.hasKauflandListing || g.hasSyncStatus);
   if (withListings.length) {
@@ -184,8 +255,10 @@ async function main() {
     console.log(`    → Diese werden NICHT gelöscht (manuelle Prüfung nötig)`);
   }
 
-  const deletable = ghosts.filter((g) => !g.hasEbayListing && !g.hasKauflandListing && !g.hasSyncStatus);
-  const notDeletable = ghosts.filter((g) => g.hasEbayListing || g.hasKauflandListing || g.hasSyncStatus);
+  // Single source of truth: classifyGhost already computed `deletable`
+  // (no listings AND no physical stock). Used identically in dry-run + apply.
+  const deletable = ghosts.filter((g) => g.deletable);
+  const notDeletable = ghosts.filter((g) => !g.deletable);
 
   if (APPLY && deletable.length) {
     console.log(`\n🗑️  Lösche ${deletable.length} Ghost-Produkte...`);
@@ -228,6 +301,8 @@ async function main() {
     ghosts_total: ghosts.length,
     ghosts_by_type: Object.fromEntries(Object.entries(byType).map(([k, v]) => [k, v.length])),
     ghosts_with_listings: withListings.length,
+    protected_has_stock: protectedHasStock.length,
+    protected_has_stock_details: protectedHasStock,
     deletable: deletable.length,
     ghost_details: ghosts,
   };
@@ -237,7 +312,14 @@ async function main() {
   console.log(`\nReport: ${outPath}`);
 }
 
-main().catch((err) => {
-  console.error('Audit failed:', err);
-  process.exit(1);
-});
+// CLI entrypoint — only run when invoked directly (not when require()'d by a
+// test). This keeps the script's CLI behavior identical while making the
+// classification logic unit-testable without touching Firestore.
+if (require.main === module) {
+  main().catch((err) => {
+    console.error('Audit failed:', err);
+    process.exit(1);
+  });
+}
+
+module.exports = { classifyGhost, hasPhysicalStock };
