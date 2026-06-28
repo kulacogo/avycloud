@@ -18,6 +18,41 @@ const { bus } = require('../services/sync-event-bus');
 // Track connected clients for graceful cleanup
 const clients = new Set();
 
+// ─── Self-limiting safety rails (ENV-gated, default = today's behaviour) ──────
+//
+// Background: at Cloud-Run containerConcurrency=1, a single long-lived SSE
+// connection pins a whole instance for its entire lifetime. These two knobs
+// let an operator cap/shed connections without redeploying code. With NEITHER
+// ENV set the behaviour is byte-for-byte identical to before (no shed, no cap).
+//
+//   SSE_MAX_CONN_PER_INSTANCE — per-instance connection ceiling. 0 = unlimited
+//                               (DEFAULT). When >0, the (ceiling+1)-th concurrent
+//                               connection is rejected with 503 + Retry-After and
+//                               is NOT registered (no heartbeat / bus listeners).
+//   SSE_MAX_LIFETIME_MS       — max connection lifetime in ms. 0 = no cap
+//                               (DEFAULT). When >0, the server proactively sends
+//                               an `event: reconnect` frame and ends the response
+//                               so the browser EventSource auto-reconnects (which
+//                               lets Cloud-Run rebalance the connection to a
+//                               fresh/less-loaded instance).
+//
+// Read PER-REQUEST (not at module load) so the safety rails reflect the current
+// environment without re-requiring the module — keeps the default path a single
+// integer parse with no behaviour change.
+function intEnv(name, fallback) {
+  const n = parseInt(process.env[name] || String(fallback), 10);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+// Lightweight in-process metrics so a health route can read SSE saturation.
+// Exported (not wired to a new route here) — additive, read-only telemetry.
+const sseMetrics = {
+  open: 0,              // currently-open connections on this instance
+  openedTotal: 0,       // total connections ever accepted (monotonic)
+  shedTotal: 0,         // total connections rejected by the ceiling (monotonic)
+  lifetimeEvictions: 0, // total connections ended by the lifetime cap (monotonic)
+};
+
 /**
  * Map internal sync-event-bus events to frontend SSE event types.
  * Only events the frontend cares about for cache invalidation.
@@ -37,6 +72,22 @@ const EVENT_MAP = {
 const LISTING_SYNC_EVENT = 'listings:sync_completed';
 
 router.get('/events', requirePermission('dashboard', 'read'), (req, res) => {
+  const maxConn = intEnv('SSE_MAX_CONN_PER_INSTANCE', 0);
+  const maxLifetimeMs = intEnv('SSE_MAX_LIFETIME_MS', 0);
+
+  // ─── Connection ceiling (ENV-gated; 0 = unlimited = TODAY'S DEFAULT) ──────
+  // Reject BEFORE writing SSE headers or registering any heartbeat/bus
+  // listeners, so a shed connection leaks nothing.
+  if (maxConn > 0 && clients.size >= maxConn) {
+    sseMetrics.shedTotal += 1;
+    res.setHeader('Retry-After', String(intEnv('SSE_SHED_RETRY_AFTER_S', 5)));
+    res.status(503).json({
+      ok: false,
+      error: { code: 'SSE_CAPACITY', message: 'SSE connection limit reached, retry shortly' },
+    });
+    return;
+  }
+
   // SSE headers
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
@@ -53,8 +104,10 @@ router.get('/events', requirePermission('dashboard', 'read'), (req, res) => {
   }, 30_000);
 
   // Track this client
-  const client = { res, heartbeat };
+  const client = { res, heartbeat, lifetimeTimer: null };
   clients.add(client);
+  sseMetrics.open += 1;
+  sseMetrics.openedTotal += 1;
 
   // Debounce per event type — don't flood the client
   const lastSent = new Map();
@@ -104,15 +157,49 @@ router.get('/events', requirePermission('dashboard', 'read'), (req, res) => {
   };
   bus.on(LISTING_SYNC_EVENT, onListingSync);
 
-  // Cleanup on disconnect
-  req.on('close', () => {
+  // Single, idempotent teardown — removes ALL timers + ALL bus listeners and
+  // always deletes the client. Guarded so a double-close (e.g. lifetime cap
+  // firing then req 'close') can't double-decrement metrics or double-remove.
+  let closed = false;
+  function cleanup() {
+    if (closed) return;
+    closed = true;
     clearInterval(heartbeat);
+    if (client.lifetimeTimer) {
+      clearTimeout(client.lifetimeTimer);
+      client.lifetimeTimer = null;
+    }
     for (const [event, handler] of Object.entries(listeners)) {
       bus.removeListener(event, handler);
     }
     bus.removeListener(LISTING_SYNC_EVENT, onListingSync);
     clients.delete(client);
-  });
+    sseMetrics.open = Math.max(0, sseMetrics.open - 1);
+  }
+
+  // ─── Lifetime cap (ENV-gated; 0 = no cap = TODAY'S DEFAULT) ───────────────
+  // Proactively recycle the connection so the EventSource reconnects and
+  // Cloud-Run can rebalance it off a pinned instance. We send a `reconnect`
+  // frame, end the response, then tear everything down via cleanup().
+  if (maxLifetimeMs > 0) {
+    client.lifetimeTimer = setTimeout(() => {
+      try {
+        res.write(`event: reconnect\ndata: ${JSON.stringify({ ts: Date.now(), reason: 'lifetime' })}\n\n`);
+      } catch {
+        // Client already gone — cleanup below still runs.
+      }
+      sseMetrics.lifetimeEvictions += 1;
+      cleanup();
+      try {
+        res.end();
+      } catch {
+        // Response already ended.
+      }
+    }, maxLifetimeMs);
+  }
+
+  // Cleanup on disconnect
+  req.on('close', cleanup);
 });
 
-module.exports = { router, clients };
+module.exports = { router, clients, sseMetrics };
