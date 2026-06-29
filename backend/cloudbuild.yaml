@@ -75,6 +75,16 @@ steps:
   - name: gcr.io/cloud-builders/docker
     args: ['push', 'gcr.io/${PROJECT_ID}/$_IMAGE:latest']
 
+  # Cloud Run deploy. Scaling flags are codified here (not just set live) so they
+  # can never silently drift:
+  #   --concurrency 8 : each instance serves up to 8 requests at once. At the
+  #     prior implicit value of 1, ONE long-lived SSE /api/events connection
+  #     (601s) pinned a whole instance, so heavy POST /api/v2/identify requests
+  #     never got a slot → browser "Failed to fetch (HTTP 503)" with only OPTIONS
+  #     preflights reaching the container (incident 2026-06-29). The app is
+  #     concurrency-safe: stock single-writer is Firestore-locked, auth/RBAC are
+  #     stateless per request. See memory sse-concurrency-2026-06-28.
+  #   --max-instances 80 : pool ceiling (previously live-only / undocumented).
   - name: gcr.io/cloud-builders/gcloud
     args:
       [
@@ -84,11 +94,15 @@ steps:
         '--image',
         'gcr.io/${PROJECT_ID}/$_IMAGE:${_TAG}',
         '--memory',
-        '3Gi',
+        '4Gi',
         '--cpu',
         '2',
         '--min-instances',
         '1',
+        '--concurrency',
+        '8',
+        '--max-instances',
+        '80',
         '--region',
         '$_REGION',
         '--platform',

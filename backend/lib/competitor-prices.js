@@ -260,6 +260,28 @@ async function logPriceHistory(productId, competitorData) {
  * @param {string} collection - Firestore collection name
  * @param {{ ebay: object[], kaufland: object[], fetched_at: string }} data
  */
+/**
+ * Recursively strip `undefined` values from objects and array items so a
+ * Firestore `.set()` never throws "Cannot use undefined as a Firestore value".
+ * Preserves null/0/''/false — only `undefined` is dropped.
+ * @param {*} value
+ * @returns {*}
+ */
+function pruneUndefinedDeep(value) {
+  if (Array.isArray(value)) {
+    return value.map(pruneUndefinedDeep);
+  }
+  if (value && typeof value === 'object') {
+    const out = {};
+    for (const [key, val] of Object.entries(value)) {
+      if (val === undefined) continue;
+      out[key] = pruneUndefinedDeep(val);
+    }
+    return out;
+  }
+  return value;
+}
+
 async function storeCompetitorPricesToProduct(productId, collection, data) {
   if (!productId || !collection) return;
   try {
@@ -268,15 +290,18 @@ async function storeCompetitorPricesToProduct(productId, collection, data) {
       ...(data.ebay || []).map(l => ({ ...l, condition: 'new', fetchedAt: data.fetched_at })),
       ...(data.kaufland || []).map(l => ({ ...l, condition: 'new', fetchedAt: data.fetched_at })),
     ];
+    // Firestore rejects ANY `undefined` inside objects/array items (e.g.
+    // `seller: safeString(...) || undefined`). Prune at the write boundary so a
+    // single missing field can't crash-loop the competitor refresh runner.
     await firestore.collection(collection).doc(productId).set(
-      {
+      pruneUndefinedDeep({
         details: {
           pricing: {
             competitorPrices: allListings,
             lastPriceCheck: data.fetched_at,
           },
         },
-      },
+      }),
       { merge: true }
     );
   } catch (err) {
@@ -284,4 +309,4 @@ async function storeCompetitorPricesToProduct(productId, collection, data) {
   }
 }
 
-module.exports = { getCompetitorPrices, fetchEbayCompetitorListings, fetchKauflandCompetitorListings, logPriceHistory, storeCompetitorPricesToProduct };
+module.exports = { getCompetitorPrices, fetchEbayCompetitorListings, fetchKauflandCompetitorListings, logPriceHistory, storeCompetitorPricesToProduct, pruneUndefinedDeep };
