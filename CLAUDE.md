@@ -20,6 +20,7 @@
 - **KI:** Google Gemini API
 - **Auth:** Firebase Authentication
 - **Deployment:** `main` → GitHub Actions (Frontend) + Cloud Build (Backend)
+- **Web/Worker-Split (seit 2026-06-29):** Dasselbe Backend-Image läuft als ZWEI Cloud-Run-Services. `product-hub-backend` (web, `RUN_BACKGROUND_JOBS=false`) bedient nur HTTP-Requests. `product-hub-worker` (`RUN_BACKGROUND_JOBS=true`, CPU always-on, min=max=1, ingress internal) fährt ALLE Runner + Safety-Net-Crons. Gate via `lib/process-role.js` in `index.js`. Zwei Build-Trigger auf `main` (web + `deploy-product-hub-worker-on-main`). **Neue Cron-/Runner-Jobs gehören in den `if (RUN_BACKGROUND_JOBS)`-Block in `index.js` — dann laufen sie automatisch nur auf dem Worker.** Details: `docs/runbooks/web-worker-split.md`.
 
 ## Nicht verhandelbar
 
