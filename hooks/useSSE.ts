@@ -7,19 +7,19 @@ import { isSharedSSESupported, startSharedSSE } from "../utils/sseSharedConnecti
 /**
  * KILL SWITCH / gate for the per-browser shared SSE connection.
  *
- * Defaults OFF: unless VITE_SSE_SHARED is exactly the string "true", this hook
- * behaves EXACTLY as it always has (one per-tab EventSource). Shipping this is
- * therefore INERT — the shared-connection path is dead code until the env var is
- * flipped. When ON, we additionally require BroadcastChannel + Web Locks support
+ * Defaults ON (promoted 2026-06-29): the shared per-browser connection is used
+ * unless VITE_SSE_SHARED is explicitly the string "false" (the kill switch).
+ * When ON, we additionally require BroadcastChannel + Web Locks support
  * (isSharedSSESupported); if the browser lacks them we transparently fall back
- * to the unchanged per-tab path below.
+ * to the unchanged per-tab EventSource path below. Rollback = revert this commit
+ * (restores the OFF default).
  *
  * `import.meta.env` has no index signature in vite-env.d.ts, so we read it via a
  * cast (same pattern as utils/firebase.ts) to avoid a TS "property does not
  * exist" error without editing the env typings.
  */
 const SSE_SHARED_ENABLED =
-  (import.meta.env as Record<string, string | undefined>).VITE_SSE_SHARED === "true";
+  (import.meta.env as Record<string, string | undefined>).VITE_SSE_SHARED !== "false";
 
 /**
  * Connects to the backend SSE endpoint (/api/events) and invalidates
