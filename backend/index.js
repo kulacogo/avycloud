@@ -3,6 +3,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const { generalLimiter } = require('./lib/rate-limit');
 const requestLogger = require('./lib/request-logger');
+const { shouldRunBackgroundJobs } = require('./lib/process-role');
 const { startJobRunner } = require('./services/job-runner');
 const { startImproveRunner } = require('./services/improve-runner');
 const { startQualityRunner } = require('./services/quality-runner');
@@ -154,30 +155,46 @@ const corsOptions = {
   allowedHeaders: ['Content-Type', 'Authorization'],
 };
 
-// --- Start Runners ---
-startJobRunner();
-startImproveRunner();
-startQualityRunner();
-startRulebookRunner();
-try {
-  startAdminBulkRunner();
-} catch (e) {
-  console.warn('[AdminBulkRunner] failed to start (non-blocking):', e?.message || e);
-}
-try {
-  startPricingRunner();
-} catch (e) {
-  console.warn('[PricingRunner] failed to start (non-blocking):', e?.message || e);
-}
-try {
-  startListingSyncRunner();
-} catch (e) {
-  console.warn('[ListingSyncRunner] failed to start (non-blocking):', e?.message || e);
-}
-try {
-  startCompetitorRefreshRunner();
-} catch (e) {
-  console.warn('[CompetitorRefreshRunner] failed to start (non-blocking):', e?.message || e);
+// Process role: when RUN_BACKGROUND_JOBS=false this instance serves HTTP requests
+// ONLY and starts NO runners/cron jobs. The dedicated worker service
+// (product-hub-worker, RUN_BACKGROUND_JOBS=true, CPU always-on, single instance)
+// owns ALL scheduled/background work, so heavy marketplace syncs never compete with
+// user requests for a Cloud Run instance slot (root cause of the 2026-06-29
+// "Produkt erfassen" Failed-to-fetch incident). Default true preserves the legacy
+// single-process behaviour for local dev / any deployment without a worker.
+// Verified safe to gate: POST /api/v2/identify is fully synchronous-inline and all
+// job runners are Firestore-backed with a self-healing sweep, so the worker picks
+// up jobs enqueued by the request service regardless of which process started them.
+const RUN_BACKGROUND_JOBS = shouldRunBackgroundJobs();
+
+// --- Start Runners (background-only) ---
+if (RUN_BACKGROUND_JOBS) {
+  startJobRunner();
+  startImproveRunner();
+  startQualityRunner();
+  startRulebookRunner();
+  try {
+    startAdminBulkRunner();
+  } catch (e) {
+    console.warn('[AdminBulkRunner] failed to start (non-blocking):', e?.message || e);
+  }
+  try {
+    startPricingRunner();
+  } catch (e) {
+    console.warn('[PricingRunner] failed to start (non-blocking):', e?.message || e);
+  }
+  try {
+    startListingSyncRunner();
+  } catch (e) {
+    console.warn('[ListingSyncRunner] failed to start (non-blocking):', e?.message || e);
+  }
+  try {
+    startCompetitorRefreshRunner();
+  } catch (e) {
+    console.warn('[CompetitorRefreshRunner] failed to start (non-blocking):', e?.message || e);
+  }
+} else {
+  console.log('[role] RUN_BACKGROUND_JOBS=false — request-only mode, runners NOT started');
 }
 ensureDefaultRoles()
   .then(() => console.log('RBAC default roles ensured.'))
@@ -312,6 +329,11 @@ app.use(errorHandler);
 // --- Server Start ---
 const server = app.listen(PORT, () => {
   console.log(`Server listening on port ${PORT}`);
+
+  // Safety-net cron jobs below run ONLY on the worker process. The request-serving
+  // service (RUN_BACKGROUND_JOBS=false) returns here so heavy syncs never compete
+  // with user requests for an instance slot. See the RUN_BACKGROUND_JOBS comment above.
+  if (!RUN_BACKGROUND_JOBS) return;
 
   // ─── Event-Driven Sync is PRIMARY (sync-event-bus.js) ───────────────
   // Periodic intervals below are SAFETY NETS only — they catch anything
