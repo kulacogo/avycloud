@@ -16,8 +16,14 @@
  * Pure + synchronous → easy to unit test. The caller persists via saveProductV2.
  */
 
+const { normalizeLiteralEscapes } = require('./listing-sanitize');
+
 function safeStr(v) {
-  return typeof v === 'string' ? v.trim() : v == null ? '' : String(v).trim();
+  // De-literalize escape sequences (model over-escaping "\n"/"\r"/"\t" inside its
+  // JSON output) before trimming — keeps a literal backslash-n out of every
+  // chat-applied field, especially short_description. Incident 2026-06-29.
+  if (v == null) return '';
+  return normalizeLiteralEscapes(typeof v === 'string' ? v : String(v)).trim();
 }
 function escapeRe(s) {
   return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');

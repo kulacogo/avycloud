@@ -17,8 +17,34 @@ function safeString(v) {
   return typeof v === 'string' ? v : v == null ? '' : String(v);
 }
 
+/**
+ * De-literalize escape sequences that should have been real whitespace.
+ *
+ * Upstream producers — notably LLMs that OVER-ESCAPE newlines inside a JSON
+ * function-call argument — emit the LITERAL two-character sequences `\n` / `\r`
+ * / `\t` (a backslash followed by the letter) where a real newline/tab was
+ * intended. These are invisible to normalizeSpaces (its /\s+/ does NOT match a
+ * literal backslash-n, which is bytes 0x5C 0x6E, not 0x0A) and to escapeHtml
+ * (which never touches a backslash), so without this step they leak straight
+ * into stored listing text and render as visible garbage like
+ * "\n\n \n Einzigartiges Set: ...". Incident 2026-06-29 (SKU-6717172932).
+ *
+ * Consistent with existing repo behavior (generative-identify.js unescapes a
+ * literal \n to a real newline). A backslash-n in legitimate German listing
+ * copy (e.g. a Windows path) is effectively nonexistent in this catalog, so the
+ * trade-off strongly favors de-literalizing.
+ */
+function normalizeLiteralEscapes(text = '') {
+  return safeString(text)
+    .replace(/\\r\\n/g, '\n')
+    .replace(/\\[rn]/g, '\n')
+    .replace(/\\t/g, ' ');
+}
+
 function normalizeSpaces(text = '') {
-  return decodeHtmlEntitiesDeep(safeString(text)).replace(/\s+/g, ' ').trim();
+  return normalizeLiteralEscapes(decodeHtmlEntitiesDeep(safeString(text)))
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 const PLACEHOLDER_RE =
@@ -227,7 +253,7 @@ function sanitizeDescriptionProse(
   // content, then strip every remaining tag. Inline markup (e.g. <strong>) is
   // removed for safety — parity with the existing sanitizer's strip-then-escape
   // approach — but paragraph breaks survive as blank lines.
-  const withBreaks = decodeHtmlEntitiesDeep(safeString(text))
+  const withBreaks = normalizeLiteralEscapes(decodeHtmlEntitiesDeep(safeString(text)))
     .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, ' ')
     .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, ' ')
     .replace(/<form\b[^>]*>[\s\S]*?<\/form>/gi, ' ')
@@ -292,6 +318,7 @@ function sanitizeHighlights(list = [], { minLen = 8, maxItems = 7 } = {}) {
 
 module.exports = {
   containsBannedListingText,
+  normalizeLiteralEscapes,
   sanitizeListingText,
   sanitizeDescriptionToHtml,
   sanitizeDescriptionProse,

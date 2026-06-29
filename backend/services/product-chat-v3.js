@@ -33,6 +33,7 @@
 const atomicTools = require('./atomic-tools');
 const { scoreField, aggregateProductConfidence } = require('../lib/confidence-scoring');
 const { crossReferenceProduct } = require('../lib/cross-reference');
+const { normalizeLiteralEscapes } = require('../lib/listing-sanitize');
 const {
   resolveChatModel,
   defaultThinkingConfig,
@@ -254,8 +255,11 @@ const PRICING_FIELDS = ['amount', 'currency', 'source_url', 'last_checked_iso'];
 
 function sanitizeString(value, max = 500) {
   if (value == null) return '';
-  if (typeof value === 'string') return value.trim().slice(0, max);
-  return String(value).trim().slice(0, max);
+  // De-literalize escape sequences (e.g. a model over-escaping "\n" inside its
+  // JSON function-call argument) before trimming — otherwise a literal
+  // backslash-n leaks into the stored datasheet. Incident 2026-06-29.
+  const s = typeof value === 'string' ? value : String(value);
+  return normalizeLiteralEscapes(s).trim().slice(0, max);
 }
 
 function sanitizeStringArray(value, { maxLen = 160, max = 20 } = {}) {
