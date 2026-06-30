@@ -2688,7 +2688,15 @@ async function saveProduct(product, options = {}) {
       },
     };
 
-    const sanitizedProduct = sanitizeFirestoreValue(productData);
+    // Universal save-boundary guard (Incident 2026-06-29): strip literal escape
+    // sequences (e.g. an LLM over-escaping "\n" into a backslash-n) from every
+    // description-bearing field before the write. RAW writers (identify-v4
+    // mobile_snippet, grounding pipeline, batch-optimize verbatim copy) bypass
+    // the per-call sanitizers; this is the single chokepoint every product write
+    // funnels through, so no writer can persist the corruption and already-dirty
+    // values self-heal on the next save.
+    const { deLiteralizeProductTextFields } = require('./listing-sanitize');
+    const sanitizedProduct = sanitizeFirestoreValue(deLiteralizeProductTextFields(productData));
     await docRef.set(sanitizedProduct);
     
     console.log(`Product saved to Firestore: ${product.id}`);

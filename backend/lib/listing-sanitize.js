@@ -316,9 +316,52 @@ function sanitizeHighlights(list = [], { minLen = 8, maxItems = 7 } = {}) {
   return out;
 }
 
+/**
+ * Universal save-boundary guard: de-literalize escape sequences in EVERY
+ * description-bearing text field of a product. Returns a shallow-cleaned copy
+ * (pure — never mutates the input).
+ *
+ * Why this exists in addition to the per-call sanitizers: several RAW write
+ * paths copy an LLM string verbatim into the product (identify-v4 mobile_snippet
+ * → short_description, the grounding pipeline, batch-optimize's verbatim copy).
+ * Running this once inside saveProduct() right before the Firestore write means
+ * NO writer — present or future — can persist a literal backslash-n, and any
+ * already-stored corruption self-heals the next time the product is saved.
+ * Incident 2026-06-29 (SKU-6717172932).
+ */
+function deLiteralizeProductTextFields(product) {
+  if (!product || typeof product !== 'object') return product;
+  const deLit = (v) => (typeof v === 'string' ? normalizeLiteralEscapes(v) : v);
+  const out = { ...product };
+
+  if (out.details && typeof out.details === 'object') {
+    out.details = { ...out.details };
+    out.details.short_description = deLit(out.details.short_description);
+    out.details.description = deLit(out.details.description);
+    if (Array.isArray(out.details.key_features)) {
+      out.details.key_features = out.details.key_features.map(deLit);
+    }
+  }
+
+  if (out.marketplace && typeof out.marketplace === 'object') {
+    out.marketplace = { ...out.marketplace };
+    for (const channel of ['ebay', 'kaufland']) {
+      const chan = out.marketplace[channel];
+      if (chan && typeof chan === 'object') {
+        out.marketplace[channel] = { ...chan };
+        out.marketplace[channel].description = deLit(chan.description);
+        out.marketplace[channel].mobile_snippet = deLit(chan.mobile_snippet);
+      }
+    }
+  }
+
+  return out;
+}
+
 module.exports = {
   containsBannedListingText,
   normalizeLiteralEscapes,
+  deLiteralizeProductTextFields,
   sanitizeListingText,
   sanitizeDescriptionToHtml,
   sanitizeDescriptionProse,
