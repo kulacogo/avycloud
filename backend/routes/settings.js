@@ -66,6 +66,8 @@ router.put('/settings/company', async (req, res) => {
       'strasse', 'plz', 'ort', 'land',
       'email', 'telefon', 'website',
       'iban', 'bic', 'bank', 'inhaber', 'logoUrl',
+      // GmbH-Pflichtangaben (§35a GmbHG)
+      'handelsregister', 'amtsgericht', 'geschaeftsfuehrer',
     ];
     const data = {};
     for (const key of allowedFields) {
