@@ -358,10 +358,36 @@ function deLiteralizeProductTextFields(product) {
   return out;
 }
 
+/**
+ * Universal save-boundary prose guard for the datasheet description.
+ *
+ * The lived standard is: Beschreibung = Fließtext (prose), Highlights =
+ * bullets (key_features). The identify/improve generators already emit prose
+ * via sanitizeDescriptionProse, but RAW writers — chiefly the chat pipelines,
+ * which store `details.short_description` VERBATIM — can persist a
+ * `<p>…</p><ul><li>…</li></ul><p>…</p>` description straight from the model.
+ *
+ * This flattens any list markup in `short_description` to prose so no writer
+ * can persist bullets in the description. It only rewrites when list markup is
+ * actually present, so a clean, already-prose description is left byte-identical
+ * (idempotent — no re-flow / data loss on unrelated saves). key_features
+ * (Highlights) are intentionally untouched — they stay bullets.
+ */
+function enforceDescriptionProse(product) {
+  if (!product || typeof product !== 'object') return product;
+  const desc = product.details && product.details.short_description;
+  if (typeof desc !== 'string' || !/<(ul|ol|li)\b/i.test(desc)) return product;
+  return {
+    ...product,
+    details: { ...product.details, short_description: sanitizeDescriptionProse(desc) },
+  };
+}
+
 module.exports = {
   containsBannedListingText,
   normalizeLiteralEscapes,
   deLiteralizeProductTextFields,
+  enforceDescriptionProse,
   sanitizeListingText,
   sanitizeDescriptionToHtml,
   sanitizeDescriptionProse,

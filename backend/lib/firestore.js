@@ -2695,8 +2695,16 @@ async function saveProduct(product, options = {}) {
     // the per-call sanitizers; this is the single chokepoint every product write
     // funnels through, so no writer can persist the corruption and already-dirty
     // values self-heal on the next save.
-    const { deLiteralizeProductTextFields } = require('./listing-sanitize');
-    const sanitizedProduct = sanitizeFirestoreValue(deLiteralizeProductTextFields(productData));
+    // enforceDescriptionProse: the same chokepoint also guarantees the datasheet
+    // invariant "Beschreibung = Fließtext, Highlights = Bullets". RAW writers
+    // (chiefly the chat pipelines, which store short_description verbatim) can
+    // persist a <p>+<ul>+<p> description straight from the model; this flattens any
+    // list markup in short_description to prose (only when list markup is present —
+    // clean descriptions stay byte-identical). key_features stay bullets.
+    const { deLiteralizeProductTextFields, enforceDescriptionProse } = require('./listing-sanitize');
+    const sanitizedProduct = sanitizeFirestoreValue(
+      enforceDescriptionProse(deLiteralizeProductTextFields(productData)),
+    );
     await docRef.set(sanitizedProduct);
     
     console.log(`Product saved to Firestore: ${product.id}`);
