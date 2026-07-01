@@ -9,6 +9,7 @@ import MessageBubble from './chat/MessageBubble';
 import { SparklesIcon } from './icons/Icons';
 import { useI18n } from '../i18n';
 import { normalizeBarcode, isValidGtin } from '../utils/gtin';
+import { mergeIncomingDatasheetChanges } from './chatChanges';
 
 interface AssistantChatProps {
   product: Product;
@@ -886,9 +887,14 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
         }
 
         const assistantAttachments = mapSuggestionsToAttachments(data.imageSuggestions, t('chat.ui.imageAlt'));
-        const linkedChanges = appendPendingChanges(data.datasheetChanges);
+        // The backend can surface the SAME edit twice: once as structured
+        // data.datasheetChanges and once as a ```json block inside the message
+        // text (which extractStructuredEdits parses). Merging both unconditionally
+        // produced two identical "Übernehmen" cards for one request. Merge with
+        // fallback + content dedup so each change appears exactly once.
         const structuredEdits = extractStructuredEdits(data.message);
-        const structuredLinked = appendPendingChanges(structuredEdits);
+        const incomingChanges = mergeIncomingDatasheetChanges(data.datasheetChanges, structuredEdits);
+        const linkedChanges = appendPendingChanges(incomingChanges);
         const cleanedMessage = cleanAssistantMessage(data.message);
         const assistantMessage: ChatMessage = {
           id: uid(),
@@ -896,7 +902,7 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
           text: cleanedMessage || t('chat.ui.newSuggestions'),
           timestamp: new Date().toISOString(),
           attachments: assistantAttachments,
-          datasheetChanges: [...linkedChanges, ...structuredLinked],
+          datasheetChanges: linkedChanges,
         };
         setMessages((prev) => [...prev, assistantMessage]);
 
