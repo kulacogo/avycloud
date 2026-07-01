@@ -5,6 +5,7 @@ const { runStage1Recognition } = require('../lib/identify-v3-stage1');
 const { runStage2Enrichment } = require('../lib/identify-v3-stage2');
 const { runStage3ContentGeneration } = require('../lib/identify-v3-stage3');
 const { runStage4Validation } = require('../lib/identify-v3-stage4');
+const { resolveIdentificationConfidence } = require('../lib/identify-v3-confidence');
 const { runStage4CrossReference } = require('../lib/identify-v3-evidence');
 const { resolveConsensus } = require('../lib/cross-reference');
 
@@ -147,6 +148,13 @@ async function identifyProductV3({ files = [], barcodes = '', locale = 'de-DE', 
   // hard-coded SOURCE_BASE_SCORES, kept for backward compat (downstream code
   // and UI read its `overall_score` / `field_confidence` keys).
   const stage4 = runStage4Validation(stage1, stage2, stage3, product);
+
+  // Honour the contract assembleProduct documented but never fulfilled
+  // ("confidence: 0.8 // Will be overwritten by Stage 4"). Without this the
+  // hardcoded 0.8 survived, so every V3 product — including total-failure
+  // "Produkt" fallbacks — rendered as "Sicher" in the capture-review badge.
+  product.identification = product.identification || {};
+  product.identification.confidence = resolveIdentificationConfidence(stage4, stage3);
 
   // Stage 4b: Cross-Reference + per-field-Confidence pass — additive, runs
   // alongside the custom Stage 4 scoring. Uses the calibrated `SOURCE_WEIGHTS`

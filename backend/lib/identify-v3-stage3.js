@@ -603,7 +603,9 @@ function isFlagEnabled(envValue, defaultValue) {
 
 function buildFallbackContent(identity, stage2) {
   const nameParts = [identity.brand, identity.model, identity.variant].filter(Boolean);
-  const name = nameParts.join(' ').trim() || 'Produkt';
+  // Failure fallback: label it clearly so a failed recognition is legible in the
+  // review step (paired with the now-honest low confidence), never a bland "Produkt".
+  const name = nameParts.join(' ').trim() || 'Unbekanntes Produkt';
   const description = buildFallbackDescription(name, identity, stage2);
   const features = buildFallbackKeyFeatures(identity, stage2);
   const baseSpecs = [
@@ -686,7 +688,7 @@ function formatWeight(grams) {
  * instead of the minimal fallback. Quality floor = V2.
  */
 function buildFallbackFromV2(v2Record, identity, stage2) {
-  const baseName = `${identity.brand || ''} ${identity.model || ''}`.trim() || 'Produkt';
+  const baseName = `${identity.brand || ''} ${identity.model || ''}`.trim() || 'Unbekanntes Produkt';
   const titleEbay = v2Record.title_ebay || baseName.slice(0, 80);
   const titleKaufland = v2Record.title_kaufland || v2Record.title_ebay || baseName.slice(0, 100);
   // Description fallback: use V2 record when present, otherwise build a richer
