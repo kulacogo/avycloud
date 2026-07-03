@@ -316,6 +316,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, setView }) => {
       collapsible: false,
       items: [
         { view: "dashboard", label: "Dashboard", icon: icons.dashboard },
+        ...(canSeeAdmin
+          ? [{ view: "shop-health" as View, label: "Shop-Gesundheit", icon: icons.store }]
+          : []),
       ],
     },
     // AUFTRÄGE

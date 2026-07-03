@@ -39,6 +39,7 @@ export type View =
   | "settings-team"
   | "settings-api"
   | "settings-billing"
+  | "shop-health"
   | "pricing"
   | "rules"
   | "duplicates"

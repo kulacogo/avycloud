@@ -30,6 +30,7 @@ import MobileOperationsView from './components/MobileOperationsView';
 import { CategoryManagement } from './components/CategoryManagement';
 import { AdminPanel } from './components/admin/AdminPanel';
 import { MitarbeiterRollen } from './components/admin/MitarbeiterRollen';
+import { AdminSystemHealth } from './components/admin/AdminSystemHealth';
 import OrdersView from './components/OrdersView';
 import MarketplaceListingsView from './components/MarketplaceListingsView';
 import InventoryView from './components/InventoryView';
@@ -108,6 +109,7 @@ const ALLOWED_VIEWS: View[] = [
   'settings-team',
   'settings-api',
   'settings-billing',
+  'shop-health',
   'duplicates',
   'audit-log',
   'pricing',
@@ -1074,6 +1076,16 @@ const AppInner: React.FC = () => {
           return <div className="text-center p-8 text-txt-muted">{t('error.forbidden')}</div>;
         }
         return <MitarbeiterRollen />;
+      case 'shop-health':
+        if (!hasPermission('admin', 'reports.read')) {
+          return <div className="text-center p-8 text-txt-muted">{t('error.forbidden')}</div>;
+        }
+        return (
+          <div className="space-y-5">
+            <h1 className="text-2xl font-bold text-txt-primary">Shop-Gesundheit</h1>
+            <AdminSystemHealth />
+          </div>
+        );
       case 'settings-api':
         return <ApiSettings />;
       case 'settings-billing':
