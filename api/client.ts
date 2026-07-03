@@ -2148,6 +2148,46 @@ export const adminGetPerformance = async (
   return (result?.data as { range: string; rows: PerformanceRow[] }) || { range, rows: [] };
 };
 
+// ── Interne Produkt-Notizen (Mitarbeiter-Kommentare, nie in Marktplatz-Angeboten) ──
+export type ProductNote = {
+  id: string;
+  productId: string;
+  userId?: string | null;
+  userEmail?: string | null;
+  userName?: string | null;
+  text: string;
+  createdAt: string;
+};
+
+export const listProductNotes = async (productId: string): Promise<ProductNote[]> => {
+  const res = await fetchApi(`${BACKEND_URL}/api/products/${encodeURIComponent(productId)}/notes`);
+  const result = await parseResponse(res);
+  if (!res.ok || result?.ok === false) {
+    throw new Error(result?.error?.message || "Notizen konnten nicht geladen werden");
+  }
+  return Array.isArray(result?.data) ? (result.data as ProductNote[]) : [];
+};
+
+export const addProductNote = async (productId: string, text: string): Promise<ProductNote> => {
+  const res = await fetchApi(`${BACKEND_URL}/api/products/${encodeURIComponent(productId)}/notes`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text }),
+  });
+  const result = await parseResponse(res);
+  if (!res.ok || result?.ok === false) {
+    throw new Error(result?.error?.message || "Notiz konnte nicht gespeichert werden");
+  }
+  return result?.data as ProductNote;
+};
+
+export const getProductNotesCounts = async (): Promise<Record<string, number>> => {
+  const res = await fetchApi(`${BACKEND_URL}/api/products/notes-counts`);
+  const result = await parseResponse(res);
+  if (!res.ok || result?.ok === false) return {};
+  return (result?.data as Record<string, number>) || {};
+};
+
 export const adminSetUserGroups = async (uid: string, groupIds: string[]) => {
   const res = await fetchApi(`${BACKEND_URL}/api/admin/users/${encodeURIComponent(uid)}/groups`, {
     method: 'PUT',

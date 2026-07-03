@@ -3,6 +3,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import DOMPurify from 'dompurify';
 import { Product, DatasheetChange, ProductImage, WarehouseBin, EbayCategoryOption, Readiness } from '../types';
 import { READINESS_LABELS, normalizeReadiness } from '../utils/readiness';
+import { ProductNotes } from './ProductNotes';
 import {
   saveProduct,
   openSkuLabelWindow,
@@ -1266,9 +1267,9 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
     { id: 'bilder', label: 'Bilder', count: localProduct.details?.images?.length || 0 },
     { id: 'attribute', label: 'Attribute' },
     { id: 'marktplaetze', label: 'Marktplätze' },
-    { id: 'qualitaet', label: 'Qualität', count: qualityIssues.length || undefined },
+    { id: 'notizen', label: 'Notizen' },
     { id: 'assistent', label: 'KI-Assistent' },
-  ], [localProduct.details?.images?.length, qualityIssues.length]);
+  ], [localProduct.details?.images?.length]);
 
   return (
     <section id="product-sheet" className="w-full relative">
@@ -1915,62 +1916,9 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
         </section>
       </TabPanel>
 
-      {/* ─── TAB: Qualität ──────────────────────────────────── */}
-      <TabPanel tabId="qualitaet" activeTab={activeTab} className="space-y-5">
-        <section className="p-5 bg-app-surface border border-app-border rounded-2xl">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <h3 className="text-sm font-semibold text-txt-muted uppercase tracking-wide">Quality Gate</h3>
-              {qualityHasErrors && <span className="text-[10px] px-2 py-0.5 rounded-full bg-danger-dim text-danger font-semibold">{qualityErrorCount} Fehler</span>}
-              {qualityHasWarns && <span className="text-[10px] px-2 py-0.5 rounded-full bg-warning-dim text-warning font-semibold">{qualityWarnCount} Warnungen</span>}
-              {!qualityHasErrors && !qualityHasWarns && qualityIssues.length === 0 && <span className="text-[10px] px-2 py-0.5 rounded-full bg-success-dim text-success font-semibold">OK</span>}
-            </div>
-            <button onClick={runQualityGate} disabled={qualityBusy} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-app-elevated border border-app-border text-txt-secondary hover:bg-app-border disabled:opacity-40">
-              {qualityBusy ? <Spinner className="w-3.5 h-3.5" /> : <RefreshIcon className="w-3.5 h-3.5" />}
-              Prüfen
-            </button>
-          </div>
-          {qualityMessage && <p className="text-xs text-txt-muted mb-3">{qualityMessage}</p>}
-          {qualityIssues.length > 0 ? (
-            <div className="space-y-2">
-              {qualityIssues.map((issue: any, i: number) => {
-                const severity = (issue.severity || issue.level || 'warning').toLowerCase();
-                const isError = severity === 'error' || severity === 'critical';
-                return (
-                  <details key={i} className={`rounded-lg border p-3 ${isError ? 'border-danger/30 bg-danger-dim' : 'border-warning/30 bg-warning-dim'}`}>
-                    <summary className="cursor-pointer flex items-center gap-2 text-sm">
-                      <span className={`text-xs font-semibold ${isError ? 'text-danger' : 'text-warning'}`}>{isError ? '✕' : '⚠'}</span>
-                      <span className="font-medium text-txt-primary">{issue.field || issue.type || 'Issue'}</span>
-                    </summary>
-                    <p className="mt-2 text-xs text-txt-secondary">{issue.message || issue.details || JSON.stringify(issue)}</p>
-                  </details>
-                );
-              })}
-            </div>
-          ) : (
-            <p className="text-sm text-txt-muted">Keine Quality-Issues gefunden.</p>
-          )}
-          {/* Web Evidence */}
-          {qualityGate?.evidence?.pages?.length > 0 && (
-            <div className="mt-4 pt-4 border-t border-app-border">
-              <h4 className="text-xs font-semibold text-txt-muted uppercase tracking-wide mb-2">Preisquellen</h4>
-              <div className="space-y-1.5">
-                {qualityGate.evidence.pages.map((p: any, i: number) => {
-                  const url = typeof p === 'string' ? p : p?.url || p?.href || '';
-                  if (!url) return null;
-                  let domain = '';
-                  try { domain = new URL(url).hostname.replace('www.', ''); } catch { domain = url; }
-                  return (
-                    <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-accent hover:underline truncate">
-                      <img src={`https://www.google.com/s2/favicons?domain=${domain}&sz=16`} alt="" className="w-4 h-4 flex-shrink-0" />
-                      <span className="truncate">{typeof p === 'string' ? domain : (p?.title || domain)}</span>
-                    </a>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-        </section>
+      {/* ─── TAB: Notizen (interne Mitarbeiter-Kommentare) ───── */}
+      <TabPanel tabId="notizen" activeTab={activeTab} className="space-y-5">
+        <ProductNotes productId={localProduct.id} />
       </TabPanel>
 
       {/* ─── TAB: KI-Assistent ──────────────────────────────── */}

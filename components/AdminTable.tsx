@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { Product, Readiness } from '../types';
 import { readinessLabel, readinessBadgeClasses } from '../utils/readiness';
-import { fetchProducts, getProductBulkJob, runProductBulkAction, deleteProductsBulk, openProductLabelBatchWindow, assignInventoryToProducts, uploadKTypeCsv, bulkVerifyEbayPublish, bulkPublishToEbay, fetchEbaySkuIndex, lightSyncEbayLiveListings, bulkUpdateEbayListings, fetchKauflandSkuIndex, syncKauflandListings, type ProductBulkActionName } from '../api/client';
+import { fetchProducts, getProductBulkJob, runProductBulkAction, deleteProductsBulk, openProductLabelBatchWindow, assignInventoryToProducts, uploadKTypeCsv, bulkVerifyEbayPublish, bulkPublishToEbay, fetchEbaySkuIndex, lightSyncEbayLiveListings, bulkUpdateEbayListings, fetchKauflandSkuIndex, syncKauflandListings, getProductNotesCounts, type ProductBulkActionName } from '../api/client';
 import { SearchIcon } from './icons/Icons';
 import {
   getStableNumericId,
@@ -31,7 +31,7 @@ const safeCurrency = (code?: string) => {
 
 const COLUMN_STORAGE_KEY = 'avystock:admin-table:visible-columns';
 const COLUMN_PRESETS: Record<ColumnPreset, ColumnId[]> = {
-  standard: ['thumbnail', 'nameBrand', 'sku', 'barcode', 'category', 'price', 'inventory', 'sold', 'pendingIntake', 'storage', 'ebay', 'kaufland', 'readiness', 'lastSaved'],
+  standard: ['thumbnail', 'nameBrand', 'sku', 'barcode', 'category', 'price', 'inventory', 'sold', 'notizen', 'pendingIntake', 'storage', 'ebay', 'kaufland', 'readiness', 'lastSaved'],
   warehouse: ['nameBrand', 'sku', 'barcode', 'inventory', 'sold', 'pendingIntake', 'storage', 'ebay', 'kaufland', 'readiness', 'saveStatus'],
   pricing: ['nameBrand', 'price', 'sku', 'barcode', 'pendingIntake', 'ebay', 'kaufland', 'readiness', 'lastSynced'],
   minimal: ['nameBrand', 'sku', 'barcode', 'inventory', 'sold', 'pendingIntake', 'ebay', 'kaufland', 'readiness'],
@@ -103,7 +103,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
   const [filterStatus, setFilterStatus] = useState<Readiness | 'all' | 'empty'>(() => {
     if (typeof window === 'undefined') return 'all';
     const stored = window.sessionStorage.getItem('avystock:admin-table:filterStatus') as Readiness | 'all' | 'empty';
-    return stored === 'ready' || stored === 'pending' || stored === 'empty' ? stored : 'all';
+    return stored === 'ready' || stored === 'pending' || stored === 'in_progress' ? stored : 'all';
   });
   const [filterCategorySelection, setFilterCategorySelection] = useState<string[]>(() => {
     if (typeof window === 'undefined') return [];
@@ -474,6 +474,15 @@ const AdminTable: React.FC<AdminTableProps> = ({
     return null;
   };
 
+  const [notesCounts, setNotesCounts] = useState<Record<string, number>>({});
+  useEffect(() => {
+    let cancelled = false;
+    getProductNotesCounts()
+      .then((c) => { if (!cancelled) setNotesCounts(c || {}); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
+
   const columnDefinitions: ColumnDefinition[] = useMemo(() => {
     const baseRenderers: ColumnDefinition[] = [
       {
@@ -662,6 +671,20 @@ const AdminTable: React.FC<AdminTableProps> = ({
                 </span>
               )}
             </div>
+          );
+        },
+      },
+      {
+        id: 'notizen',
+        label: 'Notizen',
+        defaultVisible: true,
+        render: ({ product }) => {
+          const n = notesCounts[(product as any).id] || 0;
+          if (n <= 0) return <span className="text-txt-muted text-sm">—</span>;
+          return (
+            <span className="inline-flex items-center justify-center rounded-full px-2 py-0.5 text-xs font-semibold bg-accent/15 text-accent" title={`${n} Notiz${n === 1 ? '' : 'en'}`}>
+              {n}
+            </span>
           );
         },
       },
@@ -929,13 +952,14 @@ const AdminTable: React.FC<AdminTableProps> = ({
     kauflandEanUrlMap,
     kauflandSkuProductIdMap,
     kauflandEanProductIdMap,
+    notesCounts,
   ]);
 
-  const statusFilters: Array<{ value: Readiness | 'all' | 'empty'; label: string }> = [
+  const statusFilters: Array<{ value: Readiness | 'all'; label: string }> = [
     { value: 'all', label: t('table.readiness.all') },
-    { value: 'ready', label: t('table.readiness.ready') },
     { value: 'pending', label: t('table.readiness.pending') },
-    { value: 'empty', label: t('table.readiness.empty') },
+    { value: 'in_progress', label: t('table.readiness.in_progress') },
+    { value: 'ready', label: t('table.readiness.ready') },
   ];
 
   const resolveInitialColumns = (): ColumnId[] => {
@@ -1052,7 +1076,6 @@ const AdminTable: React.FC<AdminTableProps> = ({
         identifiers.some((idVal) => idVal.includes(term));
       const matchesStatus = (() => {
         if (filterStatus === 'all') return true;
-        if (filterStatus === 'empty') return productReadiness === null;
         return productReadiness === filterStatus;
       })();
       const resolvedCategory = getProductDisplayCategory(p);

@@ -26,9 +26,12 @@ function aggregatePerformance({ auditLogs = [], orderEvents = [], warehouseEvent
     counts[uid][key] += 1;
   };
 
+  const ANGEREICHERT_ACTIONS = new Set([
+    'product.updated', 'product.created', 'product.bulk_update', 'product.bulk_import',
+  ]);
   for (const a of auditLogs) {
     if (a?.action === 'product.identified') bump(a.userId, 'erfasst');
-    else if (a?.action === 'product.updated' || a?.action === 'product.created') bump(a.userId, 'angereichert');
+    else if (ANGEREICHERT_ACTIONS.has(a?.action)) bump(a.userId, 'angereichert');
   }
   for (const e of orderEvents) {
     if (e?.toStatus === 'picked') bump(e?.actor?.uid, 'kommissioniert');
@@ -52,18 +55,31 @@ function computeCutoff(range, now = new Date()) {
   return new Date(now.getTime() - 7 * 24 * 3600 * 1000); // 'week' default
 }
 
-const FETCH_LIMIT = 20000;
+/** Milliseconds from an ISO string, a Firestore Timestamp, or a Date. */
+function toMillis(v) {
+  if (!v) return 0;
+  if (typeof v === 'string') return Date.parse(v) || 0;
+  if (typeof v.toMillis === 'function') return v.toMillis();
+  if (typeof v._seconds === 'number') return v._seconds * 1000;
+  if (v instanceof Date) return v.getTime();
+  return 0;
+}
 
 /**
- * Fetch the window + aggregate + join names. Each source is fetched defensively:
- * a failing query (e.g. missing index) degrades that one metric to 0 rather than
- * breaking the whole scoreboard.
+ * Fetch the window + aggregate + join names.
+ *
+ * IMPORTANT: these event collections (audit_log/order_events/warehouseEvents)
+ * have single-field index exemptions on their time fields, so a `where(time>=x)`
+ * range query fails. We therefore mirror the known-working pattern: fetch recent
+ * docs via the indexed path (queryAuditLog for audit; orderBy(time desc) for the
+ * others) and filter the window in-memory. Each source is defensive — a failure
+ * degrades that one metric to 0 rather than breaking the scoreboard.
  */
 async function getPerformance({ tenantId = 'default', range = 'week' } = {}) {
   const { firestore } = require('../lib/firestore');
   const { listUsers } = require('../lib/rbac');
-  const cutoff = computeCutoff(range);
-  const cutoffIso = cutoff.toISOString();
+  const { queryAuditLog } = require('./audit-log');
+  const cutoffMs = computeCutoff(range).getTime();
 
   const safe = async (fn) => {
     try {
@@ -74,20 +90,24 @@ async function getPerformance({ tenantId = 'default', range = 'week' } = {}) {
     }
   };
 
-  const auditLogs = await safe(async () => {
-    const snap = await firestore.collection('audit_log').where('timestamp', '>=', cutoffIso).limit(FETCH_LIMIT).get();
-    return snap.docs.map((d) => d.data()).filter((x) => !x.tenantId || x.tenantId === tenantId);
-  });
-  const orderEvents = await safe(async () => {
-    const snap = await firestore.collection('order_events').where('timestamp', '>=', cutoff).limit(FETCH_LIMIT).get();
+  // Audit sources (erfasst + angereichert) — via the indexed queryAuditLog.
+  const auditLogs = (await safe(() => queryAuditLog({ tenantId, limit: 500 })))
+    .filter((a) => toMillis(a.timestamp) >= cutoffMs);
+
+  // Order events (kommissioniert/verpackt) — single-field orderBy, window in-memory.
+  const orderEvents = (await safe(async () => {
+    const snap = await firestore.collection('order_events').orderBy('timestamp', 'desc').limit(3000).get();
     return snap.docs.map((d) => d.data());
-  });
-  const warehouseEvents = await safe(async () => {
-    const snap = await firestore.collection('warehouseEvents').where('createdAt', '>=', cutoff).limit(FETCH_LIMIT).get();
+  })).filter((e) => (!e.tenantId || e.tenantId === tenantId) && toMillis(e.timestamp) >= cutoffMs);
+
+  // Warehouse events (eingelagert) — single-field orderBy, window in-memory.
+  const warehouseEvents = (await safe(async () => {
+    const snap = await firestore.collection('warehouseEvents').orderBy('createdAt', 'desc').limit(4000).get();
     return snap.docs.map((d) => d.data());
-  });
+  })).filter((w) => toMillis(w.createdAt) >= cutoffMs);
 
   const counts = aggregatePerformance({ auditLogs, orderEvents, warehouseEvents });
+  console.log(`[performance] range=${range} audit=${auditLogs.length} orders=${orderEvents.length} warehouse=${warehouseEvents.length} people=${Object.keys(counts).length}`);
 
   // Join names from the user list (uid → Vorname Nachname / E-Mail).
   const users = await safe(() => listUsers({ limit: 1000 }));

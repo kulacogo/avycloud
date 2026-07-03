@@ -37,6 +37,18 @@ describe('aggregatePerformance', () => {
     expect(result.system).toBeUndefined();
   });
 
+  it('counts bulk product edits as angereichert too', () => {
+    const r = aggregatePerformance({
+      auditLogs: [
+        { action: 'product.bulk_update', userId: 'u1' },
+        { action: 'product.bulk_import', userId: 'u1' },
+      ],
+      orderEvents: [],
+      warehouseEvents: [],
+    });
+    expect(r.u1.angereichert).toBe(2);
+  });
+
   it('returns an empty object when there is nothing', () => {
     expect(aggregatePerformance({ auditLogs: [], orderEvents: [], warehouseEvents: [] })).toEqual({});
   });

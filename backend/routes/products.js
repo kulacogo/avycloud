@@ -645,6 +645,46 @@ async function runImproveJobInline(jobId, productId, editorInitials = 'KI') {
 // ── Routes ───────────────────────────────────────────────────────────
 // ══════════════════════════════════════════════════════════════════════
 
+// --- Interne Produkt-Notizen (Mitarbeiter-Kommentare) — NIE Teil von Marktplatz-Angeboten ---
+// notes-counts MUSS vor '/products/:id' stehen, sonst schluckt :id den Pfad.
+router.get('/products/notes-counts', requirePermission('products', 'read'), async (req, res) => {
+  try {
+    const tenantId = req.user?.tenantId || 'default';
+    const { getNotesCounts } = require('../services/product-notes');
+    const data = await getNotesCounts({ tenantId });
+    res.json({ ok: true, data });
+  } catch (err) {
+    console.error(`[GET /api/products/notes-counts] ${err.message}`, err);
+    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: err.message } });
+  }
+});
+
+router.get('/products/:id/notes', requirePermission('products', 'read'), async (req, res) => {
+  try {
+    const tenantId = req.user?.tenantId || 'default';
+    const { listNotes } = require('../services/product-notes');
+    const data = await listNotes({ productId: req.params.id, tenantId });
+    res.json({ ok: true, data });
+  } catch (err) {
+    console.error(`[GET /api/products/:id/notes] ${err.message}`, err);
+    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: err.message } });
+  }
+});
+
+router.post('/products/:id/notes', requirePermission('products', 'read'), async (req, res) => {
+  try {
+    const tenantId = req.user?.tenantId || 'default';
+    const user = { uid: req.user?.uid, email: req.user?.email, name: req.user?.name || req.user?.displayName };
+    const { addNote } = require('../services/product-notes');
+    const data = await addNote({ productId: req.params.id, tenantId, user, text: req.body?.text });
+    res.json({ ok: true, data });
+  } catch (err) {
+    const bad = /leer|erforderlich/.test(err.message);
+    console.error(`[POST /api/products/:id/notes] ${err.message}`, err);
+    res.status(bad ? 400 : 500).json({ ok: false, error: { code: bad ? 'VALIDATION' : 'INTERNAL', message: err.message } });
+  }
+});
+
 // --- Product-bins route delegated to warehouse domain ---
 router.get('/products/:id/bins', requirePermission('warehouse', 'read'), async (req, res) => {
   try {
