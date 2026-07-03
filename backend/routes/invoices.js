@@ -12,7 +12,7 @@ function getTenantId(req) {
  * GET /api/invoices
  * List invoices for the current tenant.
  */
-router.get('/invoices', async (req, res) => {
+router.get('/invoices', requirePermission('invoices', 'read'), async (req, res) => {
   try {
     const tenantId = getTenantId(req);
     let query = firestore.collection('invoices').where('tenantId', '==', tenantId);
@@ -33,7 +33,7 @@ router.get('/invoices', async (req, res) => {
  * POST /api/invoices
  * Create an invoice from an order.
  */
-router.post('/invoices', async (req, res) => {
+router.post('/invoices', requirePermission('invoices', 'write'), async (req, res) => {
   try {
     const tenantId = getTenantId(req);
     const { orderId, customer, invoiceNumber, amountNet, amountGross, dueDate } = req.body;
@@ -63,7 +63,7 @@ router.post('/invoices', async (req, res) => {
  * PATCH /api/invoices/:id
  * Update invoice status.
  */
-router.patch('/invoices/:id', requirePermission('orders', 'write'), async (req, res) => {
+router.patch('/invoices/:id', requirePermission('invoices', 'write'), async (req, res) => {
   try {
     const tenantId = getTenantId(req);
     const { status } = req.body;
@@ -96,7 +96,7 @@ router.patch('/invoices/:id', requirePermission('orders', 'write'), async (req, 
  * One-time (idempotent) import of all existing SevDesk invoices into Firestore.
  * Matches invoices to orders by gross amount (±€1 tolerance).
  */
-router.post('/invoices/import-sevdesk', requirePermission('orders', 'write'), async (req, res) => {
+router.post('/invoices/import-sevdesk', requirePermission('invoices', 'write'), async (req, res) => {
   try {
     const tenantId = req.user?.tenantId || 'default';
     const { importFromSevDesk } = require('../services/invoice-engine');
@@ -113,7 +113,7 @@ router.post('/invoices/import-sevdesk', requirePermission('orders', 'write'), as
  * Generate invoices for all shipped orders that don't have one yet.
  * Batches in groups of 5 to avoid hammering GCS/SevDesk.
  */
-router.post('/invoices/bulk-generate', requirePermission('orders', 'write'), async (req, res) => {
+router.post('/invoices/bulk-generate', requirePermission('invoices', 'write'), async (req, res) => {
   try {
     const tenantId = req.user?.tenantId || 'default';
     const { generateInvoice, exportToSevDesk } = require('../services/invoice-engine');
@@ -176,7 +176,7 @@ router.post('/invoices/bulk-generate', requirePermission('orders', 'write'), asy
 /**
  * GET /api/invoices/:invoiceId/download — Download invoice PDF from GCS
  */
-router.get('/invoices/:invoiceId/download', requirePermission('orders', 'read'), async (req, res) => {
+router.get('/invoices/:invoiceId/download', requirePermission('invoices', 'read'), async (req, res) => {
   try {
     const invoiceId = String(req.params.invoiceId);
     const snap = await firestore.collection('invoices').doc(invoiceId).get();

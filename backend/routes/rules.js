@@ -10,6 +10,7 @@
 const express = require('express');
 const router = express.Router();
 const { logAudit } = require('../services/audit-log');
+const { requirePermission } = require('../lib/rbac');
 const {
   evaluateConditions,
   applyActions,
@@ -43,7 +44,7 @@ function validateRule(body) {
 
 /* ─── 1. GET /api/v1/rules — List rules ─── */
 
-router.get('/', async (req, res) => {
+router.get('/', requirePermission('rules', 'read'), async (req, res) => {
   try {
     const tenantId = getTenantId(req);
     // Simple single-field query to avoid composite index requirement.
@@ -66,7 +67,7 @@ router.get('/', async (req, res) => {
 
 /* ─── 2. GET /api/v1/rules/:ruleId — Get single rule ─── */
 
-router.get('/jobs/:jobId', async (req, res) => {
+router.get('/jobs/:jobId', requirePermission('rules', 'read'), async (req, res) => {
   try {
     const snap = await getDb().collection(JOBS_COLLECTION).doc(req.params.jobId).get();
     if (!snap.exists) {
@@ -79,7 +80,7 @@ router.get('/jobs/:jobId', async (req, res) => {
   }
 });
 
-router.get('/:ruleId', async (req, res) => {
+router.get('/:ruleId', requirePermission('rules', 'read'), async (req, res) => {
   try {
     const snap = await getDb().collection(RULES_COLLECTION).doc(req.params.ruleId).get();
     if (!snap.exists) {
@@ -94,7 +95,7 @@ router.get('/:ruleId', async (req, res) => {
 
 /* ─── 3. POST /api/v1/rules — Create rule ─── */
 
-router.post('/', async (req, res) => {
+router.post('/', requirePermission('rules', 'write'), async (req, res) => {
   try {
     const errors = validateRule(req.body);
     if (errors.length > 0) {
@@ -128,7 +129,7 @@ router.post('/', async (req, res) => {
 
 /* ─── 4. PUT /api/v1/rules/:ruleId — Update rule ─── */
 
-router.put('/:ruleId', async (req, res) => {
+router.put('/:ruleId', requirePermission('rules', 'write'), async (req, res) => {
   try {
     const db = getDb();
     const ref = db.collection(RULES_COLLECTION).doc(req.params.ruleId);
@@ -157,7 +158,7 @@ router.put('/:ruleId', async (req, res) => {
 
 /* ─── 5. DELETE /api/v1/rules/:ruleId ─── */
 
-router.delete('/:ruleId', async (req, res) => {
+router.delete('/:ruleId', requirePermission('rules', 'write'), async (req, res) => {
   try {
     const ref = getDb().collection(RULES_COLLECTION).doc(req.params.ruleId);
     const snap = await ref.get();
@@ -175,7 +176,7 @@ router.delete('/:ruleId', async (req, res) => {
 
 /* ─── 6. PATCH /api/v1/rules/:ruleId/toggle ─── */
 
-router.patch('/:ruleId/toggle', async (req, res) => {
+router.patch('/:ruleId/toggle', requirePermission('rules', 'write'), async (req, res) => {
   try {
     const ref = getDb().collection(RULES_COLLECTION).doc(req.params.ruleId);
     const snap = await ref.get();
@@ -193,7 +194,7 @@ router.patch('/:ruleId/toggle', async (req, res) => {
 
 /* ─── 7. POST /api/v1/rules/:ruleId/execute ─── */
 
-router.post('/:ruleId/execute', async (req, res) => {
+router.post('/:ruleId/execute', requirePermission('rules', 'write'), async (req, res) => {
   try {
     const mode = req.body.mode || 'dry_run';
     const limit = req.body.limit || 1000;
@@ -217,7 +218,7 @@ router.post('/:ruleId/execute', async (req, res) => {
 
 /* ─── 9. GET /api/v1/rules/:ruleId/preview — Quick Preview ─── */
 
-router.get('/:ruleId/preview', async (req, res) => {
+router.get('/:ruleId/preview', requirePermission('rules', 'read'), async (req, res) => {
   try {
     const db = getDb();
     const ruleSnap = await db.collection(RULES_COLLECTION).doc(req.params.ruleId).get();

@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { firestore } = require('../lib/firestore');
 const { emitSyncEvent } = require('../services/sync-event-bus');
+const { requirePermission } = require('../lib/rbac');
 
 function getTenantId(req) {
   return req.user?.tenantId || 'default';
@@ -15,7 +16,7 @@ function getActor(req) {
  * GET /api/returns
  * List returns for the current tenant.
  */
-router.get('/returns', async (req, res) => {
+router.get('/returns', requirePermission('returns', 'read'), async (req, res) => {
   try {
     const tenantId = getTenantId(req);
     let query = firestore.collection('returns').where('tenantId', '==', tenantId);
@@ -36,7 +37,7 @@ router.get('/returns', async (req, res) => {
  * GET /api/returns/reasons
  * List available return reason categories.
  */
-router.get('/returns/reasons', (req, res) => {
+router.get('/returns/reasons', requirePermission('returns', 'read'), (req, res) => {
   const { RETURN_REASONS } = require('../services/returns-engine');
   const reasons = Object.entries(RETURN_REASONS).map(([key, val]) => ({
     key,
@@ -50,7 +51,7 @@ router.get('/returns/reasons', (req, res) => {
  * POST /api/returns
  * Create a new return manually.
  */
-router.post('/returns', async (req, res) => {
+router.post('/returns', requirePermission('returns', 'process'), async (req, res) => {
   try {
     const tenantId = getTenantId(req);
     const { orderId, customer, product, reason, refundAmount } = req.body;
@@ -84,7 +85,7 @@ router.post('/returns', async (req, res) => {
  * POST /api/returns/sync — Sync returns from all marketplaces.
  * MUST be before /:id routes to avoid Express matching "sync" as :id.
  */
-router.post('/returns/sync', async (req, res) => {
+router.post('/returns/sync', requirePermission('returns', 'process'), async (req, res) => {
   try {
     const { syncAllReturns } = require('../services/returns-engine');
     const result = await syncAllReturns({
@@ -103,7 +104,7 @@ router.post('/returns/sync', async (req, res) => {
  * Body: { returnIds: string[], action: 'refund' | 'close', note?: string }
  * Response: { ok: true, data: { total, success, results: [{returnId, ok, error?}] } }
  */
-router.post('/returns/bulk-action', async (req, res) => {
+router.post('/returns/bulk-action', requirePermission('returns', 'process'), async (req, res) => {
   try {
     const { returnIds, action, note } = req.body;
 
@@ -148,7 +149,7 @@ router.post('/returns/bulk-action', async (req, res) => {
  * PATCH /api/returns/:id
  * Update return fields (reason, notes, etc.)
  */
-router.patch('/returns/:id', async (req, res) => {
+router.patch('/returns/:id', requirePermission('returns', 'process'), async (req, res) => {
   try {
     const { status, refundAmount, reason, note } = req.body;
     const update = { updatedAt: new Date().toISOString() };
@@ -187,7 +188,7 @@ router.patch('/returns/:id', async (req, res) => {
  * POST /api/returns/:id/process — Inspect item and decide refund.
  * Body: { itemCondition: 'a_ware'|'b_ware'|'c_ware', refundType: 'full'|'partial'|'none', refundAmount?, note? }
  */
-router.post('/returns/:id/process', async (req, res) => {
+router.post('/returns/:id/process', requirePermission('returns', 'process'), async (req, res) => {
   try {
     const { itemCondition, refundType, refundAmount, note } = req.body;
     if (!itemCondition) return res.status(400).json({ ok: false, error: { code: 'VALIDATION', message: 'itemCondition required' } });
@@ -220,7 +221,7 @@ router.post('/returns/:id/process', async (req, res) => {
 /**
  * POST /api/returns/:id/refund — Issue refund via marketplace API.
  */
-router.post('/returns/:id/refund', async (req, res) => {
+router.post('/returns/:id/refund', requirePermission('returns', 'refund'), async (req, res) => {
   try {
     const { issueMarketplaceRefund } = require('../services/returns-engine');
     const result = await issueMarketplaceRefund({
@@ -249,7 +250,7 @@ router.post('/returns/:id/refund', async (req, res) => {
 /**
  * POST /api/returns/:id/close — Close a return (terminal state).
  */
-router.post('/returns/:id/close', async (req, res) => {
+router.post('/returns/:id/close', requirePermission('returns', 'process'), async (req, res) => {
   try {
     const { transitionReturn } = require('../services/returns-engine');
     const result = await transitionReturn({
@@ -275,7 +276,7 @@ router.post('/returns/:id/close', async (req, res) => {
 /**
  * GET /api/returns/:id/events — Get return event history.
  */
-router.get('/returns/:id/events', async (req, res) => {
+router.get('/returns/:id/events', requirePermission('returns', 'read'), async (req, res) => {
   try {
     const snap = await firestore.collection('return_events')
       .where('returnId', '==', req.params.id)

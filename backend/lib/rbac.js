@@ -6,7 +6,11 @@ const ROLES_COLLECTION = 'roles';
 const GROUPS_COLLECTION = 'groups';
 const AUDIT_COLLECTION = 'auditLogs';
 
-const ROLE_IDS = ['admin', 'manager', 'operation', 'catalog'];
+const ROLE_IDS = [
+  'admin', 'manager', 'operation', 'catalog',
+  // Job-based roles (2026-07-03 rework) — additive; a user may hold several.
+  'betrachter', 'lager-versand', 'produktpflege', 'einkauf-bestand', 'buchhaltung', 'leitung',
+];
 
 function normalizeId(value) {
   return String(value || '')
@@ -50,6 +54,86 @@ const defaultRoles = () => ({
       identify: { run: true },
       jobs: { read: true },
       ai: { chat: true, improve: true },
+    },
+  },
+
+  // ── Job-based roles (2026-07-03) — each grants exactly what its job needs so
+  //    nobody has to be admin to work. A user may hold several (permissions OR).
+
+  betrachter: {
+    name: 'Betrachter',
+    permissions: {
+      dashboard: { read: true },
+      products: { read: true },
+      orders: { read: true },
+    },
+  },
+  'lager-versand': {
+    name: 'Lager & Versand',
+    permissions: {
+      dashboard: { read: true },
+      products: { read: true },
+      inventories: { read: true },
+      warehouse: { read: true, write: true },
+      orders: { read: true, pick: true, pack: true, ship: true, edit: true },
+      invoices: { read: true },
+      returns: { read: true, process: true },
+      jobs: { read: true },
+    },
+  },
+  produktpflege: {
+    name: 'Produktpflege',
+    permissions: {
+      dashboard: { read: true },
+      products: { read: true, write: true },
+      categories: { read: true, write: true },
+      inventories: { read: true },
+      warehouse: { read: true },
+      identify: { run: true },
+      ai: { chat: true, improve: true },
+      jobs: { read: true },
+      integrations: { read: true },
+    },
+  },
+  'einkauf-bestand': {
+    name: 'Einkauf & Bestand',
+    permissions: {
+      dashboard: { read: true },
+      products: { read: true, write: true },
+      inventories: { read: true },
+      warehouse: { read: true, write: true },
+      identify: { run: true },
+      jobs: { read: true },
+    },
+  },
+  buchhaltung: {
+    name: 'Buchhaltung',
+    permissions: {
+      dashboard: { read: true },
+      products: { read: true },
+      orders: { read: true },
+      invoices: { read: true, write: true },
+      returns: { read: true, process: true, refund: true },
+      admin: { 'reports.read': true },
+    },
+  },
+  leitung: {
+    name: 'Leitung',
+    permissions: {
+      dashboard: { read: true },
+      products: { read: true, write: true, delete: true },
+      categories: { read: true, write: true },
+      inventories: { read: true },
+      warehouse: { read: true, write: true },
+      orders: { read: true, pick: true, pack: true, ship: true, edit: true },
+      identify: { run: true },
+      ai: { chat: true, improve: true },
+      jobs: { read: true },
+      invoices: { read: true, write: true },
+      returns: { read: true, process: true, refund: true },
+      integrations: { read: true, write: true },
+      settings: { 'company.read': true, 'company.write': true },
+      admin: { 'reports.read': true },
     },
   },
 });
@@ -403,6 +487,7 @@ function requirePermission(moduleName, action) {
 
 module.exports = {
   ensureDefaultRoles,
+  defaultRoles,
   getUserProfile,
   upsertUserProfile,
   listUsers,

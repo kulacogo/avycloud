@@ -42,7 +42,7 @@ async function safeDeleteTenantScoped({ collection, docId, tenantId }) {
  * GET /api/settings/company
  * Load company settings for the current tenant.
  */
-router.get('/settings/company', async (req, res) => {
+router.get('/settings/company', requirePermission('settings', 'company.read'), async (req, res) => {
   try {
     const tenantId = getTenantId(req);
     const doc = await firestore.collection('company_settings').doc(tenantId).get();
@@ -58,7 +58,7 @@ router.get('/settings/company', async (req, res) => {
  * PUT /api/settings/company
  * Save/update company settings for the current tenant.
  */
-router.put('/settings/company', async (req, res) => {
+router.put('/settings/company', requirePermission('settings', 'company.write'), async (req, res) => {
   try {
     const tenantId = getTenantId(req);
     const allowedFields = [
@@ -155,7 +155,7 @@ router.put('/settings/profile', async (req, res) => {
 
 const crypto = require('crypto');
 
-router.get('/settings/api-keys', async (req, res) => {
+router.get('/settings/api-keys', requirePermission('settings', 'read'), async (req, res) => {
   try {
     const tenantId = getTenantId(req);
     const snap = await firestore.collection('api_keys')
@@ -170,7 +170,7 @@ router.get('/settings/api-keys', async (req, res) => {
   }
 });
 
-router.post('/settings/api-keys', async (req, res) => {
+router.post('/settings/api-keys', requirePermission('settings', 'write'), async (req, res) => {
   try {
     const tenantId = getTenantId(req);
     const name = req.body.name || 'Unnamed Key';
@@ -211,7 +211,7 @@ router.delete('/settings/api-keys/:id', requirePermission('settings', 'delete'),
 
 // ─── WEBHOOKS ────────────────────────────────────────────────
 
-router.get('/settings/webhooks', async (req, res) => {
+router.get('/settings/webhooks', requirePermission('settings', 'read'), async (req, res) => {
   try {
     const tenantId = getTenantId(req);
     const snap = await firestore.collection('webhooks')
@@ -225,7 +225,7 @@ router.get('/settings/webhooks', async (req, res) => {
   }
 });
 
-router.post('/settings/webhooks', async (req, res) => {
+router.post('/settings/webhooks', requirePermission('settings', 'write'), async (req, res) => {
   try {
     const tenantId = getTenantId(req);
     const { url, events, active } = req.body;

@@ -284,7 +284,7 @@ function normalizeMarketplaceEan(value) {
 // eBay OAuth
 // =====================================================================
 
-router.get('/ebay/oauth/start', requirePermission('products', 'write'), async (req, res) => {
+router.get('/ebay/oauth/start', requirePermission('integrations', 'write'), async (req, res) => {
   try {
     const { createOAuthState, buildConsentUrl } = require('../lib/ebay-oauth');
     const locale = typeof req.query?.locale === 'string' ? req.query.locale : 'de-DE';
