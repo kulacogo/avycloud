@@ -8,6 +8,11 @@ const {
   setUserRoles,
   setUserGroups,
   setUserOverrides,
+  setUserProfileFields,
+  deleteUserProfile,
+  canDeleteUserAccount,
+  countAdmins,
+  getUserProfile,
   listRoles,
   listGroups,
   createGroup,
@@ -101,12 +106,57 @@ async function inviteUser({ actorUid, email, roles }) {
   return { uid: userRecord.uid, email: normalizedEmail, resetLink, verifyLink };
 }
 
+/** Set a user's display name (Vorname/Nachname/Benutzername) — admin action. */
+async function setUserProfile({ actorUid, targetUid, firstName, lastName, username }) {
+  if (!targetUid) {
+    const err = new Error('Kein Konto angegeben');
+    err.statusCode = 400;
+    throw err;
+  }
+  const patch = await setUserProfileFields({ actorUid, targetUid, firstName, lastName, username });
+  return { uid: String(targetUid), ...patch };
+}
+
+/**
+ * Delete a user account (Firebase Auth + Firestore profile). Refuses to delete
+ * yourself or the last admin.
+ */
+async function deleteUserAccount({ actorUid, targetUid }) {
+  const target = await getUserProfile(String(targetUid));
+  const targetIsAdmin = Array.isArray(target?.roles)
+    && target.roles.map((r) => String(r).toLowerCase()).includes('admin');
+  const adminCount = await countAdmins();
+
+  const check = canDeleteUserAccount({ actorUid, targetUid, targetIsAdmin, adminCount });
+  if (!check.ok) {
+    const messages = {
+      self: 'Du kannst dein eigenes Konto nicht löschen',
+      last_admin: 'Der letzte Administrator kann nicht gelöscht werden',
+      missing_target: 'Kein Konto angegeben',
+    };
+    const err = new Error(messages[check.reason] || 'Löschen nicht erlaubt');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  // Firebase Auth deletion (best-effort — the profile may exist without an auth user).
+  try {
+    await getAdminAuth().deleteUser(String(targetUid));
+  } catch (e) {
+    if (e?.code !== 'auth/user-not-found') throw e;
+  }
+  await deleteUserProfile(String(targetUid));
+  return { uid: String(targetUid), deleted: true };
+}
+
 module.exports = {
   inviteUser,
   listUsers,
   setUserRoles,
   setUserGroups,
   setUserOverrides,
+  setUserProfile,
+  deleteUserAccount,
   listRoles,
   updateRole,
   listGroups,

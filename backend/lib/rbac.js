@@ -331,6 +331,51 @@ async function setUserOverrides({ actorUid, targetUid, overrides }) {
   });
 }
 
+// ── Account management (2026-07-03): set display name + delete account ──
+
+/**
+ * Pure safety rule for account deletion. Never delete yourself (accidental
+ * lock-out) and never delete the last admin (system lock-out).
+ */
+function canDeleteUserAccount({ actorUid, targetUid, targetIsAdmin, adminCount }) {
+  if (!targetUid) return { ok: false, reason: 'missing_target' };
+  if (String(actorUid) === String(targetUid)) return { ok: false, reason: 'self' };
+  if (targetIsAdmin && (Number(adminCount) || 0) <= 1) return { ok: false, reason: 'last_admin' };
+  return { ok: true };
+}
+
+/** Count users that directly hold the admin role (for the last-admin guard). */
+async function countAdmins() {
+  const snap = await firestore.collection(USERS_COLLECTION).limit(1000).get();
+  return snap.docs.reduce((n, d) => {
+    const roles = Array.isArray(d.data()?.roles) ? d.data().roles.map((r) => String(r).toLowerCase()) : [];
+    return roles.includes('admin') ? n + 1 : n;
+  }, 0);
+}
+
+/** Set the admin-visible name fields on the users doc. */
+async function setUserProfileFields({ actorUid, targetUid, firstName, lastName, username }) {
+  const patch = {};
+  if (firstName !== undefined) patch.firstName = String(firstName || '').trim();
+  if (lastName !== undefined) patch.lastName = String(lastName || '').trim();
+  if (username !== undefined) patch.username = String(username || '').trim();
+  const dn = [patch.firstName, patch.lastName].filter(Boolean).join(' ').trim();
+  if (dn) patch.displayName = dn;
+  await upsertUserProfile(String(targetUid), patch);
+  await writeAuditLog({
+    actorUid: actorUid || null,
+    action: 'user.profile.update',
+    targetUid: String(targetUid),
+    diff: patch,
+  });
+  return patch;
+}
+
+/** Delete the Firestore profile doc (Firebase-Auth deletion happens in admin-api). */
+async function deleteUserProfile(targetUid) {
+  await firestore.collection(USERS_COLLECTION).doc(String(targetUid)).delete();
+}
+
 async function listRoles() {
   const snap = await firestore.collection(ROLES_COLLECTION).get();
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
@@ -498,6 +543,10 @@ module.exports = {
   setUserRoles,
   setUserGroups,
   setUserOverrides,
+  setUserProfileFields,
+  deleteUserProfile,
+  canDeleteUserAccount,
+  countAdmins,
   listRoles,
   updateRole,
   resolvePermissionsForUser,

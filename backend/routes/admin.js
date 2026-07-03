@@ -15,6 +15,8 @@ const {
   setUserRoles: setUserRolesAdmin,
   setUserGroups: setUserGroupsAdmin,
   setUserOverrides: setUserOverridesAdmin,
+  setUserProfile: setUserProfileAdmin,
+  deleteUserAccount: deleteUserAccountAdmin,
   listRoles: listRolesAdmin,
   updateRole: updateRoleAdmin,
   listGroups: listGroupsAdmin,
@@ -115,6 +117,33 @@ router.put('/users/:uid/overrides', requirePermission('admin', 'users.write'), a
     const code = error?.statusCode || 500;
     console.error('Admin set user overrides failed:', error);
     res.status(code).json({ ok: false, error: { code, message: error?.message || 'Failed to set overrides' } });
+  }
+});
+
+// Set a user's display name (Vorname/Nachname/Benutzername).
+router.put('/users/:uid/profile', requirePermission('admin', 'users.write'), async (req, res) => {
+  try {
+    const targetUid = req.params?.uid;
+    const { firstName, lastName, username } = req.body || {};
+    const data = await setUserProfileAdmin({ actorUid: req.user?.uid, targetUid, firstName, lastName, username });
+    res.json({ ok: true, data });
+  } catch (error) {
+    const code = error?.statusCode || 500;
+    console.error('Admin set user profile failed:', error);
+    res.status(code).json({ ok: false, error: { code, message: error?.message || 'Failed to set profile' } });
+  }
+});
+
+// Delete a user account (refuses self + last admin).
+router.delete('/users/:uid', requirePermission('admin', 'users.write'), async (req, res) => {
+  try {
+    const targetUid = req.params?.uid;
+    const data = await deleteUserAccountAdmin({ actorUid: req.user?.uid, targetUid });
+    res.json({ ok: true, data });
+  } catch (error) {
+    const code = error?.statusCode || 500;
+    console.error('Admin delete user failed:', error);
+    res.status(code).json({ ok: false, error: { code, message: error?.message || 'Failed to delete user' } });
   }
 });
 

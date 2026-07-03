@@ -1869,6 +1869,10 @@ export type AdminUserRecord = {
   email?: string | null;
   roles?: string[];
   disabled?: boolean;
+  firstName?: string;
+  lastName?: string;
+  username?: string;
+  displayName?: string;
   createdAt?: any;
   updatedAt?: any;
 };
@@ -2091,6 +2095,33 @@ export const adminSetUserRoles = async (uid: string, roles: string[]) => {
   const result = await parseResponse(res);
   if (!res.ok || result?.ok === false) {
     throw new Error(result?.error?.message || 'Failed to update user roles');
+  }
+  return true;
+};
+
+export const adminSetUserProfile = async (
+  uid: string,
+  profile: { firstName?: string; lastName?: string; username?: string }
+) => {
+  const res = await fetchApi(`${BACKEND_URL}/api/admin/users/${encodeURIComponent(uid)}/profile`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(profile),
+  });
+  const result = await parseResponse(res);
+  if (!res.ok || result?.ok === false) {
+    throw new Error(result?.error?.message || "Fehler beim Speichern des Namens");
+  }
+  return result?.data as AdminUserRecord;
+};
+
+export const adminDeleteUser = async (uid: string) => {
+  const res = await fetchApi(`${BACKEND_URL}/api/admin/users/${encodeURIComponent(uid)}`, {
+    method: "DELETE",
+  });
+  const result = await parseResponse(res);
+  if (!res.ok || result?.ok === false) {
+    throw new Error(result?.error?.message || "Fehler beim Löschen des Kontos");
   }
   return true;
 };

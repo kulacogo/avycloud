@@ -29,6 +29,7 @@ import OperationsView from './components/OperationsView';
 import MobileOperationsView from './components/MobileOperationsView';
 import { CategoryManagement } from './components/CategoryManagement';
 import { AdminPanel } from './components/admin/AdminPanel';
+import { MitarbeiterRollen } from './components/admin/MitarbeiterRollen';
 import OrdersView from './components/OrdersView';
 import MarketplaceListingsView from './components/MarketplaceListingsView';
 import InventoryView from './components/InventoryView';
@@ -1072,7 +1073,7 @@ const AppInner: React.FC = () => {
         )) {
           return <div className="text-center p-8 text-txt-muted">{t('error.forbidden')}</div>;
         }
-        return <AdminPanel />;
+        return <MitarbeiterRollen />;
       case 'settings-api':
         return <ApiSettings />;
       case 'settings-billing':

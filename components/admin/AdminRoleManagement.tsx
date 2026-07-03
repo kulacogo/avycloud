@@ -1,35 +1,8 @@
-import React from 'react';
-import { adminListRoles, adminUpdateRole, type AdminRoleRecord } from '../../api/client';
+import React from "react";
+import { adminListRoles, adminUpdateRole, type AdminRoleRecord } from "../../api/client";
+import { PERMISSION_MODULES, roleDisplayName, isLegacyRole } from "./roleCatalog";
 
 type PermissionMatrix = Record<string, Record<string, boolean>>;
-
-const MODULES: Array<{ id: string; label: string; actions: string[] }> = [
-  {
-    id: 'admin',
-    label: 'Admin',
-    actions: [
-      'users.read',
-      'users.write',
-      'roles.read',
-      'roles.write',
-      'groups.read',
-      'groups.write',
-      'llm.read',
-      'llm.write',
-      'reports.read',
-      'reports.generate',
-    ],
-  },
-  { id: 'dashboard', label: 'Dashboard', actions: ['read'] },
-  { id: 'products', label: 'Products', actions: ['read', 'write', 'delete'] },
-  { id: 'categories', label: 'Categories', actions: ['read', 'write'] },
-  { id: 'inventories', label: 'Inventories', actions: ['read'] },
-  { id: 'warehouse', label: 'Warehouse', actions: ['read', 'write'] },
-  { id: 'orders', label: 'Orders', actions: ['read', 'pick', 'pack'] },
-  { id: 'identify', label: 'Identify', actions: ['run'] },
-  { id: 'jobs', label: 'Jobs', actions: ['read'] },
-  { id: 'ai', label: 'AI', actions: ['chat', 'improve'] },
-];
 
 const getPermission = (matrix: PermissionMatrix | undefined, moduleId: string, action: string) =>
   Boolean(matrix?.[moduleId]?.[action]);
@@ -40,6 +13,15 @@ const setPermission = (matrix: PermissionMatrix, moduleId: string, action: strin
   mod[action] = allowed;
   next[moduleId] = mod;
   return next;
+};
+
+const isFullAccess = (matrix: PermissionMatrix | undefined) => matrix?.["*"]?.["*"] === true;
+
+// Preferred display order: the 7 job roles first, then anything else.
+const ROLE_ORDER = ["betrachter", "lager-versand", "produktpflege", "einkauf-bestand", "buchhaltung", "leitung", "admin"];
+const roleRank = (id: string) => {
+  const i = ROLE_ORDER.indexOf(id);
+  return i === -1 ? ROLE_ORDER.length + 1 : i;
 };
 
 export const AdminRoleManagement: React.FC = () => {
@@ -53,11 +35,10 @@ export const AdminRoleManagement: React.FC = () => {
     setLoading(true);
     try {
       const list = await adminListRoles();
-      // prefer stable order
-      const sorted = [...list].sort((a, b) => String(a.id).localeCompare(String(b.id)));
+      const sorted = [...list].sort((a, b) => roleRank(String(a.id)) - roleRank(String(b.id)));
       setRoles(sorted);
     } catch (e: any) {
-      setError(e?.message || 'Failed to load roles');
+      setError(e?.message || "Rollen konnten nicht geladen werden");
     } finally {
       setLoading(false);
     }
@@ -84,7 +65,7 @@ export const AdminRoleManagement: React.FC = () => {
       await adminUpdateRole(role.id, { permissions: role.permissions || {} });
       await load();
     } catch (e: any) {
-      setError(e?.message || 'Failed to save role');
+      setError(e?.message || "Speichern fehlgeschlagen");
     } finally {
       setSavingRoleId(null);
     }
@@ -94,8 +75,8 @@ export const AdminRoleManagement: React.FC = () => {
     <div className="space-y-5">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h2 className="text-xl font-bold">Admin: Roles & Rechte</h2>
-          <p className="text-sm text-txt-muted">Rechte pro Role definieren (Backend ist Source of Truth).</p>
+          <h2 className="text-xl font-bold">Rollen & Rechte</h2>
+          <p className="text-sm text-txt-muted">Was jede Rolle darf. Ein Mitarbeiter kann mehrere Rollen haben — die Rechte addieren sich.</p>
         </div>
         <button
           type="button"
@@ -103,14 +84,12 @@ export const AdminRoleManagement: React.FC = () => {
           disabled={loading}
           className="rounded-xl bg-app-elevated border border-white/[0.08] hover:bg-white/10 disabled:opacity-60 px-4 py-2 text-sm font-semibold text-txt-primary"
         >
-          Refresh
+          Aktualisieren
         </button>
       </div>
 
       {error && (
-        <div className="rounded-xl border border-danger/20 bg-danger-dim px-4 py-3 text-sm text-danger">
-          {error}
-        </div>
+        <div className="rounded-xl border border-danger/20 bg-danger-dim px-4 py-3 text-sm text-danger">{error}</div>
       )}
 
       {loading ? (
@@ -119,56 +98,54 @@ export const AdminRoleManagement: React.FC = () => {
         <div className="space-y-5">
           {roles.map((role) => {
             const matrix = (role.permissions || {}) as PermissionMatrix;
+            const fullAccess = isFullAccess(matrix);
             return (
               <div key={role.id} className="rounded-2xl border border-app-border bg-app-surface p-5 space-y-4">
                 <div className="flex items-center justify-between gap-4">
                   <div>
-                    <h3 className="font-semibold">{role.id}</h3>
-                    <p className="text-xs text-txt-muted">{role.name || ''}</p>
+                    <h3 className="font-semibold">
+                      {roleDisplayName(String(role.id))}
+                      {isLegacyRole(String(role.id)) ? (
+                        <span className="ml-2 text-xs text-warning">wird nicht mehr verwendet</span>
+                      ) : null}
+                    </h3>
+                    <p className="text-xs text-txt-muted">Rollen-Kennung: {role.id}</p>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => saveRole(role)}
-                    disabled={savingRoleId === role.id}
-                    className="rounded-xl bg-accent hover:bg-accent/80 disabled:opacity-60 px-4 py-2 text-sm font-semibold text-txt-primary"
-                  >
-                    {savingRoleId === role.id ? 'Speichere…' : 'Speichern'}
-                  </button>
+                  {!fullAccess && (
+                    <button
+                      type="button"
+                      onClick={() => saveRole(role)}
+                      disabled={savingRoleId === role.id}
+                      className="rounded-xl bg-accent hover:bg-accent/80 disabled:opacity-60 px-4 py-2 text-sm font-semibold text-txt-primary"
+                    >
+                      {savingRoleId === role.id ? "Speichere…" : "Speichern"}
+                    </button>
+                  )}
                 </div>
 
-                <div className="overflow-auto">
-                  <table className="min-w-full text-sm">
-                    <thead className="text-txt-muted">
-                      <tr>
-                        <th className="text-left py-2 pr-3">Modul</th>
-                        <th className="text-left py-2 pr-3">Rechte</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {MODULES.map((mod) => (
-                        <tr key={mod.id} className="border-t border-white/5">
-                          <td className="py-2 pr-3 text-txt-secondary whitespace-nowrap">{mod.label}</td>
-                          <td className="py-2 pr-3">
-                            <div className="flex flex-wrap gap-3">
-                              {mod.actions.map((action) => (
-                                <label key={action} className="flex items-center gap-2 text-xs text-txt-primary">
-                                  <input
-                                    type="checkbox"
-                                    checked={getPermission(matrix, mod.id, action)}
-                                    onChange={(e) => updateLocalPermission(role.id, mod.id, action, e.target.checked)}
-                                  />
-                                  <span>
-                                    {mod.id}.{action}
-                                  </span>
-                                </label>
-                              ))}
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                {fullAccess ? (
+                  <p className="text-sm text-txt-secondary">Vollzugriff auf alles. Diese Rolle lässt sich nicht einschränken.</p>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3">
+                    {PERMISSION_MODULES.map((mod) => (
+                      <div key={mod.id} className="border-t border-white/5 pt-2">
+                        <div className="text-sm font-medium text-txt-secondary mb-1.5">{mod.label}</div>
+                        <div className="flex flex-wrap gap-x-4 gap-y-1.5">
+                          {mod.actions.map((a) => (
+                            <label key={a.action} className="flex items-center gap-2 text-sm text-txt-primary cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={getPermission(matrix, mod.id, a.action)}
+                                onChange={(e) => updateLocalPermission(String(role.id), mod.id, a.action, e.target.checked)}
+                              />
+                              <span>{a.label}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             );
           })}
@@ -178,4 +155,3 @@ export const AdminRoleManagement: React.FC = () => {
     </div>
   );
 };
-
