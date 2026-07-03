@@ -2126,6 +2126,28 @@ export const adminDeleteUser = async (uid: string) => {
   return true;
 };
 
+export type PerformanceRow = {
+  uid: string;
+  name: string;
+  email?: string | null;
+  erfasst: number;
+  angereichert: number;
+  eingelagert: number;
+  kommissioniert: number;
+  verpackt: number;
+};
+
+export const adminGetPerformance = async (
+  range: "today" | "week" | "month" = "week"
+): Promise<{ range: string; rows: PerformanceRow[] }> => {
+  const res = await fetchApi(`${BACKEND_URL}/api/admin/performance?range=${encodeURIComponent(range)}`);
+  const result = await parseResponse(res);
+  if (!res.ok || result?.ok === false) {
+    throw new Error(result?.error?.message || "Leistung konnte nicht geladen werden");
+  }
+  return (result?.data as { range: string; rows: PerformanceRow[] }) || { range, rows: [] };
+};
+
 export const adminSetUserGroups = async (uid: string, groupIds: string[]) => {
   const res = await fetchApi(`${BACKEND_URL}/api/admin/users/${encodeURIComponent(uid)}/groups`, {
     method: 'PUT',

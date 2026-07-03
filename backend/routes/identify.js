@@ -964,6 +964,17 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
       syncIdentifiersFromBarcodes: true,
     });
 
+    // Track "erfasst" for the Mitarbeiter-Leistung scoreboard (best-effort, non-blocking).
+    try {
+      const { logAudit } = require('../services/audit-log');
+      await logAudit({
+        action: 'product.identified',
+        userId: req.user?.uid || null,
+        tenantId: req.tenantId || req.user?.tenantId || 'default',
+        details: { productId: product.id },
+      });
+    } catch (_) { /* Tracking darf den Erfassen-Flow nie brechen */ }
+
     const saved = await getProduct(product.id);
     return res.json({
       ok: true,

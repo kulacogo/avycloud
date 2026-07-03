@@ -421,6 +421,8 @@ router.post('/stock-in', requirePermission('warehouse', 'write'), async (req, re
         ...(meta && typeof meta === 'object' ? meta : {}),
         source: 'api',
         action: 'stock-in',
+        // who put it away — for the Mitarbeiter-Leistung scoreboard (eingelagert)
+        ...(req.user?.uid ? { actor: { uid: req.user.uid, email: req.user.email || null } } : {}),
         ...(paletteCode ? { paletteCode } : {}),
       },
     });

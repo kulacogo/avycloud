@@ -2,12 +2,14 @@ import React from "react";
 import { AdminUserManagement } from "./AdminUserManagement";
 import { AdminGroupManagement } from "./AdminGroupManagement";
 import { AdminRoleManagement } from "./AdminRoleManagement";
+import { MitarbeiterLeistung } from "./MitarbeiterLeistung";
 import { PageHeader } from "../ui/PageHeader";
 
-type Tab = "users" | "groups" | "roles";
+type Tab = "users" | "groups" | "roles" | "leistung";
 
 const TABS: Array<{ id: Tab; label: string }> = [
   { id: "users", label: "Mitarbeiter" },
+  { id: "leistung", label: "Leistung" },
   { id: "groups", label: "Gruppen" },
   { id: "roles", label: "Rollen & Rechte" },
 ];
@@ -36,6 +38,8 @@ export const MitarbeiterRollen: React.FC = () => {
 
       {tab === "users" ? (
         <AdminUserManagement />
+      ) : tab === "leistung" ? (
+        <MitarbeiterLeistung />
       ) : tab === "groups" ? (
         <AdminGroupManagement />
       ) : (

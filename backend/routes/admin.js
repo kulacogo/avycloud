@@ -147,6 +147,20 @@ router.delete('/users/:uid', requirePermission('admin', 'users.write'), async (r
   }
 });
 
+// Per-employee performance scoreboard (erfasst/angereichert/eingelagert/kommissioniert/verpackt).
+router.get('/performance', requirePermission('admin', 'users.read'), async (req, res) => {
+  try {
+    const tenantId = req.user?.tenantId || 'default';
+    const range = ['today', 'week', 'month'].includes(req.query?.range) ? req.query.range : 'week';
+    const { getPerformance } = require('../services/performance-scoreboard');
+    const data = await getPerformance({ tenantId, range });
+    res.json({ ok: true, data });
+  } catch (error) {
+    console.error('Admin performance failed:', error);
+    res.status(500).json({ ok: false, error: { code: 500, message: 'Failed to load performance' } });
+  }
+});
+
 // =====================================================================
 // Groups
 // =====================================================================
