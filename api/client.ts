@@ -2685,10 +2685,20 @@ export interface AdminSystemHealthMeta {
   aggregateLatencyMs: number;
 }
 
+export interface AdminSystemHealthSync {
+  status: "ok" | "warn" | "critical";
+  pendingCount: number;
+  oldestAgeMinutes: number | null;
+  oldestCreatedAt: string | null;
+  reasons: string[];
+  capped?: boolean;
+}
+
 export interface AdminSystemHealthResponse {
   tenantId: string;
   generatedAt: string;
   drain: AdminSystemHealthDrain | { error: string };
+  sync?: AdminSystemHealthSync | { error: string } | null;
   llm: AdminSystemHealthLlm | { error: string };
   externalApis: AdminSystemHealthExternalApis | { error: string };
   health: AdminSystemHealthMeta;
