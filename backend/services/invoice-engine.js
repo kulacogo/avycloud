@@ -53,6 +53,25 @@ const DEFAULT_COMPANY = {
  * @param {string} tenantId
  * @returns {Promise<object>}
  */
+/**
+ * Build the tax/legal footer column. §35a GmbHG: a GmbH must show Registergericht
+ * + HRB-Nummer + Geschäftsführer instead of "Inhaber". Pure + tested.
+ */
+function buildLegalFooterLines(co) {
+  const lines = [];
+  if (co.vatId) lines.push(`USt.-ID: ${co.vatId}`);
+  if (co.taxId) lines.push(`Steuer-Nr.: ${co.taxId}`);
+  const isGmbH = /gmbh/i.test(co.legalForm || '');
+  if (isGmbH) {
+    if (co.registerCourt) lines.push(`Registergericht: ${co.registerCourt}`);
+    if (co.registerNumber) lines.push(`HRB: ${co.registerNumber}`);
+    if (co.managingDirector) lines.push(`Geschäftsführer: ${co.managingDirector}`);
+  } else if (co.owner) {
+    lines.push(`Inhaber: ${co.owner}`);
+  }
+  return lines;
+}
+
 async function getCompanySettings(tenantId) {
   try {
     const snap = await getDb().collection('company_settings').doc(tenantId).get();
@@ -74,6 +93,10 @@ async function getCompanySettings(tenantId) {
         iban: d.iban || DEFAULT_COMPANY.iban,
         bic: d.bic || DEFAULT_COMPANY.bic,
         owner: d.inhaber || '',
+        // GmbH-Pflichtangaben (§35a GmbHG) — only rendered for legal forms that need them
+        registerCourt: d.amtsgericht || '',
+        registerNumber: d.handelsregister || '',
+        managingDirector: d.geschaeftsfuehrer || '',
         logoUrl: d.logoUrl || '',
       };
     }
@@ -626,11 +649,8 @@ function buildInvoicePdf(data) {
       if (co.website) col2.push(`Web: ${co.website}`);
       col2.forEach((line, i) => doc.text(line, MARGIN + colW, fy + i * 10, { width: colW }));
 
-      // Col 3: Tax info
-      const col3 = [];
-      if (co.vatId) col3.push(`USt.-ID: ${co.vatId}`);
-      if (co.taxId) col3.push(`Steuer-Nr.: ${co.taxId}`);
-      if (co.owner) col3.push(`Inhaber: ${co.owner}`);
+      // Col 3: Tax + legal info (Inhaber for Einzelunternehmen, Registergericht/HRB/Geschäftsführer for GmbH)
+      const col3 = buildLegalFooterLines(co);
       col3.forEach((line, i) => doc.text(line, MARGIN + colW * 2, fy + i * 10, { width: colW }));
 
       // Col 4: Bank
@@ -1194,4 +1214,5 @@ module.exports = {
   createCorrectionInvoice,
   getCompanySettings,
   buildInvoicePdf,
+  buildLegalFooterLines,
 };
