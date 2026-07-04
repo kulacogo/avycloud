@@ -10,98 +10,91 @@ import {
 import { AdminSystemHealth } from "./admin/AdminSystemHealth";
 
 /**
- * Shop-Gesundheit — die Klartext-Sicht für den Inhaber.
+ * Shop-Gesundheit — Operations-Dashboard (Status · KPIs · Service-Metriken).
  *
- * Führt mit EINEM Ampel-Urteil ("droht gerade ein Überverkauf?") und übersetzt
- * die Technik-Kennzahlen in verständliche Karten. Die vollständige technische
- * Ansicht (AdminSystemHealth) bleibt eingeklappt darunter erreichbar.
+ * Aufbau nach gängiger Ops-Dashboard-Praxis: kompakte Status-Zeile, eine Reihe
+ * Stat-Kacheln (Label · Wert · Kontext), darunter die Service-Tabelle mit echten
+ * Metriken. Status immer Punkt + Text (nie Farbe allein). Die vollständige
+ * Diagnose-Ansicht bleibt als "Erweiterte Diagnose" eingeklappt erreichbar.
  */
 
-type Verdict = "gruen" | "gelb" | "rot" | "unbekannt";
+type Verdict = "ok" | "warn" | "critical" | "unknown";
 
 const hasError = (x: unknown): x is { error: string } =>
   Boolean(x && typeof x === "object" && "error" in (x as Record<string, unknown>));
 
-/**
- * Gesamt-Urteil aus Sync-Ampel (bereits im Backend berechnet) + Drain-Alerts.
- * ROT  = Aktualisierungen hängen fest / mussten aufgegeben werden → Überverkauf möglich.
- * GELB = Rückstau oder Vorfälle in den letzten 24h, System arbeitet automatisch dran.
- * GRÜN = alles synchron.
- */
+/** Gesamt-Status aus Sync-SLO (Backend-berechnet) + Drain-Alerts. */
 export const computeVerdict = (
   sync?: AdminSystemHealthSync | { error: string } | null,
   drain?: AdminSystemHealthDrain | { error: string } | null
 ): Verdict => {
-  const syncOk = sync && !hasError(sync) ? (sync as AdminSystemHealthSync) : null;
-  const drainOk = drain && !hasError(drain) ? (drain as AdminSystemHealthDrain) : null;
-  if (!syncOk && !drainOk) return "unbekannt";
-
-  if (syncOk?.status === "critical") return "rot";
-  if (drainOk && (drainOk.abandoned_24h > 0 || drainOk.needs_manual_24h > 0)) return "rot";
-  if (syncOk?.status === "warn") return "gelb";
-  if (drainOk && drainOk.total_alerts_24h > 0) return "gelb";
-  return "gruen";
+  const s = sync && !hasError(sync) ? (sync as AdminSystemHealthSync) : null;
+  const d = drain && !hasError(drain) ? (drain as AdminSystemHealthDrain) : null;
+  if (!s && !d) return "unknown";
+  if (s?.status === "critical") return "critical";
+  if (d && (d.abandoned_24h > 0 || d.needs_manual_24h > 0)) return "critical";
+  if (s?.status === "warn") return "warn";
+  if (d && d.total_alerts_24h > 0) return "warn";
+  return "ok";
 };
 
-const VERDICT_UI: Record<Verdict, { bg: string; dot: string; title: string }> = {
-  gruen: {
-    bg: "border-success/30 bg-success-dim",
-    dot: "bg-success",
-    title: "Alles in Ordnung — Bestände sind mit den Marktplätzen synchron.",
-  },
-  gelb: {
-    bg: "border-warning/30 bg-warning-dim",
-    dot: "bg-warning",
-    title: "Ein paar Bestands-Aktualisierungen brauchen länger — das System versucht es automatisch weiter.",
-  },
-  rot: {
-    bg: "border-danger/30 bg-danger-dim",
-    dot: "bg-danger",
-    title: "Achtung: Bestands-Aktualisierungen hängen fest — Überverkauf möglich. Bitte prüfen.",
-  },
-  unbekannt: {
-    bg: "border-app-border bg-app-surface",
-    dot: "bg-txt-muted",
-    title: "Status konnte gerade nicht ermittelt werden.",
-  },
+const VERDICT: Record<Verdict, { dot: string; text: string; label: string }> = {
+  ok: { dot: "bg-success", text: "text-success", label: "Betriebsbereit" },
+  warn: { dot: "bg-warning", text: "text-warning", label: "Sync-Verzögerung" },
+  critical: { dot: "bg-danger", text: "text-danger", label: "Sync-Backlog kritisch" },
+  unknown: { dot: "bg-txt-muted", text: "text-txt-muted", label: "Status unbekannt" },
 };
 
-const Card: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
-  <div className="rounded-2xl border border-app-border bg-app-surface p-5">
-    <h3 className="text-sm font-semibold text-txt-muted uppercase tracking-wide mb-3">{title}</h3>
-    {children}
-  </div>
-);
+const nf = new Intl.NumberFormat("de-DE");
+const fmtCurrencyUsd = (v: number) =>
+  new Intl.NumberFormat("de-DE", { style: "currency", currency: "USD", maximumFractionDigits: 2 }).format(v);
+const fmtPct = (v: number | null) => (v == null ? "–" : `${(v * 100).toFixed(1).replace(".", ",")} %`);
+const fmtMs = (v: number | null | undefined) =>
+  v == null ? "–" : v >= 1000 ? `${(v / 1000).toFixed(1).replace(".", ",")} s` : `${Math.round(v)} ms`;
 
-// Sprechende Namen für die Recherche-Dienste (statt roher Service-Keys).
-const SERVICE_NAMES: Record<string, string> = {
-  serpapi: "Produkt-Suche (SerpAPI)",
-  brightdata: "Web-Recherche (BrightData)",
-  gemini: "KI (Gemini)",
-  ebay: "eBay",
-  kaufland: "Kaufland",
+/** Stat-Kachel: Label · Wert · Kontextzeile (optional mit Status-Färbung des Werts). */
+const Stat: React.FC<{ label: string; value: React.ReactNode; sub?: React.ReactNode; tone?: "default" | "success" | "warning" | "danger" }> = ({ label, value, sub, tone = "default" }) => {
+  const toneCls =
+    tone === "danger" ? "text-danger" : tone === "warning" ? "text-warning" : tone === "success" ? "text-success" : "text-txt-primary";
+  return (
+    <div className="rounded-xl border border-app-border bg-app-surface px-4 py-3.5">
+      <div className="text-xs text-txt-muted">{label}</div>
+      <div className={`mt-1 text-2xl font-semibold leading-none ${toneCls}`}>{value}</div>
+      {sub ? <div className="mt-1.5 text-xs text-txt-muted">{sub}</div> : null}
+    </div>
+  );
+};
+
+const SERVICE_LABELS: Record<string, string> = {
+  serpapi: "SerpAPI",
+  brightdata: "BrightData",
+  gemini: "Gemini",
+  ebay: "eBay API",
+  kaufland: "Kaufland API",
   sendcloud: "SendCloud",
   sevdesk: "SevDesk",
 };
 
-const serviceHealth = (rate: number | null): { label: string; cls: string } => {
-  if (rate == null) return { label: "keine Daten", cls: "text-txt-muted" };
-  if (rate >= 0.95) return { label: "funktioniert normal", cls: "text-success" };
-  if (rate >= 0.8) return { label: "eingeschränkt", cls: "text-warning" };
-  return { label: "gestört", cls: "text-danger" };
+const serviceStatus = (rate: number | null): { label: string; dot: string; text: string } => {
+  if (rate == null) return { label: "–", dot: "bg-txt-muted", text: "text-txt-muted" };
+  if (rate >= 0.95) return { label: "Operational", dot: "bg-success", text: "text-txt-secondary" };
+  if (rate >= 0.8) return { label: "Degraded", dot: "bg-warning", text: "text-warning" };
+  return { label: "Ausfall", dot: "bg-danger", text: "text-danger" };
 };
 
 export const ShopGesundheit: React.FC = () => {
   const [data, setData] = React.useState<AdminSystemHealthResponse | null>(null);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
-  const [showTech, setShowTech] = React.useState(false);
+  const [showDiag, setShowDiag] = React.useState(false);
+  const [updatedAt, setUpdatedAt] = React.useState<Date | null>(null);
 
   const load = React.useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       setData(await adminGetSystemHealth());
+      setUpdatedAt(new Date());
     } catch (e: any) {
       setError(e?.message || "Status konnte nicht geladen werden");
     } finally {
@@ -121,138 +114,161 @@ export const ShopGesundheit: React.FC = () => {
   const ext = data?.externalApis && !hasError(data.externalApis) ? (data.externalApis as AdminSystemHealthExternalApis) : null;
 
   const verdict = computeVerdict(data?.sync, data?.drain);
-  const v = VERDICT_UI[verdict];
+  const v = VERDICT[verdict];
+
+  const extTotals = React.useMemo(() => {
+    if (!ext?.byService) return null;
+    let total = 0;
+    let failure = 0;
+    for (const s of Object.values(ext.byService)) {
+      total += s.total || 0;
+      failure += s.failure || 0;
+    }
+    return { total, failure, errorRate: total > 0 ? failure / total : null };
+  }, [ext]);
+
+  const services = React.useMemo(
+    () => Object.entries(ext?.byService || {}).sort((a, b) => (b[1].total || 0) - (a[1].total || 0)),
+    [ext]
+  );
 
   return (
-    <div className="space-y-5">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
+    <div className="space-y-4">
+      {/* Kopfzeile: Titel · Status · Stand */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
           <h1 className="text-2xl font-bold text-txt-primary">Shop-Gesundheit</h1>
-          <p className="text-sm text-txt-muted">Läuft alles? Ein Blick genügt — Details nur, wenn etwas auffällt.</p>
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-app-border bg-app-surface px-2.5 py-1 text-xs font-medium">
+            <span className={`w-2 h-2 rounded-full ${v.dot}`} aria-hidden />
+            <span className={v.text}>{v.label}</span>
+          </span>
         </div>
-        <button
-          type="button"
-          onClick={load}
-          disabled={loading}
-          className="rounded-xl bg-app-elevated border border-white/[0.08] hover:bg-white/10 disabled:opacity-60 px-4 py-2 text-sm font-semibold text-txt-primary"
-        >
-          {loading ? "Lade…" : "Aktualisieren"}
-        </button>
+        <div className="flex items-center gap-3 text-xs text-txt-muted">
+          {updatedAt && <span>Stand {updatedAt.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}</span>}
+          <button
+            type="button"
+            onClick={load}
+            disabled={loading}
+            className="rounded-lg bg-app-elevated border border-white/[0.08] hover:bg-white/10 disabled:opacity-60 px-3 py-1.5 text-xs font-semibold text-txt-primary"
+          >
+            {loading ? "Lädt…" : "Aktualisieren"}
+          </button>
+        </div>
       </div>
 
       {error && (
         <div className="rounded-xl border border-danger/20 bg-danger-dim px-4 py-3 text-sm text-danger">{error}</div>
       )}
 
-      {/* ─── Die Ampel ─── */}
-      <div className={`rounded-2xl border p-5 flex items-center gap-4 ${v.bg}`}>
-        <span className={`shrink-0 w-4 h-4 rounded-full ${v.dot}`} aria-hidden />
-        <div className="min-w-0">
-          <p className="font-semibold text-txt-primary">{v.title}</p>
-          {verdict === "rot" && sync && sync.pendingCount > 0 && (
-            <p className="text-sm text-txt-secondary mt-0.5">
-              {sync.pendingCount} Aktualisierung{sync.pendingCount === 1 ? "" : "en"} offen
-              {sync.oldestAgeMinutes != null ? `, die älteste seit ${Math.round(sync.oldestAgeMinutes)} Minuten` : ""}.
-            </p>
+      {/* Alert-Banner nur bei Problemen */}
+      {verdict === "critical" && (
+        <div className="rounded-xl border border-danger/30 bg-danger-dim px-4 py-3 text-sm">
+          <span className="font-semibold text-danger">Überverkauf-Risiko:</span>{" "}
+          <span className="text-txt-primary">
+            {sync && sync.pendingCount > 0
+              ? `${nf.format(sync.pendingCount)} Bestands-Syncs im Backlog${sync.oldestAgeMinutes != null ? ` · ältester ${Math.round(sync.oldestAgeMinutes)} min` : ""}.`
+              : "Fehlgeschlagene Bestands-Syncs erfordern manuelle Prüfung."}
+            {drain && drain.needs_manual_24h > 0 ? ` ${nf.format(drain.needs_manual_24h)} Vorgänge benötigen manuelle Aktion.` : ""}
+          </span>
+        </div>
+      )}
+
+      {/* KPI-Reihe */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <Stat
+          label="Sync-Backlog"
+          value={sync ? nf.format(sync.pendingCount) : "–"}
+          tone={sync ? (sync.status === "critical" ? "danger" : sync.status === "warn" ? "warning" : "success") : "default"}
+          sub={
+            sync && sync.pendingCount > 0 && sync.oldestAgeMinutes != null
+              ? `Ältester ${Math.round(sync.oldestAgeMinutes)} min`
+              : "Ausstehende Bestands-Syncs"
+          }
+        />
+        <Stat
+          label="Sync-Fehler · 7 T"
+          value={drain ? nf.format(drain.abandoned_7d + drain.needs_manual_7d) : "–"}
+          tone={drain && (drain.abandoned_24h > 0 || drain.needs_manual_24h > 0) ? "danger" : drain && drain.abandoned_7d + drain.needs_manual_7d > 0 ? "warning" : "success"}
+          sub={drain ? `Heute ${nf.format(drain.abandoned_24h + drain.needs_manual_24h)} · davon manuell ${nf.format(drain.needs_manual_24h)}` : "Abgebrochen + manuell"}
+        />
+        <Stat
+          label="KI-Kosten · 24 h"
+          value={llm ? fmtCurrencyUsd(llm.totalCostUsd_24h) : "–"}
+          sub={llm ? `${nf.format(llm.calls_24h)} Calls · Ø ${fmtMs(llm.avgLatencyMs)}` : "Keine Telemetrie"}
+        />
+        <Stat
+          label="API-Calls · 24 h"
+          value={extTotals ? nf.format(extTotals.total) : "–"}
+          sub={extTotals ? `Fehlerrate ${fmtPct(extTotals.errorRate)}` : "Externe Dienste"}
+        />
+      </div>
+
+      {/* Service-Tabelle */}
+      <div className="rounded-xl border border-app-border bg-app-surface overflow-hidden">
+        <div className="px-4 py-3 border-b border-app-border flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-txt-primary">Externe Dienste · 24 h</h2>
+          {drain?.latest?.createdAt && (
+            <span className="text-xs text-txt-muted">
+              Letzter Sync-Vorfall: {new Date(drain.latest.createdAt).toLocaleString("de-DE", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
+              {drain.latest.terminalStatus ? ` (${drain.latest.terminalStatus})` : ""}
+            </span>
           )}
         </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* ─── Überverkauf-Wächter ─── */}
-        <Card title="Überverkauf-Wächter">
-          {!drain && !sync ? (
-            <p className="text-sm text-txt-muted">Gerade keine Daten.</p>
-          ) : (
-            <div className="space-y-2 text-sm">
-              <p className="text-txt-secondary">
-                Wenn ein Verkauf den Bestand ändert, meldet avycloud das sofort an eBay & Kaufland.
-                Hier siehst du, ob dabei etwas hängen bleibt.
-              </p>
-              <ul className="space-y-1.5 text-txt-primary">
-                <li className="flex justify-between gap-3">
-                  <span>Gerade in Warteschlange</span>
-                  <strong className={sync && sync.pendingCount > 0 ? "text-warning" : "text-success"}>
-                    {sync ? sync.pendingCount : "–"}
-                  </strong>
-                </li>
-                <li className="flex justify-between gap-3">
-                  <span>Aufgegeben (letzte 7 Tage)</span>
-                  <strong className={drain && drain.abandoned_7d > 0 ? "text-danger" : "text-success"}>
-                    {drain ? drain.abandoned_7d : "–"}
-                  </strong>
-                </li>
-                <li className="flex justify-between gap-3">
-                  <span>Manuelles Eingreifen nötig (heute)</span>
-                  <strong className={drain && drain.needs_manual_24h > 0 ? "text-danger" : "text-success"}>
-                    {drain ? drain.needs_manual_24h : "–"}
-                  </strong>
-                </li>
-              </ul>
-              {drain && drain.abandoned_7d > 0 && (
-                <p className="text-xs text-warning">
-                  „Aufgegeben" heißt: Der Marktplatz hat die Bestands-Meldung mehrfach abgelehnt —
-                  dieser Artikel könnte dort mit falschem Bestand stehen.
-                </p>
-              )}
-            </div>
-          )}
-        </Card>
-
-        {/* ─── KI-Nutzung ─── */}
-        <Card title="KI-Nutzung heute">
-          {!llm || llm.calls_24h === 0 ? (
-            <p className="text-sm text-txt-muted">Heute noch keine KI-Nutzung erfasst.</p>
-          ) : (
-            <div className="space-y-2 text-sm">
-              <p className="text-2xl font-bold text-txt-primary tabular-nums">
-                {llm.totalCostUsd_24h.toFixed(2).replace(".", ",")} $
-                <span className="ml-2 text-sm font-normal text-txt-muted">({llm.calls_24h} Anfragen, 24 Std)</span>
-              </p>
-              <p className="text-txt-secondary">
-                {llm.totalCostUsd_24h < 5
-                  ? "Im normalen Rahmen."
-                  : llm.totalCostUsd_24h < 15
-                    ? "Erhöht — z. B. durch viele Erfassungen. Kein Handlungsbedarf."
-                    : "Ungewöhnlich hoch — bei anhaltend hohen Werten melden."}
-                {" "}Abgerechnet wird in US-Dollar.
-              </p>
-            </div>
-          )}
-        </Card>
-      </div>
-
-      {/* ─── Recherche-Dienste ─── */}
-      <Card title="Angeschlossene Dienste (letzte 24 Std)">
-        {!ext || !ext.byService || Object.keys(ext.byService).length === 0 ? (
-          <p className="text-sm text-txt-muted">Gerade keine Daten.</p>
+        {services.length === 0 ? (
+          <div className="px-4 py-6 text-sm text-txt-muted">Keine API-Aktivität im Zeitfenster.</div>
         ) : (
-          <ul className="space-y-1.5 text-sm">
-            {Object.entries(ext.byService).map(([name, s]) => {
-              const h = serviceHealth(s.successRate);
-              return (
-                <li key={name} className="flex items-center justify-between gap-3">
-                  <span className="text-txt-primary">{SERVICE_NAMES[name] || name}</span>
-                  <span className={`font-medium ${h.cls}`}>{h.label}</span>
-                </li>
-              );
-            })}
-          </ul>
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-xs text-txt-muted border-b border-app-border">
+                <th className="text-left font-medium px-4 py-2">Dienst</th>
+                <th className="text-right font-medium px-4 py-2">Calls</th>
+                <th className="text-right font-medium px-4 py-2">Erfolgsrate</th>
+                <th className="text-right font-medium px-4 py-2">Ø Latenz</th>
+                <th className="text-left font-medium px-4 py-2">Status</th>
+                <th className="text-left font-medium px-4 py-2 hidden md:table-cell">Häufigster Fehler</th>
+              </tr>
+            </thead>
+            <tbody className="[font-variant-numeric:tabular-nums]">
+              {services.map(([name, s]) => {
+                const st = serviceStatus(s.successRate);
+                const topError = s.topErrors?.[0];
+                return (
+                  <tr key={name} className="border-b border-white/5 last:border-0">
+                    <td className="px-4 py-2.5 text-txt-primary font-medium">{SERVICE_LABELS[name] || name}</td>
+                    <td className="px-4 py-2.5 text-right text-txt-secondary">{nf.format(s.total)}</td>
+                    <td className={`px-4 py-2.5 text-right ${s.successRate != null && s.successRate < 0.95 ? "text-warning" : "text-txt-secondary"}`}>
+                      {fmtPct(s.successRate)}
+                    </td>
+                    <td className="px-4 py-2.5 text-right text-txt-secondary">{fmtMs(s.avgLatencyMs)}</td>
+                    <td className="px-4 py-2.5">
+                      <span className="inline-flex items-center gap-1.5">
+                        <span className={`w-2 h-2 rounded-full ${st.dot}`} aria-hidden />
+                        <span className={`text-xs ${st.text}`}>{st.label}</span>
+                      </span>
+                    </td>
+                    <td className="px-4 py-2.5 hidden md:table-cell text-xs text-txt-muted">
+                      {topError ? `${topError.code} (${nf.format(topError.count)}×)` : "–"}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         )}
-      </Card>
+      </div>
 
-      {/* ─── Technische Details (für Admins/Technik) ─── */}
-      <div className="rounded-2xl border border-app-border bg-app-surface">
+      {/* Erweiterte Diagnose */}
+      <div className="rounded-xl border border-app-border bg-app-surface">
         <button
           type="button"
-          onClick={() => setShowTech((s) => !s)}
-          className="w-full flex items-center justify-between px-5 py-3 text-sm font-semibold text-txt-secondary hover:text-txt-primary"
+          onClick={() => setShowDiag((s) => !s)}
+          className="w-full flex items-center justify-between px-4 py-2.5 text-sm font-medium text-txt-secondary hover:text-txt-primary"
         >
-          <span>Technische Details {showTech ? "ausblenden" : "anzeigen"}</span>
-          <span aria-hidden>{showTech ? "▾" : "▸"}</span>
+          <span>Erweiterte Diagnose</span>
+          <span aria-hidden className="text-xs">{showDiag ? "▾" : "▸"}</span>
         </button>
-        {showTech && (
-          <div className="px-5 pb-5">
+        {showDiag && (
+          <div className="px-4 pb-4 border-t border-app-border pt-4">
             <AdminSystemHealth />
           </div>
         )}
