@@ -635,6 +635,18 @@ export async function saveProfile(profile: ProfileData): Promise<ProfileData> {
   return data?.data || {};
 }
 
+/** Ehrlicher Zustand des eBay-Angebots-Abgleichs (aus ops/ebayLightSync). */
+export interface EbayListingSyncHealth {
+  healthy: boolean;
+  lastSuccessAtIso: string | null;
+  staleMinutes: number | null;
+  lastError: { message: string; atIso: string | null } | null;
+  failingSinceIso: string | null;
+  blockedReason: string | null;
+  pendingConfirmation: boolean;
+  staleLimitMinutes: number;
+}
+
 export interface IntegrationStatusEntry {
   id: string;
   name: string;
@@ -645,7 +657,7 @@ export interface IntegrationStatusEntry {
   connectedAt?: string | null;
   updatedAt?: string | null;
   lastRefreshedAt?: string | null;
-  details?: Record<string, any>;
+  details?: Record<string, any> & { listingSync?: EbayListingSyncHealth | null };
   settings?: Record<string, any> | null;
   connectedBy?: { uid: string; email: string } | null;
   dependsOn?: string | null;
@@ -2705,6 +2717,7 @@ export interface AdminSystemHealthResponse {
   generatedAt: string;
   drain: AdminSystemHealthDrain | { error: string };
   sync?: AdminSystemHealthSync | { error: string } | null;
+  listingSync?: { ebay?: EbayListingSyncHealth } | { error: string } | null;
   llm: AdminSystemHealthLlm | { error: string };
   externalApis: AdminSystemHealthExternalApis | { error: string };
   health: AdminSystemHealthMeta;

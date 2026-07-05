@@ -57,8 +57,8 @@ const SENDCLOUD_STATUS_MAP = {
 router.post('/webhooks/sendcloud', async (req, res) => {
   try {
     // Verify SendCloud webhook authenticity via secret key in query or basic auth
-    const { getSecretValue } = require('../lib/secret-values');
-    const webhookSecret = await getSecretValue('SENDCLOUD_SECRET_KEY').catch(() => null);
+    const { getIntegrationSecret } = require('../services/integration-store');
+    const webhookSecret = await getIntegrationSecret('SENDCLOUD_SECRET_KEY').catch(() => null);
 
     // HARDEN-4 (2026-05-20): fail-closed in Production wenn Secret fehlt.
     // Vorher: kein Secret → Block übersprungen → jede Anfrage akzeptiert.

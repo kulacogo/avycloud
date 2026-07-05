@@ -61,16 +61,20 @@ function parseScopes(raw) {
 }
 
 async function getEbayScopes() {
-  // Default: inventory read only. Extended scopes must be added via EBAY_SCOPES env var
-  // because they require the eBay developer app to have them pre-approved.
+  // Kann via EBAY_SCOPES env var überschrieben werden (Achtung: die Var ist in
+  // Production auf beiden Cloud-Run-Services GESETZT und gewinnt dann).
   //
-  // Recommended EBAY_SCOPES for full functionality:
-  //   sell.inventory.readonly    — product listings
+  // Scopes für volle Funktionalität:
+  //   sell.inventory             — SCHREIBRECHT für Listings/Bestand. Ohne dieses
+  //                                kann der Stock-Sync (Revise*/End*/Add* via
+  //                                Trading-API mit OAuth-Token) nicht schreiben.
+  //   sell.inventory.readonly    — product listings (lesen)
   //   sell.fulfillment           — orders, shipping, returns (Post-Order API)
   //   sell.finances              — payouts, transaction fees
-  //   sell.account.readonly      — business policies (fulfillment/return/payment) — requires re-authorization
-  //   sell.marketing.readonly    — promoted listings stats
+  //   sell.account.readonly      — business policies (fulfillment/return/payment)
+  //   sell.marketing.readonly    — promoted listings stats (nur via EBAY_SCOPES)
   const fallback = [
+    'https://api.ebay.com/oauth/api_scope/sell.inventory',
     'https://api.ebay.com/oauth/api_scope/sell.inventory.readonly',
     'https://api.ebay.com/oauth/api_scope/sell.fulfillment',
     'https://api.ebay.com/oauth/api_scope/sell.finances',
@@ -174,14 +178,20 @@ async function exchangeAuthorizationCodeForToken({ code }) {
   return json;
 }
 
-async function refreshUserAccessToken({ refreshToken }) {
+async function refreshUserAccessToken({ refreshToken, grantedScopes = null }) {
   const cfg = await getEbayOAuthConfig();
   const params = new URLSearchParams();
   params.set('grant_type', 'refresh_token');
   params.set('refresh_token', String(refreshToken || '').trim());
-  // Scope is optional per eBay docs, but when specified must be <= original scopes.
-  if (Array.isArray(cfg.scopes) && cfg.scopes.length) {
-    params.set('scope', cfg.scopes.join(' '));
+  // Scope ist beim Refresh optional, MUSS aber <= der ursprünglich GEWÄHRTEN
+  // Scopes sein. Deshalb nur die beim Verbinden gespeicherten Scopes senden —
+  // NIE cfg.scopes: sobald die konfigurierte Liste erweitert wird (z. B. um
+  // sell.inventory), würde der Refresh jeder bestehenden Verbindung mit
+  // invalid_scope scheitern. Ohne bekannte Scopes den Parameter weglassen
+  // (eBay liefert dann die ursprünglich gewährten).
+  const scopes = Array.isArray(grantedScopes) ? grantedScopes.filter(Boolean) : [];
+  if (scopes.length) {
+    params.set('scope', scopes.join(' '));
   }
 
   const res = await fetchWithTimeout(
@@ -351,7 +361,10 @@ async function getValidEbayAccessToken() {
     throw err;
   }
 
-  const refreshed = await refreshUserAccessToken({ refreshToken });
+  const refreshed = await refreshUserAccessToken({
+    refreshToken,
+    grantedScopes: Array.isArray(doc.scopes) ? doc.scopes : null,
+  });
   const expiresInSec = Number(refreshed?.expires_in || 0);
   const nextAccessExpiresAtMs = expiresInSec > 0 ? nowMs + expiresInSec * 1000 : null;
   const patch = {

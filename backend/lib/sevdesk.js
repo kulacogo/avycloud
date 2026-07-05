@@ -1,7 +1,6 @@
 
 'use strict';
 
-const { getSecretValue } = require('./secret-values');
 
 const SEVDESK_BASE_URL = 'https://my.sevdesk.de/api/v1';
 
@@ -9,12 +8,12 @@ const SEVDESK_BASE_URL = 'https://my.sevdesk.de/api/v1';
 const BALANCE_CACHE = { atMs: 0, data: null };
 const BALANCE_TTL_MS = 5 * 60 * 1000; // 5 min
 
-let _cachedApiKey = null;
-
 async function getSevDeskApiKey() {
-  if (_cachedApiKey) return _cachedApiKey;
-  _cachedApiKey = await getSecretValue('SEVDESK_API_TOKEN');
-  return _cachedApiKey;
+  // Self-Service-Zugangsdaten (IntegrationWizard) gewinnen; ENV/Secret Manager
+  // bleibt Fallback. Kein Für-immer-Cache mehr: der Resolver cached 60s,
+  // damit "Neu verbinden" ohne Neustart greift.
+  const { getIntegrationSecret } = require('../services/integration-store');
+  return getIntegrationSecret('SEVDESK_API_TOKEN');
 }
 
 /**

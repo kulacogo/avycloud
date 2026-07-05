@@ -1,6 +1,5 @@
 const crypto = require('crypto');
 const fetch = require('node-fetch');
-const { getSecretValue } = require('./secret-values');
 
 const DEFAULT_BASE_URL = 'https://sellerapi.kaufland.com/v2';
 const DEFAULT_USER_AGENT = process.env.KAUFLAND_USER_AGENT || 'Inhouse_development';
@@ -26,8 +25,6 @@ const VAT_INDICATORS = new Set([
   'super_reduced_rate',
   'zero_rate',
 ]);
-
-let cachedConfig = null;
 
 function safeString(value) {
   return value == null ? '' : String(value).trim();
@@ -182,26 +179,26 @@ function signRequest({ method, absoluteUrl, rawBody, timestamp, secretKey }) {
 }
 
 async function getConfig() {
-  if (cachedConfig) return cachedConfig;
+  // Self-Service-Zugangsdaten (IntegrationWizard) gewinnen; ENV/Secret Manager
+  // bleibt Fallback. Kein Für-immer-Cache mehr: der Resolver cached 60s,
+  // damit "Neu verbinden" ohne Neustart greift.
+  const { resolveProviderCredentials } = require('../services/integration-store');
+  const creds = await resolveProviderCredentials('kaufland');
+  const clientKey = safeString(creds?.clientKey);
+  const secretKey = safeString(creds?.secretKey);
 
-  const [clientKey, secretKey] = await Promise.all([
-    getSecretValue('KAUFLAND_CLIENT_KEY'),
-    getSecretValue('KAUFLAND_SECRET_KEY'),
-  ]);
-
-  if (!safeString(clientKey) || !safeString(secretKey)) {
+  if (!clientKey || !secretKey) {
     const err = new Error('Missing Kaufland API credentials (KAUFLAND_CLIENT_KEY / KAUFLAND_SECRET_KEY).');
     err.code = 'KAUFLAND_CONFIG_MISSING';
     throw err;
   }
 
-  cachedConfig = {
+  return {
     baseUrl: DEFAULT_BASE_URL,
-    clientKey: safeString(clientKey),
-    secretKey: safeString(secretKey),
+    clientKey,
+    secretKey,
     userAgent: DEFAULT_USER_AGENT,
   };
-  return cachedConfig;
 }
 
 async function kauflandRequest(method, requestPath, { query = null, body = null, timeoutMs = DEFAULT_TIMEOUT_MS } = {}) {

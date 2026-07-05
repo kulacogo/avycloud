@@ -110,6 +110,8 @@ export const ShopGesundheit: React.FC = () => {
 
   const sync = data?.sync && !hasError(data.sync) ? (data.sync as AdminSystemHealthSync) : null;
   const drain = data?.drain && !hasError(data.drain) ? (data.drain as AdminSystemHealthDrain) : null;
+  const ebayListingSync =
+    data?.listingSync && !hasError(data.listingSync) ? data.listingSync.ebay || null : null;
   const llm = data?.llm && !hasError(data.llm) ? (data.llm as AdminSystemHealthLlm) : null;
   const ext = data?.externalApis && !hasError(data.externalApis) ? (data.externalApis as AdminSystemHealthExternalApis) : null;
 
@@ -169,6 +171,21 @@ export const ShopGesundheit: React.FC = () => {
               ? `${nf.format(sync.pendingCount)} Bestands-Syncs im Backlog${sync.oldestAgeMinutes != null ? ` · ältester ${Math.round(sync.oldestAgeMinutes)} min` : ""}.`
               : "Fehlgeschlagene Bestands-Syncs erfordern manuelle Prüfung."}
             {drain && drain.needs_manual_24h > 0 ? ` ${nf.format(drain.needs_manual_24h)} Vorgänge benötigen manuelle Aktion.` : ""}
+          </span>
+        </div>
+      )}
+
+      {/* eBay-Angebots-Abgleich gestört (z. B. Token ungültig) */}
+      {ebayListingSync && ebayListingSync.healthy === false && (
+        <div className="rounded-xl border border-danger/30 bg-danger-dim px-4 py-3 text-sm">
+          <span className="font-semibold text-danger">eBay-Angebots-Abgleich gestört:</span>{" "}
+          <span className="text-txt-primary">
+            {ebayListingSync.lastSuccessAtIso
+              ? `Letzter erfolgreicher Abruf am ${new Date(ebayListingSync.lastSuccessAtIso).toLocaleString("de-DE", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}.`
+              : "Noch nie erfolgreich abgerufen."}{" "}
+            Angezeigte eBay-Angebote können veraltet sein.
+            {ebayListingSync.lastError?.message ? ` Fehler: ${ebayListingSync.lastError.message}` : ""}
+            {" "}Prüfe die eBay-Verbindung unter Integrationen.
           </span>
         </div>
       )}

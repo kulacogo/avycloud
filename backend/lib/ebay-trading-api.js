@@ -186,6 +186,24 @@ function buildRequestRoot(callName, innerXml, token, version) {
 </${callName}Request>`;
 }
 
+/**
+ * Ersetzt den <eBayAuthToken> in einem bereits fertig gebauten Trading-Request.
+ * Viele Caller bauen ihr XML selbst via buildRequestRoot(cfg.userToken) —
+ * ohne diesen Austausch würde der frische OAuth-Token aus dem
+ * "Mit eBay verbinden"-Flow für sie nie greifen (Incident 2026-06-30:
+ * statischer Token starb → kompletter Listing-Sync tot trotz OAuth-Pfad).
+ * Replacer als Funktion, damit $-Muster im Token nicht als
+ * Replacement-Pattern interpretiert werden.
+ */
+function replaceRequesterToken(fullXml, token) {
+  const t = safeString(token);
+  if (!t) return fullXml;
+  return String(fullXml).replace(
+    /(<eBayAuthToken>)[\s\S]*?(<\/eBayAuthToken>)/,
+    (match, open, close) => `${open}${escapeXml(t)}${close}`
+  );
+}
+
 async function fetchWithTimeout(url, init = {}, timeoutMs = DEFAULT_TIMEOUT_MS) {
   const controller = new AbortController();
   const t = setTimeout(() => controller.abort(), timeoutMs);
@@ -613,9 +631,11 @@ async function callTradingApi(callName, bodyXml, { timeoutMs = DEFAULT_TIMEOUT_M
   }
 
   // Auto-wrap inner XML fragments — callers that already built the full root (via buildRequestRoot)
-  // pass <?xml ... so we detect and skip double-wrapping.
+  // pass <?xml ... so we detect and skip double-wrapping. In dem Fall wird der
+  // eingebaute (statische) Token durch den effektiven Token ersetzt, damit der
+  // OAuth-Token aus dem Verbinden-Flow auch für Prebuilt-Caller gilt.
   const fullXml = bodyXml.trimStart().startsWith('<?xml')
-    ? bodyXml
+    ? replaceRequesterToken(bodyXml, effectiveToken)
     : buildRequestRoot(callName, bodyXml, effectiveToken, cfg.compatibilityLevel);
 
   for (let attempt = 0; attempt <= RATE_LIMIT_MAX_RETRIES; attempt++) {
@@ -1556,6 +1576,7 @@ async function fetchTradingStatus() {
 module.exports = {
   getEbayTradingConfig,
   buildRequestRoot,
+  replaceRequesterToken,
   fetchTradingStatus,
   callTradingApi,
   getMyeBaySellingActive,

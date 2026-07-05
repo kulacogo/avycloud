@@ -1541,6 +1541,75 @@ async function upsertLiveListingSummaries(listings = [], { runId = null, actor =
   return { total: cleaned.length, written, changed, unchanged };
 }
 
+/**
+ * Ehrlicher Zustand des eBay-Listing-Syncs aus dem Lock-Doc ops/ebayLightSync.
+ *
+ * Hintergrund (Incident 2026-06-30…07-05): Der Sync fiel 5 Tage lang alle
+ * 15 Minuten mit ungültigem Token aus, aber der Runner stempelte weiter
+ * frische lastSyncAt auf die Produkte — die UI sah "aktuell" aus. Diese
+ * Funktion klassifiziert den echten Zustand für Status-Endpoints und
+ * Shop-Gesundheit: Wann war der letzte ERFOLGREICHE Abruf, scheitert der
+ * Sync seither, steht eine Massen-Deaktivierung zur Bestätigung an?
+ */
+async function getEbayListingSyncHealth() {
+  const staleLimitMinutes = Math.max(
+    30,
+    parseInt(process.env.EBAY_LISTING_SYNC_STALE_MINUTES || '90', 10) || 90
+  );
+
+  let doc = null;
+  try {
+    const snap = await firestore.collection('ops').doc('ebayLightSync').get();
+    doc = snap?.exists ? snap.data() || {} : null;
+  } catch (err) {
+    return {
+      healthy: false,
+      lastSuccessAtIso: null,
+      staleMinutes: null,
+      lastError: { message: `Status nicht lesbar: ${err.message}`, atIso: null },
+      failingSinceIso: null,
+      blockedReason: null,
+      pendingConfirmation: false,
+      staleLimitMinutes,
+    };
+  }
+
+  const lastSuccessAtIso = safeString(doc?.lastCompletedAtIso) || null;
+  const lastSuccessMs = lastSuccessAtIso ? Date.parse(lastSuccessAtIso) : NaN;
+  const rawError = doc?.lastError && doc.lastError.message ? doc.lastError : null;
+  const lastError = rawError
+    ? { message: safeString(rawError.message), atIso: safeString(rawError.atIso) || null }
+    : null;
+  const errorMs = lastError?.atIso ? Date.parse(lastError.atIso) : NaN;
+
+  const staleMinutes = Number.isFinite(lastSuccessMs)
+    ? Math.max(0, Math.round((Date.now() - lastSuccessMs) / 60_000))
+    : null;
+
+  // Der Sync scheitert "seit", wenn der letzte Fehler NACH dem letzten Erfolg
+  // liegt (oder es nie einen Erfolg gab).
+  const failingSinceIso =
+    lastError && Number.isFinite(errorMs) && (!Number.isFinite(lastSuccessMs) || errorMs > lastSuccessMs)
+      ? lastError.atIso
+      : null;
+
+  const healthy = Boolean(
+    Number.isFinite(lastSuccessMs) && staleMinutes !== null && staleMinutes <= staleLimitMinutes && !failingSinceIso
+  );
+
+  const deactivation = doc?.lastSummary?.deactivation || null;
+  return {
+    healthy,
+    lastSuccessAtIso,
+    staleMinutes,
+    lastError,
+    failingSinceIso,
+    blockedReason: deactivation?.blocked ? safeString(deactivation.reason) || null : null,
+    pendingConfirmation: Boolean(doc?.pendingLargeDeactivation),
+    staleLimitMinutes,
+  };
+}
+
 async function syncLiveListingsLight(options = {}) {
   const runId = safeString(options?.runId) || `light-${Date.now()}`;
   const actor = options?.actor || null;
@@ -1630,7 +1699,12 @@ async function syncLiveListingsLight(options = {}) {
       pendingPatch = { pendingLargeDeactivation: null };
     }
 
-    await lockRef.set(
+    // update() statt set({merge:true}): merge deep-merges Maps, wodurch
+    // lastSummary Felder ÄLTERER Läufe behält (z. B. blocked/reason vom
+    // Vortag neben frischen Zählern) — das Lock-Doc log dadurch. update()
+    // ersetzt lastSummary als Ganzes. Das Doc existiert garantiert (der
+    // running:true-Set oben lief bereits).
+    await lockRef.update(
       cleanUndefined({
         running: false,
         lastCompletedAtIso: new Date().toISOString(),
@@ -1639,19 +1713,17 @@ async function syncLiveListingsLight(options = {}) {
         lastError: null,
         ...pendingPatch,
         updatedAt: FieldValue.serverTimestamp(),
-      }),
-      { merge: true }
+      })
     );
 
     return summary;
   } catch (error) {
-    await lockRef.set(
+    await lockRef.update(
       cleanUndefined({
         running: false,
         lastError: { message: error?.message || String(error), atIso: new Date().toISOString(), runId },
         updatedAt: FieldValue.serverTimestamp(),
-      }),
-      { merge: true }
+      })
     );
     throw error;
   }
@@ -1676,10 +1748,16 @@ async function deactivateListingsMissingFromActiveSet({ activeItemIds = [], runI
   // while eBay actually had 454 (28% real drift misread as "unsafe"),
   // a self-reinforcing deadlock the system could never recover from.
   //
-  // (1) An empty active set with existing active docs is almost certainly an
-  //     auth/API failure: a live seller always has active listings. Never
-  //     wipe everything to zero.
-  if (activeSetSize === 0 && docs.length > 0) {
+  // (1) An empty active set with existing active docs is SUSPECT (auth/API
+  //     failure) — but not impossible: a seller can genuinely end every
+  //     listing (2026-07-05: real eBay state was 0 online, mirror froze at 56
+  //     "active" forever). In confirm mode a COMPLETE ingest reporting an
+  //     empty set therefore falls through to the two-consecutive-ingests
+  //     confirmation below (ratio = 100% > catastrophic ceiling) instead of
+  //     being blocked unconditionally. Everything else stays hard-blocked:
+  //     incomplete ingests are untrustworthy, and without confirm mode there
+  //     is no safe second-opinion mechanism.
+  if (activeSetSize === 0 && docs.length > 0 && !(confirmMode && ingestComplete)) {
     console.warn(
       `[ebay-deactivation] BLOCKED (empty_active_set): keepSet=0 but ${docs.length} docs marked active — treating as broken fetch, not deactivating. runId=${runId}`
     );
@@ -5184,6 +5262,7 @@ module.exports = {
   applySync,
   createOperationalReports,
   syncLiveListingsLight,
+  getEbayListingSyncHealth,
   syncLiveListingsAndAudit,
   mapProductToEbayItem,
   validatePublishReadiness,

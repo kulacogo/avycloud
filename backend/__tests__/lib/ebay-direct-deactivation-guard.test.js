@@ -126,3 +126,72 @@ describe('deactivateListingsMissingFromActiveSet — smart safety guard', () => 
     expect(committed.length).toBe(0);
   });
 });
+
+describe('deactivateListingsMissingFromActiveSet — genuine zero-listings (confirm mode)', () => {
+  // PRODUCTION GAP (2026-07-05): the seller genuinely had 0 listings online,
+  // but the unconditional empty_active_set block froze the mirror at 56
+  // "active" docs forever. In confirm mode, a COMPLETE ingest reporting an
+  // empty active set must go through the same two-consecutive-ingests
+  // confirmation as any other large drop.
+
+  it('first complete empty ingest → pending confirmation, nothing deactivated', async () => {
+    const committed = installFirestoreFake(ids(1, 56));
+
+    const result = await deactivateListingsMissingFromActiveSet({
+      activeItemIds: [],
+      ingestComplete: true,
+      confirmMode: true,
+    });
+
+    expect(result.blocked).toBe(true);
+    expect(result.reason).toBe('awaiting_second_complete_ingest_confirmation');
+    expect(result.pendingObservation).toBeTruthy();
+    expect(result.pendingObservation.activeSetSize).toBe(0);
+    expect(result.deactivated).toBe(0);
+    expect(committed.length).toBe(0);
+  });
+
+  it('second matching complete empty ingest → confirmed, deactivates everything', async () => {
+    const committed = installFirestoreFake(ids(1, 56));
+
+    const result = await deactivateListingsMissingFromActiveSet({
+      activeItemIds: [],
+      ingestComplete: true,
+      confirmMode: true,
+      priorObservation: { activeSetSize: 0, atMs: Date.now() - 15 * 60_000 },
+    });
+
+    expect(result.blocked).toBeFalsy();
+    expect(result.deactivated).toBe(56);
+    expect(result.keptActive).toBe(0);
+    expect(committed.length).toBe(56);
+  });
+
+  it('empty set on an INCOMPLETE ingest stays hard-blocked even in confirm mode', async () => {
+    const committed = installFirestoreFake(ids(1, 56));
+
+    const result = await deactivateListingsMissingFromActiveSet({
+      activeItemIds: [],
+      ingestComplete: false,
+      confirmMode: true,
+    });
+
+    expect(result.blocked).toBe(true);
+    expect(result.reason).toBe('empty_active_set');
+    expect(committed.length).toBe(0);
+  });
+
+  it('without confirm mode the legacy hard block stays in place', async () => {
+    const committed = installFirestoreFake(ids(1, 56));
+
+    const result = await deactivateListingsMissingFromActiveSet({
+      activeItemIds: [],
+      ingestComplete: true,
+      confirmMode: false,
+    });
+
+    expect(result.blocked).toBe(true);
+    expect(result.reason).toBe('empty_active_set');
+    expect(committed.length).toBe(0);
+  });
+});

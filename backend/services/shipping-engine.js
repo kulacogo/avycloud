@@ -8,7 +8,6 @@
  */
 
 const { Firestore, FieldValue } = require('@google-cloud/firestore');
-const { getSecretValue } = require('../lib/secret-values');
 const { lookupCsvPrice } = require('../lib/sendcloud');
 const { parsePackstation, resolvePostNumber } = require('../lib/packstation');
 
@@ -50,16 +49,16 @@ function mapSendCloudStatus(statusId) {
   return 'ausstehend';
 }
 
-let _cachedAuth = null;
 async function getSendCloudAuth() {
-  if (_cachedAuth) return _cachedAuth;
-  const [pub, sec] = await Promise.all([
-    getSecretValue('SENDCLOUD_PUBLIC_KEY'),
-    getSecretValue('SENDCLOUD_SECRET_KEY'),
-  ]);
+  // Self-Service-Zugangsdaten (IntegrationWizard) gewinnen; ENV/Secret Manager
+  // bleibt Fallback. Kein Für-immer-Cache mehr: der Resolver cached 60s,
+  // damit "Neu verbinden" ohne Neustart greift.
+  const { resolveProviderCredentials } = require('./integration-store');
+  const creds = await resolveProviderCredentials('sendcloud');
+  const pub = creds?.publicKey;
+  const sec = creds?.secretKey;
   if (!pub || !sec) throw new Error('SENDCLOUD credentials not configured');
-  _cachedAuth = 'Basic ' + Buffer.from(`${pub}:${sec}`).toString('base64');
-  return _cachedAuth;
+  return 'Basic ' + Buffer.from(`${pub}:${sec}`).toString('base64');
 }
 
 /**

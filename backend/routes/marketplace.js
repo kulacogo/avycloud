@@ -366,7 +366,16 @@ router.get('/ebay/status', requirePermission('products', 'read'), async (req, re
   try {
     const { getEbayIntegration, publicStatus } = require('../lib/ebay-oauth');
     const doc = await getEbayIntegration();
-    return res.status(200).json({ ok: true, data: publicStatus(doc) });
+    const status = publicStatus(doc);
+    // Ehrlicher Sync-Zustand (letzter ERFOLGREICHER Abruf, aktueller Fehler) —
+    // best effort, darf den Status-Endpoint nie brechen.
+    try {
+      const { getEbayListingSyncHealth } = require('../lib/ebay-direct');
+      status.listingSync = await getEbayListingSyncHealth();
+    } catch (err) {
+      status.listingSync = null;
+    }
+    return res.status(200).json({ ok: true, data: status });
   } catch (error) {
     console.error('Failed to load eBay status:', error);
     return res.status(500).json({ ok: false, error: { code: 500, message: 'Failed to load eBay status', details: error.message } });

@@ -36,6 +36,14 @@ router.get('/integrations/status', async (req, res) => {
     if (!ebayConnected && storedMap.has('ebay')) {
       ebayConnected = storedMap.get('ebay').status === 'active';
     }
+    // Ehrlicher Sync-Zustand für die Karte im IntegrationsHub — best effort.
+    let ebayListingSync = null;
+    try {
+      const { getEbayListingSyncHealth } = require('../lib/ebay-direct');
+      ebayListingSync = await getEbayListingSyncHealth();
+    } catch (err) {
+      console.warn(`[integrations/status] eBay listing-sync health failed: ${err.message}`);
+    }
     results.push({
       id: 'ebay',
       name: 'eBay',
@@ -51,6 +59,7 @@ router.get('/integrations/status', async (req, res) => {
         scopes: ebayStatus.scopes,
         tokenType: ebayStatus.tokenType,
         accessTokenExpiresAt: ebayStatus.accessTokenExpiresAt,
+        listingSync: ebayListingSync,
       },
     });
 

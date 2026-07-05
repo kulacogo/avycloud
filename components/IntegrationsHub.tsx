@@ -94,6 +94,21 @@ const IntegrationCard: React.FC<IntegrationCardProps> = ({ integration, provider
           <StatusIndicator status={integration.status} connectedAt={integration.connectedAt} />
         </div>
 
+        {/* Sync-Störung (ehrlicher Zustand, unabhängig vom Verbunden-Status) */}
+        {integration.details?.listingSync && integration.details.listingSync.healthy === false && (
+          <div className="mb-4 bg-danger-dim rounded-lg px-3 py-2">
+            <div className="flex items-center gap-1.5">
+              <span className="inline-block w-2 h-2 rounded-full bg-danger" />
+              <span className="text-xs font-semibold text-danger">Angebots-Abgleich gestört</span>
+            </div>
+            <p className="text-[11px] text-txt-secondary mt-1">
+              {integration.details.listingSync.lastSuccessAtIso
+                ? `Letzter erfolgreicher Abruf: ${new Date(integration.details.listingSync.lastSuccessAtIso).toLocaleString("de-DE")}`
+                : "Noch nie erfolgreich abgerufen"}
+            </p>
+          </div>
+        )}
+
         {/* Details for connected integrations */}
         {isConnected && integration.details && (
           <div className="mb-4 space-y-1">

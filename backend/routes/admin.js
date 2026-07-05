@@ -1825,6 +1825,17 @@ router.get('/system-health', requirePermission('admin', 'read'), async (req, res
     data.sync = { error: err.message || 'sync_query_failed' };
   }
 
+  // ─── eBay Listing-Sync (ehrlicher Zustand aus ops/ebayLightSync) ───────
+  // Incident 2026-06-30…07-05: Sync fiel 5 Tage still aus (Token ungültig),
+  // während die Produkt-Zeitstempel frisch aussahen. Hier der echte Zustand.
+  try {
+    const { getEbayListingSyncHealth } = require('../lib/ebay-direct');
+    data.listingSync = { ebay: await getEbayListingSyncHealth() };
+  } catch (err) {
+    console.warn(`[system-health] listing-sync section failed: ${err.message}`);
+    data.listingSync = { error: err.message || 'listing_sync_query_failed' };
+  }
+
   res.json({ ok: true, data });
 });
 

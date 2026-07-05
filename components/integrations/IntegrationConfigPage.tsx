@@ -3,9 +3,11 @@ import {
   fetchIntegrationConfig,
   syncIntegration,
   saveIntegrationDefaults,
-  startEbayOAuth,
+  fetchIntegrationProviders,
+  fetchIntegrationStatus,
 } from "../../api/client";
-import type { IntegrationConfig } from "../../api/client";
+import type { IntegrationConfig, IntegrationProvider, IntegrationStatusEntry } from "../../api/client";
+import IntegrationWizard from "../IntegrationWizard";
 
 /* ─── Integration Metadata ─── */
 
@@ -163,6 +165,9 @@ export const IntegrationConfigPage: React.FC<IntegrationConfigPageProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [localDefaults, setLocalDefaults] = useState<Record<string, any>>({});
+  const [provider, setProvider] = useState<IntegrationProvider | null>(null);
+  const [statusEntry, setStatusEntry] = useState<IntegrationStatusEntry | null>(null);
+  const [wizardOpen, setWizardOpen] = useState(false);
 
   const loadConfig = useCallback(async () => {
     setLoading(true);
@@ -178,9 +183,25 @@ export const IntegrationConfigPage: React.FC<IntegrationConfigPageProps> = ({
     }
   }, [integration]);
 
+  // Provider-Definition (Felder für den Wizard) + Verbindungs-Status laden —
+  // best effort, die Seite funktioniert auch ohne.
+  const loadConnectionState = useCallback(async () => {
+    try {
+      const [providers, statuses] = await Promise.all([
+        fetchIntegrationProviders().catch(() => [] as IntegrationProvider[]),
+        fetchIntegrationStatus().catch(() => [] as IntegrationStatusEntry[]),
+      ]);
+      setProvider(providers.find((p) => p.id === integration) || null);
+      setStatusEntry(statuses.find((s) => s.id === integration) || null);
+    } catch {
+      /* keine harte Abhängigkeit */
+    }
+  }, [integration]);
+
   useEffect(() => {
     loadConfig();
-  }, [loadConfig]);
+    loadConnectionState();
+  }, [loadConfig, loadConnectionState]);
 
   const handleSync = useCallback(async () => {
     setSyncing(true);
@@ -278,23 +299,20 @@ export const IntegrationConfigPage: React.FC<IntegrationConfigPageProps> = ({
               Letzter Sync: {lastSyncLabel}
             </p>
           </div>
-          {integration === "ebay" && (
+          {provider && (
             <button
-              onClick={async () => {
-                try {
-                  const url = await startEbayOAuth();
-                  if (url) window.location.href = url;
-                } catch (err: any) {
-                  setError(err.message || "OAuth-Start fehlgeschlagen");
-                }
-              }}
+              onClick={() => setWizardOpen(true)}
               className="px-4 py-2 bg-accent text-white rounded-lg text-sm font-medium hover:opacity-90 transition-opacity flex items-center gap-2"
-              title="Erneut bei eBay autorisieren — erneuert die Berechtigungen (z. B. Finanzdaten / sell.finances)"
+              title={
+                integration === "ebay"
+                  ? "Erneut bei eBay autorisieren — erneuert Token und Berechtigungen"
+                  : "Zugangsdaten eingeben oder aktualisieren — z. B. nach einem Konto-Wechsel"
+              }
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
               </svg>
-              Neu verbinden
+              {integration === "ebay" ? "Neu verbinden" : "Zugangsdaten"}
             </button>
           )}
           <button
@@ -318,6 +336,34 @@ export const IntegrationConfigPage: React.FC<IntegrationConfigPageProps> = ({
             {syncing ? "Synchronisiere..." : "Synchronisieren"}
           </button>
         </div>
+
+        {/* eBay: Angebots-Abgleich gestört (ehrlicher Sync-Zustand) */}
+        {integration === "ebay" &&
+          statusEntry?.details?.listingSync &&
+          statusEntry.details.listingSync.healthy === false && (
+            <div className="bg-danger-dim border border-app-border rounded-xl px-4 py-3 mb-4">
+              <p className="text-sm text-danger font-semibold mb-1">
+                Angebots-Abgleich mit eBay gestört
+              </p>
+              <p className="text-xs text-txt-secondary mb-1">
+                {statusEntry.details.listingSync.lastSuccessAtIso
+                  ? `Letzter erfolgreicher Abruf: ${new Date(statusEntry.details.listingSync.lastSuccessAtIso).toLocaleString("de-DE")}.`
+                  : "Es gab noch keinen erfolgreichen Abruf."}{" "}
+                Die angezeigten eBay-Angebote können veraltet sein.
+              </p>
+              {statusEntry.details.listingSync.lastError?.message && (
+                <p className="text-xs text-txt-muted mb-3">
+                  Letzter Fehler: {statusEntry.details.listingSync.lastError.message}
+                </p>
+              )}
+              <button
+                onClick={() => setWizardOpen(true)}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-accent text-white rounded-lg text-sm font-medium hover:opacity-90 transition-opacity"
+              >
+                eBay neu verbinden
+              </button>
+            </div>
+          )}
 
         {/* Banners */}
         {error && (
@@ -353,14 +399,7 @@ export const IntegrationConfigPage: React.FC<IntegrationConfigPageProps> = ({
                 Rahmenbedingungen abgerufen werden koennen.
               </p>
               <button
-                onClick={async () => {
-                  try {
-                    const url = await startEbayOAuth();
-                    if (url) window.location.href = url;
-                  } catch (err: any) {
-                    setError(err.message || "OAuth-Start fehlgeschlagen");
-                  }
-                }}
+                onClick={() => setWizardOpen(true)}
                 className="inline-flex items-center gap-2 px-4 py-2 bg-accent text-white rounded-lg text-sm font-medium hover:opacity-90 transition-opacity"
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -501,6 +540,19 @@ export const IntegrationConfigPage: React.FC<IntegrationConfigPageProps> = ({
           </div>
         )}
       </div>
+
+      {/* Verbinden / Zugangsdaten (gleicher Wizard wie im IntegrationsHub) */}
+      {wizardOpen && provider && (
+        <IntegrationWizard
+          provider={provider}
+          currentStatus={statusEntry}
+          onClose={() => setWizardOpen(false)}
+          onSuccess={() => {
+            loadConnectionState();
+            loadConfig();
+          }}
+        />
+      )}
     </div>
   );
 };

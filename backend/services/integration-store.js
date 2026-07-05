@@ -175,6 +175,7 @@ async function saveIntegration({ tenantId = 'default', type, authType, credentia
   }
 
   await getDb().collection(COLLECTION).doc(docId).set(doc, { merge: true });
+  invalidateCredentialsCache(type, { tenantId });
 
   return { ok: true, type, status: 'active' };
 }
@@ -207,6 +208,7 @@ async function updateSettings({ tenantId = 'default', type, settings }) {
 async function deleteIntegration({ tenantId = 'default', type }) {
   const docId = `${tenantId}__${type}`;
   await getDb().collection(COLLECTION).doc(docId).delete();
+  invalidateCredentialsCache(type, { tenantId });
 
   // eBay stores OAuth tokens in a separate doc ('ebay') — delete it too
   if (type === 'ebay') {
@@ -320,6 +322,127 @@ async function testConnection({ type, credentials }) {
   }
 }
 
+// ─── Live-Credential Resolution für Runtime-Libs (TTL-cached) ─
+
+const CREDENTIALS_TTL_MS = Math.max(
+  5_000,
+  parseInt(process.env.INTEGRATION_CREDENTIALS_TTL_MS || '60000', 10) || 60_000
+);
+const _credCache = new Map(); // `${tenantId}__${type}` → { atMs, value }
+
+function invalidateCredentialsCache(type = null, { tenantId = 'default' } = {}) {
+  if (type) _credCache.delete(`${tenantId}__${type}`);
+  else _credCache.clear();
+}
+
+// Reverse-Map Secret-Name → { type, fieldKey }, aus der Registry abgeleitet
+// (z. B. SENDCLOUD_PUBLIC_KEY → { type: 'sendcloud', fieldKey: 'publicKey' }).
+let _secretNameMap = null;
+function getSecretNameMap() {
+  if (_secretNameMap) return _secretNameMap;
+  const { PROVIDERS } = require('../lib/integration-registry');
+  _secretNameMap = new Map();
+  for (const provider of Object.values(PROVIDERS)) {
+    for (const [fieldKey, secretName] of Object.entries(provider.credentialToSecretMap || {})) {
+      _secretNameMap.set(secretName, { type: provider.id, fieldKey });
+    }
+  }
+  return _secretNameMap;
+}
+
+/**
+ * Liefert die Zugangsdaten eines Providers NORMALISIERT auf die Feld-Keys der
+ * Registry (z. B. { publicKey, secretKey }) — egal ob sie aus dem
+ * Self-Service-Store (Firestore, via IntegrationWizard gespeichert) oder dem
+ * Fallback (ENV/Secret Manager) kommen. Store gewinnt.
+ *
+ * 60s-TTL-Cache: ein "Neu verbinden" in der UI greift damit ohne
+ * Redeploy/Neustart innerhalb einer Minute auf allen Instanzen (Web + Worker).
+ *
+ * @param {string} type
+ * @param {{ tenantId?: string, ttlMs?: number }} [opts]
+ * @returns {Promise<object|null>} field-key map oder null wenn nirgends Daten
+ */
+function storeLookupEnabled() {
+  // Kill-Switch: INTEGRATION_CREDENTIALS_STORE=off überspringt den
+  // Firestore-Lookup (nur ENV/Secret-Manager-Fallback). Betriebs-Notbremse
+  // und Test-Naht (vitest.setup.js setzt off, weil der echte Firestore-Client
+  // in Tests hängt). Default: on.
+  return String(process.env.INTEGRATION_CREDENTIALS_STORE || 'on').toLowerCase() !== 'off';
+}
+
+async function resolveProviderCredentials(type, { tenantId = 'default', ttlMs = CREDENTIALS_TTL_MS } = {}) {
+  const cacheKey = `${tenantId}__${type}`;
+  const now = Date.now();
+  // Cache nur für den (teuren) Firestore-Pfad. Im Fallback-only-Modus
+  // (Kill-Switch off) cached getSecretValue selbst — ein zweiter Cache würde
+  // dort nur Staleness stapeln.
+  const useCache = storeLookupEnabled();
+  if (useCache) {
+    const cached = _credCache.get(cacheKey);
+    if (cached && now - cached.atMs < ttlMs) return cached.value;
+  }
+
+  const provider = getProvider(type);
+  const fieldKeys = Object.keys(provider?.credentialToSecretMap || {});
+  let value = null;
+
+  // 1) Self-Service-Store (Firestore) — gewinnt, wenn aktiv + Werte vorhanden.
+  if (storeLookupEnabled()) try {
+    const stored = await getIntegration({ tenantId, type });
+    if (stored?.status === 'active' && stored.credentials && typeof stored.credentials === 'object') {
+      const keys = fieldKeys.length ? fieldKeys : Object.keys(stored.credentials);
+      const out = {};
+      let hasAny = false;
+      for (const fk of keys) {
+        const v = stored.credentials[fk];
+        if (v != null && String(v).trim()) {
+          out[fk] = String(v).trim();
+          hasAny = true;
+        }
+      }
+      if (hasAny) value = out;
+    }
+  } catch (err) {
+    console.warn(`[integration-store] resolveProviderCredentials(${type}) store read failed: ${err.message}`);
+  }
+
+  // 2) Fallback ENV / Secret Manager (heutiges Verhalten, unverändert).
+  if (!value && fieldKeys.length) {
+    const out = {};
+    let hasAny = false;
+    for (const fk of fieldKeys) {
+      const secretName = provider.credentialToSecretMap[fk];
+      const v = await getSecretValue(secretName).catch(() => null);
+      if (v != null && String(v).trim()) {
+        out[fk] = String(v).trim();
+        hasAny = true;
+      }
+    }
+    if (hasAny) value = out;
+  }
+
+  if (useCache) _credCache.set(cacheKey, { atMs: now, value });
+  return value;
+}
+
+/**
+ * Drop-in-Ersatz für getSecretValue an Stellen, die ein bekanntes
+ * Integration-Secret lesen (SENDCLOUD_*, KAUFLAND_CLIENT/SECRET_KEY,
+ * SEVDESK_API_TOKEN): Self-Service-Store zuerst, sonst Secret/ENV.
+ * Unbekannte Namen gehen unverändert an getSecretValue.
+ *
+ * @param {string} secretName
+ * @returns {Promise<string|null>}
+ */
+async function getIntegrationSecret(secretName, { tenantId = 'default' } = {}) {
+  const mapped = getSecretNameMap().get(String(secretName || ''));
+  if (!mapped) return getSecretValue(secretName);
+  const creds = await resolveProviderCredentials(mapped.type, { tenantId });
+  const v = creds?.[mapped.fieldKey];
+  return v != null && String(v).trim() ? String(v).trim() : null;
+}
+
 // ─── Credential Resolution (Firestore → ENV Fallback) ────────
 
 /**
@@ -359,6 +482,9 @@ module.exports = {
   recordSync,
   testConnection,
   resolveCredentials,
+  resolveProviderCredentials,
+  getIntegrationSecret,
+  invalidateCredentialsCache,
   // Exposed for testing
   encrypt,
   decrypt,

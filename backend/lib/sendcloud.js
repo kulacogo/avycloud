@@ -3,7 +3,6 @@
 
 const path = require('path');
 const fs = require('fs');
-const { getSecretValue } = require('./secret-values');
 
 const SENDCLOUD_BASE_URL = 'https://panel.sendcloud.sc/api/v2';
 
@@ -126,17 +125,16 @@ function parseSendCloudDate(raw) {
 const SHIPPING_CACHE = new Map();
 const SHIPPING_TTL_MS = 15 * 60 * 1000;
 
-let _cachedAuth = null;
-
 async function getSendCloudAuthHeader() {
-  if (_cachedAuth) return _cachedAuth;
-  const [pub, sec] = await Promise.all([
-    getSecretValue('SENDCLOUD_PUBLIC_KEY'),
-    getSecretValue('SENDCLOUD_SECRET_KEY'),
-  ]);
+  // Self-Service-Zugangsdaten (IntegrationWizard) gewinnen; ENV/Secret Manager
+  // bleibt Fallback. Kein Für-immer-Cache mehr: der Resolver cached 60s,
+  // damit "Neu verbinden" ohne Neustart greift.
+  const { resolveProviderCredentials } = require('../services/integration-store');
+  const creds = await resolveProviderCredentials('sendcloud');
+  const pub = creds?.publicKey;
+  const sec = creds?.secretKey;
   if (!pub || !sec) throw new Error('SENDCLOUD credentials not configured');
-  _cachedAuth = 'Basic ' + Buffer.from(`${pub}:${sec}`).toString('base64');
-  return _cachedAuth;
+  return 'Basic ' + Buffer.from(`${pub}:${sec}`).toString('base64');
 }
 
 // ─── Main function ──────────────────────────────────────────────────────────

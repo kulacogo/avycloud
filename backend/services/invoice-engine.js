@@ -178,8 +178,8 @@ async function generateInvoice({
   // Load company settings + SevDesk token + logo
   const company = await getCompanySettings(tenantId);
   company._logoBuffer = await fetchLogoBuffer(company.logoUrl);
-  const { getSecretValue } = require('../lib/secret-values');
-  const token = await getSecretValue('SEVDESK_API_TOKEN').catch(() => null);
+  const { getIntegrationSecret } = require('./integration-store');
+  const token = await getIntegrationSecret('SEVDESK_API_TOKEN').catch(() => null);
 
   // Calculate amounts — always derive from items
   const items = order.items || [];
@@ -732,8 +732,8 @@ async function exportToSevDesk({ invoiceId }) {
       return { ok: true, sevdeskId: invoice.sevdeskId, skipped: true };
     }
 
-    const { getSecretValue } = require('../lib/secret-values');
-    const token = await getSecretValue('SEVDESK_API_TOKEN');
+    const { getIntegrationSecret } = require('./integration-store');
+    const token = await getIntegrationSecret('SEVDESK_API_TOKEN');
     if (!token) throw new Error('SevDesk API Token not configured');
 
     const headers = { Authorization: token, 'Content-Type': 'application/json' };
@@ -929,8 +929,8 @@ async function bulkGenerateForShippedOrders({ tenantId = 'default' } = {}) {
  * @returns {Promise<{ imported: number, matched: number, skipped: number, total: number }>}
  */
 async function importFromSevDesk({ tenantId = 'default' } = {}) {
-  const { getSecretValue } = require('../lib/secret-values');
-  const token = await getSecretValue('SEVDESK_API_TOKEN');
+  const { getIntegrationSecret } = require('./integration-store');
+  const token = await getIntegrationSecret('SEVDESK_API_TOKEN');
   if (!token) throw new Error('SevDesk API Token not configured');
 
   const db = getDb();
@@ -1081,8 +1081,8 @@ async function createCorrectionInvoice({ orderId, tenantId = 'default', type = '
     return { ok: true, correctionId: invoice.correctionId, skipped: true };
   }
 
-  const { getSecretValue } = require('../lib/secret-values');
-  const token = await getSecretValue('SEVDESK_API_TOKEN');
+  const { getIntegrationSecret } = require('./integration-store');
+  const token = await getIntegrationSecret('SEVDESK_API_TOKEN');
   if (!token) throw new Error('SevDesk API Token not configured');
 
   const headers = { Authorization: token, 'Content-Type': 'application/json' };
