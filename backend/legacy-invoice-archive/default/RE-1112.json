@@ -1,0 +1,22 @@
+{
+  "id": "GWWHkFNvpGOU4ppPnsRi",
+  "tenantId": "default",
+  "sevdeskId": "114032005",
+  "invoiceNumber": "RE-1112",
+  "date": "2026-01-05",
+  "dueDate": "2026-01-05",
+  "status": "bezahlt",
+  "amountGross": 193.9,
+  "amountNetto": 162.94,
+  "amountNet": 162.94,
+  "vatAmount": 30.96,
+  "currency": "EUR",
+  "customer": {
+    "name": "Georg Königs"
+  },
+  "orderId": "3fXfTh5HaXlds5KUxhs2",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:42:25.161Z",
+  "importedAt": "2026-03-17T22:42:25.161Z"
+}

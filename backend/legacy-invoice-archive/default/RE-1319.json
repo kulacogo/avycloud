@@ -1,0 +1,23 @@
+{
+  "id": "f0RXnx56DXlXyp7wua9e",
+  "tenantId": "default",
+  "sevdeskId": "116695173",
+  "invoiceNumber": "RE-1319",
+  "date": "2026-02-09",
+  "dueDate": null,
+  "amountGross": 29.33,
+  "amountNetto": 24.65,
+  "amountNet": 24.65,
+  "vatAmount": 4.68,
+  "currency": "EUR",
+  "customer": {
+    "name": "Melanie Behrens"
+  },
+  "orderId": "PgbnZpffTVikpdVM42Si",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:37:34.767Z",
+  "importedAt": "2026-03-17T22:37:34.767Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.772Z"
+}

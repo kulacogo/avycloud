@@ -1,0 +1,23 @@
+{
+  "id": "mmFr4HMWoa6SKd0Mfo4t",
+  "tenantId": "default",
+  "sevdeskId": "116846422",
+  "invoiceNumber": "RE-1334",
+  "date": "2026-02-11",
+  "dueDate": null,
+  "amountGross": 89.9,
+  "amountNetto": 75.55,
+  "amountNet": 75.55,
+  "vatAmount": 14.35,
+  "currency": "EUR",
+  "customer": {
+    "name": "Thomas Scholl"
+  },
+  "orderId": "MVDMB1KktTkJR4MxK37I",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:36:35.817Z",
+  "importedAt": "2026-03-17T22:36:35.817Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.773Z"
+}

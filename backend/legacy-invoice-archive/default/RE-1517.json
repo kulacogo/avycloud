@@ -1,0 +1,33 @@
+{
+  "id": "PQc0JDX1Tqpe2AMHNqDU",
+  "tenantId": "default",
+  "invoiceNumber": "RE-1517",
+  "sevdeskId": "119604419",
+  "sevdeskExportedAt": "2026-03-17T23:23:17.798Z",
+  "orderId": "3Tz09dj76e0BfosItz5V",
+  "orderNumber": "01-14294-86111",
+  "marketplaceOrderId": "01-14294-86111",
+  "marketplace": "ebay",
+  "customer": {
+    "name": "Dennis Gloning",
+    "street": "Kirchstraße 20/1",
+    "city": "Ellwangen",
+    "country": "DE",
+    "phone": "Invalid Request",
+    "email": null,
+    "zip": "73479"
+  },
+  "amountNetto": 172.51,
+  "amountBrutto": 205.29,
+  "vatRate": 0.19,
+  "vatAmount": 32.78,
+  "currency": "EUR",
+  "date": "2026-03-17",
+  "dueDate": "2026-03-31",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-1517.pdf",
+  "createdAt": "2026-03-17T23:23:17.798Z",
+  "createdBy": null,
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.772Z",
+  "pdfRegeneratedAt": "2026-06-02T09:12:21.084Z"
+}

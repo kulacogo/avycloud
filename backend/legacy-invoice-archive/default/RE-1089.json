@@ -1,0 +1,22 @@
+{
+  "id": "F64RrWFh46PcK4NziU46",
+  "tenantId": "default",
+  "sevdeskId": "113541095",
+  "invoiceNumber": "RE-1089",
+  "date": "2025-12-29",
+  "dueDate": "2025-12-29",
+  "status": "bezahlt",
+  "amountGross": 5.77,
+  "amountNetto": 4.85,
+  "amountNet": 4.85,
+  "vatAmount": 0.92,
+  "currency": "EUR",
+  "customer": {
+    "name": "Torsten Schmitt"
+  },
+  "orderId": "You0OfGASjdlLpn39v5u",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:42:26.251Z",
+  "importedAt": "2026-03-17T22:42:26.251Z"
+}

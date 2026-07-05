@@ -1,0 +1,33 @@
+{
+  "id": "RsxxhlcVAfdkUJ8PQGFU",
+  "tenantId": "default",
+  "invoiceNumber": "RE-2232",
+  "sevdeskId": "127385269",
+  "sevdeskExportedAt": "2026-06-25T03:54:39.579Z",
+  "orderId": "31610708",
+  "orderNumber": "MC1ZU45",
+  "marketplaceOrderId": "MC1ZU45",
+  "marketplace": "kaufland",
+  "customer": {
+    "country": "DE",
+    "city": "Rosenheim",
+    "name": "Erika Claus",
+    "zip": "83024",
+    "phone": null,
+    "street": "Salurnerstr. 10",
+    "email": "cagzvoxq-02623f60a506@kaufland-marktplatz.de"
+  },
+  "amountNetto": 15.12,
+  "amountNet": 15.12,
+  "amountBrutto": 17.99,
+  "amountGross": 17.99,
+  "vatRate": 0.19,
+  "vatAmount": 2.87,
+  "currency": "EUR",
+  "status": "offen",
+  "date": "2026-06-25",
+  "dueDate": "2026-07-09",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-2232.pdf",
+  "createdAt": "2026-06-25T03:54:39.579Z",
+  "createdBy": null
+}

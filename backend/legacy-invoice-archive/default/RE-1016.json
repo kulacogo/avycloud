@@ -1,0 +1,22 @@
+{
+  "id": "cb730KSO42XgGx0LcjZH",
+  "tenantId": "default",
+  "sevdeskId": "111103988",
+  "invoiceNumber": "RE-1016",
+  "date": "2025-11-29",
+  "dueDate": "2025-11-29",
+  "status": "bezahlt",
+  "amountGross": 15.9,
+  "amountNetto": 13.36,
+  "amountNet": 13.36,
+  "vatAmount": 2.54,
+  "currency": "EUR",
+  "customer": {
+    "name": "mirco reider"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:54:26.254Z",
+  "importedAt": "2026-03-17T22:54:26.254Z"
+}

@@ -1,0 +1,22 @@
+{
+  "id": "bGj2EbBWw0YzM4AvBBXE",
+  "tenantId": "default",
+  "sevdeskId": "113428681",
+  "invoiceNumber": "RE-1079",
+  "date": "2025-12-27",
+  "dueDate": "2025-12-27",
+  "status": "bezahlt",
+  "amountGross": 69.49,
+  "amountNetto": 58.39,
+  "amountNet": 58.39,
+  "vatAmount": 11.1,
+  "currency": "EUR",
+  "customer": {
+    "name": "Jannik Wagner"
+  },
+  "orderId": "wq1UByybKA4mHly4gZi3",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:43:54.404Z",
+  "importedAt": "2026-03-17T22:43:54.404Z"
+}

@@ -1,0 +1,22 @@
+{
+  "id": "iDl62JbyfbvYazCnYpxe",
+  "tenantId": "default",
+  "sevdeskId": "114714343",
+  "invoiceNumber": "RE-1160",
+  "date": "2026-01-14",
+  "dueDate": "2026-01-14",
+  "status": "bezahlt",
+  "amountGross": 41.9,
+  "amountNetto": 35.21,
+  "amountNet": 35.21,
+  "vatAmount": 6.69,
+  "currency": "EUR",
+  "customer": {
+    "name": "Benjamin Hartung"
+  },
+  "orderId": "XR5hMk1dUtU4wUFplTaS",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:41:24.686Z",
+  "importedAt": "2026-03-17T22:41:24.686Z"
+}

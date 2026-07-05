@@ -1,0 +1,30 @@
+{
+  "id": "IGJg2y2uX0G1KHrOiaTE",
+  "tenantId": "default",
+  "invoiceNumber": "RE-1752",
+  "sevdeskId": "121581799",
+  "sevdeskExportedAt": "2026-04-13T00:16:01.896Z",
+  "orderId": "ebay__27-13975-25281",
+  "orderNumber": "27-13975-25281",
+  "marketplaceOrderId": "27-13975-25281",
+  "marketplace": "ebay",
+  "customer": {
+    "name": "eBay Käufer",
+    "email": null,
+    "username": "luckiethefox"
+  },
+  "amountNetto": 142.85,
+  "amountNet": 142.85,
+  "amountBrutto": 169.99,
+  "amountGross": 169.99,
+  "vatRate": 0.19,
+  "vatAmount": 27.14,
+  "currency": "EUR",
+  "status": "offen",
+  "date": "2026-04-13",
+  "dueDate": "2026-04-27",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-1752.pdf",
+  "createdAt": "2026-04-13T00:16:01.896Z",
+  "createdBy": null,
+  "pdfRegeneratedAt": "2026-06-02T09:11:41.692Z"
+}

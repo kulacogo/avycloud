@@ -1,0 +1,23 @@
+{
+  "id": "enND0PYD1L3hBH2DMqYB",
+  "tenantId": "default",
+  "sevdeskId": "116669407",
+  "invoiceNumber": "RE-1301",
+  "date": "2026-02-09",
+  "dueDate": null,
+  "amountGross": 84.96,
+  "amountNetto": 71.39,
+  "amountNet": 71.39,
+  "vatAmount": 13.57,
+  "currency": "EUR",
+  "customer": {
+    "name": "Stefanie Meyer"
+  },
+  "orderId": "8hAC1NhI0GSLX0lR8iLv",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:37:36.313Z",
+  "importedAt": "2026-03-17T22:37:36.313Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.772Z"
+}

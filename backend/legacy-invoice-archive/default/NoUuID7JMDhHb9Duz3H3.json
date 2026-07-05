@@ -1,0 +1,25 @@
+{
+  "id": "NoUuID7JMDhHb9Duz3H3",
+  "tenantId": "default",
+  "type": "storno",
+  "originalInvoiceId": "tMS11j2oEjDLsqFTTnEb",
+  "originalInvoiceNumber": "RE-1502",
+  "orderId": "3Ce0NxIHv5WLIXFzsl56",
+  "orderNumber": null,
+  "marketplaceOrderId": null,
+  "marketplace": null,
+  "amountGross": 50.48,
+  "amountNetto": 42.42,
+  "amountNet": 42.42,
+  "vatRate": 0.19,
+  "currency": "EUR",
+  "customer": {
+    "name": "Janina Meister"
+  },
+  "reason": "Stornierung Bestellung",
+  "status": "storniert",
+  "date": "2026-03-17",
+  "createdAt": "2026-03-17T22:58:17.355Z",
+  "sevdeskId": "119604265",
+  "updatedAt": "2026-03-17T23:12:23.326Z"
+}

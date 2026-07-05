@@ -1,0 +1,22 @@
+{
+  "id": "AKl8Ux4Ysm4jEjyjfLZo",
+  "tenantId": "default",
+  "sevdeskId": "110164483",
+  "invoiceNumber": "RE-1007",
+  "date": "2025-11-18",
+  "dueDate": "2025-11-18",
+  "status": "bezahlt",
+  "amountGross": 12.1,
+  "amountNetto": 10.17,
+  "amountNet": 10.17,
+  "vatAmount": 1.93,
+  "currency": "EUR",
+  "customer": {
+    "name": "Oguzhan Kulacoglu"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:54:26.834Z",
+  "importedAt": "2026-03-17T22:54:26.834Z"
+}

@@ -1,0 +1,23 @@
+{
+  "id": "6hJJk2sWJ4FdYQoUHAGp",
+  "tenantId": "default",
+  "sevdeskId": "117206529",
+  "invoiceNumber": "RE-1368",
+  "date": "2026-02-17",
+  "dueDate": null,
+  "amountGross": 39.99,
+  "amountNetto": 33.61,
+  "amountNet": 33.61,
+  "vatAmount": 6.38,
+  "currency": "EUR",
+  "customer": {
+    "name": "Katja Gies"
+  },
+  "orderId": "NIl1ULPWf89jOxRvvWaR",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:35:35.984Z",
+  "importedAt": "2026-03-17T22:35:35.984Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.771Z"
+}

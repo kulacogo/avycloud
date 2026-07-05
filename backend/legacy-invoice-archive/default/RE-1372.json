@@ -1,0 +1,23 @@
+{
+  "id": "a0Y4v4bwiP1WO3of3nq8",
+  "tenantId": "default",
+  "sevdeskId": "117232864",
+  "invoiceNumber": "RE-1372",
+  "date": "2026-02-17",
+  "dueDate": null,
+  "amountGross": 245,
+  "amountNetto": 205.88,
+  "amountNet": 205.88,
+  "vatAmount": 39.12,
+  "currency": "EUR",
+  "customer": {
+    "name": "RAFAL JACHIMCZYK"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:35:35.767Z",
+  "importedAt": "2026-03-17T22:35:35.767Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.772Z"
+}

@@ -1,0 +1,22 @@
+{
+  "id": "LR2kw152YUDLfmdJgrzg",
+  "tenantId": "default",
+  "sevdeskId": "114714055",
+  "invoiceNumber": "RE-1157",
+  "date": "2026-01-14",
+  "dueDate": "2026-01-14",
+  "status": "bezahlt",
+  "amountGross": 7.68,
+  "amountNetto": 6.45,
+  "amountNet": 6.45,
+  "vatAmount": 1.23,
+  "currency": "EUR",
+  "customer": {
+    "name": "Uwe Opitz"
+  },
+  "orderId": "nxfPdLJme01xKjud8hBy",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:41:24.829Z",
+  "importedAt": "2026-03-17T22:41:24.829Z"
+}

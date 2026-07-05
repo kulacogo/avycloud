@@ -1,0 +1,23 @@
+{
+  "id": "MMDVIxl2iVhQ27RjA3cf",
+  "tenantId": "default",
+  "sevdeskId": "117012649",
+  "invoiceNumber": "RE-1350",
+  "date": "2026-02-13",
+  "dueDate": null,
+  "amountGross": 207.14,
+  "amountNetto": 174.07,
+  "amountNet": 174.07,
+  "vatAmount": 33.07,
+  "currency": "EUR",
+  "customer": {
+    "name": "Philipp Rößler"
+  },
+  "orderId": "1dhYt8OFIrWGL5wFFG1s",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:36:30.604Z",
+  "importedAt": "2026-03-17T22:36:30.604Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.772Z"
+}

@@ -1,0 +1,33 @@
+{
+  "id": "w14macpLsfn49poDw8kV",
+  "tenantId": "default",
+  "invoiceNumber": "RE-2240",
+  "sevdeskId": "127385279",
+  "sevdeskExportedAt": "2026-06-25T03:54:47.571Z",
+  "orderId": "32040855",
+  "orderNumber": "MBELY45",
+  "marketplaceOrderId": "MBELY45",
+  "marketplace": "kaufland",
+  "customer": {
+    "country": "DE",
+    "city": "Darmstadt",
+    "name": "Ralf Binder",
+    "zip": "64291",
+    "phone": null,
+    "street": "Kalkofenweg 55",
+    "email": "cam19uxq-c7df92600291@kaufland-marktplatz.de"
+  },
+  "amountNetto": 51.67,
+  "amountNet": 51.67,
+  "amountBrutto": 61.49,
+  "amountGross": 61.49,
+  "vatRate": 0.19,
+  "vatAmount": 9.82,
+  "currency": "EUR",
+  "status": "offen",
+  "date": "2026-06-25",
+  "dueDate": "2026-07-09",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-2240.pdf",
+  "createdAt": "2026-06-25T03:54:47.571Z",
+  "createdBy": null
+}

@@ -1,0 +1,23 @@
+{
+  "id": "rsIrYnbqx1LRBfpj4os4",
+  "tenantId": "default",
+  "sevdeskId": "119398817",
+  "invoiceNumber": "RE-1498",
+  "date": "2026-03-15",
+  "dueDate": null,
+  "amountGross": 6.59,
+  "amountNetto": 6.59,
+  "amountNet": 6.59,
+  "vatAmount": 0,
+  "currency": "EUR",
+  "customer": {
+    "name": "Beyhan Öztunc"
+  },
+  "orderId": "4oru7EzfF6Mhf0sGk3Ck",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:32:26.931Z",
+  "importedAt": "2026-03-17T22:32:26.931Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.773Z"
+}

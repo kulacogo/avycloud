@@ -1,0 +1,22 @@
+{
+  "id": "xNcUlINUaBSEoCNkkW9C",
+  "tenantId": "default",
+  "sevdeskId": "116566880",
+  "invoiceNumber": "RE-1292",
+  "date": "2026-02-07",
+  "dueDate": "2026-02-07",
+  "status": "bezahlt",
+  "amountGross": 8.39,
+  "amountNetto": 7.05,
+  "amountNet": 7.05,
+  "vatAmount": 1.34,
+  "currency": "EUR",
+  "customer": {
+    "name": "hans hesse"
+  },
+  "orderId": "BucRIKjm3BjVlJ3MmW6o",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:38:25.426Z",
+  "importedAt": "2026-03-17T22:38:25.426Z"
+}

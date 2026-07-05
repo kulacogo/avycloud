@@ -259,7 +259,11 @@ function sanitizeDescriptionProse(
     .replace(/<form\b[^>]*>[\s\S]*?<\/form>/gi, ' ')
     .replace(/<\/(p|div|section|article|ul|ol|li|h[1-6]|tr|blockquote)\s*>/gi, PARA)
     .replace(/<br\s*\/?>/gi, PARA)
-    .replace(/<[^>]+>/g, ' ');
+    .replace(/<[^>]+>/g, ' ')
+    // Klartext-Bullets ("• ", "- ", "* " am Zeilenanfang) sind ebenfalls
+    // Listen: Zeile wird eigener Absatz, die Glyphe entfernt. Bindestriche
+    // mitten im Satz (z. B. "10 - 20 m²") bleiben unberührt (brauchen \n/^).
+    .replace(/(?:^|\n)[ \t]*[-*•‣▪][ \t]+/g, PARA);
 
   const paragraphs = [];
   const seen = new Set();
@@ -373,10 +377,17 @@ function deLiteralizeProductTextFields(product) {
  * (idempotent — no re-flow / data loss on unrelated saves). key_features
  * (Highlights) are intentionally untouched — they stay bullets.
  */
+// Listen-Erkennung: HTML-Listen ODER Klartext-Bullet-Zeilen ("• ", "- ", "* "
+// nach Zeilenanfang/<br>). Bindestriche mitten im Satz matchen nicht.
+function hasListMarkup(text) {
+  if (typeof text !== 'string') return false;
+  return /<(ul|ol|li)\b/i.test(text) || /(?:^|\n|<br\s*\/?\s*>)[ \t]*[-*•‣▪][ \t]+/i.test(text);
+}
+
 function enforceDescriptionProse(product) {
   if (!product || typeof product !== 'object') return product;
   const desc = product.details && product.details.short_description;
-  if (typeof desc !== 'string' || !/<(ul|ol|li)\b/i.test(desc)) return product;
+  if (typeof desc !== 'string' || !hasListMarkup(desc)) return product;
   return {
     ...product,
     details: { ...product.details, short_description: sanitizeDescriptionProse(desc) },
@@ -388,6 +399,7 @@ module.exports = {
   normalizeLiteralEscapes,
   deLiteralizeProductTextFields,
   enforceDescriptionProse,
+  hasListMarkup,
   sanitizeListingText,
   sanitizeDescriptionToHtml,
   sanitizeDescriptionProse,

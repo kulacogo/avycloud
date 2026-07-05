@@ -1,0 +1,23 @@
+{
+  "id": "n2IQ17YEnqmspBHT8FY7",
+  "tenantId": "default",
+  "sevdeskId": "116947061",
+  "invoiceNumber": "RE-1346",
+  "date": "2026-02-12",
+  "dueDate": null,
+  "amountGross": 37.39,
+  "amountNetto": 31.42,
+  "amountNet": 31.42,
+  "vatAmount": 5.97,
+  "currency": "EUR",
+  "customer": {
+    "name": "Laura Wenzl"
+  },
+  "orderId": "FWGLV4Ksz0cqZHp4Od8d",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:36:34.893Z",
+  "importedAt": "2026-03-17T22:36:34.893Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.773Z"
+}

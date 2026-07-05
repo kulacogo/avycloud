@@ -1,0 +1,22 @@
+{
+  "id": "VdB53yGsOJDIVrdZyJwM",
+  "tenantId": "default",
+  "sevdeskId": "113328436",
+  "invoiceNumber": "RE-1074",
+  "date": "2025-12-23",
+  "dueDate": "2025-12-23",
+  "status": "bezahlt",
+  "amountGross": 239,
+  "amountNetto": 200.84,
+  "amountNet": 200.84,
+  "vatAmount": 38.16,
+  "currency": "EUR",
+  "customer": {
+    "name": "Yvonne Steinbusch"
+  },
+  "orderId": "irNuBBZHJLEesF3oekJV",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:44:16.504Z",
+  "importedAt": "2026-03-17T22:44:16.504Z"
+}

@@ -1,0 +1,23 @@
+{
+  "id": "2ENhAE0yiwNZJM4ZFQE2",
+  "tenantId": "default",
+  "sevdeskId": "118938112",
+  "invoiceNumber": "RE-1473",
+  "date": "2026-03-09",
+  "dueDate": null,
+  "amountGross": 43.85,
+  "amountNetto": 36.85,
+  "amountNet": 36.85,
+  "vatAmount": 7,
+  "currency": "EUR",
+  "customer": {
+    "name": "Jürgen Esch"
+  },
+  "orderId": "SpcxvTGXAgVVgnAzGjZ8",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:33:27.703Z",
+  "importedAt": "2026-03-17T22:33:27.703Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.771Z"
+}

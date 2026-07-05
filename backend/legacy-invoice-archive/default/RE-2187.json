@@ -1,0 +1,33 @@
+{
+  "id": "qGeBmegEK55djgg2wZzg",
+  "tenantId": "default",
+  "invoiceNumber": "RE-2187",
+  "sevdeskId": "127385211",
+  "sevdeskExportedAt": "2026-06-25T03:53:46.122Z",
+  "orderId": "29926511",
+  "orderNumber": "MKZR7H5",
+  "marketplaceOrderId": "MKZR7H5",
+  "marketplace": "kaufland",
+  "customer": {
+    "country": "DE",
+    "city": "Hamburg",
+    "name": "Peggy Stenger",
+    "zip": "20144",
+    "phone": null,
+    "street": "Isestrasse 30",
+    "email": "ca7vfi4q-09ce395b3a47@kaufland-marktplatz.de"
+  },
+  "amountNetto": 28.56,
+  "amountNet": 28.56,
+  "amountBrutto": 33.99,
+  "amountGross": 33.99,
+  "vatRate": 0.19,
+  "vatAmount": 5.43,
+  "currency": "EUR",
+  "status": "offen",
+  "date": "2026-06-25",
+  "dueDate": "2026-07-09",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-2187.pdf",
+  "createdAt": "2026-06-25T03:53:46.122Z",
+  "createdBy": null
+}

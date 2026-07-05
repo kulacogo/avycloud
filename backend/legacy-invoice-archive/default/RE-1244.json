@@ -1,0 +1,22 @@
+{
+  "id": "e9rSPEv916sTsTiVWi6f",
+  "tenantId": "default",
+  "sevdeskId": "116125581",
+  "invoiceNumber": "RE-1244",
+  "date": "2026-02-02",
+  "dueDate": "2026-02-02",
+  "status": "bezahlt",
+  "amountGross": 39.95,
+  "amountNetto": 33.57,
+  "amountNet": 33.57,
+  "vatAmount": 6.38,
+  "currency": "EUR",
+  "customer": {
+    "name": "Martin Braun"
+  },
+  "orderId": "iGsVmnZPOzX1r5F3K0se",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:39:25.265Z",
+  "importedAt": "2026-03-17T22:39:25.265Z"
+}

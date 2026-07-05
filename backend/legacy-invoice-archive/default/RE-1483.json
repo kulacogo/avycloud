@@ -1,0 +1,23 @@
+{
+  "id": "xtRu6tJ4cTe35RD4Ucmp",
+  "tenantId": "default",
+  "sevdeskId": "119047437",
+  "invoiceNumber": "RE-1483",
+  "date": "2026-03-10",
+  "dueDate": null,
+  "amountGross": 21.96,
+  "amountNetto": 18.45,
+  "amountNet": 18.45,
+  "vatAmount": 3.51,
+  "currency": "EUR",
+  "customer": {
+    "name": "Rita Lohr"
+  },
+  "orderId": "5hNNiK0Zqu1pWuiMV9QM",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:33:26.711Z",
+  "importedAt": "2026-03-17T22:33:26.711Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.773Z"
+}

@@ -1,0 +1,22 @@
+{
+  "id": "yd2JmpCNtMHmZXQ3X2KL",
+  "tenantId": "default",
+  "sevdeskId": "115758513",
+  "invoiceNumber": "RE-1230",
+  "date": "2026-01-29",
+  "dueDate": "2026-01-29",
+  "status": "bezahlt",
+  "amountGross": 53.45,
+  "amountNetto": 44.92,
+  "amountNet": 44.92,
+  "vatAmount": 8.53,
+  "currency": "EUR",
+  "customer": {
+    "name": "Max Erdner"
+  },
+  "orderId": "IAo6NiGSQXjAzNdHYoSN",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:39:26.189Z",
+  "importedAt": "2026-03-17T22:39:26.189Z"
+}

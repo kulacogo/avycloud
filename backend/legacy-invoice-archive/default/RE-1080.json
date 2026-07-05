@@ -1,0 +1,22 @@
+{
+  "id": "8GFHFoUXhKNxqmMcijTc",
+  "tenantId": "default",
+  "sevdeskId": "113428712",
+  "invoiceNumber": "RE-1080",
+  "date": "2025-12-27",
+  "dueDate": "2025-12-27",
+  "status": "bezahlt",
+  "amountGross": 34.99,
+  "amountNetto": 29.4,
+  "amountNet": 29.4,
+  "vatAmount": 5.59,
+  "currency": "EUR",
+  "customer": {
+    "name": "Christian Ehlers"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:43:42.704Z",
+  "importedAt": "2026-03-17T22:43:42.704Z"
+}

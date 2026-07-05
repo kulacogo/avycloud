@@ -1,0 +1,22 @@
+{
+  "id": "cZkxun8y1n8JZzjqMLKL",
+  "tenantId": "default",
+  "sevdeskId": "116509304",
+  "invoiceNumber": "RE-1280",
+  "date": "2026-02-06",
+  "dueDate": "2026-02-06",
+  "status": "bezahlt",
+  "amountGross": 38,
+  "amountNetto": 31.93,
+  "amountNet": 31.93,
+  "vatAmount": 6.07,
+  "currency": "EUR",
+  "customer": {
+    "name": "Merten Döpke"
+  },
+  "orderId": "MjDzBRChKP86CbpY4Hbu",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:38:26.414Z",
+  "importedAt": "2026-03-17T22:38:26.414Z"
+}

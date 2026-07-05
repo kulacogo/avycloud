@@ -1,0 +1,22 @@
+{
+  "id": "NfYAtDVpjWQdlBWVCJXy",
+  "tenantId": "default",
+  "sevdeskId": "116126309",
+  "invoiceNumber": "RE-1251",
+  "date": "2026-02-02",
+  "dueDate": "2026-02-02",
+  "status": "bezahlt",
+  "amountGross": 24.99,
+  "amountNetto": 21,
+  "amountNet": 21,
+  "vatAmount": 3.99,
+  "currency": "EUR",
+  "customer": {
+    "name": "Heiko Hofmann"
+  },
+  "orderId": "QjYyQuO6Fb81oQSmo8QM",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:39:24.711Z",
+  "importedAt": "2026-03-17T22:39:24.711Z"
+}

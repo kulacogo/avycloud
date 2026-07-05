@@ -1,0 +1,22 @@
+{
+  "id": "mWnZsQb5YuMPErXc9Nyl",
+  "tenantId": "default",
+  "sevdeskId": "115493575",
+  "invoiceNumber": "RE-1206",
+  "date": "2026-01-26",
+  "dueDate": "2026-01-26",
+  "status": "bezahlt",
+  "amountGross": 84.23,
+  "amountNetto": 70.78,
+  "amountNet": 70.78,
+  "vatAmount": 13.45,
+  "currency": "EUR",
+  "customer": {
+    "name": "Maur Christoph"
+  },
+  "orderId": "EvaxpgpEMCFLNVNx8aPp",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:40:24.527Z",
+  "importedAt": "2026-03-17T22:40:24.527Z"
+}

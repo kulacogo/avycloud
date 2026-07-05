@@ -1,0 +1,22 @@
+{
+  "id": "Z0ptAMO6BloSyuQI0DMB",
+  "tenantId": "default",
+  "sevdeskId": "111142234",
+  "invoiceNumber": "RE-1017",
+  "date": "2025-11-30",
+  "dueDate": "2025-11-30",
+  "status": "bezahlt",
+  "amountGross": 128.99,
+  "amountNetto": 108.39,
+  "amountNet": 108.39,
+  "vatAmount": 20.6,
+  "currency": "EUR",
+  "customer": {
+    "name": "rolf Kuschkowitz"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:54:26.192Z",
+  "importedAt": "2026-03-17T22:54:26.192Z"
+}

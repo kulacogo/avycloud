@@ -1,0 +1,22 @@
+{
+  "id": "tpB64CUaXqeg1eOS6OyP",
+  "tenantId": "default",
+  "sevdeskId": "115178453",
+  "invoiceNumber": "RE-1191",
+  "date": "2026-01-21",
+  "dueDate": "2026-01-21",
+  "status": "bezahlt",
+  "amountGross": 45.49,
+  "amountNetto": 38.23,
+  "amountNet": 38.23,
+  "vatAmount": 7.26,
+  "currency": "EUR",
+  "customer": {
+    "name": "Bettina Francke"
+  },
+  "orderId": "nQlSgVDqXKt3bpYy4p25",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:40:25.624Z",
+  "importedAt": "2026-03-17T22:40:25.624Z"
+}

@@ -1,0 +1,22 @@
+{
+  "id": "uVaTXlSxCTxBGjzdXRod",
+  "tenantId": "default",
+  "sevdeskId": "116264017",
+  "invoiceNumber": "RE-1258",
+  "date": "2026-02-03",
+  "dueDate": "2026-02-03",
+  "status": "bezahlt",
+  "amountGross": 52.49,
+  "amountNetto": 44.11,
+  "amountNet": 44.11,
+  "vatAmount": 8.38,
+  "currency": "EUR",
+  "customer": {
+    "name": "Achim Brandt"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:39:22.503Z",
+  "importedAt": "2026-03-17T22:39:22.503Z"
+}

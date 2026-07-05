@@ -1,0 +1,23 @@
+{
+  "id": "qKQyiSc1ppQ3N0e6BH7c",
+  "tenantId": "default",
+  "sevdeskId": "117155777",
+  "invoiceNumber": "RE-1360",
+  "date": "2026-02-16",
+  "dueDate": null,
+  "amountGross": 19.9,
+  "amountNetto": 16.72,
+  "amountNet": 16.72,
+  "vatAmount": 3.18,
+  "currency": "EUR",
+  "customer": {
+    "name": "Kevin Zumsande"
+  },
+  "orderId": "XVUqUi2yNoJRFADzx6Qn",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:35:36.714Z",
+  "importedAt": "2026-03-17T22:35:36.714Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.773Z"
+}

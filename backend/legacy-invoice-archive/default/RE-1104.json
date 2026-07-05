@@ -1,0 +1,22 @@
+{
+  "id": "631ltIbv65EFL3SysPvN",
+  "tenantId": "default",
+  "sevdeskId": "113781784",
+  "invoiceNumber": "RE-1104",
+  "date": "2026-01-01",
+  "dueDate": "2026-01-01",
+  "status": "bezahlt",
+  "amountGross": 54.99,
+  "amountNetto": 46.21,
+  "amountNet": 46.21,
+  "vatAmount": 8.78,
+  "currency": "EUR",
+  "customer": {
+    "name": "Andreas Bär"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:42:25.545Z",
+  "importedAt": "2026-03-17T22:42:25.545Z"
+}

@@ -1,0 +1,23 @@
+{
+  "id": "gPuI5ymqxV5gULWgkKQS",
+  "tenantId": "default",
+  "sevdeskId": "116946921",
+  "invoiceNumber": "RE-1343",
+  "date": "2026-02-12",
+  "dueDate": null,
+  "amountGross": 60,
+  "amountNetto": 50.42,
+  "amountNet": 50.42,
+  "vatAmount": 9.58,
+  "currency": "EUR",
+  "customer": {
+    "name": "Claudia Bohnenkamp"
+  },
+  "orderId": "RdlYom8iqrZyqU3cmBwC",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:36:35.100Z",
+  "importedAt": "2026-03-17T22:36:35.100Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.772Z"
+}

@@ -1,0 +1,20 @@
+{
+  "id": "eKTdimZPi6KieO0u9gvm",
+  "tenantId": "default",
+  "sevdeskId": "127291980",
+  "invoiceNumber": "RE-2182",
+  "date": "2026-06-29",
+  "dueDate": null,
+  "status": "entwurf",
+  "amountGross": 14000.23,
+  "amountNetto": 11764.9,
+  "amountNet": 11764.9,
+  "vatAmount": 2235.33,
+  "currency": "EUR",
+  "customer": null,
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-06-23T21:52:00.460Z",
+  "importedAt": "2026-06-23T21:52:00.460Z"
+}

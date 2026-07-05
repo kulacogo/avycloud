@@ -1,0 +1,22 @@
+{
+  "id": "2Vs2TCSFjqi3Kyrx1rD1",
+  "tenantId": "default",
+  "sevdeskId": "116126611",
+  "invoiceNumber": "RE-1253",
+  "date": "2026-02-02",
+  "dueDate": "2026-02-02",
+  "status": "bezahlt",
+  "amountGross": 19.99,
+  "amountNetto": 16.8,
+  "amountNet": 16.8,
+  "vatAmount": 3.19,
+  "currency": "EUR",
+  "customer": {
+    "name": "Ömer Atasoy"
+  },
+  "orderId": "iZi7yczhqXpn6bw4OkXR",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:39:24.581Z",
+  "importedAt": "2026-03-17T22:39:24.581Z"
+}

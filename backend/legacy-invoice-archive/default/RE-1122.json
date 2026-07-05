@@ -1,0 +1,22 @@
+{
+  "id": "TMmQE3Nuy73nm6t2Qh0x",
+  "tenantId": "default",
+  "sevdeskId": "114224019",
+  "invoiceNumber": "RE-1122",
+  "date": "2026-01-07",
+  "dueDate": "2026-01-07",
+  "status": "bezahlt",
+  "amountGross": 26.78,
+  "amountNetto": 22.5,
+  "amountNet": 22.5,
+  "vatAmount": 4.28,
+  "currency": "EUR",
+  "customer": {
+    "name": "Anil Altunay"
+  },
+  "orderId": "sDzTEZqLtA2nonAhTQxM",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:42:24.376Z",
+  "importedAt": "2026-03-17T22:42:24.376Z"
+}

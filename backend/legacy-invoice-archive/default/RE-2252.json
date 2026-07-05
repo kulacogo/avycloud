@@ -1,0 +1,33 @@
+{
+  "id": "Lh6TisrVBikmbu6ZktHi",
+  "tenantId": "default",
+  "invoiceNumber": "RE-2252",
+  "sevdeskId": "127385292",
+  "sevdeskExportedAt": "2026-06-25T03:55:04.285Z",
+  "orderId": "33091261",
+  "orderNumber": "MXRR935",
+  "marketplaceOrderId": "MXRR935",
+  "marketplace": "kaufland",
+  "customer": {
+    "zip": "82418",
+    "country": "DE",
+    "city": "Westried",
+    "phone": null,
+    "street": "Graf Alban 16",
+    "name": "rocio Martin",
+    "email": "casff8nq-db2797ecb169@kaufland-marktplatz.de"
+  },
+  "amountNetto": 70.71,
+  "amountNet": 70.71,
+  "amountBrutto": 84.15,
+  "amountGross": 84.15,
+  "vatRate": 0.19,
+  "vatAmount": 13.44,
+  "currency": "EUR",
+  "status": "offen",
+  "date": "2026-06-25",
+  "dueDate": "2026-07-09",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-2252.pdf",
+  "createdAt": "2026-06-25T03:55:04.285Z",
+  "createdBy": null
+}

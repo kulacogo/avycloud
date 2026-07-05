@@ -1,0 +1,23 @@
+{
+  "id": "7FNTwcLyrulL3VHJavyi",
+  "tenantId": "default",
+  "sevdeskId": "116846307",
+  "invoiceNumber": "RE-1333",
+  "date": "2026-02-11",
+  "dueDate": null,
+  "amountGross": 55.93,
+  "amountNetto": 47,
+  "amountNet": 47,
+  "vatAmount": 8.93,
+  "currency": "EUR",
+  "customer": {
+    "name": "Kiara Iorenantsoa"
+  },
+  "orderId": "SbK5pVVijgDcLyB2awIZ",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:36:35.881Z",
+  "importedAt": "2026-03-17T22:36:35.881Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.771Z"
+}

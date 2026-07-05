@@ -1,0 +1,33 @@
+{
+  "id": "wDv3koqRJQvqeFgDEYyi",
+  "tenantId": "default",
+  "invoiceNumber": "RE-2231",
+  "sevdeskId": "127385268",
+  "sevdeskExportedAt": "2026-06-25T03:54:39.468Z",
+  "orderId": "31594002",
+  "orderNumber": "MX5TU45",
+  "marketplaceOrderId": "MX5TU45",
+  "marketplace": "kaufland",
+  "customer": {
+    "country": "DE",
+    "city": "Moritzburg",
+    "name": "Steffen Skeide",
+    "zip": "01468",
+    "phone": null,
+    "street": "Dorfstraße 18",
+    "email": "casqloxq-c638921e233f@kaufland-marktplatz.de"
+  },
+  "amountNetto": 27.75,
+  "amountNet": 27.75,
+  "amountBrutto": 33.02,
+  "amountGross": 33.02,
+  "vatRate": 0.19,
+  "vatAmount": 5.27,
+  "currency": "EUR",
+  "status": "offen",
+  "date": "2026-06-25",
+  "dueDate": "2026-07-09",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-2231.pdf",
+  "createdAt": "2026-06-25T03:54:39.468Z",
+  "createdBy": null
+}

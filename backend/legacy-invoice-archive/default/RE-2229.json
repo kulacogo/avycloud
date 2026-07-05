@@ -1,0 +1,33 @@
+{
+  "id": "zkRv6bExtXFQamCOVmfj",
+  "tenantId": "default",
+  "invoiceNumber": "RE-2229",
+  "sevdeskId": "127385266",
+  "sevdeskExportedAt": "2026-06-25T03:54:37.369Z",
+  "orderId": "31554078",
+  "orderNumber": "M1E9T45",
+  "marketplaceOrderId": "M1E9T45",
+  "marketplace": "kaufland",
+  "customer": {
+    "country": "DE",
+    "city": "Haar",
+    "name": "Céline Fournier",
+    "zip": "85540",
+    "phone": null,
+    "street": "Wasserburger Straße 15",
+    "email": "caz18lxq-7a60000de5b3@kaufland-marktplatz.de"
+  },
+  "amountNetto": 16.76,
+  "amountNet": 16.76,
+  "amountBrutto": 19.95,
+  "amountGross": 19.95,
+  "vatRate": 0.19,
+  "vatAmount": 3.19,
+  "currency": "EUR",
+  "status": "offen",
+  "date": "2026-06-25",
+  "dueDate": "2026-07-09",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-2229.pdf",
+  "createdAt": "2026-06-25T03:54:37.369Z",
+  "createdBy": null
+}

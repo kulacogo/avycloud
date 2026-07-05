@@ -1,0 +1,33 @@
+{
+  "id": "YqDAMCSsB57hJhStAesK",
+  "tenantId": "default",
+  "invoiceNumber": "RE-2215",
+  "sevdeskId": "127385244",
+  "sevdeskExportedAt": "2026-06-25T03:54:18.323Z",
+  "orderId": "30750243",
+  "orderNumber": "M3EDF15",
+  "marketplaceOrderId": "M3EDF15",
+  "marketplace": "kaufland",
+  "customer": {
+    "country": "DE",
+    "city": "Templin",
+    "name": "Regine Stephany",
+    "zip": "17268",
+    "phone": null,
+    "street": "Lerchenweg 21",
+    "email": "can102zq-bf937b047251@kaufland-marktplatz.de"
+  },
+  "amountNetto": 9.56,
+  "amountNet": 9.56,
+  "amountBrutto": 11.38,
+  "amountGross": 11.38,
+  "vatRate": 0.19,
+  "vatAmount": 1.82,
+  "currency": "EUR",
+  "status": "offen",
+  "date": "2026-06-25",
+  "dueDate": "2026-07-09",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-2215.pdf",
+  "createdAt": "2026-06-25T03:54:18.323Z",
+  "createdBy": null
+}

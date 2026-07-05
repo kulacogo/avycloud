@@ -1,0 +1,26 @@
+{
+  "id": "tMS11j2oEjDLsqFTTnEb",
+  "tenantId": "default",
+  "sevdeskId": "119398908",
+  "invoiceNumber": "RE-1502",
+  "date": "2026-03-15",
+  "dueDate": null,
+  "amountGross": 50.48,
+  "amountNetto": 42.42,
+  "amountNet": 42.42,
+  "vatAmount": 8.06,
+  "currency": "EUR",
+  "customer": {
+    "name": "Janina Meister"
+  },
+  "orderId": "3Ce0NxIHv5WLIXFzsl56",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:32:26.349Z",
+  "importedAt": "2026-03-17T22:32:26.349Z",
+  "correctedAt": "2026-03-17T22:58:17.518Z",
+  "correctionType": "storno",
+  "correctionId": "NoUuID7JMDhHb9Duz3H3",
+  "status": "storniert",
+  "updatedAt": "2026-03-17T22:58:17.518Z"
+}

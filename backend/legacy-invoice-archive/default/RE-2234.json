@@ -1,0 +1,33 @@
+{
+  "id": "QUOY5eqJOzurqZQSgbdc",
+  "tenantId": "default",
+  "invoiceNumber": "RE-2234",
+  "sevdeskId": "127385272",
+  "sevdeskExportedAt": "2026-06-25T03:54:41.547Z",
+  "orderId": "31725822",
+  "orderNumber": "MQ5CF45",
+  "marketplaceOrderId": "MQ5CF45",
+  "marketplace": "kaufland",
+  "customer": {
+    "country": "DE",
+    "city": "Hungen",
+    "name": "Tina Liepe",
+    "zip": "35410",
+    "phone": null,
+    "street": "Am Gemeindewald 11",
+    "email": "caeqg2xq-93bea605be74@kaufland-marktplatz.de"
+  },
+  "amountNetto": 44.43,
+  "amountNet": 44.43,
+  "amountBrutto": 52.87,
+  "amountGross": 52.87,
+  "vatRate": 0.19,
+  "vatAmount": 8.44,
+  "currency": "EUR",
+  "status": "offen",
+  "date": "2026-06-25",
+  "dueDate": "2026-07-09",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-2234.pdf",
+  "createdAt": "2026-06-25T03:54:41.547Z",
+  "createdBy": null
+}

@@ -1,0 +1,22 @@
+{
+  "id": "77eWcXFuhmbWwtRY6gHD",
+  "tenantId": "default",
+  "sevdeskId": "114436160",
+  "invoiceNumber": "RE-1136",
+  "date": "2026-01-10",
+  "dueDate": "2026-01-10",
+  "status": "bezahlt",
+  "amountGross": 10.59,
+  "amountNetto": 8.9,
+  "amountNet": 8.9,
+  "vatAmount": 1.69,
+  "currency": "EUR",
+  "customer": {
+    "name": "Oliver Lienhardt"
+  },
+  "orderId": "ocZqX22Av3sRuyWWEzBo",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:41:26.359Z",
+  "importedAt": "2026-03-17T22:41:26.359Z"
+}

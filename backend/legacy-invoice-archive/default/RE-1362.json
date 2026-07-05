@@ -1,0 +1,23 @@
+{
+  "id": "rApYauCw9ci1j0pOAiYr",
+  "tenantId": "default",
+  "sevdeskId": "117155901",
+  "invoiceNumber": "RE-1362",
+  "date": "2026-02-16",
+  "dueDate": null,
+  "amountGross": 15.99,
+  "amountNetto": 13.44,
+  "amountNet": 13.44,
+  "vatAmount": 2.55,
+  "currency": "EUR",
+  "customer": {
+    "name": "Tanja Theis"
+  },
+  "orderId": "SzgJqO1gt8MlrlBujKAj",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:35:36.614Z",
+  "importedAt": "2026-03-17T22:35:36.614Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.773Z"
+}

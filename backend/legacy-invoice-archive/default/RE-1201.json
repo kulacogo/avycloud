@@ -1,0 +1,22 @@
+{
+  "id": "DsVwIjahWzEwMX53lBLE",
+  "tenantId": "default",
+  "sevdeskId": "115344930",
+  "invoiceNumber": "RE-1201",
+  "date": "2026-01-23",
+  "dueDate": "2026-01-23",
+  "status": "bezahlt",
+  "amountGross": 16.99,
+  "amountNetto": 14.28,
+  "amountNet": 14.28,
+  "vatAmount": 2.71,
+  "currency": "EUR",
+  "customer": {
+    "name": "Julius Lillig"
+  },
+  "orderId": "us2xmWVGoQblTs6eEezz",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:40:25.045Z",
+  "importedAt": "2026-03-17T22:40:25.045Z"
+}

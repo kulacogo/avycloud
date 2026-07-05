@@ -1,0 +1,33 @@
+{
+  "id": "dQS2EciRancjAZsimT3y",
+  "tenantId": "default",
+  "invoiceNumber": "RE-2227",
+  "sevdeskId": "127385263",
+  "sevdeskExportedAt": "2026-06-25T03:54:35.311Z",
+  "orderId": "31457708",
+  "orderNumber": "MYC6545",
+  "marketplaceOrderId": "MYC6545",
+  "marketplace": "kaufland",
+  "customer": {
+    "country": "DE",
+    "city": "Herrieden",
+    "name": "Johannes Schmutzer",
+    "zip": "91567",
+    "phone": null,
+    "street": "Am Martinsberg 28",
+    "email": "caugwqxq-c7ec8879ba84@kaufland-marktplatz.de"
+  },
+  "amountNetto": 30.25,
+  "amountNet": 30.25,
+  "amountBrutto": 36,
+  "amountGross": 36,
+  "vatRate": 0.19,
+  "vatAmount": 5.75,
+  "currency": "EUR",
+  "status": "offen",
+  "date": "2026-06-25",
+  "dueDate": "2026-07-09",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-2227.pdf",
+  "createdAt": "2026-06-25T03:54:35.311Z",
+  "createdBy": null
+}

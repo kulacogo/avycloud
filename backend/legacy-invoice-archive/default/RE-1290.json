@@ -1,0 +1,22 @@
+{
+  "id": "xJgLV16Tzrrjc3rAwO0w",
+  "tenantId": "default",
+  "sevdeskId": "116566787",
+  "invoiceNumber": "RE-1290",
+  "date": "2026-02-07",
+  "dueDate": "2026-02-07",
+  "status": "bezahlt",
+  "amountGross": 23.99,
+  "amountNetto": 20.16,
+  "amountNet": 20.16,
+  "vatAmount": 3.83,
+  "currency": "EUR",
+  "customer": {
+    "name": "Isolde Holland"
+  },
+  "orderId": "YkO1zlcHsNcthuKtykfr",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:38:25.535Z",
+  "importedAt": "2026-03-17T22:38:25.535Z"
+}

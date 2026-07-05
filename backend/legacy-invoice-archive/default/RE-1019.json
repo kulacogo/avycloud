@@ -1,0 +1,22 @@
+{
+  "id": "zgpP5QNHFxPHtDAAYwYK",
+  "tenantId": "default",
+  "sevdeskId": "111585650",
+  "invoiceNumber": "RE-1019",
+  "date": "2025-12-03",
+  "dueDate": "2025-12-03",
+  "status": "bezahlt",
+  "amountGross": 144.99,
+  "amountNetto": 121.84,
+  "amountNet": 121.84,
+  "vatAmount": 23.15,
+  "currency": "EUR",
+  "customer": {
+    "name": "Global PWPBBSM"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:54:26.082Z",
+  "importedAt": "2026-03-17T22:54:26.082Z"
+}

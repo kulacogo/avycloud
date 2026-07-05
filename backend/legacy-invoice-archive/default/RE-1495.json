@@ -1,0 +1,23 @@
+{
+  "id": "34MkOhE3IlfDeFiD35Fa",
+  "tenantId": "default",
+  "sevdeskId": "119398795",
+  "invoiceNumber": "RE-1495",
+  "date": "2026-03-15",
+  "dueDate": null,
+  "amountGross": 76.11,
+  "amountNetto": 63.95,
+  "amountNet": 63.95,
+  "vatAmount": 12.16,
+  "currency": "EUR",
+  "customer": {
+    "name": "Wolfgang Meyer"
+  },
+  "orderId": "KXGJdq7XPdMqz5Ol62eS",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:33:25.707Z",
+  "importedAt": "2026-03-17T22:33:25.707Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.771Z"
+}

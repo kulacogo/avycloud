@@ -1,0 +1,22 @@
+{
+  "id": "Ivj6BFEckQpYY5HpZkUR",
+  "tenantId": "default",
+  "sevdeskId": "112998943",
+  "invoiceNumber": "RE-1046",
+  "date": "2025-12-18",
+  "dueDate": "2025-12-18",
+  "status": "bezahlt",
+  "amountGross": 29.99,
+  "amountNetto": 25.2,
+  "amountNet": 25.2,
+  "vatAmount": 4.79,
+  "currency": "EUR",
+  "customer": {
+    "name": "Achim Höpner"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:53:34.389Z",
+  "importedAt": "2026-03-17T22:53:34.389Z"
+}

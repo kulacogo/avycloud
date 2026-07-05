@@ -1,0 +1,22 @@
+{
+  "id": "pY6SFaRKfHFJIMBAATEc",
+  "tenantId": "default",
+  "sevdeskId": "113234036",
+  "invoiceNumber": "RE-1067",
+  "date": "2025-12-22",
+  "dueDate": "2025-12-22",
+  "status": "bezahlt",
+  "amountGross": 14.99,
+  "amountNetto": 12.6,
+  "amountNet": 12.6,
+  "vatAmount": 2.39,
+  "currency": "EUR",
+  "customer": {
+    "name": "Anja Scherbe"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:47:04.314Z",
+  "importedAt": "2026-03-17T22:47:04.314Z"
+}

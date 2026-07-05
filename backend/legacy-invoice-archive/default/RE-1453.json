@@ -1,0 +1,23 @@
+{
+  "id": "xNcYesw205p7OoV4uuui",
+  "tenantId": "default",
+  "sevdeskId": "118506004",
+  "invoiceNumber": "RE-1453",
+  "date": "2026-03-03",
+  "dueDate": null,
+  "amountGross": 75.94,
+  "amountNetto": 63.82,
+  "amountNet": 63.82,
+  "vatAmount": 12.12,
+  "currency": "EUR",
+  "customer": {
+    "name": "Christina Becker"
+  },
+  "orderId": "ZdycVfam9sBaWTtMBhHk",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:34:26.995Z",
+  "importedAt": "2026-03-17T22:34:26.995Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.773Z"
+}

@@ -1,0 +1,22 @@
+{
+  "id": "AUdDMMb046AroyttioVT",
+  "tenantId": "default",
+  "sevdeskId": "113407444",
+  "invoiceNumber": "RE-1077",
+  "date": "2025-12-26",
+  "dueDate": "2025-12-26",
+  "status": "bezahlt",
+  "amountGross": 29.95,
+  "amountNetto": 25.17,
+  "amountNet": 25.17,
+  "vatAmount": 4.78,
+  "currency": "EUR",
+  "customer": {
+    "name": "Olaf Batke"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:44:06.404Z",
+  "importedAt": "2026-03-17T22:44:06.404Z"
+}

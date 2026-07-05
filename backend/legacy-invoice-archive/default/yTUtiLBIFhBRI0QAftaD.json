@@ -1,0 +1,30 @@
+{
+  "id": "yTUtiLBIFhBRI0QAftaD",
+  "tenantId": "default",
+  "type": "gutschrift",
+  "originalInvoiceId": "irfWVKiK2InV317tNAA4",
+  "originalInvoiceNumber": "RE-2026-0058",
+  "orderId": "kaufland__M5LY4C5",
+  "orderNumber": "M5LY4C5",
+  "marketplaceOrderId": "M5LY4C5",
+  "marketplace": "kaufland",
+  "amountGross": 9.24,
+  "amountNetto": 7.76,
+  "amountNet": 7.76,
+  "vatRate": 0.19,
+  "currency": "EUR",
+  "customer": {
+    "name": "Henry Schaumkessel",
+    "street": "Am Liliensteig 9",
+    "city": "Werder (Havel)",
+    "zip": "14542",
+    "country": "DE",
+    "phone": null,
+    "email": "caq9uxgq-539389275e0b@kaufland-marktplatz.de"
+  },
+  "sevdeskId": "125781428",
+  "reason": "Erstattung kaufland M5LY4C5 (9.24 EUR)",
+  "status": "storniert",
+  "date": "2026-06-04",
+  "createdAt": "2026-06-04T06:56:55.497Z"
+}

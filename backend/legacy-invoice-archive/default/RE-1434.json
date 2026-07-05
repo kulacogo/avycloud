@@ -1,0 +1,23 @@
+{
+  "id": "VaVN4csP8uQ4Ll4pASX0",
+  "tenantId": "default",
+  "sevdeskId": "118020932",
+  "invoiceNumber": "RE-1434",
+  "date": "2026-02-27",
+  "dueDate": null,
+  "amountGross": 74.49,
+  "amountNetto": 74.49,
+  "amountNet": 74.49,
+  "vatAmount": 0,
+  "currency": "EUR",
+  "customer": {
+    "name": "Marian Gîscan"
+  },
+  "orderId": "eIXqln2bkytpwfdsqYvl",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:34:28.677Z",
+  "importedAt": "2026-03-17T22:34:28.677Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.772Z"
+}

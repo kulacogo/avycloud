@@ -1,0 +1,22 @@
+{
+  "id": "dNgCjVL7WmnGyr8A1qFe",
+  "tenantId": "default",
+  "sevdeskId": "109583233",
+  "invoiceNumber": "RE-1005",
+  "date": "2025-11-10",
+  "dueDate": "2025-11-10",
+  "status": "bezahlt",
+  "amountGross": 26.99,
+  "amountNetto": 22.68,
+  "amountNet": 22.68,
+  "vatAmount": 4.31,
+  "currency": "EUR",
+  "customer": {
+    "name": "Armin Geyer"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:54:26.977Z",
+  "importedAt": "2026-03-17T22:54:26.977Z"
+}

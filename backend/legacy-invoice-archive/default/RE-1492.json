@@ -1,0 +1,23 @@
+{
+  "id": "3nh5GKXdwk5tJwtkA8tm",
+  "tenantId": "default",
+  "sevdeskId": "119140336",
+  "invoiceNumber": "RE-1492",
+  "date": "2026-03-11",
+  "dueDate": null,
+  "amountGross": 21.48,
+  "amountNetto": 18.05,
+  "amountNet": 18.05,
+  "vatAmount": 3.43,
+  "currency": "EUR",
+  "customer": {
+    "name": "Martin Wöhler"
+  },
+  "orderId": "805fKjgKx87zywmdesU8",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:33:25.936Z",
+  "importedAt": "2026-03-17T22:33:25.936Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.771Z"
+}

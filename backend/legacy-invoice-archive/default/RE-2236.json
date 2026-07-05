@@ -1,0 +1,33 @@
+{
+  "id": "RIpFRu1z0ebKP1sjEqJs",
+  "tenantId": "default",
+  "invoiceNumber": "RE-2236",
+  "sevdeskId": "127385275",
+  "sevdeskExportedAt": "2026-06-25T03:54:43.613Z",
+  "orderId": "31970638",
+  "orderNumber": "MRESW45",
+  "marketplaceOrderId": "MRESW45",
+  "marketplace": "kaufland",
+  "customer": {
+    "country": "DE",
+    "city": "Rastatt",
+    "name": "Nina Falk",
+    "zip": "76437",
+    "phone": null,
+    "street": "Sternfeldstraße 21b",
+    "email": "caf1jrxq-ed35ed080330@kaufland-marktplatz.de"
+  },
+  "amountNetto": 39.33,
+  "amountNet": 39.33,
+  "amountBrutto": 46.8,
+  "amountGross": 46.8,
+  "vatRate": 0.19,
+  "vatAmount": 7.47,
+  "currency": "EUR",
+  "status": "offen",
+  "date": "2026-06-25",
+  "dueDate": "2026-07-09",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-2236.pdf",
+  "createdAt": "2026-06-25T03:54:43.613Z",
+  "createdBy": null
+}

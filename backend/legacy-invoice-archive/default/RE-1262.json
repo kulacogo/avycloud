@@ -1,0 +1,22 @@
+{
+  "id": "GkrOdTfsYS6tHAMVlIyO",
+  "tenantId": "default",
+  "sevdeskId": "116331583",
+  "invoiceNumber": "RE-1262",
+  "date": "2026-02-04",
+  "dueDate": "2026-02-04",
+  "status": "bezahlt",
+  "amountGross": 24.27,
+  "amountNetto": 20.39,
+  "amountNet": 20.39,
+  "vatAmount": 3.88,
+  "currency": "EUR",
+  "customer": {
+    "name": "Tamer Hussein"
+  },
+  "orderId": "nr61UZm3IESagAiDMGbR",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:38:38.205Z",
+  "importedAt": "2026-03-17T22:38:38.205Z"
+}

@@ -1,0 +1,22 @@
+{
+  "id": "Ft9R8HnH3T40LBTk7oyH",
+  "tenantId": "default",
+  "sevdeskId": "112634080",
+  "invoiceNumber": "RE-1036",
+  "date": "2025-12-15",
+  "dueDate": "2025-12-15",
+  "status": "bezahlt",
+  "amountGross": 23.82,
+  "amountNetto": 20.02,
+  "amountNet": 20.02,
+  "vatAmount": 3.8,
+  "currency": "EUR",
+  "customer": {
+    "name": "Maria Herold"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:53:54.589Z",
+  "importedAt": "2026-03-17T22:53:54.589Z"
+}

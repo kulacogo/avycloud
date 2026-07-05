@@ -1,0 +1,26 @@
+{
+  "id": "ZbxW3xBbJScZn9VqT0d9",
+  "tenantId": "default",
+  "sevdeskId": "118611799",
+  "invoiceNumber": "RE-1465",
+  "date": "2026-03-04",
+  "dueDate": null,
+  "amountGross": 159.9,
+  "amountNetto": 134.37,
+  "amountNet": 134.37,
+  "vatAmount": 25.53,
+  "currency": "EUR",
+  "customer": {
+    "name": "Emilia Regner"
+  },
+  "orderId": "dup1MehmSdlCXo5i8mgH",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:33:58.005Z",
+  "importedAt": "2026-03-17T22:33:58.005Z",
+  "correctedAt": "2026-03-17T22:58:20.778Z",
+  "correctionType": "storno",
+  "correctionId": "UJ8q1yTUx5IItyA9ZkGJ",
+  "status": "storniert",
+  "updatedAt": "2026-03-17T22:58:20.778Z"
+}

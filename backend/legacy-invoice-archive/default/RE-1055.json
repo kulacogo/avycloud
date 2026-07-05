@@ -1,0 +1,22 @@
+{
+  "id": "cdlt2DeFmUschgCmNkEu",
+  "tenantId": "default",
+  "sevdeskId": "113147174",
+  "invoiceNumber": "RE-1055",
+  "date": "2025-12-20",
+  "dueDate": "2025-12-20",
+  "status": "bezahlt",
+  "amountGross": 594.95,
+  "amountNetto": 499.96,
+  "amountNet": 499.96,
+  "vatAmount": 94.99,
+  "currency": "EUR",
+  "customer": {
+    "name": "Thomas Loos"
+  },
+  "orderId": "PdzfQtpbYoDl4HQYy7DB",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:53:27.578Z",
+  "importedAt": "2026-03-17T22:53:27.578Z"
+}

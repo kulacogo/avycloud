@@ -1,0 +1,22 @@
+{
+  "id": "m3W79uzEGie3bSBMduqU",
+  "tenantId": "default",
+  "sevdeskId": "113609989",
+  "invoiceNumber": "RE-1096",
+  "date": "2025-12-30",
+  "dueDate": "2025-12-30",
+  "status": "bezahlt",
+  "amountGross": 17.99,
+  "amountNetto": 15.12,
+  "amountNet": 15.12,
+  "vatAmount": 2.87,
+  "currency": "EUR",
+  "customer": {
+    "name": "Nicole Schopp"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:42:25.922Z",
+  "importedAt": "2026-03-17T22:42:25.922Z"
+}

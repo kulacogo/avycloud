@@ -1,0 +1,22 @@
+{
+  "id": "xt2S67ED39aZOYHHgmHm",
+  "tenantId": "default",
+  "sevdeskId": "113436342",
+  "invoiceNumber": "RE-1083",
+  "date": "2025-12-27",
+  "dueDate": "2025-12-27",
+  "status": "bezahlt",
+  "amountGross": 11.5,
+  "amountNetto": 9.66,
+  "amountNet": 9.66,
+  "vatAmount": 1.84,
+  "currency": "EUR",
+  "customer": {
+    "name": "Stephan Kurte"
+  },
+  "orderId": "q5pA7yyghYKj90Kzwvb3",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:42:26.888Z",
+  "importedAt": "2026-03-17T22:42:26.888Z"
+}

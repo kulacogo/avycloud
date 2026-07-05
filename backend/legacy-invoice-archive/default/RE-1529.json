@@ -1,0 +1,33 @@
+{
+  "id": "pCk1krcnc9H76Z1kD6Ob",
+  "tenantId": "default",
+  "invoiceNumber": "RE-1529",
+  "sevdeskId": "119604434",
+  "sevdeskExportedAt": "2026-03-17T23:23:52.302Z",
+  "orderId": "zI9fwVfx1u6xH6fcTDNg",
+  "orderNumber": "11-14190-62817",
+  "marketplaceOrderId": "11-14190-62817",
+  "marketplace": "ebay",
+  "customer": {
+    "name": "Dieter Unold",
+    "street": "Speyererstrasse 135",
+    "city": "Mutterstadt",
+    "country": "DE",
+    "phone": "Invalid Request",
+    "email": null,
+    "zip": "67112"
+  },
+  "amountNetto": 92.43,
+  "amountBrutto": 109.99,
+  "vatRate": 0.19,
+  "vatAmount": 17.56,
+  "currency": "EUR",
+  "date": "2026-03-17",
+  "dueDate": "2026-03-31",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-1529.pdf",
+  "createdAt": "2026-03-17T23:23:52.302Z",
+  "createdBy": null,
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.773Z",
+  "pdfRegeneratedAt": "2026-06-02T09:14:09.385Z"
+}

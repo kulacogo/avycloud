@@ -1,0 +1,22 @@
+{
+  "id": "tETlTfRgqUR36mi1P6Z4",
+  "tenantId": "default",
+  "sevdeskId": "115380679",
+  "invoiceNumber": "RE-1203",
+  "date": "2026-01-24",
+  "dueDate": "2026-01-24",
+  "status": "bezahlt",
+  "amountGross": 45.14,
+  "amountNetto": 37.93,
+  "amountNet": 37.93,
+  "vatAmount": 7.21,
+  "currency": "EUR",
+  "customer": {
+    "name": "Jens Schroth"
+  },
+  "orderId": "CsyKiTPoAfjSeN4u43s5",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:40:24.768Z",
+  "importedAt": "2026-03-17T22:40:24.768Z"
+}

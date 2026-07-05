@@ -1,0 +1,22 @@
+{
+  "id": "KLNKiIJWnHIDjpxKII3t",
+  "tenantId": "default",
+  "sevdeskId": "115014635",
+  "invoiceNumber": "RE-1173",
+  "date": "2026-01-19",
+  "dueDate": "2026-01-19",
+  "status": "bezahlt",
+  "amountGross": 12.18,
+  "amountNetto": 10.24,
+  "amountNet": 10.24,
+  "vatAmount": 1.94,
+  "currency": "EUR",
+  "customer": {
+    "name": "Klaus Budweg"
+  },
+  "orderId": "izo4PsN7oJvtzR2h1xpW",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:40:56.404Z",
+  "importedAt": "2026-03-17T22:40:56.404Z"
+}

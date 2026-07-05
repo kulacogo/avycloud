@@ -1,0 +1,22 @@
+{
+  "id": "Gkrn3RXtEHihqsF3qQ0s",
+  "tenantId": "default",
+  "sevdeskId": "116264163",
+  "invoiceNumber": "RE-1260",
+  "date": "2026-02-03",
+  "dueDate": "2026-02-03",
+  "status": "bezahlt",
+  "amountGross": 24.27,
+  "amountNetto": 20.39,
+  "amountNet": 20.39,
+  "vatAmount": 3.88,
+  "currency": "EUR",
+  "customer": {
+    "name": "Christian Dietrich-West"
+  },
+  "orderId": "pTI7ifOW0x2qFfTImRsr",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:39:03.603Z",
+  "importedAt": "2026-03-17T22:39:03.603Z"
+}

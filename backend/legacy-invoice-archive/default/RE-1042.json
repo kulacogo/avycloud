@@ -1,0 +1,22 @@
+{
+  "id": "ugRAOiRVH78vzMFfOzNN",
+  "tenantId": "default",
+  "sevdeskId": "112791045",
+  "invoiceNumber": "RE-1042",
+  "date": "2025-12-16",
+  "dueDate": "2025-12-16",
+  "status": "bezahlt",
+  "amountGross": 128,
+  "amountNetto": 107.56,
+  "amountNet": 107.56,
+  "vatAmount": 20.44,
+  "currency": "EUR",
+  "customer": {
+    "name": "Marita Thiele"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:53:43.189Z",
+  "importedAt": "2026-03-17T22:53:43.189Z"
+}

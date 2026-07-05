@@ -1,0 +1,30 @@
+{
+  "id": "5A1oaFAPiqK03H93BNOi",
+  "tenantId": "default",
+  "invoiceNumber": "RE-1709",
+  "sevdeskId": "121581723",
+  "sevdeskExportedAt": "2026-04-13T00:14:15.441Z",
+  "orderId": "ebay__04-13999-76201",
+  "orderNumber": "04-13999-76201",
+  "marketplaceOrderId": "04-13999-76201",
+  "marketplace": "ebay",
+  "customer": {
+    "name": "eBay Käufer",
+    "email": null,
+    "username": "sallyline-kruemel"
+  },
+  "amountNetto": 25.2,
+  "amountNet": 25.2,
+  "amountBrutto": 29.99,
+  "amountGross": 29.99,
+  "vatRate": 0.19,
+  "vatAmount": 4.79,
+  "currency": "EUR",
+  "status": "offen",
+  "date": "2026-04-13",
+  "dueDate": "2026-04-27",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-1709.pdf",
+  "createdAt": "2026-04-13T00:14:15.441Z",
+  "createdBy": null,
+  "pdfRegeneratedAt": "2026-06-02T09:10:49.515Z"
+}

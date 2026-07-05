@@ -1,0 +1,23 @@
+{
+  "id": "C3pRiNE8ihYvUHd7SqOA",
+  "tenantId": "default",
+  "sevdeskId": "117312163",
+  "invoiceNumber": "RE-1376",
+  "date": "2026-02-18",
+  "dueDate": null,
+  "amountGross": 29.95,
+  "amountNetto": 25.17,
+  "amountNet": 25.17,
+  "vatAmount": 4.78,
+  "currency": "EUR",
+  "customer": {
+    "name": "Timo Wild"
+  },
+  "orderId": "DJYfEEw3wOSgM6SoVifI",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:35:35.506Z",
+  "importedAt": "2026-03-17T22:35:35.506Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.771Z"
+}

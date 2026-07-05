@@ -1,0 +1,22 @@
+{
+  "id": "HR3uiU5RasveGe2lWmDr",
+  "tenantId": "default",
+  "sevdeskId": "115015492",
+  "invoiceNumber": "RE-1181",
+  "date": "2026-01-19",
+  "dueDate": "2026-01-19",
+  "status": "bezahlt",
+  "amountGross": 26.99,
+  "amountNetto": 22.68,
+  "amountNet": 22.68,
+  "vatAmount": 4.31,
+  "currency": "EUR",
+  "customer": {
+    "name": "Gerd Fehl"
+  },
+  "orderId": "TVcUajWcYoInXYBkKlBX",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:40:26.445Z",
+  "importedAt": "2026-03-17T22:40:26.445Z"
+}

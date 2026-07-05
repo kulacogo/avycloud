@@ -1,0 +1,22 @@
+{
+  "id": "Hx11ww0ZiGGVAxxe8iio",
+  "tenantId": "default",
+  "sevdeskId": "116509118",
+  "invoiceNumber": "RE-1276",
+  "date": "2026-02-06",
+  "dueDate": "2026-02-06",
+  "status": "bezahlt",
+  "amountGross": 101.11,
+  "amountNetto": 84.97,
+  "amountNet": 84.97,
+  "vatAmount": 16.14,
+  "currency": "EUR",
+  "customer": {
+    "name": "Colin Schmitter"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:38:26.683Z",
+  "importedAt": "2026-03-17T22:38:26.683Z"
+}

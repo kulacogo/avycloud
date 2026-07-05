@@ -1,0 +1,23 @@
+{
+  "id": "JY6pxBrsRmqAPt5Ja6DF",
+  "tenantId": "default",
+  "sevdeskId": "116846930",
+  "invoiceNumber": "RE-1336",
+  "date": "2026-02-11",
+  "dueDate": null,
+  "amountGross": 19.43,
+  "amountNetto": 16.33,
+  "amountNet": 16.33,
+  "vatAmount": 3.1,
+  "currency": "EUR",
+  "customer": {
+    "name": "Zimmer bei Casa libre"
+  },
+  "orderId": "fSef6d76hT2HnrBYlH5U",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:36:35.683Z",
+  "importedAt": "2026-03-17T22:36:35.683Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.771Z"
+}

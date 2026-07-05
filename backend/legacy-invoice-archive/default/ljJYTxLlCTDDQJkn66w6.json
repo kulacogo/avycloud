@@ -1,0 +1,20 @@
+{
+  "id": "ljJYTxLlCTDDQJkn66w6",
+  "tenantId": "default",
+  "sevdeskId": "119604348",
+  "invoiceNumber": null,
+  "date": "2026-03-17",
+  "dueDate": "2026-03-31",
+  "status": "entwurf",
+  "amountGross": 52.49,
+  "amountNetto": 44.11,
+  "amountNet": 44.11,
+  "vatAmount": 8.38,
+  "currency": "EUR",
+  "customer": null,
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T23:21:08.874Z",
+  "importedAt": "2026-03-17T23:21:08.874Z"
+}

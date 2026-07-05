@@ -1,0 +1,30 @@
+{
+  "id": "KUP5IU2SmiqnsEgCWOyp",
+  "tenantId": "default",
+  "invoiceNumber": "RE-1727",
+  "sevdeskId": "121581757",
+  "sevdeskExportedAt": "2026-04-13T00:14:56.631Z",
+  "orderId": "ebay__12-13976-21926",
+  "orderNumber": "12-13976-21926",
+  "marketplaceOrderId": "12-13976-21926",
+  "marketplace": "ebay",
+  "customer": {
+    "name": "eBay Käufer",
+    "email": null,
+    "username": "kruemel1990"
+  },
+  "amountNetto": 13.4,
+  "amountNet": 13.4,
+  "amountBrutto": 15.95,
+  "amountGross": 15.95,
+  "vatRate": 0.19,
+  "vatAmount": 2.55,
+  "currency": "EUR",
+  "status": "offen",
+  "date": "2026-04-13",
+  "dueDate": "2026-04-27",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-1727.pdf",
+  "createdAt": "2026-04-13T00:14:56.631Z",
+  "createdBy": null,
+  "pdfRegeneratedAt": "2026-06-02T09:11:53.588Z"
+}

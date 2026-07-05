@@ -1,0 +1,22 @@
+{
+  "id": "EhLUxJLZUS9x0Sv1oucm",
+  "tenantId": "default",
+  "sevdeskId": "115015417",
+  "invoiceNumber": "RE-1179",
+  "date": "2026-01-19",
+  "dueDate": "2026-01-19",
+  "status": "bezahlt",
+  "amountGross": 17.99,
+  "amountNetto": 15.12,
+  "amountNet": 15.12,
+  "vatAmount": 2.87,
+  "currency": "EUR",
+  "customer": {
+    "name": "Barbara Dirr"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:40:30.505Z",
+  "importedAt": "2026-03-17T22:40:30.505Z"
+}

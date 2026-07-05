@@ -1,0 +1,22 @@
+{
+  "id": "ceOCN7meysNLhGgEnATs",
+  "tenantId": "default",
+  "sevdeskId": "114476143",
+  "invoiceNumber": "RE-1141",
+  "date": "2026-01-11",
+  "dueDate": "2026-01-11",
+  "status": "bezahlt",
+  "amountGross": 25.99,
+  "amountNetto": 21.84,
+  "amountNet": 21.84,
+  "vatAmount": 4.15,
+  "currency": "EUR",
+  "customer": {
+    "name": "Zbigniew Lapinski"
+  },
+  "orderId": "f0SpDc68WgHxgvUaXTHH",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:41:25.823Z",
+  "importedAt": "2026-03-17T22:41:25.823Z"
+}

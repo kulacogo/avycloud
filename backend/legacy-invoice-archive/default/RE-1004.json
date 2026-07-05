@@ -1,0 +1,22 @@
+{
+  "id": "iUaPEwEmhweJ4l5tgNlt",
+  "tenantId": "default",
+  "sevdeskId": "109454952",
+  "invoiceNumber": "RE-1004",
+  "date": "2025-11-08",
+  "dueDate": "2025-11-08",
+  "status": "bezahlt",
+  "amountGross": 40.46,
+  "amountNetto": 34,
+  "amountNet": 34,
+  "vatAmount": 6.46,
+  "currency": "EUR",
+  "customer": {
+    "name": "Manuel Breuer"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:54:27.035Z",
+  "importedAt": "2026-03-17T22:54:27.035Z"
+}

@@ -1,0 +1,30 @@
+{
+  "id": "Ld0yNeBLRhVdygi9IXoo",
+  "tenantId": "default",
+  "invoiceNumber": "RE-1730",
+  "sevdeskId": "121581761",
+  "sevdeskExportedAt": "2026-04-13T00:15:05.274Z",
+  "orderId": "ebay__14-13957-29447",
+  "orderNumber": "14-13957-29447",
+  "marketplaceOrderId": "14-13957-29447",
+  "marketplace": "ebay",
+  "customer": {
+    "name": "eBay Käufer",
+    "email": null,
+    "username": "schwalbe043"
+  },
+  "amountNetto": 25.17,
+  "amountNet": 25.17,
+  "amountBrutto": 29.95,
+  "amountGross": 29.95,
+  "vatRate": 0.19,
+  "vatAmount": 4.78,
+  "currency": "EUR",
+  "status": "offen",
+  "date": "2026-04-13",
+  "dueDate": "2026-04-27",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-1730.pdf",
+  "createdAt": "2026-04-13T00:15:05.274Z",
+  "createdBy": null,
+  "pdfRegeneratedAt": "2026-06-02T09:11:56.976Z"
+}

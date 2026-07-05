@@ -1,0 +1,22 @@
+{
+  "id": "ONJJGCxZKSTu34qFG9gC",
+  "tenantId": "default",
+  "sevdeskId": "113781693",
+  "invoiceNumber": "RE-1103",
+  "date": "2026-01-01",
+  "dueDate": "2026-01-01",
+  "status": "bezahlt",
+  "amountGross": 61.21,
+  "amountNetto": 51.44,
+  "amountNet": 51.44,
+  "vatAmount": 9.77,
+  "currency": "EUR",
+  "customer": {
+    "name": "uwe projahn"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:42:25.590Z",
+  "importedAt": "2026-03-17T22:42:25.590Z"
+}

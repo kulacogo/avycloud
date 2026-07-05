@@ -1,0 +1,25 @@
+{
+  "id": "IDLqcxcC1jGbn46BYMbB",
+  "tenantId": "default",
+  "type": "storno",
+  "originalInvoiceId": "wy63krta3SNCwbiupUXe",
+  "originalInvoiceNumber": "RE-1348",
+  "orderId": "4PCZEJQ3RDwyQ2CJEg8v",
+  "orderNumber": null,
+  "marketplaceOrderId": null,
+  "marketplace": null,
+  "amountGross": 17.99,
+  "amountNetto": 15.12,
+  "amountNet": 15.12,
+  "vatRate": 0.19,
+  "currency": "EUR",
+  "customer": {
+    "name": "Fabian Grünzig"
+  },
+  "reason": "Stornierung Bestellung",
+  "status": "storniert",
+  "date": "2026-03-17",
+  "createdAt": "2026-03-17T22:58:17.818Z",
+  "sevdeskId": "119604260",
+  "updatedAt": "2026-03-17T23:12:13.873Z"
+}

@@ -1,0 +1,23 @@
+{
+  "id": "LQMWuXgjfpD61NhwVIfy",
+  "tenantId": "default",
+  "sevdeskId": "117523937",
+  "invoiceNumber": "RE-1396",
+  "date": "2026-02-21",
+  "dueDate": null,
+  "amountGross": 15.49,
+  "amountNetto": 13.01,
+  "amountNet": 13.01,
+  "vatAmount": 2.48,
+  "currency": "EUR",
+  "customer": {
+    "name": "Armin Vohla"
+  },
+  "orderId": "A316TiwAyHuHpeX0Y25S",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:34:36.701Z",
+  "importedAt": "2026-03-17T22:34:36.701Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.772Z"
+}

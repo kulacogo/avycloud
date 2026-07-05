@@ -1,0 +1,22 @@
+{
+  "id": "KaKzY56P3C2ZE1xTnqra",
+  "tenantId": "default",
+  "sevdeskId": "116126783",
+  "invoiceNumber": "RE-1255",
+  "date": "2026-02-02",
+  "dueDate": "2026-02-02",
+  "status": "bezahlt",
+  "amountGross": 22.99,
+  "amountNetto": 19.32,
+  "amountNet": 19.32,
+  "vatAmount": 3.67,
+  "currency": "EUR",
+  "customer": {
+    "name": "Romy Hötzel"
+  },
+  "orderId": "eJ433TWeSQLbFdwvEGCn",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:39:24.464Z",
+  "importedAt": "2026-03-17T22:39:24.464Z"
+}

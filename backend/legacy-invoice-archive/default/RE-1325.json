@@ -1,0 +1,23 @@
+{
+  "id": "F8voLQUToULFNCnFfh8e",
+  "tenantId": "default",
+  "sevdeskId": "116741238",
+  "invoiceNumber": "RE-1325",
+  "date": "2026-02-10",
+  "dueDate": null,
+  "amountGross": 799.95,
+  "amountNetto": 672.23,
+  "amountNet": 672.23,
+  "vatAmount": 127.72,
+  "currency": "EUR",
+  "customer": {
+    "name": "Simon Draxinger"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:36:36.617Z",
+  "importedAt": "2026-03-17T22:36:36.617Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.771Z"
+}

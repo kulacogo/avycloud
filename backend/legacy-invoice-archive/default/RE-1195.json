@@ -1,0 +1,22 @@
+{
+  "id": "IG312JwoSmHB2bV7BTGh",
+  "tenantId": "default",
+  "sevdeskId": "115178784",
+  "invoiceNumber": "RE-1195",
+  "date": "2026-01-21",
+  "dueDate": "2026-01-21",
+  "status": "bezahlt",
+  "amountGross": 83.3,
+  "amountNetto": 70,
+  "amountNet": 70,
+  "vatAmount": 13.3,
+  "currency": "EUR",
+  "customer": {
+    "name": "Nikolaos Dimitriadis"
+  },
+  "orderId": "5Gqormv1eAiujLqzFG6U",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:40:25.403Z",
+  "importedAt": "2026-03-17T22:40:25.403Z"
+}

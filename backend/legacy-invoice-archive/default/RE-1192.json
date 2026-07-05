@@ -1,0 +1,22 @@
+{
+  "id": "wsrq5KQNRbNwiEtVlnNo",
+  "tenantId": "default",
+  "sevdeskId": "115178616",
+  "invoiceNumber": "RE-1192",
+  "date": "2026-01-21",
+  "dueDate": "2026-01-21",
+  "status": "bezahlt",
+  "amountGross": 90.29,
+  "amountNetto": 75.87,
+  "amountNet": 75.87,
+  "vatAmount": 14.42,
+  "currency": "EUR",
+  "customer": {
+    "name": "Zahnarztpraxis Lehner"
+  },
+  "orderId": "PQdvcNiR7J6QuVlhDTrb",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:40:25.566Z",
+  "importedAt": "2026-03-17T22:40:25.566Z"
+}

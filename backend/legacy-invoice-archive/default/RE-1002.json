@@ -1,0 +1,22 @@
+{
+  "id": "RZ8lw52BuSOfQotirMgZ",
+  "tenantId": "default",
+  "sevdeskId": "109265891",
+  "invoiceNumber": "RE-1002",
+  "date": "2025-11-05",
+  "dueDate": "2025-11-05",
+  "status": "bezahlt",
+  "amountGross": 7.16,
+  "amountNetto": 6.02,
+  "amountNet": 6.02,
+  "vatAmount": 1.14,
+  "currency": "EUR",
+  "customer": {
+    "name": "Fatih Aydinli"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:54:27.155Z",
+  "importedAt": "2026-03-17T22:54:27.155Z"
+}

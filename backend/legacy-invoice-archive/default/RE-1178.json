@@ -1,0 +1,22 @@
+{
+  "id": "ynldG9r82kb1Vc7xoAjq",
+  "tenantId": "default",
+  "sevdeskId": "115015077",
+  "invoiceNumber": "RE-1178",
+  "date": "2026-01-19",
+  "dueDate": "2026-01-19",
+  "status": "bezahlt",
+  "amountGross": 326.63,
+  "amountNetto": 274.48,
+  "amountNet": 274.48,
+  "vatAmount": 52.15,
+  "currency": "EUR",
+  "customer": {
+    "name": "Harald Dyrbusch"
+  },
+  "orderId": "EsYY3jucikEUxWaaH5Bb",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:40:37.404Z",
+  "importedAt": "2026-03-17T22:40:37.404Z"
+}

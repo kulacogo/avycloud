@@ -1,0 +1,33 @@
+{
+  "id": "7oc9qNUI9b6IR56jWRIi",
+  "tenantId": "default",
+  "invoiceNumber": "RE-2212",
+  "sevdeskId": "127385240",
+  "sevdeskExportedAt": "2026-06-25T03:54:15.569Z",
+  "orderId": "30712029",
+  "orderNumber": "ML7L615",
+  "marketplaceOrderId": "ML7L615",
+  "marketplace": "kaufland",
+  "customer": {
+    "country": "DE",
+    "city": "Mönchengladbach",
+    "name": "Rita Arndt",
+    "zip": "41239",
+    "phone": null,
+    "street": "Mathildenstraße 99",
+    "email": "ca9i9wzq-2203afaa73d7@kaufland-marktplatz.de"
+  },
+  "amountNetto": 16.8,
+  "amountNet": 16.8,
+  "amountBrutto": 19.99,
+  "amountGross": 19.99,
+  "vatRate": 0.19,
+  "vatAmount": 3.19,
+  "currency": "EUR",
+  "status": "offen",
+  "date": "2026-06-25",
+  "dueDate": "2026-07-09",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-2212.pdf",
+  "createdAt": "2026-06-25T03:54:15.569Z",
+  "createdBy": null
+}

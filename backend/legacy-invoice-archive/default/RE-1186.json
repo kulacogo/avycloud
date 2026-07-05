@@ -1,0 +1,22 @@
+{
+  "id": "jU3uzxyuwDUizrjgD7oy",
+  "tenantId": "default",
+  "sevdeskId": "115096023",
+  "invoiceNumber": "RE-1186",
+  "date": "2026-01-20",
+  "dueDate": "2026-01-20",
+  "status": "bezahlt",
+  "amountGross": 73.5,
+  "amountNetto": 61.76,
+  "amountNet": 61.76,
+  "vatAmount": 11.74,
+  "currency": "EUR",
+  "customer": {
+    "name": "Max Mester"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:40:26.012Z",
+  "importedAt": "2026-03-17T22:40:26.012Z"
+}

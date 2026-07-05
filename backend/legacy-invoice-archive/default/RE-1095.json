@@ -1,0 +1,22 @@
+{
+  "id": "PXnbrGPySAeVAabHKj0K",
+  "tenantId": "default",
+  "sevdeskId": "113555915",
+  "invoiceNumber": "RE-1095",
+  "date": "2025-12-29",
+  "dueDate": "2025-12-29",
+  "status": "bezahlt",
+  "amountGross": 23.98,
+  "amountNetto": 20.15,
+  "amountNet": 20.15,
+  "vatAmount": 3.83,
+  "currency": "EUR",
+  "customer": {
+    "name": "Frank Wilhelm"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:42:25.958Z",
+  "importedAt": "2026-03-17T22:42:25.958Z"
+}

@@ -1,0 +1,23 @@
+{
+  "id": "OyjpaexdVRhSluywdNVC",
+  "tenantId": "default",
+  "sevdeskId": "117025512",
+  "invoiceNumber": "RE-1356",
+  "date": "2026-02-13",
+  "dueDate": null,
+  "amountGross": 29.85,
+  "amountNetto": 25.08,
+  "amountNet": 25.08,
+  "vatAmount": 4.77,
+  "currency": "EUR",
+  "customer": {
+    "name": "Mehmet Duran"
+  },
+  "orderId": "F1gbLukT7yDKhhemmbN2",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:35:48.016Z",
+  "importedAt": "2026-03-17T22:35:48.016Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.772Z"
+}

@@ -1,0 +1,33 @@
+{
+  "id": "TcW2Nrd2zfcHuGOkc9x7",
+  "tenantId": "default",
+  "invoiceNumber": "RE-2204",
+  "sevdeskId": "127385231",
+  "sevdeskExportedAt": "2026-06-25T03:54:05.606Z",
+  "orderId": "30534070",
+  "orderNumber": "MYZZ515",
+  "marketplaceOrderId": "MYZZ515",
+  "marketplace": "kaufland",
+  "customer": {
+    "country": "DE",
+    "city": "Michelstadt",
+    "name": "Moritz Sterz",
+    "zip": "64720",
+    "phone": null,
+    "street": "Große Gasse 3",
+    "email": "cauvvqzq-c731995a9b5f@kaufland-marktplatz.de"
+  },
+  "amountNetto": 20.17,
+  "amountNet": 20.17,
+  "amountBrutto": 24,
+  "amountGross": 24,
+  "vatRate": 0.19,
+  "vatAmount": 3.83,
+  "currency": "EUR",
+  "status": "offen",
+  "date": "2026-06-25",
+  "dueDate": "2026-07-09",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-2204.pdf",
+  "createdAt": "2026-06-25T03:54:05.606Z",
+  "createdBy": null
+}

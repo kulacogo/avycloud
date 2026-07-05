@@ -1,0 +1,30 @@
+{
+  "id": "l0FTbl6JVYYogFVp3RYf",
+  "tenantId": "default",
+  "type": "gutschrift",
+  "originalInvoiceId": "EQTScxv7AT2hsEyDt5u1",
+  "originalInvoiceNumber": "RE-1929",
+  "orderId": "kaufland__M8E5ZB5",
+  "orderNumber": "M8E5ZB5",
+  "marketplaceOrderId": "M8E5ZB5",
+  "marketplace": "kaufland",
+  "amountGross": 10.62,
+  "amountNetto": 8.92,
+  "amountNet": 8.92,
+  "vatRate": 0.19,
+  "currency": "EUR",
+  "customer": {
+    "name": "Inan Tuac",
+    "street": "Großer-Kamp-Str. 14",
+    "city": "Visselhövede",
+    "zip": "27374",
+    "country": "DE",
+    "phone": null,
+    "email": "cak1qvmq-6fc82ed6cd49@kaufland-marktplatz.de"
+  },
+  "sevdeskId": "125544662",
+  "reason": "Erstattung kaufland M8E5ZB5 (10.62 EUR)",
+  "status": "storniert",
+  "date": "2026-06-01",
+  "createdAt": "2026-06-01T18:45:54.243Z"
+}

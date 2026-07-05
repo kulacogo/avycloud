@@ -1,0 +1,22 @@
+{
+  "id": "oGwydW0R7KSjsz293i5A",
+  "tenantId": "default",
+  "sevdeskId": "113144425",
+  "invoiceNumber": "RE-1053",
+  "date": "2025-12-20",
+  "dueDate": null,
+  "status": "bezahlt",
+  "amountGross": 150,
+  "amountNetto": 126.05,
+  "amountNet": 126.05,
+  "vatAmount": 23.95,
+  "currency": "EUR",
+  "customer": {
+    "name": "Dajana Salomon"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:53:27.920Z",
+  "importedAt": "2026-03-17T22:53:27.920Z"
+}

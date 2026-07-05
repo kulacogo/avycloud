@@ -1,0 +1,23 @@
+{
+  "id": "AkeN934oRsyGEUjlLVT2",
+  "tenantId": "default",
+  "sevdeskId": "118768957",
+  "invoiceNumber": "RE-1470",
+  "date": "2026-03-06",
+  "dueDate": null,
+  "amountGross": 40.44,
+  "amountNetto": 40.44,
+  "amountNet": 40.44,
+  "vatAmount": 0,
+  "currency": "EUR",
+  "customer": {
+    "name": "Anabelle Mandel"
+  },
+  "orderId": "Knlrk8qsOTrwSTyhlZW9",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:33:27.872Z",
+  "importedAt": "2026-03-17T22:33:27.872Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.771Z"
+}

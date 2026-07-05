@@ -1,0 +1,23 @@
+{
+  "id": "ZiLKaOkSBp2Y1eSiAXGa",
+  "tenantId": "default",
+  "sevdeskId": "117642334",
+  "invoiceNumber": "RE-1403",
+  "date": "2026-02-23",
+  "dueDate": null,
+  "amountGross": 60,
+  "amountNetto": 50.42,
+  "amountNet": 50.42,
+  "vatAmount": 9.58,
+  "currency": "EUR",
+  "customer": {
+    "name": "nicole mohr"
+  },
+  "orderId": "HIQ9RXP8lMqYo091rIOx",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:34:36.361Z",
+  "importedAt": "2026-03-17T22:34:36.361Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.772Z"
+}

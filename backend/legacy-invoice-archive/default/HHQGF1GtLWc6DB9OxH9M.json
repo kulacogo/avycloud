@@ -1,0 +1,25 @@
+{
+  "id": "HHQGF1GtLWc6DB9OxH9M",
+  "tenantId": "default",
+  "type": "storno",
+  "originalInvoiceId": "yNGqqEeYVJq5Oopa3Mm8",
+  "originalInvoiceNumber": "RE-1086",
+  "orderId": "vzxEcHcEkGtPWfSw9HGH",
+  "orderNumber": null,
+  "marketplaceOrderId": null,
+  "marketplace": null,
+  "amountGross": 69.49,
+  "amountNetto": 58.39,
+  "amountNet": 58.39,
+  "vatRate": 0.19,
+  "currency": "EUR",
+  "customer": {
+    "name": "Sylvia Dörge"
+  },
+  "reason": "Stornierung Bestellung",
+  "status": "storniert",
+  "date": "2026-03-17",
+  "createdAt": "2026-03-17T22:58:21.406Z",
+  "sevdeskId": "2629278",
+  "updatedAt": "2026-03-17T23:12:09.565Z"
+}

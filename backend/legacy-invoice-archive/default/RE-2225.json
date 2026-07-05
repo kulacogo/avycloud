@@ -1,0 +1,33 @@
+{
+  "id": "jRpmJEHNMGsUwaNaP3bp",
+  "tenantId": "default",
+  "invoiceNumber": "RE-2225",
+  "sevdeskId": "127385261",
+  "sevdeskExportedAt": "2026-06-25T03:54:33.187Z",
+  "orderId": "31365562",
+  "orderNumber": "M7ZYP45",
+  "marketplaceOrderId": "M7ZYP45",
+  "marketplace": "kaufland",
+  "customer": {
+    "country": "DE",
+    "city": "Schiffdorf",
+    "name": "Christina Haak",
+    "zip": "27619",
+    "phone": null,
+    "street": "Westruck 17",
+    "email": "caivudxq-cc584d2cce15@kaufland-marktplatz.de"
+  },
+  "amountNetto": 18.48,
+  "amountNet": 18.48,
+  "amountBrutto": 21.99,
+  "amountGross": 21.99,
+  "vatRate": 0.19,
+  "vatAmount": 3.51,
+  "currency": "EUR",
+  "status": "offen",
+  "date": "2026-06-25",
+  "dueDate": "2026-07-09",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-2225.pdf",
+  "createdAt": "2026-06-25T03:54:33.187Z",
+  "createdBy": null
+}

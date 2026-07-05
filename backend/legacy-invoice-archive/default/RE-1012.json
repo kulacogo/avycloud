@@ -1,0 +1,22 @@
+{
+  "id": "w6tL73SvQEItun1uUpGo",
+  "tenantId": "default",
+  "sevdeskId": "110918190",
+  "invoiceNumber": "RE-1012",
+  "date": "2025-11-27",
+  "dueDate": "2025-11-27",
+  "status": "bezahlt",
+  "amountGross": 99,
+  "amountNetto": 83.19,
+  "amountNet": 83.19,
+  "vatAmount": 15.81,
+  "currency": "EUR",
+  "customer": {
+    "name": "florian appen"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:54:26.524Z",
+  "importedAt": "2026-03-17T22:54:26.524Z"
+}

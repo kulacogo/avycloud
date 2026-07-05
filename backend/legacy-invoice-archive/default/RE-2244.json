@@ -1,0 +1,33 @@
+{
+  "id": "4NgAJB0z3GIWmWCjApF4",
+  "tenantId": "default",
+  "invoiceNumber": "RE-2244",
+  "sevdeskId": "127385284",
+  "sevdeskExportedAt": "2026-06-25T03:54:55.807Z",
+  "orderId": "32350840",
+  "orderNumber": "ME7T5D5",
+  "marketplaceOrderId": "ME7T5D5",
+  "marketplace": "kaufland",
+  "customer": {
+    "country": "DE",
+    "city": "Berlin",
+    "name": "Lia Rauschenbach",
+    "zip": "10829",
+    "phone": null,
+    "street": "Naumannstraße 13",
+    "email": "ca1ilq0q-f8b950fe3590@kaufland-marktplatz.de"
+  },
+  "amountNetto": 16.3,
+  "amountNet": 16.3,
+  "amountBrutto": 19.4,
+  "amountGross": 19.4,
+  "vatRate": 0.19,
+  "vatAmount": 3.1,
+  "currency": "EUR",
+  "status": "offen",
+  "date": "2026-06-25",
+  "dueDate": "2026-07-09",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-2244.pdf",
+  "createdAt": "2026-06-25T03:54:55.807Z",
+  "createdBy": null
+}

@@ -1,0 +1,22 @@
+{
+  "id": "5PiQLa7l8DW8Jt5hi07S",
+  "tenantId": "default",
+  "sevdeskId": "115096435",
+  "invoiceNumber": "RE-1187",
+  "date": "2026-01-20",
+  "dueDate": "2026-01-20",
+  "status": "bezahlt",
+  "amountGross": 49.99,
+  "amountNetto": 42.01,
+  "amountNet": 42.01,
+  "vatAmount": 7.98,
+  "currency": "EUR",
+  "customer": {
+    "name": "Petra Glatzl"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:40:25.861Z",
+  "importedAt": "2026-03-17T22:40:25.861Z"
+}

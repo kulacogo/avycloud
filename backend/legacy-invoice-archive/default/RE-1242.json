@@ -1,0 +1,22 @@
+{
+  "id": "dAjqTNwMW3xtEepqhtui",
+  "tenantId": "default",
+  "sevdeskId": "115920371",
+  "invoiceNumber": "RE-1242",
+  "date": "2026-01-31",
+  "dueDate": "2026-01-31",
+  "status": "bezahlt",
+  "amountGross": 128,
+  "amountNetto": 107.56,
+  "amountNet": 107.56,
+  "vatAmount": 20.44,
+  "currency": "EUR",
+  "customer": {
+    "name": "Sebastian Schönhoff"
+  },
+  "orderId": "NT2iGYVDPCqEulHA3Pp4",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:39:25.383Z",
+  "importedAt": "2026-03-17T22:39:25.383Z"
+}

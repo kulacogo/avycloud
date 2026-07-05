@@ -1,0 +1,23 @@
+{
+  "id": "fqWLwPruAMM1zKlk8iIu",
+  "tenantId": "default",
+  "sevdeskId": "117767975",
+  "invoiceNumber": "RE-1419",
+  "date": "2026-02-24",
+  "dueDate": null,
+  "amountGross": 205.29,
+  "amountNetto": 172.51,
+  "amountNet": 172.51,
+  "vatAmount": 32.78,
+  "currency": "EUR",
+  "customer": {
+    "name": "Dennis Gloning"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:34:34.969Z",
+  "importedAt": "2026-03-17T22:34:34.969Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.772Z"
+}

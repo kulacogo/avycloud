@@ -1,0 +1,22 @@
+{
+  "id": "vaR5aM7MrRiDfa2X8bEc",
+  "tenantId": "default",
+  "sevdeskId": "115909245",
+  "invoiceNumber": "RE-1236",
+  "date": "2026-01-31",
+  "dueDate": "2026-01-31",
+  "status": "bezahlt",
+  "amountGross": 39.95,
+  "amountNetto": 33.57,
+  "amountNet": 33.57,
+  "vatAmount": 6.38,
+  "currency": "EUR",
+  "customer": {
+    "name": "RÃ¼diger Seng"
+  },
+  "orderId": "wNFIMzab3iPB44KUkYep",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:39:25.733Z",
+  "importedAt": "2026-03-17T22:39:25.733Z"
+}

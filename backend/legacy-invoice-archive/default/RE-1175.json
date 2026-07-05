@@ -1,0 +1,22 @@
+{
+  "id": "CuPTOLx9EqTO7pk5Ttcc",
+  "tenantId": "default",
+  "sevdeskId": "115014858",
+  "invoiceNumber": "RE-1175",
+  "date": "2026-01-19",
+  "dueDate": "2026-01-19",
+  "status": "bezahlt",
+  "amountGross": 69.93,
+  "amountNetto": 58.76,
+  "amountNet": 58.76,
+  "vatAmount": 11.17,
+  "currency": "EUR",
+  "customer": {
+    "name": "Heike Deitlaff"
+  },
+  "orderId": "hXi4OVFSDdwQ8D854QbF",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:40:52.704Z",
+  "importedAt": "2026-03-17T22:40:52.704Z"
+}

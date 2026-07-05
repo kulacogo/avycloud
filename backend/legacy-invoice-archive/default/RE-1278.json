@@ -1,0 +1,22 @@
+{
+  "id": "pSI0845bMibCpOCFldh9",
+  "tenantId": "default",
+  "sevdeskId": "116509209",
+  "invoiceNumber": "RE-1278",
+  "date": "2026-02-06",
+  "dueDate": "2026-02-06",
+  "status": "bezahlt",
+  "amountGross": 51.03,
+  "amountNetto": 42.88,
+  "amountNet": 42.88,
+  "vatAmount": 8.15,
+  "currency": "EUR",
+  "customer": {
+    "name": "Christian Sieber"
+  },
+  "orderId": "gCzu57jM7id19m9FSxqa",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:38:26.533Z",
+  "importedAt": "2026-03-17T22:38:26.533Z"
+}

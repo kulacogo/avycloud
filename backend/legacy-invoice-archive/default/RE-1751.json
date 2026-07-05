@@ -1,0 +1,30 @@
+{
+  "id": "aZ9vt0EMtuJM3wAbnEzV",
+  "tenantId": "default",
+  "invoiceNumber": "RE-1751",
+  "sevdeskId": "121581798",
+  "sevdeskExportedAt": "2026-04-13T00:15:59.818Z",
+  "orderId": "ebay__25-13960-60314",
+  "orderNumber": "25-13960-60314",
+  "marketplaceOrderId": "25-13960-60314",
+  "marketplace": "ebay",
+  "customer": {
+    "name": "eBay Käufer",
+    "email": null,
+    "username": "darestrade"
+  },
+  "amountNetto": 0,
+  "amountNet": 0,
+  "amountBrutto": 0,
+  "amountGross": 0,
+  "vatRate": 0.19,
+  "vatAmount": 0,
+  "currency": "EUR",
+  "status": "offen",
+  "date": "2026-04-13",
+  "dueDate": "2026-04-27",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-1751.pdf",
+  "createdAt": "2026-04-13T00:15:59.818Z",
+  "createdBy": null,
+  "pdfRegeneratedAt": "2026-06-02T09:13:07.892Z"
+}

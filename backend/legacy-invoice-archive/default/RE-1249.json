@@ -1,0 +1,22 @@
+{
+  "id": "POKwZPezNqWWebY7FE8h",
+  "tenantId": "default",
+  "sevdeskId": "116126018",
+  "invoiceNumber": "RE-1249",
+  "date": "2026-02-02",
+  "dueDate": "2026-02-02",
+  "status": "bezahlt",
+  "amountGross": 10.79,
+  "amountNetto": 9.07,
+  "amountNet": 9.07,
+  "vatAmount": 1.72,
+  "currency": "EUR",
+  "customer": {
+    "name": "Leander Köpke"
+  },
+  "orderId": "Yeu1aYEAT3ytDbOLXxbN",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:39:24.830Z",
+  "importedAt": "2026-03-17T22:39:24.830Z"
+}

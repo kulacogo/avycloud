@@ -1,0 +1,33 @@
+{
+  "id": "fmXCnPFkpWDRb1RyOgvE",
+  "tenantId": "default",
+  "invoiceNumber": "RE-2205",
+  "sevdeskId": "127385233",
+  "sevdeskExportedAt": "2026-06-25T03:54:07.469Z",
+  "orderId": "30543524",
+  "orderNumber": "M1PCB15",
+  "marketplaceOrderId": "M1PCB15",
+  "marketplace": "kaufland",
+  "customer": {
+    "country": "DE",
+    "city": "Schwendi",
+    "name": "Peter Hermann",
+    "zip": "88477",
+    "phone": null,
+    "street": "Elsässer Weg 16",
+    "email": "cazdgmzq-cc55740527cb@kaufland-marktplatz.de"
+  },
+  "amountNetto": 33.4,
+  "amountNet": 33.4,
+  "amountBrutto": 39.75,
+  "amountGross": 39.75,
+  "vatRate": 0.19,
+  "vatAmount": 6.35,
+  "currency": "EUR",
+  "status": "offen",
+  "date": "2026-06-25",
+  "dueDate": "2026-07-09",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-2205.pdf",
+  "createdAt": "2026-06-25T03:54:07.469Z",
+  "createdBy": null
+}

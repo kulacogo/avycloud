@@ -1,0 +1,22 @@
+{
+  "id": "VLsGQPhjFSjkSGjlvD5T",
+  "tenantId": "default",
+  "sevdeskId": "115503906",
+  "invoiceNumber": "RE-1213",
+  "date": "2026-01-26",
+  "dueDate": "2026-01-26",
+  "status": "bezahlt",
+  "amountGross": 274,
+  "amountNetto": 230.25,
+  "amountNet": 230.25,
+  "vatAmount": 43.75,
+  "currency": "EUR",
+  "customer": {
+    "name": "Isabelle Reich-Haag"
+  },
+  "orderId": "odtfFKfpaYOavAktxiqa",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:39:58.304Z",
+  "importedAt": "2026-03-17T22:39:58.304Z"
+}

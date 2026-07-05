@@ -1,0 +1,30 @@
+{
+  "id": "QORFxKv4WQ25bEDuczSM",
+  "tenantId": "default",
+  "invoiceNumber": "RE-1741",
+  "sevdeskId": "121581783",
+  "sevdeskExportedAt": "2026-04-13T00:15:36.733Z",
+  "orderId": "ebay__18-13971-53941",
+  "orderNumber": "18-13971-53941",
+  "marketplaceOrderId": "18-13971-53941",
+  "marketplace": "ebay",
+  "customer": {
+    "name": "eBay Käufer",
+    "email": null,
+    "username": "jennymaus74"
+  },
+  "amountNetto": 107.56,
+  "amountNet": 107.56,
+  "amountBrutto": 128,
+  "amountGross": 128,
+  "vatRate": 0.19,
+  "vatAmount": 20.44,
+  "currency": "EUR",
+  "status": "offen",
+  "date": "2026-04-13",
+  "dueDate": "2026-04-27",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-1741.pdf",
+  "createdAt": "2026-04-13T00:15:36.733Z",
+  "createdBy": null,
+  "pdfRegeneratedAt": "2026-06-02T09:12:28.207Z"
+}

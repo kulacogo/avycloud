@@ -1,0 +1,22 @@
+{
+  "id": "1b1P4h9wsYwSEtX49w8C",
+  "tenantId": "default",
+  "sevdeskId": "115645227",
+  "invoiceNumber": "RE-1226",
+  "date": "2026-01-28",
+  "dueDate": "2026-01-28",
+  "status": "bezahlt",
+  "amountGross": 17.98,
+  "amountNetto": 15.11,
+  "amountNet": 15.11,
+  "vatAmount": 2.87,
+  "currency": "EUR",
+  "customer": {
+    "name": "Jan Shreider"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:39:26.606Z",
+  "importedAt": "2026-03-17T22:39:26.606Z"
+}

@@ -1,0 +1,23 @@
+{
+  "id": "GOIzMZ6u8iHBPSdsu7LV",
+  "tenantId": "default",
+  "sevdeskId": "117408779",
+  "invoiceNumber": "RE-1386",
+  "date": "2026-02-19",
+  "dueDate": null,
+  "amountGross": 15.99,
+  "amountNetto": 13.44,
+  "amountNet": 13.44,
+  "vatAmount": 2.55,
+  "currency": "EUR",
+  "customer": {
+    "name": "Kai Guehmann"
+  },
+  "orderId": "KuYh2Nhbf3cv2IZRANWG",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:35:34.740Z",
+  "importedAt": "2026-03-17T22:35:34.740Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.771Z"
+}

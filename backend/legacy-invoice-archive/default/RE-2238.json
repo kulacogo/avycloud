@@ -1,0 +1,33 @@
+{
+  "id": "TAu1FrUvUPZMWn1vVWXW",
+  "tenantId": "default",
+  "invoiceNumber": "RE-2238",
+  "sevdeskId": "127385277",
+  "sevdeskExportedAt": "2026-06-25T03:54:45.591Z",
+  "orderId": "32034597",
+  "orderNumber": "M7KTY45",
+  "marketplaceOrderId": "M7KTY45",
+  "marketplace": "kaufland",
+  "customer": {
+    "country": "DE",
+    "city": "Spiegelberg",
+    "name": "Birgit Blind",
+    "zip": "71579",
+    "phone": null,
+    "street": "Amselweg 4",
+    "email": "cai7luxq-0de93d4a470f@kaufland-marktplatz.de"
+  },
+  "amountNetto": 39.03,
+  "amountNet": 39.03,
+  "amountBrutto": 46.44,
+  "amountGross": 46.44,
+  "vatRate": 0.19,
+  "vatAmount": 7.41,
+  "currency": "EUR",
+  "status": "offen",
+  "date": "2026-06-25",
+  "dueDate": "2026-07-09",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-2238.pdf",
+  "createdAt": "2026-06-25T03:54:45.591Z",
+  "createdBy": null
+}

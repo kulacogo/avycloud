@@ -1,0 +1,22 @@
+{
+  "id": "gb6t9M2jFVUUUI0bSbcL",
+  "tenantId": "default",
+  "sevdeskId": "113100856",
+  "invoiceNumber": "RE-1049",
+  "date": "2025-12-19",
+  "dueDate": "2025-12-19",
+  "status": "bezahlt",
+  "amountGross": 39.99,
+  "amountNetto": 33.61,
+  "amountNet": 33.61,
+  "vatAmount": 6.38,
+  "currency": "EUR",
+  "customer": {
+    "name": "Alexandra Dülberg"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:53:29.289Z",
+  "importedAt": "2026-03-17T22:53:29.289Z"
+}

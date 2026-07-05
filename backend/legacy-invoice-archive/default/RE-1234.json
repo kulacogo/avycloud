@@ -1,0 +1,22 @@
+{
+  "id": "8UXEsXGaTKvtgPcehlMy",
+  "tenantId": "default",
+  "sevdeskId": "115823293",
+  "invoiceNumber": "RE-1234",
+  "date": "2026-01-30",
+  "dueDate": "2026-01-30",
+  "status": "bezahlt",
+  "amountGross": 50.9,
+  "amountNetto": 42.77,
+  "amountNet": 42.77,
+  "vatAmount": 8.13,
+  "currency": "EUR",
+  "customer": {
+    "name": "Diethelm Werning"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:39:25.903Z",
+  "importedAt": "2026-03-17T22:39:25.903Z"
+}

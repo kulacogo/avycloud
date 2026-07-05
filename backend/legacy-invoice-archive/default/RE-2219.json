@@ -1,0 +1,33 @@
+{
+  "id": "PrnNaGrAchHu2ddPWYAS",
+  "tenantId": "default",
+  "invoiceNumber": "RE-2219",
+  "sevdeskId": "127385251",
+  "sevdeskExportedAt": "2026-06-25T03:54:22.446Z",
+  "orderId": "30900692",
+  "orderNumber": "MQCCK15",
+  "marketplaceOrderId": "MQCCK15",
+  "marketplace": "kaufland",
+  "customer": {
+    "country": "DE",
+    "city": "Bayreuth",
+    "name": "Uta Berblinger",
+    "zip": "95445",
+    "phone": null,
+    "street": "Heinrich-Schütz-Str. 14",
+    "email": "caegg7zq-c89bae4344f2@kaufland-marktplatz.de"
+  },
+  "amountNetto": 125.21,
+  "amountNet": 125.21,
+  "amountBrutto": 149,
+  "amountGross": 149,
+  "vatRate": 0.19,
+  "vatAmount": 23.79,
+  "currency": "EUR",
+  "status": "offen",
+  "date": "2026-06-25",
+  "dueDate": "2026-07-09",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-2219.pdf",
+  "createdAt": "2026-06-25T03:54:22.446Z",
+  "createdBy": null
+}

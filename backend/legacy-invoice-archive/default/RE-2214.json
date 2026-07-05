@@ -1,0 +1,33 @@
+{
+  "id": "wSezRhkLjfyX7Ip7HJ0T",
+  "tenantId": "default",
+  "invoiceNumber": "RE-2214",
+  "sevdeskId": "127385242",
+  "sevdeskExportedAt": "2026-06-25T03:54:17.588Z",
+  "orderId": "30726979",
+  "orderNumber": "MPYP715",
+  "marketplaceOrderId": "MPYP715",
+  "marketplace": "kaufland",
+  "customer": {
+    "country": "DE",
+    "city": "Isernhagen",
+    "name": "Isolde Holland",
+    "zip": "30916",
+    "phone": null,
+    "street": "Fritz-Reuter-Straße 14",
+    "email": "cadudizq-1b3f1e4d4a2e@kaufland-marktplatz.de"
+  },
+  "amountNetto": 20.16,
+  "amountNet": 20.16,
+  "amountBrutto": 23.99,
+  "amountGross": 23.99,
+  "vatRate": 0.19,
+  "vatAmount": 3.83,
+  "currency": "EUR",
+  "status": "offen",
+  "date": "2026-06-25",
+  "dueDate": "2026-07-09",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-2214.pdf",
+  "createdAt": "2026-06-25T03:54:17.588Z",
+  "createdBy": null
+}

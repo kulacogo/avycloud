@@ -1,0 +1,33 @@
+{
+  "id": "3ryup9L5O8oa0TZNtT8l",
+  "tenantId": "default",
+  "invoiceNumber": "RE-2247",
+  "sevdeskId": "127385287",
+  "sevdeskExportedAt": "2026-06-25T03:54:57.921Z",
+  "orderId": "32514441",
+  "orderNumber": "M95C6D5",
+  "marketplaceOrderId": "M95C6D5",
+  "marketplace": "kaufland",
+  "customer": {
+    "country": "DE",
+    "city": "Geretsried",
+    "name": "Martin Sewald",
+    "zip": "82538",
+    "phone": null,
+    "street": "Isardamm 133a",
+    "email": "ca8qgw0q-90bc18169316@kaufland-marktplatz.de"
+  },
+  "amountNetto": 130.24,
+  "amountNet": 130.24,
+  "amountBrutto": 154.98,
+  "amountGross": 154.98,
+  "vatRate": 0.19,
+  "vatAmount": 24.74,
+  "currency": "EUR",
+  "status": "offen",
+  "date": "2026-06-25",
+  "dueDate": "2026-07-09",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-2247.pdf",
+  "createdAt": "2026-06-25T03:54:57.921Z",
+  "createdBy": null
+}

@@ -1,0 +1,22 @@
+{
+  "id": "OhiK581aRUCB0oX1CHni",
+  "tenantId": "default",
+  "sevdeskId": "111027773",
+  "invoiceNumber": "RE-1014",
+  "date": "2025-11-28",
+  "dueDate": "2025-11-28",
+  "status": "bezahlt",
+  "amountGross": 219.99,
+  "amountNetto": 184.87,
+  "amountNet": 184.87,
+  "vatAmount": 35.12,
+  "currency": "EUR",
+  "customer": {
+    "name": "Ni Lu"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:54:26.384Z",
+  "importedAt": "2026-03-17T22:54:26.384Z"
+}

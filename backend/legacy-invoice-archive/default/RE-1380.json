@@ -1,0 +1,23 @@
+{
+  "id": "kq7MEapRamgE3IjaElXY",
+  "tenantId": "default",
+  "sevdeskId": "117333099",
+  "invoiceNumber": "RE-1380",
+  "date": "2026-02-18",
+  "dueDate": null,
+  "amountGross": 59.45,
+  "amountNetto": 49.96,
+  "amountNet": 49.96,
+  "vatAmount": 9.49,
+  "currency": "EUR",
+  "customer": {
+    "name": "Heiko Schermeier"
+  },
+  "orderId": "Ww2YefQjFJ95SRQmccah",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:35:35.080Z",
+  "importedAt": "2026-03-17T22:35:35.080Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.773Z"
+}

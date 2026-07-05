@@ -1,0 +1,23 @@
+{
+  "id": "QzRA3pVSSc60bCEAXuCu",
+  "tenantId": "default",
+  "sevdeskId": "118505939",
+  "invoiceNumber": "RE-1451",
+  "date": "2026-03-03",
+  "dueDate": null,
+  "amountGross": 29.34,
+  "amountNetto": 24.65,
+  "amountNet": 24.65,
+  "vatAmount": 4.69,
+  "currency": "EUR",
+  "customer": {
+    "name": "Barbara Behrmann"
+  },
+  "orderId": "5ZmWofz3BtQ80aiQjGkw",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:34:27.129Z",
+  "importedAt": "2026-03-17T22:34:27.129Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.772Z"
+}

@@ -1,0 +1,30 @@
+{
+  "id": "DFWGo95sxVLwoxzqjMd1",
+  "tenantId": "default",
+  "type": "storno",
+  "originalInvoiceId": "gDWyhp7qy08aQ4AJVAxA",
+  "originalInvoiceNumber": "RE-1937",
+  "orderId": "kaufland__MWW7HC5",
+  "orderNumber": "MWW7HC5",
+  "marketplaceOrderId": "MWW7HC5",
+  "marketplace": "kaufland",
+  "amountGross": 37.76,
+  "amountNetto": 31.73,
+  "amountNet": 31.73,
+  "vatRate": 0.19,
+  "currency": "EUR",
+  "customer": {
+    "name": "Andeas Prüglmeier",
+    "street": "Appersdorfer Straße 15",
+    "city": "Zolling",
+    "zip": "85406",
+    "country": "DE",
+    "phone": null,
+    "email": "carri4gq-1222c5191624@kaufland-marktplatz.de"
+  },
+  "sevdeskId": null,
+  "reason": "Stornierung",
+  "status": "storniert",
+  "date": "2026-05-07",
+  "createdAt": "2026-05-07T13:14:43.252Z"
+}

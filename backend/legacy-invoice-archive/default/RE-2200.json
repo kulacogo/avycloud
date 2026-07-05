@@ -1,0 +1,33 @@
+{
+  "id": "HZCHH3L3pA830A4Y1jR9",
+  "tenantId": "default",
+  "invoiceNumber": "RE-2200",
+  "sevdeskId": "127385227",
+  "sevdeskExportedAt": "2026-06-25T03:54:00.776Z",
+  "orderId": "30334065",
+  "orderNumber": "MKZ9415",
+  "marketplaceOrderId": "MKZ9415",
+  "marketplace": "kaufland",
+  "customer": {
+    "country": "DE",
+    "city": "Überlingen",
+    "name": "Sabine Pohl",
+    "zip": "88662",
+    "phone": null,
+    "street": "Victor-Mezger-Straße 9",
+    "email": "ca7v8xzq-352060d8cafc@kaufland-marktplatz.de"
+  },
+  "amountNetto": 26.88,
+  "amountNet": 26.88,
+  "amountBrutto": 31.99,
+  "amountGross": 31.99,
+  "vatRate": 0.19,
+  "vatAmount": 5.11,
+  "currency": "EUR",
+  "status": "offen",
+  "date": "2026-06-25",
+  "dueDate": "2026-07-09",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-2200.pdf",
+  "createdAt": "2026-06-25T03:54:00.776Z",
+  "createdBy": null
+}

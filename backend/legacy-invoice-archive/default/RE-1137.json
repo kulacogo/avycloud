@@ -1,0 +1,22 @@
+{
+  "id": "5LkTAerqH3NkLa2B6hbg",
+  "tenantId": "default",
+  "sevdeskId": "114436180",
+  "invoiceNumber": "RE-1137",
+  "date": "2026-01-10",
+  "dueDate": "2026-01-10",
+  "status": "bezahlt",
+  "amountGross": 28.63,
+  "amountNetto": 24.06,
+  "amountNet": 24.06,
+  "vatAmount": 4.57,
+  "currency": "EUR",
+  "customer": {
+    "name": "Steffi Wolframm"
+  },
+  "orderId": "vQu8JIyAc4SjKPHxQEYD",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:41:26.313Z",
+  "importedAt": "2026-03-17T22:41:26.313Z"
+}

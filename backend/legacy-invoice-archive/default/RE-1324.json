@@ -1,0 +1,23 @@
+{
+  "id": "4dzLv1z9HunAxSRBYq9N",
+  "tenantId": "default",
+  "sevdeskId": "116741128",
+  "invoiceNumber": "RE-1324",
+  "date": "2026-02-10",
+  "dueDate": null,
+  "amountGross": 7.99,
+  "amountNetto": 6.71,
+  "amountNet": 6.71,
+  "vatAmount": 1.28,
+  "currency": "EUR",
+  "customer": {
+    "name": "Alexander Müller"
+  },
+  "orderId": "9x5hAxSdfTOQbcZY550n",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:36:36.648Z",
+  "importedAt": "2026-03-17T22:36:36.648Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.771Z"
+}

@@ -1,0 +1,33 @@
+{
+  "id": "WjuWJ0tDT5MOh5r2HxNr",
+  "tenantId": "default",
+  "invoiceNumber": "RE-1518",
+  "sevdeskId": "119604421",
+  "sevdeskExportedAt": "2026-03-17T23:23:20.281Z",
+  "orderId": "CXK8rYMDCxXwJPpV2Yvh",
+  "orderNumber": "26-14216-89845",
+  "marketplaceOrderId": "26-14216-89845",
+  "marketplace": "ebay",
+  "customer": {
+    "name": "Tanja Theis",
+    "street": "Kranichstraße. 14",
+    "city": "Ludwigshafen am Rhein",
+    "country": "DE",
+    "phone": "Invalid Request",
+    "email": null,
+    "zip": "67069"
+  },
+  "amountNetto": 13.44,
+  "amountBrutto": 15.99,
+  "vatRate": 0.19,
+  "vatAmount": 2.55,
+  "currency": "EUR",
+  "date": "2026-03-17",
+  "dueDate": "2026-03-31",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-1518.pdf",
+  "createdAt": "2026-03-17T23:23:20.281Z",
+  "createdBy": null,
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.772Z",
+  "pdfRegeneratedAt": "2026-06-02T09:12:56.215Z"
+}

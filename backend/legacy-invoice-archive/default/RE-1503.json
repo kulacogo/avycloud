@@ -1,0 +1,23 @@
+{
+  "id": "XBpwAexzDfSjoiLldoYJ",
+  "tenantId": "default",
+  "sevdeskId": "119398919",
+  "invoiceNumber": "RE-1503",
+  "date": "2026-03-15",
+  "dueDate": null,
+  "amountGross": 15.27,
+  "amountNetto": 15.27,
+  "amountNet": 15.27,
+  "vatAmount": 0,
+  "currency": "EUR",
+  "customer": {
+    "name": "Ahmed Ayoub"
+  },
+  "orderId": "1Fp1nvxoFOMXB5QnK7js",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:32:26.199Z",
+  "importedAt": "2026-03-17T22:32:26.199Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.772Z"
+}

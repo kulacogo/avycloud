@@ -1,0 +1,22 @@
+{
+  "id": "GGaLQjQ08dJhv6CGTBiq",
+  "tenantId": "default",
+  "sevdeskId": "114436214",
+  "invoiceNumber": "RE-1138",
+  "date": "2026-01-10",
+  "dueDate": "2026-01-10",
+  "status": "bezahlt",
+  "amountGross": 9.49,
+  "amountNetto": 7.97,
+  "amountNet": 7.97,
+  "vatAmount": 1.52,
+  "currency": "EUR",
+  "customer": {
+    "name": "Fatih Özsümbül"
+  },
+  "orderId": "uExetsYyTJF3KhtmQ5US",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:41:26.053Z",
+  "importedAt": "2026-03-17T22:41:26.053Z"
+}

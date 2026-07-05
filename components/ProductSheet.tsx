@@ -929,6 +929,23 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
             ...(change.pricing.lowest_price || {}),
           },
         };
+        // sellPrice ist "der Preis" (eBay/Kaufland-Sync). Explizit vorgeschlagenes
+        // sellPrice gewinnt; sonst füllen wir es nur, wenn das Produkt noch keinen
+        // positiven Preis hat (0,00-€-Fall) — ein vom Operator gesetzter Preis
+        // wird nie stillschweigend überschrieben. (Gleiches Muster wie der
+        // suggestedPrice-Übernehmen-Knopf.)
+        const cp: any = change.pricing;
+        const explicitSell = typeof cp.sellPrice === 'number' && cp.sellPrice > 0 ? cp.sellPrice : null;
+        const researchedAmount =
+          (typeof cp.lowest_price?.amount === 'number' && cp.lowest_price.amount > 0 ? cp.lowest_price.amount : null) ??
+          (typeof cp.amount === 'number' && cp.amount > 0 ? cp.amount : null);
+        const currentSell = next.details.pricing.sellPrice;
+        const hasCurrentSell = typeof currentSell === 'number' && currentSell > 0;
+        if (explicitSell != null) {
+          next.details.pricing.sellPrice = explicitSell;
+        } else if (!hasCurrentSell && researchedAmount != null) {
+          next.details.pricing.sellPrice = researchedAmount;
+        }
       }
 
       // 6. Notes

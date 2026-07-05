@@ -1,0 +1,22 @@
+{
+  "id": "L13MUEclCgIi78xVFCab",
+  "tenantId": "default",
+  "sevdeskId": "113856577",
+  "invoiceNumber": "RE-1108",
+  "date": "2026-01-02",
+  "dueDate": "2026-01-02",
+  "status": "bezahlt",
+  "amountGross": 42,
+  "amountNetto": 35.29,
+  "amountNet": 35.29,
+  "vatAmount": 6.71,
+  "currency": "EUR",
+  "customer": {
+    "name": "Rene Jacobsohn"
+  },
+  "orderId": "o3nkUxSp4plBEszaH2A6",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:42:25.346Z",
+  "importedAt": "2026-03-17T22:42:25.346Z"
+}

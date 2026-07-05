@@ -1,0 +1,30 @@
+{
+  "id": "Gd39hlakUb1ZamgjBm8c",
+  "tenantId": "default",
+  "invoiceNumber": "RE-1706",
+  "sevdeskId": "121581719",
+  "sevdeskExportedAt": "2026-04-13T00:14:04.851Z",
+  "orderId": "ebay__02-13892-22156",
+  "orderNumber": "02-13892-22156",
+  "marketplaceOrderId": "02-13892-22156",
+  "marketplace": "ebay",
+  "customer": {
+    "name": "eBay Käufer",
+    "email": null,
+    "username": "micnei-34"
+  },
+  "amountNetto": 12.6,
+  "amountNet": 12.6,
+  "amountBrutto": 14.99,
+  "amountGross": 14.99,
+  "vatRate": 0.19,
+  "vatAmount": 2.39,
+  "currency": "EUR",
+  "status": "offen",
+  "date": "2026-04-13",
+  "dueDate": "2026-04-27",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-1706.pdf",
+  "createdAt": "2026-04-13T00:14:04.851Z",
+  "createdBy": null,
+  "pdfRegeneratedAt": "2026-06-02T09:11:38.297Z"
+}

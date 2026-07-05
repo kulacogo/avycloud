@@ -1,0 +1,33 @@
+{
+  "id": "4Pjpd9w5dkALuMx2XMWW",
+  "tenantId": "default",
+  "invoiceNumber": "RE-1523",
+  "sevdeskId": "119604427",
+  "sevdeskExportedAt": "2026-03-17T23:23:36.378Z",
+  "orderId": "lqIbdsToc2fJcG1X004V",
+  "orderNumber": "26-14105-66926",
+  "marketplaceOrderId": "26-14105-66926",
+  "marketplace": "ebay",
+  "customer": {
+    "name": "Thomas Reckel",
+    "street": "Beethovenstraße 15",
+    "city": "St. Ingbert",
+    "country": "DE",
+    "phone": "Invalid Request",
+    "email": null,
+    "zip": "66386"
+  },
+  "amountNetto": 32.35,
+  "amountBrutto": 38.5,
+  "vatRate": 0.19,
+  "vatAmount": 6.15,
+  "currency": "EUR",
+  "date": "2026-03-17",
+  "dueDate": "2026-03-31",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-1523.pdf",
+  "createdAt": "2026-03-17T23:23:36.378Z",
+  "createdBy": null,
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.771Z",
+  "pdfRegeneratedAt": "2026-06-02T09:10:45.354Z"
+}

@@ -1,0 +1,23 @@
+{
+  "id": "QIuRO0oVdkGpYUplUrfD",
+  "tenantId": "default",
+  "sevdeskId": "117767949",
+  "invoiceNumber": "RE-1418",
+  "date": "2026-02-24",
+  "dueDate": null,
+  "amountGross": 55.29,
+  "amountNetto": 46.46,
+  "amountNet": 46.46,
+  "vatAmount": 8.83,
+  "currency": "EUR",
+  "customer": {
+    "name": "Cornelia Müller"
+  },
+  "orderId": "9B0DkBVC7N6wXFkpoEf3",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:34:35.004Z",
+  "importedAt": "2026-03-17T22:34:35.004Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.772Z"
+}

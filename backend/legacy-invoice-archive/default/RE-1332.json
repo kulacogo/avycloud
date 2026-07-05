@@ -1,0 +1,23 @@
+{
+  "id": "BzuzB0APLu14IfTeBZNy",
+  "tenantId": "default",
+  "sevdeskId": "116846187",
+  "invoiceNumber": "RE-1332",
+  "date": "2026-02-11",
+  "dueDate": null,
+  "amountGross": 225,
+  "amountNetto": 189.08,
+  "amountNet": 189.08,
+  "vatAmount": 35.92,
+  "currency": "EUR",
+  "customer": {
+    "name": "Benedikt Schenk"
+  },
+  "orderId": "fiDDZsM37CfLphA457SP",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:36:35.949Z",
+  "importedAt": "2026-03-17T22:36:35.949Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.771Z"
+}

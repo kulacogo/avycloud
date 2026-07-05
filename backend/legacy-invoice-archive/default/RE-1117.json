@@ -1,0 +1,22 @@
+{
+  "id": "ZHHZLeKbK1eC4FhV3dE3",
+  "tenantId": "default",
+  "sevdeskId": "114129107",
+  "invoiceNumber": "RE-1117",
+  "date": "2026-01-06",
+  "dueDate": "2026-01-06",
+  "status": "bezahlt",
+  "amountGross": 199.99,
+  "amountNetto": 168.06,
+  "amountNet": 168.06,
+  "vatAmount": 31.93,
+  "currency": "EUR",
+  "customer": {
+    "name": "Selma Ciftci"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:42:24.808Z",
+  "importedAt": "2026-03-17T22:42:24.808Z"
+}

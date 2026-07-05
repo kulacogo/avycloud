@@ -1,0 +1,22 @@
+{
+  "id": "DbEdxLjFjvnWYVZmZxaU",
+  "tenantId": "default",
+  "sevdeskId": "113289829",
+  "invoiceNumber": "RE-1073",
+  "date": "2025-12-22",
+  "dueDate": "2025-12-22",
+  "status": "bezahlt",
+  "amountGross": 33.74,
+  "amountNetto": 28.35,
+  "amountNet": 28.35,
+  "vatAmount": 5.39,
+  "currency": "EUR",
+  "customer": {
+    "name": "Atelina Bozaci"
+  },
+  "orderId": "z4d5gcEsGRjMR4POIZhf",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:44:26.503Z",
+  "importedAt": "2026-03-17T22:44:26.503Z"
+}

@@ -1,0 +1,22 @@
+{
+  "id": "G7V2RSF70yMUUFBuOru3",
+  "tenantId": "default",
+  "sevdeskId": "115758433",
+  "invoiceNumber": "RE-1229",
+  "date": "2026-01-29",
+  "dueDate": "2026-01-29",
+  "status": "bezahlt",
+  "amountGross": 21.29,
+  "amountNetto": 17.89,
+  "amountNet": 17.89,
+  "vatAmount": 3.4,
+  "currency": "EUR",
+  "customer": {
+    "name": "Norbert Geber"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:39:26.459Z",
+  "importedAt": "2026-03-17T22:39:26.459Z"
+}

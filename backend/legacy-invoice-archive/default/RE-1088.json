@@ -1,0 +1,22 @@
+{
+  "id": "gW6zADwsGuZJpNCNvfhu",
+  "tenantId": "default",
+  "sevdeskId": "113541010",
+  "invoiceNumber": "RE-1088",
+  "date": "2025-12-29",
+  "dueDate": "2025-12-29",
+  "status": "bezahlt",
+  "amountGross": 32.57,
+  "amountNetto": 27.37,
+  "amountNet": 27.37,
+  "vatAmount": 5.2,
+  "currency": "EUR",
+  "customer": {
+    "name": "Magdalena Szary"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:42:26.303Z",
+  "importedAt": "2026-03-17T22:42:26.303Z"
+}

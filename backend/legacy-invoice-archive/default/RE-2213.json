@@ -1,0 +1,33 @@
+{
+  "id": "cLIsls4ehQQdmNAR9uGw",
+  "tenantId": "default",
+  "invoiceNumber": "RE-2213",
+  "sevdeskId": "127385241",
+  "sevdeskExportedAt": "2026-06-25T03:54:16.438Z",
+  "orderId": "30724228",
+  "orderNumber": "M4Y4715",
+  "marketplaceOrderId": "M4Y4715",
+  "marketplace": "kaufland",
+  "customer": {
+    "country": "DE",
+    "city": "Konstanz",
+    "name": "Claudia Sorokin",
+    "zip": "78467",
+    "phone": null,
+    "street": "Helene und Maria Schiess Str. 31",
+    "email": "caxuxizq-39298e4eb838@kaufland-marktplatz.de"
+  },
+  "amountNetto": 22.93,
+  "amountNet": 22.93,
+  "amountBrutto": 27.29,
+  "amountGross": 27.29,
+  "vatRate": 0.19,
+  "vatAmount": 4.36,
+  "currency": "EUR",
+  "status": "offen",
+  "date": "2026-06-25",
+  "dueDate": "2026-07-09",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-2213.pdf",
+  "createdAt": "2026-06-25T03:54:16.438Z",
+  "createdBy": null
+}

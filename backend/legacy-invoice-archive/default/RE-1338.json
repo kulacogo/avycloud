@@ -1,0 +1,23 @@
+{
+  "id": "IlqJ5UUk1ZpCul8fWoH0",
+  "tenantId": "default",
+  "sevdeskId": "116869403",
+  "invoiceNumber": "RE-1338",
+  "date": "2026-02-11",
+  "dueDate": null,
+  "amountGross": 12.72,
+  "amountNetto": 10.69,
+  "amountNet": 10.69,
+  "vatAmount": 2.03,
+  "currency": "EUR",
+  "customer": {
+    "name": "Silvio Worlitz"
+  },
+  "orderId": "CdCiOb18f287rkGTqfjV",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:36:35.418Z",
+  "importedAt": "2026-03-17T22:36:35.418Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.771Z"
+}

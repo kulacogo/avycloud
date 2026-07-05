@@ -1,0 +1,23 @@
+{
+  "id": "aL9zqbPk8jyvtObv3oSu",
+  "tenantId": "default",
+  "sevdeskId": "117920510",
+  "invoiceNumber": "RE-1428",
+  "date": "2026-02-26",
+  "dueDate": null,
+  "amountGross": 96,
+  "amountNetto": 80.67,
+  "amountNet": 80.67,
+  "vatAmount": 15.33,
+  "currency": "EUR",
+  "customer": {
+    "name": "Christian Schlatzer"
+  },
+  "orderId": "Q4GuOCVu1TEWmxxTLolK",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:34:34.493Z",
+  "importedAt": "2026-03-17T22:34:34.493Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.772Z"
+}

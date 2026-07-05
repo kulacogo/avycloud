@@ -1,0 +1,22 @@
+{
+  "id": "ZyakYrapBUAQwuVFhqOf",
+  "tenantId": "default",
+  "sevdeskId": "114546978",
+  "invoiceNumber": "RE-1145",
+  "date": "2026-01-12",
+  "dueDate": "2026-01-12",
+  "status": "bezahlt",
+  "amountGross": 59.97,
+  "amountNetto": 50.39,
+  "amountNet": 50.39,
+  "vatAmount": 9.58,
+  "currency": "EUR",
+  "customer": {
+    "name": "udo horf"
+  },
+  "orderId": "yd2ykiZpQp7O2rW6SRAL",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:41:25.625Z",
+  "importedAt": "2026-03-17T22:41:25.625Z"
+}

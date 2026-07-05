@@ -1,0 +1,23 @@
+{
+  "id": "ZkeUYhXoZqa8Grvbna0H",
+  "tenantId": "default",
+  "sevdeskId": "117470397",
+  "invoiceNumber": "RE-1390",
+  "date": "2026-02-20",
+  "dueDate": null,
+  "amountGross": 42.49,
+  "amountNetto": 35.71,
+  "amountNet": 35.71,
+  "vatAmount": 6.78,
+  "currency": "EUR",
+  "customer": {
+    "name": "Gianluca Brandino"
+  },
+  "orderId": "RmlA7auw1y2cZIhceRc2",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:34:51.194Z",
+  "importedAt": "2026-03-17T22:34:51.194Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.772Z"
+}

@@ -1,0 +1,23 @@
+{
+  "id": "hfyWCQmNcJd1NprrlnCI",
+  "tenantId": "default",
+  "sevdeskId": "117470340",
+  "invoiceNumber": "RE-1388",
+  "date": "2026-02-20",
+  "dueDate": null,
+  "amountGross": 13.9,
+  "amountNetto": 11.68,
+  "amountNet": 11.68,
+  "vatAmount": 2.22,
+  "currency": "EUR",
+  "customer": {
+    "name": "Sven Tomisch"
+  },
+  "orderId": "IpWB63KNN4rVQnesZ9dT",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:35:24.602Z",
+  "importedAt": "2026-03-17T22:35:24.602Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.772Z"
+}

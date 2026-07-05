@@ -1,0 +1,23 @@
+{
+  "id": "tbhtsm4Kk5KtKb2AgP3d",
+  "tenantId": "default",
+  "sevdeskId": "117524008",
+  "invoiceNumber": "RE-1399",
+  "date": "2026-02-21",
+  "dueDate": null,
+  "amountGross": 35.7,
+  "amountNetto": 35.7,
+  "amountNet": 35.7,
+  "vatAmount": 0,
+  "currency": "EUR",
+  "customer": {
+    "name": "Andrea Rottweiler"
+  },
+  "orderId": "4YuHVZ8RNpp44SUx2Aix",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:34:36.542Z",
+  "importedAt": "2026-03-17T22:34:36.542Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.773Z"
+}

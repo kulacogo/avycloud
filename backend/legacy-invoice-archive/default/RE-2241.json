@@ -1,0 +1,33 @@
+{
+  "id": "evoUNGBNwg8oveOUAFQj",
+  "tenantId": "default",
+  "invoiceNumber": "RE-2241",
+  "sevdeskId": "127385280",
+  "sevdeskExportedAt": "2026-06-25T03:54:49.589Z",
+  "orderId": "32048889",
+  "orderNumber": "MC8WY45",
+  "marketplaceOrderId": "MC8WY45",
+  "marketplace": "kaufland",
+  "customer": {
+    "country": "DE",
+    "city": "Düsseldorf",
+    "name": "Silvia Matheis",
+    "zip": "40625",
+    "phone": null,
+    "street": "Derner Hof 15",
+    "email": "cagkruxq-0e4d522bdf24@kaufland-marktplatz.de"
+  },
+  "amountNetto": 42.34,
+  "amountNet": 42.34,
+  "amountBrutto": 50.39,
+  "amountGross": 50.39,
+  "vatRate": 0.19,
+  "vatAmount": 8.05,
+  "currency": "EUR",
+  "status": "offen",
+  "date": "2026-06-25",
+  "dueDate": "2026-07-09",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-2241.pdf",
+  "createdAt": "2026-06-25T03:54:49.589Z",
+  "createdBy": null
+}

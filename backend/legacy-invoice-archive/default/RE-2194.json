@@ -1,0 +1,33 @@
+{
+  "id": "oE2eXMchGAxJwTEdf2vH",
+  "tenantId": "default",
+  "invoiceNumber": "RE-2194",
+  "sevdeskId": "127385220",
+  "sevdeskExportedAt": "2026-06-25T03:53:54.769Z",
+  "orderId": "30177192",
+  "orderNumber": "MKFARH5",
+  "marketplaceOrderId": "MKFARH5",
+  "marketplace": "kaufland",
+  "customer": {
+    "country": "DE",
+    "city": "Grenzach-Wyhlen",
+    "name": "Martin Kast",
+    "zip": "79639",
+    "phone": null,
+    "street": "Keltenweg 26",
+    "email": "ca72hf4q-35eef572e6aa@kaufland-marktplatz.de"
+  },
+  "amountNetto": 29.4,
+  "amountNet": 29.4,
+  "amountBrutto": 34.99,
+  "amountGross": 34.99,
+  "vatRate": 0.19,
+  "vatAmount": 5.59,
+  "currency": "EUR",
+  "status": "offen",
+  "date": "2026-06-25",
+  "dueDate": "2026-07-09",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-2194.pdf",
+  "createdAt": "2026-06-25T03:53:54.769Z",
+  "createdBy": null
+}

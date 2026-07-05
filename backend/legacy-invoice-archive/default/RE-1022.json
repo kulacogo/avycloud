@@ -1,0 +1,22 @@
+{
+  "id": "KzZ9VOFVuqBhH0rp63m8",
+  "tenantId": "default",
+  "sevdeskId": "111913757",
+  "invoiceNumber": "RE-1022",
+  "date": "2025-12-07",
+  "dueDate": "2025-12-07",
+  "status": "bezahlt",
+  "amountGross": 17.37,
+  "amountNetto": 14.6,
+  "amountNet": 14.6,
+  "vatAmount": 2.77,
+  "currency": "EUR",
+  "customer": {
+    "name": "Artur Mazik"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:54:20.489Z",
+  "importedAt": "2026-03-17T22:54:20.489Z"
+}

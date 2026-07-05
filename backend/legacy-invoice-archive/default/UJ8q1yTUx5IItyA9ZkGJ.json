@@ -1,0 +1,25 @@
+{
+  "id": "UJ8q1yTUx5IItyA9ZkGJ",
+  "tenantId": "default",
+  "type": "storno",
+  "originalInvoiceId": "ZbxW3xBbJScZn9VqT0d9",
+  "originalInvoiceNumber": "RE-1465",
+  "orderId": "dup1MehmSdlCXo5i8mgH",
+  "orderNumber": null,
+  "marketplaceOrderId": null,
+  "marketplace": null,
+  "amountGross": 159.9,
+  "amountNetto": 134.37,
+  "amountNet": 134.37,
+  "vatRate": 0.19,
+  "currency": "EUR",
+  "customer": {
+    "name": "Emilia Regner"
+  },
+  "reason": "Stornierung Bestellung",
+  "status": "storniert",
+  "date": "2026-03-17",
+  "createdAt": "2026-03-17T22:58:20.649Z",
+  "sevdeskId": "119604268",
+  "updatedAt": "2026-03-17T23:12:28.114Z"
+}

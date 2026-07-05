@@ -1,0 +1,23 @@
+{
+  "id": "k8kRrmdOdHt1AXBVxzhW",
+  "tenantId": "default",
+  "sevdeskId": "117737465",
+  "invoiceNumber": "RE-1413",
+  "date": "2026-02-24",
+  "dueDate": null,
+  "amountGross": 52.29,
+  "amountNetto": 43.94,
+  "amountNet": 43.94,
+  "vatAmount": 8.35,
+  "currency": "EUR",
+  "customer": {
+    "name": "Nina Falk"
+  },
+  "orderId": "GuV2rnfXv2451hg6CepV",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:34:35.290Z",
+  "importedAt": "2026-03-17T22:34:35.290Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.772Z"
+}

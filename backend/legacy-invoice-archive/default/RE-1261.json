@@ -1,0 +1,22 @@
+{
+  "id": "pu7ADIayXY7SBCjFiJob",
+  "tenantId": "default",
+  "sevdeskId": "116330753",
+  "invoiceNumber": "RE-1261",
+  "date": "2026-02-04",
+  "dueDate": "2026-02-04",
+  "status": "bezahlt",
+  "amountGross": 24.27,
+  "amountNetto": 20.39,
+  "amountNet": 20.39,
+  "vatAmount": 3.88,
+  "currency": "EUR",
+  "customer": {
+    "name": "Andy Beck"
+  },
+  "orderId": "olmL2hdn8mioi94Y1kOv",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:38:51.004Z",
+  "importedAt": "2026-03-17T22:38:51.004Z"
+}

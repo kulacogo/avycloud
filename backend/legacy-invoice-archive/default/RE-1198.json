@@ -1,0 +1,22 @@
+{
+  "id": "smVxLSJZChOGpBg6bXbZ",
+  "tenantId": "default",
+  "sevdeskId": "115257950",
+  "invoiceNumber": "RE-1198",
+  "date": "2026-01-22",
+  "dueDate": "2026-01-22",
+  "status": "bezahlt",
+  "amountGross": 31.49,
+  "amountNetto": 26.46,
+  "amountNet": 26.46,
+  "vatAmount": 5.03,
+  "currency": "EUR",
+  "customer": {
+    "name": "Wilfried Schreiber"
+  },
+  "orderId": "unv4exmqpFkWmFBqFKrc",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:40:25.212Z",
+  "importedAt": "2026-03-17T22:40:25.212Z"
+}

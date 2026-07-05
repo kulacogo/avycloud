@@ -1,0 +1,22 @@
+{
+  "id": "R2igOM0n3bj9gzeztAd8",
+  "tenantId": "default",
+  "sevdeskId": "115559640",
+  "invoiceNumber": "RE-1224",
+  "date": "2026-01-27",
+  "dueDate": "2026-01-27",
+  "status": "bezahlt",
+  "amountGross": 33.99,
+  "amountNetto": 28.56,
+  "amountNet": 28.56,
+  "vatAmount": 5.43,
+  "currency": "EUR",
+  "customer": {
+    "name": "Peggy Stenger"
+  },
+  "orderId": "f0dGcSmk9WZ9teJZFpht",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:39:26.694Z",
+  "importedAt": "2026-03-17T22:39:26.694Z"
+}

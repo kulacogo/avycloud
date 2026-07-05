@@ -1,0 +1,33 @@
+{
+  "id": "Ldt1eQigxj6Olng6C8y2",
+  "tenantId": "default",
+  "invoiceNumber": "RE-2191",
+  "sevdeskId": "127385217",
+  "sevdeskExportedAt": "2026-06-25T03:53:51.511Z",
+  "orderId": "30075154",
+  "orderNumber": "MKSEKH5",
+  "marketplaceOrderId": "MKSEKH5",
+  "marketplace": "kaufland",
+  "customer": {
+    "country": "DE",
+    "city": "Stahnsdorf",
+    "name": "Max Erdner",
+    "zip": "14532",
+    "phone": null,
+    "street": "Striewitzweg 47",
+    "email": "ca7j174q-1118f3e8b789@kaufland-marktplatz.de"
+  },
+  "amountNetto": 44.92,
+  "amountNet": 44.92,
+  "amountBrutto": 53.45,
+  "amountGross": 53.45,
+  "vatRate": 0.19,
+  "vatAmount": 8.53,
+  "currency": "EUR",
+  "status": "offen",
+  "date": "2026-06-25",
+  "dueDate": "2026-07-09",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-2191.pdf",
+  "createdAt": "2026-06-25T03:53:51.511Z",
+  "createdBy": null
+}

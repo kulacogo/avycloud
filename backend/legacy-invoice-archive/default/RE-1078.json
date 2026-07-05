@@ -1,0 +1,22 @@
+{
+  "id": "GhNZ77KkQY4aZKTA6A78",
+  "tenantId": "default",
+  "sevdeskId": "113407681",
+  "invoiceNumber": "RE-1078",
+  "date": "2025-12-26",
+  "dueDate": "2025-12-26",
+  "status": "bezahlt",
+  "amountGross": 59.07,
+  "amountNetto": 49.64,
+  "amountNet": 49.64,
+  "vatAmount": 9.43,
+  "currency": "EUR",
+  "customer": {
+    "name": "Kaufmann-Beratung"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:44:02.805Z",
+  "importedAt": "2026-03-17T22:44:02.805Z"
+}

@@ -1,0 +1,23 @@
+{
+  "id": "PMIQAdflyqsOxCa5Pu8J",
+  "tenantId": "default",
+  "sevdeskId": "116669794",
+  "invoiceNumber": "RE-1307",
+  "date": "2026-02-09",
+  "dueDate": null,
+  "amountGross": 53.99,
+  "amountNetto": 45.37,
+  "amountNet": 45.37,
+  "vatAmount": 8.62,
+  "currency": "EUR",
+  "customer": {
+    "name": "Thomas Schaube"
+  },
+  "orderId": "4e3lyim12ITyWaljjb8C",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:37:35.912Z",
+  "importedAt": "2026-03-17T22:37:35.912Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.772Z"
+}

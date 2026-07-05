@@ -1,0 +1,20 @@
+{
+  "id": "GihpHeuscpiatVlpA0pY",
+  "tenantId": "default",
+  "sevdeskId": "127385253",
+  "invoiceNumber": null,
+  "date": "2026-06-25",
+  "dueDate": "2026-07-09",
+  "status": "entwurf",
+  "amountGross": 799.95,
+  "amountNetto": 672.23,
+  "amountNet": 672.23,
+  "vatAmount": 127.72,
+  "currency": "EUR",
+  "customer": null,
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-06-25T03:55:58.356Z",
+  "importedAt": "2026-06-25T03:55:58.356Z"
+}

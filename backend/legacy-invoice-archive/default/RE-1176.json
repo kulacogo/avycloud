@@ -1,0 +1,22 @@
+{
+  "id": "ks2hXlY0857Dv5gdD6CI",
+  "tenantId": "default",
+  "sevdeskId": "115014953",
+  "invoiceNumber": "RE-1176",
+  "date": "2026-01-19",
+  "dueDate": "2026-01-19",
+  "status": "bezahlt",
+  "amountGross": 29.99,
+  "amountNetto": 25.2,
+  "amountNet": 25.2,
+  "vatAmount": 4.79,
+  "currency": "EUR",
+  "customer": {
+    "name": "Ivan Lisovyi"
+  },
+  "orderId": "ckd86NLC7t6kDJT3mbsl",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:40:47.804Z",
+  "importedAt": "2026-03-17T22:40:47.804Z"
+}

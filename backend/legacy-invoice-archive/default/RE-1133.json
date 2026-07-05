@@ -1,0 +1,22 @@
+{
+  "id": "tnJ2UcuhUWejRg1S3vqz",
+  "tenantId": "default",
+  "sevdeskId": "114384454",
+  "invoiceNumber": "RE-1133",
+  "date": "2026-01-09",
+  "dueDate": "2026-01-09",
+  "status": "bezahlt",
+  "amountGross": 24.35,
+  "amountNetto": 20.46,
+  "amountNet": 20.46,
+  "vatAmount": 3.89,
+  "currency": "EUR",
+  "customer": {
+    "name": "Sindy Richter"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:41:29.603Z",
+  "importedAt": "2026-03-17T22:41:29.603Z"
+}

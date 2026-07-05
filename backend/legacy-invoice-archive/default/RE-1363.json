@@ -1,0 +1,23 @@
+{
+  "id": "3NumURXpLCxjzCycVfkK",
+  "tenantId": "default",
+  "sevdeskId": "117155937",
+  "invoiceNumber": "RE-1363",
+  "date": "2026-02-16",
+  "dueDate": null,
+  "amountGross": 12.72,
+  "amountNetto": 10.69,
+  "amountNet": 10.69,
+  "vatAmount": 2.03,
+  "currency": "EUR",
+  "customer": {
+    "name": "Renick Büttner"
+  },
+  "orderId": "9l4sbrnEg5IkN0gaQV14",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:35:36.356Z",
+  "importedAt": "2026-03-17T22:35:36.356Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.771Z"
+}

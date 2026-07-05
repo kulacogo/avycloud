@@ -1,0 +1,22 @@
+{
+  "id": "H03b9Gdn84o9sZlcfqxw",
+  "tenantId": "default",
+  "sevdeskId": "116331893",
+  "invoiceNumber": "RE-1265",
+  "date": "2026-02-04",
+  "dueDate": "2026-02-04",
+  "status": "bezahlt",
+  "amountGross": 109.99,
+  "amountNetto": 92.43,
+  "amountNet": 92.43,
+  "vatAmount": 17.56,
+  "currency": "EUR",
+  "customer": {
+    "name": "Dieter Unold"
+  },
+  "orderId": "cfeHQriZyrwxGukO7C8s",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:38:27.723Z",
+  "importedAt": "2026-03-17T22:38:27.723Z"
+}

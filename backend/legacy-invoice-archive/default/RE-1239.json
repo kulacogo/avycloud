@@ -1,0 +1,22 @@
+{
+  "id": "oK8QEJWRQbXGSdFNodsl",
+  "tenantId": "default",
+  "sevdeskId": "115909348",
+  "invoiceNumber": "RE-1239",
+  "date": "2026-01-31",
+  "dueDate": "2026-01-31",
+  "status": "bezahlt",
+  "amountGross": 22.89,
+  "amountNetto": 19.24,
+  "amountNet": 19.24,
+  "vatAmount": 3.65,
+  "currency": "EUR",
+  "customer": {
+    "name": "Oliver Martin"
+  },
+  "orderId": "o56HQXeQUjhOJnuPeyF4",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:39:25.558Z",
+  "importedAt": "2026-03-17T22:39:25.558Z"
+}

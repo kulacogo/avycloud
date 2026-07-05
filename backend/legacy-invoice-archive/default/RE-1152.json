@@ -1,0 +1,22 @@
+{
+  "id": "VGakkGExUmr2ChQV8qhw",
+  "tenantId": "default",
+  "sevdeskId": "114628126",
+  "invoiceNumber": "RE-1152",
+  "date": "2026-01-13",
+  "dueDate": "2026-01-13",
+  "status": "bezahlt",
+  "amountGross": 29.99,
+  "amountNetto": 25.2,
+  "amountNet": 25.2,
+  "vatAmount": 4.79,
+  "currency": "EUR",
+  "customer": {
+    "name": "Mariglen Qemali"
+  },
+  "orderId": "o53weTkJojIbPAUbZGR1",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:41:25.216Z",
+  "importedAt": "2026-03-17T22:41:25.216Z"
+}

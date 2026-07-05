@@ -1,0 +1,23 @@
+{
+  "id": "XoxyBuWRXfujDb9xYit8",
+  "tenantId": "default",
+  "sevdeskId": "116670946",
+  "invoiceNumber": "RE-1310",
+  "date": "2026-02-09",
+  "dueDate": null,
+  "amountGross": 14.76,
+  "amountNetto": 12.4,
+  "amountNet": 12.4,
+  "vatAmount": 2.36,
+  "currency": "EUR",
+  "customer": {
+    "name": "Himzo Husic"
+  },
+  "orderId": "f0Eobnl3hXJsw0r4hLAi",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:37:35.665Z",
+  "importedAt": "2026-03-17T22:37:35.665Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.772Z"
+}

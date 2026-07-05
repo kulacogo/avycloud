@@ -1,0 +1,22 @@
+{
+  "id": "C7565r2IU5cV3djcyWot",
+  "tenantId": "default",
+  "sevdeskId": "113209087",
+  "invoiceNumber": "RE-1066",
+  "date": "2025-12-22",
+  "dueDate": "2025-12-22",
+  "status": "bezahlt",
+  "amountGross": 39.95,
+  "amountNetto": 33.57,
+  "amountNet": 33.57,
+  "vatAmount": 6.38,
+  "currency": "EUR",
+  "customer": {
+    "name": "Florian Geheb"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:47:09.104Z",
+  "importedAt": "2026-03-17T22:47:09.104Z"
+}

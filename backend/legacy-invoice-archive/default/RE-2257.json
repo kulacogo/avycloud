@@ -1,0 +1,29 @@
+{
+  "id": "FfYNLUZjghJpAa41Hz0Q",
+  "tenantId": "default",
+  "invoiceNumber": "RE-2257",
+  "sevdeskId": "127385298",
+  "sevdeskExportedAt": "2026-06-25T03:55:10.526Z",
+  "orderId": "33510529",
+  "orderNumber": "MFADA35",
+  "marketplaceOrderId": "MFADA35",
+  "marketplace": "kaufland",
+  "customer": {
+    "country": "DE",
+    "city": "Bayern - Schopfloch",
+    "name": "Janina Meister"
+  },
+  "amountNetto": 37.81,
+  "amountNet": 37.81,
+  "amountBrutto": 44.99,
+  "amountGross": 44.99,
+  "vatRate": 0.19,
+  "vatAmount": 7.18,
+  "currency": "EUR",
+  "status": "offen",
+  "date": "2026-06-25",
+  "dueDate": "2026-07-09",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-2257.pdf",
+  "createdAt": "2026-06-25T03:55:10.526Z",
+  "createdBy": null
+}

@@ -1,0 +1,22 @@
+{
+  "id": "jwHDhWFtMztANfnf1Vzf",
+  "tenantId": "default",
+  "sevdeskId": "113540831",
+  "invoiceNumber": "RE-1085",
+  "date": "2025-12-29",
+  "dueDate": "2025-12-29",
+  "status": "bezahlt",
+  "amountGross": 15.99,
+  "amountNetto": 13.44,
+  "amountNet": 13.44,
+  "vatAmount": 2.55,
+  "currency": "EUR",
+  "customer": {
+    "name": "Katja Meßner"
+  },
+  "orderId": "x9T9F4s5eSoP573f4Fv3",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:42:26.444Z",
+  "importedAt": "2026-03-17T22:42:26.444Z"
+}

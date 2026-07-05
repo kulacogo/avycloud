@@ -1,0 +1,22 @@
+{
+  "id": "miXGb1e6l4AakFnzW6vS",
+  "tenantId": "default",
+  "sevdeskId": "116422453",
+  "invoiceNumber": "RE-1268",
+  "date": "2026-02-05",
+  "dueDate": "2026-02-05",
+  "status": "bezahlt",
+  "amountGross": 39.75,
+  "amountNetto": 33.4,
+  "amountNet": 33.4,
+  "vatAmount": 6.35,
+  "currency": "EUR",
+  "customer": {
+    "name": "Biberprint"
+  },
+  "orderId": "huWOJdb0ImxqAExfwgUj",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:38:27.567Z",
+  "importedAt": "2026-03-17T22:38:27.567Z"
+}

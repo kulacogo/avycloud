@@ -1,0 +1,23 @@
+{
+  "id": "rwYTWJuRZxb43aLYnaEo",
+  "tenantId": "default",
+  "sevdeskId": "116670492",
+  "invoiceNumber": "RE-1308",
+  "date": "2026-02-09",
+  "dueDate": null,
+  "amountGross": 29.52,
+  "amountNetto": 24.81,
+  "amountNet": 24.81,
+  "vatAmount": 4.71,
+  "currency": "EUR",
+  "customer": {
+    "name": "Mirzet Ramic"
+  },
+  "orderId": "Q55NG7xEA0x1ycVweIe8",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:37:35.848Z",
+  "importedAt": "2026-03-17T22:37:35.848Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.773Z"
+}

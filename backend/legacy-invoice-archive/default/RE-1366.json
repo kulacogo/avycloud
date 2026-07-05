@@ -1,0 +1,23 @@
+{
+  "id": "4rSjjdbhttKm2DtbRLrZ",
+  "tenantId": "default",
+  "sevdeskId": "117186948",
+  "invoiceNumber": "RE-1366",
+  "date": "2026-02-16",
+  "dueDate": null,
+  "amountGross": 32.29,
+  "amountNetto": 27.13,
+  "amountNet": 27.13,
+  "vatAmount": 5.16,
+  "currency": "EUR",
+  "customer": {
+    "name": "Werner Schmitz"
+  },
+  "orderId": "AGcZcq3KbyN6RYlz97Lv",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:35:36.106Z",
+  "importedAt": "2026-03-17T22:35:36.106Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.771Z"
+}

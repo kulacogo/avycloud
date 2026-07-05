@@ -1,0 +1,33 @@
+{
+  "id": "unpamrZ5YniBdGMum8G5",
+  "tenantId": "default",
+  "invoiceNumber": "RE-2230",
+  "sevdeskId": "127385265",
+  "sevdeskExportedAt": "2026-06-25T03:54:37.540Z",
+  "orderId": "31486845",
+  "orderNumber": "M8XPB45",
+  "marketplaceOrderId": "M8XPB45",
+  "marketplace": "kaufland",
+  "customer": {
+    "country": "DE",
+    "city": "Mölln",
+    "name": "Martina-Monika Döding",
+    "zip": "23879",
+    "phone": null,
+    "street": "Hauptstraße 23a",
+    "email": "caksdmxq-7320d7d075b7@kaufland-marktplatz.de"
+  },
+  "amountNetto": 16.8,
+  "amountNet": 16.8,
+  "amountBrutto": 19.99,
+  "amountGross": 19.99,
+  "vatRate": 0.19,
+  "vatAmount": 3.19,
+  "currency": "EUR",
+  "status": "offen",
+  "date": "2026-06-25",
+  "dueDate": "2026-07-09",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-2230.pdf",
+  "createdAt": "2026-06-25T03:54:37.540Z",
+  "createdBy": null
+}

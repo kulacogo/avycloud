@@ -1,0 +1,22 @@
+{
+  "id": "aNEf3OxFQgpAayyFLBqG",
+  "tenantId": "default",
+  "sevdeskId": "113148468",
+  "invoiceNumber": "RE-1056",
+  "date": "2025-12-20",
+  "dueDate": "2025-12-20",
+  "status": "bezahlt",
+  "amountGross": 475.96,
+  "amountNetto": 399.97,
+  "amountNet": 399.97,
+  "vatAmount": 75.99,
+  "currency": "EUR",
+  "customer": {
+    "name": "Robert Engelhardt"
+  },
+  "orderId": "qH4WhnSS5wCjFdyxcQhA",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:53:27.454Z",
+  "importedAt": "2026-03-17T22:53:27.454Z"
+}

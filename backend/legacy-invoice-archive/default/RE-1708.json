@@ -1,0 +1,30 @@
+{
+  "id": "IqbzaMsjoDYGlUDzAVjU",
+  "tenantId": "default",
+  "invoiceNumber": "RE-1708",
+  "sevdeskId": "121581722",
+  "sevdeskExportedAt": "2026-04-13T00:14:08.941Z",
+  "orderId": "ebay__02-14010-13295",
+  "orderNumber": "02-14010-13295",
+  "marketplaceOrderId": "02-14010-13295",
+  "marketplace": "ebay",
+  "customer": {
+    "name": "eBay Käufer",
+    "email": null,
+    "username": "wennduding"
+  },
+  "amountNetto": 126.05,
+  "amountNet": 126.05,
+  "amountBrutto": 150,
+  "amountGross": 150,
+  "vatRate": 0.19,
+  "vatAmount": 23.95,
+  "currency": "EUR",
+  "status": "offen",
+  "date": "2026-04-13",
+  "dueDate": "2026-04-27",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-1708.pdf",
+  "createdAt": "2026-04-13T00:14:08.941Z",
+  "createdBy": null,
+  "pdfRegeneratedAt": "2026-06-02T09:11:46.259Z"
+}

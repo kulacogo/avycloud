@@ -1,0 +1,33 @@
+{
+  "id": "TLBhD56gVLU3z3tNfArm",
+  "tenantId": "default",
+  "invoiceNumber": "RE-2224",
+  "sevdeskId": "127385260",
+  "sevdeskExportedAt": "2026-06-25T03:54:29.103Z",
+  "orderId": "31329172",
+  "orderNumber": "MQKA345",
+  "marketplaceOrderId": "MQKA345",
+  "marketplace": "kaufland",
+  "customer": {
+    "country": "DE",
+    "city": "Leipzig",
+    "name": "Anna Navara",
+    "zip": "04209",
+    "phone": null,
+    "street": "Ringstr. 129",
+    "email": "cae7hnxq-a547c5eaec3c@kaufland-marktplatz.de"
+  },
+  "amountNetto": 16.8,
+  "amountNet": 16.8,
+  "amountBrutto": 19.99,
+  "amountGross": 19.99,
+  "vatRate": 0.19,
+  "vatAmount": 3.19,
+  "currency": "EUR",
+  "status": "offen",
+  "date": "2026-06-25",
+  "dueDate": "2026-07-09",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-2224.pdf",
+  "createdAt": "2026-06-25T03:54:29.103Z",
+  "createdBy": null
+}

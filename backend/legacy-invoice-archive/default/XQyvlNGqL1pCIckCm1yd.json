@@ -1,0 +1,20 @@
+{
+  "id": "XQyvlNGqL1pCIckCm1yd",
+  "tenantId": "default",
+  "sevdeskId": "125889348",
+  "invoiceNumber": null,
+  "date": "2026-06-05",
+  "dueDate": "2026-06-19",
+  "status": "entwurf",
+  "amountGross": 755.44,
+  "amountNetto": 634.82,
+  "amountNet": 634.82,
+  "vatAmount": 120.62,
+  "currency": "EUR",
+  "customer": null,
+  "orderId": "ebay__06-14737-83026",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-06-05T14:15:51.699Z",
+  "importedAt": "2026-06-05T14:15:51.699Z"
+}

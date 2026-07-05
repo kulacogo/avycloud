@@ -1,0 +1,22 @@
+{
+  "id": "3KPFIkciNCyhgq5pdNn1",
+  "tenantId": "default",
+  "sevdeskId": "113140434",
+  "invoiceNumber": "RE-1051",
+  "date": "2025-12-20",
+  "dueDate": "2025-12-20",
+  "status": "bezahlt",
+  "amountGross": 88.99,
+  "amountNetto": 74.78,
+  "amountNet": 74.78,
+  "vatAmount": 14.21,
+  "currency": "EUR",
+  "customer": {
+    "name": "Olaf Kohr"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:53:28.310Z",
+  "importedAt": "2026-03-17T22:53:28.310Z"
+}

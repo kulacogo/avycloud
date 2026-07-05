@@ -1,0 +1,33 @@
+{
+  "id": "poolhnLRs166VxEErudq",
+  "tenantId": "default",
+  "invoiceNumber": "RE-2255",
+  "sevdeskId": "127385295",
+  "sevdeskExportedAt": "2026-06-25T03:55:08.869Z",
+  "orderId": "33201260",
+  "orderNumber": "MK34C35",
+  "marketplaceOrderId": "MK34C35",
+  "marketplace": "kaufland",
+  "customer": {
+    "zip": "04895",
+    "country": "DE",
+    "city": "Neudeck",
+    "phone": null,
+    "street": "Dorfstrasse 9",
+    "name": "Stephanie Schiller-Klage",
+    "email": "ca7nxgnq-d6a25065a787@kaufland-marktplatz.de"
+  },
+  "amountNetto": 151.18,
+  "amountNet": 151.18,
+  "amountBrutto": 179.9,
+  "amountGross": 179.9,
+  "vatRate": 0.19,
+  "vatAmount": 28.72,
+  "currency": "EUR",
+  "status": "offen",
+  "date": "2026-06-25",
+  "dueDate": "2026-07-09",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-2255.pdf",
+  "createdAt": "2026-06-25T03:55:08.869Z",
+  "createdBy": null
+}

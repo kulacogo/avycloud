@@ -1,0 +1,23 @@
+{
+  "id": "KUis5q5JPrgXlI4umwlE",
+  "tenantId": "default",
+  "sevdeskId": "118284372",
+  "invoiceNumber": "RE-1443",
+  "date": "2026-03-02",
+  "dueDate": null,
+  "amountGross": 24.89,
+  "amountNetto": 20.91,
+  "amountNet": 20.91,
+  "vatAmount": 3.98,
+  "currency": "EUR",
+  "customer": {
+    "name": "Anja Dietrich"
+  },
+  "orderId": "7aQ8KBmVbn4rcGe7Uuud",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:34:27.833Z",
+  "importedAt": "2026-03-17T22:34:27.833Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.771Z"
+}

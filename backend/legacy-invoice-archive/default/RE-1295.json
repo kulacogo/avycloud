@@ -1,0 +1,22 @@
+{
+  "id": "v9VGY43NM0M98aycwBjE",
+  "tenantId": "default",
+  "sevdeskId": "116566930",
+  "invoiceNumber": "RE-1295",
+  "date": "2026-02-07",
+  "dueDate": "2026-02-07",
+  "status": "bezahlt",
+  "amountGross": 23.58,
+  "amountNetto": 19.82,
+  "amountNet": 19.82,
+  "vatAmount": 3.76,
+  "currency": "EUR",
+  "customer": {
+    "name": "Andre Höfer"
+  },
+  "orderId": "RVOr2tifxRGq6hjDAvSo",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:38:03.203Z",
+  "importedAt": "2026-03-17T22:38:03.203Z"
+}

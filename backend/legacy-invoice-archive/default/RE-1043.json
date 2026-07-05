@@ -1,0 +1,22 @@
+{
+  "id": "caWpOE2MFOrRPf7FWhhP",
+  "tenantId": "default",
+  "sevdeskId": "112965148",
+  "invoiceNumber": "RE-1043",
+  "date": "2025-12-18",
+  "dueDate": "2025-12-18",
+  "status": "bezahlt",
+  "amountGross": 159.99,
+  "amountNetto": 134.45,
+  "amountNet": 134.45,
+  "vatAmount": 25.54,
+  "currency": "EUR",
+  "customer": {
+    "name": "Jana Flamme"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:53:40.590Z",
+  "importedAt": "2026-03-17T22:53:40.590Z"
+}

@@ -1,0 +1,23 @@
+{
+  "id": "xDeiGtTJLDWEbcsx5tIY",
+  "tenantId": "default",
+  "sevdeskId": "116687880",
+  "invoiceNumber": "RE-1316",
+  "date": "2026-02-09",
+  "dueDate": null,
+  "amountGross": 15.99,
+  "amountNetto": 13.44,
+  "amountNet": 13.44,
+  "vatAmount": 2.55,
+  "currency": "EUR",
+  "customer": {
+    "name": "Siembor Wlodzimierz-Piotr"
+  },
+  "orderId": "djOGg3WSZeK0DVluYu6M",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:37:35.230Z",
+  "importedAt": "2026-03-17T22:37:35.230Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.773Z"
+}

@@ -1,0 +1,33 @@
+{
+  "id": "UwqsNPvRUEmakHvlqPQU",
+  "tenantId": "default",
+  "invoiceNumber": "RE-2228",
+  "sevdeskId": "127385264",
+  "sevdeskExportedAt": "2026-06-25T03:54:35.367Z",
+  "orderId": "31461703",
+  "orderNumber": "MLAF545",
+  "marketplaceOrderId": "MLAF545",
+  "marketplace": "kaufland",
+  "customer": {
+    "country": "DE",
+    "city": "Hillesheim",
+    "name": "RAFAL JACHIMCZYK",
+    "zip": "54576",
+    "phone": null,
+    "street": "Marienstr. 4",
+    "email": "ca9h2qxq-166c03cd0304@kaufland-marktplatz.de"
+  },
+  "amountNetto": 205.88,
+  "amountNet": 205.88,
+  "amountBrutto": 245,
+  "amountGross": 245,
+  "vatRate": 0.19,
+  "vatAmount": 39.12,
+  "currency": "EUR",
+  "status": "offen",
+  "date": "2026-06-25",
+  "dueDate": "2026-07-09",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-2228.pdf",
+  "createdAt": "2026-06-25T03:54:35.367Z",
+  "createdBy": null
+}

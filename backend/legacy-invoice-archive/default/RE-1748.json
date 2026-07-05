@@ -1,0 +1,30 @@
+{
+  "id": "7s2JYrqd95zGckZXhgUD",
+  "tenantId": "default",
+  "invoiceNumber": "RE-1748",
+  "sevdeskId": "121581795",
+  "sevdeskExportedAt": "2026-04-13T00:15:53.329Z",
+  "orderId": "ebay__22-13902-19334",
+  "orderNumber": "22-13902-19334",
+  "marketplaceOrderId": "22-13902-19334",
+  "marketplace": "ebay",
+  "customer": {
+    "name": "eBay Käufer",
+    "email": null,
+    "username": "globalredch"
+  },
+  "amountNetto": 0,
+  "amountNet": 0,
+  "amountBrutto": 0,
+  "amountGross": 0,
+  "vatRate": 0.19,
+  "vatAmount": 0,
+  "currency": "EUR",
+  "status": "offen",
+  "date": "2026-04-13",
+  "dueDate": "2026-04-27",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-1748.pdf",
+  "createdAt": "2026-04-13T00:15:53.329Z",
+  "createdBy": null,
+  "pdfRegeneratedAt": "2026-06-02T09:10:58.922Z"
+}

@@ -1,0 +1,33 @@
+{
+  "id": "NR2cjcgDluE1upIFglBt",
+  "tenantId": "default",
+  "invoiceNumber": "RE-2203",
+  "sevdeskId": "127385230",
+  "sevdeskExportedAt": "2026-06-25T03:54:03.635Z",
+  "orderId": "30488854",
+  "orderNumber": "M1SLQ15",
+  "marketplaceOrderId": "M1SLQ15",
+  "marketplace": "kaufland",
+  "customer": {
+    "country": "DE",
+    "city": "Berlin",
+    "name": "Julia Behr",
+    "zip": "12627",
+    "phone": null,
+    "street": "Adele-Sandrock-Straße 3",
+    "email": "cazj9ezq-de2870afbb4b@kaufland-marktplatz.de"
+  },
+  "amountNetto": 18.48,
+  "amountNet": 18.48,
+  "amountBrutto": 21.99,
+  "amountGross": 21.99,
+  "vatRate": 0.19,
+  "vatAmount": 3.51,
+  "currency": "EUR",
+  "status": "offen",
+  "date": "2026-06-25",
+  "dueDate": "2026-07-09",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-2203.pdf",
+  "createdAt": "2026-06-25T03:54:03.635Z",
+  "createdBy": null
+}

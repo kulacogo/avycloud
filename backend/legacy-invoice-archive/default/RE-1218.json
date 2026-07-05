@@ -1,0 +1,22 @@
+{
+  "id": "Z4oieNej2yJDcLyV0J14",
+  "tenantId": "default",
+  "sevdeskId": "115558911",
+  "invoiceNumber": "RE-1218",
+  "date": "2026-01-27",
+  "dueDate": "2026-01-27",
+  "status": "bezahlt",
+  "amountGross": 9.55,
+  "amountNetto": 8.03,
+  "amountNet": 8.03,
+  "vatAmount": 1.52,
+  "currency": "EUR",
+  "customer": {
+    "name": "Ingrid Luckas"
+  },
+  "orderId": "W40lklyTrNnDOXMI9aLk",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:39:26.965Z",
+  "importedAt": "2026-03-17T22:39:26.965Z"
+}

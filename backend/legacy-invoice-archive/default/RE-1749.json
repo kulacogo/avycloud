@@ -1,0 +1,30 @@
+{
+  "id": "FM2uxwvI012PV9bQtSms",
+  "tenantId": "default",
+  "invoiceNumber": "RE-1749",
+  "sevdeskId": "121581796",
+  "sevdeskExportedAt": "2026-04-13T00:15:55.281Z",
+  "orderId": "ebay__25-13917-83020",
+  "orderNumber": "25-13917-83020",
+  "marketplaceOrderId": "25-13917-83020",
+  "marketplace": "ebay",
+  "customer": {
+    "name": "eBay Käufer",
+    "email": null,
+    "username": "patrick.wenzl"
+  },
+  "amountNetto": 106.72,
+  "amountNet": 106.72,
+  "amountBrutto": 127,
+  "amountGross": 127,
+  "vatRate": 0.19,
+  "vatAmount": 20.28,
+  "currency": "EUR",
+  "status": "offen",
+  "date": "2026-04-13",
+  "dueDate": "2026-04-27",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-1749.pdf",
+  "createdAt": "2026-04-13T00:15:55.281Z",
+  "createdBy": null,
+  "pdfRegeneratedAt": "2026-06-02T09:11:31.499Z"
+}

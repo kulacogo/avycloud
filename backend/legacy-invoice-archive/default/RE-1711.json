@@ -1,0 +1,30 @@
+{
+  "id": "AWobYoxe9Ua79o8BWT9n",
+  "tenantId": "default",
+  "invoiceNumber": "RE-1711",
+  "sevdeskId": "121581726",
+  "sevdeskExportedAt": "2026-04-13T00:14:19.690Z",
+  "orderId": "ebay__05-14001-96947",
+  "orderNumber": "05-14001-96947",
+  "marketplaceOrderId": "05-14001-96947",
+  "marketplace": "ebay",
+  "customer": {
+    "name": "eBay Käufer",
+    "email": null,
+    "username": "lucylinden"
+  },
+  "amountNetto": 23.51,
+  "amountNet": 23.51,
+  "amountBrutto": 27.98,
+  "amountGross": 27.98,
+  "vatRate": 0.19,
+  "vatAmount": 4.47,
+  "currency": "EUR",
+  "status": "offen",
+  "date": "2026-04-13",
+  "dueDate": "2026-04-27",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-1711.pdf",
+  "createdAt": "2026-04-13T00:14:19.690Z",
+  "createdBy": null,
+  "pdfRegeneratedAt": "2026-06-02T09:11:07.911Z"
+}

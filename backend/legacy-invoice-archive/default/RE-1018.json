@@ -1,0 +1,22 @@
+{
+  "id": "kjoiURfLCq0egYhZe7iO",
+  "tenantId": "default",
+  "sevdeskId": "111446859",
+  "invoiceNumber": "RE-1018",
+  "date": "2025-12-02",
+  "dueDate": "2025-12-02",
+  "status": "bezahlt",
+  "amountGross": 149.99,
+  "amountNetto": 126.04,
+  "amountNet": 126.04,
+  "vatAmount": 23.95,
+  "currency": "EUR",
+  "customer": {
+    "name": "Christian Schönfeld"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:54:26.144Z",
+  "importedAt": "2026-03-17T22:54:26.144Z"
+}

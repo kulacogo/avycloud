@@ -1,0 +1,22 @@
+{
+  "id": "Y4pYVUeq6upHhjf8kGea",
+  "tenantId": "default",
+  "sevdeskId": "116331772",
+  "invoiceNumber": "RE-1264",
+  "date": "2026-02-04",
+  "dueDate": "2026-02-04",
+  "status": "bezahlt",
+  "amountGross": 99.99,
+  "amountNetto": 84.03,
+  "amountNet": 84.03,
+  "vatAmount": 15.96,
+  "currency": "EUR",
+  "customer": {
+    "name": "Emil Windberger"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:38:30.304Z",
+  "importedAt": "2026-03-17T22:38:30.304Z"
+}

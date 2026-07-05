@@ -1,0 +1,23 @@
+{
+  "id": "5K6WVlYjpFHEfEfRmU5l",
+  "tenantId": "default",
+  "sevdeskId": "117022815",
+  "invoiceNumber": "RE-1355",
+  "date": "2026-02-13",
+  "dueDate": null,
+  "amountGross": 31.78,
+  "amountNetto": 26.71,
+  "amountNet": 26.71,
+  "vatAmount": 5.07,
+  "currency": "EUR",
+  "customer": {
+    "name": "Neu Sven"
+  },
+  "orderId": "JQHCSJeROYMiXvcnHtxB",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:35:51.906Z",
+  "importedAt": "2026-03-17T22:35:51.906Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.771Z"
+}

@@ -1,0 +1,20 @@
+{
+  "id": "5Lu7fzaGDrLIsf3hDa79",
+  "tenantId": "default",
+  "pdfUrl": null,
+  "invoiceNumber": null,
+  "importedAt": "2026-05-26T06:38:25.002Z",
+  "dueDate": "2026-06-09",
+  "vatAmount": 2.79,
+  "status": "entwurf",
+  "sevdeskId": "124855690",
+  "currency": "EUR",
+  "amountNetto": 14.71,
+  "source": "sevdesk_import",
+  "amountNet": 14.71,
+  "createdAt": "2026-05-26T06:38:25.002Z",
+  "customer": null,
+  "amountGross": 17.5,
+  "orderId": null,
+  "date": "2026-05-26"
+}

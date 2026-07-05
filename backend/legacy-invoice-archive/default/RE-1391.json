@@ -1,0 +1,23 @@
+{
+  "id": "4ikgiEw0wYjDPKqiZhZl",
+  "tenantId": "default",
+  "sevdeskId": "117471394",
+  "invoiceNumber": "RE-1391",
+  "date": "2026-02-20",
+  "dueDate": null,
+  "amountGross": 63.75,
+  "amountNetto": 63.75,
+  "amountNet": 63.75,
+  "vatAmount": 0,
+  "currency": "EUR",
+  "customer": {
+    "name": "Hans Heckfuß"
+  },
+  "orderId": "9HlIqQJfSfindMCi8Pq2",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:34:51.143Z",
+  "importedAt": "2026-03-17T22:34:51.143Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.771Z"
+}

@@ -1,0 +1,23 @@
+{
+  "id": "Blyg7dcYO7EwYCtjG7pI",
+  "tenantId": "default",
+  "sevdeskId": "116669535",
+  "invoiceNumber": "RE-1303",
+  "date": "2026-02-09",
+  "dueDate": null,
+  "amountGross": 62.3,
+  "amountNetto": 52.35,
+  "amountNet": 52.35,
+  "vatAmount": 9.95,
+  "currency": "EUR",
+  "customer": {
+    "name": "Sengül Ciloglu"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:37:36.156Z",
+  "importedAt": "2026-03-17T22:37:36.156Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.771Z"
+}

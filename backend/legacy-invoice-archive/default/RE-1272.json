@@ -1,0 +1,22 @@
+{
+  "id": "jvhgjAgyFaVPy4Dcj2n8",
+  "tenantId": "default",
+  "sevdeskId": "116441923",
+  "invoiceNumber": "RE-1272",
+  "date": "2026-02-05",
+  "dueDate": "2026-02-05",
+  "status": "bezahlt",
+  "amountGross": 69.99,
+  "amountNetto": 58.82,
+  "amountNet": 58.82,
+  "vatAmount": 11.17,
+  "currency": "EUR",
+  "customer": {
+    "name": "Stefan Duwe"
+  },
+  "orderId": "OrCqs13XoeWimrFeE5Jp",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:38:27.023Z",
+  "importedAt": "2026-03-17T22:38:27.023Z"
+}

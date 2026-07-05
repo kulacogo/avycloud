@@ -1,0 +1,23 @@
+{
+  "id": "8ojGItYJN44fnkx7Vo0h",
+  "tenantId": "default",
+  "sevdeskId": "117470369",
+  "invoiceNumber": "RE-1389",
+  "date": "2026-02-20",
+  "dueDate": null,
+  "amountGross": 19.9,
+  "amountNetto": 16.72,
+  "amountNet": 16.72,
+  "vatAmount": 3.18,
+  "currency": "EUR",
+  "customer": {
+    "name": "Alexandra Walter"
+  },
+  "orderId": "Gtrbe4s2nIF8wGl90N0b",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:35:04.504Z",
+  "importedAt": "2026-03-17T22:35:04.504Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.771Z"
+}

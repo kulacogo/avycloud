@@ -1,0 +1,23 @@
+{
+  "id": "j3WQj74WYlZphbKNq5Fj",
+  "tenantId": "default",
+  "sevdeskId": "116795707",
+  "invoiceNumber": "RE-1329",
+  "date": "2026-02-10",
+  "dueDate": null,
+  "amountGross": 11.46,
+  "amountNetto": 9.63,
+  "amountNet": 9.63,
+  "vatAmount": 1.83,
+  "currency": "EUR",
+  "customer": {
+    "name": "Ralf Mittag"
+  },
+  "orderId": "OWhTcEF03wwmZ0V02kjq",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:36:36.402Z",
+  "importedAt": "2026-03-17T22:36:36.402Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.772Z"
+}

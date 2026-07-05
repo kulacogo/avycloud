@@ -1,0 +1,22 @@
+{
+  "id": "SFqriVZbu4VO5vpxzkmN",
+  "tenantId": "default",
+  "sevdeskId": "114224783",
+  "invoiceNumber": "RE-1125",
+  "date": "2026-01-07",
+  "dueDate": "2026-01-07",
+  "status": "bezahlt",
+  "amountGross": 41.98,
+  "amountNetto": 35.28,
+  "amountNet": 35.28,
+  "vatAmount": 6.7,
+  "currency": "EUR",
+  "customer": {
+    "name": "Ile Jovanovski"
+  },
+  "orderId": "gk3Z56YrGPR04DQ2kcMq",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:42:01.304Z",
+  "importedAt": "2026-03-17T22:42:01.304Z"
+}

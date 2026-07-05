@@ -1,0 +1,23 @@
+{
+  "id": "072lJ6jJDdG0aI3sYsli",
+  "tenantId": "default",
+  "sevdeskId": "116947774",
+  "invoiceNumber": "RE-1349",
+  "date": "2026-02-12",
+  "dueDate": null,
+  "amountGross": 39.6,
+  "amountNetto": 33.28,
+  "amountNet": 33.28,
+  "vatAmount": 6.32,
+  "currency": "EUR",
+  "customer": {
+    "name": "Striegler Enrico"
+  },
+  "orderId": "Xq87IO7qom7uqxGEv9Xf",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:36:34.690Z",
+  "importedAt": "2026-03-17T22:36:34.690Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.770Z"
+}

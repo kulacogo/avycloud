@@ -1,0 +1,22 @@
+{
+  "id": "ftHOCEVF3NeNBtij0l0k",
+  "tenantId": "default",
+  "sevdeskId": "111084261",
+  "invoiceNumber": "RE-1015",
+  "date": "2025-11-29",
+  "dueDate": "2025-11-29",
+  "status": "bezahlt",
+  "amountGross": 219.99,
+  "amountNetto": 184.87,
+  "amountNet": 184.87,
+  "vatAmount": 35.12,
+  "currency": "EUR",
+  "customer": {
+    "name": "Manfred Braun"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:54:26.315Z",
+  "importedAt": "2026-03-17T22:54:26.315Z"
+}

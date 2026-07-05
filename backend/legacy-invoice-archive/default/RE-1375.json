@@ -1,0 +1,23 @@
+{
+  "id": "Qbyyawk7RoMgmW2Cq9hm",
+  "tenantId": "default",
+  "sevdeskId": "117242268",
+  "invoiceNumber": "RE-1375",
+  "date": "2026-02-17",
+  "dueDate": null,
+  "amountGross": 50.34,
+  "amountNetto": 42.3,
+  "amountNet": 42.3,
+  "vatAmount": 8.04,
+  "currency": "EUR",
+  "customer": {
+    "name": "Helga Grunau"
+  },
+  "orderId": "Zl46qGeHkT5jsppbVe7q",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:35:35.558Z",
+  "importedAt": "2026-03-17T22:35:35.558Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.772Z"
+}

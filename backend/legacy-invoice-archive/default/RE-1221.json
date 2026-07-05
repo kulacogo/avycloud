@@ -1,0 +1,22 @@
+{
+  "id": "qbMlmZis4upOzs6Vi1P6",
+  "tenantId": "default",
+  "sevdeskId": "115559286",
+  "invoiceNumber": "RE-1221",
+  "date": "2026-01-27",
+  "dueDate": "2026-01-27",
+  "status": "bezahlt",
+  "amountGross": 29.99,
+  "amountNetto": 25.2,
+  "amountNet": 25.2,
+  "vatAmount": 4.79,
+  "currency": "EUR",
+  "customer": {
+    "name": "Nicole Nösel"
+  },
+  "orderId": "ZOh8DpzHqHAoK44Xagdh",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:39:26.828Z",
+  "importedAt": "2026-03-17T22:39:26.828Z"
+}

@@ -1,0 +1,23 @@
+{
+  "id": "LN3Zj9uUTM1wqTqvfHQ4",
+  "tenantId": "default",
+  "sevdeskId": "118938596",
+  "invoiceNumber": "RE-1477",
+  "date": "2026-03-09",
+  "dueDate": null,
+  "amountGross": 43.85,
+  "amountNetto": 36.85,
+  "amountNet": 36.85,
+  "vatAmount": 7,
+  "currency": "EUR",
+  "customer": {
+    "name": "Markus Hoitz"
+  },
+  "orderId": "2XNP4F9RFRfpq3cxBOrd",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:33:27.101Z",
+  "importedAt": "2026-03-17T22:33:27.101Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.772Z"
+}

@@ -1,0 +1,23 @@
+{
+  "id": "tiIlm3Dcd8h4WHAKAoc1",
+  "tenantId": "default",
+  "sevdeskId": "117232429",
+  "invoiceNumber": "RE-1370",
+  "date": "2026-02-17",
+  "dueDate": null,
+  "amountGross": 29.69,
+  "amountNetto": 24.95,
+  "amountNet": 24.95,
+  "vatAmount": 4.74,
+  "currency": "EUR",
+  "customer": {
+    "name": "joachim breitkopf"
+  },
+  "orderId": "E8sFUsV1VNz6Iaa12JLx",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:35:35.864Z",
+  "importedAt": "2026-03-17T22:35:35.864Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.773Z"
+}

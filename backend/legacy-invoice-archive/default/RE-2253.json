@@ -1,0 +1,33 @@
+{
+  "id": "l1PNSDLMjo9wkq3o0q6n",
+  "tenantId": "default",
+  "invoiceNumber": "RE-2253",
+  "sevdeskId": "127385293",
+  "sevdeskExportedAt": "2026-06-25T03:55:04.390Z",
+  "orderId": "33098830",
+  "orderNumber": "MWDDQ35",
+  "marketplaceOrderId": "MWDDQ35",
+  "marketplace": "kaufland",
+  "customer": {
+    "zip": "89165",
+    "country": "DE",
+    "city": "Dietenheim",
+    "phone": null,
+    "street": "Lenaustraße 16",
+    "name": "Rita Lohr",
+    "email": "car00enq-4d1b402fff7d@kaufland-marktplatz.de"
+  },
+  "amountNetto": 13.84,
+  "amountNet": 13.84,
+  "amountBrutto": 16.47,
+  "amountGross": 16.47,
+  "vatRate": 0.19,
+  "vatAmount": 2.63,
+  "currency": "EUR",
+  "status": "offen",
+  "date": "2026-06-25",
+  "dueDate": "2026-07-09",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-2253.pdf",
+  "createdAt": "2026-06-25T03:55:04.391Z",
+  "createdBy": null
+}

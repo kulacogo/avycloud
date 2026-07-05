@@ -1,0 +1,26 @@
+{
+  "id": "MhTBb7E1Pl0cm44toMBB",
+  "tenantId": "default",
+  "sevdeskId": "116672309",
+  "invoiceNumber": "RE-1314",
+  "date": "2026-02-09",
+  "dueDate": null,
+  "amountGross": 24.27,
+  "amountNetto": 20.39,
+  "amountNet": 20.39,
+  "vatAmount": 3.88,
+  "currency": "EUR",
+  "customer": {
+    "name": "Manuela Balogh"
+  },
+  "orderId": "EyeJsbKZDOo78WGaduF9",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:37:35.388Z",
+  "importedAt": "2026-03-17T22:37:35.388Z",
+  "correctedAt": "2026-03-17T22:58:19.145Z",
+  "correctionType": "storno",
+  "correctionId": "cIu566UunnM1gGPsbStp",
+  "status": "storniert",
+  "updatedAt": "2026-03-17T22:58:19.145Z"
+}

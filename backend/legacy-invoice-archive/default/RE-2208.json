@@ -1,0 +1,33 @@
+{
+  "id": "DlIQlYCfz6FX38pfcuGF",
+  "tenantId": "default",
+  "invoiceNumber": "RE-2208",
+  "sevdeskId": "127385236",
+  "sevdeskExportedAt": "2026-06-25T03:54:12.263Z",
+  "orderId": "30673155",
+  "orderNumber": "MFWPE15",
+  "marketplaceOrderId": "MFWPE15",
+  "marketplace": "kaufland",
+  "customer": {
+    "country": "DE",
+    "city": "Dresden",
+    "name": "Harry Wirsum",
+    "zip": "01159",
+    "phone": null,
+    "street": "Braunsdorfer Straße 49",
+    "email": "ca2rd1zq-e5a4fecc4114@kaufland-marktplatz.de"
+  },
+  "amountNetto": 21.96,
+  "amountNet": 21.96,
+  "amountBrutto": 26.13,
+  "amountGross": 26.13,
+  "vatRate": 0.19,
+  "vatAmount": 4.17,
+  "currency": "EUR",
+  "status": "offen",
+  "date": "2026-06-25",
+  "dueDate": "2026-07-09",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-2208.pdf",
+  "createdAt": "2026-06-25T03:54:12.263Z",
+  "createdBy": null
+}

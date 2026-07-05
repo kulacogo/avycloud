@@ -1,0 +1,22 @@
+{
+  "id": "9JlgFfzrjokuhirM9caV",
+  "tenantId": "default",
+  "sevdeskId": "115511619",
+  "invoiceNumber": "RE-1216",
+  "date": "2026-01-26",
+  "dueDate": "2026-01-26",
+  "status": "bezahlt",
+  "amountGross": 8.49,
+  "amountNetto": 7.13,
+  "amountNet": 7.13,
+  "vatAmount": 1.36,
+  "currency": "EUR",
+  "customer": {
+    "name": "Hysen Fetaj"
+  },
+  "orderId": "IcYqsFcy2lN6zCRiIXer",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:39:37.004Z",
+  "importedAt": "2026-03-17T22:39:37.004Z"
+}

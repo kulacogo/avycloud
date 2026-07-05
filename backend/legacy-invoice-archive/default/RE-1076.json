@@ -1,0 +1,22 @@
+{
+  "id": "uwFhjV1Lwvela6CD9QSl",
+  "tenantId": "default",
+  "sevdeskId": "113374025",
+  "invoiceNumber": "RE-1076",
+  "date": "2025-12-24",
+  "dueDate": "2025-12-24",
+  "status": "bezahlt",
+  "amountGross": 49.56,
+  "amountNetto": 41.65,
+  "amountNet": 41.65,
+  "vatAmount": 7.91,
+  "currency": "EUR",
+  "customer": {
+    "name": "Anja Müller"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:44:10.405Z",
+  "importedAt": "2026-03-17T22:44:10.405Z"
+}

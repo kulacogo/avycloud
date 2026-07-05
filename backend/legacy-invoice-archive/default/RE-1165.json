@@ -1,0 +1,22 @@
+{
+  "id": "e23BcPuagZCnvfLq9Q2e",
+  "tenantId": "default",
+  "sevdeskId": "114797329",
+  "invoiceNumber": "RE-1165",
+  "date": "2026-01-15",
+  "dueDate": "2026-01-15",
+  "status": "bezahlt",
+  "amountGross": 128.07,
+  "amountNetto": 107.62,
+  "amountNet": 107.62,
+  "vatAmount": 20.45,
+  "currency": "EUR",
+  "customer": {
+    "name": "Christof Hügelschäfer"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:41:24.438Z",
+  "importedAt": "2026-03-17T22:41:24.438Z"
+}

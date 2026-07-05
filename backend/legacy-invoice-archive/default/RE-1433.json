@@ -1,0 +1,23 @@
+{
+  "id": "WAYNDEQdQlaijBSwGpgR",
+  "tenantId": "default",
+  "sevdeskId": "118020845",
+  "invoiceNumber": "RE-1433",
+  "date": "2026-02-27",
+  "dueDate": null,
+  "amountGross": 187.98,
+  "amountNetto": 157.97,
+  "amountNet": 157.97,
+  "vatAmount": 30.01,
+  "currency": "EUR",
+  "customer": {
+    "name": "Ute Neubacher"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:34:30.704Z",
+  "importedAt": "2026-03-17T22:34:30.704Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.772Z"
+}

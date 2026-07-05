@@ -1,0 +1,23 @@
+{
+  "id": "115OjBRGMHzP2XN4UfTL",
+  "tenantId": "default",
+  "sevdeskId": "117233003",
+  "invoiceNumber": "RE-1373",
+  "date": "2026-02-17",
+  "dueDate": null,
+  "amountGross": 19.99,
+  "amountNetto": 16.8,
+  "amountNet": 16.8,
+  "vatAmount": 3.19,
+  "currency": "EUR",
+  "customer": {
+    "name": "Martina-Monika Döding"
+  },
+  "orderId": "Q1QDavaHP6bBLoeF4uC2",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:35:35.689Z",
+  "importedAt": "2026-03-17T22:35:35.689Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.770Z"
+}

@@ -1,0 +1,23 @@
+{
+  "id": "jX46F4xI12XyYzwJ8r4Z",
+  "tenantId": "default",
+  "sevdeskId": "119411769",
+  "invoiceNumber": "RE-1505",
+  "date": "2026-03-15",
+  "dueDate": null,
+  "amountGross": 30.39,
+  "amountNetto": 25.53,
+  "amountNet": 25.53,
+  "vatAmount": 4.86,
+  "currency": "EUR",
+  "customer": {
+    "name": "Arno Kretzschmar"
+  },
+  "orderId": "0FrwS7aVuYJ3d90cTi2X",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:32:26.019Z",
+  "importedAt": "2026-03-17T22:32:26.019Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.772Z"
+}

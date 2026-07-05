@@ -1,0 +1,22 @@
+{
+  "id": "Jtw9MRI21Kb5VWrKTPlG",
+  "tenantId": "default",
+  "sevdeskId": "113373645",
+  "invoiceNumber": "RE-1075",
+  "date": "2025-12-24",
+  "dueDate": "2025-12-24",
+  "status": "bezahlt",
+  "amountGross": 11.95,
+  "amountNetto": 10.04,
+  "amountNet": 10.04,
+  "vatAmount": 1.91,
+  "currency": "EUR",
+  "customer": {
+    "name": "Gabriele Nawrot-Hahn"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:44:12.456Z",
+  "importedAt": "2026-03-17T22:44:12.456Z"
+}

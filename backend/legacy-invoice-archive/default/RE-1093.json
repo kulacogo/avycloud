@@ -1,0 +1,22 @@
+{
+  "id": "amBQvfZGdI9GPflWixGI",
+  "tenantId": "default",
+  "sevdeskId": "113541281",
+  "invoiceNumber": "RE-1093",
+  "date": "2025-12-29",
+  "dueDate": "2025-12-29",
+  "status": "bezahlt",
+  "amountGross": 36.06,
+  "amountNetto": 30.3,
+  "amountNet": 30.3,
+  "vatAmount": 5.76,
+  "currency": "EUR",
+  "customer": {
+    "name": "Udo Werner"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:42:26.054Z",
+  "importedAt": "2026-03-17T22:42:26.054Z"
+}

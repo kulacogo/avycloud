@@ -1,0 +1,30 @@
+{
+  "id": "S2kP2XCrBgB9NQoQe06K",
+  "tenantId": "default",
+  "invoiceNumber": "RE-1742",
+  "sevdeskId": "121581784",
+  "sevdeskExportedAt": "2026-04-13T00:15:38.725Z",
+  "orderId": "ebay__20-13855-99151",
+  "orderNumber": "20-13855-99151",
+  "marketplaceOrderId": "20-13855-99151",
+  "marketplace": "ebay",
+  "customer": {
+    "name": "eBay Käufer",
+    "email": null,
+    "username": "grizzly635"
+  },
+  "amountNetto": 0,
+  "amountNet": 0,
+  "amountBrutto": 0,
+  "amountGross": 0,
+  "vatRate": 0.19,
+  "vatAmount": 0,
+  "currency": "EUR",
+  "status": "offen",
+  "date": "2026-04-13",
+  "dueDate": "2026-04-27",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-1742.pdf",
+  "createdAt": "2026-04-13T00:15:38.725Z",
+  "createdBy": null,
+  "pdfRegeneratedAt": "2026-06-02T09:12:36.743Z"
+}

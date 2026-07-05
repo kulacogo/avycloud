@@ -1,0 +1,33 @@
+{
+  "id": "4QMDYtA3zN4rczSingmn",
+  "tenantId": "default",
+  "invoiceNumber": "RE-2223",
+  "sevdeskId": "127385259",
+  "sevdeskExportedAt": "2026-06-25T03:54:28.868Z",
+  "orderId": "31232193",
+  "orderNumber": "MGD3145",
+  "marketplaceOrderId": "MGD3145",
+  "marketplace": "kaufland",
+  "customer": {
+    "country": "DE",
+    "city": "Aspisheim",
+    "name": "Rafael Matysek",
+    "zip": "55459",
+    "phone": null,
+    "street": "Reihstraße 14",
+    "email": "ca30nzxq-1f6afccfcc52@kaufland-marktplatz.de"
+  },
+  "amountNetto": 176.47,
+  "amountNet": 176.47,
+  "amountBrutto": 210,
+  "amountGross": 210,
+  "vatRate": 0.19,
+  "vatAmount": 33.53,
+  "currency": "EUR",
+  "status": "offen",
+  "date": "2026-06-25",
+  "dueDate": "2026-07-09",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-2223.pdf",
+  "createdAt": "2026-06-25T03:54:28.868Z",
+  "createdBy": null
+}

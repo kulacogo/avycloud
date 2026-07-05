@@ -1,0 +1,23 @@
+{
+  "id": "oxQzCFBW5ZQkp4WXrTWZ",
+  "tenantId": "default",
+  "sevdeskId": "116795659",
+  "invoiceNumber": "RE-1328",
+  "date": "2026-02-10",
+  "dueDate": null,
+  "amountGross": 15.99,
+  "amountNetto": 13.44,
+  "amountNet": 13.44,
+  "vatAmount": 2.55,
+  "currency": "EUR",
+  "customer": {
+    "name": "Silvia Boock"
+  },
+  "orderId": "Z4qwwBp9CiL2TT8F6tAL",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:36:36.458Z",
+  "importedAt": "2026-03-17T22:36:36.458Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.773Z"
+}

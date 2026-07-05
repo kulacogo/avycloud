@@ -1,0 +1,22 @@
+{
+  "id": "5TL40TeK1YkdInTYEXqr",
+  "tenantId": "default",
+  "sevdeskId": "115504115",
+  "invoiceNumber": "RE-1215",
+  "date": "2026-01-26",
+  "dueDate": "2026-01-26",
+  "status": "bezahlt",
+  "amountGross": 29.99,
+  "amountNetto": 25.2,
+  "amountNet": 25.2,
+  "vatAmount": 4.79,
+  "currency": "EUR",
+  "customer": {
+    "name": "Axel Witt"
+  },
+  "orderId": "cciIUQaGDUY4MbFJe8dl",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:39:45.204Z",
+  "importedAt": "2026-03-17T22:39:45.204Z"
+}

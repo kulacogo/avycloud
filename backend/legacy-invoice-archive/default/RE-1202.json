@@ -1,0 +1,22 @@
+{
+  "id": "qrA5q9JeZ39wcFDx4SZc",
+  "tenantId": "default",
+  "sevdeskId": "115378093",
+  "invoiceNumber": "RE-1202",
+  "date": "2026-01-24",
+  "dueDate": "2026-01-24",
+  "status": "bezahlt",
+  "amountGross": 33.28,
+  "amountNetto": 27.97,
+  "amountNet": 27.97,
+  "vatAmount": 5.31,
+  "currency": "EUR",
+  "customer": {
+    "name": "Maximilian Scheidtmann"
+  },
+  "orderId": "ql1xyKbK7jXe311wCFXt",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:40:24.907Z",
+  "importedAt": "2026-03-17T22:40:24.907Z"
+}

@@ -1,0 +1,26 @@
+{
+  "id": "wy63krta3SNCwbiupUXe",
+  "tenantId": "default",
+  "sevdeskId": "116947142",
+  "invoiceNumber": "RE-1348",
+  "date": "2026-02-12",
+  "dueDate": null,
+  "amountGross": 17.99,
+  "amountNetto": 15.12,
+  "amountNet": 15.12,
+  "vatAmount": 2.87,
+  "currency": "EUR",
+  "customer": {
+    "name": "Fabian Grünzig"
+  },
+  "orderId": "4PCZEJQ3RDwyQ2CJEg8v",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:36:34.758Z",
+  "importedAt": "2026-03-17T22:36:34.758Z",
+  "correctedAt": "2026-03-17T22:58:17.920Z",
+  "correctionType": "storno",
+  "correctionId": "IDLqcxcC1jGbn46BYMbB",
+  "status": "storniert",
+  "updatedAt": "2026-03-17T22:58:17.920Z"
+}

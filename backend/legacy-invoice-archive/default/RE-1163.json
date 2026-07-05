@@ -1,0 +1,22 @@
+{
+  "id": "ZG44MsG3npyPQTzumT8J",
+  "tenantId": "default",
+  "sevdeskId": "114797197",
+  "invoiceNumber": "RE-1163",
+  "date": "2026-01-15",
+  "dueDate": "2026-01-15",
+  "status": "bezahlt",
+  "amountGross": 20.9,
+  "amountNetto": 17.56,
+  "amountNet": 17.56,
+  "vatAmount": 3.34,
+  "currency": "EUR",
+  "customer": {
+    "name": "Dirk Opitz"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:41:24.554Z",
+  "importedAt": "2026-03-17T22:41:24.554Z"
+}

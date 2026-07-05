@@ -1,0 +1,33 @@
+{
+  "id": "c5tGYK4JtkeXEJMzU60Q",
+  "tenantId": "default",
+  "invoiceNumber": "RE-2256",
+  "sevdeskId": "127385297",
+  "sevdeskExportedAt": "2026-06-25T03:55:08.447Z",
+  "orderId": "33235666",
+  "orderNumber": "M9BHT35",
+  "marketplaceOrderId": "M9BHT35",
+  "marketplace": "kaufland",
+  "customer": {
+    "zip": "38173",
+    "country": "DE",
+    "city": "Sickte",
+    "phone": null,
+    "street": "Am Grenzpfahle 9",
+    "name": "Martin Wöhler",
+    "email": "ca8m4lnq-dbcdbad98ded@kaufland-marktplatz.de"
+  },
+  "amountNetto": 13.44,
+  "amountNet": 13.44,
+  "amountBrutto": 15.99,
+  "amountGross": 15.99,
+  "vatRate": 0.19,
+  "vatAmount": 2.55,
+  "currency": "EUR",
+  "status": "offen",
+  "date": "2026-06-25",
+  "dueDate": "2026-07-09",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-2256.pdf",
+  "createdAt": "2026-06-25T03:55:08.447Z",
+  "createdBy": null
+}

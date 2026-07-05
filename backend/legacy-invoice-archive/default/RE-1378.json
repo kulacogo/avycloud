@@ -1,0 +1,23 @@
+{
+  "id": "eurEIQ3jHgbLFXFOXoge",
+  "tenantId": "default",
+  "sevdeskId": "117312251",
+  "invoiceNumber": "RE-1378",
+  "date": "2026-02-18",
+  "dueDate": null,
+  "amountGross": 28.01,
+  "amountNetto": 23.54,
+  "amountNet": 23.54,
+  "vatAmount": 4.47,
+  "currency": "EUR",
+  "customer": {
+    "name": "Ana Zlat"
+  },
+  "orderId": "ARWUN8C8R7dFbSFzFytG",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:35:35.207Z",
+  "importedAt": "2026-03-17T22:35:35.207Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.772Z"
+}

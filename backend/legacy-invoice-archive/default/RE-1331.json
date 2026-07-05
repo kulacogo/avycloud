@@ -1,0 +1,23 @@
+{
+  "id": "xDVx436yDs0J4ZTaUco2",
+  "tenantId": "default",
+  "sevdeskId": "116846110",
+  "invoiceNumber": "RE-1331",
+  "date": "2026-02-11",
+  "dueDate": null,
+  "amountGross": 63.19,
+  "amountNetto": 53.1,
+  "amountNet": 53.1,
+  "vatAmount": 10.09,
+  "currency": "EUR",
+  "customer": {
+    "name": "Tomasz Paskuda"
+  },
+  "orderId": "lgkw1pxfePdWn3aMQE0Q",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:36:36.019Z",
+  "importedAt": "2026-03-17T22:36:36.019Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.773Z"
+}

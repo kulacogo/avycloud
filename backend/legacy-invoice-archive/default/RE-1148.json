@@ -1,0 +1,22 @@
+{
+  "id": "Xt7t8bL0pmo2MfzWS9Y9",
+  "tenantId": "default",
+  "sevdeskId": "114617882",
+  "invoiceNumber": "RE-1148",
+  "date": "2026-01-13",
+  "dueDate": "2026-01-13",
+  "status": "bezahlt",
+  "amountGross": 19.99,
+  "amountNetto": 16.8,
+  "amountNet": 16.8,
+  "vatAmount": 3.19,
+  "currency": "EUR",
+  "customer": {
+    "name": "Bechir Darghouth"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:41:25.497Z",
+  "importedAt": "2026-03-17T22:41:25.497Z"
+}

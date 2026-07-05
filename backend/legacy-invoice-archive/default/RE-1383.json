@@ -1,0 +1,23 @@
+{
+  "id": "0SAa9mcYuaP6CnSLZAiZ",
+  "tenantId": "default",
+  "sevdeskId": "117401657",
+  "invoiceNumber": "RE-1383",
+  "date": "2026-02-19",
+  "dueDate": null,
+  "amountGross": 33.02,
+  "amountNetto": 27.75,
+  "amountNet": 27.75,
+  "vatAmount": 5.27,
+  "currency": "EUR",
+  "customer": {
+    "name": "Steffen Skeide"
+  },
+  "orderId": "LlUDXfeJmm5AlBzdSkWr",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:35:34.912Z",
+  "importedAt": "2026-03-17T22:35:34.912Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.770Z"
+}

@@ -1,0 +1,22 @@
+{
+  "id": "FVZmJNUBASnvPyapt6EA",
+  "tenantId": "default",
+  "sevdeskId": "113540949",
+  "invoiceNumber": "RE-1087",
+  "date": "2025-12-29",
+  "dueDate": "2025-12-29",
+  "status": "bezahlt",
+  "amountGross": 69.49,
+  "amountNetto": 58.39,
+  "amountNet": 58.39,
+  "vatAmount": 11.1,
+  "currency": "EUR",
+  "customer": {
+    "name": "Thorben Hoff"
+  },
+  "orderId": "twgx4etGUuyn7WyPLX24",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:42:26.339Z",
+  "importedAt": "2026-03-17T22:42:26.339Z"
+}

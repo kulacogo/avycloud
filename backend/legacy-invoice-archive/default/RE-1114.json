@@ -1,0 +1,22 @@
+{
+  "id": "Xok0FYej36shjk5iItgF",
+  "tenantId": "default",
+  "sevdeskId": "114034875",
+  "invoiceNumber": "RE-1114",
+  "date": "2026-01-05",
+  "dueDate": "2026-01-05",
+  "status": "bezahlt",
+  "amountGross": 22.76,
+  "amountNetto": 19.13,
+  "amountNet": 19.13,
+  "vatAmount": 3.63,
+  "currency": "EUR",
+  "customer": {
+    "name": "Marvin List"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:42:25.064Z",
+  "importedAt": "2026-03-17T22:42:25.064Z"
+}

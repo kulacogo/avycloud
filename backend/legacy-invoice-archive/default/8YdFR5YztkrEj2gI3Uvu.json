@@ -1,0 +1,22 @@
+{
+  "id": "8YdFR5YztkrEj2gI3Uvu",
+  "tenantId": "default",
+  "type": "storno",
+  "originalInvoiceId": "q58skaax5rCm2p5pQsWt",
+  "originalInvoiceNumber": "RE-1651",
+  "orderId": "kaufland__MA7A395",
+  "orderNumber": null,
+  "marketplaceOrderId": null,
+  "marketplace": null,
+  "amountGross": 13.14,
+  "amountNetto": 11.04,
+  "amountNet": 11.04,
+  "vatRate": 0.19,
+  "currency": "EUR",
+  "customer": null,
+  "sevdeskId": "120633916",
+  "reason": "Stornierung",
+  "status": "storniert",
+  "date": "2026-03-31",
+  "createdAt": "2026-03-31T11:51:29.544Z"
+}

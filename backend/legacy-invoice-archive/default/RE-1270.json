@@ -1,0 +1,22 @@
+{
+  "id": "cU6Tcbf0PUlllUcaO9Cd",
+  "tenantId": "default",
+  "sevdeskId": "116422710",
+  "invoiceNumber": "RE-1270",
+  "date": "2026-02-05",
+  "dueDate": "2026-02-05",
+  "status": "bezahlt",
+  "amountGross": 24,
+  "amountNetto": 20.17,
+  "amountNet": 20.17,
+  "vatAmount": 3.83,
+  "currency": "EUR",
+  "customer": {
+    "name": "Fynn Brune"
+  },
+  "orderId": "lNzjtfFHdUgL612GlT1R",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:38:27.455Z",
+  "importedAt": "2026-03-17T22:38:27.455Z"
+}

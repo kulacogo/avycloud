@@ -1,0 +1,33 @@
+{
+  "id": "IqU0ucFyiQnRfzQ3r1Lb",
+  "tenantId": "default",
+  "invoiceNumber": "RE-2243",
+  "sevdeskId": "127385282",
+  "sevdeskExportedAt": "2026-06-25T03:54:51.968Z",
+  "orderId": "32126153",
+  "orderNumber": "MQ4ZHD5",
+  "marketplaceOrderId": "MQ4ZHD5",
+  "marketplace": "kaufland",
+  "customer": {
+    "country": "DE",
+    "city": "Drensteinfurt",
+    "name": "Edith Howein",
+    "zip": "48317",
+    "phone": null,
+    "street": "Eickenbecker Str. 35",
+    "email": "caexv40q-bd998b28688d@kaufland-marktplatz.de"
+  },
+  "amountNetto": 31.98,
+  "amountNet": 31.98,
+  "amountBrutto": 38.06,
+  "amountGross": 38.06,
+  "vatRate": 0.19,
+  "vatAmount": 6.08,
+  "currency": "EUR",
+  "status": "offen",
+  "date": "2026-06-25",
+  "dueDate": "2026-07-09",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-2243.pdf",
+  "createdAt": "2026-06-25T03:54:51.968Z",
+  "createdBy": null
+}

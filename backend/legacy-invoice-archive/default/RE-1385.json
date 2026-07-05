@@ -1,0 +1,23 @@
+{
+  "id": "rWpQ3Ebf3QXgAWqljqQz",
+  "tenantId": "default",
+  "sevdeskId": "117401737",
+  "invoiceNumber": "RE-1385",
+  "date": "2026-02-19",
+  "dueDate": null,
+  "amountGross": 17.99,
+  "amountNetto": 15.12,
+  "amountNet": 15.12,
+  "vatAmount": 2.87,
+  "currency": "EUR",
+  "customer": {
+    "name": "Erika Claus"
+  },
+  "orderId": "49tiOHXNaRlKse3JWqSZ",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:35:34.794Z",
+  "importedAt": "2026-03-17T22:35:34.794Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.773Z"
+}

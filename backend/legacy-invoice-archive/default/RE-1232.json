@@ -1,0 +1,22 @@
+{
+  "id": "6wvBnXpOtHmYkwiPaR3S",
+  "tenantId": "default",
+  "sevdeskId": "115823220",
+  "invoiceNumber": "RE-1232",
+  "date": "2026-01-30",
+  "dueDate": "2026-01-30",
+  "status": "bezahlt",
+  "amountGross": 60,
+  "amountNetto": 50.42,
+  "amountNet": 50.42,
+  "vatAmount": 9.58,
+  "currency": "EUR",
+  "customer": {
+    "name": "Eugeniu Gurdis"
+  },
+  "orderId": "hjRh2eF5QkcStDKwBGYW",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:39:25.991Z",
+  "importedAt": "2026-03-17T22:39:25.991Z"
+}

@@ -1,0 +1,22 @@
+{
+  "id": "sw9xEtkFj1omQUF2WeIG",
+  "tenantId": "default",
+  "sevdeskId": "116571819",
+  "invoiceNumber": "RE-1297",
+  "date": "2026-02-07",
+  "dueDate": "2026-02-07",
+  "status": "bezahlt",
+  "amountGross": 11.38,
+  "amountNetto": 9.56,
+  "amountNet": 9.56,
+  "vatAmount": 1.82,
+  "currency": "EUR",
+  "customer": {
+    "name": "Regine Stephany"
+  },
+  "orderId": "UTWg4G97CVPugucovluZ",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:37:46.704Z",
+  "importedAt": "2026-03-17T22:37:46.704Z"
+}

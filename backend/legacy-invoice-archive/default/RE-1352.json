@@ -1,0 +1,23 @@
+{
+  "id": "04ajGr5r79I1qXfR4Tn5",
+  "tenantId": "default",
+  "sevdeskId": "117012756",
+  "invoiceNumber": "RE-1352",
+  "date": "2026-02-13",
+  "dueDate": null,
+  "amountGross": 24.8,
+  "amountNetto": 20.84,
+  "amountNet": 20.84,
+  "vatAmount": 3.96,
+  "currency": "EUR",
+  "customer": {
+    "name": "Hasamddin Ansari"
+  },
+  "orderId": "9vsrMCyJanKMjZNiOzxc",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:36:11.703Z",
+  "importedAt": "2026-03-17T22:36:11.703Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.769Z"
+}

@@ -1,0 +1,23 @@
+{
+  "id": "PdIccZ70qEkMqBv6ZZFS",
+  "tenantId": "default",
+  "sevdeskId": "116847008",
+  "invoiceNumber": "RE-1337",
+  "date": "2026-02-11",
+  "dueDate": null,
+  "amountGross": 441.6,
+  "amountNetto": 371.09,
+  "amountNet": 371.09,
+  "vatAmount": 70.51,
+  "currency": "EUR",
+  "customer": {
+    "name": "Klaus Schicho"
+  },
+  "orderId": "7kmB3kS9bMEfMAOa0kXf",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:36:35.624Z",
+  "importedAt": "2026-03-17T22:36:35.624Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.772Z"
+}

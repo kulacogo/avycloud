@@ -1,0 +1,23 @@
+{
+  "id": "EVuR3hbY8k0CcJ54s66R",
+  "tenantId": "default",
+  "sevdeskId": "119398804",
+  "invoiceNumber": "RE-1496",
+  "date": "2026-03-15",
+  "dueDate": null,
+  "amountGross": 6.59,
+  "amountNetto": 6.59,
+  "amountNet": 6.59,
+  "vatAmount": 0,
+  "currency": "EUR",
+  "customer": {
+    "name": "Deniz Erkan"
+  },
+  "orderId": "CVNzVKteBo3Oscqf6bUh",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:32:54.608Z",
+  "importedAt": "2026-03-17T22:32:54.608Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.771Z"
+}

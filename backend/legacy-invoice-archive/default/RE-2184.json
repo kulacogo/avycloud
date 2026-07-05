@@ -1,0 +1,33 @@
+{
+  "id": "zpKm59XKFE6AbMfROg9m",
+  "tenantId": "default",
+  "invoiceNumber": "RE-2184",
+  "sevdeskId": "127385208",
+  "sevdeskExportedAt": "2026-06-25T03:53:43.449Z",
+  "orderId": "29878631",
+  "orderNumber": "MZ7F6H5",
+  "marketplaceOrderId": "MZ7F6H5",
+  "marketplace": "kaufland",
+  "customer": {
+    "country": "DE",
+    "city": "An der Schmücke",
+    "name": "Annett Luft",
+    "zip": "06577",
+    "phone": null,
+    "street": "Karl-Marx-Str. 45",
+    "email": "cavi2w4q-c4ec636b48f4@kaufland-marktplatz.de"
+  },
+  "amountNetto": 43.7,
+  "amountNet": 43.7,
+  "amountBrutto": 52,
+  "amountGross": 52,
+  "vatRate": 0.19,
+  "vatAmount": 8.3,
+  "currency": "EUR",
+  "status": "offen",
+  "date": "2026-06-25",
+  "dueDate": "2026-07-09",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-2184.pdf",
+  "createdAt": "2026-06-25T03:53:43.449Z",
+  "createdBy": null
+}

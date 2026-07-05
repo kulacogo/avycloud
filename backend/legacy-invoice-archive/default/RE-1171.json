@@ -1,0 +1,22 @@
+{
+  "id": "6mm1IKXNrkVfISklQxil",
+  "tenantId": "default",
+  "sevdeskId": "114918778",
+  "invoiceNumber": "RE-1171",
+  "date": "2026-01-17",
+  "dueDate": "2026-01-17",
+  "status": "bezahlt",
+  "amountGross": 77.98,
+  "amountNetto": 65.53,
+  "amountNet": 65.53,
+  "vatAmount": 12.45,
+  "currency": "EUR",
+  "customer": {
+    "name": "Manfred Knoch"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:41:05.103Z",
+  "importedAt": "2026-03-17T22:41:05.103Z"
+}

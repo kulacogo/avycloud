@@ -1,0 +1,30 @@
+{
+  "id": "3rnopqoP9CCBKxL2myCX",
+  "tenantId": "default",
+  "invoiceNumber": "RE-1718",
+  "sevdeskId": "121581739",
+  "sevdeskExportedAt": "2026-04-13T00:14:35.989Z",
+  "orderId": "ebay__10-13792-59539",
+  "orderNumber": "10-13792-59539",
+  "marketplaceOrderId": "10-13792-59539",
+  "marketplace": "ebay",
+  "customer": {
+    "name": "eBay Käufer",
+    "email": null,
+    "username": "remza52"
+  },
+  "amountNetto": 6.02,
+  "amountNet": 6.02,
+  "amountBrutto": 7.16,
+  "amountGross": 7.16,
+  "vatRate": 0.19,
+  "vatAmount": 1.14,
+  "currency": "EUR",
+  "status": "offen",
+  "date": "2026-04-13",
+  "dueDate": "2026-04-27",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-1718.pdf",
+  "createdAt": "2026-04-13T00:14:35.989Z",
+  "createdBy": null,
+  "pdfRegeneratedAt": "2026-06-02T09:10:43.586Z"
+}

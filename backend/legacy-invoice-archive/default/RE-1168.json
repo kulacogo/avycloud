@@ -1,0 +1,22 @@
+{
+  "id": "RwCt6uu2TB2QtxnJuvB4",
+  "tenantId": "default",
+  "sevdeskId": "114870061",
+  "invoiceNumber": "RE-1168",
+  "date": "2026-01-16",
+  "dueDate": "2026-01-16",
+  "status": "bezahlt",
+  "amountGross": 27.97,
+  "amountNetto": 23.5,
+  "amountNet": 23.5,
+  "vatAmount": 4.47,
+  "currency": "EUR",
+  "customer": {
+    "name": "Rainer Wedemann"
+  },
+  "orderId": "NOhnWOTqVVcL2itDH3gf",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:41:17.006Z",
+  "importedAt": "2026-03-17T22:41:17.006Z"
+}

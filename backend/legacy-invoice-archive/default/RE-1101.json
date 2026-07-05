@@ -1,0 +1,22 @@
+{
+  "id": "0SX4bHqJGJeQnIehtCHx",
+  "tenantId": "default",
+  "sevdeskId": "113668262",
+  "invoiceNumber": "RE-1101",
+  "date": "2025-12-31",
+  "dueDate": "2025-12-31",
+  "status": "bezahlt",
+  "amountGross": 20.99,
+  "amountNetto": 17.64,
+  "amountNet": 17.64,
+  "vatAmount": 3.35,
+  "currency": "EUR",
+  "customer": {
+    "name": "Aleksandar Todorov"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:42:25.696Z",
+  "importedAt": "2026-03-17T22:42:25.696Z"
+}

@@ -1,0 +1,23 @@
+{
+  "id": "gamqZXJJ8lc0YaMKlcSr",
+  "tenantId": "default",
+  "sevdeskId": "117643041",
+  "invoiceNumber": "RE-1411",
+  "date": "2026-02-23",
+  "dueDate": null,
+  "amountGross": 23.56,
+  "amountNetto": 19.8,
+  "amountNet": 19.8,
+  "vatAmount": 3.76,
+  "currency": "EUR",
+  "customer": {
+    "name": "Fred Lausch"
+  },
+  "orderId": "9OoUEHIovb5xWNCtq41i",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:34:35.410Z",
+  "importedAt": "2026-03-17T22:34:35.410Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.772Z"
+}

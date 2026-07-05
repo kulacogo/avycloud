@@ -1,0 +1,23 @@
+{
+  "id": "8sntEgoMMP67bZ0RbdTU",
+  "tenantId": "default",
+  "sevdeskId": "116671230",
+  "invoiceNumber": "RE-1311",
+  "date": "2026-02-09",
+  "dueDate": null,
+  "amountGross": 24.27,
+  "amountNetto": 20.39,
+  "amountNet": 20.39,
+  "vatAmount": 3.88,
+  "currency": "EUR",
+  "customer": {
+    "name": "Mateusz Marszałkowski"
+  },
+  "orderId": "LOmlJipdKasPQfNPnxw6",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:37:35.602Z",
+  "importedAt": "2026-03-17T22:37:35.602Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.771Z"
+}

@@ -1,0 +1,22 @@
+{
+  "id": "myrblOiNtlo3K0CcuFN7",
+  "tenantId": "default",
+  "sevdeskId": "115031506",
+  "invoiceNumber": "RE-1182",
+  "date": "2026-01-19",
+  "dueDate": "2026-01-19",
+  "status": "bezahlt",
+  "amountGross": 23.9,
+  "amountNetto": 20.08,
+  "amountNet": 20.08,
+  "vatAmount": 3.82,
+  "currency": "EUR",
+  "customer": {
+    "name": "Marcel Just"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:40:26.414Z",
+  "importedAt": "2026-03-17T22:40:26.414Z"
+}

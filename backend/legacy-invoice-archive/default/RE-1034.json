@@ -1,0 +1,22 @@
+{
+  "id": "bLC3gmXThrHP3mbIU30R",
+  "tenantId": "default",
+  "sevdeskId": "112600710",
+  "invoiceNumber": "RE-1034",
+  "date": "2025-12-15",
+  "dueDate": "2025-12-15",
+  "status": "bezahlt",
+  "amountGross": 20.98,
+  "amountNetto": 17.63,
+  "amountNet": 17.63,
+  "vatAmount": 3.35,
+  "currency": "EUR",
+  "customer": {
+    "name": "Claudia Hinterleitner"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:53:57.388Z",
+  "importedAt": "2026-03-17T22:53:57.388Z"
+}

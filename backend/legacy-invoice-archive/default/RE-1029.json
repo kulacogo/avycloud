@@ -1,0 +1,22 @@
+{
+  "id": "iwaX02PCrxppK5WIaVsL",
+  "tenantId": "default",
+  "sevdeskId": "112381277",
+  "invoiceNumber": "RE-1029",
+  "date": "2025-12-11",
+  "dueDate": "2025-12-11",
+  "status": "bezahlt",
+  "amountGross": 229.99,
+  "amountNetto": 193.27,
+  "amountNet": 193.27,
+  "vatAmount": 36.72,
+  "currency": "EUR",
+  "customer": {
+    "name": "Hendrik Rossow"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:54:05.988Z",
+  "importedAt": "2026-03-17T22:54:05.988Z"
+}

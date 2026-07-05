@@ -1,0 +1,22 @@
+{
+  "id": "hPXKmUJmVv9wKH3tDo2J",
+  "tenantId": "default",
+  "sevdeskId": "112076133",
+  "invoiceNumber": "RE-1026",
+  "date": "2025-12-09",
+  "dueDate": "2025-12-09",
+  "status": "bezahlt",
+  "amountGross": 36.99,
+  "amountNetto": 31.08,
+  "amountNet": 31.08,
+  "vatAmount": 5.91,
+  "currency": "EUR",
+  "customer": {
+    "name": "Jasmin Haas"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:54:11.289Z",
+  "importedAt": "2026-03-17T22:54:11.289Z"
+}

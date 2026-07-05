@@ -1,0 +1,22 @@
+{
+  "id": "aFx8vusET1QMdS65BVq7",
+  "tenantId": "default",
+  "sevdeskId": "113273034",
+  "invoiceNumber": "RE-1071",
+  "date": "2025-12-22",
+  "dueDate": "2025-12-22",
+  "status": "bezahlt",
+  "amountGross": 124.95,
+  "amountNetto": 105,
+  "amountNet": 105,
+  "vatAmount": 19.95,
+  "currency": "EUR",
+  "customer": {
+    "name": "Aljosha Glaser"
+  },
+  "orderId": "wZ0otyJVY7xADDvjFoND",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:45:59.504Z",
+  "importedAt": "2026-03-17T22:45:59.504Z"
+}

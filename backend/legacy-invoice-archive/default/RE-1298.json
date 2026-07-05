@@ -1,0 +1,22 @@
+{
+  "id": "GFGChDUqY2UxcyXJ6Ep6",
+  "tenantId": "default",
+  "sevdeskId": "116571835",
+  "invoiceNumber": "RE-1298",
+  "date": "2026-02-07",
+  "dueDate": "2026-02-07",
+  "status": "bezahlt",
+  "amountGross": 21.99,
+  "amountNetto": 18.48,
+  "amountNet": 18.48,
+  "vatAmount": 3.51,
+  "currency": "EUR",
+  "customer": {
+    "name": "Hajji Abdellah"
+  },
+  "orderId": "KThWPFQd6Ad5Y9iUiH0M",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:37:36.723Z",
+  "importedAt": "2026-03-17T22:37:36.723Z"
+}

@@ -1,0 +1,23 @@
+{
+  "id": "gNUyJ0Q94ahsMXIh49m2",
+  "tenantId": "default",
+  "sevdeskId": "116946699",
+  "invoiceNumber": "RE-1339",
+  "date": "2026-02-12",
+  "dueDate": null,
+  "amountGross": 16.95,
+  "amountNetto": 14.24,
+  "amountNet": 14.24,
+  "vatAmount": 2.71,
+  "currency": "EUR",
+  "customer": {
+    "name": "Georg Wiese"
+  },
+  "orderId": "XySjotSRx53Pbp0Uz3s5",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:36:35.338Z",
+  "importedAt": "2026-03-17T22:36:35.338Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.772Z"
+}

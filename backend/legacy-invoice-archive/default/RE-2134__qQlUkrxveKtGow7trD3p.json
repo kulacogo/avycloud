@@ -1,0 +1,20 @@
+{
+  "id": "qQlUkrxveKtGow7trD3p",
+  "tenantId": "default",
+  "sevdeskId": "126258468",
+  "invoiceNumber": "RE-2134",
+  "date": "2026-06-10",
+  "dueDate": null,
+  "status": "offen",
+  "amountGross": 17.46,
+  "amountNetto": 14.67,
+  "amountNet": 14.67,
+  "vatAmount": 2.79,
+  "currency": "EUR",
+  "customer": null,
+  "orderId": "ebay__27-14724-77352",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-06-10T15:23:36.362Z",
+  "importedAt": "2026-06-10T15:23:36.362Z"
+}

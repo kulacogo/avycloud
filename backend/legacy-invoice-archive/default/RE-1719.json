@@ -1,0 +1,30 @@
+{
+  "id": "wAC0PhBmFUOjzETX9N9x",
+  "tenantId": "default",
+  "invoiceNumber": "RE-1719",
+  "sevdeskId": "121581741",
+  "sevdeskExportedAt": "2026-04-13T00:14:38.019Z",
+  "orderId": "ebay__11-13808-17422",
+  "orderNumber": "11-13808-17422",
+  "marketplaceOrderId": "11-13808-17422",
+  "marketplace": "ebay",
+  "customer": {
+    "name": "eBay Käufer",
+    "email": null,
+    "username": "armin.geyer"
+  },
+  "amountNetto": 22.68,
+  "amountNet": 22.68,
+  "amountBrutto": 26.99,
+  "amountGross": 26.99,
+  "vatRate": 0.19,
+  "vatAmount": 4.31,
+  "currency": "EUR",
+  "status": "offen",
+  "date": "2026-04-13",
+  "dueDate": "2026-04-27",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-1719.pdf",
+  "createdAt": "2026-04-13T00:14:38.019Z",
+  "createdBy": null,
+  "pdfRegeneratedAt": "2026-06-02T09:14:35.556Z"
+}

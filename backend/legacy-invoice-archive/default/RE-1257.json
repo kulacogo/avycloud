@@ -1,0 +1,22 @@
+{
+  "id": "yiaV59PxjcN7B2OqSoKn",
+  "tenantId": "default",
+  "sevdeskId": "116166146",
+  "invoiceNumber": "RE-1257",
+  "date": "2026-02-02",
+  "dueDate": "2026-02-02",
+  "status": "bezahlt",
+  "amountGross": 133.94,
+  "amountNetto": 112.55,
+  "amountNet": 112.55,
+  "vatAmount": 21.39,
+  "currency": "EUR",
+  "customer": {
+    "name": "Harald Röbkes"
+  },
+  "orderId": "AtPf5aTGXCPDsg7XOc75",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:39:24.340Z",
+  "importedAt": "2026-03-17T22:39:24.340Z"
+}

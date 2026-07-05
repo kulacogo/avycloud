@@ -1,0 +1,22 @@
+{
+  "id": "8Etf0sDZi0Va4vD9pidS",
+  "tenantId": "default",
+  "sevdeskId": "114869879",
+  "invoiceNumber": "RE-1166",
+  "date": "2026-01-16",
+  "dueDate": "2026-01-16",
+  "status": "bezahlt",
+  "amountGross": 35.65,
+  "amountNetto": 29.96,
+  "amountNet": 29.96,
+  "vatAmount": 5.69,
+  "currency": "EUR",
+  "customer": {
+    "name": "Armin Zimmermann"
+  },
+  "orderId": "sezTRJBtCHKAQdE6d5th",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:41:24.362Z",
+  "importedAt": "2026-03-17T22:41:24.362Z"
+}

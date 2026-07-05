@@ -1,0 +1,33 @@
+{
+  "id": "oqYSeafIT4VrdKeYVXo3",
+  "tenantId": "default",
+  "invoiceNumber": "RE-2209",
+  "sevdeskId": "127385237",
+  "sevdeskExportedAt": "2026-06-25T03:54:11.582Z",
+  "orderId": "30677672",
+  "orderNumber": "M8XBE15",
+  "marketplaceOrderId": "M8XBE15",
+  "marketplace": "kaufland",
+  "customer": {
+    "country": "DE",
+    "city": "Grockstädt",
+    "name": "Cathleen Ebert",
+    "zip": "06268",
+    "phone": null,
+    "street": "Bergstraße 64",
+    "email": "caksm1zq-2400d679f2a9@kaufland-marktplatz.de"
+  },
+  "amountNetto": 14.29,
+  "amountNet": 14.29,
+  "amountBrutto": 17,
+  "amountGross": 17,
+  "vatRate": 0.19,
+  "vatAmount": 2.71,
+  "currency": "EUR",
+  "status": "offen",
+  "date": "2026-06-25",
+  "dueDate": "2026-07-09",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-2209.pdf",
+  "createdAt": "2026-06-25T03:54:11.582Z",
+  "createdBy": null
+}

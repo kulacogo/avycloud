@@ -1,0 +1,22 @@
+{
+  "id": "hAlVvHznXj7bbp5d8hN9",
+  "tenantId": "default",
+  "sevdeskId": "115823331",
+  "invoiceNumber": "RE-1235",
+  "date": "2026-01-30",
+  "dueDate": "2026-01-30",
+  "status": "bezahlt",
+  "amountGross": 21.29,
+  "amountNetto": 17.89,
+  "amountNet": 17.89,
+  "vatAmount": 3.4,
+  "currency": "EUR",
+  "customer": {
+    "name": "Pierre Brückner"
+  },
+  "orderId": "yzJ7v1eYBePkSreQDTVR",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:39:25.813Z",
+  "importedAt": "2026-03-17T22:39:25.813Z"
+}

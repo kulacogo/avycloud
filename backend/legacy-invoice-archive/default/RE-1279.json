@@ -1,0 +1,22 @@
+{
+  "id": "FmhCEdThRJ4dvvt7hlW4",
+  "tenantId": "default",
+  "sevdeskId": "116509262",
+  "invoiceNumber": "RE-1279",
+  "date": "2026-02-06",
+  "dueDate": "2026-02-06",
+  "status": "bezahlt",
+  "amountGross": 26.13,
+  "amountNetto": 21.96,
+  "amountNet": 21.96,
+  "vatAmount": 4.17,
+  "currency": "EUR",
+  "customer": {
+    "name": "Harry Wirsum"
+  },
+  "orderId": "BTPWA3ivHfeaNA93L9B9",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:38:26.477Z",
+  "importedAt": "2026-03-17T22:38:26.477Z"
+}

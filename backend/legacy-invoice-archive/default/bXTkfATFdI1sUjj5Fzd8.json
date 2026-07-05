@@ -1,0 +1,30 @@
+{
+  "id": "bXTkfATFdI1sUjj5Fzd8",
+  "tenantId": "default",
+  "type": "storno",
+  "originalInvoiceId": "UmPPYCkAd0DcNthX0YlC",
+  "originalInvoiceNumber": "RE-1773",
+  "orderId": "ebay__03-14523-58106",
+  "orderNumber": "03-14523-58106",
+  "marketplaceOrderId": "03-14523-58106",
+  "marketplace": "ebay",
+  "amountGross": 4.99,
+  "amountNetto": 4.19,
+  "amountNet": 4.19,
+  "vatRate": 0.19,
+  "currency": "EUR",
+  "customer": {
+    "name": "gloria pretzer",
+    "street": "Döckelhorst 9",
+    "city": "Bottrop",
+    "zip": "46238",
+    "country": "DE",
+    "phone": null,
+    "email": null
+  },
+  "sevdeskId": null,
+  "reason": "Stornierung",
+  "status": "storniert",
+  "date": "2026-04-17",
+  "createdAt": "2026-04-17T14:05:07.775Z"
+}

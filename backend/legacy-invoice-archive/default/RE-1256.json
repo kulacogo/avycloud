@@ -1,0 +1,22 @@
+{
+  "id": "l4Zr0WJqZMhbZQk61VqO",
+  "tenantId": "default",
+  "sevdeskId": "116126877",
+  "invoiceNumber": "RE-1256",
+  "date": "2026-02-02",
+  "dueDate": "2026-02-02",
+  "status": "bezahlt",
+  "amountGross": 299.3,
+  "amountNetto": 251.51,
+  "amountNet": 251.51,
+  "vatAmount": 47.79,
+  "currency": "EUR",
+  "customer": {
+    "name": "Colin Gerling"
+  },
+  "orderId": "aBbbhtjifnDqExMFPH87",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:39:24.405Z",
+  "importedAt": "2026-03-17T22:39:24.405Z"
+}

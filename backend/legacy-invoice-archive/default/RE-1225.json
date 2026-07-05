@@ -1,0 +1,22 @@
+{
+  "id": "6w3A858xcGctmhopfYxF",
+  "tenantId": "default",
+  "sevdeskId": "115592796",
+  "invoiceNumber": "RE-1225",
+  "date": "2026-01-27",
+  "dueDate": "2026-01-27",
+  "status": "bezahlt",
+  "amountGross": 70,
+  "amountNetto": 58.82,
+  "amountNet": 58.82,
+  "vatAmount": 11.18,
+  "currency": "EUR",
+  "customer": {
+    "name": "Schmidt Olaf"
+  },
+  "orderId": "gB5EN0Z5AueGU6kXSKjc",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:39:26.643Z",
+  "importedAt": "2026-03-17T22:39:26.643Z"
+}

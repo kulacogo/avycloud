@@ -1,0 +1,30 @@
+{
+  "id": "i3CzFFlCSyLuKErPr90f",
+  "tenantId": "default",
+  "invoiceNumber": "RE-1750",
+  "sevdeskId": "121581797",
+  "sevdeskExportedAt": "2026-04-13T00:15:57.775Z",
+  "orderId": "ebay__25-13955-18847",
+  "orderNumber": "25-13955-18847",
+  "marketplaceOrderId": "25-13955-18847",
+  "marketplace": "ebay",
+  "customer": {
+    "name": "eBay Käufer",
+    "email": null,
+    "username": "lilaclaudia"
+  },
+  "amountNetto": 17.63,
+  "amountNet": 17.63,
+  "amountBrutto": 20.98,
+  "amountGross": 20.98,
+  "vatRate": 0.19,
+  "vatAmount": 3.35,
+  "currency": "EUR",
+  "status": "offen",
+  "date": "2026-04-13",
+  "dueDate": "2026-04-27",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-1750.pdf",
+  "createdAt": "2026-04-13T00:15:57.776Z",
+  "createdBy": null,
+  "pdfRegeneratedAt": "2026-06-02T09:13:37.311Z"
+}

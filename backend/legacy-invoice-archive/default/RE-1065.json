@@ -1,0 +1,22 @@
+{
+  "id": "d611z3z4UbFfsgM66beP",
+  "tenantId": "default",
+  "sevdeskId": "113188724",
+  "invoiceNumber": "RE-1065",
+  "date": "2025-12-21",
+  "dueDate": "2025-12-21",
+  "status": "bezahlt",
+  "amountGross": 84.99,
+  "amountNetto": 71.42,
+  "amountNet": 71.42,
+  "vatAmount": 13.57,
+  "currency": "EUR",
+  "customer": {
+    "name": "Selahattin Tatma"
+  },
+  "orderId": "g0wjBhlo0WUBeJKHtuqb",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:47:12.104Z",
+  "importedAt": "2026-03-17T22:47:12.104Z"
+}

@@ -1,0 +1,30 @@
+{
+  "id": "cuv8YEHrKWsPFzlvwWaP",
+  "tenantId": "default",
+  "invoiceNumber": "RE-1715",
+  "sevdeskId": "121581733",
+  "sevdeskExportedAt": "2026-04-13T00:14:29.946Z",
+  "orderId": "ebay__06-13996-57570",
+  "orderNumber": "06-13996-57570",
+  "marketplaceOrderId": "06-13996-57570",
+  "marketplace": "ebay",
+  "customer": {
+    "name": "eBay Käufer",
+    "email": null,
+    "username": "peterkloo2006"
+  },
+  "amountNetto": 58.39,
+  "amountNet": 58.39,
+  "amountBrutto": 69.49,
+  "amountGross": 69.49,
+  "vatRate": 0.19,
+  "vatAmount": 11.1,
+  "currency": "EUR",
+  "status": "offen",
+  "date": "2026-04-13",
+  "dueDate": "2026-04-27",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-1715.pdf",
+  "createdAt": "2026-04-13T00:14:29.946Z",
+  "createdBy": null,
+  "pdfRegeneratedAt": "2026-06-02T09:13:15.093Z"
+}

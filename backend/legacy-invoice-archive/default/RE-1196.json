@@ -1,0 +1,22 @@
+{
+  "id": "mM5O4dVjfzkIOboPlnM9",
+  "tenantId": "default",
+  "sevdeskId": "115257867",
+  "invoiceNumber": "RE-1196",
+  "date": "2026-01-22",
+  "dueDate": "2026-01-22",
+  "status": "bezahlt",
+  "amountGross": 32.68,
+  "amountNetto": 27.46,
+  "amountNet": 27.46,
+  "vatAmount": 5.22,
+  "currency": "EUR",
+  "customer": {
+    "name": "Martin Hönig"
+  },
+  "orderId": "t37EOFxWFRNEXpBDfOYY",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:40:25.333Z",
+  "importedAt": "2026-03-17T22:40:25.333Z"
+}

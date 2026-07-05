@@ -1,0 +1,23 @@
+{
+  "id": "L6dVGGdgJPvDaj00YbQQ",
+  "tenantId": "default",
+  "sevdeskId": "118033421",
+  "invoiceNumber": "RE-1435",
+  "date": "2026-02-27",
+  "dueDate": null,
+  "amountGross": 130.78,
+  "amountNetto": 130.78,
+  "amountNet": 130.78,
+  "vatAmount": 0,
+  "currency": "EUR",
+  "customer": {
+    "name": "Helmut Bauer"
+  },
+  "orderId": "femS5iJlYfkjnVpr33tW",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:34:28.625Z",
+  "importedAt": "2026-03-17T22:34:28.625Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.771Z"
+}

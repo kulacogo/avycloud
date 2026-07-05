@@ -1,0 +1,33 @@
+{
+  "id": "FxgpSobYRCrRW8gYYZgu",
+  "tenantId": "default",
+  "invoiceNumber": "RE-1522",
+  "sevdeskId": "119604426",
+  "sevdeskExportedAt": "2026-03-17T23:23:33.880Z",
+  "orderId": "ZtQvtAZYnQd3UBIwM8ax",
+  "orderNumber": "21-14189-86289",
+  "marketplaceOrderId": "21-14189-86289",
+  "marketplace": "ebay",
+  "customer": {
+    "name": "Matthias Haase",
+    "street": "Hennigsdorfer Str. 1",
+    "city": "Falkensee",
+    "country": "DE",
+    "phone": "Invalid Request",
+    "email": null,
+    "zip": "14612"
+  },
+  "amountNetto": 99.99,
+  "amountBrutto": 118.99,
+  "vatRate": 0.19,
+  "vatAmount": 19,
+  "currency": "EUR",
+  "date": "2026-03-17",
+  "dueDate": "2026-03-31",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-1522.pdf",
+  "createdAt": "2026-03-17T23:23:33.880Z",
+  "createdBy": null,
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.771Z",
+  "pdfRegeneratedAt": "2026-06-02T09:11:33.571Z"
+}

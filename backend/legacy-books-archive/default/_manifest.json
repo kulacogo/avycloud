@@ -1,0 +1,34 @@
+{
+  "exportedAt": "2026-07-04T12:56:13.998Z",
+  "tenantId": "default",
+  "supplierName": "TrendOcean (Einzelunternehmen)",
+  "standard": "GDPdU/GoBD Beschreibungsstandard (gdpdu-01-09-2004)",
+  "ok": true,
+  "mismatches": [],
+  "tables": [
+    {
+      "name": "orders",
+      "firestoreCount": 1099,
+      "csvRows": 1099,
+      "jsonlLines": 1099
+    },
+    {
+      "name": "invoices",
+      "firestoreCount": 1307,
+      "csvRows": 1307,
+      "jsonlLines": 1307
+    },
+    {
+      "name": "returns",
+      "firestoreCount": 105,
+      "csvRows": 105,
+      "jsonlLines": 105
+    },
+    {
+      "name": "shipments",
+      "firestoreCount": 1001,
+      "csvRows": 1001,
+      "jsonlLines": 1001
+    }
+  ]
+}

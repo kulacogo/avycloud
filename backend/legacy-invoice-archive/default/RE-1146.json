@@ -1,0 +1,22 @@
+{
+  "id": "RCIjqtW1czvl3Qgyc6Xv",
+  "tenantId": "default",
+  "sevdeskId": "114551292",
+  "invoiceNumber": "RE-1146",
+  "date": "2026-01-12",
+  "dueDate": "2026-01-12",
+  "status": "bezahlt",
+  "amountGross": 59.99,
+  "amountNetto": 50.41,
+  "amountNet": 50.41,
+  "vatAmount": 9.58,
+  "currency": "EUR",
+  "customer": {
+    "name": "BIRGIT DANKER"
+  },
+  "orderId": "tkqcmwdYMGqB2ubPN9td",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:41:25.570Z",
+  "importedAt": "2026-03-17T22:41:25.570Z"
+}

@@ -1,0 +1,22 @@
+{
+  "id": "ani79M6W01nKpLm3rpit",
+  "tenantId": "default",
+  "sevdeskId": "116514742",
+  "invoiceNumber": "RE-1282",
+  "date": "2026-02-06",
+  "dueDate": "2026-02-06",
+  "status": "bezahlt",
+  "amountGross": 62.99,
+  "amountNetto": 52.93,
+  "amountNet": 52.93,
+  "vatAmount": 10.06,
+  "currency": "EUR",
+  "customer": {
+    "name": "Henner Bruch"
+  },
+  "orderId": "skuyH5hs6SJVgb4DYMvM",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:38:26.254Z",
+  "importedAt": "2026-03-17T22:38:26.254Z"
+}

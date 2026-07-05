@@ -1,0 +1,25 @@
+{
+  "id": "Aj6ISJGcqD7PwJENGni4",
+  "tenantId": "default",
+  "type": "storno",
+  "originalInvoiceId": "OPrgc7haOZdVnkZDyeHu",
+  "originalInvoiceNumber": "RE-1441",
+  "orderId": "xZEOxS9fLwl6ohTxyF0O",
+  "orderNumber": null,
+  "marketplaceOrderId": null,
+  "marketplace": null,
+  "amountGross": 75.66,
+  "amountNetto": 63.58,
+  "amountNet": 63.58,
+  "vatRate": 0.19,
+  "currency": "EUR",
+  "customer": {
+    "name": "Tanja Peric"
+  },
+  "reason": "Stornierung Bestellung",
+  "status": "storniert",
+  "date": "2026-03-17",
+  "createdAt": "2026-03-17T22:58:21.820Z",
+  "sevdeskId": "119604252",
+  "updatedAt": "2026-03-17T23:12:08.647Z"
+}

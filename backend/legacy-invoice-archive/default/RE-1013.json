@@ -1,0 +1,22 @@
+{
+  "id": "KGpSL7wbbW2TqvWN80dR",
+  "tenantId": "default",
+  "sevdeskId": "111027558",
+  "invoiceNumber": "RE-1013",
+  "date": "2025-11-28",
+  "dueDate": "2025-11-28",
+  "status": "bezahlt",
+  "amountGross": 219.99,
+  "amountNetto": 184.87,
+  "amountNet": 184.87,
+  "vatAmount": 35.12,
+  "currency": "EUR",
+  "customer": {
+    "name": "Marc Stöver"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:54:26.449Z",
+  "importedAt": "2026-03-17T22:54:26.449Z"
+}

@@ -1,0 +1,22 @@
+{
+  "id": "Qa72bDCbibn0bkKGshzf",
+  "tenantId": "default",
+  "sevdeskId": "115095846",
+  "invoiceNumber": "RE-1184",
+  "date": "2026-01-20",
+  "dueDate": "2026-01-20",
+  "status": "bezahlt",
+  "amountGross": 34.99,
+  "amountNetto": 29.4,
+  "amountNet": 29.4,
+  "vatAmount": 5.59,
+  "currency": "EUR",
+  "customer": {
+    "name": "Robert Schwamborn"
+  },
+  "orderId": "jVAuWUi51VJg9vqtz2sG",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:40:26.309Z",
+  "importedAt": "2026-03-17T22:40:26.309Z"
+}

@@ -1,0 +1,23 @@
+{
+  "id": "LAuat9daO82pwdE8hOoV",
+  "tenantId": "default",
+  "sevdeskId": "117920592",
+  "invoiceNumber": "RE-1429",
+  "date": "2026-02-26",
+  "dueDate": null,
+  "amountGross": 60.76,
+  "amountNetto": 51.06,
+  "amountNet": 51.06,
+  "vatAmount": 9.7,
+  "currency": "EUR",
+  "customer": {
+    "name": "Sina Hoppmann"
+  },
+  "orderId": "EmC9GCOpMgSDyQiEyOpw",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:34:34.446Z",
+  "importedAt": "2026-03-17T22:34:34.446Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.771Z"
+}

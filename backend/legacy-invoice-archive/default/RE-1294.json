@@ -1,0 +1,26 @@
+{
+  "id": "pNjT2KjlDn2haLlC9K1k",
+  "tenantId": "default",
+  "sevdeskId": "116566906",
+  "invoiceNumber": "RE-1294",
+  "date": "2026-02-07",
+  "dueDate": "2026-02-07",
+  "amountGross": 15.49,
+  "amountNetto": 13.02,
+  "amountNet": 13.02,
+  "vatAmount": 2.47,
+  "currency": "EUR",
+  "customer": {
+    "name": "Olaf-Christian Koch"
+  },
+  "orderId": "g5SKIfrgJqg8AnRCeh45",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:38:14.704Z",
+  "importedAt": "2026-03-17T22:38:14.704Z",
+  "correctedAt": "2026-03-17T22:58:21.171Z",
+  "correctionType": "storno",
+  "correctionId": "yVAl5j2Ukta5fCasYscw",
+  "status": "storniert",
+  "updatedAt": "2026-03-17T22:58:21.171Z"
+}

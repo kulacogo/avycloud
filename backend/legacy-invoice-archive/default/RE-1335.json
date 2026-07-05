@@ -1,0 +1,23 @@
+{
+  "id": "qK99DGO33kZNzSahDABf",
+  "tenantId": "default",
+  "sevdeskId": "116846849",
+  "invoiceNumber": "RE-1335",
+  "date": "2026-02-11",
+  "dueDate": null,
+  "amountGross": 211.59,
+  "amountNetto": 177.81,
+  "amountNet": 177.81,
+  "vatAmount": 33.78,
+  "currency": "EUR",
+  "customer": {
+    "name": "David Klostermayer"
+  },
+  "orderId": "c4LkiUYF66LyJNL4wEQP",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:36:35.747Z",
+  "importedAt": "2026-03-17T22:36:35.747Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.773Z"
+}

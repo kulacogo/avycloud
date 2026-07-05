@@ -1,0 +1,23 @@
+{
+  "id": "WYaYFSh6TxNrO83nu9pU",
+  "tenantId": "default",
+  "sevdeskId": "117737694",
+  "invoiceNumber": "RE-1417",
+  "date": "2026-02-24",
+  "dueDate": null,
+  "amountGross": 147,
+  "amountNetto": 123.53,
+  "amountNet": 123.53,
+  "vatAmount": 23.47,
+  "currency": "EUR",
+  "customer": {
+    "name": "René Becker"
+  },
+  "orderId": "6QEnSnFU40ItQ9uWqrIL",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:34:35.069Z",
+  "importedAt": "2026-03-17T22:34:35.069Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.772Z"
+}

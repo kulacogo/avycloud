@@ -1,0 +1,23 @@
+{
+  "id": "m5bAAqZj55v9T6TUNmvE",
+  "tenantId": "default",
+  "sevdeskId": "116795604",
+  "invoiceNumber": "RE-1326",
+  "date": "2026-02-10",
+  "dueDate": null,
+  "amountGross": 49.98,
+  "amountNetto": 42,
+  "amountNet": 42,
+  "vatAmount": 7.98,
+  "currency": "EUR",
+  "customer": {
+    "name": "Allianz"
+  },
+  "orderId": "aQc0aKodjxrjBmRzjPHg",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:36:36.567Z",
+  "importedAt": "2026-03-17T22:36:36.567Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.773Z"
+}

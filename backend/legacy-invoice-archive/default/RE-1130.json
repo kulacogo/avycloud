@@ -1,0 +1,22 @@
+{
+  "id": "QL580hGDKW972SBZ4KOb",
+  "tenantId": "default",
+  "sevdeskId": "114384317",
+  "invoiceNumber": "RE-1130",
+  "date": "2026-01-09",
+  "dueDate": "2026-01-09",
+  "status": "bezahlt",
+  "amountGross": 39.95,
+  "amountNetto": 33.57,
+  "amountNet": 33.57,
+  "vatAmount": 6.38,
+  "currency": "EUR",
+  "customer": {
+    "name": "Eddy Bergmann"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:41:37.804Z",
+  "importedAt": "2026-03-17T22:41:37.804Z"
+}

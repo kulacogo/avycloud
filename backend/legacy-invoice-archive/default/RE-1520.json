@@ -1,0 +1,33 @@
+{
+  "id": "afTsTw3uAvTmR8wTkj8Z",
+  "tenantId": "default",
+  "invoiceNumber": "RE-1520",
+  "sevdeskId": "119604424",
+  "sevdeskExportedAt": "2026-03-17T23:23:26.961Z",
+  "orderId": "QbGjrJYDkRbMy6Eo6d2S",
+  "orderNumber": "08-14200-54012",
+  "marketplaceOrderId": "08-14200-54012",
+  "marketplace": "ebay",
+  "customer": {
+    "name": "Colin Schmitter",
+    "street": "Am Südbahnhof 24",
+    "city": "Friedberg",
+    "country": "DE",
+    "phone": "Invalid Request",
+    "email": null,
+    "zip": "61169"
+  },
+  "amountNetto": 84.97,
+  "amountBrutto": 101.11,
+  "vatRate": 0.19,
+  "vatAmount": 16.14,
+  "currency": "EUR",
+  "date": "2026-03-17",
+  "dueDate": "2026-03-31",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-1520.pdf",
+  "createdAt": "2026-03-17T23:23:26.961Z",
+  "createdBy": null,
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.772Z",
+  "pdfRegeneratedAt": "2026-06-02T09:13:08.621Z"
+}

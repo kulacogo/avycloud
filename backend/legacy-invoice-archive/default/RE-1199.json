@@ -1,0 +1,22 @@
+{
+  "id": "d2CnebHhzd5s04NlNLQi",
+  "tenantId": "default",
+  "sevdeskId": "115257993",
+  "invoiceNumber": "RE-1199",
+  "date": "2026-01-22",
+  "dueDate": "2026-01-22",
+  "status": "bezahlt",
+  "amountGross": 80,
+  "amountNetto": 67.23,
+  "amountNet": 67.23,
+  "vatAmount": 12.77,
+  "currency": "EUR",
+  "customer": {
+    "name": "Salerno Giuseppe"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:40:25.171Z",
+  "importedAt": "2026-03-17T22:40:25.171Z"
+}

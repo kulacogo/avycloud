@@ -1,0 +1,26 @@
+{
+  "id": "YLxFn0yQMfUKYHoRw9gd",
+  "tenantId": "default",
+  "sevdeskId": "113541119",
+  "invoiceNumber": "RE-1090",
+  "date": "2025-12-29",
+  "dueDate": "2025-12-29",
+  "amountGross": 65.99,
+  "amountNetto": 55.45,
+  "amountNet": 55.45,
+  "vatAmount": 10.54,
+  "currency": "EUR",
+  "customer": {
+    "name": "Lotta Helle"
+  },
+  "orderId": "C1IzvAWWL7binbNDjoE8",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:42:26.187Z",
+  "importedAt": "2026-03-17T22:42:26.187Z",
+  "correctedAt": "2026-03-17T22:58:18.804Z",
+  "correctionType": "storno",
+  "correctionId": "ORtc94G8RnTZkFQi2gee",
+  "status": "storniert",
+  "updatedAt": "2026-03-17T22:58:18.804Z"
+}

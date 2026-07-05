@@ -1,0 +1,22 @@
+{
+  "id": "IfRar7QEmLdG3RoSOAnA",
+  "tenantId": "default",
+  "sevdeskId": "114029103",
+  "invoiceNumber": "RE-1109",
+  "date": "2026-01-05",
+  "dueDate": "2026-01-05",
+  "status": "bezahlt",
+  "amountGross": 89.9,
+  "amountNetto": 75.55,
+  "amountNet": 75.55,
+  "vatAmount": 14.35,
+  "currency": "EUR",
+  "customer": {
+    "name": "Torsten Oestmann"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:42:25.298Z",
+  "importedAt": "2026-03-17T22:42:25.298Z"
+}

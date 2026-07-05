@@ -1,0 +1,23 @@
+{
+  "id": "vx5QrXptoGS97BOxyfPn",
+  "tenantId": "default",
+  "sevdeskId": "117312331",
+  "invoiceNumber": "RE-1379",
+  "date": "2026-02-18",
+  "dueDate": null,
+  "amountGross": 19.95,
+  "amountNetto": 16.76,
+  "amountNet": 16.76,
+  "vatAmount": 3.19,
+  "currency": "EUR",
+  "customer": {
+    "name": "Céline Fournier"
+  },
+  "orderId": "MMJI4WX1lrGdPstpWQth",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:35:35.144Z",
+  "importedAt": "2026-03-17T22:35:35.144Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.773Z"
+}

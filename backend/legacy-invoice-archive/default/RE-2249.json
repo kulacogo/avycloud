@@ -1,0 +1,33 @@
+{
+  "id": "LN0atFVcHvbEcc4ssrA9",
+  "tenantId": "default",
+  "invoiceNumber": "RE-2249",
+  "sevdeskId": "127385289",
+  "sevdeskExportedAt": "2026-06-25T03:55:02.200Z",
+  "orderId": "32595399",
+  "orderNumber": "MP51LD5",
+  "marketplaceOrderId": "MP51LD5",
+  "marketplace": "kaufland",
+  "customer": {
+    "country": "DE",
+    "city": "Lübben",
+    "name": "Marie-Luise Hotzan",
+    "zip": "15907",
+    "phone": null,
+    "street": "Luckauer Strasse 8",
+    "email": "cadqz90q-8bf1e67d863b@kaufland-marktplatz.de"
+  },
+  "amountNetto": 38.65,
+  "amountNet": 38.65,
+  "amountBrutto": 45.99,
+  "amountGross": 45.99,
+  "vatRate": 0.19,
+  "vatAmount": 7.34,
+  "currency": "EUR",
+  "status": "offen",
+  "date": "2026-06-25",
+  "dueDate": "2026-07-09",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-2249.pdf",
+  "createdAt": "2026-06-25T03:55:02.200Z",
+  "createdBy": null
+}

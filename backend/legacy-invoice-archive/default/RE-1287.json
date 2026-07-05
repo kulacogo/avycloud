@@ -1,0 +1,22 @@
+{
+  "id": "QvNZxHgvtzq7M9OXgYq6",
+  "tenantId": "default",
+  "sevdeskId": "116566711",
+  "invoiceNumber": "RE-1287",
+  "date": "2026-02-07",
+  "dueDate": "2026-02-07",
+  "status": "bezahlt",
+  "amountGross": 69.99,
+  "amountNetto": 58.82,
+  "amountNet": 58.82,
+  "vatAmount": 11.17,
+  "currency": "EUR",
+  "customer": {
+    "name": "derißen jörn"
+  },
+  "orderId": "OH9cFZa086bZg7iQQClI",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:38:25.746Z",
+  "importedAt": "2026-03-17T22:38:25.746Z"
+}

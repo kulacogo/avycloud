@@ -1,0 +1,22 @@
+{
+  "id": "67cnpISezDqkkrHeYujG",
+  "tenantId": "default",
+  "sevdeskId": "116516423",
+  "invoiceNumber": "RE-1283",
+  "date": "2026-02-06",
+  "dueDate": "2026-02-06",
+  "status": "bezahlt",
+  "amountGross": 17,
+  "amountNetto": 14.29,
+  "amountNet": 14.29,
+  "vatAmount": 2.71,
+  "currency": "EUR",
+  "customer": {
+    "name": "OT Kleineichstädt"
+  },
+  "orderId": "qP2MS8YAlaW752PVjkVg",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:38:26.184Z",
+  "importedAt": "2026-03-17T22:38:26.184Z"
+}

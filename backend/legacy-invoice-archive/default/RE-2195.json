@@ -1,0 +1,33 @@
+{
+  "id": "VvkKaSISmtFmuG4ry2Rp",
+  "tenantId": "default",
+  "invoiceNumber": "RE-2195",
+  "sevdeskId": "127385221",
+  "sevdeskExportedAt": "2026-06-25T03:53:55.619Z",
+  "orderId": "30211230",
+  "orderNumber": "MYY9XH5",
+  "marketplaceOrderId": "MYY9XH5",
+  "marketplace": "kaufland",
+  "customer": {
+    "country": "DE",
+    "city": "Kämpfelbach",
+    "name": "Helene Krauz",
+    "zip": "75236",
+    "phone": null,
+    "street": "Garten 20",
+    "email": "cauu8s4q-faf00e7441d7@kaufland-marktplatz.de"
+  },
+  "amountNetto": 15.92,
+  "amountNet": 15.92,
+  "amountBrutto": 18.95,
+  "amountGross": 18.95,
+  "vatRate": 0.19,
+  "vatAmount": 3.03,
+  "currency": "EUR",
+  "status": "offen",
+  "date": "2026-06-25",
+  "dueDate": "2026-07-09",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-2195.pdf",
+  "createdAt": "2026-06-25T03:53:55.619Z",
+  "createdBy": null
+}

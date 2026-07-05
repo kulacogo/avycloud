@@ -1,0 +1,22 @@
+{
+  "id": "otcLnmM26VZRvxWvuwSz",
+  "tenantId": "default",
+  "sevdeskId": "115909326",
+  "invoiceNumber": "RE-1238",
+  "date": "2026-01-31",
+  "dueDate": "2026-01-31",
+  "status": "bezahlt",
+  "amountGross": 18.95,
+  "amountNetto": 15.92,
+  "amountNet": 15.92,
+  "vatAmount": 3.03,
+  "currency": "EUR",
+  "customer": {
+    "name": "Joel Puente"
+  },
+  "orderId": "k0vHI6IcB1G7gqghSh7G",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:39:25.614Z",
+  "importedAt": "2026-03-17T22:39:25.614Z"
+}

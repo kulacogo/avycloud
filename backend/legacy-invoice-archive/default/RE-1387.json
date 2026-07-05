@@ -1,0 +1,23 @@
+{
+  "id": "ZNs3xthiXvwsQQiHFAbq",
+  "tenantId": "default",
+  "sevdeskId": "117470299",
+  "invoiceNumber": "RE-1387",
+  "date": "2026-02-20",
+  "dueDate": null,
+  "amountGross": 64.6,
+  "amountNetto": 54.29,
+  "amountNet": 54.29,
+  "vatAmount": 10.31,
+  "currency": "EUR",
+  "customer": {
+    "name": "Marc Löll"
+  },
+  "orderId": "SUswifPVgFseaeXUatsI",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:35:34.690Z",
+  "importedAt": "2026-03-17T22:35:34.690Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.772Z"
+}

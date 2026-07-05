@@ -1,0 +1,22 @@
+{
+  "id": "Mq8wVsAt1m19FIo52clr",
+  "tenantId": "default",
+  "sevdeskId": "114916883",
+  "invoiceNumber": "RE-1170",
+  "date": "2026-01-17",
+  "dueDate": "2026-01-17",
+  "status": "bezahlt",
+  "amountGross": 7.5,
+  "amountNetto": 6.3,
+  "amountNet": 6.3,
+  "vatAmount": 1.2,
+  "currency": "EUR",
+  "customer": {
+    "name": "D. Engel"
+  },
+  "orderId": "OlWs6yzTdipQRhhi4nX3",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:41:08.004Z",
+  "importedAt": "2026-03-17T22:41:08.004Z"
+}

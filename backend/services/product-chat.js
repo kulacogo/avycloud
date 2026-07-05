@@ -15,7 +15,7 @@ const { coerceTitleToPolicy } = require('../lib/title-policy');
 const { inferTitleCategory } = require('../lib/title-policy');
 const { buildCommonPolicyText } = require('../lib/llm-policy-pack');
 const { getActiveLlmConfig } = require('../lib/llm-config');
-const { sanitizeListingText, sanitizeDescriptionToHtml, sanitizeHighlights } = require('../lib/listing-sanitize');
+const { sanitizeListingText, sanitizeDescriptionToHtml, sanitizeDescriptionProse, sanitizeHighlights } = require('../lib/listing-sanitize');
 const { normalizeHighlightsStrict } = require('../lib/highlights-policy');
 const {
   canonicalizeAttributeKey,
@@ -1864,9 +1864,9 @@ function sanitizeDatasheetChange(entry, product, { scope = null, titleHintTokens
   if (entry.summary) result.summary = entry.summary;
   if (allow.description && typeof entry.short_description === 'string') {
     const cleaned = sanitizeListingText(entry.short_description, { maxLen: 2600 });
-    const htmlDescription = sanitizeDescriptionToHtml(entry.short_description || cleaned, {
+    // Fließtext statt Bulletizer (Invariante: Bullets nur in key_features).
+    const htmlDescription = sanitizeDescriptionProse(entry.short_description || cleaned, {
       maxLen: 2600,
-      minVisibleChars: 320,
       fallbackFacts: buildDescriptionFallbackFacts(product, entry),
     });
     if (htmlDescription) {

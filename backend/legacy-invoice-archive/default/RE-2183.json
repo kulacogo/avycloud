@@ -1,0 +1,33 @@
+{
+  "id": "iIKRVeoEibYuXUBhWq0D",
+  "tenantId": "default",
+  "invoiceNumber": "RE-2183",
+  "sevdeskId": "127385207",
+  "sevdeskExportedAt": "2026-06-25T03:53:42.119Z",
+  "orderId": "29877397",
+  "orderNumber": "M4C76H5",
+  "marketplaceOrderId": "M4C76H5",
+  "marketplace": "kaufland",
+  "customer": {
+    "country": "DE",
+    "city": "Altenstadt",
+    "name": "Axel Witt",
+    "zip": "86972",
+    "phone": null,
+    "street": "St.-Michael-Str. 10",
+    "email": "caxgiw4q-c35a6d9ab0de@kaufland-marktplatz.de"
+  },
+  "amountNetto": 25.2,
+  "amountNet": 25.2,
+  "amountBrutto": 29.99,
+  "amountGross": 29.99,
+  "vatRate": 0.19,
+  "vatAmount": 4.79,
+  "currency": "EUR",
+  "status": "offen",
+  "date": "2026-06-25",
+  "dueDate": "2026-07-09",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-2183.pdf",
+  "createdAt": "2026-06-25T03:53:42.119Z",
+  "createdBy": null
+}

@@ -1,0 +1,22 @@
+{
+  "id": "y4QX5FHOCJr33Mxsvcg9",
+  "tenantId": "default",
+  "sevdeskId": "113053660",
+  "invoiceNumber": "RE-1048",
+  "date": "2025-12-19",
+  "dueDate": "2025-12-19",
+  "status": "bezahlt",
+  "amountGross": 20.97,
+  "amountNetto": 17.61,
+  "amountNet": 17.61,
+  "vatAmount": 3.36,
+  "currency": "EUR",
+  "customer": {
+    "name": "Erhard Büsching"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:53:31.189Z",
+  "importedAt": "2026-03-17T22:53:31.189Z"
+}

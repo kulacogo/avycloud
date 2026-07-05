@@ -1,0 +1,23 @@
+{
+  "id": "gmRXd9HxhC1z2h4NhpK9",
+  "tenantId": "default",
+  "sevdeskId": "117233086",
+  "invoiceNumber": "RE-1374",
+  "date": "2026-02-17",
+  "dueDate": null,
+  "amountGross": 224.39,
+  "amountNetto": 188.56,
+  "amountNet": 188.56,
+  "vatAmount": 35.83,
+  "currency": "EUR",
+  "customer": {
+    "name": "Robin Lockermann"
+  },
+  "orderId": "WBvvx2XOGVprjC0eh6WW",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:35:35.632Z",
+  "importedAt": "2026-03-17T22:35:35.632Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.772Z"
+}

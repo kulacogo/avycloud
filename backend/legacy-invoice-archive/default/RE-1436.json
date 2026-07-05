@@ -1,0 +1,23 @@
+{
+  "id": "c6flIOMubYOb0NJuNJX2",
+  "tenantId": "default",
+  "sevdeskId": "118098865",
+  "invoiceNumber": "RE-1436",
+  "date": "2026-02-28",
+  "dueDate": null,
+  "amountGross": 509.66,
+  "amountNetto": 428.29,
+  "amountNet": 428.29,
+  "vatAmount": 81.37,
+  "currency": "EUR",
+  "customer": {
+    "name": "Sascha Voigt"
+  },
+  "orderId": "1WYO6i91C7PLNqipzKPP",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:34:28.571Z",
+  "importedAt": "2026-03-17T22:34:28.571Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.772Z"
+}

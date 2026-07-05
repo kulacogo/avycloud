@@ -1,0 +1,22 @@
+{
+  "id": "TLhi8WOItQmG6NOY28TH",
+  "tenantId": "default",
+  "sevdeskId": "115515028",
+  "invoiceNumber": "RE-1217",
+  "date": "2026-01-26",
+  "dueDate": "2026-01-26",
+  "status": "bezahlt",
+  "amountGross": 11.99,
+  "amountNetto": 10.08,
+  "amountNet": 10.08,
+  "vatAmount": 1.91,
+  "currency": "EUR",
+  "customer": {
+    "name": "Martin Jeude"
+  },
+  "orderId": "gmi0ZxMXiWygYVV8Tjvk",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:39:29.303Z",
+  "importedAt": "2026-03-17T22:39:29.303Z"
+}

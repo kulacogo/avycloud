@@ -1,0 +1,23 @@
+{
+  "id": "6RFMyiSOh3t9pewCrBBr",
+  "tenantId": "default",
+  "sevdeskId": "119398896",
+  "invoiceNumber": "RE-1501",
+  "date": "2026-03-15",
+  "dueDate": null,
+  "amountGross": 111.09,
+  "amountNetto": 93.35,
+  "amountNet": 93.35,
+  "vatAmount": 17.74,
+  "currency": "EUR",
+  "customer": {
+    "name": "Lucia Greco"
+  },
+  "orderId": "TFDlwZhozotQ2N7TNFDJ",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:32:26.665Z",
+  "importedAt": "2026-03-17T22:32:26.665Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.771Z"
+}

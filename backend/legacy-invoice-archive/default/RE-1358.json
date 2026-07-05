@@ -1,0 +1,23 @@
+{
+  "id": "slkkQ5zml7R1jfCfdcJ1",
+  "tenantId": "default",
+  "sevdeskId": "117155624",
+  "invoiceNumber": "RE-1358",
+  "date": "2026-02-16",
+  "dueDate": null,
+  "amountGross": 19.95,
+  "amountNetto": 16.76,
+  "amountNet": 16.76,
+  "vatAmount": 3.19,
+  "currency": "EUR",
+  "customer": {
+    "name": "Peter Stolla"
+  },
+  "orderId": "c3L0U7Qe9CYbSc1rgChA",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:35:41.903Z",
+  "importedAt": "2026-03-17T22:35:41.903Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.773Z"
+}

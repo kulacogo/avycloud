@@ -1,0 +1,22 @@
+{
+  "id": "uxa6BpjWnmkIaIitN5KN",
+  "tenantId": "default",
+  "sevdeskId": "115096476",
+  "invoiceNumber": "RE-1188",
+  "date": "2026-01-20",
+  "dueDate": "2026-01-20",
+  "status": "bezahlt",
+  "amountGross": 129.8,
+  "amountNetto": 109.08,
+  "amountNet": 109.08,
+  "vatAmount": 20.72,
+  "currency": "EUR",
+  "customer": {
+    "name": "Alexander Ochsenkühn"
+  },
+  "orderId": "okxu5dGCASVMXLtOZDV8",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:40:25.803Z",
+  "importedAt": "2026-03-17T22:40:25.803Z"
+}

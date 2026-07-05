@@ -1,0 +1,23 @@
+{
+  "id": "HwsJogncSdS1Odhu6Xos",
+  "tenantId": "default",
+  "sevdeskId": "117642259",
+  "invoiceNumber": "RE-1401",
+  "date": "2026-02-23",
+  "dueDate": null,
+  "amountGross": 52.95,
+  "amountNetto": 52.95,
+  "amountNet": 52.95,
+  "vatAmount": 0,
+  "currency": "EUR",
+  "customer": {
+    "name": "Schirrmacher Helmut"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:34:36.460Z",
+  "importedAt": "2026-03-17T22:34:36.460Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.771Z"
+}

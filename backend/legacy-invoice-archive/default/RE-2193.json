@@ -1,0 +1,33 @@
+{
+  "id": "4VWeakuQDz7hTXILA1is",
+  "tenantId": "default",
+  "invoiceNumber": "RE-2193",
+  "sevdeskId": "127385219",
+  "sevdeskExportedAt": "2026-06-25T03:53:53.591Z",
+  "orderId": "30129667",
+  "orderNumber": "MHFQ8H5",
+  "marketplaceOrderId": "MHFQ8H5",
+  "marketplace": "kaufland",
+  "customer": {
+    "country": "DE",
+    "city": "Münster",
+    "name": "Diethelm Werning",
+    "zip": "48159",
+    "phone": null,
+    "street": "Fresnostraße 3",
+    "email": "ca42ek4q-91ba182551d5@kaufland-marktplatz.de"
+  },
+  "amountNetto": 42.77,
+  "amountNet": 42.77,
+  "amountBrutto": 50.9,
+  "amountGross": 50.9,
+  "vatRate": 0.19,
+  "vatAmount": 8.13,
+  "currency": "EUR",
+  "status": "offen",
+  "date": "2026-06-25",
+  "dueDate": "2026-07-09",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-2193.pdf",
+  "createdAt": "2026-06-25T03:53:53.591Z",
+  "createdBy": null
+}

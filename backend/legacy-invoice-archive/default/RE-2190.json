@@ -1,0 +1,33 @@
+{
+  "id": "Geu1E2R2Ct7RErmvVqH4",
+  "tenantId": "default",
+  "invoiceNumber": "RE-2190",
+  "sevdeskId": "127385215",
+  "sevdeskExportedAt": "2026-06-25T03:53:49.533Z",
+  "orderId": "29997431",
+  "orderNumber": "MTP4GH5",
+  "marketplaceOrderId": "MTP4GH5",
+  "marketplace": "kaufland",
+  "customer": {
+    "country": "DE",
+    "city": "Ankum",
+    "name": "Jan Shreider",
+    "zip": "49577",
+    "phone": null,
+    "street": "Dietr.-Bonhoeffer-Platz 4A ",
+    "email": "caldx34q-c14b90dcea93@kaufland-marktplatz.de"
+  },
+  "amountNetto": 15.11,
+  "amountNet": 15.11,
+  "amountBrutto": 17.98,
+  "amountGross": 17.98,
+  "vatRate": 0.19,
+  "vatAmount": 2.87,
+  "currency": "EUR",
+  "status": "offen",
+  "date": "2026-06-25",
+  "dueDate": "2026-07-09",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-2190.pdf",
+  "createdAt": "2026-06-25T03:53:49.533Z",
+  "createdBy": null
+}

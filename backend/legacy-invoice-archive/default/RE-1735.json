@@ -1,0 +1,30 @@
+{
+  "id": "rkJMAzFRpXmG1bxnIJOM",
+  "tenantId": "default",
+  "invoiceNumber": "RE-1735",
+  "sevdeskId": "121581768",
+  "sevdeskExportedAt": "2026-04-13T00:15:17.794Z",
+  "orderId": "ebay__16-13867-42160",
+  "orderNumber": "16-13867-42160",
+  "marketplaceOrderId": "16-13867-42160",
+  "marketplace": "ebay",
+  "customer": {
+    "name": "eBay Käufer",
+    "email": null,
+    "username": "andy-the-dandy"
+  },
+  "amountNetto": 36.09,
+  "amountNet": 36.09,
+  "amountBrutto": 42.95,
+  "amountGross": 42.95,
+  "vatRate": 0.19,
+  "vatAmount": 6.86,
+  "currency": "EUR",
+  "status": "offen",
+  "date": "2026-04-13",
+  "dueDate": "2026-04-27",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-1735.pdf",
+  "createdAt": "2026-04-13T00:15:17.794Z",
+  "createdBy": null,
+  "pdfRegeneratedAt": "2026-06-02T09:14:18.692Z"
+}

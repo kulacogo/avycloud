@@ -1,0 +1,23 @@
+{
+  "id": "xcE3oiciSuKhmccXEB65",
+  "tenantId": "default",
+  "sevdeskId": "118938474",
+  "invoiceNumber": "RE-1475",
+  "date": "2026-03-09",
+  "dueDate": null,
+  "amountGross": 50,
+  "amountNetto": 50,
+  "amountNet": 50,
+  "vatAmount": 0,
+  "currency": "EUR",
+  "customer": {
+    "name": "Helmut Janssen"
+  },
+  "orderId": "3O5Mjg9MINMREZVEFFIw",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:33:27.252Z",
+  "importedAt": "2026-03-17T22:33:27.252Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.773Z"
+}

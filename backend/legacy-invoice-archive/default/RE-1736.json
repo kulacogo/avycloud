@@ -1,0 +1,30 @@
+{
+  "id": "uEylAUQmZf3b7QVQ0ijH",
+  "tenantId": "default",
+  "invoiceNumber": "RE-1736",
+  "sevdeskId": "121581770",
+  "sevdeskExportedAt": "2026-04-13T00:15:22.216Z",
+  "orderId": "ebay__16-13928-96507",
+  "orderNumber": "16-13928-96507",
+  "marketplaceOrderId": "16-13928-96507",
+  "marketplace": "ebay",
+  "customer": {
+    "name": "eBay Käufer",
+    "email": null,
+    "username": "afturek"
+  },
+  "amountNetto": 14.6,
+  "amountNet": 14.6,
+  "amountBrutto": 17.37,
+  "amountGross": 17.37,
+  "vatRate": 0.19,
+  "vatAmount": 2.77,
+  "currency": "EUR",
+  "status": "offen",
+  "date": "2026-04-13",
+  "dueDate": "2026-04-27",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-1736.pdf",
+  "createdAt": "2026-04-13T00:15:22.216Z",
+  "createdBy": null,
+  "pdfRegeneratedAt": "2026-06-02T09:14:27.407Z"
+}

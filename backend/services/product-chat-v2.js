@@ -43,7 +43,7 @@ async function _tryResolveScopeConfigChatV2(scopeName, tenantId, callerOverrides
     return null;
   }
 }
-const { sanitizeListingText, sanitizeDescriptionToHtml, sanitizeHighlights } = require('../lib/listing-sanitize');
+const { sanitizeListingText, sanitizeDescriptionToHtml, sanitizeDescriptionProse, sanitizeHighlights } = require('../lib/listing-sanitize');
 const { normalizeHighlightsStrict } = require('../lib/highlights-policy');
 const {
   canonicalizeAttributeKey,
@@ -697,9 +697,9 @@ function sanitizeDatasheetChangeV2(entry, product, { scope = null, titleHintToke
     if (Object.keys(id).length) change.identity = id;
   }
 
-  // Description
+  // Description — Fließtext, nie Bullets (Invariante: Bullets nur in key_features).
   if (typeof entry.short_description === 'string' && entry.short_description.trim()) {
-    change.short_description = sanitizeDescriptionToHtml(entry.short_description);
+    change.short_description = sanitizeDescriptionProse(entry.short_description);
   }
 
   // Key features

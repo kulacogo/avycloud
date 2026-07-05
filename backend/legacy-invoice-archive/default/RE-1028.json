@@ -1,0 +1,22 @@
+{
+  "id": "JwnCrGWfw9vW0zAdm6Bo",
+  "tenantId": "default",
+  "sevdeskId": "112378560",
+  "invoiceNumber": "RE-1028",
+  "date": "2025-12-11",
+  "dueDate": "2025-12-11",
+  "status": "bezahlt",
+  "amountGross": 129.99,
+  "amountNetto": 109.24,
+  "amountNet": 109.24,
+  "vatAmount": 20.75,
+  "currency": "EUR",
+  "customer": {
+    "name": "Christian Merse"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:54:06.989Z",
+  "importedAt": "2026-03-17T22:54:06.989Z"
+}

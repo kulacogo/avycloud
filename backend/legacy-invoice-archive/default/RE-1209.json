@@ -1,0 +1,22 @@
+{
+  "id": "cicnUohUzalH6aFtodbH",
+  "tenantId": "default",
+  "sevdeskId": "115493899",
+  "invoiceNumber": "RE-1209",
+  "date": "2026-01-26",
+  "dueDate": "2026-01-26",
+  "status": "bezahlt",
+  "amountGross": 29.73,
+  "amountNetto": 24.98,
+  "amountNet": 24.98,
+  "vatAmount": 4.75,
+  "currency": "EUR",
+  "customer": {
+    "name": "Jacqueline Bodlee-Steinhauser"
+  },
+  "orderId": "WbTib58ahBkR2MxlKgoe",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:40:24.334Z",
+  "importedAt": "2026-03-17T22:40:24.334Z"
+}

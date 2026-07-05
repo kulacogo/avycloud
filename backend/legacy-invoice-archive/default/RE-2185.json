@@ -1,0 +1,33 @@
+{
+  "id": "guUfuQFnomAdJiJFJIVF",
+  "tenantId": "default",
+  "invoiceNumber": "RE-2185",
+  "sevdeskId": "127385209",
+  "sevdeskExportedAt": "2026-06-25T03:53:44.178Z",
+  "orderId": "29898238",
+  "orderNumber": "M4AP7H5",
+  "marketplaceOrderId": "M4AP7H5",
+  "marketplace": "kaufland",
+  "customer": {
+    "country": "DE",
+    "city": "Neuler",
+    "name": "Eva-Maria Riedelsheimer",
+    "zip": "73491",
+    "phone": null,
+    "street": "Hohenberger Str 39",
+    "email": "caxhdi4q-9aa7923b416c@kaufland-marktplatz.de"
+  },
+  "amountNetto": 45.37,
+  "amountNet": 45.37,
+  "amountBrutto": 53.99,
+  "amountGross": 53.99,
+  "vatRate": 0.19,
+  "vatAmount": 8.62,
+  "currency": "EUR",
+  "status": "offen",
+  "date": "2026-06-25",
+  "dueDate": "2026-07-09",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-2185.pdf",
+  "createdAt": "2026-06-25T03:53:44.178Z",
+  "createdBy": null
+}

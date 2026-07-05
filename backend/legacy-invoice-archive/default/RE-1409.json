@@ -1,0 +1,23 @@
+{
+  "id": "4LrbSRU2DqApqPZVvSTw",
+  "tenantId": "default",
+  "sevdeskId": "117642867",
+  "invoiceNumber": "RE-1409",
+  "date": "2026-02-23",
+  "dueDate": null,
+  "amountGross": 80.4,
+  "amountNetto": 67.56,
+  "amountNet": 67.56,
+  "vatAmount": 12.84,
+  "currency": "EUR",
+  "customer": {
+    "name": "Manuel Maaß"
+  },
+  "orderId": "cPtbWaQDIZfFySNdvlVn",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:34:35.631Z",
+  "importedAt": "2026-03-17T22:34:35.631Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.771Z"
+}

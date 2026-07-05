@@ -1,0 +1,22 @@
+{
+  "id": "YNLUvStcxdjSyVa6UI4u",
+  "tenantId": "default",
+  "sevdeskId": "116509336",
+  "invoiceNumber": "RE-1281",
+  "date": "2026-02-06",
+  "dueDate": "2026-02-06",
+  "status": "bezahlt",
+  "amountGross": 20,
+  "amountNetto": 16.81,
+  "amountNet": 16.81,
+  "vatAmount": 3.19,
+  "currency": "EUR",
+  "customer": {
+    "name": "Yulia Keller"
+  },
+  "orderId": "cdaTRIaWlVt9pxynv8x6",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:38:26.350Z",
+  "importedAt": "2026-03-17T22:38:26.350Z"
+}

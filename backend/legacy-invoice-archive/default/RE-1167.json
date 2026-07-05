@@ -1,0 +1,22 @@
+{
+  "id": "BGHJpxMYXFyVZ9azxvJV",
+  "tenantId": "default",
+  "sevdeskId": "114869999",
+  "invoiceNumber": "RE-1167",
+  "date": "2026-01-16",
+  "dueDate": "2026-01-16",
+  "status": "bezahlt",
+  "amountGross": 74.99,
+  "amountNetto": 63.02,
+  "amountNet": 63.02,
+  "vatAmount": 11.97,
+  "currency": "EUR",
+  "customer": {
+    "name": "Jens Westermann"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:41:23.303Z",
+  "importedAt": "2026-03-17T22:41:23.303Z"
+}

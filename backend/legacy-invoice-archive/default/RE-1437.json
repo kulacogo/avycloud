@@ -1,0 +1,23 @@
+{
+  "id": "WZbNOev3RvbPyRqDAF6q",
+  "tenantId": "default",
+  "sevdeskId": "118098964",
+  "invoiceNumber": "RE-1437",
+  "date": "2026-02-28",
+  "dueDate": null,
+  "amountGross": 35.44,
+  "amountNetto": 29.78,
+  "amountNet": 29.78,
+  "vatAmount": 5.66,
+  "currency": "EUR",
+  "customer": {
+    "name": "Andreas Hahn"
+  },
+  "orderId": "0oKAxImaMouUKCEeNaUI",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:34:28.272Z",
+  "importedAt": "2026-03-17T22:34:28.272Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.772Z"
+}

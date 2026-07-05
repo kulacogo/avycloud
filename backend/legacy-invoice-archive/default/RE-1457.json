@@ -1,0 +1,23 @@
+{
+  "id": "5P8chkSq6NcLOhN6naPP",
+  "tenantId": "default",
+  "sevdeskId": "118506348",
+  "invoiceNumber": "RE-1457",
+  "date": "2026-03-03",
+  "dueDate": null,
+  "amountGross": 88,
+  "amountNetto": 88,
+  "amountNet": 88,
+  "vatAmount": 0,
+  "currency": "EUR",
+  "customer": {
+    "name": "Regina Pfitzner"
+  },
+  "orderId": "t56O11mtIcjlfBbSYZWS",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:34:26.782Z",
+  "importedAt": "2026-03-17T22:34:26.782Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.771Z"
+}

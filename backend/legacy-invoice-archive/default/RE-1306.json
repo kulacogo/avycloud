@@ -1,0 +1,23 @@
+{
+  "id": "nsjRpnjonAWIqVC3Fc2F",
+  "tenantId": "default",
+  "sevdeskId": "116669693",
+  "invoiceNumber": "RE-1306",
+  "date": "2026-02-09",
+  "dueDate": null,
+  "amountGross": 96.29,
+  "amountNetto": 80.92,
+  "amountNet": 80.92,
+  "vatAmount": 15.37,
+  "currency": "EUR",
+  "customer": {
+    "name": "Thilo Spahn"
+  },
+  "orderId": "uUahsqXhz51myTbi8rWa",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:37:35.974Z",
+  "importedAt": "2026-03-17T22:37:35.974Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.773Z"
+}

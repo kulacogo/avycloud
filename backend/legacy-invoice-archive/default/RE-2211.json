@@ -1,0 +1,33 @@
+{
+  "id": "V4zwXDPpdFhn3pOIodw3",
+  "tenantId": "default",
+  "invoiceNumber": "RE-2211",
+  "sevdeskId": "127385239",
+  "sevdeskExportedAt": "2026-06-25T03:54:14.388Z",
+  "orderId": "30684328",
+  "orderNumber": "MTYFE15",
+  "marketplaceOrderId": "MTYFE15",
+  "marketplace": "kaufland",
+  "customer": {
+    "country": "DE",
+    "city": "Oberhausen",
+    "name": "derißen jörn",
+    "zip": "46047",
+    "phone": null,
+    "street": "Am Froschenteich 2",
+    "email": "calu21zq-8018ef10f8d4@kaufland-marktplatz.de"
+  },
+  "amountNetto": 58.82,
+  "amountNet": 58.82,
+  "amountBrutto": 69.99,
+  "amountGross": 69.99,
+  "vatRate": 0.19,
+  "vatAmount": 11.17,
+  "currency": "EUR",
+  "status": "offen",
+  "date": "2026-06-25",
+  "dueDate": "2026-07-09",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-2211.pdf",
+  "createdAt": "2026-06-25T03:54:14.388Z",
+  "createdBy": null
+}

@@ -1,0 +1,22 @@
+{
+  "id": "tO7IAoB2cymTJHI4gwsY",
+  "tenantId": "default",
+  "sevdeskId": "110789685",
+  "invoiceNumber": "RE-1010",
+  "date": "2025-11-26",
+  "dueDate": "2025-11-26",
+  "status": "bezahlt",
+  "amountGross": 11.53,
+  "amountNetto": 9.69,
+  "amountNet": 9.69,
+  "vatAmount": 1.84,
+  "currency": "EUR",
+  "customer": {
+    "name": "Martin Petertonkoker"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:54:26.648Z",
+  "importedAt": "2026-03-17T22:54:26.648Z"
+}

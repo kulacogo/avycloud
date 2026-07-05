@@ -1,0 +1,23 @@
+{
+  "id": "OOYlGoatBi7T1Md19YX7",
+  "tenantId": "default",
+  "sevdeskId": "116946824",
+  "invoiceNumber": "RE-1341",
+  "date": "2026-02-12",
+  "dueDate": null,
+  "amountGross": 22.67,
+  "amountNetto": 19.05,
+  "amountNet": 19.05,
+  "vatAmount": 3.62,
+  "currency": "EUR",
+  "customer": {
+    "name": "Patrick Adolph"
+  },
+  "orderId": "MyINK2CAyaszxbCHs7cJ",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:36:35.239Z",
+  "importedAt": "2026-03-17T22:36:35.239Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.772Z"
+}

@@ -1,0 +1,33 @@
+{
+  "id": "xkKeJnyxVaCYSL07CLvQ",
+  "tenantId": "default",
+  "invoiceNumber": "RE-2242",
+  "sevdeskId": "127385281",
+  "sevdeskExportedAt": "2026-06-25T03:54:51.431Z",
+  "orderId": "32099935",
+  "orderNumber": "MQUDHD5",
+  "marketplaceOrderId": "MQUDHD5",
+  "marketplace": "kaufland",
+  "customer": {
+    "country": "DE",
+    "city": "Halle (Saale)",
+    "name": "Bernd Däne",
+    "zip": "06130",
+    "phone": null,
+    "street": "Veszpremer Str. 26",
+    "email": "caeo040q-df40e6695b90@kaufland-marktplatz.de"
+  },
+  "amountNetto": 67.71,
+  "amountNet": 67.71,
+  "amountBrutto": 80.57,
+  "amountGross": 80.57,
+  "vatRate": 0.19,
+  "vatAmount": 12.86,
+  "currency": "EUR",
+  "status": "offen",
+  "date": "2026-06-25",
+  "dueDate": "2026-07-09",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-2242.pdf",
+  "createdAt": "2026-06-25T03:54:51.431Z",
+  "createdBy": null
+}

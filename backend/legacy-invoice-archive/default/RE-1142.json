@@ -1,0 +1,22 @@
+{
+  "id": "yqyuowK7ylsEB1ZR8XkT",
+  "tenantId": "default",
+  "sevdeskId": "114476179",
+  "invoiceNumber": "RE-1142",
+  "date": "2026-01-11",
+  "dueDate": "2026-01-11",
+  "status": "bezahlt",
+  "amountGross": 9.99,
+  "amountNetto": 8.39,
+  "amountNet": 8.39,
+  "vatAmount": 1.6,
+  "currency": "EUR",
+  "customer": {
+    "name": "Arne Brose"
+  },
+  "orderId": "fLpBzc1vXp992iDu1Jvk",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:41:25.770Z",
+  "importedAt": "2026-03-17T22:41:25.770Z"
+}

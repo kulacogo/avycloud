@@ -1,0 +1,23 @@
+{
+  "id": "NcYvi6cV5M1lm4gUbT3e",
+  "tenantId": "default",
+  "sevdeskId": "118284756",
+  "invoiceNumber": "RE-1444",
+  "date": "2026-03-02",
+  "dueDate": null,
+  "amountGross": 44.29,
+  "amountNetto": 37.21,
+  "amountNet": 37.21,
+  "vatAmount": 7.08,
+  "currency": "EUR",
+  "customer": {
+    "name": "Marion Fleck"
+  },
+  "orderId": "CDb4hgdHydBSuTqZhJFm",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:34:27.772Z",
+  "importedAt": "2026-03-17T22:34:27.772Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.772Z"
+}

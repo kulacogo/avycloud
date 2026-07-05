@@ -1,0 +1,23 @@
+{
+  "id": "oeIsDBakonVUAv7TnbRv",
+  "tenantId": "default",
+  "sevdeskId": "117476349",
+  "invoiceNumber": "RE-1394",
+  "date": "2026-02-20",
+  "dueDate": null,
+  "amountGross": 72.16,
+  "amountNetto": 60.64,
+  "amountNet": 60.64,
+  "vatAmount": 11.52,
+  "currency": "EUR",
+  "customer": {
+    "name": "David Hönes"
+  },
+  "orderId": "5O0rKoUXDiuNQsCPz90P",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:34:48.103Z",
+  "importedAt": "2026-03-17T22:34:48.103Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.773Z"
+}

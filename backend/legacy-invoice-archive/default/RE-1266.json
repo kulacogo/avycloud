@@ -1,0 +1,22 @@
+{
+  "id": "aB6SUTZGQib3atSthx8i",
+  "tenantId": "default",
+  "sevdeskId": "116352285",
+  "invoiceNumber": "RE-1266",
+  "date": "2026-02-04",
+  "dueDate": "2026-02-04",
+  "status": "bezahlt",
+  "amountGross": 21.99,
+  "amountNetto": 18.48,
+  "amountNet": 18.48,
+  "vatAmount": 3.51,
+  "currency": "EUR",
+  "customer": {
+    "name": "Frank Neumann"
+  },
+  "orderId": "Z1xWbNzcwi7NFZhsAB7J",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:38:27.658Z",
+  "importedAt": "2026-03-17T22:38:27.658Z"
+}

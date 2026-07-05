@@ -1,0 +1,23 @@
+{
+  "id": "PXJFbjyLojD1dyvwnkJ7",
+  "tenantId": "default",
+  "sevdeskId": "117861087",
+  "invoiceNumber": "RE-1424",
+  "date": "2026-02-25",
+  "dueDate": null,
+  "amountGross": 21.48,
+  "amountNetto": 18.05,
+  "amountNet": 18.05,
+  "vatAmount": 3.43,
+  "currency": "EUR",
+  "customer": {
+    "name": "Lars Peter"
+  },
+  "orderId": "AuGgNUzRIUF7veWFkoLX",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:34:34.682Z",
+  "importedAt": "2026-03-17T22:34:34.682Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.772Z"
+}

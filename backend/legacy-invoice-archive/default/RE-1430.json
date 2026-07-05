@@ -1,0 +1,23 @@
+{
+  "id": "8xYJYybJsbzT7lKJLnvS",
+  "tenantId": "default",
+  "sevdeskId": "117920663",
+  "invoiceNumber": "RE-1430",
+  "date": "2026-02-26",
+  "dueDate": null,
+  "amountGross": 56.48,
+  "amountNetto": 56.48,
+  "amountNet": 56.48,
+  "vatAmount": 0,
+  "currency": "EUR",
+  "customer": {
+    "name": "Marcel Zeiter"
+  },
+  "orderId": "BR8Yh4OpkXQFLI93FvhZ",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:34:34.394Z",
+  "importedAt": "2026-03-17T22:34:34.394Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.771Z"
+}

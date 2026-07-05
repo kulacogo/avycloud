@@ -1,0 +1,22 @@
+{
+  "id": "5ADqyrktJPdlsL7NMadI",
+  "tenantId": "default",
+  "sevdeskId": "112114520",
+  "invoiceNumber": "RE-1027",
+  "date": "2025-12-09",
+  "dueDate": "2025-12-09",
+  "status": "bezahlt",
+  "amountGross": 39.99,
+  "amountNetto": 33.61,
+  "amountNet": 33.61,
+  "vatAmount": 6.38,
+  "currency": "EUR",
+  "customer": {
+    "name": "Catarina Hey"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:54:09.289Z",
+  "importedAt": "2026-03-17T22:54:09.289Z"
+}

@@ -1,0 +1,22 @@
+{
+  "id": "CfVi4lmAIOySYNg6xUCl",
+  "tenantId": "default",
+  "sevdeskId": "113668186",
+  "invoiceNumber": "RE-1099",
+  "date": "2025-12-31",
+  "dueDate": "2025-12-31",
+  "status": "bezahlt",
+  "amountGross": 17.49,
+  "amountNetto": 14.7,
+  "amountNet": 14.7,
+  "vatAmount": 2.79,
+  "currency": "EUR",
+  "customer": {
+    "name": "markus alt"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:42:25.800Z",
+  "importedAt": "2026-03-17T22:42:25.800Z"
+}

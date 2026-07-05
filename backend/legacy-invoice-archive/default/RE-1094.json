@@ -1,0 +1,22 @@
+{
+  "id": "Lz1Ekg6azkhoy96A5Xf9",
+  "tenantId": "default",
+  "sevdeskId": "113541343",
+  "invoiceNumber": "RE-1094",
+  "date": "2025-12-29",
+  "dueDate": "2025-12-29",
+  "status": "bezahlt",
+  "amountGross": 12.99,
+  "amountNetto": 10.92,
+  "amountNet": 10.92,
+  "vatAmount": 2.07,
+  "currency": "EUR",
+  "customer": {
+    "name": "Lilian Tirbu"
+  },
+  "orderId": "yp6CHgpC5PpycbAxFmQq",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:42:25.996Z",
+  "importedAt": "2026-03-17T22:42:25.996Z"
+}

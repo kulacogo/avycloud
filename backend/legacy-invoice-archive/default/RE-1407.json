@@ -1,0 +1,23 @@
+{
+  "id": "62rGleKL42dpwdyBHu1e",
+  "tenantId": "default",
+  "sevdeskId": "117642672",
+  "invoiceNumber": "RE-1407",
+  "date": "2026-02-23",
+  "dueDate": null,
+  "amountGross": 30.39,
+  "amountNetto": 25.53,
+  "amountNet": 25.53,
+  "vatAmount": 4.86,
+  "currency": "EUR",
+  "customer": {
+    "name": "Tilo Wittchen"
+  },
+  "orderId": "9tgvkOq71Tt4G2bK13Po",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:34:36.164Z",
+  "importedAt": "2026-03-17T22:34:36.164Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.771Z"
+}

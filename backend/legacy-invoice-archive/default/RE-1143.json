@@ -1,0 +1,22 @@
+{
+  "id": "EIHEbMUTiNNWWSZk9mW5",
+  "tenantId": "default",
+  "sevdeskId": "114476210",
+  "invoiceNumber": "RE-1143",
+  "date": "2026-01-11",
+  "dueDate": "2026-01-11",
+  "status": "bezahlt",
+  "amountGross": 55.99,
+  "amountNetto": 47.05,
+  "amountNet": 47.05,
+  "vatAmount": 8.94,
+  "currency": "EUR",
+  "customer": {
+    "name": "Ute Erzgräber"
+  },
+  "orderId": "hz42M7Jzn4JU8RTsjRCg",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:41:25.722Z",
+  "importedAt": "2026-03-17T22:41:25.722Z"
+}

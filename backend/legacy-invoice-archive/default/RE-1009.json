@@ -1,0 +1,22 @@
+{
+  "id": "DsVDioRTXwa6DBrlt7Ok",
+  "tenantId": "default",
+  "sevdeskId": "110789658",
+  "invoiceNumber": "RE-1009",
+  "date": "2025-11-26",
+  "dueDate": "2025-11-26",
+  "status": "bezahlt",
+  "amountGross": 14.99,
+  "amountNetto": 12.6,
+  "amountNet": 12.6,
+  "vatAmount": 2.39,
+  "currency": "EUR",
+  "customer": {
+    "name": "Michael Neidig"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:54:26.710Z",
+  "importedAt": "2026-03-17T22:54:26.710Z"
+}

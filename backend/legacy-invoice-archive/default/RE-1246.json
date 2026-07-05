@@ -1,0 +1,22 @@
+{
+  "id": "gd36ujZyCk4oAXgGEIIW",
+  "tenantId": "default",
+  "sevdeskId": "116125757",
+  "invoiceNumber": "RE-1246",
+  "date": "2026-02-02",
+  "dueDate": "2026-02-02",
+  "status": "bezahlt",
+  "amountGross": 21.84,
+  "amountNetto": 18.35,
+  "amountNet": 18.35,
+  "vatAmount": 3.49,
+  "currency": "EUR",
+  "customer": {
+    "name": "Oswald Rübsam"
+  },
+  "orderId": "dg96hbcdarFXio0YPKNw",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:39:25.142Z",
+  "importedAt": "2026-03-17T22:39:25.142Z"
+}

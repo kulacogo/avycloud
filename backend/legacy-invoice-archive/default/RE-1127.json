@@ -1,0 +1,22 @@
+{
+  "id": "KALOZ10mipbY9Knda4Yl",
+  "tenantId": "default",
+  "sevdeskId": "114225046",
+  "invoiceNumber": "RE-1127",
+  "date": "2026-01-07",
+  "dueDate": "2026-01-07",
+  "status": "bezahlt",
+  "amountGross": 14.48,
+  "amountNetto": 12.17,
+  "amountNet": 12.17,
+  "vatAmount": 2.31,
+  "currency": "EUR",
+  "customer": {
+    "name": "Murat Erkisi"
+  },
+  "orderId": "s3Jbk1swbAijiyIqfcC3",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:41:46.804Z",
+  "importedAt": "2026-03-17T22:41:46.804Z"
+}

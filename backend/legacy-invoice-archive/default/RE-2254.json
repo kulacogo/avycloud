@@ -1,0 +1,33 @@
+{
+  "id": "cugrT6zWFONSdRZjK1SA",
+  "tenantId": "default",
+  "invoiceNumber": "RE-2254",
+  "sevdeskId": "127385294",
+  "sevdeskExportedAt": "2026-06-25T03:55:06.339Z",
+  "orderId": "33127936",
+  "orderNumber": "MA8YQ35",
+  "marketplaceOrderId": "MA8YQ35",
+  "marketplace": "kaufland",
+  "customer": {
+    "zip": "71287",
+    "country": "DE",
+    "city": "Weissach",
+    "phone": null,
+    "street": "Seitenstraße 21",
+    "name": "Nicole Lukas",
+    "email": "cahkuenq-b425b8f1db28@kaufland-marktplatz.de"
+  },
+  "amountNetto": 59.24,
+  "amountNet": 59.24,
+  "amountBrutto": 70.5,
+  "amountGross": 70.5,
+  "vatRate": 0.19,
+  "vatAmount": 11.26,
+  "currency": "EUR",
+  "status": "offen",
+  "date": "2026-06-25",
+  "dueDate": "2026-07-09",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-2254.pdf",
+  "createdAt": "2026-06-25T03:55:06.340Z",
+  "createdBy": null
+}

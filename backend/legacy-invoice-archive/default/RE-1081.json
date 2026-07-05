@@ -1,0 +1,22 @@
+{
+  "id": "NpujaJTEAUVMs8MeMRaV",
+  "tenantId": "default",
+  "sevdeskId": "113428754",
+  "invoiceNumber": "RE-1081",
+  "date": "2025-12-27",
+  "dueDate": "2025-12-27",
+  "status": "bezahlt",
+  "amountGross": 26.99,
+  "amountNetto": 22.68,
+  "amountNet": 22.68,
+  "vatAmount": 4.31,
+  "currency": "EUR",
+  "customer": {
+    "name": "Tim Dohmberg"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:43:30.804Z",
+  "importedAt": "2026-03-17T22:43:30.804Z"
+}

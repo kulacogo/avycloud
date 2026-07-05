@@ -1,0 +1,22 @@
+{
+  "id": "R1kYu1XaHeMCcgSBr3Rh",
+  "tenantId": "default",
+  "sevdeskId": "114403724",
+  "invoiceNumber": "RE-1134",
+  "date": "2026-01-09",
+  "dueDate": "2026-01-09",
+  "status": "bezahlt",
+  "amountGross": 10.95,
+  "amountNetto": 9.2,
+  "amountNet": 9.2,
+  "vatAmount": 1.75,
+  "currency": "EUR",
+  "customer": {
+    "name": "Oguzhan Kulacoglu"
+  },
+  "orderId": "p28YnOFBAco0YlB2we2U",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:41:26.469Z",
+  "importedAt": "2026-03-17T22:41:26.469Z"
+}

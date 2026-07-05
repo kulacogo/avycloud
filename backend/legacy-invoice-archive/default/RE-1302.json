@@ -1,0 +1,23 @@
+{
+  "id": "LBo8FXQ1uMzIyfkkmhpq",
+  "tenantId": "default",
+  "sevdeskId": "116669467",
+  "invoiceNumber": "RE-1302",
+  "date": "2026-02-09",
+  "dueDate": null,
+  "amountGross": 39.99,
+  "amountNetto": 33.61,
+  "amountNet": 33.61,
+  "vatAmount": 6.38,
+  "currency": "EUR",
+  "customer": {
+    "name": "Maik Martin"
+  },
+  "orderId": "cvr4Sm86L0BbxtteFOfE",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:37:36.193Z",
+  "importedAt": "2026-03-17T22:37:36.193Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.772Z"
+}

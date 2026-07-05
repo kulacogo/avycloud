@@ -1,0 +1,22 @@
+{
+  "id": "FoFSVBoS8Tsnzmb7Jtiv",
+  "tenantId": "default",
+  "sevdeskId": "115559155",
+  "invoiceNumber": "RE-1220",
+  "date": "2026-01-27",
+  "dueDate": "2026-01-27",
+  "status": "bezahlt",
+  "amountGross": 54.99,
+  "amountNetto": 46.21,
+  "amountNet": 46.21,
+  "vatAmount": 8.78,
+  "currency": "EUR",
+  "customer": {
+    "name": "Irfan Buqinca"
+  },
+  "orderId": "kJYanwvZt3GXgENMlOJ9",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:39:26.876Z",
+  "importedAt": "2026-03-17T22:39:26.876Z"
+}

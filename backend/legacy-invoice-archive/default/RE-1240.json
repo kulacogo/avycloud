@@ -1,0 +1,22 @@
+{
+  "id": "qiHof4wPlqp5hSCnXTSk",
+  "tenantId": "default",
+  "sevdeskId": "115909419",
+  "invoiceNumber": "RE-1240",
+  "date": "2026-01-31",
+  "dueDate": "2026-01-31",
+  "status": "bezahlt",
+  "amountGross": 24.27,
+  "amountNetto": 20.39,
+  "amountNet": 20.39,
+  "vatAmount": 3.88,
+  "currency": "EUR",
+  "customer": {
+    "name": "Armin -Janssen"
+  },
+  "orderId": "zCIIaGOFUT8vFN0YwCdK",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:39:25.495Z",
+  "importedAt": "2026-03-17T22:39:25.495Z"
+}

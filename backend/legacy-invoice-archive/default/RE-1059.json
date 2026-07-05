@@ -1,0 +1,22 @@
+{
+  "id": "iol3d4xPuYYP07wMCTyH",
+  "tenantId": "default",
+  "sevdeskId": "113166560",
+  "invoiceNumber": "RE-1059",
+  "date": "2025-12-18",
+  "dueDate": "2025-12-18",
+  "status": "bezahlt",
+  "amountGross": 0,
+  "amountNetto": 0,
+  "amountNet": 0,
+  "vatAmount": 0,
+  "currency": "EUR",
+  "customer": {
+    "name": "Olga Hartmann"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:53:27.186Z",
+  "importedAt": "2026-03-17T22:53:27.186Z"
+}

@@ -1,0 +1,25 @@
+{
+  "id": "IZQm5G3kHj7SanlHZLwB",
+  "tenantId": "default",
+  "type": "storno",
+  "originalInvoiceId": "8anrUYYK1nM8qve7VJCC",
+  "originalInvoiceNumber": "RE-1455",
+  "orderId": "8fzvxtSuq2YbeG0JE563",
+  "orderNumber": null,
+  "marketplaceOrderId": null,
+  "marketplace": null,
+  "amountGross": 129.9,
+  "amountNetto": 109.16,
+  "amountNet": 109.16,
+  "vatRate": 0.19,
+  "currency": "EUR",
+  "customer": {
+    "name": "Joachim Stumpf"
+  },
+  "reason": "Stornierung Bestellung",
+  "status": "storniert",
+  "date": "2026-03-17",
+  "createdAt": "2026-03-17T22:58:18.228Z",
+  "sevdeskId": "119604261",
+  "updatedAt": "2026-03-17T23:12:18.239Z"
+}

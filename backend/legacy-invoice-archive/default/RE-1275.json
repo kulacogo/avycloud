@@ -1,0 +1,22 @@
+{
+  "id": "NyGmXEyuec9s94udNhmT",
+  "tenantId": "default",
+  "sevdeskId": "116509072",
+  "invoiceNumber": "RE-1275",
+  "date": "2026-02-06",
+  "dueDate": "2026-02-06",
+  "status": "bezahlt",
+  "amountGross": 180,
+  "amountNetto": 151.26,
+  "amountNet": 151.26,
+  "vatAmount": 28.74,
+  "currency": "EUR",
+  "customer": {
+    "name": "Götz Dalbert"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:38:26.731Z",
+  "importedAt": "2026-03-17T22:38:26.731Z"
+}

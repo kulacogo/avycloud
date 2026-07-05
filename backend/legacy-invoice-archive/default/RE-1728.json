@@ -1,0 +1,30 @@
+{
+  "id": "rkVlfQDSM4IhmjtEBgjj",
+  "tenantId": "default",
+  "invoiceNumber": "RE-1728",
+  "sevdeskId": "121581758",
+  "sevdeskExportedAt": "2026-04-13T00:15:01.060Z",
+  "orderId": "ebay__12-13996-05990",
+  "orderNumber": "12-13996-05990",
+  "marketplaceOrderId": "12-13996-05990",
+  "marketplace": "ebay",
+  "customer": {
+    "name": "eBay Käufer",
+    "email": null,
+    "username": "e-bay-kunde"
+  },
+  "amountNetto": 499.96,
+  "amountNet": 499.96,
+  "amountBrutto": 594.95,
+  "amountGross": 594.95,
+  "vatRate": 0.19,
+  "vatAmount": 94.99,
+  "currency": "EUR",
+  "status": "offen",
+  "date": "2026-04-13",
+  "dueDate": "2026-04-27",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-1728.pdf",
+  "createdAt": "2026-04-13T00:15:01.060Z",
+  "createdBy": null,
+  "pdfRegeneratedAt": "2026-06-02T09:14:19.056Z"
+}

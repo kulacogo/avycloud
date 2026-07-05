@@ -1,0 +1,23 @@
+{
+  "id": "r5RBSpdZeuGX3nXZQeYj",
+  "tenantId": "default",
+  "sevdeskId": "118581874",
+  "invoiceNumber": "RE-1462",
+  "date": "2026-03-04",
+  "dueDate": null,
+  "amountGross": 5.49,
+  "amountNetto": 5.49,
+  "amountNet": 5.49,
+  "vatAmount": 0,
+  "currency": "EUR",
+  "customer": {
+    "name": "Badr Fezzani"
+  },
+  "orderId": "59WDXsS2PG2tLNbEhj0F",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:34:14.703Z",
+  "importedAt": "2026-03-17T22:34:14.703Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.773Z"
+}

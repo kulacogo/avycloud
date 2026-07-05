@@ -1,0 +1,23 @@
+{
+  "id": "EB3G0fTgFH0z3xzbv6YH",
+  "tenantId": "default",
+  "sevdeskId": "118506886",
+  "invoiceNumber": "RE-1459",
+  "date": "2026-03-03",
+  "dueDate": null,
+  "amountGross": 37.47,
+  "amountNetto": 31.48,
+  "amountNet": 31.48,
+  "vatAmount": 5.99,
+  "currency": "EUR",
+  "customer": {
+    "name": "Thomas Brandt"
+  },
+  "orderId": "EXBVyPefIBzSlo5XZeIm",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:34:26.648Z",
+  "importedAt": "2026-03-17T22:34:26.648Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.771Z"
+}

@@ -1,0 +1,22 @@
+{
+  "id": "bKPVsdS3lcESjzpPGkOi",
+  "tenantId": "default",
+  "sevdeskId": "114645015",
+  "invoiceNumber": "RE-1155",
+  "date": "2026-01-13",
+  "dueDate": "2026-01-13",
+  "status": "bezahlt",
+  "amountGross": 28.99,
+  "amountNetto": 24.36,
+  "amountNet": 24.36,
+  "vatAmount": 4.63,
+  "currency": "EUR",
+  "customer": {
+    "name": "Markus Reis"
+  },
+  "orderId": "UKPKUlzzY77p8dJi9LlA",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:41:24.965Z",
+  "importedAt": "2026-03-17T22:41:24.965Z"
+}

@@ -1,0 +1,22 @@
+{
+  "id": "aK85Yo9A6ZOGzMrIctvH",
+  "tenantId": "default",
+  "sevdeskId": "113248174",
+  "invoiceNumber": "RE-1068",
+  "date": "2025-12-22",
+  "dueDate": "2025-12-22",
+  "status": "bezahlt",
+  "amountGross": 7.49,
+  "amountNetto": 6.29,
+  "amountNet": 6.29,
+  "vatAmount": 1.2,
+  "currency": "EUR",
+  "customer": {
+    "name": "Mühlbacher Günther"
+  },
+  "orderId": "orS5pAgsQJkYlzklqruv",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:46:56.605Z",
+  "importedAt": "2026-03-17T22:46:56.605Z"
+}

@@ -1,0 +1,33 @@
+{
+  "id": "MoIWmnYm9uzdD5P402E7",
+  "tenantId": "default",
+  "invoiceNumber": "RE-2206",
+  "sevdeskId": "127385234",
+  "sevdeskExportedAt": "2026-06-25T03:54:07.676Z",
+  "orderId": "30580678",
+  "orderNumber": "MG9LC15",
+  "marketplaceOrderId": "MG9LC15",
+  "marketplace": "kaufland",
+  "customer": {
+    "country": "DE",
+    "city": "düsseldorf",
+    "name": "Uta Renneberg",
+    "zip": "40545",
+    "phone": null,
+    "street": "markgrafenstrasse 42",
+    "email": "ca389gzq-cb47a5b58e5f@kaufland-marktplatz.de"
+  },
+  "amountNetto": 43.7,
+  "amountNet": 43.7,
+  "amountBrutto": 52,
+  "amountGross": 52,
+  "vatRate": 0.19,
+  "vatAmount": 8.3,
+  "currency": "EUR",
+  "status": "offen",
+  "date": "2026-06-25",
+  "dueDate": "2026-07-09",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-2206.pdf",
+  "createdAt": "2026-06-25T03:54:07.676Z",
+  "createdBy": null
+}

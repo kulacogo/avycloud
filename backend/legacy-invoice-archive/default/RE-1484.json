@@ -1,0 +1,23 @@
+{
+  "id": "jPofPtDhPDaQvveaicMH",
+  "tenantId": "default",
+  "sevdeskId": "119047517",
+  "invoiceNumber": "RE-1484",
+  "date": "2026-03-10",
+  "dueDate": null,
+  "amountGross": 89.64,
+  "amountNetto": 75.32,
+  "amountNet": 75.32,
+  "vatAmount": 14.32,
+  "currency": "EUR",
+  "customer": {
+    "name": "rocio Martin"
+  },
+  "orderId": "7YWQpA40QMeL5sPPSOTv",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:33:26.656Z",
+  "importedAt": "2026-03-17T22:33:26.656Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.772Z"
+}

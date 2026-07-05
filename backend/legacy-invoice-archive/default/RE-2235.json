@@ -1,0 +1,33 @@
+{
+  "id": "YCwMUhZxu05q250mrFur",
+  "tenantId": "default",
+  "invoiceNumber": "RE-2235",
+  "sevdeskId": "127385274",
+  "sevdeskExportedAt": "2026-06-25T03:54:43.469Z",
+  "orderId": "31925922",
+  "orderNumber": "M5KBR45",
+  "marketplaceOrderId": "M5KBR45",
+  "marketplace": "kaufland",
+  "customer": {
+    "country": "DE",
+    "city": "Stolberg",
+    "name": "Noel Hoss",
+    "zip": "52223",
+    "phone": null,
+    "street": "Prämienstraße 100",
+    "email": "caq7mfxq-3e16f004e6ec@kaufland-marktplatz.de"
+  },
+  "amountNetto": 24.37,
+  "amountNet": 24.37,
+  "amountBrutto": 29,
+  "amountGross": 29,
+  "vatRate": 0.19,
+  "vatAmount": 4.63,
+  "currency": "EUR",
+  "status": "offen",
+  "date": "2026-06-25",
+  "dueDate": "2026-07-09",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-2235.pdf",
+  "createdAt": "2026-06-25T03:54:43.469Z",
+  "createdBy": null
+}

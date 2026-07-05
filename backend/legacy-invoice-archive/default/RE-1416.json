@@ -1,0 +1,23 @@
+{
+  "id": "rkKQUZrg9OMFmR6BrxyX",
+  "tenantId": "default",
+  "sevdeskId": "117737640",
+  "invoiceNumber": "RE-1416",
+  "date": "2026-02-24",
+  "dueDate": null,
+  "amountGross": 113.11,
+  "amountNetto": 95.05,
+  "amountNet": 95.05,
+  "vatAmount": 18.06,
+  "currency": "EUR",
+  "customer": {
+    "name": "Kevin Klein"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:34:35.124Z",
+  "importedAt": "2026-03-17T22:34:35.124Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.773Z"
+}

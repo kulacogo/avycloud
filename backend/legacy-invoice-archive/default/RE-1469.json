@@ -1,0 +1,23 @@
+{
+  "id": "B4MH5ykG4cZ3xXTFbICs",
+  "tenantId": "default",
+  "sevdeskId": "118766772",
+  "invoiceNumber": "RE-1469",
+  "date": "2026-03-06",
+  "dueDate": null,
+  "amountGross": 9.88,
+  "amountNetto": 9.88,
+  "amountNet": 9.88,
+  "vatAmount": 0,
+  "currency": "EUR",
+  "customer": {
+    "name": "Sadik Senel"
+  },
+  "orderId": "V1jbruUVPAIf9FybPO4G",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:33:27.920Z",
+  "importedAt": "2026-03-17T22:33:27.920Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.771Z"
+}

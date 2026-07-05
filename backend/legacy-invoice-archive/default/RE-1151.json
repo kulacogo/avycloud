@@ -1,0 +1,22 @@
+{
+  "id": "8UAZvcXqJXtnxb7RuDof",
+  "tenantId": "default",
+  "sevdeskId": "114624865",
+  "invoiceNumber": "RE-1151",
+  "date": "2026-01-13",
+  "dueDate": "2026-01-13",
+  "status": "bezahlt",
+  "amountGross": 89.9,
+  "amountNetto": 75.55,
+  "amountNet": 75.55,
+  "vatAmount": 14.35,
+  "currency": "EUR",
+  "customer": {
+    "name": "Dietlind Erbe-Wegmann"
+  },
+  "orderId": "aGeLzN2nfQfVevgFRVUa",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:41:25.332Z",
+  "importedAt": "2026-03-17T22:41:25.332Z"
+}

@@ -1,0 +1,23 @@
+{
+  "id": "Lu52d8CbuQhRlqOE7GA2",
+  "tenantId": "default",
+  "sevdeskId": "119127734",
+  "invoiceNumber": "RE-1489",
+  "date": "2026-03-11",
+  "dueDate": null,
+  "amountGross": 179.9,
+  "amountNetto": 151.18,
+  "amountNet": 151.18,
+  "vatAmount": 28.72,
+  "currency": "EUR",
+  "customer": {
+    "name": "Stephanie Schiller-Klage"
+  },
+  "orderId": "aRmaXxtyPkX7LOcSFMs6",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:33:26.310Z",
+  "importedAt": "2026-03-17T22:33:26.310Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.772Z"
+}

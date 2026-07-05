@@ -1,0 +1,23 @@
+{
+  "id": "nW1DjIecYJPCiU1RwCKH",
+  "tenantId": "default",
+  "sevdeskId": "118938737",
+  "invoiceNumber": "RE-1479",
+  "date": "2026-03-09",
+  "dueDate": null,
+  "amountGross": 26.43,
+  "amountNetto": 22.21,
+  "amountNet": 22.21,
+  "vatAmount": 4.22,
+  "currency": "EUR",
+  "customer": {
+    "name": "Sven Scharff"
+  },
+  "orderId": "AFpH7iDBsBUYy6mrqrEi",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:33:26.966Z",
+  "importedAt": "2026-03-17T22:33:26.966Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.773Z"
+}

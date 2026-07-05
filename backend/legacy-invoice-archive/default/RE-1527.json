@@ -1,0 +1,33 @@
+{
+  "id": "l3g1UaZn7sU0tTzfzewn",
+  "tenantId": "default",
+  "invoiceNumber": "RE-1527",
+  "sevdeskId": "119604431",
+  "sevdeskExportedAt": "2026-03-17T23:23:47.567Z",
+  "orderId": "vtSL4KdagzalRLNIHznT",
+  "orderNumber": "22-14192-79336",
+  "marketplaceOrderId": "22-14192-79336",
+  "marketplace": "ebay",
+  "customer": {
+    "name": "Ronald  Elsner",
+    "street": "Hüttenweg 26",
+    "city": "Olbernhau",
+    "country": "DE",
+    "phone": "Invalid Request",
+    "email": null,
+    "zip": "9526"
+  },
+  "amountNetto": 62.98,
+  "amountBrutto": 74.95,
+  "vatRate": 0.19,
+  "vatAmount": 11.97,
+  "currency": "EUR",
+  "date": "2026-03-17",
+  "dueDate": "2026-03-31",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-1527.pdf",
+  "createdAt": "2026-03-17T23:23:47.567Z",
+  "createdBy": null,
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.773Z",
+  "pdfRegeneratedAt": "2026-06-02T09:13:48.617Z"
+}

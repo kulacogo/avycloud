@@ -1,0 +1,22 @@
+{
+  "id": "4bdfi6WhmDympJ0uJWi7",
+  "tenantId": "default",
+  "sevdeskId": "112612581",
+  "invoiceNumber": "RE-1035",
+  "date": "2025-12-15",
+  "dueDate": "2025-12-15",
+  "status": "bezahlt",
+  "amountGross": 74.99,
+  "amountNetto": 63.02,
+  "amountNet": 63.02,
+  "vatAmount": 11.97,
+  "currency": "EUR",
+  "customer": {
+    "name": "Eva Kader"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:53:56.289Z",
+  "importedAt": "2026-03-17T22:53:56.289Z"
+}

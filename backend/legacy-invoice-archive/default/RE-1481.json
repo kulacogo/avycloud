@@ -1,0 +1,23 @@
+{
+  "id": "kNYF2LQGf92ZZMRl6Ni7",
+  "tenantId": "default",
+  "sevdeskId": "118938849",
+  "invoiceNumber": "RE-1481",
+  "date": "2026-03-09",
+  "dueDate": null,
+  "amountGross": 51.85,
+  "amountNetto": 43.57,
+  "amountNet": 43.57,
+  "vatAmount": 8.28,
+  "currency": "EUR",
+  "customer": {
+    "name": "Stefan Niebel"
+  },
+  "orderId": "2asPo0TFRn58kLmFYVoZ",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:33:26.836Z",
+  "importedAt": "2026-03-17T22:33:26.836Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.772Z"
+}

@@ -1,0 +1,33 @@
+{
+  "id": "pj4tJnLvBPhghvYJftyO",
+  "tenantId": "default",
+  "invoiceNumber": "RE-2196",
+  "sevdeskId": "127385222",
+  "sevdeskExportedAt": "2026-06-25T03:53:56.869Z",
+  "orderId": "30235583",
+  "orderNumber": "MF7CYH5",
+  "marketplaceOrderId": "MF7CYH5",
+  "marketplace": "kaufland",
+  "customer": {
+    "country": "DE",
+    "city": "Biesenthal",
+    "name": "Sebastian Schönhoff",
+    "zip": "16359",
+    "phone": null,
+    "street": "Breite Straße 69",
+    "email": "ca2igu4q-71375e93dac2@kaufland-marktplatz.de"
+  },
+  "amountNetto": 107.56,
+  "amountNet": 107.56,
+  "amountBrutto": 128,
+  "amountGross": 128,
+  "vatRate": 0.19,
+  "vatAmount": 20.44,
+  "currency": "EUR",
+  "status": "offen",
+  "date": "2026-06-25",
+  "dueDate": "2026-07-09",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-2196.pdf",
+  "createdAt": "2026-06-25T03:53:56.869Z",
+  "createdBy": null
+}

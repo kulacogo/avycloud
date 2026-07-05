@@ -1,0 +1,23 @@
+{
+  "id": "QsIIxiuKVGjg972Kp0tF",
+  "tenantId": "default",
+  "sevdeskId": "119127683",
+  "invoiceNumber": "RE-1488",
+  "date": "2026-03-11",
+  "dueDate": null,
+  "amountGross": 55.39,
+  "amountNetto": 55.39,
+  "amountNet": 55.39,
+  "vatAmount": 0,
+  "currency": "EUR",
+  "customer": {
+    "name": "Autolackiererei Seker"
+  },
+  "orderId": "5rGkDQEwLCvXaGrXsABO",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:33:26.378Z",
+  "importedAt": "2026-03-17T22:33:26.378Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.772Z"
+}

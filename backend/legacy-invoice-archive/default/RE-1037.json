@@ -1,0 +1,22 @@
+{
+  "id": "g70xKTG4srbJphLpCB9Z",
+  "tenantId": "default",
+  "sevdeskId": "112692477",
+  "invoiceNumber": "RE-1037",
+  "date": "2025-12-15",
+  "dueDate": "2025-12-15",
+  "status": "bezahlt",
+  "amountGross": 15.95,
+  "amountNetto": 13.4,
+  "amountNet": 13.4,
+  "vatAmount": 2.55,
+  "currency": "EUR",
+  "customer": {
+    "name": "Hans-Werner Pfaff"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:53:52.589Z",
+  "importedAt": "2026-03-17T22:53:52.589Z"
+}

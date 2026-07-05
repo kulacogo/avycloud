@@ -1,0 +1,23 @@
+{
+  "id": "EHpgiiHIPtGt5YmzRclM",
+  "tenantId": "default",
+  "sevdeskId": "117056927",
+  "invoiceNumber": "RE-1357",
+  "date": "2026-02-14",
+  "dueDate": null,
+  "amountGross": 42.5,
+  "amountNetto": 35.71,
+  "amountNet": 35.71,
+  "vatAmount": 6.79,
+  "currency": "EUR",
+  "customer": {
+    "name": "Alexander Thiel"
+  },
+  "orderId": "WWLN1YJj5tRGUNYRpjDc",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:35:43.906Z",
+  "importedAt": "2026-03-17T22:35:43.906Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.771Z"
+}

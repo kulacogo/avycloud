@@ -1,0 +1,22 @@
+{
+  "id": "jBcgjkNgn4qzfjJFIuPl",
+  "tenantId": "default",
+  "sevdeskId": "115559006",
+  "invoiceNumber": "RE-1219",
+  "date": "2026-01-27",
+  "dueDate": "2026-01-27",
+  "status": "bezahlt",
+  "amountGross": 53.99,
+  "amountNetto": 45.37,
+  "amountNet": 45.37,
+  "vatAmount": 8.62,
+  "currency": "EUR",
+  "customer": {
+    "name": "Eva-Maria Riedelsheimer"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:39:26.930Z",
+  "importedAt": "2026-03-17T22:39:26.930Z"
+}

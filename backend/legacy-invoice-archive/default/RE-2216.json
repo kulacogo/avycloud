@@ -1,0 +1,33 @@
+{
+  "id": "c8Tk6NdiTmZ6W7ha6feP",
+  "tenantId": "default",
+  "invoiceNumber": "RE-2216",
+  "sevdeskId": "127385245",
+  "sevdeskExportedAt": "2026-06-25T03:54:19.570Z",
+  "orderId": "30758174",
+  "orderNumber": "M84UF15",
+  "marketplaceOrderId": "M84UF15",
+  "marketplace": "kaufland",
+  "customer": {
+    "country": "DE",
+    "city": "Chemnitz",
+    "name": "Maik Martin",
+    "zip": "09228",
+    "phone": null,
+    "street": "Untere Hauptstraße 52",
+    "email": "cakxo2zq-bd7e9db7675d@kaufland-marktplatz.de"
+  },
+  "amountNetto": 33.61,
+  "amountNet": 33.61,
+  "amountBrutto": 39.99,
+  "amountGross": 39.99,
+  "vatRate": 0.19,
+  "vatAmount": 6.38,
+  "currency": "EUR",
+  "status": "offen",
+  "date": "2026-06-25",
+  "dueDate": "2026-07-09",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-2216.pdf",
+  "createdAt": "2026-06-25T03:54:19.570Z",
+  "createdBy": null
+}

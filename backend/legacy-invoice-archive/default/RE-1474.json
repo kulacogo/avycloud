@@ -1,0 +1,23 @@
+{
+  "id": "ny7aYOMDVJL1KY1fjnY3",
+  "tenantId": "default",
+  "sevdeskId": "118938133",
+  "invoiceNumber": "RE-1474",
+  "date": "2026-03-09",
+  "dueDate": null,
+  "amountGross": 23.89,
+  "amountNetto": 20.07,
+  "amountNet": 20.07,
+  "vatAmount": 3.82,
+  "currency": "EUR",
+  "customer": {
+    "name": "Sezgin Karamercan"
+  },
+  "orderId": "4mH3jJ9P1cfkEpStEiGd",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:33:27.397Z",
+  "importedAt": "2026-03-17T22:33:27.397Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.773Z"
+}

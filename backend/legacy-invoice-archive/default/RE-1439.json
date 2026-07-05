@@ -1,0 +1,23 @@
+{
+  "id": "wZo8OKQknIKqBznomvM2",
+  "tenantId": "default",
+  "sevdeskId": "118283338",
+  "invoiceNumber": "RE-1439",
+  "date": "2026-03-02",
+  "dueDate": null,
+  "amountGross": 79,
+  "amountNetto": 79,
+  "amountNet": 79,
+  "vatAmount": 0,
+  "currency": "EUR",
+  "customer": {
+    "name": "Volkert Joachim"
+  },
+  "orderId": "ga2VM2TtEJtRaWVClj9q",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:34:28.077Z",
+  "importedAt": "2026-03-17T22:34:28.077Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.773Z"
+}

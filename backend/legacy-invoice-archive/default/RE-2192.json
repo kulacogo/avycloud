@@ -1,0 +1,33 @@
+{
+  "id": "hvnp6ToprPv7fa4aBHSZ",
+  "tenantId": "default",
+  "invoiceNumber": "RE-2192",
+  "sevdeskId": "127385218",
+  "sevdeskExportedAt": "2026-06-25T03:53:52.731Z",
+  "orderId": "30126577",
+  "orderNumber": "MFP38H5",
+  "marketplaceOrderId": "MFP38H5",
+  "marketplace": "kaufland",
+  "customer": {
+    "country": "DE",
+    "city": "Bad Lobenstein",
+    "name": "Pierre Brückner",
+    "zip": "07356",
+    "phone": null,
+    "street": "Unterlemnitz Bahnhofstraße 4b",
+    "email": "ca2dnk4q-b073d03be966@kaufland-marktplatz.de"
+  },
+  "amountNetto": 17.89,
+  "amountNet": 17.89,
+  "amountBrutto": 21.29,
+  "amountGross": 21.29,
+  "vatRate": 0.19,
+  "vatAmount": 3.4,
+  "currency": "EUR",
+  "status": "offen",
+  "date": "2026-06-25",
+  "dueDate": "2026-07-09",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-2192.pdf",
+  "createdAt": "2026-06-25T03:53:52.731Z",
+  "createdBy": null
+}

@@ -1,0 +1,22 @@
+{
+  "id": "ZNLIsl9Lk23tvLek1CF8",
+  "tenantId": "default",
+  "sevdeskId": "115474929",
+  "invoiceNumber": "RE-1204",
+  "date": "2026-01-26",
+  "dueDate": "2026-01-26",
+  "status": "bezahlt",
+  "amountGross": 8.49,
+  "amountNetto": 7.13,
+  "amountNet": 7.13,
+  "vatAmount": 1.36,
+  "currency": "EUR",
+  "customer": {
+    "name": "Johann Gangl"
+  },
+  "orderId": "f1THPgbTWozOB47d4l3S",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:40:24.677Z",
+  "importedAt": "2026-03-17T22:40:24.677Z"
+}

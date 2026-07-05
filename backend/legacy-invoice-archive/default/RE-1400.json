@@ -1,0 +1,23 @@
+{
+  "id": "1ioeH31ONO3fsnDnbZdg",
+  "tenantId": "default",
+  "sevdeskId": "117642205",
+  "invoiceNumber": "RE-1400",
+  "date": "2026-02-23",
+  "dueDate": null,
+  "amountGross": 41.46,
+  "amountNetto": 34.84,
+  "amountNet": 34.84,
+  "vatAmount": 6.62,
+  "currency": "EUR",
+  "customer": {
+    "name": "Florian Engler"
+  },
+  "orderId": "HXqtJmPeOEucwdnJmtIZ",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:34:36.494Z",
+  "importedAt": "2026-03-17T22:34:36.494Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.771Z"
+}

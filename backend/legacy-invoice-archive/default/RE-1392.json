@@ -1,0 +1,23 @@
+{
+  "id": "Zqukxfq39llvD3789EEA",
+  "tenantId": "default",
+  "sevdeskId": "117471447",
+  "invoiceNumber": "RE-1392",
+  "date": "2026-02-20",
+  "dueDate": null,
+  "amountGross": 15.99,
+  "amountNetto": 13.44,
+  "amountNet": 13.44,
+  "vatAmount": 2.55,
+  "currency": "EUR",
+  "customer": {
+    "name": "Felix Regge"
+  },
+  "orderId": "D0n4xlt5Tt8bT6p25e8v",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:34:51.092Z",
+  "importedAt": "2026-03-17T22:34:51.092Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.772Z"
+}

@@ -1,0 +1,25 @@
+{
+  "id": "ORtc94G8RnTZkFQi2gee",
+  "tenantId": "default",
+  "type": "storno",
+  "originalInvoiceId": "YLxFn0yQMfUKYHoRw9gd",
+  "originalInvoiceNumber": "RE-1090",
+  "orderId": "C1IzvAWWL7binbNDjoE8",
+  "orderNumber": null,
+  "marketplaceOrderId": null,
+  "marketplace": null,
+  "amountGross": 65.99,
+  "amountNetto": 55.45,
+  "amountNet": 55.45,
+  "vatRate": 0.19,
+  "currency": "EUR",
+  "customer": {
+    "name": "Lotta Helle"
+  },
+  "reason": "Stornierung Bestellung",
+  "status": "storniert",
+  "date": "2026-03-17",
+  "createdAt": "2026-03-17T22:58:18.719Z",
+  "sevdeskId": "2629280",
+  "updatedAt": "2026-03-17T23:12:23.714Z"
+}

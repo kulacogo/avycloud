@@ -1,0 +1,23 @@
+{
+  "id": "zX5FehfMQwTGOLhaGYCO",
+  "tenantId": "default",
+  "sevdeskId": "116795624",
+  "invoiceNumber": "RE-1327",
+  "date": "2026-02-10",
+  "dueDate": null,
+  "amountGross": 100,
+  "amountNetto": 84.03,
+  "amountNet": 84.03,
+  "vatAmount": 15.97,
+  "currency": "EUR",
+  "customer": {
+    "name": "Alexander Beisswenger"
+  },
+  "orderId": "ogVpIco5VAdRed3qaBUn",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:36:36.517Z",
+  "importedAt": "2026-03-17T22:36:36.517Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.773Z"
+}

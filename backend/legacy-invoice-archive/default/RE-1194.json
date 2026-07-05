@@ -1,0 +1,22 @@
+{
+  "id": "KB9Hr2eHD5eOwlHpol4a",
+  "tenantId": "default",
+  "sevdeskId": "115178744",
+  "invoiceNumber": "RE-1194",
+  "date": "2026-01-21",
+  "dueDate": "2026-01-21",
+  "status": "bezahlt",
+  "amountGross": 36.17,
+  "amountNetto": 30.39,
+  "amountNet": 30.39,
+  "vatAmount": 5.78,
+  "currency": "EUR",
+  "customer": {
+    "name": "Bernd Abeln"
+  },
+  "orderId": "hTAGCVOKPK0Ju0OPutvN",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:40:25.461Z",
+  "importedAt": "2026-03-17T22:40:25.461Z"
+}

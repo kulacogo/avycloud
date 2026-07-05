@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE DataSet SYSTEM "gdpdu-01-09-2004.dtd">
+<DataSet>
+  <Version>1.0</Version>
+  <DataSupplier>
+    <Name>TrendOcean (Einzelunternehmen)</Name>
+    <Location></Location>
+    <Comment>AvyCloud Geschäftsbücher-Export (2026-07-04T12:56:13.998Z) — Alt-Datenbestand vor GmbH-Umstellung</Comment>
+  </DataSupplier>
+  <Media>
+    <Name>Datentraeger 1</Name>
+    <Table>
+      <URL>orders.csv</URL>
+      <Name>Bestellungen</Name>
+      <Description>Marktplatz-Bestellungen (eBay/Kaufland) mit Status und Betrag</Description>
+      <Validity><Range><From>2025-11-02</From><To>2026-06-24</To></Range></Validity>
+      <UTF8/>
+      <DecimalSymbol>,</DecimalSymbol>
+      <DigitGroupingSymbol>.</DigitGroupingSymbol>
+      <Range><From>2</From></Range>
+      <VariableLength>
+        <ColumnDelimiter>;</ColumnDelimiter>
+        <TextEncapsulator>"</TextEncapsulator>
+        <VariablePrimaryKey><Name>id</Name><AlphaNumeric/></VariablePrimaryKey>
+        <VariableColumn><Name>auftragsnummer</Name><AlphaNumeric/></VariableColumn>
+        <VariableColumn><Name>marktplatz</Name><AlphaNumeric/></VariableColumn>
+        <VariableColumn><Name>marktplatz_bestellnr</Name><AlphaNumeric/></VariableColumn>
+        <VariableColumn><Name>status</Name><AlphaNumeric/></VariableColumn>
+        <VariableColumn><Name>kunde</Name><AlphaNumeric/></VariableColumn>
+        <VariableColumn><Name>betrag_brutto</Name><Numeric><Accuracy>2</Accuracy></Numeric></VariableColumn>
+        <VariableColumn><Name>waehrung</Name><AlphaNumeric/></VariableColumn>
+        <VariableColumn><Name>bestellt_am</Name><AlphaNumeric/></VariableColumn>
+        <VariableColumn><Name>versendet_am</Name><AlphaNumeric/></VariableColumn>
+        <VariableColumn><Name>rechnungsnummer</Name><AlphaNumeric/></VariableColumn>
+      </VariableLength>
+    </Table>
+    <Table>
+      <URL>invoices.csv</URL>
+      <Name>Rechnungen</Name>
+      <Description>Ausgangsrechnungen (Nummern von SevDesk vergeben)</Description>
+      <Validity><Range><From>2025-11-02</From><To>2026-06-25</To></Range></Validity>
+      <UTF8/>
+      <DecimalSymbol>,</DecimalSymbol>
+      <DigitGroupingSymbol>.</DigitGroupingSymbol>
+      <Range><From>2</From></Range>
+      <VariableLength>
+        <ColumnDelimiter>;</ColumnDelimiter>
+        <TextEncapsulator>"</TextEncapsulator>
+        <VariablePrimaryKey><Name>id</Name><AlphaNumeric/></VariablePrimaryKey>
+        <VariableColumn><Name>rechnungsnummer</Name><AlphaNumeric/></VariableColumn>
+        <VariableColumn><Name>sevdesk_id</Name><AlphaNumeric/></VariableColumn>
+        <VariableColumn><Name>auftrag_id</Name><AlphaNumeric/></VariableColumn>
+        <VariableColumn><Name>marktplatz</Name><AlphaNumeric/></VariableColumn>
+        <VariableColumn><Name>kunde</Name><AlphaNumeric/></VariableColumn>
+        <VariableColumn><Name>betrag_netto</Name><Numeric><Accuracy>2</Accuracy></Numeric></VariableColumn>
+        <VariableColumn><Name>ust_satz</Name><Numeric><Accuracy>2</Accuracy></Numeric></VariableColumn>
+        <VariableColumn><Name>ust_betrag</Name><Numeric><Accuracy>2</Accuracy></Numeric></VariableColumn>
+        <VariableColumn><Name>betrag_brutto</Name><Numeric><Accuracy>2</Accuracy></Numeric></VariableColumn>
+        <VariableColumn><Name>waehrung</Name><AlphaNumeric/></VariableColumn>
+        <VariableColumn><Name>status</Name><AlphaNumeric/></VariableColumn>
+        <VariableColumn><Name>rechnungsdatum</Name><AlphaNumeric/></VariableColumn>
+        <VariableColumn><Name>faellig_am</Name><AlphaNumeric/></VariableColumn>
+        <VariableColumn><Name>pdf</Name><AlphaNumeric/></VariableColumn>
+        <VariableColumn><Name>erstellt_am</Name><AlphaNumeric/></VariableColumn>
+      </VariableLength>
+    </Table>
+    <Table>
+      <URL>returns.csv</URL>
+      <Name>Retouren</Name>
+      <Description>Retouren und Erstattungen</Description>
+      <Validity><Range><From>2025-11-02</From><To>2026-06-25</To></Range></Validity>
+      <UTF8/>
+      <DecimalSymbol>,</DecimalSymbol>
+      <DigitGroupingSymbol>.</DigitGroupingSymbol>
+      <Range><From>2</From></Range>
+      <VariableLength>
+        <ColumnDelimiter>;</ColumnDelimiter>
+        <TextEncapsulator>"</TextEncapsulator>
+        <VariablePrimaryKey><Name>id</Name><AlphaNumeric/></VariablePrimaryKey>
+        <VariableColumn><Name>auftrag_id</Name><AlphaNumeric/></VariableColumn>
+        <VariableColumn><Name>marktplatz</Name><AlphaNumeric/></VariableColumn>
+        <VariableColumn><Name>status</Name><AlphaNumeric/></VariableColumn>
+        <VariableColumn><Name>grund</Name><AlphaNumeric/></VariableColumn>
+        <VariableColumn><Name>erstattung</Name><Numeric><Accuracy>2</Accuracy></Numeric></VariableColumn>
+        <VariableColumn><Name>erstellt_am</Name><AlphaNumeric/></VariableColumn>
+        <VariableColumn><Name>aktualisiert_am</Name><AlphaNumeric/></VariableColumn>
+      </VariableLength>
+    </Table>
+    <Table>
+      <URL>shipments.csv</URL>
+      <Name>Versand</Name>
+      <Description>Versandlabels und Sendungsverfolgung</Description>
+      <Validity><Range><From>2025-11-02</From><To>2026-06-29</To></Range></Validity>
+      <UTF8/>
+      <DecimalSymbol>,</DecimalSymbol>
+      <DigitGroupingSymbol>.</DigitGroupingSymbol>
+      <Range><From>2</From></Range>
+      <VariableLength>
+        <ColumnDelimiter>;</ColumnDelimiter>
+        <TextEncapsulator>"</TextEncapsulator>
+        <VariablePrimaryKey><Name>id</Name><AlphaNumeric/></VariablePrimaryKey>
+        <VariableColumn><Name>auftrag_id</Name><AlphaNumeric/></VariableColumn>
+        <VariableColumn><Name>carrier</Name><AlphaNumeric/></VariableColumn>
+        <VariableColumn><Name>tracking</Name><AlphaNumeric/></VariableColumn>
+        <VariableColumn><Name>status</Name><AlphaNumeric/></VariableColumn>
+        <VariableColumn><Name>erstellt_am</Name><AlphaNumeric/></VariableColumn>
+      </VariableLength>
+    </Table>
+  </Media>
+</DataSet>

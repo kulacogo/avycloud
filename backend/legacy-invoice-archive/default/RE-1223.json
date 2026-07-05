@@ -1,0 +1,22 @@
+{
+  "id": "AXXnhhOQIgDNqZWPrDtU",
+  "tenantId": "default",
+  "sevdeskId": "115559541",
+  "invoiceNumber": "RE-1223",
+  "date": "2026-01-27",
+  "dueDate": "2026-01-27",
+  "status": "bezahlt",
+  "amountGross": 33.99,
+  "amountNetto": 28.56,
+  "amountNet": 28.56,
+  "vatAmount": 5.43,
+  "currency": "EUR",
+  "customer": {
+    "name": "Pia Redepenning"
+  },
+  "orderId": "pzKeDzlmk4Z3TDpwPjlm",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:39:26.747Z",
+  "importedAt": "2026-03-17T22:39:26.747Z"
+}

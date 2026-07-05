@@ -1,0 +1,26 @@
+{
+  "id": "3m11XrFhgYfTMJ5jo865",
+  "tenantId": "default",
+  "sevdeskId": "114224261",
+  "invoiceNumber": "RE-1123",
+  "date": "2026-01-07",
+  "dueDate": "2026-01-07",
+  "amountGross": 129.99,
+  "amountNetto": 109.24,
+  "amountNet": 109.24,
+  "vatAmount": 20.75,
+  "currency": "EUR",
+  "customer": {
+    "name": "Axel Börner"
+  },
+  "orderId": "z2jZ2RA8pPXmflUz2JYT",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:42:14.503Z",
+  "importedAt": "2026-03-17T22:42:14.503Z",
+  "correctedAt": "2026-03-17T22:58:22.221Z",
+  "correctionType": "storno",
+  "correctionId": "E0qkOoeXWu8TJO0tkFyp",
+  "status": "storniert",
+  "updatedAt": "2026-03-17T22:58:22.221Z"
+}

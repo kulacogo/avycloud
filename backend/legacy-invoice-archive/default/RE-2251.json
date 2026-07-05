@@ -1,0 +1,33 @@
+{
+  "id": "rBMMxss5tRAkbSdfQHdE",
+  "tenantId": "default",
+  "invoiceNumber": "RE-2251",
+  "sevdeskId": "127385291",
+  "sevdeskExportedAt": "2026-06-25T03:55:02.371Z",
+  "orderId": "32661058",
+  "orderNumber": "MXDHSD5",
+  "marketplaceOrderId": "MXDHSD5",
+  "marketplace": "kaufland",
+  "customer": {
+    "country": "DE",
+    "city": "Unnau",
+    "name": "Emilia Regner",
+    "zip": "57648",
+    "phone": null,
+    "street": "Auf Dem Langstück 6",
+    "email": "cas04j0q-99ac8f671821@kaufland-marktplatz.de"
+  },
+  "amountNetto": 134.37,
+  "amountNet": 134.37,
+  "amountBrutto": 159.9,
+  "amountGross": 159.9,
+  "vatRate": 0.19,
+  "vatAmount": 25.53,
+  "currency": "EUR",
+  "status": "offen",
+  "date": "2026-06-25",
+  "dueDate": "2026-07-09",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-2251.pdf",
+  "createdAt": "2026-06-25T03:55:02.371Z",
+  "createdBy": null
+}

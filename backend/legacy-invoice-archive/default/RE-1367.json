@@ -1,0 +1,23 @@
+{
+  "id": "T8t0iOgjfD8y0tQxmBap",
+  "tenantId": "default",
+  "sevdeskId": "117187080",
+  "invoiceNumber": "RE-1367",
+  "date": "2026-02-16",
+  "dueDate": null,
+  "amountGross": 15.99,
+  "amountNetto": 13.44,
+  "amountNet": 13.44,
+  "vatAmount": 2.55,
+  "currency": "EUR",
+  "customer": {
+    "name": "Patrick Röhrig"
+  },
+  "orderId": "QC278S55R1OL9t90PakX",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:35:36.051Z",
+  "importedAt": "2026-03-17T22:35:36.051Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.772Z"
+}

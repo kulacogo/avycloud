@@ -1,0 +1,22 @@
+{
+  "id": "ffXS9y2R28kJIGB9q7ZP",
+  "tenantId": "default",
+  "sevdeskId": "114035198",
+  "invoiceNumber": "RE-1116",
+  "date": "2026-01-05",
+  "dueDate": "2026-01-05",
+  "status": "bezahlt",
+  "amountGross": 59.39,
+  "amountNetto": 49.91,
+  "amountNet": 49.91,
+  "vatAmount": 9.48,
+  "currency": "EUR",
+  "customer": {
+    "name": "Lisa Spiegelhalter"
+  },
+  "orderId": "zbr5UX0Agg9wLmxs1R7Y",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:42:24.930Z",
+  "importedAt": "2026-03-17T22:42:24.930Z"
+}

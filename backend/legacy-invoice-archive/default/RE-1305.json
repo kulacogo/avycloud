@@ -1,0 +1,23 @@
+{
+  "id": "LNr9seAiJPw1K3AJjrsm",
+  "tenantId": "default",
+  "sevdeskId": "116669641",
+  "invoiceNumber": "RE-1305",
+  "date": "2026-02-09",
+  "dueDate": null,
+  "amountGross": 74.95,
+  "amountNetto": 62.98,
+  "amountNet": 62.98,
+  "vatAmount": 11.97,
+  "currency": "EUR",
+  "customer": {
+    "name": "Ronald Elsner"
+  },
+  "orderId": "yXN7aUSDYmoexjY5ehQf",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:37:36.039Z",
+  "importedAt": "2026-03-17T22:37:36.039Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.772Z"
+}

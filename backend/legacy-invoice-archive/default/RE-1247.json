@@ -1,0 +1,22 @@
+{
+  "id": "QMoZcUvu3LGoTOwz61CW",
+  "tenantId": "default",
+  "sevdeskId": "116125833",
+  "invoiceNumber": "RE-1247",
+  "date": "2026-02-02",
+  "dueDate": "2026-02-02",
+  "status": "bezahlt",
+  "amountGross": 99.99,
+  "amountNetto": 84.03,
+  "amountNet": 84.03,
+  "vatAmount": 15.96,
+  "currency": "EUR",
+  "customer": {
+    "name": "Jensen Aromin"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:39:25.107Z",
+  "importedAt": "2026-03-17T22:39:25.107Z"
+}

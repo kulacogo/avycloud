@@ -1,0 +1,23 @@
+{
+  "id": "KqKLCEfhMSAjaKomSmcf",
+  "tenantId": "default",
+  "sevdeskId": "118365752",
+  "invoiceNumber": "RE-1447",
+  "date": "2026-03-02",
+  "dueDate": null,
+  "amountGross": 5.49,
+  "amountNetto": 5.49,
+  "amountNet": 5.49,
+  "vatAmount": 0,
+  "currency": "EUR",
+  "customer": {
+    "name": "Cüneyt Karakus"
+  },
+  "orderId": "VNaIDz90ckzuoNgzoa6e",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:34:27.557Z",
+  "importedAt": "2026-03-17T22:34:27.557Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.771Z"
+}

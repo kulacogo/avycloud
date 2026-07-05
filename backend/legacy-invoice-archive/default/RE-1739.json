@@ -1,0 +1,30 @@
+{
+  "id": "Mw5TO2Ff4yQUxYyk8hBQ",
+  "tenantId": "default",
+  "invoiceNumber": "RE-1739",
+  "sevdeskId": "121581777",
+  "sevdeskExportedAt": "2026-04-13T00:15:28.264Z",
+  "orderId": "ebay__18-13856-19562",
+  "orderNumber": "18-13856-19562",
+  "marketplaceOrderId": "18-13856-19562",
+  "marketplace": "ebay",
+  "customer": {
+    "name": "eBay Käufer",
+    "email": null,
+    "username": "mtonkoker"
+  },
+  "amountNetto": 8.01,
+  "amountNet": 8.01,
+  "amountBrutto": 9.53,
+  "amountGross": 9.53,
+  "vatRate": 0.19,
+  "vatAmount": 1.52,
+  "currency": "EUR",
+  "status": "offen",
+  "date": "2026-04-13",
+  "dueDate": "2026-04-27",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-1739.pdf",
+  "createdAt": "2026-04-13T00:15:28.264Z",
+  "createdBy": null,
+  "pdfRegeneratedAt": "2026-06-02T09:12:04.025Z"
+}

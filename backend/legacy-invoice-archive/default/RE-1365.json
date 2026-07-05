@@ -1,0 +1,23 @@
+{
+  "id": "mdr3esQe3Uhkb9kL8fmd",
+  "tenantId": "default",
+  "sevdeskId": "117156061",
+  "invoiceNumber": "RE-1365",
+  "date": "2026-02-16",
+  "dueDate": null,
+  "amountGross": 34.95,
+  "amountNetto": 29.37,
+  "amountNet": 29.37,
+  "vatAmount": 5.58,
+  "currency": "EUR",
+  "customer": {
+    "name": "Liane Kaiser"
+  },
+  "orderId": "PFk8uW6t525L8QeuH3rI",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:35:36.161Z",
+  "importedAt": "2026-03-17T22:35:36.161Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.773Z"
+}

@@ -1,0 +1,23 @@
+{
+  "id": "5OCrDWabWAifSzL4xYD3",
+  "tenantId": "default",
+  "sevdeskId": "118283419",
+  "invoiceNumber": "RE-1440",
+  "date": "2026-03-02",
+  "dueDate": null,
+  "amountGross": 49.89,
+  "amountNetto": 41.92,
+  "amountNet": 41.92,
+  "vatAmount": 7.97,
+  "currency": "EUR",
+  "customer": {
+    "name": "Christian Schmid"
+  },
+  "orderId": "7H7RpOddw4zv0RnY8kUh",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:34:28.012Z",
+  "importedAt": "2026-03-17T22:34:28.012Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.771Z"
+}

@@ -1,0 +1,33 @@
+{
+  "id": "ZhVovdHhLRY98nOv0v86",
+  "tenantId": "default",
+  "invoiceNumber": "RE-2245",
+  "sevdeskId": "127385285",
+  "sevdeskExportedAt": "2026-06-25T03:54:53.879Z",
+  "orderId": "32367331",
+  "orderNumber": "MQC3BD5",
+  "marketplaceOrderId": "MQC3BD5",
+  "marketplace": "kaufland",
+  "customer": {
+    "country": "DE",
+    "city": "Steinach",
+    "name": "Anja Dietrich",
+    "zip": "96523",
+    "phone": null,
+    "street": "Eichhornsgasse 14",
+    "email": "caegnm0q-20fa746be078@kaufland-marktplatz.de"
+  },
+  "amountNetto": 16.3,
+  "amountNet": 16.3,
+  "amountBrutto": 19.4,
+  "amountGross": 19.4,
+  "vatRate": 0.19,
+  "vatAmount": 3.1,
+  "currency": "EUR",
+  "status": "offen",
+  "date": "2026-06-25",
+  "dueDate": "2026-07-09",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-2245.pdf",
+  "createdAt": "2026-06-25T03:54:53.879Z",
+  "createdBy": null
+}

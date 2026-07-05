@@ -1,0 +1,23 @@
+{
+  "id": "AR7fi5ow0JcuW8YcTaYq",
+  "tenantId": "default",
+  "sevdeskId": "117737536",
+  "invoiceNumber": "RE-1414",
+  "date": "2026-02-24",
+  "dueDate": null,
+  "amountGross": 77.46,
+  "amountNetto": 65.09,
+  "amountNet": 65.09,
+  "vatAmount": 12.37,
+  "currency": "EUR",
+  "customer": {
+    "name": "Christiane Multhaupt"
+  },
+  "orderId": "Ny3c3TdRhjHeOt38vB4d",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:34:35.228Z",
+  "importedAt": "2026-03-17T22:34:35.228Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.771Z"
+}

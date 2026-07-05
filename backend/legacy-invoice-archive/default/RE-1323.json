@@ -1,0 +1,23 @@
+{
+  "id": "yvWipBt7s3Msez9AP059",
+  "tenantId": "default",
+  "sevdeskId": "116740787",
+  "invoiceNumber": "RE-1323",
+  "date": "2026-02-10",
+  "dueDate": null,
+  "amountGross": 13.96,
+  "amountNetto": 11.73,
+  "amountNet": 11.73,
+  "vatAmount": 2.23,
+  "currency": "EUR",
+  "customer": {
+    "name": "Alfred Schauer"
+  },
+  "orderId": "TGiK0GcRSMzzz7UuILv3",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:36:36.708Z",
+  "importedAt": "2026-03-17T22:36:36.708Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.773Z"
+}

@@ -138,7 +138,28 @@ const sanitizeDatasheetChange = (entry: any = {}): DatasheetChange => {
     }
   }
   if (entry.pricing && typeof entry.pricing === 'object') {
-    result.pricing = entry.pricing;
+    // V3 liefert Preis FLACH ({amount, currency, source_url}) — normalisieren auf
+    // das echte Pricing-Modell (sellPrice = der Preis, den eBay/Kaufland syncen;
+    // lowest_price = Anzeige + Quelle). V2/Legacy liefern bereits verschachtelt
+    // (lowest_price vorhanden) und laufen unverändert durch.
+    const p: any = entry.pricing;
+    const flatAmount = typeof p.amount === 'number' && Number.isFinite(p.amount) && p.amount > 0 ? p.amount : null;
+    if (flatAmount != null && !p.lowest_price) {
+      const currency = typeof p.currency === 'string' && p.currency ? p.currency : 'EUR';
+      result.pricing = {
+        sellPrice: flatAmount,
+        price_confidence: typeof p.confidence === 'number' ? p.confidence : 0.7,
+        lowest_price: {
+          amount: flatAmount,
+          currency,
+          sources: typeof p.source_url === 'string' && p.source_url
+            ? [{ name: 'KI-Recherche', url: p.source_url, price: flatAmount, checked_at: new Date().toISOString() }]
+            : [],
+        },
+      };
+    } else {
+      result.pricing = p;
+    }
   }
   if (entry.notes && typeof entry.notes === 'object') {
     result.notes = entry.notes;
@@ -305,7 +326,7 @@ type QuickPrompt = {
 };
 
 const QUICK_PROMPTS: QuickPrompt[] = [
-  { icon: '✨', label: 'Alles optimieren', message: 'Optimiere Titel, Beschreibung, Highlights und Attribute. Recherchiere online und schlage konkrete Verbesserungen vor.', scope: 'title,attributes,highlights,description' },
+  { icon: '✨', label: 'Alles optimieren', message: 'Optimiere Titel, Beschreibung, Highlights und Attribute. Prüfe außerdem den Verkaufspreis (recherchiere aktuelle Marktpreise — besonders wenn der Preis fehlt oder 0 ist), die Marke sowie die GPSR-Herstellerangaben (Name, Adresse, Kontakt) und schlage fehlende Werte konkret vor. Recherchiere online. Wichtig: Die Beschreibung ist reiner Fließtext ohne Aufzählungen — Bullet Points gehören ausschließlich in die Highlights.', scope: 'title,attributes,highlights,description,pricing,gpsr,datasheet' },
   { icon: '🏷️', label: 'Titel verbessern', message: 'Erstelle einen SEO-optimierten, marketplace-tauglichen Produkttitel basierend auf Online-Recherche. Wichtig: Nur Marke + Produkttyp + Modell + technische Merkmale. KEINE Firmennamen, Rechtsformen (GmbH, Sp. K, Ltd., Inc., S.A., Co. KG), Händlernamen oder Herstelleradressen im Titel.', scope: 'title' },
   { icon: '📝', label: 'Beschreibung', message: 'Schreibe eine professionelle, verkaufsstarke Produktbeschreibung mit Bullet Points und Vorteilen.', scope: 'description,highlights' },
   { icon: '🔍', label: 'EAN / GTIN finden', message: 'Recherchiere die korrekte EAN/GTIN für dieses Produkt im Web.', scope: 'gtin' },

@@ -1,0 +1,23 @@
+{
+  "id": "WHO6muG5jjgnyJ8qTFar",
+  "tenantId": "default",
+  "sevdeskId": "117737574",
+  "invoiceNumber": "RE-1415",
+  "date": "2026-02-24",
+  "dueDate": null,
+  "amountGross": 24.27,
+  "amountNetto": 20.39,
+  "amountNet": 20.39,
+  "vatAmount": 3.88,
+  "currency": "EUR",
+  "customer": {
+    "name": "Alexander Roll"
+  },
+  "orderId": "8rsaSBDYMH4XKctqdsJ9",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:34:35.158Z",
+  "importedAt": "2026-03-17T22:34:35.158Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.772Z"
+}

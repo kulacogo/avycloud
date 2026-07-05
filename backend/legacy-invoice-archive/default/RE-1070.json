@@ -1,0 +1,22 @@
+{
+  "id": "JJ66CRq2taRCw6ehG6WV",
+  "tenantId": "default",
+  "sevdeskId": "113262638",
+  "invoiceNumber": "RE-1070",
+  "date": "2025-12-22",
+  "dueDate": "2025-12-22",
+  "status": "bezahlt",
+  "amountGross": 12.24,
+  "amountNetto": 10.29,
+  "amountNet": 10.29,
+  "vatAmount": 1.95,
+  "currency": "EUR",
+  "customer": {
+    "name": "ROBERT BOEPPLE"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:46:42.803Z",
+  "importedAt": "2026-03-17T22:46:42.803Z"
+}

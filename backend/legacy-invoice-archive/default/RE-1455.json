@@ -1,0 +1,26 @@
+{
+  "id": "8anrUYYK1nM8qve7VJCC",
+  "tenantId": "default",
+  "sevdeskId": "118506113",
+  "invoiceNumber": "RE-1455",
+  "date": "2026-03-03",
+  "dueDate": null,
+  "amountGross": 129.9,
+  "amountNetto": 109.16,
+  "amountNet": 109.16,
+  "vatAmount": 20.74,
+  "currency": "EUR",
+  "customer": {
+    "name": "Joachim Stumpf"
+  },
+  "orderId": "8fzvxtSuq2YbeG0JE563",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:34:26.885Z",
+  "importedAt": "2026-03-17T22:34:26.885Z",
+  "correctedAt": "2026-03-17T22:58:18.329Z",
+  "correctionType": "storno",
+  "correctionId": "IZQm5G3kHj7SanlHZLwB",
+  "status": "storniert",
+  "updatedAt": "2026-03-17T22:58:18.329Z"
+}

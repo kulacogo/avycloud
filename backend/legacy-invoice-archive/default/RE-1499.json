@@ -1,0 +1,23 @@
+{
+  "id": "6qTClgSxlMS95I623ZaZ",
+  "tenantId": "default",
+  "sevdeskId": "119398825",
+  "invoiceNumber": "RE-1499",
+  "date": "2026-03-15",
+  "dueDate": null,
+  "amountGross": 19.69,
+  "amountNetto": 19.69,
+  "amountNet": 19.69,
+  "vatAmount": 0,
+  "currency": "EUR",
+  "customer": {
+    "name": "jürgen schulte"
+  },
+  "orderId": "3YocmLjvoxsuFnEVN33V",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:32:26.878Z",
+  "importedAt": "2026-03-17T22:32:26.878Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.771Z"
+}

@@ -1,0 +1,23 @@
+{
+  "id": "lZL7JX8QCrl69l1LvKkF",
+  "tenantId": "default",
+  "sevdeskId": "117155668",
+  "invoiceNumber": "RE-1359",
+  "date": "2026-02-16",
+  "dueDate": null,
+  "amountGross": 21.99,
+  "amountNetto": 18.48,
+  "amountNet": 18.48,
+  "vatAmount": 3.51,
+  "currency": "EUR",
+  "customer": {
+    "name": "Christina Haak"
+  },
+  "orderId": "J3YLW1SfHyjX0S0D8BC5",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:35:38.103Z",
+  "importedAt": "2026-03-17T22:35:38.103Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.773Z"
+}

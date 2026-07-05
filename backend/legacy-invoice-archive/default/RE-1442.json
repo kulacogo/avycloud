@@ -1,0 +1,23 @@
+{
+  "id": "pWkJDuf23W9SQJTLEE5a",
+  "tenantId": "default",
+  "sevdeskId": "118283692",
+  "invoiceNumber": "RE-1442",
+  "date": "2026-03-02",
+  "dueDate": null,
+  "amountGross": 24.89,
+  "amountNetto": 20.91,
+  "amountNet": 20.91,
+  "vatAmount": 3.98,
+  "currency": "EUR",
+  "customer": {
+    "name": "Lia Rauschenbach"
+  },
+  "orderId": "83ofRDUSXKOoM0UqR9Sr",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:34:27.893Z",
+  "importedAt": "2026-03-17T22:34:27.893Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.773Z"
+}

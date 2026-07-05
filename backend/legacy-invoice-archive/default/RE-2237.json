@@ -1,0 +1,33 @@
+{
+  "id": "kS0U5kcDcMIqH69JGgKB",
+  "tenantId": "default",
+  "invoiceNumber": "RE-2237",
+  "sevdeskId": "127385276",
+  "sevdeskExportedAt": "2026-06-25T03:54:45.373Z",
+  "orderId": "31971005",
+  "orderNumber": "MPKSW45",
+  "marketplaceOrderId": "MPKSW45",
+  "marketplace": "kaufland",
+  "customer": {
+    "country": "DE",
+    "city": "Nastätten",
+    "name": "Kevin Klein",
+    "zip": "56355",
+    "phone": null,
+    "street": "Hasenplatz 2",
+    "email": "cad7jrxq-a5c30593d94e@kaufland-marktplatz.de"
+  },
+  "amountNetto": 95.05,
+  "amountNet": 95.05,
+  "amountBrutto": 113.11,
+  "amountGross": 113.11,
+  "vatRate": 0.19,
+  "vatAmount": 18.06,
+  "currency": "EUR",
+  "status": "offen",
+  "date": "2026-06-25",
+  "dueDate": "2026-07-09",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-2237.pdf",
+  "createdAt": "2026-06-25T03:54:45.373Z",
+  "createdBy": null
+}

@@ -1,0 +1,22 @@
+{
+  "id": "9yg7lckc1MLWfM5SDwpL",
+  "tenantId": "default",
+  "sevdeskId": "114618088",
+  "invoiceNumber": "RE-1150",
+  "date": "2026-01-13",
+  "dueDate": "2026-01-13",
+  "status": "bezahlt",
+  "amountGross": 13.5,
+  "amountNetto": 11.34,
+  "amountNet": 11.34,
+  "vatAmount": 2.16,
+  "currency": "EUR",
+  "customer": {
+    "name": "Marius Plach"
+  },
+  "orderId": "gTay9nNvNgush2UiMumy",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:41:25.382Z",
+  "importedAt": "2026-03-17T22:41:25.382Z"
+}

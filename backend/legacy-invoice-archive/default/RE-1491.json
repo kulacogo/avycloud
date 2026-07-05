@@ -1,0 +1,23 @@
+{
+  "id": "ZoQJixcZQM3tlYxu7DaW",
+  "tenantId": "default",
+  "sevdeskId": "119127856",
+  "invoiceNumber": "RE-1491",
+  "date": "2026-03-11",
+  "dueDate": null,
+  "amountGross": 41.48,
+  "amountNetto": 41.48,
+  "amountNet": 41.48,
+  "vatAmount": 0,
+  "currency": "EUR",
+  "customer": {
+    "name": "Lothar Reiff"
+  },
+  "orderId": "3OmkgDGfwZMVEoKaUeEr",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:33:26.011Z",
+  "importedAt": "2026-03-17T22:33:26.011Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.772Z"
+}

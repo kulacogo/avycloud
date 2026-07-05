@@ -1,0 +1,22 @@
+{
+  "id": "09Jd95OgRBoxYOKsMVdr",
+  "tenantId": "default",
+  "sevdeskId": "116422421",
+  "invoiceNumber": "RE-1267",
+  "date": "2026-02-05",
+  "dueDate": "2026-02-05",
+  "status": "bezahlt",
+  "amountGross": 52,
+  "amountNetto": 43.7,
+  "amountNet": 43.7,
+  "vatAmount": 8.3,
+  "currency": "EUR",
+  "customer": {
+    "name": "Uta Renneberg"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:38:27.628Z",
+  "importedAt": "2026-03-17T22:38:27.628Z"
+}

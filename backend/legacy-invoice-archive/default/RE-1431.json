@@ -1,0 +1,23 @@
+{
+  "id": "ugpkjg1I94sfGRsTB76L",
+  "tenantId": "default",
+  "sevdeskId": "117920753",
+  "invoiceNumber": "RE-1431",
+  "date": "2026-02-26",
+  "dueDate": null,
+  "amountGross": 19.85,
+  "amountNetto": 16.68,
+  "amountNet": 16.68,
+  "vatAmount": 3.17,
+  "currency": "EUR",
+  "customer": {
+    "name": "Betty Fuhrmann"
+  },
+  "orderId": "7CrLfpatAgP4fWRPpjfn",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:34:34.336Z",
+  "importedAt": "2026-03-17T22:34:34.336Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.773Z"
+}

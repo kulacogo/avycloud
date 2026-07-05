@@ -1,0 +1,23 @@
+{
+  "id": "ijQl9duwUWnRt8TMk3YD",
+  "tenantId": "default",
+  "sevdeskId": "117642932",
+  "invoiceNumber": "RE-1410",
+  "date": "2026-02-23",
+  "dueDate": null,
+  "amountGross": 147,
+  "amountNetto": 123.53,
+  "amountNet": 123.53,
+  "vatAmount": 23.47,
+  "currency": "EUR",
+  "customer": {
+    "name": "Christian Fliegner"
+  },
+  "orderId": "953mj7IMoIdx8eSHMoXG",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:34:35.476Z",
+  "importedAt": "2026-03-17T22:34:35.476Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.772Z"
+}

@@ -1,0 +1,33 @@
+{
+  "id": "zcOm0Pqkw99b6eHpU4dD",
+  "tenantId": "default",
+  "invoiceNumber": "RE-2202",
+  "sevdeskId": "127385229",
+  "sevdeskExportedAt": "2026-06-25T03:54:05.390Z",
+  "orderId": "30450001",
+  "orderNumber": "MXAP915",
+  "marketplaceOrderId": "MXAP915",
+  "marketplace": "kaufland",
+  "customer": {
+    "country": "DE",
+    "city": "Berlin",
+    "name": "Katja Gies",
+    "zip": "12203",
+    "phone": null,
+    "street": "Holbeinstr 22",
+    "email": "cashd8zq-e2a2ef1d64f5@kaufland-marktplatz.de"
+  },
+  "amountNetto": 33.61,
+  "amountNet": 33.61,
+  "amountBrutto": 39.99,
+  "amountGross": 39.99,
+  "vatRate": 0.19,
+  "vatAmount": 6.38,
+  "currency": "EUR",
+  "status": "offen",
+  "date": "2026-06-25",
+  "dueDate": "2026-07-09",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-2202.pdf",
+  "createdAt": "2026-06-25T03:54:05.390Z",
+  "createdBy": null
+}

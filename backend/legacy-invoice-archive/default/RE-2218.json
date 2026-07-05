@@ -1,0 +1,33 @@
+{
+  "id": "yoa45tNSsdhsX5EqGY1n",
+  "tenantId": "default",
+  "invoiceNumber": "RE-2218",
+  "sevdeskId": "127385250",
+  "sevdeskExportedAt": "2026-06-25T03:54:21.569Z",
+  "orderId": "30861485",
+  "orderNumber": "MPTCS15",
+  "marketplaceOrderId": "MPTCS15",
+  "marketplace": "kaufland",
+  "customer": {
+    "country": "DE",
+    "city": "Düsseldorf",
+    "name": "Peter Spannagel",
+    "zip": "40468",
+    "phone": null,
+    "street": "Lüneburger Weg 21",
+    "email": "cadlgjzq-b61ab39bff3a@kaufland-marktplatz.de"
+  },
+  "amountNetto": 23.91,
+  "amountNet": 23.91,
+  "amountBrutto": 28.45,
+  "amountGross": 28.45,
+  "vatRate": 0.19,
+  "vatAmount": 4.54,
+  "currency": "EUR",
+  "status": "offen",
+  "date": "2026-06-25",
+  "dueDate": "2026-07-09",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-2218.pdf",
+  "createdAt": "2026-06-25T03:54:21.569Z",
+  "createdBy": null
+}

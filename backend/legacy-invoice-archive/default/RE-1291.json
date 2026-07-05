@@ -1,0 +1,22 @@
+{
+  "id": "76A3skUxVNKikAfyZ4ps",
+  "tenantId": "default",
+  "sevdeskId": "116566863",
+  "invoiceNumber": "RE-1291",
+  "date": "2026-02-07",
+  "dueDate": "2026-02-07",
+  "status": "bezahlt",
+  "amountGross": 27.29,
+  "amountNetto": 22.93,
+  "amountNet": 22.93,
+  "vatAmount": 4.36,
+  "currency": "EUR",
+  "customer": {
+    "name": "Claudia Sorokin"
+  },
+  "orderId": "I6lIWZwGUzfxTRY1cB3k",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:38:25.482Z",
+  "importedAt": "2026-03-17T22:38:25.482Z"
+}

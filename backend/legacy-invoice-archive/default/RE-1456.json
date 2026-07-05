@@ -1,0 +1,23 @@
+{
+  "id": "HiBP4y9ttpkEKnEz3kcv",
+  "tenantId": "default",
+  "sevdeskId": "118506235",
+  "invoiceNumber": "RE-1456",
+  "date": "2026-03-03",
+  "dueDate": null,
+  "amountGross": 9.88,
+  "amountNetto": 9.88,
+  "amountNet": 9.88,
+  "vatAmount": 0,
+  "currency": "EUR",
+  "customer": {
+    "name": "Caruso Alessandro"
+  },
+  "orderId": "dg9faDIEFWaRFWDG3dqF",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:34:26.831Z",
+  "importedAt": "2026-03-17T22:34:26.831Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.771Z"
+}

@@ -1,0 +1,22 @@
+{
+  "id": "PLGOXPJQFgGNUtxRKh6F",
+  "tenantId": "default",
+  "sevdeskId": "111889926",
+  "invoiceNumber": "RE-1021",
+  "date": "2025-12-06",
+  "dueDate": "2025-12-06",
+  "status": "bezahlt",
+  "amountGross": 92.99,
+  "amountNetto": 78.14,
+  "amountNet": 78.14,
+  "vatAmount": 14.85,
+  "currency": "EUR",
+  "customer": {
+    "name": "1990"
+  },
+  "orderId": "sSl5p8qVmfnokpvQbhQV",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:54:23.788Z",
+  "importedAt": "2026-03-17T22:54:23.788Z"
+}

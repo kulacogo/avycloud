@@ -1,0 +1,22 @@
+{
+  "id": "fxLT4MFbjXq6HS1XsQZZ",
+  "tenantId": "default",
+  "sevdeskId": "116125950",
+  "invoiceNumber": "RE-1248",
+  "date": "2026-02-02",
+  "dueDate": "2026-02-02",
+  "status": "bezahlt",
+  "amountGross": 47.55,
+  "amountNetto": 39.96,
+  "amountNet": 39.96,
+  "vatAmount": 7.59,
+  "currency": "EUR",
+  "customer": {
+    "name": "Kretschmer Daniela"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:39:25.006Z",
+  "importedAt": "2026-03-17T22:39:25.006Z"
+}

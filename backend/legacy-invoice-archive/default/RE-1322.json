@@ -1,0 +1,23 @@
+{
+  "id": "cNjg1IDvy2OeICmTKrox",
+  "tenantId": "default",
+  "sevdeskId": "116740624",
+  "invoiceNumber": "RE-1322",
+  "date": "2026-02-10",
+  "dueDate": null,
+  "amountGross": 11.18,
+  "amountNetto": 9.39,
+  "amountNet": 9.39,
+  "vatAmount": 1.79,
+  "currency": "EUR",
+  "customer": {
+    "name": "Mirja Greifenberg"
+  },
+  "orderId": "TfSDGcne93Mo3jQKT5Jt",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:37:11.603Z",
+  "importedAt": "2026-03-17T22:37:11.603Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.772Z"
+}

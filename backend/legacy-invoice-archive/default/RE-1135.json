@@ -1,0 +1,22 @@
+{
+  "id": "mleXv34R5EtZxElIGCQ5",
+  "tenantId": "default",
+  "sevdeskId": "114436107",
+  "invoiceNumber": "RE-1135",
+  "date": "2026-01-10",
+  "dueDate": "2026-01-10",
+  "status": "bezahlt",
+  "amountGross": 22.76,
+  "amountNetto": 19.13,
+  "amountNet": 19.13,
+  "vatAmount": 3.63,
+  "currency": "EUR",
+  "customer": {
+    "name": "Jasmin Peter"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:41:26.436Z",
+  "importedAt": "2026-03-17T22:41:26.436Z"
+}

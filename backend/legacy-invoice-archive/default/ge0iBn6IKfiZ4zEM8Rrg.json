@@ -1,0 +1,25 @@
+{
+  "id": "ge0iBn6IKfiZ4zEM8Rrg",
+  "tenantId": "default",
+  "type": "storno",
+  "originalInvoiceId": "NACgmAwNGPVi9XLRUiJq",
+  "originalInvoiceNumber": "RE-1107",
+  "orderId": "HPa5mpQ4TvQQP1IZgM5H",
+  "orderNumber": null,
+  "marketplaceOrderId": null,
+  "marketplace": null,
+  "amountGross": 68.77,
+  "amountNetto": 57.79,
+  "amountNet": 57.79,
+  "vatRate": 0.19,
+  "currency": "EUR",
+  "customer": {
+    "name": "Kreshnik Delijaj"
+  },
+  "reason": "Stornierung Bestellung",
+  "status": "storniert",
+  "date": "2026-03-17",
+  "createdAt": "2026-03-17T22:58:19.434Z",
+  "sevdeskId": "2629281",
+  "updatedAt": "2026-03-17T23:12:35.539Z"
+}

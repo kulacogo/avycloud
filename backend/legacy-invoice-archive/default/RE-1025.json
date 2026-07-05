@@ -1,0 +1,22 @@
+{
+  "id": "NqDBSg838W3jkIkbh1DA",
+  "tenantId": "default",
+  "sevdeskId": "112015075",
+  "invoiceNumber": "RE-1025",
+  "date": "2025-12-08",
+  "dueDate": "2025-12-08",
+  "status": "bezahlt",
+  "amountGross": 107.49,
+  "amountNetto": 90.33,
+  "amountNet": 90.33,
+  "vatAmount": 17.16,
+  "currency": "EUR",
+  "customer": {
+    "name": "Christiane Lohse"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:54:12.894Z",
+  "importedAt": "2026-03-17T22:54:12.894Z"
+}

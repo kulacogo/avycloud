@@ -1,0 +1,23 @@
+{
+  "id": "7Zi3rb6YgZaBH7x4Xqf0",
+  "tenantId": "default",
+  "sevdeskId": "117232237",
+  "invoiceNumber": "RE-1369",
+  "date": "2026-02-17",
+  "dueDate": null,
+  "amountGross": 36,
+  "amountNetto": 30.25,
+  "amountNet": 30.25,
+  "vatAmount": 5.75,
+  "currency": "EUR",
+  "customer": {
+    "name": "Johannes Schmutzer"
+  },
+  "orderId": "O0IWeI7Mn8r2ldMAeK90",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:35:35.927Z",
+  "importedAt": "2026-03-17T22:35:35.927Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.771Z"
+}

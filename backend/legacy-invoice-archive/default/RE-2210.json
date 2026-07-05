@@ -1,0 +1,33 @@
+{
+  "id": "GkiKtoFyxEfFZRXOj0oJ",
+  "tenantId": "default",
+  "invoiceNumber": "RE-2210",
+  "sevdeskId": "127385238",
+  "sevdeskExportedAt": "2026-06-25T03:54:13.497Z",
+  "orderId": "30679561",
+  "orderNumber": "MZXTE15",
+  "marketplaceOrderId": "MZXTE15",
+  "marketplace": "kaufland",
+  "customer": {
+    "country": "DE",
+    "city": "Hamburg",
+    "name": "Daniela Will",
+    "zip": "22453",
+    "phone": null,
+    "street": "Kollaustraße 105",
+    "email": "cavsl1zq-cb61081cc89c@kaufland-marktplatz.de"
+  },
+  "amountNetto": 20.16,
+  "amountNet": 20.16,
+  "amountBrutto": 23.99,
+  "amountGross": 23.99,
+  "vatRate": 0.19,
+  "vatAmount": 3.83,
+  "currency": "EUR",
+  "status": "offen",
+  "date": "2026-06-25",
+  "dueDate": "2026-07-09",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-2210.pdf",
+  "createdAt": "2026-06-25T03:54:13.497Z",
+  "createdBy": null
+}

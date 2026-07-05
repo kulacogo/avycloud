@@ -1,0 +1,22 @@
+{
+  "id": "AEzOKOonHJwi09Qvj6Ha",
+  "tenantId": "default",
+  "sevdeskId": "114035014",
+  "invoiceNumber": "RE-1115",
+  "date": "2026-01-05",
+  "dueDate": "2026-01-05",
+  "status": "bezahlt",
+  "amountGross": 83.11,
+  "amountNetto": 69.84,
+  "amountNet": 69.84,
+  "vatAmount": 13.27,
+  "currency": "EUR",
+  "customer": {
+    "name": "Simon Haberl"
+  },
+  "orderId": "qOs6sp0WP9ihjpwgdzbf",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:42:24.991Z",
+  "importedAt": "2026-03-17T22:42:24.991Z"
+}

@@ -1,0 +1,22 @@
+{
+  "id": "ikKpQNyMbbWQi4ry7bzx",
+  "tenantId": "default",
+  "sevdeskId": "114225006",
+  "invoiceNumber": "RE-1126",
+  "date": "2026-01-07",
+  "dueDate": "2026-01-07",
+  "status": "bezahlt",
+  "amountGross": 8.65,
+  "amountNetto": 7.27,
+  "amountNet": 7.27,
+  "vatAmount": 1.38,
+  "currency": "EUR",
+  "customer": {
+    "name": "Nico Remmler"
+  },
+  "orderId": "z88mgD2b6qJRQ71dFPZC",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:41:54.403Z",
+  "importedAt": "2026-03-17T22:41:54.403Z"
+}

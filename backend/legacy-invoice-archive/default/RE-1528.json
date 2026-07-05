@@ -1,0 +1,33 @@
+{
+  "id": "5R6Hr69GNKJAwTp2nROD",
+  "tenantId": "default",
+  "invoiceNumber": "RE-1528",
+  "sevdeskId": "119604432",
+  "sevdeskExportedAt": "2026-03-17T23:23:49.903Z",
+  "orderId": "wwEelb1CMEQiV1VCj1jz",
+  "orderNumber": "05-14260-46940",
+  "marketplaceOrderId": "05-14260-46940",
+  "marketplace": "ebay",
+  "customer": {
+    "name": "Timo Wild",
+    "street": "Haselastr. 7",
+    "city": "Linsengericht",
+    "country": "DE",
+    "phone": "Invalid Request",
+    "email": null,
+    "zip": "63589"
+  },
+  "amountNetto": 25.17,
+  "amountBrutto": 29.95,
+  "vatRate": 0.19,
+  "vatAmount": 4.78,
+  "currency": "EUR",
+  "date": "2026-03-17",
+  "dueDate": "2026-03-31",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-1528.pdf",
+  "createdAt": "2026-03-17T23:23:49.903Z",
+  "createdBy": null,
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.771Z",
+  "pdfRegeneratedAt": "2026-06-02T09:10:50.716Z"
+}

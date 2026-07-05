@@ -1,0 +1,22 @@
+{
+  "id": "zTvHNdY7SeLzpEO0eQPj",
+  "tenantId": "default",
+  "sevdeskId": "116508934",
+  "invoiceNumber": "RE-1273",
+  "date": "2026-02-06",
+  "dueDate": "2026-02-06",
+  "status": "bezahlt",
+  "amountGross": 39.9,
+  "amountNetto": 33.53,
+  "amountNet": 33.53,
+  "vatAmount": 6.37,
+  "currency": "EUR",
+  "customer": {
+    "name": "Stefan Troyke"
+  },
+  "orderId": "dibL6B1J8FKOqzWmuvxI",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:38:26.864Z",
+  "importedAt": "2026-03-17T22:38:26.864Z"
+}

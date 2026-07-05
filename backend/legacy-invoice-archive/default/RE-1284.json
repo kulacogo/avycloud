@@ -1,0 +1,22 @@
+{
+  "id": "7Pg46H0D7K0bmkesRmXq",
+  "tenantId": "default",
+  "sevdeskId": "116518825",
+  "invoiceNumber": "RE-1284",
+  "date": "2026-02-06",
+  "dueDate": "2026-02-06",
+  "status": "bezahlt",
+  "amountGross": 23.99,
+  "amountNetto": 20.16,
+  "amountNet": 20.16,
+  "vatAmount": 3.83,
+  "currency": "EUR",
+  "customer": {
+    "name": "Durag Warenannahme"
+  },
+  "orderId": "hJsAAuZF0SHn78cJaXu6",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:38:26.112Z",
+  "importedAt": "2026-03-17T22:38:26.112Z"
+}

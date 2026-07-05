@@ -1,0 +1,33 @@
+{
+  "id": "lrYmf94xXZIeIyn4JmQI",
+  "tenantId": "default",
+  "invoiceNumber": "RE-1516",
+  "sevdeskId": "119604417",
+  "sevdeskExportedAt": "2026-03-17T23:23:15.302Z",
+  "orderId": "2bte2c8scciw7D63DXYF",
+  "orderNumber": "04-14197-66740",
+  "marketplaceOrderId": "04-14197-66740",
+  "marketplace": "ebay",
+  "customer": {
+    "name": "Achim Brandt",
+    "street": "Höhenweg 9",
+    "city": "Obersulm",
+    "country": "DE",
+    "phone": "Invalid Request",
+    "email": null,
+    "zip": "74182"
+  },
+  "amountNetto": 44.11,
+  "amountBrutto": 52.49,
+  "vatRate": 0.19,
+  "vatAmount": 8.38,
+  "currency": "EUR",
+  "date": "2026-03-17",
+  "dueDate": "2026-03-31",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-1516.pdf",
+  "createdAt": "2026-03-17T23:23:15.302Z",
+  "createdBy": null,
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.773Z",
+  "pdfRegeneratedAt": "2026-06-02T09:13:52.823Z"
+}

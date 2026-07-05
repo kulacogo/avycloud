@@ -1,0 +1,23 @@
+{
+  "id": "m5dhTbyNkUorfK9k4FGj",
+  "tenantId": "default",
+  "sevdeskId": "118514659",
+  "invoiceNumber": "RE-1460",
+  "date": "2026-03-03",
+  "dueDate": null,
+  "amountGross": 51.48,
+  "amountNetto": 43.26,
+  "amountNet": 43.26,
+  "vatAmount": 8.22,
+  "currency": "EUR",
+  "customer": {
+    "name": "Marie-Luise Hotzan"
+  },
+  "orderId": "vEu3cX0JpVXufcjKVn1i",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:34:23.504Z",
+  "importedAt": "2026-03-17T22:34:23.504Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.773Z"
+}

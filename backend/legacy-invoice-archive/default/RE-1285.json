@@ -1,0 +1,26 @@
+{
+  "id": "WKGp7pV6DRcVCkRCf5Xh",
+  "tenantId": "default",
+  "sevdeskId": "116519293",
+  "invoiceNumber": "RE-1285",
+  "date": "2026-02-06",
+  "dueDate": "2026-02-06",
+  "amountGross": 24.27,
+  "amountNetto": 20.39,
+  "amountNet": 20.39,
+  "vatAmount": 3.88,
+  "currency": "EUR",
+  "customer": {
+    "name": "Gina Otto"
+  },
+  "orderId": "aQINDEK29BQz2UzKRHP2",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:38:25.909Z",
+  "importedAt": "2026-03-17T22:38:25.909Z",
+  "correctedAt": "2026-03-17T22:58:20.310Z",
+  "correctionType": "storno",
+  "correctionId": "Ieb5AbZi2v37Mi66RMzJ",
+  "status": "storniert",
+  "updatedAt": "2026-03-17T22:58:20.310Z"
+}

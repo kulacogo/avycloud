@@ -1,0 +1,30 @@
+{
+  "id": "eXtoFVxSLE7tMBmLlDj5",
+  "tenantId": "default",
+  "invoiceNumber": "RE-1721",
+  "sevdeskId": "121581745",
+  "sevdeskExportedAt": "2026-04-13T00:14:42.096Z",
+  "orderId": "ebay__11-13929-16350",
+  "orderNumber": "11-13929-16350",
+  "marketplaceOrderId": "11-13929-16350",
+  "marketplace": "ebay",
+  "customer": {
+    "name": "eBay Käufer",
+    "email": null,
+    "username": "mysummerof69"
+  },
+  "amountNetto": 25.2,
+  "amountNet": 25.2,
+  "amountBrutto": 29.99,
+  "amountGross": 29.99,
+  "vatRate": 0.19,
+  "vatAmount": 4.79,
+  "currency": "EUR",
+  "status": "offen",
+  "date": "2026-04-13",
+  "dueDate": "2026-04-27",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-1721.pdf",
+  "createdAt": "2026-04-13T00:14:42.096Z",
+  "createdBy": null,
+  "pdfRegeneratedAt": "2026-06-02T09:13:25.057Z"
+}

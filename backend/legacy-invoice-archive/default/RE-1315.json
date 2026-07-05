@@ -1,0 +1,23 @@
+{
+  "id": "ZLbaZQx8zGqKIwFRbr8b",
+  "tenantId": "default",
+  "sevdeskId": "116687836",
+  "invoiceNumber": "RE-1315",
+  "date": "2026-02-09",
+  "dueDate": null,
+  "amountGross": 15.99,
+  "amountNetto": 13.44,
+  "amountNet": 13.44,
+  "vatAmount": 2.55,
+  "currency": "EUR",
+  "customer": {
+    "name": "Artur Weingardt"
+  },
+  "orderId": "fluKQ9hefNjtS9XGPHuK",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:37:35.324Z",
+  "importedAt": "2026-03-17T22:37:35.324Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.772Z"
+}

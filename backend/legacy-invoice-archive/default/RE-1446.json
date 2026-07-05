@@ -1,0 +1,23 @@
+{
+  "id": "pC5iSIsAl9EP1tdrhi4c",
+  "tenantId": "default",
+  "sevdeskId": "118365729",
+  "invoiceNumber": "RE-1446",
+  "date": "2026-03-02",
+  "dueDate": null,
+  "amountGross": 5.49,
+  "amountNetto": 5.49,
+  "amountNet": 5.49,
+  "vatAmount": 0,
+  "currency": "EUR",
+  "customer": {
+    "name": "Malte Huch"
+  },
+  "orderId": "jvVmz9DIpI5LlDbwmSUO",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:34:27.642Z",
+  "importedAt": "2026-03-17T22:34:27.642Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.773Z"
+}

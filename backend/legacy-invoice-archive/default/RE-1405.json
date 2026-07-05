@@ -1,0 +1,23 @@
+{
+  "id": "wtYueKuZQl2szcW8i2KA",
+  "tenantId": "default",
+  "sevdeskId": "117642496",
+  "invoiceNumber": "RE-1405",
+  "date": "2026-02-23",
+  "dueDate": null,
+  "amountGross": 29.95,
+  "amountNetto": 29.95,
+  "amountNet": 29.95,
+  "vatAmount": 0,
+  "currency": "EUR",
+  "customer": {
+    "name": "Reiner Dilba"
+  },
+  "orderId": "DCB09kTZVLGUbIpdva6K",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:34:36.268Z",
+  "importedAt": "2026-03-17T22:34:36.268Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.773Z"
+}

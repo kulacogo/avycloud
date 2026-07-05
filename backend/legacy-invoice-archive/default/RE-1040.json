@@ -1,0 +1,22 @@
+{
+  "id": "OUOXOy6GlXF279BrRQyF",
+  "tenantId": "default",
+  "sevdeskId": "112740139",
+  "invoiceNumber": "RE-1040",
+  "date": "2025-12-16",
+  "dueDate": "2025-12-16",
+  "status": "bezahlt",
+  "amountGross": 179,
+  "amountNetto": 150.42,
+  "amountNet": 150.42,
+  "vatAmount": 28.58,
+  "currency": "EUR",
+  "customer": {
+    "name": "Daniela Benseddik"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:53:46.690Z",
+  "importedAt": "2026-03-17T22:53:46.690Z"
+}

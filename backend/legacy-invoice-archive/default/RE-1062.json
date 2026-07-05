@@ -1,0 +1,22 @@
+{
+  "id": "5b39EczMQKoRnSY8IuN4",
+  "tenantId": "default",
+  "sevdeskId": "113170650",
+  "invoiceNumber": "RE-1062",
+  "date": "2025-12-21",
+  "dueDate": "2025-12-21",
+  "status": "bezahlt",
+  "amountGross": 69.99,
+  "amountNetto": 58.82,
+  "amountNet": 58.82,
+  "vatAmount": 11.17,
+  "currency": "EUR",
+  "customer": {
+    "name": "Sebastian Eckelt"
+  },
+  "orderId": "xH4OhMLInpFHoKscwhby",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:53:26.792Z",
+  "importedAt": "2026-03-17T22:53:26.792Z"
+}

@@ -1,0 +1,23 @@
+{
+  "id": "iroQ3zmCBIetly1oIhuE",
+  "tenantId": "default",
+  "sevdeskId": "116947094",
+  "invoiceNumber": "RE-1347",
+  "date": "2026-02-12",
+  "dueDate": null,
+  "amountGross": 161.47,
+  "amountNetto": 135.69,
+  "amountNet": 135.69,
+  "vatAmount": 25.78,
+  "currency": "EUR",
+  "customer": {
+    "name": "Claudio Elgueta"
+  },
+  "orderId": "KXw0oiqUGaX4NLC37730",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:36:34.821Z",
+  "importedAt": "2026-03-17T22:36:34.821Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.772Z"
+}

@@ -1,0 +1,22 @@
+{
+  "id": "5fQuFk1K61FW1UbpNPkf",
+  "tenantId": "default",
+  "sevdeskId": "115014594",
+  "invoiceNumber": "RE-1172",
+  "date": "2026-01-19",
+  "dueDate": "2026-01-19",
+  "status": "bezahlt",
+  "amountGross": 24.36,
+  "amountNetto": 20.47,
+  "amountNet": 20.47,
+  "vatAmount": 3.89,
+  "currency": "EUR",
+  "customer": {
+    "name": "Annette Danne"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:41:00.304Z",
+  "importedAt": "2026-03-17T22:41:00.304Z"
+}

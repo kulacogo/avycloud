@@ -1,0 +1,33 @@
+{
+  "id": "4eSNY4sphnIp6wmaG216",
+  "tenantId": "default",
+  "invoiceNumber": "RE-2188",
+  "sevdeskId": "127385212",
+  "sevdeskExportedAt": "2026-06-25T03:53:47.606Z",
+  "orderId": "29942792",
+  "orderNumber": "M36BFH5",
+  "marketplaceOrderId": "M36BFH5",
+  "marketplace": "kaufland",
+  "customer": {
+    "country": "DE",
+    "city": "Kyritz",
+    "name": "Pia Redepenning",
+    "zip": "16866",
+    "phone": null,
+    "street": "straße der jugend 11",
+    "email": "canwm24q-c56fc91e3f39@kaufland-marktplatz.de"
+  },
+  "amountNetto": 28.56,
+  "amountNet": 28.56,
+  "amountBrutto": 33.99,
+  "amountGross": 33.99,
+  "vatRate": 0.19,
+  "vatAmount": 5.43,
+  "currency": "EUR",
+  "status": "offen",
+  "date": "2026-06-25",
+  "dueDate": "2026-07-09",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-2188.pdf",
+  "createdAt": "2026-06-25T03:53:47.606Z",
+  "createdBy": null
+}

@@ -1,0 +1,33 @@
+{
+  "id": "4Ry46iQ2RtAdMnJAacZC",
+  "tenantId": "default",
+  "invoiceNumber": "RE-2248",
+  "sevdeskId": "127385288",
+  "sevdeskExportedAt": "2026-06-25T03:54:58.368Z",
+  "orderId": "32550281",
+  "orderNumber": "MTW67D5",
+  "marketplaceOrderId": "MTW67D5",
+  "marketplace": "kaufland",
+  "customer": {
+    "country": "DE",
+    "city": "Lampertheim",
+    "name": "Joachim Stumpf",
+    "zip": "68623",
+    "phone": null,
+    "street": "Schwanenstr. 18",
+    "email": "calrwi0q-fad35f70e76f@kaufland-marktplatz.de"
+  },
+  "amountNetto": 109.16,
+  "amountNet": 109.16,
+  "amountBrutto": 129.9,
+  "amountGross": 129.9,
+  "vatRate": 0.19,
+  "vatAmount": 20.74,
+  "currency": "EUR",
+  "status": "offen",
+  "date": "2026-06-25",
+  "dueDate": "2026-07-09",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-2248.pdf",
+  "createdAt": "2026-06-25T03:54:58.369Z",
+  "createdBy": null
+}

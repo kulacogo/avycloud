@@ -1,0 +1,25 @@
+{
+  "id": "Ieb5AbZi2v37Mi66RMzJ",
+  "tenantId": "default",
+  "type": "storno",
+  "originalInvoiceId": "WKGp7pV6DRcVCkRCf5Xh",
+  "originalInvoiceNumber": "RE-1285",
+  "orderId": "aQINDEK29BQz2UzKRHP2",
+  "orderNumber": null,
+  "marketplaceOrderId": null,
+  "marketplace": null,
+  "amountGross": 24.27,
+  "amountNetto": 20.39,
+  "amountNet": 20.39,
+  "vatRate": 0.19,
+  "currency": "EUR",
+  "customer": {
+    "name": "Gina Otto"
+  },
+  "reason": "Stornierung Bestellung",
+  "status": "storniert",
+  "date": "2026-03-17",
+  "createdAt": "2026-03-17T22:58:20.243Z",
+  "sevdeskId": "2629279",
+  "updatedAt": "2026-03-17T23:12:18.570Z"
+}

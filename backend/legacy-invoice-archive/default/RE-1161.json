@@ -1,0 +1,22 @@
+{
+  "id": "CWR6vBYSFoGRXwt5twgd",
+  "tenantId": "default",
+  "sevdeskId": "114730471",
+  "invoiceNumber": "RE-1161",
+  "date": "2026-01-14",
+  "dueDate": "2026-01-14",
+  "status": "bezahlt",
+  "amountGross": 32,
+  "amountNetto": 26.89,
+  "amountNet": 26.89,
+  "vatAmount": 5.11,
+  "currency": "EUR",
+  "customer": {
+    "name": "Willy Ridderskamp"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:41:24.647Z",
+  "importedAt": "2026-03-17T22:41:24.647Z"
+}

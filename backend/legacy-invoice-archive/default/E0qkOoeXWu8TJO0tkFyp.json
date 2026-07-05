@@ -1,0 +1,25 @@
+{
+  "id": "E0qkOoeXWu8TJO0tkFyp",
+  "tenantId": "default",
+  "type": "storno",
+  "originalInvoiceId": "3m11XrFhgYfTMJ5jo865",
+  "originalInvoiceNumber": "RE-1123",
+  "orderId": "z2jZ2RA8pPXmflUz2JYT",
+  "orderNumber": null,
+  "marketplaceOrderId": null,
+  "marketplace": null,
+  "amountGross": 129.99,
+  "amountNetto": 109.24,
+  "amountNet": 109.24,
+  "vatRate": 0.19,
+  "currency": "EUR",
+  "customer": {
+    "name": "Axel Börner"
+  },
+  "reason": "Stornierung Bestellung",
+  "status": "storniert",
+  "date": "2026-03-17",
+  "createdAt": "2026-03-17T22:58:22.101Z",
+  "sevdeskId": "2629277",
+  "updatedAt": "2026-03-17T23:12:09.034Z"
+}

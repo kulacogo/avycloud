@@ -1,0 +1,23 @@
+{
+  "id": "r0UbKnLuM5DBkv57SoMk",
+  "tenantId": "default",
+  "sevdeskId": "117401552",
+  "invoiceNumber": "RE-1381",
+  "date": "2026-02-19",
+  "dueDate": null,
+  "amountGross": 60.43,
+  "amountNetto": 60.43,
+  "amountNet": 60.43,
+  "vatAmount": 0,
+  "currency": "EUR",
+  "customer": {
+    "name": "Michel Sobon"
+  },
+  "orderId": "Jkrv2s2vmVTDKxqUeHiO",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:35:35.025Z",
+  "importedAt": "2026-03-17T22:35:35.025Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.773Z"
+}

@@ -1,0 +1,22 @@
+{
+  "id": "r2LFkb8DXuzxwDXnUv7D",
+  "tenantId": "default",
+  "sevdeskId": "109265899",
+  "invoiceNumber": "RE-1003",
+  "date": "2025-11-05",
+  "dueDate": "2025-11-05",
+  "status": "bezahlt",
+  "amountGross": 40.46,
+  "amountNetto": 34,
+  "amountNet": 34,
+  "vatAmount": 6.46,
+  "currency": "EUR",
+  "customer": {
+    "name": "Marc Krueger"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:54:27.096Z",
+  "importedAt": "2026-03-17T22:54:27.096Z"
+}

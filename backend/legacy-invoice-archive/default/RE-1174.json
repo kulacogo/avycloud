@@ -1,0 +1,22 @@
+{
+  "id": "VtPB4hFA4nHhypW2NxS9",
+  "tenantId": "default",
+  "sevdeskId": "115014811",
+  "invoiceNumber": "RE-1174",
+  "date": "2026-01-19",
+  "dueDate": "2026-01-19",
+  "status": "bezahlt",
+  "amountGross": 48.15,
+  "amountNetto": 40.46,
+  "amountNet": 40.46,
+  "vatAmount": 7.69,
+  "currency": "EUR",
+  "customer": {
+    "name": "Lars Rittersen"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:40:54.404Z",
+  "importedAt": "2026-03-17T22:40:54.404Z"
+}

@@ -1,0 +1,22 @@
+{
+  "id": "zAWOOxCcp996iPsIXORq",
+  "tenantId": "default",
+  "sevdeskId": "116126105",
+  "invoiceNumber": "RE-1250",
+  "date": "2026-02-02",
+  "dueDate": "2026-02-02",
+  "status": "bezahlt",
+  "amountGross": 31.99,
+  "amountNetto": 26.88,
+  "amountNet": 26.88,
+  "vatAmount": 5.11,
+  "currency": "EUR",
+  "customer": {
+    "name": "Sabine Pohl"
+  },
+  "orderId": "j0YMk2eDUSdVktC166fb",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:39:24.773Z",
+  "importedAt": "2026-03-17T22:39:24.773Z"
+}

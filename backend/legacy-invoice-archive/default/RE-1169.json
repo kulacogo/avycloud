@@ -1,0 +1,22 @@
+{
+  "id": "mUBlvTQSegwqHdqoHvuE",
+  "tenantId": "default",
+  "sevdeskId": "114916864",
+  "invoiceNumber": "RE-1169",
+  "date": "2026-01-17",
+  "dueDate": "2026-01-17",
+  "status": "bezahlt",
+  "amountGross": 29.95,
+  "amountNetto": 25.17,
+  "amountNet": 25.17,
+  "vatAmount": 4.78,
+  "currency": "EUR",
+  "customer": {
+    "name": "Johann Lepp"
+  },
+  "orderId": "ms0ziShJTyqJnbQuR2no",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:41:13.604Z",
+  "importedAt": "2026-03-17T22:41:13.604Z"
+}

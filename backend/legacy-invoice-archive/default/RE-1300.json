@@ -1,0 +1,23 @@
+{
+  "id": "pVMXSX28r7tqx5vx6bI5",
+  "tenantId": "default",
+  "sevdeskId": "116669290",
+  "invoiceNumber": "RE-1300",
+  "date": "2026-02-09",
+  "dueDate": null,
+  "amountGross": 28.45,
+  "amountNetto": 23.91,
+  "amountNet": 23.91,
+  "vatAmount": 4.54,
+  "currency": "EUR",
+  "customer": {
+    "name": "Peter Spannagel"
+  },
+  "orderId": "D5lrmjgX3koFk7TSpp0t",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:37:36.604Z",
+  "importedAt": "2026-03-17T22:37:36.604Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.773Z"
+}

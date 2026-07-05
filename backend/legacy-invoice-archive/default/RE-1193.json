@@ -1,0 +1,22 @@
+{
+  "id": "Tku41vHaWQOsZsOqMWDC",
+  "tenantId": "default",
+  "sevdeskId": "115178691",
+  "invoiceNumber": "RE-1193",
+  "date": "2026-01-21",
+  "dueDate": "2026-01-21",
+  "status": "bezahlt",
+  "amountGross": 38.5,
+  "amountNetto": 32.35,
+  "amountNet": 32.35,
+  "vatAmount": 6.15,
+  "currency": "EUR",
+  "customer": {
+    "name": "Thomas Reckel"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:40:25.531Z",
+  "importedAt": "2026-03-17T22:40:25.531Z"
+}

@@ -1,0 +1,23 @@
+{
+  "id": "1V0VilYe5LZCRQrq94eG",
+  "tenantId": "default",
+  "sevdeskId": "117401590",
+  "invoiceNumber": "RE-1382",
+  "date": "2026-02-19",
+  "dueDate": null,
+  "amountGross": 212.5,
+  "amountNetto": 178.57,
+  "amountNet": 178.57,
+  "vatAmount": 33.93,
+  "currency": "EUR",
+  "customer": {
+    "name": "rolf+cornelia borchers"
+  },
+  "orderId": "7ImEocHTSnulGToVIn4U",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:35:34.969Z",
+  "importedAt": "2026-03-17T22:35:34.969Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.770Z"
+}

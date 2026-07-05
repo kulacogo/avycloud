@@ -1,0 +1,22 @@
+{
+  "id": "x9kpaB7WNcGlI5Ej8M7A",
+  "tenantId": "default",
+  "sevdeskId": "115494180",
+  "invoiceNumber": "RE-1212",
+  "date": "2026-01-26",
+  "dueDate": "2026-01-26",
+  "status": "bezahlt",
+  "amountGross": 21.08,
+  "amountNetto": 17.71,
+  "amountNet": 17.71,
+  "vatAmount": 3.37,
+  "currency": "EUR",
+  "customer": {
+    "name": "Eugen Damm"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:40:05.104Z",
+  "importedAt": "2026-03-17T22:40:05.104Z"
+}

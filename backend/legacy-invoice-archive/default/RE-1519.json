@@ -1,0 +1,33 @@
+{
+  "id": "9uAMARYOesEneIt0AyLk",
+  "tenantId": "default",
+  "invoiceNumber": "RE-1519",
+  "sevdeskId": "119604422",
+  "sevdeskExportedAt": "2026-03-17T23:23:24.747Z",
+  "orderId": "MVsgR5dw7RnRqgDLdUqv",
+  "orderNumber": "16-14207-02300",
+  "marketplaceOrderId": "16-14207-02300",
+  "marketplace": "ebay",
+  "customer": {
+    "name": "Alfred Klug GmbH & Co KG  Michael Schauer",
+    "street": "Dr.-Arnheim-Str. 4",
+    "city": "Hof",
+    "country": "DE",
+    "phone": "Invalid Request",
+    "email": null,
+    "zip": "95030"
+  },
+  "amountNetto": 11.73,
+  "amountBrutto": 13.96,
+  "vatRate": 0.19,
+  "vatAmount": 2.23,
+  "currency": "EUR",
+  "date": "2026-03-17",
+  "dueDate": "2026-03-31",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-1519.pdf",
+  "createdAt": "2026-03-17T23:23:24.747Z",
+  "createdBy": null,
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.771Z",
+  "pdfRegeneratedAt": "2026-06-02T09:11:06.606Z"
+}

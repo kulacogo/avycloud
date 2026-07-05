@@ -1,0 +1,22 @@
+{
+  "id": "2dOxt60eOsTjEc3tZ98W",
+  "tenantId": "default",
+  "sevdeskId": "116264138",
+  "invoiceNumber": "RE-1259",
+  "date": "2026-02-03",
+  "dueDate": "2026-02-03",
+  "status": "bezahlt",
+  "amountGross": 23.99,
+  "amountNetto": 20.16,
+  "amountNet": 20.16,
+  "vatAmount": 3.83,
+  "currency": "EUR",
+  "customer": {
+    "name": "Liane Fischer"
+  },
+  "orderId": "qvq402h6xL73uzIYtrAe",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:39:14.104Z",
+  "importedAt": "2026-03-17T22:39:14.104Z"
+}

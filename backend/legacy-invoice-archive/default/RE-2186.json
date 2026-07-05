@@ -1,0 +1,33 @@
+{
+  "id": "w0yuJRiY6eGfBNFyedHU",
+  "tenantId": "default",
+  "invoiceNumber": "RE-2186",
+  "sevdeskId": "127385210",
+  "sevdeskExportedAt": "2026-06-25T03:53:45.465Z",
+  "orderId": "29908389",
+  "orderNumber": "MTU77H5",
+  "marketplaceOrderId": "MTU77H5",
+  "marketplace": "kaufland",
+  "customer": {
+    "country": "DE",
+    "city": "Mülheim an der Ruhr",
+    "name": "Irfan Buqinca",
+    "zip": "45468",
+    "phone": null,
+    "street": "Dohne 15B",
+    "email": "caloii4q-8105db71670f@kaufland-marktplatz.de"
+  },
+  "amountNetto": 46.21,
+  "amountNet": 46.21,
+  "amountBrutto": 54.99,
+  "amountGross": 54.99,
+  "vatRate": 0.19,
+  "vatAmount": 8.78,
+  "currency": "EUR",
+  "status": "offen",
+  "date": "2026-06-25",
+  "dueDate": "2026-07-09",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-2186.pdf",
+  "createdAt": "2026-06-25T03:53:45.465Z",
+  "createdBy": null
+}

@@ -1,0 +1,25 @@
+{
+  "id": "yVAl5j2Ukta5fCasYscw",
+  "tenantId": "default",
+  "type": "storno",
+  "originalInvoiceId": "pNjT2KjlDn2haLlC9K1k",
+  "originalInvoiceNumber": "RE-1294",
+  "orderId": "g5SKIfrgJqg8AnRCeh45",
+  "orderNumber": null,
+  "marketplaceOrderId": null,
+  "marketplace": null,
+  "amountGross": 15.49,
+  "amountNetto": 13.02,
+  "amountNet": 13.02,
+  "vatRate": 0.19,
+  "currency": "EUR",
+  "customer": {
+    "name": "Olaf-Christian Koch"
+  },
+  "reason": "Stornierung Bestellung",
+  "status": "storniert",
+  "date": "2026-03-17",
+  "createdAt": "2026-03-17T22:58:21.057Z",
+  "sevdeskId": "2629282",
+  "updatedAt": "2026-03-17T23:12:35.935Z"
+}

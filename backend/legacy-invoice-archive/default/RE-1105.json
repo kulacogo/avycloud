@@ -1,0 +1,22 @@
+{
+  "id": "Sc4tj6ri31xbHPUsCCf3",
+  "tenantId": "default",
+  "sevdeskId": "113785445",
+  "invoiceNumber": "RE-1105",
+  "date": "2026-01-01",
+  "dueDate": "2026-01-01",
+  "status": "bezahlt",
+  "amountGross": 21,
+  "amountNetto": 17.65,
+  "amountNet": 17.65,
+  "vatAmount": 3.35,
+  "currency": "EUR",
+  "customer": {
+    "name": "Thilo Hepp"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:42:25.510Z",
+  "importedAt": "2026-03-17T22:42:25.510Z"
+}

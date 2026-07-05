@@ -1,0 +1,22 @@
+{
+  "id": "odjW3VCOJM9bjkn066vb",
+  "tenantId": "default",
+  "sevdeskId": "115493640",
+  "invoiceNumber": "RE-1207",
+  "date": "2026-01-26",
+  "dueDate": "2026-01-26",
+  "status": "bezahlt",
+  "amountGross": 110.41,
+  "amountNetto": 92.78,
+  "amountNet": 92.78,
+  "vatAmount": 17.63,
+  "currency": "EUR",
+  "customer": {
+    "name": "Kai Olschewski"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:40:24.475Z",
+  "importedAt": "2026-03-17T22:40:24.475Z"
+}

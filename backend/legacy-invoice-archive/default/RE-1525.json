@@ -1,0 +1,33 @@
+{
+  "id": "vNoSjS6fUdlnf7WznznJ",
+  "tenantId": "default",
+  "invoiceNumber": "RE-1525",
+  "sevdeskId": "119604429",
+  "sevdeskExportedAt": "2026-03-17T23:23:43.094Z",
+  "orderId": "pgCSOaOzW6OJttzvxbid",
+  "orderNumber": "05-14244-05424",
+  "marketplaceOrderId": "05-14244-05424",
+  "marketplace": "ebay",
+  "customer": {
+    "name": "Alexander Thiel",
+    "street": "Ebertstr. 23",
+    "city": "Eislingen",
+    "country": "DE",
+    "phone": "Invalid Request",
+    "email": null,
+    "zip": "73054"
+  },
+  "amountNetto": 35.71,
+  "amountBrutto": 42.5,
+  "vatRate": 0.19,
+  "vatAmount": 6.79,
+  "currency": "EUR",
+  "date": "2026-03-17",
+  "dueDate": "2026-03-31",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-1525.pdf",
+  "createdAt": "2026-03-17T23:23:43.094Z",
+  "createdBy": null,
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.773Z",
+  "pdfRegeneratedAt": "2026-06-02T09:14:32.826Z"
+}

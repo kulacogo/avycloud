@@ -1,0 +1,23 @@
+{
+  "id": "7Un30frUYGKBXGAYNWYn",
+  "tenantId": "default",
+  "sevdeskId": "117920837",
+  "invoiceNumber": "RE-1432",
+  "date": "2026-02-26",
+  "dueDate": null,
+  "amountGross": 43.55,
+  "amountNetto": 36.59,
+  "amountNet": 36.59,
+  "vatAmount": 6.96,
+  "currency": "EUR",
+  "customer": {
+    "name": "Edith Howein"
+  },
+  "orderId": "cCeno5GR8y0tlg9M5LOF",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:34:34.283Z",
+  "importedAt": "2026-03-17T22:34:34.283Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.771Z"
+}

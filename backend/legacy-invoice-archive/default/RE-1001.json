@@ -1,0 +1,22 @@
+{
+  "id": "FiUxhIkK1emdKrS38mL0",
+  "tenantId": "default",
+  "sevdeskId": "109035043",
+  "invoiceNumber": "RE-1001",
+  "date": "2025-11-03",
+  "dueDate": "2025-11-03",
+  "status": "bezahlt",
+  "amountGross": 8.33,
+  "amountNetto": 7,
+  "amountNet": 7,
+  "vatAmount": 1.33,
+  "currency": "EUR",
+  "customer": {
+    "name": "Herbert Boellinger"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:54:27.210Z",
+  "importedAt": "2026-03-17T22:54:27.210Z"
+}

@@ -1,0 +1,22 @@
+{
+  "id": "9hcDbP7sxyZtlfK0BRhN",
+  "tenantId": "default",
+  "sevdeskId": "114309889",
+  "invoiceNumber": "RE-1128",
+  "date": "2026-01-08",
+  "dueDate": "2026-01-08",
+  "status": "bezahlt",
+  "amountGross": 49,
+  "amountNetto": 41.18,
+  "amountNet": 41.18,
+  "vatAmount": 7.82,
+  "currency": "EUR",
+  "customer": {
+    "name": "Christian Vormann"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:41:42.984Z",
+  "importedAt": "2026-03-17T22:41:42.984Z"
+}

@@ -1,0 +1,33 @@
+{
+  "id": "fdtKUcmqY0f8ry4zbKyz",
+  "tenantId": "default",
+  "invoiceNumber": "RE-2226",
+  "sevdeskId": "127385262",
+  "sevdeskExportedAt": "2026-06-25T03:54:31.087Z",
+  "orderId": "31400743",
+  "orderNumber": "MTG8945",
+  "marketplaceOrderId": "MTG8945",
+  "marketplace": "kaufland",
+  "customer": {
+    "country": "DE",
+    "city": "Burgbernheim",
+    "name": "Liane Kaiser",
+    "zip": "91593",
+    "phone": null,
+    "street": "Ostdeutsche Straße 4",
+    "email": "cal3k8xq-f371e1d11d35@kaufland-marktplatz.de"
+  },
+  "amountNetto": 29.37,
+  "amountNet": 29.37,
+  "amountBrutto": 34.95,
+  "amountGross": 34.95,
+  "vatRate": 0.19,
+  "vatAmount": 5.58,
+  "currency": "EUR",
+  "status": "offen",
+  "date": "2026-06-25",
+  "dueDate": "2026-07-09",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-2226.pdf",
+  "createdAt": "2026-06-25T03:54:31.087Z",
+  "createdBy": null
+}

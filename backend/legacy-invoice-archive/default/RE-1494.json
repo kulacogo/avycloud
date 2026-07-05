@@ -1,0 +1,23 @@
+{
+  "id": "1ylE4Y0gF7kmqxsKL7a6",
+  "tenantId": "default",
+  "sevdeskId": "119295601",
+  "invoiceNumber": "RE-1494",
+  "date": "2026-03-13",
+  "dueDate": null,
+  "amountGross": 75.39,
+  "amountNetto": 63.35,
+  "amountNet": 63.35,
+  "vatAmount": 12.04,
+  "currency": "EUR",
+  "customer": {
+    "name": "Hasan Edikyakan"
+  },
+  "orderId": "LA87aHQEm7QVtY0SfKbq",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:33:25.785Z",
+  "importedAt": "2026-03-17T22:33:25.785Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.771Z"
+}

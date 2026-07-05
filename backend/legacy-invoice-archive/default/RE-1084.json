@@ -1,0 +1,22 @@
+{
+  "id": "Iyh8bPuUVuvFPiI0ZibT",
+  "tenantId": "default",
+  "sevdeskId": "113436356",
+  "invoiceNumber": "RE-1084",
+  "date": "2025-12-27",
+  "dueDate": "2025-12-27",
+  "status": "bezahlt",
+  "amountGross": 35.39,
+  "amountNetto": 29.74,
+  "amountNet": 29.74,
+  "vatAmount": 5.65,
+  "currency": "EUR",
+  "customer": {
+    "name": "Markus Euler"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:42:26.599Z",
+  "importedAt": "2026-03-17T22:42:26.599Z"
+}

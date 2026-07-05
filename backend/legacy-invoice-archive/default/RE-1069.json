@@ -1,0 +1,22 @@
+{
+  "id": "tM71U3V4fZTNOUDdzzzG",
+  "tenantId": "default",
+  "sevdeskId": "113256021",
+  "invoiceNumber": "RE-1069",
+  "date": "2025-12-22",
+  "dueDate": "2025-12-22",
+  "status": "bezahlt",
+  "amountGross": 61.89,
+  "amountNetto": 52.01,
+  "amountNet": 52.01,
+  "vatAmount": 9.88,
+  "currency": "EUR",
+  "customer": {
+    "name": "Siegfried,Wolfgang Lapstich"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:46:51.503Z",
+  "importedAt": "2026-03-17T22:46:51.503Z"
+}

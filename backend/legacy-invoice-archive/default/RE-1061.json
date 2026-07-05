@@ -1,0 +1,22 @@
+{
+  "id": "o3q3CQdhNVWYJ9loTY90",
+  "tenantId": "default",
+  "sevdeskId": "113168892",
+  "invoiceNumber": "RE-1061",
+  "date": "2025-12-21",
+  "dueDate": "2025-12-21",
+  "status": "bezahlt",
+  "amountGross": 55.25,
+  "amountNetto": 46.43,
+  "amountNet": 46.43,
+  "vatAmount": 8.82,
+  "currency": "EUR",
+  "customer": {
+    "name": "Steffen Rau"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:53:27.032Z",
+  "importedAt": "2026-03-17T22:53:27.032Z"
+}

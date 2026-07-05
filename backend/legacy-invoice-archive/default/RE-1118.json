@@ -1,0 +1,22 @@
+{
+  "id": "BDkSI1B1nW4lkdrZoG5z",
+  "tenantId": "default",
+  "sevdeskId": "114129183",
+  "invoiceNumber": "RE-1118",
+  "date": "2026-01-06",
+  "dueDate": "2026-01-06",
+  "status": "bezahlt",
+  "amountGross": 32.95,
+  "amountNetto": 27.69,
+  "amountNet": 27.69,
+  "vatAmount": 5.26,
+  "currency": "EUR",
+  "customer": {
+    "name": "Marianne Zwink"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:42:24.694Z",
+  "importedAt": "2026-03-17T22:42:24.694Z"
+}

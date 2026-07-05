@@ -1,0 +1,33 @@
+{
+  "id": "DEho6opttlz3Go8NhrR6",
+  "tenantId": "default",
+  "invoiceNumber": "RE-2217",
+  "sevdeskId": "127385248",
+  "sevdeskExportedAt": "2026-06-25T03:54:20.390Z",
+  "orderId": "30799662",
+  "orderNumber": "MCUAL15",
+  "marketplaceOrderId": "MCUAL15",
+  "marketplace": "kaufland",
+  "customer": {
+    "country": "DE",
+    "city": "Hannover",
+    "name": "Igor Bermann",
+    "zip": "30539",
+    "phone": null,
+    "street": "Sohrenkamp 3",
+    "email": "cagoh9zq-10c738639ca3@kaufland-marktplatz.de"
+  },
+  "amountNetto": 15.09,
+  "amountNet": 15.09,
+  "amountBrutto": 17.96,
+  "amountGross": 17.96,
+  "vatRate": 0.19,
+  "vatAmount": 2.87,
+  "currency": "EUR",
+  "status": "offen",
+  "date": "2026-06-25",
+  "dueDate": "2026-07-09",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-2217.pdf",
+  "createdAt": "2026-06-25T03:54:20.390Z",
+  "createdBy": null
+}

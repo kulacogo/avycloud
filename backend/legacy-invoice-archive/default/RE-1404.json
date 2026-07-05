@@ -1,0 +1,23 @@
+{
+  "id": "g7VeuyknYMiKbeJCYfRp",
+  "tenantId": "default",
+  "sevdeskId": "117642420",
+  "invoiceNumber": "RE-1404",
+  "date": "2026-02-23",
+  "dueDate": null,
+  "amountGross": 23,
+  "amountNetto": 23,
+  "amountNet": 23,
+  "vatAmount": 0,
+  "currency": "EUR",
+  "customer": {
+    "name": "Martina Patt"
+  },
+  "orderId": "BbzJCRB38Iuyo73a5cn0",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:34:36.318Z",
+  "importedAt": "2026-03-17T22:34:36.318Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.772Z"
+}

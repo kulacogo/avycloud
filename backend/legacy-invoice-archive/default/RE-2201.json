@@ -1,0 +1,33 @@
+{
+  "id": "uy7Kk9ERnh9XBEoZjI16",
+  "tenantId": "default",
+  "invoiceNumber": "RE-2201",
+  "sevdeskId": "127385228",
+  "sevdeskExportedAt": "2026-06-25T03:54:01.582Z",
+  "orderId": "30440045",
+  "orderNumber": "MYYWP15",
+  "marketplaceOrderId": "MYYWP15",
+  "marketplace": "kaufland",
+  "customer": {
+    "country": "DE",
+    "city": "Gefrees",
+    "name": "Liane Fischer",
+    "zip": "95482",
+    "phone": null,
+    "street": "Falls 10",
+    "email": "cauurdzq-1403d3e4ef3b@kaufland-marktplatz.de"
+  },
+  "amountNetto": 20.16,
+  "amountNet": 20.16,
+  "amountBrutto": 23.99,
+  "amountGross": 23.99,
+  "vatRate": 0.19,
+  "vatAmount": 3.83,
+  "currency": "EUR",
+  "status": "offen",
+  "date": "2026-06-25",
+  "dueDate": "2026-07-09",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-2201.pdf",
+  "createdAt": "2026-06-25T03:54:01.582Z",
+  "createdBy": null
+}

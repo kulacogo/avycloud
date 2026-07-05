@@ -1,0 +1,33 @@
+{
+  "id": "fzLo6hmis0nM7FGb1eMa",
+  "tenantId": "default",
+  "invoiceNumber": "RE-1521",
+  "sevdeskId": "119604425",
+  "sevdeskExportedAt": "2026-03-17T23:23:31.524Z",
+  "orderId": "RIbcLcgwKaahI4IbpNRt",
+  "orderNumber": "19-14145-46185",
+  "marketplaceOrderId": "19-14145-46185",
+  "marketplace": "ebay",
+  "customer": {
+    "name": "Tanja Terekhof",
+    "street": "Neißestraße 35",
+    "city": "Cloppenburg",
+    "country": "DE",
+    "phone": "Invalid Request",
+    "email": null,
+    "zip": "49661"
+  },
+  "amountNetto": 58.82,
+  "amountBrutto": 70,
+  "vatRate": 0.19,
+  "vatAmount": 11.18,
+  "currency": "EUR",
+  "date": "2026-03-17",
+  "dueDate": "2026-03-31",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-1521.pdf",
+  "createdAt": "2026-03-17T23:23:31.524Z",
+  "createdBy": null,
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.772Z",
+  "pdfRegeneratedAt": "2026-06-02T09:13:32.167Z"
+}

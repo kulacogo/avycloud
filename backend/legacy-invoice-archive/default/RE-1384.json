@@ -1,0 +1,23 @@
+{
+  "id": "09EhGsIlNOCCVfz8GSBk",
+  "tenantId": "default",
+  "sevdeskId": "117401691",
+  "invoiceNumber": "RE-1384",
+  "date": "2026-02-19",
+  "dueDate": null,
+  "amountGross": 93.5,
+  "amountNetto": 78.57,
+  "amountNet": 78.57,
+  "vatAmount": 14.93,
+  "currency": "EUR",
+  "customer": {
+    "name": "Nicole Wilmeroth"
+  },
+  "orderId": "8yLvBP8LKYCuUsiUX4sM",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:35:34.851Z",
+  "importedAt": "2026-03-17T22:35:34.851Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.770Z"
+}

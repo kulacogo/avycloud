@@ -1,0 +1,33 @@
+{
+  "id": "EWm1lw1CgkGIh9mjifO3",
+  "tenantId": "default",
+  "invoiceNumber": "RE-2246",
+  "sevdeskId": "127385286",
+  "sevdeskExportedAt": "2026-06-25T03:54:55.882Z",
+  "orderId": "32445728",
+  "orderNumber": "MPF3UD5",
+  "marketplaceOrderId": "MPF3UD5",
+  "marketplace": "kaufland",
+  "customer": {
+    "country": "DE",
+    "city": "Hofbieber",
+    "name": "Marion Fleck",
+    "zip": "36145",
+    "phone": null,
+    "street": "An der Röthe 11",
+    "email": "cad2no0q-378d727d07e6@kaufland-marktplatz.de"
+  },
+  "amountNetto": 32.61,
+  "amountNet": 32.61,
+  "amountBrutto": 38.8,
+  "amountGross": 38.8,
+  "vatRate": 0.19,
+  "vatAmount": 6.19,
+  "currency": "EUR",
+  "status": "offen",
+  "date": "2026-06-25",
+  "dueDate": "2026-07-09",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-2246.pdf",
+  "createdAt": "2026-06-25T03:54:55.882Z",
+  "createdBy": null
+}

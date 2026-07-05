@@ -1,0 +1,22 @@
+{
+  "id": "xHQuwM3M47Fu51j7iuri",
+  "tenantId": "default",
+  "sevdeskId": "115909273",
+  "invoiceNumber": "RE-1237",
+  "date": "2026-01-31",
+  "dueDate": "2026-01-31",
+  "status": "bezahlt",
+  "amountGross": 34.99,
+  "amountNetto": 29.4,
+  "amountNet": 29.4,
+  "vatAmount": 5.59,
+  "currency": "EUR",
+  "customer": {
+    "name": "Martin Kast"
+  },
+  "orderId": "RskTLAcULcwuhWaPQJyC",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:39:25.670Z",
+  "importedAt": "2026-03-17T22:39:25.670Z"
+}

@@ -1,0 +1,23 @@
+{
+  "id": "eSB1a8TieNy1D5NyMwNH",
+  "tenantId": "default",
+  "sevdeskId": "118506066",
+  "invoiceNumber": "RE-1454",
+  "date": "2026-03-03",
+  "dueDate": null,
+  "amountGross": 154.98,
+  "amountNetto": 130.24,
+  "amountNet": 130.24,
+  "vatAmount": 24.74,
+  "currency": "EUR",
+  "customer": {
+    "name": "Martin Sewald"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:34:26.953Z",
+  "importedAt": "2026-03-17T22:34:26.953Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.772Z"
+}

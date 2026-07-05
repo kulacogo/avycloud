@@ -1,0 +1,23 @@
+{
+  "id": "rzFYiE2MqSiaGjiL7Rw9",
+  "tenantId": "default",
+  "sevdeskId": "117018339",
+  "invoiceNumber": "RE-1353",
+  "date": "2026-02-13",
+  "dueDate": null,
+  "amountGross": 210,
+  "amountNetto": 176.47,
+  "amountNet": 176.47,
+  "vatAmount": 33.53,
+  "currency": "EUR",
+  "customer": {
+    "name": "Rafael Matysek"
+  },
+  "orderId": "1zUt26ooOhv2M7rbPPSx",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:36:03.304Z",
+  "importedAt": "2026-03-17T22:36:03.304Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.773Z"
+}

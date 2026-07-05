@@ -1,0 +1,23 @@
+{
+  "id": "rSYs2aZ5tmxAQtuChaym",
+  "tenantId": "default",
+  "sevdeskId": "117155992",
+  "invoiceNumber": "RE-1364",
+  "date": "2026-02-16",
+  "dueDate": null,
+  "amountGross": 19.99,
+  "amountNetto": 16.8,
+  "amountNet": 16.8,
+  "vatAmount": 3.19,
+  "currency": "EUR",
+  "customer": {
+    "name": "Anna Navara"
+  },
+  "orderId": "UEqbeGqgCsyIiKtKzdxC",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:35:36.217Z",
+  "importedAt": "2026-03-17T22:35:36.217Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.773Z"
+}

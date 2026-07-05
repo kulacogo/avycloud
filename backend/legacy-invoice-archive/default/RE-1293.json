@@ -1,0 +1,22 @@
+{
+  "id": "SWdB3cJvAlCjFkj75oWk",
+  "tenantId": "default",
+  "sevdeskId": "116566891",
+  "invoiceNumber": "RE-1293",
+  "date": "2026-02-07",
+  "dueDate": "2026-02-07",
+  "status": "bezahlt",
+  "amountGross": 19.99,
+  "amountNetto": 16.8,
+  "amountNet": 16.8,
+  "vatAmount": 3.19,
+  "currency": "EUR",
+  "customer": {
+    "name": "Rita Arndt"
+  },
+  "orderId": "hRBFkUJB2SIc7Fc7SgQe",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:38:25.321Z",
+  "importedAt": "2026-03-17T22:38:25.321Z"
+}

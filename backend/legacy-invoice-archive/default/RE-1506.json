@@ -1,0 +1,23 @@
+{
+  "id": "xo3POpQO2x20W4vT6JtR",
+  "tenantId": "default",
+  "sevdeskId": "119576653",
+  "invoiceNumber": "RE-1506",
+  "date": "2026-03-17",
+  "dueDate": null,
+  "amountGross": 40.44,
+  "amountNetto": 40.44,
+  "amountNet": 40.44,
+  "vatAmount": 0,
+  "currency": "EUR",
+  "customer": {
+    "name": "Olaf Antoniak"
+  },
+  "orderId": "EVKcTG71t6VdM9ahNrnv",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:32:25.947Z",
+  "importedAt": "2026-03-17T22:32:25.947Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.773Z"
+}

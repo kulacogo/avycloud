@@ -1,0 +1,22 @@
+{
+  "id": "FwuLmGTqta7NC2mi4vWG",
+  "tenantId": "default",
+  "sevdeskId": "113668135",
+  "invoiceNumber": "RE-1098",
+  "date": "2025-12-31",
+  "dueDate": "2025-12-31",
+  "status": "bezahlt",
+  "amountGross": 60.99,
+  "amountNetto": 51.25,
+  "amountNet": 51.25,
+  "vatAmount": 9.74,
+  "currency": "EUR",
+  "customer": {
+    "name": "Leo Daniel"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:42:25.835Z",
+  "importedAt": "2026-03-17T22:42:25.835Z"
+}

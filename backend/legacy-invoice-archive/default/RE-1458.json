@@ -1,0 +1,23 @@
+{
+  "id": "sCdo3VuXhAmQ4AODqJ3H",
+  "tenantId": "default",
+  "sevdeskId": "118506390",
+  "invoiceNumber": "RE-1458",
+  "date": "2026-03-03",
+  "dueDate": null,
+  "amountGross": 60.47,
+  "amountNetto": 50.81,
+  "amountNet": 50.81,
+  "vatAmount": 9.66,
+  "currency": "EUR",
+  "customer": {
+    "name": "jonas-benjamin randolph"
+  },
+  "orderId": "BCfepZmhksrgRzyRnf8q",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:34:26.723Z",
+  "importedAt": "2026-03-17T22:34:26.723Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.773Z"
+}

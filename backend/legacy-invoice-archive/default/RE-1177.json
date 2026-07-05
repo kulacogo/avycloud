@@ -1,0 +1,22 @@
+{
+  "id": "XuBCYJMsChixCJy5qT3P",
+  "tenantId": "default",
+  "sevdeskId": "115015039",
+  "invoiceNumber": "RE-1177",
+  "date": "2026-01-19",
+  "dueDate": "2026-01-19",
+  "status": "bezahlt",
+  "amountGross": 12.1,
+  "amountNetto": 10.17,
+  "amountNet": 10.17,
+  "vatAmount": 1.93,
+  "currency": "EUR",
+  "customer": {
+    "name": "Candis Yogarajah"
+  },
+  "orderId": "hwKUUQKH37MnXLJQpm36",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:40:45.004Z",
+  "importedAt": "2026-03-17T22:40:45.004Z"
+}

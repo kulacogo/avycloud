@@ -1,0 +1,33 @@
+{
+  "id": "snaHZZ9CV7zDl2Gny5y6",
+  "tenantId": "default",
+  "invoiceNumber": "RE-1526",
+  "sevdeskId": "119604430",
+  "sevdeskExportedAt": "2026-03-17T23:23:45.292Z",
+  "orderId": "tBy55nmaSlHamHasA2Qo",
+  "orderNumber": "02-14226-81724",
+  "marketplaceOrderId": "02-14226-81724",
+  "marketplace": "ebay",
+  "customer": {
+    "name": "Udo Spöth",
+    "street": "Lahnstr. 10",
+    "city": "Kalkofen, Gem Dörnberg",
+    "country": "DE",
+    "phone": "Invalid Request",
+    "email": null,
+    "zip": "56377"
+  },
+  "amountNetto": 58.82,
+  "amountBrutto": 70,
+  "vatRate": 0.19,
+  "vatAmount": 11.18,
+  "currency": "EUR",
+  "date": "2026-03-17",
+  "dueDate": "2026-03-31",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-1526.pdf",
+  "createdAt": "2026-03-17T23:23:45.292Z",
+  "createdBy": null,
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.773Z",
+  "pdfRegeneratedAt": "2026-06-02T09:14:23.053Z"
+}

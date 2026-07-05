@@ -1,0 +1,22 @@
+{
+  "id": "Rbo8Cz3aXwQNB927BzVA",
+  "tenantId": "default",
+  "sevdeskId": "114476228",
+  "invoiceNumber": "RE-1144",
+  "date": "2026-01-11",
+  "dueDate": "2026-01-11",
+  "status": "bezahlt",
+  "amountGross": 74.98,
+  "amountNetto": 63.01,
+  "amountNet": 63.01,
+  "vatAmount": 11.97,
+  "currency": "EUR",
+  "customer": {
+    "name": "Svenja Wagner"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:41:25.684Z",
+  "importedAt": "2026-03-17T22:41:25.684Z"
+}

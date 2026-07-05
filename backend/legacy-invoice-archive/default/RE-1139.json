@@ -1,0 +1,22 @@
+{
+  "id": "nB5xYkeTOev8PYCYAwNc",
+  "tenantId": "default",
+  "sevdeskId": "114440809",
+  "invoiceNumber": "RE-1139",
+  "date": "2026-01-10",
+  "dueDate": "2026-01-10",
+  "status": "bezahlt",
+  "amountGross": 20.99,
+  "amountNetto": 17.64,
+  "amountNet": 17.64,
+  "vatAmount": 3.35,
+  "currency": "EUR",
+  "customer": {
+    "name": "Michael Gasch"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:41:26.017Z",
+  "importedAt": "2026-03-17T22:41:26.017Z"
+}

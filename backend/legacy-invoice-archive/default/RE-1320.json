@@ -1,0 +1,23 @@
+{
+  "id": "EkdBinXTKM4P9XK5da9x",
+  "tenantId": "default",
+  "sevdeskId": "116698878",
+  "invoiceNumber": "RE-1320",
+  "date": "2026-02-09",
+  "dueDate": null,
+  "amountGross": 70,
+  "amountNetto": 58.82,
+  "amountNet": 58.82,
+  "vatAmount": 11.18,
+  "currency": "EUR",
+  "customer": {
+    "name": "Udo Spöth"
+  },
+  "orderId": "NRaP6pAHSyKQgk3h37Q2",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:37:34.687Z",
+  "importedAt": "2026-03-17T22:37:34.687Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.771Z"
+}

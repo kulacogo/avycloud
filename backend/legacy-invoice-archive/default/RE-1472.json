@@ -1,0 +1,23 @@
+{
+  "id": "XtJ6rW8WdqQFJdhVUdKV",
+  "tenantId": "default",
+  "sevdeskId": "118795819",
+  "invoiceNumber": "RE-1472",
+  "date": "2026-03-06",
+  "dueDate": null,
+  "amountGross": 9.88,
+  "amountNetto": 9.88,
+  "amountNet": 9.88,
+  "vatAmount": 0,
+  "currency": "EUR",
+  "customer": {
+    "name": "Manuel Düll"
+  },
+  "orderId": "FBcWDAwCYfCwF3M829Ju",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:33:27.767Z",
+  "importedAt": "2026-03-17T22:33:27.767Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.772Z"
+}

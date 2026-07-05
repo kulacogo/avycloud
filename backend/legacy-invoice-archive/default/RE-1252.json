@@ -1,0 +1,22 @@
+{
+  "id": "hul3tq0yvdnqfwoxE0my",
+  "tenantId": "default",
+  "sevdeskId": "116126409",
+  "invoiceNumber": "RE-1252",
+  "date": "2026-02-02",
+  "dueDate": "2026-02-02",
+  "status": "bezahlt",
+  "amountGross": 15.79,
+  "amountNetto": 13.27,
+  "amountNet": 13.27,
+  "vatAmount": 2.52,
+  "currency": "EUR",
+  "customer": {
+    "name": "Horst Trump"
+  },
+  "orderId": "owyQMLMHwikiJoUp4HTC",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:39:24.653Z",
+  "importedAt": "2026-03-17T22:39:24.653Z"
+}

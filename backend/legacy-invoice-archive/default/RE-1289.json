@@ -1,0 +1,22 @@
+{
+  "id": "HzZdGDy6AxMCQLwTDd5x",
+  "tenantId": "default",
+  "sevdeskId": "116566763",
+  "invoiceNumber": "RE-1289",
+  "date": "2026-02-07",
+  "dueDate": "2026-02-07",
+  "status": "bezahlt",
+  "amountGross": 54.99,
+  "amountNetto": 46.21,
+  "amountNet": 46.21,
+  "vatAmount": 8.78,
+  "currency": "EUR",
+  "customer": {
+    "name": "Danuta Sobek"
+  },
+  "orderId": "boyoCwD27K5iGHhH8Grt",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:38:25.597Z",
+  "importedAt": "2026-03-17T22:38:25.597Z"
+}

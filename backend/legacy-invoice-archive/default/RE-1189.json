@@ -1,0 +1,22 @@
+{
+  "id": "8hysJqbrC2VVoR3WkmDD",
+  "tenantId": "default",
+  "sevdeskId": "115096550",
+  "invoiceNumber": "RE-1189",
+  "date": "2026-01-20",
+  "dueDate": "2026-01-20",
+  "status": "bezahlt",
+  "amountGross": 33.12,
+  "amountNetto": 27.83,
+  "amountNet": 27.83,
+  "vatAmount": 5.29,
+  "currency": "EUR",
+  "customer": {
+    "name": "Mehmed Ahmed"
+  },
+  "orderId": "x6lLf0KCKTR3YzOjcGFM",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:40:25.753Z",
+  "importedAt": "2026-03-17T22:40:25.753Z"
+}

@@ -1,0 +1,26 @@
+{
+  "id": "yNGqqEeYVJq5Oopa3Mm8",
+  "tenantId": "default",
+  "sevdeskId": "113540926",
+  "invoiceNumber": "RE-1086",
+  "date": "2025-12-29",
+  "dueDate": "2025-12-29",
+  "amountGross": 69.49,
+  "amountNetto": 58.39,
+  "amountNet": 58.39,
+  "vatAmount": 11.1,
+  "currency": "EUR",
+  "customer": {
+    "name": "Sylvia Dörge"
+  },
+  "orderId": "vzxEcHcEkGtPWfSw9HGH",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:42:26.393Z",
+  "importedAt": "2026-03-17T22:42:26.393Z",
+  "correctedAt": "2026-03-17T22:58:21.477Z",
+  "correctionType": "storno",
+  "correctionId": "HHQGF1GtLWc6DB9OxH9M",
+  "status": "storniert",
+  "updatedAt": "2026-03-17T22:58:21.477Z"
+}

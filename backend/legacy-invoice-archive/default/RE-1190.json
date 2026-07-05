@@ -1,0 +1,22 @@
+{
+  "id": "FRyQfKJd0P4mx4YUjcMC",
+  "tenantId": "default",
+  "sevdeskId": "115097296",
+  "invoiceNumber": "RE-1190",
+  "date": "2026-01-20",
+  "dueDate": "2026-01-20",
+  "status": "bezahlt",
+  "amountGross": 8.65,
+  "amountNetto": 7.27,
+  "amountNet": 7.27,
+  "vatAmount": 1.38,
+  "currency": "EUR",
+  "customer": {
+    "name": "Jan Roßner"
+  },
+  "orderId": "kpQWCiUbiEu0LsUczEDS",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:40:25.687Z",
+  "importedAt": "2026-03-17T22:40:25.687Z"
+}

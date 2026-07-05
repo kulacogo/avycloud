@@ -1,0 +1,33 @@
+{
+  "id": "HRdoid1sQXjqB15EVrSq",
+  "tenantId": "default",
+  "invoiceNumber": "RE-2239",
+  "sevdeskId": "127385278",
+  "sevdeskExportedAt": "2026-06-25T03:54:49.883Z",
+  "orderId": "32038882",
+  "orderNumber": "MEL7Y45",
+  "marketplaceOrderId": "MEL7Y45",
+  "marketplace": "kaufland",
+  "customer": {
+    "country": "DE",
+    "city": "Wittlingen",
+    "name": "Andre Steinert",
+    "zip": "79599",
+    "phone": null,
+    "street": "Kirchstraße 3b",
+    "email": "ca19iuxq-dcae9edfa835@kaufland-marktplatz.de"
+  },
+  "amountNetto": 139.13,
+  "amountNet": 139.13,
+  "amountBrutto": 165.56,
+  "amountGross": 165.56,
+  "vatRate": 0.19,
+  "vatAmount": 26.43,
+  "currency": "EUR",
+  "status": "offen",
+  "date": "2026-06-25",
+  "dueDate": "2026-07-09",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-2239.pdf",
+  "createdAt": "2026-06-25T03:54:49.883Z",
+  "createdBy": null
+}

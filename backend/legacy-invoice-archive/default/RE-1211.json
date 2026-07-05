@@ -1,0 +1,22 @@
+{
+  "id": "ukZRccBdykTrlsyhEzdi",
+  "tenantId": "default",
+  "sevdeskId": "115494103",
+  "invoiceNumber": "RE-1211",
+  "date": "2026-01-26",
+  "dueDate": "2026-01-26",
+  "status": "bezahlt",
+  "amountGross": 21.99,
+  "amountNetto": 18.48,
+  "amountNet": 18.48,
+  "vatAmount": 3.51,
+  "currency": "EUR",
+  "customer": {
+    "name": "Gregor Hullermann"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:40:10.104Z",
+  "importedAt": "2026-03-17T22:40:10.104Z"
+}

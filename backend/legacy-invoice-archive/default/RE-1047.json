@@ -1,0 +1,22 @@
+{
+  "id": "41evBwsCVXufINHk2P5M",
+  "tenantId": "default",
+  "sevdeskId": "113048947",
+  "invoiceNumber": "RE-1047",
+  "date": "2025-12-19",
+  "dueDate": "2025-12-19",
+  "status": "bezahlt",
+  "amountGross": 27.98,
+  "amountNetto": 23.51,
+  "amountNet": 23.51,
+  "vatAmount": 4.47,
+  "currency": "EUR",
+  "customer": {
+    "name": "Udo Linden"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:53:32.390Z",
+  "importedAt": "2026-03-17T22:53:32.390Z"
+}

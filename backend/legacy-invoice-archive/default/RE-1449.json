@@ -1,0 +1,23 @@
+{
+  "id": "gHgHJqBfI4V25NOz4Ckb",
+  "tenantId": "default",
+  "sevdeskId": "118365836",
+  "invoiceNumber": "RE-1449",
+  "date": "2026-03-02",
+  "dueDate": null,
+  "amountGross": 5.49,
+  "amountNetto": 5.49,
+  "amountNet": 5.49,
+  "vatAmount": 0,
+  "currency": "EUR",
+  "customer": {
+    "name": "Cong Nguyen"
+  },
+  "orderId": "Lf2Cq2yyTpis2oBT233M",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:34:27.270Z",
+  "importedAt": "2026-03-17T22:34:27.270Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.772Z"
+}

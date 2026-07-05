@@ -1,0 +1,22 @@
+{
+  "id": "HfRNqMTgpY2fulYwyMNS",
+  "tenantId": "default",
+  "sevdeskId": "116422499",
+  "invoiceNumber": "RE-1269",
+  "date": "2026-02-05",
+  "dueDate": "2026-02-05",
+  "status": "bezahlt",
+  "amountGross": 24,
+  "amountNetto": 20.17,
+  "amountNet": 20.17,
+  "vatAmount": 3.83,
+  "currency": "EUR",
+  "customer": {
+    "name": "Moritz Sterz"
+  },
+  "orderId": "nfRG3Mb9dqOUUCA3JIi0",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:38:27.505Z",
+  "importedAt": "2026-03-17T22:38:27.505Z"
+}

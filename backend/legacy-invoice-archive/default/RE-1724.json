@@ -1,0 +1,30 @@
+{
+  "id": "dKJcPmHLLyr3bFvDMnxX",
+  "tenantId": "default",
+  "invoiceNumber": "RE-1724",
+  "sevdeskId": "121581750",
+  "sevdeskExportedAt": "2026-04-13T00:14:50.483Z",
+  "orderId": "ebay__12-13887-51660",
+  "orderNumber": "12-13887-51660",
+  "marketplaceOrderId": "12-13887-51660",
+  "marketplace": "ebay",
+  "customer": {
+    "name": "eBay Käufer",
+    "email": null,
+    "username": "flori-christel"
+  },
+  "amountNetto": 83.19,
+  "amountNet": 83.19,
+  "amountBrutto": 99,
+  "amountGross": 99,
+  "vatRate": 0.19,
+  "vatAmount": 15.81,
+  "currency": "EUR",
+  "status": "offen",
+  "date": "2026-04-13",
+  "dueDate": "2026-04-27",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-1724.pdf",
+  "createdAt": "2026-04-13T00:14:50.483Z",
+  "createdBy": null,
+  "pdfRegeneratedAt": "2026-06-02T09:13:16.346Z"
+}

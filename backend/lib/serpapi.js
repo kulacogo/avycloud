@@ -479,6 +479,16 @@ function isLowResImage(meta) {
   return false;
 }
 
+// Engines, deren Ergebnisse ANGEBOTE sind (url = Angebots-Link, nie Bild-URL).
+const SHOPPING_OFFER_ENGINES = new Set([
+  'google_shopping',
+  'google_shopping_ai_overview',
+  'google_ai_overview',
+  'ebay',
+  'amazon',
+  'idealo',
+]);
+
 function summarizeSerpEntries(engine, data, limit = 5) {
   const items = [];
 
@@ -504,11 +514,18 @@ function summarizeSerpEntries(engine, data, limit = 5) {
         ? entry.extracted_lowest
         : null);
 
+    // Shopping-Engines: der ANGEBOTS-Link muss gewinnen. imageMeta.url fällt
+    // bei modernen google_shopping-Payloads auf entry.thumbnail zurück
+    // (encrypted-tbn*.gstatic.com) — das landete als "Konkurrenzpreis-Link" in
+    // details.pricing.lowest_price.sources und führte nie zum Angebot.
+    const isShoppingEngine = SHOPPING_OFFER_ENGINES.has(engine);
+    const offerUrl = entry.link || entry.product_link || entry.url || undefined;
+
     items.push({
       title: entry.title || entry.product_title || entry.name || entry.heading || 'Untitled',
       price: numericPrice ?? entry.price,
       source: entry.source || entry.displayed_link || entry.merchant || entry.store || engine,
-      url: imageMeta?.url || entry.link || entry.product_link || entry.url,
+      url: isShoppingEngine ? offerUrl : (imageMeta?.url || offerUrl),
       thumbnail: entry.thumbnail || entry.image || imageMeta?.url,
       snippet: entry.snippet || entry.description || entry.excerpt,
       image_meta: imageMeta,

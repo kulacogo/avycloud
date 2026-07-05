@@ -1,0 +1,33 @@
+{
+  "id": "voNmBLiCXjrX8pdovCUi",
+  "tenantId": "default",
+  "invoiceNumber": "RE-2233",
+  "sevdeskId": "127385271",
+  "sevdeskExportedAt": "2026-06-25T03:54:41.469Z",
+  "orderId": "31673923",
+  "orderNumber": "M3XA645",
+  "marketplaceOrderId": "M3XA645",
+  "marketplace": "kaufland",
+  "customer": {
+    "country": "DE",
+    "city": "BadSulza",
+    "name": "Sven Tomisch",
+    "zip": "99518",
+    "phone": null,
+    "street": "Hauptstrasse 31",
+    "email": "canshwxq-4b58bc6715e2@kaufland-marktplatz.de"
+  },
+  "amountNetto": 11.68,
+  "amountNet": 11.68,
+  "amountBrutto": 13.9,
+  "amountGross": 13.9,
+  "vatRate": 0.19,
+  "vatAmount": 2.22,
+  "currency": "EUR",
+  "status": "offen",
+  "date": "2026-06-25",
+  "dueDate": "2026-07-09",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-2233.pdf",
+  "createdAt": "2026-06-25T03:54:41.469Z",
+  "createdBy": null
+}

@@ -15,11 +15,16 @@ const PricingInfo: React.FC<PricingInfoProps> = ({ pricing, isEditing = false, o
     price_confidence: 0,
   };
   const { lowest_price, price_confidence } = safePricing;
+  // Bekannt-kaputte Quellen-URLs in Bestandsdaten (gstatic-Thumbnails aus dem
+  // alten SerpAPI-Mapping, example.com-Platzhalter): nie als Link rendern —
+  // Name + Preis erscheinen stattdessen als Text.
+  const BROKEN_EVIDENCE_URL = /^https?:\/\/(encrypted-tbn\d*\.gstatic\.com|(www\.)?example\.com)\//i;
   const linkSources = (lowest_price?.sources || []).filter(
-    (source) => source && typeof source.url === 'string' && /^https?:\/\//i.test(source.url)
+    (source) => source && typeof source.url === 'string' && /^https?:\/\//i.test(source.url) && !BROKEN_EVIDENCE_URL.test(source.url)
   );
   const nonLinkSources = (lowest_price?.sources || []).filter(
-    (source) => source && typeof source.url === 'string' && source.url.trim() && !/^https?:\/\//i.test(source.url)
+    (source) => source && typeof source.url === 'string' && source.url.trim()
+      && (!/^https?:\/\//i.test(source.url) || BROKEN_EVIDENCE_URL.test(source.url))
   );
   const nowIso = () => new Date().toISOString();
   const withManualSource = (amount: number, currency: string) => ({

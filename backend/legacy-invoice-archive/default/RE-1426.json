@@ -1,0 +1,23 @@
+{
+  "id": "leyOowuDpXHCWsjZPDaS",
+  "tenantId": "default",
+  "sevdeskId": "117861141",
+  "invoiceNumber": "RE-1426",
+  "date": "2026-02-25",
+  "dueDate": null,
+  "amountGross": 165.56,
+  "amountNetto": 139.13,
+  "amountNet": 139.13,
+  "vatAmount": 26.43,
+  "currency": "EUR",
+  "customer": {
+    "name": "Andre Steinert"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:34:34.588Z",
+  "importedAt": "2026-03-17T22:34:34.588Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.773Z"
+}

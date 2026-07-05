@@ -1,0 +1,22 @@
+{
+  "id": "gEtcTO0gkpKkp1ri0KrD",
+  "tenantId": "default",
+  "sevdeskId": "114033601",
+  "invoiceNumber": "RE-1113",
+  "date": "2026-01-05",
+  "dueDate": "2026-01-05",
+  "status": "bezahlt",
+  "amountGross": 71.24,
+  "amountNetto": 59.87,
+  "amountNet": 59.87,
+  "vatAmount": 11.37,
+  "currency": "EUR",
+  "customer": {
+    "name": "Ralf Tschurtschenthaler"
+  },
+  "orderId": "lCqbqQVoFly3MDa0Kh4w",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:42:25.099Z",
+  "importedAt": "2026-03-17T22:42:25.099Z"
+}

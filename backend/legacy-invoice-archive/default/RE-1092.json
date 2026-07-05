@@ -1,0 +1,22 @@
+{
+  "id": "kz7JjAgcgvX4X6Qpagii",
+  "tenantId": "default",
+  "sevdeskId": "113541248",
+  "invoiceNumber": "RE-1092",
+  "date": "2025-12-29",
+  "dueDate": "2025-12-29",
+  "status": "bezahlt",
+  "amountGross": 15,
+  "amountNetto": 12.61,
+  "amountNet": 12.61,
+  "vatAmount": 2.39,
+  "currency": "EUR",
+  "customer": {
+    "name": "Igor Soltan"
+  },
+  "orderId": "sjen3UpldNFyp8iX0Wl5",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:42:26.092Z",
+  "importedAt": "2026-03-17T22:42:26.092Z"
+}

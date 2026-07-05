@@ -1,0 +1,33 @@
+{
+  "id": "ZKo2nbDWZeoaw8hCdffP",
+  "tenantId": "default",
+  "invoiceNumber": "RE-2222",
+  "sevdeskId": "127385258",
+  "sevdeskExportedAt": "2026-06-25T03:54:27.108Z",
+  "orderId": "31164440",
+  "orderNumber": "MP6ZY15",
+  "marketplaceOrderId": "MP6ZY15",
+  "marketplace": "kaufland",
+  "customer": {
+    "country": "DE",
+    "city": "Wedel",
+    "name": "Michael Waage",
+    "zip": "22880",
+    "phone": null,
+    "street": "Friedrich-Ebert-Str. 1",
+    "email": "cadwvuzq-77e707a0cfac@kaufland-marktplatz.de"
+  },
+  "amountNetto": 32.6,
+  "amountNet": 32.6,
+  "amountBrutto": 38.79,
+  "amountGross": 38.79,
+  "vatRate": 0.19,
+  "vatAmount": 6.19,
+  "currency": "EUR",
+  "status": "offen",
+  "date": "2026-06-25",
+  "dueDate": "2026-07-09",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-2222.pdf",
+  "createdAt": "2026-06-25T03:54:27.108Z",
+  "createdBy": null
+}

@@ -1,0 +1,30 @@
+{
+  "id": "4apy84sXADWQQuYkIrfS",
+  "tenantId": "default",
+  "invoiceNumber": "RE-1710",
+  "sevdeskId": "121581724",
+  "sevdeskExportedAt": "2026-04-13T00:14:17.583Z",
+  "orderId": "ebay__05-13998-73980",
+  "orderNumber": "05-13998-73980",
+  "marketplaceOrderId": "05-13998-73980",
+  "marketplace": "ebay",
+  "customer": {
+    "name": "eBay Käufer",
+    "email": null,
+    "username": "mronline_de"
+  },
+  "amountNetto": 58.78,
+  "amountNet": 58.78,
+  "amountBrutto": 69.95,
+  "amountGross": 69.95,
+  "vatRate": 0.19,
+  "vatAmount": 11.17,
+  "currency": "EUR",
+  "status": "offen",
+  "date": "2026-04-13",
+  "dueDate": "2026-04-27",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-1710.pdf",
+  "createdAt": "2026-04-13T00:14:17.583Z",
+  "createdBy": null,
+  "pdfRegeneratedAt": "2026-06-02T09:10:46.640Z"
+}

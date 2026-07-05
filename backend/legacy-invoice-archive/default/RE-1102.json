@@ -1,0 +1,22 @@
+{
+  "id": "3TPQ6Td4Jx3CoC3r3D6o",
+  "tenantId": "default",
+  "sevdeskId": "113781616",
+  "invoiceNumber": "RE-1102",
+  "date": "2026-01-01",
+  "dueDate": "2026-01-01",
+  "status": "bezahlt",
+  "amountGross": 84.14,
+  "amountNetto": 70.71,
+  "amountNet": 70.71,
+  "vatAmount": 13.43,
+  "currency": "EUR",
+  "customer": {
+    "name": "Alwin Niehaus"
+  },
+  "orderId": "Pb2cDZcQkxIYCOgrREhl",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:42:25.638Z",
+  "importedAt": "2026-03-17T22:42:25.638Z"
+}

@@ -1,0 +1,33 @@
+{
+  "id": "oo4nHSG6sr6iWDTTVYdS",
+  "tenantId": "default",
+  "invoiceNumber": "RE-2250",
+  "sevdeskId": "127385290",
+  "sevdeskExportedAt": "2026-06-25T03:55:00.369Z",
+  "orderId": "32631052",
+  "orderNumber": "MGUDGD5",
+  "marketplaceOrderId": "MGUDGD5",
+  "marketplace": "kaufland",
+  "customer": {
+    "country": "DE",
+    "city": "Grünhainichen",
+    "name": "Manfred Schubert",
+    "zip": "09579",
+    "phone": null,
+    "street": "Lengefelder Str. 12",
+    "email": "ca3o030q-9cce37163c7c@kaufland-marktplatz.de"
+  },
+  "amountNetto": 36.36,
+  "amountNet": 36.36,
+  "amountBrutto": 43.27,
+  "amountGross": 43.27,
+  "vatRate": 0.19,
+  "vatAmount": 6.91,
+  "currency": "EUR",
+  "status": "offen",
+  "date": "2026-06-25",
+  "dueDate": "2026-07-09",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-2250.pdf",
+  "createdAt": "2026-06-25T03:55:00.369Z",
+  "createdBy": null
+}

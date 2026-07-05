@@ -1,0 +1,23 @@
+{
+  "id": "xYJFzq7oa9quuA5xH1A5",
+  "tenantId": "default",
+  "sevdeskId": "117487664",
+  "invoiceNumber": "RE-1395",
+  "date": "2026-02-20",
+  "dueDate": null,
+  "amountGross": 52.87,
+  "amountNetto": 44.43,
+  "amountNet": 44.43,
+  "vatAmount": 8.44,
+  "currency": "EUR",
+  "customer": {
+    "name": "Tina Liepe"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:34:44.704Z",
+  "importedAt": "2026-03-17T22:34:44.704Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.773Z"
+}

@@ -1,0 +1,26 @@
+{
+  "id": "NACgmAwNGPVi9XLRUiJq",
+  "tenantId": "default",
+  "sevdeskId": "113856374",
+  "invoiceNumber": "RE-1107",
+  "date": "2026-01-02",
+  "dueDate": "2026-01-02",
+  "amountGross": 68.77,
+  "amountNetto": 57.79,
+  "amountNet": 57.79,
+  "vatAmount": 10.98,
+  "currency": "EUR",
+  "customer": {
+    "name": "Kreshnik Delijaj"
+  },
+  "orderId": "HPa5mpQ4TvQQP1IZgM5H",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:42:25.420Z",
+  "importedAt": "2026-03-17T22:42:25.420Z",
+  "correctedAt": "2026-03-17T22:58:19.612Z",
+  "correctionType": "storno",
+  "correctionId": "ge0iBn6IKfiZ4zEM8Rrg",
+  "status": "storniert",
+  "updatedAt": "2026-03-17T22:58:19.612Z"
+}

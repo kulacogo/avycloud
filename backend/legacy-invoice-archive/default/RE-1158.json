@@ -1,0 +1,22 @@
+{
+  "id": "gCvURiPIqhyGf5qaFX8V",
+  "tenantId": "default",
+  "sevdeskId": "114714096",
+  "invoiceNumber": "RE-1158",
+  "date": "2026-01-14",
+  "dueDate": "2026-01-14",
+  "status": "bezahlt",
+  "amountGross": 19.99,
+  "amountNetto": 16.8,
+  "amountNet": 16.8,
+  "vatAmount": 3.19,
+  "currency": "EUR",
+  "customer": {
+    "name": "Hannes Eichhorn"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:41:24.792Z",
+  "importedAt": "2026-03-17T22:41:24.792Z"
+}

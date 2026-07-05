@@ -1,0 +1,23 @@
+{
+  "id": "lcVkytwbN8eSFNJehnGi",
+  "tenantId": "default",
+  "sevdeskId": "116688129",
+  "invoiceNumber": "RE-1318",
+  "date": "2026-02-09",
+  "dueDate": null,
+  "amountGross": 83.99,
+  "amountNetto": 70.58,
+  "amountNet": 70.58,
+  "vatAmount": 13.41,
+  "currency": "EUR",
+  "customer": {
+    "name": "Gasanow Valentina"
+  },
+  "orderId": "3aLt3tNR6PDiP9T0miYl",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:37:34.945Z",
+  "importedAt": "2026-03-17T22:37:34.945Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.773Z"
+}

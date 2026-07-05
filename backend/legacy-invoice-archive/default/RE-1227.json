@@ -1,0 +1,22 @@
+{
+  "id": "7WKtOU30FIIrz2T4HFvp",
+  "tenantId": "default",
+  "sevdeskId": "115645271",
+  "invoiceNumber": "RE-1227",
+  "date": "2026-01-28",
+  "dueDate": "2026-01-28",
+  "status": "bezahlt",
+  "amountGross": 70,
+  "amountNetto": 58.82,
+  "amountNet": 58.82,
+  "vatAmount": 11.18,
+  "currency": "EUR",
+  "customer": {
+    "name": "Tanja Terekhof"
+  },
+  "orderId": "diRmMeYb7eNIHlDuJae3",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:39:26.545Z",
+  "importedAt": "2026-03-17T22:39:26.545Z"
+}

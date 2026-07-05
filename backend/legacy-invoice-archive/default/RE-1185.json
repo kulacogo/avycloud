@@ -1,0 +1,22 @@
+{
+  "id": "kNUqzkFwdr5O4TuF2CBF",
+  "tenantId": "default",
+  "sevdeskId": "115095940",
+  "invoiceNumber": "RE-1185",
+  "date": "2026-01-20",
+  "dueDate": "2026-01-20",
+  "status": "bezahlt",
+  "amountGross": 55.94,
+  "amountNetto": 47.01,
+  "amountNet": 47.01,
+  "vatAmount": 8.93,
+  "currency": "EUR",
+  "customer": {
+    "name": "Stephan Fuhrmann"
+  },
+  "orderId": "ZrkTVun5ar4lHy7EdKsg",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:40:26.052Z",
+  "importedAt": "2026-03-17T22:40:26.052Z"
+}

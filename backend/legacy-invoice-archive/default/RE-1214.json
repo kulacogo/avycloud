@@ -1,0 +1,22 @@
+{
+  "id": "ZA2ruWNY5EWnP0c0uIJD",
+  "tenantId": "default",
+  "sevdeskId": "115503938",
+  "invoiceNumber": "RE-1214",
+  "date": "2026-01-26",
+  "dueDate": "2026-01-26",
+  "status": "bezahlt",
+  "amountGross": 52,
+  "amountNetto": 43.7,
+  "amountNet": 43.7,
+  "vatAmount": 8.3,
+  "currency": "EUR",
+  "customer": {
+    "name": "Annett Luft"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:39:54.604Z",
+  "importedAt": "2026-03-17T22:39:54.604Z"
+}

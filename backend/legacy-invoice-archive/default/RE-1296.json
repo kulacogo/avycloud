@@ -1,0 +1,22 @@
+{
+  "id": "mFX1ZK87qxsYXUdlAbNU",
+  "tenantId": "default",
+  "sevdeskId": "116566948",
+  "invoiceNumber": "RE-1296",
+  "date": "2026-02-07",
+  "dueDate": "2026-02-07",
+  "status": "bezahlt",
+  "amountGross": 118.99,
+  "amountNetto": 99.99,
+  "amountNet": 99.99,
+  "vatAmount": 19,
+  "currency": "EUR",
+  "customer": {
+    "name": "Matthias Haase"
+  },
+  "orderId": "GqagrbwbXYi2qsDwhq8z",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:37:56.204Z",
+  "importedAt": "2026-03-17T22:37:56.204Z"
+}

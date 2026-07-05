@@ -1,0 +1,22 @@
+{
+  "id": "ZmWkquw3X2Xmq1b0Cd1V",
+  "tenantId": "default",
+  "sevdeskId": "114649534",
+  "invoiceNumber": "RE-1156",
+  "date": "2026-01-13",
+  "dueDate": "2026-01-13",
+  "status": "bezahlt",
+  "amountGross": 11.99,
+  "amountNetto": 10.08,
+  "amountNet": 10.08,
+  "vatAmount": 1.91,
+  "currency": "EUR",
+  "customer": {
+    "name": "Simon Graf"
+  },
+  "orderId": "oAklViru1zKVgMDYEo2C",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:41:24.889Z",
+  "importedAt": "2026-03-17T22:41:24.889Z"
+}

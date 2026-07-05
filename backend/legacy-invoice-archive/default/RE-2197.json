@@ -1,0 +1,33 @@
+{
+  "id": "kP4YJD7U0cc2b7GCqWWb",
+  "tenantId": "default",
+  "invoiceNumber": "RE-2197",
+  "sevdeskId": "127385223",
+  "sevdeskExportedAt": "2026-06-25T03:53:57.584Z",
+  "orderId": "30252533",
+  "orderNumber": "M7ZDZH5",
+  "marketplaceOrderId": "M7ZDZH5",
+  "marketplace": "kaufland",
+  "customer": {
+    "country": "DE",
+    "city": "Mainz",
+    "name": "Ömer Atasoy",
+    "zip": "55129",
+    "phone": null,
+    "street": "Georg-Fachbach-Str. 14",
+    "email": "caiv0v4q-093bfcb82330@kaufland-marktplatz.de"
+  },
+  "amountNetto": 16.8,
+  "amountNet": 16.8,
+  "amountBrutto": 19.99,
+  "amountGross": 19.99,
+  "vatRate": 0.19,
+  "vatAmount": 3.19,
+  "currency": "EUR",
+  "status": "offen",
+  "date": "2026-06-25",
+  "dueDate": "2026-07-09",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-2197.pdf",
+  "createdAt": "2026-06-25T03:53:57.584Z",
+  "createdBy": null
+}

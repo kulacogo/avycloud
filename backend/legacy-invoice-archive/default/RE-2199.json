@@ -1,0 +1,33 @@
+{
+  "id": "YZTzOZYHawD2huwoeYTD",
+  "tenantId": "default",
+  "invoiceNumber": "RE-2199",
+  "sevdeskId": "127385225",
+  "sevdeskExportedAt": "2026-06-25T03:53:59.582Z",
+  "orderId": "30264115",
+  "orderNumber": "MUGFZH5",
+  "marketplaceOrderId": "MUGFZH5",
+  "marketplace": "kaufland",
+  "customer": {
+    "country": "DE",
+    "city": "Freiburg",
+    "name": "Heiko Hofmann",
+    "zip": "79106",
+    "phone": null,
+    "street": "Robert-Koch-Str. 4",
+    "email": "cao32v4q-f9893807b562@kaufland-marktplatz.de"
+  },
+  "amountNetto": 21,
+  "amountNet": 21,
+  "amountBrutto": 24.99,
+  "amountGross": 24.99,
+  "vatRate": 0.19,
+  "vatAmount": 3.99,
+  "currency": "EUR",
+  "status": "offen",
+  "date": "2026-06-25",
+  "dueDate": "2026-07-09",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-2199.pdf",
+  "createdAt": "2026-06-25T03:53:59.582Z",
+  "createdBy": null
+}

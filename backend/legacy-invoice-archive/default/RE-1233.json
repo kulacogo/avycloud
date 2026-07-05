@@ -1,0 +1,22 @@
+{
+  "id": "GGOflH9dwYSWvhqd1pEV",
+  "tenantId": "default",
+  "sevdeskId": "115823255",
+  "invoiceNumber": "RE-1233",
+  "date": "2026-01-30",
+  "dueDate": "2026-01-30",
+  "status": "bezahlt",
+  "amountGross": 183.33,
+  "amountNetto": 154.06,
+  "amountNet": 154.06,
+  "vatAmount": 29.27,
+  "currency": "EUR",
+  "customer": {
+    "name": "Nafissa Hassan"
+  },
+  "orderId": "VKyKHw8ztTbEaUPypeZy",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:39:25.937Z",
+  "importedAt": "2026-03-17T22:39:25.937Z"
+}

@@ -1,0 +1,23 @@
+{
+  "id": "Zh17wK2uMABRvLflbnAv",
+  "tenantId": "default",
+  "sevdeskId": "119047655",
+  "invoiceNumber": "RE-1487",
+  "date": "2026-03-10",
+  "dueDate": null,
+  "amountGross": 75.99,
+  "amountNetto": 63.85,
+  "amountNet": 63.85,
+  "vatAmount": 12.14,
+  "currency": "EUR",
+  "customer": {
+    "name": "Nicole Lukas"
+  },
+  "orderId": "MqGwllfJEvOme42b1MF3",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:33:26.459Z",
+  "importedAt": "2026-03-17T22:33:26.459Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.772Z"
+}

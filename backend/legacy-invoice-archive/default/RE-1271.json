@@ -1,0 +1,22 @@
+{
+  "id": "ifjzfvYuMxSsHWObHUSk",
+  "tenantId": "default",
+  "sevdeskId": "116431921",
+  "invoiceNumber": "RE-1271",
+  "date": "2026-02-05",
+  "dueDate": "2026-02-05",
+  "status": "bezahlt",
+  "amountGross": 15.32,
+  "amountNetto": 12.87,
+  "amountNet": 12.87,
+  "vatAmount": 2.45,
+  "currency": "EUR",
+  "customer": {
+    "name": "Christina Manys-Stegen"
+  },
+  "orderId": "kZiMeBM9Yxd4Tk8QdlSS",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:38:27.323Z",
+  "importedAt": "2026-03-17T22:38:27.323Z"
+}

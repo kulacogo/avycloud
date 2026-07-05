@@ -1,0 +1,22 @@
+{
+  "id": "eQymOh1yf6JDYPclGpuK",
+  "tenantId": "default",
+  "sevdeskId": "113276172",
+  "invoiceNumber": "RE-1072",
+  "date": "2025-12-22",
+  "dueDate": "2025-12-22",
+  "status": "bezahlt",
+  "amountGross": 175.5,
+  "amountNetto": 147.48,
+  "amountNet": 147.48,
+  "vatAmount": 28.02,
+  "currency": "EUR",
+  "customer": {
+    "name": "Jana Berthold"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:44:35.904Z",
+  "importedAt": "2026-03-17T22:44:35.904Z"
+}

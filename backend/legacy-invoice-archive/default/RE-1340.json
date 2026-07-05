@@ -1,0 +1,23 @@
+{
+  "id": "TjooJWk0iATimltSfhxK",
+  "tenantId": "default",
+  "sevdeskId": "116946790",
+  "invoiceNumber": "RE-1340",
+  "date": "2026-02-12",
+  "dueDate": null,
+  "amountGross": 76.46,
+  "amountNetto": 64.25,
+  "amountNet": 64.25,
+  "vatAmount": 12.21,
+  "currency": "EUR",
+  "customer": {
+    "name": "Andrea Hante"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:36:35.298Z",
+  "importedAt": "2026-03-17T22:36:35.298Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.772Z"
+}

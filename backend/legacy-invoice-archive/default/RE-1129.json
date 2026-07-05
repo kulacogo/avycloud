@@ -1,0 +1,22 @@
+{
+  "id": "dC9r7XEPAttsRi5xkpl0",
+  "tenantId": "default",
+  "sevdeskId": "114310041",
+  "invoiceNumber": "RE-1129",
+  "date": "2026-01-08",
+  "dueDate": "2026-01-08",
+  "status": "bezahlt",
+  "amountGross": 55.96,
+  "amountNetto": 47.03,
+  "amountNet": 47.03,
+  "vatAmount": 8.93,
+  "currency": "EUR",
+  "customer": {
+    "name": "peter nonnenmacher"
+  },
+  "orderId": "nsqMaPeiVdgyEZtOaS1s",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:41:39.304Z",
+  "importedAt": "2026-03-17T22:41:39.304Z"
+}

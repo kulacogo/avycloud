@@ -1,0 +1,22 @@
+{
+  "id": "9Hhg4MbXzGKiK4Q6yiph",
+  "tenantId": "default",
+  "sevdeskId": "115920424",
+  "invoiceNumber": "RE-1243",
+  "date": "2026-01-31",
+  "dueDate": "2026-01-31",
+  "status": "bezahlt",
+  "amountGross": 11.98,
+  "amountNetto": 10.07,
+  "amountNet": 10.07,
+  "vatAmount": 1.91,
+  "currency": "EUR",
+  "customer": {
+    "name": "Dieter Eckhof"
+  },
+  "orderId": "Z63SDVhAl6lWLhP1x5Zj",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:39:25.323Z",
+  "importedAt": "2026-03-17T22:39:25.323Z"
+}

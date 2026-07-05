@@ -1,0 +1,22 @@
+{
+  "id": "VrMn5aQ9clKW14EBnVuf",
+  "tenantId": "default",
+  "sevdeskId": "112729722",
+  "invoiceNumber": "RE-1039",
+  "date": "2025-12-16",
+  "dueDate": "2025-12-16",
+  "status": "bezahlt",
+  "amountGross": 24.99,
+  "amountNetto": 21,
+  "amountNet": 21,
+  "vatAmount": 3.99,
+  "currency": "EUR",
+  "customer": {
+    "name": "Andreas Schäfer"
+  },
+  "orderId": "seIvjAkeNbUJ7DcTEfTk",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:53:48.389Z",
+  "importedAt": "2026-03-17T22:53:48.389Z"
+}

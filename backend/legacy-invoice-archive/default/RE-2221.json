@@ -1,0 +1,33 @@
+{
+  "id": "GS9lKwzbH0DtvDAMwwpN",
+  "tenantId": "default",
+  "invoiceNumber": "RE-2221",
+  "sevdeskId": "127385256",
+  "sevdeskExportedAt": "2026-06-25T03:54:25.201Z",
+  "orderId": "31105416",
+  "orderNumber": "MYFEX15",
+  "marketplaceOrderId": "MYFEX15",
+  "marketplace": "kaufland",
+  "customer": {
+    "country": "DE",
+    "city": "Stuttgart",
+    "name": "Claudia Bohnenkamp",
+    "zip": "70619",
+    "phone": null,
+    "street": "Höhenringweg 22",
+    "email": "cau21szq-28c2aa58b884@kaufland-marktplatz.de"
+  },
+  "amountNetto": 50.42,
+  "amountNet": 50.42,
+  "amountBrutto": 60,
+  "amountGross": 60,
+  "vatRate": 0.19,
+  "vatAmount": 9.58,
+  "currency": "EUR",
+  "status": "offen",
+  "date": "2026-06-25",
+  "dueDate": "2026-07-09",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-2221.pdf",
+  "createdAt": "2026-06-25T03:54:25.202Z",
+  "createdBy": null
+}

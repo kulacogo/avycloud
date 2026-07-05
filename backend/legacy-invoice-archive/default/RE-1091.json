@@ -1,0 +1,22 @@
+{
+  "id": "kst7ixJvUz2wyj7c73Mc",
+  "tenantId": "default",
+  "sevdeskId": "113541154",
+  "invoiceNumber": "RE-1091",
+  "date": "2025-12-29",
+  "dueDate": "2025-12-29",
+  "status": "bezahlt",
+  "amountGross": 44.9,
+  "amountNetto": 37.73,
+  "amountNet": 37.73,
+  "vatAmount": 7.17,
+  "currency": "EUR",
+  "customer": {
+    "name": "Sibylle Günther"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:42:26.144Z",
+  "importedAt": "2026-03-17T22:42:26.144Z"
+}

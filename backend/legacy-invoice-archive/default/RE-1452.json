@@ -1,0 +1,23 @@
+{
+  "id": "XUVnqB8iBUYQG5FEJxXW",
+  "tenantId": "default",
+  "sevdeskId": "118505974",
+  "invoiceNumber": "RE-1452",
+  "date": "2026-03-03",
+  "dueDate": null,
+  "amountGross": 340,
+  "amountNetto": 340,
+  "amountNet": 340,
+  "vatAmount": 0,
+  "currency": "EUR",
+  "customer": {
+    "name": "krystian krzeminski"
+  },
+  "orderId": "NG0jshoieSh1H3mp1meC",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:34:27.065Z",
+  "importedAt": "2026-03-17T22:34:27.065Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.772Z"
+}

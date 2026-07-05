@@ -1,0 +1,33 @@
+{
+  "id": "f5twC1snfpxwdTNH3FIh",
+  "tenantId": "default",
+  "invoiceNumber": "RE-2198",
+  "sevdeskId": "127385224",
+  "sevdeskExportedAt": "2026-06-25T03:53:58.790Z",
+  "orderId": "30258729",
+  "orderNumber": "MCWCZH5",
+  "marketplaceOrderId": "MCWCZH5",
+  "marketplace": "kaufland",
+  "customer": {
+    "country": "DE",
+    "city": "Augustusburg",
+    "name": "Romy Hötzel",
+    "zip": "09573",
+    "phone": null,
+    "street": "Turnerweg 1",
+    "email": "cagrgv4q-bcc220b1745b@kaufland-marktplatz.de"
+  },
+  "amountNetto": 19.32,
+  "amountNet": 19.32,
+  "amountBrutto": 22.99,
+  "amountGross": 22.99,
+  "vatRate": 0.19,
+  "vatAmount": 3.67,
+  "currency": "EUR",
+  "status": "offen",
+  "date": "2026-06-25",
+  "dueDate": "2026-07-09",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-2198.pdf",
+  "createdAt": "2026-06-25T03:53:58.790Z",
+  "createdBy": null
+}

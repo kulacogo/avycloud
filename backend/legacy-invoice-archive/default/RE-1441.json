@@ -1,0 +1,26 @@
+{
+  "id": "OPrgc7haOZdVnkZDyeHu",
+  "tenantId": "default",
+  "sevdeskId": "118283564",
+  "invoiceNumber": "RE-1441",
+  "date": "2026-03-02",
+  "dueDate": null,
+  "amountGross": 75.66,
+  "amountNetto": 63.58,
+  "amountNet": 63.58,
+  "vatAmount": 12.08,
+  "currency": "EUR",
+  "customer": {
+    "name": "Tanja Peric"
+  },
+  "orderId": "xZEOxS9fLwl6ohTxyF0O",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:34:27.953Z",
+  "importedAt": "2026-03-17T22:34:27.953Z",
+  "correctedAt": "2026-03-17T22:58:21.880Z",
+  "correctionType": "storno",
+  "correctionId": "Aj6ISJGcqD7PwJENGni4",
+  "status": "storniert",
+  "updatedAt": "2026-03-17T22:58:21.880Z"
+}

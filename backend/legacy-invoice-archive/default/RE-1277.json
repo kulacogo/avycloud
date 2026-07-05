@@ -1,0 +1,22 @@
+{
+  "id": "v17YMpMZSB6gFi0j8BnO",
+  "tenantId": "default",
+  "sevdeskId": "116509153",
+  "invoiceNumber": "RE-1277",
+  "date": "2026-02-06",
+  "dueDate": "2026-02-06",
+  "status": "bezahlt",
+  "amountGross": 59.49,
+  "amountNetto": 49.99,
+  "amountNet": 49.99,
+  "vatAmount": 9.5,
+  "currency": "EUR",
+  "customer": {
+    "name": "Stephan Thieme"
+  },
+  "orderId": "gx8E7EE5hZdSDlHVHLjr",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:38:26.616Z",
+  "importedAt": "2026-03-17T22:38:26.616Z"
+}

@@ -1,0 +1,33 @@
+{
+  "id": "qDs9mN7NT5nLeKNKMHss",
+  "tenantId": "default",
+  "invoiceNumber": "RE-2220",
+  "sevdeskId": "127385255",
+  "sevdeskExportedAt": "2026-06-25T03:54:26.776Z",
+  "orderId": "31040888",
+  "orderNumber": "MXCGR15",
+  "marketplaceOrderId": "MXCGR15",
+  "marketplace": "kaufland",
+  "customer": {
+    "country": "DE",
+    "city": "Berlin",
+    "name": "Hanna Frese",
+    "zip": "10317",
+    "phone": null,
+    "street": "Giselastraße 23A",
+    "email": "casg3fzq-7ba762a97b0f@kaufland-marktplatz.de"
+  },
+  "amountNetto": 16.33,
+  "amountNet": 16.33,
+  "amountBrutto": 19.43,
+  "amountGross": 19.43,
+  "vatRate": 0.19,
+  "vatAmount": 3.1,
+  "currency": "EUR",
+  "status": "offen",
+  "date": "2026-06-25",
+  "dueDate": "2026-07-09",
+  "pdfUrl": "gs://prodsandjobs/default/invoices/RE-2220.pdf",
+  "createdAt": "2026-06-25T03:54:26.776Z",
+  "createdBy": null
+}

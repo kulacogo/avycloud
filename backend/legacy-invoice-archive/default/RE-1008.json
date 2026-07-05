@@ -1,0 +1,22 @@
+{
+  "id": "FLyyxfuiARLCyH4tzv9j",
+  "tenantId": "default",
+  "sevdeskId": "110787974",
+  "invoiceNumber": "RE-1008",
+  "date": "2025-11-26",
+  "dueDate": "2025-11-26",
+  "status": "bezahlt",
+  "amountGross": 129.99,
+  "amountNetto": 109.24,
+  "amountNet": 109.24,
+  "vatAmount": 20.75,
+  "currency": "EUR",
+  "customer": {
+    "name": "Olga Hartmann"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:54:26.770Z",
+  "importedAt": "2026-03-17T22:54:26.770Z"
+}

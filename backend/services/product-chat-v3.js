@@ -33,7 +33,7 @@
 const atomicTools = require('./atomic-tools');
 const { scoreField, aggregateProductConfidence } = require('../lib/confidence-scoring');
 const { crossReferenceProduct } = require('../lib/cross-reference');
-const { normalizeLiteralEscapes } = require('../lib/listing-sanitize');
+const { normalizeLiteralEscapes, hasListMarkup, sanitizeDescriptionProse } = require('../lib/listing-sanitize');
 const {
   resolveChatModel,
   defaultThinkingConfig,
@@ -295,8 +295,12 @@ function sanitizeDatasheetChangeV3(entry) {
         break;
       }
       case 'short_description': {
+        // Beschreibung = Fließtext-Invariante: enthält der Vorschlag Listen
+        // (HTML-<ul> oder Klartext-Bullets), sofort zu Prosa flatten — so ist
+        // schon die Vorschlags-Karte + das Übernehmen-Preview korrekt, nicht
+        // erst der Save-Boundary-Guard. Bullets gehören nur in key_features.
         const d = sanitizeString(raw, 8000);
-        if (d) out.short_description = d;
+        if (d) out.short_description = hasListMarkup(d) ? sanitizeDescriptionProse(d) : d;
         break;
       }
       case 'key_features':

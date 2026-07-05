@@ -1,0 +1,22 @@
+{
+  "id": "kVDE4IS9XAgyXquiFLbx",
+  "tenantId": "default",
+  "sevdeskId": "113668006",
+  "invoiceNumber": "RE-1097",
+  "date": "2025-12-31",
+  "dueDate": "2025-12-31",
+  "status": "bezahlt",
+  "amountGross": 94.5,
+  "amountNetto": 79.41,
+  "amountNet": 79.41,
+  "vatAmount": 15.09,
+  "currency": "EUR",
+  "customer": {
+    "name": "lars jessen"
+  },
+  "orderId": "lxJ7a8ZcHA5rWqd4oBEX",
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:42:25.870Z",
+  "importedAt": "2026-03-17T22:42:25.870Z"
+}

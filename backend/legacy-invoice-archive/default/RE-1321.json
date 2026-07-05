@@ -1,0 +1,23 @@
+{
+  "id": "b2YeuuXrhaRAinAGovzX",
+  "tenantId": "default",
+  "sevdeskId": "116740519",
+  "invoiceNumber": "RE-1321",
+  "date": "2026-02-10",
+  "dueDate": null,
+  "amountGross": 149,
+  "amountNetto": 125.21,
+  "amountNet": 125.21,
+  "vatAmount": 23.79,
+  "currency": "EUR",
+  "customer": {
+    "name": "Uta Berblinger"
+  },
+  "orderId": null,
+  "source": "sevdesk_import",
+  "pdfUrl": null,
+  "createdAt": "2026-03-17T22:37:34.639Z",
+  "importedAt": "2026-03-17T22:37:34.639Z",
+  "status": "offen",
+  "updatedAt": "2026-03-18T00:30:12.772Z"
+}
