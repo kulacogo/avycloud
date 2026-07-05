@@ -1262,14 +1262,27 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
 
   const [activeTab, setActiveTab] = useState('stammdaten');
 
+  // Notiz-Anzahl fürs Tab-Badge (aktualisiert sich, wenn im Tab eine Notiz dazukommt).
+  const [notesCount, setNotesCount] = useState<number>(0);
+  useEffect(() => {
+    let cancelled = false;
+    if (!localProduct.id) return;
+    import('../api/client').then(({ listProductNotes }) =>
+      listProductNotes(localProduct.id)
+        .then((notes) => { if (!cancelled) setNotesCount(notes.length); })
+        .catch(() => {})
+    );
+    return () => { cancelled = true; };
+  }, [localProduct.id]);
+
   const sheetTabs = useMemo(() => [
     { id: 'stammdaten', label: 'Stammdaten' },
     { id: 'bilder', label: 'Bilder', count: localProduct.details?.images?.length || 0 },
     { id: 'attribute', label: 'Attribute' },
     { id: 'marktplaetze', label: 'Marktplätze' },
-    { id: 'notizen', label: 'Notizen' },
+    { id: 'notizen', label: 'Notizen', count: notesCount || undefined },
     { id: 'assistent', label: 'KI-Assistent' },
-  ], [localProduct.details?.images?.length]);
+  ], [localProduct.details?.images?.length, notesCount]);
 
   return (
     <section id="product-sheet" className="w-full relative">
@@ -1918,7 +1931,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
 
       {/* ─── TAB: Notizen (interne Mitarbeiter-Kommentare) ───── */}
       <TabPanel tabId="notizen" activeTab={activeTab} className="space-y-5">
-        <ProductNotes productId={localProduct.id} />
+        <ProductNotes productId={localProduct.id} onCountChange={setNotesCount} />
       </TabPanel>
 
       {/* ─── TAB: KI-Assistent ──────────────────────────────── */}

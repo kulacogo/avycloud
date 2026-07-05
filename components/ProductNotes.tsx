@@ -16,7 +16,7 @@ const initials = (name?: string | null, email?: string | null) => {
   return src.charAt(0).toUpperCase();
 };
 
-export const ProductNotes: React.FC<{ productId: string }> = ({ productId }) => {
+export const ProductNotes: React.FC<{ productId: string; onCountChange?: (n: number) => void }> = ({ productId, onCountChange }) => {
   const [notes, setNotes] = React.useState<ProductNote[]>([]);
   const [text, setText] = React.useState("");
   const [loading, setLoading] = React.useState(false);
@@ -28,13 +28,15 @@ export const ProductNotes: React.FC<{ productId: string }> = ({ productId }) => 
     setError(null);
     setLoading(true);
     try {
-      setNotes(await listProductNotes(productId));
+      const loaded = await listProductNotes(productId);
+      setNotes(loaded);
+      onCountChange?.(loaded.length);
     } catch (e: any) {
       setError(e?.message || "Notizen konnten nicht geladen werden");
     } finally {
       setLoading(false);
     }
-  }, [productId]);
+  }, [productId, onCountChange]);
 
   React.useEffect(() => {
     load();
