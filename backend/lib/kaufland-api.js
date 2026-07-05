@@ -1146,8 +1146,67 @@ async function getKauflandRefunds({ from, to, storefront = 'de' } = {}) {
   return refunds;
 }
 
+/**
+ * Verbindungstest mit EXPLIZIT übergebenen Schlüsseln (IntegrationWizard,
+ * bevor gespeichert wird). Nutzt dieselbe URL-/Signatur-/Header-Logik wie
+ * kauflandRequest — der frühere handgebaute Test in integration-store
+ * erzeugte `…/v2/v2/…` (doppeltes /v2) und schlug damit IMMER fehl.
+ * GET /warehouses ist konto-gebunden und validiert beide Schlüssel.
+ */
+async function pingKaufland({ clientKey, secretKey } = {}, { timeoutMs = 15_000 } = {}) {
+  const ck = safeString(clientKey);
+  const sk = safeString(secretKey);
+  if (!ck || !sk) {
+    return { ok: false, message: 'Client Key und Secret Key sind erforderlich.' };
+  }
+
+  const absoluteUrl = buildAbsoluteUrl(DEFAULT_BASE_URL, '/warehouses');
+  const timestamp = Math.floor(Date.now() / 1000);
+  const signature = signRequest({
+    method: 'GET',
+    absoluteUrl: absoluteUrl.toString(),
+    rawBody: '',
+    timestamp,
+    secretKey: sk,
+  });
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), Math.max(1_000, timeoutMs));
+  try {
+    const response = await fetch(absoluteUrl.toString(), {
+      method: 'GET',
+      headers: {
+        Accept: 'application/json',
+        'User-Agent': DEFAULT_USER_AGENT,
+        'Shop-Client-Key': ck,
+        'Shop-Timestamp': String(timestamp),
+        'Shop-Signature': signature,
+      },
+      signal: controller.signal,
+    });
+    const text = await response.text().catch(() => '');
+    if (response.ok) {
+      let count = 0;
+      try {
+        const json = JSON.parse(text);
+        count = Array.isArray(json?.data) ? json.data.length : 0;
+      } catch { /* Zählung ist nur Kosmetik */ }
+      return { ok: true, message: `Verbunden! ${count} Lager gefunden.` };
+    }
+    if (response.status === 401 || response.status === 403) {
+      return { ok: false, message: `Schlüssel ungültig (HTTP ${response.status}) — bitte Client Key und Secret Key aus dem Kaufland Seller Portal (Einstellungen → API) prüfen.` };
+    }
+    return { ok: false, message: `Verbindung fehlgeschlagen (HTTP ${response.status})` };
+  } catch (err) {
+    return { ok: false, message: `Verbindungstest fehlgeschlagen: ${err.message}` };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 module.exports = {
   kauflandRequest,
+  pingKaufland,
   getKauflandRefunds,
   findUnit,
   listUnits,
