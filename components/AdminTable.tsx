@@ -31,7 +31,7 @@ const safeCurrency = (code?: string) => {
 
 const COLUMN_STORAGE_KEY = 'avystock:admin-table:visible-columns';
 const COLUMN_PRESETS: Record<ColumnPreset, ColumnId[]> = {
-  standard: ['thumbnail', 'nameBrand', 'sku', 'barcode', 'category', 'price', 'inventory', 'sold', 'notizen', 'pendingIntake', 'storage', 'ebay', 'kaufland', 'readiness', 'lastSaved'],
+  standard: ['thumbnail', 'nameBrand', 'sku', 'barcode', 'category', 'price', 'inventory', 'sold', 'notizen', 'pendingIntake', 'storage', 'ebay', 'kaufland', 'readiness', 'createdAt', 'lastSaved'],
   warehouse: ['nameBrand', 'sku', 'barcode', 'inventory', 'sold', 'pendingIntake', 'storage', 'ebay', 'kaufland', 'readiness', 'saveStatus'],
   pricing: ['nameBrand', 'price', 'sku', 'barcode', 'pendingIntake', 'ebay', 'kaufland', 'readiness', 'lastSynced'],
   minimal: ['nameBrand', 'sku', 'barcode', 'inventory', 'sold', 'pendingIntake', 'ebay', 'kaufland', 'readiness'],
@@ -909,6 +909,17 @@ const AdminTable: React.FC<AdminTableProps> = ({
         render: ({ product }) => <SaveStatusBadge saved={Boolean(product.ops?.last_saved_iso)} />,
       },
       {
+        id: 'createdAt',
+        label: t('table.createdAt'),
+        sortKey: 'ops.created_at_iso',
+        defaultVisible: true,
+        render: ({ product }) => (
+          <span className="text-txt-muted text-sm">
+            {(product.ops as any)?.created_at_iso ? new Date((product.ops as any).created_at_iso).toLocaleString('de-DE') : 'N/A'}
+          </span>
+        ),
+      },
+      {
         id: 'lastSaved',
         label: t('table.lastSaved'),
         sortKey: 'ops.last_saved_iso',
@@ -987,6 +998,31 @@ const AdminTable: React.FC<AdminTableProps> = ({
 
   const [visibleColumns, setVisibleColumns] = useState<ColumnId[]>(() => resolveInitialColumns());
 
+  // Per-User-Persistenz (serverseitig, geräteübergreifend): beim Mount die im
+  // Profil gespeicherte Spaltenkonfiguration laden — sie gewinnt gegenüber dem
+  // rein lokalen localStorage-Cache. profileLoadedRef verhindert, dass der
+  // initiale State das Profil sofort wieder überschreibt.
+  const profileLoadedRef = useRef(false);
+  const profileSaveTimer = useRef<number | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    import('../api/client').then(({ fetchProfile }) =>
+      fetchProfile()
+        .then((profile) => {
+          if (cancelled) return;
+          const stored = (profile as any)?.tablePrefs?.adminTableColumns;
+          if (Array.isArray(stored) && stored.length > 0) {
+            const valid = stored.filter((id: ColumnId) => columnDefinitions.some((c) => c.id === id));
+            if (valid.length > 0) setVisibleColumns(normalizeMarketplaceColumnOrder(valid));
+          }
+        })
+        .catch(() => {})
+        .finally(() => { if (!cancelled) profileLoadedRef.current = true; })
+    );
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => {
     if (typeof window === 'undefined') return;
     try {
@@ -994,6 +1030,15 @@ const AdminTable: React.FC<AdminTableProps> = ({
     } catch (error) {
       console.warn('Konnte Spaltenkonfiguration nicht speichern:', error);
     }
+    // Debounced ins Nutzer-Profil spiegeln (erst nach dem initialen Profil-Load,
+    // damit der Default-State das gespeicherte Profil nicht überschreibt).
+    if (!profileLoadedRef.current) return;
+    if (profileSaveTimer.current) window.clearTimeout(profileSaveTimer.current);
+    profileSaveTimer.current = window.setTimeout(() => {
+      import('../api/client').then(({ saveProfile }) =>
+        saveProfile({ tablePrefs: { adminTableColumns: visibleColumns } }).catch(() => {})
+      );
+    }, 1200);
   }, [visibleColumns]);
 
   useEffect(() => {
@@ -1029,6 +1074,18 @@ const AdminTable: React.FC<AdminTableProps> = ({
       if (swapIdx < 0 || swapIdx >= prev.length) return prev;
       const next = [...prev];
       [next[idx], next[swapIdx]] = [next[swapIdx], next[idx]];
+      return next;
+    });
+  };
+
+  // Drag & Drop: Spalte an eine Ziel-Position verschieben.
+  const moveColumnTo = (id: ColumnId, targetIndex: number) => {
+    setVisibleColumns((prev) => {
+      const from = prev.indexOf(id);
+      if (from < 0) return prev;
+      const next = [...prev];
+      next.splice(from, 1);
+      next.splice(Math.max(0, Math.min(targetIndex, next.length)), 0, id);
       return next;
     });
   };
@@ -2325,6 +2382,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
                 setIsColumnPanelOpen={setIsColumnPanelOpen}
                 toggleColumnVisibility={toggleColumnVisibility}
                 moveColumn={moveColumn}
+                moveColumnTo={moveColumnTo}
                 resetColumns={resetColumns}
                 normalizeMarketplaceColumnOrder={normalizeMarketplaceColumnOrder}
                 mode={mode}

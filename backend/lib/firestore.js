@@ -2892,7 +2892,14 @@ async function getAllProductsForTenant(tenantId, options = {}) {
         const data = doc.data();
         const docTenant = data?.tenantId;
         if (!docTenant || docTenant === 'default') {
-          products.push({ ...data, id: data?.id || doc.id });
+          // Initiale Erfassung: read-time Fallback auf das native Firestore-
+          // createTime (rückwirkend korrekt für alle Bestands-Docs, kein Backfill
+          // nötig). Wird beim nächsten Save als ops.created_at_iso persistiert.
+          const ops = { ...(data?.ops || {}) };
+          if (!ops.created_at_iso && doc.createTime) {
+            ops.created_at_iso = doc.createTime.toDate().toISOString();
+          }
+          products.push({ ...data, ops, id: data?.id || doc.id });
         }
       });
       console.log(`Loaded ${products.length} products for tenant='default' (legacy-compat: includes docs without tenantId field) from Firestore`);
@@ -2910,8 +2917,13 @@ async function getAllProductsForTenant(tenantId, options = {}) {
     const products = [];
     snapshot.forEach((doc) => {
       const data = doc.data();
+      const ops = { ...(data?.ops || {}) };
+      if (!ops.created_at_iso && doc.createTime) {
+        ops.created_at_iso = doc.createTime.toDate().toISOString();
+      }
       products.push({
         ...data,
+        ops,
         id: data?.id || doc.id,
       });
     });

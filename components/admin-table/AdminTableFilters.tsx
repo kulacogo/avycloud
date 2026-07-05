@@ -2,6 +2,7 @@ import React from "react";
 import { Readiness, ColumnDefinition, ColumnId, ColumnPreset, ProductBulkActionName } from "./types";
 
 const COLUMN_PRESETS: Record<ColumnPreset, ColumnId[]> = {
+  // Muss mit COLUMN_PRESETS in AdminTable.tsx übereinstimmen.
   standard: [
     "thumbnail",
     "nameBrand",
@@ -10,11 +11,14 @@ const COLUMN_PRESETS: Record<ColumnPreset, ColumnId[]> = {
     "category",
     "price",
     "inventory",
+    "sold",
+    "notizen",
     "pendingIntake",
     "storage",
     "ebay",
     "kaufland",
     "readiness",
+    "createdAt",
     "lastSaved",
   ],
   warehouse: [
@@ -22,6 +26,7 @@ const COLUMN_PRESETS: Record<ColumnPreset, ColumnId[]> = {
     "sku",
     "barcode",
     "inventory",
+    "sold",
     "pendingIntake",
     "storage",
     "ebay",
@@ -45,6 +50,7 @@ const COLUMN_PRESETS: Record<ColumnPreset, ColumnId[]> = {
     "sku",
     "barcode",
     "inventory",
+    "sold",
     "pendingIntake",
     "ebay",
     "kaufland",
@@ -118,6 +124,7 @@ interface AdminTableFiltersProps {
   setIsColumnPanelOpen: (v: boolean) => void;
   toggleColumnVisibility: (id: ColumnId) => void;
   moveColumn: (id: ColumnId, direction: "up" | "down") => void;
+  moveColumnTo: (id: ColumnId, targetIndex: number) => void;
   resetColumns: () => void;
   normalizeMarketplaceColumnOrder: (columns: ColumnId[]) => ColumnId[];
 
@@ -205,6 +212,7 @@ const AdminTableFilters: React.FC<AdminTableFiltersProps> = ({
   setIsColumnPanelOpen,
   toggleColumnVisibility,
   moveColumn,
+  moveColumnTo,
   resetColumns,
   normalizeMarketplaceColumnOrder,
   mode,
@@ -218,6 +226,10 @@ const AdminTableFilters: React.FC<AdminTableFiltersProps> = ({
   setConfirmDialog,
   t,
 }) => {
+  // Drag & Drop-State für die Spalten-Sortierung im Spalten-Panel.
+  const [dragColId, setDragColId] = React.useState<ColumnId | null>(null);
+  const [dropIdx, setDropIdx] = React.useState<number | null>(null);
+
   return (
     <>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
@@ -721,11 +733,54 @@ const AdminTableFilters: React.FC<AdminTableFiltersProps> = ({
             {visibleColumns.map((colId, idx) => {
               const col = columnDefinitions.find((c) => c.id === colId);
               if (!col) return null;
+              const isDragging = dragColId === col.id;
+              const isDropTarget = dropIdx === idx && dragColId !== null && dragColId !== col.id;
               return (
                 <div
                   key={col.id}
-                  className="flex items-center gap-2 rounded-lg bg-app-elevated/40 px-2 py-1.5 text-sm text-txt-primary"
+                  draggable
+                  onDragStart={(e) => {
+                    setDragColId(col.id);
+                    e.dataTransfer.effectAllowed = "move";
+                    e.dataTransfer.setData("text/plain", col.id);
+                  }}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = "move";
+                    if (dropIdx !== idx) setDropIdx(idx);
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    if (dragColId && dragColId !== col.id) moveColumnTo(dragColId, idx);
+                    setDragColId(null);
+                    setDropIdx(null);
+                  }}
+                  onDragEnd={() => {
+                    setDragColId(null);
+                    setDropIdx(null);
+                  }}
+                  className={`flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-txt-primary transition-colors ${
+                    isDragging ? "opacity-40 bg-app-elevated/40" : "bg-app-elevated/40"
+                  } ${isDropTarget ? "ring-1 ring-accent bg-accent/10" : ""}`}
                 >
+                  {/* Grip: Maus = Drag & Drop, Tastatur = Pfeiltasten */}
+                  <span
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`${col.label} verschieben (Pfeiltasten oder ziehen)`}
+                    onKeyDown={(e) => {
+                      if (e.key === "ArrowUp") { e.preventDefault(); moveColumn(col.id, "up"); }
+                      if (e.key === "ArrowDown") { e.preventDefault(); moveColumn(col.id, "down"); }
+                    }}
+                    className="shrink-0 cursor-grab active:cursor-grabbing text-txt-muted hover:text-txt-primary focus:outline-none focus:text-accent"
+                    title="Ziehen zum Sortieren"
+                  >
+                    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
+                      <circle cx="9" cy="6" r="1.5" /><circle cx="15" cy="6" r="1.5" />
+                      <circle cx="9" cy="12" r="1.5" /><circle cx="15" cy="12" r="1.5" />
+                      <circle cx="9" cy="18" r="1.5" /><circle cx="15" cy="18" r="1.5" />
+                    </svg>
+                  </span>
                   <input
                     type="checkbox"
                     checked
@@ -734,40 +789,6 @@ const AdminTableFilters: React.FC<AdminTableFiltersProps> = ({
                     className="bg-app-border border-app-border shrink-0"
                   />
                   <span className="flex-1 truncate">{col.label}</span>
-                  <button
-                    type="button"
-                    onClick={() => moveColumn(col.id, "up")}
-                    disabled={idx === 0}
-                    className="p-0.5 text-txt-muted hover:text-txt-primary disabled:opacity-20"
-                    title="Nach oben"
-                  >
-                    <svg
-                      className="w-3.5 h-3.5"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                    >
-                      <path d="M5 15l7-7 7 7" />
-                    </svg>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => moveColumn(col.id, "down")}
-                    disabled={idx === visibleColumns.length - 1}
-                    className="p-0.5 text-txt-muted hover:text-txt-primary disabled:opacity-20"
-                    title="Nach unten"
-                  >
-                    <svg
-                      className="w-3.5 h-3.5"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                    >
-                      <path d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </button>
                 </div>
               );
             })}

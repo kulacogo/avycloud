@@ -23,7 +23,8 @@ export type ColumnId =
   | "readiness"
   | "revision"
   | "sold"
-  | "notizen";
+  | "notizen"
+  | "createdAt";
 
 export type ColumnPreset = "standard" | "warehouse" | "pricing" | "minimal";
 
