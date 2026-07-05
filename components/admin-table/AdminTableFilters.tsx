@@ -162,6 +162,16 @@ const filterButtonClass =
   "w-full p-2 text-sm bg-app-surface border border-app-border rounded-xl text-txt-primary text-left";
 const menuItemClass =
   "w-full text-left px-3 py-2 text-sm text-txt-primary hover:bg-app-elevated/60 rounded-xl transition";
+const toolbarButtonClass =
+  "p-2 text-sm bg-app-surface border border-app-border rounded-xl text-txt-primary text-left whitespace-nowrap";
+
+// Beschriftetes Feld im "Weitere Filter"-Popover.
+const FilterField: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
+  <label className="flex flex-col gap-1 text-xs text-txt-muted">
+    {label}
+    {children}
+  </label>
+);
 
 const AdminTableFilters: React.FC<AdminTableFiltersProps> = ({
   filterStatus,
@@ -230,9 +240,33 @@ const AdminTableFilters: React.FC<AdminTableFiltersProps> = ({
   const [dragColId, setDragColId] = React.useState<ColumnId | null>(null);
   const [dropIdx, setDropIdx] = React.useState<number | null>(null);
 
+  // "Weitere Filter"-Popover + aktive-Filter-Zähler für die Toolbar.
+  const [moreFiltersOpen, setMoreFiltersOpen] = React.useState(false);
+  const advancedActiveCount = [filterBin, filterEanValid, filterGpsr, filterEbay, filterKaufland, filterWeight, filterReserved, filterSold]
+    .filter((v) => v !== "all").length;
+  const anyActiveCount =
+    advancedActiveCount +
+    (filterStatus !== "all" ? 1 : 0) +
+    (filterCategorySelection.length > 0 ? 1 : 0) +
+    (filterEditor.length > 0 ? 1 : 0);
+  const resetAllFilters = () => {
+    setFilterStatus("all");
+    setFilterCategorySelection([]);
+    setFilterBin("all");
+    setFilterEanValid("all");
+    setFilterGpsr("all");
+    setFilterEbay("all");
+    setFilterKaufland("all");
+    setFilterWeight("all");
+    setFilterReserved("all");
+    setFilterSold("all");
+    setFilterEditor([]);
+  };
+  const popoverSelectClass = `${filterControlClass} w-full`;
+
   return (
     <>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <select
           id="table-filter-status"
           value={filterStatus}
@@ -253,7 +287,7 @@ const AdminTableFilters: React.FC<AdminTableFiltersProps> = ({
             type="button"
             onClick={() => setCategoryFilterOpen(!categoryFilterOpen)}
             aria-expanded={categoryFilterOpen}
-            className={filterButtonClass}
+            className={toolbarButtonClass}
           >
             {filterCategorySelection.length === 0
               ? "Kategorie: Alle"
@@ -361,12 +395,12 @@ const AdminTableFilters: React.FC<AdminTableFiltersProps> = ({
           >
             {t("table.editor.mine")}
           </button>
-          <div className="relative flex-1 min-w-[180px]">
+          <div className="relative">
             <button
               type="button"
               onClick={() => setEditorFilterOpen(!editorFilterOpen)}
               aria-expanded={editorFilterOpen}
-              className={filterButtonClass}
+              className={toolbarButtonClass}
             >
               {filterEditor.length === 0
                 ? `${t("table.editor.label")}: ${t("table.editor.all")}`
@@ -429,100 +463,106 @@ const AdminTableFilters: React.FC<AdminTableFiltersProps> = ({
           </div>
         </div>
 
-        <select
-          id="table-filter-bin"
-          value={filterBin}
-          onChange={(e) =>
-            setFilterBin(e.target.value as "all" | "withBin" | "withoutBin")
-          }
-          className={filterControlClass}
-        >
-          <option value="all">{t("table.binFilter.all")}</option>
-          <option value="withBin">{t("table.binFilter.withBin")}</option>
-          <option value="withoutBin">{t("table.binFilter.withoutBin")}</option>
-        </select>
-      </div>
-
-      <div className="rounded-xl border border-app-border bg-app-surface p-3 space-y-3">
-        <p className="text-[10px] uppercase tracking-wider font-semibold text-txt-muted">
-          Erweiterte Filter
-        </p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
-          <select
-            id="table-filter-ean-valid"
-            value={filterEanValid}
-            onChange={(e) => setFilterEanValid(e.target.value as any)}
-            className={filterControlClass}
+        {/* Weitere Filter — gebündelt in einem Popover statt als Dauer-Wand */}
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setMoreFiltersOpen(!moreFiltersOpen)}
+            aria-expanded={moreFiltersOpen}
+            className={`${toolbarButtonClass} inline-flex items-center gap-1.5 ${advancedActiveCount > 0 ? "border-accent/40 text-accent" : ""}`}
           >
-            <option value="all">EAN/GTIN: Alle</option>
-            <option value="valid">Gültige EAN/GTIN</option>
-            <option value="invalid">Ungültige EAN/GTIN</option>
-            <option value="missing">Keine EAN/GTIN</option>
-          </select>
-          <select
-            id="table-filter-gpsr"
-            value={filterGpsr}
-            onChange={(e) => setFilterGpsr(e.target.value as any)}
-            className={filterControlClass}
-          >
-            <option value="all">GPSR: Alle</option>
-            <option value="complete">GPSR: Vollständig</option>
-            <option value="incomplete">GPSR: Unvollständig</option>
-          </select>
-          <select
-            id="table-filter-ebay"
-            value={filterEbay}
-            onChange={(e) => setFilterEbay(e.target.value as any)}
-            className={filterControlClass}
-          >
-            <option value="all">eBay: Alle</option>
-            <option value="listed">eBay: Gelistet</option>
-            <option value="notListed">eBay: Nicht gelistet</option>
-          </select>
-          <select
-            id="table-filter-kaufland"
-            value={filterKaufland}
-            onChange={(e) => setFilterKaufland(e.target.value as any)}
-            className={filterControlClass}
-          >
-            <option value="all">Kaufland: Alle</option>
-            <option value="listed">Kaufland: Gelistet</option>
-            <option value="notListed">Kaufland: Nicht gelistet</option>
-          </select>
-          <select
-            id="table-filter-weight"
-            value={filterWeight}
-            onChange={(e) => setFilterWeight(e.target.value as any)}
-            className={filterControlClass}
-          >
-            <option value="all">Gewicht: Alle</option>
-            <option value="withWeight">Gewicht: vorhanden</option>
-            <option value="noWeight">Gewicht: fehlt</option>
-          </select>
-          <select
-            id="table-filter-reserved"
-            value={filterReserved}
-            onChange={(e) => setFilterReserved(e.target.value as any)}
-            className={filterControlClass}
-          >
-            <option value="all">Reserviert: Alle</option>
-            <option value="reserved">Reserviert: &gt; 0</option>
-            <option value="notReserved">Reserviert: 0</option>
-          </select>
-          <select
-            value={filterSold}
-            onChange={(e) => setFilterSold(e.target.value as any)}
-            className={filterControlClass}
-          >
-            <option value="all">Verkauft: Alle</option>
-            <option value="sold">Verkauft: Ja</option>
-            <option value="unsold">Verkauft: Nein</option>
-          </select>
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+              <path d="M3 5h18M6 10h12M9 15h6M11 20h2" />
+            </svg>
+            Weitere Filter
+            {advancedActiveCount > 0 && (
+              <span className="rounded-full bg-accent/15 px-1.5 text-[11px] font-semibold text-accent">{advancedActiveCount}</span>
+            )}
+          </button>
+          {moreFiltersOpen && (
+            <div className="absolute z-30 mt-2 w-[560px] max-w-[92vw] rounded-xl border border-app-border bg-app-bg p-4 shadow-xl shadow-black/40">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-txt-secondary">Weitere Filter</p>
+                <button type="button" onClick={() => setMoreFiltersOpen(false)} className="text-xs text-txt-secondary hover:underline">
+                  Schließen
+                </button>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3">
+                <FilterField label="eBay">
+                  <select id="table-filter-ebay" value={filterEbay} onChange={(e) => setFilterEbay(e.target.value as any)} className={popoverSelectClass}>
+                    <option value="all">Alle</option>
+                    <option value="listed">Gelistet</option>
+                    <option value="notListed">Nicht gelistet</option>
+                  </select>
+                </FilterField>
+                <FilterField label="Kaufland">
+                  <select id="table-filter-kaufland" value={filterKaufland} onChange={(e) => setFilterKaufland(e.target.value as any)} className={popoverSelectClass}>
+                    <option value="all">Alle</option>
+                    <option value="listed">Gelistet</option>
+                    <option value="notListed">Nicht gelistet</option>
+                  </select>
+                </FilterField>
+                <FilterField label="EAN/GTIN">
+                  <select id="table-filter-ean-valid" value={filterEanValid} onChange={(e) => setFilterEanValid(e.target.value as any)} className={popoverSelectClass}>
+                    <option value="all">Alle</option>
+                    <option value="valid">Gültig</option>
+                    <option value="invalid">Ungültig</option>
+                    <option value="missing">Fehlt</option>
+                  </select>
+                </FilterField>
+                <FilterField label="GPSR">
+                  <select id="table-filter-gpsr" value={filterGpsr} onChange={(e) => setFilterGpsr(e.target.value as any)} className={popoverSelectClass}>
+                    <option value="all">Alle</option>
+                    <option value="complete">Vollständig</option>
+                    <option value="incomplete">Unvollständig</option>
+                  </select>
+                </FilterField>
+                <FilterField label="Gewicht">
+                  <select id="table-filter-weight" value={filterWeight} onChange={(e) => setFilterWeight(e.target.value as any)} className={popoverSelectClass}>
+                    <option value="all">Alle</option>
+                    <option value="withWeight">Vorhanden</option>
+                    <option value="noWeight">Fehlt</option>
+                  </select>
+                </FilterField>
+                <FilterField label="Lagerplatz">
+                  <select id="table-filter-bin" value={filterBin} onChange={(e) => setFilterBin(e.target.value as "all" | "withBin" | "withoutBin")} className={popoverSelectClass}>
+                    <option value="all">{t("table.binFilter.all")}</option>
+                    <option value="withBin">{t("table.binFilter.withBin")}</option>
+                    <option value="withoutBin">{t("table.binFilter.withoutBin")}</option>
+                  </select>
+                </FilterField>
+                <FilterField label="Reserviert">
+                  <select id="table-filter-reserved" value={filterReserved} onChange={(e) => setFilterReserved(e.target.value as any)} className={popoverSelectClass}>
+                    <option value="all">Alle</option>
+                    <option value="reserved">&gt; 0</option>
+                    <option value="notReserved">0</option>
+                  </select>
+                </FilterField>
+                <FilterField label="Verkauft">
+                  <select id="table-filter-sold" value={filterSold} onChange={(e) => setFilterSold(e.target.value as any)} className={popoverSelectClass}>
+                    <option value="all">Alle</option>
+                    <option value="sold">Ja</option>
+                    <option value="unsold">Nein</option>
+                  </select>
+                </FilterField>
+              </div>
+              <div className="mt-3 flex justify-end border-t border-app-border pt-3">
+                <button type="button" onClick={resetAllFilters} className="text-xs text-accent hover:underline">
+                  Alle Filter zurücksetzen
+                </button>
+              </div>
+            </div>
+          )}
         </div>
-      </div>
 
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-        <div className="flex items-center gap-2 flex-wrap">
+        {anyActiveCount > 0 && (
+          <button type="button" onClick={resetAllFilters} className="text-xs text-accent hover:underline whitespace-nowrap">
+            Zurücksetzen ({anyActiveCount})
+          </button>
+        )}
+
+        {/* Ansicht & Tools — rechtsbündig in derselben Toolbar */}
+        <div className="ml-auto flex items-center gap-2 flex-wrap">
           <select
             value={columnPreset}
             onChange={(e) => {
@@ -555,9 +595,8 @@ const AdminTableFilters: React.FC<AdminTableFiltersProps> = ({
             </svg>
             {t("table.columns.edit")}
           </button>
-        </div>
 
-        <details className="relative">
+          <details className="relative">
           <summary className="cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden inline-flex items-center gap-1 rounded-xl border border-app-border bg-app-surface px-3 py-2 text-xs font-semibold text-txt-primary hover:border-app-border/80 transition">
             <svg
               className="w-3.5 h-3.5"
@@ -712,7 +751,8 @@ const AdminTableFilters: React.FC<AdminTableFiltersProps> = ({
               </>
             ) : null}
           </div>
-        </details>
+          </details>
+        </div>
       </div>
 
       {isColumnPanelOpen && (

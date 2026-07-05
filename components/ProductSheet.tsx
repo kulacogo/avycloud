@@ -1262,6 +1262,27 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
 
   const [activeTab, setActiveTab] = useState('stammdaten');
 
+  // KI-Assistent-Tab: Höhe exakt an den sichtbaren Restplatz anpassen (die frühere
+  // Konstante h-[calc(100vh-12rem)] unterschätzte den Kopfbereich → das Eingabefeld
+  // wurde unten abgeschnitten). Gemessen wird die reale Oberkante des Panels.
+  const assistantWrapRef = useRef<HTMLDivElement | null>(null);
+  const [assistantHeight, setAssistantHeight] = useState<number | null>(null);
+  useEffect(() => {
+    if (activeTab !== 'assistent') return;
+    const measure = () => {
+      const el = assistantWrapRef.current;
+      if (!el) return;
+      const top = el.getBoundingClientRect().top;
+      setAssistantHeight(Math.max(480, window.innerHeight - top - 16));
+    };
+    const raf = window.requestAnimationFrame(measure);
+    window.addEventListener('resize', measure);
+    return () => {
+      window.cancelAnimationFrame(raf);
+      window.removeEventListener('resize', measure);
+    };
+  }, [activeTab]);
+
   // Notiz-Anzahl fürs Tab-Badge (aktualisiert sich, wenn im Tab eine Notiz dazukommt).
   const [notesCount, setNotesCount] = useState<number>(0);
   useEffect(() => {
@@ -1940,7 +1961,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
           assistant suggestion (datasheetChanges live only in component state) and the
           last user message can race the async server-side session persistence. */}
       <TabPanel tabId="assistent" activeTab={activeTab} keepMounted>
-        <div className="h-[calc(100vh-12rem)] min-h-[480px]">
+        <div ref={assistantWrapRef} style={assistantHeight ? { height: assistantHeight } : undefined} className="min-h-[480px]">
           <AssistantChat
             product={localProduct}
             onApplyDatasheetChange={applyAssistantChange}
