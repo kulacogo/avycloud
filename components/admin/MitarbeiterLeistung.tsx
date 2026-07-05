@@ -19,15 +19,18 @@ const COLUMNS: Array<{ key: keyof PerformanceRow; label: string }> = [
 
 export const MitarbeiterLeistung: React.FC = () => {
   const [range, setRange] = React.useState<Range>("week");
+  const [fromDate, setFromDate] = React.useState("");
+  const [toDate, setToDate] = React.useState("");
+  const customActive = Boolean(fromDate && toDate && fromDate <= toDate);
   const [rows, setRows] = React.useState<PerformanceRow[]>([]);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
-  const load = React.useCallback(async (r: Range) => {
+  const load = React.useCallback(async (r: Range, custom?: { from: string; to: string }) => {
     setError(null);
     setLoading(true);
     try {
-      const data = await adminGetPerformance(r);
+      const data = await adminGetPerformance(r, custom);
       setRows(data.rows || []);
     } catch (e: any) {
       setError(e?.message || "Leistung konnte nicht geladen werden");
@@ -37,8 +40,14 @@ export const MitarbeiterLeistung: React.FC = () => {
   }, []);
 
   React.useEffect(() => {
-    load(range);
-  }, [range, load]);
+    load(range, customActive ? { from: fromDate, to: toDate } : undefined);
+  }, [range, fromDate, toDate, customActive, load]);
+
+  const pickPreset = (r: Range) => {
+    setFromDate("");
+    setToDate("");
+    setRange(r);
+  };
 
   return (
     <div className="space-y-5">
@@ -47,19 +56,55 @@ export const MitarbeiterLeistung: React.FC = () => {
           <h2 className="text-xl font-bold">Team-Leistung</h2>
           <p className="text-sm text-txt-muted">Wie viel jeder Mitarbeiter geschafft hat — erfasst, eingelagert, kommissioniert, verpackt, angereichert.</p>
         </div>
-        <div className="flex items-center gap-1 rounded-xl bg-app-surface p-1">
-          {RANGES.map((r) => (
-            <button
-              key={r.id}
-              type="button"
-              onClick={() => setRange(r.id)}
-              className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition-colors ${
-                range === r.id ? "bg-accent text-txt-primary" : "text-txt-secondary hover:bg-white/10"
-              }`}
-            >
-              {r.label}
-            </button>
-          ))}
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-1 rounded-xl bg-app-surface p-1">
+            {RANGES.map((r) => (
+              <button
+                key={r.id}
+                type="button"
+                onClick={() => pickPreset(r.id)}
+                className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition-colors ${
+                  !customActive && range === r.id ? "bg-accent text-txt-primary" : "text-txt-secondary hover:bg-white/10"
+                }`}
+              >
+                {r.label}
+              </button>
+            ))}
+          </div>
+          {/* Kalender: beliebiger Tag oder Zeitraum (von = bis ⇒ ein Tag) */}
+          <div className={`flex items-center gap-1.5 rounded-xl border px-2 py-1 ${customActive ? "border-accent/40 bg-accent/10" : "border-app-border bg-app-surface"}`}>
+            <input
+              type="date"
+              value={fromDate}
+              max={toDate || undefined}
+              onChange={(e) => {
+                setFromDate(e.target.value);
+                if (e.target.value && !toDate) setToDate(e.target.value);
+              }}
+              aria-label="Zeitraum von"
+              className="bg-transparent text-sm text-txt-primary outline-none [color-scheme:dark]"
+            />
+            <span className="text-txt-muted text-sm">–</span>
+            <input
+              type="date"
+              value={toDate}
+              min={fromDate || undefined}
+              onChange={(e) => setToDate(e.target.value)}
+              aria-label="Zeitraum bis"
+              className="bg-transparent text-sm text-txt-primary outline-none [color-scheme:dark]"
+            />
+            {customActive && (
+              <button
+                type="button"
+                onClick={() => { setFromDate(""); setToDate(""); }}
+                aria-label="Zeitraum zurücksetzen"
+                title="Zeitraum zurücksetzen"
+                className="rounded-md px-1.5 text-txt-muted hover:text-txt-primary"
+              >
+                ×
+              </button>
+            )}
+          </div>
         </div>
       </div>
 

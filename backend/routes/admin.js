@@ -152,8 +152,10 @@ router.get('/performance', requirePermission('admin', 'users.read'), async (req,
   try {
     const tenantId = req.user?.tenantId || 'default';
     const range = ['today', 'week', 'month'].includes(req.query?.range) ? req.query.range : 'week';
+    const from = typeof req.query?.from === 'string' ? req.query.from : undefined;
+    const to = typeof req.query?.to === 'string' ? req.query.to : undefined;
     const { getPerformance } = require('../services/performance-scoreboard');
-    const data = await getPerformance({ tenantId, range });
+    const data = await getPerformance({ tenantId, range, from, to });
     res.json({ ok: true, data });
   } catch (error) {
     console.error('Admin performance failed:', error);

@@ -37,7 +37,36 @@ describe('aggregatePerformance', () => {
     expect(result.system).toBeUndefined();
   });
 
-  it('counts bulk product edits as angereichert too', () => {
+  it('zählt PRODUKTE, nicht Speichervorgänge: 5 Saves am selben Produkt = 1 angereichert', () => {
+    const r = aggregatePerformance({
+      auditLogs: [
+        { action: 'product.updated', userId: 'u1', resourceId: 'p1' },
+        { action: 'product.updated', userId: 'u1', resourceId: 'p1' },
+        { action: 'product.updated', userId: 'u1', resourceId: 'p1' },
+        { action: 'product.created', userId: 'u1', resourceId: 'p1' },
+        { action: 'product.updated', userId: 'u1', resourceId: 'p1' },
+        { action: 'product.updated', userId: 'u1', resourceId: 'p2' },
+      ],
+      orderEvents: [],
+      warehouseEvents: [],
+    });
+    expect(r.u1.angereichert).toBe(2); // p1 + p2, egal wie oft gespeichert
+  });
+
+  it('dedupliziert erfasst über details.productId', () => {
+    const r = aggregatePerformance({
+      auditLogs: [
+        { action: 'product.identified', userId: 'u1', details: { productId: 'p1' } },
+        { action: 'product.identified', userId: 'u1', details: { productId: 'p1' } },
+        { action: 'product.identified', userId: 'u1', details: { productId: 'p2' } },
+      ],
+      orderEvents: [],
+      warehouseEvents: [],
+    });
+    expect(r.u1.erfasst).toBe(2);
+  });
+
+  it('Massen-Aktionen (bulk_update/bulk_import, 1 Eintrag pro Lauf ohne Produkt-ID) zählen NICHT als angereichert', () => {
     const r = aggregatePerformance({
       auditLogs: [
         { action: 'product.bulk_update', userId: 'u1' },
@@ -46,7 +75,7 @@ describe('aggregatePerformance', () => {
       orderEvents: [],
       warehouseEvents: [],
     });
-    expect(r.u1.angereichert).toBe(2);
+    expect(r.u1?.angereichert ?? 0).toBe(0);
   });
 
   it('returns an empty object when there is nothing', () => {

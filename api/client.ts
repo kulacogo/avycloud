@@ -2138,9 +2138,15 @@ export type PerformanceRow = {
 };
 
 export const adminGetPerformance = async (
-  range: "today" | "week" | "month" = "week"
+  range: "today" | "week" | "month" = "week",
+  custom?: { from: string; to: string }
 ): Promise<{ range: string; rows: PerformanceRow[] }> => {
-  const res = await fetchApi(`${BACKEND_URL}/api/admin/performance?range=${encodeURIComponent(range)}`);
+  const params = new URLSearchParams({ range });
+  if (custom?.from && custom?.to) {
+    params.set("from", custom.from);
+    params.set("to", custom.to);
+  }
+  const res = await fetchApi(`${BACKEND_URL}/api/admin/performance?${params.toString()}`);
   const result = await parseResponse(res);
   if (!res.ok || result?.ok === false) {
     throw new Error(result?.error?.message || "Leistung konnte nicht geladen werden");
