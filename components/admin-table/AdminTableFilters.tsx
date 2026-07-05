@@ -242,6 +242,42 @@ const AdminTableFilters: React.FC<AdminTableFiltersProps> = ({
 
   // "Weitere Filter"-Popover + aktive-Filter-Zähler für die Toolbar.
   const [moreFiltersOpen, setMoreFiltersOpen] = React.useState(false);
+
+  // Klick außerhalb / Escape schließt jedes offene Popover (Standard-UX).
+  const categoryWrapRef = React.useRef<HTMLDivElement | null>(null);
+  const editorWrapRef = React.useRef<HTMLDivElement | null>(null);
+  const moreWrapRef = React.useRef<HTMLDivElement | null>(null);
+  const toolsDetailsRef = React.useRef<HTMLDetailsElement | null>(null);
+  React.useEffect(() => {
+    const onPointerDown = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (categoryFilterOpen && categoryWrapRef.current && !categoryWrapRef.current.contains(t)) {
+        setCategoryFilterOpen(false);
+      }
+      if (editorFilterOpen && editorWrapRef.current && !editorWrapRef.current.contains(t)) {
+        setEditorFilterOpen(false);
+      }
+      if (moreFiltersOpen && moreWrapRef.current && !moreWrapRef.current.contains(t)) {
+        setMoreFiltersOpen(false);
+      }
+      if (toolsDetailsRef.current?.open && !toolsDetailsRef.current.contains(t)) {
+        toolsDetailsRef.current.open = false;
+      }
+    };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      setCategoryFilterOpen(false);
+      setEditorFilterOpen(false);
+      setMoreFiltersOpen(false);
+      if (toolsDetailsRef.current) toolsDetailsRef.current.open = false;
+    };
+    document.addEventListener('mousedown', onPointerDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [categoryFilterOpen, editorFilterOpen, moreFiltersOpen, setCategoryFilterOpen, setEditorFilterOpen]);
   const advancedActiveCount = [filterBin, filterEanValid, filterGpsr, filterEbay, filterKaufland, filterWeight, filterReserved, filterSold]
     .filter((v) => v !== "all").length;
   const anyActiveCount =
@@ -282,7 +318,7 @@ const AdminTableFilters: React.FC<AdminTableFiltersProps> = ({
           ))}
         </select>
 
-        <div className="relative">
+        <div ref={categoryWrapRef} className="relative">
           <button
             type="button"
             onClick={() => setCategoryFilterOpen(!categoryFilterOpen)}
@@ -395,7 +431,7 @@ const AdminTableFilters: React.FC<AdminTableFiltersProps> = ({
           >
             {t("table.editor.mine")}
           </button>
-          <div className="relative">
+          <div ref={editorWrapRef} className="relative">
             <button
               type="button"
               onClick={() => setEditorFilterOpen(!editorFilterOpen)}
@@ -464,7 +500,7 @@ const AdminTableFilters: React.FC<AdminTableFiltersProps> = ({
         </div>
 
         {/* Weitere Filter — gebündelt in einem Popover statt als Dauer-Wand */}
-        <div className="relative">
+        <div ref={moreWrapRef} className="relative">
           <button
             type="button"
             onClick={() => setMoreFiltersOpen(!moreFiltersOpen)}
@@ -596,7 +632,7 @@ const AdminTableFilters: React.FC<AdminTableFiltersProps> = ({
             {t("table.columns.edit")}
           </button>
 
-          <details className="relative">
+          <details ref={toolsDetailsRef} className="relative">
           <summary className="cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden inline-flex items-center gap-1 rounded-xl border border-app-border bg-app-surface px-3 py-2 text-xs font-semibold text-txt-primary hover:border-app-border/80 transition">
             <svg
               className="w-3.5 h-3.5"
