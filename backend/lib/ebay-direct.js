@@ -1562,8 +1562,9 @@ async function getEbayListingSyncHealth() {
     const snap = await firestore.collection('ops').doc('ebayLightSync').get();
     doc = snap?.exists ? snap.data() || {} : null;
   } catch (err) {
+    // Transienter Lese-Fehler → Zustand UNBEKANNT, kein Fehlalarm-Banner.
     return {
-      healthy: false,
+      healthy: null,
       lastSuccessAtIso: null,
       staleMinutes: null,
       lastError: { message: `Status nicht lesbar: ${err.message}`, atIso: null },
@@ -1592,6 +1593,22 @@ async function getEbayListingSyncHealth() {
     lastError && Number.isFinite(errorMs) && (!Number.isFinite(lastSuccessMs) || errorMs > lastSuccessMs)
       ? lastError.atIso
       : null;
+
+  // Nie gelaufen UND kein Fehler protokolliert (frisches System, eBay evtl.
+  // nie verbunden) → Zustand UNBEKANNT (healthy:null), kein Fehlalarm.
+  // Die UI-Banner feuern nur auf healthy === false.
+  if (!Number.isFinite(lastSuccessMs) && !lastError) {
+    return {
+      healthy: null,
+      lastSuccessAtIso: null,
+      staleMinutes: null,
+      lastError: null,
+      failingSinceIso: null,
+      blockedReason: null,
+      pendingConfirmation: Boolean(doc?.pendingLargeDeactivation),
+      staleLimitMinutes,
+    };
+  }
 
   const healthy = Boolean(
     Number.isFinite(lastSuccessMs) && staleMinutes !== null && staleMinutes <= staleLimitMinutes && !failingSinceIso
@@ -1702,30 +1719,47 @@ async function syncLiveListingsLight(options = {}) {
     // update() statt set({merge:true}): merge deep-merges Maps, wodurch
     // lastSummary Felder ÄLTERER Läufe behält (z. B. blocked/reason vom
     // Vortag neben frischen Zählern) — das Lock-Doc log dadurch. update()
-    // ersetzt lastSummary als Ganzes. Das Doc existiert garantiert (der
-    // running:true-Set oben lief bereits).
-    await lockRef.update(
-      cleanUndefined({
-        running: false,
-        lastCompletedAtIso: new Date().toISOString(),
-        lastCompletedRunId: runId,
-        lastSummary: summary,
-        lastError: null,
-        ...pendingPatch,
-        updatedAt: FieldValue.serverTimestamp(),
-      })
-    );
+    // ersetzt lastSummary als Ganzes. Falls das Doc mid-run gelöscht wurde
+    // (Operator-Reset), legt der set-Fallback es sauber neu an; ein
+    // Schreibfehler darf hier NIE den eigentlichen Lauf-Ausgang maskieren.
+    await writeLightSyncLockState(lockRef, cleanUndefined({
+      running: false,
+      lastCompletedAtIso: new Date().toISOString(),
+      lastCompletedRunId: runId,
+      lastSummary: summary,
+      lastError: null,
+      ...pendingPatch,
+      updatedAt: FieldValue.serverTimestamp(),
+    }));
 
     return summary;
   } catch (error) {
-    await lockRef.update(
-      cleanUndefined({
-        running: false,
-        lastError: { message: error?.message || String(error), atIso: new Date().toISOString(), runId },
-        updatedAt: FieldValue.serverTimestamp(),
-      })
-    );
+    await writeLightSyncLockState(lockRef, cleanUndefined({
+      running: false,
+      lastError: { message: error?.message || String(error), atIso: new Date().toISOString(), runId },
+      updatedAt: FieldValue.serverTimestamp(),
+    }));
     throw error;
+  }
+}
+
+/**
+ * Schreibt den Abschluss-Zustand ins Light-Sync-Lock-Doc, ohne je zu werfen:
+ * update() (ersetzt Map-Felder als Ganzes, keine Merge-Artefakte) mit
+ * set({merge:true})-Fallback für den Fall, dass das Doc mid-run gelöscht
+ * wurde. Fehler werden geloggt, nie propagiert — sonst würde im Catch-Pfad
+ * von syncLiveListingsLight der ECHTE Sync-Fehler durch einen
+ * Schreibfehler (z. B. NOT_FOUND) ersetzt.
+ */
+async function writeLightSyncLockState(lockRef, patch) {
+  try {
+    await lockRef.update(patch);
+  } catch (err) {
+    try {
+      await lockRef.set(patch, { merge: true });
+    } catch (err2) {
+      console.warn(`[ebay-light-sync] lock state write failed: ${err2?.message || err2}`);
+    }
   }
 }
 
@@ -1781,7 +1815,11 @@ async function deactivateListingsMissingFromActiveSet({ activeItemIds = [], runI
   const CATASTROPHIC_RATIO = parseFloat(process.env.EBAY_CATASTROPHIC_DEACTIVATION_RATIO || '0.6');
   const maxRatio = ingestComplete ? CATASTROPHIC_RATIO : CONSERVATIVE_RATIO;
   let clearPendingObservation = false;
-  if (ratio > maxRatio && wouldDeactivate > 5) {
+  // Ein leeres Active-Set erreicht diesen Punkt nur im Confirm-Mode mit
+  // vollständigem Ingest (siehe Hard-Block oben) und ist IMMER
+  // bestätigungspflichtig — auch bei ≤5 Docs (kein minToGuard-Schlupfloch).
+  const emptyActiveSet = activeSetSize === 0 && wouldDeactivate > 0;
+  if ((ratio > maxRatio && wouldDeactivate > 5) || emptyActiveSet) {
     if (confirmMode) {
       // Durable fix: a large drop on a COMPLETE ingest is confirmed across two
       // consecutive complete ingests (a genuine drop persists; a one-off broken

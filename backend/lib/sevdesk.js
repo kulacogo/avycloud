@@ -9,9 +9,8 @@ const BALANCE_CACHE = { atMs: 0, data: null };
 const BALANCE_TTL_MS = 5 * 60 * 1000; // 5 min
 
 async function getSevDeskApiKey() {
-  // Self-Service-Zugangsdaten (IntegrationWizard) gewinnen; ENV/Secret Manager
-  // bleibt Fallback. Kein Für-immer-Cache mehr: der Resolver cached 60s,
-  // damit "Neu verbinden" ohne Neustart greift.
+  // Zugangsdaten via integration-store (Store gewinnt, Fallback ENV/Secret
+  // Manager — Details siehe resolveProviderCredentials).
   const { getIntegrationSecret } = require('../services/integration-store');
   return getIntegrationSecret('SEVDESK_API_TOKEN');
 }

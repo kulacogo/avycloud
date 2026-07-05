@@ -371,59 +371,100 @@ function storeLookupEnabled() {
   return String(process.env.INTEGRATION_CREDENTIALS_STORE || 'on').toLowerCase() !== 'off';
 }
 
+/** Sammelt getrimmte, nicht-leere Werte für die gegebenen Keys ein. */
+function pickNonEmpty(keys, getValue) {
+  const out = {};
+  let count = 0;
+  for (const key of keys) {
+    const v = getValue(key);
+    if (v != null && String(v).trim()) {
+      out[key] = String(v).trim();
+      count += 1;
+    }
+  }
+  return { out, count };
+}
+
+const _credInflight = new Map(); // cacheKey → Promise (In-Flight-Dedup)
+
 async function resolveProviderCredentials(type, { tenantId = 'default', ttlMs = CREDENTIALS_TTL_MS } = {}) {
   const cacheKey = `${tenantId}__${type}`;
   const now = Date.now();
   // Cache nur für den (teuren) Firestore-Pfad. Im Fallback-only-Modus
   // (Kill-Switch off) cached getSecretValue selbst — ein zweiter Cache würde
   // dort nur Staleness stapeln.
-  const useCache = storeLookupEnabled();
-  if (useCache) {
+  const storeEnabled = storeLookupEnabled();
+  if (storeEnabled) {
     const cached = _credCache.get(cacheKey);
     if (cached && now - cached.atMs < ttlMs) return cached.value;
   }
 
-  const provider = getProvider(type);
-  const fieldKeys = Object.keys(provider?.credentialToSecretMap || {});
-  let value = null;
+  // In-Flight-Dedup: N gleichzeitige Aufrufer bei kaltem/abgelaufenem Cache
+  // teilen sich EINEN Resolve statt N Firestore/Secret-Reads auszulösen.
+  const inflight = _credInflight.get(cacheKey);
+  if (inflight) return inflight;
 
-  // 1) Self-Service-Store (Firestore) — gewinnt, wenn aktiv + Werte vorhanden.
-  if (storeLookupEnabled()) try {
-    const stored = await getIntegration({ tenantId, type });
-    if (stored?.status === 'active' && stored.credentials && typeof stored.credentials === 'object') {
-      const keys = fieldKeys.length ? fieldKeys : Object.keys(stored.credentials);
-      const out = {};
-      let hasAny = false;
-      for (const fk of keys) {
-        const v = stored.credentials[fk];
-        if (v != null && String(v).trim()) {
-          out[fk] = String(v).trim();
-          hasAny = true;
+  const promise = (async () => {
+    const provider = getProvider(type);
+    const fieldKeys = Object.keys(provider?.credentialToSecretMap || {});
+    let value = null;
+
+    // 1) Self-Service-Store (Firestore) — gewinnt NUR, wenn das Doc ALLE
+    //    Feld-Keys des Providers vollständig enthält. Absichtlich
+    //    alles-oder-nichts: Feld-weises Mischen von Store- und Fallback-
+    //    Werten könnte Schlüssel-Paare verschiedener Konten kombinieren
+    //    (z. B. neuer publicKey + alter secretKey). Ein unvollständiges Doc
+    //    fällt komplett auf ENV/Secret Manager zurück.
+    //    KEIN status-Check: der Sync-Status ('error' via recordSync) sagt
+    //    nichts über die Gültigkeit der Zugangsdaten — sonst würde ein
+    //    transienter Sync-Fehler die Laufzeit still aufs alte Konto
+    //    (ENV-Fallback) zurückwerfen. Trennen = Doc löschen (deleteIntegration).
+    if (storeEnabled) {
+      try {
+        const stored = await getIntegration({ tenantId, type });
+        if (stored?.credentials && typeof stored.credentials === 'object') {
+          const keys = fieldKeys.length ? fieldKeys : Object.keys(stored.credentials);
+          const { out, count } = pickNonEmpty(keys, (fk) => stored.credentials[fk]);
+          if (count === keys.length && count > 0) value = out;
+          else if (count > 0) {
+            console.warn(`[integration-store] resolveProviderCredentials(${type}): stored doc incomplete (${count}/${keys.length} fields) — falling back to ENV/Secret Manager`);
+          }
         }
-      }
-      if (hasAny) value = out;
-    }
-  } catch (err) {
-    console.warn(`[integration-store] resolveProviderCredentials(${type}) store read failed: ${err.message}`);
-  }
-
-  // 2) Fallback ENV / Secret Manager (heutiges Verhalten, unverändert).
-  if (!value && fieldKeys.length) {
-    const out = {};
-    let hasAny = false;
-    for (const fk of fieldKeys) {
-      const secretName = provider.credentialToSecretMap[fk];
-      const v = await getSecretValue(secretName).catch(() => null);
-      if (v != null && String(v).trim()) {
-        out[fk] = String(v).trim();
-        hasAny = true;
+      } catch (err) {
+        console.warn(`[integration-store] resolveProviderCredentials(${type}) store read failed: ${err.message}`);
       }
     }
-    if (hasAny) value = out;
-  }
 
-  if (useCache) _credCache.set(cacheKey, { atMs: now, value });
-  return value;
+    // 2) Fallback ENV / Secret Manager (heutiges Verhalten, parallel gelesen).
+    if (!value && fieldKeys.length) {
+      const values = await Promise.all(
+        fieldKeys.map((fk) => getSecretValue(provider.credentialToSecretMap[fk]).catch(() => null))
+      );
+      const byKey = new Map(fieldKeys.map((fk, i) => [fk, values[i]]));
+      const { out, count } = pickNonEmpty(fieldKeys, (fk) => byKey.get(fk));
+      if (count > 0) value = out;
+    }
+
+    if (storeEnabled) {
+      if (!value) {
+        // Leeres Ergebnis kann eine transiente Störung sein (Firestore-Blip,
+        // Secret-Manager-Timeout). Letzten bekannten guten Stand behalten,
+        // statt 60s lang "keine Zugangsdaten" zu liefern — die alten
+        // Für-immer-Caches waren gegen genau diese Ausfallklasse immun.
+        const prior = _credCache.get(cacheKey);
+        if (prior?.value) value = prior.value;
+      }
+      _credCache.set(cacheKey, { atMs: now, value });
+    }
+    return value;
+  })();
+
+  _credInflight.set(cacheKey, promise);
+  try {
+    return await promise;
+  } finally {
+    _credInflight.delete(cacheKey);
+  }
 }
 
 /**
@@ -447,30 +488,16 @@ async function getIntegrationSecret(secretName, { tenantId = 'default' } = {}) {
 
 /**
  * Resolve credentials for a provider. Checks Firestore first, falls back to ENV/Secret Manager.
+ * Dünner Wrapper über resolveProviderCredentials (EINE Auflösungslogik) —
+ * ttlMs:0 erzwingt einen frischen Read, damit der /test-Endpoint gerade
+ * gespeicherte Zugangsdaten sofort sieht. Liefert Feld-Keys (clientKey, …),
+ * die testConnection() erwartet — der frühere Fallback lieferte fälschlich
+ * Secret-NAMEN als Keys, womit der Verbindungstest nichts anfangen konnte.
  * @param {{ tenantId: string, type: string }} opts
  * @returns {Promise<object|null>}
  */
 async function resolveCredentials({ tenantId = 'default', type }) {
-  // 1. Check Firestore (self-service credentials)
-  const stored = await getIntegration({ tenantId, type });
-  if (stored?.credentials && stored.status === 'active') {
-    return stored.credentials;
-  }
-
-  // 2. Fallback to ENV / Secret Manager
-  const provider = getProvider(type);
-  if (!provider?.secretKeys) return null;
-
-  const fallback = {};
-  let hasAny = false;
-  for (const secretName of provider.secretKeys) {
-    const value = await getSecretValue(secretName).catch(() => null);
-    if (value) {
-      fallback[secretName] = value;
-      hasAny = true;
-    }
-  }
-  return hasAny ? fallback : null;
+  return resolveProviderCredentials(type, { tenantId, ttlMs: 0 });
 }
 
 module.exports = {

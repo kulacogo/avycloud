@@ -49,16 +49,11 @@ function mapSendCloudStatus(statusId) {
   return 'ausstehend';
 }
 
+// Ein Auth-Builder für ganz SendCloud (Duplikat entfernt, Review 2026-07-05):
+// lib/sendcloud-auth.js — Store gewinnt, 60s-TTL.
 async function getSendCloudAuth() {
-  // Self-Service-Zugangsdaten (IntegrationWizard) gewinnen; ENV/Secret Manager
-  // bleibt Fallback. Kein Für-immer-Cache mehr: der Resolver cached 60s,
-  // damit "Neu verbinden" ohne Neustart greift.
-  const { resolveProviderCredentials } = require('./integration-store');
-  const creds = await resolveProviderCredentials('sendcloud');
-  const pub = creds?.publicKey;
-  const sec = creds?.secretKey;
-  if (!pub || !sec) throw new Error('SENDCLOUD credentials not configured');
-  return 'Basic ' + Buffer.from(`${pub}:${sec}`).toString('base64');
+  const { getSendCloudAuthHeader } = require('../lib/sendcloud-auth');
+  return getSendCloudAuthHeader();
 }
 
 /**

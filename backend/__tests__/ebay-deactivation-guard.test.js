@@ -54,4 +54,25 @@ describe('decideLargeDeactivation', () => {
     const d = decideLargeDeactivation({ ingestComplete: true, ratio: 0.65, wouldDeactivate: 199, activeSetSize: 106, prior, nowMs: NOW, options: opts });
     expect(d.action).toBe('proceed');
   });
+
+  // ── Leeres Active-Set (0 Angebote online) — 2026-07-05 ────────────────
+  // Ein leeres Set umgeht NIE die Bestätigung, auch nicht bei kleinen
+  // absoluten Zahlen (minToGuard gilt hier nicht: "alles weg" ist immer
+  // bestätigungspflichtig, egal ob 3 oder 300 Docs betroffen sind).
+  it('empty set: FIRST complete ingest → pending, even with tiny absolute count', () => {
+    const d = decideLargeDeactivation({ ingestComplete: true, ratio: 1, wouldDeactivate: 4, activeSetSize: 0, prior: null, nowMs: NOW, options: opts });
+    expect(d.action).toBe('pending');
+    expect(d.observation).toMatchObject({ activeSetSize: 0, atMs: NOW });
+  });
+
+  it('empty set: SECOND matching complete ingest → proceed', () => {
+    const prior = { activeSetSize: 0, ratio: 1, atMs: NOW - 30 * 60 * 1000 };
+    const d = decideLargeDeactivation({ ingestComplete: true, ratio: 1, wouldDeactivate: 56, activeSetSize: 0, prior, nowMs: NOW, options: opts });
+    expect(d.action).toBe('proceed');
+  });
+
+  it('empty set: INCOMPLETE ingest → hard block', () => {
+    const d = decideLargeDeactivation({ ingestComplete: false, ratio: 1, wouldDeactivate: 56, activeSetSize: 0, prior: null, nowMs: NOW, options: opts });
+    expect(d.action).toBe('block');
+  });
 });

@@ -179,9 +179,8 @@ function signRequest({ method, absoluteUrl, rawBody, timestamp, secretKey }) {
 }
 
 async function getConfig() {
-  // Self-Service-Zugangsdaten (IntegrationWizard) gewinnen; ENV/Secret Manager
-  // bleibt Fallback. Kein Für-immer-Cache mehr: der Resolver cached 60s,
-  // damit "Neu verbinden" ohne Neustart greift.
+  // Zugangsdaten via integration-store (Store gewinnt, Fallback ENV/Secret
+  // Manager — Details siehe resolveProviderCredentials).
   const { resolveProviderCredentials } = require('../services/integration-store');
   const creds = await resolveProviderCredentials('kaufland');
   const clientKey = safeString(creds?.clientKey);

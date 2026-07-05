@@ -40,8 +40,13 @@ function decideLargeDeactivation({ ingestComplete, ratio, wouldDeactivate, activ
   const o = { ...DEFAULTS, ...(options || {}) };
   const ceiling = ingestComplete ? o.catastrophicRatio : o.conservativeRatio;
 
+  // Ein LEERES Active-Set ("alles offline") ist immer bestätigungspflichtig —
+  // minToGuard gilt hier bewusst nicht: auch 3 verbleibende Docs dürfen nicht
+  // durch einen einzelnen kaputten Fetch auf null gewischt werden (2026-07-05).
+  const emptySet = activeSetSize === 0 && wouldDeactivate > 0;
+
   // Within ceiling, or too few in absolute terms → just proceed (normal drift).
-  if (!(ratio > ceiling && wouldDeactivate > o.minToGuard)) {
+  if (!emptySet && !(ratio > ceiling && wouldDeactivate > o.minToGuard)) {
     return { action: 'proceed', reason: 'within_ceiling' };
   }
 

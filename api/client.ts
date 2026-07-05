@@ -635,9 +635,9 @@ export async function saveProfile(profile: ProfileData): Promise<ProfileData> {
   return data?.data || {};
 }
 
-/** Ehrlicher Zustand des eBay-Angebots-Abgleichs (aus ops/ebayLightSync). */
+/** Ehrlicher Zustand des eBay-Angebots-Abgleichs (aus ops/ebayLightSync). null = unbekannt (nie gelaufen). */
 export interface EbayListingSyncHealth {
-  healthy: boolean;
+  healthy: boolean | null;
   lastSuccessAtIso: string | null;
   staleMinutes: number | null;
   lastError: { message: string; atIso: string | null } | null;

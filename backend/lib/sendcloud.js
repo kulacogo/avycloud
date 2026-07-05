@@ -125,16 +125,10 @@ function parseSendCloudDate(raw) {
 const SHIPPING_CACHE = new Map();
 const SHIPPING_TTL_MS = 15 * 60 * 1000;
 
+// Ein Auth-Builder für ganz SendCloud: lib/sendcloud-auth.js (Store gewinnt,
+// 60s-TTL — siehe resolveProviderCredentials).
 async function getSendCloudAuthHeader() {
-  // Self-Service-Zugangsdaten (IntegrationWizard) gewinnen; ENV/Secret Manager
-  // bleibt Fallback. Kein Für-immer-Cache mehr: der Resolver cached 60s,
-  // damit "Neu verbinden" ohne Neustart greift.
-  const { resolveProviderCredentials } = require('../services/integration-store');
-  const creds = await resolveProviderCredentials('sendcloud');
-  const pub = creds?.publicKey;
-  const sec = creds?.secretKey;
-  if (!pub || !sec) throw new Error('SENDCLOUD credentials not configured');
-  return 'Basic ' + Buffer.from(`${pub}:${sec}`).toString('base64');
+  return require('./sendcloud-auth').getSendCloudAuthHeader();
 }
 
 // ─── Main function ──────────────────────────────────────────────────────────
@@ -382,4 +376,4 @@ async function listShippingMethods({ timeoutMs = 15000 } = {}) {
   }
 }
 
-module.exports = { getShippingCostsSummary, loadPriceTable, lookupCsvPrice, listSenderAddresses, listShippingMethods };
+module.exports = { getShippingCostsSummary, loadPriceTable, lookupCsvPrice, listSenderAddresses, listShippingMethods, getSendCloudAuthHeader };

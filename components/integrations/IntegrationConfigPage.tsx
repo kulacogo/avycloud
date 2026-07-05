@@ -203,6 +203,17 @@ export const IntegrationConfigPage: React.FC<IntegrationConfigPageProps> = ({
     loadConnectionState();
   }, [loadConfig, loadConnectionState]);
 
+  // Wizard nur öffnen, wenn die Provider-Definition geladen ist — sonst wäre
+  // der Knopf ein stiller No-op (Review-Fix): Fehler zeigen + Neuladen anstoßen.
+  const openWizard = useCallback(() => {
+    if (provider) {
+      setWizardOpen(true);
+    } else {
+      setError("Integrations-Definition konnte nicht geladen werden — bitte Seite neu laden.");
+      loadConnectionState();
+    }
+  }, [provider, loadConnectionState]);
+
   const handleSync = useCallback(async () => {
     setSyncing(true);
     setError(null);
@@ -301,7 +312,7 @@ export const IntegrationConfigPage: React.FC<IntegrationConfigPageProps> = ({
           </div>
           {provider && (
             <button
-              onClick={() => setWizardOpen(true)}
+              onClick={openWizard}
               className="px-4 py-2 bg-accent text-white rounded-lg text-sm font-medium hover:opacity-90 transition-opacity flex items-center gap-2"
               title={
                 integration === "ebay"
@@ -357,7 +368,7 @@ export const IntegrationConfigPage: React.FC<IntegrationConfigPageProps> = ({
                 </p>
               )}
               <button
-                onClick={() => setWizardOpen(true)}
+                onClick={openWizard}
                 className="inline-flex items-center gap-2 px-4 py-2 bg-accent text-white rounded-lg text-sm font-medium hover:opacity-90 transition-opacity"
               >
                 eBay neu verbinden
@@ -399,7 +410,7 @@ export const IntegrationConfigPage: React.FC<IntegrationConfigPageProps> = ({
                 Rahmenbedingungen abgerufen werden koennen.
               </p>
               <button
-                onClick={() => setWizardOpen(true)}
+                onClick={openWizard}
                 className="inline-flex items-center gap-2 px-4 py-2 bg-accent text-white rounded-lg text-sm font-medium hover:opacity-90 transition-opacity"
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">

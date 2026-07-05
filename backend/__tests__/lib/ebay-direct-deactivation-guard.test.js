@@ -181,6 +181,28 @@ describe('deactivateListingsMissingFromActiveSet — genuine zero-listings (conf
     expect(committed.length).toBe(0);
   });
 
+  it('auch bei ≤5 Docs: leeres Set braucht die Bestätigung (kein minToGuard-Schlupfloch)', async () => {
+    const committed = installFirestoreFake(ids(1, 4)); // nur 4 aktive Docs
+
+    const first = await deactivateListingsMissingFromActiveSet({
+      activeItemIds: [],
+      ingestComplete: true,
+      confirmMode: true,
+    });
+    expect(first.blocked).toBe(true);
+    expect(first.reason).toBe('awaiting_second_complete_ingest_confirmation');
+    expect(committed.length).toBe(0);
+
+    const second = await deactivateListingsMissingFromActiveSet({
+      activeItemIds: [],
+      ingestComplete: true,
+      confirmMode: true,
+      priorObservation: { activeSetSize: 0, atMs: Date.now() - 15 * 60_000 },
+    });
+    expect(second.blocked).toBeFalsy();
+    expect(second.deactivated).toBe(4);
+  });
+
   it('without confirm mode the legacy hard block stays in place', async () => {
     const committed = installFirestoreFake(ids(1, 56));
 

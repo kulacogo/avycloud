@@ -75,12 +75,22 @@ describe('getEbayListingSyncHealth — ehrlicher Sync-Zustand', () => {
     expect(h.failingSinceIso).toBeNull();
   });
 
-  it('unknown: kein Lock-Doc → nicht healthy, aber auch kein Fehler', async () => {
+  it('unknown: kein Lock-Doc (Sync nie gelaufen) → healthy:null, KEIN Fehlalarm', async () => {
     installLockDoc(null);
     const h = await getEbayListingSyncHealth();
-    expect(h.healthy).toBe(false);
+    expect(h.healthy).toBeNull();
     expect(h.lastSuccessAtIso).toBeNull();
     expect(h.lastError).toBeNull();
+  });
+
+  it('unhealthy: nie ein Erfolg, aber Fehler protokolliert → echter Alarm', async () => {
+    installLockDoc({
+      lastCompletedAtIso: null,
+      lastError: { message: 'Token kaputt', atIso: minutesAgoIso(5) },
+    });
+    const h = await getEbayListingSyncHealth();
+    expect(h.healthy).toBe(false);
+    expect(h.failingSinceIso).toBeTruthy();
   });
 
   it('meldet eine blockierte Deaktivierung aus dem letzten Lauf', async () => {

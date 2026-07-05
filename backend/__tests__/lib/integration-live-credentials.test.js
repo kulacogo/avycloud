@@ -86,7 +86,7 @@ describe('resolveProviderCredentials — Store gewinnt, Fallback bleibt', () => 
     expect(creds).toEqual({ publicKey: 'ui-public', secretKey: 'ui-secret' });
   });
 
-  it('ignoriert Store-Einträge mit status != active', async () => {
+  it('Store gewinnt AUCH bei status=error — Sync-Status sagt nichts über Zugangsdaten (Review-Fix: recordSync darf nicht still aufs alte Konto zurückwerfen)', async () => {
     docStore.set('integrations_config/default__sendcloud', {
       tenantId: 'default',
       type: 'sendcloud',
@@ -94,7 +94,63 @@ describe('resolveProviderCredentials — Store gewinnt, Fallback bleibt', () => 
       credentials: { data: { publicKey: 'ui-public', secretKey: 'ui-secret' }, encrypted: false },
     });
     const creds = await store.resolveProviderCredentials('sendcloud');
+    expect(creds).toEqual({ publicKey: 'ui-public', secretKey: 'ui-secret' });
+  });
+
+  it('unvollständiges Store-Doc (nur 1 von 2 Feldern) → kompletter Fallback statt kaputtem Teil-Ergebnis', async () => {
+    docStore.set('integrations_config/default__sendcloud', {
+      tenantId: 'default',
+      type: 'sendcloud',
+      status: 'active',
+      credentials: { data: { publicKey: 'ui-public-only' }, encrypted: false },
+    });
+    const creds = await store.resolveProviderCredentials('sendcloud');
     expect(creds).toEqual({ publicKey: 'env-public', secretKey: 'env-secret' });
+  });
+
+  it('transient leeres Ergebnis behält den letzten bekannten guten Stand (kein 60s-Blackout)', async () => {
+    docStore.set('integrations_config/default__sendcloud', {
+      tenantId: 'default',
+      type: 'sendcloud',
+      status: 'active',
+      credentials: { data: { publicKey: 'good-public', secretKey: 'good-secret' }, encrypted: false },
+    });
+    const first = await store.resolveProviderCredentials('sendcloud');
+    expect(first.publicKey).toBe('good-public');
+
+    // Störung simulieren: Store-Doc weg UND Secrets nicht auflösbar.
+    docStore.clear();
+    const envPub = process.env.SENDCLOUD_PUBLIC_KEY;
+    const envSec = process.env.SENDCLOUD_SECRET_KEY;
+    process.env.SENDCLOUD_PUBLIC_KEY = '__NULL__';
+    process.env.SENDCLOUD_SECRET_KEY = '__NULL__';
+    try {
+      store.invalidateCredentialsCache('sendcloud');
+      // Cache ist invalidiert → prior fehlt → hier ist null korrekt …
+      const afterInvalidate = await store.resolveProviderCredentials('sendcloud');
+      expect(afterInvalidate).toBeNull();
+
+      // … aber MIT vorhandenem prior (frischer guter Stand, dann TTL-Ablauf
+      // + Störung) bleibt der gute Stand erhalten:
+      process.env.SENDCLOUD_PUBLIC_KEY = envPub;
+      process.env.SENDCLOUD_SECRET_KEY = envSec;
+      docStore.set('integrations_config/default__sendcloud', {
+        tenantId: 'default',
+        type: 'sendcloud',
+        status: 'active',
+        credentials: { data: { publicKey: 'good-public', secretKey: 'good-secret' }, encrypted: false },
+      });
+      store.invalidateCredentialsCache('sendcloud');
+      await store.resolveProviderCredentials('sendcloud'); // guter Stand in den Cache
+      docStore.clear();
+      process.env.SENDCLOUD_PUBLIC_KEY = '__NULL__';
+      process.env.SENDCLOUD_SECRET_KEY = '__NULL__';
+      const stale = await store.resolveProviderCredentials('sendcloud', { ttlMs: 0 });
+      expect(stale).toEqual({ publicKey: 'good-public', secretKey: 'good-secret' });
+    } finally {
+      process.env.SENDCLOUD_PUBLIC_KEY = envPub;
+      process.env.SENDCLOUD_SECRET_KEY = envSec;
+    }
   });
 
   it('cached pro Provider und sieht neue Werte nach invalidateCredentialsCache', async () => {

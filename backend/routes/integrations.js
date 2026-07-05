@@ -150,6 +150,12 @@ router.post('/integrations/:type/connect', requirePermission('integrations', 'wr
     const { type } = req.params;
     const { credentials } = req.body;
     const tenantId = req.user?.tenantId || 'default';
+    if (tenantId !== 'default') {
+      // Die Runtime-Auflösung (resolveProviderCredentials in den Libs) liest
+      // heute fest tenant 'default'. Ein Save unter anderem Tenant wäre ein
+      // stiller No-op-Reconnect — sichtbar machen statt schweigen.
+      console.warn(`[integrations/connect] credentials saved under tenantId='${tenantId}' — runtime reads 'default'; this save will NOT take effect for background syncs`);
+    }
 
     const provider = getProvider(type);
     if (!provider) {
