@@ -48,11 +48,18 @@ async function propagateEbayStatusToProducts() {
   for (const doc of listingSnap.docs) {
     const data = doc.data();
     const status = (data?.listingStatus || '').toLowerCase();
-    const active = Boolean(data?.active);
-    // Use OR: consider active if either flag says so.
-    // Prevents false 'inactive' when deactivation sets active=false
-    // but listingStatus still reflects the real eBay state.
-    listingStatusByItemId.set(doc.id, (active || status === 'active') ? 'active' : 'inactive');
+    // Explizites active:false GEWINNT (seit 2026-07-05): es wird nur noch vom
+    // bestätigten Deaktivierungs-Pfad gesetzt (Zwei-Ingest-Confirm in
+    // lib/ebay-direct.js) und heilt sich beim nächsten erfolgreichen Sync
+    // selbst (Upsert setzt active:true). Der listingStatus-STRING ist nach
+    // einer Deaktivierung veraltete Information vom letzten Fetch davor —
+    // die frühere OR-Logik hielt damit 615 Produkte auf "aktiv", obwohl der
+    // Spiegel längst korrekt deaktiviert war. String-Fallback bleibt nur
+    // für Alt-Docs, die das boolean-Feld noch nie geschrieben bekamen.
+    const isActive = data?.active === false
+      ? false
+      : (data?.active === true || status === 'active');
+    listingStatusByItemId.set(doc.id, isActive ? 'active' : 'inactive');
   }
 
   // 3. Group by productId — if any listing is active, product is active on eBay
@@ -498,4 +505,4 @@ function stopListingSyncRunner() {
   }
 }
 
-module.exports = { startListingSyncRunner, stopListingSyncRunner };
+module.exports = { startListingSyncRunner, stopListingSyncRunner, propagateEbayStatusToProducts };
