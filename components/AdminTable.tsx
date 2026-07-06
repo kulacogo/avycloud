@@ -702,7 +702,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
                 {sold}
               </span>
               {open > 0 && (
-                <span className="inline-flex items-center justify-center rounded-full px-2 py-0.5 text-xs font-semibold bg-amber-500/15 text-amber-200">
+                <span className="inline-flex items-center justify-center rounded-full px-2 py-0.5 text-xs font-semibold bg-warning-dim text-warning">
                   +{open} offen
                 </span>
               )}
@@ -735,7 +735,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
             return <span className="text-txt-muted text-sm">0</span>;
           }
           return (
-            <span className="inline-flex items-center justify-center rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-semibold text-amber-200">
+            <span className="inline-flex items-center justify-center rounded-full bg-warning-dim px-2 py-0.5 text-xs font-semibold text-warning">
               +{pending}
             </span>
           );
@@ -792,21 +792,21 @@ const AdminTable: React.FC<AdminTableProps> = ({
                 rel="noopener noreferrer"
                 onClick={(e) => e.stopPropagation()}
                 title="eBay-Listing öffnen"
-                className="inline-flex items-center justify-center rounded-full bg-amber-500/20 px-2 py-0.5 text-xs font-semibold text-amber-200 hover:bg-amber-500/30 hover:text-amber-100"
+                className="inline-flex items-center justify-center rounded-full bg-warning-dim px-2 py-0.5 text-xs font-semibold text-warning hover:bg-warning/20 hover:text-warning"
               >
                 Gelistet
               </a>
             ) : isActive ? (
               <span
                 title="Auf eBay gelistet"
-                className="inline-flex items-center justify-center rounded-full bg-amber-500/20 px-2 py-0.5 text-xs font-semibold text-amber-200"
+                className="inline-flex items-center justify-center rounded-full bg-warning-dim px-2 py-0.5 text-xs font-semibold text-warning"
               >
                 Gelistet
               </span>
             ) : isInactive ? (
               <span
                 title="eBay-Listing inaktiv"
-                className="inline-flex items-center justify-center rounded-full bg-amber-800/30 px-2 py-0.5 text-xs font-semibold text-amber-400"
+                className="inline-flex items-center justify-center rounded-full bg-warning-dim px-2 py-0.5 text-xs font-semibold text-warning"
               >
                 Inaktiv
               </span>
@@ -896,7 +896,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
             ) : lastStatus === 'ok' ? (
               <span
                 title="Kaufland-Sync OK, aber nicht im Index"
-                className="inline-flex items-center justify-center rounded-full bg-amber-500/20 px-2 py-0.5 text-xs font-semibold text-amber-200"
+                className="inline-flex items-center justify-center rounded-full bg-warning-dim px-2 py-0.5 text-xs font-semibold text-warning"
               >
                 Sync OK
               </span>

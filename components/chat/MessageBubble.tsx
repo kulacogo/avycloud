@@ -157,7 +157,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                         <p className="text-[11px] font-semibold uppercase tracking-wide text-txt-muted">Titel-Vorschlag</p>
                         <span
                           className={`text-[11px] font-semibold tabular-nums ${
-                            titleLen > 80 ? 'text-danger' : titleLen < 55 ? 'text-amber-400' : 'text-txt-secondary'
+                            titleLen > 80 ? 'text-danger' : titleLen < 55 ? 'text-warning' : 'text-txt-secondary'
                           }`}
                         >
                           {titleLen}/80

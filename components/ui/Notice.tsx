@@ -14,8 +14,8 @@ const toneStyles: Record<NoticeTone, { box: string; title: string; body: string 
     body: 'text-txt-secondary',
   },
   warning: {
-    box: 'bg-amber-900/20 ring-amber-700/40',
-    title: 'text-amber-200',
+    box: 'bg-warning-dim ring-warning/30',
+    title: 'text-warning',
     body: 'text-txt-secondary',
   },
   error: {

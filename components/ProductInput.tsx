@@ -554,7 +554,7 @@ const ProductInput: React.FC<ProductInputProps> = ({ onIdentify }) => {
                   : t('input.barcodes.statusValidEan', { code: manualBarcodeSummary.ean ?? "" })}
               </span>
             ) : (
-              <span className="text-amber-300">{t('input.barcodes.statusMissing')}</span>
+              <span className="text-warning">{t('input.barcodes.statusMissing')}</span>
             )}
           </div>
         </div>

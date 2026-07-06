@@ -211,14 +211,18 @@ interface CarrierPickModalProps {
   onCancel: () => void;
 }
 
+// Carrier-Chips: bewusst pro Carrier eingefärbt (Markenfarben). Das Theme läuft über
+// [data-theme='light'] (CSS-Variablen, kein Tailwind-`dark:`-Class-Toggle), daher werden
+// die hellen -200-Textstufen (Dark-Default) per Arbitrary-Variant im Light-Theme auf
+// AA-sichere -700-Stufen überschrieben.
 const carrierBadgeClass = (carrier: string): string => {
   const c = String(carrier || "").toLowerCase();
-  if (c === "dhl" || c.startsWith("dhl_")) return "bg-yellow-500/20 text-yellow-200 border-yellow-500/30";
-  if (c === "dpd") return "bg-red-500/20 text-red-200 border-red-500/30";
-  if (c === "gls") return "bg-blue-500/20 text-blue-200 border-blue-500/30";
-  if (c === "dp" || c === "deutsche_post") return "bg-amber-500/20 text-amber-200 border-amber-500/30";
-  if (c === "ups") return "bg-amber-700/20 text-amber-200 border-amber-700/30";
-  if (c === "hermes") return "bg-cyan-500/20 text-cyan-200 border-cyan-500/30";
+  if (c === "dhl" || c.startsWith("dhl_")) return "bg-yellow-500/20 text-yellow-200 [[data-theme='light']_&]:text-yellow-700 border-yellow-500/30";
+  if (c === "dpd") return "bg-red-500/20 text-red-200 [[data-theme='light']_&]:text-red-700 border-red-500/30";
+  if (c === "gls") return "bg-blue-500/20 text-blue-200 [[data-theme='light']_&]:text-blue-700 border-blue-500/30";
+  if (c === "dp" || c === "deutsche_post") return "bg-amber-500/20 text-amber-200 [[data-theme='light']_&]:text-amber-700 border-amber-500/30";
+  if (c === "ups") return "bg-amber-700/20 text-amber-200 [[data-theme='light']_&]:text-amber-800 border-amber-700/30";
+  if (c === "hermes") return "bg-cyan-500/20 text-cyan-200 [[data-theme='light']_&]:text-cyan-700 border-cyan-500/30";
   return "bg-app-elevated text-txt-secondary border-app-border";
 };
 
