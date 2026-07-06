@@ -125,6 +125,10 @@ interface AdminTableFiltersProps {
   setIsColumnPanelOpen: (v: boolean) => void;
   toggleColumnVisibility: (id: ColumnId) => void;
   moveColumn: (id: ColumnId, direction: "up" | "down") => void;
+  // "Erfasst von" (admin-only): null ⇒ Feld wird nicht gerendert.
+  erfasserOptions?: Array<{ value: string; count: number }> | null;
+  filterErfasser?: string;
+  setFilterErfasser?: (v: string) => void;
   moveColumnTo: (id: ColumnId, targetIndex: number) => void;
   resetColumns: () => void;
   normalizeMarketplaceColumnOrder: (columns: ColumnId[]) => ColumnId[];
@@ -224,6 +228,9 @@ const AdminTableFilters: React.FC<AdminTableFiltersProps> = ({
   toggleColumnVisibility,
   moveColumn,
   moveColumnTo,
+  erfasserOptions = null,
+  filterErfasser = "all",
+  setFilterErfasser,
   resetColumns,
   normalizeMarketplaceColumnOrder,
   mode,
@@ -279,7 +286,7 @@ const AdminTableFilters: React.FC<AdminTableFiltersProps> = ({
       document.removeEventListener('keydown', onKeyDown);
     };
   }, [categoryFilterOpen, editorFilterOpen, moreFiltersOpen, setCategoryFilterOpen, setEditorFilterOpen]);
-  const advancedActiveCount = [filterBin, filterEanValid, filterGpsr, filterEbay, filterKaufland, filterWeight, filterReserved, filterSold]
+  const advancedActiveCount = [filterBin, filterEanValid, filterGpsr, filterEbay, filterKaufland, filterWeight, filterReserved, filterSold, filterErfasser]
     .filter((v) => v !== "all").length;
   const anyActiveCount =
     advancedActiveCount +
@@ -298,6 +305,7 @@ const AdminTableFilters: React.FC<AdminTableFiltersProps> = ({
     setFilterReserved("all");
     setFilterSold("all");
     setFilterEditor([]);
+    setFilterErfasser?.("all");
   };
   const popoverSelectClass = `${filterControlClass} w-full`;
 
@@ -582,6 +590,17 @@ const AdminTableFilters: React.FC<AdminTableFiltersProps> = ({
                     <option value="unsold">Nein</option>
                   </select>
                 </FilterField>
+                {erfasserOptions && setFilterErfasser && (
+                  <FilterField label="Erfasst von">
+                    <select id="table-filter-erfasser" value={filterErfasser} onChange={(e) => setFilterErfasser(e.target.value)} className={popoverSelectClass}>
+                      <option value="all">Alle</option>
+                      {erfasserOptions.map((o) => (
+                        <option key={o.value} value={o.value}>{o.value} ({o.count})</option>
+                      ))}
+                      <option value="__none__">Ohne Zuordnung</option>
+                    </select>
+                  </FilterField>
+                )}
               </div>
               <div className="mt-3 flex justify-end border-t border-app-border pt-3">
                 <button type="button" onClick={resetAllFilters} className="text-xs text-accent hover:underline">

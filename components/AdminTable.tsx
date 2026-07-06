@@ -499,6 +499,26 @@ const AdminTable: React.FC<AdminTableProps> = ({
     return () => { cancelled = true; };
   }, [isAdmin]);
 
+  // Anzeigename des Erfassers (Feld am Produkt gewinnt, sonst Protokoll-Map).
+  const resolveErfasstVon = useCallback((p: any): string => {
+    const field = p?.ops?.identified_by;
+    return field?.name || field?.email || identifiedByMap[p?.id]?.name || '';
+  }, [identifiedByMap]);
+
+  // Filter "Erfasst von" (admin-only): 'all' | '__none__' | Anzeigename.
+  const [filterErfasser, setFilterErfasser] = useState<string>('all');
+  const erfasserOptions = useMemo(() => {
+    if (!isAdmin) return null;
+    const counts = new Map<string, number>();
+    for (const p of products) {
+      const name = resolveErfasstVon(p);
+      if (name) counts.set(name, (counts.get(name) || 0) + 1);
+    }
+    return Array.from(counts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .map(([value, count]) => ({ value, count }));
+  }, [isAdmin, products, resolveErfasstVon]);
+
   const columnDefinitions: ColumnDefinition[] = useMemo(() => {
     const baseRenderers: ColumnDefinition[] = [
       {
@@ -939,10 +959,10 @@ const AdminTable: React.FC<AdminTableProps> = ({
       ...(isAdmin ? [{
         id: 'erfasstVon' as ColumnId,
         label: t('table.identifiedBy'),
+        sortKey: 'erfasstVon',
         defaultVisible: true,
         render: ({ product }: { product: any }) => {
-          const field = product.ops?.identified_by;
-          const label = field?.name || field?.email || identifiedByMap[product.id]?.name || null;
+          const label = resolveErfasstVon(product);
           return label
             ? <span className="text-txt-secondary text-sm whitespace-nowrap">{label}</span>
             : <span className="text-txt-muted text-sm">—</span>;
@@ -994,7 +1014,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
     kauflandEanProductIdMap,
     notesCounts,
     isAdmin,
-    identifiedByMap,
+    resolveErfasstVon,
   ]);
 
   const statusFilters: Array<{ value: Readiness | 'all'; label: string }> = [
@@ -1302,6 +1322,13 @@ const AdminTable: React.FC<AdminTableProps> = ({
         return editorSelectionSet.has(editor);
       })();
 
+      const matchesErfasser = (() => {
+        if (filterErfasser === 'all') return true;
+        const name = resolveErfasstVon(p);
+        if (filterErfasser === '__none__') return !name;
+        return name === filterErfasser;
+      })();
+
       return (
         matchesSearch &&
         matchesStatus &&
@@ -1315,7 +1342,8 @@ const AdminTable: React.FC<AdminTableProps> = ({
         matchesGpsr &&
         matchesEbay &&
         matchesKaufland &&
-        matchesEditor
+        matchesEditor &&
+        matchesErfasser
       );
     });
 
@@ -1336,6 +1364,9 @@ const AdminTable: React.FC<AdminTableProps> = ({
             return getProductQuantity(product);
           case 'storage.binCode':
             return (primaryBin(product) || '').toString().toLowerCase();
+          case 'erfasstVon':
+            // Anzeigename (Feld am Produkt oder Protokoll-Map); leer sortiert ans Ende via ''.
+            return resolveErfasstVon(product).toLowerCase();
           case 'details.weight': {
             const d: any = product.details || {};
             const w =
@@ -1435,6 +1466,8 @@ const AdminTable: React.FC<AdminTableProps> = ({
     filterKaufland,
     filterEditor,
     editorSelectionSet,
+    filterErfasser,
+    resolveErfasstVon,
     ebayLinkedMap,
     ebayProductIdMap,
     ebayActiveItemIds,
@@ -2132,8 +2165,9 @@ const AdminTable: React.FC<AdminTableProps> = ({
     if (filterEanValid !== 'all') count++;
     if (filterGpsr !== 'all') count++;
     if (filterEditor.length > 0) count++;
+    if (filterErfasser !== 'all') count++;
     return count;
-  }, [filterStatus, filterCategorySelection, filterBin, filterEbay, filterKaufland, filterWeight, filterReserved, filterSold, filterBinSplit, filterEanValid, filterGpsr, filterEditor]);
+  }, [filterStatus, filterCategorySelection, filterBin, filterEbay, filterKaufland, filterWeight, filterReserved, filterSold, filterBinSplit, filterEanValid, filterGpsr, filterEditor, filterErfasser]);
 
   const activeFilterChips = useMemo(() => {
     const chips: Array<{ key: string; label: string; onClear: () => void }> = [];
@@ -2166,6 +2200,11 @@ const AdminTable: React.FC<AdminTableProps> = ({
     if (filterGpsr !== 'all') {
       const label = filterGpsr === 'complete' ? 'GPSR: Vollständig' : 'GPSR: Unvollständig';
       chips.push({ key: 'gpsr', label, onClear: () => setFilterGpsr('all') });
+    }
+
+    if (filterErfasser !== 'all') {
+      const label = filterErfasser === '__none__' ? 'Erfasst von: —' : `Erfasst von: ${filterErfasser}`;
+      chips.push({ key: 'erfasser', label, onClear: () => setFilterErfasser('all') });
     }
 
     if (filterEbay !== 'all') {
@@ -2234,6 +2273,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
     filterEanValid,
     filterEbay,
     filterEditor,
+    filterErfasser,
     filterGpsr,
     filterKaufland,
     filterReserved,
@@ -2414,6 +2454,9 @@ const AdminTable: React.FC<AdminTableProps> = ({
                 toggleColumnVisibility={toggleColumnVisibility}
                 moveColumn={moveColumn}
                 moveColumnTo={moveColumnTo}
+                erfasserOptions={erfasserOptions}
+                filterErfasser={filterErfasser}
+                setFilterErfasser={setFilterErfasser}
                 resetColumns={resetColumns}
                 normalizeMarketplaceColumnOrder={normalizeMarketplaceColumnOrder}
                 mode={mode}
