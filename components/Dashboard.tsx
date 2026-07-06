@@ -422,7 +422,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const [reorderAlerts, setReorderAlerts] = useState<any[]>([]);
   const [alertsLoading, setAlertsLoading] = useState(true);
   const [activities, setActivities] = useState<ActivityEvent[]>([]);
+  // loadingRef only lets interval ticks skip while a fetch is in flight (no
+  // stacking); loadSeqRef ensures only the latest request writes state, so a
+  // preset switch during a slow load always wins over the stale response.
   const loadingRef = useRef(false);
+  const loadSeqRef = useRef(0);
 
   const [internalPreset, setInternalPreset] = useState('month_to_date');
   const [customFrom, setCustomFrom] = useState('');
@@ -443,12 +447,13 @@ export const Dashboard: React.FC<DashboardProps> = ({
     else setInternalPreset(next);
   }, [onRangePresetChange]);
 
-  const loadAll = useCallback(async () => {
-    if (loadingRef.current) return;
+  const loadAll = useCallback(async (opts?: { skipIfLoading?: boolean }) => {
+    if (opts?.skipIfLoading && loadingRef.current) return;
     const from = customFromRef.current;
     const to = customToRef.current;
     // For custom preset, require both dates before fetching
     if (activePreset === 'custom' && (!from || !to)) return;
+    const seq = ++loadSeqRef.current;
     loadingRef.current = true;
     const long = activePreset === 'year_to_date' || activePreset === 'last_year' || activePreset === 'all_time';
     setOpsLoading(true);
@@ -464,6 +469,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
         fetchReorderAlerts(),
         fetchActivityFeed(15),
       ]);
+      if (seq !== loadSeqRef.current) return;
       if (oResult.status === 'fulfilled') {
         setOps(oResult.value);
         setOpsError(null);
@@ -475,12 +481,16 @@ export const Dashboard: React.FC<DashboardProps> = ({
       if (aResult.status === 'fulfilled') setReorderAlerts(aResult.value || []);
       if (actResult.status === 'fulfilled') setActivities(actResult.value || []);
     } finally {
-      setOpsLoading(false);
-      setMetricsLoading(false);
-      setSyncLoading(false);
-      setAlertsLoading(false);
-      loadingRef.current = false;
-      setLastRefreshed(new Date());
+      // A superseded request leaves loading state alone — the newer request
+      // owns it and clears the flags (incl. loadingRef) when it finishes.
+      if (seq === loadSeqRef.current) {
+        setOpsLoading(false);
+        setMetricsLoading(false);
+        setSyncLoading(false);
+        setAlertsLoading(false);
+        loadingRef.current = false;
+        setLastRefreshed(new Date());
+      }
     }
   }, [activePreset]);
 
@@ -489,7 +499,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   useEffect(() => {
     const long = activePreset === 'year_to_date' || activePreset === 'last_year';
     const ms = long ? 5 * 60_000 : 60_000;
-    const id = setInterval(() => { loadAll(); onRefreshProducts?.(); }, ms);
+    const id = setInterval(() => { loadAll({ skipIfLoading: true }); onRefreshProducts?.(); }, ms);
     return () => clearInterval(id);
   }, [loadAll, onRefreshProducts, activePreset]);
 

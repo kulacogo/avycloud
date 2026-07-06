@@ -25,17 +25,21 @@ export const MitarbeiterLeistung: React.FC = () => {
   const [rows, setRows] = React.useState<PerformanceRow[]>([]);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  // Sequence guard: only the latest request may write state — a slow response
+  // from a previously selected range must not overwrite the current one.
+  const reqSeqRef = React.useRef(0);
 
   const load = React.useCallback(async (r: Range, custom?: { from: string; to: string }) => {
+    const seq = ++reqSeqRef.current;
     setError(null);
     setLoading(true);
     try {
       const data = await adminGetPerformance(r, custom);
-      setRows(data.rows || []);
+      if (seq === reqSeqRef.current) setRows(data.rows || []);
     } catch (e: any) {
-      setError(e?.message || "Leistung konnte nicht geladen werden");
+      if (seq === reqSeqRef.current) setError(e?.message || "Leistung konnte nicht geladen werden");
     } finally {
-      setLoading(false);
+      if (seq === reqSeqRef.current) setLoading(false);
     }
   }, []);
 

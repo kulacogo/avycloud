@@ -476,6 +476,7 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
 
   const handleSync = useCallback(async () => {
     setSyncing(true);
+    setBulkActionResult(null);
     try {
       if (marketplace === "ebay") {
         await syncEbayLiveListings();
@@ -483,8 +484,8 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
         await syncKauflandListings("de");
       }
       await invalidateListings();
-    } catch {
-      // Error handled by React Query
+    } catch (err: any) {
+      setBulkActionResult({ ok: false, message: `Synchronisierung fehlgeschlagen: ${err?.message || "Unbekannter Fehler"}` });
     } finally {
       setSyncing(false);
     }
@@ -493,12 +494,14 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
   const handleBulkUpdate = useCallback(async () => {
     if (marketplace !== "ebay" || selectedIds.size === 0) return;
     setBulkUpdating(true);
+    setBulkActionResult(null);
     try {
       await bulkUpdateEbayListings({ itemIds: [...selectedIds] });
       setSelectedIds(new Set());
       await invalidateListings();
-    } catch {
-      // Error handled by React Query
+    } catch (err: any) {
+      // Selection is kept on error so the inline banner in the bulk bar stays visible.
+      setBulkActionResult({ ok: false, message: `Listing-Aktualisierung fehlgeschlagen: ${err?.message || "Unbekannter Fehler"}` });
     } finally {
       setBulkUpdating(false);
     }
@@ -537,11 +540,12 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
     if (marketplace !== "ebay") return;
     if (!window.confirm(`Listing ${itemId} wirklich beenden? Dies kann nicht rueckgaengig gemacht werden.`)) return;
     setEndingItemId(itemId);
+    setBulkActionResult(null);
     try {
       await endEbayListing({ itemId });
       await invalidateListings();
-    } catch {
-      // Error handled by React Query
+    } catch (err: any) {
+      setBulkActionResult({ ok: false, message: `Listing ${itemId} konnte nicht beendet werden: ${err?.message || "Unbekannter Fehler"}` });
     } finally {
       setEndingItemId(null);
     }
@@ -1052,6 +1056,20 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
           <span className="text-sm text-danger flex-1">{error}</span>
           <button onClick={() => activeQuery.refetch()} className="text-txt-muted hover:text-txt-primary text-sm">
             Neu laden
+          </button>
+        </div>
+      )}
+
+      {/* Action result banner — without selection the bulk bar (which also shows
+          bulkActionResult) is hidden, so sync/end-listing errors surface here. */}
+      {bulkActionResult && selectedIds.size === 0 && (
+        <div className={`border border-app-border rounded-xl px-4 py-3 flex items-center gap-3 ${bulkActionResult.ok ? "bg-success-dim" : "bg-danger-dim"}`}>
+          {!bulkActionResult.ok && <span className="text-danger"><IconWarning /></span>}
+          <span className={`text-sm flex-1 ${bulkActionResult.ok ? "text-success" : "text-danger"}`}>
+            {bulkActionResult.message}
+          </span>
+          <button onClick={() => setBulkActionResult(null)} className="text-txt-muted hover:text-txt-primary text-sm">
+            Schließen
           </button>
         </div>
       )}

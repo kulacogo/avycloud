@@ -299,18 +299,22 @@ export const AdminFinancials: React.FC = () => {
   const [report, setReport] = useState<FinancialReport | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Sequence guard: only the latest request may write state — a slow response
+  // from a previously selected preset must not overwrite the current one.
+  const reqSeqRef = useRef(0);
 
   const load = useCallback(async () => {
+    const seq = ++reqSeqRef.current;
     setLoading(true);
     setError(null);
     try {
       const opts = preset === "custom" && customFrom && customTo ? { from_date: customFrom, to_date: customTo } : undefined;
       const data = await fetchFinancialReport(preset, opts);
-      setReport(data);
+      if (seq === reqSeqRef.current) setReport(data);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Finanzbericht konnte nicht geladen werden.");
+      if (seq === reqSeqRef.current) setError(e instanceof Error ? e.message : "Finanzbericht konnte nicht geladen werden.");
     } finally {
-      setLoading(false);
+      if (seq === reqSeqRef.current) setLoading(false);
     }
   }, [preset, customFrom, customTo]);
 

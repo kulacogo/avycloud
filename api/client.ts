@@ -5438,7 +5438,10 @@ export const openInventoryLabelWindow = (inventoryId: string): { ok: boolean; er
 
 export const exportProductsCsv = async (): Promise<void> => {
   try {
-    const response = await fetchApi(`${BACKEND_URL}/api/v1/products/export/csv`);
+    const response = await fetchApi(`${BACKEND_URL}/api/products/export/csv`);
+    if (!response.ok) {
+      throw new Error(`CSV-Export fehlgeschlagen (HTTP ${response.status}).`);
+    }
     const blob = await response.blob();
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -5479,7 +5482,7 @@ export const previewProductsImport = async (
 ): Promise<ImportPreviewResult> => {
   let response: Response | undefined;
   try {
-    response = await fetchApi(`${BACKEND_URL}/api/v1/products/import/preview`, {
+    response = await fetchApi(`${BACKEND_URL}/api/products/import/preview`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ csvText, mapping, delimiter }),
@@ -5691,7 +5694,7 @@ export const executeProductsImport = async (
 ): Promise<ImportExecuteResult> => {
   let response: Response | undefined;
   try {
-    response = await fetchApi(`${BACKEND_URL}/api/v1/products/import/execute`, {
+    response = await fetchApi(`${BACKEND_URL}/api/products/import/execute`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ csvText, mapping, delimiter }),
