@@ -1,0 +1,487 @@
+- generic [active] [ref=e1]:
+  - banner [ref=e3]:
+    - navigation [ref=e4]:
+      - link "Zum Hauptinhalt springen" [ref=e5]:
+        - generic [ref=e6]: Zum Hauptinhalt springen
+    - generic [ref=e7]:
+      - link "Kaufland Kaufland Online-Marktplatz" [ref=e8] [cursor=pointer]:
+        - /url: /
+        - img "Kaufland" [ref=e10]
+        - img "Kaufland" [ref=e15]
+        - generic [ref=e19]: Online-Marktplatz
+      - generic [ref=e20]:
+        - link "Online-Marktplatz" [ref=e21] [cursor=pointer]:
+          - /url: https://www.kaufland.de/
+          - generic [ref=e22]: Online-Marktplatz
+        - link "Filial-Angebote" [ref=e23]:
+          - generic [ref=e24]: Filial-Angebote
+      - generic [ref=e25]:
+        - link "Kaufland Card" [ref=e29] [cursor=pointer]:
+          - img [ref=e31]
+          - generic [ref=e33]: Kaufland Card
+        - link "Wunschliste" [ref=e36] [cursor=pointer]:
+          - img [ref=e38]
+          - generic [ref=e40]: Wunschliste
+        - link [ref=e44] [cursor=pointer]:
+          - img [ref=e46]
+      - link "Zum Warenkorb" [ref=e51] [cursor=pointer]:
+        - generic [ref=e52]: Zum Warenkorb
+        - generic [ref=e53]:
+          - img [ref=e56]
+          - generic [ref=e58]: Warenkorb
+      - button "Alle Kategorien" [ref=e59]:
+        - generic [ref=e62] [cursor=pointer]: Alle Kategorien
+      - search [ref=e64]:
+        - generic [ref=e65]:
+          - generic [ref=e66]:
+            - textbox "Suchfeld" [ref=e67]:
+              - /placeholder: Durchsuchen
+            - generic: Suchfeld
+          - button "Jetzt suchen" [ref=e68] [cursor=pointer]:
+            - img [ref=e70]
+            - generic [ref=e72]: Jetzt suchen
+  - main "Toiletbrille Antibacterieel Ovaal Wit Duroplast/Roestvrij Staal Softclose Sluitmechanismus Quick-Release-Funktion Toiletdeksel" [ref=e74]:
+    - navigation [ref=e75]:
+      - link "Zu den Produktbildern springen" [ref=e76]:
+        - generic [ref=e77]: Zu den Produktbildern springen
+      - link "Zu den Produktvarianten springen" [ref=e78]:
+        - generic [ref=e79]: Zu den Produktvarianten springen
+      - link "Zu den Bestell-Details und der Kauf-Option springen" [ref=e80]:
+        - generic [ref=e81]: Zu den Bestell-Details und der Kauf-Option springen
+      - link "Zur Produktbeschreibung springen" [ref=e82]:
+        - generic [ref=e83]: Zur Produktbeschreibung springen
+      - link "Zu den Kundenbewertungen springen" [ref=e84]:
+        - generic [ref=e85]: Zu den Kundenbewertungen springen
+    - generic [ref=e86]:
+      - navigation "Du bist hier" [ref=e88]:
+        - list [ref=e89]:
+          - listitem [ref=e90]:
+            - link "Startseite" [ref=e91] [cursor=pointer]:
+              - /url: /
+              - generic [ref=e92]: Startseite
+            - img [ref=e94]
+          - listitem [ref=e96]:
+            - link "Garten & Heimwerken" [ref=e97] [cursor=pointer]:
+              - /url: https://www.kaufland.de/c/garten-heimwerken/~23671/
+              - generic [ref=e98]: Garten & Heimwerken
+            - img [ref=e100]
+          - listitem [ref=e102]:
+            - link "Baumarkt" [ref=e103] [cursor=pointer]:
+              - /url: https://www.kaufland.de/c/baumarkt/~23721/
+              - generic [ref=e104]: Baumarkt
+            - img [ref=e106]
+          - listitem [ref=e108]:
+            - link "Badausstattung" [ref=e109] [cursor=pointer]:
+              - /url: https://www.kaufland.de/c/badausstattung/~27721/
+              - generic [ref=e110]: Badausstattung
+            - img [ref=e112]
+          - listitem [ref=e114]:
+            - link "WC-Sitze" [ref=e115] [cursor=pointer]:
+              - /url: https://www.kaufland.de/c/wc-sitze/~57311/
+              - generic [ref=e116]: WC-Sitze
+      - generic [ref=e118]:
+        - generic [ref=e119]:
+          - region "Produktbilderübersicht" [ref=e120]:
+            - navigation [ref=e121]:
+              - link "Weiter zum nächsten Produktbild"
+            - list "Produktbilderübersicht" [ref=e122]:
+              - listitem [ref=e123]:
+                - button "Produktbild 1 anzeigen" [ref=e124]:
+                  - img "Toiletbrille Antibacterieel Ovaal Wit Duroplast/Roestvrij Produktbild-Vorschau 1" [ref=e125]
+              - listitem [ref=e126]:
+                - button "Produktbild 2 anzeigen" [ref=e127]:
+                  - img "Toiletbrille Antibacterieel Ovaal Wit Duroplast/Roestvrij Produktbild-Vorschau 2" [ref=e128]
+              - listitem [ref=e129]:
+                - button "Produktbild 3 anzeigen" [ref=e130]:
+                  - img "Toiletbrille Antibacterieel Ovaal Wit Duroplast/Roestvrij Produktbild-Vorschau 3" [ref=e131]
+              - listitem [ref=e132]:
+                - button "Produktbild 4 anzeigen" [ref=e133]:
+                  - img "Toiletbrille Antibacterieel Ovaal Wit Duroplast/Roestvrij Produktbild-Vorschau 4" [ref=e134]
+              - listitem [ref=e135]:
+                - button "Produktbild 5 anzeigen" [ref=e136]:
+                  - img "Toiletbrille Antibacterieel Ovaal Wit Duroplast/Roestvrij Produktbild-Vorschau 5" [ref=e137]
+              - listitem [ref=e138]:
+                - button "Produktbild 6 anzeigen" [ref=e139]:
+                  - img "Toiletbrille Antibacterieel Ovaal Wit Duroplast/Roestvrij Produktbild-Vorschau 6" [ref=e140]
+              - listitem [ref=e141]:
+                - button "Produktbild 7 anzeigen" [ref=e142]:
+                  - img "Toiletbrille Antibacterieel Ovaal Wit Duroplast/Roestvrij Produktbild-Vorschau 7" [ref=e143]
+              - listitem [ref=e144]:
+                - button "Produktbild 8 anzeigen" [ref=e145]:
+                  - img "Toiletbrille Antibacterieel Ovaal Wit Duroplast/Roestvrij Produktbild-Vorschau 8" [ref=e146]
+              - listitem [ref=e147]:
+                - button "Produktbild 9 anzeigen" [ref=e148]:
+                  - img "Toiletbrille Antibacterieel Ovaal Wit Duroplast/Roestvrij Produktbild-Vorschau 9" [ref=e149]
+              - listitem [ref=e150]:
+                - button "Produktbild 10 anzeigen" [ref=e151]:
+                  - img "Toiletbrille Antibacterieel Ovaal Wit Duroplast/Roestvrij Produktbild-Vorschau 10" [ref=e152]
+              - listitem [ref=e153]:
+                - button "Produktbild 11 anzeigen" [ref=e154]:
+                  - img "Toiletbrille Antibacterieel Ovaal Wit Duroplast/Roestvrij Produktbild-Vorschau 11" [ref=e155]
+            - button "Nächstes Produktbild anzeigen" [ref=e156]:
+              - img [ref=e158]
+            - navigation [ref=e160]:
+              - link "Zurück zum vorherigen Produktbild"
+          - generic [ref=e161]:
+            - button "Produktbild im Vollbild anzeigen" [ref=e162]:
+              - img "Toiletbrille Antibacterieel Ovaal Wit Duroplast/Roestvrij Produktbild" [ref=e164] [cursor=pointer]
+            - generic:
+              - generic:
+                - button "Dieses Produkt mit Anderen teilen" [ref=e165] [cursor=pointer]:
+                  - generic:
+                    - img
+                - button "Produkt zur Wunschliste hinzufügen" [ref=e166] [cursor=pointer]:
+                  - generic [ref=e167]: Produkt zur Wunschliste hinzufügen
+                  - img
+        - region "Produktvarianten" [ref=e168]:
+          - navigation [ref=e169]:
+            - link "Weiter zur nächsten Produktvariante"
+          - generic [ref=e171]:
+            - generic [ref=e172]:
+              - paragraph [ref=e173]: "Farbe:"
+              - generic [ref=e174]: Weiß
+            - list [ref=e175]:
+              - listitem [ref=e176]:
+                - link "Farbe zu Braun verändern" [ref=e177] [cursor=pointer]:
+                  - /url: /product/524858431/
+              - listitem [ref=e180]:
+                - link "Farbe zu Dunkelbraun verändern" [ref=e181] [cursor=pointer]:
+                  - /url: /product/524858433/
+              - listitem [ref=e184]:
+                - link "Farbe zu Türkis verändern" [ref=e185] [cursor=pointer]:
+                  - /url: /product/524858432/
+              - listitem [ref=e188]:
+                - link "Farbe zu Weiß verändern" [ref=e189] [cursor=pointer]:
+                  - /url: /product/435299338/
+          - button "Alle Varianten ansehen" [ref=e192] [cursor=pointer]:
+            - img [ref=e194]
+            - paragraph [ref=e197]: Alle Varianten ansehen
+          - navigation [ref=e198]:
+            - link "Zurück zur vorherigen Produktvariante"
+        - generic [ref=e200]:
+          - heading "Wichtigste Infos auf einen Blick" [level=3] [ref=e201]
+          - list [ref=e202]:
+            - listitem [ref=e203]:
+              - generic [ref=e205]: Dein WC-Sitz aus hochwertigem Urea-Duroplast ist antibakteriell und bleibt dauerhaft farbecht, ohne zu vergilben.
+            - listitem [ref=e206]:
+              - generic [ref=e208]: Dank der Quick-Release-Funktion nimmst du den Sitz einfach per Knopfdruck ab für eine mühelose Reinigung.
+            - listitem [ref=e209]:
+              - generic [ref=e211]: Die doppelte Softclose-Funktion sorgt für ein sanftes, geräuschloses Schließen von Deckel und Brille.
+            - listitem [ref=e212]:
+              - generic [ref=e214]: Die einfache Montage von oben mit Edelstahlscharnieren und die Tragfähigkeit bis 150 kg garantieren Sicherheit.
+            - listitem [ref=e215]:
+              - generic [ref=e217]: Zusätzliche federnde Puffer bieten dir extra Komfort beim Hinsetzen und Aufstehen.
+          - generic [ref=e218]: KI-generiert auf Basis der Produktdaten
+          - button "Alle Produktinfos anzeigen" [ref=e220] [cursor=pointer]:
+            - generic [ref=e221]: Alle Produktinfos
+      - generic [ref=e223]:
+        - heading "Toiletbrille Antibacterieel Ovaal Wit Duroplast/Roestvrij Staal Softclose Sluitmechanismus Quick-Release-Funktion Toiletdeksel" [level=1] [ref=e224]
+        - link "Die Produktbewertung beträgt 4.6 Stern. Es basiert auf 46 Bewertungen." [ref=e227] [cursor=pointer]:
+          - /url: "#widget-reviews"
+          - generic [ref=e228]: Die Produktbewertung beträgt 4.6 Stern. Es basiert auf 46 Bewertungen.
+          - paragraph [ref=e230]: (46)
+        - generic [ref=e231]:
+          - link "Spare ganz einfach 5 € Registriere dich, stimme Werbe-E-Mails zu und spare 5 € ab 40 € Bestellwert." [ref=e232] [cursor=pointer]:
+            - generic [ref=e233]:
+              - img [ref=e235]
+              - generic [ref=e238]:
+                - generic [ref=e239]: Spare ganz einfach 5 €
+                - generic [ref=e240]: Registriere dich, stimme Werbe-E-Mails zu und spare 5 € ab 40 € Bestellwert.
+              - img [ref=e242]
+          - region "Bestell-Details und Kauf-Option" [ref=e245]:
+            - generic [ref=e246]:
+              - paragraph [ref=e248]:
+                - 'region "Preis: 33,99 €" [ref=e249]': 33,99 €
+              - generic [ref=e250]:
+                - region "Infos zum Versand und Rückversand" [ref=e252]:
+                  - img [ref=e254]
+                  - paragraph [ref=e259]: Kostenloser Versand
+                  - paragraph [ref=e261]: Versand aus Deutschland
+                - region "Lieferdetails" [ref=e262]:
+                  - region "Lieferzeitraum" [ref=e263]:
+                    - img [ref=e266]
+                    - generic [ref=e270]: Di. 07. – Do. 09. Juli
+                - region "Kostenlose Rückgabe – 60 Tage" [ref=e271]:
+                  - img [ref=e274]
+                  - paragraph [ref=e278]: Kostenlose Rückgabe – 60 Tage
+                - region "Informationen zum Verkäufer DS_e-Sales_GmbH" [ref=e279]:
+                  - button "Weitere Informationen zum Verkäufer DS_e-Sales_GmbH" [ref=e280] [cursor=pointer]:
+                    - img [ref=e283]
+                    - paragraph [ref=e285]:
+                      - text: Verkauf durch
+                      - generic [ref=e286]:
+                        - generic [ref=e287]: DS_e-Sales_GmbH
+                        - img [ref=e289]
+                    - generic [ref=e293]:
+                      - paragraph [ref=e294]: Gewerblicher Verkäufer
+                      - paragraph [ref=e295]: AGB / Impressum / Widerruf / Datenschutz
+              - generic [ref=e297]:
+                - generic [ref=e298]:
+                  - generic: "1"
+                  - combobox "Mengenauswahl" [ref=e299] [cursor=pointer]:
+                    - option "1" [selected]
+                    - option "2"
+                    - option "3"
+                    - option "4"
+                    - option "5"
+                    - option "6"
+                    - option "7"
+                    - option "8"
+                    - option "9"
+                    - option "10"
+                    - option "11"
+                    - option "12"
+                    - option "13"
+                    - option "14"
+                    - option "15"
+                    - option "16"
+                    - option "17"
+                    - option "18"
+                    - option "19"
+                    - option "20"
+                    - option "21"
+                    - option "22"
+                    - option "23"
+                    - option "24"
+                    - option "25"
+                    - option "26"
+                    - option "27"
+                    - option "28"
+                    - option "29"
+                    - option "30"
+                    - option "31"
+                    - option "32"
+                    - option "33"
+                    - option "34"
+                    - option "35"
+                    - option "36"
+                    - option "37"
+                    - option "38"
+                    - option "39"
+                    - option "40"
+                    - option "41"
+                    - option "42"
+                    - option "43"
+                    - option "44"
+                    - option "45"
+                    - option "46"
+                    - option "47"
+                    - option "48"
+                    - option "49"
+                    - option "50"
+                    - option "51"
+                    - option "52"
+                    - option "53"
+                    - option "54"
+                    - option "55"
+                    - option "56"
+                    - option "57"
+                    - option "58"
+                    - option "59"
+                    - option "60"
+                    - option "61"
+                    - option "62"
+                    - option "63"
+                    - option "64"
+                    - option "65"
+                    - option "66"
+                    - option "67"
+                    - option "68"
+                    - option "69"
+                    - option "70"
+                    - option "71"
+                    - option "72"
+                    - option "73"
+                    - option "74"
+                    - option "75"
+                    - option "76"
+                    - option "77"
+                    - option "78"
+                    - option "79"
+                    - option "80"
+                    - option "81"
+                    - option "82"
+                    - option "83"
+                    - option "84"
+                    - option "85"
+                    - option "86"
+                    - option "87"
+                    - option "88"
+                    - option "89"
+                    - option "90"
+                    - option "91"
+                    - option "92"
+                    - option "93"
+                    - option "94"
+                    - option "95"
+                    - option "96"
+                    - option "97"
+                    - option "98"
+                    - option "99"
+                    - option "100"
+                  - generic:
+                    - img
+                - button "In den Warenkorb legen" [ref=e300] [cursor=pointer]:
+                  - img [ref=e302]
+                  - generic [ref=e304]: In den Warenkorb
+              - generic [ref=e306]:
+                - button "Jetzt kaufen mit 3 Teilzahlungen" [ref=e307] [cursor=pointer]:
+                  - generic [ref=e308]: Jetzt kaufen mit 3 Teilzahlungen
+                - generic [ref=e309]:
+                  - generic [ref=e310]: 3 zinsfreie Teilzahlungen mit Klarna
+                  - paragraph [ref=e311]: 3 zinsfreie Teilzahlungen mit
+                  - img [ref=e313]
+                  - button "Mehr erfahren" [ref=e315] [cursor=pointer]:
+                    - generic [ref=e316]: Mehr erfahren
+              - generic [ref=e318]:
+                - img [ref=e321]
+                - img [ref=e326]
+                - img [ref=e332]
+                - img [ref=e337]
+                - img [ref=e343]
+                - img [ref=e346]
+                - img [ref=e351]
+          - link "Sparfuchswoche Deals SCHNELL ZUGREIFEN! WC-Sitze & vieles mehr" [ref=e352]:
+            - generic [ref=e353]:
+              - generic [ref=e355]: SCHNELL ZUGREIFEN!
+              - generic [ref=e356]: WC-Sitze & vieles mehr
+          - region "Angebote von anderen Verkäufern anzeigen. Neu & gebraucht (ab 36,94 €)" [ref=e358]:
+            - button "Angebote von anderen Verkäufern Neu & gebraucht (ab 36,94 €)" [ref=e359] [cursor=pointer]:
+              - generic [ref=e360]:
+                - generic [ref=e361]: Angebote von anderen Verkäufern
+                - generic [ref=e362]: Neu & gebraucht (ab 36,94 €)
+              - img [ref=e365]
+          - region "Rechtliche Informationen" [ref=e367]:
+            - generic [ref=e368]:
+              - paragraph [ref=e369]: Alle Preise inkl. MwSt. /
+              - button "Aufklärung gemäß Verpackungsgesetz" [ref=e372] [cursor=pointer]:
+                - generic [ref=e373]: Aufklärung gemäß Verpackungsgesetz
+            - paragraph [ref=e374]:
+              - text: "Informationen zur Produktsicherheit:"
+              - button "Verantwortliche Person für die EU anzeigen" [ref=e375] [cursor=pointer]:
+                - generic [ref=e376]: Hersteller / Verantwortliche Person für die EU
+    - generic [ref=e377]:
+      - region "Weitere Produktempfehlungen Ähnliche Produkte" [ref=e379]:
+        - generic [ref=e382]:
+          - button "Letztes Produkt anzeigen" [disabled] [ref=e383]:
+            - generic [ref=e384]: Letztes Produkt anzeigen
+            - img [ref=e386]
+          - button "Nächstes Produkt anzeigen" [ref=e479] [cursor=pointer]:
+            - generic [ref=e480]: Nächstes Produkt anzeigen
+            - img [ref=e482]
+      - generic [ref=e484]:
+        - generic [ref=e487]:
+          - heading "Produktbeschreibung & Produktdaten" [level=2] [ref=e488]
+          - generic [ref=e490]:
+            - region "Produktinformationen" [ref=e491]:
+              - generic [ref=e492]:
+                - list [ref=e493]:
+                  - listitem [ref=e494]:
+                    - strong [ref=e495]: ANTIBAKTERIEL UND FARBBAR
+                    - text: ": Wir verwenden hochwertigen Kunststoff Urea-Duroplast für die Herstellung des WC-Visiers. Das Material ist antibakteriell und daher ideal für das WC-Visier, um die Verbreitung von Krankheitserregern in der Badewanne zu reduzieren. Darüber hinaus ist das Material farbbar und sorgt dafür, dass das Abdeckung dauerhaft in seiner ursprünglichen Farbe bleibt."
+                  - listitem [ref=e496]:
+                    - strong [ref=e497]: "QUICK RELEASE-FUNKTION:"
+                    - text: Für eine schnelle und hygienische Reinigung ist das WC-Visier mit der Quick-Release-Funktion ausgestattet. Dadurch kannst du das Abdeckung mit einem Druck auf die Taste der Brille entfernen, sie reinigen und wieder anbringen.
+                  - listitem [ref=e498]:
+                    - strong [ref=e499]: EINFACHE MONTAGE UND BIS ZU 150 KG BELASTBAR
+                    - text: ": Die hochwertige Oberflächenbehandlung der rostfreien Stahlfedern ermöglicht eine schnelle und schwingungsfreie Montage von oben. Das Abdeckung hat eine getestete Tragfähigkeit von 150 kg (DIN 19516) und bietet dir daher eine sichere Handhabung."
+                  - listitem [ref=e500]:
+                    - strong [ref=e501]: DOPPEL SOFTCLOSE-FUNKTION
+                    - text: ": Das WC-Visier lässt sowohl das Abdeckung als auch die Sitzfläche sanft nach unten gleiten. Niemand im Haushalt wird jemals mehr durch das harte Geräusch eines kratzenden WC-Visiers geweckt."
+                - list [ref=e502]:
+                  - listitem [ref=e503]: "FARBECHT: Toilettendeckel & -brille bleiben dauerhaft weiß – kein Vergilben wie bei günstigem Material."
+                  - listitem [ref=e504]: "QUICK-RELEASE-FUNKTION: Per Knopfdruck abnehmbar für einfache Reinigung. Federnde Puffer erleichtern das Hinsetzen."
+                  - listitem [ref=e505]: "DOPPELTE ABSENKAUTOMATIK: Deckel und Brille gleiten geräuschlos nach unten – kein störendes Knallen mehr."
+                  - listitem [ref=e506]: "EINFACHE MONTAGE: Schnell montierbar mit handelsüblichen Schraubenzieher - Edelstahlscharniere - bis zu 150 kg Traglast"
+                - paragraph [ref=e507]: Der BENKSTEIN Premium Toilettendeckel aus hochwertigem Urea-Duroplast bietet eine durchdachte Kombination aus Hygiene, Komfort und Langlebigkeit. Das antibakterielle Material trägt dazu bei, die Verbreitung von Keimen im Badezimmer einzuschränken – eine sinnvolle Wahl für alle, die Wert auf Sauberkeit legen.
+                - paragraph [ref=e508]: Zudem bleibt der Sitz durch die Farbechtheit des Kunststoffs dauerhaft in seinem ursprünglichen Farbton erhalten, ohne zu vergilben oder zu verblassen. Die Quick-Release-Funktion erleichtert die Reinigung erheblich. Mit einem einfachen Knopfdruck lässt sich der Deckel abnehmen, reinigen und wieder anbringen.
+                - paragraph [ref=e509]: Die hinteren Puffer des Sitzes sorgen durch eine leichte Federung für zusätzlichen Komfort beim Hinsetzen und Aufstehen. Die doppelte Softclose-Funktion wiederum senkt den Deckel und die Brille sanft und geräuschlos. So vermeiden Sie störende Geräusche – besonders angenehm in Haushalten mit mehreren Personen oder in den Abendstunden.
+                - paragraph [ref=e510]: Die Montage gestaltet sich einfach und unkompliziert. Die rostfreien Edelstahl-Scharniere ermöglichen eine wackelfreie Befestigung von oben, für die lediglich ein handelsüblicher Schraubenzieher benötigt wird. Mit einer geprüften Belastbarkeit von bis zu 150 kg (DIN 19516) bietet der Sitz zudem eine sichere Nutzung für die gesamte Familie.
+                - paragraph [ref=e511]: Dieser BENKSTEIN Premium Toilettendeckel ist eine verlässliche Ergänzung für jedes Badezimmer. Überzeugen Sie sich selbst von Funktionalität und Komfort!
+                - text: "QUICK-RELEASE-FUNKTION: Für eine schnelle und hygienische Reinigung ist der WC-Sitz mit der Quick-Release-Funktion ausgestattet. Dadurch können Sie den Deckel mit einem Knopfdruck von der Brille entfernen, ihn reinigen und wieder anbringen. Darüber hinaus schweben die hinteren Puffer des Klodeckels leicht in der Luft und senken sich erst beim Hinsetzen ab, wodurch das Hinsetzen und Aufstehen durch den leicht federnden Effekt noch bequemer wird."
+            - region "Produktdaten" [ref=e513]:
+              - generic [ref=e514]:
+                - generic [ref=e515]:
+                  - term [ref=e516]: Breite
+                  - definition [ref=e517]:
+                    - generic [ref=e520]: 48.5 cm
+                - generic [ref=e521]:
+                  - term [ref=e522]: Länge
+                  - definition [ref=e523]:
+                    - generic [ref=e526]: 40.5 cm
+                - generic [ref=e527]:
+                  - term [ref=e528]: Gewicht
+                  - definition [ref=e529]:
+                    - generic [ref=e532]: 3 kg
+                - generic [ref=e533]:
+                  - term [ref=e534]: Material
+                  - definition [ref=e535]:
+                    - generic [ref=e538]: Kunststoff
+                - generic [ref=e539]:
+                  - term [ref=e540]: Soft-Close
+                  - definition [ref=e541]:
+                    - generic [ref=e544]: Ja
+                - generic [ref=e545]:
+                  - term [ref=e546]: Farbe
+                  - definition [ref=e547]:
+                    - generic [ref=e550]: Weiß
+                - generic [ref=e551]:
+                  - term [ref=e552]: Lieferumfang
+                  - definition [ref=e553]:
+                    - generic [ref=e556]: 1x Toilettendeckel + Brille, 2x rostfreie Edelstahlscharniere, 4x Dübelschrauben
+                - generic [ref=e557]:
+                  - term [ref=e558]: EAN
+                  - definition [ref=e559]:
+                    - generic [ref=e562]: "4260512290078"
+                - generic [ref=e563]:
+                  - term [ref=e564]: Herstellernummer
+                  - definition [ref=e565]:
+                    - generic [ref=e568]: "2026"
+                - generic [ref=e569]:
+                  - term [ref=e570]: Hersteller
+                  - definition [ref=e571]:
+                    - link "OEM" [ref=e573] [cursor=pointer]:
+                      - /url: https://www.kaufland.de/m/oem/~1359672/
+                      - generic [ref=e575]: OEM
+          - button "Mehr Produktinformationen anzeigen" [ref=e576] [cursor=pointer]:
+            - generic [ref=e577]: Mehr anzeigen
+        - region [ref=e578]:
+          - button "Sicherheitshinweise & Infos" [ref=e579] [cursor=pointer]:
+            - img [ref=e581]
+            - heading "Sicherheitshinweise & Infos" [level=2] [ref=e584]
+          - region "Sicherheitshinweise & Infos" [ref=e585]:
+            - generic [ref=e588]:
+              - heading "Sicherheitshinweise" [level=3] [ref=e589]
+              - generic [ref=e591]: Geprüfte Belastbarkeit von bis zu 150 kg (DIN 19516) für sichere Nutzung.
+      - region "Produktempfehlungen basierend auf anderen Bestellungen Passt auch dazu" [ref=e592]:
+        - generic [ref=e595]:
+          - button "Letztes Produkt anzeigen" [disabled] [ref=e596]:
+            - generic [ref=e597]: Letztes Produkt anzeigen
+            - img [ref=e599]
+          - button "Nächstes Produkt anzeigen" [ref=e692] [cursor=pointer]:
+            - generic [ref=e693]: Nächstes Produkt anzeigen
+            - img [ref=e695]
+      - region [ref=e697]:
+        - generic [ref=e698]:
+          - heading "Noch keine Kundenbewertungen" [level=4] [ref=e699]
+          - paragraph [ref=e702]: Für dieses Produkt sind noch keine Bewertungen vorhanden.
+      - region "Weitere Produktempfehlungen Unsere Empfehlungen für dich" [ref=e703]:
+        - generic [ref=e706]: Unsere Empfehlungen für dich
+      - navigation "Auch oft gesucht" [ref=e850]:
+        - heading "Auch oft gesucht" [level=2] [ref=e851]
+        - generic [ref=e852]:
+          - link "WC-Sitze Weiß" [ref=e853] [cursor=pointer]:
+            - /url: https://www.kaufland.de/t/wc-sitze/wc-sitze-weiss/~13491/
+            - generic [ref=e854]: WC-Sitze Weiß
+          - link "WC-Sitze mit Absenkautomatik" [ref=e855] [cursor=pointer]:
+            - /url: https://www.kaufland.de/t/wc-sitze/wc-sitze-mit-absenkautomatik/~13341/
+            - generic [ref=e856]: WC-Sitze mit Absenkautomatik
+          - link "Duroplast WC-Sitze" [ref=e857] [cursor=pointer]:
+            - /url: https://www.kaufland.de/t/wc-sitze/duroplast-wc-sitze/~13451/
+            - generic [ref=e858]: Duroplast WC-Sitze
+          - link "WC Sitze D-Form" [ref=e859] [cursor=pointer]:
+            - /url: https://www.kaufland.de/t/wc-sitze/wc-sitze-d-form/~34242/
+            - generic [ref=e860]: WC Sitze D-Form
+          - link "WC-Sitze Holz" [ref=e861] [cursor=pointer]:
+            - /url: https://www.kaufland.de/t/wc-sitze/wc-sitze-holz/~13351/
+            - generic [ref=e862]: WC-Sitze Holz

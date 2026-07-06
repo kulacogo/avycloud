@@ -1,0 +1,4 @@
+[     225ms] [WARNING] Error with Feature-Policy header: Unrecognized origin: 'usb'. @ :0
+[     225ms] [WARNING] Error with Feature-Policy header: Some features are specified in both Feature-Policy and Permissions-Policy header: camera, microphone, geolocation, encrypted-media, payment. Values defined in Permissions-Policy header will be used. @ :0
+[    6021ms] [WARNING] The resource https://static.cdn.kaufland.de/pdp-frontend/dist/css/D3Nf4G67.css was preloaded using link preload in Early Hints but not used within a few seconds from the window's load event. @ https://www.kaufland.de/product/435299338/:0
+[    6021ms] [WARNING] The resource https://static.cdn.kaufland.de/pdp-frontend/dist/css/BGKDGVEx.css was preloaded using link preload in Early Hints but not used within a few seconds from the window's load event. @ https://www.kaufland.de/product/435299338/:0

@@ -1,0 +1,2 @@
+[    1457ms] [ERROR] Service worker registration failed: TypeError: Failed to register a ServiceWorker for scope ('https://avycloud.web.app/') with script ('https://avycloud.web.app/service-worker.js'): ServiceWorker script evaluation failed @ https://avycloud.web.app/assets/index-e3419594.js:2810
+[    1510ms] [WARNING] Error while trying to use the following icon from the Manifest: https://avycloud.web.app/android-chrome-192x192.png (Download error or resource isn't a valid image) @ https://avycloud.web.app/:0

@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { Product, Readiness } from '../types';
-import { readinessLabel, readinessBadgeClasses } from '../utils/readiness';
+import { readinessLabel, readinessBadgeClasses, normalizeReadiness } from '../utils/readiness';
 import { fetchProducts, getProductBulkJob, runProductBulkAction, deleteProductsBulk, openProductLabelBatchWindow, assignInventoryToProducts, uploadKTypeCsv, bulkVerifyEbayPublish, bulkPublishToEbay, fetchEbaySkuIndex, lightSyncEbayLiveListings, bulkUpdateEbayListings, fetchKauflandSkuIndex, syncKauflandListings, getProductNotesCounts, type ProductBulkActionName } from '../api/client';
 import { SearchIcon } from './icons/Icons';
 import {
@@ -1163,7 +1163,9 @@ const AdminTable: React.FC<AdminTableProps> = ({
           : scoped;
 
     let filtered = modeFiltered.filter(p => {
-      const productReadiness = p.ops?.readiness ?? null;
+      // Gleiche Normalisierung wie die Anzeige: "kein Status" zählt als "Ausstehend"
+      // (pending). Sonst zeigt das Badge "Ausstehend", der Filter findet es aber nicht.
+      const productReadiness = normalizeReadiness(p.ops?.readiness);
       const term = (searchTerm || '').toLowerCase().trim();
       const name = (p.identification?.name || '').toLowerCase();
       const brand = (p.identification?.brand || '').toLowerCase();

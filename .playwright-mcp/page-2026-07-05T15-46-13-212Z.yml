@@ -1,0 +1,824 @@
+- generic [active] [ref=f7e1]:
+  - img
+  - img
+  - img
+  - img
+  - img
+  - generic [ref=f7e3]:
+    - banner [ref=f7e7]:
+      - link "Zum Hauptinhalt" [ref=f7e9] [cursor=pointer]:
+        - /url: "#mainContent"
+      - navigation [ref=f7e10]:
+        - generic [ref=f7e11]:
+          - generic [ref=f7e13]:
+            - text: Hallo!
+            - link "Einloggen" [ref=f7e14] [cursor=pointer]:
+              - /url: https://signin.ebay.de/ws/eBayISAPI.dll?SignIn&sgfl=gh&ru=https%3A%2F%2Fwww.ebay.de%2Fitm%2F336536392953
+            - generic [ref=f7e15]:
+              - text: oder
+              - link "neu anmelden" [ref=f7e16] [cursor=pointer]:
+                - /url: https://signup.ebay.de/pa/crte?ru=https%3A%2F%2Fwww.ebay.de%2Fitm%2F336536392953
+          - link "eBay Plus" [ref=f7e18] [cursor=pointer]:
+            - /url: https://www.ebay.de/ebayplus/home
+            - img "eBay Plus" [ref=f7e19]
+          - link "Deals" [ref=f7e21] [cursor=pointer]:
+            - /url: https://www.ebay.de/deals
+          - link "Abholung" [ref=f7e23] [cursor=pointer]:
+            - /url: https://www.ebay.de/kostenloseabholung
+          - link "Hilfe" [ref=f7e25] [cursor=pointer]:
+            - /url: https://www.ebay.de/help/home
+        - generic [ref=f7e26]:
+          - generic [ref=f7e28]:
+            - link "Verkaufen" [ref=f7e29] [cursor=pointer]:
+              - /url: https://www.ebay.de/sl/verkaufen
+              - generic [ref=f7e30]: Verkaufen
+              - img
+            - button "Verkaufen-Menü einblenden" [ref=f7e31]
+          - generic [ref=f7e32]:
+            - link "Beobachtungsliste" [ref=f7e33] [cursor=pointer]:
+              - /url: https://www.ebay.de/mye/myebay/watchlist
+              - generic [ref=f7e34]: Beobachtungsliste
+              - img
+            - button "Beobachtungsliste einblenden" [ref=f7e35]
+          - generic [ref=f7e36]:
+            - link "Mein eBay" [ref=f7e37] [cursor=pointer]:
+              - /url: https://www.ebay.de/mys/home?source=GBH
+              - generic [ref=f7e38]: Mein eBay
+              - img
+            - button "Mein eBay einblenden" [ref=f7e39]
+          - button "Benachrichtigungen" [ref=f7e42] [cursor=pointer]:
+            - img
+            - generic [ref=f7e43]: Benachrichtigungen
+          - generic [ref=f7e45]:
+            - link "Ihr Warenkorb enthält 0 Artikel." [ref=f7e46] [cursor=pointer]:
+              - /url: https://cart.ebay.de
+              - generic "Ihr Warenkorb enthält 0 Artikel." [ref=f7e47]:
+                - img
+            - button "Warenkorb einblenden" [ref=f7e48]
+      - generic [ref=f7e49]:
+        - generic [ref=f7e50]:
+          - link "eBay-Startseite" [ref=f7e51] [cursor=pointer]:
+            - /url: https://www.ebay.de
+            - img "eBay-Startseite" [ref=f7e52]
+          - button "Stöbern in Kategorien" [ref=f7e60] [cursor=pointer]:
+            - generic [ref=f7e61]: Stöbern in Kategorien
+            - img
+        - generic [ref=f7e62]:
+          - status [ref=f7e63]
+          - generic [ref=f7e65]:
+            - generic [ref=f7e66]:
+              - combobox "Bei eBay finden" [ref=f7e67]
+              - img
+              - button "Kamerasymbol" [ref=f7e68]:
+                - img
+            - combobox "Wählen Sie eine Kategorie für die Suche aus" [ref=f7e69]:
+              - option "Alle Kategorien" [selected]
+              - option "Antiquitäten & Kunst"
+              - 'option "Auto & Motorrad: Fahrzeuge"'
+              - 'option "Auto & Motorrad: Teile"'
+              - option "Baby"
+              - option "Bastel- & Künstlerbedarf"
+              - option "Beauty & Gesundheit"
+              - option "Briefmarken"
+              - option "Bücher"
+              - option "Büro & Schreibwaren"
+              - option "Business & Industrie"
+              - option "Computer, Tablets & Netzwerk"
+              - option "Feinschmecker"
+              - option "Filme & DVDs"
+              - option "Foto & Camcorder"
+              - option "Garten & Terrasse"
+              - option "Handys & Kommunikation"
+              - option "Haushaltsgeräte"
+              - option "Haustierbedarf"
+              - option "Heimwerker"
+              - option "Immobilien"
+              - option "Kleidung & Accessoires"
+              - option "Modellbau"
+              - option "Möbel & Wohnen"
+              - option "Münzen"
+              - option "Musik"
+              - option "Musikinstrumente"
+              - option "PC- & Videospiele"
+              - option "Reisen"
+              - option "Sammeln & Seltenes"
+              - option "Spielzeug"
+              - option "Sport"
+              - option "Tickets"
+              - option "TV, Video & Audio"
+              - option "Uhren & Schmuck"
+              - option "Verschiedenes"
+          - generic [ref=f7e70]:
+            - button "Finden" [ref=f7e71] [cursor=pointer]:
+              - generic [ref=f7e72]: Finden
+            - link "Erweitert" [ref=f7e73] [cursor=pointer]:
+              - /url: https://www.ebay.de/sch/ebayadvsearch
+    - main [ref=f7e74]:
+      - generic [ref=f7e76]:
+        - generic [ref=f7e88]:
+          - heading "Leute, die diesen Artikel angesehen haben, interessierte auch" [level=2] [ref=f7e95]
+          - group [ref=f7e97]:
+            - list [ref=f7e100]:
+              - listitem [ref=f7e101]:
+                - generic [ref=f7e102]:
+                  - generic [ref=f7e103]:
+                    - generic [ref=f7e109]:
+                      - heading "MSR XGK EX Service Kit und Zubehör" [level=3] [ref=f7e110]:
+                        - link "MSR XGK EX Service Kit und Zubehör" [ref=f7e111] [cursor=pointer]:
+                          - /url: https://www.ebay.de/itm/127957204303?_trkparms=itmf%3D0%26aid%3D1110006%26rkt%3D4%26algo%3DHOMESPLICE.SIM%26mech%3D1%26algv%3DSimOrganicCassiniWithToraRecalls%26pmt%3D0%26amclksrc%3DITM%26sd%3D336536392953%26sid%3DAQALAAAAEBKWWfAuWkYcu%2BgSIc7nt8s%3D%26itm%3D127957204303%26noa%3D1%26brand%3DMSR%26asc%3D20200818143230%26ao%3D1%26rk%3D1%26pid%3D101224%26b%3D1%26mehot%3Dnone%26lsid%3D77%26meid%3Da84d2663bf95491fb6c49e16cd8e01a2%26pg%3D2332490&_trksid=p2332490.c101224.m-1
+                      - generic [ref=f7e112]:
+                        - generic [ref=f7e114]: Privat
+                        - generic [ref=f7e115]: EUR 14,90
+                      - generic [ref=f7e117]: + EUR 6,19 Lieferung
+                    - link [ref=f7e119] [cursor=pointer]:
+                      - /url: https://www.ebay.de/itm/127957204303?_trkparms=itmf%3D0%26aid%3D1110006%26rkt%3D4%26algo%3DHOMESPLICE.SIM%26mech%3D1%26algv%3DSimOrganicCassiniWithToraRecalls%26pmt%3D0%26amclksrc%3DITM%26sd%3D336536392953%26sid%3DAQALAAAAEBKWWfAuWkYcu%2BgSIc7nt8s%3D%26itm%3D127957204303%26noa%3D1%26brand%3DMSR%26asc%3D20200818143230%26ao%3D1%26rk%3D1%26pid%3D101224%26b%3D1%26mehot%3Dnone%26lsid%3D77%26meid%3Da84d2663bf95491fb6c49e16cd8e01a2%26pg%3D2332490&_trksid=p2332490.c101224.m-1
+                  - separator [ref=f7e120]
+                  - button "Weitere Optionen" [ref=f7e122] [cursor=pointer]:
+                    - generic [ref=f7e123]:
+                      - img
+              - listitem [ref=f7e124]:
+                - generic [ref=f7e125]:
+                  - generic [ref=f7e126]:
+                    - generic [ref=f7e132]:
+                      - heading "MSR Guardian Purifier Annual Maintenance Kit" [level=3] [ref=f7e133]:
+                        - link "MSR Guardian Purifier Annual Maintenance Kit" [ref=f7e134] [cursor=pointer]:
+                          - /url: https://www.ebay.de/itm/267641082790?_trkparms=itmf%3D1%26aid%3D1110006%26rkt%3D4%26algo%3DHOMESPLICE.SIM%26mech%3D1%26algv%3DSimOrganicCassiniWithToraRecalls%26pmt%3D0%26amclksrc%3DITM%26sd%3D336536392953%26sid%3DAQALAAAAEG7CLZAcbKjbpr2yksMwduk%3D%26itm%3D267641082790%26noa%3D1%26brand%3DMSR%26asc%3D20200818143230%26ao%3D1%26rk%3D3%26pid%3D101224%26b%3D1%26mehot%3Dnone%26lsid%3D3%26meid%3Da84d2663bf95491fb6c49e16cd8e01a2%26pg%3D2332490&_trksid=p2332490.c101224.m-1
+                      - generic [ref=f7e135]:
+                        - generic [ref=f7e137]: Gewerblich
+                        - generic [ref=f7e138]: EUR 35,99
+                      - generic [ref=f7e140]: + EUR 14,37 Lieferung
+                    - link [ref=f7e142] [cursor=pointer]:
+                      - /url: https://www.ebay.de/itm/267641082790?_trkparms=itmf%3D1%26aid%3D1110006%26rkt%3D4%26algo%3DHOMESPLICE.SIM%26mech%3D1%26algv%3DSimOrganicCassiniWithToraRecalls%26pmt%3D0%26amclksrc%3DITM%26sd%3D336536392953%26sid%3DAQALAAAAEG7CLZAcbKjbpr2yksMwduk%3D%26itm%3D267641082790%26noa%3D1%26brand%3DMSR%26asc%3D20200818143230%26ao%3D1%26rk%3D3%26pid%3D101224%26b%3D1%26mehot%3Dnone%26lsid%3D3%26meid%3Da84d2663bf95491fb6c49e16cd8e01a2%26pg%3D2332490&_trksid=p2332490.c101224.m-1
+                  - separator [ref=f7e143]
+                  - button "Weitere Optionen" [ref=f7e145] [cursor=pointer]:
+                    - generic [ref=f7e146]:
+                      - img
+              - listitem [ref=f7e147]:
+                - generic [ref=f7e148]:
+                  - generic [ref=f7e149]:
+                    - generic [ref=f7e155]:
+                      - heading "MSR E-Bivy wasserdichte winddichte Schlafunterlage" [level=3] [ref=f7e156]:
+                        - link "MSR E-Bivy wasserdichte winddichte Schlafunterlage" [ref=f7e157] [cursor=pointer]:
+                          - /url: https://www.ebay.de/itm/389976220288?_trkparms=itmf%3D1%26aid%3D1110006%26rkt%3D4%26algo%3DHOMESPLICE.SIM%26asc%3D20200818143230%26mech%3D1%26algv%3DSimOrganicCassiniWithToraRecalls%26pmt%3D0%26amclksrc%3DITM%26sd%3D336536392953%26sid%3DAQALAAAAED7yUJgceDHdF454XY1J6es%3D%26itm%3D389976220288%26noa%3D1%26ao%3D1%26rk%3D11%26pid%3D101224%26b%3D1%26mehot%3Dnone%26lsid%3D77%26meid%3Da84d2663bf95491fb6c49e16cd8e01a2%26pg%3D2332490&_trksid=p2332490.c101224.m-1
+                      - generic [ref=f7e158]:
+                        - generic [ref=f7e160]: Gewerblich
+                        - generic [ref=f7e161]: EUR 169,39
+                      - generic [ref=f7e163]: + EUR 4,99 Lieferung
+                    - link [ref=f7e165] [cursor=pointer]:
+                      - /url: https://www.ebay.de/itm/389976220288?_trkparms=itmf%3D1%26aid%3D1110006%26rkt%3D4%26algo%3DHOMESPLICE.SIM%26asc%3D20200818143230%26mech%3D1%26algv%3DSimOrganicCassiniWithToraRecalls%26pmt%3D0%26amclksrc%3DITM%26sd%3D336536392953%26sid%3DAQALAAAAED7yUJgceDHdF454XY1J6es%3D%26itm%3D389976220288%26noa%3D1%26ao%3D1%26rk%3D11%26pid%3D101224%26b%3D1%26mehot%3Dnone%26lsid%3D77%26meid%3Da84d2663bf95491fb6c49e16cd8e01a2%26pg%3D2332490&_trksid=p2332490.c101224.m-1
+                  - separator [ref=f7e166]
+                  - button "Weitere Optionen" [ref=f7e168] [cursor=pointer]:
+                    - generic [ref=f7e169]:
+                      - img
+        - generic [ref=f7e170]:
+          - generic [ref=f7e173]:
+            - generic [ref=f7e176]:
+              - heading "Bild 1 von 1" [level=2] [ref=f7e177]
+              - group "Bildergalerie, Öffnet das Bildergalerie-Dialogfenster" [ref=f7e178]:
+                - img "MSR Jahres-Wartungskit Guardian - Bild 1 von 1" [ref=f7e180]
+              - generic [ref=f7e181]:
+                - button "Öffnet die Bildergalerie" [ref=f7e182] [cursor=pointer]:
+                  - img
+                - button "Auf die Beobachtungsliste" [ref=f7e184] [cursor=pointer]:
+                  - img
+            - generic [ref=f7e187]:
+              - generic [ref=f7e189]:
+                - generic [ref=f7e191]: Verkaufen bei eBay ist kostenlos
+                - generic [ref=f7e193]: Nicht für gewerbliche Verkäufer
+              - link "Solch einen Artikel verkaufen" [ref=f7e197] [cursor=pointer]:
+                - /url: https://www.ebay.de/sl/list?mode=SellLikeItem&itemId=336536392953&rt=nc&_trksid=p4429486.m117039.l2567
+                - generic [ref=f7e198]: Solch einen Artikel verkaufen
+            - button "Teilen" [ref=f7e204] [cursor=pointer]:
+              - img
+              - generic [ref=f7e205]: Teilen
+          - generic [ref=f7e208]:
+            - heading "MSR Jahres-Wartungskit Guardian" [level=1] [ref=f7e210]:
+              - generic [ref=f7e211]:
+                - text: MSR Jahres-Wartung
+                - text: skit Guardian
+            - generic [ref=f7e213] [cursor=pointer]:
+              - generic [ref=f7e216]:
+                - link [ref=f7e218]:
+                  - /url: https://www.ebay.de/str/outdoortrendsde?_trksid=p4429486.m3561.l161210
+                  - img [ref=f7e220]
+                - generic [ref=f7e221]:
+                  - generic [ref=f7e222]:
+                    - link "outdoortrendsDE" [ref=f7e223]:
+                      - /url: https://www.ebay.de/str/outdoortrendsde?_trksid=p4429486.m3561.l161211
+                    - generic [ref=f7e224]:
+                      - generic [ref=f7e225]: (3627)
+                      - generic [ref=f7e226]:
+                        - text: Gewerblich
+                        - button "Informationen zum gewerblichen Verkäufer" [ref=f7e231]:
+                          - img
+                  - generic [ref=f7e232]:
+                    - button "99,9% positive Bewertungen" [ref=f7e234]
+                    - link "Mehr Artikel des Verkäufers" [ref=f7e236]:
+                      - /url: https://www.ebay.de/str/outdoortrendsde?_trksid=p4429486.m3561.l170197
+                      - generic [ref=f7e237]: Mehr Artikel des Verkäufers
+                      - generic [ref=f7e238]: Mehr Artikel des Verkäufers
+                    - link "Nachricht" [ref=f7e240]:
+                      - /url: https://signin.ebay.de/ws/eBayISAPI.dll?SignIn&ru=https%3A%2F%2Fwww.ebay.de%2Fitm%2F336536392953%3Fm2mOpen%3D1
+                      - generic [ref=f7e241]: Nachricht
+              - button "Weitere Informationen zu diesem Verkäufer" [ref=f7e243]:
+                - img
+            - generic [ref=f7e244]:
+              - generic [ref=f7e246]:
+                - generic [ref=f7e247]: EUR 36,38
+                - generic [ref=f7e248]: (inkl. MwSt.)
+              - button "In 30 Tagen bezahlen mit Klarna" [ref=f7e251] [cursor=pointer]
+            - generic [ref=f7e252]:
+              - generic [ref=f7e253]: "Artikelzustand:"
+              - generic [ref=f7e255]:
+                - generic [ref=f7e256]:
+                  - generic [ref=f7e257]: Neu
+                  - generic [ref=f7e258]: Neu
+                - button "Weitere Informationen zu diesem Artikelzustand" [ref=f7e259] [cursor=pointer]:
+                  - generic [ref=f7e260]:
+                    - img "Weitere Informationen zu diesem Artikelzustand"
+            - 'button "Farbe: uni" [ref=f7e264] [cursor=pointer]':
+              - generic [ref=f7e265]:
+                - generic [ref=f7e266]: "Farbe:"
+                - generic [ref=f7e267]: uni
+                - img
+            - generic [ref=f7e269]:
+              - generic [ref=f7e270]: "Stückzahl:"
+              - generic [ref=f7e271]:
+                - textbox "Stückzahl:" [ref=f7e273]: "1"
+                - generic [ref=f7e274]: 3 verfügbar
+            - list [ref=f7e276]:
+              - listitem [ref=f7e277]:
+                - button "Sofort-Kaufen" [ref=f7e279] [cursor=pointer]:
+                  - generic [ref=f7e280]: Sofort-Kaufen
+              - listitem [ref=f7e281]:
+                - button "In den Warenkorb" [ref=f7e283] [cursor=pointer]:
+                  - generic [ref=f7e284]: In den Warenkorb
+              - listitem [ref=f7e285]:
+                - generic [ref=f7e287]:
+                  - status [ref=f7e288]: Auf die Beobachtungsliste
+                  - link "Auf die Beobachtungsliste" [ref=f7e293] [cursor=pointer]:
+                    - /url: https://signin.ebay.de/ws/eBayISAPI.dll?SignIn&ru=https%3A%2F%2Fwww.ebay.de%2Fitm%2F336536392953
+                    - generic [ref=f7e294]:
+                      - img
+                      - text: Auf die Beobachtungsliste
+            - generic [ref=f7e298]:
+              - generic [ref=f7e299]:
+                - img
+              - generic [ref=f7e301]: Ganz entspannt. Rückgaben akzeptiert.
+            - generic [ref=f7e307]:
+              - text: Sammeln Sie 36 Punkte |
+              - link "Mehr erfahren zu eBay Plus-Punkten - wird in neuem Fenster oder Tab geöffnet" [ref=f7e309] [cursor=pointer]:
+                - /url: https://www.ebay.de/ebayplus/home
+                - generic [ref=f7e310]:
+                  - text: Mehr erfahren
+                  - generic [ref=f7e311]: zu eBay Plus-Punkten - wird in neuem Fenster oder Tab geöffnet
+            - generic [ref=f7e314]:
+              - heading "Versand, Rückgabe & Zahlung" [level=2] [ref=f7e317]:
+                - generic [ref=f7e318]: Versand, Rückgabe & Zahlung
+              - generic [ref=f7e320]:
+                - generic [ref=f7e322]:
+                  - generic [ref=f7e325]: "Abholung:"
+                  - generic [ref=f7e328]: Lieferung an Abholstation möglich
+                - generic [ref=f7e331]:
+                  - generic [ref=f7e334]: "Versand:"
+                  - generic [ref=f7e336]:
+                    - generic [ref=f7e337]: EUR 5,13 · 1–2 Tage Lieferung
+                    - generic [ref=f7e338]:
+                      - text: Lieferung zwischen Di, 7. Jul und Mi, 8. Jul nach 59379 bei heutigem Zahlungseingang.
+                      - button "Weitere Details für Versand" [ref=f7e339] [cursor=pointer]:
+                        - generic [ref=f7e340]:
+                          - text: Weitere Details
+                          - generic [ref=f7e341]: für Versand
+                    - generic [ref=f7e342]: "Standort: Marktoberdorf, Deutschland"
+            - generic [ref=f7e349]:
+              - generic [ref=f7e352]: "Rücknahme:"
+              - generic [ref=f7e355]:
+                - text: 30 Tage Rückgabe. Käufer zahlt Rückversand. Wenn Sie ein eBay-Versandetikett verwenden, werden die Kosten dafür von Ihrer Rückerstattung abgezogen. Für eBay Plus-Mitglieder ist der Rückversand im Inland kostenlos.
+                - link "Mehr erfahren" [ref=f7e356] [cursor=pointer]:
+                  - /url: https://pages.ebay.de/help/pay/ebay-plus-returns.html?rmvhdr=true
+                - text: .
+                - button "Informationen zum Widerrufsrecht - Informationen zu Rückgaben" [ref=f7e357] [cursor=pointer]:
+                  - generic [ref=f7e358]:
+                    - text: Informationen zum Widerrufsrecht
+                    - generic [ref=f7e359]: "- Informationen zu Rückgaben"
+            - generic [ref=f7e366]:
+              - generic [ref=f7e369]: "Zahlungen:"
+              - generic [ref=f7e372]:
+                - img "Klarna Rechnung" [ref=f7e373]
+                - img "Pay By Bank" [ref=f7e375]
+                - img "PayPal" [ref=f7e377]
+                - img "Visa" [ref=f7e379]
+                - img "MasterCard" [ref=f7e381]
+                - img "Diners Club" [ref=f7e384]
+                - img "Apple Pay" [ref=f7e387]
+                - img "Google Pay" [ref=f7e389]
+                - generic [ref=f7e390]: .
+                - button "Weitere Details" [ref=f7e391] [cursor=pointer]:
+                  - generic [ref=f7e392]: Weitere Details
+            - generic [ref=f7e395]:
+              - heading "Sicher einkaufen" [level=2] [ref=f7e398]
+              - generic [ref=f7e399]:
+                - generic [ref=f7e401]:
+                  - img
+                - generic [ref=f7e402]:
+                  - generic [ref=f7e403]: eBay-Käuferschutz
+                  - generic [ref=f7e404]:
+                    - text: Geld zurück, wenn etwas mit diesem Artikel nicht stimmt.
+                    - link "Mehr erfahren eBay-Käuferschutz - wird in neuem Fenster oder Tab geöffnet" [ref=f7e405] [cursor=pointer]:
+                      - /url: https://www.ebay.de/einkaufen/ebay-kaeuferschutz.html
+                      - generic [ref=f7e406]:
+                        - text: Mehr erfahren
+                        - generic [ref=f7e407]: eBay-Käuferschutz - wird in neuem Fenster oder Tab geöffnet
+            - generic [ref=f7e410]:
+              - heading "ebay plus" [level=2] [ref=f7e413]:
+                - img "ebay plus" [ref=f7e414]
+              - generic [ref=f7e416]:
+                - list [ref=f7e418]:
+                  - listitem [ref=f7e419]: Gratis Rückversand im Inland
+                  - listitem [ref=f7e420]: Punkte für jeden Kauf und Verkauf
+                  - listitem [ref=f7e421]: Exklusive Plus-Deals
+                - link "Mehr erfahren - eBay Plus - wird in neuem Fenster oder Tab geöffnet" [ref=f7e423] [cursor=pointer]:
+                  - /url: https://www.ebay.de/ebayplus/home
+                  - generic [ref=f7e424]:
+                    - text: Mehr erfahren
+                    - generic [ref=f7e425]: "- eBay Plus - wird in neuem Fenster oder Tab geöffnet"
+        - generic [ref=f7e427]:
+          - generic [ref=f7e429]:
+            - generic [ref=f7e432]:
+              - tablist [ref=f7e433]:
+                - tab "Info zum Artikel" [selected] [ref=f7e434] [cursor=pointer]:
+                  - generic [ref=f7e435]: Info zum Artikel
+              - tabpanel "Info zum Artikel" [ref=f7e437]:
+                - generic [ref=f7e440]:
+                  - generic [ref=f7e443]:
+                    - generic [ref=f7e447]: Der Verkäufer ist für dieses Angebot verantwortlich.
+                    - generic [ref=f7e451]: eBay-Artikelnr.:336536392953
+                    - generic [ref=f7e455]:
+                      - text: Zuletzt aktualisiert am 04. Jul. 2026 05:53:00 MESZ
+                      - link "Alle Änderungen ansehen Alle Änderungen ansehen" [ref=f7e456] [cursor=pointer]:
+                        - /url: https://www.ebay.de/rvh/336536392953?rt=nc&_trksid=p4429486.m148105.l48144
+                        - generic [ref=f7e457]:
+                          - text: Alle Änderungen ansehen
+                          - generic [ref=f7e458]: Alle Änderungen ansehen
+                  - generic [ref=f7e461]:
+                    - heading "Artikelmerkmale" [level=2] [ref=f7e464]:
+                      - generic [ref=f7e465]: Artikelmerkmale
+                    - generic [ref=f7e467]:
+                      - generic [ref=f7e468]:
+                        - generic [ref=f7e470]:
+                          - term [ref=f7e471]:
+                            - generic [ref=f7e473]: Artikelzustand
+                          - definition [ref=f7e474]:
+                            - generic [ref=f7e477]:
+                              - generic [ref=f7e478]: "Neu: Neuer, unbenutzter und unbeschädigter Artikel in nicht geöffneter Originalverpackung (soweit ..."
+                              - button "Mehr zum Thema Über den Zustand" [ref=f7e480]:
+                                - generic [ref=f7e481]:
+                                  - text: Mehr zum Thema
+                                  - generic [ref=f7e482]: Über den Zustand
+                        - generic [ref=f7e484]:
+                          - term [ref=f7e485]:
+                            - generic [ref=f7e487]: Marke
+                          - definition [ref=f7e488]:
+                            - generic [ref=f7e490]: MSR
+                      - generic [ref=f7e493]:
+                        - term [ref=f7e494]:
+                          - generic [ref=f7e496]: Herstellernummer
+                        - definition [ref=f7e497]:
+                          - generic [ref=f7e499]: CD.2405
+                  - generic [ref=f7e501]:
+                    - generic [ref=f7e502]: Kategorie
+                    - navigation "Breadcrumb" [ref=f7e505]:
+                      - heading "Breadcrumb" [level=2] [ref=f7e506]
+                      - list [ref=f7e507]:
+                        - listitem [ref=f7e508]:
+                          - link "Sport" [ref=f7e509] [cursor=pointer]:
+                            - /url: https://www.ebay.de/b/Sportartikel/888/bn_1845308
+                          - img
+                        - listitem [ref=f7e510]:
+                          - link "Camping & Outdoor" [ref=f7e511] [cursor=pointer]:
+                            - /url: https://www.ebay.de/b/Camping-Outdoor/16034/bn_1844975
+                          - img
+                        - listitem [ref=f7e512]:
+                          - link "Sonstiges Camping & Outdoor" [ref=f7e513] [cursor=pointer]:
+                            - /url: https://www.ebay.de/b/Sonstiges-Camping-Outdoor/8504/bn_7204110
+                  - generic [ref=f7e514]:
+                    - heading "Artikelbeschreibung des Verkäufers" [level=2] [ref=f7e517]
+                    - iframe [ref=f7e518]:
+                      - generic [ref=f9e2]:
+                        - text: Zur regelmäßigen Wartung des MSR Wasserfilters Guardian.
+                        - strong [ref=f9e3]: "Herstellerkollektion:"
+                        - text: "2026"
+                        - strong [ref=f9e4]: "Art:"
+                        - text: Ersatzteil, Wartungskit
+                        - strong [ref=f9e5]: "passend:"
+                        - text: für Wasserfilter
+                        - strong [ref=f9e6]: "speziell für:"
+                        - text: MSR Guardian
+                  - generic [ref=f7e521]:
+                    - heading "Rechtliche Informationen des Verkäufers" [level=2] [ref=f7e524]:
+                      - generic [ref=f7e525]: Rechtliche Informationen des Verkäufers
+                    - generic [ref=f7e526]: Ich versichere, dass alle meine Verkaufsaktivitäten in Übereinstimmung mit allen geltenden Gesetzen und Vorschriften der EU erfolgen.
+                    - generic [ref=f7e528]:
+                      - generic [ref=f7e529]: "USt-IdNr.: DE 290920305"
+                      - generic [ref=f7e530]: Die Mehrwertsteuer wird auf meinen Rechnungen separat ausgewiesen.
+                      - generic [ref=f7e531]: "BRN: HRA9736"
+                      - generic [ref=f7e532]: "Zusätzliche Angaben:"
+                      - generic [ref=f7e538]: "Widerrufsbelehrung siehe Punkt „Versand, Rückgabe und Zahlung\" oder \"Informationen zum Winderrufsrecht\" . Kontaktzeiten: Mo. - Fr. von 09:00 - 13:00 Uhr & 14:00 - 17:00 Uhr (außer an Feiertagen) vertreten durch die geschäftsführende Gesellschafterin: outdoortrends Verwaltungs-GmbH, AG Kempten HRB 12040 (persönlich haftend) diese vertreten durch den Geschäftsführer Torsten Kossmann Amtsgericht Kempten HRA 9736 Verantwortlich nach § 55 Abs. 2 RStV: Torsten Kossmann Hinweis zum Verbraucherstreitbeilegungsgesetz (VSBG) Bitte beachten Sie, dass wir, die outdoortrends GmbH & Co. KG, nicht bereit oder verpflichtet sind an einem Streitbeilegungsverfahren der Verbraucherschlichtungsstellen gemäß Verbraucherstreitbeilegungsgesetz teilzunehmen."
+                      - button "Alle ansehen" [ref=f7e540] [cursor=pointer]
+                    - generic [ref=f7e542]:
+                      - button "Allgemeine Geschäftsbedingungen für dieses Angebot" [ref=f7e544] [cursor=pointer]
+                      - button "Erklärung zu Barrierefreiheit" [ref=f7e546] [cursor=pointer]
+                      - button "Kontaktinformationen des Verkäufers" [ref=f7e548] [cursor=pointer]
+            - generic [ref=f7e549]:
+              - heading "Informationen zur Produktsicherheit und Barrierefreiheit" [level=2] [ref=f7e551]:
+                - generic [ref=f7e552]: Informationen zur Produktsicherheit und Barrierefreiheit
+                - generic [ref=f7e553]: Informationen zur Produktsicherheit und Barrierefreiheit
+              - button "Hersteller/EU Verantwortliche Person" [ref=f7e559] [cursor=pointer]:
+                - generic [ref=f7e560]: Hersteller/EU Verantwortliche Person
+                - generic [ref=f7e561]: Hersteller/EU Verantwortliche Person
+          - generic [ref=f7e564]:
+            - generic [ref=f7e565]:
+              - generic [ref=f7e566]:
+                - heading "Info zu diesem Verkäufer" [level=2] [ref=f7e567]:
+                  - generic [ref=f7e569]: Info zu diesem Verkäufer
+                - generic [ref=f7e570]:
+                  - link [ref=f7e572] [cursor=pointer]:
+                    - /url: https://www.ebay.de/str/outdoortrendsde?_trksid=p4429486.m145687.l149266
+                    - img [ref=f7e574]
+                  - generic [ref=f7e575]:
+                    - heading "outdoortrendsDE" [level=3] [ref=f7e576]:
+                      - link "outdoortrendsDE" [ref=f7e577] [cursor=pointer]:
+                        - /url: https://www.ebay.de/str/outdoortrendsde?_trksid=p4429486.m145687.l149267
+                    - paragraph [ref=f7e578]: 99,9% positive Bewertungen•11.289 Artikel verkauft
+                - generic [ref=f7e581]:
+                  - generic [ref=f7e583]:
+                    - generic [ref=f7e584]:
+                      - img
+                    - generic [ref=f7e585]: Mitglied seit Sep 2017
+                  - generic [ref=f7e587]:
+                    - generic [ref=f7e588]:
+                      - img
+                    - generic [ref=f7e589]: Antwortet meist innerhalb 24 Stunden
+                - generic [ref=f7e590]: Angemeldet als gewerblicher Verkäufer
+                - generic [ref=f7e592]:
+                  - generic [ref=f7e593]: Servus und Willkommen im outdoortrends Shop, einem mittelständischen, Inhaber geführten Outdoorladen mit Sitz in Marktoberdorf, im schönen Allgäu. outdoortrends bietet Ihnen nicht nur online eine ...
+                  - group [ref=f7e595]:
+                    - generic "Mehr anzeigen" [ref=f7e596]:
+                      - generic [ref=f7e597]: Mehr anzeigen
+                      - generic [ref=f7e598]:
+                        - img
+                - generic [ref=f7e599]:
+                  - link "Shop besuchen" [ref=f7e600] [cursor=pointer]:
+                    - /url: https://www.ebay.de/str/outdoortrendsde?_trksid=p4429486.m145687.l149086
+                    - generic [ref=f7e601]: Shop besuchen
+                  - link "Nachricht an Verkäufer - wird in einem neuen Dialog geöffnet" [ref=f7e602] [cursor=pointer]:
+                    - /url: https://signin.ebay.de/ws/eBayISAPI.dll?SignIn&ru=https%3A%2F%2Fwww.ebay.de%2Fitm%2F336536392953%3Fm2mOpen%3D1
+                    - generic [ref=f7e603]:
+                      - text: Nachricht an Verkäufer
+                      - generic [ref=f7e604]: "- wird in einem neuen Dialog geöffnet"
+                  - button "Verkäufer speichern - outdoortrends_de Verkäufer speichern" [ref=f7e606] [cursor=pointer]:
+                    - generic [ref=f7e607]:
+                      - img
+                    - generic [ref=f7e608]: Verkäufer speichern
+              - generic [ref=f7e610]:
+                - heading "Detaillierte Verkäuferbewertungen" [level=3] [ref=f7e611]
+                - generic [ref=f7e612]:
+                  - generic [ref=f7e613]: Durchschnitt in den letzten 12 Monaten
+                  - generic [ref=f7e614]:
+                    - generic [ref=f7e615]:
+                      - generic [ref=f7e616]: Genaue Beschreibung
+                      - progressbar [ref=f7e617]
+                      - generic [ref=f7e618]: "5.0"
+                    - generic [ref=f7e619]:
+                      - generic [ref=f7e620]: Angemessene Versandkosten
+                      - progressbar [ref=f7e621]
+                      - generic [ref=f7e622]: "4.7"
+                    - generic [ref=f7e623]:
+                      - generic [ref=f7e624]: Lieferzeit
+                      - progressbar [ref=f7e625]
+                      - generic [ref=f7e626]: "5.0"
+                    - generic [ref=f7e627]:
+                      - generic [ref=f7e628]: Kommunikation
+                      - progressbar [ref=f7e629]
+                      - generic [ref=f7e630]: "5.0"
+              - generic [ref=f7e631]:
+                - generic [ref=f7e632]:
+                  - heading "Beliebte Kategorien in diesem Shop" [level=3] [ref=f7e633]
+                  - link "Alle ansehen Kategorien" [ref=f7e635] [cursor=pointer]:
+                    - /url: https://www.ebay.de/sch/i.html?_dkr=1&iconV2Request=true&_blrs=recall_filtering&_ssn=outdoortrends_de&store_cat=0&store_name=outdoortrendsde&_oac=1
+                    - generic [ref=f7e636]:
+                      - text: Alle ansehen
+                      - generic [ref=f7e637]: Kategorien
+                - generic [ref=f7e638]:
+                  - link "Ausrüstung" [ref=f7e640] [cursor=pointer]:
+                    - /url: https://www.ebay.de/str/outdoortrendsde/Ausrustung/_i.html?store_cat=4129405419
+                  - link "Bekleidung" [ref=f7e642] [cursor=pointer]:
+                    - /url: https://www.ebay.de/str/outdoortrendsde/Bekleidung/_i.html?store_cat=4129405519
+                  - link "Outdoorküche" [ref=f7e644] [cursor=pointer]:
+                    - /url: https://www.ebay.de/str/outdoortrendsde/Outdoorkuche/_i.html?store_cat=4129405619
+                  - link "Pflegeprodukte" [ref=f7e646] [cursor=pointer]:
+                    - /url: https://www.ebay.de/str/outdoortrendsde/Pflegeprodukte/_i.html?store_cat=4129407019
+                  - link "Rucksäcke" [ref=f7e648] [cursor=pointer]:
+                    - /url: https://www.ebay.de/str/outdoortrendsde/Rucksacke/_i.html?store_cat=4129405719
+                  - link "Schlafsäcke" [ref=f7e650] [cursor=pointer]:
+                    - /url: https://www.ebay.de/str/outdoortrendsde/Schlafsacke/_i.html?store_cat=4129405919
+                  - link "Schuhe" [ref=f7e652] [cursor=pointer]:
+                    - /url: https://www.ebay.de/str/outdoortrendsde/Schuhe/_i.html?store_cat=4129405819
+                  - link "Taschen" [ref=f7e654] [cursor=pointer]:
+                    - /url: https://www.ebay.de/str/outdoortrendsde/Taschen/_i.html?store_cat=4129406019
+                  - link "Zelten" [ref=f7e656] [cursor=pointer]:
+                    - /url: https://www.ebay.de/str/outdoortrendsde/Zelten/_i.html?store_cat=4129406119
+            - generic [ref=f7e659]:
+              - heading "Verkäuferbewertungen (4.365)" [level=2] [ref=f7e660]
+              - 'button "Filter: Alle Bewertungen" [ref=f7e663] [cursor=pointer]':
+                - generic [ref=f7e664]:
+                  - generic [ref=f7e665]: "Filter:"
+                  - generic [ref=f7e666]: Alle Bewertungen
+                  - img
+              - list [ref=f7e667]:
+                - listitem [ref=f7e668]:
+                  - generic [ref=f7e669]:
+                    - generic [ref=f7e671]:
+                      - generic [ref=f7e672]:
+                        - img "Positive Bewertung"
+                      - generic [ref=f7e673]:
+                        - text: 2***0 (15)
+                        - generic [ref=f7e674]: "- Bewertung vom Käufer."
+                      - generic [ref=f7e677]: Letzte 6 Monate
+                      - generic [ref=f7e678]: Bestätigter Kauf
+                    - generic [ref=f7e680]: Vielen Dank an den Verkäufer für diesen Artikel. Die Ware kam innerhalb weniger Tage an und war sehr gut verpackt. Die Waschtasche entspricht vollständig der Beschreibung.
+                    - generic [ref=f7e681]: Scrubba Wash Bag - Waschbeutel (Nr. 335895852282)
+                - listitem [ref=f7e682]:
+                  - generic [ref=f7e683]:
+                    - generic [ref=f7e685]:
+                      - generic [ref=f7e686]:
+                        - img "Positive Bewertung"
+                      - generic [ref=f7e687]:
+                        - text: d***d (162)
+                        - generic [ref=f7e688]: "- Bewertung vom Käufer."
+                      - generic [ref=f7e691]: Letzter Monat
+                      - generic [ref=f7e692]: Bestätigter Kauf
+                    - generic [ref=f7e694]: Vielen Dank für die schnelle und zuverlässige Lieferung. Ware ist wie beschrieben und schon passend am Fuß. Zuverlässiger Verkäufer.
+                    - link "Teva Hurricane XLT3 Men - Sandalen (Nr. 336536396447)" [ref=f7e696] [cursor=pointer]:
+                      - /url: https://www.ebay.de/itm/336536396447
+                      - generic [ref=f7e697]: Teva Hurricane XLT3 Men - Sandalen (Nr. 336536396447)
+                - listitem [ref=f7e698]:
+                  - generic [ref=f7e699]:
+                    - generic [ref=f7e701]:
+                      - generic [ref=f7e702]:
+                        - img "Positive Bewertung"
+                      - generic [ref=f7e703]:
+                        - text: d***- (41)
+                        - generic [ref=f7e704]: "- Bewertung vom Käufer."
+                      - generic [ref=f7e707]: Letzte 6 Monate
+                      - generic [ref=f7e708]: Bestätigter Kauf
+                    - generic [ref=f7e710]: Extrem schnelle Lieferung, Ware entspricht der Beschreibung, ein paar weniger E-Mails zum Versandstatus wären auch okay 😅
+                    - link "klean kanteen Classic 800 ml Flip Seal Sport Cap - Trinkflasche (Nr. 336505324969)" [ref=f7e712] [cursor=pointer]:
+                      - /url: https://www.ebay.de/itm/336505324969
+                      - generic [ref=f7e713]: klean kanteen Classic 800 ml Flip Seal Sport Cap - Trinkflasche (Nr. 336505324969)
+                - listitem [ref=f7e714]:
+                  - generic [ref=f7e715]:
+                    - generic [ref=f7e717]:
+                      - generic [ref=f7e718]:
+                        - img "Positive Bewertung"
+                      - generic [ref=f7e719]:
+                        - text: 3***c (1006)
+                        - generic [ref=f7e720]: "- Bewertung vom Käufer."
+                      - generic [ref=f7e723]: Letzte 6 Monate
+                      - generic [ref=f7e724]: Bestätigter Kauf
+                    - generic [ref=f7e726]: ABSOLUT PERFEKTer Ebayer!!! EXTREM SCHNELL und ZUVERLÄSSIG!!! Ware und Verpackung TOPP!!! Kommunikation HERVORRAGEND!!! VIELEN DANK!!! UNBEDINGT EMPFEHLENSWERT!!!
+                    - generic [ref=f7e727]: PackTowl Poncho - tragbare Umkleidekabine (Nr. 335727109328)
+                - listitem [ref=f7e728]:
+                  - generic [ref=f7e729]:
+                    - generic [ref=f7e731]:
+                      - generic [ref=f7e732]:
+                        - img "Positive Bewertung"
+                      - generic [ref=f7e733]:
+                        - text: i***e (319)
+                        - generic [ref=f7e734]: "- Bewertung vom Käufer."
+                      - generic [ref=f7e737]: Letzter Monat
+                      - generic [ref=f7e738]: Bestätigter Kauf
+                    - generic [ref=f7e740]: sehr gute Markenqualität zu einem guten Preis, Extrem schneller Versand- keine 48 Stunden von Bestellung bis zur Lieferung
+                    - link "Edelrid Axiom Slider - Karabiner mit Seilrolle (Nr. 336536393848)" [ref=f7e742] [cursor=pointer]:
+                      - /url: https://www.ebay.de/itm/336536393848
+                      - generic [ref=f7e743]: Edelrid Axiom Slider - Karabiner mit Seilrolle (Nr. 336536393848)
+                - listitem [ref=f7e744]:
+                  - generic [ref=f7e745]:
+                    - generic [ref=f7e747]:
+                      - generic [ref=f7e748]:
+                        - img "Positive Bewertung"
+                      - generic [ref=f7e749]:
+                        - text: 1***l (147)
+                        - generic [ref=f7e750]: "- Bewertung vom Käufer."
+                      - generic [ref=f7e753]: Letztes Jahr
+                      - generic [ref=f7e754]: Bestätigter Kauf
+                    - generic [ref=f7e756]: Artikel wie beschrieben. Top Preis und schneller Versand. Gerne wieder. Verkäufer ist uneingeschränkt zu empfehlen.
+                    - generic [ref=f7e757]: Tatonka Yukon 70+10 - Trekkingrucksack (Nr. 335835540598)
+                - listitem [ref=f7e758]:
+                  - generic [ref=f7e759]:
+                    - generic [ref=f7e761]:
+                      - generic [ref=f7e762]:
+                        - img "Positive Bewertung"
+                      - generic [ref=f7e763]:
+                        - text: e***e (1233)
+                        - generic [ref=f7e764]: "- Bewertung vom Käufer."
+                      - generic [ref=f7e767]: Letztes Jahr
+                      - generic [ref=f7e768]: Bestätigter Kauf
+                    - generic [ref=f7e770]: Ware so wie beschrieben, schneller Versand, netter Kontakt , gerne wieder, alles top, 1Aebayer
+                    - generic [ref=f7e771]: Peggy Peg Crocodile Peggy - Schnellspannklemme (Nr. 335727108515)
+                - listitem [ref=f7e772]:
+                  - generic [ref=f7e773]:
+                    - generic [ref=f7e775]:
+                      - generic [ref=f7e776]:
+                        - img "Positive Bewertung"
+                      - generic [ref=f7e777]:
+                        - text: d***e (603)
+                        - generic [ref=f7e778]: "- Bewertung vom Käufer."
+                      - generic [ref=f7e781]: Letzte 6 Monate
+                      - generic [ref=f7e782]: Bestätigter Kauf
+                    - generic [ref=f7e784]: Schneller Versand, Preis/Leistung 1a, zu empf eBayer. Gerne wieder.
+                    - generic [ref=f7e785]: Tatonka Pack Cover Universal - Rucksack-Schutzhülle (Nr. 335727105988)
+              - link "Alle Bewertungen ansehen. Wird in neuem Tab geöffnet" [ref=f7e787] [cursor=pointer]:
+                - /url: https://www.ebay.de/fdbk/mweb_profile?fdbkType=FeedbackReceivedAsSeller&item_id=336536392953&username=outdoortrends_de&filter=feedback_page%3ARECEIVED_AS_SELLER&sort=RELEVANCEV2
+                - text: Alle Bewertungen ansehen
+          - generic [ref=f7e789]:
+            - navigation "Kurzlinks" [ref=f7e790]:
+              - link "Zurück zur Startseite" [ref=f7e791] [cursor=pointer]:
+                - /url: https://www.ebay.de
+              - button "Zurück zum Seitenanfang" [ref=f7e792] [cursor=pointer]
+            - generic [ref=f7e794]:
+              - heading "Noch mehr entdecken:" [level=2] [ref=f7e797]
+              - list [ref=f7e799]:
+                - listitem [ref=f7e800]:
+                  - link "MSR Camping-Zelte ," [ref=f7e801] [cursor=pointer]:
+                    - /url: https://www.ebay.de/b/MSR-Camping-Zelte/179010/bn_86362803
+                    - generic [ref=f7e802]: MSR Camping-Zelte
+                    - generic [ref=f7e803]: ","
+                - listitem [ref=f7e804]:
+                  - link "MSR Camping-Gaskocher ," [ref=f7e805] [cursor=pointer]:
+                    - /url: https://www.ebay.de/b/MSR-Camping-Gaskocher/181386/bn_12714009
+                    - generic [ref=f7e806]: MSR Camping-Gaskocher
+                    - generic [ref=f7e807]: ","
+                - listitem [ref=f7e808]:
+                  - link "MSR Camping-Küchenbedarf ," [ref=f7e809] [cursor=pointer]:
+                    - /url: https://www.ebay.de/b/MSR-Camping-Kuchenbedarf/181381/bn_86336400
+                    - generic [ref=f7e810]: MSR Camping-Küchenbedarf
+                    - generic [ref=f7e811]: ","
+                - listitem [ref=f7e812]:
+                  - link "MSR Camping & Outdoor-Produkte ," [ref=f7e813] [cursor=pointer]:
+                    - /url: https://www.ebay.de/b/MSR-Camping-Outdoor-Produkte/16034/bn_12706694
+                    - generic [ref=f7e814]: MSR Camping & Outdoor-Produkte
+                    - generic [ref=f7e815]: ","
+                - listitem [ref=f7e816]:
+                  - link "MSR Outdoor-Zubehör ," [ref=f7e817] [cursor=pointer]:
+                    - /url: https://www.ebay.de/b/MSR-Outdoor-Zubehor/36120/bn_86275956
+                    - generic [ref=f7e818]: MSR Outdoor-Zubehör
+                    - generic [ref=f7e819]: ","
+                - listitem [ref=f7e820]:
+                  - link "MSR Ultraleicht Camping-Zelte ," [ref=f7e821] [cursor=pointer]:
+                    - /url: https://www.ebay.de/b/MSR-Ultraleicht-Camping-Zelte/179010/bn_86362864
+                    - generic [ref=f7e822]: MSR Ultraleicht Camping-Zelte
+                    - generic [ref=f7e823]: ","
+                - listitem [ref=f7e824]:
+                  - link "Camping-Kochgeschirr MSR ," [ref=f7e825] [cursor=pointer]:
+                    - /url: https://www.ebay.de/b/Camping-Kochgeschirr-MSR/87141/bn_27915079
+                    - generic [ref=f7e826]: Camping-Kochgeschirr MSR
+                    - generic [ref=f7e827]: ","
+                - listitem [ref=f7e828]:
+                  - link "Camping-Zelte für 3-Jahreszeiten Jahreszeiten MSR ," [ref=f7e829] [cursor=pointer]:
+                    - /url: https://www.ebay.de/b/Camping-Zelte-fur-3-Jahreszeiten-Jahreszeiten-MSR/179010/bn_98374309
+                    - generic [ref=f7e830]: Camping-Zelte für 3-Jahreszeiten Jahreszeiten MSR
+                    - generic [ref=f7e831]: ","
+                - listitem [ref=f7e832]:
+                  - link "Deutsche Fußballnationalmannschafts-Trikots aus dem Jahr 1990 ," [ref=f7e833] [cursor=pointer]:
+                    - /url: https://www.ebay.de/b/Deutsche-Fusballnationalmannschafts-Trikots-aus-dem-Jahr-1990/123620/bn_52467724
+                    - generic [ref=f7e834]: Deutsche Fußballnationalmannschafts-Trikots aus dem Jahr 1990
+                    - generic [ref=f7e835]: ","
+                - listitem [ref=f7e836]:
+                  - link "adidas Fußballnationalmannschafts Trikots Jahr 1990" [ref=f7e837] [cursor=pointer]:
+                    - /url: https://www.ebay.de/b/adidas-Fusballnationalmannschafts-Trikots-Jahr-1990/123620/bn_96674722
+                    - generic [ref=f7e838]: adidas Fußballnationalmannschafts Trikots Jahr 1990
+            - generic [ref=f7e840]:
+              - heading "Ähnliche Suchen" [level=2] [ref=f7e841]
+              - list [ref=f7e842]:
+                - listitem [ref=f7e843]:
+                  - link "MSR Wasserfilter" [ref=f7e844] [cursor=pointer]:
+                    - /url: https://www.ebay.de/shop/msr-wasserfilter?_nkw=msr+wasserfilter
+                    - generic [ref=f7e845]: MSR Wasserfilter
+                - listitem [ref=f7e846]:
+                  - link "Metal Gear Solid Vr Missions" [ref=f7e847] [cursor=pointer]:
+                    - /url: https://www.ebay.de/shop/metal-gear-solid-vr-missions?_nkw=metal+gear+solid+vr+missions
+                    - generic [ref=f7e848]: Metal Gear Solid Vr Missions
+                - listitem [ref=f7e849]:
+                  - link "MSR Titan" [ref=f7e850] [cursor=pointer]:
+                    - /url: https://www.ebay.de/shop/msr-titan?_nkw=msr+titan
+                    - generic [ref=f7e851]: MSR Titan
+                - listitem [ref=f7e852]:
+                  - link "MSR Gaskocher" [ref=f7e853] [cursor=pointer]:
+                    - /url: https://www.ebay.de/shop/msr-gaskocher?_nkw=msr+gaskocher
+                    - generic [ref=f7e854]: MSR Gaskocher
+                - listitem [ref=f7e855]:
+                  - link "Schneeschuhe MSR" [ref=f7e856] [cursor=pointer]:
+                    - /url: https://www.ebay.de/shop/schneeschuhe-msr?_nkw=schneeschuhe+msr
+                    - generic [ref=f7e857]: Schneeschuhe MSR
+                - listitem [ref=f7e858]:
+                  - link "Swr Messgerät" [ref=f7e859] [cursor=pointer]:
+                    - /url: https://www.ebay.de/shop/swr-messgeraet?_nkw=swr+messger%C3%A4t
+                    - generic [ref=f7e860]: Swr Messgerät
+                - listitem [ref=f7e861]:
+                  - link "Rettungs Messer" [ref=f7e862] [cursor=pointer]:
+                    - /url: https://www.ebay.de/shop/rettungs-messer?_nkw=rettungs+messer
+                    - generic [ref=f7e863]: Rettungs Messer
+                - listitem [ref=f7e864]:
+                  - link "Rettungsmesser Auto" [ref=f7e865] [cursor=pointer]:
+                    - /url: https://www.ebay.de/shop/rettungsmesser-auto?_nkw=rettungsmesser+auto
+                    - generic [ref=f7e866]: Rettungsmesser Auto
+                - listitem [ref=f7e867]:
+                  - link "Rettungsmesser Feuerwehr" [ref=f7e868] [cursor=pointer]:
+                    - /url: https://www.ebay.de/shop/rettungsmesser-feuerwehr?_nkw=rettungsmesser+feuerwehr
+                    - generic [ref=f7e869]: Rettungsmesser Feuerwehr
+                - listitem [ref=f7e870]:
+                  - link "Kocher MSR" [ref=f7e871] [cursor=pointer]:
+                    - /url: https://www.ebay.de/shop/kocher-msr?_nkw=kocher+msr
+                    - generic [ref=f7e872]: Kocher MSR
+                - listitem [ref=f7e873]:
+                  - link "Msv Trikot" [ref=f7e874] [cursor=pointer]:
+                    - /url: https://www.ebay.de/shop/msv-trikot?_nkw=msv+trikot
+                    - generic [ref=f7e875]: Msv Trikot
+                - listitem [ref=f7e876]:
+                  - link "Mudguard Sks" [ref=f7e877] [cursor=pointer]:
+                    - /url: https://www.ebay.de/shop/mudguard-sks?_nkw=mudguard+sks
+                    - generic [ref=f7e878]: Mudguard Sks
+                - listitem [ref=f7e879]:
+                  - link "Malteser Rettungsdienst" [ref=f7e880] [cursor=pointer]:
+                    - /url: https://www.ebay.de/shop/malteser-rettungsdienst?_nkw=malteser+rettungsdienst
+                    - generic [ref=f7e881]: Malteser Rettungsdienst
+                - listitem [ref=f7e882]:
+                  - link "Msa Feuerwehr" [ref=f7e883] [cursor=pointer]:
+                    - /url: https://www.ebay.de/shop/msa-feuerwehr?_nkw=msa+feuerwehr
+                    - generic [ref=f7e884]: Msa Feuerwehr
+                - listitem [ref=f7e885]:
+                  - link "Wartungseinheit Smc" [ref=f7e886] [cursor=pointer]:
+                    - /url: https://www.ebay.de/shop/wartungseinheit-smc?_nkw=wartungseinheit+smc
+                    - generic [ref=f7e887]: Wartungseinheit Smc
+  - contentinfo [ref=f7e896]:
+    - list [ref=f7e897]:
+      - listitem [ref=f7e898]:
+        - link "Über eBay" [ref=f7e899] [cursor=pointer]:
+          - /url: https://www.ebayinc.com/stories/press-room/de/
+      - listitem [ref=f7e900]:
+        - link "eBay News" [ref=f7e901] [cursor=pointer]:
+          - /url: https://community.ebay.de/t5/eBay-Mitteilungen/bg-p/eBay-Mitteilungen
+      - listitem [ref=f7e902]:
+        - link "Community" [ref=f7e903] [cursor=pointer]:
+          - /url: https://community.ebay.de/
+      - listitem [ref=f7e904]:
+        - link "Sicherheitsportal" [ref=f7e905] [cursor=pointer]:
+          - /url: https://pages.ebay.de/safetycenter/
+      - listitem [ref=f7e906]:
+        - link "Verkäuferportal" [ref=f7e907] [cursor=pointer]:
+          - /url: https://www.ebay.de/verkaeuferportal
+      - listitem [ref=f7e908]:
+        - link "Verifizierte Rechteinhaber-Programm" [ref=f7e909] [cursor=pointer]:
+          - /url: https://pages.ebay.de/vero/
+      - listitem [ref=f7e910]:
+        - link "Grundsätze" [ref=f7e911] [cursor=pointer]:
+          - /url: https://www.ebay.de/help/policies/default/die-ebaygrundstze-im-berblick?id=4205
+      - listitem [ref=f7e912]:
+        - link "Partnerprogramm" [ref=f7e913] [cursor=pointer]:
+          - /url: https://partnernetwork.ebay.de/
+      - listitem [ref=f7e914]:
+        - link "Hilfe" [ref=f7e915] [cursor=pointer]:
+          - /url: https://www.ebay.de/help/home
+      - listitem [ref=f7e916]:
+        - link "Übersicht" [ref=f7e917] [cursor=pointer]:
+          - /url: https://pages.ebay.de/sitemap.html
+    - generic [ref=f7e918]:
+      - text: Copyright © 1995–2026 eBay Inc. Alle Rechte vorbehalten.
+      - link "Barrierefreiheit" [ref=f7e919] [cursor=pointer]:
+        - /url: https://pages.ebay.de/barrierefreiheit/
+      - text: ","
+      - link "Impressum" [ref=f7e920] [cursor=pointer]:
+        - /url: https://www.ebay.de/help/policies/member-behavior-policies/impressum?id=4714
+      - text: ","
+      - link "eBay-AGB" [ref=f7e921] [cursor=pointer]:
+        - /url: https://www.ebay.de/help/policies/member-behaviour-policies/user-agreement?id=4259
+      - text: ","
+      - link "Datenschutzerklärung" [ref=f7e922] [cursor=pointer]:
+        - /url: https://www.ebay.de/help/policies/member-behaviour-policies/user-privacy-notice-privacy-policy?id=4260
+      - text: ", Erklärung zur Verwendung von"
+      - link "Nutzungsbedingungen für die Zahlungsabwicklung" [ref=f7e923] [cursor=pointer]:
+        - /url: https://pages.ebay.de/payment/2.0/terms.html
+      - text: ","
+      - link "Cookies" [ref=f7e924] [cursor=pointer]:
+        - /url: https://www.ebay.de/help/policies/member-behaviour-policies/ebay-cookie-notice?id=4267
+      - text: ","
+      - link "Widerrufsrecht" [ref=f7e925] [cursor=pointer]:
+        - /url: https://www.ebay.de/help/account/regulatory/eu-right-of-withdrawal?id=5835
+      - text: und
+      - link "AdChoice" [ref=f7e926] [cursor=pointer]:
+        - /url: https://www.ebay.de/adchoice
+        - text: AdChoice
+        - img
+  - img
+  - img [ref=f7e928]
