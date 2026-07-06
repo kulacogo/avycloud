@@ -232,25 +232,35 @@ async function syncKauflandOrders({ tenantId = 'default', lookbackDays = 7 } = {
           if (sku) newOrderSkus.add(sku);
         }
 
-        // Reserve stock IMMEDIATELY after save — not after the loop
-        try {
-          const orderId = `kaufland__${order.marketplaceOrderId}`;
-          const items = (order.items || []).map((item) => ({
-            sku: item.sku || null,
-            quantity: item.quantity || 1,
-          }));
-          await reserveStock({ tenantId, orderId, items });
-        } catch (err) {
-          console.warn(`[kaufland-intake] reserveStock failed for ${order.marketplaceOrderId}: ${err.message}`);
-          // Oversell precursor: a sold item was not reserved and there is no durable
-          // retry for reservation. A human must know. Best-effort; never blocks intake.
-          sendOpsAlert({
-            source: 'order-intake-kaufland',
-            severity: 'critical',
-            tenantId,
-            message: `reserveStock failed for order ${order.marketplaceOrderId}: ${err.message}`,
-            context: { orderId, marketplaceOrderId: order.marketplaceOrderId, items },
-          }).catch(() => {});
+        // Reserve stock IMMEDIATELY after save — not after the loop.
+        // Nur für Orders im offenen Lifecycle: eine Order, die bereits
+        // storniert/versendet ankommt (Backfill, Storno vor Erst-Intake),
+        // bekäme eine Phantom-Reservierung ohne Release-Pfad. Born-shipped
+        // dekrementiert separat via processShippedOrder.
+        const { RESERVED_ORDER_STATUSES } = require('../lib/order-status-helpers');
+        const initialOms = mapKauflandStatus((order.items || [])[0]?.status || null);
+        if (!RESERVED_ORDER_STATUSES.has(initialOms)) {
+          console.log(`[kaufland-intake] skip reservation for ${order.marketplaceOrderId} (initial status ${initialOms})`);
+        } else {
+          try {
+            const orderId = `kaufland__${order.marketplaceOrderId}`;
+            const items = (order.items || []).map((item) => ({
+              sku: item.sku || null,
+              quantity: item.quantity || 1,
+            }));
+            await reserveStock({ tenantId, orderId, items });
+          } catch (err) {
+            console.warn(`[kaufland-intake] reserveStock failed for ${order.marketplaceOrderId}: ${err.message}`);
+            // Oversell precursor: a sold item was not reserved and there is no durable
+            // retry for reservation. A human must know. Best-effort; never blocks intake.
+            sendOpsAlert({
+              source: 'order-intake-kaufland',
+              severity: 'critical',
+              tenantId,
+              message: `reserveStock failed for order ${order.marketplaceOrderId}: ${err.message}`,
+              context: { marketplaceOrderId: order.marketplaceOrderId },
+            }).catch(() => {});
+          }
         }
       } else {
         totalSkipped++;

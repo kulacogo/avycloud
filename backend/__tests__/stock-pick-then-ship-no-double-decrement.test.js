@@ -340,3 +340,38 @@ describe('processShippedOrder skips Phase A when Pick-Flow already claimed (CLAU
     );
   });
 });
+
+// ─── C) Unit-Test fuer appendOrderClaimSkuInTx (Multi-SKU-Pick) ───────────
+// Regression 2026-07-06: weitere Picks derselben Order haengen ihre SKU an
+// stockDecrementedSkus an, statt sie still zu verlieren (WP4-Re-Credit
+// braucht die vollstaendige Liste).
+
+describe('appendOrderClaimSkuInTx (lib/order-stock-claim.js)', () => {
+  let appendOrderClaimSkuInTx;
+  beforeAll(() => {
+    ({ appendOrderClaimSkuInTx } = require('../lib/order-stock-claim'));
+  });
+
+  it('haengt die SKU via tx.update an die bestehenden Claim-SKUs an', () => {
+    const update = vi.fn();
+    const tx = { get: vi.fn(), update, set: vi.fn() };
+    const orderRef = { id: 'order-multi' };
+
+    appendOrderClaimSkuInTx({ tx, orderRef, sku: 'SKU-B', existingSkus: ['SKU-A'] });
+
+    expect(update).toHaveBeenCalledTimes(1);
+    const [ref, payload] = update.mock.calls[0];
+    expect(ref).toBe(orderRef);
+    expect(payload.stockDecrementedSkus).toEqual(['SKU-A', 'SKU-B']);
+  });
+
+  it('no-op bei leerer SKU oder bereits gelisteter SKU', () => {
+    const update = vi.fn();
+    const tx = { get: vi.fn(), update, set: vi.fn() };
+
+    appendOrderClaimSkuInTx({ tx, orderRef: { id: 'o' }, sku: '   ', existingSkus: [] });
+    appendOrderClaimSkuInTx({ tx, orderRef: { id: 'o' }, sku: 'SKU-A', existingSkus: ['SKU-A'] });
+
+    expect(update).not.toHaveBeenCalled();
+  });
+});

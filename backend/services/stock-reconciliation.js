@@ -46,7 +46,15 @@ async function checkMarketplaceDrift(product, tenantId) {
   const lastSync = logSnap.docs[0].data();
   const lastPushed = Number(lastSync.availableQuantity ?? -1);
 
-  if (lastPushed === availableQty) return null;
+  // Ein Sync mit fehlgeschlagenen Channels hat den geloggten Wert NICHT (überall)
+  // auf den Marktplatz gebracht — z. B. Kaufland fail_safe_onhold pusht effektiv 0,
+  // geloggt wird aber die berechnete Menge. Quantities-Gleichheit ist dann kein
+  // Beleg für Sync-Gesundheit → als Drift behandeln, damit der idempotente
+  // Auto-Fix (syncStockToAllChannels) den Zustand repariert.
+  const lastSyncHadFailure = Array.isArray(lastSync.results)
+    && lastSync.results.some((r) => r?.status === 'error' || r?.status === 'failed');
+
+  if (lastPushed === availableQty && !lastSyncHadFailure) return null;
 
   return {
     productId: product.id,
@@ -55,6 +63,7 @@ async function checkMarketplaceDrift(product, tenantId) {
     expected: availableQty,
     lastPushed,
     delta: availableQty - lastPushed,
+    ...(lastSyncHadFailure ? { lastSyncFailed: true } : {}),
   };
 }
 

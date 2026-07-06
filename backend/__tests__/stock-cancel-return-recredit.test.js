@@ -766,3 +766,48 @@ describe('WP4 re-credit: partial multi-sku failure (durability)', () => {
     expect(mockBookStockIn).not.toHaveBeenCalled();
   });
 });
+
+// ─── (15) Multi-SKU-Order: alle gepickten SKUs werden re-credited ─────────
+// Regression 2026-07-06: der Pick-Claim schrieb stockDecrementedSkus nur mit
+// der ERSTEN SKU; _recreditOrderStock filterte die übrigen still heraus.
+// Seit Fix hängt jeder weitere Pick seine SKU an (appendOrderClaimSkuInTx),
+// und der includes-Vergleich läuft normalisiert (normalizeSkuKey).
+
+describe('WP4 re-credit: Multi-SKU-Order + SKU-Normalisierung', () => {
+  it('credited BEIDE SKUs einer 2-SKU-Order, wenn beide im Claim stehen', async () => {
+    productOverrides['SKU-B'] = {
+      id: 'prod-2',
+      identification: { sku: 'SKU-B' },
+      storage: { binCode: 'BIN-B1' },
+      storageBins: [{ code: 'BIN-B1' }],
+    };
+    seedOrder('o15', {
+      items: [{ sku: 'SKU-A', quantity: 1 }, { sku: 'SKU-B', quantity: 2 }],
+      stockDecrementedAt: '2026-07-06T10:00:00.000Z',
+      stockDecrementedBy: 'pick',
+      stockDecrementedSkus: ['SKU-A', 'SKU-B'],
+    });
+    await withMode('true', () =>
+      processCancelledOrder({ orderId: 'o15', tenantId: 'default', fromStatus: 'picked' })
+    );
+    const credited = mockBookStockIn.mock.calls.map((c) => [c[0].sku, c[0].quantity]);
+    expect(credited).toContainEqual(['SKU-A', 1]);
+    expect(credited).toContainEqual(['SKU-B', 2]);
+    expect(mockBookStockIn).toHaveBeenCalledTimes(2);
+  });
+
+  it('matcht Claim-SKUs normalisiert (Marktplatz-Schreibweise vs. Produktdaten)', async () => {
+    seedOrder('o16', {
+      items: [{ sku: 'SKU-A', quantity: 1 }],
+      stockDecrementedAt: '2026-07-06T10:00:00.000Z',
+      stockDecrementedBy: 'pick',
+      // Claim trägt die Produktdaten-Schreibweise ohne SKU-Präfix:
+      stockDecrementedSkus: ['a'],
+    });
+    await withMode('true', () =>
+      processCancelledOrder({ orderId: 'o16', tenantId: 'default', fromStatus: 'picked' })
+    );
+    expect(mockBookStockIn).toHaveBeenCalledTimes(1);
+    expect(mockBookStockIn.mock.calls[0][0].sku).toBe('SKU-A');
+  });
+});

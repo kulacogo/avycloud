@@ -151,8 +151,44 @@ async function claimOrderStockDecrementInTx({ tx, orderRef, by, skus, nowIso } =
   return { claimed: true, alreadyClaimed: false, at: written.at, by: written.by };
 }
 
+/**
+ * Phase 2 — reine Schreib-Phase (Append).
+ * Haengt eine weitere SKU an einen BESTEHENDEN Pick-Claim an.
+ *
+ * Hintergrund: Bei Multi-SKU-Orders claimt der ERSTE Pick den Marker mit
+ * seiner SKU. Jeder weitere Pick derselben Order sah frueher nur
+ * `alreadyClaimed` und liess seine SKU fallen — der WP4-Re-Credit
+ * (`_recreditOrderStock`) filtert aber strikt auf `stockDecrementedSkus`,
+ * d.h. bei Cancel nach Voll-Pick kamen die uebrigen SKUs NIE zurueck ins
+ * Lager (unsichtbarer Bestandsverlust). Deshalb MUSS jeder weitere Pick
+ * seine SKU via arrayUnion anhaengen.
+ *
+ * Nur `tx.update` — sicher nach Reads. `existingSkus` MUSS aus dem
+ * `readOrderClaimStateInTx`-Ergebnis DERSELBEN Tx stammen (Tx ist
+ * serialisierbar, bei Konflikt retried Firestore die gesamte Tx —
+ * kein Lost-Update).
+ *
+ * @param {object} args
+ * @param {FirestoreTransaction} args.tx
+ * @param {DocumentReference} args.orderRef
+ * @param {string} args.sku
+ * @param {string[]} [args.existingSkus] — Claim-SKUs aus der Read-Phase
+ */
+function appendOrderClaimSkuInTx({ tx, orderRef, sku, existingSkus } = {}) {
+  _validateTx(tx);
+  if (!orderRef) throw new Error('order-stock-claim: orderRef missing');
+  const skuValue = (sku || '').toString().trim();
+  if (!skuValue) return;
+  const current = Array.isArray(existingSkus) ? existingSkus.filter(Boolean).map(String) : [];
+  if (current.includes(skuValue)) return;
+  tx.update(orderRef, {
+    stockDecrementedSkus: [...current, skuValue],
+  });
+}
+
 module.exports = {
   readOrderClaimStateInTx,
   writeOrderClaimInTx,
+  appendOrderClaimSkuInTx,
   claimOrderStockDecrementInTx,
 };

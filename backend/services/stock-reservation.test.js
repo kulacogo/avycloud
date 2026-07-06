@@ -17,18 +17,22 @@ const mockQueryChain = () => {
 };
 
 const mockBatchSet = vi.fn();
+// Seit 2026-07-06 nutzt reserveStock batch.create() mit deterministischen
+// Doc-IDs (Idempotenz by construction) statt batch.set() mit Auto-IDs.
+const mockBatchCreate = vi.fn();
 const mockBatchUpdate = vi.fn();
 const mockBatchCommit = vi.fn(() => Promise.resolve());
 
 const mockFirestore = {
   collection: vi.fn(() => {
     const chain = mockQueryChain();
-    chain.doc = vi.fn(() => ({ id: `mock-${Date.now()}` }));
+    chain.doc = vi.fn((id) => ({ id: id || `mock-${Date.now()}` }));
     chain.add = vi.fn(() => Promise.resolve({ id: 'log-id' }));
     return chain;
   }),
   batch: vi.fn(() => ({
     set: mockBatchSet,
+    create: mockBatchCreate,
     update: mockBatchUpdate,
     commit: mockBatchCommit,
   })),

@@ -520,16 +520,23 @@ async function syncStockToAllChannels({ tenantId = 'default', product, reason = 
         try {
           const { setUnitStatus } = require('../lib/kaufland-api');
           await setUnitStatus(kauflandUnitId, 'ONHOLD', { storefront: 'de' });
+          // WICHTIG: Das ONHOLD ist nur die Oversell-Sicherung, NICHT der Erfolg.
+          // Der eigentliche updateUnit-Fehler MUSS als 'failed' in den Drain
+          // (stock_operation_failures), sonst bleibt ein lagerndes Produkt nach
+          // einem transienten Kaufland-Fehler unbegrenzt ONHOLD/unverkäuflich —
+          // dasselbe Fake-Success-Muster wie im eBay-Incident 2026-06-16.
           results.push({
             channel: 'kaufland',
-            status: 'success',
+            status: 'failed',
             unitId: kauflandUnitId,
             quantityPushed: 0,
             action: 'fail_safe_onhold',
             note: 'quantity_update_failed_unit_onhold',
+            error: errMsg,
+            retryable: true,
           });
           console.warn(
-            `[stock-sync] kaufland FAIL-SAFE ONHOLD product=${productId} unitId=${kauflandUnitId} after update failure: ${errMsg}`
+            `[stock-sync] kaufland FAIL-SAFE ONHOLD product=${productId} unitId=${kauflandUnitId} after update failure (queued for drain retry): ${errMsg}`
           );
         } catch (fallbackErr) {
           const fallbackMsg = fallbackErr?.message || String(fallbackErr);

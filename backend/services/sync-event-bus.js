@@ -250,12 +250,17 @@ bus.on('stock:changed', async (payload) => {
 // Starvation"). Jetzt: Map<tenantId, Timer> pro Sync-Typ — jeder Tenant
 // bekommt sein eigenes Debounce-Fenster.
 
-const _marketplaceSyncTimers = new Map(); // tenantId -> Timeout
+const _marketplaceSyncTimers = new Map(); // tenantId -> Timeout | 'running'
 function _debouncedMarketplaceOrderSync(tenantId) {
   const tenant = String(tenantId || 'default').trim() || 'default';
-  if (_marketplaceSyncTimers.has(tenant)) return; // Already scheduled for this tenant
+  if (_marketplaceSyncTimers.has(tenant)) return; // Already scheduled/running for this tenant
   const timer = setTimeout(async () => {
-    _marketplaceSyncTimers.delete(tenant);
+    // Eintrag erst NACH Abschluss der awaited Syncs löschen: vorher wurde er
+    // am Callback-START gelöscht — der Debounce drosselte nur das SCHEDULING,
+    // nie die Ausführung. Jeder importierte Order emittiert order:created,
+    // das sofort den nächsten Voll-Sync einplante, während der aktuelle noch
+    // minutenlang lief → chronisch überlappende Marktplatz-Syncs.
+    _marketplaceSyncTimers.set(tenant, 'running');
     try {
       const { syncEbayOrders } = require('./order-intake-ebay');
       const { syncKauflandOrders } = require('./order-intake-kaufland');
@@ -266,23 +271,30 @@ function _debouncedMarketplaceOrderSync(tenantId) {
       console.log(`[sync-bus] marketplace order sync (tenant=${tenant}): ebay=${ebay.status} kaufland=${kaufland.status}`);
     } catch (err) {
       console.warn(`[sync-bus] marketplace order sync failed (tenant=${tenant}): ${err.message}`);
+    } finally {
+      _marketplaceSyncTimers.delete(tenant);
     }
   }, 3000);
   _marketplaceSyncTimers.set(tenant, timer);
 }
 
-const _returnSyncTimers = new Map();
+const _returnSyncTimers = new Map(); // tenantId -> Timeout | 'running'
 function _debouncedReturnSync(tenantId) {
   const tenant = String(tenantId || 'default').trim() || 'default';
   if (_returnSyncTimers.has(tenant)) return;
   const timer = setTimeout(async () => {
-    _returnSyncTimers.delete(tenant);
+    // Gleiches Muster wie _debouncedMarketplaceOrderSync: Eintrag erst nach
+    // Abschluss löschen, damit die Ausführung (nicht nur das Scheduling)
+    // entdoppelt wird.
+    _returnSyncTimers.set(tenant, 'running');
     try {
       const { syncAllReturns } = require('./returns-engine');
       const result = await syncAllReturns({ tenantId: tenant, lookbackDays: 14 });
       console.log(`[sync-bus] return sync (tenant=${tenant}): ebay=${JSON.stringify(result.ebay)} kaufland=${JSON.stringify(result.kaufland)}`);
     } catch (err) {
       console.warn(`[sync-bus] return sync failed (tenant=${tenant}): ${err.message}`);
+    } finally {
+      _returnSyncTimers.delete(tenant);
     }
   }, 3000);
   _returnSyncTimers.set(tenant, timer);

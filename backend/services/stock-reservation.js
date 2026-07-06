@@ -17,8 +17,23 @@ const RESERVATIONS_COLLECTION = 'stock_reservations';
 const DEFAULT_EXPIRY_HOURS = parseInt(process.env.STOCK_RESERVATION_EXPIRY_HOURS || '72', 10);
 
 /**
+ * Firestore-Doc-IDs duerfen keinen Slash enthalten; weitere Sonderzeichen
+ * werden defensiv ersetzt, damit Marktplatz-SKUs die Pfade nicht brechen.
+ */
+function _sanitizeIdPart(value) {
+  return String(value).trim().replace(/[\/#?%\s]+/g, '_');
+}
+
+/**
  * Reserve stock for an order's items.
- * Idempotent: if reservations for this orderId already exist, skip.
+ *
+ * Idempotent BY CONSTRUCTION: pro (tenantId, orderId, sku|productId) gibt es
+ * genau eine deterministische Doc-ID, geschrieben mit create()-Semantik.
+ * Der fruehere Query-then-Batch-Write-Check war eine Race: zwei ueberlappende
+ * Order-Syncs (Web-Instanzen + Worker-Cron + Event-Bus) sahen beide "keine
+ * Reservierung" und legten Duplikate an → availableQty faelschlich 0 →
+ * Zero-Stock-Push bis hin zum eBay-Listing-End. Mit create() verliert der
+ * zweite Schreiber deterministisch (ALREADY_EXISTS) und meldet skip.
  *
  * @param {Object} params
  * @param {string} params.tenantId - Tenant ID (default: 'default')
@@ -32,7 +47,8 @@ async function reserveStock({ tenantId = 'default', orderId, items }) {
     return { reserved: false, count: 0, skipped: true, reason: 'no items' };
   }
 
-  // Idempotency check: if reservations for this order already exist, skip
+  // Fast-path (und Schutz vor Legacy-Docs mit Auto-IDs): existiert schon
+  // eine aktive Reservierung fuer die Order, gar nicht erst schreiben.
   const existingSnap = await firestore.collection(RESERVATIONS_COLLECTION)
     .where('orderId', '==', orderId)
     .where('tenantId', '==', tenantId)
@@ -44,23 +60,41 @@ async function reserveStock({ tenantId = 'default', orderId, items }) {
     return { reserved: false, count: 0, skipped: true, reason: 'already reserved' };
   }
 
+  // Mengen pro SKU/Produkt aggregieren (mehrere Order-Positionen derselben
+  // SKU ergeben EIN Reservierungs-Doc mit Summenmenge).
+  const perKey = new Map();
+  for (const item of items) {
+    if (!item.sku && !item.productId) continue;
+    const qty = Number(item.quantity) || 0;
+    if (qty <= 0) continue;
+    const keyBase = item.sku ? `sku_${item.sku}` : `pid_${item.productId}`;
+    const existing = perKey.get(keyBase);
+    if (existing) {
+      existing.quantity += qty;
+    } else {
+      perKey.set(keyBase, { sku: item.sku || null, productId: item.productId || null, quantity: qty });
+    }
+  }
+  if (perKey.size === 0) {
+    return { reserved: false, count: 0, skipped: true, reason: 'no items' };
+  }
+
   const now = new Date();
   const expiresAt = new Date(now.getTime() + DEFAULT_EXPIRY_HOURS * 60 * 60 * 1000);
   const batch = firestore.batch();
   let count = 0;
 
-  for (const item of items) {
-    if (!item.sku && !item.productId) continue;
-    const qty = Number(item.quantity) || 0;
-    if (qty <= 0) continue;
-
-    const ref = firestore.collection(RESERVATIONS_COLLECTION).doc();
-    batch.set(ref, {
+  for (const [keyBase, entry] of perKey) {
+    const docId = _sanitizeIdPart(`${tenantId}__${orderId}__${keyBase}`);
+    const ref = firestore.collection(RESERVATIONS_COLLECTION).doc(docId);
+    // create() (nicht set()): schlaegt fehl, wenn das Doc existiert —
+    // der Verlierer eines Race erzeugt kein Duplikat.
+    batch.create(ref, {
       tenantId,
       orderId,
-      sku: item.sku || null,
-      productId: item.productId || null,
-      quantity: qty,
+      sku: entry.sku,
+      productId: entry.productId,
+      quantity: entry.quantity,
       status: 'reserved',
       createdAt: now.toISOString(),
       expiresAt: expiresAt.toISOString(),
@@ -68,8 +102,15 @@ async function reserveStock({ tenantId = 'default', orderId, items }) {
     count++;
   }
 
-  if (count > 0) {
+  try {
     await batch.commit();
+  } catch (err) {
+    const isAlreadyExists = err?.code === 6 || /ALREADY[_ ]EXISTS/i.test(err?.message || '');
+    if (isAlreadyExists) {
+      console.log(`[stock-reservation] concurrent reservation detected for order=${orderId} — skipping (idempotent)`);
+      return { reserved: false, count: 0, skipped: true, reason: 'already reserved (concurrent)' };
+    }
+    throw err;
   }
 
   return { reserved: count > 0, count, skipped: false };

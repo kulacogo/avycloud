@@ -108,10 +108,17 @@ const app = express();
 app.set('trust proxy', true);
 
 // --- Helper: order sync best-effort in background; never block responses ---
-const ORDER_SYNC_TIMEOUT_MS = parseInt(process.env.ORDER_SYNC_TIMEOUT_MS || '8000', 10);
+// ORDER_SYNC_TIMEOUT_MS ist ein HANG-WATCHDOG, kein Arbeits-Timeout: der volle
+// Marktplatz-Order-Sync (7d-Pagination + 30d-Reconcile) läuft real Minuten.
+// Der frühere 8s-Default gab den In-Flight-Guard frei, während der Sync noch
+// lief — jeder Trigger ≥60s später startete einen ZWEITEN parallelen Voll-Sync
+// (Trigger sitzen auf heißen Pfaden: GET /orders, /dashboard/metrics, /ops).
+// Default 10 min: nur ein echt hängender Sync gibt den Guard wieder frei.
+const ORDER_SYNC_TIMEOUT_MS = parseInt(process.env.ORDER_SYNC_TIMEOUT_MS || String(10 * 60 * 1000), 10);
 const ORDER_SYNC_THROTTLE_MS = parseInt(process.env.ORDER_SYNC_THROTTLE_MS || '60000', 10);
 let ordersSyncInFlight = false;
 let lastOrdersSyncAtMs = 0;
+let ordersSyncGeneration = 0;
 function backgroundSyncOrders() {
   const now = Date.now();
   if (ordersSyncInFlight) return;
@@ -120,18 +127,25 @@ function backgroundSyncOrders() {
   }
   ordersSyncInFlight = true;
   lastOrdersSyncAtMs = now;
+  // Generation-Token: das finally() eines vom Watchdog aufgegebenen (hängenden)
+  // Laufs darf den Guard eines NEUEREN Laufs nicht freigeben.
+  const generation = ++ordersSyncGeneration;
 
-  const timer = setTimeout(() => {
-    // best-effort safety: release lock even if something hangs
-    ordersSyncInFlight = false;
+  const watchdog = setTimeout(() => {
+    if (ordersSyncGeneration === generation && ordersSyncInFlight) {
+      console.warn(`[order-sync] watchdog: Sync läuft nach ${ORDER_SYNC_TIMEOUT_MS}ms noch — Guard wird freigegeben (möglicher Hänger)`);
+      ordersSyncInFlight = false;
+    }
   }, ORDER_SYNC_TIMEOUT_MS);
 
   const { syncOrders: syncOrdersRouted } = require('./services/order-source-router');
   syncOrdersRouted()
     .catch((err) => console.warn('Background order sync failed:', err?.message || err))
     .finally(() => {
-      clearTimeout(timer);
-      ordersSyncInFlight = false;
+      clearTimeout(watchdog);
+      if (ordersSyncGeneration === generation) {
+        ordersSyncInFlight = false;
+      }
     });
 }
 

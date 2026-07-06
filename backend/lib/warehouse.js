@@ -976,7 +976,7 @@ async function bookStockOut({ productId, sku, barcode, binCode, quantity, meta }
     // den Order-Claim-Zustand HIER, NICHT spaeter — siehe Bug-Fix
     // 2026-05-03 (Pick-Modul "Pick failed: Firestore transaction
     // requires all reads to be executed before all writes").
-    const { readOrderClaimStateInTx, writeOrderClaimInTx } = require('./order-stock-claim');
+    const { readOrderClaimStateInTx, writeOrderClaimInTx, appendOrderClaimSkuInTx } = require('./order-stock-claim');
     const reads = [tx.get(productRef), tx.get(binRef)];
     if (orderRef) {
       reads.push(readOrderClaimStateInTx({ tx, orderRef }));
@@ -1024,6 +1024,7 @@ async function bookStockOut({ productId, sku, barcode, binCode, quantity, meta }
     // Vor dem ersten Write entscheiden, was am Ende der Tx mit dem Order-
     // Claim passieren soll.
     let pendingClaimWrite = null;
+    let pendingClaimSkuAppend = null;
     if (orderRef) {
       if (!orderClaimState || !orderClaimState.exists) {
         // HARDEN-8 (2026-05-20): Order-Doc-Guard.
@@ -1046,6 +1047,22 @@ async function bookStockOut({ productId, sku, barcode, binCode, quantity, meta }
           at: orderClaimState.at,
           by: orderClaimState.by,
         };
+        // Multi-SKU-Order: der ERSTE Pick hat den Claim mit seiner SKU
+        // gesetzt. Jeder WEITERE Pick derselben Order muss seine SKU an
+        // stockDecrementedSkus anhaengen, sonst uebersieht der WP4-Re-Credit
+        // (_recreditOrderStock filtert strikt auf diese Liste) die uebrigen
+        // physisch dekrementierten SKUs bei Cancel → unsichtbarer
+        // Bestandsverlust. Nur fuer by='pick' — ein 'ship'-Claim hat bereits
+        // alle Order-SKUs erfasst.
+        if (orderClaimState.by === 'pick' && resolvedSkuValue) {
+          const { normalizeSkuKey } = require('./order-status-helpers');
+          const alreadyListed = (orderClaimState.skus || [])
+            .some((s) => normalizeSkuKey(s) === normalizeSkuKey(resolvedSkuValue));
+          if (!alreadyListed) {
+            pendingClaimSkuAppend = { sku: resolvedSkuValue, existingSkus: orderClaimState.skus || [] };
+            claimResult.appendedSku = resolvedSkuValue;
+          }
+        }
       } else {
         const claimedAt = now.toDate().toISOString();
         pendingClaimWrite = {
@@ -1139,6 +1156,13 @@ async function bookStockOut({ productId, sku, barcode, binCode, quantity, meta }
         skus: pendingClaimWrite.skus,
         nowIso: pendingClaimWrite.nowIso,
       });
+    } else if (pendingClaimSkuAppend) {
+      appendOrderClaimSkuInTx({
+        tx,
+        orderRef,
+        sku: pendingClaimSkuAppend.sku,
+        existingSkus: pendingClaimSkuAppend.existingSkus,
+      });
     }
 
     updatedBin = {
@@ -1155,6 +1179,10 @@ async function bookStockOut({ productId, sku, barcode, binCode, quantity, meta }
     if (claimResult && claimResult.claimed) {
       console.log(
         `[bookStockOut] order=${orderIdMeta} sku=${resolvedSkuValue} claimed stockDecrementedAt by='pick' — ship-flow will skip Phase A`
+      );
+    } else if (claimResult && claimResult.alreadyClaimed && claimResult.appendedSku) {
+      console.log(
+        `[bookStockOut] order=${orderIdMeta} sku=${resolvedSkuValue} appended to existing pick-claim (multi-SKU order) — re-credit sieht jetzt alle gepickten SKUs`
       );
     } else if (claimResult && claimResult.alreadyClaimed) {
       console.warn(

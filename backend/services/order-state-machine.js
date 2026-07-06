@@ -501,10 +501,15 @@ async function _recreditOrderStock({ orderId, tenantId, by, mode, clearDecrement
   const items = order.items || [];
 
   // SKU→qty NUR fuer Skus die tatsaechlich dekrementiert wurden (NIE phantom-credit).
+  // Vergleich normalisiert (normalizeSkuKey): Pick-Claim schreibt die SKU aus den
+  // Produktdaten, Order-Items tragen die Marktplatz-Schreibweise — exakter
+  // String-Match liesse legitime Credits an Formatierungsunterschieden scheitern.
+  const { normalizeSkuKey } = require('../lib/order-status-helpers');
+  const decrementedSkuKeys = new Set(decrementedSkus.map((s) => normalizeSkuKey(s)));
   const skuQtyMap = {};
   for (const item of items) {
     const sku = String(item.sku || '').trim();
-    if (!sku || !decrementedSkus.includes(sku)) continue;
+    if (!sku || !decrementedSkuKeys.has(normalizeSkuKey(sku))) continue;
     skuQtyMap[sku] = (skuQtyMap[sku] || 0) + (Number(item.quantity) || 1);
   }
   const skus = Object.keys(skuQtyMap);

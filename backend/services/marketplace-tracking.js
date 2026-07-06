@@ -97,6 +97,30 @@ function isRateLimitedError(msg) {
   );
 }
 
+/**
+ * Kaufland-Unit-Fehler, der bedeutet: die Ziel-Aktion ist schon passiert
+ * (Unit bereits 'sent' bzw. 'cancelled'). Zaehlt beim Retry als Erfolg,
+ * damit ein Teilfehler-Retry idempotent konvergiert statt an den bereits
+ * erledigten Units erneut zu scheitern.
+ *
+ * @param {string} msg — Fehlermeldung der Kaufland-API
+ * @param {'sent'|'cancelled'} targetState
+ */
+function isKauflandUnitAlreadyDone(msg, targetState) {
+  const m = String(msg || '').toLowerCase();
+  // Bewusst eng: nur "already …" bzw. "is in status '<target>'" zaehlt.
+  // Ein "transition to <target> not allowed" bedeutet das GEGENTEIL
+  // (Unit ist in einem anderen Status) und muss ein Fehler bleiben.
+  if (m.includes('not allowed') || m.includes('forbidden')) return false;
+  if (targetState === 'sent') {
+    return /already.*(sent|shipped|send)|is (already )?in status ['"]?sent['"]?/.test(m);
+  }
+  if (targetState === 'cancelled') {
+    return /already.*cancel|is (already )?in status ['"]?cancell?ed['"]?/.test(m);
+  }
+  return false;
+}
+
 /** Errors that will NEVER succeed on retry — abandon immediately instead of looping. */
 function isPermanentPushError(msg) {
   const m = String(msg || '').toLowerCase();
@@ -333,7 +357,7 @@ async function pushTrackingToKaufland({ order, trackingNumber, carrier, firestor
     }
 
     let successCount = 0;
-    let lastError = null;
+    const failedUnits = [];
 
     for (const unitId of unitIds) {
       try {
@@ -345,13 +369,32 @@ async function pushTrackingToKaufland({ order, trackingNumber, carrier, firestor
         });
         successCount++;
       } catch (err) {
-        lastError = err.message;
-        console.error(`[marketplace-tracking] Kaufland unit ${unitId} ship failed: ${err.message}`);
+        // Retry-Idempotenz: eine bereits gemeldete Unit zaehlt als Erfolg,
+        // sonst konvergiert der Retry eines Teilfehlers nie.
+        if (isKauflandUnitAlreadyDone(err.message, 'sent')) {
+          successCount++;
+          console.log(`[marketplace-tracking] Kaufland unit ${unitId} already sent — treated as success`);
+        } else {
+          failedUnits.push({ unitId, error: err.message });
+          console.error(`[marketplace-tracking] Kaufland unit ${unitId} ship failed: ${err.message}`);
+        }
       }
     }
 
-    if (successCount === 0 && unitIds.length > 0) {
-      return { ok: false, marketplace: 'kaufland', error: lastError || 'All unit shipments failed' };
+    // Teilfehler = Fehler. Vorher galt successCount > 0 als voller Erfolg
+    // (marketplacePush.status='success'), womit ensureMarketplaceTrackingPushed
+    // und der Catchup-Cron die fehlgeschlagenen Units NIE erneut anfassten —
+    // Kaufland sah kein Versand-Confirm, Auto-Cancel + Refund trotz physisch
+    // versendeter Ware. Erst wenn ALLE Units durch sind, ist der Push ok.
+    if (failedUnits.length > 0) {
+      const detail = failedUnits.map((u) => `${u.unitId}: ${u.error}`).join('; ');
+      return {
+        ok: false,
+        marketplace: 'kaufland',
+        error: `${failedUnits.length}/${unitIds.length} unit(s) failed: ${detail}`,
+        unitsShipped: successCount,
+        failedUnitIds: failedUnits.map((u) => u.unitId),
+      };
     }
 
     console.log(`[marketplace-tracking] Kaufland: ${successCount}/${unitIds.length} units shipped for order ${order.marketplaceOrderId}`);
@@ -630,7 +673,7 @@ async function cancelOrderOnKaufland({ order, reason, note }) {
     }
 
     let successCount = 0;
-    let lastError = null;
+    const failedUnits = [];
 
     for (const unitId of unitIds) {
       try {
@@ -639,13 +682,27 @@ async function cancelOrderOnKaufland({ order, reason, note }) {
         });
         successCount++;
       } catch (err) {
-        lastError = err.message;
-        console.error(`[marketplace-cancel] Kaufland unit ${unitId} cancel failed: ${err.message}`);
+        if (isKauflandUnitAlreadyDone(err.message, 'cancelled')) {
+          successCount++;
+          console.log(`[marketplace-cancel] Kaufland unit ${unitId} already cancelled — treated as success`);
+        } else {
+          failedUnits.push({ unitId, error: err.message });
+          console.error(`[marketplace-cancel] Kaufland unit ${unitId} cancel failed: ${err.message}`);
+        }
       }
     }
 
-    if (successCount === 0 && unitIds.length > 0) {
-      return { ok: false, marketplace: 'kaufland', error: lastError || 'All unit cancellations failed' };
+    // Gleiche Teilfehler-Regel wie beim Tracking-Push: erst wenn ALLE Units
+    // storniert sind, ist der Cancel ok — sonst bleibt eine Unit offen.
+    if (failedUnits.length > 0) {
+      const detail = failedUnits.map((u) => `${u.unitId}: ${u.error}`).join('; ');
+      return {
+        ok: false,
+        marketplace: 'kaufland',
+        error: `${failedUnits.length}/${unitIds.length} unit(s) failed: ${detail}`,
+        unitsCancelled: successCount,
+        failedUnitIds: failedUnits.map((u) => u.unitId),
+      };
     }
 
     console.log(`[marketplace-cancel] Kaufland: ${successCount}/${unitIds.length} units cancelled for order ${order.marketplaceOrderId}`);
@@ -681,6 +738,7 @@ module.exports = {
   deriveMarketplacePushStatus,
   isRateLimitedError,
   isPermanentPushError,
+  isKauflandUnitAlreadyDone,
   MAX_PUSH_ATTEMPTS,
   EBAY_CARRIER_MAP,
   KAUFLAND_CARRIER_MAP,

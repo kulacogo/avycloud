@@ -239,24 +239,36 @@ async function syncEbayOrders({ tenantId = 'default', lookbackDays = 7 } = {}) {
           if (sku) newOrderSkus.add(sku);
         }
 
-        // Reserve stock IMMEDIATELY after save — not after the loop
-        try {
-          const orderId = `ebay__${order.marketplaceOrderId}`;
-          const items = (order.items || []).map((item) => ({
-            sku: item.sku || null,
-            quantity: item.quantity || 1,
-          }));
-          await reserveStock({ tenantId, orderId, items });
-        } catch (err) {
-          console.warn(`[ebay-intake] reserveStock failed for ${order.marketplaceOrderId}: ${err.message}`);
-          // Oversell precursor: a sold item was not reserved, no durable retry. Alert a human.
-          sendOpsAlert({
-            source: 'order-intake-ebay',
-            severity: 'critical',
-            tenantId,
-            message: `reserveStock failed for order ${order.marketplaceOrderId}: ${err.message}`,
-            context: { orderId, marketplaceOrderId: order.marketplaceOrderId, items },
-          }).catch(() => {});
+        // Reserve stock IMMEDIATELY after save — not after the loop.
+        // Nur für Orders im offenen Lifecycle: eine Order, die bereits
+        // storniert/versendet ankommt (Backfill, Storno vor Erst-Intake),
+        // bekäme eine Phantom-Reservierung ohne Release-Pfad —
+        // _onOrderCancelled läuft nur bei einer Transition NACH cancelled,
+        // die hier nie stattfindet. Bei qty-1-SKUs endet das im fälschlichen
+        // Listing-End. Born-shipped dekrementiert separat via processShippedOrder.
+        const { RESERVED_ORDER_STATUSES } = require('../lib/order-status-helpers');
+        const initialOms = order.ebayStatus || 'pending';
+        if (!RESERVED_ORDER_STATUSES.has(initialOms)) {
+          console.log(`[ebay-intake] skip reservation for ${order.marketplaceOrderId} (initial status ${initialOms})`);
+        } else {
+          try {
+            const orderId = `ebay__${order.marketplaceOrderId}`;
+            const items = (order.items || []).map((item) => ({
+              sku: item.sku || null,
+              quantity: item.quantity || 1,
+            }));
+            await reserveStock({ tenantId, orderId, items });
+          } catch (err) {
+            console.warn(`[ebay-intake] reserveStock failed for ${order.marketplaceOrderId}: ${err.message}`);
+            // Oversell precursor: a sold item was not reserved, no durable retry. Alert a human.
+            sendOpsAlert({
+              source: 'order-intake-ebay',
+              severity: 'critical',
+              tenantId,
+              message: `reserveStock failed for order ${order.marketplaceOrderId}: ${err.message}`,
+              context: { marketplaceOrderId: order.marketplaceOrderId },
+            }).catch(() => {});
+          }
         }
       } else {
         totalSkipped++;
@@ -421,7 +433,14 @@ async function saveOrderIfNew({ tenantId, order }) {
       // Forward-Rank — wir vergleichen hier reine Pipeline-Position, nicht
       // Terminal-Block-Logik).
       const { getOmsSortOrder } = require('../lib/order-status-helpers');
-      const currentRank = Math.max(0, getOmsSortOrder(currentOms));
+      // on_hold hat sortOrder 11 (reine UI-Sortierposition ans Listenende) — als
+      // currentRank würde das JEDEN Fortschritt blockieren: unbezahlte Orders
+      // starten als on_hold, und nach Zahlung meldet eBay confirmed/shipped
+      // (Rank 1/6 < 11) → Order bliebe für immer 'Pausiert', Ship-Decrement
+      // liefe nie (Oversell-Fenster nach Reservierungsablauf). Wie im
+      // Kaufland-Intake (OMS_RANK ohne on_hold → ?? 0) gilt on_hold deshalb
+      // beim Vergleich als niedrigster Zustand.
+      const currentRank = currentOms === 'on_hold' ? 0 : Math.max(0, getOmsSortOrder(currentOms));
       const newRank = Math.max(0, getOmsSortOrder(ebayStatus));
 
       if (newRank > currentRank || ebayStatus === 'cancelled') {
