@@ -645,6 +645,44 @@ async function runImproveJobInline(jobId, productId, editorInitials = 'KI') {
 // ── Routes ───────────────────────────────────────────────────────────
 // ══════════════════════════════════════════════════════════════════════
 
+// --- "Erfasst von" (admin-only): wer hat welches Produkt erfasst ---
+// Quelle: audit_log product.identified (seit 2026-07-04) — deckt auch Produkte ab,
+// die vor dem ops.identified_by-Feld erfasst wurden. Muss vor '/products/:id' stehen.
+router.get('/products/identified-by', requirePermission('admin', 'users.read'), async (req, res) => {
+  try {
+    const tenantId = req.user?.tenantId || 'default';
+    const snap = await firestore.collection('audit_log')
+      .where('tenantId', '==', tenantId)
+      .orderBy('timestamp', 'desc')
+      .limit(10000)
+      .get();
+
+    const { listUsers } = require('../lib/rbac');
+    const users = await listUsers({ limit: 1000 }).catch(() => []);
+    const nameByUid = new Map(users.map((u) => {
+      const uid = u.uid || u.id;
+      const full = [u.firstName, u.lastName].filter(Boolean).join(' ').trim();
+      return [uid, u.displayName || full || u.username || u.email || uid];
+    }));
+
+    // Älteste zuletzt verarbeiten? Wir wollen den ERSTEN Erfasser pro Produkt:
+    // Einträge kommen desc — der letzte Schreiber im Map-Durchlauf ist der älteste.
+    const map = {};
+    for (const d of snap.docs) {
+      const a = d.data();
+      if (a?.action !== 'product.identified') continue;
+      const productId = a?.details?.productId || a?.resourceId;
+      const uid = a?.userId;
+      if (!productId || !uid || uid === 'system') continue;
+      map[productId] = { uid, name: nameByUid.get(uid) || a.userEmail || uid };
+    }
+    res.json({ ok: true, data: map });
+  } catch (err) {
+    console.error(`[GET /api/products/identified-by] ${err.message}`, err);
+    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: err.message } });
+  }
+});
+
 // --- Interne Produkt-Notizen (Mitarbeiter-Kommentare) — NIE Teil von Marktplatz-Angeboten ---
 // notes-counts MUSS vor '/products/:id' stehen, sonst schluckt :id den Pfad.
 router.get('/products/notes-counts', requirePermission('products', 'read'), async (req, res) => {

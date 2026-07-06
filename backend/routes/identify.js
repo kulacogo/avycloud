@@ -950,6 +950,19 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
       product.ops.sourcePaletteAt = new Date().toISOString();
     }
 
+    // Wer hat erfasst? — dauerhaft am Produkt (Anzeige "Erfasst von", admin-only).
+    // Nur beim ERSTEN Erfassen stempeln; eine Re-Identifikation überschreibt den
+    // ursprünglichen Erfasser nicht.
+    product.ops = product.ops || {};
+    if (req.user?.uid && !product.ops.identified_by) {
+      product.ops.identified_by = {
+        uid: req.user.uid,
+        email: req.user.email || null,
+        name: req.user.name || req.user.displayName || null,
+        at: new Date().toISOString(),
+      };
+    }
+
     // 4) Persist (SYSTEM mode => invariants enforced; never treated as manual UI edit).
     // allowCategoryChange: only for NEW products (no existing category yet).
     // Existing products with a category set by UI must not have it overwritten by Identify.

@@ -19,6 +19,7 @@ const COLUMN_PRESETS: Record<ColumnPreset, ColumnId[]> = {
     "kaufland",
     "readiness",
     "createdAt",
+    "erfasstVon",
     "lastSaved",
   ],
   warehouse: [

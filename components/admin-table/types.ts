@@ -24,7 +24,8 @@ export type ColumnId =
   | "revision"
   | "sold"
   | "notizen"
-  | "createdAt";
+  | "createdAt"
+  | "erfasstVon";
 
 export type ColumnPreset = "standard" | "warehouse" | "pricing" | "minimal";
 

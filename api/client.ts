@@ -2199,6 +2199,14 @@ export const addProductNote = async (productId: string, text: string): Promise<P
   return result?.data as ProductNote;
 };
 
+// Admin-only: wer hat welches Produkt erfasst (uid + Anzeigename).
+export const getProductsIdentifiedByMap = async (): Promise<Record<string, { uid: string; name: string }>> => {
+  const res = await fetchApi(`${BACKEND_URL}/api/products/identified-by`);
+  const result = await parseResponse(res);
+  if (!res.ok || result?.ok === false) return {};
+  return (result?.data as Record<string, { uid: string; name: string }>) || {};
+};
+
 export const getProductNotesCounts = async (): Promise<Record<string, number>> => {
   const res = await fetchApi(`${BACKEND_URL}/api/products/notes-counts`);
   const result = await parseResponse(res);

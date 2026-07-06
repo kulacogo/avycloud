@@ -31,7 +31,9 @@ const safeCurrency = (code?: string) => {
 
 const COLUMN_STORAGE_KEY = 'avystock:admin-table:visible-columns';
 const COLUMN_PRESETS: Record<ColumnPreset, ColumnId[]> = {
-  standard: ['thumbnail', 'nameBrand', 'sku', 'barcode', 'category', 'price', 'inventory', 'sold', 'notizen', 'pendingIntake', 'storage', 'ebay', 'kaufland', 'readiness', 'createdAt', 'lastSaved'],
+  // 'erfasstVon' ist admin-only: für Nicht-Admins existiert die Spalten-Definition
+  // nicht, die Id wird beim Rendern schlicht ignoriert.
+  standard: ['thumbnail', 'nameBrand', 'sku', 'barcode', 'category', 'price', 'inventory', 'sold', 'notizen', 'pendingIntake', 'storage', 'ebay', 'kaufland', 'readiness', 'createdAt', 'erfasstVon', 'lastSaved'],
   warehouse: ['nameBrand', 'sku', 'barcode', 'inventory', 'sold', 'pendingIntake', 'storage', 'ebay', 'kaufland', 'readiness', 'saveStatus'],
   pricing: ['nameBrand', 'price', 'sku', 'barcode', 'pendingIntake', 'ebay', 'kaufland', 'readiness', 'lastSynced'],
   minimal: ['nameBrand', 'sku', 'barcode', 'inventory', 'sold', 'pendingIntake', 'ebay', 'kaufland', 'readiness'],
@@ -406,7 +408,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
     setFilterCategorySelection(Array.from(next));
   };
 
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const myInitials = useMemo(() => deriveInitials(user?.email || ''), [user?.email]);
 
   const EDITOR_NONE = '__none__';
@@ -482,6 +484,20 @@ const AdminTable: React.FC<AdminTableProps> = ({
       .catch(() => {});
     return () => { cancelled = true; };
   }, []);
+
+  // Admin-only: "Erfasst von" — Zuordnung aus dem Erfassungs-Protokoll (deckt
+  // auch Produkte ab, die vor dem ops.identified_by-Feld erfasst wurden).
+  const [identifiedByMap, setIdentifiedByMap] = useState<Record<string, { uid: string; name: string }>>({});
+  useEffect(() => {
+    if (!isAdmin) return;
+    let cancelled = false;
+    import('../api/client').then(({ getProductsIdentifiedByMap }) =>
+      getProductsIdentifiedByMap()
+        .then((m) => { if (!cancelled) setIdentifiedByMap(m || {}); })
+        .catch(() => {})
+    );
+    return () => { cancelled = true; };
+  }, [isAdmin]);
 
   const columnDefinitions: ColumnDefinition[] = useMemo(() => {
     const baseRenderers: ColumnDefinition[] = [
@@ -919,6 +935,19 @@ const AdminTable: React.FC<AdminTableProps> = ({
           </span>
         ),
       },
+      // Admin-only: wer hat das Produkt erfasst (Feld am Produkt, sonst Protokoll-Map).
+      ...(isAdmin ? [{
+        id: 'erfasstVon' as ColumnId,
+        label: t('table.identifiedBy'),
+        defaultVisible: true,
+        render: ({ product }: { product: any }) => {
+          const field = product.ops?.identified_by;
+          const label = field?.name || field?.email || identifiedByMap[product.id]?.name || null;
+          return label
+            ? <span className="text-txt-secondary text-sm whitespace-nowrap">{label}</span>
+            : <span className="text-txt-muted text-sm">—</span>;
+        },
+      }] : []),
       {
         id: 'lastSaved',
         label: t('table.lastSaved'),
@@ -964,6 +993,8 @@ const AdminTable: React.FC<AdminTableProps> = ({
     kauflandSkuProductIdMap,
     kauflandEanProductIdMap,
     notesCounts,
+    isAdmin,
+    identifiedByMap,
   ]);
 
   const statusFilters: Array<{ value: Readiness | 'all'; label: string }> = [
