@@ -230,7 +230,7 @@ async function generateInvoice({
         mapAll: true,
         name: item.name || item.sku || 'Artikel',
         quantity: Number(item.quantity) || 1,
-        price: Math.round((Number(item.priceBrutto || 0) / vatFactor) * 100) / 100,
+        price: toSevdeskNetUnitPrice(item.priceBrutto, vatFactor),
         unity: { id: 1, objectName: 'Unity' },
         positionNumber: i + 1,
         taxRate,
@@ -709,6 +709,21 @@ function toSevdeskDate(dateStr) {
 }
 
 /**
+ * Netto-Stückpreis für SevDesk-Positionen — mit voller Präzision.
+ *
+ * NICHT auf 2 Stellen runden: SevDesk berechnet sumNet/sumGross aus genau
+ * diesem Stückpreis. Ein auf 2 Stellen gerundeter Netto-Preis trifft
+ * zurückgerechnet (netto × 1,19) den Brutto-Zahlbetrag oft nicht, und bei
+ * quantity > 1 multipliziert sich der Fehler (Beispiel: 4,99 € brutto ×3 →
+ * netto 4,19 → SevDesk-Summe 14,96 € statt gezahlter 14,97 €). Mit 6
+ * Nachkommastellen rundet SevDesk erst die SUMME — centgenau zum Zahlbetrag.
+ */
+function toSevdeskNetUnitPrice(priceBrutto, vatFactor) {
+  const netto = Number(priceBrutto || 0) / (vatFactor || 1.19);
+  return Math.round(netto * 1e6) / 1e6;
+}
+
+/**
  * Export an invoice to SevDesk using the Factory/saveInvoice endpoint.
  *
  * @param {{ invoiceId: string }} opts
@@ -756,18 +771,37 @@ async function exportToSevDesk({ invoiceId }) {
     if (invoice.orderId) {
       try {
         const orderSnap = await db.collection(ORDERS_COLLECTION).doc(invoice.orderId).get();
-        const items = orderSnap.exists ? (orderSnap.data()?.items || []) : [];
+        const orderData = orderSnap.exists ? (orderSnap.data() || {}) : {};
+        const items = orderData.items || [];
         invoicePosSave = items.map((item, i) => ({
           id: null,
           objectName: 'InvoicePos',
           mapAll: true,
           name: item.name || item.sku || 'Artikel',
           quantity: Number(item.quantity) || 1,
-          price: Math.round((Number(item.priceBrutto || 0) / vatFactor) * 100) / 100,
+          price: toSevdeskNetUnitPrice(item.priceBrutto, vatFactor),
           unity: { id: 1, objectName: 'Unity' },
           positionNumber: i + 1,
           taxRate,
         }));
+
+        // Versandkosten als eigene Position — wie in generateInvoice. Ohne sie
+        // summierte die finalisierte SevDesk-Rechnung nur die Artikel und lag
+        // um die vollen Versandkosten unter dem tatsächlich gezahlten Betrag.
+        const shippingCost = Number(orderData.shippingCost) || 0;
+        if (shippingCost > 0 && invoicePosSave.length > 0) {
+          invoicePosSave.push({
+            id: null,
+            objectName: 'InvoicePos',
+            mapAll: true,
+            name: 'Versandkosten',
+            quantity: 1,
+            price: toSevdeskNetUnitPrice(shippingCost, vatFactor),
+            unity: { id: 1, objectName: 'Unity' },
+            positionNumber: invoicePosSave.length + 1,
+            taxRate,
+          });
+        }
       } catch (itemErr) {
         console.warn(`[invoice-engine] Failed to load order items: ${itemErr.message}`);
       }
@@ -1215,4 +1249,5 @@ module.exports = {
   getCompanySettings,
   buildInvoicePdf,
   buildLegalFooterLines,
+  toSevdeskNetUnitPrice,
 };

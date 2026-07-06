@@ -93,6 +93,65 @@ const SHIPPING_VOUCHER_TTL_MS = 15 * 60 * 1000;
 const SHIPPING_SUPPLIER_KEYWORDS = ['dhl', 'dpd', 'sendcloud', 'deutsche post', 'gls'];
 
 /**
+ * Alle CheckAccountTransactions eines Zeitfensters — MIT Offset-Pagination.
+ *
+ * Vorher holten getShippingCostsFromSevDesk/getMarketplacePayoutsFromSevDesk
+ * genau EINEN Request mit limit=500 für das GESAMTE Fenster. Das Payee-Filtern
+ * passiert erst client-seitig, d. h. die 500er-Grenze galt für ALLE
+ * Bank-Buchungen: bei Jahres-Presets (year_to_date/last_year/all_time) wurden
+ * Auszahlungen/Versandkosten still unterschlagen — der Finanzbericht zeigte
+ * zu niedrige Zahlen als 'source: sevdesk' (= exakt) aus.
+ *
+ * timeoutMs ist das GESAMT-Budget über alle Seiten. Läuft es ab, wird
+ * GEWORFEN statt still ein unvollständiges Ergebnis zu liefern — die Caller
+ * (Dashboard/Financial-Report) degradieren bei Fehlern ehrlich.
+ */
+async function fetchAllCheckAccountTransactions({ apiKey, startTs, endTs, timeoutMs = 15000 }) {
+  const PAGE_SIZE = 500;
+  const MAX_PAGES = 40; // 20.000 Buchungen — Sicherheitskappe weit über Realvolumen
+  const deadline = Date.now() + timeoutMs;
+  const all = [];
+
+  for (let page = 0; page < MAX_PAGES; page++) {
+    const remaining = deadline - Date.now();
+    if (remaining <= 0) {
+      throw new Error(
+        `SevDesk CheckAccountTransaction: Zeitbudget (${timeoutMs}ms) nach ${all.length} Buchungen erschöpft — unvollständiges Ergebnis wird nicht geliefert`
+      );
+    }
+
+    const params = new URLSearchParams({
+      startDate: String(startTs),
+      endDate: String(endTs),
+      limit: String(PAGE_SIZE),
+      offset: String(page * PAGE_SIZE),
+    });
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), remaining);
+    try {
+      const response = await fetch(`${SEVDESK_BASE_URL}/CheckAccountTransaction?${params}`, {
+        headers: { Authorization: apiKey, 'Content-Type': 'application/json' },
+        signal: controller.signal,
+      });
+      if (!response.ok) {
+        const body = await response.text().catch(() => '');
+        throw new Error(`SevDesk CheckAccountTransaction API ${response.status}: ${body.slice(0, 200)}`);
+      }
+      const data = await response.json();
+      const batch = Array.isArray(data?.objects) ? data.objects : [];
+      all.push(...batch);
+      if (batch.length < PAGE_SIZE) return all;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  console.warn(`[sevdesk] CheckAccountTransaction: MAX_PAGES (${MAX_PAGES}) erreicht bei ${all.length} Buchungen — Zeitfenster verkleinern`);
+  return all;
+}
+
+/**
  * Returns the total BRUTTO amount of shipping invoices (Eingangsrechnungen)
  * booked in SevDesk for the given date range.
  *
@@ -120,30 +179,7 @@ async function getShippingCostsFromSevDesk(fromDate, toDate, { forceRefresh = fa
   // Fetch bank account transactions (Kontoauszug-Buchungen) — this matches what the user
   // sees in SevDesk under "Bezahldatum". The /Voucher endpoint (Eingangsrechnungen) uses
   // voucher dates which can differ from actual payment dates and may be incomplete.
-  const params = new URLSearchParams({
-    startDate: String(startTs),
-    endDate:   String(endTs),
-    limit:     '500',
-  });
-
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-
-  let transactions = [];
-  try {
-    const response = await fetch(`${SEVDESK_BASE_URL}/CheckAccountTransaction?${params}`, {
-      headers: { Authorization: apiKey, 'Content-Type': 'application/json' },
-      signal: controller.signal,
-    });
-    if (!response.ok) {
-      const body = await response.text().catch(() => '');
-      throw new Error(`SevDesk CheckAccountTransaction API ${response.status}: ${body.slice(0, 200)}`);
-    }
-    const data = await response.json();
-    transactions = Array.isArray(data?.objects) ? data.objects : [];
-  } finally {
-    clearTimeout(timer);
-  }
+  const transactions = await fetchAllCheckAccountTransactions({ apiKey, startTs, endTs, timeoutMs });
 
   // Filter to outgoing shipping carrier payments.
   // Correct SevDesk field: "payeePayerName" (= "Name" column in Kontoauszug view).
@@ -228,25 +264,7 @@ async function getMarketplacePayoutsFromSevDesk(fromDate, toDate, { forceRefresh
 
   const startTs = Math.floor(new Date(fromDate + 'T00:00:00Z').getTime() / 1000);
   const endTs = Math.floor(new Date(toDate + 'T23:59:59Z').getTime() / 1000);
-  const params = new URLSearchParams({ startDate: String(startTs), endDate: String(endTs), limit: '500' });
-
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-  let transactions = [];
-  try {
-    const response = await fetch(`${SEVDESK_BASE_URL}/CheckAccountTransaction?${params}`, {
-      headers: { Authorization: apiKey, 'Content-Type': 'application/json' },
-      signal: controller.signal,
-    });
-    if (!response.ok) {
-      const body = await response.text().catch(() => '');
-      throw new Error(`SevDesk CheckAccountTransaction API ${response.status}: ${body.slice(0, 200)}`);
-    }
-    const data = await response.json();
-    transactions = Array.isArray(data?.objects) ? data.objects : [];
-  } finally {
-    clearTimeout(timer);
-  }
+  const transactions = await fetchAllCheckAccountTransactions({ apiKey, startTs, endTs, timeoutMs });
 
   const classify = (payee) => {
     const p = (payee || '').toLowerCase();
@@ -352,4 +370,4 @@ async function listCheckAccounts({ timeoutMs = 15000 } = {}) {
   }
 }
 
-module.exports = { getCheckAccountBalances, getShippingCostsFromSevDesk, getMarketplacePayoutsFromSevDesk, listTaxRates, listCheckAccounts };
+module.exports = { getCheckAccountBalances, getShippingCostsFromSevDesk, getMarketplacePayoutsFromSevDesk, listTaxRates, listCheckAccounts, fetchAllCheckAccountTransactions };
