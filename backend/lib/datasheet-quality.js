@@ -62,14 +62,24 @@ function getPriceStatus(product) {
 }
 
 /**
+ * Effektiver Zustand des Quality-Gates (Default: AN, Opt-out via
+ * QUALITY_GATE_ENABLED=false/0/no). Einzige Quelle der Wahrheit — auch der
+ * Admin-Health-Endpoint liest DIESE Funktion, damit die Anzeige nie wieder
+ * vom echten Gate-Verhalten abweichen kann.
+ */
+function isQualityGateEnabled() {
+  const enabled = (process.env.QUALITY_GATE_ENABLED || '').toString().trim().toLowerCase();
+  return !(enabled === '0' || enabled === 'false' || enabled === 'no');
+}
+
+/**
  * Evaluate whether a product is "eBay-ready" for AvyCloud.
  * This is intentionally stricter than "minimal identification".
  */
 function evaluateEbayReady(product, options = {}) {
   const force = Boolean(options && typeof options === 'object' && options.force === true);
   const ignorePrice = Boolean(options && typeof options === 'object' && options.ignorePrice === true);
-  const enabled = (process.env.QUALITY_GATE_ENABLED || '').toString().trim().toLowerCase();
-  const gateDisabled = enabled === '0' || enabled === 'false' || enabled === 'no';
+  const gateDisabled = !isQualityGateEnabled();
   if (gateDisabled && !force) {
     // Gate explicitly disabled — return lightweight snapshot for UI.
     const title = safeString(product?.identification?.name);
@@ -208,5 +218,6 @@ function evaluateEbayReady(product, options = {}) {
 module.exports = {
   evaluateEbayReady,
   getPriceStatus,
+  isQualityGateEnabled,
 };
 

@@ -23,6 +23,16 @@ function getDb() {
   return _db;
 }
 
+// Fail-closed-by-default (2026-07-06): In Cloud Run ist NODE_ENV NICHT gesetzt
+// (verifiziert, siehe lib/stock-lock.js). Ein Guard der strikt auf
+// === 'production' prüft, ist in Production also IMMER false — die
+// "refuse in production"-Zweige liefen nie, jeder Spoof-Webhook kam durch.
+// Deshalb: alles außer test/development gilt als Production.
+function isProductionLikeEnv() {
+  const env = process.env.NODE_ENV;
+  return env !== 'test' && env !== 'development';
+}
+
 /**
  * SendCloud status ID → OMS status mapping.
  * See: https://docs.sendcloud.sc/api/v2/shipping/#parcel-statuses
@@ -64,12 +74,12 @@ router.post('/webhooks/sendcloud', async (req, res) => {
     // Vorher: kein Secret → Block übersprungen → jede Anfrage akzeptiert.
     // Spoofed-Webhook konnte `omsStatus` und Stock pushen ohne Auth.
     if (!webhookSecret) {
-      if (process.env.NODE_ENV === 'production') {
+      if (isProductionLikeEnv()) {
         console.error('[webhook/sendcloud] CRITICAL: SENDCLOUD_SECRET_KEY missing in production — refusing webhook');
         return res.status(503).json({ ok: false, error: 'webhook_secret_unavailable' });
       }
-      // Dev / local: warn aber nicht blocken (kein Secret-Manager lokal).
-      console.warn('[webhook/sendcloud] SENDCLOUD_SECRET_KEY missing — skipping verification (NODE_ENV != production)');
+      // Test / lokal: warn aber nicht blocken (kein Secret-Manager lokal).
+      console.warn('[webhook/sendcloud] SENDCLOUD_SECRET_KEY missing — skipping verification (test/development env)');
     }
 
     if (webhookSecret) {
@@ -267,11 +277,11 @@ router.post('/webhooks/kaufland', async (req, res) => {
     const webhookSecret = await getSecretValue('KAUFLAND_WEBHOOK_SECRET').catch(() => null);
 
     if (!webhookSecret) {
-      if (process.env.NODE_ENV === 'production') {
+      if (isProductionLikeEnv()) {
         console.error('[webhook/kaufland] CRITICAL: KAUFLAND_WEBHOOK_SECRET missing in production — refusing webhook');
         return res.status(503).json({ ok: false, error: 'webhook_secret_unavailable' });
       }
-      console.warn('[webhook/kaufland] KAUFLAND_WEBHOOK_SECRET missing — skipping verification (NODE_ENV != production)');
+      console.warn('[webhook/kaufland] KAUFLAND_WEBHOOK_SECRET missing — skipping verification (test/development env)');
     }
 
     if (webhookSecret) {
@@ -375,11 +385,11 @@ router.post('/webhooks/ebay', async (req, res) => {
     // potenzielle Pollution der Sync-Cascade.
     const sigHeader = String(req.headers['x-ebay-signature'] || '').trim();
     if (!sigHeader) {
-      if (process.env.NODE_ENV === 'production') {
+      if (isProductionLikeEnv()) {
         console.warn('[webhook/ebay] missing x-ebay-signature header — rejecting (HARDEN-2 phase-1)');
         return res.status(412).json({ ok: false, error: 'precondition_failed_missing_signature' });
       }
-      console.warn('[webhook/ebay] missing x-ebay-signature header — passing in non-production');
+      console.warn('[webhook/ebay] missing x-ebay-signature header — passing in test/development env');
     }
 
     const body = req.body || {};

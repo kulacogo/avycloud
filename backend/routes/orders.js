@@ -800,7 +800,7 @@ function getOrderSettingsTenantId(req) {
   return req.user?.tenantId || 'default';
 }
 
-router.get('/orders/settings', async (req, res) => {
+router.get('/orders/settings', requirePermission('orders', 'read'), async (req, res) => {
   try {
     const tenantId = getOrderSettingsTenantId(req);
     const doc = await firestore.collection('order_settings').doc(tenantId).get();
@@ -812,7 +812,9 @@ router.get('/orders/settings', async (req, res) => {
   }
 });
 
-router.put('/orders/settings', async (req, res) => {
+// write-Gate: überschreibt carrierRules/numberRanges/Status-Konfiguration —
+// steuert Carrier-Wahl und Auftragsnummern. Ohne Gate für jeden Nutzer offen.
+router.put('/orders/settings', requirePermission('orders', 'write'), async (req, res) => {
   try {
     const tenantId = getOrderSettingsTenantId(req);
     const { rules, statuses, numberRanges, templates, carrierRules } = req.body;
@@ -1851,7 +1853,13 @@ router.post('/orders/bulk-transition', requirePermission('orders', 'write'), asy
           note: note || `Bulk-Statuswechsel → ${toStatus}`,
           force: !!force,
         });
-        results.push({ orderId, ok: true, fromStatus: result.fromStatus, toStatus: result.toStatus });
+        results.push({
+          orderId,
+          ok: result.ok,
+          fromStatus: result.fromStatus,
+          toStatus: result.toStatus,
+          ...(result.ok ? {} : { error: result.error || 'Transition abgelehnt' }),
+        });
         if (result.ok) successfulOrderIds.push(orderId);
       } catch (err) {
         console.error(`[bulk-transition] Order ${orderId} failed: ${err.message}`);

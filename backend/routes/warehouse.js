@@ -525,7 +525,7 @@ function getWarehouseTenantId(req) {
   return req.user?.tenantId || 'default';
 }
 
-router.get('/settings', async (req, res) => {
+router.get('/settings', requirePermission('warehouse', 'read'), async (req, res) => {
   try {
     const tenantId = getWarehouseTenantId(req);
     const doc = await firestore.collection('warehouse_settings').doc(tenantId).get();
@@ -537,7 +537,10 @@ router.get('/settings', async (req, res) => {
   }
 });
 
-router.put('/settings', async (req, res) => {
+// write-Gate: überschreibt warehouse_settings inkl. Zonen/BINs — ohne Gate
+// konnte jeder eingeloggte Nutzer (auch Betrachter) das Lagerlayout kaputt
+// schreiben, während die Geschwister-Routen längst requirePermission tragen.
+router.put('/settings', requirePermission('warehouse', 'write'), async (req, res) => {
   try {
     const tenantId = getWarehouseTenantId(req);
     const { zones, bins, ...rest } = req.body;

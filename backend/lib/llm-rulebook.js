@@ -232,5 +232,6 @@ function normalizeProductForPolicyApply(product, { source = 'unknown' } = {}) {
 module.exports = {
   normalizeProductStrict,
   normalizeProductForPolicyApply,
+  isRulebookDisabled,
 };
 

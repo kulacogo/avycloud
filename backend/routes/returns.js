@@ -160,12 +160,25 @@ router.patch('/returns/:id', requirePermission('returns', 'process'), async (req
     // Use workflow engine for status transitions
     if (status) {
       const { transitionReturn } = require('../services/returns-engine');
+      // refundAmount/reason MIT durchreichen: vorher wurden im selben Request
+      // mitgeschickte Feld-Änderungen still verworfen (early return unten),
+      // z. B. korrigierter Erstattungsbetrag + Statuswechsel in einem Save.
       const result = await transitionReturn({
         returnId: req.params.id,
         toStatus: status,
         actor: getActor(req),
         note: note || '',
+        ...(refundAmount !== undefined ? { refundAmount } : {}),
       });
+
+      // Übrige Feld-Änderungen (reason), die transitionReturn nicht kennt,
+      // zusätzlich persistieren statt verwerfen.
+      if (reason) {
+        await firestore.collection('returns').doc(req.params.id).update({
+          reason,
+          updatedAt: new Date().toISOString(),
+        });
+      }
 
       // Event-driven sync: return status changed → stock + marketplace sync
       emitSyncEvent('return:status_changed', {
@@ -173,7 +186,7 @@ router.patch('/returns/:id', requirePermission('returns', 'process'), async (req
         toStatus: status, source: 'api:return-transition',
       });
 
-      return res.json({ ok: true, data: result });
+      return res.json({ ok: true, data: { ...result, ...(reason ? { reason } : {}) } });
     }
 
     await firestore.collection('returns').doc(req.params.id).update(update);

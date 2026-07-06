@@ -323,8 +323,11 @@ router.get('/llm/health', requirePermission('admin', 'llm.read'), async (req, re
         models,
         modelsError,
         flags: {
-          qualityGateEnabled: parseBool(process.env.QUALITY_GATE_ENABLED) === true,
-          rulebookEnabled: parseBool(process.env.RULEBOOK_ENABLED) === true,
+          // Effektiven Zustand anzeigen, nicht die rohe ENV-Var: beide Gates
+          // sind default-AN (Opt-out-Flags). parseBool(unset)===true ergab
+          // false → das Panel meldete laufende Gates als DISABLED.
+          qualityGateEnabled: require('../lib/datasheet-quality').isQualityGateEnabled(),
+          rulebookEnabled: !require('../lib/llm-rulebook').isRulebookDisabled(),
           titlePolicyDisabled,
           storageBucket: normalizeBucketName(process.env.STORAGE_BUCKET) || 'prodsandjobs',
         },

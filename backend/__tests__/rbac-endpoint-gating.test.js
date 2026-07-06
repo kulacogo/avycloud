@@ -85,3 +85,29 @@ describe('marketplace.js — eBay connect is an integrations action, not product
     expect(gated(src, 'get', '/ebay/oauth/start', 'integrations', 'write')).toBe(true);
   });
 });
+
+describe('warehouse/orders/products — Settings- und Intake-Schreibpfade sind gated (2026-07-06)', () => {
+  // Diese drei Schreibrouten hatten NUR requireAuth: ein Betrachter konnte
+  // das Lagerlayout (Zonen/BINs), die Versandregeln/Nummernkreise und die
+  // Intake-Mengen eines Produkts überschreiben.
+  it('PUT /settings (warehouse) requires warehouse.write', () => {
+    const src = read('routes/warehouse.js');
+    expect(gated(src, 'put', '/settings', 'warehouse', 'write')).toBe(true);
+  });
+  it('GET /settings (warehouse) requires warehouse.read', () => {
+    const src = read('routes/warehouse.js');
+    expect(gated(src, 'get', '/settings', 'warehouse', 'read')).toBe(true);
+  });
+  it('PUT /orders/settings requires orders.write', () => {
+    const src = read('routes/orders.js');
+    expect(gated(src, 'put', '/orders/settings', 'orders', 'write')).toBe(true);
+  });
+  it('GET /orders/settings requires orders.read', () => {
+    const src = read('routes/orders.js');
+    expect(gated(src, 'get', '/orders/settings', 'orders', 'read')).toBe(true);
+  });
+  it('POST /intake/resolve requires identify.run (Erfassen-Workflow, Operation-Rolle)', () => {
+    const src = read('routes/products.js');
+    expect(gated(src, 'post', '/intake/resolve', 'identify', 'run')).toBe(true);
+  });
+});

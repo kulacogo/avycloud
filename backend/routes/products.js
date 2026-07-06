@@ -197,33 +197,6 @@ const {
   SHIPPED_ORDER_STATUSES: _SHIPPED_FROM_HELPER,
 } = require('../lib/order-status-helpers');
 
-async function buildReservedOpenOrderMap() {
-  const map = new Map(); // normalizeSkuKey -> qty
-  try {
-    // Query all non-terminal orders and filter client-side by omsStatus.
-    // Cannot use Firestore 'in' on omsStatus because the field might be absent
-    // on legacy docs (which use 'status' instead).
-    const snap = await firestore.collection('orders')
-      .where('tenantId', '==', 'default')
-      .get();
-    snap.forEach((doc) => {
-      const order = doc.data() || {};
-      const status = (order.omsStatus || order.status || '').toLowerCase();
-      if (!RESERVED_ORDER_STATUSES.has(status)) return;
-      const items = Array.isArray(order.items) ? order.items : [];
-      for (const item of items) {
-        const key = normalizeSkuKey(item?.sku || item?.productId || '');
-        const qty = Number(item?.quantity || 0);
-        if (!key || qty <= 0) continue;
-        map.set(key, (map.get(key) || 0) + qty);
-      }
-    });
-  } catch (error) {
-    console.warn('buildReservedOpenOrderMap failed:', error.message);
-  }
-  return map;
-}
-
 // Orders that don't count as sold (everything else = sold)
 // HARDEN-Wave-7 (2026-05-22): re-export from helper so existing references
 // in this file continue to work without further changes.
@@ -231,33 +204,70 @@ const EXCLUDED_ORDER_STATUSES = _EXCLUDED_FROM_HELPER;
 // Orders where the item has already left the warehouse
 const SHIPPED_ORDER_STATUSES = _SHIPPED_FROM_HELPER;
 
-async function buildSoldQuantityMap() {
-  const map = new Map(); // normalizeSkuKey -> { sold: number, open: number }
+/**
+ * Reserved- und Sold-Mengen pro SKU in EINEM Orders-Scan.
+ *
+ * Vorher liefen hier ZWEI vollständige Collection-Scans pro
+ * GET /api/products-Request (der heißeste Endpoint der App) — einer davon
+ * komplett ungefiltert und beide OHNE Projektion, d. h. inklusive der
+ * fetten `raw`-Marktplatz-Payloads. Bei N Orders: ~2N Doc-Reads und 2N
+ * volle Docs im Speicher, pro Request.
+ *
+ * Jetzt: ein Scan mit .select() (nur die 4 benötigten Felder). Die
+ * Zähl-Semantik bleibt exakt wie vorher: reserved zählt nur Orders mit
+ * genau passender tenantId (wie die alte where-Klausel), sold zählt wie
+ * bisher tenant-übergreifend (Legacy-Docs ohne tenantId inklusive).
+ */
+async function buildOrderQuantityMaps(tenantId = 'default') {
+  const reservedMap = new Map(); // normalizeSkuKey -> qty
+  const soldMap = new Map();     // normalizeSkuKey -> { sold, open }
   try {
-    const snap = await firestore.collection('orders').get();
+    const snap = await firestore.collection('orders')
+      .select('omsStatus', 'status', 'items', 'tenantId')
+      .get();
     snap.forEach((doc) => {
       const order = doc.data() || {};
       const status = (order.omsStatus || order.status || '').toLowerCase();
-      if (!status || EXCLUDED_ORDER_STATUSES.has(status)) return;
-      const items = Array.isArray(order.items) ? order.items : [];
+      const countsReserved = RESERVED_ORDER_STATUSES.has(status) && order.tenantId === tenantId;
+      const countsSold = Boolean(status) && !EXCLUDED_ORDER_STATUSES.has(status);
+      if (!countsReserved && !countsSold) return;
       const isShipped = SHIPPED_ORDER_STATUSES.has(status);
+      const items = Array.isArray(order.items) ? order.items : [];
       for (const item of items) {
         const key = normalizeSkuKey(item?.sku || item?.productId || '');
         const qty = Number(item?.quantity || 0);
         if (!key || qty <= 0) continue;
-        const entry = map.get(key) || { sold: 0, open: 0 };
-        if (isShipped) {
-          entry.sold += qty;
-        } else {
-          entry.open += qty;
+        if (countsReserved) {
+          reservedMap.set(key, (reservedMap.get(key) || 0) + qty);
         }
-        map.set(key, entry);
+        if (countsSold) {
+          const entry = soldMap.get(key) || { sold: 0, open: 0 };
+          if (isShipped) entry.sold += qty;
+          else entry.open += qty;
+          soldMap.set(key, entry);
+        }
       }
     });
   } catch (error) {
-    console.warn('buildSoldQuantityMap failed:', error.message);
+    console.warn('buildOrderQuantityMaps failed:', error.message);
   }
-  return map;
+  return { reservedMap, soldMap };
+}
+
+// Kurzer In-Process-Cache: die Maps sind über konkurrierende Produktlisten-
+// Requests identisch; 30s Staleness ist für Anzeige-Spalten unkritisch.
+// Der Promise wird gecacht (nicht das Ergebnis), damit parallele Requests
+// denselben laufenden Scan teilen statt eigene zu starten.
+const ORDER_MAPS_TTL_MS = 30 * 1000;
+const _orderMapsCache = new Map(); // tenantId -> { atMs, promise }
+
+function getOrderQuantityMapsCached(tenantId = 'default') {
+  const now = Date.now();
+  const cached = _orderMapsCache.get(tenantId);
+  if (cached && now - cached.atMs < ORDER_MAPS_TTL_MS) return cached.promise;
+  const promise = buildOrderQuantityMaps(tenantId);
+  _orderMapsCache.set(tenantId, { atMs: now, promise });
+  return promise;
 }
 
 function attachReservedAvailability(products = [], reservedMap, soldMap) {
@@ -1102,7 +1112,11 @@ router.get('/image-proxy', async (req, res) => {
 // --- Intake Resolver ---
 // If a product already exists (strict EAN/GTIN/SKU match), we must NOT create/overwrite a new datasheet.
 // Instead, we only bump pending intake quantity (and optionally inventory) and return the canonical product.
-router.post('/intake/resolve', async (req, res) => {
+// Gate identify.run: der Intake-Resolver ist Teil des Erfassen-Workflows
+// (mutiert pending_intake_quantity + Inventory-Zuordnung). identify.run statt
+// products.write, damit die Operation-Rolle (physischer Wareneingang, kein
+// Datenblatt-Schreibrecht) weiter erfassen kann — Betrachter bleibt draußen.
+router.post('/intake/resolve', requirePermission('identify', 'run'), async (req, res) => {
   try {
     const barcodesText = req.body?.barcodes || '';
     const sku = req.body?.sku || null;
@@ -1604,10 +1618,9 @@ router.get('/products', requirePermission('products', 'read'), async (req, res) 
     const offset = Number.isFinite(offsetRaw) && offsetRaw >= 0 ? offsetRaw : 0;
 
     // Parallelise independent Firestore queries to cut latency (mobile timeout fix)
-    const [products, reservedMap, soldMap] = await Promise.all([
+    const [products, { reservedMap, soldMap }] = await Promise.all([
       getAllProductsForTenant(tenantId),
-      buildReservedOpenOrderMap(),
-      buildSoldQuantityMap(),
+      getOrderQuantityMapsCached(tenantId),
     ]);
     const filteredProducts = Array.isArray(products)
       ? products.filter((p) => !isGhostProduct(p))
@@ -2717,7 +2730,7 @@ router.patch('/v1/products/bulk-update', requirePermission('products', 'write'),
 // ─── CSV Export / Import ──────────────────────────────────────
 
 /**
- * GET /api/v1/products/export/csv
+ * GET /api/products/export/csv (Router unter /api gemountet — NICHT /api/v1)
  * Download products as CSV.
  * Query: ?columns=name,brand,sku (optional subset)
  */
@@ -2732,13 +2745,13 @@ router.get('/products/export/csv', requirePermission('products', 'read'), async 
     // BOM for Excel UTF-8 compatibility
     res.send('\uFEFF' + csv);
   } catch (err) {
-    console.error('[GET /api/v1/products/export/csv]', err.message, err);
+    console.error('[GET /api/products/export/csv]', err.message, err);
     res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: err.message } });
   }
 });
 
 /**
- * POST /api/v1/products/import/preview
+ * POST /api/products/import/preview (Router unter /api gemountet — NICHT /api/v1)
  * Preview CSV import — validates rows without saving.
  * Body: { csvText: string, mapping: ColumnMapping[], delimiter?: string }
  */
@@ -2769,13 +2782,13 @@ router.post('/products/import/preview', requirePermission('products', 'write'), 
       },
     });
   } catch (err) {
-    console.error('[POST /api/v1/products/import/preview]', err.message, err);
+    console.error('[POST /api/products/import/preview]', err.message, err);
     res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: err.message } });
   }
 });
 
 /**
- * POST /api/v1/products/import/execute
+ * POST /api/products/import/execute (Router unter /api gemountet — NICHT /api/v1)
  * Execute CSV import — validates and saves products.
  * Body: { csvText: string, mapping: ColumnMapping[], delimiter?: string }
  */
@@ -2818,7 +2831,7 @@ router.post('/products/import/execute', requirePermission('products', 'write'), 
       },
     });
   } catch (err) {
-    console.error('[POST /api/v1/products/import/execute]', err.message, err);
+    console.error('[POST /api/products/import/execute]', err.message, err);
     res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: err.message } });
   }
 });
@@ -2927,4 +2940,4 @@ router.post('/v1/products/validate-batch', requirePermission('products', 'read')
   }
 });
 
-module.exports = { router };
+module.exports = { router, buildOrderQuantityMaps };
