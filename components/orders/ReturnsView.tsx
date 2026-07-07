@@ -81,7 +81,7 @@ const ProcessDialog: React.FC<{
       await processReturn(ret.id, {
         itemCondition: condition,
         refundType,
-        refundAmount: parseFloat(amount) || 0,
+        refundAmount: refundType === "full" ? undefined : (parseFloat(amount) || 0),
         note,
       });
       toast.success("Retoure verarbeitet");

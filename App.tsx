@@ -387,12 +387,16 @@ const readInitialView = (): { view: View; productId: string | null } => {
   if (typeof window === 'undefined') return { view: 'dashboard', productId: null };
   const fromHash = parseHash();
   if (fromHash.view !== 'dashboard' || fromHash.productId) return fromHash;
-  const stored = window.localStorage.getItem(VIEW_STORAGE_KEY) as View | string | null;
-  if (stored) {
-    const migrated = VIEW_MIGRATIONS[stored] || stored;
-    if (ALLOWED_VIEWS.includes(migrated as View)) {
-      return { view: migrated as View, productId: null };
+  try {
+    const stored = window.localStorage.getItem(VIEW_STORAGE_KEY) as View | string | null;
+    if (stored) {
+      const migrated = VIEW_MIGRATIONS[stored] || stored;
+      if (ALLOWED_VIEWS.includes(migrated as View)) {
+        return { view: migrated as View, productId: null };
+      }
     }
+  } catch {
+    // Storage might be blocked (SecurityError) or unavailable
   }
   const isMobile = window.matchMedia('(max-width: 768px)').matches;
   return { view: isMobile ? 'home' : 'dashboard', productId: null };
@@ -402,9 +406,13 @@ const readInitialTheme = (): Theme => {
   if (typeof window === 'undefined') {
     return 'dark';
   }
-  const stored = window.localStorage.getItem(THEME_STORAGE_KEY);
-  if (stored === 'light' || stored === 'dark') {
-    return stored;
+  try {
+    const stored = window.localStorage.getItem(THEME_STORAGE_KEY);
+    if (stored === 'light' || stored === 'dark') {
+      return stored;
+    }
+  } catch {
+    // Storage might be blocked (SecurityError) or unavailable
   }
   const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
   return prefersDark ? 'dark' : 'light';

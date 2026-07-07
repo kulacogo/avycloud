@@ -167,6 +167,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
   // For multi-BIN: this input is a delta (stock-in/out), not the total product quantity.
   const [binQuantity, setBinQuantity] = useState<number>(1);
   const [isAssigningBin, setIsAssigningBin] = useState(false);
+  const [isRemovingBin, setIsRemovingBin] = useState(false);
   const [newImageUrl, setNewImageUrl] = useState('');
   const [productBins, setProductBins] = useState<WarehouseBin[]>([]);
   const [binsLoading, setBinsLoading] = useState(false);
@@ -710,22 +711,27 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
       showNotification('error', t('sheet.msg.binAssignError'));
       return;
     }
-    const response = await stockOutProduct({
-      productId: localProduct.id,
-      binCode: binCodeInput.toUpperCase(),
-      quantity: qty,
-      meta: { flow: 'product-sheet', action: 'stock-out' },
-    });
-    if (!response.ok || !response.data?.product) {
-      showNotification('error', response.error?.message || t('sheet.msg.binRemoveError'));
-      return;
+    setIsRemovingBin(true);
+    try {
+      const response = await stockOutProduct({
+        productId: localProduct.id,
+        binCode: binCodeInput.toUpperCase(),
+        quantity: qty,
+        meta: { flow: 'product-sheet', action: 'stock-out' },
+      });
+      if (!response.ok || !response.data?.product) {
+        showNotification('error', response.error?.message || t('sheet.msg.binRemoveError'));
+        return;
+      }
+      const normalized = normalizeProduct(response.data.product);
+      setLocalProduct(normalized);
+      onUpdate(normalized);
+      setBinQuantity(1);
+      loadProductBins(localProduct.id);
+      showNotification('success', t('sheet.msg.binRemoveSuccess'));
+    } finally {
+      setIsRemovingBin(false);
     }
-    const normalized = normalizeProduct(response.data.product);
-    setLocalProduct(normalized);
-    onUpdate(normalized);
-    setBinQuantity(1);
-    loadProductBins(localProduct.id);
-    showNotification('success', t('sheet.msg.binRemoveSuccess'));
   };
 
   const applyAssistantChange = (change: DatasheetChange) => {
@@ -1801,7 +1807,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
           </div>
           <div className="flex gap-2 mt-3">
             <button onClick={handleAssignBin} disabled={isAssigningBin} className="px-3 py-1.5 text-sm bg-accent-dim text-accent rounded-lg hover:bg-accent/20 disabled:opacity-40">{isAssigningBin ? t('sheet.storage.assigning') : t('sheet.storage.assign')}</button>
-            {binCodeInput && <button onClick={handleRemoveBin} className="px-3 py-1.5 text-sm bg-danger/20 text-danger rounded-lg hover:bg-danger/30">{t('sheet.storage.remove')}</button>}
+            {binCodeInput && <button onClick={handleRemoveBin} disabled={isAssigningBin || isRemovingBin} className="px-3 py-1.5 text-sm bg-danger/20 text-danger rounded-lg hover:bg-danger/30 disabled:opacity-40">{t('sheet.storage.remove')}</button>}
           </div>
           {localProduct.ops?.sourcePalette && (
             <div className="mt-3 px-3 py-2 rounded-lg bg-app-elevated border border-app-border text-sm">

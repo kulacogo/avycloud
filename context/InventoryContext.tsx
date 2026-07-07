@@ -23,16 +23,25 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const { inventories, loading, error, refresh, sync, syncing } = useInventories();
   const [activeInventoryId, setActiveInventoryIdState] = useState<string | null>(() => {
     if (typeof window === 'undefined') return null;
-    return window.localStorage.getItem(STORAGE_KEY);
+    try {
+      return window.localStorage.getItem(STORAGE_KEY);
+    } catch {
+      // Storage might be blocked (SecurityError) or unavailable
+      return null;
+    }
   });
 
   const setActiveInventoryId = useCallback((inventoryId: string | null) => {
     setActiveInventoryIdState(inventoryId);
     if (typeof window !== 'undefined') {
-      if (inventoryId) {
-        window.localStorage.setItem(STORAGE_KEY, inventoryId);
-      } else {
-        window.localStorage.removeItem(STORAGE_KEY);
+      try {
+        if (inventoryId) {
+          window.localStorage.setItem(STORAGE_KEY, inventoryId);
+        } else {
+          window.localStorage.removeItem(STORAGE_KEY);
+        }
+      } catch {
+        // Storage might be full or blocked
       }
     }
   }, []);
