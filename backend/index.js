@@ -285,10 +285,13 @@ app.use((req, res, next) => {
   return next();
 });
 
-// Support token-in-query for SSE endpoints (EventSource cannot set custom headers).
+// Support token-in-query for the SSE endpoint (EventSource cannot set custom headers).
 // Copies ?token=<jwt> into the Authorization header so existing auth middleware works unchanged.
+// NUR für /api/events: vorher lag die Bridge auf dem GESAMTEN /api-Baum, sodass
+// JEDER Endpoint mit einem Token in der URL aufrufbar war (Token landet dann in
+// Logs/Proxy-History). Der Query-Token gehört ausschließlich zum SSE-Flow.
 app.use('/api', (req, res, next) => {
-  if (req.query.token && !req.headers.authorization) {
+  if (req.path === '/events' && req.query.token && !req.headers.authorization) {
     req.headers.authorization = `Bearer ${req.query.token}`;
   }
   next();
