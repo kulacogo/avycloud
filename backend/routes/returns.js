@@ -126,7 +126,16 @@ router.post('/returns/bulk-action', requirePermission('returns', 'process'), asy
     for (const returnId of returnIds) {
       try {
         if (action === 'refund') {
-          await issueMarketplaceRefund({ returnId, tenantId, actor });
+          // BUGFIX (2026-07): issueMarketplaceRefund WIRFT NICHT bei API-Fehler —
+          // es liefert { ok:false, error } (vgl. Einzel-Route unten mit
+          // `if (!result.ok) return res.status(400)`). Ein fehlgeschlagener Refund
+          // darf NICHT als { ok:true } gemeldet werden, sonst hält der Operator
+          // die Erstattung für erledigt.
+          const refundResult = await issueMarketplaceRefund({ returnId, tenantId, actor });
+          if (!refundResult || refundResult.ok !== true) {
+            results.push({ returnId, ok: false, error: (refundResult && refundResult.error) || 'Refund failed' });
+            continue;
+          }
         } else {
           await transitionReturn({ returnId, toStatus: 'abgeschlossen', actor, note: note || 'Bulk-Aktion: Retoure abgeschlossen' });
         }

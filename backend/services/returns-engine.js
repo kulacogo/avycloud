@@ -309,8 +309,15 @@ async function restockItem({ returnId, orderId, itemCondition, tenantId = 'defau
 
   if (!returnedItem) return;
 
-  const normalizedQty = Number(returnedItem.quantity || 1);
-  const restockQty = Number.isFinite(normalizedQty) && normalizedQty > 0 ? normalizedQty : 1;
+  // BUGFIX (2026-07): restockQty MUSS aus der RETOURNIERTEN Menge kommen
+  // (ret.product.quantity — eBay: refundedItems.length, Kaufland: kr.quantity),
+  // NICHT aus der BESTELLTEN Menge (returnedItem.quantity aus order.items). Bei
+  // Teilretoure (N bestellt, weniger zurück) wurde sonst zu viel eingebucht →
+  // Phantom-Bestand/Oversell. Cap auf die bestellte Menge als Sicherheitsnetz.
+  const returnedQty = Number(ret.product?.quantity || 0);
+  const orderedQtyRaw = Number(returnedItem.quantity || 1);
+  const orderedQty = Number.isFinite(orderedQtyRaw) && orderedQtyRaw > 0 ? orderedQtyRaw : 1;
+  const restockQty = returnedQty > 0 ? Math.min(returnedQty, orderedQty) : orderedQty;
 
   // HARDEN-6 (2026-05-20): vor diesem Fix wurde NUR ein warehouse_movements-Log
   // geschrieben — die tatsächliche Inventory-Quantity blieb unverändert. Folge:
@@ -1124,9 +1131,20 @@ async function runRefundPush({ tenantId = 'default', limit = 50 } = {}) {
 
       processed++;
       try {
-        await issueMarketplaceRefund({ returnId, tenantId: normalizedTenantId });
-        await doc.ref.set({ marketplaceRefundPushed: true, marketplaceRefundPushedAt: new Date().toISOString() }, { merge: true });
-        success++;
+        // BUGFIX (2026-07): issueMarketplaceRefund WIRFT NICHT bei fehlgeschlagener
+        // Erstattung — issueEbayRefund/issueKauflandRefund fangen API-Fehler und
+        // liefern { ok:false, error }. Vorher wurde JEDES Ergebnis als Erfolg
+        // gewertet → marketplaceRefundPushed:true gesetzt, obwohl der Kunde nie
+        // erstattet wurde, und die Retry-Query (marketplaceRefundPushed!=true)
+        // versuchte es nie erneut. Jetzt: nur bei r.ok===true als Erfolg werten.
+        const r = await issueMarketplaceRefund({ returnId, tenantId: normalizedTenantId });
+        if (r && r.ok === true) {
+          await doc.ref.set({ marketplaceRefundPushed: true, marketplaceRefundPushedAt: new Date().toISOString() }, { merge: true });
+          success++;
+        } else {
+          // marketplaceRefundPushed NICHT setzen → nächster Push-Lauf greift es erneut auf.
+          errors.push(`${returnId}: ${(r && r.error) || 'refund not ok'}`);
+        }
       } catch (err) {
         errors.push(`${returnId}: ${err.message}`);
       }
