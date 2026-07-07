@@ -944,12 +944,33 @@ function matchCarrierRule({ weight, rules }) {
     }
   }
 
-  // Fallback: if weight exceeds all rules, use the rule with the largest maxWeight.
-  // We deliberately ignore user-defined `order` here so the fallback still picks
-  // the physically largest carrier instead of an arbitrary high-priority one.
+  // Kein exakter Treffer → nächstgrößere Regel wählen (physisch korrekt: ein
+  // Paket wird auf die kleinste Regel gebucht, die es noch tragen kann).
+  // Deckt in einem Schritt DREI Lücken-Klassen ab, die vorher jeweils null
+  // ergaben und den Auto-Versand mit "Keine passende Versandregel"-Fehler
+  // blockierten:
+  //   - Untergewicht: Gewicht < kleinstem minWeight (z.B. 0,3 kg bei
+  //     Standardregeln, deren kleinste Regel erst bei 0,5 kg beginnt)
+  //   - Lücken zwischen Regeln (z.B. 4,995 kg zwischen 4,99 und 5)
+  //   - `order`-Priorität wird hier bewusst ignoriert — der physische
+  //     Carrier-Fit geht vor UI-Sortierung.
+  const canCarry = rules
+    .map((r) => ({ r, max: Number(r.maxWeight) || Infinity }))
+    .filter((x) => w <= x.max)
+    .sort((a, b) => a.max - b.max);
+  if (canCarry.length > 0) {
+    const best = canCarry[0].r;
+    return {
+      shippingMethodId: best.shippingMethodId,
+      carrier: best.carrier || 'unknown',
+      label: best.label || best.carrier || 'Standard',
+    };
+  }
+
+  // Übergewicht: Gewicht übersteigt jede Regel → größte Regel (Overflow).
   const byMax = [...rules].sort((a, b) => (Number(a.maxWeight) || 0) - (Number(b.maxWeight) || 0));
   const last = byMax[byMax.length - 1];
-  if (last && w > (Number(last.maxWeight) || 0)) {
+  if (last) {
     return {
       shippingMethodId: last.shippingMethodId,
       carrier: last.carrier || 'unknown',
@@ -957,7 +978,6 @@ function matchCarrierRule({ weight, rules }) {
     };
   }
 
-  // Weight below all rules (e.g. under minimum) — no match
   return null;
 }
 

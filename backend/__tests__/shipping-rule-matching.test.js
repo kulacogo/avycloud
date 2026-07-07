@@ -44,9 +44,29 @@ describe('matchCarrierRule (single, legacy behaviour)', () => {
     expect(result).toMatchObject({ shippingMethodId: 113, carrier: 'dpd' });
   });
 
-  it('returns null when weight is below every range and no overflow applies', () => {
+  it('rundet Untergewicht auf die kleinste tragfähige Regel auf (statt null → Versand-Blocker)', () => {
+    // 0,5 kg unter minWeight 1: die Regel kann das Paket physisch tragen
+    // (maxWeight 5), also wird darüber versendet statt der Auto-Versand mit
+    // "Keine passende Versandregel" zu scheitern.
     const rules = [{ minWeight: 1, maxWeight: 5, shippingMethodId: 111, carrier: 'dpd', label: 'DPD' }];
-    expect(matchCarrierRule({ weight: 0.5, rules })).toBeNull();
+    expect(matchCarrierRule({ weight: 0.5, rules })).toMatchObject({ shippingMethodId: 111 });
+  });
+
+  it('deckt Lücken zwischen Regeln ab (nächstgrößere Regel gewinnt)', () => {
+    // 4,995 kg liegt in der Lücke zwischen 4,99 und 5 der Standardregeln.
+    // Vorher: null → shipOrder wirft. Jetzt: nächste Regel, die es trägt (5-9,99).
+    const result = matchCarrierRule({ weight: 4.995, rules: DEFAULT_CARRIER_RULES });
+    expect(result).toMatchObject({ shippingMethodId: 112, carrier: 'dpd' });
+  });
+
+  it('leichte Bestellung unter der kleinsten Standard-Regel bekommt die kleinste Regel', () => {
+    // 0,3 kg: Standardregeln beginnen erst bei 0,5 kg. Vorher null → Blocker.
+    const result = matchCarrierRule({ weight: 0.3, rules: DEFAULT_CARRIER_RULES });
+    expect(result).toMatchObject({ shippingMethodId: 2830, carrier: 'dhl' });
+  });
+
+  it('returns null only when there are no rules at all', () => {
+    expect(matchCarrierRule({ weight: 0.5, rules: [] })).toBeNull();
   });
 
   it('honours `order` (drag-and-drop priority) over maxWeight', () => {
