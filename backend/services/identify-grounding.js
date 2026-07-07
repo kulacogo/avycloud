@@ -246,14 +246,18 @@ async function runProductIdentificationGrounding({
     // Non-blocking — continue without web images
   }
 
-  // Map GPSR
+  // Map GPSR — canonical field names per schema (siehe routes/identify.js:686-692).
+  // BUGFIX (2026-07): vorher `manufacturer_email` + `manufacturer_country` — beides
+  // NICHT-kanonische Keys, die normalizeGpsrObject (lib/gpsr-manufacturer-registry.js)
+  // still droppt (Whitelist kennt nur `email` + `entity_country`). Folge: GPSR-Email
+  // und -Land wurden verworfen und nie publiziert.
   if (groundedRecord.gpsr_manufacturer_name) {
     product.details.gpsr = {
       manufacturer_name: groundedRecord.gpsr_manufacturer_name || '',
       manufacturer_address: groundedRecord.gpsr_manufacturer_address || '',
-      manufacturer_email: groundedRecord.gpsr_manufacturer_email || '',
+      email: groundedRecord.gpsr_manufacturer_email || '',
       manufacturer_phone: groundedRecord.gpsr_manufacturer_phone || '',
-      manufacturer_country: groundedRecord.gpsr_manufacturer_country || '',
+      entity_country: groundedRecord.gpsr_manufacturer_country || '',
     };
   }
 

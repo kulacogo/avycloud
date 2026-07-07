@@ -229,3 +229,75 @@ describe('job-runner processJob', () => {
     expect(productArg.ops.identify_pipeline).toBe('legacy');
   });
 });
+
+describe('job-runner pending_intake_quantity idempotency (retry-safe)', () => {
+  // Regression (2026-07): when a LATER bundle product throws (e.g. quality gate),
+  // the whole job is re-enqueued and the ENTIRE bundle re-processed. Existing
+  // products that were already counted got +1 pending_intake_quantity again on
+  // every retry. Fix: persist countedProductIds on the job doc and skip the
+  // increment for already-counted products on retry.
+
+  it('does not re-increment an already-counted product when the job retries', async () => {
+    const existing = buildProduct('existing-1');
+    existing.ops = { pending_intake_quantity: 3 };
+    runProductIdentificationGroundingMock.mockResolvedValue({
+      bundle: { products: [buildProduct('existing-1')] }, serpTrace: [], modelUsed: 'g',
+    });
+    getProductMock.mockImplementation(async (id) => (id === 'existing-1' ? existing : null));
+    adjustPendingIntakeQuantityMock.mockResolvedValue(4);
+
+    // Run 1: fresh job (no countedProductIds) → increments once, persists the id.
+    claimJobMock.mockResolvedValueOnce({ ...buildJobSnapshot(), id: 'job-1' });
+    await _testables.processJob('job-1');
+
+    expect(adjustPendingIntakeQuantityMock).toHaveBeenCalledTimes(1);
+    const persistCall = updateJobMock.mock.calls.find(
+      (c) => c[0] === 'job-1' && Array.isArray(c[1]?.countedProductIds)
+    );
+    expect(persistCall).toBeTruthy();
+    expect(persistCall[1].countedProductIds).toContain('existing-1');
+
+    // Run 2: retry — claimJob returns the job WITH countedProductIds persisted.
+    claimJobMock.mockResolvedValueOnce({
+      ...buildJobSnapshot(), id: 'job-1', attempts: 2, countedProductIds: ['existing-1'],
+    });
+    await _testables.processJob('job-1');
+
+    // Still only ONE increment across BOTH runs (no double-count).
+    expect(adjustPendingIntakeQuantityMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('persists countedProductIds for a matched product even if a later bundle product fails', async () => {
+    const existing = buildProduct('existing-1');
+    existing.ops = { pending_intake_quantity: 1 };
+    runProductIdentificationGroundingMock.mockResolvedValue({
+      bundle: { products: [buildProduct('existing-1'), buildProduct('bad-1')] },
+      serpTrace: [], modelUsed: 'g',
+    });
+    getProductMock.mockImplementation(async (id) => (id === 'existing-1' ? existing : null));
+    adjustPendingIntakeQuantityMock.mockResolvedValue(2);
+    // Product 1 matches (skips the gate); product 2 reaches the gate and fails → throw → retry.
+    evaluateEbayReadyMock.mockReturnValue({ ok: false, issues: ['bad'], issuesDetailed: [], snapshot: {} });
+
+    vi.useFakeTimers();
+    try {
+      await _testables.processJob('job-1');
+    } finally {
+      vi.clearAllTimers();
+      vi.useRealTimers();
+    }
+
+    // Increment happened for product 1 and was persisted BEFORE the throw.
+    expect(adjustPendingIntakeQuantityMock).toHaveBeenCalledTimes(1);
+    const persistCall = updateJobMock.mock.calls.find(
+      (c) => c[0] === 'job-1' && Array.isArray(c[1]?.countedProductIds)
+    );
+    expect(persistCall).toBeTruthy();
+    expect(persistCall[1].countedProductIds).toContain('existing-1');
+    // Job was scheduled for retry (status pending), not done.
+    const retryCall = updateJobMock.mock.calls.find(
+      (c) => c[0] === 'job-1' && c[1]?.status === 'pending'
+    );
+    expect(retryCall).toBeTruthy();
+  });
+});

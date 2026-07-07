@@ -157,6 +157,17 @@ async function processJob(jobId) {
       const reuseEvents = [];
       const bundleProducts = result.bundle.products;
 
+      // BUGFIX (2026-07): Idempotenz pro (jobId, productId) für den
+      // pending_intake_quantity-Increment bestehender Produkte. Wirft ein SPÄTERES
+      // Produkt im Bundle (z. B. Quality-Gate), wird der ganze Job re-enqueued und
+      // beim Retry das GANZE Bundle neu verarbeitet → bereits gezählte Produkte
+      // bekamen erneut +1 (bis MAX_ATTEMPTS). Wir persistieren die schon gezählten
+      // productIds auf dem Job-Doc; claimJob liefert sie beim Retry zurück, sodass
+      // ein Retry sie überspringt.
+      const countedProductIds = new Set(
+        Array.isArray(jobSnapshot.countedProductIds) ? jobSnapshot.countedProductIds : []
+      );
+
       for (let index = 0; index < bundleProducts.length; index += 1) {
         const product = bundleProducts[index];
         try {
@@ -285,15 +296,37 @@ async function processJob(jobId) {
           }
 
           if (matchedExistingProduct && matchedProductId) {
-            const pendingQuantity =
-              (await adjustPendingIntakeQuantity(matchedProductId, 1)) ??
-              ((matchedExistingProduct.ops?.pending_intake_quantity || 0) + 1);
+            const canonicalProduct = (await getProduct(matchedProductId)) || matchedExistingProduct;
+
+            // Idempotenter Increment: bei einem Retry (siehe countedProductIds oben)
+            // NICHT erneut +1, sondern den bereits gebuchten Stand lesen.
+            let pendingQuantity;
+            if (countedProductIds.has(matchedProductId)) {
+              const known = canonicalProduct?.ops?.pending_intake_quantity;
+              pendingQuantity = Number.isFinite(known)
+                ? known
+                : (matchedExistingProduct.ops?.pending_intake_quantity || 0);
+            } else {
+              pendingQuantity =
+                (await adjustPendingIntakeQuantity(matchedProductId, 1)) ??
+                ((matchedExistingProduct.ops?.pending_intake_quantity || 0) + 1);
+              countedProductIds.add(matchedProductId);
+              // Sofort persistieren, damit ein Crash/Retry zwischen Increment und
+              // Job-Abschluss nicht erneut zählt.
+              try {
+                await updateJob(jobId, { countedProductIds: Array.from(countedProductIds) });
+              } catch (persistErr) {
+                console.warn(
+                  `Failed to persist countedProductIds for job ${jobId}:`,
+                  persistErr?.message || persistErr
+                );
+              }
+            }
             reuseEvents.push({
               jobId,
               productId: matchedProductId,
               pendingIntakeQuantity: pendingQuantity,
             });
-            const canonicalProduct = (await getProduct(matchedProductId)) || matchedExistingProduct;
             if (aliasSet.length) {
               appendProductIdentityAliases(matchedProductId, aliasSet).catch((aliasError) => {
                 console.warn(`Failed to append identity aliases for ${matchedProductId}:`, aliasError);

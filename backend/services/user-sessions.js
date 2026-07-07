@@ -18,6 +18,26 @@ const SESSIONS_COLLECTION = 'userSessions';
 // Sessions without heartbeat for longer than this are considered stale.
 const STALE_THRESHOLD_MS = 3 * 60 * 1000; // 3 minutes
 
+// TODO (Betrieb): `userSessions` wächst unbegrenzt (createSession fügt bei jedem
+// Login ein Doc an, endSession/heartbeat setzt nur Felder). Es gibt KEINEN
+// TTL-/Cleanup-Job. Bei >>1000 Docs pro Tenant liefern die 1000-Doc-Queries
+// unten nur einen Ausschnitt. Kein Cron hier (Scope), aber ein späterer
+// TTL-Delete (z. B. Docs älter als 90 Tage) sollte ergänzt werden.
+
+/**
+ * Erkennt den Firestore-FAILED_PRECONDITION-Fehler, der geworfen wird, wenn ein
+ * benötigter Composite-Index (where + orderBy auf unterschiedlichem Feld) fehlt.
+ * Damit degradieren wir robust auf die alte Single-Field-Query statt zu crashen.
+ */
+function isMissingIndexError(err) {
+  if (!err) return false;
+  return (
+    err.code === 9 || // gRPC FAILED_PRECONDITION
+    err.code === 'failed-precondition' ||
+    /FAILED_PRECONDITION|requires an index|composite index|needs an index/i.test(String(err.message || ''))
+  );
+}
+
 /**
  * Parse User-Agent string into structured browser/OS/device data.
  */
@@ -186,17 +206,35 @@ async function endSession({ sessionId, tenantId = 'default', userId }) {
  * @returns {Promise<Array>}
  */
 async function querySessions({ tenantId = 'default', userId = null, limit = 50, startAfter = null } = {}) {
-  // Single-field equality query to avoid composite index requirement.
-  // Sort and filter client-side (acceptable for internal admin tool with low volume).
-  const snap = await firestore
-    .collection(SESSIONS_COLLECTION)
-    .where('tenantId', '==', tenantId)
-    .limit(1000)
-    .get();
+  // BUGFIX (2026-07): Ohne orderBy ordnet Firestore nach __name__ (zufällige
+  // add-IDs). Ab >1000 Docs pro Tenant lieferte die 1000-Doc-Query damit einen
+  // BELIEBIGEN Ausschnitt statt der NEUESTEN Sessions. Jetzt server-seitig nach
+  // loginAt DESC ordnen. Die Kombination (tenantId ==) + (orderBy loginAt desc)
+  // braucht einen Composite-Index [tenantId ASC, loginAt DESC]; fehlt er, wirft
+  // Firestore FAILED_PRECONDITION → wir degradieren robust auf die alte
+  // Single-Field-Query mit Client-Sort (kein Crash, kein Datenverlust).
+  const col = firestore.collection(SESSIONS_COLLECTION);
+  let docs;
+  try {
+    const snap = await col
+      .where('tenantId', '==', tenantId)
+      .orderBy('loginAt', 'desc')
+      .limit(1000)
+      .get();
+    docs = snap.docs;
+  } catch (err) {
+    if (!isMissingIndexError(err)) throw err;
+    console.warn('[user-sessions] querySessions: Composite-Index [tenantId, loginAt desc] fehlt — Fallback auf Client-Sort:', err.message);
+    const snap = await col
+      .where('tenantId', '==', tenantId)
+      .limit(1000)
+      .get();
+    docs = snap.docs;
+  }
 
-  let results = snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+  let results = docs.map((doc) => ({ id: doc.id, ...doc.data() }));
 
-  // Sort by loginAt DESC (client-side)
+  // Sort by loginAt DESC (client-side; idempotent, deckt auch den Fallback-Pfad ab)
   results.sort((a, b) => (b.loginAt || '').localeCompare(a.loginAt || ''));
 
   if (userId) {
@@ -222,21 +260,40 @@ async function querySessions({ tenantId = 'default', userId = null, limit = 50, 
  * @returns {Promise<Array>}
  */
 async function getActiveSessions({ tenantId = 'default' } = {}) {
-  // Single-field query to avoid composite index requirement.
-  // Filter status client-side.
-  const snap = await firestore
-    .collection(SESSIONS_COLLECTION)
-    .where('tenantId', '==', tenantId)
-    .limit(1000)
-    .get();
+  // BUGFIX (2026-07): analog zu querySessions — ohne orderBy lieferte die
+  // 1000-Doc-Query ab >1000 Docs einen zufälligen __name__-Ausschnitt statt der
+  // neuesten aktiven Sessions. Jetzt server-seitig status==active + loginAt DESC.
+  // Braucht Composite-Index [tenantId ASC, status ASC, loginAt DESC]; fehlt er,
+  // degradieren wir robust auf die alte Single-Field-Query (Client-Filter bleibt
+  // unten erhalten, daher weiterhin korrekt).
+  const col = firestore.collection(SESSIONS_COLLECTION);
+  let docs;
+  try {
+    const snap = await col
+      .where('tenantId', '==', tenantId)
+      .where('status', '==', 'active')
+      .orderBy('loginAt', 'desc')
+      .limit(1000)
+      .get();
+    docs = snap.docs;
+  } catch (err) {
+    if (!isMissingIndexError(err)) throw err;
+    console.warn('[user-sessions] getActiveSessions: Composite-Index [tenantId, status, loginAt desc] fehlt — Fallback auf Client-Filter:', err.message);
+    const snap = await col
+      .where('tenantId', '==', tenantId)
+      .limit(1000)
+      .get();
+    docs = snap.docs;
+  }
 
   const now = Date.now();
   const active = [];
   const staleUpdates = [];
 
-  for (const doc of snap.docs) {
+  for (const doc of docs) {
     const data = { id: doc.id, ...doc.data() };
-    // Skip non-active sessions (client-side filter since we query by tenantId only)
+    // Skip non-active sessions — defense-in-depth: der Fallback-Pfad filtert
+    // status nicht server-seitig, daher hier weiterhin nötig (im Index-Pfad no-op).
     if (data.status !== 'active') continue;
 
     const lastActive = new Date(data.lastActiveAt).getTime();

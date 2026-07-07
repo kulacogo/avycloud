@@ -2705,7 +2705,29 @@ async function saveProduct(product, options = {}) {
     const sanitizedProduct = sanitizeFirestoreValue(
       enforceDescriptionProse(deLiteralizeProductTextFields(productData)),
     );
-    await docRef.set(sanitizedProduct);
+
+    if (hasExisting && !canWriteWarehouseFields) {
+      // OVERSELL-GUARD: Dieser Schreibpfad (Content-Saves auf Bestandsprodukte —
+      // Chat-Apply, Kategorie-Fix, Enrichment, Improve, Bulk-Optimize) DARF die
+      // Lagerfelder nicht schreiben, sondern nur erhalten. Der existingData-
+      // Snapshot wurde aber ganz oben NICHT-transaktional gelesen (Zeile ~1686),
+      // und dazwischen liegen viele awaits (SKU-Tx, Category-Profile, GPSR).
+      // Ein voller docRef.set() würde inventory/storage/storageBins aus diesem
+      // veralteten Snapshot zurückschreiben und einen zwischenzeitlichen
+      // Stock-Decrement (bookStockOut etc.) überschreiben → Oversell.
+      // Deshalb: die drei Lagerfelder im finalen Write TRANSAKTIONAL frisch
+      // nachlesen (Firestore-Serialisierung retryt bei Konflikt).
+      await firestore.runTransaction(async (tx) => {
+        const freshSnap = await tx.get(docRef);
+        const freshData = freshSnap.exists ? (freshSnap.data() || {}) : {};
+        if (freshData.inventory !== undefined) sanitizedProduct.inventory = freshData.inventory;
+        if (freshData.storage !== undefined) sanitizedProduct.storage = freshData.storage;
+        if (freshData.storageBins !== undefined) sanitizedProduct.storageBins = freshData.storageBins;
+        tx.set(docRef, sanitizedProduct);
+      });
+    } else {
+      await docRef.set(sanitizedProduct);
+    }
     
     console.log(`Product saved to Firestore: ${product.id}`);
     return {

@@ -130,6 +130,24 @@ function toPriceCents(value) {
   return Math.trunc(Math.round(n * 100));
 }
 
+/**
+ * Normalisiert einen deutsch-formatierten Geldbetrag-String ("1.234,56") auf
+ * einen JS-parsebaren Dezimal-String ("1234.56").
+ *
+ * BUGFIX (2026-07): Der frühere Weg `replace(/\s/g,'').replace(',','.')` machte
+ * aus "1.234,56" → "1.234.56" → Number() = NaN → der Betrag wurde still
+ * verworfen (Payout-Unterzählung + verlorene Erstattung). Fix: Tausenderpunkte
+ * VOR dem Komma-Ersatz entfernen. Reihenfolge: Whitespace strippen → alle "."
+ * (Tausendertrenner) entfernen → "," (Dezimaltrenner) → ".".
+ *
+ * Beträge OHNE Dezimalkomma (reine Ganzzahlen wie "12345") bleiben unverändert.
+ * Nicht-Strings (bereits Number) werden unverändert durchgereicht.
+ */
+function normalizeGermanAmount(value) {
+  if (typeof value !== 'string') return value;
+  return value.replace(/\s/g, '').replace(/\./g, '').replace(',', '.');
+}
+
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -1076,11 +1094,7 @@ async function getBookings({
   let detectedCurrency = null;
   const bookings = records.map((row) => {
     const amountRaw = pickFirst(row, amountKeyCandidates);
-    const cents = toPriceCents(
-      typeof amountRaw === 'string'
-        ? amountRaw.replace(/\s/g, '').replace(',', '.')
-        : amountRaw
-    );
+    const cents = toPriceCents(normalizeGermanAmount(amountRaw));
     if (cents != null) totalPayoutCents += cents;
     const currency = safeString(pickFirst(row, currencyKeyCandidates)).toUpperCase() || null;
     if (currency && !detectedCurrency) detectedCurrency = currency;
@@ -1226,4 +1240,7 @@ module.exports = {
   getBookings,
   isValidGtin,
   isEanRejectionError,
+  // Exported for testing
+  normalizeGermanAmount,
+  toPriceCents,
 };
