@@ -68,6 +68,41 @@ describe('assertArchivePresent (GoBD gate before irreversible wipe)', () => {
   });
 });
 
+describe('BulkWriter-Löschung (580k Log-Docs wären seriell Stunden)', () => {
+  it('nutzt firestore.bulkWriter() wenn vorhanden (alle Deletes über den Writer)', async () => {
+    const writerDeletes = [];
+    let closed = false;
+    const fs = {
+      bulkWriter() {
+        return {
+          delete(ref) { writerDeletes.push(ref.__path); },
+          async close() { closed = true; },
+        };
+      },
+      collection(name) {
+        const docs = [{ id: 'a' }, { id: 'b' }];
+        return {
+          where() { return { async get() { return { size: 0, docs: [] }; } }; },
+          async get() {
+            return {
+              size: docs.length,
+              docs: docs.map((d) => ({ id: d.id, data: () => d, ref: { __path: `${name}/${d.id}`, delete: async () => { throw new Error('serial delete darf bei bulkWriter nicht laufen'); } } })),
+            };
+          },
+          doc() { return { async set() {} }; },
+        };
+      },
+    };
+    const res = await runReset({
+      firestore: fs, tenantId: 'default', apply: true, currentYear: 2026,
+      wipeCollections: [{ name: 'stock_sync_log', tenantScoped: false }], sequenceTypes: [],
+    });
+    expect(writerDeletes).toEqual(['stock_sync_log/a', 'stock_sync_log/b']);
+    expect(closed).toBe(true);
+    expect(res.wiped[0].deleted).toBe(2);
+  });
+});
+
 describe('stock_locks defense-in-depth', () => {
   it('protects stock_locks from being wiped', () => {
     expect(PROTECTED_COLLECTIONS).toContain('stock_locks');

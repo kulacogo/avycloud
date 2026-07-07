@@ -131,9 +131,21 @@ async function runReset(deps) {
 
     let deleted = 0;
     if (apply) {
-      for (const d of snap.docs || []) {
-        await d.ref.delete();
-        deleted += 1;
+      // Bulk-Löschung: die Log-Collections sind sechsstellig groß (580k+ Docs) —
+      // seriell wären das Stunden. BulkWriter parallelisiert mit Retry; die
+      // Test-Fakes ohne bulkWriter nutzen weiter den seriellen Pfad.
+      const writer = typeof firestore.bulkWriter === 'function' ? firestore.bulkWriter() : null;
+      if (writer) {
+        for (const d of snap.docs || []) {
+          writer.delete(d.ref);
+          deleted += 1;
+        }
+        await writer.close();
+      } else {
+        for (const d of snap.docs || []) {
+          await d.ref.delete();
+          deleted += 1;
+        }
       }
     }
     wiped.push({ name: c.name, count, deleted });
