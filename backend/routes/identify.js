@@ -434,6 +434,13 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
         ...(ocrPayload.barcodes || []),
       ]),
     ];
+    // Duplikat-Reuse-Quelle (Incident 2026-07-08): NUR physisch belegte
+    // Identifier — explizite Barcodes + OCR-Barcodes aus GENAU diesen Bildern.
+    // KI-/Grounding-aufgeloeste EAN/GTIN/UPC/SKU duerfen NIE ein Reuse
+    // triggern: bei Grounding-Timeouts halluzinierte Gemini eine fremde
+    // ATE-EAN, drei verschiedene Produkte matchten dasselbe Bestandsprodukt
+    // und die frischen Identify-Ergebnisse wurden stillschweigend verworfen.
+    const physicalReuseBarcodes = mergedBarcodes.slice(0, 12);
 
     // 2) Stock protection: check if product already exists
     //    ONLY use explicit per-group barcodes, NOT OCR barcodes.
@@ -493,22 +500,14 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
           product.identification?.name?.split(' ').slice(0, 3).join(' '),
         ].filter(Boolean).join(' ').trim();
 
-        // Post-V3 duplicate check with AI-resolved identifiers
-        const v3Barcodes = [
-          product.details?.identifiers?.ean,
-          product.details?.identifiers?.gtin,
-          product.details?.identifiers?.upc,
-          ...(product.identification?.barcodes || []),
-        ].filter(Boolean).map((c) => String(c).trim()).filter(Boolean);
-        const v3AllBarcodes = [...new Set([...explicitBarcodes, ...v3Barcodes])].slice(0, 12);
-        const v3Sku = product.identification?.sku && typeof product.identification.sku === 'string'
-          && product.identification.sku.trim().toLowerCase() !== 'unknown'
-          ? product.identification.sku.trim() : null;
-
-        if (v3AllBarcodes.length || v3Sku) {
+        // Post-V3 duplicate check — NUR physische Barcodes (explizit + OCR
+        // dieser Bilder). KI-aufgeloeste Identifier (details.identifiers,
+        // identification.barcodes aus Grounding) sind hier TABU, siehe
+        // physicalReuseBarcodes-Kommentar oben (Incident 2026-07-08).
+        if (physicalReuseBarcodes.length) {
           const v3Existing = await findProductByStrictIdentifier({
-            barcodes: v3AllBarcodes,
-            sku: v3Sku,
+            barcodes: physicalReuseBarcodes,
+            sku: null,
           });
           if (v3Existing?.id) {
             console.log(`[identify] Post-V3 duplicate found: ${v3Existing.id}`);
@@ -527,7 +526,7 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
             return res.json({
               ok: true,
               data: refreshed || v3Existing,
-              meta: { reused_existing: true, paletteCode: paletteCode || null, locale, barcodes: v3AllBarcodes },
+              meta: { reused_existing: true, paletteCode: paletteCode || null, locale, barcodes: physicalReuseBarcodes },
             });
           }
         }
@@ -704,21 +703,14 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
         pipelineUsed = 'grounding';
         console.log(`[identify] Grounding pipeline complete for ${productId}`);
 
-        // Post-grounding duplicate check with AI-resolved identifiers
-        //    Use explicit barcodes + AI-resolved identifiers, NOT OCR barcodes
-        //    (OCR sees all barcodes from shared images in multi-product scenarios)
-        const groundedBarcodes = [
-          groundedRecord.ean, groundedRecord.gtin, groundedRecord.upc,
-        ].filter(Boolean).map((c) => String(c).trim()).filter(Boolean);
-        const allBarcodes = [...new Set([...explicitBarcodes, ...groundedBarcodes])].slice(0, 12);
-        const groundedSku = groundedRecord.sku && typeof groundedRecord.sku === 'string'
-          && groundedRecord.sku.trim().toLowerCase() !== 'unknown'
-          ? groundedRecord.sku.trim() : null;
-
-        if (allBarcodes.length || groundedSku) {
+        // Post-grounding duplicate check — NUR physische Barcodes (explizit +
+        // OCR dieser Bilder). groundedRecord.ean/gtin/upc/sku sind
+        // KI-Aufloesungen und TABU als Reuse-Trigger, siehe
+        // physicalReuseBarcodes-Kommentar oben (Incident 2026-07-08).
+        if (physicalReuseBarcodes.length) {
           const groundedExisting = await findProductByStrictIdentifier({
-            barcodes: allBarcodes,
-            sku: groundedSku,
+            barcodes: physicalReuseBarcodes,
+            sku: null,
           });
           if (groundedExisting?.id) {
             console.log(`[identify] Post-grounding duplicate found: ${groundedExisting.id}`);
@@ -737,7 +729,7 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
             return res.json({
               ok: true,
               data: refreshed || groundedExisting,
-              meta: { reused_existing: true, paletteCode: paletteCode || null, locale, barcodes: allBarcodes },
+              meta: { reused_existing: true, paletteCode: paletteCode || null, locale, barcodes: physicalReuseBarcodes },
             });
           }
         }
@@ -769,16 +761,13 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
       legacyResult = result;
       pipelineUsed = 'legacy';
 
-      // Re-check stock protection with legacy barcode resolution
-      const legacyBarcodes = []
-        .concat(Array.isArray(result?.barcodeInsights?.ranked) ? result.barcodeInsights.ranked.map((r) => r?.code) : [])
-        .concat([result?.barcodeInsights?.selected?.ean, result?.barcodeInsights?.selected?.gtin])
-        .concat(Array.isArray(result?.barcodes) ? result.barcodes : [])
-        .filter(Boolean).map((c) => String(c).trim()).filter(Boolean).slice(0, 8);
-      const legacySku =
-        result?.record?.sku && typeof result.record.sku === 'string' && result.record.sku.trim().toLowerCase() !== 'unknown'
-          ? result.record.sku.trim() : null;
-      const legacyExisting = await findProductByStrictIdentifier({ barcodes: legacyBarcodes, sku: legacySku });
+      // Re-check stock protection — NUR physische Barcodes (explizit + OCR
+      // dieser Bilder). Legacy-Pipeline-Aufloesungen (barcodeInsights,
+      // record.sku) sind KI-Ergebnisse und TABU als Reuse-Trigger, siehe
+      // physicalReuseBarcodes-Kommentar oben (Incident 2026-07-08).
+      const legacyExisting = physicalReuseBarcodes.length
+        ? await findProductByStrictIdentifier({ barcodes: physicalReuseBarcodes, sku: null })
+        : null;
       if (legacyExisting?.id) {
         try { await adjustPendingIntakeQuantity(legacyExisting.id, 1); } catch {}
         if (paletteCode) {

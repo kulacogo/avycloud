@@ -1,6 +1,7 @@
 'use strict';
 
-const { isValidGtin, normalizeDigits, getGtinType } = require('./gtin');
+const { isValidGtin, normalizeDigits } = require('./gtin');
+const { mergeBarcodeCandidates } = require('./barcode-merge');
 const { lookupEan } = require('./ean-database');
 const { identifyProductFocused, identifyProductWithGrounding } = require('../lib/gemini3-client');
 const { extractOcrPayload } = require('./vision-ocr');
@@ -201,27 +202,18 @@ async function runStage1Recognition({ files = [], barcodes = '', hint = null, lo
     }
   }
 
-  // Merge barcodes from all sources (OCR, grounding, EAN DB, explicit)
-  const allBarcodeCandidates = [
-    ...mergedBarcodes,
-    normalizeDigits(groundingResult.ean || ''),
-    normalizeDigits(groundingResult.gtin || ''),
-    normalizeDigits(groundingResult.upc || ''),
-    normalizeDigits(eanLookup?.productName ? primaryBarcode : ''),
-  ].filter(Boolean);
-
-  const uniqueBarcodes = [...new Set(allBarcodeCandidates)];
-  const validBarcodes = uniqueBarcodes.filter((b) => isValidGtin(b));
-  const rankedBarcodes = validBarcodes.map((code) => ({
-    code,
-    type: getGtinType(code),
-    valid: true,
-  }));
-
-  // Pick best barcode per type
-  const ean = rankedBarcodes.find((b) => b.type === 'ean13')?.code || '';
-  const gtin = rankedBarcodes.find((b) => b.type === 'gtin14')?.code || '';
-  const upc = rankedBarcodes.find((b) => b.type === 'upc12')?.code || '';
+  // Merge barcodes — physisch belegte Codes (explizit + OCR) schlagen IMMER
+  // Grounding-Aufloesungen; Grounding nur als Fallback ohne physischen Code.
+  // Incident 2026-07-08: halluzinierte Grounding-EAN vergiftete Datenblaetter
+  // und liess den Duplikat-Check drei verschiedene Produkte auf EIN
+  // Bestandsprodukt mergen. Siehe lib/barcode-merge.js.
+  const { ean, gtin, upc, ranked: rankedBarcodes } = mergeBarcodeCandidates({
+    physicalBarcodes: [
+      ...mergedBarcodes,
+      normalizeDigits(eanLookup?.productName ? primaryBarcode : ''),
+    ],
+    groundingResult,
+  });
 
   // Cross-check: EAN DB brand vs grounding brand
   const eanBrandMatch = eanLookup?.brand && groundingResult.brand
