@@ -74,6 +74,31 @@ if (!FunctionCallingConfigMode || !FunctionCallingConfigMode.ANY) {
 const DEFAULT_MODEL = 'gemini-3-pro-preview';
 const WRITE_TOOL = 'write_product_datasheet';
 
+/**
+ * Config fuer die Forced-Finalize-sendMessage-Calls.
+ *
+ * WICHTIG: chat.sendMessage({ config }) ERSETZT im @google/genai SDK die
+ * Chat-Config (kein Deep-Merge). Ein config-Objekt nur mit toolConfig
+ * verliert also die functionDeclarations — Gemini lehnt dann mit 400
+ * "allowed_function_names should be a subset of the provided
+ * function_declarations" ab (Produktions-Incident 2026-07-08: JEDER
+ * agentische Stage-3-Lauf fiel dadurch auf Single-Shot zurueck). Deshalb
+ * deklariert dieser Builder das Write-Tool im selben Request; Research-Tools
+ * (googleSearch/urlContext/atomic) bleiben bewusst draussen — Finalize heisst
+ * schreiben, nicht recherchieren.
+ */
+function _buildForcedFinalizeConfig() {
+  return {
+    tools: [{ functionDeclarations: [WRITE_DATASHEET_DECLARATION] }],
+    toolConfig: {
+      functionCallingConfig: {
+        mode: FunctionCallingConfigMode.ANY,
+        allowedFunctionNames: [WRITE_TOOL],
+      },
+    },
+  };
+}
+
 const _envInt = (name, fallback) => {
   const raw = process.env[name];
   if (raw == null || String(raw).trim() === '') return fallback;
@@ -593,16 +618,7 @@ async function generateProductContentAgentic({
       const forceFinalize = atLastIter || softForce;
       if (forceFinalize) trace.forcedFinalizations += 1;
 
-      const sendConfig = forceFinalize
-        ? {
-            toolConfig: {
-              functionCallingConfig: {
-                mode: FunctionCallingConfigMode.ANY,
-                allowedFunctionNames: [WRITE_TOOL],
-              },
-            },
-          }
-        : undefined;
+      const sendConfig = forceFinalize ? _buildForcedFinalizeConfig() : undefined;
 
       // eslint-disable-next-line no-await-in-loop
       response = await _withRetry(
@@ -628,14 +644,7 @@ async function generateProductContentAgentic({
                     'keine weitere Recherche.',
                 },
               ],
-              config: {
-                toolConfig: {
-                  functionCallingConfig: {
-                    mode: FunctionCallingConfigMode.ANY,
-                    allowedFunctionNames: [WRITE_TOOL],
-                  },
-                },
-              },
+              config: _buildForcedFinalizeConfig(),
             }),
           'sendMessage-ultimate',
         );
@@ -711,6 +720,7 @@ module.exports = {
   _internal: {
     sanitizeWriteArgs: _sanitizeWriteArgs,
     buildSystemPrompt: _buildSystemPrompt,
+    buildForcedFinalizeConfig: _buildForcedFinalizeConfig,
     WRITE_DATASHEET_DECLARATION,
   },
 };
