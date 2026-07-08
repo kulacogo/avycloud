@@ -160,6 +160,8 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
   const cameraInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
   const isUnmountedRef = useRef(false);
   const pickSubmitInFlightRef = useRef(false);
+  // Invisible focus target for handheld/keyboard-wedge scanners in stow/pick/pack.
+  const scanCaptureRef = useRef<HTMLInputElement | null>(null);
 
   type IdentifySlotImage = { id: string; file: File; previewUrl: string };
   const [identifyImagesBySlot, setIdentifyImagesBySlot] = useState<Record<number, IdentifySlotImage[]>>({});
@@ -1100,6 +1102,41 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [handleScannedValue, mode]);
 
+  // Handheld/keyboard-wedge scanners (and Android scanner-keyboards) only emit
+  // keystrokes into the focused editable field. The Search view works because it
+  // has an autoFocus input; stow/pick/pack rendered none, so the window keydown
+  // listener above never received a scan. Keep an invisible readOnly input focused
+  // in these modes as the capture target. readOnly is required: the listener's
+  // guard ignores non-readOnly focused inputs, and readOnly suppresses the mobile
+  // soft-keyboard. No real editable inputs exist in these modes, so trapping focus
+  // here is safe.
+  useEffect(() => {
+    const isScanMode =
+      mode === 'operations-pick' || mode === 'operations-stow' || mode === 'operations-pack';
+    if (!isScanMode) return;
+    scanCaptureRef.current?.focus({ preventScroll: true });
+  }, [mode]);
+
+  const renderScanCapture = () => (
+    <input
+      ref={scanCaptureRef}
+      readOnly
+      aria-hidden="true"
+      tabIndex={-1}
+      inputMode="none"
+      style={{ position: 'absolute', left: '-9999px', top: 0, width: 1, height: 1, opacity: 0, pointerEvents: 'none' }}
+      onBlur={() => {
+        // Some flows (QuantityNumpad taps, submits, order selection) move focus;
+        // reclaim it so the next scan still lands.
+        window.setTimeout(() => {
+          const stillScanMode =
+            mode === 'operations-pick' || mode === 'operations-stow' || mode === 'operations-pack';
+          if (stillScanMode) scanCaptureRef.current?.focus({ preventScroll: true });
+        }, 0);
+      }}
+    />
+  );
+
   const addIdentifySlot = () => {
     setIdentifySlots((prev) => [...prev, Date.now()]);
   };
@@ -1259,6 +1296,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
     const stowProduct = stowSku ? resolveProductForStow(stowSku) : null;
     return (
       <div className="space-y-3 max-w-xl mx-auto">
+        {renderScanCapture()}
         <SectionTitle title={t('ops.mode.stow')} />
         <div className="rounded-2xl border border-app-border bg-app-surface p-3 space-y-2">
           {stowMessage && <p role="status" aria-live="polite" className="text-xs text-success">{stowMessage}</p>}
@@ -1358,6 +1396,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
 
     return (
       <div className="max-w-xl mx-auto flex flex-col gap-3">
+        {renderScanCapture()}
         <div className="flex items-end justify-between gap-3">
           <div>
             <h2 className="text-xl font-semibold text-txt-primary">{t('ops.mode.pick')}</h2>
@@ -1819,6 +1858,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
     };
     return (
       <div className="max-w-xl mx-auto flex flex-col gap-3">
+        {renderScanCapture()}
         <div className="flex items-end justify-between gap-3">
           <div>
             <h2 className="text-xl font-semibold text-txt-primary">{t('ops.mode.pack')}</h2>
