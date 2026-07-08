@@ -49,4 +49,26 @@ describe('reqSerializer', () => {
     expect(out.headers.cookie).toBe('[REDACTED]');
     expect(out.headers['user-agent']).toBe('test'); // harmlose Header bleiben
   });
+
+  it('mutiert NICHT das echte req.headers-Objekt (Incident 2026-07-08)', () => {
+    // pino.stdSerializers.req gibt headers per Referenz zurück. Der Serializer
+    // DARF den echten Authorization-Header nicht überschreiben, sonst schlägt
+    // extractBearerToken fehl → "Missing Authorization bearer token" bei jeder
+    // authentifizierten Anfrage.
+    const realHeaders = {
+      authorization: 'Bearer eyJrealtoken',
+      cookie: 'session=xyz',
+      'user-agent': 'test',
+    };
+    const req = { method: 'GET', url: '/api/products', headers: realHeaders, connection: {} };
+
+    const out = reqSerializer(req);
+
+    // Log-Ausgabe ist maskiert …
+    expect(out.headers.authorization).toBe('[REDACTED]');
+    // … aber das ECHTE Header-Objekt der Anfrage bleibt unangetastet:
+    expect(realHeaders.authorization).toBe('Bearer eyJrealtoken');
+    expect(realHeaders.cookie).toBe('session=xyz');
+    expect(req.headers.authorization).toBe('Bearer eyJrealtoken');
+  });
 });

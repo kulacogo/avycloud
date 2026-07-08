@@ -17,6 +17,14 @@ function reqSerializer(req) {
   const s = pino.stdSerializers.req(req);
   if (s && typeof s.url === 'string') s.url = redactUrlToken(s.url);
   if (s && s.headers) {
+    // KRITISCH: pino.stdSerializers.req gibt `headers` PER REFERENZ auf das
+    // echte req.headers-Objekt zurück. Eine In-Place-Mutation würde den
+    // ECHTEN Authorization-Header der Anfrage auf '[REDACTED]' überschreiben,
+    // sodass extractBearerToken() ihn nicht mehr als Bearer erkennt →
+    // "Missing Authorization bearer token" bei JEDER authentifizierten
+    // Anfrage (Incident 2026-07-08). Deshalb: flache Kopie, nur die Kopie
+    // maskieren.
+    s.headers = { ...s.headers };
     if (s.headers.authorization) s.headers.authorization = '[REDACTED]';
     if (s.headers.cookie) s.headers.cookie = '[REDACTED]';
   }
