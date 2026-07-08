@@ -44,16 +44,28 @@ describe('Identify Duplikat-Reuse — nur physische Barcodes (Incident 2026-07-0
     expect(routeSrc).not.toMatch(/legacySku/);
   });
 
-  it('alle Post-Identify-Reuse-Aufrufe laufen ueber physicalReuseBarcodes', () => {
-    // Jeder Reuse-Lookup NACH einer KI-Pipeline muss die eine, physisch
-    // belegte Quelle nutzen (explizite + OCR-Barcodes dieses Requests).
-    // Ausnahme: der Pre-Check VOR jeder Identifikation nutzt bewusst nur
-    // explizite Barcodes (multi-product Bilder, siehe Kommentar in der Route).
-    const calls = routeSrc.match(/findProductByStrictIdentifier\(\{/g) || [];
-    const physicalCalls = routeSrc.match(/findProductByStrictIdentifier\(\{\s*\n?\s*barcodes:\s*physicalReuseBarcodes/g) || [];
-    const preCheckCalls = routeSrc.match(/findProductByStrictIdentifier\(\{\s*\n?\s*barcodes:\s*explicitBarcodes/g) || [];
-    expect(physicalCalls.length).toBeGreaterThanOrEqual(3);
-    expect(physicalCalls.length + preCheckCalls.length).toBe(calls.length);
+  it('Post-Identify-Reuse laeuft ueber findReuseMatch (SONAX-Haertung 2026-07-08)', () => {
+    // Nach dem SONAX-Incident laufen alle drei Post-Checks (V3/Grounding/Legacy)
+    // ueber findReuseMatch(product) — explizit-vs-OCR getrennt + Konsistenz-Gate.
+    const findReuseMatchCalls = routeSrc.match(/await\s+findReuseMatch\(/g) || [];
+    expect(findReuseMatchCalls.length).toBeGreaterThanOrEqual(3);
+    // Der alte, ungehaertete Sammel-Pool ist weg.
+    expect(routeSrc).not.toMatch(/physicalReuseBarcodes/);
+  });
+
+  it('nutzt buildReusePools + reuseMatchConsistent (starker-GTIN-OCR + Marken-Gate)', () => {
+    expect(routeSrc).toMatch(/buildReusePools/);
+    expect(routeSrc).toMatch(/reuseMatchConsistent/);
+    // OCR-Treffer muss durch das Konsistenz-Gate:
+    expect(routeSrc).toMatch(/reuseMatchConsistent\(fresh,\s*m\)/);
+  });
+
+  it('OCR-Barcodes gehen nicht mehr ungefiltert in einen Reuse-Lookup', () => {
+    // Frueher: findProductByStrictIdentifier({ barcodes: physicalReuseBarcodes })
+    // = explicit ∪ OCR ohne Laengen-/Konsistenz-Gate. Darf es nicht mehr geben.
+    // (mergedBarcodes bleibt im Response-Meta erlaubt — nur der LOOKUP zaehlt.)
+    expect(routeSrc).not.toMatch(/findProductByStrictIdentifier\(\{\s*\n?\s*barcodes:\s*mergedBarcodes/);
+    expect(routeSrc).not.toMatch(/findProductByStrictIdentifier\(\{\s*\n?\s*barcodes:\s*physicalReuseBarcodes/);
   });
 
   it('Reuse-Lookups uebergeben keine sku mehr (LLM-SKU war Reuse-Vektor)', () => {

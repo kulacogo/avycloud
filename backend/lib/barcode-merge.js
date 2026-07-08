@@ -17,7 +17,7 @@ const { isValidGtin, normalizeDigits, getGtinType } = require('./gtin');
  * @param {object}   opts.groundingResult   { ean, gtin, upc } aus Gemini Grounding
  * @returns {{ ean: string, gtin: string, upc: string, ranked: Array<{code, type, valid, source}> }}
  */
-function mergeBarcodeCandidates({ physicalBarcodes = [], groundingResult = {} } = {}) {
+function mergeBarcodeCandidates({ physicalBarcodes = [], groundingResult = {}, explicitBarcodes = [] } = {}) {
   const physical = [
     ...new Set(
       physicalBarcodes
@@ -37,6 +37,16 @@ function mergeBarcodeCandidates({ physicalBarcodes = [], groundingResult = {} } 
     const uniqueGrounding = [...new Set(groundingCodes)].filter((b) => isValidGtin(b));
     candidates = uniqueGrounding.map((code) => ({ code, source: 'grounding' }));
   }
+
+  // FIX C (Incident 2026-07-08, SONAX 08431530): EAN-8 nur behalten, wenn
+  // EXPLIZIT gescannt/getippt. OCR-/Grounding-abgeleitete EAN-8 sind fast immer
+  // Nicht-Barcodes (Hersteller-Telefon/Datum/Groessenlauf), die die schwache
+  // EAN-8-Pruefziffer zufaellig bestehen — sie duerfen nicht als Identity-Barcode
+  // ins Datenblatt (sonst Falsch-Reuse-Attraktor + falsche Listing-EAN).
+  const explicitSet = new Set((explicitBarcodes || []).map((c) => String(c).trim()).filter(Boolean));
+  candidates = candidates.filter(
+    (c) => getGtinType(c.code) !== 'ean8' || explicitSet.has(c.code)
+  );
 
   const ranked = candidates.map(({ code, source }) => ({
     code,

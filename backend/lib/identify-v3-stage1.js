@@ -207,12 +207,16 @@ async function runStage1Recognition({ files = [], barcodes = '', hint = null, lo
   // Incident 2026-07-08: halluzinierte Grounding-EAN vergiftete Datenblaetter
   // und liess den Duplikat-Check drei verschiedene Produkte auf EIN
   // Bestandsprodukt mergen. Siehe lib/barcode-merge.js.
+  // OCR-abgeleitete EAN-8 werden in mergeBarcodeCandidates verworfen (FIX C,
+  // Incident 2026-07-08 SONAX 08431530): nur EXPLIZIT gescannte/getippte EAN-8
+  // bleiben als Identity-Barcode; OCR-EAN-8 sind fast immer Nicht-Barcodes.
   const { ean, gtin, upc, ranked: rankedBarcodes } = mergeBarcodeCandidates({
     physicalBarcodes: [
       ...mergedBarcodes,
       normalizeDigits(eanLookup?.productName ? primaryBarcode : ''),
     ],
     groundingResult,
+    explicitBarcodes,
   });
 
   // Cross-check: EAN DB brand vs grounding brand

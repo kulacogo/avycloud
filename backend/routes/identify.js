@@ -434,13 +434,36 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
         ...(ocrPayload.barcodes || []),
       ]),
     ];
-    // Duplikat-Reuse-Quelle (Incident 2026-07-08): NUR physisch belegte
-    // Identifier — explizite Barcodes + OCR-Barcodes aus GENAU diesen Bildern.
-    // KI-/Grounding-aufgeloeste EAN/GTIN/UPC/SKU duerfen NIE ein Reuse
-    // triggern: bei Grounding-Timeouts halluzinierte Gemini eine fremde
-    // ATE-EAN, drei verschiedene Produkte matchten dasselbe Bestandsprodukt
-    // und die frischen Identify-Ergebnisse wurden stillschweigend verworfen.
-    const physicalReuseBarcodes = mergedBarcodes.slice(0, 12);
+    // Duplikat-Reuse-Quelle (Incidents 2026-07-08): NUR physisch belegte
+    // Identifier. KI-/Grounding-aufgeloeste EAN/GTIN/UPC/SKU duerfen NIE ein
+    // Reuse triggern (ATE-Fall: halluzinierte Fremd-EAN kollabierte 3 Produkte).
+    //
+    // Zusaetzlich getrennt nach Vertrauen (SONAX-Fall, PRODUKTIONS-STOP):
+    // OCR liest auf Verpackungen gedruckte Nicht-Barcodes (Hersteller-Telefon
+    // 08431530, Datum, Groessenlauf) als EAN-8, die die schwache EAN-8-Pruefziffer
+    // zufaellig besteht → verschiedene Produkte GLEICHER Marke kollabierten.
+    //   - EXPLIZITE Barcodes (gescannt/getippt) = trusted, Reuse bei jeder Laenge.
+    //   - OCR-abgeleitete Codes: nur STARKER GTIN (Laenge >= 12) UND nur, wenn
+    //     Marke+Name des Treffers zum frisch erkannten Produkt passen.
+    // Siehe backend/lib/reuse-guard.js.
+    const { buildReusePools, reuseMatchConsistent } = require('../lib/reuse-guard');
+    const { explicit: explicitReuseBarcodes, ocr: ocrReuseBarcodes } =
+      buildReusePools(explicitBarcodes, ocrPayload.barcodes || []);
+    const hasReuseBarcode = explicitReuseBarcodes.length > 0 || ocrReuseBarcodes.length > 0;
+    const reuseBarcodesForMeta = [...new Set([...explicitReuseBarcodes, ...ocrReuseBarcodes])];
+    // Gemeinsamer Reuse-Lookup: explizit sofort vertrauen; OCR-Treffer nur bei
+    // Marken-/Namens-Konsistenz. `fresh` = frisch identifiziertes Produkt.
+    const findReuseMatch = async (fresh) => {
+      if (explicitReuseBarcodes.length) {
+        const m = await findProductByStrictIdentifier({ barcodes: explicitReuseBarcodes, sku: null });
+        if (m?.id) return m;
+      }
+      if (ocrReuseBarcodes.length) {
+        const m = await findProductByStrictIdentifier({ barcodes: ocrReuseBarcodes, sku: null });
+        if (m?.id && reuseMatchConsistent(fresh, m)) return m;
+      }
+      return null;
+    };
 
     // 2) Stock protection: check if product already exists
     //    ONLY use explicit per-group barcodes, NOT OCR barcodes.
@@ -500,15 +523,11 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
           product.identification?.name?.split(' ').slice(0, 3).join(' '),
         ].filter(Boolean).join(' ').trim();
 
-        // Post-V3 duplicate check — NUR physische Barcodes (explizit + OCR
-        // dieser Bilder). KI-aufgeloeste Identifier (details.identifiers,
-        // identification.barcodes aus Grounding) sind hier TABU, siehe
-        // physicalReuseBarcodes-Kommentar oben (Incident 2026-07-08).
-        if (physicalReuseBarcodes.length) {
-          const v3Existing = await findProductByStrictIdentifier({
-            barcodes: physicalReuseBarcodes,
-            sku: null,
-          });
+        // Post-V3 duplicate check — explizit-vs-OCR-getrennt + Konsistenz-Gate
+        // (siehe findReuseMatch / reuse-guard.js). KI-aufgeloeste Identifier
+        // sind TABU; OCR-EAN-8 wird gar nicht erst als Trigger zugelassen.
+        if (hasReuseBarcode) {
+          const v3Existing = await findReuseMatch(product);
           if (v3Existing?.id) {
             console.log(`[identify] Post-V3 duplicate found: ${v3Existing.id}`);
             try { await adjustPendingIntakeQuantity(v3Existing.id, 1); } catch {}
@@ -526,7 +545,7 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
             return res.json({
               ok: true,
               data: refreshed || v3Existing,
-              meta: { reused_existing: true, paletteCode: paletteCode || null, locale, barcodes: physicalReuseBarcodes },
+              meta: { reused_existing: true, paletteCode: paletteCode || null, locale, barcodes: reuseBarcodesForMeta },
             });
           }
         }
@@ -703,15 +722,11 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
         pipelineUsed = 'grounding';
         console.log(`[identify] Grounding pipeline complete for ${productId}`);
 
-        // Post-grounding duplicate check — NUR physische Barcodes (explizit +
-        // OCR dieser Bilder). groundedRecord.ean/gtin/upc/sku sind
-        // KI-Aufloesungen und TABU als Reuse-Trigger, siehe
-        // physicalReuseBarcodes-Kommentar oben (Incident 2026-07-08).
-        if (physicalReuseBarcodes.length) {
-          const groundedExisting = await findProductByStrictIdentifier({
-            barcodes: physicalReuseBarcodes,
-            sku: null,
-          });
+        // Post-grounding duplicate check — explizit-vs-OCR-getrennt +
+        // Konsistenz-Gate (findReuseMatch). groundedRecord.ean/gtin/upc/sku sind
+        // KI-Aufloesungen und TABU; OCR-EAN-8 wird nicht als Trigger zugelassen.
+        if (hasReuseBarcode) {
+          const groundedExisting = await findReuseMatch(product);
           if (groundedExisting?.id) {
             console.log(`[identify] Post-grounding duplicate found: ${groundedExisting.id}`);
             try { await adjustPendingIntakeQuantity(groundedExisting.id, 1); } catch {}
@@ -729,7 +744,7 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
             return res.json({
               ok: true,
               data: refreshed || groundedExisting,
-              meta: { reused_existing: true, paletteCode: paletteCode || null, locale, barcodes: physicalReuseBarcodes },
+              meta: { reused_existing: true, paletteCode: paletteCode || null, locale, barcodes: reuseBarcodesForMeta },
             });
           }
         }
@@ -761,13 +776,16 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
       legacyResult = result;
       pipelineUsed = 'legacy';
 
-      // Re-check stock protection — NUR physische Barcodes (explizit + OCR
-      // dieser Bilder). Legacy-Pipeline-Aufloesungen (barcodeInsights,
-      // record.sku) sind KI-Ergebnisse und TABU als Reuse-Trigger, siehe
-      // physicalReuseBarcodes-Kommentar oben (Incident 2026-07-08).
-      const legacyExisting = physicalReuseBarcodes.length
-        ? await findProductByStrictIdentifier({ barcodes: physicalReuseBarcodes, sku: null })
-        : null;
+      // Re-check stock protection — explizit-vs-OCR-getrennt + Konsistenz-Gate.
+      // `product` ist hier noch nicht gebaut; wir uebergeben Marke+Name aus dem
+      // Legacy-Record fuer den OCR-Konsistenz-Check (findReuseMatch).
+      const legacyFresh = {
+        identification: {
+          brand: result?.record?.brand || '',
+          name: result?.record?.title_ebay || result?.record?.name || '',
+        },
+      };
+      const legacyExisting = hasReuseBarcode ? await findReuseMatch(legacyFresh) : null;
       if (legacyExisting?.id) {
         try { await adjustPendingIntakeQuantity(legacyExisting.id, 1); } catch {}
         if (paletteCode) {

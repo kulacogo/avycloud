@@ -69,3 +69,45 @@ describe('mergeBarcodeCandidates — physisch schlaegt Grounding', () => {
     expect(out.ranked.filter((r) => r.code === REAL_EAN)).toHaveLength(1);
   });
 });
+
+describe('mergeBarcodeCandidates — FIX C: OCR-EAN-8 nicht als Identity (Incident 2026-07-08)', () => {
+  const PHONE_EAN8 = '08431530';   // SONAX-Servicenummer, checksum-gültige EAN-8
+  const DATE_EAN8 = '20240530';    // Datum 2024-05-30, checksum-gültige EAN-8
+  const REAL_EAN13 = '4006633319577';
+
+  it('verwirft OCR-EAN-8 (nicht explizit) komplett aus ranked', () => {
+    const out = mergeBarcodeCandidates({
+      physicalBarcodes: [PHONE_EAN8], // aus OCR, nicht explizit übergeben
+      groundingResult: {},
+      explicitBarcodes: [],
+    });
+    expect(out.ranked.map((r) => r.code)).not.toContain(PHONE_EAN8);
+    expect(out.ean).toBe('');
+    expect(out.ranked).toHaveLength(0);
+  });
+
+  it('behält EXPLIZIT gescannte/getippte EAN-8 (User-Autorität)', () => {
+    const out = mergeBarcodeCandidates({
+      physicalBarcodes: [PHONE_EAN8],
+      groundingResult: {},
+      explicitBarcodes: [PHONE_EAN8],
+    });
+    expect(out.ranked.map((r) => r.code)).toContain(PHONE_EAN8);
+  });
+
+  it('lässt echten EAN-13 unangetastet, filtert nur die Garbage-EAN-8 daneben', () => {
+    const out = mergeBarcodeCandidates({
+      physicalBarcodes: [REAL_EAN13, DATE_EAN8],
+      groundingResult: {},
+      explicitBarcodes: [],
+    });
+    expect(out.ean).toBe(REAL_EAN13);
+    expect(out.ranked.map((r) => r.code)).toContain(REAL_EAN13);
+    expect(out.ranked.map((r) => r.code)).not.toContain(DATE_EAN8);
+  });
+
+  it('rückwärtskompatibel: ohne explicitBarcodes-Arg werden OCR-EAN-8 verworfen', () => {
+    const out = mergeBarcodeCandidates({ physicalBarcodes: [PHONE_EAN8], groundingResult: {} });
+    expect(out.ranked).toHaveLength(0);
+  });
+});
