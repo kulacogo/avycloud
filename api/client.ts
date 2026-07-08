@@ -125,6 +125,19 @@ async function ensureDefaultFirebaseTokenProviderInstalled(): Promise<void> {
       const mod = await import('../utils/firebase');
       const auth = mod.getFirebaseAuth();
       tokenProvider = async (forceRefresh?: boolean) => {
+        // Beim Seitenladen stellt Firebase die (Session-)Anmeldung ASYNCHRON
+        // wieder her. Feuert eine Anfrage bevor das passiert ist, wäre
+        // currentUser noch null → Anfrage ginge ohne Token raus → Backend 401
+        // ("Missing Authorization bearer token"). Deshalb: einmal auf den
+        // fertigen Auth-Startzustand warten, bevor wir aufgeben.
+        if (!auth?.currentUser && typeof auth?.authStateReady === "function") {
+          try {
+            await auth.authStateReady();
+          } catch {
+            // Best-effort: ist authStateReady nicht verfügbar/wirft, fahren wir
+            // mit dem aktuellen currentUser-Stand fort.
+          }
+        }
         const current = auth?.currentUser;
         if (!current) return null;
         return await current.getIdToken(Boolean(forceRefresh));
