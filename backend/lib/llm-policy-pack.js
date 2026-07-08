@@ -101,7 +101,9 @@ function buildCommonPolicyText({ locale = 'de-DE', allowWebEvidence = false, con
     '- K-Typ (Auto/KFZ/Motorrad): wenn vorhanden, beibehalten. Wenn nicht sicher ableitbar: leer lassen (nicht raten).',
     '- K-Typ Format (intern): Einträge mit "|" trennen. Eintrag ist "<KtypeId>" oder "<KtypeId>,<Note>". Beispiel: "57448|111981,Einbauposition Vorderachse".',
     '- Kategorie: eBay.de Breadcrumb aus Taxonomie, mindestens 2 Ebenen (muss ">"). Keine Top-Level Kategorien als final.',
-    `- Kategorie: Diese eBay Hauptkategorien sind in AvyCloud VERBOTEN und dürfen NIE verwendet werden: ${BANNED_EBAY_CATEGORY_ROOTS.map((r) => `"${r}"`).join(', ')}.`,
+    BANNED_EBAY_CATEGORY_ROOTS.length
+      ? `- Kategorie: Diese eBay Hauptkategorien sind in AvyCloud VERBOTEN und dürfen NIE verwendet werden: ${BANNED_EBAY_CATEGORY_ROOTS.map((r) => `"${r}"`).join(', ')}.`
+      : null,
     '',
     'DATASHEET FORMAT (wenn du Datenblattfelder erzeugst/änderst):',
     '- Beschreibung: SEO-stark und klar strukturiert. HTML-Struktur ist verpflichtend (nur einfache Tags: <p>, <ul>, <li>, <strong>). Empfohlen: 1 Einleitungs-<p> (2–3 Sätze) + <ul> mit 5–7 Punkten (Nutzen + Spec) + 1 <p> mit technischen Eckdaten/Kompatibilität. Keine Preis-/Versandtexte, keine Platzhalter, keine Dubletten.',

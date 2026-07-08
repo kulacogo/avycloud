@@ -1,17 +1,15 @@
 const { decodeHtmlEntitiesDeep } = require('./html-entities');
 
-// Strict governance: these eBay root categories must not be used in AvyCloud.
-// They are treated as "non-existent" for this app (explicit business rule).
-const BANNED_EBAY_CATEGORY_ROOTS = Object.freeze([
-  'Antiquitäten & Kunst',
-  'Briefmarken',
-  'Feinschmecker',
-  'Filme & Serien',
-  'Immobilien',
-  'Münzen',
-  'Business & Industrie',
-  'Sammeln & Seltenes',
-]);
+// Strict governance: eBay root categories listed here are treated as
+// "non-existent" for this app (explicit business rule) and rejected everywhere.
+//
+// 2026-07-08 — Owner request: ALL previously deactivated roots reactivated.
+// The list is intentionally empty; nothing is banned anymore. To re-deactivate
+// a root in future, add its exact eBay.de breadcrumb root string back here.
+// Previously banned (kept for reference): 'Antiquitäten & Kunst', 'Briefmarken',
+// 'Feinschmecker', 'Filme & Serien', 'Immobilien', 'Münzen',
+// 'Business & Industrie', 'Sammeln & Seltenes'.
+const BANNED_EBAY_CATEGORY_ROOTS = Object.freeze([]);
 
 // Soft roots — category is allowed but requires additional evidence (signals)
 // from the product before being accepted by the resolver. Prevents accidental
