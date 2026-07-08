@@ -247,15 +247,21 @@ const buildHeadersWithAuth = async (base?: HeadersInit, forceRefresh = false): P
   await ensureDefaultFirebaseTokenProviderInstalled();
   const headers = new Headers(base || {});
   const existingAuth = headers.get('Authorization');
-  if ((!existingAuth || !isValidBearer(existingAuth)) && tokenProvider) {
-    try {
-      const token = await tokenProvider(forceRefresh);
-      if (token) {
-        headers.set('Authorization', `Bearer ${token}`);
+  if (!existingAuth || !isValidBearer(existingAuth)) {
+    if (!tokenProvider) {
+      console.warn("[AUTHDIAG] tokenProvider ist NULL (nicht verdrahtet)");
+    } else {
+      try {
+        const token = await tokenProvider(forceRefresh);
+        if (token) {
+          headers.set('Authorization', `Bearer ${token}`);
+        } else {
+          console.warn("[AUTHDIAG] tokenProvider lieferte KEINEN Token (currentUser fehlt?)");
+        }
+      } catch (error) {
+        // If token acquisition fails, proceed without token so backend returns a clear 401/403.
+        console.warn("[AUTHDIAG] getIdToken warf Fehler:", (error as any)?.code, (error as any)?.message || error);
       }
-    } catch (error) {
-      // If token acquisition fails, proceed without token so backend returns a clear 401/403.
-      console.warn('Failed to attach auth token to request:', (error as any)?.message || error);
     }
   }
   return headers;
