@@ -104,6 +104,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Wire token provider for backend calls.
     // Use auth.currentUser to avoid transient "null provider" windows between state updates.
     setAuthTokenProvider(async (forceRefresh?: boolean) => {
+      // Beim Seitenladen stellt Firebase die (Session-)Anmeldung ASYNCHRON
+      // wieder her. Feuert eine Anfrage bevor das fertig ist, wäre currentUser
+      // noch null → Anfrage ohne Token → Backend 401 ("Missing Authorization
+      // bearer token"). Einmal auf den fertigen Auth-Startzustand warten.
+      if (!auth.currentUser && typeof auth.authStateReady === "function") {
+        try {
+          await auth.authStateReady();
+        } catch {
+          // Best-effort — mit aktuellem currentUser-Stand fortfahren.
+        }
+      }
       const current = auth.currentUser;
       if (!current) return null;
       try {
