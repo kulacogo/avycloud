@@ -2874,7 +2874,10 @@ const normalizeProduct = (raw: any): Product => {
       ...(identificationIn as any),
       method: (identificationIn.method as any) || 'image',
       barcodes: Array.isArray(identificationIn.barcodes) ? identificationIn.barcodes.filter(Boolean).map(String) : [],
-      name: identificationIn.name ? String(identificationIn.name) : id || '—',
+      // Kein id-Fallback: die Doc-ID als "Name" hat Geister-Produkte (leerer
+      // Name) wie echte Produkte mit UUID-Titel aussehen lassen — und beim
+      // nächsten UI-Save wäre die UUID als Name persistiert worden.
+      name: identificationIn.name ? String(identificationIn.name) : "",
       brand: identificationIn.brand ? String(identificationIn.brand) : '',
       category: identificationIn.category ? String(identificationIn.category) : '',
       confidence: typeof identificationIn.confidence === 'number' ? identificationIn.confidence : 0,

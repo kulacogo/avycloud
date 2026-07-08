@@ -1360,8 +1360,8 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
 
           {/* Title + meta */}
           <div className="flex-1 min-w-0">
-            <h1 className="text-lg font-bold text-txt-primary truncate leading-tight" title={localProduct.identification.name}>
-              {localProduct.identification.name}
+            <h1 className="text-lg font-bold text-txt-primary truncate leading-tight" title={localProduct.identification.name || "Unbenanntes Produkt"}>
+              {localProduct.identification.name || <span className="italic text-txt-secondary">Unbenanntes Produkt</span>}
             </h1>
             <p className="text-sm text-txt-secondary mt-0.5 truncate">
               {localProduct.identification.brand}
@@ -1486,7 +1486,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                   </div>
                 </div>
               ) : (
-                <p className="text-sm text-txt-primary">{localProduct.identification.name}</p>
+                <p className="text-sm text-txt-primary">{localProduct.identification.name || <span className="italic text-txt-secondary">Unbenanntes Produkt</span>}</p>
               )}
             </div>
 

@@ -202,6 +202,18 @@ async function saveProductV2(product, options = {}) {
     } catch (_) {
       // non-fatal — Pre-Read ist optional
     }
+  } else if (productId && productGhostGateEnabled()) {
+    // skipStockEvent-Pfade (Bulk-Imports/-Backfills) haben früher den Ghost-Gate
+    // komplett umgangen, weil preDocExists ohne Pre-Read nie 'false' wurde —
+    // genau so entstanden am 2026-03-23 die 206 Geister-Hüllen. Bei aktivem Gate
+    // machen wir hier einen reinen Existenz-Read (keine Stock-Felder, kein
+    // stock:changed): Updates bleiben ungeblockt, nur NEUE Geister werden erkannt.
+    try {
+      const preSnap = await firestore.collection(PRODUCTS_COLLECTION).doc(productId).get();
+      preDocExists = !!preSnap.exists;
+    } catch (_) {
+      // fail-open: preDocExists bleibt null → Gate blockt nie
+    }
   }
 
   // ── PRODUCT_GHOST_GATE (default OFF) ────────────────────────────────────────
@@ -213,7 +225,9 @@ async function saveProductV2(product, options = {}) {
   //   (d) no real content                  → !_hasRealContent(product)
   // NEVER blocks an UPDATE, and NEVER blocks when the flag is off. The gate runs
   // BEFORE saveProduct() so a rejected ghost is never written anywhere.
-  if (productGhostGateEnabled() && productId && preDocExists === false && !options.skipStockEvent) {
+  // Gilt auch für skipStockEvent-Aufrufer (Existenz-Read oben) — Bulk-Pfade
+  // dürfen keine neuen Geister mehr anlegen (Incident 2026-03-23, 206 Hüllen).
+  if (productGhostGateEnabled() && productId && preDocExists === false) {
     try {
       const normalizedIncoming = normalizeProduct(product);
       const { ghost, errors } = detectGhostSignature(normalizedIncoming);

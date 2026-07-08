@@ -108,12 +108,20 @@ function isUnitNotFound(msg) {
 async function retireKauflandUnit({ productId, unitId, reason = 'unit_not_found' }) {
   const now = new Date().toISOString();
   try {
-    await firestore.collection('products_v2').doc(productId).set(
-      { ops: { kaufland: { unitId: null, unitIdCleared: now, unitIdClearReason: reason } } },
-      { merge: true }
-    );
+    // update() statt set({merge:true}): ein set-merge auf ein gelöschtes Produkt
+    // erzeugt eine leere ops-only-Hülle neu (Geister-Produkt). update() schlägt
+    // auf fehlenden Docs fehl (NOT_FOUND, gRPC code 5) — genau das wollen wir.
+    await firestore.collection('products_v2').doc(productId).update({
+      'ops.kaufland.unitId': null,
+      'ops.kaufland.unitIdCleared': now,
+      'ops.kaufland.unitIdClearReason': reason,
+    });
   } catch (clearErr) {
-    console.warn(`[stock-sync] Failed to clear stale kaufland unitId for product=${productId}: ${clearErr?.message}`);
+    if (clearErr?.code === 5) {
+      console.log(`[stock-sync] Product ${productId} no longer exists — skip kaufland unitId clear (no shell resurrection)`);
+    } else {
+      console.warn(`[stock-sync] Failed to clear stale kaufland unitId for product=${productId}: ${clearErr?.message}`);
+    }
   }
   if (unitId) {
     try {
@@ -315,13 +323,14 @@ async function syncStockToAllChannels({ tenantId = 'default', product, reason = 
 
     const clearStaleItemId = async () => {
       try {
-        await firestore.collection('products_v2').doc(productId).set(
-          {
-            ops: { ebay: { itemId: null, itemIdCleared: new Date().toISOString(), itemIdClearReason: 'listing_ended' } },
-            listingStatus: { ebay: 'inactive' },
-          },
-          { merge: true }
-        );
+        // update() statt set({merge:true}) — kein Neu-Anlegen gelöschter Produkte
+        // als ops-only-Hülle (Geister-Produkt). NOT_FOUND wird unten behandelt.
+        await firestore.collection('products_v2').doc(productId).update({
+          'ops.ebay.itemId': null,
+          'ops.ebay.itemIdCleared': new Date().toISOString(),
+          'ops.ebay.itemIdClearReason': 'listing_ended',
+          'listingStatus.ebay': 'inactive',
+        });
         // Mark the cached live listing inactive too, so resolveEbayItemIdFromLiveListing
         // stops handing the stale itemId straight back next cycle (the loop behind
         // 600+ wasted "already ended" eBay calls/day). A re-list re-activates it via
@@ -337,7 +346,11 @@ async function syncStockToAllChannels({ tenantId = 'default', product, reason = 
         } catch (_) { /* best-effort cache cleanup */ }
         console.log(`[stock-sync] Cleared stale ebay itemId + marked listing inactive for product=${productId} (listing ended)`);
       } catch (clearErr) {
-        console.warn(`[stock-sync] Failed to clear stale ebay itemId: ${clearErr?.message}`);
+        if (clearErr?.code === 5) {
+          console.log(`[stock-sync] Product ${productId} no longer exists — skip ebay itemId clear (no shell resurrection)`);
+        } else {
+          console.warn(`[stock-sync] Failed to clear stale ebay itemId: ${clearErr?.message}`);
+        }
       }
     };
 

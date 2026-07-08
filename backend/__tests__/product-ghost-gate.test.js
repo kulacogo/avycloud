@@ -219,6 +219,89 @@ describe('PRODUCT_GHOST_GATE', () => {
     expect(result).toMatchObject({ id: product.id });
   });
 
+  // ── Echte Produktions-Formen (Incident 2026-03-23: 206 leere Hüllen) ────────
+  // Alle drei Formen haben identification.name === '' (leerer String, kein
+  // Platzhalter-Wort) — genau die Signatur, die im März 2026 durch die
+  // Dual-Write-Bugs (BUG-084/085) entstand.
+  function emptyShell(id) {
+    return {
+      id,
+      identification: { name: '', category: '', sku: 'SKU-1341452362' },
+      details: {
+        identifiers: { sku: 'SKU-1341452362' },
+        short_description: '',
+        description: '',
+        attributes: {},
+        images: [],
+        key_features: [],
+      },
+      inventory: { quantity: 0 },
+      tenantId: 'default',
+    };
+  }
+
+  it.each([
+    ['UUID-Doc-ID', 'fab309b3-784b-4e9a-861b-a53eca92313d'],
+    ['nackte EAN als Doc-ID', '0019451391762'],
+    ['SKU als Doc-ID', 'SKU-0058749943'],
+  ])('(vii) flag ON + NEUE leere Hülle (%s) → PRODUCT_GHOST_REJECTED', async (_label, id) => {
+    process.env.PRODUCT_GHOST_GATE = 'true';
+
+    let thrown = null;
+    try {
+      await saveProductV2(emptyShell(id), { source: 'test-incident-2026-03-23' });
+    } catch (err) {
+      thrown = err;
+    }
+
+    expect(thrown?.code).toBe('PRODUCT_GHOST_REJECTED');
+    expect(saveProductMock).not.toHaveBeenCalled();
+  });
+
+  it('(viii) flag ON + skipStockEvent + NEUE leere Hülle → trotzdem geblockt (Bypass geschlossen)', async () => {
+    // Bulk-Pfade (skipStockEvent:true) haben den Gate früher komplett umgangen.
+    process.env.PRODUCT_GHOST_GATE = 'true';
+
+    let thrown = null;
+    try {
+      await saveProductV2(emptyShell('11111111-2222-4333-8444-555555555555'), {
+        source: 'bulk-import',
+        skipStockEvent: true,
+      });
+    } catch (err) {
+      thrown = err;
+    }
+
+    expect(thrown?.code).toBe('PRODUCT_GHOST_REJECTED');
+    expect(saveProductMock).not.toHaveBeenCalled();
+  });
+
+  it('(viii-b) flag ON + skipStockEvent + UPDATE eines existierenden Docs → speichert (kein Block)', async () => {
+    process.env.PRODUCT_GHOST_GATE = 'true';
+    const product = emptyShell('22222222-3333-4444-8555-777777777777');
+    docs.set(docKey('products_v2', product.id), { identification: { name: '' } });
+
+    const result = await saveProductV2(product, { source: 'gmbh-cutover-reset', skipStockEvent: true });
+
+    expect(saveProductMock).toHaveBeenCalledTimes(1);
+    expect(result).toMatchObject({ id: product.id });
+  });
+
+  it('(viii-c) flag OFF + skipStockEvent → kein Existenz-Read, kein Block (Verhalten wie heute)', async () => {
+    const product = emptyShell('33333333-4444-4555-8666-888888888888');
+
+    const result = await saveProductV2(product, { source: 'bulk-import', skipStockEvent: true });
+
+    expect(saveProductMock).toHaveBeenCalledTimes(1);
+    expect(result).toMatchObject({ id: product.id });
+    // Flag aus + skipStockEvent → kein Existenz-Read VOR dem Save
+    // (Bulk-Performance-Garantie bleibt erhalten). Der erste products_v2-Zugriff
+    // darf frühestens durch saveProduct()/Post-Save-Validierung passieren.
+    const preSaveCalls = mockFirestore.collection.mock.invocationCallOrder
+      .filter((order) => order < saveProductMock.mock.invocationCallOrder[0]);
+    expect(preSaveCalls).toHaveLength(0);
+  });
+
   it('(vi) flag ON but NOT a ghost (UUID id, NO barcode, placeholder brand only but REAL name) → saves', async () => {
     // Guard: a doc with a real name but placeholder brand/category is NOT a ghost
     // per the "has real content" check → must not be blocked.

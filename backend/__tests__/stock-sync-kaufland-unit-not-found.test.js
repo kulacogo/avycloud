@@ -123,10 +123,13 @@ describe('stock-sync: Kaufland "Unit Not Found" must retire the unit (break the 
     expect(mw).toBeTruthy();
     expect(mw.data.active).toBe(false);
 
-    // Stale unitId cleared on the product.
+    // Stale unitId cleared on the product — als update() mit Dotted-Paths,
+    // NICHT als set({merge:true}): set-merge würde ein gelöschtes Produkt als
+    // leere ops-Hülle neu anlegen (Geister-Produkt-Resurrection).
     const pw = productWrite();
     expect(pw).toBeTruthy();
-    expect(pw.data.ops.kaufland.unitId).toBe(null);
+    expect(pw.op).toBe('update');
+    expect(pw.data['ops.kaufland.unitId']).toBe(null);
   });
 
   it('zero stock: ONHOLD "Unit Not Found" also retires the unit as skipped', async () => {
@@ -138,7 +141,38 @@ describe('stock-sync: Kaufland "Unit Not Found" must retire the unit (break the 
     expect(kaufland.status).toBe('skipped');
     expect(kaufland.action).toBe('unit_retired');
     expect(mirrorWrite()?.data.active).toBe(false);
-    expect(productWrite()?.data.ops.kaufland.unitId).toBe(null);
+    expect(productWrite()?.data['ops.kaufland.unitId']).toBe(null);
+  });
+
+  it('product doc gelöscht: NOT_FOUND beim unitId-Clear wird geschluckt, keine Hülle neu angelegt', async () => {
+    updateUnitImpl = async () => { throw new Error('Unit Not Found'); };
+    setUnitStatusImpl = async () => { throw new Error('Unit Not Found'); };
+    // update() auf fehlendem Doc → gRPC NOT_FOUND (code 5)
+    const origHandle = mockFirestore.collection.getMockImplementation();
+    mockFirestore.collection.mockImplementation((name) => {
+      const chain = origHandle(name);
+      if (name === 'products_v2') {
+        const origDoc = chain.doc;
+        chain.doc = vi.fn((id) => ({
+          ...origDoc(id),
+          update: async () => { const e = new Error('NOT_FOUND'); e.code = 5; throw e; },
+        }));
+      }
+      return chain;
+    });
+
+    try {
+      const { results } = await syncStockToAllChannels({ tenantId: 'default', product: kauflandProduct(5), reason: 'reconcile' });
+      const kaufland = kauflandResult(results);
+
+      // Retire läuft trotzdem als 'skipped' durch (Mirror wird deaktiviert) …
+      expect(kaufland.status).toBe('skipped');
+      expect(mirrorWrite()?.data.active).toBe(false);
+      // … aber es wird KEIN products_v2-Write persistiert (keine Resurrection).
+      expect(productWrite()).toBeUndefined();
+    } finally {
+      mockFirestore.collection.mockImplementation(origHandle);
+    }
   });
 
   it('does NOT retire on a non-NotFound error (e.g. rate limit) — keeps it retryable', async () => {
