@@ -29,6 +29,7 @@ export type View =
   | "warehouse-settings"
   | "marketplace-ebay"
   | "marketplace-kaufland"
+  | "marketplace-errors"
   | "integrations"
   | "integrations-ebay"
   | "integrations-kaufland"

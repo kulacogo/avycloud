@@ -1221,6 +1221,105 @@ router.get('/kaufland/listings', requirePermission('products', 'read'), async (r
 // Kaufland Publish
 // =====================================================================
 
+// --- Listing-Fehler-Persistenz (Kaufland) ------------------------------------
+// Spiegelt eBays `marketplace.ebay.listing_errors`: fehlgeschlagene Kaufland-
+// Listings bleiben pro Produkt gespeichert (nicht flüchtig im Modal) bis behoben,
+// und werden bei erfolgreichem Publish automatisch gelöscht. `update()` (statt
+// set+merge) verhindert Ghost-Docs, falls die Produkt-ID nicht existiert.
+async function persistKauflandListingError(productId, message, code = null) {
+  if (!productId || !message) return;
+  try {
+    await firestore.collection('products_v2').doc(String(productId)).update({
+      'marketplace.kaufland.listing_errors': [{ code: code || null, message: String(message), severity: 'Error' }],
+      'marketplace.kaufland.listing_errors_at': new Date().toISOString(),
+    });
+  } catch (e) {
+    if (e?.code !== 5 /* NOT_FOUND — kein Doc, kein Ghost */) {
+      console.warn(`[kaufland] persist listing error ${productId}: ${e?.message}`);
+    }
+  }
+}
+
+async function clearKauflandListingError(productId) {
+  if (!productId) return;
+  try {
+    await firestore.collection('products_v2').doc(String(productId)).update({
+      'marketplace.kaufland.listing_errors': FieldValue.delete(),
+      'marketplace.kaufland.listing_errors_at': FieldValue.delete(),
+    });
+  } catch (e) {
+    if (e?.code !== 5) console.warn(`[kaufland] clear listing error ${productId}: ${e?.message}`);
+  }
+}
+
+// Gebündeltes Listing-Fehler-Cockpit: jedes Produkt, das auf eBay ODER Kaufland
+// nicht gelistet werden konnte, mit klassifizierten Gründen + Aggregat nach Grund.
+// Quelle: `marketplace.{ebay,kaufland}.listing_errors` (persistiert bis behoben).
+router.get('/listing-errors', requirePermission('products', 'read'), async (req, res) => {
+  try {
+    const { classifyListingError } = require('../lib/listing-error-classify');
+    const { getAllProductsV2, getAllProductsV2ForTenant } = require('../lib/product-store');
+    const tenantId = req.user?.tenantId;
+    const products = tenantId ? await getAllProductsV2ForTenant(tenantId) : await getAllProductsV2();
+
+    const rows = [];
+    const groups = new Map();
+    let ebayCount = 0;
+    let kauflandCount = 0;
+
+    const addRow = (product, channel, errs) => {
+      const list = Array.isArray(errs) ? errs.filter(Boolean) : [];
+      if (!list.length) return;
+      const classified = list.map((e) => classifyListingError(e));
+      const primary = classified[0];
+      rows.push({
+        productId: product.id,
+        sku: product?.identification?.sku || product?.details?.identifiers?.sku || null,
+        title: product?.identification?.name || product?.details?.title || null,
+        imageUrl: product?.details?.images?.[0]?.url_or_base64 || product?.details?.images?.[0]?.url || null,
+        channel,
+        primaryGroupKey: primary.groupKey,
+        primaryLabel: primary.label,
+        errors: classified.map((c, i) => ({
+          code: c.code, message: c.message, label: c.label, groupKey: c.groupKey,
+          severity: list[i]?.severity || 'Error',
+        })),
+        at: channel === 'ebay'
+          ? (product?.marketplace?.ebay?.listing_errors_at || null)
+          : (product?.marketplace?.kaufland?.listing_errors_at || null),
+      });
+      if (channel === 'ebay') ebayCount += 1; else kauflandCount += 1;
+      const g = groups.get(primary.groupKey)
+        || { groupKey: primary.groupKey, label: primary.label, count: 0, ebay: 0, kaufland: 0 };
+      g.count += 1; g[channel] += 1;
+      groups.set(primary.groupKey, g);
+    };
+
+    for (const p of products) {
+      addRow(p, 'ebay', p?.marketplace?.ebay?.listing_errors);
+      addRow(p, 'kaufland', p?.marketplace?.kaufland?.listing_errors);
+    }
+
+    rows.sort((a, b) => String(b.at || '').localeCompare(String(a.at || '')));
+    const groupList = Array.from(groups.values()).sort((a, b) => b.count - a.count);
+
+    return res.status(200).json({
+      ok: true,
+      data: {
+        summary: { total: rows.length, ebay: ebayCount, kaufland: kauflandCount },
+        groups: groupList,
+        rows,
+      },
+    });
+  } catch (error) {
+    console.error('[GET /api/marketplace/listing-errors]', error);
+    return res.status(500).json({
+      ok: false,
+      error: { code: 500, message: error?.message || 'Failed to load listing errors' },
+    });
+  }
+});
+
 router.post('/kaufland/publish', requirePermission('products', 'write'), async (req, res) => {
   try {
     const { productId, storefront = 'de' } = req.body || {};
@@ -1237,6 +1336,7 @@ router.post('/kaufland/publish', requirePermission('products', 'write'), async (
     // Realtime: optimistic upsert into kauflandUnitsLive so UI listeners see
     // the row immediately, no wait for next periodic sync.
     await optimisticUpsertKauflandUnit({ product, createResult: result, storefront });
+    await clearKauflandListingError(productId);
     return res.status(201).json({ ok: true, data: result });
   } catch (error) {
     console.error(`[POST /api/marketplace/kaufland/publish] ${error.message}`, error);
@@ -1246,6 +1346,7 @@ router.post('/kaufland/publish', requirePermission('products', 'write'), async (
         data: { productDataSubmitted: true, message: error.message },
       });
     }
+    await persistKauflandListingError(req.body?.productId, error.message, error.code);
     const status = error.code === 'KAUFLAND_EAN_INVALID' || error.code === 'KAUFLAND_EAN_MISSING' ? 400 : 500;
     return res.status(status).json({
       ok: false,
@@ -1540,6 +1641,13 @@ router.post('/kaufland/publish/bulk', requirePermission('products', 'write'), as
             durationMs: Date.now() - startedAt,
             repaired: perProductRepaired,
           }).catch(() => null);
+        }
+        // Listing-Fehler pro Produkt festhalten/löschen (Cockpit). Nur harte
+        // Fehler/Skips; 'pending'/'pending-repaired' sind asynchron unterwegs.
+        if (perProductOk) {
+          await clearKauflandListingError(id).catch(() => null);
+        } else if (perProductStatus === 'failed' || perProductStatus === 'skipped') {
+          await persistKauflandListingError(id, perProductReason || 'Publish fehlgeschlagen').catch(() => null);
         }
       }
     }

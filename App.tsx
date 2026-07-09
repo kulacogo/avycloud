@@ -33,6 +33,7 @@ import { MitarbeiterRollen } from './components/admin/MitarbeiterRollen';
 import { ShopGesundheit } from './components/ShopGesundheit';
 import OrdersView from './components/OrdersView';
 import MarketplaceListingsView from './components/MarketplaceListingsView';
+import ListingErrorsView from './components/ListingErrorsView';
 import InventoryView from './components/InventoryView';
 import { IntegrationsHub } from './components/IntegrationsHub';
 import { IntegrationConfigPage } from './components/integrations/IntegrationConfigPage';
@@ -99,6 +100,7 @@ const ALLOWED_VIEWS: View[] = [
   'warehouse-settings',
   'marketplace-ebay',
   'marketplace-kaufland',
+  'marketplace-errors',
   'integrations',
   'integrations-ebay',
   'integrations-kaufland',
@@ -172,6 +174,7 @@ const parseHash = (): { view: View; productId: string | null } => {
     const mpMap: Record<string, View> = {
       ebay: 'marketplace-ebay',
       kaufland: 'marketplace-kaufland',
+      errors: 'marketplace-errors',
     };
     if (mpMap[second]) return { view: mpMap[second], productId: null };
   }
@@ -239,6 +242,7 @@ const viewToHashPath = (view: View, productId?: string | null) => {
     'warehouse-settings': '/warehouse/settings',
     'marketplace-ebay': '/marketplace/ebay',
     'marketplace-kaufland': '/marketplace/kaufland',
+    'marketplace-errors': '/marketplace/errors',
     input: '/products/capture',
     integrations: '/integrations',
     settings: '/settings',
@@ -873,7 +877,7 @@ const AppInner: React.FC = () => {
       setCurrentProduct(product);
       setInventoryFocusId(product.id);
       // ProductSheet is overlay-only — ensure we're on a view that shows the overlay
-      if (view !== 'products' && view !== 'inventory' && view !== 'marketplace-ebay' && view !== 'marketplace-kaufland') {
+      if (view !== 'products' && view !== 'inventory' && view !== 'marketplace-ebay' && view !== 'marketplace-kaufland' && view !== 'marketplace-errors') {
         setView('products');
       }
     }
@@ -1054,6 +1058,11 @@ const AppInner: React.FC = () => {
         return <WarehouseSettingsView />;
       case 'marketplace-kaufland':
         return <MarketplaceListingsView key="kaufland" marketplace="kaufland" />;
+      case 'marketplace-errors':
+        if (!(hasPermission('products', 'read') || hasPermission('products', 'write'))) {
+          return <div className="text-center p-8 text-txt-muted">{t('error.forbidden')}</div>;
+        }
+        return <ListingErrorsView />;
       case 'integrations':
         return <IntegrationsHub onNavigate={(id: string) => {
           const viewMap: Record<string, View> = {
@@ -1228,7 +1237,7 @@ const AppInner: React.FC = () => {
         </main>
 
         {/* ProductSheet overlay — slides in from right, independent of route */}
-        {currentProduct && (view === 'inventory' || view === 'products' || view === 'marketplace-ebay' || view === 'marketplace-kaufland') && (
+        {currentProduct && (view === 'inventory' || view === 'products' || view === 'marketplace-ebay' || view === 'marketplace-kaufland' || view === 'marketplace-errors') && (
           <div className="fixed inset-0 z-50 flex justify-end">
             {/* Backdrop */}
             <div

@@ -244,6 +244,7 @@ const viewToHash = (view: View): string => {
     "warehouse-settings": "#/warehouse/settings",
     "marketplace-ebay": "#/marketplace/ebay",
     "marketplace-kaufland": "#/marketplace/kaufland",
+    "marketplace-errors": "#/marketplace/errors",
     "settings-profile": "#/settings/profile",
     "settings-team": "#/settings/team",
     "settings-api": "#/settings/api",
@@ -395,6 +396,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, setView }) => {
             items: [
               { view: "marketplace-ebay" as View, label: "eBay", icon: icons.shoppingBag },
               { view: "marketplace-kaufland" as View, label: "Kaufland", icon: icons.store },
+              { view: "marketplace-errors" as View, label: "Listing-Fehler", icon: icons.fileText },
             ],
           },
         ]

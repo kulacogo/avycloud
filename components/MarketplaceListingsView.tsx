@@ -1772,6 +1772,13 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
                         <div className="opacity-60">+{bulkPublishSummary.failedDetails.length - 10} weitere</div>
                       )}
                     </div>
+                    <button
+                      type="button"
+                      onClick={() => { window.location.hash = "#/marketplace/errors"; }}
+                      className="mt-2 text-xs font-semibold underline underline-offset-2 hover:opacity-80"
+                    >
+                      Alle Listing-Fehler dauerhaft ansehen &amp; beheben →
+                    </button>
                   </div>
                 )}
               </div>

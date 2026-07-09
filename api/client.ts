@@ -1705,6 +1705,47 @@ export async function publishToKaufland(
   return data?.data;
 }
 
+// ── Listing-Fehler-Cockpit ────────────────────────────────────────────────
+export interface ListingErrorItem {
+  code: string | null;
+  message: string;
+  label: string;
+  groupKey: string;
+  severity: string;
+}
+export interface ListingErrorRow {
+  productId: string;
+  sku: string | null;
+  title: string | null;
+  imageUrl: string | null;
+  channel: "ebay" | "kaufland";
+  primaryGroupKey: string;
+  primaryLabel: string;
+  errors: ListingErrorItem[];
+  at: string | null;
+}
+export interface ListingErrorGroup {
+  groupKey: string;
+  label: string;
+  count: number;
+  ebay: number;
+  kaufland: number;
+}
+export interface ListingErrorsResponse {
+  summary: { total: number; ebay: number; kaufland: number };
+  groups: ListingErrorGroup[];
+  rows: ListingErrorRow[];
+}
+
+export async function fetchListingErrors(): Promise<ListingErrorsResponse> {
+  const res = await fetchApi(`${BACKEND_URL}/api/listing-errors`, { method: "GET" });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) {
+    throw new Error(data?.error?.message || "Failed to load listing errors");
+  }
+  return data?.data || { summary: { total: 0, ebay: 0, kaufland: 0 }, groups: [], rows: [] };
+}
+
 export async function bulkVerifyEbayPublish(
   productIds: string[],
   overrides?: EbayPublishOverrides
