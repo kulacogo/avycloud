@@ -162,6 +162,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
   const pickSubmitInFlightRef = useRef(false);
   // Invisible focus target for handheld/keyboard-wedge scanners in stow/pick/pack.
   const scanCaptureRef = useRef<HTMLInputElement | null>(null);
+  const scanCaptureTimerRef = useRef<number | null>(null);
 
   type IdentifySlotImage = { id: string; file: File; previewUrl: string };
   const [identifyImagesBySlot, setIdentifyImagesBySlot] = useState<Record<number, IdentifySlotImage[]>>({});
@@ -1102,14 +1103,15 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [handleScannedValue, mode]);
 
-  // Handheld/keyboard-wedge scanners (and Android scanner-keyboards) only emit
-  // keystrokes into the focused editable field. The Search view works because it
-  // has an autoFocus input; stow/pick/pack rendered none, so the window keydown
-  // listener above never received a scan. Keep an invisible readOnly input focused
-  // in these modes as the capture target. readOnly is required: the listener's
-  // guard ignores non-readOnly focused inputs, and readOnly suppresses the mobile
-  // soft-keyboard. No real editable inputs exist in these modes, so trapping focus
-  // here is safe.
+  // Android handheld scanners (NETUM/Honeywell etc.) deliver a scan as text that
+  // the input method COMMITS into the focused, EDITABLE field — exactly like the
+  // Search view (a normal <input> read via onChange). Two things that do NOT work
+  // here: a readOnly field (Android IME refuses to write into it) and the window
+  // keydown listener (IME commit often fires no per-character keydown, only value
+  // changes — keyCode 229). So we keep an invisible EDITABLE capture input focused
+  // in stow/pick/pack and read its value. inputMode="none" hides the on-screen
+  // keyboard while still accepting the scanner. No real editable inputs exist in
+  // these modes, so trapping focus here is safe.
   useEffect(() => {
     const isScanMode =
       mode === 'operations-pick' || mode === 'operations-stow' || mode === 'operations-pack';
@@ -1117,17 +1119,53 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
     scanCaptureRef.current?.focus({ preventScroll: true });
   }, [mode]);
 
+  const submitScanCapture = useCallback(
+    (raw: string) => {
+      if (scanCaptureTimerRef.current) {
+        window.clearTimeout(scanCaptureTimerRef.current);
+        scanCaptureTimerRef.current = null;
+      }
+      if (scanCaptureRef.current) scanCaptureRef.current.value = '';
+      const val = raw.replace(/[\r\n\t]+/g, '').trim();
+      if (val) handleScannedValue(val);
+    },
+    [handleScannedValue]
+  );
+
   const renderScanCapture = () => (
     <input
       ref={scanCaptureRef}
-      readOnly
+      inputMode="none"
+      autoComplete="off"
+      autoCorrect="off"
+      autoCapitalize="none"
+      spellCheck={false}
       aria-hidden="true"
       tabIndex={-1}
-      inputMode="none"
       style={{ position: 'absolute', left: '-9999px', top: 0, width: 1, height: 1, opacity: 0, pointerEvents: 'none' }}
+      onChange={(e) => {
+        const value = e.target.value;
+        // Most scanner configs append a CR/LF suffix → the full code is here now.
+        if (/[\r\n]/.test(value)) {
+          submitScanCapture(value);
+          return;
+        }
+        // No suffix: scanners burst-type, so a short gap means the scan finished.
+        if (scanCaptureTimerRef.current) window.clearTimeout(scanCaptureTimerRef.current);
+        scanCaptureTimerRef.current = window.setTimeout(() => {
+          submitScanCapture(scanCaptureRef.current?.value ?? '');
+        }, 120);
+      }}
+      onKeyDown={(e) => {
+        // Some configs send a discrete Enter/Tab key instead of a value suffix.
+        if (e.key === 'Enter' || e.key === 'Tab') {
+          e.preventDefault();
+          submitScanCapture(e.currentTarget.value);
+        }
+      }}
       onBlur={() => {
-        // Some flows (QuantityNumpad taps, submits, order selection) move focus;
-        // reclaim it so the next scan still lands.
+        // Numpad taps / submits / order selection move focus; reclaim it so the
+        // next scan still lands in the capture field.
         window.setTimeout(() => {
           const stillScanMode =
             mode === 'operations-pick' || mode === 'operations-stow' || mode === 'operations-pack';
