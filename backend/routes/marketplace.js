@@ -12,6 +12,7 @@ const {
 const { parseKTypeEbayCsvToSkuMap } = require('../lib/ktype');
 const { FieldValue } = require('../lib/jobs');
 const { isBannedEbayBreadcrumb } = require('../lib/ebay-category-governance');
+const { isRetiredKauflandUnit } = require('../lib/kaufland-unit-status');
 const { getCategoryAspectCatalog } = require('../lib/ebay-taxonomy');
 
 const router = express.Router();
@@ -1086,7 +1087,7 @@ router.get('/kaufland/listings', requirePermission('products', 'read'), async (r
     const liveSkus = new Set();
     unitsSnap.docs.forEach((doc) => {
       const d = doc.data() || {};
-      if (String(d.status || '').trim().toUpperCase() !== 'STALE') {
+      if (!isRetiredKauflandUnit(d)) {
         const s = String(d.id_offer_normalized || d.id_offer || '').trim().toLowerCase();
         if (s) liveSkus.add(s);
       }
@@ -1097,12 +1098,17 @@ router.get('/kaufland/listings', requirePermission('products', 'read'), async (r
       const unitSku = (d.id_offer || '').trim();
       const unitEan = (d.ean || '').trim();
 
-      // Exclude STALE tombstones — units no longer returned by Kaufland's
-      // /units API. Keeping them inflated the total (cache 865 vs real 397 on
-      // Kaufland) and lumped 468 dead rows into a misleading "Inaktiv" count.
-      // The current marketplace reality is exactly the non-STALE rows.
-      // (Verified 2026-05-24: cache had 394 AVAILABLE + 3 ONHOLD + 468 STALE.)
-      if (String(d.status || '').trim().toUpperCase() === 'STALE') return;
+      // Exclude retire-tombstones — they are internal markers, NOT listings:
+      //   STALE     → unit no longer returned by Kaufland's /units API. Keeping
+      //               them inflated the total (cache 865 vs real 397) and lumped
+      //               468 dead rows into a misleading "Inaktiv" count.
+      //               (Verified 2026-05-24: 394 AVAILABLE + 3 ONHOLD + 468 STALE.)
+      //   NOT_FOUND → retireKauflandUnit() marker after a Kaufland 404 (unit does
+      //               not exist, e.g. a leftover unit-id from a previous account).
+      //               (Incident 2026-07-09: a lone NOT_FOUND tombstone showed as
+      //               "1 Inaktiv" on a brand-new, empty Kaufland account.)
+      // The current marketplace reality is exactly the non-retired rows.
+      if (isRetiredKauflandUnit(d)) return;
 
       // Try matching: exact SKU → stripped SKU → EAN
       let matched = null;
