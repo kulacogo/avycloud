@@ -407,6 +407,8 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
   const [publishResult, setPublishResult] = useState<{ ok: boolean; message: string } | null>(null);
   const [publishSelectedIds, setPublishSelectedIds] = useState<Set<string>>(new Set());
   const [bulkPublishing, setBulkPublishing] = useState(false);
+  const [publishPageSize, setPublishPageSize] = useState(50);
+  const [publishCurrentPage, setPublishCurrentPage] = useState(1);
   const [bulkPublishSummary, setBulkPublishSummary] = useState<{
     total: number; success: number; failed: number;
     published?: number; fixed?: number; pending?: number; skipped?: number;
@@ -561,6 +563,8 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
     setBulkPublishSummary(null);
     setPolicyOverrides({});
     setShowPolicyOverrides(false);
+    setPublishCurrentPage(1);
+    setPublishPageSize(50);
     setPublishLoading(true);
     // Load policy config in background
     fetchIntegrationConfig(marketplace === "ebay" ? "ebay" : "kaufland")
@@ -657,17 +661,20 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
 
   const togglePublishSelectAll = useCallback((visibleProducts: Product[]) => {
     setPublishSelectedIds((prev) => {
-      const visibleIds = visibleProducts.map((p) => p.id);
-      const allSelected = visibleIds.length > 0 && visibleIds.every((id) => prev.has(id));
+      // Check if ALL filtered products (across all pages) are selected
+      const allFilteredIds = allFilteredPublishProducts.map((p) => p.id);
+      const allSelected = allFilteredIds.length > 0 && allFilteredIds.every((id) => prev.has(id));
       const next = new Set(prev);
       if (allSelected) {
-        visibleIds.forEach((id) => next.delete(id));
+        // Deselect all filtered products
+        allFilteredIds.forEach((id) => next.delete(id));
       } else {
-        visibleIds.forEach((id) => next.add(id));
+        // Select all filtered products (across all pages)
+        allFilteredIds.forEach((id) => next.add(id));
       }
       return next;
     });
-  }, []);
+  }, [allFilteredPublishProducts]);
 
   const handleBulkPublish = useCallback(async () => {
     const ids = [...publishSelectedIds];
@@ -793,7 +800,7 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
     return "empty";
   };
 
-  const filteredPublishProducts = useMemo(() => {
+  const allFilteredPublishProducts = useMemo(() => {
     let items = publishProducts;
     // Text search
     const q = publishSearch.trim().toLowerCase();
@@ -822,8 +829,14 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
       }
       return (a.identification?.name || "").localeCompare(b.identification?.name || "");
     });
-    return sorted.slice(0, 100);
+    return sorted;
   }, [publishProducts, publishSearch, publishSort, publishStatusFilter, getBinStock]);
+
+  const publishTotalPages = Math.max(1, Math.ceil(allFilteredPublishProducts.length / publishPageSize));
+  const filteredPublishProducts = allFilteredPublishProducts.slice(
+    (publishCurrentPage - 1) * publishPageSize,
+    publishCurrentPage * publishPageSize
+  );
 
   // ─── Computed Data ───────────────────────────────────────
 
@@ -969,6 +982,10 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
     setCurrentPage(1);
     setSelectedIds(new Set());
   }, [activeTab, searchQuery, stockFilter]);
+
+  useEffect(() => {
+    setPublishCurrentPage(1);
+  }, [publishSearch, publishSort, publishStatusFilter]);
 
   // ─── Loading State ───────────────────────────────────────
 
@@ -1659,11 +1676,14 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
             {/* Header */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-app-border">
               <div className="flex items-center gap-3">
-                {!publishLoading && filteredPublishProducts.length > 0 && (
+                {!publishLoading && allFilteredPublishProducts.length > 0 && (
                   <input
                     type="checkbox"
-                    checked={filteredPublishProducts.length > 0 && filteredPublishProducts.every((p) => publishSelectedIds.has(p.id))}
+                    checked={allFilteredPublishProducts.length > 0 && allFilteredPublishProducts.every((p) => publishSelectedIds.has(p.id))}
                     onChange={() => togglePublishSelectAll(filteredPublishProducts)}
+                    title={allFilteredPublishProducts.length > filteredPublishProducts.length
+                      ? `${allFilteredPublishProducts.length} Artikel gesamt selektieren (über alle Seiten)`
+                      : undefined}
                     className="w-4 h-4 rounded border-app-border text-accent focus:ring-accent/30 cursor-pointer"
                     disabled={bulkPublishing}
                   />
@@ -1821,8 +1841,19 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
                       {lbl}
                     </button>
                   ))}
-                  <span className="ml-auto text-xs text-txt-muted">
-                    {filteredPublishProducts.length} Artikel
+                  <span className="ml-auto text-xs text-txt-muted flex items-center gap-3">
+                    <span>{allFilteredPublishProducts.length} Artikel total</span>
+                    {allFilteredPublishProducts.length > 25 && (
+                      <select
+                        value={publishPageSize}
+                        onChange={(e) => { setPublishPageSize(Number(e.target.value)); setPublishCurrentPage(1); }}
+                        className="px-2 py-1 bg-app-bg border border-app-border rounded text-xs text-txt-secondary focus:outline-none"
+                      >
+                        {[25, 50, 100].map((n) => (
+                          <option key={n} value={n}>{n} pro Seite</option>
+                        ))}
+                      </select>
+                    )}
                   </span>
                 </div>
               </div>
@@ -1907,6 +1938,31 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
                 ))
               )}
             </div>
+
+            {/* Pagination controls */}
+            {allFilteredPublishProducts.length > publishPageSize && (
+              <div className="flex items-center justify-between px-5 py-3 border-t border-app-border text-xs text-txt-muted">
+                <span>
+                  Seite {publishCurrentPage} / {publishTotalPages}
+                </span>
+                <div className="flex items-center gap-1">
+                  <button
+                    disabled={publishCurrentPage <= 1}
+                    onClick={() => setPublishCurrentPage((p) => p - 1)}
+                    className="p-1.5 rounded-lg text-txt-muted hover:text-txt-primary hover:bg-app-elevated transition-colors disabled:opacity-30 disabled:pointer-events-none"
+                  >
+                    <IconChevronLeft />
+                  </button>
+                  <button
+                    disabled={publishCurrentPage >= publishTotalPages}
+                    onClick={() => setPublishCurrentPage((p) => p + 1)}
+                    className="p-1.5 rounded-lg text-txt-muted hover:text-txt-primary hover:bg-app-elevated transition-colors disabled:opacity-30 disabled:pointer-events-none"
+                  >
+                    <IconChevronRight />
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* Policy overrides section */}
             {publishSelectedIds.size > 0 && (
