@@ -59,6 +59,41 @@ async function normalizeReferenceBuffer(buffer, mimeType = 'image/png') {
   return `data:${targetMime};base64,${targetBuffer.toString('base64')}`;
 }
 
+/**
+ * Download a reference image with a plain GET. Our own GCS/CDN images are public
+ * and don't need (nor reliably work through) the Web Unlocker proxy. Returns a
+ * size-checked data URL, or throws on any non-2xx / non-image response.
+ */
+async function fetchReferenceDirect(url) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), VERTEX_REFERENCE_TIMEOUT_MS);
+  try {
+    const response = await fetch(url, {
+      method: 'GET',
+      redirect: 'follow',
+      signal: controller.signal,
+      headers: {
+        'User-Agent': 'avystock-vertex-ref/1.0',
+        Accept: 'image/*,*/*;q=0.8',
+      },
+    });
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+    const mimeType = (response.headers.get('content-type') || '').split(';')[0].trim().toLowerCase();
+    if (!mimeType.startsWith('image/')) {
+      throw new Error(`unexpected content-type ${mimeType || 'unknown'}`);
+    }
+    const buffer = Buffer.from(await response.arrayBuffer());
+    if (!buffer.length) {
+      throw new Error('empty response body');
+    }
+    return normalizeReferenceBuffer(buffer, mimeType);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function fetchImageAsDataUrl(image) {
   const value = image?.url_or_base64;
   if (!value) {
@@ -75,6 +110,15 @@ async function fetchImageAsDataUrl(image) {
   }
 
   if (/^https?:\/\//i.test(value)) {
+    // Public/own images (GCS, CDNs) are directly fetchable — a plain GET works
+    // and avoids the fragile + billed scraping proxy. Only fall back to the Web
+    // Unlocker for hosts that actively block datacenter IPs (e.g. Amazon pages).
+    try {
+      return await fetchReferenceDirect(value);
+    } catch (directErr) {
+      console.warn(`Direct reference download failed (${directErr.message}); trying Web Unlocker: ${value}`);
+    }
+
     console.log(`Downloading reference image via Web Unlocker from ${value}`);
     const result = await fetchWithUnlocker({
       url: value,
@@ -217,7 +261,9 @@ async function generateImagesForProduct(product, options = {}) {
         if (match) referenceBuffers.push(Buffer.from(match[1], 'base64'));
       }
     } catch (e) {
-      // best-effort: skip broken URLs
+      // best-effort: skip broken URLs, but surface WHY (this was silently
+      // swallowed before, hiding the Web-Unlocker failure — Incident 2026-07-09).
+      console.warn(`Reference download failed for ${img?.url_or_base64 || 'unknown'}: ${e.message}`);
     }
   }
   if (!referenceDataUrls.length) {
@@ -295,4 +341,5 @@ async function generateImagesForProduct(product, options = {}) {
 
 module.exports = {
   generateImagesForProduct,
+  fetchImageAsDataUrl,
 };
