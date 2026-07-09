@@ -1124,7 +1124,7 @@ body {
     <img src="https://storage.googleapis.com/trendocean/desc_logo.png"
          alt="TrendOcean"
          class="to-logo">
-  
+    <p class="to-tagline">Qualit\u00e4t \u00b7 Verantwortung \u00b7 Fairness</p>
   </div>
 
   <h1 class="to-title">${escapeHtml(auctionName)}</h1>
