@@ -1,0 +1,5 @@
+- generic [ref=e29]:
+  - heading "E-Mail bestätigen" [level=1] [ref=e30]
+  - paragraph [ref=e31]: Dein Account ist angelegt, aber die E-Mail-Adresse ist noch nicht bestätigt. Bitte nutze den Bestätigungs-Link in deiner E-Mail.
+  - generic [ref=e32]: "Angemeldet als: diag-test@trendocean.de"
+  - button "Abmelden" [ref=e33] [cursor=pointer]

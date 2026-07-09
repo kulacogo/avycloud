@@ -1,0 +1,14 @@
+- generic [ref=e4]:
+  - generic [ref=e5]:
+    - heading "AvyCloud Login" [level=1] [ref=e6]
+    - paragraph [ref=e7]: Nur Konten mit @trendocean.de sind erlaubt.
+  - generic [ref=e8]:
+    - generic [ref=e9]:
+      - text: E-Mail
+      - textbox "E-Mail" [ref=e10]:
+        - /placeholder: name@trendocean.de
+    - generic [ref=e11]:
+      - text: Passwort
+      - textbox "Passwort" [ref=e12]
+    - button "Anmelden" [ref=e13] [cursor=pointer]
+  - button "Passwort vergessen?" [ref=e15] [cursor=pointer]

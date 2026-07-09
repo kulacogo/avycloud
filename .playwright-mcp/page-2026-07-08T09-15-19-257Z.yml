@@ -1,0 +1,26 @@
+- generic [ref=e2]:
+  - generic [ref=e4]:
+    - generic [ref=e5]:
+      - heading "AvyCloud Login" [level=1] [ref=e6]
+      - paragraph [ref=e7]: Nur Konten mit @trendocean.de sind erlaubt.
+    - generic [ref=e8]:
+      - generic [ref=e9]:
+        - text: E-Mail
+        - textbox "E-Mail" [ref=e10]:
+          - /placeholder: name@trendocean.de
+      - generic [ref=e11]:
+        - text: Passwort
+        - textbox "Passwort" [ref=e12]
+      - button "Anmelden" [ref=e13] [cursor=pointer]
+    - button "Passwort vergessen?" [ref=e15] [cursor=pointer]
+  - generic [ref=e17]:
+    - generic [ref=e18]:
+      - generic [ref=e19]: 🍪
+      - generic [ref=e20]:
+        - heading "Cookie-Einstellungen" [level=3] [ref=e21]
+        - paragraph [ref=e22]: Wir verwenden Cookies und ähnliche Technologien, um AvyCloud bereitzustellen und zu verbessern. Einige sind technisch notwendig, andere helfen uns, das Nutzungserlebnis zu optimieren.
+    - generic [ref=e23]:
+      - button "Alle akzeptieren" [ref=e24] [cursor=pointer]
+      - button "Nur notwendige" [ref=e25] [cursor=pointer]
+      - button "Einstellungen" [ref=e26] [cursor=pointer]
+    - paragraph [ref=e27]: Mehr Informationen in unserer Datenschutzerklärung.

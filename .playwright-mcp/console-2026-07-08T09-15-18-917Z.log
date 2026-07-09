@@ -1,0 +1,11 @@
+[     346ms] [WARNING] Error while trying to use the following icon from the Manifest: https://avycloud.web.app/android-chrome-192x192.png (Download error or resource isn't a valid image) @ https://avycloud.web.app/:0
+[   27208ms] [ERROR] Failed to load resource: the server responded with a status of 401 () @ https://product-hub-backend-79205549235.europe-west3.run.app/api/inventories:0
+[   27210ms] [ERROR] Failed to load resource: the server responded with a status of 401 () @ https://product-hub-backend-79205549235.europe-west3.run.app/api/me/permissions?t=1783502145994:0
+[   27446ms] [ERROR] Failed to load resource: the server responded with a status of 401 () @ https://product-hub-backend-79205549235.europe-west3.run.app/api/sessions:0
+[   27586ms] [ERROR] Failed to load resource: the server responded with a status of 401 () @ https://product-hub-backend-79205549235.europe-west3.run.app/api/inventories:0
+[   27588ms] [ERROR] Failed to load inventories: Error: Missing Authorization bearer token
+    at Tz (https://avycloud.web.app/assets/index-9e24123b.js:40:156356)
+    at async https://avycloud.web.app/assets/index-9e24123b.js:2694:22768 @ https://avycloud.web.app/assets/index-9e24123b.js:2693
+[   27662ms] [ERROR] Failed to load resource: the server responded with a status of 401 () @ https://product-hub-backend-79205549235.europe-west3.run.app/api/me/permissions?t=1783502145994:0
+[   27928ms] [ERROR] Failed to load resource: the server responded with a status of 401 () @ https://product-hub-backend-79205549235.europe-west3.run.app/api/sessions:0
+[   69623ms] [ERROR] Failed to load resource: the server responded with a status of 401 () @ https://product-hub-backend-79205549235.europe-west3.run.app/api/inventories:0
