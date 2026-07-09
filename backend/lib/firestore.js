@@ -4136,10 +4136,45 @@ async function computeOrdersDeliveryTotal(fromDate, toDate) {
   };
 }
 
+/**
+ * Prueft, ob der GCS-Bildordner products/{folderId}/ von einem ANDEREN lebenden
+ * products_v2-Doc referenziert wird (details.images-URL enthaelt /products/{folderId}/).
+ *
+ * Incident 2026-07-09: Nach der Doc-ID-Migration (SKU-ID -> Barcode-ID) teilten
+ * sich mehrere Docs denselben products/SKU-.../-Bildordner. Ein Produkt-Delete
+ * (bes. purgeDuplicates) wischte via deleteProductImages() den kompletten Prefix
+ * und zerstoerte damit die Bilder ueberlebender Docs (50 Produkte ohne Bild).
+ * Dieser Guard verhindert das: nur loeschen, wenn KEIN anderes Doc den Ordner nutzt.
+ *
+ * @param {string} folderId       Ordner-Segment (= das zu loeschende Doc-id/prefix)
+ * @param {string|null} excludeDocId  Doc, das gerade geloescht wird (eigene Referenz ignorieren)
+ * @returns {Promise<boolean>} true = noch referenziert -> NICHT loeschen
+ */
+async function isProductImageFolderReferenced(folderId, excludeDocId = null) {
+  if (!folderId) return false;
+  const needle = `/products/${String(folderId)}/`;
+  const snap = await firestore.collection(PRODUCTS_COLLECTION).select('details.images').get();
+  for (const doc of snap.docs) {
+    if (excludeDocId && doc.id === excludeDocId) continue;
+    let imgs;
+    try { imgs = doc.get('details.images'); } catch { imgs = null; }
+    if (!Array.isArray(imgs)) continue;
+    for (const im of imgs) {
+      const raw = typeof im === 'string' ? im
+        : (im && (im.url_or_base64 || im.url)) || '';
+      const url = typeof raw === 'string' ? raw
+        : (raw && typeof raw === 'object' && typeof raw.url === 'string' ? raw.url : '');
+      if (typeof url === 'string' && url.includes(needle)) return true;
+    }
+  }
+  return false;
+}
+
 module.exports = {
   PRODUCTS_COLLECTION,
   saveProduct,
   getProduct,
+  isProductImageFolderReferenced,
   getAllProducts,
   getAllProductsForTenant,
   deleteProduct,

@@ -85,6 +85,29 @@ const SaveStatusBadge: React.FC<{ saved: boolean }> = ({ saved }) => {
   );
 };
 
+// Thumbnail mit Fallback: probiert die Bildkandidaten der Reihe nach; bei
+// Ladefehler (z.B. GCS-404, Incident 2026-07-09) das naechste, sonst Platzhalter.
+const ProductThumbnail: React.FC<{ srcs: string[]; alt: string }> = ({ srcs, alt }) => {
+  const [idx, setIdx] = useState(0);
+  useEffect(() => { setIdx(0); }, [srcs.join('|')]);
+  const src = srcs[idx];
+  return (
+    <div className="w-12 h-12 rounded-md overflow-hidden bg-app-elevated flex items-center justify-center text-xs text-txt-muted">
+      {src ? (
+        <img
+          src={src}
+          alt={alt}
+          className="w-full h-full object-cover"
+          loading="lazy"
+          onError={() => setIdx((i) => i + 1)}
+        />
+      ) : (
+        '—'
+      )}
+    </div>
+  );
+};
+
 const AdminTable: React.FC<AdminTableProps> = ({
   products,
   onSelectProduct,
@@ -444,16 +467,20 @@ const AdminTable: React.FC<AdminTableProps> = ({
     else setFilterEditor([myInitials]);
   };
 
-  const primaryImage = (product: Product): string | null => {
+  // Alle http-Bildkandidaten in Reihenfolge (fuer onError-Fallback aufs naechste).
+  // Incident 2026-07-09: einzelne GCS-Bilder liefern 404 — nicht das erste blind
+  // nehmen, sondern durchprobieren und sonst Platzhalter zeigen.
+  const imageCandidates = (product: Product): string[] => {
+    const out: string[] = [];
     for (const img of product.details?.images || []) {
       const raw = (img as any).url_or_base64;
       const src = typeof raw === 'string' ? raw
         : raw && typeof raw === 'object' && typeof raw.url === 'string' ? raw.url
         : typeof (img as any).url === 'string' ? (img as any).url
         : null;
-      if (src && src.startsWith('http')) return src;
+      if (src && src.startsWith('http')) out.push(src);
     }
-    return null;
+    return out;
   };
   const primaryBarcode = (product: Product) => {
     const codes = product.identification?.barcodes || [];
@@ -526,23 +553,12 @@ const AdminTable: React.FC<AdminTableProps> = ({
         label: t('table.thumbnail'),
         defaultVisible: true,
         widthClass: 'w-20',
-        render: ({ product }) => {
-          const imgSrc = primaryImage(product);
-          return (
-            <div className="w-12 h-12 rounded-md overflow-hidden bg-app-elevated flex items-center justify-center text-xs text-txt-muted">
-              {imgSrc ? (
-                <img
-                  src={imgSrc}
-                  alt={product.identification?.name || 'Produktbild'}
-                  className="w-full h-full object-cover"
-                  loading="lazy"
-                />
-              ) : (
-                '—'
-              )}
-            </div>
-          );
-        },
+        render: ({ product }) => (
+          <ProductThumbnail
+            srcs={imageCandidates(product)}
+            alt={product.identification?.name || 'Produktbild'}
+          />
+        ),
       },
       {
         id: 'nameBrand',

@@ -29,6 +29,26 @@ const {
   Timestamp,
 } = require('../lib/improve-jobs');
 const { uploadBase64Image, deleteProductImages } = require('../lib/storage');
+const { isProductImageFolderReferenced } = require('../lib/firestore');
+
+/**
+ * Reference-safe Wrapper um deleteProductImages (Incident 2026-07-09).
+ * Wischt den GCS-Bildordner products/{folderId}/ NUR, wenn kein anderes
+ * lebendes Produkt-Doc ihn referenziert. Fail-closed: bei jedem Zweifel/Fehler
+ * NICHT loeschen (lieber verwaiste Objekte als zerstoerte Bilder Ueberlebender).
+ */
+async function safeDeleteProductImages(folderId, excludeDocId) {
+  try {
+    if (await isProductImageFolderReferenced(folderId, excludeDocId)) {
+      console.warn(`[safeDelete] Bildordner products/${folderId}/ noch von anderem Produkt referenziert — GCS-Delete uebersprungen`);
+      return;
+    }
+  } catch (err) {
+    console.warn(`[safeDelete] Referenz-Check fuer ${folderId} fehlgeschlagen, GCS-Delete uebersprungen (fail-closed):`, err?.message || err);
+    return;
+  }
+  await deleteProductImages(folderId);
+}
 const { recordManualProductImage } = require('../lib/product-images');
 const { requirePermission, resolvePermissionsForUser } = require('../lib/rbac');
 const { fetchWithUnlocker } = require('../lib/web-unlocker');
@@ -1458,7 +1478,7 @@ router.post('/products/bulk-delete', requirePermission('products', 'delete'), as
           notFound.push(id);
           continue;
         }
-        await deleteProductImages(id);
+        await safeDeleteProductImages(id, id);
         await deleteProduct(id);
         deleted.push(id);
 
@@ -1482,7 +1502,7 @@ router.post('/products/bulk-delete', requirePermission('products', 'delete'), as
             if (duplicateIds.length) {
               await Promise.all(
                 duplicateIds.map(async (dupId) => {
-                  await deleteProductImages(dupId);
+                  await safeDeleteProductImages(dupId, dupId);
                   await deleteProduct(dupId);
                 })
               );
@@ -2134,7 +2154,7 @@ router.delete('/products/:id', requirePermission('products', 'delete'), async (r
       });
     }
 
-    await deleteProductImages(productId);
+    await safeDeleteProductImages(productId, productId);
     await deleteProduct(productId);
 
     // Audit log: product deleted
@@ -2178,7 +2198,7 @@ router.delete('/products/:id', requirePermission('products', 'delete'), async (r
         if (duplicateIds.length) {
           await Promise.all(
             duplicateIds.map(async (dupId) => {
-              await deleteProductImages(dupId);
+              await safeDeleteProductImages(dupId, dupId);
               await deleteProduct(dupId);
             })
           );
