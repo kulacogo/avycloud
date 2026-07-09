@@ -659,23 +659,6 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
     });
   }, []);
 
-  const togglePublishSelectAll = useCallback((visibleProducts: Product[]) => {
-    setPublishSelectedIds((prev) => {
-      // Check if ALL filtered products (across all pages) are selected
-      const allFilteredIds = allFilteredPublishProducts.map((p) => p.id);
-      const allSelected = allFilteredIds.length > 0 && allFilteredIds.every((id) => prev.has(id));
-      const next = new Set(prev);
-      if (allSelected) {
-        // Deselect all filtered products
-        allFilteredIds.forEach((id) => next.delete(id));
-      } else {
-        // Select all filtered products (across all pages)
-        allFilteredIds.forEach((id) => next.add(id));
-      }
-      return next;
-    });
-  }, [allFilteredPublishProducts]);
-
   const handleBulkPublish = useCallback(async () => {
     const ids = [...publishSelectedIds];
     if (!ids.length) return;
@@ -837,6 +820,26 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
     (publishCurrentPage - 1) * publishPageSize,
     publishCurrentPage * publishPageSize
   );
+
+  // Defined AFTER allFilteredPublishProducts so the useCallback dependency array
+  // does not read the const while it is still in its temporal dead zone (that
+  // threw "Cannot access '...' before initialization" at render time).
+  const togglePublishSelectAll = useCallback((_visibleProducts: Product[]) => {
+    setPublishSelectedIds((prev) => {
+      // Check if ALL filtered products (across all pages) are selected
+      const allFilteredIds = allFilteredPublishProducts.map((p) => p.id);
+      const allSelected = allFilteredIds.length > 0 && allFilteredIds.every((id) => prev.has(id));
+      const next = new Set(prev);
+      if (allSelected) {
+        // Deselect all filtered products
+        allFilteredIds.forEach((id) => next.delete(id));
+      } else {
+        // Select all filtered products (across all pages)
+        allFilteredIds.forEach((id) => next.add(id));
+      }
+      return next;
+    });
+  }, [allFilteredPublishProducts]);
 
   // ─── Computed Data ───────────────────────────────────────
 
