@@ -246,6 +246,13 @@ const UPDATE_DATASHEET_DECLARATION = {
       pricing: {
         type: 'OBJECT',
         properties: {
+          sellPrice: {
+            type: 'NUMBER',
+            description:
+              'Der VERKAUFSPREIS des Angebots in EUR (das Feld, das eBay/Kaufland syncen). ' +
+              'IMMER setzen, wenn der User einen Preis festlegen oder eine Preisempfehlung übernehmen will. ' +
+              'lowest_price ist NUR Markt-Recherche-Doku und ändert den Angebotspreis NICHT.',
+          },
           lowest_price: {
             type: 'OBJECT',
             properties: {
@@ -361,6 +368,7 @@ QUALITÄT:
 - Attribute: Nur belegbare Fakten. Deutsche Schlüssel. ≤60 Zeichen pro Wert. Verwende die ebay.allowed_aspects als Referenz, aber wenn die Kategorie falsch ist, ignoriere die alten Aspects und korrigiere zuerst die Kategorie.
 - GPSR: Unter gpsr-Objekt, NIE als Attribute.
 - Preis: Aktueller Marktpreis in EUR wenn findbar.
+- Preisempfehlung ÜBERNEHMEN: Wenn der User einen Verkaufspreis festlegen oder deine Empfehlung übernehmen will, schreibe ihn in pricing.sellPrice (Zahl, EUR). pricing.lowest_price ist nur die Recherche-Dokumentation — sie ändert den Angebotspreis NICHT. Sage nie "aktualisiert", wenn du sellPrice nicht gesetzt hast.
 - Encoding: Echte Umlaute (ä, ö, ü, ß), kein HTML-Encoding.
 - Titel-Konsistenz: Nie widersprüchliche Token mischen (z.B. Damen+Herren, verschiedene Marken, Kategorie-Wörter die nicht zum Produkt passen).
 - Kategorie: Wenn die bestehende Kategorie falsch ist, gib die korrekte Kategorie im identity-Objekt an.

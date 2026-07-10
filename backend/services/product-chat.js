@@ -718,6 +718,11 @@ const updateDatasheetTool = {
         additionalProperties: false,
         required: ['lowest_price', 'price_confidence'],
         properties: {
+          // Der VERKAUFSPREIS des Angebots (eBay/Kaufland-Sync). Ohne dieses Feld
+          // kann das Modell eine Preisempfehlung nirgends hinschreiben — es
+          // aktualisiert dann nur lowest_price (Recherche-Doku) und der Preis
+          // "ändert sich nicht" (Incident 2026-07-10, SONAX 18,95 €).
+          sellPrice: { type: 'number' },
           lowest_price: {
             type: 'object',
             additionalProperties: false,
