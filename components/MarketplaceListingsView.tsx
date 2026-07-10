@@ -717,7 +717,11 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
         if (policyOverrides.warehouseId) klOverrides.warehouseId = policyOverrides.warehouseId;
         const result = await bulkPublishToKaufland(ids, "de", Object.keys(klOverrides).length > 0 ? klOverrides : undefined);
         summary = result.summary;
-        const notOkResults = result.results.filter((r) => !r.ok);
+        // 'pending'/'pending-repaired' sind KEINE Fehler: Produktdaten liegen bei
+        // Kaufland, die Validierung läuft asynchron und der Sync-Runner legt das
+        // Listing automatisch an (Self-Heal) — nicht rot als "Nicht gelistet" zeigen.
+        const isPendingStatus = (r: any) => r.status === "pending" || r.status === "pending-repaired";
+        const notOkResults = result.results.filter((r) => !r.ok && !isPendingStatus(r));
         failedNames = notOkResults.map((r) => {
           const prod = publishProducts.find((p) => p.id === r.productId);
           return prod?.identification?.name || r.productId;
@@ -736,11 +740,11 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
           const fixes = Array.isArray(r.fixes) ? r.fixes.join(", ") : "";
           return `${name}: ${fixes}`;
         });
-        const pendingResults = result.results.filter((r: any) => r.status === "pending");
+        const pendingResults = result.results.filter((r: any) => isPendingStatus(r));
         const pendingDetails = pendingResults.map((r: any) => {
           const prod = publishProducts.find((p) => p.id === r.productId);
           const name = prod?.identification?.name || r.productId;
-          return `${name}: Produktdaten eingereicht, spaeter erneut versuchen`;
+          return `${name}: Produktdaten eingereicht — wird automatisch gelistet, sobald Kaufland validiert hat (bis zu 24h)`;
         });
         invalidateListings();
         setBulkPublishSummary({
@@ -1724,7 +1728,7 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
                   <div className="font-medium">
                     {bulkPublishSummary.success} von {bulkPublishSummary.total} erfolgreich gelistet
                     {(bulkPublishSummary.fixed ?? 0) > 0 && ` (${bulkPublishSummary.fixed} auto-gefixt)`}
-                    {(bulkPublishSummary.pending ?? 0) > 0 && `, ${bulkPublishSummary.pending} eingereicht`}
+                    {(bulkPublishSummary.pending ?? 0) > 0 && `, ${bulkPublishSummary.pending} eingereicht (werden automatisch gelistet)`}
                     {(bulkPublishSummary.skipped ?? 0) > 0 && `, ${bulkPublishSummary.skipped} uebersprungen`}
                     {(bulkPublishSummary.failed ?? 0) > 0 && `, ${bulkPublishSummary.failed} fehlgeschlagen`}
                   </div>
@@ -1745,10 +1749,10 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
                   </div>
                 )}
 
-                {/* Pending details (product data submitted, async processing) */}
+                {/* Pending details (product data submitted, async processing + self-heal) */}
                 {bulkPublishSummary.pendingDetails && bulkPublishSummary.pendingDetails.length > 0 && (
-                  <div className="px-3 py-2 rounded-lg text-sm bg-warning-dim text-warning">
-                    <div className="font-medium mb-1">Produktdaten eingereicht (spaeter erneut versuchen):</div>
+                  <div className="px-3 py-2 rounded-lg text-sm bg-info-dim text-info">
+                    <div className="font-medium mb-1">Bei Kaufland eingereicht — Listing wird automatisch angelegt:</div>
                     <div className="text-xs space-y-1 max-h-32 overflow-y-auto">
                       {bulkPublishSummary.pendingDetails.slice(0, 10).map((detail, i) => (
                         <div key={i} className="opacity-90">{detail}</div>
