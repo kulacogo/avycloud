@@ -38,6 +38,8 @@ const VIEW_TITLES: Record<string, string> = {
   sheet: "Produkte",
   "marketplace-ebay": "eBay Listings",
   "marketplace-kaufland": "Kaufland Listings",
+  "marketplace-errors": "Listing-Fehler",
+  finance: "Finanzen",
   integrations: "Integrationen",
   settings: "Unternehmensdaten",
   "settings-profile": "Persönliche Daten",

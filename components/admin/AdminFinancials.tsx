@@ -27,7 +27,7 @@ const fmtCur = (v: number | null | undefined, c = "EUR", compact = false) => {
   }
 };
 const fmtNum = (n: number | null | undefined) => (n == null ? "—" : new Intl.NumberFormat("de-DE").format(n));
-const fmtPct = (n: number | null | undefined) => (n == null ? "—" : `${n.toLocaleString("de-DE")} %`);
+const fmtPct = (n: number | null | undefined) => (n == null ? "—" : `${n.toLocaleString("de-DE", { maximumFractionDigits: 1 })} %`);
 
 const PRESETS = [
   { id: "today", label: "Heute" },
@@ -41,18 +41,29 @@ const PRESETS = [
   { id: "custom", label: "Benutzerdefiniert" },
 ];
 
-// ─── Honesty badge ────────────────────────────────────────────────────────────
-type Trust = "exakt" | "geschätzt" | "abgeleitet" | "kalkulatorisch";
+// ─── Honesty badge — only NON-exact values are flagged (exact is the norm) ───
+type Trust = "geschätzt" | "erwartet" | "kalkulatorisch" | "ausstehend";
 const trustTone: Record<Trust, string> = {
-  exakt: "bg-success-dim text-success",
   geschätzt: "bg-warning-dim text-warning",
-  abgeleitet: "bg-info-dim text-info",
+  erwartet: "bg-info-dim text-info",
   kalkulatorisch: "bg-warning-dim text-warning",
+  ausstehend: "bg-app-elevated text-txt-muted",
 };
 const TrustBadge: React.FC<{ trust: Trust; note?: string }> = ({ trust, note }) => (
-  <span className={`inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${trustTone[trust]}`}>
+  <span className={`inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full whitespace-nowrap ${trustTone[trust]}`}>
     {trust}
     {note ? <span className="opacity-80 font-normal">· {note}</span> : null}
+  </span>
+);
+
+// ─── Info tooltip (native title — explanations live here, not in the layout) ─
+const Info: React.FC<{ text: string }> = ({ text }) => (
+  <span
+    title={text}
+    className="inline-flex h-4 w-4 shrink-0 cursor-help items-center justify-center rounded-full border border-app-border text-[10px] font-semibold text-txt-muted hover:text-txt-primary hover:border-txt-muted"
+    aria-label={text}
+  >
+    i
   </span>
 );
 
@@ -68,20 +79,23 @@ const toneBar: Record<Tone, string> = {
 };
 const Card: React.FC<{
   label: string; value: React.ReactNode; sub?: React.ReactNode;
-  tone?: Tone; badge?: React.ReactNode; size?: "hero" | "normal";
-}> = ({ label, value, sub, tone = "neutral", badge, size = "normal" }) => (
+  tone?: Tone; badge?: React.ReactNode; info?: string;
+}> = ({ label, value, sub, tone = "neutral", badge, info }) => (
   <div className="relative overflow-hidden rounded-xl border border-app-border bg-app-surface p-5 flex flex-col gap-1.5">
     <span aria-hidden className={`absolute inset-y-0 left-0 w-[3px] ${toneBar[tone]}`} />
     <div className="flex items-start justify-between gap-2">
-      <p className="text-xs text-txt-muted font-medium">{label}</p>
+      <p className="flex items-center gap-1.5 text-xs text-txt-muted font-medium">
+        {label}
+        {info ? <Info text={info} /> : null}
+      </p>
       {badge}
     </div>
-    <p className={`font-semibold tabular-nums leading-tight ${toneVal[tone]} ${size === "hero" ? "text-3xl lg:text-4xl" : "text-2xl"}`}>{value}</p>
+    <p className={`font-semibold tabular-nums leading-tight text-3xl lg:text-4xl ${toneVal[tone]}`}>{value}</p>
     {sub ? <div className="text-xs text-txt-muted leading-snug mt-0.5">{sub}</div> : null}
   </div>
 );
 
-// ─── Date range picker (self-contained; mirrors the dashboard's UX) ─────────────
+// ─── Date range picker ────────────────────────────────────────────────────────
 const DateRangePicker: React.FC<{
   activePreset: string;
   presetLabel: string;
@@ -176,15 +190,15 @@ const DateRangePicker: React.FC<{
   );
 };
 
-// ─── P&L row (waterfall) ────────────────────────────────────────────────────
-const PnlRow: React.FC<{ label: string; value: React.ReactNode; trust?: Trust; trustNote?: string; sign?: "minus" | "eq"; strong?: boolean }> = ({ label, value, trust, trustNote, sign, strong }) => (
+// ─── P&L row ─────────────────────────────────────────────────────────────────
+const PnlRow: React.FC<{ label: string; value: React.ReactNode; badge?: React.ReactNode; sign?: "minus" | "eq"; strong?: boolean }> = ({ label, value, badge, sign, strong }) => (
   <div className={`flex items-center justify-between gap-3 py-2 ${strong ? "border-t border-app-border mt-1 pt-3" : ""}`}>
     <div className="flex items-center gap-2 min-w-0">
       <span className={`text-sm ${strong ? "font-semibold text-txt-primary" : "text-txt-secondary"}`}>
         {sign === "minus" ? <span className="text-txt-muted mr-1">−</span> : sign === "eq" ? <span className="text-txt-muted mr-1">=</span> : null}
         {label}
       </span>
-      {trust ? <TrustBadge trust={trust} note={trustNote} /> : null}
+      {badge}
     </div>
     <span className={`tabular-nums whitespace-nowrap ${strong ? "text-base font-semibold text-txt-primary" : "text-sm text-txt-primary"}`}>{value}</span>
   </div>
@@ -192,7 +206,7 @@ const PnlRow: React.FC<{ label: string; value: React.ReactNode; trust?: Trust; t
 
 const mkLabel: Record<string, string> = { ebay: "eBay", kaufland: "Kaufland", other: "Sonstige" };
 
-// ─── Cost model editor (pallet economics + marketplace fee rates) ───────────────
+// ─── Cost model editor (unchanged mechanics, lives in the footer zone) ────────
 const CostModelEditor: React.FC<{ report: FinancialReport; open: boolean; onToggle: () => void; onSaved: () => void }> = ({ report, open, onToggle, onSaved }) => {
   const cm = report.costModel;
   const [palletCostBrutto, setPalletCostBrutto] = useState(String(cm.palletCostBrutto || ""));
@@ -229,17 +243,18 @@ const CostModelEditor: React.FC<{ report: FinancialReport; open: boolean; onTogg
   const lbl = "text-xs text-txt-muted mb-1 block";
 
   return (
-    <div className="rounded-xl border border-app-border bg-app-surface p-5">
-      <button type="button" onClick={onToggle} className="w-full flex items-center justify-between">
-        <div className="text-left">
-          <h3 className="text-sm font-semibold text-txt-primary">Kostenmodell (Wareneinsatz &amp; Gebühren)</h3>
-          <p className="text-[11px] text-txt-muted">
+    <div className="rounded-xl border border-app-border bg-app-bg/40 p-4">
+      <button type="button" onClick={onToggle} className="w-full flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2 min-w-0 text-left">
+          <h3 className="text-sm font-semibold text-txt-primary shrink-0">Kostenmodell</h3>
+          <p className="truncate text-[11px] text-txt-muted">
             {cm.usable
-              ? `Quote ${cm.ratio != null ? (cm.ratio * 100).toFixed(1) + " %" : "—"} · Ø-EK ${fmtCur(cm.avgUnitCostNetto, "EUR")} netto · Ø-VK ${fmtCur(cm.avgSellPrice, "EUR")} · eBay ${fmtPct(Math.round(cm.feeRateEbay * 1000) / 10)} · Kaufland ${fmtPct(Math.round(cm.feeRateKaufland * 1000) / 10)}`
-              : "Nicht eingestellt — Palettenpreis + Einheiten eingeben, um den Wareneinsatz zu berechnen"}
+              ? `Quote ${cm.ratio != null ? (cm.ratio * 100).toFixed(1) + " %" : "—"} · Ø-EK ${fmtCur(cm.avgUnitCostNetto, "EUR")} · eBay ${fmtPct(Math.round(cm.feeRateEbay * 1000) / 10)} · Kaufland ${fmtPct(Math.round(cm.feeRateKaufland * 1000) / 10)}`
+              : "Nicht eingestellt — Palettenpreis + Einheiten eingeben"}
           </p>
+          <Info text="Wareneinsatz je Artikel = Verkaufspreis × Kostenquote (aus Palettenpreis ÷ Einheiten). Ein echter Einkaufspreis am Produkt schlägt das Modell. Die Gebührensätze dienen als Fallback, solange keine Bank-Gutschrift vorliegt." />
         </div>
-        <span className="text-txt-muted text-xs">{open ? "▲" : "▾ bearbeiten"}</span>
+        <span className="shrink-0 text-txt-muted text-xs">{open ? "▲ schließen" : "bearbeiten"}</span>
       </button>
 
       {open ? (
@@ -277,14 +292,9 @@ const CostModelEditor: React.FC<{ report: FinancialReport; open: boolean; onTogg
             </div>
           </div>
           {err ? <p className="text-xs text-danger">{err}</p> : null}
-          <div className="flex items-center gap-2">
-            <button type="button" onClick={save} disabled={saving} className="rounded-md bg-accent px-4 py-1.5 text-sm font-semibold text-txt-primary hover:bg-accent/90 disabled:opacity-50">
-              {saving ? "Speichere …" : "Speichern & neu berechnen"}
-            </button>
-            <p className="text-[11px] text-txt-muted">
-              EK je Artikel = Verkaufspreis × Kostenquote. Echter Einkaufspreis am Produkt schlägt das Modell.
-            </p>
-          </div>
+          <button type="button" onClick={save} disabled={saving} className="rounded-md bg-accent px-4 py-1.5 text-sm font-semibold text-txt-primary hover:bg-accent/90 disabled:opacity-50">
+            {saving ? "Speichere …" : "Speichern & neu berechnen"}
+          </button>
         </div>
       ) : null}
     </div>
@@ -299,8 +309,7 @@ export const AdminFinancials: React.FC = () => {
   const [report, setReport] = useState<FinancialReport | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  // Sequence guard: only the latest request may write state — a slow response
-  // from a previously selected preset must not overwrite the current one.
+  // Sequence guard: only the latest request may write state.
   const reqSeqRef = useRef(0);
 
   const load = useCallback(async () => {
@@ -319,7 +328,6 @@ export const AdminFinancials: React.FC = () => {
   }, [preset, customFrom, customTo]);
 
   useEffect(() => {
-    // For custom, only fetch once both dates are set (via the "Anwenden" button → onRefresh).
     if (preset === "custom" && (!customFrom || !customTo)) return;
     void load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -336,25 +344,60 @@ export const AdminFinancials: React.FC = () => {
   const cur = report?.currency || "EUR";
   const payoutExact = pnl?.auszahlungSource === "sevdesk";
   const cm = report?.costModel;
-  // COGS comes from a configured pallet model (kalkulatorisch) OR real buyPrice.
-  // If the model is not usable AND no real EK exists, COGS can't be computed → flag it.
   const cogsModelActive = !!cm?.usable;
   const cov = pnl?.coveragePct;
   const cogsUnavailable = !cogsModelActive && (cov == null || cov <= 0);
+
+  // ── Settlement-aware P&L ────────────────────────────────────────────────────
+  // Payouts lag sales (marketplace settlement). For short windows the bank
+  // credit is often still 0 — the naive flow formula (Gebühren = Umsatz −
+  // Auszahlung) would then claim "fees = 100%" and a deeply negative Rohgewinn.
+  // That is noise, not truth. While the payout is pending we show a RATE-BASED
+  // estimate (cost-model fee rates) and mark it as such; once real bank
+  // credits exist, the exact flow numbers take over automatically.
+  const derived = useMemo(() => {
+    if (!report || !pnl) return null;
+    const umsatz = pnl.umsatzBrutto ?? 0;
+    const payoutPending = (pnl.auszahlung ?? 0) <= 0 && umsatz > 0;
+    if (!payoutPending) {
+      return {
+        payoutPending: false,
+        fees: pnl.marketplaceFees,
+        feesTrust: pnl.feeSource === "flow" ? null : ("kalkulatorisch" as Trust),
+        payout: pnl.auszahlung,
+        rohgewinn: pnl.rohgewinn,
+        marge: pnl.margePct,
+      };
+    }
+    const rateOf: Record<string, number> = {
+      ebay: cm?.feeRateEbay ?? 0.13,
+      kaufland: cm?.feeRateKaufland ?? 0.13,
+      other: 0,
+    };
+    let fees = 0;
+    (["ebay", "kaufland", "other"] as const).forEach((k) => {
+      const m = report.marketplace[k];
+      if (m) fees += (m.umsatz || 0) * (rateOf[k] || 0);
+    });
+    fees = Math.round(fees * 100) / 100;
+    const retouren = pnl.retouren ?? 0;
+    const expectedPayout = Math.round((umsatz - retouren - fees) * 100) / 100;
+    const rohgewinn = Math.round((expectedPayout - (pnl.cogs ?? 0) - (pnl.versandBrutto ?? 0)) * 100) / 100;
+    const marge = umsatz > 0 ? Math.round((rohgewinn / umsatz) * 1000) / 10 : null;
+    return { payoutPending: true, fees, feesTrust: "kalkulatorisch" as Trust, payout: expectedPayout, rohgewinn, marge };
+  }, [report, pnl, cm]);
 
   const chartData = useMemo(
     () => (report?.timeseries || []).map((b) => ({ date: b.date, Umsatz: b.umsatz, Rohertrag: b.rohertrag })),
     [report],
   );
 
+  const rohTone: Tone = cogsUnavailable ? "amber" : (derived?.rohgewinn ?? 0) >= 0 ? "green" : "red";
+
   return (
-    <div className="space-y-5">
-      {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h2 className="text-lg font-semibold text-txt-primary">Finanzbericht</h2>
-          <p className="text-xs text-txt-muted">{presetLabel} · Umsatz, Kosten, Auszahlung &amp; Gewinn</p>
-        </div>
+    <div className="space-y-4">
+      {/* Controls — the page title comes from the surrounding view */}
+      <div className="flex items-center justify-end">
         <DateRangePicker
           activePreset={preset}
           presetLabel={presetLabel}
@@ -374,7 +417,7 @@ export const AdminFinancials: React.FC = () => {
         <div className="rounded-xl border border-warning/40 bg-warning-dim p-4 text-sm text-warning flex items-center justify-between gap-3">
           <span>
             <span className="font-semibold">Wareneinsatz fehlt:</span>{" "}
-            Kein Einkaufspreis hinterlegt und kein Kostenmodell eingestellt — der Rohgewinn enthält keine Warenkosten und ist überschätzt.
+            Rohgewinn enthält keine Warenkosten.
           </span>
           <button type="button" onClick={() => setEditCost(true)} className="shrink-0 rounded-md bg-warning/20 px-3 py-1.5 text-xs font-semibold text-warning hover:bg-warning/30">
             Kostenmodell einstellen
@@ -388,82 +431,40 @@ export const AdminFinancials: React.FC = () => {
         </div>
       ) : (
         <>
-          {/* Hero KPIs */}
+          {/* ① Answer: 4 hero KPIs */}
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
-            <Card label="Umsatz (brutto)" value={fmtCur(pnl?.umsatzBrutto, cur, true)} tone="blue" size="hero"
-              badge={<TrustBadge trust="exakt" />}
-              sub={`${fmtNum(pnl?.orderCount)} Aufträge`} />
-            <Card label="Auszahlung (tatsächlich)" value={fmtCur(pnl?.auszahlung, cur, true)} tone="violet" size="hero"
-              badge={<TrustBadge trust={payoutExact ? "exakt" : "geschätzt"} note={payoutExact ? "SevDesk" : undefined} />}
-              sub={payoutExact ? "Bank-Gutschriften eBay + Kaufland" : "erwartet aus Umsatz − Gebühren"} />
+            <Card label="Umsatz" value={fmtCur(pnl?.umsatzBrutto, cur, true)} tone="blue"
+              sub={`${fmtNum(pnl?.orderCount)} Aufträge · brutto`} />
             <Card
-              label="Rohgewinn / Deckungsbeitrag"
-              value={fmtCur(pnl?.rohgewinn, cur, true)}
-              tone={cogsUnavailable ? "amber" : (pnl?.rohgewinn ?? 0) >= 0 ? "green" : "red"} size="hero"
-              badge={<TrustBadge trust="kalkulatorisch" />}
-              sub={cogsUnavailable ? "⚠ ohne Warenkosten — Kostenmodell einstellen" : `Marge ${fmtPct(pnl?.margePct)}`} />
-            <Card label="Kontostand (SevDesk)" value={fmtCur(report.balances.total, cur, true)}
-              tone={report.balances.total >= 0 ? "neutral" : "red"} size="hero"
-              badge={<TrustBadge trust="exakt" note="Stichtag" />}
-              sub={`${fmtNum(report.balances.accounts.length)} Konten`} />
+              label="Rohgewinn"
+              value={fmtCur(derived?.rohgewinn, cur, true)}
+              tone={rohTone}
+              badge={derived?.payoutPending ? <TrustBadge trust="kalkulatorisch" /> : undefined}
+              info="Auszahlung − Wareneinsatz − Versand. Fixkosten nicht enthalten (Deckungsbeitrag). Solange die Marktplatz-Auszahlung aussteht, wird mit den Gebührensätzen gerechnet."
+              sub={cogsUnavailable ? "ohne Warenkosten — Kostenmodell einstellen" : `Marge ${fmtPct(derived?.marge)}`} />
+            <Card
+              label={derived?.payoutPending ? "Auszahlung (erwartet)" : "Auszahlung"}
+              value={fmtCur(derived?.payout, cur, true)} tone="violet"
+              badge={derived?.payoutPending ? <TrustBadge trust="ausstehend" /> : undefined}
+              info="Echte Bank-Gutschriften der Marktplätze (SevDesk). Marktplätze zahlen zeitversetzt aus — bei kurzen Zeiträumen wird die erwartete Auszahlung angezeigt, bis die Gutschrift eingeht."
+              sub={derived?.payoutPending ? "Bank-Gutschrift folgt zeitversetzt" : "Bank-Gutschriften eBay + Kaufland"} />
+            <Card label="Kontostand" value={fmtCur(report.balances.total, cur, true)}
+              tone={report.balances.total >= 0 ? "neutral" : "red"}
+              info="Sichteinlagen laut SevDesk, Stand heute."
+              sub={`${fmtNum(report.balances.accounts.length)} ${report.balances.accounts.length === 1 ? "Konto" : "Konten"} · SevDesk`} />
           </div>
 
-          {/* Articles online — sales driver (more listings → more sales) */}
-          <div className="rounded-xl border border-app-border bg-app-surface p-5 flex flex-wrap items-center justify-between gap-4">
-            <div className="flex items-center gap-6">
-              <div>
-                <p className="text-xs text-txt-muted">Artikel online (eBay, interne Liste)</p>
-                <p className="text-2xl font-semibold tabular-nums text-txt-primary">{fmtNum(report.listingsOnline.currentActive)}</p>
-                <p className="text-[11px] text-warning">⚠ kann von eBay abweichen (Sync-Drift)</p>
-              </div>
-              <div>
-                <p className="text-xs text-txt-muted">Ø online im Zeitraum</p>
-                <p className="text-2xl font-semibold tabular-nums text-txt-primary">
-                  {report.listingsOnline.reliable ? fmtNum(Math.round(report.listingsOnline.avgOnline)) : "~" + fmtNum(Math.round(report.listingsOnline.avgOnline))}
-                </p>
-                <p className="text-[11px] text-txt-muted">
-                  {report.listingsOnline.source === "snapshot"
-                    ? `aus Tages-Snapshots (${fmtNum(report.listingsOnline.snapshotDays)} Tage) · exakt`
-                    : "Näherung (nur aktive Listings)"}
-                </p>
-              </div>
-            </div>
-            <p className="text-[11px] text-txt-muted max-w-md leading-snug">
-              These je mehr Artikel online, desto mehr Verkäufe — vergleiche „Ø online" mit dem Umsatz über die Zeiträume.
-              {!report.listingsOnline.reliable
-                ? " Hinweis: historisch nur näherungsweise (beendete Listings tragen kein Offline-Datum). Ab jetzt werden Tages-Snapshots erfasst → ab dem nächsten Monat exakt, auch für Kaufland."
-                : ""}
-            </p>
-          </div>
-
-          {/* P&L breakdown + Chart */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <div className="rounded-xl border border-app-border bg-app-surface p-5">
-              <h3 className="text-sm font-semibold text-txt-primary mb-2">Gewinn &amp; Verlust</h3>
-              <PnlRow label="Umsatz (brutto)" value={fmtCur(pnl?.umsatzBrutto, cur)} trust="exakt" />
-              <PnlRow label="Marktplatz-Gebühren" value={fmtCur(pnl?.marketplaceFees, cur)}
-                trust={pnl?.feeSource === "flow" ? "exakt" : "abgeleitet"}
-                trustNote={pnl?.feeSource === "flow" ? "alle Gebühren" : "Sätze (Fallback)"} sign="minus" />
-              <PnlRow label="Retouren (Erstattungen)" value={fmtCur(pnl?.retouren, cur)} trust="exakt" sign="minus" />
-              <PnlRow label="Auszahlung" value={fmtCur(pnl?.auszahlung, cur)}
-                trust={payoutExact ? "exakt" : "abgeleitet"} trustNote={payoutExact ? "SevDesk" : undefined} sign="eq" />
-              <PnlRow label="Wareneinsatz (COGS)" value={fmtCur(pnl?.cogs, cur)} trust={cogsModelActive ? "kalkulatorisch" : "exakt"} trustNote={cogsModelActive ? "Paletten-Pauschale" : undefined} sign="minus" />
-              <PnlRow label="Versandkosten (brutto)" value={fmtCur(pnl?.versandBrutto, cur)} trust="exakt" sign="minus" />
-              <PnlRow label="Rohgewinn / Deckungsbeitrag" value={fmtCur(pnl?.rohgewinn, cur)} sign="eq" strong />
-              <p className="text-[11px] text-txt-muted mt-3 leading-snug">
-                {pnl?.feeSource === "flow"
-                  ? "Gebühren = Umsatz − Retouren − Auszahlung (alle Marktplatzgebühren inkl. Werbung, zeitraum-spezifisch). Rohgewinn = Auszahlung − Wareneinsatz − Versand. Bei kurzen Zeiträumen kann die Auszahlung durch Settlement-Timing (verzögerte Überweisung) abweichen — über Monat/Jahr stimmig."
-                  : "Auszahlung (SevDesk) nicht verfügbar → Gebühren aus Sätzen geschätzt."}{" "}
-                Fixkosten nicht enthalten — daher Deckungsbeitrag.
-              </p>
-            </div>
-
-            <div className="rounded-xl border border-app-border bg-app-surface p-5">
-              <h3 className="text-sm font-semibold text-txt-primary mb-3">Umsatz &amp; Rohertrag im Zeitverlauf</h3>
+          {/* ② Trajectory + P&L */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <div className="lg:col-span-2 rounded-xl border border-app-border bg-app-surface p-5">
+              <h3 className="flex items-center gap-1.5 text-sm font-semibold text-txt-primary mb-3">
+                Umsatz &amp; Rohertrag
+                <Info text="Rohertrag = Umsatz − Wareneinsatz je Tag (ohne Gebühren und Versand)." />
+              </h3>
               {chartData.length === 0 ? (
-                <div className="h-[240px] flex items-center justify-center text-sm text-txt-muted">Keine Aufträge im Zeitraum.</div>
+                <div className="h-[260px] flex items-center justify-center text-sm text-txt-muted">Keine Aufträge im Zeitraum.</div>
               ) : (
-                <ResponsiveContainer width="100%" height={240}>
+                <ResponsiveContainer width="100%" height={260}>
                   <ComposedChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
                     <XAxis dataKey="date" tick={{ fontSize: 11, fill: "var(--text-muted)" }} tickLine={false} axisLine={{ stroke: "var(--border)" }} />
@@ -491,13 +492,34 @@ export const AdminFinancials: React.FC = () => {
                   </ComposedChart>
                 </ResponsiveContainer>
               )}
-              <p className="text-[11px] text-txt-muted mt-2">Rohertrag = Umsatz − Wareneinsatz (pro Bucket exakt; ohne Gebühren/Versand).</p>
+            </div>
+
+            <div className="rounded-xl border border-app-border bg-app-surface p-5">
+              <h3 className="flex items-center gap-1.5 text-sm font-semibold text-txt-primary mb-2">
+                Gewinn &amp; Verlust
+                <Info text={derived?.payoutPending
+                  ? "Auszahlung steht noch aus (Settlement) — Gebühren und Rohgewinn werden bis dahin aus den Gebührensätzen gerechnet und automatisch durch die exakten Bank-Werte ersetzt."
+                  : "Gebühren = Umsatz − Retouren − Auszahlung (alle Marktplatzgebühren inkl. Werbung). Rohgewinn = Auszahlung − Wareneinsatz − Versand. Fixkosten nicht enthalten."} />
+              </h3>
+              <PnlRow label="Umsatz" value={fmtCur(pnl?.umsatzBrutto, cur)} />
+              <PnlRow label="Gebühren" value={fmtCur(derived?.fees, cur)} sign="minus"
+                badge={derived?.feesTrust ? <TrustBadge trust={derived.feesTrust} /> : undefined} />
+              <PnlRow label="Retouren" value={fmtCur(pnl?.retouren, cur)} sign="minus" />
+              <PnlRow label={derived?.payoutPending ? "Auszahlung (erwartet)" : "Auszahlung"} value={fmtCur(derived?.payout, cur)} sign="eq"
+                badge={derived?.payoutPending ? <TrustBadge trust="ausstehend" /> : undefined} />
+              <PnlRow label="Wareneinsatz" value={fmtCur(pnl?.cogs, cur)} sign="minus"
+                badge={cogsModelActive ? <TrustBadge trust="kalkulatorisch" /> : undefined} />
+              <PnlRow label="Versand" value={fmtCur(pnl?.versandBrutto, cur)} sign="minus" />
+              <PnlRow label="Rohgewinn" value={<span className={(derived?.rohgewinn ?? 0) >= 0 ? "text-success" : "text-danger"}>{fmtCur(derived?.rohgewinn, cur)}</span>} sign="eq" strong />
             </div>
           </div>
 
-          {/* Marketplace breakdown */}
+          {/* ③ Drill-down: marketplaces */}
           <div className="rounded-xl border border-app-border bg-app-surface p-5">
-            <h3 className="text-sm font-semibold text-txt-primary mb-3">Nach Marktplatz</h3>
+            <h3 className="flex items-center gap-1.5 text-sm font-semibold text-txt-primary mb-3">
+              Nach Marktplatz
+              <Info text="Auszahlung = echte SevDesk-Bank-Gutschriften. Solange sie aussteht, werden die Gebühren aus den Sätzen des Kostenmodells gerechnet." />
+            </h3>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
@@ -507,55 +529,53 @@ export const AdminFinancials: React.FC = () => {
                     <th className="font-medium py-1.5 px-3 text-right">Umsatz</th>
                     <th className="font-medium py-1.5 px-3 text-right">Retouren</th>
                     <th className="font-medium py-1.5 px-3 text-right">Gebühren</th>
-                    <th className="font-medium py-1.5 pl-3 text-right">Auszahlung (SevDesk)</th>
+                    <th className="font-medium py-1.5 pl-3 text-right">Auszahlung</th>
                   </tr>
                 </thead>
                 <tbody>
                   {(["ebay", "kaufland", "other"] as const).map((k) => {
                     const m: FinancialReportMarketplaceRow = report.marketplace[k];
                     if (!m || (m.orders === 0 && m.umsatz === 0)) return null;
+                    const pending = derived?.payoutPending;
+                    const rate = k === "ebay" ? (cm?.feeRateEbay ?? 0.13) : k === "kaufland" ? (cm?.feeRateKaufland ?? 0.13) : 0;
+                    const feesShown = pending ? Math.round((m.umsatz || 0) * rate * 100) / 100 : m.fees;
+                    const feePctShown = pending ? Math.round(rate * 1000) / 10 : m.feePct;
                     return (
                       <tr key={k} className="border-t border-app-border/60">
                         <td className="py-2 pr-3 text-txt-primary font-medium">{mkLabel[k]}</td>
                         <td className="py-2 px-3 text-right tabular-nums text-txt-secondary">{fmtNum(m.orders)}</td>
                         <td className="py-2 px-3 text-right tabular-nums text-txt-primary">{fmtCur(m.umsatz, cur)}</td>
                         <td className="py-2 px-3 text-right tabular-nums text-txt-muted">{fmtCur(m.retouren, cur)}</td>
-                        <td className="py-2 px-3 text-right tabular-nums text-txt-muted">{fmtCur(m.fees, cur)} <span className="text-[10px]">({fmtPct(m.feePct)})</span></td>
-                        <td className="py-2 pl-3 text-right tabular-nums text-txt-secondary">{m.payout != null ? fmtCur(m.payout, cur) : "—"}</td>
+                        <td className="py-2 px-3 text-right tabular-nums text-txt-muted">
+                          {fmtCur(feesShown, cur)} <span className="text-[10px]">({fmtPct(feePctShown)}{pending ? " kalk." : ""})</span>
+                        </td>
+                        <td className="py-2 pl-3 text-right tabular-nums text-txt-secondary">
+                          {pending ? <span className="text-txt-muted">ausstehend</span> : m.payout != null ? fmtCur(m.payout, cur) : "—"}
+                        </td>
                       </tr>
                     );
                   })}
                 </tbody>
               </table>
             </div>
-            <p className="text-[11px] text-txt-muted mt-2">Gebühren = Umsatz − Retouren − Auszahlung (alle Marktplatzgebühren, %=effektive Quote). Auszahlung = echte SevDesk-Gutschriften. <span className="text-warning">Negative Gebühren</span> = Auszahlung &gt; erfasster Umsatz: entweder Settlement-Timing (kurzer Zeitraum) oder unvollständige Marktplatz-Erfassung (Kaufland-Aufträge werden aktuell unterzählt).</p>
           </div>
 
-          {/* Cost model editor */}
-          <CostModelEditor report={report} open={editCost} onToggle={() => setEditCost((v) => !v)} onSaved={() => void load()} />
-
-          {/* Inventory + balances */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {/* ④ Assets & drivers */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             <div className="rounded-xl border border-app-border bg-app-surface p-5">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-semibold text-txt-primary">Bestandswert</h3>
-                <TrustBadge trust="exakt" note="Stichtag heute" />
-              </div>
+              <h3 className="flex items-center gap-1.5 text-sm font-semibold text-txt-primary mb-3">
+                Bestandswert
+                <Info text="Stand heute. Potenzieller Umsatz = Menge × Verkaufs-/Marktpreis. Gebundenes Kapital = Menge × Einkaufspreis (bzw. Kostenmodell, wo keiner hinterlegt ist)." />
+              </h3>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <p className="text-xs text-txt-muted">Potenzieller Umsatz</p>
                   <p className="text-xl font-semibold tabular-nums text-txt-primary">{fmtCur(report.inventory.potentialRevenue, cur, true)}</p>
-                  <p className="text-[11px] text-txt-muted">Menge × Verkaufs-/Marktpreis</p>
                 </div>
                 <div>
                   <p className="text-xs text-txt-muted">Gebundenes Kapital</p>
                   <p className="text-xl font-semibold tabular-nums text-txt-primary">
                     {(report.inventory.articlesWithCost + report.inventory.articlesEstimated) > 0 ? fmtCur(report.inventory.capitalAtCost, cur, true) : "—"}
-                  </p>
-                  <p className="text-[11px] text-txt-muted">
-                    {report.inventory.articlesWithCost > 0 || report.inventory.articlesEstimated > 0
-                      ? `${fmtNum(report.inventory.articlesWithCost)} exakt · ${fmtNum(report.inventory.articlesEstimated)} kalkulatorisch`
-                      : "Einkaufspreise / Kostenmodell fehlen"}
                   </p>
                 </div>
               </div>
@@ -563,10 +583,10 @@ export const AdminFinancials: React.FC = () => {
             </div>
 
             <div className="rounded-xl border border-app-border bg-app-surface p-5">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-semibold text-txt-primary">Kontostand</h3>
-                <TrustBadge trust="exakt" note="SevDesk" />
-              </div>
+              <h3 className="flex items-center gap-1.5 text-sm font-semibold text-txt-primary mb-3">
+                Konten
+                <Info text="Sichteinlagen laut SevDesk, Stand heute." />
+              </h3>
               {report.balances.accounts.length === 0 ? (
                 <p className="text-sm text-txt-muted">Keine Konten verfügbar.</p>
               ) : (
@@ -584,12 +604,52 @@ export const AdminFinancials: React.FC = () => {
                 </ul>
               )}
             </div>
+
+            <div className="rounded-xl border border-app-border bg-app-surface p-5">
+              <h3 className="flex items-center gap-1.5 text-sm font-semibold text-txt-primary mb-3">
+                Artikel online
+                <Info text="Verkaufstreiber: je mehr Artikel online, desto mehr Verkäufe. Der aktuelle Wert stammt aus der internen Liste und kann durch Sync-Drift leicht von eBay abweichen. Ø online basiert auf Tages-Snapshots." />
+              </h3>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <p className="text-xs text-txt-muted">Aktuell (eBay)</p>
+                  <p className="text-xl font-semibold tabular-nums text-txt-primary">{fmtNum(report.listingsOnline.currentActive)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-txt-muted">Ø im Zeitraum</p>
+                  <p className="text-xl font-semibold tabular-nums text-txt-primary">
+                    {report.listingsOnline.reliable ? "" : "~"}{fmtNum(Math.round(report.listingsOnline.avgOnline))}
+                  </p>
+                </div>
+              </div>
+              <p className="text-xs text-txt-muted mt-3">
+                {report.listingsOnline.source === "snapshot"
+                  ? `Tages-Snapshots · ${fmtNum(report.listingsOnline.snapshotDays)} Tage`
+                  : "Näherung aus aktiven Listings"}
+              </p>
+            </div>
           </div>
 
-          {/* Data quality / honesty panel */}
-          <div className="rounded-xl border border-app-border bg-app-bg/40 p-5">
-            <h3 className="text-sm font-semibold text-txt-primary mb-3">Datenqualität</h3>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+          {/* ⑤ Footer: cost model + data quality (collapsed by default) */}
+          <CostModelEditor report={report} open={editCost} onToggle={() => setEditCost((v) => !v)} onSaved={() => void load()} />
+
+          <details className="rounded-xl border border-app-border bg-app-bg/40 px-4 py-3 group">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm">
+              <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                <span className="font-semibold text-txt-primary">Datenqualität</span>
+                <span className="text-[11px] text-txt-muted">
+                  COGS {fmtNum(report.quality.exactItemCount)} exakt · {fmtNum(report.quality.estimatedItemCount)} kalk.
+                  {"  ·  "}Auszahlung {payoutExact ? "SevDesk" : "Sätze"}
+                  {"  ·  "}Versand {report.quality.shippingSource || "—"}
+                  {"  ·  "}Stand {new Date(report.generated_at_iso).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })}
+                </span>
+                {report.errors.length > 0 ? (
+                  <span className="rounded-full bg-warning-dim px-1.5 py-0.5 text-[10px] font-semibold text-warning">{report.errors.length} Hinweis{report.errors.length > 1 ? "e" : ""}</span>
+                ) : null}
+              </span>
+              <span className="shrink-0 text-xs text-txt-muted group-open:rotate-180 transition-transform">▾</span>
+            </summary>
+            <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
               <div>
                 <p className="text-xs text-txt-muted">Wareneinsatz-Quelle</p>
                 <p className="font-semibold text-txt-primary">{report.quality.exactItemCount > 0 ? "EK + Pauschale" : cogsModelActive ? "Paletten-Pauschale" : "—"}</p>
@@ -597,7 +657,7 @@ export const AdminFinancials: React.FC = () => {
               </div>
               <div>
                 <p className="text-xs text-txt-muted">Auszahlungs-Quelle</p>
-                <p className="font-semibold text-txt-primary">{payoutExact ? "SevDesk (exakt)" : "Gebührensätze"}</p>
+                <p className="font-semibold text-txt-primary">{payoutExact ? "SevDesk" : "Gebührensätze"}</p>
                 <p className="text-[11px] text-txt-muted">{payoutExact ? "echte Bank-Gutschriften" : "erwartet aus Umsatz − Gebühren"}</p>
               </div>
               <div>
@@ -608,7 +668,7 @@ export const AdminFinancials: React.FC = () => {
               <div>
                 <p className="text-xs text-txt-muted">Produkte im Katalog</p>
                 <p className="font-semibold tabular-nums text-txt-primary">{fmtNum(report.quality.productCount)}</p>
-                <p className="text-[11px] text-txt-muted">Basis für COGS &amp; Bestand</p>
+                <p className="text-[11px] text-txt-muted">Basis für Wareneinsatz &amp; Bestand</p>
               </div>
             </div>
             {report.errors.length > 0 ? (
@@ -620,11 +680,7 @@ export const AdminFinancials: React.FC = () => {
                 ))}
               </ul>
             ) : null}
-            <p className="text-[11px] text-txt-muted mt-3">
-              „Kalkulatorisch": Wareneinsatz aus dem Paletten-Kostenmodell (Verkaufspreis × Kostenquote) wo kein echter
-              Einkaufspreis hinterlegt ist. Stand: {new Date(report.generated_at_iso).toLocaleString("de-DE")}.
-            </p>
-          </div>
+          </details>
         </>
       )}
     </div>
