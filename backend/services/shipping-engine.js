@@ -139,11 +139,19 @@ async function _listV3ShippingOptions({ fromAddress, toCountry, toPostal, weight
 }
 
 // Resolve the chosen v2 method (carrier/name/weight) to a v3 shipping_option_code.
-function _matchV3OptionCode(options, methodMeta, weightKg) {
+// opts.domestic (from_country === to_country) de-prioritises "international"
+// product variants for domestic shipments (and vice versa).
+function _matchV3OptionCode(options, methodMeta, weightKg, opts = {}) {
   if (!Array.isArray(options) || !options.length) return null;
   const carrierOf = (o) => _normLoose(o?.carrier?.code || o?.carrier?.name);
   const nameOf = (o) => _normLoose(`${o?.product?.name || ''} ${o?.product?.code || ''} ${o?.code || ''}`);
   const priceOf = (o) => Number(o?.quotes?.[0]?.price?.total?.value ?? o?.quotes?.[0]?.price?.value ?? Infinity);
+  const isIntl = (o) => /international/i.test(`${o?.code || ''} ${o?.product?.code || ''} ${o?.product?.name || ''}`);
+  // Lower = better fit for the shipment's domestic/international nature.
+  const scopeMiss = (o) => {
+    if (opts?.domestic == null) return 0;
+    return opts.domestic ? (isIntl(o) ? 1 : 0) : (isIntl(o) ? 0 : 1);
+  };
   const fitsWeight = (o) => {
     const min = Number(o?.weight?.min?.value ?? 0) || 0;
     const max = Number(o?.weight?.max?.value ?? 0) || Infinity;
@@ -164,7 +172,8 @@ function _matchV3OptionCode(options, methodMeta, weightKg) {
     const byName = cand.filter((o) => nameOf(o).includes(wantNameCore) || wantNameCore.includes(nameOf(o)));
     if (byName.length) cand = byName;
   }
-  cand.sort((a, b) => priceOf(a) - priceOf(b));
+  // Prefer correct domestic/international scope, then cheapest.
+  cand.sort((a, b) => scopeMiss(a) - scopeMiss(b) || priceOf(a) - priceOf(b));
   return cand[0]?.code || null;
 }
 
@@ -490,7 +499,8 @@ async function createParcel({
   if (isPackstation && toPostNumber) toAddress.po_box = toPostNumber;
 
   const options = await _listV3ShippingOptions({ fromAddress, toCountry: countryRaw, toPostal: zipStr, weightKg, auth });
-  let shippingOptionCode = _matchV3OptionCode(options, methodMeta, weightKg);
+  const isDomestic = String(fromAddress?.country_code || 'DE').toUpperCase() === String(countryRaw || 'DE').toUpperCase();
+  let shippingOptionCode = _matchV3OptionCode(options, methodMeta, weightKg, { domestic: isDomestic });
   if (!shippingOptionCode) {
     // Fallback: günstigste gewichts-passende Option, damit Label-Erstellung nicht komplett blockt.
     const fit = options
