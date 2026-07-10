@@ -79,4 +79,11 @@ describe('_matchV3OptionCode', () => {
     // international → pick the international variant
     expect(_matchV3OptionCode(dpOptions, { carrier: 'deutsche_post', name: 'Großbrief' }, 0.4, { domestic: false })).toBe('dp:grossbrief_international/business,mailbox');
   });
+
+  it('falls back to the international variant only if NO domestic option exists', () => {
+    const onlyIntl = [
+      { code: 'dp:grossbrief_international/mailbox', carrier: { code: 'deutsche_post' }, product: { name: 'Großbrief International' }, weight: { min: { value: '0.01' }, max: { value: '0.5' } }, quotes: [{ price: { total: { value: '1.60' } } }] },
+    ];
+    expect(_matchV3OptionCode(onlyIntl, { carrier: 'deutsche_post', name: 'Großbrief' }, 0.4, { domestic: true })).toBe('dp:grossbrief_international/mailbox');
+  });
 });

@@ -172,7 +172,13 @@ function _matchV3OptionCode(options, methodMeta, weightKg, opts = {}) {
     const byName = cand.filter((o) => nameOf(o).includes(wantNameCore) || wantNameCore.includes(nameOf(o)));
     if (byName.length) cand = byName;
   }
-  // Prefer correct domestic/international scope, then cheapest.
+  // Domestic shipments must NOT use an "international" product variant (wrong
+  // product + pricing). HARD filter; only fall back to intl if nothing remains.
+  if (opts?.domestic === true) {
+    const domesticOnly = cand.filter((o) => !isIntl(o));
+    if (domesticOnly.length) cand = domesticOnly;
+  }
+  // Then prefer correct scope (matters for the international case), then cheapest.
   cand.sort((a, b) => scopeMiss(a) - scopeMiss(b) || priceOf(a) - priceOf(b));
   return cand[0]?.code || null;
 }
