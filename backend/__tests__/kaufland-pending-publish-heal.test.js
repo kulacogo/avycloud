@@ -159,6 +159,30 @@ describe('healPendingKauflandPublishes', () => {
     expect(markerDelete).toBeUndefined();
   });
 
+  it('Repair-TTL: kürzlich reparierte Produkte werden nur status-gecheckt (kein enrich/repair-Spam alle 15min)', async () => {
+    const { deps } = makeDeps();
+    deps.kauflandApi.getProductDataStatus.mockResolvedValue({
+      product_ready: false,
+      missing_attributes: ['Bild'],
+      min_one_missing_attributes: [],
+    });
+    const product = buildPendingProduct({ id: 'P2b' });
+    // last_repair_at vor 10 Minuten → innerhalb des 6h-Repair-TTL
+    product.marketplace.kaufland.publish_pending.last_repair_at = TEN_MIN_AGO;
+
+    const stats = await healPendingKauflandPublishes({
+      products: [product],
+      storefront: 'de',
+      deps: deps,
+    });
+
+    expect(stats).toEqual({ candidates: 1, attempted: 1, healed: 0 });
+    expect(deps.kauflandApi.getProductDataStatus).toHaveBeenCalledTimes(1);
+    expect(deps.enrichProductForKaufland).not.toHaveBeenCalled();
+    expect(deps.tryRepairKauflandProductData).not.toHaveBeenCalled();
+    expect(deps.kauflandApi.createUnit).not.toHaveBeenCalled();
+  });
+
   it('lässt Produkte ohne publish_pending_at unangetastet', async () => {
     const { updates, deps } = makeDeps();
 

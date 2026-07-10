@@ -658,6 +658,10 @@ const PENDING_HEAL_MIN_AGE_MS = 30 * 60 * 1000;
 // Nach 7 Tagen ohne product_ready stimmt strukturell etwas nicht — dann
 // zusätzlich als Listing-Fehler ins Cockpit heben (Operator-Sichtbarkeit).
 const PENDING_HEAL_STALE_MS = 7 * 24 * 3600 * 1000;
+// Enrich+Repair (Gemini-Kosten + Kaufland-PATCH) höchstens alle 6h pro Produkt
+// — aligned mit REPAIR_TTL_MS der Auto-Repair-Phase. Der billige Status-Check
+// und createUnit-bei-ready laufen weiterhin in jedem 15-min-Lauf.
+const PENDING_HEAL_REPAIR_TTL_MS = 6 * 3600 * 1000;
 
 /**
  * Heilt Publishes, die mit KAUFLAND_PRODUCT_DATA_PENDING (HTTP 202) endeten:
@@ -757,7 +761,11 @@ async function healPendingKauflandPublishes({ products = [], storefront = 'de', 
         // Enrichment-Block dort, gleiche Mechanik) — Extraktion würde den
         // battle-tested Block umschreiben, das Regressions-Risiko ist es
         // hier nicht wert.
-        if (fullList.length) {
+        const lastRepairRaw = p?.marketplace?.kaufland?.publish_pending?.last_repair_at;
+        const lastRepairMs = lastRepairRaw ? Date.parse(lastRepairRaw) : 0;
+        const repairDue = !(Number.isFinite(lastRepairMs) && lastRepairMs > 0)
+          || (nowMs - lastRepairMs) > PENDING_HEAL_REPAIR_TTL_MS;
+        if (fullList.length && repairDue) {
           let enrichedProduct = p;
           try {
             const er = await enrichProductForKaufland(p, fullList, {});
@@ -781,6 +789,9 @@ async function healPendingKauflandPublishes({ products = [], storefront = 'de', 
             ean,
             idUnit: null,
             storefront: sf,
+          }).catch(() => null);
+          await productsCol.doc(String(p.id)).update({
+            'marketplace.kaufland.publish_pending.last_repair_at': new Date(nowMs).toISOString(),
           }).catch(() => null);
         }
         if ((nowMs - pendingAtMs) > PENDING_HEAL_STALE_MS) {
