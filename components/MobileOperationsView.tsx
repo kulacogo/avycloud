@@ -1165,8 +1165,19 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
       }}
       onBlur={() => {
         // Numpad taps / submits / order selection move focus; reclaim it so the
-        // next scan still lands in the capture field.
+        // next scan still lands in the capture field. BUT never steal focus from
+        // a REAL editable input (e.g. the Gewicht/weight prompt) — that would keep
+        // the mobile keyboard from opening. Only reclaim when focus went to a
+        // button / body / a readOnly or inputMode="none" field.
         window.setTimeout(() => {
+          const active = document.activeElement as HTMLElement | null;
+          const isRealEditable =
+            !!active &&
+            active !== scanCaptureRef.current &&
+            (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA') &&
+            !(active as HTMLInputElement).readOnly &&
+            active.getAttribute('inputmode') !== 'none';
+          if (isRealEditable) return;
           const stillScanMode =
             mode === 'operations-pick' || mode === 'operations-stow' || mode === 'operations-pack';
           if (stillScanMode) scanCaptureRef.current?.focus({ preventScroll: true });
