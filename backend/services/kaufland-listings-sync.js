@@ -309,6 +309,9 @@ async function syncKauflandListingsCache({ tenantId, storefront = 'de' } = {}) {
   let enrichmentAttempted = 0;
   let enrichmentSucceeded = 0;
   const enrichmentFields = Object.create(null); // counter per field type
+  // Hoisted: die pending-publish-heal-Phase unten braucht dieselbe Produktliste
+  // — wiederverwenden statt ein zweites Mal die ganze Collection zu lesen.
+  let allProdsForRepair = [];
   try {
     const repairSnap = await collection.where('storefront', '==', sf).get();
     // Tenant-scoped read (D.0c pattern): when tenantId is given prefer the
@@ -318,7 +321,7 @@ async function syncKauflandListingsCache({ tenantId, storefront = 'de' } = {}) {
     // USE_PRODUCTS_V2 env-var wasn't set, so getCollection() defaulted to the
     // legacy `products` collection. Production has USE_PRODUCTS_V2=true and
     // the function returns all products correctly.)
-    const allProdsForRepair = tenantId
+    allProdsForRepair = tenantId
       ? await getAllProductsV2ForTenant(tenantId)
       : await getAllProductsV2();
     const skuMapRepair = new Map();
@@ -456,6 +459,27 @@ async function syncKauflandListingsCache({ tenantId, storefront = 'de' } = {}) {
     }
   } catch (repairErr) {
     console.error('[kaufland-sync] auto-repair error (non-fatal):', repairErr.message);
+  }
+
+  // ── Phase: pending-publish heal ──────────────────────────────────────────
+  // Schließt die systemische Lücke hinter KAUFLAND_PRODUCT_DATA_PENDING: der
+  // Publish-Pfad reicht Produktdaten ein, POST /units scheitert weil Kaufland
+  // asynchron validiert, die Route antwortet 202 — und NICHTS retried. Die
+  // Auto-Repair-Phase oben iteriert nur über kauflandUnitsLive, sieht also
+  // Produkte OHNE Unit nie. Kandidaten kommen deshalb aus der Produktliste
+  // (Marker `marketplace.kaufland.publish_pending_at`, gesetzt von
+  // routes/marketplace.js beim 202). Details/Testbarkeit: siehe
+  // healPendingKauflandPublishes unten.
+  let pendingHeal = { candidates: 0, attempted: 0, healed: 0 };
+  try {
+    // Fallback-Reload nur falls die Repair-Phase vor dem Produkt-Read
+    // gecrasht ist (allProdsForRepair dann leer) — kein Composite-Index nötig.
+    const prodsForHeal = allProdsForRepair.length
+      ? allProdsForRepair
+      : (tenantId ? await getAllProductsV2ForTenant(tenantId) : await getAllProductsV2());
+    pendingHeal = await healPendingKauflandPublishes({ products: prodsForHeal, storefront: sf, tenantId });
+  } catch (healErr) {
+    console.error('[kaufland-sync] pending-heal error (non-fatal):', healErr.message);
   }
 
   // ── Backfill ops.kaufland.unitId into products_v2 ────────────────────────
@@ -620,7 +644,221 @@ async function syncKauflandListingsCache({ tenantId, storefront = 'de' } = {}) {
     enrichmentAttempted,
     enrichmentSucceeded,
     enrichmentFields,
+    pendingHeal,
   };
+}
+
+// ─── Pending-publish heal ────────────────────────────────────────────────
+// Cap pro Lauf hält API-Last + Gemini-Kosten (Enricher) beschränkt — der
+// Sync läuft alle 15 min, Backlog wird über mehrere Läufe abgetragen.
+const MAX_PENDING_HEALS_PER_RUN = 20;
+// Kaufland-Validierung braucht Zeit; frühestens 30 min nach dem Publish-
+// Versuch wieder anfragen (kein Spam direkt nach dem 202).
+const PENDING_HEAL_MIN_AGE_MS = 30 * 60 * 1000;
+// Nach 7 Tagen ohne product_ready stimmt strukturell etwas nicht — dann
+// zusätzlich als Listing-Fehler ins Cockpit heben (Operator-Sichtbarkeit).
+const PENDING_HEAL_STALE_MS = 7 * 24 * 3600 * 1000;
+
+/**
+ * Heilt Publishes, die mit KAUFLAND_PRODUCT_DATA_PENDING (HTTP 202) endeten:
+ * Produktdaten liegen bei Kaufland, aber die Unit existiert noch nicht.
+ * Kandidaten = Produkte mit `marketplace.kaufland.publish_pending_at` und
+ * ohne `ops.kaufland.unitId` (mit Unit ist die Auto-Repair-Phase zuständig).
+ *
+ * Als eigene, exportierte Funktion mit injizierbaren `deps` gebaut, damit
+ * Tests sie ohne require.cache-Akrobatik mit Fakes fahren können. Alle
+ * externen Module werden erst NACH der Kandidaten-Selektion aufgelöst —
+ * der No-op-Fall (kein Marker gesetzt) lädt nichts nach.
+ *
+ * @param {object} opts
+ * @param {Array<object>} opts.products   bereits geladene products_v2-Liste
+ * @param {string} [opts.storefront='de']
+ * @param {string} [opts.tenantId]
+ * @param {object} [opts.deps]            Test-Injektion: kauflandApi, firestore,
+ *                                        saveProductV2, enrichProductForKaufland,
+ *                                        tryRepairKauflandProductData,
+ *                                        mergeKauflandOverrides, FieldValue, now
+ * @returns {Promise<{candidates:number, attempted:number, healed:number}>}
+ */
+async function healPendingKauflandPublishes({ products = [], storefront = 'de', tenantId = null, deps = {} } = {}) {
+  const sf = String(storefront || 'de').trim().toLowerCase();
+  const nowMs = typeof deps.now === 'function' ? deps.now() : Date.now();
+  const stats = { candidates: 0, attempted: 0, healed: 0 };
+
+  const candidates = [];
+  for (const p of (Array.isArray(products) ? products : [])) {
+    if (!p || !p.id) continue;
+    const pendingAtRaw = p?.marketplace?.kaufland?.publish_pending_at;
+    if (!pendingAtRaw) continue;
+    if (p?.ops?.kaufland?.unitId) continue; // Unit existiert → Auto-Repair-Phase zuständig
+    const pendingAtMs = Date.parse(pendingAtRaw);
+    if (!Number.isFinite(pendingAtMs)) continue;
+    if ((nowMs - pendingAtMs) < PENDING_HEAL_MIN_AGE_MS) continue;
+    candidates.push({ product: p, pendingAtMs });
+  }
+  stats.candidates = candidates.length;
+  const toProcess = candidates.slice(0, MAX_PENDING_HEALS_PER_RUN);
+  if (!toProcess.length) {
+    if (stats.candidates) {
+      console.log(`[kaufland-sync] pending-heal candidates=${stats.candidates} attempted=0 healed=0`);
+    }
+    return stats;
+  }
+
+  // Deps erst hier auflösen — hält den häufigen No-Kandidaten-Pfad frei von
+  // Modul-Loads (und Tests ohne diese Mocks lauffähig).
+  const kauflandApi = deps.kauflandApi || require('../lib/kaufland-api');
+  const firestoreDb = deps.firestore || require('../lib/firestore').firestore;
+  const saveProductV2 = deps.saveProductV2 || require('../lib/product-store').saveProductV2;
+  const enrichProductForKaufland = deps.enrichProductForKaufland
+    || require('./kaufland-attribute-enricher').enrichProductForKaufland;
+  const tryRepairKauflandProductData = deps.tryRepairKauflandProductData
+    || require('./kaufland-product-data-repair').tryRepairKauflandProductData;
+  const mergeKauflandOverrides = deps.mergeKauflandOverrides
+    || require('../lib/integration-defaults').mergeKauflandOverrides;
+  const FieldValueRef = deps.FieldValue || require('@google-cloud/firestore').FieldValue;
+  const productsCol = firestoreDb.collection('products_v2');
+
+  // Kaufland-Defaults (Versandgruppe/Lager) lazy + einmalig pro Lauf — nur
+  // nötig wenn mindestens ein Kandidat den createUnit-Pfad erreicht.
+  let klDefaultsPromise = null;
+  const getKlDefaults = () => {
+    if (!klDefaultsPromise) {
+      klDefaultsPromise = Promise.resolve()
+        .then(() => mergeKauflandOverrides({}, { tenantId: tenantId || 'default' }))
+        .catch(() => ({}));
+    }
+    return klDefaultsPromise;
+  };
+
+  const persistListingError = async (productId, message, code = null) => {
+    // Gleiches Format wie persistKauflandListingError (routes/marketplace.js),
+    // damit das Listing-Fehler-Cockpit die Einträge klassifizieren kann.
+    await productsCol.doc(String(productId)).update({
+      'marketplace.kaufland.listing_errors': [{ code: code || null, message: String(message), severity: 'Error' }],
+      'marketplace.kaufland.listing_errors_at': new Date(nowMs).toISOString(),
+    }).catch(() => null);
+  };
+
+  for (const { product: p, pendingAtMs } of toProcess) {
+    try {
+      const ean = String(p?.details?.identifiers?.ean || '').replace(/\D+/g, '').trim();
+      if (!ean) continue; // ohne EAN kein Product-Data-Status abfragbar
+      stats.attempted += 1;
+
+      const status = await kauflandApi.getProductDataStatus(ean).catch(() => null);
+      const missing = Array.isArray(status?.missing_attributes) ? status.missing_attributes : [];
+      const minOne = Array.isArray(status?.min_one_missing_attributes) ? status.min_one_missing_attributes : [];
+      const fullList = [...missing, ...minOne];
+
+      if (status?.product_ready !== true) {
+        // Noch nicht ready → Lücken schließen helfen. Bewusst minimal
+        // dupliziert statt aus der Auto-Repair-Phase extrahiert (siehe
+        // Enrichment-Block dort, gleiche Mechanik) — Extraktion würde den
+        // battle-tested Block umschreiben, das Regressions-Risiko ist es
+        // hier nicht wert.
+        if (fullList.length) {
+          let enrichedProduct = p;
+          try {
+            const er = await enrichProductForKaufland(p, fullList, {});
+            if (er?.enriched && Array.isArray(er.enrichedFields) && er.enrichedFields.length) {
+              enrichedProduct = er.enriched;
+              try {
+                await saveProductV2(er.enriched, {
+                  source: 'kaufland-pending-heal',
+                  stockChangeReason: 'attribute-enrichment',
+                  skipStockEvent: true,
+                });
+              } catch (saveErr) {
+                console.warn('[kaufland-sync] pending-heal saveProductV2 failed:', saveErr.message);
+              }
+            }
+          } catch (enrichErr) {
+            console.warn('[kaufland-sync] pending-heal enrichment failed (non-fatal):', enrichErr.message);
+          }
+          await tryRepairKauflandProductData({
+            product: enrichedProduct,
+            ean,
+            idUnit: null,
+            storefront: sf,
+          }).catch(() => null);
+        }
+        if ((nowMs - pendingAtMs) > PENDING_HEAL_STALE_MS) {
+          // >7 Tage nicht validiert → Operator muss ran; Marker bleibt stehen,
+          // damit der Heal weiter versucht falls Kaufland doch noch fertig wird.
+          const msg = `Kaufland-Produktdaten seit über 7 Tagen nicht validiert`
+            + (fullList.length ? ` — fehlende Attribute: ${fullList.join(', ')}` : '');
+          await persistListingError(p.id, msg, 'KAUFLAND_PRODUCT_DATA_PENDING');
+        }
+        continue;
+      }
+
+      // product_ready → Unit anlegen. Defaults wie im Bulk-Publish-Pfad
+      // (routes/marketplace.js): ohne Versandgruppe/Lager scheitert das
+      // Listing operativ, Fallbacks 144080/70462 sind die Legacy-Defaults.
+      const productForCreate = JSON.parse(JSON.stringify(p));
+      const klDefaults = await getKlDefaults();
+      const kl = productForCreate.details?.kaufland
+        || productForCreate.details?.marketplaces?.kaufland
+        || {};
+      productForCreate.details = productForCreate.details || {};
+      productForCreate.details.kaufland = productForCreate.details.kaufland || {};
+      if (!(Number(kl.id_shipping_group) > 0)) {
+        productForCreate.details.kaufland.id_shipping_group = klDefaults.shippingGroupId || 144080;
+      }
+      if (!(Number(kl.id_warehouse) > 0)) {
+        productForCreate.details.kaufland.id_warehouse = klDefaults.warehouseId || 70462;
+      }
+
+      // Preis-Gate (gleiche Auflösungskette wie pickUnitData): ohne Preis
+      // würde createUnit sowieso mit KAUFLAND_PRICE_INVALID werfen — lieber
+      // gezielt als Listing-Fehler ins Cockpit, Marker bleibt stehen.
+      const rawPrice = productForCreate?.details?.pricing?.sellPrice
+        ?? productForCreate?.pricing?.kaufland?.price
+        ?? productForCreate?.pricing?.sellPrice
+        ?? productForCreate?.details?.pricing?.lowest_price?.amount
+        ?? productForCreate?.details?.pricing?.amount
+        ?? null;
+      const sellPrice = Number(String(rawPrice ?? '').replace(',', '.'));
+      if (!Number.isFinite(sellPrice) || sellPrice <= 0) {
+        await persistListingError(
+          p.id,
+          'Kaufland-Produktdaten sind validiert, aber kein Verkaufspreis (sellPrice) vorhanden — Publish nicht möglich',
+          'KAUFLAND_PRICE_INVALID'
+        );
+        continue;
+      }
+
+      try {
+        const result = await kauflandApi.createUnit(productForCreate, { storefront: sf });
+        await productsCol.doc(String(p.id)).update({
+          'marketplace.kaufland.publish_pending_at': FieldValueRef.delete(),
+          'marketplace.kaufland.publish_pending': FieldValueRef.delete(),
+          'marketplace.kaufland.listing_errors': FieldValueRef.delete(),
+          'marketplace.kaufland.listing_errors_at': FieldValueRef.delete(),
+        }).catch(() => null);
+        stats.healed += 1;
+        console.log(`[kaufland-sync] pending-publish healed ean=${ean} id_unit=${result?.id_unit || 'n/a'}`);
+      } catch (createErr) {
+        if (createErr?.code === 'KAUFLAND_PRODUCT_DATA_PENDING') {
+          // Kaufland verdaut noch — Versuch zählen, Marker bleibt, nächster Lauf.
+          await productsCol.doc(String(p.id)).update({
+            'marketplace.kaufland.publish_pending.attempts': FieldValueRef.increment(1),
+          }).catch(() => null);
+        } else {
+          // Harter Fehler (z.B. EAN invalid) → Cockpit; Marker bleibt stehen,
+          // der Cap begrenzt die Retry-Last pro Lauf.
+          await persistListingError(p.id, createErr?.message || 'Publish fehlgeschlagen', createErr?.code || null);
+        }
+      }
+    } catch (healErr) {
+      // Per-Produkt swallowen — der Sync darf an keinem Einzelfall sterben.
+      console.warn('[kaufland-sync] pending-heal item failed (non-fatal):', healErr?.message || healErr);
+    }
+  }
+
+  console.log(`[kaufland-sync] pending-heal candidates=${stats.candidates} attempted=${stats.attempted} healed=${stats.healed}`);
+  return stats;
 }
 
 // ─── Marketplace identifier normalisers ──────────────────────────────────
@@ -635,4 +873,4 @@ function normalizeMarketplaceEan(value) {
   return String(value || '').replace(/\D+/g, '').trim();
 }
 
-module.exports = { syncKauflandListingsCache };
+module.exports = { syncKauflandListingsCache, healPendingKauflandPublishes };

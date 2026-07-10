@@ -1252,6 +1252,43 @@ async function clearKauflandListingError(productId) {
   }
 }
 
+// --- Pending-Publish-Marker (Kaufland) ----------------------------------------
+// KAUFLAND_PRODUCT_DATA_PENDING heißt: Produktdaten sind eingereicht, aber
+// Kaufland validiert asynchron und POST /units schlug (noch) fehl. Die Route
+// antwortet 202 — ohne Marker retried danach NICHTS und das Produkt hängt für
+// immer im Portal-Bucket "Angebotsdaten fehlen". Der Sync-Runner
+// (services/kaufland-listings-sync.js, Phase "pending-publish heal") liest den
+// Marker und versucht createUnit erneut, sobald Kaufland product_ready meldet.
+// update() statt set+merge: NOT_FOUND-safe, keine Ghost-Docs (gleiches Pattern
+// wie persistKauflandListingError).
+async function markKauflandPublishPending(productId, storefront = 'de') {
+  if (!productId) return;
+  try {
+    await firestore.collection('products_v2').doc(String(productId)).update({
+      'marketplace.kaufland.publish_pending_at': new Date().toISOString(),
+      'marketplace.kaufland.publish_pending': {
+        reason: 'product_data_pending',
+        storefront: String(storefront || 'de'),
+        attempts: FieldValue.increment(1),
+      },
+    });
+  } catch (e) {
+    if (e?.code !== 5) console.warn(`[kaufland] mark publish pending ${productId}: ${e?.message}`);
+  }
+}
+
+async function clearKauflandPublishPending(productId) {
+  if (!productId) return;
+  try {
+    await firestore.collection('products_v2').doc(String(productId)).update({
+      'marketplace.kaufland.publish_pending_at': FieldValue.delete(),
+      'marketplace.kaufland.publish_pending': FieldValue.delete(),
+    });
+  } catch (e) {
+    if (e?.code !== 5) console.warn(`[kaufland] clear publish pending ${productId}: ${e?.message}`);
+  }
+}
+
 // Gebündeltes Listing-Fehler-Cockpit: jedes Produkt, das auf eBay ODER Kaufland
 // nicht gelistet werden konnte, mit klassifizierten Gründen + Aggregat nach Grund.
 // Quelle: `marketplace.{ebay,kaufland}.listing_errors` (persistiert bis behoben).
@@ -1337,10 +1374,14 @@ router.post('/kaufland/publish', requirePermission('products', 'write'), async (
     // the row immediately, no wait for next periodic sync.
     await optimisticUpsertKauflandUnit({ product, createResult: result, storefront });
     await clearKauflandListingError(productId);
+    await clearKauflandPublishPending(productId);
     return res.status(201).json({ ok: true, data: result });
   } catch (error) {
     console.error(`[POST /api/marketplace/kaufland/publish] ${error.message}`, error);
     if (error.code === 'KAUFLAND_PRODUCT_DATA_PENDING') {
+      // 202 allein wäre ein Dead-End — Marker setzen, damit der Sync-Runner
+      // den Publish automatisch nachholt sobald Kaufland fertig validiert hat.
+      await markKauflandPublishPending(req.body?.productId, req.body?.storefront || 'de');
       return res.status(202).json({
         ok: true,
         data: { productDataSubmitted: true, message: error.message },
@@ -1556,6 +1597,9 @@ router.post('/kaufland/publish/bulk', requirePermission('products', 'write'), as
           });
         } catch (publishErr) {
           if (publishErr.code === 'KAUFLAND_PRODUCT_DATA_PENDING') {
+            // Marker für den Self-Heal-Loop im Sync-Runner — deckt sowohl
+            // 'pending' als auch 'pending-repaired' ab (beide enden ohne Unit).
+            await markKauflandPublishPending(id, storefront).catch(() => null);
             // Deliverable 4: try-repair-hook post-create
             if (publishErr.productDataSubmitted) {
               try {
@@ -1646,6 +1690,7 @@ router.post('/kaufland/publish/bulk', requirePermission('products', 'write'), as
         // Fehler/Skips; 'pending'/'pending-repaired' sind asynchron unterwegs.
         if (perProductOk) {
           await clearKauflandListingError(id).catch(() => null);
+          await clearKauflandPublishPending(id).catch(() => null);
         } else if (perProductStatus === 'failed' || perProductStatus === 'skipped') {
           await persistKauflandListingError(id, perProductReason || 'Publish fehlgeschlagen').catch(() => null);
         }
