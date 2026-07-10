@@ -4165,6 +4165,11 @@ function mapProductToEbayItem(product, overrides = {}) {
   const details = product?.details || {};
   const identifiers = details?.identifiers || {};
   const pricing = details?.pricing?.lowest_price || {};
+  // Der VERKAUFSPREIS (sellPrice) ist der Angebotspreis — lowest_price ist nur
+  // der recherchierte Marktpreis. Vorher fehlte sellPrice hier komplett, sodass
+  // NEUE Listings mit dem Marktpreis (z.B. 14,38 € statt 18,95 €) live gingen,
+  // während Revise/Sync und Kaufland längst sellPrice nutzten (Incident 2026-07-10).
+  const sellPrice = Number(details?.pricing?.sellPrice);
   const attrs = details?.attributes && typeof details.attributes === 'object' ? details.attributes : {};
   const attrsExtra =
     details?.attributes_extra && typeof details.attributes_extra === 'object' ? details.attributes_extra : {};
@@ -4185,6 +4190,7 @@ function mapProductToEbayItem(product, overrides = {}) {
   const price =
     overrides.startPrice ??
     overrides.price ??
+    (Number.isFinite(sellPrice) && sellPrice > 0 ? sellPrice : null) ??
     pricing?.amount ??
     product?.marketplace?.ebay?.price ??
     null;
@@ -4545,8 +4551,12 @@ function validatePublishReadiness(product, overrides = {}) {
     safeString(product?.categoryId);
   if (!categoryId) blockers.push('Keine eBay-Kategorie zugewiesen.');
 
+  // Gleiche Preis-Kette wie mapProductToEbayItem: sellPrice zuerst (Incident 2026-07-10).
+  const vpSellPrice = Number(details?.pricing?.sellPrice);
   const price =
-    overrides.startPrice ?? overrides.price ?? pricing?.amount ?? product?.marketplace?.ebay?.price ?? null;
+    overrides.startPrice ?? overrides.price ??
+    (Number.isFinite(vpSellPrice) && vpSellPrice > 0 ? vpSellPrice : null) ??
+    pricing?.amount ?? product?.marketplace?.ebay?.price ?? null;
   if (price == null) blockers.push('Kein Preis vorhanden.');
   else if (Number(price) <= 0) blockers.push('Preis muss größer als 0 sein.');
 
