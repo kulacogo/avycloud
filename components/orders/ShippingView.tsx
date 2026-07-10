@@ -9,6 +9,7 @@ const CARRIER_STYLE: Record<string, { cls: string; initial: string }> = {
   DHL: { cls: "bg-yellow-100 text-yellow-800", initial: "D" },
   DPD: { cls: "bg-red-100 text-red-800", initial: "P" },
   GLS: { cls: "bg-blue-100 text-blue-800", initial: "G" },
+  DP: { cls: "bg-amber-100 text-amber-800", initial: "DP" },
 };
 
 const STATUS_CONFIG: Record<string, { label: string; cls: string }> = {
@@ -88,6 +89,8 @@ function trackingUrl(carrier: string, trackingNr: string): string {
       return `https://tracking.dpd.de/parcelstatus?query=${trackingNr}`;
     case "GLS":
       return `https://gls-group.com/DE/de/paketverfolgung?match=${trackingNr}`;
+    case "DP":
+      return `https://www.deutschepost.de/de/s/sendungsverfolgung.html?piececode=${trackingNr}`;
     default:
       return "#";
   }

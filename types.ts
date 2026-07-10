@@ -30,6 +30,7 @@ export type View =
   | "marketplace-ebay"
   | "marketplace-kaufland"
   | "marketplace-errors"
+  | "finance"
   | "integrations"
   | "integrations-ebay"
   | "integrations-kaufland"

@@ -245,6 +245,7 @@ const viewToHash = (view: View): string => {
     "marketplace-ebay": "#/marketplace/ebay",
     "marketplace-kaufland": "#/marketplace/kaufland",
     "marketplace-errors": "#/marketplace/errors",
+    finance: "#/finance",
     "settings-profile": "#/settings/profile",
     "settings-team": "#/settings/team",
     "settings-api": "#/settings/api",
@@ -319,6 +320,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, setView }) => {
         { view: "dashboard", label: "Dashboard", icon: icons.dashboard },
         ...(canSeeAdmin
           ? [{ view: "shop-health" as View, label: "Shop-Gesundheit", icon: icons.store }]
+          : []),
+        // Finanzen: eigener Einstieg für alle mit Report-Recht (admin,
+        // buchhaltung, leitung) — lag vorher NUR im Admin-Panel und war damit
+        // ohne User-/Rollen-Verwaltungsrechte unerreichbar (2026-07-10).
+        ...(hasPermission("admin", "reports.read")
+          ? [{ view: "finance" as View, label: "Finanzen", icon: icons.creditCard }]
           : []),
       ],
     },

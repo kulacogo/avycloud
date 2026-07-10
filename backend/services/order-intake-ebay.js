@@ -527,6 +527,18 @@ async function saveOrderIfNew({ tenantId, order }) {
     return false;
   }
 
+  // Unbezahlte Orders (z.B. angenommener Preisvorschlag vor Zahlung) NICHT
+  // anlegen: eBay meldet sie mit einer transaktions-basierten OrderID
+  // (itemId-transactionId), die sich bei Zahlung ÄNDERT — die bezahlte Order
+  // kommt als NEUES GetOrders-Objekt mit finaler OrderID. Ein früh angelegtes
+  // on_hold-Doc bliebe für immer als "Pausiert"-Zombie stehen und würde den
+  // Bestand DOPPELT reservieren (Incident 2026-07-10: 2 Duplikat-Aufträge zu
+  // bereits versendeten Bestellungen). Erst nach Zahlung übernehmen.
+  if (order.ebayStatus === 'on_hold') {
+    console.log(`[ebay-intake] skip unpaid order ${order.marketplaceOrderId} — wird nach Zahlung als eigene Order übernommen`);
+    return false;
+  }
+
   // Generate AvyCloud order number
   const seq = await getNextNumber({ tenantId, type: 'order' });
 

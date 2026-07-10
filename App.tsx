@@ -34,6 +34,7 @@ import { ShopGesundheit } from './components/ShopGesundheit';
 import OrdersView from './components/OrdersView';
 import MarketplaceListingsView from './components/MarketplaceListingsView';
 import ListingErrorsView from './components/ListingErrorsView';
+import FinanceView from './components/FinanceView';
 import InventoryView from './components/InventoryView';
 import { IntegrationsHub } from './components/IntegrationsHub';
 import { IntegrationConfigPage } from './components/integrations/IntegrationConfigPage';
@@ -101,6 +102,7 @@ const ALLOWED_VIEWS: View[] = [
   'marketplace-ebay',
   'marketplace-kaufland',
   'marketplace-errors',
+  'finance',
   'integrations',
   'integrations-ebay',
   'integrations-kaufland',
@@ -243,6 +245,7 @@ const viewToHashPath = (view: View, productId?: string | null) => {
     'marketplace-ebay': '/marketplace/ebay',
     'marketplace-kaufland': '/marketplace/kaufland',
     'marketplace-errors': '/marketplace/errors',
+    finance: '/finance',
     input: '/products/capture',
     integrations: '/integrations',
     settings: '/settings',
@@ -1063,6 +1066,11 @@ const AppInner: React.FC = () => {
           return <div className="text-center p-8 text-txt-muted">{t('error.forbidden')}</div>;
         }
         return <ListingErrorsView />;
+      case 'finance':
+        if (!hasPermission('admin', 'reports.read')) {
+          return <div className="text-center p-8 text-txt-muted">{t('error.forbidden')}</div>;
+        }
+        return <FinanceView />;
       case 'integrations':
         return <IntegrationsHub onNavigate={(id: string) => {
           const viewMap: Record<string, View> = {

@@ -141,6 +141,41 @@ describe('eBay-Intake: keine Reservierung für born-cancelled/shipped Orders', (
   });
 });
 
+describe('eBay-Intake: unbezahlte Orders werden NICHT angelegt (Incident 2026-07-10)', () => {
+  // Angenommener Preisvorschlag → eBay meldet Order mit itemId-transactionId-ID
+  // und CheckoutStatus Incomplete. Die ID ÄNDERT sich bei Zahlung → früh
+  // angelegte Docs bleiben als "Pausiert"-Zombies + Doppel-Reservierung stehen.
+  it('legt keine neue Order an, solange unbezahlt (Active/Incomplete)', async () => {
+    const order = mapEbayOrder(rawEbayOrder({ orderId: '800314901891-10082833345304', status: 'Active', checkoutComplete: false }));
+    expect(order.ebayStatus).toBe('on_hold');
+
+    const saved = await saveOrderIfNew({ tenantId: 'default', order });
+
+    expect(saved).toBe(false);
+    expect(savedDocs.has('ebay__800314901891-10082833345304')).toBe(false);
+  });
+
+  it('legt die Order an, sobald eBay sie als bezahlt meldet (finale OrderID)', async () => {
+    const order = mapEbayOrder(rawEbayOrder({ orderId: '27-14851-26147', status: 'Completed', checkoutComplete: true }));
+    expect(order.ebayStatus).toBe('confirmed');
+
+    const saved = await saveOrderIfNew({ tenantId: 'default', order });
+
+    expect(saved).toBe(true);
+    expect(savedDocs.has('ebay__27-14851-26147')).toBe(true);
+  });
+
+  it('bestehende unbezahlte Docs werden weiter aktualisiert, nicht neu angelegt', async () => {
+    savedDocs.set('ebay__H-9', { omsStatus: 'on_hold', orderId: 'AVY-2026-0012' });
+    const order = mapEbayOrder(rawEbayOrder({ orderId: 'H-9', status: 'Active', checkoutComplete: false }));
+
+    const saved = await saveOrderIfNew({ tenantId: 'default', order });
+
+    expect(saved).toBe(false); // existiert → kein Neuanlegen, kein Crash
+    expect(savedDocs.has('ebay__H-9')).toBe(true);
+  });
+});
+
 describe('eBay-Intake: on_hold blockiert die Status-Reconciliation nicht mehr', () => {
   it('on_hold → confirmed läuft über transitionOrder, sobald eBay bezahlt meldet', async () => {
     savedDocs.set('ebay__H-1', { omsStatus: 'on_hold', orderId: 'AVY-2026-0009' });
