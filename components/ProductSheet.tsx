@@ -1371,11 +1371,21 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5 text-xs text-txt-muted">
               <span>SKU: {localProduct.identification.sku || localProduct.details?.identifiers?.sku || '—'}</span>
               {currentBarcodeSummary.primaryBarcode && <span>{currentBarcodeSummary.primaryLabel}: {currentBarcodeSummary.primaryBarcode}</span>}
-              {localProduct.details?.pricing?.lowest_price?.amount != null && (
-                <span className="font-semibold text-txt-primary">
-                  {localProduct.details.pricing.lowest_price.amount.toLocaleString('de-DE', { minimumFractionDigits: 2 })} €
-                </span>
-              )}
+              {/* Header-Preis = VERKAUFSPREIS (konsistent zur Tabellen-Spalte "Preis").
+                  Fallback Marktpreis nur wenn kein sellPrice gesetzt (Incident 2026-07-10). */}
+              {(() => {
+                const p = localProduct.details?.pricing;
+                const sell = typeof p?.sellPrice === 'number' && p.sellPrice > 0 ? p.sellPrice : null;
+                const market = p?.lowest_price?.amount != null ? p.lowest_price.amount : null;
+                const shown = sell ?? market;
+                if (shown == null) return null;
+                return (
+                  <span className="font-semibold text-txt-primary" title={sell != null ? 'Verkaufspreis' : 'Marktpreis (kein Verkaufspreis gesetzt)'}>
+                    {shown.toLocaleString('de-DE', { minimumFractionDigits: 2 })} €
+                    {sell == null ? <span className="ml-1 font-normal text-[10px] text-warning">Marktpreis</span> : null}
+                  </span>
+                );
+              })()}
               {/* Listing status badges inline */}
               {(localProduct as any)?.ops?.listingStatus?.ebay === 'active' && (
                 <span className="inline-flex items-center rounded-full bg-success-dim px-2 py-0.5 text-[10px] font-semibold text-success">eBay</span>
