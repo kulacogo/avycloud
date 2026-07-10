@@ -152,6 +152,19 @@ function _matchV3OptionCode(options, methodMeta, weightKg, opts = {}) {
     if (opts?.domestic == null) return 0;
     return opts.domestic ? (isIntl(o) ? 1 : 0) : (isIntl(o) ? 0 : 1);
   };
+  // Prefer the PLAIN base product over service variants. GoGreen/eco_delivery
+  // variants need a SEPARATE billing number in the DHL contract that is usually
+  // NOT configured → "Please add the billing number for this product" (Incident
+  // 2026-07-10). Extra service modifiers (insured/agecheck/service_point/…) also
+  // deviate from what the user chose; the plain product is the safe default.
+  const addonScore = (o) => {
+    const code = String(o?.code || '');
+    const afterColon = code.includes(':') ? code.split(':').slice(1).join(':') : code;
+    const parts = afterColon.split(/[/,]/).map((s) => s.trim()).filter(Boolean);
+    let score = Math.max(0, parts.length - 1); // add-on service modifiers beyond the base product
+    if (/gogreen|eco[-_]?delivery/i.test(code)) score += 5; // needs separate (often missing) billing number
+    return score;
+  };
   const fitsWeight = (o) => {
     const min = Number(o?.weight?.min?.value ?? 0) || 0;
     const max = Number(o?.weight?.max?.value ?? 0) || Infinity;
@@ -178,8 +191,9 @@ function _matchV3OptionCode(options, methodMeta, weightKg, opts = {}) {
     const domesticOnly = cand.filter((o) => !isIntl(o));
     if (domesticOnly.length) cand = domesticOnly;
   }
-  // Then prefer correct scope (matters for the international case), then cheapest.
-  cand.sort((a, b) => scopeMiss(a) - scopeMiss(b) || priceOf(a) - priceOf(b));
+  // Correct scope first, then the plainest/standard product (avoids GoGreen &
+  // add-on variants with unconfigured billing numbers), then cheapest.
+  cand.sort((a, b) => scopeMiss(a) - scopeMiss(b) || addonScore(a) - addonScore(b) || priceOf(a) - priceOf(b));
   return cand[0]?.code || null;
 }
 

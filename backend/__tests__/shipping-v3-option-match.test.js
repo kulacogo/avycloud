@@ -80,6 +80,23 @@ describe('_matchV3OptionCode', () => {
     expect(_matchV3OptionCode(dpOptions, { carrier: 'deutsche_post', name: 'Großbrief' }, 0.4, { domestic: false })).toBe('dp:grossbrief_international/business,mailbox');
   });
 
+  it('deprioritizes GoGreen/eco_delivery + add-on variants, picks the plain product (Incident 2026-07-10 DHL billing-number)', () => {
+    // Real codes from the log: GoGreen is cheaper but its billing number is not
+    // configured → must NOT be chosen; the plain product must win.
+    const dhl = [
+      { code: 'dhl_de:warenpost/gogreen', carrier: { code: 'dhl' }, product: { name: 'DHL Kleinpaket' }, weight: { min: { value: '0.01' }, max: { value: '1' } }, quotes: [{ price: { total: { value: '3.50' } } }] },
+      { code: 'dhl_de:warenpost', carrier: { code: 'dhl' }, product: { name: 'DHL Kleinpaket' }, weight: { min: { value: '0.01' }, max: { value: '1' } }, quotes: [{ price: { total: { value: '3.99' } } }] },
+      { code: 'dhl_de:paket_eco_delivery/home_address_only', carrier: { code: 'dhl' }, product: { name: 'DHL Paket' }, weight: { min: { value: '0.01' }, max: { value: '31.5' } }, quotes: [{ price: { total: { value: '3.20' } } }] },
+      { code: 'dhl_de:dhl_paket', carrier: { code: 'dhl' }, product: { name: 'DHL Paket' }, weight: { min: { value: '0.01' }, max: { value: '31.5' } }, quotes: [{ price: { total: { value: '4.49' } } }] },
+    ];
+    // DHL Kleinpaket → plain warenpost (NOT the cheaper gogreen)
+    expect(_matchV3OptionCode(dhl, { carrier: 'dhl', name: 'DHL Kleinpaket 0-1kg' }, 0.4, { domestic: true })).toBe('dhl_de:warenpost');
+    // Generic DHL (no product name match) → plain product, never the eco/gogreen one
+    const picked = _matchV3OptionCode(dhl, { carrier: 'dhl' }, 0.4, { domestic: true });
+    expect(picked === 'dhl_de:warenpost' || picked === 'dhl_de:dhl_paket').toBe(true);
+    expect(picked).not.toMatch(/gogreen|eco_delivery/);
+  });
+
   it('falls back to the international variant only if NO domestic option exists', () => {
     const onlyIntl = [
       { code: 'dp:grossbrief_international/mailbox', carrier: { code: 'deutsche_post' }, product: { name: 'Großbrief International' }, weight: { min: { value: '0.01' }, max: { value: '0.5' } }, quotes: [{ price: { total: { value: '1.60' } } }] },
