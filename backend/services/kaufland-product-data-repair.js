@@ -124,6 +124,33 @@ function pickImageUrl(entry) {
   return safeString(entry?.url_or_base64 || entry?.url || entry?.src || entry?.link);
 }
 
+// Kaufland fetcht jede picture-URL serverseitig als Mediendatei. Landet eine
+// HTML-Produktseite in der Liste (Live-Beweis 2026-07-10, EAN 4036231080920:
+// "https://www.fritz-berger.de/artikel/...?srsltid=...#thumbnail-modal"),
+// DECLINED Kaufland ALLE picture-Werte mit media_not_ready_yet und der
+// Datensatz hängt dauerhaft in "Angebotsdaten fehlen" (missing "Bild").
+// Deshalb: nur Einträge durchlassen, die plausibel ein Bild sind — entweder
+// per deklariertem image/*-mimeType oder per Bild-Extension im URL-Pfad
+// (Query-String und Fragment zählen NICHT als Pfad).
+const IMAGE_URL_EXTENSION_RX = /\.(jpg|jpeg|png|gif|webp|avif|bmp|tiff)$/;
+
+function isLikelyImageUrl(entry) {
+  const url = pickImageUrl(entry);
+  if (!url) return false;
+  const mimeType = entry && typeof entry === 'object' ? safeString(entry.mimeType) : '';
+  if (/^image\//i.test(mimeType)) return true;
+  try {
+    // URL.pathname schneidet Query + Fragment ab — genau die Teile, hinter
+    // denen sich Nicht-Bild-URLs als "Bild" tarnen (#thumbnail-modal etc.).
+    const { pathname } = new URL(url);
+    return IMAGE_URL_EXTENSION_RX.test(String(pathname || '').toLowerCase());
+  } catch (parseErr) {
+    // Nicht parsebar (relative Pfade, kaputte Strings, raw base64) → nie an
+    // Kaufland weiterreichen.
+    return false;
+  }
+}
+
 // Kaufland requires a real fabric/material NAME for "Materialzusammensetzung"
 // (technical key material_composition), the #1 attribute still missing on
 // freshly-listed textiles (verified live 2026-05-24). Our internal data
@@ -258,6 +285,7 @@ async function buildKauflandProductDataAttributes(product, { missingAttributes =
   const pictureUrls = Array.from(
     new Set(
       (Array.isArray(product?.details?.images) ? product.details.images : [])
+        .filter((entry) => isLikelyImageUrl(entry))
         .map((entry) => pickImageUrl(entry))
         .filter((url) => /^https?:\/\//i.test(url))
     )
@@ -676,4 +704,5 @@ module.exports = {
   buildKauflandProductDataAttributes,
   buildKauflandComplianceContact,
   capKauflandAttributes,
+  isLikelyImageUrl,
 };
