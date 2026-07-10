@@ -73,6 +73,145 @@ async function getShippingMethods() {
   return data?.shipping_methods || [];
 }
 
+// ─── SendCloud API v3 (Paket-Erstellung) ────────────────────────────────────
+// v2 POST /parcels wurde für neue Konten deaktiviert ("Creating parcels via API
+// v2 is not available for this account. Please use API v3." — Incident 2026-07-10).
+// v3: POST /shipments/announce mit string `shipping_option_code` (statt der
+// numerischen v2-Methoden-ID), aufgelöst über POST /shipping-options.
+// `from_address` ist in v3 PFLICHT. Auth (Basic public:secret) bleibt identisch.
+const SENDCLOUD_V3_BASE_URL = 'https://panel.sendcloud.sc/api/v3';
+const _normLoose = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+
+let _v3FromAddressCache = null;
+async function _getV3FromAddress() {
+  if (_v3FromAddressCache) return _v3FromAddressCache;
+  const { listSenderAddresses } = require('../lib/sendcloud');
+  const list = await listSenderAddresses().catch((e) => {
+    console.warn(`[v3] listSenderAddresses failed: ${e?.message}`);
+    return [];
+  });
+  const sa = list[0];
+  if (!sa) throw new Error('SendCloud v3: keine Absenderadresse konfiguriert (from_address ist Pflicht).');
+  const { street, houseNumber } = splitAddressLine(String(sa.street || ''));
+  _v3FromAddressCache = {
+    name: sa.companyName || 'Absender',
+    company_name: sa.companyName || undefined,
+    address_line_1: street || sa.street || '',
+    house_number: houseNumber || undefined,
+    city: sa.city || '',
+    postal_code: sa.postalCode || '',
+    country_code: String(sa.country || 'DE').toUpperCase().slice(0, 2),
+  };
+  console.log(`[v3] from_address: ${_v3FromAddressCache.postal_code} ${_v3FromAddressCache.city}, ${_v3FromAddressCache.country_code}`);
+  return _v3FromAddressCache;
+}
+
+async function _getCachedMethodMeta(tenantId, methodId) {
+  if (!methodId) return null;
+  try {
+    const snap = await getDb().collection(SHIPPING_METHODS_COLLECTION).doc(`${tenantId}_${methodId}`).get();
+    return snap.exists ? snap.data() : null;
+  } catch (e) {
+    console.warn(`[v3] cached method lookup failed (${methodId}): ${e?.message}`);
+    return null;
+  }
+}
+
+// List v3 shipping options for a concrete shipment (from → to, weight).
+async function _listV3ShippingOptions({ fromAddress, toCountry, toPostal, weightKg, auth }) {
+  const body = {
+    from_address: { country_code: fromAddress?.country_code || 'DE', postal_code: fromAddress?.postal_code || undefined },
+    to_address: { country_code: String(toCountry || 'DE').toUpperCase().slice(0, 2), postal_code: toPostal || undefined },
+    parcels: [{ weight: { value: String(weightKg || 0.5), unit: 'kg' } }],
+  };
+  const res = await fetch(`${SENDCLOUD_V3_BASE_URL}/shipping-options`, {
+    method: 'POST',
+    headers: { Authorization: auth, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const text = await res.text().catch(() => '');
+  if (!res.ok) throw new Error(`SendCloud v3 shipping-options ${res.status}: ${text.slice(0, 300)}`);
+  let json = {};
+  try { json = JSON.parse(text); } catch (_) { /* leave empty */ }
+  const options = Array.isArray(json?.data) ? json.data : [];
+  console.log(`[v3] shipping-options: ${options.length} für ${toCountry}/${weightKg}kg. Codes: ${options.map((o) => o?.code).filter(Boolean).slice(0, 30).join(', ')}`);
+  return options;
+}
+
+// Resolve the chosen v2 method (carrier/name/weight) to a v3 shipping_option_code.
+function _matchV3OptionCode(options, methodMeta, weightKg) {
+  if (!Array.isArray(options) || !options.length) return null;
+  const carrierOf = (o) => _normLoose(o?.carrier?.code || o?.carrier?.name);
+  const nameOf = (o) => _normLoose(`${o?.product?.name || ''} ${o?.product?.code || ''} ${o?.code || ''}`);
+  const priceOf = (o) => Number(o?.quotes?.[0]?.price?.total?.value ?? o?.quotes?.[0]?.price?.value ?? Infinity);
+  const fitsWeight = (o) => {
+    const min = Number(o?.weight?.min?.value ?? 0) || 0;
+    const max = Number(o?.weight?.max?.value ?? 0) || Infinity;
+    return weightKg >= min && weightKg <= max;
+  };
+  const wantCarrier = _normLoose(methodMeta?.carrier || methodMeta?.carrierName);
+  const wantNameCore = _normLoose(methodMeta?.name).replace(/[0-9]+/g, '');
+
+  let cand = options.filter(fitsWeight);
+  if (!cand.length) cand = options.slice();
+  if (wantCarrier) {
+    // Never silently switch carrier: if the chosen carrier isn't among the v3
+    // options, return null so the caller's fallback logs a cross-carrier warning.
+    cand = cand.filter((o) => carrierOf(o) && (carrierOf(o).includes(wantCarrier) || wantCarrier.includes(carrierOf(o))));
+    if (!cand.length) return null;
+  }
+  if (wantNameCore && wantNameCore.length >= 4) {
+    const byName = cand.filter((o) => nameOf(o).includes(wantNameCore) || wantNameCore.includes(nameOf(o)));
+    if (byName.length) cand = byName;
+  }
+  cand.sort((a, b) => priceOf(a) - priceOf(b));
+  return cand[0]?.code || null;
+}
+
+async function _createV3Shipment({ fromAddress, toAddress, weightKg, shippingOptionCode, orderNumber, externalRef, servicePointId, auth }) {
+  const body = {
+    label_details: { mime_type: 'application/pdf' },
+    from_address: fromAddress,
+    to_address: toAddress,
+    ship_with: { type: 'shipping_option_code', properties: { shipping_option_code: shippingOptionCode } },
+    parcels: [{ weight: { value: String(weightKg || 0.5), unit: 'kg' } }],
+  };
+  if (orderNumber) body.order_number = String(orderNumber).slice(0, 60);
+  if (externalRef) body.external_reference_id = String(externalRef).slice(0, 100);
+  if (servicePointId) body.to_service_point = { id: String(servicePointId) };
+
+  const res = await fetch(`${SENDCLOUD_V3_BASE_URL}/shipments/announce`, {
+    method: 'POST',
+    headers: { Authorization: auth, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const text = await res.text().catch(() => '');
+  if (!res.ok) throw new Error(`SendCloud create parcel ${res.status}: ${text.slice(0, 400)}`);
+  let json = {};
+  try { json = JSON.parse(text); } catch (_) { /* leave empty */ }
+  return json?.data || {};
+}
+
+// Normalize a v3 shipment response into the downstream `parcel` shape + labelUrl.
+function _normalizeV3Shipment(shipment, shippingMethodId) {
+  const p = (Array.isArray(shipment?.parcels) ? shipment.parcels[0] : null) || {};
+  const docs = Array.isArray(p.documents) ? p.documents : [];
+  const labelDoc = docs.find((d) => d?.type === 'label' || d?.document_type === 'label') || docs[0] || null;
+  const labelUrl = labelDoc?.link || labelDoc?.href || null;
+  const parcel = {
+    id: p.id || shipment?.id || null,
+    tracking_number: p.tracking_number || null,
+    tracking_url: p.tracking_url || null,
+    carrier: shipment?.carrier || null,
+    // v3 status.code is a string; map to a v2-ish "created/ready" id for mapSendCloudStatus.
+    status: { id: 1000, message: p?.status?.message || p?.status?.code || 'announced' },
+    shipment: { id: shippingMethodId || null },
+    label_file: p.label_file || null,
+    _v3: shipment,
+  };
+  return { parcel, labelUrl };
+}
+
 /**
  * Normalize a name for fuzzy matching.
  * "Dr.Marin,Christian" → "christian marin dr"
@@ -330,113 +469,72 @@ async function createParcel({
   // Calculate total weight from items if not provided
   const totalWeight = weight || calculateOrderWeight(order);
 
-  // Build parcel payload per SendCloud API v2
-  const parcelData = {
-    parcel: {
-      name: nameStr,
-      address: addressStr,
-      house_number: houseNumberStr,
-      city: cityStr,
-      postal_code: zipStr,
-      country: countryRaw,
-      email: customer.email || 'noreply@trendocean.de',
-      telephone: customer.phone || customer.telephone || '',
-      order_number: order.marketplaceOrderId || order.orderId || order.id || '',
-      weight: String(totalWeight || 0.5), // kg
-      request_label: requestLabel,
-      external_reference: `${order.marketplaceOrderId || order.id || ''}_${Date.now()}`,
-    },
+  // ── SendCloud v3: shipping_option_code auflösen, dann create+announce ──────
+  // v2 POST /parcels ist für dieses Konto gesperrt. v3 braucht from_address +
+  // einen string shipping_option_code (statt numerischer Methoden-ID).
+  const methodMeta = await _getCachedMethodMeta(tenantId, shippingMethodId);
+  const fromAddress = await _getV3FromAddress();
+  const weightKg = Number(totalWeight) || 0.5;
+
+  const toAddress = {
+    name: nameStr,
+    address_line_1: addressStr,
+    house_number: houseNumberStr || undefined,
+    city: cityStr,
+    postal_code: zipStr,
+    country_code: countryRaw,
+    email: customer.email || 'noreply@trendocean.de',
+    phone_number: customer.phone || customer.telephone || undefined,
   };
+  // DHL Packstation/Postfiliale: v3 nutzt po_box für die DHL-Postnummer.
+  if (isPackstation && toPostNumber) toAddress.po_box = toPostNumber;
 
-  if (isPackstation) {
-    if (toPostNumber) parcelData.parcel.to_post_number = toPostNumber;
-    // DHL Kleinpaket (2830) doesn't support Packstation — force DHL Paket (89)
-    if (shippingMethodId === 2830) {
-      console.log(`[createParcel] Packstation: switching DHL Kleinpaket (2830) → DHL Paket (89)`);
-      shippingMethodId = 89;
-    }
+  const options = await _listV3ShippingOptions({ fromAddress, toCountry: countryRaw, toPostal: zipStr, weightKg, auth });
+  let shippingOptionCode = _matchV3OptionCode(options, methodMeta, weightKg);
+  if (!shippingOptionCode) {
+    // Fallback: günstigste gewichts-passende Option, damit Label-Erstellung nicht komplett blockt.
+    const fit = options
+      .filter((o) => {
+        const min = Number(o?.weight?.min?.value ?? 0) || 0;
+        const max = Number(o?.weight?.max?.value ?? 0) || Infinity;
+        return weightKg >= min && weightKg <= max;
+      })
+      .sort((a, b) => (Number(a?.quotes?.[0]?.price?.total?.value ?? Infinity)) - (Number(b?.quotes?.[0]?.price?.total?.value ?? Infinity)));
+    shippingOptionCode = fit[0]?.code || options[0]?.code || null;
+    if (shippingOptionCode) console.warn(`[createParcel] v3: kein exakter Methoden-Match für ${shippingMethodId} — Fallback "${shippingOptionCode}"`);
+  }
+  if (!shippingOptionCode) {
+    throw new Error(`SendCloud v3: keine passende Versandoption für ${countryRaw}/${weightKg}kg gefunden (Methode ${shippingMethodId || 'default'}, ${options.length} Optionen).`);
   }
 
-  if (shippingMethodId) {
-    parcelData.parcel.shipment = { id: shippingMethodId };
-  }
+  console.log(`[createParcel] Payload(v3) ${order.id}: to="${zipStr} ${cityStr}, ${countryRaw}", weight=${weightKg}kg, method=${shippingMethodId || 'default'} → code="${shippingOptionCode}"${toPostNumber ? `, po_box="${toPostNumber}"` : ''}`);
 
-  // Single-call label creation: Deutsche Post Internetmarke (carrier=dp) only
-  // announces to the DP API during initial POST — a subsequent PUT re-announce
-  // is rejected and leaves the parcel in "Announcement failed" state. We therefore
-  // request the label in the same POST for ALL carriers. Failed carrier validation
-  // does not incur label cost; SendCloud only charges on successful announcement.
-  parcelData.parcel.request_label = requestLabel;
+  const shipment = await _createV3Shipment({
+    fromAddress,
+    toAddress,
+    weightKg,
+    shippingOptionCode,
+    orderNumber: order.marketplaceOrderId || order.orderId || order.id || '',
+    externalRef: `${order.marketplaceOrderId || order.id || ''}_${Date.now()}`,
+    auth,
+  });
 
-  console.log(`[createParcel] Payload for ${order.id}: postal_code="${zipStr}", country="${countryRaw}", city="${cityStr}", address="${addressStr}", house_number="${houseNumberStr}", name="${nameStr}", method=${shippingMethodId || 'default'}, request_label=${requestLabel}${toPostNumber ? `, to_post_number="${toPostNumber}"` : ''}`);
-
-  // Try original, then address variants (no label cost on failure)
-  let res;
-  try {
-    res = await _sendParcelRequest(parcelData, auth);
-  } catch (err) {
-    const isAddrErr = err.message.includes('receiver_address') || err.message.includes('Adresse konnte');
-    if (!isAddrErr) throw err;
-
-    // Try normalized German address variants (Straße→Str., Ortsteil removal, ß→ss)
-    const variants = germanAddressVariants(parcelData.parcel.address);
-    if (variants.length === 0) throw err;
-
-    let resolved = false;
-    for (const variant of variants) {
-      console.warn(`[createParcel] Address rejected, trying variant: "${parcelData.parcel.address}" → "${variant}"`);
-      parcelData.parcel.address = variant;
-      try {
-        res = await _sendParcelRequest(parcelData, auth);
-        resolved = true;
-        break;
-      } catch (retryErr) {
-        const stillAddrErr = retryErr.message.includes('receiver_address') || retryErr.message.includes('Adresse konnte');
-        if (!stillAddrErr) throw retryErr;
-        console.warn(`[createParcel] Variant "${variant}" also rejected`);
-      }
-    }
-    if (!resolved) throw err;
-  }
-
-  const result = await res.json();
-  let parcel = result?.parcel || {};
+  const norm = _normalizeV3Shipment(shipment, shippingMethodId);
+  let parcel = norm.parcel;
+  let labelUrl = norm.labelUrl;
   const isA4 = labelFormat === 'a4';
 
-  // Detect carrier-level rejection (status 1002 "Announcement failed") and surface
-  // a clear error instead of persisting a useless parcel.
-  const statusId = Number(parcel.status?.id || 0);
-  if (statusId === 1002) {
-    const statusMsg = parcel.status?.message || 'Announcement failed';
-    const errMsgs = (parcel.errors && Object.values(parcel.errors).flat()).join('; ') || '';
-    console.error(`[createParcel] Parcel ${parcel.id} status 1002: ${statusMsg}. Errors: ${errMsgs}`);
-    try {
-      await fetch(`${SENDCLOUD_BASE_URL}/parcels/${parcel.id}/cancel`, {
-        method: 'POST', headers: { Authorization: auth },
-      });
-    } catch (_) {}
-    throw new Error(`SendCloud Announcement failed${errMsgs ? `: ${errMsgs}` : ''}. Methode/Adresse/Guthaben prüfen.`);
+  // v3-Fehler (carrier-Ablehnung) sauber melden statt ein nutzloses Paket zu behalten.
+  const shipErrors = [
+    ...(Array.isArray(shipment?.errors) ? shipment.errors : []),
+    ...(Array.isArray(shipment?.parcels?.[0]?.errors) ? shipment.parcels[0].errors : []),
+  ];
+  if (!labelUrl && !parcel.tracking_number && shipErrors.length) {
+    const msgs = shipErrors.map((e) => e?.message || e?.detail || e?.title || JSON.stringify(e)).join('; ');
+    throw new Error(`SendCloud Announcement failed: ${msgs}. Methode/Adresse/Guthaben prüfen.`);
   }
-
-  // Extract label URL from response (falls back to constructed /labels/:printer/:id
-  // endpoint for async carriers like DP Internetmarke — see extractLabelUrl).
-  let labelUrl = extractLabelUrl(parcel, isA4);
-
-  // If label URL not in immediate response, poll parcel API until label is ready.
-  // BUG-FIX: tracking_number, tracking_url and carrier may also be empty on the
-  // initial POST response (async carriers, high SendCloud load) and only populate
-  // once polling succeeds. We therefore reassign `parcel` to the polled body and
-  // re-derive ALL downstream fields from it — never from the initial response.
-  if (requestLabel && !labelUrl && parcel.id) {
-    console.log(`[createParcel] No label URL in POST response (parcel ${parcel.id}), polling...`);
-    const polled = await pollForLabel({ parcelId: parcel.id, labelFormat, maxAttempts: 10, intervalMs: 2000 });
-    if (polled.labelUrl) {
-      labelUrl = polled.labelUrl;
-      parcel = polled.parcel || parcel;
-      console.log(`[createParcel] Label ready after polling (parcel ${parcel.id})`);
-    } else {
-      console.warn(`[createParcel] Label NOT generated by SendCloud after polling (parcel ${parcel.id}). Status: ${polled.status || 'unknown'}`);
-    }
+  if (!labelUrl && parcel.id) {
+    console.warn(`[createParcel] v3: kein Label-Link in Antwort (parcel ${parcel.id}). label_file vorhanden: ${!!parcel.label_file}`);
   }
 
   // Re-derive AFTER polling so async-populated fields (tracking_number for DPD,
@@ -1637,6 +1735,7 @@ async function pollDeliveryStatus({ tenantId = 'default' } = {}) {
 }
 
 module.exports = {
+  _matchV3OptionCode,
   getShippingMethods,
   syncShippingMethods,
   getCachedShippingMethods,

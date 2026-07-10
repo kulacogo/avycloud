@@ -25,7 +25,12 @@ require.cache[secretValuesPath] = {
 const sendcloudPath = require.resolve('../lib/sendcloud');
 require.cache[sendcloudPath] = {
   id: sendcloudPath, filename: sendcloudPath, loaded: true,
-  exports: { lookupCsvPrice: vi.fn().mockResolvedValue(null) },
+  exports: {
+    lookupCsvPrice: vi.fn().mockResolvedValue(null),
+    listSenderAddresses: vi.fn().mockResolvedValue([
+      { id: 1, companyName: 'TrendOcean', street: 'Musterstr 1', city: 'Berlin', postalCode: '10115', country: 'DE' },
+    ]),
+  },
   children: [], paths: [],
 };
 
@@ -151,22 +156,31 @@ describe('createParcel — shipment doc reflects the final parcel state', () => 
     // never from a stale local snapshot. The polling branch is defensive
     // for async carriers; this test is the regression guard for the
     // post-refactor synchronous (DPD/DHL) happy path.
+    // SendCloud v3: POST /shipping-options → then POST /shipments/announce.
     global.fetch = vi.fn(async (url, init) => {
-      if (init && init.method === 'POST' && /\/parcels\?errors=/.test(String(url))) {
-        return {
-          ok: true,
-          json: async () => ({
-            parcel: {
-              id: 12345,
-              status: { id: 1, message: 'ready_to_send' },
-              tracking_number: '01596813323012',
-              tracking_url: 'https://tracking.example/12345',
-              carrier: { code: 'dpd' },
-              shipment: { id: 113 },
-              label: { label_printer: 'https://panel.sendcloud.sc/api/v2/labels/label_printer/12345' },
-            },
-          }),
-        };
+      if (/\/shipping-options/.test(String(url))) {
+        const body = { data: [{
+          code: 'dpd:classic',
+          carrier: { code: 'dpd', name: 'DPD' },
+          product: { code: 'classic', name: 'DPD Classic' },
+          weight: { min: { value: '0.01' }, max: { value: '31.5' } },
+          quotes: [{ price: { total: { value: '5.49' } } }],
+        }] };
+        return { ok: true, text: async () => JSON.stringify(body), json: async () => body };
+      }
+      if (/\/shipments\/announce/.test(String(url))) {
+        const body = { data: {
+          id: 'shp_1',
+          carrier: { code: 'dpd' },
+          parcels: [{
+            id: 12345,
+            tracking_number: '01596813323012',
+            tracking_url: 'https://tracking.example/12345',
+            status: { code: 'announced', message: 'ready_to_send' },
+            documents: [{ type: 'label', size: 'a6', link: 'https://panel.sendcloud.sc/api/v3/parcels/12345/label' }],
+          }],
+        } };
+        return { ok: true, text: async () => JSON.stringify(body), json: async () => body };
       }
       throw new Error(`unexpected fetch ${init?.method || 'GET'} ${url}`);
     });
@@ -188,14 +202,14 @@ describe('createParcel — shipment doc reflects the final parcel state', () => 
     expect(result.trackingNumber).toBe('01596813323012');
     expect(result.trackingUrl).toBe('https://tracking.example/12345');
     expect(result.carrier).toBe('dpd');
-    expect(result.labelUrl).toMatch(/label_printer/);
+    expect(result.labelUrl).toMatch(/\/label$/);
 
     // Shipment row in Firestore must reflect the same values.
     expect(lastAdded?.collection).toBe('shipments');
     expect(lastAdded?.data.trackingNumber).toBe('01596813323012');
     expect(lastAdded?.data.trackingUrl).toBe('https://tracking.example/12345');
     expect(lastAdded?.data.carrier).toBe('dpd');
-    expect(lastAdded?.data.labelUrl).toMatch(/label_printer/);
+    expect(lastAdded?.data.labelUrl).toMatch(/\/label$/);
   });
 });
 

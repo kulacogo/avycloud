@@ -23,7 +23,12 @@ require.cache[secretValuesPath] = {
 const sendcloudPath = require.resolve('../lib/sendcloud');
 require.cache[sendcloudPath] = {
   id: sendcloudPath, filename: sendcloudPath, loaded: true,
-  exports: { lookupCsvPrice: vi.fn().mockResolvedValue(null) },
+  exports: {
+    lookupCsvPrice: vi.fn().mockResolvedValue(null),
+    listSenderAddresses: vi.fn().mockResolvedValue([
+      { id: 1, companyName: 'TrendOcean', street: 'Musterstr 1', city: 'Berlin', postalCode: '10115', country: 'DE' },
+    ]),
+  },
   children: [], paths: [],
 };
 
@@ -39,21 +44,31 @@ function baseOrder(customer) {
   };
 }
 
-// A minimal "label created" SendCloud response so the happy path resolves.
-function okParcelResponse() {
-  return {
-    ok: true,
-    json: async () => ({
-      parcel: {
-        id: 123,
-        status: { id: 1000, message: 'ready to send' },
-        label: { label_printer: 'https://sendcloud/label.pdf' },
-        tracking_number: 'TRACK123',
-        tracking_url: 'https://track/TRACK123',
-        carrier: { code: 'dhl' },
-      },
-    }),
+// URL-aware SendCloud v3 mock: shipping-options (POST /shipping-options) then
+// create+announce (POST /shipments/announce). createParcel reads res.text().
+function v3FetchMock() {
+  const option = {
+    code: 'dhl:parcel',
+    carrier: { code: 'dhl', name: 'DHL' },
+    product: { code: 'parcel', name: 'DHL Paket' },
+    weight: { min: { value: '0.01' }, max: { value: '31.5' } },
+    quotes: [{ price: { total: { value: '5.49' } } }],
   };
+  const shipment = {
+    id: 'shp_1',
+    carrier: { code: 'dhl' },
+    parcels: [{
+      id: 123,
+      tracking_number: 'TRACK123',
+      tracking_url: 'https://track/TRACK123',
+      status: { code: 'announced', message: 'ready to send' },
+      documents: [{ type: 'label', size: 'a6', link: 'https://sendcloud/label.pdf' }],
+    }],
+  };
+  return vi.fn((url) => {
+    const body = String(url).includes('/shipping-options') ? { data: [option] } : { data: shipment };
+    return Promise.resolve({ ok: true, text: async () => JSON.stringify(body), json: async () => body });
+  });
 }
 
 describe('createParcel — DHL Packstation Postnummer', () => {
@@ -79,8 +94,8 @@ describe('createParcel — DHL Packstation Postnummer', () => {
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
-  it('sends to_post_number + PACKSTATION address when an explicit postNumber is set', async () => {
-    const fetchSpy = vi.fn().mockResolvedValue(okParcelResponse());
+  it('sends po_box (Postnummer) + PACKSTATION address (v3) when an explicit postNumber is set', async () => {
+    const fetchSpy = v3FetchMock();
     global.fetch = fetchSpy;
 
     const order = baseOrder({
@@ -94,14 +109,15 @@ describe('createParcel — DHL Packstation Postnummer', () => {
 
     await createParcel({ order, weight: 1.25, requestLabel: false });
 
-    const body = JSON.parse(fetchSpy.mock.calls[0][1].body);
-    expect(body.parcel.to_post_number).toBe('1234567');
-    expect(body.parcel.address).toBe('PACKSTATION 142');
-    expect(body.parcel.house_number).toBe('142');
+    const announce = fetchSpy.mock.calls.find((c) => String(c[0]).includes('/shipments/announce'));
+    const body = JSON.parse(announce[1].body);
+    expect(body.to_address.po_box).toBe('1234567');
+    expect(body.to_address.address_line_1).toBe('PACKSTATION 142');
+    expect(body.to_address.house_number).toBe('142');
   });
 
-  it('recovers a Postnummer embedded after the station token in the street', async () => {
-    const fetchSpy = vi.fn().mockResolvedValue(okParcelResponse());
+  it('recovers a Postnummer embedded after the station token in the street (v3)', async () => {
+    const fetchSpy = v3FetchMock();
     global.fetch = fetchSpy;
 
     const order = baseOrder({
@@ -114,8 +130,9 @@ describe('createParcel — DHL Packstation Postnummer', () => {
 
     await createParcel({ order, weight: 1.25, requestLabel: false });
 
-    const body = JSON.parse(fetchSpy.mock.calls[0][1].body);
-    expect(body.parcel.to_post_number).toBe('12345678');
-    expect(body.parcel.address).toBe('PACKSTATION 142');
+    const announce = fetchSpy.mock.calls.find((c) => String(c[0]).includes('/shipments/announce'));
+    const body = JSON.parse(announce[1].body);
+    expect(body.to_address.po_box).toBe('12345678');
+    expect(body.to_address.address_line_1).toBe('PACKSTATION 142');
   });
 });
