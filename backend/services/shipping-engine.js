@@ -82,6 +82,17 @@ async function getShippingMethods() {
 const SENDCLOUD_V3_BASE_URL = 'https://panel.sendcloud.sc/api/v3';
 const _normLoose = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
 
+// True for v3 options that DELIVER TO A SERVICE POINT (Paketshop/Packstation) and
+// thus require `to_service_point` in the request. createParcel always ships to the
+// recipient's to_address (home; DHL Packstation handled via po_box), so these must
+// never be picked — else SendCloud 400 "A service point is required" (Incident
+// 2026-07-10). Matches base-product ("dhl_de:service_point") AND modifier
+// ("dhl_de:warenpost,service_point"), plus DPD "shop2home".
+function _needsServicePoint(code) {
+  const c = String(code || '');
+  return /(^|[:/,])service[_-]?point([/,]|$)/i.test(c) || /shop2home/i.test(c);
+}
+
 let _v3FromAddressCache = null;
 async function _getV3FromAddress() {
   if (_v3FromAddressCache) return _v3FromAddressCache;
@@ -175,6 +186,10 @@ function _matchV3OptionCode(options, methodMeta, weightKg, opts = {}) {
 
   let cand = options.filter(fitsWeight);
   if (!cand.length) cand = options.slice();
+  // Exclude service-point-delivery products (we ship to to_address). HARD filter;
+  // only fall back to them if literally nothing else fits.
+  const homeCand = cand.filter((o) => !_needsServicePoint(o?.code));
+  if (homeCand.length) cand = homeCand;
   if (wantCarrier) {
     // Never silently switch carrier: if the chosen carrier isn't among the v3
     // options, return null so the caller's fallback logs a cross-carrier warning.
@@ -522,15 +537,17 @@ async function createParcel({
   const isDomestic = String(fromAddress?.country_code || 'DE').toUpperCase() === String(countryRaw || 'DE').toUpperCase();
   let shippingOptionCode = _matchV3OptionCode(options, methodMeta, weightKg, { domestic: isDomestic });
   if (!shippingOptionCode) {
-    // Fallback: günstigste gewichts-passende Option, damit Label-Erstellung nicht komplett blockt.
+    // Fallback: günstigste gewichts-passende Home-Delivery-Option (keine
+    // service-point-Produkte), damit Label-Erstellung nicht komplett blockt.
     const fit = options
       .filter((o) => {
+        if (_needsServicePoint(o?.code)) return false;
         const min = Number(o?.weight?.min?.value ?? 0) || 0;
         const max = Number(o?.weight?.max?.value ?? 0) || Infinity;
         return weightKg >= min && weightKg <= max;
       })
       .sort((a, b) => (Number(a?.quotes?.[0]?.price?.total?.value ?? Infinity)) - (Number(b?.quotes?.[0]?.price?.total?.value ?? Infinity)));
-    shippingOptionCode = fit[0]?.code || options[0]?.code || null;
+    shippingOptionCode = fit[0]?.code || options.find((o) => !_needsServicePoint(o?.code))?.code || null;
     if (shippingOptionCode) console.warn(`[createParcel] v3: kein exakter Methoden-Match für ${shippingMethodId} — Fallback "${shippingOptionCode}"`);
   }
   if (!shippingOptionCode) {

@@ -97,6 +97,19 @@ describe('_matchV3OptionCode', () => {
     expect(picked).not.toMatch(/gogreen|eco_delivery/);
   });
 
+  it('never picks a service-point product (ships to home address) — Incident 2026-07-10', () => {
+    // Real codes: dhl_de:service_point is cheapest but requires to_service_point;
+    // the plain home-delivery dhl_de:warenpost must win.
+    const dhl = [
+      { code: 'dhl_de:service_point', carrier: { code: 'dhl' }, product: { name: 'DHL Kleinpaket' }, weight: { min: { value: '0.01' }, max: { value: '1' } }, quotes: [{ price: { total: { value: '2.99' } } }] },
+      { code: 'dhl_de:warenpost', carrier: { code: 'dhl' }, product: { name: 'DHL Kleinpaket' }, weight: { min: { value: '0.01' }, max: { value: '1' } }, quotes: [{ price: { total: { value: '3.99' } } }] },
+      { code: 'dhl_de:warenpost,service_point', carrier: { code: 'dhl' }, product: { name: 'DHL Kleinpaket' }, weight: { min: { value: '0.01' }, max: { value: '1' } }, quotes: [{ price: { total: { value: '2.50' } } }] },
+    ];
+    const picked = _matchV3OptionCode(dhl, { carrier: 'dhl', name: 'DHL Kleinpaket 0-1kg' }, 0.4, { domestic: true });
+    expect(picked).toBe('dhl_de:warenpost');
+    expect(picked).not.toMatch(/service_point/);
+  });
+
   it('falls back to the international variant only if NO domestic option exists', () => {
     const onlyIntl = [
       { code: 'dp:grossbrief_international/mailbox', carrier: { code: 'deutsche_post' }, product: { name: 'Großbrief International' }, weight: { min: { value: '0.01' }, max: { value: '0.5' } }, quotes: [{ price: { total: { value: '1.60' } } }] },
