@@ -2445,6 +2445,25 @@ async function saveProduct(product, options = {}) {
       console.warn('[saveProduct] category profile attribute normalization failed (non-blocking):', e?.message || e);
     }
 
+    // Fold any non-canonical K-Typ synonym key (e.g. "ktype" written by the chat
+    // LLM) onto the canonical "K-Typ", so the K-Typ field, eBay ItemCompatibility
+    // extraction and enrichment all see it. Self-healing on every save
+    // (Incident 2026-07-10).
+    try {
+      if (mergedDetails && mergedDetails.attributes && typeof mergedDetails.attributes === 'object') {
+        const { normalizeKTypAttributeKeys } = require('./ktype-key-normalize');
+        const kt = normalizeKTypAttributeKeys(mergedDetails.attributes);
+        if (kt.changed) {
+          mergedDetails.attributes = kt.attributes;
+          if (kt.movedFrom.length) {
+            console.log(`[saveProduct] K-Typ key normalized → "K-Typ" (moved: ${kt.movedFrom.join(', ')})`);
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('[saveProduct] K-Typ key normalization failed (non-blocking):', e?.message || e);
+    }
+
     const productWithEbay = enforceEbayAspects({
       ...(existingData || {}),
       ...product,

@@ -167,7 +167,13 @@ const TECHNICAL_SPECIFIC_TOKENS = new Set([
 // Values can be canonical pipe-separated entries ("12345|67890" or "12345,note|67890")
 // or legacy plain numeric lists ("12345,67890"). They must NOT be sent as ItemSpecifics —
 // they belong in ItemCompatibilityList instead.
-const KTYPE_SPECIFIC_KEYS = new Set(['k-typ', 'ktyp', 'k typ', 'ktyp id', 'ktypids', 'k-typ id']);
+// Canonical is "K-Typ"; the extra entries catch non-canonical keys (e.g. "ktype"
+// written by the chat LLM) so K-Typ still routes to ItemCompatibilityList instead
+// of being sent as an over-long ItemSpecific (Incident 2026-07-10).
+const KTYPE_SPECIFIC_KEYS = new Set([
+  'k-typ', 'ktyp', 'k typ', 'ktyp id', 'ktypids', 'k-typ id',
+  'ktype', 'k-type', 'ktype id', 'ktypeid', 'ktypeids',
+]);
 
 function extractKTypeNumbers(itemSpecifics) {
   const kTypeNumbers = [];

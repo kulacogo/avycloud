@@ -1222,7 +1222,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
     const attrs = localProduct?.details?.attributes || {};
     const key = Object.keys(attrs).find((k) => {
       const lower = String(k || '').trim().toLowerCase();
-      return lower === 'k-typ' || lower === 'ktyp' || lower === 'k typ';
+      return lower === 'k-typ' || lower === 'ktyp' || lower === 'k typ' || lower === 'ktype' || lower === 'k-type';
     });
     if (!key) return '';
     const raw = attrs[key];
@@ -1893,7 +1893,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                   const nextVal = e.target.value.trim();
                   setLocalProduct((prev) => {
                     const nextAttrs = { ...(prev.details.attributes || {}) } as Record<string, any>;
-                    if (!nextVal) { Object.keys(nextAttrs).forEach((k) => { if (['k-typ','ktyp','k typ'].includes(k.trim().toLowerCase())) delete nextAttrs[k]; }); }
+                    if (!nextVal) { Object.keys(nextAttrs).forEach((k) => { if (['k-typ','ktyp','k typ','ktype','k-type'].includes(k.trim().toLowerCase())) delete nextAttrs[k]; }); }
                     else { nextAttrs['K-Typ'] = nextVal; }
                     return { ...prev, details: { ...prev.details, attributes: nextAttrs } };
                   });
