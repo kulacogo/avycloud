@@ -393,6 +393,44 @@ const server = app.listen(PORT, () => {
     console.warn('[order-sync] failed to start safety-net:', err?.message || err);
   }
 
+  // Fast-Poll: neue Marktplatz-Bestellungen alle 5 min abholen (Oversell-
+  // Incident 2026-07-11, SKU-2510094553). Der 6h-Voll-Sync + die Hot-Path-
+  // Trigger reichen NICHT: ohne offene App wurde eine Kaufland-Order erst
+  // 38 min nach Kauf importiert — in dem Fenster kannte das System weder die
+  // Order noch die Reservierung, und Bestands-Jobs arbeiteten auf veralteten
+  // Zahlen. Leichtgewichtig: nur lookbackDays=1 (wenige Orders pro Call),
+  // KEIN 30d-Reconcile wie der Voll-Sync. Intake ist idempotent
+  // (saveOrderIfNew), doppelte Verarbeitung mit dem 6h-Sync ist harmlos.
+  const ORDER_FAST_POLL_INTERVAL_MS = parseInt(process.env.ORDER_FAST_POLL_INTERVAL_MS || String(5 * 60 * 1000), 10);
+  try {
+    let orderFastPollInFlight = false;
+    const runOrderFastPoll = async () => {
+      if (orderFastPollInFlight) return;
+      orderFastPollInFlight = true;
+      try {
+        await runForAllTenants('order-fast-poll', async ({ tenantId }) => {
+          const { syncKauflandOrders } = require('./services/order-intake-kaufland');
+          const { syncEbayOrders } = require('./services/order-intake-ebay');
+          const kl = await syncKauflandOrders({ tenantId, lookbackDays: 1 })
+            .catch((err) => { console.warn(`[order-fast-poll] kaufland failed: ${err?.message}`); return null; });
+          const eb = await syncEbayOrders({ tenantId, lookbackDays: 1 })
+            .catch((err) => { console.warn(`[order-fast-poll] ebay failed: ${err?.message}`); return null; });
+          const imported = Number(kl?.synced || 0) + Number(eb?.synced || 0);
+          if (imported > 0) {
+            console.log(`[order-fast-poll] tenant=${tenantId} neue Orders importiert: kaufland=${kl?.synced ?? 0} ebay=${eb?.synced ?? 0}`);
+          }
+        });
+      } finally {
+        orderFastPollInFlight = false;
+      }
+    };
+    setTimeout(() => { runOrderFastPoll().catch(() => {}); }, 45_000);
+    setInterval(() => { runOrderFastPoll().catch(() => {}); }, ORDER_FAST_POLL_INTERVAL_MS);
+    console.log(`[order-fast-poll] enabled: every ${ORDER_FAST_POLL_INTERVAL_MS}ms (lookback 1d, kaufland+ebay)`);
+  } catch (err) {
+    console.warn('[order-fast-poll] failed to start:', err?.message || err);
+  }
+
   // Safety-net: returns sync every 6h (primary: event-driven on return mutations + webhooks)
   const RETURNS_SYNC_INTERVAL_MS = parseInt(process.env.RETURNS_SYNC_INTERVAL_MS || String(6 * 60 * 60 * 1000), 10);
   try {

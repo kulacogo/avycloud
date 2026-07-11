@@ -113,7 +113,84 @@ async function reserveStock({ tenantId = 'default', orderId, items }) {
     throw err;
   }
 
-  return { reserved: count > 0, count, skipped: false };
+  // Überbuchungs-Wache (Oversell-Incident 2026-07-11, SKU-2510094553): eine
+  // bezahlte Marktplatz-Order wird IMMER reserviert (ablehnen geht nicht),
+  // aber wenn damit in Summe mehr reserviert ist als physisch existiert, muss
+  // ein Mensch es SOFORT erfahren — vorher passierte die zweite Reservierung
+  // stumm und der Konflikt fiel erst beim Picken auf. Best-effort: darf den
+  // Intake nie brechen.
+  const overbooked = [];
+  try {
+    for (const entry of perKey.values()) {
+      const check = await detectOverbooking({ tenantId, sku: entry.sku, productId: entry.productId });
+      if (check?.overbooked) overbooked.push(check);
+    }
+    if (overbooked.length) {
+      const { emitOpsAlert } = require('../lib/ops-alert');
+      for (const ob of overbooked) {
+        console.error(`[stock-reservation] ⚠️ ÜBERBUCHUNG sku=${ob.sku || '-'} physisch=${ob.physicalQty} reserviert=${ob.reservedQty} (order=${orderId})`);
+        emitOpsAlert({
+          source: 'stock-reservation',
+          severity: 'critical',
+          tenantId,
+          message: `ÜBERBUCHUNG: SKU ${ob.sku || ob.productId} — ${ob.reservedQty} Stück reserviert, aber nur ${ob.physicalQty} physisch im Lager (ausgelöst durch Order ${orderId}). Eine der Bestellungen kann nicht beliefert werden — nachbeschaffen oder stornieren.`,
+          context: { sku: ob.sku, productId: ob.productId, physicalQty: ob.physicalQty, reservedQty: ob.reservedQty, orderId },
+        });
+      }
+    }
+  } catch (obErr) {
+    console.warn(`[stock-reservation] overbooking check failed (non-fatal): ${obErr?.message}`);
+  }
+
+  return { reserved: count > 0, count, skipped: false, overbooked: overbooked.length > 0 };
+}
+
+/**
+ * Prüft, ob für eine SKU/ein Produkt in Summe mehr reserviert ist als physisch
+ * im Lager liegt. Liefert `{ overbooked, sku, productId, physicalQty,
+ * reservedQty }` oder `null`, wenn kein Produkt auffindbar ist (dann ist keine
+ * Aussage möglich). Read-only, wirft nie in den Aufrufer (Fehler → null).
+ */
+async function detectOverbooking({ tenantId = 'default', sku = null, productId = null } = {}) {
+  try {
+    let productDoc = null;
+    if (productId) {
+      const snap = await firestore.collection('products_v2').doc(String(productId)).get();
+      if (snap.exists) productDoc = { id: snap.id, ...snap.data() };
+    }
+    if (!productDoc && sku) {
+      // Beide historisch genutzten SKU-Felder prüfen (identification.sku ist
+      // der kanonische Ort, details.identifiers.sku der Legacy-Pfad).
+      for (const field of ['identification.sku', 'details.identifiers.sku']) {
+        const snap = await firestore.collection('products_v2')
+          .where(field, '==', String(sku))
+          .limit(1)
+          .get();
+        if (!snap.empty) {
+          productDoc = { id: snap.docs[0].id, ...snap.docs[0].data() };
+          break;
+        }
+      }
+    }
+    if (!productDoc) return null;
+
+    const physicalQty = Number(productDoc?.inventory?.quantity ?? 0);
+    const reservedQty = await getReservedQuantity({
+      tenantId,
+      sku: sku || undefined,
+      productId: sku ? undefined : (productId || undefined),
+    });
+    return {
+      overbooked: reservedQty > physicalQty,
+      sku: sku || null,
+      productId: productDoc.id,
+      physicalQty,
+      reservedQty,
+    };
+  } catch (err) {
+    console.warn(`[stock-reservation] detectOverbooking failed for sku=${sku}: ${err?.message}`);
+    return null;
+  }
 }
 
 /**
@@ -272,6 +349,7 @@ module.exports = {
   releaseReservation,
   confirmReservation,
   getReservedQuantity,
+  detectOverbooking,
   listReservations,
   expireStaleReservations,
 };

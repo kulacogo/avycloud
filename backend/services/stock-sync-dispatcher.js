@@ -276,10 +276,21 @@ async function computeAvailableQuantity(product, tenantId = 'default') {
  * @param {string} [params.reason] - Why the sync was triggered (e.g., 'stock-out', 'stock-in')
  * @returns {Object} { results: Array<{ channel, status, error? }> }
  */
-async function syncStockToAllChannels({ tenantId = 'default', product, reason = 'manual' }) {
+async function syncStockToAllChannels({ tenantId = 'default', product, reason = 'manual', onlyChannels = null }) {
   if (!product?.id) {
     return { results: [{ channel: 'all', status: 'skipped', error: 'no product id' }] };
   }
+
+  // Additiver Kanal-Filter (Oversell-Incident 2026-07-11): der Auto-Heal darf
+  // nur die Kanäle anfassen, die tatsächlich GESENKT werden müssen. Ohne den
+  // Filter würde ein Down-Push für Kanal A denselben (evtl. stale-hohen)
+  // availableQty auch auf Kanal B schreiben und dort ein frisch ausverkauftes
+  // Listing wieder scharf machen. null/leer = alle Kanäle (Default, unverändert
+  // für alle bestehenden Aufrufer).
+  const channelFilter = Array.isArray(onlyChannels) && onlyChannels.length
+    ? new Set(onlyChannels.map((c) => String(c || '').toLowerCase()).filter(Boolean))
+    : null;
+  const channelAllowed = (name) => !channelFilter || channelFilter.has(name);
 
   const productId = String(product.id);
   const { withStockLock } = require('../lib/stock-lock');
@@ -311,11 +322,11 @@ async function syncStockToAllChannels({ tenantId = 'default', product, reason = 
     || freshProduct?.ops?.ebay?.item_id
     || freshProduct?.marketplace?.ebay?.itemId;
   let resolvedEbayItemId = ebayItemId;
-  if (!resolvedEbayItemId) {
+  if (!resolvedEbayItemId && channelAllowed('ebay')) {
     resolvedEbayItemId = await resolveEbayItemIdFromLiveListing({ productId, freshProduct });
   }
 
-  if (resolvedEbayItemId) {
+  if (resolvedEbayItemId && channelAllowed('ebay')) {
     const isEndedListing = (msg) => {
       const lower = String(msg || '').toLowerCase();
       return lower.includes('beendet') || lower.includes('ended') || lower.includes('1047');
@@ -438,7 +449,7 @@ async function syncStockToAllChannels({ tenantId = 'default', product, reason = 
     || freshProduct?.ops?.kaufland?.id_unit
     || freshProduct?.marketplace?.kaufland?.unitId;
 
-  if (!kauflandUnitId) {
+  if (!kauflandUnitId && channelAllowed('kaufland')) {
     try {
       const sku = String(freshProduct?.identification?.sku || freshProduct?.details?.identifiers?.sku || '').trim();
       const ean = String(freshProduct?.identification?.ean || freshProduct?.details?.identifiers?.ean || '').trim();
@@ -470,7 +481,7 @@ async function syncStockToAllChannels({ tenantId = 'default', product, reason = 
     }
   }
 
-  if (kauflandUnitId) {
+  if (kauflandUnitId && channelAllowed('kaufland')) {
     if (isZeroStock) {
       // Zero stock: explicitly set ONHOLD first — bypasses price validation in updateUnit()
       // This guarantees the listing is deactivated even if price/SKU data is missing.
@@ -706,8 +717,9 @@ async function syncStockWithRetry({
   product,
   reason = 'manual',
   skipPersistentFailureQueue = false,
+  onlyChannels = null,
 }) {
-  const first = await syncStockToAllChannels({ tenantId, product, reason });
+  const first = await syncStockToAllChannels({ tenantId, product, reason, onlyChannels });
   const isFailedStatus = (s) => s === 'error' || s === 'failed';
   const failedChannels = first.results.filter((r) => isFailedStatus(r?.status));
   if (failedChannels.length === 0) return first;

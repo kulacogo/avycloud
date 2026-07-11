@@ -312,6 +312,45 @@ const lastHealedAt = new Map();
 const HEAL_COOLDOWN_MS = parseInt(process.env.AUTO_HEAL_COOLDOWN_MS || String(30 * 60 * 1000), 10); // 30 min
 const MAX_HEALS_PER_CYCLE = parseInt(process.env.AUTO_HEAL_MAX_PER_CYCLE || '5', 10);
 
+// EISERNE REGEL (Oversell-Incident 2026-07-11, SKU-2510094553): der Auto-Heal
+// darf Marktplatz-Mengen NUR SENKEN, NIE ERHÖHEN.
+//
+// Warum: Marktplätze dekrementieren ihre Angebots-Menge bei jedem Kauf sofort
+// selbst — unser Order-Intake erfährt vom Kauf aber erst Minuten später
+// (Poll-Latenz). In diesem Fenster ist marketplace < available der ERWARTETE
+// Zustand einer frischen, noch nicht importierten Bestellung. Ein
+// Upward-"Heal" macht das faktisch ausverkaufte Listing wieder kaufbar:
+// Kauf 08:12 → Kaufland 1→0 → Auto-Heal pushte 08:14 wieder qty=1 →
+// Zweitkauf 08:16 → Oversell. Legitime Bestandserhöhungen (Wareneingang,
+// Storno-Re-Credit) laufen ereignisgetrieben über saveProductV2 +
+// stock:changed und brauchen den Heal nicht.
+//
+// Zusätzlich pro Kanal geklemmt (onlyChannels): ein nötiger Down-Push für
+// Kanal A darf denselben (evtl. stale-hohen) Wert nicht auf Kanal B
+// spiegeln und dort ein frisch ausverkauftes Listing re-armieren.
+//
+// Pure Funktion, exportiert für Tests.
+function decideAutoHealPush({ availableQty, ebayMpQty, kauflandMpQty }) {
+  const avail = Number(availableQty);
+  if (!Number.isFinite(avail) || avail < 0) return { push: false, reason: 'invalid availableQty' };
+  const needsDown = (mp) => mp !== undefined && mp !== null && Number(mp) > avail;
+  const ebayDown = needsDown(ebayMpQty);
+  const kauflandDown = needsDown(kauflandMpQty);
+  if (!ebayDown && !kauflandDown) {
+    // marketplace <= available auf allen Kanälen: entweder synchron oder
+    // Upward-Drift (= möglicher Kauf im Intake-Fenster) → NIE pushen.
+    return { push: false, reason: 'no channel above available (upward drift = report-only)' };
+  }
+  return {
+    push: true,
+    isOversell: avail === 0,
+    onlyChannels: [
+      ...(ebayDown ? ['ebay'] : []),
+      ...(kauflandDown ? ['kaufland'] : []),
+    ],
+  };
+}
+
 async function autoHealStockDiscrepancies() {
   const { syncStockWithRetry, computeAvailableQuantity } = require('./stock-sync-dispatcher');
 
@@ -375,13 +414,24 @@ async function autoHealStockDiscrepancies() {
 
         const ebayMpQty = ebayQtyMap.get(sku);
         const kauflandMpQty = kauflandQtyMap.get(sku);
-        const mismatch =
-          (ebayMpQty !== undefined && ebayMpQty !== availableQty) ||
-          (kauflandMpQty !== undefined && kauflandMpQty !== availableQty);
 
-        if (!mismatch) continue;
+        const decision = decideAutoHealPush({ availableQty, ebayMpQty, kauflandMpQty });
+        if (!decision.push) {
+          // Upward-Drift (marketplace < available) NIE hochpushen — siehe
+          // decideAutoHealPush. Nur loggen wenn überhaupt eine Abweichung da
+          // ist, sonst wird der Log bei synchronen Beständen geflutet.
+          const anyDrift =
+            (ebayMpQty !== undefined && ebayMpQty !== availableQty) ||
+            (kauflandMpQty !== undefined && kauflandMpQty !== availableQty);
+          if (anyDrift) {
+            console.log(
+              `[ListingSyncRunner] Auto-heal REPORT-ONLY: ${sku} available=${availableQty} ebay=${ebayMpQty ?? '-'} kaufland=${kauflandMpQty ?? '-'} — marketplace<=available (möglicher Kauf im Intake-Fenster, kein Upward-Push)`
+            );
+          }
+          continue;
+        }
 
-        const isOversell = availableQty === 0 && ((ebayMpQty || 0) > 0 || (kauflandMpQty || 0) > 0);
+        const { isOversell, onlyChannels } = decision;
 
         // Skip non-critical mismatches if we already pushed recently (cooldown)
         if (!isOversell) {
@@ -390,10 +440,10 @@ async function autoHealStockDiscrepancies() {
         }
 
         console.log(
-          `[ListingSyncRunner] Auto-heal: ${sku} available=${availableQty} ebay=${ebayMpQty ?? '-'} kaufland=${kauflandMpQty ?? '-'}${isOversell ? ' ⚠️ OVERSELL' : ''} → pushing`
+          `[ListingSyncRunner] Auto-heal: ${sku} available=${availableQty} ebay=${ebayMpQty ?? '-'} kaufland=${kauflandMpQty ?? '-'}${isOversell ? ' ⚠️ OVERSELL' : ''} → pushing down (channels=${onlyChannels.join(',')})`
         );
         lastHealedAt.set(sku, now);
-        syncStockWithRetry({ tenantId: 'default', product, reason: isOversell ? 'oversell-fix' : 'auto-heal' })
+        syncStockWithRetry({ tenantId: 'default', product, reason: isOversell ? 'oversell-fix' : 'auto-heal', onlyChannels })
           .catch((err) => console.warn(`[auto-heal] push failed for ${sku}: ${err.message}`));
         healed++;
       }
@@ -505,4 +555,4 @@ function stopListingSyncRunner() {
   }
 }
 
-module.exports = { startListingSyncRunner, stopListingSyncRunner, propagateEbayStatusToProducts };
+module.exports = { startListingSyncRunner, stopListingSyncRunner, propagateEbayStatusToProducts, decideAutoHealPush };
