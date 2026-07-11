@@ -149,6 +149,30 @@ async function _listV3ShippingOptions({ fromAddress, toCountry, toPostal, weight
   return options;
 }
 
+// Carrier-Synonyme auf eine kanonische Familie abbilden. Nur ECHTE Synonyme
+// desselben Vertrags-Carriers gehören in eine Familie (dhl_express ist z.B.
+// ein EIGENER Carrier und darf nie mit dhl_de zusammenfallen). Unbekannte
+// Codes bleiben sie selbst → Match nur bei exakter Gleichheit.
+// Keys sind _normLoose-normalisiert (lowercase, nur [a-z0-9]).
+const CARRIER_FAMILY = {
+  dp: 'dp',
+  deutschepost: 'dp',
+  post: 'dp',
+  dhl: 'dhlde',
+  dhlde: 'dhlde',
+  dhlpaket: 'dhlde',
+  dhlexpress: 'dhlexpress',
+  dpd: 'dpd',
+  hermes: 'hermes',
+  hermesde: 'hermes',
+};
+function _sameCarrierFamily(a, b) {
+  const na = _normLoose(a);
+  const nb = _normLoose(b);
+  if (!na || !nb) return false;
+  return (CARRIER_FAMILY[na] || na) === (CARRIER_FAMILY[nb] || nb);
+}
+
 // Resolve the chosen v2 method (carrier/name/weight) to a v3 shipping_option_code.
 // opts.domestic (from_country === to_country) de-prioritises "international"
 // product variants for domestic shipments (and vice versa).
@@ -193,7 +217,14 @@ function _matchV3OptionCode(options, methodMeta, weightKg, opts = {}) {
   if (wantCarrier) {
     // Never silently switch carrier: if the chosen carrier isn't among the v3
     // options, return null so the caller's fallback logs a cross-carrier warning.
-    cand = cand.filter((o) => carrierOf(o) && (carrierOf(o).includes(wantCarrier) || wantCarrier.includes(carrierOf(o))));
+    //
+    // EXAKTE Carrier-Familien-Gleichheit, KEIN Substring-Match: das frühere
+    // beidseitige includes() ließ bei Wunsch "dp" (Deutsche Post) auch alle
+    // "dpd"-Optionen durch ('dpd'.includes('dp')===true). Griff danach der
+    // Name-Filter nicht, entschied die Addon-Sortierung QUER über die Carrier
+    // und aus einer Deutsche-Post-Wahl wurde ein DPD-Label (Incident
+    // 2026-07-11, Order 01-14899-17819, dpd:parcelletter statt dp:maxibrief).
+    cand = cand.filter((o) => _sameCarrierFamily(carrierOf(o), wantCarrier));
     if (!cand.length) return null;
   }
   if (wantNameCore && wantNameCore.length >= 4) {
