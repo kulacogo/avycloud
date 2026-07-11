@@ -4633,6 +4633,32 @@ function isEbayListingStatusInactive(listingStatus) {
   return s === 'ended' || s === 'completed';
 }
 
+// Nur GENUIN transiente Fehler dürfen "bereits gelistet" blocken (Netz/Quota):
+// eine eindeutige eBay-Antwort (Angebot entfernt / nicht der Verkäufer / ungültige
+// ItemID / beendet / Richtlinienverstoß) heißt "auf DIESEM Konto NICHT aktiv" →
+// Relisten muss erlaubt sein. Incident 2026-07-11: nach dem Konto-Cutover trugen
+// Produkte noch Alt-Konto-itemIds; GetItem warf (Code 17 "nicht der Verkäufer",
+// 21920397 "Angebot entfernt"), und der Guard blockte JEDEN Fehler pauschal als
+// "bereits gelistet" → der gesamte Katalog ließ sich nicht neu listen.
+function isTransientItemProbeError(error) {
+  if (!error) return false;
+  // Quota/Rate-Limit → wirklich transient (später erneut prüfen).
+  if (error.code === 'EBAY_TRADING_RATE_LIMIT' || error.quotaExhausted) return true;
+  // Netzwerk/Timeout → transient.
+  const name = safeString(error.name);
+  const nodeCode = safeString(error.code);
+  const msg = safeString(error.message).toLowerCase();
+  if (name === 'AbortError') return true;
+  if (['ETIMEDOUT', 'ECONNRESET', 'ECONNREFUSED', 'ENOTFOUND', 'EAI_AGAIN', 'EBAY_TRADING_HTTP_ERROR', 'EBAY_TRADING_PARSE_ERROR'].includes(nodeCode)) return true;
+  if (msg.includes('timed out') || msg.includes('timeout') || msg.includes('network') || msg.includes('socket hang up')) return true;
+  // Ein HTTP-5xx (falls durchgereicht) ist transient; eine eBay-Fachfehler-Antwort
+  // (Ack=Failure mit ErrorCodes) ist es NICHT — das ist eine definitive Aussage
+  // über den Artikel und darf das Relisten nicht blockieren.
+  const status = Number(error.httpStatus || error.status);
+  if (Number.isFinite(status) && status >= 500) return true;
+  return false;
+}
+
 async function resolveItemIsActive(itemId, { timeoutMs = 12000 } = {}) {
   const id = safeString(itemId);
   if (!id) return { itemId: id, isActive: false, listingStatus: null, source: 'none', uncertain: false };
@@ -4683,8 +4709,31 @@ async function resolveItemIsActive(itemId, { timeoutMs = 12000 } = {}) {
 
     return { itemId: id, isActive: liveIsActive, listingStatus: liveStatus, source: 'ebay', uncertain: false };
   } catch (error) {
-    // Can't verify against eBay right now → be conservative and block relisting unless we had proven inactivity above.
-    return { itemId: id, isActive: true, listingStatus: localStatus, source: local ? 'firestore' : 'unknown', uncertain: true, error };
+    // Nur bei GENUIN transienten Fehlern (Netz/Quota/5xx) konservativ blocken.
+    if (isTransientItemProbeError(error)) {
+      return { itemId: id, isActive: true, listingStatus: localStatus, source: local ? 'firestore' : 'unknown', uncertain: true, error };
+    }
+    // Definitive eBay-Antwort (entfernt / nicht der Verkäufer / ungültige ID /
+    // beendet / Policy): der Artikel ist auf diesem Konto NICHT aktiv → Relisten
+    // erlauben. Lokalen Spiegel heilen, falls er fälschlich "active" sagte.
+    const ebayCode = safeString(error?.details?.errors?.[0]?.code || error?.details?.errors?.[0]?.errorCode) || null;
+    if (localActiveFlag) {
+      await firestore
+        .collection(EBAY_LISTINGS_COLLECTION)
+        .doc(id)
+        .set(
+          cleanUndefined({
+            active: false,
+            inactiveAt: FieldValue.serverTimestamp(),
+            inactiveAtIso: new Date().toISOString(),
+            deactivation: { reason: `probe_error_${ebayCode || 'definitive'}`, actor: 'publish_guard', at: new Date().toISOString() },
+            updatedAt: FieldValue.serverTimestamp(),
+          }),
+          { merge: true }
+        )
+        .catch(() => {});
+    }
+    return { itemId: id, isActive: false, listingStatus: localStatus, source: 'ebay_error', uncertain: false, error, ebayCode };
   }
 }
 
@@ -4745,6 +4794,31 @@ async function checkExistingEbayLink(productId) {
   return null;
 }
 
+// Räumt einen bestätigt-nicht-aktiven (Alt-Konto/beendeten) itemId-Pointer vom
+// Produkt, damit die UI keinen "bereits gelistet"-Geist zeigt und Folge-Versuche
+// nicht erneut die eBay-API befragen. Best-effort, nie blockierend.
+async function clearStaleEbayPointer(productId, staleItemId, reason = 'stale_itemid_not_active') {
+  try {
+    await firestore.collection(PRODUCTS_COLLECTION).doc(productId).set(
+      {
+        marketplace: {
+          ebay: {
+            itemId: null,
+            itemIdClearedAt: new Date().toISOString(),
+            itemIdClearedReason: reason,
+            staleItemId: staleItemId || null,
+          },
+        },
+        listingStatus: { ebay: null },
+      },
+      { merge: true }
+    );
+    console.log(`[publish-guard] cleared stale eBay itemId ${staleItemId} on product ${productId} (${reason})`);
+  } catch (err) {
+    console.warn(`[publish-guard] failed to clear stale eBay itemId on ${productId}: ${err?.message}`);
+  }
+}
+
 async function verifyPublishProduct(productId, overrides = {}) {
   const id = safeString(productId);
   if (!id) throw Object.assign(new Error('productId is required'), { code: 'EBAY_PUBLISH_ID_REQUIRED' });
@@ -4764,6 +4838,8 @@ async function verifyPublishProduct(productId, overrides = {}) {
         fees: null,
       };
     }
+    // Bestätigt nicht aktiv (nicht bloß transient unklar) → veralteten Pointer räumen.
+    if (!state.uncertain) await clearStaleEbayPointer(id, existingItemId, state.ebayCode ? `ebay_error_${state.ebayCode}` : 'not_active');
   }
 
   const linkedItemId = await checkExistingEbayLink(id);
@@ -4826,6 +4902,11 @@ async function publishProduct(productId, overrides = {}, { actor = null } = {}) 
         blockers: [`Bereits auf eBay gelistet (ItemID: ${existingItemId}). Artikel kann nicht erneut gelistet werden.`],
         warnings: [],
       };
+    }
+    if (!state.uncertain) {
+      await clearStaleEbayPointer(id, existingItemId, state.ebayCode ? `ebay_error_${state.ebayCode}` : 'not_active');
+      product.marketplace = product.marketplace || {};
+      product.marketplace.ebay = { ...(product.marketplace.ebay || {}), itemId: null };
     }
   }
 
@@ -5330,4 +5411,5 @@ module.exports = {
   reactivateWronglyDeactivatedListings,
   deactivateListingsMissingFromActiveSet,
   resolveCategoryNameFromId,
+  isTransientItemProbeError,
 };
