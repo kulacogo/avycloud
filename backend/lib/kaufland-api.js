@@ -660,6 +660,23 @@ async function decideCategory({ title, description, manufacturer, priceCents = 1
   }));
 }
 
+// KAUFLAND_PRODUCT_DATA_PENDING darf ein POST-/units-Fehler NUR werden, wenn
+// er wirklich "Katalog-Produkt (noch) nicht gebunden/indexiert" bedeutet —
+// Kauflands Signatur dafuer ist "Parameter [item] is missing or has wrong
+// value". Frueher wurde JEDER Unit-Fehler nach Product-Data-Submit als
+// PENDING maskiert; ein echter Konfigurationsfehler ("Parameter [warehouse]
+// is missing or has wrong value", Alt-Konto-IDs nach Konto-Wechsel, Incident
+// 2026-07-11) hing damit unsichtbar in einer Endlos-Warteschleife statt im
+// Fehler-Cockpit aufzuschlagen.
+function isItemNotIndexedUnitError(lowercasedMessage) {
+  const message = safeString(lowercasedMessage).toLowerCase();
+  if (!message) return false;
+  return (
+    message.includes('parameter [item]') ||
+    (message.includes('item') && message.includes('not found'))
+  );
+}
+
 async function createUnit(product, { storefront = 'de', autoCreateProductData = true } = {}) {
   const picked = pickUnitData(product, { mode: 'create', storefront });
   const createData = { ...(picked.unitData || {}) };
@@ -828,8 +845,8 @@ async function createUnit(product, { storefront = 'de', autoCreateProductData = 
       id_unit: idFromBody || idFromLocation || null,
     };
   } catch (unitErr) {
-    // If unit creation fails and we submitted product data, provide a clear message
-    if (productDataSubmitted) {
+    const message = safeString(unitErr?.message).toLowerCase();
+    if (productDataSubmitted && isItemNotIndexedUnitError(message)) {
       const err = new Error(
         `Produktdaten fuer EAN ${picked.ean} bei Kaufland eingereicht. ` +
         `Kaufland verarbeitet neue Produktdaten asynchron (bis zu 24h). ` +
@@ -840,7 +857,6 @@ async function createUnit(product, { storefront = 'de', autoCreateProductData = 
       throw err;
     }
     // Re-throw original error with context
-    const message = safeString(unitErr?.message).toLowerCase();
     if (message.includes('invalid ean') || message.includes('ean') && message.includes('not valid')) {
       const err = new Error(`EAN "${picked.ean}" is not valid`);
       err.code = 'KAUFLAND_EAN_INVALID';
@@ -1221,6 +1237,7 @@ async function pingKaufland({ clientKey, secretKey } = {}, { timeoutMs = 15_000 
 module.exports = {
   kauflandRequest,
   pingKaufland,
+  isItemNotIndexedUnitError,
   getKauflandRefunds,
   findUnit,
   listUnits,
