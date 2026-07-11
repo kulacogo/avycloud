@@ -209,11 +209,24 @@ async function runStage2Enrichment(stage1, locale = 'de-DE') {
     // 2. Price Enrichment (capped at 15s — non-blocking, can be enriched later)
     (async () => {
       try {
-        const priceData = await Promise.race([
+        const priceResult = await Promise.race([
           enrichPriceParallel(tempProduct, { force: true, reason: 'identify-v3' }),
           new Promise((_, reject) => setTimeout(() => reject(new Error('Price enrichment timeout (15s)')), 15000)),
         ]);
-        return priceData;
+        // PROD-BUG-FIX (2026-07-11): enrichPriceParallel MUTIERT das übergebene
+        // Produkt und returned nur { ok, updated, serpTrace } — die Preisdaten
+        // standen nie im Return-Wert. Der alte Code las lowest_price vom Return
+        // → stage2.pricing.amount war IMMER 0 und V3-erfasste Produkte
+        // starteten ohne Preis. Jetzt: aus dem mutierten tempProduct lesen.
+        if (!priceResult || priceResult.ok === false) return null;
+        const written = tempProduct.details?.pricing || {};
+        const lowest = written.lowest_price;
+        if (!lowest || !(Number(lowest.amount) > 0)) return null;
+        return {
+          lowest_price: lowest,
+          price_confidence: written.price_confidence,
+          via: tempProduct.ops?.data_quality?.price_enrich_v1?.via || 'enrichPriceParallel',
+        };
       } catch (err) {
         console.warn('[stage2] Price enrichment failed:', err?.message);
         return null;

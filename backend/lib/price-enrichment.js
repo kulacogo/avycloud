@@ -16,6 +16,8 @@
 const { fetchWithUnlocker } = require('./web-unlocker');
 const { search: searchEvidence, searchSite: searchEvidenceSite } = require('./evidence-provider');
 const { ensurePriceCoverage } = require('../services/enrichment');
+// Kein Zyklus: price-evidence.js hat keine Top-Level-Requires (web-search-html nur lazy).
+const { classifyPriceSourceUrl } = require('./price-evidence');
 
 // --- Constants ---
 const PRICE_REFRESH_TIMEOUT_MS = parseInt(process.env.PRICE_REFRESH_TIMEOUT_MS || '20000', 10);
@@ -168,7 +170,14 @@ async function fetchHtmlForPrice(url) {
 function hasValidPriceEvidence(lowestPrice) {
   const amount = lowestPrice?.amount;
   const sources = Array.isArray(lowestPrice?.sources) ? lowestPrice.sources : [];
-  const hasEvidence = sources.some((s) => s && typeof s.url === 'string' && s.url.trim());
+  // INCIDENT 2026-07-11: Vorher zählte JEDER nicht-leere url-String als Beleg —
+  // eine einmal gespeicherte Müll-Quelle (Such-URL, gstatic-Thumbnail, "ui")
+  // blockierte damit über das Skip-Gate jede künftige Re-Recherche. Beleg zählt
+  // nur noch, wenn mindestens eine Quelle eine strukturell taugliche
+  // Angebots-URL trägt (classifyPriceSourceUrl kind === 'candidate').
+  const hasEvidence = sources.some(
+    (s) => s && typeof s.url === 'string' && classifyPriceSourceUrl(s.url).kind === 'candidate'
+  );
   return typeof amount === 'number' && Number.isFinite(amount) && amount >= 1 && hasEvidence;
 }
 
@@ -759,4 +768,6 @@ module.exports = {
   findEbayBrowsePriceForProductV1,
   browseSampleMatchesProduct,
   buildBrowseMatchDescriptor,
+  // Exported for testing the evidence skip-gate (Incident 2026-07-11).
+  hasValidPriceEvidence,
 };

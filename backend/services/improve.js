@@ -51,7 +51,14 @@ function hasValidPriceEvidence(lowestPrice) {
         ? Number(String(amountRaw).trim())
         : NaN;
   const sources = Array.isArray(lowestPrice?.sources) ? lowestPrice.sources : [];
-  const hasEvidence = sources.some((s) => s && typeof s.url === 'string' && s.url.trim());
+  // Beleg zählt nur mit strukturell tauglicher Angebots-URL (kein Such-Link,
+  // kein Bild-CDN, keine Nicht-URL) — sonst blockiert eine einmal gespeicherte
+  // Müll-Quelle jede künftige Re-Recherche (Incident 2026-07-11; gleiche
+  // Semantik wie lib/price-enrichment.js hasValidPriceEvidence).
+  const { classifyPriceSourceUrl } = require('../lib/price-evidence');
+  const hasEvidence = sources.some(
+    (s) => s && typeof s.url === 'string' && classifyPriceSourceUrl(s.url).kind === 'candidate'
+  );
   return Number.isFinite(amount) && amount >= 1 && hasEvidence;
 }
 

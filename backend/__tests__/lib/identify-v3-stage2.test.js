@@ -6,10 +6,23 @@ const findEbayCategoryMock = vi.fn(() => ({ id: '112529', breadcrumb: 'TV, Video
 const getCategoryAspectCatalogMock = vi.fn(() => ({
   required: [{ name: 'Marke' }, { name: 'Herstellernummer' }, { name: 'Produktart' }],
 }));
-const enrichPriceParallelMock = vi.fn(async () => ({
-  lowest_price: { amount: 289, currency: 'EUR', sources: [{ url: 'https://geizhals.de' }] },
-  price_confidence: 0.85,
-}));
+// Realer Contract (lib/price-enrichment.js enrichPriceParallel): die Funktion
+// MUTIERT das übergebene Produkt und returned nur { ok, updated, serpTrace } —
+// die Preisdaten stehen NIE im Return-Wert. Der alte Mock returnte
+// { lowest_price, price_confidence } und fixierte damit genau den PROD-BUG,
+// durch den stage2.pricing.amount immer 0 war (Fix 2026-07-11).
+const enrichPriceParallelMock = vi.fn(async (product) => {
+  product.details = product.details || {};
+  product.details.pricing = product.details.pricing || {};
+  product.details.pricing.lowest_price = {
+    amount: 289,
+    currency: 'EUR',
+    sources: [{ url: 'https://geizhals.de' }],
+    last_checked_iso: new Date().toISOString(),
+  };
+  product.details.pricing.price_confidence = 0.85;
+  return { ok: true, updated: true, serpTrace: [] };
+});
 const getManufacturerGpsrByNameMock = vi.fn(async () => ({
   found: true,
   data: { manufacturer_name: 'Sony Europe B.V.', manufacturer_address: 'Berlin', email: 'info@sony.eu' },

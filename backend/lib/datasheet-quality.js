@@ -1,4 +1,5 @@
 const { normalizeSpaces } = require('./web-search-html');
+const { classifyPriceSourceUrl } = require('./price-evidence');
 const { validateTitleToPolicy, inferTitleCategory } = require('./title-policy');
 const { getRulebookConfigCached } = require('./rulebook-config');
 const { getRequiredAspects } = require('./ebay-taxonomy');
@@ -56,7 +57,12 @@ function getPriceStatus(product) {
         ? Number(amountRaw)
         : NaN;
   const sources = Array.isArray(lp?.sources) ? lp.sources.filter(Boolean) : [];
-  const hasEvidence = sources.some((s) => s && typeof s.url === 'string' && s.url.trim());
+  // INCIDENT 2026-07-11: Nur strukturell taugliche Angebots-URLs zählen als
+  // Beleg. Such-URLs, Bild-CDN-Thumbnails und Nicht-URLs sind kein Preisbeleg —
+  // Produkte mit nur-Müll-Quellen zeigen damit ehrlich 'price_evidence_missing'.
+  const hasEvidence = sources.some(
+    (s) => s && typeof s.url === 'string' && classifyPriceSourceUrl(s.url).kind === 'candidate'
+  );
   const ok = lp && Number.isFinite(amount) && amount >= 1 && hasEvidence;
   return { ok, amount: Number.isFinite(amount) ? amount : null, hasEvidence, sourceCount: sources.length };
 }

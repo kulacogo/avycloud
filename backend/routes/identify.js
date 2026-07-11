@@ -1350,6 +1350,47 @@ async function tagSessionPipeline(sessionId, pipeline) {
   }
 }
 
+/**
+ * BELEG-VALIDIERUNG (Incident 2026-07-11): Alle drei Chat-Pipelines liefern
+ * Preis-Vorschläge, deren Quell-URLs REINE MODELL-AUSGABE sind — das Modell
+ * erfand plausibel klingende URLs (404-Herstellerseiten, eBay-SUCH-Links) und
+ * falsche Varianten-Preise, die dann mit price_confidence 0.9 im Datenblatt
+ * landeten. Dieser eine Chokepoint validiert VOR dem Emit für alle Pipelines:
+ * Such-/Bild-/Nicht-URLs fliegen raus, echte Kandidaten werden geladen und nur
+ * behalten, wenn Seite erreichbar + behaupteter Preis auf der Seite + Marken-/
+ * Produkt-Bezug. Ohne verifizierte Quelle: sources=[], confidence<=0.3 und
+ * eine ehrliche Warnung in der Chat-Antwort statt "wurde aktualisiert".
+ * Fail-open bei Validator-Fehler (Chat darf nie am Validator sterben) — dann
+ * aber MIT Warnhinweis, nie stillschweigend.
+ */
+async function validateChatPricing(chatResult, product) {
+  const changes = Array.isArray(chatResult && chatResult.datasheetChanges)
+    ? chatResult.datasheetChanges
+    : [];
+  const withPricing = changes.filter((c) => c && c.pricing && typeof c.pricing === 'object');
+  if (!withPricing.length) return;
+
+  const { validatePricingProposal } = require('../lib/price-evidence');
+  for (const change of withPricing) {
+    try {
+      const { pricing, verifiedCount, droppedCount, note } = await validatePricingProposal({
+        pricing: change.pricing,
+        product,
+      });
+      change.pricing = pricing;
+      if (note) {
+        chatResult.message = `${chatResult.message || ''}\n\n⚠️ ${note}`.trim();
+      }
+      console.log(
+        `[chat] price-evidence: product=${product?.id} verified=${verifiedCount} dropped=${droppedCount}`
+      );
+    } catch (err) {
+      console.warn(`[chat] price-evidence validation failed (fail-open): ${err.message}`);
+      chatResult.message = `${chatResult.message || ''}\n\n⚠️ Die Preisquellen konnten nicht geprüft werden — bitte vor Übernahme manuell verifizieren.`.trim();
+    }
+  }
+}
+
 // POST /api/chat — Product chat via Gemini
 // Supports ?stream=true for SSE streaming (progress events + final result)
 // Pipeline cascade: V3 (CHAT_V3 / ?pipeline=v3) → V2 (CHAT_GROUNDING) → legacy.
@@ -1532,6 +1573,10 @@ router.post('/chat', requirePermission('ai', 'chat'), identifyLimiter, chatUploa
         }
         chatResult.pipeline = pipelineUsed;
 
+        // Preis-Belege prüfen BEVOR das Ergebnis rausgeht (alle Pipelines).
+        try { onProgress({ type: 'tool_start', tool: 'price_evidence_check' }); } catch {}
+        await validateChatPricing(chatResult, product);
+
         console.log('[chat] pipeline=%s model=%s product=%s', pipelineUsed, chatResult.model || chatResult.modelUsed, productId);
 
         // Save messages to session (best-effort, non-blocking)
@@ -1642,6 +1687,9 @@ router.post('/chat', requirePermission('ai', 'chat'), identifyLimiter, chatUploa
       chatResult.lowConfidenceFields = chatResult.confidence.missingCritical || [];
     }
     chatResult.pipeline = pipelineUsed;
+
+    // Preis-Belege prüfen BEVOR das Ergebnis rausgeht (alle Pipelines).
+    await validateChatPricing(chatResult, product);
 
     console.log('[chat] pipeline=%s model=%s product=%s', pipelineUsed, chatResult.model || chatResult.modelUsed, productId);
 

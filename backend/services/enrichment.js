@@ -28,6 +28,7 @@ const { normalizeProductStrict } = require('../lib/llm-rulebook');
 const { getVehicleFitmentMode } = require('../lib/vehicle-fitment');
 const { filterBarcodesByWebConfirm } = require('../lib/barcode-web-confirm');
 const { searchWeb, fetchPageText } = require('../lib/web-search-html');
+const { classifyPriceSourceUrl, filterStructurallySound } = require('../lib/price-evidence');
 const { evaluateEbayReady } = require('../lib/datasheet-quality');
 const { fetchCategoryTitleInsights } = require('../lib/ebay-browse-title-insights');
 const { callGeminiWithRetry } = require('../lib/gemini-retry');
@@ -3056,29 +3057,46 @@ async function ensurePriceCoverage(products = [], serpTrace = [], options = {}) 
       );
     }
 
+    // INCIDENT 2026-07-11: Such-URLs (ebay.de/sch?_nkw=…), gstatic-Thumbnails und
+    // leere/kaputte URLs dürfen NIE als Preisquelle persistiert werden. Der
+    // Preis-DATENPUNKT (best.amount) fließt weiterhin in die Berechnung ein —
+    // nur der sources-Eintrag entfällt, wenn die URL strukturell kein Beleg ist.
+    // Bereits gespeicherte Müll-Quellen (baseSources) werden beim Rewrite
+    // ebenfalls verworfen.
+    const bestUrlClass = classifyPriceSourceUrl(best.url);
+    const bestSourceEntries =
+      bestUrlClass.kind === 'candidate'
+        ? [
+            {
+              name: best.source || 'SerpAPI',
+              url: best.url,
+              price: best.amount,
+              shipping: null,
+              checked_at: timestamp,
+            },
+          ]
+        : [];
+    const { candidates: soundBaseSources } = filterStructurallySound(baseSources);
+    const persistedSources = [...bestSourceEntries, ...soundBaseSources].slice(0, 5);
+
+    const computedConfidence =
+      typeof existingPricing.price_confidence === 'number' && existingPricing.price_confidence > 0
+        ? existingPricing.price_confidence
+        : pickedSimilar
+          ? Math.min(0.55, Math.max(0.25, (best.score || 0) / 60))
+          : Math.min(0.95, Math.max(0.45, Math.min(1, (best.score || 0) / 45) + candidates.length / 14));
+
     product.details.pricing = {
       ...existingPricing,
       lowest_price: {
         amount: best.amount,
         currency: best.currency || DEFAULT_PRICE_CURRENCY,
-        sources: [
-          {
-            name: best.source || 'SerpAPI',
-            url: best.url || '',
-            price: best.amount,
-            shipping: null,
-            checked_at: timestamp,
-          },
-          ...baseSources,
-        ].slice(0, 5),
+        sources: persistedSources,
         last_checked_iso: timestamp,
       },
-      price_confidence:
-        typeof existingPricing.price_confidence === 'number' && existingPricing.price_confidence > 0
-          ? existingPricing.price_confidence
-          : pickedSimilar
-            ? Math.min(0.55, Math.max(0.25, (best.score || 0) / 60))
-            : Math.min(0.95, Math.max(0.45, Math.min(1, (best.score || 0) / 45) + candidates.length / 14)),
+      // Ohne eine einzige strukturell taugliche Quelle ist der Preis unbelegt →
+      // Confidence hart auf max 0.3 deckeln.
+      price_confidence: persistedSources.length ? computedConfidence : Math.min(computedConfidence, 0.3),
     };
   }
 }

@@ -287,6 +287,7 @@ async function searchWeb(query, { limit = 6, locale = 'de-DE' } = {}) {
 module.exports = {
   searchWeb,
   fetchPageText,
+  fetchText,
   htmlToText,
   decodeHtmlEntities,
   normalizeSpaces,
