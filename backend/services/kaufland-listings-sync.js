@@ -24,9 +24,9 @@
  *
  * Returns `{ storefront, fetched, active, driftsDetected, reconciled,
  * reverseDriftsDetected, reverseDriftSamples, validityChecked, validityValid,
- * validityInvalid }` — additive extension of the pre-extraction route response
- * payload (older fields unchanged, new fields default to 0 when no validity
- * refresh ran).
+ * validityInvalid, invalidReasons }` — additive extension of the
+ * pre-extraction route response payload (older fields unchanged, new fields
+ * default to 0 when no validity refresh ran).
  */
 
 // TTL for the `product_valid` cache: Kaufland's indexing pipeline can take up
@@ -461,6 +461,33 @@ async function syncKauflandListingsCache({ tenantId, storefront = 'de' } = {}) {
     console.error('[kaufland-sync] auto-repair error (non-fatal):', repairErr.message);
   }
 
+  // ── Phase: invalid reasons ───────────────────────────────────────────────
+  // Holt für product_valid=false Units die KONKRETEN Kaufland-Gründe
+  // (fehlende Pflichtattribute + DECLINED-Werte) via getProductDataStatus und
+  // spiegelt sie in die kauflandUnitsLive-Docs + als persistenten Listing-
+  // Fehler aufs zugehörige products_v2-Produkt (Listing-Fehler-Cockpit).
+  // Läuft bewusst NACH der validity-refresh-Phase (frische product_valid-
+  // Werte im Snapshot) und nach der Auto-Repair-Phase, damit die dort
+  // gehoistete Produktliste (allProdsForRepair) wiederverwendet werden kann.
+  let invalidReasons = { candidates: 0, fetched: 0, cleared: 0 };
+  try {
+    const reasonsSnap = await collection.where('storefront', '==', sf).get();
+    const unitDocs = reasonsSnap.docs.map((d) => ({ docId: d.id, data: d.data() || {} }));
+    // Fallback-Reload nur falls die Repair-Phase vor dem Produkt-Read
+    // gecrasht ist (allProdsForRepair dann leer) — gleiche Mechanik wie die
+    // pending-heal-Phase unten.
+    const prodsForReasons = allProdsForRepair.length
+      ? allProdsForRepair
+      : (tenantId ? await getAllProductsV2ForTenant(tenantId) : await getAllProductsV2());
+    invalidReasons = await syncKauflandInvalidReasons({
+      unitDocs,
+      products: prodsForReasons,
+      storefront: sf,
+    });
+  } catch (reasonsErr) {
+    console.error('[kaufland-sync] invalid-reasons error (non-fatal):', reasonsErr.message);
+  }
+
   // ── Phase: pending-publish heal ──────────────────────────────────────────
   // Schließt die systemische Lücke hinter KAUFLAND_PRODUCT_DATA_PENDING: der
   // Publish-Pfad reicht Produktdaten ein, POST /units scheitert weil Kaufland
@@ -644,8 +671,218 @@ async function syncKauflandListingsCache({ tenantId, storefront = 'de' } = {}) {
     enrichmentAttempted,
     enrichmentSucceeded,
     enrichmentFields,
+    invalidReasons,
     pendingHeal,
   };
+}
+
+// ─── Invalid-reasons sync ────────────────────────────────────────────────
+// Kaufland zeigt product_valid=false Units im Portal als "Inaktiv" mit Badge
+// "Ungültig" — die GRÜNDE (fehlende/abgelehnte Pflichtattribute) liefert nur
+// GET /product-data/status/{ean}. Diese Phase spiegelt sie in die Mirror-Docs
+// (kauflandUnitsLive) und als Listing-Fehler aufs Produkt, damit avycloud
+// denselben Zustand zeigt wie das Kaufland-Portal.
+// Re-Fetch pro Unit frühestens nach 6h (Marker invalid_reasons_checked_at).
+const INVALID_REASONS_TTL_MS = 6 * 3600 * 1000;
+// Hard-Cap pro Sync-Lauf — Rest wird im nächsten Lauf abgetragen (Sync läuft
+// alle 15 min; 449-Unit-Mirror mit ~110 invaliden Units ist nach 3 Läufen durch).
+const MAX_REASON_FETCHES_PER_RUN = 40;
+// Fehler-Code der von dieser Phase geschrieben/gelöscht wird. Fremde Codes
+// (z.B. KAUFLAND_MANUFACTURER_NOT_WHITELISTED) werden NIE überschrieben.
+const INVALID_REASONS_ERROR_CODE = 'KAUFLAND_PRODUCT_DATA_INVALID';
+
+/**
+ * Synchronisiert die Ungültigkeits-Gründe für product_valid=false Units.
+ *
+ * Für jeden nicht-retired Mirror-Doc mit `product_valid === false` (TTL-Gate
+ * 6h, Cap 40/Lauf) wird getProductDataStatus(ean) geholt und in den Mirror-Doc
+ * gemerged: `invalid_missing_attributes` (missing + min_one, dedupe),
+ * `invalid_declined` ([{attribute, message}] nur state=DECLINED),
+ * `invalid_reasons_checked_at` (ISO). Zusätzlich landet auf dem zugehörigen
+ * products_v2-Produkt (SKU/EAN-Match, gleiche Mechanik wie skuMapRepair/
+ * eanMapRepair) ein persistenter Listing-Fehler mit Code
+ * KAUFLAND_PRODUCT_DATA_INVALID — NUR wenn das Produkt keinen anderslautenden
+ * Fehler trägt (fremde Fehler wie KAUFLAND_MANUFACTURER_NOT_WHITELISTED
+ * bleiben unberührt).
+ *
+ * Selbstheilung: Units die wieder `product_valid === true` sind, verlieren die
+ * drei invalid_*-Mirror-Felder (FieldValue.delete()); der Produkt-Listing-
+ * Fehler wird NUR gelöscht wenn er von dieser Phase stammt (Code-Check).
+ *
+ * Als exportierte Funktion mit injizierbaren `deps` gebaut (Muster
+ * healPendingKauflandPublishes), damit Tests sie ohne require.cache-Akrobatik
+ * mit Fakes fahren können. Externe Module werden erst NACH der Kandidaten-
+ * Selektion aufgelöst — der No-op-Fall lädt nichts nach.
+ *
+ * @param {object} opts
+ * @param {Array<{docId:string, data:object}>} opts.unitDocs  kauflandUnitsLive-Docs (id + data)
+ * @param {Array<object>} opts.products   bereits geladene products_v2-Liste
+ * @param {string} [opts.storefront='de']
+ * @param {object} [opts.deps]            Test-Injektion: kauflandApi, firestore,
+ *                                        FieldValue, now, sleepMs
+ * @returns {Promise<{candidates:number, fetched:number, cleared:number}>}
+ */
+async function syncKauflandInvalidReasons({ unitDocs = [], products = [], storefront = 'de', deps = {} } = {}) {
+  void storefront; // Docs sind bereits storefront-gefiltert; Param für Symmetrie/Future-Use
+  const nowMs = typeof deps.now === 'function' ? deps.now() : Date.now();
+  const sleepMs = Number.isFinite(deps.sleepMs) ? deps.sleepMs : 100;
+  const stats = { candidates: 0, fetched: 0, cleared: 0 };
+
+  const { isRetiredKauflandUnit } = require('../lib/kaufland-unit-status');
+
+  const parseCheckedAt = (raw) => {
+    if (typeof raw?.toDate === 'function') return raw.toDate().getTime();
+    if (typeof raw === 'number') return raw;
+    if (typeof raw === 'string') {
+      const parsed = Date.parse(raw);
+      return Number.isFinite(parsed) ? parsed : 0;
+    }
+    return 0;
+  };
+  const eanOf = (v) => String(v?.ean || '').replace(/\D+/g, '').trim()
+    || String((Array.isArray(v?.eans) && v.eans[0]) || '').replace(/\D+/g, '').trim();
+
+  const fetchCandidates = [];
+  const clearCandidates = [];
+  for (const entry of (Array.isArray(unitDocs) ? unitDocs : [])) {
+    const docId = entry?.docId;
+    const v = entry?.data || {};
+    if (!docId) continue;
+    if (isRetiredKauflandUnit(v)) continue; // Tombstones (STALE/NOT_FOUND) sind keine Listings
+    if (v.product_valid === false) {
+      const lastChecked = parseCheckedAt(v.invalid_reasons_checked_at);
+      if (lastChecked && (nowMs - lastChecked) < INVALID_REASONS_TTL_MS) continue; // TTL frisch
+      const ean = eanOf(v);
+      if (!ean) continue; // ohne EAN kein Product-Data-Status abfragbar
+      fetchCandidates.push({ docId, data: v, ean });
+    } else if (v.product_valid === true) {
+      const hasReasonFields = v.invalid_missing_attributes !== undefined
+        || v.invalid_declined !== undefined
+        || v.invalid_reasons_checked_at !== undefined;
+      if (hasReasonFields) clearCandidates.push({ docId, data: v });
+    }
+  }
+  stats.candidates = fetchCandidates.length;
+  const toFetch = fetchCandidates.slice(0, MAX_REASON_FETCHES_PER_RUN);
+  if (!toFetch.length && !clearCandidates.length) return stats;
+
+  // Deps erst hier auflösen — hält den häufigen No-op-Pfad frei von
+  // Modul-Loads (und Tests ohne diese Mocks lauffähig).
+  const kauflandApi = deps.kauflandApi || require('../lib/kaufland-api');
+  const firestoreDb = deps.firestore || require('../lib/firestore').firestore;
+  const FieldValueRef = deps.FieldValue || require('@google-cloud/firestore').FieldValue;
+  const unitsCol = firestoreDb.collection('kauflandUnitsLive');
+  const productsCol = firestoreDb.collection('products_v2');
+
+  // Produkt-Match nach derselben Mechanik wie skuMapRepair/eanMapRepair in der
+  // Auto-Repair-Phase (SKU lowercase, EAN exakt).
+  const skuMap = new Map();
+  const eanMap = new Map();
+  for (const p of (Array.isArray(products) ? products : [])) {
+    const sku = (p?.identification?.sku || p?.details?.identifiers?.sku || '').trim();
+    if (sku) skuMap.set(sku.toLowerCase(), p);
+    const ean = (p?.identification?.ean || p?.details?.identifiers?.ean || '').trim();
+    if (ean) eanMap.set(ean, p);
+  }
+  const matchProduct = (v) => {
+    const sku = String(v?.id_offer || '').trim().toLowerCase();
+    const eanCandidate = String(v?.ean || '').trim()
+      || (Array.isArray(v?.eans) && v.eans[0]) || '';
+    return (sku && skuMap.get(sku)) || (eanCandidate && eanMap.get(eanCandidate)) || null;
+  };
+  const listingErrorsOf = (p) => {
+    const errs = p?.marketplace?.kaufland?.listing_errors;
+    return Array.isArray(errs) ? errs : [];
+  };
+  // Fremder Fehler = mindestens ein Eintrag mit anderem (oder fehlendem) Code
+  // — der stammt aus einem anderen Pfad (Publish/Heal) und darf nicht
+  // weggebügelt werden.
+  const hasForeignListingError = (p) => listingErrorsOf(p)
+    .some((e) => String(e?.code || '') !== INVALID_REASONS_ERROR_CODE);
+  const hasOwnListingError = (p) => {
+    const errs = listingErrorsOf(p);
+    return errs.length > 0 && errs.every((e) => String(e?.code || '') === INVALID_REASONS_ERROR_CODE);
+  };
+
+  // ── Selbstheilung: wieder-valide Units verlieren die Grund-Felder ────────
+  for (const { docId, data: v } of clearCandidates) {
+    try {
+      await unitsCol.doc(docId).set({
+        invalid_missing_attributes: FieldValueRef.delete(),
+        invalid_declined: FieldValueRef.delete(),
+        invalid_reasons_checked_at: FieldValueRef.delete(),
+      }, { merge: true });
+      stats.cleared += 1;
+      const matched = matchProduct(v);
+      if (matched && matched.id && hasOwnListingError(matched)) {
+        await productsCol.doc(String(matched.id)).update({
+          'marketplace.kaufland.listing_errors': FieldValueRef.delete(),
+          'marketplace.kaufland.listing_errors_at': FieldValueRef.delete(),
+        }).catch(() => null);
+      }
+    } catch (_) { /* swallow per-doc, continue */ }
+  }
+
+  // ── Gründe holen + spiegeln ──────────────────────────────────────────────
+  for (const { docId, data: v, ean } of toFetch) {
+    try {
+      const status = await kauflandApi.getProductDataStatus(ean);
+      const missing = Array.isArray(status?.missing_attributes) ? status.missing_attributes : [];
+      const minOne = Array.isArray(status?.min_one_missing_attributes) ? status.min_one_missing_attributes : [];
+      const missingAll = Array.from(new Set(
+        [...missing, ...minOne].map((a) => String(a || '').trim()).filter(Boolean)
+      ));
+      const declined = (Array.isArray(status?.attribute_values) ? status.attribute_values : [])
+        .filter((av) => String(av?.state || '').trim().toUpperCase() === 'DECLINED')
+        .map((av) => ({
+          attribute: String(av?.attribute || '').trim(),
+          // Kaufland liefert z.B. 'reason: media_not_ready_yet' — Präfix weg.
+          message: String(av?.message || '').replace(/^reason:\s*/i, '').trim(),
+        }))
+        .filter((e) => e.attribute || e.message);
+      const checkedAtIso = new Date(nowMs).toISOString();
+
+      await unitsCol.doc(docId).set({
+        invalid_missing_attributes: missingAll,
+        invalid_declined: declined,
+        invalid_reasons_checked_at: checkedAtIso,
+      }, { merge: true });
+      stats.fetched += 1;
+
+      // Listing-Fehler aufs Produkt (Cockpit-Sichtbarkeit) — gleiches Format
+      // wie persistKauflandListingError in routes/marketplace.js.
+      const matched = matchProduct(v);
+      if (matched && matched.id && !hasForeignListingError(matched)) {
+        const parts = [];
+        if (missingAll.length) parts.push(`fehlende Produktdaten: ${missingAll.join(', ')}`);
+        if (declined.length) {
+          parts.push(`abgelehnt: ${declined
+            .map((e) => (e.message ? `${e.attribute} (${e.message})` : e.attribute))
+            .join(', ')}`);
+        }
+        if (!parts.length) {
+          const reason = String(status?.product_not_ready_reason || '').trim();
+          if (reason) parts.push(reason);
+        }
+        if (parts.length) {
+          await productsCol.doc(String(matched.id)).update({
+            'marketplace.kaufland.listing_errors': [{
+              code: INVALID_REASONS_ERROR_CODE,
+              message: `Kaufland-Angebot inaktiv — ${parts.join('; ')}`,
+              severity: 'Error',
+            }],
+            'marketplace.kaufland.listing_errors_at': checkedAtIso,
+          }).catch(() => null);
+        }
+      }
+    } catch (_) { /* swallow per-doc, continue — ohne checked_at-Write greift der nächste Lauf */ }
+    if (sleepMs > 0) await new Promise((r) => setTimeout(r, sleepMs));
+  }
+
+  if (stats.fetched || stats.cleared || stats.candidates) {
+    console.log(`[kaufland-sync] invalid-reasons fetched=${stats.fetched} cleared=${stats.cleared} (cap=${MAX_REASON_FETCHES_PER_RUN})`);
+  }
+  return stats;
 }
 
 // ─── Pending-publish heal ────────────────────────────────────────────────
@@ -884,4 +1121,4 @@ function normalizeMarketplaceEan(value) {
   return String(value || '').replace(/\D+/g, '').trim();
 }
 
-module.exports = { syncKauflandListingsCache, healPendingKauflandPublishes };
+module.exports = { syncKauflandListingsCache, healPendingKauflandPublishes, syncKauflandInvalidReasons };

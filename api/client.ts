@@ -1416,6 +1416,20 @@ export interface KauflandListingRow {
    * doc / validity not yet checked → fall back to the binary `active` flag.
    */
   productValid?: boolean | null;
+  /**
+   * Kaufland's mandatory attributes still missing for this product (German
+   * labels, e.g. "Bild", "Signalwort") — reasons why `productValid` is false.
+   * Synced from Kaufland getProductDataStatus; empty/absent when valid or
+   * when reasons were not fetched yet.
+   */
+  invalidMissingAttributes?: string[];
+  /**
+   * Attribute values Kaufland DECLINED, incl. the rejection reason (e.g.
+   * { attribute: 'picture', message: 'reason: media_not_ready_yet' }).
+   */
+  invalidDeclined?: Array<{ attribute: string; message: string }>;
+  /** ISO timestamp when the invalid reasons were last fetched from Kaufland. */
+  invalidCheckedAt?: string | null;
   quantity: number | null;
   idProduct: number | null;
   viewItemUrl: string | null;

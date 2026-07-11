@@ -12,6 +12,17 @@
 // Ordered rules — first match wins. Each: { key, label, codes?, test?(msg) }.
 const RULES = [
   {
+    // Kaufland "Ungültig"-Listings (product_valid=false) — geschrieben von der
+    // invalid-reasons-Phase in services/kaufland-listings-sync.js. Bewusst als
+    // ERSTE Regel: der explizite Code muss gewinnen, bevor generische
+    // Message-Pattern (REQUIRED_ASPECT_MISSING, IMAGE_ISSUE, …) auf die im
+    // Fehlertext aufgezählten Attributnamen (z.B. 'Bild') anspringen.
+    key: 'KAUFLAND_PRODUCT_DATA_INVALID',
+    label: 'Kaufland: Produktdaten unvollständig/abgelehnt',
+    codes: ['KAUFLAND_PRODUCT_DATA_INVALID'],
+    test: (m) => /kaufland-?angebot inaktiv|fehlende produktdaten/i.test(m),
+  },
+  {
     key: 'ALREADY_LISTED',
     label: 'Bereits gelistet',
     test: (m) => /bereits.*(gelistet|gelisted)|already.*listed|duplicate listing/i.test(m),

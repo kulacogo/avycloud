@@ -37,6 +37,7 @@ interface MarketplaceListingsViewProps {
 type ListingStatus =
   | "live"
   | "indexing"
+  | "invalid"
   | "active"
   | "paused"
   | "deactivated"
@@ -44,9 +45,14 @@ type ListingStatus =
   | "in_review"
   | "inactive"
   | "unknown";
-// "live" + "indexing" are granular Kaufland sub-states of "active":
+// "live" + "indexing" + "invalid" are granular Kaufland sub-states derived
+// from product.is_valid:
 //   live      → product.is_valid === true  (matches Kaufland Portal "Aktiv")
-//   indexing  → product.is_valid === false (Kaufland still indexing, <24h)
+//   indexing  → product.is_valid === false, no rejection reasons synced yet
+//               (Kaufland still indexing, <24h)
+//   invalid   → product.is_valid === false AND Kaufland reported concrete
+//               reasons (missing/declined mandatory attributes) — the Portal
+//               shows these as "Inaktiv" with badge "Ungültig"
 //   active    → product.is_valid unknown   (legacy data fallback)
 type TabFilter = "all" | "active" | "indexing" | "paused" | "inactive";
 
@@ -69,6 +75,12 @@ interface NormalizedListing {
   viewItemUrl: string | null;
   lastSync: string | null;
   errors?: string[];
+  /** Kaufland: mandatory attributes the product data is missing (German labels) */
+  invalidMissingAttributes: string[];
+  /** Kaufland: attribute values Kaufland DECLINED, incl. rejection reason */
+  invalidDeclined: Array<{ attribute: string; message: string }>;
+  /** Kaufland: ISO timestamp when the invalid reasons were last fetched */
+  invalidCheckedAt: string | null;
   imageUrl?: string | null;
   brand?: string | null;
   warehouseStock: number | null;
@@ -89,6 +101,7 @@ interface ProductMasterMap {
 const STATUS_CONFIG: Record<ListingStatus, { label: string; bg: string; text: string }> = {
   live: { label: "Live", bg: "bg-success-dim", text: "text-success" },
   indexing: { label: "Indexierung läuft", bg: "bg-warning-dim", text: "text-warning" },
+  invalid: { label: "Inaktiv – Daten ungültig", bg: "bg-danger-dim", text: "text-danger" },
   // `active` remains as legacy/fallback (productValid unknown) — same colour
   // as `live` so old data renders identically until validity is cached.
   active: { label: "Aktiv", bg: "bg-success-dim", text: "text-success" },
@@ -100,8 +113,13 @@ const STATUS_CONFIG: Record<ListingStatus, { label: string; bg: string; text: st
   unknown: { label: "Unbekannt", bg: "bg-app-elevated", text: "text-txt-muted" },
 };
 
-// Granulare Kaufland-Status (alles außer "active") für KPI-Untertitel
+// Granulare Kaufland-Status (alles außer "active") für KPI-Untertitel.
+// PORTAL-WAHRHEIT: "indexing" und "invalid" zählen NICHT als aktiv — im
+// Kaufland-Portal sind diese Units nicht kaufbar ("Angebotsdaten fehlen" bzw.
+// "Inaktiv – Ungültig"). Nur live + legacy-active entsprechen Portal-"Aktiv".
 const NON_ACTIVE_STATUSES: ListingStatus[] = [
+  "indexing",
+  "invalid",
   "paused",
   "deactivated",
   "blocked",
@@ -110,8 +128,9 @@ const NON_ACTIVE_STATUSES: ListingStatus[] = [
   "unknown",
 ];
 
-// A listing is "active" (live on the marketplace) if its status is NOT one of
-// the non-active states. Mirrors the "Aktiv" tab count.
+// A listing is "active" (buyable on the marketplace) if its status is NOT one
+// of the non-active states. Mirrors the "Aktiv" tab count (live + legacy
+// active only) — and therefore Kaufland's Portal "Aktiv" number.
 const isListingActive = (l: { status: ListingStatus }): boolean =>
   !NON_ACTIVE_STATUSES.includes(l.status);
 
@@ -250,6 +269,9 @@ function normalizeEbayRow(row: EbayListingRow, productMaster?: ProductMasterMap)
     // C4: eBay rows missing updatedAt → no "Letztes Update". updatedAt is the only
     // timestamp on the row; keep null otherwise (formatRelativeTime renders "—").
     lastSync: row.updatedAt ?? null,
+    invalidMissingAttributes: [],
+    invalidDeclined: [],
+    invalidCheckedAt: null,
     warehouseStock,
     binLocation: row.binLocation ?? null,
     stockMismatch: row.stockMismatch === true,
@@ -273,9 +295,34 @@ function normalizeKauflandRow(row: KauflandListingRow, productMaster?: ProductMa
   const rawStatus = row.status != null ? String(row.status).trim().toUpperCase() : "";
   let status: ListingStatus = "unknown";
 
+  // Defensive normalisation of Kaufland's invalid-reason payload — the backend
+  // may not deliver these fields yet (contract rollout), so default to empty.
+  const invalidMissingAttributes: string[] = Array.isArray(row.invalidMissingAttributes)
+    ? row.invalidMissingAttributes.filter(
+        (a): a is string => typeof a === "string" && a.trim().length > 0
+      )
+    : [];
+  const invalidDeclined: Array<{ attribute: string; message: string }> = Array.isArray(
+    row.invalidDeclined
+  )
+    ? row.invalidDeclined
+        .filter(
+          (d): d is { attribute: string; message: string } =>
+            d != null && typeof d === "object" && typeof (d as any).attribute === "string"
+        )
+        .map((d) => ({
+          attribute: d.attribute,
+          message: typeof (d as any).message === "string" ? (d as any).message : "",
+        }))
+    : [];
+  const hasInvalidReasons = invalidMissingAttributes.length > 0 || invalidDeclined.length > 0;
+
   if (row.active === true) {
     if (row.productValid === true) status = "live";
-    else if (row.productValid === false) status = "indexing";
+    // productValid=false + concrete Kaufland reasons → Portal "Inaktiv/Ungültig".
+    // Without synced reasons we cannot distinguish from fresh indexing (<24h),
+    // so we keep the softer "indexing" until the reasons arrive.
+    else if (row.productValid === false) status = hasInvalidReasons ? "invalid" : "indexing";
     else status = "active"; // legacy data with no validity check yet
   } else if (row.active === false) {
     if (rawStatus === "ONHOLD") status = "paused";
@@ -309,12 +356,31 @@ function normalizeKauflandRow(row: KauflandListingRow, productMaster?: ProductMa
     category: row.category || (master ? masterCategoryOrNull(master) : null),
     viewItemUrl: row.viewItemUrl || null,
     lastSync: row.updatedAt || null,
+    invalidMissingAttributes,
+    invalidDeclined,
+    invalidCheckedAt: typeof row.invalidCheckedAt === "string" ? row.invalidCheckedAt : null,
     imageUrl: row.imageUrl || null,
     brand: row.brand || null,
     warehouseStock: row.warehouseStock ?? (master ? getProductPhysicalQuantity(master) : null),
     binLocation: row.binLocation ?? null,
     stockMismatch: row.stockMismatch === true,
   };
+}
+
+// Compact, human-readable reasons why Kaufland rejected the product data:
+//   "Fehlend: Bild, Signalwort" + per DECLINED value
+//   "Abgelehnt: picture — media_not_ready_yet".
+function buildInvalidReasonParts(
+  l: Pick<NormalizedListing, "invalidMissingAttributes" | "invalidDeclined">
+): string[] {
+  const parts: string[] = [];
+  if (l.invalidMissingAttributes.length > 0) {
+    parts.push(`Fehlend: ${l.invalidMissingAttributes.join(", ")}`);
+  }
+  for (const d of l.invalidDeclined) {
+    parts.push(`Abgelehnt: ${d.attribute}${d.message ? ` — ${d.message}` : ""}`);
+  }
+  return parts;
 }
 
 // ─── Icons ───────────────────────────────────────────────────
@@ -588,12 +654,16 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
         }
         return true;
       });
-      // Bereits aktiv gelistete Produkte ausfiltern (SKU + EAN + listingStatus)
-      // "live" und "indexing" sind Kaufland-Sub-Status von "active" — auch
-      // diese müssen rausgefiltert werden damit Produkte nicht doppelt gelistet
-      // werden während Kaufland noch indexiert.
+      // Bereits gelistete Produkte ausfiltern (SKU + EAN + listingStatus).
+      // "live", "indexing" und "invalid" sind Kaufland-Sub-Status: die Unit
+      // EXISTIERT auf dem Marktplatz (auch wenn ungültig/nicht kaufbar) — ein
+      // erneutes Publish würde eine Duplikat-Unit anlegen.
       const activeListings = listings.filter(
-        (l) => l.status === "active" || l.status === "live" || l.status === "indexing"
+        (l) =>
+          l.status === "active" ||
+          l.status === "live" ||
+          l.status === "indexing" ||
+          l.status === "invalid"
       );
       const listedSkus = new Set(
         activeListings
@@ -854,6 +924,7 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
     const byStatus: Record<ListingStatus, number> = {
       live: 0,
       indexing: 0,
+      invalid: 0,
       active: 0,
       paused: 0,
       deactivated: 0,
@@ -864,9 +935,11 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
     };
     // Tab counts mirror Kaufland Portal exactly:
     //   active  → Portal "Aktiv"               (live + legacy active fallback)
-    //   indexing → Portal "Angebotsdaten fehlen" (product.is_valid=false, <24h)
+    //   indexing → Portal "Angebotsdaten fehlen" (product.is_valid=false, <24h,
+    //                                          keine Gründe synchronisiert)
     //   paused  → Portal "Pausiert"            (ONHOLD)
-    //   inactive → Portal "Inaktiv"            (everything else: STALE-tombstones,
+    //   inactive → Portal "Inaktiv"            (everything else: invalid = Portal
+    //                                          "Inaktiv/Ungültig", STALE-tombstones,
     //                                          deactivated, blocked, in_review, unknown)
     listings.forEach((l) => {
       counts.all++;
@@ -1108,7 +1181,7 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
           className="bg-app-surface border border-app-border rounded-xl p-4"
           title={
             marketplace === "kaufland"
-              ? "Live = von Kaufland validiert (Portal-Aktiv). Indexierung läuft = bei Kaufland in Bearbeitung (bis 24h)."
+              ? "Entspricht Kauflands Portal-'Aktiv': nur von Kaufland validierte Listings (Live). Indexierung läuft und Inaktiv – Daten ungültig zählen NICHT als aktiv."
               : undefined
           }
         >
@@ -1126,10 +1199,12 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
           <div className="text-sm text-txt-muted mb-1">Inaktiv</div>
           <div className="text-2xl font-bold text-txt-primary">{tabCounts.inactive}</div>
           {(() => {
-            // For Kaufland, `paused` has its own tab/count — exclude from subtitle
-            // to avoid double-counting. Other marketplaces keep full breakdown.
+            // For Kaufland, `paused` and `indexing` have their own tab/count —
+            // exclude from subtitle to avoid double-counting ("invalid" stays:
+            // it IS part of the Inaktiv bucket and shows as "X Inaktiv – Daten
+            // ungültig"). Other marketplaces keep the full breakdown.
             const subtitleStatuses = marketplace === "kaufland"
-              ? NON_ACTIVE_STATUSES.filter((s) => s !== "paused")
+              ? NON_ACTIVE_STATUSES.filter((s) => s !== "paused" && s !== "indexing")
               : NON_ACTIVE_STATUSES;
             const parts = subtitleStatuses
               .filter((s) => tabCounts.byStatus[s] > 0)
@@ -1503,6 +1578,25 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
                                 </span>
                               )}
                             </div>
+                            {/* Kaufland rejection reasons — why the unit is
+                                "Inaktiv – Daten ungültig" in the portal. One
+                                compact line; full detail in the tooltip. */}
+                            {listing.status === "invalid" && (() => {
+                              const parts = buildInvalidReasonParts(listing);
+                              if (parts.length === 0) return null;
+                              const line = parts.join(" · ");
+                              const tooltip = listing.invalidCheckedAt
+                                ? `${line}\nZuletzt geprüft: ${formatRelativeTime(listing.invalidCheckedAt)}`
+                                : line;
+                              return (
+                                <div
+                                  className="text-xs text-danger truncate max-w-[280px] mt-0.5"
+                                  title={tooltip}
+                                >
+                                  {line}
+                                </div>
+                              );
+                            })()}
                           </div>
                         </div>
                       </td>
@@ -1529,10 +1623,15 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
                         </div>
                       </td>
                       <td className="px-4 py-3 text-right">
-                        {/* C2: only live/active listings carry a meaningful marketplace
-                            quantity. Inactive/sold listings show "—" so a stale number
-                            isn't mistaken for live offered stock. */}
-                        {isListingActive(listing) ? (
+                        {/* C2: only listings whose unit still exists on the marketplace
+                            carry a meaningful quantity. indexing/invalid are portal-
+                            INAKTIV (not buyable, excluded from isListingActive) but
+                            their unit data is fresh from the last sync — keep showing
+                            it. Dead/sold listings show "—" so a stale number isn't
+                            mistaken for live offered stock. */}
+                        {isListingActive(listing) ||
+                        listing.status === "indexing" ||
+                        listing.status === "invalid" ? (
                           <span className={`font-medium ${
                             listing.quantity != null && listing.quantity <= 0 ? "text-danger" :
                             listing.quantity != null && listing.quantity <= 3 ? "text-warning" :

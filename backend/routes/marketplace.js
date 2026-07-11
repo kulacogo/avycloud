@@ -1196,6 +1196,24 @@ router.get('/kaufland/listings', requirePermission('products', 'read'), async (r
         warehouseStock: typeof whStock === 'number' ? whStock : null,
         binLocation: binLoc,
         stockMismatch: mismatch,
+        // Kaufland invalidity reasons (invalid-reasons phase of the listings
+        // sync, services/kaufland-listings-sync.js). Only populated while
+        // product_valid === false; self-healing clears them on re-validation.
+        //   invalidMissingAttributes → Kauflands fehlende Pflichtattribute
+        //                              (deutsche Labels, z.B. 'Bild')
+        //   invalidDeclined          → abgelehnte Werte inkl. Grund
+        //   invalidCheckedAt         → ISO, wann Gründe zuletzt geholt
+        invalidMissingAttributes: Array.isArray(d.invalid_missing_attributes)
+          ? d.invalid_missing_attributes.map((a) => String(a || '').trim()).filter(Boolean)
+          : [],
+        invalidDeclined: Array.isArray(d.invalid_declined)
+          ? d.invalid_declined
+            .map((e) => ({ attribute: String(e?.attribute || ''), message: String(e?.message || '') }))
+            .filter((e) => e.attribute || e.message)
+          : [],
+        invalidCheckedAt: typeof d.invalid_reasons_checked_at === 'string'
+          ? d.invalid_reasons_checked_at
+          : (d.invalid_reasons_checked_at?.toDate?.()?.toISOString?.() || null),
       });
     });
 
