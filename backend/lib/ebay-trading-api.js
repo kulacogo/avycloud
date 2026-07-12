@@ -62,8 +62,23 @@ function toIso(value) {
   return Number.isFinite(ms) ? new Date(ms).toISOString() : null;
 }
 
-function escapeXml(value) {
+// XML 1.0 verbietet fast alle Steuerzeichen — AUCH innerhalb von CDATA.
+// Ein rohes Null-Byte (o. Ä.) in Produktdaten (z. B. ein zu 0x00 zerschossener
+// Umlaut in Titel/Beschreibung) macht den GESAMTEN Trading-API-Request ungültig
+// und eBay wirft SAXParseException "An invalid XML character (Unicode: 0x0)".
+// Deshalb VOR jedem Escaping/CDATA alle XML-illegalen Zeichen entfernen.
+// Erlaubt bleiben: #x9 (Tab), #xA (LF), #xD (CR), #x20–#xD7FF, #xE000–#xFFFD,
+// #x10000–#x10FFFF. Entfernt werden Steuerzeichen, die Nichtzeichen #xFFFE/#xFFFF
+// und einzelne (ungepaarte) Surrogate.
+function stripInvalidXmlChars(value) {
   return String(value == null ? '' : value)
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\uFFFE\uFFFF]/g, '')
+    .replace(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])/g, '')
+    .replace(/(^|[^\uD800-\uDBFF])[\uDC00-\uDFFF]/g, '$1');
+}
+
+function escapeXml(value) {
+  return stripInvalidXmlChars(value)
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
@@ -72,7 +87,7 @@ function escapeXml(value) {
 }
 
 function asCdata(value) {
-  const raw = String(value == null ? '' : value);
+  const raw = stripInvalidXmlChars(value);
   return `<![CDATA[${raw.replace(/]]>/g, ']]]]><![CDATA[>')}]]>`;
 }
 
@@ -1575,6 +1590,9 @@ async function fetchTradingStatus() {
 
 module.exports = {
   getEbayTradingConfig,
+  stripInvalidXmlChars,
+  escapeXml,
+  asCdata,
   buildRequestRoot,
   replaceRequesterToken,
   fetchTradingStatus,
