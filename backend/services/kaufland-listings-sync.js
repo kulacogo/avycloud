@@ -400,9 +400,20 @@ async function syncKauflandListingsCache({ tenantId, storefront = 'de' } = {}) {
           const missing = Array.isArray(status?.missing_attributes) ? status.missing_attributes : [];
           const minOne = Array.isArray(status?.min_one_missing_attributes) ? status.min_one_missing_attributes : [];
           const fullList = [...missing, ...minOne];
-          if (fullList.length) {
+          // DECLINED-Werte als Hints an den Enricher (Mapping wie in
+          // syncKauflandInvalidReasons): z.B. material_composition mit
+          // invalid_text_format erzwingt dort das %-Re-Format, auch wenn
+          // lokal bereits ein Wert existiert.
+          const declined = (Array.isArray(status?.attribute_values) ? status.attribute_values : [])
+            .filter((av) => String(av?.state || '').trim().toUpperCase() === 'DECLINED')
+            .map((av) => ({
+              attribute: String(av?.attribute || '').trim(),
+              message: String(av?.message || '').replace(/^reason:\s*/i, '').trim(),
+            }))
+            .filter((e) => e.attribute || e.message);
+          if (fullList.length || declined.length) {
             const { enrichProductForKaufland } = require('./kaufland-attribute-enricher');
-            const er = await enrichProductForKaufland(matched, fullList, { brandGpsrMap });
+            const er = await enrichProductForKaufland(matched, fullList, { brandGpsrMap, declined });
             if (er?.enriched && Array.isArray(er.enrichedFields) && er.enrichedFields.length) {
               enrichmentAttempted += 1;
               enrichedProduct = er.enriched;
@@ -422,7 +433,9 @@ async function syncKauflandListingsCache({ tenantId, storefront = 'de' } = {}) {
               } catch (saveErr) {
                 console.warn('[kaufland-sync] saveProductV2 after enrichment failed:', saveErr.message);
               }
-            } else if (fullList.length) {
+            } else {
+              // fullList.length || declined.length ist hier garantiert
+              // (outer guard) — Versuch ohne Ergebnis zählt als attempted.
               enrichmentAttempted += 1;
             }
           }
@@ -991,6 +1004,15 @@ async function healPendingKauflandPublishes({ products = [], storefront = 'de', 
       const missing = Array.isArray(status?.missing_attributes) ? status.missing_attributes : [];
       const minOne = Array.isArray(status?.min_one_missing_attributes) ? status.min_one_missing_attributes : [];
       const fullList = [...missing, ...minOne];
+      // DECLINED-Werte als Enricher-Hints (gleiches Mapping wie Auto-Repair-
+      // Phase / syncKauflandInvalidReasons — 'reason: '-Präfix gestrippt).
+      const declined = (Array.isArray(status?.attribute_values) ? status.attribute_values : [])
+        .filter((av) => String(av?.state || '').trim().toUpperCase() === 'DECLINED')
+        .map((av) => ({
+          attribute: String(av?.attribute || '').trim(),
+          message: String(av?.message || '').replace(/^reason:\s*/i, '').trim(),
+        }))
+        .filter((e) => e.attribute || e.message);
 
       if (status?.product_ready !== true) {
         // Noch nicht ready → Lücken schließen helfen. Bewusst minimal
@@ -1002,10 +1024,10 @@ async function healPendingKauflandPublishes({ products = [], storefront = 'de', 
         const lastRepairMs = lastRepairRaw ? Date.parse(lastRepairRaw) : 0;
         const repairDue = !(Number.isFinite(lastRepairMs) && lastRepairMs > 0)
           || (nowMs - lastRepairMs) > PENDING_HEAL_REPAIR_TTL_MS;
-        if (fullList.length && repairDue) {
+        if ((fullList.length || declined.length) && repairDue) {
           let enrichedProduct = p;
           try {
-            const er = await enrichProductForKaufland(p, fullList, {});
+            const er = await enrichProductForKaufland(p, fullList, { declined });
             if (er?.enriched && Array.isArray(er.enrichedFields) && er.enrichedFields.length) {
               enrichedProduct = er.enriched;
               try {

@@ -255,6 +255,74 @@ async function uploadJobFile(buffer, mimeType, jobId, originalName = 'upload.bin
   };
 }
 
+// Dokument-Uploads (SDS-PDFs etc.) duerfen NICHT durch die sharp-Bild-
+// Normalisierung laufen — deshalb eigene Extension-Map statt mime.split('/').
+const DOCUMENT_EXTENSION_BY_MIME = {
+  'application/pdf': 'pdf',
+  'image/jpeg': 'jpg',
+  'image/jpg': 'jpg',
+  'image/png': 'png',
+  'image/gif': 'gif',
+  'image/svg+xml': 'svg',
+  'image/webp': 'webp',
+};
+
+function documentExtensionFromMime(mimeType) {
+  const mt = typeof mimeType === 'string' ? mimeType.toLowerCase().trim() : '';
+  if (DOCUMENT_EXTENSION_BY_MIME[mt]) return DOCUMENT_EXTENSION_BY_MIME[mt];
+  const sub = mt.includes('/') ? mt.split('/')[1] : '';
+  const cleaned = sub.replace(/[^a-z0-9]/g, '');
+  return cleaned || 'bin';
+}
+
+/**
+ * Upload eines Dokument-Buffers (z.B. Sicherheitsdatenblatt-PDF) zu einem
+ * Produkt. Wie uploadImage, aber OHNE sharp-Normalisierung — der Buffer wird
+ * byte-identisch gespeichert (PDFs wuerden sharp brechen bzw. verfaelscht).
+ *
+ * Pfad: products/${productId}/${name}_${md5hash}.${ext}
+ *
+ * @param {Buffer} buffer
+ * @param {string} mimeType — z.B. 'application/pdf'
+ * @param {string} productId
+ * @param {string} name — logischer Dateiname (wird sanitized)
+ * @returns {Promise<{ url: string, mimeType: string, size: number }>}
+ */
+async function uploadDocumentBuffer(buffer, mimeType, productId, name) {
+  if (!Buffer.isBuffer(buffer) || buffer.length === 0) {
+    throw new Error('uploadDocumentBuffer requires a non-empty Buffer');
+  }
+  if (!productId) {
+    throw new Error('uploadDocumentBuffer requires a productId');
+  }
+  await ensureBucket();
+
+  const contentType = mimeType || 'application/octet-stream';
+  const safeName = sanitizeFilename(name || 'document') || 'document';
+  const hash = crypto.createHash('md5').update(buffer).digest('hex');
+  const extension = documentExtensionFromMime(contentType);
+  const filename = `products/${productId}/${safeName}_${hash}.${extension}`;
+  const file = bucket.file(filename);
+
+  await file.save(buffer, {
+    metadata: {
+      contentType,
+      cacheControl: 'public, max-age=31536000',
+    },
+    // Uniform bucket-level access: Public-Read via Bucket-IAM, nicht per Objekt-ACL.
+    public: false,
+    validation: false,
+  });
+
+  const publicUrl = `https://storage.googleapis.com/${BUCKET_NAME}/${filename}`;
+  console.log(`Document uploaded: ${publicUrl}`);
+  return {
+    url: publicUrl,
+    mimeType: contentType,
+    size: buffer.length,
+  };
+}
+
 async function downloadFile(filePath) {
   await ensureBucket();
   const file = bucket.file(filePath);
@@ -275,5 +343,6 @@ module.exports = {
   uploadLogoImage,
   deleteProductImages,
   uploadJobFile,
+  uploadDocumentBuffer,
   downloadFile,
 };

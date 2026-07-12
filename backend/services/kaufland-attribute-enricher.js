@@ -15,6 +15,17 @@
  *   - description via Gemini (~50-80 German words)
  *   - material composition via Gemini in Kaufland's "XX% Material" format
  *   - manufacturer derived from brand when only brand is set
+ *   - content ("Inhalt", z.B. "300 g"/"5 l") deterministisch aus Titel/
+ *     Attributen, Gemini-Flash nur als Fallback (regex-validiert)
+ *   - weight ("Gewicht", "X g"/"X kg") aus logistics/details/Attributen,
+ *     best-effort Web-Suche (lib/weight-web-lookup.js) als Fallback
+ *   - hazmat (GHS/CLP: "Signalwort", "Gefahrenhinweise", "Sicherheitsinfo
+ *     (P-Sätze)", "Sicherheitsdatenblatt") via verifiziertem Gemini-Lookup
+ *     (lib/hazmat-gemini-lookup.js) — H-/P-Sätze NUR aus per PDF-Magic-Check
+ *     verifiziertem SDS, Signalwort nur verifiziert bzw. belegtes
+ *     'Kein Signalwort'; SDS-PDF wird nach GCS gespiegelt (lib/storage.js)
+ *   - biozid ("Biozid", Pflicht-Kennzeichnung) aus demselben Lookup —
+ *     NUR mit belegter Quelle
  *
  * The enriched product is returned to the caller AND persisted to
  * `products_v2` via `saveProductV2(... skipStockEvent:true)` so future syncs
@@ -46,8 +57,29 @@ function normalizeToken(value) {
 }
 
 /**
+ * GHS/CLP-Sub-Feld-Matcher für den 'hazmat'-Bucket. Nimmt einen bereits
+ * normalizeToken()-ten Attribut-Namen und liefert das Sub-Feld — genutzt
+ * sowohl für die Bucket-Klassifikation als auch für den "existiert schon
+ * non-empty?"-Check (nie überschreiben).
+ *
+ * @param {string} token — normalizeToken()-Form
+ * @returns {'signalwort'|'hSaetze'|'pSaetze'|'sds'|null}
+ */
+function classifyHazmatToken(token) {
+  if (token === 'signalwort' || token === 'signalword') return 'signalwort';
+  if (token === 'gefahrenhinweise' || token === 'hsätze' || token === 'hsaetze'
+    || token === 'hazardstatements') return 'hSaetze';
+  // Kaufland-Label "Sicherheitsinfo (P-Sätze)" → 'sicherheitsinfopsätze'.
+  if (token.startsWith('sicherheitsinfo') || token === 'psätze' || token === 'psaetze'
+    || token === 'precautionarystatements') return 'pSaetze';
+  if (token === 'sicherheitsdatenblatt' || token === 'safetydatasheet') return 'sds';
+  return null;
+}
+
+/**
  * Match a Kaufland missing-attribute name against one of our high-level
- * enrichment buckets ('gpsr' | 'description' | 'material' | 'manufacturer' | 'picture').
+ * enrichment buckets ('gpsr' | 'description' | 'material' | 'manufacturer'
+ * | 'picture' | 'content' | 'weight' | 'hazmat' | 'biozid').
  *
  * Kaufland's labels are German/locale-dependent ("Materialzusammensetzung",
  * "Produktbeschreibung", "Hersteller", "product_safety_contact" etc.). We
@@ -66,6 +98,16 @@ function classifyMissingAttribute(name) {
   if (token.includes('beschreibung') || token.includes('description')) return 'description';
   if (token.includes('material') && (token.includes('zusammensetzung') || token === 'material' || token.includes('composition'))) return 'material';
   if (token.includes('bild') || token === 'picture' || token === 'pictures') return 'picture';
+  // "Inhalt" = Kaufland content_volume (Typ Si_Litre, Format "5 l"/"500 ml"/"300 g").
+  // Bewusst exakte Tokens — 'inhaltsstoffe' (Ingredients) darf NICHT matchen.
+  if (token === 'inhalt' || token === 'contentvolume' || token === 'füllmenge' || token === 'fuellmenge') return 'content';
+  // Exakt — 'maximalgewicht'/'traglast' etc. sind KEINE Produktgewichte.
+  if (token === 'gewicht' || token === 'weight') return 'weight';
+  // GHS/CLP-Gefahrstoff-Kennzeichnung (Live-Labels: "Signalwort",
+  // "Gefahrenhinweise", "Sicherheitsinfo (P-Sätze)", "Sicherheitsdatenblatt").
+  if (classifyHazmatToken(token)) return 'hazmat';
+  // Regulatorische Pflicht-Kennzeichnung Biozid (TerraDomi-Fall).
+  if (token === 'biozid' || token === 'biocide') return 'biozid';
   return null;
 }
 
@@ -148,6 +190,148 @@ async function generateMaterial({ title, brand, category }) {
   }
 }
 
+// ── Content ("Inhalt", Kaufland content_volume, Typ Si_Litre) ──────────────
+// Kaufland-Format: Zahl, Leerzeichen, Einheit klein — "300 g", "5 l", "50 ml".
+// Deterministische Extraktion aus Titel/Attributen ist first-tier (kein
+// LLM-Call). Multipacks ("2x250 ml") liefern konservativ die EINZELgebinde-
+// Menge (250 ml) — der Regex kann "2x" nie als Menge matchen, weil auf die
+// Zahl direkt die Einheit folgen muss.
+const CONTENT_QUANTITY_RX = /(?<![\d.,])(\d+(?:[.,]\d+)?)\s*(milliliter|ml|liter|litre|l|kilogramm|kilogram|kg|gramm|gram|g)(?![a-zäöüß])/i;
+
+// Attribut-Keys, deren Werte als Mengen-Quelle gelten (normalizeToken-Form).
+const CONTENT_ATTR_TOKENS = new Set([
+  'inhalt', 'füllmenge', 'fuellmenge', 'contentvolume', 'volumen',
+  'menge', 'nettoinhalt', 'inhaltsmenge', 'nettofüllmenge', 'nettovolumen',
+]);
+
+function normalizeContentUnit(rawUnit) {
+  const u = String(rawUnit || '').toLowerCase();
+  if (u === 'ml' || u.startsWith('milli')) return 'ml';
+  if (u === 'kg' || u.startsWith('kilo')) return 'kg';
+  if (u === 'l' || u.startsWith('lit')) return 'l';
+  return 'g';
+}
+
+/**
+ * Extract a content/fill quantity from free text and normalise it to the
+ * Kaufland format ("300 g", "5 l", "50 ml", "0,5 l"). Returns null when no
+ * plausible quantity is found. Decimal separator is normalised to comma (DE).
+ */
+function extractContentFromText(text) {
+  const m = CONTENT_QUANTITY_RX.exec(safeString(text));
+  if (!m) return null;
+  const num = m[1].replace('.', ',');
+  return `${num} ${normalizeContentUnit(m[2])}`;
+}
+
+/**
+ * Gemini-Flash fallback when no quantity is extractable deterministically.
+ * Answer is validated through the same regex — anything non-conforming → null.
+ */
+async function generateContent({ title, brand, category }) {
+  const prompt = [
+    'Ermittle die Füllmenge / den Inhalt (Nettomenge) dieses Produkts.',
+    `Titel: ${safeString(title) || 'unbekannt'}`,
+    `Marke: ${safeString(brand) || 'unbekannt'}`,
+    `Kategorie: ${safeString(category) || 'unbekannt'}`,
+    '',
+    'Antworte AUSSCHLIESSLICH mit der Mengenangabe: Zahl, Leerzeichen, Einheit (ml, l, g oder kg).',
+    'Beispiele: "500 ml", "5 l", "300 g", "1 kg"',
+    'Wenn die Menge nicht sicher bestimmbar ist, antworte NUR mit: unbekannt',
+    'Keine Erläuterung, keine Anführungszeichen.',
+  ].join('\n');
+  try {
+    const text = await callGeminiVision(prompt, [], {
+      model: 'gemini-3-flash-preview',
+      temperature: 0.1,
+      maxOutputTokens: 40,
+    });
+    const cleaned = safeString(text).replace(/^["'`]+|["'`]+$/g, '').replace(/\n.*$/s, '').trim();
+    if (!cleaned || /unbekannt/i.test(cleaned)) return null;
+    // Regex-Validierung + Normalisierung — alles andere wird verworfen.
+    return extractContentFromText(cleaned);
+  } catch (err) {
+    console.warn('[kaufland-enricher] content gen failed:', err?.message || err);
+    return null;
+  }
+}
+
+// ── Weight ("Gewicht") ──────────────────────────────────────────────────────
+// Plausibilitätsfenster gespiegelt zu lib/weight-web-lookup.js (1 g – 50 kg).
+const MIN_WEIGHT_G = 1;
+const MAX_WEIGHT_G = 50000;
+const WEIGHT_VALUE_RX = /(\d+(?:[.,]\d+)?)\s*(kilogramm|kilogram|kilos?|kg|gramm|grams?|gram|g)\b/i;
+
+/**
+ * Parse a weight value from products_v2 fields into grams.
+ * Convention: bare numbers are KG (details.weight / "Gewicht (kg)" store
+ * numeric kg — see lib/apply-chat-changes.js + lib/firestore.js). Strings may
+ * carry a unit ("500 g", "1,5 kg"). Returns null when unparseable or
+ * implausible (outside 1 g – 50 kg).
+ */
+function parseWeightToGramsLoose(value) {
+  let grams = null;
+  if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
+    grams = Math.round(value * 1000); // numerisch == kg (Repo-Konvention)
+  } else {
+    const text = safeString(value);
+    if (!text) return null;
+    const m = WEIGHT_VALUE_RX.exec(text);
+    if (m) {
+      const num = Number(m[1].replace(',', '.'));
+      if (!Number.isFinite(num) || num <= 0) return null;
+      grams = /^k/i.test(m[2]) ? Math.round(num * 1000) : Math.round(num);
+    } else {
+      const bare = Number(text.replace(',', '.'));
+      if (Number.isFinite(bare) && bare > 0) grams = Math.round(bare * 1000); // bare == kg
+    }
+  }
+  if (grams == null || grams < MIN_WEIGHT_G || grams > MAX_WEIGHT_G) return null;
+  return grams;
+}
+
+/**
+ * Format grams into Kaufland attribute form: "X g" below 1 kg, "X kg" above
+ * (decimal comma, max 2 Nachkommastellen).
+ */
+function formatWeightForKaufland(grams) {
+  if (!Number.isFinite(grams) || grams <= 0) return null;
+  if (grams >= 1000) {
+    const kg = Math.round((grams / 1000) * 100) / 100;
+    return `${String(kg).replace('.', ',')} kg`;
+  }
+  return `${Math.round(grams)} g`;
+}
+
+// Fresh clone of details.attributes — used at WRITE time inside async tasks so
+// parallel bucket-writes (material/content/weight) never clobber each other.
+function cloneAttrs(details) {
+  const attrs = details?.attributes;
+  return { ...(attrs && typeof attrs === 'object' && !Array.isArray(attrs) ? attrs : {}) };
+}
+
+// ── Hazmat/Biozid ("Signalwort", "Gefahrenhinweise", "Sicherheitsinfo
+// (P-Sätze)", "Sicherheitsdatenblatt", "Biozid") ────────────────────────────
+// Gemini-Lookup (20s) + SDS-PDF-Verifikation (15s) brauchen zusammen mehr als
+// das 8s-Feld-Default. Der Lookup cached in Firestore (30d TTL, inkl. negativ)
+// — wenn der ERSTE Lauf ins Total-Timeout läuft, füllt der Cache den nächsten
+// Sync-Lauf (15-min-Intervall) instant. Kein Call-Site-Umbau nötig.
+const HAZMAT_LOOKUP_TIMEOUT_MS = 20000;
+
+function attrValueNonEmpty(v) {
+  if (Array.isArray(v)) return v.some((x) => !!safeString(x));
+  return !!safeString(v);
+}
+
+/**
+ * True wenn irgendein bestehendes Attribut, dessen normalisierter Key das
+ * Prädikat erfüllt, einen non-empty Wert hat. Guard gegen Überschreiben —
+ * bestehende non-empty Werte werden NIE angefasst.
+ */
+function hasNonEmptyAttrToken(attrs, predicate) {
+  return Object.entries(attrs || {}).some(([k, v]) => predicate(normalizeToken(k)) && attrValueNonEmpty(v));
+}
+
 /**
  * Merge GPSR web-lookup result into product.details.gpsr without overwriting
  * existing non-empty values. Returns a NEW gpsr object (does not mutate input).
@@ -180,6 +364,10 @@ function mergeGpsr(existingGpsr, webResult) {
  * @param {object} [opts]
  * @param {number} [opts.fieldTimeoutMs=8000]
  * @param {number} [opts.totalTimeoutMs=20000]
+ * @param {Array<{attribute: string, message: string}>} [opts.declined=[]]
+ *   Kauflands DECLINED attribute_values (state==='DECLINED') als Hints —
+ *   z.B. material_composition mit invalid_text_format erzwingt das
+ *   %-Re-Format, auch wenn lokal bereits ein Wert existiert.
  * @returns {Promise<{ enriched: object, enrichedFields: string[], errors: string[] }>}
  *   `enriched` is always a NEW object (shallow-cloned). `enrichedFields` is the
  *   list of high-level bucket names that were actually populated this run.
@@ -197,14 +385,22 @@ async function enrichProductForKaufland(product, missingAttributes = [], opts = 
   enriched.identification = { ...(product?.identification || {}) };
 
   const list = Array.isArray(missingAttributes) ? missingAttributes : [];
-  if (!list.length) {
+  const declinedList = (Array.isArray(opts.declined) ? opts.declined : [])
+    .filter((d) => d && (safeString(d.attribute) || safeString(d.message)));
+  if (!list.length && !declinedList.length) {
     return { enriched, enrichedFields, errors };
   }
 
-  // Classify missing fields into buckets. De-dupe per bucket.
+  // Classify missing fields into buckets. De-dupe per bucket. DECLINED
+  // attributes (present but rejected by Kauflands validator) zählen ebenfalls
+  // — sie stehen NICHT in missing_attributes, brauchen aber genauso Repair.
   const buckets = new Set();
   for (const name of list) {
     const bucket = classifyMissingAttribute(name);
+    if (bucket) buckets.add(bucket);
+  }
+  for (const d of declinedList) {
+    const bucket = classifyMissingAttribute(d.attribute);
     if (bucket) buckets.add(bucket);
   }
   if (!buckets.size) {
@@ -400,7 +596,12 @@ async function enrichProductForKaufland(product, missingAttributes = [], opts = 
     // Material-Token. Schmeißt "100%" und "%" zurück → Gemini regeneriert.
     const VALID_MATERIAL_RX = /\d{1,3}\s*%\s*[A-Za-zÄÖÜäöüß]{3,}/;
     const hasValidMaterialFormat = existingMaterialValue && VALID_MATERIAL_RX.test(existingMaterialValue);
-    if (!hasValidMaterialFormat && title) {
+    // Kaufland hat material_composition explizit DECLINED (z.B. hint:
+    // material_composition_must_contain_%, reason: invalid_text_format) →
+    // Re-Format ERZWINGEN, egal was lokal steht. Der lokale Wert ist bewiesen
+    // nicht akzeptiert.
+    const materialDeclined = declinedList.some((d) => classifyMissingAttribute(d.attribute) === 'material');
+    if ((!hasValidMaterialFormat || materialDeclined) && title) {
       tasks.push((async () => {
         try {
           const material = await withTimeout(
@@ -409,13 +610,239 @@ async function enrichProductForKaufland(product, missingAttributes = [], opts = 
             'material-gemini'
           );
           if (material) {
-            const attrs = { ...attrsForMaterial };
+            const attrs = cloneAttrs(enriched.details);
             attrs.Materialzusammensetzung = material;
             enriched.details.attributes = attrs;
             enrichedFields.push('material');
           }
         } catch (err) {
           errors.push(`material: ${err?.message || err}`);
+        }
+      })());
+    }
+  }
+
+  // ── Bucket: content ("Inhalt" / content_volume, Format "300 g"/"5 l") ────
+  // 1st-tier: deterministisch aus Attribut-Werten (Inhalt/Füllmenge/Volumen…)
+  // und Titel — kein LLM-Call. 2nd-tier: Gemini-Flash, Antwort regex-validiert.
+  if (buckets.has('content')) {
+    const attrsForContent = cloneAttrs(enriched.details);
+    let contentValue = null;
+    for (const [k, v] of Object.entries(attrsForContent)) {
+      const token = normalizeToken(k);
+      if (!CONTENT_ATTR_TOKENS.has(token)) continue;
+      const candidate = Array.isArray(v) ? safeString(v[0]) : safeString(v);
+      const extracted = extractContentFromText(candidate);
+      if (extracted) { contentValue = extracted; break; }
+    }
+    if (!contentValue && title) {
+      contentValue = extractContentFromText(title);
+    }
+    if (contentValue) {
+      const attrs = cloneAttrs(enriched.details);
+      attrs.Inhalt = contentValue;
+      enriched.details.attributes = attrs;
+      enrichedFields.push('content');
+    } else if (title) {
+      tasks.push((async () => {
+        try {
+          const generated = await withTimeout(
+            generateContent({ title, brand, category }),
+            fieldTimeoutMs,
+            'content-gemini'
+          );
+          if (generated) {
+            const attrs = cloneAttrs(enriched.details);
+            attrs.Inhalt = generated;
+            enriched.details.attributes = attrs;
+            enrichedFields.push('content');
+          }
+        } catch (err) {
+          errors.push(`content: ${err?.message || err}`);
+        }
+      })());
+    }
+  }
+
+  // ── Bucket: weight ("Gewicht", Format "X g"/"X kg") ──────────────────────
+  // Quellen-Kaskade: (a) details.logistics.weight / details.weight /
+  // Gewichts-Attribute (numerisch == kg, Repo-Konvention) → (b) best-effort
+  // Web-Suche (lib/weight-web-lookup.js) → (c) nichts.
+  if (buckets.has('weight')) {
+    let weightGrams = parseWeightToGramsLoose(enriched.details?.logistics?.weight);
+    if (weightGrams == null) weightGrams = parseWeightToGramsLoose(enriched.details?.weight);
+    if (weightGrams == null) {
+      const attrsForWeight = cloneAttrs(enriched.details);
+      for (const [k, v] of Object.entries(attrsForWeight)) {
+        const token = normalizeToken(k);
+        if (token !== 'gewicht' && token !== 'weight' && token !== 'gewichtkg') continue;
+        const candidate = Array.isArray(v) ? v[0] : v;
+        const parsed = parseWeightToGramsLoose(candidate);
+        if (parsed != null) { weightGrams = parsed; break; }
+      }
+    }
+    if (weightGrams != null) {
+      const attrs = cloneAttrs(enriched.details);
+      attrs.Gewicht = formatWeightForKaufland(weightGrams);
+      enriched.details.attributes = attrs;
+      enrichedFields.push('weight');
+    } else if (title || brand) {
+      tasks.push((async () => {
+        try {
+          // Lazy require (Muster gpsr-gemini-lookup) — Modul zieht intern
+          // services/toolkit.js erst beim Search-Call nach.
+          const { lookupWeightFromWeb } = require('../lib/weight-web-lookup');
+          const ean = safeString(enriched.details?.identifiers?.ean || enriched.identification?.ean);
+          const res = await withTimeout(
+            lookupWeightFromWeb({ brand, model: title, ean }, { timeout: fieldTimeoutMs }),
+            fieldTimeoutMs + 500,
+            'weight-web'
+          );
+          const grams = Number(res?.weight_grams);
+          if (Number.isFinite(grams) && grams >= MIN_WEIGHT_G && grams <= MAX_WEIGHT_G
+              && Number(res?.confidence) >= 0.6) {
+            const attrs = cloneAttrs(enriched.details);
+            attrs.Gewicht = formatWeightForKaufland(grams);
+            enriched.details.attributes = attrs;
+            enrichedFields.push('weight');
+          }
+        } catch (err) {
+          errors.push(`weight: ${err?.message || err}`);
+        }
+      })());
+    }
+  }
+
+  // ── Bucket: hazmat + biozid (GHS/CLP via verifiziertem Gemini-Lookup) ─────
+  // Beide Buckets teilen sich EINEN getOrFetchHazmat-Call (Kostenkontrolle);
+  // biozid erweitert den Prompt via requestedFields=['biozid'].
+  //
+  // STRENGE COMPLIANCE-GUARDS (falsche Gefahrstoff-Angaben sind schlimmer als
+  // fehlende — dann bleibt der Cockpit-Fehler sichtbar, Operator übernimmt):
+  //   - H-/P-Sätze NUR wenn result.verified (SDS-PDF per Magic-Bytes geprüft)
+  //   - Signalwort wenn verified ODER belegtes 'Kein Signalwort'
+  //     (confidence >= 0.8 UND sources non-empty) — ein falsches
+  //     "Kein Signalwort" bei einem Gefahrstoff wäre fatal
+  //   - Sicherheitsdatenblatt: verifiedSdsUrl nach GCS spiegeln
+  //     (uploadDocumentBuffer), Mirror-Fehler → Original-URL (besser als nichts)
+  //   - Biozid NUR mit belegter Quelle (regulatory.sources)
+  //   - Bestehende non-empty Werte werden NIE überschrieben
+  if (buckets.has('hazmat') || buckets.has('biozid')) {
+    const attrsNow = cloneAttrs(enriched.details);
+    const hasSignalwort = hasNonEmptyAttrToken(attrsNow, (t) => classifyHazmatToken(t) === 'signalwort');
+    const hasHSaetze = hasNonEmptyAttrToken(attrsNow, (t) => classifyHazmatToken(t) === 'hSaetze');
+    const hasPSaetze = hasNonEmptyAttrToken(attrsNow, (t) => classifyHazmatToken(t) === 'pSaetze');
+    const hasSds = hasNonEmptyAttrToken(attrsNow, (t) => classifyHazmatToken(t) === 'sds');
+    const hasBiozid = hasNonEmptyAttrToken(attrsNow, (t) => t === 'biozid' || t === 'biocide');
+
+    // Kostenkontrolle: Lookup läuft NUR wenn mindestens ein Ziel-Attribut
+    // wirklich leer ist. Alles lokal vorhanden → Repair submitted Bestand,
+    // kein Gemini-/Fetch-Call.
+    const needHazmat = buckets.has('hazmat') && (!hasSignalwort || !hasHSaetze || !hasPSaetze || !hasSds);
+    const needBiozid = buckets.has('biozid') && !hasBiozid;
+
+    if (needHazmat || needBiozid) {
+      tasks.push((async () => {
+        try {
+          // Lazy require (Muster gpsr-gemini-lookup) — Modul zieht Firestore-
+          // Client + gemini3-client erst beim ersten echten Call hoch.
+          const hazmatLookup = require('../lib/hazmat-gemini-lookup');
+          const ean = safeString(enriched.details?.identifiers?.ean || enriched.identification?.ean);
+          const result = await withTimeout(
+            hazmatLookup.getOrFetchHazmat({
+              ean,
+              brand,
+              title,
+              requestedFields: needBiozid ? ['biozid'] : [],
+            }),
+            Math.max(fieldTimeoutMs, HAZMAT_LOOKUP_TIMEOUT_MS),
+            'hazmat-gemini'
+          );
+
+          if (!result) {
+            // Transient (lookup → null, wird bewusst NICHT gecacht) —
+            // nächster Sync-Lauf versucht es erneut.
+            if (needHazmat) errors.push('hazmat: Lookup lieferte kein Ergebnis (transient) — keine Attribute geschrieben');
+            if (needBiozid) errors.push('biozid: Lookup lieferte kein Ergebnis (transient) — Attribut nicht geschrieben');
+            return;
+          }
+
+          const verified = result.verified === true;
+          const signalwortAllowed = !!result.signalwort && (verified
+            || (result.signalwort === 'Kein Signalwort'
+              && Number(result.confidence) >= 0.8
+              && Array.isArray(result.sources) && result.sources.length > 0));
+
+          // SDS: verifizierte URL nach GCS spiegeln. getOrFetchHazmat reicht
+          // den PDF-Buffer nie durch (Firestore-Cache, 1-MB-Doc-Limit) —
+          // daher hier erneut laden (verifySdsUrl liefert den Buffer mit).
+          let sdsUrlToWrite = null;
+          if (needHazmat && !hasSds && verified && result.verifiedSdsUrl) {
+            sdsUrlToWrite = result.verifiedSdsUrl;
+            try {
+              const fetched = await hazmatLookup.verifySdsUrl(result.verifiedSdsUrl);
+              if (fetched && fetched.ok && fetched.buffer) {
+                const { uploadDocumentBuffer } = require('../lib/storage');
+                const productId = safeString(enriched.id || product?.id);
+                const uploaded = await uploadDocumentBuffer(
+                  fetched.buffer,
+                  fetched.contentType || 'application/pdf',
+                  productId,
+                  'sicherheitsdatenblatt'
+                );
+                if (uploaded && uploaded.url) sdsUrlToWrite = uploaded.url;
+              }
+            } catch (err) {
+              // Mirror-Fehler → verifizierte Original-URL bleibt (besser als nichts).
+              console.warn('[kaufland-enricher] SDS-GCS-Mirror fehlgeschlagen:', err?.message || err);
+            }
+          }
+
+          if (needHazmat) {
+            const attrs = cloneAttrs(enriched.details);
+            let wrote = false;
+            if (!hasSignalwort && signalwortAllowed) {
+              attrs.Signalwort = result.signalwort;
+              wrote = true;
+            }
+            if (verified) {
+              if (!hasHSaetze && Array.isArray(result.hSaetze) && result.hSaetze.length) {
+                attrs.Gefahrenhinweise = result.hSaetze;
+                wrote = true;
+              }
+              if (!hasPSaetze && Array.isArray(result.pSaetze) && result.pSaetze.length) {
+                attrs['Sicherheitsinfo (P-Sätze)'] = result.pSaetze;
+                wrote = true;
+              }
+            }
+            if (sdsUrlToWrite) {
+              attrs.Sicherheitsdatenblatt = sdsUrlToWrite;
+              wrote = true;
+            }
+            if (wrote) {
+              enriched.details.attributes = attrs;
+              enrichedFields.push('hazmat');
+            } else {
+              errors.push('hazmat: kein verifiziertes Sicherheitsdatenblatt/Signalwort gefunden — Gefahrstoff-Attribute bewusst NICHT geschrieben (Operator-Prüfung nötig)');
+            }
+          }
+
+          if (needBiozid) {
+            const biozidValue = result.regulatory ? safeString(result.regulatory.biozid) : '';
+            const biozidSources = result.regulatory && Array.isArray(result.regulatory.sources)
+              ? result.regulatory.sources
+              : [];
+            if (biozidValue && biozidSources.length > 0) {
+              const attrs = cloneAttrs(enriched.details);
+              attrs.Biozid = biozidValue;
+              enriched.details.attributes = attrs;
+              enrichedFields.push('biozid');
+            } else {
+              errors.push('biozid: keine belegte Biozid-Kennzeichnung gefunden — Attribut bewusst NICHT geschrieben (Operator-Prüfung nötig)');
+            }
+          }
+        } catch (err) {
+          errors.push(`hazmat: ${err?.message || err}`);
         }
       })());
     }
@@ -449,5 +876,9 @@ module.exports = {
   enrichProductForKaufland,
   // exported for unit tests
   classifyMissingAttribute,
+  classifyHazmatToken,
   mergeGpsr,
+  extractContentFromText,
+  parseWeightToGramsLoose,
+  formatWeightForKaufland,
 };

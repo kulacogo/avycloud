@@ -163,6 +163,14 @@ function isLikelyImageUrl(entry) {
 // value that actually contains a fabric NAME (>=3 consecutive letters),
 // preferring values that ALSO carry percentages (more complete composition).
 // Returns '' if no usable fabric name exists anywhere.
+// Kaufland-Validator (Live-Ablehnung 2026-07-12, STOOLINK/Stradivarius):
+// material_composition MUSS eine Prozentangabe enthalten — %-lose Werte werden
+// mit hint material_composition_must_contain_%, reason invalid_text_format
+// DECLINED. Solche Werte deshalb NIE submitten; der Enricher
+// (services/kaufland-attribute-enricher.js) generiert das %-Format und die
+// nächste Reparatur reicht es nach.
+const MATERIAL_PERCENT_RX = /\d{1,3}\s*%/;
+
 function buildKauflandMaterialComposition(pools) {
   const FABRIC_NAME_RX = /[A-Za-zÄÖÜäöüß]{3,}/;
   // Priority order: explicit composition field first, then generic material,
@@ -408,12 +416,15 @@ async function buildKauflandProductDataAttributes(product, { missingAttributes =
   const complianceContact = buildKauflandComplianceContact(product, brand);
   if (complianceContact) attributes.product_safety_contact = complianceContact;
 
-  // Material composition — CORE phase (always send if derivable), because it is
+  // Material composition — CORE phase (send if derivable), because it is
   // the #1 attribute that keeps freshly-listed textiles non-buyable. The
   // missing-backfill phase below alone is not enough: on initial listing the
   // `missing` list is empty, so without this the field would never be sent.
+  // %-Gate: nur senden wenn der Wert dem Kaufland-Pflichtformat entspricht
+  // (Prozentangabe, siehe MATERIAL_PERCENT_RX oben) — %-lose Klartext-Werte
+  // führen zu invalid_text_format und blockieren den Datensatz.
   const materialComposition = buildKauflandMaterialComposition([attrsPrimary, attrsExtra]);
-  if (materialComposition) {
+  if (materialComposition && MATERIAL_PERCENT_RX.test(materialComposition)) {
     attributes.material_composition = [materialComposition];
     if (isGermanStorefront) attributes.Materialzusammensetzung = [materialComposition];
   }
@@ -510,6 +521,16 @@ async function buildKauflandProductDataAttributes(product, { missingAttributes =
     }
 
     const values = normalizeKauflandAttributeValues(rawValue);
+    // Material-%-Gate auch im Missing-Backfill (gleicher Grund wie in der
+    // CORE-Phase oben): %-lose Materialwerte DECLINED der Validator mit
+    // invalid_text_format — nicht senden, Enricher generiert das %-Format.
+    const isMaterialToken = requiredToken.includes('material')
+      && (requiredToken.includes('zusammensetzung') || requiredToken.includes('composition') || requiredToken === 'material');
+    if (isMaterialToken) {
+      const withPercent = values.filter((v) => MATERIAL_PERCENT_RX.test(v));
+      if (withPercent.length) attributes[requiredName] = withPercent;
+      return;
+    }
     if (values.length) attributes[requiredName] = values;
   });
 
