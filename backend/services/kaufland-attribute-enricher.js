@@ -147,7 +147,7 @@ async function generateDescription({ title, brand, category }) {
     const text = await callGeminiVision(prompt, [], {
       model: 'gemini-3-flash-preview',
       temperature: 0.6,
-      maxOutputTokens: 400,
+      maxOutputTokens: 2048, // Gemini-3 Thinking frisst knappe Budgets — Antwort truncated sonst (Live-Fall '40%')
     });
     const cleaned = safeString(text).replace(/^["'`]+|["'`]+$/g, '').trim();
     if (!cleaned || cleaned.length < 30) return null;
@@ -178,7 +178,7 @@ async function generateMaterial({ title, brand, category }) {
     const text = await callGeminiVision(prompt, [], {
       model: 'gemini-3-flash-preview',
       temperature: 0.2,
-      maxOutputTokens: 80,
+      maxOutputTokens: 2048, // s.o. — nie unter ~1024 bei Gemini-3
     });
     const cleaned = safeString(text).replace(/^["'`]+|["'`]+$/g, '').replace(/\n.*$/s, '').trim();
     // Sanity: must contain percent + actual material name (not just "100%")
@@ -244,7 +244,7 @@ async function generateContent({ title, brand, category }) {
     const text = await callGeminiVision(prompt, [], {
       model: 'gemini-3-flash-preview',
       temperature: 0.1,
-      maxOutputTokens: 40,
+      maxOutputTokens: 2048, // s.o. — nie unter ~1024 bei Gemini-3
     });
     const cleaned = safeString(text).replace(/^["'`]+|["'`]+$/g, '').replace(/\n.*$/s, '').trim();
     if (!cleaned || /unbekannt/i.test(cleaned)) return null;
