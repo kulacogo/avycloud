@@ -65,6 +65,52 @@ export const getGtinLabel = (value?: string | null): string => {
   }
 };
 
+export type IdentifierField = "ean" | "upc" | "gtin";
+
+// Erlaubte Stellenzahlen je kanonischem Feld (GS1). Spiegelt backend/lib/product-identifiers.js.
+const IDENTIFIER_FIELD_LENGTHS: Record<IdentifierField, number[]> = {
+  ean: [13, 8],
+  upc: [12],
+  gtin: [14],
+};
+
+export const identifierFieldLabel: Record<IdentifierField, string> = {
+  ean: "EAN",
+  upc: "UPC",
+  gtin: "GTIN",
+};
+
+export type IdentifierValidation = {
+  ok: boolean;
+  empty: boolean;
+  reason?: "length" | "checkdigit";
+  expected: number[];
+};
+
+// Validiert einen Wert, der gezielt in ein Feld (EAN/UPC/GTIN) getippt wurde.
+// Leer = ok (Feld leeren). Sonst exakte Stellenzahl + Prüfziffer.
+export const validateIdentifierField = (
+  field: IdentifierField,
+  value?: string | null
+): IdentifierValidation => {
+  const digits = normalizeBarcode(value || "");
+  const expected = IDENTIFIER_FIELD_LENGTHS[field];
+  if (!digits) return { ok: true, empty: true, expected };
+  if (!expected.includes(digits.length)) return { ok: false, empty: false, reason: "length", expected };
+  if (!isValidGtin(digits)) return { ok: false, empty: false, reason: "checkdigit", expected };
+  return { ok: true, empty: false, expected };
+};
+
+// Ordnet eine rohe Barcode-Liste den drei Feldern nach Stellenzahl zu (erster Treffer).
+export const classifyBarcodesByLength = (codes: string[] = []): Record<IdentifierField, string> => {
+  const norm = Array.from(new Set(codes.map(normalizeBarcode).filter(Boolean)));
+  return {
+    ean: norm.find((c) => c.length === 13 || c.length === 8) || "",
+    upc: norm.find((c) => c.length === 12) || "",
+    gtin: norm.find((c) => c.length === 14) || "",
+  };
+};
+
 export const summarizeBarcodes = (values: string[] = []) => {
   const normalized = Array.from(
     new Set(

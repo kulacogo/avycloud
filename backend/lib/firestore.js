@@ -1,6 +1,7 @@
 const { Firestore, FieldValue } = require('@google-cloud/firestore');
 const { generateSku: generateRandomSku10NoLeadingZero } = require('./sku');
 const { isValidGtin: isValidGtinShared, normalizeDigits: normalizeDigitsShared } = require('./gtin');
+const { reconcileAuthoritative } = require('./product-identifiers');
 const {
   computeProductIdentityKey,
   buildIdentityAliasSet,
@@ -2199,40 +2200,29 @@ async function saveProduct(product, options = {}) {
       const summary = summarize(candidates);
 
       if (isManualSave) {
-        // MANUAL SAVE: User is the authority. Persist what they entered.
-        // Keep valid barcodes in identification.barcodes (for dedupe/exports).
-        // But also keep ALL user-entered digits-only codes (even with wrong checkdigit) in identifiers.
-        if (summary.valid.length) {
-          mergedIdentification.barcodes = summary.valid;
-        } else if (summary.normalized.length) {
-          // User entered barcodes but none passed checkdigit — keep digits-only ones anyway
-          const digitsOnly = summary.normalized.filter((v) => /^\d+$/.test(v) && v.length >= 8 && v.length <= 14);
-          if (digitsOnly.length) {
-            mergedIdentification.barcodes = digitsOnly;
-          }
-        }
-
+        // MANUAL / autoritativer Save (User oder Chat-auf-Anweisung): kanonische
+        // Identifier ERSETZEN statt akkumulieren. EAN(13/8)·UPC(12)·GTIN(14) je EIN
+        // Wert (streng validiert); identification.barcodes wird daraus ABGELEITET.
+        // Keine Rückfaltung aus alten identifiers mehr — dadurch wird eine
+        // EAN-Korrektur/-Reduktion tatsächlich durchgesetzt (Incident 2026-07-13).
+        // Der Automatik-Zweig unten bleibt bewusst additiv (nie einen Code verlieren).
         if (!mergedDetails.identifiers) mergedDetails.identifiers = {};
+        const reconciled = reconcileAuthoritative({
+          existingIdentifiers: existingData?.details?.identifiers || {},
+          incomingIdentifiers: mergedDetails.identifiers,
+          incomingBarcodes: Array.isArray(mergedIdentification?.barcodes) ? mergedIdentification.barcodes : [],
+        });
+        mergedDetails.identifiers = reconciled.identifiers;
+        if (reconciled.barcodes.length) mergedIdentification.barcodes = reconciled.barcodes;
+        else delete mergedIdentification.barcodes;
 
-        // For manual saves: preserve user-entered identifiers.ean/gtin/upc as-is.
-        // Only sync FROM barcodes if identifiers are empty AND we have valid barcodes.
-        if (syncIdentifiersFromBarcodes) {
-          const curEan = normalizeBarcode(mergedDetails.identifiers.ean);
-          const curGtin = normalizeBarcode(mergedDetails.identifiers.gtin);
-          const curUpc = normalizeBarcode(mergedDetails.identifiers.upc);
-          // Only fill empty identifier fields from validated barcodes — never delete user-entered values.
-          if (!curEan && summary.ean13) mergedDetails.identifiers.ean = summary.ean13;
-          if (!curGtin && summary.gtin14) mergedDetails.identifiers.gtin = summary.gtin14;
-          if (!curUpc && summary.upc12) mergedDetails.identifiers.upc = summary.upc12;
-        }
-
-        // Flag invalid codes for data quality but DO NOT delete them.
-        if (summary.invalid.length) {
+        // Ungültige Codes (falsche Länge/Prüfziffer) werden abgelehnt, nicht gespeichert — nur geflaggt.
+        if (reconciled.invalid.length) {
           mergedOps.data_quality = mergedOps.data_quality || {};
-          mergedOps.data_quality.barcode_warning_v1 = {
+          mergedOps.data_quality.barcode_rejected_v1 = {
             iso: new Date().toISOString(),
-            invalid: summary.invalid.slice(0, 50),
-            note: 'manual_save_preserved',
+            invalid: reconciled.invalid.slice(0, 50),
+            note: 'manual_save_strict_validation',
           };
         }
       } else {

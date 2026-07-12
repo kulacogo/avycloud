@@ -30,7 +30,7 @@ import ValidationPanel from './ValidationPanel';
 import IdentifyV4Badge from './IdentifyV4Badge';
 import { Tabs, TabPanel } from './ui/Tabs';
 import { useI18n } from '../i18n';
-import { normalizeBarcode, summarizeBarcodes, isValidGtin, getGtinLabel } from '../utils/gtin';
+import { normalizeBarcode, summarizeBarcodes, isValidGtin, getGtinLabel, validateIdentifierField, classifyBarcodesByLength, identifierFieldLabel, type IdentifierField } from '../utils/gtin';
 import {
   getProductDisplayCategory,
   getProductEbayCategoryId,
@@ -181,6 +181,21 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
   const [barcodeInput, setBarcodeInput] = useState<string>(() => (product.identification?.barcodes || []).join('\n'));
   const latestBarcodeInputRef = useRef<string>(barcodeInput);
   latestBarcodeInputRef.current = barcodeInput;
+  // Kanonische Einzelfelder EAN/UPC/GTIN (aus der barcodes-Liste nach Stellenzahl abgeleitet).
+  // Sie sind die Editier-Oberfläche; barcodeInput (der Save-Pfad) wird bei jeder Änderung neu
+  // aus den drei Feldern zusammengesetzt — je Typ genau ein Wert (Incident 2026-07-13).
+  const [idFields, setIdFields] = useState<Record<IdentifierField, string>>(() =>
+    classifyBarcodesByLength(product.identification?.barcodes || [])
+  );
+  const applyIdField = useCallback((field: IdentifierField, rawValue: string) => {
+    const digits = normalizeBarcode(rawValue);
+    setIdFields((prev) => {
+      const next = { ...prev, [field]: digits };
+      setBarcodeInput([next.ean, next.upc, next.gtin].filter(Boolean).join('\n'));
+      return next;
+    });
+    setIsDirty(true);
+  }, []);
   const [categoryQuery, setCategoryQuery] = useState('');
   const [categoryQueryDebounced, setCategoryQueryDebounced] = useState('');
   const [categoryOptions, setCategoryOptions] = useState<EbayCategoryOption[]>([]);
@@ -215,10 +230,6 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
   const currentBarcodeSummary = useMemo(
     () => summarizeBarcodes(localProduct.identification?.barcodes || []),
     [localProduct.identification?.barcodes]
-  );
-  const editingBarcodeSummary = useMemo(
-    () => summarizeBarcodes(parseBarcodes(barcodeInput)),
-    [barcodeInput, parseBarcodes]
   );
 
   const loadProductBins = useCallback(
@@ -263,6 +274,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
     setNewImageUrl('');
     loadProductBins(product.id);
     setBarcodeInput((product.identification?.barcodes || []).join('\n'));
+    setIdFields(classifyBarcodesByLength(product.identification?.barcodes || []));
   }, [product, loadProductBins, normalizeProduct, isDirty, isEditing, isGeneratingImages]);
 
   const gpsr = (localProduct?.details?.gpsr || {}) as any;
@@ -637,6 +649,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
         setIsDirty(false);
         lastSaveAtRef.current = Date.now();
         setBarcodeInput((normalized.identification?.barcodes || []).join('\n'));
+        setIdFields(classifyBarcodesByLength(normalized.identification?.barcodes || []));
         showNotification('success', t('sheet.msg.saveSuccess'));
       } else {
         showNotification('error', result.error?.message || t('sheet.msg.saveError'));
@@ -795,15 +808,15 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
           }
         }
 
-        // Handle barcodes merging specifically
+        // Barcode-Korrektur aus dem Chat: die gelieferte Liste ist die
+        // VOLLSTÄNDIGE neue Menge (Ersatz, nicht mehr Union). Sonst würde eine
+        // EAN-Korrektur die alten falschen Codes nie loswerden (Incident
+        // 2026-07-13). Auf je einen gültigen Code pro Typ (EAN/UPC/GTIN) reduziert.
         if (change.identity?.barcodes && Array.isArray(change.identity.barcodes) && change.identity.barcodes.length > 0) {
-          const merged = new Set([
-            ...(next.identification.barcodes || []),
-            ...change.identity.barcodes
-          ]);
-          next.identification.barcodes = Array.from(merged)
-            .map(b => normalizeBarcode(String(b)))
-            .filter(b => b && isValidGtin(b));
+          const cls = classifyBarcodesByLength(
+            change.identity.barcodes.map(b => normalizeBarcode(String(b))).filter(b => b && isValidGtin(b))
+          );
+          next.identification.barcodes = [cls.ean, cls.upc, cls.gtin].filter(Boolean);
           incomingBarcodes = next.identification.barcodes;
         }
 
@@ -992,6 +1005,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
     const resolvedBarcodes = incomingBarcodes as string[] | null;
     if (resolvedBarcodes) {
       setBarcodeInput(resolvedBarcodes.join('\n'));
+      setIdFields(classifyBarcodesByLength(resolvedBarcodes));
     }
     showNotification('success', t('sheet.msg.changeApplied'));
   };
@@ -1600,21 +1614,33 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
               <div>
                 <label className="block text-xs font-semibold text-txt-secondary mb-1">Barcodes (EAN / UPC / GTIN)</label>
                 {isEditing ? (
-                  <div>
-                    <textarea
-                      value={barcodeInput}
-                      onChange={(e) => { setBarcodeInput(e.target.value); setIsDirty(true); }}
-                      rows={Math.min(3, Math.max(2, barcodeInput.split('\n').length || 2))}
-                      className={`w-full text-sm bg-app-elevated border rounded-lg p-2.5 font-mono ${hasQualityIssue('identification.barcodes') ? 'border-danger/60' : 'border-app-border'}`}
-                      placeholder={t('input.barcodes.placeholder')}
-                    />
-                    <div className="text-[11px] mt-1">
-                      {editingBarcodeSummary.hasValid ? (
-                        <span className="text-success">{editingBarcodeSummary.primaryLabel}: {editingBarcodeSummary.primaryBarcode}</span>
-                      ) : barcodeInput.trim() ? (
-                        <span className="text-danger">Kein gültiger Barcode erkannt</span>
-                      ) : null}
-                    </div>
+                  <div className="space-y-2">
+                    {(['ean', 'upc', 'gtin'] as IdentifierField[]).map((field) => {
+                      const validation = validateIdentifierField(field, idFields[field]);
+                      const showError = !validation.ok;
+                      return (
+                        <div key={field}>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[11px] font-semibold text-txt-muted w-11 shrink-0">{identifierFieldLabel[field]}</span>
+                            <input
+                              value={idFields[field]}
+                              onChange={(e) => applyIdField(field, e.target.value)}
+                              inputMode="numeric"
+                              placeholder={field === 'ean' ? '13 (oder 8) Stellen' : field === 'upc' ? '12 Stellen' : '14 Stellen'}
+                              className={`flex-1 text-sm bg-app-elevated border rounded-lg px-3 py-2 outline-none font-mono ${showError ? 'border-danger focus:border-danger' : 'border-app-border focus:border-accent'}`}
+                            />
+                          </div>
+                          {showError && (
+                            <p className="text-[11px] text-danger mt-0.5 ml-[3.25rem]">
+                              {validation.reason === 'length'
+                                ? `${identifierFieldLabel[field]} braucht ${validation.expected.join(' oder ')} Stellen`
+                                : 'Prüfziffer ungültig'}
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })}
+                    <p className="text-[11px] text-txt-muted">Je Typ genau ein Code. Feld leeren = Code entfernen.</p>
                   </div>
                 ) : (
                   <div className="flex flex-wrap gap-2">

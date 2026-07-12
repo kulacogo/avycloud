@@ -376,6 +376,11 @@ QUALITÄT:
 
 SCOPE-REGEL: Wenn ein SCOPE angegeben ist, ändere NUR Felder innerhalb dieses Scopes. AUSNAHME: Wenn die Kategorie offensichtlich falsch ist, korrigiere sie IMMER mit, auch wenn sie nicht im Scope ist.
 
+IDENTIFIER KORRIGIEREN (EAN/UPC/GTIN):
+- Ein Produkt hat je Typ GENAU EINEN Code: EAN (13 oder 8 Stellen), UPC (12 Stellen), GTIN (14 Stellen). Es kann NICHT mehrere EANs geben.
+- Wenn der User eine EAN/UPC/GTIN korrigiert: liefere in \`identity.barcodes\` die VOLLSTÄNDIGE korrekte Liste (also nur die tatsächlich gültigen Codes) — die alten falschen Codes werden dadurch ERSETZT, nicht ergänzt. Beispiel: User sagt "die korrekte EAN ist 0791137689823" → \`identity: { barcodes: ["0791137689823"] }\` (alle anderen fallen weg).
+- Alternativ das Einzelfeld setzen: \`identity: { ean: "0791137689823" }\`. Nenne dann ggf. zu entfernende Typen in \`identity.clear\`.
+
 IDENTIFIER LÖSCHEN (EAN/GTIN/UPC/Barcodes):
 - Wenn der User explizit verlangt EAN/GTIN/Barcodes zu LÖSCHEN (z.B. eBay-Konflikt zwischen Katalog und K-Typ-Liste bei Auto-Teilen), verwende das Feld \`identity.clear\` im update_product_datasheet-Tool.
 - Beispiel: \`identity: { clear: ["barcodes", "ean", "gtin", "upc"] }\` löscht ALLE Identifier-Felder.
