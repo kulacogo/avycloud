@@ -116,6 +116,26 @@ async function removeBackground(imageBuffer, options = {}) {
 }
 
 /**
+ * Creates a soft elliptical contact shadow (PNG with alpha).
+ * The ellipse is rasterized inside a padded canvas so the blur can fall off
+ * smoothly instead of clipping at the buffer edge.
+ */
+async function createContactShadow(width, height, opacity = 0.28) {
+  const blurSigma = Math.max(6, Math.round(width * 0.03));
+  const pad = blurSigma * 3;
+  const canvasW = width + pad * 2;
+  const canvasH = height + pad * 2;
+  const svg = Buffer.from(
+    `<svg width="${canvasW}" height="${canvasH}" xmlns="http://www.w3.org/2000/svg">` +
+      `<ellipse cx="${canvasW / 2}" cy="${canvasH / 2}" rx="${width / 2}" ry="${height / 2}" ` +
+      `fill="rgb(20,20,22)" fill-opacity="${opacity}"/>` +
+      `</svg>`
+  );
+  const buffer = await sharp(svg).blur(blurSigma).png().toBuffer();
+  return { buffer, width: canvasW, height: canvasH };
+}
+
+/**
  * Removes background and composites onto a studio gradient.
  *
  * @param {Buffer} imageBuffer - Input product image
@@ -124,6 +144,7 @@ async function removeBackground(imageBuffer, options = {}) {
  * @param {number} options.outputWidth - Target width (default 1024)
  * @param {number} options.outputHeight - Target height (default 1024)
  * @param {number} options.padding - Padding percentage around product (0-0.5, default 0.1)
+ * @param {boolean} options.shadow - Composite a soft contact shadow under the product
  * @returns {Promise<{buffer: Buffer, width: number, height: number}>}
  */
 async function compositeOnGradient(imageBuffer, options = {}) {
@@ -132,6 +153,7 @@ async function compositeOnGradient(imageBuffer, options = {}) {
     outputWidth = DEFAULT_WIDTH,
     outputHeight = DEFAULT_HEIGHT,
     padding = 0.1,
+    shadow = false,
   } = options;
 
   // Step 1: Remove background
@@ -156,9 +178,28 @@ async function compositeOnGradient(imageBuffer, options = {}) {
   const left = Math.round((outputWidth - resizedMeta.width) / 2);
   const top = Math.round((outputHeight - resizedMeta.height) / 2);
 
+  const layers = [];
+
+  // Optional soft contact shadow under the product base (grounds the object,
+  // avoids the "floating cutout" look of a plain composite).
+  if (shadow) {
+    const shadowW = Math.round(resizedMeta.width * 0.92);
+    const shadowH = Math.max(16, Math.round(outputHeight * 0.05));
+    const contact = await createContactShadow(shadowW, shadowH);
+    const shadowLeft = Math.round(left + (resizedMeta.width - contact.width) / 2);
+    const shadowTop = Math.round(top + resizedMeta.height - contact.height / 2 - shadowH * 0.25);
+    layers.push({
+      input: contact.buffer,
+      left: Math.max(0, Math.min(outputWidth - contact.width, shadowLeft)),
+      top: Math.max(0, Math.min(outputHeight - contact.height, shadowTop)),
+    });
+  }
+
+  layers.push({ input: resized, left, top });
+
   // Step 4: Composite
   const result = await sharp(gradient)
-    .composite([{ input: resized, left, top }])
+    .composite(layers)
     .png({ quality: 92 })
     .toBuffer();
 
@@ -169,4 +210,5 @@ module.exports = {
   removeBackground,
   compositeOnGradient,
   createGradientBackground,
+  createContactShadow,
 };

@@ -117,6 +117,13 @@ Self-Service-Konten-Verknüpfung wirkt jetzt zur LAUFZEIT: `services/integration
 ### Background-Cron Multi-Tenant (Plan-D.0c)
 - `BACKGROUND_JOB_TENANTS=''` (Komma-separiert, default leer == single tenant `'default'`) — fan-out der 6 Safety-Net-Cron-Jobs in `backend/index.js` (returns-sync, sendcloud-sync, tracking-catchup, delivery-poll, invoice-sync, refund-push) über mehrere Tenants. Mirror des `STOCK_FAILURE_DRAIN_TENANTS`-Patterns. Helpers: `lib/background-job-tenants.js` (`getBackgroundJobTenants()`, `runForEachBackgroundJobTenant()`). Bei leerem ENV unverändertes Single-Tenant-Verhalten (`tenantId:'default'`). Errors per-tenant werden gefangen + geloggt, eine bad-tenant-Iteration unterbricht nicht die übrigen.
 
+### Studio-Foto (seit 2026-07-15)
+`POST /api/images/studio` (routes/products.js) → `services/image-studio.js makeStudioPhoto()`: macht aus einem Produktfoto ein Studio-Packshot (Belichtung korrigiert, Off-White-Studio-Hintergrund mit Verlauf, weicher Kontaktschatten; Produkt bleibt unverändert). Frontend-Button „Studio-Foto" in ImageGallery → Ergebnis wird als NEUES Bild eingefügt, Original bleibt. Fallback-Kette: Gemini-Primärmodell → Gemini-Fallback-Modell → deterministischer sharp-Freisteller (`compositeOnGradient` mit `shadow:true`). Ergebnis-Validierung: dekodierbar, Kante ≥512px, heller oberer Bildrand.
+- `STUDIO_IMAGE_MODEL='gemini-3-pro-image-preview'` (default) — Primärmodell.
+- `STUDIO_IMAGE_FALLBACK_MODEL` (default = `GEMINI_IMAGE_MODEL` bzw. `gemini-2.5-flash-image`) — Zweitmodell.
+- `STUDIO_IMAGE_TIMEOUT_MS=60000` (default) — Timeout pro Gemini-Call.
+- `STUDIO_MIN_BG_BRIGHTNESS=200` (default, 0..255) — Mindesthelligkeit des oberen Bildrands, sonst gilt das Ergebnis als kein Studio-Foto und die Kette läuft weiter.
+
 ### Gemini-Infrastructure
 - `GEMINI_PROMPT_CACHE=true` (default) — aktiviert Prompt-Caching via `backend/lib/prompt-cache.js`. 90 % Kosten-Ersparnis auf System-Prompts bei wiederholten Calls (Bulk-Ops, Multi-Turn-Chats). Min. 4096 Tokens für Cache-Eligibility, default TTL 60min.
 - `ATOMIC_TOOLS_TIMEOUT_MS=15000` (default) — Per-Executor-Timeout für atomic-tools Library (`lookup_gtin`, `search_ebay_catalog`, `get_required_aspects`, `verify_brand`, `search_amazon_product`, `search_manufacturer_site`, `fetch_url_content`).
