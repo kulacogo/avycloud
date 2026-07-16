@@ -93,3 +93,58 @@ describe('summarizeChangeForCard — keine leeren "Änderung aus Chat"-Karten me
     expect(state.datasheetChanges[0].summary).toBe('Eigene Summary');
   });
 });
+
+describe('consolidateDatasheetChangesV3 — eine Karte pro Turn', () => {
+  const { consolidateDatasheetChangesV3 } = _testables;
+
+  it('einzelne Karte bleibt unverändert', () => {
+    const one = [{ summary: 'x', title: 'T' }];
+    expect(consolidateDatasheetChangesV3(one)).toEqual(one);
+    expect(consolidateDatasheetChangesV3([])).toEqual([]);
+  });
+
+  it('überlappende Karten: last-wins pro Feld, identity gemergt', () => {
+    const out = consolidateDatasheetChangesV3([
+      { summary: 'Erste Karte', identity: { brand: 'Alt', category: 'A > B' }, pricing: { amount: 99, currency: 'EUR' } },
+      { summary: 'Zweite Karte', title: 'Neuer Titel', identity: { brand: 'Decathlon' }, pricing: { amount: 109.99, currency: 'EUR' } },
+    ]);
+    expect(out).toHaveLength(1);
+    const c = out[0];
+    expect(c.title).toBe('Neuer Titel');
+    expect(c.identity).toEqual({ brand: 'Decathlon', category: 'A > B' });
+    expect(c.pricing.amount).toBe(109.99);
+    expect(c.summary).toContain('Erste Karte');
+    expect(c.summary).toContain('Zweite Karte');
+  });
+
+  it('Attribute: last-wins pro normalisiertem Key, value_type bleibt erhalten', () => {
+    const out = consolidateDatasheetChangesV3([
+      { attributes: [{ key: 'Farbe', value: 'Rot' }, { key: 'Material', value: 'Holz', value_type: 'STRING' }] },
+      { attributes: [{ key: 'farbe', value: 'Blau' }] },
+    ]);
+    expect(out).toHaveLength(1);
+    const attrs = out[0].attributes;
+    expect(attrs).toHaveLength(2);
+    expect(attrs.find((a) => a.key.toLowerCase() === 'farbe').value).toBe('Blau');
+    expect(attrs.find((a) => a.key === 'Material').value_type).toBe('STRING');
+  });
+
+  it('Confidence konservativ (Minimum), notes/warnings unique gemergt', () => {
+    const out = consolidateDatasheetChangesV3([
+      { confidence: 0.9, notes: { warnings: ['W1'] } },
+      { confidence: 0.6, notes: { warnings: ['W1', 'W2'], unsure: ['U1'] } },
+    ]);
+    const c = out[0];
+    expect(c.confidence).toBe(0.6);
+    expect(c.notes.warnings).toEqual(['W1', 'W2']);
+    expect(c.notes.unsure).toEqual(['U1']);
+  });
+
+  it('ohne Summaries wird eine konkrete Zusammenfassung synthetisiert', () => {
+    const out = consolidateDatasheetChangesV3([
+      { identity: { brand: 'Bosch' } },
+      { pricing: { amount: 12, currency: 'EUR' } },
+    ]);
+    expect(out[0].summary).toContain('Marke: Bosch');
+  });
+});

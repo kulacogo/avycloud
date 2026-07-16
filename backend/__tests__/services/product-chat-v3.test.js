@@ -596,10 +596,14 @@ describe('runProductChatV3 — injected fake client', () => {
       aiClient,
     });
 
-    // Both datasheet changes were captured.
-    expect(result.datasheetChanges).toHaveLength(2);
-    expect(result.datasheetChanges[0].identity.brand).toBe('Sony');
-    expect(result.datasheetChanges[1].identity.brand).toBe('Samsung');
+    // Seit 2026-07-16 (Owner-Wunsch): überlappende Write-Calls eines Turns
+    // werden zu EINER Karte konsolidiert — last-wins pro Feld (Samsung),
+    // Summaries beider Calls zusammengeführt, Confidence = Minimum.
+    expect(result.datasheetChanges).toHaveLength(1);
+    expect(result.datasheetChanges[0].identity.brand).toBe('Samsung');
+    expect(result.datasheetChanges[0].summary).toContain('first guess');
+    expect(result.datasheetChanges[0].summary).toContain('second source disagrees');
+    expect(result.datasheetChanges[0].confidence).toBe(0.6);
 
     // Post-loop crossReferenceProduct ran — confidence shape is populated.
     expect(result.confidence).toBeTypeOf('object');
