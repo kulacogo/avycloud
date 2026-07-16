@@ -639,11 +639,46 @@ function synthesizeAnswerFromChanges(datasheetChanges) {
 // Own executors — writable tool handling
 // ---------------------------------------------------------------------------
 
+// Karten ohne summary zeigten im FE nur "Änderung aus Chat" ohne jeden
+// konkreten Wert (Incident 2026-07-16) — hier wird aus den Feldern eine
+// konkrete deutsche Zusammenfassung gebaut, damit der Operator sieht, WAS
+// er übernimmt.
+function summarizeChangeForCard(change) {
+  const parts = [];
+  if (change.title) parts.push(`Titel: ${String(change.title).slice(0, 60)}`);
+  const id = change.identity || {};
+  if (id.brand) parts.push(`Marke: ${id.brand}`);
+  if (id.category) parts.push(`Kategorie: ${String(id.category).slice(0, 60)}`);
+  if (id.mpn) parts.push(`MPN: ${id.mpn}`);
+  const barcode = id.ean || id.gtin || id.upc;
+  if (barcode) parts.push(`Barcode: ${barcode}`);
+  if (change.pricing && change.pricing.amount != null) {
+    parts.push(`Preis: ${change.pricing.amount} ${change.pricing.currency || 'EUR'}`);
+  }
+  if (change.short_description) parts.push('Kurzbeschreibung aktualisiert');
+  if (Array.isArray(change.key_features) && change.key_features.length) {
+    parts.push(`${change.key_features.length} Highlights`);
+  }
+  const attrs = change.attributes;
+  const attrCount = Array.isArray(attrs)
+    ? attrs.length
+    : attrs && typeof attrs === 'object'
+      ? Object.keys(attrs).length
+      : 0;
+  if (attrCount) parts.push(`${attrCount} Attribute`);
+  if (change.gpsr && typeof change.gpsr === 'object') parts.push('GPSR-Herstellerdaten');
+  return parts.length ? `Vorgeschlagen — ${parts.join(' · ')}`.slice(0, 300) : '';
+}
+
 function ownExecutor(name, args, state) {
   if (name === 'update_product_datasheet') {
     const started = Date.now();
     const change = sanitizeDatasheetChangeV3(args || {});
     const hasContent = Object.keys(change).filter((k) => k !== 'summary').length > 0;
+    if (hasContent && !change.summary) {
+      const synthesized = summarizeChangeForCard(change);
+      if (synthesized) change.summary = synthesized;
+    }
     if (hasContent) {
       state.datasheetChanges.push(change);
     }
@@ -1314,6 +1349,7 @@ module.exports = {
     collectAnswerText,
     isMetaEchoAnswer,
     synthesizeAnswerFromChanges,
+    summarizeChangeForCard,
     extractEvidenceFromToolResult,
     mapToolSourceWeight,
     summarizeProduct,

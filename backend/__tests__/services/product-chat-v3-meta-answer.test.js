@@ -66,3 +66,30 @@ describe('synthesizeAnswerFromChanges', () => {
     expect(out).toContain('- GPSR-Herstellerdaten ergänzt.');
   });
 });
+
+describe('summarizeChangeForCard — keine leeren "Änderung aus Chat"-Karten mehr', () => {
+  const { summarizeChangeForCard, ownExecutor } = _testables;
+
+  it('baut konkrete Zusammenfassung aus Marke/Kategorie/Preis', () => {
+    const s = summarizeChangeForCard({
+      identity: { brand: 'Decathlon', category: 'Spielzeug > Spielzeug für draußen' },
+      pricing: { amount: 109.99, currency: 'EUR' },
+    });
+    expect(s).toContain('Marke: Decathlon');
+    expect(s).toContain('Kategorie: Spielzeug');
+    expect(s).toContain('Preis: 109.99 EUR');
+  });
+
+  it('ownExecutor ergänzt fehlende summary automatisch', () => {
+    const state = { datasheetChanges: [] };
+    ownExecutor('update_product_datasheet', { identity: { brand: 'Bosch' }, pricing: { amount: 12, currency: 'EUR' } }, state);
+    expect(state.datasheetChanges).toHaveLength(1);
+    expect(state.datasheetChanges[0].summary).toContain('Marke: Bosch');
+  });
+
+  it('vorhandene summary bleibt unangetastet', () => {
+    const state = { datasheetChanges: [] };
+    ownExecutor('update_product_datasheet', { summary: 'Eigene Summary', identity: { brand: 'Bosch' } }, state);
+    expect(state.datasheetChanges[0].summary).toBe('Eigene Summary');
+  });
+});
