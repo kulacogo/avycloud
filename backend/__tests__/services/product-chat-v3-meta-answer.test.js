@@ -187,3 +187,26 @@ describe('Write-Call-Härtung (Incident 2026-07-16: changes=0 bei sawWrite=true)
     expect(state.datasheetChanges).toHaveLength(1);
   });
 });
+
+describe('Konsolidierung — Reichhaltigkeit gewinnt (Incident: 2-Satz-Beschreibung)', () => {
+  const { consolidateDatasheetChangesV3 } = _testables;
+
+  it('magerer späterer Recap überschreibt die reiche Beschreibung NICHT', () => {
+    const rich = 'Die Bosch Bremsscheibe für die Hinterachse bietet Erstausrüsterqualität. '.repeat(6);
+    const out = consolidateDatasheetChangesV3([
+      { short_description: rich, key_features: ['A', 'B', 'C', 'D', 'E'] },
+      { short_description: 'Kurzer Recap in zwei Sätzen. Fertig.', key_features: ['A', 'B'] },
+    ]);
+    expect(out[0].short_description).toBe(rich);
+    expect(out[0].key_features).toEqual(['A', 'B', 'C', 'D', 'E']);
+  });
+
+  it('eine LÄNGERE spätere Beschreibung gewinnt weiterhin (echte Verbesserung)', () => {
+    const better = 'Deutlich ausführlichere zweite Fassung mit allen recherchierten Details. '.repeat(4);
+    const out = consolidateDatasheetChangesV3([
+      { short_description: 'Erste kurze Fassung.' },
+      { short_description: better },
+    ]);
+    expect(out[0].short_description).toBe(better);
+  });
+});
