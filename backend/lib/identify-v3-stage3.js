@@ -54,6 +54,17 @@ function _getAgenticModule() {
  *  - Optionally triggers a focused repair call when >30% of required aspects
  *    ended up as "Unbekannt" (STAGE3_ASPECT_REPAIR, default true).
  */
+// eBay-ItemSpecifics-Werte sind auf ~65 Zeichen begrenzt — aber URLs (z.B.
+// Sicherheitsdatenblatt-Links) werden durch Kappung ZERSTÖRT und dieser Wert
+// fließt zurück ins kanonische Datenblatt (Live-Incident 2026-07-16: GCS-SDS-
+// URL auf 60 Zeichen gekürzt → 404). URLs bleiben ungekappt; die eBay-Grenze
+// behandelt der eBay-Boundary-Code selbst.
+function capSpecificValue(value) {
+  const s = String(value);
+  if (/^https?:\/\//i.test(s.trim())) return s;
+  return s.slice(0, 60);
+}
+
 async function runStage3ContentGeneration(stage1, stage2, locale = 'de-DE') {
   const startTime = Date.now();
   const identity = stage1.identity || {};
@@ -235,7 +246,7 @@ async function runStage3ContentGeneration(stage1, stage2, locale = 'de-DE') {
       if (canonicalAttrs && typeof canonicalAttrs === 'object') {
         result.item_specifics = Object.entries(canonicalAttrs).map(([key, value]) => ({
           key,
-          value: String(value).slice(0, 60),
+          value: capSpecificValue(value),
         }));
       }
     } catch {
@@ -465,7 +476,7 @@ function pickLikeliestFallback(values) {
     if (hit) return hit;
   }
   // Otherwise fall back to the first value, but expose the value string limited to 60 chars.
-  return String(values[0] || 'Unbekannt').slice(0, 60);
+  return capSpecificValue(values[0] || 'Unbekannt');
 }
 
 /**
@@ -578,13 +589,13 @@ function applyRepairValues(content, repaired, requiredAspects) {
       if (!entry || typeof entry !== 'object') continue;
       if (normalizeAspectKey(entry.key) === norm) {
         entry.key = canonicalKey;
-        entry.value = value.slice(0, 60);
+        entry.value = capSpecificValue(value);
         replaced = true;
         break;
       }
     }
     if (!replaced) {
-      content.item_specifics.push({ key: canonicalKey, value: value.slice(0, 60) });
+      content.item_specifics.push({ key: canonicalKey, value: capSpecificValue(value) });
     }
     const conf = Number(confidenceMap[rawKey] ?? confidenceMap[canonicalKey]);
     content.item_specifics_confidence[canonicalKey] = Number.isFinite(conf)
@@ -727,4 +738,5 @@ module.exports = {
   // Exported for unit testing.
   enforceRequiredAspectsPostGen,
   normalizeRequiredAspects,
+  capSpecificValue,
 };
