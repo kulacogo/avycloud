@@ -1260,6 +1260,30 @@ router.post('/generate-images', requirePermission('products', 'write'), async (r
   }
 });
 
+// --- Studio-Foto (Bild verbessern → Studio-Packshot) ---
+router.post('/images/studio', requirePermission('products', 'write'), async (req, res) => {
+  try {
+    const { productId, image } = req.body || {};
+    if (!productId || !image?.url_or_base64) {
+      return res.status(400).json({
+        ok: false,
+        error: { code: 400, message: 'productId and image.url_or_base64 are required' },
+      });
+    }
+
+    const { makeStudioPhoto } = require('../services/image-studio');
+    const result = await makeStudioPhoto({ productId, image });
+
+    res.json({ ok: true, data: result });
+  } catch (err) {
+    console.error(`[POST /api/images/studio] ${err.message}`, err);
+    res.status(500).json({
+      ok: false,
+      error: { code: 500, message: 'Studio-Foto fehlgeschlagen', details: err.message },
+    });
+  }
+});
+
 // --- AI Listing Pipeline ---
 router.post('/listing-pipeline', requirePermission('products', 'write'), async (req, res) => {
   try {

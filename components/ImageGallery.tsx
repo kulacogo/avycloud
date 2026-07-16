@@ -4,17 +4,19 @@ import { ProductImage } from '../types';
 import { DownloadIcon } from './icons/Icons';
 import { Spinner } from './Spinner';
 import { useI18n } from '../i18n';
-import { getBackendUrl } from '../api/client';
+import { getBackendUrl, fetchApi } from '../api/client';
 
 interface ImageGalleryProps {
   images: ProductImage[];
   resetKey?: string;
   isEditing?: boolean;
+  productId?: string | null;
   onDeleteImage?: (index: number) => void;
   onReorder?: (fromIndex: number, toIndex: number) => void;
   onRegenerateImage?: (index: number) => void;
   regeneratingIndex?: number | null;
   onUpdateImage?: (index: number, next: ProductImage) => void;
+  onAddImage?: (image: ProductImage, afterIndex: number) => void;
 }
 
 type RemoveBackgroundFn = (
@@ -243,11 +245,13 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
   images,
   resetKey,
   isEditing = false,
+  productId = null,
   onDeleteImage,
   onReorder,
   onRegenerateImage,
   regeneratingIndex = null,
   onUpdateImage,
+  onAddImage,
 }) => {
   const { t } = useI18n();
   const [activeIndex, setActiveIndex] = useState(0);
@@ -255,7 +259,7 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [improving, setImproving] = useState(false);
   const [improveAction, setImproveAction] = useState<
-    null | 'removeBg' | 'auto' | 'rotate90' | 'rotate180' | 'brighten'
+    null | 'studio' | 'removeBg' | 'auto' | 'rotate90' | 'rotate180' | 'brighten'
   >(null);
   const [improveError, setImproveError] = useState<string | null>(null);
   const [improveStatus, setImproveStatus] = useState<string | null>(null);
@@ -496,6 +500,63 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
     void applyImprove('brighten', (b) => brightenBlob(b, 18), t('sheet.gallery.improve.note.brightened'));
   }, [applyImprove, t]);
 
+  // Studio-Foto: serverseitige Gemini-Pipeline (Relight + Studio-Hintergrund +
+  // Kontaktschatten). Das Ergebnis wird als NEUES Bild eingefügt — das Original
+  // bleibt erhalten und der User entscheidet beim Speichern.
+  const handleStudioPhoto = useCallback(async () => {
+    if (!isEditing || !isActiveReal || !activeRealImage || !productId) return;
+    const src = resolveSrc(activeRealImage) || '';
+    if (!src) return;
+
+    setImproving(true);
+    setImproveAction('studio');
+    setImproveError(null);
+    setImproveStatus(t('sheet.gallery.improve.status.studio'));
+    setImprovePercent(null);
+    improveStartedAtRef.current = Date.now();
+
+    try {
+      const res = await fetchApi(`${getBackendUrl()}/api/images/studio`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ productId, image: { url_or_base64: src } }),
+      });
+      const json = await res.json().catch(() => null);
+      const studio = json?.data?.image;
+      if (!res.ok || !json?.ok || !studio?.url_or_base64) {
+        throw new Error(
+          json?.error?.details || json?.error?.message || t('sheet.gallery.improve.error.generic')
+        );
+      }
+
+      const next: ProductImage = {
+        // Gemini-Ergebnis ist ein AI-Re-Render → "generated"; der deterministische
+        // Freisteller-Fallback bleibt ein echtes Foto → Original-Source behalten.
+        source: json.data.method === 'gemini' ? 'generated' : activeRealImage.source,
+        variant: 'front',
+        url_or_base64: studio.url_or_base64,
+        notes: studio.notes || t('sheet.gallery.improve.note.studio'),
+        mimeType: studio.mimeType || null,
+        width: studio.width || null,
+        height: studio.height || null,
+      };
+
+      if (typeof onAddImage === 'function') {
+        onAddImage(next, activeIndex);
+        setActiveIndex(activeIndex + 1);
+      } else if (typeof onUpdateImage === 'function') {
+        onUpdateImage(activeIndex, next);
+      }
+    } catch (err: any) {
+      setImproveError(err?.message ? String(err.message) : t('sheet.gallery.improve.error.generic'));
+    } finally {
+      setImproving(false);
+      setImproveAction(null);
+      setImproveStatus(null);
+      setImprovePercent(null);
+    }
+  }, [activeIndex, activeRealImage, isActiveReal, isEditing, onAddImage, onUpdateImage, productId, t]);
+
   const improveButtons = useMemo(() => {
     if (!isEditing || !isActiveReal || typeof onUpdateImage !== 'function') return null;
     const elapsedSeconds = improving ? Math.max(0, Math.round((Date.now() - improveStartedAtRef.current) / 1000)) : 0;
@@ -519,6 +580,17 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
           </div>
         ) : null}
         <div className="mt-2 flex flex-wrap gap-2">
+          {productId ? (
+            <button
+              type="button"
+              onClick={handleStudioPhoto}
+              disabled={improving}
+              className="px-3 py-1.5 rounded-full text-xs font-semibold bg-accent text-white hover:bg-accent/80 disabled:opacity-50"
+              title={t('sheet.gallery.improve.studio.hint')}
+            >
+              {t('sheet.gallery.improve.studio')}
+            </button>
+          ) : null}
           <button
             type="button"
             onClick={handleRemoveBackground}
@@ -566,6 +638,9 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
           </button>
         </div>
         {improveError ? <div className="mt-2 text-xs text-danger">{improveError}</div> : null}
+        {improving && improveAction === 'studio' ? (
+          <div className="mt-2 text-[11px] text-txt-muted">{t('sheet.gallery.improve.hint.studio')}</div>
+        ) : null}
         {improving && improveAction === 'removeBg' && !isCrossOriginIsolated ? (
           <div className="mt-2 text-[11px] text-txt-muted">{t('sheet.gallery.improve.hint.performance')}</div>
         ) : null}
@@ -589,6 +664,8 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
     handleRemoveBackground,
     handleRotate180,
     handleRotate90,
+    handleStudioPhoto,
+    productId,
     t,
   ]);
 

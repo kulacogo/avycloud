@@ -444,6 +444,17 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
     [updateImages]
   );
 
+  const handleInsertImage = useCallback(
+    (image: ProductImage, afterIndex: number) => {
+      updateImages((images) => {
+        const at = Math.max(0, Math.min(images.length, afterIndex + 1));
+        images.splice(at, 0, image);
+        return images;
+      });
+    },
+    [updateImages]
+  );
+
   const handleAddImageFromUrl = useCallback(() => {
     const url = newImageUrl.trim();
     if (!url) return;
@@ -1867,9 +1878,11 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
             images={localProduct.details.images}
             resetKey={localProduct.id}
             isEditing={isEditing}
+            productId={localProduct.id}
             onDeleteImage={isEditing ? handleDeleteImage : undefined}
             onReorder={isEditing ? handleReorderImages : undefined}
             onUpdateImage={isEditing ? handleUpdateImage : undefined}
+            onAddImage={isEditing ? handleInsertImage : undefined}
           />
           {isEditing && (
             <div className="mt-4 space-y-3">

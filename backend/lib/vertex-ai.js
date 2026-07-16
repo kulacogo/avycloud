@@ -1,6 +1,9 @@
 const GEMINI_API_KEY = process.env.GOOGLE_GENAI_API_KEY || process.env.GEMINI_API_KEY;
 const GEMINI_IMAGE_MODEL = process.env.GEMINI_IMAGE_MODEL || 'gemini-2.5-flash-image';
-const GEMINI_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_IMAGE_MODEL}:generateContent`;
+
+function buildEndpoint(model) {
+  return `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+}
 
 function extractBase64Payload(dataUrl = '') {
   if (!dataUrl) return null;
@@ -34,7 +37,7 @@ function normalizeInlineData(part = {}) {
   };
 }
 
-async function callGeminiGenerateContent({ parts, aspectRatio }) {
+async function callGeminiGenerateContent({ parts, aspectRatio, model, timeoutMs }) {
   ensureGeminiConfig();
   const params = new URLSearchParams({ key: GEMINI_API_KEY });
   const body = {
@@ -48,13 +51,21 @@ async function callGeminiGenerateContent({ parts, aspectRatio }) {
     body.generationConfig.imageConfig = { aspectRatio };
   }
 
-  const response = await fetch(`${GEMINI_ENDPOINT}?${params.toString()}`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(body),
-  });
+  const controller = timeoutMs > 0 ? new AbortController() : null;
+  const timer = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
+  let response;
+  try {
+    response = await fetch(`${buildEndpoint(model || GEMINI_IMAGE_MODEL)}?${params.toString()}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+      signal: controller ? controller.signal : undefined,
+    });
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
 
   if (!response.ok) {
     const errorText = await response.text();
@@ -91,6 +102,8 @@ async function generateProductImages({
   count = 1,
   aspectRatio = '1:1',
   referenceImageBase64 = null,
+  model = null,
+  timeoutMs = 0,
 }) {
   if (!prompt?.trim()) {
     throw new Error('Prompt is required for Gemini image generation');
@@ -114,7 +127,7 @@ async function generateProductImages({
 
   const results = [];
   while (results.length < count) {
-    const batch = await callGeminiGenerateContent({ parts, aspectRatio });
+    const batch = await callGeminiGenerateContent({ parts, aspectRatio, model, timeoutMs });
     if (!batch.length) {
       break;
     }

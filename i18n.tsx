@@ -466,6 +466,13 @@ const messages: Record<Locale, Dict> = {
     'sheet.gallery.aiBadge': 'AI Generated',
     'sheet.gallery.improve.title': 'Bild verbessern',
     'sheet.gallery.improve.working': 'Bearbeite…',
+    'sheet.gallery.improve.studio': 'Studio-Foto',
+    'sheet.gallery.improve.studio.hint':
+      'Macht aus dem Foto ein Studio-Packshot: korrekte Belichtung, heller Studio-Hintergrund, weicher Schatten. Original bleibt erhalten.',
+    'sheet.gallery.improve.status.studio': 'Erzeuge Studio-Foto…',
+    'sheet.gallery.improve.note.studio': 'Studio-Foto',
+    'sheet.gallery.improve.hint.studio':
+      'Das Studio-Foto wird als neues Bild eingefügt — das Original bleibt erhalten. Dauert bis zu einer Minute.',
     'sheet.gallery.improve.removeBg': 'Hintergrund entfernen',
     'sheet.gallery.improve.auto': 'Auto-Korrektur',
     'sheet.gallery.improve.rotate90': 'Drehen 90°',
@@ -1063,6 +1070,13 @@ const messages: Record<Locale, Dict> = {
     'sheet.gallery.aiBadge': 'AI generated',
     'sheet.gallery.improve.title': 'Improve image',
     'sheet.gallery.improve.working': 'Processing…',
+    'sheet.gallery.improve.studio': 'Studio photo',
+    'sheet.gallery.improve.studio.hint':
+      'Turns the photo into a studio packshot: correct exposure, bright studio backdrop, soft shadow. The original is kept.',
+    'sheet.gallery.improve.status.studio': 'Creating studio photo…',
+    'sheet.gallery.improve.note.studio': 'Studio photo',
+    'sheet.gallery.improve.hint.studio':
+      'The studio photo is added as a new image — the original is kept. This can take up to a minute.',
     'sheet.gallery.improve.removeBg': 'Remove background',
     'sheet.gallery.improve.auto': 'Auto adjust',
     'sheet.gallery.improve.rotate90': 'Rotate 90°',
@@ -1663,6 +1677,13 @@ const messages: Record<Locale, Dict> = {
     'sheet.gallery.aiBadge': 'AI üretimi',
     'sheet.gallery.improve.title': 'Görseli iyileştir',
     'sheet.gallery.improve.working': 'İşleniyor…',
+    'sheet.gallery.improve.studio': 'Stüdyo fotoğrafı',
+    'sheet.gallery.improve.studio.hint':
+      'Fotoğrafı stüdyo çekimine dönüştürür: doğru pozlama, aydınlık stüdyo arka planı, yumuşak gölge. Orijinal korunur.',
+    'sheet.gallery.improve.status.studio': 'Stüdyo fotoğrafı oluşturuluyor…',
+    'sheet.gallery.improve.note.studio': 'Stüdyo fotoğrafı',
+    'sheet.gallery.improve.hint.studio':
+      'Stüdyo fotoğrafı yeni görsel olarak eklenir — orijinal korunur. Bir dakikaya kadar sürebilir.',
     'sheet.gallery.improve.removeBg': 'Arka planı kaldır',
     'sheet.gallery.improve.auto': 'Oto ayar',
     'sheet.gallery.improve.rotate90': '90° döndür',
