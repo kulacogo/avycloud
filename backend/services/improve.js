@@ -1313,9 +1313,13 @@ async function improveExistingProduct(productId, onProgress, opts = {}) {
     }
   } catch { /* best-effort */ }
 
-  // GPSR safety: if GPSR object exists (or partial fields exist) but manufacturer_name is missing,
-  // we fill it from the product brand. This avoids "known brand, blank manufacturer" in listings.
-  // This is intentionally conservative: we only do this when there is some GPSR payload to begin with.
+  // GPSR safety (ENTSCHÄRFT, AUDIT 2026-07-16): manufacturer_name aus der
+  // MARKE zu erfinden (Brand != juristischer Hersteller) war ein
+  // Halluzinations-Amplifikator — Registry-Enforce + brandGpsrMap kopierten
+  // den erfundenen Namen dann auf viele Produkte. Der Fallback ist deshalb
+  // DEFAULT AUS und nur noch ueber das Runtime-Flag gpsrBrandNameFallback=true
+  // (bzw. ENV RUNTIME_FLAG_GPSRBRANDNAMEFALLBACK=true) reaktivierbar —
+  // dasselbe Flag wie in den Enforce-Bloecken von lib/firestore.js.
   try {
     const brand = typeof mergedProduct?.identification?.brand === 'string' ? mergedProduct.identification.brand.trim() : '';
     const gpsr = mergedProduct?.details?.gpsr && typeof mergedProduct.details.gpsr === 'object' ? mergedProduct.details.gpsr : null;
@@ -1326,7 +1330,13 @@ async function improveExistingProduct(productId, onProgress, opts = {}) {
       });
       const hasName = typeof gpsr.manufacturer_name === 'string' && gpsr.manufacturer_name.trim().length > 0;
       if (hasAnyGpsrField && !hasName) {
-        mergedProduct.details.gpsr = { ...gpsr, manufacturer_name: brand };
+        const { getRuntimeFlagBoolean } = require('../lib/firestore');
+        const allowBrandNameFallback = typeof getRuntimeFlagBoolean === 'function'
+          ? await getRuntimeFlagBoolean('gpsrBrandNameFallback', false).catch(() => false)
+          : false;
+        if (allowBrandNameFallback) {
+          mergedProduct.details.gpsr = { ...gpsr, manufacturer_name: brand };
+        }
       }
     }
   } catch {

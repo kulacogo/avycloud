@@ -5222,9 +5222,17 @@ async function reviseListingFromProduct(itemId, product, { actor = null, related
     weightKg: item.weightKg,
     itemSpecifics: item.itemSpecifics,
     itemCompatibilityList: item.itemCompatibilityList,
+    // Regulatory (GPSR): EXAKT dieselbe Ableitung wie beim Publish —
+    // mapProductToEbayItem liefert gpsr (= details.gpsr) und responsiblePerson
+    // (buildResponsiblePersonFromGpsr inkl. Kontaktweg-Guard) bereits fertig.
+    // buildReviseItemRequestXml emittiert den <Regulatory>-Block NUR wenn Daten
+    // vorhanden sind (buildRegulatoryXml → '' bei undefined) — Produkte ohne
+    // GPSR senden weiterhin NICHTS, bestehende eBay-Daten werden nicht gelöscht.
+    gpsr: item.gpsr,
+    responsiblePerson: item.responsiblePerson,
   };
 
-  console.info(`[reviseListingFromProduct] itemId=${id} productId=${product?.id || '?'} title="${patch.title}" imgs=${patch.pictureUrls?.length || 0} price=${patch.startPrice} qty=${patch.quantity} cat=${patch.primaryCategoryId} cond=${patch.conditionId} weight=${patch.weightKg || '-'} specifics=${Object.keys(patch.itemSpecifics || {}).length} compat=${patch.itemCompatibilityList?.length || 0}`);
+  console.info(`[reviseListingFromProduct] itemId=${id} productId=${product?.id || '?'} title="${patch.title}" imgs=${patch.pictureUrls?.length || 0} price=${patch.startPrice} qty=${patch.quantity} cat=${patch.primaryCategoryId} cond=${patch.conditionId} weight=${patch.weightKg || '-'} specifics=${Object.keys(patch.itemSpecifics || {}).length} compat=${patch.itemCompatibilityList?.length || 0} gpsr=${patch.gpsr ? 1 : 0} rp=${patch.responsiblePerson ? 1 : 0}`);
 
   const callName = resolveReviseCallName(listing);
   const response = callName === 'ReviseFixedPriceItem'

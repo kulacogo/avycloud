@@ -2635,7 +2635,33 @@ async function saveProduct(product, options = {}) {
                 next[k] = v;
               }
             }
-            if (!safeString(next.manufacturer_name)) next.manufacturer_name = brand;
+            // Beleg-Metadaten aus dem Registry-Eintrag mitkopieren (falls
+            // vorhanden) — additiv, damit Konsumenten sehen, WORAUF der
+            // Enforce-Stand beruht (AUDIT 2026-07-16: 1353 Produkte mit
+            // "vollen" GPSR-Daten, NULL mit Beleg-Metadaten).
+            if (!next.evidence) {
+              if (reg.evidence && typeof reg.evidence === 'object') {
+                next.evidence = reg.evidence;
+              } else if (Array.isArray(reg.sources) && reg.sources.length) {
+                next.evidence = {
+                  status: 'registry',
+                  registry_key: reg.key || null,
+                  sources: reg.sources.slice(0, 5),
+                  confidence: reg.confidence ?? null,
+                  updated_at_iso: reg.updated_at_iso || null,
+                };
+              }
+            }
+            // AUDIT 2026-07-16: manufacturer_name aus der MARKE zu ERFINDEN
+            // (Brand != juristischer Hersteller) war ein Halluzinations-
+            // Amplifikator. Default AUS — altes Verhalten nur noch via
+            // Runtime-Flag gpsrBrandNameFallback=true (bzw. ENV
+            // RUNTIME_FLAG_GPSRBRANDNAMEFALLBACK=true) reaktivierbar.
+            if (!safeString(next.manufacturer_name)) {
+              const brandNameFallback = await getRuntimeFlagBoolean('gpsrBrandNameFallback', false)
+                .catch(() => false);
+              if (brandNameFallback) next.manufacturer_name = brand;
+            }
             const afterNorm = normalizeGpsrObject(next);
             const changed = JSON.stringify(beforeNorm) !== JSON.stringify(afterNorm);
             if (changed) {
@@ -2806,7 +2832,29 @@ async function getProduct(productId) {
                 next[k] = v;
               }
             }
-            if (!safeString(next.manufacturer_name)) next.manufacturer_name = manufacturerHint;
+            // Beleg-Metadaten aus dem Registry-Eintrag mitkopieren (falls
+            // vorhanden) — Read-Path-Spiegel des Save-Boundary-Enforce.
+            if (!next.evidence) {
+              if (reg.evidence && typeof reg.evidence === 'object') {
+                next.evidence = reg.evidence;
+              } else if (Array.isArray(reg.sources) && reg.sources.length) {
+                next.evidence = {
+                  status: 'registry',
+                  registry_key: reg.key || null,
+                  sources: reg.sources.slice(0, 5),
+                  confidence: reg.confidence ?? null,
+                  updated_at_iso: reg.updated_at_iso || null,
+                };
+              }
+            }
+            // AUDIT 2026-07-16: kein ERFUNDENER manufacturer_name mehr aus
+            // Brand/Hersteller-Attribut — Default AUS, siehe saveProduct-
+            // Enforce-Block (Runtime-Flag gpsrBrandNameFallback).
+            if (!safeString(next.manufacturer_name)) {
+              const brandNameFallback = await getRuntimeFlagBoolean('gpsrBrandNameFallback', false)
+                .catch(() => false);
+              if (brandNameFallback) next.manufacturer_name = manufacturerHint;
+            }
             out.details.gpsr = next;
           } else {
             out.details.gpsr = mergePreferMoreComplete(gpsrObj, regGpsr);
@@ -4216,4 +4264,8 @@ module.exports = {
   firestore,
   // B2 — pure helper exported for unit tests
   shouldLockCategoryForManualSource,
+  // Runtime-Flags (additiv exportiert 2026-07-16): services/improve.js gated
+  // den GPSR-Brand-Erfindungs-Fallback ueber dasselbe Flag wie die
+  // Enforce-Bloecke hier (gpsrBrandNameFallback, default false).
+  getRuntimeFlagBoolean,
 };

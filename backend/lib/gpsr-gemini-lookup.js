@@ -23,6 +23,24 @@
  *     nothing than a wrong Impressum entry that gets copied to many products)
  *   - This module never writes to products_v2 — callers do that via saveProductV2()
  *   - Additive: no existing code paths are modified by simply requiring this file
+ *
+ * BELEG-PFLICHT (AUDIT 2026-07-16): Gemini-Lookups landeten 30 Tage im Cache
+ * OHNE jede Quellen-Verifikation und wurden von dort auf viele Produkte
+ * kopiert (Halluzinations-Amplifikator). Seitdem laeuft vor jedem Cache-Write
+ * lib/gpsr-evidence.js verifyGpsrRecord (lazy require) gegen echte Seiten:
+ *   - verified/partial  → cachen MIT evidence-Feld
+ *   - unverifiable      → cachen mit confidence<=0.3 UND unverified:true
+ *                         (Negativ-Semantik: kein Re-Lookup fuer 30d, aber
+ *                         Konsumenten uebernehmen den Datensatz nicht)
+ *   - infra_blocked     → NICHT cachen (transient, naechster Lauf prueft neu)
+ * getOrFetchBrandGpsr-Rueckgaben tragen evidence/unverified, damit Konsumenten
+ * (kaufland-attribute-enricher gpsr-Bucket) unbelegte Daten ablehnen koennen.
+ * Kill-Switch: GPSR_LOOKUP_VERIFY=false (Betriebs-Notbremse, altes Verhalten).
+ * Unter Vitest (process.env.VITEST) ist die Verifikation NUR aktiv, wenn der
+ * Test einen fetch injiziert (opts.verifyFetchImpl) oder explizit
+ * GPSR_LOOKUP_VERIFY=true setzt — sonst wuerden Unit-Tests ECHTE Netz-Fetches
+ * machen (gleiches Muster wie INTEGRATION_CREDENTIALS_STORE=off in
+ * vitest.setup.js). In Production (VITEST unset) laeuft sie IMMER.
  */
 
 const { gemini3GenerateJSON } = require('./gemini3-client');
@@ -226,13 +244,17 @@ async function readBrandGpsrCache(brand) {
     if (!tsMs) return null;
     if ((Date.now() - tsMs) > CACHE_TTL_MS) return null;
     if (!data.gpsr || typeof data.gpsr !== 'object') return null;
-    return {
+    const out = {
       gpsr: data.gpsr,
       source: data.source || 'gemini-googleSearch',
       confidence: Number.isFinite(data.confidence) ? data.confidence : 0,
       cached: true,
       lookedUpAtMs: tsMs,
     };
+    // Beleg-Metadaten (seit 2026-07-16) mit ausliefern, falls im Doc vorhanden.
+    if (data.evidence && typeof data.evidence === 'object') out.evidence = data.evidence;
+    if (data.unverified === true) out.unverified = true;
+    return out;
   } catch (err) {
     try {
       logger.warn(
@@ -246,23 +268,40 @@ async function readBrandGpsrCache(brand) {
 
 /**
  * Persist a fresh lookup result. Never throws — swallows all errors.
+ *
+ * @param {string} brand
+ * @param {object} normalized — Gemini-Ergebnis (splitNormalized-kompatibel)
+ * @param {object} [meta] — Beleg-Metadaten (seit 2026-07-16):
+ *   { gpsr?: object }        — bereinigter GPSR-Stand (Fake-Felder genullt)
+ *   { confidence?: number }  — Override (unverifiable wird auf <=0.3 gedeckelt)
+ *   { evidence?: object }    — { status, url, checked_at, method, issues? }
+ *   { unverified?: boolean } — true wenn Beleg-Pruefung 'unverifiable' ergab
  */
-async function writeBrandGpsrCache(brand, normalized) {
+async function writeBrandGpsrCache(brand, normalized, meta = {}) {
   const key = brandCacheKey(brand);
   if (!key) return;
   if (!normalized || normalized.confidence < MIN_CACHE_CONFIDENCE) return;
   try {
     const db = _getFirestore();
     const { gpsr, confidence } = splitNormalized(normalized);
-    await db.collection(CACHE_COLLECTION).doc(key).set({
+    const finalGpsr = meta && meta.gpsr && typeof meta.gpsr === 'object' && Object.keys(meta.gpsr).length
+      ? meta.gpsr
+      : gpsr;
+    const doc = {
       brand: safeString(brand),
       brand_lc: safeString(brand).toLowerCase(),
-      gpsr,
+      gpsr: finalGpsr,
       source: 'gemini-googleSearch',
-      confidence,
+      confidence: Number.isFinite(meta && meta.confidence) ? meta.confidence : confidence,
       lookedUpAt: new Date(),
       fromBrandQuery: safeString(brand),
-    });
+    };
+    if (meta && meta.evidence && typeof meta.evidence === 'object') {
+      // JSON-Roundtrip strippt undefined-Werte (Firestore lehnt sie ab).
+      doc.evidence = JSON.parse(JSON.stringify(meta.evidence));
+    }
+    if (meta && meta.unverified === true) doc.unverified = true;
+    await db.collection(CACHE_COLLECTION).doc(key).set(doc);
   } catch (err) {
     try {
       logger.warn(
@@ -290,12 +329,67 @@ function splitNormalized(normalized) {
 }
 
 /**
- * Get-or-fetch wrapper: check cache first (max 30d old), fall back to Gemini
- * and persist the result.
+ * Soll die Beleg-Verifikation vor dem Cache-Write laufen?
+ *   - opts.verifyFetchImpl (Funktion) → JA (Tests injizieren so den Seiten-Abruf)
+ *   - opts.verify === true/false     → expliziter Override
+ *   - GPSR_LOOKUP_VERIFY=true/false  → ENV-Override (Betriebs-Notbremse)
+ *   - process.env.VITEST             → NEIN (Unit-Tests ohne injizierten fetch
+ *                                      wuerden ECHTE Netz-Calls machen; Muster
+ *                                      INTEGRATION_CREDENTIALS_STORE=off)
+ *   - Default (Production)           → JA
+ */
+function _shouldVerifyLookup(opts = {}) {
+  if (typeof opts.verifyFetchImpl === 'function') return true;
+  if (opts.verify === true) return true;
+  if (opts.verify === false) return false;
+  const env = safeString(process.env.GPSR_LOOKUP_VERIFY).toLowerCase();
+  if (env === 'true' || env === '1' || env === 'on') return true;
+  if (env === 'false' || env === '0' || env === 'off') return false;
+  if (process.env.VITEST) return false;
+  return true;
+}
+
+/**
+ * verifyGpsrRecord-Wrapper: lazy require, wirft nie. Ein interner Fehler des
+ * Verifiers zaehlt als infra_blocked (transient) — der Datensatz wird dann
+ * NICHT gecacht und traegt keinen verified-Beleg.
+ */
+async function _verifyLookupResult(brand, gpsr, opts = {}) {
+  try {
+    const { verifyGpsrRecord } = require('./gpsr-evidence');
+    return await verifyGpsrRecord({
+      brand,
+      gpsr,
+      fetchImpl: typeof opts.verifyFetchImpl === 'function' ? opts.verifyFetchImpl : undefined,
+      timeoutMs: Number.isFinite(opts.verifyTimeoutMs) ? opts.verifyTimeoutMs : undefined,
+      maxPages: Number.isFinite(opts.verifyMaxPages) ? opts.verifyMaxPages : undefined,
+    });
+  } catch (err) {
+    try {
+      logger.warn(
+        { brand, error: err?.message || String(err) },
+        '[gpsr-gemini-lookup] evidence verification failed'
+      );
+    } catch (_) { /* logger optional */ }
+    return {
+      status: 'infra_blocked',
+      matchedFields: {},
+      evidence: null,
+      issues: [`verify_error:${err?.message || String(err)}`],
+      gpsr,
+      attempts: [],
+    };
+  }
+}
+
+/**
+ * Get-or-fetch wrapper: check cache first (max 30d old), fall back to Gemini,
+ * verify against real pages (see header) and persist the result.
  *
  * @param {string} brand
  * @param {object} [opts]
- * @returns {Promise<null|{ gpsr: object, confidence: number, source: string, cached: boolean }>}
+ * @returns {Promise<null|{ gpsr: object, confidence: number, source: string,
+ *   cached: boolean, evidence?: object, unverified?: boolean }>}
  */
 async function getOrFetchBrandGpsr(brand, opts = {}) {
   const b = safeString(brand);
@@ -305,12 +399,15 @@ async function getOrFetchBrandGpsr(brand, opts = {}) {
   if (opts.useCache !== false) {
     const cached = await readBrandGpsrCache(b);
     if (cached && cached.gpsr) {
-      return {
+      const out = {
         gpsr: cached.gpsr,
         confidence: cached.confidence,
         source: cached.source,
         cached: true,
       };
+      if (cached.evidence) out.evidence = cached.evidence;
+      if (cached.unverified) out.unverified = true;
+      return out;
     }
   }
 
@@ -321,13 +418,78 @@ async function getOrFetchBrandGpsr(brand, opts = {}) {
   const { gpsr, confidence } = splitNormalized(normalized);
   if (Object.keys(gpsr).length === 0) return null;
 
-  await writeBrandGpsrCache(b, normalized);
+  // 3) Beleg-Verifikation VOR dem Cache-Write (AUDIT 2026-07-16).
+  if (!_shouldVerifyLookup(opts)) {
+    // Kill-Switch/Test-Guard: exakt das alte Verhalten (kein evidence-Feld).
+    await writeBrandGpsrCache(b, normalized);
+    return {
+      gpsr: { ...gpsr },
+      confidence,
+      source: 'gemini-googleSearch',
+      cached: false,
+    };
+  }
 
+  const verification = await _verifyLookupResult(b, gpsr, opts);
+  const issues = Array.isArray(verification.issues) ? verification.issues : [];
+  const evidence = {
+    status: verification.status,
+    url: (verification.evidence && verification.evidence.url) || null,
+    checked_at: (verification.evidence && verification.evidence.checked_at) || new Date().toISOString(),
+    method: (verification.evidence && verification.evidence.method) || null,
+  };
+  if (issues.length) evidence.issues = issues.slice(0, 10);
+
+  // Bereinigter Stand: Fake-Telefon/suspekte E-Mail wurden vom Verifier
+  // genullt — genullte Felder fliegen aus Cache UND Rueckgabe raus.
+  const cleanedGpsr = {};
+  const verifiedRecord = verification.gpsr && typeof verification.gpsr === 'object' ? verification.gpsr : gpsr;
+  for (const [k, v] of Object.entries(verifiedRecord)) {
+    const sv = typeof v === 'string' ? v.trim() : v;
+    if (sv !== '' && sv != null) cleanedGpsr[k] = sv;
+  }
+  if (Object.keys(cleanedGpsr).length === 0) return null;
+
+  if (verification.status === 'infra_blocked') {
+    // Transient — NICHT cachen (naechster Lauf prueft erneut). Rueckgabe traegt
+    // den ehrlichen Status; Konsumenten-Gates lehnen den Datensatz ab.
+    return {
+      gpsr: cleanedGpsr,
+      confidence,
+      source: 'gemini-googleSearch',
+      cached: false,
+      evidence,
+    };
+  }
+
+  if (verification.status === 'verified' || verification.status === 'partial') {
+    await writeBrandGpsrCache(b, normalized, { gpsr: cleanedGpsr, evidence });
+    return {
+      gpsr: cleanedGpsr,
+      confidence,
+      source: 'gemini-googleSearch',
+      cached: false,
+      evidence,
+    };
+  }
+
+  // unverifiable → Negativ-Caching: confidence auf <=0.3 deckeln + unverified
+  // flaggen. Verhindert Re-Lookups fuer 30d, ohne dass Konsumenten den
+  // unbelegten Datensatz uebernehmen.
+  const cappedConfidence = Math.min(confidence, MIN_CACHE_CONFIDENCE);
+  await writeBrandGpsrCache(b, normalized, {
+    gpsr: cleanedGpsr,
+    confidence: cappedConfidence,
+    evidence,
+    unverified: true,
+  });
   return {
-    gpsr: { ...gpsr },
-    confidence,
+    gpsr: cleanedGpsr,
+    confidence: cappedConfidence,
     source: 'gemini-googleSearch',
     cached: false,
+    evidence,
+    unverified: true,
   };
 }
 

@@ -1412,6 +1412,54 @@ async function validateChatPricing(chatResult, product) {
 }
 
 /**
+ * GPSR-BELEG-VALIDIERUNG (AUDIT 2026-07-16, analog validateChatPricing):
+ * Die Chat-Pipelines durften Hersteller-/GPSR-Felder (manufacturer_*,
+ * eu_responsible_*, email, url, entity_country) OHNE jede Validierung ändern —
+ * exakt das Muster des Preis-Halluzinations-Incidents (okopp@apple.com als
+ * Apple-Kontakt, Telefon "+496105456789"). Dieser Chokepoint prüft VOR dem
+ * Emit für alle Pipelines via lib/gpsr-evidence.js verifyGpsrRecord:
+ *   - unverifiable/Fake-Muster → gpsr-Änderung fliegt aus den Change-Cards
+ *     + ehrliche ⚠️-Warnung (gleicher Mechanismus wie beim Preis)
+ *   - infra_blocked → durchlassen mit Flag (Netz-Probleme blocken nicht)
+ *   - verified/partial → durchlassen, Beleg als gpsr_evidence_check an der Card
+ * Kern-Logik geteilt mit dem Bulk-Pfad: services/chat-enricher.js
+ * validateGpsrDatasheetChanges. Hier fail-OPEN (Chat darf nie am Validator
+ * sterben) — dann aber MIT Warnhinweis, nie stillschweigend.
+ */
+async function validateChatGpsr(chatResult, product) {
+  const changes = Array.isArray(chatResult && chatResult.datasheetChanges)
+    ? chatResult.datasheetChanges
+    : [];
+  const hasGpsrChange = changes.some((c) => c && c.gpsr && typeof c.gpsr === 'object');
+  if (!hasGpsrChange) return;
+
+  try {
+    const { validateGpsrDatasheetChanges } = require('../services/chat-enricher');
+    const { changes: kept, notes, removed, infraFlagged } = await validateGpsrDatasheetChanges({
+      product,
+      changes,
+      failMode: 'open',
+    });
+    chatResult.datasheetChanges = kept;
+    for (const note of notes) {
+      chatResult.message = `${chatResult.message || ''}\n\n⚠️ ${note}`.trim();
+    }
+    if (removed > 0) {
+      // Wie beim Preis: die Modell-Prosa behauptet ggf. schon Erfolg —
+      // explizit (und genau einmal) widerrufen.
+      chatResult.message = `${chatResult.message}\nHinweis: Eine oben genannte Hersteller-/GPSR-Übernahme gilt damit als NICHT bestätigt und wurde entfernt.`;
+    }
+    if (infraFlagged) chatResult.gpsrEvidenceInfraBlocked = true;
+    console.log(
+      `[chat] gpsr-evidence: product=${product?.id} removed=${removed} infra=${Boolean(infraFlagged)}`
+    );
+  } catch (err) {
+    console.warn(`[chat] gpsr-evidence validation failed (fail-open): ${err.message}`);
+    chatResult.message = `${chatResult.message || ''}\n\n⚠️ Die GPSR-/Hersteller-Angaben konnten nicht geprüft werden — bitte vor Übernahme manuell verifizieren.`.trim();
+  }
+}
+
+/**
  * K-Typ Chokepoint für ALLE Chat-Pipelines (analog validateChatPricing).
  *
  * Hintergrund (Audit 2026-07-16): Chat-V3 (Default) hatte den enrichKTypIfPossible-
@@ -1666,6 +1714,10 @@ router.post('/chat', requirePermission('ai', 'chat'), identifyLimiter, chatUploa
         try { onProgress({ type: 'tool_start', tool: 'price_evidence_check' }); } catch {}
         await validateChatPricing(chatResult, product);
 
+        // GPSR-/Hersteller-Belege prüfen BEVOR das Ergebnis rausgeht (alle Pipelines).
+        try { onProgress({ type: 'tool_start', tool: 'gpsr_evidence_check' }); } catch {}
+        await validateChatGpsr(chatResult, product);
+
         // K-Typ-Ergebnis (lief parallel) als Change-Card anhängen (alle Pipelines).
         await attachKTypDatasheetChange(chatResult, product, ktypEnrichHandle);
 
@@ -1782,6 +1834,9 @@ router.post('/chat', requirePermission('ai', 'chat'), identifyLimiter, chatUploa
 
     // Preis-Belege prüfen BEVOR das Ergebnis rausgeht (alle Pipelines).
     await validateChatPricing(chatResult, product);
+
+    // GPSR-/Hersteller-Belege prüfen BEVOR das Ergebnis rausgeht (alle Pipelines).
+    await validateChatGpsr(chatResult, product);
 
     // K-Typ-Ergebnis (lief parallel) als Change-Card anhängen (alle Pipelines).
     await attachKTypDatasheetChange(chatResult, product, ktypEnrichHandle);

@@ -446,29 +446,62 @@ async function enrichProductForKaufland(product, missingAttributes = [], opts = 
     // Brand-Quelle hat dieselbe Shape wie products_v2 GPSR (email, url,
     // manufacturer_address, manufacturer_city etc. — NICHT die web-fallback
     // shape mit "manufacturer_email"). Daher inline-Merge mit existing-wins.
+    // BELEG-GATE (AUDIT 2026-07-16): brandGpsrMap war ein Halluzinations-
+    // Amplifikator — EIN falscher GPSR-Eintrag wurde stumm auf alle Geschwister-
+    // Produkte derselben Brand kopiert. Kopiert wird nur noch wenn:
+    //   (a) die Quelle einen verified-Beleg traegt (details.gpsr.evidence), ODER
+    //   (b) das Ziel-Produkt GAR keine echte manufacturer_name hat (leer oder
+    //       blosses Brand-Echo "manufacturer_name === brand" — das Artefakt des
+    //       alten Erfindungs-Fallbacks) — dann wird die Kopie EXPLIZIT als
+    //       unverified markiert (evidence={status:'inherited_unverified',fromSku}).
+    // Nie stumm verified-los kopieren.
     if (brand && opts.brandGpsrMap && typeof opts.brandGpsrMap.get === 'function') {
       const fromBrand = opts.brandGpsrMap.get(brand.toLowerCase());
       if (fromBrand && fromBrand.gpsr) {
-        const merged = {};
-        // Brand-Quelle als Defaults
-        for (const [k, v] of Object.entries(fromBrand.gpsr)) {
-          const sv = typeof v === 'string' ? v.trim() : v;
-          if (sv !== '' && sv != null) merged[k] = sv;
-        }
-        // Existing gewinnt wo non-empty (nicht überschreiben)
-        for (const [k, v] of Object.entries(gpsrExisting)) {
-          const sv = typeof v === 'string' ? v.trim() : v;
-          if (sv !== '' && sv != null) merged[k] = sv;
-        }
-        const existingKeys = Object.keys(gpsrExisting).filter((k) => {
-          const v = gpsrExisting[k];
-          return typeof v === 'string' ? v.trim() : v != null;
-        });
-        const mergedKeys = Object.keys(merged);
-        const changed = mergedKeys.length > existingKeys.length;
-        if (changed) {
-          enriched.details.gpsr = merged;
-          enrichedFields.push('gpsr-brand');
+        const sourceEvidence = (fromBrand.gpsr.evidence && typeof fromBrand.gpsr.evidence === 'object')
+          ? fromBrand.gpsr.evidence
+          : ((fromBrand.evidence && typeof fromBrand.evidence === 'object') ? fromBrand.evidence : null);
+        const sourceVerified = !!sourceEvidence && safeString(sourceEvidence.status) === 'verified';
+        const existingName = safeString(gpsrExisting.manufacturer_name);
+        const targetHasRealName = !!existingName
+          && existingName.toLowerCase() !== brand.toLowerCase();
+        if (!sourceVerified && targetHasRealName) {
+          errors.push(`gpsr-brand: Quelle ${safeString(fromBrand.fromSku) || 'unbekannt'} ohne verified-Beleg — Kopie auf Produkt mit eigener manufacturer_name blockiert`);
+        } else {
+          const merged = {};
+          // Brand-Quelle als Defaults (deren evidence NIE roh mitkopieren)
+          for (const [k, v] of Object.entries(fromBrand.gpsr)) {
+            if (k === 'evidence') continue;
+            const sv = typeof v === 'string' ? v.trim() : v;
+            if (sv !== '' && sv != null) merged[k] = sv;
+          }
+          // Existing gewinnt wo non-empty (nicht überschreiben)
+          for (const [k, v] of Object.entries(gpsrExisting)) {
+            const sv = typeof v === 'string' ? v.trim() : v;
+            if (sv !== '' && sv != null) merged[k] = sv;
+          }
+          const existingKeys = Object.keys(gpsrExisting).filter((k) => {
+            if (k === 'evidence') return false;
+            const v = gpsrExisting[k];
+            return typeof v === 'string' ? v.trim() : v != null;
+          });
+          const mergedFieldKeys = Object.keys(merged).filter((k) => k !== 'evidence');
+          const changed = mergedFieldKeys.length > existingKeys.length;
+          if (changed) {
+            merged.evidence = sourceVerified
+              ? {
+                status: 'inherited_verified',
+                fromSku: safeString(fromBrand.fromSku) || null,
+                url: safeString(sourceEvidence.url) || null,
+                checked_at: safeString(sourceEvidence.checked_at) || null,
+              }
+              : {
+                status: 'inherited_unverified',
+                fromSku: safeString(fromBrand.fromSku) || null,
+              };
+            enriched.details.gpsr = merged;
+            enrichedFields.push('gpsr-brand');
+          }
         }
       }
     }
@@ -498,24 +531,55 @@ async function enrichProductForKaufland(product, missingAttributes = [], opts = 
         );
         if (geminiResult && geminiResult.gpsr
             && (geminiResult.gpsr.manufacturer_name || geminiResult.gpsr.manufacturer_address)) {
-          const merged = {};
-          // Gemini-Quelle als Defaults
-          for (const [k, v] of Object.entries(geminiResult.gpsr)) {
-            const sv = typeof v === 'string' ? v.trim() : v;
-            if (sv !== '' && sv != null) merged[k] = sv;
-          }
-          // Existing gewinnt wo non-empty (nicht überschreiben)
-          for (const [k, v] of Object.entries(gpsrAfterBrand)) {
-            const sv = typeof v === 'string' ? v.trim() : v;
-            if (sv !== '' && sv != null) merged[k] = sv;
-          }
-          const existingKeys = Object.keys(gpsrAfterBrand).filter((k) => {
-            const v = gpsrAfterBrand[k];
-            return typeof v === 'string' ? v.trim() !== '' : v != null;
-          });
-          if (Object.keys(merged).length > existingKeys.length) {
-            enriched.details.gpsr = merged;
-            enrichedFields.push('gpsr-gemini');
+          // BELEG-GATE (AUDIT 2026-07-16): Gemini-GPSR wird NUR uebernommen,
+          // wenn der Lookup einen verified/partial-Beleg traegt. Ergebnisse
+          // OHNE evidence-Feld stammen entweder aus dem Alt-Cache (30d,
+          // unverifiziert geschrieben — genau die Halluzinations-Quelle des
+          // Audits → ablehnen, cached:true) oder aus einem Lauf mit explizit
+          // abgeschalteter Verifikation (Kill-Switch GPSR_LOOKUP_VERIFY=false
+          // bzw. injizierte Test-Mocks → altes Verhalten, cached:false).
+          const geminiEvidence = geminiResult.evidence && typeof geminiResult.evidence === 'object'
+            ? geminiResult.evidence
+            : null;
+          const geminiEvidenceStatus = geminiEvidence ? safeString(geminiEvidence.status) : '';
+          const geminiAccepted = geminiEvidence
+            ? (geminiEvidenceStatus === 'verified' || geminiEvidenceStatus === 'partial')
+            : (geminiResult.cached !== true && geminiResult.unverified !== true);
+          if (!geminiAccepted) {
+            errors.push(`gpsr-gemini: Beleg-Status '${geminiEvidenceStatus || 'fehlt'}' — Datensatz nicht übernommen (unverifiziert)`);
+          } else {
+            const merged = {};
+            // Gemini-Quelle als Defaults
+            for (const [k, v] of Object.entries(geminiResult.gpsr)) {
+              if (k === 'evidence') continue;
+              const sv = typeof v === 'string' ? v.trim() : v;
+              if (sv !== '' && sv != null) merged[k] = sv;
+            }
+            // Existing gewinnt wo non-empty (nicht überschreiben)
+            for (const [k, v] of Object.entries(gpsrAfterBrand)) {
+              const sv = typeof v === 'string' ? v.trim() : v;
+              if (sv !== '' && sv != null) merged[k] = sv;
+            }
+            const existingKeys = Object.keys(gpsrAfterBrand).filter((k) => {
+              if (k === 'evidence') return false;
+              const v = gpsrAfterBrand[k];
+              return typeof v === 'string' ? v.trim() !== '' : v != null;
+            });
+            const mergedFieldKeys = Object.keys(merged).filter((k) => k !== 'evidence');
+            if (mergedFieldKeys.length > existingKeys.length) {
+              // Beleg-Metadaten mitschreiben (nur wenn das Ziel noch keine trug).
+              if (geminiEvidence && !merged.evidence) {
+                merged.evidence = {
+                  status: geminiEvidenceStatus,
+                  url: safeString(geminiEvidence.url) || null,
+                  checked_at: safeString(geminiEvidence.checked_at) || null,
+                  method: safeString(geminiEvidence.method) || null,
+                  source: 'gemini-lookup',
+                };
+              }
+              enriched.details.gpsr = merged;
+              enrichedFields.push('gpsr-gemini');
+            }
           }
         }
       } catch (_) { /* swallow — fall through to web-fallback */ }
