@@ -60,3 +60,47 @@ describe('normalizeKTypAttributeKeys', () => {
     expect(normalizeKTypAttributeKeys([]).changed).toBe(false);
   });
 });
+
+// ─── isPlausibleKTypValue (Incident 2026-07-16: Chat schrieb Text ins Feld) ──
+
+const { isPlausibleKTypValue } = require('../../lib/ktype-key-normalize');
+
+describe('isPlausibleKTypValue', () => {
+  it.each([
+    ['111|112|211'],
+    ['42'],
+    ['9135, 116960, 100972, 6647'],
+    ['18520,Vorderachse|31593,Vorderachse'],
+    ['31316,Fahrgestellnummer ab : 8P-6-176 001|32688,Rest'],
+  ])('akzeptiert %j (IDs bzw. Legacy-Format mit ID-Prefix pro Segment)', (v) => {
+    expect(isPlausibleKTypValue(v)).toBe(true);
+  });
+
+  it.each([
+    ['Siehe eBay Fahrzeugverwendungsliste / KBA 60872'],
+    ['Hyundai i30N Vor-Facelift 275PS'],
+    [''],
+    ['   '],
+    ['n/a'],
+    ['111|Siehe eBay Liste'],
+  ])('verwirft %j (kein ID-Prefix in jedem Segment)', (v) => {
+    expect(isPlausibleKTypValue(v)).toBe(false);
+  });
+});
+
+describe('V3-Karten tragen nie Text-K-Typ', () => {
+  it('sanitizeDatasheetChangeV3 wirft nicht-numerischen K-Typ aus den Attributen', () => {
+    const { _testables } = require('../../services/product-chat-v3');
+    const out = _testables.sanitizeDatasheetChangeV3({
+      attributes: [
+        { key: 'K-Typ', value: 'Siehe eBay Fahrzeugverwendungsliste / KBA 60872' },
+        { key: 'Farbe', value: 'Silber' },
+        { key: 'ktype', value: '111|112' },
+      ],
+    });
+    expect(out.attributes).toEqual([
+      { key: 'Farbe', value: 'Silber' },
+      { key: 'ktype', value: '111|112' },
+    ]);
+  });
+});

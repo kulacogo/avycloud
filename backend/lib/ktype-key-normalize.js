@@ -78,4 +78,25 @@ function normalizeKTypAttributeKeys(attrs) {
   return { attributes: out, changed: true, movedFrom };
 }
 
-module.exports = { normalizeKTypAttributeKeys, isKTypSynonymKey, CANONICAL_KEY };
+/**
+ * K-Typ-WERT-Plausibilität (Incident 2026-07-16): Der Chat schrieb erfundenen
+ * Text ins K-Typ-Feld ("Siehe eBay Fahrzeugverwendungsliste / KBA 60872 (als
+ * formaler Platzhalter…)"). K-Typ trägt ausschließlich numerische TecDoc-IDs —
+ * Text macht das Feld für eBay-ItemCompatibility wertlos.
+ *
+ * Akzeptiert werden:
+ *   - reine ID-Listen: "111|112|211" (auch , oder ; als Trenner)
+ *   - das Legacy-CSV-Format mit Anmerkung PRO Segment: "18520,Vorderachse|31593,Vorderachse"
+ *     (jedes |-Segment MUSS mit einer numerischen ID beginnen)
+ * Abgelehnt wird alles, dessen Segmente nicht mit einer ID beginnen
+ * ("Siehe eBay…", "Hyundai i30N Vor-Facelift 275PS").
+ */
+function isPlausibleKTypValue(raw) {
+  const s = raw == null ? '' : String(raw).trim();
+  if (!s) return false;
+  const segments = s.split('|').map((x) => x.trim()).filter(Boolean);
+  if (!segments.length) return false;
+  return segments.every((seg) => /^\d{1,7}([^0-9]|$)/.test(seg));
+}
+
+module.exports = { normalizeKTypAttributeKeys, isKTypSynonymKey, isPlausibleKTypValue, CANONICAL_KEY };
