@@ -586,11 +586,13 @@ function extractCcmNearModel(text = '', models = []) {
 // Negativ-Cache NUR für den Chat-Pfad: Chat persistiert das Produkt nie, d.h.
 // ohne Cache wiederholt JEDER Chat-Turn auf demselben K-Typ-losen Fitment-Produkt
 // den kompletten SerpAPI+Fetch-Wasserfall. Identify/Improve bleiben ungecacht.
-const CHAT_NEGATIVE_CACHE = new Map(); // productId -> atMs
+const CHAT_NEGATIVE_CACHE = new Map(); // productId -> { atMs, failReason }
 const CHAT_NEGATIVE_CACHE_TTL_MS = 10 * 60 * 1000;
 
-function markChatNegative(product, reason) {
-  if (reason === 'chat' && product?.id) CHAT_NEGATIVE_CACHE.set(product.id, Date.now());
+function markChatNegative(product, reason, failReason) {
+  if (reason === 'chat' && product?.id) {
+    CHAT_NEGATIVE_CACHE.set(product.id, { atMs: Date.now(), failReason: failReason || 'unknown' });
+  }
 }
 
 async function enrichKTypIfPossible(product, { reason = 'identify', maxKTypes = 60 } = {}) {
@@ -606,9 +608,17 @@ async function enrichKTypIfPossible(product, { reason = 'identify', maxKTypes = 
     return { ok: false, reason: 'already_has_ktype' };
   }
   if (reason === 'chat' && product?.id) {
-    const negAt = CHAT_NEGATIVE_CACHE.get(product.id);
-    if (negAt && Date.now() - negAt < CHAT_NEGATIVE_CACHE_TTL_MS) {
-      return { ok: false, reason: 'chat_negative_cached' };
+    const neg = CHAT_NEGATIVE_CACHE.get(product.id);
+    if (neg) {
+      const expired = Date.now() - neg.atMs >= CHAT_NEGATIVE_CACHE_TTL_MS;
+      // missing_part_number invalidiert sich selbst, sobald das Produkt
+      // inzwischen eine MPN hat (z. B. gerade per Chat-Card übernommen).
+      const mpnNowPresent = neg.failReason === 'missing_part_number' && Boolean(pickPartNumber(product));
+      if (expired || mpnNowPresent) {
+        CHAT_NEGATIVE_CACHE.delete(product.id);
+      } else {
+        return { ok: false, reason: 'chat_negative_cached' };
+      }
     }
   }
   const mpn = pickPartNumber(product);
@@ -630,7 +640,7 @@ async function enrichKTypIfPossible(product, { reason = 'identify', maxKTypes = 
       mvl_gcs_uri: mvl.gcsUri || null,
       mvl_download: mvl.download || null,
     });
-    markChatNegative(product, reason);
+    markChatNegative(product, reason, 'mvl_missing');
     return { ok: false, reason: 'mvl_missing' };
   }
   if (fitmentMode === 'moto' && moto && !moto.ok) {
@@ -646,7 +656,7 @@ async function enrichKTypIfPossible(product, { reason = 'identify', maxKTypes = 
       mpn,
       moto_path: moto.jsonlPath || null,
     });
-    markChatNegative(product, reason);
+    markChatNegative(product, reason, 'moto_missing');
     return { ok: false, reason: 'moto_missing' };
   }
 
@@ -702,7 +712,7 @@ async function enrichKTypIfPossible(product, { reason = 'identify', maxKTypes = 
       mvl_path: mvl?.jsonlPath || null,
       moto_path: moto?.jsonlPath || null,
     });
-    markChatNegative(product, reason);
+    markChatNegative(product, reason, 'missing_part_number');
     return { ok: false, reason: 'missing_part_number' };
   }
 
@@ -805,7 +815,7 @@ async function enrichKTypIfPossible(product, { reason = 'identify', maxKTypes = 
       mvl_path: mvl?.jsonlPath || null,
       moto_path: moto?.jsonlPath || null,
     });
-    markChatNegative(product, reason);
+    markChatNegative(product, reason, 'no_matches');
     return { ok: false, reason: 'no_matches', fitmentMode, queries };
   }
 

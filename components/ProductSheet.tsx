@@ -809,6 +809,12 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
           const identityRest = { ...(change.identity as Record<string, unknown>) };
           delete (identityRest as { _clear?: unknown })._clear;
           delete (identityRest as { barcodes?: unknown }).barcodes;
+          if (categoryNeedsConfirm) {
+            // Kategorie ohne aufgelöste categoryId: auch den identity.category-
+            // Breadcrumb nicht schreiben — sonst zeigt die Anzeige eine Kategorie,
+            // die nie wirksam wurde (Confirm-Flow unten übernimmt).
+            delete (identityRest as { category?: unknown }).category;
+          }
           next.identification = {
             ...next.identification,
             ...(identityRest as Partial<typeof next.identification>),

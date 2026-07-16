@@ -1375,6 +1375,11 @@ async function validateChatPricing(chatResult, product) {
   if (!withPricing.length) return;
 
   const { validatePricingProposal } = require('../lib/price-evidence');
+  // Notes dedupen und den Widerrufs-Satz nur EINMAL anhängen — V3 kann mehrere
+  // pricing-Changes in einem Turn liefern, identische Warnungen doppelt in
+  // einer Chat-Nachricht sind selbst wieder "Mist".
+  const pendingNotes = new Set();
+  let anyUnverified = false;
   for (const change of withPricing) {
     try {
       const { pricing, verifiedCount, droppedCount, note, infraFailure } = await validatePricingProposal({
@@ -1383,22 +1388,26 @@ async function validateChatPricing(chatResult, product) {
       });
       change.pricing = pricing;
       if (note) {
-        chatResult.message = `${chatResult.message || ''}\n\n⚠️ ${note}`.trim();
-        // Das Modell hat oft schon "Preis übernommen" formuliert, BEVOR der
-        // Validator lief — dieser Widerspruch war User-sichtbar (Incident
-        // 2026-07-16). Die Modell-Prosa lässt sich nicht sicher umschreiben,
-        // also den Erfolg explizit widerrufen.
-        if (verifiedCount === 0) {
-          chatResult.message = `${chatResult.message}\nHinweis: Eine oben genannte Preis-Übernahme gilt damit als NICHT bestätigt.`;
-        }
+        pendingNotes.add(note);
+        if (verifiedCount === 0) anyUnverified = true;
       }
       console.log(
         `[chat] price-evidence: product=${product?.id} verified=${verifiedCount} dropped=${droppedCount} infra=${Boolean(infraFailure)}`
       );
     } catch (err) {
       console.warn(`[chat] price-evidence validation failed (fail-open): ${err.message}`);
-      chatResult.message = `${chatResult.message || ''}\n\n⚠️ Die Preisquellen konnten nicht geprüft werden — bitte vor Übernahme manuell verifizieren.`.trim();
+      pendingNotes.add('Die Preisquellen konnten nicht geprüft werden — bitte vor Übernahme manuell verifizieren.');
     }
+  }
+  for (const note of pendingNotes) {
+    chatResult.message = `${chatResult.message || ''}\n\n⚠️ ${note}`.trim();
+  }
+  if (anyUnverified) {
+    // Das Modell hat oft schon "Preis übernommen" formuliert, BEVOR der
+    // Validator lief — dieser Widerspruch war User-sichtbar (Incident
+    // 2026-07-16). Die Modell-Prosa lässt sich nicht sicher umschreiben,
+    // also den Erfolg explizit (und genau einmal) widerrufen.
+    chatResult.message = `${chatResult.message}\nHinweis: Eine oben genannte Preis-Übernahme gilt damit als NICHT bestätigt.`;
   }
 }
 
