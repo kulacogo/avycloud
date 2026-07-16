@@ -221,6 +221,10 @@ const DATASHEET_TOP_LEVEL_FIELDS = [
   'confidence',
   'identity',
   'short_description',
+  // 'description' ist ein Modell-Alias für short_description (Incident 2026-07-16:
+  // Write-Call sanitizte zu LEER, Karte verschwand komplett) — wird im Sanitizer
+  // auf short_description gefaltet, short_description gewinnt bei Konflikt.
+  'description',
   'key_features',
   'attributes',
   'gpsr',
@@ -294,11 +298,14 @@ function sanitizeDatasheetChangeV3(entry) {
         if (Number.isFinite(n)) out.confidence = Math.max(0, Math.min(1, n));
         break;
       }
-      case 'short_description': {
+      case 'short_description':
+      case 'description': {
         // Beschreibung = Fließtext-Invariante: enthält der Vorschlag Listen
         // (HTML-<ul> oder Klartext-Bullets), sofort zu Prosa flatten — so ist
         // schon die Vorschlags-Karte + das Übernehmen-Preview korrekt, nicht
         // erst der Save-Boundary-Guard. Bullets gehören nur in key_features.
+        // 'description' ist ein häufiger Modell-Alias; short_description gewinnt.
+        if (field === 'description' && out.short_description) break;
         const d = sanitizeString(raw, 8000);
         if (d) out.short_description = hasListMarkup(d) ? sanitizeDescriptionProse(d) : d;
         break;
@@ -340,24 +347,31 @@ function sanitizeDatasheetChangeV3(entry) {
           if (Object.keys(id).length) out.identity = id;
         }
         break;
-      case 'attributes':
-        if (Array.isArray(raw)) {
-          const cleaned = [];
-          for (const attr of raw) {
-            if (!attr || typeof attr !== 'object') continue;
-            const key = sanitizeString(attr.key, 60);
-            const value = sanitizeString(attr.value, 240);
-            if (!key || !value) continue;
-            const item = { key, value };
-            if (typeof attr.value_type === 'string' && attr.value_type.trim()) {
-              item.value_type = sanitizeString(attr.value_type, 30);
-            }
-            cleaned.push(item);
-            if (cleaned.length >= 40) break;
+      case 'attributes': {
+        // Deklariert ist ein Array [{key,value}], Modelle liefern aber auch
+        // Map-Shape { "Farbe": "Rot" } — früher wurde das STILL VERWORFEN
+        // (Incident 2026-07-16: Write-Call sanitizte zu leer, keine Karte).
+        const rawList = Array.isArray(raw)
+          ? raw
+          : raw && typeof raw === 'object'
+            ? Object.entries(raw).map(([k, v]) => ({ key: k, value: v }))
+            : [];
+        const cleaned = [];
+        for (const attr of rawList) {
+          if (!attr || typeof attr !== 'object') continue;
+          const key = sanitizeString(attr.key ?? attr.name, 60);
+          const value = sanitizeString(attr.value, 240);
+          if (!key || !value) continue;
+          const item = { key, value };
+          if (typeof attr.value_type === 'string' && attr.value_type.trim()) {
+            item.value_type = sanitizeString(attr.value_type, 30);
           }
-          if (cleaned.length) out.attributes = cleaned;
+          cleaned.push(item);
+          if (cleaned.length >= 40) break;
         }
+        if (cleaned.length) out.attributes = cleaned;
         break;
+      }
       case 'gpsr':
         if (raw && typeof raw === 'object') {
           const gpsr = {};
@@ -751,13 +765,39 @@ function ownExecutor(name, args, state) {
     const started = Date.now();
     const change = sanitizeDatasheetChangeV3(args || {});
     const hasContent = Object.keys(change).filter((k) => k !== 'summary').length > 0;
-    if (hasContent && !change.summary) {
+    if (!hasContent) {
+      // Der Executor meldete hier früher ok:true — das Modell glaubte, die
+      // Änderung sei angekommen ("Aufgabe erfolgreich abgeschlossen!"), obwohl
+      // die Bereinigung ALLES verworfen hatte → keine Übernehmen-Karte
+      // (Incident 2026-07-16, changes=0 bei sawWrite=true). Jetzt: ehrlicher
+      // Fehler mit Schema-Hinweis, damit das Modell im Loop korrekt neu schreibt.
+      const rawKeys = Object.keys(args || {}).slice(0, 15);
+      console.warn(
+        '[chat-v3] update_product_datasheet sanitized to EMPTY — raw keys: %s',
+        rawKeys.join(',') || '(none)'
+      );
+      return {
+        ok: false,
+        source: 'update_product_datasheet',
+        data: null,
+        confidence: 0,
+        error: {
+          code: 'EMPTY_AFTER_SANITIZE',
+          message:
+            'Keines der übergebenen Felder entsprach dem Schema — es wurde NICHTS gespeichert. ' +
+            'Rufe update_product_datasheet erneut auf mit exakt diesen Feldern: summary, title, ' +
+            'identity{name,brand,category,sku,ean,gtin,upc,mpn,barcodes[]}, short_description (Fließtext), ' +
+            'key_features[Strings], attributes als ARRAY von {key,value}, gpsr{manufacturer_name,...}, ' +
+            'pricing{amount,currency,source_url}, notes{unsure[],warnings[]}.',
+        },
+        meta: { durationMs: Date.now() - started },
+      };
+    }
+    if (!change.summary) {
       const synthesized = summarizeChangeForCard(change);
       if (synthesized) change.summary = synthesized;
     }
-    if (hasContent) {
-      state.datasheetChanges.push(change);
-    }
+    state.datasheetChanges.push(change);
     return {
       ok: true,
       source: 'update_product_datasheet',
@@ -1188,7 +1228,10 @@ async function runProductChatV3({
     // (iterations > 0). If the model replies directly to an informational
     // question without calling any tools (e.g. "Alles okay — keine Änderungen
     // nötig"), respect that direct answer instead of forcing a write-call.
-    if (!trace.sawWriteCall && state.datasheetChanges.length === 0 && trace.iterations > 0) {
+    // WICHTIG (Incident 2026-07-16): NICHT auf !sawWriteCall gaten — ein
+    // Write-Call, dessen Argumente die Bereinigung komplett verwarf
+    // (changes=0 bei sawWrite=true), braucht den Zwangs-Retry genauso.
+    if (state.datasheetChanges.length === 0 && trace.iterations > 0) {
       console.warn(
         '[chat-v3] No %s call after loop — triggering ultimate fallback',
         WRITE_TOOL

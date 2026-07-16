@@ -148,3 +148,42 @@ describe('consolidateDatasheetChangesV3 — eine Karte pro Turn', () => {
     expect(out[0].summary).toContain('Marke: Bosch');
   });
 });
+
+describe('Write-Call-Härtung (Incident 2026-07-16: changes=0 bei sawWrite=true)', () => {
+  const { ownExecutor, sanitizeDatasheetChangeV3 } = _testables;
+
+  it('Map-Shape-Attribute werden akzeptiert (statt still verworfen)', () => {
+    const out = sanitizeDatasheetChangeV3({ attributes: { Farbe: 'Rot', Material: 'Holz' } });
+    expect(out.attributes).toEqual([
+      { key: 'Farbe', value: 'Rot' },
+      { key: 'Material', value: 'Holz' },
+    ]);
+  });
+
+  it('description-Alias wird auf short_description gefaltet; short_description gewinnt', () => {
+    expect(sanitizeDatasheetChangeV3({ description: 'Nur Alias-Text.' }).short_description).toBe('Nur Alias-Text.');
+    const both = sanitizeDatasheetChangeV3({ short_description: 'Kanonisch.', description: 'Alias.' });
+    expect(both.short_description).toBe('Kanonisch.');
+  });
+
+  it('Array-Attribute mit name statt key werden akzeptiert', () => {
+    const out = sanitizeDatasheetChangeV3({ attributes: [{ name: 'Farbe', value: 'Blau' }] });
+    expect(out.attributes).toEqual([{ key: 'Farbe', value: 'Blau' }]);
+  });
+
+  it('ownExecutor meldet ok:false + Schema-Hinweis, wenn ALLES verworfen wurde (kein Fake-Erfolg mehr)', () => {
+    const state = { datasheetChanges: [] };
+    const res = ownExecutor('update_product_datasheet', { unbekanntes_feld: 'x', preis: '12 EUR' }, state);
+    expect(res.ok).toBe(false);
+    expect(res.error.code).toBe('EMPTY_AFTER_SANITIZE');
+    expect(res.error.message).toContain('attributes als ARRAY');
+    expect(state.datasheetChanges).toHaveLength(0);
+  });
+
+  it('ownExecutor mit validem Inhalt bleibt ok:true', () => {
+    const state = { datasheetChanges: [] };
+    const res = ownExecutor('update_product_datasheet', { identity: { brand: 'HIKENTURE' } }, state);
+    expect(res.ok).toBe(true);
+    expect(state.datasheetChanges).toHaveLength(1);
+  });
+});
