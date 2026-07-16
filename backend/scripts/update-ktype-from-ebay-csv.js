@@ -25,9 +25,14 @@
 
 const fs = require('fs');
 const path = require('path');
-const { FieldValue } = require('@google-cloud/firestore');
 const { parseKTypeEbayCsvToSkuMap } = require('../lib/ktype');
-const { getProduct, firestore } = require('../lib/firestore');
+const { getAllProductsForTenant } = require('../lib/firestore');
+const { saveProductV2 } = require('../lib/product-store');
+
+// products_v2-Migration (D.0b): Dokument-IDs sind EAN/UUID, NICHT mehr die SKU.
+// Lookup läuft daher über identification.sku; Writes regelkonform über
+// saveProductV2 (CLAUDE.md #7) statt direktem docRef.set auf 'products'.
+const TENANT_ID = process.env.TENANT_ID || 'avycloud';
 
 const argv = process.argv.slice(2);
 const APPLY = argv.includes('--apply');
@@ -73,11 +78,19 @@ async function main() {
 
   const entries = Object.entries(skuToKTyp);
   console.log(`Parsed ${entries.length} SKU mappings from CSV (${stats.entries} compatibility entries).`);
+  console.log('[INFO] TENANT_ID=%s (override via env)', TENANT_ID);
+
+  const all = await getAllProductsForTenant(TENANT_ID);
+  const bySku = new Map();
+  for (const p of all || []) {
+    const sku = String(p?.identification?.sku || '').trim();
+    if (sku && !bySku.has(sku)) bySku.set(sku, p);
+  }
 
   for (const [sku, ktyp] of entries) {
     report.processed += 1;
     try {
-      const product = await getProduct(sku);
+      const product = bySku.get(String(sku).trim());
       if (!product) {
         report.notFound.push(sku);
         continue;
@@ -90,23 +103,13 @@ async function main() {
       }
 
       if (!DRY_RUN) {
-        const docRef = firestore.collection('products').doc(String(sku));
-        await docRef.set(
-          {
-            details: {
-              attributes: {
-                'K-Typ': String(ktyp).trim(),
-              },
-            },
-            ops: {
-              last_saved_source: 'ktype-import',
-              last_saved_iso: new Date().toISOString(),
-              revision: FieldValue.increment(1),
-              sync_status: 'pending',
-            },
-          },
-          { merge: true }
-        );
+        product.details = product.details || {};
+        product.details.attributes =
+          product.details.attributes && typeof product.details.attributes === 'object'
+            ? product.details.attributes
+            : {};
+        product.details.attributes['K-Typ'] = String(ktyp).trim();
+        await saveProductV2(product, { mode: 'system', source: 'ktype-import' });
       }
 
       report.updated += 1;
