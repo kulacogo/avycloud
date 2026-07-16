@@ -824,8 +824,29 @@ async function enrichKTypIfPossible(product, { reason = 'identify', maxKTypes = 
   return { ok: true, fitmentMode, ids };
 }
 
+/**
+ * Build a chat datasheet change card for a K-Typ value that enrichKTypIfPossible()
+ * just added to the in-memory product. Chat pipelines never persist the product
+ * directly — changes only reach Firestore via the "Übernehmen" change-card flow.
+ * Returns null when there is nothing new to propose.
+ */
+function buildKTypDatasheetChange(product, { beforeValue = '' } = {}) {
+  const attrs = product?.details?.attributes;
+  const nowValue = attrs && typeof attrs === 'object' ? safeString(attrs['K-Typ']) : '';
+  if (!nowValue || nowValue === safeString(beforeValue)) return null;
+  const trace = product?.ops?.data_quality?.ktype_enrich_v1 || {};
+  const count = nowValue.split('|').filter(Boolean).length;
+  const via = trace.source === 'local_hsn_tsn' ? 'HSN/TSN' : 'Web-Beleg + MVL';
+  return {
+    summary: `K-Typ (Fahrzeugverwendungsliste) automatisch ermittelt: ${count} Fahrzeug${count === 1 ? '' : 'e'} via ${via}.`,
+    confidence: 0.95,
+    attributes: [{ key: 'K-Typ', value: nowValue }],
+  };
+}
+
 module.exports = {
   enrichKTypIfPossible,
+  buildKTypDatasheetChange,
   loadMvlIndex,
   resolveMvlPath,
   loadMotoIndex,

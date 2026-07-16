@@ -849,11 +849,17 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
 
     // 6) PERF-002: Post-processing (parallel where possible)
     if (pipelineUsed !== 'legacy') {
-      // Category resolution + SerpAPI images + KTyp run in parallel (independent tasks).
+      // Category resolution and SerpAPI images run in parallel (independent tasks).
+      // K-Typ is NOT independent: enrichKTypIfPossible() reads details.categoryId to
+      // decide whether the category supports vehicle fitment lists. It therefore runs
+      // strictly AFTER ensureCategories/applyTaxonomy inside the same task — running
+      // it in parallel made it see an empty categoryId and skip with
+      // `not_fitment_category` for the vast majority of auto parts (audit 2026-07-16:
+      // 99 of 126 missing K-Typ traces failed exactly this way, traceCatId=null).
       // allSettled ensures one task throwing (e.g. a sync error in applyTaxonomy slipping
       // past the inner try/catch) cannot abort the others or 500 the request.
       const postProcessingResults = await Promise.allSettled([
-        // Category + Taxonomy (best-effort; must not fail the identify request)
+        // Category + Taxonomy, then K-Typ (best-effort; must not fail the identify request)
         (async () => {
           try {
             await ensureCategories([product]);
@@ -866,6 +872,11 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
           } catch (taxErr) {
             console.warn('[identify] applyTaxonomy failed:', taxErr?.message || taxErr);
           }
+          // K-Typ enrichment — needs the (possibly just resolved) categoryId above.
+          try {
+            const { enrichKTypIfPossible } = require('../lib/ktype-enrichment');
+            await enrichKTypIfPossible(product, { reason: 'identify' });
+          } catch {}
         })(),
         // SerpAPI product images — skip for V3 (Stage 2 already fetched web images)
         (async () => {
@@ -889,13 +900,6 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
           } catch (imgErr) {
             console.warn('[identify] SerpAPI image search failed:', imgErr?.message);
           }
-        })(),
-        // K-Typ enrichment
-        (async () => {
-          try {
-            const { enrichKTypIfPossible } = require('../lib/ktype-enrichment');
-            await enrichKTypIfPossible(product, { reason: 'identify' });
-          } catch {}
         })(),
       ]);
       for (const r of postProcessingResults) {
@@ -1391,6 +1395,65 @@ async function validateChatPricing(chatResult, product) {
   }
 }
 
+/**
+ * K-Typ Chokepoint für ALLE Chat-Pipelines (analog validateChatPricing).
+ *
+ * Hintergrund (Audit 2026-07-16): Chat-V3 (Default) hatte den enrichKTypIfPossible-
+ * Aufruf aus V2/Legacy nie geerbt — und selbst dort mutierte er nur das In-Memory-
+ * Produkt, das die Chat-Route nie speichert. K-Typ aus dem Chat kam also NIE im
+ * Datenblatt an. Dieser Chokepoint startet die Anreicherung parallel zum LLM-Call
+ * (startChatKTypEnrichment) und hängt das Ergebnis als normale datasheetChanges-
+ * Change-Card an (attachKTypDatasheetChange) — Persistenz läuft über den
+ * bestehenden "Übernehmen"-Flow, exakt wie jede andere Chat-Änderung.
+ */
+const KTYP_CHAT_ATTACH_TIMEOUT_MS = Number(process.env.KTYP_CHAT_ATTACH_TIMEOUT_MS || 15000);
+
+function startChatKTypEnrichment(product) {
+  const beforeValue = String(product?.details?.attributes?.['K-Typ'] || '').trim();
+  const promise = (async () => {
+    try {
+      const { enrichKTypIfPossible } = require('../lib/ktype-enrichment');
+      await enrichKTypIfPossible(product, { reason: 'chat' });
+    } catch (err) {
+      console.warn('[chat] K-Typ enrichment failed (non-blocking):', err?.message || err);
+    }
+  })();
+  return { beforeValue, promise };
+}
+
+async function attachKTypDatasheetChange(chatResult, product, enrichHandle) {
+  if (!chatResult || !enrichHandle) return;
+  try {
+    // Enrichment lief parallel zur (langen) LLM-Antwort; hier nur noch ein kurzer
+    // Rest-Timeout, damit ein hängender Web-Fetch nie die Chat-Antwort blockiert.
+    await Promise.race([
+      enrichHandle.promise,
+      new Promise((resolve) => setTimeout(resolve, KTYP_CHAT_ATTACH_TIMEOUT_MS)),
+    ]);
+    const { buildKTypDatasheetChange } = require('../lib/ktype-enrichment');
+    const change = buildKTypDatasheetChange(product, { beforeValue: enrichHandle.beforeValue });
+    if (!change) return;
+    chatResult.datasheetChanges = Array.isArray(chatResult.datasheetChanges)
+      ? chatResult.datasheetChanges
+      : [];
+    // Kein Duplikat, wenn das Modell in diesem Turn selbst einen K-Typ vorschlug.
+    const llmAlreadyProposed = chatResult.datasheetChanges.some(
+      (c) =>
+        Array.isArray(c?.attributes) &&
+        c.attributes.some(
+          (a) => String(a?.key || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '') === 'ktyp'
+        )
+    );
+    if (llmAlreadyProposed) return;
+    chatResult.datasheetChanges.push(change);
+    console.log(
+      `[chat] K-Typ change card attached: product=${product?.id} values=${change.attributes[0].value.split('|').length}`
+    );
+  } catch (err) {
+    console.warn('[chat] K-Typ change attach failed (non-blocking):', err?.message || err);
+  }
+}
+
 // POST /api/chat — Product chat via Gemini
 // Supports ?stream=true for SSE streaming (progress events + final result)
 // Pipeline cascade: V3 (CHAT_V3 / ?pipeline=v3) → V2 (CHAT_GROUNDING) → legacy.
@@ -1449,6 +1512,10 @@ router.post('/chat', requirePermission('ai', 'chat'), identifyLimiter, chatUploa
 
     const payloadMessage = normalizedMessage || 'Bitte analysiere die angehängten Dateien.';
     const normalizedScope = typeof scope === 'string' ? scope.trim() : null;
+
+    // K-Typ-Anreicherung parallel zum LLM-Call starten (alle Pipelines).
+    // Ergebnis wird unten via attachKTypDatasheetChange als Change-Card angehängt.
+    const ktypEnrichHandle = startChatKTypEnrichment(product);
 
     if (streamMode) {
       // SSE streaming mode: write progress events as they happen
@@ -1577,6 +1644,9 @@ router.post('/chat', requirePermission('ai', 'chat'), identifyLimiter, chatUploa
         try { onProgress({ type: 'tool_start', tool: 'price_evidence_check' }); } catch {}
         await validateChatPricing(chatResult, product);
 
+        // K-Typ-Ergebnis (lief parallel) als Change-Card anhängen (alle Pipelines).
+        await attachKTypDatasheetChange(chatResult, product, ktypEnrichHandle);
+
         console.log('[chat] pipeline=%s model=%s product=%s', pipelineUsed, chatResult.model || chatResult.modelUsed, productId);
 
         // Save messages to session (best-effort, non-blocking)
@@ -1690,6 +1760,9 @@ router.post('/chat', requirePermission('ai', 'chat'), identifyLimiter, chatUploa
 
     // Preis-Belege prüfen BEVOR das Ergebnis rausgeht (alle Pipelines).
     await validateChatPricing(chatResult, product);
+
+    // K-Typ-Ergebnis (lief parallel) als Change-Card anhängen (alle Pipelines).
+    await attachKTypDatasheetChange(chatResult, product, ktypEnrichHandle);
 
     console.log('[chat] pipeline=%s model=%s product=%s', pipelineUsed, chatResult.model || chatResult.modelUsed, productId);
 
