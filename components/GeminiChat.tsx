@@ -298,13 +298,16 @@ const cleanAssistantMessage = (raw: string) => {
 };
 
 const mapSuggestionsToAttachments = (
-  groups: { rationale?: string; images: ProductImage[] }[] | undefined,
+  groups: { rationale?: string; images?: ProductImage[] }[] | undefined,
   fallbackLabel: string
 ): MessageAttachment[] => {
-  if (!groups?.length) return [];
+  if (!Array.isArray(groups) || !groups.length) return [];
   const attachments: MessageAttachment[] = [];
   for (const group of groups) {
-    for (const image of group.images) {
+    // Chat-V3 liefert Query-only-Vorschläge ({query, rationale} ohne images) —
+    // die haben hier nichts zu rendern und dürfen nicht crashen.
+    const groupImages = Array.isArray(group?.images) ? group.images : [];
+    for (const image of groupImages) {
       if (!image?.url_or_base64 || attachments.length >= 4) break;
       attachments.push({
         id: uid(),
@@ -759,12 +762,13 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
     return mapped;
   };
 
-  const appendPendingImages = (suggestions: { rationale?: string; images: ProductImage[] }[] = []) => {
-    if (!suggestions.length) return;
+  const appendPendingImages = (suggestions: { rationale?: string; images?: ProductImage[] }[] = []) => {
+    if (!Array.isArray(suggestions) || !suggestions.length) return;
     const dedupe = new Set(suggestionKeysRef.current);
     const flattened: PendingImage[] = [];
     suggestions.forEach((group) => {
-      group.images.forEach((img) => {
+      const groupImages = Array.isArray(group?.images) ? group.images : [];
+      groupImages.forEach((img) => {
         const key = normalizeImageKey(img?.url_or_base64);
         if (!key || dedupe.has(key)) {
           return;
