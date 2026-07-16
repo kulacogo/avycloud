@@ -26,6 +26,7 @@ import AttributeTable from './AttributeTable';
 import PricingInfo from './PricingInfo';
 import CompetitorPrices from './CompetitorPrices';
 import AssistantChat from './GeminiChat';
+import { normalizeChangeAttributes } from './chatChanges';
 import ValidationPanel from './ValidationPanel';
 import IdentifyV4Badge from './IdentifyV4Badge';
 import { Tabs, TabPanel } from './ui/Tabs';
@@ -760,6 +761,11 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
 
   const applyAssistantChange = (change: DatasheetChange) => {
     let incomingBarcodes: string[] | null = null;
+    // Kategorie-Vorschlag ohne aufgelöste eBay-categoryId: NICHT still nur den
+    // Anzeige-Breadcrumb schreiben (wirkte wie Erfolg, änderte aber nichts an
+    // der wirksamen Kategorie — Incident 2026-07-16). Stattdessen unten die
+    // Kategorie-Suche mit dem Vorschlag öffnen und ehrlich benachrichtigen.
+    const categoryNeedsConfirm = Boolean(change.categoryPath && !change.categoryId);
 
     const normalizeLower = (v: any) => (v == null ? '' : String(v).trim().toLowerCase());
     const isMarketplaceKey = (key: string) => {
@@ -803,6 +809,12 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
           const identityRest = { ...(change.identity as Record<string, unknown>) };
           delete (identityRest as { _clear?: unknown })._clear;
           delete (identityRest as { barcodes?: unknown }).barcodes;
+          if (categoryNeedsConfirm) {
+            // Kategorie ohne aufgelöste categoryId: auch den identity.category-
+            // Breadcrumb nicht schreiben — sonst zeigt die Anzeige eine Kategorie,
+            // die nie wirksam wurde (Confirm-Flow unten übernimmt).
+            delete (identityRest as { category?: unknown }).category;
+          }
           next.identification = {
             ...next.identification,
             ...(identityRest as Partial<typeof next.identification>),
@@ -856,21 +868,22 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
       }
 
       // 1.5 eBay category (canonical)
-      if (change.categoryId || change.categoryPath) {
+      if (change.categoryId) {
         next.details = next.details || {};
         next.identification = next.identification || {};
-        if (change.categoryId) {
-          (next.details as any).categoryId = String(change.categoryId).replace(/\D+/g, '').trim();
-          // BUG-094: accepting a chat-proposed category is an explicit user choice,
-          // exactly like picking from the dropdown (handleCategorySelect). Mark the
-          // source as manual so the fire-and-forget CATEGORY_RESOLVER_V2 auto-correct
-          // does not overwrite it post-save (the "springs back" race).
-          (next.details as any).categorySource = "manual";
-        }
+        (next.details as any).categoryId = String(change.categoryId).replace(/\D+/g, '').trim();
+        // BUG-094: accepting a chat-proposed category is an explicit user choice,
+        // exactly like picking from the dropdown (handleCategorySelect). Mark the
+        // source as manual so the fire-and-forget CATEGORY_RESOLVER_V2 auto-correct
+        // does not overwrite it post-save (the "springs back" race).
+        (next.details as any).categorySource = "manual";
         if (change.categoryPath) {
           next.identification.category = String(change.categoryPath).trim();
         }
       }
+      // categoryPath OHNE categoryId wird bewusst NICHT geschrieben — der
+      // Breadcrumb-Text allein ändert die wirksame eBay-Kategorie nicht
+      // (categoryNeedsConfirm-Flow unten übernimmt).
 
       // 2. Short Description
       if (change.short_description) {
@@ -893,11 +906,13 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
         };
       }
 
-      // 4. Attributes (Merge)
-      if (change.attributes && Object.keys(change.attributes).length > 0) {
+      // 4. Attributes (Merge) — normalizeChangeAttributes akzeptiert Map UND
+      // V3-Array-Shape [{key|name, value}] (sonst entstand attributes['0']-Müll).
+      const incomingAttributeMap = normalizeChangeAttributes(change.attributes);
+      if (Object.keys(incomingAttributeMap).length > 0) {
         next.details = next.details || {};
         const cleanedIncoming: Record<string, any> = {};
-        Object.entries(change.attributes).forEach(([key, value]) => {
+        Object.entries(incomingAttributeMap).forEach(([key, value]) => {
           if (!key) return;
           // GPSR/compliance keys are stored under details.gpsr (not as regular attributes) to avoid duplicates.
           const keyLowerRaw = String(key || '').trim().toLowerCase();
@@ -1018,7 +1033,12 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
       setBarcodeInput(resolvedBarcodes.join('\n'));
       setIdFields(classifyBarcodesByLength(resolvedBarcodes));
     }
-    showNotification('success', t('sheet.msg.changeApplied'));
+    if (categoryNeedsConfirm) {
+      setCategoryQuery(String(change.categoryPath || '').trim());
+      showNotification('error', t('sheet.msg.categoryNeedsConfirm'));
+    } else {
+      showNotification('success', t('sheet.msg.changeApplied'));
+    }
   };
 
   const applyAssistantImages = (images: ProductImage[]) => {

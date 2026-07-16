@@ -127,9 +127,14 @@ const sanitizeDatasheetChange = (entry: any = {}): DatasheetChange => {
   }
   if (entry.attributes) {
     if (Array.isArray(entry.attributes)) {
+      // V3 liefert {key, value}, ältere Pipelines {name, value} — beide akzeptieren
+      // (nur-name-Einträge wurden früher still verworfen).
       result.attributes = entry.attributes.reduce((acc: Record<string, string | number | boolean>, item: any) => {
-        if (item && typeof item.name === 'string') {
-          acc[item.name] = item.value;
+        const k = item && typeof item.key === 'string' && item.key.trim()
+          ? item.key.trim()
+          : (item && typeof item.name === 'string' ? item.name.trim() : '');
+        if (k && item.value !== null && item.value !== undefined && typeof item.value !== 'object') {
+          acc[k] = item.value;
         }
         return acc;
       }, {});

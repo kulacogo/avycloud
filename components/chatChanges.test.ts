@@ -62,3 +62,49 @@ test("drops empty change objects", () => {
 test("handles undefined inputs gracefully", () => {
   assert.deepStrictEqual(mergeIncomingDatasheetChanges(undefined, undefined), []);
 });
+
+// ─── normalizeChangeAttributes (Incident 2026-07-16) ─────────────────────────
+// Chat-V3 tool cards deliver attributes as ARRAY of {key,value}; the apply path
+// iterates Object.entries() and wrote details.attributes['0'] = {key,value}
+// garbage. The normalizer folds both shapes into the canonical map.
+
+import { normalizeChangeAttributes } from "./chatChanges.ts";
+
+test("normalizes V3 array shape [{key, value}] into a map", () => {
+  const out = normalizeChangeAttributes([
+    { key: "K-Typ", value: "123|456" },
+    { key: "Farbe", value: "Anthrazit" },
+  ]);
+  assert.deepStrictEqual(out, { "K-Typ": "123|456", "Farbe": "Anthrazit" });
+});
+
+test("accepts legacy {name, value} array entries", () => {
+  const out = normalizeChangeAttributes([{ name: "Material", value: "EVA" }]);
+  assert.deepStrictEqual(out, { Material: "EVA" });
+});
+
+test("prefers key over name when both exist, trims keys", () => {
+  const out = normalizeChangeAttributes([{ key: " K-Typ ", name: "ignored", value: "42" }]);
+  assert.deepStrictEqual(out, { "K-Typ": "42" });
+});
+
+test("drops entries without key/name, with null value, or object values — never writes junk keys", () => {
+  const out = normalizeChangeAttributes([
+    { value: "orphan" },
+    { key: "Leer", value: null },
+    { key: "Objekt", value: { nested: true } },
+    "not-an-object",
+    null,
+  ]);
+  assert.deepStrictEqual(out, {});
+});
+
+test("passes through an already-map shape, dropping object values defensively", () => {
+  const out = normalizeChangeAttributes({ "K-Typ": "1|2", Kaputt: { a: 1 }, Zahl: 3 });
+  assert.deepStrictEqual(out, { "K-Typ": "1|2", Zahl: 3 });
+});
+
+test("non-object input yields empty map", () => {
+  assert.deepStrictEqual(normalizeChangeAttributes(undefined), {});
+  assert.deepStrictEqual(normalizeChangeAttributes("x"), {});
+});
