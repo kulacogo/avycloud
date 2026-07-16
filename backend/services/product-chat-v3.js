@@ -749,6 +749,21 @@ function consolidateDatasheetChangesV3(changes) {
           }
           break;
         }
+        case 'short_description': {
+          // NICHT last-wins: Der erzwungene Abschluss-Write liefert oft nur einen
+          // mageren 2-Satz-Recap und überschrieb die reiche Erstfassung
+          // (Incident 2026-07-16, "Alles optimieren" → 198-Zeichen-Beschreibung).
+          // Die AUSFÜHRLICHERE Beschreibung gewinnt.
+          const prevLen = String(merged.short_description || '').length;
+          if (String(value).length >= prevLen) merged.short_description = value;
+          break;
+        }
+        case 'key_features': {
+          const prevArr = Array.isArray(merged.key_features) ? merged.key_features : [];
+          const nextArr = Array.isArray(value) ? value : [];
+          if (nextArr.length >= prevArr.length) merged.key_features = value;
+          break;
+        }
         default:
           // last-wins: title, short_description, key_features, pricing,
           // categoryId/categoryPath (falls ein früherer Schritt sie setzte) …
@@ -1207,11 +1222,22 @@ async function runProductChatV3({
       // { role, parts } object causes the SDK to mis-serialize tool responses
       // and the model never sees them — leading to "model answers in text
       // without update_product_datasheet" (the exact P0 incident on 2026-04-22).
+      // Beim erzwungenen Write-Turn explizit VOLLSTÄNDIGE Inhalte verlangen —
+      // ohne diese Anweisung lieferte der forced Write oft nur einen mageren
+      // 2-Satz-Recap (Incident 2026-07-16, dünne Beschreibungen).
+      const forcedParts = forceFinalize
+        ? [{
+            text:
+              'Rufe jetzt update_product_datasheet mit VOLLSTÄNDIGEN Inhalten auf: ' +
+              'ausführliche short_description als Fließtext (mindestens 4-6 Sätze mit den recherchierten Details), ' +
+              'alle key_features und alle Attribute. KEINE Kurzfassung.',
+          }]
+        : [];
       // eslint-disable-next-line no-await-in-loop
       response = await withGeminiRetryV3(
         () =>
           sendConfig
-            ? chat.sendMessage({ message: toolResponses, config: sendConfig })
+            ? chat.sendMessage({ message: [...toolResponses, ...forcedParts], config: sendConfig })
             : chat.sendMessage({ message: toolResponses }),
         { label: `sendMessage-iter-${trace.iterations}` }
       );
@@ -1247,7 +1273,7 @@ async function runProductChatV3({
           () =>
             chat.sendMessage({
               message:
-                'Bitte fasse deine Recherche-Ergebnisse JETZT zusammen und rufe update_product_datasheet mit den konkreten Änderungsvorschlägen auf.',
+                'Bitte rufe JETZT update_product_datasheet mit den konkreten Änderungsvorschlägen auf — mit VOLLSTÄNDIGEN Inhalten: ausführliche short_description als Fließtext (mindestens 4-6 Sätze mit den recherchierten Details), alle key_features, alle Attribute. KEINE Kurzfassung, keine 2-Satz-Beschreibung.',
               config: {
                 tools: writeOnlyTools,
                 toolConfig: {
