@@ -300,12 +300,22 @@ function findFakeContacts(gpsr, ctx = {}) {
  * @returns {{ changed: boolean, gpsr: object, nulled: Array, evidenceSet: boolean,
  *   markerSet: boolean, nextMarker: string|undefined }}
  */
+// Nur EINDEUTIGE Fake-Klassen werden hart gelöscht. 'foreign_domain' erzeugt
+// False-Positives bei legitimen Vertriebs-/Konzern-Kontakten (Live-Beispiele:
+// info@sct-germany.de für MANNOL — SCT ist der Mutterkonzern; Imoshion↔
+// smartphonehoesjes.nl) — solche Funde bleiben Report-only.
+const HARD_FAKE_REASONS = new Set([
+  'fake_phone_pattern',
+  'suspect_email:personal_freemail',
+]);
+
 function buildProductApply(data, verdict) {
   const gpsr = JSON.parse(JSON.stringify(pickGpsrObj(data)));
   let changed = false;
   const nulled = [];
 
   for (const finding of findFakeContacts(gpsr, { brand: verdict.brand, fallbackUrl: verdict.fallbackUrl })) {
+    if (!HARD_FAKE_REASONS.has(finding.reason)) continue; // Report-only-Klasse
     gpsr[finding.field] = null;
     nulled.push(finding);
     changed = true;
@@ -568,6 +578,40 @@ async function main() {
         const stampEvidence = verdict.status !== 'infra_blocked' && verdict.status !== 'no_gpsr_data';
         const checkedAt = verdict.evidence?.checked_at || new Date().toISOString();
 
+        // Registry-Wurzel mitbereinigen: der gpsrRegistryEnforce am
+        // Save-Boundary spielt Registry-Werte bei JEDEM Save zurück aufs
+        // Produkt — eine Produkt-Bereinigung ohne Registry-Bereinigung ist
+        // wirkungslos (Live-Befund erster Apply-Lauf). Nur harte
+        // Fake-Klassen, einmal pro Marke.
+        try {
+          const { manufacturerKeyCandidates } = require('../lib/gpsr-manufacturer-registry');
+          const { FieldValue } = require('@google-cloud/firestore');
+          const regNames = [representative?.gpsr?.manufacturer_name, entry.brand].filter(Boolean);
+          let regRef = null; let regData = null;
+          outerReg: for (const rn of regNames) {
+            for (const key of manufacturerKeyCandidates(rn)) {
+              const rs = await firestore.collection('gpsrManufacturers').doc(key).get();
+              if (rs.exists) { regRef = rs.ref; regData = rs.data(); break outerReg; }
+            }
+          }
+          if (regRef && regData) {
+            const regUpdates = {};
+            for (const finding of findFakeContacts(regData, { brand: entry.brand, fallbackUrl })) {
+              if (!HARD_FAKE_REASONS.has(finding.reason)) continue;
+              regUpdates[finding.field] = FieldValue.delete();
+            }
+            if (stampEvidence && !regData.evidence) {
+              regUpdates.evidence = { status: verdict.status, url: verdict.evidence?.url || null, checked_at: checkedAt, by: 'gpsr-evidence-audit' };
+            }
+            if (Object.keys(regUpdates).length) {
+              await regRef.update(regUpdates);
+              report.actions.push({ brand: entry.brand, registry: regRef.id, status: 'registry_updated', fields: Object.keys(regUpdates) });
+            }
+          }
+        } catch (regErr) {
+          console.warn(`  [apply] Registry-Bereinigung ${entry.brand} fehlgeschlagen: ${regErr?.message}`);
+        }
+
         for (const p of entry.products) {
           try {
             // Frischer Read direkt vor der Mutation — Scan-Snapshot kann alt sein.
@@ -608,6 +652,30 @@ async function main() {
               skipTitlePolicy: true,
               skipKeyFeaturesNormalize: true,
             });
+
+            // saveProductV2 ist ein MERGE — Map-Keys werden dadurch NIE
+            // gelöscht und die Save-Pipeline (Registry-Enforce) kann gpsr
+            // ersetzen (Live-Befund: Nullung + Beleg-Stempel überlebten den
+            // ersten Apply-Lauf nicht). Deshalb direkt danach ein gezieltes
+            // update(): FieldValue.delete() für Fake-Felder + Beleg-Stempel
+            // als Dot-Path. (Ein späterer Save kann Registry-Werte erneut
+            // enforc-en — dafür wird der Registry-Eintrag unten pro Marke
+            // mitbereinigt.)
+            {
+              const { FieldValue } = require('@google-cloud/firestore');
+              const directUpdates = {};
+              for (const n of built.nulled) {
+                directUpdates[`details.gpsr.${n.field}`] = FieldValue.delete();
+              }
+              if (built.evidenceSet && built.gpsr.evidence) {
+                directUpdates['details.gpsr.evidence'] = built.gpsr.evidence;
+              }
+              if (Object.keys(directUpdates).length) {
+                await firestore.collection(collectionName).doc(p.id).update(directUpdates).catch((e) => {
+                  console.warn(`  [apply] direct update ${p.sku || p.id} fehlgeschlagen: ${e?.message}`);
+                });
+              }
+            }
 
             // Ehrlichkeits-Check: hat die Fake-Nullung den Save-Boundary
             // (gpsrRegistryEnforce-Amplifikator) ueberlebt?
