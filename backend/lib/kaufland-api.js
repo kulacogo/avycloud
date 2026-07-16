@@ -37,9 +37,22 @@ function normalizeProductDataAttributeToken(value) {
     .replace(/[\s._:;,\-/\\()[\]{}]+/g, '');
 }
 
+// Kanonische Kaufland-EAN: Kaufland akzeptiert nur EAN-13/GTIN-14. Eine
+// 12-stellige UPC ist per GTIN-Standard dieselbe Nummer mit führender 0 —
+// pickUnitData padded deshalb schon beim Unit-Create. ALLE anderen EAN-Pfade
+// (product-data PUT/PATCH, Status-Abfragen, Heal-Loop) nutzten aber die rohe
+// 12-stellige Form: Status-Abfragen liefen ins 404, der Product-Data-Filter
+// verwarf die EAN still ("ean is required") — US-Produkte (Funko & Co.)
+// hingen dadurch dauerhaft im pending-Zustand (Incident 2026-07-16).
+function toKauflandEan(value) {
+  const digits = String(value || '').replace(/\D+/g, '').trim();
+  if (digits.length === 12) return '0' + digits;
+  return digits;
+}
+
 function normalizeProductDataEans(ean) {
   return (Array.isArray(ean) ? ean : [ean])
-    .map((value) => String(value || '').replace(/\D+/g, '').trim())
+    .map((value) => toKauflandEan(value))
     .filter((value) => value.length >= 13 && value.length <= 15);
 }
 
@@ -463,7 +476,7 @@ async function listUnits({ storefront = 'de', limit = 100, maxPages = 200 } = {}
 }
 
 async function getProductByEan(ean, { storefront = 'de' } = {}) {
-  const normalizedEan = String(ean || '').replace(/\D+/g, '').trim();
+  const normalizedEan = toKauflandEan(ean);
   if (!normalizedEan) return null;
   const res = await kauflandRequest('GET', `/products/ean/${encodeURIComponent(normalizedEan)}`, {
     query: { storefront: storefront || 'de' },
@@ -490,7 +503,7 @@ async function getUnit(unitId, { storefront = 'de', embedded = [] } = {}) {
 }
 
 async function getProductDataStatus(ean, { locale = 'de-DE' } = {}) {
-  const normalizedEan = String(ean || '').replace(/\D+/g, '').trim();
+  const normalizedEan = toKauflandEan(ean);
   if (!normalizedEan) {
     const err = new Error('ean is required');
     err.code = 'KAUFLAND_EAN_REQUIRED';
@@ -1238,6 +1251,7 @@ module.exports = {
   kauflandRequest,
   pingKaufland,
   isItemNotIndexedUnitError,
+  toKauflandEan,
   getKauflandRefunds,
   findUnit,
   listUnits,

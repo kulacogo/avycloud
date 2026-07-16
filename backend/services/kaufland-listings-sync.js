@@ -752,8 +752,11 @@ async function syncKauflandInvalidReasons({ unitDocs = [], products = [], storef
     }
     return 0;
   };
-  const eanOf = (v) => String(v?.ean || '').replace(/\D+/g, '').trim()
-    || String((Array.isArray(v?.eans) && v.eans[0]) || '').replace(/\D+/g, '').trim();
+  // 12-stellige UPCs auf EAN-13 padden — Kauflands product-data-Status liegt
+  // unter der gepaddeten Form (siehe toKauflandEan in lib/kaufland-api.js).
+  const padUpc = (digits) => (digits.length === 12 ? '0' + digits : digits);
+  const eanOf = (v) => padUpc(String(v?.ean || '').replace(/\D+/g, '').trim())
+    || padUpc(String((Array.isArray(v?.eans) && v.eans[0]) || '').replace(/\D+/g, '').trim());
 
   const fetchCandidates = [];
   const clearCandidates = [];
@@ -996,7 +999,12 @@ async function healPendingKauflandPublishes({ products = [], storefront = 'de', 
 
   for (const { product: p, pendingAtMs } of toProcess) {
     try {
-      const ean = String(p?.details?.identifiers?.ean || '').replace(/\D+/g, '').trim();
+      // toKauflandEan padded 12-stellige UPCs auf EAN-13 — Kauflands
+      // product-data liegt unter der gepaddeten Form (Incident 2026-07-16:
+      // Funko-UPCs pollten mit 12 Stellen ewig ins 404, healed=0).
+      const ean = kauflandApi.toKauflandEan
+        ? kauflandApi.toKauflandEan(p?.details?.identifiers?.ean)
+        : String(p?.details?.identifiers?.ean || '').replace(/\D+/g, '').trim();
       if (!ean) continue; // ohne EAN kein Product-Data-Status abfragbar
       stats.attempted += 1;
 

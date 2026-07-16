@@ -566,7 +566,13 @@ async function tryRepairKauflandProductData({
   storefront = 'de',
   locale = 'de-DE',
 } = {}) {
-  const normalizedEan = safeString(ean).replace(/\D+/g, '');
+  // 12-stellige UPCs auf EAN-13 padden (Logik-Spiegel von toKauflandEan in
+  // lib/kaufland-api.js, bewusst inline statt require — Tests mocken das
+  // API-Modul partiell): sonst laufen die Status-Abfragen ins 404 und
+  // normalizeProductDataEans verwirft die EAN still (Incident 2026-07-16:
+  // US-Produkte/Funko hingen dauerhaft pending).
+  const eanDigits = safeString(ean).replace(/\D+/g, '');
+  const normalizedEan = eanDigits.length === 12 ? '0' + eanDigits : eanDigits;
   if (!normalizedEan) {
     return { attempted: false, patchedKeys: [], message: 'EAN fehlt – Product-Data-Reparatur übersprungen.' };
   }
@@ -640,7 +646,16 @@ async function tryRepairKauflandProductData({
   }
 
   let writeMode = 'patch';
-  await patchProductData({ ean: [normalizedEan], locale: normalizedLocale, attributes, idCategory: predictedIdCategory || undefined });
+  // PATCH auf einen nicht-existenten product-data-Datensatz wirft (404) —
+  // das darf die Reparatur NICHT abbrechen, der PUT-Fallback unten legt den
+  // Datensatz neu an. Vorher starb tryRepair hier und der Heal-Loop schluckte
+  // den Fehler still (healed=0 dauerhaft, Incident 2026-07-16).
+  let patchError = null;
+  try {
+    await patchProductData({ ean: [normalizedEan], locale: normalizedLocale, attributes, idCategory: predictedIdCategory || undefined });
+  } catch (error) {
+    patchError = safeString(error?.message) || 'PATCH fehlgeschlagen';
+  }
 
   let storedProductData = null;
   let storedProductDataError = '';
@@ -694,7 +709,7 @@ async function tryRepairKauflandProductData({
   return {
     attempted: true,
     patchedKeys,
-    message: `Product-Data via ${writeMode} aktualisiert (${patchedKeys.join(', ')}). ${beforeStorageSummary}; ${storageSummary}; ${beforeSummary}; ${afterSummary}`,
+    message: `Product-Data via ${writeMode} aktualisiert (${patchedKeys.join(', ')}). ${patchError ? `PATCH-Fehler: ${patchError}; ` : ''}${beforeStorageSummary}; ${storageSummary}; ${beforeSummary}; ${afterSummary}`,
   };
 }
 
