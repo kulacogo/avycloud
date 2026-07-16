@@ -670,6 +670,82 @@ function summarizeChangeForCard(change) {
   return parts.length ? `Vorgeschlagen — ${parts.join(' · ')}`.slice(0, 300) : '';
 }
 
+// Mehrere update_product_datasheet-Calls in EINEM Turn erzeugten überlappende
+// Karten (z. B. zweimal Marke/Kategorie/Preis — Incident 2026-07-16): für den
+// Operator unaufgeräumt und beim Übernehmen reihenfolge-abhängig. Konsolidierung
+// auf EINE Karte pro Turn, last-wins pro Feld (identisch zur draft-Aggregation
+// im Post-Processing), Attribute last-wins pro normalisiertem Key, Summaries
+// werden zusammengeführt, Confidence konservativ (Minimum).
+function consolidateDatasheetChangesV3(changes) {
+  const list = (Array.isArray(changes) ? changes : []).filter((c) => c && typeof c === 'object');
+  if (list.length <= 1) return list;
+
+  const normKey = (k) => String(k || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '');
+  const merged = {};
+  const summaries = [];
+  const attrByNorm = new Map(); // norm(key) -> { key, value, value_type? }
+  let minConfidence = null;
+
+  for (const change of list) {
+    for (const [field, value] of Object.entries(change)) {
+      if (value == null) continue;
+      switch (field) {
+        case 'summary': {
+          const s = String(value).trim();
+          if (s && !summaries.includes(s)) summaries.push(s);
+          break;
+        }
+        case 'confidence': {
+          const n = Number(value);
+          if (Number.isFinite(n)) minConfidence = minConfidence == null ? n : Math.min(minConfidence, n);
+          break;
+        }
+        case 'identity':
+          merged.identity = { ...(merged.identity || {}), ...value };
+          break;
+        case 'gpsr':
+          merged.gpsr = { ...(merged.gpsr || {}), ...value };
+          break;
+        case 'notes': {
+          const prev = merged.notes || {};
+          const next = {};
+          for (const key of ['unsure', 'warnings']) {
+            const combined = Array.from(
+              new Set([...(prev[key] || []), ...(Array.isArray(value[key]) ? value[key] : [])])
+            );
+            if (combined.length) next[key] = combined;
+          }
+          if (Object.keys(next).length) merged.notes = next;
+          break;
+        }
+        case 'attributes': {
+          const entries = Array.isArray(value)
+            ? value.filter((it) => it && typeof it === 'object')
+            : Object.entries(value).map(([k, v]) => ({ key: k, value: v }));
+          for (const it of entries) {
+            const norm = normKey(it.key || it.name);
+            if (!norm) continue;
+            attrByNorm.set(norm, it);
+          }
+          break;
+        }
+        default:
+          // last-wins: title, short_description, key_features, pricing,
+          // categoryId/categoryPath (falls ein früherer Schritt sie setzte) …
+          merged[field] = value;
+          break;
+      }
+    }
+  }
+
+  if (attrByNorm.size) merged.attributes = Array.from(attrByNorm.values());
+  if (minConfidence != null) merged.confidence = minConfidence;
+  const joined = summaries.join('\n').slice(0, 500).trim();
+  merged.summary = joined || summarizeChangeForCard(merged) || undefined;
+  if (!merged.summary) delete merged.summary;
+  return [merged];
+}
+
 function ownExecutor(name, args, state) {
   if (name === 'update_product_datasheet') {
     const started = Date.now();
@@ -1205,6 +1281,10 @@ async function runProductChatV3({
 
     // ---- post-processing -----------------------------------------------------
 
+    // Überlappende Karten aus mehreren Write-Calls zu EINER konsolidieren,
+    // BEVOR draft/crossRef/Kategorie-Resolve darauf arbeiten.
+    state.datasheetChanges = consolidateDatasheetChangesV3(state.datasheetChanges);
+
     // Build draft from aggregated datasheetChanges (last-wins per key).
     const draft = {};
     for (const change of state.datasheetChanges) {
@@ -1350,6 +1430,7 @@ module.exports = {
     isMetaEchoAnswer,
     synthesizeAnswerFromChanges,
     summarizeChangeForCard,
+    consolidateDatasheetChangesV3,
     extractEvidenceFromToolResult,
     mapToolSourceWeight,
     summarizeProduct,
