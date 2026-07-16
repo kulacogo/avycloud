@@ -258,13 +258,35 @@ async function loadMvlIndex() {
   return MVL_CACHE;
 }
 
-function loadMotoIndex() {
+function resolveMotoGcsUri() {
+  const direct = safeString(process.env.MOTO_JSONL_GCS_URI || '');
+  if (direct) return direct;
+  const bucket = normalizeBucketName(process.env.MVL_GCS_BUCKET || process.env.STORAGE_BUCKET) || 'prodsandjobs';
+  const object = safeString(process.env.MOTO_GCS_OBJECT) || 'datasets/DE_Motorradliste_2025_06.compact.jsonl';
+  if (!bucket || !object) return '';
+  return `gs://${bucket}/${object.replace(/^\/+/, '')}`;
+}
+
+async function loadMotoIndex() {
   const now = Date.now();
   if (MOTO_CACHE && now - (MOTO_CACHE.atMs || 0) < MOTO_CACHE_TTL_MS) return MOTO_CACHE;
 
-  const jsonlPath = resolveMotoPath();
+  let jsonlPath = resolveMotoPath();
+  let download = null;
   if (!jsonlPath || !fs.existsSync(jsonlPath)) {
-    MOTO_CACHE = { atMs: now, ok: false, reason: 'moto_missing', jsonlPath: jsonlPath || null };
+    // GCS-Fallback (Spiegel des MVL-Musters): sobald der Motorrad-ePID-Datensatz
+    // unter gs://<bucket>/datasets/ liegt, funktioniert er auf allen Instanzen
+    // ohne Redeploy. Stand 2026-07-16 existiert die Datei dort noch NICHT
+    // (moto_missing) — Upload ist ein Operator-Schritt.
+    const uri = resolveMotoGcsUri();
+    const dest = path.join(os.tmpdir(), 'DE_Motorradliste_2025_06.compact.jsonl');
+    download = await ensureMvlJsonlDownloaded({ uri, destinationPath: dest });
+    if (download?.ok && download?.path && fs.existsSync(download.path)) {
+      jsonlPath = download.path;
+    }
+  }
+  if (!jsonlPath || !fs.existsSync(jsonlPath)) {
+    MOTO_CACHE = { atMs: now, ok: false, reason: 'moto_missing', jsonlPath: jsonlPath || null, download: download || null, gcsUri: resolveMotoGcsUri() || null };
     return MOTO_CACHE;
   }
 
@@ -464,6 +486,38 @@ function collectLocalHsnTsnCandidates(product) {
   return Array.from(out);
 }
 
+/**
+ * Fahrzeugbezogener Eigen-Text des Produkts: Titel, Kurzbeschreibung und
+ * Kompatibilitäts-Attribute ("Passend für", "Fahrzeugmarke", …).
+ * Teilenummern (MPN/OE) werden herausgeschnitten, damit plattform-ähnliche
+ * Tokens aus Teilenummern (z. B. Bosch "…J27") nie als Fahrzeug-Plattform
+ * fehlgedeutet werden können.
+ */
+function collectLocalFitmentText(product, { excludeValues = [] } = {}) {
+  const attrs =
+    product?.details?.attributes && typeof product.details.attributes === 'object'
+      ? product.details.attributes
+      : {};
+  const compatKeyRe = /passend|kompatib|fahrzeug|vehicle|verwendung|modell|baureihe|plattform/i;
+  const compatValues = Object.entries(attrs)
+    .filter(([k]) => compatKeyRe.test(String(k || '')))
+    .map(([, v]) => safeString(v))
+    .filter(Boolean);
+  let text = [
+    safeString(product?.identification?.name),
+    safeString(product?.details?.short_description),
+    ...compatValues,
+  ]
+    .filter(Boolean)
+    .join('\n');
+  for (const raw of excludeValues) {
+    const val = safeString(raw);
+    if (!val) continue;
+    text = text.split(val).join(' ');
+  }
+  return text.trim();
+}
+
 function attachKTypeTrace(product, trace) {
   try {
     if (!product) return;
@@ -623,7 +677,7 @@ async function enrichKTypIfPossible(product, { reason = 'identify', maxKTypes = 
   }
   const mpn = pickPartNumber(product);
   const mvl = fitmentMode === 'auto' ? await loadMvlIndex() : null;
-  const moto = fitmentMode === 'moto' ? loadMotoIndex() : null;
+  const moto = fitmentMode === 'moto' ? await loadMotoIndex() : null;
   if (fitmentMode === 'auto' && mvl && !mvl.ok) {
     product.notes = product.notes || {};
     product.notes.warnings = Array.from(
@@ -699,6 +753,64 @@ async function enrichKTypIfPossible(product, { reason = 'identify', maxKTypes = 
         });
       }
       return { ok: true, fitmentMode, ids: idsLocal };
+    }
+  }
+
+  // Deterministic fast-path 2: Fahrzeugmarke + Plattform-Token aus den EIGENEN
+  // Produktdaten (Titel/Kompatibilitäts-Attribute) gegen die MVL mappen.
+  // Autoteile-Titel tragen die Verwendung fast immer ("… für Audi A4 B8 …"),
+  // während Web-Seiten selten HSN/TSN nennen — genau daran scheiterten 39 von
+  // 48 Rest-Produkten (Audit 2026-07-16). Gleicher No-Guessing-Vertrag wie der
+  // Web-Pfad: nur exakte make|platform-Treffer in der MVL zählen; das Make-Gate
+  // verhindert, dass Teilenummern-Tokens ohne Fahrzeugmarke je matchen.
+  if (fitmentMode === 'auto' && mvl?.ok) {
+    const fitmentText = collectLocalFitmentText(product, { excludeValues: [mpn] });
+    if (fitmentText) {
+      const localMakes = extractVehicleMakes(fitmentText, mvl.makes);
+      const localPlatformHits = new Set();
+      const matchedKeys = [];
+      if (localMakes.length) {
+        // Nur Tokens mit mindestens einem Buchstaben (B8, W169, F45) — reine
+        // Zahlen-Tokens (Maße, Mengen) sind keine belastbare Plattform-Evidenz.
+        const tokens = extractPlatformTokens(fitmentText).filter((t) => /[A-Z]/i.test(t));
+        for (const make of localMakes) {
+          for (const tok of tokens) {
+            const set = mvl.byMakePlatform.get(`${make}|${tok}`);
+            if (!set) continue;
+            matchedKeys.push(`${make}|${tok}`);
+            for (const id of set.values()) localPlatformHits.add(id);
+          }
+        }
+      }
+      const idsLocalMp = Array.from(localPlatformHits).sort((a, b) => a - b).slice(0, maxKTypes);
+      if (idsLocalMp.length) {
+        product.details = product.details || {};
+        product.details.attributes =
+          product.details.attributes && typeof product.details.attributes === 'object' ? product.details.attributes : {};
+        product.details.attributes['K-Typ'] = formatKTyp(idsLocalMp, { maxLen: 0 });
+        attachKTypeTrace(product, {
+          ok: true,
+          reason,
+          source: 'local_make_platform',
+          fitment_mode: fitmentMode,
+          catId: catId || null,
+          mpn: mpn || null,
+          matched: matchedKeys.slice(0, 20),
+          ktypes: idsLocalMp,
+          mvl_path: mvl?.jsonlPath || null,
+        });
+        clearKTypWarnings(product);
+        if (process.env.DEBUG_KTYPE) {
+          console.log('[ktype] enriched', {
+            productId: product?.id || null,
+            fitmentMode,
+            source: 'local_make_platform',
+            count: idsLocalMp.length,
+            matched: matchedKeys.slice(0, 5),
+          });
+        }
+        return { ok: true, fitmentMode, ids: idsLocalMp };
+      }
     }
   }
 
@@ -880,6 +992,7 @@ function buildKTypDatasheetChange(product, { beforeValue = '' } = {}) {
 module.exports = {
   enrichKTypIfPossible,
   buildKTypDatasheetChange,
+  collectLocalFitmentText,
   loadMvlIndex,
   resolveMvlPath,
   loadMotoIndex,
