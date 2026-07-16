@@ -604,6 +604,37 @@ function collectAnswerText(response) {
   return typeof response?.text === 'string' ? response.text : '';
 }
 
+// Meta-/Steuer-Text-Erkennung: gemini-3.1-pro beantwortet reine functionResponse-
+// Inputs in agentic Settings oft mit englischem Task-Abschluss-Gerede statt einer
+// User-Antwort ("have successfully completed the task. No further tool calls are
+// required."). Solcher Text darf NIE als Chat-Antwort durchschlagen (Incident
+// 2026-07-16). Nur kurze Texte werden klassifiziert — echte Antworten sind länger
+// und deutsch, das verhindert False-Positives.
+const META_ANSWER_PATTERNS = [
+  /\b(successfully|now)?\s*(completed|finished)\s+(the\s+)?task\b/i,
+  /\bno further (tool|function|action)s? (calls?|required|needed)\b/i,
+  /\btask (is )?(now )?complete\b/i,
+  /\bupdate_product_datasheet\b/i,
+  /\b(function|tool) call(s)?\b/i,
+  /\bi (will|have|am going to) (now )?(call|use|invoke)\b/i,
+];
+
+function isMetaEchoAnswer(text) {
+  const t = typeof text === 'string' ? text.trim() : '';
+  if (!t) return true;
+  if (t.length > 600) return false;
+  return META_ANSWER_PATTERNS.some((re) => re.test(t));
+}
+
+function synthesizeAnswerFromChanges(datasheetChanges) {
+  const summaries = (Array.isArray(datasheetChanges) ? datasheetChanges : [])
+    .map((c) => (c && typeof c.summary === 'string' ? c.summary.trim() : ''))
+    .filter(Boolean);
+  if (!summaries.length) return '';
+  if (summaries.length === 1) return summaries[0];
+  return `Ich habe folgende Änderungen vorbereitet:\n- ${summaries.join('\n- ')}`;
+}
+
 // ---------------------------------------------------------------------------
 // Own executors — writable tool handling
 // ---------------------------------------------------------------------------
@@ -894,6 +925,10 @@ async function runProductChatV3({
     collectGrounding(response, trace, onProgress);
 
     let researchOnlyIters = 0;
+    // Der laut System-Prompt geforderte "zuerst Text auf Deutsch"-Part kommt in
+    // Zwischen-Turns NEBEN den functionCalls — der allerletzte Turn ist dagegen
+    // oft nur Meta-Echo. Wir sichern hier die letzte echte Antwort.
+    let lastContentAnswer = '';
 
     while (
       response &&
@@ -902,6 +937,8 @@ async function runProductChatV3({
       trace.iterations < maxIterations
     ) {
       const callList = response.functionCalls;
+      const turnText = collectAnswerText(response);
+      if (turnText && !isMetaEchoAnswer(turnText)) lastContentAnswer = turnText;
       const hasWriteCall = callList.some((c) => c && c.name === WRITE_TOOL);
       if (hasWriteCall) {
         trace.sawWriteCall = true;
@@ -1099,7 +1136,7 @@ async function runProductChatV3({
           // Content object (see note at the loop sendMessage above).
           try {
             // eslint-disable-next-line no-await-in-loop
-            await chat.sendMessage({
+            const echoResponse = await chat.sendMessage({
               message: [
                 {
                   functionResponse: {
@@ -1110,6 +1147,11 @@ async function runProductChatV3({
                 },
               ],
             });
+            // Die Echo-Response enthält die eigentliche Abschluss-Antwort des
+            // Modells NACH dem Write-Result — nur den Text übernehmen, nicht
+            // `response` ersetzen (mode-AUTO-Echo kann selbst functionCalls haben).
+            const echoText = collectAnswerText(echoResponse);
+            if (echoText && !isMetaEchoAnswer(echoText)) lastContentAnswer = echoText;
           } catch (echoErr) {
             console.warn('[chat-v3] fallback echo send failed: %s', echoErr?.message || echoErr);
           }
@@ -1168,7 +1210,23 @@ async function runProductChatV3({
       } catch {}
     }
 
-    const finalAnswer = collectAnswerText(response);
+    let finalAnswer = collectAnswerText(response);
+    if (isMetaEchoAnswer(finalAnswer)) {
+      // Meta-Echo/leer als finale Antwort (Incident 2026-07-16): stattdessen die
+      // letzte echte Turn-Antwort bzw. eine Zusammenfassung der Änderungen liefern.
+      const recovered = lastContentAnswer || synthesizeAnswerFromChanges(state.datasheetChanges);
+      if (recovered) {
+        console.warn(
+          '[chat-v3] meta/empty final answer suppressed — recovered=%s changes=%d',
+          lastContentAnswer ? 'turn-text' : 'summaries',
+          state.datasheetChanges.length
+        );
+        finalAnswer = recovered;
+      } else if (!finalAnswer || !finalAnswer.trim()) {
+        finalAnswer = 'Ich habe keine belastbaren neuen Informationen gefunden. Bitte prüfe das Produkt manuell.';
+      }
+      // Meta-Match ohne Recovery-Quelle und nicht-leer → Original behalten (konservativ).
+    }
 
     if (typeof onProgress === 'function') {
       try {
@@ -1254,6 +1312,8 @@ module.exports = {
     emitThoughts,
     collectGrounding,
     collectAnswerText,
+    isMetaEchoAnswer,
+    synthesizeAnswerFromChanges,
     extractEvidenceFromToolResult,
     mapToolSourceWeight,
     summarizeProduct,

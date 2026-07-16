@@ -203,6 +203,17 @@ async function fetchPageForVerification(url, { timeoutMs = 15_000 } = {}) {
  * fetchPage ist injizierbar für Tests (default fetchPageForVerification).
  * @returns {Promise<{ verified: Array, failed: Array }>}
  */
+/**
+ * Infrastruktur-Fehler vs. Evidenz gegen die Quelle: 0/401/403/407/408/429/5xx
+ * heißen "wir KONNTEN nicht prüfen" (toter Unlocker-Token, Bot-Block, Netz).
+ * 404/410 sind dagegen Evidenz GEGEN die Quelle (Incident 2026-07-11 war eine
+ * erfundene 404-Herstellerseite) und bleiben ein echtes Verifikations-Urteil.
+ */
+function isInfraFetchFailure(status) {
+  const s = Number(status) || 0;
+  return s === 0 || s === 401 || s === 403 || s === 407 || s === 408 || s === 429 || s >= 500;
+}
+
 async function verifyPriceSources({
   sources,
   product,
@@ -222,7 +233,12 @@ async function verifyPriceSources({
     try {
       const page = await fetcher(url, { timeoutMs });
       if (!page || !page.ok) {
-        failed.push({ source: src, reason: `fetch_failed_${page && page.status || 0}` });
+        failed.push({
+          source: src,
+          reason: `fetch_failed_${page && page.status || 0}`,
+          infra: isInfraFetchFailure(page && page.status),
+          via: (page && page.via) || null,
+        });
         return;
       }
       const check = evaluatePageEvidence({ text: page.text, html: page.html, product, claimedPrice });
@@ -232,7 +248,7 @@ async function verifyPriceSources({
         failed.push({ source: src, reason: check.reason });
       }
     } catch (err) {
-      failed.push({ source: src, reason: `fetch_error:${err.message}` });
+      failed.push({ source: src, reason: `fetch_error:${err.message}`, infra: true });
     }
   }));
 
@@ -300,27 +316,46 @@ async function validatePricingProposal({ pricing, product, fetchPage, maxPages, 
   });
 
   const droppedCount = dropped.length + failed.length;
+  // Reiner Infrastruktur-Ausfall (JEDER Kandidat scheiterte am Abruf selbst, kein
+  // einziges Content-Urteil): kein Urteil über den Beleg möglich — die Botschaft
+  // an den Operator muss das ehrlich sagen statt "UNBELEGT" zu behaupten.
+  // 'not_checked_cap'-Einträge haben kein infra-Flag → bei >maxPages Quellen
+  // fällt es konservativ auf UNBELEGT zurück (fail-closed).
+  const infraOnly =
+    verified.length === 0 &&
+    candidates.length > 0 &&
+    failed.length > 0 &&
+    failed.every((f) => f.infra === true);
   lp.sources = verified;
   lp.evidence_check = {
     checked_at: new Date().toISOString(),
     verified: verified.length,
     dropped: droppedCount,
+    outcome: verified.length ? 'verified' : (infraOnly ? 'fetch_infrastructure_failure' : 'unverified'),
     dropped_reasons: [
       ...dropped.map((d) => `${d.kind}:${d.reason}`),
       ...failed.map((f) => f.reason),
     ].slice(0, 10),
   };
+  if (infraOnly) {
+    lp.evidence_check.unchecked_urls = candidates
+      .map((s) => String(s && s.url || '').trim())
+      .filter(Boolean)
+      .slice(0, 5);
+  }
 
   let note = null;
   if (verified.length === 0) {
     out.price_confidence = Math.min(Number(out.price_confidence) || 0, 0.3);
     if (flatShape) delete out.source_url; // erfundene Flach-URL nicht durchreichen
-    note = 'Keine der angegebenen Preisquellen konnte verifiziert werden (Seite nicht erreichbar, Preis nicht auf der Seite oder themenfremd). Der Preis wurde als UNBELEGT markiert — bitte manuell prüfen.';
+    note = infraOnly
+      ? 'Die Preisquellen konnten technisch nicht geprüft werden (Seitenabruf fehlgeschlagen) — kein Urteil über den Beleg möglich. Der Preis gilt als unbestätigt, bitte manuell prüfen.'
+      : 'Keine der angegebenen Preisquellen konnte verifiziert werden (Seite nicht erreichbar, Preis nicht auf der Seite oder themenfremd). Der Preis wurde als UNBELEGT markiert — bitte manuell prüfen.';
   } else if (droppedCount > 0) {
     note = `${droppedCount} von ${sources.length} Preisquellen wurden verworfen (nicht verifizierbar); ${verified.length} Quelle(n) bestätigt.`;
   }
 
-  return { pricing: out, verifiedCount: verified.length, droppedCount, note };
+  return { pricing: out, verifiedCount: verified.length, droppedCount, note, infraFailure: infraOnly };
 }
 
 module.exports = {
@@ -329,6 +364,7 @@ module.exports = {
   filterStructurallySound,
   evaluatePageEvidence,
   priceTextVariants,
+  isInfraFetchFailure,
   verifyPriceSources,
   validatePricingProposal,
 };

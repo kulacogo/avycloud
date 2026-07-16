@@ -1377,16 +1377,23 @@ async function validateChatPricing(chatResult, product) {
   const { validatePricingProposal } = require('../lib/price-evidence');
   for (const change of withPricing) {
     try {
-      const { pricing, verifiedCount, droppedCount, note } = await validatePricingProposal({
+      const { pricing, verifiedCount, droppedCount, note, infraFailure } = await validatePricingProposal({
         pricing: change.pricing,
         product,
       });
       change.pricing = pricing;
       if (note) {
         chatResult.message = `${chatResult.message || ''}\n\n⚠️ ${note}`.trim();
+        // Das Modell hat oft schon "Preis übernommen" formuliert, BEVOR der
+        // Validator lief — dieser Widerspruch war User-sichtbar (Incident
+        // 2026-07-16). Die Modell-Prosa lässt sich nicht sicher umschreiben,
+        // also den Erfolg explizit widerrufen.
+        if (verifiedCount === 0) {
+          chatResult.message = `${chatResult.message}\nHinweis: Eine oben genannte Preis-Übernahme gilt damit als NICHT bestätigt.`;
+        }
       }
       console.log(
-        `[chat] price-evidence: product=${product?.id} verified=${verifiedCount} dropped=${droppedCount}`
+        `[chat] price-evidence: product=${product?.id} verified=${verifiedCount} dropped=${droppedCount} infra=${Boolean(infraFailure)}`
       );
     } catch (err) {
       console.warn(`[chat] price-evidence validation failed (fail-open): ${err.message}`);
@@ -1406,7 +1413,7 @@ async function validateChatPricing(chatResult, product) {
  * Change-Card an (attachKTypDatasheetChange) — Persistenz läuft über den
  * bestehenden "Übernehmen"-Flow, exakt wie jede andere Chat-Änderung.
  */
-const KTYP_CHAT_ATTACH_TIMEOUT_MS = Number(process.env.KTYP_CHAT_ATTACH_TIMEOUT_MS || 15000);
+const KTYP_CHAT_ATTACH_TIMEOUT_MS = Number(process.env.KTYP_CHAT_ATTACH_TIMEOUT_MS || 4000);
 
 function startChatKTypEnrichment(product) {
   const beforeValue = String(product?.details?.attributes?.['K-Typ'] || '').trim();
@@ -1437,17 +1444,23 @@ async function attachKTypDatasheetChange(chatResult, product, enrichHandle) {
       ? chatResult.datasheetChanges
       : [];
     // Kein Duplikat, wenn das Modell in diesem Turn selbst einen K-Typ vorschlug.
-    const llmAlreadyProposed = chatResult.datasheetChanges.some(
-      (c) =>
-        Array.isArray(c?.attributes) &&
-        c.attributes.some(
-          (a) => String(a?.key || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '') === 'ktyp'
-        )
-    );
+    // V3-Tool-Cards tragen attributes als Array [{key,value}], die K-Typ-Card und
+    // V2-Cards als Map — beide Shapes prüfen.
+    const normKey = (k) => String(k || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '');
+    const llmAlreadyProposed = chatResult.datasheetChanges.some((c) => {
+      if (!c || c === change || !c.attributes) return false;
+      if (Array.isArray(c.attributes)) {
+        return c.attributes.some((a) => normKey(a?.key || a?.name) === 'ktyp');
+      }
+      if (typeof c.attributes === 'object') {
+        return Object.keys(c.attributes).some((k) => normKey(k) === 'ktyp');
+      }
+      return false;
+    });
     if (llmAlreadyProposed) return;
     chatResult.datasheetChanges.push(change);
     console.log(
-      `[chat] K-Typ change card attached: product=${product?.id} values=${change.attributes[0].value.split('|').length}`
+      `[chat] K-Typ change card attached: product=${product?.id} values=${String(change.attributes['K-Typ']).split('|').length}`
     );
   } catch (err) {
     console.warn('[chat] K-Typ change attach failed (non-blocking):', err?.message || err);

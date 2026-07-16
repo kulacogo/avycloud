@@ -86,13 +86,16 @@ describe('buildKTypDatasheetChange — Change-Card-Shape', () => {
     expect(buildKTypDatasheetChange(productWith('123|456'), { beforeValue: '123|456' })).toBeNull();
   });
 
-  it('Change-Card mit attributes-Array wenn K-Typ neu angereichert wurde', () => {
+  it('Change-Card mit attributes-MAP wenn K-Typ neu angereichert wurde (FE-Contract, KEIN Array)', () => {
     const change = buildKTypDatasheetChange(
       productWith('123|456|789', { source: 'local_hsn_tsn' }),
       { beforeValue: '' }
     );
     expect(change).not.toBeNull();
-    expect(change.attributes).toEqual([{ key: 'K-Typ', value: '123|456|789' }]);
+    // Map-Shape ist Pflicht: ProductSheet.applyAssistantChange iteriert
+    // Object.entries() — ein Array erzeugte attributes['0']-Müll (2026-07-16).
+    expect(Array.isArray(change.attributes)).toBe(false);
+    expect(change.attributes).toEqual({ 'K-Typ': '123|456|789' });
     expect(change.confidence).toBeGreaterThanOrEqual(0.9);
     expect(change.summary).toContain('3 Fahrzeuge');
     expect(change.summary).toContain('HSN/TSN');

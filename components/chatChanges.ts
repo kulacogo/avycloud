@@ -42,6 +42,45 @@ function isNonEmptyObject(value: unknown): boolean {
 }
 
 /**
+ * Normalize a change's `attributes` payload to the map shape the apply path
+ * expects (Record<key, primitive>).
+ *
+ * Chat-V3 tool cards (and historically the backend K-Typ card) deliver
+ * attributes as an ARRAY of {key|name, value} — `Object.entries()` over an
+ * array produced `details.attributes['0'] = {key,value}` garbage on apply
+ * (incident 2026-07-16). This boundary accepts BOTH shapes and drops invalid
+ * entries instead of writing junk keys.
+ */
+export function normalizeChangeAttributes(
+  attributes: unknown
+): Record<string, string | number | boolean> {
+  const out: Record<string, string | number | boolean> = {};
+  if (!attributes || typeof attributes !== "object") return out;
+
+  const put = (rawKey: unknown, value: unknown) => {
+    const key = typeof rawKey === "string" ? rawKey.trim() : "";
+    if (!key) return;
+    if (value === null || value === undefined) return;
+    if (typeof value === "object") return; // never write object values into attributes
+    out[key] = value as string | number | boolean;
+  };
+
+  if (Array.isArray(attributes)) {
+    for (const item of attributes) {
+      if (!item || typeof item !== "object") continue;
+      const rec = item as Record<string, unknown>;
+      put(typeof rec.key === "string" && rec.key.trim() ? rec.key : rec.name, rec.value);
+    }
+    return out;
+  }
+
+  for (const [key, value] of Object.entries(attributes as Record<string, unknown>)) {
+    put(key, value);
+  }
+  return out;
+}
+
+/**
  * Merge the two sources of chat datasheet changes into the list to display.
  *
  * @param structured  data.datasheetChanges (canonical structured output)

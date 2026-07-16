@@ -583,6 +583,16 @@ function extractCcmNearModel(text = '', models = []) {
   return Array.from(out);
 }
 
+// Negativ-Cache NUR für den Chat-Pfad: Chat persistiert das Produkt nie, d.h.
+// ohne Cache wiederholt JEDER Chat-Turn auf demselben K-Typ-losen Fitment-Produkt
+// den kompletten SerpAPI+Fetch-Wasserfall. Identify/Improve bleiben ungecacht.
+const CHAT_NEGATIVE_CACHE = new Map(); // productId -> atMs
+const CHAT_NEGATIVE_CACHE_TTL_MS = 10 * 60 * 1000;
+
+function markChatNegative(product, reason) {
+  if (reason === 'chat' && product?.id) CHAT_NEGATIVE_CACHE.set(product.id, Date.now());
+}
+
 async function enrichKTypIfPossible(product, { reason = 'identify', maxKTypes = 60 } = {}) {
   // Preconditions
   const catId = pickCategoryId(product);
@@ -594,6 +604,12 @@ async function enrichKTypIfPossible(product, { reason = 'identify', maxKTypes = 
   if (hasKTyp(product)) {
     attachKTypeTrace(product, { ok: false, reason: 'already_has_ktype', fitment_mode: fitmentMode, catId: catId || null });
     return { ok: false, reason: 'already_has_ktype' };
+  }
+  if (reason === 'chat' && product?.id) {
+    const negAt = CHAT_NEGATIVE_CACHE.get(product.id);
+    if (negAt && Date.now() - negAt < CHAT_NEGATIVE_CACHE_TTL_MS) {
+      return { ok: false, reason: 'chat_negative_cached' };
+    }
   }
   const mpn = pickPartNumber(product);
   const mvl = fitmentMode === 'auto' ? await loadMvlIndex() : null;
@@ -614,6 +630,7 @@ async function enrichKTypIfPossible(product, { reason = 'identify', maxKTypes = 
       mvl_gcs_uri: mvl.gcsUri || null,
       mvl_download: mvl.download || null,
     });
+    markChatNegative(product, reason);
     return { ok: false, reason: 'mvl_missing' };
   }
   if (fitmentMode === 'moto' && moto && !moto.ok) {
@@ -629,6 +646,7 @@ async function enrichKTypIfPossible(product, { reason = 'identify', maxKTypes = 
       mpn,
       moto_path: moto.jsonlPath || null,
     });
+    markChatNegative(product, reason);
     return { ok: false, reason: 'moto_missing' };
   }
 
@@ -684,6 +702,7 @@ async function enrichKTypIfPossible(product, { reason = 'identify', maxKTypes = 
       mvl_path: mvl?.jsonlPath || null,
       moto_path: moto?.jsonlPath || null,
     });
+    markChatNegative(product, reason);
     return { ok: false, reason: 'missing_part_number' };
   }
 
@@ -786,6 +805,7 @@ async function enrichKTypIfPossible(product, { reason = 'identify', maxKTypes = 
       mvl_path: mvl?.jsonlPath || null,
       moto_path: moto?.jsonlPath || null,
     });
+    markChatNegative(product, reason);
     return { ok: false, reason: 'no_matches', fitmentMode, queries };
   }
 
@@ -840,7 +860,10 @@ function buildKTypDatasheetChange(product, { beforeValue = '' } = {}) {
   return {
     summary: `K-Typ (Fahrzeugverwendungsliste) automatisch ermittelt: ${count} Fahrzeug${count === 1 ? '' : 'e'} via ${via}.`,
     confidence: 0.95,
-    attributes: [{ key: 'K-Typ', value: nowValue }],
+    // FE-Contract (types.ts DatasheetChange.attributes) ist eine Map, KEIN Array —
+    // ProductSheet.applyAssistantChange iteriert Object.entries(); ein Array
+    // erzeugte dort details.attributes['0'] = {key,value}-Müll (Review 2026-07-16).
+    attributes: { 'K-Typ': nowValue },
   };
 }
 
