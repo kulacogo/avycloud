@@ -357,11 +357,16 @@ function sanitizeDatasheetChangeV3(entry) {
             ? Object.entries(raw).map(([k, v]) => ({ key: k, value: v }))
             : [];
         const cleaned = [];
+        const { isKTypSynonymKey, isPlausibleKTypValue } = require('../lib/ktype-key-normalize');
         for (const attr of rawList) {
           if (!attr || typeof attr !== 'object') continue;
           const key = sanitizeString(attr.key ?? attr.name, 60);
           const value = sanitizeString(attr.value, 240);
           if (!key || !value) continue;
+          // K-Typ ist LLM-tabu: nur numerische TecDoc-IDs sind zulässig, und die
+          // kommen ausschließlich aus der automatischen Anreicherung — erfundene
+          // Text-Platzhalter fliegen schon aus der Vorschlags-Karte (2026-07-16).
+          if (isKTypSynonymKey(key) && !isPlausibleKTypValue(value)) continue;
           const item = { key, value };
           if (typeof attr.value_type === 'string' && attr.value_type.trim()) {
             item.value_type = sanitizeString(attr.value_type, 30);
@@ -493,6 +498,7 @@ function buildSystemPromptV3(product, { locale = 'de-DE' } = {}) {
     '- Auch wenn du keine eindeutigen neuen Fakten gefunden hast: Rufe update_product_datasheet mit leeren arrays auf und erkläre im `summary`-Feld warum (z.B. "Keine verlässlichen Quellen gefunden, bitte manuell prüfen").',
     '- Gib KEINE finalen Produktdaten nur als Text aus — sie MÜSSEN über update_product_datasheet strukturiert zurückkommen.',
     '- Jeder datasheetChanges-Eintrag sollte source/evidence-URL enthalten wenn möglich — aber NUR URLs, die du in diesem Turn tatsächlich über Tools/Suche gesehen hast. NIEMALS eine URL konstruieren oder raten; lieber Feld weglassen.',
+    '- Das Attribut "K-Typ" NIEMALS selbst setzen, schätzen oder mit Text/Platzhaltern füllen — es enthält ausschließlich numerische TecDoc-IDs und wird automatisch aus der eBay-Fahrzeugliste angereichert. Ist es leer: sag ehrlich, dass keine belegbare Zuordnung gefunden wurde, und ergänze stattdessen belegte HSN/TSN- oder OE-Nummern (die helfen der Automatik).',
     '- PREIS-QUELLEN (STRENG): pricing.source_url muss eine konkrete Angebotsseite GENAU dieses Produkts sein (gleiche Marke, gleiches Modell, gleiche Variante/Größe/Farbe) und den angegebenen amount tatsächlich zeigen. Such-/Ergebnisseiten (ebay.de/sch, amazon.de/s, idealo-Suche, Google) sind als Quelle VERBOTEN. Bei mehreren Größen/Varianten NIE den Preis der kleinsten Variante nehmen. Kein belastbarer Beleg gefunden → source_url weglassen, confidence ≤ 0.3, und dem Nutzer ehrlich sagen, dass der Preis unbelegt ist. Das System prüft jede Quelle automatisch nach.',
     '- Research-Tools liefern structured outputs — Temperature ist 1.0 by design, aber sei konservativ bei confidence-Scores.',
     '- Cross-Referenziere mindestens 2 unabhängige Quellen bevor Du eine Behauptung übernimmst.',

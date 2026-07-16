@@ -1977,6 +1977,20 @@ async function saveProduct(product, options = {}) {
       if (!key) continue;
       const value = coerceAttributeValueToPolicy(key, rawVal, { maxLen: 60 });
       if (!value) continue;
+      // K-Typ-WERT-Guard (Incident 2026-07-16): K-Typ trägt ausschließlich
+      // numerische TecDoc-IDs (plus Legacy-Anmerkungen pro Segment). Erfundener
+      // Text ("Siehe eBay Fahrzeugverwendungsliste …") macht das Feld für
+      // eBay-Kompatibilität wertlos und wird hier — für ALLE Schreibpfade —
+      // verworfen. Ein leeres Feld triggert die ehrliche "K-Typ fehlt"-Warnung.
+      try {
+        const { isKTypSynonymKey, isPlausibleKTypValue } = require('./ktype-key-normalize');
+        if (isKTypSynonymKey(key) && !isPlausibleKTypValue(value)) {
+          console.warn(
+            `[saveProduct] K-Typ value rejected (non-numeric) for ${product.id}: ${JSON.stringify(String(value).slice(0, 80))}`
+          );
+          continue;
+        }
+      } catch { /* guard darf den Save nie brechen */ }
       mergedAttributes[key] = value;
     }
 
