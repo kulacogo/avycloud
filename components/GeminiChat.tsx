@@ -1083,13 +1083,9 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
                       : 'Die Antwort enthält unsichere Angaben — bitte manuell prüfen.')}
                 </p>
               )}
-              {needsHuman?.suggestions?.length ? (
-                <ul className="mt-1 ml-4 list-disc text-txt-muted">
-                  {needsHuman.suggestions.map((s, i) => (
-                    <li key={i}>{s}</li>
-                  ))}
-                </ul>
-              ) : null}
+              {/* Die suggestions sind per Konstruktion die change.summary-Texte der
+                  Cards direkt darüber (Backend: state.datasheetChanges.map(c => c.summary))
+                  — sie hier zu wiederholen war reiner Duplikat-Lärm (2026-07-16). */}
             </div>
           )}
         </div>

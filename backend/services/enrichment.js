@@ -3466,6 +3466,9 @@ module.exports = {
   runProductIdentification,
   ensureCategories,
   ensurePriceCoverage,
+  // Von category-resolver.js (Strategie 4, Gemini-Fallback) benötigt — fehlte
+  // im Export, wodurch die Strategie seit jeher mit "is not a function" starb.
+  resolveCategoryWithGemini,
   runDatasheetReview,
   prefetchWebEvidenceForIdentify,
   prefetchWebEvidenceParallel,

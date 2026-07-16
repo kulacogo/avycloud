@@ -128,3 +128,60 @@ describe('resolveProposedCategoryForChanges', () => {
     expect(change.categoryId).toBe('139973');
   });
 });
+
+// ─── Confidence-Gate (Incident 2026-07-16: Cornhole → "PC- & Videospiele") ───
+// resolveCategoryV2 liefert auch UNTERHALB des Accept-Thresholds den besten
+// Kandidaten (best_below_threshold). Ohne Gate wurde ein 0.4-Ratekandidat zur
+// autoritativen Kategorie auf der Übernehmen-Karte und beim Apply als
+// categorySource='manual' zementiert.
+
+describe('resolveProposedCategoryForChanges — Confidence-Gate', () => {
+  const PRODUCT = {
+    tenantId: 'default',
+    identification: { name: 'Decathlon Cornhole Game Standard', brand: 'Decathlon' },
+    details: { categoryId: '261823', categorySource: 'auto:local' },
+  };
+
+  test('Kandidat UNTER dem Threshold (conf 0.4) wird verworfen + Warnung, kein categoryId-Attach', async () => {
+    const change = { summary: 'Kategorie korrigiert', categoryPath: 'Fantasiewelt > Wurfdinge > Bohnensack-Zielwurf' };
+    await resolveProposedCategoryForChanges([change], PRODUCT, {
+      resolver: async () => ({ categoryId: '139973', breadcrumb: 'PC- & Videospiele > PC- & Videospiele', confidence: 0.4 }),
+    });
+    expect(change.categoryId).toBeUndefined();
+    expect(change.categoryPath).toBeUndefined();
+    const warnings = (change.notes && change.notes.warnings) || [];
+    expect(warnings.join(' ')).toContain('konnte keiner gültigen eBay-Kategorie zugeordnet werden');
+  });
+
+  test('Kandidat ÜBER dem Threshold (conf 0.9) wird angehängt', async () => {
+    const change = { summary: 'Kategorie korrigiert', categoryPath: 'Fantasiewelt > Draussenzeug > Zielwurf' };
+    await resolveProposedCategoryForChanges([change], PRODUCT, {
+      resolver: async () => ({ categoryId: '22148', breadcrumb: 'Spielzeug > Spielzeug für draußen > Sonstige', confidence: 0.9 }),
+    });
+    expect(change.categoryId).toBe('22148');
+  });
+
+  test('opts.minConfidence überschreibt den Default-Threshold', async () => {
+    const change = { summary: 'x', categoryPath: 'Fantasiewelt > Spielkram' };
+    await resolveProposedCategoryForChanges([change], PRODUCT, {
+      minConfidence: 0.3,
+      resolver: async () => ({ categoryId: '22148', breadcrumb: 'Spielzeug > Spielzeug für draußen > Sonstige', confidence: 0.4 }),
+    });
+    expect(change.categoryId).toBe('22148');
+  });
+
+  test('Resolver-Ergebnis ohne confidence-Feld zählt als 0 → verworfen', async () => {
+    const change = { summary: 'x', categoryPath: 'Irgendwas' };
+    await resolveProposedCategoryForChanges([change], PRODUCT, {
+      resolver: async () => ({ categoryId: '139973', breadcrumb: 'PC- & Videospiele > PC- & Videospiele' }),
+    });
+    expect(change.categoryId).toBeUndefined();
+  });
+});
+
+describe('Gemini-Strategie-Reparatur (Export-Regression)', () => {
+  test('enrichment.js exportiert resolveCategoryWithGemini (Strategie 4 starb sonst mit "is not a function")', () => {
+    const enrichment = require('../../services/enrichment');
+    expect(typeof enrichment.resolveCategoryWithGemini).toBe('function');
+  });
+});

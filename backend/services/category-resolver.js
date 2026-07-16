@@ -787,13 +787,30 @@ async function resolveProposedCategoryForChanges(changes, product, opts = {}) {
       resolved = null;
     }
 
-    if (resolved && safeString(resolved.categoryId)) {
+    // resolveCategoryV2 liefert auch UNTERHALB des Accept-Thresholds noch den
+    // besten Kandidaten (best_below_threshold) — Kontrakt für Aufrufer, die
+    // selbst gaten. Hier MUSS gegated werden: Ein 0.4-Ratekandidat wurde sonst
+    // zur autoritativen Kategorie auf der Übernehmen-Karte und via Apply als
+    // categorySource='manual' zementiert (Incident 2026-07-16: Cornhole-Wurfspiel
+    // → "PC- & Videospiele", degenerierte Fast-Root-Kategorie, conf=0.4).
+    const minConfidence = Number.isFinite(Number(opts.minConfidence))
+      ? Number(opts.minConfidence)
+      : STRATEGY_ACCEPT_THRESHOLD;
+    const resolvedConfidence = Number(resolved && resolved.confidence) || 0;
+    if (resolved && safeString(resolved.categoryId) && resolvedConfidence >= minConfidence) {
       attachCategory(change, String(resolved.categoryId), safeString(resolved.breadcrumb) || proposed);
       continue;
     }
 
-    // 3) Unresolvable -> drop the unverified breadcrumb and surface a warning so
-    //    the prose "Kategorie-Korrektur" is never silently false.
+    // 3) Unresolvable (oder nur mit unzureichender Konfidenz auflösbar) ->
+    //    drop the unverified breadcrumb and surface a warning so the prose
+    //    "Kategorie-Korrektur" is never silently false. Das Frontend zeigt in
+    //    diesem Fall den ehrlichen Bestätigen-Flow (Kategorie-Suche-Prefill).
+    if (resolved && safeString(resolved.categoryId)) {
+      console.log(
+        `[category-resolver] proposed-category below confidence gate: "${proposed}" -> ${resolved.categoryId} (conf=${resolvedConfidence.toFixed(2)} < ${minConfidence}) — dropped`
+      );
+    }
     dropProposedCategory(change);
     addChangeWarning(
       change,
