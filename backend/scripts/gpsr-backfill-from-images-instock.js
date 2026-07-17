@@ -176,7 +176,8 @@ async function main() {
         source: 'product_image',
         extractedAt: startedAt,
         contributedRoles,
-        pendingEbayRegulatoryPush: materialChange || undefined,
+        // Nur bei materieller Änderung setzen — Firestore verbietet undefined-Werte.
+        ...(materialChange ? { pendingEbayRegulatoryPush: true } : {}),
       };
 
       rec.contributedRoles = contributedRoles;

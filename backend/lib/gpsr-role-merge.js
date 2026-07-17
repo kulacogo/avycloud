@@ -10,7 +10,7 @@
  */
 
 const { normalizeGpsrObject, normalizeCountryCode } = require('./gpsr-manufacturer-registry');
-const { DEFAULT_EU_REP, isNonEuManufacturer, hasEuRepFields } = require('./gpsr-eu-rep');
+const { DEFAULT_EU_REP, isNonEuManufacturer } = require('./gpsr-eu-rep');
 const { looksLikeFakePhone, looksLikeSuspectEmail } = require('./gpsr-evidence');
 
 // Feldgruppen je GPSR-Rolle. Die Etikett-Extraktion mappt manufacturer_country
@@ -151,8 +151,14 @@ function buildMergedGpsr(existingGpsr, labelGpsr) {
 
   const normalized = normalizeGpsrObject(next) || next;
 
+  // Nicht-EU-Hersteller OHNE benannten EU-Rep -> Firmen-Default eVatmaster.
+  // WICHTIG: nur wenn gar KEIN eu_responsible_name existiert. Nennt das Etikett
+  // (oder der Bestand) einen konkreten EU-Rep, ist DIESER der rechtlich
+  // Verantwortliche — er darf NIE durch den Default ersetzt werden (das wären
+  // falsche Regulatory-Daten). Ein nur teil-befüllter echter EU-Rep bleibt
+  // bestehen; seine Vervollständigung ist Sache des Etiketts, nicht des Defaults.
   let euRepDefaultApplied = false;
-  if (isNonEuManufacturer(normalized) && !hasEuRepFields(normalized)) {
+  if (isNonEuManufacturer(normalized) && !safeString(normalized.eu_responsible_name)) {
     Object.assign(normalized, DEFAULT_EU_REP);
     euRepDefaultApplied = true;
     materialChange = true;
