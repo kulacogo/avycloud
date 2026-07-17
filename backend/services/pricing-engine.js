@@ -31,12 +31,23 @@ async function _tier1EanMatch(product, filterCondition) {
       })
     : competitors;
 
-  const prices = filteredCompetitors
+  // Ausreißer aus der Median-Berechnung nehmen (competitor-prices markiert sie).
+  // Alt-Docs ohne outlier-Feld: undefined !== true → bleiben drin (regressionsfrei).
+  const cleanCompetitors = filteredCompetitors.filter(c => c.outlier !== true);
+
+  const prices = cleanCompetitors
     .map(c => parseFloat(c.price))
     .filter(p => p > 0)
     .sort((a, b) => a - b);
 
   if (prices.length === 0) return null;
+
+  // Belastbarkeits-Gate: bei zu kleiner Stichprobe (z. B. genau 1 falsch
+  // etikettiertes EAN-Angebot) ist der Median kein verlässlicher Marktpreis.
+  // Ehrlich durchfallen lassen → cost_plus/andere Tiers greifen, statt einen
+  // Einzel-Ausreißer mit conf 0.9 als "Marktpreis" auszugeben (Incident 2026-07-17).
+  const MIN_RELIABLE_COMPETITORS = parseInt(process.env.COMPETITOR_MIN_RELIABLE_LISTINGS || '3', 10);
+  if (prices.length < MIN_RELIABLE_COMPETITORS) return null;
 
   const mid = Math.floor(prices.length / 2);
   const median = prices.length % 2 === 0
