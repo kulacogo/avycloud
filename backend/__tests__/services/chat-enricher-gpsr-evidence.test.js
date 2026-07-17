@@ -247,3 +247,79 @@ describe('validateGpsrDatasheetChanges — image-sourced (Etikett)', () => {
     expect(res.removed).toBe(1);
   });
 });
+
+// ─── Etikett schlägt Web-Prüfung (Incident 2026-07-17: gr4tec.com widerspricht) ──
+describe('validateGpsrDatasheetChanges — Etikett schlägt Web', () => {
+  // Seite erreichbar, aber Name/Adresse NICHT enthalten → unverifiable (KEIN
+  // no_candidate_urls). Vorher wurde die korrekte Etikett-Angabe verworfen.
+  const fetchUnrelated = vi.fn(async () => ({
+    ok: true, status: 200,
+    text: 'Willkommen bei Gr4tec — LED Beleuchtung. Über uns. Kontakt.', html: '', via: 'test',
+  }));
+
+  it('Chat (failMode open) + Bilder gesendet: unverifiable trotz URL → BEHALTEN', async () => {
+    const changes = [{
+      gpsr: {
+        manufacturer_name: 'Guangzhou Yuanshi Technology Co., Ltd.',
+        manufacturer_address: '106 Fengze East Road, Nansha District, Guangzhou, CN',
+        eu_responsible_name: 'Pro Logistik SP. Zo.o',
+        eu_responsible_address: 'Mickiewicza 21/10, 69-100 Slubice, Polen',
+        url: 'https://www.gr4tec.com',
+      },
+    }];
+    const res = await validateGpsrDatasheetChanges({
+      product: product(), changes, fetchImpl: fetchUnrelated, failMode: 'open', imageContextAvailable: true,
+    });
+    expect(res.removed).toBe(0);
+    expect(res.imageFlagged).toBe(true);
+    expect(res.changes[0].gpsr.manufacturer_name).toContain('Guangzhou Yuanshi');
+    expect(res.changes[0].gpsr.eu_responsible_name).toContain('Pro Logistik');
+  });
+
+  it('Bulk (failMode closed) ohne source-Marker: unverifiable → weiterhin verworfen', async () => {
+    const changes = [{
+      gpsr: { manufacturer_name: 'Guangzhou Yuanshi', manufacturer_address: 'CN', url: 'https://www.gr4tec.com' },
+    }];
+    const res = await validateGpsrDatasheetChanges({
+      product: product(), changes, fetchImpl: fetchUnrelated, failMode: 'closed', imageContextAvailable: true,
+    });
+    expect(res.removed).toBe(1); // Bulk braucht expliziten source-Marker
+  });
+
+  it('Bulk (failMode closed) MIT source=product_image: unverifiable → behalten', async () => {
+    const changes = [{
+      gpsr: { manufacturer_name: 'Guangzhou Yuanshi', manufacturer_address: 'CN', url: 'https://www.gr4tec.com', source: 'product_image' },
+    }];
+    const res = await validateGpsrDatasheetChanges({
+      product: product(), changes, fetchImpl: fetchUnrelated, failMode: 'closed', imageContextAvailable: true,
+    });
+    expect(res.removed).toBe(0);
+    expect(res.imageFlagged).toBe(true);
+  });
+});
+
+describe('validateGpsrDatasheetChanges — infra + Etikett (echter Gr4tec-Pfad)', () => {
+  // Web-Fetch scheitert (BrightData tot) → verifyGpsrRecord infra_blocked.
+  // Bei Etikett-Quelle muss die korrekte Angabe TROTZDEM behalten werden.
+  const fetchDown = vi.fn(async () => ({ ok: false, status: 0, text: '', html: '', via: 'test' }));
+
+  it('infra_blocked + Bilder (failMode open) → behalten mit product_image-Flag', async () => {
+    const changes = [{
+      gpsr: {
+        manufacturer_name: 'Guangzhou Yuanshi Technology Co., Ltd.',
+        manufacturer_address: '106 Fengze East Road, Nansha District, Guangzhou, CN',
+        eu_responsible_name: 'Pro Logistik SP. Zo.o',
+        eu_responsible_email: 'Prologistik001@gmail.com',
+        url: 'https://www.gr4tec.com',
+        source: 'product_image',
+      },
+    }];
+    const res = await validateGpsrDatasheetChanges({
+      product: product(), changes, fetchImpl: fetchDown, failMode: 'open', imageContextAvailable: true,
+    });
+    expect(res.removed).toBe(0);
+    expect(res.imageFlagged).toBe(true);
+    expect(res.changes[0].gpsr.manufacturer_name).toContain('Guangzhou Yuanshi');
+    expect(res.changes[0].gpsr_evidence_check.outcome).toBe('product_image');
+  });
+});

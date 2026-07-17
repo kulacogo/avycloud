@@ -111,11 +111,17 @@ async function validateGpsrDatasheetChanges({ product, changes, fetchImpl, timeo
       kept.push(change);
       continue;
     }
-    // Provenienz-Marker konsumieren + aus der Card strippen, damit er nie als
-    // roher gpsr-Key persistiert oder an verifyGpsrRecord geht. Vertrauen NUR,
-    // wenn dem Modell in diesem Turn tatsächlich Produktbilder gesendet wurden.
-    const imageSourced = imageContextAvailable && _safeStr(change.gpsr.source) === 'product_image';
+    // Provenienz-Marker konsumieren + aus der Card strippen (nie roh persistieren).
+    const explicitImageFlag = _safeStr(change.gpsr.source) === 'product_image';
     if ('source' in change.gpsr) delete change.gpsr.source;
+    // Etikett-Vertrauen: Das physische Verpackungsfoto ist die autoritativste
+    // Quelle und schlägt die Web-Prüfung (Incident 2026-07-17: gr4tec.com listet
+    // den OEM-Hersteller nicht → "unverifiable" verwarf korrekte Etikett-Daten).
+    // Voraussetzung: dem Modell wurden ECHTE Produktbilder gesendet
+    // (imageContextAvailable, wahrhaftig aus productImagesSent). Im interaktiven
+    // Chat (failMode 'open', Human-Review) reicht das; im Bulk (kein Review)
+    // zusätzlich der explizite source='product_image'-Marker.
+    const imageSourced = imageContextAvailable && (explicitImageFlag || failMode === 'open');
 
     const incoming = _pickGpsrProposal(change.gpsr);
     if (!Object.keys(incoming).length) {
@@ -165,21 +171,19 @@ async function validateGpsrDatasheetChanges({ product, changes, fetchImpl, timeo
     }
 
     if (verification.status === 'unverifiable') {
-      // Vom Etikett abgelesene Daten (source=product_image) sind Ground Truth
-      // vom EIGENEN Produkt. "unverifiable" heißt hier nur "kein Web-Impressum
-      // gefunden" (no_candidate_urls) — das darf sie NICHT verwerfen, solange
-      // kein aktiver Web-Widerspruch vorliegt und die Fake-Gates oben grün sind.
-      // Widerlegt dagegen die Hersteller-EIGENE Seite die Angabe, gewinnt die
-      // Seite (dann kein no_candidate_urls-Issue) → weiterhin verwerfen.
-      const noWebCheck = issues.includes('no_candidate_urls') || issues.includes('no_gpsr_data');
-      if (imageSourced && noWebCheck) {
+      // Vom Etikett abgelesene Daten sind Ground Truth vom EIGENEN Produkt und
+      // schlagen die Web-Prüfung: Eine Marken-/Händlerseite (z. B. gr4tec.com)
+      // listet den OEM-Hersteller oft NICHT — das darf die korrekten
+      // Karton-Angaben nicht verwerfen. Die Fake-Gates oben (Fake-Telefon/
+      // suspekte E-Mail) bleiben die Halluzinations-Absicherung.
+      if (imageSourced) {
         imageFlagged = true;
         change.gpsr_evidence_check = {
           outcome: 'product_image',
           checked_at: new Date().toISOString(),
-          note: 'aus Produktbild abgelesen — kein Web-Impressum-Beleg, bitte sichten',
+          note: 'vom Produktbild/Etikett abgelesen — kein passender Web-Impressum-Beleg, bitte sichten',
         };
-        notes.add('Die Hersteller-/GPSR-Angaben wurden vom Produktbild (Etikett) abgelesen und übernommen — es gibt keinen Web-Impressum-Beleg, bitte kurz sichten.');
+        notes.add('Die Hersteller-/GPSR-Angaben wurden vom Produktbild (Etikett) abgelesen und übernommen — bitte kurz gegenprüfen.');
         kept.push(change);
         continue;
       }
@@ -189,8 +193,20 @@ async function validateGpsrDatasheetChanges({ product, changes, fetchImpl, timeo
     }
 
     if (verification.status === 'infra_blocked') {
-      // Netz-/Infrastruktur-Problem: kein Urteil moeglich — NICHT blocken,
-      // aber ehrlich flaggen (Preis-Doktrin: infra != unbelegt).
+      // Netz-/Infrastruktur-Problem: kein Urteil moeglich — NICHT blocken.
+      // Bei Etikett-Quelle die klarere "vom Produktbild"-Botschaft (die Daten
+      // sind vom eigenen Karton, nicht "unbestätigt geraten").
+      if (imageSourced) {
+        imageFlagged = true;
+        change.gpsr_evidence_check = {
+          outcome: 'product_image',
+          checked_at: new Date().toISOString(),
+          note: 'vom Produktbild/Etikett abgelesen (Web-Beleg technisch nicht erreichbar), bitte sichten',
+        };
+        notes.add('Die Hersteller-/GPSR-Angaben wurden vom Produktbild (Etikett) abgelesen und übernommen — bitte kurz gegenprüfen.');
+        kept.push(change);
+        continue;
+      }
       infraFlagged = true;
       change.gpsr_evidence_check = {
         outcome: 'fetch_infrastructure_failure',
