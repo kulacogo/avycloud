@@ -138,8 +138,14 @@ const CompetitorPrices: React.FC<CompetitorPricesProps> = ({ ean, ownPrice, stor
     ...(data?.kaufland || []),
   ].sort((a, b) => a.price - b.price);
 
-  // Find cheapest competitor
-  const cheapest = allListings.length > 0 ? allListings[0] : null;
+  // Belastbarkeit deterministisch aus den (persistierten) outlier-Flags per
+  // Count — funktioniert für stored- UND live-Pfad identisch (Incident 2026-07-17:
+  // ein einzelnes falsch etikettiertes 59€-Angebot durfte nie "Günstigster
+  // Konkurrent" sein). Ausreißer raus, dann Mindest-Stichprobe fordern.
+  const MIN_RELIABLE = 3;
+  const reliableListings = allListings.filter((l) => l.outlier !== true);
+  const priceReliable = reliableListings.length >= MIN_RELIABLE;
+  const cheapest = priceReliable ? reliableListings[0] : null;
 
   return (
     <div className="space-y-3">
@@ -179,13 +185,25 @@ const CompetitorPrices: React.FC<CompetitorPricesProps> = ({ ean, ownPrice, stor
         </button>
       </div>
 
-      {/* Summary bar */}
+      {/* Summary bar — nur bei belastbarer Stichprobe */}
       {cheapest && ownPrice != null && ownPrice > 0 && !loading && (
         <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-app-surface border border-app-border">
           <span className="text-xs text-txt-muted">Günstigster Konkurrent:</span>
           <PriceBadge price={cheapest.price} ownPrice={ownPrice} />
           <span className="text-xs text-txt-muted">
             ({cheapest.marketplace === 'ebay' ? 'eBay' : 'Kaufland'})
+          </span>
+        </div>
+      )}
+
+      {/* Zu wenige belastbare Angebote → kein "Günstigster Konkurrent", ehrlich */}
+      {!priceReliable && allListings.length > 0 && !loading && (
+        <div className="px-3 py-2 rounded-lg bg-app-surface border border-app-border">
+          <span className="text-xs text-txt-muted">
+            Nur {reliableListings.length} belastbare{reliableListings.length === 1 ? 's' : ''} Angebot
+            {reliableListings.length === 1 ? '' : 'e'}
+            {allListings.length !== reliableListings.length && ' (Ausreißer ausgeblendet)'} — kein
+            verlässlicher Marktpreis.
           </span>
         </div>
       )}

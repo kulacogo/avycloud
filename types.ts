@@ -131,6 +131,8 @@ export interface CompetitorListing {
   currency: string;
   shippingCost?: number;
   url?: string;
+  outlier?: boolean;
+  matchType?: string;
 }
 
 export interface CompetitorPricesResponse {
@@ -138,6 +140,10 @@ export interface CompetitorPricesResponse {
   kaufland: CompetitorListing[];
   cached: boolean;
   fetched_at: string;
+  reliable?: boolean;
+  unreliableReason?: string;
+  marketMedian?: number | null;
+  cheapestReliable?: number | null;
 }
 
 export interface PriceHistoryEntry {

@@ -12,6 +12,47 @@
 const CACHE_TTL_MS = 2 * 60 * 60 * 1000; // 2 hours
 const CACHE_MAX_SIZE = 2000;
 
+// Belastbarkeit / Ausreißer (Incident 2026-07-17): Ein einzelnes falsch
+// etikettiertes EAN-Angebot (Bosch: 59€ Privat-"Bundle", Markt 4-12€) wurde als
+// "Günstigster Konkurrent" gezeigt. Ab MIN_RELIABLE Angeboten wird der Median
+// berechnet und Preise jenseits Faktor HIGH/LOW als Ausreißer markiert.
+const MIN_RELIABLE = parseInt(process.env.COMPETITOR_MIN_RELIABLE_LISTINGS || '3', 10);
+const OUTLIER_HIGH_FACTOR = parseFloat(process.env.COMPETITOR_OUTLIER_HIGH_FACTOR || '3');
+const OUTLIER_LOW_FACTOR = parseFloat(process.env.COMPETITOR_OUTLIER_LOW_FACTOR || '3');
+
+/**
+ * Markiert Ausreißer in-place (listing.outlier) und liefert Belastbarkeits-
+ * Kennzahlen. Bei < MIN_RELIABLE validen Angeboten ist der Median instabil →
+ * keine Ausreißerprüfung, reliable:false (insufficient_sample).
+ * @param {Array<{price:number|null}>} listings
+ */
+function analyzeCompetitorReliability(listings) {
+  const all = Array.isArray(listings) ? listings : [];
+  for (const l of all) { if (l && typeof l === 'object') l.outlier = false; }
+  const valid = all.filter((l) => l && Number.isFinite(l.price) && l.price > 0);
+
+  if (valid.length < MIN_RELIABLE) {
+    return { reliable: false, unreliableReason: 'insufficient_sample', marketMedian: null, cheapestReliable: null };
+  }
+  const median = (arr) => {
+    const s = arr.map((l) => l.price).sort((a, b) => a - b);
+    const mid = Math.floor(s.length / 2);
+    return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
+  };
+  const med = median(valid);
+  for (const l of valid) {
+    l.outlier = l.price > med * OUTLIER_HIGH_FACTOR || l.price < med / OUTLIER_LOW_FACTOR;
+  }
+  const clean = valid.filter((l) => !l.outlier);
+  const reliable = clean.length >= MIN_RELIABLE;
+  return {
+    reliable,
+    unreliableReason: reliable ? null : 'insufficient_after_outlier_filter',
+    marketMedian: clean.length ? median(clean) : null,
+    cheapestReliable: clean.length ? Math.min(...clean.map((l) => l.price)) : null,
+  };
+}
+
 /** @type {Map<string, { data: any, expiresAt: number }>} */
 const cache = new Map();
 
@@ -101,6 +142,8 @@ async function fetchEbayCompetitorListings(ean) {
         currency,
         shippingCost: Number.isFinite(shippingCost) ? shippingCost : undefined,
         url: /^https?:\/\//i.test(itemUrl) ? itemUrl : undefined,
+        matchType: 'gtin',
+        outlier: false,
       };
     })
     .filter((x) => x.price !== null && x.price >= 1 && x.currency === 'EUR')
@@ -154,6 +197,8 @@ async function fetchKauflandCompetitorListings(ean) {
           url: idProduct
             ? `https://www.kaufland.de/product/${idProduct}/`
             : undefined,
+          matchType: 'gtin',
+          outlier: false,
         };
       })
       .filter((x) => x.price !== null && x.price >= 1)
@@ -207,6 +252,13 @@ async function getCompetitorPrices(ean) {
   if (kauflandResult.status === 'rejected') {
     console.error('[competitor-prices] Kaufland fetch failed:', kauflandResult.reason?.message || kauflandResult.reason);
   }
+
+  // Ausreißer/Belastbarkeit über beide Marktplätze (mutiert outlier-Flags in-place).
+  const analysis = analyzeCompetitorReliability([...data.ebay, ...data.kaufland]);
+  data.reliable = analysis.reliable;
+  data.unreliableReason = analysis.unreliableReason;
+  data.marketMedian = analysis.marketMedian;
+  data.cheapestReliable = analysis.cheapestReliable;
 
   // Cache the result
   pruneCache();
@@ -309,4 +361,4 @@ async function storeCompetitorPricesToProduct(productId, collection, data) {
   }
 }
 
-module.exports = { getCompetitorPrices, fetchEbayCompetitorListings, fetchKauflandCompetitorListings, logPriceHistory, storeCompetitorPricesToProduct, pruneUndefinedDeep };
+module.exports = { getCompetitorPrices, fetchEbayCompetitorListings, fetchKauflandCompetitorListings, analyzeCompetitorReliability, logPriceHistory, storeCompetitorPricesToProduct, pruneUndefinedDeep };
