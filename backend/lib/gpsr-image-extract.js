@@ -62,6 +62,14 @@ function safeString(v) {
   return typeof v === 'string' ? v.trim() : v == null ? '' : String(v).trim();
 }
 
+// Manche Modell-Antworten füllen leere Felder mit dem LITERAL-String "null"/"n/a"/
+// "-" statt sie wegzulassen. Diese Platzhalter sind KEINE echten Etikett-Werte und
+// dürfen nie als Hersteller-/EU-Rep-Angabe durchrutschen.
+const JUNK_VALUES = new Set(['null', 'n/a', 'na', 'none', 'nil', 'unknown', 'unbekannt', 'keine angabe', 'k.a.', 'ka', '-', '--', 'n.a.', 'not available', 'nicht angegeben']);
+function isJunkValue(s) {
+  return JUNK_VALUES.has(safeString(s).toLowerCase());
+}
+
 async function fetchImageParts(product) {
   const images = Array.isArray(product?.details?.images) ? product.details.images : [];
   const candidates = images
@@ -110,7 +118,7 @@ async function _extractOnce(imageParts, aiClient) {
   if (!parsed || parsed.label_visible !== true) return { reason: 'no_label_visible' };
 
   const g = {};
-  const put = (k, v) => { const s = safeString(v); if (s) g[k] = s; };
+  const put = (k, v) => { const s = safeString(v); if (s && !isJunkValue(s)) g[k] = s; };
   put('manufacturer_name', parsed.manufacturer_name);
   put('manufacturer_address', parsed.manufacturer_address);
   put('manufacturer_city', parsed.manufacturer_city);

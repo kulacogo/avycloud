@@ -58,7 +58,7 @@ process.env.USE_PRODUCTS_V2 = process.env.USE_PRODUCTS_V2 || 'true';
 const fs = require('fs');
 const path = require('path');
 
-const { firestore, PRODUCTS_COLLECTION } = require('../lib/firestore');
+const { firestore, PRODUCTS_COLLECTION, getAllProductsForTenant } = require('../lib/firestore');
 // Bewusst NUR reviseFixedPriceItem + buildRegulatoryXml — endItem/
 // endFixedPriceItem werden absichtlich NICHT importiert (CLAUDE.md Punkt 14).
 const { reviseFixedPriceItem, buildRegulatoryXml } = require('../lib/ebay-trading-api');
@@ -84,6 +84,7 @@ function parseArgs(argv) {
     tenantId: process.env.TENANT_ID || 'default',
     limit: null,
     outDir: '/tmp',
+    idsFile: null,
     help: false,
   };
   for (let i = 2; i < argv.length; i += 1) {
@@ -92,6 +93,7 @@ function parseArgs(argv) {
     else if (t === '--no-cap') out.noCap = true;
     else if (t === '--tenant') { out.tenantId = argv[i + 1] || out.tenantId; i += 1; }
     else if (t === '--out') { out.outDir = argv[i + 1] || out.outDir; i += 1; }
+    else if (t === '--ids-file') { out.idsFile = argv[i + 1] || null; i += 1; }
     else if (t === '--limit') {
       const n = Number(argv[i + 1]);
       if (Number.isFinite(n) && n > 0) out.limit = Math.floor(n);
@@ -104,15 +106,17 @@ function parseArgs(argv) {
 function printHelp() {
   console.log(`ebay-repush-regulatory.js — GPSR-Regulatory-Block auf bestehende eBay-Listings nachschieben.
 
-  Nur Produkte mit details.gpsr.evidence.status === 'verified' UND aktivem
-  Listing in ${EBAY_LISTINGS_COLLECTION}. Minimal-Patch (nur Regulatory), nie EndItem.
+  Nur Produkte mit details.gpsr.evidence.status ∈ {'verified','product_image'}
+  UND aktivem Listing in ${EBAY_LISTINGS_COLLECTION}. Minimal-Patch (nur
+  Regulatory), nie EndItem.
 
   Optionen:
-    --apply        Revisen wirklich senden (default: Dry-Run)
-    --no-cap       20er-Cap im Apply-Lauf aufheben
-    --tenant <id>  Tenant (default: TENANT_ID env oder 'default')
-    --limit <n>    Max. Kandidaten verarbeiten (auch im Dry-Run)
-    --out <dir>    Report-Verzeichnis (default: /tmp)
+    --apply          Revisen wirklich senden (default: Dry-Run)
+    --no-cap         20er-Cap im Apply-Lauf aufheben
+    --tenant <id>    Tenant (default: TENANT_ID env oder 'default')
+    --limit <n>      Max. Kandidaten verarbeiten (auch im Dry-Run)
+    --ids-file <f>   Nur diese Produkt-Doc-IDs pushen (1 ID/Zeile)
+    --out <dir>      Report-Verzeichnis (default: /tmp)
 `);
 }
 
@@ -197,12 +201,22 @@ async function main() {
   const startedAt = new Date().toISOString();
   console.log(`[ebay-repush-regulatory] Modus=${args.apply ? 'APPLY' : 'DRY-RUN'} tenant=${args.tenantId} cap=${args.apply && !args.noCap ? DEFAULT_APPLY_CAP : 'aus'} limit=${args.limit ?? '-'}`);
 
-  const snap = await firestore
-    .collection(PRODUCTS_COLLECTION)
-    .where('tenantId', '==', args.tenantId)
-    .get();
-  const products = snap.docs.map((d) => ({ id: d.id, ...(d.data() || {}) }));
+  // Legacy-Compat: getAllProductsForTenant liefert (für 'default') auch Docs OHNE
+  // tenantId-Feld — ein reiner where('tenantId'==...)-Filter würde die Mehrheit
+  // des Bestands (und damit label-korrigierte Produkte) verpassen.
+  let products = await getAllProductsForTenant(args.tenantId);
   console.log(`[ebay-repush-regulatory] ${products.length} Produkte geladen (${PRODUCTS_COLLECTION}, tenant=${args.tenantId})`);
+
+  // Optionaler ID-Filter: nur die vom GPSR-Backfill als MATERIELL geänderten
+  // Produkte anfassen (kein No-op-Revise auf unveränderte Listings).
+  if (args.idsFile) {
+    const wanted = new Set(
+      fs.readFileSync(args.idsFile, 'utf8').split('\n').map((s) => s.trim()).filter(Boolean),
+    );
+    const before = products.length;
+    products = products.filter((p) => wanted.has(String(p.id)));
+    console.log(`[ebay-repush-regulatory] --ids-file: ${wanted.size} IDs -> ${products.length}/${before} Produkte gefiltert`);
+  }
 
   const skipped = [];
   const candidates = [];
@@ -221,8 +235,11 @@ async function main() {
       continue;
     }
     const evidenceStatus = safeString(gpsr?.evidence?.status);
-    if (evidenceStatus !== 'verified') {
-      skipped.push({ productId: product.id, sku, itemId, reason: 'not_verified', evidenceStatus: evidenceStatus || null });
+    // 'verified' = GPSR-Evidence-Audit (Web-Beleg). 'product_image' = physisches
+    // Verpackungs-Etikett (lib/gpsr-image-extract.js) — die autoritativste Quelle
+    // überhaupt. Beide sind belegt und pushbar; alles andere wird geskippt.
+    if (evidenceStatus !== 'verified' && evidenceStatus !== 'product_image') {
+      skipped.push({ productId: product.id, sku, itemId, reason: 'not_pushable_evidence', evidenceStatus: evidenceStatus || null });
       continue;
     }
 
