@@ -125,3 +125,61 @@ describe('applyChatChangesToProduct', () => {
     expect(changed).toEqual([]);
   });
 });
+
+// ─── GPSR Etikett-Quelle: Rollen-Block ersetzen, stale Falschwerte weg (2026-07-17) ──
+describe('applyChatChangesToProduct — GPSR image-sourced role replace', () => {
+  const { applyChatChangesToProduct } = require('../../lib/apply-chat-changes');
+
+  function productWithStaleGpsr() {
+    return {
+      id: 'p1',
+      identification: { sku: 'SKU-1', name: 'X', brand: 'X' },
+      details: {
+        attributes: {},
+        gpsr: {
+          // Alt-Müll: EU-REP-PLZ + Chinesen-Telefon beim Hersteller hängen
+          manufacturer_name: 'Gr4tec',
+          manufacturer_postalcode: '69-100',
+          manufacturer_phone: '+8675523736321',
+          eu_responsible_name: 'eVatmaster Consulting GmbH',
+          eu_responsible_address: 'Raiffeisenstr. 2 B11',
+          eu_responsible_country: 'Germany',
+        },
+      },
+    };
+  }
+
+  it('Etikett-Quelle: alter manufacturer_*-Block wird ersetzt (stale postalcode/phone weg)', () => {
+    const change = {
+      gpsr: {
+        manufacturer_name: 'Guangzhou Yuanshi Technology Co., Ltd.',
+        manufacturer_address: '106 Fengze East Road, Nansha District, Guangzhou',
+        eu_responsible_name: 'Pro Logistik SP. Zo.o',
+        eu_responsible_address: 'Mickiewicza 21/10, 69-100 Slubice',
+        eu_responsible_country: 'Poland',
+      },
+      gpsr_evidence_check: { outcome: 'product_image' },
+    };
+    const { product } = applyChatChangesToProduct(productWithStaleGpsr(), [change]);
+    const g = product.details.gpsr;
+    expect(g.manufacturer_name).toBe('Guangzhou Yuanshi Technology Co., Ltd.');
+    // Stale Hersteller-Felder sind WEG (nicht mehr additiv überlebt):
+    expect(g.manufacturer_postalcode).toBeUndefined();
+    expect(g.manufacturer_phone).toBeUndefined();
+    // EU-REP komplett ersetzt (kein eVatmaster mehr):
+    expect(g.eu_responsible_name).toBe('Pro Logistik SP. Zo.o');
+    expect(g.eu_responsible_country).toBe('Poland');
+    expect(JSON.stringify(g)).not.toContain('eVatmaster');
+  });
+
+  it('OHNE image-source: additiver Merge unverändert (kein Datenverlust)', () => {
+    const change = {
+      gpsr: { manufacturer_name: 'Neuer Name' }, // kein gpsr_evidence_check
+    };
+    const { product } = applyChatChangesToProduct(productWithStaleGpsr(), [change]);
+    const g = product.details.gpsr;
+    expect(g.manufacturer_name).toBe('Neuer Name');
+    // Alt-Felder bleiben (altes additives Verhalten, nur ohne Etikett-Autorität)
+    expect(g.manufacturer_postalcode).toBe('69-100');
+  });
+});

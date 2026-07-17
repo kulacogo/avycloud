@@ -31,9 +31,11 @@ const { applyChatChangesToProduct } = require('../lib/apply-chat-changes');
 
 const FULL_ENRICH_MESSAGE = [
   'Reichere das KOMPLETTE Datenblatt dieses Produkts auf eBay-/Kaufland-Listing-Standard an.',
+  'ZUERST die angehängten Produktbilder auswerten: Sie zeigen den echten Artikel/die Verpackung. Lies Marke, Modell/Typnummer, Maße, Material UND besonders die Hersteller-/EU-Verantwortlichen-/GPSR-Angaben DIREKT vom Etikett/Karton ab.',
   'Recherchiere fehlende ODER falsche Daten aktiv (googleSearch, urlContext, lookup_gtin, search_ebay_catalog, search_amazon_product, search_manufacturer_site, fetch_url_content) und KORRIGIERE sie. Cross-referenziere mindestens 2 Quellen.',
-  'Fülle/korrigiere: Titel (MARKE ZUERST, 70–80 Zeichen), Beschreibung, Key-Features, ALLE eBay-Pflicht-Merkmale (Maße/Material/Farbe/Anwendung — verifiziert!), GPSR (Hersteller bzw. EU-Verantwortlicher), Gewicht, Preis (mit Quellen-URL).',
-  'Ändere NICHT die Kategorie. Erfinde nichts — nur belegte Fakten; bei Unsicherheit confidence < 0.7 und Feld weglassen.',
+  'Fülle/korrigiere: Titel (MARKE ZUERST, 70–80 Zeichen), Beschreibung, Key-Features, ALLE eBay-Pflicht-Merkmale (Maße/Material/Farbe/Anwendung — verifiziert!), GPSR (Hersteller UND EU-Verantwortlicher, Rollen exakt gemäß Etikett-Beschriftung), Gewicht, Preis (mit Quellen-URL).',
+  'GPSR-Rollen strikt: "Manufacturer:"/"Hersteller:"-Zeile → manufacturer_* (auch China); "EC REP"/"EU-Bevollmächtigter" → eu_responsible_*; "UK/AR" ist NICHT der EU-Verantwortliche. Wenn du Hersteller-/EU-Angaben vom Etikett abliest, setze gpsr.source = "product_image". NIEMALS einen Hersteller/EU-Verantwortlichen erfinden oder Adressen/Telefone der Rollen vermischen.',
+  'Ändere NICHT die Kategorie. Erfinde nichts — nur belegte Fakten oder vom Etikett Abgelesenes; bei Unsicherheit confidence < 0.7 und Feld weglassen.',
   'Gib alle Änderungen über update_product_datasheet zurück, inkl. Quellen.',
 ].join('\n');
 
@@ -248,20 +250,46 @@ async function validateGpsrDatasheetChanges({ product, changes, fetchImpl, timeo
 async function enrichViaChatV3(product, opts = {}) {
   const deps = opts.deps || {};
   const runChat = deps.runProductChatV3 || require('./product-chat-v3').runProductChatV3;
+  const { extractGpsrFromImages } = require('../lib/gpsr-image-extract');
 
-  let result;
-  try {
-    result = await runChat({
+  // AUTORITATIVE GPSR vom Etikett (Incident 2026-07-17): Der agentische Chat
+  // liest GPSR-Rollen inkonsistent (mal richtig, mal Hersteller/EU-Rep vertauscht).
+  // Ein dedizierter, niedrig-temperierter Vision-Call mit striktem Schema liest
+  // die Rollen deterministisch. Er läuft PARALLEL zum agentischen Enrich (nicht
+  // danach — sonst wird er nach dem 90s-Call ressourcen-ausgehungert und
+  // scheitert am Timeout), und sein Ergebnis ERSETZT den agentischen GPSR-Read.
+  const [chatOutcome, extracted] = await Promise.all([
+    runChat({
       product,
       message: FULL_ENRICH_MESSAGE,
       tenantId: opts.tenantId || null,
       userId: opts.userId || 'bulk-veredler',
-    });
-  } catch (e) {
-    return { product, changed: [], datasheetChanges: [], evidence: [], confidence: null, model: null, error: (e && e.message) || String(e) };
+    }).then((r) => ({ result: r })).catch((e) => ({ error: (e && e.message) || String(e) })),
+    extractGpsrFromImages(product, { aiClient: deps.aiClient }).catch((e) => {
+      console.warn('[chat-enricher] gpsr-image-extract error:', e?.message || e);
+      return null;
+    }),
+  ]);
+
+  if (chatOutcome.error) {
+    return { product, changed: [], datasheetChanges: [], evidence: [], confidence: null, model: null, error: chatOutcome.error };
   }
+  const result = chatOutcome.result;
 
   let datasheetChanges = Array.isArray(result && result.datasheetChanges) ? result.datasheetChanges : [];
+
+  let gpsrImageSourced = false;
+  if (extracted && extracted.gpsr && Object.keys(extracted.gpsr).length) {
+    gpsrImageSourced = true;
+    let gpsrChange = datasheetChanges.find((c) => c && c.gpsr && typeof c.gpsr === 'object');
+    if (!gpsrChange) {
+      gpsrChange = { summary: 'GPSR-Angaben vom Etikett abgelesen', gpsr: {} };
+      datasheetChanges.push(gpsrChange);
+    }
+    gpsrChange.gpsr = { ...extracted.gpsr, source: 'product_image' };
+  }
+  console.log('[chat-enricher] gpsr-image-extract: product=%s imageSourced=%s manufacturer=%s',
+    product?.id || '?', gpsrImageSourced, extracted?.gpsr?.manufacturer_name || '-');
 
   // GPSR-Beleg-Validierung VOR dem Apply — Bulk hat kein Human-Review, daher
   // fail-closed (siehe Kopfkommentar). Kein gpsr in den Changes → No-op.
@@ -272,10 +300,9 @@ async function enrichViaChatV3(product, opts = {}) {
       changes: datasheetChanges,
       fetchImpl: opts.gpsrFetchImpl || deps.gpsrFetchImpl,
       failMode: 'closed',
-      // Vertrauen in Etikett-Daten NUR, wenn dem Modell echt Bilder gesendet
-      // wurden. Bulk hat kein Human-Review — Fake-Gates + auditierbarer
-      // Evidence-Eintrag (outcome:'product_image') bleiben aktiv.
-      imageContextAvailable: Number(result && result.productImagesSent) > 0,
+      // Etikett-Extraktion ODER echt gesendete Bilder = vertrauenswürdiger
+      // Bildkontext. Fake-Gates + auditierbarer Evidence-Eintrag bleiben aktiv.
+      imageContextAvailable: gpsrImageSourced || Number(result && result.productImagesSent) > 0,
     });
     datasheetChanges = gpsrValidation.changes;
   }
@@ -285,10 +312,19 @@ async function enrichViaChatV3(product, opts = {}) {
   // Beleg-Metadaten ins Datenblatt schreiben, wenn gpsr angewendet wurde
   // (apply-chat-changes stringifiziert Objekt-Werte in change.gpsr — deshalb
   // wird evidence hier NACH dem Apply gesetzt, nie in der Card selbst).
-  if (gpsrValidation && changed.includes('gpsr') && merged.details && merged.details.gpsr) {
-    if (gpsrValidation.verifiedEvidence) {
+  if (changed.includes('gpsr') && merged.details && merged.details.gpsr) {
+    if (gpsrImageSourced) {
+      // Etikett-Quelle ist AUTORITATIV: der Marker sorgt dafür, dass die
+      // GPSR-Marken-Registry sie NICHT überschreibt (gpsrRegistryEnforce) und
+      // stattdessen mit der korrekten Angabe geheilt wird (Incident 2026-07-17).
+      merged.details.gpsr.evidence = {
+        status: 'product_image',
+        checked_at: new Date().toISOString(),
+        source: 'chat-enricher',
+      };
+    } else if (gpsrValidation && gpsrValidation.verifiedEvidence) {
       merged.details.gpsr.evidence = { ...gpsrValidation.verifiedEvidence, source: 'chat-enricher' };
-    } else if (gpsrValidation.infraFlagged) {
+    } else if (gpsrValidation && gpsrValidation.infraFlagged) {
       merged.details.gpsr.evidence = {
         status: 'unverified',
         reason: 'fetch_infrastructure_failure',

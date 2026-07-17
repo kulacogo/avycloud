@@ -900,10 +900,23 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
       // 3.5 GPSR (structured)
       if (change.gpsr && typeof change.gpsr === 'object') {
         next.details = next.details || {};
-        next.details.gpsr = {
-          ...(next.details.gpsr || {}),
-          ...(change.gpsr || {}),
-        };
+        const baseGpsr: Record<string, any> = { ...(next.details.gpsr || {}) };
+        // Etikett-Quelle (aus Produktbild abgelesen): pro Rolle die ALTEN Felder
+        // verwerfen, wenn die Rolle neu identifiziert wird — sonst überleben
+        // stale Falschwerte (EU-REP-PLZ/Chinesen-Telefon beim Hersteller) den
+        // additiven Merge (Incident 2026-07-17). Signal: gpsr_evidence_check.
+        const evOutcome = (change as any).gpsr_evidence_check?.outcome;
+        const imageSourced = evOutcome === "product_image";
+        const inc = change.gpsr as Record<string, any>;
+        if (imageSourced) {
+          if (inc.manufacturer_name) {
+            for (const k of Object.keys(baseGpsr)) if (/^manufacturer_/.test(k)) delete baseGpsr[k];
+          }
+          if (inc.eu_responsible_name) {
+            for (const k of Object.keys(baseGpsr)) if (/^eu_responsible_/.test(k)) delete baseGpsr[k];
+          }
+        }
+        next.details.gpsr = { ...baseGpsr, ...inc };
       }
 
       // 4. Attributes (Merge) — normalizeChangeAttributes akzeptiert Map UND
