@@ -13,6 +13,16 @@ const DEFAULT_COUNTRY = process.env.BRIGHTDATA_COUNTRY || null;
 const DEFAULT_TIMEOUT_MS = parseInt(process.env.BRIGHTDATA_TIMEOUT_MS || '30000', 10);
 const MAX_TEXT_BYTES = parseInt(process.env.BRIGHTDATA_MAX_TEXT_BYTES || '200000', 10);
 
+// Zentraler Aus-Schalter (2026-07-17): BrightData-Web-Unlocker ist seit ~April
+// tot (Token expired). Wir kommen ohne aus — Suche via SerpAPI, GPSR vom
+// Produktbild, Konkurrenzpreise via offizieller eBay/Kaufland-API, sonstige
+// Seiten via Direkt-Fetch. Mit WEB_UNLOCKER_ENABLED=false wird JEDER Aufruf zum
+// sauberen No-op (kein Netzwerk, kein 401, kein external_api_calls-Eintrag),
+// statt an jeder Aufrufstelle ins Leere zu laufen. Re-Aktivierung: Token in
+// Secret Manager erneuern + WEB_UNLOCKER_ENABLED=true. Code-Default bleibt an.
+const UNLOCKER_ENABLED =
+  String(process.env.WEB_UNLOCKER_ENABLED || 'true').trim().toLowerCase() !== 'false';
+
 let cachedToken = null;
 
 async function getBrightDataToken() {
@@ -42,6 +52,24 @@ function sanitizeHeaders(headers = {}) {
 }
 
 async function fetchWithUnlocker(opts = {}) {
+  // Aus-Schalter: sauberes No-op (kein Netzwerk, kein 401, kein Tracker-Eintrag),
+  // damit alle Aufrufer die tote API nicht mehr treffen. Rückgabe-Form spiegelt
+  // einen fehlgeschlagenen Abruf → Aufrufer fallen graceful auf Direkt-Fetch/
+  // Kein-Ergebnis zurück (success=false wird überall bereits behandelt).
+  if (!UNLOCKER_ENABLED) {
+    return {
+      success: false,
+      url: opts?.url || '',
+      status: 0,
+      statusText: 'web_unlocker_disabled',
+      headers: {},
+      contentType: '',
+      body: '',
+      body_base64: null,
+      bytes: 0,
+      disabled: true,
+    };
+  }
   // Instrumentation wrapper: records every BrightData call into external_api_calls
   // (service='brightdata', endpoint=hostname). Used to answer "do we still need
   // BrightData?" with data. Inner function preserves the original implementation.
