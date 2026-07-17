@@ -52,8 +52,9 @@ const PROMPT = [
   '- Zeile "Manufacturer:"/"Hersteller:" → manufacturer_* (der ECHTE Hersteller, auch wenn in China/CN — NICHT die Marke).',
   '- Zeile "EC REP"/"EU-Bevollmächtigter"/"EU-Verantwortlicher"/"EU-Rep" → eu_responsible_*.',
   '- Zeile "UK/AR"/"UK Responsible Person"/eine reine UK-Company-Adresse → NICHT der EU-Verantwortliche und NICHT der Hersteller — WEGLASSEN.',
+  '- Eine allgemeine "Contact:"/"E-mail:"/"Service:"-Zeile, die NICHT unter dem EC-REP- oder UK/AR-Block steht (z. B. oben beim Modell/Ref), ist die Hersteller-/Produkt-Kontaktadresse → manufacturer_email (bzw. manufacturer_phone). NICHT die EC-REP-E-Mail hier eintragen.',
   'Vermische NIEMALS Adresse/PLZ/Telefon/E-Mail verschiedener Rollen. Jedes Feld gehört exakt zu der Rolle, unter der es gedruckt ist.',
-  'Übertrage Werte wörtlich (Firmenname, Straße, PLZ, Stadt, Land, E-Mail, Telefon).',
+  'Übertrage Werte wörtlich (Firmenname, Straße, PLZ, Stadt, Land, E-Mail, Telefon). Felder, die NICHT auf dem Etikett stehen, bleiben leer — NICHT raten.',
   'Ist KEIN Hersteller-/Compliance-Etikett lesbar: label_visible=false und alle Felder leer.',
 ].join('\n');
 
