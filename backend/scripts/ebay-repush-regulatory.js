@@ -221,13 +221,24 @@ async function main() {
   const skipped = [];
   const candidates = [];
 
+  // SKU -> aktive itemId aus ebayListingsLive (die Wahrheit über aktive
+  // Angebote). ops.ebay.itemId wird nur vom stock-sync-dispatcher befüllt und
+  // ist für den Bestand oft leer — die SKU-Auflösung ist der robuste Weg.
+  const skuToItemId = new Map();
+  const liveSnap = await firestore.collection(EBAY_LISTINGS_COLLECTION).get();
+  liveSnap.forEach((d) => {
+    const x = d.data() || {};
+    if (x.active === true && x.sku) skuToItemId.set(String(x.sku), d.id);
+  });
+  console.log(`[ebay-repush-regulatory] ${skuToItemId.size} aktive Listings per SKU aus ${EBAY_LISTINGS_COLLECTION} indiziert`);
+
   // Deterministische Reihenfolge — der gecappte Erstlauf ist reproduzierbar.
   products.sort((a, b) => String(a.id).localeCompare(String(b.id)));
 
   for (const product of products) {
     const sku = safeString(product?.identification?.sku) || null;
-    const itemId = safeString(product?.ops?.ebay?.itemId);
-    if (!itemId) continue; // kein eBay-Listing — kein Report-Rauschen
+    const itemId = safeString(product?.ops?.ebay?.itemId) || (sku ? safeString(skuToItemId.get(sku)) : '');
+    if (!itemId) continue; // kein aktives eBay-Listing — kein Report-Rauschen
 
     const gpsr = product?.details?.gpsr;
     if (!gpsr || typeof gpsr !== 'object') {
