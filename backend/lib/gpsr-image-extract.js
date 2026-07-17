@@ -119,19 +119,31 @@ async function _extractOnce(imageParts, aiClient) {
 
   const g = {};
   const put = (k, v) => { const s = safeString(v); if (s && !isJunkValue(s)) g[k] = s; };
+  // E-Mail-Felder: nur echte Adressen (mit @) übernehmen. Das Modell schreibt
+  // gelegentlich eine WEBSITE ins E-Mail-Feld (z.B. "www.firma.pl") — das lässt
+  // eBay den Regulatory-Revise mit "E-Mail falsch formatiert" abweisen. Eine
+  // erkennbare URL wird stattdessen als url gemerkt, alles andere verworfen.
+  const putEmail = (k, v) => {
+    const s = safeString(v);
+    if (!s || isJunkValue(s)) return;
+    if (/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(s)) { g[k] = s; return; }
+    if (!g.url && (/^https?:\/\//i.test(s) || /^www\./i.test(s) || /^[^\s@]+\.[a-z]{2,}$/i.test(s))) {
+      g.url = /^https?:\/\//i.test(s) ? s : `https://${s}`;
+    }
+  };
   put('manufacturer_name', parsed.manufacturer_name);
   put('manufacturer_address', parsed.manufacturer_address);
   put('manufacturer_city', parsed.manufacturer_city);
   put('manufacturer_postalcode', parsed.manufacturer_postalcode);
   put('entity_country', parsed.manufacturer_country);
-  put('email', parsed.manufacturer_email);
+  putEmail('email', parsed.manufacturer_email);
   put('manufacturer_phone', parsed.manufacturer_phone);
   put('eu_responsible_name', parsed.eu_responsible_name);
   put('eu_responsible_address', parsed.eu_responsible_address);
   put('eu_responsible_city', parsed.eu_responsible_city);
   put('eu_responsible_postalcode', parsed.eu_responsible_postalcode);
   put('eu_responsible_country', parsed.eu_responsible_country);
-  put('eu_responsible_email', parsed.eu_responsible_email);
+  putEmail('eu_responsible_email', parsed.eu_responsible_email);
   put('eu_responsible_phone', parsed.eu_responsible_phone);
 
   if (!g.manufacturer_name && !g.eu_responsible_name) return { reason: 'no_role_name' };

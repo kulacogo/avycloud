@@ -69,4 +69,26 @@ describe('extractGpsrFromImages', () => {
     const res = await extractGpsrFromImages({ id: 'p1' }, { imageParts: IMG, aiClient: ai });
     expect(res).toBeNull();
   });
+
+  it('Junk-Werte ("null"/"n/a") werden nicht als Etikett-Wert übernommen', async () => {
+    const ai = mkClient({ label_visible: true, manufacturer_name: 'Echte Firma GmbH', eu_responsible_name: 'null', manufacturer_postalcode: 'n/a' });
+    const res = await extractGpsrFromImages({ id: 'p1' }, { imageParts: IMG, aiClient: ai });
+    expect(res.gpsr.manufacturer_name).toBe('Echte Firma GmbH');
+    expect(res.gpsr.eu_responsible_name).toBeUndefined();
+    expect(res.gpsr.manufacturer_postalcode).toBeUndefined();
+  });
+
+  it('Website im E-Mail-Feld → landet als url, nicht als E-Mail (verhindert eBay-Ablehnung)', async () => {
+    const ai = mkClient({ label_visible: true, manufacturer_name: 'Centrum Elektroniki Sp. z o.o.', manufacturer_country: 'Poland', manufacturer_email: 'www.centrumelektroniki.pl' });
+    const res = await extractGpsrFromImages({ id: 'p1' }, { imageParts: IMG, aiClient: ai });
+    expect(res.gpsr.email).toBeUndefined();
+    expect(res.gpsr.url).toBe('https://www.centrumelektroniki.pl');
+  });
+
+  it('echte E-Mail bleibt im E-Mail-Feld', async () => {
+    const ai = mkClient({ label_visible: true, manufacturer_name: 'X GmbH', manufacturer_email: 'info@x-gmbh.de' });
+    const res = await extractGpsrFromImages({ id: 'p1' }, { imageParts: IMG, aiClient: ai });
+    expect(res.gpsr.email).toBe('info@x-gmbh.de');
+    expect(res.gpsr.url).toBeUndefined();
+  });
 });
