@@ -1439,6 +1439,9 @@ async function validateChatGpsr(chatResult, product) {
       product,
       changes,
       failMode: 'open',
+      // Etikett-Daten nur vertrauen, wenn V3 dem Modell echt Produktbilder
+      // gesendet hat (V2/Legacy setzen den Zähler nicht → falsy → altes Drop).
+      imageContextAvailable: Number(chatResult && chatResult.productImagesSent) > 0,
     });
     chatResult.datasheetChanges = kept;
     for (const note of notes) {
