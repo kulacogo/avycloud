@@ -2564,6 +2564,10 @@ async function saveProduct(product, options = {}) {
         safeString(attrs.Hersteller) ||
         safeString(attrs.Marke) ||
         '';
+      // Etikett-Quelle ist die ALLEINIGE Autorität (Incident 2026-07-17):
+      // sie heilt die Registry (upsert), wird aber NICHT von ihr überschrieben
+      // (weder Autofill-Merge noch Enforce dürfen Registry-Felder reinziehen).
+      const gpsrIsImageSourced = safeString(gpsrObj?.evidence?.status) === 'product_image';
       if (manufacturerHint) {
         // 0) If GPSR is already "known" (required fields present) during a manual UI save,
         // write it once into the central manufacturer registry so other products can reuse it.
@@ -2583,7 +2587,12 @@ async function saveProduct(product, options = {}) {
           const marker = dq?.gpsr_web_enrich_v1 || dq?.gpsr_manufacturer_enrich_v1 || null;
           const sources = Array.isArray(marker?.sources) ? marker.sources : [];
           const confidence = typeof marker?.confidence === 'number' ? marker.confidence : null;
-          const allowRegistryWrite = hasRequired && (isManualSave || sources.length > 0);
+          // Etikett-Quelle heilt die Registry: sie darf auch ohne vollständige
+          // Pflichtfelder schreiben (der OEM-Karton nennt z. B. keine
+          // Hersteller-PLZ) und überschreibt einen falschen Alt-Eintrag.
+          const allowRegistryWrite =
+            (hasRequired && (isManualSave || sources.length > 0)) ||
+            (gpsrIsImageSourced && Boolean(safeString(normalized?.manufacturer_name)));
           if (allowRegistryWrite) {
             const res = await upsertManufacturerGpsr({
               manufacturer_name: manufacturerHint,
@@ -2591,8 +2600,9 @@ async function saveProduct(product, options = {}) {
               confidence,
               sources,
               from_product_id: productWithEbay?.id || product?.id || null,
-              // Manual UI saves are the human correction path → allow overwriting registry fields.
-              overwrite: Boolean(isManualSave),
+              // Manuelle UI-Saves + Etikett-Quelle sind autoritative Korrektur-
+              // pfade → dürfen Registry-Felder überschreiben.
+              overwrite: Boolean(isManualSave || gpsrIsImageSourced),
             }).catch(() => null);
             if (res?.ok) {
               productWithEbay.ops = productWithEbay.ops || {};
@@ -2611,7 +2621,7 @@ async function saveProduct(product, options = {}) {
           // non-blocking
         }
 
-        const reg = await getManufacturerGpsrByName(manufacturerHint).catch(() => null);
+        const reg = gpsrIsImageSourced ? null : await getManufacturerGpsrByName(manufacturerHint).catch(() => null);
         const regGpsr = reg?.gpsr && typeof reg.gpsr === 'object' ? reg.gpsr : null;
         if (regGpsr && Object.keys(regGpsr).length) {
           const mergedGpsr = mergePreferMoreComplete(gpsrObj, regGpsr);
@@ -2636,7 +2646,13 @@ async function saveProduct(product, options = {}) {
       const enforceEnabled =
         (process.env.GPSR_REGISTRY_ENFORCE ?? '').toString().toLowerCase() === 'true' ||
         (await getRuntimeFlagBoolean('gpsrRegistryEnforce', true));
-      if (enforceEnabled) {
+      // Etikett-gelesene GPSR ist Ground Truth vom EIGENEN Produkt und darf NIE
+      // von einem (womöglich falschen) Marken-Registry-Eintrag überschrieben
+      // werden (Incident 2026-07-17: Registry-Eintrag "Gr4tec" enthielt Marke-
+      // als-Hersteller + Polen + eVatmaster und klobberte jede Korrektur).
+      const gpsrIsImageSourced =
+        safeString(productWithEbay?.details?.gpsr?.evidence?.status) === 'product_image';
+      if (enforceEnabled && !gpsrIsImageSourced) {
         const brand = safeString(productWithEbay?.identification?.brand || '');
         if (brand) {
           const reg = await getManufacturerGpsrByName(brand).catch(() => null);
@@ -2833,7 +2849,12 @@ async function getProduct(productId) {
         safeString(attrs.Hersteller) ||
         safeString(attrs.Marke) ||
         '';
-      if (manufacturerHint) {
+      // Etikett-gelesene GPSR ist Ground Truth vom EIGENEN Produkt und darf auch
+      // beim LESEN NICHT von einem (womöglich falschen) Registry-Eintrag
+      // überschrieben werden (Incident 2026-07-17 — Read-Path-Spiegel des
+      // Save-Boundary-Skips).
+      const gpsrIsImageSourced = safeString(gpsrObj?.evidence?.status) === 'product_image';
+      if (manufacturerHint && !gpsrIsImageSourced) {
         const reg = await getManufacturerGpsrByName(manufacturerHint).catch(() => null);
         const regGpsr = reg?.gpsr && typeof reg.gpsr === 'object' ? reg.gpsr : null;
         if (regGpsr && Object.keys(regGpsr).length) {

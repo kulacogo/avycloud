@@ -1476,6 +1476,28 @@ async function validateChatGpsr(chatResult, product) {
   const changes = Array.isArray(chatResult && chatResult.datasheetChanges)
     ? chatResult.datasheetChanges
     : [];
+
+  // AUTORITATIVE GPSR vom Etikett (deterministischer Vision-Call) ersetzt den
+  // unzuverlässigen agentischen Read — auch im interaktiven Chat (Incident
+  // 2026-07-17). Nur wenn ein Etikett lesbar ist; sonst unverändert.
+  let gpsrImageSourced = false;
+  try {
+    const { extractGpsrFromImages } = require('../lib/gpsr-image-extract');
+    const extracted = await extractGpsrFromImages(product);
+    if (extracted && extracted.gpsr && Object.keys(extracted.gpsr).length) {
+      gpsrImageSourced = true;
+      let gpsrChange = changes.find((c) => c && c.gpsr && typeof c.gpsr === 'object');
+      if (!gpsrChange) {
+        gpsrChange = { summary: 'GPSR-Angaben vom Etikett abgelesen', gpsr: {} };
+        changes.push(gpsrChange);
+        chatResult.datasheetChanges = changes;
+      }
+      gpsrChange.gpsr = { ...extracted.gpsr, source: 'product_image' };
+    }
+  } catch (extractErr) {
+    console.warn(`[chat] gpsr-image-extract skipped: ${extractErr?.message || extractErr}`);
+  }
+
   const hasGpsrChange = changes.some((c) => c && c.gpsr && typeof c.gpsr === 'object');
   if (!hasGpsrChange) return;
 
@@ -1487,7 +1509,7 @@ async function validateChatGpsr(chatResult, product) {
       failMode: 'open',
       // Etikett-Daten nur vertrauen, wenn V3 dem Modell echt Produktbilder
       // gesendet hat (V2/Legacy setzen den Zähler nicht → falsy → altes Drop).
-      imageContextAvailable: Number(chatResult && chatResult.productImagesSent) > 0,
+      imageContextAvailable: gpsrImageSourced || Number(chatResult && chatResult.productImagesSent) > 0,
     });
     chatResult.datasheetChanges = kept;
     for (const note of notes) {

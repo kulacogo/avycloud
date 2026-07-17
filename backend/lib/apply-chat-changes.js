@@ -117,7 +117,22 @@ function applyChatChangesToProduct(product, changes, opts = {}) {
       const incoming = {};
       for (const [k, v] of Object.entries(ch.gpsr)) if (!isBad(v)) incoming[k] = safeStr(v);
       if (Object.keys(incoming).length) {
-        work.details.gpsr = { ...(work.details.gpsr || {}), ...incoming };
+        const base = { ...(work.details.gpsr || {}) };
+        // Etikett-Quelle (source=product_image): Der Karton wurde vollständig
+        // gelesen — pro Rolle die ALTEN Felder verwerfen, wenn die Rolle neu
+        // identifiziert wird (change liefert *_name). Sonst überleben stale
+        // Falschwerte den additiven Merge (Incident 2026-07-17: EU-REP-PLZ +
+        // Chinesen-Telefon blieben beim Hersteller hängen).
+        const imageSourced = ch.gpsr_evidence_check && ch.gpsr_evidence_check.outcome === 'product_image';
+        if (imageSourced) {
+          if (incoming.manufacturer_name) {
+            for (const k of Object.keys(base)) if (/^manufacturer_/.test(k)) delete base[k];
+          }
+          if (incoming.eu_responsible_name) {
+            for (const k of Object.keys(base)) if (/^eu_responsible_/.test(k)) delete base[k];
+          }
+        }
+        work.details.gpsr = { ...base, ...incoming };
         changed.add('gpsr');
       }
     }
