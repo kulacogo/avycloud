@@ -915,6 +915,52 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
       } catch {}
     }
 
+    // 3.7) Sicherheitsnetze für dünne Erfassen-Ergebnisse (Incident 2026-07-17:
+    // "kaum Beschreibung, keine Preise"). Nur non-legacy (Legacy hat oben schon
+    // beides gemacht). Beide gegen die Rest-Wall-Clock gecappt (Promise.race),
+    // damit das Netz selbst NIE den Frontend-Abbruch auslöst. Im Normalfall
+    // (Preis da / Beschreibung voll) feuern sie nicht → keine Zusatzlatenz.
+    if (pipelineUsed !== 'legacy') {
+      // HEBEL 1 — Preis-Netz: V3 kappt Stage-2-Preis bei 15s, Grounding ruft die
+      // Anreicherung nie. Kein Preis + genug Budget → EIN gecappter Versuch.
+      try {
+        const currentPrice = Number(product?.details?.pricing?.lowest_price?.amount) || 0;
+        const priceBudget = Math.min(15000, remainingMs() - 5000);
+        if (currentPrice <= 0 && priceBudget > 5000) {
+          const pricePromise = enrichPriceParallel(product, {
+            force: false,
+            reason: `identify-safety-net:${pipelineUsed || 'unknown'}`,
+          });
+          Promise.resolve(pricePromise).catch(() => {});
+          await Promise.race([
+            pricePromise,
+            new Promise((resolve) => setTimeout(resolve, priceBudget)),
+          ]);
+        }
+      } catch (priceErr) {
+        console.warn('[identify] price safety-net failed:', priceErr?.message || priceErr);
+      }
+
+      // HEBEL 2 — Beschreibungs-Netz: Stage-3-Timeout fällt auf eine
+      // <p>Name</p><ul>-Stumpf-Beschreibung zurück. NUR dann (dünn <140 Zeichen)
+      // ein gecappter Review-Pass (derselbe Aufruf wie im Legacy-Zweig).
+      try {
+        const plain = String(product?.details?.short_description || '')
+          .replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+        const descBudget = Math.min(45000, remainingMs() - 5000);
+        if (plain.length < 140 && descBudget > 25000) {
+          const reviewPromise = runDatasheetReview([product], { locale, llmScopeId: 'identify.v2' });
+          Promise.resolve(reviewPromise).catch(() => {});
+          await Promise.race([
+            reviewPromise,
+            new Promise((resolve) => setTimeout(resolve, descBudget)),
+          ]);
+        }
+      } catch (descErr) {
+        console.warn('[identify] description safety-net failed:', descErr?.message || descErr);
+      }
+    }
+
     // 3.8) Compute and persist quality snapshot (independent of QUALITY_GATE_ENABLED).
     // This powers UI/debug dashboards and helps explain "why not ebay-ready" without blocking saves.
     let finalQuality = null;
