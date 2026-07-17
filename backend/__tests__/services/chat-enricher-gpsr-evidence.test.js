@@ -196,3 +196,54 @@ describe('enrichViaChatV3 — GPSR-Validierung vor dem Bulk-Apply', () => {
     expect(res.gpsrWarnings).toEqual([]);
   });
 });
+
+// ─── Bild-Quelle: Etikett-Daten (source=product_image) durchlassen (Incident 2026-07-17) ──
+describe('validateGpsrDatasheetChanges — image-sourced (Etikett)', () => {
+  // Ohne Web-Impressum liefert verifyGpsrRecord no_candidate_urls → unverifiable.
+  // Ein no-op fetchImpl reicht (es wird ohne URL gar nicht abgerufen).
+  const noFetch = vi.fn(async () => ({ ok: false, status: 0, text: '', html: '', via: 'test' }));
+
+  it('behält Etikett-GPSR (source=product_image) wenn Bilder gesendet + kein Web-Beleg', async () => {
+    const changes = [{
+      summary: 'GPSR vom Etikett',
+      gpsr: {
+        manufacturer_name: 'Access AR Ltd',
+        manufacturer_address: 'Office 3, 4a Nelson Road, London SE10 9JB',
+        eu_responsible_name: 'Pro Logistik SP. Zo.o',
+        eu_responsible_address: 'Mickiewicza 21/10, 69-100 Slubice, Polen',
+        source: 'product_image',
+      },
+    }];
+    const res = await validateGpsrDatasheetChanges({
+      product: product(), changes, fetchImpl: noFetch, imageContextAvailable: true,
+    });
+    expect(res.removed).toBe(0);
+    expect(res.imageFlagged).toBe(true);
+    expect(res.changes).toHaveLength(1);
+    // source-Marker ist konsumiert + gestrippt (nie roh persistiert)
+    expect('source' in res.changes[0].gpsr).toBe(false);
+    expect(res.changes[0].gpsr.manufacturer_name).toBe('Access AR Ltd');
+    expect(res.changes[0].gpsr_evidence_check.outcome).toBe('product_image');
+  });
+
+  it('verwirft dieselben Daten wenn KEINE Bilder gesendet wurden (imageContextAvailable=false)', async () => {
+    const changes = [{
+      gpsr: { manufacturer_name: 'Access AR Ltd', manufacturer_address: 'London SE10 9JB', source: 'product_image' },
+    }];
+    const res = await validateGpsrDatasheetChanges({
+      product: product(), changes, fetchImpl: noFetch, imageContextAvailable: false,
+    });
+    expect(res.removed).toBe(1);
+    expect(res.imageFlagged).toBe(false);
+  });
+
+  it('Fake-Telefon fliegt AUCH bei source=product_image raus (Halluzinations-Guard bleibt)', async () => {
+    const changes = [{
+      gpsr: { manufacturer_name: 'X GmbH', manufacturer_phone: '+496105456789', source: 'product_image' },
+    }];
+    const res = await validateGpsrDatasheetChanges({
+      product: product(), changes, fetchImpl: noFetch, imageContextAvailable: true,
+    });
+    expect(res.removed).toBe(1);
+  });
+});

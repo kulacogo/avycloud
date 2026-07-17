@@ -83,6 +83,12 @@ const DEFAULT_MAX_ITERATIONS = 10;
 const DEFAULT_MAX_OUTPUT_TOKENS = 12000;
 const RETRY_DELAYS_MS = [1000, 3000, 8000];
 
+// Eigene Produktbilder ans Modell schicken (Incident 2026-07-17): V3 war blind
+// für die gespeicherten Fotos — Hersteller-/GPSR-/Maß-Angaben auf dem Etikett
+// wurden nie gelesen, das Modell riet. Gleiche Konstanten/ENV wie V2.
+const MAX_PRODUCT_IMAGE_PARTS = 4;
+const PRODUCT_IMAGE_TIMEOUT_MS = parseInt(process.env.CHAT_IMAGE_TIMEOUT_MS || '8000', 10);
+
 // ---------------------------------------------------------------------------
 // Feature flag
 // ---------------------------------------------------------------------------
@@ -161,11 +167,17 @@ const UPDATE_DATASHEET_DECLARATION = {
           manufacturer_address: { type: 'string' },
           manufacturer_city: { type: 'string' },
           manufacturer_postalcode: { type: 'string' },
+          manufacturer_state_province: { type: 'string' },
           email: { type: 'string' },
           manufacturer_phone: { type: 'string' },
           url: { type: 'string' },
           country_code: { type: 'string' },
           entity_country: { type: 'string' },
+          source: {
+            type: 'string',
+            description:
+              'Setze NUR auf "product_image", wenn Hersteller-/EU-Verantwortlichen-Angaben direkt vom sichtbaren Etikett/Karton auf dem Produktfoto abgelesen wurden. Sonst weglassen.',
+          },
           eu_responsible_name: { type: 'string' },
           eu_responsible_address: { type: 'string' },
           eu_responsible_city: { type: 'string' },
@@ -384,7 +396,13 @@ function sanitizeDatasheetChangeV3(entry) {
             const v = sanitizeString(raw[key], 240);
             if (v) gpsr[key] = v;
           }
-          if (Object.keys(gpsr).length) out.gpsr = gpsr;
+          if (Object.keys(gpsr).length) {
+            // Provenienz-Marker (Meta, kein Wertfeld): NUR 'product_image' zulassen.
+            // Der GPSR-Guard vertraut damit vom Etikett abgelesenen Daten, die
+            // sonst mangels Web-URL als "unbelegt" verworfen würden.
+            if (sanitizeString(raw.source, 40) === 'product_image') gpsr.source = 'product_image';
+            out.gpsr = gpsr;
+          }
         }
         break;
       case 'pricing':
@@ -468,6 +486,51 @@ function summarizeProduct(product) {
   };
 }
 
+/**
+ * Lädt die eigenen Produktbilder als inlineData-Parts, damit das Modell
+ * Hersteller-/GPSR-/Maß-Angaben direkt vom Etikett ablesen kann. Portiert aus
+ * product-chat-v2.js (Incident 2026-07-17: V3 war hier blind). Wirft nie —
+ * jeder fehlgeschlagene Abruf wird pro Bild verworfen.
+ */
+async function fetchProductImageParts(product) {
+  const images = Array.isArray(product?.details?.images) ? product.details.images : [];
+  const candidates = images
+    .filter((img) => typeof img?.url_or_base64 === 'string' && img.url_or_base64.startsWith('http'))
+    .slice(0, MAX_PRODUCT_IMAGE_PARTS);
+  if (!candidates.length) return [];
+
+  const results = await Promise.all(
+    candidates.map(async (img) => {
+      const url = img.url_or_base64;
+      try {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), PRODUCT_IMAGE_TIMEOUT_MS);
+        const res = await fetch(url, {
+          signal: controller.signal,
+          headers: { Accept: 'image/*,*/*;q=0.8' },
+        });
+        clearTimeout(timer);
+        if (!res.ok) return null;
+        const contentType = res.headers.get('content-type') || 'image/jpeg';
+        if (!contentType.startsWith('image/')) return null;
+        const arrayBuf = await res.arrayBuffer();
+        const buf = Buffer.from(arrayBuf);
+        if (buf.length < 500 || buf.length > 10_000_000) return null;
+        return {
+          inlineData: {
+            data: buf.toString('base64'),
+            mimeType: contentType.split(';')[0].trim(),
+          },
+        };
+      } catch (err) {
+        console.warn(`[chat-v3] Failed to fetch product image ${url}: ${err.message}`);
+        return null;
+      }
+    })
+  );
+  return results.filter(Boolean);
+}
+
 function buildSystemPromptV3(product, { locale = 'de-DE' } = {}) {
   const snapshot = summarizeProduct(product);
   const toolList = atomicTools
@@ -490,6 +553,7 @@ function buildSystemPromptV3(product, { locale = 'de-DE' } = {}) {
     '- suggest_product_images: Reale Bildsuche per System (keine URLs erfinden).',
     '',
     'ARBEITSFLOW (IMMER IN DIESER REIHENFOLGE):',
+    '0. BILD-PHASE (ZUERST): Die angehängten Produktbilder sind Fotos des ECHTEN Artikels/der Verpackung. Lies Angaben — Marke, Modell/Typnummer, Maße, Material, Leistungsdaten UND besonders Hersteller-/EU-Verantwortlichen-/GPSR-Angaben — DIREKT vom Etikett/Karton ab, BEVOR du das Web bemühst. Das Etikett ist die autoritativste Quelle.',
     '1. RECHERCHE-PHASE: Nutze googleSearch, urlContext und die atomaren Tools (lookup_gtin, search_ebay_catalog, verify_brand, search_amazon_product, search_manufacturer_site, fetch_url_content, get_required_aspects) um Fakten über das Produkt zu sammeln und Quellen zu cross-referenzieren.',
     '2. WRITE-PHASE (PFLICHT): Am Ende JEDES Turns MUSST du genau einmal update_product_datasheet aufrufen mit den konsolidierten Änderungsvorschlägen.',
     '',
@@ -504,6 +568,7 @@ function buildSystemPromptV3(product, { locale = 'de-DE' } = {}) {
     '- Cross-Referenziere mindestens 2 unabhängige Quellen bevor Du eine Behauptung übernimmst.',
     '',
     'GPSR (EU-Produktsicherheitsverordnung):',
+    '- ETIKETT ZUERST: Stehen Hersteller-, Importeur- oder EU-Verantwortlichen-Angaben (Firma, Adresse, E-Mail, Telefon, "EC REP", "UK/AR") lesbar auf dem Produktfoto/Karton, dann ÜBERNIMM diese direkt als Ausgangswahrheit und setze gpsr.source = "product_image". Suche DANACH mit googleSearch die echte Hersteller-/Impressum-Seite und trage die bestätigende URL in gpsr.url ein, damit die automatische Beleg-Prüfung Name+Adresse verifizieren kann. Nur wenn du source="product_image" setzt, werden vom Etikett gelesene Angaben ohne Web-Beleg akzeptiert.',
     '- Hersteller-Felder (manufacturer_*, entity_country, email, manufacturer_phone): NUR der tatsächliche Hersteller — auch wenn außerhalb der EU (z.B. China).',
     '- EU-Verantwortlicher (eu_responsible_*): PFLICHT wenn entity_country/country_code NICHT in der EU liegt. Separate Felder nutzen, NIEMALS EU-Adresse in Hersteller-Felder schreiben.',
     '- WICHTIG — Rolle erkennen, nicht am Land festmachen: Eine Firma mit Zusatz wie "(für <Marke>)", "im Auftrag von …", "i.A." ODER ein bekannter EU-Bevollmächtigter (z.B. Apex CE Specialists, eVatmaster, "… CE Specialists", "Authorized Representative") ist der EU-VERANTWORTLICHE, NICHT der Hersteller — auch wenn die Adresse in Deutschland liegt. Solche Daten gehören in eu_responsible_*, und der echte Hersteller ist die Marke aus dem "(für <Marke>)"-Zusatz (gehört in manufacturer_name).',
@@ -1073,8 +1138,19 @@ async function runProductChatV3({
 
   const executorMap = atomicTools.buildToolExecutorMap();
 
-  // Build the initial user message with optional attachments (already normalized).
+  // Eigene Produktbilder laden (fehlerrobust — wirft nie). Reihenfolge in der
+  // User-Message: Text → Produktbilder → Attachments.
+  let productImageParts = [];
+  try {
+    productImageParts = await fetchProductImageParts(product);
+  } catch (imgErr) {
+    console.warn('[chat-v3] product image fetch failed: %s', imgErr?.message || imgErr);
+    productImageParts = [];
+  }
+
+  // Build the initial user message with product images + optional attachments.
   const userParts = [{ text: message }];
+  for (const part of productImageParts) userParts.push(part);
   if (Array.isArray(attachments)) {
     for (const att of attachments) {
       if (att && typeof att === 'object' && (att.inlineData || att.fileData || att.text)) {
@@ -1082,6 +1158,10 @@ async function runProductChatV3({
       }
     }
   }
+  // Wahrhaftiger Zähler der TATSÄCHLICH gesendeten Produktbild-Parts — der
+  // GPSR-Guard vertraut Etikett-Daten nur, wenn hier > 0 steht (nicht anhand
+  // von product.details.images, das könnte Bilder haben, die nie ankamen).
+  const productImagesSent = productImageParts.length;
 
   try {
     if (typeof onProgress === 'function') {
@@ -1456,6 +1536,7 @@ async function runProductChatV3({
       message: finalAnswer || '',
       datasheetChanges: state.datasheetChanges,
       imageSuggestions: state.imageSuggestions,
+      productImagesSent,
       evidence: state.citations,
       confidence: {
         overall: aggregate.score,
@@ -1506,6 +1587,7 @@ module.exports = {
     synthesizeAnswerFromChanges,
     summarizeChangeForCard,
     consolidateDatasheetChangesV3,
+    fetchProductImageParts,
     extractEvidenceFromToolResult,
     mapToolSourceWeight,
     summarizeProduct,

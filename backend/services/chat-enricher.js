@@ -91,12 +91,13 @@ function _hasOtherPayload(change) {
  * @returns {Promise<{ changes: Array, notes: string[], removed: number,
  *   infraFlagged: boolean, verifiedEvidence: object|null }>}
  */
-async function validateGpsrDatasheetChanges({ product, changes, fetchImpl, timeoutMs, maxPages, failMode = 'closed' } = {}) {
+async function validateGpsrDatasheetChanges({ product, changes, fetchImpl, timeoutMs, maxPages, failMode = 'closed', imageContextAvailable = false } = {}) {
   const list = Array.isArray(changes) ? changes : [];
   const notes = new Set();
   const kept = [];
   let removed = 0;
   let infraFlagged = false;
+  let imageFlagged = false;
   let verifiedEvidence = null;
 
   const dropGpsrFrom = (change) => {
@@ -110,6 +111,12 @@ async function validateGpsrDatasheetChanges({ product, changes, fetchImpl, timeo
       kept.push(change);
       continue;
     }
+    // Provenienz-Marker konsumieren + aus der Card strippen, damit er nie als
+    // roher gpsr-Key persistiert oder an verifyGpsrRecord geht. Vertrauen NUR,
+    // wenn dem Modell in diesem Turn tatsächlich Produktbilder gesendet wurden.
+    const imageSourced = imageContextAvailable && _safeStr(change.gpsr.source) === 'product_image';
+    if ('source' in change.gpsr) delete change.gpsr.source;
+
     const incoming = _pickGpsrProposal(change.gpsr);
     if (!Object.keys(incoming).length) {
       kept.push(change);
@@ -158,6 +165,24 @@ async function validateGpsrDatasheetChanges({ product, changes, fetchImpl, timeo
     }
 
     if (verification.status === 'unverifiable') {
+      // Vom Etikett abgelesene Daten (source=product_image) sind Ground Truth
+      // vom EIGENEN Produkt. "unverifiable" heißt hier nur "kein Web-Impressum
+      // gefunden" (no_candidate_urls) — das darf sie NICHT verwerfen, solange
+      // kein aktiver Web-Widerspruch vorliegt und die Fake-Gates oben grün sind.
+      // Widerlegt dagegen die Hersteller-EIGENE Seite die Angabe, gewinnt die
+      // Seite (dann kein no_candidate_urls-Issue) → weiterhin verwerfen.
+      const noWebCheck = issues.includes('no_candidate_urls') || issues.includes('no_gpsr_data');
+      if (imageSourced && noWebCheck) {
+        imageFlagged = true;
+        change.gpsr_evidence_check = {
+          outcome: 'product_image',
+          checked_at: new Date().toISOString(),
+          note: 'aus Produktbild abgelesen — kein Web-Impressum-Beleg, bitte sichten',
+        };
+        notes.add('Die Hersteller-/GPSR-Angaben wurden vom Produktbild (Etikett) abgelesen und übernommen — es gibt keinen Web-Impressum-Beleg, bitte kurz sichten.');
+        kept.push(change);
+        continue;
+      }
       notes.add('Die vorgeschlagenen Hersteller-/GPSR-Angaben konnten auf keiner Hersteller-Seite belegt werden — die Änderung wurde als UNBELEGT verworfen. Bitte manuell verifizieren.');
       dropGpsrFrom(change);
       continue;
@@ -199,6 +224,7 @@ async function validateGpsrDatasheetChanges({ product, changes, fetchImpl, timeo
     notes: Array.from(notes),
     removed,
     infraFlagged,
+    imageFlagged,
     verifiedEvidence,
   };
 }
@@ -230,6 +256,10 @@ async function enrichViaChatV3(product, opts = {}) {
       changes: datasheetChanges,
       fetchImpl: opts.gpsrFetchImpl || deps.gpsrFetchImpl,
       failMode: 'closed',
+      // Vertrauen in Etikett-Daten NUR, wenn dem Modell echt Bilder gesendet
+      // wurden. Bulk hat kein Human-Review — Fake-Gates + auditierbarer
+      // Evidence-Eintrag (outcome:'product_image') bleiben aktiv.
+      imageContextAvailable: Number(result && result.productImagesSent) > 0,
     });
     datasheetChanges = gpsrValidation.changes;
   }
