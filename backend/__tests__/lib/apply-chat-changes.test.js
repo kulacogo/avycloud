@@ -183,3 +183,19 @@ describe('applyChatChangesToProduct — GPSR image-sourced role replace', () => 
     expect(g.manufacturer_postalcode).toBe('69-100');
   });
 });
+
+describe('pricing.sellPrice — Gap-Füllung, nie überschreiben (Incident 2026-07-18)', () => {
+  it('setzt sellPrice, wenn Produkt keinen Verkaufspreis hat', () => {
+    const { product } = applyChatChangesToProduct(baseProduct(), [{ pricing: { sellPrice: 499, amount: 499 } }]);
+    expect(product.details.pricing.sellPrice).toBe(499);
+    // Marktpreis-Recherche landet weiter in lowest_price
+    expect(product.details.pricing.lowest_price.amount).toBe(499);
+  });
+
+  it('überschreibt einen bestehenden (menschlich gesetzten) sellPrice NIE', () => {
+    const p = baseProduct();
+    p.details.pricing = { sellPrice: 350 };
+    const { product } = applyChatChangesToProduct(p, [{ pricing: { sellPrice: 499 } }]);
+    expect(product.details.pricing.sellPrice).toBe(350);
+  });
+});

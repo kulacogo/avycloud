@@ -33,6 +33,8 @@
 const atomicTools = require('./atomic-tools');
 // Modul-Referenz (nicht destrukturiert), damit Tests searchProductImages patchen können.
 const imageSearch = require('../lib/image-search');
+const { getCassiniCategoryBucket, getCategoryPattern } = require('../lib/cassini-category-map');
+const { coerceTitleToPolicy } = require('../lib/title-policy');
 const { scoreField, aggregateProductConfidence } = require('../lib/confidence-scoring');
 const { crossReferenceProduct } = require('../lib/cross-reference');
 const { normalizeLiteralEscapes, hasListMarkup, sanitizeDescriptionProse } = require('../lib/listing-sanitize');
@@ -194,7 +196,8 @@ const UPDATE_DATASHEET_DECLARATION = {
       pricing: {
         type: 'object',
         properties: {
-          amount: { type: 'number' },
+          amount: { type: 'number', description: 'Recherchierter Marktpreis (Doku, → lowest_price).' },
+          sellPrice: { type: 'number', description: 'Vorgeschlagener Verkaufspreis in EUR. NUR setzen, wenn bisher kein Verkaufspreis existiert oder er 0 ist.' },
           currency: { type: 'string' },
           source_url: { type: 'string' },
         },
@@ -410,12 +413,15 @@ function sanitizeDatasheetChangeV3(entry) {
       case 'pricing':
         if (raw && typeof raw === 'object') {
           const pricing = {};
-          if (typeof raw.amount === 'number' && Number.isFinite(raw.amount)) {
-            pricing.amount = raw.amount;
-          } else if (typeof raw.amount === 'string') {
-            const n = parseFloat(raw.amount.replace(',', '.'));
-            if (Number.isFinite(n)) pricing.amount = n;
-          }
+          const toNum = (v) => {
+            if (typeof v === 'number' && Number.isFinite(v)) return v;
+            if (typeof v === 'string') { const n = parseFloat(v.replace(',', '.')); return Number.isFinite(n) ? n : null; }
+            return null;
+          };
+          const amt = toNum(raw.amount);
+          if (amt != null) pricing.amount = amt;
+          const sell = toNum(raw.sellPrice);
+          if (sell != null && sell >= 0) pricing.sellPrice = sell;
           for (const key of PRICING_FIELDS) {
             if (key === 'amount') continue;
             const v = sanitizeString(raw[key], 240);
@@ -533,6 +539,77 @@ async function fetchProductImageParts(product) {
   return results.filter(Boolean);
 }
 
+// Kategorie-bewusster SEO-Regel-Block (Cassini-Leitfaden). Der V3-Prompt hatte
+// bisher KEINE Titel-/Beschreibungs-/Preis-Regeln — „Alles optimieren" lieferte
+// deshalb regelwidrige Titel (z.B. Fahrzeugmodelle im Motors-Titel) und dünne
+// 2-Satz-Beschreibungen. Diese Regeln machen die deterministischen Vorgaben aus
+// dem Leitfaden (lib/cassini-category-map, lib/seo-title-builder) verbindlich.
+function buildSeoRulesBlock(product) {
+  const details = product?.details || {};
+  const ident = product?.identification || {};
+  const catId = details.categoryId || details.ebayCategoryId || null;
+  const breadcrumb = details.categoryPath || ident.category || details.category || null;
+  const bucket = getCassiniCategoryBucket(catId, breadcrumb);
+  const pattern = getCategoryPattern(bucket);
+
+  const lines = [
+    'SEO-TITEL (eBay Cassini — VERBINDLICH, max 80 Zeichen):',
+    `- KATEGORIE dieses Produkts: ${bucket}. Titel-Muster für diese Kategorie: ${pattern}`,
+    '- Harte Obergrenze 80 Zeichen. Nutze den Platz voll aus für Long-Tail-Keywords — aber KEINE Füllwörter (der/die/das/für/mit) und keine Selbstverständlichkeiten.',
+    '- Die ERSTEN 3–5 Wörter sind CTR-entscheidend (mobile Ansicht): Marke + Produkttyp/Modell zuerst.',
+    '- SONDERZEICHEN-VERBOT: kein &, !, _, keine Klammern (), kein „WOW"/„L@@K". Ein einfacher Bindestrich zur Trennung ist das Maximum. Keine EAN/GTIN/SKU im Titel.',
+    '- Haupt-Keyword max. 1×; nutze Long-Tail-Variationen statt Wiederholung.',
+  ];
+  if (bucket === 'motors') {
+    lines.push('- MOTORS-SONDERREGEL (kritisch): Führe im Titel KEINE Fahrzeugmodelle/Marken auf (z.B. NICHT „für Dodge RAM 1500", NICHT „VW Golf"). Der Titel enthält [Hersteller] [Teilename] [Einbauposition/Maß] [OEM-/OE-Referenznummer]. Die kompatiblen Fahrzeuge gehören AUSSCHLIESSLICH in die Fahrzeugverwendungsliste (K-Types), nie in den Titel. Beispiel: „Mopar Bremsscheibe Hinterachse 375mm 68237065AA".');
+  }
+  lines.push(
+    '',
+    'SEO-BESCHREIBUNG (short_description — VERBINDLICH):',
+    '- Reiner FLIESSTEXT (keine Bullet-Points, keine Listen, kein HTML). Bullet-Points gehören ausschließlich in key_features/Highlights.',
+    '- Umfang ~180–240 Wörter sichtbarer Text (NICHT 2–3 Sätze). Einzigartig formuliert (kein Lieferanten-Copy-Paste → Duplicate-Content-Strafe).',
+    '- Keyword-Dichte 5–7 %: die wichtigsten Such-Keywords + deren Synonyme natürlich einweben (z.B. „Bremsscheibe" ergänzt um „Bremsscheiben", „Scheibenbremse"). Keywords, die nicht in den 80-Zeichen-Titel passten, hier verweben.',
+    '- Nutzen statt reiner Merkmale („Benefits statt Features"): erkläre den konkreten Käufer-Vorteil. Präzise, professionell, keine erfundenen Specs.',
+    '',
+    'PREIS (VERBINDLICH wenn Verkaufspreis fehlt/0):',
+    '- Wenn der aktuelle Verkaufspreis (pricing.sellPrice) fehlt oder 0 ist, MUSST du einen belegten Marktpreis recherchieren und ihn als pricing.sellPrice (Zahl, EUR) VORSCHLAGEN — nicht nur als lowest_price dokumentieren. pricing.lowest_price ist reine Recherche und ändert den Angebotspreis nicht.',
+    '- Orientiere dich am Median vergleichbarer verkaufter Artikel (Cassini bestraft Ausreißer nach oben UND unten). Sage nie „Preis aktualisiert", wenn du sellPrice nicht gesetzt hast.',
+  );
+  return lines.join('\n');
+}
+
+// Deterministische Durchsetzung der SEO-Policies NACH der Konsolidierung — damit
+// „einfache Regeln" garantiert greifen, egal was das Modell liefert:
+//  1) Titel: coerceTitleToPolicy (harte 80-Zeichen-Grenze + Emoji/Markdown/SKU/
+//     Sonderzeichen-Cleanup). Passthrough-Modus rewritet NICHT, kürzt/säubert nur.
+//  2) Preis-Gap: hat das Modell einen belegten Marktpreis recherchiert, aber
+//     keinen sellPrice gesetzt, und hat das Produkt bisher KEINEN Verkaufspreis,
+//     wird der Marktpreis als sellPrice-Vorschlag abgeleitet (füllt nur Lücken,
+//     überschreibt NIE einen bestehenden Verkaufspreis).
+function enforceSeoPoliciesV3(changes, product) {
+  if (!Array.isArray(changes)) return changes;
+  const existingSell = Number(product?.details?.pricing?.sellPrice) || 0;
+  for (const change of changes) {
+    if (!change || typeof change !== 'object') continue;
+    if (typeof change.title === 'string' && change.title.trim()) {
+      try {
+        const coerced = coerceTitleToPolicy(product, change.title, { maxLen: 80 });
+        if (coerced && coerced.trim()) change.title = coerced.trim();
+      } catch { /* Titel unverändert lassen bei Fehler */ }
+    }
+    const p = change.pricing;
+    if (p && typeof p === 'object') {
+      const proposedSell = Number(p.sellPrice) || 0;
+      const market = Number(p.sellPrice) || Number(p.amount)
+        || Number(p.lowest_price && p.lowest_price.amount) || 0;
+      if (!proposedSell && !existingSell && market >= 1) {
+        p.sellPrice = market;
+      }
+    }
+  }
+  return changes;
+}
+
 function buildSystemPromptV3(product, { locale = 'de-DE' } = {}) {
   const snapshot = summarizeProduct(product);
   const toolList = atomicTools
@@ -581,6 +658,8 @@ function buildSystemPromptV3(product, { locale = 'de-DE' } = {}) {
     '- EU-Verantwortlicher (eu_responsible_*): PFLICHT wenn entity_country/country_code NICHT in der EU liegt. Separate Felder nutzen, NIEMALS EU-Adresse in Hersteller-Felder schreiben.',
     '- WICHTIG — Rolle erkennen, nicht am Land festmachen: Eine Firma mit Zusatz wie "(für <Marke>)", "im Auftrag von …", "i.A." ODER ein bekannter EU-Bevollmächtigter (z.B. Apex CE Specialists, eVatmaster, "… CE Specialists", "Authorized Representative") ist der EU-VERANTWORTLICHE, NICHT der Hersteller — auch wenn die Adresse in Deutschland liegt. Solche Daten gehören in eu_responsible_*, und der echte Hersteller ist die Marke aus dem "(für <Marke>)"-Zusatz (gehört in manufacturer_name).',
     '- NIEMALS EU-Verantwortlichen-Kontakt (z.B. eVatmaster, +49…) in manufacturer email/phone mischen — nur in eu_responsible_email / eu_responsible_phone.',
+    '',
+    buildSeoRulesBlock(product),
     '',
     'OUTPUT-FORMAT:',
     '- Datenblatt-Änderung → function_call update_product_datasheet (inkl. confidence 0-1 und summary).',
@@ -1497,6 +1576,7 @@ async function runProductChatV3({
     // Überlappende Karten aus mehreren Write-Calls zu EINER konsolidieren,
     // BEVOR draft/crossRef/Kategorie-Resolve darauf arbeiten.
     state.datasheetChanges = consolidateDatasheetChangesV3(state.datasheetChanges);
+    enforceSeoPoliciesV3(state.datasheetChanges, product);
 
     // Build draft from aggregated datasheetChanges (last-wins per key).
     const draft = {};
@@ -1636,6 +1716,8 @@ module.exports = {
   SUGGEST_IMAGES_DECLARATION,
   _testables: {
     buildSystemPromptV3,
+    buildSeoRulesBlock,
+    enforceSeoPoliciesV3,
     sanitizeDatasheetChangeV3,
     ownExecutor,
     emitThoughts,

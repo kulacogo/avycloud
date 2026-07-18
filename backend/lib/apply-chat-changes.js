@@ -154,7 +154,9 @@ function applyChatChangesToProduct(product, changes, opts = {}) {
       }
     }
 
-    // pricing → details.pricing.lowest_price (with source); never sellPrice
+    // pricing → details.pricing.lowest_price (Markt-Recherche). sellPrice wird
+    // NUR gefüllt, wenn bisher KEINER existiert — ein vom Menschen gesetzter
+    // Verkaufspreis wird NIEMALS von der KI überschrieben (Live-Listing-Schutz).
     if (ch.pricing && typeof ch.pricing === 'object') {
       const p = ch.pricing;
       let lp = null;
@@ -173,6 +175,15 @@ function applyChatChangesToProduct(product, changes, opts = {}) {
         if (typeof opts.nowIso === 'function') lp.last_checked_iso = opts.nowIso();
         work.details.pricing.lowest_price = lp;
         changed.add('pricing');
+      }
+      const proposedSell = Number(p.sellPrice);
+      if (Number.isFinite(proposedSell) && proposedSell >= 1) {
+        work.details.pricing = work.details.pricing || {};
+        const existingSell = Number(work.details.pricing.sellPrice) || 0;
+        if (!existingSell) {
+          work.details.pricing.sellPrice = proposedSell;
+          changed.add('pricing');
+        }
       }
     }
 
