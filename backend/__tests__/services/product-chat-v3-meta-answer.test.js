@@ -171,18 +171,18 @@ describe('Write-Call-Härtung (Incident 2026-07-16: changes=0 bei sawWrite=true)
     expect(out.attributes).toEqual([{ key: 'Farbe', value: 'Blau' }]);
   });
 
-  it('ownExecutor meldet ok:false + Schema-Hinweis, wenn ALLES verworfen wurde (kein Fake-Erfolg mehr)', () => {
+  it('ownExecutor meldet ok:false + Schema-Hinweis, wenn ALLES verworfen wurde (kein Fake-Erfolg mehr)', async () => {
     const state = { datasheetChanges: [] };
-    const res = ownExecutor('update_product_datasheet', { unbekanntes_feld: 'x', preis: '12 EUR' }, state);
+    const res = await ownExecutor('update_product_datasheet', { unbekanntes_feld: 'x', preis: '12 EUR' }, state);
     expect(res.ok).toBe(false);
     expect(res.error.code).toBe('EMPTY_AFTER_SANITIZE');
     expect(res.error.message).toContain('attributes als ARRAY');
     expect(state.datasheetChanges).toHaveLength(0);
   });
 
-  it('ownExecutor mit validem Inhalt bleibt ok:true', () => {
+  it('ownExecutor mit validem Inhalt bleibt ok:true', async () => {
     const state = { datasheetChanges: [] };
-    const res = ownExecutor('update_product_datasheet', { identity: { brand: 'HIKENTURE' } }, state);
+    const res = await ownExecutor('update_product_datasheet', { identity: { brand: 'HIKENTURE' } }, state);
     expect(res.ok).toBe(true);
     expect(state.datasheetChanges).toHaveLength(1);
   });

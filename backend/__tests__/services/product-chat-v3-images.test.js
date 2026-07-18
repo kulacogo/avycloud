@@ -38,6 +38,51 @@ function productWithImage(url) {
   };
 }
 
+describe('chat-v3 suggest_product_images führt echte Bildsuche aus (Incident 2026-07-18)', () => {
+  const imageSearch = require(path.join(__dirname, '..', '..', 'lib', 'image-search'));
+  let origSearch;
+  let origFetch;
+  beforeEach(() => { origSearch = imageSearch.searchProductImages; origFetch = global.fetch; global.fetch = vi.fn(async () => { throw new Error('no-img'); }); });
+  afterEach(() => { imageSearch.searchProductImages = origSearch; global.fetch = origFetch; });
+
+  it('ruft searchProductImages und liefert aufgelöste Bilder in imageSuggestions (nicht nur "queued")', async () => {
+    imageSearch.searchProductImages = vi.fn(async () => ([
+      { url: 'https://shop.example/img1.jpg', source: 'google_images', title: 'Bauer Vapor X5' },
+      { url: 'https://shop.example/img2.jpg', source: 'google_images', title: 'Bauer Vapor X5 seitlich' },
+    ]));
+    const aiClient = mkFakeAiClient([
+      mkFakeResponse({ functionCalls: [{ name: 'suggest_product_images', args: { query: 'Bauer Vapor X5 Pro', rationale: 'Nutzer will Bilder' } }] }),
+      mkFakeResponse({ text: 'Ich habe 2 Produktbilder gefunden.' }),
+    ]);
+    const result = await runProductChatV3({
+      product: { id: 'p1', identification: { name: 'Bauer Vapor X5', brand: 'Bauer', barcodes: [] }, details: { images: [] } },
+      message: 'finde produktbilder',
+      aiClient,
+    });
+    expect(imageSearch.searchProductImages).toHaveBeenCalledTimes(1);
+    expect(imageSearch.searchProductImages.mock.calls[0][1]).toMatchObject({ query: 'Bauer Vapor X5 Pro', limit: 6 });
+    expect(Array.isArray(result.imageSuggestions)).toBe(true);
+    expect(result.imageSuggestions).toHaveLength(1);
+    expect(result.imageSuggestions[0].images).toHaveLength(2);
+    expect(result.imageSuggestions[0].images[0].url_or_base64).toBe('https://shop.example/img1.jpg');
+  });
+
+  it('leere Suche → kein Vorschlag (kein leerer Karten-Stub)', async () => {
+    imageSearch.searchProductImages = vi.fn(async () => ([]));
+    const aiClient = mkFakeAiClient([
+      mkFakeResponse({ functionCalls: [{ name: 'suggest_product_images', args: { query: 'ObskuresProdukt' } }] }),
+      mkFakeResponse({ text: 'Leider keine Bilder gefunden.' }),
+    ]);
+    const result = await runProductChatV3({
+      product: { id: 'p2', identification: { name: 'X', brand: 'Y', barcodes: [] }, details: { images: [] } },
+      message: 'finde produktbilder',
+      aiClient,
+    });
+    expect(imageSearch.searchProductImages).toHaveBeenCalledTimes(1);
+    expect(result.imageSuggestions).toHaveLength(0);
+  });
+});
+
 describe('chat-v3 fetchProductImageParts', () => {
   let origFetch;
   beforeEach(() => { origFetch = global.fetch; });

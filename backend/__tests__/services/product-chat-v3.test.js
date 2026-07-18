@@ -295,9 +295,14 @@ describe('sanitizeDatasheetChangeV3', () => {
 });
 
 describe('ownExecutor', () => {
-  it('handles update_product_datasheet and pushes sanitized change to state', () => {
+  const imageSearch = require(require('path').join(__dirname, '..', '..', 'lib', 'image-search'));
+  let origSearch;
+  beforeEach(() => { origSearch = imageSearch.searchProductImages; });
+  afterEach(() => { imageSearch.searchProductImages = origSearch; });
+
+  it('handles update_product_datasheet and pushes sanitized change to state', async () => {
     const state = { datasheetChanges: [], imageSuggestions: [] };
-    const res = _testables.ownExecutor(
+    const res = await _testables.ownExecutor(
       'update_product_datasheet',
       { title: 'Test', summary: 'why', confidence: 0.9, badField: 'x' },
       state
@@ -311,31 +316,35 @@ describe('ownExecutor', () => {
     expect(state.datasheetChanges[0]).not.toHaveProperty('badField');
   });
 
-  it('handles suggest_product_images and queues query', () => {
-    const state = { datasheetChanges: [], imageSuggestions: [] };
-    const res = _testables.ownExecutor(
+  it('handles suggest_product_images: führt echte Suche aus und hängt aufgelöste Bilder an', async () => {
+    imageSearch.searchProductImages = vi.fn(async () => ([
+      { url: 'https://s/x.jpg', source: 'google_images', title: 'Sony' },
+    ]));
+    const state = { product: { details: { images: [] } }, datasheetChanges: [], imageSuggestions: [] };
+    const res = await _testables.ownExecutor(
       'suggest_product_images',
       { query: 'Sony WH-1000XM5 schwarz', rationale: 'need packshot' },
       state
     );
     expect(res.ok).toBe(true);
+    expect(res.data.count).toBe(1);
+    expect(imageSearch.searchProductImages).toHaveBeenCalledTimes(1);
     expect(state.imageSuggestions).toHaveLength(1);
-    expect(state.imageSuggestions[0]).toEqual({
-      query: 'Sony WH-1000XM5 schwarz',
-      rationale: 'need packshot',
-    });
+    expect(state.imageSuggestions[0].query).toBe('Sony WH-1000XM5 schwarz');
+    expect(state.imageSuggestions[0].rationale).toBe('need packshot');
+    expect(state.imageSuggestions[0].images[0].url_or_base64).toBe('https://s/x.jpg');
   });
 
-  it('returns failure for suggest_product_images without query', () => {
+  it('returns failure for suggest_product_images without query', async () => {
     const state = { datasheetChanges: [], imageSuggestions: [] };
-    const res = _testables.ownExecutor('suggest_product_images', {}, state);
+    const res = await _testables.ownExecutor('suggest_product_images', {}, state);
     expect(res.ok).toBe(false);
     expect(res.error.code).toBe('MISSING_QUERY');
   });
 
-  it('returns null for unknown tool names so the map dispatch takes over', () => {
+  it('returns null for unknown tool names so the map dispatch takes over', async () => {
     const state = { datasheetChanges: [], imageSuggestions: [] };
-    expect(_testables.ownExecutor('lookup_gtin', {}, state)).toBeNull();
+    expect(await _testables.ownExecutor('lookup_gtin', {}, state)).toBeNull();
   });
 });
 

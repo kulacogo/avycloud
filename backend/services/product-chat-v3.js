@@ -31,6 +31,8 @@
  */
 
 const atomicTools = require('./atomic-tools');
+// Modul-Referenz (nicht destrukturiert), damit Tests searchProductImages patchen können.
+const imageSearch = require('../lib/image-search');
 const { scoreField, aggregateProductConfidence } = require('../lib/confidence-scoring');
 const { crossReferenceProduct } = require('../lib/cross-reference');
 const { normalizeLiteralEscapes, hasListMarkup, sanitizeDescriptionProse } = require('../lib/listing-sanitize');
@@ -550,7 +552,7 @@ function buildSystemPromptV3(product, { locale = 'de-DE' } = {}) {
     '- urlContext (native): konkrete URL tief lesen (bis zu 20 URLs pro Request).',
     toolList,
     '- update_product_datasheet: PFLICHT-Finalisierung jedes Turns (siehe ARBEITSFLOW).',
-    '- suggest_product_images: Reale Bildsuche per System (keine URLs erfinden).',
+    '- suggest_product_images: führt SOFORT eine echte Bildsuche aus und liefert die gefundenen Bilder im selben Zug zurück (Feld count/found im Ergebnis). Es ist KEINE asynchrone/"laufende" Suche — sage NIE "die Suche läuft". Melde stattdessen, wie viele Bilder gefunden wurden (count). Erfinde keine URLs.',
     '',
     'ARBEITSFLOW (IMMER IN DIESER REIHENFOLGE):',
     '0. BILD-PHASE (ZUERST): Die angehängten Produktbilder sind Fotos des ECHTEN Artikels/der Verpackung. Lies Angaben — Marke, Modell/Typnummer, Maße, Material, Leistungsdaten UND besonders Hersteller-/EU-Verantwortlichen-/GPSR-Angaben — DIREKT vom Etikett/Karton ab, BEVOR du das Web bemühst. Das Etikett ist die autoritativste Quelle.',
@@ -852,7 +854,27 @@ function consolidateDatasheetChangesV3(changes) {
   return [merged];
 }
 
-function ownExecutor(name, args, state) {
+// Normalisierter Bild-Schlüssel (Host+Pfad) für Dedup — spiegelt V2.
+function normalizeImageKeyV3(url = '') {
+  const s = String(url || '').trim();
+  if (!s) return '';
+  try {
+    const u = new URL(s);
+    return `${u.hostname}${u.pathname}`.toLowerCase();
+  } catch {
+    return s.toLowerCase().replace(/\s+/g, '');
+  }
+}
+
+// Vorhandene Produktbild-Schlüssel, damit die Web-Suche keine Duplikate vorschlägt.
+function existingImageKeysFor(product) {
+  const imgs = Array.isArray(product?.details?.images) ? product.details.images : [];
+  return imgs
+    .map((im) => normalizeImageKeyV3(im?.url_or_base64))
+    .filter(Boolean);
+}
+
+async function ownExecutor(name, args, state) {
   if (name === 'update_product_datasheet') {
     const started = Date.now();
     const change = sanitizeDatasheetChangeV3(args || {});
@@ -917,13 +939,42 @@ function ownExecutor(name, args, state) {
         error: { code: 'MISSING_QUERY', message: 'query is required' },
       };
     }
-    state.imageSuggestions.push({ query, rationale });
+    // Incident 2026-07-18: der V3-Executor hat die Bildsuche NIE ausgeführt —
+    // er legte nur den Suchbegriff ab (queued:true), das Modell meldete deshalb
+    // "Bildersuche läuft" ohne je Bilder zu liefern. Jetzt wird — wie in V2 —
+    // die echte SerpAPI-Bildsuche ausgeführt und die aufgelösten URLs geliefert.
+    let images = [];
+    let searchError = null;
+    try {
+      const results = await imageSearch.searchProductImages(state.product || {}, {
+        query, limit: 6, minWidth: 400, minHeight: 400,
+      });
+      const seen = new Set(existingImageKeysFor(state.product));
+      images = (Array.isArray(results) ? results : [])
+        .map((img) => ({
+          url_or_base64: img.url,
+          source: img.source || 'web_search',
+          variant: 'gallery',
+          notes: img.title || 'Web-Produktbild',
+        }))
+        .filter((img) => {
+          const key = normalizeImageKeyV3(img.url_or_base64);
+          if (!key || seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        });
+    } catch (err) {
+      searchError = err?.message || String(err);
+    }
+    // Nur mit echten Bildern einen Vorschlag anhängen (leere Suche = kein Vorschlag).
+    if (images.length) state.imageSuggestions.push({ query, rationale, images });
     return {
-      ok: true,
+      ok: !searchError,
       source: 'suggest_product_images',
-      data: { query, rationale, queued: true },
-      confidence: 0.5,
+      data: { query, rationale, count: images.length, found: images.length > 0 },
+      confidence: images.length ? 0.8 : 0.3,
       meta: { durationMs: Date.now() - started },
+      ...(searchError ? { error: { code: 'IMAGE_SEARCH_FAILED', message: searchError } } : {}),
     };
   }
 
@@ -1082,6 +1133,7 @@ async function runProductChatV3({
   };
 
   const state = {
+    product,          // für suggest_product_images (echte Bildsuche)
     datasheetChanges: [],
     imageSuggestions: [],
     sourceResults: [],
@@ -1221,7 +1273,7 @@ async function runProductChatV3({
 
           let result;
           try {
-            const own = ownExecutor(callName, callArgs, state);
+            const own = await ownExecutor(callName, callArgs, state);
             if (own) {
               result = own;
             } else if (typeof executorMap[callName] === 'function') {
@@ -1384,7 +1436,7 @@ async function runProductChatV3({
           const callId = call.id || null;
           let result;
           try {
-            result = ownExecutor(WRITE_TOOL, callArgs, state);
+            result = await ownExecutor(WRITE_TOOL, callArgs, state);
           } catch (err) {
             result = {
               ok: false,
