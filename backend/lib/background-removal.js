@@ -6,10 +6,17 @@ const DEFAULT_WIDTH = 1024;
 const DEFAULT_HEIGHT = 1024;
 
 /**
- * Creates a studio gradient background image (PNG buffer).
- * Dark products → white gradient, light products → light gray gradient.
+ * Creates a studio background image (PNG buffer).
+ * - 'gray'       → light gray vertical gradient (for shiny/reflective products)
+ * - 'white'      → subtle white gradient (#fff → #f0f0f0)
+ * - 'flat_white' → PURE flat white (#ffffff, no gradient) — eBay/Google-Shopping
+ *                  Hauptbild-Standard (reiner weißer Hintergrund).
  */
 async function createGradientBackground(width, height, style = 'white') {
+  if (style === 'flat_white') {
+    const white = Buffer.alloc(width * height * 3, 255);
+    return sharp(white, { raw: { width, height, channels: 3 } }).png().toBuffer();
+  }
   const topColor = style === 'gray'
     ? { r: 235, g: 235, b: 235 }
     : { r: 255, g: 255, b: 255 };

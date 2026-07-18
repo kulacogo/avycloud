@@ -170,3 +170,13 @@ describe('validateStudioResult', () => {
     expect(verdict).toEqual(expect.objectContaining({ ok: true, width: 800, height: 800 }));
   });
 });
+
+describe('STUDIO_PROMPT — reinweißer Hintergrund (kein Verlauf)', () => {
+  it('fordert reines Weiß und verbietet Verlauf/Off-White', () => {
+    const p = _internal.STUDIO_PROMPT.toLowerCase();
+    expect(p).toContain('pure white');
+    expect(p).toContain('#ffffff');
+    expect(p).toContain('no gradient');
+    expect(p).not.toContain('off-white with a very');
+  });
+});

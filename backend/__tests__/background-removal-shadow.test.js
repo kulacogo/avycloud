@@ -49,3 +49,24 @@ describe('compositeOnGradient mit shadow', () => {
     expect(withShadow.buffer.equals(withoutShadow.buffer)).toBe(false);
   });
 });
+
+describe('createGradientBackground flat_white (reinweißer Hintergrund)', () => {
+  const { createGradientBackground } = require('../lib/background-removal');
+
+  it('flat_white ist überall reines Weiß (255,255,255) — kein Verlauf', async () => {
+    const png = await createGradientBackground(48, 48, 'flat_white');
+    const { data } = await sharp(png).raw().toBuffer({ resolveWithObject: true });
+    let min = 255; let max = 0;
+    for (let i = 0; i < data.length; i++) { if (data[i] < min) min = data[i]; if (data[i] > max) max = data[i]; }
+    expect(min).toBe(255);
+    expect(max).toBe(255);
+  });
+
+  it('white (Default) hat einen Verlauf (dunklere Pixel < 255)', async () => {
+    const png = await createGradientBackground(48, 48, 'white');
+    const { data } = await sharp(png).raw().toBuffer({ resolveWithObject: true });
+    let min = 255;
+    for (let i = 0; i < data.length; i++) if (data[i] < min) min = data[i];
+    expect(min).toBeLessThan(255);
+  });
+});

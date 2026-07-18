@@ -4,9 +4,10 @@
  * image-studio.js
  *
  * Turns an arbitrary product photo into a professional studio packshot:
- * corrected exposure, bright off-white studio backdrop (subtle gradient, NOT
- * flat #FFFFFF) and a soft natural contact shadow. The product itself must
- * stay pixel-faithful (shape, colors, labels, text).
+ * corrected exposure, PURE WHITE backdrop (#FFFFFF, seamless — eBay/Google-
+ * Shopping-Hauptbild-Standard, siehe Picture Policy) and a soft natural contact
+ * shadow. The product itself must stay pixel-faithful (shape, colors, labels,
+ * text).
  *
  * Strategy (each step best-effort, never returns nothing without trying all):
  *   1. Gemini image model chain: STUDIO_IMAGE_MODEL → STUDIO_IMAGE_FALLBACK_MODEL
@@ -32,10 +33,11 @@ const STUDIO_PROMPT =
   'labels and printed text — do not redraw, restyle or replace the product. ' +
   'Correct the exposure and white balance so the product is evenly and naturally lit, ' +
   'as if photographed in a softbox studio lighting setup. ' +
-  'Replace the background with a bright, clean studio backdrop: soft off-white with a very ' +
-  'subtle vertical gradient (near #ffffff at the top, around #f2f3f5 toward the bottom) — ' +
-  'not flat pure white. Add a soft, natural contact shadow directly under the product so it ' +
-  'sits grounded on the surface. ' +
+  'Replace the background with a PURE WHITE seamless studio backdrop — flat pure white ' +
+  '#FFFFFF (RGB 255,255,255), NO gradient, no off-white, no colored tint. This is the ' +
+  'eBay / Google Shopping main-image standard. Add only a soft, natural contact shadow ' +
+  'directly under the product so it sits grounded on the surface (the surrounding backdrop ' +
+  'stays pure white). ' +
   'No props, no text, no watermark, no people, no reflections of other objects, no added items. ' +
   'Keep the original camera perspective, show the product fully in frame with balanced margins.';
 
@@ -146,7 +148,7 @@ async function tryGeminiStudio(preBuffer, attempts) {
 
 async function fallbackComposite(preBuffer) {
   const result = await compositeOnGradient(preBuffer, {
-    gradientStyle: 'white',
+    gradientStyle: 'flat_white', // reiner weißer Hintergrund (eBay/Google-Shopping-Standard)
     outputWidth: FALLBACK_CANVAS_PX,
     outputHeight: FALLBACK_CANVAS_PX,
     padding: 0.1,
@@ -212,8 +214,8 @@ async function makeStudioPhoto({ productId, image }) {
         method === 'gemini'
           ? // "Gemini" im Text ist Absicht: markiert das Bild im Frontend als
             // trusted-AI (isTrustedAiImage) und hält es aus Referenz-Pools raus.
-            'Studio-Foto (Gemini: Belichtung korrigiert, Studio-Hintergrund, Kontaktschatten)'
-          : 'Studio-Foto (Freisteller auf Studio-Verlauf mit Kontaktschatten)',
+            'Studio-Foto (Gemini: Belichtung korrigiert, reinweißer Hintergrund, Kontaktschatten)'
+          : 'Studio-Foto (Freisteller auf reinweißem Hintergrund mit Kontaktschatten)',
       mimeType,
       width: result.width || null,
       height: result.height || null,
