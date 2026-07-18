@@ -121,17 +121,17 @@ describe('makeStudioPhoto — Modell-Kette', () => {
     expect(result.attempts[0].reason).toMatch(/background_too_dark/);
   });
 
-  it('nutzt den Composite-Fallback (mit Schatten) wenn beide Modelle scheitern', async () => {
+  it('nutzt den sicheren Weiß-Fallback (Produkt zentriert, KEIN Freisteller) wenn beide Modelle scheitern', async () => {
     generateProductImagesSpy.mockRejectedValue(new Error('api down'));
-    compositeOnGradientSpy.mockResolvedValue({ buffer: brightPng, width: 1200, height: 1200 });
 
     const result = await makeStudioPhoto({ productId: 'p1', image: { url_or_base64: 'https://x/img.jpg' } });
 
     expect(result.method).toBe('composite_fallback');
     expect(result.model).toBeNull();
     expect(result.image.source).toBe('studio_composite');
-    expect(compositeOnGradientSpy).toHaveBeenCalledTimes(1);
-    expect(compositeOnGradientSpy.mock.calls[0][1]).toEqual(expect.objectContaining({ shadow: true }));
+    // Ergebnis ist ein gültiges Bild (hochgeladen) — der Fallback stellt NICHT frei
+    // (Incident 2026-07-18: Freisteller zerschmierte helle/metallische Produkte).
+    expect(uploadBase64ImageSpy).toHaveBeenCalledTimes(1);
   });
 
   it('wirft NICHT bei GCS-Upload-Fehler, sondern liefert die Data-URL', async () => {
@@ -178,5 +178,30 @@ describe('STUDIO_PROMPT — reinweißer Hintergrund (kein Verlauf)', () => {
     expect(p).toContain('#ffffff');
     expect(p).toContain('no gradient');
     expect(p).not.toContain('off-white with a very');
+  });
+});
+
+describe('padOnWhiteSquare — sicherer Weiß-Fallback (kein Freisteller)', () => {
+  it('zentriert ein helles Produkt intakt auf reinweißem Quadrat (Ecken 255, Produkt überlebt)', async () => {
+    // Helles Produkt (metallik-artig, ~220 grau) auf weißem Hintergrund — der
+    // alte Freisteller hätte es zerstört; padOnWhiteSquare lässt es intakt.
+    const product = await sharp({
+      create: { width: 400, height: 400, channels: 3, background: { r: 255, g: 255, b: 255 } },
+    }).composite([{
+      input: await sharp({ create: { width: 220, height: 220, channels: 3, background: { r: 210, g: 212, b: 216 } } }).png().toBuffer(),
+      left: 90, top: 90,
+    }]).jpeg().toBuffer();
+
+    const out = await _internal.padOnWhiteSquare(product, 600);
+    expect(out.width).toBe(600);
+    const { data, info } = await sharp(out.buffer).raw().toBuffer({ resolveWithObject: true });
+    const px = (x, y) => { const i = (y * info.width + x) * info.channels; return [data[i], data[i + 1], data[i + 2]]; };
+    // Ecken reinweiß
+    for (const [x, y] of [[3, 3], [info.width - 4, 3], [3, info.height - 4], [info.width - 4, info.height - 4]]) {
+      expect(px(x, y)).toEqual([255, 255, 255]);
+    }
+    // Produkt überlebt: die Bildmitte ist NICHT weiß (das helle Produkt ist da)
+    const [cr, cg, cb] = px(Math.round(info.width / 2), Math.round(info.height / 2));
+    expect(cr < 245 || cg < 245 || cb < 245).toBe(true);
   });
 });

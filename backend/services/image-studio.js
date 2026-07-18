@@ -21,7 +21,6 @@ const sharp = require('sharp');
 const { generateProductImages } = require('../lib/vertex-ai');
 const { fetchImageAsDataUrl } = require('./image-generation');
 const { uploadBase64Image } = require('../lib/storage');
-const { compositeOnGradient } = require('../lib/background-removal');
 
 const MIN_EDGE_PX = 512;
 const PRE_MAX_EDGE_PX = 1600;
@@ -146,15 +145,44 @@ async function tryGeminiStudio(preBuffer, attempts) {
   return null;
 }
 
+/**
+ * Deterministischer Studio-Fallback (wenn die Gemini-Kette scheitert): trimmt den
+ * (meist weißen) Rand des Lieferantenfotos und zentriert das Produkt UNVERÄNDERT
+ * auf einem reinweißen Quadrat mit Rand.
+ *
+ * BEWUSST OHNE removeBackground/Freisteller (Incident 2026-07-18): die
+ * schwellenwert-basierte Near-White-Maske macht bei hellen/metallischen Produkten
+ * (z.B. Alu-Dose) die Produkt-Innenflächen transparent → das Produkt zerfällt in
+ * Fragmente, die beim Compositen zu Streifen verschmieren. Es gibt keine
+ * zuverlässige Heuristik, „guten" von „zerstörerischem" Freisteller zu trennen —
+ * darum stellen wir im Fallback NIE frei und liefern nur ein sauberes, intaktes
+ * Produkt auf Weiß. Der schöne Freisteller + Kontaktschatten ist Aufgabe des
+ * Gemini-Wegs (Primär).
+ */
+async function padOnWhiteSquare(buffer, size = FALLBACK_CANVAS_PX) {
+  let trimmed = buffer;
+  try {
+    trimmed = await sharp(buffer).trim({ threshold: 12 }).toBuffer();
+  } catch {
+    trimmed = buffer;
+  }
+  const pad = Math.round(size * 0.08);
+  const inner = size - pad * 2;
+  const resized = await sharp(trimmed)
+    .resize(inner, inner, { fit: 'inside', withoutEnlargement: false })
+    .toBuffer();
+  const rm = await sharp(resized).metadata();
+  const out = await sharp({
+    create: { width: size, height: size, channels: 3, background: { r: 255, g: 255, b: 255 } },
+  })
+    .composite([{ input: resized, left: Math.round((size - (rm.width || inner)) / 2), top: Math.round((size - (rm.height || inner)) / 2) }])
+    .png()
+    .toBuffer();
+  return { buffer: out, mimeType: 'image/png', width: size, height: size };
+}
+
 async function fallbackComposite(preBuffer) {
-  const result = await compositeOnGradient(preBuffer, {
-    gradientStyle: 'flat_white', // reiner weißer Hintergrund (eBay/Google-Shopping-Standard)
-    outputWidth: FALLBACK_CANVAS_PX,
-    outputHeight: FALLBACK_CANVAS_PX,
-    padding: 0.1,
-    shadow: true,
-  });
-  return { buffer: result.buffer, mimeType: 'image/png', width: result.width, height: result.height };
+  return padOnWhiteSquare(preBuffer);
 }
 
 /**
@@ -215,7 +243,7 @@ async function makeStudioPhoto({ productId, image }) {
           ? // "Gemini" im Text ist Absicht: markiert das Bild im Frontend als
             // trusted-AI (isTrustedAiImage) und hält es aus Referenz-Pools raus.
             'Studio-Foto (Gemini: Belichtung korrigiert, reinweißer Hintergrund, Kontaktschatten)'
-          : 'Studio-Foto (Freisteller auf reinweißem Hintergrund mit Kontaktschatten)',
+          : 'Studio-Foto (Produkt zentriert auf reinweißem Hintergrund)',
       mimeType,
       width: result.width || null,
       height: result.height || null,
@@ -228,5 +256,5 @@ async function makeStudioPhoto({ productId, image }) {
 
 module.exports = {
   makeStudioPhoto,
-  _internal: { validateStudioResult, preprocessInput, studioModelChain, STUDIO_PROMPT },
+  _internal: { validateStudioResult, preprocessInput, studioModelChain, STUDIO_PROMPT, padOnWhiteSquare, fallbackComposite },
 };
