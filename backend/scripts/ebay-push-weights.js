@@ -332,6 +332,13 @@ async function main() {
         done = true;
         break;
       }
+      // Idempotenz: trägt das Live-Listing bereits ein Gewichts-Merkmal, ist
+      // nichts zu tun — Re-Runs kosten dann nur 1 GetItem statt 1 Revise.
+      if (hasWeightAspect(liveItem?.itemSpecifics)) {
+        skipped.push({ productId: cand.product.id, sku: cand.sku, itemId, reason: 'already_has_weight_live' });
+        done = true;
+        break;
+      }
 
       const merged = mergeSpecificsUnion(localSpecifics, liveItem?.itemSpecifics || {});
       try {

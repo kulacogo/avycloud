@@ -330,6 +330,36 @@ describe('ebay-push-weights mergeSpecificsUnion + hasWeightAspect', () => {
   });
 });
 
+describe('ebay-fix-weight-failures Helpers', () => {
+  const { extractMissingAspectNamesFr, isMpnAspect, mergeSpecificsWithRequired } = require('../scripts/ebay-fix-weight-failures');
+
+  it('extrahiert fehlende Pflicht-Aspects aus FR-Meldungen (BEFR-Konto)', () => {
+    expect(extractMissingAspectNamesFr(
+      "La caractéristique de l'objet obligatoire Type est manquante. Ajoutez Type et une valeur correspondante à l'annonce et réessayez.",
+    )).toContain('Type');
+    expect(extractMissingAspectNamesFr(
+      "La caractéristique de l'objet obligatoire Numéro de pièce fabricant est manquante. Ajoutez Numéro de pièce fabricant et une valeur correspondante à l'annonce et réessayez.",
+    )).toContain('Numéro de pièce fabricant');
+    expect(extractMissingAspectNamesFr('Systemfehler. Bitte versuchen Sie es erneut.')).toEqual([]);
+  });
+
+  it('isMpnAspect erkennt MPN-Varianten', () => {
+    expect(isMpnAspect('Numéro de pièce fabricant')).toBe(true);
+    expect(isMpnAspect('Herstellernummer')).toBe(true);
+    expect(isMpnAspect('Type')).toBe(false);
+  });
+
+  it('mergeSpecificsWithRequired: Pflicht + Gewicht überleben den Cap', () => {
+    const local = {};
+    for (let i = 0; i < 44; i += 1) local[`L${i}`] = 'x';
+    local['Gewicht (kg)'] = '2';
+    const merged = mergeSpecificsWithRequired({ Type: 'Bremsscheibe' }, local, { LiveOnly: 'y' });
+    expect(Object.keys(merged).length).toBeLessThanOrEqual(45);
+    expect(merged.Type).toBe('Bremsscheibe');
+    expect(merged['Gewicht (kg)']).toBe('2');
+  });
+});
+
 describe('backfill buildGeminiPrompt', () => {
   it('enthält Titel, Marke, Kategorie und Gramm-Anweisung', () => {
     const prompt = buildGeminiPrompt({
