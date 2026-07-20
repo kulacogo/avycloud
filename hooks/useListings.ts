@@ -14,7 +14,10 @@ import type { EbayListingRow } from "../types";
 export function useEbayListings() {
   return useQuery<EbayListingRow[]>({
     queryKey: ["listings", "ebay"],
-    queryFn: () => fetchEbayLiveListings({ limit: 2000, includeInactive: true }),
+    // limit 6000 (vorher 2000): das 2000er-Fenster kappte den Spiegel und die
+    // Kopfzahlen/Oversell-Kachel rechneten über eine unvollständige Scheibe
+    // (Incident 2026-07-20: eBay real 3637 aktiv, UI zeigte 1836).
+    queryFn: () => fetchEbayLiveListings({ limit: 6000, includeInactive: true }),
     staleTime: 5 * 60_000,
     gcTime: 10 * 60_000,
     refetchOnWindowFocus: false,

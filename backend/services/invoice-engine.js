@@ -276,27 +276,60 @@ async function generateInvoice({
         discountSave: null,
       };
 
-      const r = await fetch('https://my.sevdesk.de/api/v1/Invoice/Factory/saveInvoice', {
-        method: 'POST', headers, body: JSON.stringify(sdPayload),
-      });
-      if (r.ok) {
-        const data = await r.json();
-        sevdeskId = data?.objects?.invoice?.id || null;
-        // Finalize (sendBy VPDF) to transition from draft→open and trigger sequential number assignment
-        if (sevdeskId) {
-          const rSend = await fetch(`https://my.sevdesk.de/api/v1/Invoice/${sevdeskId}/sendBy`, {
-            method: 'PUT', headers, body: JSON.stringify({ sendType: 'VPDF' }),
-          });
-          if (rSend.ok) {
-            const sd = await rSend.json();
-            invoiceNumber = sd?.objects?.invoiceNumber || null;
-          }
-        }
-        console.log(`[invoice-engine] SevDesk invoice created: ${invoiceNumber} (ID ${sevdeskId})`);
+      // DUPLIKAT-SCHUTZ (Incident 2026-07-20, ~68 Doppel-Rechnungen ≈ 3.188 €
+      // Phantom-Umsatz): eine frühere Ausführung kann die SevDesk-Rechnung
+      // bereits GEPRÄGT haben und erst danach gescheitert sein (Nummer-Parse).
+      // Die sevdeskId wird deshalb (a) VOR jedem möglichen Throw am Order-Doc
+      // persistiert und (b) hier wiederverwendet statt neu zu prägen — sonst
+      // erzeugt jeder Retry eine weitere ECHTE Rechnung in SevDesk.
+      const priorSevdeskId = String(order.invoiceSevdeskId || '').trim() || null;
+
+      if (priorSevdeskId) {
+        sevdeskId = priorSevdeskId;
+        console.log(`[invoice-engine] Reusing previously minted SevDesk invoice ID ${sevdeskId} for ${orderId} (no re-mint)`);
       } else {
-        const text = await r.text().catch(() => '');
-        console.warn(`[invoice-engine] SevDesk invoice creation failed: ${r.status} ${text.slice(0, 200)}`);
+        const r = await fetch('https://my.sevdesk.de/api/v1/Invoice/Factory/saveInvoice', {
+          method: 'POST', headers, body: JSON.stringify(sdPayload),
+        });
+        if (r.ok) {
+          const data = await r.json();
+          sevdeskId = data?.objects?.invoice?.id || null;
+          if (sevdeskId) {
+            // SOFORT persistieren — ab jetzt existiert ein steuerrelevantes
+            // Dokument in SevDesk; kein späterer Fehlerpfad darf es verwaisen.
+            await orderRef.set({ invoiceSevdeskId: String(sevdeskId) }, { merge: true }).catch(() => {});
+          }
+        } else {
+          const text = await r.text().catch(() => '');
+          console.warn(`[invoice-engine] SevDesk invoice creation failed: ${r.status} ${text.slice(0, 200)}`);
+        }
       }
+
+      // Finalize (sendBy VPDF) to transition from draft→open and trigger sequential number assignment
+      if (sevdeskId) {
+        const rSend = await fetch(`https://my.sevdesk.de/api/v1/Invoice/${sevdeskId}/sendBy`, {
+          method: 'PUT', headers, body: JSON.stringify({ sendType: 'VPDF' }),
+        });
+        if (rSend.ok) {
+          const sd = await rSend.json();
+          invoiceNumber = extractSevdeskInvoiceNumber(sd);
+        }
+        // Response-Shape-Drift oder Re-Send einer bereits finalisierten
+        // Rechnung (liefert je nach API-Version keine Nummer zurück):
+        // autoritativ per GET nachlesen statt zu raten. Genau dieser fehlende
+        // Fallback prägte pro Retry eine neue Rechnung (RE-1194/96/97/98
+        // für EINE Order am 2026-07-20).
+        if (!invoiceNumber) {
+          try {
+            const rGet = await fetch(`https://my.sevdesk.de/api/v1/Invoice/${sevdeskId}`, { headers });
+            if (rGet.ok) {
+              const got = await rGet.json();
+              invoiceNumber = extractSevdeskInvoiceNumber(got);
+            }
+          } catch (_) { /* best-effort — Deferral unten greift */ }
+        }
+      }
+      console.log(`[invoice-engine] SevDesk invoice ${invoiceNumber ? 'ready' : 'WITHOUT number'}: ${invoiceNumber} (ID ${sevdeskId})`);
     } catch (err) {
       console.warn(`[invoice-engine] SevDesk creation error (non-fatal): ${err.message}`);
     }
@@ -701,6 +734,25 @@ async function getSevdeskUserId(token) {
 /**
  * Format a YYYY-MM-DD date string to German DD.MM.YYYY format for SevDesk API.
  */
+/**
+ * SevDesk-Rechnungsnummer aus einer API-Antwort ziehen — tolerant gegenüber
+ * allen bekannten Response-Shapes (sendBy: objects={...} ODER objects={invoice:{...}};
+ * GET /Invoice/{id}: objects=[{...}]). Der starre `objects.invoiceNumber`-Zugriff
+ * lieferte nach einem SevDesk-Shape-Drift nur noch null → jeder Retry prägte
+ * eine NEUE echte Rechnung (Incident 2026-07-20, ~68 Duplikate).
+ */
+function extractSevdeskInvoiceNumber(payload) {
+  const o = payload?.objects;
+  const candidates = [
+    o?.invoiceNumber,
+    o?.invoice?.invoiceNumber,
+    Array.isArray(o) ? o[0]?.invoiceNumber : null,
+    payload?.invoiceNumber,
+  ];
+  const hit = candidates.find((v) => (typeof v === 'string' || typeof v === 'number') && String(v).trim());
+  return hit != null ? String(hit).trim() : null;
+}
+
 function toSevdeskDate(dateStr) {
   if (!dateStr) return null;
   const parts = String(dateStr).split('T')[0].split('-');
@@ -1250,4 +1302,5 @@ module.exports = {
   buildInvoicePdf,
   buildLegalFooterLines,
   toSevdeskNetUnitPrice,
+  extractSevdeskInvoiceNumber,
 };

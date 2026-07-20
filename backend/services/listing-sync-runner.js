@@ -530,10 +530,15 @@ async function runListingSyncCycle() {
   runInFlight = true;
   console.log('[ListingSyncRunner] Starting listing sync cycle...');
   try {
-    // eBay: trigger light sync (handles its own cooldown/locking) + propagate
+    // eBay: trigger light sync (handles its own cooldown/locking) + propagate.
+    // maxPages 50 (Lib-Default) statt frueher 10: das 10×200=2000-Fenster
+    // machte den Spiegel ab >2000 aktiven Listings STILL unvollstaendig —
+    // Incident 2026-07-20: eBay hatte real 3637 aktive (2904 Duplikate),
+    // avycloud kannte nur 2000, Oversell-Kachel zeigte 0. Der Pagination-Loop
+    // stoppt ohnehin bei totalPages, 50 ist nur die Notbremse (10.000).
     const ebaySync = await syncLiveListingsLight({
       runId: `auto-${Date.now()}`,
-      maxPages: 10,
+      maxPages: 50,
       entriesPerPage: 200,
       timeoutMs: 30000,
       actor: 'listing-sync-runner',
@@ -543,6 +548,12 @@ async function runListingSyncCycle() {
       console.log(`[ListingSyncRunner] eBay sync skipped (${ebaySync.reason})`);
     } else if (ebaySync?.error) {
       console.warn(`[ListingSyncRunner] eBay sync failed: ${ebaySync.error}`);
+    } else if (ebaySync?.ingest && ebaySync.ingest.totalPagesReported > ebaySync.ingest.pagesFetched) {
+      // Unvollstaendiger Ingest darf nie wieder still passieren: laut warnen,
+      // damit Operator + Logs sehen, dass der Spiegel nur ein Fenster kennt.
+      console.warn(
+        `[ListingSyncRunner] ⚠️ eBay-Ingest UNVOLLSTÄNDIG: ${ebaySync.ingest.pagesFetched}/${ebaySync.ingest.totalPagesReported} Seiten — Spiegel kennt nicht alle aktiven Listings!`
+      );
     }
 
     // Always propagate — listings may have been synced in a previous cycle
