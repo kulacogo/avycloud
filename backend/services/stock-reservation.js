@@ -225,6 +225,157 @@ async function releaseReservation({ tenantId = 'default', orderId }) {
 }
 
 /**
+ * Consume (part of) a reservation when its unit is physically PICKED.
+ *
+ * Doppelzählungs-Fix (Incident 2026-07-19, SKU-6656556112): der Pick
+ * dekrementiert `inventory.quantity`, aber die Reservierung blieb bis zum
+ * Versand-Scan `status='reserved'` — dieselbe Einheit zählte in
+ * `available = physisch − reserviert` DOPPELT. Bei einem Last-Unit-Pick fiel
+ * available fälschlich auf 0 und der Stock-Sync beendete das eBay-Angebot,
+ * obwohl noch verkäuflicher Bestand existierte.
+ *
+ * Invariante danach: eine Einheit zählt zu jedem Zeitpunkt GENAU EINMAL —
+ * entweder als offene Reservierung (noch nicht gepickt) oder als bereits
+ * erfolgter physischer Abgang. Teil-Picks senken `quantity`; erreicht die
+ * Rest-Obligation 0, wird die Reservierung als 'confirmed' (confirmedBy
+ * 'pick') geschlossen — identische Semantik wie der Versand-Confirm.
+ *
+ * @param {Object} params
+ * @param {string} params.tenantId
+ * @param {string} params.orderId
+ * @param {string} [params.sku] - SKU der gepickten Einheit
+ * @param {string} [params.productId] - Fallback-Match wenn SKU fehlt
+ * @param {number} params.quantity - gepickte Menge
+ * @returns {Object} { matched, consumed, confirmed, remaining }
+ */
+async function consumeReservationOnPick({ tenantId = 'default', orderId, sku = null, productId = null, quantity = 1 }) {
+  const qty = Number(quantity) || 0;
+  if (!orderId || qty <= 0) return { matched: false, consumed: 0, confirmed: false };
+
+  const snap = await firestore.collection(RESERVATIONS_COLLECTION)
+    .where('orderId', '==', orderId)
+    .where('tenantId', '==', tenantId)
+    .where('status', '==', 'reserved')
+    .get();
+  if (snap.empty) return { matched: false, consumed: 0, confirmed: false };
+
+  const { normalizeSkuKey } = require('../lib/order-status-helpers');
+  const target = snap.docs.find((doc) => {
+    const data = doc.data();
+    if (sku && data.sku && normalizeSkuKey(data.sku) === normalizeSkuKey(sku)) return true;
+    if (productId && data.productId && String(data.productId) === String(productId)) return true;
+    return false;
+  });
+  if (!target) return { matched: false, consumed: 0, confirmed: false };
+
+  return firestore.runTransaction(async (tx) => {
+    const fresh = await tx.get(target.ref);
+    if (!fresh.exists) return { matched: false, consumed: 0, confirmed: false };
+    const data = fresh.data();
+    if (data.status !== 'reserved') {
+      // Race mit Versand-Confirm/Release — nichts mehr zu konsumieren.
+      return { matched: false, consumed: 0, confirmed: false };
+    }
+    const now = new Date().toISOString();
+    const currentQty = Number(data.quantity) || 0;
+    const remaining = currentQty - qty;
+    if (remaining > 0) {
+      tx.update(target.ref, {
+        quantity: remaining,
+        quantityOriginal: Number(data.quantityOriginal ?? currentQty),
+        lastPickConsumedAt: now,
+      });
+      return { matched: true, consumed: qty, confirmed: false, remaining };
+    }
+    tx.update(target.ref, {
+      quantity: 0,
+      quantityOriginal: Number(data.quantityOriginal ?? currentQty),
+      status: 'confirmed',
+      confirmedAt: now,
+      confirmedBy: 'pick',
+    });
+    return { matched: true, consumed: currentQty, confirmed: true, remaining: 0 };
+  });
+}
+
+/**
+ * Symmetrischer Gegen-Pfad zu consumeReservationOnPick (Review-Finding 8):
+ * wird eine gepickte Einheit wieder EINGELAGERT (Fehl-Pick → Stow-back),
+ * muss die konsumierte Reservierungs-Obligation wieder aufleben — sonst
+ * zählt available die Einheit als frei verkäuflich, obwohl die offene Order
+ * sie weiterhin braucht (Oversell-Fenster bis zum Re-Pick).
+ *
+ * SICHERHEITS-GATE: Restore NUR wenn die Order noch in einem offenen
+ * Prä-Versand-Status ist (RESERVED_ORDER_STATUSES — dasselbe Set wie beim
+ * Intake-Reserve). Der WP4-Cancel-/Return-Recredit ruft bookStockIn ebenfalls
+ * mit meta.orderId auf — dessen Orders sind cancelled/returned und dürfen
+ * NIEMALS wieder reservieren (die Obligation ist erloschen).
+ *
+ * @returns {Object} { restored, matched }
+ */
+async function restoreReservationOnStowBack({ tenantId = 'default', orderId, sku = null, productId = null, quantity = 1 }) {
+  const qty = Number(quantity) || 0;
+  if (!orderId || qty <= 0) return { matched: false, restored: 0 };
+
+  // Gate: Order-Status prüfen — nur offene, unversendete Orders reservieren.
+  try {
+    const orderSnap = await firestore.collection('orders').doc(orderId).get();
+    if (!orderSnap.exists) return { matched: false, restored: 0, reason: 'order_not_found' };
+    const { RESERVED_ORDER_STATUSES } = require('../lib/order-status-helpers');
+    const status = String(orderSnap.data()?.omsStatus || '').toLowerCase();
+    if (!RESERVED_ORDER_STATUSES.has(status)) {
+      return { matched: false, restored: 0, reason: `order_status_${status || 'unknown'}` };
+    }
+  } catch (err) {
+    // Im Zweifel NICHT restoren (konservativ: available bleibt niedriger).
+    return { matched: false, restored: 0, reason: `order_check_failed: ${err.message}` };
+  }
+
+  const snap = await firestore.collection(RESERVATIONS_COLLECTION)
+    .where('orderId', '==', orderId)
+    .where('tenantId', '==', tenantId)
+    .get();
+  if (snap.empty) return { matched: false, restored: 0 };
+
+  const { normalizeSkuKey } = require('../lib/order-status-helpers');
+  const target = snap.docs.find((doc) => {
+    const data = doc.data();
+    const skuMatch = sku && data.sku && normalizeSkuKey(data.sku) === normalizeSkuKey(sku);
+    const pidMatch = productId && data.productId && String(data.productId) === String(productId);
+    if (!skuMatch && !pidMatch) return false;
+    // Nur pick-konsumierte oder teil-konsumierte Reservierungen wiederherstellen
+    return (data.status === 'confirmed' && data.confirmedBy === 'pick') || data.status === 'reserved';
+  });
+  if (!target) return { matched: false, restored: 0 };
+
+  return firestore.runTransaction(async (tx) => {
+    const fresh = await tx.get(target.ref);
+    if (!fresh.exists) return { matched: false, restored: 0 };
+    const data = fresh.data();
+    const pickConsumed = data.status === 'confirmed' && data.confirmedBy === 'pick';
+    if (!pickConsumed && data.status !== 'reserved') return { matched: false, restored: 0 };
+
+    const currentQty = Number(data.quantity) || 0;
+    const cap = Number(data.quantityOriginal ?? (currentQty + qty));
+    const newQty = Math.min(currentQty + qty, cap);
+    const restored = newQty - currentQty;
+    if (restored <= 0) return { matched: true, restored: 0 };
+
+    const payload = {
+      quantity: newQty,
+      lastStowBackRestoreAt: new Date().toISOString(),
+    };
+    if (pickConsumed) {
+      payload.status = 'reserved';
+      payload.confirmedAt = null;
+      payload.confirmedBy = null;
+    }
+    tx.update(target.ref, payload);
+    return { matched: true, restored };
+  });
+}
+
+/**
  * Confirm reservations for an order (= stock-out happened).
  *
  * @param {Object} params
@@ -348,6 +499,8 @@ module.exports = {
   reserveStock,
   releaseReservation,
   confirmReservation,
+  consumeReservationOnPick,
+  restoreReservationOnStowBack,
   getReservedQuantity,
   detectOverbooking,
   listReservations,

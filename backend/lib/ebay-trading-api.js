@@ -992,6 +992,55 @@ async function endFixedPriceItem(itemId, { reason = 'NotAvailable', timeoutMs = 
 }
 
 // ---------------------------------------------------------------------------
+// RelistFixedPriceItem — belebt ein beendetes Festpreis-Angebot wieder
+// ---------------------------------------------------------------------------
+
+/**
+ * Relist a previously ENDED fixed-price listing. eBay erzeugt dabei eine NEUE
+ * ItemID; alle Angebotsdaten (Titel, Bilder, Aspects, Policies) werden vom
+ * beendeten Listing übernommen. Nur innerhalb von 90 Tagen nach Ende möglich
+ * und pro beendetem Listing nur einmal — Fehler dafür kommen als Ack=Failure.
+ *
+ * Selbstheilungs-Pfad für den Zero-Stock-End (Incident 2026-07-19): kommt
+ * Bestand zurück, wird das vom Stock-Sync beendete Angebot hierüber
+ * wiederbelebt statt für immer still übersprungen.
+ *
+ * @param {string} itemId - ItemID des BEENDETEN Listings
+ * @param {Object} [options]
+ * @param {number} [options.quantity] - neue Menge (überschreibt die alte)
+ * @returns {{ ack, warnings, itemId: string, startTime, endTime }} itemId = NEUE ItemID
+ */
+async function relistFixedPriceItem(itemId, { quantity = null, timeoutMs = DEFAULT_TIMEOUT_MS } = {}) {
+  const id = safeString(itemId);
+  if (!id) {
+    const error = new Error('itemId is required for RelistFixedPriceItem call');
+    error.code = 'EBAY_RELIST_ITEM_ID_REQUIRED';
+    throw error;
+  }
+  const cfg = await getEbayTradingConfig();
+  const qty = Number(quantity);
+  const fields = [`<ItemID>${escapeXml(id)}</ItemID>`];
+  if (Number.isFinite(qty) && qty > 0) {
+    fields.push(`<Quantity>${Math.floor(qty)}</Quantity>`);
+  }
+  const requestXml = buildRequestRoot(
+    'RelistFixedPriceItem',
+    `<Item>${fields.join('')}</Item>`,
+    cfg.userToken,
+    cfg.compatibilityLevel
+  );
+  const result = await callTradingApi('RelistFixedPriceItem', requestXml, { timeoutMs });
+  const response = result?.response || {};
+  return {
+    ack: result.ack,
+    warnings: result.errors,
+    itemId: safeString(response?.ItemID || ''),
+    startTime: toIso(response?.StartTime) || null,
+    endTime: toIso(response?.EndTime) || null,
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Regulatory XML (GPSR — EU General Product Safety Regulation)
 // ---------------------------------------------------------------------------
 
@@ -1606,6 +1655,7 @@ module.exports = {
   reviseItem,
   endItem,
   endFixedPriceItem,
+  relistFixedPriceItem,
   addFixedPriceItem,
   verifyAddFixedPriceItem,
   buildAddFixedPriceItemXml,
