@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { fetchShipments, bulkShipOrders, syncSendCloudParcels, fetchShippingMethods, type ShipmentData } from "../../api/client";
 import type { ShippingMethod } from "../../types";
+import { groupShippingMethods, shippingMethodOptionLabel } from "../../utils/shippingMethods";
 import { EmptyState } from "../ui/EmptyState";
 import { useToast } from "../../context/ToastContext";
 
@@ -351,18 +352,11 @@ export const ShippingView: React.FC = () => {
               title="Versandmethode (optional)"
             >
               <option value="">Auto (Regel)</option>
-              {Object.entries(
-                shippingMethods.reduce<Record<string, ShippingMethod[]>>((acc, m) => {
-                  const key = m.carrierName || m.carrier || "Sonstige";
-                  if (!acc[key]) acc[key] = [];
-                  acc[key].push(m);
-                  return acc;
-                }, {})
-              ).map(([carrier, methods]) => (
-                <optgroup key={carrier} label={carrier.toUpperCase()}>
+              {groupShippingMethods(shippingMethods).map(([carrier, methods]) => (
+                <optgroup key={carrier} label={carrier}>
                   {methods.map((m) => (
                     <option key={m.sendcloudId} value={m.sendcloudId}>
-                      {m.name}
+                      {shippingMethodOptionLabel(m)}
                     </option>
                   ))}
                 </optgroup>

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { fetchOrderSettings, saveOrderSettings, runRepricingBatch, fetchPricingRules, syncSendCloudParcels, syncShippingMethods, fetchShippingMethods } from "../../api/client";
 import type { ShippingMethod } from "../../types";
+import { groupShippingMethods, shippingMethodOptionLabel } from "../../utils/shippingMethods";
 import { useToast } from "../../context/ToastContext";
 
 /* ─── Types ─── */
@@ -448,18 +449,11 @@ export const OrderSettingsView: React.FC = () => {
                     className="w-full rounded-lg border border-app-border bg-app-bg px-2 py-1.5 text-sm text-txt-primary focus:outline-none focus:ring-1 focus:ring-accent"
                   >
                     <option value={0}>— Versandmethode wählen —</option>
-                    {Object.entries(
-                      shippingMethods.reduce<Record<string, ShippingMethod[]>>((acc, m) => {
-                        const key = m.carrierName || m.carrier || "Sonstige";
-                        if (!acc[key]) acc[key] = [];
-                        acc[key].push(m);
-                        return acc;
-                      }, {})
-                    ).map(([carrier, methods]) => (
-                      <optgroup key={carrier} label={carrier.toUpperCase()}>
+                    {groupShippingMethods(shippingMethods).map(([carrier, methods]) => (
+                      <optgroup key={carrier} label={carrier}>
                         {methods.map((m) => (
                           <option key={m.sendcloudId} value={m.sendcloudId}>
-                            {m.name} ({m.minWeight}–{m.maxWeight} kg)
+                            {shippingMethodOptionLabel(m)}
                           </option>
                         ))}
                       </optgroup>

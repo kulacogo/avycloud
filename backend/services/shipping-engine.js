@@ -187,6 +187,10 @@ function _matchV3OptionCode(options, methodMeta, weightKg, opts = {}) {
     if (opts?.domestic == null) return 0;
     return opts.domestic ? (isIntl(o) ? 1 : 0) : (isIntl(o) ? 0 : 1);
   };
+  // Premium ist ein Aufpreis-Service-Level (z. B. "DHL Warenpost International
+  // Premium"). Warensendungen dürfen NIE still auf Premium upgraden — Premium
+  // nur, wenn der gewählte Methodenname es explizit sagt (2026-07-20).
+  const wantsPremium = /premium/i.test(String(methodMeta?.name || ''));
   // Prefer the PLAIN base product over service variants. GoGreen/eco_delivery
   // variants need a SEPARATE billing number in the DHL contract that is usually
   // NOT configured → "Please add the billing number for this product" (Incident
@@ -198,6 +202,10 @@ function _matchV3OptionCode(options, methodMeta, weightKg, opts = {}) {
     const parts = afterColon.split(/[/,]/).map((s) => s.trim()).filter(Boolean);
     let score = Math.max(0, parts.length - 1); // add-on service modifiers beyond the base product
     if (/gogreen|eco[-_]?delivery/i.test(code)) score += 5; // needs separate (often missing) billing number
+    // +4, NICHT +5: bei [eco_delivery, premium] ohne plain-Variante muss premium
+    // deterministisch vor eco liegen (eco scheitert ohne separate
+    // Abrechnungsnummer am Announce; Preis-Tiebreak ist ohne Quotes wirkungslos).
+    if (!wantsPremium && /premium/i.test(code)) score += 4; // nie stilles Premium-Upgrade
     return score;
   };
   const fitsWeight = (o) => {
@@ -206,7 +214,18 @@ function _matchV3OptionCode(options, methodMeta, weightKg, opts = {}) {
     return weightKg >= min && weightKg <= max;
   };
   const wantCarrier = _normLoose(methodMeta?.carrier || methodMeta?.carrierName);
-  const wantNameCore = _normLoose(methodMeta?.name).replace(/[0-9]+/g, '');
+  // v2-Methodennamen tragen Gewichtsbereiche ("DHL Kleinpaket 0-1kg", "Maxibrief
+  // bis 1.000g"). Der reine Digit-Strip ließ "kg"/"g" zurück ("dhlkleinpaketkg")
+  // → Substring-Match auf das v3-Produkt ("dhlkleinpaket") schlug IMMER fehl und
+  // die Addon-Sortierung entschied per API-Reihenfolge (alle vier
+  // DEFAULT_CARRIER_RULES betroffen). Gewichts-Tokens daher VOR dem
+  // Normalisieren entfernen (2026-07-20).
+  const wantNameCore = _normLoose(
+    String(methodMeta?.name || '')
+      .replace(/\bbis\s+[\d.,]+\s*k?g\b/gi, ' ')
+      .replace(/[\d.,]+\s*-\s*[\d.,]+\s*k?g\b/gi, ' ')
+      .replace(/\b[\d.,]+\s*k?g\b/gi, ' ')
+  ).replace(/[0-9]+/g, '');
 
   let cand = options.filter(fitsWeight);
   if (!cand.length) cand = options.slice();
@@ -1580,6 +1599,22 @@ async function syncShippingMethods(tenantId = 'default', { force = false } = {})
   const apiMethods = await getShippingMethods();
   const now = new Date().toISOString();
 
+  // EMPTY-SET-GUARD: Eine leere 200er-Antwort (transient im Reconnect-/
+  // Degradations-Fenster) darf NIE den Disable-Sweep auslösen — sonst werden
+  // alle ~185 Methoden enabled:false und alle Dropdowns sind ≥1h leer (der
+  // Disable stempelt lastSyncedAt=now → 1h-Guard liefert die leere Liste).
+  // Gleiche Fehlerklasse wie lib/ebay-deactivation-guard.js (empty_active_set).
+  // Gilt auch für force=true: ein Konto mit echten 0 Methoden ist kein
+  // legitimer Zustand, den ein Sync-Klick zementieren soll (2026-07-20).
+  if (!apiMethods.length) {
+    console.warn(`[shipping-methods] Sync: SendCloud lieferte 0 Methoden (tenant=${tenantId}) — Cache bleibt unverändert, kein Disable-Sweep.`);
+    const keepSnap = await db.collection(SHIPPING_METHODS_COLLECTION)
+      .where('tenantId', '==', tenantId)
+      .where('enabled', '==', true)
+      .get();
+    return keepSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+  }
+
   // Track which SendCloud IDs are still active
   const activeIds = new Set();
 
@@ -1628,9 +1663,27 @@ async function syncShippingMethods(tenantId = 'default', { force = false } = {})
   return freshSnap.docs.map(d => ({ id: d.id, ...d.data() }));
 }
 
+// Ab diesem Alter des letzten Syncs wird beim Lesen ein Hintergrund-Refresh
+// angestoßen (stale-while-revalidate). Ohne diesen Refresh veraltete der Cache
+// unbegrenzt: Stand 2026-07-20 war er 3,5 Monate alt (letzter Sync 02.04., vor
+// dem SendCloud-Konto-Reconnect) — die Nicht-Premium-Warenpost-Methoden des
+// neuen Kontos fehlten komplett in Versandregeln UND Bestell-Dropdown.
+const _methodsTtlRaw = Number(process.env.SHIPPING_METHODS_REFRESH_TTL_MS);
+// Number('6h') wäre NaN und 'age > NaN' immer false → Refresh würde still nie
+// feuern. Nicht-numerische/negative Werte fallen deshalb hart auf den Default.
+const METHODS_REFRESH_TTL_MS = Number.isFinite(_methodsTtlRaw) && _methodsTtlRaw > 0
+  ? _methodsTtlRaw
+  : 6 * 60 * 60 * 1000;
+// Nach fehlgeschlagenem Refresh (SendCloud down, Credentials kaputt) so lange
+// keinen neuen Versuch — sonst feuert JEDER Dropdown-Request einen API-Call.
+const METHODS_REFRESH_FAILURE_BACKOFF_MS = 15 * 60 * 1000;
+const _methodsRefreshInflight = new Set();
+const _methodsRefreshFailedAt = new Map();
+
 /**
  * Get cached shipping methods from Firestore with optional filtering.
- * Triggers initial sync if collection is empty.
+ * Triggers initial sync if collection is empty; kicks off a non-blocking
+ * background re-sync when the cache is older than METHODS_REFRESH_TTL_MS.
  *
  * @param {string} tenantId
  * @param {{ weight?: number, country?: string }} opts
@@ -1648,6 +1701,26 @@ async function getCachedShippingMethods(tenantId = 'default', { weight, country 
   // If collection is empty, trigger initial sync
   if (methods.length === 0) {
     methods = await syncShippingMethods(tenantId);
+  } else {
+    // Stale-while-revalidate: Cache sofort ausliefern, Refresh im Hintergrund.
+    // syncShippingMethods hat einen eigenen 1h-Guard und disabled Methoden,
+    // die das (ggf. neu verbundene) SendCloud-Konto nicht mehr anbietet.
+    const newest = methods.reduce((acc, m) => ((m.lastSyncedAt || '') > acc ? m.lastSyncedAt : acc), '');
+    const age = newest ? Date.now() - new Date(newest).getTime() : Infinity;
+    const failedAgo = Date.now() - (_methodsRefreshFailedAt.get(tenantId) || 0);
+    if (age > METHODS_REFRESH_TTL_MS && failedAgo > METHODS_REFRESH_FAILURE_BACKOFF_MS && !_methodsRefreshInflight.has(tenantId)) {
+      _methodsRefreshInflight.add(tenantId);
+      syncShippingMethods(tenantId)
+        .then((fresh) => {
+          _methodsRefreshFailedAt.delete(tenantId);
+          console.log(`[shipping-methods] background refresh: ${fresh.length} Methoden (tenant=${tenantId})`);
+        })
+        .catch((err) => {
+          _methodsRefreshFailedAt.set(tenantId, Date.now());
+          console.warn(`[shipping-methods] background refresh failed (tenant=${tenantId}), Backoff ${Math.round(METHODS_REFRESH_FAILURE_BACKOFF_MS / 60000)}min: ${err.message}`);
+        })
+        .finally(() => _methodsRefreshInflight.delete(tenantId));
+    }
   }
 
   // Filter by weight if provided

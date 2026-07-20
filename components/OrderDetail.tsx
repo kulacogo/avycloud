@@ -30,6 +30,10 @@ import type {
   ShippingMethod,
 } from "../types";
 import {
+  groupShippingMethods,
+  shippingMethodOptionLabel,
+} from "../utils/shippingMethods";
+import {
   CarrierPickModal,
   WeightPromptModal,
 } from "./orders/ShippingDecisionDialog";
@@ -191,23 +195,20 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({
     }
   }, [orderId]);
 
-  const loadShippingMethods = useCallback(
-    async (weight?: number, country?: string) => {
-      setMethodsLoading(true);
-      try {
-        const methods = await fetchShippingMethods({
-          weight: weight || undefined,
-          country: country || undefined,
-        });
-        setShippingMethods(methods);
-      } catch {
-        // silent — dropdown will be empty, auto-rule still works
-      } finally {
-        setMethodsLoading(false);
-      }
-    },
-    [],
-  );
+  // Ungefiltert laden — die manuelle Auswahl muss IDENTISCH zur Liste in den
+  // Sendungseinstellungen (Versandregeln) sein. Die Auto-Regel filtert selbst
+  // nach Gewicht/Land; der Operator sieht hier bewusst alle Labels (2026-07-20).
+  const loadShippingMethods = useCallback(async () => {
+    setMethodsLoading(true);
+    try {
+      const methods = await fetchShippingMethods();
+      setShippingMethods(methods);
+    } catch {
+      // silent — dropdown will be empty, auto-rule still works
+    } finally {
+      setMethodsLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     loadData();
@@ -219,18 +220,9 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({
       (order.omsStatus === "packed" || order.omsStatus === "picked") &&
       !order.trackingNumber
     ) {
-      loadShippingMethods(
-        order.weight || undefined,
-        order.customer?.country || "DE",
-      );
+      loadShippingMethods();
     }
-  }, [
-    order?.omsStatus,
-    order?.weight,
-    order?.customer?.country,
-    order?.trackingNumber,
-    loadShippingMethods,
-  ]);
+  }, [order?.omsStatus, order?.trackingNumber, loadShippingMethods]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -1138,31 +1130,20 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({
                                 title="Versandmethode"
                               >
                                 <option value="">Auto (Regel)</option>
-                                {Object.entries(
-                                  shippingMethods.reduce<
-                                    Record<string, ShippingMethod[]>
-                                  >((acc, m) => {
-                                    const key =
-                                      m.carrierName || m.carrier || "Sonstige";
-                                    if (!acc[key]) acc[key] = [];
-                                    acc[key].push(m);
-                                    return acc;
-                                  }, {}),
-                                ).map(([carrier, methods]) => (
-                                  <optgroup
-                                    key={carrier}
-                                    label={carrier.toUpperCase()}
-                                  >
-                                    {methods.map((m) => (
-                                      <option
-                                        key={m.sendcloudId}
-                                        value={m.sendcloudId}
-                                      >
-                                        {m.name}
-                                      </option>
-                                    ))}
-                                  </optgroup>
-                                ))}
+                                {groupShippingMethods(shippingMethods).map(
+                                  ([carrier, methods]) => (
+                                    <optgroup key={carrier} label={carrier}>
+                                      {methods.map((m) => (
+                                        <option
+                                          key={m.sendcloudId}
+                                          value={m.sendcloudId}
+                                        >
+                                          {shippingMethodOptionLabel(m)}
+                                        </option>
+                                      ))}
+                                    </optgroup>
+                                  ),
+                                )}
                               </select>
                             )}
                             <ActionButton
