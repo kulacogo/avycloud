@@ -210,6 +210,164 @@ async function resolveEbayItemIdFromLiveListing({ productId, freshProduct }) {
 }
 
 /**
+ * Merkt sich am Produkt, DASS und WELCHES eBay-Listing der Stock-Sync wegen
+ * availableQty=0 beendet hat (Incident 2026-07-19, SKU-6656556112). Nur mit
+ * diesem Marker darf der Sync später automatisch relisten — manuell (Operator/
+ * eBay-seitig) beendete Angebote werden NIE ungefragt wiederbelebt.
+ * update() statt set-merge: kein Wiederbeleben gelöschter Produkte als Hülle.
+ */
+async function writeZeroStockEndMarker({ productId, itemId, reason }) {
+  try {
+    await firestore.collection('products_v2').doc(productId).update({
+      'ops.ebay.zeroStockEnd': {
+        itemId: String(itemId),
+        at: new Date().toISOString(),
+        reason: String(reason || 'zero-stock'),
+      },
+    });
+  } catch (err) {
+    if (err?.code !== 5) {
+      console.warn(`[stock-sync] zeroStockEnd marker write failed for ${productId}: ${err?.message}`);
+    }
+  }
+}
+
+/**
+ * SELBSTHEILUNG (Incident 2026-07-19): kommt Bestand zurück, nachdem der
+ * Zero-Stock-Pfad das eBay-Listing beendet hat, wird es via
+ * RelistFixedPriceItem wiederbelebt statt für immer still übersprungen
+ * (Revise auf ein beendetes Listing kann es nie zurückholen). eBay erzeugt
+ * eine NEUE ItemID; Produkt + Mirror werden sofort umgehängt, der 15-min
+ * Light-Sync füllt die restlichen Mirror-Felder nach.
+ *
+ * @returns {string} neue ItemID
+ * @throws bei Relist-Fehler (Aufrufer stempelt retryable-Failure → Drain)
+ */
+async function relistEndedEbayListing({ productId, freshProduct, endedItemId, quantity }) {
+  const { relistFixedPriceItem } = require('../lib/ebay-trading-api');
+  const relisted = await relistFixedPriceItem(String(endedItemId), { quantity });
+  const newItemId = String(relisted?.itemId || '').trim();
+  if (!newItemId) {
+    throw new Error(`RelistFixedPriceItem lieferte keine neue ItemID (ack=${relisted?.ack || 'unknown'})`);
+  }
+  const nowIso = new Date().toISOString();
+  try {
+    await firestore.collection('products_v2').doc(productId).update({
+      'ops.ebay.itemId': newItemId,
+      'ops.ebay.itemIdSource': 'relist',
+      'ops.ebay.relistedAt': nowIso,
+      'ops.ebay.relistedFrom': String(endedItemId),
+      'ops.ebay.zeroStockEnd': null,
+      'listingStatus.ebay': 'active',
+    });
+  } catch (err) {
+    if (err?.code !== 5) {
+      console.warn(`[stock-sync] relist product update failed for ${productId}: ${err?.message}`);
+    }
+  }
+  try {
+    const sku = extractProductSku(freshProduct);
+    await firestore.collection('ebayListingsLive').doc(newItemId).set({
+      itemId: newItemId,
+      sku: sku || null,
+      active: true,
+      relistedFrom: String(endedItemId),
+      relistedAt: nowIso,
+      quantityAvailable: Number(quantity) || null,
+      source: 'stock-sync-relist',
+    }, { merge: true });
+  } catch (_) { /* best-effort mirror seed */ }
+  console.log(
+    `[stock-sync] ebay RELIST product=${productId} ${endedItemId} → ${newItemId} qty=${quantity} (Bestand zurück — Listing wiederbelebt)`
+  );
+  return newItemId;
+}
+
+// eBay verweigert den Relist dauerhaft (nur 1× pro beendetem Listing, nur der
+// Verkäufer, nur ≤90 Tage) — Retry ist dann sinnlos, der Drain darf nicht
+// unbegrenzt Failure-Docs erzeugen.
+const MAX_RELIST_ATTEMPTS = 5;
+const RELIST_WINDOW_MS = 90 * 24 * 60 * 60 * 1000;
+
+function isPermanentRelistError(msg) {
+  return /cannot be relisted|kann nicht (erneut|wieder) (ein)?gelistet|not the seller|nicht der verk[äa]ufer|belongs to another|another seller/i
+    .test(String(msg || ''));
+}
+
+// Selbstheilung aufgeben: Marker leeren (Heal-Cron + Drain hören auf), Audit-
+// Feld hinterlassen, Operator EINMAL alarmieren. Kein Marktplatz-Write —
+// Punkt-14-sicher (wir hören nur auf zu versuchen).
+async function abandonZeroStockEndMarker({ productId, marker, reason }) {
+  try {
+    await firestore.collection('products_v2').doc(productId).update({
+      'ops.ebay.zeroStockEnd': null,
+      'ops.ebay.zeroStockEndAbandoned': {
+        ...(marker || {}),
+        abandonedAt: new Date().toISOString(),
+        abandonReason: String(reason || '').slice(0, 300),
+      },
+    });
+  } catch (err) {
+    if (err?.code !== 5) console.warn(`[stock-sync] abandon marker failed for ${productId}: ${err?.message}`);
+  }
+  try {
+    const { emitOpsAlert } = require('../lib/ops-alert');
+    emitOpsAlert({
+      source: 'stock-sync-relist',
+      severity: 'warning',
+      tenantId: 'default',
+      message: `eBay-Relist aufgegeben: Produkt ${productId}, beendetes Listing ${marker?.itemId || '?'} — ${reason}. Produkt hat Bestand, aber kein Angebot: bitte manuell über Publish listen.`,
+      context: { productId, itemId: marker?.itemId || null, reason: String(reason || '') },
+    });
+  } catch (_) { /* best-effort */ }
+}
+
+/**
+ * Marker-basierter Relist-Versuch mit Give-up-Guard (Review-Findings 7/9):
+ * Versuchs-Cap + 90-Tage-Fenster + Permanent-Fehler-Klassifikation. Transiente
+ * Fehler → retryable Failure (Drain), permanente → Marker aufgeben + Alarm.
+ */
+async function attemptMarkerRelist({ productId, freshProduct, marker, quantity, results }) {
+  const attempts = Number(marker?.relistAttempts || 0);
+  const markerAge = marker?.at ? Date.now() - Date.parse(marker.at) : 0;
+  if (attempts >= MAX_RELIST_ATTEMPTS || (Number.isFinite(markerAge) && markerAge > RELIST_WINDOW_MS)) {
+    const reason = attempts >= MAX_RELIST_ATTEMPTS
+      ? `${attempts} Relist-Versuche fehlgeschlagen`
+      : 'Relist-Fenster (90 Tage) abgelaufen';
+    await abandonZeroStockEndMarker({ productId, marker, reason });
+    results.push({ channel: 'ebay', status: 'skipped', itemId: marker?.itemId, action: 'relist_abandoned', quantityPushed: 0 });
+    console.warn(`[stock-sync] ebay RELIST ABANDONED product=${productId} itemId=${marker?.itemId}: ${reason}`);
+    return;
+  }
+  try {
+    const newItemId = await relistEndedEbayListing({
+      productId,
+      freshProduct,
+      endedItemId: marker.itemId,
+      quantity,
+    });
+    results.push({ channel: 'ebay', status: 'success', itemId: newItemId, quantityPushed: quantity, action: 'relisted' });
+  } catch (relistErr) {
+    const relistMsg = relistErr?.message || String(relistErr);
+    if (isPermanentRelistError(relistMsg)) {
+      await abandonZeroStockEndMarker({ productId, marker, reason: `permanent abgelehnt: ${relistMsg}` });
+      results.push({ channel: 'ebay', status: 'skipped', itemId: marker.itemId, action: 'relist_permanently_failed', error: relistMsg, quantityPushed: 0 });
+      console.warn(`[stock-sync] ebay RELIST permanent abgelehnt product=${productId} itemId=${marker.itemId}: ${relistMsg}`);
+      return;
+    }
+    // Versuchszähler stempeln, dann via Drain retrien (nie destruktiv, Punkt 14)
+    try {
+      await firestore.collection('products_v2').doc(productId).update({
+        'ops.ebay.zeroStockEnd.relistAttempts': attempts + 1,
+        'ops.ebay.zeroStockEnd.lastRelistAttemptAt': new Date().toISOString(),
+      });
+    } catch (_) { /* best-effort */ }
+    results.push({ channel: 'ebay', status: 'failed', itemId: marker.itemId, error: relistMsg, retryable: true, action: 'relist_failed' });
+    console.warn(`[stock-sync] ebay RELIST FAILED product=${productId} itemId=${marker.itemId} — deferring to drain: ${relistMsg}`);
+  }
+}
+
+/**
  * Find products by SKU — searches both identification.sku and details.identifiers.sku
  * to avoid the silent-miss bug where products only have SKU in one field.
  */
@@ -346,13 +504,22 @@ async function syncStockToAllChannels({ tenantId = 'default', product, reason = 
         // stops handing the stale itemId straight back next cycle (the loop behind
         // 600+ wasted "already ended" eBay calls/day). A re-list re-activates it via
         // the listing ingest.
+        // NUR die Docs der TOTEN ItemID deaktivieren — die "ended"-Evidenz gilt
+        // ausschließlich für resolvedEbayItemId. Vorher wurden ALLE ≤5 Docs der
+        // SKU inaktiv gestempelt und damit auch parallel existierende, live
+        // laufende Listings (Operator-Duplikat-Relists) aus dem Mirror gelöscht
+        // (beobachtet 2026-07-20 08:23 an SKU-6656556112: 4 Docs auf einen
+        // Schlag inaktiv). Der Light-Sync korrigierte das erst 15 min später.
         try {
           const sku = extractProductSku(freshProduct);
-          if (sku) {
+          const deadId = String(resolvedEbayItemId || '');
+          if (sku && deadId) {
             const snap = await firestore.collection('ebayListingsLive').where('sku', '==', sku).limit(5).get();
-            await Promise.all(snap.docs.map((d) =>
-              d.ref.set({ active: false, endedDetectedAt: new Date().toISOString() }, { merge: true }).catch(() => {})
-            ));
+            await Promise.all(snap.docs
+              .filter((d) => d.id === deadId || String(d.data()?.itemId || '') === deadId)
+              .map((d) =>
+                d.ref.set({ active: false, endedDetectedAt: new Date().toISOString() }, { merge: true }).catch(() => {})
+              ));
           }
         } catch (_) { /* best-effort cache cleanup */ }
         console.log(`[stock-sync] Cleared stale ebay itemId + marked listing inactive for product=${productId} (listing ended)`);
@@ -370,12 +537,22 @@ async function syncStockToAllChannels({ tenantId = 'default', product, reason = 
       try {
         const { endFixedPriceItem } = require('../lib/ebay-trading-api');
         await endFixedPriceItem(String(resolvedEbayItemId), { reason: 'NotAvailable' });
+        // Selbstheilungs-Marker: WIR haben dieses Listing wegen Null-Bestand
+        // beendet → sobald wieder Bestand da ist, darf der Sync es automatisch
+        // relisten (Incident 2026-07-19: ohne Marker+Relist blieb ein wegen
+        // Doppelzählung fälschlich beendetes Listing für immer tot).
+        await writeZeroStockEndMarker({ productId, itemId: resolvedEbayItemId, reason });
         results.push({ channel: 'ebay', status: 'success', itemId: resolvedEbayItemId, quantityPushed: 0, zeroStock: true, action: 'ended' });
         console.log(`[stock-sync] ebay END product=${productId} itemId=${resolvedEbayItemId} → ended (zero stock)`);
       } catch (err) {
         const errMsg = err?.message || String(err);
         if (isEndedListing(errMsg)) {
-          // Listing was already ended — treat as success, clear stale itemId
+          // Listing was already ended — treat as success, clear stale itemId.
+          // BEWUSST KEIN zeroStockEnd-Marker (Review-Finding 4): "already
+          // ended" beweist NICHT, dass WIR beendet haben — es kann eine
+          // Operator-Entscheidung von vor Stunden/Tagen sein. Marker nur, wenn
+          // unser eigenes EndFixedPriceItem tatsächlich durchging (oben).
+          // Im Zweifel nicht wiederbeleben — konservativ wie vor dem Fix.
           results.push({ channel: 'ebay', status: 'success', itemId: resolvedEbayItemId, quantityPushed: 0, zeroStock: true, action: 'already_ended' });
           console.log(`[stock-sync] ebay product=${productId} itemId=${resolvedEbayItemId} already ended, clearing stale itemId`);
           await clearStaleItemId();
@@ -397,13 +574,73 @@ async function syncStockToAllChannels({ tenantId = 'default', product, reason = 
         const status = result?.ack === 'Success' || result?.ack === 'Warning' ? 'success' : 'failed';
         results.push({ channel: 'ebay', status, itemId: resolvedEbayItemId, quantityPushed: availableQuantity, zeroStock: false });
         console.log(`[stock-sync] ebay product=${productId} itemId=${resolvedEbayItemId} qty=${availableQuantity} status=${status}`);
+        // Erfolgreicher Revise = Liveness-Beweis des aktuellen Listings → ein
+        // evtl. noch stehender Selbstheilungs-Marker ist erledigt (einziger
+        // legitimer Clear-Punkt neben erfolgreichem Relist — Review-Findings
+        // 3/10: sonst triggert der Heal-Cron dieses Produkt jeden Zyklus neu).
+        if (status === 'success' && freshProduct?.ops?.ebay?.zeroStockEnd) {
+          await firestore.collection('products_v2').doc(productId)
+            .update({ 'ops.ebay.zeroStockEnd': null })
+            .catch(() => {});
+        }
       } catch (err) {
         const errMsg = err?.message || String(err);
         if (isEndedListing(errMsg)) {
-          // Listing was ended — can't revise, clear stale itemId and skip
-          results.push({ channel: 'ebay', status: 'skipped', itemId: resolvedEbayItemId, error: 'listing_ended', quantityPushed: 0 });
-          console.warn(`[stock-sync] ebay product=${productId} itemId=${resolvedEbayItemId} listing ended, clearing stale itemId`);
+          // Listing was ended — can't revise. Bestand ist aber > 0!
+          // Duplikat-Schutz VOR clearStaleItemId prüfen: existiert für die SKU
+          // ein ANDERES noch aktives Listing (Operator-Relist direkt auf eBay),
+          // NICHT relisten — sonst zwei parallele Angebote derselben Einheit.
+          let otherActiveItemId = null;
+          // Fail-CLOSED (Review-Finding 5): schlägt die Guard-Query fehl,
+          // wissen wir nicht, ob ein Zweit-Listing lebt → NICHT blind
+          // relisten, sondern retryable an den Drain übergeben.
+          let dupGuardOk = false;
+          try {
+            const sku = extractProductSku(freshProduct);
+            if (sku) {
+              const dupSnap = await firestore.collection('ebayListingsLive').where('sku', '==', sku).limit(5).get();
+              const other = dupSnap.docs
+                .map((d) => ({ id: d.id, ...d.data() }))
+                .find((row) => row.active !== false && String(row.itemId || row.id) !== String(resolvedEbayItemId));
+              if (other) otherActiveItemId = String(other.itemId || other.id);
+            }
+            dupGuardOk = true; // ohne SKU keine Mirror-Rows möglich → Guard erfüllt
+          } catch (guardErr) {
+            console.warn(`[stock-sync] dup-guard query failed for product=${productId}: ${guardErr?.message}`);
+          }
           await clearStaleItemId();
+
+          const marker = freshProduct?.ops?.ebay?.zeroStockEnd;
+          if (otherActiveItemId) {
+            // Anderes Listing lebt (laut Mirror) → dorthin umhängen, nächster
+            // Sync revised es. Der Marker bleibt BEWUSST stehen (Review-
+            // Findings 1/6/12): der Mirror kann stale sein — erst ein
+            // ERFOLGREICHER Revise/Relist beweist Leben und leert den Marker.
+            // Ist die Row stale-tot, schlägt der nächste Revise fehl und der
+            // Marker ermöglicht dann die Relist-Selbstheilung.
+            try {
+              await firestore.collection('products_v2').doc(productId).update({
+                'ops.ebay.itemId': otherActiveItemId,
+                'ops.ebay.itemIdSource': 'ebayListingsLive',
+              });
+            } catch (_) { /* best-effort */ }
+            results.push({ channel: 'ebay', status: 'skipped', itemId: otherActiveItemId, action: 'switched_to_other_active_listing', quantityPushed: 0 });
+            console.log(`[stock-sync] ebay product=${productId} ${resolvedEbayItemId} ended, aber ${otherActiveItemId} ist aktiv (Mirror) → itemId umgehängt`);
+          } else if (marker?.itemId && String(marker.itemId) === String(resolvedEbayItemId) && dupGuardOk) {
+            // WIR haben GENAU DIESES Listing wegen Null-Bestand beendet +
+            // Bestand ist zurück → SELBSTHEILUNG. Marker-Match-Guard (Review-
+            // Finding 10): ein Marker für eine ANDERE (ältere) ItemID darf
+            // nicht ein vom Operator später beendetes Listing wiederbeleben.
+            await attemptMarkerRelist({ productId, freshProduct, marker, quantity: availableQuantity, results });
+          } else if (marker?.itemId && String(marker.itemId) === String(resolvedEbayItemId) && !dupGuardOk) {
+            results.push({ channel: 'ebay', status: 'failed', itemId: marker.itemId, error: 'dup_guard_unavailable', retryable: true, action: 'relist_deferred' });
+            console.warn(`[stock-sync] ebay RELIST deferred product=${productId} — Duplikat-Guard nicht verfügbar, Drain retried`);
+          } else {
+            // Kein Marker = nicht von uns beendet (Operator/eBay) → wie bisher
+            // überspringen, niemals ungefragt wiederbeleben.
+            results.push({ channel: 'ebay', status: 'skipped', itemId: resolvedEbayItemId, error: 'listing_ended', quantityPushed: 0 });
+            console.warn(`[stock-sync] ebay product=${productId} itemId=${resolvedEbayItemId} listing ended (kein zeroStockEnd-Marker), cleared stale itemId`);
+          }
         } else if (isRateLimited(errMsg)) {
           // Transient eBay rate limit — the listing is NOT dead. Ending it would
           // be WRONG (lose a live sale) and the end call would itself be rate-
@@ -439,6 +676,18 @@ async function syncStockToAllChannels({ tenantId = 'default', product, reason = 
         }
       }
     }
+  } else if (channelAllowed('ebay') && !isZeroStock && freshProduct?.ops?.ebay?.zeroStockEnd?.itemId) {
+    // Post-Clear-Selbstheilung: die ItemID wurde nach dem Zero-Stock-End
+    // bereits genullt (clearStaleItemId) und der Mirror ist inaktiv — bis zum
+    // Incident 2026-07-19 übersprang der Sync eBay hier STILL für immer (kein
+    // Fehler, kein Drain, kein Alarm). Mit zeroStockEnd-Marker + Bestand > 0
+    // wird das von UNS beendete Listing jetzt wiederbelebt.
+    // resolveEbayItemIdFromLiveListing lief oben bereits und fand KEIN aktives
+    // Mirror-Listing (sonst wäre resolvedEbayItemId gesetzt) — Duplikat-Guard
+    // damit implizit erfüllt. Give-up-Guard + Permanent-Klassifikation im
+    // Helper (Review-Findings 7/9).
+    const marker = freshProduct.ops.ebay.zeroStockEnd;
+    await attemptMarkerRelist({ productId, freshProduct, marker, quantity: availableQuantity, results });
   }
 
   // --- Kaufland ---
@@ -813,4 +1062,6 @@ module.exports = {
   computeAvailableQuantity,
   pickActiveListing,
   isRateLimited,
+  writeZeroStockEndMarker,
+  relistEndedEbayListing,
 };

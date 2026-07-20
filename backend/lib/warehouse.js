@@ -943,6 +943,33 @@ async function bookStockIn({ productId, sku, barcode, binCode, quantity, meta })
     };
   });
 
+  // GEGEN-PFAD zum Pick-Consume (Review-Finding 8): wird eine Einheit mit
+  // Order-Kontext wieder eingelagert (Fehl-Pick → Stow-back), lebt die beim
+  // Pick konsumierte Reservierung wieder auf — sonst gilt die Einheit als frei
+  // verkäuflich, obwohl die offene Order sie braucht (Oversell-Fenster bis
+  // Re-Pick). Das Order-Status-Gate im Restore verhindert, dass der WP4-
+  // Cancel-/Return-Recredit (ruft bookStockIn ebenfalls mit meta.orderId auf)
+  // die erloschene Obligation einer stornierten Order wieder öffnet.
+  // Reihenfolge: VOR refreshProductInventory (siehe Pick-Hook in bookStockOut).
+  const stowOrderId = meta && meta.orderId ? String(meta.orderId).trim() : null;
+  if (stowOrderId) {
+    try {
+      const { restoreReservationOnStowBack } = require('../services/stock-reservation');
+      const restored = await restoreReservationOnStowBack({
+        tenantId: (meta && meta.tenantId) || 'default',
+        orderId: stowOrderId,
+        sku: sku || null,
+        productId: productRef.id,
+        quantity,
+      });
+      if (restored.matched && restored.restored > 0) {
+        console.log(`[bookStockIn] order=${stowOrderId} reservation restored on stow-back (qty=${restored.restored})`);
+      }
+    } catch (resErr) {
+      console.warn(`[bookStockIn] reservation restore failed order=${stowOrderId}: ${resErr.message}`);
+    }
+  }
+
   await refreshProductInventory(productRef.id);
   const freshProduct = await getProduct(productRef.id);
   return { product: freshProduct || updatedProduct, bin: updatedBin };
@@ -1191,6 +1218,39 @@ async function bookStockOut({ productId, sku, barcode, binCode, quantity, meta }
     } else if (claimResult && claimResult.reason === 'order-not-found') {
       console.warn(
         `[bookStockOut] order=${orderIdMeta} (referenced in meta) not found — bin/inventory dekrementiert ohne Order-Claim`
+      );
+    }
+  }
+
+  // DOPPELZÄHLUNGS-FIX (Incident 2026-07-19, SKU-6656556112): die gepickte
+  // Einheit hat das Lager physisch verlassen (inventory.quantity sank in der
+  // Tx oben) — die Soft-Lock-Reservierung der Order MUSS jetzt um dieselbe
+  // Menge sinken, sonst zählt die Einheit bis zum Versand-Scan doppelt
+  // (physischer Abgang UND aktive Reservierung) und `available = physisch −
+  // reserviert` unterschreitet den wahren verkäuflichen Bestand → der
+  // Stock-Sync beendete bei Last-Unit-Picks eBay-Angebote trotz Bestand.
+  // Reihenfolge: VOR refreshProductInventory, damit der dort emittierte
+  // stock:changed-Sync bereits die konsumierte Reservierung sieht.
+  // Best-effort: schlägt der Consume fehl, bleibt available lediglich bis zum
+  // Versand-Confirm konservativ niedrig (kein Datenverlust, kein Oversell).
+  if (orderIdMeta) {
+    try {
+      const { consumeReservationOnPick } = require('../services/stock-reservation');
+      const consumed = await consumeReservationOnPick({
+        tenantId: (meta && meta.tenantId) || 'default',
+        orderId: orderIdMeta,
+        sku: resolvedSkuValue,
+        productId: resolvedProductId,
+        quantity,
+      });
+      if (consumed.matched) {
+        console.log(
+          `[bookStockOut] order=${orderIdMeta} sku=${resolvedSkuValue} reservation consumed on pick (qty=${quantity}, closed=${consumed.confirmed === true})`
+        );
+      }
+    } catch (resErr) {
+      console.warn(
+        `[bookStockOut] reservation consume failed order=${orderIdMeta} sku=${resolvedSkuValue}: ${resErr.message} — available bleibt bis Versand konservativ`
       );
     }
   }
