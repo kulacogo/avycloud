@@ -19,7 +19,7 @@ const PROBE_ITEM = '800376552541'; // bekanntes Live-Listing (Markise)
 const ATE_ITEM = '800323719797';
 const ATE_SKU = 'SKU-4561422647';
 
-async function quotaFree() {
+async function probeOnce() {
   try {
     const { getItemDetails } = require('../lib/ebay-trading-api');
     await getItemDetails(PROBE_ITEM, { timeoutMs: 20000 });
@@ -27,13 +27,40 @@ async function quotaFree() {
   } catch (err) {
     const msg = String(err?.message || '');
     if (/usage limit|quota/i.test(msg)) return false;
-    // anderer Fehler = API grundsätzlich erreichbar → Quota frei
     return true;
   }
 }
 
+// Einzelne Calls rutschen auch bei erschöpfter Tages-Quota durch (beobachtet
+// 2026-07-21: Probe ok, alle Folge-Calls limitiert) → ZWEI Erfolge im Abstand
+// von 30 s nötig, bevor die Korrekturen starten.
+async function quotaFree() {
+  if (!(await probeOnce())) return false;
+  await new Promise((r) => setTimeout(r, 30 * 1000));
+  return probeOnce();
+}
+
+// eBay Trading-Tages-Quota resettet um Mitternacht Pacific Time = 09:00
+// Europe/Berlin (Sommerzeit). Vorher gar nicht erst proben.
+function msUntilQuotaReset() {
+  const now = new Date();
+  const berlinHour = Number(new Intl.DateTimeFormat('de-DE', { timeZone: 'Europe/Berlin', hour: 'numeric', hour12: false }).format(now));
+  if (berlinHour >= 9 && berlinHour < 24) return 0; // Reset heute schon durch
+  // Minuten bis 09:05 Berlin
+  const berlinNow = new Date(now.toLocaleString('en-US', { timeZone: 'Europe/Berlin' }));
+  const target = new Date(berlinNow);
+  target.setHours(9, 5, 0, 0);
+  if (target <= berlinNow) target.setDate(target.getDate() + 1);
+  return target.getTime() - berlinNow.getTime();
+}
+
 async function main() {
-  console.log(`[corrections] Warte auf eBay-Quota-Reset (Probe alle 20 min) …`);
+  const waitMs = msUntilQuotaReset();
+  if (waitMs > 0) {
+    console.log(`[corrections] Warte ${Math.round(waitMs / 60000)} min bis zum Quota-Reset (09:05 Berlin) …`);
+    await new Promise((r) => setTimeout(r, waitMs));
+  }
+  console.log(`[corrections] Starte Proben (2× GetItem im 30-s-Abstand, alle 20 min) …`);
   for (;;) {
     if (await quotaFree()) break;
     console.log(`[corrections] ${new Date().toISOString()} Quota noch zu — nächste Probe in 20 min`);
