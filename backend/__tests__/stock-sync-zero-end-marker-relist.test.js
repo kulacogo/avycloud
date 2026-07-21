@@ -300,9 +300,94 @@ describe('Selbstheilung: Bestand zurück → Relist', () => {
   });
 });
 
+describe('Multi-Site-Fan-Out: alle Länder-Listings der SKU werden bedient (2026-07-21)', () => {
+  it('Stock>0: revised das getrackte Listing UND alle aktiven Geschwister-Sites mit derselben Menge', async () => {
+    const product = baseProduct({ inventory: { quantity: 3 } });
+    ebayLiveDocs = [
+      { id: '800339004471', itemId: '800339004471', sku: 'SKU-6656556112', active: true },  // getrackt (DE)
+      { id: 'IT-1', itemId: 'IT-1', sku: 'SKU-6656556112', active: true },
+      { id: 'ES-1', itemId: 'ES-1', sku: 'SKU-6656556112', active: true },
+      { id: 'BE-ENDED', itemId: 'BE-ENDED', sku: 'SKU-6656556112', active: false },        // inaktiv → skip
+    ];
+
+    const { results } = await syncStockToAllChannels({ tenantId: 'default', product, reason: 'stock-in' });
+    const ebayResults = results.filter((r) => r.channel === 'ebay');
+
+    const revisedIds = reviseCalls.map((c) => c.itemId).sort();
+    expect(revisedIds).toEqual(['800339004471', 'ES-1', 'IT-1'].sort());
+    expect(reviseCalls.every((c) => c.quantity === 3)).toBe(true);
+    expect(ebayResults.filter((r) => r.action === 'revise_sibling_site').length).toBe(2);
+    expect(endCalls.length).toBe(0);
+  });
+
+  it('Zero-Stock: beendet das getrackte Listing UND alle aktiven Geschwister-Sites', async () => {
+    const product = baseProduct({ inventory: { quantity: 0 } });
+    ebayLiveDocs = [
+      { id: '800339004471', itemId: '800339004471', sku: 'SKU-6656556112', active: true },
+      { id: 'IT-1', itemId: 'IT-1', sku: 'SKU-6656556112', active: true },
+      { id: 'FR-1', itemId: 'FR-1', sku: 'SKU-6656556112', active: true },
+    ];
+
+    const { results } = await syncStockToAllChannels({ tenantId: 'default', product, reason: 'shipped-x' });
+    const endedIds = endCalls.map((c) => String(c[0])).sort();
+
+    expect(endedIds).toEqual(['800339004471', 'FR-1', 'IT-1'].sort());
+    const siblingEnds = results.filter((r) => r.action === 'ended_sibling_site');
+    expect(siblingEnds.length).toBe(2);
+    // Geschwister-Mirror-Rows werden inaktiv gestempelt
+    const deact = mirrorSets.filter((m) => m.payload?.active === false).map((m) => m.id).sort();
+    expect(deact).toEqual(['FR-1', 'IT-1'].sort());
+  });
+
+  it('totes/fremdes Geschwister → nur dessen Mirror-Row deaktiviert, kein Drain-Retry', async () => {
+    const product = baseProduct({ inventory: { quantity: 2 } });
+    ebayLiveDocs = [
+      { id: '800339004471', itemId: '800339004471', sku: 'SKU-6656556112', active: true },
+      { id: 'AT-DEAD', itemId: 'AT-DEAD', sku: 'SKU-6656556112', active: true },
+    ];
+    reviseImpl = async (payload) => {
+      if (payload.itemId === 'AT-DEAD') throw new Error('Die Auktion wurde bereits beendet.');
+      return { ack: 'Success' };
+    };
+
+    const { results } = await syncStockToAllChannels({ tenantId: 'default', product, reason: 'stock-in' });
+    const sib = results.find((r) => r.itemId === 'AT-DEAD');
+
+    expect(sib.status).toBe('skipped');
+    expect(sib.retryable).toBeUndefined();
+    expect(mirrorSets.some((m) => m.id === 'AT-DEAD' && m.payload.active === false)).toBe(true);
+    // Getracktes Listing normal revised
+    expect(results.find((r) => r.itemId === '800339004471').status).toBe('success');
+  });
+
+  it('transienter Geschwister-Fehler → retryable in den Drain, NIE destruktiv', async () => {
+    const product = baseProduct({ inventory: { quantity: 2 } });
+    ebayLiveDocs = [
+      { id: '800339004471', itemId: '800339004471', sku: 'SKU-6656556112', active: true },
+      { id: 'IT-FLAKY', itemId: 'IT-FLAKY', sku: 'SKU-6656556112', active: true },
+    ];
+    reviseImpl = async (payload) => {
+      if (payload.itemId === 'IT-FLAKY') throw new Error('Request timed out');
+      return { ack: 'Success' };
+    };
+
+    const { results } = await syncStockToAllChannels({ tenantId: 'default', product, reason: 'stock-in' });
+    const sib = results.find((r) => r.itemId === 'IT-FLAKY');
+
+    expect(sib.status).toBe('failed');
+    expect(sib.retryable).toBe(true);
+    expect(endCalls.length).toBe(0);
+  });
+});
+
 describe('clearStaleItemId deaktiviert NUR die tote ItemID im Mirror', () => {
   it('lässt Mirror-Docs anderer (lebender) Listings derselben SKU unangetastet', async () => {
-    reviseImpl = async () => { throw new Error('Die Auktion wurde bereits beendet.'); };
+    // Nur das GETRACKTE Listing ist tot — das Geschwister lebt und nimmt
+    // den Fan-Out-Revise an (sonst wäre Deaktivieren beider korrekt).
+    reviseImpl = async (payload) => {
+      if (String(payload.itemId) === '800339004471') throw new Error('Die Auktion wurde bereits beendet.');
+      return { ack: 'Success' };
+    };
     const product = baseProduct(); // kein Marker → Skip-Pfad mit clearStaleItemId
     ebayLiveDocs = [
       { id: '800339004471', itemId: '800339004471', sku: 'SKU-6656556112', active: true },

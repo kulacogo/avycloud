@@ -484,28 +484,28 @@ async function syncStockToAllChannels({ tenantId = 'default', product, reason = 
     resolvedEbayItemId = await resolveEbayItemIdFromLiveListing({ productId, freshProduct });
   }
 
+  const isEndedListing = (msg) => {
+    const lower = String(msg || '').toLowerCase();
+    return lower.includes('beendet') || lower.includes('ended') || lower.includes('1047');
+  };
+
+  // Fremdes/entferntes Listing = TERMINAL, nie retrybar (Quota-Fresser
+  // 2026-07-21: 4 Produkte mit 389…-Alt-Konto-ItemIDs erzeugten ~250
+  // sinnlose END-Retries/Tag über Drain+Reconciliation, weil "Auf den
+  // Artikel kann nicht zugegriffen werden…" weder isEndedListing noch
+  // isRateLimited matcht). Der Pointer ist tot → aufräumen statt hämmern.
+  const isForeignOrRemovedListing = (msg) => {
+    const lower = String(msg || '').toLowerCase();
+    return lower.includes('kann nicht zugegriffen')
+      || lower.includes('nicht der verkäufer')
+      || lower.includes('not the seller')
+      || lower.includes('angebot entfernt')
+      || lower.includes('belongs to another')
+      || lower.includes('ungültige artikelnummer')
+      || lower.includes('invalid item id');
+  };
+
   if (resolvedEbayItemId && channelAllowed('ebay')) {
-    const isEndedListing = (msg) => {
-      const lower = String(msg || '').toLowerCase();
-      return lower.includes('beendet') || lower.includes('ended') || lower.includes('1047');
-    };
-
-    // Fremdes/entferntes Listing = TERMINAL, nie retrybar (Quota-Fresser
-    // 2026-07-21: 4 Produkte mit 389…-Alt-Konto-ItemIDs erzeugten ~250
-    // sinnlose END-Retries/Tag über Drain+Reconciliation, weil "Auf den
-    // Artikel kann nicht zugegriffen werden…" weder isEndedListing noch
-    // isRateLimited matcht). Der Pointer ist tot → aufräumen statt hämmern.
-    const isForeignOrRemovedListing = (msg) => {
-      const lower = String(msg || '').toLowerCase();
-      return lower.includes('kann nicht zugegriffen')
-        || lower.includes('nicht der verkäufer')
-        || lower.includes('not the seller')
-        || lower.includes('angebot entfernt')
-        || lower.includes('belongs to another')
-        || lower.includes('ungültige artikelnummer')
-        || lower.includes('invalid item id');
-    };
-
     const clearStaleItemId = async () => {
       try {
         // update() statt set({merge:true}) — kein Neu-Anlegen gelöschter Produkte
@@ -717,6 +717,66 @@ async function syncStockToAllChannels({ tenantId = 'default', product, reason = 
     // Helper (Review-Findings 7/9).
     const marker = freshProduct.ops.ebay.zeroStockEnd;
     await attemptMarkerRelist({ productId, freshProduct, marker, quantity: availableQuantity, results });
+  }
+
+  // ── eBay Multi-Site-Fan-Out (2026-07-21) ──────────────────────────────────
+  // Der internationale Rollout (19.07.) erzeugte pro SKU bis zu 6 UNABHÄNGIGE
+  // Listings (eigene ItemID je Länderseite: de/it/es/be/at/fr), jedes mit
+  // vollem Bestand. Der Block oben bedient nur die GETRACKTE ItemID
+  // (ops.ebay.itemId, i. d. R. DE) — ohne Fan-Out liefen die Geschwister-
+  // Listings nach jedem Verkauf/Pick mit stalem Bestand weiter →
+  // Cross-Site-Oversell (Multi-Site-Variante des Incidents 2026-04).
+  // Hier: Menge auf ALLE weiteren aktiven Listings der SKU pushen, bei
+  // Null-Bestand ALLE beenden. Lifecycle (zeroStockEnd-Marker/Relist/Switch)
+  // bleibt bewusst dem getrackten Listing vorbehalten — die Länder-Listings
+  // verwaltet das Internationalisierungs-Tool des Operators.
+  if (channelAllowed('ebay')) {
+    try {
+      const sku = extractProductSku(freshProduct);
+      if (sku) {
+        const sibSnap = await firestore.collection('ebayListingsLive').where('sku', '==', sku).limit(10).get();
+        const trackedId = String(resolvedEbayItemId || '');
+        const seenSiblings = new Set();
+        for (const doc of sibSnap.docs) {
+          const data = doc.data() || {};
+          const sibId = String(data.itemId || doc.id);
+          if (!sibId || sibId === trackedId || data.active === false || seenSiblings.has(sibId)) continue;
+          seenSiblings.add(sibId);
+          try {
+            if (isZeroStock) {
+              const { endFixedPriceItem } = require('../lib/ebay-trading-api');
+              await endFixedPriceItem(sibId, { reason: 'NotAvailable' });
+              results.push({ channel: 'ebay', status: 'success', itemId: sibId, quantityPushed: 0, zeroStock: true, action: 'ended_sibling_site' });
+              await doc.ref.set({ active: false, endedDetectedAt: new Date().toISOString(), endedReason: 'zero_stock_fanout' }, { merge: true }).catch(() => {});
+              console.log(`[stock-sync] ebay END sibling product=${productId} itemId=${sibId} (zero stock, Multi-Site)`);
+            } else {
+              const { reviseFixedPriceItem } = require('../lib/ebay-trading-api');
+              const r = await reviseFixedPriceItem({ itemId: sibId, quantity: availableQuantity });
+              const st = r?.ack === 'Success' || r?.ack === 'Warning' ? 'success' : 'failed';
+              results.push({ channel: 'ebay', status: st, itemId: sibId, quantityPushed: availableQuantity, action: 'revise_sibling_site' });
+            }
+          } catch (sibErr) {
+            const msg = sibErr?.message || String(sibErr);
+            if (isEndedListing(msg) || isForeignOrRemovedListing(msg)) {
+              // Geschwister-Listing tot/fremd → nur DESSEN Mirror-Row
+              // deaktivieren (kein Drain-Doc, kein Retry) — der Light-Sync
+              // re-aktiviert es, falls es doch lebt.
+              await doc.ref.set({ active: false, endedDetectedAt: new Date().toISOString() }, { merge: true }).catch(() => {});
+              results.push({ channel: 'ebay', status: 'skipped', itemId: sibId, error: 'sibling_ended_or_foreign', quantityPushed: 0 });
+            } else if (isRateLimited(msg)) {
+              results.push({ channel: 'ebay', status: 'failed', itemId: sibId, error: msg, retryable: true, action: 'sibling_rate_limited' });
+            } else {
+              // Punkt 14: nie destruktiv auf Fehler reagieren — retryable in
+              // den Drain, der den kompletten Sync (inkl. Fan-Out) wiederholt.
+              results.push({ channel: 'ebay', status: 'failed', itemId: sibId, error: msg, retryable: true, action: 'sibling_revise_failed' });
+              console.warn(`[stock-sync] ebay sibling FAILED product=${productId} itemId=${sibId}: ${msg.slice(0, 140)}`);
+            }
+          }
+        }
+      }
+    } catch (fanoutErr) {
+      console.warn(`[stock-sync] ebay Multi-Site-Fan-Out failed for product=${productId}: ${fanoutErr?.message}`);
+    }
   }
 
   // --- Kaufland ---
