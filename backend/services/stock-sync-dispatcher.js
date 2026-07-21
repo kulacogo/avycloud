@@ -490,6 +490,22 @@ async function syncStockToAllChannels({ tenantId = 'default', product, reason = 
       return lower.includes('beendet') || lower.includes('ended') || lower.includes('1047');
     };
 
+    // Fremdes/entferntes Listing = TERMINAL, nie retrybar (Quota-Fresser
+    // 2026-07-21: 4 Produkte mit 389…-Alt-Konto-ItemIDs erzeugten ~250
+    // sinnlose END-Retries/Tag über Drain+Reconciliation, weil "Auf den
+    // Artikel kann nicht zugegriffen werden…" weder isEndedListing noch
+    // isRateLimited matcht). Der Pointer ist tot → aufräumen statt hämmern.
+    const isForeignOrRemovedListing = (msg) => {
+      const lower = String(msg || '').toLowerCase();
+      return lower.includes('kann nicht zugegriffen')
+        || lower.includes('nicht der verkäufer')
+        || lower.includes('not the seller')
+        || lower.includes('angebot entfernt')
+        || lower.includes('belongs to another')
+        || lower.includes('ungültige artikelnummer')
+        || lower.includes('invalid item id');
+    };
+
     const clearStaleItemId = async () => {
       try {
         // update() statt set({merge:true}) — kein Neu-Anlegen gelöschter Produkte
@@ -555,6 +571,12 @@ async function syncStockToAllChannels({ tenantId = 'default', product, reason = 
           // Im Zweifel nicht wiederbeleben — konservativ wie vor dem Fix.
           results.push({ channel: 'ebay', status: 'success', itemId: resolvedEbayItemId, quantityPushed: 0, zeroStock: true, action: 'already_ended' });
           console.log(`[stock-sync] ebay product=${productId} itemId=${resolvedEbayItemId} already ended, clearing stale itemId`);
+          await clearStaleItemId();
+        } else if (isForeignOrRemovedListing(errMsg)) {
+          // Alt-Konto-/entfernte ItemID: es GIBT nichts zu beenden. Terminal
+          // aufräumen (skipped, kein Drain-Doc) statt für immer zu retrien.
+          results.push({ channel: 'ebay', status: 'skipped', itemId: resolvedEbayItemId, error: 'foreign_or_removed_itemid', action: 'stale_pointer_cleared', quantityPushed: 0 });
+          console.warn(`[stock-sync] ebay product=${productId} itemId=${resolvedEbayItemId} fremd/entfernt → stale Pointer bereinigt (kein Retry): ${errMsg.slice(0, 120)}`);
           await clearStaleItemId();
         } else {
           results.push({ channel: 'ebay', status: 'error', error: errMsg });
@@ -649,6 +671,13 @@ async function syncStockToAllChannels({ tenantId = 'default', product, reason = 
           // avoids killing healthy listings on a transient error.
           results.push({ channel: 'ebay', status: 'failed', itemId: resolvedEbayItemId, error: errMsg, retryable: true });
           console.warn(`[stock-sync] ebay RATE-LIMITED product=${productId} itemId=${resolvedEbayItemId} — deferring (no fail-safe end): ${errMsg}`);
+        } else if (isForeignOrRemovedListing(errMsg)) {
+          // Alt-Konto-/entfernte ItemID beim Revise: der Pointer ist tot,
+          // Retry sinnlos → terminal aufräumen (kein Drain-Doc). Der nächste
+          // Sync resolvet ggf. ein echtes aktives Listing aus dem Mirror.
+          results.push({ channel: 'ebay', status: 'skipped', itemId: resolvedEbayItemId, error: 'foreign_or_removed_itemid', action: 'stale_pointer_cleared', quantityPushed: 0 });
+          console.warn(`[stock-sync] ebay product=${productId} itemId=${resolvedEbayItemId} fremd/entfernt beim Revise → stale Pointer bereinigt (kein Retry): ${errMsg.slice(0, 120)}`);
+          await clearStaleItemId();
         } else {
           // A revise failure at stock > 0 means the eBay listing is UNCHANGED —
           // it does NOT prove the stock is gone. Ending it here was a silent,
