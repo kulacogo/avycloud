@@ -33,7 +33,7 @@ const COLUMN_STORAGE_KEY = 'avystock:admin-table:visible-columns';
 const COLUMN_PRESETS: Record<ColumnPreset, ColumnId[]> = {
   // 'erfasstVon' ist admin-only: für Nicht-Admins existiert die Spalten-Definition
   // nicht, die Id wird beim Rendern schlicht ignoriert.
-  standard: ['thumbnail', 'nameBrand', 'sku', 'barcode', 'category', 'price', 'inventory', 'sold', 'notizen', 'pendingIntake', 'storage', 'ebay', 'kaufland', 'readiness', 'createdAt', 'erfasstVon', 'lastSaved'],
+  standard: ['thumbnail', 'images', 'nameBrand', 'sku', 'barcode', 'category', 'price', 'inventory', 'sold', 'notizen', 'pendingIntake', 'storage', 'ebay', 'kaufland', 'readiness', 'createdAt', 'erfasstVon', 'lastSaved'],
   warehouse: ['nameBrand', 'sku', 'barcode', 'inventory', 'sold', 'pendingIntake', 'storage', 'ebay', 'kaufland', 'readiness', 'saveStatus'],
   pricing: ['nameBrand', 'price', 'sku', 'barcode', 'pendingIntake', 'ebay', 'kaufland', 'readiness', 'lastSynced'],
   minimal: ['nameBrand', 'sku', 'barcode', 'inventory', 'sold', 'pendingIntake', 'ebay', 'kaufland', 'readiness'],
@@ -561,6 +561,25 @@ const AdminTable: React.FC<AdminTableProps> = ({
         ),
       },
       {
+        id: 'images',
+        label: t('table.images'),
+        sortKey: 'images.count',
+        defaultVisible: true,
+        widthClass: 'w-16',
+        render: ({ product }) => {
+          const count = Array.isArray(product.details?.images) ? product.details.images.length : 0;
+          if (count <= 0) return <span className="text-txt-muted text-sm">—</span>;
+          return (
+            <span
+              className="inline-flex items-center justify-center rounded-full px-2 py-0.5 text-xs font-semibold bg-accent/15 text-accent"
+              title={`${count} ${count === 1 ? 'Bild' : 'Bilder'}`}
+            >
+              {count}
+            </span>
+          );
+        },
+      },
+      {
         id: 'nameBrand',
         label: t('table.nameBrand'),
         sortKey: 'identification.name',
@@ -1080,7 +1099,15 @@ const AdminTable: React.FC<AdminTableProps> = ({
           const stored = (profile as any)?.tablePrefs?.adminTableColumns;
           if (Array.isArray(stored) && stored.length > 0) {
             const valid = stored.filter((id: ColumnId) => columnDefinitions.some((c) => c.id === id));
-            if (valid.length > 0) setVisibleColumns(normalizeMarketplaceColumnOrder(valid));
+            if (valid.length > 0) {
+              // Neu hinzugefügte Standard-Spalten (defaultVisible) auch bei einer
+              // gespeicherten Profil-Konfiguration ergänzen — sonst sieht ein Nutzer
+              // mit eigener Spaltenauswahl neue Spalten nie (symmetrisch zum localStorage-Pfad).
+              const newDefaults = COLUMN_PRESETS.standard.filter(
+                (id) => !valid.includes(id) && columnDefinitions.some((c) => c.id === id && c.defaultVisible)
+              );
+              setVisibleColumns(normalizeMarketplaceColumnOrder(newDefaults.length > 0 ? [...valid, ...newDefaults] : valid));
+            }
           }
         })
         .catch(() => {})
@@ -1377,6 +1404,8 @@ const AdminTable: React.FC<AdminTableProps> = ({
             if (Number.isFinite(sell) && sell > 0) return sell;
             return Number(product.details?.pricing?.lowest_price?.amount) || 0;
           }
+          case 'images.count':
+            return Array.isArray(product.details?.images) ? product.details.images.length : 0;
           case 'inventory.quantity':
             // Sort by effektiver Bestand (summe aus inventory + storageBins)
             return getProductQuantity(product);
