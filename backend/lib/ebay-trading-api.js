@@ -865,7 +865,23 @@ function buildReviseItemRequestXml(callName, patch, cfg) {
     pld.push(`<EAN>${escapeXml(ean || 'Does not apply')}</EAN>`);
     if (isbn) pld.push(`<ISBN>${escapeXml(isbn)}</ISBN>`);
     if (mpn) pld.push(`<BrandMPN><Brand>${escapeXml(brand || 'Unbranded')}</Brand><MPN>${escapeXml(mpn)}</MPN></BrandMPN>`);
-    pld.push('<IncludeeBayProductDetails>true</IncludeeBayProductDetails>');
+    // SPIEGEL des Publish-Pfads (Incident 2026-07-21, SKU-4561422647): bei
+    // K-Typ-Listings (itemCompatibilityList) bzw. explizitem identify-only-
+    // Modus DARF der Revise die Katalog-Adoption nicht re-bekräftigen — auf
+    // katalog-adoptierten Listings ignoriert eBay die Verkäufer-Kompatibilitäts-
+    // liste und wirft sie mit Ack=Warning weg. Vorher stand hier hart
+    // IncludeeBayProductDetails=true, wodurch jeder Revise die K-Typen
+    // verlor, obwohl compat=60 im Request stand.
+    const identifyOnly =
+      patch?.catalogMode === 'identify-only' ||
+      (Array.isArray(patch?.itemCompatibilityList) && patch.itemCompatibilityList.length > 0);
+    if (identifyOnly) {
+      pld.push('<IncludeeBayProductDetails>false</IncludeeBayProductDetails>');
+      pld.push('<IncludeStockPhotoURL>false</IncludeStockPhotoURL>');
+      pld.push('<UseStockPhotoURLAsGallery>false</UseStockPhotoURLAsGallery>');
+    } else {
+      pld.push('<IncludeeBayProductDetails>true</IncludeeBayProductDetails>');
+    }
     itemFields.push(`<ProductListingDetails>${pld.join('')}</ProductListingDetails>`);
   }
 
@@ -1653,6 +1669,7 @@ module.exports = {
   getCategorySpecifics,
   reviseFixedPriceItem,
   reviseItem,
+  buildReviseItemRequestXml,
   endItem,
   endFixedPriceItem,
   relistFixedPriceItem,

@@ -4532,6 +4532,19 @@ function mapProductToEbayItem(product, overrides = {}) {
 function validatePublishReadiness(product, overrides = {}) {
   const blockers = [];
   const warnings = [];
+
+  // BEREIT-GATE (Policy-Verstoß 2026-07-20: 63 Produkte mit Status
+  // "In Bearbeitung" wurden vom Repair-Script gelistet): Haus-Policy ist
+  // "nur Produkte mit Status Bereit werden gelistet". Der Status lebt in
+  // ops.readiness ('ready' = Bereit, UI-Badge inkl. Bearbeiter-Initialen).
+  // Explizites Override NUR über overrides.allowNonReady === true (bewusste
+  // Operator-Entscheidung, nie von Automatik gesetzt).
+  const readiness = safeLower(safeString(product?.ops?.readiness)) || 'pending';
+  if (readiness !== 'ready' && overrides.allowNonReady !== true) {
+    const label = readiness === 'in_progress' ? 'In Bearbeitung' : 'Ausstehend';
+    blockers.push(`Produktstatus ist nicht "Bereit" (aktuell: ${label}) — nur Bereit-Produkte werden gelistet.`);
+  }
+
   const details = product?.details || {};
   const identifiers = details?.identifiers || {};
   const pricing = details?.pricing?.lowest_price || {};
@@ -5230,14 +5243,29 @@ async function reviseListingFromProduct(itemId, product, { actor = null, related
     // GPSR senden weiterhin NICHTS, bestehende eBay-Daten werden nicht gelöscht.
     gpsr: item.gpsr,
     responsiblePerson: item.responsiblePerson,
+    // Katalog-Modus an den Revise durchreichen (Incident 2026-07-21): bei
+    // K-Typ-Listings muss der Revise identify-only spiegeln, sonst
+    // re-bekräftigt er die Katalog-Adoption und eBay verwirft die
+    // Kompatibilitätsliste still (Ack=Warning).
+    catalogMode: item.catalogMode,
   };
 
-  console.info(`[reviseListingFromProduct] itemId=${id} productId=${product?.id || '?'} title="${patch.title}" imgs=${patch.pictureUrls?.length || 0} price=${patch.startPrice} qty=${patch.quantity} cat=${patch.primaryCategoryId} cond=${patch.conditionId} weight=${patch.weightKg || '-'} specifics=${Object.keys(patch.itemSpecifics || {}).length} compat=${patch.itemCompatibilityList?.length || 0} gpsr=${patch.gpsr ? 1 : 0} rp=${patch.responsiblePerson ? 1 : 0}`);
+  console.info(`[reviseListingFromProduct] itemId=${id} productId=${product?.id || '?'} title="${patch.title}" imgs=${patch.pictureUrls?.length || 0} price=${patch.startPrice} qty=${patch.quantity} cat=${patch.primaryCategoryId} cond=${patch.conditionId} weight=${patch.weightKg || '-'} specifics=${Object.keys(patch.itemSpecifics || {}).length} compat=${patch.itemCompatibilityList?.length || 0} gpsr=${patch.gpsr ? 1 : 0} rp=${patch.responsiblePerson ? 1 : 0} catalogMode=${patch.catalogMode || '-'}`);
 
   const callName = resolveReviseCallName(listing);
   const response = callName === 'ReviseFixedPriceItem'
     ? await reviseFixedPriceItem(patch)
     : await reviseItem(patch);
+
+  // eBay-Warnings NIE mehr verschlucken (Incident 2026-07-21): Ack=Warning
+  // gilt als Erfolg, aber die Warnings sagen z. B. "Kompatibilitätsliste
+  // ignoriert" — ohne Log/Persist war der Datenverlust unsichtbar.
+  const reviseWarnings = asArray(response?.warnings)
+    .map((w) => safeString(w?.message || w?.shortMessage || w))
+    .filter(Boolean);
+  if (reviseWarnings.length) {
+    console.warn(`[reviseListingFromProduct] itemId=${id} Ack=${response?.ack || '?'} WARNINGS: ${reviseWarnings.join(' | ').slice(0, 500)}`);
+  }
 
   // Update local listing cache
   await firestore.collection(EBAY_LISTINGS_COLLECTION).doc(id).set(
@@ -5249,6 +5277,8 @@ async function reviseListingFromProduct(itemId, product, { actor = null, related
       lastSyncAtIso: new Date().toISOString(),
       lastSyncCall: callName,
       lastSyncError: null,
+      lastReviseAck: response?.ack || null,
+      lastReviseWarnings: reviseWarnings.length ? reviseWarnings.slice(0, 10) : null,
       pictureUrlsSource: patch.pictureUrls?.length ? patch.pictureUrls : undefined,
       pictureUrlsSourceUpdatedAtIso: patch.pictureUrls?.length ? new Date().toISOString() : undefined,
     }),
@@ -5260,6 +5290,7 @@ async function reviseListingFromProduct(itemId, product, { actor = null, related
     ok: true,
     callName,
     ack: response?.ack || 'Success',
+    warnings: reviseWarnings,
     updatedFields: Object.keys(patch).filter((k) => k !== 'itemId' && patch[k] != null),
   };
 }
@@ -5269,6 +5300,19 @@ async function reviseListingFromProduct(itemId, product, { actor = null, related
  * Uses direct revise (not gap system) for reliable updates.
  */
 async function bulkReviseListingsFromProducts({ itemIds = null, applyAll = false, actor = null } = {}) {
+  // FAIL-FAST bei offenem Quota-Breaker (Incident 2026-07-21): vorher liefen
+  // die Revises los, callTradingApi warf pro Item 'skipped for …' und die UI
+  // sah einen stillen No-op — der Operator glaubte, das Update sei gelaufen.
+  try {
+    const { ebayQuotaCooldownActive, ebayQuotaCooldownRemainingMs } = require('./ebay-trading-api');
+    if (ebayQuotaCooldownActive()) {
+      const mins = Math.ceil((ebayQuotaCooldownRemainingMs() || 0) / 60000);
+      const msg = `eBay-Tageslimit erschöpft — Updates aktuell nicht möglich (Quota-Cooldown ${mins ? `noch ~${mins} min` : 'aktiv'}). Bitte später erneut.`;
+      console.warn(`[bulkReviseListingsFromProducts] ${msg}`);
+      return { summary: { total: 0, success: 0, failed: 0, skipped: 0, quotaBlocked: true }, error: msg, results: [] };
+    }
+  } catch (_) { /* Helper nicht verfügbar → normal weiter */ }
+
   let resolvedItemIds;
   if (applyAll) {
     const snap = await firestore.collection(EBAY_LISTINGS_COLLECTION).where('active', '==', true).get();
