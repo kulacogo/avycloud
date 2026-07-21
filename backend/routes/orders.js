@@ -1481,38 +1481,48 @@ router.post('/orders/:orderId/cancel-label', requirePermission('orders', 'write'
     const { orderId } = req.params;
     const tenantId = req.user?.tenantId || 'default';
 
-    // Find active shipment for this order
+    // ALLE Shipments des Auftrags laden — ein Auftrag kann mehrere Parcels
+    // haben (Re-Announce, Announcement-failed-Duplikate, Panel-Aktionen).
+    // Früher wurde nur das NEUESTE storniert (limit 1) und ein fehlender
+    // Parcel führte zum 400-Abbruch — der Auftrag steckte dann in "shipped
+    // ohne Tracking" fest, ohne Ausweg im UI (Incident 2026-07-21,
+    // Order 20-14894-78016: avycloud-Parcel 687774187 "Announcement failed",
+    // echtes Label 687774192 extern im SendCloud-Panel storniert).
     const snap = await firestore.collection('shipments')
       .where('orderId', '==', orderId)
       .orderBy('createdAt', 'desc')
-      .limit(1)
       .get();
 
-    if (snap.empty) {
-      return res.status(404).json({ ok: false, error: { code: 'NOT_FOUND', message: 'Kein Versandlabel für diesen Auftrag gefunden.' } });
+    const activeDocs = snap.docs.filter((d) => (d.data().status || '') !== 'cancelled');
+
+    if (!activeDocs.length) {
+      // Kein (aktives) Shipment. Bei "shipped" trotzdem fortfahren — genau das
+      // ist der Sackgassen-Ausweg (Label extern storniert oder nie verlinkt).
+      const orderSnap = await firestore.collection('orders').doc(orderId).get();
+      const omsStatus = orderSnap.exists ? (orderSnap.data().omsStatus || '') : '';
+      if (omsStatus !== 'shipped') {
+        return res.status(404).json({ ok: false, error: { code: 'NOT_FOUND', message: 'Kein Versandlabel für diesen Auftrag gefunden.' } });
+      }
     }
 
-    const shipment = snap.docs[0].data();
-    const parcelId = shipment.sendcloudParcelId;
-
-    if (!parcelId) {
-      return res.status(400).json({ ok: false, error: { code: 'BAD_REQUEST', message: 'Keine SendCloud Parcel-ID vorhanden.' } });
-    }
-
-    // Cancel parcel in SendCloud (non-blocking — may already be cancelled externally)
+    // Cancel parcels in SendCloud (non-blocking — may already be cancelled externally)
     const { cancelParcel } = require('../services/shipping-engine');
-    try {
-      await cancelParcel({ parcelId, tenantId });
-    } catch (cancelErr) {
-      console.warn(`[cancel-label] SendCloud cancel failed (may already be cancelled): ${cancelErr.message}`);
+    const nowIso = new Date().toISOString();
+    for (const doc of activeDocs) {
+      const parcelId = doc.data().sendcloudParcelId;
+      if (parcelId) {
+        try {
+          await cancelParcel({ parcelId, tenantId });
+        } catch (cancelErr) {
+          console.warn(`[cancel-label] SendCloud cancel failed for parcel ${parcelId} (may already be cancelled): ${cancelErr.message}`);
+        }
+      }
+      await firestore.collection('shipments').doc(doc.id).set({
+        status: 'cancelled',
+        cancelledAt: nowIso,
+        updatedAt: nowIso,
+      }, { merge: true });
     }
-
-    // Update shipment doc status
-    await firestore.collection('shipments').doc(snap.docs[0].id).set({
-      status: 'cancelled',
-      cancelledAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    }, { merge: true });
 
     // Clear tracking data from order
     await firestore.collection('orders').doc(orderId).set({

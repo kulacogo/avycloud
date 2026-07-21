@@ -1085,7 +1085,9 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({
                       <div className="mb-2 flex flex-wrap items-center gap-2 rounded-lg border border-warning/20 bg-warning/10 px-3 py-2 text-xs text-warning">
                         <span className="flex-1 min-w-[12rem]">
                           Tracking fehlt obwohl der Auftrag versendet ist.
-                          SendCloud-Label könnte vorhanden sein.
+                          SendCloud-Label könnte vorhanden sein. Wurde das Label
+                          in SendCloud storniert: „Label stornieren" setzt den
+                          Auftrag zurück auf Verpackt für ein neues Label.
                         </span>
                         <ActionButton
                           label="Versanddaten von SendCloud holen"
@@ -1283,7 +1285,12 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({
                           />
                         </>
                       )}
-                      {order.trackingNumber && (
+                      {/* Auch bei "shipped ohne Tracking" anzeigen (Label extern
+                          storniert / Announce fehlgeschlagen): der Endpoint setzt
+                          den Auftrag zurück auf Verpackt, danach kann ein neues
+                          Label erstellt werden. Vorher war dieser Zustand eine
+                          Sackgasse ohne UI-Ausweg (Incident 2026-07-21). */}
+                      {(order.trackingNumber || omsStatus === "shipped") && (
                         <ActionButton
                           label="Label stornieren"
                           icon="✕"
