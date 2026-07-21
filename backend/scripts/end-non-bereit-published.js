@@ -4,13 +4,18 @@
  * das Repair-Script publizierte 63 Produkte mit Status "In Bearbeitung"
  * (ops.readiness != 'ready'). Haus-Policy: nur Bereit-Produkte werden gelistet.
  *
- * Beendet GENAU die gestern von uns publizierten Nicht-Bereit-Listings:
- *   - Quelle: der Publish-Report vom 20.07. (published[] mit sku+itemId)
- *   - Skip wenn das Produkt INZWISCHEN auf Bereit gesetzt wurde
- *   - GetItem-Verify: nur aktive Listings mit QuantitySold == 0
- *     (verkaufte → Report, niemals automatisch anfassen)
+ * Kandidaten-Ableitung OHNE Report-Datei (die /tmp-Datei überlebte den
+ * Neustart nicht): alle Mirror-Listings mit startTime im Publish-Fenster
+ * 2026-07-20T12:00–13:30Z — das sind exakt die 64 von uns publizierten
+ * (Forensik: einziger Publish-Burst dieses Fensters; Internationalisierung
+ * war 19.07., Alt-Listings früher).
+ *
+ * Guards pro Listing:
+ *   - Produkt INZWISCHEN auf Bereit gesetzt → bleibt gelistet
+ *   - GetItem-Verify: nur Status Active UND QuantitySold == 0
+ *     (Verkäufe → NIE automatisch anfassen, Meldeliste)
  *   - Ende-Grund 'OtherListingError'; ops.ebay bereinigt, Mirror inaktiv,
- *     KEIN zeroStockEnd-Marker (die Selbstheilung darf NICHT relisten)
+ *     KEIN zeroStockEnd-Marker (Selbstheilung darf NICHT relisten)
  *
  * Dry-run default; Mutationen nur mit --apply.
  */
@@ -19,66 +24,79 @@ const { Firestore } = require('@google-cloud/firestore');
 const db = new Firestore();
 
 const APPLY = process.argv.includes('--apply');
-const REPORT = '/tmp/repair-ended-listings-apply-2026-07-20T122233.json';
-const READY_SKU_EXCEPTION = 'SKU-9014992269'; // war Bereit — bleibt gelistet
+const WINDOW_START = '2026-07-20T12:00:00';
+const WINDOW_END = '2026-07-20T13:30:00';
+
+function toIso(v) {
+  if (!v) return '';
+  if (typeof v === 'string') return v;
+  if (v.toDate) return v.toDate().toISOString();
+  return String(v);
+}
 
 async function main() {
   console.log(`[end-non-bereit] Modus: ${APPLY ? 'APPLY' : 'DRY-RUN'}`);
-  const report = JSON.parse(require('fs').readFileSync(REPORT, 'utf8'));
-  const published = (report.published || []).filter((p) => p.sku !== READY_SKU_EXCEPTION);
-  console.log(`[end-non-bereit] ${published.length} Kandidaten aus Publish-Report 20.07.`);
+
+  const snap = await db.collection('ebayListingsLive').get();
+  const candidates = [];
+  for (const doc of snap.docs) {
+    const d = doc.data();
+    const start = toIso(d.startTime);
+    if (start >= WINDOW_START && start <= WINDOW_END) {
+      candidates.push({ itemId: String(d.itemId || doc.id), sku: String(d.sku || ''), active: d.active, ref: doc.ref });
+    }
+  }
+  console.log(`[end-non-bereit] ${candidates.length} Listings im Publish-Fenster 20.07. 12:00–13:30Z gefunden`);
 
   const { getItemDetails, endFixedPriceItem } = require('../lib/ebay-trading-api');
   const out = { ended: [], keptNowReady: [], keptSold: [], keptNotActive: [], errors: [] };
 
-  for (const { sku, itemId } of published) {
+  for (const c of candidates) {
     try {
-      // Produkt + aktueller Status
-      let snap = await db.collection('products_v2').where('identification.sku', '==', sku).limit(1).get();
-      if (snap.empty) snap = await db.collection('products_v2').where('details.identifiers.sku', '==', sku).limit(1).get();
-      const doc = snap.empty ? null : snap.docs[0];
-      const readiness = String(doc?.data()?.ops?.readiness || 'pending').toLowerCase();
+      let psnap = await db.collection('products_v2').where('identification.sku', '==', c.sku).limit(1).get();
+      if (psnap.empty) psnap = await db.collection('products_v2').where('details.identifiers.sku', '==', c.sku).limit(1).get();
+      const pdoc = psnap.empty ? null : psnap.docs[0];
+      const readiness = String(pdoc?.data()?.ops?.readiness || 'pending').toLowerCase();
       if (readiness === 'ready') {
-        out.keptNowReady.push({ sku, itemId });
-        console.log(`↷ [${sku}] inzwischen Bereit — Listing bleibt`);
+        out.keptNowReady.push({ sku: c.sku, itemId: c.itemId });
+        console.log(`↷ [${c.sku}] inzwischen Bereit — Listing bleibt`);
         continue;
       }
 
-      // Live-Verify
-      const detail = await getItemDetails(itemId);
+      const detail = await getItemDetails(c.itemId);
       const status = String(detail?.item?.listingStatus || '').toLowerCase();
       const sold = Number(detail?.item?.quantitySold ?? detail?.item?.soldQuantity ?? 0);
       if (status !== 'active') {
-        out.keptNotActive.push({ sku, itemId, status });
+        out.keptNotActive.push({ sku: c.sku, itemId: c.itemId, status });
         continue;
       }
       if (sold > 0) {
-        out.keptSold.push({ sku, itemId, sold });
-        console.warn(`⚠ [${sku}] ${itemId} hat ${sold} Verkauf(e) — NICHT beendet, bitte manuell entscheiden`);
+        out.keptSold.push({ sku: c.sku, itemId: c.itemId, sold });
+        console.warn(`⚠ [${c.sku}] ${c.itemId} hat ${sold} Verkauf(e) — NICHT beendet, bitte manuell entscheiden`);
         continue;
       }
 
-      console.log(`✂ [${sku}] ${itemId} beenden (Status: ${readiness})${APPLY ? '' : ' (dry)'}`);
+      console.log(`✂ [${c.sku}] ${c.itemId} beenden (Status: ${readiness})${APPLY ? '' : ' (dry)'}`);
       if (APPLY) {
-        await endFixedPriceItem(itemId, { reason: 'OtherListingError' });
-        if (doc) {
-          await doc.ref.update({
+        await endFixedPriceItem(c.itemId, { reason: 'OtherListingError' });
+        if (pdoc) {
+          await pdoc.ref.update({
             'ops.ebay.itemId': null,
             'ops.ebay.itemIdCleared': new Date().toISOString(),
             'ops.ebay.itemIdClearReason': 'ended_non_bereit_policy',
             'listingStatus.ebay': 'inactive',
-          });
+          }).catch(() => {});
         }
-        await db.collection('ebayListingsLive').doc(String(itemId)).set(
+        await c.ref.set(
           { active: false, endedDetectedAt: new Date().toISOString(), endedReason: 'non_bereit_policy' },
           { merge: true }
         );
         await new Promise((r) => setTimeout(r, 400));
       }
-      out.ended.push({ sku, itemId });
+      out.ended.push({ sku: c.sku, itemId: c.itemId });
     } catch (err) {
-      out.errors.push({ sku, itemId, error: String(err.message).slice(0, 150) });
-      console.error(`✖ [${sku}] ${err.message}`);
+      out.errors.push({ sku: c.sku, itemId: c.itemId, error: String(err.message).slice(0, 150) });
+      console.error(`✖ [${c.sku}] ${err.message}`);
     }
   }
 
