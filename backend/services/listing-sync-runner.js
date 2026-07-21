@@ -372,7 +372,13 @@ async function autoHealStockDiscrepancies() {
     const data = doc.data();
     const sku = String(data?.sku || '').trim();
     if (sku) {
-      ebayQtyMap.set(sku, Number(data?.quantityAvailable ?? data?.quantity ?? 0));
+      // Multi-Site (2026-07-21): pro SKU existieren bis zu 6 Länder-Listings.
+      // MAX über alle Sites statt last-write-wins — sobald IRGENDEINE Seite
+      // mehr anbietet als verfügbar ist, muss der Down-Push (der jetzt über
+      // alle Sites fan-outet) triggern.
+      const qty = Number(data?.quantityAvailable ?? data?.quantity ?? 0);
+      const prev = ebayQtyMap.get(sku);
+      ebayQtyMap.set(sku, prev === undefined ? qty : Math.max(prev, qty));
     }
   }
 
