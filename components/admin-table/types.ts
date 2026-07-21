@@ -3,6 +3,7 @@ import { Product, SyncStatus, Readiness } from "../../types";
 
 export type ColumnId =
   | "thumbnail"
+  | "images"
   | "nameBrand"
   | "category"
   | "sku"
