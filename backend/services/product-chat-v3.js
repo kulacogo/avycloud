@@ -81,7 +81,20 @@ if (!FunctionCallingConfigMode || !FunctionCallingConfigMode.ANY) {
 }
 
 const WRITE_TOOL = 'update_product_datasheet';
+const IMAGE_TOOL = 'suggest_product_images';
 const SOFT_RESEARCH_LIMIT = 3;
+
+// Ein "reiner Bild-Turn": das Modell hat NUR die Bildsuche benutzt — kein
+// Datenblatt-Write und kein datenblatt-relevantes Recherche-Tool. Solche Turns
+// dürfen NICHT in einen Datenblatt-Write gezwungen werden (softForce /
+// atLastIter / Ultimate-Fallback), sonst fabriziert das Modell eine sinnlose
+// "Übernehmen"-Karte für eine Anfrage, die das Datenblatt gar nicht ändern soll
+// (Symptom: "Ich habe eine Bildsuche durchgeführt … 0 Bilder" als Änderungskarte).
+// Die gefundenen Bilder fließen unabhängig davon über state.imageSuggestions.
+function computeImageOnlyTurn(trace) {
+  if (!trace || typeof trace !== 'object') return false;
+  return Boolean(trace.sawImageSearch) && !trace.sawNonImageTool && !trace.sawWriteCall;
+}
 
 const DEFAULT_MAX_ITERATIONS = 10;
 const DEFAULT_MAX_OUTPUT_TOKENS = 12000;
@@ -1206,6 +1219,8 @@ async function runProductChatV3({
     groundingChunks: [],
     urls: [],
     sawWriteCall: false,
+    sawImageSearch: false,
+    sawNonImageTool: false,
     forcedFinalizations: 0,
     ultimateFallbackTriggered: false,
     ultimateFallbackError: null,
@@ -1329,6 +1344,13 @@ async function runProductChatV3({
       const turnText = collectAnswerText(response);
       if (turnText && !isMetaEchoAnswer(turnText)) lastContentAnswer = turnText;
       const hasWriteCall = callList.some((c) => c && c.name === WRITE_TOOL);
+      // Turn-Tool-Provenienz mitschreiben: Bildsuche vs. datenblatt-relevantes Tool.
+      // Nötig, um "reine Bild-Turns" zu erkennen und NICHT in einen Write zu zwingen.
+      for (const c of callList) {
+        const nm = c && c.name;
+        if (nm === IMAGE_TOOL) trace.sawImageSearch = true;
+        else if (nm && nm !== WRITE_TOOL) trace.sawNonImageTool = true;
+      }
       if (hasWriteCall) {
         trace.sawWriteCall = true;
         researchOnlyIters = 0;
@@ -1418,7 +1440,9 @@ async function runProductChatV3({
       // ai.google.dev/gemini-api/docs/function-calling.
       const atLastIter = trace.iterations >= maxIterations;
       const softForce = !trace.sawWriteCall && researchOnlyIters >= SOFT_RESEARCH_LIMIT;
-      const forceFinalize = atLastIter || softForce;
+      // Reine Bild-Turns NIE in einen Datenblatt-Write zwingen (siehe
+      // computeImageOnlyTurn) — sonst entsteht eine sinnlose Übernehmen-Karte.
+      const forceFinalize = (atLastIter || softForce) && !computeImageOnlyTurn(trace);
       if (forceFinalize) trace.forcedFinalizations += 1;
 
       const sendConfig = forceFinalize
@@ -1480,7 +1504,7 @@ async function runProductChatV3({
     // WICHTIG (Incident 2026-07-16): NICHT auf !sawWriteCall gaten — ein
     // Write-Call, dessen Argumente die Bereinigung komplett verwarf
     // (changes=0 bei sawWrite=true), braucht den Zwangs-Retry genauso.
-    if (state.datasheetChanges.length === 0 && trace.iterations > 0) {
+    if (state.datasheetChanges.length === 0 && trace.iterations > 0 && !computeImageOnlyTurn(trace)) {
       console.warn(
         '[chat-v3] No %s call after loop — triggering ultimate fallback',
         WRITE_TOOL
@@ -1727,6 +1751,7 @@ module.exports = {
     synthesizeAnswerFromChanges,
     summarizeChangeForCard,
     consolidateDatasheetChangesV3,
+    computeImageOnlyTurn,
     fetchProductImageParts,
     extractEvidenceFromToolResult,
     mapToolSourceWeight,
