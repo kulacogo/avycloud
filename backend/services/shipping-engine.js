@@ -93,6 +93,41 @@ function _needsServicePoint(code) {
   return /(^|[:/,])service[_-]?point([/,]|$)/i.test(c) || /shop2home/i.test(c);
 }
 
+// Pure: SendCloud-Sender-Address (listSenderAddresses-Shape) → v3 from_address.
+// SendCloud liefert street und house_number GETRENNT — das API-Feld hat immer
+// Vorrang. Nur wenn es fehlt, wird die Nummer aus dem Street-String geparst.
+// Der frühere Pfad parste IMMER den Street-String ("Gahmener Str." → keine
+// Nummer → splitAddressLine-Fallback '-') und druckte "Gahmener Str. -" auf
+// alle DHL-/DPD-Labels (Incident 2026-07-21). NIE '-' als Hausnummer senden.
+function _buildV3FromAddress(sa) {
+  let street = String(sa.street || '').trim();
+  let houseNumber = String(sa.houseNumber || '').trim();
+  if (!houseNumber) {
+    const split = splitAddressLine(street);
+    if (split.houseNumber && split.houseNumber !== '-') {
+      street = split.street;
+      houseNumber = split.houseNumber;
+    } else {
+      console.warn(`[v3] from_address ohne Hausnummer (street="${street}") — house_number wird weggelassen.`);
+      houseNumber = '';
+    }
+  }
+  // name = Ansprechpartner, company_name = Firma. Ohne Ansprechpartner steht
+  // die Firma in name und company_name entfällt — sonst druckt das Label die
+  // Firma doppelt ("TrendOcean GmbH TrendOcean GmbH").
+  const contactName = String(sa.contactName || '').trim();
+  const companyName = String(sa.companyName || '').trim();
+  return {
+    name: contactName || companyName || 'Absender',
+    company_name: contactName && companyName ? companyName : undefined,
+    address_line_1: street,
+    house_number: houseNumber || undefined,
+    city: sa.city || '',
+    postal_code: sa.postalCode || '',
+    country_code: String(sa.country || 'DE').toUpperCase().slice(0, 2),
+  };
+}
+
 let _v3FromAddressCache = null;
 async function _getV3FromAddress() {
   if (_v3FromAddressCache) return _v3FromAddressCache;
@@ -103,17 +138,8 @@ async function _getV3FromAddress() {
   });
   const sa = list[0];
   if (!sa) throw new Error('SendCloud v3: keine Absenderadresse konfiguriert (from_address ist Pflicht).');
-  const { street, houseNumber } = splitAddressLine(String(sa.street || ''));
-  _v3FromAddressCache = {
-    name: sa.companyName || 'Absender',
-    company_name: sa.companyName || undefined,
-    address_line_1: street || sa.street || '',
-    house_number: houseNumber || undefined,
-    city: sa.city || '',
-    postal_code: sa.postalCode || '',
-    country_code: String(sa.country || 'DE').toUpperCase().slice(0, 2),
-  };
-  console.log(`[v3] from_address: ${_v3FromAddressCache.postal_code} ${_v3FromAddressCache.city}, ${_v3FromAddressCache.country_code}`);
+  _v3FromAddressCache = _buildV3FromAddress(sa);
+  console.log(`[v3] from_address: ${_v3FromAddressCache.address_line_1} ${_v3FromAddressCache.house_number || ''}, ${_v3FromAddressCache.postal_code} ${_v3FromAddressCache.city}, ${_v3FromAddressCache.country_code}`);
   return _v3FromAddressCache;
 }
 
@@ -1887,6 +1913,7 @@ async function pollDeliveryStatus({ tenantId = 'default' } = {}) {
 
 module.exports = {
   _matchV3OptionCode,
+  _buildV3FromAddress,
   getShippingMethods,
   syncShippingMethods,
   getCachedShippingMethods,

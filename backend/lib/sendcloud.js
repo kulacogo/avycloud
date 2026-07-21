@@ -335,7 +335,11 @@ async function listSenderAddresses({ timeoutMs = 15000 } = {}) {
     return items.map((sa) => ({
       id: sa.id,
       companyName: sa.company_name || '',
+      // SendCloud trennt street und house_number — house_number NIE verwerfen,
+      // sonst drucken DHL/DPD-Labels "Gahmener Str. -" (Incident 2026-07-21).
+      contactName: sa.contact_name || '',
       street: sa.street || '',
+      houseNumber: sa.house_number || '',
       city: sa.city || '',
       postalCode: sa.postal_code || '',
       country: sa.country || '',
