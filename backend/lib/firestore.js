@@ -3761,6 +3761,13 @@ async function getDashboardMetrics({ days = 7, preset = null, fromDate = null, t
     return false;
   };
   const isCancelled = (order) => {
+    // omsStatus ist die Wahrheit der Order-State-Machine — statusLabel/status
+    // können auf 'Neu'/'pending' stehen bleiben, wenn die Order via
+    // transitionOrder storniert wurde (Finanz-Abgleich 2026-07-20: 162 € aus
+    // 3 stornierten Orders zählten im Dashboard-Umsatz mit, während das
+    // "Aufträge"-Label die omsStatus-bewusste Zählung nutzte — eine Karte,
+    // zwei Storno-Definitionen).
+    if (normalize(order?.omsStatus || '') === 'cancelled') return true;
     const raw = normalize(order?.statusLabel || order?.status || '');
     if (CANCEL_LABELS.has(raw)) return true;
     return raw.includes('storniert') || raw.includes('cancel');
