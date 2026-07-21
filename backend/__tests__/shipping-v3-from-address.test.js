@@ -70,7 +70,7 @@ describe('_buildV3FromAddress — Hausnummer + Namensfelder der Absenderadresse'
     expect(addr.address_line_1).toBe('Gahmener Str.');
   });
 
-  it('name = Ansprechpartner, company_name = Firma (keine Doppelung auf dem Label)', () => {
+  it('Absenderzeile = NUR Firmenname, eine Zeile (kein contact_name, keine Doppelung)', () => {
     const addr = _buildV3FromAddress({
       companyName: 'TrendOcean GmbH',
       contactName: 'Kundensupport',
@@ -80,21 +80,21 @@ describe('_buildV3FromAddress — Hausnummer + Namensfelder der Absenderadresse'
       postalCode: '44532',
       country: 'DE',
     });
-    expect(addr.name).toBe('Kundensupport');
-    expect(addr.company_name).toBe('TrendOcean GmbH');
+    expect(addr.name).toBe('TrendOcean GmbH');
+    expect(addr.company_name).toBeUndefined();
   });
 
-  it('ohne contact_name: Firma nur EINMAL (name gesetzt, company_name weggelassen)', () => {
+  it('ohne Firma: contact_name als Fallback für name', () => {
     const addr = _buildV3FromAddress({
-      companyName: 'TrendOcean GmbH',
-      contactName: '',
+      companyName: '',
+      contactName: 'Kundensupport',
       street: 'Gahmener Str.',
       houseNumber: '185',
       city: 'Lünen',
       postalCode: '44532',
       country: 'DE',
     });
-    expect(addr.name).toBe('TrendOcean GmbH');
+    expect(addr.name).toBe('Kundensupport');
     expect(addr.company_name).toBeUndefined();
   });
 });

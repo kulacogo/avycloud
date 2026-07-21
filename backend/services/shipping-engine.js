@@ -112,14 +112,16 @@ function _buildV3FromAddress(sa) {
       houseNumber = '';
     }
   }
-  // name = Ansprechpartner, company_name = Firma. Ohne Ansprechpartner steht
-  // die Firma in name und company_name entfällt — sonst druckt das Label die
-  // Firma doppelt ("TrendOcean GmbH TrendOcean GmbH").
+  // Absenderzeile wie bei jedem Handelsunternehmen: NUR der Firmenname, eine
+  // Zeile ("TrendOcean GmbH"). Kein contact_name auf dem Label (das Feld ist
+  // für Benachrichtigungen, nicht für den Druck) und kein doppeltes
+  // name+company_name ("TrendOcean GmbH TrendOcean GmbH"). contact_name nur
+  // als Fallback, falls gar keine Firma hinterlegt ist.
   const contactName = String(sa.contactName || '').trim();
   const companyName = String(sa.companyName || '').trim();
   return {
-    name: contactName || companyName || 'Absender',
-    company_name: contactName && companyName ? companyName : undefined,
+    name: companyName || contactName || 'Absender',
+    company_name: undefined,
     address_line_1: street,
     house_number: houseNumber || undefined,
     city: sa.city || '',
