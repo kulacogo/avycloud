@@ -17,12 +17,16 @@ function optionWeightFits(o, weightKg) {
   return weightKg >= min && weightKg <= max;
 }
 
-// Anzahl Zusatz-Modifier nach dem Slash (carrier:product/mod1,mod2 → 2).
+// Anzahl Zusatz-Modifier hinter dem Basis-Produkt. Trenner ist "/" ODER ","
+// (carrier:product/mod1,mod2 → 2; carrier:product,mod → 1). Das Komma MUSS mitzählen,
+// sonst gilt z. B. "dhl_de:weltpaket,flex_delivery" fälschlich als schlichtes Produkt
+// und verdrängt das echte "dhl_de:weltpaket" (gefunden am Portugal-Fall 2026-07-22).
 function modifierCount(code) {
   const s = String(code || '');
   const afterColon = s.includes(':') ? s.slice(s.indexOf(':') + 1) : s;
-  const after = afterColon.includes('/') ? afterColon.slice(afterColon.indexOf('/') + 1) : '';
-  return after ? after.split(/[/,]/).filter(Boolean).length : 0;
+  const sepIdx = afterColon.search(/[/,]/);
+  if (sepIdx === -1) return 0;
+  return afterColon.slice(sepIdx + 1).split(/[/,]/).filter(Boolean).length;
 }
 
 // Mappt die LIVE-v3-Optionen von SendCloud auf die kuratierten Produkt-Slots.

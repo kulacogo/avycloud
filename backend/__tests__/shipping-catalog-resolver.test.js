@@ -96,10 +96,25 @@ describe('resolveCuratedOptions – international', () => {
     expect(r.products.map((p) => p.key)).toEqual(['warenpost_int', 'dpd_classic_europa', 'dhl_paket_int']);
   });
 
-  it('IT (Zone2, NICHT DPD-Land): kein DPD Classic Europa', () => {
+  it('IT: DPD wird angeboten, sobald SendCloud es fuer die Lane liefert (keine eigene Laender-Sperre)', () => {
     const r = resolveCuratedOptions(live, { country: 'IT', weightKg: 5 });
-    expect(r.products.find((p) => p.key === 'dpd_classic_europa')).toBeUndefined();
-    expect(r.products.map((p) => p.key)).toEqual(['dhl_paket_int']);
+    expect(r.products.map((p) => p.key)).toEqual(['dpd_classic_europa', 'dhl_paket_int']);
+  });
+
+  // Realfall Auftrag 06-14936-67724: Portugal, 2,9 kg — Operator will DHL ODER DPD.
+  // Echte SendCloud-Codes aus dem Prod-Log dieser Lane.
+  it('PT 2,9 kg: DPD UND DHL zur Auswahl; Komma-Zusatzleistungen fliegen raus', () => {
+    const ptLive = [
+      opt('dhl_de:weltpaket,flex_delivery', 0, 31.5), // Zusatzservice -> raus
+      opt('dpd:classic/service_point', 0, 31.5),      // Service-Point -> raus
+      opt('dhl_de:weltpaket,incoterm=ddp', 0, 31.5),  // Einfuhrabgaben zu unseren Lasten -> raus
+      opt('dpd:classic', 0, 31.5),
+      opt('dhl_de:weltpaket', 0, 31.5),
+    ];
+    const r = resolveCuratedOptions(ptLive, { country: 'PT', weightKg: 2.9 });
+    expect(r.products.map((p) => p.key)).toEqual(['dpd_classic_europa', 'dhl_paket_int']);
+    expect(r.products.find((p) => p.key === 'dpd_classic_europa').shippingOptionCode).toBe('dpd:classic');
+    expect(r.products.find((p) => p.key === 'dhl_paket_int').shippingOptionCode).toBe('dhl_de:weltpaket');
   });
 
   it('GR (Nicht-Zone): International erlaubt, aber warn=true', () => {

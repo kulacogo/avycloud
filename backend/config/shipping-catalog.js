@@ -6,7 +6,9 @@ const ZONE_2 = ['AD', 'IT', 'SM', 'SE', 'SK', 'SI', 'ES', 'HU', 'VA'];
 const DPD_EUROPA = ['BE', 'LU', 'NL', 'AT', 'DK', 'CZ', 'FR'];
 
 // Zusatzleistungen, die NIE genutzt werden — jeder Code, der matcht, fliegt raus.
-const FORBIDDEN = /gogreen|eco[_-]?delivery|premium|service[_-]?point|locker|filial|alterssicht|age[_-]?check|agecheck|transportvers|insur|express|sperrgut|extra_fee|signature/i;
+// `incoterm`/`ddp` = Einfuhrabgaben gehen zu unseren Lasten (teuer) -> nie automatisch.
+// `flex_delivery`/`bulky_goods` = kostenpflichtige Zusatzservices.
+const FORBIDDEN = /gogreen|eco[_-]?delivery|premium|service[_-]?point|locker|filial|alterssicht|age[_-]?check|agecheck|transportvers|insur|express|sperrgut|bulky_goods|extra_fee|signature|flex_delivery|incoterm|ddp/i;
 
 // Kuratierte Produkte (Plakat-Nomenklatur). `match(code)` prüft den v3-Basis-Produktcode.
 // tracking = nur Anzeige-Indikator (Sendungsnummer existiert immer).
@@ -32,7 +34,10 @@ const PRODUCTS = [
   // ── EU / INTERNATIONAL (scope: international) ──
   { key: 'warenpost_int', displayName: 'Warenpost International', carrier: 'dhl_de', scope: 'international', maxWeightKg: 1, tracking: false, rank: 1,
     match: (c) => /^dhl_de:warenpostinternational(\b|\/|,|$)/i.test(c) },
-  { key: 'dpd_classic_europa', displayName: 'DPD Classic Europa', carrier: 'dpd', scope: 'international', maxWeightKg: 31.5, tracking: true, rank: 2, allowedCountries: DPD_EUROPA,
+  // KEINE eigene Länder-Sperre mehr (Owner 2026-07-22): DPD wird überall angeboten,
+  // wo SendCloud es für die Lane liefert (z. B. Portugal — DPD dort leistungsstärker).
+  // DPD_EUROPA bleibt nur als Doku der günstigsten Plakat-Lanes erhalten.
+  { key: 'dpd_classic_europa', displayName: 'DPD Classic Europa', carrier: 'dpd', scope: 'international', maxWeightKg: 31.5, tracking: true, rank: 2,
     match: (c) => /^dpd:classic(\b|\/|,|$)/i.test(c) },
   { key: 'dhl_paket_int', displayName: 'DHL Paket International', carrier: 'dhl_de', scope: 'international', maxWeightKg: 31.5, tracking: true, rank: 3,
     match: (c) => /^dhl_de:(europaket|weltpaket|paket_international|dhl_paket_international)(\b|\/|,|$)/i.test(c) },
