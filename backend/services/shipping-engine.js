@@ -507,6 +507,7 @@ async function pollForLabel({ parcelId, labelFormat = 'a6', maxAttempts = 10, in
 async function createParcel({
   order,
   shippingMethodId,
+  shippingOptionCode: explicitOptionCode = null,
   weight,
   requestLabel = true,
   tenantId = 'default',
@@ -594,7 +595,6 @@ async function createParcel({
   // ── SendCloud v3: shipping_option_code auflösen, dann create+announce ──────
   // v2 POST /parcels ist für dieses Konto gesperrt. v3 braucht from_address +
   // einen string shipping_option_code (statt numerischer Methoden-ID).
-  const methodMeta = await _getCachedMethodMeta(tenantId, shippingMethodId);
   const fromAddress = await _getV3FromAddress();
   const weightKg = Number(totalWeight) || 0.5;
 
@@ -611,25 +611,33 @@ async function createParcel({
   // DHL Packstation/Postfiliale: v3 nutzt po_box für die DHL-Postnummer.
   if (isPackstation && toPostNumber) toAddress.po_box = toPostNumber;
 
-  const options = await _listV3ShippingOptions({ fromAddress, toCountry: countryRaw, toPostal: zipStr, weightKg, auth });
-  const isDomestic = String(fromAddress?.country_code || 'DE').toUpperCase() === String(countryRaw || 'DE').toUpperCase();
-  let shippingOptionCode = _matchV3OptionCode(options, methodMeta, weightKg, { domestic: isDomestic });
+  // Wenn ein exakter v3-Code übergeben wurde (kuratierter Pack-Flow), diesen
+  // direkt nutzen — kein Fuzzy-Resolver, kein Options-Call.
+  let shippingOptionCode = explicitOptionCode || null;
   if (!shippingOptionCode) {
-    // Fallback: günstigste gewichts-passende Home-Delivery-Option (keine
-    // service-point-Produkte), damit Label-Erstellung nicht komplett blockt.
-    const fit = options
-      .filter((o) => {
-        if (_needsServicePoint(o?.code)) return false;
-        const min = Number(o?.weight?.min?.value ?? 0) || 0;
-        const max = Number(o?.weight?.max?.value ?? 0) || Infinity;
-        return weightKg >= min && weightKg <= max;
-      })
-      .sort((a, b) => (Number(a?.quotes?.[0]?.price?.total?.value ?? Infinity)) - (Number(b?.quotes?.[0]?.price?.total?.value ?? Infinity)));
-    shippingOptionCode = fit[0]?.code || options.find((o) => !_needsServicePoint(o?.code))?.code || null;
-    if (shippingOptionCode) console.warn(`[createParcel] v3: kein exakter Methoden-Match für ${shippingMethodId} — Fallback "${shippingOptionCode}"`);
-  }
-  if (!shippingOptionCode) {
-    throw new Error(`SendCloud v3: keine passende Versandoption für ${countryRaw}/${weightKg}kg gefunden (Methode ${shippingMethodId || 'default'}, ${options.length} Optionen).`);
+    const methodMeta = await _getCachedMethodMeta(tenantId, shippingMethodId);
+    const options = await _listV3ShippingOptions({ fromAddress, toCountry: countryRaw, toPostal: zipStr, weightKg, auth });
+    const isDomestic = String(fromAddress?.country_code || 'DE').toUpperCase() === String(countryRaw || 'DE').toUpperCase();
+    shippingOptionCode = _matchV3OptionCode(options, methodMeta, weightKg, { domestic: isDomestic });
+    if (!shippingOptionCode) {
+      // Fallback: günstigste gewichts-passende Home-Delivery-Option (keine
+      // service-point-Produkte), damit Label-Erstellung nicht komplett blockt.
+      const fit = options
+        .filter((o) => {
+          if (_needsServicePoint(o?.code)) return false;
+          const min = Number(o?.weight?.min?.value ?? 0) || 0;
+          const max = Number(o?.weight?.max?.value ?? 0) || Infinity;
+          return weightKg >= min && weightKg <= max;
+        })
+        .sort((a, b) => (Number(a?.quotes?.[0]?.price?.total?.value ?? Infinity)) - (Number(b?.quotes?.[0]?.price?.total?.value ?? Infinity)));
+      shippingOptionCode = fit[0]?.code || options.find((o) => !_needsServicePoint(o?.code))?.code || null;
+      if (shippingOptionCode) console.warn(`[createParcel] v3: kein exakter Methoden-Match für ${shippingMethodId} — Fallback "${shippingOptionCode}"`);
+    }
+    if (!shippingOptionCode) {
+      throw new Error(`SendCloud v3: keine passende Versandoption für ${countryRaw}/${weightKg}kg gefunden (Methode ${shippingMethodId || 'default'}, ${options.length} Optionen).`);
+    }
+  } else {
+    console.log(`[createParcel] v3: exakter shippingOptionCode übergeben — Resolver übersprungen: "${shippingOptionCode}"`);
   }
 
   console.log(`[createParcel] Payload(v3) ${order.id}: to="${zipStr} ${cityStr}, ${countryRaw}", weight=${weightKg}kg, method=${shippingMethodId || 'default'} → code="${shippingOptionCode}"${toPostNumber ? `, po_box="${toPostNumber}"` : ''}`);
@@ -1210,10 +1218,10 @@ function matchCarrierRule({ weight, rules }) {
  * Full flow: load order → calculate weight → match carrier rule → create SendCloud parcel
  * → update order status to 'shipped'
  *
- * @param {{ orderId: string, tenantId?: string, shippingMethodId?: number, weight?: number, labelFormat?: 'a6' | 'a4' }} opts
+ * @param {{ orderId: string, tenantId?: string, shippingMethodId?: number, shippingOptionCode?: string, weight?: number, labelFormat?: 'a6' | 'a4' }} opts
  * @returns {Promise<object>}
  */
-async function shipOrder({ orderId, tenantId = 'default', shippingMethodId, weight, labelFormat = 'a6' }) {
+async function shipOrder({ orderId, tenantId = 'default', shippingMethodId, shippingOptionCode = null, weight, labelFormat = 'a6' }) {
   const db = getDb();
 
   // Load order
@@ -1229,10 +1237,11 @@ async function shipOrder({ orderId, tenantId = 'default', shippingMethodId, weig
     );
   }
 
-  // Auto-select shipping method from rules if not provided
+  // Auto-select shipping method from rules if neither an explicit method nor an
+  // exact v3 shipping_option_code (kuratierter Pack-Flow) was provided.
   let methodId = shippingMethodId;
   let matchedRule = null;
-  if (!methodId) {
+  if (!methodId && !shippingOptionCode) {
     const settingsSnap = await db.collection('order_settings').doc(tenantId).get();
     const settings = settingsSnap.exists ? settingsSnap.data() : {};
     const rules = settings.carrierRules?.length ? settings.carrierRules : DEFAULT_CARRIER_RULES;
@@ -1287,6 +1296,7 @@ async function shipOrder({ orderId, tenantId = 'default', shippingMethodId, weig
   const result = await createParcel({
     order,
     shippingMethodId: methodId,
+    shippingOptionCode,
     weight: orderWeight,
     requestLabel: true,
     tenantId,
@@ -1913,9 +1923,34 @@ async function pollDeliveryStatus({ tenantId = 'default' } = {}) {
   return { checked, delivered, errors };
 }
 
+/**
+ * Kuratierte Versand-Produktliste für eine Order + Gewicht: holt die LIVE-v3-
+ * Optionen von SendCloud (land-/gewichts-authoritativ) und mappt sie über den
+ * kuratierten Katalog auf die anzeigbaren Produkte. Kein Fuzzy-Resolver.
+ * @param {{ order: object, weightKg: number }} opts
+ * @returns {Promise<{ scope: string, country: string, warn: boolean, products: object[] }>}
+ */
+async function listCuratedShippingOptions({ order, weightKg }) {
+  const { resolveCuratedOptions } = require('../lib/shipping-catalog-resolver');
+  const auth = await getSendCloudAuth();
+  const fromAddress = await _getV3FromAddress();
+  const customer = order.customer || {};
+  const country = String(customer.country || customer.countryCode || 'DE').trim().toUpperCase().slice(0, 2);
+  const rawZip = customer.zip ?? customer.postal_code ?? customer.postcode ?? customer.plz ?? '';
+  let zip = String(rawZip).trim().replace(/\s+/g, '').replace(/[^a-zA-Z0-9-]/g, '');
+  if (country === 'DE' && /^\d{1,4}$/.test(zip)) zip = zip.padStart(5, '0');
+  else if (country === 'AT' && /^\d{1,3}$/.test(zip)) zip = zip.padStart(4, '0');
+  const options = await _listV3ShippingOptions({ fromAddress, toCountry: country, toPostal: zip, weightKg, auth });
+  const flags = { allowBuchersendung: String(process.env.ALLOW_BUCHERSENDUNG || 'false') === 'true' };
+  return resolveCuratedOptions(options, { country, weightKg, flags });
+}
+
 module.exports = {
   _matchV3OptionCode,
   _buildV3FromAddress,
+  _listV3ShippingOptions,
+  _getV3FromAddress,
+  listCuratedShippingOptions,
   getShippingMethods,
   syncShippingMethods,
   getCachedShippingMethods,
