@@ -17,9 +17,12 @@ const PRODUCTS = [
   { key: 'grossbrief', displayName: 'Großbrief', carrier: 'dp', scope: 'national', maxWeightKg: 0.5, tracking: false, rank: 1,
     match: (c) => /^dp:grossbrief(\b|\/|,|$)/i.test(c) },
   { key: 'warensendung', displayName: 'Warensendung', carrier: 'dp', scope: 'national', maxWeightKg: 1, tracking: false, rank: 2,
-    match: (c) => /^dp:warensendung(\b|\/|,|$)/i.test(c) },
-  { key: 'buchersendung', displayName: 'Büchersendung', carrier: 'dp', scope: 'national', maxWeightKg: 1, tracking: false, rank: 2, requiresFlag: 'allowBuchersendung',
-    match: (c) => /^dp:buchersendung(\b|\/|,|$)/i.test(c) },
+    // Deutsche Post hat Büchersendung + Warensendung zu "Bücher- und Warensendung"
+    // verschmolzen — auf diesem Konto ist der echte Code `dp:bucherwarensendung`
+    // (verifiziert via Prod-Logs 2026-07-22). `dp:warensendung` als Fallback belassen.
+    match: (c) => /^dp:(bucherwarensendung|warensendung)(\b|\/|,|$)/i.test(c) },
+  { key: 'maxibrief', displayName: 'Maxibrief', carrier: 'dp', scope: 'national', maxWeightKg: 1, tracking: false, rank: 3,
+    match: (c) => /^dp:maxibrief(\b|\/|,|$)/i.test(c) },
   { key: 'kleinpaket', displayName: 'Kleinpaket', carrier: 'dhl_de', scope: 'national', maxWeightKg: 1, tracking: true, rank: 3,
     match: (c) => /^dhl_de:warenpost(\b|\/|,|$)/i.test(c) && !/international/i.test(c) },
   { key: 'dpd_classic', displayName: 'DPD Classic', carrier: 'dpd', scope: 'national', maxWeightKg: 31.5, tracking: true, rank: 4,

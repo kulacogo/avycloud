@@ -61,12 +61,24 @@ describe('resolveCuratedOptions – national (DE)', () => {
     expect(r.products.map((p) => p.key)).toEqual(['dpd_classic', 'dhl_paket']);
   });
 
-  it('Buechersendung erscheint nur mit Flag', () => {
-    const withBuch = [opt('dp:buchersendung/mailbox', 0, 1), opt('dhl_de:dhl_paket', 0, 31.5)];
-    const off = resolveCuratedOptions(withBuch, { country: 'DE', weightKg: 0.3 });
-    expect(off.products.find((p) => p.key === 'buchersendung')).toBeUndefined();
-    const on = resolveCuratedOptions(withBuch, { country: 'DE', weightKg: 0.3, flags: { allowBuchersendung: true } });
-    expect(on.products.find((p) => p.key === 'buchersendung')).toBeTruthy();
+  it('erkennt Warensendung unter dem echten Post-Code dp:bucherwarensendung', () => {
+    const live = [opt('dp:bucherwarensendung/mailbox', 0, 1), opt('dhl_de:dhl_paket', 0, 31.5)];
+    const r = resolveCuratedOptions(live, { country: 'DE', weightKg: 0.3 });
+    const ws = r.products.find((p) => p.key === 'warensendung');
+    expect(ws).toBeTruthy();
+    expect(ws.shippingOptionCode).toBe('dp:bucherwarensendung/mailbox');
+  });
+
+  it('erkennt Maxibrief unter dp:maxibrief, aber nicht die extra_fee-/integral-Varianten', () => {
+    const live = [
+      opt('dp:maxibrief/extra_fee,mailbox', 0, 1),
+      opt('dp:maxibrief/mailbox', 0, 1),
+      opt('dp:maxibrief_integral/extra_fee,mailbox,signature', 0, 1),
+    ];
+    const r = resolveCuratedOptions(live, { country: 'DE', weightKg: 0.3 });
+    const mb = r.products.find((p) => p.key === 'maxibrief');
+    expect(mb).toBeTruthy();
+    expect(mb.shippingOptionCode).toBe('dp:maxibrief/mailbox');
   });
 });
 
