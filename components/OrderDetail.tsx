@@ -20,9 +20,10 @@ import {
   printAddressLabels,
   fetchShippingMethods,
   fetchShippingPreview,
+  fetchShippingOptions,
   refreshShipment,
 } from "../api/client";
-import type { ShippingPreviewMatch } from "../api/client";
+import type { ShippingPreviewMatch, CuratedShippingProduct } from "../api/client";
 import type {
   Order,
   OrderTimelineEvent,
@@ -36,6 +37,7 @@ import {
 import {
   CarrierPickModal,
   WeightPromptModal,
+  ShippingOptionModal,
 } from "./orders/ShippingDecisionDialog";
 import { useToast } from "../context/ToastContext";
 
@@ -162,9 +164,15 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({
   // pipeline as the mobile pack flow, but never auto-packs.  When the user
   // has explicitly selected a `selectedMethodId` from the dropdown, we skip
   // both modals and forward that ID verbatim.
-  type ShipDecisionStep = "idle" | "weight" | "pick" | "executing";
+  type ShipDecisionStep = "idle" | "weight" | "pick" | "options" | "executing";
   const [shipDecisionStep, setShipDecisionStep] =
     useState<ShipDecisionStep>("idle");
+  // Kuratierter Pack-Flow (hinter Flag PACK_CURATED_SHIPPING). curatedMode=true
+  // -> immer Gewicht abfragen, dann kuratierte Produktliste statt Regel-Treffer.
+  const [curatedMode, setCuratedMode] = useState(false);
+  const [curatedProducts, setCuratedProducts] = useState<CuratedShippingProduct[]>([]);
+  const [curatedWarn, setCuratedWarn] = useState(false);
+  const [curatedCountry, setCuratedCountry] = useState<string | undefined>(undefined);
   const [shipDecisionMatches, setShipDecisionMatches] = useState<
     ShippingPreviewMatch[]
   >([]);
@@ -256,12 +264,16 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({
     [orderId, loadData, onStatusChange],
   );
 
-  /** Execute shipOrder with a known weight + method, reload, surface errors. */
+  /** Execute shipOrder with a known weight + method (or exact v3 code), reload, surface errors. */
   const executeShip = useCallback(
-    async (weight: number, methodId: number | null) => {
+    async (weight: number, methodId: number | null, shippingOptionCode?: string) => {
       await shipOrder(orderId, {
         weight,
-        ...(methodId ? { shippingMethodId: methodId } : {}),
+        ...(shippingOptionCode
+          ? { shippingOptionCode }
+          : methodId
+            ? { shippingMethodId: methodId }
+            : {}),
         labelFormat,
       });
       await loadData();
@@ -279,6 +291,16 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({
     async (forcedMethodId: number | null) => {
       setShipDecisionError(null);
       try {
+        // Kuratierter Flow (hinter Flag). Bei enabled:false Fallback auf Alt-Flow.
+        const options = await fetchShippingOptions(orderId);
+        if (options.enabled) {
+          setCuratedMode(true);
+          setShipDecisionInitialWeight(options.weightEstimate ?? null);
+          setShipDecisionStep("weight");
+          return;
+        }
+        setCuratedMode(false);
+
         const preview = await fetchShippingPreview(orderId);
 
         if (!preview.hasWeight) {
@@ -323,6 +345,28 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({
       try {
         await updateOrderWeight(orderId, kg);
         await loadData();
+
+        if (curatedMode) {
+          // Kuratierte Produktliste für Gewicht + Zielland holen.
+          const opts = await fetchShippingOptions(orderId, kg);
+          const products = opts.products || [];
+          if (products.length === 0) {
+            setShipDecisionStep("idle");
+            setError(
+              `Keine passende Versandoption für ${kg.toLocaleString("de-DE")} kg${
+                opts.country ? " / " + opts.country : ""
+              }. Bitte Gewicht oder Zieladresse prüfen.`,
+            );
+            return;
+          }
+          setCuratedProducts(products);
+          setCuratedWarn(!!opts.warn);
+          setCuratedCountry(opts.country);
+          setShipDecisionWeight(kg);
+          setShipDecisionStep("options");
+          return;
+        }
+
         // Preview again so we know how many rules now match.
         const preview = await fetchShippingPreview(orderId);
         const weight = preview.weight ?? kg;
@@ -350,7 +394,28 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({
         setShipDecisionBusy(false);
       }
     },
-    [orderId, loadData, executeShip],
+    [orderId, loadData, executeShip, curatedMode],
+  );
+
+  const handleOptionConfirm = useCallback(
+    async (product: CuratedShippingProduct) => {
+      if (shipDecisionWeight == null) return;
+      setShipDecisionBusy(true);
+      setShipDecisionError(null);
+      try {
+        setShipDecisionStep("executing");
+        await executeShip(shipDecisionWeight, null, product.shippingOptionCode);
+        setShipDecisionStep("idle");
+        setCuratedProducts([]);
+        setShipDecisionWeight(null);
+      } catch (err: any) {
+        setShipDecisionError(err?.message || "Versand fehlgeschlagen");
+        setShipDecisionStep("options");
+      } finally {
+        setShipDecisionBusy(false);
+      }
+    },
+    [executeShip, shipDecisionWeight],
   );
 
   const handleCarrierConfirm = useCallback(
@@ -381,6 +446,8 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({
     setShipDecisionWeight(null);
     setShipDecisionInitialWeight(null);
     setShipDecisionError(null);
+    setCuratedProducts([]);
+    setCuratedWarn(false);
   }, [shipDecisionBusy]);
 
   const omsStatus = order?.omsStatus || order?.status || "pending";
@@ -1562,6 +1629,25 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({
           busy={shipDecisionBusy}
           errorMessage={shipDecisionError}
           onConfirm={handleCarrierConfirm}
+          onCancel={cancelShipDecision}
+        />
+      )}
+
+      {shipDecisionStep === "options" && shipDecisionWeight != null && (
+        <ShippingOptionModal
+          weightKg={shipDecisionWeight}
+          products={curatedProducts}
+          warn={curatedWarn}
+          country={curatedCountry}
+          contextLabel={
+            order?.marketplaceOrderId ||
+            order?.orderId ||
+            order?.number ||
+            orderId
+          }
+          busy={shipDecisionBusy}
+          errorMessage={shipDecisionError}
+          onConfirm={handleOptionConfirm}
           onCancel={cancelShipDecision}
         />
       )}

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import type { ShippingPreviewMatch } from "../../api/client";
+import type { ShippingPreviewMatch, CuratedShippingProduct } from "../../api/client";
 
 /**
  * Shared shipping-decision dialogs used by both the mobile pack module
@@ -319,6 +319,124 @@ export const CarrierPickModal: React.FC<CarrierPickModalProps> = ({
         })}
       </div>
 
+      {errorMessage ? (
+        <div className="mt-3 bg-danger-dim border border-danger/20 rounded-lg px-3 py-2 text-xs text-danger">
+          {errorMessage}
+        </div>
+      ) : null}
+    </ModalShell>
+  );
+};
+
+/* ──────────────────────────────────────────────────────────────── */
+/*  Curated shipping-option picker (kuratierter Pack-Flow)          */
+/* ──────────────────────────────────────────────────────────────── */
+
+interface ShippingOptionModalProps {
+  weightKg: number;
+  products: CuratedShippingProduct[];
+  /** true = Zielland außerhalb Standard-Zonen (Teamlead-Hinweis). */
+  warn?: boolean;
+  country?: string;
+  contextLabel?: string | null;
+  busy?: boolean;
+  errorMessage?: string | null;
+  onConfirm: (product: CuratedShippingProduct) => void;
+  onCancel: () => void;
+}
+
+export const ShippingOptionModal: React.FC<ShippingOptionModalProps> = ({
+  weightKg,
+  products,
+  warn,
+  country,
+  contextLabel,
+  busy = false,
+  errorMessage,
+  onConfirm,
+  onCancel,
+}) => {
+  const [selectedKey, setSelectedKey] = useState<string | null>(products[0]?.key ?? null);
+  const selected = products.find((p) => p.key === selectedKey) || null;
+
+  return (
+    <ModalShell
+      title="Versand wählen"
+      subtitle={`${contextLabel ? contextLabel + " — " : ""}${weightKg.toLocaleString("de-DE", {
+        maximumFractionDigits: 3,
+      })} kg${country ? " · " + country : ""}`}
+      onClose={onCancel}
+      busy={busy}
+      footer={
+        <div className="flex items-center justify-end gap-2">
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={busy}
+            className="rounded-lg bg-app-elevated text-txt-secondary px-4 py-2.5 text-sm font-semibold hover:text-txt-primary transition disabled:opacity-50"
+          >
+            Abbrechen
+          </button>
+          <button
+            type="button"
+            onClick={() => selected && onConfirm(selected)}
+            disabled={busy || !selected}
+            className="inline-flex items-center gap-2 rounded-lg bg-accent text-white px-4 py-2.5 text-sm font-semibold hover:bg-accent/90 transition disabled:opacity-50"
+          >
+            {busy && <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
+            Label erstellen
+          </button>
+        </div>
+      }
+    >
+      {warn ? (
+        <div className="mb-3 bg-warning-dim border border-warning/30 rounded-lg px-3 py-2 text-xs text-warning">
+          Außerhalb der Standard-Zonen — bitte Teamlead fragen, bevor du versendest.
+        </div>
+      ) : null}
+      <div className="space-y-2">
+        {products.length === 0 ? (
+          <p className="text-sm text-txt-muted">Keine passende Versandoption für dieses Gewicht/Zielland.</p>
+        ) : (
+          products.map((p) => {
+            const active = p.key === selectedKey;
+            return (
+              <button
+                key={p.key}
+                type="button"
+                onClick={() => setSelectedKey(p.key)}
+                disabled={busy}
+                className={`w-full text-left rounded-xl border px-4 py-3 transition flex items-center gap-3 ${
+                  active
+                    ? "border-accent bg-accent-dim ring-1 ring-accent/40"
+                    : "border-app-border bg-app-bg/40 hover:border-txt-muted"
+                } disabled:opacity-50`}
+              >
+                <span
+                  className={`inline-flex items-center justify-center w-5 h-5 rounded-full border ${
+                    active ? "border-accent bg-accent" : "border-app-border bg-app-elevated"
+                  }`}
+                >
+                  {active && <span className="w-2 h-2 rounded-full bg-white" />}
+                </span>
+                <div className="flex-1 min-w-0 flex items-center gap-2 flex-wrap">
+                  <span className="text-sm font-semibold text-txt-primary truncate">{p.displayName}</span>
+                  <span
+                    className={`inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider border ${carrierBadgeClass(
+                      p.carrier,
+                    )}`}
+                  >
+                    {p.carrier}
+                  </span>
+                  <span className={`text-[10px] font-semibold ${p.tracking ? "text-success" : "text-txt-muted"}`}>
+                    {p.tracking ? "✓ Tracking" : "✗ kein Tracking"}
+                  </span>
+                </div>
+              </button>
+            );
+          })
+        )}
+      </div>
       {errorMessage ? (
         <div className="mt-3 bg-danger-dim border border-danger/20 rounded-lg px-3 py-2 text-xs text-danger">
           {errorMessage}

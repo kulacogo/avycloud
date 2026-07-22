@@ -11,10 +11,11 @@ import {
   stockOutProduct,
   fetchProfile,
   fetchShippingPreview,
+  fetchShippingOptions,
   updateOrderWeight,
 } from '../api/client';
-import type { ShippingPreview, ShippingPreviewMatch } from '../api/client';
-import { CarrierPickModal, WeightPromptModal } from './orders/ShippingDecisionDialog';
+import type { ShippingPreview, ShippingPreviewMatch, CuratedShippingProduct } from '../api/client';
+import { CarrierPickModal, WeightPromptModal, ShippingOptionModal } from './orders/ShippingDecisionDialog';
 import { useI18n } from '../i18n';
 import { compareBinCodesForPickRoute } from '../utils/warehouseRoute';
 import type { UploadGroupPayload } from '../hooks/useIdentification';
@@ -141,7 +142,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
   //      forward the chosen `shippingMethodId` to packAndShip.
   // Both modals are deliberately local to the pack mode — they unmount
   // when leaving the screen.
-  type ShipDecisionStep = 'idle' | 'weight' | 'pick' | 'executing';
+  type ShipDecisionStep = 'idle' | 'weight' | 'pick' | 'options' | 'executing';
   type PendingShipTarget = {
     orderId: string;
     orderLabel: string;
@@ -153,6 +154,11 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
   const [shipDecisionWeight, setShipDecisionWeight] = useState<number | null>(null);
   const [shipDecisionError, setShipDecisionError] = useState<string | null>(null);
   const [shipDecisionBusy, setShipDecisionBusy] = useState(false);
+  // Kuratierter Pack-Flow (hinter Flag PACK_CURATED_SHIPPING).
+  const [curatedMode, setCuratedMode] = useState(false);
+  const [curatedProducts, setCuratedProducts] = useState<CuratedShippingProduct[]>([]);
+  const [curatedWarn, setCuratedWarn] = useState(false);
+  const [curatedCountry, setCuratedCountry] = useState<string | undefined>(undefined);
 
   const [identifyPaletteCode, setIdentifyPaletteCode] = useState('');
   const [identifySlots, setIdentifySlots] = useState<number[]>([0]);
@@ -1733,12 +1739,17 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
       orderId: string,
       orderLabel: string,
       weightKg: number,
-      shippingMethodId: number | null
+      shippingMethodId: number | null,
+      shippingOptionCode?: string
     ) => {
       try {
         const result = await packAndShip(orderId, {
           weight: weightKg,
-          ...(shippingMethodId ? { shippingMethodId } : {}),
+          ...(shippingOptionCode
+            ? { shippingOptionCode }
+            : shippingMethodId
+              ? { shippingMethodId }
+              : {}),
           labelFormat: printingPrefs.labelFormat || 'a6',
         });
 
@@ -1844,6 +1855,22 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
 
       void (async () => {
         try {
+          // Kuratierter Flow (hinter Flag). Bei enabled:false Fallback auf Alt-Flow.
+          const options = await fetchShippingOptions(selectedItem.orderId);
+          if (options.enabled) {
+            setCuratedMode(true);
+            setShipDecisionTarget({
+              orderId: selectedItem.orderId,
+              orderLabel,
+              initialWeight: options.weightEstimate ?? null,
+            });
+            setShipDecisionMatches([]);
+            setShipDecisionWeight(null);
+            setShipDecisionError(null);
+            setShipDecisionStep('weight');
+            return;
+          }
+          setCuratedMode(false);
           const preview = await fetchShippingPreview(selectedItem.orderId);
           await driveShipping(
             {
@@ -1861,14 +1888,59 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
 
     const handleWeightConfirm = async (kg: number) => {
       if (!shipDecisionTarget) return;
+      const target = shipDecisionTarget;
       setShipDecisionBusy(true);
       setShipDecisionError(null);
       try {
-        await updateOrderWeight(shipDecisionTarget.orderId, kg);
-        const preview = await fetchShippingPreview(shipDecisionTarget.orderId);
-        await driveShipping(shipDecisionTarget, preview);
+        await updateOrderWeight(target.orderId, kg);
+        if (curatedMode) {
+          const opts = await fetchShippingOptions(target.orderId, kg);
+          const products = opts.products || [];
+          if (products.length === 0) {
+            setShipDecisionStep('idle');
+            setShipDecisionTarget(null);
+            setPackMessage(
+              `${target.orderLabel}: Keine passende Versandoption für ${kg.toLocaleString('de-DE')} kg${
+                opts.country ? ' / ' + opts.country : ''
+              }. Gewicht oder Zieladresse prüfen.`
+            );
+            return;
+          }
+          setCuratedProducts(products);
+          setCuratedWarn(!!opts.warn);
+          setCuratedCountry(opts.country);
+          setShipDecisionWeight(kg);
+          setShipDecisionStep('options');
+          return;
+        }
+        const preview = await fetchShippingPreview(target.orderId);
+        await driveShipping(target, preview);
       } catch (err: any) {
         setShipDecisionError(err?.message || t('common.unknownError'));
+      } finally {
+        setShipDecisionBusy(false);
+      }
+    };
+
+    const handleOptionConfirm = async (product: CuratedShippingProduct) => {
+      if (!shipDecisionTarget || shipDecisionWeight == null) return;
+      setShipDecisionBusy(true);
+      setShipDecisionError(null);
+      try {
+        setShipDecisionStep('executing');
+        await executePackAndShip(
+          shipDecisionTarget.orderId,
+          shipDecisionTarget.orderLabel,
+          shipDecisionWeight,
+          null,
+          product.shippingOptionCode
+        );
+        setShipDecisionStep('idle');
+        setShipDecisionTarget(null);
+        setCuratedProducts([]);
+      } catch (err: any) {
+        setShipDecisionError(err?.message || t('common.unknownError'));
+        setShipDecisionStep('options');
       } finally {
         setShipDecisionBusy(false);
       }
@@ -1904,6 +1976,8 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
       setShipDecisionMatches([]);
       setShipDecisionWeight(null);
       setShipDecisionError(null);
+      setCuratedProducts([]);
+      setCuratedWarn(false);
     };
     return (
       <div className="max-w-xl mx-auto flex flex-col gap-3">
@@ -2045,6 +2119,20 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
             busy={shipDecisionBusy}
             errorMessage={shipDecisionError}
             onConfirm={handleCarrierConfirm}
+            onCancel={cancelShipDecision}
+          />
+        ) : null}
+
+        {shipDecisionStep === 'options' && shipDecisionTarget && shipDecisionWeight != null ? (
+          <ShippingOptionModal
+            weightKg={shipDecisionWeight}
+            products={curatedProducts}
+            warn={curatedWarn}
+            country={curatedCountry}
+            contextLabel={shipDecisionTarget.orderLabel}
+            busy={shipDecisionBusy}
+            errorMessage={shipDecisionError}
+            onConfirm={handleOptionConfirm}
             onCancel={cancelShipDecision}
           />
         ) : null}
