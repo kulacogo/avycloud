@@ -1923,9 +1923,34 @@ async function pollDeliveryStatus({ tenantId = 'default' } = {}) {
   return { checked, delivered, errors };
 }
 
+/**
+ * Kuratierte Versand-Produktliste für eine Order + Gewicht: holt die LIVE-v3-
+ * Optionen von SendCloud (land-/gewichts-authoritativ) und mappt sie über den
+ * kuratierten Katalog auf die anzeigbaren Produkte. Kein Fuzzy-Resolver.
+ * @param {{ order: object, weightKg: number }} opts
+ * @returns {Promise<{ scope: string, country: string, warn: boolean, products: object[] }>}
+ */
+async function listCuratedShippingOptions({ order, weightKg }) {
+  const { resolveCuratedOptions } = require('../lib/shipping-catalog-resolver');
+  const auth = await getSendCloudAuth();
+  const fromAddress = await _getV3FromAddress();
+  const customer = order.customer || {};
+  const country = String(customer.country || customer.countryCode || 'DE').trim().toUpperCase().slice(0, 2);
+  const rawZip = customer.zip ?? customer.postal_code ?? customer.postcode ?? customer.plz ?? '';
+  let zip = String(rawZip).trim().replace(/\s+/g, '').replace(/[^a-zA-Z0-9-]/g, '');
+  if (country === 'DE' && /^\d{1,4}$/.test(zip)) zip = zip.padStart(5, '0');
+  else if (country === 'AT' && /^\d{1,3}$/.test(zip)) zip = zip.padStart(4, '0');
+  const options = await _listV3ShippingOptions({ fromAddress, toCountry: country, toPostal: zip, weightKg, auth });
+  const flags = { allowBuchersendung: String(process.env.ALLOW_BUCHERSENDUNG || 'false') === 'true' };
+  return resolveCuratedOptions(options, { country, weightKg, flags });
+}
+
 module.exports = {
   _matchV3OptionCode,
   _buildV3FromAddress,
+  _listV3ShippingOptions,
+  _getV3FromAddress,
+  listCuratedShippingOptions,
   getShippingMethods,
   syncShippingMethods,
   getCachedShippingMethods,

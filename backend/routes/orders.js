@@ -1355,12 +1355,50 @@ router.get('/orders/:orderId/shipping-preview', requirePermission('orders', 'rea
 });
 
 /**
+ * GET /api/orders/:orderId/shipping-options — kuratierte Versand-Produktliste
+ * (Gewicht + Zielland). Hinter Flag PACK_CURATED_SHIPPING. Ohne ?weight liefert
+ * es die Gewichts-Schätzung zum Vorbefüllen; mit ?weight die Produktliste.
+ * Flag aus -> { enabled:false }, damit das Frontend auf den Alt-Flow zurückfällt.
+ */
+router.get('/orders/:orderId/shipping-options', requirePermission('orders', 'read'), async (req, res) => {
+  try {
+    if (String(process.env.PACK_CURATED_SHIPPING || 'false') !== 'true') {
+      return res.json({ ok: true, data: { enabled: false } });
+    }
+    const { orderId } = req.params;
+    const orderSnap = await firestore.collection('orders').doc(orderId).get();
+    if (!orderSnap.exists) {
+      return res.status(404).json({ ok: false, error: { code: 'NOT_FOUND', message: 'Auftrag nicht gefunden.' } });
+    }
+    const order = { id: orderSnap.id, ...orderSnap.data() };
+    const { calculateOrderWeight, listCuratedShippingOptions } = require('../services/shipping-engine');
+    const customer = order.customer || {};
+    const hasAddress = Boolean(
+      String(customer.street || '').trim() &&
+      String(customer.city || '').trim() &&
+      String(customer.zip || '').trim()
+    );
+    const wParam = req.query.weight != null ? Number(req.query.weight) : null;
+
+    if (!(wParam > 0)) {
+      const est = (parseFloat(order.weight || '0') || 0) || calculateOrderWeight(order) || null;
+      return res.json({ ok: true, data: { enabled: true, needsWeight: true, weightEstimate: est, hasAddress } });
+    }
+    const result = await listCuratedShippingOptions({ order, weightKg: wParam });
+    return res.json({ ok: true, data: { enabled: true, needsWeight: false, weight: wParam, hasAddress, ...result } });
+  } catch (err) {
+    console.error(`[GET /api/orders/:orderId/shipping-options] ${err.message}`, err);
+    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: err.message } });
+  }
+});
+
+/**
  * POST /api/orders/:orderId/ship — Create shipping label via SendCloud.
  */
 router.post('/orders/:orderId/ship', requirePermission('orders', 'write'), async (req, res) => {
   try {
     const { orderId } = req.params;
-    const { shippingMethodId, weight, labelFormat } = req.body;
+    const { shippingMethodId, shippingOptionCode, weight, labelFormat } = req.body;
     const tenantId = req.user?.tenantId || 'default';
 
     // Validate labelFormat — default to 'a6' (thermal) if not provided or invalid
@@ -1368,7 +1406,7 @@ router.post('/orders/:orderId/ship', requirePermission('orders', 'write'), async
     const resolvedFormat = validFormats.includes(labelFormat) ? labelFormat : 'a6';
 
     const { shipOrder } = require('../services/shipping-engine');
-    const result = await shipOrder({ orderId, tenantId, shippingMethodId, weight, labelFormat: resolvedFormat });
+    const result = await shipOrder({ orderId, tenantId, shippingMethodId, shippingOptionCode, weight, labelFormat: resolvedFormat });
 
     // Transition to shipped when tracking confirmed, or when label created but announcement pending
     const hasLabel = !!(result.labelUrl);
