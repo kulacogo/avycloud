@@ -1855,9 +1855,10 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
 
       void (async () => {
         try {
-          // Kuratierter Flow (hinter Flag). Bei enabled:false Fallback auf Alt-Flow.
-          const options = await fetchShippingOptions(selectedItem.orderId);
-          if (options.enabled) {
+          // Kuratierter Flow (hinter Flag). Bei enabled:false ODER jedem Fehler
+          // (Endpoint fehlt/kaputt) Fallback auf den bestehenden Alt-Flow.
+          const options = await fetchShippingOptions(selectedItem.orderId).catch(() => null);
+          if (options?.enabled) {
             setCuratedMode(true);
             setShipDecisionTarget({
               orderId: selectedItem.orderId,

@@ -291,9 +291,10 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({
     async (forcedMethodId: number | null) => {
       setShipDecisionError(null);
       try {
-        // Kuratierter Flow (hinter Flag). Bei enabled:false Fallback auf Alt-Flow.
-        const options = await fetchShippingOptions(orderId);
-        if (options.enabled) {
+        // Kuratierter Flow (hinter Flag). Bei enabled:false ODER jedem Fehler
+        // (Endpoint fehlt/kaputt) Fallback auf den bestehenden Alt-Flow.
+        const options = await fetchShippingOptions(orderId).catch(() => null);
+        if (options?.enabled) {
           setCuratedMode(true);
           setShipDecisionInitialWeight(options.weightEstimate ?? null);
           setShipDecisionStep("weight");
