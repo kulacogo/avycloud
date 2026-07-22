@@ -614,7 +614,7 @@ function isRateLimitError(text, errors) {
   return false;
 }
 
-async function callTradingApi(callName, bodyXml, { timeoutMs = DEFAULT_TIMEOUT_MS } = {}) {
+async function callTradingApi(callName, bodyXml, { timeoutMs = DEFAULT_TIMEOUT_MS, siteId = null } = {}) {
   const { acquireSlot } = require('./ebay-rate-limiter');
 
   // Circuit breaker: while the daily quota is exhausted, fail fast WITHOUT
@@ -664,7 +664,11 @@ async function callTradingApi(callName, bodyXml, { timeoutMs = DEFAULT_TIMEOUT_M
         headers: {
           'Content-Type': 'text/xml; charset=utf-8',
           'X-EBAY-API-CALL-NAME': callName,
-          'X-EBAY-API-SITEID': cfg.siteId,
+          // Site-Override (2026-07-22): Relist/Revise sind site-gebunden —
+          // ein at/it/es/be/fr-Listing braucht SEINE Site-ID im Header, sonst
+          // "kann nicht bearbeitet oder wiedereingestellt werden, da es
+          // ursprünglich nicht auf dieser eBay-Website eingestellt wurde".
+          'X-EBAY-API-SITEID': safeString(siteId) || cfg.siteId,
           'X-EBAY-API-COMPATIBILITY-LEVEL': cfg.compatibilityLevel,
           'X-EBAY-API-APP-NAME': cfg.appId,
           'X-EBAY-API-DEV-NAME': cfg.devId,
@@ -1026,7 +1030,7 @@ async function endFixedPriceItem(itemId, { reason = 'NotAvailable', timeoutMs = 
  * @param {number} [options.quantity] - neue Menge (überschreibt die alte)
  * @returns {{ ack, warnings, itemId: string, startTime, endTime }} itemId = NEUE ItemID
  */
-async function relistFixedPriceItem(itemId, { quantity = null, timeoutMs = DEFAULT_TIMEOUT_MS } = {}) {
+async function relistFixedPriceItem(itemId, { quantity = null, timeoutMs = DEFAULT_TIMEOUT_MS, siteId = null } = {}) {
   const id = safeString(itemId);
   if (!id) {
     const error = new Error('itemId is required for RelistFixedPriceItem call');
@@ -1045,7 +1049,9 @@ async function relistFixedPriceItem(itemId, { quantity = null, timeoutMs = DEFAU
     cfg.userToken,
     cfg.compatibilityLevel
   );
-  const result = await callTradingApi('RelistFixedPriceItem', requestXml, { timeoutMs });
+  // siteId: Relist MUSS auf der Original-Site des Listings laufen (at=16,
+  // it=101, es=186, benl.be=123, fr=71, ie=205, de=77) — sonst lehnt eBay ab.
+  const result = await callTradingApi('RelistFixedPriceItem', requestXml, { timeoutMs, siteId });
   const response = result?.response || {};
   return {
     ack: result.ack,

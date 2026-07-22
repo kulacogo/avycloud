@@ -25,6 +25,7 @@ const relistCalls = [];
 const productUpdates = [];
 const mirrorSets = [];
 let ebayLiveDocs = [];
+let mirrorDocData = {};
 
 const mockFirestore = {
   collection: vi.fn((name) => {
@@ -55,6 +56,7 @@ const mockFirestore = {
         },
         doc: vi.fn((id) => ({
           set: async (payload) => { mirrorSets.push({ id, payload }); },
+          get: async () => ({ exists: Boolean(mirrorDocData[id]), data: () => mirrorDocData[id] || {} }),
         })),
       };
       return chain;
@@ -105,6 +107,7 @@ beforeEach(() => {
   productUpdates.length = 0;
   mirrorSets.length = 0;
   ebayLiveDocs = [];
+  mirrorDocData = {};
   opsAlerts.length = 0;
   reviseImpl = async () => ({ ack: 'Success' });
   relistImpl = async () => ({ ack: 'Success', itemId: 'NEW-ITEM-1' });
@@ -416,6 +419,28 @@ describe('Sibling-Relist-Selbstheilung (Lücke 2026-07-22, SKU-9550750665)', () 
     expect(clearUpdate).toBeTruthy();
     // Mirror-Seeds für alle neuen IDs
     expect(mirrorSets.filter((m) => m.payload?.active === true).length).toBeGreaterThanOrEqual(3);
+  });
+
+  it('Relist läuft mit der ORIGINAL-Site des Listings (Domain aus Mirror-viewItemUrl → Site-ID)', async () => {
+    let n = 0;
+    relistImpl = async () => ({ ack: 'Success', itemId: `NEW-${++n}` });
+    mirrorDocData = {
+      'BE-OLD': { viewItemUrl: 'https://www.benl.ebay.be/itm/x-/BE-OLD' },
+      'IT-OLD': { viewItemUrl: 'https://www.ebay.it/itm/x-/IT-OLD' },
+      'DE-OLD': { viewItemUrl: 'https://www.ebay.de/itm/x-/DE-OLD' },
+    };
+    const product = baseProduct({
+      inventory: { quantity: 1 },
+      ops: { ebay: { itemId: null, zeroStockEnd: { itemId: 'DE-OLD', at: '2026-07-21T09:14:38Z', reason: 'x', siblingItemIds: ['BE-OLD', 'IT-OLD'] } } },
+    });
+    ebayLiveDocs = [];
+
+    await syncStockToAllChannels({ tenantId: 'default', product, reason: 'heal' });
+
+    const byId = Object.fromEntries(relistCalls.map((c) => [c.itemId, c.siteId]));
+    expect(byId['BE-OLD']).toBe('123');
+    expect(byId['IT-OLD']).toBe('101');
+    expect(byId['DE-OLD']).toBe('77');
   });
 
   it('permanent unrelistbares Geschwister wird übersprungen, Rest + getracktes laufen weiter', async () => {

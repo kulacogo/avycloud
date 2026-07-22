@@ -245,7 +245,8 @@ async function writeZeroStockEndMarker({ productId, itemId, reason }) {
  */
 async function relistEndedEbayListing({ productId, freshProduct, endedItemId, quantity }) {
   const { relistFixedPriceItem } = require('../lib/ebay-trading-api');
-  const relisted = await relistFixedPriceItem(String(endedItemId), { quantity });
+  const trackedSiteId = await resolveListingSiteId(String(endedItemId));
+  const relisted = await relistFixedPriceItem(String(endedItemId), { quantity, siteId: trackedSiteId });
   const newItemId = String(relisted?.itemId || '').trim();
   if (!newItemId) {
     throw new Error(`RelistFixedPriceItem lieferte keine neue ItemID (ack=${relisted?.ack || 'unknown'})`);
@@ -288,6 +289,36 @@ async function relistEndedEbayListing({ productId, freshProduct, endedItemId, qu
 // unbegrenzt Failure-Docs erzeugen.
 const MAX_RELIST_ATTEMPTS = 5;
 const RELIST_WINDOW_MS = 90 * 24 * 60 * 60 * 1000;
+
+// Relist ist SITE-GEBUNDEN (empirisch 2026-07-22): ein auf ebay.at/it/es/be/fr
+// erstelltes Listing lässt sich nur mit SEINER Site-ID im Header relisten.
+// Die Site steht nirgends im ActiveList-Feed — einzige Quelle ist die Domain
+// der viewItemUrl im Mirror-Doc.
+const EBAY_DOMAIN_TO_SITE_ID = {
+  'ebay.de': '77',
+  'ebay.at': '16',
+  'ebay.fr': '71',
+  'ebay.it': '101',
+  'ebay.es': '186',
+  'benl.ebay.be': '123',
+  'befr.ebay.be': '23',
+  'ebay.nl': '146',
+  'ebay.ie': '205',
+  'ebay.co.uk': '3',
+  'ebay.pl': '212',
+};
+
+async function resolveListingSiteId(itemId) {
+  try {
+    const snap = await firestore.collection('ebayListingsLive').doc(String(itemId)).get();
+    const url = String(snap.data()?.viewItemUrl || '');
+    const m = url.match(/https?:\/\/(?:www\.)?([a-z.]*ebay\.[a-z.]+)\//i);
+    if (m && EBAY_DOMAIN_TO_SITE_ID[m[1].toLowerCase()]) {
+      return EBAY_DOMAIN_TO_SITE_ID[m[1].toLowerCase()];
+    }
+  } catch (_) { /* fallback default site */ }
+  return null; // callTradingApi fällt auf die konfigurierte Default-Site zurück
+}
 
 function isPermanentRelistError(msg) {
   return /cannot be relisted|kann nicht (erneut|wieder) (ein)?gelistet|not the seller|nicht der verk[äa]ufer|belongs to another|another seller/i
@@ -354,7 +385,8 @@ async function attemptMarkerRelist({ productId, freshProduct, marker, quantity, 
   for (const sibId of pendingSiblings) {
     try {
       const { relistFixedPriceItem } = require('../lib/ebay-trading-api');
-      const relisted = await relistFixedPriceItem(sibId, { quantity });
+      const sibSiteId = await resolveListingSiteId(sibId);
+      const relisted = await relistFixedPriceItem(sibId, { quantity, siteId: sibSiteId });
       const newId = String(relisted?.itemId || '').trim();
       if (!newId) throw new Error(`RelistFixedPriceItem lieferte keine neue ItemID (ack=${relisted?.ack || 'unknown'})`);
       const sku = extractProductSku(freshProduct);
