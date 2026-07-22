@@ -339,6 +339,66 @@ async function attemptMarkerRelist({ productId, freshProduct, marker, quantity, 
     console.warn(`[stock-sync] ebay RELIST ABANDONED product=${productId} itemId=${marker?.itemId}: ${reason}`);
     return;
   }
+
+  // SIBLING-RELIST (Lücke bewiesen 2026-07-22, SKU-9550750665): der Fan-Out
+  // endet bei Null-Bestand ALLE Länder-Listings, die Selbstheilung holte aber
+  // nur das getrackte zurück — 4 internationale Listings blieben trotz
+  // Bestand tot. Jetzt: Geschwister ZUERST (jedes einzeln aus der Marker-
+  // Liste abgearbeitet und bei Erfolg/permanentem Fehler entfernt), das
+  // getrackte ZULETZT — denn dessen Erfolg leert den Marker. Bricht ein
+  // Geschwister transient ab, bleibt der Marker samt Restliste stehen und
+  // der Drain wiederholt den kompletten Sync.
+  const pendingSiblings = (Array.isArray(marker?.siblingItemIds) ? marker.siblingItemIds : [])
+    .map((v) => String(v || '').trim()).filter(Boolean);
+  let remainingSiblings = [...pendingSiblings];
+  for (const sibId of pendingSiblings) {
+    try {
+      const { relistFixedPriceItem } = require('../lib/ebay-trading-api');
+      const relisted = await relistFixedPriceItem(sibId, { quantity });
+      const newId = String(relisted?.itemId || '').trim();
+      if (!newId) throw new Error(`RelistFixedPriceItem lieferte keine neue ItemID (ack=${relisted?.ack || 'unknown'})`);
+      const sku = extractProductSku(freshProduct);
+      await firestore.collection('ebayListingsLive').doc(newId).set({
+        itemId: newId,
+        sku: sku || null,
+        active: true,
+        relistedFrom: sibId,
+        relistedAt: new Date().toISOString(),
+        quantityAvailable: Number(quantity) || null,
+        source: 'stock-sync-relist-sibling',
+      }, { merge: true }).catch(() => {});
+      remainingSiblings = remainingSiblings.filter((id) => id !== sibId);
+      await firestore.collection('products_v2').doc(productId)
+        .update({ 'ops.ebay.zeroStockEnd.siblingItemIds': remainingSiblings })
+        .catch(() => {});
+      results.push({ channel: 'ebay', status: 'success', itemId: newId, quantityPushed: quantity, action: 'relisted_sibling' });
+      console.log(`[stock-sync] ebay RELIST sibling product=${productId} ${sibId} → ${newId} qty=${quantity}`);
+    } catch (sibErr) {
+      const sibMsg = sibErr?.message || String(sibErr);
+      if (isPermanentRelistError(sibMsg)) {
+        // Dieses Geschwister ist nie relistbar (Alt-Konto/bereits relisted/
+        // >90d) — aus der Liste nehmen, Rest + getracktes weiterversuchen.
+        remainingSiblings = remainingSiblings.filter((id) => id !== sibId);
+        await firestore.collection('products_v2').doc(productId)
+          .update({ 'ops.ebay.zeroStockEnd.siblingItemIds': remainingSiblings })
+          .catch(() => {});
+        results.push({ channel: 'ebay', status: 'skipped', itemId: sibId, action: 'sibling_relist_permanently_failed', error: sibMsg, quantityPushed: 0 });
+        console.warn(`[stock-sync] ebay RELIST sibling permanent abgelehnt product=${productId} ${sibId}: ${sibMsg.slice(0, 120)}`);
+        continue;
+      }
+      // Transient: Marker + Restliste bleiben stehen, Drain wiederholt alles.
+      try {
+        await firestore.collection('products_v2').doc(productId).update({
+          'ops.ebay.zeroStockEnd.relistAttempts': attempts + 1,
+          'ops.ebay.zeroStockEnd.lastRelistAttemptAt': new Date().toISOString(),
+        });
+      } catch (_) { /* best-effort */ }
+      results.push({ channel: 'ebay', status: 'failed', itemId: sibId, error: sibMsg, retryable: true, action: 'sibling_relist_failed' });
+      console.warn(`[stock-sync] ebay RELIST sibling FAILED product=${productId} ${sibId} — deferring to drain: ${sibMsg}`);
+      return;
+    }
+  }
+
   try {
     const newItemId = await relistEndedEbayListing({
       productId,
@@ -733,6 +793,11 @@ async function syncStockToAllChannels({ tenantId = 'default', product, reason = 
   if (channelAllowed('ebay')) {
     try {
       const sku = extractProductSku(freshProduct);
+      // Erfolgreich beendete Geschwister-IDs sammeln — sie wandern unten in
+      // den zeroStockEnd-Marker, damit die Selbstheilung bei Bestands-
+      // Rückkehr ALLE Länder-Listings wiederbelebt, nicht nur das getrackte
+      // (Lücke bewiesen 2026-07-22 an SKU-9550750665).
+      const endedSiblingIds = [];
       if (sku) {
         const sibSnap = await firestore.collection('ebayListingsLive').where('sku', '==', sku).limit(10).get();
         const trackedId = String(resolvedEbayItemId || '');
@@ -746,6 +811,7 @@ async function syncStockToAllChannels({ tenantId = 'default', product, reason = 
             if (isZeroStock) {
               const { endFixedPriceItem } = require('../lib/ebay-trading-api');
               await endFixedPriceItem(sibId, { reason: 'NotAvailable' });
+              endedSiblingIds.push(sibId);
               results.push({ channel: 'ebay', status: 'success', itemId: sibId, quantityPushed: 0, zeroStock: true, action: 'ended_sibling_site' });
               await doc.ref.set({ active: false, endedDetectedAt: new Date().toISOString(), endedReason: 'zero_stock_fanout' }, { merge: true }).catch(() => {});
               console.log(`[stock-sync] ebay END sibling product=${productId} itemId=${sibId} (zero stock, Multi-Site)`);
@@ -771,6 +837,32 @@ async function syncStockToAllChannels({ tenantId = 'default', product, reason = 
               results.push({ channel: 'ebay', status: 'failed', itemId: sibId, error: msg, retryable: true, action: 'sibling_revise_failed' });
               console.warn(`[stock-sync] ebay sibling FAILED product=${productId} itemId=${sibId}: ${msg.slice(0, 140)}`);
             }
+          }
+        }
+      }
+
+      // Beendete Geschwister im Selbstheilungs-Marker festhalten. Drei Fälle:
+      // (a) Marker wurde in diesem Lauf durchs getrackte End geschrieben →
+      //     siblingItemIds ergänzen. (b) Marker existierte schon vorher →
+      //     Liste mergen. (c) KEIN Marker (kein getracktes End gelaufen, aber
+      //     Geschwister beendet) → Marker mit erstem Geschwister als Anker
+      //     anlegen, Rest als siblings — sonst wären sie unheilbar verwaist.
+      if (isZeroStock && endedSiblingIds.length) {
+        const prior = freshProduct?.ops?.ebay?.zeroStockEnd || null;
+        const trackedEndedThisRun = results.some((r) => r.channel === 'ebay' && r.action === 'ended');
+        const priorSiblings = Array.isArray(prior?.siblingItemIds) ? prior.siblingItemIds.map(String) : [];
+        if (trackedEndedThisRun || prior?.itemId) {
+          const merged = [...new Set([...priorSiblings, ...endedSiblingIds])];
+          await firestore.collection('products_v2').doc(productId)
+            .update({ 'ops.ebay.zeroStockEnd.siblingItemIds': merged })
+            .catch(() => {});
+        } else {
+          const [anchor, ...rest] = endedSiblingIds;
+          await writeZeroStockEndMarker({ productId, itemId: anchor, reason });
+          if (rest.length) {
+            await firestore.collection('products_v2').doc(productId)
+              .update({ 'ops.ebay.zeroStockEnd.siblingItemIds': rest })
+              .catch(() => {});
           }
         }
       }

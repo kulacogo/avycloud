@@ -380,6 +380,83 @@ describe('Multi-Site-Fan-Out: alle Länder-Listings der SKU werden bedient (2026
   });
 });
 
+describe('Sibling-Relist-Selbstheilung (Lücke 2026-07-22, SKU-9550750665)', () => {
+  it('Zero-Stock-Fan-Out schreibt die beendeten Geschwister in den Marker (siblingItemIds)', async () => {
+    const product = baseProduct({ inventory: { quantity: 0 } });
+    ebayLiveDocs = [
+      { id: '800339004471', itemId: '800339004471', sku: 'SKU-6656556112', active: true },
+      { id: 'IT-1', itemId: 'IT-1', sku: 'SKU-6656556112', active: true },
+      { id: 'ES-1', itemId: 'ES-1', sku: 'SKU-6656556112', active: true },
+    ];
+
+    await syncStockToAllChannels({ tenantId: 'default', product, reason: 'shipped-x' });
+
+    const sibUpdate = productUpdates.find((u) => Array.isArray(u.payload['ops.ebay.zeroStockEnd.siblingItemIds']));
+    expect(sibUpdate).toBeTruthy();
+    expect(sibUpdate.payload['ops.ebay.zeroStockEnd.siblingItemIds'].sort()).toEqual(['ES-1', 'IT-1']);
+  });
+
+  it('Marker-Relist belebt Geschwister UND getracktes Listing wieder — Marker erst am Ende geleert', async () => {
+    let n = 0;
+    relistImpl = async () => ({ ack: 'Success', itemId: `NEW-${++n}` });
+    const product = baseProduct({
+      inventory: { quantity: 2 },
+      ops: { ebay: { itemId: null, zeroStockEnd: { itemId: 'DE-OLD', at: '2026-07-21T09:14:38Z', reason: 'shipped', siblingItemIds: ['AT-OLD', 'IT-OLD'] } } },
+    });
+    ebayLiveDocs = [];
+
+    const { results } = await syncStockToAllChannels({ tenantId: 'default', product, reason: 'ended-with-stock-heal' });
+
+    const relistedIds = relistCalls.map((c) => c.itemId).sort();
+    expect(relistedIds).toEqual(['AT-OLD', 'DE-OLD', 'IT-OLD'].sort());
+    expect(results.filter((r) => r.action === 'relisted_sibling').length).toBe(2);
+    expect(results.filter((r) => r.action === 'relisted').length).toBe(1);
+    // Geschwister-Erfolge kürzen die Marker-Liste, getrackter Erfolg leert den Marker
+    const clearUpdate = productUpdates.find((u) => u.payload['ops.ebay.zeroStockEnd'] === null);
+    expect(clearUpdate).toBeTruthy();
+    // Mirror-Seeds für alle neuen IDs
+    expect(mirrorSets.filter((m) => m.payload?.active === true).length).toBeGreaterThanOrEqual(3);
+  });
+
+  it('permanent unrelistbares Geschwister wird übersprungen, Rest + getracktes laufen weiter', async () => {
+    relistImpl = async (itemId) => {
+      if (itemId === 'ALT-KONTO') throw new Error('Sie sind nicht der Verkäufer dieses Artikels.');
+      return { ack: 'Success', itemId: `NEW-${itemId}` };
+    };
+    const product = baseProduct({
+      inventory: { quantity: 1 },
+      ops: { ebay: { itemId: null, zeroStockEnd: { itemId: 'DE-OLD', at: '2026-07-21T09:14:38Z', reason: 'x', siblingItemIds: ['ALT-KONTO', 'IT-OLD'] } } },
+    });
+    ebayLiveDocs = [];
+
+    const { results } = await syncStockToAllChannels({ tenantId: 'default', product, reason: 'heal' });
+
+    expect(results.find((r) => r.action === 'sibling_relist_permanently_failed')?.itemId).toBe('ALT-KONTO');
+    expect(results.filter((r) => r.action === 'relisted_sibling').length).toBe(1);
+    expect(results.filter((r) => r.action === 'relisted').length).toBe(1);
+  });
+
+  it('transienter Geschwister-Fehler stoppt den Lauf: Marker bleibt, retryable in den Drain, getracktes NICHT relistet', async () => {
+    relistImpl = async (itemId) => {
+      if (itemId === 'IT-FLAKY') throw new Error('Request timed out');
+      return { ack: 'Success', itemId: `NEW-${itemId}` };
+    };
+    const product = baseProduct({
+      inventory: { quantity: 1 },
+      ops: { ebay: { itemId: null, zeroStockEnd: { itemId: 'DE-OLD', at: '2026-07-21T09:14:38Z', reason: 'x', siblingItemIds: ['IT-FLAKY', 'ES-OLD'] } } },
+    });
+    ebayLiveDocs = [];
+
+    const { results } = await syncStockToAllChannels({ tenantId: 'default', product, reason: 'heal' });
+
+    const sib = results.find((r) => r.action === 'sibling_relist_failed');
+    expect(sib.retryable).toBe(true);
+    expect(results.filter((r) => r.action === 'relisted').length).toBe(0);
+    const clearUpdate = productUpdates.find((u) => u.payload['ops.ebay.zeroStockEnd'] === null);
+    expect(clearUpdate).toBeUndefined();
+  });
+});
+
 describe('clearStaleItemId deaktiviert NUR die tote ItemID im Mirror', () => {
   it('lässt Mirror-Docs anderer (lebender) Listings derselben SKU unangetastet', async () => {
     // Nur das GETRACKTE Listing ist tot — das Geschwister lebt und nimmt
