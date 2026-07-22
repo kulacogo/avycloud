@@ -13,16 +13,15 @@ const FORBIDDEN = /gogreen|eco[_-]?delivery|premium|service[_-]?point|locker|fil
 // Ein Produkt kann über mehrere Gewichts-Tiers matchen (z. B. DPD Classic 0-5/5-10/…);
 // der Resolver wählt die gewichts-passende, plainste Variante.
 const PRODUCTS = [
-  // ── DEUTSCHLAND (scope: national) ──
-  { key: 'grossbrief', displayName: 'Großbrief', carrier: 'dp', scope: 'national', maxWeightKg: 0.5, tracking: false, rank: 1,
-    match: (c) => /^dp:grossbrief(\b|\/|,|$)/i.test(c) },
+  // ── DEUTSCHLAND (scope: national) — Reihenfolge: Maxibrief, Warensendung, Kleinpaket, DPD Classic, DHL Paket ──
+  // Großbrief bewusst NICHT im Katalog: einfacher Großbrief ist auf dem SendCloud-Konto
+  // nicht verfügbar (nur Einschreiben-Variante) — wird per Hand frankiert (Owner-Entscheid 2026-07-22).
+  { key: 'maxibrief', displayName: 'Maxibrief', carrier: 'dp', scope: 'national', maxWeightKg: 1, tracking: false, rank: 1,
+    match: (c) => /^dp:maxibrief(\b|\/|,|$)/i.test(c) },
   { key: 'warensendung', displayName: 'Warensendung', carrier: 'dp', scope: 'national', maxWeightKg: 1, tracking: false, rank: 2,
     // Deutsche Post hat Büchersendung + Warensendung zu "Bücher- und Warensendung"
-    // verschmolzen — auf diesem Konto ist der echte Code `dp:bucherwarensendung`
-    // (verifiziert via Prod-Logs 2026-07-22). `dp:warensendung` als Fallback belassen.
+    // verschmolzen — echter Code `dp:bucherwarensendung` (verifiziert via Prod-Logs 2026-07-22).
     match: (c) => /^dp:(bucherwarensendung|warensendung)(\b|\/|,|$)/i.test(c) },
-  { key: 'maxibrief', displayName: 'Maxibrief', carrier: 'dp', scope: 'national', maxWeightKg: 1, tracking: false, rank: 3,
-    match: (c) => /^dp:maxibrief(\b|\/|,|$)/i.test(c) },
   { key: 'kleinpaket', displayName: 'Kleinpaket', carrier: 'dhl_de', scope: 'national', maxWeightKg: 1, tracking: true, rank: 3,
     match: (c) => /^dhl_de:warenpost(\b|\/|,|$)/i.test(c) && !/international/i.test(c) },
   { key: 'dpd_classic', displayName: 'DPD Classic', carrier: 'dpd', scope: 'national', maxWeightKg: 31.5, tracking: true, rank: 4,

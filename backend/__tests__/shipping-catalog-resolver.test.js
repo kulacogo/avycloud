@@ -33,8 +33,8 @@ describe('modifierCount', () => {
 
 describe('resolveCuratedOptions – national (DE)', () => {
   const live = [
-    opt('dp:grossbrief/mailbox', 0, 0.5),
-    opt('dp:warensendung/mailbox', 0, 1),
+    opt('dp:maxibrief/mailbox', 0, 1),
+    opt('dp:bucherwarensendung/mailbox', 0, 1),
     opt('dhl_de:warenpost', 0, 1),
     opt('dhl_de:dhl_paket', 0, 31.5),
     opt('dpd:classic', 0, 5),
@@ -45,11 +45,11 @@ describe('resolveCuratedOptions – national (DE)', () => {
     opt('dhl_de:warenpostinternational', 0, 1),
   ];
 
-  it('zeigt fuer 0,45 kg die nationalen Produkte, billigste zuerst, ohne Zusatzleistungen', () => {
+  it('zeigt fuer 0,45 kg die nationalen Produkte in Reihenfolge Maxibrief, Warensendung, Kleinpaket, DPD, DHL — ohne Zusatzleistungen', () => {
     const r = resolveCuratedOptions(live, { country: 'DE', weightKg: 0.45 });
     expect(r.scope).toBe('national');
     expect(r.warn).toBe(false);
-    expect(r.products.map((p) => p.key)).toEqual(['grossbrief', 'warensendung', 'kleinpaket', 'dpd_classic', 'dhl_paket']);
+    expect(r.products.map((p) => p.key)).toEqual(['maxibrief', 'warensendung', 'kleinpaket', 'dpd_classic', 'dhl_paket']);
     // exakter Code, plainste Variante:
     expect(r.products.find((p) => p.key === 'kleinpaket').shippingOptionCode).toBe('dhl_de:warenpost');
     // keine international-Produkte bei DE:
