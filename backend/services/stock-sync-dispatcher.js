@@ -244,9 +244,7 @@ async function writeZeroStockEndMarker({ productId, itemId, reason }) {
  * @throws bei Relist-Fehler (Aufrufer stempelt retryable-Failure → Drain)
  */
 async function relistEndedEbayListing({ productId, freshProduct, endedItemId, quantity }) {
-  const { relistFixedPriceItem } = require('../lib/ebay-trading-api');
-  const trackedSiteId = await resolveListingSiteId(String(endedItemId));
-  const relisted = await relistFixedPriceItem(String(endedItemId), { quantity, siteId: trackedSiteId });
+  const relisted = await relistWithSiteResolution(String(endedItemId), { quantity });
   const newItemId = String(relisted?.itemId || '').trim();
   if (!newItemId) {
     throw new Error(`RelistFixedPriceItem lieferte keine neue ItemID (ack=${relisted?.ack || 'unknown'})`);
@@ -320,8 +318,46 @@ async function resolveListingSiteId(itemId) {
   return null; // callTradingApi fällt auf die konfigurierte Default-Site zurück
 }
 
+// "Nicht auf dieser eBay-Website eingestellt" — falsche Site-ID im Header.
+// Kommt lokalisiert zurück (DE/NL/…). Belgien-Sonderfall: benl (123) und
+// befr (23) teilen sich die URL-Domain-Sprache nicht zuverlässig mit der
+// Erstell-Site → bei diesem Fehler einmal mit der Schwester-Site retrien
+// (empirisch 2026-07-22, SKU-9550750665: Mirror-URL benl, erstellt auf befr).
+function isWrongSiteError(msg) {
+  const lower = String(msg || '').toLowerCase();
+  return lower.includes('nicht auf dieser ebay-website')
+    || lower.includes('niet op deze ebay-website')
+    || lower.includes('not listed on this ebay site')
+    || lower.includes('ursprünglich nicht auf dieser');
+}
+
+function alternateSiteId(siteId) {
+  if (String(siteId) === '123') return '23';
+  if (String(siteId) === '23') return '123';
+  return null;
+}
+
+// Relist mit Site-Auflösung + einmaligem Schwester-Site-Retry (BE).
+async function relistWithSiteResolution(itemId, { quantity }) {
+  const { relistFixedPriceItem } = require('../lib/ebay-trading-api');
+  const siteId = await resolveListingSiteId(itemId);
+  try {
+    return await relistFixedPriceItem(String(itemId), { quantity, siteId });
+  } catch (err) {
+    const alt = alternateSiteId(siteId);
+    if (alt && isWrongSiteError(err?.message)) {
+      console.log(`[stock-sync] Relist ${itemId}: falsche Site ${siteId} → Retry mit Schwester-Site ${alt}`);
+      return relistFixedPriceItem(String(itemId), { quantity, siteId: alt });
+    }
+    throw err;
+  }
+}
+
 function isPermanentRelistError(msg) {
-  return /cannot be relisted|kann nicht (erneut|wieder) (ein)?gelistet|not the seller|nicht der verk[äa]ufer|belongs to another|another seller/i
+  // "nicht auf dieser eBay-Website eingestellt" zählt als permanent, WENN es
+  // nach dem Schwester-Site-Retry (relistWithSiteResolution) noch auftritt —
+  // weitere Retries mit denselben Sites sind sinnlos (kein Drain-Loop).
+  return /cannot be relisted|kann nicht (erneut|wieder) (ein)?gelistet|not the seller|nicht der verk[äa]ufer|belongs to another|another seller|nicht auf dieser ebay-website|niet op deze ebay-website|not listed on this ebay site|ursprünglich nicht auf dieser/i
     .test(String(msg || ''));
 }
 
@@ -384,9 +420,7 @@ async function attemptMarkerRelist({ productId, freshProduct, marker, quantity, 
   let remainingSiblings = [...pendingSiblings];
   for (const sibId of pendingSiblings) {
     try {
-      const { relistFixedPriceItem } = require('../lib/ebay-trading-api');
-      const sibSiteId = await resolveListingSiteId(sibId);
-      const relisted = await relistFixedPriceItem(sibId, { quantity, siteId: sibSiteId });
+      const relisted = await relistWithSiteResolution(sibId, { quantity });
       const newId = String(relisted?.itemId || '').trim();
       if (!newId) throw new Error(`RelistFixedPriceItem lieferte keine neue ItemID (ack=${relisted?.ack || 'unknown'})`);
       const sku = extractProductSku(freshProduct);
