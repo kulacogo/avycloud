@@ -3907,7 +3907,7 @@ export const packOrder = async (orderId: string): Promise<void> => {
  */
 export async function packAndShip(
   orderId: string,
-  opts?: { weight?: number; labelFormat?: string; shippingMethodId?: number }
+  opts?: { weight?: number; labelFormat?: string; shippingMethodId?: number; shippingOptionCode?: string }
 ): Promise<{ labelBlobUrl: string | null; labelBlob: Blob | null; trackingNumber: string | null; carrier: string | null; labelError?: string | null }> {
   await packOrder(orderId);
   const result = await shipOrder(orderId, opts);
@@ -4207,7 +4207,48 @@ export async function fetchShippingPreview(orderId: string): Promise<ShippingPre
   return data?.data;
 }
 
-export async function shipOrder(orderId: string, opts?: { shippingMethodId?: number; weight?: number; labelFormat?: string }): Promise<any> {
+/** Ein kuratiertes Versand-Produkt (Plakat-Nomenklatur). Vom shipping-options-Endpoint. */
+export interface CuratedShippingProduct {
+  key: string;
+  displayName: string;
+  carrier: string;
+  tracking: boolean;
+  shippingOptionCode: string;
+  rank: number;
+}
+
+export interface ShippingOptionsResponse {
+  /** false = Flag PACK_CURATED_SHIPPING aus → Frontend nutzt den Alt-Flow. */
+  enabled: boolean;
+  /** true = Gewicht fehlt noch; weightEstimate zum Vorbefüllen nutzen. */
+  needsWeight?: boolean;
+  weight?: number;
+  weightEstimate?: number | null;
+  hasAddress?: boolean;
+  scope?: "national" | "international";
+  country?: string;
+  /** true = Zielland außerhalb Standard-Zonen (Teamlead-Hinweis). */
+  warn?: boolean;
+  products?: CuratedShippingProduct[];
+}
+
+/**
+ * Kuratierte Versand-Produktliste für eine Bestellung (hinter Flag).
+ * Ohne `weight`: liefert `needsWeight` + `weightEstimate` zum Vorbefüllen.
+ * Mit `weight`: liefert die nach Gewicht+Zielland gefilterte Produktliste.
+ */
+export async function fetchShippingOptions(orderId: string, weight?: number): Promise<ShippingOptionsResponse> {
+  const url = new URL(`${BACKEND_URL}/api/orders/${encodeURIComponent(orderId)}/shipping-options`);
+  if (weight != null) url.searchParams.set("weight", String(weight));
+  const res = await fetchApi(url.toString(), { method: "GET" });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) {
+    throw new Error(data?.error?.message || "Versandoptionen konnten nicht geladen werden");
+  }
+  return data?.data as ShippingOptionsResponse;
+}
+
+export async function shipOrder(orderId: string, opts?: { shippingMethodId?: number; shippingOptionCode?: string; weight?: number; labelFormat?: string }): Promise<any> {
   const res = await fetchApi(`${BACKEND_URL}/api/orders/${encodeURIComponent(orderId)}/ship`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
