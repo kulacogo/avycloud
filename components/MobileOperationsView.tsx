@@ -1109,21 +1109,61 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [handleScannedValue, mode]);
 
-  // Android handheld scanners (NETUM/Honeywell etc.) deliver a scan as text that
-  // the input method COMMITS into the focused, EDITABLE field — exactly like the
-  // Search view (a normal <input> read via onChange). Two things that do NOT work
-  // here: a readOnly field (Android IME refuses to write into it) and the window
-  // keydown listener (IME commit often fires no per-character keydown, only value
-  // changes — keyCode 229). So we keep an invisible EDITABLE capture input focused
-  // in stow/pick/pack and read its value. inputMode="none" hides the on-screen
-  // keyboard while still accepting the scanner. No real editable inputs exist in
-  // these modes, so trapping focus here is safe.
+  // Opt-in on-device diagnostics (chrome://inspect remote console). Enable with
+  // localStorage.setItem('scanDebug','1') or the ?scanDebug=1 URL param. When off
+  // this is a zero-cost no-op. Answers "is the capture input really the focused
+  // element when a scan should arrive?" without a permanent visible test input.
+  const scanDebugRef = useRef(false);
+  useEffect(() => {
+    try {
+      const fromQuery = new URLSearchParams(window.location.search).get('scanDebug') === '1';
+      const fromStore = window.localStorage.getItem('scanDebug') === '1';
+      scanDebugRef.current = fromQuery || fromStore;
+    } catch {
+      scanDebugRef.current = false;
+    }
+  }, []);
+  const logScanDebug = useCallback(
+    (event: string, extra?: Record<string, unknown>) => {
+      if (!scanDebugRef.current) return;
+      const active = (typeof document !== 'undefined' ? document.activeElement : null) as HTMLElement | null;
+      // eslint-disable-next-line no-console
+      console.log('[scan-capture]', event, {
+        mode,
+        captureIsActiveElement: active === scanCaptureRef.current,
+        activeTag: active?.tagName ?? null,
+        activeInputMode: active?.getAttribute?.('inputmode') ?? null,
+        ...extra,
+      });
+    },
+    [mode]
+  );
+
+  // Android handheld scanners (NETUM Q900 / Honeywell "Focus" input method) deliver
+  // a scan as IME text: the input method calls InputConnection.commitText() into the
+  // focused EDITABLE field and fires `onChange` — there is NO reliable per-character
+  // keydown (keyCode 229). For this to work the field must be a REAL text-input
+  // target, exactly like the working Search view (<input inputMode="search"> read via
+  // onChange). Non-negotiable for the Android IME:
+  //   - NOT readOnly / NOT disabled (the IME refuses to write into those)
+  //   - inputMode must NOT be "none" — that tells WebView to attach no input method,
+  //     so the scanner IME has nowhere to commit → not even the first scan arrives.
+  //   - actually rendered on-screen (a 1px transparent input), not off-screen /
+  //     opacity:0, so WebView establishes the InputConnection.
+  // It stays visually invisible to the operator. The window-keydown listener above
+  // remains ONLY as a fallback for scanners in HID keyboard mode (real keydown).
   useEffect(() => {
     const isScanMode =
       mode === 'operations-pick' || mode === 'operations-stow' || mode === 'operations-pack';
     if (!isScanMode) return;
     scanCaptureRef.current?.focus({ preventScroll: true });
-  }, [mode]);
+    logScanDebug('mode-focus');
+  }, [mode, logScanDebug]);
+
+  // Verify focus survives every scan-step state change (BIN→SKU→confirm, next item).
+  useEffect(() => {
+    logScanDebug('state-change');
+  }, [activeBin, activeSku, pendingPick, stowSku, stowBin, logScanDebug]);
 
   const submitScanCapture = useCallback(
     (raw: string) => {
@@ -1133,22 +1173,41 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
       }
       if (scanCaptureRef.current) scanCaptureRef.current.value = '';
       const val = raw.replace(/[\r\n\t]+/g, '').trim();
+      logScanDebug('scan-received', { rawLength: raw.length, value: val });
       if (val) handleScannedValue(val);
     },
-    [handleScannedValue]
+    [handleScannedValue, logScanDebug]
   );
 
   const renderScanCapture = () => (
     <input
       ref={scanCaptureRef}
-      inputMode="none"
+      type="text"
+      inputMode="text"
       autoComplete="off"
       autoCorrect="off"
       autoCapitalize="none"
       spellCheck={false}
-      aria-hidden="true"
       tabIndex={-1}
-      style={{ position: 'absolute', left: '-9999px', top: 0, width: 1, height: 1, opacity: 0, pointerEvents: 'none' }}
+      // Visually invisible but a REAL, rendered, focusable text input so the Android
+      // scanner IME attaches an InputConnection and commits scans via onChange. Do
+      // NOT use inputMode="none", readOnly, disabled, off-screen or opacity:0 here —
+      // any of those breaks IME-mode scanners (NETUM/Honeywell). See comment above.
+      style={{
+        position: 'fixed',
+        bottom: 0,
+        left: 0,
+        width: 1,
+        height: 1,
+        padding: 0,
+        margin: 0,
+        border: 0,
+        fontSize: 16,
+        opacity: 0.01,
+        color: 'transparent',
+        background: 'transparent',
+        caretColor: 'transparent',
+      }}
       onChange={(e) => {
         const value = e.target.value;
         // Most scanner configs append a CR/LF suffix → the full code is here now.
@@ -1183,6 +1242,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
             (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA') &&
             !(active as HTMLInputElement).readOnly &&
             active.getAttribute('inputmode') !== 'none';
+          logScanDebug('blur', { willReclaim: !isRealEditable });
           if (isRealEditable) return;
           const stillScanMode =
             mode === 'operations-pick' || mode === 'operations-stow' || mode === 'operations-pack';
