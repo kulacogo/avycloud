@@ -286,32 +286,46 @@ export const AdminFinancials: React.FC = () => {
   const cov = pnl?.coveragePct;
   const cogsUnavailable = !cogsModelActive && (cov == null || cov <= 0);
 
-  // Settlement-aware numbers: while the marketplace payout is pending, fees are
-  // taken from the cost-model rates (approximation, flagged with "≈").
+  // Der Gewinn kommt jetzt vom Backend (accrual, lib/financial-pnl.js) statt hier
+  // nachgerechnet zu werden. Der frühere `payoutPending`-Guard war halb offen: er
+  // feuerte nur bei einer Auszahlung von EXAKT 0, während eine TEIL-Auszahlung
+  // ungefiltert durchlief — genau der Fall im Incident 2026-07-28 (2.051 € von
+  // 10.796 € → 8.121 € „Gebühren" = 75 %).
   const view = useMemo(() => {
     if (!report || !pnl) return null;
     const umsatz = pnl.umsatzBrutto ?? 0;
     const retouren = pnl.retouren ?? 0;
     const ware = pnl.cogs ?? 0;
     const versand = pnl.versandBrutto ?? 0;
-    const payoutPending = (pnl.auszahlung ?? 0) <= 0 && umsatz > 0;
-    let gebuehren: number;
-    if (payoutPending) {
-      const rateOf: Record<string, number> = { ebay: cm?.feeRateEbay ?? 0.13, kaufland: cm?.feeRateKaufland ?? 0.13, other: 0 };
-      let f = 0;
-      (["ebay", "kaufland", "other"] as const).forEach((k) => {
-        const m = report.marketplace[k];
-        if (m) f += (m.umsatz || 0) * (rateOf[k] || 0);
-      });
-      gebuehren = Math.round(f * 100) / 100;
-    } else {
-      gebuehren = pnl.marketplaceFees ?? 0;
-    }
-    const gewinn = Math.round((umsatz - retouren - gebuehren - ware - versand) * 100) / 100;
-    const marge = umsatz > 0 ? Math.round((gewinn / umsatz) * 1000) / 10 : null;
-    const approx = payoutPending || cogsModelActive;
-    return { umsatz, retouren, gebuehren, ware, versand, gewinn, marge, approx };
-  }, [report, pnl, cm]);
+    const gebuehren = pnl.marketplaceFees ?? 0;
+
+    // Kompatibilität im Deploy-Fenster: das Frontend kann vor dem Backend live sein.
+    // Am neuen Feld erkennen wir, ob der Gewinn schon accrual gerechnet wurde.
+    const backendV2 = pnl.settlementStatus !== undefined;
+    const gewinn = backendV2
+      ? pnl.rohgewinn ?? 0
+      : Math.round((umsatz - retouren - gebuehren - ware - versand) * 100) / 100;
+    const marge = backendV2
+      ? pnl.margePct ?? null
+      : umsatz > 0
+        ? Math.round((gewinn / umsatz) * 1000) / 10
+        : null;
+
+    const feeApprox = pnl.feeSource === "rates" || pnl.feeSource === "mixed";
+    return { umsatz, retouren, gebuehren, ware, versand, gewinn, marge, feeApprox, approx: feeApprox || cogsModelActive };
+  }, [report, pnl, cogsModelActive]);
+
+  // Geldeingang: Erwartung (accrual) gegen Bank-Ist. Eigene Größe, KEIN Balkensegment —
+  // als Segment würde sie mit Gewinn/Gebühren doppelt zählen und der Balken bräche über 100 %.
+  const settlement = useMemo(() => {
+    if (!pnl || pnl.auszahlungIst == null) return null;
+    const erwartet = pnl.auszahlungErwartet ?? 0;
+    if (erwartet <= 0) return null;
+    const ist = pnl.auszahlungIst;
+    const offen = Math.max(0, pnl.offeneAuszahlung ?? 0);
+    const pctIst = Math.max(0, Math.min(100, (ist / erwartet) * 100));
+    return { erwartet, ist, offen, pctIst, status: pnl.settlementStatus ?? "unknown" };
+  }, [pnl]);
 
   const chartData = useMemo(
     () => (report?.timeseries || []).map((b) => ({ date: b.date, Umsatz: b.umsatz, Ertrag: b.rohertrag })),
@@ -325,7 +339,7 @@ export const AdminFinancials: React.FC = () => {
     return [
       { key: "Gewinn", value: Math.max(0, view.gewinn), pct: seg(view.gewinn), cls: "bg-success" },
       { key: "Ware", value: view.ware, pct: seg(view.ware), cls: "bg-info" },
-      { key: "Gebühren", value: view.gebuehren, pct: seg(view.gebuehren), cls: "bg-accent" },
+      { key: "Gebühren", value: view.gebuehren, pct: seg(view.gebuehren), cls: "bg-accent", approx: view.feeApprox },
       { key: "Versand", value: view.versand, pct: seg(view.versand), cls: "bg-warning" },
       ...(view.retouren > 0 ? [{ key: "Retouren", value: view.retouren, pct: seg(view.retouren), cls: "bg-danger" }] : []),
     ];
@@ -368,6 +382,12 @@ export const AdminFinancials: React.FC = () => {
           <button type="button" onClick={() => setEditCost(true)} className="shrink-0 rounded-md bg-warning/20 px-3 py-1.5 text-xs font-semibold text-warning hover:bg-warning/30">
             Kostenmodell einstellen
           </button>
+        </div>
+      ) : null}
+
+      {!loading && report && pnl?.settlementStatus === "pending" ? (
+        <div className="rounded-xl border border-warning/40 bg-warning-dim p-3 text-sm text-warning">
+          <span className="font-semibold">Keine Auszahlung im Zeitraum</span> — Gewinn und Gebühren sind kalkuliert, nicht abgerechnet.
         </div>
       ) : null}
 
@@ -465,12 +485,44 @@ export const AdminFinancials: React.FC = () => {
                     <span key={s.key} className="inline-flex items-center gap-1.5 text-sm">
                       <span className={`h-2.5 w-2.5 rounded-sm ${s.cls} inline-block`} />
                       <span className="text-txt-secondary">{s.key}</span>
-                      <span className="tabular-nums font-semibold text-txt-primary">{fmtCur(s.key === "Gewinn" ? view.gewinn : s.value, cur, true)}</span>
+                      <span className="tabular-nums font-semibold text-txt-primary">
+                        {"approx" in s && s.approx ? "≈ " : ""}
+                        {fmtCur(s.key === "Gewinn" ? view.gewinn : s.value, cur, true)}
+                      </span>
                     </span>
                   ))}
                 </div>
                 {view.gewinn < 0 ? (
                   <p className="mt-2 text-xs text-danger">Die Kosten übersteigen den Umsatz in diesem Zeitraum.</p>
+                ) : null}
+
+                {/* Geldeingang — eigene Zeile: Timing ist kein Kostenblock. */}
+                {settlement ? (
+                  <div className="mt-4 border-t border-app-border pt-3">
+                    <div className="mb-1.5 flex items-baseline justify-between gap-3">
+                      <span className="text-xs font-medium text-txt-secondary">Geldeingang</span>
+                      <span className="text-xs tabular-nums text-txt-muted">
+                        {fmtCur(settlement.ist, cur, true)} von {fmtCur(settlement.erwartet, cur, true)} auf dem Konto
+                      </span>
+                    </div>
+                    <div className="flex h-2.5 w-full overflow-hidden rounded-full bg-app-elevated">
+                      <div
+                        className="h-full bg-success"
+                        style={{ width: `${settlement.pctIst}%` }}
+                        title={`Eingegangen: ${fmtCur(settlement.ist, cur)}`}
+                      />
+                      <div
+                        className="h-full bg-accent-dim"
+                        style={{ width: `${100 - settlement.pctIst}%` }}
+                        title={`Noch nicht ausgezahlt: ${fmtCur(settlement.offen, cur)}`}
+                      />
+                    </div>
+                    {settlement.status !== "settled" ? (
+                      <p className="mt-1.5 text-xs text-txt-muted">
+                        {fmtCur(settlement.offen, cur, true)} zahlen die Marktplätze erst später aus — das ist kein Verlust.
+                      </p>
+                    ) : null}
+                  </div>
                 ) : null}
               </>
             ) : (

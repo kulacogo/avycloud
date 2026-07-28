@@ -684,8 +684,20 @@ export interface FinancialReportRange {
 
 export interface FinancialReportPnl {
   umsatzBrutto: number;
-  marketplaceFees: number; // flow-based (Umsatz − Retouren − Auszahlung) or rate fallback
-  feeSource: "flow" | "rates";
+  // Gemessen/modelliert — NIE `Umsatz − Retouren − Auszahlung` (das misst über einem
+  // offenen Fenster den Settlement-Lag, nicht Gebühren). Siehe Incident 2026-07-28.
+  marketplaceFees: number;
+  feeSource: "measured" | "flow" | "rates" | "mixed";
+  feePctOfRevenue?: number | null;
+  feeWarnings?: string[];
+  // Auszahlung: Accrual-Erwartung vs. Cash-Ist. Optional, damit ein älteres Backend
+  // während des Deploy-Fensters weiterhin typkonform bleibt.
+  auszahlungErwartet?: number;
+  auszahlungIst?: number | null;
+  offeneAuszahlung?: number | null;
+  settlementCoveragePct?: number | null;
+  settlementStatus?: "settled" | "partial" | "pending" | "unknown";
+  windowSettled?: boolean;
   auszahlung: number; // real SevDesk if available, else expected (rates)
   auszahlungReal: number | null; // exact SevDesk bank credits
   auszahlungSource: "sevdesk" | "rates";
@@ -706,11 +718,13 @@ export interface FinancialReportMarketplaceRow {
   orders: number;
   units: number;
   umsatz: number;
-  fees: number; // flow-based (Umsatz − Retouren − Auszahlung) or rate fallback
-  feeSource: "flow" | "rates";
+  fees: number; // gemessen > (abgerechneter) Flow > Sätze — nie ein Residuum
+  feeSource: "measured" | "flow" | "rates";
   feePct: number | null; // effective fee rate %
   payout: number | null; // real SevDesk credits (null for 'other'/unavailable)
   payoutSource: "sevdesk" | null;
+  payoutErwartet?: number; // Umsatz − Retouren − Gebühren (accrual)
+  offeneAuszahlung?: number | null; // noch nicht auf dem Konto
   retouren: number;
   cogs: number;
 }

@@ -24,6 +24,7 @@ const { getShippingCostsSummary: getSendCloudShippingSummary } = require('../lib
 const { getEbayNetRevenueSummary } = require('../lib/ebay-finances');
 const { buildProductCostIndex, computeOrderCogs, computeInventoryValue } = require('../lib/cogs');
 const { buildPnl } = require('../lib/financial-pnl');
+const { resolveFees } = require('../lib/marketplace-fee-resolver');
 const { deriveCostModel } = require('../lib/cost-model');
 const { getCostModelConfig } = require('../lib/cost-model-store');
 const { computeOnlineListings } = require('../lib/listings-online');
@@ -337,6 +338,33 @@ async function getFinancialReport({ preset = null, fromDate = null, toDate = nul
   const feeRateEbay = num((costConfig && costConfig.feeRateEbay) ?? 0.11) || 0.11;
   const feeRateKaufland = num((costConfig && costConfig.feeRateKaufland) ?? 0.1666) || 0.1666;
   const ebayGross = Math.max(0, grossRevenue - kauflandGross);
+  const retByMk = returns.byMarketplace || { ebay: 0, kaufland: 0, other: 0 };
+
+  // ── Gebühren EINMAL auflösen: gemessen > (abgerechneter) Flow > Sätze ──
+  // Dieselbe Auflösung speist die Gesamt-P&L UND die Marktplatz-Zeilen, damit die
+  // Summe der Zeilen exakt der Gesamtsumme entspricht (vorher zwei getrennte
+  // Residuum-Rechnungen). `windowEndIso` entscheidet, ob der Flow-Pfad zulässig ist:
+  // über einem noch nicht abgerechneten Fenster misst er Settlement-Lag, keine Gebühren
+  // (Incident 2026-07-28: 8.121 € „Gebühren" = 75 % vom Umsatz).
+  const feeResolution = resolveFees({
+    marketplaces: {
+      ebay: {
+        gross: agg.byMarketplace.ebay.umsatz,
+        retouren: num(retByMk.ebay),
+        payout: sevdeskPayout ? num(sevdeskPayout.ebay) : null,
+        rate: feeRateEbay,
+      },
+      kaufland: {
+        gross: agg.byMarketplace.kaufland.umsatz,
+        retouren: num(retByMk.kaufland),
+        payout: sevdeskPayout ? num(sevdeskPayout.kaufland) : null,
+        rate: feeRateKaufland,
+      },
+      // „Sonstige" hat strukturell keine zuordenbare Auszahlung → immer Satz-Basis.
+      other: { gross: agg.byMarketplace.other.umsatz, retouren: num(retByMk.other), payout: null, rate: feeRateEbay },
+    },
+    windowEndIso: toIso,
+  });
 
   const pnl = buildPnl({
     grossRevenue,
@@ -349,39 +377,41 @@ async function getFinancialReport({ preset = null, fromDate = null, toDate = nul
     returnsValue: returns.value,
     shippingNetto: shipping ? shipping.netto : null,
     cogs: agg.cogs,
+    feeResolution,
+    windowEndIso: toIso,
   });
+
+  // Ehrliche Fehlerliste: eine fehlende Auszahlung wird gemeldet, nicht als Gebühr getarnt.
+  if (sevdeskPayout && sevdeskPayout.tx_count === 0) {
+    errors.push('Keine Marktplatz-Gutschriften im Zeitraum gefunden — Auszahlungen fehlen oder der Zahlername ist unbekannt.');
+  }
+  for (const w of feeResolution.warnings) errors.push(w);
 
   const coveragePct = agg.totalItemRevenue > 0
     ? round1((agg.matchedRevenue / agg.totalItemRevenue) * 100)
     : null;
 
-  // ── Markt­platz-Aufschlüsselung: flow-basierte Gebühren (Umsatz − Retouren − echte Auszahlung),
-  // sonst Satz-Fallback. ──
-  const feeRateOf = { ebay: feeRateEbay, kaufland: feeRateKaufland, other: feeRateEbay };
-  const retByMk = returns.byMarketplace || { ebay: 0, kaufland: 0, other: 0 };
+  // ── Markt­platz-Aufschlüsselung aus DERSELBEN Gebühren-Auflösung ──
+  // Kein zweites Residuum mehr. Zusätzlich pro Marktplatz die Auszahlungs-Lücke,
+  // damit sichtbar wird, welcher Kanal noch nicht abgerechnet hat.
   const mkOut = {};
   for (const key of ['ebay', 'kaufland', 'other']) {
     const m = agg.byMarketplace[key];
+    const f = feeResolution.byMarketplace[key];
     const realPay = sevdeskPayout && key !== 'other' ? round2(num(sevdeskPayout[key])) : null;
     const ret = num(retByMk[key]);
-    let fees;
-    let feeSource;
-    if (realPay != null) {
-      fees = round2(m.umsatz - ret - realPay); // flow-based, all fees
-      feeSource = 'flow';
-    } else {
-      fees = round2(m.umsatz * feeRateOf[key]); // rate fallback
-      feeSource = 'rates';
-    }
+    const payoutErwartet = round2(m.umsatz - ret - f.fees);
     mkOut[key] = {
       orders: m.orders,
       units: m.units,
       umsatz: m.umsatz,
-      fees,
-      feeSource,
-      feePct: m.umsatz > 0 ? round1((fees / m.umsatz) * 100) : null,
+      fees: f.fees,
+      feeSource: f.feeSource,
+      feePct: f.feePct,
       payout: realPay,
       payoutSource: realPay != null ? 'sevdesk' : null,
+      payoutErwartet,
+      offeneAuszahlung: realPay != null ? round2(payoutErwartet - realPay) : null,
       retouren: ret,
       cogs: m.cogs,
     };
