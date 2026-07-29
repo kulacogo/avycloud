@@ -101,22 +101,63 @@ async function ensureBucket() {
 // Fire-and-forget init to surface misconfig early; calls are still guarded by ensureBucket().
 ensureBucket().catch(() => {});
 
+/**
+ * Kantenziele der Bild-Normalisierung — Aufloesung zur LAUFZEIT (nicht mehr
+ * beim Modul-Laden), damit die Zielkante ohne Redeploy-Reihenfolge-Fallen per
+ * ENV steuerbar ist.
+ *
+ * Hintergrund (Messung 2026-07-29): 74,6 % der Bilder haben weniger als
+ * 1.600 px laengste Kante — darunter schaltet eBay die Zoomlupe nicht frei.
+ * `IMAGE_TARGET_LONGEST_EDGE` erlaubt das Anheben der Zielkante.
+ *
+ * Defaults sind EXAKT das heutige Verhalten:
+ *   IMAGE_TARGET_LONGEST_EDGE unset -> MIN_IMAGE_LONGEST_EDGE (default 1200)
+ *   IMAGE_UPSCALE_MODE       unset -> 'on'  (withoutEnlargement: false)
+ *
+ * @param {NodeJS.ProcessEnv} [env]
+ * @returns {{ minEdge: number, maxEdge: number, upscale: boolean }}
+ */
+function resolveEdgeTargets(env = process.env) {
+  const parse = (raw, fallback) => {
+    const n = parseInt(raw, 10);
+    return Number.isFinite(n) ? n : fallback;
+  };
+
+  // Default = heutiger Wert: MIN_IMAGE_LONGEST_EDGE bzw. 1200.
+  const minDefault = parse(env.MIN_IMAGE_LONGEST_EDGE, 1200);
+  const minEdge = parse(env.IMAGE_TARGET_LONGEST_EDGE, minDefault);
+  const maxEdge = parse(env.MAX_IMAGE_LONGEST_EDGE, 2000);
+
+  // 'off' = nicht hochskalieren (sharp withoutEnlargement:true). Alles andere
+  // (inkl. unset) = heutiges Verhalten.
+  const upscale = String(env.IMAGE_UPSCALE_MODE == null ? 'on' : env.IMAGE_UPSCALE_MODE)
+    .trim()
+    .toLowerCase() !== 'off';
+
+  return { minEdge, maxEdge, upscale };
+}
+
 async function normalizeImageBuffer(buffer, mimeType) {
   try {
-    const minEdge = Number.isFinite(MIN_IMAGE_LONGEST_EDGE) ? MIN_IMAGE_LONGEST_EDGE : 1200;
-    const maxEdge = Number.isFinite(MAX_IMAGE_LONGEST_EDGE) ? MAX_IMAGE_LONGEST_EDGE : 2000;
+    const targets = resolveEdgeTargets();
+    const minEdge = Number.isFinite(targets.minEdge) ? targets.minEdge : 1200;
+    const maxEdge = Number.isFinite(targets.maxEdge) ? targets.maxEdge : 2000;
+    const allowUpscale = targets.upscale;
     let pipeline = sharp(buffer).rotate();
     const metadata = await pipeline.metadata();
     const { width = 0, height = 0, format } = metadata;
     const longest = Math.max(width, height);
     let resized = pipeline;
+    let upscaled = false;
 
     if (longest && (longest < minEdge || longest > maxEdge)) {
       const target = longest < minEdge ? minEdge : maxEdge;
+      const withoutEnlargement = !allowUpscale;
+      upscaled = allowUpscale && target > longest;
       if (width >= height) {
-        resized = resized.resize({ width: target, fit: 'inside', withoutEnlargement: false });
+        resized = resized.resize({ width: target, fit: 'inside', withoutEnlargement });
       } else {
-        resized = resized.resize({ height: target, fit: 'inside', withoutEnlargement: false });
+        resized = resized.resize({ height: target, fit: 'inside', withoutEnlargement });
       }
     }
 
@@ -128,6 +169,10 @@ async function normalizeImageBuffer(buffer, mimeType) {
         width: meta.width || width,
         height: meta.height || height,
         mimeType: targetMime,
+        // additiv — bestehende Felder unveraendert
+        upscaled,
+        sourceWidth: width || null,
+        sourceHeight: height || null,
       };
     };
 
@@ -141,7 +186,15 @@ async function normalizeImageBuffer(buffer, mimeType) {
     return produceResult(resized.jpeg({ quality: 92 }).toBuffer(), 'image/jpeg');
   } catch (error) {
     console.warn('Image normalization failed, using original buffer:', error.message);
-    return { buffer, width: null, height: null, mimeType };
+    return {
+      buffer,
+      width: null,
+      height: null,
+      mimeType,
+      upscaled: false,
+      sourceWidth: null,
+      sourceHeight: null,
+    };
   }
 }
 
@@ -345,4 +398,7 @@ module.exports = {
   uploadJobFile,
   uploadDocumentBuffer,
   downloadFile,
+  // additiv exportiert (Tests + Diagnose) — kein Verhaltenswechsel
+  normalizeImageBuffer,
+  resolveEdgeTargets,
 };

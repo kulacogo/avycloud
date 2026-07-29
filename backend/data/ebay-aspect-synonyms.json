@@ -1,0 +1,137 @@
+{
+  "version": "2026-07-29",
+  "marketplace": "EBAY_DE",
+  "source": "Empirisch aus products_v2 (tenant 'default', 1674 Produkte) gegen backend/ebay-data/aspects-full.json (Snapshot 2026-02-17, EBAY_DE, 14915 Kategorien) gemessen.",
+  "howToRead": [
+    "synonyms: { QUELLNAME: [ZIELNAME, ...] } — geordnete Kandidatenliste.",
+    "Umbenannt wird NUR, wenn (a) der Quellname im Kategorie-Katalog NICHT existiert und",
+    "(b) der erste passende Zielname im Kategorie-Katalog EXISTIERT. Sonst bleibt alles stehen.",
+    "Werte werden nie angefasst. Nur handgeprüfte, eindeutige Paare — im Zweifel weglassen."
+  ],
+  "rules": [
+    "Kein Ziel darf semantisch enger/weiter sein als die tatsaechlich vorkommenden WERTE der Quelle.",
+    "Kein Ziel, dessen Token von normalizeAspectToken zusammengefaltet wird ('hoehe' = Hoehe/Dicke/Staerke) — sonst landet 'Dicke' unter 'Hoehe'.",
+    "Keine Fuzzy-/Substring-Heuristik. Jede Zeile ist eine Einzelentscheidung."
+  ],
+  "synonyms": {
+    "Herstellungsland": ["Ursprungsland", "Herkunftsland"],
+    "Herstellungsland und -region": ["Ursprungsland", "Herkunftsland"],
+    "Herkunftsland": ["Ursprungsland"],
+    "Herkunftsland und -region": ["Ursprungsland"],
+    "Geschlecht": ["Abteilung"],
+    "Type": ["Produktart", "Produkttyp", "Typ"],
+    "Produktkategorie": ["Produktart", "Produkttyp", "Typ"],
+    "Produktart": ["Produkttyp", "Typ"],
+    "Artikelart": ["Produktart", "Produkttyp", "Typ"],
+    "Materialzusammensetzung": ["Material"],
+    "Material Gehäuse": ["Gehäusematerial", "Material"],
+    "Gehäusematerial": ["Material"],
+    "Griffmaterial": ["Material"],
+    "Obermaterial": ["Außenmaterial", "Material"],
+    "Innenmaterial": ["Futtermaterial", "Material"],
+    "Rahmenmaterial": ["Gestellmaterial", "Material"],
+    "Gestellmaterial": ["Rahmenmaterial", "Material"],
+    "Sohlenmaterial": ["Laufsohlenmaterial", "Material"],
+    "Koffermaterial": ["Material"],
+    "Taschenmaterial": ["Material"],
+    "Bezugsmaterial": ["Material"],
+    "Eigenschaften": ["Besonderheiten", "Merkmale"],
+    "Eigenschaft": ["Eigenschaften", "Besonderheiten"],
+    "Besonderheit": ["Besonderheiten"],
+    "Besondere Merkmale": ["Besonderheiten", "Merkmale"],
+    "Designmerkmal": ["Designmerkmale", "Besonderheiten"],
+    "Materialeigenschaft": ["Materialeigenschaften", "Besonderheiten"],
+    "Funktion": ["Funktionen", "Besonderheiten"],
+    "Schutzfunktion": ["Besonderheiten"],
+    "Ausstattung": ["Besonderheiten", "Eigenschaften"],
+    "Verschlussart": ["Verschluss", "Verschlusstyp"],
+    "Verschluss": ["Verschlussart", "Verschlusstyp"],
+    "Lieferumfang": ["Im Lieferumfang enthalten"],
+    "Set enthält": ["Im Lieferumfang enthalten"],
+    "Saison": ["Jahreszeit"],
+    "Modellnummer": ["Modell", "Modellname"],
+    "Kompatibles Modell": ["Modellkompatibilität"],
+    "Kompatibilität": ["Kompatibel mit"],
+    "Passend für": ["Geeignet für", "Kompatibel mit"],
+    "Sportart": ["Sportart/Aktivität"],
+    "Oberfläche": ["Oberflächenbeschaffenheit"],
+    "Pflegehinweis": ["Pflegeanleitung", "Pflegehinweise"],
+    "Pflegehinweise": ["Pflegeanleitung", "Pflegehinweis"],
+    "Thema": ["Thematik"],
+    "Anwendungsbereich": ["Einsatzbereich", "Anwendung", "Einsatzgebiet", "Verwendungszweck"],
+    "Einsatzbereich": ["Anwendungsbereich", "Anwendung", "Einsatzgebiet", "Verwendungszweck"],
+    "Einsatzort": ["Einsatzbereich", "Anwendungsbereich", "Anwendung"],
+    "Einsatzgebiet": ["Einsatzbereich", "Anwendungsbereich", "Anwendung"],
+    "Verwendungszweck": ["Anwendungsbereich", "Einsatzbereich", "Anwendung", "Einsatzgebiet"],
+    "Anwendung": ["Anwendungsbereich", "Einsatzbereich", "Einsatzgebiet"],
+    "Garantie": ["Herstellergarantie"],
+    "Anzahl pro Packung": ["Anzahl der Einheiten", "Stückzahl"],
+    "Stückzahl": ["Anzahl der Einheiten"],
+    "Anzahl Teile": ["Anzahl der Teile", "Teileanzahl"],
+    "Herstellernummer (MPN)": ["Herstellernummer"],
+    "Kollektion": ["Produktlinie", "Serie"],
+    "Serie": ["Produktlinie"],
+    "Schuhgröße EU": ["EU-Schuhgröße"],
+    "Fassungsvermögen": ["Kapazität", "Volumen"],
+    "Befestigung": ["Befestigungsart"]
+  },
+  "deferred": {
+    "Gewicht (kg)": {
+      "targets": ["Gewicht"],
+      "occurrences": 1294,
+      "wouldHeal": 529,
+      "reason": "Groesster Einzelposten, aber VERLUSTBEHAFTET: die Werte sind nackte Zahlen ('1', '0.5'). Unter dem Namen 'Gewicht' verliert der Kaeufer die Einheit. Erst aktivieren, wenn der Wert vorher zu '1 kg' normalisiert wird (das ist eine WERT-Aenderung und gehoert nicht in diesen Normalisierer)."
+    },
+    "weight": {
+      "targets": ["Gewicht"],
+      "occurrences": 26,
+      "reason": "Gleiche Einheiten-Frage wie 'Gewicht (kg)'."
+    },
+    "Zielgruppe": {
+      "targets": ["Abteilung"],
+      "occurrences": 132,
+      "wouldHeal": 54,
+      "reason": "Werte-Domaene passt nicht: haeufigster Wert ist 'Erwachsene', 'Abteilung' kennt nur Herren/Damen/Jungen/Maedchen/Unisex. Rename wuerde einen falschen Filterwert erzeugen."
+    },
+    "Lochanzahl": {
+      "targets": ["Lochkreis"],
+      "occurrences": 38,
+      "reason": "ABGELEHNT. 'Lochkreis' (z. B. 5x112) ist NICHT die Lochanzahl. Klassische Fuzzy-Falle — hier dokumentiert, damit sie nicht erneut vorgeschlagen wird."
+    },
+    "Maße": {
+      "targets": ["Maßeinheit"],
+      "occurrences": 70,
+      "reason": "ABGELEHNT. 'Maßeinheit' ist die Einheit (cm/mm), nicht die Abmessung."
+    },
+    "Passform": {
+      "targets": ["Form"],
+      "occurrences": 50,
+      "reason": "ABGELEHNT. Passform (Schnitt) != Form (Geometrie)."
+    },
+    "Montageart": {
+      "targets": ["Montage erforderlich", "Montage"],
+      "occurrences": 68,
+      "reason": "ABGELEHNT. 'Montage erforderlich' ist ein Ja/Nein-Feld, 'Montage' ist mehrdeutig."
+    },
+    "Atmungsaktiv": {
+      "targets": ["Besonderheiten"],
+      "occurrences": 16,
+      "reason": "ABGELEHNT. Wert ist 'Ja' — unter 'Besonderheiten' waere das sinnlos."
+    },
+    "Zustand": {
+      "targets": [],
+      "occurrences": 937,
+      "reason": "Nicht heilbar: eBay fuehrt den Zustand als ConditionID, nicht als Artikelmerkmal. Gehoert gar nicht in die ItemSpecifics (wird beim Senden ohnehin ignoriert)."
+    },
+    "EAN / GTIN / UPC / ISBN": {
+      "targets": [],
+      "occurrences": 674,
+      "reason": "Nicht heilbar: Identifikatoren laufen ueber ProductListingDetails, nicht ueber Artikelmerkmale."
+    },
+    "Material / Farbe / Größe / Modell / Besonderheiten (generisch)": {
+      "targets": [],
+      "occurrences": 1082,
+      "reason": "Nicht global heilbar: in den betroffenen Kategorien existiert nur eine SPEZIFISCHE Variante (Gestellmaterial, Dachmaterial, Futtermaterial, Lichtfarbe, Aussenfarbe ...). Welche die richtige ist, haengt am Produkt — das braucht eine Kategorie-spezifische Tabelle oder das LLM, nicht diesen Normalisierer."
+    }
+  }
+}
