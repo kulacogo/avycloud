@@ -2542,6 +2542,36 @@ async function saveProduct(product, options = {}) {
         productWithEbay.identification.name,
         { minLen: 0, maxLen: AUTO_TITLE_MAX_LEN, softMaxLen: AUTO_TITLE_SOFT_MAX_LEN, forcePolicy: false }
       );
+
+      // Herstellernummer (MPN) ans Titelende anhängen — NUR auf Automatikpfaden,
+      // niemals bei einem manuell getippten Titel (dieser Block laeuft schon unter
+      // `!isManualSave && !skipTitlePolicy`).
+      // Flag TITLE_APPEND_MPN: unset|'off' = heutiges Verhalten (Codepfad wird
+      // gar nicht betreten), 'shadow' = rechnen + loggen, 'on' = wirklich ergaenzen.
+      // Rein additiv: nur hinten anhaengen, nie kuerzen/umsortieren, idempotent.
+      try {
+        const { getTitleAppendMpnMode, computeMpnTitleAppend } = require('./mpn-title-append');
+        const mpnAppendMode = getTitleAppendMpnMode();
+        if (mpnAppendMode !== 'off') {
+          const mpnAppend = computeMpnTitleAppend(
+            productWithEbay,
+            productWithEbay.identification.name,
+            { maxLen: AUTO_TITLE_MAX_LEN }
+          );
+          if (mpnAppend.changed) {
+            if (mpnAppendMode === 'on') {
+              productWithEbay.identification.name = mpnAppend.title;
+            } else {
+              console.log(
+                `[mpn-title-shadow] id=${product?.id || ''} mpn=${mpnAppend.mpn} ` +
+                `from="${productWithEbay.identification.name}" to="${mpnAppend.title}"`
+              );
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('[saveProduct] mpn title append failed (non-blocking):', e?.message || e);
+      }
     }
 
     // GPSR: manufacturer registry autofill (backend-wide consistency).

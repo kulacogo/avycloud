@@ -46,6 +46,14 @@ const RULES = [
       || /keine ean/i.test(m),
   },
   {
+    // Muss VOR PRICE_MISSING stehen: hier IST ein Preis da, er wurde nur nie
+    // bewusst entschieden (stiller Rueckfall auf den recherchierten Marktpreis).
+    // Siehe Preis-Gate REQUIRE_EXPLICIT_SELLPRICE, Audit 2026-07-29.
+    key: 'SELLPRICE_NOT_CONFIRMED',
+    label: 'Verkaufspreis nicht bestätigt',
+    test: (m) => /kein bewusst gesetzter verkaufspreis/i.test(m),
+  },
+  {
     key: 'PRICE_MISSING',
     label: 'Preis fehlt',
     codes: ['EBAY_PUBLISH_NO_PRICE'],

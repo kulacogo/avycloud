@@ -1252,6 +1252,25 @@ function buildRegulatoryXml(item) {
   return `<Regulatory>${parts.join('')}</Regulatory>`;
 }
 
+const DEFAULT_DISPATCH_TIME_MAX = 3;
+
+/**
+ * Bearbeitungszeit in Tagen, die beim Einstellen an eBay geht.
+ *
+ * Default 3 == bisheriges hart verdrahtetes Verhalten. `0` bedeutet "Versand am selben Tag"
+ * und ist ein gueltiger Wert — deshalb wird bewusst NICHT mit `||` gefallbackt, sonst faellt
+ * die Null als falsy durch. Unsinnige Werte (leer, Text, negativ, > 30) fallen auf 3 zurueck,
+ * damit nie kaputtes XML entsteht.
+ */
+function resolveDefaultDispatchTimeMax() {
+  const raw = String(process.env.EBAY_DISPATCH_TIME_MAX ?? '').trim();
+  if (!raw) return DEFAULT_DISPATCH_TIME_MAX;
+  if (!/^\d+$/.test(raw)) return DEFAULT_DISPATCH_TIME_MAX;
+  const value = Number(raw);
+  if (!Number.isInteger(value) || value < 0 || value > 30) return DEFAULT_DISPATCH_TIME_MAX;
+  return value;
+}
+
 // ---------------------------------------------------------------------------
 // AddFixedPriceItem / VerifyAddFixedPriceItem
 // ---------------------------------------------------------------------------
@@ -1398,10 +1417,21 @@ function buildAddFixedPriceItemXml(item, cfg) {
   const regulatory = buildRegulatoryXml(item);
   if (regulatory) fields.push(regulatory);
 
-  const dispatchTimeMax = item?.dispatchTimeMax ?? 3;
-  fields.push(`<DispatchTimeMax>${escapeXml(String(dispatchTimeMax))}</DispatchTimeMax>`);
-
   const shippingProfileId = safeString(item?.shippingProfileId);
+
+  // Bearbeitungszeit: eine aktive eBay-Verkaufsbedingung (Versandprofil) setzt die
+  // Bearbeitungszeit selbst und schlaegt den hier gesendeten Wert. Mit
+  // EBAY_OMIT_DISPATCH_TIME_WITH_POLICY=true lassen wir das Element in genau diesem Fall
+  // weg, damit im XML keine widerspruechliche Angabe steht. Ohne Versandprofil bleibt
+  // DispatchTimeMax fuer eBay Pflicht und wird immer gesendet.
+  const omitWithPolicy = String(process.env.EBAY_OMIT_DISPATCH_TIME_WITH_POLICY || '')
+    .trim()
+    .toLowerCase() === 'true';
+  if (!(omitWithPolicy && shippingProfileId)) {
+    const dispatchTimeMax = item?.dispatchTimeMax ?? resolveDefaultDispatchTimeMax();
+    fields.push(`<DispatchTimeMax>${escapeXml(String(dispatchTimeMax))}</DispatchTimeMax>`);
+  }
+
   const returnProfileId = safeString(item?.returnProfileId);
   const paymentProfileId = safeString(item?.paymentProfileId);
   if (shippingProfileId || returnProfileId || paymentProfileId) {
@@ -1682,6 +1712,7 @@ module.exports = {
   addFixedPriceItem,
   verifyAddFixedPriceItem,
   buildAddFixedPriceItemXml,
+  resolveDefaultDispatchTimeMax,
   stripItemSpecificsByAspectNames,
   mapItemSpecifics,
   mapListingDetail,
