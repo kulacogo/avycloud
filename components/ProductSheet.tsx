@@ -1638,6 +1638,28 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                 <p className="text-sm text-txt-muted">—</p>
               )}
             </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-txt-secondary mb-1">Lieferumfang</label>
+              {isEditing ? (
+                <textarea
+                  defaultValue={(localProduct.details.scope_of_delivery || []).join('\n')}
+                  onBlur={(e) => {
+                    const lines = e.target.value.split('\n').map((line) => line.trim()).filter(Boolean);
+                    setLocalProduct((prev) => ({ ...prev, details: { ...prev.details, scope_of_delivery: lines } }));
+                    setIsDirty(true);
+                  }}
+                  placeholder="Eine Position pro Zeile, z. B. 1x Aluminium-Koffer"
+                  className="w-full min-h-[60px] text-sm bg-app-elevated border border-app-border rounded-lg p-2.5 outline-none focus:border-accent"
+                />
+              ) : (localProduct.details.scope_of_delivery || []).length ? (
+                <ul className="space-y-1 list-disc list-inside text-sm text-txt-secondary">
+                  {(localProduct.details.scope_of_delivery || []).map((f, i) => <li key={i}>{f}</li>)}
+                </ul>
+              ) : (
+                <p className="text-sm text-txt-muted">—</p>
+              )}
+            </div>
           </div>
         </section>
 

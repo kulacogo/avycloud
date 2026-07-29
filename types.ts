@@ -181,6 +181,10 @@ export interface Identifiers {
 export interface Details {
   short_description: string;
   key_features: string[];
+  // Lieferumfang, eine Position je Eintrag. Wird im eBay-Angebot als eigener Block
+  // gerendert (Flag EBAY_DESCRIPTION_BLOCKS) — "Was ist drin?" ist die haeufigste
+  // Rueckfrage vor dem Kauf. Fehlt das Feld, faellt der Block weg (nie "Unbekannt").
+  scope_of_delivery?: string[];
   attributes: Record<string, string | number | boolean>;
   attributes_extra?: Record<string, unknown>;
   identifiers: Identifiers;

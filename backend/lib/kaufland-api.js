@@ -1,5 +1,6 @@
 const crypto = require('crypto');
 const fetch = require('node-fetch');
+const { resolveKauflandPrice, resolveExplicitPriceMode } = require('./listing-price-source');
 
 const DEFAULT_BASE_URL = 'https://sellerapi.kaufland.com/v2';
 const DEFAULT_USER_AGENT = process.env.KAUFLAND_USER_AGENT || 'Inhouse_development';
@@ -712,6 +713,22 @@ async function createUnit(product, { storefront = 'de', autoCreateProductData = 
     );
     err.code = 'KAUFLAND_EAN_INVALID';
     throw err;
+  }
+
+  // Preis-Gate (Audit 2026-07-29), Gegenstueck zum eBay-Gate in validatePublishReadiness.
+  // Ohne gepflegten Verkaufspreis faellt die Kette still auf den recherchierten Marktpreis
+  // zurueck. Gilt bewusst NUR beim ANLEGEN einer Einheit — updateUnit und der Sync bleiben
+  // unberuehrt, sonst kippen laufende Angebote. Default 'off' == heutiges Verhalten.
+  if (resolveExplicitPriceMode() === 'block') {
+    const resolvedPrice = resolveKauflandPrice(product);
+    if (resolvedPrice.price !== null && !resolvedPrice.explicit) {
+      const err = new Error(
+        'Kein bewusst gesetzter Verkaufspreis — die Einheit wuerde still mit dem '
+        + `recherchierten Marktpreis (${resolvedPrice.price} EUR) online gehen.`
+      );
+      err.code = 'KAUFLAND_SELLPRICE_NOT_CONFIRMED';
+      throw err;
+    }
   }
 
   if (picked.ean) {

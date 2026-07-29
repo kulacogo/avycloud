@@ -6,6 +6,12 @@ const { FieldValue } = require('@google-cloud/firestore');
 const { firestore, getAllProducts, getAllProductsForTenant, PRODUCTS_COLLECTION } = require('./firestore');
 const { getRequiredAspects, getCategoryAspectCatalog, findEbayCategory } = require('./ebay-taxonomy');
 const { isValidGtin: isValidGtinShared } = require('./gtin');
+const { resolveListingPrice, resolveExplicitPriceMode } = require('./listing-price-source');
+const {
+  buildDescriptionBlocks,
+  buildMobileStyles,
+  isDescriptionBlocksEnabled,
+} = require('./ebay-description-blocks');
 
 function resolveCategoryNameFromId(categoryId) {
   if (categoryId === null || categoryId === undefined || categoryId === '') return null;
@@ -24,6 +30,7 @@ const {
   addFixedPriceItem,
   verifyAddFixedPriceItem,
   describeRestrictedTermsError,
+  resolveDefaultDispatchTimeMax,
 } = require('./ebay-trading-api');
 const { decodeHtmlEntitiesDeep } = require('./html-entities');
 
@@ -704,15 +711,19 @@ function extractTrendOceanDescriptionParts(descriptionHtml) {
   };
   if (!raw) return out;
 
+  // Der Vorlagen-Renderer (buildTrendOceanDescriptionTemplate) schreibt
+  // `class="to-section-label"`; aeltere Listings tragen noch `class="...section-title..."`.
+  // Beide Schreibweisen muessen erkannt werden — sonst meldet die Gap-Erkennung
+  // Schein-Abweichungen (Vorfall 2026-07-29: 1.732 falsche "Highlights weicht ab").
   const highlightsMatch = raw.match(
-    /<div[^>]*class=["'][^"']*section-title[^"']*["'][^>]*>\s*Produkt-Highlights\s*<\/div>[\s\S]*?<ul[^>]*>([\s\S]*?)<\/ul>/i
+    /<div[^>]*class=["'][^"']*(?:section-title|to-section-label)[^"']*["'][^>]*>\s*Produkt-Highlights\s*<\/div>[\s\S]*?<ul[^>]*>([\s\S]*?)<\/ul>/i
   );
   if (highlightsMatch && highlightsMatch[1]) {
     out.highlights = parseListItemsFromHtml(highlightsMatch[1]);
   }
 
   const descriptionHeaderMatch = raw.match(
-    /<div[^>]*class=["'][^"']*section-title[^"']*["'][^>]*>\s*Produktbeschreibung\s*<\/div>/i
+    /<div[^>]*class=["'][^"']*(?:section-title|to-section-label)[^"']*["'][^>]*>\s*Produktbeschreibung\s*<\/div>/i
   );
   if (descriptionHeaderMatch && descriptionHeaderMatch.index >= 0) {
     const start = descriptionHeaderMatch.index + descriptionHeaderMatch[0].length;
@@ -883,6 +894,27 @@ function sameStringList(a = [], b = []) {
   return left.every((v, i) => v === right[i]);
 }
 
+/** CSS fuer die Fakten-Tabelle der Kaufsicherheits-Bloecke. Nur bei aktivem Schalter im HTML. */
+const FACTS_TABLE_CSS = `
+/* ── Fakten-Tabelle (Maße & Gewicht) ── */
+.to-facts-row {
+  display: flex;
+  gap: 12px;
+  padding: 6px 0;
+  border-bottom: 1px solid #eee;
+}
+
+.to-facts-label {
+  flex: 0 0 40%;
+  color: #666;
+}
+
+.to-facts-value {
+  flex: 1 1 auto;
+  color: #111;
+  font-weight: 600;
+}`;
+
 function buildTrendOceanDescriptionTemplate({ listing, product, titleOverride = null, photoOverride = null, relatedProducts = [] }) {
   const auctionName = safeString(titleOverride) || safeString(listing?.title) || safeString(deriveProductTitle(product));
   const manufacturer = safeString(deriveProductManufacturer(product, listing)) || 'Unbekannt';
@@ -892,6 +924,15 @@ function buildTrendOceanDescriptionTemplate({ listing, product, titleOverride = 
   const rawDescription = safeString(deriveProductDescription(product))
     .replace(/<script[\s\S]*?<\/script>/gi, '')
     .replace(/<style[\s\S]*?<\/style>/gi, '');
+
+  // Kaufsicherheits-Bloecke (Lieferumfang / Masse & Gewicht / Passgenauigkeit) und
+  // Handy-Layout. Default aus -> die Vorlage bleibt byte-identisch zu heute.
+  // Wichtig: auch das CSS wird gegatet. Waere es immer drin, unterschiede sich das
+  // Beschreibungs-HTML jedes bestehenden Angebots vom Spiegel — das erzeugt auf einen
+  // Schlag Abweichungen fuer ALLE Listings und damit potenziell eine Revise-Welle.
+  const blocksOn = isDescriptionBlocksEnabled();
+  const extraBlocksHtml = blocksOn ? buildDescriptionBlocks(product) : '';
+  const extraCss = blocksOn ? `${FACTS_TABLE_CSS}${buildMobileStyles()}` : '';
 
   // Build related products HTML (max 5)
   const related = asArray(relatedProducts).slice(0, 5);
@@ -1122,6 +1163,8 @@ body {
   color: #999;
   letter-spacing: 0.3px;
 }
+
+${extraCss}
 </style>
 
 <div class="to-wrap">
@@ -1165,7 +1208,7 @@ body {
       ${rawDescription}
     </div>
   </div>
-
+${extraBlocksHtml}
   <div class="to-packaging">
     <div class="to-packaging-title"><span>\u267b</span> Hinweis zur Verpackung &amp; Nachhaltigkeit</div>
     Alle Artikel sind neuwertig. Die Originalverpackung kann je nach Lagerhaltung oder Versandweg Gebrauchsspuren aufweisen \u2013 in diesem Fall versenden wir den Artikel neutral verpackt. Im Sinne der Nachhaltigkeit verwenden wir, wo immer m\u00f6glich, bereits gebrauchte Versandkartons wieder. Das \u00e4ndert nichts am Zustand des Artikels.
@@ -4522,7 +4565,7 @@ function mapProductToEbayItem(product, overrides = {}) {
     gpsr: gpsr || undefined,
     responsiblePerson: hasResponsiblePerson ? responsiblePerson : undefined,
     listingDuration: safeString(overrides.listingDuration) || 'GTC',
-    dispatchTimeMax: overrides.dispatchTimeMax ?? 3,
+    dispatchTimeMax: overrides.dispatchTimeMax ?? resolveDefaultDispatchTimeMax(),
     shippingProfileId: safeString(overrides.shippingProfileId) || safeString(process.env.EBAY_DEFAULT_SHIPPING_PROFILE_ID) || undefined,
     returnProfileId: safeString(overrides.returnProfileId) || safeString(process.env.EBAY_DEFAULT_RETURN_PROFILE_ID) || undefined,
     paymentProfileId: safeString(overrides.paymentProfileId) || safeString(process.env.EBAY_DEFAULT_PAYMENT_PROFILE_ID) || undefined,
@@ -4572,6 +4615,27 @@ function validatePublishReadiness(product, overrides = {}) {
     pricing?.amount ?? product?.marketplace?.ebay?.price ?? null;
   if (price == null) blockers.push('Kein Preis vorhanden.');
   else if (Number(price) <= 0) blockers.push('Preis muss größer als 0 sein.');
+  else {
+    // Preis-Gate (Audit 2026-07-29): Ohne gesetzten sellPrice faellt die Kette still auf den
+    // RECHERCHIERTEN MARKTPREIS zurueck — ein Preis, den niemand bewusst entschieden hat.
+    // Gilt bewusst NUR beim Neu-Einstellen (validatePublishReadiness). Revise, Sync-Patches
+    // und Kaufland-Updates bleiben unberuehrt, sonst kippen laufende Angebote.
+    const priceMode = resolveExplicitPriceMode();
+    if (priceMode !== 'off') {
+      const resolved = resolveListingPrice(product, overrides);
+      if (!resolved.explicit) {
+        const quelle =
+          resolved.source === 'lowest_price'
+            ? 'dem recherchierten Marktpreis'
+            : 'dem zuletzt bei eBay gesehenen Preis';
+        const text =
+          `Kein bewusst gesetzter Verkaufspreis — das Angebot würde still mit ${quelle} `
+          + `(${price} ${safeString(details?.pricing?.currency) || 'EUR'}) online gehen.`;
+        if (priceMode === 'block') blockers.push(text);
+        else warnings.push(text);
+      }
+    }
+  }
 
   const pictureUrls = [];
   asArray(overrides.pictureUrls || product?.details?.images).forEach((entry) => {
@@ -5464,4 +5528,7 @@ module.exports = {
   deactivateListingsMissingFromActiveSet,
   resolveCategoryNameFromId,
   isTransientItemProbeError,
+  // Additiv exportiert fuer Regressionstests der Vorlagen-Erkennung (2026-07-29).
+  extractTrendOceanDescriptionParts,
+  buildTrendOceanDescriptionTemplate,
 };

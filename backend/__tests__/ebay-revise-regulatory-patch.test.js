@@ -89,6 +89,10 @@ require.cache[realTradingPath] = {
       reviseItemCalls.push(patch);
       return { ack: 'Success' };
     },
+    // Bearbeitungszeit-Auflaesung (2026-07-29): mapProductToEbayItem liest den
+    // Default seit dem konfigurierbaren DispatchTimeMax hierher. Der Mock muss sie
+    // mitbringen, sonst bricht der Revise-Pfad mit "not a function".
+    resolveDefaultDispatchTimeMax: () => 3,
     // KEIN endItem/endFixedPriceItem im Mock: wuerde reviseListingFromProduct
     // jemals einen End-Pfad nehmen, wirft der Test mit "not a function"
     // (CLAUDE.md Punkt 14 — kein destruktiver Marktplatz-Fehlerpfad).
