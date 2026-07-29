@@ -1162,9 +1162,7 @@ body {
   font-size: 11px;
   color: #999;
   letter-spacing: 0.3px;
-}
-
-${extraCss}
+}${extraCss}
 </style>
 
 <div class="to-wrap">
@@ -1207,8 +1205,8 @@ ${extraCss}
     <div>
       ${rawDescription}
     </div>
-  </div>
-${extraBlocksHtml}
+  </div>${extraBlocksHtml}
+
   <div class="to-packaging">
     <div class="to-packaging-title"><span>\u267b</span> Hinweis zur Verpackung &amp; Nachhaltigkeit</div>
     Alle Artikel sind neuwertig. Die Originalverpackung kann je nach Lagerhaltung oder Versandweg Gebrauchsspuren aufweisen \u2013 in diesem Fall versenden wir den Artikel neutral verpackt. Im Sinne der Nachhaltigkeit verwenden wir, wo immer m\u00f6glich, bereits gebrauchte Versandkartons wieder. Das \u00e4ndert nichts am Zustand des Artikels.

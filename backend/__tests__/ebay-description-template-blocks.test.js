@@ -57,6 +57,19 @@ describe('Angebotsvorlage — Schalter aus (Default)', () => {
     const html = buildTrendOceanDescriptionTemplate({ listing: null, product: product() });
     expect(html).not.toContain('Lieferumfang');
   });
+
+  it('hinterlaesst KEINE Leerzeilen-Artefakte an den Einhaengestellen', () => {
+    // Gegen main byte-verglichen (2026-07-29). Die beiden Einhaengestellen fuer die
+    // Bloecke und das CSS duerfen mit ausgeschaltetem Schalter kein einziges Zeichen
+    // hinzufuegen — sonst weicht das Beschreibungs-HTML JEDES bestehenden Angebots
+    // vom Spiegel ab und die Abweichungs-Erkennung meldet auf einen Schlag alle 3.667.
+    delete process.env.EBAY_DESCRIPTION_BLOCKS;
+    const html = buildTrendOceanDescriptionTemplate({ listing: null, product: product() });
+    // Genau die zwei Einhaengestellen pruefen — nicht das ganze Dokument auf Leerzeilen,
+    // die Vorlage bringt an anderen Stellen bewusst welche mit.
+    expect(html).toContain('letter-spacing: 0.3px;\n}\n</style>');
+    expect(html).toContain('    </div>\n  </div>\n\n  <div class="to-packaging">');
+  });
 });
 
 describe('Angebotsvorlage — Schalter an', () => {
