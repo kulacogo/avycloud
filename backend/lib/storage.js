@@ -14,8 +14,14 @@ const normalizeBucketName = (raw) => {
 };
 
 const BUCKET_NAME = normalizeBucketName(process.env.STORAGE_BUCKET) || PREFERRED_BUCKET;
+// Hinweis: Die Kantenziele werden seit 2026-07-29 in resolveEdgeTargets() zur LAUFZEIT
+// aus derselben ENV gelesen. Diese beiden Konstanten stehen nur noch hier, damit die
+// Fehlkonfiguration einer ENV weiterhin beim Start auffaellt — sie werden bewusst
+// NICHT mehr in normalizeImageBuffer() verwendet.
 const MIN_IMAGE_LONGEST_EDGE = parseInt(process.env.MIN_IMAGE_LONGEST_EDGE || '1200', 10);
 const MAX_IMAGE_LONGEST_EDGE = parseInt(process.env.MAX_IMAGE_LONGEST_EDGE || '2000', 10);
+void MIN_IMAGE_LONGEST_EDGE;
+void MAX_IMAGE_LONGEST_EDGE;
 let bucket;
 let initPromise = null;
 
