@@ -106,8 +106,24 @@ function normalizeAspectToken(value) {
  */
 function buildCatalogNameIndex(catalogAspectNames) {
   const index = new Map();
-  if (!Array.isArray(catalogAspectNames)) return index;
-  catalogAspectNames.forEach((row) => {
+  // FALLE (gefunden 2026-07-29): getCategoryAspectCatalog() aus lib/ebay-taxonomy liefert
+  // ein OBJEKT ({categoryId, requiredAspects, recommendedAspects, optionalAspects,
+  // allAspects, ...}), kein Array. Vorher gab diese Funktion dafuer stillschweigend einen
+  // leeren Index zurueck — der Normalisierer lief also bei jedem echten Aufruf ins Leere
+  // und benannte nie etwas um. Beide Formen werden jetzt akzeptiert.
+  let rows = catalogAspectNames;
+  if (!Array.isArray(rows) && isPlainObject(rows)) {
+    if (Array.isArray(rows.allAspects)) {
+      rows = rows.allAspects;
+    } else {
+      rows = []
+        .concat(Array.isArray(rows.requiredAspects) ? rows.requiredAspects : [])
+        .concat(Array.isArray(rows.recommendedAspects) ? rows.recommendedAspects : [])
+        .concat(Array.isArray(rows.optionalAspects) ? rows.optionalAspects : []);
+    }
+  }
+  if (!Array.isArray(rows)) return index;
+  rows.forEach((row) => {
     const name = safeString(isPlainObject(row) ? row.name : row).trim();
     if (!name) return;
     const token = normalizeAspectToken(name);

@@ -12,6 +12,10 @@ const {
   buildMobileStyles,
   isDescriptionBlocksEnabled,
 } = require('./ebay-description-blocks');
+const {
+  repairAspectsForCategory,
+  resolveRepairMode: resolveAspectRepairMode,
+} = require('./ebay-aspect-repair');
 
 function resolveCategoryNameFromId(categoryId) {
   if (categoryId === null || categoryId === undefined || categoryId === '') return null;
@@ -277,8 +281,40 @@ function sanitizeSpecificValues(valuesRaw, meta) {
 }
 
 function filterPatchItemSpecificsForListing({ categoryId, listing, itemSpecifics }) {
-  const specifics = itemSpecifics && typeof itemSpecifics === 'object' ? itemSpecifics : {};
+  const rawSpecifics = itemSpecifics && typeof itemSpecifics === 'object' ? itemSpecifics : {};
   const requestedCategoryId = safeString(categoryId);
+
+  // Merkmalsnamen aufbereiten, damit eBay sie als Suchfilter erkennt (Audit 2026-07-29).
+  // Gemessen: 52,4 % der Namen kennt eBay in der Zielkategorie nicht -> kein Filter.
+  // Nach der Aufbereitung 49,1 %. Default 'off' == exakt heutiges Verhalten.
+  const specifics = (() => {
+    const mode = resolveAspectRepairMode();
+    if (mode === 'off' || !requestedCategoryId) return rawSpecifics;
+    try {
+      const result = repairAspectsForCategory({
+        categoryId: requestedCategoryId,
+        itemSpecifics: rawSpecifics,
+        catalogAspectNames: getCategoryAspectCatalog(requestedCategoryId),
+        mode,
+      });
+      if (mode === 'shadow') {
+        if (result.aenderungen?.length) {
+          console.log(
+            `[aspect-repair-shadow] cat=${requestedCategoryId} `
+            + `aenderungen=${result.aenderungen.length} `
+            + JSON.stringify(result.aenderungen.slice(0, 8))
+          );
+        }
+        return rawSpecifics;
+      }
+      return result.itemSpecifics || rawSpecifics;
+    } catch (err) {
+      // Nie den Versand blockieren, nur melden.
+      console.warn('[aspect-repair] uebersprungen:', err?.message || err);
+      return rawSpecifics;
+    }
+  })();
+
   const listingCategoryId =
     coerceEbayCategoryId(listing?.primaryCategoryId) || safeString(listing?.primaryCategoryId);
   const primaryMeta = buildAspectTokenMeta(requestedCategoryId);

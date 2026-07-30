@@ -20,6 +20,17 @@
 
 const path = require('path');
 
+// Feste Uhr fuer alle runBackfill-Aufrufe.
+//
+// ZEITZUENDER (aufgefallen 2026-07-30): Die Testdaten stehen auf
+// identifyCheckedAtIso '2026-05-01T00:00:00.000Z', das Standardfenster des Skripts
+// ist 90 Tage rueckwaerts ab Date.now(). Am 2026-07-29 lagen die Daten knapp INNERHALB
+// des Fensters, am 2026-07-30 knapp AUSSERHALB — die Tests kippten also ueber Nacht
+// von gruen auf rot, ohne dass sich eine Zeile Code geaendert hatte (processed 0 statt 3).
+// Das Skript unterstuetzt Uhr-Injektion ausdruecklich ("optional clock injection for
+// deterministic cutoff"), der Test nutzte sie nur nicht. Jetzt schon.
+const FESTE_UHR = () => Date.parse('2026-06-15T12:00:00.000Z');
+
 // ─── 1. Stub @google-cloud/firestore ──────────────────────────────────────
 const gcpFsPath = require.resolve('@google-cloud/firestore');
 try { require(gcpFsPath); } catch (_) {}
@@ -345,6 +356,7 @@ describe('cassini-backfill — runBackfill (dry-run)', () => {
       scoreProductCassini: fakeScorer,
       args,
       sleepFn: () => Promise.resolve(),
+      now: FESTE_UHR,
     });
 
     expect(summary.dryRun).toBe(true);
@@ -371,6 +383,7 @@ describe('cassini-backfill — runBackfill (apply)', () => {
       scoreProductCassini: fakeScorer,
       args,
       sleepFn: () => Promise.resolve(),
+      now: FESTE_UHR,
     });
 
     expect(summary.dryRun).toBe(false);
@@ -419,6 +432,7 @@ describe('cassini-backfill — idempotency', () => {
       scoreProductCassini: fakeScorer,
       args,
       sleepFn: () => Promise.resolve(),
+      now: FESTE_UHR,
     });
 
     expect(summary.processed).toBe(1); // only p2
@@ -451,6 +465,7 @@ describe('cassini-backfill — resume from cursor', () => {
       scoreProductCassini: fakeScorer,
       args,
       sleepFn: () => Promise.resolve(),
+      now: FESTE_UHR,
     });
 
     // p3 + p4 should be processed; p1+p2 carried over from cursor.processedCount.
@@ -479,6 +494,7 @@ describe('cassini-backfill — batch-size flag', () => {
       scoreProductCassini: fakeScorer,
       args,
       sleepFn: () => Promise.resolve(),
+      now: FESTE_UHR,
     });
 
     // 5 docs, batchSize 2 → 3 pages (2 + 2 + 1).
@@ -505,6 +521,7 @@ describe('cassini-backfill — error handling', () => {
       scoreProductCassini: fakeScorer,
       args,
       sleepFn: () => Promise.resolve(),
+      now: FESTE_UHR,
     });
 
     // p2 write throws via batch commit → batch-error counted once; the rest still tried.
@@ -532,6 +549,7 @@ describe('cassini-backfill — error handling', () => {
       scoreProductCassini: flakyScorer,
       args,
       sleepFn: () => Promise.resolve(),
+      now: FESTE_UHR,
     });
 
     expect(summary.errors).toBe(1);
@@ -550,6 +568,7 @@ describe('cassini-backfill — graceful stub-mode', () => {
       scoreProductCassini: null,
       args,
       sleepFn: () => Promise.resolve(),
+      now: FESTE_UHR,
     });
     expect(summary.stub_mode).toBe(true);
     expect(summary.processed).toBe(0);

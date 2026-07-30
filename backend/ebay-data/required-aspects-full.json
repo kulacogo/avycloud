@@ -1374,14 +1374,14 @@
   "11484": [
     "Marke",
     "Größe",
-    "Stil",
     "Abteilung",
-    "Farbe"
+    "Farbe",
+    "Stil"
   ],
   "11498": [
     "Marke",
-    "Abteilung",
     "EU-Schuhgröße",
+    "Abteilung",
     "Stil",
     "Obermaterial",
     "Farbe"
@@ -1421,8 +1421,8 @@
     "Marke",
     "Abteilung",
     "Größe",
-    "Farbe",
-    "Stil"
+    "Stil",
+    "Farbe"
   ],
   "11521": [
     "Abteilung",
@@ -2024,8 +2024,8 @@
   "15687": [
     "Marke",
     "Abteilung",
-    "Größe",
-    "Farbe"
+    "Farbe",
+    "Größe"
   ],
   "15689": [
     "Marke",
@@ -3395,8 +3395,8 @@
   ],
   "22653": [
     "Produktart",
-    "Breite",
     "Anzahl der Regalfächer",
+    "Breite",
     "Höhe",
     "Länge"
   ],
@@ -3552,8 +3552,8 @@
     "EU-Schuhgröße",
     "Abteilung",
     "Stil",
-    "Farbe",
-    "Obermaterial"
+    "Obermaterial",
+    "Farbe"
   ],
   "24252": [],
   "25317": [
@@ -6994,8 +6994,8 @@
   "40858": [],
   "40909": [
     "Produktart",
-    "Betrag (Euro)",
     "Marke",
+    "Betrag (Euro)",
     "Preis des Veranstalters/Originalpreis"
   ],
   "40917": [],
@@ -7897,8 +7897,8 @@
   "45238": [
     "Marke",
     "Produktart",
-    "Abteilung",
-    "Farbe"
+    "Farbe",
+    "Abteilung"
   ],
   "45246": [
     "Marke",
@@ -9079,9 +9079,9 @@
     "Marke",
     "EU-Schuhgröße",
     "Abteilung",
+    "Stil",
     "Farbe",
     "Obermaterial",
-    "Stil",
     "Absatzhöhe"
   ],
   "53593": [],
@@ -9515,16 +9515,16 @@
     "Marke",
     "EU-Schuhgröße",
     "Abteilung",
-    "Stil",
+    "Farbe",
     "Produktart",
-    "Farbe"
+    "Stil"
   ],
   "57974": [
     "Marke",
     "EU-Schuhgröße",
     "Abteilung",
-    "Stil",
     "Produktart",
+    "Stil",
     "Farbe"
   ],
   "57988": [
@@ -10379,8 +10379,8 @@
     "Marke",
     "Produktart",
     "Größe",
-    "Farbe",
     "Stil",
+    "Farbe",
     "Abteilung"
   ],
   "63854": [
@@ -10427,8 +10427,8 @@
     "Marke",
     "Produktart",
     "Größe",
-    "Farbe",
     "Stil",
+    "Farbe",
     "Abteilung",
     "Rocklänge"
   ],
@@ -13374,8 +13374,8 @@
     "Marke",
     "Produktart",
     "Konnektivität",
-    "Modell",
-    "Farbe"
+    "Farbe",
+    "Modell"
   ],
   "84089": [
     "Produktart"
@@ -15983,10 +15983,10 @@
     "Länge"
   ],
   "122772": [
-    "Produktart",
     "Breite",
     "Höhe",
-    "Länge"
+    "Länge",
+    "Produktart"
   ],
   "122773": [
     "Marke",
@@ -16070,10 +16070,10 @@
     "Marke"
   ],
   "122954": [
-    "Produktart",
     "Breite",
     "Höhe",
-    "Länge"
+    "Länge",
+    "Produktart"
   ],
   "122962": [
     "Marke",
@@ -17913,8 +17913,8 @@
   "134727": [],
   "134728": [],
   "134734": [
-    "Marke",
-    "Produktart"
+    "Produktart",
+    "Marke"
   ],
   "134753": [],
   "134754": [],
@@ -18981,8 +18981,8 @@
     "Größe",
     "Abteilung",
     "Produktart",
-    "Stil",
-    "Farbe"
+    "Farbe",
+    "Stil"
   ],
   "155199": [
     "Farbe",
@@ -21448,8 +21448,8 @@
   ],
   "175708": [
     "Marke",
-    "Produktart",
-    "Markenkompatibilität"
+    "Markenkompatibilität",
+    "Produktart"
   ],
   "175709": [
     "Marke",
@@ -27882,8 +27882,8 @@
     "Edition"
   ],
   "183457": [
-    "Edition",
-    "Spiel"
+    "Spiel",
+    "Edition"
   ],
   "183458": [
     "Spiel"
@@ -29648,8 +29648,8 @@
   ],
   "185014": [
     "Marke",
-    "Modell",
-    "Produktart"
+    "Produktart",
+    "Modell"
   ],
   "185015": [
     "Marke",
@@ -29758,8 +29758,8 @@
   ],
   "185052": [
     "Marke",
-    "Modell",
-    "Produktart"
+    "Produktart",
+    "Modell"
   ],
   "185053": [
     "Marke",
@@ -32921,8 +32921,8 @@
     "Hersteller"
   ],
   "261036": [
-    "Franchise",
     "Hersteller",
+    "Franchise",
     "Edition"
   ],
   "261037": [
@@ -32935,8 +32935,8 @@
   "261042": [],
   "261043": [],
   "261044": [
-    "Edition",
-    "Spiel"
+    "Spiel",
+    "Edition"
   ],
   "261045": [
     "Spiel",
@@ -33243,13 +33243,13 @@
   "261335": [],
   "261336": [
     "Break-Art",
-    "Edition",
-    "Franchise"
+    "Franchise",
+    "Edition"
   ],
   "261337": [
     "Break-Art",
-    "Edition",
-    "Spiel"
+    "Spiel",
+    "Edition"
   ],
   "261396": [
     "Marke",
@@ -34396,22 +34396,22 @@
   "261975": [
     "Hauptstein",
     "Marke",
-    "Metall",
     "Ringgröße",
+    "Metall",
     "Feingehalt"
   ],
   "261976": [
     "Hauptstein",
     "Marke",
-    "Metall",
     "Ringgröße",
+    "Metall",
     "Feingehalt"
   ],
   "261977": [
     "Hauptstein",
     "Marke",
-    "Metall",
     "Ringgröße",
+    "Metall",
     "Feingehalt"
   ],
   "261978": [
@@ -34456,60 +34456,60 @@
     "Stil"
   ],
   "261988": [
+    "Metall",
     "Feingehalt",
     "Hauptstein",
     "Marke",
-    "Metall",
     "Produktart",
     "Stil"
   ],
   "261989": [
+    "Metall",
     "Feingehalt",
     "Hauptstein",
     "Marke",
-    "Metall",
     "Produktart"
   ],
   "261990": [
+    "Metall",
     "Feingehalt",
     "Hauptstein",
     "Marke",
-    "Metall",
     "Stil"
   ],
   "261991": [
+    "Metall",
     "Feingehalt",
     "Hauptstein",
     "Marke",
-    "Metall",
     "Produktart"
   ],
   "261992": [
+    "Metall",
     "Feingehalt",
     "Hauptstein",
-    "Marke",
-    "Metall"
+    "Marke"
   ],
   "261993": [
+    "Metall",
     "Feingehalt",
     "Hauptstein",
     "Marke",
-    "Metall",
     "Produktart",
     "Stil"
   ],
   "261994": [
+    "Metall",
     "Feingehalt",
     "Hauptstein",
     "Marke",
-    "Metall",
     "Ringgröße"
   ],
   "261995": [
+    "Metall",
     "Feingehalt",
     "Hauptstein",
-    "Marke",
-    "Metall"
+    "Marke"
   ],
   "261996": [
     "Marke",
@@ -36685,5 +36685,9 @@
   ],
   "263473": [
     "Hersteller"
+  ],
+  "263529": [],
+  "461772": [
+    "Herstellernummer"
   ]
 }
