@@ -4703,7 +4703,17 @@ export const stockInProduct = async (payload: {
   binCode: string;
   quantity: number;
   meta?: Record<string, any>;
-}): Promise<{ ok: boolean; data?: { bin: WarehouseBin; product: Product }; error?: { code: number; message: string } }> => {
+  // Eindeutige Kennung EINER Einlager-Absicht. Muss pro Absicht genau einmal erzeugt
+  // werden (nicht pro Wiederholversuch), damit der Server eine Doppel-Absendung exakt
+  // erkennt statt auf das unscharfe Zeitfenster angewiesen zu sein.
+  requestId?: string;
+}): Promise<{
+  ok: boolean;
+  data?: { bin: WarehouseBin; product: Product };
+  // true = der Server hat die Buchung als Wiederholung erkannt und NICHTS gebucht.
+  deduped?: boolean;
+  error?: { code: number; message: string };
+}> => {
   let response: Response | undefined;
   try {
     response = await fetchApi(`${BACKEND_URL}/api/warehouse/stock-in`, {
@@ -4715,7 +4725,7 @@ export const stockInProduct = async (payload: {
     if (!response.ok) {
       return { ok: false, error: { code: response.status, message: result?.error?.message || 'Stow fehlgeschlagen' } };
     }
-    return { ok: true, data: result?.data };
+    return { ok: true, data: result?.data, deduped: result?.deduped === true };
   } catch (error) {
     const errorInfo = extractErrorInfo(error, response);
     return { ok: false, error: errorInfo };

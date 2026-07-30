@@ -184,6 +184,11 @@ async function applyRepairForSku({ sku, productId, binCode, repairId }) {
     sku,
     binCode,
     quantity: 1,
+    // Deterministische Request-Id, damit der Dedup-Schutz im Eingang (2026-07-30) den
+    // Reparatur-Lauf richtig behandelt: dieselbe Reparatur zweimal = einmal gebucht,
+    // ZWEI verschiedene Reparaturen derselben SKU/Menge/Platz = beide gebucht. Ohne Id
+    // wuerde das Zeitfenster die zweite still verwerfen.
+    requestId: `repair-double-decrement:${repairId}:${productId}:${binCode}`,
     meta: {
       flow: 'repair',
       action: 'repair-double-decrement',

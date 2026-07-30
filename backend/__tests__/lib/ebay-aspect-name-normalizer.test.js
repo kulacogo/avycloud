@@ -325,3 +325,43 @@ describe('ebay-aspect-name-normalizer / Synonymtabelle + Helfer', () => {
     expect(res.itemSpecifics).toEqual({ Farbe: ['Rot'] });
   });
 });
+
+describe('buildCatalogNameIndex — Katalogform aus lib/ebay-taxonomy', () => {
+  const { buildCatalogNameIndex } = require('../../lib/ebay-aspect-name-normalizer');
+
+  // FALLE (gefunden 2026-07-29 beim Messen an Produktionsdaten):
+  // getCategoryAspectCatalog() liefert ein OBJEKT, kein Array. Vorher gab
+  // buildCatalogNameIndex dafuer stillschweigend einen LEEREN Index zurueck — der
+  // Normalisierer benannte deshalb bei jedem echten Aufruf NIE etwas um (Synonym-Treffer 0).
+  // Nach dem Fix: 801 Treffer an denselben Daten.
+  it('versteht die Objektform mit allAspects', () => {
+    const katalog = {
+      categoryId: '33089',
+      requiredAspects: ['Produktart'],
+      recommendedAspects: ['Marke', 'Material'],
+      optionalAspects: ['Farbe'],
+      allAspects: ['Produktart', 'Marke', 'Material', 'Farbe', 'Gewicht'],
+    };
+    expect(buildCatalogNameIndex(katalog).size).toBe(5);
+  });
+
+  it('fuegt die drei Listen zusammen, wenn allAspects fehlt', () => {
+    const katalog = {
+      requiredAspects: ['Produktart'],
+      recommendedAspects: ['Marke'],
+      optionalAspects: ['Farbe'],
+    };
+    expect(buildCatalogNameIndex(katalog).size).toBe(3);
+  });
+
+  it('versteht weiterhin die Arrayform', () => {
+    expect(buildCatalogNameIndex(['Marke', 'Material']).size).toBe(2);
+    expect(buildCatalogNameIndex([{ name: 'Marke' }, { name: 'Material' }]).size).toBe(2);
+  });
+
+  it('bleibt leer bei Muell', () => {
+    expect(buildCatalogNameIndex(null).size).toBe(0);
+    expect(buildCatalogNameIndex({}).size).toBe(0);
+    expect(buildCatalogNameIndex('Marke').size).toBe(0);
+  });
+});

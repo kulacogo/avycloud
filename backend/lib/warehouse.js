@@ -23,6 +23,118 @@ const PRODUCTS_LEGACY_COLL_NAME = _whUseV2 ? 'products' : 'products_v2';
 const productsCollection = firestore.collection(PRODUCTS_COLL_NAME);
 const productsLegacyCollection = firestore.collection(PRODUCTS_LEGACY_COLL_NAME);
 const warehouseEventsCollection = firestore.collection('warehouseEvents');
+// Idempotenz-Claims fuer den Bestandseingang (additiv, eigene Collection).
+// Doc-ID = deterministischer Hash (siehe buildStockInClaimIds) → die Existenz
+// des Docs IST der Beweis, dass die Buchung schon lief. Firestore statt
+// Prozessspeicher: es laufen mehrere Cloud-Run-Instanzen (web + worker),
+// in-memory waere wirkungslos.
+const STOCK_IN_CLAIMS_COLLECTION = 'stock_in_claims';
+const stockInClaimsCollection = firestore.collection(STOCK_IN_CLAIMS_COLLECTION);
+
+// Dedup-Fenster fuer Clients OHNE Request-Id (Alt-Clients).
+// 30 s ist bewusst gewaehlt: die belegten Doppel-Buchungen vom 05.06.2026 lagen
+// zwischen 1 s und 56 s auseinander, die Dreifach-Buchung (SKU-3280641599)
+// innerhalb von 10 s. Ein weiteres Fenster wuerde legitime Mehrfach-Einlagerung
+// desselben Artikels blockieren (Paletten-Durchgang). Der Paletten-Takt lag bei
+// 8–10 s pro VERSCHIEDENER SKU — verschiedene SKUs haben verschiedene
+// Claim-Schluessel und sind vom Fenster nie betroffen. Gleiche SKU + gleicher
+// BIN + gleiche Menge + gleicher Mitarbeiter innerhalb von 30 s ist genau die
+// pathologische Signatur der Doppel-Absendung.
+// 5 s statt 30 s. Begruendung (Abnahme 2026-07-30): das Fenster ist der UNSCHARFE
+// Mechanismus — es kann eine LEGITIME zweite Buchung verschlucken, naemlich zwei gleiche
+// Kartons derselben SKU in denselben Platz. Auf dem Desktop bleiben SKU und Lagerplatz
+// nach dem Buchen stehen; der zweite Karton ist in ~4 s gebucht und faellt bei 30 s
+// mitten ins Fenster -> Bestandsverlust. Die scharfe Absicherung ist die Request-Id,
+// die der Client pro Einlager-Absicht mitsendet. 5 s deckt weiter das gesamte technische
+// Doppelfeuer ab (gemessene Faelle: 1, 1, 2 s) und laesst legitime Wiederholungen durch.
+// Die menschliche Wiederholung nach 44-59 s faengt jetzt die sichtbare Quittung im UI,
+// nicht mehr das Fenster.
+const STOCK_IN_DEDUP_DEFAULT_WINDOW_SECONDS = 5;
+
+// Notbremse: STOCK_IN_DEDUP='off' schaltet Schluessel- UND Fenster-Pruefung ab
+// (exakt das Verhalten von vor dem Fix), falls der Betrieb feststellt, dass
+// legitime Buchungen blockiert werden. Default 'on' — reine Fehlerverhinderung.
+function stockInDedupEnabled() {
+  const raw = String(process.env.STOCK_IN_DEDUP ?? 'on').trim().toLowerCase();
+  return !(raw === 'off' || raw === 'false' || raw === '0' || raw === 'no');
+}
+
+// Optionaler Ops-Knopf, Default = STOCK_IN_DEDUP_DEFAULT_WINDOW_SECONDS.
+// 0 = Fenster aus (die Request-Id-Pruefung bleibt aktiv).
+function stockInDedupWindowMs() {
+  const raw = process.env.STOCK_IN_DEDUP_WINDOW_SECONDS;
+  if (raw !== undefined && raw !== null && String(raw).trim() !== '') {
+    const n = Number(raw);
+    if (Number.isFinite(n) && n >= 0) return Math.round(n * 1000);
+  }
+  return STOCK_IN_DEDUP_DEFAULT_WINDOW_SECONDS * 1000;
+}
+
+// Mitarbeiter-Kennung fuer den Fenster-Schluessel. Fehlt der Actor (Script,
+// Alt-Client), faellt alles auf denselben Bucket 'anon' — konservativ, aber
+// genau das ist beim Doppelklick-Schutz gewuenscht.
+function normalizeStockInActorKey(meta) {
+  const actor = meta && meta.actor;
+  if (!actor) return 'anon';
+  if (typeof actor === 'string') return actor.trim().toLowerCase() || 'anon';
+  const value = actor.uid || actor.email || '';
+  return String(value).trim().toLowerCase() || 'anon';
+}
+
+function normalizeStockInRequestId(meta) {
+  const raw = meta && (meta.requestId || meta.idempotencyKey);
+  if (!raw) return null;
+  const value = String(raw).trim();
+  if (!value) return null;
+  return value.slice(0, 256);
+}
+
+/**
+ * Deterministische Claim-Doc-IDs fuer eine Einlagerung.
+ *   requestClaimId : nur wenn der Client eine Request-Id mitsendet — exakte
+ *                    Einmal-Semantik, unabhaengig vom Zeitabstand.
+ *   windowClaimId  : Kombination (tenant + Produkt + BIN + Menge + Actor) ohne
+ *                    Zeit. Das Doc traegt `lastAtMs`; das Fenster wird gegen
+ *                    diesen Zeitstempel geprueft (kein Bucket-Randproblem).
+ * Nutzt `buildMovementEventId` aus lib/stock-core.js (bestehender, getesteter
+ * Hash-Helfer) — kein zweites Hash-Schema im Repo.
+ */
+function buildStockInClaimIds({ tenantId = 'default', requestId = null, productKey, binCode, quantity, actorKey = 'anon' }) {
+  const { buildMovementEventId } = require('./stock-core');
+  const tenant = tenantId || 'default';
+  const ids = { requestClaimId: null, windowClaimId: null };
+  if (requestId) {
+    ids.requestClaimId = buildMovementEventId({ tenantId: tenant, idempotencyKey: `stock-in:request:${requestId}` });
+  }
+  ids.windowClaimId = buildMovementEventId({
+    tenantId: tenant,
+    idempotencyKey: `stock-in:window:${productKey}|${String(binCode || '').toUpperCase()}|${Number(quantity) || 0}|${actorKey}`,
+  });
+  return ids;
+}
+
+// Claim-Zeitstempel robust in Millisekunden (Timestamp | ISO-String | Zahl).
+function claimTimeToMillis(value) {
+  if (value === null || value === undefined) return null;
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+  if (typeof value === 'string') {
+    const parsed = Date.parse(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  if (typeof value.toMillis === 'function') {
+    try { return value.toMillis(); } catch (_) { /* fallthrough */ }
+  }
+  if (typeof value.toDate === 'function') {
+    try {
+      const d = value.toDate();
+      return d && typeof d.getTime === 'function' ? d.getTime() : null;
+    } catch (_) { /* fallthrough */ }
+  }
+  if (value.seconds !== undefined && Number.isFinite(Number(value.seconds))) {
+    return Number(value.seconds) * 1000;
+  }
+  return null;
+}
 
 function writeWarehouseEventTx(tx, payload = {}) {
   const ref = warehouseEventsCollection.doc();
@@ -807,6 +919,21 @@ function calculateBinProductCount(products) {
   return products.reduce((sum, item) => sum + (item.quantity || 0), 0);
 }
 
+/**
+ * bookStockIn — physischer Bestandseingang (Einlagern).
+ *
+ * IDEMPOTENZ (Incident 05.06.2026: 16 SKUs / 18 Doppel-Paare / 30 Phantom-
+ * Einheiten, u. a. SKU-3280641599 dreifach in 10 s). Zwei Netze, beide IN der
+ * bestehenden Firestore-Transaktion geprueft UND gesetzt — sonst bleibt ein
+ * Zeitfenster fuer echte Nebenlaeufigkeit:
+ *   1) `meta.requestId` (bzw. `meta.idempotencyKey`) → exakte Einmal-Semantik.
+ *   2) Dedup-Fenster fuer Clients ohne Request-Id: dieselbe Kombination
+ *      (tenant + Produkt + BIN + Menge + Actor) innerhalb von
+ *      STOCK_IN_DEDUP_WINDOW_SECONDS (Default 30 s) gilt als Wiederholung.
+ * Eine erkannte Wiederholung ist ein ERFOLG (gleiche Antwortform, `deduped:true`),
+ * kein Fehler — sonst zeigt die Oberflaeche eine Stoerung, obwohl alles stimmt.
+ * Notbremse: STOCK_IN_DEDUP='off'.
+ */
 async function bookStockIn({ productId, sku, barcode, binCode, quantity, meta }) {
   if (!binCode) throw new Error('Bin-Code fehlt.');
   if (!quantity || quantity <= 0) throw new Error('Menge muss größer als 0 sein.');
@@ -819,8 +946,76 @@ async function bookStockIn({ productId, sku, barcode, binCode, quantity, meta })
 
   let resolvedProductId = null;
 
+  // ── Idempotenz-Vorbereitung (vor der Tx, rein) ─────────────────────────
+  const dedupEnabled = stockInDedupEnabled();
+  const dedupWindowMs = stockInDedupWindowMs();
+  const claimTenantId = (meta && meta.tenantId) || 'default';
+  const claimRequestId = normalizeStockInRequestId(meta);
+  const claimActorKey = normalizeStockInActorKey(meta);
+  // Das Fenster gilt NUR fuer den interaktiven Einlager-Vorgang. Buchungen mit
+  // Order-/Retouren-Kontext (WP4-Re-Credit, returns-restock) tragen ihre eigene
+  // Einmal-Semantik (order-stock-recredit-claim bzw. Grading-Claim) und haben
+  // keinen Actor — zwei verschiedene Orders derselben SKU/Menge/BIN innerhalb
+  // des Fensters wuerden sonst zu echtem BESTANDSVERLUST fuehren.
+  const hasOrderContext = Boolean(meta && (meta.orderId || meta.returnId));
+  const windowDedupApplies = dedupEnabled && !hasOrderContext;
+  const claimIds = dedupEnabled
+    ? buildStockInClaimIds({
+      tenantId: claimTenantId,
+      requestId: claimRequestId,
+      // Produkt-Doc-ID statt roher SKU: derselbe Artikel erzeugt denselben
+      // Schluessel, egal ob der Client productId, sku oder barcode geschickt hat.
+      productKey: productRef.id,
+      binCode,
+      quantity,
+      actorKey: claimActorKey,
+    })
+    : null;
+  const requestClaimRef = claimIds && claimIds.requestClaimId
+    ? stockInClaimsCollection.doc(claimIds.requestClaimId)
+    : null;
+  const windowClaimRef = windowDedupApplies && claimIds && claimIds.windowClaimId
+    ? stockInClaimsCollection.doc(claimIds.windowClaimId)
+    : null;
+  const nowMs = Date.now();
+  let dedupInfo = null;
+
   await firestore.runTransaction(async (tx) => {
-    const [productSnap, binSnap] = await Promise.all([tx.get(productRef), tx.get(binRef)]);
+    // ─── Phase READS ─────────────────────────────────────────────────────
+    // Firestore-Constraint: ALLE Reads vor JEDEM Write. Die Claim-Reads gehoeren
+    // deshalb hier nach oben (und der Claim-Write unten in die Write-Phase).
+    const reads = [tx.get(productRef), tx.get(binRef)];
+    reads.push(requestClaimRef ? tx.get(requestClaimRef) : Promise.resolve(null));
+    reads.push(windowClaimRef ? tx.get(windowClaimRef) : Promise.resolve(null));
+    const [productSnap, binSnap, requestClaimSnap, windowClaimSnap] = await Promise.all(reads);
+
+    if (dedupEnabled) {
+      if (requestClaimSnap && requestClaimSnap.exists) {
+        const claimData = (typeof requestClaimSnap.data === 'function' ? requestClaimSnap.data() : null) || {};
+        dedupInfo = {
+          reason: 'request-id',
+          claimId: claimIds.requestClaimId,
+          requestId: claimRequestId,
+          firstAtMs: claimTimeToMillis(claimData.lastAtMs ?? claimData.lastAt ?? claimData.firstAt),
+        };
+        return; // KEINE Writes — die Buchung lief bereits.
+      }
+      if (!claimRequestId && windowDedupApplies && dedupWindowMs > 0 && windowClaimSnap && windowClaimSnap.exists) {
+        const claimData = (typeof windowClaimSnap.data === 'function' ? windowClaimSnap.data() : null) || {};
+        const lastAtMs = claimTimeToMillis(claimData.lastAtMs ?? claimData.lastAt);
+        if (lastAtMs !== null && nowMs - lastAtMs >= 0 && nowMs - lastAtMs < dedupWindowMs) {
+          dedupInfo = {
+            reason: 'window',
+            claimId: claimIds.windowClaimId,
+            windowMs: dedupWindowMs,
+            ageMs: nowMs - lastAtMs,
+            firstAtMs: lastAtMs,
+          };
+          return; // KEINE Writes — Wiederholung innerhalb des Fensters.
+        }
+      }
+    }
+
     if (!productSnap.exists) throw new Error('Produkt nicht gefunden.');
     if (!binSnap.exists) throw new Error('BIN nicht gefunden.');
 
@@ -919,6 +1114,40 @@ async function bookStockIn({ productId, sku, barcode, binCode, quantity, meta })
       meta: meta || null,
     });
 
+    // ─── Idempotenz-Claim in DERSELBEN Tx setzen ─────────────────────────
+    // Ohne denselben Commit gaebe es ein Fenster, in dem zwei parallele
+    // Requests beide „kein Claim vorhanden" lesen.
+    if (dedupEnabled) {
+      const claimBase = {
+        tenantId: claimTenantId,
+        productId: resolvedProductId,
+        productDocId: productRef.id,
+        sku: productData.details?.identifiers?.sku || productData.identification?.sku || null,
+        binCode,
+        quantity: Number(quantity) || 0,
+        actor: claimActorKey,
+        requestId: claimRequestId,
+        lastAt: now,
+        lastAtMs: nowMs,
+      };
+      if (requestClaimRef) {
+        tx.set(requestClaimRef, { ...claimBase, kind: 'request', firstAtMs: nowMs }, { merge: true });
+      }
+      if (windowClaimRef) {
+        // Auch mit Request-Id gepflegt (nur nicht erzwungen) → ein Alt-Client,
+        // der dieselbe Buchung nachschickt, laeuft trotzdem ins Fenster.
+        const prev = windowClaimSnap && windowClaimSnap.exists
+          ? ((typeof windowClaimSnap.data === 'function' ? windowClaimSnap.data() : null) || {})
+          : {};
+        tx.set(windowClaimRef, {
+          ...claimBase,
+          kind: 'window',
+          firstAtMs: Number.isFinite(Number(prev.firstAtMs)) ? Number(prev.firstAtMs) : nowMs,
+          bookings: (Number(prev.bookings) || 0) + 1,
+        }, { merge: true });
+      }
+    }
+
     updatedProduct = {
       ...productData,
       id: resolvedProductId,
@@ -942,6 +1171,26 @@ async function bookStockIn({ productId, sku, barcode, binCode, quantity, meta })
       lastStoredAt: nowIso,
     };
   });
+
+  // ── Wiederholung erkannt: NICHTS wurde gebucht ─────────────────────────
+  // Antwort behaelt die Form (product + bin), damit die Oberflaeche keinen
+  // Fehler zeigt; `deduped:true` macht es fuer Aufrufer und Log sichtbar.
+  if (dedupInfo) {
+    console.warn(
+      `[bookStockIn] DEDUPED (${dedupInfo.reason}) productId=${productRef.id} bin=${binCode} qty=${quantity} ` +
+      `actor=${claimActorKey} requestId=${claimRequestId || '-'} claim=${dedupInfo.claimId}` +
+      (dedupInfo.ageMs !== undefined ? ` ageMs=${dedupInfo.ageMs} windowMs=${dedupInfo.windowMs}` : '') +
+      ' — Doppel-Absendung, keine Buchung durchgefuehrt'
+    );
+    let bin = null;
+    try {
+      bin = await getBinByCode(binCode);
+    } catch (err) {
+      console.warn(`[bookStockIn] dedup response: bin read failed for ${binCode}: ${err.message}`);
+    }
+    const existingProduct = await getProduct(productRef.id);
+    return { product: existingProduct || null, bin, deduped: true, dedupReason: dedupInfo.reason };
+  }
 
   // GEGEN-PFAD zum Pick-Consume (Review-Finding 8): wird eine Einheit mit
   // Order-Kontext wieder eingelagert (Fehl-Pick → Stow-back), lebt die beim
@@ -972,7 +1221,7 @@ async function bookStockIn({ productId, sku, barcode, binCode, quantity, meta })
 
   await refreshProductInventory(productRef.id);
   const freshProduct = await getProduct(productRef.id);
-  return { product: freshProduct || updatedProduct, bin: updatedBin };
+  return { product: freshProduct || updatedProduct, bin: updatedBin, deduped: false };
 }
 
 async function bookStockOut({ productId, sku, barcode, binCode, quantity, meta }) {
@@ -1776,8 +2025,15 @@ module.exports = {
   createChildBin,
   deleteChildBin,
   listChildBins,
+  // Stock-in Idempotenz (Incident 05.06.2026)
+  stockInDedupEnabled,
+  stockInDedupWindowMs,
+  buildStockInClaimIds,
+  STOCK_IN_CLAIMS_COLLECTION,
   // Exported for testing
   buildProductKeySet,
   binEntryMatchesKeySet,
   normalizeKey,
+  normalizeStockInActorKey,
+  claimTimeToMillis,
 };
