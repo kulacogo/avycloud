@@ -19,6 +19,9 @@ const {
   createChildBin,
   deleteChildBin,
   listChildBins,
+  buildProductKeySet,
+  binEntryMatchesKeySet,
+  normalizeKey,
 } = require('../lib/warehouse');
 const {
   buildBinLabelHtml,
@@ -33,6 +36,25 @@ const parseTruthy = (value) => {
   const v = String(value || '').trim().toLowerCase();
   return v === '1' || v === 'true' || v === 'yes' || v === 'y';
 };
+
+// Idempotenz-Schluessel des Clients: Body (requestId | idempotencyKey),
+// meta.requestId oder Header. Erste nicht-leere Quelle gewinnt.
+function resolveStockInRequestId(req, meta) {
+  const candidates = [
+    req.body?.requestId,
+    req.body?.idempotencyKey,
+    meta && typeof meta === 'object' ? meta.requestId : null,
+    meta && typeof meta === 'object' ? meta.idempotencyKey : null,
+    req.get ? req.get('x-idempotency-key') : null,
+    req.get ? req.get('x-request-id') : null,
+  ];
+  for (const candidate of candidates) {
+    if (candidate === null || candidate === undefined) continue;
+    const value = String(candidate).trim();
+    if (value) return value.slice(0, 256);
+  }
+  return null;
+}
 
 function normalizeCodeList(input) {
   if (!input) return [];
@@ -411,6 +433,11 @@ router.post('/stock-in', requirePermission('warehouse', 'write'), async (req, re
     if (!amount || amount <= 0) {
       return res.status(400).json({ ok: false, error: { code: 400, message: 'Menge muss größer als 0 sein.' } });
     }
+    // Idempotenz-Schluessel (Incident 05.06.2026 — Doppel-Einlagerung).
+    // Der Client soll pro Absicht EINE Id senden; ein Doppelklick/Retry schickt
+    // dieselbe Id und wird in bookStockIn als Wiederholung erkannt. Fehlt sie,
+    // greift dort zusaetzlich das Dedup-Fenster (Alt-Clients).
+    const requestId = resolveStockInRequestId(req, meta);
     const result = await bookStockIn({
       sku,
       productId,
@@ -421,11 +448,22 @@ router.post('/stock-in', requirePermission('warehouse', 'write'), async (req, re
         ...(meta && typeof meta === 'object' ? meta : {}),
         source: 'api',
         action: 'stock-in',
+        tenantId: req.user?.tenantId || 'default',
+        ...(requestId ? { requestId } : {}),
         // who put it away — for the Mitarbeiter-Leistung scoreboard (eingelagert)
         ...(req.user?.uid ? { actor: { uid: req.user.uid, email: req.user.email || null } } : {}),
         ...(paletteCode ? { paletteCode } : {}),
       },
     });
+    if (result?.deduped) {
+      // Wiederholung: nichts gebucht → kein zweiter Marktplatz-Push
+      // (der erste Lauf hat schon synchronisiert). Antwortform bleibt gleich.
+      console.warn(
+        `[POST /api/warehouse/stock-in] deduped (${result.dedupReason}) bin=${String(binCode).toUpperCase()} ` +
+        `qty=${amount} requestId=${requestId || '-'} — Doppel-Absendung, kein zweiter Bestandszugang`
+      );
+      return res.json({ ok: true, data: result, deduped: true });
+    }
     if (result?.product) {
       // Multi-channel stock push (eBay + Kaufland) — with retry on failure
       const tenantId = req.user?.tenantId || 'default';
@@ -790,6 +828,207 @@ router.post('/inventories/:id/counts', requirePermission('warehouse', 'write'), 
   }
 });
 
+// ── Inventur-Abschluss: Zaehlwert wird zur Wahrheit ──────────────────────
+//
+// Bis 2026-07-30 setzte `complete` nur `status:'completed'` und zeigte die
+// Abweichung rot an — es korrigierte WEDER Bin NOCH Bestand. Die Inventur ist
+// der einzige physische Eingang ins System und war damit wirkungslos.
+//
+// Flag `INVENTORY_COMPLETE_BOOKS` ('off' = Default = heutiges Verhalten,
+// 'on' = bucht). Echte Verhaltensaenderung an einem Schreibpfad → gegated.
+function inventoryCompleteBooksEnabled() {
+  return String(process.env.INVENTORY_COMPLETE_BOOKS || 'off').trim().toLowerCase() === 'on';
+}
+
+// Produkt einer Zaehlposition auflösen: erst über die Doc-ID, dann über die SKU.
+async function resolveInventoryPositionProduct(position) {
+  const attempts = [];
+  const productId = position && position.productId ? String(position.productId).trim() : '';
+  const sku = position && position.sku ? String(position.sku).trim() : '';
+  if (productId) attempts.push({ productId });
+  if (sku) attempts.push({ sku });
+  let lastError = null;
+  for (const attempt of attempts) {
+    try {
+      return await findProductDocument(attempt);
+    } catch (err) {
+      lastError = err;
+    }
+  }
+  throw lastError || new Error('Zaehlposition ohne productId/sku');
+}
+
+// Aktuelle Menge des Produkts im gezaehlten BIN (nicht die Zaehlvorgabe!).
+function currentBinQuantity(bin, productData, productDocId) {
+  const keySet = buildProductKeySet(productData || {});
+  const normalized = normalizeKey(productDocId);
+  if (normalized) keySet.add(normalized);
+  const entries = Array.isArray(bin && bin.products) ? bin.products : [];
+  return entries
+    .filter((p) => binEntryMatchesKeySet(p, keySet))
+    .reduce((sum, p) => sum + (Number(p.quantity) || 0), 0);
+}
+
+/**
+ * Bucht EINE Zaehlposition: kompensierendes Ereignis, das den Bestand auf den
+ * Zaehlwert bringt.
+ *
+ * - `inventory.quantitySource === 'ledger'`: NIE per direktem
+ *   `inventory.quantity`-Write korrigieren (der naechste Refresh ueberschreibt
+ *   das still). Dort laeuft ein idempotentes `adjust`-Event ueber
+ *   lib/stock-ledger-correction.js, danach projiziert refreshProductInventory
+ *   aus dem Ledger.
+ * - sonst (Bin-Projektion): bookStockIn / bookStockOut aus lib/warehouse.js —
+ *   der einzige legitime Schreiber von `inventory.quantity` (CLAUDE.md Punkt 13).
+ *   Diese Route schreibt `inventory.quantity` NIE selbst.
+ *
+ * Danach: `stock:changed` + inventory_ledger via notifyStockChange und
+ * Marktplatz-Push. Eine SENKUNG ist der Oversell-relevante Fall → der Push
+ * wird abgewartet; Fehler landen im Dispatcher in `stock_operation_failures`
+ * und werden vom Drain aufgegriffen (nie destruktiv, CLAUDE.md Punkt 14).
+ */
+async function bookInventoryPosition({ tenantId, inventoryId, position, actor }) {
+  const binCode = String((position && position.binCode) || '').trim().toUpperCase();
+  // FAIL-CLOSED bei der Zaehlmenge (Abnahme-Befund 2026-07-30): `Number('')` ist 0 und
+  // haette als "gezaehlt: 0" eine VOLLSTAENDIGE Ausbuchung der Position ausgeloest —
+  // bei vielen Positionen ein Massen-Listing-Ende. Die Oberflaeche filtert Leereingaben
+  // heute, aber ein Skript, ein curl oder eine UI-Aenderung oeffnet den Pfad sofort.
+  // Deshalb wird der ROHWERT geprueft, nicht das Ergebnis von Number().
+  const rawCounted = position ? position.countedQty : undefined;
+  const countedQty = Number(rawCounted);
+  if (!binCode) return { status: 'error', message: 'Zaehlposition ohne binCode' };
+  const istEchteZahl =
+    (typeof rawCounted === 'number' && Number.isFinite(rawCounted))
+    || (typeof rawCounted === 'string' && rawCounted.trim() !== '' && Number.isFinite(Number(rawCounted)));
+  if (!istEchteZahl || !Number.isInteger(countedQty) || countedQty < 0) {
+    return { status: 'error', message: `Ungueltige gezaehlte Menge (${JSON.stringify(rawCounted)})` };
+  }
+
+  const { ref: productRef, data: productData } = await resolveInventoryPositionProduct(position);
+  const productDocId = productRef.id;
+
+  const bin = await getBinByCode(binCode);
+  if (!bin) return { status: 'error', message: `BIN ${binCode} nicht gefunden` };
+
+  const currentQty = currentBinQuantity(bin, productData, productDocId);
+  const systemQty = Number((position && position.systemQty) || 0);
+  if (currentQty !== systemQty) {
+    console.warn(
+      `[inventory-complete] ${inventoryId} ${binCode}/${productDocId}: BIN-Menge hat sich seit Zaehlbeginn ` +
+      `geaendert (Zaehlvorgabe=${systemQty}, aktuell=${currentQty}) — korrigiert wird auf den Zaehlwert ${countedQty}`
+    );
+  }
+  const delta = countedQty - currentQty;
+  if (delta === 0) return { status: 'noop', delta: 0, productId: productDocId, binCode };
+
+  const quantityBefore = Number(productData && productData.inventory && productData.inventory.quantity);
+  const ledgerSourced = String((productData && productData.inventory && productData.inventory.quantitySource) || '') === 'ledger';
+  const skuValue =
+    (productData && productData.identification && productData.identification.sku) ||
+    (productData && productData.details && productData.details.identifiers && productData.details.identifiers.sku) ||
+    (position && position.sku) ||
+    null;
+
+  let via = null;
+  let syncProduct = null;
+
+  if (ledgerSourced) {
+    const { applyLedgerCorrection } = require('../lib/stock-ledger-correction');
+    const applied = await applyLedgerCorrection(
+      {
+        tenantId,
+        productId: productDocId,
+        adjustDelta: delta,
+        // Deterministischer Key → ein zweiter Lauf bucht NICHT doppelt.
+        idempotencyKey: `adjust:inventory:${inventoryId}:${binCode}:${productDocId}`,
+        sku: skuValue,
+      },
+      { firestore }
+    );
+    via = applied && applied.applied ? 'ledger-adjust' : `ledger-adjust-${(applied && applied.reason) || 'skipped'}`;
+    await refreshProductInventory(productDocId);
+    syncProduct = await getProduct(productDocId);
+  } else if (delta > 0) {
+    const result = await bookStockIn({
+      productId: productDocId,
+      binCode,
+      quantity: delta,
+      meta: {
+        source: 'inventory',
+        action: 'inventory-correction',
+        tenantId,
+        inventoryId,
+        // Deterministische Request-Id → der Eingang ist auch bei Retry idempotent.
+        requestId: `inventory:${inventoryId}:${binCode}:${productDocId}`,
+        ...(actor ? { actor } : {}),
+      },
+    });
+    via = result && result.deduped ? 'stock-in-deduped' : 'stock-in';
+    syncProduct = result && result.product;
+  } else {
+    const result = await bookStockOut({
+      productId: productDocId,
+      binCode,
+      quantity: -delta,
+      meta: {
+        source: 'inventory',
+        action: 'inventory-correction',
+        tenantId,
+        inventoryId,
+        ...(actor ? { actor } : {}),
+      },
+    });
+    via = 'stock-out';
+    syncProduct = result && result.product;
+  }
+
+  const quantityAfter = Number(syncProduct && syncProduct.inventory && syncProduct.inventory.quantity);
+  if (Number.isFinite(quantityBefore) && Number.isFinite(quantityAfter) && quantityBefore !== quantityAfter) {
+    try {
+      const { notifyStockChange } = require('../lib/stock-change-events');
+      await notifyStockChange({
+        tenantId,
+        productId: productDocId,
+        sku: skuValue,
+        before: quantityBefore,
+        after: quantityAfter,
+        reason: `inventory-complete:${inventoryId}`,
+        source: 'routes/warehouse.inventories.complete',
+        actor,
+      });
+    } catch (err) {
+      console.warn(`[inventory-complete] notifyStockChange failed productId=${productDocId}: ${err.message}`);
+    }
+  }
+
+  if (syncProduct) {
+    const { syncStockWithRetry } = require('../services/stock-sync-dispatcher');
+    const dispatch = () =>
+      syncStockWithRetry({ tenantId, product: syncProduct, reason: 'inventory-correction' });
+    if (delta < 0) {
+      // Bestand SINKT → muss zuverlaessig bei eBay/Kaufland ankommen.
+      await dispatch().catch((err) =>
+        console.warn(`[inventory-complete] stock-sync dispatch failed productId=${productDocId}: ${err?.message || err}`)
+      );
+    } else {
+      dispatch().catch((err) =>
+        console.warn(`[inventory-complete] stock-sync dispatch failed productId=${productDocId}: ${err?.message || err}`)
+      );
+    }
+  }
+
+  return {
+    status: 'booked',
+    via,
+    delta,
+    productId: productDocId,
+    binCode,
+    countedQty,
+    quantityBefore: Number.isFinite(quantityBefore) ? quantityBefore : null,
+    quantityAfter: Number.isFinite(quantityAfter) ? quantityAfter : null,
+  };
+}
+
 // Complete an inventory
 router.post('/inventories/:id/complete', requirePermission('warehouse', 'write'), async (req, res) => {
   try {
@@ -809,18 +1048,85 @@ router.post('/inventories/:id/complete', requirePermission('warehouse', 'write')
       .filter((c) => c.variance !== null)
       .reduce((sum, c) => sum + c.variance, 0);
 
-    await docRef.update({
-      status: 'completed',
-      completedAt: new Date().toISOString(),
+    // ── Buchung der Abweichungen (Flag) ─────────────────────────────────
+    const booksEnabled = inventoryCompleteBooksEnabled();
+    const bookings = [];
+    const bookingErrors = [];
+    if (booksEnabled) {
+      const tenantId = getWarehouseTenantId(req);
+      const actor = req.user?.uid ? { uid: req.user.uid, email: req.user.email || null } : null;
+      const nowIso = new Date().toISOString();
+      for (const position of counts) {
+        if (!position || position.countedQty === null || position.countedQty === undefined) continue;
+        const variance = Number(position.countedQty) - Number(position.systemQty || 0);
+        if (!Number.isFinite(variance) || variance === 0) continue;
+        // Idempotenz je Position: ein abgebrochener Lauf wird beim naechsten
+        // `complete` fortgesetzt, bereits gebuchte Positionen bleiben unberuehrt.
+        if (position.bookedAt) {
+          bookings.push({ binCode: position.binCode, productId: position.productId, status: 'already-booked' });
+          continue;
+        }
+        try {
+          const result = await bookInventoryPosition({ tenantId, inventoryId: req.params.id, position, actor });
+          if (result.status === 'error') {
+            position.bookError = result.message;
+            position.bookErrorAt = nowIso;
+            bookingErrors.push({ binCode: position.binCode, productId: position.productId, message: result.message });
+            console.error(`[inventory-complete] ${req.params.id} position failed: ${result.message}`);
+            continue;
+          }
+          position.bookedAt = nowIso;
+          position.bookedDelta = result.delta || 0;
+          position.bookedVia = result.via || result.status;
+          position.bookedBy = actor?.uid || null;
+          position.bookError = null;
+          bookings.push({
+            binCode: result.binCode || position.binCode,
+            productId: result.productId,
+            status: result.status,
+            via: result.via || null,
+            delta: result.delta || 0,
+            quantityBefore: result.quantityBefore ?? null,
+            quantityAfter: result.quantityAfter ?? null,
+          });
+        } catch (err) {
+          position.bookError = err.message;
+          position.bookErrorAt = nowIso;
+          bookingErrors.push({ binCode: position.binCode, productId: position.productId, message: err.message });
+          console.error(`[inventory-complete] ${req.params.id} booking failed for ${position.binCode}/${position.productId}: ${err.message}`);
+        }
+      }
+    }
+
+    // Bei Buchungsfehlern bleibt die Inventur OFFEN — `complete` kann gefahrlos
+    // wiederholt werden (Positions-Marker verhindern Doppelbuchung).
+    const finalize = bookingErrors.length === 0;
+    const update = {
       summary: {
         totalItems: counts.length,
         countedItems,
         totalVariance,
         completionPct: 100,
       },
-    });
+    };
+    if (booksEnabled) {
+      update.counts = counts;
+      update.stockBookedAt = finalize ? new Date().toISOString() : null;
+    }
+    if (finalize) {
+      update.status = 'completed';
+      update.completedAt = new Date().toISOString();
+    }
+    await docRef.update(update);
 
-    res.json({ ok: true, variances, totalVariance });
+    res.json({
+      ok: true,
+      variances,
+      totalVariance,
+      booked: booksEnabled,
+      status: finalize ? 'completed' : 'active',
+      ...(booksEnabled ? { bookings, bookingErrors } : {}),
+    });
   } catch (err) {
     console.error(`[POST /api/warehouse/inventories/:id/complete] ${err.message}`, err);
     res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: err.message } });

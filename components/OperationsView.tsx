@@ -26,6 +26,24 @@ interface OperationsViewProps {
 type WorkflowMode = 'stow' | 'pick';
 type ScannerTarget = 'stowSku' | 'stowBin' | 'pickBin' | 'pickSku';
 
+// Fenster, in dem eine identische Einlagerung als Doppel-Absenden gilt und
+// verworfen wird. Enter und der Wagenrueclauf eines Handscanners koennen kurz
+// hintereinander feuern, teils erst nachdem die laufende Buchung fertig ist —
+// dann greift die In-Flight-Sperre nicht mehr. Eine ECHTE Wiederholung derselben
+// Buchung braucht eine neue Mengeneingabe und liegt jenseits dieses Fensters.
+const DUPLICATE_STOW_WINDOW_MS = 2500;
+
+/**
+ * Kennung EINER Einlager-Absicht. Der Server nutzt sie als Idempotenz-Schluessel:
+ * dieselbe Id zweimal = Wiederholung (wird verworfen), neue Id = neue Buchung.
+ * Bewusst pro Absicht neu erzeugt — NICHT pro Wiederholversuch, sonst wuerde ein
+ * echter Netz-Retry als neue Buchung durchgehen.
+ */
+const neueStowRequestId = (): string =>
+  typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+    ? `stow:${crypto.randomUUID()}`
+    : `stow:${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+
 type PickRouteTask = {
   orderId: string;
   orderNumber?: string | null;
@@ -113,6 +131,22 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
   const [isFallbackDecoding, setIsFallbackDecoding] = useState(false);
   const stowSkuRef = useRef<HTMLInputElement | null>(null);
   const stowBinRef = useRef<HTMLInputElement | null>(null);
+  // Doppel-Absenden-Sperre fuer Einlagern. Ein Ref und nicht `isSubmitting`:
+  // Enter bzw. der Wagenrueclauf eines Handscanners kann mehrfach im selben Tick
+  // feuern, in dem ein State-Update noch nicht sichtbar ist — beide Laeufe kaemen
+  // durch. `isSubmitting` bleibt fuer die UI (Button deaktivieren) zustaendig.
+  const stowSubmitInFlightRef = useRef(false);
+  // Kennung der AKTUELLEN Einlager-Absicht. Sie wird einmal erzeugt und erst nach einer
+  // ERFOLGREICHEN Buchung verworfen. Damit gilt:
+  //  - Doppelfeuer (Scanner/Enter/setTimeout) sendet dieselbe Kennung -> Server erkennt
+  //    die Wiederholung exakt und bucht nur einmal.
+  //  - Ein zweiter, echter Karton kommt nach einem Erfolg -> neue Kennung -> wird gebucht.
+  //  - Ein fehlgeschlagener Versuch behaelt die Kennung -> Wiederholung bleibt idempotent.
+  const stowRequestIdRef = useRef<string | null>(null);
+
+  // Letzte ERFOLGREICHE Einlagerung, um ein verspaetetes Doppellesen zu erkennen,
+  // das erst nach dem Freigeben der In-Flight-Sperre eintrifft.
+  const lastStowSubmitRef = useRef<{ signature: string; at: number } | null>(null);
   const [showOrdersPanel, setShowOrdersPanel] = useState<boolean>(() => !isMobile);
   const lastAutoBinRef = useRef<string | null>(null);
 
@@ -636,6 +670,29 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
       setErrorMessage(t('ops.errors.stowValidation'));
       return;
     }
+    const quantity = typeof stowQuantity === 'number' ? stowQuantity : Number(stowQuantity) || 0;
+    if (!Number.isFinite(quantity) || quantity <= 0) {
+      setErrorMessage(t('ops.errors.stowValidation'));
+      return;
+    }
+
+    // Sperre 1 — In-Flight. Deckt den Enter-/Scanner-Pfad ab, der `handleStow`
+    // bisher ohne jede Pruefung aufrief.
+    if (stowSubmitInFlightRef.current) return;
+
+    // Sperre 2 — identische Buchung im Kurzfenster. Faengt das Doppellesen, das
+    // erst NACH dem Freigeben von Sperre 1 eintrifft. Eine echte Wiederholung
+    // derselben Buchung liegt weit jenseits dieses Fensters.
+    const signature = `${(matchedStowProduct?.id || '').trim()}::${stowSku.trim().toUpperCase()}::${stowBin
+      .trim()
+      .toUpperCase()}::${quantity}`;
+    const last = lastStowSubmitRef.current;
+    if (last && last.signature === signature && Date.now() - last.at < DUPLICATE_STOW_WINDOW_MS) {
+      return;
+    }
+
+    stowSubmitInFlightRef.current = true;
+    if (!stowRequestIdRef.current) stowRequestIdRef.current = neueStowRequestId();
     try {
       setIsSubmitting(true);
       setErrorMessage(null);
@@ -643,23 +700,40 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
         sku: stowSku || undefined,
         productId: matchedStowProduct?.id,
         binCode: stowBin.toUpperCase(),
-        quantity: typeof stowQuantity === 'number' ? stowQuantity : Number(stowQuantity) || 0,
+        quantity,
         meta: {
           flow: 'stow',
         },
+        // Eine Kennung pro Einlager-Absicht. Damit erkennt der Server eine echte
+        // Doppel-Absendung exakt und muss nicht auf das unscharfe Zeitfenster
+        // zurueckfallen. Wichtig fuer den Fall "zweiter gleicher Karton in denselben
+        // Platz" — der wuerde sonst still verworfen und die Ware fehlte im System.
+        requestId: stowRequestIdRef.current,
       };
       const result = await stockInProduct(payload);
       if (!result.ok || !result.data) {
         throw new Error(result.error?.message || t('ops.errors.stow'));
       }
-      onProductUpdate(result.data.product);
+      if (result.deduped) {
+        // Der Server hat NICHTS gebucht. Nicht als Erfolg melden, sonst fehlt die Ware
+        // im Bestand und niemand merkt es.
+        throw new Error('Doppel-Absendung erkannt — es wurde NICHTS gebucht. Bestand prüfen.');
+      }
+      lastStowSubmitRef.current = { signature, at: Date.now() };
+      stowRequestIdRef.current = null; // Absicht erledigt — der naechste Karton bekommt eine neue Kennung.
+      if (result.data.product) onProductUpdate(result.data.product);
       onStockChanged?.(result.data.bin);
       setStatusMessage(
         t('ops.status.stowSuccess', {
           name: result.data.product.identification?.name || stowSku,
         })
       );
-      setStowQuantity(1);
+      // Menge LEEREN, nicht auf 1 setzen. Mit 1 blieben beide Buttons aktiv und
+      // ein versehentliches Enter haette denselben Artikel erneut gebucht. Leer
+      // heisst: die Pflichtfeld-Pruefung oben greift, es wird nichts gebucht.
+      // Die Unterscheidung "Einlagern" vs. "Einlagern & Neuer Scan" bleibt
+      // dadurch unveraendert — nur Letzteres leert SKU und Lagerplatz.
+      setStowQuantity('');
       if (resetAfter) {
         setStowSku('');
         setStowBin('');
@@ -668,6 +742,7 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
     } catch (error: any) {
       setErrorMessage(error?.message || t('ops.errors.stow'));
     } finally {
+      stowSubmitInFlightRef.current = false;
       setIsSubmitting(false);
     }
   };
@@ -1021,7 +1096,12 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
                 e.preventDefault();
-                handleStow(false);
+                // Enter kommt auch als Wagenrueclauf vom Handscanner, teils
+                // mehrfach. `isSubmitting` ist der sichtbare Zustand, der Ref in
+                // `handleStow` die eigentliche Sperre — hier beides pruefen, damit
+                // wir gar nicht erst in den Aufruf laufen.
+                if (isSubmitting || stowSubmitInFlightRef.current) return;
+                void handleStow(false);
               }
             }}
           >

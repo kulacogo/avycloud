@@ -23,6 +23,24 @@ import QuantityNumpad from './operations/QuantityNumpad';
 
 type OpsMode = 'operations' | 'operations-identify' | 'operations-stow' | 'operations-pick' | 'operations-pack';
 
+// Fenster, in dem eine identische Einlagerung als Doppel-Absenden gilt und
+// verworfen wird. Ein Handscanner kann denselben Code zweimal liefern, teils
+// erst nachdem die laufende Buchung fertig ist — dann greift die In-Flight-Sperre
+// nicht mehr. Eine ECHTE Wiederholung derselben Buchung verlangt neues Scannen
+// von SKU und Lagerplatz und liegt damit weit jenseits dieses Fensters.
+const DUPLICATE_STOW_WINDOW_MS = 2500;
+
+/**
+ * Kennung EINER Einlager-Absicht. Der Server nutzt sie als Idempotenz-Schluessel:
+ * dieselbe Id zweimal = Wiederholung (wird verworfen), neue Id = neue Buchung.
+ * Bewusst pro Absicht neu erzeugt — NICHT pro Wiederholversuch, sonst wuerde ein
+ * echter Netz-Retry als neue Buchung durchgehen.
+ */
+const neueStowRequestId = (): string =>
+  typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+    ? `stow:${crypto.randomUUID()}`
+    : `stow:${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+
 type MobilePickTask = {
   taskKey: string;
   orderId: string;
@@ -52,6 +70,10 @@ interface MobileOperationsViewProps {
   onNavigate: (view: OpsMode | 'input' | 'sheet') => void;
   onSelectProduct?: (productId: string) => void;
   onIdentify?: (groups: UploadGroupPayload[], barcodes: string, paletteCode?: string) => void;
+  // Optional, damit der Aufrufer unveraendert bleiben kann. Wird gesetzt, meldet
+  // eine erfolgreiche Einlagerung das frische Produkt nach oben — sonst bleibt die
+  // `products`-Liste alt und der Artikel sieht weiter un-eingelagert aus.
+  onProductUpdate?: (product: Product) => void;
 }
 
 const SectionTitle: React.FC<{ title: string; desc?: string }> = ({ title, desc }) => (
@@ -100,20 +122,27 @@ const ProductCard: React.FC<{ product: Product; footer?: React.ReactNode }> = ({
 );
 };
 
-const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, mode, onNavigate, onSelectProduct, onIdentify }) => {
+const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
+  products,
+  mode,
+  onNavigate,
+  onSelectProduct,
+  onIdentify,
+  onProductUpdate,
+}) => {
   const { t } = useI18n();
-  // Einlagern = Produkte mit Bestand aber ohne Lagerplatz (echte Einlager-Arbeit).
-  const stowList = useMemo(
-    () => products.filter((p) => getProductQuantity(p) > 0 && !p.storage?.binCode),
-    [products]
-  );
 
   const [stowSku, setStowSku] = useState('');
   const [stowBin, setStowBin] = useState('');
   const [stowQty, setStowQty] = useState(1);
   const [stowEntries, setStowEntries] = useState<Array<{ sku: string; bin: string; qty: number }>>([]);
   const [stowedSkus, setStowedSkus] = useState<Set<string>>(new Set());
-  const [stowMessage, setStowMessage] = useState<string | null>(null);
+  // Getrennte Kanäle: Erfolg wird als Quittung gezeigt (welche SKU, welche Menge,
+  // welcher Platz), Fehler in Danger-Ton. Vorher lief beides durch eine Variable,
+  // die immer gruen gerendert wurde — ein Fehler sah damit aus wie ein Erfolg.
+  const [stowError, setStowError] = useState<string | null>(null);
+  const [lastStow, setLastStow] = useState<{ sku: string; bin: string; qty: number; name: string } | null>(null);
+  const [stowSubmitting, setStowSubmitting] = useState(false);
 
   const [orders, setOrders] = useState<Order[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
@@ -166,6 +195,21 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
   const cameraInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
   const isUnmountedRef = useRef(false);
   const pickSubmitInFlightRef = useRef(false);
+  // Doppel-Absenden-Sperre fuer Einlagern, exakt analog zu `pickSubmitInFlightRef`.
+  // Ein Ref und kein State: der Scanner-Wagenrueclauf feuert mehrere Events im
+  // selben Tick, ein State-Update ist da noch nicht sichtbar und beide Laeufe
+  // wuerden durchrutschen.
+  const stowSubmitInFlightRef = useRef(false);
+  // Kennung der AKTUELLEN Einlager-Absicht. Sie wird einmal erzeugt und erst nach einer
+  // ERFOLGREICHEN Buchung verworfen. Damit gilt:
+  //  - Doppelfeuer (Scanner/Enter/setTimeout) sendet dieselbe Kennung -> Server erkennt
+  //    die Wiederholung exakt und bucht nur einmal.
+  //  - Ein zweiter, echter Karton kommt nach einem Erfolg -> neue Kennung -> wird gebucht.
+  //  - Ein fehlgeschlagener Versuch behaelt die Kennung -> Wiederholung bleibt idempotent.
+  const stowRequestIdRef = useRef<string | null>(null);
+
+  // Letzte ERFOLGREICHE Einlagerung, um ein verspaetetes Doppellesen zu erkennen.
+  const lastStowSubmitRef = useRef<{ signature: string; at: number } | null>(null);
   // Invisible focus target for handheld/keyboard-wedge scanners in stow/pick/pack.
   const scanCaptureRef = useRef<HTMLInputElement | null>(null);
   const scanCaptureTimerRef = useRef<number | null>(null);
@@ -216,6 +260,23 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
 
   const normalizeScan = (val?: string | null) => (val || '').replace(/\s+/g, '').toUpperCase();
   const normalizeSkuScan = (val?: string | null) => normalizeScan(val).replace(/^SKU[-_\s]*/i, '');
+
+  // Einlagern = Produkte mit Bestand aber ohne Lagerplatz (echte Einlager-Arbeit).
+  // `stowedSkus` zieht ab, was in dieser Session schon gebucht wurde: `products`
+  // kommt vom Parent und ist direkt nach einer Buchung noch alt. Ohne den Abzug
+  // bliebe der Zaehler stehen und suggeriert unerledigte Arbeit — genau das
+  // verleitet dazu, denselben Artikel ein zweites Mal einzulagern.
+  // Steht absichtlich NACH `normalizeScan` (const im Funktionskoerper -> TDZ).
+  const stowList = useMemo(
+    () =>
+      products.filter((p) => {
+        if (getProductQuantity(p) <= 0 || p.storage?.binCode) return false;
+        const key = normalizeScan(p.identification?.sku || p.details?.identifiers?.sku || '');
+        return !key || !stowedSkus.has(key);
+      }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [products, stowedSkus]
+  );
 
   const getOrderSourceId = useCallback((order: Order) => {
     const top = order.orderSourceId;
@@ -820,37 +881,91 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
     [products]
   );
 
-  const handleSubmitStow = useCallback(async () => {
-    if (!stowSku || !stowBin || stowQty <= 0) return;
-    setStowMessage(null);
-    const productMatch = resolveProductForStow(stowSku);
-    const sourcePalette = productMatch?.ops?.sourcePalette || undefined;
-    const payload = {
-      productId: productMatch?.id,
-      sku: stowSku,
-      binCode: stowBin,
-      quantity: stowQty,
-      barcode: productMatch?.identification?.barcodes?.[0] || productMatch?.details?.identifiers?.ean || undefined,
-      meta: { flow: 'stow', ...(sourcePalette ? { paletteCode: sourcePalette } : {}) },
-    };
-    const result = await stockInProduct(payload);
-    if (!result.ok) {
-      setStowMessage(result.error?.message || t('ops.errors.stow'));
-      return;
-    }
-    setStowEntries((prev) => [...prev, { sku: stowSku, bin: stowBin, qty: stowQty }]);
-    setStowedSkus((prev) => {
-      const next = new Set(prev);
-      next.add(normalizeScan(stowSku));
-      return next;
-    });
-    setStowMessage(
-      t('ops.status.stowSuccess', { name: productMatch?.identification?.name || stowSku })
-    );
-    setStowSku('');
-    setStowBin('');
-    setStowQty(1);
-  }, [resolveProductForStow, stowBin, stowQty, stowSku, t]);
+  // `override` erlaubt dem Scanner-Pfad, die eben gescannte Menge direkt
+  // mitzugeben. Ohne das buchte der verzoegerte Aufruf die Menge aus der Closure
+  // vom Zeitpunkt des Scans — also die ALTE Menge. Das ist ein echter Datenfehler,
+  // kein reines Doppelklick-Thema.
+  const handleSubmitStow = useCallback(
+    async (override?: { sku?: string; bin?: string; qty?: number }) => {
+      const sku = (override?.sku ?? stowSku).trim();
+      const bin = (override?.bin ?? stowBin).trim();
+      const qty = Number(override?.qty ?? stowQty);
+      if (!sku || !bin || !Number.isFinite(qty) || qty <= 0) return;
+
+      // Sperre 1 — In-Flight. Ein Ref, kein State: der Wagenrueclauf eines
+      // Handscanners feuert mehrere Events im selben Tick, in dem ein
+      // State-Update noch nicht sichtbar ist.
+      if (stowSubmitInFlightRef.current) return;
+
+      // Sperre 2 — identische Buchung im Kurzfenster. Faengt das Doppellesen,
+      // das erst NACH dem Freigeben von Sperre 1 eintrifft.
+      const signature = `${normalizeScan(sku)}::${normalizeScan(bin)}::${qty}`;
+      const last = lastStowSubmitRef.current;
+      if (last && last.signature === signature && Date.now() - last.at < DUPLICATE_STOW_WINDOW_MS) {
+        return;
+      }
+
+      stowSubmitInFlightRef.current = true;
+      if (!stowRequestIdRef.current) stowRequestIdRef.current = neueStowRequestId();
+      setStowSubmitting(true);
+      setStowError(null);
+      try {
+        const productMatch = resolveProductForStow(sku);
+        const sourcePalette = productMatch?.ops?.sourcePalette || undefined;
+        const payload = {
+          productId: productMatch?.id,
+          sku,
+          binCode: bin,
+          quantity: qty,
+          barcode: productMatch?.identification?.barcodes?.[0] || productMatch?.details?.identifiers?.ean || undefined,
+          meta: { flow: 'stow', ...(sourcePalette ? { paletteCode: sourcePalette } : {}) },
+          // Eine Kennung pro Einlager-Absicht. Damit erkennt der Server eine echte
+          // Doppel-Absendung exakt und muss nicht auf das unscharfe Zeitfenster
+          // zurueckfallen — zwei gleiche Kartons hintereinander bleiben so buchbar.
+          requestId: stowRequestIdRef.current,
+        };
+        const result = await stockInProduct(payload);
+        if (!result.ok) {
+          setStowError(result.error?.message || t('ops.errors.stow'));
+          return;
+        }
+        if (result.deduped) {
+          // Der Server hat NICHTS gebucht. Das muss sichtbar sein, sonst glaubt der
+          // Mitarbeiter an einen Erfolg und die Ware fehlt im System.
+          setStowError('Doppel-Absendung erkannt — es wurde NICHTS gebucht. Bestand pruefen.');
+          return;
+        }
+        lastStowSubmitRef.current = { signature, at: Date.now() };
+        stowRequestIdRef.current = null; // Absicht erledigt — der naechste Karton bekommt eine neue Kennung.
+        if (result.data?.product) onProductUpdate?.(result.data.product);
+        setStowEntries((prev) => [...prev, { sku, bin, qty }]);
+        setStowedSkus((prev) => {
+          const next = new Set(prev);
+          next.add(normalizeScan(sku));
+          return next;
+        });
+        setLastStow({
+          sku,
+          bin,
+          qty,
+          name: productMatch?.identification?.name || result.data?.product?.identification?.name || sku,
+        });
+        // Felder leeren: ein versehentliches erneutes Absenden findet keine
+        // Eingabe mehr und bucht daher nichts.
+        setStowSku('');
+        setStowBin('');
+        setStowQty(1);
+      } catch (err: any) {
+        console.error('Stow failed', err);
+        setStowError(err?.message || t('ops.errors.stow'));
+      } finally {
+        stowSubmitInFlightRef.current = false;
+        setStowSubmitting(false);
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [onProductUpdate, resolveProductForStow, stowBin, stowQty, stowSku, t]
+  );
 
   const handleScannedValue = useCallback(
     (value: string) => {
@@ -871,7 +986,12 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
           const n = Number(rawTrimmed);
           if (Number.isFinite(n) && n > 0) {
             setStowQty(n);
-            setTimeout(handleSubmitStow, 0);
+            // Menge, SKU und Platz explizit mitgeben. Der verzoegerte Aufruf darf
+            // NICHT aus der Closure lesen — die kennt die eben gescannte Menge
+            // noch nicht und wuerde die vorherige buchen.
+            setTimeout(() => {
+              void handleSubmitStow({ sku: stowSku, bin: stowBin, qty: n });
+            }, 0);
           }
         }
         return;
@@ -1413,8 +1533,43 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
       <div className="space-y-3 max-w-xl mx-auto">
         {renderScanCapture()}
         <SectionTitle title={t('ops.mode.stow')} />
+
+        {/* Quittung der letzten Einlagerung. Bleibt stehen, bis die naechste
+            gebucht wird — nur so sieht der Mitarbeiter, DASS gebucht wurde,
+            und bucht nicht aus Zweifel ein zweites Mal. */}
+        {lastStow && (
+          <div
+            role="status"
+            aria-live="polite"
+            className="rounded-2xl border border-success/30 bg-success-dim p-3 space-y-2"
+          >
+            <p className="text-sm font-semibold text-success">
+              {t('ops.status.stowSuccess', { name: lastStow.name })}
+            </p>
+            <div className="grid grid-cols-3 gap-2">
+              <div className="rounded-xl border border-app-border bg-app-bg/60 p-2">
+                <p className="text-[11px] uppercase tracking-widest text-txt-muted">{t('common.sku')}</p>
+                <p className="text-sm font-semibold text-txt-primary break-all">{lastStow.sku}</p>
+              </div>
+              <div className="rounded-xl border border-app-border bg-app-bg/60 p-2">
+                <p className="text-[11px] uppercase tracking-widest text-txt-muted">{t('common.bin')}</p>
+                <p className="text-sm font-semibold text-txt-primary break-all">{lastStow.bin}</p>
+              </div>
+              <div className="rounded-xl border border-app-border bg-app-bg/60 p-2">
+                <p className="text-[11px] uppercase tracking-widest text-txt-muted">{t('common.qty')}</p>
+                <p className="text-sm font-semibold text-txt-primary tabular-nums">{lastStow.qty}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {stowError && (
+          <div role="alert" className="rounded-2xl border border-danger/30 bg-danger-dim p-3 text-sm text-danger">
+            {stowError}
+          </div>
+        )}
+
         <div className="rounded-2xl border border-app-border bg-app-surface p-3 space-y-2">
-          {stowMessage && <p role="status" aria-live="polite" className="text-xs text-success">{stowMessage}</p>}
           {stowProduct ? <ProductCard product={stowProduct} /> : null}
           <div className="grid grid-cols-2 gap-2 text-sm text-txt-secondary">
             <div className="rounded-xl bg-app-bg/60 border border-app-border p-2">
@@ -1432,22 +1587,27 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({ products, m
           <div className="grid grid-cols-2 gap-2">
             <button
               type="button"
-              disabled={!stowSku || !stowBin || stowQty <= 0}
-              onClick={handleSubmitStow}
-              aria-label={t('ops.stow.submit')}
+              disabled={stowSubmitting || !stowSku || !stowBin || stowQty <= 0}
+              onClick={() => {
+                void handleSubmitStow();
+              }}
+              aria-label={stowSubmitting ? t('common.saving') : t('ops.stow.submit')}
+              aria-busy={stowSubmitting}
               className="rounded-xl bg-success-dim text-success font-semibold py-3 disabled:opacity-40"
             >
-              {t('ops.stow.submit')}
+              {stowSubmitting ? t('common.saving') : t('ops.stow.submit')}
             </button>
             <button
               type="button"
+              disabled={stowSubmitting}
               onClick={() => {
                 setStowSku('');
                 setStowBin('');
                 setStowQty(1);
+                setStowError(null);
               }}
               aria-label={t('common.reset')}
-              className="rounded-xl bg-app-surface text-txt-primary font-semibold py-3 border border-app-border"
+              className="rounded-xl bg-app-surface text-txt-primary font-semibold py-3 border border-app-border disabled:opacity-40"
             >
               {t('common.reset')}
             </button>
