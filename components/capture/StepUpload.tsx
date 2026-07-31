@@ -6,7 +6,7 @@ import type { CaptureUploadData, ImagePreview } from "./CaptureView";
 
 interface StepUploadProps {
   onComplete: (data: CaptureUploadData) => void;
-  paletteCode?: string;
+  lotCode?: string;
 }
 
 const createId = () =>
@@ -18,7 +18,7 @@ const MAX_FILES = 30;
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
-const StepUpload: React.FC<StepUploadProps> = ({ onComplete, paletteCode }) => {
+const StepUpload: React.FC<StepUploadProps> = ({ onComplete, lotCode }) => {
   const [images, setImages] = useState<ImagePreview[]>([]);
   const [barcodes, setBarcodes] = useState("");
   const [dragOver, setDragOver] = useState(false);
@@ -113,13 +113,13 @@ const StepUpload: React.FC<StepUploadProps> = ({ onComplete, paletteCode }) => {
         },
       ],
       barcodes: barcodes.trim(),
-      paletteCode: paletteCode || "",
+      lotCode: lotCode || "",
       allImages: images,
     });
-  }, [images, barcodes, onComplete, paletteCode]);
+  }, [images, barcodes, onComplete, lotCode]);
 
   const hasImages = images.length > 0;
-  const noPalette = !paletteCode;
+  const noLot = !lotCode;
 
   return (
     <div className="space-y-6">
@@ -277,12 +277,12 @@ const StepUpload: React.FC<StepUploadProps> = ({ onComplete, paletteCode }) => {
 
       {/* Actions */}
       <div className="flex justify-end gap-3 items-center">
-        {noPalette && (
-          <p className="text-sm text-danger">Bitte zuerst Palette auswählen</p>
+        {noLot && (
+          <p className="text-sm text-danger">Bitte zuerst Los auswählen</p>
         )}
         <Button
           onClick={handleSubmit}
-          disabled={(images.length === 0 && !barcodes.trim()) || noPalette}
+          disabled={(images.length === 0 && !barcodes.trim()) || noLot}
           iconRight={
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
               <path d="M5 12h14M12 5l7 7-7 7" />

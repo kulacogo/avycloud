@@ -164,7 +164,7 @@ const StepAnalysis: React.FC<StepAnalysisProps> = ({
               uploadData.barcodes,
               "de-DE",
               undefined,
-              uploadData.paletteCode || undefined,
+              uploadData.lotCode || undefined,
               group?.hint || undefined
             );
 
@@ -249,7 +249,7 @@ const StepAnalysis: React.FC<StepAnalysisProps> = ({
                 group.barcodes || "",
                 "de-DE",
                 undefined,
-                uploadData.paletteCode || undefined,
+                uploadData.lotCode || undefined,
                 combinedHint
               );
               if (result.ok && result.data) {

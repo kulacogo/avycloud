@@ -4,7 +4,7 @@ import { UploadGroupPayload } from "../../hooks/useIdentification";
 import { Stepper, Step } from "../ui/Stepper";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
-import PaletteSelector from "./PaletteSelector";
+import LotSelector from "./LotSelector";
 import StepUpload from "./StepUpload";
 import StepGrouping from "./StepGrouping";
 import StepAnalysis from "./StepAnalysis";
@@ -40,14 +40,14 @@ export interface ConfirmedGroup {
 export interface CaptureUploadData {
   groups: UploadGroupPayload[];
   barcodes: string;
-  paletteCode: string;
+  lotCode: string;
   allImages?: ImagePreview[];
 }
 
 const CaptureView: React.FC<CaptureViewProps> = ({ onProductCreated }) => {
   const [activeStep, setActiveStep] = useState("upload");
   const [completedSteps, setCompletedSteps] = useState<string[]>([]);
-  const [paletteCode, setPaletteCode] = useState("");
+  const [lotCode, setLotCode] = useState("");
 
   // Step data
   const [uploadData, setUploadData] = useState<CaptureUploadData | null>(null);
@@ -68,11 +68,11 @@ const CaptureView: React.FC<CaptureViewProps> = ({ onProductCreated }) => {
   // Upload → Grouping
   const handleUploadComplete = useCallback(
     (data: CaptureUploadData) => {
-      setUploadData({ ...data, paletteCode });
+      setUploadData({ ...data, lotCode });
       completeStep("upload");
       goTo("grouping");
     },
-    [completeStep, goTo, paletteCode]
+    [completeStep, goTo, lotCode]
   );
 
   // Grouping → Analysis
@@ -151,7 +151,7 @@ const CaptureView: React.FC<CaptureViewProps> = ({ onProductCreated }) => {
     setProducts([]);
     setActiveProductIndex(0);
     setAnalysisError(null);
-    setPaletteCode("");
+    setLotCode("");
   }, []);
 
   // Back navigation
@@ -184,11 +184,11 @@ const CaptureView: React.FC<CaptureViewProps> = ({ onProductCreated }) => {
 
   return (
     <div className="max-w-6xl mx-auto p-6 space-y-6">
-      {/* Header + Palette */}
+      {/* Header + Los */}
       <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
         <h1 className="text-xl font-semibold text-txt-primary">Produkt erfassen</h1>
         <div className="w-full lg:w-80">
-          <PaletteSelector value={paletteCode} onChange={setPaletteCode} />
+          <LotSelector value={lotCode} onChange={setLotCode} />
         </div>
       </div>
 
@@ -202,7 +202,7 @@ const CaptureView: React.FC<CaptureViewProps> = ({ onProductCreated }) => {
         {activeStep === "upload" && (
           <StepUpload
             onComplete={handleUploadComplete}
-            paletteCode={paletteCode}
+            lotCode={lotCode}
           />
         )}
 

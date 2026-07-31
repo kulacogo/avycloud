@@ -7,6 +7,7 @@ import {
   SerpInsight,
   WarehouseLayout,
   WarehouseBin,
+  WarehouseLot,
   IdentifyPhase,
   Order,
   ProductImage,
@@ -4797,6 +4798,95 @@ export const openBinLabelsBatchWindow = (options: {
   return openAuthedUrlInNewTab(url, { timeoutMs: 30000 });
 };
 
+// ── Los-Struktur (L-/NL-Lose, Einkaufs-Zugehörigkeit) ────────────
+
+export const fetchWarehouseLots = async (): Promise<WarehouseLot[]> => {
+  const response = await fetchApi(`${BACKEND_URL}/api/warehouse/lots`);
+  const result = await parseResponse(response);
+  if (!response.ok) {
+    throw new Error(result?.error?.message || "Lose konnten nicht geladen werden");
+  }
+  return result?.data || [];
+};
+
+export const createWarehouseLotsApi = async (payload: {
+  type: "L" | "NL";
+  month: number;
+  year: number;
+  numbers?: string;
+}): Promise<{ ok: boolean; data?: { created: string[]; skipped: string[] }; error?: { code: number; message: string } }> => {
+  let response: Response | undefined;
+  try {
+    response = await fetchApi(`${BACKEND_URL}/api/warehouse/lots`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const result = await parseResponse(response);
+    if (!response.ok) {
+      return { ok: false, error: { code: response.status, message: result?.error?.message || "Lose konnten nicht angelegt werden" } };
+    }
+    return { ok: true, data: result?.data };
+  } catch (error) {
+    const errorInfo = extractErrorInfo(error, response);
+    return { ok: false, error: errorInfo };
+  }
+};
+
+export const updateWarehouseLotApi = async (
+  code: string,
+  payload: { ekBrutto?: number | null; note?: string | null }
+): Promise<{ ok: boolean; data?: WarehouseLot; error?: { code: number; message: string } }> => {
+  let response: Response | undefined;
+  try {
+    response = await fetchApi(`${BACKEND_URL}/api/warehouse/lots/${encodeURIComponent(code)}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const result = await parseResponse(response);
+    if (!response.ok) {
+      return { ok: false, error: { code: response.status, message: result?.error?.message || "Los konnte nicht aktualisiert werden" } };
+    }
+    return { ok: true, data: result?.data };
+  } catch (error) {
+    const errorInfo = extractErrorInfo(error, response);
+    return { ok: false, error: errorInfo };
+  }
+};
+
+export const deleteWarehouseLotApi = async (
+  code: string
+): Promise<{ ok: boolean; error?: { code: number; message: string } }> => {
+  let response: Response | undefined;
+  try {
+    response = await fetchApi(`${BACKEND_URL}/api/warehouse/lots/${encodeURIComponent(code)}`, {
+      method: "DELETE",
+    });
+    if (!response.ok) {
+      const result = await parseResponse(response);
+      return { ok: false, error: { code: response.status, message: result?.error?.message || "Los konnte nicht gelöscht werden" } };
+    }
+    return { ok: true };
+  } catch (error) {
+    const errorInfo = extractErrorInfo(error, response);
+    return { ok: false, error: errorInfo };
+  }
+};
+
+export const openLotLabelsBatchWindow = (codes: string[]): { ok: boolean; error?: { code: number; message: string } } => {
+  const normalizedCodes = codes
+    .map((code) => code?.trim().toUpperCase())
+    .filter((code): code is string => Boolean(code));
+  if (!normalizedCodes.length) {
+    return { ok: false, error: { code: 400, message: "Bitte mindestens ein Los auswählen." } };
+  }
+  const params = new URLSearchParams();
+  normalizedCodes.forEach((code) => params.append("codes", code));
+  const url = `${BACKEND_URL}/api/warehouse/lots/labels.pdf?${params.toString()}`;
+  return openAuthedUrlInNewTab(url, { timeoutMs: 30000 });
+};
+
 // ── Warehouse Child-BIN (Container) ──────────────────────────────
 
 export const createChildBinApi = async (parentBinCode: string): Promise<WarehouseBin> => {
@@ -5221,7 +5311,7 @@ export const identifyProductV2 = async (
   barcodes: string,
   locale = 'de-DE',
   inventoryId?: string,
-  paletteCode?: string,
+  lotCode?: string,
   hint?: string,
   signal?: AbortSignal
 ): Promise<{ ok: boolean; data?: Product; meta?: any; error?: { code: number; message: string } }> => {
@@ -5239,15 +5329,15 @@ export const identifyProductV2 = async (
   if (inventoryId) {
     formData.append('inventoryId', inventoryId);
   }
-  if (paletteCode) {
-    formData.append('paletteCode', paletteCode);
+  if (lotCode) {
+    formData.append('lotCode', lotCode);
   }
   if (hint) {
     formData.append('hint', hint);
   }
 
   // Abort after backend wall-clock + upload slack. Backend starts
-  // IDENTIFY_TOTAL_TIMEOUT_MS (default 360s) after palette validation so V4 /
+  // IDENTIFY_TOTAL_TIMEOUT_MS (default 360s) after lot validation so V4 /
   // OCR / GCS uploads count against the same budget; keep this slightly higher
   // so the server can return 504 (IDENTIFY_TOTAL_TIMEOUT) before we abort.
   const IDENTIFY_FETCH_MS = parseInt(String(import.meta.env?.VITE_IDENTIFY_TIMEOUT_MS || ''), 10);

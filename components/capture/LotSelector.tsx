@@ -1,14 +1,21 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { fetchWarehouseBins } from "../../api/client";
-import type { WarehouseBin } from "../../types";
+import { fetchWarehouseLots } from "../../api/client";
+import type { WarehouseLot } from "../../types";
 
-interface PaletteSelectorProps {
+/**
+ * Los-Auswahl beim Erfassen (Pflicht). Ein Los ist die Einkaufs-Zugehörigkeit
+ * der Ware: L-MMYYNN (Auktions-Los) oder NL-MMYY (Non-Los). Nur Codes, die in
+ * der Los-Struktur angelegt sind, werden akzeptiert — der QR-Scan vom
+ * Rollwagen-Label liefert exakt diesen Code.
+ */
+
+interface LotSelectorProps {
   value: string;
   onChange: (code: string) => void;
 }
 
-const PaletteSelector: React.FC<PaletteSelectorProps> = ({ value, onChange }) => {
-  const [bins, setBins] = useState<WarehouseBin[]>([]);
+const LotSelector: React.FC<LotSelectorProps> = ({ value, onChange }) => {
+  const [lots, setLots] = useState<WarehouseLot[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [inputText, setInputText] = useState(value);
@@ -17,20 +24,10 @@ const PaletteSelector: React.FC<PaletteSelectorProps> = ({ value, onChange }) =>
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    // Palette zone "P" can exist across multiple floors — load all
-    const etagen = ["GA", "UG", "EG"];
-    Promise.all(etagen.map((e) => fetchWarehouseBins("P", e).catch(() => [])))
-      .then((results) => {
+    fetchWarehouseLots()
+      .then((data) => {
         if (!cancelled) {
-          const all = results.flat().filter(Boolean);
-          // Deduplicate by code (shouldn't happen, but safe)
-          const seen = new Set<string>();
-          const unique = all.filter((b) => {
-            if (seen.has(b.code)) return false;
-            seen.add(b.code);
-            return true;
-          });
-          setBins(unique);
+          setLots(data);
           setLoading(false);
         }
       })
@@ -56,23 +53,23 @@ const PaletteSelector: React.FC<PaletteSelectorProps> = ({ value, onChange }) =>
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  const isValid = value !== "" && bins.some((b) => b.code === value);
-  const filtered = bins.filter((b) =>
-    b.code.toLowerCase().includes(inputText.toLowerCase())
+  const isValid = value !== "" && lots.some((l) => l.code === value);
+  const filtered = lots.filter((l) =>
+    l.code.toLowerCase().includes(inputText.toLowerCase())
   );
 
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const upper = e.target.value.toUpperCase();
     setInputText(upper);
     setOpen(true);
-    // Auto-select if exact match typed
-    if (bins.some((b) => b.code === upper)) {
+    // Auto-select if exact match typed/scanned
+    if (lots.some((l) => l.code === upper)) {
       onChange(upper);
     } else {
       // Clear parent value — only valid codes propagate
       onChange("");
     }
-  }, [bins, onChange]);
+  }, [lots, onChange]);
 
   const handleSelect = useCallback((code: string) => {
     setInputText(code);
@@ -89,42 +86,47 @@ const PaletteSelector: React.FC<PaletteSelectorProps> = ({ value, onChange }) =>
   return (
     <div ref={containerRef} className="relative">
       <label className="block text-xs font-semibold text-txt-muted mb-1">
-        Palette (Pflicht)
+        Los (Pflicht)
       </label>
       <input
         type="text"
         autoComplete="off"
         className={`w-full rounded-xl bg-app-bg border ${borderClass} px-3 py-2 text-sm text-txt-primary placeholder:text-txt-muted/50 focus:outline-none focus:ring-2 focus:ring-accent/40`}
-        placeholder={loading ? "Paletten werden geladen..." : "Palette eingeben (z.B. PEG001)"}
+        placeholder={loading ? "Lose werden geladen..." : "Los scannen/eingeben (z.B. L-072612 oder NL-0726)"}
         value={inputText}
         onChange={handleInputChange}
         onFocus={() => setOpen(true)}
         disabled={loading}
       />
       {isValid && (
-        <p className="text-xs text-success mt-1">Palette {value} ausgewählt</p>
+        <p className="text-xs text-success mt-1">Los {value} ausgewählt</p>
       )}
       {inputText && !isValid && (
-        <p className="text-xs text-danger mt-1">Palette nicht gefunden — bitte aus der Liste wählen</p>
+        <p className="text-xs text-danger mt-1">
+          Los nicht gefunden — bitte aus der Liste wählen oder unter Lager → Los-Struktur anlegen
+        </p>
       )}
       {!inputText && (
-        <p className="text-xs text-txt-muted mt-1">Bitte Quell-Palette auswählen</p>
+        <p className="text-xs text-txt-muted mt-1">Bitte Los auswählen (Wareneingangs-Zugehörigkeit)</p>
       )}
 
       {/* Autocomplete dropdown */}
       {open && !loading && filtered.length > 0 && (
         <div className="absolute z-20 mt-1 w-full max-h-48 overflow-y-auto rounded-xl border border-app-border bg-app-bg shadow-lg shadow-black/20">
-          {filtered.map((bin) => (
+          {filtered.map((lot) => (
             <button
-              key={bin.code}
+              key={lot.code}
               type="button"
-              onClick={() => handleSelect(bin.code)}
+              onClick={() => handleSelect(lot.code)}
               className={`w-full text-left px-3 py-2 text-sm hover:bg-accent/10 transition-colors ${
-                bin.code === value ? "text-accent font-medium bg-accent/5" : "text-txt-primary"
+                lot.code === value ? "text-accent font-medium bg-accent/5" : "text-txt-primary"
               }`}
             >
-              <span className="font-mono">{bin.code}</span>
-              <span className="text-txt-muted ml-2">Etage {bin.etage}</span>
+              <span className="font-mono">{lot.code}</span>
+              <span className="text-txt-muted ml-2">
+                {lot.type === "L" ? "Auktion" : "Non-Los"}
+                {typeof lot.productCount === "number" ? ` · ${lot.productCount} Produkte` : ""}
+              </span>
             </button>
           ))}
         </div>
@@ -133,4 +135,4 @@ const PaletteSelector: React.FC<PaletteSelectorProps> = ({ value, onChange }) =>
   );
 };
 
-export default PaletteSelector;
+export default LotSelector;

@@ -110,7 +110,7 @@ export const useIdentification = (options?: UseIdentificationOptions) => {
       barcodes: string,
       inventoryId?: string | null,
       inventoryName?: string | null,
-      paletteCode?: string | null
+      lotCode?: string | null
     ): Promise<void> => {
       const localId = createLocalId();
       const startedAt = new Date().toISOString();
@@ -145,7 +145,7 @@ export const useIdentification = (options?: UseIdentificationOptions) => {
             barcodes,
             'de-DE',
             inventoryId || undefined,
-            paletteCode || undefined,
+            lotCode || undefined,
             group.hint || undefined,
             controller.signal
           );
@@ -241,7 +241,7 @@ export const useIdentification = (options?: UseIdentificationOptions) => {
       barcodes: string,
       inventoryId?: string | null,
       inventoryName?: string | null,
-      paletteCode?: string | null
+      lotCode?: string | null
     ) => {
       const prepared = groups.filter((group) => group.images.length > 0);
       const hasBarcodes = Boolean(barcodes && barcodes.trim());
@@ -290,7 +290,7 @@ export const useIdentification = (options?: UseIdentificationOptions) => {
           const group = queue.shift();
           if (!group) break;
           const groupBarcodes = isSingleGroup || group.id === 'barcode-only' ? barcodes : '';
-          await startJobForGroup(group, groupBarcodes, inventoryId, inventoryName, paletteCode);
+          await startJobForGroup(group, groupBarcodes, inventoryId, inventoryName, lotCode);
         }
       };
 
