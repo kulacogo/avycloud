@@ -4800,8 +4800,8 @@ export const openBinLabelsBatchWindow = (options: {
 
 // ── Los-Struktur (L-/NL-Lose, Einkaufs-Zugehörigkeit) ────────────
 
-export const fetchWarehouseLots = async (): Promise<WarehouseLot[]> => {
-  const response = await fetchApi(`${BACKEND_URL}/api/warehouse/lots`);
+export const fetchWarehouseLots = async (withCounts = false): Promise<WarehouseLot[]> => {
+  const response = await fetchApi(`${BACKEND_URL}/api/warehouse/lots${withCounts ? "?withCounts=1" : ""}`);
   const result = await parseResponse(response);
   if (!response.ok) {
     throw new Error(result?.error?.message || "Lose konnten nicht geladen werden");

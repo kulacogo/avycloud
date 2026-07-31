@@ -24,6 +24,24 @@ const formatEk = (value: number | null | undefined): string => {
   return value.toLocaleString("de-DE", { style: "currency", currency: "EUR" });
 };
 
+// Deutsch-bewusstes Zahlen-Parsing: "14.000" ist vierzehntausend, nicht 14.
+// "1.234,56" → 1234.56; "14000" und "140,50" funktionieren ebenso.
+// Rückgabe: number | null (leer) | undefined (ungültig).
+const parseEkInput = (raw: string): number | null | undefined => {
+  const trimmed = raw.trim();
+  if (trimmed === "") return null;
+  let normalized = trimmed.replace(/\s/g, "").replace(/€/g, "");
+  if (normalized.includes(",")) {
+    normalized = normalized.replace(/\./g, "").replace(",", ".");
+  } else if (/^\d{1,3}(\.\d{3})+$/.test(normalized)) {
+    normalized = normalized.replace(/\./g, "");
+  }
+  if (!/^\d+(\.\d+)?$/.test(normalized)) return undefined;
+  const value = Number(normalized);
+  if (!Number.isFinite(value) || value < 0) return undefined;
+  return value;
+};
+
 const LotStructureTab: React.FC = () => {
   const now = new Date();
   const [lots, setLots] = useState<WarehouseLot[]>([]);
@@ -54,7 +72,7 @@ const LotStructureTab: React.FC = () => {
   const loadLots = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await fetchWarehouseLots();
+      const data = await fetchWarehouseLots(true);
       setLots(data);
       setSelectedCodes((prev) => {
         if (!prev.size) return prev;
@@ -138,10 +156,9 @@ const LotStructureTab: React.FC = () => {
     async (lot: WarehouseLot) => {
       const draft = ekDrafts[lot.code];
       if (draft === undefined) return;
-      const trimmed = draft.trim().replace(",", ".");
-      const value = trimmed === "" ? null : Number(trimmed);
-      if (value !== null && (!Number.isFinite(value) || value < 0)) {
-        setStatusMessage("EK (brutto) muss eine Zahl ≥ 0 sein.");
+      const value = parseEkInput(draft);
+      if (value === undefined) {
+        setStatusMessage("EK (brutto) nicht lesbar — bitte z.B. „14000“ oder „14.000,00“ eingeben.");
         return;
       }
       setSavingEkCode(lot.code);
@@ -359,7 +376,7 @@ const LotStructureTab: React.FC = () => {
                       <td className="py-2 pr-4 text-txt-secondary">
                         {lot.month ? String(lot.month).padStart(2, "0") : "—"}/{lot.year ?? "—"}
                       </td>
-                      <td className="py-2 pr-4 text-txt-secondary">{lot.productCount ?? 0}</td>
+                      <td className="py-2 pr-4 text-txt-secondary">{lot.productCount ?? "?"}</td>
                       <td className="py-2 pr-4">
                         <div className="flex items-center gap-2">
                           <input
@@ -401,12 +418,14 @@ const LotStructureTab: React.FC = () => {
                         <button
                           type="button"
                           onClick={() => handleDelete(lot)}
-                          disabled={(lot.productCount ?? 0) > 0}
+                          disabled={lot.productCount !== 0}
                           className="px-2 py-1 text-xs rounded-lg bg-danger/15 text-danger hover:bg-danger/25 disabled:opacity-30"
                           title={
-                            (lot.productCount ?? 0) > 0
-                              ? "Nicht löschbar: Produkte zugeordnet"
-                              : "Los löschen"
+                            lot.productCount === 0
+                              ? "Los löschen"
+                              : lot.productCount == null
+                              ? "Nicht löschbar: Produktanzahl unbekannt"
+                              : "Nicht löschbar: Produkte zugeordnet"
                           }
                         >
                           Löschen

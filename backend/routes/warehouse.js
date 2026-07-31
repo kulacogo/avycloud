@@ -244,7 +244,9 @@ router.get('/zones/:zone/:etage', requirePermission('warehouse', 'read'), async 
 router.get('/lots', requirePermission('warehouse', 'read'), async (req, res) => {
   try {
     const tenantId = req.user?.tenantId || 'default';
-    const lots = await listLots({ tenantId });
+    // Counts sind teuer (eine Aggregation je Los) — nur auf Anfrage (Los-Struktur-Tab).
+    const withCounts = parseTruthy(req.query?.withCounts);
+    const lots = await listLots({ tenantId, withCounts });
     res.json({ ok: true, data: lots });
   } catch (err) {
     console.error(`[GET /api/warehouse/lots] ${err.message}`, err);

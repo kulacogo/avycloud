@@ -220,6 +220,14 @@ function postIdentify(body = {}) {
 // ─── 5) Tests ───────────────────────────────────────────────────────────────
 
 describe('POST /api/v2/identify — V4 branch routing', () => {
+  it('rejects malformed lot codes with 400 LOT_NOT_FOUND instead of crashing .doc()', async () => {
+    // Gescannter URL-QR im freien Mobile-Los-Feld: '/' ist pfad-ungültig für
+    // Firestore-Doc-IDs — ohne Format-Guard würde .doc() synchron werfen (500).
+    const res = await postIdentify({ lotCode: 'HTTPS://X.COM/ABC' });
+    expect(res.status).toBe(400);
+    expect(res.body?.error?.code).toBe('LOT_NOT_FOUND');
+  });
+
   beforeEach(() => {
     resetSpies();
     delete process.env.IDENTIFY_V4;

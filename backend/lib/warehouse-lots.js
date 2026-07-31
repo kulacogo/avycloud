@@ -144,8 +144,12 @@ function parseLotNumberSelection(input) {
  * Altbestände tragen nicht garantiert ein tenantId-Feld — ein zusätzlicher
  * tenantId-Filter würde solche Docs still unterschlagen. Single-Tenant-
  * Realität (alle Prod-Daten tenantId='default', siehe Projekt-Memory).
+ *
+ * Fehlermodi: strict=true wirft (Lösch-Guard MUSS fail-closed sein),
+ * sonst null ("unbekannt", NICHT 0 — die UI darf bei unbekanntem Count
+ * keinen Löschen-Button freischalten).
  */
-async function countProductsForLot(code) {
+async function countProductsForLot(code, { strict = false } = {}) {
   try {
     const snap = await productsCollection
       .where('ops.sourceLot', '==', code)
@@ -153,8 +157,11 @@ async function countProductsForLot(code) {
       .get();
     return snap.data().count || 0;
   } catch (err) {
+    if (strict) {
+      throw new Error(`Produktzählung für Los ${code} fehlgeschlagen — Aktion abgebrochen (${err.message}).`);
+    }
     console.warn(`[warehouse-lots] count für ${code} fehlgeschlagen: ${err.message}`);
-    return 0;
+    return null;
   }
 }
 
@@ -224,9 +231,11 @@ async function createLots({ type, month, year, numbers, tenantId = 'default', cr
 
 /**
  * Alle Lose eines Tenants, neueste zuerst (Jahr/Monat absteigend, L vor NL,
- * Nummern aufsteigend), inkl. productCount.
+ * Nummern aufsteigend). withCounts=true ergänzt productCount (null = Zählung
+ * fehlgeschlagen, "unbekannt"); Counts laufen gedrosselt in 20er-Chunks statt
+ * als unbegrenzter Fan-out (bis zu 200 Lose je Monat möglich).
  */
-async function listLots({ tenantId = 'default' } = {}) {
+async function listLots({ tenantId = 'default', withCounts = true } = {}) {
   const snapshot = await lotsCollection.where('tenantId', '==', tenantId).get();
   const lots = snapshot.docs.map(lotDocToJson);
   lots.sort((a, b) => {
@@ -235,7 +244,15 @@ async function listLots({ tenantId = 'default' } = {}) {
     if (a.type !== b.type) return a.type === 'L' ? -1 : 1;
     return (a.number || 0) - (b.number || 0);
   });
-  const counts = await Promise.all(lots.map((lot) => countProductsForLot(lot.code)));
+  if (!withCounts) return lots;
+  const counts = [];
+  const chunkSize = 20;
+  for (let i = 0; i < lots.length; i += chunkSize) {
+    const chunk = lots.slice(i, i + chunkSize);
+    // eslint-disable-next-line no-await-in-loop
+    const chunkCounts = await Promise.all(chunk.map((lot) => countProductsForLot(lot.code)));
+    counts.push(...chunkCounts);
+  }
   return lots.map((lot, i) => ({ ...lot, productCount: counts[i] }));
 }
 
@@ -289,7 +306,10 @@ async function updateLot(code, { ekBrutto, note } = {}) {
 }
 
 /**
- * Löscht ein Los — fail-closed: nur wenn KEIN Produkt zugeordnet ist.
+ * Löscht ein Los — fail-closed: nur wenn die Produktzählung ERFOLGREICH war
+ * und KEIN Produkt zugeordnet ist. Ein count()-Fehler wirft (strict) statt
+ * still 0 zu melden — sonst würde eine transiente Firestore-Störung ein Los
+ * samt ekBrutto/EK-Basis freigeben.
  */
 async function deleteLot(code) {
   const parsed = parseLotCode(code);
@@ -297,7 +317,7 @@ async function deleteLot(code) {
   const ref = lotsCollection.doc(parsed.code);
   const snap = await ref.get();
   if (!snap.exists) throw new Error(`Los ${parsed.code} existiert nicht.`);
-  const productCount = await countProductsForLot(parsed.code);
+  const productCount = await countProductsForLot(parsed.code, { strict: true });
   if (productCount > 0) {
     throw new Error(`Los ${parsed.code} hat ${productCount} zugeordnete Produkte und kann nicht gelöscht werden.`);
   }

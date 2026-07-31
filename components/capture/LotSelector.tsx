@@ -17,6 +17,8 @@ interface LotSelectorProps {
 const LotSelector: React.FC<LotSelectorProps> = ({ value, onChange }) => {
   const [lots, setLots] = useState<WarehouseLot[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
   const [open, setOpen] = useState(false);
   const [inputText, setInputText] = useState(value);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -24,6 +26,7 @@ const LotSelector: React.FC<LotSelectorProps> = ({ value, onChange }) => {
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
+    setLoadError(false);
     fetchWarehouseLots()
       .then((data) => {
         if (!cancelled) {
@@ -32,10 +35,15 @@ const LotSelector: React.FC<LotSelectorProps> = ({ value, onChange }) => {
         }
       })
       .catch(() => {
-        if (!cancelled) setLoading(false);
+        // Fehler NICHT verschlucken: sonst blockiert ein transienter Ausfall
+        // (z.B. Deploy-Fenster) gültige Scans mit irreführendem "nicht gefunden".
+        if (!cancelled) {
+          setLoadError(true);
+          setLoading(false);
+        }
       });
     return () => { cancelled = true; };
-  }, []);
+  }, [reloadKey]);
 
   // Sync inputText when value changes externally (e.g. reset)
   useEffect(() => {
@@ -98,15 +106,27 @@ const LotSelector: React.FC<LotSelectorProps> = ({ value, onChange }) => {
         onFocus={() => setOpen(true)}
         disabled={loading}
       />
-      {isValid && (
+      {loadError && (
+        <p className="text-xs text-danger mt-1">
+          Lose konnten nicht geladen werden.{" "}
+          <button
+            type="button"
+            className="underline hover:text-txt-primary"
+            onClick={() => setReloadKey((k) => k + 1)}
+          >
+            Erneut laden
+          </button>
+        </p>
+      )}
+      {!loadError && isValid && (
         <p className="text-xs text-success mt-1">Los {value} ausgewählt</p>
       )}
-      {inputText && !isValid && (
+      {!loadError && inputText && !isValid && (
         <p className="text-xs text-danger mt-1">
           Los nicht gefunden — bitte aus der Liste wählen oder unter Lager → Los-Struktur anlegen
         </p>
       )}
-      {!inputText && (
+      {!loadError && !inputText && (
         <p className="text-xs text-txt-muted mt-1">Bitte Los auswählen (Wareneingangs-Zugehörigkeit)</p>
       )}
 

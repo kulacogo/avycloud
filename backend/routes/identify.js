@@ -259,8 +259,24 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
       });
     }
 
+    // Format-Guard VOR dem Firestore-Lookup: .doc() wirft synchron bei
+    // pfad-ungültigen IDs (z.B. gescannte URL-QRs mit '/'), das würde als
+    // 500 statt als handlungsleitende 400 enden. Format-Fremdes kann per
+    // buildLotCode-Konstruktion ohnehin kein existierendes Los sein.
+    const { parseLotCode } = require('../lib/warehouse-lots');
+    const parsedLot = parseLotCode(lotCode);
+    if (!parsedLot) {
+      return res.status(400).json({
+        ok: false,
+        error: {
+          code: 'LOT_NOT_FOUND',
+          message: `Los ${lotCode} existiert nicht. Bitte in der Lagerverwaltung unter „Los-Struktur" anlegen — oder die App neu laden, falls hier noch ein alter Paletten-Code gesendet wird.`,
+        },
+      });
+    }
+
     // Validate lot exists in warehouse_lots
-    const lotSnap = await firestore.collection('warehouse_lots').doc(lotCode).get();
+    const lotSnap = await firestore.collection('warehouse_lots').doc(parsedLot.code).get();
     if (!lotSnap.exists) {
       return res.status(400).json({
         ok: false,

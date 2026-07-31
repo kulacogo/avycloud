@@ -9,6 +9,9 @@ import { compressImagesForUpload } from "../../utils/imageCompress";
 import { beginIdentifyRun } from "../../utils/identifyRunFlag";
 
 interface StepAnalysisProps {
+  /** Live-Los aus CaptureView — gewinnt über den Snapshot in uploadData,
+   *  damit ein Los-Wechsel nach dem Upload-Schritt nicht still ignoriert wird. */
+  lotCode?: string;
   uploadData: CaptureUploadData;
   onComplete: (products: Product | Product[]) => void;
   onError: (error: string) => void;
@@ -68,6 +71,7 @@ const formatIdentifyError = (
 
 const StepAnalysis: React.FC<StepAnalysisProps> = ({
   uploadData,
+  lotCode,
   onComplete,
   onError,
   onBack,
@@ -164,7 +168,7 @@ const StepAnalysis: React.FC<StepAnalysisProps> = ({
               uploadData.barcodes,
               "de-DE",
               undefined,
-              uploadData.lotCode || undefined,
+              lotCode || uploadData.lotCode || undefined,
               group?.hint || undefined
             );
 
@@ -249,7 +253,7 @@ const StepAnalysis: React.FC<StepAnalysisProps> = ({
                 group.barcodes || "",
                 "de-DE",
                 undefined,
-                uploadData.lotCode || undefined,
+                lotCode || uploadData.lotCode || undefined,
                 combinedHint
               );
               if (result.ok && result.data) {

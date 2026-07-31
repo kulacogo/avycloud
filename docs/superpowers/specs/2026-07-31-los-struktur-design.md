@@ -120,7 +120,11 @@ Produkte erhalten (additiv): `ops.sourceLot` (string) + `ops.sourceLotAt` (ISO).
 
 ## Rollout-Reihenfolge
 
-1. Merge auf `main` → Backend (Cloud Build web+worker) + Frontend (GH Actions) deployen zusammen.
+1. Merge auf `main` → Backend (Cloud Build web+worker) + Frontend (GH Actions) starten zusammen.
+   **Bekanntes Skew-Fenster:** Das Frontend ist typischerweise Minuten vor dem Backend live;
+   in dieser Zeit antwortet das alte Backend auf `lotCode`-Requests mit `PALETTE_REQUIRED`.
+   Selbstheilend nach Backend-Deploy; der LotSelector zeigt Ladefehler mit „Erneut laden".
+   Rollout deshalb in ruhiger Zeit fahren und Backend-`/health` vor dem ersten Erfassen prüfen.
 2. `cleanup-palette-bins.js` dry-run → apply (PEG-Bins sind laut UI leer: 10 Bins, 0 Produkte).
 3. `assign-initial-lot.js` dry-run → apply.
 4. Offene alte Browser-Tabs müssen einmal neu laden (alte Bundles senden `paletteCode`,

@@ -218,6 +218,7 @@ const CaptureView: React.FC<CaptureViewProps> = ({ onProductCreated }) => {
         {activeStep === "analysis" && uploadData && (
           <StepAnalysis
             uploadData={uploadData}
+            lotCode={lotCode}
             onComplete={handleAnalysisComplete}
             onError={handleAnalysisError}
             onBack={handleStepBack}

@@ -105,8 +105,11 @@ async function main() {
   let alreadySet = 0;
   let toSet = 0;
   let hadPalette = 0;
+  let otherLot = 0;
+  let otherLotCleaned = 0;
   let written = 0;
   const paletteSamples = new Map();
+  const otherLotSamples = new Map();
 
   const bulkWriter = APPLY ? firestore.bulkWriter() : null;
   if (bulkWriter) {
@@ -138,6 +141,25 @@ async function main() {
         hadPalette += 1;
         paletteSamples.set(sourcePalette, (paletteSamples.get(sourcePalette) || 0) + 1);
       }
+      // GUARD: Produkte, die bereits ein ANDERES Los tragen, werden NIE
+      // umgebucht (Re-Run-Sicherheit) — nur ihre Alt-Paletten-Marker werden
+      // geleert. Umbuchen bleibt eine bewusste manuelle Aktion.
+      if (sourceLot && sourceLot !== parsed.code) {
+        otherLot += 1;
+        otherLotSamples.set(sourceLot, (otherLotSamples.get(sourceLot) || 0) + 1);
+        const needsPaletteClear = sourcePalette !== null || (ops.sourcePaletteAt || null) !== null;
+        if (needsPaletteClear) {
+          otherLotCleaned += 1;
+          if (bulkWriter) {
+            bulkWriter.update(doc.ref, {
+              'ops.sourcePalette': null,
+              'ops.sourcePaletteAt': null,
+            });
+          }
+        }
+        continue;
+      }
+
       const needsUpdate = sourceLot !== parsed.code || sourcePalette !== null || (ops.sourcePaletteAt || null) !== null;
       if (!needsUpdate) {
         alreadySet += 1;
@@ -166,6 +188,10 @@ async function main() {
   console.log(`Bereits auf ${parsed.code}:     ${alreadySet}`);
   console.log(`${APPLY ? 'Aktualisiert' : 'Würden aktualisiert'}:        ${APPLY ? written : toSet}`);
   console.log(`Hatten Alt-Paletten-Marker: ${hadPalette}`);
+  if (otherLot) {
+    const top = [...otherLotSamples.entries()].sort((a, b) => b[1] - a[1]).slice(0, 10);
+    console.log(`Tragen bereits ANDERES Los:  ${otherLot} — NICHT umgebucht (${top.map(([c, n]) => `${c}×${n}`).join(', ')}); Paletten-Marker geleert bei ${otherLotCleaned}.`);
+  }
   if (paletteSamples.size) {
     const top = [...paletteSamples.entries()].sort((a, b) => b[1] - a[1]).slice(0, 10);
     console.log(`Paletten-Verteilung (Top):  ${top.map(([c, n]) => `${c}×${n}`).join(', ')}`);
