@@ -5,7 +5,7 @@ const firestore = new Firestore({
   projectId: process.env.GOOGLE_CLOUD_PROJECT || 'avycloud',
 });
 
-const ZONES = ['X', 'XS', 'S', 'M', 'L', 'XL', 'XQ', 'P'];
+const ZONES = ['X', 'XS', 'S', 'M', 'L', 'XL', 'XQ'];
 const ETAGEN = ['GA', 'UG', 'EG'];
 const MIN_GANG = 1;
 const MAX_GANG = 10;
@@ -401,95 +401,9 @@ function parseLetterSelection(input, minChar = 'A', maxChar = 'E') {
   throw new Error('Bitte einen Buchstaben oder einen Bereich im Format "A-E" angeben.');
 }
 
-/**
- * Create palette bins with sequential numbering (P-zone special logic).
- * Format: P{ETAGE}{NNN} e.g. PGA001, PGA002, ...
- */
-async function createPaletteBins(etage, count) {
-  if (!ETAGEN.includes(etage)) throw new Error(`Ungültige Etage. Erlaubt sind ${ETAGEN.join(', ')}.`);
-  if (!Number.isInteger(count) || count < 1 || count > 100) {
-    throw new Error('Bitte eine Anzahl zwischen 1 und 100 für neue Paletten angeben.');
-  }
-
-  // Find the highest existing palette number for this etage
-  // Use simple where('zone') only — avoids composite index requirement (FAILED_PRECONDITION).
-  // Filter etage + find max paletteNumber client-side (palette count is always small).
-  const prefix = `P${etage}`;
-  const existing = await binsCollection
-    .where('zone', '==', 'P')
-    .get();
-
-  let startNumber = 1;
-  let maxNum = 0;
-  existing.docs.forEach((doc) => {
-    const d = doc.data() || {};
-    if (d.etage === etage && typeof d.paletteNumber === 'number' && d.paletteNumber > maxNum) {
-      maxNum = d.paletteNumber;
-    }
-  });
-  if (maxNum > 0) startNumber = maxNum + 1;
-
-  const combinations = [];
-  for (let i = 0; i < count; i++) {
-    const num = startNumber + i;
-    const code = `${prefix}${String(num).padStart(3, '0')}`;
-    combinations.push({
-      code,
-      zone: 'P',
-      etage,
-      gang: 0,
-      regal: 0,
-      ebene: '-',
-      paletteNumber: num,
-      createdAt: Timestamp.now(),
-      productCount: 0,
-      products: [],
-      firstStoredAt: null,
-      lastStoredAt: null,
-    });
-  }
-
-  const chunkSize = 400;
-  for (let i = 0; i < combinations.length; i += chunkSize) {
-    const batch = firestore.batch();
-    const slice = combinations.slice(i, i + chunkSize);
-    slice.forEach((bin) => {
-      batch.set(binsCollection.doc(bin.code), bin, { merge: true });
-    });
-    await batch.commit();
-  }
-
-  // Update or create zone doc
-  const zoneDocRef = zonesCollection.doc(`P_${etage}`);
-  const zoneSnap = await zoneDocRef.get();
-  const prevCount = zoneSnap.exists ? (zoneSnap.data().binCount || 0) : 0;
-
-  await zoneDocRef.set(
-    {
-      zone: 'P',
-      etage,
-      gangs: [],
-      regale: [],
-      ebenen: [],
-      isPalette: true,
-      binCount: prevCount + count,
-      createdAt: Timestamp.now(),
-    },
-    { merge: true }
-  );
-
-  return { zone: 'P', etage, binCount: count, totalBins: prevCount + count, startNumber, endNumber: startNumber + count - 1 };
-}
-
 async function createWarehouseLayout({ zone, etage, gangRange, regalRange, ebeneRange }) {
   if (!ZONES.includes(zone)) throw new Error(`Ungültige Zone. Erlaubt sind ${ZONES.join(', ')}.`);
   if (!ETAGEN.includes(etage)) throw new Error(`Ungültige Etage. Erlaubt sind ${ETAGEN.join(', ')}.`);
-
-  // Zone P = Palette: gangRange is count of palettes, regale/ebene ignored
-  if (zone === 'P') {
-    const count = parseInt(gangRange, 10);
-    return createPaletteBins(etage, count);
-  }
 
   const gangs = parseNumericSelection(gangRange, MIN_GANG, MAX_GANG);
   const regale = parseNumericSelection(regalRange, MIN_REGAL, MAX_REGAL);
