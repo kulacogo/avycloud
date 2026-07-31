@@ -703,6 +703,7 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
         quantity,
         meta: {
           flow: 'stow',
+          ...(matchedStowProduct?.ops?.sourceLot ? { lotCode: matchedStowProduct.ops.sourceLot } : {}),
         },
         // Eine Kennung pro Einlager-Absicht. Damit erkennt der Server eine echte
         // Doppel-Absendung exakt und muss nicht auf das unscharfe Zeitfenster

@@ -1911,13 +1911,13 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
             <button onClick={handleAssignBin} disabled={isAssigningBin} className="px-3 py-1.5 text-sm bg-accent-dim text-accent rounded-lg hover:bg-accent/20 disabled:opacity-40">{isAssigningBin ? t('sheet.storage.assigning') : t('sheet.storage.assign')}</button>
             {binCodeInput && <button onClick={handleRemoveBin} disabled={isAssigningBin || isRemovingBin} className="px-3 py-1.5 text-sm bg-danger/20 text-danger rounded-lg hover:bg-danger/30 disabled:opacity-40">{t('sheet.storage.remove')}</button>}
           </div>
-          {localProduct.ops?.sourcePalette && (
+          {localProduct.ops?.sourceLot && (
             <div className="mt-3 px-3 py-2 rounded-lg bg-app-elevated border border-app-border text-sm">
-              <span className="text-txt-muted">Palette: </span>
-              <span className="font-semibold text-txt-primary">{localProduct.ops.sourcePalette}</span>
-              {localProduct.ops.sourcePaletteAt && (
+              <span className="text-txt-muted">Los: </span>
+              <span className="font-semibold text-txt-primary">{localProduct.ops.sourceLot}</span>
+              {localProduct.ops.sourceLotAt && (
                 <span className="text-txt-muted text-xs ml-2">
-                  (seit {new Date(localProduct.ops.sourcePaletteAt).toLocaleDateString('de-DE')})
+                  (seit {new Date(localProduct.ops.sourceLotAt).toLocaleDateString('de-DE')})
                 </span>
               )}
             </div>

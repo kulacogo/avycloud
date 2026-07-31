@@ -18,7 +18,7 @@ Multi-Step-Wizard zur Produkt-Erfassung über Foto-Upload, Barcode-Scan oder bei
 - [components/capture/StepChannels.tsx](../../../components/capture/StepChannels.tsx) — Auswahl Marketplaces (eBay/Kaufland).
 - [components/capture/StepPricing.tsx](../../../components/capture/StepPricing.tsx) — Preisvorschlag / Override (`useSweetSpotPricer` server-side).
 - [components/capture/StepSummary.tsx](../../../components/capture/StepSummary.tsx) — Abschluss & Save.
-- [components/capture/PaletteSelector.tsx](../../../components/capture/PaletteSelector.tsx) — Optional: Paletten-Identifikation (Multi-SKU pro Foto).
+- [components/capture/LotSelector.tsx](../../../components/capture/LotSelector.tsx) — Pflicht: Los-Auswahl (Einkaufs-Zugehörigkeit, `L-MMYYNN`/`NL-MMYY`; Lose werden unter Lager → Los-Struktur angelegt).
 
 ## API-Calls
 

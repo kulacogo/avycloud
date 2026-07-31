@@ -244,8 +244,8 @@ export interface Ops {
     kaufland?: 'active' | 'inactive' | 'not_listed';
     lastSyncAt?: string | null;
   };
-  sourcePalette?: string | null;
-  sourcePaletteAt?: string | null;
+  sourceLot?: string | null;
+  sourceLotAt?: string | null;
   readiness?: Readiness | null;
   readiness_editor?: string | null;
   readiness_set_at?: string | null;
@@ -411,7 +411,7 @@ export interface SerpInsight {
   error?: string | null;
 }
 
-export type WarehouseZoneCode = 'X' | 'XS' | 'S' | 'M' | 'L' | 'XL' | 'XQ' | 'P';
+export type WarehouseZoneCode = 'X' | 'XS' | 'S' | 'M' | 'L' | 'XL' | 'XQ';
 export type WarehouseEtageCode = 'GA' | 'UG' | 'EG';
 
 export interface WarehouseLayout {
@@ -422,7 +422,6 @@ export interface WarehouseLayout {
   regale: number[];
   ebenen: string[];
   binCount: number;
-  isPalette?: boolean;
   createdAt: string;
   totalProducts?: number;
 }
@@ -459,6 +458,22 @@ export interface WarehouseBin {
   childBinCodes?: string[];
   children?: WarehouseBin[];
   childrenProductCount?: number;
+}
+
+// Los = Einkaufs-Zugehörigkeit einer Ware (ersetzt Paletten seit 2026-07-31).
+// L-MMYYNN = Auktions-Los (Nummer 01-200), NL-MMYY = Non-Los (eins pro Monat).
+export interface WarehouseLot {
+  code: string;
+  tenantId: string;
+  type: 'L' | 'NL';
+  month: number | null;
+  year: number | null;
+  number: number | null;
+  ekBrutto: number | null;
+  note: string | null;
+  createdAt: string | null;
+  createdBy?: { uid: string; email?: string | null } | null;
+  productCount?: number;
 }
 
 export type OrderStatus = 'new' | 'picking' | 'picked' | 'packed' | 'shipped' | 'other';

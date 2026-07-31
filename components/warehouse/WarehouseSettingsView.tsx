@@ -47,7 +47,6 @@ const DEFAULT_SETTINGS: WarehouseSettings = {
 
 const DEFAULT_ZONE_TYPES: ZoneType[] = [
   { id: "regal", name: "Regal", description: "Standard", capacity: 50 },
-  { id: "palette", name: "Palette", description: "Schwerlast", capacity: 200 },
   { id: "kleinteile", name: "Kleinteile", description: "Sortiment", capacity: 500 },
   { id: "kuehlung", name: "Kühlung", description: "Temperaturgeführt", capacity: 30 },
 ];

@@ -619,10 +619,10 @@ const AppInner: React.FC = () => {
     (
       groupsPayload: UploadGroupPayload[],
       barcodes: string,
-      paletteCode?: string
+      lotCode?: string
     ) => {
       // Single identify pipeline (v2) only.
-      enqueueIdentification(groupsPayload, barcodes, null, null, paletteCode || null);
+      enqueueIdentification(groupsPayload, barcodes, null, null, lotCode || null);
     },
     [enqueueIdentification]
   );

@@ -69,7 +69,7 @@ interface MobileOperationsViewProps {
   mode: OpsMode;
   onNavigate: (view: OpsMode | 'input' | 'sheet') => void;
   onSelectProduct?: (productId: string) => void;
-  onIdentify?: (groups: UploadGroupPayload[], barcodes: string, paletteCode?: string) => void;
+  onIdentify?: (groups: UploadGroupPayload[], barcodes: string, lotCode?: string) => void;
   // Optional, damit der Aufrufer unveraendert bleiben kann. Wird gesetzt, meldet
   // eine erfolgreiche Einlagerung das frische Produkt nach oben — sonst bleibt die
   // `products`-Liste alt und der Artikel sieht weiter un-eingelagert aus.
@@ -189,7 +189,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
   const [curatedWarn, setCuratedWarn] = useState(false);
   const [curatedCountry, setCuratedCountry] = useState<string | undefined>(undefined);
 
-  const [identifyPaletteCode, setIdentifyPaletteCode] = useState('');
+  const [identifyLotCode, setIdentifyLotCode] = useState('');
   const [identifySlots, setIdentifySlots] = useState<number[]>([0]);
   const uploadInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
   const cameraInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
@@ -911,14 +911,14 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
       setStowError(null);
       try {
         const productMatch = resolveProductForStow(sku);
-        const sourcePalette = productMatch?.ops?.sourcePalette || undefined;
+        const sourceLot = productMatch?.ops?.sourceLot || undefined;
         const payload = {
           productId: productMatch?.id,
           sku,
           binCode: bin,
           quantity: qty,
           barcode: productMatch?.identification?.barcodes?.[0] || productMatch?.details?.identifiers?.ean || undefined,
-          meta: { flow: 'stow', ...(sourcePalette ? { paletteCode: sourcePalette } : {}) },
+          meta: { flow: 'stow', ...(sourceLot ? { lotCode: sourceLot } : {}) },
           // Eine Kennung pro Einlager-Absicht. Damit erkennt der Server eine echte
           // Doppel-Absendung exakt und muss nicht auf das unscharfe Zeitfenster
           // zurueckfallen — zwei gleiche Kartons hintereinander bleiben so buchbar.
@@ -1396,22 +1396,24 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
           </button>
         </div>
         <SectionTitle title={t('ops.mode.identify')} />
-        {/* Palette scan — Pflicht für neue Ware */}
-        <div className={`rounded-2xl border ${identifyPaletteCode ? 'border-success/40' : 'border-danger/40'} bg-app-surface p-3 mb-3`}>
-          <label className="block text-xs font-semibold text-txt-muted mb-1">Palette (Pflicht)</label>
+        {/* Los scan — Pflicht für neue Ware. Bewusst OHNE inputMode="none":
+            das kappt auf Android die IME/InputConnection und Scanner-Eingaben
+            kommen als leerer Wert an (Incident 2026-07-25). */}
+        <div className={`rounded-2xl border ${identifyLotCode ? 'border-success/40' : 'border-danger/40'} bg-app-surface p-3 mb-3`}>
+          <label className="block text-xs font-semibold text-txt-muted mb-1">Los (Pflicht)</label>
           <input
             type="text"
-            inputMode="none"
             autoComplete="off"
+            autoCapitalize="characters"
             className="w-full rounded-xl bg-app-bg border border-app-border px-3 py-2 text-sm text-txt-primary placeholder:text-txt-muted/50 focus:outline-none focus:ring-2 focus:ring-accent/40"
-            placeholder="Palette scannen (z.B. PGA001)"
-            value={identifyPaletteCode}
-            onChange={(e) => setIdentifyPaletteCode(e.target.value.toUpperCase())}
+            placeholder="Los scannen (z.B. L-072612)"
+            value={identifyLotCode}
+            onChange={(e) => setIdentifyLotCode(e.target.value.toUpperCase())}
           />
-          {identifyPaletteCode ? (
-            <p className="text-xs text-success mt-1">Palette {identifyPaletteCode} aktiv — alle erkannten Produkte werden zugeordnet.</p>
+          {identifyLotCode ? (
+            <p className="text-xs text-success mt-1">Los {identifyLotCode} aktiv — alle erkannten Produkte werden zugeordnet.</p>
           ) : (
-            <p className="text-xs text-danger mt-1">Bitte zuerst Palette scannen</p>
+            <p className="text-xs text-danger mt-1">Bitte zuerst Los scannen</p>
           )}
         </div>
         <div className="grid grid-cols-1 gap-3">
@@ -1501,7 +1503,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
                 type="button"
                 aria-label={t('ops.identify.run')}
                 className="w-full rounded-2xl bg-success text-txt-primary font-semibold py-3 disabled:opacity-40"
-                disabled={!identifyImagesBySlot[slot]?.length || !identifyPaletteCode}
+                disabled={!identifyImagesBySlot[slot]?.length || !identifyLotCode}
                 onClick={() => {
                   const images = (identifyImagesBySlot[slot] || []).map((img) => img.file);
                   if (!images.length) return;
@@ -1510,7 +1512,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
                     { id: `mobile-slot-${slot}`, label: t('input.groups.defaultName', { index }), images },
                   ];
                   if (onIdentify) {
-                    onIdentify(payload, '', identifyPaletteCode || undefined);
+                    onIdentify(payload, '', identifyLotCode || undefined);
                     clearIdentifySlot(slot);
                   } else {
                     onNavigate('input');

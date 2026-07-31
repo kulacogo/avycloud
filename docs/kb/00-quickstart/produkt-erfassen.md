@@ -16,15 +16,15 @@ Du hast neue Produkte und willst sie schnell live bekommen? So geht's. AvyCloud 
 
 ## Schritt 1 — Erfassen-Tab öffnen
 
-Klicke oben in der Navigation auf **Erfassen**. Du siehst eine große Fotofläche und eine kleine Liste mit deinen aktuellen Paletten (eine Palette ist einfach ein "Stapel" Produkte, die du gerade reinholst — z. B. eine Lieferung, eine Tüte aus dem Lager, ein Karton vom Großhändler).
+Klicke oben in der Navigation auf **Erfassen**. Du siehst eine große Fotofläche und rechts oben das Pflichtfeld **Los** — das Los ist die Einkaufs-Zugehörigkeit der Ware: `L-…` für ein Auktions-Los (z. B. `L-072612`), `NL-…` für alles, was nicht über eine Auktion kam (z. B. `NL-0726`, eins pro Monat).
 
-> **💡 Tipp:** Hast du keine Palette? Klicke auf **Neue Palette anlegen** und gib ihr einen Namen wie "Lieferung 18.05." oder "Restposten Karton 3".
+> **💡 Tipp:** Noch kein Los vorhanden? Lege es unter **Lager → Verwaltung → Los-Struktur** an und drucke das QR-Label für den Rollwagen.
 
-## Schritt 2 — Palette wählen
+## Schritt 2 — Los wählen
 
-Wähle in der Liste die Palette aus, zu der das neue Produkt gehört. Das hilft dir später, wenn du wissen willst, woher ein Produkt kam oder wann es reingekommen ist.
+Scanne das Los-Label vom Rollwagen oder wähle das Los aus der Liste. Darüber lassen sich später Artikelliste und Einkaufspreis je Los auswerten (der EK brutto wird am Los gepflegt).
 
-Wenn du gerade keine Palette brauchst, geht es auch ohne — AvyCloud legt dann eine "Default"-Palette für dich an.
+Ohne Los geht es nicht weiter — die Zuordnung ist Pflicht für neue Ware.
 
 ## Schritt 3 — Bilder hochladen
 

@@ -28,6 +28,12 @@ const {
   buildBinLabelsHtml,
   buildBinLabelsPdf,
 } = require('../services/label-printer');
+const {
+  createLots,
+  listLots,
+  updateLot,
+  deleteLot,
+} = require('../lib/warehouse-lots');
 
 // ── Helpers ──────────────────────────────────────────────────────────
 
@@ -232,6 +238,128 @@ router.get('/zones/:zone/:etage', requirePermission('warehouse', 'read'), async 
   }
 });
 
+// ── Los-Struktur (Einkaufs-Zugehörigkeit, ersetzt Paletten) ──────────
+// Lose sind reine Zuordnungs-Metadaten (ops.sourceLot am Produkt), kein Bestand.
+
+router.get('/lots', requirePermission('warehouse', 'read'), async (req, res) => {
+  try {
+    const tenantId = req.user?.tenantId || 'default';
+    // Counts sind teuer (eine Aggregation je Los) — nur auf Anfrage (Los-Struktur-Tab).
+    const withCounts = parseTruthy(req.query?.withCounts);
+    const lots = await listLots({ tenantId, withCounts });
+    res.json({ ok: true, data: lots });
+  } catch (err) {
+    console.error(`[GET /api/warehouse/lots] ${err.message}`, err);
+    res.status(500).json({
+      ok: false,
+      error: { code: 500, message: 'Fehler beim Laden der Lose', details: err.message },
+    });
+  }
+});
+
+router.post('/lots', requirePermission('warehouse', 'write'), async (req, res) => {
+  try {
+    const { type, month, year, numbers } = req.body || {};
+    if (!type || !month || !year) {
+      return res.status(400).json({
+        ok: false,
+        error: { code: 400, message: 'Typ, Monat und Jahr sind erforderlich.' },
+      });
+    }
+    const result = await createLots({
+      type: String(type).toUpperCase(),
+      month,
+      year,
+      numbers,
+      tenantId: req.user?.tenantId || 'default',
+      createdBy: req.user?.uid ? { uid: req.user.uid, email: req.user.email || null } : null,
+    });
+    res.json({ ok: true, data: result });
+  } catch (err) {
+    console.error(`[POST /api/warehouse/lots] ${err.message}`, err);
+    res.status(400).json({
+      ok: false,
+      error: { code: 400, message: err.message || 'Fehler beim Anlegen der Lose.' },
+    });
+  }
+});
+
+// Los-Label-Routen VOR /lots/:code definieren (Route-Shadowing, wie /bins/labels).
+router.get('/lots/labels', requirePermission('warehouse', 'read'), async (req, res) => {
+  try {
+    const codes = normalizeCodeList(req.query.codes);
+    if (!codes.length) {
+      return res.status(400).json({
+        ok: false,
+        error: { code: 400, message: 'Keine Los-Codes angegeben.' },
+      });
+    }
+    const html = await buildBinLabelsHtml([...new Set(codes)]);
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-store');
+    res.send(html);
+  } catch (err) {
+    console.error(`[GET /api/warehouse/lots/labels] ${err.message}`, err);
+    res.status(500).json({
+      ok: false,
+      error: { code: 500, message: 'Fehler beim Erstellen der Los-Labels', details: err.message },
+    });
+  }
+});
+
+router.get('/lots/labels.pdf', requirePermission('warehouse', 'read'), async (req, res) => {
+  try {
+    const codes = normalizeCodeList(req.query.codes);
+    if (!codes.length) {
+      return res.status(400).json({
+        ok: false,
+        error: { code: 400, message: 'Keine Los-Codes angegeben.' },
+      });
+    }
+    const pdfBuffer = await buildBinLabelsPdf([...new Set(codes)]);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Cache-Control', 'no-store');
+    res.setHeader('Content-Disposition', 'inline; filename="los-labels.pdf"');
+    res.send(pdfBuffer);
+  } catch (err) {
+    console.error(`[GET /api/warehouse/lots/labels.pdf] ${err.message}`, err);
+    res.status(500).json({
+      ok: false,
+      error: { code: 500, message: 'Fehler beim Erstellen der Los-Labels (PDF)', details: err.message },
+    });
+  }
+});
+
+router.patch('/lots/:code', requirePermission('warehouse', 'write'), async (req, res) => {
+  try {
+    const body = req.body || {};
+    const payload = {};
+    if ('ekBrutto' in body) payload.ekBrutto = body.ekBrutto;
+    if ('note' in body) payload.note = body.note;
+    const lot = await updateLot(req.params.code, payload);
+    res.json({ ok: true, data: lot });
+  } catch (err) {
+    console.error(`[PATCH /api/warehouse/lots/:code] ${err.message}`, err);
+    res.status(400).json({
+      ok: false,
+      error: { code: 400, message: err.message || 'Los konnte nicht aktualisiert werden.' },
+    });
+  }
+});
+
+router.delete('/lots/:code', requirePermission('warehouse', 'write'), async (req, res) => {
+  try {
+    const result = await deleteLot(req.params.code);
+    res.json({ ok: true, data: result });
+  } catch (err) {
+    console.error(`[DELETE /api/warehouse/lots/:code] ${err.message}`, err);
+    res.status(400).json({
+      ok: false,
+      error: { code: 400, message: err.message || 'Los konnte nicht gelöscht werden.' },
+    });
+  }
+});
+
 // BIN label endpoints – define before generic /:code route to avoid shadowing
 router.get('/bins/labels', requirePermission('warehouse', 'read'), async (req, res) => {
   try {
@@ -425,7 +553,7 @@ router.delete('/bins/:code/containers/:childCode', requirePermission('warehouse'
 
 router.post('/stock-in', requirePermission('warehouse', 'write'), async (req, res) => {
   try {
-    const { sku, productId, barcode, binCode, quantity, meta, paletteCode } = req.body || {};
+    const { sku, productId, barcode, binCode, quantity, meta, lotCode } = req.body || {};
     if (!binCode) {
       return res.status(400).json({ ok: false, error: { code: 400, message: 'Bin-Code ist erforderlich.' } });
     }
@@ -452,7 +580,7 @@ router.post('/stock-in', requirePermission('warehouse', 'write'), async (req, re
         ...(requestId ? { requestId } : {}),
         // who put it away — for the Mitarbeiter-Leistung scoreboard (eingelagert)
         ...(req.user?.uid ? { actor: { uid: req.user.uid, email: req.user.email || null } } : {}),
-        ...(paletteCode ? { paletteCode } : {}),
+        ...(lotCode ? { lotCode } : {}),
       },
     });
     if (result?.deduped) {
