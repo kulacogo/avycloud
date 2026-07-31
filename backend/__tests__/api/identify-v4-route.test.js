@@ -138,17 +138,17 @@ patchLocalModule(path.resolve(__dirname, '../../lib/chat-sessions.js'), {
 const { spies: localSpies } = require('./_patchLocalModules');
 const { spies: firebaseSpies, firestoreModule } = require('./_setupMocks');
 
-// Patch firestore.collection('warehouseBins').doc().get() to return exists:true.
+// Patch firestore.collection('warehouse_lots').doc().get() to return exists:true.
 const firestoreLib = require('../../lib/firestore');
-const warehouseBinSnap = { exists: true, data: () => ({ code: 'PAL-001' }) };
+const warehouseLotSnap = { exists: true, data: () => ({ code: 'L-072601' }) };
 const productsCollectionDoc = {
   update: vi.fn().mockResolvedValue({}),
   get: vi.fn().mockResolvedValue({ exists: false, data: () => ({}) }),
 };
 vi.spyOn(firestoreLib.firestore, 'collection').mockImplementation((name) => ({
   doc: vi.fn(() => {
-    if (name === 'warehouseBins') {
-      return { get: vi.fn().mockResolvedValue(warehouseBinSnap) };
+    if (name === 'warehouse_lots') {
+      return { get: vi.fn().mockResolvedValue(warehouseLotSnap) };
     }
     return productsCollectionDoc;
   }),
@@ -211,7 +211,7 @@ function resetSpies() {
 
 function postIdentify(body = {}) {
   const req = request(app).post('/api/v2/identify');
-  for (const [k, v] of Object.entries({ paletteCode: 'PAL-001', barcodes: '4012345678901', ...body })) {
+  for (const [k, v] of Object.entries({ lotCode: 'L-072601', barcodes: '4012345678901', ...body })) {
     if (v != null) req.field(k, String(v));
   }
   return req;
@@ -341,7 +341,7 @@ describe('POST /api/v2/identify — V4 branch routing', () => {
     const callArgs = v4Spy.mock.calls[0][0];
     expect(callArgs.tenantId).toBe('tenant-xyz');
     expect(callArgs.userId).toBe('test-uid-001');
-    expect(callArgs.paletteCode).toBe('PAL-001');
+    expect(callArgs.lotCode).toBe('L-072601');
     expect(callArgs.barcodes).toBe('4012345678901');
   });
 

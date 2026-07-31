@@ -89,8 +89,8 @@ function makeV3Product(overrides = {}) {
       pending_intake_quantity: 0,
       weight_grams: 250,
       identify_pipeline: 'v3',
-      sourcePalette: null,
-      sourcePaletteAt: null,
+      sourceLot: null,
+      sourceLotAt: null,
       data_quality: {
         identify_v3: {
           checked_at_iso: '2026-04-10T00:00:00.000Z',

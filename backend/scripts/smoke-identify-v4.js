@@ -89,7 +89,7 @@ async function main() {
       barcodes: fixture.barcodes,
       locale: fixture.locale,
       hint: fixture.hint,
-      paletteCode: null,
+      lotCode: null,
       inventoryId: null,
       tenantId: process.env.SMOKE_TENANT_ID || 'smoke-test',
       userId: process.env.SMOKE_USER_ID || 'smoke-test',

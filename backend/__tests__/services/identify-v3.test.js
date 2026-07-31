@@ -198,16 +198,16 @@ describe('identifyProductV3', () => {
     expect(webImgs[0].url_or_base64).toBe('https://sony.com/xm5.jpg');
   });
 
-  it('sets palette data when provided', async () => {
+  it('sets lot data when provided', async () => {
     const { product } = await identifyProductV3({
       files: [],
       barcodes: '4548736132610',
-      paletteCode: 'PAL-001',
+      lotCode: 'L-072601',
       inventoryId: 'inv-123',
     });
 
-    expect(product.ops.sourcePalette).toBe('PAL-001');
-    expect(product.ops.sourcePaletteAt).toBeTruthy();
+    expect(product.ops.sourceLot).toBe('L-072601');
+    expect(product.ops.sourceLotAt).toBeTruthy();
     expect(product.inventory.inventoryId).toBe('inv-123');
   });
 

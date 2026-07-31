@@ -742,8 +742,8 @@ function assembleProductV4(context) {
       pending_intake_quantity: 0,
       weight_grams: identity.weight_grams || null,
       identify_pipeline: 'v4',
-      sourcePalette: ctx.paletteCode || null,
-      sourcePaletteAt: ctx.paletteCode ? new Date().toISOString() : null,
+      sourceLot: ctx.lotCode || null,
+      sourceLotAt: ctx.lotCode ? new Date().toISOString() : null,
       data_quality: {
         identify_v4: dataQualityV4,
       },
@@ -767,7 +767,7 @@ function assembleProductV4(context) {
  * @param {string} [args.barcodes] space/comma-separated
  * @param {string} [args.locale] default 'de-DE'
  * @param {string} [args.hint] free-text hint
- * @param {string} [args.paletteCode]
+ * @param {string} [args.lotCode]
  * @param {string} [args.inventoryId]
  * @param {string} [args.tenantId]
  * @param {string} [args.userId]
@@ -780,7 +780,7 @@ async function identifyProductV4({
   barcodes = '',
   locale = 'de-DE',
   hint = null,
-  paletteCode = null,
+  lotCode = null,
   inventoryId = null,
   tenantId = null,
   userId = null,
@@ -794,7 +794,7 @@ async function identifyProductV4({
     // --- 1. Stage 1 Recognition (REUSE V3) ------------------------------
     let stage1;
     try {
-      stage1 = await runStage1Recognition({ files, barcodes, hint, locale, paletteCode });
+      stage1 = await runStage1Recognition({ files, barcodes, hint, locale });
     } catch (err) {
       console.warn(`[identify-v4] stage1 failed: ${err?.message || err}`);
       return {
@@ -822,7 +822,7 @@ async function identifyProductV4({
       rawBarcodes: barcodes,
       hint,
       locale,
-      paletteCode,
+      lotCode,
       inventoryId,
       tenantId,
       userId,

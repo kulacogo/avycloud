@@ -126,7 +126,7 @@ function _stage4CrossRefEnabled() {
  *
  * Returns a canonical Product + confidence metadata.
  */
-async function identifyProductV3({ files = [], barcodes = '', locale = 'de-DE', hint = null, paletteCode = null, inventoryId = null } = {}) {
+async function identifyProductV3({ files = [], barcodes = '', locale = 'de-DE', hint = null, lotCode = null, inventoryId = null } = {}) {
   const startTime = Date.now();
 
   // Stage 1: Recognition
@@ -141,7 +141,7 @@ async function identifyProductV3({ files = [], barcodes = '', locale = 'de-DE', 
   // Assemble product in canonical format (matches types.ts Product interface)
   const productId = crypto.randomUUID();
   const product = assembleProduct(productId, stage1, stage2, stage3, {
-    locale, paletteCode, inventoryId,
+    locale, lotCode, inventoryId,
   });
 
   // Stage 4: Validation (synchronous scoring) — custom per-field scoring with
@@ -469,8 +469,8 @@ function assembleProduct(id, stage1, stage2, stage3, opts) {
           : null) ||
         null,
       identify_pipeline: 'v3',
-      sourcePalette: opts.paletteCode || null,
-      sourcePaletteAt: opts.paletteCode ? new Date().toISOString() : null,
+      sourceLot: opts.lotCode || null,
+      sourceLotAt: opts.lotCode ? new Date().toISOString() : null,
     },
     inventory: {
       quantity: 0,

@@ -54,7 +54,7 @@ const baseStage3 = () => ({
   },
 });
 
-const opts = { locale: 'de-DE', paletteCode: 'PEG004', inventoryId: null };
+const opts = { locale: 'de-DE', lotCode: 'L-072604', inventoryId: null };
 
 describe('V3 assembleProduct — weight web fallback', () => {
   it('uses Stage 1 weight when present (most authoritative)', () => {

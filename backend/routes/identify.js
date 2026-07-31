@@ -233,7 +233,13 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
     const barcodes = req.body?.barcodes || '';
     const locale = req.body?.locale || 'de-DE';
     const inventoryId = req.body?.inventoryId || null;
-    const paletteCode = req.body?.paletteCode || null;
+    // Los-Zuordnung (ersetzt die Paletten-Pflicht seit 2026-07-31). Alte
+    // Frontend-Bundles senden das Feld noch als `paletteCode` — der Wert wird
+    // gleich behandelt, validiert wird IMMER gegen warehouse_lots.
+    const lotCodeRaw = req.body?.lotCode || req.body?.paletteCode || null;
+    const lotCode = lotCodeRaw && String(lotCodeRaw).trim()
+      ? String(lotCodeRaw).trim().toUpperCase()
+      : null;
     const hint = typeof req.body?.hint === 'string' && req.body.hint.trim()
       ? req.body.hint.trim().slice(0, 400)
       : null;
@@ -245,20 +251,23 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
       });
     }
 
-    // Palette is required for new products
-    if (!paletteCode || !paletteCode.trim()) {
+    // Los is required for new products (Wareneingang-Zugehörigkeit)
+    if (!lotCode) {
       return res.status(400).json({
         ok: false,
-        error: { code: 'PALETTE_REQUIRED', message: 'Paletten-Zuordnung ist Pflicht für neue Ware.' },
+        error: { code: 'LOT_REQUIRED', message: 'Los-Zuordnung ist Pflicht für neue Ware.' },
       });
     }
 
-    // Validate palette exists as a BIN in warehouseBins
-    const paletteBinSnap = await firestore.collection('warehouseBins').doc(paletteCode.trim()).get();
-    if (!paletteBinSnap.exists) {
+    // Validate lot exists in warehouse_lots
+    const lotSnap = await firestore.collection('warehouse_lots').doc(lotCode).get();
+    if (!lotSnap.exists) {
       return res.status(400).json({
         ok: false,
-        error: { code: 'PALETTE_NOT_FOUND', message: `Palette ${paletteCode} existiert nicht.` },
+        error: {
+          code: 'LOT_NOT_FOUND',
+          message: `Los ${lotCode} existiert nicht. Bitte in der Lagerverwaltung unter „Los-Struktur" anlegen — oder die App neu laden, falls hier noch ein alter Paletten-Code gesendet wird.`,
+        },
       });
     }
 
@@ -300,7 +309,7 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
       } else if (code >= 500) {
         status = 'error';
       } else {
-        // 4xx (validation, palette missing, etc.) — not a pipeline signal
+        // 4xx (validation, lot missing, etc.) — not a pipeline signal
         return;
       }
       recordIdentifyMetric({
@@ -364,7 +373,7 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
             barcodes,
             locale,
             hint,
-            paletteCode,
+            lotCode,
             inventoryId,
             tenantId: reqTenant,
             userId: req.userId || req.user?.uid || null,
@@ -477,12 +486,12 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
       : null;
     if (existing?.id) {
       try { await adjustPendingIntakeQuantity(existing.id, 1); } catch {}
-      if (paletteCode) {
+      if (lotCode) {
         try {
           const { PRODUCTS_COLLECTION } = require('../lib/firestore');
           await firestore.collection(PRODUCTS_COLLECTION).doc(existing.id).update({
-            'ops.sourcePalette': paletteCode,
-            'ops.sourcePaletteAt': new Date().toISOString(),
+            'ops.sourceLot': lotCode,
+            'ops.sourceLotAt': new Date().toISOString(),
           });
         } catch {}
       }
@@ -491,14 +500,14 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
       return res.json({
         ok: true,
         data: refreshed || existing,
-        meta: { reused_existing: true, paletteCode: paletteCode || null, locale, barcodes: mergedBarcodes },
+        meta: { reused_existing: true, lotCode: lotCode || null, locale, barcodes: mergedBarcodes },
       });
     }
 
     // ─── IDENTIFY V3: Multi-Stage Pipeline ───
     // Aligned with CLAUDE.md "IDENTIFY_V3=true (default-on)". Explicit
     // IDENTIFY_V3=false in env disables it again. Total wall-clock starts after
-    // palette validation (IDENTIFY_TOTAL_TIMEOUT_MS); V3 cap is min(V3_TIMEOUT_MS, remainingMs()).
+    // lot validation (IDENTIFY_TOTAL_TIMEOUT_MS); V3 cap is min(V3_TIMEOUT_MS, remainingMs()).
     const V3_ENABLED = String(process.env.IDENTIFY_V3 || 'true').toLowerCase() === 'true';
 
     if (!product && V3_ENABLED) {
@@ -509,7 +518,7 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
         // Cap V3 by whichever is smaller: its own budget or the remaining wall-clock budget.
         const v3Cap = Math.min(V3_TIMEOUT_MS, remainingMs());
         const v3Result = await Promise.race([
-          identifyProductV3({ files, barcodes, locale, hint, paletteCode, inventoryId }),
+          identifyProductV3({ files, barcodes, locale, hint, lotCode, inventoryId }),
           new Promise((_, reject) =>
             setTimeout(() => reject(new Error(`V3 pipeline timeout after ${v3Cap}ms`)), v3Cap)
           ),
@@ -531,12 +540,12 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
           if (v3Existing?.id) {
             console.log(`[identify] Post-V3 duplicate found: ${v3Existing.id}`);
             try { await adjustPendingIntakeQuantity(v3Existing.id, 1); } catch {}
-            if (paletteCode) {
+            if (lotCode) {
               try {
                 const { PRODUCTS_COLLECTION } = require('../lib/firestore');
                 await firestore.collection(PRODUCTS_COLLECTION).doc(v3Existing.id).update({
-                  'ops.sourcePalette': paletteCode,
-                  'ops.sourcePaletteAt': new Date().toISOString(),
+                  'ops.sourceLot': lotCode,
+                  'ops.sourceLotAt': new Date().toISOString(),
                 });
               } catch {}
             }
@@ -545,7 +554,7 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
             return res.json({
               ok: true,
               data: refreshed || v3Existing,
-              meta: { reused_existing: true, paletteCode: paletteCode || null, locale, barcodes: reuseBarcodesForMeta },
+              meta: { reused_existing: true, lotCode: lotCode || null, locale, barcodes: reuseBarcodesForMeta },
             });
           }
         }
@@ -730,12 +739,12 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
           if (groundedExisting?.id) {
             console.log(`[identify] Post-grounding duplicate found: ${groundedExisting.id}`);
             try { await adjustPendingIntakeQuantity(groundedExisting.id, 1); } catch {}
-            if (paletteCode) {
+            if (lotCode) {
               try {
                 const { PRODUCTS_COLLECTION } = require('../lib/firestore');
                 await firestore.collection(PRODUCTS_COLLECTION).doc(groundedExisting.id).update({
-                  'ops.sourcePalette': paletteCode,
-                  'ops.sourcePaletteAt': new Date().toISOString(),
+                  'ops.sourceLot': lotCode,
+                  'ops.sourceLotAt': new Date().toISOString(),
                 });
               } catch {}
             }
@@ -744,7 +753,7 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
             return res.json({
               ok: true,
               data: refreshed || groundedExisting,
-              meta: { reused_existing: true, paletteCode: paletteCode || null, locale, barcodes: reuseBarcodesForMeta },
+              meta: { reused_existing: true, lotCode: lotCode || null, locale, barcodes: reuseBarcodesForMeta },
             });
           }
         }
@@ -788,11 +797,11 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
       const legacyExisting = hasReuseBarcode ? await findReuseMatch(legacyFresh) : null;
       if (legacyExisting?.id) {
         try { await adjustPendingIntakeQuantity(legacyExisting.id, 1); } catch {}
-        if (paletteCode) {
+        if (lotCode) {
           try {
             const { PRODUCTS_COLLECTION } = require('../lib/firestore');
             await firestore.collection(PRODUCTS_COLLECTION).doc(legacyExisting.id).update({
-              'ops.sourcePalette': paletteCode, 'ops.sourcePaletteAt': new Date().toISOString(),
+              'ops.sourceLot': lotCode, 'ops.sourceLotAt': new Date().toISOString(),
             });
           } catch {}
         }
@@ -800,7 +809,7 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
         metricDuplicateReused = true;
         return res.json({
           ok: true, data: refreshed || legacyExisting,
-          meta: { reused_existing: true, paletteCode: paletteCode || null, locale: result.locale, barcodes: result.barcodes },
+          meta: { reused_existing: true, lotCode: lotCode || null, locale: result.locale, barcodes: result.barcodes },
         });
       }
 
@@ -1000,11 +1009,11 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
       product.ops.missing_ebay_category = true;
     }
 
-    // 4) Persist source palette reference if provided (Wareneingang tracking).
-    if (paletteCode) {
+    // 4) Persist source lot reference if provided (Wareneingang tracking).
+    if (lotCode) {
       product.ops = product.ops || {};
-      product.ops.sourcePalette = paletteCode;
-      product.ops.sourcePaletteAt = new Date().toISOString();
+      product.ops.sourceLot = lotCode;
+      product.ops.sourceLotAt = new Date().toISOString();
     }
 
     // Wer hat erfasst? — dauerhaft am Produkt (Anzeige "Erfasst von", admin-only).
