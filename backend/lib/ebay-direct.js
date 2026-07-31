@@ -5565,4 +5565,9 @@ module.exports = {
   // Additiv exportiert fuer Regressionstests der Vorlagen-Erkennung (2026-07-29).
   extractTrendOceanDescriptionParts,
   buildTrendOceanDescriptionTemplate,
+  // Additiv exportiert (2026-07-31): Nachzieh-Skripte MUESSEN denselben Filter nutzen
+  // wie der Sendepfad. Ohne ihn gehen technische Schluessel ("Kategorie" mit vollem
+  // Pfad, "K-Typ" mit langer Nummernliste) an eBay und werden mit
+  // "Wert ist zu lang, maximal 65 Zeichen" abgelehnt.
+  filterPatchItemSpecificsForListing,
 };
