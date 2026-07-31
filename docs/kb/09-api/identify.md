@@ -66,26 +66,26 @@ V2-Pipeline + Datasheet-Review + **persistent save als SYSTEM mode** (saveProduc
 - **Request**: `multipart/form-data`
   - `images[]`, `barcodes`, `locale`
   - `inventoryId` (optional)
-  - `paletteCode` — **Pflicht** für Neue-Ware-Path
+  - `lotCode` — **Pflicht** für Neue-Ware-Path (Los-Code `L-MMYYNN` oder `NL-MMYY`, validiert gegen `warehouse_lots`; Altfeld `paletteCode` wird übergangsweise als Wert akzeptiert)
   - `hint` (optional, max 400 chars)
 - **Response**:
   ```json
   {
     "ok": true,
     "data": { /* gespeichertes Product-Objekt */ },
-    "meta": { "reused_existing": false, "paletteCode": "PAL-...", "locale": "de-DE", "barcodes": [...], "pipeline": "v4|v3|grounding|legacy", "v3": {...}, "v4": {...} }
+    "meta": { "reused_existing": false, "lotCode": "L-072612", "locale": "de-DE", "barcodes": [...], "pipeline": "v4|v3|grounding|legacy", "v3": {...}, "v4": {...} }
   }
   ```
   Bei Duplicate-Match (über explicit barcodes oder V3-resolved identifiers): `{ "ok": true, "data": <existing>, "meta": { "reused_existing": true, ... } }`.
 - **Side-Effects**:
   - OCR + Image-Upload nach GCS parallel.
   - Stock-Protection: `findProductByStrictIdentifier` zuerst (Duplicate-Reuse statt Re-Identify).
-  - Bei neuem Produkt: `saveProductV2(product, { mode: 'system', ... })` + `adjustPendingIntakeQuantity` + Palette-Marker.
+  - Bei neuem Produkt: `saveProductV2(product, { mode: 'system', ... })` + `adjustPendingIntakeQuantity` + Los-Marker (`ops.sourceLot`/`ops.sourceLotAt`).
   - Metric-Write nach `external_api_calls`-ähnlichem Channel (`recordIdentifyMetric`).
 - **Idempotency**: durch Duplicate-Reuse-Pfad implicit idempotent für identische Identifier.
 - **Failure Modes**:
   - `400` ohne Bilder/Barcodes.
-  - `400 { code: 'PALETTE_REQUIRED' | 'PALETTE_NOT_FOUND' }`.
+  - `400 { code: 'LOT_REQUIRED' | 'LOT_NOT_FOUND' }`.
   - `500` mit gekappter Details-Message; Pipeline-Failures fallen automatisch durch (V4→V3→V2→Legacy).
 - **Source**: [backend/routes/identify.js#L230-L1018](../../../backend/routes/identify.js#L230-L1018)
 

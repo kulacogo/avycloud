@@ -73,6 +73,33 @@ Permissions:
 
 ---
 
+## Los-Struktur (L-/NL-Lose)
+
+Lose sind die Einkaufs-Zugehörigkeit von Ware (`ops.sourceLot` am Produkt) — kein Lagerplatz, kein Bestand. Collection `warehouse_lots` (Doc-ID = Los-Code, mit `tenantId`). Formate: `L-MMYYNN` (Auktions-Los, Nummer 01–200 je Monat) und `NL-MMYY` (Non-Los, eins pro Monat). Lib: [backend/lib/warehouse-lots.js](../../../backend/lib/warehouse-lots.js).
+
+### `GET /api/warehouse/lots`
+
+- **Auth**: `requirePermission('warehouse', 'read')`
+- **Response**: `{ "ok": true, "data": [ { "code", "type", "month", "year", "number", "ekBrutto", "note", "productCount", ... } ] }` — `productCount` via Firestore-`count()` über `ops.sourceLot`.
+
+### `POST /api/warehouse/lots`
+
+- **Auth**: `requirePermission('warehouse', 'write')`
+- **Request**: `{ "type": "L"|"NL", "month": 7, "year": 2026, "numbers": "12" | "1-38" }` (`numbers` nur bei `L`)
+- **Response**: `{ "ok": true, "data": { "created": [...], "skipped": [...] } }` — existierende Codes werden übersprungen (idempotent).
+
+### `PATCH /api/warehouse/lots/:code`
+
+- **Auth**: `warehouse write`. Body: `{ "ekBrutto": 14000 | null, "note": "..." | null }` — EK brutto wird am Los gepflegt (Einkaufspreis-Auswertung je Los).
+
+### `DELETE /api/warehouse/lots/:code`
+
+- **Auth**: `warehouse write`. Fail-closed: `400`, wenn dem Los noch Produkte zugeordnet sind.
+
+### `GET /api/warehouse/lots/labels` / `GET /api/warehouse/lots/labels.pdf`
+
+- **Auth**: `warehouse read`. `?codes=L-072612&codes=NL-0726` → gleiche Label-Pipeline wie BIN-Labels (62×29 mm, QR = roher Los-Code; HTML self-print bzw. PDF).
+
 ## BIN-Labels (Print)
 
 Diese Routes liefern HTML/PDF zum Direktdruck und **müssen vor** `/bins/:code` definiert sein, damit Express nicht `labels` als `:code` matched.
@@ -174,7 +201,7 @@ Child-BIN (Container) Management. Parent-Child-Relation zwischen BINs (z.B. eine
     "barcode": "EAN13...",
     "binCode": "Z01-EG-1-1-A",
     "quantity": 5,
-    "paletteCode": "PAL-001",
+    "lotCode": "L-072612",
     "meta": { "...": "..." }
   }
   ```
