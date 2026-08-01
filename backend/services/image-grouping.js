@@ -14,11 +14,15 @@ const VISION_GROUPING_CONFIG = buildGenerationConfig({
   maxOutputTokens: 8192,
 });
 
+// 8192 statt 1024: Thinking-Modelle (gemini-3-flash-preview) verbrauchen das
+// Budget auch für Denk-Tokens — bei 1024 endete JEDE Mehrprodukt-Erkennung in
+// MAX_TOKENS-Truncation + Parse-Fail (Prod 2026-08-01), Fallback war immer
+// "1 Gruppe, 100%".
 const VISION_DETECTION_CONFIG = buildGenerationConfig({
   temperature: 0.1,
   topP: 0.8,
   topK: 16,
-  maxOutputTokens: 1024,
+  maxOutputTokens: 8192,
 });
 
 // BUG-090: Structured output schema for grouping (replaces free-text JSON)
@@ -74,6 +78,51 @@ function buildGroupingPrompt(imageCount) {
   ].join('\n');
 }
 
+// Repariert am Token-Limit abgeschnittenes JSON. Scannt mit echtem
+// Klammer-Stack (string-/escape-aware) und schließt innerste Ebenen zuerst —
+// die frühere lastIndexOf-Heuristik schloss in falscher Reihenfolge und
+// scheiterte am häufigsten Truncation-Muster (Schnitt mitten im letzten
+// Array-Element). Wirft, wenn auch Tier 2 nicht parsebar ist.
+function repairTruncatedJson(text) {
+  const attempt = (candidate) => {
+    const stack = [];
+    let inString = false;
+    let escaped = false;
+    for (const ch of candidate) {
+      if (inString) {
+        if (escaped) escaped = false;
+        else if (ch === '\\') escaped = true;
+        else if (ch === '"') inString = false;
+        continue;
+      }
+      if (ch === '"') inString = true;
+      else if (ch === '{') stack.push('}');
+      else if (ch === '[') stack.push(']');
+      else if (ch === '}' || ch === ']') stack.pop();
+    }
+    let repaired = candidate;
+    if (inString) repaired += '"';
+    // Hängende Reste wie `"confidence":` oder trailing comma neutralisieren
+    repaired = repaired.replace(/:\s*$/, ': null').replace(/,\s*$/, '');
+    while (stack.length) repaired += stack.pop();
+    repaired = repaired.replace(/,\s*([}\]])/g, '$1');
+    return JSON.parse(repaired);
+  };
+
+  try {
+    const parsed = attempt(text);
+    console.warn('[image-grouping] Repaired truncated JSON (tier 1: closed open scopes)');
+    return parsed;
+  } catch {
+    // Tier 2: letztes unvollständiges Element abschneiden, dann schließen
+    const cut = text.lastIndexOf('}');
+    if (cut <= 0) throw new Error('unrepairable truncated JSON');
+    const parsed = attempt(text.slice(0, cut + 1));
+    console.warn('[image-grouping] Repaired truncated JSON (tier 2: dropped incomplete tail)');
+    return parsed;
+  }
+}
+
 function parseGroupingResponse(rawResponse, imageCount) {
   let text = typeof rawResponse === 'string' ? rawResponse : JSON.stringify(rawResponse);
   // Gemini may wrap JSON in markdown code blocks
@@ -84,23 +133,8 @@ function parseGroupingResponse(rawResponse, imageCount) {
   try {
     parsed = JSON.parse(text);
   } catch {
-    // Try to repair truncated JSON (Gemini may cut off at token limit)
     try {
-      let repaired = text;
-      // Close open strings
-      const quoteCount = (repaired.match(/"/g) || []).length;
-      if (quoteCount % 2 !== 0) repaired += '"';
-      // Close open arrays and objects
-      const opens = (repaired.match(/[{[]/g) || []).length;
-      const closes = (repaired.match(/[}\]]/g) || []).length;
-      for (let i = 0; i < opens - closes; i++) {
-        // Guess: close arrays before objects (inner first)
-        repaired += repaired.lastIndexOf('[') > repaired.lastIndexOf('{') ? ']' : '}';
-      }
-      // Remove trailing comma before closing brackets
-      repaired = repaired.replace(/,\s*([}\]])/g, '$1');
-      parsed = JSON.parse(repaired);
-      console.warn(`[image-grouping] Repaired truncated JSON (added ${opens - closes} closing brackets)`);
+      parsed = repairTruncatedJson(text);
     } catch {
       console.warn('[image-grouping] Failed to parse Gemini response as JSON, returning empty groups. Raw (100 chars):', text.substring(0, 100));
       return [];
@@ -368,8 +402,12 @@ function parseDetectionResponse(rawText) {
   try {
     parsed = JSON.parse(text);
   } catch {
-    console.warn('[image-grouping] Failed to parse multi-product detection response');
-    return [];
+    try {
+      parsed = repairTruncatedJson(text);
+    } catch {
+      console.warn('[image-grouping] Failed to parse multi-product detection response. Raw (100 chars):', text.substring(0, 100));
+      return [];
+    }
   }
 
   const products = Array.isArray(parsed?.products) ? parsed.products : [];
@@ -440,4 +478,5 @@ module.exports = {
   parseDetectionResponse,
   detectMultipleProducts,
   MULTI_PRODUCT_DETECTION_SCHEMA,
+  VISION_DETECTION_CONFIG,
 };

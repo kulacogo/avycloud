@@ -7,6 +7,7 @@ const {
   buildMultiProductPrompt,
   parseDetectionResponse,
   GROUPING_SCHEMA,
+  VISION_DETECTION_CONFIG,
 } = require('../services/image-grouping');
 
 describe('buildGroupingPrompt', () => {
@@ -229,6 +230,12 @@ describe('buildMultiProductPrompt', () => {
   });
 });
 
+describe('VISION_DETECTION_CONFIG', () => {
+  it('has enough output budget for thinking models + 10-product JSON (MAX_TOKENS incident 2026-08-01)', () => {
+    expect(VISION_DETECTION_CONFIG.maxOutputTokens).toBeGreaterThanOrEqual(4096);
+  });
+});
+
 describe('GROUPING_SCHEMA', () => {
   it('has required fields for structured output', () => {
     expect(GROUPING_SCHEMA.type).toBe('object');
@@ -365,6 +372,16 @@ describe('parseDetectionResponse', () => {
     expect(result[0].category_hint).toBe('');
     expect(result[0].barcode_hint).toBe('');
     expect(result[0].bounding_description).toBe('');
+  });
+
+  it('repairs truncated JSON (MAX_TOKENS) and salvages complete products', () => {
+    // Prod-Fehlerbild 2026-08-01: finishReason=MAX_TOKENS schnitt das JSON
+    // mitten im dritten Produkt ab — vorher ging die GESAMTE Erkennung verloren.
+    const truncated = '{"product_count": 3, "products": [{"label": "Nike Schuh", "confidence": 0.9}, {"label": "Bosch Bohrer", "confidence": 0.8}, {"label": "Maki';
+    const result = parseDetectionResponse(truncated);
+    expect(result.length).toBeGreaterThanOrEqual(2);
+    expect(result[0].label).toBe('Nike Schuh');
+    expect(result[1].label).toBe('Bosch Bohrer');
   });
 
   it('assigns sequential IDs', () => {
