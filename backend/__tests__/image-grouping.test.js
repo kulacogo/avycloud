@@ -224,6 +224,11 @@ describe('buildMultiProductPrompt', () => {
     expect(prompt).toContain('WENIGER Produkte');
   });
 
+  it('instructs listing the same model exactly once (duplicate incident 2026-08-01)', () => {
+    const prompt = buildMultiProductPrompt();
+    expect(prompt).toContain('GENAU EINMAL');
+  });
+
   it('instructs bounding_description', () => {
     const prompt = buildMultiProductPrompt();
     expect(prompt).toContain('bounding_description');
@@ -372,6 +377,77 @@ describe('parseDetectionResponse', () => {
     expect(result[0].category_hint).toBe('');
     expect(result[0].barcode_hint).toBe('');
     expect(result[0].bounding_description).toBe('');
+  });
+
+  it('dedupes products sharing the same model number token (Prod 2026-08-01: TV 3x gelistet)', () => {
+    const raw = JSON.stringify({
+      product_count: 4,
+      products: [
+        { label: 'Philips 40PFS6000/12 (40 Zoll)', confidence: 0.7, bounding_description: 'oben links' },
+        { label: 'Philips 40PFS6000/12 Smart TV', confidence: 0.9, brand_hint: 'Philips' },
+        { label: 'Krups Virtuoso XP442C Espresso', confidence: 0.85 },
+        { label: 'Philips 40PFS6000/12 Smart TV 40"', confidence: 0.6 },
+      ],
+    });
+    const result = parseDetectionResponse(raw);
+    expect(result).toHaveLength(2);
+    const labels = result.map((p) => p.label);
+    expect(labels).toContain('Philips 40PFS6000/12 Smart TV');
+    expect(labels).toContain('Krups Virtuoso XP442C Espresso');
+    // Duplikat mit höchster Confidence gewinnt
+    expect(result.find((p) => p.label.includes('Philips')).confidence).toBe(0.9);
+  });
+
+  it('dedupes products with split model tokens like "KF 1500"', () => {
+    const raw = JSON.stringify({
+      product_count: 2,
+      products: [
+        { label: 'Braun PurShine KF 1500 BK', confidence: 0.8 },
+        { label: 'Braun KF 1500 Kaffeemaschine', confidence: 0.7 },
+      ],
+    });
+    const result = parseDetectionResponse(raw);
+    expect(result).toHaveLength(1);
+  });
+
+  it('dedupes products sharing the same barcode_hint', () => {
+    const raw = JSON.stringify({
+      product_count: 2,
+      products: [
+        { label: 'Produkt A', confidence: 0.8, barcode_hint: '4006381333931' },
+        { label: 'Produkt B anders benannt', confidence: 0.7, barcode_hint: '4006381333931' },
+      ],
+    });
+    const result = parseDetectionResponse(raw);
+    expect(result).toHaveLength(1);
+  });
+
+  it('keeps genuinely different products untouched', () => {
+    const raw = JSON.stringify({
+      product_count: 3,
+      products: [
+        { label: 'Tineco Floor One S3', confidence: 0.9 },
+        { label: 'Krups Virtuoso XP442C', confidence: 0.85 },
+        { label: 'Braun PurShine KF 1500', confidence: 0.8 },
+      ],
+    });
+    const result = parseDetectionResponse(raw);
+    expect(result).toHaveLength(3);
+  });
+
+  it('merges hint fields from dropped duplicates into the kept entry', () => {
+    const raw = JSON.stringify({
+      product_count: 2,
+      products: [
+        { label: 'Philips 40PFS6000/12', confidence: 0.9 },
+        { label: 'Philips 40PFS6000/12 TV', confidence: 0.6, barcode_hint: '8718863016838', brand_hint: 'Philips' },
+      ],
+    });
+    const result = parseDetectionResponse(raw);
+    expect(result).toHaveLength(1);
+    expect(result[0].confidence).toBe(0.9);
+    expect(result[0].barcode_hint).toBe('8718863016838');
+    expect(result[0].brand_hint).toBe('Philips');
   });
 
   it('repairs truncated JSON (MAX_TOKENS) and salvages complete products', () => {
