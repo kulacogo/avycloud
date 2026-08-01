@@ -376,6 +376,7 @@ function buildMultiProductPrompt() {
     'STRENGE REGELN:',
     '- Zähle NUR Produkte die du KLAR SIEHST. Erfinde KEINE.',
     '- Mehrere Exemplare desselben Produkts = 1 Produkt (nicht doppelt zählen).',
+    '- Liegt DASSELBE Modell mehrfach im Bild (z.B. mehrere Kartons derselben Ware): liste es GENAU EINMAL.',
     '- Varianten (Farbe/Größe) des gleichen Modells = 1 Produkt.',
     '- Im Zweifel: WENIGER Produkte zählen, nicht mehr.',
     '- Verpackungsmaterial, Tisch, Hintergrund, Klebeband, Füllmaterial sind KEINE Produkte.',
@@ -390,6 +391,58 @@ function buildMultiProductPrompt() {
     '- barcode_hint: Sichtbarer Barcode/EAN oder "" falls keiner lesbar',
     '- confidence: 0.0-1.0 wie sicher du bist, dass es ein eigenständiges Produkt ist',
   ].join('\n');
+}
+
+// Modellnummern-artige Schlüssel aus einem Label ziehen: gemischte
+// Buchstaben+Ziffern-Token ("40pfs6000", "xp442c") plus Alpha+Zahl-Bigramme
+// ("KF 1500" → "kf1500"). Reine Zahlen (Wattagen, Größen) zählen NICHT.
+function extractModelKeys(label) {
+  const tokens = String(label || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9äöüß]+/g, ' ')
+    .split(' ')
+    .filter(Boolean);
+  const keys = new Set();
+  for (let i = 0; i < tokens.length; i++) {
+    const t = tokens[i];
+    if (/^(?=.*[a-z])(?=.*\d)[a-z0-9]{4,}$/.test(t)) keys.add(t);
+    if (/^[a-z]{1,3}$/.test(t) && /^\d{3,}$/.test(tokens[i + 1] || '')) {
+      keys.add(t + tokens[i + 1]);
+    }
+  }
+  return keys;
+}
+
+// Dubletten aus der Mehrprodukt-Erkennung entfernen (Prod 2026-08-01: derselbe
+// Fernseher wurde 3x gelistet → 3 identify-Calls → 3 Produkt-Dubletten).
+// Duplikat-Kriterien: gleicher Modellnummern-Schlüssel, identischer
+// barcode_hint oder identisches normalisiertes Label. Höchste Confidence
+// gewinnt, fehlende Hint-Felder werden vom Verlierer übernommen.
+function dedupeDetectedProducts(products) {
+  const kept = [];
+  const normalize = (label) =>
+    String(label || '').toLowerCase().replace(/[^a-z0-9äöüß]+/g, ' ').trim();
+  for (const p of products) {
+    const keys = extractModelKeys(p.label);
+    const normLabel = normalize(p.label);
+    const dup = kept.find((k) =>
+      (p.barcode_hint && k.entry.barcode_hint && p.barcode_hint === k.entry.barcode_hint) ||
+      k.normLabel === normLabel ||
+      [...keys].some((key) => k.keys.has(key))
+    );
+    if (!dup) {
+      kept.push({ entry: { ...p }, keys, normLabel });
+      continue;
+    }
+    const winner = p.confidence > dup.entry.confidence ? { ...p } : dup.entry;
+    const loser = winner === dup.entry ? p : dup.entry;
+    for (const f of ['bounding_description', 'brand_hint', 'category_hint', 'barcode_hint']) {
+      if (!winner[f] && loser[f]) winner[f] = loser[f];
+    }
+    dup.entry = winner;
+    for (const key of keys) dup.keys.add(key);
+  }
+  return kept.map((k, idx) => ({ ...k.entry, id: `detected_${idx}` }));
 }
 
 function parseDetectionResponse(rawText) {
@@ -412,7 +465,7 @@ function parseDetectionResponse(rawText) {
 
   const products = Array.isArray(parsed?.products) ? parsed.products : [];
 
-  return products
+  const mapped = products
     .slice(0, MAX_DETECTED_PRODUCTS)
     .filter((p) => typeof p.label === 'string' && p.label.trim())
     .map((p, idx) => ({
@@ -426,6 +479,8 @@ function parseDetectionResponse(rawText) {
         ? Math.min(1, Math.max(0, p.confidence))
         : 0.5,
     }));
+
+  return dedupeDetectedProducts(mapped);
 }
 
 /**
