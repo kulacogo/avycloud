@@ -57,6 +57,10 @@ const StepGrouping: React.FC<StepGroupingProps> = ({ images, barcodes, onConfirm
   const [dragSourceGroup, setDragSourceGroup] = useState<string | null>(null);
   const [dragImageId, setDragImageId] = useState<string | null>(null);
   const [dragOverGroup, setDragOverGroup] = useState<string | null>(null);
+  // Sobald der Nutzer Gruppen manuell verändert hat, darf die UI nicht mehr
+  // in den Einzelbild-Checklist-Modus springen — der hat keine Gruppen-Controls
+  // und wäre eine Sackgasse (Review-Finding).
+  const [manualEdit, setManualEdit] = useState(false);
   const startedRef = useRef(false);
 
   const buildLocalGroups = useCallback(
@@ -64,7 +68,9 @@ const StepGrouping: React.FC<StepGroupingProps> = ({ images, barcodes, onConfirm
       apiGroups.map((g: ProductGroupProposal, idx: number) => ({
         id: g.id || createId(),
         label: g.label || `Produkt ${idx + 1}`,
-        imageIds: g.image_indices.map((i: number) => images[i]?.id).filter(Boolean),
+        imageIds: Array.from(
+          new Set(g.image_indices.map((i: number) => images[i]?.id).filter(Boolean))
+        ) as string[],
         barcodes: g.detected_barcode || "",
         confidence: g.confidence,
         reason: g.reason,
@@ -133,6 +139,12 @@ const StepGrouping: React.FC<StepGroupingProps> = ({ images, barcodes, onConfirm
     );
   }, []);
 
+  const updateGroupLabel = useCallback((groupId: string, value: string) => {
+    setGroups((prev) =>
+      prev.map((g) => (g.id === groupId ? { ...g, label: value } : g))
+    );
+  }, []);
+
   // --- Multi-image grouping callbacks ---
 
   const resetToOneGroup = useCallback(() => {
@@ -140,6 +152,7 @@ const StepGrouping: React.FC<StepGroupingProps> = ({ images, barcodes, onConfirm
   }, [fallbackGroup]);
 
   const addGroup = useCallback(() => {
+    setManualEdit(true);
     setGroups((prev) => [
       ...prev,
       {
@@ -156,14 +169,38 @@ const StepGrouping: React.FC<StepGroupingProps> = ({ images, barcodes, onConfirm
   }, []);
 
   const removeGroup = useCallback((groupId: string) => {
+    setManualEdit(true);
     setGroups((prev) => {
       const removed = prev.find((g) => g.id === groupId);
       if (!removed || prev.length <= 1) return prev;
       const remaining = prev.filter((g) => g.id !== groupId);
-      // Move orphaned images to first group
-      remaining[0].imageIds = [...remaining[0].imageIds, ...removed.imageIds];
-      return remaining;
+      // Nur wirklich verwaiste Bilder in die erste Gruppe übernehmen — ein
+      // geteiltes Foto lebt evtl. noch in einer anderen Gruppe und würde dem
+      // ersten Produkt sonst ein fremdes Foto unterschieben
+      const stillReferenced = new Set(remaining.flatMap((g) => g.imageIds));
+      const orphans = removed.imageIds.filter((id) => !stillReferenced.has(id));
+      if (!orphans.length) return remaining;
+      return remaining.map((g, i) =>
+        i === 0 ? { ...g, imageIds: [...g.imageIds, ...orphans] } : g
+      );
     });
+  }, []);
+
+  const copyImageToNewGroup = useCallback((imageId: string) => {
+    setManualEdit(true);
+    setGroups((prev) => [
+      ...prev,
+      {
+        id: createId(),
+        label: `Produkt ${prev.length + 1}`,
+        imageIds: [imageId],
+        barcodes: "",
+        confidence: 1,
+        reason: "Weiteres Produkt auf geteiltem Foto",
+        hint: "",
+        checked: true,
+      },
+    ]);
   }, []);
 
   // Drag & drop between groups
@@ -171,7 +208,7 @@ const StepGrouping: React.FC<StepGroupingProps> = ({ images, barcodes, onConfirm
     setDragSourceGroup(groupId);
     setDragImageId(imageId);
     e.dataTransfer.setData("application/json", JSON.stringify({ groupId, imageId }));
-    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.effectAllowed = "copyMove";
   }, []);
 
   const handleGroupDrop = useCallback((e: React.DragEvent, targetGroupId: string) => {
@@ -181,13 +218,18 @@ const StepGrouping: React.FC<StepGroupingProps> = ({ images, barcodes, onConfirm
       const data = JSON.parse(e.dataTransfer.getData("application/json"));
       const { groupId: sourceGroupId, imageId } = data;
       if (!sourceGroupId || !imageId || sourceGroupId === targetGroupId) return;
+      // Alt-/Strg-Drag kopiert: das Foto bleibt in der Quellgruppe (mehrere
+      // Produkte auf einem Bild). Strg zusätzlich, weil der Browser-Cursor
+      // unter Windows/Linux bei Strg bereits "Kopieren" verspricht.
+      const copy = e.altKey || e.ctrlKey;
 
+      setManualEdit(true);
       setGroups((prev) =>
         prev.map((g) => {
-          if (g.id === sourceGroupId) {
+          if (g.id === sourceGroupId && !copy) {
             return { ...g, imageIds: g.imageIds.filter((id) => id !== imageId) };
           }
-          if (g.id === targetGroupId) {
+          if (g.id === targetGroupId && !g.imageIds.includes(imageId)) {
             return { ...g, imageIds: [...g.imageIds, imageId] };
           }
           return g;
@@ -221,7 +263,7 @@ const StepGrouping: React.FC<StepGroupingProps> = ({ images, barcodes, onConfirm
 
   // --- Derived state ---
 
-  const isSingleImageMultiProduct = images.length === 1 && groups.length > 1;
+  const isSingleImageMultiProduct = images.length === 1 && groups.length > 1 && !manualEdit;
   const checkedCount = groups.filter((g) => g.checked).length;
 
   // --- Loading state ---
@@ -347,7 +389,7 @@ const StepGrouping: React.FC<StepGroupingProps> = ({ images, barcodes, onConfirm
               KI hat {groups.length} Produkt{groups.length !== 1 ? "e" : ""} in {images.length} Bildern erkannt
             </p>
             <p className="text-xs text-txt-muted mt-0.5">
-              Prüfe die Zuordnung und korrigiere bei Bedarf. Bilder per Drag & Drop zwischen Gruppen verschieben.
+              Prüfe die Zuordnung und korrigiere bei Bedarf. Drag & Drop verschiebt ein Bild, mit gedrückter Alt-/Strg-Taste wird es kopiert. ⧉ legt ein Bild als weiteres Produkt in eine neue Gruppe — ein Foto kann so für mehrere Produkte stehen. Benenne Gruppen möglichst konkret, das hilft der KI-Erkennung.
             </p>
           </div>
           {error && <p className="text-xs text-danger">{error}</p>}
@@ -360,7 +402,10 @@ const StepGrouping: React.FC<StepGroupingProps> = ({ images, barcodes, onConfirm
           <Card
             key={group.id}
             padding="sm"
-            className={dragOverGroup === group.id ? "ring-2 ring-accent/40" : ""}
+            className={[
+              dragOverGroup === group.id ? "ring-2 ring-accent/40" : "",
+              !group.checked ? "opacity-60" : "",
+            ].filter(Boolean).join(" ")}
           >
             <div
               onDragOver={(e) => { e.preventDefault(); setDragOverGroup(group.id); }}
@@ -368,12 +413,24 @@ const StepGrouping: React.FC<StepGroupingProps> = ({ images, barcodes, onConfirm
               onDrop={(e) => handleGroupDrop(e, group.id)}
             >
               {/* Group header */}
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <p className="text-sm font-semibold text-txt-primary">{group.label}</p>
+              <div className="flex items-center justify-between mb-3 gap-3">
+                <div className="flex items-center gap-2 flex-1 min-w-0">
+                  <input
+                    type="checkbox"
+                    checked={group.checked}
+                    onChange={() => toggleGroupChecked(group.id)}
+                    title="Gruppe erfassen ja/nein"
+                    className="accent-[var(--color-accent)] shrink-0"
+                  />
+                  <Input
+                    value={group.label}
+                    onChange={(e) => updateGroupLabel(group.id, e.target.value)}
+                    placeholder="Was ist das Produkt?"
+                    className="text-sm font-semibold max-w-xs"
+                  />
                   <ConfidenceBadge value={group.confidence} />
                   {group.reason && (
-                    <span className="text-xs text-txt-muted">{group.reason}</span>
+                    <span className="text-xs text-txt-muted truncate">{group.reason}</span>
                   )}
                 </div>
                 {groups.length > 1 && (
@@ -397,18 +454,35 @@ const StepGrouping: React.FC<StepGroupingProps> = ({ images, barcodes, onConfirm
                 {group.imageIds.map((imgId) => {
                   const img = getImage(imgId);
                   if (!img) return null;
+                  const sharedCount = groups.filter((g) => g.imageIds.includes(imgId)).length;
                   return (
                     <div
                       key={imgId}
                       draggable
                       onDragStart={(e) => handleImageDragStart(e, group.id, imgId)}
-                      className="w-20 h-20 rounded-lg overflow-hidden border border-app-border cursor-grab active:cursor-grabbing hover:ring-2 hover:ring-accent/30 transition-all"
+                      className="relative w-20 h-20 rounded-lg overflow-hidden border border-app-border cursor-grab active:cursor-grabbing hover:ring-2 hover:ring-accent/30 transition-all"
                     >
                       <img
                         src={img.url}
                         alt=""
                         className="w-full h-full object-cover pointer-events-none select-none"
                       />
+                      {sharedCount > 1 && (
+                        <span
+                          className="absolute top-1 left-1 text-[10px] leading-none px-1 py-0.5 rounded bg-app-surface/90 border border-app-border text-txt-muted"
+                          title={`Bild wird von ${sharedCount} Gruppen genutzt`}
+                        >
+                          ×{sharedCount}
+                        </span>
+                      )}
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); copyImageToNewGroup(imgId); }}
+                        title="Bild in neue Gruppe kopieren (weiteres Produkt auf diesem Foto)"
+                        className="absolute bottom-1 right-1 w-5 h-5 flex items-center justify-center rounded bg-app-surface/90 border border-app-border text-txt-muted hover:text-accent hover:border-accent/50 transition-colors text-xs"
+                      >
+                        ⧉
+                      </button>
                     </div>
                   );
                 })}
@@ -444,7 +518,7 @@ const StepGrouping: React.FC<StepGroupingProps> = ({ images, barcodes, onConfirm
           </Button>
           <Button
             onClick={handleConfirm}
-            disabled={groups.every((g) => g.imageIds.length === 0)}
+            disabled={!groups.some((g) => g.checked && g.imageIds.length > 0)}
           >
             Zuordnung bestätigen
           </Button>

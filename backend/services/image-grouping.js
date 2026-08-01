@@ -36,6 +36,9 @@ const GROUPING_SCHEMA = {
           confidence: { type: 'number' },
           reason: { type: 'string' },
           detected_barcode: { type: 'string' },
+          brand_hint: { type: 'string' },
+          category_hint: { type: 'string' },
+          position_hint: { type: 'string' },
         },
         required: ['label', 'image_indices', 'confidence'],
       },
@@ -54,16 +57,20 @@ function buildGroupingPrompt(imageCount) {
     '1. Erkenne wie viele VERSCHIEDENE Produkte in den Bildern zu sehen sind.',
     '2. Gruppiere die Bilder nach Produkten.',
     '3. Ein einzelnes Bild kann MEHRERE Produkte zeigen (z.B. Palette, Tisch mit Ware).',
-    '   In dem Fall ordne das Bild ALLEN Gruppen zu.',
+    '   In dem Fall: erstelle für JEDES dieser Produkte eine EIGENE Gruppe und ordne das',
+    '   Bild JEDER dieser Gruppen zu. Gib dann pro Gruppe position_hint an (z.B. "oben links",',
+    '   "Mitte rechts"), damit klar ist, welches Produkt auf dem geteilten Bild gemeint ist.',
     '',
     'REGELN:',
     '- Zähle NUR Produkte die du KLAR SIEHST. Erfinde KEINE.',
     '- Im Zweifel: lieber eine Gruppe zu VIEL als zu wenig. Nur zusammenfassen wenn Bilder KLAR dasselbe Produkt zeigen.',
     '- Mehrere Ansichten desselben Produkts (Vorne, Hinten, Detail) = EINE Gruppe.',
+    '- Mehrere Exemplare desselben Produkts (auch nebeneinander auf einem Bild) = EIN Produkt = EINE Gruppe. Nicht doppelt zählen.',
     '- Unterschiedliche Farben/Varianten desselben Modells = EINE Gruppe.',
     '- Verschiedene Marken, Produkttypen oder Formen → SEPARATE Gruppen.',
-    '- Falls ein Bild einen Barcode/EAN zeigt: notiere ihn bei detected_barcode.',
+    '- Falls ein Bild einen Barcode/EAN zeigt: notiere ihn NUR bei der Gruppe, zu deren Produkt er eindeutig gehört. Im Zweifel weglassen.',
     '- Übersichtsfotos gehören zu JEDER dort sichtbaren Gruppe.',
+    '- Falls erkennbar, fülle pro Gruppe brand_hint (Marke) und category_hint (Produkttyp).',
   ].join('\n');
 }
 
@@ -101,25 +108,57 @@ function parseGroupingResponse(rawResponse, imageCount) {
   }
   const groups = Array.isArray(parsed?.groups) ? parsed.groups : [];
 
-  return groups
+  const mapped = groups
     .filter((g) => Array.isArray(g.image_indices) && g.image_indices.length > 0)
-    .map((g, idx) => ({
-      id: `group_${idx}`,
-      label: g.label || `Produkt ${idx + 1}`,
-      image_indices: g.image_indices.filter(
-        (i) => typeof i === 'number' && i >= 0 && i < imageCount
-      ),
-      confidence:
-        typeof g.confidence === 'number'
-          ? Math.min(1, Math.max(0, g.confidence))
-          : 0.5,
-      reason: typeof g.reason === 'string' ? g.reason : '',
-      detected_barcode:
-        typeof g.detected_barcode === 'string' && g.detected_barcode.trim()
-          ? g.detected_barcode.trim()
-          : null,
-    }))
+    .map((g, idx) => {
+      const brandHint = typeof g.brand_hint === 'string' ? g.brand_hint.trim() : '';
+      const categoryHint = typeof g.category_hint === 'string' ? g.category_hint.trim() : '';
+      const positionHint = typeof g.position_hint === 'string' ? g.position_hint.trim() : '';
+      // Kein Label im Hint — StepAnalysis stellt das Label dem Hint ohnehin voran.
+      const hint = (brandHint || categoryHint || positionHint)
+        ? [
+            brandHint ? `Marke: ${brandHint}` : null,
+            categoryHint ? `Kategorie: ${categoryHint}` : null,
+            positionHint ? `Position: ${positionHint}` : null,
+          ].filter(Boolean).join('. ')
+        : null;
+      return {
+        id: `group_${idx}`,
+        label: g.label || `Produkt ${idx + 1}`,
+        image_indices: [...new Set(g.image_indices.filter(
+          (i) => typeof i === 'number' && i >= 0 && i < imageCount
+        ))],
+        confidence:
+          typeof g.confidence === 'number'
+            ? Math.min(1, Math.max(0, g.confidence))
+            : 0.5,
+        reason: typeof g.reason === 'string' ? g.reason : '',
+        detected_barcode:
+          typeof g.detected_barcode === 'string' && g.detected_barcode.trim()
+            ? g.detected_barcode.trim()
+            : null,
+        hint,
+      };
+    })
     .filter((g) => g.image_indices.length > 0);
+
+  // Ein Barcode gehört zu genau EINEM Produkt. Meldet das Modell denselben
+  // Wert für mehrere Gruppen (geteiltes Foto), ist die Zuordnung unklar →
+  // überall entfernen. Sonst schickt das Frontend denselben Barcode als
+  // expliziten (trusted) Barcode in mehrere identify-Calls → Falsch-Reuse/
+  // Phantom-Intake (Incident-Klassen 2026-07-08 / 2026-07-30).
+  const barcodeCounts = new Map();
+  for (const g of mapped) {
+    if (g.detected_barcode) {
+      barcodeCounts.set(g.detected_barcode, (barcodeCounts.get(g.detected_barcode) || 0) + 1);
+    }
+  }
+  for (const g of mapped) {
+    if (g.detected_barcode && barcodeCounts.get(g.detected_barcode) > 1) {
+      g.detected_barcode = null;
+    }
+  }
+  return mapped;
 }
 
 /**
@@ -228,6 +267,7 @@ async function groupImagesStructured(imageBuffers, imageCount) {
             confidence: 0.3,
             reason: 'Leere Gemini-Response — bitte manuell prüfen',
             detected_barcode: null,
+            hint: null,
           });
         }
         continue;
@@ -250,6 +290,7 @@ async function groupImagesStructured(imageBuffers, imageCount) {
           confidence: 0.3,
           reason: 'Batch-Fehler — bitte manuell prüfen',
           detected_barcode: null,
+          hint: null,
         });
       }
     }
