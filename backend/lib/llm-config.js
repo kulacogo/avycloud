@@ -8,6 +8,7 @@ const {
   defaultThinkingConfig,
   buildGenerationConfig,
 } = require('./gemini-config');
+const { resolveModel: resolveModelPolicy } = require('./model-select');
 
 const SCOPES_COLLECTION = 'llmScopes';
 const SNAPSHOT_FILE = path.join(__dirname, 'llm-scopes-snapshot.json');
@@ -476,6 +477,9 @@ async function resolveScopeConfig(scopeName, tenantId, callerOverrides = {}) {
     const envVal = envKey ? String(process.env[envKey] || '').trim() : '';
     model = envVal || DEFAULT_MODEL;
   }
+  // Zentrale Modell-Politik (2026-08-01): Gemini-3-Namen aus alten Scope-
+  // Overrides oder ENVs werden auf 2.5 umgeleitet, nie roh an die API gereicht.
+  model = resolveModelPolicy(model, undefined, DEFAULT_MODEL);
 
   return {
     scopeId: id,
@@ -505,10 +509,10 @@ function _resolveModelFromSnapshotHit(hit) {
     typeof hit?.modelOverride === 'string' && hit.modelOverride.trim()
       ? hit.modelOverride.trim()
       : '';
-  if (versionModel) return versionModel;
+  if (versionModel) return resolveModelPolicy(versionModel, undefined, DEFAULT_MODEL);
   const envKey = typeof hit?.defaultModelEnvKey === 'string' ? hit.defaultModelEnvKey : '';
   const envVal = envKey ? String(process.env[envKey] || '').trim() : '';
-  return envVal || DEFAULT_MODEL;
+  return resolveModelPolicy(envVal || DEFAULT_MODEL, undefined, DEFAULT_MODEL);
 }
 
 /**

@@ -345,7 +345,7 @@ describe('lookupHazmatViaGemini', () => {
     const call = gemini3GenerateJSONMock.mock.calls[0][0];
     expect(call.prompt).toMatch(/[Bb]iozid/);
     expect(call.schema.properties.biozid).toBeDefined();
-    expect(call.model).toBe('gemini-3-flash-preview');
+    expect(call.model).toBe('gemini-2.5-flash');
   });
 
   it('biozid WITHOUT source → biozid null (keine unbelegte Pflicht-Kennzeichnung)', async () => {

@@ -145,7 +145,7 @@ async function generateDescription({ title, brand, category }) {
   ].join('\n');
   try {
     const text = await callGeminiVision(prompt, [], {
-      model: 'gemini-3-flash-preview',
+      model: 'gemini-2.5-flash',
       temperature: 0.6,
       maxOutputTokens: 2048, // Gemini-3 Thinking frisst knappe Budgets — Antwort truncated sonst (Live-Fall '40%')
     });
@@ -176,7 +176,7 @@ async function generateMaterial({ title, brand, category }) {
   ].join('\n');
   try {
     const text = await callGeminiVision(prompt, [], {
-      model: 'gemini-3-flash-preview',
+      model: 'gemini-2.5-flash',
       temperature: 0.2,
       maxOutputTokens: 2048, // s.o. — nie unter ~1024 bei Gemini-3
     });
@@ -242,7 +242,7 @@ async function generateContent({ title, brand, category }) {
   ].join('\n');
   try {
     const text = await callGeminiVision(prompt, [], {
-      model: 'gemini-3-flash-preview',
+      model: 'gemini-2.5-flash',
       temperature: 0.1,
       maxOutputTokens: 2048, // s.o. — nie unter ~1024 bei Gemini-3
     });

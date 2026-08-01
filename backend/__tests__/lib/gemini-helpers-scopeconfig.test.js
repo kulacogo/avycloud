@@ -142,7 +142,7 @@ describe('Phase F.1b — gemini helper-layer scopeConfig augmentation', () => {
         scopeConfig: { model: 'gemini-3-flash-preview' },
       });
       let call = _gemini3GenerateContentMock.mock.calls[0][0];
-      expect(call.model).toBe('gemini-3-flash-preview');
+      expect(call.model).toBe('gemini-2.5-flash');
 
       _gemini3GenerateContentMock.mockResolvedValueOnce({ text: '{"ok":true}' });
       await gemini3.gemini3GenerateJSON({
@@ -152,7 +152,7 @@ describe('Phase F.1b — gemini helper-layer scopeConfig augmentation', () => {
         scopeConfig: { model: 'gemini-3-flash-preview' },
       });
       call = _gemini3GenerateContentMock.mock.calls[1][0];
-      expect(call.model).toBe('gemini-3.1-flash-lite');
+      expect(call.model).toBe('gemini-2.5-flash');
     });
 
     it('scopeConfig: callerOverrides (explicit temperature) win over scopeConfig.generationConfig', async () => {
@@ -229,7 +229,7 @@ describe('Phase F.1b — gemini helper-layer scopeConfig augmentation', () => {
         },
       });
       const modelArg = _getGenerativeModelMock.mock.calls.pop()[0];
-      expect(modelArg.model).toBe('gemini-3-flash-preview');
+      expect(modelArg.model).toBe('gemini-2.5-flash');
 
       const callArg = _generateContentMock.mock.calls[0][0];
       expect(callArg.generationConfig.temperature).toBe(0.5);
@@ -282,7 +282,7 @@ describe('Phase F.1b — gemini helper-layer scopeConfig augmentation', () => {
         },
       });
       const modelArg = _getGenerativeModelMock.mock.calls.pop()[0];
-      expect(modelArg.model).toBe('gemini-3-flash-preview');
+      expect(modelArg.model).toBe('gemini-2.5-flash');
 
       const callArg = _generateContentMock.mock.calls[0][0];
       expect(callArg.generationConfig.temperature).toBe(0.42);

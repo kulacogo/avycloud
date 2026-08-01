@@ -44,8 +44,8 @@ function chatLegacyEnhanced() {
 }
 
 // Resolved once at module load — single source of truth for Chat models.
-const CHAT_MODEL = resolveModel(process.env.CHAT_MODEL, 'CHAT_MODEL', 'gemini-3.1-pro-preview-customtools');
-const INTENT_MODEL = resolveModel(process.env.INTENT_MODEL, 'INTENT_MODEL', 'gemini-3-flash-preview');
+const CHAT_MODEL = resolveModel(process.env.CHAT_MODEL, 'CHAT_MODEL', 'gemini-2.5-pro');
+const INTENT_MODEL = resolveModel(process.env.INTENT_MODEL, 'INTENT_MODEL', 'gemini-2.5-flash');
 
 // Amazon ASIN pattern: B0 + 8 alphanumerics (total 10 chars starting with B).
 const AMAZON_ASIN_REGEX = /\bB0[0-9A-Z]{8}\b/;

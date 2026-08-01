@@ -87,15 +87,20 @@ describe('makeStudioPhoto — Modell-Kette', () => {
     const result = await makeStudioPhoto({ productId: 'p1', image: { url_or_base64: 'https://x/img.jpg' } });
 
     expect(result.method).toBe('gemini');
-    expect(result.model).toBe('gemini-3-pro-image-preview');
+    expect(result.model).toBe('gemini-2.5-flash-image');
     expect(result.image.url_or_base64).toBe('https://storage.googleapis.com/test/studio.png');
     expect(result.image.source).toBe('studio_gemini');
     expect(generateProductImagesSpy).toHaveBeenCalledTimes(1);
-    expect(generateProductImagesSpy.mock.calls[0][0].model).toBe('gemini-3-pro-image-preview');
+    expect(generateProductImagesSpy.mock.calls[0][0].model).toBe('gemini-2.5-flash-image');
     expect(compositeOnGradientSpy).not.toHaveBeenCalled();
   });
 
+  // Seit dem 2.5-Downgrade sind Default-Primär- und Fallback-Modell identisch
+  // (Kette dedupliziert auf EIN Modell). Die Ketten-MECHANIK bleibt und wird
+  // hier mit expliziten ENV-Modellen getestet.
   it('fällt aufs Zweitmodell zurück wenn das Primärmodell wirft', async () => {
+    process.env.STUDIO_IMAGE_MODEL = 'studio-primary-test';
+    process.env.STUDIO_IMAGE_FALLBACK_MODEL = 'gemini-2.5-flash-image';
     generateProductImagesSpy
       .mockRejectedValueOnce(new Error('model not found'))
       .mockResolvedValueOnce([{ base64: brightPng.toString('base64'), mimeType: 'image/png' }]);
@@ -105,11 +110,13 @@ describe('makeStudioPhoto — Modell-Kette', () => {
     expect(result.method).toBe('gemini');
     expect(result.model).toBe('gemini-2.5-flash-image');
     expect(result.attempts).toEqual([
-      expect.objectContaining({ model: 'gemini-3-pro-image-preview', reason: expect.stringContaining('model not found') }),
+      expect.objectContaining({ model: 'studio-primary-test', reason: expect.stringContaining('model not found') }),
     ]);
   });
 
   it('verwirft ein zu dunkles Ergebnis (kein Studio-Hintergrund) und probiert das Zweitmodell', async () => {
+    process.env.STUDIO_IMAGE_MODEL = 'studio-primary-test';
+    process.env.STUDIO_IMAGE_FALLBACK_MODEL = 'gemini-2.5-flash-image';
     generateProductImagesSpy
       .mockResolvedValueOnce([{ base64: darkPng.toString('base64'), mimeType: 'image/png' }])
       .mockResolvedValueOnce([{ base64: brightPng.toString('base64'), mimeType: 'image/png' }]);

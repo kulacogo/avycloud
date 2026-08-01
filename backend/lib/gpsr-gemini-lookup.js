@@ -193,7 +193,7 @@ async function lookupGpsrViaGemini(brand, opts = {}) {
 
   const model = opts.model
     || process.env.GPSR_GEMINI_MODEL
-    || 'gemini-3-flash-preview';
+    || 'gemini-2.5-flash';
 
   try {
     const parsed = await Promise.race([

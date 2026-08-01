@@ -119,11 +119,18 @@ const PRODUCT_IMAGE_TIMEOUT_MS = parseInt(process.env.CHAT_IMAGE_TIMEOUT_MS || '
  */
 function chatV3Enabled() {
   const raw = process.env.CHAT_V3;
-  if (raw == null) return true;
-  const v = String(raw).trim().toLowerCase();
-  if (v === 'false' || v === '0' || v === 'no' || v === 'off') return false;
-  if (v === 'true' || v === '1' || v === 'yes' || v === 'on') return true;
-  return true;
+  if (raw != null) {
+    const v = String(raw).trim().toLowerCase();
+    if (v === 'false' || v === '0' || v === 'no' || v === 'off') return false;
+  }
+  // V3 (Context Circulation: googleSearch + urlContext + custom functions in
+  // EINEM Request) existiert nur auf den -customtools-Modellvarianten. Auf
+  // Gemini 2.5 (Kosten-Downgrade 2026-08-01) lehnt die API die Tool-Kombination
+  // ab — dann direkt mit V2 starten, statt pro Nachricht einen garantiert
+  // scheiternden Call zu bezahlen. Kommt je ein customtools-Klasse-Modell
+  // zurück, aktiviert sich V3 hierüber von selbst.
+  const { resolveChatModel } = require('../lib/gemini-config');
+  return resolveChatModel().includes('customtools');
 }
 
 // ---------------------------------------------------------------------------

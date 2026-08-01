@@ -296,7 +296,7 @@ function repairTruncatedJson(text) {
   return null;
 }
 
-const DEFAULT_MODEL = 'gemini-3-pro-preview';
+const DEFAULT_MODEL = 'gemini-2.5-pro';
 
 let _clientPromise = null;
 

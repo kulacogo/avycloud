@@ -74,7 +74,7 @@ describe('F.1b.3 snapshot: identify-v3-stage3 (aspect repair)', () => {
       identifyProductWithGrounding: vi.fn(),
       identifyProductFocused: vi.fn(),
       FULL_PRODUCT_SCHEMA: {}, RECOGNITION_SCHEMA: {}, CONTENT_SCHEMA: {},
-      DEFAULT_MODEL: 'gemini-3-pro-preview',
+      DEFAULT_MODEL: 'gemini-2.5-pro',
     },
   };
 
@@ -286,7 +286,7 @@ describe('F.1b.3 snapshot: product-chat-v2 (chats.create config)', () => {
       identifyProductWithGrounding: vi.fn(),
       identifyProductFocused: vi.fn(),
       FULL_PRODUCT_SCHEMA: {}, RECOGNITION_SCHEMA: {}, CONTENT_SCHEMA: {},
-      DEFAULT_MODEL: 'gemini-3-pro-preview',
+      DEFAULT_MODEL: 'gemini-2.5-pro',
     },
   };
 
@@ -350,7 +350,7 @@ describe('F.1b.3 snapshot: product-chat-v2 (chats.create config)', () => {
     });
     // thinkingConfig is part of the enhanced overrides; assert its shape.
     expect(resolveScopeConfigMock.mock.calls[0][2].thinkingConfig).toMatchObject({
-      thinkingLevel: 'high',
+      thinkingBudget: 4096,
       includeThoughts: true,
     });
 
@@ -360,7 +360,7 @@ describe('F.1b.3 snapshot: product-chat-v2 (chats.create config)', () => {
     const { config } = captured[0];
     expect(config.temperature).toBe(1.0);
     expect(config.maxOutputTokens).toBe(8192);
-    expect(config.thinkingConfig).toMatchObject({ thinkingLevel: 'high', includeThoughts: true });
+    expect(config.thinkingConfig).toMatchObject({ thinkingBudget: 4096, includeThoughts: true });
     // Tool wiring: googleSearch + urlContext + functionDeclarations.
     expect(Array.isArray(config.tools)).toBe(true);
     expect(config.tools.some((t) => t && t.googleSearch !== undefined)).toBe(true);
@@ -512,7 +512,7 @@ describe('F.1b.3 snapshot: identify-v3-stage3-agentic (chats.create config)', ()
     expect(typeof config.temperature).toBe('number');
     expect(config.maxOutputTokens).toBe(12000);
     expect(config.thinkingConfig).toBeDefined();
-    expect(config.thinkingConfig.thinkingLevel).toBe('high');
+    expect(config.thinkingConfig.thinkingBudget).toBe(4096);
     // Tool wiring assertion (regression-guard for the agentic tool stack).
     expect(Array.isArray(config.tools)).toBe(true);
     expect(config.tools.some((t) => t && t.googleSearch !== undefined)).toBe(true);

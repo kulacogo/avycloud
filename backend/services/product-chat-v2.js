@@ -923,7 +923,7 @@ async function runProductChatV2(product, userMessage, {
   const enhanced = isChatV2Enhanced();
   // Default target: Gemini 3.1 Pro customtools variant. resolveModel() will
   // also normalize legacy aliases (gemini-3-pro-preview → customtools).
-  const modelName = resolveModel(modelOverride, 'CHAT_MODEL', 'gemini-3.1-pro-preview-customtools');
+  const modelName = resolveModel(modelOverride, 'CHAT_MODEL', 'gemini-2.5-pro');
   const locale = 'de-DE';
 
   // Enrich: eBay taxonomy + K-Typ (non-blocking)
@@ -1023,7 +1023,7 @@ async function runProductChatV2(product, userMessage, {
   const _legacyTemperatureV2 = enhanced ? 1.0 : 0.3;
   const _legacyMaxOutputTokensV2 = enhanced ? 8192 : 4096;
   const _legacyThinkingV2 = enhanced
-    ? { thinkingLevel: 'high', includeThoughts: true }
+    ? { thinkingBudget: 4096, includeThoughts: true }
     : undefined;
   const scopeConfigV2 = await _tryResolveScopeConfigChatV2('chat.product', tenantId, {
     temperature: _legacyTemperatureV2,
