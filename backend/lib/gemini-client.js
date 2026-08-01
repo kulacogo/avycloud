@@ -66,7 +66,7 @@ async function callGeminiVision(textPrompt, imageBuffers = [], options = {}) {
       ? scopeConfig.model.trim()
       : null;
   const preferred = callerModel || scopeModel || null;
-  const modelName = resolveModel(preferred, 'GROUPING_MODEL', 'gemini-2.0-flash');
+  const modelName = resolveModel(preferred, 'GROUPING_MODEL', 'gemini-2.5-flash');
   const model = client.getGenerativeModel({ model: modelName });
 
   const parts = [

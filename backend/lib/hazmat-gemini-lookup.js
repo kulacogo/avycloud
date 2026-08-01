@@ -424,7 +424,7 @@ async function lookupHazmatViaGemini(params = {}) {
 
   const model = params.model
     || process.env.HAZMAT_GEMINI_MODEL
-    || 'gemini-3-flash-preview';
+    || 'gemini-2.5-flash';
 
   let normalized;
   try {

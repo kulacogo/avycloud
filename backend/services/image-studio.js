@@ -41,7 +41,7 @@ const STUDIO_PROMPT =
   'Keep the original camera perspective, show the product fully in frame with balanced margins.';
 
 function studioModelChain() {
-  const primary = process.env.STUDIO_IMAGE_MODEL || 'gemini-3-pro-image-preview';
+  const primary = process.env.STUDIO_IMAGE_MODEL || 'gemini-2.5-flash-image';
   const fallback =
     process.env.STUDIO_IMAGE_FALLBACK_MODEL || process.env.GEMINI_IMAGE_MODEL || 'gemini-2.5-flash-image';
   return [...new Set([primary, fallback])];

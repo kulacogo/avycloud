@@ -94,7 +94,7 @@ function getStructuredModelName() {
   return resolveModel(
     process.env.GEMINI_MULTIMODAL_MODEL,
     'GEMINI_STRUCTURED_MODEL',
-    'gemini-3.1-pro-preview-customtools'
+    'gemini-2.5-pro'
   );
 }
 

@@ -15,7 +15,7 @@
 
 const { getGenAIClient } = require('./gemini3-client');
 
-const MODEL = process.env.GPSR_IMAGE_MODEL || 'gemini-3-flash-preview';
+const MODEL = process.env.GPSR_IMAGE_MODEL || 'gemini-2.5-flash';
 const MAX_IMAGES = parseInt(process.env.GPSR_IMAGE_MAX || '4', 10);
 const IMAGE_TIMEOUT_MS = parseInt(process.env.GPSR_IMAGE_FETCH_TIMEOUT_MS || '8000', 10);
 const CALL_TIMEOUT_MS = parseInt(process.env.GPSR_IMAGE_CALL_TIMEOUT_MS || '30000', 10);

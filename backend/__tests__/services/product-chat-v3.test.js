@@ -192,15 +192,19 @@ describe('chatV3Enabled feature flag', () => {
     else process.env.CHAT_V3 = original;
   });
 
-  it('defaults to TRUE when CHAT_V3 is unset (V3 is the production default)', () => {
+  // Seit dem 2.5-Downgrade (2026-08-01) ist chatV3Enabled zusätzlich modell-
+  // gegated: V3 (googleSearch + custom functions in EINEM Request) existiert
+  // nur auf -customtools-Varianten. Unter der 2.5-Politik löst KEIN Modell
+  // mehr auf customtools auf → V3 ist strukturell aus, Kaskade startet bei V2.
+  it('is OFF when the resolved chat model lacks customtools (2.5 policy)', () => {
     delete process.env.CHAT_V3;
-    expect(chatV3Enabled()).toBe(true);
+    expect(chatV3Enabled()).toBe(false);
   });
 
-  it('returns true when CHAT_V3=true / 1 / yes / on', () => {
+  it('stays OFF even when CHAT_V3=true (model gate wins)', () => {
     for (const v of ['true', '1', 'yes', 'on', 'TRUE', 'On']) {
       process.env.CHAT_V3 = v;
-      expect(chatV3Enabled()).toBe(true);
+      expect(chatV3Enabled()).toBe(false);
     }
   });
 
@@ -211,10 +215,15 @@ describe('chatV3Enabled feature flag', () => {
     }
   });
 
-  it('treats arbitrary / empty values as default-ON', () => {
-    for (const v of ['', 'maybe', 'unknown']) {
-      process.env.CHAT_V3 = v;
-      expect(chatV3Enabled()).toBe(true);
+  it('stale customtools CHAT_MODEL pins do not re-enable V3 (redirected to 2.5)', () => {
+    delete process.env.CHAT_V3;
+    const prev = process.env.CHAT_MODEL;
+    process.env.CHAT_MODEL = 'gemini-3.1-pro-preview-customtools';
+    try {
+      expect(chatV3Enabled()).toBe(false);
+    } finally {
+      if (prev === undefined) delete process.env.CHAT_MODEL;
+      else process.env.CHAT_MODEL = prev;
     }
   });
 });

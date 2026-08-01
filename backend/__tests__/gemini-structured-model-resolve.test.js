@@ -22,26 +22,26 @@ describe('getStructuredModelName', () => {
   });
 
   it('returns the supported preview model when no env override is set', () => {
-    expect(getStructuredModelName()).toBe('gemini-3.1-pro-preview-customtools');
+    expect(getStructuredModelName()).toBe('gemini-2.5-pro');
   });
 
-  it('auto-aliases the deprecated `gemini-3-pro-preview` to the supported customtools variant', () => {
+  it('redirects gemini-3-pro-preview to gemini-2.5-pro (cost policy)', () => {
     process.env.GEMINI_MULTIMODAL_MODEL = 'gemini-3-pro-preview';
-    expect(getStructuredModelName()).toBe('gemini-3.1-pro-preview-customtools');
+    expect(getStructuredModelName()).toBe('gemini-2.5-pro');
   });
 
-  it('passes `gemini-3-flash-preview` through unchanged (allowed model, no alias)', () => {
+  it('redirects gemini-3-flash-preview to gemini-2.5-flash (cost policy)', () => {
     process.env.GEMINI_MULTIMODAL_MODEL = 'gemini-3-flash-preview';
-    expect(getStructuredModelName()).toBe('gemini-3-flash-preview');
+    expect(getStructuredModelName()).toBe('gemini-2.5-flash');
   });
 
   it('falls back to the supported preview model when the override is unknown', () => {
     process.env.GEMINI_MULTIMODAL_MODEL = 'unknown-model-xyz';
-    expect(getStructuredModelName()).toBe('gemini-3.1-pro-preview-customtools');
+    expect(getStructuredModelName()).toBe('gemini-2.5-pro');
   });
 
   it('honours GEMINI_STRUCTURED_MODEL when GEMINI_MULTIMODAL_MODEL is unset', () => {
     process.env.GEMINI_STRUCTURED_MODEL = 'gemini-3-flash-preview';
-    expect(getStructuredModelName()).toBe('gemini-3-flash-preview');
+    expect(getStructuredModelName()).toBe('gemini-2.5-flash');
   });
 });

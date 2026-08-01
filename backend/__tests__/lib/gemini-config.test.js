@@ -20,23 +20,26 @@ describe('gemini-config helpers', () => {
     process.env = { ...ORIGINAL_ENV };
   });
 
-  it('exports DEFAULT_MODEL as gemini-3.1-pro-preview-customtools', () => {
+  it('exports Gemini-2.5 defaults (Kosten-Downgrade 2026-08-01)', () => {
     const cfg = require('../../lib/gemini-config');
-    expect(cfg.DEFAULT_MODEL).toBe('gemini-3.1-pro-preview-customtools');
-    expect(cfg.FLASH_MODEL).toBe('gemini-3-flash-preview');
-    expect(cfg.IMAGE_MODEL).toBe('gemini-3-pro-image-preview');
+    expect(cfg.DEFAULT_MODEL).toBe('gemini-2.5-pro');
+    expect(cfg.FLASH_MODEL).toBe('gemini-2.5-flash');
+    expect(cfg.IMAGE_MODEL).toBe('gemini-2.5-flash-image');
   });
 
-  it('defaultThinkingConfig returns HIGH + includeThoughts by default', () => {
+  it('defaultThinkingConfig returns a 2.5-style thinkingBudget (no thinkingLevel)', () => {
     const { defaultThinkingConfig } = require('../../lib/gemini-config');
     const out = defaultThinkingConfig();
-    expect(out).toEqual({ thinkingLevel: 'high', includeThoughts: true });
+    expect(out).toEqual({ thinkingBudget: 4096, includeThoughts: true });
+    expect(out.thinkingLevel).toBeUndefined();
   });
 
-  it('defaultThinkingConfig honors overrides', () => {
+  it('defaultThinkingConfig maps levels to budgets and honors includeThoughts', () => {
     const { defaultThinkingConfig } = require('../../lib/gemini-config');
-    const out = defaultThinkingConfig({ includeThoughts: false, level: 'low' });
-    expect(out).toEqual({ thinkingLevel: 'low', includeThoughts: false });
+    expect(defaultThinkingConfig({ includeThoughts: false, level: 'low' }))
+      .toEqual({ thinkingBudget: 1024, includeThoughts: false });
+    expect(defaultThinkingConfig({ level: 'medium' }))
+      .toEqual({ thinkingBudget: 2048, includeThoughts: true });
   });
 
   it('defaultSafetySettings returns 4 harm categories with MEDIUM threshold', () => {
@@ -97,54 +100,54 @@ describe('gemini-config helpers', () => {
     });
   });
 
-  it('resolveChatModel defaults to gemini-3.1-pro-preview-customtools when ENV unset', () => {
+  it('resolveChatModel defaults to gemini-2.5-pro when ENV unset', () => {
     const { resolveChatModel } = require('../../lib/gemini-config');
-    expect(resolveChatModel()).toBe('gemini-3.1-pro-preview-customtools');
+    expect(resolveChatModel()).toBe('gemini-2.5-pro');
   });
 
-  it('resolveChatModel honors CHAT_MODEL env override with an allowed model', () => {
+  it('resolveChatModel redirects stale Gemini-3 CHAT_MODEL pins to 2.5', () => {
     process.env.CHAT_MODEL = 'gemini-3.1-pro-preview';
     const { resolveChatModel } = require('../../lib/gemini-config');
-    expect(resolveChatModel()).toBe('gemini-3.1-pro-preview');
+    expect(resolveChatModel()).toBe('gemini-2.5-pro');
   });
 
-  it('resolveChatModel reroutes legacy gemini-3-pro-preview ENV to customtools', () => {
+  it('resolveChatModel reroutes legacy gemini-3-pro-preview ENV to 2.5-pro', () => {
     process.env.CHAT_MODEL = 'gemini-3-pro-preview';
     const { resolveChatModel } = require('../../lib/gemini-config');
-    expect(resolveChatModel()).toBe('gemini-3.1-pro-preview-customtools');
+    expect(resolveChatModel()).toBe('gemini-2.5-pro');
   });
 
-  it('resolveIdentifyModel defaults to customtools and honors IDENTIFY_MODEL ENV', () => {
+  it('resolveIdentifyModel defaults to 2.5-pro and redirects flash-lite pins', () => {
     const cfgA = require('../../lib/gemini-config');
-    expect(cfgA.resolveIdentifyModel()).toBe('gemini-3.1-pro-preview-customtools');
+    expect(cfgA.resolveIdentifyModel()).toBe('gemini-2.5-pro');
 
     process.env.IDENTIFY_MODEL = 'gemini-3.1-flash-lite';
     delete require.cache[require.resolve('../../lib/gemini-config')];
     const cfgB = require('../../lib/gemini-config');
-    expect(cfgB.resolveIdentifyModel()).toBe('gemini-3.1-flash-lite');
+    expect(cfgB.resolveIdentifyModel()).toBe('gemini-2.5-flash');
   });
 
-  it('resolveIntentModel defaults to FLASH_MODEL (gemini-3-flash-preview)', () => {
+  it('resolveIntentModel defaults to FLASH_MODEL (gemini-2.5-flash)', () => {
     const { resolveIntentModel, FLASH_MODEL } = require('../../lib/gemini-config');
     expect(resolveIntentModel()).toBe(FLASH_MODEL);
-    expect(resolveIntentModel()).toBe('gemini-3-flash-preview');
+    expect(resolveIntentModel()).toBe('gemini-2.5-flash');
   });
 
-  it('resolveIdentifyV4Model() defaults to gemini-3.1-pro-preview-customtools', () => {
+  it('resolveIdentifyV4Model() defaults to gemini-2.5-pro', () => {
     const { resolveIdentifyV4Model } = require('../../lib/gemini-config');
-    expect(resolveIdentifyV4Model()).toBe('gemini-3.1-pro-preview-customtools');
+    expect(resolveIdentifyV4Model()).toBe('gemini-2.5-pro');
   });
 
-  it('resolveIdentifyV4Model() respects IDENTIFY_V4_MODEL env override', () => {
+  it('resolveIdentifyV4Model() redirects IDENTIFY_V4_MODEL Gemini-3 pins', () => {
     process.env.IDENTIFY_V4_MODEL = 'gemini-3.1-flash-lite';
     delete require.cache[require.resolve('../../lib/gemini-config')];
     const { resolveIdentifyV4Model } = require('../../lib/gemini-config');
-    expect(resolveIdentifyV4Model()).toBe('gemini-3.1-flash-lite');
+    expect(resolveIdentifyV4Model()).toBe('gemini-2.5-flash');
   });
 
-  it('resolveImageEnhanceModel() defaults to gemini-3-pro-image-preview', () => {
+  it('resolveImageEnhanceModel() defaults to gemini-2.5-flash-image', () => {
     const { resolveImageEnhanceModel } = require('../../lib/gemini-config');
-    expect(resolveImageEnhanceModel()).toBe('gemini-3-pro-image-preview');
+    expect(resolveImageEnhanceModel()).toBe('gemini-2.5-flash-image');
   });
 
   it('resolveImageEnhanceModel() respects IDENTIFY_V4_IMAGE_MODEL env override', () => {

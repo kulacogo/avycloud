@@ -71,7 +71,7 @@ if (!FunctionCallingConfigMode || !FunctionCallingConfigMode.ANY) {
   FunctionCallingConfigMode = { AUTO: 'AUTO', ANY: 'ANY', NONE: 'NONE' };
 }
 
-const DEFAULT_MODEL = 'gemini-3-pro-preview';
+const DEFAULT_MODEL = 'gemini-2.5-pro';
 const WRITE_TOOL = 'write_product_datasheet';
 
 /**

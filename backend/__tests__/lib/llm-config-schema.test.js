@@ -259,12 +259,12 @@ describe('resolveScopeConfig', () => {
     expect(cfg.versionId).toBe('v1');
     expect(cfg.system_prompt).toBe('sys prompt');
     expect(cfg.rules_text).toBe('rules');
-    expect(cfg.model).toBe('gemini-3.1-pro-preview-customtools');
+    expect(cfg.model).toBe('gemini-2.5-pro');
     // gemini-config defaults baked in
     expect(cfg.generationConfig.temperature).toBe(1.0);
     expect(cfg.generationConfig.maxOutputTokens).toBe(8192);
     expect(cfg.generationConfig.thinkingConfig).toEqual({
-      thinkingLevel: 'high',
+      thinkingBudget: 4096,
       includeThoughts: true,
     });
     expect(cfg.userTemplate).toBe('');
@@ -288,7 +288,7 @@ describe('resolveScopeConfig', () => {
     const cfg = await llmConfig.resolveScopeConfig('chat.product', 'tenant-A');
     expect(cfg.versionId).toBe('v2');
     expect(cfg.system_prompt).toBe('P2');
-    expect(cfg.model).toBe('gemini-3-flash-preview');
+    expect(cfg.model).toBe('gemini-2.5-flash');
     expect(cfg.generationConfig.temperature).toBe(0.4);
     expect(cfg.generationConfig.maxOutputTokens).toBe(8192); // gemini-config default still present
   });
@@ -342,7 +342,7 @@ describe('resolveScopeConfig', () => {
       modelOverride: 'gemini-3.1-flash-lite',
     });
     const cfg = await llmConfig.resolveScopeConfig('identify.v2', null);
-    expect(cfg.model).toBe('gemini-3.1-flash-lite');
+    expect(cfg.model).toBe('gemini-2.5-flash');
   });
 
   it('propagates userTemplate + outputSchemaHint from the version doc', async () => {
@@ -433,7 +433,7 @@ describe('resolveScopeConfig', () => {
       model: 'gemini-3-flash-preview',
       generationConfig: { temperature: 0.1 },
     });
-    expect(cfg.model).toBe('gemini-3-flash-preview');
+    expect(cfg.model).toBe('gemini-2.5-flash');
     expect(cfg.generationConfig.temperature).toBe(0.1);
   });
 });
@@ -525,7 +525,7 @@ describe('loadScopeWithFallback', () => {
     // Normalized fields (mirrors resolveScopeConfig contract)
     expect(cfg.system_prompt).toBe('snapshot sys prompt');
     expect(cfg.rules_text).toBe('snapshot rules text');
-    expect(cfg.model).toBe('gemini-3.1-pro-preview');
+    expect(cfg.model).toBe('gemini-2.5-pro');
     expect(cfg.user_template).toBe('tpl {{x}}');
     expect(cfg.output_schema_hint).toBe('{"type":"string"}');
     expect(cfg.generation_config).toEqual({ temperature: 0.42, maxOutputTokens: 2048 });
@@ -554,7 +554,7 @@ describe('loadScopeWithFallback', () => {
         ],
       });
       const cfg = await llmConfig.loadScopeWithFallback('chat.product');
-      expect(cfg.model).toBe('gemini-3.1-pro-preview-customtools');
+      expect(cfg.model).toBe('gemini-2.5-pro');
       expect(cfg.modelOverride).toBeNull();
     } finally {
       if (originalEnv === undefined) delete process.env.GEMINI_CHAT_MODEL;

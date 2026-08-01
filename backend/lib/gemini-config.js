@@ -1,19 +1,25 @@
 // CommonJS. 2 Spaces. Single Quotes.
-// Zentrale Konfigurations-Helfer für Gemini 3 Pro / 3.1 Pro Calls.
+// Zentrale Konfigurations-Helfer für Gemini-Calls.
+// Seit 2026-08-01 (Owner-Entscheid Kosten): Gemini 2.5 statt Gemini 3.
 
 const { resolveModel } = require('./model-select');
 
-const DEFAULT_MODEL = 'gemini-3.1-pro-preview-customtools';
-const FLASH_MODEL = 'gemini-3-flash-preview';
-const IMAGE_MODEL = 'gemini-3-pro-image-preview';
+const DEFAULT_MODEL = 'gemini-2.5-pro';
+const FLASH_MODEL = 'gemini-2.5-flash';
+const IMAGE_MODEL = 'gemini-2.5-flash-image';
 
 /**
  * Standard thinking-Config für Agentic Use Cases (Chat + Identify).
- * Gemini 3 Pro benötigt HIGH für tiefe Recherche.
+ * Gemini 2.5 kennt KEIN thinkingLevel (das war Gemini-3-Syntax und würde
+ * mit 400 INVALID_ARGUMENT abgelehnt) — 2.5 steuert über thinkingBudget
+ * (Token). Die Budgets sind bewusst moderat: Denk-Tokens kosten Geld.
  * includeThoughts macht Thought-Parts im Response verfügbar (Frontend "Thinking…"-Panel).
  */
+const THINKING_BUDGETS = { low: 1024, medium: 2048, high: 4096 };
+
 function defaultThinkingConfig({ includeThoughts = true, level = 'high' } = {}) {
-  return { thinkingLevel: level, includeThoughts };
+  const thinkingBudget = THINKING_BUDGETS[level] || THINKING_BUDGETS.high;
+  return { thinkingBudget, includeThoughts };
 }
 
 /**
