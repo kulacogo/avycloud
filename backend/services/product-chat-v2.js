@@ -1370,6 +1370,17 @@ function extractAnswerText(response) {
   return typeof response?.text === 'string' ? response.text : '';
 }
 
+// V2 kombiniert googleSearch/urlContext + functionDeclarations in EINEM
+// Request (Context Circulation) — das existiert nur auf -customtools-Modellen.
+// Auf Gemini 2.5 lehnt die API mit 400 "Tool call context circulation is not
+// enabled" ab (Prod 2026-08-02). Die Chat-Kaskade soll dann direkt bei Legacy
+// starten, statt pro Nachricht einen scheiternden Call + Fehler-Chip zu zeigen.
+function chatV2ModelSupported() {
+  const { resolveChatModel } = require('../lib/gemini-config');
+  return resolveChatModel().includes('customtools');
+}
+
 module.exports = {
   runProductChatV2,
+  chatV2ModelSupported,
 };

@@ -3023,6 +3023,28 @@ async function ensurePriceCoverage(products = [], serpTrace = [], options = {}) 
       }
     }
 
+    // Letzter Fallback (2026-08-02): Gemini-Grounding — eine einfache
+    // Google-Suche findet für gängige Produkte sofort Preise, während
+    // SerpAPI/Browse oft leer bleiben. Kill-Switch: PRICE_GEMINI_LOOKUP=off.
+    if (!candidates.length) {
+      try {
+        const { lookupPricesViaGemini } = require('../lib/gemini-price-lookup');
+        const geminiCandidates = await lookupPricesViaGemini(product);
+        if (geminiCandidates.length) {
+          serpTrace.push({
+            engine: 'gemini_grounding',
+            query: `${product?.identification?.brand || ''} ${product?.identification?.name || ''}`.trim(),
+            summary: geminiCandidates.slice(0, 5).map((c) => ({ title: c.title, price: c.amount, url: c.url, source: c.source })),
+            error: null,
+            fallback: true,
+          });
+          candidates = geminiCandidates;
+        }
+      } catch (e) {
+        console.warn(`[PRICE] Gemini-Grounding fallback failed for ${product?.id}: ${e?.message}`);
+      }
+    }
+
     const best = pickBestPriceCandidate(candidates);
     if (!best) {
       // Mark as no price data available
