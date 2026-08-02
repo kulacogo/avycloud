@@ -45,6 +45,13 @@ describe('_stripJsonForceWhenToolsUnsupported', () => {
   });
 });
 
+describe('chatV2ModelSupported (context circulation is Gemini-3-only)', () => {
+  it('is false under the 2.5 policy — cascade starts at legacy without a failing V2 call', () => {
+    const { chatV2ModelSupported } = require('../../services/product-chat-v2');
+    expect(chatV2ModelSupported()).toBe(false);
+  });
+});
+
 describe('isAgenticEnabled model gate (context circulation is Gemini-3-only)', () => {
   const MOD = '../../lib/identify-v3-stage3-agentic';
   let originalEnv;

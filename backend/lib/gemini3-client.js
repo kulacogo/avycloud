@@ -1276,6 +1276,7 @@ module.exports = {
   _stripJsonForceWhenToolsUnsupported,
   _extractBalancedJson,
   _jsonFormatterFallback,
+  _parseGroundedJson,
   gemini3GenerateText,
   identifyProductWithGrounding,
   buildImprovePromptExtension,

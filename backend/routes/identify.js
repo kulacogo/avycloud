@@ -14,7 +14,7 @@ const { ensureCategories, runDatasheetReview, prefetchWebEvidenceForIdentify, pr
 const { runSerpapiFreePipeline } = require('../services/enrichment-v2');
 const { buildProductFromV2Record } = require('../lib/v2-product-builder');
 const { runProductChat } = require('../services/product-chat');
-const { runProductChatV2 } = require('../services/product-chat-v2');
+const { runProductChatV2, chatV2ModelSupported } = require('../services/product-chat-v2');
 const { runProductChatV3, chatV3Enabled } = require('../services/product-chat-v3');
 const { buildSessionId, getSession, appendMessages, clearSession, getGeminiHistory } = require('../lib/chat-sessions');
 const { isBannedEbayBreadcrumb } = require('../lib/ebay-category-governance');
@@ -1721,7 +1721,7 @@ router.post('/chat', requirePermission('ai', 'chat'), identifyLimiter, chatUploa
       // V2 runs when env flag says so, OR when override explicitly requests 'v2'.
       const shouldTryV2 =
         pipelineOverride === 'v2' ||
-        (allowV2 && useChatV2);
+        (allowV2 && useChatV2 && (typeof chatV2ModelSupported !== 'function' || chatV2ModelSupported()));
 
       const runV2V3AttachmentParts = Array.isArray(attachments) ? attachments : [];
 
@@ -1852,7 +1852,7 @@ router.post('/chat', requirePermission('ai', 'chat'), identifyLimiter, chatUploa
     const allowV2Sync = pipelineOverrideSync !== 'legacy';
     const shouldTryV2Sync =
       pipelineOverrideSync === 'v2' ||
-      (allowV2Sync && useChatV2Sync);
+      (allowV2Sync && useChatV2Sync && (typeof chatV2ModelSupported !== 'function' || chatV2ModelSupported()));
 
     let chatResult = null;
     let pipelineUsed = 'legacy';
