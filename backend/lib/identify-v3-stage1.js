@@ -162,7 +162,9 @@ async function runStage1Recognition({ files = [], barcodes = '', hint = null, lo
           throw new Error('STAGE1_SKIP_V2_FALLBACK=true — skipping V2 grounding fallback');
         }
         const STAGE1_V2_FALLBACK_TIMEOUT_MS = parseInt(
-          process.env.STAGE1_V2_FALLBACK_TIMEOUT_MS || '20000',
+          // 45s statt 20s: grounded 2.5-Calls (Suche + Thinking) brauchen
+          // deutlich länger als die alten Gemini-3-Flash-Antworten.
+          process.env.STAGE1_V2_FALLBACK_TIMEOUT_MS || '45000',
           10,
         );
         const v2FallbackPromise = identifyProductWithGrounding({ imageParts, ocrText, barcodes: mergedBarcodes, locale, hint });

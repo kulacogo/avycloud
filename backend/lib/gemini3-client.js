@@ -806,20 +806,15 @@ ${improveContext ? buildImprovePromptExtension(improveContext) : ''}WICHTIG:
     config: _stripJsonForceWhenToolsUnsupported(modelName, groundingConfig),
   });
 
-  let text = (response.text || '').trim();
-  if (!text) {
+  const rawText = (response.text || '').trim();
+  if (!rawText) {
     throw new Error(`Gemini (${modelName}) returned empty response for identify-with-grounding`);
   }
 
-  // Strip markdown fences if present
-  if (text.startsWith('```')) {
-    text = text.replace(/^```(?:json)?\s*\n?/, '').replace(/\n?```\s*$/, '').trim();
-  }
-  const jsonStart = text.indexOf('{');
-  if (jsonStart > 0 && jsonStart < 200) text = text.slice(jsonStart);
-
-  const record = repairTruncatedJson(text);
-  if (!record) throw new Error('Failed to parse grounding JSON (even after repair)');
+  const record = await _parseGroundedJson({
+    ai, modelName, responseText: rawText, schema: FULL_PRODUCT_SCHEMA,
+    timeoutMs: GROUNDING_TIMEOUT_MS, maxOutputTokens: 8192, label: 'identify-grounding',
+  });
 
   // Attach grounding metadata for traceability
   const candidates = response.candidates || [];
@@ -909,16 +904,13 @@ REGELN:
     config: _stripJsonForceWhenToolsUnsupported(modelName, recognitionConfig),
   });
 
-  let text = (response.text || '').trim();
-  if (!text) throw new Error('Gemini returned empty response for focused recognition');
-  if (text.startsWith('```')) {
-    text = text.replace(/^```(?:json)?\s*\n?/, '').replace(/\n?```\s*$/, '').trim();
-  }
-  const jsonStart = text.indexOf('{');
-  if (jsonStart > 0 && jsonStart < 200) text = text.slice(jsonStart);
-
-  const record = repairTruncatedJson(text);
-  if (!record) throw new Error('Failed to parse focused grounding JSON (even after repair)');
+  const rawText = (response.text || '').trim();
+  if (!rawText) throw new Error('Gemini returned empty response for focused recognition');
+  const record = await _parseGroundedJson({
+    ai, modelName, responseText: rawText, schema: RECOGNITION_SCHEMA,
+    timeoutMs: parseInt(process.env.IDENTIFY_RECOGNITION_TIMEOUT_MS || '45000', 10),
+    maxOutputTokens: 4096, label: 'focused-recognition',
+  });
 
   const candidates = response.candidates || [];
   const groundingMeta = candidates[0]?.groundingMetadata || {};
@@ -1163,17 +1155,106 @@ AUFGABE: Erstelle ein VOLLSTAENDIGES Produktdatenblatt basierend auf den obigen 
     config: _stripJsonForceWhenToolsUnsupported(modelName, contentConfig),
   });
 
-  let text = (response.text || '').trim();
-  if (!text) throw new Error('Gemini returned empty response for content generation');
-  if (text.startsWith('```')) {
-    text = text.replace(/^```(?:json)?\s*\n?/, '').replace(/\n?```\s*$/, '').trim();
-  }
-  const jsonStart = text.indexOf('{');
-  if (jsonStart > 0 && jsonStart < 200) text = text.slice(jsonStart);
-
-  const parsed = repairTruncatedJson(text);
-  if (!parsed) throw new Error('Failed to parse Gemini JSON (even after repair attempt)');
+  const rawText = (response.text || '').trim();
+  if (!rawText) throw new Error('Gemini returned empty response for content generation');
+  const parsed = await _parseGroundedJson({
+    ai, modelName, responseText: rawText, schema: CONTENT_SCHEMA,
+    timeoutMs: parseInt(process.env.STAGE3_GEMINI_TIMEOUT_MS || '60000', 10),
+    maxOutputTokens: 8192, label: 'content-generation',
+  });
   return parsed;
+}
+
+// Findet das erste PARSEBARE balancierte JSON-Objekt irgendwo im Text
+// (string-/escape-aware). Grounded 2.5-Antworten kommen als Prosa + JSON +
+// Quellenanhang — der alte Parser (JSON nur in den ersten 200 Zeichen, kein
+// Trailing-Cut) scheiterte daran (Prod 2026-08-02). Liefert bei nur
+// abgeschnittenem JSON den Rest ab erster Klammer (repairTruncatedJson
+// schließt ihn), bei gar keinem Objekt null.
+function _extractBalancedJson(text) {
+  const s = String(text || '');
+  let searchFrom = 0;
+  let firstBrace = -1;
+  for (;;) {
+    const start = s.indexOf('{', searchFrom);
+    if (start === -1) break;
+    if (firstBrace === -1) firstBrace = start;
+    let depth = 0;
+    let inString = false;
+    let escaped = false;
+    let end = -1;
+    for (let i = start; i < s.length; i++) {
+      const ch = s[i];
+      if (inString) {
+        if (escaped) escaped = false;
+        else if (ch === '\\') escaped = true;
+        else if (ch === '"') inString = false;
+        continue;
+      }
+      if (ch === '"') inString = true;
+      else if (ch === '{') depth++;
+      else if (ch === '}') {
+        depth--;
+        if (depth === 0) { end = i; break; }
+      }
+    }
+    if (end !== -1) {
+      const candidate = s.slice(start, end + 1);
+      try {
+        JSON.parse(candidate);
+        return candidate;
+      } catch {
+        // balanciert, aber kein JSON (z.B. Prosa in Klammern) — weiter suchen
+      }
+    }
+    searchFrom = start + 1;
+  }
+  return firstBrace === -1 ? null : s.slice(firstBrace);
+}
+
+// Letzte Rettung für grounded 2.5-Calls, deren Antwort gar kein brauchbares
+// JSON enthält: Zweitcall OHNE Tools MIT responseJsonSchema (auf 2.5 erlaubt,
+// solange keine Tools dabei sind) formt das Rechercheergebnis in Schema-JSON.
+// Wirft bei leerem rawText — ein Formatter ohne Quelle würde halluzinieren.
+async function _jsonFormatterFallback({ ai, modelName, rawText, schema, timeoutMs = 30000, maxOutputTokens = 4096 }) {
+  const src = String(rawText || '').trim();
+  if (!src) throw new Error('formatter fallback: rawText ist leer');
+  const response = await ai.models.generateContent({
+    model: modelName,
+    contents: [{
+      role: 'user',
+      parts: [{
+        text:
+          'Extrahiere die Daten aus folgendem Rechercheergebnis und antworte als JSON gemäß Schema. ' +
+          'NICHTS erfinden — Felder ohne Beleg im Text leer lassen.\n\n' + src,
+      }],
+    }],
+    config: {
+      temperature: 0.1,
+      maxOutputTokens,
+      responseMimeType: 'application/json',
+      responseJsonSchema: schema,
+      httpOptions: { timeout: timeoutMs },
+    },
+  });
+  const text = (response.text || '').trim();
+  const extracted = _extractBalancedJson(text) || text;
+  const parsed = repairTruncatedJson(extracted);
+  if (!parsed) throw new Error('formatter fallback: JSON nicht parsebar');
+  return parsed;
+}
+
+// Robuste Parse-Kette für grounded Antworten: balancierte Extraktion →
+// Truncation-Repair → Formatter-Zweitcall.
+async function _parseGroundedJson({ ai, modelName, responseText, schema, timeoutMs, maxOutputTokens, label }) {
+  const text = String(responseText || '').trim();
+  const extracted = _extractBalancedJson(text);
+  if (extracted) {
+    const parsed = repairTruncatedJson(extracted);
+    if (parsed) return parsed;
+  }
+  console.warn(`[gemini3-client] ${label}: kein direktes JSON — Formatter-Zweitcall`);
+  return _jsonFormatterFallback({ ai, modelName, rawText: text, schema, timeoutMs, maxOutputTokens });
 }
 
 // Gemini 2.5 erlaubt KEINE Kombination aus Tools (googleSearch/urlContext)
@@ -1193,6 +1274,8 @@ module.exports = {
   getGenAIClient,
   gemini3GenerateJSON,
   _stripJsonForceWhenToolsUnsupported,
+  _extractBalancedJson,
+  _jsonFormatterFallback,
   gemini3GenerateText,
   identifyProductWithGrounding,
   buildImprovePromptExtension,
