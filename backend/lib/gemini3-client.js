@@ -803,7 +803,7 @@ ${improveContext ? buildImprovePromptExtension(improveContext) : ''}WICHTIG:
   const response = await ai.models.generateContent({
     model: modelName,
     contents: [{ role: 'user', parts }],
-    config: groundingConfig,
+    config: _stripJsonForceWhenToolsUnsupported(modelName, groundingConfig),
   });
 
   let text = (response.text || '').trim();
@@ -906,7 +906,7 @@ REGELN:
   const response = await ai.models.generateContent({
     model: modelName,
     contents: [{ role: 'user', parts }],
-    config: recognitionConfig,
+    config: _stripJsonForceWhenToolsUnsupported(modelName, recognitionConfig),
   });
 
   let text = (response.text || '').trim();
@@ -1160,7 +1160,7 @@ AUFGABE: Erstelle ein VOLLSTAENDIGES Produktdatenblatt basierend auf den obigen 
   const response = await ai.models.generateContent({
     model: modelName,
     contents: [{ role: 'user', parts }],
-    config: contentConfig,
+    config: _stripJsonForceWhenToolsUnsupported(modelName, contentConfig),
   });
 
   let text = (response.text || '').trim();
@@ -1176,9 +1176,23 @@ AUFGABE: Erstelle ein VOLLSTAENDIGES Produktdatenblatt basierend auf den obigen 
   return parsed;
 }
 
+// Gemini 2.5 erlaubt KEINE Kombination aus Tools (googleSearch/urlContext)
+// und erzwungenem JSON (responseMimeType/responseJsonSchema) im selben Request
+// — Fehler: "Tool use with a response mime type: 'application/json' is
+// unsupported" (Prod 2026-08-02). Gemini 3 konnte das. Bei 2.5+Tools wird der
+// JSON-Zwang entfernt: die Prompts verlangen ohnehin JSON-only und die Parser
+// hier (Fence-Strip + repairTruncatedJson) verkraften Freitext-JSON.
+function _stripJsonForceWhenToolsUnsupported(modelName, config) {
+  if (!config || !Array.isArray(config.tools) || config.tools.length === 0) return config;
+  if (!String(modelName || '').startsWith('gemini-2')) return config;
+  const { responseMimeType, responseJsonSchema, responseSchema, ...rest } = config;
+  return rest;
+}
+
 module.exports = {
   getGenAIClient,
   gemini3GenerateJSON,
+  _stripJsonForceWhenToolsUnsupported,
   gemini3GenerateText,
   identifyProductWithGrounding,
   buildImprovePromptExtension,

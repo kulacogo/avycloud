@@ -14,34 +14,34 @@ describe('identify-v3-stage3-agentic — pure helpers', () => {
   });
 
   describe('isAgenticEnabled', () => {
-    it('returns TRUE by default (agentic is the production default)', () => {
+    it('is OFF by default under the 2.5 model gate (context circulation is Gemini-3-only)', () => {
       const original = process.env.STAGE3_AGENTIC;
       delete process.env.STAGE3_AGENTIC;
       delete process.env.STAGE3_AGENTIC_SAMPLE;
       try {
-        expect(agentic.isAgenticEnabled()).toBe(true);
+        expect(agentic.isAgenticEnabled()).toBe(false);
       } finally {
         if (original !== undefined) process.env.STAGE3_AGENTIC = original;
       }
     });
 
-    it('returns true when STAGE3_AGENTIC=true', () => {
+    it('stays OFF with STAGE3_AGENTIC=true (model gate wins)', () => {
       const original = process.env.STAGE3_AGENTIC;
       process.env.STAGE3_AGENTIC = 'true';
       try {
-        expect(agentic.isAgenticEnabled()).toBe(true);
+        expect(agentic.isAgenticEnabled()).toBe(false);
       } finally {
         if (original === undefined) delete process.env.STAGE3_AGENTIC;
         else process.env.STAGE3_AGENTIC = original;
       }
     });
 
-    it('honors common truthy aliases', () => {
+    it('truthy aliases are also model-gated OFF', () => {
       const original = process.env.STAGE3_AGENTIC;
       try {
         for (const v of ['1', 'yes', 'on', 'TRUE']) {
           process.env.STAGE3_AGENTIC = v;
-          expect(agentic.isAgenticEnabled()).toBe(true);
+          expect(agentic.isAgenticEnabled()).toBe(false);
         }
       } finally {
         if (original === undefined) delete process.env.STAGE3_AGENTIC;
@@ -62,13 +62,13 @@ describe('identify-v3-stage3-agentic — pure helpers', () => {
       }
     });
 
-    it('respects STAGE3_AGENTIC_SAMPLE when explicit flag is unset', () => {
+    it('STAGE3_AGENTIC_SAMPLE cannot bypass the model gate', () => {
       const originalSample = process.env.STAGE3_AGENTIC_SAMPLE;
       const originalFlag = process.env.STAGE3_AGENTIC;
       delete process.env.STAGE3_AGENTIC;
       try {
         process.env.STAGE3_AGENTIC_SAMPLE = '1.0';
-        expect(agentic.isAgenticEnabled()).toBe(true);
+        expect(agentic.isAgenticEnabled()).toBe(false);
         // Sample 0 is a partial-disable knob.
         process.env.STAGE3_AGENTIC_SAMPLE = '0';
         expect(agentic.isAgenticEnabled()).toBe(false);

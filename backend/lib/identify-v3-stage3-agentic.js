@@ -695,6 +695,17 @@ function isAgenticEnabled() {
   const raw = String(process.env.STAGE3_AGENTIC || '').trim().toLowerCase();
   // Explicit opt-out
   if (raw === 'false' || raw === '0' || raw === 'no' || raw === 'off') return false;
+  // Modell-Gate (2026-08-02): der agentische Multi-Tool-Loop braucht Tool-Call-
+  // Context-Circulation — ein Gemini-3-Feature. Auf 2.5 lehnt die API jeden
+  // Call ab ("Tool call context circulation is not enabled for models/…") →
+  // direkt Single-Shot statt eines garantiert scheiternden Calls pro Produkt.
+  // Gewinnt auch über explizites STAGE3_AGENTIC=true.
+  {
+    const { resolveModel } = require('./model-select');
+    const { DEFAULT_MODEL } = require('./gemini-config');
+    const gateModel = resolveModel(process.env.GEMINI_IDENTIFY_MODEL, 'GEMINI_IDENTIFY_MODEL', DEFAULT_MODEL);
+    if (String(gateModel || '').startsWith('gemini-2')) return false;
+  }
   // Explicit opt-in
   if (raw === 'true' || raw === '1' || raw === 'yes' || raw === 'on') return true;
   // Sample-based opt-in (deterministic per call) — sample = 0.0..1.0.
