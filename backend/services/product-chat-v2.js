@@ -966,17 +966,31 @@ async function runProductChatV2(product, userMessage, {
   // Build Gemini tools: Google Search Grounding (+ URL Context when enhanced) + Function Declarations.
   // Since Gemini 3 Pro (Mar 2026) the three tool families can coexist in one request ("Context Circulation").
   // urlContext: Gemini autonomously fetches URLs it recognizes in the conversation (up to 20 URLs/request).
-  const tools = [
-    { googleSearch: {} },
-    ...(enhanced ? [{ urlContext: {} }] : []),
-    {
-      functionDeclarations: [
-        UPDATE_DATASHEET_DECLARATION,
-        SUGGEST_IMAGES_DECLARATION,
-        GENERATE_AI_IMAGES_DECLARATION,
-      ],
-    },
-  ];
+  //
+  // ZWEI-REQUEST-MODUS (Incident 2026-08-04): Nicht-customtools-Modelle (2.5)
+  // lehnen die Kombination aus googleSearch und functionDeclarations mit 400
+  // "Tool call context circulation is not enabled" ab. Statt V2 komplett zu
+  // überspringen (= Chat verliert jede Google-Recherche und fällt auf die
+  // evidence-blinde Legacy-Pipeline), wird gesplittet:
+  //   Phase A (Recherche): googleSearch(+urlContext), KEINE Custom-Functions.
+  //   Phase B (Änderungen): Custom-Functions, KEIN googleSearch — bekommt die
+  //   Recherche-Ergebnisse aus Phase A als Kontext mitgereicht.
+  const supportsCirculation = modelName.includes('customtools');
+  const splitMode = !supportsCirculation && chatV2SplitGroundingEnabled();
+  const functionDeclarationsTool = {
+    functionDeclarations: [
+      UPDATE_DATASHEET_DECLARATION,
+      SUGGEST_IMAGES_DECLARATION,
+      GENERATE_AI_IMAGES_DECLARATION,
+    ],
+  };
+  const tools = splitMode
+    ? [functionDeclarationsTool]
+    : [
+      { googleSearch: {} },
+      ...(enhanced ? [{ urlContext: {} }] : []),
+      functionDeclarationsTool,
+    ];
 
   // Combine product images + user-uploaded attachments
   const allImageParts = [...productImageParts, ...attachmentPayload.imageParts];
@@ -1035,12 +1049,24 @@ async function runProductChatV2(product, userMessage, {
       ? scopeConfigV2.generationConfig
       : {};
 
+  // Split-Modus: Phase B hat KEINEN Web-Zugriff — der System-Prompt verspricht
+  // aber Google Search. Ohne diesen Zusatz erfindet das Modell "recherchierte"
+  // Fakten statt die mitgelieferten Phase-A-Ergebnisse zu nutzen.
+  const splitAddendum = splitMode
+    ? [
+      'WICHTIG (Zwei-Phasen-Modus): In dieser Phase hast du KEINEN Web-Zugriff.',
+      'Die Web-Recherche ist bereits gelaufen — ihre Ergebnisse stehen in der Nutzer-Nachricht unter "RECHERCHE-ERGEBNISSE".',
+      'Nutze AUSSCHLIESSLICH diese Ergebnisse und den Produktkontext. Erfinde nichts darüber hinaus.',
+      'Übernimm Quell-URLs aus den Recherche-Ergebnissen in deine update_product_datasheet-Vorschläge (pricing.sources, gpsr.url).',
+    ].join('\n')
+    : '';
+
   const chatConfig = {
     tools,
     toolConfig: {
       includeServerSideToolInvocations: true,
     },
-    systemInstruction: systemPromptText,
+    systemInstruction: splitAddendum ? `${systemPromptText}\n\n${splitAddendum}` : systemPromptText,
     temperature: _legacyTemperatureV2,
     maxOutputTokens: _legacyMaxOutputTokensV2,
   };
@@ -1077,7 +1103,74 @@ async function runProductChatV2(product, userMessage, {
     onProgress?.({ type: 'start', text: 'Starte Analyse…' });
 
     // Diagnostic: log chat setup before first API call
-    console.log(`[chat-v2] model=${modelName}, historyLen=${chatHistory.length}, toolsCount=${tools.length}, productImages=${productImageParts.length}, userAttachments=${attachmentPayload.imageParts.length}, scopeLen=${(messageText || '').length}`);
+    console.log(`[chat-v2] model=${modelName}, split=${splitMode}, historyLen=${chatHistory.length}, toolsCount=${tools.length}, productImages=${productImageParts.length}, userAttachments=${attachmentPayload.imageParts.length}, scopeLen=${(messageText || '').length}`);
+
+    // ── Phase A (nur Split-Modus): Google-Recherche ohne Custom-Functions ──
+    let researchText = '';
+    if (splitMode) {
+      onProgress?.({ type: 'tool_start', tool: 'google_research' });
+      const researchSystemPrompt = [
+        'Du bist ein Produkt-Rechercheur für einen Marktplatz-Katalog (eBay.de/Kaufland.de).',
+        'Beantworte die Nutzer-Anfrage durch ECHTE Web-Recherche (Google Search). Erfinde nichts.',
+        'Nenne zu JEDER zentralen Angabe die konkrete Quell-URL (Produktseite/Hersteller-Seite, keine Suchseiten).',
+        'Für Herstellerangaben (GPSR): vollständiger Firmenname, Anschrift, E-Mail UND die Impressum-/Kontakt-URL des Herstellers.',
+        'Für Preise: aktuelle Marktpreise in EUR mit den Produktseiten-URLs.',
+        'Schlage KEINE Datenblatt-Änderungen vor — liste nur belegte Fakten und ihre Quellen sauber auf.',
+      ].join('\n');
+      const runResearch = async (withUrlContext) => {
+        const researchChat = ai.chats.create({
+          model: modelName,
+          config: {
+            tools: [{ googleSearch: {} }, ...(withUrlContext ? [{ urlContext: {} }] : [])],
+            systemInstruction: researchSystemPrompt,
+            temperature: chatConfig.temperature,
+            maxOutputTokens: chatConfig.maxOutputTokens,
+            ...(chatConfig.thinkingConfig ? { thinkingConfig: chatConfig.thinkingConfig } : {}),
+          },
+          history: chatHistory,
+        });
+        return withGeminiRetry(
+          () => researchChat.sendMessage({ message: messageText }),
+          { label: 'sendMessage-research' }
+        );
+      };
+      let researchResponse;
+      try {
+        researchResponse = await runResearch(enhanced);
+      } catch (researchError) {
+        const msg = String(researchError?.message || '');
+        const status = researchError?.status ?? researchError?.code ?? null;
+        // urlContext-Kombination kann auf manchen Modellen abgelehnt werden —
+        // dann googleSearch-only. Alles andere wirft (Route fällt auf Legacy).
+        if (enhanced && (status === 400 || /INVALID_ARGUMENT|not supported|not enabled/i.test(msg))) {
+          console.warn(`[chat-v2] research with urlContext rejected (${msg.slice(0, 120)}) — retrying googleSearch-only`);
+          researchResponse = await runResearch(false);
+        } else {
+          const wrapped = new Error(`chat-v2 research request failed: ${msg}`);
+          wrapped.cause = researchError;
+          wrapped.status = status;
+          throw wrapped;
+        }
+      }
+      extractThoughtParts(researchResponse, thoughts, onProgress);
+      extractGroundingMetadata(researchResponse, groundingTrace);
+      researchText = extractAnswerText(researchResponse) || researchResponse.text || '';
+      const groundingSources = groundingTrace
+        .filter((t) => t && t.type === 'google_search_grounding')
+        .flatMap((t) => (Array.isArray(t.sources) ? t.sources : []))
+        .map((s) => s && s.url)
+        .filter(Boolean)
+        .slice(0, 10);
+      if (researchText) {
+        messageText += [
+          '\n\nRECHERCHE-ERGEBNISSE (aus Google-Suche, mit Quellen — nutze AUSSCHLIESSLICH diese Fakten):',
+          researchText,
+          ...(groundingSources.length ? [`Grounding-Quellen: ${groundingSources.join(' ')}`] : []),
+        ].join('\n');
+      }
+      onProgress?.({ type: 'tool_done', tool: 'google_research' });
+      console.log(`[chat-v2] research done: textLen=${researchText.length}, sources=${groundingSources.length}`);
+    }
 
     // Send initial message (with exponential backoff on transient 5xx/timeouts)
     let response;
@@ -1258,7 +1351,14 @@ async function runProductChatV2(product, userMessage, {
 
     // Sanitize responseText: some SDK versions include thought text in `.text`.
     // Strip any leading thought prefix if a plain answer part exists.
-    const cleanMessage = extractAnswerText(response) || responseText || 'Antwort generiert.';
+    // Split-Modus: Die RECHERCHE-Antwort (Phase A) ist die inhaltlich
+    // wertvolle Nutzer-Antwort — Phase B liefert meist nur "Änderungen
+    // vorgeschlagen". Ohne diese Bevorzugung sähe der User wieder nichts von
+    // den recherchierten Fakten (Incident 2026-08-04: "Antwort generiert.").
+    const phaseBMessage = extractAnswerText(response) || responseText || '';
+    const cleanMessage = (splitMode && researchText)
+      ? researchText
+      : (phaseBMessage || 'Antwort generiert.');
 
     return {
       message: cleanMessage,
@@ -1269,8 +1369,12 @@ async function runProductChatV2(product, userMessage, {
       modelUsed: modelName,
       intent: finalDatasheetChanges.length ? 'change' : 'info',
       trace: { thoughts },
+      // Wahrhaftiger Zähler (wie V3): dem Modell wurden echte Produktbilder
+      // gesendet — das GPSR-Gate nutzt das für den Etikett-Vertrauenspfad.
+      productImagesSent: productImageParts.length,
       _pipeline: 'v2-grounding',
       _enhanced: enhanced,
+      _split: splitMode,
     };
 
   } catch (error) {
@@ -1370,17 +1474,28 @@ function extractAnswerText(response) {
   return typeof response?.text === 'string' ? response.text : '';
 }
 
+// Zwei-Request-Modus (Incident 2026-08-04): auf Nicht-customtools-Modellen
+// splittet runProductChatV2 in Recherche-Request (googleSearch) + Function-
+// Request. Kill-Switch CHAT_V2_SPLIT_GROUNDING=off → altes Verhalten (V2 nur
+// auf customtools, Kaskade startet auf 2.5 direkt bei Legacy).
+function chatV2SplitGroundingEnabled() {
+  return String(process.env.CHAT_V2_SPLIT_GROUNDING || 'on').toLowerCase() !== 'off';
+}
+
 // V2 kombiniert googleSearch/urlContext + functionDeclarations in EINEM
 // Request (Context Circulation) — das existiert nur auf -customtools-Modellen.
 // Auf Gemini 2.5 lehnt die API mit 400 "Tool call context circulation is not
-// enabled" ab (Prod 2026-08-02). Die Chat-Kaskade soll dann direkt bei Legacy
-// starten, statt pro Nachricht einen scheiternden Call + Fehler-Chip zu zeigen.
+// enabled" ab (Prod 2026-08-02). Seit 2026-08-04 ist V2 dort trotzdem nutzbar:
+// der Zwei-Request-Modus trennt Grounding und Function-Calls, die Google-
+// Recherche bleibt dem Chat damit auch unter der 2.5-Kostenpolitik erhalten.
 function chatV2ModelSupported() {
   const { resolveChatModel } = require('../lib/gemini-config');
-  return resolveChatModel().includes('customtools');
+  if (resolveChatModel().includes('customtools')) return true;
+  return chatV2SplitGroundingEnabled();
 }
 
 module.exports = {
   runProductChatV2,
   chatV2ModelSupported,
+  chatV2SplitGroundingEnabled,
 };

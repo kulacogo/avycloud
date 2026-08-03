@@ -945,7 +945,12 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
     // beides gemacht). Beide gegen die Rest-Wall-Clock gecappt (Promise.race),
     // damit das Netz selbst NIE den Frontend-Abbruch auslöst. Im Normalfall
     // (Preis da / Beschreibung voll) feuern sie nicht → keine Zusatzlatenz.
+    // Late-Save-Sammler (Incident 2026-08-04): verliert eine Anreicherung ihr
+    // Race, mutiert sie das product-Objekt NACH dem Save — statt die Daten
+    // still zu verlieren, wird nach ihrem späten Abschluss nachpersistiert.
+    const lateEnrichments = [];
     if (pipelineUsed !== 'legacy') {
+      const { raceEnrichmentWithTracking } = require('../lib/enrichment-race');
       // HEBEL 1 — Preis-Netz: V3 kappt Stage-2-Preis bei 15s, Grounding ruft die
       // Anreicherung nie. Kein Preis + genug Budget → EIN gecappter Versuch.
       try {
@@ -956,11 +961,8 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
             force: false,
             reason: `identify-safety-net:${pipelineUsed || 'unknown'}`,
           });
-          Promise.resolve(pricePromise).catch(() => {});
-          await Promise.race([
-            pricePromise,
-            new Promise((resolve) => setTimeout(resolve, priceBudget)),
-          ]);
+          const { settledInBudget, tracked } = await raceEnrichmentWithTracking(pricePromise, priceBudget);
+          if (!settledInBudget) lateEnrichments.push({ label: 'price', tracked });
         }
       } catch (priceErr) {
         console.warn('[identify] price safety-net failed:', priceErr?.message || priceErr);
@@ -975,11 +977,8 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
         const descBudget = Math.min(45000, remainingMs() - 5000);
         if (plain.length < 140 && descBudget > 25000) {
           const reviewPromise = runDatasheetReview([product], { locale, llmScopeId: 'identify.v2' });
-          Promise.resolve(reviewPromise).catch(() => {});
-          await Promise.race([
-            reviewPromise,
-            new Promise((resolve) => setTimeout(resolve, descBudget)),
-          ]);
+          const { settledInBudget, tracked } = await raceEnrichmentWithTracking(reviewPromise, descBudget);
+          if (!settledInBudget) lateEnrichments.push({ label: 'description', tracked });
         }
       } catch (descErr) {
         console.warn('[identify] description safety-net failed:', descErr?.message || descErr);
@@ -1058,6 +1057,32 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
       replaceAttributes: true,
       syncIdentifiersFromBarcodes: true,
     });
+
+    // Late-Save (Incident 2026-08-04): spät fertige Sicherheitsnetz-
+    // Anreicherungen (Preis/Beschreibung) mutieren das product-Objekt nach dem
+    // Save — hier werden sie nach Abschluss EINMAL nachpersistiert statt still
+    // verloren zu gehen. Fire-and-forget: darf die Response nie blocken; die
+    // 10-Minuten-User-Edit-Protection der Save-Boundary bleibt wirksam.
+    if (lateEnrichments.length) {
+      const lateLabels = lateEnrichments.map((e) => e.label).join(',');
+      Promise.allSettled(lateEnrichments.map((e) => e.tracked)).then(async (outcomes) => {
+        const anyOk = outcomes.some((o) => o.status === 'fulfilled' && o.value && o.value.ok);
+        if (!anyOk) return;
+        try {
+          await saveProductV2(product, {
+            allowCategoryChange: false,
+            mode: 'system',
+            source: 'identify',
+            overwriteTextFields: true,
+            replaceAttributes: true,
+            syncIdentifiersFromBarcodes: true,
+          });
+          console.log(`[identify] late-enrichment persisted (${lateLabels}) product=${product.id}`);
+        } catch (lateErr) {
+          console.warn(`[identify] late-enrichment save failed (${lateLabels}) product=${product.id}:`, lateErr?.message || lateErr);
+        }
+      }).catch(() => {});
+    }
 
     // Track "erfasst" for the Mitarbeiter-Leistung scoreboard (best-effort, non-blocking).
     try {
@@ -1528,7 +1553,7 @@ async function validateChatGpsr(chatResult, product) {
 
   try {
     const { validateGpsrDatasheetChanges } = require('../services/chat-enricher');
-    const { changes: kept, notes, removed, infraFlagged } = await validateGpsrDatasheetChanges({
+    const { changes: kept, notes, removed, infraFlagged, unverifiedKept } = await validateGpsrDatasheetChanges({
       product,
       changes,
       failMode: 'open',
@@ -1547,7 +1572,7 @@ async function validateChatGpsr(chatResult, product) {
     }
     if (infraFlagged) chatResult.gpsrEvidenceInfraBlocked = true;
     console.log(
-      `[chat] gpsr-evidence: product=${product?.id} removed=${removed} infra=${Boolean(infraFlagged)}`
+      `[chat] gpsr-evidence: product=${product?.id} removed=${removed} keptUnverified=${unverifiedKept || 0} infra=${Boolean(infraFlagged)}`
     );
   } catch (err) {
     console.warn(`[chat] gpsr-evidence validation failed (fail-open): ${err.message}`);

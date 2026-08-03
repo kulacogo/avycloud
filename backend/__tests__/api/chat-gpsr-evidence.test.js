@@ -149,7 +149,10 @@ describe('POST /api/chat — GPSR-Beleg-Chokepoint (validateChatGpsr)', () => {
     vi.unstubAllGlobals();
   });
 
-  it('unbelegte GPSR-Änderung (404-Quelle) → Card entfernt, ⚠️ + Widerruf in der Antwort', async () => {
+  it('unbelegte GPSR-Änderung (404-Quelle) → Card bleibt als UNBESTÄTIGT sichtbar + ⚠️ (seit 2026-08-04)', async () => {
+    // Verhalten geändert (Incident SKU-2834170242): Im interaktiven Chat wird
+    // ein unbelegbarer Vorschlag nicht mehr GELÖSCHT (der User sah die Werte
+    // nie), sondern als unbestätigte Karte behalten — der Mensch entscheidet.
     chatV3Spy.mockImplementation(async () => buildV3ResultWithGpsr());
     fetchTextMock.mockResolvedValue({ ok: false, status: 404, body: '', via: 'test' });
 
@@ -161,14 +164,34 @@ describe('POST /api/chat — GPSR-Beleg-Chokepoint (validateChatGpsr)', () => {
     expect(res.body.ok).toBe(true);
     expect(res.body.pipeline).toBe('v3');
 
-    // Die gpsr-only Card ist komplett raus.
+    // Die Card bleibt sichtbar, ist aber als unverified markiert.
     const gpsrCards = (res.body.data.datasheetChanges || []).filter((c) => c && c.gpsr);
-    expect(gpsrCards).toHaveLength(0);
+    expect(gpsrCards).toHaveLength(1);
+    expect(gpsrCards[0].gpsr_evidence_check.outcome).toBe('unverified');
 
     // Ehrliche Warnung statt "wurde übernommen".
     expect(res.body.data.message).toContain('⚠️');
-    expect(res.body.data.message).toContain('UNBELEGT');
-    expect(res.body.data.message).toContain('NICHT bestätigt');
+    expect(res.body.data.message).toContain('UNBESTÄTIGT');
+  });
+
+  it('Kill-Switch GPSR_GATE_KEEP_UNVERIFIED=off: unbelegte Card wird wie früher entfernt + Widerruf', async () => {
+    process.env.GPSR_GATE_KEEP_UNVERIFIED = 'off';
+    try {
+      chatV3Spy.mockImplementation(async () => buildV3ResultWithGpsr());
+      fetchTextMock.mockResolvedValue({ ok: false, status: 404, body: '', via: 'test' });
+
+      const res = await request(app)
+        .post('/api/chat')
+        .send({ productId: SAMPLE_PRODUCT.id, message: 'GPSR recherchieren' });
+
+      expect(res.status).toBe(200);
+      const gpsrCards = (res.body.data.datasheetChanges || []).filter((c) => c && c.gpsr);
+      expect(gpsrCards).toHaveLength(0);
+      expect(res.body.data.message).toContain('UNBELEGT');
+      expect(res.body.data.message).toContain('NICHT bestätigt');
+    } finally {
+      delete process.env.GPSR_GATE_KEEP_UNVERIFIED;
+    }
   });
 
   it('verifizierte GPSR-Änderung bleibt erhalten und trägt gpsr_evidence_check', async () => {

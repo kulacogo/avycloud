@@ -15,18 +15,31 @@ describe('Erfassen-Sicherheitsnetze', () => {
     expect(src).toMatch(/identify-safety-net/);
     expect(src).toMatch(/const priceBudget = Math\.min\(15000, remainingMs\(\) - 5000\)/);
     expect(src).toMatch(/if \(currentPrice <= 0 && priceBudget > 5000\)/);
-    // enrichPriceParallel läuft im Promise.race gegen ein Timeout
+    // enrichPriceParallel läuft im ehrlichen Budget-Race (seit 2026-08-04:
+    // raceEnrichmentWithTracking statt nacktem Promise.race — spät fertige
+    // Ergebnisse werden via lateEnrichments nachpersistiert statt verloren).
     const block = src.slice(src.indexOf('HEBEL 1'), src.indexOf('HEBEL 2'));
-    expect(block).toMatch(/Promise\.race\(\[/);
+    expect(block).toMatch(/raceEnrichmentWithTracking\(pricePromise, priceBudget\)/);
     expect(block).toMatch(/enrichPriceParallel\(product/);
+    expect(block).toMatch(/lateEnrichments\.push\(\{ label: 'price'/);
   });
 
   it('Beschreibungs-Netz: gecappt, nur bei dünner Beschreibung (<140)', () => {
     const block = src.slice(src.indexOf('HEBEL 2'), src.indexOf('3.8) Compute'));
     expect(block).toMatch(/plain\.length < 140/);
     expect(block).toMatch(/const descBudget = Math\.min\(45000, remainingMs\(\) - 5000\)/);
-    expect(block).toMatch(/Promise\.race\(\[/);
+    expect(block).toMatch(/raceEnrichmentWithTracking\(reviewPromise, descBudget\)/);
     expect(block).toMatch(/runDatasheetReview\(\[product\]/);
+    expect(block).toMatch(/lateEnrichments\.push\(\{ label: 'description'/);
+  });
+
+  it('Late-Save: spät fertige Netze werden nach dem Primär-Save nachpersistiert', () => {
+    const idx = src.indexOf('Late-Save (Incident 2026-08-04)');
+    expect(idx).toBeGreaterThan(-1);
+    const block = src.slice(idx, idx + 2000);
+    expect(block).toMatch(/Promise\.allSettled\(lateEnrichments\.map/);
+    expect(block).toMatch(/saveProductV2\(product/);
+    expect(block).toMatch(/allowCategoryChange: false/);
   });
 
   it('beide Netze nur im non-legacy-Zweig', () => {

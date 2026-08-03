@@ -124,11 +124,45 @@ describe('DELETE /api/products/:id', () => {
 describe('POST /api/save', () => {
   beforeEach(() => {
     localMocks.spies.saveProductV2?.mockReset();
+    firebaseSpies.getProduct?.mockReset();
+    firebaseSpies.getProduct?.mockResolvedValue(null);
   });
 
   it('returns 400 when body is missing required fields', async () => {
     const res = await request(app).post('/api/save').send({});
     expect(res.status).toBeGreaterThanOrEqual(400);
+  });
+
+  // Incident 2026-08-04: Der Identify-Save legt dünne Produkte OHNE
+  // Vollständigkeits-Gate an; der finale Speichern-Klick lief aber durch den
+  // Hard-Guard und wies die Review-Korrekturen des Users mit 400 ab — das
+  // dünne Produkt blieb unkorrigiert im Katalog. Updates BESTEHENDER Produkte
+  // dürfen deshalb durch; nur NEUANLAGEN dünner Produkte bleiben geblockt.
+  it('erlaubt das Update eines BESTEHENDEN dünnen Produkts (Erfassen-Korrektur)', async () => {
+    const thin = {
+      id: 'SKU-THIN-0001',
+      identification: { name: 'Teufel Rockster Air', sku: 'SKU-THIN-0001' },
+      details: { attributes: {}, images: [] },
+    };
+    firebaseSpies.getProduct?.mockResolvedValue({ ...thin });
+    localMocks.spies.saveProductV2?.mockResolvedValue(thin);
+
+    const res = await request(app).post('/api/save').send(thin);
+    expect(res.status).toBe(200);
+    expect(localMocks.spies.saveProductV2).toHaveBeenCalled();
+  });
+
+  it('blockt die NEUANLAGE eines dünnen Produkts weiterhin mit 400', async () => {
+    const thin = {
+      id: 'SKU-THIN-0002',
+      identification: { name: 'Teufel Rockster Air', sku: 'SKU-THIN-0002' },
+      details: { attributes: {}, images: [] },
+    };
+    firebaseSpies.getProduct?.mockResolvedValue(null);
+
+    const res = await request(app).post('/api/save').send(thin);
+    expect(res.status).toBe(400);
+    expect(localMocks.spies.saveProductV2).not.toHaveBeenCalled();
   });
 
   it('returns 200 on valid product save', async () => {
