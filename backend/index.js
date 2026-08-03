@@ -1,6 +1,8 @@
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
+const compression = require('compression');
+const { makeCompressionFilter } = require('./lib/compression-filter');
 const { generalLimiter } = require('./lib/rate-limit');
 const requestLogger = require('./lib/request-logger');
 const { shouldRunBackgroundJobs } = require('./lib/process-role');
@@ -235,6 +237,10 @@ app.use(helmet({
   contentSecurityPolicy: false, // Frontend wird separat gehostet
   crossOriginEmbedderPolicy: false,
 }));
+// gzip für JSON-Antworten. /api/products liefert bis 32 MB unkomprimiert —
+// Juli 2026: 758 GiB Egress (69,74 €). SSE ist über den Filter ausgenommen,
+// sonst würden Live-Updates gepuffert (siehe lib/compression-filter.js).
+app.use(compression({ filter: makeCompressionFilter(compression.filter) }));
 app.use(generalLimiter);
 app.use(requestLogger);
 app.use((err, req, res, next) => {
