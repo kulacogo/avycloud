@@ -40,9 +40,12 @@ const PHASE_MESSAGES: Record<string, string> = {
 };
 
 // Client-side guard so a stalled backend identify job doesn't pin a popup row
-// forever. The server's own IDENTIFY_TOTAL_TIMEOUT (default 360s) is longer; this
-// is a UX safety net per group.
-const IDENTIFY_CLIENT_TIMEOUT_MS = 180_000;
+// forever. MUST be longer than the server's IDENTIFY_TOTAL_TIMEOUT (default
+// 360s): a shorter client abort showed "Fehler" while the server finished and
+// saved minutes later — the user re-captured and created a duplicate
+// (Incident 2026-08-02 Teufel Rockster Air / 2026-08-04 analysis). 390s
+// matches the API client's fetch budget.
+const IDENTIFY_CLIENT_TIMEOUT_MS = 390_000;
 
 // Max identify jobs running at once. Sequential processing made 9 products take
 // ~18 min; a small pool keeps Gemini happy while cutting wall-clock ~3×.

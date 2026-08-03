@@ -314,6 +314,15 @@ describe('F.1b.3 snapshot: product-chat-v2 (chats.create config)', () => {
 
   beforeEach(() => {
     captured.length = 0;
+    // Diese Snapshots fixieren den EIN-Request-Vertrag (Context Circulation).
+    // Der Zwei-Request-Modus (CHAT_V2_SPLIT_GROUNDING, seit 2026-08-04) würde
+    // einen zweiten chats.create-Call erzeugen — er hat eigene Tests in
+    // __tests__/chat-v2-split-grounding.test.js.
+    process.env.CHAT_V2_SPLIT_GROUNDING = 'off';
+  });
+
+  afterEach(() => {
+    delete process.env.CHAT_V2_SPLIT_GROUNDING;
   });
 
   it('exports runProductChatV2 as an async function (sanity)', () => {

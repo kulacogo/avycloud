@@ -427,7 +427,7 @@ function normalizeForPageMatch(s) {
     .toLowerCase()
     .replace(/ß/g, 'ss')
     .normalize('NFKD')
-    .replace(/[̀-ͯ]/g, '')
+    .replace(/[\u0300-\u036f]/g, '')
     .replace(/[^a-z0-9]+/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
@@ -824,11 +824,86 @@ async function getOrVerifyBrandGpsr(params = {}) {
   return { ...result, cached: false, negative: result.status === 'unverifiable' };
 }
 
+// ───────────────────────────────────────────────────────────────────────────
+// 4. findManufacturerImpressumUrl — Kandidaten-URL-Beschaffung fuer das Gate.
+//
+// Incident 2026-08-04 (SKU-2834170242): verifyGpsrRecord baut Kandidaten NUR
+// aus gpsr.url. Chat-Vorschlaege ohne URL wurden damit OHNE einen einzigen
+// Netz-Request als "unverifiable" verworfen — egal wie korrekt die Daten
+// waren. Dieser Helper beschafft die fehlende URL, urteilt aber NICHT selbst:
+// die eigentliche Pruefung (Name+Adresse auf der Seite) bleibt bei
+// verifyGpsrRecord. Reihenfolge: Marken-Registry (gpsrManufacturers) →
+// Web-Suche "<Name> Impressum" (SerpAPI-first via lib/web-search-html).
+// Best-effort: jeder Fehler → null, nie werfen.
+// ───────────────────────────────────────────────────────────────────────────
+
+function _normalizeToken(v) {
+  return safeString(v)
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9]+/g, '');
+}
+
+async function findManufacturerImpressumUrl({ brand, manufacturerName, searchImpl, registryLookupImpl } = {}) {
+  const primaryName = safeString(manufacturerName) || safeString(brand);
+  if (!primaryName) return null;
+
+  // 1) Registry: bekannte Hersteller tragen ihre URL bereits.
+  try {
+    const lookup = registryLookupImpl || (async (n) => {
+      const { getManufacturerGpsrByName } = require('./gpsr-manufacturer-registry');
+      return getManufacturerGpsrByName(n);
+    });
+    const names = [safeString(manufacturerName), safeString(brand)].filter(Boolean);
+    for (const name of names) {
+      const entry = await lookup(name);
+      const raw = entry && safeString(entry.url);
+      if (!raw) continue;
+      const candidate = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+      if (classifyImpressumUrl(candidate).kind === 'candidate') return candidate;
+    }
+  } catch { /* best effort — weiter zur Suche */ }
+
+  // 2) Web-Suche nach dem Impressum des Herstellers.
+  try {
+    const search = searchImpl || ((q, o) => require('./web-search-html').searchWeb(q, o));
+    const res = await search(`${primaryName} Impressum`, { limit: 6, locale: 'de-DE' });
+    const results = res && Array.isArray(res.results) ? res.results : [];
+    const candidates = [];
+    for (const r of results) {
+      const u = safeString(r && r.url);
+      if (!u) continue;
+      if (classifyImpressumUrl(u).kind !== 'candidate') continue;
+      candidates.push(u);
+    }
+    if (!candidates.length) return null;
+    // Domain-Plausibilitaet: bevorzugt eine Domain, die den Marken-/Namens-Token
+    // traegt (fjallraven → fjallraven.com). Ohne Treffer KEIN blinder Fallback
+    // auf fremde Domains — verifyGpsrRecord wuerde auf einer beliebigen
+    // Drittseite zwar Adress-genau pruefen, aber ein "partial" (nur Name)
+    // waere dort wertlos bis irrefuehrend.
+    const tokens = [primaryName, safeString(brand)]
+      .map((n) => _normalizeToken(n.split(/\s+/)[0] || n))
+      .filter((t) => t.length >= 4);
+    for (const u of candidates) {
+      let host = '';
+      try { host = _normalizeToken(new URL(u).hostname); } catch { continue; }
+      if (tokens.some((t) => host.includes(t))) return u;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 module.exports = {
   // Pure Gates
   looksLikeFakePhone,
   looksLikeSuspectEmail,
   classifyImpressumUrl,
+  // URL-Beschaffung fuer das Gate
+  findManufacturerImpressumUrl,
   // Verifikation
   buildCandidateUrls,
   extractAddressParts,

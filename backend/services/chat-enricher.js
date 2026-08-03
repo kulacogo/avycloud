@@ -90,17 +90,28 @@ function _hasOtherPayload(change) {
  * @param {'open'|'closed'} [params.failMode='closed'] — Verhalten bei
  *   VALIDATOR-Fehler: 'closed' (Bulk, kein Review → gpsr-Aenderung verwerfen)
  *   oder 'open' (Chat-Route, Human sieht Warnung → durchlassen).
+ * @param {Function} [params.searchImpl] — Injection fuer die Impressum-
+ *   Selbstsuche (Signatur wie lib/web-search-html searchWeb).
+ * @param {Function} [params.registryLookupImpl] — Injection fuer den
+ *   Registry-Lookup (Signatur wie getManufacturerGpsrByName).
  * @returns {Promise<{ changes: Array, notes: string[], removed: number,
- *   infraFlagged: boolean, verifiedEvidence: object|null }>}
+ *   unverifiedKept: number, infraFlagged: boolean,
+ *   verifiedEvidence: object|null }>}
  */
-async function validateGpsrDatasheetChanges({ product, changes, fetchImpl, timeoutMs, maxPages, failMode = 'closed', imageContextAvailable = false } = {}) {
+async function validateGpsrDatasheetChanges({ product, changes, fetchImpl, timeoutMs, maxPages, failMode = 'closed', imageContextAvailable = false, searchImpl, registryLookupImpl } = {}) {
   const list = Array.isArray(changes) ? changes : [];
   const notes = new Set();
   const kept = [];
   let removed = 0;
+  let unverifiedKept = 0;
   let infraFlagged = false;
   let imageFlagged = false;
   let verifiedEvidence = null;
+  // Incident 2026-08-04 (SKU-2834170242): ohne gpsr.url verwarf das Gate jeden
+  // Vorschlag OHNE einen Netz-Request ('no_candidate_urls'), und der User sah
+  // die Werte nie. Beide Verhalten sind seither per Kill-Switch revidierbar.
+  const selfSearchEnabled = String(process.env.GPSR_GATE_SELF_SEARCH || 'on').toLowerCase() !== 'off';
+  const keepUnverifiedEnabled = String(process.env.GPSR_GATE_KEEP_UNVERIFIED || 'on').toLowerCase() !== 'off';
 
   const dropGpsrFrom = (change) => {
     removed += 1;
@@ -132,21 +143,49 @@ async function validateGpsrDatasheetChanges({ product, changes, fetchImpl, timeo
     }
 
     let verification;
+    let selfSearchedUrl = null;
     try {
-      const { verifyGpsrRecord } = require('../lib/gpsr-evidence');
+      const { verifyGpsrRecord, findManufacturerImpressumUrl } = require('../lib/gpsr-evidence');
       const existing = product && product.details && product.details.gpsr
         && typeof product.details.gpsr === 'object' ? product.details.gpsr : {};
       // Der NEUE Stand (existing + Vorschlag) wird verifiziert — das ist
       // exakt das, was ein Apply persistieren wuerde.
       const proposed = { ...existing, ...incoming };
       delete proposed.evidence;
+      const brand = product && product.identification ? product.identification.brand : undefined;
+      // Selbstsuche: fehlt die Kandidaten-URL, beschafft das Gate sie selbst
+      // (Registry → Web-Suche), statt ohne Netz-Request "unbelegt" zu urteilen.
+      if (!_safeStr(proposed.url) && selfSearchEnabled) {
+        // Latenz-Schranke: Die Selbstsuche darf den Chat nie festhalten —
+        // nach 8s gilt "keine URL gefunden" und die normale Kette läuft weiter.
+        let selfSearchTimer = null;
+        const found = await Promise.race([
+          findManufacturerImpressumUrl({
+            brand,
+            manufacturerName: proposed.manufacturer_name,
+            searchImpl,
+            registryLookupImpl,
+          }),
+          new Promise((resolve) => { selfSearchTimer = setTimeout(resolve, 8000, null); }),
+        ]).finally(() => { if (selfSearchTimer) clearTimeout(selfSearchTimer); });
+        if (found) {
+          proposed.url = found;
+          selfSearchedUrl = found;
+        }
+      }
       verification = await verifyGpsrRecord({
-        brand: product && product.identification ? product.identification.brand : undefined,
+        brand,
         gpsr: proposed,
         fetchImpl,
         timeoutMs,
         maxPages,
       });
+      // Eine SELBST gesuchte URL beweist mit reinem Namens-Treffer nichts —
+      // der Markenname steht auf jeder Haendler-Seite. 'partial' zaehlt nur,
+      // wenn die URL aus dem Vorschlag/Datenblatt selbst stammt.
+      if (selfSearchedUrl && verification && verification.status === 'partial') {
+        verification = { ...verification, status: 'unverifiable' };
+      }
     } catch (err) {
       if (failMode === 'open') {
         notes.add('Die GPSR-/Hersteller-Angaben konnten nicht geprüft werden — bitte vor Übernahme manuell verifizieren.');
@@ -189,6 +228,20 @@ async function validateGpsrDatasheetChanges({ product, changes, fetchImpl, timeo
         kept.push(change);
         continue;
       }
+      if (failMode === 'open' && keepUnverifiedEnabled) {
+        // Interaktiver Chat: Der Mensch sieht die Karte und entscheidet.
+        // Loeschen wuerde die recherchierten Werte unsichtbar machen (Incident
+        // 2026-08-04: 3x GPSR angefragt, 3x beantwortet, 3x still geloescht).
+        unverifiedKept += 1;
+        change.gpsr_evidence_check = {
+          outcome: 'unverified',
+          checked_at: new Date().toISOString(),
+          note: 'kein Web-Beleg gefunden — vor Übernahme manuell prüfen',
+        };
+        notes.add('Die vorgeschlagenen Hersteller-/GPSR-Angaben konnten auf keiner Hersteller-Seite belegt werden — sie bleiben als UNBESTÄTIGTER Vorschlag in der Karte. Bitte vor Übernahme prüfen.');
+        kept.push(change);
+        continue;
+      }
       notes.add('Die vorgeschlagenen Hersteller-/GPSR-Angaben konnten auf keiner Hersteller-Seite belegt werden — die Änderung wurde als UNBELEGT verworfen. Bitte manuell verifizieren.');
       dropGpsrFrom(change);
       continue;
@@ -221,6 +274,11 @@ async function validateGpsrDatasheetChanges({ product, changes, fetchImpl, timeo
     }
 
     // verified | partial → durchlassen + Beleg dokumentieren.
+    // Selbst gefundene, verifizierte URL in den Vorschlag uebernehmen — damit
+    // wird sie beim Apply persistiert und kuenftige Pruefungen deterministisch.
+    if (selfSearchedUrl && !_safeStr(change.gpsr.url)) {
+      change.gpsr.url = selfSearchedUrl;
+    }
     const ev = verification.evidence || {};
     change.gpsr_evidence_check = {
       outcome: verification.status,
@@ -241,6 +299,7 @@ async function validateGpsrDatasheetChanges({ product, changes, fetchImpl, timeo
     changes: kept,
     notes: Array.from(notes),
     removed,
+    unverifiedKept,
     infraFlagged,
     imageFlagged,
     verifiedEvidence,

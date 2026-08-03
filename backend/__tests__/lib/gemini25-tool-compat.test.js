@@ -45,10 +45,20 @@ describe('_stripJsonForceWhenToolsUnsupported', () => {
   });
 });
 
-describe('chatV2ModelSupported (context circulation is Gemini-3-only)', () => {
-  it('is false under the 2.5 policy — cascade starts at legacy without a failing V2 call', () => {
+describe('chatV2ModelSupported (Zwei-Request-Modus seit 2026-08-04)', () => {
+  it('is true under the 2.5 policy — V2 läuft im Split-Modus (Grounding + Functions getrennt)', () => {
     const { chatV2ModelSupported } = require('../../services/product-chat-v2');
-    expect(chatV2ModelSupported()).toBe(false);
+    expect(chatV2ModelSupported()).toBe(true);
+  });
+
+  it('CHAT_V2_SPLIT_GROUNDING=off restores the legacy-direct-start gate', () => {
+    process.env.CHAT_V2_SPLIT_GROUNDING = 'off';
+    try {
+      const { chatV2ModelSupported } = require('../../services/product-chat-v2');
+      expect(chatV2ModelSupported()).toBe(false);
+    } finally {
+      delete process.env.CHAT_V2_SPLIT_GROUNDING;
+    }
   });
 });
 

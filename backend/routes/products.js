@@ -1885,13 +1885,32 @@ router.post('/save', requirePermission('products', 'write'), async (req, res) =>
     if (!hasValidCategory) missing.push('Kategorie');
 
     if (missing.length > 0) {
-      return res.status(400).json({
-        ok: false,
-        error: {
-          code: 400,
-          message: `Produkt unvollständig: ${missing.join(', ')} fehlen/ungültig.`,
-        },
-      });
+      // Incident 2026-08-04: Der Identify-Save legt dünne Produkte OHNE dieses
+      // Gate an — der finale Speichern-Klick des Erfassen-Wizards lief dann
+      // hier in den 400 und die Review-Korrekturen des Users gingen verloren,
+      // während die dünne Version im Katalog blieb. Updates BESTEHENDER
+      // Produkte dürfen deshalb durch (der User verbessert den Bestand);
+      // nur die NEUANLAGE dünner Produkte bleibt geblockt. Lookup-Fehler
+      // zählen als "existiert nicht" (fail-closed → 400 wie bisher).
+      let existsAlready = false;
+      const candidateId = String(product?.id || '').trim();
+      if (candidateId) {
+        try {
+          existsAlready = Boolean(await getProduct(candidateId));
+        } catch {
+          existsAlready = false;
+        }
+      }
+      if (!existsAlready) {
+        return res.status(400).json({
+          ok: false,
+          error: {
+            code: 400,
+            message: `Produkt unvollständig: ${missing.join(', ')} fehlen/ungültig.`,
+          },
+        });
+      }
+      console.warn(`[POST /api/save] dünnes Update für Bestandsprodukt ${candidateId} erlaubt (fehlend: ${missing.join(', ')})`);
     }
 
 

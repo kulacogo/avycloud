@@ -2109,14 +2109,41 @@ function sanitizeDatasheetChange(entry, product, { scope = null, titleHintTokens
         }
       }
 
-      // 3) Reject incoming keys that would conflict with existing canonical value.
+      // 3) Abweichende Werte auf bestehenden Keys (Incident 2026-08-04,
+      // SKU-2834170242): Das frühere Pauschal-Verwerfen immunisierte falsche
+      // Altwerte gegen jede Chat-Korrektur — konkret blieb die falsche
+      // Herstellernummer stehen, obwohl identifiers.mpn den Vorschlag belegte.
+      //   a) Identifier-bestätigt (details.identifiers) → Korrektur akzeptieren.
+      //   b) Sonst: Vorschlag SICHTBAR in der Karte lassen (Übernehmen ist
+      //      manuell, der Mensch entscheidet) statt still zu verwerfen.
+      //   c) CHAT_ATTR_CONFLICT_MODE=block stellt (b) auf das alte Verwerfen um.
+      const identifiers = (product?.details?.identifiers && typeof product.details.identifiers === 'object')
+        ? product.details.identifiers
+        : {};
+      const identifierByCanonicalKey = new Map(); // canonicalKeyLower -> identifierValueLower
+      const mpnLower = normalizeLower(identifiers.mpn);
+      if (mpnLower) identifierByCanonicalKey.set('herstellernummer', mpnLower);
+      const conflictBlockMode =
+        String(process.env.CHAT_ATTR_CONFLICT_MODE || 'correct').toLowerCase() === 'block';
+
       const accepted = {};
       for (const [k, v] of Object.entries(canonicalIncoming)) {
         const ckLower = normalizeLower(k);
         const incomingValLower = normalizeLower(v);
         const existingValLower = existingCanonical.get(ckLower);
         if (existingValLower && incomingValLower && existingValLower !== incomingValLower) {
-          policyIssues.push(`attributes:conflict_with_existing:${k}`);
+          const identifierVal = identifierByCanonicalKey.get(ckLower);
+          if (identifierVal && identifierVal === incomingValLower) {
+            policyIssues.push(`attributes:corrected_via_identifiers:${k}`);
+            accepted[k] = v;
+            continue;
+          }
+          if (conflictBlockMode) {
+            policyIssues.push(`attributes:conflict_with_existing:${k}`);
+            continue;
+          }
+          policyIssues.push(`attributes:override_existing:${k}`);
+          accepted[k] = v;
           continue;
         }
         accepted[k] = v;
@@ -2745,10 +2772,35 @@ async function runProductChat(product, userMessage, {
     if (strictRulesEnabled()) {
       const policyIssues = Array.isArray(product?.ops?.chat_policy_issues) ? product.ops.chat_policy_issues : [];
       if (policyIssues.length) {
-        const preview = policyIssues.slice(0, 6);
-        const suffix = policyIssues.length > preview.length ? ` … (+${policyIssues.length - preview.length} mehr)` : '';
-        const note = `\n\nHinweis: Einige Vorschläge wurden wegen Regelwerk verworfen: ${preview.join(', ')}${suffix}`;
-        responseText = `${(responseText || '').trim()}${note}`;
+        // Korrektur-Hinweise (seit 2026-08-04) sind KEINE Verwerfungen — sie
+        // beschreiben Werte, die bewusst in der Karte bleiben. Getrennt
+        // ausweisen, sonst behauptet die Antwort fälschlich "verworfen".
+        const correctedKeys = policyIssues
+          .filter((i) => String(i).startsWith('attributes:corrected_via_identifiers:'))
+          .map((i) => String(i).split(':').pop());
+        const overrideKeys = policyIssues
+          .filter((i) => String(i).startsWith('attributes:override_existing:'))
+          .map((i) => String(i).split(':').pop());
+        const rejected = policyIssues.filter((i) => {
+          const s = String(i);
+          return !s.startsWith('attributes:corrected_via_identifiers:')
+            && !s.startsWith('attributes:override_existing:');
+        });
+        const parts = [];
+        if (rejected.length) {
+          const preview = rejected.slice(0, 6);
+          const suffix = rejected.length > preview.length ? ` … (+${rejected.length - preview.length} mehr)` : '';
+          parts.push(`Hinweis: Einige Vorschläge wurden wegen Regelwerk verworfen: ${preview.join(', ')}${suffix}`);
+        }
+        if (correctedKeys.length) {
+          parts.push(`Hinweis: Korrektur durch Datenblatt-Identifier bestätigt: ${correctedKeys.slice(0, 6).join(', ')}`);
+        }
+        if (overrideKeys.length) {
+          parts.push(`Hinweis: Vorschläge ändern bestehende Werte — bitte in der Änderungs-Karte prüfen: ${overrideKeys.slice(0, 6).join(', ')}`);
+        }
+        if (parts.length) {
+          responseText = `${(responseText || '').trim()}\n\n${parts.join('\n')}`;
+        }
       }
     }
 
@@ -2883,5 +2935,7 @@ module.exports = {
     MAX_CHAT_ITERATIONS,
     // F.1b.3 test-only: snapshot caller-migration shape via the intent path.
     detectIntent,
+    // Attribut-Konflikt-Regeln (Incident 2026-08-04) — test-only.
+    sanitizeDatasheetChange,
   },
 };
