@@ -51,6 +51,7 @@ import PricingDashboard from './components/PricingDashboard';
 import RuleDashboard from './components/RuleDashboard';
 import { fetchOrders, fetchProducts, refreshPrice } from './api/client';
 import { isIdentifyRunning, subscribeIdentifyRun } from './utils/identifyRunFlag';
+import { startVisiblePolling } from './utils/visiblePolling';
 import { useI18n } from './i18n';
 import { addMediaQueryListener } from './utils/mediaQuery';
 import { isInventoryItem, isProductBacklogItem } from './utils/inventorySplit';
@@ -527,7 +528,10 @@ const AppInner: React.FC = () => {
   // banner during product capture (see utils/identifyRunFlag.ts).
   useEffect(() => {
     loadProducts();
-    const interval = setInterval(() => {
+    // Taktet nur in sichtbaren Tabs. Jeder Abruf liest alle ~1.700 Produkte;
+    // im Hintergrund laufende Tabs verursachten so den Großteil der 355 Mio.
+    // Firestore-Lesevorgänge im Juli. Beim Zurückwechseln wird sofort geladen.
+    const stopPolling = startVisiblePolling(() => {
       if (isIdentifyRunning()) return;
       loadProducts();
     }, 60000);
@@ -539,7 +543,7 @@ const AppInner: React.FC = () => {
       }
     });
     return () => {
-      clearInterval(interval);
+      stopPolling();
       unsubscribe();
     };
   }, [loadProducts]);

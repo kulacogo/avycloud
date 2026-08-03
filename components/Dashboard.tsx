@@ -10,6 +10,7 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import { DashboardMetrics, Product } from '../types';
+import { startVisiblePolling } from '../utils/visiblePolling';
 import { fetchDashboardMetrics, fetchOperationalMetrics, fetchSyncStatus, fetchReorderAlerts, fetchActivityFeed, type OperationalMetrics, type SyncStatusData, type ActivityEvent } from '../api/client';
 import {
   getProductAvailableQuantity,
@@ -499,9 +500,12 @@ export const Dashboard: React.FC<DashboardProps> = ({
   useEffect(() => {
     const long = activePreset === 'year_to_date' || activePreset === 'last_year';
     const ms = long ? 5 * 60_000 : 60_000;
-    const id = setInterval(() => { loadAll({ skipIfLoading: true }); onRefreshProducts?.(); }, ms);
-    return () => clearInterval(id);
-  }, [loadAll, onRefreshProducts, activePreset]);
+    // Taktet nur in sichtbaren Tabs (siehe utils/visiblePolling.ts).
+    // onRefreshProducts wird hier bewusst NICHT mehr aufgerufen: App.tsx lädt
+    // die Produkte bereits im selben 60s-Takt — das war ein doppelter Abruf
+    // der kompletten Produktliste (je ~1.700 Firestore-Lesevorgänge).
+    return startVisiblePolling(() => { loadAll({ skipIfLoading: true }); }, ms);
+  }, [loadAll, activePreset]);
 
   // ─── Inventory stats ────────────────────────────────────────────────────────
   const inv = useMemo(() => {

@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { DashboardMetrics, Order, Product } from '../types';
+import { startVisiblePolling } from '../utils/visiblePolling';
 import { getProductAvailableQuantity, getProductPhysicalQuantity } from '../utils/product';
 import {
   fetchDashboardMetrics,
@@ -218,8 +219,13 @@ const DashboardMobile: React.FC<DashboardMobileProps> = ({
     setOpsLoading(true);
     void loadAll({ withSync: true });
     const long = activePreset === 'year_to_date' || activePreset === 'last_year' || activePreset === 'all_time';
-    const id = setInterval(() => void loadAll({ withSync: false }), long ? 5 * 60_000 : 60_000);
-    return () => { unmountedRef.current = true; clearInterval(id); };
+    // Taktet nur bei sichtbarem Tab (siehe utils/visiblePolling.ts) — auf dem
+    // Handy liegt die App sonst stundenlang im Hintergrund und fragt weiter ab.
+    const stopPolling = startVisiblePolling(
+      () => void loadAll({ withSync: false }),
+      long ? 5 * 60_000 : 60_000,
+    );
+    return () => { unmountedRef.current = true; stopPolling(); };
   }, [loadAll, activePreset]);
 
   const nav = useCallback((view: string) => {
