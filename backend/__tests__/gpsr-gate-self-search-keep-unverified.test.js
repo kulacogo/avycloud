@@ -141,12 +141,85 @@ describe('GPSR-Gate: Unbestätigt behalten statt löschen (failMode open)', () =
     expect(result.changes).toHaveLength(0);
   });
 
-  it('Fake-Telefon löscht auch im Chat-Modus weiterhin die ganze Änderung', async () => {
+  // Verfeinert nach Prod-Fall 2026-08-04 11:16 (suspect_email:foreign_domain
+  // löschte Name+Adresse mit): Im interaktiven Chat wird nur das VERDÄCHTIGE
+  // Kontaktfeld gestrippt, der Rest bleibt als Karte — der Mensch entscheidet.
+  // Bulk (failMode closed) verwirft weiterhin die ganze Änderung.
+  it('Fake-Telefon: im Chat-Modus wird NUR das Telefon gestrippt, Name/Adresse bleiben', async () => {
     const change = makeChange();
     change.gpsr.manufacturer_phone = '+49123456789';
     const result = await validateGpsrDatasheetChanges({
       product: makeProduct(),
       changes: [change],
+      failMode: 'open',
+      fetchImpl: fetch404,
+      searchImpl: async () => ({ ok: false, results: [] }),
+      registryLookupImpl: async () => null,
+    });
+
+    expect(result.changes).toHaveLength(1);
+    expect(result.changes[0].gpsr.manufacturer_phone).toBeUndefined();
+    expect(result.changes[0].gpsr.manufacturer_name).toBe('Fjällräven International AB');
+    expect(result.notes.join(' ')).toMatch(/Kontaktangabe/i);
+  });
+
+  it('Fake-Telefon: Bulk-Modus (closed) verwirft weiterhin die ganze Änderung', async () => {
+    const change = makeChange();
+    change.gpsr.manufacturer_phone = '+49123456789';
+    const result = await validateGpsrDatasheetChanges({
+      product: makeProduct(),
+      changes: [change],
+      failMode: 'closed',
+      fetchImpl: fetch404,
+      searchImpl: async () => ({ ok: false, results: [] }),
+      registryLookupImpl: async () => null,
+    });
+
+    expect(result.removed).toBe(1);
+    expect(result.changes).toHaveLength(0);
+  });
+
+  it('suspekte E-Mail (foreign_domain): im Chat-Modus wird nur die E-Mail gestrippt', async () => {
+    const change = makeChange();
+    change.gpsr.email = 'info@fenixoutdoor.se';
+    change.gpsr.url = 'https://www.fjallraven.com';
+    const result = await validateGpsrDatasheetChanges({
+      product: makeProduct(),
+      changes: [change],
+      failMode: 'open',
+      fetchImpl: fetch404,
+      searchImpl: async () => ({ ok: false, results: [] }),
+      registryLookupImpl: async () => null,
+    });
+
+    expect(result.changes).toHaveLength(1);
+    expect(result.changes[0].gpsr.email).toBeUndefined();
+    expect(result.changes[0].gpsr.manufacturer_name).toBe('Fjällräven International AB');
+  });
+
+  it('suspekte E-Mail, die NACHWEISLICH auf der Hersteller-Seite steht, bleibt erhalten', async () => {
+    const change = makeChange();
+    change.gpsr.email = 'info@fenixoutdoor.se';
+    change.gpsr.url = IMPRESSUM_URL;
+    const pageWithEmail = `${IMPRESSUM_PAGE}\nKontakt: info@fenixoutdoor.se`;
+    const result = await validateGpsrDatasheetChanges({
+      product: makeProduct(),
+      changes: [change],
+      failMode: 'open',
+      fetchImpl: async () => ({ ok: true, status: 200, text: pageWithEmail, html: pageWithEmail, via: 'direct' }),
+      searchImpl: async () => ({ ok: false, results: [] }),
+      registryLookupImpl: async () => null,
+    });
+
+    expect(result.changes).toHaveLength(1);
+    expect(result.changes[0].gpsr.email).toBe('info@fenixoutdoor.se');
+    expect(result.changes[0].gpsr_evidence_check.outcome).toBe('verified');
+  });
+
+  it('besteht der Vorschlag NUR aus dem verdächtigen Feld, fliegt die Karte auch im Chat-Modus', async () => {
+    const result = await validateGpsrDatasheetChanges({
+      product: makeProduct(),
+      changes: [{ summary: 'Telefon ergänzt', gpsr: { manufacturer_phone: '+49123456789' } }],
       failMode: 'open',
       fetchImpl: fetch404,
       searchImpl: async () => ({ ok: false, results: [] }),

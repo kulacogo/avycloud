@@ -213,7 +213,11 @@ describe('POST /api/chat — GPSR-Beleg-Chokepoint (validateChatGpsr)', () => {
     expect(res.body.data.message).not.toContain('NICHT bestätigt');
   });
 
-  it('Fake-Telefon im Vorschlag (+496105456789) → Card entfernt, auch wenn die Seite Name+Adresse belegt', async () => {
+  it('Fake-Telefon im Vorschlag (+496105456789) → NUR Telefon gestrippt, belegte Name+Adresse bleiben (seit 2026-08-04)', async () => {
+    // Verfeinert (Prod-Fall 11:16, Fenix-Falle): Im interaktiven Chat löscht
+    // der Halluzinations-Guard nicht mehr die ganze Karte, sondern nur das
+    // verdächtige Kontaktfeld — die übrigen (hier sogar web-belegten)
+    // Herstellerangaben bleiben zur menschlichen Prüfung erhalten.
     chatV3Spy.mockImplementation(async () => buildV3ResultWithGpsr({ manufacturer_phone: '+496105456789' }));
     fetchTextMock.mockResolvedValue({ ok: true, status: 200, body: VERIFIED_PAGE_HTML, via: 'test' });
 
@@ -223,7 +227,9 @@ describe('POST /api/chat — GPSR-Beleg-Chokepoint (validateChatGpsr)', () => {
 
     expect(res.status).toBe(200);
     const gpsrCards = (res.body.data.datasheetChanges || []).filter((c) => c && c.gpsr);
-    expect(gpsrCards).toHaveLength(0);
+    expect(gpsrCards).toHaveLength(1);
+    expect(gpsrCards[0].gpsr.manufacturer_phone).toBeUndefined();
+    expect(gpsrCards[0].gpsr.manufacturer_name).toBe('ACME Instruments GmbH');
     expect(res.body.data.message).toContain('⚠️');
     expect(res.body.data.message).toMatch(/Platzhalter|Halluzination/);
   });

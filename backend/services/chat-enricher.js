@@ -206,14 +206,41 @@ async function validateGpsrDatasheetChanges({ product, changes, fetchImpl, timeo
       && !!incoming.email;
 
     if (fakePhoneInProposal || suspectEmailInProposal) {
-      // Issue-CODES loggen (keine Werte): removed>0 im Chat kann seit
-      // 2026-08-04 nur noch von diesem Guard kommen — ohne die Codes ist im
-      // Log unsichtbar, ob Fake-Telefon oder welche suspect_email-Variante
-      // (z. B. foreign_domain — bekannte Fenix-Outdoor-Falle) gefeuert hat.
-      console.log(`[gpsr-gate] fake-gate drop product=${product?.id || '?'} issues=${issues.slice(0, 6).join(',')}`);
-      notes.add('Eine vorgeschlagene Hersteller-Kontaktangabe sieht nach einem Platzhalter/Halluzinations-Muster aus (Telefon/E-Mail) — die GPSR-Änderung wurde verworfen.');
-      dropGpsrFrom(change);
-      continue;
+      // Beweis-Signal konsumieren (Prod-Fall 2026-08-04 11:16, Fenix-Falle):
+      // verifyGpsrRecord meldet suspect_email_found_on_page, wenn die als
+      // suspekt geflaggte Adresse WIRKLICH auf der Hersteller-Seite steht —
+      // Konzern-Kontakte (Marke Fjällräven, Mail @fenixoutdoor.se) sind dann
+      // belegt, kein Fake. Fake-TELEFON-Muster (123456…) sind dagegen nie
+      // legitim.
+      const emailProvenOnPage = suspectEmailInProposal && issues.includes('suspect_email_found_on_page');
+      const emailStillSuspect = suspectEmailInProposal && !emailProvenOnPage;
+      if (!fakePhoneInProposal && !emailStillSuspect) {
+        // E-Mail nachgewiesen → normale Statuslogik entscheidet (verified/…).
+      } else if (failMode === 'open' && keepUnverifiedEnabled) {
+        // Interaktiver Chat: NUR das verdächtige Kontaktfeld strippen — Name/
+        // Adresse/URL bleiben als Karte sichtbar, der Mensch entscheidet.
+        // Vorher löschte der Guard die KOMPLETTE GPSR-Änderung mit.
+        console.log(`[gpsr-gate] fake-gate strip product=${product?.id || '?'} issues=${issues.slice(0, 6).join(',')}`);
+        if (fakePhoneInProposal) {
+          delete change.gpsr.manufacturer_phone;
+          delete change.gpsr.phone;
+        }
+        if (emailStillSuspect) {
+          delete change.gpsr.email;
+        }
+        notes.add('Eine vorgeschlagene Hersteller-Kontaktangabe sah nach einem Platzhalter/Halluzinations-Muster aus (Telefon/E-Mail) — sie wurde aus dem Vorschlag entfernt; die übrigen Herstellerangaben bleiben zur Prüfung erhalten.');
+        if (!Object.keys(_pickGpsrProposal(change.gpsr)).length) {
+          dropGpsrFrom(change);
+          continue;
+        }
+        // weiter zur normalen Statuslogik (unverifiable → unbestätigt behalten).
+      } else {
+        // Bulk (kein Human-Review) bzw. Kill-Switch: hart verwerfen wie bisher.
+        console.log(`[gpsr-gate] fake-gate drop product=${product?.id || '?'} issues=${issues.slice(0, 6).join(',')}`);
+        notes.add('Eine vorgeschlagene Hersteller-Kontaktangabe sieht nach einem Platzhalter/Halluzinations-Muster aus (Telefon/E-Mail) — die GPSR-Änderung wurde verworfen.');
+        dropGpsrFrom(change);
+        continue;
+      }
     }
 
     if (verification.status === 'unverifiable') {
