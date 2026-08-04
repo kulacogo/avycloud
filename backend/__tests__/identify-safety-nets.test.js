@@ -24,9 +24,13 @@ describe('Erfassen-Sicherheitsnetze', () => {
     expect(block).toMatch(/lateEnrichments\.push\(\{ label: 'price'/);
   });
 
-  it('Beschreibungs-Netz: gecappt, nur bei dünner Beschreibung (<140)', () => {
+  it('Beschreibungs-Netz: triggert bei dünner Beschreibung ODER Stage-3-Fallback-Stub', () => {
+    // Incident 2026-08-04 (be quiet! 242dfa4f): Der Stub bläht sich mit
+    // Kategorie/Gewicht/MPN-Boilerplate über die 140-Zeichen-Schwelle auf und
+    // rutschte am reinen Längen-Gate vorbei. Muster-Erkennung ist Pflicht.
     const block = src.slice(src.indexOf('HEBEL 2'), src.indexOf('3.8) Compute'));
-    expect(block).toMatch(/plain\.length < 140/);
+    expect(block).toMatch(/isStubDescription\(/);
+    expect(block).toMatch(/isStubHighlights\(/);
     expect(block).toMatch(/const descBudget = Math\.min\(45000, remainingMs\(\) - 5000\)/);
     expect(block).toMatch(/raceEnrichmentWithTracking\(reviewPromise, descBudget\)/);
     expect(block).toMatch(/runDatasheetReview\(\[product\]/);

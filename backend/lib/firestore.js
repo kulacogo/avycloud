@@ -2543,6 +2543,24 @@ async function saveProduct(product, options = {}) {
         { minLen: 0, maxLen: AUTO_TITLE_MAX_LEN, softMaxLen: AUTO_TITLE_SOFT_MAX_LEN, forcePolicy: false }
       );
 
+      // Mindestlängen-Netz (Incident 2026-08-04): Der Passthrough-Coerce
+      // erzwingt keine Mindestlänge — Stage-3-Fallback-Stubs (brand+model,
+      // ~30 Zeichen) wurden als Automatik-Titel persistiert. fillTitleToMinLength
+      // hängt NUR belegte Datenblatt-Tokens an (nie umbauen/kürzen, Veredler-
+      // Doktrin), läuft NIE bei manuellen Saves (selber Guard wie mpn-append).
+      // Kill-Switch: CHAT_TITLE_MIN_FILL=off (gemeinsamer Schalter mit dem
+      // Chat-Netz — es ist dieselbe Policy an zwei Boundaries).
+      try {
+        const { fillTitleToMinLength, titleMinFillEnabled } = require('./title-min-fill');
+        if (titleMinFillEnabled()) {
+          productWithEbay.identification.name = fillTitleToMinLength(
+            productWithEbay.identification.name,
+            productWithEbay,
+            { minLen: AUTO_TITLE_MIN_LEN, maxLen: AUTO_TITLE_MAX_LEN }
+          );
+        }
+      } catch (_) { /* Titel-Netz darf den Save nie brechen */ }
+
       // Herstellernummer (MPN) ans Titelende anhängen — NUR auf Automatikpfaden,
       // niemals bei einem manuell getippten Titel (dieser Block laeuft schon unter
       // `!isManualSave && !skipTitlePolicy`).

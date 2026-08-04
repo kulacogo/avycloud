@@ -968,14 +968,18 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
         console.warn('[identify] price safety-net failed:', priceErr?.message || priceErr);
       }
 
-      // HEBEL 2 — Beschreibungs-Netz: Stage-3-Timeout fällt auf eine
-      // <p>Name</p><ul>-Stumpf-Beschreibung zurück. NUR dann (dünn <140 Zeichen)
-      // ein gecappter Review-Pass (derselbe Aufruf wie im Legacy-Zweig).
+      // HEBEL 2 — Beschreibungs-Netz: Stage-3-Timeout fällt auf einen
+      // Boilerplate-Stub zurück (Titel+Kategorie+Gewicht+MPN aneinandergeklebt,
+      // Highlights = Titel-Fragmente). Der Stub ist >140 Zeichen — deshalb
+      // MUSTER-Erkennung statt reinem Längen-Gate (Incident 2026-08-04,
+      // be quiet! 242dfa4f: Stub rutschte am Längen-Gate vorbei und stand als
+      // "fertiges" Datenblatt im Katalog).
       try {
-        const plain = String(product?.details?.short_description || '')
-          .replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+        const { isStubDescription, isStubHighlights } = require('../lib/datasheet-stub-detect');
+        const descIsStub = isStubDescription(product?.details?.short_description, product)
+          || isStubHighlights(product?.details?.key_features, product);
         const descBudget = Math.min(45000, remainingMs() - 5000);
-        if (plain.length < 140 && descBudget > 25000) {
+        if (descIsStub && descBudget > 25000) {
           const reviewPromise = runDatasheetReview([product], { locale, llmScopeId: 'identify.v2' });
           const { settledInBudget, tracked } = await raceEnrichmentWithTracking(reviewPromise, descBudget);
           if (!settledInBudget) lateEnrichments.push({ label: 'description', tracked });

@@ -152,11 +152,16 @@ beforeEach(() => {
   delete process.env.TITLE_APPEND_MPN;
   // Titel-Regel-Engine aus: nur der MPN-Append darf den Titel anfassen.
   process.env.TITLE_POLICY_DISABLED = 'true';
+  // Mindestlängen-Netz aus (seit 2026-08-04, lib/title-min-fill.js): diese
+  // Tests fixieren den ISOLIERTEN MPN-Append-Vertrag mit kurzen Fixture-
+  // Titeln — das Auffüll-Netz hat eigene Tests (title-min-fill*.test.js).
+  process.env.CHAT_TITLE_MIN_FILL = 'off';
 });
 
 afterEach(() => {
   delete process.env.TITLE_APPEND_MPN;
   delete process.env.TITLE_POLICY_DISABLED;
+  delete process.env.CHAT_TITLE_MIN_FILL;
 });
 
 describe('saveProduct — TITLE_APPEND_MPN Flag-Modi', () => {
