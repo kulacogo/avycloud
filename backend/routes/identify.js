@@ -1491,8 +1491,14 @@ async function validateChatPricing(chatResult, product) {
         pendingNotes.add(note);
         if (verifiedCount === 0) anyUnverified = true;
       }
+      // Drop-GRÜNDE mitloggen (Codes, keine Werte): "search:*" = Modell zitiert
+      // Suchseiten (Prompt-Problem), "claimed_price_not_on_page" = JS-Preis
+      // ohne Renderer (Unlocker-Token tot), "fetch_failed_*" = Block/Netz.
+      const droppedReasons = Array.isArray(change.pricing?.lowest_price?.evidence_check?.dropped_reasons)
+        ? change.pricing.lowest_price.evidence_check.dropped_reasons.slice(0, 6).join(',')
+        : '';
       console.log(
-        `[chat] price-evidence: product=${product?.id} verified=${verifiedCount} dropped=${droppedCount} infra=${Boolean(infraFailure)}`
+        `[chat] price-evidence: product=${product?.id} verified=${verifiedCount} dropped=${droppedCount} infra=${Boolean(infraFailure)}${droppedReasons ? ` reasons=${droppedReasons}` : ''}`
       );
     } catch (err) {
       console.warn(`[chat] price-evidence validation failed (fail-open): ${err.message}`);
