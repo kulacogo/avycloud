@@ -1190,12 +1190,33 @@ async function runProductChatV2(product, userMessage, {
       extractThoughtParts(researchResponse, thoughts, onProgress);
       extractGroundingMetadata(researchResponse, groundingTrace);
       researchText = extractAnswerText(researchResponse) || researchResponse.text || '';
-      const groundingSources = groundingTrace
+      let groundingSources = groundingTrace
         .filter((t) => t && t.type === 'google_search_grounding')
         .flatMap((t) => (Array.isArray(t.sources) ? t.sources : []))
         .map((s) => s && s.url)
         .filter(Boolean)
         .slice(0, 10);
+      // Grounding liefert opake Redirect-URLs (vertexaisearch…/grounding-api-
+      // redirect/…). Downstream scheitern Preis-/GPSR-Verifikation und
+      // Domain-Klassifikation daran, und im Datenblatt stünde eine Google-URL
+      // statt der echten Quelle. Vor der Weitergabe auflösen (fail-open) und
+      // auch den Evidence-Trace fürs Frontend auf die echten URLs umschreiben.
+      try {
+        const { resolveGroundingRedirects, isGroundingRedirectUrl } = require('../lib/grounding-redirect-resolve');
+        if (groundingSources.some((u) => isGroundingRedirectUrl(u))) {
+          const resolved = await resolveGroundingRedirects(groundingSources);
+          const byOriginal = new Map(groundingSources.map((u, i) => [u, resolved[i] || u]));
+          groundingSources = resolved;
+          for (const t of groundingTrace) {
+            if (!t || t.type !== 'google_search_grounding' || !Array.isArray(t.sources)) continue;
+            for (const s of t.sources) {
+              if (s && s.url && byOriginal.has(s.url)) s.url = byOriginal.get(s.url);
+            }
+          }
+        }
+      } catch (redirectErr) {
+        console.warn(`[chat-v2] grounding redirect resolve skipped: ${redirectErr?.message || redirectErr}`);
+      }
       if (researchText) {
         messageText += [
           '\n\nRECHERCHE-ERGEBNISSE (aus Google-Suche, mit Quellen — nutze AUSSCHLIESSLICH diese Fakten):',

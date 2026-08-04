@@ -52,6 +52,7 @@ const DEFAULT_PHASE_B_ARGS = {
   gpsr: { manufacturer_name: 'Fenix Outdoor AB', url: 'https://www.fjallraven.com' },
 };
 let phaseBFunctionArgs = DEFAULT_PHASE_B_ARGS;
+let phaseAGroundingMeta = null;
 
 function makeFakeChat(createOpts) {
   const messages = [];
@@ -68,7 +69,11 @@ function makeFakeChat(createOpts) {
           err.status = 400;
           throw err;
         }
-        return { text: RESEARCH_TEXT, functionCalls: undefined, candidates: [] };
+        return {
+          text: RESEARCH_TEXT,
+          functionCalls: undefined,
+          candidates: phaseAGroundingMeta ? [{ groundingMetadata: phaseAGroundingMeta }] : [],
+        };
       }
       phaseBCalls += 1;
       if (phaseBCalls === 1) {
@@ -97,6 +102,16 @@ const fakeAi = {
 };
 
 patchLocalModule('../lib/gemini3-client.js', { getGenAIClient: async () => fakeAi });
+// Redirect-Auflösung ohne Netz: vertexaisearch-Redirects werden im Test
+// deterministisch auf ihre "Zielseite" gemappt.
+patchLocalModule('../lib/grounding-redirect-resolve.js', {
+  isGroundingRedirectUrl: (u) => String(u).includes('grounding-api-redirect'),
+  resolveGroundingRedirects: async (urls) => urls.map((u) => (
+    String(u).includes('grounding-api-redirect')
+      ? 'https://www.idealo.de/preisvergleich/OffersOfProduct/12345.html'
+      : u
+  )),
+});
 patchLocalModule('../lib/llm-config.js', {
   getActiveLlmConfig: async () => null,
   resolveScopeConfig: async () => null,
@@ -119,6 +134,7 @@ beforeEach(() => {
   createdChats.length = 0;
   phaseAFailuresRemaining = 0;
   phaseBFunctionArgs = DEFAULT_PHASE_B_ARGS;
+  phaseAGroundingMeta = null;
 });
 
 describe('chatV2ModelSupported — Split-Modus öffnet V2 auf 2.5', () => {
@@ -226,6 +242,26 @@ describe('runProductChatV2 — Zwei-Request-Modus auf Nicht-customtools-Modellen
     expect(titleChange.title.startsWith('FJALLRAVEN Duffel Tasche')).toBe(true);
     expect(titleChange.title.length).toBeGreaterThanOrEqual(60);
     expect(titleChange.title.length).toBeLessThanOrEqual(80);
+  });
+
+  it('löst Grounding-Redirect-Quellen auf echte URLs auf, bevor Phase B sie sieht', async () => {
+    phaseAGroundingMeta = {
+      webSearchQueries: ['idealo preis'],
+      groundingChunks: [
+        { web: { title: 'idealo', uri: 'https://vertexaisearch.cloud.google.com/grounding-api-redirect/XyZ' } },
+      ],
+    };
+    const result = await runProductChatV2(makeProduct(), 'Recherchiere den Marktpreis.', {});
+
+    const phaseB = createdChats.find(({ opts }) => hasFunctionDeclarations(opts.config));
+    const phaseBFirstMessage = JSON.stringify(phaseB.chat._messages[0]);
+    // Die echte Ziel-URL kommt an, die opake Redirect-URL nicht.
+    expect(phaseBFirstMessage).toContain('idealo.de/preisvergleich');
+    expect(phaseBFirstMessage).not.toContain('grounding-api-redirect');
+    // Auch der Evidence-Trace fürs Frontend trägt die aufgelöste URL.
+    const traceJson = JSON.stringify(result.serpTrace);
+    expect(traceJson).toContain('idealo.de/preisvergleich');
+    expect(traceJson).not.toContain('grounding-api-redirect');
   });
 
   it('fällt bei 400 auf urlContext in Phase A auf googleSearch-only zurück', async () => {
