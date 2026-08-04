@@ -98,6 +98,13 @@ const RESEARCH_PER_ATTEMPT_TIMEOUT_MS = parseInt(
   process.env.CHAT_V2_RESEARCH_TIMEOUT_MS || '90000',
   10,
 );
+// Split-Modus Phase B: Function-Calling mit Thinking auf 2.5-pro kann ebenfalls
+// >30s je Turn brauchen — gleiches Budget-Muster (60s, max 2 Versuche), sonst
+// würgt der 30s-Default auch die Änderungs-Phase ab.
+const SPLIT_SEND_TIMEOUT_MS = parseInt(
+  process.env.CHAT_V2_SPLIT_SEND_TIMEOUT_MS || '60000',
+  10,
+);
 async function withGeminiRetry(operation, { label = 'gemini', perAttemptTimeoutMs = GEMINI_RETRY_PER_ATTEMPT_TIMEOUT_MS, maxAttempts = 4 } = {}) {
   // maxAttempts kappt die Versuche (default 4 = bisheriges Verhalten). Für
   // teure Long-Calls (Phase-A-Recherche, 90s-Budget) wären 4 Versuche bis zu
@@ -1073,9 +1080,12 @@ async function runProductChatV2(product, userMessage, {
 
   const chatConfig = {
     tools,
-    toolConfig: {
-      includeServerSideToolInvocations: true,
-    },
+    // includeServerSideToolInvocations ist das Context-Circulation-Flag —
+    // nötig NUR wenn built-in Tools (googleSearch) MIT functionDeclarations
+    // kombiniert werden. Im Split-Modus (Phase B = nur Functions) bleibt es
+    // weg: auf 2.5 ist es dort bestenfalls ein No-op, schlimmstenfalls ein
+    // 400-Kandidat.
+    ...(splitMode ? {} : { toolConfig: { includeServerSideToolInvocations: true } }),
     systemInstruction: splitAddendum ? `${systemPromptText}\n\n${splitAddendum}` : systemPromptText,
     temperature: _legacyTemperatureV2,
     maxOutputTokens: _legacyMaxOutputTokensV2,
@@ -1187,12 +1197,17 @@ async function runProductChatV2(product, userMessage, {
       console.log(`[chat-v2] research done: textLen=${researchText.length}, sources=${groundingSources.length}`);
     }
 
-    // Send initial message (with exponential backoff on transient 5xx/timeouts)
+    // Send initial message (with exponential backoff on transient 5xx/timeouts).
+    // Split-Modus: größeres Per-Attempt-Budget, weniger Versuche (siehe
+    // SPLIT_SEND_TIMEOUT_MS) — sonst würgt der 30s-Default Thinking-Turns ab.
+    const splitSendRetryOpts = splitMode
+      ? { perAttemptTimeoutMs: SPLIT_SEND_TIMEOUT_MS, maxAttempts: 2 }
+      : {};
     let response;
     try {
       response = await withGeminiRetry(
         () => chat.sendMessage({ message: messageText }),
-        { label: 'sendMessage-initial' }
+        { label: 'sendMessage-initial', ...splitSendRetryOpts }
       );
     } catch (sendError) {
       console.error(`[chat-v2] sendMessage FAILED:`, sendError?.message || sendError);
@@ -1321,7 +1336,7 @@ async function runProductChatV2(product, userMessage, {
               parts: functionResponseParts,
             },
           }),
-          { label: `sendMessage-iter-${iterations}` }
+          { label: `sendMessage-iter-${iterations}`, ...splitSendRetryOpts }
         );
       } catch (loopError) {
         console.error(`[chat-v2] sendMessage iter=${iterations} FAILED:`, loopError?.message || loopError);

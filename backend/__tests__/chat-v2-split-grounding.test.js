@@ -187,6 +187,22 @@ describe('runProductChatV2 — Zwei-Request-Modus auf Nicht-customtools-Modellen
     expect(researchCall).toMatch(/maxAttempts: 2/);
   });
 
+  it('Split-Modus: Phase B läuft OHNE includeServerSideToolInvocations (Circulation-Flag, 400-Risiko auf 2.5)', async () => {
+    await runProductChatV2(makeProduct(), 'Recherchiere Herstellerangaben.', {});
+    const phaseB = createdChats.find(({ opts }) => hasFunctionDeclarations(opts.config));
+    expect(phaseB.opts.config.toolConfig).toBeUndefined();
+  });
+
+  it('Split-Modus: Phase-B-Calls nutzen das 60s-Budget mit max. 2 Versuchen (Source-Vertrag)', () => {
+    const fs = require('fs');
+    const src = fs.readFileSync(require.resolve('../services/product-chat-v2.js'), 'utf8');
+    expect(src).toMatch(/CHAT_V2_SPLIT_SEND_TIMEOUT_MS \|\| '60000'/);
+    const initIdx = src.indexOf("label: 'sendMessage-initial'");
+    expect(src.slice(initIdx - 60, initIdx + 120)).toMatch(/\.\.\.splitSendRetryOpts/);
+    const iterIdx = src.indexOf('label: `sendMessage-iter-');
+    expect(src.slice(iterIdx - 60, iterIdx + 120)).toMatch(/\.\.\.splitSendRetryOpts/);
+  });
+
   it('fällt bei 400 auf urlContext in Phase A auf googleSearch-only zurück', async () => {
     process.env.CHAT_V2_ENHANCED = 'true';
     phaseAFailuresRemaining = 1;
