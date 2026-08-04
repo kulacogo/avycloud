@@ -91,8 +91,18 @@ const GEMINI_RETRY_PER_ATTEMPT_TIMEOUT_MS = parseInt(
   process.env.GEMINI_RETRY_PER_ATTEMPT_TIMEOUT_MS || '30000',
   10,
 );
-async function withGeminiRetry(operation, { label = 'gemini', perAttemptTimeoutMs = GEMINI_RETRY_PER_ATTEMPT_TIMEOUT_MS } = {}) {
-  const delays = [1000, 3000, 8000];
+// Phase-A-Recherche (Split-Modus): gegroundete Long-Calls brauchen 30-60s —
+// eigenes Budget analog IDENTIFY_GROUNDING_TIMEOUT_MS (Prod-Vorfall 2026-08-04:
+// 30s-Default → 3x abgewürgt, 2min Retries, dann Legacy-Fallback).
+const RESEARCH_PER_ATTEMPT_TIMEOUT_MS = parseInt(
+  process.env.CHAT_V2_RESEARCH_TIMEOUT_MS || '90000',
+  10,
+);
+async function withGeminiRetry(operation, { label = 'gemini', perAttemptTimeoutMs = GEMINI_RETRY_PER_ATTEMPT_TIMEOUT_MS, maxAttempts = 4 } = {}) {
+  // maxAttempts kappt die Versuche (default 4 = bisheriges Verhalten). Für
+  // teure Long-Calls (Phase-A-Recherche, 90s-Budget) wären 4 Versuche bis zu
+  // ~6min Wartezeit — dort gilt 2.
+  const delays = [1000, 3000, 8000].slice(0, Math.max(0, (Number(maxAttempts) || 4) - 1));
   let lastErr = null;
   for (let attempt = 0; attempt <= delays.length; attempt++) {
     try {
@@ -1118,20 +1128,25 @@ async function runProductChatV2(product, userMessage, {
         'Schlage KEINE Datenblatt-Änderungen vor — liste nur belegte Fakten und ihre Quellen sauber auf.',
       ].join('\n');
       const runResearch = async (withUrlContext) => {
+        // Latenz-Budget (Prod 2026-08-04 01:29Z): Grounding + Produktbilder
+        // brauchen 30-60s — das 30s-Default-Timeout würgte JEDEN Versuch ab
+        // (3 Retries, 2min verbrannt, dann doch Legacy). Deshalb: 90s wie
+        // IDENTIFY_GROUNDING_TIMEOUT_MS, max 2 Versuche, KEIN thinkingConfig
+        // (Grounding liefert die Fakten, Thinking kostet hier nur Zeit) und
+        // maxOutputTokens 4096 (Recherche-Notizen, keine Langform).
         const researchChat = ai.chats.create({
           model: modelName,
           config: {
             tools: [{ googleSearch: {} }, ...(withUrlContext ? [{ urlContext: {} }] : [])],
             systemInstruction: researchSystemPrompt,
             temperature: chatConfig.temperature,
-            maxOutputTokens: chatConfig.maxOutputTokens,
-            ...(chatConfig.thinkingConfig ? { thinkingConfig: chatConfig.thinkingConfig } : {}),
+            maxOutputTokens: Math.min(4096, Number(chatConfig.maxOutputTokens) || 4096),
           },
           history: chatHistory,
         });
         return withGeminiRetry(
           () => researchChat.sendMessage({ message: messageText }),
-          { label: 'sendMessage-research' }
+          { label: 'sendMessage-research', perAttemptTimeoutMs: RESEARCH_PER_ATTEMPT_TIMEOUT_MS, maxAttempts: 2 }
         );
       };
       let researchResponse;

@@ -159,6 +159,34 @@ describe('runProductChatV2 — Zwei-Request-Modus auf Nicht-customtools-Modellen
     expect(result._split).toBe(true);
   });
 
+  // Prod-Vorfall 2026-08-04 01:29Z: Phase A wurde 3x nach exakt 30s abgewürgt
+  // ("sendMessage-research per-attempt timeout after 30000ms") — ein
+  // gegroundeter 2.5-Pro-Call mit Bildern + Thinking braucht 30-60s. Der Chat
+  // verbrannte 2min in Retries und fiel dann doch auf Legacy.
+  it('Phase A läuft OHNE thinkingConfig und mit gekapptem maxOutputTokens (Latenz)', async () => {
+    process.env.CHAT_V2_ENHANCED = 'true';
+    try {
+      await runProductChatV2(makeProduct(), 'Recherchiere Herstellerangaben.', {});
+      const phaseA = createdChats.find(({ opts }) => hasGoogleSearch(opts.config));
+      const phaseB = createdChats.find(({ opts }) => hasFunctionDeclarations(opts.config));
+      expect(phaseA.opts.config.thinkingConfig).toBeUndefined();
+      expect(phaseA.opts.config.maxOutputTokens).toBeLessThanOrEqual(4096);
+      // Der Haupt-Chat (Phase B) behält das Enhanced-Tuning.
+      expect(phaseB.opts.config.thinkingConfig).toBeTruthy();
+    } finally {
+      delete process.env.CHAT_V2_ENHANCED;
+    }
+  });
+
+  it('Phase A nutzt das 90s-Recherche-Budget mit max. 2 Versuchen (Source-Vertrag)', () => {
+    const fs = require('fs');
+    const src = fs.readFileSync(require.resolve('../services/product-chat-v2.js'), 'utf8');
+    expect(src).toMatch(/CHAT_V2_RESEARCH_TIMEOUT_MS \|\| '90000'/);
+    const researchCall = src.slice(src.indexOf("label: 'sendMessage-research'") - 300, src.indexOf("label: 'sendMessage-research'") + 300);
+    expect(researchCall).toMatch(/perAttemptTimeoutMs: RESEARCH_PER_ATTEMPT_TIMEOUT_MS/);
+    expect(researchCall).toMatch(/maxAttempts: 2/);
+  });
+
   it('fällt bei 400 auf urlContext in Phase A auf googleSearch-only zurück', async () => {
     process.env.CHAT_V2_ENHANCED = 'true';
     phaseAFailuresRemaining = 1;
