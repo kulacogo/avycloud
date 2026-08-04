@@ -206,6 +206,11 @@ async function validateGpsrDatasheetChanges({ product, changes, fetchImpl, timeo
       && !!incoming.email;
 
     if (fakePhoneInProposal || suspectEmailInProposal) {
+      // Issue-CODES loggen (keine Werte): removed>0 im Chat kann seit
+      // 2026-08-04 nur noch von diesem Guard kommen — ohne die Codes ist im
+      // Log unsichtbar, ob Fake-Telefon oder welche suspect_email-Variante
+      // (z. B. foreign_domain — bekannte Fenix-Outdoor-Falle) gefeuert hat.
+      console.log(`[gpsr-gate] fake-gate drop product=${product?.id || '?'} issues=${issues.slice(0, 6).join(',')}`);
       notes.add('Eine vorgeschlagene Hersteller-Kontaktangabe sieht nach einem Platzhalter/Halluzinations-Muster aus (Telefon/E-Mail) — die GPSR-Änderung wurde verworfen.');
       dropGpsrFrom(change);
       continue;
