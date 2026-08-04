@@ -20,6 +20,7 @@ import { useI18n } from '../i18n';
 import { compareBinCodesForPickRoute } from '../utils/warehouseRoute';
 import type { UploadGroupPayload } from '../hooks/useIdentification';
 import QuantityNumpad from './operations/QuantityNumpad';
+import { resolveScanCaptureMode } from './scanCaptureMode';
 
 type OpsMode = 'operations' | 'operations-identify' | 'operations-stow' | 'operations-pick' | 'operations-pack';
 
@@ -211,7 +212,9 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
   // Letzte ERFOLGREICHE Einlagerung, um ein verspaetetes Doppellesen zu erkennen.
   const lastStowSubmitRef = useRef<{ signature: string; at: number } | null>(null);
   // Invisible focus target for handheld/keyboard-wedge scanners in stow/pick/pack.
-  const scanCaptureRef = useRef<HTMLInputElement | null>(null);
+  // Either the legacy <input> capture or the contenteditable capture — which one
+  // is rendered is decided by scanCaptureMode (see resolveScanCaptureMode).
+  const scanCaptureRef = useRef<HTMLElement | null>(null);
   const scanCaptureTimerRef = useRef<number | null>(null);
 
   type IdentifySlotImage = { id: string; file: File; previewUrl: string };
@@ -1243,6 +1246,39 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
       scanDebugRef.current = false;
     }
   }, []);
+  // How the capture field is rendered. Default: a contenteditable host with
+  // virtualkeyboardpolicy="manual" wherever the VirtualKeyboard API exists
+  // (Chromium/Android) — that keeps the scanner IME's InputConnection alive but
+  // stops focus from summoning the on-screen keyboard, which permanently covered
+  // half the screen in pick/pack/stow. Overrides: ?scanCapture=input|ce or
+  // localStorage.setItem('scanCapture', 'input'|'ce'). Decided once per mount.
+  const scanCaptureMode = useMemo(() => {
+    let override: string | null = null;
+    try {
+      override =
+        new URLSearchParams(window.location.search).get('scanCapture') ||
+        window.localStorage.getItem('scanCapture');
+    } catch {
+      override = null;
+    }
+    const supportsPolicy =
+      typeof HTMLElement !== 'undefined' && 'virtualKeyboardPolicy' in HTMLElement.prototype;
+    return resolveScanCaptureMode(override, supportsPolicy);
+  }, []);
+
+  const readScanCaptureValue = useCallback(() => {
+    const el = scanCaptureRef.current;
+    if (!el) return '';
+    return el instanceof HTMLInputElement ? el.value : el.textContent ?? '';
+  }, []);
+
+  const clearScanCaptureValue = useCallback(() => {
+    const el = scanCaptureRef.current;
+    if (!el) return;
+    if (el instanceof HTMLInputElement) el.value = '';
+    else el.textContent = '';
+  }, []);
+
   const logScanDebug = useCallback(
     (event: string, extra?: Record<string, unknown>) => {
       if (!scanDebugRef.current) return;
@@ -1250,26 +1286,29 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
       // eslint-disable-next-line no-console
       console.log('[scan-capture]', event, {
         mode,
+        captureMode: scanCaptureMode,
         captureIsActiveElement: active === scanCaptureRef.current,
         activeTag: active?.tagName ?? null,
         activeInputMode: active?.getAttribute?.('inputmode') ?? null,
         ...extra,
       });
     },
-    [mode]
+    [mode, scanCaptureMode]
   );
 
   // Android handheld scanners (NETUM Q900 / Honeywell "Focus" input method) deliver
   // a scan as IME text: the input method calls InputConnection.commitText() into the
-  // focused EDITABLE field and fires `onChange` — there is NO reliable per-character
-  // keydown (keyCode 229). For this to work the field must be a REAL text-input
-  // target, exactly like the working Search view (<input inputMode="search"> read via
-  // onChange). Non-negotiable for the Android IME:
+  // focused EDITABLE element and fires input/change — there is NO reliable
+  // per-character keydown (keyCode 229). Non-negotiable for the Android IME:
   //   - NOT readOnly / NOT disabled (the IME refuses to write into those)
   //   - inputMode must NOT be "none" — that tells WebView to attach no input method,
   //     so the scanner IME has nowhere to commit → not even the first scan arrives.
-  //   - actually rendered on-screen (a 1px transparent input), not off-screen /
+  //   - actually rendered on-screen (a 1px transparent element), not off-screen /
   //     opacity:0, so WebView establishes the InputConnection.
+  // Because the capture must stay a real, focused, editable IME target, the ONLY
+  // safe way to keep the on-screen keyboard closed is the VirtualKeyboard API
+  // (virtualkeyboardpolicy="manual" on a contenteditable host) — see
+  // scanCaptureMode above and resolveScanCaptureMode() in scanCaptureMode.ts.
   // It stays visually invisible to the operator. The window-keydown listener above
   // remains ONLY as a fallback for scanners in HID keyboard mode (real keydown).
   useEffect(() => {
@@ -1291,86 +1330,120 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
         window.clearTimeout(scanCaptureTimerRef.current);
         scanCaptureTimerRef.current = null;
       }
-      if (scanCaptureRef.current) scanCaptureRef.current.value = '';
+      clearScanCaptureValue();
       const val = raw.replace(/[\r\n\t]+/g, '').trim();
       logScanDebug('scan-received', { rawLength: raw.length, value: val });
       if (val) handleScannedValue(val);
     },
-    [handleScannedValue, logScanDebug]
+    [handleScannedValue, logScanDebug, clearScanCaptureValue]
   );
 
-  const renderScanCapture = () => (
-    <input
-      ref={scanCaptureRef}
-      type="text"
-      inputMode="text"
-      autoComplete="off"
-      autoCorrect="off"
-      autoCapitalize="none"
-      spellCheck={false}
-      tabIndex={-1}
-      // Visually invisible but a REAL, rendered, focusable text input so the Android
-      // scanner IME attaches an InputConnection and commits scans via onChange. Do
-      // NOT use inputMode="none", readOnly, disabled, off-screen or opacity:0 here —
-      // any of those breaks IME-mode scanners (NETUM/Honeywell). See comment above.
-      style={{
-        position: 'fixed',
-        bottom: 0,
-        left: 0,
-        width: 1,
-        height: 1,
-        padding: 0,
-        margin: 0,
-        border: 0,
-        fontSize: 16,
-        opacity: 0.01,
-        color: 'transparent',
-        background: 'transparent',
-        caretColor: 'transparent',
-      }}
-      onChange={(e) => {
-        const value = e.target.value;
-        // Most scanner configs append a CR/LF suffix → the full code is here now.
-        if (/[\r\n]/.test(value)) {
-          submitScanCapture(value);
-          return;
-        }
-        // No suffix: scanners burst-type, so a short gap means the scan finished.
-        if (scanCaptureTimerRef.current) window.clearTimeout(scanCaptureTimerRef.current);
-        scanCaptureTimerRef.current = window.setTimeout(() => {
-          submitScanCapture(scanCaptureRef.current?.value ?? '');
-        }, 120);
-      }}
-      onKeyDown={(e) => {
-        // Some configs send a discrete Enter/Tab key instead of a value suffix.
-        if (e.key === 'Enter' || e.key === 'Tab') {
-          e.preventDefault();
-          submitScanCapture(e.currentTarget.value);
-        }
-      }}
-      onBlur={() => {
-        // Numpad taps / submits / order selection move focus; reclaim it so the
-        // next scan still lands in the capture field. BUT never steal focus from
-        // a REAL editable input (e.g. the Gewicht/weight prompt) — that would keep
-        // the mobile keyboard from opening. Only reclaim when focus went to a
-        // button / body / a readOnly or inputMode="none" field.
-        window.setTimeout(() => {
-          const active = document.activeElement as HTMLElement | null;
-          const isRealEditable =
-            !!active &&
-            active !== scanCaptureRef.current &&
-            (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA') &&
-            !(active as HTMLInputElement).readOnly &&
-            active.getAttribute('inputmode') !== 'none';
-          logScanDebug('blur', { willReclaim: !isRealEditable });
-          if (isRealEditable) return;
-          const stillScanMode =
-            mode === 'operations-pick' || mode === 'operations-stow' || mode === 'operations-pack';
-          if (stillScanMode) scanCaptureRef.current?.focus({ preventScroll: true });
-        }, 0);
-      }}
-    />
+  const handleScanCaptureChange = useCallback(
+    (value: string) => {
+      // Most scanner configs append a CR/LF suffix → the full code is here now.
+      if (/[\r\n]/.test(value)) {
+        submitScanCapture(value);
+        return;
+      }
+      // No suffix: scanners burst-type, so a short gap means the scan finished.
+      if (scanCaptureTimerRef.current) window.clearTimeout(scanCaptureTimerRef.current);
+      scanCaptureTimerRef.current = window.setTimeout(() => {
+        submitScanCapture(readScanCaptureValue());
+      }, 120);
+    },
+    [submitScanCapture, readScanCaptureValue]
   );
+
+  const handleScanCaptureKeyDown = (e: React.KeyboardEvent<HTMLElement>) => {
+    // Some configs send a discrete Enter/Tab key instead of a value suffix.
+    if (e.key === 'Enter' || e.key === 'Tab') {
+      e.preventDefault();
+      submitScanCapture(readScanCaptureValue());
+    }
+  };
+
+  const handleScanCaptureBlur = () => {
+    // Numpad taps / submits / order selection move focus; reclaim it so the
+    // next scan still lands in the capture field. BUT never steal focus from
+    // a REAL editable input (e.g. the Gewicht/weight prompt) — that would keep
+    // the mobile keyboard from opening. Only reclaim when focus went to a
+    // button / body / a readOnly or inputMode="none" field.
+    window.setTimeout(() => {
+      const active = document.activeElement as HTMLElement | null;
+      const isRealEditable =
+        !!active &&
+        active !== scanCaptureRef.current &&
+        (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA') &&
+        !(active as HTMLInputElement).readOnly &&
+        active.getAttribute('inputmode') !== 'none';
+      logScanDebug('blur', { willReclaim: !isRealEditable });
+      if (isRealEditable) return;
+      const stillScanMode =
+        mode === 'operations-pick' || mode === 'operations-stow' || mode === 'operations-pack';
+      if (stillScanMode) scanCaptureRef.current?.focus({ preventScroll: true });
+    }, 0);
+  };
+
+  // Visually invisible but a REAL, rendered, focusable editable element so the
+  // Android scanner IME attaches an InputConnection and commits scans. Do NOT
+  // use inputMode="none", readOnly, disabled, off-screen or opacity:0 here —
+  // any of those breaks IME-mode scanners (NETUM/Honeywell). See comment above.
+  const scanCaptureStyle: React.CSSProperties = {
+    position: 'fixed',
+    bottom: 0,
+    left: 0,
+    width: 1,
+    height: 1,
+    padding: 0,
+    margin: 0,
+    border: 0,
+    fontSize: 16,
+    opacity: 0.01,
+    color: 'transparent',
+    background: 'transparent',
+    caretColor: 'transparent',
+  };
+
+  const renderScanCapture = () =>
+    scanCaptureMode === 'contenteditable' ? (
+      // virtualkeyboardpolicy="manual" (VirtualKeyboard API) decouples focus
+      // from the soft keyboard: the element stays a real IME target (scans keep
+      // committing), but focusing it no longer summons the Android on-screen
+      // keyboard. Chromium honors the policy ONLY on contenteditable hosts —
+      // not on <input> — which is why this branch swaps the element type.
+      // On-device escape hatch: localStorage.setItem('scanCapture','input').
+      <span
+        ref={(el) => {
+          scanCaptureRef.current = el;
+          el?.setAttribute('virtualkeyboardpolicy', 'manual');
+        }}
+        contentEditable
+        tabIndex={-1}
+        autoCapitalize="none"
+        spellCheck={false}
+        style={{ ...scanCaptureStyle, display: 'inline-block', outline: 'none', overflow: 'hidden', whiteSpace: 'pre' }}
+        onInput={(e) => handleScanCaptureChange(e.currentTarget.textContent ?? '')}
+        onKeyDown={handleScanCaptureKeyDown}
+        onBlur={handleScanCaptureBlur}
+      />
+    ) : (
+      <input
+        ref={(el) => {
+          scanCaptureRef.current = el;
+        }}
+        type="text"
+        inputMode="text"
+        autoComplete="off"
+        autoCorrect="off"
+        autoCapitalize="none"
+        spellCheck={false}
+        tabIndex={-1}
+        style={scanCaptureStyle}
+        onChange={(e) => handleScanCaptureChange(e.target.value)}
+        onKeyDown={handleScanCaptureKeyDown}
+        onBlur={handleScanCaptureBlur}
+      />
+    );
 
   const addIdentifySlot = () => {
     setIdentifySlots((prev) => [...prev, Date.now()]);
