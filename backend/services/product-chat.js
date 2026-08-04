@@ -2226,9 +2226,19 @@ function sanitizeDatasheetChange(entry, product, { scope = null, titleHintTokens
       forcePolicy: false,
     });
     const normalizedTitle = normalizeGermanTitleLanguage(coerced, draftProduct);
-    identityPatch.name = normalizedTitle || coerced;
+    let finalTitle = normalizedTitle || coerced;
+    // Mindestlängen-Netz (Incident 2026-08-04: 31-Zeichen-Titel): der
+    // Passthrough-Coerce erzwingt minLen nicht — zu kurze Vorschläge werden
+    // deterministisch mit belegten Datenblatt-Tokens aufgefüllt (nie umgebaut).
+    {
+      const { fillTitleToMinLength, titleMinFillEnabled } = require('../lib/title-min-fill');
+      if (titleMinFillEnabled()) {
+        finalTitle = fillTitleToMinLength(finalTitle, draftProduct, { minLen, maxLen });
+      }
+    }
+    identityPatch.name = finalTitle;
     // Keep an explicit title field so the frontend can display/apply it directly.
-    result.title = normalizedTitle || coerced;
+    result.title = finalTitle;
   }
 
   if (Object.keys(identityPatch).length) {

@@ -673,7 +673,17 @@ function sanitizeDatasheetChangeV2(entry, product, { scope = null, titleHintToke
       extraHintTokens: effectiveHintTokens,
       forcePolicy: false,
     });
-    change.title = coerced || titleCandidate.slice(0, 80);
+    let finalTitle = coerced || titleCandidate.slice(0, 80);
+    // Mindestlängen-Netz (Incident 2026-08-04: 31-Zeichen-Titel): coerce lief
+    // hier sogar mit minLen 0 — zu kurze Vorschläge werden deterministisch mit
+    // belegten Datenblatt-Tokens aufgefüllt (nur anhängen, nie umbauen).
+    {
+      const { fillTitleToMinLength, titleMinFillEnabled } = require('../lib/title-min-fill');
+      if (titleMinFillEnabled()) {
+        finalTitle = fillTitleToMinLength(finalTitle, preview, { minLen: 70, maxLen: 80 });
+      }
+    }
+    change.title = finalTitle;
   }
 
   // Identity

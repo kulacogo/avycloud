@@ -46,6 +46,13 @@ function hasUrlContext(config) {
   return toolsOf(config).some((t) => t && t.urlContext);
 }
 
+// Per-Test überschreibbare Phase-B-Antwort (default: GPSR-Vorschlag).
+const DEFAULT_PHASE_B_ARGS = {
+  summary: 'GPSR ergänzt',
+  gpsr: { manufacturer_name: 'Fenix Outdoor AB', url: 'https://www.fjallraven.com' },
+};
+let phaseBFunctionArgs = DEFAULT_PHASE_B_ARGS;
+
 function makeFakeChat(createOpts) {
   const messages = [];
   const grounding = hasGoogleSearch(createOpts.config);
@@ -69,10 +76,7 @@ function makeFakeChat(createOpts) {
           text: '',
           functionCalls: [{
             name: 'update_product_datasheet',
-            args: {
-              summary: 'GPSR ergänzt',
-              gpsr: { manufacturer_name: 'Fenix Outdoor AB', url: 'https://www.fjallraven.com' },
-            },
+            args: phaseBFunctionArgs,
           }],
           candidates: [],
         };
@@ -114,6 +118,7 @@ function makeProduct() {
 beforeEach(() => {
   createdChats.length = 0;
   phaseAFailuresRemaining = 0;
+  phaseBFunctionArgs = DEFAULT_PHASE_B_ARGS;
 });
 
 describe('chatV2ModelSupported — Split-Modus öffnet V2 auf 2.5', () => {
@@ -201,6 +206,26 @@ describe('runProductChatV2 — Zwei-Request-Modus auf Nicht-customtools-Modellen
     expect(src.slice(initIdx - 60, initIdx + 120)).toMatch(/\.\.\.splitSendRetryOpts/);
     const iterIdx = src.indexOf('label: `sendMessage-iter-');
     expect(src.slice(iterIdx - 60, iterIdx + 120)).toMatch(/\.\.\.splitSendRetryOpts/);
+  });
+
+  it('füllt einen zu kurzen Titel-Vorschlag aus Phase B mit Datenblatt-Tokens auf (31-Zeichen-Vorfall)', async () => {
+    phaseBFunctionArgs = { summary: 'Titel optimiert', title: 'FJALLRAVEN Duffel Tasche' };
+    const product = makeProduct();
+    product.details.attributes = {
+      Produktart: 'Reisetasche',
+      Modell: 'Färden Duffel 80',
+      Farbe: 'Coal Black',
+      Material: 'Polyamid',
+      Volumen: '80 L',
+    };
+    product.details.identifiers = { mpn: 'F23200283' };
+
+    const result = await runProductChatV2(product, 'Optimiere den Titel.', {});
+    const titleChange = result.datasheetChanges.find((c) => c && c.title);
+    expect(titleChange).toBeTruthy();
+    expect(titleChange.title.startsWith('FJALLRAVEN Duffel Tasche')).toBe(true);
+    expect(titleChange.title.length).toBeGreaterThanOrEqual(60);
+    expect(titleChange.title.length).toBeLessThanOrEqual(80);
   });
 
   it('fällt bei 400 auf urlContext in Phase A auf googleSearch-only zurück', async () => {
