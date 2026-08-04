@@ -1,30 +1,29 @@
 // Decides how the invisible scan-capture field in MobileOperationsView is
-// rendered. Two modes:
+// rendered.
 //
-//   "contenteditable" — a contenteditable host carrying virtualkeyboardpolicy=
-//     "manual" (VirtualKeyboard API). Chromium then decouples focus from the
-//     on-screen keyboard: the element keeps its IME InputConnection (NETUM/
-//     Honeywell scanner IMEs still commit scans), but focusing it no longer
-//     summons the Android soft keyboard. Chromium honors the policy ONLY on
-//     contenteditable hosts, not on <input> — hence the element swap.
+//   "input" (DEFAULT) — the plain <input inputMode="text"> capture. The only
+//     variant proven to receive scans from the NETUM Q900 / Honeywell "Focus"
+//     scanner IME on Android. Side effect: focusing it summons the on-screen
+//     keyboard; there is NO known web-side lever against that for this scanner
+//     (see below), so keyboard suppression has to happen device-side.
 //
-//   "input" — the plain <input inputMode="text"> capture (pre-2026-08 behavior,
-//     soft keyboard visible). Kept as the fallback for browsers without the
-//     VirtualKeyboard API and as an on-device escape hatch.
+//   "contenteditable" — EXPERIMENTAL, opt-in only: a contenteditable host with
+//     virtualkeyboardpolicy="manual" (VirtualKeyboard API). In theory this
+//     decouples focus from the keyboard while keeping the IME InputConnection.
+//     FIELD-TESTED 2026-08-04 on the real NETUM Q900: the scanner IME did NOT
+//     commit a single scan into this host — pick/pack/stow went dead. That
+//     makes it the THIRD Android-IME killer next to readOnly and
+//     inputMode="none". Never make this the default again without an on-device
+//     proof; it stays reachable only via override for future experiments.
 //
 // Override via ?scanCapture=... or localStorage.setItem('scanCapture', ...):
-//   "input" forces the legacy capture (escape hatch if a device's scanner IME
-//   refuses to write into contenteditable), "ce"/"contenteditable" forces the
-//   new capture even where feature detection says unsupported.
+// "ce"/"contenteditable" opts into the experimental capture, "input" (or any
+// other value) keeps the default.
 
 export type ScanCaptureMode = "input" | "contenteditable";
 
-export function resolveScanCaptureMode(
-  override: string | null | undefined,
-  supportsVirtualKeyboardPolicy: boolean
-): ScanCaptureMode {
+export function resolveScanCaptureMode(override: string | null | undefined): ScanCaptureMode {
   const normalized = (override ?? "").trim().toLowerCase();
-  if (normalized === "input") return "input";
   if (normalized === "ce" || normalized === "contenteditable") return "contenteditable";
-  return supportsVirtualKeyboardPolicy ? "contenteditable" : "input";
+  return "input";
 }
