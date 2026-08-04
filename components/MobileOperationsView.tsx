@@ -1246,12 +1246,12 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
       scanDebugRef.current = false;
     }
   }, []);
-  // How the capture field is rendered. Default: a contenteditable host with
-  // virtualkeyboardpolicy="manual" wherever the VirtualKeyboard API exists
-  // (Chromium/Android) — that keeps the scanner IME's InputConnection alive but
-  // stops focus from summoning the on-screen keyboard, which permanently covered
-  // half the screen in pick/pack/stow. Overrides: ?scanCapture=input|ce or
-  // localStorage.setItem('scanCapture', 'input'|'ce'). Decided once per mount.
+  // How the capture field is rendered. Default: the plain <input> capture — the
+  // only variant PROVEN to receive scans from the NETUM scanner IME (the
+  // contenteditable + virtualkeyboardpolicy="manual" experiment swallowed all
+  // scans on the real device, 2026-08-04 — see scanCaptureMode.ts). Opt-in to
+  // the experimental capture via ?scanCapture=ce or
+  // localStorage.setItem('scanCapture', 'ce'). Decided once per mount.
   const scanCaptureMode = useMemo(() => {
     let override: string | null = null;
     try {
@@ -1261,9 +1261,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
     } catch {
       override = null;
     }
-    const supportsPolicy =
-      typeof HTMLElement !== 'undefined' && 'virtualKeyboardPolicy' in HTMLElement.prototype;
-    return resolveScanCaptureMode(override, supportsPolicy);
+    return resolveScanCaptureMode(override);
   }, []);
 
   const readScanCaptureValue = useCallback(() => {
@@ -1305,10 +1303,13 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
   //     so the scanner IME has nowhere to commit → not even the first scan arrives.
   //   - actually rendered on-screen (a 1px transparent element), not off-screen /
   //     opacity:0, so WebView establishes the InputConnection.
-  // Because the capture must stay a real, focused, editable IME target, the ONLY
-  // safe way to keep the on-screen keyboard closed is the VirtualKeyboard API
-  // (virtualkeyboardpolicy="manual" on a contenteditable host) — see
-  // scanCaptureMode above and resolveScanCaptureMode() in scanCaptureMode.ts.
+  //   - NOT a contenteditable host with virtualkeyboardpolicy="manual" — that
+  //     was field-tested 2026-08-04 and the scanner IME committed NOTHING into
+  //     it (third IME killer). See scanCaptureMode.ts.
+  // Consequence: the on-screen keyboard CANNOT be suppressed from the web side
+  // for this scanner — every known lever kills the scan input. Keyboard
+  // suppression must happen device-side (scanner service / Android keyboard
+  // settings).
   // It stays visually invisible to the operator. The window-keydown listener above
   // remains ONLY as a fallback for scanners in HID keyboard mode (real keydown).
   useEffect(() => {
@@ -1406,12 +1407,11 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
 
   const renderScanCapture = () =>
     scanCaptureMode === 'contenteditable' ? (
-      // virtualkeyboardpolicy="manual" (VirtualKeyboard API) decouples focus
-      // from the soft keyboard: the element stays a real IME target (scans keep
-      // committing), but focusing it no longer summons the Android on-screen
-      // keyboard. Chromium honors the policy ONLY on contenteditable hosts —
-      // not on <input> — which is why this branch swaps the element type.
-      // On-device escape hatch: localStorage.setItem('scanCapture','input').
+      // EXPERIMENTAL, opt-in only (?scanCapture=ce): contenteditable host with
+      // virtualkeyboardpolicy="manual" — in theory keeps the IME target while
+      // suppressing the keyboard. Field-tested 2026-08-04 on the NETUM Q900:
+      // the scanner IME committed NOTHING into it, so this must NEVER be the
+      // default. Kept only for future on-device experiments.
       <span
         ref={(el) => {
           scanCaptureRef.current = el;
