@@ -25,6 +25,15 @@ type RemoveBackgroundFn = (
   config?: unknown
 ) => Promise<Blob>;
 
+// Freisteller-Modell (@imgly/background-removal). "small" (isnet_quint8, 8-bit
+// quantisiert) lieferte grob ausgefranste Kanten und fraß Produktkonturen an —
+// deshalb "isnet" (volle fp32-Präzision, beste Kantenqualität, breiteste
+// Browser-Kompatibilität inkl. WASM-Fallback). Größerer Erstdownload, danach im
+// Browser gecached. Übersteuerbar über VITE_BG_REMOVAL_MODEL
+// (isnet | isnet_fp16 | isnet_quint8) für langsame Verbindungen.
+const BG_REMOVAL_MODEL =
+  ((import.meta as any)?.env?.VITE_BG_REMOVAL_MODEL as string | undefined)?.trim() || 'isnet';
+
 const blobToDataUrl = (blob: Blob) =>
   new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
@@ -475,9 +484,10 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
         return await removeBackground(inputBlob, {
           device: 'gpu',
           // Faster + smaller download than medium. Quality is usually sufficient for catalog/gallery usage.
-          model: 'small',
+          model: BG_REMOVAL_MODEL,
           progress,
-          output: { format: 'image/png', quality: 0.8 },
+          // PNG ist verlustfrei (quality wird ignoriert) — 1 für saubere Alpha-Kanten.
+          output: { format: 'image/png', quality: 1 },
         });
       },
       t('sheet.gallery.improve.note.bgRemoved')
