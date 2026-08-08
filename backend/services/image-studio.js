@@ -3,11 +3,13 @@
 /**
  * image-studio.js
  *
- * Turns an arbitrary product photo into a professional studio packshot:
- * corrected exposure, PURE WHITE backdrop (#FFFFFF, seamless — eBay/Google-
- * Shopping-Hauptbild-Standard, siehe Picture Policy) and a soft natural contact
- * shadow. The product itself must stay pixel-faithful (shape, colors, labels,
- * text).
+ * Turns an arbitrary product photo into an authentic white-background packshot:
+ * PURE WHITE backdrop (#FFFFFF) and a soft natural contact shadow, while the
+ * product itself stays pixel-faithful (shape, colors, labels, text, even
+ * imperfections). Deliberately NOT a glossy high-end studio render — the look
+ * keeps a believable, slightly amateur "private seller phone photo" character
+ * (Owner requirement 2026-07-21). Product authenticity is the top priority: the
+ * prompt forbids any redraw/retouch/reshape/re-color of the product.
  *
  * Strategy (each step best-effort, never returns nothing without trying all):
  *   1. Gemini image model chain: STUDIO_IMAGE_MODEL → STUDIO_IMAGE_FALLBACK_MODEL
@@ -27,18 +29,22 @@ const PRE_MAX_EDGE_PX = 1600;
 const FALLBACK_CANVAS_PX = 1200;
 
 const STUDIO_PROMPT =
-  'Transform this product photo into a professional e-commerce studio photograph. ' +
-  'Keep the product itself completely unchanged: same shape, proportions, colors, materials, ' +
-  'labels and printed text — do not redraw, restyle or replace the product. ' +
-  'Correct the exposure and white balance so the product is evenly and naturally lit, ' +
-  'as if photographed in a softbox studio lighting setup. ' +
-  'Replace the background with a PURE WHITE seamless studio backdrop — flat pure white ' +
-  '#FFFFFF (RGB 255,255,255), NO gradient, no off-white, no colored tint. This is the ' +
-  'eBay / Google Shopping main-image standard. Add only a soft, natural contact shadow ' +
-  'directly under the product so it sits grounded on the surface (the surrounding backdrop ' +
-  'stays pure white). ' +
-  'No props, no text, no watermark, no people, no reflections of other objects, no added items. ' +
-  'Keep the original camera perspective, show the product fully in frame with balanced margins.';
+  'Edit ONLY the background and overall lighting of this product photo. ' +
+  'The product is the single most important element and MUST stay 100% authentic and unchanged: ' +
+  'do NOT redraw, regenerate, restyle, retouch, beautify, sharpen, reshape, rotate or re-color it. ' +
+  'Preserve every detail of the product EXACTLY as in the original — the exact shape, proportions, ' +
+  'viewing angle, colors, materials, surface texture, labels, logos and printed text, including any ' +
+  'existing wear, scratches, dents, dust or small imperfections. Never invent, add, remove or "improve" ' +
+  'any part of the product itself. If in doubt, leave the product pixel-for-pixel as it is. ' +
+  'Replace ONLY the background with a plain PURE WHITE backdrop — flat pure white #FFFFFF ' +
+  '(RGB 255,255,255), NO gradient, no off-white, no colored tint. ' +
+  'Add a soft, natural contact shadow directly under the product so it looks grounded on the surface. ' +
+  'Keep the result honest and believable, like a real photo taken by a small private online seller: ' +
+  'a simple phone snapshot of the item placed on a plain white surface. Natural, slightly uneven everyday ' +
+  'lighting is fine and even wanted — do NOT turn it into a glossy, high-end, hyper-polished or overly ' +
+  'perfect commercial studio render. It should keep a slightly amateur, genuine look, not an advertisement. ' +
+  'No props, no added text, no watermark, no people, no reflections of other objects, no added items. ' +
+  'Keep the original camera perspective and framing; show the product fully in frame.';
 
 function studioModelChain() {
   const primary = process.env.STUDIO_IMAGE_MODEL || 'gemini-2.5-flash-image';

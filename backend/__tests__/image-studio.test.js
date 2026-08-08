@@ -188,6 +188,31 @@ describe('STUDIO_PROMPT — reinweißer Hintergrund (kein Verlauf)', () => {
   });
 });
 
+describe('STUDIO_PROMPT — Produkt-Erhalt + authentischer (nicht überprofessioneller) Look', () => {
+  const p = () => _internal.STUDIO_PROMPT.toLowerCase();
+
+  it('erzwingt Produkt-Erhalt: nur Hintergrund/Licht ändern, Produkt nicht neu zeichnen/verfälschen', () => {
+    const s = p();
+    // Nur Hintergrund/Licht bearbeiten
+    expect(s).toContain('only the background');
+    // Produkt darf nicht neu gezeichnet/verändert werden
+    expect(s).toMatch(/do not\b[^.]*\bredraw/);
+    // Auch Gebrauchsspuren bleiben erhalten (kein Beauty-Retusche-Drift)
+    expect(s).toMatch(/scratches|imperfections|wear/);
+  });
+
+  it('behält einen Kontaktschatten', () => {
+    expect(p()).toContain('contact shadow');
+  });
+
+  it('verlangt einen authentischen, leicht amateurhaften Look statt Hochglanz-Studio', () => {
+    const s = p();
+    expect(s).toMatch(/amateur|private online seller|phone snapshot/);
+    // Hochglanz/„hyper-polished" commercial render wird ausdrücklich verboten
+    expect(s).toMatch(/do not\b[^.]*\b(glossy|hyper-polished|commercial)/);
+  });
+});
+
 describe('padOnWhiteSquare — sicherer Weiß-Fallback (kein Freisteller)', () => {
   it('zentriert ein helles Produkt intakt auf reinweißem Quadrat (Ecken 255, Produkt überlebt)', async () => {
     // Helles Produkt (metallik-artig, ~220 grau) auf weißem Hintergrund — der
