@@ -1246,22 +1246,38 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
       scanDebugRef.current = false;
     }
   }, []);
-  // How the capture field is rendered. Default: the plain <input> capture — the
-  // only variant PROVEN to receive scans from the NETUM scanner IME (the
-  // contenteditable + virtualkeyboardpolicy="manual" experiment swallowed all
-  // scans on the real device, 2026-08-04 — see scanCaptureMode.ts). Opt-in to
-  // the experimental capture via ?scanCapture=ce or
-  // localStorage.setItem('scanCapture', 'ce'). Decided once per mount.
-  const scanCaptureMode = useMemo(() => {
-    let override: string | null = null;
+  // How the capture field is rendered — a PER-DEVICE setting, because the two
+  // handhelds deliver scans differently. Default stays the plain <input>
+  // capture (the only variant proven to work with the NETUM scanner IME), so a
+  // wrong per-device guess can never take the fleet down. See scanCaptureMode.ts
+  // for the modes and for why no fleet-wide keyboard fix exists.
+  // Decided ONCE per mount and deliberately kept out of the focus effects'
+  // dependency chain — a changing value there would re-fire .focus() and could
+  // steal focus from the weight prompt (regression guarded since 28dcab8a).
+  const scanCaptureModeOverride = useMemo(() => {
     try {
-      override =
+      return (
         new URLSearchParams(window.location.search).get('scanCapture') ||
-        window.localStorage.getItem('scanCapture');
+        window.localStorage.getItem('scanCapture')
+      );
     } catch {
-      override = null;
+      return null;
     }
-    return resolveScanCaptureMode(override);
+  }, []);
+  const scanCaptureMode = useMemo(
+    () => resolveScanCaptureMode(scanCaptureModeOverride),
+    [scanCaptureModeOverride]
+  );
+
+  // Typing localStorage commands on a handheld is painful, so a ?scanCapture=…
+  // URL configures the device permanently on first visit.
+  useEffect(() => {
+    try {
+      const fromUrl = new URLSearchParams(window.location.search).get('scanCapture');
+      if (fromUrl) window.localStorage.setItem('scanCapture', fromUrl);
+    } catch {
+      /* private mode / storage disabled — the URL param still works per session */
+    }
   }, []);
 
   const readScanCaptureValue = useCallback(() => {
@@ -1405,6 +1421,19 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
     caretColor: 'transparent',
   };
 
+  // The pre-2026-07-25 capture, restored byte-for-byte as a per-device mode:
+  // parked off-screen so no keyboard is drawn. Only viable for scanners that
+  // send real key events — an IME-mode scanner has nothing to commit into.
+  const scanCaptureStyleOffScreen: React.CSSProperties = {
+    position: 'absolute',
+    left: -9999,
+    top: 0,
+    width: 1,
+    height: 1,
+    opacity: 0,
+    pointerEvents: 'none',
+  };
+
   const renderScanCapture = () =>
     scanCaptureMode === 'contenteditable' ? (
       // EXPERIMENTAL, opt-in only (?scanCapture=ce): contenteditable host with
@@ -1427,18 +1456,21 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
         onBlur={handleScanCaptureBlur}
       />
     ) : (
+      // Default 'input': on-screen, inputMode="text" — scans arrive, keyboard
+      // shows. Mode 'none': off-screen, inputMode="none" — no keyboard, but
+      // only scanners sending real key events still reach it.
       <input
         ref={(el) => {
           scanCaptureRef.current = el;
         }}
         type="text"
-        inputMode="text"
+        inputMode={scanCaptureMode === 'none' ? 'none' : 'text'}
         autoComplete="off"
         autoCorrect="off"
         autoCapitalize="none"
         spellCheck={false}
         tabIndex={-1}
-        style={scanCaptureStyle}
+        style={scanCaptureMode === 'none' ? scanCaptureStyleOffScreen : scanCaptureStyle}
         onChange={(e) => handleScanCaptureChange(e.target.value)}
         onKeyDown={handleScanCaptureKeyDown}
         onBlur={handleScanCaptureBlur}
