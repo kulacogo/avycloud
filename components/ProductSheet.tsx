@@ -162,6 +162,12 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
   // Signal dirty state to parent so polling doesn't overwrite unsaved changes
   useEffect(() => { onDirtyChange?.(isDirty); }, [isDirty, onDirtyChange]);
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  // Bleibende Warnung: Felder, die gesendet wurden und NICHT im Dokument
+  // gelandet sind (Schreib-Quittung des Servers, Vorfall 2026-08-10).
+  // Bewusst ohne Auto-Ausblenden — verschwindende Warnungen waren die Ursache.
+  const [writeReceiptWarning, setWriteReceiptWarning] = useState<
+    Array<{ path: string; label: string; wanted: string }> | null
+  >(null);
   const [autoGenDone, setAutoGenDone] = useState(false);
   const [isPrintingLabel, setIsPrintingLabel] = useState(false);
   const [binCodeInput, setBinCodeInput] = useState(product.storage?.binCode || '');
@@ -599,10 +605,19 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
     }
   }, [localProduct.inventory?.inventoryId, showNotification, t]);
 
-  const performSave = useCallback(async () => {
-    if (isSavingRef.current) return;
+  /**
+   * Speichert und meldet EHRLICH zurück, ob es geklappt hat.
+   *
+   * Der Rückgabewert ist neu (Vorfall 2026-08-10): vorher gab performSave
+   * nichts zurück, weshalb kein Aufrufer wissen konnte, ob wirklich
+   * geschrieben wurde. Der KI-Assistent hat genau deshalb Erfolg gemeldet,
+   * obwohl nie gespeichert wurde.
+   */
+  const performSave = useCallback(async (): Promise<boolean> => {
+    if (isSavingRef.current) return false;
     isSavingRef.current = true;
     setIsSaving(true);
+    let saveOk = false;
 
     try {
       // Snapshot AFTER blur-based updates have had a chance to commit.
@@ -662,7 +677,21 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
         lastSaveAtRef.current = Date.now();
         setBarcodeInput((normalized.identification?.barcodes || []).join('\n'));
         setIdFields(classifyBarcodesByLength(normalized.identification?.barcodes || []));
-        showNotification('success', t('sheet.msg.saveSuccess'));
+
+        // SCHREIB-QUITTUNG: Der Server hat nach dem Schreiben den echten
+        // Dokumentstand gegen die gesendeten Daten verglichen. Fehlende Felder
+        // werden BLEIBEND angezeigt — eine Warnung, die nach 5 Sekunden
+        // verschwindet, ist genau die Art Meldung, die den Vorfall vom
+        // 2026-08-10 neun Tage lang unsichtbar gehalten hat.
+        const receipt = result.data.receipt;
+        if (receipt && receipt.ok === false && receipt.missing?.length) {
+          setWriteReceiptWarning(receipt.missing);
+          saveOk = false;
+        } else {
+          setWriteReceiptWarning(null);
+          saveOk = true;
+          showNotification('success', t('sheet.msg.saveSuccess'));
+        }
       } else {
         showNotification('error', result.error?.message || t('sheet.msg.saveError'));
       }
@@ -670,6 +699,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
       setIsSaving(false);
       isSavingRef.current = false;
     }
+    return saveOk;
   }, [normalizeProduct, onUpdate, parseBarcodes, showNotification, t]);
 
   const handleSave = () => {
@@ -759,7 +789,14 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
     }
   };
 
-  const applyAssistantChange = (change: DatasheetChange) => {
+  /**
+   * Übernimmt einen Vorschlag des KI-Assistenten UND speichert ihn.
+   *
+   * Der Rückgabewert entscheidet, ob die Änderungskarte im Chat verschwinden
+   * darf. Vorher war die Funktion synchron und speicherte nicht — die Karte
+   * verschwand trotzdem, was wie Erfolg aussah (Vorfall 2026-08-10).
+   */
+  const applyAssistantChange = async (change: DatasheetChange): Promise<boolean> => {
     let incomingBarcodes: string[] | null = null;
     // Kategorie-Vorschlag ohne aufgelöste eBay-categoryId: NICHT still nur den
     // Anzeige-Breadcrumb schreiben (wirkte wie Erfolg, änderte aber nichts an
@@ -809,6 +846,17 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
           const identityRest = { ...(change.identity as Record<string, unknown>) };
           delete (identityRest as { _clear?: unknown })._clear;
           delete (identityRest as { barcodes?: unknown }).barcodes;
+          // Herstellernummer gehört nach details.identifiers.mpn — DORT liest
+          // die UI sie (Identifikatoren-Block), identification.mpn liest
+          // niemand. Ohne dieses Umhängen wäre die Schema-Erweiterung in
+          // V2/Legacy wirkungslos und sähe trotzdem nach Erfolg aus.
+          const incomingMpn = typeof identityRest.mpn === 'string' ? identityRest.mpn.trim() : '';
+          delete (identityRest as { mpn?: unknown }).mpn;
+          if (incomingMpn) {
+            next.details = next.details || ({} as typeof next.details);
+            const detailsForMpn = next.details as unknown as { identifiers?: Record<string, unknown> };
+            detailsForMpn.identifiers = { ...(detailsForMpn.identifiers || {}), mpn: incomingMpn };
+          }
           if (categoryNeedsConfirm) {
             // Kategorie ohne aufgelöste categoryId: auch den identity.category-
             // Breadcrumb nicht schreiben — sonst zeigt die Anzeige eine Kategorie,
@@ -1049,9 +1097,27 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
     if (categoryNeedsConfirm) {
       setCategoryQuery(String(change.categoryPath || '').trim());
       showNotification('error', t('sheet.msg.categoryNeedsConfirm'));
-    } else {
+      // Kategorie braucht Bestätigung — hier NICHT speichern, der Nutzer
+      // muss erst die Kategorie wählen. Ehrlich als "nicht übernommen".
+      return false;
+    }
+
+    // WIRKLICH SPEICHERN (Vorfall 2026-08-10, SKU-3154363905).
+    // Bis hier setzte "Übernehmen" nur React-State und ein Dirty-Flag —
+    // gespeichert wurde NIE. Die Änderungskarte verschwand trotzdem sofort,
+    // das Datenblatt zeigte die neuen Werte, und beim Schließen war alles
+    // weg. Der Nutzer bot derweil die alten, falschen Daten auf eBay an.
+    //
+    // Das setTimeout(0) folgt handleSave: die setLocalProduct-Aktualisierung
+    // oben muss erst gerendert sein, damit latestProductRef den neuen Stand
+    // trägt — sonst speichert performSave den ALTEN Zustand.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const ok = await performSave();
+    if (ok) {
       showNotification('success', t('sheet.msg.changeApplied'));
     }
+    // Bei !ok steht bereits die Fehlermeldung bzw. das Quittungs-Banner.
+    return ok;
   };
 
   const applyAssistantImages = (images: ProductImage[]) => {
@@ -1395,6 +1461,42 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
           className={`fixed top-20 right-8 p-4 rounded-xl z-50 ${notification.type === 'success' ? 'bg-success' : 'bg-danger'} text-white`}
         >
           {notification.message}
+        </div>
+      )}
+
+      {/* Schreib-Quittung: gesendet, aber NICHT gespeichert. Bleibt stehen,
+          bis ein sauberer Speichervorgang gelingt oder der Nutzer schließt. */}
+      {writeReceiptWarning && writeReceiptWarning.length > 0 && (
+        <div
+          role="alert"
+          aria-live="assertive"
+          className="mb-4 p-4 rounded-xl border border-danger bg-danger-dim"
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold text-danger">
+                Nicht gespeichert — {writeReceiptWarning.length} Angabe(n) fehlen im Datenblatt
+              </p>
+              <p className="text-xs text-txt-muted mt-1">
+                Diese Werte stehen NICHT in der Datenbank und sind NICHT auf den Marktplätzen:
+              </p>
+              <ul className="mt-2 space-y-1">
+                {writeReceiptWarning.map((m) => (
+                  <li key={m.path} className="text-sm text-txt-secondary">
+                    <span className="font-semibold text-txt-primary">{m.label}</span>
+                    <span className="text-txt-muted"> — gewollt: „{m.wanted}"</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <button
+              onClick={() => setWriteReceiptWarning(null)}
+              className="shrink-0 px-2 py-1 text-xs text-txt-muted hover:text-txt-primary"
+              aria-label="Warnung schließen"
+            >
+              ✕
+            </button>
+          </div>
         </div>
       )}
 

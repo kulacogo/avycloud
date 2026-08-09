@@ -3537,7 +3537,20 @@ export const retryIdentificationJob = async (
 
 // --- The functions below call the real backend via fetchApi. ---
 
-export const saveProduct = async (product: Product): Promise<{ ok: boolean; data?: { id: string; revision: number; sku?: string | null }; error?: { code: number; message: string } }> => {
+/**
+ * Schreib-Quittung des Servers: welche gesendeten Felder NICHT im Dokument
+ * gelandet sind. Der Server vergleicht dafür nach dem Schreiben den echten
+ * Dokumentstand gegen die gesendeten Daten (Vorfall 2026-08-10).
+ * Fehlt das Feld (älteres Backend), gilt "keine Aussage" — nie "alles gut".
+ */
+export interface WriteReceipt {
+  ok: boolean;
+  missing: Array<{ path: string; label: string; wanted: string }>;
+  skipped?: boolean;
+  checked?: number;
+}
+
+export const saveProduct = async (product: Product): Promise<{ ok: boolean; data?: { id: string; revision: number; sku?: string | null; receipt?: WriteReceipt }; error?: { code: number; message: string } }> => {
   let response: Response | undefined;
 
   try {

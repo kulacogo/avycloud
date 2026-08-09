@@ -1,4 +1,6 @@
 const { getGeminiClient } = require('../lib/gemini-client');
+// EINE Quelle für die Feldliste der Änderungskarte (Vorfall 2026-08-10).
+const CONTRACT = require('../lib/chat-datasheet-contract');
 const {
   serpapiToolDefinition,
   brightdataSearchToolDefinition,
@@ -672,6 +674,8 @@ const updateDatasheetTool = {
           ean: { type: 'string' },
           gtin: { type: 'string' },
           upc: { type: 'string' },
+          // Herstellernummer — fehlte hier bis 2026-08-10 (Vorfall SKU-3154363905).
+          mpn: { type: 'string' },
         },
       },
       short_description: { type: 'string' },
@@ -680,21 +684,13 @@ const updateDatasheetTool = {
         items: { type: 'string' },
       },
       // GPSR/Compliance: MUST be stored under details.gpsr (never as attributes).
+      // ZWEI GETRENNTE ROLLEN — Hersteller (manufacturer_*) und
+      // EU-Verantwortlicher (eu_responsible_*). Feldliste aus dem Kontrakt;
+      // die eu_responsible_*-Felder fehlten hier bis 2026-08-10.
       gpsr: {
         type: 'object',
         additionalProperties: false,
-        properties: {
-          entity_country: { type: 'string' },
-          country_code: { type: 'string' },
-          manufacturer_name: { type: 'string' },
-          manufacturer_address: { type: 'string' },
-          manufacturer_city: { type: 'string' },
-          manufacturer_postalcode: { type: 'string' },
-          manufacturer_state_province: { type: 'string' },
-          email: { type: 'string' },
-          manufacturer_phone: { type: 'string' },
-          url: { type: 'string' },
-        },
+        properties: CONTRACT.buildGpsrToolProperties('lower'),
       },
       attributes: {
         type: 'array',
@@ -1899,23 +1895,15 @@ function sanitizeDatasheetChange(entry, product, { scope = null, titleHintTokens
   }
 
   // GPSR: accept only known keys, trim strings, never invent.
+  // Partition statt Projektion (Vorfall 2026-08-10): die Feldliste kommt aus
+  // dem Kontrakt und Verworfenes wird als Rest gemeldet, statt lautlos zu
+  // verschwinden. Die 9 eu_responsible_*-Felder fehlten hier komplett.
   if (allow.gpsr && entry.gpsr && typeof entry.gpsr === 'object') {
-    const next = {};
-    [
-      'entity_country',
-      'country_code',
-      'manufacturer_name',
-      'manufacturer_address',
-      'manufacturer_city',
-      'manufacturer_postalcode',
-      'manufacturer_state_province',
-      'email',
-      'manufacturer_phone',
-      'url',
-    ].forEach((k) => {
-      const v = typeof entry.gpsr[k] === 'string' ? entry.gpsr[k].trim() : '';
-      if (v) next[k] = v;
-    });
+    const { kept: next, droppedKeys } = CONTRACT.pickWithRest(entry.gpsr, [
+      ...CONTRACT.GPSR_FIELDS,
+      ...CONTRACT.GPSR_PROTOCOL_FIELDS,
+    ]);
+    for (const key of droppedKeys) policyIssues.push(`gpsr:dropped_unknown_key:${key}`);
     // If GPSR fields exist but manufacturer_name is missing, fill from product brand.
     // This keeps data consistent with listing expectations (brand-known but manufacturer blank).
     if (!next.manufacturer_name) {
@@ -2020,6 +2008,11 @@ function sanitizeDatasheetChange(entry, product, { scope = null, titleHintTokens
     }
     if (allow.sku && typeof entry.identity.sku === 'string' && isValidSku(entry.identity.sku)) {
       identityPatch.sku = entry.identity.sku.trim();
+    }
+    // Herstellernummer — fehlte hier bis 2026-08-10 (Vorfall SKU-3154363905).
+    // Zielpfad ist details.identifiers.mpn; das Umhängen macht der Apply-Pfad.
+    if (typeof entry.identity.mpn === 'string' && entry.identity.mpn.trim()) {
+      identityPatch.mpn = entry.identity.mpn.trim();
     }
     if (allow.barcodes && Array.isArray(entry.identity.barcodes)) {
       entry.identity.barcodes.forEach(pushBarcode);

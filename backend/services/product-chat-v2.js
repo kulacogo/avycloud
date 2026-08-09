@@ -20,6 +20,8 @@
 
 const { getGenAIClient } = require('../lib/gemini3-client');
 const { resolveModel } = require('../lib/model-select');
+// EINE Quelle für die Feldliste der Änderungskarte (Vorfall 2026-08-10).
+const CONTRACT = require('../lib/chat-datasheet-contract');
 const { generateImagesForProduct } = require('./image-generation');
 const { searchProductImages } = require('../lib/image-search');
 const { normalizeDigits, isValidGtin } = require('../lib/gtin');
@@ -222,6 +224,9 @@ const UPDATE_DATASHEET_DECLARATION = {
           ean: { type: 'STRING' },
           gtin: { type: 'STRING' },
           upc: { type: 'STRING' },
+          // Herstellernummer — fehlte hier bis 2026-08-10, obwohl die UI sie
+          // unter details.identifiers.mpn anzeigt und eBay sie als Merkmal führt.
+          mpn: { type: 'STRING', description: 'Herstellernummer / MPN (Manufacturer Part Number).' },
           clear: {
             type: 'ARRAY',
             items: { type: 'STRING' },
@@ -233,19 +238,15 @@ const UPDATE_DATASHEET_DECLARATION = {
       key_features: { type: 'ARRAY', items: { type: 'STRING' }, description: '5-7 bullet points.' },
       gpsr: {
         type: 'OBJECT',
-        description: 'GPSR compliance data — manufacturer contact info. MUST go here, NOT in attributes.',
-        properties: {
-          entity_country: { type: 'STRING' },
-          country_code: { type: 'STRING' },
-          manufacturer_name: { type: 'STRING' },
-          manufacturer_address: { type: 'STRING' },
-          manufacturer_city: { type: 'STRING' },
-          manufacturer_postalcode: { type: 'STRING' },
-          manufacturer_state_province: { type: 'STRING' },
-          email: { type: 'STRING' },
-          manufacturer_phone: { type: 'STRING' },
-          url: { type: 'STRING' },
-        },
+        description:
+          'GPSR-Daten. ZWEI GETRENNTE ROLLEN: der HERSTELLER (manufacturer_*, email, url, '
+          + 'entity_country) und der EU-VERANTWORTLICHE (eu_responsible_*). Niemals vermischen. '
+          + 'Der EU-Verantwortliche ist PFLICHT, sobald der Hersteller außerhalb der EU sitzt. '
+          + 'MUSS hier stehen, NICHT in attributes.',
+        // Feldliste aus dem Kontrakt (lib/chat-datasheet-contract.js) — die 9
+        // eu_responsible_*-Felder fehlten hier bis 2026-08-10 und konnten
+        // deshalb gar nicht erst vorgeschlagen werden.
+        properties: CONTRACT.buildGpsrToolProperties('UPPER'),
       },
       attributes: {
         type: 'ARRAY',
@@ -705,6 +706,10 @@ function sanitizeDatasheetChangeV2(entry, product, { scope = null, titleHintToke
       id.category = (resolved && resolved.breadcrumb) || rawCategory;
     }
     if (entry.identity.sku) id.sku = safeString(entry.identity.sku);
+    // Herstellernummer — fehlte hier bis 2026-08-10. Zielpfad ist
+    // details.identifiers.mpn (was die UI liest), nicht identification.mpn;
+    // das Umhängen macht der Apply-Pfad im Frontend.
+    if (entry.identity.mpn) id.mpn = safeString(entry.identity.mpn);
 
     // Barcodes
     const barcodeCandidates = []
@@ -765,18 +770,16 @@ function sanitizeDatasheetChangeV2(entry, product, { scope = null, titleHintToke
     if (Object.keys(cleaned).length) change.attributes = cleaned;
   }
 
-  // GPSR
+  // GPSR — Partition statt Projektion (Vorfall 2026-08-10).
+  // Vorher iterierte diese Stelle über die Whitelist und konnte deshalb
+  // bauartbedingt nicht wissen, was sie fallen lässt: die 9
+  // eu_responsible_*-Felder verschwanden ohne Log, ohne Notiz, ohne Hinweis.
+  // pickWithRest liefert den Rest als Wert — was wegfällt, ist meldbar.
   if (entry.gpsr && typeof entry.gpsr === 'object') {
-    const gpsr = {};
-    const gpsrFields = ['entity_country', 'country_code', 'manufacturer_name', 'manufacturer_address',
-      'manufacturer_city', 'manufacturer_postalcode', 'manufacturer_state_province', 'email',
-      'manufacturer_phone', 'url'];
-    gpsrFields.forEach((f) => {
-      if (typeof entry.gpsr[f] === 'string' && entry.gpsr[f].trim()) {
-        gpsr[f] = entry.gpsr[f].trim();
-      }
-    });
-    if (Object.keys(gpsr).length) change.gpsr = gpsr;
+    const allowed = [...CONTRACT.GPSR_FIELDS, ...CONTRACT.GPSR_PROTOCOL_FIELDS];
+    const { kept, droppedKeys } = CONTRACT.pickWithRest(entry.gpsr, allowed);
+    if (Object.keys(kept).length) change.gpsr = kept;
+    for (const key of droppedKeys) issues.push(`gpsr:dropped_unknown_key:${key}`);
   }
 
   // Pricing
@@ -1559,4 +1562,11 @@ module.exports = {
   runProductChatV2,
   chatV2ModelSupported,
   chatV2SplitGroundingEnabled,
+  // Test-only: nötig für den Feld-Paritäts-Test über alle drei Pipelines
+  // (__tests__/chat-pipeline-field-parity.test.js). Genau dieser Test hätte
+  // den Vorfall 2026-08-10 neun Tage früher gefunden.
+  _testables: {
+    sanitizeDatasheetChangeV2,
+    UPDATE_DATASHEET_DECLARATION,
+  },
 };

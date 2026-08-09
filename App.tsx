@@ -454,6 +454,30 @@ const AppInner: React.FC = () => {
   const productsRef = useRef<Product[]>([]);
   const [currentProduct, setCurrentProduct] = useState<Product | null>(null);
   const sheetDirtyRef = useRef(false);
+
+  /**
+   * Schließt das Datenblatt — fragt aber nach, wenn ungespeicherte Änderungen
+   * anstehen.
+   *
+   * Vorher wurde `sheetDirtyRef` beim Schließen einfach auf false gesetzt und
+   * alles kommentarlos verworfen. Zusammen mit einem "Übernehmen", das gar
+   * nicht speicherte, hieß das: übernommene KI-Vorschläge verschwanden beim
+   * Schließen spurlos, während die alten (falschen) Daten auf den
+   * Marktplätzen online blieben (Vorfall 2026-08-10, SKU-3154363905).
+   */
+  const closeProductSheet = useCallback(() => {
+    if (sheetDirtyRef.current) {
+      const proceed = window.confirm(
+        'Es gibt ungespeicherte Änderungen an diesem Produkt.\n\n'
+          + 'Wenn du jetzt schließt, gehen sie verloren — das Datenblatt und die '
+          + 'Marktplatz-Angebote behalten die alten Werte.\n\n'
+          + 'Trotzdem schließen?'
+      );
+      if (!proceed) return;
+    }
+    sheetDirtyRef.current = false;
+    setCurrentProduct(null);
+  }, []);
   const [showImportModal, setShowImportModal] = useState(false);
   const {
     enqueueIdentification,
@@ -1254,7 +1278,7 @@ const AppInner: React.FC = () => {
             {/* Backdrop */}
             <div
               className="absolute inset-0 bg-black/40 transition-opacity"
-              onClick={() => { sheetDirtyRef.current = false; setCurrentProduct(null); }}
+              onClick={closeProductSheet}
               aria-label="Close product sheet"
             />
             {/* Sheet panel */}
@@ -1264,7 +1288,7 @@ const AppInner: React.FC = () => {
                 onUpdate={handleUpdateProduct}
                 onImprove={handleImproveProduct}
                 isImproving={Boolean(currentProduct && activeProductIds.has(currentProduct.id))}
-                onClose={() => { sheetDirtyRef.current = false; setCurrentProduct(null); }}
+                onClose={closeProductSheet}
                 onDirtyChange={(dirty) => { sheetDirtyRef.current = dirty; }}
               />
             </div>

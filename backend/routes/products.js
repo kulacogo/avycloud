@@ -2162,11 +2162,36 @@ router.post('/save', requirePermission('products', 'write'), async (req, res) =>
       });
     } catch { /* audit must never break save */ }
 
+    // SCHREIB-QUITTUNG (Vorfall 2026-08-10, SKU-3154363905 / eBay 800481892205).
+    // Bis hierher hat NIE jemand geprüft, ob das Gesendete auch im Dokument
+    // landet. Diese Prüfung ist bewusst generisch: sie kennt die konkreten
+    // Lücken nicht, sondern meldet jedes überwachte Feld, das mit Inhalt
+    // gesendet wurde und danach leer ist. Damit fallen auch unbekannte
+    // künftige Lücken sofort auf, statt nach 9 Tagen.
+    // Fail-open in JEDEM Fall — eine Quittung darf einen erfolgreichen Save
+    // niemals in einen Fehler verwandeln.
+    let receipt = null;
+    try {
+      const { buildWriteReceipt } = require('../lib/datasheet-write-receipt');
+      const persisted = await getProduct(product.id);
+      receipt = buildWriteReceipt(product, persisted);
+      if (receipt && !receipt.ok) {
+        console.warn(
+          `[POST /api/save] Schreib-Quittung: ${receipt.missing.length} Feld(er) NICHT gespeichert `
+            + `product=${product.id} felder=${receipt.missing.map((m) => m.path).join(',')}`
+        );
+      }
+    } catch (receiptErr) {
+      console.warn(`[POST /api/save] Schreib-Quittung übersprungen: ${receiptErr?.message || receiptErr}`);
+      receipt = null;
+    }
+
     res.json({
       ok: true,
       data: {
         ...result,
         sku: product.identification?.sku || null,
+        ...(receipt ? { receipt } : {}),
       },
     });
   } catch (error) {

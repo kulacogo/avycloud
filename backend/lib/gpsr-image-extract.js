@@ -183,4 +183,42 @@ async function extractGpsrFromImages(product, opts = {}) {
   return null;
 }
 
-module.exports = { extractGpsrFromImages, GPSR_SCHEMA, _internal: { fetchImageParts } };
+/**
+ * Führt die vom Etikett gelesenen GPSR-Angaben mit denen zusammen, die bereits
+ * auf der Änderungskarte stehen.
+ *
+ * WARUM ES DIESE FUNKTION GIBT (Vorfall 2026-08-10):
+ * Die Aufrufstelle in routes/identify.js machte
+ *
+ *     gpsrChange.gpsr = { ...extracted.gpsr, source: 'product_image' };
+ *
+ * also ein ERSETZEN. `_extractOnce` liefert aber nur, was auf dem Foto
+ * tatsächlich lesbar war — häufig nur der Hersteller. Alles, wozu das Etikett
+ * schweigt (typisch: der EU-Verantwortliche), wurde damit gelöscht, obwohl
+ * der Nutzer es kurz zuvor wörtlich diktiert hatte.
+ *
+ * Die Absicht der Ersetzung bleibt erhalten: das Etikett ist die
+ * verlässlichere Quelle und gewinnt — aber nur FELDWEISE, dort wo es
+ * überhaupt etwas sagt. Es darf nicht mehr löschen, wozu es schweigt.
+ *
+ * @param {object|null} cardGpsr  bereits auf der Karte stehende GPSR-Angaben
+ * @param {object|null} labelGpsr vom Etikett gelesene Angaben
+ * @returns {object} zusammengeführte Angaben
+ */
+function mergeLabelGpsrIntoCard(cardGpsr, labelGpsr) {
+  const base = cardGpsr && typeof cardGpsr === 'object' ? cardGpsr : {};
+  const label = labelGpsr && typeof labelGpsr === 'object' ? labelGpsr : {};
+  const merged = { ...base };
+  for (const [k, v] of Object.entries(label)) {
+    const s = typeof v === 'string' ? v.trim() : v;
+    if (s !== '' && s != null) merged[k] = s; // Etikett gewinnt, wo es etwas sagt
+  }
+  return merged;
+}
+
+module.exports = {
+  extractGpsrFromImages,
+  mergeLabelGpsrIntoCard,
+  GPSR_SCHEMA,
+  _internal: { fetchImageParts },
+};

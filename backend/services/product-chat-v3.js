@@ -31,6 +31,8 @@
  */
 
 const atomicTools = require('./atomic-tools');
+// EINE Quelle für die Feldliste der Änderungskarte (Vorfall 2026-08-10).
+const CONTRACT = require('../lib/chat-datasheet-contract');
 // Modul-Referenz (nicht destrukturiert), damit Tests searchProductImages patchen können.
 const imageSearch = require('../lib/image-search');
 const { getCassiniCategoryBucket, getCategoryPattern } = require('../lib/cassini-category-map');
@@ -269,28 +271,12 @@ const DATASHEET_TOP_LEVEL_FIELDS = [
   'notes',
 ];
 
-const IDENTITY_FIELDS = ['name', 'brand', 'category', 'sku', 'barcodes', 'ean', 'gtin', 'upc', 'mpn'];
-const GPSR_FIELDS = [
-  'manufacturer_name',
-  'manufacturer_address',
-  'manufacturer_city',
-  'manufacturer_postalcode',
-  'manufacturer_state_province',
-  'email',
-  'manufacturer_phone',
-  'url',
-  'country_code',
-  'entity_country',
-  'eu_responsible_name',
-  'eu_responsible_address',
-  'eu_responsible_city',
-  'eu_responsible_postalcode',
-  'eu_responsible_state_province',
-  'eu_responsible_country',
-  'eu_responsible_country_code',
-  'eu_responsible_email',
-  'eu_responsible_phone',
-];
+// Feldlisten kommen aus dem Kontrakt (lib/chat-datasheet-contract.js).
+// Vorher standen sie hier als eigene Kopie — eine von ~17. Genau dieses
+// Kopieren ließ V2/Legacy beim Nachrüsten der eu_responsible_*-Felder
+// zurückfallen und verursachte den Vorfall 2026-08-10.
+const IDENTITY_FIELDS = [...CONTRACT.IDENTITY_FIELDS];
+const GPSR_FIELDS = [...CONTRACT.GPSR_FIELDS];
 const NOTES_FIELDS = ['unsure', 'warnings'];
 const PRICING_FIELDS = ['amount', 'currency', 'source_url', 'last_checked_iso'];
 

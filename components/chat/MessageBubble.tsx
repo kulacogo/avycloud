@@ -22,7 +22,7 @@ type MessageBubbleProps = {
   timestamp: string;
   attachments?: MessageAttachment[];
   datasheetChanges?: InlineDatasheetChange[];
-  onApplyDatasheetChange?: (changeId: string, change: DatasheetChange) => void;
+  onApplyDatasheetChange?: (changeId: string, change: DatasheetChange) => void | Promise<void>;
   applyingChangeIds?: Set<string>;
 };
 

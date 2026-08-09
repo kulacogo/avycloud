@@ -1542,7 +1542,7 @@ async function validateChatGpsr(chatResult, product) {
   // 2026-07-17). Nur wenn ein Etikett lesbar ist; sonst unverändert.
   let gpsrImageSourced = false;
   try {
-    const { extractGpsrFromImages } = require('../lib/gpsr-image-extract');
+    const { extractGpsrFromImages, mergeLabelGpsrIntoCard } = require('../lib/gpsr-image-extract');
     const extracted = await extractGpsrFromImages(product);
     if (extracted && extracted.gpsr && Object.keys(extracted.gpsr).length) {
       gpsrImageSourced = true;
@@ -1552,7 +1552,16 @@ async function validateChatGpsr(chatResult, product) {
         changes.push(gpsrChange);
         chatResult.datasheetChanges = changes;
       }
-      gpsrChange.gpsr = { ...extracted.gpsr, source: 'product_image' };
+      // ERGÄNZEN statt ERSETZEN (Vorfall 2026-08-10, SKU-3154363905).
+      // Vorher stand hier `= { ...extracted.gpsr, … }`. Der Etikett-Leser
+      // liefert aber nur, was auf dem Foto lesbar war — meist nur der
+      // Hersteller. Der vom Nutzer diktierte EU-Verantwortliche wurde damit
+      // gelöscht. Das Etikett bleibt die stärkere Quelle, aber nur feldweise:
+      // es darf nicht mehr entfernen, wozu es schweigt.
+      gpsrChange.gpsr = {
+        ...mergeLabelGpsrIntoCard(gpsrChange.gpsr, extracted.gpsr),
+        source: 'product_image',
+      };
     }
   } catch (extractErr) {
     console.warn(`[chat] gpsr-image-extract skipped: ${extractErr?.message || extractErr}`);

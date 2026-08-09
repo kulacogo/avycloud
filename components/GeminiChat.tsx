@@ -13,7 +13,12 @@ import { mergeIncomingDatasheetChanges } from './chatChanges';
 
 interface AssistantChatProps {
   product: Product;
-  onApplyDatasheetChange?: (change: DatasheetChange) => void;
+  /**
+   * Übernimmt den Vorschlag und speichert ihn. Der aufgelöste Wert sagt, ob
+   * es geklappt hat: `false` = nicht gespeichert, die Karte bleibt stehen.
+   * `void`/`undefined` bleibt aus Rückwärtskompatibilität erlaubt.
+   */
+  onApplyDatasheetChange?: (change: DatasheetChange) => void | boolean | Promise<boolean | void>;
   onAddImages?: (images: ProductImage[]) => void;
 }
 
@@ -795,12 +800,28 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
     }
   };
 
-  const handleApplyChange = (id: string, change: DatasheetChange) => {
+  /**
+   * Übernimmt einen Vorschlag — und entfernt die Karte NUR, wenn er wirklich
+   * gespeichert wurde.
+   *
+   * Vorher lief das synchron und bedingungslos: `onApplyDatasheetChange`
+   * wurde aufgerufen, die Karte sofort entfernt, egal was danach passierte.
+   * Da die Gegenseite gar nicht speicherte, war das Verschwinden der Karte
+   * eine reine Erfolgs-Illusion (Vorfall 2026-08-10, SKU-3154363905:
+   * Hersteller, EU-Verantwortlicher, MPN, Titel und Marke gingen verloren,
+   * während das Angebot mit den alten Daten online blieb).
+   *
+   * Bleibt die Karte stehen, kann der Nutzer es erneut versuchen — und sieht,
+   * dass etwas nicht stimmt.
+   */
+  const handleApplyChange = async (id: string, change: DatasheetChange) => {
     if (!onApplyDatasheetChange) return;
     if (applyingChangeIds.has(id)) return;
     setApplyingChangeIds((prev) => new Set(prev).add(id));
     try {
-      onApplyDatasheetChange(change);
+      const applied = await onApplyDatasheetChange(change);
+      // `undefined` = ältere Gegenseite ohne Rückmeldung → wie bisher behandeln.
+      if (applied === false) return;
       // Remove from global pending list (bottom panel)
       setPendingChanges((prev) => prev.filter((item) => item.id !== id));
       // Remove from the specific assistant message card list so the UI matches the action

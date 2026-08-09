@@ -75,6 +75,103 @@ function isGpsrPlaceholderLike(val) {
   return false;
 }
 
+/**
+ * Deutsche Ländernamen → englische Kanonform.
+ *
+ * WARUM (Befund 2026-08-10): Bis hierher kannte diese Datei GENAU DREI
+ * deutsche Namen (Deutschland, Österreich, Schweiz). Alles andere fiel
+ * unverändert durch und traf danach in `normalizeCountryCode` auf eine rein
+ * englische Nachschlagetabelle — Ergebnis: leerer Code.
+ *
+ * Das ist nicht kosmetisch. `buildResponsiblePersonFromGpsr`
+ * (lib/gpsr-eu-rep.js) bildet den Ländercode als
+ *   eu_responsible_country_code || normalizeCountryCode(country) || 'DE'
+ * Ein leerer Code fällt also still auf 'DE' zurück. Wer "Spanien" einträgt,
+ * schickt damit eine Madrider Adresse als Deutschland an eBay — bei einer
+ * rechtlich vorgeschriebenen GPSR-Angabe.
+ *
+ * Diese Anwendung wird auf Deutsch bedient; deutsche Ländernamen sind der
+ * Normalfall, nicht die Ausnahme.
+ */
+const GERMAN_COUNTRY_NAMES = {
+  deutschland: 'Germany',
+  osterreich: 'Austria',
+  schweiz: 'Switzerland',
+  spanien: 'Spain',
+  frankreich: 'France',
+  italien: 'Italy',
+  niederlande: 'Netherlands',
+  holland: 'Netherlands',
+  belgien: 'Belgium',
+  polen: 'Poland',
+  tschechien: 'Czechia',
+  tschechischerepublik: 'Czechia',
+  slowakei: 'Slovakia',
+  slowenien: 'Slovenia',
+  ungarn: 'Hungary',
+  rumanien: 'Romania',
+  bulgarien: 'Bulgaria',
+  griechenland: 'Greece',
+  kroatien: 'Croatia',
+  schweden: 'Sweden',
+  danemark: 'Denmark',
+  finnland: 'Finland',
+  norwegen: 'Norway',
+  irland: 'Ireland',
+  estland: 'Estonia',
+  lettland: 'Latvia',
+  litauen: 'Lithuania',
+  luxemburg: 'Luxembourg',
+  malta: 'Malta',
+  zypern: 'Cyprus',
+  turkei: 'Turkey',
+  // Häufige Herkunftsländer außerhalb der EU (GPSR: EU-Rep wird Pflicht).
+  china: 'China',
+  volksrepublikchina: 'China',
+  hongkong: 'Hong Kong',
+  taiwan: 'Taiwan',
+  japan: 'Japan',
+  sudkorea: 'South Korea',
+  korea: 'South Korea',
+  indien: 'India',
+  vietnam: 'Vietnam',
+  thailand: 'Thailand',
+  indonesien: 'Indonesia',
+  malaysia: 'Malaysia',
+  vereinigtestaaten: 'United States',
+  vereinigtestaatenvonamerika: 'United States',
+  usa: 'United States',
+  vereinigteskonigreich: 'United Kingdom',
+  grossbritannien: 'United Kingdom',
+  kanada: 'Canada',
+  mexiko: 'Mexico',
+  brasilien: 'Brazil',
+  australien: 'Australia',
+};
+
+/** ISO alpha-3 → alpha-2, beschränkt auf real vorkommende Herkunftsländer. */
+const ALPHA3_TO_ALPHA2 = {
+  DEU: 'DE', AUT: 'AT', CHE: 'CH', NLD: 'NL', POL: 'PL', SWE: 'SE', FRA: 'FR',
+  ITA: 'IT', ESP: 'ES', BEL: 'BE', DNK: 'DK', NOR: 'NO', FIN: 'FI', IRL: 'IE',
+  PRT: 'PT', CZE: 'CZ', SVK: 'SK', SVN: 'SI', HUN: 'HU', ROU: 'RO', BGR: 'BG',
+  GRC: 'GR', HRV: 'HR', EST: 'EE', LVA: 'LV', LTU: 'LT', LUX: 'LU', MLT: 'MT',
+  CYP: 'CY', TUR: 'TR', GBR: 'UK',
+  CHN: 'CN', HKG: 'HK', TWN: 'TW', JPN: 'JP', KOR: 'KR', IND: 'IN', VNM: 'VN',
+  THA: 'TH', IDN: 'ID', MYS: 'MY', USA: 'US', CAN: 'CA', MEX: 'MX', BRA: 'BR',
+  AUS: 'AU',
+};
+
+/** ä/ö/ü/ß und Leer-/Sonderzeichen entfernen, damit "Rumaenien" == "Rumänien". */
+function stripUmlauts(v) {
+  return String(v || '')
+    .toLowerCase()
+    .replace(/ä/g, 'a').replace(/ae/g, 'a')
+    .replace(/ö/g, 'o').replace(/oe/g, 'o')
+    .replace(/ü/g, 'u').replace(/ue/g, 'u')
+    .replace(/ß/g, 'ss')
+    .replace(/[^a-z]/g, '');
+}
+
 function normalizeCountryToEnglish(raw) {
   const v = safeString(raw).trim();
   if (!v) return '';
@@ -107,9 +204,8 @@ function normalizeCountryToEnglish(raw) {
   };
   if (/^[A-Z]{2}$/.test(upper) && codeMap[upper]) return codeMap[upper];
   const lower = v.toLowerCase();
-  if (lower === 'deutschland') return 'Germany';
-  if (lower === 'österreich' || lower === 'osterreich') return 'Austria';
-  if (lower === 'schweiz') return 'Switzerland';
+  const german = GERMAN_COUNTRY_NAMES[lower] || GERMAN_COUNTRY_NAMES[stripUmlauts(lower)];
+  if (german) return german;
   return v;
 }
 
@@ -122,6 +218,10 @@ function normalizeCountryCode(raw) {
     if (upper === 'GB') return 'UK';
     return upper;
   }
+  // ISO alpha-3 ("CHN", "DEU", "USA"). Fiel bis 2026-08-10 durch ALLE Tabellen:
+  // 5 Produkte mit entity_country "CHN" galten dadurch als EU-Hersteller und
+  // brauchten damit keinen EU-Verantwortlichen.
+  if (/^[A-Z]{3}$/.test(upper) && ALPHA3_TO_ALPHA2[upper]) return ALPHA3_TO_ALPHA2[upper];
   const normalized = normalizeCountryToEnglish(v);
   const key = safeString(normalized).toLowerCase();
   const nameToCode = {
@@ -153,6 +253,36 @@ function normalizeCountryCode(raw) {
     scotland: 'UK',
     wales: 'UK',
     'northern ireland': 'UK',
+    // Restliche EU-Mitglieder — fehlten bis 2026-08-10 komplett, obwohl
+    // EU_COUNTRY_CODES in lib/gpsr-eu-rep.js sie alle führt. Ohne Eintrag
+    // liefert normalizeCountryCode '' und der EU-Rep-Ländercode fällt still
+    // auf 'DE' zurück.
+    slovenia: 'SI',
+    croatia: 'HR',
+    estonia: 'EE',
+    latvia: 'LV',
+    lithuania: 'LT',
+    luxembourg: 'LU',
+    malta: 'MT',
+    cyprus: 'CY',
+    // Häufige Herkunftsländer außerhalb der EU (machen den EU-Rep zur Pflicht).
+    china: 'CN',
+    'hong kong': 'HK',
+    taiwan: 'TW',
+    japan: 'JP',
+    'south korea': 'KR',
+    india: 'IN',
+    vietnam: 'VN',
+    thailand: 'TH',
+    indonesia: 'ID',
+    malaysia: 'MY',
+    'united states': 'US',
+    'united states of america': 'US',
+    usa: 'US',
+    canada: 'CA',
+    mexico: 'MX',
+    brazil: 'BR',
+    australia: 'AU',
   };
   return nameToCode[key] || '';
 }
@@ -310,6 +440,19 @@ async function upsertManufacturerGpsr({
   const name = safeString(manufacturer_name);
   const key = normalizeManufacturerKey(name);
   if (!key) return { ok: false, reason: 'missing_manufacturer_name' };
+
+  // Platzhalter-"Marken" bekommen KEINEN Registry-Eintrag (Befund 2026-08-10).
+  // "Markenlos"/"Unbekannt" bezeichnen das Fehlen einer Marke — ein Eintrag
+  // darunter sammelt die GPSR-Daten beliebiger unverwandter Produkte und legt
+  // sie anschließend über alle anderen. Real passiert: 32 Live-Angebote mit
+  // zeichengleichem Block (Champs-Élysées + "Zhejiang" + Gmail + fremde
+  // EU-Rep-Firma) aus `gpsrManufacturers/markenlos`.
+  // Hier fail-closed zu sein ist der einzige Weg, den Eintrag dauerhaft
+  // loszuwerden — Löschen allein hätte ihn beim nächsten Lauf neu erzeugt.
+  const { isPlaceholderBrand } = require('./gpsr-registry-guard');
+  if (isPlaceholderBrand(name)) {
+    return { ok: false, reason: 'placeholder_brand' };
+  }
 
   const incomingGpsr = normalizeGpsrObject(gpsr || {});
   if (!incomingGpsr.manufacturer_name) incomingGpsr.manufacturer_name = name;

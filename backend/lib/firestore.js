@@ -2702,10 +2702,21 @@ async function saveProduct(product, options = {}) {
         safeString(productWithEbay?.details?.gpsr?.evidence?.status) === 'product_image';
       if (enforceEnabled && !gpsrIsImageSourced) {
         const brand = safeString(productWithEbay?.identification?.brand || '');
-        if (brand) {
+        // Platzhalter-"Marken" ("Markenlos", "Unbekannt", …) sind keine Marken.
+        // Sie als Registry-Schlüssel zu benutzen legt EINEN GPSR-Block über
+        // beliebig viele unverwandte Produkte (Befund 2026-08-10: 32 Live-
+        // Angebote mit zeichengleichem Champs-Élysées/Gmail/Geaplan-Block aus
+        // `gpsrManufacturers/markenlos`, confidence 0, sources []).
+        const { isPlaceholderBrand, isEnforceableRegistryEntry } = require('./gpsr-registry-guard');
+        if (brand && !isPlaceholderBrand(brand)) {
           const reg = await getManufacturerGpsrByName(brand).catch(() => null);
           const regGpsr = reg?.gpsr && typeof reg.gpsr === 'object' ? reg.gpsr : null;
-          if (regGpsr && Object.keys(regGpsr).length) {
+          if (regGpsr && Object.keys(regGpsr).length && !isEnforceableRegistryEntry(reg)) {
+            console.warn(
+              `[gpsr-registry] Eintrag "${brand}" ohne jeden Beleg (confidence 0, keine Quellen) — NICHT durchgesetzt.`
+            );
+          }
+          if (regGpsr && Object.keys(regGpsr).length && isEnforceableRegistryEntry(reg)) {
             const beforeNorm = normalizeGpsrObject(productWithEbay?.details?.gpsr || {});
             const next = { ...(productWithEbay.details.gpsr || {}) };
             for (const [k, v] of Object.entries(regGpsr)) {
@@ -2902,10 +2913,15 @@ async function getProduct(productId) {
       // überschrieben werden (Incident 2026-07-17 — Read-Path-Spiegel des
       // Save-Boundary-Skips).
       const gpsrIsImageSourced = safeString(gpsrObj?.evidence?.status) === 'product_image';
-      if (manufacturerHint && !gpsrIsImageSourced) {
+      // Spiegel der Save-Sperre: der LESE-Pfad ist der gefährlichere, weil er
+      // jede manuelle Korrektur bei jedem Laden wieder überdeckt — Korrekturen
+      // wirkten dadurch folgenlos (Befund 2026-08-10).
+      const { isPlaceholderBrand: isPlaceholderBrandRead, isEnforceableRegistryEntry: isEnforceableRead } =
+        require('./gpsr-registry-guard');
+      if (manufacturerHint && !gpsrIsImageSourced && !isPlaceholderBrandRead(manufacturerHint)) {
         const reg = await getManufacturerGpsrByName(manufacturerHint).catch(() => null);
         const regGpsr = reg?.gpsr && typeof reg.gpsr === 'object' ? reg.gpsr : null;
-        if (regGpsr && Object.keys(regGpsr).length) {
+        if (regGpsr && Object.keys(regGpsr).length && isEnforceableRead(reg)) {
           out.details = out.details || {};
           const enforceEnabled = await getRuntimeFlagBoolean('gpsrRegistryEnforce', true).catch(() => true);
           if (enforceEnabled) {

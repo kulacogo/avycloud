@@ -40,9 +40,30 @@ function safeString(v) {
   return typeof v === 'string' ? v.trim() : v == null ? '' : String(v).trim();
 }
 
+/**
+ * Ländercode des Herstellers.
+ *
+ * Widerspricht der gespeicherte `country_code` dem ausgeschriebenen
+ * `entity_country`, gewinnt das ausgeschriebene Land.
+ *
+ * WARUM (gemessen 2026-08-10): 17 Produkte trugen entity_country "China" bei
+ * einem stehengebliebenen country_code wie "FR" oder "DE". Weil der Code
+ * Vorrang hatte, galten sie als EU-Hersteller — und brauchten damit keinen
+ * EU-Verantwortlichen, obwohl die GPSR ihn zwingend vorschreibt.
+ *
+ * Der Code ist der ABGELEITETE Wert (aus Registry, Altimport, früherem
+ * Stand). Das ausgeschriebene Land kommt vom Etikett oder vom Menschen. Bei
+ * Widerspruch ist die frischere, direktere Quelle die richtige.
+ *
+ * Ein unauflösbares `entity_country` verdrängt einen gültigen Code NICHT —
+ * sonst würde eine Tippfehler-Eingabe eine korrekte Angabe löschen.
+ */
 function manufacturerCountryCode(gpsr) {
   if (!gpsr || typeof gpsr !== 'object') return '';
-  return safeString(gpsr.country_code) || normalizeCountryCode(gpsr.entity_country) || '';
+  const explicit = safeString(gpsr.country_code).toUpperCase();
+  const derived = (normalizeCountryCode(gpsr.entity_country) || '').toUpperCase();
+  if (explicit && derived && explicit !== derived) return derived;
+  return explicit || derived || '';
 }
 
 function isEuCountryCode(code) {
