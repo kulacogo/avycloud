@@ -7,6 +7,7 @@ const { firestore, getAllProducts, getAllProductsForTenant, PRODUCTS_COLLECTION 
 const { getRequiredAspects, getCategoryAspectCatalog, findEbayCategory } = require('./ebay-taxonomy');
 const { isValidGtin: isValidGtinShared } = require('./gtin');
 const { resolveListingPrice, resolveExplicitPriceMode } = require('./listing-price-source');
+const { getConditionsForCategory, isConditionAllowed, DEFAULT_CONDITION_ID } = require('./ebay-conditions');
 const {
   buildDescriptionBlocks,
   buildMobileStyles,
@@ -4282,11 +4283,28 @@ function mapProductToEbayItem(product, overrides = {}) {
   const physicalStock = binStock || Number(product?.inventory?.quantity ?? 0);
   const quantity = overrides.quantity ?? (physicalStock > 0 ? physicalStock : (product?.marketplace?.ebay?.quantity ?? 1));
 
-  const conditionId =
+  // --- Artikelzustand ---
+  // Der Zustand ist bei eBay ein EIGENES Feld (<ConditionID>), unabhaengig von
+  // den Artikelmerkmalen. Reihenfolge bewusst so:
+  //   1. expliziter Override aus dem Aufruf
+  //   2. das Datenblatt (details.conditionId) — die menschliche Eingabe
+  //   3. der aus dem Angebot gespiegelte Wert
+  //   4. Neu
+  // Punkt 2 stand frueher HINTER Punkt 3. Damit haette ein aus eBay
+  // gespiegelter Altwert die Auswahl im Datenblatt ueberstimmt.
+  const requestedConditionId =
     safeString(overrides.conditionId) ||
-    safeString(product?.marketplace?.ebay?.conditionId) ||
     safeString(product?.details?.conditionId) ||
-    '1000';
+    safeString(product?.marketplace?.ebay?.conditionId) ||
+    DEFAULT_CONDITION_ID;
+
+  // 1.889 Kategorien fuehren gar keinen Zustand. Dort darf ConditionID nicht
+  // gesendet werden — sonst weist eBay das Angebot zurueck.
+  const categoryConditions = getConditionsForCategory(primaryCategoryId);
+  const conditionId =
+    categoryConditions.known && categoryConditions.conditions.length === 0
+      ? ''
+      : requestedConditionId;
 
   const sku = safeString(overrides.sku) || safeString(identifiers?.sku) || safeString(product?.sku) || undefined;
 
@@ -4428,6 +4446,18 @@ function mapProductToEbayItem(product, overrides = {}) {
   if (isbn && !hasIsbnSpecific) {
     itemSpecifics.ISBN = [isbn];
   }
+
+  // "Zustand" gehoert bei eBay NICHT in die Artikelmerkmale — dafuer gibt es
+  // <ConditionID>. Als Merkmal gesendet erzeugt der Name keinen Suchfilter und
+  // doppelt die Angabe im Angebot. Rund 1.115 Bestandsprodukte tragen das
+  // Merkmal noch aus der Alt-Anreicherung; es wird hier nur vom SENDEN
+  // ausgeschlossen, im Datenblatt aber nicht geloescht.
+  Object.keys(itemSpecifics).forEach((key) => {
+    const token = normalizeSpecificToken(key);
+    if (token === normalizeSpecificToken('Zustand') || token === normalizeSpecificToken('Artikelzustand')) {
+      delete itemSpecifics[key];
+    }
+  });
 
   // Extract K-Typ fitment numbers before filtering. K-Typ must not be sent as
   // an ItemSpecific (eBay enforces a 65-char value limit), but via ItemCompatibilityList.
@@ -4640,6 +4670,20 @@ function validatePublishReadiness(product, overrides = {}) {
     safeString(product?.marketplace?.ebay?.categoryId) ||
     safeString(product?.categoryId);
   if (!categoryId) blockers.push('Keine eBay-Kategorie zugewiesen.');
+
+  // Artikelzustand: eigenes eBay-Feld, kein Artikelmerkmal. Ein im Datenblatt
+  // gewaehlter Zustand muss in DIESER Kategorie zulaessig sein — die erlaubten
+  // Werte unterscheiden sich je Kategorie. Unbekannte Kategorien blockieren
+  // nicht (fail-open, siehe lib/ebay-conditions.js).
+  const chosenCondition = safeString(overrides.conditionId) || safeString(details?.conditionId);
+  if (chosenCondition && categoryId && !isConditionAllowed(categoryId, chosenCondition)) {
+    const allowed = getConditionsForCategory(categoryId).conditions;
+    const allowedText = allowed.map((c) => `${c.name} (${c.id})`).join(', ');
+    blockers.push(
+      `Artikelzustand ${chosenCondition} ist in Kategorie ${categoryId} nicht zulässig.` +
+      (allowedText ? ` Erlaubt: ${allowedText}.` : '')
+    );
+  }
 
   // Gleiche Preis-Kette wie mapProductToEbayItem: sellPrice zuerst (Incident 2026-07-10).
   const vpSellPrice = Number(details?.pricing?.sellPrice);
@@ -5306,6 +5350,18 @@ async function reviseListingFromProduct(itemId, product, { actor = null, related
   // Build full item data from product (same logic as publish)
   const item = mapProductToEbayItem(product);
   const title = safeString(item.title);
+
+  // --- Artikelzustand: nur senden, wenn er im Datenblatt bewusst gesetzt ist ---
+  // Frueher stand hier unbedingt `conditionId: item.conditionId`. Da
+  // mapProductToEbayItem ohne Datenblatt-Wert auf "1000" (Neu) zurueckfaellt,
+  // schrieb JEDER inhaltliche Revise den Zustand auf Neu — ein per Hand auf
+  // "Gebraucht" gestelltes Angebot verlor seine Angabe stillschweigend.
+  // Jetzt gilt: ohne ausdrueckliche Wahl im Datenblatt bleibt das Feld weg,
+  // dann laesst eBay den bestehenden Zustand unberuehrt.
+  const chosenConditionId = safeString(product?.details?.conditionId);
+  const mirroredConditionId = safeString(listing?.conditionId);
+  const conditionIdForPatch =
+    chosenConditionId && chosenConditionId !== mirroredConditionId ? chosenConditionId : undefined;
   const heroPhoto = item.pictureUrls?.[0] || safeString(deriveProductPhotoUrl(product, null)) || '';
   const description = buildTrendOceanDescriptionTemplate({
     listing,
@@ -5325,7 +5381,7 @@ async function reviseListingFromProduct(itemId, product, { actor = null, related
     startPrice: item.startPrice,
     currency: item.currency || 'EUR',
     quantity: item.quantity,
-    conditionId: item.conditionId,
+    conditionId: conditionIdForPatch,
     ean: item.ean,
     isbn: item.isbn,
     mpn: item.mpn,

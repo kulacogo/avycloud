@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import DOMPurify from 'dompurify';
-import { Product, DatasheetChange, ProductImage, WarehouseBin, EbayCategoryOption, Readiness } from '../types';
+import { Product, DatasheetChange, ProductImage, WarehouseBin, EbayCategoryOption, EbayConditionOption, Readiness } from '../types';
 import { READINESS_LABELS, normalizeReadiness } from '../utils/readiness';
 import { ProductNotes } from './ProductNotes';
 import {
@@ -18,6 +18,7 @@ import {
   setProductInventoryId,
   openInventoryLabelWindow,
   fetchEbayCategories,
+  fetchEbayConditions,
 } from '../api/client';
 import { EditIcon, SaveIcon, PrintIcon, MagicIcon, RefreshIcon, BarcodeIcon } from './icons/Icons';
 import { Spinner } from './Spinner';
@@ -208,6 +209,13 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
   const [categoryOptions, setCategoryOptions] = useState<EbayCategoryOption[]>([]);
   const [categoryLoading, setCategoryLoading] = useState(false);
   const [categoryError, setCategoryError] = useState<string | null>(null);
+
+  // Artikelzustand: eigenes eBay-Feld, kein Artikelmerkmal. Welche Zustände
+  // erlaubt sind UND wie sie heißen, hängt an der Kategorie — deshalb werden
+  // die Optionen bei jedem Kategoriewechsel neu geladen.
+  const [conditionOptions, setConditionOptions] = useState<EbayConditionOption[]>([]);
+  const [conditionRequired, setConditionRequired] = useState(false);
+  const [conditionCategoryKnown, setConditionCategoryKnown] = useState(false);
 
   const [assigningInventory, setAssigningInventory] = useState(false);
   const [inventoryMessage, setInventoryMessage] = useState<string | null>(null);
@@ -1221,6 +1229,48 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
     }
   }, [isEditing, editorInitials, onUpdate]);
 
+  // Zustands-Optionen zur aktuellen Kategorie laden. Läuft auch außerhalb des
+  // Bearbeiten-Modus, damit die Anzeige den richtigen Namen zeigt.
+  const activeCategoryId = getProductEbayCategoryId(localProduct) || '';
+  useEffect(() => {
+    let active = true;
+    fetchEbayConditions(activeCategoryId || undefined)
+      .then((res) => {
+        if (!active) return;
+        setConditionOptions(res.conditions);
+        setConditionRequired(res.required);
+        setConditionCategoryKnown(res.known);
+      })
+      .catch(() => {
+        // Kein Fehlerbanner: ohne Liste bleibt das Feld einfach bei der
+        // Voreinstellung. Ein Ladefehler darf das Datenblatt nicht stören.
+        if (!active) return;
+        setConditionOptions([]);
+        setConditionCategoryKnown(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [activeCategoryId]);
+
+  const handleConditionSelect = useCallback((conditionId: string) => {
+    setLocalProduct((prev) => {
+      const next = JSON.parse(JSON.stringify(prev));
+      next.details = next.details || {};
+      if (conditionId) {
+        next.details.conditionId = conditionId;
+        // Wie bei der Kategorie: eine bewusste Eingabe wird als solche markiert,
+        // damit Automatik sie nicht überschreibt.
+        next.details.conditionSource = "manual";
+      } else {
+        delete next.details.conditionId;
+        delete next.details.conditionSource;
+      }
+      return next;
+    });
+    setIsDirty(true);
+  }, []);
+
   const handleCategorySelect = useCallback(
     (categoryId: string) => {
       if (!categoryId) return;
@@ -1697,6 +1747,38 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                   </div>
                 ) : (
                   <p className="text-sm text-txt-primary">{getProductDisplayCategory(localProduct) || '—'}</p>
+                )}
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-txt-secondary mb-1">
+                  Artikelzustand
+                  {conditionRequired && <span className="ml-1 text-danger" title="eBay verlangt in dieser Kategorie einen Zustand">*</span>}
+                </label>
+                {isEditing ? (
+                  <div className="space-y-1">
+                    <select
+                      value={localProduct.details?.conditionId || ''}
+                      onChange={(e) => handleConditionSelect(e.target.value)}
+                      disabled={conditionCategoryKnown && conditionOptions.length === 0}
+                      className="w-full text-sm bg-app-elevated border border-app-border rounded-lg px-3 py-2 disabled:opacity-50"
+                    >
+                      <option value="">Neu (Standard)</option>
+                      {conditionOptions.map((option) => (
+                        <option key={option.id} value={option.id}>{option.name}</option>
+                      ))}
+                    </select>
+                    {conditionCategoryKnown && conditionOptions.length === 0 && (
+                      <span className="text-[10px] text-txt-muted">Diese Kategorie führt keinen Artikelzustand.</span>
+                    )}
+                    {!conditionCategoryKnown && activeCategoryId && (
+                      <span className="text-[10px] text-txt-muted">Allgemeine Liste — für diese Kategorie liegen keine eBay-Vorgaben vor.</span>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-sm text-txt-primary">
+                    {conditionOptions.find((c) => c.id === localProduct.details?.conditionId)?.name
+                      || (localProduct.details?.conditionId ? localProduct.details.conditionId : 'Neu (Standard)')}
+                  </p>
                 )}
               </div>
             </div>

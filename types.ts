@@ -196,6 +196,13 @@ export interface Details {
   categoryId?: string;
   // set when a resolver or UI writes the category; 'manual' protects from auto-overrides
   categorySource?: "manual" | "auto:catalog" | "auto:suggestions" | "auto:local" | "auto:gemini";
+  // eBay-Artikelzustand als numerische ConditionID ("1000" = Neu, "3000" = Gebraucht).
+  // Eigenes Feld im Angebot, KEIN Artikelmerkmal. Welche Werte zulässig sind und wie
+  // sie heißen, hängt an der Kategorie — siehe backend/lib/ebay-conditions.js.
+  // Leer bedeutet: Voreinstellung Neu (1000).
+  conditionId?: string;
+  // 'manual' = im Datenblatt bewusst gewählt, schützt vor Auto-Überschreibung
+  conditionSource?: "manual" | "auto";
   gpsr?: {
     entity_country?: string;
     country_code?: string; // ISO-like code (see backend normalization)
@@ -898,6 +905,16 @@ export interface EbayCategoryOption {
   breadcrumb: string;
   name?: string;
   leaf?: boolean;
+}
+
+/**
+ * Ein eBay-Artikelzustand. Eigenes Feld im Angebot (ConditionID), NICHT ein
+ * Artikelmerkmal. Der Anzeigename hängt an der Kategorie: ID 1000 heißt meist
+ * "Neu", in Bekleidungs-Kategorien "Neu mit Etikett".
+ */
+export interface EbayConditionOption {
+  id: string;
+  name: string;
 }
 
 export type EbayAspectUsage = 'RECOMMENDED' | 'OPTIONAL';

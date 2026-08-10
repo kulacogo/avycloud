@@ -15,6 +15,7 @@ import {
   ProductEnrichmentRecord,
   InventoryRecord,
   EbayCategoryOption,
+  EbayConditionOption,
   EbayCategoryTaxonomyEntry,
   EbayCategoryAspectCatalog,
   DashboardMetrics,
@@ -3360,6 +3361,43 @@ export const fetchEbayCategories = async (params: {
     throw new Error(result?.error?.message || 'Kategorien konnten nicht geladen werden.');
   }
   return Array.isArray(result?.items) ? result.items : [];
+};
+
+export interface EbayConditionsResult {
+  categoryId: string | null;
+  /** false = Kategorie steht nicht in der Zustands-Tabelle, Auswahl ist ungeprüft */
+  known: boolean;
+  /** true = eBay verlangt in dieser Kategorie einen Zustand */
+  required: boolean;
+  defaultConditionId: string;
+  conditions: EbayConditionOption[];
+}
+
+/**
+ * Holt die Artikelzustände, die eBay in dieser Kategorie zulässt.
+ *
+ * Warum kategorieabhängig: ConditionID 1000 heißt meist "Neu", in
+ * Bekleidungs-Kategorien aber "Neu mit Etikett". Eine feste Liste würde falsch
+ * beschriften.
+ */
+export const fetchEbayConditions = async (categoryId?: string): Promise<EbayConditionsResult> => {
+  const query = new URLSearchParams();
+  if (categoryId) query.set('categoryId', String(categoryId));
+  const url = query.toString()
+    ? `${BACKEND_URL}/api/ebay/conditions?${query.toString()}`
+    : `${BACKEND_URL}/api/ebay/conditions`;
+  const response = await fetchApi(url);
+  const result = await parseResponse(response);
+  if (!response.ok) {
+    throw new Error(result?.error?.message || 'Artikelzustände konnten nicht geladen werden.');
+  }
+  return {
+    categoryId: result?.categoryId ?? null,
+    known: Boolean(result?.known),
+    required: Boolean(result?.required),
+    defaultConditionId: String(result?.defaultConditionId || '1000'),
+    conditions: Array.isArray(result?.conditions) ? result.conditions : [],
+  };
 };
 
 // This function now makes a REAL API call to the live backend server.

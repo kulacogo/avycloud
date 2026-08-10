@@ -60,6 +60,15 @@ const RULES = [
     test: (m) => /(kein preis|preis fehlt|no price|price.*required|kein preis ableitbar)/i.test(m),
   },
   {
+    // Muss VOR CATEGORY_MISSING stehen: die Meldung nennt eine Kategorie-ID und
+    // wuerde sonst auf das generische Kategorie-Muster anspringen. Hier ist die
+    // Kategorie vorhanden — nur der gewaehlte Artikelzustand passt nicht dazu.
+    key: 'CONDITION_NOT_ALLOWED',
+    label: 'Artikelzustand in dieser Kategorie nicht zulässig',
+    codes: ['EBAY_CONDITION_NOT_ALLOWED'],
+    test: (m) => /artikelzustand .* nicht zulässig|artikelzustand .* nicht zulaessig/i.test(m),
+  },
+  {
     key: 'CATEGORY_MISSING',
     label: 'Kategorie fehlt oder ungültig',
     codes: ['EBAY_PUBLISH_NO_CATEGORY'],

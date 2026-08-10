@@ -360,6 +360,54 @@ router.get('/ebay/oauth/callback', async (req, res) => {
 });
 
 // =====================================================================
+// eBay Artikelzustand
+// =====================================================================
+
+/**
+ * GET /api/ebay/conditions?categoryId=261588
+ *
+ * Liefert die Artikelzustaende, die eBay in DIESER Kategorie zulaesst — mit den
+ * dort gueltigen Anzeigenamen. Beides haengt an der Kategorie: ConditionID 1000
+ * heisst meist "Neu", in Bekleidungs-Kategorien "Neu mit Etikett".
+ *
+ * Ohne categoryId kommt die allgemeine Liste zurueck, damit das Datenblatt auch
+ * ohne zugewiesene Kategorie etwas anzeigen kann.
+ */
+router.get('/ebay/conditions', requirePermission('products', 'read'), async (req, res) => {
+  try {
+    const {
+      getConditionsForCategory,
+      GENERIC_CONDITION_NAMES,
+      DEFAULT_CONDITION_ID,
+      getTableSyncedAt,
+    } = require('../lib/ebay-conditions');
+
+    const categoryId = String(req.query.categoryId || '').trim();
+    const result = categoryId ? getConditionsForCategory(categoryId) : { known: false, required: false, conditions: [] };
+
+    // Rueckfall: keine Kategorie oder Kategorie unbekannt -> allgemeine Liste.
+    // `known:false` signalisiert dem Frontend, dass die Auswahl nicht
+    // kategoriegenau geprueft ist.
+    const conditions = result.conditions.length
+      ? result.conditions
+      : Object.entries(GENERIC_CONDITION_NAMES).map(([id, name]) => ({ id, name }));
+
+    res.json({
+      ok: true,
+      categoryId: categoryId || null,
+      known: result.known,
+      required: result.required,
+      defaultConditionId: DEFAULT_CONDITION_ID,
+      conditions,
+      syncedAt: getTableSyncedAt(),
+    });
+  } catch (err) {
+    console.error(`[GET /api/ebay/conditions] ${err.message}`, err);
+    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: err.message } });
+  }
+});
+
+// =====================================================================
 // eBay Status
 // =====================================================================
 
