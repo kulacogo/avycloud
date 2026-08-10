@@ -7,7 +7,7 @@ const { firestore, getAllProducts, getAllProductsForTenant, PRODUCTS_COLLECTION 
 const { getRequiredAspects, getCategoryAspectCatalog, findEbayCategory } = require('./ebay-taxonomy');
 const { isValidGtin: isValidGtinShared } = require('./gtin');
 const { resolveListingPrice, resolveExplicitPriceMode } = require('./listing-price-source');
-const { getConditionsForCategory, isConditionAllowed, DEFAULT_CONDITION_ID } = require('./ebay-conditions');
+const { getConditionsForCategory, isConditionAllowed, resolveConditionName, DEFAULT_CONDITION_ID } = require('./ebay-conditions');
 const {
   buildDescriptionBlocks,
   buildMobileStyles,
@@ -4636,6 +4636,68 @@ function mapProductToEbayItem(product, overrides = {}) {
   };
 }
 
+/**
+ * Beweist (oder widerlegt), dass der gewaehlte Artikelzustand die Ursache eines
+ * eBay-Fehlers 21555 "Ungueltige Kategorie" ist.
+ *
+ * Vorgehen: dasselbe Angebot noch einmal im PRUEFMODUS
+ * (VerifyAddFixedPriceItem — erzeugt kein Angebot), nur mit dem
+ * Standardzustand. Geht es damit durch, lag es am Zustand. Die Erkenntnis wird
+ * festgehalten, damit die Auswahl im Datenblatt den Wert kuenftig nicht mehr
+ * anbietet.
+ *
+ * Gibt eine verstaendliche Meldung zurueck — oder null, wenn der Zustand
+ * nachweislich NICHT die Ursache war (dann bleibt eBays Originalmeldung
+ * stehen, die Kategorie ist dann wirklich das Problem).
+ *
+ * Wirft nie: eine gescheiterte Diagnose darf die Fehlerbehandlung nicht kippen.
+ */
+async function explainConditionRejection({ publishErr, product, overrides = {}, categoryId, conditionId }) {
+  try {
+    const { isMisleadingCategoryError, recordRejection } = require('./ebay-condition-rejections');
+    const errors = asArray(publishErr?.details?.errors);
+    if (!isMisleadingCategoryError(errors)) return null;
+
+    const cond = safeString(conditionId);
+    const cat = safeString(categoryId);
+    // Ohne gewaehlten Zustand (oder beim Standard) gibt es nichts zu erklaeren —
+    // dann ist die Kategorie tatsaechlich das Problem.
+    if (!cond || !cat || cond === DEFAULT_CONDITION_ID) return null;
+
+    const { verifyAddFixedPriceItem, isAckSuccess } = require('./ebay-trading-api');
+    const controlItem = mapProductToEbayItem(product, { ...overrides, conditionId: DEFAULT_CONDITION_ID });
+
+    let controlPassed = false;
+    try {
+      const res = await verifyAddFixedPriceItem(controlItem);
+      controlPassed = isAckSuccess(res?.ack || res?.Ack);
+    } catch (controlErr) {
+      // Gegentest scheitert ebenfalls -> der Zustand ist NICHT die Ursache.
+      console.info(`[explainConditionRejection] Gegentest ohne Zustand scheitert ebenfalls: ${controlErr?.message}`);
+      return null;
+    }
+    if (!controlPassed) return null;
+
+    const name = resolveConditionName(cat, cond) || `Zustand ${cond}`;
+    await recordRejection({ categoryId: cat, conditionId: cond, errorCode: '21555' });
+
+    const remaining = getConditionsForCategory(cat)
+      .conditions.filter((c) => c.id !== cond)
+      .map((c) => c.name)
+      .join(', ');
+
+    return (
+      `eBay akzeptiert den Artikelzustand "${name}" in dieser Kategorie nicht — ` +
+      `die Kategorie selbst ist in Ordnung (nachgeprüft). ` +
+      `eBay meldet dafür irreführend "Ungültige Kategorie".` +
+      (remaining ? ` Bitte einen anderen Zustand wählen: ${remaining}.` : '')
+    );
+  } catch (err) {
+    console.warn(`[explainConditionRejection] Diagnose fehlgeschlagen: ${err?.message}`);
+    return null;
+  }
+}
+
 function validatePublishReadiness(product, overrides = {}) {
   const blockers = [];
   const warnings = [];
@@ -5139,6 +5201,26 @@ async function publishProduct(productId, overrides = {}, { actor = null } = {}) 
     const policyHint = describeRestrictedTermsError(asArray(publishErr?.details?.errors));
     if (policyHint) {
       listingErrors.unshift({ code: '240', message: policyHint, severity: 'Error', kind: 'policy' });
+    }
+
+    // Fehler 21555 "Ungueltige Kategorie" liefert eBay AUCH dann, wenn in
+    // Wahrheit der ARTIKELZUSTAND in dieser Kategorie nicht erlaubt ist
+    // (gemessen 2026-08-10: Zustand 2500 in Kategorie 185112). Die Meldung
+    // schickt den Bediener sonst auf die falsche Faehrte — er sucht an der
+    // Kategorie, die in Ordnung ist.
+    //
+    // Statt zu raten wird es BEWIESEN: dasselbe Angebot noch einmal im
+    // Pruefmodus, nur mit dem Standardzustand. Geht es dann durch, war der
+    // Zustand die Ursache. Kostet einen Aufruf, und nur im Fehlerfall.
+    const conditionHint = await explainConditionRejection({
+      publishErr,
+      product: workingProduct,
+      overrides,
+      categoryId: item?.primaryCategoryId,
+      conditionId: item?.conditionId,
+    });
+    if (conditionHint) {
+      listingErrors.unshift({ code: '21555', message: conditionHint, severity: 'Error', kind: 'condition' });
     }
     try {
       await firestore.collection(PRODUCTS_COLLECTION).doc(id).set(

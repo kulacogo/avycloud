@@ -388,9 +388,20 @@ router.get('/ebay/conditions', requirePermission('products', 'read'), async (req
     // Rueckfall: keine Kategorie oder Kategorie unbekannt -> allgemeine Liste.
     // `known:false` signalisiert dem Frontend, dass die Auswahl nicht
     // kategoriegenau geprueft ist.
-    const conditions = result.conditions.length
+    let conditions = result.conditions.length
       ? result.conditions
       : Object.entries(GENERIC_CONDITION_NAMES).map(([id, name]) => ({ id, name }));
+
+    // Bewiesene Ablehnungen ausblenden: eBays Metadaten bieten in manchen
+    // Kategorien Zustaende an, die die Angebots-API dann zurueckweist
+    // (Fehler 21555). Was dort einmal nachweislich abgelehnt wurde, taucht
+    // hier nicht mehr auf. Siehe lib/ebay-condition-rejections.js.
+    let rejected = [];
+    if (categoryId) {
+      const { getRejectedConditionIds } = require('../lib/ebay-condition-rejections');
+      rejected = await getRejectedConditionIds(categoryId);
+      if (rejected.length) conditions = conditions.filter((c) => !rejected.includes(c.id));
+    }
 
     res.json({
       ok: true,
@@ -399,6 +410,7 @@ router.get('/ebay/conditions', requirePermission('products', 'read'), async (req
       required: result.required,
       defaultConditionId: DEFAULT_CONDITION_ID,
       conditions,
+      rejected,
       syncedAt: getTableSyncedAt(),
     });
   } catch (err) {
