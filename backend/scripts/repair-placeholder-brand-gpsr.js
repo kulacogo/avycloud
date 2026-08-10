@@ -111,10 +111,15 @@ async function main() {
 
   for (const p of products) {
     const brand = s(p?.identification?.brand);
-    if (!isPlaceholderBrand(brand)) continue;
+    const gpsr = p?.details?.gpsr || {};
+    // Maßgeblich ist der GPSR-HERSTELLERNAME, nicht die Produktmarke: der
+    // verschmierte Block sitzt in `details.gpsr.manufacturer_name`. Der erste
+    // Lauf prüfte nur `identification.brand` und übersah dadurch Produkte mit
+    // echter Marke (OFFCUP, AERZETIX) bei Hersteller "Markenlos".
+    const placeholderManufacturer = isPlaceholderBrand(s(gpsr.manufacturer_name));
+    if (!isPlaceholderBrand(brand) && !placeholderManufacturer) continue;
     if (args.liveOnly && !isLive(p)) continue;
 
-    const gpsr = p?.details?.gpsr || {};
     const toClear = CLEARABLE.filter((k) => s(gpsr[k]));
     if (!toClear.length) continue;
 
@@ -138,32 +143,120 @@ async function main() {
 
     if (!args.apply) continue;
 
-    const next = { ...p, details: { ...p.details, gpsr: { ...gpsr } } };
-    for (const k of toClear) delete next.details.gpsr[k];
-    next.ops = next.ops || {};
-    next.ops.data_quality = next.ops.data_quality || {};
-    next.ops.data_quality.gpsr_placeholder_cleanup = {
-      at: new Date().toISOString(),
-      cleared: toClear,
-      reason: 'platzhalter_marke_registry_verschmierung',
-    };
-
+    // ACHTUNG: `saveProductV2` ist ein MERGE — ein `delete` am In-Memory-Objekt
+    // entfernt den Schlüssel in Firestore NICHT. Der erste Lauf dieses Scripts
+    // meldete deshalb 43x Erfolg, ohne dass ein einziges Feld verschwand.
+    // Löschen MUSS über einen gezielten update() mit FieldValue.delete() auf
+    // Dot-Paths laufen (gleiches Muster wie audit-gpsr-evidence.js).
     try {
-      await saveProductV2(next, {
-        source: 'repair-placeholder-gpsr',
-        skipStockEvent: true,
-        overwriteTextFields: false,
-        replaceAttributes: false,
-        allowCategoryChange: false,
-        allowWarehouseFields: false,
-        skipTitlePolicy: true,
-        skipKeyFeaturesNormalize: true,
-      });
-      entry.applied = true;
+      const { FieldValue } = require('@google-cloud/firestore');
+      const { firestore } = require('../lib/firestore');
+      const { getCollection } = require('../lib/product-store');
+
+      const updates = {};
+      for (const k of toClear) updates[`details.gpsr.${k}`] = FieldValue.delete();
+      updates['ops.data_quality.gpsr_placeholder_cleanup'] = {
+        at: new Date().toISOString(),
+        cleared: toClear,
+        reason: 'platzhalter_marke_registry_verschmierung',
+      };
+      await firestore.collection(getCollection()).doc(p.id).update(updates);
+
+      // NACHPRÜFEN statt glauben. Genau das Vertrauen in einen Rückgabewert
+      // war die Ursache des Vorfalls, den dieses Script aufräumt.
+      const after = await firestore.collection(getCollection()).doc(p.id).get();
+      const afterGpsr = (after.data() || {}).details?.gpsr || {};
+      const stillThere = toClear.filter((k) => s(afterGpsr[k]));
+      if (stillThere.length) {
+        entry.applied = false;
+        entry.error = `Felder überlebten das Löschen: ${stillThere.join(', ')}`;
+      } else {
+        entry.applied = true;
+      }
     } catch (err) {
       entry.applied = false;
       entry.error = err.message;
     }
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Zweiter Durchgang: WERTGENAUE Bereinigung.
+  //
+  // Der erste Durchgang greift über den Platzhalter-Hersteller. Er übersieht
+  // Produkte, bei denen der Schmier-Block nur EINZELNE Felder überschrieben
+  // hat, während der Herstellername echt blieb (gemessen: 25 Live-Angebote
+  // von STOOLINK, Dongguan Haoxun u.a. trugen die erfundene Website
+  // tiger-zhou.com). Diese Werte stammen nachweislich aus
+  // `gpsrManufacturers/markenlos` (confidence 0, keine Quellen) und gehören
+  // zu KEINEM dieser Hersteller.
+  //
+  // Bewusst eng: nur diese exakten, belegbar fremden Werte — kein Muster,
+  // keine Heuristik. Raten hat den Schaden erzeugt.
+  const POISONED_VALUES = [
+    'https://www.tiger-zhou.com/',
+    'http://www.tiger-zhou.com/',
+    'www.tiger-zhou.com',
+    'mjcm190928@gmail.com',
+    '78 avenue des Champs Elysees Bureau 326',
+    'Geaplan GmbH',
+    'info@geaplan.de',
+    '+49540781770',
+  ].map((v) => v.toLowerCase());
+
+  report.poisoned = [];
+  for (const p of products) {
+    const gpsr = p?.details?.gpsr || {};
+    // KEINE Etikett-Beleg-Schonung in diesem Durchgang — anders als oben.
+    // Der Beleg schützt die Werte, die das Etikett GELIEFERT hat. Ein
+    // Exakttreffer auf diese Liste kann nicht vom Etikett stammen: kein
+    // STOOLINK-Karton nennt "tiger-zhou.com". Die Werte kommen belegbar aus
+    // dem markenlos-Registry-Eintrag und gehören zu keinem dieser Hersteller.
+    const hits = Object.entries(gpsr).filter(
+      ([, v]) => typeof v === 'string' && POISONED_VALUES.includes(v.trim().toLowerCase())
+    );
+    if (!hits.length) continue;
+
+    const entry = {
+      id: p.id,
+      sku: s(p?.identification?.sku),
+      hersteller: s(gpsr.manufacturer_name).slice(0, 45),
+      live: isLive(p),
+      ebayItemId: s(p?.marketplace?.ebay?.itemId) || null,
+      clearing: hits.map(([k, v]) => ({ feld: k, alterWert: s(v).slice(0, 60) })),
+    };
+    report.poisoned.push(entry);
+    if (!args.apply) continue;
+
+    try {
+      const { FieldValue } = require('@google-cloud/firestore');
+      const { firestore } = require('../lib/firestore');
+      const { getCollection } = require('../lib/product-store');
+      const updates = {};
+      for (const [k] of hits) updates[`details.gpsr.${k}`] = FieldValue.delete();
+      updates['ops.data_quality.gpsr_poisoned_value_cleanup'] = {
+        at: new Date().toISOString(),
+        cleared: hits.map(([k]) => k),
+        reason: 'wert_aus_markenlos_registry_eintrag',
+      };
+      await firestore.collection(getCollection()).doc(p.id).update(updates);
+
+      const after = await firestore.collection(getCollection()).doc(p.id).get();
+      const afterGpsr = (after.data() || {}).details?.gpsr || {};
+      const stillThere = hits.map(([k]) => k).filter((k) => s(afterGpsr[k]));
+      entry.applied = stillThere.length === 0;
+      if (stillThere.length) entry.error = `überlebte: ${stillThere.join(', ')}`;
+    } catch (err) {
+      entry.applied = false;
+      entry.error = err.message;
+    }
+  }
+
+  const poisonLive = report.poisoned.filter((a) => a.live).length;
+  console.log('\n--- Zweiter Durchgang: wertgenaue Bereinigung ---');
+  console.log(`Produkte mit belegbar fremden Werten: ${report.poisoned.length} (live: ${poisonLive})`);
+  if (args.apply) {
+    console.log(`  erfolgreich: ${report.poisoned.filter((a) => a.applied === true).length}`
+      + ` | Fehler: ${report.poisoned.filter((a) => a.applied === false).length}`);
   }
 
   const outPath = path.join(args.outDir, `repair-placeholder-gpsr-${args.apply ? 'apply' : 'dryrun'}.json`);
