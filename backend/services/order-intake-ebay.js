@@ -11,6 +11,7 @@ const { Firestore, FieldValue } = require('@google-cloud/firestore');
 const { callTradingApi } = require('../lib/ebay-trading-api');
 const { sanitizeText, validateEmail } = require('../lib/html-entities');
 const { parsePackstation } = require('../lib/packstation');
+const { detectSwappedZipCity } = require('../lib/postal-code-validate');
 const { getNextNumber } = require('./number-sequence');
 const { reserveStock } = require('./stock-reservation');
 const { syncStockWithRetry, findProductsBySkuChunk } = require('./stock-sync-dispatcher');
@@ -160,6 +161,27 @@ function mapEbayOrder(ebayOrder) {
   const customerPostNumber = customerStreet ? parsePackstation(customerStreet).postNumber || null : null;
   const totalAmount = parseFloat(ebayOrder?.Total?.['#text'] || ebayOrder?.Total || '0');
 
+  // eBay validiert internationale Adressfelder NICHT und reicht durch, was der
+  // Käufer eingetippt hat. Auftrag 07-14991-66886 (2026-08-04) kam mit
+  // CityName=2000 / PostalCode="Antwerpen" herein — vertauscht. Daraus konnte
+  // nie ein Label werden; gemerkt hat es erst SendCloud, 40 min später.
+  // Hier an der QUELLE drehen, damit Rechnung, Lieferschein, Adresslabel und
+  // Versandlabel dieselbe richtige Adresse sehen. Nur bei Beweis (PLZ
+  // nachweislich ungültig fürs Land UND Stadt ist gültige PLZ desselben
+  // Landes) — sonst bleibt alles unangetastet, siehe lib/postal-code-validate.
+  const rawCity = sanitizeText(shippingAddr?.CityName) || null;
+  const rawZip = shippingAddr?.PostalCode != null ? String(shippingAddr.PostalCode).trim() : null;
+  const addrCountry = shippingAddr?.Country || null;
+  const swap = detectSwappedZipCity(rawZip, rawCity, addrCountry);
+  if (swap.swapped) {
+    console.warn(
+      `[ebay-intake] Order ${ebayOrder?.OrderID}: PLZ/Stadt von eBay vertauscht — korrigiert. ` +
+      `PLZ "${rawZip}"→"${swap.zip}", Stadt "${rawCity}"→"${swap.city}" (${addrCountry}).`
+    );
+  }
+  const customerCity = swap.swapped ? swap.city : rawCity;
+  const customerZip = swap.swapped ? swap.zip : rawZip;
+
   // Extract tracking from ShipmentTrackingDetails
   const shippingDetails = ebayOrder?.ShippingDetails?.ShipmentTrackingDetails;
   const trackingArray = Array.isArray(shippingDetails) ? shippingDetails : shippingDetails ? [shippingDetails] : [];
@@ -180,8 +202,8 @@ function mapEbayOrder(ebayOrder) {
     customer: {
       name: sanitizeText(shippingAddr?.Name) || ebayOrder?.BuyerUserID || 'Unbekannt',
       street: customerStreet,
-      city: sanitizeText(shippingAddr?.CityName) || null,
-      zip: shippingAddr?.PostalCode != null ? String(shippingAddr.PostalCode).trim() : null,
+      city: customerCity,
+      zip: customerZip,
       country: shippingAddr?.Country || null,
       phone: sanitizeContactField(shippingAddr?.Phone),
       email: validateEmail(sanitizeContactField(ebayOrder?.TransactionArray?.Transaction?.[0]?.Buyer?.Email)),

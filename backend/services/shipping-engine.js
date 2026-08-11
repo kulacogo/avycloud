@@ -10,6 +10,8 @@
 const { Firestore, FieldValue } = require('@google-cloud/firestore');
 const { lookupCsvPrice } = require('../lib/sendcloud');
 const { parsePackstation, resolvePostNumber } = require('../lib/packstation');
+const { isValidPostalCode, detectSwappedZipCity } = require('../lib/postal-code-validate');
+const { translateSendCloudError, explainSendCloudError } = require('../lib/sendcloud-error-translate');
 
 const SENDCLOUD_BASE_URL = 'https://panel.sendcloud.sc/api/v2';
 const SHIPMENTS_COLLECTION = 'shipments';
@@ -131,6 +133,7 @@ function _buildV3FromAddress(sa) {
 }
 
 let _v3FromAddressCache = null;
+let _v3SenderAddressIdCache = null;
 async function _getV3FromAddress() {
   if (_v3FromAddressCache) return _v3FromAddressCache;
   const { listSenderAddresses } = require('../lib/sendcloud');
@@ -141,8 +144,37 @@ async function _getV3FromAddress() {
   const sa = list[0];
   if (!sa) throw new Error('SendCloud v3: keine Absenderadresse konfiguriert (from_address ist Pflicht).');
   _v3FromAddressCache = _buildV3FromAddress(sa);
+  _v3SenderAddressIdCache = sa.id || null;
   console.log(`[v3] from_address: ${_v3FromAddressCache.address_line_1} ${_v3FromAddressCache.house_number || ''}, ${_v3FromAddressCache.postal_code} ${_v3FromAddressCache.city}, ${_v3FromAddressCache.country_code}`);
   return _v3FromAddressCache;
+}
+
+// Pure: welche Absenderform gehört in den Announce — Inline-Adresse oder
+// Referenz auf den gespeicherten SendCloud-Datensatz?
+//
+// Hintergrund (Incident 2026-08-10, Aufträge 18-14989-91354/IT +
+// 08-15012-44206/NL): die USt-IdNr. liegt AUSSCHLIESSLICH am gespeicherten
+// Absender-Datensatz. Das v3-`address`-Objekt hat kein Steuerfeld — eine
+// Inline-Adresse kann die Nummer bauartbedingt nicht mittragen. Ohne sie lehnt
+// SendCloud jede Auslandssendung ab ("Für Auslandssendungen geben Sie bitte
+// Ihre USt-IdNr. in Ihren Benutzerdaten an."). Mit `sender_address_id` zieht
+// SendCloud den Datensatz inkl. vat_number/eori_number selbst.
+//
+// ENTWEDER/ODER, nie beides — gegen die echte API verifiziert:
+// "Provide either 'sender_address_id' or address fields in 'from_address', not both."
+//
+// Inland bleibt bewusst auf der Inline-Adresse: dort ist die Absenderzeile seit
+// Incident 2026-07-21 exakt eingestellt (nur Firmenname, keine Doppelung, nie
+// "-" als Hausnummer). Der Referenz-Pfad würde stattdessen contact_name des
+// gespeicherten Datensatzes aufs Label bringen — ein Risiko ohne jeden Nutzen,
+// weil Inlandssendungen die USt-IdNr. gar nicht brauchen.
+function _resolveAnnounceFromAddress({ fromAddress, senderAddressId, toCountry }) {
+  if (String(process.env.SENDCLOUD_SENDER_ADDRESS_REF || 'on').toLowerCase() === 'off') return fromAddress;
+  if (!senderAddressId) return fromAddress;
+  const from = String(fromAddress?.country_code || 'DE').toUpperCase().slice(0, 2);
+  const to = String(toCountry || '').toUpperCase().slice(0, 2);
+  if (!to || to === from) return fromAddress;
+  return { sender_address_id: senderAddressId };
 }
 
 async function _getCachedMethodMeta(tenantId, methodId) {
@@ -308,7 +340,13 @@ async function _createV3Shipment({ fromAddress, toAddress, weightKg, shippingOpt
     body: JSON.stringify(body),
   });
   const text = await res.text().catch(() => '');
-  if (!res.ok) throw new Error(`SendCloud create parcel ${res.status}: ${text.slice(0, 400)}`);
+  if (!res.ok) {
+    // Rohes SendCloud-JSON ist für den Menschen am Packtisch unbrauchbar
+    // (siehe lib/sendcloud-error-translate.js). Unbekannte Fehler kommen
+    // unverändert durch — es geht nie Information verloren.
+    const explained = translateSendCloudError(text, { shippingOptionCode });
+    throw new Error(`SendCloud (${res.status}): ${String(explained).slice(0, 500)}`);
+  }
   let json = {};
   try { json = JSON.parse(text); } catch (_) { /* leave empty */ }
   return json?.data || {};
@@ -580,6 +618,30 @@ async function createParcel({
     );
   }
 
+  // PLZ-Format gegen das Zielland prüfen. Ohne diesen Guard reicht der Label-
+  // Pfad eine Nicht-PLZ an SendCloud durch und der Operator sieht nur die rohe
+  // API-Antwort ("Enter a valid zip code.", pointer=postal_code) — ohne Hinweis,
+  // WELCHES Feld gemeint ist (Vorfall 2026-08-04, Auftrag 07-14991-66886: eBay
+  // lieferte PostalCode="Antwerpen"/CityName="2000", beim Käufer vertauscht).
+  // Bewusst KEINE stille Auto-Korrektur hier: Rechnung, Lieferschein und
+  // Adresslabel lesen dieselbe Adresse — nur fürs Label gedrehte Werte würden
+  // die Dokumente auseinanderlaufen lassen. Der Mensch korrigiert EINMAL an der
+  // Quelle. Unbekannte Länder (IE, GB, …) liefern kein Urteil → fail-open.
+  if (isValidPostalCode(zipStr, countryRaw) === false) {
+    const swap = detectSwappedZipCity(zipStr, cityStr, countryRaw);
+    if (swap.swapped) {
+      throw new Error(
+        `PLZ „${zipStr}" ist für ${countryRaw} keine gültige Postleitzahl — PLZ und Stadt sind vertauscht. ` +
+        `Bitte im Auftrag unter „Kunde → Bearbeiten" tauschen: PLZ „${swap.zip}", Stadt „${swap.city}". ` +
+        `(Der Marktplatz hat die Felder so geliefert.)`
+      );
+    }
+    throw new Error(
+      `PLZ „${zipStr}" ist für ${countryRaw} keine gültige Postleitzahl. ` +
+      `Bitte im Auftrag unter „Kunde → Bearbeiten" korrigieren.`
+    );
+  }
+
   // Packstation/Postfiliale need the recipient's DHL Postnummer. Fail fast with
   // an actionable message instead of an opaque SendCloud 400 (receiver_address).
   if (isPackstation && !toPostNumber) {
@@ -613,11 +675,11 @@ async function createParcel({
 
   // Wenn ein exakter v3-Code übergeben wurde (kuratierter Pack-Flow), diesen
   // direkt nutzen — kein Fuzzy-Resolver, kein Options-Call.
+  const isDomestic = String(fromAddress?.country_code || 'DE').toUpperCase() === String(countryRaw || 'DE').toUpperCase();
   let shippingOptionCode = explicitOptionCode || null;
   if (!shippingOptionCode) {
     const methodMeta = await _getCachedMethodMeta(tenantId, shippingMethodId);
     const options = await _listV3ShippingOptions({ fromAddress, toCountry: countryRaw, toPostal: zipStr, weightKg, auth });
-    const isDomestic = String(fromAddress?.country_code || 'DE').toUpperCase() === String(countryRaw || 'DE').toUpperCase();
     shippingOptionCode = _matchV3OptionCode(options, methodMeta, weightKg, { domestic: isDomestic });
     if (!shippingOptionCode) {
       // Fallback: günstigste gewichts-passende Home-Delivery-Option (keine
@@ -642,8 +704,19 @@ async function createParcel({
 
   console.log(`[createParcel] Payload(v3) ${order.id}: to="${zipStr} ${cityStr}, ${countryRaw}", weight=${weightKg}kg, method=${shippingMethodId || 'default'} → code="${shippingOptionCode}"${toPostNumber ? `, po_box="${toPostNumber}"` : ''}`);
 
-  const shipment = await _createV3Shipment({
+  // Auslandssendung: gespeicherten Absender REFERENZIEREN statt kopieren — nur so
+  // reist die USt-IdNr. mit (siehe _resolveAnnounceFromAddress).
+  const announceFromAddress = _resolveAnnounceFromAddress({
     fromAddress,
+    senderAddressId: _v3SenderAddressIdCache,
+    toCountry: countryRaw,
+  });
+  if (announceFromAddress !== fromAddress) {
+    console.log(`[createParcel] v3: Auslandssendung ${countryRaw} → from_address per sender_address_id=${_v3SenderAddressIdCache} (trägt USt-IdNr.).`);
+  }
+
+  const shipment = await _createV3Shipment({
+    fromAddress: announceFromAddress,
     toAddress,
     weightKg,
     shippingOptionCode,
@@ -664,7 +737,13 @@ async function createParcel({
   ];
   if (!labelUrl && !parcel.tracking_number && shipErrors.length) {
     const msgs = shipErrors.map((e) => e?.message || e?.detail || e?.title || JSON.stringify(e)).join('; ');
-    throw new Error(`SendCloud Announcement failed: ${msgs}. Methode/Adresse/Guthaben prüfen.`);
+    // Erklärte Ursachen NICHT mit der pauschalen Aufzählung verwässern: "Guthaben
+    // prüfen" schickte den Operator bei der fehlenden USt-IdNr. in die Irre
+    // (Incident 2026-08-10). Unbekanntes behält den Hinweis samt Originaltext.
+    const explained = explainSendCloudError(msgs, { shippingOptionCode });
+    throw new Error(explained.matched
+      ? explained.message
+      : `SendCloud Announcement failed: ${msgs}. Methode/Adresse/Guthaben prüfen.`);
   }
   if (!labelUrl && parcel.id) {
     console.warn(`[createParcel] v3: kein Label-Link in Antwort (parcel ${parcel.id}). label_file vorhanden: ${!!parcel.label_file}`);
@@ -1948,6 +2027,7 @@ async function listCuratedShippingOptions({ order, weightKg }) {
 module.exports = {
   _matchV3OptionCode,
   _buildV3FromAddress,
+  _resolveAnnounceFromAddress,
   _listV3ShippingOptions,
   _getV3FromAddress,
   listCuratedShippingOptions,

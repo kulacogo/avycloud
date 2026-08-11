@@ -47,7 +47,15 @@ function resolveCuratedOptions(liveOptions, { country, weightKg, flags = {} } = 
       .filter((o) => optionWeightFits(o, weightKg));
     if (!candidates.length) continue;
 
-    candidates.sort((a, b) => modifierCount(a.code) - modifierCount(b.code));
+    // Zweitkriterium ist Pflicht, nicht Kosmetik: bei gleichem modifierCount
+    // war der Vergleich ein Gleichstand, und Array.sort ist stabil — die Wahl
+    // fiel damit auf die Reihenfolge der SendCloud-Antwort zurück. Die ist
+    // NICHT deterministisch (an der Live-API gemessen: 4 identische Aufrufe,
+    // beim vierten kippte die Reihenfolge). So wurde aus zwei verschiedenen
+    // DHL-Produkten ein Münzwurf (Vorfall 2026-08-07, europaket/weltpaket).
+    // Alphabetisch ist willkürlich, aber REPRODUZIERBAR — und das ist der Punkt:
+    // dasselbe Angebot muss immer dasselbe Label ergeben.
+    candidates.sort((a, b) => modifierCount(a.code) - modifierCount(b.code) || a.code.localeCompare(b.code));
     products.push({
       key: product.key,
       displayName: product.displayName,

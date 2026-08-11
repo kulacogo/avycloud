@@ -39,8 +39,20 @@ const PRODUCTS = [
   // DPD_EUROPA bleibt nur als Doku der günstigsten Plakat-Lanes erhalten.
   { key: 'dpd_classic_europa', displayName: 'DPD Classic Europa', carrier: 'dpd', scope: 'international', maxWeightKg: 31.5, tracking: true, rank: 2,
     match: (c) => /^dpd:classic(\b|\/|,|$)/i.test(c) },
+  // `europaket` gehört hier NICHT hinein: SendCloud unterscheidet die beiden
+  // Produkte sauber über product.name — `dhl_de:weltpaket` ist „DHL Paket
+  // International", `dhl_de:europaket` ist „DHL Europaket". Das ist ein anderes
+  // DHL-Produkt (eigene Abrechnungsnummer, andere Preise) und steht nicht auf
+  // dem TrendOcean-Plakat. Solange es im Vertrag keine Abrechnungsnummer hat,
+  // scheitert JEDER Label-Call daran:
+  //   400 "Please add the billing number for this product in the DHL contract."
+  // Weil beide Codes modifierCount 0 haben, war die Wahl zwischen ihnen ein
+  // Gleichstand — und die stabile Sortierung übernahm die Reihenfolge der
+  // SendCloud-Antwort, die nachweislich nicht deterministisch ist. Ergebnis:
+  // Münzwurf. 21 Tage Prod-Logs, ausnahmslos: europaket 11× → Fehler,
+  // weltpaket 6× → Erfolg (Vorfall 2026-08-07, Auftrag 10-14999-44761).
   { key: 'dhl_paket_int', displayName: 'DHL Paket International', carrier: 'dhl_de', scope: 'international', maxWeightKg: 31.5, tracking: true, rank: 3,
-    match: (c) => /^dhl_de:(europaket|weltpaket|paket_international|dhl_paket_international)(\b|\/|,|$)/i.test(c) },
+    match: (c) => /^dhl_de:(weltpaket|paket_international|dhl_paket_international)(\b|\/|,|$)/i.test(c) },
 ];
 
 module.exports = { ZONE_1, ZONE_2, DPD_EUROPA, FORBIDDEN, PRODUCTS };
