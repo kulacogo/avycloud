@@ -73,11 +73,18 @@ router.get('/integrations/status', async (req, res) => {
     for (const { id, secretKey } of apiKeyProviders) {
       const provider = getProvider(id);
       const stored = storedMap.get(id);
-      let connected = stored?.status === 'active';
+      const selfService = stored?.status === 'active';
 
-      if (!connected) {
+      // Ein Treffer im Secret Manager ist NICHT dasselbe wie "der Nutzer hat
+      // dieses Konto verbunden". Vorher wurde beides zu 'connected'
+      // zusammengeworfen — nach dem Trennen loeschte der Aufruf nur das
+      // Firestore-Dokument, der System-Zugang blieb bestehen und die Karte
+      // sprang sofort wieder auf "Verbunden". Das sah aus, als haette das
+      // Trennen nicht funktioniert.
+      let systemConfigured = false;
+      if (!selfService) {
         const secret = await getSecretValue(secretKey).catch(() => null);
-        connected = !!secret;
+        systemConfigured = !!secret;
       }
 
       results.push({
@@ -86,7 +93,10 @@ router.get('/integrations/status', async (req, res) => {
         description: provider?.description || '',
         category: provider?.category || 'other',
         authType: provider?.authType || 'api_key',
-        status: connected ? 'connected' : 'not_connected',
+        status: selfService ? 'connected' : systemConfigured ? 'system_configured' : 'not_connected',
+        // true = laeuft ueber die hinterlegten Systemzugangsdaten, nicht ueber
+        // eine vom Nutzer angelegte Verbindung. Trennen entfernt diese nicht.
+        systemConfigured,
         connectedAt: stored?.connectedAt || null,
         updatedAt: stored?.updatedAt || null,
         settings: stored?.settings || null,

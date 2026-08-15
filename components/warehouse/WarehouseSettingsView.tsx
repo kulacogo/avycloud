@@ -141,6 +141,8 @@ export const WarehouseSettingsView: React.FC = () => {
     setSaveSuccess(false);
     try {
       await saveWarehouseSettings({ settings, zoneTypes });
+      // Bewusst KEIN blankes "Erfolgreich gespeichert" mehr — der Wert liegt
+      // in der Datenbank, wirkt aber (noch) nirgends.
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);
     } catch (err: any) {
@@ -176,11 +178,21 @@ export const WarehouseSettingsView: React.FC = () => {
       )}
       {saveSuccess && (
         <div className="bg-success-dim border border-app-border rounded-xl px-4 py-3 text-sm text-success font-medium">
-          Einstellungen erfolgreich gespeichert.
+          Einstellungen gespeichert (noch ohne Wirkung — siehe Hinweis oben).
         </div>
       )}
 
       {/* ── Section 1: Bin-Logik ── */}
+      {/* Diese Seite speicherte bisher zuverlaessig — nur gelesen wurden die
+          Werte nirgends. Etikettenmaße, Barcode-Format, Bestandsgrenzen und
+          Inventur-Intervall haben heute keine Wirkung. Die Seite darf das nicht
+          weiter verschweigen: "Gespeichert" ohne Wirkung ist eine Falle. */}
+      <div className="rounded-xl border border-warning/30 bg-warning-dim px-4 py-3 text-sm text-warning">
+        <b>Hinweis:</b> Diese Einstellungen werden gespeichert, sind aber noch nicht mit dem
+        Etikettendruck und der Bestandsüberwachung verbunden — sie haben aktuell keine Wirkung.
+        Etiketten werden fest im Format 62 × 29 mm gedruckt.
+      </div>
+
       <SectionCard title="Bin-Logik">
         <div className="flex flex-col gap-4">
           <Toggle checked={settings.autoBinAssignment} onChange={(v) => update("autoBinAssignment", v)} label="Automatische Bin-Zuweisung" />

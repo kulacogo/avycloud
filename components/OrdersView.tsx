@@ -168,6 +168,14 @@ const OrdersView: React.FC = () => {
         const qIdx = raw.indexOf("?");
         if (qIdx === -1) return;
         const params = new URLSearchParams(raw.slice(qIdx + 1));
+        // Zeitraum mit uebernehmen: die Dashboard-Kachel "Heute versendet 2"
+        // fuehrte sonst auf ALLE Auftraege im Status "Versendet" (gemessen 105)
+        // — die Zahl auf der Kachel und die Liste dahinter passten nicht
+        // zusammen.
+        const preset = params.get("datePreset");
+        if (preset === "today" || preset === "7d" || preset === "30d" || preset === "90d" || preset === "all") {
+          setDatePreset(preset);
+        }
         const requested = params.get("orderStatus");
         if (!requested) return;
         const mapped = DASHBOARD_KEY_MAP[requested.toLowerCase()];

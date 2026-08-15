@@ -821,7 +821,8 @@ export interface FinancialReport {
   inventory: FinancialReportInventory;
   listingsOnline: FinancialReportListingsOnline;
   costModel: FinancialReportCostModel;
-  balances: { accounts: FinanceAccountBalance[]; total: number };
+  /** total === null: Kontostand war nicht abrufbar (nicht: null Euro). */
+  balances: { accounts: FinanceAccountBalance[]; total: number | null };
   shipping: FinancialReportShipping | null;
   timeseries: FinancialReportBucket[];
   quality: {

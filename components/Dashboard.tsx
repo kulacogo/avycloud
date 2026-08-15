@@ -591,8 +591,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const carriers = ops?.carriers ?? null;
   const presetLabel = ops?.range?.label ?? metrics?.range?.label ?? PRESETS.find(p => p.id === activePreset)?.label ?? activePreset;
 
-  const navigateTo = useCallback((statusKey: string) => {
-    window.location.hash = `#/orders?orderStatus=${encodeURIComponent(statusKey)}`;
+  const navigateTo = useCallback((statusKey: string, datePreset?: 'today' | '7d' | '30d' | '90d' | 'all') => {
+    const zeitraum = datePreset ? `&datePreset=${datePreset}` : '';
+    window.location.hash = `#/orders?orderStatus=${encodeURIComponent(statusKey)}${zeitraum}`;
   }, []);
 
   const nowStr = lastRefreshed?.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) ?? null;
@@ -650,7 +651,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             sub="Versandlabel heute erstellt"
             color="green"
             loading={opsLoading}
-            onClick={() => navigateTo('shipped')}
+            onClick={() => navigateTo('shipped', 'today')}
             size="hero"
           />
         </div>

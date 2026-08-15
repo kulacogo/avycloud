@@ -8,7 +8,11 @@ import {
 } from "../api/client";
 
 const HEARTBEAT_ACTIVE_MS = 60_000; // 60s when tab is visible
-const HEARTBEAT_HIDDEN_MS = 5 * 60_000; // 5 min when tab is hidden
+// MUSS unter STALE_THRESHOLD_MS in backend/services/user-sessions.js liegen
+// (dort 3 min), sonst gilt jede verborgene Sitzung zwangslaeufig als tot und
+// der Mensch verschwindet aus "Aktuell online", obwohl er angemeldet ist.
+// 2 min laesst Luft fuer die Takt-Drosselung des Browsers in Hintergrund-Tabs.
+const HEARTBEAT_HIDDEN_MS = 2 * 60_000; // 2 min when tab is hidden
 
 /**
  * Collect all available client-side device/browser information.

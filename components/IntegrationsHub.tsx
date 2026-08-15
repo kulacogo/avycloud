@@ -25,6 +25,20 @@ const LOGO_CONFIG: Record<string, { letter: string; color: string }> = {
 
 /* ─── Status Indicator ─── */
 const StatusIndicator: React.FC<{ status: string; connectedAt?: string | null }> = ({ status, connectedAt }) => {
+  if (status === "system_configured") {
+    // Ehrlicher Zwischenzustand: die Anbindung laeuft, aber ueber die
+    // hinterlegten Systemzugangsdaten. "Trennen" kann daran nichts aendern —
+    // vorher stand hier "Verbunden" und das Trennen wirkte kaputt.
+    return (
+      <div className="flex flex-col gap-0.5">
+        <div className="flex items-center gap-1.5">
+          <span className="inline-block w-2 h-2 rounded-full bg-info" />
+          <span className="text-xs font-medium text-info">Über Systemkonfiguration</span>
+        </div>
+        <span className="text-[11px] text-txt-muted ml-3.5">Kein eigenes Konto verknüpft</span>
+      </div>
+    );
+  }
   if (status === "connected") {
     return (
       <div className="flex flex-col gap-0.5">
@@ -57,7 +71,7 @@ interface IntegrationCardProps {
 
 const IntegrationCard: React.FC<IntegrationCardProps> = ({ integration, provider, onConfigure }) => {
   const logo = LOGO_CONFIG[integration.id] || { letter: integration.name.charAt(0), color: "bg-accent" };
-  const isConnected = integration.status === "connected";
+  const isConnected = integration.status === "connected" || integration.status === "system_configured";
   const isConfigurable = provider?.authType === "oauth2" || provider?.authType === "api_key";
   const isDependency = provider?.authType === "none";
 

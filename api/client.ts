@@ -668,7 +668,11 @@ export interface IntegrationStatusEntry {
   description: string;
   category: string;
   authType?: string;
-  status: 'connected' | 'not_connected';
+  /** 'system_configured' = laeuft ueber hinterlegte Systemzugangsdaten,
+   *  nicht ueber eine vom Nutzer angelegte Verbindung. Trennen entfernt die
+   *  Systemzugangsdaten NICHT. */
+  status: 'connected' | 'system_configured' | 'not_connected';
+  systemConfigured?: boolean;
   connectedAt?: string | null;
   updatedAt?: string | null;
   lastRefreshedAt?: string | null;

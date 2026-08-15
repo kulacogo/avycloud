@@ -28,6 +28,10 @@ export const AdminRoleManagement: React.FC = () => {
   const [roles, setRoles] = React.useState<AdminRoleRecord[]>([]);
   const [loading, setLoading] = React.useState(false);
   const [savingRoleId, setSavingRoleId] = React.useState<string | null>(null);
+  // Rollen mit ungespeicherten Haken. Ohne das ueberschrieb jedes Speichern
+  // (und jedes "Aktualisieren") die offenen Aenderungen ALLER anderen Karten
+  // kommentarlos mit dem Serverstand.
+  const [dirtyRoleIds, setDirtyRoleIds] = React.useState<Set<string>>(new Set());
   const [error, setError] = React.useState<string | null>(null);
 
   const load = React.useCallback(async () => {
@@ -56,6 +60,7 @@ export const AdminRoleManagement: React.FC = () => {
         return { ...r, permissions: setPermission(current, moduleId, action, allowed) };
       })
     );
+    setDirtyRoleIds((prev) => new Set(prev).add(roleId));
   };
 
   const saveRole = async (role: AdminRoleRecord) => {
@@ -63,7 +68,14 @@ export const AdminRoleManagement: React.FC = () => {
     setError(null);
     try {
       await adminUpdateRole(role.id, { permissions: role.permissions || {} });
-      await load();
+      // KEIN load(): das ersetzte das komplette Array durch den Serverstand und
+      // warf damit die offenen Haken aller anderen Rollenkarten weg. Der lokale
+      // Stand IST der gerade gespeicherte.
+      setDirtyRoleIds((prev) => {
+        const next = new Set(prev);
+        next.delete(role.id);
+        return next;
+      });
     } catch (e: any) {
       setError(e?.message || "Speichern fehlgeschlagen");
     } finally {
@@ -80,7 +92,14 @@ export const AdminRoleManagement: React.FC = () => {
         </div>
         <button
           type="button"
-          onClick={load}
+          onClick={() => {
+            // Nicht kommentarlos ueberschreiben, wenn Haken offen sind.
+            if (dirtyRoleIds.size > 0 && !window.confirm(
+              `${dirtyRoleIds.size} Rolle(n) haben ungespeicherte Änderungen. Neu laden verwirft sie. Fortfahren?`
+            )) return;
+            setDirtyRoleIds(new Set());
+            void load();
+          }}
           disabled={loading}
           className="rounded-xl bg-app-elevated border border-white/[0.08] hover:bg-white/10 disabled:opacity-60 px-4 py-2 text-sm font-semibold text-txt-primary"
         >
@@ -118,7 +137,11 @@ export const AdminRoleManagement: React.FC = () => {
                       disabled={savingRoleId === role.id}
                       className="rounded-xl bg-accent hover:bg-accent/80 disabled:opacity-60 px-4 py-2 text-sm font-semibold text-txt-primary"
                     >
-                      {savingRoleId === role.id ? "Speichere…" : "Speichern"}
+                      {savingRoleId === role.id
+                        ? "Speichere…"
+                        : dirtyRoleIds.has(role.id)
+                          ? "Speichern •"
+                          : "Speichern"}
                     </button>
                   )}
                 </div>

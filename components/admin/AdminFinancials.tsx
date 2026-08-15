@@ -408,7 +408,13 @@ export const AdminFinancials: React.FC = () => {
               approxHint={approxHint}
               sub={view.marge != null ? `${view.marge.toLocaleString("de-DE")} % vom Umsatz` : undefined}
             />
-            <Kpi label="Konto" value={fmtCur(report.balances.total, cur, true)} tone={report.balances.total < 0 ? "red" : "neutral"} sub="Bankstand heute" />
+            {/* total === null heisst "nicht abrufbar", nicht "null Euro". */}
+            <Kpi
+              label="Konto"
+              value={report.balances.total == null ? "—" : fmtCur(report.balances.total, cur, true)}
+              tone={report.balances.total != null && report.balances.total < 0 ? "red" : "neutral"}
+              sub={report.balances.total == null ? "Kontostand nicht abrufbar (SevDesk)" : "Bankstand heute"}
+            />
             <Kpi
               label="Lagerwert"
               value={(report.inventory.articlesWithCost + report.inventory.articlesEstimated) > 0 ? fmtCur(report.inventory.capitalAtCost, cur, true) : "—"}

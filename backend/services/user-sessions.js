@@ -16,6 +16,8 @@ const geoip = require('geoip-lite');
 const SESSIONS_COLLECTION = 'userSessions';
 
 // Sessions without heartbeat for longer than this are considered stale.
+// MUSS ueber HEARTBEAT_HIDDEN_MS in hooks/useSessionTracking.ts liegen
+// (dort 2 min). Die beiden Werte gehoeren zusammen gepflegt.
 const STALE_THRESHOLD_MS = 3 * 60 * 1000; // 3 minutes
 
 // TODO (Betrieb): `userSessions` wächst unbegrenzt (createSession fügt bei jedem
@@ -158,9 +160,14 @@ async function heartbeat({ sessionId, tenantId = 'default' }) {
   const data = snap.data();
   if (data.tenantId !== tenantId) return;
 
+  // Wiederbelebte Sitzung: die beim Verfall gesetzte Abmeldezeit und Dauer
+  // muessen mit weg, sonst zeigt eine LAUFENDE Sitzung weiterhin eine
+  // Abmeldung von vorhin an.
   await ref.update({
     lastActiveAt: new Date().toISOString(),
     status: 'active',
+    logoutAt: null,
+    durationSeconds: null,
   });
 }
 

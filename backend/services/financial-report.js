@@ -273,7 +273,10 @@ async function getFinancialReport({ preset = null, fromDate = null, toDate = nul
 
   const balances = balancesRes.status === 'fulfilled' && balancesRes.value
     ? balancesRes.value
-    : (errors.push('Kontostand (SevDesk) nicht verfügbar.'), { accounts: [], total: 0 });
+    // total:null statt 0 — ein nicht abrufbarer Kontostand ist UNBEKANNT,
+    // keine gemessene Null. Vorher stand gross "0,00 € — Bankstand heute" auf
+    // der Kachel, obwohl SevDesk gar nicht geantwortet hatte.
+    : (errors.push('Kontostand (SevDesk) nicht verfügbar.'), { accounts: [], total: null });
 
   const shipping = mergeShipping(
     sevdeskRes.status === 'fulfilled' ? sevdeskRes.value : null,
@@ -455,7 +458,9 @@ async function getFinancialReport({ preset = null, fromDate = null, toDate = nul
     },
     balances: {
       accounts: Array.isArray(balances.accounts) ? balances.accounts : [],
-      total: round2(balances.total),
+      // round2 laeuft ueber num(); Number(null) waere 0 und wuerde das
+      // "unbekannt" wieder in eine harte Null zurueckverwandeln.
+      total: balances.total == null ? null : round2(balances.total),
     },
     shipping: shipping
       ? { brutto: round2(shipping.netto * 1.19), netto: shipping.netto, parcelCount: shipping.parcelCount, dhl: shipping.dhl, dpd: shipping.dpd, other: shipping.other, source: shipping.source }
