@@ -1220,7 +1220,7 @@ const AppInner: React.FC = () => {
         if (!hasPermission('products', 'read')) {
           return <div className="text-center p-8 text-txt-muted">{t('error.forbidden')}</div>;
         }
-        return <DeduplicationView />;
+        return <DeduplicationView products={products} />;
       case 'audit-log':
         if (!hasPermission('admin', 'read')) {
           return <div className="text-center p-8 text-txt-muted">{t('error.forbidden')}</div>;
