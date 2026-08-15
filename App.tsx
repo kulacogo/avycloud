@@ -1,54 +1,19 @@
 
-import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useMemo, useRef, lazy, Suspense } from 'react';
 import { Product, WarehouseBin, View } from './types';
 import { useIdentification, UploadGroupPayload } from './hooks/useIdentification';
 import { useImproveQueue } from './hooks/useImproveQueue';
-import ProductInput from './components/ProductInput';
-import CaptureView from './components/capture/CaptureView';
-import DeduplicationView from './components/DeduplicationView';
-import AuditLogView from './components/AuditLogView';
 import CookieConsentBanner from './components/CookieConsentBanner';
 import { CookieConsentProvider } from './context/CookieConsentContext';
-import ImportModal from './components/ImportModal';
 import { Header } from './components/Header';
 import { Sidebar } from './components/Sidebar';
 import { Topbar } from './components/Topbar';
 import { Spinner } from './components/Spinner';
 import JobStatusPopup from './components/JobStatusPopup';
 import StatusDock from './components/StatusDock';
-import MobileSearchView from './components/MobileSearchView';
 import MobileTabBar from './components/MobileTabBar';
 import ProductsPageHeader from './components/ProductsPageHeader';
 
-import ProductSheet from './components/ProductSheet';
-import AdminTable from './components/AdminTable';
-import WarehouseView from './components/WarehouseView';
-import Dashboard from './components/Dashboard';
-import DashboardMobile from './components/DashboardMobile';
-import OperationsView from './components/OperationsView';
-import MobileOperationsView from './components/MobileOperationsView';
-import { CategoryManagement } from './components/CategoryManagement';
-import { AdminPanel } from './components/admin/AdminPanel';
-import { MitarbeiterRollen } from './components/admin/MitarbeiterRollen';
-import { ShopGesundheit } from './components/ShopGesundheit';
-import OrdersView from './components/OrdersView';
-import MarketplaceListingsView from './components/MarketplaceListingsView';
-import ListingErrorsView from './components/ListingErrorsView';
-import FinanceView from './components/FinanceView';
-import InventoryView from './components/InventoryView';
-import { IntegrationsHub } from './components/IntegrationsHub';
-import { IntegrationConfigPage } from './components/integrations/IntegrationConfigPage';
-import { ReturnsView } from './components/orders/ReturnsView';
-import { ShippingView } from './components/orders/ShippingView';
-import { InvoicesView } from './components/orders/InvoicesView';
-import { OrderSettingsView } from './components/orders/OrderSettingsView';
-import { WarehouseSettingsView } from './components/warehouse/WarehouseSettingsView';
-import { CompanySettings } from './components/settings/CompanySettings';
-import { ProfileSettings } from './components/settings/ProfileSettings';
-import { ApiSettings } from './components/settings/ApiSettings';
-import { BillingSettings } from './components/settings/BillingSettings';
-import PricingDashboard from './components/PricingDashboard';
-import RuleDashboard from './components/RuleDashboard';
 import { fetchOrders, fetchProducts, refreshPrice } from './api/client';
 import { isIdentifyRunning, subscribeIdentifyRun } from './utils/identifyRunFlag';
 import { startVisiblePolling } from './utils/visiblePolling';
@@ -63,6 +28,49 @@ import { ResetPasswordScreen } from './components/ResetPasswordScreen';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useSSE } from './hooks/useSSE';
+
+/**
+ * Ansichten werden erst geladen, wenn sie geoeffnet werden.
+ *
+ * Vorher zog App.tsx 47 Ansichten sofort herein — alles landete in EINER
+ * 2,4-MB-Datei, die komplett geladen und ausgewertet werden musste, bevor der
+ * erste Bildschirm bedienbar war. Sichtbar ist aber immer nur eine Ansicht.
+ */
+const Dashboard = lazy(() => import('./components/Dashboard'));
+const DashboardMobile = lazy(() => import('./components/DashboardMobile'));
+const AdminPanel = lazy(() => import('./components/admin/AdminPanel').then((m) => ({ default: m.AdminPanel })));
+const AdminTable = lazy(() => import('./components/AdminTable'));
+const ApiSettings = lazy(() => import('./components/settings/ApiSettings').then((m) => ({ default: m.ApiSettings })));
+const AuditLogView = lazy(() => import('./components/AuditLogView'));
+const BillingSettings = lazy(() => import('./components/settings/BillingSettings').then((m) => ({ default: m.BillingSettings })));
+const CaptureView = lazy(() => import('./components/capture/CaptureView'));
+const CategoryManagement = lazy(() => import('./components/CategoryManagement').then((m) => ({ default: m.CategoryManagement })));
+const CompanySettings = lazy(() => import('./components/settings/CompanySettings').then((m) => ({ default: m.CompanySettings })));
+const DeduplicationView = lazy(() => import('./components/DeduplicationView'));
+const FinanceView = lazy(() => import('./components/FinanceView'));
+const ImportModal = lazy(() => import('./components/ImportModal'));
+const IntegrationConfigPage = lazy(() => import('./components/integrations/IntegrationConfigPage').then((m) => ({ default: m.IntegrationConfigPage })));
+const IntegrationsHub = lazy(() => import('./components/IntegrationsHub').then((m) => ({ default: m.IntegrationsHub })));
+const InventoryView = lazy(() => import('./components/InventoryView'));
+const InvoicesView = lazy(() => import('./components/orders/InvoicesView').then((m) => ({ default: m.InvoicesView })));
+const ListingErrorsView = lazy(() => import('./components/ListingErrorsView'));
+const MarketplaceListingsView = lazy(() => import('./components/MarketplaceListingsView'));
+const MitarbeiterRollen = lazy(() => import('./components/admin/MitarbeiterRollen').then((m) => ({ default: m.MitarbeiterRollen })));
+const MobileOperationsView = lazy(() => import('./components/MobileOperationsView'));
+const MobileSearchView = lazy(() => import('./components/MobileSearchView'));
+const OperationsView = lazy(() => import('./components/OperationsView'));
+const OrderSettingsView = lazy(() => import('./components/orders/OrderSettingsView').then((m) => ({ default: m.OrderSettingsView })));
+const OrdersView = lazy(() => import('./components/OrdersView'));
+const PricingDashboard = lazy(() => import('./components/PricingDashboard'));
+const ProductInput = lazy(() => import('./components/ProductInput'));
+const ProductSheet = lazy(() => import('./components/ProductSheet'));
+const ProfileSettings = lazy(() => import('./components/settings/ProfileSettings').then((m) => ({ default: m.ProfileSettings })));
+const ReturnsView = lazy(() => import('./components/orders/ReturnsView').then((m) => ({ default: m.ReturnsView })));
+const RuleDashboard = lazy(() => import('./components/RuleDashboard'));
+const ShippingView = lazy(() => import('./components/orders/ShippingView').then((m) => ({ default: m.ShippingView })));
+const ShopGesundheit = lazy(() => import('./components/ShopGesundheit').then((m) => ({ default: m.ShopGesundheit })));
+const WarehouseSettingsView = lazy(() => import('./components/warehouse/WarehouseSettingsView').then((m) => ({ default: m.WarehouseSettingsView })));
+const WarehouseView = lazy(() => import('./components/WarehouseView'));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -1271,7 +1279,19 @@ const AppInner: React.FC = () => {
         </div>
       );
     }
-    return renderView();
+    // Ansichten werden erst beim Oeffnen geladen — waehrenddessen eine ruhige
+    // Anzeige statt eines leeren Bildschirms.
+    return (
+      <Suspense
+        fallback={
+          <div className="flex items-center justify-center py-16" role="status" aria-live="polite">
+            <Spinner />
+          </div>
+        }
+      >
+        {renderView()}
+      </Suspense>
+    );
   };
 
   return (

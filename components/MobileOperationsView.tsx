@@ -21,6 +21,7 @@ import { compareBinCodesForPickRoute } from '../utils/warehouseRoute';
 import type { UploadGroupPayload } from '../hooks/useIdentification';
 import QuantityNumpad from './operations/QuantityNumpad';
 import { resolveScanCaptureMode } from './scanCaptureMode';
+import { printLabelBlob } from '../utils/labelPrint';
 
 type OpsMode = 'operations' | 'operations-identify' | 'operations-stow' | 'operations-pick' | 'operations-pack';
 
@@ -154,6 +155,10 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
   const [pickMessage, setPickMessage] = useState<string | null>(null);
   const [pickMessageTone, setPickMessageTone] = useState<'info' | 'success' | 'error' | null>(null);
   const [packMessage, setPackMessage] = useState<string | null>(null);
+  // Fertiges Etikett, das nur noch gedruckt werden muss. Steht als grosser
+  // Knopf im Pack-Bildschirm, bis der Mensch gedruckt oder weggetippt hat.
+  const [pendingLabel, setPendingLabel] = useState<{ blob: Blob; orderLabel: string; carrier: string | null } | null>(null);
+  const [labelPrinting, setLabelPrinting] = useState(false);
   const [packScopedOrderKey, setPackScopedOrderKey] = useState<string | null>(null);
   const [packSelectedKey, setPackSelectedKey] = useState<string | null>(null);
   const [printingPrefs, setPrintingPrefs] = useState<{ labelFormat?: string; autoPrint?: boolean; networkPrinterUrl?: string }>({});
@@ -2140,21 +2145,18 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
           labelFormat: printingPrefs.labelFormat || 'a6',
         });
 
-        if (result.labelBlobUrl) {
-          window.open(result.labelBlobUrl, '_blank');
-          setTimeout(() => URL.revokeObjectURL(result.labelBlobUrl!), 5 * 60 * 1000);
+        // Das Etikett wird NICHT mehr in einem Tab angezeigt. Auf dem
+        // Handscanner war Drucken von dort sechs Schritte weit weg (Fenster in
+        // den Hintergrund, wieder öffnen, Drei-Punkte-Menü, Teilen, Drucken,
+        // Druck-Symbol). Stattdessen steht sofort ein großer Druck-Knopf da,
+        // der direkt in Androids Teilen-/Druck-Auswahl führt.
+        if (result.labelBlob) {
+          if (result.labelBlobUrl) URL.revokeObjectURL(result.labelBlobUrl);
+          setPendingLabel({ blob: result.labelBlob, orderLabel, carrier: result.carrier || null });
+          setPackMessage(`${orderLabel} verpackt & Etikett bereit (${result.carrier || '?'}).`);
+        } else if (result.labelBlobUrl) {
           setPackMessage(
-            `${orderLabel} verpackt & Label erstellt (${result.carrier || '?'}) — PDF im neuen Tab geöffnet. Druck manuell starten.`
-          );
-        } else if (result.labelBlob) {
-          const url = URL.createObjectURL(result.labelBlob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = `label-${orderLabel}.pdf`;
-          a.click();
-          setTimeout(() => URL.revokeObjectURL(url), 5 * 60 * 1000);
-          setPackMessage(
-            `${orderLabel} verpackt & Label erstellt (${result.carrier || '?'}) — Label-PDF heruntergeladen.`
+            `${orderLabel} verpackt & Label erstellt (${result.carrier || '?'}) — Etikett konnte nicht geladen werden.`
           );
         } else {
           setPackMessage(
@@ -2379,6 +2381,40 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
             <p>{t('ops.badge.pack')}</p>
           </div>
         </div>
+
+        {pendingLabel ? (
+          <div className="rounded-2xl border-2 border-success bg-success-dim p-3 space-y-2">
+            <p className="text-sm font-semibold text-success">
+              {pendingLabel.orderLabel} — Etikett bereit{pendingLabel.carrier ? ` (${pendingLabel.carrier})` : ''}
+            </p>
+            <button
+              type="button"
+              disabled={labelPrinting}
+              onClick={async () => {
+                setLabelPrinting(true);
+                try {
+                  const res = await printLabelBlob(pendingLabel.blob, `label-${pendingLabel.orderLabel}.pdf`);
+                  // Abbruch durch den Menschen: Knopf stehen lassen, damit ein
+                  // zweiter Versuch moeglich ist.
+                  if (res.ok) setPendingLabel(null);
+                  else if (!res.cancelled && res.error) setPackMessage(res.error);
+                } finally {
+                  setLabelPrinting(false);
+                }
+              }}
+              className="w-full rounded-xl bg-success text-white font-bold h-14 text-base disabled:opacity-50"
+            >
+              {labelPrinting ? 'Öffne Druck…' : 'Etikett drucken'}
+            </button>
+            <button
+              type="button"
+              onClick={() => setPendingLabel(null)}
+              className="w-full text-xs text-txt-muted underline"
+            >
+              Ohne Druck weiter
+            </button>
+          </div>
+        ) : null}
 
         {packMessage ? (
           <div role="status" aria-live="polite" className="rounded-2xl border border-app-border bg-app-bg/40 p-3 text-sm text-txt-secondary">{packMessage}</div>

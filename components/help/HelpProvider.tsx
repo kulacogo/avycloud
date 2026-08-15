@@ -1,5 +1,12 @@
-import React, { useCallback, useEffect, useState } from "react";
-import HelpDrawer from "./HelpDrawer";
+import React, { useCallback, useEffect, useState, lazy, Suspense } from "react";
+
+/**
+ * Die Hilfe wird erst geladen, wenn sie geöffnet wird.
+ *
+ * Sie bringt die Markdown-Anzeige mit (112 KB), die sonst bei JEDEM Start
+ * mitgeladen wurde — obwohl die Hilfe fast nie offen ist.
+ */
+const HelpDrawer = lazy(() => import("./HelpDrawer"));
 
 export const HELP_OPEN_EVENT = "open-help-drawer";
 
@@ -43,7 +50,13 @@ export const HelpProvider: React.FC = () => {
     return () => window.removeEventListener("hashchange", onHashChange);
   }, []);
 
-  return <HelpDrawer open={open} onClose={handleClose} />;
+  // Nichts nachladen, solange die Hilfe zu ist.
+  if (!open) return null;
+  return (
+    <Suspense fallback={null}>
+      <HelpDrawer open={open} onClose={handleClose} />
+    </Suspense>
+  );
 };
 
 export default HelpProvider;
