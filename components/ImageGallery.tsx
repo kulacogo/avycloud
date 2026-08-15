@@ -710,6 +710,13 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
           <a
             href={resolveSrc(activeImage) || '#'}
             download={`product-image-${activeIndex + 1}`}
+            /* Die Bilder liegen auf einer FREMDEN Adresse (GCS). Dort ignoriert
+               der Browser `download` und blaettert stattdessen zum Bild — in
+               DERSELBEN Registerkarte. Die Anwendung war damit weg, samt
+               ungespeicherter Aenderungen im Datenblatt. Mit einem eigenen Tab
+               bleibt die Arbeit auf jeden Fall erhalten. */
+            target="_blank"
+            rel="noopener noreferrer"
             className="p-2 bg-black/50 text-txt-primary rounded-full"
             aria-label={t('sheet.gallery.download')}
           >

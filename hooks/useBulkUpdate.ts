@@ -12,7 +12,8 @@ interface UseBulkUpdateReturn {
   preview: BulkUpdateDiffEntry[] | null;
   result: BulkUpdateResult["data"] | null;
   executeDryRun: (productIds: string[], updates: BulkFieldUpdate[]) => Promise<void>;
-  executeCommit: (productIds: string[], updates: BulkFieldUpdate[]) => Promise<void>;
+  /** true = wirklich geschrieben. Der Aufrufer darf Eingaben nur dann verwerfen. */
+  executeCommit: (productIds: string[], updates: BulkFieldUpdate[]) => Promise<boolean>;
   reset: () => void;
 }
 
@@ -48,11 +49,13 @@ export function useBulkUpdate(): UseBulkUpdateReturn {
       const res = await bulkUpdateProducts({ productIds, updates, dryRun: false });
       if (!res.ok) {
         setError(res.error?.message || "Bulk-Update fehlgeschlagen");
-        return;
+        return false;
       }
       setResult(res.data || null);
+      return true;
     } catch (err: any) {
       setError(err?.message || "Bulk-Update fehlgeschlagen");
+      return false;
     } finally {
       setLoading(false);
     }

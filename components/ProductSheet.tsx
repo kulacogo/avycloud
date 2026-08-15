@@ -2030,7 +2030,14 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
             })()}
             {currentBarcodeSummary.primaryBarcode && (
               <div className="mt-3 pt-3 border-t border-app-border">
-                <CompetitorPrices ean={currentBarcodeSummary.primaryBarcode} ownPrice={localProduct.details?.pricing?.lowest_price?.amount} storedPrices={localProduct.details?.pricing?.competitorPrices} lastPriceCheck={localProduct.details?.pricing?.lastPriceCheck} />
+                {/* Vergleichsgrundlage ist der VERKAUFSPREIS — der Preis, den
+                    eBay/Kaufland sehen. Bis 2026-08-16 stand hier
+                    `lowest_price` (der recherchierte Marktpreis): ein
+                    Konkurrent, der den echten Angebotspreis unterbot, erschien
+                    dadurch grün als "teurer als du". Der zweite Aufrufer
+                    derselben Ansicht (pricing/ProductPricingDetail.tsx) nutzt
+                    seit jeher sellPrice. */}
+                <CompetitorPrices ean={currentBarcodeSummary.primaryBarcode} ownPrice={localProduct.details?.pricing?.sellPrice ?? localProduct.details?.pricing?.lowest_price?.amount} storedPrices={localProduct.details?.pricing?.competitorPrices} lastPriceCheck={localProduct.details?.pricing?.lastPriceCheck} />
               </div>
             )}
           </section>

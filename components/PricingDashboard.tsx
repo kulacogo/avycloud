@@ -3,6 +3,7 @@ import { usePricingRules } from "../hooks/usePricingRules";
 import PricingRuleList from "./pricing/PricingRuleList";
 import PricingSuggestions from "./pricing/PricingSuggestions";
 import { saveProduct } from "../api/client";
+import { PageTitle } from "./ui/PageTitle";
 
 type Tab = "rules" | "suggestions";
 
@@ -43,7 +44,7 @@ const PricingDashboard: React.FC = () => {
     <div className="space-y-6">
       {/* Page header */}
       <div>
-        <h1 className="text-xl font-bold text-txt-primary">Preise</h1>
+        <PageTitle className="text-xl font-bold text-txt-primary">Preise</PageTitle>
         <p className="text-sm text-txt-secondary mt-0.5">
           Preisregeln verwalten und Repricing-Vorschläge prüfen
         </p>

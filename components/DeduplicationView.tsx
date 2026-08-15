@@ -11,6 +11,7 @@ import {
   DuplicateGroup,
   MergeSuggestion,
 } from "../api/client";
+import { PageTitle } from "./ui/PageTitle";
 
 const TYPE_LABELS: Record<string, string> = {
   ean: "EAN / Barcode",
@@ -114,7 +115,7 @@ const DeduplicationView: React.FC = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-txt-primary">Duplikaterkennung</h1>
+          <PageTitle>Duplikate</PageTitle>
           <p className="text-sm text-txt-muted mt-0.5">
             {loading ? "Analyse läuft..." : `${totalProducts} Produkte analysiert`}
           </p>
@@ -213,7 +214,7 @@ const DeduplicationView: React.FC = () => {
                   <span
                     key={id}
                     className="text-xs font-mono px-2 py-0.5 rounded bg-app-elevated text-txt-secondary cursor-pointer hover:text-accent transition-colors"
-                    onClick={() => { window.location.hash = `#/product/${id}`; }}
+                    onClick={() => { window.location.hash = `#/sheet/${id}`; }}
                     title={`Produkt öffnen: ${id}`}
                   >
                     {id.length > 16 ? `${id.slice(0, 8)}…${id.slice(-6)}` : id}

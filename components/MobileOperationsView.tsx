@@ -230,13 +230,25 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
     });
   }, []);
 
+  /**
+   * Vorschau-Adressen erst beim VERLASSEN freigeben.
+   *
+   * Vorher hing dieser Effekt an `identifyImagesBySlot`. React führt die
+   * Aufräum-Funktion aber vor JEDEM erneuten Lauf aus — also bei jedem neu
+   * aufgenommenen Foto. Damit wurden die Adressen aller bisherigen Bilder
+   * freigegeben und deren Vorschauen blieben leer; sichtbar wurde es beim
+   * Zurückkehren in die Erfassen-Ansicht.
+   */
+  const identifyImagesRef = useRef(identifyImagesBySlot);
+  identifyImagesRef.current = identifyImagesBySlot;
+
   useEffect(() => {
     return () => {
-      Object.values(identifyImagesBySlot)
+      Object.values(identifyImagesRef.current)
         .flat()
         .forEach((img) => URL.revokeObjectURL(img.previewUrl));
     };
-  }, [identifyImagesBySlot]);
+  }, []);
 
   const handleIdentifyFilesSelected = useCallback((slot: number, fileList: FileList | null) => {
     if (!fileList || fileList.length === 0) return;

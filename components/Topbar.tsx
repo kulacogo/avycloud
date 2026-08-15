@@ -47,6 +47,21 @@ const VIEW_TITLES: Record<string, string> = {
   "settings-team": "Mitarbeiter & Rollen",
   "settings-api": "API",
   "settings-billing": "Plan & Abrechnung",
+  // Bis 2026-08-16 fehlten diese neun Einträge. Weil die Topbar bei einem
+  // unbekannten Schlüssel auf "Dashboard" zurückfällt, stand über der
+  // Shop-Gesundheit, dem Aktivitätsprotokoll usw. wortwörtlich "Dashboard" —
+  // die App behauptete, der Mensch sei woanders. Die Bezeichnungen sind
+  // absichtlich wortgleich mit der Seitenleiste (components/Sidebar.tsx),
+  // damit Klick und Überschrift zusammenpassen.
+  "shop-health": "Shop-Gesundheit",
+  duplicates: "Duplikate",
+  pricing: "Preise",
+  rules: "Regeln",
+  "audit-log": "Aktivitätsprotokoll",
+  "integrations-ebay": "eBay",
+  "integrations-kaufland": "Kaufland",
+  "integrations-sendcloud": "SendCloud",
+  "integrations-sevdesk": "SevDesk",
 };
 
 /* Breadcrumb structure for nested views */

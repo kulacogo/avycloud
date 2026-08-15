@@ -8,6 +8,7 @@ import {
   type AdminSystemHealthExternalApis,
 } from "../api/client";
 import { AdminSystemHealth } from "./admin/AdminSystemHealth";
+import { PageTitle } from "./ui/PageTitle";
 
 /**
  * Shop-Gesundheit — Operations-Dashboard (Status · KPIs · Service-Metriken).
@@ -139,7 +140,7 @@ export const ShopGesundheit: React.FC = () => {
       {/* Kopfzeile: Titel · Status · Stand */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <h1 className="text-2xl font-bold text-txt-primary">Shop-Gesundheit</h1>
+          <PageTitle>Shop-Gesundheit</PageTitle>
           <span className="inline-flex items-center gap-1.5 rounded-full border border-app-border bg-app-surface px-2.5 py-1 text-xs font-medium">
             <span className={`w-2 h-2 rounded-full ${v.dot}`} aria-hidden />
             <span className={v.text}>{v.label}</span>

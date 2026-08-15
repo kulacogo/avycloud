@@ -240,6 +240,9 @@ const AdminTable: React.FC<AdminTableProps> = ({
     typeof window !== 'undefined' ? window.matchMedia('(max-width: 640px)').matches : false
   );
   const [filterPanelOpen, setFilterPanelOpen] = useState(false);
+  // Sichtbarer Fehler beim Inline-Speichern. Vorher verschwand der
+  // Speichern-Knopf auch im Fehlerfall und die Eingaben waren stumm weg.
+  const [bulkError, setBulkError] = useState<string | null>(null);
   const { inventories } = useInventoryContext();
   const [inventoryModalOpen, setInventoryModalOpen] = useState(false);
   const [inventorySelection, setInventorySelection] = useState('');
@@ -2126,6 +2129,11 @@ const AdminTable: React.FC<AdminTableProps> = ({
     setFilterEbay('all');
     setFilterKaufland('all');
     setFilterEditor([]);
+    // Diese zwei fehlten: "Zuruecksetzen" liess die Liste gefiltert stehen,
+    // die Filter-Kachel zeigte weiter eine 1 und der uebrig gebliebene Chip
+    // war nicht mehr wegzubekommen.
+    setFilterSold('all');
+    setFilterErfasser('all');
     setPageSize(50);
     setCurrentPage(1);
   };
@@ -2585,9 +2593,24 @@ const AdminTable: React.FC<AdminTableProps> = ({
                 if (payloads.length === 0) return;
                 // Group all dirty products into one bulk call
                 // Grid edit: each product can have different values, so we do per-product calls
+                // Eingaben NUR verwerfen, wenn wirklich alles geschrieben
+                // wurde. Vorher lief `discardAll()` bedingungslos: schlug der
+                // Schreibvorgang fehl, verschwand der Speichern-Knopf wie bei
+                // Erfolg, die Tabelle zeigte wieder die alten Werte und es gab
+                // keinerlei Meldung.
+                const fehlgeschlagen: string[] = [];
                 for (const payload of payloads) {
-                  await gridBulkUpdate.executeCommit([payload.productId], payload.updates);
+                  const ok = await gridBulkUpdate.executeCommit([payload.productId], payload.updates);
+                  if (!ok) fehlgeschlagen.push(payload.productId);
                 }
+                if (fehlgeschlagen.length) {
+                  setBulkError(
+                    `${fehlgeschlagen.length} von ${payloads.length} Produkt(en) konnten nicht gespeichert werden — deine Eingaben bleiben stehen. ` +
+                      `Betroffen: ${fehlgeschlagen.slice(0, 5).join(', ')}${fehlgeschlagen.length > 5 ? ' …' : ''}`
+                  );
+                  return;
+                }
+                setBulkError(null);
                 gridEdit.discardAll();
                 try {
                   const list = await fetchProducts();
@@ -2604,6 +2627,19 @@ const AdminTable: React.FC<AdminTableProps> = ({
             />
           )}
         </div>
+
+        {bulkError && (
+          <div className="mb-3 flex flex-wrap items-center gap-3 rounded-xl border border-danger/20 bg-danger-dim px-4 py-3 text-sm text-danger">
+            <span className="flex-1">{bulkError}</span>
+            <button
+              type="button"
+              onClick={() => setBulkError(null)}
+              className="text-xs font-semibold underline opacity-80 hover:opacity-100"
+            >
+              Schließen
+            </button>
+          </div>
+        )}
 
         {filteredAndSortedProducts.length === 0 ? (
           <div className="rounded-2xl bg-app-surface p-5 text-sm text-txt-secondary border border-app-border">

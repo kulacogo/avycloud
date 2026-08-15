@@ -4,6 +4,7 @@ import { confirmPasswordReset, verifyPasswordResetCode } from 'firebase/auth';
 import { getFirebaseAuth } from '../utils/firebase';
 import { requestPasswordReset } from '../api/client';
 import { useI18n } from '../i18n';
+import { authErrorMessage } from '../utils/authErrors';
 
 interface ResetFormData {
   newPassword: string;
@@ -104,7 +105,8 @@ export const ResetPasswordScreen: React.FC = () => {
           ? t('auth.reset.expiredLink')
           : err?.code === 'auth/weak-password'
             ? t('auth.reset.weakPassword')
-            : err?.message || t('auth.reset.saveFailed');
+            // Kein err.message: das waere der rohe englische Firebase-Text.
+            : authErrorMessage(err, t('auth.reset.saveFailed'));
       setError(message);
     }
   };
@@ -115,7 +117,7 @@ export const ResetPasswordScreen: React.FC = () => {
       await requestPasswordReset(data.resendEmail.trim().toLowerCase());
       setResendMessage(t('auth.reset.resend.sent'));
     } catch (err: any) {
-      setResendMessage(err?.message || t('auth.reset.resend.failed'));
+      setResendMessage(authErrorMessage(err, t('auth.reset.resend.failed')));
     }
   };
 

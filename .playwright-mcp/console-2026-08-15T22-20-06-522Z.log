@@ -1,0 +1,3 @@
+[      67ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://127.0.0.1:8791/favicon.ico:0
+[     355ms] [ERROR] Failed to load resource: net::ERR_FILE_NOT_FOUND @ blob:http://127.0.0.1:8791/75988e0b-9d2c-46d0-8752-078ff95a7101:0
+[     356ms] [ERROR] Failed to load resource: net::ERR_FILE_NOT_FOUND @ blob:http://127.0.0.1:8791/75988e0b-9d2c-46d0-8752-078ff95a7101:0

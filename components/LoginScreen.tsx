@@ -3,6 +3,7 @@ import { useForm } from 'react-hook-form';
 import { useAuth } from '../context/AuthContext';
 import { requestPasswordReset } from '../api/client';
 import { useI18n } from '../i18n';
+import { authErrorMessage } from '../utils/authErrors';
 
 interface LoginFormData {
   email: string;
@@ -38,7 +39,8 @@ export const LoginScreen: React.FC = () => {
     try {
       await signInWithEmailPassword(data.email, data.password);
     } catch (err: any) {
-      setError(err?.message || t('auth.login.error'));
+      // Nicht err.message: das ist der rohe englische Firebase-Text.
+      setError(authErrorMessage(err, t('auth.login.error')));
     }
   };
 

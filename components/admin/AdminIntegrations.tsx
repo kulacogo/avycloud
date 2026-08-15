@@ -83,6 +83,8 @@ export const AdminIntegrations: React.FC = () => {
   const [status, setStatus] = useState<EbayConnectionStatus | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Ausweich-Verknuepfung, falls der Browser das Anmeldefenster blockiert hat.
+  const [connectUrl, setConnectUrl] = useState<string | null>(null);
 
   const [csvFile, setCsvFile] = useState<File | null>(null);
   const [importReport, setImportReport] = useState<any>(null);
@@ -147,13 +149,16 @@ export const AdminIntegrations: React.FC = () => {
     setError(null);
     try {
       const url = await startEbayOAuth({ locale: 'de-DE', promptLogin: true });
-      const popup = window.open(url, '_blank', 'noopener,noreferrer');
-      if (!popup) {
-        // Fallback: navigate in same tab if popups are blocked.
-        window.location.assign(url);
-      } else {
-        try { popup.focus?.(); } catch {}
-      }
+      // ACHTUNG: `window.open` mit 'noopener'/'noreferrer' gibt laut Standard
+      // IMMER null zurueck — auch wenn das Fenster aufgegangen ist. Die alte
+      // Erfolgspruefung war damit strukturell falsch und der Ausweichpfad
+      // (`location.assign`) riss zusaetzlich den laufenden AvyCloud-Tab auf die
+      // eBay-Anmeldung. Der Bediener stand danach auf einer nackten
+      // Backend-Seite und musste die Anwendung neu starten.
+      window.open(url, '_blank', 'noopener,noreferrer');
+      // Statt den Tab zu kapern: eine sichtbare Ausweich-Verknuepfung anbieten,
+      // falls der Browser das Fenster blockiert hat.
+      setConnectUrl(url);
     } catch (e: any) {
       setError(e?.message || String(e));
     }
@@ -241,6 +246,26 @@ export const AdminIntegrations: React.FC = () => {
         {error && (
           <div className="rounded-xl border border-danger/20 bg-danger-dim p-3 text-sm text-danger">
             {error}
+          </div>
+        )}
+        {connectUrl && (
+          <div className="flex flex-wrap items-center gap-3 rounded-xl border border-app-border bg-app-elevated p-3 text-sm text-txt-secondary">
+            <span>Die eBay-Anmeldung wurde in einem neuen Tab geöffnet.</span>
+            <a
+              href={connectUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-semibold text-accent hover:underline"
+            >
+              Kein Fenster aufgegangen? Hier öffnen
+            </a>
+            <button
+              type="button"
+              onClick={() => setConnectUrl(null)}
+              className="ml-auto text-xs text-txt-muted hover:text-txt-primary"
+            >
+              Ausblenden
+            </button>
           </div>
         )}
 

@@ -97,7 +97,7 @@ export default function ListingErrorsView() {
     });
 
   const openProduct = (id: string) => {
-    window.location.hash = `#/product/${id}`;
+    window.location.hash = `#/sheet/${id}`;
   };
 
   const retry = async (row: ListingErrorRow) => {

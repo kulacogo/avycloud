@@ -6,6 +6,7 @@ import { Tabs, TabPanel } from "./ui/Tabs";
 import { useToast } from "../context/ToastContext";
 import { fetchAuditLog, AuditLogEntry } from "../api/client";
 import UserSessionsTab from "./UserSessionsTab";
+import { PageTitle } from "./ui/PageTitle";
 
 const ACTION_LABELS: Record<string, string> = {
   "product.created": "Produkt erstellt",
@@ -142,7 +143,7 @@ const AuditLogView: React.FC = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-txt-primary">Aktivitätsprotokoll</h1>
+          <PageTitle>Aktivitätsprotokoll</PageTitle>
           <p className="text-sm text-txt-muted mt-0.5">
             Alle Änderungen und Aktionen im System
           </p>
@@ -227,7 +228,7 @@ const AuditLogView: React.FC = () => {
                           className="font-mono cursor-pointer hover:text-accent transition-colors"
                           onClick={() => {
                             if (entry.resourceType === "product") {
-                              window.location.hash = `#/product/${entry.resourceId}`;
+                              window.location.hash = `#/sheet/${entry.resourceId}`;
                             }
                           }}
                         >

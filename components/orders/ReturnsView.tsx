@@ -248,6 +248,9 @@ const ReturnDetail: React.FC<{
 }> = ({ ret, onClose, onProcess, onRefund, onCloseReturn, onStatusChange }) => {
   const [events, setEvents] = useState<any[]>([]);
   const [loadingEvents, setLoadingEvents] = useState(true);
+  // Sperre gegen Doppel-Erstattung. Bewusst im Dialog gehalten: er schliesst
+  // sich nach dem Vorgang, damit wird die Sperre von selbst wieder frei.
+  const [refundInFlight, setRefundInFlight] = useState(false);
   const backdropRef = React.useRef<HTMLDivElement>(null);
 
   // Fetch timeline events
@@ -511,13 +514,21 @@ const ReturnDetail: React.FC<{
               {isRefunded && ret.marketplace && !ret.marketplaceRefundStatus && (
                 <button
                   type="button"
-                  onClick={() => onRefund(ret)}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-success-dim text-success text-sm font-semibold hover:opacity-80 transition"
+                  // Echte Geld-Erstattung beim Marktplatz: der Knopf blieb
+                  // waehrend des Aufrufs unveraendert klickbar, ein zweiter
+                  // Klick loeste eine ZWEITE Erstattung aus.
+                  disabled={refundInFlight}
+                  onClick={() => {
+                    if (refundInFlight) return;
+                    setRefundInFlight(true);
+                    onRefund(ret);
+                  }}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-success-dim text-success text-sm font-semibold hover:opacity-80 transition disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
                   </svg>
-                  Erstatten
+                  {refundInFlight ? 'Wird erstattet…' : 'Erstatten'}
                 </button>
               )}
               {(isRefunded || st === "abgelehnt") && (

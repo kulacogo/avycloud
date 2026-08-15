@@ -35,6 +35,9 @@ interface LocalGroup {
   checked: boolean;
 }
 
+/** Quell-Kennung beim Ziehen aus dem Bereich "ohne Gruppe" — keine echte Gruppe. */
+const UNASSIGNED_SOURCE = '__unassigned__';
+
 const createId = () =>
   typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
     ? crypto.randomUUID()
@@ -215,6 +218,36 @@ const StepGrouping: React.FC<StepGroupingProps> = ({ images, barcodes, onConfirm
     });
   }, []);
 
+  /**
+   * Fotos, die in KEINER Gruppe stecken.
+   *
+   * Entsteht, wenn man aus einem späteren Schritt zurückgeht und im Upload ein
+   * Foto ergänzt: die wiederhergestellte Gruppierung kennt es nicht. Vorher
+   * fiel so ein Bild lautlos aus der Erfassung.
+   */
+  const unassignedImages = React.useMemo(
+    () => images.filter((img) => !groups.some((g) => g.imageIds.includes(img.id))),
+    [images, groups]
+  );
+
+  const assignAllUnassignedToOwnGroups = useCallback(() => {
+    if (!unassignedImages.length) return;
+    setManualEdit(true);
+    setGroups((prev) => [
+      ...prev,
+      ...unassignedImages.map((img, idx) => ({
+        id: createId(),
+        label: `Produkt ${prev.length + idx + 1}`,
+        imageIds: [img.id],
+        barcodes: "",
+        confidence: 1,
+        reason: "Nachträglich ergänzt",
+        hint: "",
+        checked: true,
+      })),
+    ]);
+  }, [unassignedImages]);
+
   const copyImageToNewGroup = useCallback((imageId: string) => {
     setManualEdit(true);
     setGroups((prev) => [
@@ -285,6 +318,16 @@ const StepGrouping: React.FC<StepGroupingProps> = ({ images, barcodes, onConfirm
       }));
 
     if (!confirmed.length) return;
+
+    // Nicht zugeordnete Fotos wurden bisher kommentarlos fallengelassen.
+    const ohneGruppe = images.filter((img) => !groups.some((g) => g.imageIds.includes(img.id)));
+    if (ohneGruppe.length > 0) {
+      const weiter = window.confirm(
+        `${ohneGruppe.length} Foto${ohneGruppe.length === 1 ? '' : 's'} ist keiner Gruppe zugeordnet und wird NICHT erfasst.\n\nTrotzdem fortfahren?`
+      );
+      if (!weiter) return;
+    }
+
     onConfirm(confirmed);
   }, [groups, images, onConfirm]);
 
@@ -530,6 +573,53 @@ const StepGrouping: React.FC<StepGroupingProps> = ({ images, barcodes, onConfirm
           </Card>
         ))}
       </div>
+
+      {/* Nicht zugeordnete Fotos.
+          Bis 2026-08-16 fielen Bilder, die zu keiner Gruppe gehoerten, LAUTLOS
+          heraus: sie wurden nirgends angezeigt, gingen nicht in die Erkennung
+          und der einzige Hinweis war die Kopfzeile, die weiter die volle Anzahl
+          zaehlte. Passiert, wenn man aus einem spaeteren Schritt zurueckgeht
+          und im Upload ein Foto ergaenzt — die wiederhergestellte Gruppierung
+          kennt das neue Bild nicht. */}
+      {unassignedImages.length > 0 && (
+        <Card>
+          <div className="p-4">
+            <div className="flex items-center justify-between gap-3 mb-3">
+              <div>
+                <h4 className="text-sm font-semibold text-warning">
+                  {unassignedImages.length} Foto{unassignedImages.length === 1 ? "" : "s"} ohne Gruppe
+                </h4>
+                <p className="text-xs text-txt-muted mt-0.5">
+                  Diese Fotos werden nicht erfasst. Zieh sie in eine Gruppe oder gib ihnen eine eigene.
+                </p>
+              </div>
+              <Button variant="secondary" size="sm" onClick={assignAllUnassignedToOwnGroups}>
+                Je eigene Gruppe
+              </Button>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {unassignedImages.map((img) => (
+                <div
+                  key={img.id}
+                  draggable
+                  onDragStart={(e) => handleImageDragStart(e, UNASSIGNED_SOURCE, img.id)}
+                  className="relative w-20 h-20 rounded-lg overflow-hidden border-2 border-warning/50 cursor-grab active:cursor-grabbing"
+                >
+                  <img src={img.url} alt="" className="w-full h-full object-cover pointer-events-none select-none" />
+                  <button
+                    type="button"
+                    onClick={() => copyImageToNewGroup(img.id)}
+                    title="Eigene Gruppe für dieses Foto"
+                    className="absolute bottom-1 right-1 w-5 h-5 flex items-center justify-center rounded bg-app-surface/90 border border-app-border text-txt-muted hover:text-accent hover:border-accent/50 text-xs"
+                  >
+                    +
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </Card>
+      )}
 
       {/* Actions */}
       <div className="flex items-center justify-between">

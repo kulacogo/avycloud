@@ -290,16 +290,46 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
     }
   };
 
-  const handleRemoveProduct = async (productId: string) => {
+  /**
+   * Fragt VOR dem Auslagern nach.
+   *
+   * Der Knopf hieß bis 2026-08-16 „Entfernen" und löste ohne jede Rückfrage
+   * eine echte Bestandsausbuchung aus — der Lagerbestand fiel um die Menge, die
+   * in diesem Behälter lag. Der Bewegungen-Tab nennt dasselbe Ereignis selbst
+   * „Auslagerung"; nur der Knopf verschwieg es.
+   */
+  const requestRemoveProduct = (item: { productId: string; name?: string; sku?: string; quantity?: number }) => {
     if (!selectedBin) return;
+    const menge = Number(item.quantity) || 0;
+    setConfirmDialog({
+      title: `${menge} × auslagern?`,
+      tone: 'danger',
+      description:
+        `Das ist keine reine Zuordnungs-Änderung: der Bestand von ${item.sku || item.productId} ` +
+        `sinkt tatsächlich um ${menge} Stück aus ${selectedBin.code}.`,
+      confirmLabel: 'Ja, auslagern',
+      onConfirm: async () => {
+        setConfirmDialog(null);
+        await handleRemoveProduct(item.productId, menge);
+      },
+    });
+  };
+
+  const handleRemoveProduct = async (productId: string, menge?: number) => {
+    if (!selectedBin) return;
+    const binCode = selectedBin.code;
     setRemovingProductId(productId);
     try {
-      const response = await removeProductFromBinApi(selectedBin.code, productId);
+      const response = await removeProductFromBinApi(binCode, productId);
       if (!response.ok) {
         setStatusMessage(response.error?.message || 'Fehler beim Entfernen.');
         return;
       }
-      setStatusMessage('Produkt entfernt.');
+      setStatusMessage(
+        menge != null
+          ? `Ausgelagert: ${menge} × ${binCode}.`
+          : 'Produkt ausgelagert.'
+      );
       if (selectedZone) {
         await loadBins(selectedZone.zone, selectedZone.etage, selectedBin.code);
       }
@@ -336,6 +366,28 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
       setStatusMessage('Behälter entfernt.');
       const detail = await fetchWarehouseBinDetail(binDetail.code);
       setBinDetail(detail);
+    } catch (error: any) {
+      setStatusMessage(error?.message || 'Fehler beim Entfernen des Behälters.');
+    } finally {
+      setDeletingContainerCode(null);
+    }
+  };
+
+  /**
+   * Entfernt einen Behälter, während dieser SELBST im Detail geöffnet ist.
+   *
+   * `handleDeleteContainer` nimmt den geöffneten BIN als Eltern an — das stimmt
+   * nur aus der Behälter-LISTE heraus. Ist der Behälter selbst geöffnet, muss
+   * der Eltern-Code ausdrücklich mitgegeben werden.
+   */
+  const handleDeleteContainerFromDetail = async (parentCode: string, childCode: string) => {
+    setDeletingContainerCode(childCode);
+    try {
+      await deleteChildBinApi(parentCode, childCode);
+      setStatusMessage(`Behälter ${childCode} entfernt.`);
+      const detail = await fetchWarehouseBinDetail(parentCode);
+      setBinDetail(detail);
+      if (selectedZone) await loadBins(selectedZone.zone, selectedZone.etage, parentCode);
     } catch (error: any) {
       setStatusMessage(error?.message || 'Fehler beim Entfernen des Behälters.');
     } finally {
@@ -443,10 +495,16 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
         setStatusMessage(dry.error?.message || 'Ebene konnte nicht geprüft werden.');
         return;
       }
+      const codes: string[] = Array.isArray(dry.data?.binCodes) ? dry.data.binCodes : [];
       setConfirmDialog({
         title: `Ebene ${ebene} löschen?`,
         tone: 'danger',
-        description: `Gang ${gang} · Regal ${regal}. Dies entfernt den BIN ${selectedBin.code}. Nur möglich wenn der BIN leer ist.`,
+        // Der Dialog nannte bisher NUR den gerade ausgewählten Code und
+        // verschwieg, dass die Ebene den Eltern-BIN samt ALLER Behälter
+        // mitnimmt. Jetzt steht der echte Umfang aus dem Trockenlauf da —
+        // wie bei Gang und Regal auch.
+        description: `Gang ${gang} · Regal ${regal} · Ebene ${ebene}. Dies entfernt den Regalplatz samt aller darin angelegten Behälter. Nur möglich wenn alles leer ist.`,
+        details: `Betroffene BINs: ${codes.length}\n${codes.slice(0, 50).join('\n')}${codes.length > 50 ? `\n… +${codes.length - 50} mehr` : ''}`,
         confirmLabel: 'Löschen',
         onConfirm: async () => {
           setConfirmDialog(null);
@@ -748,7 +806,10 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
             </button>
             <button
               type="button"
-              disabled={!selectedZone || !selectedBin || deletingStructure}
+              // Bei einem ausgewaehlten BEHAELTER wuerde dieser Knopf den ganzen
+              // Regalplatz samt aller Behaelter loeschen — der Dialog nannte
+              // aber nur den Behaelter-Code. Darum hier gesperrt.
+              disabled={!selectedZone || !selectedBin || deletingStructure || Boolean(binDetail?.isContainer)}
               onClick={handleDeleteEbene}
               className="px-3 py-1.5 rounded-xl bg-danger-dim text-sm text-danger disabled:opacity-40 hover:bg-danger/20 transition"
               title="Löscht den aktuell ausgewählten BIN (Ebene)."
@@ -829,16 +890,37 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
                       {binDetail.firstStoredAt ? `seit ${new Date(binDetail.firstStoredAt).toLocaleString('de-DE')}` : 'leer'}
                     </div>
                     <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        disabled={!selectedBin || deletingStructure}
-                        onClick={handleDeleteEbene}
-                        className="px-3 py-1.5 rounded-xl bg-danger-dim text-danger text-sm disabled:opacity-40 hover:bg-danger/20 transition"
-                        title="Löscht diesen BIN (nur wenn leer)"
-                      >
-                        Ebene löschen
-                      </button>
-                      <span className="text-xs text-txt-secondary">Nur möglich, wenn der BIN leer ist.</span>
+                      {/* Bei einem Behaelter loescht "Ebene loeschen" den ganzen
+                          Regalplatz samt aller Behaelter — nicht den einzelnen
+                          Behaelter, den der Dialogtext nannte. Darum steht hier
+                          nur der Knopf, der wirklich zum Ausgewaehlten passt. */}
+                      {binDetail?.isContainer ? (
+                        <>
+                          <button
+                            type="button"
+                            disabled={!binDetail?.parentBinCode || deletingContainerCode === binDetail?.code}
+                            onClick={() => binDetail?.parentBinCode && handleDeleteContainerFromDetail(binDetail.parentBinCode, binDetail.code)}
+                            className="px-3 py-1.5 rounded-xl bg-danger-dim text-danger text-sm disabled:opacity-40 hover:bg-danger/20 transition"
+                            title="Entfernt diesen Behälter (nur wenn leer)"
+                          >
+                            {deletingContainerCode === binDetail?.code ? '...' : 'Behälter entfernen'}
+                          </button>
+                          <span className="text-xs text-txt-secondary">Nur möglich, wenn der Behälter leer ist.</span>
+                        </>
+                      ) : (
+                        <>
+                          <button
+                            type="button"
+                            disabled={!selectedBin || deletingStructure}
+                            onClick={handleDeleteEbene}
+                            className="px-3 py-1.5 rounded-xl bg-danger-dim text-danger text-sm disabled:opacity-40 hover:bg-danger/20 transition"
+                            title="Löscht diesen Regalplatz samt aller darin angelegten Behälter (nur wenn leer)"
+                          >
+                            Ebene löschen
+                          </button>
+                          <span className="text-xs text-txt-secondary">Nur möglich, wenn alles leer ist.</span>
+                        </>
+                      )}
                     </div>
 
                     <div className="border-t border-app-border pt-3">
@@ -854,11 +936,13 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
                                 </div>
                               </div>
                               <button
-                                onClick={() => handleRemoveProduct(item.productId)}
+                                onClick={() => requestRemoveProduct(item)}
                                 disabled={removingProductId === item.productId}
                                 className="text-xs text-danger hover:text-danger/80"
                               >
-                                {removingProductId === item.productId ? '...' : 'Entfernen'}
+                                {removingProductId === item.productId
+                                  ? '...'
+                                  : `Auslagern: ${item.quantity ?? 0} ×`}
                               </button>
                             </li>
                           ))}

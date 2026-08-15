@@ -1,6 +1,6 @@
 import React from "react";
 import { useI18n } from "../../i18n";
-import { nextQuantityFromDigit, clampQuantity } from "../../utils/quantityPad";
+import { nextQuantityFromDigit, clampQuantity, isReplacingEntry } from "../../utils/quantityPad";
 
 type QuantityNumpadProps = {
   value: number;
@@ -40,14 +40,26 @@ const QuantityNumpad: React.FC<QuantityNumpadProps> = ({
    * Kommissionieren) an jeder Reset-Stelle daran denken.
    */
   const lastEmittedRef = React.useRef<number | null>(null);
-  const isFirstEntry = lastEmittedRef.current === null || lastEmittedRef.current !== safeValue;
+  // Ob seit der letzten Wertänderung von außen schon getippt wurde. Muss ein
+  // Ref sein: meldet der Block denselben Wert zurück, den er schon anzeigt
+  // (Vorgabe 1, Tipp auf die 1), zeichnet React NICHT neu — ein beim Zeichnen
+  // berechneter Zustand bliebe dann stehen und die nächste Ziffer würde erneut
+  // ersetzen statt anzuhängen (aus 15 würde 5).
+  const hasTypedRef = React.useRef(false);
 
   const emit = (next: number) => {
     lastEmittedRef.current = next;
+    hasTypedRef.current = true;
     onChange(next);
   };
 
   const appendDigit = (digit: number) => {
+    // Bewusst zur KLICK-Zeit ausgewertet, nicht beim Zeichnen.
+    const isFirstEntry = isReplacingEntry({
+      lastEmitted: lastEmittedRef.current,
+      current: safeValue,
+      hasTyped: hasTypedRef.current,
+    });
     emit(nextQuantityFromDigit({ current: safeValue, digit, isFirstEntry, min, max }));
   };
 

@@ -25,6 +25,32 @@ export function nextQuantityFromDigit(input: {
   return clampQuantity(safe, min, max);
 }
 
+/**
+ * Entscheidet, ob der nächste Tastendruck den angezeigten Wert ERSETZT
+ * (statt anzuhängen).
+ *
+ * Diese Entscheidung MUSS zur Klick-Zeit fallen, nicht beim Zeichnen. Grund:
+ * meldet der Ziffernblock denselben Wert zurück, den er schon anzeigt (Vorgabe
+ * 1, der Mensch will 15 und tippt zuerst die 1), zeichnet React NICHT neu.
+ * Eine beim Zeichnen berechnete Entscheidung bliebe dann auf "erster Tipp"
+ * stehen und die 5 danach würde erneut ersetzen — aus 15 würde 5.
+ *
+ * `hasTyped` = seit der letzten Wertänderung von außen wurde schon getippt.
+ * `lastEmitted` = der zuletzt von diesem Feld selbst gemeldete Wert; weicht
+ * `current` davon ab, kam der Wert von außen (Reset nach Buchung, Scan,
+ * Auswahl einer Kommissionier-Zeile) und der nächste Tipp ersetzt.
+ */
+export function isReplacingEntry(input: {
+  lastEmitted: number | null;
+  current: number;
+  hasTyped: boolean;
+}): boolean {
+  const { lastEmitted, current, hasTyped } = input;
+  if (lastEmitted === null) return true;
+  if (lastEmitted !== current) return true;
+  return !hasTyped;
+}
+
 export function clampQuantity(value: number, min: number, max?: number): number {
   const minApplied = Math.max(min, value);
   if (typeof max !== "number" || !Number.isFinite(max)) return minApplied;

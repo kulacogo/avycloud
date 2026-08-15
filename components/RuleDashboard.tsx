@@ -8,6 +8,7 @@ import { RulePreview } from "./rules/RulePreview";
 import { EmptyState } from "./ui/EmptyState";
 import { Modal, ModalHeader, ModalBody } from "./ui/Modal";
 import type { RuleData, RuleJobData } from "../api/client";
+import { PageTitle } from "./ui/PageTitle";
 
 /* ─── KPI Card ─── */
 const KpiCard: React.FC<{ label: string; value: string | number; tone?: string }> = ({ label, value, tone = "text-txt-primary" }) => (
@@ -113,7 +114,7 @@ export const RuleDashboard: React.FC = () => {
       {/* Header */}
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-txt-primary">Regeln</h1>
+          <PageTitle>Regeln</PageTitle>
           <p className="text-sm text-txt-muted">Automatisierungsregeln für Produktdaten</p>
         </div>
         <div className="flex items-center gap-2">
