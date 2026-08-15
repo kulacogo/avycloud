@@ -243,9 +243,32 @@ async function listLlmScopes() {
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 }
 
+/**
+ * Betriebs-Notbremse UND Test-Schalter für den Firestore-Lookup der
+ * LLM-Konfiguration.
+ *
+ * `off` überspringt den Firestore-Zugriff und meldet sofort "nicht gefunden".
+ * Die Aufrufer (critic-worker, identify-v3-stage3, product-chat-v2/v3) fangen
+ * das bereits ab und nehmen ihre eingebauten Vorgabewerte — genau der Zustand,
+ * in dem sie ohne Zugangsdaten ohnehin landen, nur ohne die Wartezeit.
+ *
+ * Warum das nötig war: Ohne Google-Zugangsdaten sucht der Firestore-Client sie
+ * erst über die Metadaten-Erkennung, bevor er aufgibt. Auf dem GitHub-Runner
+ * dauerte das so lange, dass es das 10-Sekunden-Budget pro Test sprengte — in
+ * jedem Lauf fiel ein anderer LLM-Test um. Gemessen: dieselbe Testdatei lokal
+ * 877 ms, auf dem Runner 25 367 ms.
+ *
+ * Wird bei JEDEM Aufruf gelesen (nicht beim Laden eingefroren), damit Tests den
+ * Schalter gezielt umlegen können. Vorgabe `on` = unverändertes Verhalten.
+ */
+function llmConfigStoreEnabled() {
+  return String(process.env.LLM_CONFIG_STORE || 'on').trim().toLowerCase() !== 'off';
+}
+
 async function getScope(scopeId) {
   const id = String(scopeId || '').trim();
   if (!id) return null;
+  if (!llmConfigStoreEnabled()) return null;
   const snap = await firestore.collection(SCOPES_COLLECTION).doc(id).get();
   if (!snap.exists) return null;
   return { id: snap.id, ...snap.data() };

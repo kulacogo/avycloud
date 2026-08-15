@@ -13,6 +13,13 @@
 const fs = require('fs');
 const path = require('path');
 
+// Diese Datei prüft den Firestore-Pfad SELBST (gegen einen In-Memory-Stub, nicht
+// gegen echtes GCP) und schaltet den Lookup deshalb ausdrücklich wieder ein.
+// `vitest.setup.js` stellt ihn global auf 'off', weil der echte Client ohne
+// Zugangsdaten so lange nach ihnen sucht, dass es das Zeitbudget der Tests
+// sprengt — siehe llm-config-store-off.test.js.
+process.env.LLM_CONFIG_STORE = 'on';
+
 // ─── Stub @google-cloud/firestore early so importing lib/llm-config does not
 //     touch the real GCP SDK. The module only needs `FieldValue.serverTimestamp`.
 const gcpFsPath = require.resolve('@google-cloud/firestore');
