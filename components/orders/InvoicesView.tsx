@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { fetchInvoices, updateInvoiceStatus, downloadInvoicePdfBlob, type InvoiceData } from "../../api/client";
 import { EmptyState } from "../ui/EmptyState";
 import { useToast } from "../../context/ToastContext";
+import { PageTitle } from "../ui/PageTitle";
 
 /* ─── Helpers ─── */
 const grossAmt = (inv: any): number => inv.amountGross ?? inv.amountBrutto ?? 0;
@@ -234,7 +235,7 @@ export const InvoicesView: React.FC = () => {
     return (
       <div className="max-w-7xl mx-auto space-y-5">
         <div>
-          <h1 className="text-2xl font-bold text-txt-primary">Rechnungen</h1>
+          <PageTitle>Rechnungen</PageTitle>
           <p className="text-sm text-txt-muted">Alle Rechnungen aus eBay & Kaufland Bestellungen</p>
         </div>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -250,7 +251,7 @@ export const InvoicesView: React.FC = () => {
       {/* Header */}
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-txt-primary">Rechnungen</h1>
+          <PageTitle>Rechnungen</PageTitle>
           <p className="text-sm text-txt-muted">Alle Rechnungen aus eBay & Kaufland Bestellungen</p>
         </div>
         <button

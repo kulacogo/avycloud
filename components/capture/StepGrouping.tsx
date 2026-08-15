@@ -13,6 +13,15 @@ interface StepGroupingProps {
   barcodes: string;
   onConfirm: (groups: ConfirmedGroup[]) => void;
   onBack: () => void;
+  /**
+   * Bereits bestätigte Gruppen aus einem früheren Besuch.
+   *
+   * Der Startschutz dieses Schrittes lag in einem Ref, das mit der Instanz
+   * stirbt. Beim Zurückkommen lief deshalb `groupImages` erneut (echter
+   * Gemini-Aufruf plus Bildkompression) und überschrieb jede von Hand gezogene
+   * Zuordnung. Liegen Gruppen vor, wird nichts neu berechnet.
+   */
+  initialGroups?: ConfirmedGroup[] | null;
 }
 
 interface LocalGroup {
@@ -50,9 +59,27 @@ const ConfidenceBadge: React.FC<{ value: number }> = ({ value }) => (
   </span>
 );
 
-const StepGrouping: React.FC<StepGroupingProps> = ({ images, barcodes, onConfirm, onBack }) => {
-  const [groups, setGroups] = useState<LocalGroup[]>([]);
-  const [loading, setLoading] = useState(true);
+const StepGrouping: React.FC<StepGroupingProps> = ({ images, barcodes, onConfirm, onBack, initialGroups }) => {
+  // Bestätigte Gruppen zurückübersetzen. Die File-Objekte sind dieselben
+  // Instanzen wie in `images`, deshalb trägt der Identitätsvergleich.
+  const restoredGroups = React.useMemo<LocalGroup[] | null>(() => {
+    if (!initialGroups?.length) return null;
+    return initialGroups.map((g, idx) => ({
+      id: g.id,
+      label: g.label || `Produkt ${idx + 1}`,
+      imageIds: g.images
+        .map((file) => images.find((img) => img.file === file)?.id)
+        .filter(Boolean) as string[],
+      barcodes: g.barcodes || "",
+      confidence: 1,
+      reason: "Bereits bestätigt",
+      hint: g.hint || "",
+      checked: true,
+    }));
+  }, [initialGroups, images]);
+
+  const [groups, setGroups] = useState<LocalGroup[]>(() => restoredGroups ?? []);
+  const [loading, setLoading] = useState(() => !restoredGroups);
   const [error, setError] = useState<string | null>(null);
   const [dragSourceGroup, setDragSourceGroup] = useState<string | null>(null);
   const [dragImageId, setDragImageId] = useState<string | null>(null);
@@ -60,8 +87,10 @@ const StepGrouping: React.FC<StepGroupingProps> = ({ images, barcodes, onConfirm
   // Sobald der Nutzer Gruppen manuell verändert hat, darf die UI nicht mehr
   // in den Einzelbild-Checklist-Modus springen — der hat keine Gruppen-Controls
   // und wäre eine Sackgasse (Review-Finding).
-  const [manualEdit, setManualEdit] = useState(false);
-  const startedRef = useRef(false);
+  // Wiederhergestellte Gruppen gelten als von Hand bestätigt: die Ansicht darf
+  // nicht in den Einzelbild-Modus zurückfallen.
+  const [manualEdit, setManualEdit] = useState(() => Boolean(restoredGroups));
+  const startedRef = useRef(Boolean(restoredGroups));
 
   const buildLocalGroups = useCallback(
     (apiGroups: ProductGroupProposal[]): LocalGroup[] =>

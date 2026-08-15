@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useI18n } from '../i18n';
 import { EbayCategoryOption } from '../types';
 import { fetchCategoryProfile, saveCategoryProfile, searchEbayCategories } from '../api/client';
+import { PageTitle } from './ui/PageTitle';
 
 type CategoryProfile = {
   id: string;
@@ -103,7 +104,7 @@ export const CategoryManagement: React.FC = () => {
     <div className="max-w-6xl mx-auto space-y-5">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-txt-primary">{t('categories.title')}</h1>
+          <PageTitle>{t('categories.title')}</PageTitle>
           <p className="text-sm text-txt-muted">{t('categories.subtitle')}</p>
         </div>
       </div>

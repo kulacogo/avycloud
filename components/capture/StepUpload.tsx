@@ -7,6 +7,17 @@ import type { CaptureUploadData, ImagePreview } from "./CaptureView";
 interface StepUploadProps {
   onComplete: (data: CaptureUploadData) => void;
   lotCode?: string;
+  /**
+   * Stand aus einem früheren Besuch dieses Schrittes.
+   *
+   * CaptureView hängt die Schritte beim Wechsel aus. Ohne diese Startwerte kam
+   * der Upload-Schritt nach "Zurück" komplett leer zurück — bis zu 30 Fotos und
+   * der eingetippte Barcode waren weg, und der Stepper hat keine
+   * Vorwärts-Navigation. Die Vorschau-URLs leben weiter, weil sie erst am Ende
+   * des Assistenten freigegeben werden (CaptureView handleReset).
+   */
+  initialImages?: ImagePreview[];
+  initialBarcodes?: string;
 }
 
 const createId = () =>
@@ -18,9 +29,9 @@ const MAX_FILES = 30;
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
-const StepUpload: React.FC<StepUploadProps> = ({ onComplete, lotCode }) => {
-  const [images, setImages] = useState<ImagePreview[]>([]);
-  const [barcodes, setBarcodes] = useState("");
+const StepUpload: React.FC<StepUploadProps> = ({ onComplete, lotCode, initialImages, initialBarcodes }) => {
+  const [images, setImages] = useState<ImagePreview[]>(() => initialImages ?? []);
+  const [barcodes, setBarcodes] = useState(() => initialBarcodes ?? "");
   const [dragOver, setDragOver] = useState(false);
   const [dragOverImage, setDragOverImage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);

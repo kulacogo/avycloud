@@ -6,6 +6,7 @@ import {
   type ListingErrorsResponse,
   type ListingErrorRow,
 } from "../api/client";
+import { PageTitle } from "./ui/PageTitle";
 
 type ChannelFilter = "all" | "ebay" | "kaufland";
 
@@ -33,15 +34,25 @@ export default function ListingErrorsView() {
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [retrying, setRetrying] = useState<Set<string>>(new Set());
   const [toast, setToast] = useState<string | null>(null);
+  // Ergebnis je Artikel, an der Zeile verankert statt als flüchtiger Hinweis.
+  const [retryOutcome, setRetryOutcome] = useState<Map<string, { ok: boolean; message: string }>>(new Map());
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (opts?: { keepExpanded?: boolean }) => {
     setLoading(true);
     setError(null);
     try {
       const res = await fetchListingErrors();
       setData(res);
       // Auto-expand the biggest group on first load so the view isn't a wall of collapsed rows.
-      if (res.groups.length) setExpanded(new Set([res.groups[0].groupKey]));
+      // Beim Nachladen nach einem Wiederholversuch bleibt die Arbeitsposition
+      // erhalten: vorher klappte JEDE offene Gruppe zu und eine fremde auf.
+      // Die aufgeklappte Gruppe wird nur ERGÄNZT, nie ersetzt — sonst fällt
+      // beim Filterwechsel weiterhin alles zu.
+      if (res.groups.length) {
+        setExpanded((prev) =>
+          opts?.keepExpanded && prev.size ? prev : new Set([...prev, res.groups[0].groupKey])
+        );
+      }
     } catch (e) {
       setError((e as Error)?.message || "Fehler beim Laden");
     } finally {
@@ -91,20 +102,41 @@ export default function ListingErrorsView() {
 
   const retry = async (row: ListingErrorRow) => {
     setRetrying((prev) => new Set(prev).add(row.productId));
+    setRetryOutcome((prev) => {
+      const n = new Map(prev);
+      n.delete(row.productId);
+      return n;
+    });
     try {
-      if (row.channel === "ebay") await bulkPublishToEbay([row.productId]);
-      else await publishToKaufland(row.productId);
-      setToast("Erneut versucht — Liste wird aktualisiert.");
-      await load();
+      if (row.channel === "ebay") {
+        // `bulkPublishToEbay` wirft NICHT, wenn eBay ablehnt — die Ablehnung
+        // kommt als ok:false mit Gründen zurück (HTTP 200). Vorher meldete der
+        // Knopf deshalb auch bei erneuter Ablehnung "Erneut versucht".
+        // Der Aufruf wird von zwei weiteren Ansichten geteilt, die bewusst pro
+        // Artikel auswerten — die Prüfung gehört daher hierhin, nicht in die
+        // gemeinsame API-Funktion.
+        const first = (await bulkPublishToEbay([row.productId]))?.results?.[0];
+        if (first && first.ok === false) {
+          const grund = (first.blockers || []).join(" · ") || "unbekannter Grund";
+          setRetryOutcome((prev) => new Map(prev).set(row.productId, { ok: false, message: grund }));
+          await load({ keepExpanded: true });
+          return;
+        }
+      } else {
+        await publishToKaufland(row.productId);
+      }
+      setRetryOutcome((prev) => new Map(prev).set(row.productId, { ok: true, message: "Erneut eingestellt." }));
+      await load({ keepExpanded: true });
     } catch (e) {
-      setToast(`Fehlgeschlagen: ${(e as Error)?.message || "unbekannt"}`);
+      setRetryOutcome((prev) =>
+        new Map(prev).set(row.productId, { ok: false, message: (e as Error)?.message || "unbekannt" })
+      );
     } finally {
       setRetrying((prev) => {
         const n = new Set(prev);
         n.delete(row.productId);
         return n;
       });
-      window.setTimeout(() => setToast(null), 4000);
     }
   };
 
@@ -114,13 +146,13 @@ export default function ListingErrorsView() {
     <div className="mx-auto max-w-6xl space-y-4 p-4">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-txt-primary">Listing-Fehler</h1>
+          <PageTitle className="text-2xl font-semibold text-txt-primary">Listing-Fehler</PageTitle>
           <p className="text-sm text-txt-muted">
             Alle Artikel, die nicht auf eBay oder Kaufland gelistet werden konnten — bleiben hier, bis sie behoben sind.
           </p>
         </div>
         <button
-          onClick={load}
+          onClick={() => void load({ keepExpanded: true })}
           className="rounded-lg border border-app-border bg-app-surface px-3 py-2 text-sm font-medium text-txt-primary hover:bg-app-elevated"
         >
           Aktualisieren
@@ -216,6 +248,23 @@ export default function ListingErrorsView() {
                               </li>
                             ))}
                           </ul>
+                          {/* Ergebnis des letzten Wiederholversuchs — bleibt an der
+                              Zeile stehen. Als 4-Sekunden-Hinweis war der Grund weg,
+                              bevor der Bediener ihn zuordnen konnte. Achtung: bei
+                              der Ablehnung "Bereits auf eBay gelistet" wird der
+                              gespeicherte Fehler oben NICHT aktualisiert — nur diese
+                              Zeile zeigt dann den aktuellen Stand. */}
+                          {retryOutcome.has(r.productId) && (
+                            <p
+                              className={`mt-1.5 text-xs font-medium ${
+                                retryOutcome.get(r.productId)!.ok ? "text-success" : "text-warning"
+                              }`}
+                            >
+                              {retryOutcome.get(r.productId)!.ok
+                                ? retryOutcome.get(r.productId)!.message
+                                : `Erneut fehlgeschlagen: ${retryOutcome.get(r.productId)!.message}`}
+                            </p>
+                          )}
                         </div>
                         <div className="flex shrink-0 flex-col gap-1.5">
                           <button

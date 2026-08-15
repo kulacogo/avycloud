@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { BrowserMultiFormatReader } from '@zxing/browser';
 import { Product, WarehouseBin, Order, View } from '../types';
+import { PageTitle } from './ui/PageTitle';
 import {
   fetchWarehouseBinDetail,
   stockInProduct,
@@ -1018,7 +1019,7 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
       </div>
 
       <header className="bg-app-surface rounded-2xl p-5 border border-app-border">
-        <h1 className="text-2xl font-semibold text-txt-primary mb-4">{t('ops.title')}</h1>
+        <PageTitle className="text-2xl font-semibold text-txt-primary mb-4">{t('ops.title')}</PageTitle>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {WORKFLOW_CARDS.map((card) => {
             const active = workflow === card.mode;

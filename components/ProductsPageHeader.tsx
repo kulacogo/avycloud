@@ -1,4 +1,5 @@
 import React from "react";
+import { PageTitle } from "./ui/PageTitle";
 
 interface ProductsPageHeaderProps {
   totalCount: number;
@@ -24,7 +25,7 @@ export const ProductsPageHeader: React.FC<ProductsPageHeaderProps> = ({
   return (
     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
       <div className="flex items-baseline gap-3">
-        <h1 className="text-2xl font-bold text-txt-primary">{title}</h1>
+        <PageTitle>{title}</PageTitle>
         {showCount && (
           <span className="text-sm text-txt-muted">
             {isFiltered

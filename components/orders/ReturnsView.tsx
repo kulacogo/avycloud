@@ -12,6 +12,7 @@ import {
 } from "../../api/client";
 import { EmptyState } from "../ui/EmptyState";
 import { useToast } from "../../context/ToastContext";
+import { PageTitle } from "../ui/PageTitle";
 
 /* ─── Config ─── */
 const REASON_LABELS: Record<string, { label: string; cls: string }> = {
@@ -732,7 +733,7 @@ export const ReturnsView: React.FC = () => {
     return (
       <div className="max-w-7xl mx-auto space-y-5">
         <div>
-          <h1 className="text-2xl font-bold text-txt-primary">Retouren</h1>
+          <PageTitle>Retouren</PageTitle>
           <p className="text-sm text-txt-muted">
             Retouren verwalten, prüfen und erstatten
           </p>
@@ -755,7 +756,7 @@ export const ReturnsView: React.FC = () => {
       {/* Header */}
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-txt-primary">Retouren</h1>
+          <PageTitle>Retouren</PageTitle>
           <p className="text-sm text-txt-muted">
             Retouren verwalten, prüfen und erstatten
           </p>

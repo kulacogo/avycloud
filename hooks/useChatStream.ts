@@ -1,6 +1,27 @@
 import { useCallback, useRef, useState } from 'react';
 import { startChatStream, ChatAssistantPayload } from '../api/client';
 
+/**
+ * Fehler einer Chat-Anfrage MIT Grund.
+ *
+ * Vorher gab `send()` bei jedem Fehlschlag still `null` zurück; die Oberfläche
+ * machte daraus pauschal "Fehler: Keine Antwort erhalten". Der echte Grund
+ * (Ratenlimit, fehlende Berechtigung, Produkt nicht gefunden) war hier bekannt
+ * und ging trotzdem verloren. `details` trägt den Fall mit, in dem `message`
+ * nur "V3, V2, and Legacy all failed" lautet.
+ */
+export class ChatStreamError extends Error {
+  code?: string;
+  details?: unknown;
+
+  constructor(message: string, code?: string, details?: unknown) {
+    super(message);
+    this.name = 'ChatStreamError';
+    this.code = code;
+    this.details = details;
+  }
+}
+
 export type StreamEventType =
   | 'start'
   | 'thinking'
@@ -95,6 +116,9 @@ export function useChatStream() {
     setState({ ...INITIAL_STATE, isStreaming: true });
 
     let finalResult: ChatAssistantPayload | null = null;
+    // Ein Fehler-Ereignis im Datenstrom beendet die Anfrage, ohne zu werfen —
+    // gemerkt, damit der Aufrufer am Ende den echten Grund bekommt.
+    let streamError: ChatStreamError | null = null;
 
     try {
       const response = await startChatStream(productId, message, attachments, scope, controller.signal);
@@ -102,14 +126,25 @@ export function useChatStream() {
       if (!response.ok || !response.body) {
         // Non-streaming error: try to parse body as JSON
         let errorMsg = `HTTP ${response.status}`;
+        let errorCode: string | undefined;
+        let errorDetails: unknown;
         try {
           const errData = await response.json();
           errorMsg = errData?.error?.message || errorMsg;
+          errorCode = errData?.error?.code;
+          // Beim Totalausfall aller Pipelines steht in `message` nur
+          // "V3, V2, and Legacy all failed" — der eigentliche Grund (z. B. eine
+          // 403-Sperre) liegt in `details`.
+          errorDetails = errData?.error?.details;
         } catch {
           // ignore parse error
         }
         setState((prev) => ({ ...prev, isStreaming: false, error: errorMsg }));
-        return null;
+        // Werfen statt still `null` zurückgeben: der Aufrufer machte daraus
+        // sonst pauschal "Keine Antwort erhalten" und der echte Grund
+        // (Ratenlimit, fehlende Berechtigung, Produkt nicht gefunden) ging
+        // verloren, obwohl er hier vorliegt.
+        throw new ChatStreamError(errorMsg, errorCode, errorDetails);
       }
 
       const reader = response.body.getReader();
@@ -166,11 +201,13 @@ export function useChatStream() {
               isStreaming: false,
             }));
           } else if (event.type === 'error') {
+            const errEvent = event as { type: 'error'; message: string; code?: string; details?: unknown };
+            streamError = new ChatStreamError(errEvent.message, errEvent.code, errEvent.details);
             setState((prev) => ({
               ...prev,
               events: [...prev.events, event],
               isStreaming: false,
-              error: (event as { type: 'error'; message: string }).message,
+              error: errEvent.message,
             }));
           } else if (event.type === 'thinking') {
             const chunk = (event as { text?: string }).text || '';
@@ -240,12 +277,19 @@ export function useChatStream() {
         setState((prev) => (prev.isStreaming ? { ...prev, isStreaming: false } : prev));
       }
     } catch (error: any) {
-      const msg = error?.name === 'AbortError' ? null : (error?.message || 'Stream abgebrochen');
+      // Abbruch ist kein Fehler: `error` bleibt null, damit in der Oberfläche
+      // nicht "Fehler: null" erscheint — und es wird auch nichts geworfen.
+      if (error?.name === 'AbortError') {
+        setState((prev) => ({ ...prev, isStreaming: false, error: null }));
+        return null;
+      }
+      const msg = error?.message || 'Stream abgebrochen';
       setState((prev) => ({
         ...prev,
         isStreaming: false,
         error: msg,
       }));
+      throw error instanceof ChatStreamError ? error : new ChatStreamError(msg);
     } finally {
       // Only clear if this send() still owns the controller — a newer send()
       // may have already replaced it.
@@ -254,6 +298,7 @@ export function useChatStream() {
       }
     }
 
+    if (!finalResult && streamError) throw streamError;
     return finalResult;
   }, []);
 

@@ -430,6 +430,7 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
     isStreaming,
     events: streamEvents,
     reset: resetStream,
+    cancel: cancelStream,
     result: streamResult,
     thoughts,
     groundingUrls,
@@ -726,7 +727,20 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
     });
   }, []);
 
+  /**
+   * Laufende Nummer des aktuellen Sendevorgangs.
+   *
+   * "Neu" leerte den Verlauf, brach die laufende Anfrage aber nicht ab: die
+   * alte Antwort platzte Sekunden bis Minuten später samt "Übernehmen"-Karten
+   * in das vermeintlich neue Gespräch. Abbrechen allein genügt nicht — eine
+   * Antwort kann bereits unterwegs sein. Darum zusätzlich diese Kennung: nach
+   * dem Warten wird verworfen, was nicht mehr zum aktuellen Gespräch gehört.
+   */
+  const sendRunRef = useRef(0);
+
   const resetSession = () => {
+    sendRunRef.current += 1;
+    cancelStream();
     setMessages([]);
     setPendingChanges([]);
     setPendingImages([]);
@@ -925,6 +939,8 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
       // for anything (e.g. "Kategorie korrigieren") without scope blocking it.
       const scope = scopeOverride !== undefined ? scopeOverride : (predefinedMessage ? derivedScope : null);
 
+      const runId = ++sendRunRef.current;
+
       try {
         const data = await chatSend({
           productId: product.id,
@@ -933,8 +949,14 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
           scope,
         });
 
+        // Gespräch wurde zwischenzeitlich zurückgesetzt oder eine neue Frage
+        // gestellt: diese Antwort gehört nicht mehr hierher.
+        if (runId !== sendRunRef.current) return;
+
         if (!data) {
-          throw new Error('Keine Antwort erhalten');
+          // Kein Ergebnis ohne Fehler = der Lauf wurde abgebrochen. Dann gehört
+          // keine Fehlerblase in den Verlauf.
+          return;
         }
 
         const assistantAttachments = mapSuggestionsToAttachments(data.imageSuggestions, t('chat.ui.imageAlt'));
@@ -961,12 +983,25 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
         setSerpInsights(data.serpTrace || []);
         setEvidence(Array.isArray(data.evidence) ? data.evidence : []);
       } catch (error: any) {
+        // Verwaister Lauf: weder Fehlerblase noch zurückspringende Anhänge im
+        // neuen Gespräch.
+        if (runId !== sendRunRef.current) return;
+        // Der Grund kommt jetzt aus dem geworfenen Fehler. Steht im Text nur
+        // die Sammelmeldung des Pipeline-Ausfalls, ergänzt `details` sie um den
+        // eigentlichen Grund.
+        const detail =
+          typeof error?.details === 'string'
+            ? error.details
+            : error?.details
+              ? JSON.stringify(error.details).slice(0, 300)
+              : '';
+        const grund = [error?.message || t('chat.ui.errorFallback'), detail].filter(Boolean).join(' — ');
         setMessages((prev) => [
           ...prev,
           {
             id: uid(),
             role: 'assistant',
-            text: `${t('chat.ui.errorPrefix')} ${error?.message || t('chat.ui.errorFallback')}`,
+            text: `${t('chat.ui.errorPrefix')} ${grund}`,
             timestamp: new Date().toISOString(),
           },
         ]);
@@ -990,6 +1025,22 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
           )}
         </div>
         <div className="flex items-center gap-1.5">
+          {/* Während die KI läuft, war "Neu" bisher die einzige Bedienmöglichkeit
+              — und die brach die Anfrage nicht ab. Ein eigener Stopp-Knopf
+              erspart den Umweg über das Löschen des Verlaufs. */}
+          {isStreaming && (
+            <button
+              type="button"
+              onClick={() => {
+                sendRunRef.current += 1;
+                cancelStream();
+              }}
+              className="rounded-lg px-2 py-1 text-[11px] font-medium text-warning hover:bg-app-elevated/60 transition-colors"
+              title="Laufende Anfrage abbrechen"
+            >
+              Stopp
+            </button>
+          )}
           <button
             type="button"
             onClick={resetSession}

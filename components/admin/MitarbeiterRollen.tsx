@@ -3,7 +3,7 @@ import { AdminUserManagement } from "./AdminUserManagement";
 import { AdminGroupManagement } from "./AdminGroupManagement";
 import { AdminRoleManagement } from "./AdminRoleManagement";
 import { MitarbeiterLeistung } from "./MitarbeiterLeistung";
-import { PageHeader } from "../ui/PageHeader";
+import { PageTitle } from "../ui/PageTitle";
 
 type Tab = "users" | "groups" | "roles" | "leistung";
 
@@ -19,7 +19,7 @@ export const MitarbeiterRollen: React.FC = () => {
 
   return (
     <div className="space-y-5">
-      <PageHeader title="Mitarbeiter & Rollen" />
+      <PageTitle>Mitarbeiter &amp; Rollen</PageTitle>
 
       <div className="flex flex-wrap items-center gap-2">
         {TABS.map((t) => (

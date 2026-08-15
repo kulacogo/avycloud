@@ -17,6 +17,7 @@ import {
   forceResyncStockBatch,
 } from "../api/client";
 import { useEbayListings, useKauflandListings } from "../hooks/useListings";
+import { PageTitle } from "./ui/PageTitle";
 import { useQueryClient } from "@tanstack/react-query";
 import type { Product } from "../types";
 import type { EbayListingRow, } from "../types";
@@ -564,8 +565,29 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
     setBulkUpdating(true);
     setBulkActionResult(null);
     try {
-      await bulkUpdateEbayListings({ itemIds: [...selectedIds] });
-      setSelectedIds(new Set());
+      const result = await bulkUpdateEbayListings({ itemIds: [...selectedIds] });
+      // Das Ergebnis wurde bis 2026-08-15 komplett verworfen: der Bediener sah
+      // nur, dass die Auswahl verschwand — auch dann, wenn wegen erschöpftem
+      // eBay-Tageslimit GAR NICHTS gepusht wurde. Das Backend liefert den Grund
+      // seit dem Vorfall 2026-07-21 mit; hier kam er nur nie an.
+      const summary = result?.summary;
+      if (result?.error) {
+        // Vorrang vor den Zahlen — sonst stünde im Quota-Fall nur "0/0".
+        setBulkActionResult({ ok: false, message: result.error });
+      } else if (!summary) {
+        setBulkActionResult({ ok: false, message: "Listing-Aktualisierung: keine Rückmeldung vom Server erhalten." });
+      } else {
+        const teile = [`Aktualisiert: ${summary.success}/${summary.total}`];
+        // Übersprungen ist kein Fehlschlag (kein Produkt verknüpft), muss aber
+        // sichtbar sein — sonst bleibt "nichts passiert" wieder unerklärt.
+        if (summary.skipped > 0) teile.push(`${summary.skipped} übersprungen`);
+        if (summary.failed > 0) teile.push(`${summary.failed} fehlgeschlagen`);
+        setBulkActionResult({ ok: summary.failed === 0, message: teile.join(" · ") });
+      }
+      // Auswahl nur bei sauberem Erfolg leeren — sonst verschwindet mit der
+      // Sammel-Leiste auch die Meldung, die den Fehlschlag erklärt.
+      const sauber = !result?.error && (summary?.failed ?? 0) === 0;
+      if (sauber) setSelectedIds(new Set());
       await invalidateListings();
     } catch (err: any) {
       // Selection is kept on error so the inline banner in the bulk bar stays visible.
@@ -1114,7 +1136,7 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
             {marketplace === "ebay" ? "eB" : "KL"}
           </div>
           <div>
-            <h1 className="text-xl font-bold text-txt-primary">{label} Listings</h1>
+            <PageTitle className="text-xl font-bold text-txt-primary">{label} Listings</PageTitle>
             <p className="text-sm text-txt-muted">
               {listings.length} Listings · {tabCounts.active} aktiv
               {marketplace === "kaufland" && tabCounts.indexing > 0 && (

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { fetchWarehouseSettings, saveWarehouseSettings } from "../../api/client";
+import { PageTitle } from "../ui/PageTitle";
 
 /* ─── Types ─── */
 interface ZoneType {
@@ -164,7 +165,7 @@ export const WarehouseSettingsView: React.FC = () => {
 
   return (
     <div className="max-w-3xl mx-auto flex flex-col gap-6 pb-10">
-      <h2 className="text-xl font-bold text-txt-primary">Lager-Einstellungen</h2>
+      <PageTitle className="text-xl font-bold text-txt-primary">Lager-Einstellungen</PageTitle>
 
       {/* Error / Success Banners */}
       {error && (

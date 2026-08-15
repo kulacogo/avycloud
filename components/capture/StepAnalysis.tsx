@@ -16,6 +16,20 @@ interface StepAnalysisProps {
   onComplete: (products: Product | Product[]) => void;
   onError: (error: string) => void;
   onBack: () => void;
+  /**
+   * Wird gemeldet, wenn die Erkennung nach einem VORÜBERGEHENDEN Fehler
+   * (Verbindungsabbruch, Zeitüberschreitung) wiederholt werden musste.
+   *
+   * Der Server-Auftrag läuft nach einem Verbindungsabbruch weiter und speichert
+   * sein Produkt trotzdem. Ohne lesbaren Barcode — der Regelfall bei Gebrauchtware
+   * aus den Auktions-Losen — kann der zweite Versuch das nicht erkennen und legt
+   * ein zweites Dokument mit eigener SKU an. Der Assistent zeigt nur eines davon.
+   *
+   * Der Zwilling lässt sich hier nicht verhindern (das bräuchte eine
+   * Vorgangs-Kennung, die der Server auswertet), aber er darf nicht unsichtbar
+   * bleiben: was niemand erwähnt, sucht auch niemand.
+   */
+  onRetryWarning?: (info: { attempts: number }) => void;
 }
 
 type Phase = "upload" | "vision" | "barcode" | "web" | "llm" | "pricing" | "done" | "error";
@@ -75,6 +89,7 @@ const StepAnalysis: React.FC<StepAnalysisProps> = ({
   onComplete,
   onError,
   onBack,
+  onRetryWarning,
 }) => {
   const [phase, setPhase] = useState<Phase>("upload");
   const [error, setError] = useState<string | null>(null);
@@ -178,6 +193,9 @@ const StepAnalysis: React.FC<StepAnalysisProps> = ({
             if (result.ok && result.data) {
               setPhaseLabel(null);
               setPhase("done");
+              // Erfolg NACH einem Fehlversuch: der erste Lauf kann serverseitig
+              // durchgelaufen sein und ein zweites Produkt hinterlassen haben.
+              if (attempt > 1) onRetryWarning?.({ attempts: attempt });
               setTimeout(() => {
                 if (!cancelled) onComplete(result.data!);
               }, 600);

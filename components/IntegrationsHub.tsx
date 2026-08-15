@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { fetchIntegrationStatus, fetchIntegrationProviders } from "../api/client";
 import type { IntegrationStatusEntry, IntegrationProvider } from "../api/client";
 import IntegrationWizard from "./IntegrationWizard";
+import { PageTitle } from "./ui/PageTitle";
 
 /* ─── Types ─── */
 type Category = "all" | "marketplaces" | "shipping" | "finance" | "other";
@@ -267,7 +268,7 @@ export const IntegrationsHub: React.FC<IntegrationsHubProps> = ({ onNavigate }) 
       {/* Page Header */}
       <div className="px-6 pt-6 pb-4">
         <div className="flex items-center gap-3">
-          <h1 className="text-2xl font-bold text-txt-primary">Integrationen</h1>
+          <PageTitle>Integrationen</PageTitle>
           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-success-dim text-success">
             {connectedCount} verbunden
           </span>

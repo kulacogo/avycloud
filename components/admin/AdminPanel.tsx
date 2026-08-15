@@ -9,7 +9,7 @@ import { AdminEbayTaxonomy } from './AdminEbayTaxonomy';
 import { AdminIdentifyRunsDashboard } from './AdminIdentifyRunsDashboard';
 import { AdminSystemHealth } from './AdminSystemHealth';
 import { AdminFinancials } from './AdminFinancials';
-import { PageHeader } from '../ui/PageHeader';
+import { PageTitle } from '../ui/PageTitle';
 
 type Tab = 'health' | 'financials' | 'users' | 'groups' | 'roles' | 'llm' | 'bulk' | 'integrations' | 'ebay' | 'identify-runs';
 
@@ -20,7 +20,7 @@ export const AdminPanel: React.FC = () => {
 
   return (
     <div className="space-y-5">
-      <PageHeader title="Admin" />
+      <PageTitle>Admin</PageTitle>
 
       <div className="flex flex-wrap items-center gap-2">
         <button

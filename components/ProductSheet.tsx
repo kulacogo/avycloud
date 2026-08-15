@@ -31,6 +31,7 @@ import { normalizeChangeAttributes } from './chatChanges';
 import ValidationPanel from './ValidationPanel';
 import IdentifyV4Badge from './IdentifyV4Badge';
 import { Tabs, TabPanel } from './ui/Tabs';
+import { ConfirmDialog } from './ui/ConfirmDialog';
 import { useI18n } from '../i18n';
 import { normalizeBarcode, summarizeBarcodes, isValidGtin, getGtinLabel, validateIdentifierField, classifyBarcodesByLength, identifierFieldLabel, type IdentifierField } from '../utils/gtin';
 import {
@@ -176,6 +177,16 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
   const [binQuantity, setBinQuantity] = useState<number>(1);
   const [isAssigningBin, setIsAssigningBin] = useState(false);
   const [isRemovingBin, setIsRemovingBin] = useState(false);
+  // Auslagern ist eine ECHTE Bestandsbuchung (der Bestand ist aus den BINs
+  // abgeleitet, siehe backend/lib/warehouse.js refreshProductInventory). Darum
+  // Pflicht-Rückfrage vor der Buchung …
+  const [stockOutConfirm, setStockOutConfirm] = useState<{ bin: string; qty: number } | null>(null);
+  // … und danach eine BLEIBENDE Quittung statt eines 5-Sekunden-Hinweises.
+  // Dieselbe Lehre wie beim Einlager-Vorfall 2026-07-30: eine Quittung, die von
+  // allein verschwindet, verhindert keine Wiederholung und belegt nichts.
+  const [binReceipt, setBinReceipt] = useState<
+    { action: 'in' | 'out'; bin: string; qty: number; stockAfter: number | null } | null
+  >(null);
   const [newImageUrl, setNewImageUrl] = useState('');
   const [productBins, setProductBins] = useState<WarehouseBin[]>([]);
   const [binsLoading, setBinsLoading] = useState(false);
@@ -286,6 +297,8 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
     setBinCodeInput(product.storage?.binCode || '');
     // binQuantity is a delta for stockIn/stockOut (multi-BIN), so default to 1.
     setBinQuantity(1);
+    setStockOutConfirm(null);
+    setBinReceipt(null);
     setNewImageUrl('');
     loadProductBins(product.id);
     setBarcodeInput((product.identification?.barcodes || []).join('\n'));
@@ -757,14 +770,29 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
       setBinCodeInput(binCodeInput.toUpperCase());
       setBinQuantity(1);
       loadProductBins(normalized.id);
-      showNotification('success', t('sheet.msg.binAssignSuccess'));
+      setBinReceipt({
+        action: 'in',
+        bin: binCodeInput.toUpperCase(),
+        qty: Number(binQuantity) || 1,
+        stockAfter: typeof normalized.inventory?.quantity === 'number' ? normalized.inventory.quantity : null,
+      });
     } else {
       showNotification('error', result.error?.message || t('sheet.msg.binAssignError'));
     }
     setIsAssigningBin(false);
   };
 
-  const handleRemoveBin = async () => {
+  /**
+   * Öffnet NUR die Rückfrage — bucht noch nichts.
+   *
+   * Der Knopf hieß bis 2026-08-15 „BIN-Zuordnung entfernen“ und löste
+   * trotzdem eine echte Lagerausbuchung aus (Menge aus dem Feld daneben,
+   * Vorgabe 1), inklusive Push an eBay/Kaufland. Ein reines Lösen der
+   * Verknüpfung ist technisch gar nicht möglich: der Bestand IST die Summe
+   * der BIN-Einträge (backend/lib/warehouse.js refreshProductInventory).
+   * Also heißt der Knopf jetzt, was er tut, und fragt vorher.
+   */
+  const requestStockOut = () => {
     if (!binCodeInput) {
       showNotification('error', t('sheet.msg.binRequired'));
       return;
@@ -774,11 +802,17 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
       showNotification('error', t('sheet.msg.binAssignError'));
       return;
     }
+    setStockOutConfirm({ bin: binCodeInput.toUpperCase(), qty });
+  };
+
+  const performStockOut = async () => {
+    if (!stockOutConfirm) return;
+    const { bin, qty } = stockOutConfirm;
     setIsRemovingBin(true);
     try {
       const response = await stockOutProduct({
         productId: localProduct.id,
-        binCode: binCodeInput.toUpperCase(),
+        binCode: bin,
         quantity: qty,
         meta: { flow: 'product-sheet', action: 'stock-out' },
       });
@@ -791,9 +825,15 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
       onUpdate(normalized);
       setBinQuantity(1);
       loadProductBins(localProduct.id);
-      showNotification('success', t('sheet.msg.binRemoveSuccess'));
+      setBinReceipt({
+        action: 'out',
+        bin,
+        qty,
+        stockAfter: typeof normalized.inventory?.quantity === 'number' ? normalized.inventory.quantity : null,
+      });
     } finally {
       setIsRemovingBin(false);
+      setStockOutConfirm(null);
     }
   };
 
@@ -2093,8 +2133,34 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
           </div>
           <div className="flex gap-2 mt-3">
             <button onClick={handleAssignBin} disabled={isAssigningBin} className="px-3 py-1.5 text-sm bg-accent-dim text-accent rounded-lg hover:bg-accent/20 disabled:opacity-40">{isAssigningBin ? t('sheet.storage.assigning') : t('sheet.storage.assign')}</button>
-            {binCodeInput && <button onClick={handleRemoveBin} disabled={isAssigningBin || isRemovingBin} className="px-3 py-1.5 text-sm bg-danger/20 text-danger rounded-lg hover:bg-danger/30 disabled:opacity-40">{t('sheet.storage.remove')}</button>}
+            {binCodeInput && (
+              <button
+                onClick={requestStockOut}
+                disabled={isAssigningBin || isRemovingBin}
+                className="px-3 py-1.5 text-sm bg-danger/20 text-danger rounded-lg hover:bg-danger/30 disabled:opacity-40"
+              >
+                {t('sheet.storage.stockOut', { qty: Number(binQuantity) || 1, bin: binCodeInput.toUpperCase() })}
+              </button>
+            )}
           </div>
+          {binReceipt && (
+            <div className="mt-3 flex items-start justify-between gap-3 rounded-lg border border-app-border bg-app-elevated px-3 py-2 text-sm">
+              <span className="text-txt-primary">
+                {t(binReceipt.action === 'in' ? 'sheet.storage.receiptIn' : 'sheet.storage.receiptOut', {
+                  qty: binReceipt.qty,
+                  bin: binReceipt.bin,
+                  after: binReceipt.stockAfter == null ? '—' : binReceipt.stockAfter,
+                })}
+              </span>
+              <button
+                onClick={() => setBinReceipt(null)}
+                className="shrink-0 rounded-md px-2 py-0.5 text-xs font-semibold text-txt-secondary hover:bg-white/10"
+                aria-label={t('sheet.storage.receiptDismiss')}
+              >
+                ✕
+              </button>
+            </div>
+          )}
           {localProduct.ops?.sourceLot && (
             <div className="mt-3 px-3 py-2 rounded-lg bg-app-elevated border border-app-border text-sm">
               <span className="text-txt-muted">Los: </span>
@@ -2280,6 +2346,21 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
           />
         </div>
       </TabPanel>
+
+      <ConfirmDialog
+        open={Boolean(stockOutConfirm)}
+        tone="danger"
+        title={t('sheet.storage.stockOutTitle', { qty: stockOutConfirm?.qty ?? 0 })}
+        description={t('sheet.storage.stockOutBody', {
+          qty: stockOutConfirm?.qty ?? 0,
+          bin: stockOutConfirm?.bin ?? '',
+          sku: localProduct.id,
+        })}
+        confirmLabel={t('sheet.storage.stockOutConfirm')}
+        confirmBusy={isRemovingBin}
+        onConfirm={performStockOut}
+        onCancel={() => setStockOutConfirm(null)}
+      />
     </section>
   );
 };

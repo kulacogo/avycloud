@@ -10,6 +10,7 @@ import {
   type OrderStatusCounts,
 } from "../api/client";
 import { Order, OrderStatus, getOrderStatus } from "../types";
+import { PageTitle } from "./ui/PageTitle";
 import { useOrders } from "../hooks/useOrders";
 import { useQueryClient } from "@tanstack/react-query";
 import { EmptyState } from "./ui/EmptyState";
@@ -17,6 +18,7 @@ import { exportToCsv } from "../utils/csv-export";
 import { SyncIcon } from "./icons/Icons";
 import { OrderDetail } from "./OrderDetail";
 import { OMS_STATUS_LABELS } from "../lib/oms-labels";
+import { BULK_TRANSITION_LIMIT, ADDRESS_LABEL_LIMIT, checkBulkLimit } from "../utils/bulkLimits";
 import { useToast } from "../context/ToastContext";
 
 /* ─── Status filter config ─── */
@@ -95,7 +97,7 @@ const OrdersView: React.FC = () => {
   const [serverCounts, setServerCounts] = useState<OrderStatusCounts | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
-  const [bulkResult, setBulkResult] = useState<string | null>(null);
+  const [bulkResult, setBulkResult] = useState<{ ok: boolean; message: string } | null>(null);
   const [rowsPerPage, setRowsPerPage] = useState(50);
   const [currentPage, setCurrentPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
@@ -367,15 +369,42 @@ const OrdersView: React.FC = () => {
     });
   }, []);
 
+  /**
+   * Das Kopf-Häkchen wählt die SICHTBARE SEITE.
+   *
+   * Vorher wählte es alle gefilterten Aufträge über sämtliche Seiten hinweg
+   * (gemessen: 481). Danach lief jede Massenaktion in die Server-Grenze und
+   * brach komplett ab. Für den bewussten Fall gibt es daneben einen
+   * ausdrücklichen "Alle N auswählen"-Link.
+   */
+  const pageAllSelected = paginatedOrders.length > 0 && paginatedOrders.every((o) => selectedIds.has(o.id));
+
   const toggleSelectAll = useCallback(() => {
     setSelectedIds((prev) => {
-      if (prev.size === filteredOrders.length) return new Set();
-      return new Set(filteredOrders.map((o) => o.id));
+      const alleDaufDerSeite = paginatedOrders.length > 0 && paginatedOrders.every((o) => prev.has(o.id));
+      if (alleDaufDerSeite) {
+        const next = new Set(prev);
+        paginatedOrders.forEach((o) => next.delete(o.id));
+        return next;
+      }
+      return new Set([...prev, ...paginatedOrders.map((o) => o.id)]);
     });
+  }, [paginatedOrders]);
+
+  const selectAllFiltered = useCallback(() => {
+    setSelectedIds(new Set(filteredOrders.map((o) => o.id)));
   }, [filteredOrders]);
 
   const handleBulkTransition = useCallback(async (toStatus: string) => {
     if (selectedIds.size === 0) return;
+    // Grenze VOR dem Absenden prüfen: der Server lehnt alles-oder-nichts ab,
+    // vorher endete das in einer roten Zeile, ohne dass ein einziger Auftrag
+    // umgestellt wurde.
+    const zuViele = checkBulkLimit(selectedIds.size, BULK_TRANSITION_LIMIT, 'Statuswechsel');
+    if (zuViele) {
+      setBulkResult({ ok: false, message: zuViele });
+      return;
+    }
     setBulkBusy(true);
     setBulkResult(null);
     try {
@@ -383,14 +412,19 @@ const OrdersView: React.FC = () => {
       const failedCount = result.total - result.success;
       if (failedCount > 0) {
         const failedDetails = result.results.filter((r) => !r.ok).map((r) => `${r.orderId}: ${r.error}`).join('; ');
-        setBulkResult(`${result.success}/${result.total} erfolgreich. Fehler: ${failedDetails}`);
+        setBulkResult({
+          ok: false,
+          message: `${result.success}/${result.total} erfolgreich. Fehler: ${failedDetails}`,
+        });
+        // Bei Teilfehler die Auswahl behalten — der Mensch muss sehen, welche
+        // Aufträge noch offen sind.
       } else {
-        setBulkResult(`${result.success} Aufträge → ${OMS_STATUS_LABELS[toStatus] || toStatus}`);
+        setBulkResult({ ok: true, message: `${result.success} Aufträge → ${OMS_STATUS_LABELS[toStatus] || toStatus}` });
+        setSelectedIds(new Set());
       }
-      setSelectedIds(new Set());
       await queryClient.invalidateQueries({ queryKey: ["orders"] });
     } catch (err: any) {
-      setBulkResult(`Fehler: ${err?.message || 'Unbekannter Fehler'}`);
+      setBulkResult({ ok: false, message: `Fehler: ${err?.message || 'Unbekannter Fehler'}` });
     } finally {
       setBulkBusy(false);
     }
@@ -433,7 +467,7 @@ const OrdersView: React.FC = () => {
       {/* Header */}
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-txt-primary">{t("orders.title")}</h1>
+          <PageTitle>{t("orders.title")}</PageTitle>
           <p className="text-sm text-txt-muted">{t("orders.subtitle")}</p>
         </div>
         <div className="flex items-center gap-2">
@@ -702,11 +736,21 @@ const OrdersView: React.FC = () => {
             type="button"
             disabled={bulkBusy}
             onClick={async () => {
+              const zuViele = checkBulkLimit(selectedIds.size, ADDRESS_LABEL_LIMIT, 'Empfänger drucken');
+              if (zuViele) {
+                setBulkResult({ ok: false, message: zuViele });
+                return;
+              }
               setBulkBusy(true);
+              setBulkResult(null);
               try {
                 await printAddressLabels(Array.from(selectedIds));
               } catch (err: any) {
-                setBulkResult(err?.message || 'Fehler beim Drucken');
+                // Der Server-Text beginnt nicht mit "Fehler" ("4 Bestellung(en)
+                // mit unvollständiger Adresse") — mit der alten Textprüfung
+                // landete er im GRÜNEN Erfolgskasten, obwohl kein einziges
+                // Etikett gedruckt wurde.
+                setBulkResult({ ok: false, message: err?.message || 'Fehler beim Drucken' });
               } finally {
                 setBulkBusy(false);
               }
@@ -715,7 +759,18 @@ const OrdersView: React.FC = () => {
           >
             Empfänger drucken
           </button>
-          <div className="ml-auto">
+          <div className="ml-auto flex items-center gap-3">
+            {/* Der bewusste Weg zur Gesamtauswahl — vorher tat das Kopf-Häkchen
+                das unangekündigt und machte jede Massenaktion unmöglich. */}
+            {pageAllSelected && selectedIds.size < filteredOrders.length && (
+              <button
+                type="button"
+                onClick={selectAllFiltered}
+                className="text-xs font-medium text-accent hover:underline"
+              >
+                Alle {filteredOrders.length} auswählen
+              </button>
+            )}
             <button
               type="button"
               onClick={() => setSelectedIds(new Set())}
@@ -731,10 +786,13 @@ const OrdersView: React.FC = () => {
       {bulkResult && (
         <div
           className={`rounded-xl px-4 py-3 text-sm border ${
-            String(bulkResult).startsWith("Fehler") ? "border-danger/20 bg-danger-dim text-danger" : "border-success/20 bg-success-dim text-success"
+            // Die Farbe kommt aus dem ERGEBNIS, nicht mehr aus dem Anfang des
+            // Meldungstextes. Vorher entschied `startsWith("Fehler")` — jede
+            // Meldung ohne dieses Wort erschien grün, auch Fehlschläge.
+            bulkResult.ok ? "border-success/20 bg-success-dim text-success" : "border-danger/20 bg-danger-dim text-danger"
           }`}
         >
-          {bulkResult}
+          {bulkResult.message}
           <button type="button" onClick={() => setBulkResult(null)} className="ml-3 underline text-xs opacity-70 hover:opacity-100">
             Schließen
           </button>
@@ -773,7 +831,7 @@ const OrdersView: React.FC = () => {
                   <th className="w-10 px-3 py-3">
                     <input
                       type="checkbox"
-                      checked={selectedIds.size > 0 && selectedIds.size === filteredOrders.length}
+                      checked={pageAllSelected}
                       ref={(el) => { if (el) el.indeterminate = selectedIds.size > 0 && selectedIds.size < filteredOrders.length; }}
                       onChange={toggleSelectAll}
                       className="w-4 h-4 rounded border-app-border text-accent focus:ring-accent/30 cursor-pointer"

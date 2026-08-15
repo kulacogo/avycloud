@@ -1473,9 +1473,14 @@ export async function bulkUpdateEbayListings(params: {
   itemIds?: string[];
   applyAll?: boolean;
 }): Promise<{
-  summary: { total: number; success: number; failed: number; skipped: number };
+  // `quotaBlocked` sitzt IN summary, `error` liegt daneben: bei offenem
+  // Quota-Breaker antwortet das Backend mit HTTP 200, total:0 und einem
+  // Klartext-Grund (lib/ebay-direct.js). Ohne diese Felder sah die Oberfläche
+  // einen stillen No-op und der Bediener hielt das Update für erledigt.
+  summary: { total: number; success: number; failed: number; skipped: number; quotaBlocked?: boolean };
   results: any[];
   dryRun: any;
+  error?: string;
 }> {
   const res = await fetchApi(`${BACKEND_URL}/api/ebay/update/bulk`, {
     method: 'POST',
@@ -5654,7 +5659,14 @@ export const fetchMyPermissions = async (): Promise<RbacSnapshot> => {
   const response = await fetchApi(`${BACKEND_URL}/api/me/permissions?t=${Date.now()}`);
   const result = await parseResponse(response);
   if (!response.ok) {
-    throw new Error(result?.error?.message || 'RBAC konnte nicht geladen werden.');
+    // Status mitgeben: der Aufrufer muss "Verbindung weg / Server überlastet"
+    // (wiederholbar) von "nicht angemeldet / verboten" (nicht wiederholbar)
+    // unterscheiden können.
+    const error = new Error(result?.error?.message || 'RBAC konnte nicht geladen werden.') as Error & {
+      status?: number;
+    };
+    error.status = response.status;
+    throw error;
   }
   return (result?.data as RbacSnapshot) || { roles: [], permissions: {}, profile: null };
 };

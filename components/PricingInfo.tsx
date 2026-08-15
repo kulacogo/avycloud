@@ -2,6 +2,7 @@
 import React from 'react';
 import { Pricing } from '../types';
 import { LinkIcon } from './icons/Icons';
+import { applyManualMarketPrice } from '../utils/marketPrice';
 
 interface PricingInfoProps {
   pricing?: Pricing;
@@ -49,19 +50,14 @@ const PricingInfo: React.FC<PricingInfoProps> = ({ pricing, isEditing = false, o
     onChange({ ...safePricing, sellPrice: Number.isFinite(amount) && amount > 0 ? Math.round(amount * 100) / 100 : undefined });
   };
 
-  const nowIso = () => new Date().toISOString();
   const setMarketAmount = (val: string) => {
     if (!onChange) return;
-    const amount = parseFloat(val.replace(',', '.')) || 0;
-    onChange({
-      ...safePricing,
-      lowest_price: {
-        amount,
-        currency: safeCurrency(lowest_price?.currency),
-        sources: [{ name: 'Manuell', url: 'manual://ui', price: amount, checked_at: nowIso() }],
-        last_checked_iso: nowIso(),
-      },
-    });
+    // Gibt null zurück, wenn sich nichts geändert hat — dann wird auch nichts
+    // geschrieben. `onBlur` feuert bei jedem Fokusverlust, auch beim bloßen
+    // Durchtabben; vorher kostete genau das die recherchierten Preisbelege.
+    const next = applyManualMarketPrice(lowest_price, val);
+    if (!next) return;
+    onChange({ ...safePricing, lowest_price: next });
   };
 
   const marketAmount = typeof lowest_price?.amount === 'number' && lowest_price.amount > 0 ? lowest_price.amount : null;

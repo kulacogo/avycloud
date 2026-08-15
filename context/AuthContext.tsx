@@ -4,6 +4,11 @@ import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebas
 import { getFirebaseAuth } from '../utils/firebase';
 import { setAuthTokenProvider } from '../api/client';
 import { fetchMyPermissions, type RbacSnapshot } from '../api/client';
+import {
+  shouldRetryPermissionLoad,
+  permissionRetryDelayMs,
+  MAX_PERMISSION_ATTEMPTS,
+} from '../utils/permissionRetry';
 import { useSessionTracking } from '../hooks/useSessionTracking';
 
 type AuthContextValue = {
@@ -12,6 +17,10 @@ type AuthContextValue = {
   initError: string | null;
   isAdmin: boolean;
   rbac: RbacSnapshot | null;
+  /** Gesetzt, wenn der Rechte-Abruf endgültig fehlschlug (nach Wiederholungen). */
+  rbacError: string | null;
+  /** Erneut versuchen — für den sichtbaren Hinweis in der Oberfläche. */
+  retryPermissions: () => void;
   hasPermission: (moduleName: string, action: string) => boolean;
   signInWithEmailPassword: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -32,6 +41,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = React.useState<User | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [rbac, setRbac] = React.useState<RbacSnapshot | null>(null);
+  const [rbacError, setRbacError] = React.useState<string | null>(null);
   const [initError, setInitError] = React.useState<string | null>(null);
 
   const [auth, setAuth] = React.useState<ReturnType<typeof getFirebaseAuth> | null>(null);
@@ -75,29 +85,58 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => unsub();
   }, [auth]);
 
-  React.useEffect(() => {
-    let cancelled = false;
-    const run = async () => {
-      if (!auth?.currentUser) {
-        setRbac(null);
-        return;
-      }
+  /**
+   * Rechte laden — mit Wiederholung.
+   *
+   * Vorher lief das genau einmal, und der `catch` schrieb einen LEEREN
+   * Rechte-Satz. Der ist von "darf wirklich nichts" nicht unterscheidbar: ein
+   * WLAN-Aussetzer am Handscanner ließ damit den Tab "Operationen" aus der
+   * Leiste verschwinden und in der Seitenleiste Aufträge/Produkte/Lager/
+   * Marktplätze fehlen — ohne Meldung, bis zum manuellen Neuladen.
+   *
+   * Der leere Satz bleibt im Endergebnis erhalten (rollenlose Konten haben ihn
+   * regulär, "unbekannt" darf nie "alles erlaubt" heißen) — aber der Fehlschlag
+   * ist jetzt sichtbar und wiederholbar statt still.
+   */
+  const loadPermissions = React.useCallback(async (isCancelled?: () => boolean) => {
+    if (!auth?.currentUser) {
+      setRbac(null);
+      setRbacError(null);
+      return;
+    }
+    setRbacError(null);
+    for (let attempt = 1; attempt <= MAX_PERMISSION_ATTEMPTS; attempt += 1) {
       try {
         const snapshot = await fetchMyPermissions();
-        if (!cancelled) {
-          setRbac(snapshot);
+        if (isCancelled?.()) return;
+        setRbac(snapshot);
+        setRbacError(null);
+        return;
+      } catch (error) {
+        if (isCancelled?.()) return;
+        if (shouldRetryPermissionLoad(error, attempt)) {
+          await new Promise((resolve) => setTimeout(resolve, permissionRetryDelayMs(attempt)));
+          if (isCancelled?.()) return;
+          continue;
         }
-      } catch {
-        if (!cancelled) {
-          setRbac({ roles: [], permissions: {}, profile: null });
-        }
+        setRbac({ roles: [], permissions: {}, profile: null });
+        setRbacError(error instanceof Error ? error.message : String(error));
+        return;
       }
-    };
-    run();
+    }
+  }, [auth]);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    void loadPermissions(() => cancelled);
     return () => {
       cancelled = true;
     };
-  }, [auth, user?.uid]);
+  }, [loadPermissions, user?.uid]);
+
+  const retryPermissions = React.useCallback(() => {
+    void loadPermissions();
+  }, [loadPermissions]);
 
   React.useEffect(() => {
     if (!auth) return;
@@ -177,11 +216,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       initError,
       isAdmin,
       rbac,
+      rbacError,
+      retryPermissions,
       hasPermission,
       signInWithEmailPassword,
       logout,
     }),
-    [user, loading, initError, isAdmin, rbac, hasPermission, signInWithEmailPassword, logout]
+    [user, loading, initError, isAdmin, rbac, rbacError, retryPermissions, hasPermission, signInWithEmailPassword, logout]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

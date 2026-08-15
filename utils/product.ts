@@ -1,4 +1,6 @@
-import { Product, SyncStatus } from '../types';
+// `import type`: beide werden ausschliesslich als Typ verwendet. Nur so faellt
+// der Import beim Type-Stripping weg und das Modul laeuft ohne Bundler.
+import type { Product, SyncStatus } from '../types';
 
 export const normalizeSyncStatus = (
   status: SyncStatus,
@@ -79,6 +81,31 @@ export const getProductAvailableQuantity = (product: Product): number => {
 export const getProductQuantity = (product: Product): number => {
   // Backwards-compatible alias: historically this represented "physical quantity".
   return getProductPhysicalQuantity(product);
+};
+
+/**
+ * Lagerplatz-Code eines Produkts.
+ *
+ * `storage.binCode` gewinnt. Fehlt es, wird der erste Bin MIT Bestand genommen —
+ * ein leergeräumter Bin bleibt naemlich als Eintrag stehen und wuerde sonst als
+ * aktueller Platz angezeigt. Erst danach der erste Bin ueberhaupt.
+ */
+export const getProductBinCode = (product: Product): string | null => {
+  if (product.storage?.binCode) return product.storage.binCode;
+  if (Array.isArray(product.storageBins) && product.storageBins.length) {
+    const withStock = product.storageBins.find((b) => (b.quantity || 0) > 0);
+    return withStock?.code || product.storageBins[0]?.code || null;
+  }
+  return null;
+};
+
+/** Lagerzone (XS/S/M/L/XL/X) zum aufgeloesten Lagerplatz. */
+export const getProductBinZone = (product: Product): string | null => {
+  if (product.storage?.zone) return product.storage.zone;
+  if (Array.isArray(product.storageBins) && product.storageBins.length) {
+    return product.storageBins[0]?.zone || null;
+  }
+  return null;
 };
 
 const sanitizeNumeric = (value?: string | number | null): string | null => {

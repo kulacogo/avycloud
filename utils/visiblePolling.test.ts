@@ -1,5 +1,8 @@
-import { describe, it, expect } from "vitest";
-import { startVisiblePolling, type VisiblePollingDeps } from "./visiblePolling";
+// node:test statt vitest — vitest ist im Frontend nicht installiert, wodurch
+// diese Datei nie lief. Der Rest des Frontends testet mit node:test.
+import { describe, test } from "node:test";
+import assert from "node:assert";
+import { startVisiblePolling, type VisiblePollingDeps } from "./visiblePolling.ts";
 
 /**
  * Kostenanalyse Juli 2026: Hintergrund-Tabs holten im 60s-Takt die komplette
@@ -38,45 +41,45 @@ function makeHarness(startVisible = true) {
 }
 
 describe("startVisiblePolling", () => {
-  it("fragt im Takt ab, solange der Tab sichtbar ist", () => {
+  test("fragt im Takt ab, solange der Tab sichtbar ist", () => {
     const h = makeHarness(true);
     startVisiblePolling(h.tick, 60000, h.deps);
     h.fireInterval();
     h.fireInterval();
-    expect(h.ticks).toHaveLength(2);
+    assert.strictEqual(h.ticks.length, 2);
   });
 
-  it("pausiert die Abfrage in unsichtbaren Tabs (der eigentliche Spareffekt)", () => {
+  test("pausiert die Abfrage in unsichtbaren Tabs (der eigentliche Spareffekt)", () => {
     const h = makeHarness(true);
     startVisiblePolling(h.tick, 60000, h.deps);
     h.setVisible(false);
     h.fireInterval();
     h.fireInterval();
     h.fireInterval();
-    expect(h.ticks).toHaveLength(0);
+    assert.strictEqual(h.ticks.length, 0);
   });
 
-  it("lädt beim Zurückwechseln SOFORT nach, damit niemand veraltete Daten sieht", () => {
+  test("lädt beim Zurückwechseln SOFORT nach, damit niemand veraltete Daten sieht", () => {
     const h = makeHarness(true);
     startVisiblePolling(h.tick, 60000, h.deps);
     h.setVisible(false);
     h.fireInterval();
-    expect(h.ticks).toHaveLength(0);
+    assert.strictEqual(h.ticks.length, 0);
 
     h.setVisible(true);
     h.fireVisibilityChange();
-    expect(h.ticks).toHaveLength(1);
+    assert.strictEqual(h.ticks.length, 1);
   });
 
-  it("lädt NICHT bei jedem Sichtbarkeits-Ereignis nach, nur nach einer echten Pause", () => {
+  test("lädt NICHT bei jedem Sichtbarkeits-Ereignis nach, nur nach einer echten Pause", () => {
     const h = makeHarness(true);
     startVisiblePolling(h.tick, 60000, h.deps);
     h.fireVisibilityChange();
     h.fireVisibilityChange();
-    expect(h.ticks).toHaveLength(0);
+    assert.strictEqual(h.ticks.length, 0);
   });
 
-  it("nimmt den Takt nach der Rückkehr wieder normal auf", () => {
+  test("nimmt den Takt nach der Rückkehr wieder normal auf", () => {
     const h = makeHarness(true);
     startVisiblePolling(h.tick, 60000, h.deps);
     h.setVisible(false);
@@ -84,22 +87,22 @@ describe("startVisiblePolling", () => {
     h.setVisible(true);
     h.fireVisibilityChange();
     h.fireInterval();
-    expect(h.ticks).toHaveLength(2);
+    assert.strictEqual(h.ticks.length, 2);
   });
 
-  it("fragt im Zweifel ab: unbekannte Sichtbarkeit darf die Oberfläche nie einfrieren", () => {
+  test("fragt im Zweifel ab: unbekannte Sichtbarkeit darf die Oberfläche nie einfrieren", () => {
     const h = makeHarness(true);
     // isVisible liefert hier immer true (Fail-Open-Standard aus browserPollingDeps)
     startVisiblePolling(h.tick, 60000, { ...h.deps, isVisible: () => true });
     h.fireInterval();
-    expect(h.ticks).toHaveLength(1);
+    assert.strictEqual(h.ticks.length, 1);
   });
 
-  it("räumt Takt und Listener beim Aufräumen ab", () => {
+  test("räumt Takt und Listener beim Aufräumen ab", () => {
     const h = makeHarness(true);
     const stop = startVisiblePolling(h.tick, 60000, h.deps);
     stop();
-    expect(h.cleared).toEqual([42]);
-    expect(h.wasUnsubscribed()).toBe(true);
+    assert.deepStrictEqual(h.cleared, [42]);
+    assert.strictEqual(h.wasUnsubscribed(), true);
   });
 });

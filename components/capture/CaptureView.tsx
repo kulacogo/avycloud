@@ -1,5 +1,6 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useRef } from "react";
 import { Product } from "../../types";
+import { groupsSignature } from "../../utils/captureGroups";
 import { UploadGroupPayload } from "../../hooks/useIdentification";
 import { Stepper, Step } from "../ui/Stepper";
 import { Button } from "../ui/Button";
@@ -10,6 +11,7 @@ import StepGrouping from "./StepGrouping";
 import StepAnalysis from "./StepAnalysis";
 import StepReview from "./StepReview";
 import StepSummary from "./StepSummary";
+import { PageTitle } from "../ui/PageTitle";
 
 const STEPS: Step[] = [
   { id: "upload", label: "Bilder hochladen" },
@@ -54,6 +56,18 @@ const CaptureView: React.FC<CaptureViewProps> = ({ onProductCreated }) => {
   const [products, setProducts] = useState<Product[]>([]);
   const [activeProductIndex, setActiveProductIndex] = useState(0);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
+  // Bleibender Hinweis auf einen möglichen Doppel-Eintrag nach einem
+  // Verbindungsabbruch — siehe StepAnalysis onRetryWarning.
+  const [retryWarning, setRetryWarning] = useState<string | null>(null);
+  // Die bestätigte Gruppierung lebt HIER, nicht nur im Gruppierungs-Schritt:
+  // dessen Zustand stirbt beim Schrittwechsel, und beim Zurückkommen lief die
+  // KI-Gruppierung erneut (echter Gemini-Call) und überschrieb jede von Hand
+  // gezogene Zuordnung.
+  const [confirmedGroups, setConfirmedGroups] = useState<ConfirmedGroup[] | null>(null);
+  // Signatur der Gruppierung, zu der `products` gehört. Solange sie gleich
+  // bleibt, ist ein zweiter Erkennungslauf reiner Schaden: er ersetzt die
+  // eingetippten Korrekturen und legt ein Doppel-Produkt im Katalog an.
+  const analyzedSignatureRef = useRef<string | null>(null);
 
   const currentProduct = products[activeProductIndex] || null;
 
@@ -65,11 +79,19 @@ const CaptureView: React.FC<CaptureViewProps> = ({ onProductCreated }) => {
     setActiveStep(stepId);
   }, []);
 
-  // Upload → Grouping
+  // Upload → Grouping (bzw. direkt zur Erkennung, wenn es nichts zu gruppieren gibt)
   const handleUploadComplete = useCallback(
     (data: CaptureUploadData) => {
       setUploadData({ ...data, lotCode });
       completeStep("upload");
+      // Erfassung nur per Barcode: der Gruppierungs-Schritt hat dann nichts zu
+      // zeigen und "Zuordnung bestätigen" bleibt dauerhaft ausgegraut — eine
+      // Sackgasse, aus der nur "Zurück" führte (das den Barcode wegwarf).
+      if (!data.allImages?.length) {
+        completeStep("grouping");
+        goTo("analysis");
+        return;
+      }
       goTo("grouping");
     },
     [completeStep, goTo, lotCode]
@@ -77,27 +99,35 @@ const CaptureView: React.FC<CaptureViewProps> = ({ onProductCreated }) => {
 
   // Grouping → Analysis
   const handleGroupingComplete = useCallback(
-    (confirmedGroups: ConfirmedGroup[]) => {
+    (groups: ConfirmedGroup[]) => {
       if (!uploadData) return;
+      setConfirmedGroups(groups);
       setUploadData((prev) =>
         prev
           ? {
               ...prev,
-              groups: confirmedGroups.map((g) => ({
+              groups: groups.map((g) => ({
                 id: g.id,
                 label: g.label,
                 images: g.images,
                 barcodes: g.barcodes || "",
                 hint: g.hint ?? null,
               })),
-              barcodes: confirmedGroups.map((g) => g.barcodes).filter(Boolean).join(","),
+              barcodes: groups.map((g) => g.barcodes).filter(Boolean).join(","),
             }
           : prev
       );
       completeStep("grouping");
+      // Unveränderte Gruppierung + vorhandenes Ergebnis = nichts neu zu erkennen.
+      // Sonst kostet jeder Weg über diesen Schritt eine weitere Erkennung, wirft
+      // die Korrekturen weg und legt ein Doppel-Produkt im Katalog an.
+      if (products.length > 0 && analyzedSignatureRef.current === groupsSignature(groups)) {
+        goTo("review");
+        return;
+      }
       goTo("analysis");
     },
-    [completeStep, goTo, uploadData]
+    [completeStep, goTo, uploadData, products.length]
   );
 
   // Analysis → Review (now receives Product[])
@@ -107,14 +137,23 @@ const CaptureView: React.FC<CaptureViewProps> = ({ onProductCreated }) => {
       setProducts(arr);
       setActiveProductIndex(0);
       setAnalysisError(null);
+      analyzedSignatureRef.current = confirmedGroups ? groupsSignature(confirmedGroups) : null;
       completeStep("analysis");
       goTo("review");
     },
-    [completeStep, goTo]
+    [completeStep, goTo, confirmedGroups]
   );
 
   const handleAnalysisError = useCallback((error: string) => {
     setAnalysisError(error);
+  }, []);
+
+  const handleRetryWarning = useCallback((info: { attempts: number }) => {
+    setRetryWarning(
+      `Die Erkennung musste ${info.attempts - 1}× wiederholt werden (Verbindungsabbruch). ` +
+        "Der erste Lauf kann auf dem Server durchgelaufen sein und ein zweites Produkt angelegt haben — " +
+        "bitte die Produktliste auf einen Doppel-Eintrag prüfen."
+    );
   }, []);
 
   // Review complete for single product — advance to next product or summary
@@ -147,20 +186,49 @@ const CaptureView: React.FC<CaptureViewProps> = ({ onProductCreated }) => {
   const handleReset = useCallback(() => {
     setActiveStep("upload");
     setCompletedSteps([]);
+    // Erst hier die Vorschau-URLs freigeben — NICHT beim Schrittwechsel.
+    // Sonst kommt der Upload-Schritt mit kaputten Vorschaubildern zurück.
+    uploadData?.allImages?.forEach((img) => {
+      try {
+        URL.revokeObjectURL(img.url);
+      } catch {
+        // Freigabe ist Aufräumarbeit — ein Fehler hier geht den Bediener nichts an.
+      }
+    });
     setUploadData(null);
     setProducts([]);
+    setConfirmedGroups(null);
+    setRetryWarning(null);
+    analyzedSignatureRef.current = null;
     setActiveProductIndex(0);
     setAnalysisError(null);
     setLotCode("");
-  }, []);
+  }, [uploadData]);
 
-  // Back navigation
+  /**
+   * "Zurück" führt IMMER auf einen Schritt mit Bedienoberfläche.
+   *
+   * Vorher rechnete die Funktion nur mit dem Schritt-Index — aus "Prüfen"
+   * landete man damit auf "KI-Erkennung", und das ist ein reiner
+   * Fortschrittsbalken ohne Bedienoberfläche: er startete beim Betreten sofort
+   * eine neue Erkennung, warf alle Korrekturen weg und legte ein Doppel-Produkt
+   * im Katalog an. Die Erkennung wird deshalb übersprungen.
+   */
   const handleStepBack = useCallback(() => {
-    const idx = STEPS.findIndex((s) => s.id === activeStep);
-    if (idx > 0) {
-      goTo(STEPS[idx - 1].id);
+    const BACK_TARGET: Record<string, string> = {
+      grouping: "upload",
+      analysis: "grouping",
+      review: "grouping",
+      summary: "review",
+    };
+    const target = BACK_TARGET[activeStep];
+    // Ohne Bilder gab es nie einen Gruppierungs-Schritt — dann zurück zum Upload.
+    if (target === "grouping" && !uploadData?.allImages?.length) {
+      goTo("upload");
+      return;
     }
-  }, [activeStep, goTo]);
+    if (target) goTo(target);
+  }, [activeStep, goTo, uploadData]);
 
   // Multi-product tab bar
   const ProductTabs = products.length > 1 ? (
@@ -186,11 +254,24 @@ const CaptureView: React.FC<CaptureViewProps> = ({ onProductCreated }) => {
     <div className="max-w-6xl mx-auto p-6 space-y-6">
       {/* Header + Los */}
       <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
-        <h1 className="text-xl font-semibold text-txt-primary">Produkt erfassen</h1>
+        <PageTitle className="text-xl font-semibold text-txt-primary">Produkt erfassen</PageTitle>
         <div className="w-full lg:w-80">
           <LotSelector value={lotCode} onChange={setLotCode} />
         </div>
       </div>
+
+      {retryWarning && (
+        <div className="flex flex-wrap items-start gap-3 rounded-xl border border-warning/30 bg-warning-dim px-4 py-3 text-sm text-warning">
+          <span className="flex-1">{retryWarning}</span>
+          <button
+            type="button"
+            onClick={() => setRetryWarning(null)}
+            className="shrink-0 text-xs font-semibold underline opacity-80 hover:opacity-100"
+          >
+            Verstanden
+          </button>
+        </div>
+      )}
 
       {/* Stepper */}
       <Card padding="sm">
@@ -203,17 +284,24 @@ const CaptureView: React.FC<CaptureViewProps> = ({ onProductCreated }) => {
           <StepUpload
             onComplete={handleUploadComplete}
             lotCode={lotCode}
+            // Der Schritt wird beim Wechsel ausgehängt; ohne diese Startwerte
+            // kam er leer zurück und bis zu 30 Fotos waren neu auszuwählen.
+            initialImages={uploadData?.allImages}
+            initialBarcodes={uploadData?.barcodes}
           />
         )}
 
-        {activeStep === "grouping" && uploadData?.allImages && (
+        {activeStep === "grouping" && uploadData?.allImages?.length ? (
           <StepGrouping
             images={uploadData.allImages}
             barcodes={uploadData.barcodes}
             onConfirm={handleGroupingComplete}
             onBack={handleStepBack}
+            // Bereits bestätigte Gruppen: verhindert einen zweiten Gemini-Aufruf
+            // und rettet jede von Hand gezogene Zuordnung.
+            initialGroups={confirmedGroups}
           />
-        )}
+        ) : null}
 
         {activeStep === "analysis" && uploadData && (
           <StepAnalysis
@@ -222,6 +310,7 @@ const CaptureView: React.FC<CaptureViewProps> = ({ onProductCreated }) => {
             onComplete={handleAnalysisComplete}
             onError={handleAnalysisError}
             onBack={handleStepBack}
+            onRetryWarning={handleRetryWarning}
           />
         )}
 

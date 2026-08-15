@@ -16,6 +16,7 @@ import {
 import { WarehouseBin, WarehouseLayout } from '../types';
 import { PrintIcon } from './icons/Icons';
 import { PageHeader } from './ui/PageHeader';
+import { PageTitle } from './ui/PageTitle';
 import { HelpDisclosure } from './ui/HelpDisclosure';
 import { Notice } from './ui/Notice';
 import { ConfirmDialog } from './ui/ConfirmDialog';
@@ -471,10 +472,8 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
 
   return (
     <section className="space-y-5">
-      <PageHeader
-        title="Warehouse"
-        subtitle="Lagerstruktur (Zonen/BINs) ansehen, Labels drucken und BIN-Inhalte verwalten."
-      >
+      <PageTitle>Lagerverwaltung</PageTitle>
+      <PageHeader subtitle="Lagerstruktur (Zonen/BINs) ansehen, Labels drucken und BIN-Inhalte verwalten.">
         <HelpDisclosure title="Wie nutze ich Warehouse? (2 Minuten)">
           <ol className="list-decimal pl-5 space-y-1">
             <li>

@@ -2,6 +2,16 @@ import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { Product } from "../types";
 import { fetchProducts, fetchEbaySkuIndex, fetchKauflandSkuIndex } from "../api/client";
 import { READINESS_LABELS, normalizeReadiness } from "../utils/readiness";
+import { getProductBinCode, getProductBinZone } from "../utils/product";
+import { exportToCsv } from "../utils/csv-export";
+import {
+  buildInventoryExport,
+  buildInventoryExportFilename,
+  loadInventoryExportPreferences,
+  saveInventoryExportPreferences,
+  type InventoryExportPreferences,
+} from "../utils/inventory-export";
+import InventoryExportDialog, { type InventoryExportScope } from "./inventory/InventoryExportDialog";
 import { Spinner } from "./Spinner";
 
 // ---------------------------------------------------------------------------
@@ -33,22 +43,10 @@ const primaryImage = (product: Product): string | null => {
   return null;
 };
 
-const getBinCode = (product: Product): string | null => {
-  if (product.storage?.binCode) return product.storage.binCode;
-  if (Array.isArray(product.storageBins) && product.storageBins.length) {
-    const withStock = product.storageBins.find((b) => (b.quantity || 0) > 0);
-    return withStock?.code || product.storageBins[0]?.code || null;
-  }
-  return null;
-};
-
-const getBinZone = (product: Product): string | null => {
-  if (product.storage?.zone) return product.storage.zone;
-  if (Array.isArray(product.storageBins) && product.storageBins.length) {
-    return product.storageBins[0]?.zone || null;
-  }
-  return null;
-};
+// Lagerplatz-Aufloesung liegt in utils/product.ts, damit die CSV-Ausgabe
+// garantiert dieselben Werte zeigt wie diese Tabelle.
+const getBinCode = getProductBinCode;
+const getBinZone = getProductBinZone;
 
 const zoneColor = (zone: string | null): string => {
   switch (zone) {
@@ -259,7 +257,11 @@ const InventoryView: React.FC<InventoryViewProps> = ({ onNavigate, onSelectProdu
     const isKauflandActive = kauflandStatus === 'active' || (productSku && kauflandListedSkus.has(productSku)) || productEans.some((e) => kauflandListedEans.has(e));
     const ebayValidation = p.marketplace_listings?.ebay?.validation;
     const kauflandValidation = p.marketplace_listings?.kaufland?.validation;
-    const hasErrors = (ebayValidation && !ebayValidation.ready) || (kauflandValidation && !kauflandValidation.ready);
+    // Boolean(): ohne Validierungsdaten war das Ergebnis vorher `undefined` und
+    // damit nicht als Flag weiterreichbar (nur zufällig truthy-verträglich).
+    const hasErrors = Boolean(
+      (ebayValidation && !ebayValidation.ready) || (kauflandValidation && !kauflandValidation.ready)
+    );
     const errorCount = (ebayValidation?.issues?.length ?? 0) + (kauflandValidation?.issues?.length ?? 0);
     const isListed = isEbayActive || isKauflandActive;
     return { isEbayActive, isKauflandActive, isListed, hasErrors, errorCount, ebayValidation, kauflandValidation };
@@ -313,10 +315,59 @@ const InventoryView: React.FC<InventoryViewProps> = ({ onNavigate, onSelectProdu
     return { totalProducts, totalUnits, totalValue, lowStockCount, noBinCount, staleCount, listedCount, unlistedCount, listingErrorCount, readyCount, pendingCount, inProgressCount, soldCount, unsoldCount, listingReadyCount };
   }, [products, getMarketplaceInfo]);
 
+  // Inventar = was tatsächlich auf Lager ist. Basis für Tabelle UND Export.
+  const stockProducts = useMemo(
+    () => products.filter((p) => (p.inventory?.quantity ?? 0) > 0),
+    [products]
+  );
+
+  // ---- Sorting ----
+  const compareProducts = useCallback((a: Product, b: Product) => {
+    let cmp = 0;
+    switch (sortField) {
+      case "name":
+        cmp = (a.identification?.name || "").localeCompare(b.identification?.name || "", "de");
+        break;
+      case "sku":
+        cmp = (a.identification?.sku || "").localeCompare(b.identification?.sku || "", "de");
+        break;
+      case "quantity":
+        cmp = (a.inventory?.quantity ?? 0) - (b.inventory?.quantity ?? 0);
+        break;
+      case "available":
+        cmp = (a.inventory?.availableQuantity ?? 0) - (b.inventory?.availableQuantity ?? 0);
+        break;
+      case "buyPrice": {
+        const aBuy = a.details?.pricing?.buyPrice || (a.details?.pricing as any)?.lowest_price?.amount || 0;
+        const bBuy = b.details?.pricing?.buyPrice || (b.details?.pricing as any)?.lowest_price?.amount || 0;
+        cmp = aBuy - bBuy;
+        break;
+      }
+      case "value": {
+        const aVal = (a.inventory?.quantity ?? 0) * (a.details?.pricing?.buyPrice || (a.details?.pricing as any)?.lowest_price?.amount || 0);
+        const bVal = (b.inventory?.quantity ?? 0) * (b.details?.pricing?.buyPrice || (b.details?.pricing as any)?.lowest_price?.amount || 0);
+        cmp = aVal - bVal;
+        break;
+      }
+      case "binCode":
+        cmp = (getBinCode(a) || "zzz").localeCompare(getBinCode(b) || "zzz", "de");
+        break;
+      case "marketplace": {
+        const aInfo = getMarketplaceInfo(a);
+        const bInfo = getMarketplaceInfo(b);
+        // Listed first, then by channel count
+        const aScore = (aInfo.isEbayActive ? 1 : 0) + (aInfo.isKauflandActive ? 1 : 0);
+        const bScore = (bInfo.isEbayActive ? 1 : 0) + (bInfo.isKauflandActive ? 1 : 0);
+        cmp = aScore - bScore;
+        break;
+      }
+    }
+    return sortDir === "asc" ? cmp : -cmp;
+  }, [sortField, sortDir, getMarketplaceInfo]);
+
   // ---- Filtering ----
   const filteredProducts = useMemo(() => {
-    // Default: only show products with stock > 0 (Inventar = was tatsächlich auf Lager ist)
-    let list = products.filter((p) => (p.inventory?.quantity ?? 0) > 0);
+    let list = stockProducts;
 
     // Quick filter
     switch (quickFilter) {
@@ -369,53 +420,41 @@ const InventoryView: React.FC<InventoryViewProps> = ({ onNavigate, onSelectProdu
       });
     }
 
-    // Sort
-    list = [...list].sort((a, b) => {
-      let cmp = 0;
-      switch (sortField) {
-        case "name":
-          cmp = (a.identification?.name || "").localeCompare(b.identification?.name || "", "de");
-          break;
-        case "sku":
-          cmp = (a.identification?.sku || "").localeCompare(b.identification?.sku || "", "de");
-          break;
-        case "quantity":
-          cmp = (a.inventory?.quantity ?? 0) - (b.inventory?.quantity ?? 0);
-          break;
-        case "available":
-          cmp = (a.inventory?.availableQuantity ?? 0) - (b.inventory?.availableQuantity ?? 0);
-          break;
-        case "buyPrice": {
-          const aBuy = a.details?.pricing?.buyPrice || (a.details?.pricing as any)?.lowest_price?.amount || 0;
-          const bBuy = b.details?.pricing?.buyPrice || (b.details?.pricing as any)?.lowest_price?.amount || 0;
-          cmp = aBuy - bBuy;
-          break;
-        }
-        case "value": {
-          const aVal = (a.inventory?.quantity ?? 0) * (a.details?.pricing?.buyPrice || (a.details?.pricing as any)?.lowest_price?.amount || 0);
-          const bVal = (b.inventory?.quantity ?? 0) * (b.details?.pricing?.buyPrice || (b.details?.pricing as any)?.lowest_price?.amount || 0);
-          cmp = aVal - bVal;
-          break;
-        }
-          break;
-        case "binCode":
-          cmp = (getBinCode(a) || "zzz").localeCompare(getBinCode(b) || "zzz", "de");
-          break;
-        case "marketplace": {
-          const aInfo = getMarketplaceInfo(a);
-          const bInfo = getMarketplaceInfo(b);
-          // Listed first, then by channel count
-          const aScore = (aInfo.isEbayActive ? 1 : 0) + (aInfo.isKauflandActive ? 1 : 0);
-          const bScore = (bInfo.isEbayActive ? 1 : 0) + (bInfo.isKauflandActive ? 1 : 0);
-          cmp = aScore - bScore;
-          break;
-        }
-      }
-      return sortDir === "asc" ? cmp : -cmp;
-    });
+    return [...list].sort(compareProducts);
+  }, [stockProducts, quickFilter, searchQuery, compareProducts, getMarketplaceInfo]);
 
-    return list;
-  }, [products, quickFilter, searchQuery, sortField, sortDir, getMarketplaceInfo]);
+  // Gesamter Bestand in derselben Sortierung — Umfangsoption "Gesamter Bestand"
+  // im Export-Dialog.
+  const sortedStockProducts = useMemo(
+    () => [...stockProducts].sort(compareProducts),
+    [stockProducts, compareProducts]
+  );
+
+  // ---- CSV-Export ----
+  const [exportOpen, setExportOpen] = useState(false);
+  const [exportPrefs, setExportPrefs] = useState<InventoryExportPreferences>(() =>
+    loadInventoryExportPreferences()
+  );
+
+  const filterActive = quickFilter !== "all" || searchQuery.trim().length > 0;
+
+  const handleExport = useCallback(
+    ({ scope, fields, numberFormat }: { scope: InventoryExportScope; fields: string[]; numberFormat: InventoryExportPreferences["numberFormat"] }) => {
+      const list = scope === "all" ? sortedStockProducts : filteredProducts;
+      const { headers, rows } = buildInventoryExport(
+        list,
+        fields,
+        { marketplace: getMarketplaceInfo },
+        numberFormat
+      );
+      exportToCsv(buildInventoryExportFilename(scope), headers, rows);
+      const next: InventoryExportPreferences = { fields, numberFormat };
+      saveInventoryExportPreferences(next);
+      setExportPrefs(next);
+      setExportOpen(false);
+    },
+    [sortedStockProducts, filteredProducts, getMarketplaceInfo]
+  );
 
   // ---- Sort handler ----
   const handleSort = (field: SortField) => {
@@ -595,9 +634,22 @@ const InventoryView: React.FC<InventoryViewProps> = ({ onNavigate, onSelectProdu
         </div>
       </div>
 
-      {/* Results count */}
-      <div className="text-xs text-txt-muted">
-        {filteredProducts.length} von {products.length} Artikeln
+      {/* Results count + Export */}
+      <div className="flex items-center justify-between gap-3">
+        <div className="text-xs text-txt-muted">
+          {filteredProducts.length} von {products.length} Artikeln
+        </div>
+        <button
+          type="button"
+          onClick={() => setExportOpen(true)}
+          disabled={stockProducts.length === 0}
+          className="inline-flex items-center gap-2 rounded-lg border border-app-border bg-app-surface text-txt-primary px-3 py-1.5 text-sm font-medium hover:bg-app-elevated transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} aria-hidden="true">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" />
+          </svg>
+          Export
+        </button>
       </div>
 
       {/* Data Table */}
@@ -860,6 +912,20 @@ const InventoryView: React.FC<InventoryViewProps> = ({ onNavigate, onSelectProdu
           </table>
         </div>
       </div>
+
+      {/* Beim Öffnen frisch montiert, damit die gespeicherte Feldauswahl gelesen wird. */}
+      {exportOpen && (
+        <InventoryExportDialog
+          open={exportOpen}
+          onClose={() => setExportOpen(false)}
+          filteredCount={filteredProducts.length}
+          totalCount={stockProducts.length}
+          filterActive={filterActive}
+          initialFields={exportPrefs.fields}
+          initialNumberFormat={exportPrefs.numberFormat}
+          onExport={handleExport}
+        />
+      )}
     </div>
   );
 };

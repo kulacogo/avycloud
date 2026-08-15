@@ -3,6 +3,7 @@ import { fetchOrderSettings, saveOrderSettings, runRepricingBatch, fetchPricingR
 import type { ShippingMethod } from "../../types";
 import { groupShippingMethods, shippingMethodOptionLabel } from "../../utils/shippingMethods";
 import { useToast } from "../../context/ToastContext";
+import { PageTitle } from "../ui/PageTitle";
 
 /* ─── Types ─── */
 interface CarrierRule {
@@ -299,7 +300,7 @@ export const OrderSettingsView: React.FC = () => {
     <div className="max-w-4xl mx-auto space-y-8">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-txt-primary">Auftragseinstellungen</h1>
+        <PageTitle>Auftragseinstellungen</PageTitle>
         <p className="text-sm text-txt-muted">Automatisierungen, Status und Nummernkreise konfigurieren</p>
       </div>
 

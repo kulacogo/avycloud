@@ -1336,6 +1336,54 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
     logScanDebug('mode-focus');
   }, [mode, logScanDebug]);
 
+  /**
+   * Fangfeld zurückholen, sobald KEIN Dialog mehr offen ist.
+   *
+   * Der bisherige Rückhol-Weg hing am Blur-Ereignis des Fangfeldes — der greift
+   * nur, wenn das Feld selbst den Fokus verliert, und gibt bei einem echten
+   * Eingabefeld bewusst auf (sonst öffnet die Tastatur im Gewichtsfeld nicht).
+   * Beim Verpacken wird das Gewichtsfeld beim Bestätigen abgeschaltet und der
+   * Dialog verschwindet: der Fokus fällt auf den Seitenkörper, und dort gibt es
+   * keinen Blur mehr, den das Fangfeld beantworten könnte. Der Handscanner war
+   * damit bis zum Verlassen des Verpacken-Bildschirms tot.
+   *
+   * Die Regel hängt jetzt am ZUSTAND statt am Ereignis: solange ein Dialog
+   * offen ist, Finger weg; sobald er zu ist, gehört der Fokus wieder dem
+   * Fangfeld. Der `isRealEditable`-Schutz bleibt zwingend erhalten — ohne ihn
+   * kehrt die Regression zurück, bei der die Tastatur im Gewichtsfeld nicht
+   * mehr aufging. BEWUSST KEINE Dauer-Wache auf den Seitenkörper: die würde
+   * während `shipDecisionBusy` feuern (Feld abgeschaltet, Dialog steht noch)
+   * und dem wieder aktivierten Feld den Fokus klauen.
+   */
+  useEffect(() => {
+    const isScanMode =
+      mode === 'operations-pick' || mode === 'operations-stow' || mode === 'operations-pack';
+    if (!isScanMode || shipDecisionStep !== 'idle') return;
+
+    const reclaim = () => {
+      const active = document.activeElement as HTMLElement | null;
+      const isRealEditable =
+        !!active &&
+        active !== scanCaptureRef.current &&
+        (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA') &&
+        !(active as HTMLInputElement).readOnly &&
+        active.getAttribute('inputmode') !== 'none';
+      if (isRealEditable) return;
+      scanCaptureRef.current?.focus({ preventScroll: true });
+      logScanDebug('dialog-closed-refocus');
+    };
+
+    // Nach dem Aushängen des Dialogs, nicht davor.
+    const timer = window.setTimeout(reclaim, 0);
+    // Das Label öffnet sich in einem neuen Tab und reißt den Fokus mit; beim
+    // Zurückwechseln gehört er wieder dem Fangfeld.
+    window.addEventListener('focus', reclaim);
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener('focus', reclaim);
+    };
+  }, [mode, shipDecisionStep, logScanDebug]);
+
   // Verify focus survives every scan-step state change (BIN→SKU→confirm, next item).
   useEffect(() => {
     logScanDebug('state-change');

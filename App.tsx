@@ -122,6 +122,24 @@ const ALLOWED_VIEWS: View[] = [
 ];
 type Theme = 'light' | 'dark';
 
+/**
+ * Ansichten, über denen das Produktdatenblatt NICHT aufgehen darf.
+ *
+ * Bewusst eine Ausschluss- statt einer Erlaubnisliste: vorher stand hier eine
+ * Aufzählung erlaubter Ansichten, und jede neue Ansicht musste daran denken,
+ * sich einzutragen. Wer es vergaß, bekam eine tote Fläche — genau das war im
+ * Handy-Reiter "Suche" der Fall: Tippen auf einen Treffer setzte den Zustand,
+ * gerendert wurde nichts, und am Handy führte damit überhaupt kein Weg mehr ins
+ * Datenblatt. Dasselbe traf die klickbaren Zeilen der Nachbestellungs-Warnungen
+ * auf dem Dashboard.
+ *
+ * Ausgeschlossen bleiben die Scan-Ansichten (ein bildschirmfüllendes Overlay
+ * würde dem Handscanner den Fokus nehmen) und das Erfassen (das Overlay würde
+ * den Assistenten verdecken).
+ */
+const isProductSheetBlockedView = (view: string) =>
+  view === 'input' || view.startsWith('operations');
+
 const sanitizeIdentifier = (value?: string | null) => {
   if (!value) return null;
   const cleaned = value.toString().trim().toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -441,7 +459,7 @@ const readInitialDashboardRangePreset = (): string => {
 
 const AppInner: React.FC = () => {
   const { t } = useI18n();
-  const { hasPermission } = useAuth();
+  const { hasPermission, rbacError, retryPermissions } = useAuth();
 
   // Connect to backend SSE for live cache invalidation
   useSSE();
@@ -1245,6 +1263,22 @@ const AppInner: React.FC = () => {
         )}
 
         <main className={`flex-1 overflow-y-auto px-4 sm:px-6 lg:px-8 safe-area-content ${isMobile && view.startsWith('operations') ? 'pt-3' : 'py-6'} ${isMobile && view === 'operations' ? 'flex flex-col' : ''}`}>
+          {/* Rechte-Abruf endgültig fehlgeschlagen: OHNE diesen Hinweis wirkt die
+              halbierte Navigation wie eine Rechte-Entscheidung — der Mitarbeiter
+              sieht nur, dass "Operationen" fehlt, und hat keinen Weg zurück
+              außer einem manuellen Neuladen. */}
+          {rbacError && (
+            <div className="mb-4 flex flex-wrap items-center gap-3 rounded-lg border border-warning/30 bg-warning-dim px-4 py-3 text-sm text-warning">
+              <span>Berechtigungen konnten nicht geladen werden — es fehlen möglicherweise Menüpunkte.</span>
+              <button
+                type="button"
+                onClick={retryPermissions}
+                className="inline-flex items-center rounded-md bg-warning px-3 py-1.5 font-semibold text-white hover:opacity-90 transition-opacity"
+              >
+                Erneut versuchen
+              </button>
+            </div>
+          )}
           {productsError && (
             <div className="mb-4 flex flex-wrap items-center gap-3 rounded-lg border border-danger/30 bg-danger-dim px-4 py-3 text-sm text-danger">
               <span>{productsError}</span>
@@ -1273,7 +1307,7 @@ const AppInner: React.FC = () => {
         </main>
 
         {/* ProductSheet overlay — slides in from right, independent of route */}
-        {currentProduct && (view === 'inventory' || view === 'products' || view === 'marketplace-ebay' || view === 'marketplace-kaufland' || view === 'marketplace-errors') && (
+        {currentProduct && !isProductSheetBlockedView(view) && (
           <div className="fixed inset-0 z-50 flex justify-end">
             {/* Backdrop */}
             <div

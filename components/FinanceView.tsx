@@ -1,6 +1,6 @@
 import React from "react";
 import { AdminFinancials } from "./admin/AdminFinancials";
-import { PageHeader } from "./ui/PageHeader";
+import { PageTitle } from "./ui/PageTitle";
 
 /**
  * Standalone Finanzen view (Sidebar entry), visible to every role with
@@ -13,7 +13,7 @@ import { PageHeader } from "./ui/PageHeader";
 export default function FinanceView() {
   return (
     <div className="space-y-5">
-      <PageHeader title="Finanzen" />
+      <PageTitle>Finanzen</PageTitle>
       <AdminFinancials />
     </div>
   );

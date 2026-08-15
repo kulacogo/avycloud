@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useRef } from 'react';
 
 interface AttributeTableProps {
   attributes: Record<string, any>;
@@ -136,6 +136,31 @@ const AttributeTable: React.FC<AttributeTableProps> = ({ attributes, isEditing =
         return true;
       });
 
+  /**
+   * Stabile Zeilen-Identität, unabhängig vom Attributnamen.
+   *
+   * Vorher war die Zeile mit dem Namen verschlüsselt (`<tr key={key}>`). Beim
+   * Umbenennen wechselte damit die Identität: React hängte die alte Zeile samt
+   * beider Eingabefelder aus dem DOM und baute eine neue ein — mitten im
+   * Fokuswechsel. Der Cursor landete auf dem Seitenkörper, die nächsten
+   * Tastenanschläge gingen ins Leere und der "Entfernen"-Knopf derselben Zeile
+   * schluckte den ersten Klick.
+   *
+   * Reines Umsortieren bricht den Fokus NICHT — React verschiebt Knoten mit
+   * gleichem Schlüssel ohne Neuaufbau. Nur der Schlüsselwechsel war die Ursache.
+   */
+  const rowIdsRef = useRef(new Map<string, string>());
+  const nextRowIdRef = useRef(0);
+
+  const rowIdFor = (key: string): string => {
+    const ids = rowIdsRef.current;
+    const vorhanden = ids.get(key);
+    if (vorhanden) return vorhanden;
+    const id = `attr-row-${nextRowIdRef.current++}`;
+    ids.set(key, id);
+    return id;
+  };
+
   const updateAttr = (key: string, value: string) => {
     if (!onChange) return;
     const next = { ...(attributes || {}) };
@@ -147,6 +172,15 @@ const AttributeTable: React.FC<AttributeTableProps> = ({ attributes, isEditing =
     if (!onChange || !newKey) return;
     const next = { ...(attributes || {}) } as Record<string, any>;
     if (oldKey !== newKey) {
+      // Zeilen-Identität mitnehmen, BEVOR neu gerendert wird — sonst bekommt
+      // die Zeile eine neue Identität, React baut sie samt Eingabefeldern neu
+      // auf und der Fokus fällt auf den Seitenkörper.
+      const ids = rowIdsRef.current;
+      const bestehend = ids.get(oldKey);
+      if (bestehend) {
+        ids.set(newKey, bestehend);
+        ids.delete(oldKey);
+      }
       next[newKey] = next[oldKey];
       delete next[oldKey];
       onChange(sortAttributes(next));
@@ -189,7 +223,7 @@ const AttributeTable: React.FC<AttributeTableProps> = ({ attributes, isEditing =
       <table className="w-full">
         <tbody className="divide-y divide-app-border">
           {displayEntries.map(([key, value]) => (
-            <tr key={key} className={highlightSet.has(String(key || '').toLowerCase()) ? 'bg-warning-dim' : ''}>
+            <tr key={rowIdFor(key)} className={highlightSet.has(String(key || '').toLowerCase()) ? 'bg-warning-dim' : ''}>
               <td
                 className={`py-3 pr-4 font-medium w-1/3 ${highlightSet.has(String(key || '').toLowerCase()) ? 'text-warning' : 'text-txt-muted'
                   }`}

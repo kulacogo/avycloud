@@ -4,6 +4,7 @@ import type { ShippingMethod } from "../../types";
 import { groupShippingMethods, shippingMethodOptionLabel } from "../../utils/shippingMethods";
 import { EmptyState } from "../ui/EmptyState";
 import { useToast } from "../../context/ToastContext";
+import { PageTitle } from "../ui/PageTitle";
 
 /* ─── Config ─── */
 const CARRIER_STYLE: Record<string, { cls: string; initial: string }> = {
@@ -231,7 +232,7 @@ export const ShippingView: React.FC = () => {
     return (
       <div className="max-w-7xl mx-auto space-y-5">
         <div>
-          <h1 className="text-2xl font-bold text-txt-primary">Versand & Labels</h1>
+          <PageTitle>Versand &amp; Labels</PageTitle>
           <p className="text-sm text-txt-muted">Sendungen verfolgen und Versandlabels verwalten</p>
         </div>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -249,7 +250,7 @@ export const ShippingView: React.FC = () => {
       {/* Header */}
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-txt-primary">Versand & Labels</h1>
+          <PageTitle>Versand &amp; Labels</PageTitle>
           <p className="text-sm text-txt-muted">Sendungen verfolgen und Versandlabels verwalten</p>
         </div>
         <div className="flex items-center gap-2">

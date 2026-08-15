@@ -4,6 +4,7 @@ import { useAuth } from "../context/AuthContext";
 import { Breadcrumb, type BreadcrumbItem } from "./ui/Breadcrumb";
 import { HelpButton } from "./help/HelpButton";
 import { useSystemAlerts } from "../hooks/useSystemAlerts";
+import { publishGlobalSearch } from "../utils/globalSearch";
 import type { View } from "../types";
 
 interface TopbarProps {
@@ -67,7 +68,7 @@ const VIEW_BREADCRUMBS: Record<string, { parent: string; parentView: string }> =
 
 export const Topbar: React.FC<TopbarProps> = ({ currentView, theme, onToggleTheme, onNavigate }) => {
   const { t } = useI18n();
-  const { user } = useAuth();
+  const { user, isAdmin, hasPermission } = useAuth();
   const title = VIEW_TITLES[currentView] || "Dashboard";
   const breadcrumb = VIEW_BREADCRUMBS[currentView];
   const userInitial = user?.email?.charAt(0)?.toUpperCase() || "?";
@@ -75,8 +76,15 @@ export const Topbar: React.FC<TopbarProps> = ({ currentView, theme, onToggleThem
   // HARDEN-Wave-9 (2026-05-22): Bell-Badge — polls /api/admin/alerts/recent?days=1
   // every 60s if the current user has admin access. Non-admins see no badge,
   // no API spam.
-  const isAdminUser = Boolean((user as { isAdmin?: boolean } | null | undefined)?.isAdmin);
-  const { count: alertCount, latest: alertLatest } = useSystemAlerts(isAdminUser);
+  //
+  // Bis 2026-08-15 stand hier `(user as { isAdmin?: boolean })?.isAdmin`. `user`
+  // ist das Firebase-User-Objekt und hat kein Feld `isAdmin` — der Cast schaltete
+  // nur die Typprüfung ab. Damit war die Bedingung IMMER falsch, die Glocke
+  // fragte nie ab und meldete dauerhaft "Alles ruhig". Das echte Flag liegt im
+  // selben Context direkt daneben. Der Kreis deckt sich bewusst mit dem
+  // Backend-Gate `requirePermission('admin','read')`.
+  const { count: alertCount, latest: alertLatest, error: alertError, refresh: refreshAlerts } =
+    useSystemAlerts(isAdmin || hasPermission("admin", "read"));
   const [bellOpen, setBellOpen] = useState(false);
   const bellRef = useRef<HTMLDivElement>(null);
 
@@ -121,7 +129,9 @@ export const Topbar: React.FC<TopbarProps> = ({ currentView, theme, onToggleThem
     e.preventDefault();
     const q = searchValue.trim();
     if (!q) return;
-    window.sessionStorage.setItem("avystock:admin-table:search", q);
+    // Speichern UND zustellen: steht der Bediener schon auf "Produkte", ist die
+    // Tabelle längst aufgebaut und liest den Sitzungsspeicher nicht mehr.
+    publishGlobalSearch(q);
     window.location.hash = "#/products";
     onNavigate?.("products");
     setSearchValue("");
@@ -252,12 +262,30 @@ export const Topbar: React.FC<TopbarProps> = ({ currentView, theme, onToggleThem
                 </button>
               </div>
               <div className="max-h-72 overflow-y-auto">
-                {!alertCount && (
+                {/* "Noch nichts geladen" ist KEINE Entwarnung — vorher stand hier
+                    `!alertCount`, was auch bei count === null zutraf und das
+                    Unbekannte als "Alles ruhig" ausgab. */}
+                {alertError && (
+                  <div className="px-3 py-5 text-center text-sm">
+                    <p className="text-warning">Alarme konnten nicht geladen werden.</p>
+                    <button
+                      type="button"
+                      onClick={() => void refreshAlerts()}
+                      className="mt-2 text-xs font-medium text-accent hover:underline"
+                    >
+                      Erneut versuchen
+                    </button>
+                  </div>
+                )}
+                {!alertError && alertCount === null && (
+                  <div className="px-3 py-6 text-center text-sm text-txt-muted">Lade…</div>
+                )}
+                {!alertError && alertCount === 0 && (
                   <div className="px-3 py-6 text-center text-sm text-txt-muted">
                     Keine offenen Alerts. Alles ruhig.
                   </div>
                 )}
-                {alertCount !== null && alertCount > 0 && alertLatest.length === 0 && (
+                {!alertError && alertCount !== null && alertCount > 0 && alertLatest.length === 0 && (
                   <div className="px-3 py-6 text-center text-sm text-txt-muted">Lade…</div>
                 )}
                 {alertLatest.map((a) => (

@@ -1,5 +1,6 @@
 import React from "react";
 import { useI18n } from "../../i18n";
+import { nextQuantityFromDigit, clampQuantity } from "../../utils/quantityPad";
 
 type QuantityNumpadProps = {
   value: number;
@@ -10,12 +11,6 @@ type QuantityNumpadProps = {
   onConfirm?: () => void;
   confirmLabel?: string;
   confirmDisabled?: boolean;
-};
-
-const clamp = (value: number, min: number, max?: number) => {
-  const minApplied = Math.max(min, value);
-  if (typeof max !== "number" || !Number.isFinite(max)) return minApplied;
-  return Math.min(max, minApplied);
 };
 
 const QuantityNumpad: React.FC<QuantityNumpadProps> = ({
@@ -36,20 +31,33 @@ const QuantityNumpad: React.FC<QuantityNumpadProps> = ({
   const keyBase =
     "flex items-center justify-center rounded-xl bg-app-surface text-txt-primary border border-app-border font-semibold h-[clamp(2.5rem,6.2dvh,3.25rem)]";
 
+  /**
+   * Merkt sich den zuletzt SELBST gesendeten Wert. Weicht der hereinkommende
+   * `value` davon ab, kam er von außen (Reset nach Buchung, Scan, Auswahl einer
+   * Kommissionier-Zeile) — dann ersetzt der nächste Tastendruck den Vorschlag,
+   * statt sich anzuhängen. Der Zustand gehört bewusst HIERHIN und nicht in die
+   * aufrufende Ansicht: sonst müsste jeder der beiden Aufrufer (Einlagern,
+   * Kommissionieren) an jeder Reset-Stelle daran denken.
+   */
+  const lastEmittedRef = React.useRef<number | null>(null);
+  const isFirstEntry = lastEmittedRef.current === null || lastEmittedRef.current !== safeValue;
+
+  const emit = (next: number) => {
+    lastEmittedRef.current = next;
+    onChange(next);
+  };
+
   const appendDigit = (digit: number) => {
-    const normalized = Math.max(0, Math.floor(safeValue));
-    const nextRaw = Number(`${normalized}${digit}`);
-    const bounded = clamp(Number.isFinite(nextRaw) ? nextRaw : 0, min, max);
-    onChange(bounded);
+    emit(nextQuantityFromDigit({ current: safeValue, digit, isFirstEntry, min, max }));
   };
 
   const dropLastDigit = () => {
     const normalized = Math.max(0, Math.floor(safeValue));
-    onChange(clamp(Math.floor(normalized / 10), min, max));
+    emit(clampQuantity(Math.floor(normalized / 10), min, max));
   };
 
   const clear = () => {
-    onChange(clamp(0, min, max));
+    emit(clampQuantity(0, min, max));
   };
 
   return (

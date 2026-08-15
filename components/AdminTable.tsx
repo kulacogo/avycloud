@@ -10,6 +10,7 @@ import {
   getProductDisplayCategory,
 } from '../utils/product';
 import { isValidGtin, normalizeBarcode } from '../utils/gtin';
+import { readInitialGlobalSearch, subscribeGlobalSearch } from '../utils/globalSearch';
 import { useI18n } from '../i18n';
 import { Spinner } from './Spinner';
 import { addMediaQueryListener } from '../utils/mediaQuery';
@@ -121,10 +122,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
   scopeProductIds = null,
 }) => {
   const { t } = useI18n();
-  const [searchTerm, setSearchTerm] = useState(() => {
-    if (typeof window === 'undefined') return '';
-    return window.sessionStorage.getItem('avystock:admin-table:search') || '';
-  });
+  const [searchTerm, setSearchTerm] = useState(() => readInitialGlobalSearch());
   const [filterStatus, setFilterStatus] = useState<Readiness | 'all' | 'empty'>(() => {
     if (typeof window === 'undefined') return 'all';
     const stored = window.sessionStorage.getItem('avystock:admin-table:filterStatus') as Readiness | 'all' | 'empty';
@@ -219,6 +217,18 @@ const AdminTable: React.FC<AdminTableProps> = ({
     }
   });
   const [currentPage, setCurrentPage] = useState(1);
+
+  // Suche aus der oberen Leiste: erreicht die Tabelle auch dann, wenn sie schon
+  // aufgebaut ist. Der Startwert von `searchTerm` greift nur beim ERSTEN Aufbau
+  // — stand der Bediener bereits auf "Produkte", passierte vorher gar nichts.
+  useEffect(
+    () =>
+      subscribeGlobalSearch((term) => {
+        setSearchTerm(term);
+        setCurrentPage(1);
+      }),
+    []
+  );
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const gridEdit = useGridEdit();
   const gridBulkUpdate = useBulkUpdate();
