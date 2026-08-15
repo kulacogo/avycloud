@@ -650,6 +650,21 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
           ...(baseProduct.identification || {}),
           barcodes: parsedBarcodes,
         },
+        details: {
+          ...(baseProduct.details || {}),
+          // Die kanonischen Kennnummern MIT senden. Vorher enthielt die
+          // Nutzlast nur die Barcode-Liste, waehrend details.identifiers noch
+          // den geloeschten Code trug. Der Server verwarf ihn korrekt — die
+          // anschliessende Schreib-Quittung verglich aber Gesendetes gegen
+          // Gespeichertes und meldete daraufhin faelschlich "Nicht gespeichert",
+          // obwohl das Loeschen genau richtig gelaufen war.
+          identifiers: {
+            ...(baseProduct.details?.identifiers || {}),
+            ean: idFields.ean || undefined,
+            upc: idFields.upc || undefined,
+            gtin: idFields.gtin || undefined,
+          },
+        },
       };
 
       setLocalProduct(productToSave);

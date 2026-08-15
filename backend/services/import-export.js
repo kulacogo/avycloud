@@ -6,6 +6,7 @@
  */
 
 const { getAllProductsV2, getAllProductsV2ForTenant, saveProductV2 } = require('../lib/product-store');
+const { ensureProductSku } = require('../lib/sku');
 
 // ─── Column definitions ───────────────────────────────────────
 
@@ -239,8 +240,15 @@ async function importProducts(validRows, tenantId = 'default') {
 
   for (const row of validRows) {
     try {
+      // validateImportRows baut die Zeilen OHNE `id`. saveProductV2 reicht das
+      // an firestore.collection(...).doc(product.id) durch — `.doc(undefined)`
+      // wirft. Ergebnis: JEDE Zeile scheiterte, der Import legte nie ein
+      // Produkt an. Die Oberflaeche meldete trotzdem Erfolg, weil sie nur auf
+      // eine erfolgreiche Antwort schaute, nicht auf `imported`.
+      const sku = ensureProductSku(row);
       await saveProductV2({
         ...row,
+        id: row.id || sku,
         tenantId,
       }, { mode: 'system' });
       imported++;

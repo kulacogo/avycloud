@@ -447,6 +447,23 @@ function applyAttributeAliasesProfile(attrs = {}, { canonicalAttributes = [], at
 // AND the current save is not a UI/manual-mode save. Auto-triggered saves
 // (bulk jobs, post-save resolver, scripts) must not override a manual choice
 // even when they pass `allowCategoryChange: true`.
+/**
+ * Gewichts-Schreibweisen, die ueber die Alias-Tabelle in enforceEbayAspects
+ * alle auf den kanonischen Schluessel `weight` zeigen.
+ *
+ * Modul-Ebene, weil saveProduct sie ebenfalls braucht: dort muessen veraltete
+ * Duplikate VOR dem Setzen von attributes.weight raus, sonst gewinnt bei der
+ * Dopplung der ERSTE (alte) Eintrag und die Korrektur des Menschen landet in
+ * attributes_extra — das Datenblatt zeigt dann den neuen Wert, eBay den alten.
+ */
+const WEIGHT_ALIAS_KEYS = new Set([
+  'gewicht', 'gewicht(kg)', 'gewicht (kg)',
+  'bruttogewicht', 'brutto gewicht', 'nettogewicht', 'netto gewicht',
+  'gross weight', 'net weight',
+  'eigengewicht', 'eigengewicht(kg)', 'eigengewicht (kg)',
+  'artikelgewicht', 'versandgewicht', 'shipping weight',
+]);
+
 function shouldLockCategoryForManualSource(existingProduct, { isManualSave = false } = {}) {
   if (isManualSave) return false;
   const src =
@@ -2371,6 +2388,20 @@ async function saveProduct(product, options = {}) {
         delete mergedDetails.weight;
       }
     } else {
+      // Veraltete Gewichts-Schreibweisen ZUERST entfernen.
+      //
+      // Ohne das steht das alte "Gewicht (kg)" weiter vorne im Merkmals-Objekt
+      // und `attributes.weight` wird nur hinten angehaengt. Beide zeigen ueber
+      // die Alias-Tabelle auf denselben kanonischen Namen — und bei einer
+      // Dopplung gewinnt der ERSTE Eintrag. Die Korrektur des Menschen landete
+      // damit in `attributes_extra`, waehrend eBay weiter das ALTE Gewicht sah:
+      // das Datenblatt zeigte den neuen Wert, das Angebot den alten.
+      for (const key of Object.keys(mergedDetails.attributes)) {
+        if (key === 'weight') continue;
+        if (WEIGHT_ALIAS_KEYS.has(String(key).trim().toLowerCase())) {
+          delete mergedDetails.attributes[key];
+        }
+      }
       mergedDetails.attributes.weight = normalizedWeight;
       mergedDetails.weight = normalizedWeight;
     }

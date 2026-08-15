@@ -112,9 +112,12 @@ export const ShippingView: React.FC = () => {
   const [shippingMethods, setShippingMethods] = useState<ShippingMethod[]>([]);
   const [bulkMethodId, setBulkMethodId] = useState<number | null>(null);
 
-  const loadShipments = useCallback(async () => {
+  const loadShipments = useCallback(async (opts?: { silent?: boolean }) => {
     try {
-      setLoading(true);
+      // `silent` = Hintergrund-Auffrischung. Ohne das ersetzte JEDER Takt
+      // (alle 60 s) die komplette Seite durch graue Ladebloecke — inklusive
+      // Sammelaktions-Leiste — und die Scroll-Position ging verloren.
+      if (!opts?.silent) setLoading(true);
       setError(null);
       const data = await fetchShipments({ limit: 200 });
       // BUG-076: Deduplicate by sendcloudParcelId — keep latest (last) per ID
@@ -156,7 +159,7 @@ export const ShippingView: React.FC = () => {
       try {
         await fetchShipments({ limit: 1 }); // lightweight health check
         consecutiveErrors = 0;
-        loadShipments();
+        loadShipments({ silent: true });
       } catch {
         consecutiveErrors++;
         if (consecutiveErrors >= 3 && intervalId) {
@@ -262,7 +265,7 @@ export const ShippingView: React.FC = () => {
               try {
                 const r = await syncSendCloudParcels();
                 toast.success(`SendCloud Sync: ${r.matched} zugeordnet, ${r.unmatched} offen, ${r.skipped} übersprungen`);
-                loadShipments();
+                loadShipments({ silent: true });
               } catch (err: any) {
                 toast.error(err?.message || "SendCloud-Sync fehlgeschlagen");
               } finally {
@@ -278,7 +281,7 @@ export const ShippingView: React.FC = () => {
           </button>
           <button
             type="button"
-            onClick={loadShipments}
+            onClick={() => void loadShipments({ silent: true })}
             className="inline-flex items-center gap-2 rounded-lg bg-app-elevated text-txt-secondary px-4 py-2.5 text-sm font-semibold hover:text-txt-primary transition"
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -384,7 +387,7 @@ export const ShippingView: React.FC = () => {
                     toast.success(`${result.success}/${result.total} Labels erstellt`);
                   }
                   setSelected(new Set());
-                  loadShipments();
+                  loadShipments({ silent: true });
                 } catch (err: any) {
                   toast.error(err?.message || "Bulk-Versand fehlgeschlagen");
                 } finally {

@@ -259,7 +259,11 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onT
               <button
                 type="button"
                 onClick={() => logout()}
-                className="hidden sm:inline-flex items-center justify-center rounded-xl bg-transparent border-0 border-transparent text-txt-muted hover:text-txt-primary hover:bg-app-elevated transition-all"
+                /* Vorher `hidden sm:inline-flex`: auf Handy-Breite war der Knopf
+                   ausgeblendet — und diese Leiste ist dort der einzige Ort, an dem
+                   er stehen konnte. Am Handy gab es damit gar keinen Weg zum
+                   Abmelden. */
+                className="inline-flex items-center justify-center rounded-xl bg-transparent border-0 border-transparent text-txt-muted hover:text-txt-primary hover:bg-app-elevated transition-all"
                 style={{ width: '3.5rem', height: '3.5rem', borderImage: 'none' }}
                 aria-label={t('common.logout')}
                 title={t('common.logout')}

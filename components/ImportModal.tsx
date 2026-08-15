@@ -142,8 +142,12 @@ const ImportModal: React.FC<ImportModalProps> = ({ open, onClose, onComplete }) 
       }
       setResultData(result.data);
       setStep("result");
-      const importMsg = `${result.data?.imported || 0} Produkte importiert` + (result.data?.failed ? `, ${result.data.failed} fehlgeschlagen` : "");
-      addToast("success", importMsg);
+      // Kein Erfolgs-Ton, wenn nichts angekommen ist. Vorher meldete der
+      // Import gruen "0 Produkte importiert" — und der Haken-Bildschirm sagte
+      // "Import abgeschlossen", obwohl JEDE Zeile gescheitert war.
+      const angekommen = Number(result.data?.imported || 0);
+      const importMsg = `${angekommen} Produkte importiert` + (result.data?.failed ? `, ${result.data.failed} fehlgeschlagen` : "");
+      addToast(angekommen > 0 ? "success" : "error", importMsg);
       onComplete?.();
     } catch (err: any) {
       addToast("error", `Fehler: ${err?.message || "Unbekannter Fehler"}`);
@@ -297,13 +301,21 @@ const ImportModal: React.FC<ImportModalProps> = ({ open, onClose, onComplete }) 
         {/* Step 4: Result */}
         {step === "result" && resultData && (
           <div className="space-y-4 text-center">
-            <div className="w-16 h-16 mx-auto rounded-full bg-success/10 flex items-center justify-center">
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="text-success">
-                <path d="M20 6L9 17l-5-5" />
-              </svg>
+            <div className={`w-16 h-16 mx-auto rounded-full flex items-center justify-center ${resultData.imported > 0 ? "bg-success/10" : "bg-danger/10"}`}>
+              {resultData.imported > 0 ? (
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="text-success">
+                  <path d="M20 6L9 17l-5-5" />
+                </svg>
+              ) : (
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="text-danger">
+                  <path d="M18 6L6 18M6 6l12 12" />
+                </svg>
+              )}
             </div>
             <div>
-              <p className="text-lg font-semibold text-txt-primary">Import abgeschlossen</p>
+              <p className="text-lg font-semibold text-txt-primary">
+                {resultData.imported > 0 ? "Import abgeschlossen" : "Kein Produkt importiert"}
+              </p>
               <p className="text-sm text-txt-muted mt-1">
                 {resultData.imported} importiert
                 {resultData.failed > 0 ? ` · ${resultData.failed} fehlgeschlagen` : ""}
@@ -311,7 +323,7 @@ const ImportModal: React.FC<ImportModalProps> = ({ open, onClose, onComplete }) 
             </div>
             {resultData.importErrors?.length > 0 && (
               <div className="text-xs text-danger text-left space-y-0.5">
-                {resultData.importErrors.slice(0, 5).map((e: any, i: number) => (
+                {resultData.importErrors.slice(0, 10).map((e: any, i: number) => (
                   <div key={i}>Zeile {e.row}: {e.message}</div>
                 ))}
               </div>

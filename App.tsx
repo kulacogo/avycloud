@@ -483,6 +483,16 @@ const AppInner: React.FC = () => {
    * Schließen spurlos, während die alten (falschen) Daten auf den
    * Marktplätzen online blieben (Vorfall 2026-08-10, SKU-3154363905).
    */
+  const currentProductRef = useRef<Product | null>(null);
+
+  const confirmDiscardSheet = () =>
+    window.confirm(
+      'Es gibt ungespeicherte Änderungen an diesem Produkt.\n\n'
+        + 'Wenn du jetzt schließt, gehen sie verloren — das Datenblatt und die '
+        + 'Marktplatz-Angebote behalten die alten Werte.\n\n'
+        + 'Trotzdem schließen?'
+    );
+
   const closeProductSheet = useCallback(() => {
     if (sheetDirtyRef.current) {
       const proceed = window.confirm(
@@ -737,6 +747,10 @@ const AppInner: React.FC = () => {
     viewRef.current = view;
   }, [view]);
 
+  useEffect(() => {
+    currentProductRef.current = currentProduct;
+  }, [currentProduct]);
+
   // Operations desktop gating: keep mobile flow intact, but avoid using OperationsView on desktop.
   useEffect(() => {
     if (isMobile) return;
@@ -799,6 +813,18 @@ const AppInner: React.FC = () => {
         setCurrentProduct(product);
         if (product) setInventoryFocusId(product.id);
       } else {
+        // Die Zurueck-Taste (Handy/Browser) aendert nur den Hash. Hier lief
+        // bisher setCurrentProduct(null) DIREKT — am Warndialog vorbei, den der
+        // Schliessen-Knopf sehr wohl zeigt. Ungespeicherte Aenderungen am
+        // Datenblatt waren damit ohne Nachfrage weg.
+        if (sheetDirtyRef.current && currentProductRef.current) {
+          if (!confirmDiscardSheet()) {
+            // Adresse zurueckdrehen, das Datenblatt bleibt offen.
+            window.location.hash = `#/sheet/${currentProductRef.current.id}`;
+            return;
+          }
+          sheetDirtyRef.current = false;
+        }
         setCurrentProduct(null);
       }
     };
