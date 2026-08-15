@@ -152,7 +152,14 @@ const DashboardMobile: React.FC<DashboardMobileProps> = ({
   const [ops, setOps] = useState<OperationalMetrics | null>(null);
   const [opsLoading, setOpsLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-  const inFlightRef = useRef(false);
+  // Die Handy-Uebersicht hatte KEINE Fehlerbehandlung: schlug der Abruf fehl
+  // (schwaches Lager-WLAN), standen ueberall Nullen und der Mitarbeiter dachte,
+  // es sei nichts zu tun. Die Desktop-Uebersicht zeigt seit jeher ein Banner.
+  const [loadError, setLoadError] = useState<string | null>(null);
+  // Zeitraum der gerade laufenden Abfrage (null = keine laeuft) plus laufende
+  // Nummer, um veraltete Antworten zu verwerfen.
+  const inFlightPresetRef = useRef<string | null>(null);
+  const requestIdRef = useRef(0);
   const unmountedRef = useRef(false);
 
   const [internalPreset, setInternalPreset] = useState('month_to_date');
@@ -185,8 +192,20 @@ const DashboardMobile: React.FC<DashboardMobileProps> = ({
   }, [onRangePresetChange]);
 
   const loadAll = useCallback(async ({ withSync }: { withSync: boolean }) => {
-    if (inFlightRef.current) return;
-    inFlightRef.current = true;
+    // Vorher blockte `if (inFlightRef.current) return;` JEDE neue Abfrage,
+    // auch die nach einem Zeitraum-Wechsel. Folge: wer auf dem Handy den
+    // Zeitraum umstellte, waehrend die alte Abfrage noch lief, bekam den
+    // Wechsel gar nicht ausgefuehrt — die Kacheln zeigten weiter die Zahlen des
+    // vorherigen Zeitraums, bis zum naechsten Takt (bis zu 5 Minuten bei den
+    // langen Zeitraeumen).
+    //
+    // Jetzt wird nur noch eine BEREITS LAUFENDE Abfrage DESSELBEN Zeitraums
+    // abgewiesen; ein Wechsel kommt immer durch. Zusaetzlich verwirft eine
+    // laufende Nummer veraltete Antworten, damit die alte Abfrage nicht die
+    // neuen Zahlen ueberschreibt.
+    if (inFlightPresetRef.current === activePreset) return;
+    inFlightPresetRef.current = activePreset;
+    const myRequest = ++requestIdRef.current;
     const long = activePreset === 'year_to_date' || activePreset === 'last_year' || activePreset === 'all_time';
     try {
       const [, ordRes, metRes, opsRes] = await Promise.allSettled([
@@ -195,7 +214,8 @@ const DashboardMobile: React.FC<DashboardMobileProps> = ({
         fetchDashboardMetrics({ days: 7, preset: activePreset }, { timeoutMs: long ? 60000 : 20000 }),
         fetchOperationalMetrics({ preset: activePreset }, { timeoutMs: long ? 90000 : 35000 }),
       ]);
-      if (unmountedRef.current) return;
+      // Veraltete Antwort (Zeitraum wurde inzwischen gewechselt) verwerfen.
+      if (unmountedRef.current || myRequest !== requestIdRef.current) return;
       if (ordRes.status === 'fulfilled') {
         const seen = new Set<string>();
         setOrders((ordRes.value ?? []).filter((o: Order) => {
@@ -207,9 +227,18 @@ const DashboardMobile: React.FC<DashboardMobileProps> = ({
       else setMetricsLoading(false);
       if (opsRes.status === 'fulfilled') { setOps(opsRes.value); setOpsLoading(false); }
       else setOpsLoading(false);
-      setLastUpdated(new Date());
+      // "Konnte nicht geladen werden" ist etwas ANDERES als "es gibt nichts".
+      const fehlgeschlagen = [
+        ordRes.status === 'rejected' ? 'Aufträge' : null,
+        metRes.status === 'rejected' ? 'Kennzahlen' : null,
+        opsRes.status === 'rejected' ? 'Lagerstand' : null,
+      ].filter(Boolean);
+      setLoadError(fehlgeschlagen.length ? `${fehlgeschlagen.join(', ')} konnten nicht geladen werden.` : null);
+      if (!fehlgeschlagen.length) setLastUpdated(new Date());
     } finally {
-      inFlightRef.current = false;
+      // Nur freigeben, wenn diese Abfrage noch die aktuelle ist — sonst haette
+      // eine veraltete Antwort die laufende neue Abfrage freigegeben.
+      if (myRequest === requestIdRef.current) inFlightPresetRef.current = null;
     }
   }, [activePreset]);
 
@@ -339,13 +368,26 @@ const DashboardMobile: React.FC<DashboardMobileProps> = ({
         </div>
       )}
 
+      {loadError && (
+        <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-warning/30 bg-warning-dim px-4 py-3 text-sm text-warning">
+          <span className="flex-1">{loadError} Die Zahlen unten sind nicht aktuell.</span>
+          <button
+            type="button"
+            onClick={() => { inFlightPresetRef.current = null; void loadAll({ withSync: false }); }}
+            className="rounded-lg bg-warning px-3 py-1.5 text-xs font-semibold text-white"
+          >
+            Erneut
+          </button>
+        </div>
+      )}
+
       {/* ── Aktueller Stand (live, immer tagesaktuell) ──────── */}
       <RowLabel label="Aktueller Stand" badge="live" />
       <div className="grid grid-cols-3 gap-2.5">
         <Tile
           color="warn"
           label="Wartet"
-          value={live?.waiting_picking ?? 0}
+          value={live ? (live.waiting_picking ?? 0) : '—'}
           sub="zu kommiss."
           loading={opsLoading}
           onClick={() => nav('orders')}
@@ -353,7 +395,7 @@ const DashboardMobile: React.FC<DashboardMobileProps> = ({
         <Tile
           color="blue"
           label="In Arbeit"
-          value={live?.in_progress ?? 0}
+          value={live ? (live.in_progress ?? 0) : '—'}
           sub="nicht versendet"
           loading={opsLoading}
           onClick={() => nav('orders')}
@@ -361,7 +403,7 @@ const DashboardMobile: React.FC<DashboardMobileProps> = ({
         <Tile
           color="success"
           label="Versendet"
-          value={live?.shipped_today ?? 0}
+          value={live ? (live.shipped_today ?? 0) : '—'}
           sub="heute"
           loading={opsLoading}
           onClick={() => nav('orders')}
