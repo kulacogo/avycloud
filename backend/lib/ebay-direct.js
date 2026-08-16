@@ -14,6 +14,16 @@ const {
   isDescriptionBlocksEnabled,
 } = require('./ebay-description-blocks');
 const {
+  buildTopicIndex,
+  pickRelatedTiles,
+  toCandidate,
+  toTopicFields,
+  buildRelatedTopicsHtml,
+  isRelatedTopicsEnabled,
+  getShopSellerId,
+  RELATED_TOPICS_CSS,
+} = require('./ebay-related-topics');
+const {
   repairAspectsForCategory,
   resolveRepairMode: resolveAspectRepairMode,
 } = require('./ebay-aspect-repair');
@@ -952,7 +962,7 @@ const FACTS_TABLE_CSS = `
   font-weight: 600;
 }`;
 
-function buildTrendOceanDescriptionTemplate({ listing, product, titleOverride = null, photoOverride = null, relatedProducts = [] }) {
+function buildTrendOceanDescriptionTemplate({ listing, product, titleOverride = null, photoOverride = null, relatedTiles = [] }) {
   const auctionName = safeString(titleOverride) || safeString(listing?.title) || safeString(deriveProductTitle(product));
   const manufacturer = safeString(deriveProductManufacturer(product, listing)) || 'Unbekannt';
   const photo = safeString(photoOverride) || safeString(deriveProductPhotoUrl(product, listing));
@@ -969,35 +979,16 @@ function buildTrendOceanDescriptionTemplate({ listing, product, titleOverride = 
   // Schlag Abweichungen fuer ALLE Listings und damit potenziell eine Revise-Welle.
   const blocksOn = isDescriptionBlocksEnabled();
   const extraBlocksHtml = blocksOn ? buildDescriptionBlocks(product) : '';
-  const extraCss = blocksOn ? `${FACTS_TABLE_CSS}${buildMobileStyles()}` : '';
 
-  // Build related products HTML (max 5)
-  const related = asArray(relatedProducts).slice(0, 5);
-  let relatedHtml = '';
-  if (related.length >= 2) {
-    const cards = related.map((rp) => {
-      const rpTitle = safeString(rp.title || deriveProductTitle(rp)).slice(0, 60);
-      const rpPhoto = safeString(rp.photo || deriveProductPhotoUrl(rp, null));
-      const rpPrice = rp.price ? parseFloat(rp.price).toFixed(2).replace('.', ',') : null;
-      const rpItemId = safeString(rp.itemId);
-      const rpUrl = rpItemId ? `https://www.ebay.de/itm/${rpItemId}` : '';
-      const imgTag = rpPhoto ? `<img src="${escapeHtml(rpPhoto)}" alt="${escapeHtml(rpTitle)}" style="width:100%;aspect-ratio:1/1;object-fit:contain;background:#fafafa;">` : '';
-      const priceTag = rpPrice ? `<div style="font-weight:700;font-size:15px;color:#111;margin-top:6px;">${rpPrice} &euro;</div>` : '';
-      const titleTag = `<div style="font-size:12px;color:#444;margin-top:4px;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">${escapeHtml(rpTitle)}</div>`;
-      const inner = `${imgTag}${priceTag}${titleTag}`;
-      if (rpUrl) {
-        return `<a href="${escapeHtml(rpUrl)}" target="_blank" style="flex:1 1 140px;max-width:170px;text-decoration:none;color:inherit;">${inner}</a>`;
-      }
-      return `<div style="flex:1 1 140px;max-width:170px;">${inner}</div>`;
-    }).join('');
-    relatedHtml = `
-  <div class="to-related">
-    <div class="to-section-label">Weitere Artikel des Verk\u00e4ufers</div>
-    <div class="to-related-grid">
-      ${cards}
-    </div>
-  </div>`;
-  }
+  // Empfehlungs-Kacheln. Der frueher hier stehende Block verlinkte per
+  // `/itm/<ItemID>` auf Einzelangebote \u2014 bei 70,7 % Menge-1-Angeboten und 33,9 %
+  // bereits beendeten Angeboten war das nach kurzer Zeit ein toter Link.
+  // Ersetzt durch lib/ebay-related-topics.js: Kachel zeigt ein konkretes
+  // Nachbarprodukt, das ZIEL ist aber eine Verkaeufer-Suche, die nie leer laeuft.
+  const recoHtml = isRelatedTopicsEnabled() ? buildRelatedTopicsHtml(relatedTiles) : '';
+  // CSS haengt am geRENDERTEN Ergebnis, nicht nur am Flag: ohne Kacheln bleibt
+  // das HTML Byte fuer Byte wie bisher.
+  const extraCss = `${blocksOn ? `${FACTS_TABLE_CSS}${buildMobileStyles()}` : ''}${recoHtml ? RELATED_TOPICS_CSS : ''}`;
 
   return `<!-- START TrendOcean eBay Listing Template -->
 
@@ -1249,7 +1240,7 @@ body {
     Alle Artikel sind neuwertig. Die Originalverpackung kann je nach Lagerhaltung oder Versandweg Gebrauchsspuren aufweisen \u2013 in diesem Fall versenden wir den Artikel neutral verpackt. Im Sinne der Nachhaltigkeit verwenden wir, wo immer m\u00f6glich, bereits gebrauchte Versandkartons wieder. Das \u00e4ndert nichts am Zustand des Artikels.
   </div>
 
-  ${relatedHtml}
+  ${recoHtml}
 
   <div class="to-cta">
     <p class="to-cta-text">Jetzt sichern \u2013 nur solange der Vorrat reicht.</p>
@@ -1262,6 +1253,63 @@ body {
 </div>
 
 <!-- END TrendOcean eBay Listing Template -->`;
+}
+
+/**
+ * Kandidaten-Pool fuer die Empfehlungs-Kacheln.
+ *
+ * Wird im Prozess zwischengespeichert: ohne Cache laedt JEDES Einstellen und
+ * JEDER Abgleich die komplette Produktsammlung. Zehn Minuten Verzoegerung sind
+ * unkritisch — die Kacheln zeigen ohnehin keinen Preis, und das Kachel-Ziel ist
+ * eine Live-Suche, die sich selbst aktualisiert.
+ */
+const RECO_POOL_TTL_MS = 10 * 60 * 1000;
+const RECO_MIN_TOPIC_SIZE = 8;
+const RECO_MAX_TILES = 4;
+let _recoPoolCache = { at: 0, pool: null, index: null };
+
+async function getRelatedTopicsPool() {
+  const now = Date.now();
+  if (_recoPoolCache.index && now - _recoPoolCache.at < RECO_POOL_TTL_MS) {
+    return _recoPoolCache;
+  }
+  const products = await getAllProductsForTenant('default');
+  const pool = asArray(products).map(toCandidate).filter(Boolean);
+  const index = buildTopicIndex(pool, { minTopicSize: RECO_MIN_TOPIC_SIZE });
+  _recoPoolCache = { at: now, pool, index };
+  return _recoPoolCache;
+}
+
+/** Nur fuer Tests: Cache leeren. */
+function _resetRelatedTopicsPoolCache() {
+  _recoPoolCache = { at: 0, pool: null, index: null };
+}
+
+/**
+ * Baut die Kacheln fuer ein Produkt. BEST-EFFORT: schlaegt irgendetwas fehl,
+ * gibt es keine Kacheln — aber der Publish/Revise laeuft weiter. Eine
+ * Empfehlungs-Sektion darf niemals ein Angebot verhindern.
+ */
+async function buildRelatedTilesForProduct(product) {
+  if (!isRelatedTopicsEnabled()) return [];
+  const sellerId = getShopSellerId();
+  if (!sellerId) return [];
+  try {
+    const { pool, index } = await getRelatedTopicsPool();
+    if (!pool || pool.length < 2) return [];
+    return pickRelatedTiles({
+      // Fuer die Bewertung zaehlen nur die Themenfelder des aktuellen Produkts;
+      // dessen eigene Eignung als Kachel ist hier irrelevant.
+      product: toTopicFields(product),
+      pool,
+      index,
+      sellerId,
+      max: RECO_MAX_TILES,
+    });
+  } catch (err) {
+    console.warn(`[relatedTopics] Kacheln uebersprungen: ${err?.message || err}`);
+    return [];
+  }
 }
 
 function deriveProductCategoryId(product) {
@@ -4341,6 +4389,9 @@ function mapProductToEbayItem(product, overrides = {}) {
       product,
       titleOverride: title,
       photoOverride: heroPhoto,
+      // Kacheln werden vom (async) Aufrufer beigesteuert — mapProductToEbayItem
+      // bleibt bewusst synchron, es hat sechs Aufrufer.
+      relatedTiles: asArray(overrides.relatedTiles),
     });
 
   const pickAttributeValue = (...candidates) => {
@@ -5146,7 +5197,15 @@ async function publishProduct(productId, overrides = {}, { actor = null } = {}) 
   // remediation (category strip, aspect fill via Gemini). See backend/services/ebay-auto-fix.js.
   const MAX_AUTOFIX_ATTEMPTS = 2;
   let workingProduct = product;
-  let item = mapProductToEbayItem(workingProduct, overrides);
+  // Empfehlungs-Kacheln einmal je Publish bestimmen und in die Overrides legen —
+  // mapProductToEbayItem ist synchron und wird im Auto-Fix-Loop erneut gerufen.
+  const publishOverrides = {
+    ...overrides,
+    relatedTiles: asArray(overrides.relatedTiles).length
+      ? overrides.relatedTiles
+      : await buildRelatedTilesForProduct(workingProduct),
+  };
+  let item = mapProductToEbayItem(workingProduct, publishOverrides);
   const appliedFixes = [];
   let result;
   let lastPublishErr = null;
@@ -5182,7 +5241,7 @@ async function publishProduct(productId, overrides = {}, { actor = null } = {}) 
         // Even if persist fails, retry the publish with the in-memory fix.
       }
 
-      item = mapProductToEbayItem(workingProduct, overrides);
+      item = mapProductToEbayItem(workingProduct, publishOverrides);
     }
   }
 
@@ -5400,7 +5459,7 @@ async function bulkUpdateListedProducts({ itemIds = null, applyAll = false, acto
  * Direct full-listing update: push ALL AvyCloud product data to an existing eBay listing.
  * Bypasses the gap system — builds a complete revise payload from product data.
  */
-async function reviseListingFromProduct(itemId, product, { actor = null, relatedProducts = [] } = {}) {
+async function reviseListingFromProduct(itemId, product, { actor = null } = {}) {
   const id = safeString(itemId);
   if (!id) throw Object.assign(new Error('itemId is required'), { code: 'EBAY_REVISE_ITEM_ID_REQUIRED' });
 
@@ -5450,7 +5509,7 @@ async function reviseListingFromProduct(itemId, product, { actor = null, related
     product,
     titleOverride: title,
     photoOverride: heroPhoto,
-    relatedProducts,
+    relatedTiles: await buildRelatedTilesForProduct(product),
   });
 
   const patch = {
@@ -5602,27 +5661,10 @@ async function bulkReviseListingsFromProducts({ itemIds = null, applyAll = false
     });
   }
 
-  // Build itemId-to-productId reverse map for related products
-  const itemToProductId = new Map();
-  resolvedItemIds.forEach((id) => {
-    const pid = safeString(linkMap.get(id)?.productId);
-    if (pid) itemToProductId.set(id, pid);
-  });
-
-  // Pre-build related product data for template cross-sell section
-  const relatedPool = [];
-  for (const [ebayItemId, pid] of itemToProductId) {
-    const p = productMap.get(pid);
-    if (!p) continue;
-    const mapped = mapProductToEbayItem(p);
-    const rpPhoto = safeString(mapped.pictureUrls?.[0] || deriveProductPhotoUrl(p, null));
-    const rpTitle = safeString(mapped.title || deriveProductTitle(p));
-    const rpPrice = mapped.startPrice || null;
-    if (rpTitle && rpPhoto) {
-      relatedPool.push({ itemId: ebayItemId, productId: pid, title: rpTitle, photo: rpPhoto, price: rpPrice });
-    }
-  }
-
+  // Der frueher hier gebaute "relatedPool" ist ersatzlos entfallen: er nahm
+  // einfach die Produkte aus DEMSELBEN Revise-Lauf (keinerlei Verwandtschaft)
+  // und verlinkte sie per /itm/<ItemID> — bei 70,7 % Menge-1-Angeboten waren das
+  // absehbar tote Links. Die Kacheln kommen jetzt aus buildRelatedTilesForProduct().
   const results = [];
   for (const itemId of resolvedItemIds) {
     const link = linkMap.get(itemId);
@@ -5637,13 +5679,8 @@ async function bulkReviseListingsFromProducts({ itemIds = null, applyAll = false
       continue;
     }
 
-    // Pick up to 5 related products (different from current)
-    const related = relatedPool
-      .filter((rp) => rp.productId !== productId)
-      .slice(0, 5);
-
     try {
-      const result = await reviseListingFromProduct(itemId, product, { actor, relatedProducts: related });
+      const result = await reviseListingFromProduct(itemId, product, { actor });
       results.push(result);
     } catch (err) {
       results.push({
@@ -5703,6 +5740,8 @@ module.exports = {
   // Additiv exportiert fuer Regressionstests der Vorlagen-Erkennung (2026-07-29).
   extractTrendOceanDescriptionParts,
   buildTrendOceanDescriptionTemplate,
+  buildRelatedTilesForProduct,
+  _resetRelatedTopicsPoolCache,
   // Additiv exportiert (2026-07-31): Nachzieh-Skripte MUESSEN denselben Filter nutzen
   // wie der Sendepfad. Ohne ihn gehen technische Schluessel ("Kategorie" mit vollem
   // Pfad, "K-Typ" mit langer Nummernliste) an eBay und werden mit
