@@ -15,6 +15,43 @@ function isSerpApiLikelyConfigured() {
 }
 
 /**
+ * Baut aus einer Suchanfrage stufenweise breitere Varianten.
+ *
+ * Gemessen gegen die echte SerpAPI (2026-08-16):
+ *   "LIVARNO home Relaxsessel-Auflage 4052916309858"  ->  0 Treffer
+ *   "LIVARNO home Relaxsessel-Auflage"                -> 96 Treffer
+ *
+ * Der Chat baut die Anfrage aus Marke + Name + EAN. Steht die EAN mit drin,
+ * findet Google haeufig NICHTS — und der Code gab kommentarlos auf. Fuer den
+ * Bediener sah es so aus, als koenne der Assistent keine Produktbilder mehr
+ * finden.
+ *
+ * Kurze Zahlen bleiben stehen: "12V", "8000", "IZ201EU" gehoeren zum
+ * Produktnamen. Nur lange, zusammenhaengende Ziffernfolgen (8+) sind
+ * Kennnummern.
+ */
+function broadenImageQuery(query) {
+  const roh = String(query || '').trim();
+  if (!roh) return [];
+
+  const stufen = [roh];
+
+  // Stufe 2: lange Ziffernfolgen (EAN/GTIN/UPC) raus.
+  const ohneKennnummern = roh.replace(/\b\d{8,}\b/g, ' ').replace(/\s+/g, ' ').trim();
+  if (ohneKennnummern && ohneKennnummern !== roh) stufen.push(ohneKennnummern);
+
+  // Stufe 3: auf die ersten Woerter kuerzen (Marke + Produktbezeichnung).
+  const basis = stufen[stufen.length - 1];
+  const woerter = basis.split(/\s+/).filter(Boolean);
+  if (woerter.length > 5) {
+    const gekuerzt = woerter.slice(0, 5).join(' ');
+    if (gekuerzt && !stufen.includes(gekuerzt)) stufen.push(gekuerzt);
+  }
+
+  return stufen.filter((s, i) => s && stufen.indexOf(s) === i);
+}
+
+/**
  * Builds a search query from product identification data.
  * Uses brand + name + barcode for best specificity.
  */
@@ -64,7 +101,34 @@ function normalizeUrl(url) {
  * @param {string} options.locale - Locale for search (default 'de')
  * @returns {Promise<Array<{url: string, width: number|null, height: number|null, source: string, title: string}>>}
  */
+/**
+ * Sucht Produktbilder — mit stufenweiser Verbreiterung.
+ *
+ * Findet Google fuer die enge Anfrage nichts (haeufig, sobald die EAN mit
+ * drinsteht), wird eine Stufe breiter erneut gesucht statt kommentarlos
+ * aufzugeben. Belegt am 2026-08-16: mit EAN 0 Treffer, ohne EAN 96.
+ */
 async function searchProductImages(product, options = {}) {
+  const ausgangsAnfrage = options.query || buildImageQuery(product);
+  const stufen = broadenImageQuery(ausgangsAnfrage);
+  if (!stufen.length) return [];
+
+  for (let i = 0; i < stufen.length; i += 1) {
+    const treffer = await searchImagesOnce(product, { ...options, query: stufen[i] });
+    if (treffer.length > 0) {
+      if (i > 0) {
+        console.log(`[image-search] Stufe ${i + 1} erfolgreich: "${stufen[i]}" (${treffer.length} Bilder)`);
+      }
+      return treffer;
+    }
+    if (i < stufen.length - 1) {
+      console.log(`[image-search] "${stufen[i]}" ohne Treffer — versuche breiter: "${stufen[i + 1]}"`);
+    }
+  }
+  return [];
+}
+
+async function searchImagesOnce(product, options = {}) {
   const {
     query: queryOverride,
     engine = 'google_images',
@@ -113,6 +177,20 @@ async function searchProductImages(product, options = {}) {
 
   if (!data) return [];
 
+  // Google meldet "hasn't returned any results" als FELD, nicht als Ausnahme —
+  // der Bing-Ausweichweg unten lief deshalb nie an. Jetzt schon.
+  const leer = data.error || !Array.isArray(data.images_results) || data.images_results.length === 0;
+  if (leer && engine === 'google_images') {
+    try {
+      const bing = await callSerpApi('bing_images', { q: query });
+      if (bing && Array.isArray(bing.images_results) && bing.images_results.length) {
+        data = { ...bing, _engine: 'bing_images' };
+      }
+    } catch (bingErr) {
+      console.warn(`[image-search] Bing-Ausweichweg fehlgeschlagen: ${bingErr.message}`);
+    }
+  }
+
   // Extract image results
   const usedEngine = data._engine || engine;
   const entries = summarizeSerpEntries(usedEngine === 'bing_images' ? 'bing_images' : engine, data, limit * 2);
@@ -155,5 +233,6 @@ async function searchProductImages(product, options = {}) {
 module.exports = {
   searchProductImages,
   buildImageQuery,
+  broadenImageQuery,
   isSerpApiLikelyConfigured,
 };
