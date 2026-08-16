@@ -290,6 +290,27 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
 
     prevProductIdRef.current = product.id;
     setLocalProduct(normalizeProduct(product));
+    // Den VOLLEN Datensatz nachladen.
+    //
+    // Die Produktliste kommt seit 2026-08-16 schlank (ohne Qualitaets-
+    // Auswertung, Identitaets-Aliasse und Notizen) — das sind ueber die Liste
+    // gerechnet 53 % der uebertragenen Daten. Fuer das Datenblatt werden sie
+    // aber gebraucht, also holt es sie sich hier. Die Anzeige steht sofort mit
+    // den Listendaten; die Ergaenzung kommt still nach.
+    void (async () => {
+      try {
+        const voll = await fetchProductById(product.id);
+        if (!voll || voll.id !== product.id) return;
+        setLocalProduct((prev) => {
+          // Nichts ueberschreiben, was der Mensch inzwischen angefasst hat.
+          if (prev?.id !== product.id) return prev;
+          return normalizeProduct(voll);
+        });
+      } catch {
+        // Ohne Nachladen fehlen nur die Zusatzangaben — das Datenblatt bleibt
+        // mit den Listendaten voll bedienbar.
+      }
+    })();
     setIsEditing(false);
     // New products should be marked as dirty so they can be saved immediately
     setIsDirty(!product.ops?.last_saved_iso);

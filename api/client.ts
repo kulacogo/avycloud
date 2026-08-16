@@ -3257,8 +3257,12 @@ export const fetchProducts = async (options?: { timeoutMs?: number }): Promise<P
   // Retry once on timeout (mobile networks can be flaky)
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
+      // `view=list` laesst die Felder weg, die nur das Datenblatt braucht
+      // (Qualitaets-Auswertung, Identitaets-Aliasse, Notizen). Gemessen am
+      // Bestand: 34,2 MB -> rund 16 MB. Das Datenblatt holt sich den vollen
+      // Datensatz beim Oeffnen selbst.
       response = await fetchWithTimeout(
-        `${BACKEND_URL}/api/products`,
+        `${BACKEND_URL}/api/products?view=list`,
         undefined,
         timeout
       );

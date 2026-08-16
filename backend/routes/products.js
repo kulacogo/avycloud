@@ -1646,6 +1646,25 @@ router.post('/products/bulk-improve', requirePermission('ai', 'improve'), async 
 });
 
 // --- Get all products ---
+/**
+ * Entfernt die Felder, die nur das Datenblatt braucht, aus einem Listeneintrag.
+ *
+ * Bewusst eine kurze, benannte Liste statt einer Positivauswahl: so kann ein
+ * neues Feld nie versehentlich aus den Listen verschwinden — es faellt hoechstens
+ * auf, dass hier eines fehlt.
+ *
+ * `ops.data_quality`  — nur ProductSheet + Identify-Abzeichen (13,0 MB)
+ * `ops.identity_aliases` — im Frontend nirgends gelesen (3,0 MB)
+ * `notes`             — ProductNotes laedt sie separat je Produkt (2,2 MB)
+ */
+function stripForList(product) {
+  if (!product || typeof product !== 'object') return product;
+  const { notes, ops, ...rest } = product;
+  if (!ops || typeof ops !== 'object') return rest;
+  const { data_quality, identity_aliases, ...opsRest } = ops;
+  return { ...rest, ops: opsRest };
+}
+
 router.get('/products', requirePermission('products', 'read'), async (req, res) => {
   try {
     // D.0b — Tenant-scoped read: pull only products belonging to caller tenant.
@@ -1690,13 +1709,26 @@ router.get('/products', requirePermission('products', 'read'), async (req, res) 
       };
     });
 
-    const response = { ok: true, products: withCompletenessFiltered };
+    // Schlanke Listen-Antwort (?view=list).
+    //
+    // Gemessen am Produktivbestand (1.821 Produkte): die volle Antwort wiegt
+    // 34,2 MB. Allein `ops.data_quality` sind 13,0 MB, `ops.identity_aliases`
+    // 3,0 MB und `notes` 2,2 MB — zusammen 53 %, die KEINE Listenansicht liest.
+    // Das Datenblatt holt sich den vollen Datensatz beim Oeffnen selbst.
+    //
+    // Ohne den Parameter bleibt die Antwort exakt wie bisher, damit kein
+    // bestehender Aufrufer bricht.
+    const listeAusgabe = req.query?.view === 'list'
+      ? withCompletenessFiltered.map(stripForList)
+      : withCompletenessFiltered;
+
+    const response = { ok: true, products: listeAusgabe };
     if (limit !== null) {
       response.pagination = {
         total,
         offset,
         limit,
-        returned: withCompletenessFiltered.length,
+        returned: listeAusgabe.length,
         hasMore,
         nextOffset: hasMore ? offset + limit : null,
       };
