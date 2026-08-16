@@ -345,12 +345,20 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
       setOrdersLoading(true);
       setOrdersError(null);
       try {
+        // Der Abgleich LIEFERT die Auftraege bereits zurueck. Vorher wurde sein
+        // Ergebnis weggeworfen und dieselben Daten gleich noch einmal geholt —
+        // zwei teure Anfragen hintereinander, jede mit 20 s Zeitlimit, bevor am
+        // Handy ueberhaupt eine Zeile erschien. Der Desktop macht es seit jeher
+        // richtig (OperationsView handleSyncOrders).
+        let data: Awaited<ReturnType<typeof fetchOrdersApi>> | null = null;
         try {
-          await syncOrdersApi({ timeoutMs: 20000 });
+          const abgeglichen = await syncOrdersApi({ timeoutMs: 20000 });
+          if (Array.isArray(abgeglichen) && abgeglichen.length) data = abgeglichen;
         } catch (err) {
           console.warn('Order sync failed (will still fetch)', err);
         }
-        const data = await fetchOrdersApi(100, { timeoutMs: 20000 });
+        // Nur wenn der Abgleich nichts brauchbares lieferte, nachladen.
+        if (!data) data = await fetchOrdersApi(100, { timeoutMs: 20000 });
         if (!isCancelled?.() && !isUnmountedRef.current) {
           setOrders(dedupeOrders(data || []));
         }
@@ -987,6 +995,67 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
     [onProductUpdate, resolveProductForStow, stowBin, stowQty, stowSku, t]
   );
 
+  /** Findet alle offenen Positionen, die zu Platz + Artikel passen. */
+  const findePaarung = useCallback(
+    (bin: string, sku: string) =>
+      pickTasks.filter((it) => equalsIgnoreCase(it.binCode, bin) && equalsSkuScan(it.sku, sku)),
+    [pickTasks, equalsIgnoreCase, equalsSkuScan]
+  );
+
+  /**
+   * Oeffnet die Mengenbestaetigung fuer die passende Position.
+   *
+   * Bei mehreren Auftraegen mit demselben Artikel im selben Platz gewinnt der
+   * aelteste (FIFO) — das haelt den Scan-Fluss eindeutig.
+   */
+  const oeffnePaarung = useCallback(
+    (matches: typeof pickTasks) => {
+      const candidate =
+        matches.length > 1
+          ? [...matches].sort((a, b) => {
+              const aTs = Date.parse(a.orderCreatedAt || '') || 0;
+              const bTs = Date.parse(b.orderCreatedAt || '') || 0;
+              if (aTs !== bTs) return aTs - bTs;
+              const aOrder = (a.orderNumber || a.orderId || '').toString();
+              const bOrder = (b.orderNumber || b.orderId || '').toString();
+              if (aOrder !== bOrder) return aOrder.localeCompare(bOrder);
+              return a.taskKey.localeCompare(b.taskKey);
+            })[0]
+          : matches[0];
+      const maxQtyByBin =
+        typeof candidate.availableInBin === 'number'
+          ? Math.min(candidate.remainingTotal, candidate.availableInBin)
+          : candidate.remainingTotal;
+      setHighlightKey(candidate.taskKey);
+      setPendingPick(candidate);
+      setPendingPickQty(Math.max(1, Math.min(maxQtyByBin, Number(candidate.suggestedQty || 1) || 1)));
+      setPickMessage(t('ops.mobile.pick.scan.ready'));
+      setPickMessageTone('info');
+    },
+    [t]
+  );
+
+  /**
+   * Fehlerhinweis beim Laden der Auftraege — MIT Knopf zum Neuladen.
+   *
+   * Der Pack- und der Einlager-Bildschirm zeigten diesen Fehler gar nicht: bei
+   * einem fehlgeschlagenen ersten Laden stand dort nur "Keine gepickten
+   * Auftraege zum Packen." Der Mitarbeiter hielt das fuer Feierabend.
+   */
+  const ordersErrorBlock = ordersError ? (
+    <div role="alert" className="rounded-2xl border border-danger/30 bg-danger-dim p-3 text-sm text-danger">
+      <p className="font-semibold">{t('ops.errors.ordersLoad')}</p>
+      <p className="mt-1 text-xs text-danger/90 break-words">{ordersError}</p>
+      <button
+        type="button"
+        onClick={() => void refreshOrders()}
+        className="mt-2 rounded-lg bg-danger px-3 py-1.5 text-xs font-semibold text-white"
+      >
+        Neu laden
+      </button>
+    </div>
+  ) : null;
+
   const handleScannedValue = useCallback(
     (value: string) => {
       const rawTrimmed = value.trim();
@@ -1139,6 +1208,22 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
       if (binMatches.length) {
         const nextBin = binMatches[0].binCode;
         setActiveBin(nextBin);
+        // Wurde der Artikel ZUERST gescannt (ein ausdruecklich vorgesehener Weg
+        // — die Ansicht fordert danach den Lagerplatz an), dann jetzt sofort
+        // die Paarung aufloesen. Vorher leerte dieser Zweig das Artikel-Feld
+        // bedingungslos und verlangte einen DRITTEN Scan.
+        if (activeSku) {
+          const treffer = findePaarung(nextBin, activeSku);
+          if (treffer.length > 0) {
+            oeffnePaarung(treffer);
+            return;
+          }
+          // Artikel passt nicht zu diesem Platz — dann ehrlich zuruecksetzen.
+          setActiveSku('');
+          setPickMessage(t('ops.mobile.pick.scan.needSku'));
+          setPickMessageTone('info');
+          return;
+        }
         setActiveSku('');
         setPickMessage(t('ops.mobile.pick.scan.needSku'));
         setPickMessageTone('info');
@@ -1157,37 +1242,13 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
       if (activeBin && skuMatches.length) {
         const sku = skuMatches[0]?.sku || '';
         setActiveSku(sku);
-        const matches = pickTasks.filter((it) => equalsIgnoreCase(it.binCode, activeBin) && equalsSkuScan(it.sku, sku));
+        const matches = findePaarung(activeBin, sku);
         if (matches.length === 0) {
           setPickMessage(t('ops.mobile.pick.scan.noMatch', { value: rawTrimmed }));
           setPickMessageTone('error');
           return;
         }
-        // If multiple orders contain the same SKU in the same BIN, pick the oldest order first (FIFO)
-        // to keep the scanner flow unblocked and deterministic.
-        const candidate =
-          matches.length > 1
-            ? [...matches].sort((a, b) => {
-                const aTs = Date.parse(a.orderCreatedAt || '') || 0;
-                const bTs = Date.parse(b.orderCreatedAt || '') || 0;
-                if (aTs !== bTs) return aTs - bTs;
-                const aOrder = (a.orderNumber || a.orderId || '').toString();
-                const bOrder = (b.orderNumber || b.orderId || '').toString();
-                if (aOrder !== bOrder) return aOrder.localeCompare(bOrder);
-                return a.taskKey.localeCompare(b.taskKey);
-              })[0]
-            : matches[0];
-        const key = candidate.taskKey;
-        const maxQtyByBin =
-          typeof candidate.availableInBin === 'number'
-            ? Math.min(candidate.remainingTotal, candidate.availableInBin)
-            : candidate.remainingTotal;
-        const targetQty = Math.max(1, Math.min(maxQtyByBin, Number(candidate.suggestedQty || 1) || 1));
-        setHighlightKey(key);
-        setPendingPick(candidate);
-        setPendingPickQty(targetQty);
-        setPickMessage(t('ops.mobile.pick.scan.ready'));
-        setPickMessageTone('info');
+        oeffnePaarung(matches);
         return;
       }
 
@@ -1199,6 +1260,8 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
       activeBin,
       activeSku,
       equalsIgnoreCase,
+      findePaarung,
+      oeffnePaarung,
       pickTasks,
       pendingPick,
       pendingPickQty,
@@ -2455,7 +2518,8 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
           {ordersLoading ? <p role="status" aria-live="polite" className="text-xs text-txt-muted">{t('ops.orders.loading')}</p> : null}
         </div>
 
-        {packItems.length === 0 && !ordersLoading ? (
+        {ordersError ? ordersErrorBlock : null}
+        {packItems.length === 0 && !ordersLoading && !ordersError ? (
           <p className="text-sm text-txt-muted">{t('ops.mobile.pack.none')}</p>
         ) : null}
 

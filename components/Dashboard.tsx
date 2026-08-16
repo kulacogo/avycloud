@@ -414,6 +414,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
 }) => {
   const [ops, setOps] = useState<OperationalMetrics | null>(null);
   const [opsLoading, setOpsLoading] = useState(true);
+  // Sichtbarer Hinweis, wenn Teile der Seite nicht geladen werden konnten.
+  const [loadWarnung, setLoadWarnung] = useState<string | null>(null);
+  const [alleFehlgeschlagen, setAlleFehlgeschlagen] = useState(false);
+  const alleFehlgeschlagenRef = useRef(false);
+  alleFehlgeschlagenRef.current = alleFehlgeschlagen;
   const [opsError, setOpsError] = useState<string | null>(null);
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
   const [metricsLoading, setMetricsLoading] = useState(true);
@@ -481,6 +486,21 @@ export const Dashboard: React.FC<DashboardProps> = ({
       if (sResult.status === 'fulfilled') setSyncStatus(sResult.value);
       if (aResult.status === 'fulfilled') setReorderAlerts(aResult.value || []);
       if (actResult.status === 'fulfilled') setActivities(actResult.value || []);
+
+      // Vier der fuenf Abrufe scheiterten bisher LAUTLOS: das Diagramm meldete
+      // "Keine Daten fuer diesen Zeitraum", die Nachbestell-Warnungen
+      // verschwanden ganz — und "Aktualisiert HH:MM" behauptete trotzdem einen
+      // frischen Stand. Auf dieser Seite trifft der Inhaber Entscheidungen.
+      const fehlend = [
+        mResult.status === 'rejected' ? 'Kennzahlen' : null,
+        sResult.status === 'rejected' ? 'Sync-Status' : null,
+        aResult.status === 'rejected' ? 'Nachbestellungen' : null,
+        actResult.status === 'rejected' ? 'Aktivität' : null,
+      ].filter(Boolean) as string[];
+      setLoadWarnung(fehlend.length ? `${fehlend.join(', ')} konnten nicht geladen werden.` : null);
+      setAlleFehlgeschlagen(
+        oResult.status === 'rejected' && fehlend.length === 4
+      );
     } finally {
       // A superseded request leaves loading state alone — the newer request
       // owns it and clears the flags (incl. loadingRef) when it finishes.
@@ -490,7 +510,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
         setSyncLoading(false);
         setAlertsLoading(false);
         loadingRef.current = false;
-        setLastRefreshed(new Date());
+        // Zeitstempel NUR setzen, wenn wirklich etwas Frisches ankam.
+        if (!alleFehlgeschlagenRef.current) setLastRefreshed(new Date());
       }
     }
   }, [activePreset]);
@@ -618,6 +639,18 @@ export const Dashboard: React.FC<DashboardProps> = ({
         />
       </div>
 
+      {loadWarnung && (
+        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-warning/30 bg-warning-dim px-4 py-3 text-sm text-warning">
+          <span className="flex-1">{loadWarnung} Die Zahlen unten sind nicht aktuell.</span>
+          <button
+            type="button"
+            onClick={() => void loadAll()}
+            className="rounded-lg bg-warning px-3 py-1.5 text-xs font-semibold text-white"
+          >
+            Erneut laden
+          </button>
+        </div>
+      )}
       {opsError && (
         <div className="rounded-md border border-danger/20 bg-danger-dim px-4 py-2.5 text-sm text-danger">
           {opsError}

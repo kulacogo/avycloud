@@ -21,6 +21,16 @@ import { Spinner } from "./Spinner";
 interface InventoryViewProps {
   onNavigate?: (view: string) => void;
   onSelectProduct?: (product: Product) => void;
+  /**
+   * Bereits geladene Produkte aus App.tsx.
+   *
+   * Die Ansicht holte bis 2026-08-16 bei JEDEM Oeffnen die komplette Liste neu
+   * und sperrte den Inhaltsbereich solange mit einem Ladekreisel — obwohl
+   * App.tsx exakt dieselbe Liste bereits haelt und im 60-Sekunden-Takt frisch
+   * haelt. Zehn andere Ansichten bekommen sie laengst als Prop.
+   */
+  products?: Product[];
+  productsLoading?: boolean;
 }
 
 type QuickFilterKey = "all" | "low" | "nobin" | "stale" | "listed" | "unlisted" | "listingErrors" | "ready" | "in_progress" | "pending" | "sold" | "unsold" | "listingReady";
@@ -180,9 +190,20 @@ const QuickFilter: React.FC<{
 // Main Component
 // ---------------------------------------------------------------------------
 
-const InventoryView: React.FC<InventoryViewProps> = ({ onNavigate, onSelectProduct }) => {
-  const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
+const InventoryView: React.FC<InventoryViewProps> = ({
+  onNavigate,
+  onSelectProduct,
+  products: productsFromApp,
+  productsLoading,
+}) => {
+  const [eigeneProdukte, setEigeneProdukte] = useState<Product[]>([]);
+  const [eigenesLaden, setEigenesLaden] = useState(true);
+  // Kommen die Produkte von aussen, wird NICHTS nachgeladen.
+  const vonAussen = Array.isArray(productsFromApp);
+  const products = vonAussen ? (productsFromApp as Product[]) : eigeneProdukte;
+  const loading = vonAussen ? Boolean(productsLoading) && products.length === 0 : eigenesLaden;
+  const setProducts = setEigeneProdukte;
+  const setLoading = setEigenesLaden;
   const [error, setError] = useState<string | null>(null);
   const [quickFilter, setQuickFilter] = useState<QuickFilterKey>("all");
   const [searchQuery, setSearchQuery] = useState("");
@@ -195,6 +216,11 @@ const InventoryView: React.FC<InventoryViewProps> = ({ onNavigate, onSelectProdu
 
   // ---- Data loading ----
   const loadData = useCallback(async () => {
+    // Von aussen versorgt: kein zweiter Abruf derselben Liste.
+    if (vonAussen) {
+      setEigenesLaden(false);
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
@@ -206,7 +232,7 @@ const InventoryView: React.FC<InventoryViewProps> = ({ onNavigate, onSelectProdu
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [vonAussen]);
 
   useEffect(() => {
     loadData();

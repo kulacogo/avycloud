@@ -1050,6 +1050,8 @@ const AppInner: React.FC = () => {
         }
         return (
           <InventoryView
+            products={products}
+            productsLoading={productsLoading}
             onNavigate={(next) => setView(next as View)}
             onSelectProduct={(product) => {
               setCurrentProduct(product);

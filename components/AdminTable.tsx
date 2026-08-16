@@ -1545,6 +1545,19 @@ const AdminTable: React.FC<AdminTableProps> = ({
     });
   }, [totalPages]);
 
+  // Nach jeder Aenderung an Suche, Filtern oder Seitengroesse zurueck auf
+  // Seite 1. Vorher blieb die Ansicht stehen: wer auf Seite 6 filterte, sah die
+  // Treffer 251-300 statt der ersten — oder landete durch die Kappung unten auf
+  // einer fast leeren Seite. Aufträge und Marktplatz-Angebote machen das seit
+  // jeher richtig; ausgerechnet die groesste Tabelle nicht.
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [
+    searchTerm, filterStatus, filterCategorySelection, filterBin, filterBinSplit,
+    filterWeight, filterReserved, filterEanValid, filterGpsr, filterEbay,
+    filterKaufland, filterEditor, filterSold, filterErfasser, pageSize, mode,
+  ]);
+
   const pageProducts = useMemo(() => {
     const safePage = Math.min(Math.max(currentPage, 1), totalPages);
     const start = (safePage - 1) * pageSize;
@@ -1559,12 +1572,25 @@ const AdminTable: React.FC<AdminTableProps> = ({
     setSortConfig({ key, direction });
   };
 
+  /**
+   * Kopf-Haekchen ERGAENZT die Auswahl um die sichtbare Seite.
+   *
+   * Vorher ersetzte es sie komplett: wer auf Seite 1 Artikel anhakte und auf
+   * Seite 2 das Kopf-Haekchen setzte, verlor die erste Auswahl lautlos — die
+   * Sammelaktion uebersprang sie dann stillschweigend. Abhaken leerte sogar die
+   * Auswahl ALLER Seiten. Aufträge und Marktplatz-Angebote wurden bereits
+   * umgestellt; die Produkttabelle blieb auf dem alten Stand.
+   */
   const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const seitenIds = pageProducts.map((p) => p.id);
     if (e.target.checked) {
-      // Select only currently visible page
-      setSelectedIds(new Set(pageProducts.map((p) => p.id)));
+      setSelectedIds((prev) => new Set([...prev, ...seitenIds]));
     } else {
-      setSelectedIds(new Set());
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        seitenIds.forEach((id) => next.delete(id));
+        return next;
+      });
     }
   };
 
