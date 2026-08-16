@@ -828,6 +828,25 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
    * Bleibt die Karte stehen, kann der Nutzer es erneut versuchen — und sieht,
    * dass etwas nicht stimmt.
    */
+  /**
+   * Vorschlag ablehnen.
+   *
+   * Vorher gab es nur "Übernehmen". Ein abgelehnter oder durch eine spätere
+   * Antwort überholter Vorschlag blieb mit scharfem Knopf stehen — ein
+   * versehentlicher Klick schrieb veraltete Werte ins Datenblatt und speicherte
+   * sofort. Der einzige Ausweg war, den ganzen Verlauf zu löschen.
+   */
+  const handleDiscardChange = useCallback((id: string) => {
+    setPendingChanges((prev) => prev.filter((item) => item.id !== id));
+    setMessages((prev) =>
+      prev.map((msg) => {
+        if (!msg.datasheetChanges?.length) return msg;
+        const next = msg.datasheetChanges.filter((entry) => entry.id !== id);
+        return next.length === msg.datasheetChanges.length ? msg : { ...msg, datasheetChanges: next };
+      })
+    );
+  }, []);
+
   const handleApplyChange = async (id: string, change: DatasheetChange) => {
     if (!onApplyDatasheetChange) return;
     if (applyingChangeIds.has(id)) return;
@@ -1085,6 +1104,7 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
               attachments={msg.attachments}
               datasheetChanges={msg.datasheetChanges}
               onApplyDatasheetChange={msg.datasheetChanges?.length ? handleApplyChange : undefined}
+              onDiscardDatasheetChange={msg.datasheetChanges?.length ? handleDiscardChange : undefined}
               applyingChangeIds={applyingChangeIds}
             />
           ))}
@@ -1183,6 +1203,14 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
                         className="mt-2 rounded-full bg-accent px-3 py-1 text-[11px] font-semibold text-txt-primary hover:bg-accent/80 disabled:cursor-wait disabled:opacity-60"
                       >
                         {applyingChangeIds.has(item.id) ? 'Übernehme…' : t('chat.ui.apply')}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDiscardChange(item.id)}
+                        disabled={applyingChangeIds.has(item.id)}
+                        className="ml-2 mt-2 rounded-full border border-app-border px-3 py-1 text-[11px] font-medium text-txt-muted hover:text-txt-primary disabled:opacity-40"
+                      >
+                        Verwerfen
                       </button>
                     </div>
                   ))}

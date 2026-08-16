@@ -1,5 +1,12 @@
 const { callSerpApi, summarizeSerpEntries, extractImageMeta, isLowResImage } = require('./serpapi');
 
+/** Grund der letzten Stoerung, damit ein Ausfall meldbar ist. */
+let letzterFehler = null;
+
+function lastImageSearchError() {
+  return letzterFehler;
+}
+
 const DEFAULT_LIMIT = 8;
 const DEFAULT_MIN_WIDTH = 600;
 const DEFAULT_MIN_HEIGHT = 600;
@@ -113,6 +120,12 @@ async function searchProductImages(product, options = {}) {
   const stufen = broadenImageQuery(ausgangsAnfrage);
   if (!stufen.length) return [];
 
+  // "Dienst gestoert" und "es gibt keine Bilder" sahen bisher identisch aus:
+  // beides ergab einen leeren Array. Das Modell (und damit der Bediener) konnte
+  // einen Ausfall nicht von einem echten Null-Ergebnis unterscheiden. Der
+  // letzte Stoerungsgrund haengt jetzt am Ergebnis.
+  letzterFehler = null;
+
   for (let i = 0; i < stufen.length; i += 1) {
     const treffer = await searchImagesOnce(product, { ...options, query: stufen[i] });
     if (treffer.length > 0) {
@@ -143,6 +156,7 @@ async function searchImagesOnce(product, options = {}) {
     return [];
   }
   if (!isSerpApiLikelyConfigured()) {
+    letzterFehler = 'Bildsuche ist nicht eingerichtet (kein Zugang hinterlegt).';
     return [];
   }
 
@@ -161,6 +175,7 @@ async function searchImagesOnce(product, options = {}) {
   try {
     data = await callSerpApi(engine, params);
   } catch (err) {
+    letzterFehler = err.message || String(err);
     console.error(`[image-search] SerpAPI ${engine} failed for "${query}":`, err.message);
     // Fallback to bing_images if google fails
     if (engine === 'google_images') {
@@ -234,5 +249,6 @@ module.exports = {
   searchProductImages,
   buildImageQuery,
   broadenImageQuery,
+  lastImageSearchError,
   isSerpApiLikelyConfigured,
 };

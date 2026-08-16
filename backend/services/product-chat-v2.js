@@ -23,7 +23,7 @@ const { resolveModel } = require('../lib/model-select');
 // EINE Quelle für die Feldliste der Änderungskarte (Vorfall 2026-08-10).
 const CONTRACT = require('../lib/chat-datasheet-contract');
 const { generateImagesForProduct } = require('./image-generation');
-const { searchProductImages } = require('../lib/image-search');
+const { searchProductImages, lastImageSearchError } = require('../lib/image-search');
 const { buildFallbackAnswer } = require('../lib/chat-answer-fallback');
 const { buildScopeAllowMap } = require('../lib/chat-scope');
 const { normalizeDigits, isValidGtin } = require('../lib/gtin');
@@ -1352,8 +1352,16 @@ async function runProductChatV2(product, userMessage, {
             }
           }
           if (!toolResult?.error) {
-            imageSuggestions.push({ rationale: args?.rationale || searchQuery, images: chatImages });
-            toolResult = { acknowledged: true, count: chatImages.length, query: searchQuery };
+            // Ausfall des Bilddienstes ehrlich an das Modell zurueckmelden —
+            // vorher sah eine Stoerung genauso aus wie "es gibt keine Bilder",
+            // und das Modell behauptete daraufhin, es gaebe keine.
+            const dienstFehler = chatImages.length === 0 ? lastImageSearchError() : null;
+            if (dienstFehler) {
+              toolResult = { success: false, error: `Bildsuche gestört: ${dienstFehler}`, count: 0, query: searchQuery };
+            } else {
+              imageSuggestions.push({ rationale: args?.rationale || searchQuery, images: chatImages });
+              toolResult = { acknowledged: true, count: chatImages.length, query: searchQuery };
+            }
           }
           onProgress?.({ type: 'tool_done', tool: 'suggest_product_images', count: chatImages.length });
         } else if (name === 'generate_ai_images') {

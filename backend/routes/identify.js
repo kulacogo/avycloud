@@ -1532,7 +1532,7 @@ async function validateChatPricing(chatResult, product) {
  * validateGpsrDatasheetChanges. Hier fail-OPEN (Chat darf nie am Validator
  * sterben) — dann aber MIT Warnhinweis, nie stillschweigend.
  */
-async function validateChatGpsr(chatResult, product) {
+async function validateChatGpsr(chatResult, product, scope = null) {
   const changes = Array.isArray(chatResult && chatResult.datasheetChanges)
     ? chatResult.datasheetChanges
     : [];
@@ -1541,6 +1541,18 @@ async function validateChatGpsr(chatResult, product) {
   // unzuverlässigen agentischen Read — auch im interaktiven Chat (Incident
   // 2026-07-17). Nur wenn ein Etikett lesbar ist; sonst unverändert.
   let gpsrImageSourced = false;
+  // Nur ausfuehren, wenn GPSR ueberhaupt zur Debatte steht.
+  //
+  // Vorher lief dieser Bild-Auswertungs-Call bei JEDER Chat-Nachricht, seriell
+  // VOR der Antwort — auch bei "kuerze den Titel". Das kostete bei jeder Frage
+  // Wartezeit und einen Modellaufruf, und schlimmer: fand er auf dem Foto
+  // GPSR-Angaben, legte er eine NEUE Aenderungskarte an, die niemand
+  // angefordert hatte. Der Ausstieg (`if (!hasGpsrChange) return;`) sass erst
+  // DAHINTER.
+  const gpsrImRahmen = !scope || String(scope).toLowerCase().includes('gpsr') || String(scope).toLowerCase().includes('datasheet');
+  const gpsrSchonInAntwort = changes.some((c) => c && c.gpsr && typeof c.gpsr === 'object');
+  if (!gpsrSchonInAntwort && !gpsrImRahmen) return;
+
   try {
     const { extractGpsrFromImages, mergeLabelGpsrIntoCard } = require('../lib/gpsr-image-extract');
     const extracted = await extractGpsrFromImages(product);
@@ -1856,7 +1868,7 @@ router.post('/chat', requirePermission('ai', 'chat'), identifyLimiter, chatUploa
 
         // GPSR-/Hersteller-Belege prüfen BEVOR das Ergebnis rausgeht (alle Pipelines).
         try { onProgress({ type: 'tool_start', tool: 'gpsr_evidence_check' }); } catch {}
-        await validateChatGpsr(chatResult, product);
+        await validateChatGpsr(chatResult, product, normalizedScope);
 
         // K-Typ-Ergebnis (lief parallel) als Change-Card anhängen (alle Pipelines).
         await attachKTypDatasheetChange(chatResult, product, ktypEnrichHandle);
@@ -1976,7 +1988,7 @@ router.post('/chat', requirePermission('ai', 'chat'), identifyLimiter, chatUploa
     await validateChatPricing(chatResult, product);
 
     // GPSR-/Hersteller-Belege prüfen BEVOR das Ergebnis rausgeht (alle Pipelines).
-    await validateChatGpsr(chatResult, product);
+    await validateChatGpsr(chatResult, product, normalizedScope);
 
     // K-Typ-Ergebnis (lief parallel) als Change-Card anhängen (alle Pipelines).
     await attachKTypDatasheetChange(chatResult, product, ktypEnrichHandle);

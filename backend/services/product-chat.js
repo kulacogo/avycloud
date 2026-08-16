@@ -1904,15 +1904,21 @@ function sanitizeDatasheetChange(entry, product, { scope = null, titleHintTokens
       ...CONTRACT.GPSR_PROTOCOL_FIELDS,
     ]);
     for (const key of droppedKeys) policyIssues.push(`gpsr:dropped_unknown_key:${key}`);
-    // If GPSR fields exist but manufacturer_name is missing, fill from product brand.
-    // This keeps data consistent with listing expectations (brand-known but manufacturer blank).
+    // ENTFERNT (2026-08-16): der Herstellername wurde hier aus der MARKE
+    // erfunden, sobald irgendein anderes GPSR-Feld gefuellt war — ohne Beleg,
+    // ohne Flag. Eine Marke ist aber NICHT der juristische Hersteller. Genau
+    // dieses Verhalten wurde nach dem Audit 2026-07-16 im Speicherpfad
+    // abgeschaltet (lib/firestore.js, Runtime-Flag `gpsrBrandNameFallback`,
+    // Vorgabe aus) — im Chat lief es weiter und schrieb den erfundenen Namen in
+    // die Aenderungskarte, wo er als recherchierte Angabe aussah.
+    //
+    // Ein fehlender Herstellername ist eine ehrliche Luecke und gehoert als
+    // solche in notes.unsure, nicht geraten.
     if (!next.manufacturer_name) {
       const brand = typeof product?.identification?.brand === 'string' ? product.identification.brand.trim() : '';
-      if (brand) {
-        const hasAnyGpsrField = Object.entries(next).some(([k, v]) => k !== 'manufacturer_name' && typeof v === 'string' && v.trim());
-        if (hasAnyGpsrField) {
-          next.manufacturer_name = brand;
-        }
+      const hasAnyGpsrField = Object.entries(next).some(([k, v]) => k !== 'manufacturer_name' && typeof v === 'string' && v.trim());
+      if (brand && hasAnyGpsrField) {
+        policyIssues.push('gpsr:manufacturer_name_missing_not_guessed');
       }
     }
     if (Object.keys(next).length) {
