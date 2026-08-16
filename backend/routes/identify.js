@@ -1710,6 +1710,20 @@ router.post('/chat', requirePermission('ai', 'chat'), identifyLimiter, chatUploa
       });
     }
 
+    /**
+     * Hat der Mensch den Vorgang abgebrochen?
+     *
+     * "Neu" im Chat loescht den Verlauf lokal UND das Sitzungs-Dokument, bricht
+     * die laufende Anfrage aber nur clientseitig ab — serverseitig lief sie
+     * weiter und schrieb Frage + Antwort danach WIEDER in die geloeschte
+     * Sitzung. Beim naechsten Oeffnen stand der geloeschte Verlauf wieder da,
+     * ohne Aenderungskarten (die leben nur im Browser). Ohne diese Pruefung ist
+     * "Neu" nicht verlaesslich.
+     */
+    let clientWegGegangen = false;
+    req.on('close', () => { clientWegGegangen = true; });
+    req.on('aborted', () => { clientWegGegangen = true; });
+
     const product = await getProduct(productId);
     if (!product) {
       if (streamMode) {
@@ -1876,6 +1890,10 @@ router.post('/chat', requirePermission('ai', 'chat'), identifyLimiter, chatUploa
         console.log('[chat] pipeline=%s model=%s product=%s', pipelineUsed, chatResult.model || chatResult.modelUsed, productId);
 
         // Save messages to session (best-effort, non-blocking)
+        // Verbindung weg (z. B. "Neu" gedrueckt): die geloeschte Sitzung NICHT
+        // wieder herstellen.
+        if (clientWegGegangen) console.log('[chat] Verbindung abgebrochen — Sitzung wird nicht zurueckgeschrieben');
+        else
         appendMessages(sessionId, userId, productId, payloadMessage, chatResult.message || '').catch((e) => {
           console.warn('[chat] Failed to save session:', e.message);
         });
@@ -1996,6 +2014,10 @@ router.post('/chat', requirePermission('ai', 'chat'), identifyLimiter, chatUploa
     console.log('[chat] pipeline=%s model=%s product=%s', pipelineUsed, chatResult.model || chatResult.modelUsed, productId);
 
     // Save messages to session (best-effort, non-blocking)
+    // Verbindung weg (z. B. "Neu" gedrueckt): die geloeschte Sitzung NICHT
+    // wieder herstellen.
+    if (clientWegGegangen) console.log('[chat] Verbindung abgebrochen — Sitzung wird nicht zurueckgeschrieben');
+    else
     appendMessages(sessionId, userId, productId, payloadMessage, chatResult.message || '').catch((e) => {
       console.warn('[chat] Failed to save session:', e.message);
     });
