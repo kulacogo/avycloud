@@ -24,6 +24,8 @@ const { resolveModel } = require('../lib/model-select');
 const CONTRACT = require('../lib/chat-datasheet-contract');
 const { generateImagesForProduct } = require('./image-generation');
 const { searchProductImages } = require('../lib/image-search');
+const { buildFallbackAnswer } = require('../lib/chat-answer-fallback');
+const { buildScopeAllowMap } = require('../lib/chat-scope');
 const { normalizeDigits, isValidGtin } = require('../lib/gtin');
 const { coerceTitleToPolicy } = require('../lib/title-policy');
 const { buildCommonPolicyText } = require('../lib/llm-policy-pack');
@@ -234,7 +236,7 @@ const UPDATE_DATASHEET_DECLARATION = {
           },
         },
       },
-      short_description: { type: 'STRING', description: 'HTML product description (180-240 words).' },
+      short_description: { type: 'STRING', description: 'Produktbeschreibung als Fließtext in 2-4 <p>-Absätzen, 180-240 Wörter. KEINE Listen (<ul>/<li>) — Aufzählungen gehören in key_features.' },
       key_features: { type: 'ARRAY', items: { type: 'STRING' }, description: '5-7 bullet points.' },
       gpsr: {
         type: 'OBJECT',
@@ -381,7 +383,7 @@ KRITISCH: Wenn du Verbesserungen vorschlägst, MUSST du update_product_datasheet
 
 QUALITÄT:
 - Titel: 70–80 Zeichen, käufergerecht für eBay/Kaufland. Orientiere dich an echten Top-Seller-Titeln auf ebay.de für dieses Produkt (suche ebay.de zuerst!). Nur wahre, kaufrelevante Fakten. Größen (XS, S, M, L, XL, XXL) immer GROSSBUCHSTABEN. Keine Marketing-Floskeln, keine EAN/GTIN/SKU, keine irrelevanten Specs. KEINE Wörter aus falschen Kategorien.
-- Beschreibung: HTML (<p>, <ul>, <li>, <strong>), 180–240 Wörter, faktenbasiert. Basierend auf Web-Recherche, nicht auf falschen Bestandsdaten.
+- Beschreibung: Fließtext in 2–4 <p>-Absätzen, KEINE Listen (<ul>/<li>) — Aufzählungen gehören ausschließlich in key_features (Highlights). 180–240 Wörter, faktenbasiert. Basierend auf Web-Recherche, nicht auf falschen Bestandsdaten.
 - Highlights: 5–7 Bulletpoints, je 70–120 Zeichen, "[Nutzen] - [Eigenschaft]".
 - Attribute: Nur belegbare Fakten. Deutsche Schlüssel. ≤60 Zeichen pro Wert. Verwende die ebay.allowed_aspects als Referenz, aber wenn die Kategorie falsch ist, ignoriere die alten Aspects und korrigiere zuerst die Kategorie.
 - GPSR: Unter gpsr-Objekt, NIE als Attribute.
@@ -617,6 +619,19 @@ function sanitizeDatasheetChangeV2(entry, product, { scope = null, titleHintToke
   const change = {};
   const issues = [];
 
+  /**
+   * Rahmen der Schnellaktion HART durchsetzen.
+   *
+   * Vorher wurde `scope` zwar entgegengenommen und ins Prompt geschrieben, hier
+   * aber nie wieder gelesen — eine Bitte, keine Durchsetzung. Ein Klick auf
+   * "Preischeck" konnte damit Titel, Beschreibung, Highlights, Merkmale, Marke
+   * und GPSR mitschreiben, und der Mensch konnte nichts davon abwaehlen, weil
+   * alles in EINER Karte steckt. Die Legacy-Pipeline macht das seit jeher
+   * richtig; die Regeln liegen jetzt gemeinsam in lib/chat-scope.js.
+   */
+  const allow = buildScopeAllowMap(scope);
+  const verworfen = [];
+
   // Summary
   if (typeof entry.summary === 'string' && entry.summary.trim()) {
     change.summary = entry.summary.trim().slice(0, 500);
@@ -684,7 +699,8 @@ function sanitizeDatasheetChangeV2(entry, product, { scope = null, titleHintToke
         finalTitle = fillTitleToMinLength(finalTitle, preview, { minLen: 70, maxLen: 80 });
       }
     }
-    change.title = finalTitle;
+    if (allow.title) change.title = finalTitle;
+    else verworfen.push('title');
   }
 
   // Identity
@@ -744,12 +760,14 @@ function sanitizeDatasheetChangeV2(entry, product, { scope = null, titleHintToke
   }
 
   // Description — Fließtext, nie Bullets (Invariante: Bullets nur in key_features).
-  if (typeof entry.short_description === 'string' && entry.short_description.trim()) {
+  if (!allow.description && typeof entry.short_description === 'string' && entry.short_description.trim()) verworfen.push('short_description');
+  if (allow.description && typeof entry.short_description === 'string' && entry.short_description.trim()) {
     change.short_description = sanitizeDescriptionProse(entry.short_description);
   }
 
   // Key features
-  if (Array.isArray(entry.key_features) && entry.key_features.length) {
+  if (!allow.highlights && Array.isArray(entry.key_features) && entry.key_features.length) verworfen.push('key_features');
+  if (allow.highlights && Array.isArray(entry.key_features) && entry.key_features.length) {
     change.key_features = entry.key_features
       .map(safeString)
       .filter(Boolean)
@@ -767,7 +785,10 @@ function sanitizeDatasheetChangeV2(entry, product, { scope = null, titleHintToke
       if (!value) return;
       cleaned[canonicalizeAttributeKey(key)] = value.slice(0, 65);
     });
-    if (Object.keys(cleaned).length) change.attributes = cleaned;
+    if (Object.keys(cleaned).length) {
+      if (allow.attributes) change.attributes = cleaned;
+      else verworfen.push('attributes');
+    }
   }
 
   // GPSR — Partition statt Projektion (Vorfall 2026-08-10).
@@ -775,7 +796,8 @@ function sanitizeDatasheetChangeV2(entry, product, { scope = null, titleHintToke
   // bauartbedingt nicht wissen, was sie fallen lässt: die 9
   // eu_responsible_*-Felder verschwanden ohne Log, ohne Notiz, ohne Hinweis.
   // pickWithRest liefert den Rest als Wert — was wegfällt, ist meldbar.
-  if (entry.gpsr && typeof entry.gpsr === 'object') {
+  if (!allow.gpsr && entry.gpsr && typeof entry.gpsr === 'object') verworfen.push('gpsr');
+  if (allow.gpsr && entry.gpsr && typeof entry.gpsr === 'object') {
     const allowed = [...CONTRACT.GPSR_FIELDS, ...CONTRACT.GPSR_PROTOCOL_FIELDS];
     const { kept, droppedKeys } = CONTRACT.pickWithRest(entry.gpsr, allowed);
     if (Object.keys(kept).length) change.gpsr = kept;
@@ -783,7 +805,8 @@ function sanitizeDatasheetChangeV2(entry, product, { scope = null, titleHintToke
   }
 
   // Pricing
-  if (entry.pricing && typeof entry.pricing === 'object') {
+  if (!allow.pricing && entry.pricing && typeof entry.pricing === 'object') verworfen.push('pricing');
+  if (allow.pricing && entry.pricing && typeof entry.pricing === 'object') {
     change.pricing = entry.pricing;
   }
 
@@ -793,6 +816,12 @@ function sanitizeDatasheetChangeV2(entry, product, { scope = null, titleHintToke
     if (Array.isArray(entry.notes.unsure)) notes.unsure = entry.notes.unsure.map(safeString).filter(Boolean);
     if (Array.isArray(entry.notes.warnings)) notes.warnings = entry.notes.warnings.map(safeString).filter(Boolean);
     if ((notes.unsure?.length || 0) + (notes.warnings?.length || 0) > 0) change.notes = notes;
+  }
+
+  // Was der Rahmen verworfen hat, wird gemeldet statt still zu verschwinden.
+  for (const feld of verworfen) issues.push(`scope:blocked:${feld}`);
+  if (verworfen.length) {
+    console.log(`[chat-v2] Rahmen "${scope}" hat ${verworfen.length} Feld(er) verworfen: ${verworfen.join(', ')}`);
   }
 
   return { change, policyIssues: issues };
@@ -1088,6 +1117,8 @@ async function runProductChatV2(product, userMessage, {
       'Die Web-Recherche ist bereits gelaufen — ihre Ergebnisse stehen in der Nutzer-Nachricht unter "RECHERCHE-ERGEBNISSE".',
       'Nutze AUSSCHLIESSLICH diese Ergebnisse und den Produktkontext. Erfinde nichts darüber hinaus.',
       'Übernimm Quell-URLs aus den Recherche-Ergebnissen in deine update_product_datasheet-Vorschläge (pricing.sources, gpsr.url).',
+      'SCHREIBE IMMER 1-3 Sätze auf Deutsch, was du geändert hast und worauf du dich stützt — auch wenn du nur das Tool aufrufst. Ohne diesen Text sieht der Mensch nur Änderungskarten ohne Begründung.',
+      'Fandest du nichts zu ändern, sag das ausdrücklich in einem Satz statt zu schweigen.',
     ].join('\n')
     : '';
 
@@ -1420,9 +1451,18 @@ async function runProductChatV2(product, userMessage, {
     // vorgeschlagen". Ohne diese Bevorzugung sähe der User wieder nichts von
     // den recherchierten Fakten (Incident 2026-08-04: "Antwort generiert.").
     const phaseBMessage = extractAnswerText(response) || responseText || '';
+    // "Antwort generiert." sagt dem Bediener nichts. Gemessen an 60 Laeufen aus
+    // 14 Tagen trat der Fall in 36 % der Chats ein (keine Recherche + Phase B
+    // schreibt nur den Werkzeug-Aufruf). Statt des Platzhalters jetzt eine
+    // nuechterne Zusammenfassung dessen, was wirklich vorliegt.
     const cleanMessage = (splitMode && researchText)
       ? researchText
-      : (phaseBMessage || 'Antwort generiert.');
+      : (phaseBMessage
+        || buildFallbackAnswer({
+          changes: finalDatasheetChanges,
+          researchText,
+          imageCount: imageSuggestions.reduce((n, s) => n + (s?.images?.length || 0), 0),
+        }));
 
     return {
       message: cleanMessage,

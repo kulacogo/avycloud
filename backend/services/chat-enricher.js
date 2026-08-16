@@ -340,7 +340,37 @@ async function validateGpsrDatasheetChanges({ product, changes, fetchImpl, timeo
 
 async function enrichViaChatV3(product, opts = {}) {
   const deps = opts.deps || {};
-  const runChat = deps.runProductChatV3 || require('./product-chat-v3').runProductChatV3;
+
+  /**
+   * Dieselbe Kaskade wie im Chat selbst (routes/identify.js).
+   *
+   * Vorher war hier HART die V3-Pipeline verdrahtet. Seit der
+   * Gemini-2.5-Modellpolitik (2026-08-01) ist V3 strukturell unerreichbar: sie
+   * kombiniert googleSearch mit eigenen Funktionen, was nur die
+   * -customtools-Modelle koennen. Folge: der Massenlauf "Veredeln" meldete fuer
+   * JEDES Produkt einen Fehler und schrieb nichts, und "KI verbessern" im
+   * Datenblatt lieferte still nur noch die schwaechere Alt-Qualitaet — die
+   * versprochene Recherche (GPSR, Preis mit Quelle, Merkmale, Gewicht) lief nie.
+   *
+   * V3 kennt diesen Fall selbst und prueft ihn in chatV3Enabled(); nur dieser
+   * Aufrufer fragte nicht.
+   */
+  const runChat = deps.runProductChatV3 || (async (args) => {
+    const v3 = require('./product-chat-v3');
+    if (typeof v3.chatV3Enabled === 'function' && v3.chatV3Enabled()) {
+      try {
+        return await v3.runProductChatV3(args);
+      } catch (err) {
+        console.warn(`[chat-enricher] V3 fehlgeschlagen, weiche auf V2 aus: ${err?.message || err}`);
+      }
+    }
+    // V2 hat eine andere Aufrufform: (product, message, options).
+    const { runProductChatV2 } = require('./product-chat-v2');
+    return runProductChatV2(args.product, args.message, {
+      tenantId: args.tenantId || null,
+      scope: args.scope || null,
+    });
+  });
   const { extractGpsrFromImages } = require('../lib/gpsr-image-extract');
 
   // AUTORITATIVE GPSR vom Etikett (Incident 2026-07-17): Der agentische Chat

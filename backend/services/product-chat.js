@@ -1644,7 +1644,7 @@ function buildUserPrompt({ message, locale = 'de-DE', mode = 'short', marketingF
   lines.push('Consistency rule: never mix conflicting identity tokens (e.g. Damen + Herren, mixed brands) in one title.');
   lines.push('Title rule: first 3-5 words are CTR-critical; front-load brand + product type + key differentiator.');
   lines.push('Keyword governance: use 2-3 primary buyer-intent keywords + max 1-2 synonyms; avoid keyword stuffing/chains.');
-  lines.push('Description rule: return HTML structure (<p>, <ul>, <li>, <strong>) and keep it substantial (target around 180-240 words when evidence is sufficient).');
+  lines.push('Description rule: flowing prose in 2-4 <p> paragraphs, NO lists (<ul>/<li>) — bullet points belong in key_features only. Keep it substantial (target around 180-240 words when evidence is sufficient).');
   lines.push('Auto-parts title rule: prioritize part type + OE/MPN + installation position; keep compatibility mainly in K-Typ/item specifics.');
   lines.push('Never include EAN/GTIN/UPC/ISBN or unverifiable claims in titles.');
   lines.push('Aspect rule: prioritize filling ebay.required_aspects_meta.missing_required_aspects with evidence-backed values, and use ONLY exact aspect names from ebay.allowed_aspects (fallback: ebay.required_aspects).');

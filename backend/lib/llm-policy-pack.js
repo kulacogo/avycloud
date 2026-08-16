@@ -70,7 +70,7 @@ function buildCommonPolicyText({ locale = 'de-DE', allowWebEvidence = false, con
       '- Titel/Highlights/Beschreibung sollen faktenbasiert und suchstark sein; keine Platzhaltertexte.',
       '- Titel (Sport/Haushalt/Home/Beauty/Toys/Büro): priorisiere Maße/Größe/Material vor kryptischen Herstellercodes.',
       '- Titel-Schreibweise: keine komplett kleingeschriebenen Keyword-Ketten; relevante Nomen normal schreiben.',
-      '- Beschreibung: HTML-strukturiert liefern (<p>, <ul>, <li>, <strong>) und bei ausreichender Beleglage substanziell ausformulieren (ca. 180–240 Wörter).',
+      '- Beschreibung: als Fließtext in 2–4 <p>-Absätzen, KEINE Listen (<ul>/<li>) — Aufzählungen gehören ausschließlich in key_features (Highlights); bei ausreichender Beleglage substanziell ausformulieren (ca. 180–240 Wörter).',
       '- eBay Attribute-Governance: Wenn dir pro Kategorie Aspects geliefert werden (ebay.allowed_aspects oder ebay.required_aspects), verwende NUR diese Keys (exakte Schreibweise). Erfinde keine neuen Attribut-Keys.',
       '- Item Specifics: Pflichtmerkmale zuerst füllen; danach zusätzliche relevante Merkmale für Filter-/Mobil-Sichtbarkeit ergänzen.',
       '- Attribute/Parameter: Werte pro Feld maximal 60 Zeichen. AUSNAHME: Titel und K-Typ.',
