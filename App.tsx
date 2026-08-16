@@ -1,5 +1,5 @@
 
-import React, { useState, useCallback, useEffect, useMemo, useRef, lazy, Suspense } from 'react';
+import React, { useState, useCallback, useEffect, useMemo, useRef, lazy, Suspense, startTransition } from 'react';
 import { Product, WarehouseBin, View } from './types';
 import { useIdentification, UploadGroupPayload } from './hooks/useIdentification';
 import { useImproveQueue } from './hooks/useImproveQueue';
@@ -741,11 +741,26 @@ const AppInner: React.FC = () => {
     clearImproveError();
   }, [improveError, clearImproveError]);
 
+  /**
+   * Oeffnet das Produktdatenblatt.
+   *
+   * `startTransition` ist PFLICHT: das Datenblatt wird erst beim Oeffnen
+   * nachgeladen, und React verweigert es, als unmittelbare Folge eines Klicks
+   * eine Wartestelle zu zeigen (Fehler 426 — "Etwas ist schiefgelaufen").
+   * Mit der Markierung darf der Klick kurz warten, und die Wartestelle im
+   * Overlay greift.
+   */
+  const oeffneDatenblatt = useCallback((product: Product) => {
+    startTransition(() => {
+      setCurrentProduct(product);
+      setInventoryFocusId(product.id);
+    });
+  }, []);
+
   const handleSelectProduct = (productId: string) => {
     const product = products.find(p => p.id === productId);
     if (product) {
-      setCurrentProduct(product);
-      setInventoryFocusId(product.id);
+      oeffneDatenblatt(product);
       // Don't setView('sheet') — ProductSheet renders as overlay, keeping current view
     }
   };
@@ -818,8 +833,13 @@ const AppInner: React.FC = () => {
       }
       if (productId) {
         const product = productsRef.current.find((p) => p.id === productId) || null;
-        setCurrentProduct(product);
-        if (product) setInventoryFocusId(product.id);
+        // Auch dieser Weg wird per Klick ausgeloest (Duplikate, Fehler-Cockpit,
+        // Protokoll setzen den Hash). Ohne die Markierung verweigert React das
+        // Nachladen des Datenblatts — Fehler 426.
+        startTransition(() => {
+          setCurrentProduct(product);
+          if (product) setInventoryFocusId(product.id);
+        });
       } else {
         // Die Zurueck-Taste (Handy/Browser) aendert nur den Hash. Hier lief
         // bisher setCurrentProduct(null) DIREKT — am Warndialog vorbei, den der
@@ -957,8 +977,10 @@ const AppInner: React.FC = () => {
     }
     const product = products.find((p) => p.id === initialProductId);
     if (product) {
-      setCurrentProduct(product);
-      setInventoryFocusId(product.id);
+      startTransition(() => {
+        setCurrentProduct(product);
+        setInventoryFocusId(product.id);
+      });
       // ProductSheet is overlay-only — ensure we're on a view that shows the overlay
       if (view !== 'products' && view !== 'inventory' && view !== 'marketplace-ebay' && view !== 'marketplace-kaufland' && view !== 'marketplace-errors') {
         setView('products');
@@ -1053,10 +1075,7 @@ const AppInner: React.FC = () => {
             products={products}
             productsLoading={productsLoading}
             onNavigate={(next) => setView(next as View)}
-            onSelectProduct={(product) => {
-              setCurrentProduct(product);
-              setInventoryFocusId(product.id);
-            }}
+            onSelectProduct={(product) => oeffneDatenblatt(product)}
           />
         );
       case 'products':
@@ -1365,6 +1384,17 @@ const AppInner: React.FC = () => {
             />
             {/* Sheet panel */}
             <div className="relative w-full md:w-[66vw] md:max-w-[1080px] bg-app-surface border-l border-app-border overflow-y-auto shadow-2xl animate-slide-in-right">
+              {/* Das Datenblatt wird erst beim Oeffnen geladen und braucht
+                  deshalb eine eigene Wartestelle. Ohne sie stuerzte das Oeffnen
+                  ab (React-Fehler 426): der Klick ist eine sofortige Eingabe,
+                  und React verweigert es, dafuer ohne Wartestelle nachzuladen. */}
+              <Suspense
+                fallback={
+                  <div className="flex items-center justify-center py-24">
+                    <Spinner />
+                  </div>
+                }
+              >
               <ProductSheet
                 product={currentProduct}
                 onUpdate={handleUpdateProduct}
@@ -1373,6 +1403,7 @@ const AppInner: React.FC = () => {
                 onClose={closeProductSheet}
                 onDirtyChange={(dirty) => { sheetDirtyRef.current = dirty; }}
               />
+              </Suspense>
             </div>
           </div>
         )}
