@@ -28,6 +28,7 @@ import {
   getProductPhysicalQuantity,
   getProductDisplayCategory,
 } from "../utils/product";
+import { useListPaging } from "../hooks/useListPaging";
 
 // ─── Types ───────────────────────────────────────────────────
 
@@ -454,6 +455,9 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [currentPage, setCurrentPage] = useState(1);
+  // Nach dem Blaettern oben in der Liste stehen — sonst landet man
+  // mitten in der neuen Seite (gemeinsame Regel: utils/listPaging.ts).
+  useListPaging(currentPage);
   const [pageSize, setPageSize] = useState(50);
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>("asc");

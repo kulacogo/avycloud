@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { fetchWarehouseMovements, WarehouseMovement } from "../../api/client";
 import { Spinner } from "../Spinner";
+import { useListPaging } from "../../hooks/useListPaging";
 
 const TYPE_LABELS: Record<string, string> = {
   stock_in: "Stock-In",
@@ -28,6 +29,9 @@ const WarehouseMovementsTab: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(false);
   const [page, setPage] = useState(0);
+  // Nach dem Blaettern oben in der Liste stehen — sonst landet man
+  // mitten in der neuen Seite (gemeinsame Regel: utils/listPaging.ts).
+  useListPaging(page);
 
   // Filters
   const [typeFilter, setTypeFilter] = useState("");

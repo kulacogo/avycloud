@@ -24,6 +24,7 @@ import { useGridEdit } from '../hooks/useGridEdit';
 import { useBulkUpdate } from '../hooks/useBulkUpdate';
 import { useAuth } from '../context/AuthContext';
 import { deriveInitials } from '../utils/product';
+import { useListPaging } from "../hooks/useListPaging";
 
 const safeCurrency = (code?: string) => {
   const c = (code || '').toString().trim().toUpperCase();
@@ -217,6 +218,9 @@ const AdminTable: React.FC<AdminTableProps> = ({
     }
   });
   const [currentPage, setCurrentPage] = useState(1);
+  // Nach dem Blaettern oben in der Liste stehen — sonst landet man
+  // mitten in der neuen Seite (gemeinsame Regel: utils/listPaging.ts).
+  useListPaging(currentPage);
 
   // Suche aus der oberen Leiste: erreicht die Tabelle auch dann, wenn sie schon
   // aufgebaut ist. Der Startwert von `searchTerm` greift nur beim ERSTEN Aufbau

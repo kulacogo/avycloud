@@ -20,6 +20,7 @@ import { OrderDetail } from "./OrderDetail";
 import { OMS_STATUS_LABELS } from "../lib/oms-labels";
 import { BULK_TRANSITION_LIMIT, ADDRESS_LABEL_LIMIT, checkBulkLimit } from "../utils/bulkLimits";
 import { useToast } from "../context/ToastContext";
+import { useListPaging } from "../hooks/useListPaging";
 
 /* ─── Status filter config ─── */
 type StatusFilter = "all" | OrderStatus;
@@ -100,6 +101,9 @@ const OrdersView: React.FC = () => {
   const [bulkResult, setBulkResult] = useState<{ ok: boolean; message: string } | null>(null);
   const [rowsPerPage, setRowsPerPage] = useState(50);
   const [currentPage, setCurrentPage] = useState(1);
+  // Nach dem Blaettern oben in der Liste stehen — sonst landet man
+  // mitten in der neuen Seite (gemeinsame Regel: utils/listPaging.ts).
+  useListPaging(currentPage);
   const [searchQuery, setSearchQuery] = useState("");
   const [datePreset, setDatePreset] = useState<"all" | "today" | "7d" | "30d" | "90d">("all");
   const [dateFrom, setDateFrom] = useState("");

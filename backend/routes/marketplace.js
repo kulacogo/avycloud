@@ -2541,23 +2541,39 @@ router.post('/ktype/upload', ktypeUploadMiddleware, async (req, res) => {
           }
 
           if (!dryRun) {
-            const docRef = firestore.collection('products').doc(String(product.id || sku));
-            await docRef.set(
-              {
-                details: {
-                  attributes: {
-                    'K-Typ': nextVal,
-                  },
-                },
-                ops: {
-                  last_saved_source: 'ktype-upload',
-                  last_saved_iso: new Date().toISOString(),
-                  revision: FieldValue.increment(1),
-                  sync_status: 'pending',
+            // Frueher schrieb diese Stelle in die stillgelegte Legacy-Sammlung
+            // (products, ohne _v2). Gelesen wurde aber schon immer aus
+            // products_v2. Der Bediener lud eine Kompatibilitaetsliste hoch,
+            // bekam "X aktualisiert" gemeldet, und im Datenblatt stand danach
+            // nichts. Jeder Produkt-Schreibpfad laeuft ueber saveProductV2()
+            // (CLAUDE.md Punkt 7) — nur dort haengen Revision, Kanonisierung
+            // und Sync-Event dran.
+            const { saveProductV2 } = require('../lib/product-store');
+            // Abweichende Alt-Schreibweisen ("ktyp", "k typ") entfernen, sonst
+            // stuenden zwei K-Typ-Merkmale nebeneinander im Datenblatt.
+            const attrsOhneAltKTyp = Object.fromEntries(
+              Object.entries(product.details?.attributes || {}).filter(([k]) => {
+                const lower = String(k || '').trim().toLowerCase();
+                return lower !== 'k-typ' && lower !== 'ktyp' && lower !== 'k typ';
+              })
+            );
+            const next = {
+              ...product,
+              details: {
+                ...(product.details || {}),
+                attributes: {
+                  ...attrsOhneAltKTyp,
+                  'K-Typ': nextVal,
                 },
               },
-              { merge: true }
-            );
+              ops: {
+                ...(product.ops || {}),
+                last_saved_source: 'ktype-upload',
+                last_saved_iso: new Date().toISOString(),
+                sync_status: 'pending',
+              },
+            };
+            await saveProductV2(next, { source: 'ktype-upload' });
           }
 
           report.updated += 1;

@@ -19,6 +19,7 @@ import { isIdentifyRunning, subscribeIdentifyRun } from './utils/identifyRunFlag
 import { startVisiblePolling } from './utils/visiblePolling';
 import { useI18n } from './i18n';
 import { addMediaQueryListener } from './utils/mediaQuery';
+import { shouldCloseOnEscape } from './utils/overlayKeys';
 import { isInventoryItem, isProductBacklogItem } from './utils/inventorySplit';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { InventoryProvider } from './context/InventoryContext';
@@ -514,6 +515,33 @@ const AppInner: React.FC = () => {
     sheetDirtyRef.current = false;
     setCurrentProduct(null);
   }, []);
+
+  /**
+   * Escape schliesst das Datenblatt — und der Hintergrund scrollt nicht mit.
+   *
+   * Das Datenblatt liegt fast bildschirmfuellend ueber der Liste, war aber nur
+   * ueber den Schliessen-Knopf oben rechts zu verlassen. Wer mit der Tastatur
+   * arbeitet (Erfassen, Lager), musste dafuer jedes Mal zur Maus greifen.
+   * Ungespeicherte Aenderungen fragen weiterhin nach: closeProductSheet
+   * entscheidet das, hier haengt nur der Ausloeser dran.
+   */
+  const sheetOffen = Boolean(currentProduct) && !isProductSheetBlockedView(view);
+  useEffect(() => {
+    if (!sheetOffen) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (!shouldCloseOnEscape(event as unknown as Parameters<typeof shouldCloseOnEscape>[0])) return;
+      closeProductSheet();
+    };
+    // Die Liste dahinter darf nicht mitscrollen, solange das Datenblatt offen
+    // ist — sonst verliert man beim Schliessen seine Position in der Liste.
+    const vorher = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', onKeyDown);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+      document.body.style.overflow = vorher;
+    };
+  }, [sheetOffen, closeProductSheet]);
   const [showImportModal, setShowImportModal] = useState(false);
   const {
     enqueueIdentification,
@@ -1374,8 +1402,8 @@ const AppInner: React.FC = () => {
         </main>
 
         {/* ProductSheet overlay — slides in from right, independent of route */}
-        {currentProduct && !isProductSheetBlockedView(view) && (
-          <div className="fixed inset-0 z-50 flex justify-end">
+        {currentProduct && sheetOffen && (
+          <div className="fixed inset-0 z-50 flex justify-end" role="dialog" aria-modal="true">
             {/* Backdrop */}
             <div
               className="absolute inset-0 bg-black/40 transition-opacity"

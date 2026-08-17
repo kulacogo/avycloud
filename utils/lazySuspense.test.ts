@@ -23,14 +23,18 @@ const APP = fs.readFileSync(path.join(path.resolve(import.meta.dirname, ".."), "
 
 describe("Nachgeladene Ansichten", () => {
   test("das Produktdatenblatt liegt in einer Wartestelle", () => {
-    // Overlay-Block ab der Sichtbarkeits-Bedingung bis zum Ende des Panels.
-    const start = APP.indexOf("isProductSheetBlockedView(view)");
-    assert.ok(start > -1, "Overlay-Bedingung nicht gefunden");
-    const block = APP.slice(start, start + 2500);
-    assert.match(block, /<Suspense/, "ProductSheet-Overlay ohne <Suspense> — Öffnen stürzt mit React 426 ab");
+    // Vom Datenblatt aus rueckwaerts: die zuletzt geoeffnete Wartestelle davor
+    // muss noch offen sein. Der Anker sitzt am Element selbst, damit ein
+    // Umbenennen der Sichtbarkeits-Bedingung den Test nicht falsch rot macht.
+    const sheetIdx = APP.indexOf("<ProductSheet");
+    assert.ok(sheetIdx > -1, "ProductSheet-Element nicht gefunden");
+    const davor = APP.slice(0, sheetIdx);
+    const offen = davor.lastIndexOf("<Suspense");
+    const geschlossen = davor.lastIndexOf("</Suspense>");
+    assert.ok(offen > -1, "ProductSheet-Overlay ohne <Suspense> — Öffnen stürzt mit React 426 ab");
     assert.ok(
-      block.indexOf("<Suspense") < block.indexOf("<ProductSheet"),
-      "Die Wartestelle muss das Datenblatt UMSCHLIESSEN"
+      offen > geschlossen,
+      "Die Wartestelle muss das Datenblatt UMSCHLIESSEN — sie ist davor schon wieder geschlossen"
     );
   });
 

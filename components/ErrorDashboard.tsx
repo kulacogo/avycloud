@@ -2,6 +2,7 @@ import React, { useState, useCallback } from "react";
 import { useErrors, ErrorFilters } from "../hooks/useErrors";
 import { ErrorKPIs } from "./error-dashboard/ErrorKPIs";
 import { ErrorList } from "./error-dashboard/ErrorList";
+import { useListPaging } from "../hooks/useListPaging";
 
 export const ErrorDashboard: React.FC = () => {
   const [filters, setFilters] = useState<{
@@ -11,6 +12,9 @@ export const ErrorDashboard: React.FC = () => {
     status?: string;
   }>({});
   const [currentPage, setCurrentPage] = useState(1);
+  // Nach dem Blaettern oben in der Liste stehen — sonst landet man
+  // mitten in der neuen Seite (gemeinsame Regel: utils/listPaging.ts).
+  useListPaging(currentPage);
 
   const queryFilters: ErrorFilters = {
     ...filters,
