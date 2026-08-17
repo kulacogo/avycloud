@@ -143,3 +143,53 @@ describe('Luecken vertragen', () => {
     expect(d.refundAmount).toBe(20.82);
   });
 });
+
+describe('Echte Buchung schlaegt die Naeherung', () => {
+  const retoure = {
+    id_return: 1,
+    status: 'package_received',
+    return_units: [{ id_return_unit: 1, id_order_unit: 111, status: 'return_accepted', reason: 'defect' }],
+  };
+  const positionen = new Map([['111', { price: 3799, revenue_gross: 3000, revenue_net: 2521, currency: 'EUR' }]]);
+
+  it('nimmt den gebuchten Betrag, wenn es einen gibt', () => {
+    const d = buildKauflandReturnDetail(retoure, positionen, new Map([['111', 10]]));
+    expect(d.refundAmount).toBe(10);
+    expect(d.amountBasis).toBe('kaufland_booking_refund');
+    expect(d.refundBookingCount).toBe(1);
+  });
+
+  it('bleibt bei der Naeherung, wenn keine Buchung existiert — der Normalfall', () => {
+    // Gemessen: von 13 Retouren-Positionen hat KEINE eine Erstattungsbuchung.
+    const d = buildKauflandReturnDetail(retoure, positionen, new Map());
+    expect(d.refundAmount).toBe(37.99);
+    expect(d.amountBasis).toBe('kaufland_order_unit_price');
+  });
+
+  it('mischt NICHT, wenn nur ein Teil belegt ist', () => {
+    // Halb gemessen, halb geschaetzt waere schlimmer als durchgaengig
+    // geschaetzt — niemand wuesste mehr, was die Zahl bedeutet.
+    const zwei = {
+      id_return: 2,
+      status: 'package_received',
+      return_units: [
+        { id_return_unit: 1, id_order_unit: 111 },
+        { id_return_unit: 2, id_order_unit: 222 },
+      ],
+    };
+    const pos = new Map([
+      ['111', { price: 1000 }],
+      ['222', { price: 2000 }],
+    ]);
+    const d = buildKauflandReturnDetail(zwei, pos, new Map([['111', 5]]));
+    expect(d.refundAmount).toBe(30);
+    expect(d.amountBasis).toBe('kaufland_order_unit_price');
+    expect(d.refundBookingCount).toBe(1);
+  });
+
+  it('ohne Buchungsindex verhaelt es sich wie bisher', () => {
+    const d = buildKauflandReturnDetail(retoure, positionen);
+    expect(d.refundAmount).toBe(37.99);
+    expect(d.amountBasis).toBe('kaufland_order_unit_price');
+  });
+});

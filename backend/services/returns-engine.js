@@ -692,7 +692,36 @@ async function syncKauflandReturns({ tenantId = 'default', lookbackDays = 30 } =
   try {
     const fromDate = new Date(Date.now() - lookbackDays * 24 * 60 * 60 * 1000).toISOString();
 
-    // Paginate through all Kaufland returns
+    // Echte Erstattungsbuchungen EINMAL je Lauf holen — sie sind die einzige
+    // belegte Geldwahrheit bei Kaufland. Der Buchungsbericht fuehrt Zeilen wie
+    // "Erstattung Bestell-Nr. …" mit `id_order_unit`, also genau dem Schluessel
+    // der Retouren-Position.
+    //
+    // ERWARTUNG: meist leer. Gemessen am 17.08.2026 hat von 13
+    // Retouren-Positionen KEINE eine Erstattungsbuchung — Kaufland gibt den
+    // Erloes erst Wochen nach Lieferung frei, kommt die Retoure vorher, wird
+    // das Geld nie ausgezahlt statt erstattet. Dann greift die Naeherung.
+    let erstattungsBuchungen = new Map();
+    try {
+      const { getBookings } = require('../lib/kaufland-api');
+      const { indexRefundBookingsByOrderUnit } = require('../lib/kaufland-refund-bookings');
+      const bis = new Date().toISOString().slice(0, 10);
+      const von = new Date(Date.now() - Math.max(lookbackDays, 60) * 86400000).toISOString().slice(0, 10);
+      const bericht = await getBookings({ from: von, to: bis, storefront: 'de' });
+      erstattungsBuchungen = indexRefundBookingsByOrderUnit(bericht?.bookings || []);
+      if (erstattungsBuchungen.size > 0) {
+        console.log(`[returns-engine] Kaufland: ${erstattungsBuchungen.size} echte Erstattungsbuchungen gefunden`);
+      }
+    } catch (err) {
+      // Nicht kritisch — ohne Bericht bleibt es bei der Naeherung.
+      console.warn(`[returns-engine] Kaufland-Buchungsbericht nicht verfuegbar: ${err.message}`);
+    }
+
+    // ACHTUNG: GET /returns fuehrt eine Zeile je POSITION, nicht je Retoure.
+    // Gemessen: 13 Zeilen, aber nur 12 verschiedene id_return — Retoure 1806547
+    // steht zweimal drin, weil sie zwei Positionen hat. Unten wird deshalb
+    // nach id_return entdoppelt; sonst laeuft dieselbe Retoure zweimal durch
+    // den kompletten Detail-Abruf.
     let allReturns = [];
     let offset = 0;
     const PAGE_LIMIT = 100;
@@ -711,11 +740,27 @@ async function syncKauflandReturns({ tenantId = 'default', lookbackDays = 30 } =
       offset += batch.length;
     } while (offset < MAX_RETURNS);
 
-    if (allReturns.length > 0) {
-      console.log(`[returns-engine] Kaufland: fetched ${allReturns.length} returns (${Math.ceil(allReturns.length / PAGE_LIMIT)} pages)`);
+    // Nach id_return entdoppeln: die Liste fuehrt eine Zeile je POSITION.
+    // Ohne das laeuft eine mehrteilige Retoure zweimal durch den kompletten
+    // Detail-Abruf (doppelte API-Aufrufe, gleiches Ergebnis).
+    const gesehen = new Set();
+    const eindeutigeReturns = [];
+    for (const kr of allReturns) {
+      const id = String(kr?.id_return || kr?.id || '');
+      if (!id || gesehen.has(id)) continue;
+      gesehen.add(id);
+      eindeutigeReturns.push(kr);
     }
 
-    for (const kr of allReturns) {
+    if (allReturns.length > 0) {
+      const doppelt = allReturns.length - eindeutigeReturns.length;
+      console.log(
+        `[returns-engine] Kaufland: fetched ${allReturns.length} Zeilen → ${eindeutigeReturns.length} Retouren`
+        + (doppelt > 0 ? ` (${doppelt} Mehrfach-Listung wegen mehrerer Positionen)` : '')
+      );
+    }
+
+    for (const kr of eindeutigeReturns) {
       try {
         const marketplaceReturnId = String(kr.id_return || kr.id || '');
         if (!marketplaceReturnId) continue;
@@ -761,7 +806,8 @@ async function syncKauflandReturns({ tenantId = 'default', lookbackDays = 30 } =
         const { buildKauflandReturnDetail } = require('../lib/kaufland-return-detail');
         const retourenDetail = buildKauflandReturnDetail(
           { ...(returnDetail || kr), status: kr.status || returnDetail?.status, return_units: returnUnits },
-          bestellpositionen
+          bestellpositionen,
+          erstattungsBuchungen
         );
 
         // Deduplicate

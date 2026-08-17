@@ -60,11 +60,13 @@ function safeString(value) {
  *   revenueGross: number, revenueNet: number
  * }}
  */
-function buildKauflandReturnDetail(retoure, bestellpositionen) {
+function buildKauflandReturnDetail(retoure, bestellpositionen, erstattungsBuchungen = null) {
   const units = Array.isArray(retoure?.return_units) ? retoure.return_units : [];
   const map = bestellpositionen instanceof Map ? bestellpositionen : new Map();
 
   let refundAmount = 0;
+  let echterBetrag = 0;      // aus dem Buchungsbericht, wenn vorhanden
+  let echteTreffer = 0;
   let revenueGross = 0;
   let revenueNet = 0;
   const positionen = [];
@@ -78,6 +80,16 @@ function buildKauflandReturnDetail(retoure, bestellpositionen) {
 
     const preis = centsZuEuro(ou?.price);
     refundAmount += preis;
+
+    // Gibt es zu dieser Bestellposition eine ECHTE Erstattungsbuchung, gewinnt
+    // sie gegen die Naeherung — sie ist gemessenes Geld statt Bestellpreis.
+    if (erstattungsBuchungen && orderUnitId) {
+      const echt = erstattungsBuchungen.get(orderUnitId) ?? erstattungsBuchungen.get(Number(orderUnitId));
+      if (typeof echt === 'number' && echt > 0) {
+        echterBetrag += echt;
+        echteTreffer += 1;
+      }
+    }
     revenueGross += centsZuEuro(ou?.revenue_gross);
     revenueNet += centsZuEuro(ou?.revenue_net);
     if (ou?.currency) currency = safeString(ou.currency) || currency;
@@ -114,9 +126,17 @@ function buildKauflandReturnDetail(retoure, bestellpositionen) {
   // dann loest Kaufland die Erstattung automatisch aus.
   const receivedAt = status === 'package_received' ? safeString(retoure?.ts_updated_iso) || null : null;
 
+  // Nur wenn JEDE Position eine echte Buchung hat, ist die Summe belastbar.
+  // Sonst mischte sich gemessenes Geld mit geschaetztem — schlimmer als eine
+  // durchgaengige Naeherung, weil niemand mehr wuesste, was die Zahl ist.
+  const alleEchtBelegt = positionen.length > 0 && echteTreffer === positionen.length;
+
   return {
-    refundAmount: Math.round(refundAmount * 100) / 100,
-    amountBasis: 'kaufland_order_unit_price',
+    refundAmount: alleEchtBelegt
+      ? Math.round(echterBetrag * 100) / 100
+      : Math.round(refundAmount * 100) / 100,
+    amountBasis: alleEchtBelegt ? 'kaufland_booking_refund' : 'kaufland_order_unit_price',
+    refundBookingCount: echteTreffer,
     currency,
     positionen,
     positionCount: positionen.length,
