@@ -23,7 +23,16 @@ const AUTH_TAG_LENGTH = 16;
 
 let _db;
 function getDb() {
-  if (!_db) _db = new Firestore();
+  // projectId AUSDRUECKLICH setzen — wie in lib/firestore.js:92.
+  //
+  // Ohne Angabe nimmt die Bibliothek das Standardprojekt der lokalen
+  // gcloud-Anmeldung. Steht das auf einem anderen Projekt, scheitert der
+  // Lesevorgang mit "5 NOT_FOUND", der Code faellt still auf den Secret
+  // Manager zurueck und zieht dort VERALTETE Zugangsdaten — jedes lokale
+  // Audit-Script misst dann die falsche Firma. Genau das ist am 17.08.2026
+  // passiert (fremdes Projekt kalima-503608, Alt-Mandant statt aktuellem).
+  // In Cloud Run stimmt das Standardprojekt ohnehin: dort aendert sich nichts.
+  if (!_db) _db = new Firestore({ projectId: process.env.GOOGLE_CLOUD_PROJECT || 'avycloud' });
   return _db;
 }
 
