@@ -33,7 +33,7 @@ const { estimatedUnitCost } = require('./cost-model');
  * Baut einen In-Memory-Index sku/ean/barcode → { buyPrice, sellPrice, lowestPrice }.
  * Einmal pro Report-Request über den gesamten Produktkatalog — vermeidet N+1-Reads.
  */
-function buildProductCostIndex(products) {
+function buildProductCostIndex(products, lotCosts) {
   const index = new Map();
   for (const p of products || []) {
     const pricing = (p && p.details && p.details.pricing) || {};
@@ -41,6 +41,11 @@ function buildProductCostIndex(products) {
       buyPrice: num(pricing.buyPrice),
       sellPrice: num(pricing.sellPrice),
       lowestPrice: num(pricing.lowest_price && pricing.lowest_price.amount),
+      // Einkaufspreis aus dem Los (Los-Betrag / Einheiten im Los). Kein Produkt
+      // hat einen eigenen buyPrice — ohne das hier bleibt nur die Pauschale,
+      // und die liegt je Los um bis zu Faktor 24 daneben.
+      lotCostNetto: 0,
+      sourceLot: String((p && p.ops && p.ops.sourceLot) || '').trim() || null,
     };
 
     const ident = (p && p.identification) || {};
@@ -53,6 +58,11 @@ function buildProductCostIndex(products) {
       identifiers.upc,
       ...(Array.isArray(ident.barcodes) ? ident.barcodes : []),
     ];
+
+    if (entry.sourceLot && lotCosts instanceof Map) {
+      const lot = lotCosts.get(entry.sourceLot);
+      if (lot && lot.netto > 0) entry.lotCostNetto = lot.netto;
+    }
 
     for (const c of candidates) {
       const k = key(c);
@@ -91,6 +101,12 @@ function computeOrderCogs(order, index, costModel) {
     const entry = index.get(key(item && item.sku)) || index.get(key(item && item.ean));
     if (entry && entry.buyPrice > 0) {
       cogs += qty * entry.buyPrice;
+      matchedRevenue += lineRevenue;
+      exactItemCount += 1;
+    } else if (entry && entry.lotCostNetto > 0) {
+      // Los-Preis: aus dem, was der Betreiber fuer dieses Los wirklich bezahlt
+      // hat. Schlaegt jede Pauschale, weil er je Los gemessen ist.
+      cogs += qty * entry.lotCostNetto;
       matchedRevenue += lineRevenue;
       exactItemCount += 1;
     } else if (modelUsable) {

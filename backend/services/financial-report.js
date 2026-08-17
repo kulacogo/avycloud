@@ -423,7 +423,56 @@ async function getFinancialReport({ preset = null, fromDate = null, toDate = nul
   // The sold mix is pricier than the catalog stock average, so using the stock average
   // would overstate COGS by ~⅓.
   const costConfig = costCfgRes.status === 'fulfilled' && costCfgRes.value ? costCfgRes.value : null;
-  const costIndex = buildProductCostIndex(products);
+  // Einkaufspreise aus den Losen (Los-Betrag / Einheiten im Los).
+  //
+  // Kein einziges Produkt hat einen eigenen Einkaufspreis; gerechnet wurde mit
+  // einer Paletten-Pauschale von 8,51 € brutto je Einheit aus der Zeit vor der
+  // Los-Umstellung. Je Los liegt die um bis zu Faktor 24 daneben (gemessen:
+  // 5,39 € bei NL-0626 gegen 129,65 € bei L-072643).
+  let lotCosts = new Map();
+  try {
+    const { buildLotUnitCosts } = require('../lib/lot-cost');
+    const loseSnap = await firestore.collection('warehouse_lots').get();
+    const lose = loseSnap.docs.map((d) => ({ code: d.id, ekBrutto: num(d.data().ekBrutto) }));
+
+    // Bezugsmenge = heutiger Bestand + bereits verkaufte Einheiten aus dem Los.
+    // Ohne die verkauften stiege der Stueckpreis mit jedem Verkauf.
+    const mengen = new Map();
+    for (const prod of products || []) {
+      const code = String((prod && prod.ops && prod.ops.sourceLot) || '').trim();
+      if (!code) continue;
+      const eintrag = mengen.get(code) || { bestand: 0, verkauft: 0 };
+      eintrag.bestand += num(prod?.inventory?.quantity);
+      mengen.set(code, eintrag);
+    }
+    // ACHTUNG Gross-/Kleinschreibung: lib/cogs.js normalisiert Schluessel NUR mit
+    // trim(), nicht mit toLowerCase(). Wer hier kleinschreibt, findet keine
+    // einzige verkaufte Einheit — die Bezugsmenge waere dann nur der Restbestand
+    // und der Einkaufspreis je Einheit entsprechend zu hoch.
+    const lotBySku = new Map();
+    for (const prod of products || []) {
+      const code = String((prod && prod.ops && prod.ops.sourceLot) || '').trim();
+      const sku = String(prod?.identification?.sku || prod?.details?.identifiers?.sku || '').trim();
+      if (code && sku) lotBySku.set(sku, code);
+    }
+    for (const o of orderDocs || []) {
+      for (const it of (Array.isArray(o.items) ? o.items : [])) {
+        const code = lotBySku.get(String(it?.sku || '').trim());
+        if (!code) continue;
+        const eintrag = mengen.get(code) || { bestand: 0, verkauft: 0 };
+        eintrag.verkauft += Math.max(0, num(it?.quantity));
+        mengen.set(code, eintrag);
+      }
+    }
+    lotCosts = buildLotUnitCosts(lose, mengen);
+    if (lotCosts.size > 0) {
+      console.log(`[finanzbericht] Einkaufspreise aus ${lotCosts.size} Losen ermittelt`);
+    }
+  } catch (err) {
+    console.warn(`[finanzbericht] Los-Einkaufspreise nicht verfuegbar: ${err.message}`);
+  }
+
+  const costIndex = buildProductCostIndex(products, lotCosts);
 
   const agg0 = aggregateOrders(orderDocs, costIndex, { fromIso, toIso, bucket }); // pass 1: no model
   const soldUnits = ['ebay', 'kaufland', 'other'].reduce((s, k) => s + agg0.byMarketplace[k].units, 0);
