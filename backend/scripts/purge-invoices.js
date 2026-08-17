@@ -240,8 +240,8 @@ async function main() {
   // — ein Klick praegt neben der noch lebenden alten eine ZWEITE echte,
   // fortlaufend nummerierte Rechnung.
   //
-  // Nebeneffekt derselben Regel: --since/--until/--include-paid/--max wirken
-  // damit automatisch auch auf die Firestore-Haelfte. Vorher raeumte sie
+  // Nebeneffekt derselben Regel: --since/--until/--keep-paid/--keep-storno/--max
+  // wirken damit automatisch auch auf die Firestore-Haelfte. Vorher raeumte sie
   // ungefiltert alles ab, ein als Probelauf gedachter Aufruf hatte also lokal
   // volle Wirkung.
   const { getIntegrationSecret } = require('../services/integration-store');

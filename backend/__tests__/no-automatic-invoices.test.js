@@ -255,6 +255,44 @@ describe('Der Aufraeum-Lauf darf sich nicht selbst rueckgaengig machen', () => {
   });
 });
 
+describe('Der Storno-Weg fuer die nicht loeschbaren Belege', () => {
+  // SevDesk laesst NUR Entwuerfe loeschen. Gemessen beim echten Lauf am
+  // 18.08.2026: von 665 Belegen gingen 28 (die Entwuerfe), 637 wurden
+  // verweigert — 467 × "can only be deleted in status 100 but is status 200",
+  // 85 × "... status 1000", 85 × "Already enshrined by object".
+  const quelle = () => lies('scripts/storno-invoices.js');
+
+  it('storniert NUR offene Rechnungen — nie Stornobelege, nie bereits stornierte', () => {
+    const q = quelle();
+    // Ein Storno auf einen Storno verlaengert nur die Kette.
+    expect(q).toMatch(/typ === 'SR'.*continue|if \(typ === 'SR'\)/s);
+    // Status 1000 heisst BEREITS storniert (das Original bekommt beim
+    // Stornieren Status 1000 + seine SR). Ein zweiter Lauf wuerde verdoppeln.
+    expect(q).toMatch(/status === 1000/);
+    // Entwuerfe gehoeren geloescht, nicht storniert.
+    expect(q).toMatch(/status < 200/);
+  });
+
+  it('laeuft ohne --apply trocken und braucht ein eigenes Bestaetigungswort', () => {
+    const q = quelle();
+    expect(q).toMatch(/STORNO_INVOICES_V1/);
+    expect(q).toMatch(/CONFIRM !== CONFIRM_TOKEN/);
+    // Eigenes Wort, nicht dasselbe wie beim Loeschen — die beiden Laeufe
+    // machen Verschiedenes und duerfen nicht verwechselbar sein.
+    expect(q).not.toMatch(/PURGE_INVOICES_V1/);
+  });
+
+  it('setzt das Projekt, bevor integration-store geladen wird', () => {
+    // Sonst liest die Bibliothek die FREMDE Firma (gcloud steht lokal auf
+    // kalima-503608).
+    const q = quelle();
+    const iProjekt = q.indexOf("process.env.GOOGLE_CLOUD_PROJECT = PROJECT_ID");
+    const iStore = q.indexOf("require('../services/integration-store')");
+    expect(iProjekt).toBeGreaterThan(-1);
+    expect(iStore).toBeGreaterThan(iProjekt);
+  });
+});
+
 describe('Die Rechnung bleibt in AvyCloud und geht NICHT nach SevDesk', () => {
   const alt = process.env.INVOICE_SEVDESK_PUSH;
   afterEach(() => {
