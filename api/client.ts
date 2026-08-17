@@ -744,6 +744,29 @@ export async function fetchOrderSettings(): Promise<OrderSettingsData> {
   return data?.data || {};
 }
 
+export interface NumberSequenceState {
+  current: number;
+  lastGenerated: string | null;
+  nextPreview: string;
+  prefix: string;
+}
+
+/**
+ * Echte Zaehlerstaende der Nummernkreise (Auftrag, Rechnung, Lieferschein, …).
+ *
+ * Der Endpunkt existierte laenger, wurde aber nie aufgerufen: die
+ * Einstellungsseite zeigte stattdessen frei tippbare Felder mit erfundenen
+ * Werten ("ORD-"), waehrend die Auftraege in Wahrheit "AVY-" heissen.
+ */
+export async function fetchNumberSequences(): Promise<Record<string, NumberSequenceState>> {
+  const res = await fetchApi(`${BACKEND_URL}/api/orders/sequences`, { method: 'GET' });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) {
+    throw new Error(data?.error?.message || 'Nummernkreise konnten nicht geladen werden');
+  }
+  return data?.data || {};
+}
+
 export async function saveOrderSettings(settings: OrderSettingsData): Promise<OrderSettingsData> {
   const res = await fetchApi(`${BACKEND_URL}/api/orders/settings`, {
     method: 'PUT',

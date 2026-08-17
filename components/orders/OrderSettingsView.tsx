@@ -2,7 +2,8 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from "react"
 
 import { useUnsavedGuard } from "../../hooks/useUnsavedGuard";
 import { isChangedSince } from "../../utils/unsavedGuard";
-import { fetchOrderSettings, saveOrderSettings, runRepricingBatch, fetchPricingRules, syncSendCloudParcels, syncShippingMethods, fetchShippingMethods } from "../../api/client";
+import { fetchOrderSettings,
+  fetchNumberSequences, saveOrderSettings, runRepricingBatch, fetchPricingRules, syncSendCloudParcels, syncShippingMethods, fetchShippingMethods } from "../../api/client";
 import type { ShippingMethod } from "../../types";
 import { groupShippingMethods, shippingMethodOptionLabel } from "../../utils/shippingMethods";
 import { useToast } from "../../context/ToastContext";
@@ -123,6 +124,7 @@ export const OrderSettingsView: React.FC = () => {
   const toast = useToast();
   // Stand nach dem Laden — Vergleichsbasis fuer "ungespeichert".
   const geladenerStand = useRef<unknown>(undefined);
+  const [sequences, setSequences] = useState<Record<string, any> | null>(null);
   const [shippingMethods, setShippingMethods] = useState<ShippingMethod[]>([]);
   const [methodsLoading, setMethodsLoading] = useState(false);
 
@@ -190,6 +192,11 @@ export const OrderSettingsView: React.FC = () => {
     } finally {
       setMethodsLoading(false);
     }
+  }, []);
+
+  useEffect(() => {
+    // Echte Zaehlerstaende — die Nummernkreise werden angezeigt, nicht getippt.
+    fetchNumberSequences().then(setSequences).catch(() => setSequences({}));
   }, []);
 
   useEffect(() => {
@@ -276,12 +283,9 @@ export const OrderSettingsView: React.FC = () => {
   const [draggingRuleId, setDraggingRuleId] = useState<string | null>(null);
   const [dragOverRuleId, setDragOverRuleId] = useState<string | null>(null);
 
-  const updateRange = (key: string, field: keyof NumberRange, value: string) => {
-    setNumberRanges((prev) => ({
-      ...prev,
-      [key]: { ...prev[key], [field]: value },
-    }));
-  };
+  // updateRange entfernt: die Nummernkreise sind keine Eingabe mehr.
+  // numberRanges bleibt im Speichern-Aufruf, damit frueher gespeicherte
+  // Werte nicht verloren gehen (nur additive Aenderungen am Datensatz).
 
   const istGeaendert = useMemo(
     () => isChangedSince(geladenerStand.current, { rules, carrierRules, statuses, numberRanges, templates }),
@@ -579,43 +583,50 @@ export const OrderSettingsView: React.FC = () => {
 
       {/* Section 3: Nummernkreise */}
       <div className="rounded-xl border border-app-border bg-app-surface p-6">
-        <SectionHeader title="Nummernkreise" description="Präfix und Startnummern für Dokumente festlegen" />
+        <SectionHeader title="Nummernkreise" description="Laufende Nummern für Aufträge, Rechnungen und Lieferscheine" />
+        {/* Frueher standen hier frei tippbare Felder fuer Praefix und
+            Startnummer. Kein Backend-Pfad las sie je — die Nummern kommen aus
+            services/number-sequence.js, und das Praefix stand dort fest. Die
+            Seite zeigte sogar erfundene Werte ("ORD-"), waehrend die Auftraege
+            in Wahrheit "AVY-" heissen.
+
+            Von Hand setzbare Startnummern waeren zudem gefaehrlich:
+            Rechnungsnummern muessen lueckenlos und ohne Dubletten laufen
+            (Vorfall RE-1000-Doppelnummer). Deshalb zeigt die Seite jetzt den
+            echten Stand, statt eine Einstellbarkeit vorzutaeuschen. */}
         <div className="space-y-5">
           {[
-            { key: "invoice", label: "Rechnungs-Nummernkreis" },
-            { key: "order", label: "Auftrags-Nummernkreis" },
-            { key: "deliveryNote", label: "Lieferschein-Nummernkreis" },
-          ].map(({ key, label }) => (
-            <div key={key}>
-              <h3 className="text-sm font-semibold text-txt-primary mb-2">{label}</h3>
-              <div className="flex items-center gap-3">
-                <div className="flex-1">
-                  <label className="text-xs text-txt-muted mb-1 block">Präfix</label>
-                  <input
-                    type="text"
-                    value={numberRanges[key]?.prefix || ""}
-                    onChange={(e) => updateRange(key, "prefix", e.target.value)}
-                    className="w-full rounded-lg border border-app-border bg-app-bg px-3 py-2 text-sm text-txt-primary focus:outline-none focus:ring-1 focus:ring-accent"
-                  />
-                </div>
-                <div className="flex-1">
-                  <label className="text-xs text-txt-muted mb-1 block">Startnummer</label>
-                  <input
-                    type="text"
-                    value={numberRanges[key]?.startNumber || ""}
-                    onChange={(e) => updateRange(key, "startNumber", e.target.value)}
-                    className="w-full rounded-lg border border-app-border bg-app-bg px-3 py-2 text-sm text-txt-primary focus:outline-none focus:ring-1 focus:ring-accent"
-                  />
-                </div>
-                <div className="flex-1">
-                  <label className="text-xs text-txt-muted mb-1 block">Vorschau</label>
-                  <div className="rounded-lg border border-app-border bg-app-elevated px-3 py-2 text-sm font-mono text-txt-secondary">
-                    {numberRanges[key]?.prefix}{numberRanges[key]?.startNumber}
+            { key: "invoice", label: "Rechnungen" },
+            { key: "order", label: "Aufträge" },
+            { key: "delivery_note", label: "Lieferscheine" },
+          ].map(({ key, label }) => {
+            const seq = sequences?.[key];
+            return (
+              <div key={key}>
+                <h3 className="text-sm font-semibold text-txt-primary mb-2">{label}</h3>
+                <div className="flex items-center gap-3">
+                  <div className="flex-1">
+                    <label className="text-xs text-txt-muted mb-1 block">Präfix</label>
+                    <div className="rounded-lg border border-app-border bg-app-elevated px-3 py-2 text-sm font-mono text-txt-secondary">
+                      {seq?.prefix ? `${seq.prefix}-` : sequences ? "—" : "…"}
+                    </div>
+                  </div>
+                  <div className="flex-1">
+                    <label className="text-xs text-txt-muted mb-1 block">Zuletzt vergeben</label>
+                    <div className="rounded-lg border border-app-border bg-app-elevated px-3 py-2 text-sm font-mono text-txt-secondary">
+                      {seq?.lastGenerated || (sequences ? "noch keine" : "…")}
+                    </div>
+                  </div>
+                  <div className="flex-1">
+                    <label className="text-xs text-txt-muted mb-1 block">Nächste Nummer</label>
+                    <div className="rounded-lg border border-app-border bg-app-elevated px-3 py-2 text-sm font-mono text-txt-primary">
+                      {seq?.nextPreview || (sequences ? "—" : "…")}
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 

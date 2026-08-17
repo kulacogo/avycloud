@@ -114,16 +114,30 @@ const OrdersView: React.FC = () => {
   const [backfilling, setBackfilling] = useState(false);
   const [backfillResult, setBackfillResult] = useState<string | null>(null);
 
-  /* ─── Sync ─── */
+  /* ─── Abrufen und Aktualisieren ───
+   *
+   * Hier standen zwei fast gleich aussehende Knoepfe mit demselben Symbol —
+   * "Marketplace Sync" (englisch, in einer deutschen Oberflaeche) und
+   * "Auftraege synchronisieren". Sie tun voellig Verschiedenes:
+   *
+   *   POST /orders/sync/marketplace  holt WIRKLICH bei eBay und Kaufland ab
+   *                                  und wartet auf das Ergebnis.
+   *   POST /orders/sync              stoesst nur einen Hintergrund-Abgleich an
+   *                                  und liefert sofort die gespeicherte Liste.
+   *
+   * Der zweite meldete trotzdem "Bestellungen synchronisiert" — eine
+   * Halbwahrheit, denn zu diesem Zeitpunkt war noch nichts abgeglichen. Wer
+   * ihn drueckte und keine neuen Auftraege sah, drueckte den anderen. Jetzt
+   * heisst der eine, was er tut, der andere ist ein schlichtes Neuladen.
+   */
   const handleSync = useCallback(async () => {
     setSyncing(true);
     try {
       await syncOrders();
       await queryClient.invalidateQueries({ queryKey: ["orders"] });
-      toast.success("Bestellungen synchronisiert");
+      toast.success("Liste aktualisiert. Der Abgleich mit den Marktplätzen läuft im Hintergrund weiter.");
     } catch (err: any) {
-      // A failed sync used to look like success — surface it.
-      toast.error(err?.message || "Synchronisierung fehlgeschlagen");
+      toast.error(err?.message || "Liste konnte nicht aktualisiert werden");
     } finally {
       setSyncing(false);
     }
@@ -132,12 +146,16 @@ const OrdersView: React.FC = () => {
   const handleMarketplaceSync = useCallback(async () => {
     setSyncingMp(true);
     try {
-      await syncMarketplaceOrders();
+      const res = await syncMarketplaceOrders();
       await queryClient.invalidateQueries({ queryKey: ["orders"] });
-      toast.success("Marktplätze synchronisiert");
+      const anzahl = res?.totalSynced ?? 0;
+      toast.success(
+        anzahl > 0
+          ? `${anzahl} ${anzahl === 1 ? "Auftrag" : "Aufträge"} von den Marktplätzen abgerufen.`
+          : "Keine neuen Aufträge bei den Marktplätzen."
+      );
     } catch (err: any) {
-      // A failed sync used to look like success — surface it.
-      toast.error(err?.message || "Marktplatz-Synchronisierung fehlgeschlagen");
+      toast.error(err?.message || "Abruf bei den Marktplätzen fehlgeschlagen");
     } finally {
       setSyncingMp(false);
     }
@@ -483,23 +501,28 @@ const OrdersView: React.FC = () => {
           <p className="text-sm text-txt-muted">{t("orders.subtitle")}</p>
         </div>
         <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={handleMarketplaceSync}
-            disabled={syncingMp}
-            className="inline-flex items-center gap-2 rounded-xl border border-app-border bg-app-surface text-txt-primary px-4 py-2.5 text-sm font-semibold hover:bg-app-elevated transition disabled:opacity-50"
-          >
-            <SyncIcon className={`w-4 h-4 ${syncingMp ? "animate-spin" : ""}`} />
-            {syncingMp ? "Syncing..." : "Marketplace Sync"}
-          </button>
+          {/* Neuladen ist die Nebenaktion (schlicht), Abrufen die Hauptaktion
+              (Akzent, rechts an gewohnter Stelle). Vorher war es umgekehrt: der
+              auffaellige Knopf lud nur die Liste neu. */}
           <button
             type="button"
             onClick={handleSync}
             disabled={syncing}
-            className="inline-flex items-center gap-2 rounded-xl bg-accent text-white px-4 py-2.5 text-sm font-semibold hover:bg-accent/80 transition disabled:opacity-50"
+            title="Lädt die gespeicherte Liste neu. Holt NICHT bei den Marktplätzen ab."
+            className="inline-flex items-center gap-2 rounded-xl border border-app-border bg-app-surface text-txt-primary px-4 py-2.5 text-sm font-semibold hover:bg-app-elevated transition disabled:opacity-50"
           >
             <SyncIcon className={`w-4 h-4 ${syncing ? "animate-spin" : ""}`} />
-            {syncing ? t("ops.orders.syncing") : t("ops.orders.sync")}
+            {syncing ? "Lade …" : "Liste aktualisieren"}
+          </button>
+          <button
+            type="button"
+            onClick={handleMarketplaceSync}
+            disabled={syncingMp}
+            title="Holt neue Aufträge bei eBay und Kaufland ab."
+            className="inline-flex items-center gap-2 rounded-xl bg-accent text-white px-4 py-2.5 text-sm font-semibold hover:bg-accent/80 transition disabled:opacity-50"
+          >
+            <SyncIcon className={`w-4 h-4 ${syncingMp ? "animate-spin" : ""}`} />
+            {syncingMp ? "Rufe ab …" : "Marktplätze abrufen"}
           </button>
           <button
             type="button"
