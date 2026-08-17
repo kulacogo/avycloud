@@ -561,7 +561,19 @@ const server = app.listen(PORT, () => {
 
   // ─── Marketplace Refund Push (every 4h) ─────────────────────
   // Auto-pushes refunds to eBay/Kaufland for returns in 'erstattet' status
+  //
+  // STANDARDMAESSIG AUS (Betreiber-Anweisung 2026-08-17): eBay und Kaufland
+  // erstatten selbst automatisch, sobald die Retoure mit Sendungsverfolgung
+  // eintrifft. Ein zweiter Erstattungsweg aus AvyCloud heraus wuerde denselben
+  // Kunden ein zweites Mal auszahlen. Der Job wird deshalb gar nicht erst
+  // gestartet, solange MARKETPLACE_REFUND_PUSH nicht ausdruecklich auf 'on'
+  // steht — ein nicht laufender Job kann kein Geld bewegen.
   try {
+    const { marketplaceRefundPushEnabled } = require('./services/returns-engine');
+    if (!marketplaceRefundPushEnabled()) {
+      console.log('[refund-push] deaktiviert — Marktplaetze erstatten selbst (MARKETPLACE_REFUND_PUSH=on zum Aktivieren)');
+      throw { __skip: true };
+    }
     const REFUND_PUSH_INTERVAL_MS = 4 * 60 * 60 * 1000; // 4h
     const runRefundPush = async () => {
       const { runRefundPush: pushRefunds } = require('./services/returns-engine');
@@ -576,7 +588,9 @@ const server = app.listen(PORT, () => {
     setInterval(() => { runRefundPush().catch((err) => console.warn('[refund-push] failed:', err?.message)); }, REFUND_PUSH_INTERVAL_MS);
     console.log(`[refund-push] safety-net enabled: every ${REFUND_PUSH_INTERVAL_MS}ms`);
   } catch (err) {
-    console.warn('[refund-push] failed to start safety-net:', err?.message || err);
+    if (!err || !err.__skip) {
+      console.warn('[refund-push] failed to start safety-net:', err?.message || err);
+    }
   }
 
   // ─── Kaufland Listings Cache Sync (every 15min) ─────────────

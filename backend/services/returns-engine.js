@@ -1080,7 +1080,28 @@ function escapeXml(str) {
  * @param {{ tenantId?: string, limit?: number }} opts
  * @returns {Promise<{ processed: number, success: number, errors: string[] }>}
  */
+/**
+ * Darf AvyCloud selbst Erstattungen an eBay/Kaufland schicken?
+ *
+ * Betreiber-Anweisung 2026-08-17: NEIN. Die Marktplaetze erstatten automatisch,
+ * sobald die Retoure mit Sendungsverfolgung eintrifft. Ein zweiter
+ * Erstattungsweg aus AvyCloud heraus ist damit ein Pfad fuer DOPPELTE
+ * Erstattungen — echtes Geld an den Kunden, zweimal.
+ *
+ * Der Weg bleibt im Code (ein anderer Betreiber koennte ihn brauchen), aber er
+ * ist fail-closed: NUR der ausdrueckliche Wert 'on' schaltet ihn ein. Alles
+ * andere, auch 'true' oder '1', laesst ihn aus — ein Tippfehler in der
+ * Konfiguration darf hier kein Geld bewegen.
+ */
+function marketplaceRefundPushEnabled() {
+  return String(process.env.MARKETPLACE_REFUND_PUSH || '').trim().toLowerCase() === 'on';
+}
+
 async function runRefundPush({ tenantId = 'default', limit = 50 } = {}) {
+  if (!marketplaceRefundPushEnabled()) {
+    // Ohne Log-Rauschen: das ist der NORMALFALL, kein Fehler.
+    return { processed: 0, success: 0, errors: [], skipped: true, reason: 'marketplace_refund_push_disabled' };
+  }
   const db = getDb();
   const errors = [];
   let processed = 0;
@@ -1172,6 +1193,7 @@ module.exports = {
   // Refunds
   issueMarketplaceRefund,
   runRefundPush,
+  marketplaceRefundPushEnabled,
 
   // Constants
   RETURN_STATUSES,

@@ -103,6 +103,15 @@ const engine = require('../../services/returns-engine');
 beforeEach(() => {
   bookStockInCalls = [];
   tokenProvider = async () => ({ accessToken: 'tkn', apiBaseUrl: 'https://apiz.ebay.test' });
+  // Der eigene Erstattungs-Versand ist seit 2026-08-17 standardmaessig AUS
+  // (eBay/Kaufland erstatten selbst — ein zweiter Weg zahlt doppelt aus).
+  // Diese Tests pruefen das Verhalten des Pfads, wenn er BEWUSST eingeschaltet
+  // ist; sonst wuerde runRefundPush sofort mit skipped:true zurueckkehren.
+  process.env.MARKETPLACE_REFUND_PUSH = 'on';
+});
+
+afterEach(() => {
+  delete process.env.MARKETPLACE_REFUND_PUSH;
 });
 
 describe('runRefundPush — failed refund must NOT be marked as pushed', () => {

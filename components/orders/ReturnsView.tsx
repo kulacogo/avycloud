@@ -70,8 +70,6 @@ const ProcessDialog: React.FC<{
   onDone: () => void;
 }> = ({ ret, onClose, onDone }) => {
   const [condition, setCondition] = useState<string>("a_ware");
-  const [refundType, setRefundType] = useState<string>("full");
-  const [amount, setAmount] = useState<string>(String(ret.refundAmount || "0"));
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
   const toast = useToast();
@@ -79,13 +77,17 @@ const ProcessDialog: React.FC<{
   const handleSubmit = async () => {
     setBusy(true);
     try {
+      // Bewusst OHNE Erstattungs-Entscheidung: eBay und Kaufland erstatten
+      // selbst, sobald die Retoure mit Sendungsverfolgung eintrifft. Eine
+      // zweite Erstattung von hier aus wuerde denselben Kunden ein zweites Mal
+      // auszahlen (Betreiber-Anweisung 2026-08-17). Es wird nur die
+      // Warenpruefung festgehalten — die entscheidet ueber den Bestand.
       await processReturn(ret.id, {
         itemCondition: condition,
-        refundType,
-        refundAmount: refundType === "full" ? undefined : (parseFloat(amount) || 0),
+        refundType: "none",
         note,
       });
-      toast.success("Retoure verarbeitet");
+      toast.success("Warenprüfung gespeichert");
       onDone();
     } catch (err: any) {
       toast.error(err?.message || "Fehler bei Verarbeitung");
@@ -100,10 +102,15 @@ const ProcessDialog: React.FC<{
         className="bg-app-surface rounded-xl border border-app-border shadow-xl w-full max-w-md p-6 space-y-4"
         onClick={(e) => e.stopPropagation()}
       >
-        <h3 className="text-lg font-bold text-txt-primary">Retoure verarbeiten</h3>
+        <h3 className="text-lg font-bold text-txt-primary">Warenprüfung</h3>
         <p className="text-sm text-txt-muted">
-          Warenprüfung und Erstattungsentscheidung für Retoure{" "}
+          Zustand der zurückgesendeten Ware für Retoure{" "}
           <span className="font-mono">{ret.id.slice(0, 8)}</span>
+        </p>
+        <p className="text-xs text-txt-muted bg-app-elevated rounded-lg px-3 py-2 leading-relaxed">
+          Die Erstattung an den Käufer läuft automatisch über {ret.marketplace === "kaufland" ? "Kaufland" : ret.marketplace === "ebay" ? "eBay" : "den Marktplatz"} —
+          sie wird dort ausgelöst, sobald die Rücksendung eintrifft. Hier wird nur
+          festgehalten, in welchem Zustand die Ware angekommen ist.
         </p>
 
         {/* Item condition */}
@@ -132,46 +139,9 @@ const ProcessDialog: React.FC<{
           </div>
         </div>
 
-        {/* Refund decision */}
-        <div>
-          <label className="text-xs font-semibold text-txt-muted block mb-1.5">Erstattung</label>
-          <div className="flex gap-2">
-            {[
-              { key: "full", label: "Voll" },
-              { key: "partial", label: "Teilweise" },
-              { key: "none", label: "Keine" },
-            ].map((opt) => (
-              <button
-                key={opt.key}
-                type="button"
-                onClick={() => setRefundType(opt.key)}
-                className={`flex-1 rounded-lg border px-3 py-2 text-xs font-semibold transition ${
-                  refundType === opt.key
-                    ? "bg-accent-dim text-accent border-accent/30 ring-1 ring-accent/20"
-                    : "bg-app-bg text-txt-muted border-app-border hover:border-txt-muted"
-                }`}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Refund amount (editable for partial) */}
-        {refundType !== "none" && (
-          <div>
-            <label className="text-xs font-semibold text-txt-muted block mb-1.5">Erstattungsbetrag (EUR)</label>
-            <input
-              type="number"
-              step="0.01"
-              min="0"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              disabled={refundType === "full"}
-              className="w-full rounded-lg border border-app-border bg-app-bg px-3 py-2 text-sm text-txt-primary disabled:opacity-50"
-            />
-          </div>
-        )}
+        {/* Erstattungs-Entscheidung und Betragsfeld wurden hier entfernt: die
+            Marktplaetze erstatten automatisch. Ein zweiter Weg von hier aus
+            haette denselben Kunden ein zweites Mal ausgezahlt. */}
 
         {/* Note */}
         <div>
@@ -200,7 +170,7 @@ const ProcessDialog: React.FC<{
             onClick={handleSubmit}
             className="rounded-lg bg-accent text-white px-4 py-2 text-sm font-semibold hover:bg-accent/90 transition disabled:opacity-50"
           >
-            {busy ? "Verarbeite…" : "Bestätigen"}
+            {busy ? "Speichere…" : "Warenprüfung speichern"}
           </button>
         </div>
       </div>
@@ -390,14 +360,12 @@ const ReturnDetail: React.FC<{
                   }
                 />
               )}
-              {ret.refundType && (
-                <DetailRow
-                  label="Erstattungsart"
-                  value={ret.refundType === "full" ? "Vollerstattung" : ret.refundType === "partial" ? "Teilerstattung" : ret.refundType === "none" ? "Keine" : ret.refundType}
-                />
-              )}
+              {/* "Erstattungsart" wird nicht mehr gezeigt: seit die Erstattung
+                  ausschliesslich ueber den Marktplatz laeuft, steht dort
+                  bauartbedingt immer "Keine" — eine Zeile, die nur verwirrt.
+                  Was zaehlt, ist der echte Stand beim Marktplatz (unten). */}
               <DetailRow
-                label="Betrag"
+                label="Erstattungsbetrag"
                 value={
                   typeof ret.refundAmount === "number" && ret.refundAmount > 0
                     ? `${ret.refundAmount.toLocaleString("de-DE", { minimumFractionDigits: 2 })}\u00A0EUR`
@@ -408,9 +376,16 @@ const ReturnDetail: React.FC<{
                 label="Eingang"
                 value={ret.createdAt ? new Date(ret.createdAt).toLocaleString("de-DE", { timeZone: "Europe/Berlin" }) : "—"}
               />
-              {ret.marketplaceRefundStatus && (
-                <DetailRow label="Marktplatz-Erstattung" value={ret.marketplaceRefundStatus} />
-              )}
+              <DetailRow
+                label="Erstattung"
+                value={
+                  ret.marketplaceRefundStatus === "issued"
+                    ? `Erstattet über ${ret.marketplace === "kaufland" ? "Kaufland" : ret.marketplace === "ebay" ? "eBay" : "den Marktplatz"}`
+                    : ret.marketplaceRefundStatus
+                      ? String(ret.marketplaceRefundStatus)
+                      : "Läuft automatisch über den Marktplatz"
+                }
+              />
             </div>
           </section>
 
