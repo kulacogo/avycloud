@@ -38,6 +38,31 @@ describe("Nachgeladene Ansichten", () => {
     );
   });
 
+  test("das Import-Fenster liegt in einer Wartestelle", () => {
+    // Es stand bis 2026-08-17 bedingungslos und ausserhalb jeder Wartestelle im
+    // Baum: damit forderte JEDE Seite beim Start seinen Programmteil an, auch
+    // ohne einen einzigen Klick. Nach einer Veroeffentlichung war das der
+    // haeufigste Ausloeser fuer "Unexpected token '<'".
+    const idx = APP.indexOf("<ImportModal");
+    assert.ok(idx > -1, "ImportModal-Element nicht gefunden");
+    const davor = APP.slice(0, idx);
+    const offen = davor.lastIndexOf("<Suspense");
+    const geschlossen = davor.lastIndexOf("</Suspense>");
+    assert.ok(offen > geschlossen, "ImportModal ohne offene <Suspense> — laedt auf jeder Route nach");
+  });
+
+  test("das Import-Fenster wird nur bei Bedarf eingehaengt", () => {
+    // Ohne Bedingung nuetzt die Wartestelle nichts — der Programmteil wuerde
+    // trotzdem sofort angefordert.
+    assert.match(APP, /\{showImportModal && \(/);
+  });
+
+  test("das Oeffnen des Import-Fensters ist als Uebergang markiert", () => {
+    // Sonst kehrt React-Fehler 426 zurueck: ein Klick ist eine sofortige
+    // Eingabe, und React verweigert es, dafuer ohne Uebergang nachzuladen.
+    assert.match(APP, /startTransition\(\(\) => setShowImportModal\(true\)\)/);
+  });
+
   test("der Hauptbereich liegt ebenfalls in einer Wartestelle", () => {
     assert.match(APP, /<Suspense[\s\S]{0,400}\{renderView\(\)\}/);
   });

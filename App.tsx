@@ -1151,7 +1151,7 @@ const AppInner: React.FC = () => {
                   console.error('Export failed:', err);
                 }
               }}
-              onImport={() => setShowImportModal(true)}
+              onImport={() => startTransition(() => setShowImportModal(true))}
             />
             <AdminTable
               products={products}
@@ -1354,15 +1354,23 @@ const AppInner: React.FC = () => {
     // Ansichten werden erst beim Oeffnen geladen — waehrenddessen eine ruhige
     // Anzeige statt eines leeren Bildschirms.
     return (
-      <Suspense
-        fallback={
-          <div className="flex items-center justify-center py-16" role="status" aria-live="polite">
-            <Spinner />
-          </div>
-        }
-      >
-        {renderView()}
-      </Suspense>
+      // Eigene Fehlergrenze je Ansicht: bis 2026-08-17 sass die einzige ganz
+      // aussen um die App. Ein Fehler in EINER Seite ersetzte damit den
+      // kompletten Bildschirm samt Navigation — der Mensch kam nur ueber
+      // Neuladen wieder heraus. Der `key` sorgt dafuer, dass ein Wechsel der
+      // Ansicht die Grenze zuruecksetzt; sonst bliebe die Fehleranzeige beim
+      // Weiterklicken stehen.
+      <ErrorBoundary key={view}>
+        <Suspense
+          fallback={
+            <div className="flex items-center justify-center py-16" role="status" aria-live="polite">
+              <Spinner />
+            </div>
+          }
+        >
+          {renderView()}
+        </Suspense>
+      </ErrorBoundary>
     );
   };
 
@@ -1459,12 +1467,25 @@ const AppInner: React.FC = () => {
           </div>
         )}
 
-        {/* Import Modal */}
-        <ImportModal
-          open={showImportModal}
-          onClose={() => setShowImportModal(false)}
-          onComplete={loadProducts}
-        />
+        {/* Import-Fenster — nur einhaengen, wenn es wirklich geoeffnet wird.
+            Vorher stand es bedingungslos hier und AUSSERHALB jeder Wartestelle:
+            damit forderte jede Seite beim Start den Programmteil des
+            Import-Fensters an, auch auf "Auftraege" ohne einen einzigen Klick.
+            Nach einer Veroeffentlichung war genau das der haeufigste Ausloeser
+            fuer "Unexpected token '<'" — ohne Zutun des Bedieners.
+
+            Gate, Wartestelle und startTransition (beim Oeffnen) sind EIN Paket:
+            ohne startTransition kehrt React-Fehler 426 zurueck ("A component
+            suspended while responding to synchronous input"). */}
+        {showImportModal && (
+          <Suspense fallback={null}>
+            <ImportModal
+              open
+              onClose={() => setShowImportModal(false)}
+              onComplete={loadProducts}
+            />
+          </Suspense>
+        )}
 
         {/* Mobile bottom nav */}
         {isMobile && (
