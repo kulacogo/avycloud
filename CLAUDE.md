@@ -124,6 +124,18 @@ Self-Service-Konten-Verknüpfung wirkt jetzt zur LAUFZEIT: `services/integration
 - `EBAY_LISTING_SYNC_STALE_MINUTES=90` (default) — ab diesem Alter des letzten ERFOLGREICHEN Listing-Abrufs gilt der Sync als gestört (Sync-Intervall 15 min). `healthy:null` = unbekannt (nie gelaufen), löst KEINEN Alarm aus.
 - GUARD-Änderung `lib/ebay-direct.js`/`lib/ebay-deactivation-guard.js`: ein LEERES Active-Set (Seller hat wirklich 0 Angebote online) ist im Confirm-Mode (`EBAY_DEACTIVATION_CONFIRM_MODE=true`) nicht mehr für immer geblockt, sondern bestätigungspflichtig über zwei übereinstimmende vollständige Ingests — OHNE minToGuard-Schlupfloch (auch ≤5 Docs brauchen die Bestätigung). Ohne Confirm-Mode bleibt der harte `empty_active_set`-Block.
 
+### Kaufland-Retoure vollständig abrufen (live ermittelt 2026-08-17)
+Der Abrufweg wurde am echten Konto gemessen, NICHT aus der Doku abgeleitet. **`embedded` wirkt NUR in der Detailansicht** — in der Liste ist der Parameter wirkungslos (zwölf Varianten geprüft, keine lieferte ein Zusatzfeld).
+1. `GET /returns?storefront=de&…` → Liste, genau 8 Felder (id_return, ts_created_iso, ts_updated_iso, storefront, tracking_provider, tracking_code, status, fulfillment_type)
+2. `GET /returns/{id_return}?embedded=return_units` → Positionen mit `id_order_unit`, `reason`, `status`, `note`
+3. `GET /order-units/{id_order_unit}` → `price` (Cent, Käuferbrutto), `revenue_gross`, `revenue_net`, `vat`, `id_offer` (= unsere SKU), `product` (Titel/EAN/Bild, automatisch eingebettet), `buyer`, `billing_address`, `shipping_rate`, `cancel_reason`
+- **ES GIBT KEIN `refund_amount`.** Weder Liste noch Detail noch Positionen; `embedded=refund`/`refunds` liefern nichts. Kaufland gibt den erstatteten Betrag über diese Schnittstelle nicht heraus. Genutzte Näherung: `order_unit.price` = Käuferbrutto, weil es zum Bruttoumsatz passt, gegen den es verrechnet wird. Jedes Retouren-Doc trägt `amountBasis:'kaufland_order_unit_price'`.
+- Gemessen über alle 15 Positionen: `price` 1.006,28 € · `revenue_gross` 845,58 € · `revenue_net` 710,58 €.
+- **ALLE `return_units` summieren** — 2 von 13 Retouren haben mehr als eine Position (Retoure 1806547: zwei Einheiten à 84,11 €, gespeichert waren 84,11 statt 168,22 €). Lib: `lib/kaufland-return-detail.js`, Test: `__tests__/kaufland-return-detail.test.js`.
+- Status real: `label_generated`, `package_sent`, `package_received`. Gründe real: wrong_size, delivered_damaged, accidentally_ordered, wrong_article, too_late, dislike — werden jetzt als `reasonsAll` mitgespeichert.
+- Erstattungsdatum gibt Kaufland nicht heraus; Näherung `ts_updated_iso` bei Status `package_received` (dann löst Kaufland automatisch aus) → Feld `receivedAt`.
+- `warePending:true` markiert Retouren, deren Ware noch unterwegs ist (gemessen 6 Stück über 366,09 €) — sie zählen weiter mit, sind aber getrennt ausweisbar.
+
 ### Erstattungen laufen NICHT über AvyCloud (seit 2026-08-17)
 Der Betreiber erstattet nicht selbst: eBay und Kaufland lösen die Erstattung automatisch aus, sobald die Retoure mit Sendungsverfolgung eintrifft. Ein zweiter Erstattungsweg aus AvyCloud heraus zahlt denselben Kunden ein ZWEITES Mal aus — echtes Geld.
 - `MARKETPLACE_REFUND_PUSH=''` (default; nur der exakte Wert `'on'` schaltet ein — `'true'`/`'1'` bewusst NICHT, ein Tippfehler in der Konfiguration darf hier kein Geld bewegen). Gate in `services/returns-engine.js marketplaceRefundPushEnabled()`; der 4h-Cron in `index.js` wird bei ausgeschaltetem Schalter GAR NICHT ERST GESTARTET — ein nicht laufender Job kann nichts auslösen.

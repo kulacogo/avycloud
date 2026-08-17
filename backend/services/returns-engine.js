@@ -724,16 +724,32 @@ async function syncKauflandReturns({ tenantId = 'default', lookbackDays = 30 } =
         const returnUnitId = firstUnit.id_return_unit ? String(firstUnit.id_return_unit) : null;
         const unitReason = firstUnit.reason || kr.reason || 'OTHER';
 
-        // Fetch order-unit detail for product, buyer, and order linkage
-        let orderUnitDetail = null;
-        if (orderUnitId) {
+        // ALLE Positionen holen, nicht nur die erste.
+        //
+        // Gemessen am 17.08.2026: 13 Retouren, 15 Positionen — ZWEI Retouren
+        // haben mehr als eine. Bisher wurde nur `return_units[0]` gelesen, deren
+        // Betraege fielen weg (belegt: Retoure 1806547, zwei Einheiten a 84,11 €,
+        // gespeichert waren 84,11 statt 168,22 €).
+        const bestellpositionen = new Map();
+        for (const u of returnUnits) {
+          const id = u?.id_order_unit ? String(u.id_order_unit) : null;
+          if (!id || bestellpositionen.has(id)) continue;
           try {
-            const ouRes = await kauflandRequest('GET', `/order-units/${orderUnitId}`);
-            orderUnitDetail = ouRes?.data?.data || null;
+            const ouRes = await kauflandRequest('GET', `/order-units/${id}`);
+            const ouData = ouRes?.data?.data || null;
+            if (ouData) bestellpositionen.set(id, ouData);
           } catch {
-            // Non-critical
+            // Nicht kritisch — fehlende Position zaehlt als 0, nie als NaN.
           }
         }
+        // Die erste Position bleibt die Quelle fuer Kunde/Produkt/Verknuepfung.
+        const orderUnitDetail = orderUnitId ? bestellpositionen.get(orderUnitId) || null : null;
+
+        const { buildKauflandReturnDetail } = require('../lib/kaufland-return-detail');
+        const retourenDetail = buildKauflandReturnDetail(
+          { ...(returnDetail || kr), status: kr.status || returnDetail?.status, return_units: returnUnits },
+          bestellpositionen
+        );
 
         // Deduplicate
         const existing = await db.collection(RETURNS_COLLECTION)
@@ -764,9 +780,36 @@ async function syncKauflandReturns({ tenantId = 'default', lookbackDays = 30 } =
             updates.reasonRaw = unitReason;
             updates.reason = KAUFLAND_REASON_MAP[unitReason] || KAUFLAND_REASON_MAP[unitReason.toLowerCase()] || existingData.reason;
           }
-          // Update refundAmount if still 0 and we have price info
-          if ((!existingData.refundAmount || existingData.refundAmount === 0) && orderUnitDetail?.price) {
-            updates.refundAmount = orderUnitDetail.price / 100;
+          // Betrag und Zusatzfelder nachziehen — auch bei bereits angelegten
+          // Retouren, sonst behalten die 31 Bestands-Docs fuer immer den
+          // Einzelpositions-Betrag.
+          if (retourenDetail.positionCount > 0) {
+            if (retourenDetail.refundAmount !== existingData.refundAmount) {
+              updates.refundAmount = retourenDetail.refundAmount;
+            }
+            if (existingData.amountBasis !== retourenDetail.amountBasis) {
+              updates.amountBasis = retourenDetail.amountBasis;
+            }
+            if (existingData.positionCount !== retourenDetail.positionCount) {
+              updates.positionCount = retourenDetail.positionCount;
+              updates.positions = retourenDetail.positionen;
+            }
+            if (existingData.warePending !== retourenDetail.warePendent) {
+              updates.warePending = retourenDetail.warePendent;
+            }
+            if (retourenDetail.receivedAt && !existingData.receivedAt) {
+              updates.receivedAt = retourenDetail.receivedAt;
+            }
+            if (retourenDetail.revenueGross && existingData.revenueGross == null) {
+              updates.revenueGross = retourenDetail.revenueGross;
+              updates.revenueNet = retourenDetail.revenueNet;
+            }
+            if (retourenDetail.reasons.length && !Array.isArray(existingData.reasonsAll)) {
+              updates.reasonsAll = retourenDetail.reasons;
+            }
+            if (retourenDetail.skus.length && !Array.isArray(existingData.skus)) {
+              updates.skus = retourenDetail.skus;
+            }
           }
           // Link to order if not yet linked
           if (!existingData.orderId && orderUnitId) {
@@ -835,10 +878,25 @@ async function syncKauflandReturns({ tenantId = 'default', lookbackDays = 30 } =
           reason,
           reasonRaw: unitReason,
           reasonText: sanitizeText(firstUnit.note) || sanitizeText(kr.reason_comment) || null,
-          refundAmount: parseFloat(kr.refund_amount || '0')
-            || (orderUnitDetail?.price ? (orderUnitDetail.price / 100) : 0)
-            || 0,
-          currency: 'EUR',
+          // Summe ueber ALLE Positionen. `kr.refund_amount` gibt es bei Kaufland
+          // nicht — live geprueft, das Feld existiert in keiner Antwort. Die
+          // beste belegbare Groesse ist der Kaeuferbrutto-Preis der
+          // Bestellposition; `amountBasis` haelt fest, dass es eine Naeherung ist.
+          refundAmount: retourenDetail.refundAmount,
+          amountBasis: retourenDetail.amountBasis,
+          // Danebengestellt, damit im Bericht nachvollziehbar bleibt, welche
+          // Bezugsgroesse gewaehlt wurde.
+          revenueGross: retourenDetail.revenueGross,
+          revenueNet: retourenDetail.revenueNet,
+          positionCount: retourenDetail.positionCount,
+          positions: retourenDetail.positionen,
+          reasonsAll: retourenDetail.reasons,
+          skus: retourenDetail.skus,
+          // Ware noch unterwegs: zaehlt weiter mit, wird aber getrennt
+          // ausgewiesen (gemessen 6 Retouren ueber 366,09 €).
+          warePending: retourenDetail.warePendent,
+          receivedAt: retourenDetail.receivedAt,
+          currency: retourenDetail.currency || 'EUR',
           status: 'eingegangen',
           marketplaceStatus: kr.status || null,
           trackingCode: kr.tracking_code || null,
