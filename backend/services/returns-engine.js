@@ -525,9 +525,19 @@ async function syncEbayReturns({ tenantId = 'default', lookbackDays = 30 } = {})
 
         // Compute refund total and reason BEFORE dedup check (needed for update path too)
         let totalRefund = 0;
+        // Das ECHTE Erstattungsdatum. `createdAt` bleibt bewusst das
+        // Bestelldatum — nur so schliesst der Bericht mit dem Umsatz, der
+        // ebenfalls ueber order.createdAt gebucht wird. Gemessen liegen die
+        // beiden bis zu 17 Tage auseinander; 172,21 € standen dadurch im
+        // falschen Monat. `refundedAt` ist die Zahl fuer die Umsatzsteuer.
+        let refundedAt = null;
         for (const li of refundedItems) {
           for (const ref of (li.refunds || [])) {
             totalRefund += parseFloat(ref.amount?.value || '0') || 0;
+            const datum = ref.refundDate || ref.refundedDate || null;
+            if (datum && (!refundedAt || String(datum) > String(refundedAt))) {
+              refundedAt = String(datum);
+            }
           }
         }
 
@@ -627,6 +637,9 @@ async function syncEbayReturns({ tenantId = 'default', lookbackDays = 30 } = {})
           status: 'eingegangen',
           marketplaceStatus: isCanceled ? 'CANCELED' : 'REFUNDED',
           createdAt: order.creationDate || new Date().toISOString(),
+          // Zusaetzlich, nicht anstelle: siehe Kommentar oben.
+          refundedAt: refundedAt || null,
+          amountBasis: 'ebay_buyer_gross',
           syncedAt: new Date().toISOString(),
         };
 
