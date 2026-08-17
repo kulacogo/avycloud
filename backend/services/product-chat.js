@@ -24,6 +24,7 @@ const {
   canonicalizeAttributesStrict,
   coerceAttributeValueToPolicy,
   isBlockedAttributeKey,
+  isChatWriteBlockedAttributeKey,
 } = require('../lib/attribute-policy');
 const {
   getRequiredAspects,
@@ -1638,7 +1639,9 @@ function buildUserPrompt({ message, locale = 'de-DE', mode = 'short', marketingF
       'Marketing images requested: respond with one short intro sentence and a bullet list of 3–6 concrete URLs labelled with 3–5 words (hero, lifestyle, detail, packshot, etc.). No extra analysis unless asked.'
     );
   }
-  lines.push('Vehicle fitment rule: If ebay.vehicle_fitment_mode is set, do NOT invent K-Typ. Only propose K-Typ if it is present in OCR/attachments or provided WEB-EVIDENZ.');
+  // Vorfall 2026-08-17: Das Modell lieferte HSN/TSN als "K-Typ" und legte sie
+  // in einem erfundenen Merkmal ab. Der K-Typ wird nachgeschlagen, nie geraten.
+  lines.push('Vehicle fitment rule: NEVER write K-Typ, HSN, TSN or KBA as an attribute — not even under another name. K-Typ is a numeric ID list from eBay\'s vehicle list (MVL) and is looked up by the system automatically. If asked for K-Typ: research the HSN/TSN key numbers and state them IN THE ANSWER TEXT as "HSN/TSN: 0588/BDM, 0588/BDQ" — the system reads them from there and looks up the K-Typ.');
   lines.push('Category rule: use only valid eBay category IDs/breadcrumbs; do not propose non-eBay categories.');
   lines.push('Title rule: prioritize ebay.title_insights.top_tokens as buyer search keywords; keep title <=80 chars and factual.');
   lines.push('Consistency rule: never mix conflicting identity tokens (e.g. Damen + Herren, mixed brands) in one title.');
@@ -2050,8 +2053,10 @@ function sanitizeDatasheetChange(entry, product, { scope = null, titleHintTokens
         pushBarcode(rawValue);
         continue;
       }
-      if (isBlockedAttributeKey(key)) {
+      if (isChatWriteBlockedAttributeKey(key)) {
         // Never store internal/meta keys as attributes (delete-only).
+        // Zusaetzlich gesperrt: K-Typ + HSN/TSN (Vorfall 2026-08-17) — der
+        // K-Typ wird nachgeschlagen, nie geschaetzt (lib/ktype-enrichment.js).
         continue;
       }
       const value = typeof rawValue === 'string' ? decodePlainText(rawValue) : rawValue;

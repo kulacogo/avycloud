@@ -61,6 +61,63 @@ function extractHsnTsnCandidates(text = '') {
   return Array.from(out);
 }
 
+/**
+ * Schlüsselnummern aus RECHERCHE-TEXT lesen (Chat-Antwort, Web-Auszug).
+ *
+ * Warum getrennt von extractHsnTsnCandidates(): der obige Leser verlangt die
+ * Wörter "HSN" UND "TSN" um die Ziffern herum. Menschen und Webseiten schreiben
+ * aber "0588/BDM" — genau die Form, in der der Chat am 17.08.2026 drei korrekte
+ * Schlüsselnummern lieferte, die niemand las.
+ *
+ * Die lose Form "1234/ABC" ist zugleich die Form vieler Teilenummern. Deshalb
+ * gilt hier zweifach Kontextpflicht:
+ *  - es muss ein Schlüsselnummern-Stichwort in der Nähe stehen (HSN/TSN/KBA/
+ *    Schlüsselnummer/Typschlüssel), und
+ *  - direkt davor darf kein Teilenummern-Etikett stehen (Vergleichsnummer, OE,
+ *    Artikelnummer …).
+ *
+ * Ein Fehlgriff bleibt trotzdem folgenlos: nachgeschlagen wird ausschließlich in
+ * der MVL. Was dort nicht steht, erzeugt keinen K-Typ.
+ */
+const HSN_TSN_CONTEXT_RE = /\b(HSN|TSN|KBA|Schl(?:ü|ue)sselnummern?|Typschl(?:ü|ue)ssel)\b/gi;
+const PART_NUMBER_LABEL_RE = /(vergleichs|artikel|teile|ersatzteil|referenz|bestell|oe[m]?[-\s]?)\s*(nummer|nr)?\s*[:=]?\s*$/i;
+const EVIDENCE_WINDOW_CHARS = 200;
+
+function extractHsnTsnFromEvidenceText(text = '') {
+  const s = String(text || '');
+  if (!s) return [];
+  const out = new Set();
+
+  const scanWindow = (window, windowStart) => {
+    // "0588/BDM", "0588-BDM"
+    const slash = /(\d{4})\s*[/\-]\s*([A-Za-z0-9]{3})\b/g;
+    // "0588 BDM" — mindestens ein Buchstabe, sonst schluckt es "0588 123".
+    const spaced = /(\d{4})\s+(?=[A-Za-z0-9]{3}\b)([A-Za-z0-9]*[A-Za-z][A-Za-z0-9]*)\b/g;
+    for (const re of [slash, spaced]) {
+      let m;
+      while ((m = re.exec(window)) !== null) {
+        const before = s.slice(Math.max(0, windowStart + m.index - 40), windowStart + m.index);
+        if (PART_NUMBER_LABEL_RE.test(before)) continue;
+        const h = m[1];
+        const t = String(m[2] || '').toUpperCase();
+        if (/^\d{4}$/.test(h) && /^[A-Z0-9]{3}$/.test(t)) out.add(`${h}|${t}`);
+      }
+    }
+  };
+
+  HSN_TSN_CONTEXT_RE.lastIndex = 0;
+  let marker;
+  while ((marker = HSN_TSN_CONTEXT_RE.exec(s)) !== null) {
+    const start = marker.index;
+    scanWindow(s.slice(start, start + EVIDENCE_WINDOW_CHARS), start);
+  }
+
+  // Die ausgeschriebene Form ("HSN 0588, TSN BDM") kann der obige Leser besser.
+  extractHsnTsnCandidates(s).forEach((pair) => out.add(pair));
+
+  return Array.from(out);
+}
+
 function extractPlatformTokens(text = '') {
   const s = String(text || '');
   const out = new Set();
@@ -989,8 +1046,106 @@ function buildKTypDatasheetChange(product, { beforeValue = '' } = {}) {
   };
 }
 
+/**
+ * Alles einsammeln, was in einer Chat-Antwort nach Schlüsselnummer aussieht.
+ *
+ * Zwei Quellen, weil das Modell den Beleg auf zwei Wegen ausliefert: in der
+ * Antwort-Prosa und — wenn es kein passendes Feld findet — in einem selbst
+ * erfundenen Merkmal ("Vergleichsnummer"). Beides ist inhaltlich richtige
+ * Recherche und darf nicht verloren gehen, nur weil die Ablage falsch war.
+ *
+ * Merkmale kommen je nach Pipeline als Map (V2) oder als Liste (V3).
+ */
+function collectHsnTsnFromChatResult(chatResult) {
+  if (!chatResult || typeof chatResult !== 'object') return [];
+  const parts = [safeString(chatResult.message)];
+
+  const changes = Array.isArray(chatResult.datasheetChanges) ? chatResult.datasheetChanges : [];
+  changes.forEach((change) => {
+    const attrs = change?.attributes;
+    if (!attrs) return;
+    if (Array.isArray(attrs)) {
+      attrs.forEach((a) => parts.push(`${safeString(a?.key || a?.name)} ${safeString(a?.value)}`));
+      return;
+    }
+    if (typeof attrs === 'object') {
+      Object.entries(attrs).forEach(([k, v]) => parts.push(`${safeString(k)} ${safeString(v)}`));
+    }
+  });
+
+  return extractHsnTsnFromEvidenceText(parts.filter(Boolean).join('\n'));
+}
+
+/**
+ * K-Typ aus NACHGEREICHTEM Beleg setzen (Schlüsselnummern aus der Chat-Recherche).
+ *
+ * enrichKTypIfPossible() startet im Chat parallel zum Modell-Aufruf und liest
+ * deshalb nur, was schon im Produkt stand. Was das Modell im selben Zug
+ * herausfindet, kommt zu spät. Dieser Weg holt das nach — mit denselben
+ * Regeln: nur Fahrzeug-Kategorien, nur echte MVL-Treffer, nie raten, und ein
+ * bestehender K-Typ bleibt unangetastet.
+ */
+async function enrichKTypFromHsnTsnEvidence(
+  product,
+  pairs = [],
+  { mvl = null, maxKTypes = 60, reason = 'chat_evidence' } = {}
+) {
+  const list = Array.from(
+    new Set(
+      (Array.isArray(pairs) ? pairs : [])
+        .map((p) => normalizeHsnTsn(p) || safeString(p).toUpperCase())
+        .filter((p) => /^\d{4}\|[A-Z0-9]{3}$/.test(p))
+    )
+  );
+  if (!list.length) return { ok: false, reason: 'no_evidence' };
+
+  const catId = pickCategoryId(product);
+  const fitmentMode = catId ? getVehicleFitmentMode(catId) : null;
+  // Die Schlüsselnummer ist eine PKW-Kennung; die Motorrad-Liste kennt sie nicht.
+  if (fitmentMode !== 'auto') {
+    return { ok: false, reason: fitmentMode ? 'not_auto_fitment' : 'not_fitment_category' };
+  }
+  if (hasKTyp(product)) return { ok: false, reason: 'already_has_ktype' };
+
+  const index = mvl || (await loadMvlIndex());
+  if (!index?.ok) return { ok: false, reason: 'mvl_missing' };
+
+  const mapped = new Set();
+  for (const pair of list) {
+    const set = index.byHsnTsn.get(pair);
+    if (!set) continue;
+    for (const id of set.values()) mapped.add(id);
+  }
+  const ids = Array.from(mapped)
+    .sort((a, b) => a - b)
+    .slice(0, maxKTypes);
+  if (!ids.length) return { ok: false, reason: 'no_mvl_match', hsnTsn: list };
+
+  product.details = product.details || {};
+  product.details.attributes =
+    product.details.attributes && typeof product.details.attributes === 'object'
+      ? product.details.attributes
+      : {};
+  product.details.attributes['K-Typ'] = formatKTyp(ids, { maxLen: 0 });
+  attachKTypeTrace(product, {
+    ok: true,
+    reason,
+    source: 'chat_evidence_hsn_tsn',
+    fitment_mode: fitmentMode,
+    catId: catId || null,
+    hsn_tsn: list,
+    ktypes: ids,
+    mvl_path: index?.jsonlPath || null,
+  });
+  clearKTypWarnings(product);
+  return { ok: true, fitmentMode, ids, hsnTsn: list };
+}
+
 module.exports = {
   enrichKTypIfPossible,
+  enrichKTypFromHsnTsnEvidence,
+  extractHsnTsnFromEvidenceText,
+  collectHsnTsnFromChatResult,
   buildKTypDatasheetChange,
   collectLocalFitmentText,
   loadMvlIndex,

@@ -1532,7 +1532,7 @@ async function validateChatPricing(chatResult, product) {
  * validateGpsrDatasheetChanges. Hier fail-OPEN (Chat darf nie am Validator
  * sterben) — dann aber MIT Warnhinweis, nie stillschweigend.
  */
-async function validateChatGpsr(chatResult, product, scope = null) {
+async function validateChatGpsr(chatResult, product, scope = null, userMessage = '') {
   const changes = Array.isArray(chatResult && chatResult.datasheetChanges)
     ? chatResult.datasheetChanges
     : [];
@@ -1549,7 +1549,12 @@ async function validateChatGpsr(chatResult, product, scope = null) {
   // GPSR-Angaben, legte er eine NEUE Aenderungskarte an, die niemand
   // angefordert hatte. Der Ausstieg (`if (!hasGpsrChange) return;`) sass erst
   // DAHINTER.
-  const gpsrImRahmen = !scope || String(scope).toLowerCase().includes('gpsr') || String(scope).toLowerCase().includes('datasheet');
+  // Frueher stand hier `!scope || …` — frei getippte Fragen haben nie einen
+  // Rahmen, die Sperre war also fuer genau den Fall offen, fuer den sie gebaut
+  // wurde (Vorfall 2026-08-17: 'Ermittle den K-Typ' brachte eine ungefragte
+  // GPSR-Karte zurueck). Jetzt entscheidet Rahmen ODER Nutzerfrage.
+  const { gpsrIstThema } = require('../lib/chat-gpsr-relevance');
+  const gpsrImRahmen = gpsrIstThema({ scope, message: userMessage });
   const gpsrSchonInAntwort = changes.some((c) => c && c.gpsr && typeof c.gpsr === 'object');
   if (!gpsrSchonInAntwort && !gpsrImRahmen) return;
 
@@ -1646,7 +1651,29 @@ async function attachKTypDatasheetChange(chatResult, product, enrichHandle) {
       enrichHandle.promise,
       new Promise((resolve) => setTimeout(resolve, KTYP_CHAT_ATTACH_TIMEOUT_MS)),
     ]);
-    const { buildKTypDatasheetChange } = require('../lib/ktype-enrichment');
+    const {
+      buildKTypDatasheetChange,
+      collectHsnTsnFromChatResult,
+      enrichKTypFromHsnTsnEvidence,
+    } = require('../lib/ktype-enrichment');
+
+    // Zweiter Anlauf mit dem Beleg, den das Modell SOEBEN recherchiert hat.
+    //
+    // Die Anreicherung oben startete parallel zum Modell-Aufruf und konnte
+    // deshalb nur lesen, was schon im Produkt stand. Fand das Modell im selben
+    // Zug die Schlüsselnummern (Vorfall 2026-08-17: "0588/BDM, 0588/BDQ,
+    // 0588/BNL"), kam das für den ersten Lauf zu spät — der K-Typ blieb leer,
+    // obwohl der Beleg auf dem Bildschirm stand.
+    if (!String(product?.details?.attributes?.['K-Typ'] || '').trim()) {
+      const pairs = collectHsnTsnFromChatResult(chatResult);
+      if (pairs.length) {
+        const res = await enrichKTypFromHsnTsnEvidence(product, pairs, { reason: 'chat_evidence' });
+        console.log(
+          `[chat] K-Typ evidence retry: product=${product?.id} pairs=${pairs.join(',')} ok=${res.ok} reason=${res.reason || '-'}`
+        );
+      }
+    }
+
     const change = buildKTypDatasheetChange(product, { beforeValue: enrichHandle.beforeValue });
     if (!change) return;
     chatResult.datasheetChanges = Array.isArray(chatResult.datasheetChanges)
@@ -1882,7 +1909,7 @@ router.post('/chat', requirePermission('ai', 'chat'), identifyLimiter, chatUploa
 
         // GPSR-/Hersteller-Belege prüfen BEVOR das Ergebnis rausgeht (alle Pipelines).
         try { onProgress({ type: 'tool_start', tool: 'gpsr_evidence_check' }); } catch {}
-        await validateChatGpsr(chatResult, product, normalizedScope);
+        await validateChatGpsr(chatResult, product, normalizedScope, normalizedMessage);
 
         // K-Typ-Ergebnis (lief parallel) als Change-Card anhängen (alle Pipelines).
         await attachKTypDatasheetChange(chatResult, product, ktypEnrichHandle);
@@ -2006,7 +2033,7 @@ router.post('/chat', requirePermission('ai', 'chat'), identifyLimiter, chatUploa
     await validateChatPricing(chatResult, product);
 
     // GPSR-/Hersteller-Belege prüfen BEVOR das Ergebnis rausgeht (alle Pipelines).
-    await validateChatGpsr(chatResult, product, normalizedScope);
+    await validateChatGpsr(chatResult, product, normalizedScope, normalizedMessage);
 
     // K-Typ-Ergebnis (lief parallel) als Change-Card anhängen (alle Pipelines).
     await attachKTypDatasheetChange(chatResult, product, ktypEnrichHandle);

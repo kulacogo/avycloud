@@ -54,6 +54,7 @@ const {
   canonicalizeAttributesStrict,
   coerceAttributeValueToPolicy,
   isBlockedAttributeKey,
+  isChatWriteBlockedAttributeKey,
 } = require('../lib/attribute-policy');
 const {
   getRequiredAspects,
@@ -387,6 +388,7 @@ QUALITÄT:
 - Highlights: 5–7 Bulletpoints, je 70–120 Zeichen, "[Nutzen] - [Eigenschaft]".
 - Attribute: Nur belegbare Fakten. Deutsche Schlüssel. ≤60 Zeichen pro Wert. Verwende die ebay.allowed_aspects als Referenz, aber wenn die Kategorie falsch ist, ignoriere die alten Aspects und korrigiere zuerst die Kategorie.
 - GPSR: Unter gpsr-Objekt, NIE als Attribute.
+- K-TYP (Fahrzeugverwendung): Der K-Typ ist eine ZAHLEN-Kennung aus eBays Fahrzeugliste (z.B. "7331|7332"), KEINE Schlüsselnummer. Du kannst ihn NICHT selbst setzen — das System schlägt ihn nach und hängt die Karte automatisch an. Schreibe K-Typ, HSN, TSN oder KBA-Nummer NIEMALS als Attribut (auch nicht unter anderem Namen wie "Vergleichsnummer"). Wenn du nach dem K-Typ gefragt wirst: recherchiere die HSN/TSN-Schlüsselnummern der passenden Fahrzeuge und NENNE SIE IM ANTWORTTEXT in der Form "HSN/TSN: 0588/BDM, 0588/BDQ" — das System liest sie von dort und schlägt die K-Typen daraus nach.
 - Preis: Aktueller Marktpreis in EUR wenn findbar.
 - PREIS-QUELLEN (STRENG): In pricing.lowest_price.sources dürfen NUR URLs stehen, die du in DIESER Recherche tatsächlich in den Suchergebnissen gesehen hast — kopiere sie EXAKT, konstruiere oder rate NIEMALS eine URL. Jede Quelle muss eine konkrete ANGEBOTSSEITE genau dieses Produkts sein: gleiche Marke, gleiches Modell UND gleiche Variante (Größe/Maße/Farbe wie im Datenblatt). Such-/Ergebnisseiten (ebay.de/sch, amazon.de/s, idealo-Suche, Google) sind VERBOTEN. Der price-Wert der Quelle muss der Preis sein, der auf GENAU dieser Seite für GENAU diese Variante steht — bei mehreren Größen/Varianten NIE den Preis der kleinsten Variante nehmen. Findest du keine solche Quelle: sources leer lassen, price_confidence auf höchstens 0.3 setzen und dem User EHRLICH sagen, dass kein belastbarer Beleg gefunden wurde. Das System prüft jede Quelle automatisch nach — erfundene Quellen werden erkannt und verworfen.
 - Preisempfehlung ÜBERNEHMEN: Wenn der User einen Verkaufspreis festlegen oder deine Empfehlung übernehmen will, schreibe ihn in pricing.sellPrice (Zahl, EUR). pricing.lowest_price ist nur die Recherche-Dokumentation — sie ändert den Angebotspreis NICHT. Sage nie "aktualisiert", wenn du sellPrice nicht gesetzt hast.
@@ -780,7 +782,9 @@ function sanitizeDatasheetChangeV2(entry, product, { scope = null, titleHintToke
     entry.attributes.forEach((attr) => {
       if (!attr?.key) return;
       const key = safeString(attr.key);
-      if (!key || isBlockedAttributeKey(key)) return;
+      // K-Typ und HSN/TSN sind gesperrt: der K-Typ wird nachgeschlagen,
+      // nie geschaetzt (lib/ktype-enrichment.js). Vorfall 2026-08-17.
+      if (!key || isChatWriteBlockedAttributeKey(key)) return;
       const value = safeString(typeof attr.value === 'string' ? attr.value : String(attr.value ?? ''));
       if (!value) return;
       cleaned[canonicalizeAttributeKey(key)] = value.slice(0, 65);

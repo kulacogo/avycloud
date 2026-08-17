@@ -76,6 +76,38 @@ function isBlockedAttributeKey(key) {
   return false;
 }
 
+/**
+ * Zusätzliche Sperre NUR für den Chat-Schreibweg (Vorfall 2026-08-17).
+ *
+ * Der K-Typ ist eine Zahlen-Kennung aus eBays Fahrzeugliste (MVL). Er wird von
+ * lib/ktype-enrichment.js NACHGESCHLAGEN — ausdrücklich ohne Raten. Ein vom
+ * Modell geschätzter K-Typ geht als Fahrzeug-Verwendungsliste an eBay und
+ * behauptet Passgenauigkeit für Fahrzeuge, die nie geprüft wurden.
+ * HSN/TSN sind der BELEG für diesen Nachschlag, kein Datenblattfeld.
+ *
+ * Bewusst NICHT in isBlockedAttributeKey(): dieselbe Funktion läuft über jedes
+ * gespeicherte Produkt (llm-rulebook, identify-v3-stage3, product-validator).
+ * Dort zu sperren würde beim nächsten Speichern jeden echten K-Typ im Bestand
+ * löschen — aus einer Schutzmaßnahme würde ein Datenverlust.
+ */
+function isChatWriteBlockedAttributeKey(key) {
+  // Umlaute zuerst auflösen — sonst wird aus "Schlüsselnummer" beim Entfernen
+  // der Sonderzeichen "schlsselnummer" und die Sperre greift nicht.
+  const k = normKey(key)
+    .replace(/ä/g, 'ae')
+    .replace(/ö/g, 'oe')
+    .replace(/ü/g, 'ue')
+    .replace(/ß/g, 'ss')
+    .replace(/[^a-z0-9]/g, '');
+  if (!k) return true;
+  if (k === 'ktyp' || k === 'ktype' || k === 'ktypnummer' || k === 'ktypen') return true;
+  if (k === 'hsn' || k === 'tsn' || k === 'hsntsn' || k === 'tsnhsn') return true;
+  if (k === 'kba' || k.startsWith('kbanummer') || k.startsWith('kbaschluessel')) return true;
+  if (k.startsWith('schluesselnummer')) return true;
+  if (k.startsWith('typschluessel')) return true;
+  return isBlockedAttributeKey(key);
+}
+
 // Canonicalize common synonym keys (German/English variants) to one canonical key.
 // This list is intentionally conservative; add more synonyms as they appear.
 const CANONICAL_KEY_MAP = new Map([
@@ -197,5 +229,6 @@ module.exports = {
   canonicalizeAttributeKey,
   coerceAttributeValueToPolicy,
   isBlockedAttributeKey,
+  isChatWriteBlockedAttributeKey,
 };
 
