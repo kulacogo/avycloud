@@ -296,6 +296,10 @@ export const AdminFinancials: React.FC = () => {
     const umsatz = pnl.umsatzBrutto ?? 0;
     const retouren = pnl.retouren ?? 0;
     const ware = pnl.cogs ?? 0;
+    // null heisst "noch nicht abgebucht", nicht "kostenlos". Frueher wurde
+    // daraus 0 € — und der Gewinn sah um die kompletten Versandkosten zu gut
+    // aus. Gemessen im August: 270 Sendungen, 0 € gezeigt, Marge 71,8 %.
+    const versandOffen = pnl.versandBrutto == null;
     const versand = pnl.versandBrutto ?? 0;
     const gebuehren = pnl.marketplaceFees ?? 0;
 
@@ -312,7 +316,7 @@ export const AdminFinancials: React.FC = () => {
         : null;
 
     const feeApprox = pnl.feeSource === "rates" || pnl.feeSource === "mixed";
-    return { umsatz, retouren, gebuehren, ware, versand, gewinn, marge, feeApprox, approx: feeApprox || cogsModelActive };
+    return { umsatz, retouren, gebuehren, ware, versand, versandOffen, gewinn, marge, feeApprox, approx: feeApprox || cogsModelActive };
   }, [report, pnl, cogsModelActive]);
 
   // Geldeingang: Erwartung (accrual) gegen Bank-Ist. Eigene Größe, KEIN Balkensegment —
@@ -340,7 +344,7 @@ export const AdminFinancials: React.FC = () => {
       { key: "Gewinn", value: Math.max(0, view.gewinn), pct: seg(view.gewinn), cls: "bg-success" },
       { key: "Ware", value: view.ware, pct: seg(view.ware), cls: "bg-info" },
       { key: "Gebühren", value: view.gebuehren, pct: seg(view.gebuehren), cls: "bg-accent", approx: view.feeApprox },
-      { key: "Versand", value: view.versand, pct: seg(view.versand), cls: "bg-warning" },
+      { key: "Versand", value: view.versand, pct: seg(view.versand), cls: "bg-warning", offen: view.versandOffen },
       ...(view.retouren > 0 ? [{ key: "Retouren", value: view.retouren, pct: seg(view.retouren), cls: "bg-danger" }] : []),
     ];
   }, [view]);
@@ -493,13 +497,25 @@ export const AdminFinancials: React.FC = () => {
                       <span className="text-txt-secondary">{s.key}</span>
                       <span className="tabular-nums font-semibold text-txt-primary">
                         {"approx" in s && s.approx ? "≈ " : ""}
-                        {fmtCur(s.key === "Gewinn" ? view.gewinn : s.value, cur, true)}
+                        {/* "noch nicht abgebucht" statt 0,00 €: die Frachtrechnung
+                            kommt nach der Sendung. Eine 0 hier laesst den Gewinn um
+                            die kompletten Versandkosten zu gut aussehen. */}
+                        {"offen" in s && (s as { offen?: boolean }).offen
+                          ? "noch offen"
+                          : fmtCur(s.key === "Gewinn" ? view.gewinn : s.value, cur, true)}
                       </span>
                     </span>
                   ))}
                 </div>
                 {view.gewinn < 0 ? (
                   <p className="mt-2 text-xs text-danger">Die Kosten übersteigen den Umsatz in diesem Zeitraum.</p>
+                ) : null}
+                {view.versandOffen && report?.shipping?.parcelCount ? (
+                  <p className="mt-2 text-xs text-warning">
+                    Die Versandkosten für diesen Zeitraum sind noch nicht vom Konto abgebucht —
+                    {" "}{report.shipping.parcelCount} Sendungen sind raus. Gewinn und Marge sind deshalb
+                    noch zu hoch.
+                  </p>
                 ) : null}
 
                 {/* Geldeingang — eigene Zeile: Timing ist kein Kostenblock. */}

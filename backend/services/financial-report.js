@@ -192,22 +192,98 @@ function mergeShipping(sevdesk, sendcloud) {
   return null;
 }
 
-async function queryReturnsWindow(fromIso, toIso) {
-  // Spiegelt routes/orders.js: returns-Collection ohne Tenant-Filter (Docs sind Legacy
-  // single-tenant 'default'; ein tenantId-Filter würde feldlose Docs fälschlich droppen).
+/**
+ * Sendungen im Zeitraum — aus der EIGENEN Liste, nicht von SendCloud.
+ *
+ * SendCloud liefert seit dem 29.06.2026 keine einzige Sendung mehr an die
+ * Auswertung: die Labels entstehen ueber die v3-Schnittstelle, abgefragt wurde
+ * v2, und v2 kennt die neuen Pakete nicht (GET /v2/parcels/<v3-id> → 404).
+ * Ergebnis: Paketzahl und Dienstleister-Aufteilung standen sechs Wochen lang
+ * auf null, obwohl 562 Sendungen entstanden.
+ *
+ * Die eigene `shipments`-Sammlung ist vollstaendig, braucht keinen Fremdaufruf
+ * und kann nicht durch einen Schnittstellenwechsel still auf null fallen.
+ */
+async function countShipmentsWindow(fromIso, toIso, tenantId = 'default') {
   const from = parseDate(fromIso);
   const toExcl = parseDate(toIso);
-  const snap = await firestore.collection('returns').select('refundAmount', 'currency', 'createdAt', 'marketplace').get();
-  let value = 0;
-  let count = 0;
-  const byMarketplace = { ebay: 0, kaufland: 0, other: 0 };
+  const snap = await firestore.collection('shipments').select('createdAt', 'carrier', 'status').get();
+  let parcelCount = 0;
+  let dhl = 0;
+  let dpd = 0;
+  let dp = 0;
+  let other = 0;
   for (const doc of snap.docs) {
     const d = doc.data();
     const created = parseDate(d.createdAt);
     if (!created) continue;
     if (from && created < from) continue;
     if (toExcl && created >= toExcl) continue;
+    // Stornierte Sendungen sind kein Versand.
+    const status = `${d.status || ''}`.toLowerCase();
+    if (status === 'cancelled' || status === 'storniert') continue;
+    parcelCount += 1;
+    const c = `${d.carrier || ''}`.toLowerCase();
+    if (c.startsWith('dhl')) dhl += 1;
+    else if (c.startsWith('dpd')) dpd += 1;
+    else if (c === 'dp' || c.startsWith('deutsche')) dp += 1;
+    else other += 1;
+  }
+  return { parcel_count: parcelCount, dhl_count: dhl, dpd_count: dpd, dp_count: dp, other_count: other };
+}
+
+async function queryReturnsWindow(fromIso, toIso) {
+  // Spiegelt routes/orders.js: returns-Collection ohne Tenant-Filter (Docs sind Legacy
+  // single-tenant 'default'; ein tenantId-Filter würde feldlose Docs fälschlich droppen).
+  const from = parseDate(fromIso);
+  const toExcl = parseDate(toIso);
+  const snap = await firestore.collection('returns')
+    .select('refundAmount', 'currency', 'createdAt', 'marketplace', 'orderId')
+    .get();
+
+  // Im Fenster liegende Retouren einsammeln, DANN erst die zugehoerigen
+  // Auftraege laden — sonst ein Firestore-Lesevorgang je Retoure ueber die
+  // ganze Sammlung.
+  const imFenster = [];
+  for (const doc of snap.docs) {
+    const d = doc.data();
+    const created = parseDate(d.createdAt);
+    if (!created) continue;
+    if (from && created < from) continue;
+    if (toExcl && created >= toExcl) continue;
+    imFenster.push(d);
+  }
+
+  // Stornierte Auftraege sind im Umsatz gar nicht enthalten — ihre Retouren ein
+  // zweites Mal abzuziehen war der groesste Einzelfehler im Bericht:
+  // gemessen 1.120,66 € von 2.210,53 € (50,7 %). Details + Fail-open-Regel in
+  // lib/finance-returns-filter.js.
+  const { retoureDarfAbgezogenWerden } = require('../lib/finance-returns-filter');
+  const orderIds = Array.from(new Set(imFenster.map((d) => String(d.orderId || '').trim()).filter(Boolean)));
+  const orders = new Map();
+  if (orderIds.length) {
+    const refs = orderIds.map((id) => firestore.collection('orders').doc(id));
+    // getAll vertraegt viele Refs; bei sehr grossen Fenstern in Bloecken lesen.
+    for (let i = 0; i < refs.length; i += 300) {
+      const teil = await firestore.getAll(...refs.slice(i, i + 300)).catch(() => []);
+      teil.forEach((docSnap) => {
+        if (docSnap && docSnap.exists) orders.set(docSnap.id, docSnap.data());
+      });
+    }
+  }
+
+  let value = 0;
+  let count = 0;
+  let uebersprungen = 0;
+  let uebersprungenWert = 0;
+  const byMarketplace = { ebay: 0, kaufland: 0, other: 0 };
+  for (const d of imFenster) {
     const amount = num(d.refundAmount);
+    if (!retoureDarfAbgezogenWerden(d, orders)) {
+      uebersprungen += 1;
+      uebersprungenWert += amount;
+      continue;
+    }
     value += amount;
     count += 1;
     const mk = `${d.marketplace || ''}`.toLowerCase();
@@ -215,9 +291,18 @@ async function queryReturnsWindow(fromIso, toIso) {
     else if (mk.includes('kaufland')) byMarketplace.kaufland += amount;
     else byMarketplace.other += amount;
   }
+
+  if (uebersprungen > 0) {
+    console.log(
+      `[finanzbericht] ${uebersprungen} Retouren an stornierten Auftraegen nicht abgezogen (${round2(uebersprungenWert)} €) — deren Umsatz war nie gebucht`
+    );
+  }
+
   return {
     value: round2(value),
     count,
+    cancelledSkipped: uebersprungen,
+    cancelledSkippedValue: round2(uebersprungenWert),
     byMarketplace: { ebay: round2(byMarketplace.ebay), kaufland: round2(byMarketplace.kaufland), other: round2(byMarketplace.other) },
   };
 }
@@ -278,11 +363,54 @@ async function getFinancialReport({ preset = null, fromDate = null, toDate = nul
     // der Kachel, obwohl SevDesk gar nicht geantwortet hatte.
     : (errors.push('Kontostand (SevDesk) nicht verfügbar.'), { accounts: [], total: null });
 
-  const shipping = mergeShipping(
-    sevdeskRes.status === 'fulfilled' ? sevdeskRes.value : null,
-    sendcloudRes.status === 'fulfilled' ? sendcloudRes.value : null,
-  );
-  if (!shipping) errors.push('Versandkosten nicht verfügbar (SevDesk + SendCloud).');
+  // Versandkosten: die BANKABBUCHUNG ist die Zahl, nicht der SendCloud-Preis.
+  //
+  // Bis 2026-08-17 wurde der von SendCloud berechnete Paketpreis UND dieselbe
+  // Sendung als echte Bankabbuchung addiert — gemessen 4.906,89 € angezeigt
+  // gegen 3.380,57 € tatsaechlichen Abgang (+45 %). Alle drei Carrier-Vertraege
+  // sind laut SendCloud-API `type:"direct"`: der Frachtfuehrer bucht selbst ab,
+  // die SevDesk-Buchungen SIND diese Pakete.
+  //
+  // SHIPPING_SOURCE='legacy' stellt das alte Verhalten wieder her (Notausstieg).
+  const sevdeskShipping = sevdeskRes.status === 'fulfilled' ? sevdeskRes.value : null;
+  const sendcloudShipping = sendcloudRes.status === 'fulfilled' ? sendcloudRes.value : null;
+  const shippingLegacy = String(process.env.SHIPPING_SOURCE || '').trim().toLowerCase() === 'legacy';
+
+  let shipping;
+  let shippingBank = null;
+  if (shippingLegacy) {
+    shipping = mergeShipping(sevdeskShipping, sendcloudShipping);
+    if (!shipping) errors.push('Versandkosten nicht verfügbar (SevDesk + SendCloud).');
+  } else {
+    const { mergeShippingBankFirst } = require('../lib/finance-shipping-merge');
+    // Stueckzahl aus der EIGENEN Sendungsliste; SendCloud nur noch als
+    // Rueckfall fuer alte Zeitraeume vor der v3-Umstellung.
+    const eigeneSendungen = await countShipmentsWindow(fromIso, toIso, tenantId).catch(() => null);
+    const stueckQuelle = eigeneSendungen && eigeneSendungen.parcel_count > 0
+      ? eigeneSendungen
+      : sendcloudShipping;
+    shippingBank = mergeShippingBankFirst(sevdeskShipping, stueckQuelle);
+    // In die bestehende Form giessen, damit die uebrigen Stellen unveraendert
+    // bleiben. `netto` bleibt null — gerechnet wird jetzt mit `brutto`.
+    shipping = shippingBank.brutto != null || shippingBank.parcelCount > 0
+      ? {
+        netto: null,
+        brutto: shippingBank.brutto,
+        parcelCount: shippingBank.parcelCount,
+        dhl: shippingBank.dhl,
+        dpd: shippingBank.dpd,
+        other: shippingBank.other,
+        source: shippingBank.source,
+      }
+      : null;
+    if (shippingBank.pending) {
+      errors.push(
+        `Versandkosten für diesen Zeitraum sind noch nicht abgebucht — ${shippingBank.parcelCount} Sendungen verschickt.`
+      );
+    } else if (!shipping) {
+      errors.push('Versandkosten nicht verfügbar (SevDesk).');
+    }
+  }
 
   // Real marketplace payouts from SevDesk bank credits (cflox=Kaufland, eBay S.a.r.l.=eBay).
   // EXACT money received — preferred over any estimate.
@@ -379,6 +507,7 @@ async function getFinancialReport({ preset = null, fromDate = null, toDate = nul
     realPayoutSource,
     returnsValue: returns.value,
     shippingNetto: shipping ? shipping.netto : null,
+    shippingBrutto: shipping ? (shipping.brutto != null ? shipping.brutto : null) : null,
     cogs: agg.cogs,
     feeResolution,
     windowEndIso: toIso,
@@ -463,7 +592,21 @@ async function getFinancialReport({ preset = null, fromDate = null, toDate = nul
       total: balances.total == null ? null : round2(balances.total),
     },
     shipping: shipping
-      ? { brutto: round2(shipping.netto * 1.19), netto: shipping.netto, parcelCount: shipping.parcelCount, dhl: shipping.dhl, dpd: shipping.dpd, other: shipping.other, source: shipping.source }
+      ? {
+        brutto: shipping.brutto != null ? shipping.brutto : (shipping.netto != null ? round2(shipping.netto * 1.19) : null),
+        netto: shipping.netto,
+        parcelCount: shipping.parcelCount,
+        dhl: shipping.dhl,
+        dpd: shipping.dpd,
+        other: shipping.other,
+        source: shipping.source,
+        // Getrennt ausgewiesen: Fracht ist die eigentliche Versandkostenzahl,
+        // Plattform sind die SendCloud-Rechnungen, Vorauszahlung die Portokasse.
+        fracht: shippingBank ? shippingBank.fracht : null,
+        plattform: shippingBank ? shippingBank.plattform : null,
+        vorauszahlung: shippingBank ? shippingBank.vorauszahlung : null,
+        pending: shippingBank ? shippingBank.pending : false,
+      }
       : null,
     timeseries: agg.buckets,
     quality: {

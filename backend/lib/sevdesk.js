@@ -185,18 +185,24 @@ async function getShippingCostsFromSevDesk(fromDate, toDate, { forceRefresh = fa
   // Correct SevDesk field: "payeePayerName" (= "Name" column in Kontoauszug view).
   // Only negative amounts (Ausgaben) are counted — positive = incoming/refunds.
   // Categorise: "sendcloud" vs "direct" (DHL/DPD/GLS paid without SendCloud)
+  // Einordnung liegt in lib/shipping-payment-categorize.js (drei Toepfe:
+  // fracht / plattform / vorauszahlung). Die alte Fassung las NUR
+  // payeePayerName und uebersah damit alle Kartenzahlungen — gemessen
+  // 341,81 € (10,1 %). Der Verwendungszweck wird jetzt geprueft, aber nur
+  // wenn kein Name da ist; sonst faengt eine Kundennotiz die Buchung ein.
+  const { kategorisiereVersandbuchung } = require('./shipping-payment-categorize');
   const categorizeShipping = (t) => {
-    const payee = (t?.payeePayerName || '').toLowerCase();
-    // Only check payeePayerName (sender/recipient), NOT paymtPurpose (description)
-    // to avoid false matches from customer notes mentioning "sendcloud"
-    if (payee.includes('sendcloud')) return 'sendcloud';
-    if (SHIPPING_SUPPLIER_KEYWORDS.some(kw => payee.includes(kw))) return 'direct';
+    const topf = kategorisiereVersandbuchung(t);
+    if (topf === 'plattform') return 'sendcloud';
+    if (topf === 'fracht') return 'direct';
+    if (topf === 'vorauszahlung') return 'vorauszahlung';
     return null;
   };
 
   let totalCost = 0;
-  let directCost = 0;   // DHL/DPD direct (pre-SendCloud era), brutto
-  let sendcloudCost = 0; // SendCloud payments, brutto
+  let directCost = 0;   // DHL/DPD/DP Fracht, brutto
+  let sendcloudCost = 0; // SendCloud-Rechnungen, brutto
+  let prepaidCost = 0;   // Portokassen-Aufladung — VORAUSZAHLUNG, kein Verbrauch
   let txCount = 0;
   const matched = [];
 
@@ -206,6 +212,13 @@ async function getShippingCostsFromSevDesk(fromDate, toDate, { forceRefresh = fa
     const category = categorizeShipping(t);
     if (!category) continue;
     const amount = Math.abs(raw);
+    if (category === 'vorauszahlung') {
+      // Portokasse: Geld ist abgeflossen, die Leistung noch nicht bezogen.
+      // Als Verbrauch gezaehlt landet ein halbes Jahr Briefporto in EINEM Monat.
+      prepaidCost += amount;
+      matched.push({ payee: t?.payeePayerName || '?', amount, date: t?.valueDate || '', category });
+      continue;
+    }
     totalCost += amount;
     if (category === 'sendcloud') sendcloudCost += amount;
     else directCost += amount;
@@ -222,8 +235,9 @@ async function getShippingCostsFromSevDesk(fromDate, toDate, { forceRefresh = fa
 
   const result = {
     total_cost: Math.round(totalCost * 100) / 100,
-    direct_shipping_cost: Math.round(directCost * 100) / 100,   // brutto, DHL/DPD direct
-    sendcloud_cost: Math.round(sendcloudCost * 100) / 100,      // brutto, via SendCloud
+    direct_shipping_cost: Math.round(directCost * 100) / 100,   // brutto, Fracht (DHL/DPD/DP)
+    sendcloud_cost: Math.round(sendcloudCost * 100) / 100,      // brutto, SendCloud-Rechnungen
+    prepaid_cost: Math.round(prepaidCost * 100) / 100,          // brutto, Portokasse (NICHT in total_cost)
     voucher_count: txCount,
     currency: 'EUR',
     source: 'sevdesk',

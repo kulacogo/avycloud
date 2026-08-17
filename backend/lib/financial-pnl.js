@@ -126,6 +126,10 @@ function buildPnl({
   realPayoutSource = null,
   returnsValue = 0,
   shippingNetto = null,
+  // Direkt uebergebener Bruttowert (Bankabbuchung). Ist er gesetzt, wird NICHT
+  // mehr gerechnet: der Umweg netto→brutto rundet, und Briefporto der Deutschen
+  // Post ist umsatzsteuerfrei — ein pauschales x1,19 waere dort schlicht falsch.
+  shippingBrutto = null,
   cogs = 0,
   // NEU (alle optional — Alt-Aufrufe verhalten sich unverändert sinnvoll):
   feeResolution = null, // vorberechnetes Ergebnis aus resolveFees() (Report kennt die Payouts je Marktplatz)
@@ -134,7 +138,9 @@ function buildPnl({
   settlementLagDays = SETTLEMENT_LAG_DAYS,
 } = {}) {
   const umsatzBrutto = round2(grossRevenue);
-  const versandBrutto = shippingNetto != null ? round2(num(shippingNetto) * 1.19) : null;
+  const versandBrutto = shippingBrutto != null
+    ? round2(num(shippingBrutto))
+    : (shippingNetto != null ? round2(num(shippingNetto) * 1.19) : null);
   const retouren = round2(returnsValue);
   const cogsValue = round2(cogs);
 
