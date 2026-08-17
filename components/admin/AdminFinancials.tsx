@@ -517,15 +517,6 @@ export const AdminFinancials: React.FC = () => {
                 {view.gewinn < 0 ? (
                   <p className="mt-2 text-xs text-danger">Die Kosten übersteigen den Umsatz in diesem Zeitraum.</p>
                 ) : null}
-                {view.retourenStorno > 0 ? (
-                  <p className="mt-2 text-xs text-txt-muted">
-                    Auf der Retouren-Seite stehen {fmtCur(view.retourenGesamt, cur, true)} —
-                    {" "}{fmtCur(view.retourenStorno, cur, true)} davon ({view.retourenStornoAnzahl}{" "}
-                    {view.retourenStornoAnzahl === 1 ? "Vorgang" : "Vorgänge"}) gehören zu stornierten
-                    Aufträgen. Deren Umsatz ist bereits herausgerechnet, sie werden hier deshalb nicht
-                    noch einmal abgezogen.
-                  </p>
-                ) : null}
                 {view.versandOffen && report?.shipping?.parcelCount ? (
                   <p className="mt-2 text-xs text-warning">
                     Die Versandkosten für diesen Zeitraum sind noch nicht vom Konto abgebucht —

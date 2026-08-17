@@ -90,7 +90,9 @@ router.post('/returns/sync', requirePermission('returns', 'process'), async (req
     const { syncAllReturns } = require('../services/returns-engine');
     const result = await syncAllReturns({
       tenantId: getTenantId(req),
-      lookbackDays: parseInt(req.query.days || '30', 10),
+      // 120 statt 30 Tage — eine Retoure kommt Wochen nach der Bestellung,
+      // und eBay filtert auf das Bestelldatum.
+      lookbackDays: parseInt(req.query.days || '120', 10),
     });
     res.json({ ok: true, data: result });
   } catch (err) {

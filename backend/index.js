@@ -363,6 +363,7 @@ const server = app.listen(PORT, () => {
   // the event-driven system might miss (e.g. webhook delivery failure).
   // Primary sync happens via emitSyncEvent() on every data mutation.
 
+  const RETURNS_SYNC_LOOKBACK_DAYS = Number(process.env.RETURNS_SYNC_LOOKBACK_DAYS || 120) || 120;
   // ─── Multi-Tenant background-job loop (additive, default off) ─────
   // Mirrors STOCK_FAILURE_DRAIN_TENANTS pattern. Set
   //   BACKGROUND_JOB_TENANTS=tenantA,tenantB
@@ -443,7 +444,12 @@ const server = app.listen(PORT, () => {
     const runReturnsSync = async () => {
       const { syncAllReturns } = require('./services/returns-engine');
       await runForAllTenants('returns-sync', async ({ tenantId }) => {
-        const r = await syncAllReturns({ tenantId, lookbackDays: 30 });
+        // 120 statt 30 Tage: Der Abgleich filtert bei eBay auf das BESTELLdatum.
+        // Eine Retoure kommt aber Wochen nach der Bestellung — bei 30 Tagen
+        // Rueckblick fallen Retouren zu aelteren Bestellungen dauerhaft durch.
+        // Gemessen: Konto laeuft seit 09.07., aelteste Retoure vom 10.07. —
+        // die waere ab dem 09.08. nicht mehr auffindbar gewesen.
+        const r = await syncAllReturns({ tenantId, lookbackDays: RETURNS_SYNC_LOOKBACK_DAYS });
         console.log(`[returns-sync] tenant=${tenantId} done:`, JSON.stringify(r));
       });
     };
@@ -459,9 +465,24 @@ const server = app.listen(PORT, () => {
   // the invoice reflects reduced revenue + VAT. Lookback window limits the scope
   // so the historical refund backlog is NOT mass-processed (separate backfill).
   // Set REFUND_SYNC_SINCE=YYYY-MM-DD as a hard floor if needed.
+  //
+  // STANDARDMAESSIG AUS (Betreiber-Anweisung 2026-08-17): "rechnungen,
+  // gutschriften, retoure, stornos etc werden ueber die marktplaetze bereits
+  // kalkuliert in den marktplatz reports".
+  //
+  // Genau gesagt praegt syncRefunds selbst KEINE Rechnung — es schlaegt zu
+  // einer Marktplatz-Erstattung die zugehoerige Rechnungsnummer nach und legt
+  // eine Glocken-Meldung 'refund_review' an, damit jemand eine Korrektur-
+  // rechnung ausstellt. Ohne Rechnungsbestand findet das Nachschlagen nichts
+  // mehr, und die Meldung fordert zu einem Schritt auf, den es nicht mehr
+  // geben soll. Der Job wird deshalb gar nicht erst gestartet.
+  // Siehe lib/auto-invoice-gate.js.
   const REFUND_SYNC_INTERVAL_MS = parseInt(process.env.REFUND_SYNC_INTERVAL_MS || String(6 * 60 * 60 * 1000), 10);
   const REFUND_SYNC_LOOKBACK_DAYS = parseInt(process.env.REFUND_SYNC_LOOKBACK_DAYS || '7', 10);
-  try {
+  const { autoInvoiceEnabled } = require('./lib/auto-invoice-gate');
+  if (!autoInvoiceEnabled()) {
+    console.log('[refund-sync] deaktiviert (AUTO_INVOICE != "on") — Marktplatz-Reports rechnen Gutschriften bereits ab');
+  } else try {
     const runRefundSync = async () => {
       const { syncRefunds } = require('./services/refund-sync');
       await runForAllTenants('refund-sync', async ({ tenantId }) => {
@@ -534,9 +555,19 @@ const server = app.listen(PORT, () => {
     console.warn('[delivery-poll] failed to start:', err?.message || err);
   }
 
-  // ─── Invoice Sync: SevDesk Import + Bulk Generate (startup + every 24h) ─
-  // On boot: import all existing SevDesk invoices, then generate any missing ones.
-  // Runs again every 24h to catch any gaps. Fully idempotent.
+  // ─── Invoice Sync: SevDesk Import (+ Bulk Generate nur mit AUTO_INVOICE) ─
+  // Der IMPORT laeuft immer: er liest SevDesk und spiegelt den Bestand in die
+  // AvyCloud-Rechnungsliste — er praegt selbst KEINE Rechnung. So bleibt die
+  // Liste auch fuer die von Hand ueber den Auftrags-Knopf erzeugten Rechnungen
+  // ehrlich.
+  //
+  // Das BULK-GENERATE ist standardmaessig AUS (Betreiber-Anweisung
+  // 2026-08-17): es durchsuchte fuenf Auftragsstatus (picked/packed/shipped/
+  // delivered/completed) OHNE Datumsgrenze, 5 Minuten nach jedem Start und
+  // danach alle 24 h. Jeder Cloud-Run-Neustart war damit ein Volldurchlauf
+  // ueber die gesamte Auftragshistorie — daher die 467 faelligen Rechnungen
+  // ueber 18.158,48 EUR, die die Auswertung verfaelschten.
+  // Siehe lib/auto-invoice-gate.js.
   const INVOICE_SYNC_INTERVAL_MS = 24 * 60 * 60 * 1000;
   const runInvoiceSync = async () => {
     const { importFromSevDesk, bulkGenerateForShippedOrders } = require('./services/invoice-engine');
@@ -545,6 +576,7 @@ const server = app.listen(PORT, () => {
       if (importResult.imported > 0 || importResult.matched > 0) {
         console.log(`[invoice-sync] tenant=${tenantId} SevDesk import: imported=${importResult.imported} matched=${importResult.matched} skipped=${importResult.skipped}`);
       }
+      if (!autoInvoiceEnabled()) return;
       const genResult = await bulkGenerateForShippedOrders({ tenantId });
       if (genResult.generated > 0) {
         console.log(`[invoice-sync] tenant=${tenantId} bulk generate: generated=${genResult.generated} skipped=${genResult.skipped} errors=${genResult.errors.length}`);
@@ -554,7 +586,7 @@ const server = app.listen(PORT, () => {
   try {
     setTimeout(() => { runInvoiceSync().catch((err) => console.warn('[invoice-sync] failed:', err?.message)); }, 5 * 60 * 1000); // First run 5 min after startup
     setInterval(() => { runInvoiceSync().catch((err) => console.warn('[invoice-sync] failed:', err?.message)); }, INVOICE_SYNC_INTERVAL_MS);
-    console.log('[invoice-sync] enabled: startup + every 24h');
+    console.log(`[invoice-sync] enabled: startup + every 24h (bulk-generate: ${autoInvoiceEnabled() ? 'an' : 'AUS'})`);
   } catch (err) {
     console.warn('[invoice-sync] failed to schedule:', err?.message);
   }

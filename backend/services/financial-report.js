@@ -279,10 +279,13 @@ async function queryReturnsWindow(fromIso, toIso) {
   const byMarketplace = { ebay: 0, kaufland: 0, other: 0 };
   for (const d of imFenster) {
     const amount = num(d.refundAmount);
+    // Betreiber-Vorgabe 2026-08-17: Der Finanzbericht zeigt die SUMME ALLER
+    // Retouren des Zeitraums — dieselbe Zahl, die auf der Retouren-Seite steht.
+    // Retouren an stornierten Auftraegen werden weiterhin gezaehlt (nur der
+    // Zaehler dafuer bleibt, damit die Herkunft nachvollziehbar ist).
     if (!retoureDarfAbgezogenWerden(d, orders)) {
       uebersprungen += 1;
       uebersprungenWert += amount;
-      continue;
     }
     value += amount;
     count += 1;
