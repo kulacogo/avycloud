@@ -516,7 +516,34 @@ async function getFinancialReport({ preset = null, fromDate = null, toDate = nul
   const realPayoutSource = sevdeskPayout ? 'sevdesk' : null;
 
   const feeRateEbay = num((costConfig && costConfig.feeRateEbay) ?? 0.11) || 0.11;
-  const feeRateKaufland = num((costConfig && costConfig.feeRateKaufland) ?? 0.1666) || 0.1666;
+  let feeRateKaufland = num((costConfig && costConfig.feeRateKaufland) ?? 0.1666) || 0.1666;
+  let feeRateKauflandGemessen = null;
+  // Kaufland liefert die Gebuehren je Position im Buchungsbericht mit
+  // (fee_gross / price_gross). Gemessen August 2026 ueber 48 abgerechnete
+  // Positionen: 15,47 % — der hinterlegte Satz lag bei 13 %.
+  //
+  // Bewusst der SATZ und nicht die Summe: der Bericht enthaelt nur Positionen,
+  // deren Erloes Kaufland schon freigegeben hat (Wochen nach Lieferung). Die
+  // Gebuehrensumme des laufenden Monats steht dort noch gar nicht, der Satz
+  // dagegen ist sofort belastbar.
+  try {
+    const { measureKauflandFeeRate } = require('../lib/kaufland-fee-rate');
+    const { getBookings } = require('../lib/kaufland-api');
+    const bis = new Date().toISOString().slice(0, 10);
+    const von = new Date(Date.now() - 90 * 86400000).toISOString().slice(0, 10);
+    const bericht = await getBookings({ from: von, to: bis, storefront: 'de' });
+    const gemessen = measureKauflandFeeRate(bericht?.bookings || []);
+    if (gemessen) {
+      feeRateKauflandGemessen = gemessen;
+      feeRateKaufland = gemessen.rate;
+      console.log(
+        `[finanzbericht] Kaufland-Gebuehrensatz gemessen: ${(gemessen.rate * 100).toFixed(2)} % `
+        + `(${gemessen.feeSum} € auf ${gemessen.revenueSum} €, ${gemessen.positions} Positionen)`
+      );
+    }
+  } catch (err) {
+    console.warn(`[finanzbericht] Kaufland-Gebuehrensatz nicht messbar: ${err.message}`);
+  }
   const ebayGross = Math.max(0, grossRevenue - kauflandGross);
   const retByMk = returns.byMarketplace || { ebay: 0, kaufland: 0, other: 0 };
 
@@ -552,6 +579,7 @@ async function getFinancialReport({ preset = null, fromDate = null, toDate = nul
     kauflandGross,
     feeRateEbay,
     feeRateKaufland,
+    feeRateKauflandGemessen,
     realPayout,
     realPayoutSource,
     returnsValue: returns.value,
