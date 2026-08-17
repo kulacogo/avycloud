@@ -1856,7 +1856,16 @@ router.post('/orders/bulk-ship', requirePermission('orders', 'write'), async (re
           }).catch((err) => console.error(`[bulk-ship] Marketplace push failed for ${orderId}: ${err.message}`));
         }
 
-        results.push({ orderId, ok: true, trackingNumber: result.trackingNumber, labelUrl: result.labelUrl });
+        // `duplicate` heisst: die Bestellung hatte schon ein lebendiges Label,
+        // es wurde KEINS erstellt. Ohne dieses Feld meldete die Oberflaeche
+        // "12/12 Labels erstellt", obwohl null Labels entstanden.
+        results.push({
+          orderId,
+          ok: true,
+          duplicate: Boolean(result.duplicate),
+          trackingNumber: result.trackingNumber,
+          labelUrl: result.labelUrl,
+        });
       } catch (err) {
         console.error(`[bulk-ship] Order ${orderId} failed: ${err.message}`);
         results.push({ orderId, ok: false, error: err.message });
@@ -1864,7 +1873,17 @@ router.post('/orders/bulk-ship', requirePermission('orders', 'write'), async (re
     }
 
     const successCount = results.filter((r) => r.ok).length;
-    res.json({ ok: true, data: { total: orderIds.length, success: successCount, results } });
+    const duplicateCount = results.filter((r) => r.ok && r.duplicate).length;
+    res.json({
+      ok: true,
+      data: {
+        total: orderIds.length,
+        success: successCount,
+        created: successCount - duplicateCount,
+        duplicates: duplicateCount,
+        results,
+      },
+    });
   } catch (err) {
     console.error(`[POST /api/orders/bulk-ship] ${err.message}`, err);
     res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: err.message } });

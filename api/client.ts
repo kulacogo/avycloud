@@ -4452,7 +4452,18 @@ export async function bulkGenerateInvoices(): Promise<{ generated: number; skipp
 export interface BulkShipResult {
   total: number;
   success: number;
-  results: Array<{ orderId: string; ok: boolean; trackingNumber?: string; labelUrl?: string; error?: string }>;
+  /** Wie viele Labels WIRKLICH neu erstellt wurden. */
+  created?: number;
+  /** Auftraege, die bereits ein lebendiges Label hatten — es wurde keins erstellt. */
+  duplicates?: number;
+  results: Array<{
+    orderId: string;
+    ok: boolean;
+    duplicate?: boolean;
+    trackingNumber?: string;
+    labelUrl?: string;
+    error?: string;
+  }>;
 }
 
 export async function bulkShipOrders(orderIds: string[], opts?: { shippingMethodId?: number; labelFormat?: string }): Promise<BulkShipResult> {

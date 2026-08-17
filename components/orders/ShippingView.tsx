@@ -62,7 +62,10 @@ function statusToTab(raw: string | undefined | null): TabKey {
   // Ausstehend
   if (["ausstehend", "created", "ready_to_send", "announced"].includes(s)) return "ausstehend";
   // In Zustellung
-  if (["in_zustellung", "shipped", "in_transit", "at_sorting_centre", "en_route_to_sorting_center", "out_for_delivery", "driver_en_route"].includes(s)) return "in_zustellung";
+  // "awaiting_customer_pickup" / "at_pickup_point" fehlten: 27 von 562
+  // Sendungen (Messung 2026-08-17) landeten deshalb unter "Sonstige", obwohl
+  // sie in der Filiale zur Abholung liegen — also unterwegs sind.
+  if (["in_zustellung", "shipped", "in_transit", "at_sorting_centre", "en_route_to_sorting_center", "out_for_delivery", "driver_en_route", "awaiting_customer_pickup", "at_pickup_point", "ready_for_pickup"].includes(s)) return "in_zustellung";
   // Zugestellt
   if (["zugestellt", "delivered"].includes(s)) return "zugestellt";
   // Problem
@@ -380,11 +383,22 @@ export const ShippingView: React.FC = () => {
                 try {
                   const result = await bulkShipOrders(orderIds, { labelFormat, ...(bulkMethodId ? { shippingMethodId: bulkMethodId } : {}) });
                   const failedCount = (result.total || 0) - (result.success || 0);
+                  // Ein Auftrag mit lebendigem Label bekommt KEIN zweites — der
+                  // Versandmotor ueberspringt ihn. Frueher zaehlte die Meldung
+                  // diese Uebersprungenen als Erfolg und behauptete
+                  // "12/12 Labels erstellt", obwohl null Labels entstanden.
+                  const duplicates = result.duplicates ?? 0;
+                  const created = result.created ?? (result.success || 0);
+                  const dupHinweis = duplicates > 0
+                    ? ` ${duplicates} ${duplicates === 1 ? "Auftrag hatte" : "Aufträge hatten"} bereits ein Label.`
+                    : "";
                   if (failedCount > 0 && result.results) {
                     const failedDetails = result.results.filter((r: any) => !r.ok).map((r: any) => r.orderId || r.error).join(', ');
-                    toast.warning(`${result.success}/${result.total} Labels erstellt. Fehlgeschlagen: ${failedDetails}`);
+                    toast.warning(`${created} von ${result.total} Labels erstellt.${dupHinweis} Fehlgeschlagen: ${failedDetails}`);
+                  } else if (created === 0) {
+                    toast.warning(`Kein Label erstellt.${dupHinweis || " Nichts zu tun."}`);
                   } else {
-                    toast.success(`${result.success}/${result.total} Labels erstellt`);
+                    toast.success(`${created} von ${result.total} Labels erstellt.${dupHinweis}`);
                   }
                   setSelected(new Set());
                   loadShipments({ silent: true });

@@ -1341,12 +1341,18 @@ async function shipOrder({ orderId, tenantId = 'default', shippingMethodId, ship
   // 'problem' (SendCloud 1002 Announcement failed) and 'cancelled' are dead — the
   // parcel is unusable and the user must be allowed to re-ship. Old 'problem' records
   // stay as historical state; we mark them 'cancelled' so the guard is clean next time.
-  const BLOCKING_STATUSES = new Set(['ausstehend', 'in_zustellung', 'zugestellt']);
+  // Das Status-Set lag frueher hier als drei eigene Werte ('ausstehend',
+  // 'in_zustellung', 'zugestellt'). In der echten Sammlung stehen aber die
+  // SendCloud-Rohtexte: 'Delivered' (334), 'Awaiting customer pickup' (27) —
+  // 'in_zustellung' und 'zugestellt' kamen NULL Mal vor. Fuer 64 % der
+  // Sendungen war der Schutz damit blind. Gemeinsame Regel jetzt in
+  // lib/shipment-status.js, fail-closed bei unbekannten Zustaenden.
+  const { istAktiveSendung } = require('../lib/shipment-status');
   const shipmentSnap = await db.collection(SHIPMENTS_COLLECTION)
     .where('orderId', '==', orderId)
     .limit(10)
     .get();
-  const activeShipment = shipmentSnap.docs.find((doc) => BLOCKING_STATUSES.has(doc.data().status || ''));
+  const activeShipment = shipmentSnap.docs.find((doc) => istAktiveSendung(doc.data().status));
   if (activeShipment) {
     const existing = activeShipment.data();
     console.warn(`[shipOrder] Order ${orderId} already has active shipment ${activeShipment.id} (status=${existing.status}, tracking=${existing.trackingNumber}). Skipping duplicate.`);
