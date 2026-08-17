@@ -1,4 +1,7 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
+
+import { useUnsavedGuard } from "../../hooks/useUnsavedGuard";
+import { isChangedSince } from "../../utils/unsavedGuard";
 import { fetchOrderSettings, saveOrderSettings, runRepricingBatch, fetchPricingRules, syncSendCloudParcels, syncShippingMethods, fetchShippingMethods } from "../../api/client";
 import type { ShippingMethod } from "../../types";
 import { groupShippingMethods, shippingMethodOptionLabel } from "../../utils/shippingMethods";
@@ -118,6 +121,8 @@ export const OrderSettingsView: React.FC = () => {
   const [scSyncResult, setScSyncResult] = useState<any>(null);
   const [pricingRulesCount, setPricingRulesCount] = useState<number | null>(null);
   const toast = useToast();
+  // Stand nach dem Laden — Vergleichsbasis fuer "ungespeichert".
+  const geladenerStand = useRef<unknown>(undefined);
   const [shippingMethods, setShippingMethods] = useState<ShippingMethod[]>([]);
   const [methodsLoading, setMethodsLoading] = useState(false);
 
@@ -147,6 +152,16 @@ export const OrderSettingsView: React.FC = () => {
         setNumberRanges(data.numberRanges);
       }
       if (data.templates) setTemplates(data.templates);
+      geladenerStand.current = {
+        rules: data.rules?.length ? data.rules : DEFAULT_RULES,
+        carrierRules: sorted,
+        statuses: data.statuses?.length ? data.statuses : DEFAULT_STATUSES,
+        numberRanges:
+          data.numberRanges && Object.keys(data.numberRanges).length > 0
+            ? data.numberRanges
+            : DEFAULT_NUMBER_RANGES,
+        templates: data.templates || [],
+      };
     } catch (err: any) {
       setError(err.message || "Fehler beim Laden der Auftragseinstellungen");
     } finally {
@@ -268,6 +283,14 @@ export const OrderSettingsView: React.FC = () => {
     }));
   };
 
+  const istGeaendert = useMemo(
+    () => isChangedSince(geladenerStand.current, { rules, carrierRules, statuses, numberRanges, templates }),
+    [rules, carrierRules, statuses, numberRanges, templates]
+  );
+  // Ohne diese Anmeldung verschwanden geaenderte Regeln beim Klick in der
+  // Seitenleiste spurlos (Fund 2026-08-17).
+  useUnsavedGuard("auftrags-einstellungen", istGeaendert);
+
   const handleSave = async () => {
     setSaving(true);
     setError(null);
@@ -277,6 +300,9 @@ export const OrderSettingsView: React.FC = () => {
       // backend never sees gaps or duplicates from intermediate edits.
       const carrierRulesToSave = carrierRules.map((r, idx) => ({ ...r, order: idx }));
       await saveOrderSettings({ rules, statuses, numberRanges, templates, carrierRules: carrierRulesToSave });
+      // Neue Vergleichsbasis — sonst gilt die Seite nach dem Speichern
+      // weiterhin als geaendert und fragt beim Wechseln unnoetig nach.
+      geladenerStand.current = { rules, carrierRules: carrierRulesToSave, statuses, numberRanges, templates };
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);
     } catch (err: any) {

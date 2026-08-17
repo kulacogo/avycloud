@@ -1,5 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 
+import { shouldOpenCellEditor } from "../../utils/cellKeys";
+
 interface EditableCellProps {
   productId: string;
   field: string;
@@ -26,6 +28,10 @@ const EditableCell: React.FC<EditableCellProps> = ({
   const [editing, setEditing] = useState(false);
   const [localValue, setLocalValue] = useState(String(value ?? ""));
   const inputRef = useRef<HTMLInputElement | HTMLSelectElement>(null);
+  // Nach dem Verlassen des Eingabefelds zurueck auf die Zelle — sonst faellt
+  // der Fokus an den Seitenanfang und die Tab-Reihenfolge ist verloren.
+  const cellRef = useRef<HTMLDivElement>(null);
+  const returnFocus = useRef(false);
 
   useEffect(() => {
     if (editing && inputRef.current) {
@@ -33,6 +39,11 @@ const EditableCell: React.FC<EditableCellProps> = ({
       if (inputRef.current instanceof HTMLInputElement) {
         inputRef.current.select();
       }
+      return;
+    }
+    if (!editing && returnFocus.current) {
+      returnFocus.current = false;
+      cellRef.current?.focus();
     }
   }, [editing]);
 
@@ -56,6 +67,7 @@ const EditableCell: React.FC<EditableCellProps> = ({
 
   const handleConfirm = () => {
     setEditing(false);
+    returnFocus.current = true;
     const parsed = type === "number" ? (localValue === "" ? "" : parseFloat(localValue)) : localValue;
     onCellChange(productId, field, parsed, value);
   };
@@ -67,6 +79,7 @@ const EditableCell: React.FC<EditableCellProps> = ({
     } else if (e.key === "Escape") {
       e.preventDefault();
       setEditing(false);
+      returnFocus.current = true;
       setLocalValue(String(value ?? ""));
     } else if (e.key === "Tab") {
       handleConfirm();
@@ -109,9 +122,21 @@ const EditableCell: React.FC<EditableCellProps> = ({
 
   return (
     <div
+      ref={cellRef}
+      role="button"
+      tabIndex={0}
       onClick={handleClick}
-      className={`cursor-pointer rounded-sm px-1 py-0.5 -mx-1 transition ${isDirty ? "bg-accent-dim border border-accent/30" : "hover:bg-app-elevated/60 border border-transparent"}`}
-      title="Klicken zum Bearbeiten"
+      onKeyDown={(e) => {
+        // Der Ausloeser war ein reines <div onClick> — im Bearbeiten-Modus kam
+        // man nur mit der Maus in eine Zelle. Bei 40 Zeilen Preispflege ist das
+        // der Unterschied zwischen zwei und zehn Minuten.
+        if (!shouldOpenCellEditor(e)) return;
+        e.preventDefault();
+        handleClick();
+      }}
+      className={`cursor-pointer rounded-sm px-1 py-0.5 -mx-1 transition outline-none focus-visible:ring-1 focus-visible:ring-accent focus-visible:border-accent/40 ${isDirty ? "bg-accent-dim border border-accent/30" : "hover:bg-app-elevated/60 border border-transparent"}`}
+      title="Klicken oder Enter zum Bearbeiten"
+      aria-label={`${field} bearbeiten`}
     >
       {children}
     </div>

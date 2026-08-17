@@ -20,6 +20,7 @@ import { startVisiblePolling } from './utils/visiblePolling';
 import { useI18n } from './i18n';
 import { addMediaQueryListener } from './utils/mediaQuery';
 import { shouldCloseOnEscape } from './utils/overlayKeys';
+import { confirmLeaveIfUnsaved } from './utils/unsavedGuard';
 import { isInventoryItem, isProductBacklogItem } from './utils/inventorySplit';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { InventoryProvider } from './context/InventoryContext';
@@ -542,6 +543,28 @@ const AppInner: React.FC = () => {
       document.body.style.overflow = vorher;
     };
   }, [sheetOffen, closeProductSheet]);
+
+  /**
+   * Seitenwechsel mit Rueckfrage bei ungespeicherten Aenderungen.
+   *
+   * Bis 2026-08-17 merkte sich KEINE Seite, ob etwas geaendert wurde, und es
+   * gab kein einziges beforeunload. Wer in den Auftrags- oder Lager-
+   * Einstellungen Regeln umbaute und dann in der Seitenleiste woanders
+   * hinklickte, verlor alles — ohne Nachfrage, ohne Hinweis, ohne Spur.
+   *
+   * Seiten melden ihren Zustand ueber hooks/useUnsavedGuard.ts an. Wer nichts
+   * anmeldet, wechselt wie bisher ohne Rueckfrage.
+   */
+  const wechsleAnsicht = useCallback((next: View) => {
+    // Die Rueckfrage steht bewusst NEBEN setView, nicht darin: React darf
+    // einen State-Updater mehrfach ausfuehren, und dann kaeme der Dialog
+    // doppelt. `view` kommt direkt aus dem Closure — der weiter unten
+    // gepflegte viewRef wird erst NACH dem Rendern gesetzt und waere hier
+    // bei schnellen Klicks veraltet.
+    if (view === next) return;
+    if (!confirmLeaveIfUnsaved()) return;
+    setView(next);
+  }, [view]);
   const [showImportModal, setShowImportModal] = useState(false);
   const {
     enqueueIdentification,
@@ -1346,15 +1369,15 @@ const AppInner: React.FC = () => {
   return (
     <div className="min-h-screen bg-app-bg text-txt-primary font-sans flex">
       {/* Desktop Sidebar */}
-      <Sidebar currentView={view} setView={setView} />
+      <Sidebar currentView={view} setView={wechsleAnsicht} />
 
       {/* Main area (topbar + content) */}
       <div className="flex-1 flex flex-col min-h-screen overflow-hidden">
         {/* Mobile: keep legacy header for nav icons; Desktop: new topbar */}
         {isMobile ? (
-          <Header currentView={view} setView={setView} theme={theme} onToggleTheme={toggleTheme} />
+          <Header currentView={view} setView={wechsleAnsicht} theme={theme} onToggleTheme={toggleTheme} />
         ) : (
-          <Topbar currentView={view} theme={theme} onToggleTheme={toggleTheme} onNavigate={(v) => setView(v as View)} />
+          <Topbar currentView={view} theme={theme} onToggleTheme={toggleTheme} onNavigate={(v) => wechsleAnsicht(v as View)} />
         )}
 
         <main className={`flex-1 overflow-y-auto px-4 sm:px-6 lg:px-8 safe-area-content ${isMobile && view.startsWith('operations') ? 'pt-3' : 'py-6'} ${isMobile && view === 'operations' ? 'flex flex-col' : ''}`}>

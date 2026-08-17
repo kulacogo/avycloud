@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { fetchWarehouseSettings, saveWarehouseSettings } from "../../api/client";
 import { PageTitle } from "../ui/PageTitle";
+import { useUnsavedGuard } from "../../hooks/useUnsavedGuard";
+import { isChangedSince } from "../../utils/unsavedGuard";
 
 /* ─── Types ─── */
 interface ZoneType {
@@ -91,6 +93,8 @@ const HelpText: React.FC<{ children: React.ReactNode }> = ({ children }) => (
 
 /* ─── Main Component ─── */
 export const WarehouseSettingsView: React.FC = () => {
+  // Stand nach dem Laden — Vergleichsbasis fuer "ungespeichert".
+  const geladenerStand = React.useRef<unknown>(undefined);
   const [settings, setSettings] = useState<WarehouseSettings>(DEFAULT_SETTINGS);
   const [zoneTypes, setZoneTypes] = useState<ZoneType[]>([]);
   const [saving, setSaving] = useState(false);
@@ -107,6 +111,10 @@ export const WarehouseSettingsView: React.FC = () => {
         setSettings({ ...DEFAULT_SETTINGS, ...data.settings });
       }
       setZoneTypes(data.zoneTypes?.length ? data.zoneTypes : DEFAULT_ZONE_TYPES);
+      geladenerStand.current = {
+        settings: data.settings ? { ...DEFAULT_SETTINGS, ...data.settings } : DEFAULT_SETTINGS,
+        zoneTypes: data.zoneTypes?.length ? data.zoneTypes : DEFAULT_ZONE_TYPES,
+      };
     } catch (err: any) {
       setError(err.message || "Fehler beim Laden der Lager-Einstellungen");
     } finally {
@@ -135,12 +143,22 @@ export const WarehouseSettingsView: React.FC = () => {
     setZoneTypes((prev) => prev.map((z) => (z.id === id ? { ...z, [field]: value } : z)));
   };
 
+  const istGeaendert = React.useMemo(
+    () => isChangedSince(geladenerStand.current, { settings, zoneTypes }),
+    [settings, zoneTypes]
+  );
+  // Ohne diese Anmeldung verschwanden geaenderte Lager-Einstellungen beim
+  // Klick in der Seitenleiste spurlos (Fund 2026-08-17).
+  useUnsavedGuard("lager-einstellungen", istGeaendert);
+
   const handleSave = async () => {
     setSaving(true);
     setError(null);
     setSaveSuccess(false);
     try {
       await saveWarehouseSettings({ settings, zoneTypes });
+      // Neue Vergleichsbasis, sonst fragt die Seite nach dem Speichern weiter nach.
+      geladenerStand.current = { settings, zoneTypes };
       // Bewusst KEIN blankes "Erfolgreich gespeichert" mehr — der Wert liegt
       // in der Datenbank, wirkt aber (noch) nirgends.
       setSaveSuccess(true);
